@@ -6,6 +6,7 @@ from pathlib import Path
 from threading import Event, Thread
 import traceback
 from .registry import registered_entry
+from .exporter import export_asset
 from .reviews import current_review, record_review
 
 
@@ -17,6 +18,8 @@ def main():
     parser.add_argument('--log', type=Path, default=Path('.local/logs/artifact-review.log'))
     commands = parser.add_subparsers(dest='command', required=True)
     commands.add_parser('show', help='현재 검수와 대상 해시 조회')
+    export = commands.add_parser('export', help='승인·권리 조건을 검사하고 로컬 공개 ZIP 생성')
+    export.add_argument('--release-root', type=Path, required=True)
     record = commands.add_parser('record', help='명시적인 검수 결정 기록')
     for name in ('review-id', 'reviewer', 'evidence-ref', 'content-hash', 'metadata-hash'):
         record.add_argument('--' + name, required=True)
@@ -50,6 +53,8 @@ def main():
             result = dict(artifactId=args.artifact_id, version=args.version,
                           contentHash=entry['content_hash'], metadataHash=entry['metadata_hash'],
                           review=current_review(args.registry, args.artifact_id, args.version))
+        elif args.command == 'export':
+            result = export_asset(args.registry, args.artifact_id, args.version, args.release_root)
         else:
             result = record_review(args.registry, args.artifact_id, args.version,
                 review_id=args.review_id, decision=args.decision, reviewer=args.reviewer,
