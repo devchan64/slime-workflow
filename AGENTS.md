@@ -43,6 +43,13 @@
 - Keep identifiers (variables/functions/files), standard keywords, and AWS resource names in English.
 - User/operation guidance should be Korean-first.
 
+## Source Code Naming and Declaration Rules
+- 프로젝트에서 정의하는 함수명·변수명은 의미 있는 영어 단어 **3개 이상**으로 구성한다. 파라미터와 주요 상수의 이름에도 같은 원칙을 적용한다.
+- 언어 관례에 따라 `snake_case`, `camelCase`, `UPPER_SNAKE_CASE`를 사용한다. 예: `calculate_party_reward`, `currentPlayerHealth`, `FIELD_RECOVERY_PER_MINUTE`.
+- 단어 수를 맞추기 위한 무의미한 접두사·접미사를 붙이지 않고 역할·대상·의미가 드러나도록 이름을 정한다.
+- 주요 상수·설정값·파라미터 기본값은 사용하는 처리 로직보다 앞에 선언한다. 공통 상수는 모듈 상단 또는 전용 constants/config 모듈에 모으고 함수 안의 주요 파라미터 준비도 사용 전에 배치한다.
+- 새로 작성하거나 수정하는 코드에 적용하며, 기존 전체 코드의 일괄 이름 변경은 별도 리팩터링으로 진행한다. 외부 API·DB 필드·프레임워크가 요구하는 식별자는 계약 변경 없이 임의로 바꾸지 않는다.
+
 ## Frontend Layout Rules
 - Do not hard-code layout constants inside frequently called functions.
 - Manage layout values as top-level constants or in a dedicated `constants` module.
@@ -51,7 +58,8 @@
 ## Commit Message Rules
 - All commit messages must follow **Conventional Commits**.
 - Default format: `type(scope): description` or `type: description`.
-- `type/scope` must be English; description/body should be Korean-first.
+- `type`과 선택적 `scope`는 영어로 작성하고, 설명(description)과 본문(body)은 한국어로 작성한다. 코드 식별자·표준 용어·고유명은 원문 표기를 유지한다.
+- 예: `feat(party): 파티원 보상 분배 규칙 추가`.
 - AGENTS.md-related commits follow the same rule.
 
 ## Image Commit Rules
