@@ -20,6 +20,7 @@ def database(path, root):
     path.parent.mkdir(parents=True, exist_ok=True)
     connection = sqlite3.connect(path, timeout=10)
     connection.row_factory = sqlite3.Row
+    connection.execute('PRAGMA foreign_keys=ON')
     try:
         connection.execute('BEGIN IMMEDIATE')
         version = connection.execute('PRAGMA user_version').fetchone()[0]
@@ -30,9 +31,26 @@ def database(path, root):
                 root TEXT NOT NULL, sidecar_path TEXT NOT NULL,
                 content_hash TEXT NOT NULL, metadata_hash TEXT NOT NULL,
                 PRIMARY KEY(artifact_id, version))''')
-            connection.execute('PRAGMA user_version=1')
-        elif version != 1 or [row['name'] for row in tables] != ['artifacts']:
+            version = 1
+            tables = [{'name': 'artifacts'}]
+        expected = {'artifacts'} if version == 1 else {'artifacts', 'reviews', 'review_heads'}
+        if version not in (1, 2) or {row['name'] for row in tables} != expected:
             raise ValueError('지원하지 않는 산출물 registry DB입니다.')
+        if version == 1:
+            connection.execute('''CREATE TABLE reviews (
+                review_id TEXT PRIMARY KEY, artifact_id TEXT NOT NULL, version TEXT NOT NULL,
+                decision TEXT NOT NULL CHECK(decision IN ('APPROVED','REJECTED')),
+                reviewer TEXT NOT NULL, evidence_ref TEXT NOT NULL,
+                content_hash TEXT NOT NULL, metadata_hash TEXT NOT NULL, previous_review_id TEXT,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY(artifact_id,version) REFERENCES artifacts(artifact_id,version))''')
+            connection.execute('''CREATE TABLE review_heads (
+                artifact_id TEXT NOT NULL, version TEXT NOT NULL, review_id TEXT NOT NULL REFERENCES reviews(review_id),
+                PRIMARY KEY(artifact_id,version),
+                FOREIGN KEY(artifact_id,version) REFERENCES artifacts(artifact_id,version))''')
+            for action in ('UPDATE', 'DELETE'):
+                connection.execute(f"CREATE TRIGGER reviews_no_{action.lower()} BEFORE {action} ON reviews BEGIN SELECT RAISE(ABORT, '검수 이력 변경 금지'); END")
+            connection.execute('PRAGMA user_version=2')
         yield connection
         connection.commit()
     except BaseException:
@@ -59,19 +77,24 @@ def register(path, root, sidecar):
     return entry
 
 
-def resolve(path, artifact_id, version):
+def registered_entry(path, artifact_id, version):
     identifier(artifact_id, 'artifactId')
     identifier(version, 'version')
     path = Path(path).resolve(strict=True)
     # 조회는 DB나 스키마를 생성·갱신하지 않는다.
     with closing(sqlite3.connect(path.as_uri() + '?mode=ro', uri=True)) as connection:
         connection.row_factory = sqlite3.Row
-        if connection.execute('PRAGMA user_version').fetchone()[0] != 1:
+        if connection.execute('PRAGMA user_version').fetchone()[0] not in (1, 2):
             raise ValueError('지원하지 않는 산출물 registry DB입니다.')
         row = connection.execute('SELECT * FROM artifacts WHERE artifact_id=? AND version=?',
                                  (artifact_id, version)).fetchone()
     if row is None:
         raise ValueError('등록되지 않은 산출물 ID/버전입니다.')
+    return dict(row)
+
+
+def resolve(path, artifact_id, version):
+    row = registered_entry(path, artifact_id, version)
     data = validate_pair(row['root'], Path(row['root']) / row['sidecar_path'])
     if (data['artifactId'] != artifact_id or data['version'] != version
             or data['sha256'] != row['content_hash'] or metadata_hash(data) != row['metadata_hash']):
