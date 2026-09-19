@@ -77,3 +77,54 @@ def resolve(path, artifact_id, version):
             or data['sha256'] != row['content_hash'] or metadata_hash(data) != row['metadata_hash']):
         raise ValueError('등록 이후 산출물 또는 sidecar가 변경되었습니다. 새 버전으로 등록해야 합니다.')
     return data
+
+
+def archive_register(path, root, sidecar):
+    """검증된 원본 쌍을 버전별 보관소에 복사한 뒤 같은 트랜잭션에서 색인한다."""
+    import os
+    import shutil
+    import tempfile
+
+    data = validate_pair(root, sidecar)
+    root, sidecar = Path(root).resolve(strict=True), Path(sidecar).resolve(strict=True)
+    relative = sidecar.relative_to(root)
+    store = Path(path).resolve().with_suffix('.artifacts')
+    destination = store / data['artifactId'] / data['version']
+    if destination.is_relative_to(root):
+        raise ValueError('보관소는 원본 루트 밖에 있어야 합니다.')
+    if any(p.is_symlink() for p in (destination, *destination.parents)):
+        raise ValueError('보관소 경로의 심볼릭 링크는 허용하지 않습니다.')
+    entry = dict(artifact_id=data['artifactId'], version=data['version'], root=str(destination),
+                 sidecar_path=str(relative), content_hash=data['sha256'], metadata_hash=metadata_hash(data))
+    def check(directory):
+        copied = validate_pair(directory, directory / relative)
+        if copied != data:
+            raise ValueError('보관본이 등록하려는 원본과 다릅니다. 덮어쓰지 않습니다.')
+    with database(path, root) as connection:
+        old = connection.execute('SELECT * FROM artifacts WHERE artifact_id=? AND version=?',
+                                 (entry['artifact_id'], entry['version'])).fetchone()
+        if old is not None and dict(old) != entry:
+            raise ValueError('기존 ID/버전의 등록 내용이나 보관 경로를 변경할 수 없습니다.')
+        if destination.exists():
+            check(destination)
+        elif old is not None:
+            raise ValueError('등록된 보관본이 없습니다. 자동 재생성하지 않습니다.')
+        else:
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            with tempfile.TemporaryDirectory(prefix='.pending-', dir=destination.parent) as temporary:
+                staging = Path(temporary) / 'pair'
+                staged_sidecar = staging / relative
+                staged_source = staging / data['sourcePath']
+                staged_sidecar.parent.mkdir(parents=True)
+                shutil.copyfile(root / data['sourcePath'], staged_source)
+                shutil.copyfile(sidecar, staged_sidecar)
+                check(staging)
+                # 완성된 쌍만 노출하고 보관 파일에는 쓰기 비트를 부여하지 않는다.
+                for file in (staged_source, staged_sidecar):
+                    with file.open('rb') as stream:
+                        os.fsync(stream.fileno())
+                    file.chmod(0o444)
+                os.rename(staging, destination)
+        if old is None:
+            connection.execute('INSERT INTO artifacts VALUES (:artifact_id,:version,:root,:sidecar_path,:content_hash,:metadata_hash)', entry)
+    return entry
