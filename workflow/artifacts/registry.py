@@ -62,6 +62,7 @@ def database(path, root):
 
 def register(path, root, sidecar):
     data = validate_pair(root, sidecar)
+    validate_references(path, data)
     root = Path(root).resolve(strict=True)
     entry = dict(artifact_id=data['artifactId'], version=data['version'], root=str(root),
                  sidecar_path=str(Path(sidecar).resolve(strict=True).relative_to(root)),
@@ -93,12 +94,42 @@ def registered_entry(path, artifact_id, version):
     return dict(row)
 
 
-def resolve(path, artifact_id, version):
+def _resolve_pair(path, artifact_id, version):
     row = registered_entry(path, artifact_id, version)
     data = validate_pair(row['root'], Path(row['root']) / row['sidecar_path'])
     if (data['artifactId'] != artifact_id or data['version'] != version
             or data['sha256'] != row['content_hash'] or metadata_hash(data) != row['metadata_hash']):
         raise ValueError('등록 이후 산출물 또는 sidecar가 변경되었습니다. 새 버전으로 등록해야 합니다.')
+    return data
+
+
+def validate_references(path, data):
+    """출처 그래프를 반복 탐색하고 공유 입력은 호출당 한 번 검증한다."""
+    key = (data['artifactId'], data['version'])
+    cache, active, finished = {key: data}, {key}, set()
+    stack = [(key, iter(data['sourceArtifacts']))]
+    while stack:
+        parent, references = stack[-1]
+        reference = next(references, None)
+        if reference is None:
+            stack.pop(); active.remove(parent); finished.add(parent)
+            continue
+        child = (reference['artifactId'], reference['version'])
+        if child in active:
+            raise ValueError('sourceArtifacts에 순환 참조가 있습니다.')
+        if child not in cache:
+            cache[child] = _resolve_pair(path, *child)
+        source = cache[child]
+        if source['sha256'] != reference['sha256']:
+            raise ValueError('sourceArtifacts의 해시가 등록된 입력 산출물과 다릅니다.')
+        if child not in finished:
+            active.add(child)
+            stack.append((child, iter(source['sourceArtifacts'])))
+
+
+def resolve(path, artifact_id, version):
+    data = _resolve_pair(path, artifact_id, version)
+    validate_references(path, data)
     return data
 
 
@@ -109,6 +140,7 @@ def archive_register(path, root, sidecar):
     import tempfile
 
     data = validate_pair(root, sidecar)
+    validate_references(path, data)
     root, sidecar = Path(root).resolve(strict=True), Path(sidecar).resolve(strict=True)
     relative = sidecar.relative_to(root)
     store = Path(path).resolve().with_suffix('.artifacts')
