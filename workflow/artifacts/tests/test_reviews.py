@@ -68,9 +68,14 @@ class ReviewTests(unittest.TestCase):
     def test_existing_v1_registry_expands_without_changing_artifact(self):
         record = self.prepare()
         with sqlite3.connect(self.db) as connection:
+            connection.execute('DROP TABLE contracts')
             connection.execute('DROP TABLE review_heads')
             connection.execute('DROP TABLE reviews')
             connection.execute('PRAGMA user_version=1')
+        with self.assertRaisesRegex(ValueError, '등록 계약'):
+            current_review(self.db, 'terrain.test', '1.0.0')
+        from workflow.artifacts.contracts import register_contract
+        register_contract(self.db, self.contract_source)
         self.assertIsNone(current_review(self.db, 'terrain.test', '1.0.0'))
         self.record(**record)
         self.assertEqual(resolve(self.db, 'terrain.test', '1.0.0'), self.data)

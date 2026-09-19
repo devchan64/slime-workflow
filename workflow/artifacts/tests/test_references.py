@@ -44,6 +44,7 @@ class ReferenceTests(unittest.TestCase):
         with self.assertRaises(ValueError): registry.resolve(self.db(), 'terrain.derived', '1.0.0')
 
     def test_self_reference_fails_before_creating_database(self):
+        self.db().unlink()
         self.data['sourceArtifacts'] = [self.reference('terrain.test')]; self.write()
         with self.assertRaisesRegex(ValueError, '순환'): registry.archive_register(self.db(), self.root, self.sidecar)
         self.assertFalse(self.db().exists())

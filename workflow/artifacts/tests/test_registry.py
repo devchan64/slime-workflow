@@ -40,15 +40,18 @@ class RegistryTests(unittest.TestCase):
         self.assertEqual(resolve(self.db(), 'terrain.test', '2.0.0'), self.data)
 
     def test_invalid_pair_does_not_create_registry(self):
+        self.db().unlink()
         self.image.unlink()
         with self.assertRaises(FileNotFoundError): register(self.db(), self.root, self.sidecar)
         self.assertFalse(self.db().exists())
 
     def test_unknown_lookup_does_not_create_database(self):
+        self.db().unlink()
         with self.assertRaises(FileNotFoundError): resolve(self.db(), 'terrain.test', '1')
         self.assertFalse(self.db().exists())
 
     def test_unrelated_database_is_preserved(self):
+        self.db().unlink()
         with sqlite3.connect(self.db()) as connection:
             connection.execute('CREATE TABLE unrelated(id INTEGER)')
         with self.assertRaises(ValueError): register(self.db(), self.root, self.sidecar)

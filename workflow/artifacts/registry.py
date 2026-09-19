@@ -33,8 +33,10 @@ def database(path, root):
                 PRIMARY KEY(artifact_id, version))''')
             version = 1
             tables = [{'name': 'artifacts'}]
-        expected = {'artifacts'} if version == 1 else {'artifacts', 'reviews', 'review_heads'}
-        if version not in (1, 2) or {row['name'] for row in tables} != expected:
+        expected = ({'artifacts'} if version == 1 else {'artifacts', 'reviews', 'review_heads'})
+        if version == 3:
+            expected.add('contracts')
+        if version not in (1, 2, 3) or {row['name'] for row in tables} != expected:
             raise ValueError('지원하지 않는 산출물 registry DB입니다.')
         if version == 1:
             connection.execute('''CREATE TABLE reviews (
@@ -50,7 +52,15 @@ def database(path, root):
                 FOREIGN KEY(artifact_id,version) REFERENCES artifacts(artifact_id,version))''')
             for action in ('UPDATE', 'DELETE'):
                 connection.execute(f"CREATE TRIGGER reviews_no_{action.lower()} BEFORE {action} ON reviews BEGIN SELECT RAISE(ABORT, '검수 이력 변경 금지'); END")
-            connection.execute('PRAGMA user_version=2')
+            version = 2
+        if version == 2:
+            connection.execute('''CREATE TABLE contracts (
+                contract_id TEXT NOT NULL, version TEXT NOT NULL, management_id TEXT NOT NULL UNIQUE,
+                definition TEXT NOT NULL, definition_hash TEXT NOT NULL,
+                PRIMARY KEY(contract_id, version))''')
+            for action in ('UPDATE', 'DELETE'):
+                connection.execute(f"CREATE TRIGGER contracts_no_{action.lower()} BEFORE {action} ON contracts BEGIN SELECT RAISE(ABORT, '계약 버전 변경 금지'); END")
+            connection.execute('PRAGMA user_version=3')
         yield connection
         connection.commit()
     except BaseException:
@@ -85,7 +95,7 @@ def registered_entry(path, artifact_id, version):
     # 조회는 DB나 스키마를 생성·갱신하지 않는다.
     with closing(sqlite3.connect(path.as_uri() + '?mode=ro', uri=True)) as connection:
         connection.row_factory = sqlite3.Row
-        if connection.execute('PRAGMA user_version').fetchone()[0] not in (1, 2):
+        if connection.execute('PRAGMA user_version').fetchone()[0] not in (1, 2, 3):
             raise ValueError('지원하지 않는 산출물 registry DB입니다.')
         row = connection.execute('SELECT * FROM artifacts WHERE artifact_id=? AND version=?',
                                  (artifact_id, version)).fetchone()
@@ -100,6 +110,8 @@ def _resolve_pair(path, artifact_id, version):
     if (data['artifactId'] != artifact_id or data['version'] != version
             or data['sha256'] != row['content_hash'] or metadata_hash(data) != row['metadata_hash']):
         raise ValueError('등록 이후 산출물 또는 sidecar가 변경되었습니다. 새 버전으로 등록해야 합니다.')
+    from .contracts import validate_contract_references
+    validate_contract_references(path, data)
     return data
 
 
@@ -125,6 +137,8 @@ def validate_references(path, data):
         if child not in finished:
             active.add(child)
             stack.append((child, iter(source['sourceArtifacts'])))
+    from .contracts import validate_contract_references
+    validate_contract_references(path, data)
 
 
 def resolve(path, artifact_id, version):

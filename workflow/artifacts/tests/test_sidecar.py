@@ -28,6 +28,12 @@ class PairTests(unittest.TestCase):
                          modificationAllowed=False, redistributionAllowed=False, attribution='test'),
             quality=dict(quality_warnings=['검수 필요'], reviewRequired=True, reviewRecordRef=None))
         self.write()
+        self.contract_dir = self.root.parent / 'contracts'
+        self.contract_dir.mkdir()
+        self.contract_source = self.contract_dir / 'terrain.yaml'
+        self.contract_source.write_text("managementId: contract.terrain.v1\nschemaVersion: 1\ncontractId: terrain\nversion: '1'\nartifactTypes: [TERRAIN_TILE]\ndescription: 합성 테스트 계약\n")
+        from workflow.artifacts.contracts import register_contract
+        register_contract(self.root.parent / 'registry.sqlite', self.contract_source)
 
     def write(self):
         self.sidecar.write_text(json.dumps(self.data), encoding='utf-8')
