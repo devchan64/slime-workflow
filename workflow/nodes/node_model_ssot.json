@@ -1,0 +1,17 @@
+{
+  "music.audio.render.wav": {
+    "provider": "audio-engine",
+    "model_id": "fluidsynth-sf2",
+    "purpose": "midi-rendering"
+  },
+  "music.audio.encode.mp3": {
+    "provider": "audio-engine",
+    "model_id": "ffmpeg-libmp3lame",
+    "purpose": "audio-encoding"
+  },
+  "musicgen.small.generate": {
+    "provider": "huggingface",
+    "model_id": "facebook/musicgen-small",
+    "purpose": "text-to-music-generation"
+  }
+}

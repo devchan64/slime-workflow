@@ -1,0 +1,31 @@
+{
+  "node_id": "music.midi.plan.midillm",
+  "model": {
+    "provider": "huggingface",
+    "id": "Qwen/Qwen2.5-1.5B-Instruct"
+  },
+  "prepare": {
+    "required_model_ids": [
+      "Qwen/Qwen2.5-1.5B-Instruct"
+    ],
+    "model_root": ".model/midi-llm-planner"
+  },
+  "inputs": {
+    "required": [
+      "prompt"
+    ],
+    "optional": [
+      "run_root",
+      "planner_model_root",
+      "composer_model_root"
+    ]
+  },
+  "outputs": {
+    "required": [
+      "composer_input",
+      "composer_input_path",
+      "report_path",
+      "metadata"
+    ]
+  }
+}

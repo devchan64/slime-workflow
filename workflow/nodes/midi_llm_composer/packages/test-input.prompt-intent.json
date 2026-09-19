@@ -1,0 +1,9 @@
+{
+  "prompt": "Compose a bright, uplifting Slow EDM exploration track for a sunlit forest trail in a Roguelike game. Keep the mood serene and optimistic, and keep the beat clearly slow and gentle.",
+  "max_new_tokens": 3072,
+  "temperature": 0.72,
+  "top_p": 0.86,
+  "top_k": 40,
+  "repetition_penalty": 1.14,
+  "no_repeat_ngram_size": 0
+}

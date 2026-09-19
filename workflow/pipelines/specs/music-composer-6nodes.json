@@ -1,0 +1,21 @@
+{
+  "pipeline_id": "music-composer-6nodes",
+  "description": "MIDI-LLM 기반 작곡 후 MIDI 리포트/WAV/MP3까지 출력하는 파이프라인",
+  "nodes": [
+    {"id": "music.midi.plan.midillm"},
+    {"id": "music.midi.generate.midillm"},
+    {"id": "music.midi.trim.bars"},
+    {"id": "music.midi.report"},
+    {"id": "music.audio.plan.render"},
+    {"id": "music.audio.render.wav"},
+    {"id": "music.audio.encode.mp3"}
+  ],
+  "edges": [
+    ["music.midi.plan.midillm", "music.midi.generate.midillm"],
+    ["music.midi.generate.midillm", "music.midi.trim.bars"],
+    ["music.midi.trim.bars", "music.midi.report"],
+    ["music.midi.report", "music.audio.plan.render"],
+    ["music.audio.plan.render", "music.audio.render.wav"],
+    ["music.audio.render.wav", "music.audio.encode.mp3"]
+  ]
+}

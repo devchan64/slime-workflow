@@ -1,0 +1,36 @@
+{
+  "node_id": "music.midi.generate.midillm",
+  "model": {
+    "provider": "huggingface",
+    "id": "slseanwu/MIDI-LLM_Llama-3.2-1B"
+  },
+  "prepare": {
+    "required_model_ids": [
+      "slseanwu/MIDI-LLM_Llama-3.2-1B"
+    ],
+    "model_root": ".model/midi-llm"
+  },
+  "inputs": {
+    "required": [
+      "prompt"
+    ],
+    "optional": [
+      "max_new_tokens",
+      "temperature",
+      "top_p",
+      "top_k",
+      "repetition_penalty",
+      "run_root",
+      "model_root"
+    ]
+  },
+  "outputs": {
+    "required": [
+      "mid_path",
+      "raw_output_path",
+      "token_output_path",
+      "report_path",
+      "metadata"
+    ]
+  }
+}

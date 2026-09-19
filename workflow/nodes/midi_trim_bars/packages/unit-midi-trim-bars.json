@@ -1,0 +1,23 @@
+{
+  "node_id": "music.midi.trim.bars",
+  "io": {
+    "required_inputs": [
+      "midi_path",
+      "bars"
+    ],
+    "optional_inputs": [
+      "output_path",
+      "run_root"
+    ],
+    "outputs": [
+      "midi_path",
+      "report_path",
+      "metadata"
+    ],
+    "allowed_types": [
+      "mid",
+      "midi",
+      "json"
+    ]
+  }
+}

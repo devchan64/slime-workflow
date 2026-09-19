@@ -1,0 +1,53 @@
+{
+  "package_id": "concept-image.unit-1.design-generate",
+  "version": "0.1.0",
+  "unit": 1,
+  "node_id": "concept.design.generate",
+  "command": "scripts/workflow/run_concept_image_pipeline.sh",
+  "io": {
+    "required_inputs": ["prompt:txt"],
+    "optional_inputs": [
+      "negative_prompt:txt",
+      "generation_prompt:txt",
+      "generation_negative_prompt:txt",
+      "reference_image:png",
+      "reference_manifest:json",
+      "control_image:png",
+      "ip_adapter_image:png"
+    ],
+    "outputs": [
+      "result:json",
+      "state:json",
+      "design_concept_image:png"
+    ],
+    "allowed_types": ["txt", "json", "png"]
+  },
+  "bootstrap": {
+    "dependency_files": [
+      "workflow/nodes/concept_image/packages/requirements.txt"
+    ],
+    "dependency_fetch_commands": [
+      ["python3", "-m", "pip", "download", "-r", "workflow/nodes/concept_image/packages/requirements.txt", "-d", ".result/workflow/dependencies/concept-image/unit-1"]
+    ],
+    "install_commands": [
+      ["python3", "-m", "pip", "install", "-r", "workflow/nodes/concept_image/packages/requirements.txt"]
+    ],
+    "model_commands": [
+      ["scripts/workflow/model_registry_sync.sh", "--only-id", "{model_id}"]
+    ],
+    "required_model_ids": ["{model_id}"]
+  },
+  "tests": [
+    {
+      "id": "unit-1-contract-basic",
+      "type": "contract",
+      "description": "필수 prompt 입력과 result/state JSON 산출 계약을 검증한다.",
+      "input_fixture": {
+        "prompt": "테스트 콘셉트 이미지",
+        "model_id": "sd15-base",
+        "style": "cartoon"
+      },
+      "expected_outputs": ["result:json", "state:json"]
+    }
+  ]
+}

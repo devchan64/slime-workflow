@@ -1,0 +1,63 @@
+version: 0.2.0
+ssot: workflow/SSOT.md
+default_temp_dirs:
+  - .model
+  - .result
+  - .soundfonts
+allowed_io_types:
+  - png
+  - wav
+  - mp3
+  - mid
+  - midi
+  - sf2
+  - txt
+  - md
+  - json
+  - yaml
+pipelines:
+  - id: concept-image-reference-generator
+    version: 0.1.0
+    status: draft
+    domain: concept-art
+    spec: concept-image-reference-generator.md
+  - id: sprite-8dir-from-concept
+    version: 0.1.0
+    status: active
+    domain: character-sprite
+    spec: sprite-8dir-from-concept.md
+  - id: animation-sprite-generator
+    version: 0.1.0
+    status: draft
+    domain: animation
+    spec: animation-sprite-generator.md
+  - id: character-concept-art-generator
+    version: 0.1.0
+    status: draft
+    domain: character-concept
+    spec: character-concept-art-generator.md
+  - id: map-tile-generator
+    version: 0.1.0
+    status: draft
+    domain: environment
+    spec: map-tile-generator.md
+  - id: character-concept-sheet-generator
+    version: 0.1.0
+    status: draft
+    domain: character-concept
+    spec: character-concept-sheet-generator.md
+  - id: background-concept-sheet-generator
+    version: 0.1.0
+    status: draft
+    domain: background-concept
+    spec: background-concept-sheet-generator.md
+  - id: map-file-generator
+    version: 0.1.0
+    status: draft
+    domain: map-data
+    spec: map-file-generator.md
+  - id: sprite-file-generator
+    version: 0.1.0
+    status: draft
+    domain: sprite-data
+    spec: sprite-file-generator.md

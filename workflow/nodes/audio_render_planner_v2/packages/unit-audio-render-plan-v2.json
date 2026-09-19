@@ -1,0 +1,5 @@
+{
+  "node_id": "music.audio.plan.render",
+  "model": {"provider": "huggingface", "id": "Qwen/Qwen2.5-1.5B-Instruct"},
+  "outputs": {"required": ["render_plan", "render_plan_path", "report_path", "metadata"]}
+}

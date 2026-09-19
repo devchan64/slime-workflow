@@ -1,0 +1,38 @@
+{
+  "package_id": "concept-image.unit-3.keyframe-compose",
+  "version": "0.1.0",
+  "unit": 3,
+  "node_id": "concept.keyframe.compose",
+  "command": "scripts/workflow/run_concept_image_pipeline.sh",
+  "io": {
+    "required_inputs": ["state:json", "pixel_art:json"],
+    "optional_inputs": ["design_concept_image:png"],
+    "outputs": ["result:json", "state:json", "keyframe_scenes:json", "keyframe_sheet:png"],
+    "allowed_types": ["json", "png"]
+  },
+  "bootstrap": {
+    "dependency_files": [],
+    "dependency_fetch_commands": [],
+    "install_commands": [],
+    "model_commands": [],
+    "required_model_ids": []
+  },
+  "tests": [
+    {
+      "id": "unit-3-contract-basic",
+      "type": "contract",
+      "description": "pixel_art JSON 입력을 받아 keyframe_scenes JSON 산출 계약을 검증한다.",
+      "input_fixture": {
+        "state": {
+          "result": {
+            "pixel_art": {
+              "path": ".result/workflow/generated/pixel/test.png",
+              "resolution": "64x64"
+            }
+          }
+        }
+      },
+      "expected_outputs": ["result:json", "state:json", "keyframe_scenes:json"]
+    }
+  ]
+}

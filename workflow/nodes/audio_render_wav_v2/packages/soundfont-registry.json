@@ -1,0 +1,6 @@
+{
+  "profiles": {
+    "fluidr3-gm": ".soundfonts/fluidr3-gm/FluidR3_GM.sf2",
+    "generaluser-gs": ".soundfonts/GeneralUserGS/GeneralUserGS.sf2"
+  }
+}

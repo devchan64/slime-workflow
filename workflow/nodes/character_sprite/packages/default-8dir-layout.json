@@ -1,0 +1,17 @@
+{
+  "version": "0.1.0",
+  "source_grid": {
+    "columns": 8,
+    "rows": 1
+  },
+  "direction_order": [
+    "south",
+    "south_west",
+    "west",
+    "north_west",
+    "north",
+    "north_east",
+    "east",
+    "south_east"
+  ]
+}

@@ -1,0 +1,45 @@
+{
+  "package_id": "character-sprite.design-sheet-8dir",
+  "version": "0.1.0",
+  "unit": 1,
+  "node_id": "sprite.generate",
+  "command": "scripts/workflow/run_character_sprite_pipeline.sh",
+  "io": {
+    "required_inputs": ["design_sheet:png", "frame_width:json", "frame_height:json"],
+    "optional_inputs": ["layout:json", "character_id:json", "animation_id:json"],
+    "outputs": ["sprite_sheet:png", "sprite_meta:json"],
+    "allowed_types": ["png", "json"]
+  },
+  "bootstrap": {
+    "dependency_files": ["workflow/nodes/character_sprite/packages/requirements.txt"],
+    "dependency_fetch_commands": [
+      ["python3", "-m", "pip", "download", "-r", "workflow/nodes/character_sprite/packages/requirements.txt", "-d", ".result/workflow/dependencies/character-sprite/design-sheet-8dir"]
+    ],
+    "install_commands": [
+      ["python3", "-m", "pip", "install", "-r", "workflow/nodes/character_sprite/packages/requirements.txt"]
+    ],
+    "model_commands": [],
+    "required_model_ids": []
+  },
+  "tests": [
+    {
+      "id": "character-sprite-design-sheet-8dir-basic",
+      "type": "smoke",
+      "description": "테스트 디자인시트를 생성한 뒤 64x96 프레임의 8방향 스프라이트 시트와 메타데이터를 만든다.",
+      "command": [
+        "scripts/workflow/run_character_sprite_pipeline.sh",
+        "--generate-test-resource",
+        ".result/workflow/nodes/character-sprite/tests/design-sheet.png",
+        "--design-sheet",
+        ".result/workflow/nodes/character-sprite/tests/design-sheet.png",
+        "--frame-width",
+        "64",
+        "--frame-height",
+        "96",
+        "--run-root",
+        ".result/workflow/nodes/character-sprite/tests/run"
+      ],
+      "expected_outputs": ["sprite_sheet:png", "sprite_meta:json"]
+    }
+  ]
+}

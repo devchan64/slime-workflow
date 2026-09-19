@@ -1,0 +1,173 @@
+{
+  "schema_version": "1.0",
+  "models": [
+    {
+      "id": "sd15-base",
+      "name": "Stable Diffusion v1.5",
+      "version": "main",
+      "lifecycle": {
+        "progress_level": "prod"
+      },
+      "distribution": {
+        "kind": "huggingface_snapshot",
+        "repo_id": "stable-diffusion-v1-5/stable-diffusion-v1-5",
+        "revision": "main"
+      },
+      "artifact": {
+        "file_name": "stable-diffusion-v1-5",
+        "size_bytes": 0,
+        "sha256": "-"
+      },
+      "storage": {
+        "path_key": "base_models"
+      }
+    },
+    {
+      "id": "counterfeit-v30",
+      "name": "Counterfeit V3.0",
+      "version": "d8602c5",
+      "lifecycle": {
+        "progress_level": "candidate"
+      },
+      "distribution": {
+        "kind": "huggingface_snapshot",
+        "repo_id": "gsdf/Counterfeit-V3.0",
+        "revision": "d8602c5462964b5013d732041b28dce741495834"
+      },
+      "artifact": {
+        "file_name": "Counterfeit-V3.0",
+        "size_bytes": 0,
+        "sha256": "-"
+      },
+      "loader": {
+        "kind": "single_file",
+        "entry_file": "Counterfeit-V3.0_fp16.safetensors",
+        "config_model_id": "sd15-base"
+      },
+      "storage": {
+        "path_key": "base_models"
+      }
+    },
+    {
+      "id": "dreamshaper-8",
+      "name": "DreamShaper 8",
+      "version": "main",
+      "lifecycle": {
+        "progress_level": "candidate"
+      },
+      "distribution": {
+        "kind": "huggingface_snapshot",
+        "repo_id": "Lykon/dreamshaper-8",
+        "revision": "main"
+      },
+      "artifact": {
+        "file_name": "dreamshaper-8",
+        "size_bytes": 0,
+        "sha256": "-"
+      },
+      "storage": {
+        "path_key": "base_models"
+      }
+    },
+    {
+      "id": "controlnet-openpose-sd15",
+      "name": "ControlNet OpenPose SD1.5",
+      "version": "main",
+      "lifecycle": {
+        "progress_level": "candidate"
+      },
+      "distribution": {
+        "kind": "huggingface_snapshot",
+        "repo_id": "lllyasviel/control_v11p_sd15_openpose",
+        "revision": "main"
+      },
+      "artifact": {
+        "file_name": "control_v11p_sd15_openpose",
+        "size_bytes": 0,
+        "sha256": "-"
+      },
+      "storage": {
+        "path_key": "control_models"
+      }
+    },
+    {
+      "id": "controlnet-lineart-anime-sd15",
+      "name": "ControlNet Lineart Anime SD1.5",
+      "version": "main",
+      "lifecycle": {
+        "progress_level": "candidate"
+      },
+      "distribution": {
+        "kind": "huggingface_snapshot",
+        "repo_id": "lllyasviel/control_v11p_sd15s2_lineart_anime",
+        "revision": "main"
+      },
+      "artifact": {
+        "file_name": "control_v11p_sd15s2_lineart_anime",
+        "size_bytes": 0,
+        "sha256": "-"
+      },
+      "storage": {
+        "path_key": "control_models"
+      }
+    },
+    {
+      "id": "ip-adapter-sd15",
+      "name": "IP-Adapter SD1.5",
+      "version": "main",
+      "lifecycle": {
+        "progress_level": "candidate"
+      },
+      "distribution": {
+        "kind": "huggingface_snapshot",
+        "repo_id": "h94/IP-Adapter",
+        "revision": "main",
+        "allow_patterns": [
+          "models/ip-adapter_sd15.safetensors",
+          "models/image_encoder/*"
+        ]
+      },
+      "artifact": {
+        "file_name": "IP-Adapter",
+        "size_bytes": 0,
+        "sha256": "-"
+      },
+      "adapter": {
+        "weight_name": "ip-adapter_sd15.safetensors",
+        "image_encoder_folder": "models/image_encoder"
+      },
+      "storage": {
+        "path_key": "adapter_models"
+      }
+    },
+    {
+      "id": "ip-adapter-full-face-sd15",
+      "name": "IP-Adapter Full Face SD1.5",
+      "version": "main",
+      "lifecycle": {
+        "progress_level": "candidate"
+      },
+      "distribution": {
+        "kind": "huggingface_snapshot",
+        "repo_id": "h94/IP-Adapter",
+        "revision": "main",
+        "allow_patterns": [
+          "models/ip-adapter-full-face_sd15.safetensors",
+          "models/image_encoder/*"
+        ]
+      },
+      "artifact": {
+        "file_name": "IP-Adapter-Full-Face",
+        "size_bytes": 0,
+        "sha256": "-"
+      },
+      "adapter": {
+        "weight_name": "ip-adapter-full-face_sd15.safetensors",
+        "image_encoder_folder": "models/image_encoder"
+      },
+      "storage": {
+        "path_key": "adapter_models"
+      }
+    }
+  ]
+}

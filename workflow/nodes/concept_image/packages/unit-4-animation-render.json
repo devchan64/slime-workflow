@@ -1,0 +1,38 @@
+{
+  "package_id": "concept-image.unit-4.animation-render",
+  "version": "0.1.0",
+  "unit": 4,
+  "node_id": "concept.animation.render",
+  "command": "scripts/workflow/run_concept_image_pipeline.sh",
+  "io": {
+    "required_inputs": ["state:json", "keyframe_scenes:json"],
+    "optional_inputs": ["keyframe_sheet:png"],
+    "outputs": ["result:json", "state:json", "animation_frames:json"],
+    "allowed_types": ["json", "png"]
+  },
+  "bootstrap": {
+    "dependency_files": [],
+    "dependency_fetch_commands": [],
+    "install_commands": [],
+    "model_commands": [],
+    "required_model_ids": []
+  },
+  "tests": [
+    {
+      "id": "unit-4-contract-basic",
+      "type": "contract",
+      "description": "keyframe_scenes JSON 입력을 받아 animation_frames JSON 산출 계약을 검증한다.",
+      "input_fixture": {
+        "state": {
+          "result": {
+            "keyframe_scenes": {
+              "idle": ["idle-0"],
+              "move": ["move-0"]
+            }
+          }
+        }
+      },
+      "expected_outputs": ["result:json", "state:json", "animation_frames:json"]
+    }
+  ]
+}

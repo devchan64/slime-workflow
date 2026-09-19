@@ -1,0 +1,5 @@
+{
+  "prompt": "Bright forest trail roguelike game background music, melody-first slow EDM, calm exploration mood",
+  "planner_model_root": ".model/midi-llm-planner",
+  "composer_model_root": ".model/midi-llm"
+}

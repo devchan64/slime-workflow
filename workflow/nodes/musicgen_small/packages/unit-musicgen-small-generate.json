@@ -1,0 +1,59 @@
+{
+  "package_id": "musicgen-small-generate",
+  "version": "0.1.0",
+  "unit": 1,
+  "node_id": "musicgen.small.generate",
+  "command": "python -m workflow.nodes.musicgen_small.runtime.cli",
+  "io": {
+    "required_inputs": [
+      "prompt:txt",
+      "duration_seconds:json"
+    ],
+    "optional_inputs": [
+      "guidance_scale:json",
+      "temperature:json",
+      "top_k:json",
+      "top_p:json",
+      "run_root:json",
+      "model_root:json"
+    ],
+    "outputs": [
+      "wav_path:wav",
+      "report_path:json"
+    ],
+    "allowed_types": [
+      "wav",
+      "json",
+      "txt"
+    ]
+  },
+  "prepare": {
+    "dependency_files": [
+      "workflow/nodes/musicgen_small/packages/requirements.txt"
+    ],
+    "dependency_fetch_commands": [],
+    "install_commands": [
+      [
+        "python",
+        "-m",
+        "pip",
+        "install",
+        "-r",
+        "workflow/nodes/musicgen_small/packages/requirements.txt"
+      ]
+    ],
+    "model_commands": [],
+    "required_model_ids": [
+      "facebook/musicgen-small"
+    ]
+  },
+  "tests": [
+    {
+      "name": "max-duration-edm",
+      "input_file": "workflow/nodes/musicgen_small/packages/prompt-max-duration.json",
+      "expected": {
+        "status": "generated"
+      }
+    }
+  ]
+}

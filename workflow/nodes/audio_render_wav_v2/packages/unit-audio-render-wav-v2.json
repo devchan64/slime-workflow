@@ -1,0 +1,4 @@
+{
+  "node_id": "music.audio.render.wav",
+  "outputs": {"required": ["wav_path", "report_path", "metadata"]}
+}

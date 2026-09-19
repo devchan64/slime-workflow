@@ -1,0 +1,178 @@
+version: 0.1.0
+allowed_io_types:
+- png
+- wav
+- mp3
+- mid
+- midi
+- sf2
+- txt
+- md
+- json
+- yaml
+default_temp_dirs:
+  model_cache: .model
+  result_cache: .result
+  soundfont_cache: .soundfonts
+nodes:
+- id: concept.design.generate
+  role: workflow unit 1 - 디자인 컨셉 생성
+  inputs:
+  - txt
+  - md
+  - json
+  - png
+  outputs:
+  - json
+  - png
+- id: concept.pixel.generate
+  role: workflow unit 2 - 픽셀아트 생성
+  inputs:
+  - json
+  - png
+  outputs:
+  - json
+  - png
+- id: concept.keyframe.compose
+  role: workflow unit 3 - 키프레임 장면 구성
+  inputs:
+  - json
+  - png
+  outputs:
+  - json
+  - png
+- id: concept.animation.render
+  role: workflow unit 4 - 애니메이션 프레임 렌더링
+  inputs:
+  - json
+  - png
+  outputs:
+  - json
+  - png
+- id: prompt.compose
+  role: 텍스트 프롬프트 조합
+  inputs:
+  - md
+  - txt
+  - json
+  outputs:
+  - txt
+  - md
+  - json
+- id: image.generate
+  role: 콘셉트/시트 이미지 생성
+  inputs:
+  - txt
+  - json
+  - png
+  outputs:
+  - png
+  - json
+- id: image.refine
+  role: 이미지 보정/정규화
+  inputs:
+  - png
+  - json
+  outputs:
+  - png
+  - json
+- id: sprite.generate
+  role: 캐릭터 디자인시트 기반 8방향 스프라이트 시트 생성
+  inputs:
+  - png
+  - json
+  outputs:
+  - png
+  - json
+- id: rig.correct
+  role: 스켈레톤/리깅 보정
+  inputs:
+  - png
+  - json
+  - yaml
+  outputs:
+  - png
+  - json
+- id: tile.generate
+  role: 맵 타일셋 생성
+  inputs:
+  - png
+  - json
+  - yaml
+  outputs:
+  - png
+  - json
+- id: map.compose
+  role: 맵 파일 구성
+  inputs:
+  - json
+  - yaml
+  - png
+  outputs:
+  - json
+  - yaml
+- id: musicgen.small.generate
+  role: facebook/musicgen-small 기반 텍스트 음악 생성
+  inputs:
+  - txt
+  - json
+  outputs:
+  - wav
+  - json
+- id: music.midi.generate.midillm
+  role: slseanwu/MIDI-LLM_Llama-3.2-1B 기반 텍스트 MIDI 튜플 생성
+  inputs:
+  - txt
+  - json
+  outputs:
+  - txt
+  - json
+- id: music.midi.plan.midillm
+  role: 입력 프롬프트를 분석해 MIDI-LLM composer 파라미터를 생성
+  inputs:
+  - txt
+  - json
+  outputs:
+  - json
+- id: music.midi.trim.bars
+  role: MIDI 파일을 지정 마디 수로 정확히 트림
+  inputs:
+  - mid
+  - midi
+  - json
+  outputs:
+  - mid
+  - midi
+  - json
+- id: music.midi.report
+  role: MIDI 노트/채널 통계 리포트 생성
+  inputs:
+  - mid
+  - midi
+  - json
+  outputs:
+  - json
+- id: music.audio.plan.render
+  role: 입력 프롬프트를 분석해 오디오 렌더/인코딩 파라미터 계획 생성
+  inputs:
+  - txt
+  - json
+  outputs:
+  - json
+- id: music.audio.render.wav
+  role: MIDI를 사운드폰트 기반 WAV로 렌더
+  inputs:
+  - mid
+  - midi
+  - json
+  outputs:
+  - wav
+  - json
+- id: music.audio.encode.mp3
+  role: WAV를 MP3로 인코딩
+  inputs:
+  - wav
+  - json
+  outputs:
+  - mp3
+  - json

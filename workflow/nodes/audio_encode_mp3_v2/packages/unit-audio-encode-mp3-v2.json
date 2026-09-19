@@ -1,0 +1,4 @@
+{
+  "node_id": "music.audio.encode.mp3",
+  "outputs": {"required": ["mp3_path", "report_path", "metadata"]}
+}

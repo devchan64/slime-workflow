@@ -1,0 +1,9 @@
+{
+  "prompt": "Melodic progressive EDM with a clear hook lead, warm pluck arpeggio, controlled treble, rich low-mid body, and smooth non-harsh top end",
+  "duration_seconds": 30,
+  "guidance_scale": 5.0,
+  "temperature": 0.7,
+  "top_k": 64,
+  "top_p": 0.95,
+  "tone_lowpass_hz": 14000
+}
