@@ -66,16 +66,20 @@ def _export(registry, assets, release_root, pack=None):
             if (not license['modificationAllowed'] or not license['redistributionAllowed']
                     or license['licenseId'] not in LICENSES):
                 raise ValueError('지원하는 공개 라이선스와 수정·재배포 허용이 필요합니다.')
+            if data['artifactType'] == 'SPRITE_SHEET' and data['schemaVersion'] != 2:
+                raise ValueError('스프라이트 시트 공개에는 검증된 v2 셀 애니메이션 정보가 필요합니다.')
             source = Path(entry['root']) / data['sourcePath']
             filename = data['sha256'] + source.suffix
             public = dict(assetId=artifact_id, version=version, assetType=data['artifactType'],
                 files=[filename], hashes={filename: data['sha256']}, licenseId=license['licenseId'],
-                attribution=license['attribution'], compatibleSchemaVersion=1)
+                attribution=license['attribution'], compatibleSchemaVersion=data['schemaVersion'])
+            if data['schemaVersion'] == 2:
+                public['animation'] = data['animation']
             private = dict(artifactId=artifact_id, version=version, reviewId=review['review_id'],
                            contentHash=entry['content_hash'], metadataHash=entry['metadata_hash'])
             approved.append((data, source, filename, public, private))
         manifest = (approved[0][3] if pack is None else
-                    dict(packId=pack[0], version=pack[1], compatibleSchemaVersion=1,
+                    dict(packId=pack[0], version=pack[1], compatibleSchemaVersion=max(item[3]['compatibleSchemaVersion'] for item in approved),
                          assets=[item[3] for item in approved]))
         public_json = encoded(manifest)
         release_root.mkdir(parents=True, exist_ok=True)

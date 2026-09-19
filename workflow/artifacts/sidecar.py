@@ -1,4 +1,4 @@
-"""파일과 sidecar 쌍의 공통 v1 계약. 공개 승인이나 이미지 품질을 판정하지 않는다."""
+"""파일과 sidecar 쌍의 공통 v1 및 셀 애니메이션 v2 계약. 공개 승인이나 이미지 품질을 판정하지 않는다."""
 from datetime import datetime
 from hashlib import sha256
 import json
@@ -47,9 +47,15 @@ def invalid_constant(value):
 
 
 def validate_metadata(data):
-    fields(data, FIELDS, 'sidecar')
-    if type(data['schemaVersion']) is not int or data['schemaVersion'] != 1:
+    version = data.get('schemaVersion') if type(data) is dict else None
+    if type(version) is not int or version not in (1, 2):
         raise ValueError('지원하지 않는 sidecar schemaVersion입니다.')
+    fields(data, FIELDS | ({'animation'} if version == 2 else set()), 'sidecar')
+    if version == 2:
+        if data['artifactType'] != 'SPRITE_SHEET':
+            raise ValueError('sidecar v2는 셀 애니메이션 SPRITE_SHEET 전용입니다.')
+        from .animation import validate_animation
+        validate_animation(data['animation'])
     for key in ('artifactId', 'version', 'runId'):
         identifier(data[key], key)
     if type(data['artifactType']) is not str or data['artifactType'] not in TYPES:
@@ -131,4 +137,7 @@ def validate_pair(root, sidecar):
             hasher.update(chunk)
     if hasher.hexdigest() != data['sha256']:
         raise ValueError('산출물 내용과 sidecar SHA-256이 다릅니다.')
+    if data['schemaVersion'] == 2:
+        from .animation import validate_sheet
+        validate_sheet(path, data['animation'])
     return data
