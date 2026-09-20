@@ -24,3 +24,7 @@
 ## 기본 재사용 루프
 
 `five-head-walk-6f/v1`은 사용자 승인된 5등신 리그의 4방향×6프레임·1.2초 루프다. `generators/animation/config/default_walk_loop.yaml`로 선택하며 `generators/animation/resolve_default_loop.py`가 등록 파일 해시를 검증한다. 자산은 `.result/workflow/reusable/animation-loops/`에 보관하고 임시 정리 대상에서 제외한다.
+
+## 캐릭터 기준 시트
+
+[4방향 기준 시트 제작 절차](workflows/character-baseline-sheet.md)는 Codex 내장 image_gen의 참조·실험·가이드 비교·승인 후 등록을 관리한다.
