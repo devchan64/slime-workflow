@@ -97,6 +97,7 @@
 - If rules conflict, model card I/O policy takes precedence.
 - For Musician-Llama nodes, prioritize natural-language input + pipe/comma MIDI tuple contract.
 - CPU inference is not allowed; fail immediately when GPU (CUDA/MPS) is unavailable.
+- GPU 상태 확인·모델 준비·GPU 추론은 샌드박스 밖에서 실행한다. 샌드박스 내부 접근 실패를 GPU 부재로 판단하지 않으며, 외부 실행에서도 GPU를 사용할 수 없을 때 명확한 원인으로 즉시 실패한다.
 - All music pipelines must prepare model artifacts before execution.
 - If prepare fails, fail immediately (no fallback) and print `model_id/model_root(or download_tmp_dir)/model_path(or bundle)/binary path` to stdout.
 - On successful prepare, log resolved output path and reuse it in runtime.
@@ -134,6 +135,21 @@
 
 ## Asset Generation and Output Ownership
 - `slime-workflow`는 에셋 생성 방식·모델 준비·제작 노드·파이프라인·검증·export를 관리한다.
-- 생성된 이미지·프레임·시트 등 산출물의 관리 원본은 `slime-frontend` 에셋으로 둔다. 초안의 보관과 게임 런타임 채택은 구분한다.
-- 워크플로우 실행 중간 파일·캐시는 제작용이며 프론트엔드 에셋 원본을 중복 관리하지 않는다.
+- 최종 전달 이미지·프레임·시트 등 에셋의 관리 원본은 `slime-frontend`에 둔다. 에셋 보관과 게임 런타임 채택은 구분한다.
+- 생성 과정의 중간 결과물(관절 모션·SMPL 피팅 결과·Depth·마스크·보정 전 프레임 등)은 `slime-workflow`에 보관한다. 실행별 경로와 출처를 유지하고 최종 전달 에셋과 구분한다.
+- MoMask 모션과 SMPL 피팅 산출물은 `slime-workflow`의 재사용 가능한 제작 자산이다. 실행별 임시 파일로 취급하지 않고 식별자·불변 버전·출처·호환 정보를 관리하며 캐시 정리로 삭제하지 않는다.
+- 동일 모션·피팅 산출물을 방향별 렌더와 호환되는 외형 생성에 재사용한다. 리그·관절·체형·좌표계·단위·프레임률 등의 호환 조건이 달라지면 재검증하고 필요 시 새 버전으로 피팅한다.
+- 실행 기록은 재사용 자산의 식별자·버전·해시를 참조한다. 모델 다운로드·캐시만 `.model`에 두고 재사용 자산·실행 산출물·임시 캐시의 보관 경로와 정리 정책을 구분한다.
 - 비공개 기획·설계·내부 프롬프트는 `slime-backend/docs/design/`에서 관리하고 공개 에셋과 함께 복제하지 않는다.
+
+## Unregistered Asset Experiments
+- 정식 등록 전 후보·실험 에셋은 해당 저장소의 `.tmp/YYYY-MM-DD_HH-mm-ss/`에 생성한다. 폴더명은 실험 시작 시각의 한국 시간(Asia/Seoul)을 사용하며 기존 실험 결과를 덮어쓰지 않는다.
+- 날짜시간 폴더 안에 실험 프롬프트, 참조 이미지, 생성 결과, 실행 로그와 모델·파라미터·출처 기록을 함께 보관한다. 실험 프롬프트는 `.tmp`에서 작성·수정하고 커밋하지 않는다. 정식 채택된 제작 프롬프트·설계 문서는 `slime-backend/docs/design/`에서 관리한다.
+- 후보 이미지는 정식 에셋 폴더·에셋 레지스트리·게임 런타임에 자동 등록하지 않는다. 사용자가 채택 또는 정식 등록을 지시하면 선택한 산출물만 `slime-frontend`의 정식 경로로 옮기거나 복사하고 등록한다.
+- `.tmp/`는 각 저장소의 `.gitignore`에 등록하며 후보·실험 산출물은 커밋하지 않는다.
+- 이 규칙은 정식 등록되지 않은 후보·실험 에셋에 적용한다. 재사용 가능한 MoMask 모션·피팅·승인된 리그 및 버전이 고정된 제작 자산은 기존 보관 정책을 유지하며 `.tmp` 정리 대상에 포함하지 않는다.
+- 재사용 근거가 없고 폐기된 실험 프롬프트는 삭제한다. 현재 실행·재사용 근거가 확인된 제작 방식·정식 채택 에셋의 출처 기록만 유지하며 동일 프롬프트의 불필요한 복사본을 남기지 않는다.
+
+## Animation Pose Reference
+- 캐릭터 애니메이션의 OpenPose 형식 포즈 맵은 MoMask가 생성한 모션 관절 데이터를 원천으로 사용한다. 기존 승인된 리그 체형 보정·방향별 투영은 유지할 수 있으며 모션 자산 ID·버전·해시와 변환 경로를 실행 기록에 남긴다.
+- 이미지 생성 결과에서 추측한 관절이나 임의로 만든 포즈로 대체하지 않는다. 투영 관절 맵과 실제 OpenPose 검출 결과를 구분해 기록한다.
