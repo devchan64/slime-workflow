@@ -1,0 +1,27 @@
+version: 4
+purpose: 방향별 4프레임 스탠딩 시트 4장
+status: adopted
+generator: image_gen
+mode: built-in
+reference: slime-frontend/src/assets/characters/default/baseline/character-default-white-shirt-four-directions-v2.png
+reference_mode: full-2x2-sheet
+output_layout: 4x1
+output_sheet_count: 4
+frames_per_direction: 4
+prompt_template: 첨부 2×2 베이스라인 캐릭터의 외형·화풍과 5등신 신체 비율을 유지한다. 원본의 머리 크기와 다리 길이를 바꾸지 않는다. {direction_instruction} 이
+  방향만 사용하는 투명 배경 4열×1행 스탠딩 시트 한 장을 만든다. 왼쪽부터 중립 → 들숨 → 최대 들숨 → 날숨의 미세한 호흡 4프레임이며 마지막에서 처음으로 자연스럽게 반복한다. 네 프레임의 몸·얼굴
+  방향, 카메라, 크기, 가로 기준점과 양발 접지선을 고정한다. 같은 크기의 완전한 전신을 셀 안에 여백을 두고 배치한다. 문자·격자선은 넣지 않는다.
+directions:
+  down_left:
+    output: standing-down-left.png
+    direction_instruction: 참조 시트 좌하 칸처럼 화면 좌하를 바라보는 앞면·측면을 표현한다.
+  down_right:
+    output: standing-down-right.png
+    direction_instruction: 참조 시트 우하 칸처럼 화면 우하를 바라보는 앞면·측면을 표현한다.
+  up_left:
+    output: standing-up-left.png
+    direction_instruction: 참조 시트 좌상 칸처럼 화면 좌상을 바라보는 뒷면·측면을 표현한다. 뒤통수와 등을 보여준다.
+  up_right:
+    output: standing-up-right.png
+    direction_instruction: 참조 시트 우상 칸처럼 화면 우상을 바라보는 뒷면·측면을 표현한다. 뒤통수와 등을 보여준다.
+review_note: 방향마다 별도 호출한다. 4방향을 한 출력에 합치지 않는다. 2026-09-20_21-53-32 결과를 standing-v4로 채택했다. 양발 접지 중간 앵커를 사용하며 standing-v3는 폐기했다.
