@@ -1,23 +1,57 @@
-<!doctype html><html lang="ko"><meta charset="utf-8"><title>스탠딩 앵커 좌표 검수</title>
-<style>body{background:#202735;color:#eee;font:16px sans-serif;margin:24px}canvas{background:#303949;max-width:100%;border:1px solid #687386}button,select,input{margin:5px;padding:8px}pre{white-space:pre-wrap}fieldset{max-width:900px;margin:12px 0}button{cursor:pointer}</style>
-<h1>프레임별 양발 중심 앵커 검수</h1><p>좌표는 셀 왼쪽 위가 (0,0), 오른쪽이 +X, 아래가 +Y입니다. 수정은 선택한 프레임에만 적용됩니다. 노랑은 발 앞뒤 축·월드 기준, 청록은 발 중심, 빨강은 최종 앵커입니다.</p>
-<fieldset><legend>방향과 프레임</legend><select id="directionChoice"><option>down_left</option><option>down_right</option><option>up_left</option><option>up_right</option></select><button id="previousFrame">◀ 이전 프레임</button><button id="playToggle">재생</button><button id="nextFrame">다음 프레임 ▶</button><input id="frameChoice" type="range" min="0" max="3" value="0"><span id="frameNumber"></span></fieldset>
-<fieldset><legend>선택 좌표 1px 이동</legend><select id="pointChoice"></select><button data-move-x="-1" data-move-y="0">← X −1</button><button data-move-x="1" data-move-y="0">X +1 →</button><button data-move-x="0" data-move-y="-1">↑ Y −1</button><button data-move-x="0" data-move-y="1">↓ Y +1</button><span id="pointStatus"></span><p>‘최종 앵커’를 이동하면 현재 프레임의 두 발 좌표를 함께 옮깁니다. 캔버스를 클릭해서도 선택 좌표를 정수 위치로 지정할 수 있습니다.</p></fieldset>
-<label><input id="anchorToggle" type="checkbox" checked>앵커 정렬</label><label><input id="guideToggle" type="checkbox" checked>가이드</label><button id="saveCoordinates">설명 포함 좌표 JSON 저장</button><p id="frameStatus"></p><canvas id="reviewCanvas" width="650" height="800"></canvas><pre id="reviewError"></pre>
-<script>
+<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>앵커 편집 · 워크프레임</title><style></style>
+<header><div><h1>스탠딩 앵커 편집</h1><p>프레임별 기준점을 확인하고 원본 픽셀 단위로 조정하세요.</p></div><span class="badge">수동 좌표 편집</span></header>
+<main class="anchor-workspace">
+<aside class="anchor-controls" aria-label="앵커 편집 도구">
+<fieldset><legend>01 · 방향과 프레임</legend><select id="directionChoice" aria-label="방향"><option value="down_left">↙ 좌하</option><option value="down_right">↘ 우하</option><option value="up_left">↖ 좌상</option><option value="up_right">↗ 우상</option></select><div class="control-row"><button id="previousFrame">← 이전</button><button id="playToggle">재생</button><button id="nextFrame">다음 →</button></div><label for="frameChoice">프레임 <span id="frameNumber"></span></label><input id="frameChoice" aria-label="프레임 선택" type="range" min="0" max="3" value="0"></fieldset>
+<fieldset><legend>02 · 좌표 조정</legend><select id="pointChoice" aria-label="편집할 좌표"></select><span id="pointStatus"></span><div class="control-row"><button data-move-x="-1" data-move-y="0">← X −1</button><button data-move-x="1" data-move-y="0">X +1 →</button></div><div class="control-row"><button data-move-x="0" data-move-y="-1">↑ Y −1</button><button data-move-x="0" data-move-y="1">↓ Y +1</button></div><p id="coordinateHelp">최종 앵커를 이동하면 두 발 좌표가 함께 이동합니다.</p><p>선택한 프레임에만 적용됩니다. 정지 상태에서 미리보기를 클릭하거나 1px씩 이동하세요.</p><p>원점은 셀 왼쪽 위입니다. 오른쪽은 +X, 아래는 +Y입니다.</p></fieldset>
+<section class="panel"><h2>보기 및 저장</h2><div class="options"><label><input id="anchorToggle" type="checkbox" checked>앵커 정렬</label><label><input id="guideToggle" type="checkbox" checked>가이드</label></div><button class="primary" id="saveCoordinates">좌표 JSON 저장</button><p>종료·새로고침 전에 저장하세요. 게임에는 자동 적용되지 않습니다.</p></section>
+</aside>
+<section class="panel anchor-preview" aria-label="프레임 미리보기"><h2>프레임 미리보기</h2><div class="preview-ground-controls"><label><input id="tilePreviewToggle" type="checkbox" checked>가상 타일</label><label>너비 <input id="tilePreviewWidth" type="number" aria-label="가상 타일 너비" step="2"></label><label>높이 <input id="tilePreviewHeight" type="number" aria-label="가상 타일 높이 자동 계산" readonly></label><label><input id="shadowPreviewToggle" type="checkbox" checked>그림자</label></div><p id="groundPreviewStatus" class="muted"></p><p id="groundPreviewError" role="alert"></p><div class="anchor-stage"><canvas id="reviewCanvas" width="650" height="800" aria-label="클릭하여 선택 좌표 지정"></canvas></div><div class="coordinate-legend"><span>노랑 · 기준선</span><span>청록 · 발 중심</span><span>빨강 · 최종 앵커</span></div><p id="frameStatus"></p><pre id="reviewError" role="alert"></pre></section>
+</main><script>
 const reviewFrameRecords=__FRAME_RECORDS__;
 const reviewSourceMetadata=__SOURCE_METADATA__;
-const usesFootCentersOnly=reviewSourceMetadata.coordinateMode==='foot-centers';
+const usesAnchorOnlyMode=reviewSourceMetadata.coordinateMode==='anchor';
+const usesFootCentersOnly=usesAnchorOnlyMode||reviewSourceMetadata.coordinateMode==='foot-centers';
+const reviewAnimationIdentity=reviewSourceMetadata.animationId||'character.default.white-shirt.idle';
+const reviewAnimationVersion=reviewSourceMetadata.animationVersion||'4';
+const reviewExportFilename=reviewSourceMetadata.exportFilename||'character-default-standing-v4-anchor-review.json';
 const reviewCanvasElement=document.querySelector('#reviewCanvas'),reviewCanvasContext=reviewCanvasElement.getContext('2d');
 const directionChoiceElement=document.querySelector('#directionChoice'),frameChoiceElement=document.querySelector('#frameChoice'),pointChoiceElement=document.querySelector('#pointChoice');
 const anchorToggleElement=document.querySelector('#anchorToggle'),guideToggleElement=document.querySelector('#guideToggle');
-const REVIEW_CANVAS_WIDTH=650,REVIEW_CANVAS_HEIGHT=800,REVIEW_FRAME_DURATION=400,REVIEW_FRAME_COUNT=4,REVIEW_ANCHOR_POSITION={x:325,y:730};
+const REVIEW_CANVAS_WIDTH=650,REVIEW_CANVAS_HEIGHT=800,REVIEW_FRAME_DURATION=reviewSourceMetadata.frameDurationMs||400,REVIEW_FRAME_COUNT=reviewFrameRecords.filter(currentFrameValue=>currentFrameValue.direction==='down_left').length,REVIEW_ANCHOR_POSITION={x:325,y:730};
+const PREVIEW_TILE_DEFAULT_WIDTH=240,PREVIEW_TILE_DEFAULT_HEIGHT=120,PREVIEW_TILE_MINIMUM_WIDTH=32,PREVIEW_TILE_MAXIMUM_WIDTH=600,PREVIEW_TILE_MINIMUM_HEIGHT=16,PREVIEW_TILE_MAXIMUM_HEIGHT=300,PREVIEW_TILE_ASPECT_RATIO=2,PREVIEW_GROUND_BOTTOM_MARGIN=10;
+const PREVIEW_TILE_FILL_COLOR='#426b6a55',PREVIEW_TILE_LINE_COLOR='#8abdb3',PREVIEW_SHADOW_FILL_COLOR='#07111c88',PREVIEW_SHADOW_SCALE_RATIO=0.5;
+let previewTileWidthValue=PREVIEW_TILE_DEFAULT_WIDTH,previewTileHeightValue=PREVIEW_TILE_DEFAULT_HEIGHT;
+const previewTileWidthElement=document.querySelector('#tilePreviewWidth'),previewTileHeightElement=document.querySelector('#tilePreviewHeight');
+previewTileWidthElement.value=String(PREVIEW_TILE_DEFAULT_WIDTH);previewTileHeightElement.value=String(PREVIEW_TILE_DEFAULT_HEIGHT);
+previewTileWidthElement.min=String(PREVIEW_TILE_MINIMUM_WIDTH);previewTileWidthElement.max=String(PREVIEW_TILE_MAXIMUM_WIDTH);previewTileHeightElement.min=String(PREVIEW_TILE_MINIMUM_HEIGHT);previewTileHeightElement.max=String(PREVIEW_TILE_MAXIMUM_HEIGHT);
+function updatePreviewGroundSize(){
+ const requestedTileWidth=Number(previewTileWidthElement.value),requestedTileHeight=requestedTileWidth/PREVIEW_TILE_ASPECT_RATIO;
+ if(!Number.isInteger(requestedTileWidth)||!Number.isInteger(requestedTileHeight)||requestedTileWidth<PREVIEW_TILE_MINIMUM_WIDTH||requestedTileWidth>PREVIEW_TILE_MAXIMUM_WIDTH||requestedTileHeight<PREVIEW_TILE_MINIMUM_HEIGHT||requestedTileHeight>PREVIEW_TILE_MAXIMUM_HEIGHT){document.querySelector('#groundPreviewError').textContent=`너비는 ${PREVIEW_TILE_MINIMUM_WIDTH}–${PREVIEW_TILE_MAXIMUM_WIDTH}px 범위의 짝수를 입력하세요. 높이는 2:1 비율로 자동 계산하며 마지막 유효한 크기를 표시합니다.`;return false;}
+ previewTileWidthValue=requestedTileWidth;previewTileHeightValue=requestedTileHeight;previewTileHeightElement.value=String(requestedTileHeight);document.querySelector('#groundPreviewError').textContent='';
+ document.querySelector('#groundPreviewStatus').textContent=`가상 타일 ${previewTileWidthValue} × ${previewTileHeightValue}px (2:1) · 그림자 ${previewTileWidthValue*PREVIEW_SHADOW_SCALE_RATIO} × ${previewTileHeightValue*PREVIEW_SHADOW_SCALE_RATIO}px (50%) · 원본 좌표는 변경하지 않습니다.`;return true;
+}
+previewTileWidthElement.oninput=updatePreviewGroundSize;updatePreviewGroundSize();
+function calculatePreviewGroundHeight(){return Math.min(REVIEW_ANCHOR_POSITION.y,REVIEW_CANVAS_HEIGHT-previewTileHeightValue/2-PREVIEW_GROUND_BOTTOM_MARGIN);}
+function drawPreviewGroundPlane(){
+ const groundCenterPositionX=REVIEW_ANCHOR_POSITION.x,groundCenterPositionY=calculatePreviewGroundHeight();
+ reviewCanvasContext.save();
+ if(document.querySelector('#tilePreviewToggle').checked){
+  reviewCanvasContext.fillStyle=PREVIEW_TILE_FILL_COLOR;reviewCanvasContext.strokeStyle=PREVIEW_TILE_LINE_COLOR;reviewCanvasContext.beginPath();
+  reviewCanvasContext.moveTo(groundCenterPositionX,groundCenterPositionY-previewTileHeightValue/2);reviewCanvasContext.lineTo(groundCenterPositionX+previewTileWidthValue/2,groundCenterPositionY);reviewCanvasContext.lineTo(groundCenterPositionX,groundCenterPositionY+previewTileHeightValue/2);reviewCanvasContext.lineTo(groundCenterPositionX-previewTileWidthValue/2,groundCenterPositionY);reviewCanvasContext.closePath();reviewCanvasContext.fill();reviewCanvasContext.stroke();
+ }
+ if(document.querySelector('#shadowPreviewToggle').checked){reviewCanvasContext.fillStyle=PREVIEW_SHADOW_FILL_COLOR;reviewCanvasContext.beginPath();reviewCanvasContext.ellipse(groundCenterPositionX,groundCenterPositionY,previewTileWidthValue*PREVIEW_SHADOW_SCALE_RATIO/2,previewTileHeightValue*PREVIEW_SHADOW_SCALE_RATIO/2,0,0,Math.PI*2);reviewCanvasContext.fill();}
+ reviewCanvasContext.restore();
+}
 const reviewImageElements={};let animationPlaybackActive=false,animationStartedTime=0,currentSpriteOffsetX=0,currentSpriteOffsetY=0;
-const pointLabelNames=usesFootCentersOnly?['왼쪽 발 중심','오른쪽 발 중심']:['왼쪽 앞꿈치','왼쪽 뒤꿈치','오른쪽 앞꿈치','오른쪽 뒤꿈치'];
-pointChoiceElement.innerHTML='<option value="anchor">최종 앵커 (두 발 함께)</option>'+pointLabelNames.map((pointLabelText,pointSequenceIndex)=>`<option value="${pointSequenceIndex}">${pointLabelText}</option>`).join('');
+frameChoiceElement.max=String(REVIEW_FRAME_COUNT-1);
+if(usesAnchorOnlyMode){document.querySelector('#coordinateHelp').textContent='초기 좌표는 수동 편집 시작점입니다. 떠 있는 발의 중간점 대신 지면 기준점을 지정하세요.';document.querySelector('h1').textContent='걷기 앵커 편집';document.querySelector('h1+p').textContent='초기 앵커는 셀 하단 중앙의 편집 시작점입니다. 자동 검출 좌표가 아닙니다. 떠 있는 발의 중간점 대신 지면 기준점을 프레임별로 지정하세요. 정수 원본 픽셀 단위로 저장합니다.';}
+if(reviewSourceMetadata.registeredSource){document.querySelector('h1').textContent=reviewSourceMetadata.displayNameKo+' · 앵커 편집';document.querySelector('h1+p').textContent=reviewSourceMetadata.description;document.querySelector('#coordinateHelp').textContent='등록된 원본 앵커를 불러왔습니다. 소수 좌표는 유지하며 클릭 지정은 정수 픽셀을 사용합니다.';}
+const pointLabelNames=usesAnchorOnlyMode?[]:usesFootCentersOnly?['왼쪽 발 중심','오른쪽 발 중심']:['왼쪽 앞꿈치','왼쪽 뒤꿈치','오른쪽 앞꿈치','오른쪽 뒤꿈치'];
+pointChoiceElement.innerHTML='<option value="anchor">최종 앵커</option>'+pointLabelNames.map((pointLabelText,pointSequenceIndex)=>`<option value="${pointSequenceIndex}">${pointLabelText}</option>`).join('');
 function selectCurrentFrame(){return reviewFrameRecords.find(currentFrameValue=>currentFrameValue.frameId===`${directionChoiceElement.value}.${frameChoiceElement.value}`)}
 function calculatePointMidpoint(firstPointValue,secondPointValue){return {x:Math.round((firstPointValue.x+secondPointValue.x)/2),y:Math.round((firstPointValue.y+secondPointValue.y)/2)}}
-function updateFrameCoordinates(currentFrameValue){if(!usesFootCentersOnly)currentFrameValue.contacts=[calculatePointMidpoint(...currentFrameValue.endpoints.slice(0,2)),calculatePointMidpoint(...currentFrameValue.endpoints.slice(2,4))];currentFrameValue.anchor=calculatePointMidpoint(...currentFrameValue.contacts)}
+function updateFrameCoordinates(currentFrameValue){if(usesAnchorOnlyMode){currentFrameValue.anchor={...currentFrameValue.contacts[0]};return;}if(!usesFootCentersOnly)currentFrameValue.contacts=[calculatePointMidpoint(...currentFrameValue.endpoints.slice(0,2)),calculatePointMidpoint(...currentFrameValue.endpoints.slice(2,4))];currentFrameValue.anchor=calculatePointMidpoint(...currentFrameValue.contacts)}
 function pauseFramePlayback(){animationPlaybackActive=false;document.querySelector('#playToggle').textContent='재생'}
 function moveFrameSelection(frameStepAmount){pauseFramePlayback();frameChoiceElement.value=String((Number(frameChoiceElement.value)+frameStepAmount+REVIEW_FRAME_COUNT)%REVIEW_FRAME_COUNT)}
 function moveSelectedPoint(pointDeltaX,pointDeltaY){
@@ -30,19 +64,20 @@ function drawReviewFrame(currentAnimationTime){
  if(animationPlaybackActive)frameChoiceElement.value=String(Math.floor((currentAnimationTime-animationStartedTime)/REVIEW_FRAME_DURATION)%REVIEW_FRAME_COUNT);
  const currentFrameValue=selectCurrentFrame(),currentFrameBounds=currentFrameValue.rect;
  currentSpriteOffsetX=REVIEW_ANCHOR_POSITION.x-(anchorToggleElement.checked?currentFrameValue.anchor.x:currentFrameBounds.width/2);
- currentSpriteOffsetY=REVIEW_ANCHOR_POSITION.y-(anchorToggleElement.checked?currentFrameValue.anchor.y:currentFrameBounds.height);
+ currentSpriteOffsetY=calculatePreviewGroundHeight()-(anchorToggleElement.checked?currentFrameValue.anchor.y:currentFrameBounds.height);
  reviewCanvasContext.clearRect(0,0,REVIEW_CANVAS_WIDTH,REVIEW_CANVAS_HEIGHT);
+ drawPreviewGroundPlane();
  reviewCanvasContext.drawImage(reviewImageElements[currentFrameValue.image],currentFrameBounds.x,currentFrameBounds.y,currentFrameBounds.width,currentFrameBounds.height,currentSpriteOffsetX,currentSpriteOffsetY,currentFrameBounds.width,currentFrameBounds.height);
  if(guideToggleElement.checked){
-  reviewCanvasContext.strokeStyle='#ffdf66';reviewCanvasContext.beginPath();reviewCanvasContext.moveTo(0,730);reviewCanvasContext.lineTo(650,730);reviewCanvasContext.moveTo(325,0);reviewCanvasContext.lineTo(325,800);reviewCanvasContext.stroke();
+  reviewCanvasContext.strokeStyle='#ffdf66';reviewCanvasContext.beginPath();reviewCanvasContext.moveTo(0,calculatePreviewGroundHeight());reviewCanvasContext.lineTo(650,calculatePreviewGroundHeight());reviewCanvasContext.moveTo(325,0);reviewCanvasContext.lineTo(325,800);reviewCanvasContext.stroke();
   for(let endpointPairOffset=0;endpointPairOffset<currentFrameValue.endpoints.length;endpointPairOffset+=2){reviewCanvasContext.beginPath();reviewCanvasContext.moveTo(currentSpriteOffsetX+currentFrameValue.endpoints[endpointPairOffset].x,currentSpriteOffsetY+currentFrameValue.endpoints[endpointPairOffset].y);reviewCanvasContext.lineTo(currentSpriteOffsetX+currentFrameValue.endpoints[endpointPairOffset+1].x,currentSpriteOffsetY+currentFrameValue.endpoints[endpointPairOffset+1].y);reviewCanvasContext.stroke()}
   reviewCanvasContext.strokeStyle='#00ffff';reviewCanvasContext.beginPath();currentFrameValue.contacts.forEach((currentPointValue,currentPointIndex)=>{if(currentPointIndex===0)reviewCanvasContext.moveTo(currentSpriteOffsetX+currentPointValue.x,currentSpriteOffsetY+currentPointValue.y);else reviewCanvasContext.lineTo(currentSpriteOffsetX+currentPointValue.x,currentSpriteOffsetY+currentPointValue.y)});reviewCanvasContext.stroke();
   [...currentFrameValue.contacts,currentFrameValue.anchor].forEach((currentPointValue,currentPointIndex)=>{reviewCanvasContext.fillStyle=currentPointIndex===2?'#ff4444':'#00ffff';reviewCanvasContext.beginPath();reviewCanvasContext.arc(currentSpriteOffsetX+currentPointValue.x,currentSpriteOffsetY+currentPointValue.y,4,0,Math.PI*2);reviewCanvasContext.fill()});
  }
  const selectedPointValue=pointChoiceElement.value==='anchor'?currentFrameValue.anchor:(usesFootCentersOnly?currentFrameValue.contacts:currentFrameValue.endpoints)[Number(pointChoiceElement.value)];
  document.querySelector('#pointStatus').textContent=`X ${selectedPointValue.x} / Y ${selectedPointValue.y}`;
- document.querySelector('#frameNumber').textContent=`${Number(frameChoiceElement.value)+1} / 4`;
- document.querySelector('#frameStatus').textContent=`${currentFrameValue.frameId} | 앵커 (${currentFrameValue.anchor.x}, ${currentFrameValue.anchor.y}) | 400ms · 1.6초 반복`;
+ document.querySelector('#frameNumber').textContent=`${Number(frameChoiceElement.value)+1} / ${REVIEW_FRAME_COUNT}`;
+ document.querySelector('#frameStatus').textContent=`${currentFrameValue.frameId} | 앵커 (${currentFrameValue.anchor.x}, ${currentFrameValue.anchor.y}) | ${REVIEW_FRAME_DURATION}ms · ${REVIEW_FRAME_COUNT*REVIEW_FRAME_DURATION/1000}초 반복`;
  requestAnimationFrame(drawReviewFrame);
 }
 document.querySelector('#previousFrame').onclick=()=>moveFrameSelection(-1);
@@ -52,7 +87,7 @@ directionChoiceElement.onchange=()=>{pauseFramePlayback();frameChoiceElement.val
 document.querySelector('#playToggle').onclick=()=>{animationPlaybackActive=!animationPlaybackActive;animationStartedTime=performance.now()-Number(frameChoiceElement.value)*REVIEW_FRAME_DURATION;document.querySelector('#playToggle').textContent=animationPlaybackActive?'일시정지':'재생'};
 document.querySelectorAll('[data-move-x]').forEach(currentButtonElement=>currentButtonElement.onclick=()=>moveSelectedPoint(Number(currentButtonElement.dataset.moveX),Number(currentButtonElement.dataset.moveY)));
 reviewCanvasElement.onclick=(pointerClickEvent)=>{if(animationPlaybackActive)return;const currentFrameValue=selectCurrentFrame(),canvasClientBounds=reviewCanvasElement.getBoundingClientRect();const clickedPointPosition={x:Math.round((pointerClickEvent.clientX-canvasClientBounds.left)*REVIEW_CANVAS_WIDTH/canvasClientBounds.width-currentSpriteOffsetX),y:Math.round((pointerClickEvent.clientY-canvasClientBounds.top)*REVIEW_CANVAS_HEIGHT/canvasClientBounds.height-currentSpriteOffsetY)};const selectedPointValue=pointChoiceElement.value==='anchor'?currentFrameValue.anchor:(usesFootCentersOnly?currentFrameValue.contacts:currentFrameValue.endpoints)[Number(pointChoiceElement.value)];moveSelectedPoint(clickedPointPosition.x-selectedPointValue.x,clickedPointPosition.y-selectedPointValue.y)};
-function buildCoordinateArtifact(){return {schemaVersion:1,artifactType:'character-standing-anchor-review',description:'기본 캐릭터 standing-v4의 방향별 4프레임 시트 4장에 대한 정수 앵커 검수 좌표. 셀 왼쪽 위 원점, x는 오른쪽·y는 아래쪽. points는 화면 왼쪽 발부터의 '+(usesFootCentersOnly?'두 발 중심':'각 발 앞꿈치·뒤꿈치 네 끝점')+'이며 anchor는 두 발 중심의 평균을 반올림한 값이다. 프레임별 좌표는 독립적이다.',coordinateMode:reviewSourceMetadata.coordinateMode,source:{animationId:'character.default.white-shirt.idle',animationVersion:'4',sheets:reviewSourceMetadata.sheets},frames:reviewFrameRecords.map(currentFrameValue=>({frameId:currentFrameValue.frameId,direction:currentFrameValue.direction,image:currentFrameValue.image,rect:currentFrameValue.rect,points:usesFootCentersOnly?currentFrameValue.contacts:currentFrameValue.endpoints,anchor:currentFrameValue.anchor}))}}
-document.querySelector('#saveCoordinates').onclick=()=>{const downloadAnchorElement=document.createElement('a');downloadAnchorElement.href=URL.createObjectURL(new Blob([JSON.stringify(buildCoordinateArtifact(),null,2)+'\n'],{type:'application/json'}));downloadAnchorElement.download='character-default-standing-v4-anchor-review.json';downloadAnchorElement.click();setTimeout(()=>URL.revokeObjectURL(downloadAnchorElement.href),1000)};
+function buildCoordinateArtifact(){return {schemaVersion:1,artifactType:reviewSourceMetadata.artifactType||'character-standing-anchor-review',description:reviewSourceMetadata.description||'스탠딩 정수 앵커 검수 좌표. 셀 왼쪽 위 원점, x 오른쪽·y 아래. points는 화면 왼쪽 발부터 두 발 중심 또는 각 발 앞뒤 네 점이며 anchor는 발 중심 평균을 반올림한다.',coordinateMode:reviewSourceMetadata.coordinateMode,source:{animationId:reviewAnimationIdentity,animationVersion:reviewAnimationVersion,sheets:reviewSourceMetadata.sheets},frames:reviewFrameRecords.map(currentFrameValue=>({frameId:currentFrameValue.frameId,direction:currentFrameValue.direction,image:currentFrameValue.image,rect:currentFrameValue.rect,points:usesAnchorOnlyMode?[currentFrameValue.anchor]:usesFootCentersOnly?currentFrameValue.contacts:currentFrameValue.endpoints,anchor:currentFrameValue.anchor}))}}
+document.querySelector('#saveCoordinates').onclick=()=>{const downloadAnchorElement=document.createElement('a');downloadAnchorElement.href=URL.createObjectURL(new Blob([JSON.stringify(buildCoordinateArtifact(),null,2)+'\n'],{type:'application/json'}));downloadAnchorElement.download=reviewExportFilename;downloadAnchorElement.click();setTimeout(()=>URL.revokeObjectURL(downloadAnchorElement.href),1000)};
 Promise.all([...new Set(reviewFrameRecords.map(currentFrameValue=>currentFrameValue.image))].map(currentImageFilename=>new Promise((resolveImageLoad,rejectImageLoad)=>{const currentImageElement=new Image();currentImageElement.onload=()=>{reviewImageElements[currentImageFilename]=currentImageElement;resolveImageLoad()};currentImageElement.onerror=()=>rejectImageLoad(new Error(`이미지 로드 실패: ${currentImageFilename}`));currentImageElement.src=currentImageFilename}))).then(()=>requestAnimationFrame(drawReviewFrame)).catch(currentLoadError=>document.querySelector('#reviewError').textContent=currentLoadError.message);
 </script></html>

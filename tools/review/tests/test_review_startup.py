@@ -1,0 +1,44 @@
+"""관리도구 통합 실행의 입력 조합과 생성 실패 전파를 확인한다."""
+import argparse
+import contextlib
+import io
+from pathlib import Path
+import unittest
+from unittest.mock import patch
+
+from tools.review import serve
+
+
+class ReviewStartupTests(unittest.TestCase):
+    def test_default_repository_and_port(self):
+        parsed_argument_values = serve.parse_review_arguments([])
+        self.assertEqual(parsed_argument_values.frontend_repo, Path(serve.__file__).resolve().parents[3]/'slime-frontend')
+        self.assertEqual(parsed_argument_values.port, 8770)
+        self.assertEqual(parsed_argument_values.entry, 'preview.html')
+
+    def test_existing_review_options(self):
+        parsed_argument_values = serve.parse_review_arguments(['--root', '.tmp/example', '--entry', 'anchors.html'])
+        self.assertEqual(parsed_argument_values.entry, 'anchors.html')
+        self.assertEqual(serve.prepare_review_directory(parsed_argument_values), Path('.tmp/example').resolve())
+
+    def test_reject_invalid_option_combinations(self):
+        for command_argument_values in (['--walking', '.tmp/walk'], ['--standing', '.tmp/stand'], ['--root', '.tmp/review', '--walking', '.tmp/walk', '--standing', '.tmp/stand'], ['--walking', '.tmp/walk', '--standing', '.tmp/stand', '--entry', 'anchors.html'], ['--root', '.tmp/review', '--port', '80']):
+            with self.subTest(arguments=command_argument_values), contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+                serve.parse_review_arguments(command_argument_values)
+
+    def test_generated_directory_is_served(self):
+        parsed_argument_values = serve.parse_review_arguments(['--walking', '.tmp/walk', '--standing', '.tmp/stand'])
+        with patch('tools.review.build_frame_manager.build_frame_manager', return_value=Path('/tmp/generated-review')) as build_manager_mock:
+            self.assertEqual(serve.prepare_review_directory(parsed_argument_values), Path('/tmp/generated-review'))
+            build_manager_mock.assert_called_once_with(parsed_argument_values)
+
+    def test_generation_failure_stops_server(self):
+        parsed_argument_values = serve.parse_review_arguments(['--walking', '.tmp/walk', '--standing', '.tmp/stand'])
+        with patch('tools.review.build_frame_manager.build_frame_manager', side_effect=ValueError('검수 페이지 누락')), patch.object(serve, 'ThreadingHTTPServer') as review_server_mock:
+            with self.assertRaisesRegex(ValueError, '검수 페이지 누락'):
+                serve.run_review_server(parsed_argument_values)
+            review_server_mock.assert_not_called()
+
+
+if __name__ == '__main__':
+    unittest.main()

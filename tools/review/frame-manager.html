@@ -1,0 +1,103 @@
+<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>워크프레임 관리도구</title><style>
+nav button{background:transparent;color:var(--text-secondary)}#context{display:flex;justify-content:space-between;gap:12px;font-size:12px;color:var(--text-secondary)}iframe{border:0;width:100%;height:100%;display:block;background:var(--surface-base)}iframe[hidden]{display:none}footer{border-top:1px solid var(--border-subtle);font-size:12px;color:var(--text-secondary)}
+</style><body class="manager-shell"><header><div><h1>워크프레임 관리도구</h1><p>애니메이션 비교 · 프레임별 앵커 편집</p></div><div class="manager-header-actions"><span class="badge">로컬 검수</span><button id="toggleNavigation" type="button" aria-expanded="true" aria-controls="managerPicker">검색·목록 접기</button></div></header><section id="managerPicker" class="manager-picker" aria-label="검수 대상 검색">
+<div class="search-controls"><label>검색<input id="assetSearch" type="search" placeholder="한국어 이름, ID, 검수 종류, 실행 날짜" aria-label="애니메이션 및 웹 검수 검색" autocomplete="off"></label><label>분류<select id="reviewCategory"><option value="all">전체</option><option value="animation">등록 애니메이션</option><option value="web-review">기존 웹 검수</option></select></label><button id="clearSearch" type="button">검색 초기화</button></div>
+<label id="assetSelectorLabel">검수 대상<select id="assetSelection" aria-label="검수할 애니메이션 또는 웹 검수"></select></label><p id="searchStatus" role="status" aria-live="polite"></p>
+</section><nav id="context" aria-label="현재 검수 위치와 이동"><div class="current-review-location"><span id="currentCategoryLabel" class="muted"></span><strong id="currentPageLabel" aria-live="polite"></strong><details><summary>원본 정보</summary><span id="currentLabel"></span></details></div><div class="review-page-navigation"><button id="previousReview" type="button" aria-label="이전 검수 항목">← 이전</button><span id="navigationPosition" role="status"></span><button id="nextReview" type="button" aria-label="다음 검수 항목">다음 →</button><button id="revealCurrentReview" type="button" hidden>현재 항목 찾기</button><a id="standaloneLink" target="_blank" rel="noopener">별도 탭 ↗</a></div></nav><main id="workspace"></main><footer>메뉴를 전환해도 편집 중인 좌표는 유지됩니다. 종료·새로고침 전에 좌표 JSON을 저장하세요.</footer><script>
+const managerPageRecords=__MANAGER_PAGES__;
+const managerPaneElements=new Map();
+let coordinateChangesPending=false;
+let selectedPageIdentifier='';
+let filteredPageRecords=[];
+function filterManagerRecords(searchQueryText,selectedCategoryName){
+ const searchTokenValues=searchQueryText.normalize('NFKC').toLocaleLowerCase('ko').trim().split(/\s+/).filter(Boolean);
+ return managerPageRecords.filter(currentPageRecord=>{
+  const categoryMatchesValue=selectedCategoryName==='all'||currentPageRecord.category===selectedCategoryName;
+  const searchableRecordText=`${currentPageRecord.label} ${currentPageRecord.description} ${currentPageRecord.id}`.normalize('NFKC').toLocaleLowerCase('ko');
+  return categoryMatchesValue&&searchTokenValues.every(currentSearchToken=>searchableRecordText.includes(currentSearchToken));
+ });
+}
+function saveManagerLocation(historyUpdateMode){
+ const managerHistoryState={pageIdentifier:selectedPageIdentifier,searchQueryText:document.querySelector('#assetSearch').value,selectedCategoryName:document.querySelector('#reviewCategory').value};
+ if(historyUpdateMode==='push'&&location.hash!==`#${selectedPageIdentifier}`)history.pushState(managerHistoryState,'',`#${selectedPageIdentifier}`);
+ else if(historyUpdateMode==='replace')history.replaceState(managerHistoryState,'',`#${selectedPageIdentifier}`);
+}
+function renderNavigationPosition(){
+ const selectedResultIndex=filteredPageRecords.findIndex(currentPageRecord=>currentPageRecord.id===selectedPageIdentifier);
+ document.querySelector('#previousReview').disabled=selectedResultIndex<=0;
+ document.querySelector('#nextReview').disabled=selectedResultIndex<0||selectedResultIndex>=filteredPageRecords.length-1;
+ document.querySelector('#revealCurrentReview').hidden=selectedResultIndex>=0;
+ document.querySelector('#navigationPosition').textContent=selectedResultIndex>=0?`${selectedResultIndex+1} / ${filteredPageRecords.length}`:'현재 항목은 검색 결과 밖에 있습니다';
+}
+function renderManagerResults(){
+ filteredPageRecords=filterManagerRecords(document.querySelector('#assetSearch').value,document.querySelector('#reviewCategory').value);
+ const assetSelectionElement=document.querySelector('#assetSelection');
+ assetSelectionElement.replaceChildren();
+ for(const currentPageRecord of filteredPageRecords){
+  const currentOptionElement=document.createElement('option');
+  currentOptionElement.value=currentPageRecord.id;
+  currentOptionElement.textContent=`${currentPageRecord.category==='animation'?'애니메이션':'웹 검수'} · ${currentPageRecord.label}`;
+  assetSelectionElement.append(currentOptionElement);
+ }
+ assetSelectionElement.disabled=filteredPageRecords.length===0;
+ assetSelectionElement.value=selectedPageIdentifier;
+ document.querySelector('#searchStatus').textContent=filteredPageRecords.length?`${filteredPageRecords.length}개 / 전체 ${managerPageRecords.length}개 · 선택 또는 Enter로 열기`:'검색 결과가 없습니다. 검색어를 바꾸거나 초기화하세요. 현재 검수 화면은 유지됩니다.';
+ renderNavigationPosition();
+}
+function selectManagerPage(nextPageIdentifier,historyUpdateMode='push'){
+ const selectedPageRecord=managerPageRecords.find(currentPageRecord=>currentPageRecord.id===nextPageIdentifier);
+ if(!selectedPageRecord)return false;
+ selectedPageIdentifier=nextPageIdentifier;
+ let selectedPaneElement=managerPaneElements.get(nextPageIdentifier);
+ if(!selectedPaneElement){
+  selectedPaneElement=document.createElement('iframe');
+  selectedPaneElement.title=selectedPageRecord.label;
+  selectedPaneElement.src=selectedPageRecord.path;
+  selectedPaneElement.addEventListener('load',()=>{
+   selectedPaneElement.contentDocument.body.classList.add('embedded-review');
+   if(!selectedPageRecord.anchorEditor)return;
+   selectedPaneElement.contentDocument.addEventListener('click',currentClickEvent=>{if(currentClickEvent.target.closest('[data-move-x],#reviewCanvas'))coordinateChangesPending=true;});
+  });
+  document.querySelector('#workspace').append(selectedPaneElement);
+  managerPaneElements.set(nextPageIdentifier,selectedPaneElement);
+ }
+ for(const [currentPageIdentifier,currentPaneElement]of managerPaneElements)currentPaneElement.hidden=currentPageIdentifier!==nextPageIdentifier;
+ document.querySelector('#assetSelection').value=nextPageIdentifier;
+ document.querySelector('#currentLabel').textContent=selectedPageRecord.description;
+ document.querySelector('#currentPageLabel').textContent=selectedPageRecord.label;
+ document.querySelector('#currentCategoryLabel').textContent=selectedPageRecord.category==='animation'?'등록 애니메이션':'기존 웹 검수';
+ document.title=selectedPageRecord.label+' · 워크프레임 관리도구';
+ document.querySelector('#standaloneLink').href=selectedPageRecord.path;
+ renderNavigationPosition();
+ saveManagerLocation(historyUpdateMode);
+ return true;
+}
+function updateManagerFilters(){renderManagerResults();saveManagerLocation('replace');}
+document.querySelector('#assetSearch').oninput=updateManagerFilters;
+document.querySelector('#reviewCategory').onchange=updateManagerFilters;
+document.querySelector('#assetSelection').onchange=currentChangeEvent=>selectManagerPage(currentChangeEvent.target.value);
+function resetManagerFilters(){document.querySelector('#assetSearch').value='';document.querySelector('#reviewCategory').value='all';updateManagerFilters();}
+document.querySelector('#clearSearch').onclick=()=>{resetManagerFilters();document.querySelector('#assetSearch').focus();};
+document.querySelector('#revealCurrentReview').onclick=resetManagerFilters;
+function moveManagerSelection(selectionStepAmount){const selectedResultIndex=filteredPageRecords.findIndex(currentPageRecord=>currentPageRecord.id===selectedPageIdentifier);const nextResultIndex=selectedResultIndex+selectionStepAmount;if(selectedResultIndex<0||nextResultIndex<0||nextResultIndex>=filteredPageRecords.length)return;selectManagerPage(filteredPageRecords[nextResultIndex].id);}
+document.querySelector('#previousReview').onclick=()=>moveManagerSelection(-1);
+document.querySelector('#nextReview').onclick=()=>moveManagerSelection(1);
+document.querySelector('#toggleNavigation').onclick=()=>{const managerPickerElement=document.querySelector('#managerPicker');managerPickerElement.hidden=!managerPickerElement.hidden;document.querySelector('#toggleNavigation').setAttribute('aria-expanded',String(!managerPickerElement.hidden));document.querySelector('#toggleNavigation').textContent=managerPickerElement.hidden?'검색·목록 펼치기':'검색·목록 접기';};
+document.querySelector('#assetSearch').onkeydown=currentKeyboardEvent=>{
+ if(currentKeyboardEvent.key==='Enter'&&filteredPageRecords.length){currentKeyboardEvent.preventDefault();selectManagerPage(filteredPageRecords[0].id);}
+ if(currentKeyboardEvent.key==='Escape'){document.querySelector('#assetSearch').value='';updateManagerFilters();}
+};
+function restoreManagerLocation(){
+ const requestedPageIdentifier=location.hash.slice(1);
+ const savedNavigationState=history.state;
+ if(savedNavigationState&&savedNavigationState.pageIdentifier===requestedPageIdentifier){document.querySelector('#assetSearch').value=savedNavigationState.searchQueryText;document.querySelector('#reviewCategory').value=savedNavigationState.selectedCategoryName;}
+ else{document.querySelector('#assetSearch').value='';document.querySelector('#reviewCategory').value='all';}
+ renderManagerResults();
+ if(!selectManagerPage(requestedPageIdentifier,'none'))selectManagerPage(managerPageRecords[0].id,'replace');
+}
+window.addEventListener('popstate',restoreManagerLocation);
+window.addEventListener('hashchange',restoreManagerLocation);
+window.addEventListener('beforeunload',currentUnloadEvent=>{if(coordinateChangesPending){currentUnloadEvent.preventDefault();currentUnloadEvent.returnValue='';}});
+restoreManagerLocation();
+saveManagerLocation('replace');
+</script></body></html>
