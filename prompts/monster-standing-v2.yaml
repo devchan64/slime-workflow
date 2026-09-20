@@ -1,0 +1,130 @@
+version: 2
+recipe_id: monster-standing
+generator: image_gen
+mode: built-in
+status: consolidated-historical-prompts
+layout:
+  rows: 4
+  columns: 4
+  row_directions:
+  - down_left
+  - down_right
+  - up_left
+  - up_right
+merge_note: beast 중복은 현재 beast-idle-v2에 대응하는 확장판 개과형 프롬프트로 통합했다. 이전 멧돼지형 프롬프트는 폐기한다. 나머지 원문은 보존한다.
+reference_policy: 종별 실제 참조 이미지와 해시를 실행 기록에 지정한다. 원래 호출의 입력 경로·해시는 복구되지 않아 최종 시트를 원래 입력으로 추정하지 않는다.
+monsters:
+  slime:
+    prompt: 'Use case: stylized-concept. Create a production game IDLE STANDING animation sprite sheet using the attached image as strict identity, materials, palette and painterly lighting reference. The same faceless translucent teal-green gelatinous blob with internal bubbles. Absolutely no eyes, mouth, face, limbs. Idle motion: small volume-conserving squish and rise, base planted.
+
+      Output one square transparent PNG, precisely 4 equal columns by 4 equal rows, exactly 16 isolated full-body sprites. No text, gridlines, labels, scenery, floor or cast shadows. Genuine transparent alpha background.
+
+      Rows encode FIXED quarter-view facing: row 1 down_left (front left three-quarter), row 2 down_right (front right three-quarter), row 3 up_left (REAR left three-quarter, back visible), row 4 up_right (REAR right three-quarter, back visible). Each row has the SAME facing in all four columns. Do not rotate inside a row.
+
+      Columns encode four consecutive phases of one subtle seamless standing loop: neutral rising, maximum inhale/rise, neutral falling, maximum exhale/squish. Fourth-to-first phase smoothly closes. Keep identical anatomy and details in all frames. No attack, skill, walk, foot switching, effects, duplicated limbs.
+
+      Orthographic elevated quarter-view camera. Upper-left light in every cell; do not mirror lighting. Exact regular 4x4 grid layout with no gutters between cells, each sprite confined to central 80% of its equal square cell, same scale across every cell, ground anchor at 50% cell width and 88% cell height in every frame. Full silhouette fully within each cell including tusks, leaves, roots. Foot anchor stays still, no horizontal drift. Reference identity is more important than embellishments.'
+    reference: null
+    output: slime-frontend/src/assets/monsters/standing-v1/slime-idle-v1.png
+    output_sha256: 49f3406198138dde492cadfc46fae245e84652ae25642ff1c1b3a21cfbddfdea
+  beast:
+    prompt: 'Use case: stylized-concept. Generate a transparent PNG idle animation sprite sheet. Attached image is the strict species identity, anatomy, palette and painterly style reference. Long-muzzled forest canine with low mane, four long legs and thin tail. Gentle breathing, four paws planted. NOT a boar, no tusks, no hooves.
+
+      EXACT layout: 4 equal rows x 4 equal columns, 16 full-body sprites. Each cell is an equal square. Fit EVERY sprite entirely within central 70% of its cell, leave generous empty transparent margins, never touch cell boundary. No grid lines, labels or text.
+
+      Row 1 fixed front-left quarter view facing down_left. Row 2 fixed front-right quarter view facing down_right. Row 3 fixed REAR-left quarter view facing up_left, show back. Row 4 fixed REAR-right quarter view facing up_right, show back. Four columns per row are consecutive phases neutral rising, peak inhale, neutral falling, peak exhale, smoothly returning to frame one. Moth uses spread, raised, spread, lowered wings instead. No turning within a row.
+
+      Keep exact character identity and identical scale, limb count and foot contact points across frames. Soft upper-left screen lighting for ALL directions. Ground/body anchor fixed at horizontal center, 82% cell height. Orthographic elevated quarter camera. True alpha transparent background, no shadow, no ground, no scenery. No walking, stepping, attacks, skill effects. Idle subtle motion only.'
+    reference: null
+    output: slime-frontend/src/assets/monsters/standing-v1/beast-idle-v2.png
+    output_sha256: 6997eff87fe99d43234bd0a88d947aa84b94a6f1dd9d8fc2ec67fc72332eb3e5
+  giant:
+    prompt: 'Use case: stylized-concept. Create a production game IDLE STANDING animation sprite sheet using the attached image as strict identity, materials, palette and painterly lighting reference. The same massive faceless tree golem, wooden trunk head without eyes or mouth, leafy moss shoulders, branch crown, huge wooden hands, root feet. Idle motion: subtle torso breathing-like sway and gentle foliage settling; both root feet stay planted, no stepping.
+
+      Output one square transparent PNG, precisely 4 equal columns by 4 equal rows, exactly 16 isolated full-body sprites. No text, gridlines, labels, scenery, floor or cast shadows. Genuine transparent alpha background.
+
+      Rows encode FIXED quarter-view facing: row 1 down_left (front left three-quarter), row 2 down_right (front right three-quarter), row 3 up_left (REAR left three-quarter, back visible), row 4 up_right (REAR right three-quarter, back visible). Each row has the SAME facing in all four columns. Do not rotate inside a row.
+
+      Columns encode four consecutive phases of one subtle seamless standing loop: neutral rising, maximum inhale/rise, neutral falling, maximum exhale/squish. Fourth-to-first phase smoothly closes. Keep identical anatomy and details in all frames. No attack, skill, walk, foot switching, effects, duplicated limbs.
+
+      Orthographic elevated quarter-view camera. Upper-left light in every cell; do not mirror lighting. Exact regular 4x4 grid layout with no gutters between cells, each sprite confined to central 80% of its equal square cell, same scale across every cell, ground anchor at 50% cell width and 88% cell height in every frame. Full silhouette fully within each cell including tusks, leaves, roots. Foot anchor stays still, no horizontal drift. Reference identity is more important than embellishments.'
+    reference: null
+    output: slime-frontend/src/assets/monsters/standing-v1/giant-idle-v1.png
+    output_sha256: e330cca1a964dc67e0262547cf1bc8451ee47a3f53a6fd1e5b33aa17e0bc4100
+  field-rabbit:
+    prompt: 'Use case: stylized-concept. Generate a transparent PNG idle animation sprite sheet. Attached image is the strict species identity, anatomy, palette and painterly style reference. Large herbivorous rabbit, two upright long ears, large hind legs. Tiny breathing and ear settling, feet planted.
+
+      EXACT layout: 4 equal rows x 4 equal columns, 16 full-body sprites. Each cell is an equal square. Fit EVERY sprite entirely within central 70% of its cell, leave generous empty transparent margins, never touch cell boundary. No grid lines, labels or text.
+
+      Row 1 fixed front-left quarter view facing down_left. Row 2 fixed front-right quarter view facing down_right. Row 3 fixed REAR-left quarter view facing up_left, show back. Row 4 fixed REAR-right quarter view facing up_right, show back. Four columns per row are consecutive phases neutral rising, peak inhale, neutral falling, peak exhale, smoothly returning to frame one. Moth uses spread, raised, spread, lowered wings instead. No turning within a row.
+
+      Keep exact character identity and identical scale, limb count and foot contact points across frames. Soft upper-left screen lighting for ALL directions. Ground/body anchor fixed at horizontal center, 82% cell height. Orthographic elevated quarter camera. True alpha transparent background, no shadow, no ground, no scenery. No walking, stepping, attacks, skill effects. Idle subtle motion only.'
+    reference: null
+    output: slime-frontend/src/assets/monsters/standing-v1/field-rabbit-idle-v1.png
+    output_sha256: 62f60de8d04a105e42d1901f99d624c3ea5068deeb92b259053759e78fbe9612
+  stone-crab:
+    prompt: 'Use case: stylized-concept. Generate a transparent PNG idle animation sprite sheet. Attached image is the strict species identity, anatomy, palette and painterly style reference. Broad flat stone-armored crab, exactly two pincers. Tiny relaxed pincer flex, all walking legs planted.
+
+      EXACT layout: 4 equal rows x 4 equal columns, 16 full-body sprites. Each cell is an equal square. Fit EVERY sprite entirely within central 70% of its cell, leave generous empty transparent margins, never touch cell boundary. No grid lines, labels or text.
+
+      Row 1 fixed front-left quarter view facing down_left. Row 2 fixed front-right quarter view facing down_right. Row 3 fixed REAR-left quarter view facing up_left, show back. Row 4 fixed REAR-right quarter view facing up_right, show back. Four columns per row are consecutive phases neutral rising, peak inhale, neutral falling, peak exhale, smoothly returning to frame one. Moth uses spread, raised, spread, lowered wings instead. No turning within a row.
+
+      Keep exact character identity and identical scale, limb count and foot contact points across frames. Soft upper-left screen lighting for ALL directions. Ground/body anchor fixed at horizontal center, 82% cell height. Orthographic elevated quarter camera. True alpha transparent background, no shadow, no ground, no scenery. No walking, stepping, attacks, skill effects. Idle subtle motion only.'
+    reference: null
+    output: slime-frontend/src/assets/monsters/standing-v1/stone-crab-idle-v1.png
+    output_sha256: 8b0021c020afa360d58488e705d29638f18b5e3d99f4bd8a1997ad84b59e29a4
+  ridge-boar:
+    prompt: 'Use case: stylized-concept. Generate a transparent PNG idle animation sprite sheet. Attached image is the strict species identity, anatomy, palette and painterly style reference. Low wedge-shaped boar with pale shoulder band. Gentle breathing, four hooves planted.
+
+      EXACT layout: 4 equal rows x 4 equal columns, 16 full-body sprites. Each cell is an equal square. Fit EVERY sprite entirely within central 70% of its cell, leave generous empty transparent margins, never touch cell boundary. No grid lines, labels or text.
+
+      Row 1 fixed front-left quarter view facing down_left. Row 2 fixed front-right quarter view facing down_right. Row 3 fixed REAR-left quarter view facing up_left, show back. Row 4 fixed REAR-right quarter view facing up_right, show back. Four columns per row are consecutive phases neutral rising, peak inhale, neutral falling, peak exhale, smoothly returning to frame one. Moth uses spread, raised, spread, lowered wings instead. No turning within a row.
+
+      Keep exact character identity and identical scale, limb count and foot contact points across frames. Soft upper-left screen lighting for ALL directions. Ground/body anchor fixed at horizontal center, 82% cell height. Orthographic elevated quarter camera. True alpha transparent background, no shadow, no ground, no scenery. No walking, stepping, attacks, skill effects. Idle subtle motion only.'
+    reference: null
+    output: slime-frontend/src/assets/monsters/standing-v1/ridge-boar-idle-v1.png
+    output_sha256: 93048924dda465939995fae42bc4edb939fcf3cc4474293f323bb1bbf3c8ed9b
+  lantern-moth:
+    prompt: 'Use case: stylized-concept. Generate a transparent PNG idle animation sprite sheet. Attached image is the strict species identity, anatomy, palette and painterly style reference. Cream-winged softly glowing moth. Calm stationary hovering wingbeat cycle. Constant body anchor, no travel.
+
+      EXACT layout: 4 equal rows x 4 equal columns, 16 full-body sprites. Each cell is an equal square. Fit EVERY sprite entirely within central 70% of its cell, leave generous empty transparent margins, never touch cell boundary. No grid lines, labels or text.
+
+      Row 1 fixed front-left quarter view facing down_left. Row 2 fixed front-right quarter view facing down_right. Row 3 fixed REAR-left quarter view facing up_left, show back. Row 4 fixed REAR-right quarter view facing up_right, show back. Four columns per row are consecutive phases neutral rising, peak inhale, neutral falling, peak exhale, smoothly returning to frame one. Moth uses spread, raised, spread, lowered wings instead. No turning within a row.
+
+      Keep exact character identity and identical scale, limb count and foot contact points across frames. Soft upper-left screen lighting for ALL directions. Ground/body anchor fixed at horizontal center, 82% cell height. Orthographic elevated quarter camera. True alpha transparent background, no shadow, no ground, no scenery. No walking, stepping, attacks, skill effects. Idle subtle motion only.'
+    reference: null
+    output: slime-frontend/src/assets/monsters/standing-v1/lantern-moth-idle-v1.png
+    output_sha256: dfbbaddc4d9b9f05fc6987fc6da3600d3682893eb037d3d35983816af76c1bd4
+  reed-crawler:
+    prompt: 'Use case: stylized-concept. Generate a transparent PNG idle animation sprite sheet. Attached image is the strict species identity, anatomy, palette and painterly style reference. Round beetle carrying exactly three thick bundles of dry reeds. Gentle antenna motion and slight idle body settling, legs planted.
+
+      EXACT layout: 4 equal rows x 4 equal columns, 16 full-body sprites. Each cell is an equal square. Fit EVERY sprite entirely within central 70% of its cell, leave generous empty transparent margins, never touch cell boundary. No grid lines, labels or text.
+
+      Row 1 fixed front-left quarter view facing down_left. Row 2 fixed front-right quarter view facing down_right. Row 3 fixed REAR-left quarter view facing up_left, show back. Row 4 fixed REAR-right quarter view facing up_right, show back. Four columns per row are consecutive phases neutral rising, peak inhale, neutral falling, peak exhale, smoothly returning to frame one. Moth uses spread, raised, spread, lowered wings instead. No turning within a row.
+
+      Keep exact character identity and identical scale, limb count and foot contact points across frames. Soft upper-left screen lighting for ALL directions. Ground/body anchor fixed at horizontal center, 82% cell height. Orthographic elevated quarter camera. True alpha transparent background, no shadow, no ground, no scenery. No walking, stepping, attacks, skill effects. Idle subtle motion only.'
+    reference: null
+    output: slime-frontend/src/assets/monsters/standing-v1/reed-crawler-idle-v1.png
+    output_sha256: 2a147da1cc99bee8c3c16e041c27d1a272e1c183fe21369ca0ee3c1e08307dc9
+  ash-fox:
+    prompt: 'Use case: stylized-concept. Generate a transparent PNG idle animation sprite sheet. Attached image is the strict species identity, anatomy, palette and painterly style reference. Ash gray fox, one fluffy tail and black feet. Gentle breathing and tiny tail settling, four paws planted. No fire.
+
+      EXACT layout: 4 equal rows x 4 equal columns, 16 full-body sprites. Each cell is an equal square. Fit EVERY sprite entirely within central 70% of its cell, leave generous empty transparent margins, never touch cell boundary. No grid lines, labels or text.
+
+      Row 1 fixed front-left quarter view facing down_left. Row 2 fixed front-right quarter view facing down_right. Row 3 fixed REAR-left quarter view facing up_left, show back. Row 4 fixed REAR-right quarter view facing up_right, show back. Four columns per row are consecutive phases neutral rising, peak inhale, neutral falling, peak exhale, smoothly returning to frame one. Moth uses spread, raised, spread, lowered wings instead. No turning within a row.
+
+      Keep exact character identity and identical scale, limb count and foot contact points across frames. Soft upper-left screen lighting for ALL directions. Ground/body anchor fixed at horizontal center, 82% cell height. Orthographic elevated quarter camera. True alpha transparent background, no shadow, no ground, no scenery. No walking, stepping, attacks, skill effects. Idle subtle motion only.'
+    reference: null
+    output: slime-frontend/src/assets/monsters/standing-v1/ash-fox-idle-v1.png
+    output_sha256: 2e375a483009cc7a4bc8ed4025aa97bb5428ab6cb9f882db19b662176e5c2289
+  crystal-lizard:
+    prompt: 'Use case: stylized-concept. Generate a transparent PNG idle animation sprite sheet. Attached image is the strict species identity, anatomy, palette and painterly style reference. Long low lizard with exactly three main turquoise crystal clusters on its back. Gentle breathing, feet planted, no crystal growth.
+
+      EXACT layout: 4 equal rows x 4 equal columns, 16 full-body sprites. Each cell is an equal square. Fit EVERY sprite entirely within central 70% of its cell, leave generous empty transparent margins, never touch cell boundary. No grid lines, labels or text.
+
+      Row 1 fixed front-left quarter view facing down_left. Row 2 fixed front-right quarter view facing down_right. Row 3 fixed REAR-left quarter view facing up_left, show back. Row 4 fixed REAR-right quarter view facing up_right, show back. Four columns per row are consecutive phases neutral rising, peak inhale, neutral falling, peak exhale, smoothly returning to frame one. Moth uses spread, raised, spread, lowered wings instead. No turning within a row.
+
+      Keep exact character identity and identical scale, limb count and foot contact points across frames. Soft upper-left screen lighting for ALL directions. Ground/body anchor fixed at horizontal center, 82% cell height. Orthographic elevated quarter camera. True alpha transparent background, no shadow, no ground, no scenery. No walking, stepping, attacks, skill effects. Idle subtle motion only.'
+    reference: null
+    output: slime-frontend/src/assets/monsters/standing-v1/crystal-lizard-idle-v1.png
+    output_sha256: 63b0339f27111461f757bae5c6aba20457d09ddc94a5569a3d3a27d37d5765a1

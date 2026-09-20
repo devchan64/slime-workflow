@@ -1,0 +1,31 @@
+version: 2
+recipe_id: character-default-rest
+generator: image_gen
+mode: built-in
+status: ready-not-generated
+reference: slime-frontend/src/assets/characters/baseline/character-default-white-shirt-four-directions-v1.png
+reference_sha256: ac2f96e7bfabcec04e8236248f8039c40bc9c65b2d83cbbe78e78affcebe1afb
+reference_layout:
+  rows: 2
+  columns: 2
+  order:
+  - up_left
+  - up_right
+  - down_left
+  - down_right
+output_layout:
+  rows: 2
+  columns: 2
+  order:
+  - down_right
+  - down_left
+  - up_right
+  - up_left
+output_policy: 새 후보는 워크플로우 .tmp에 생성한다. 승인 후 새 frontend 버전으로 등록하며 rest-v1을 덮어쓰지 않는다.
+prompt: 'Use the attached 2x2 character sheet as the appearance and rendering style reference. The reference shows upper-left and upper-right facing rear views in its top row, and lower-left and lower-right facing front views in its bottom row. Create a transparent PNG showing this character sitting peacefully on the ground cross-legged with hands on knees, viewed from four directions. Arrange exactly four full-body views in a 2x2 sheet: top left facing lower right (front three-quarter), top right facing lower left (front three-quarter), bottom left facing upper right (rear three-quarter), bottom right facing upper left (rear three-quarter). No floor, shadows, text, borders or extra objects.'
+historical_asset:
+  path: slime-frontend/src/assets/characters/character-default-white-shirt-rest-v1/rest-v1.png
+  prompt_version: 1
+  note: 기존 v1은 단일 down_right 참조로 생성한 이력이다. 이번 v2 프롬프트로 생성한 결과가 아니다.
+  source_commit: 73bed76
+  source_path: docs/design/frontend/prompts/character-default-rest-v1.yaml
