@@ -8,9 +8,9 @@ import traceback
 import numpy as np
 
 WORKFLOW_ROOT_PATH = Path(__file__).resolve().parents[2]
-SOURCE_MOTION_PATH = WORKFLOW_ROOT_PATH / '.result/workflow/reusable/motions/walk-travel/v1/motion.npz'
+SOURCE_MOTION_PATH = WORKFLOW_ROOT_PATH / 'assets/motions/walk-travel/v1/motion.npz'
 SOURCE_MANIFEST_PATH = SOURCE_MOTION_PATH.with_name('artifact.json')
-OUTPUT_ASSET_PATH = WORKFLOW_ROOT_PATH / '.result/workflow/reusable/rigs/five-head-walk/v9'
+OUTPUT_ASSET_PATH = WORKFLOW_ROOT_PATH / 'assets/rigs/five-head-walk/v9'
 RENDER_OUTPUT_PATH = WORKFLOW_ROOT_PATH / '.result/workflow/runs/five-head-walk-v9'
 SOURCE_START_FRAME = 41
 SOURCE_END_FRAME = 65
@@ -31,7 +31,7 @@ SHOE_MESH_RADII = (.09,.18,.07)
 THIGH_MESH_RADIUS = .115
 CALF_MESH_RADIUS = .08
 TORSO_MESH_RADIUS = .235
-REFERENCE_ASSET_PATH = WORKFLOW_ROOT_PATH / '.result/workflow/reusable/references/default-standing/v2'
+REFERENCE_ASSET_PATH = WORKFLOW_ROOT_PATH / 'assets/references/default-standing/v2'
 DIRECTION_CAMERA_POINTS = {'down_left':(4,-6,4),'down_right':(-4,-6,4),'up_left':(4,6,4),'up_right':(-4,6,4)}
 CURRENT_STAGE_RECORD = {'stage':'prepare','completed':0}
 HEARTBEAT_STOP_EVENT = threading.Event()

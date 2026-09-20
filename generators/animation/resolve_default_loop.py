@@ -20,7 +20,7 @@ def resolve_default_loop():
     asset_manifest_hash=selected_asset_config['artifact_sha256']
     if not isinstance(asset_manifest_hash,str) or len(asset_manifest_hash)!=64 or any(hash_character_value not in '0123456789abcdef' for hash_character_value in asset_manifest_hash):
         raise ValueError('루프 manifest 해시 형식 오류')
-    asset_directory_path=WORKFLOW_REPO_ROOT/'.result/workflow/reusable/animation-loops'/selected_asset_config['asset_id']/f"v{selected_asset_config['version']}"
+    asset_directory_path=WORKFLOW_REPO_ROOT/'assets/animation-loops'/selected_asset_config['asset_id']/f"v{selected_asset_config['version']}"
     asset_manifest_path=asset_directory_path/'artifact.json'
     if hashlib.sha256(asset_manifest_path.read_bytes()).hexdigest()!=asset_manifest_hash:
         raise ValueError('루프 manifest 해시 불일치')

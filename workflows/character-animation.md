@@ -29,7 +29,7 @@
 .venv/bin/python generators/animation/resolve_default_loop.py
 ```
 
-선택 파일은 `generators/animation/config/default_walk_loop.yaml`, 자산 경로는 `.result/workflow/reusable/animation-loops/five-head-walk-6f/v1/`이다. `.tmp` 정리와 무관하게 보존하며 덮어쓰지 않는다. `preview.html`로 검수한 루프를 재생하고 각 방향의 `openpose-0001.png`~`openpose-0006.png`를 후속 외형 생성에 재사용한다. 원본 샘플 모션·Blender 리그·Depth·마스크·검증 기록도 함께 보관한다.
+선택 파일은 `generators/animation/config/default_walk_loop.yaml`, 자산 경로는 `assets/animation-loops/five-head-walk-6f/v1/`이다. `.tmp` 정리와 무관하게 보존하며 덮어쓰지 않는다. `preview.html`로 검수한 루프를 재생하고 각 방향의 `openpose-0001.png`~`openpose-0006.png`를 후속 외형 생성에 재사용한다. 원본 샘플 모션·Blender 리그·Depth·마스크·검증 기록도 함께 보관한다.
 
 기존 manifest.json은 실험 시점의 기록으로 유지하며, 정식 승인 상태와 출처·호환 정보의 기준은 artifact.json이다. 루프 승인과 최종 캐릭터 외형 승인은 구분한다. 새로운 모션·체형·프레임률이 필요할 때만 아래 재렌더 절차를 수행하고, 검수 후 새 불변 버전으로 등록한다.
 
@@ -49,9 +49,35 @@
 - OpenPose 맵은 COCO18 호환 리그 투영이다. 실제 검출 결과가 아니며 머리 중심을 nose 슬롯에 사용하고 눈·귀 키포인트는 생략한다.
 - `preview.html`은 6→1을 포함한 반복 재생을 제공한다. 원본의 닫힌 끝점·발 회전과 각 구간 변화량은 manifest 및 `foot-validation.json`에 기록한다.
 
+### OpenPose 형식 맵의 실제 생성 방식
+
+현재 `openpose-0001.png` 등의 파일은 OpenPose 검출 모델의 추론 결과가 아니다. `generators/animation/render_pose_frames.py`에서 NumPy로 좌표를 투영하고 Pillow의 `ImageDraw.line`·`ImageDraw.ellipse`로 관절 연결선과 점을 그린다.
+
+생성 순서는 다음과 같다.
+
+1. MoMask가 생성한 HumanML3D-22 3D 관절 모션을 원천으로 사용한다.
+2. 승인된 `five-head-walk/v9` 리그에 체형을 보정한 관절 데이터를 재사용한다.
+3. 같은 모션을 방향별 카메라의 오른쪽·위쪽 축으로 직교 투영하여 512×512 픽셀 좌표로 변환한다. 이미지에서 관절을 다시 검출하지 않는다.
+4. 관절을 COCO18 호환 슬롯에 대응시키고, 검은 배경에 색상 선과 점으로 그린다.
+5. Qwen에는 이 래스터 포즈 맵과 베이스라인 이미지를 참조 이미지로 전달한다.
+
+현재 구현은 관절 14개의 점과 연결선 13개를 사용한다. nose 슬롯에는 실제 코가 아닌 리그 머리 중심을 넣으며 눈·귀와 손가락·얼굴 세부 키포인트는 생략한다. 색상과 연결선은 스크립트의 `POSE_EDGE_COLORS`·`POSE_EDGE_INDICES`에서 지정한다. 따라서 정확한 OpenPose 검출 결과나 표준 렌더러와 동일한 출력으로 간주하지 않는다.
+
+리그 미리보기·Depth·마스크는 Blender로 렌더하고, 포즈 맵은 동일한 관절·카메라 설정으로 별도 그린다. 기록과 보고에서는 **MoMask 기반 리그 투영 포즈 맵**으로 명시한다. MoMask가 포즈 PNG를 직접 출력한다거나 OpenPose 모델로 검출했다는 설명은 사용하지 않는다. 별도 검출기를 사용하는 비교 실험은 해당 모델과 출처를 구분해 기록한다.
+
 ## 3. 외형 프레임 생성
 
-실험 프롬프트를 `.tmp` 안에 작성한다. 모델카드 기반 포즈 교체 지시에 동작·화면 방향을 짧게 명시한다. 프롬프트 원문은 공개 문서에 복제하지 않는다.
+실험 프롬프트를 `.tmp` 안에 작성한다. 포즈 교체 지시와 함께 **동작 및 화면 기준 방향을 간단히 명시한다**. 포즈 맵만으로 방향과 동작이 전달된다고 가정하지 않는다. 프롬프트 원문은 공개 문서에 복제하지 않는다.
+
+- 참조 역할: 이미지 1은 MoMask 기반 리그 투영 포즈 맵, 이미지 2는 원형 베이스라인이다.
+- 동작: 걷기처럼 해당 모션의 행동을 짧게 기술한다.
+- 방향: `down_left`는 화면 좌측 하단, `down_right`는 우측 하단, `up_left`는 좌측 상단, `up_right`는 우측 상단을 향한다고 명시한다. 캐릭터 신체 기준의 좌우와 혼동하지 않는다.
+- 걷기 프롬프트는 `down_left`, `down_right`, `up_left`, `up_right`의 **4개 방향 키**로 관리한다. 동일 실험의 `.tmp/YYYY-MM-DD_HH-mm-ss/walk-prompts.yaml`을 단일 원본으로 사용한다.
+- 24개 프레임을 각각 별도 문구로 관리하지 않는다. 같은 방향의 6프레임에는 해당 방향 키의 동일한 프롬프트를 적용하고 포즈 맵만 교체한다.
+- 공통 포즈 교체·동작 표현은 4개 문구에서 일치시키며 방향 표현만 다르게 유지한다. 수정 시 YAML의 버전을 올리고, 실행 기록에 방향 키·버전·파일 해시와 실제 사용 문구의 해시를 남긴다.
+- 실행용 `prompt.txt`가 필요하면 선택된 YAML 항목에서 추출한 실행 기록으로 취급한다. 별도 원본처럼 독립 수정하지 않는다.
+- 프롬프트 선택을 자동화할 때에는 필수 4방향 키, 비어 있지 않은 문자열, 알 수 없는 필드와 중복 키를 검증하고 잘못된 방향은 즉시 실패시킨다.
+- 프레임별 관절 설명이나 외형 수식어를 불필요하게 추가하지 않는다. 세부 자세는 포즈 맵, 캐릭터 외형은 베이스라인으로 전달한다.
 
 ```bash
 .venv/bin/python generators/animation/prepare_frame_inputs.py \

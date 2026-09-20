@@ -36,7 +36,7 @@ def resolve_default_walk_rig():
     expected_manifest_hash = default_config_values['artifact_sha256']
     if not isinstance(expected_manifest_hash, str) or len(expected_manifest_hash) != 64 or any(character not in '0123456789abcdef' for character in expected_manifest_hash):
         raise ValueError('기본 리그 SHA-256 형식 오류')
-    resolved_asset_directory = WORKFLOW_ROOT_PATH / '.result/workflow/reusable/rigs' / default_config_values['asset_id'] / f"v{default_config_values['version']}"
+    resolved_asset_directory = WORKFLOW_ROOT_PATH / 'assets/rigs' / default_config_values['asset_id'] / f"v{default_config_values['version']}"
     resolved_manifest_path = resolved_asset_directory / 'artifact.json'
     if hashlib.sha256(resolved_manifest_path.read_bytes()).hexdigest() != expected_manifest_hash:
         raise ValueError('기본 리그 manifest 해시 불일치')

@@ -1,0 +1,33 @@
+2026-09-20T18:36:34+0900/five-head-walk/prepare MoMask 출처·v9 체형·닫힌 루프 검증; 0,4,8,12,16,20 표본
+2026-09-20T18:36:35+0900/five-head-walk/validate 전체 메시 정점의 변형 가중치 합 1.0 검증 통과
+2026-09-20T18:36:35+0900/five-head-walk/validate 신발 본 연결·평가 회전축·루프 포함 각도 변화 검증 통과
+2026-09-20T18:36:36+0900/five-head-walk/render down_left 1/6
+2026-09-20T18:36:37+0900/five-head-walk/render down_left 2/6
+2026-09-20T18:36:38+0900/five-head-walk/render down_left 3/6
+2026-09-20T18:36:39+0900/five-head-walk/render down_left 4/6
+2026-09-20T18:36:39+0900/five-head-walk/heartbeat {'stage': 'down_left', 'completed': 4}
+2026-09-20T18:36:40+0900/five-head-walk/render down_left 5/6
+2026-09-20T18:36:41+0900/five-head-walk/render down_left 6/6
+2026-09-20T18:36:42+0900/five-head-walk/render down_right 1/6
+2026-09-20T18:36:43+0900/five-head-walk/render down_right 2/6
+2026-09-20T18:36:44+0900/five-head-walk/render down_right 3/6
+2026-09-20T18:36:44+0900/five-head-walk/heartbeat {'stage': 'down_right', 'completed': 3}
+2026-09-20T18:36:45+0900/five-head-walk/render down_right 4/6
+2026-09-20T18:36:46+0900/five-head-walk/render down_right 5/6
+2026-09-20T18:36:47+0900/five-head-walk/render down_right 6/6
+2026-09-20T18:36:48+0900/five-head-walk/render up_left 1/6
+2026-09-20T18:36:49+0900/five-head-walk/render up_left 2/6
+2026-09-20T18:36:49+0900/five-head-walk/heartbeat {'stage': 'up_left', 'completed': 2}
+2026-09-20T18:36:50+0900/five-head-walk/render up_left 3/6
+2026-09-20T18:36:51+0900/five-head-walk/render up_left 4/6
+2026-09-20T18:36:52+0900/five-head-walk/render up_left 5/6
+2026-09-20T18:36:53+0900/five-head-walk/render up_left 6/6
+2026-09-20T18:36:54+0900/five-head-walk/heartbeat {'stage': 'up_right', 'completed': 0}
+2026-09-20T18:36:54+0900/five-head-walk/render up_right 1/6
+2026-09-20T18:36:55+0900/five-head-walk/render up_right 2/6
+2026-09-20T18:36:56+0900/five-head-walk/render up_right 3/6
+2026-09-20T18:36:57+0900/five-head-walk/render up_right 4/6
+2026-09-20T18:36:58+0900/five-head-walk/render up_right 5/6
+2026-09-20T18:36:59+0900/five-head-walk/heartbeat {'stage': 'up_right', 'completed': 5}
+2026-09-20T18:36:59+0900/five-head-walk/render up_right 6/6
+2026-09-20T18:37:00+0900/five-head-walk/complete /home/cbsim/ws/slime-workflow/.tmp/2026-09-20_18-36-34

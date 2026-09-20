@@ -11,7 +11,7 @@ from PIL import Image, ImageDraw
 import rig_builder as rig_render_module
 
 WORKFLOW_REPO_ROOT = Path(__file__).resolve().parents[2]
-SOURCE_RIG_DIRECTORY = WORKFLOW_REPO_ROOT / '.result/workflow/reusable/rigs/five-head-walk/v9'
+SOURCE_RIG_DIRECTORY = WORKFLOW_REPO_ROOT / 'assets/rigs/five-head-walk/v9'
 EXPERIMENT_OUTPUT_ROOT = WORKFLOW_REPO_ROOT / '.tmp' / datetime.now(ZoneInfo('Asia/Seoul')).strftime('%Y-%m-%d_%H-%M-%S')
 OUTPUT_SAMPLE_INDICES = np.arange(6) * 4
 OUTPUT_FRAME_DURATION = 200
@@ -33,7 +33,7 @@ def execute_six_frame_render():
         source_motion_path=SOURCE_RIG_DIRECTORY/'retargeted-motion.npz'
         if hashlib.sha256(source_motion_path.read_bytes()).hexdigest()!=source_artifact_record['files']['retargeted-motion.npz']:
             raise ValueError('v9 모션 해시 불일치')
-        original_motion_path=WORKFLOW_REPO_ROOT/'.result/workflow/reusable/motions/walk-travel/v1/motion.npz'
+        original_motion_path=WORKFLOW_REPO_ROOT/'assets/motions/walk-travel/v1/motion.npz'
         if hashlib.sha256(original_motion_path.read_bytes()).hexdigest()!=source_artifact_record['motion']['source_sha256']:
             raise ValueError('MoMask 원본 해시 불일치')
         with np.load(source_motion_path,allow_pickle=False) as source_motion_bundle:

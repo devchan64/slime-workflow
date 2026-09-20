@@ -1,0 +1,27 @@
+{
+  "asset_id": "walk-travel",
+  "version": 1,
+  "status": "generated_review_required",
+  "file": "motion.npz",
+  "sha256": "5f10e35b13cb7cb0cce7faf0dc26ac9b8f8ac36f2dc6e496b044418e3e1b05c5",
+  "fps": 20,
+  "frames": 96,
+  "joint_schema": "HumanML3D-22",
+  "coordinate_system": "upstream recover_from_ric: y-up, meters",
+  "root_motion": "preserved",
+  "seed": 10107,
+  "mask_steps": 18,
+  "mask_guidance": 4,
+  "residual_guidance": 5,
+  "temperature": 1,
+  "topk_filter_threshold": 0.9,
+  "source_revision": "94a6636c9c463b7a9414c3401a6f1b67e6c51824",
+  "prepared_manifest_sha256": "3e4f62cecf6f4d7ff80089c3c286e9961f0c030084fcff64457ad3565242757d",
+  "gpu": "NVIDIA GeForce RTX 5070 Laptop GPU",
+  "torch": "2.11.0+cu128",
+  "quality_warnings": [
+    "WARN: 접지·발 교대·루프 구간 검수 전 원본 모션"
+  ],
+  "prompt_sha256": "16edd9ec6fdf4c0b9e1761050ff9a6060613dd31385713c691f1011702aed09f",
+  "prompt_record": "slime-backend/docs/design/experiments/momask-walk-travel-v1.txt"
+}
