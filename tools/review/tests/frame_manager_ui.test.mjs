@@ -17,7 +17,7 @@ const testLocationState={hash:''};
 const testHistoryEntries=[];
 let testHistoryPosition=-1;
 const testHistoryAdapter={state:null,pushState(nextHistoryState,unusedTitleText,nextHashValue){testHistoryEntries.splice(testHistoryPosition+1);testHistoryEntries.push({state:nextHistoryState,hash:nextHashValue});testHistoryPosition++;this.state=nextHistoryState;testLocationState.hash=nextHashValue;},replaceState(nextHistoryState,unusedTitleText,nextHashValue){if(testHistoryPosition<0)testHistoryPosition=0;testHistoryEntries[testHistoryPosition]={state:nextHistoryState,hash:nextHashValue};this.state=nextHistoryState;testLocationState.hash=nextHashValue;},back(){if(testHistoryPosition>0){testHistoryPosition--;this.state=testHistoryEntries[testHistoryPosition].state;testLocationState.hash=testHistoryEntries[testHistoryPosition].hash;windowEventHandlers.popstate();}},forward(){if(testHistoryPosition<testHistoryEntries.length-1){testHistoryPosition++;this.state=testHistoryEntries[testHistoryPosition].state;testLocationState.hash=testHistoryEntries[testHistoryPosition].hash;windowEventHandlers.popstate();}}};
-const testExecutionContext=vm.createContext({document:documentTestAdapter,window:{addEventListener(eventNameValue,eventHandlerValue){windowEventHandlers[eventNameValue]=eventHandlerValue;}},location:testLocationState,history:testHistoryAdapter});
+const testExecutionContext=vm.createContext({Event:class{constructor(eventNameValue){this.type=eventNameValue;}},document:documentTestAdapter,window:{addEventListener(eventNameValue,eventHandlerValue){windowEventHandlers[eventNameValue]=eventHandlerValue;}},location:testLocationState,history:testHistoryAdapter});
 vm.runInContext(sourceTemplateText.split('<script>')[1].split('</script>')[0].replace('__MANAGER_PAGES__',JSON.stringify(sourcePageRecords)),testExecutionContext);
 vm.runInContext(`
 if(managerPaneElements.size!==1)throw new Error('선택하지 않은 페이지를 미리 로드함');
@@ -67,5 +67,22 @@ const selectedListButton=document.querySelector('#assetSelection').children[1];
 if(selectedListButton.attributes['aria-current']!=='page')throw new Error('현재 대상 강조 누락');
 document.querySelector('#assetSelection').children[3].onclick();
 if(selectedPageIdentifier!=='slime')throw new Error('목록 클릭 이동 실패');
+`,testExecutionContext);
+vm.runInContext(`
+const editedPaneElement=managerPaneElements.get('slime');
+const editedDocumentHandlers={};
+editedPaneElement.contentDocument={body:{dataset:{coordinateDownloadPending:'false'},classList:{add(){}}},addEventListener(eventNameValue,eventHandlerValue){editedDocumentHandlers[eventNameValue]=eventHandlerValue;},dispatchEvent(currentEventRecord){this.lastEventName=currentEventRecord.type;}};
+editedPaneElement.listeners.load();
+if(pendingCoordinatePages.size)throw new Error('불필요한 이탈 경고');
+editedPaneElement.contentDocument.body.dataset.coordinateDownloadPending='true';editedDocumentHandlers['review-coordinate-state']();
+let unloadWarningRaised=false;
+`,testExecutionContext);
+windowEventHandlers.beforeunload({preventDefault(){vm.runInContext('unloadWarningRaised=true',testExecutionContext);}});
+vm.runInContext(`
+if(!unloadWarningRaised||pendingCoordinatePages.size!==1)throw new Error('이탈 경고 누락');
+selectManagerPage('walk-review');
+if(editedPaneElement.contentDocument.lastEventName!=='review-pane-hidden')throw new Error('숨긴 재생 일시정지 신호 누락');
+editedPaneElement.contentDocument.body.dataset.coordinateDownloadPending='false';editedDocumentHandlers['review-coordinate-state']();
+if(pendingCoordinatePages.size)throw new Error('다운로드 후 변경 상태 남음');
 `,testExecutionContext);
 console.log('검색·분류·이전/다음·브라우저 방문 기록·필터 복원·현재 위치·접기·편집 보존 통과');

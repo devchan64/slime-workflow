@@ -7,16 +7,34 @@ const elementLookupTable=new Map();
 const canvasTraceOperations=[];
 const mockCanvasContext=new Proxy({}, {get:(currentCanvasTarget,currentOperationName)=>(...currentOperationArguments)=>{canvasTraceOperations.push([currentOperationName,...currentOperationArguments]);}});
 function selectMockElement(selectorQueryText){if(!elementLookupTable.has(selectorQueryText))elementLookupTable.set(selectorQueryText,{value:selectorQueryText==='#directionChoice'?'down_left':selectorQueryText==='#pointChoice'?'anchor':'0',textContent:'',innerHTML:'',checked:true,getContext:()=>mockCanvasContext});return elementLookupTable.get(selectorQueryText)}
-const fakeDocumentAdapter={querySelector:selectMockElement,querySelectorAll:()=>[],createElement:()=>({click(){}})};
-const testExecutionContext=vm.createContext({document:fakeDocumentAdapter,Image:class{set src(sourceImageLocation){if(this.onload)this.onload()}},requestAnimationFrame(){},performance:{now:()=>0},canvasTraceOperations,URL,Blob,setTimeout});
+const testDocumentEvents={},testWindowEvents={};
+const fakeDocumentAdapter={body:{dataset:{}},dispatchEvent(){},addEventListener(eventNameValue,eventHandlerValue){testDocumentEvents[eventNameValue]=eventHandlerValue;},querySelector:selectMockElement,querySelectorAll:()=>[],createElement:()=>({click(){}})};
+const testExecutionContext=vm.createContext({document:fakeDocumentAdapter,window:{addEventListener(eventNameValue,eventHandlerValue){testWindowEvents[eventNameValue]=eventHandlerValue;}},CustomEvent:class{constructor(eventNameValue,eventDetailValue){this.type=eventNameValue;this.detail=eventDetailValue.detail;}},Image:class{set src(sourceImageLocation){if(this.onload)this.onload()}},requestAnimationFrame(){},performance:{now:()=>0},canvasTraceOperations,URL,Blob,setTimeout});
 vm.runInContext(reviewScriptContent,testExecutionContext);
 vm.runInContext(`
+if(document.body.dataset.coordinateDownloadPending!=='false')throw new Error('초기 상태 변경 감지 오류');
 const originalFirstFrameCopy=JSON.stringify(reviewFrameRecords[0]);
 const originalSecondAnchorX=reviewFrameRecords[1].anchor.x;
 document.querySelector('#nextFrame').onclick();
 if(frameChoiceElement.value!=='1'||animationPlaybackActive)throw new Error('다음 프레임은 일시정지해야 함');
 moveSelectedPoint(1,0);
 if(reviewFrameRecords[1].anchor.x!==originalSecondAnchorX+1)throw new Error('1px 이동 오류');
+if(document.body.dataset.coordinateDownloadPending!=='true')throw new Error('변경 감지 누락');
+document.querySelector('#undoCoordinateChange').onclick();
+if(reviewFrameRecords[1].anchor.x!==originalSecondAnchorX||document.body.dataset.coordinateDownloadPending!=='false')throw new Error('실행 취소 또는 원본 복원 오류');
+document.querySelector('#redoCoordinateChange').onclick();
+if(reviewFrameRecords[1].anchor.x!==originalSecondAnchorX+1)throw new Error('다시 실행 오류');
+const previousHistoryCount=coordinateUndoHistory.length;moveSelectedPoint(0,0);moveSelectedPoint(-99999,0);
+if(coordinateUndoHistory.length!==previousHistoryCount)throw new Error('무효 편집 기록 생성');
+document.querySelector('#resetCurrentFrame').onclick();
+if(document.body.dataset.coordinateDownloadPending!=='false')throw new Error('현재 프레임 복원 오류');
+document.querySelector('#undoCoordinateChange').onclick();
+document.querySelector('#saveCoordinates').onclick();
+if(document.body.dataset.coordinateDownloadPending!=='false'||!document.querySelector('#coordinateDownloadStatus').textContent.includes('요청됨'))throw new Error('다운로드 안내 오류');
+document.querySelector('#undoCoordinateChange').onclick();
+if(document.body.dataset.coordinateDownloadPending!=='true')throw new Error('다운로드 이후 변경 감지 누락');
+document.querySelector('#redoCoordinateChange').onclick();
+if(document.body.dataset.coordinateDownloadPending!=='false')throw new Error('다운로드 시점 복원 오류');
 if(JSON.stringify(reviewFrameRecords[0])!==originalFirstFrameCopy)throw new Error('다른 프레임 변경');
 document.querySelector('#previousFrame').onclick();
 if(frameChoiceElement.value!=='0')throw new Error('이전 프레임 오류');
@@ -48,3 +66,21 @@ for(const frameRecordValue of exportedArtifactValue.frames)for(const pointRecord
 `,testExecutionContext);
 assert.equal(vm.runInContext('buildCoordinateArtifact().artifactType',testExecutionContext),'character-animation-anchor-review');
 console.log('프레임 전환·1px 이동·다른 프레임 보존·정수 JSON 내보내기·가상 타일·그림자 검사 통과');
+// 등록 소수 앵커와 두 발 중심·앞뒤 네 점 모드도 원본을 정확하게 복원한다.
+const anchorTemplateSource=readFileSync(new URL('../../../generators/animation/review_standing_anchors.html',import.meta.url),'utf8').split('<script>')[1].split('</script>')[0];
+for(const coordinateModeValue of ['anchor','foot-centers','endpoints']){
+ const sampleContactPoints=coordinateModeValue==='anchor'?[{x:10.25,y:20.75}]:[{x:8,y:20},{x:12,y:20}];
+ const sampleFrameRecords=['down_left','down_right','up_left','up_right'].map(currentDirectionName=>({frameId:currentDirectionName+'.0',direction:currentDirectionName,image:'test.png',rect:{x:0,y:0,width:100,height:100},anchor:coordinateModeValue==='anchor'?{...sampleContactPoints[0]}:{x:10,y:20},contacts:sampleContactPoints.map(currentPointRecord=>({...currentPointRecord})),endpoints:coordinateModeValue==='endpoints'?[{x:6,y:20},{x:10,y:20},{x:10,y:20},{x:14,y:20}]:[]}));
+ elementLookupTable.clear();
+ const modeExecutionContext=vm.createContext({document:fakeDocumentAdapter,window:{addEventListener(){}},CustomEvent:class{},Image:class{set src(sourceImageLocation){this.onload();}},requestAnimationFrame(){},performance:{now:()=>0},URL,Blob,setTimeout});
+ vm.runInContext(anchorTemplateSource.replace('__FRAME_RECORDS__',JSON.stringify(sampleFrameRecords)).replace('__SOURCE_METADATA__',JSON.stringify({coordinateMode:coordinateModeValue,sheets:[]})),modeExecutionContext);
+ vm.runInContext(`
+ const originalExportSnapshot=JSON.stringify(buildCoordinateArtifact());
+ moveSelectedPoint(1,0);moveFrameSelection(1);directionChoiceElement.value='up_right';directionChoiceElement.onchange();
+ replayCoordinateChange(true);
+ if(directionChoiceElement.value!=='down_left'||JSON.stringify(buildCoordinateArtifact())!==originalExportSnapshot)throw new Error('모드별 원본 복원 실패');
+ replayCoordinateChange(false);document.querySelector('#resetCurrentFrame').onclick();
+ if(JSON.stringify(buildCoordinateArtifact())!==originalExportSnapshot)throw new Error('모드별 프레임 복원 실패');
+ `,modeExecutionContext);
+}
+console.log('실행 취소·다시 실행·다운로드 변경 상태·소수 앵커·양발 좌표 복원 검사 통과');

@@ -1,12 +1,13 @@
 <!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>앵커 편집 · 워크프레임</title><style></style>
 <header><div><h1>스탠딩 앵커 편집</h1><p>프레임별 기준점을 확인하고 원본 픽셀 단위로 조정하세요.</p></div><span class="badge">수동 좌표 편집</span></header>
 <main class="anchor-workspace">
+<section class="panel editor-save-panel" aria-label="변경 이력 및 다운로드"><p id="coordinateEditStatus" role="status" aria-live="polite"></p><div class="control-row"><button id="undoCoordinateChange" disabled>실행 취소</button><button id="redoCoordinateChange" disabled>다시 실행</button></div><button class="primary" id="saveCoordinates">좌표 JSON 다운로드</button><p id="coordinateDownloadStatus" role="status"></p></section>
 <aside class="anchor-controls" aria-label="앵커 편집 도구">
 <fieldset><legend>01 · 방향과 프레임</legend><select id="directionChoice" aria-label="방향"><option value="down_left">↙ 좌하</option><option value="down_right">↘ 우하</option><option value="up_left">↖ 좌상</option><option value="up_right">↗ 우상</option></select><div class="control-row"><button id="previousFrame">← 이전</button><button id="playToggle">재생</button><button id="nextFrame">다음 →</button></div><label for="frameChoice">프레임 <span id="frameNumber"></span></label><input id="frameChoice" aria-label="프레임 선택" type="range" min="0" max="3" value="0"></fieldset>
-<fieldset><legend>02 · 좌표 조정</legend><select id="pointChoice" aria-label="편집할 좌표"></select><span id="pointStatus"></span><div class="control-row"><button data-move-x="-1" data-move-y="0">← X −1</button><button data-move-x="1" data-move-y="0">X +1 →</button></div><div class="control-row"><button data-move-x="0" data-move-y="-1">↑ Y −1</button><button data-move-x="0" data-move-y="1">↓ Y +1</button></div><p id="coordinateHelp">최종 앵커를 이동하면 두 발 좌표가 함께 이동합니다.</p><p>선택한 프레임에만 적용됩니다. 정지 상태에서 미리보기를 클릭하거나 1px씩 이동하세요.</p><p>원점은 셀 왼쪽 위입니다. 오른쪽은 +X, 아래는 +Y입니다.</p></fieldset>
-<section class="panel"><h2>보기 및 저장</h2><div class="options"><label><input id="anchorToggle" type="checkbox" checked>앵커 정렬</label><label><input id="guideToggle" type="checkbox" checked>가이드</label></div><button class="primary" id="saveCoordinates">좌표 JSON 저장</button><p>종료·새로고침 전에 저장하세요. 게임에는 자동 적용되지 않습니다.</p></section>
+<fieldset><legend>02 · 좌표 조정</legend><select id="pointChoice" aria-label="편집할 좌표"></select><span id="pointStatus"></span><div class="control-row"><button data-move-x="-1" data-move-y="0">← X −1</button><button data-move-x="1" data-move-y="0">X +1 →</button></div><div class="control-row"><button data-move-x="0" data-move-y="-1">↑ Y −1</button><button data-move-x="0" data-move-y="1">↓ Y +1</button></div><button id="resetCurrentFrame">현재 프레임 원본 복원</button><p id="coordinateHelp">최종 앵커를 이동하면 두 발 좌표가 함께 이동합니다.</p><p>선택한 프레임에만 적용됩니다. 정지 상태에서 미리보기를 클릭하거나 1px씩 이동하세요.</p><p>원점은 셀 왼쪽 위입니다. 오른쪽은 +X, 아래는 +Y입니다.</p></fieldset>
+
 </aside>
-<section class="panel anchor-preview" aria-label="프레임 미리보기"><h2>프레임 미리보기</h2><div class="preview-ground-controls"><label><input id="tilePreviewToggle" type="checkbox" checked>가상 타일</label><label>너비 <input id="tilePreviewWidth" type="number" aria-label="가상 타일 너비" step="2"></label><label>높이 <input id="tilePreviewHeight" type="number" aria-label="가상 타일 높이 자동 계산" readonly></label><label><input id="shadowPreviewToggle" type="checkbox" checked>그림자</label></div><p id="groundPreviewStatus" class="muted"></p><p id="groundPreviewError" role="alert"></p><div class="anchor-stage"><canvas id="reviewCanvas" width="650" height="800" aria-label="클릭하여 선택 좌표 지정"></canvas></div><div class="coordinate-legend"><span>노랑 · 기준선</span><span>청록 · 발 중심</span><span>빨강 · 최종 앵커</span></div><p id="frameStatus"></p><pre id="reviewError" role="alert"></pre></section>
+<section class="panel anchor-preview" aria-label="프레임 미리보기"><h2>프레임 미리보기</h2><details class="preview-display-settings"><summary id="groundPreviewStatus"></summary><div class="preview-ground-controls"><label><input id="tilePreviewToggle" type="checkbox" checked>가상 타일</label><label>너비 <input id="tilePreviewWidth" type="number" aria-label="가상 타일 너비" step="2"></label><label>높이 <input id="tilePreviewHeight" type="number" aria-label="가상 타일 높이 자동 계산" readonly></label><label><input id="shadowPreviewToggle" type="checkbox" checked>그림자</label></div><p id="groundPreviewError" role="alert"></p></details><div class="anchor-stage"><canvas id="reviewCanvas" width="650" height="800" aria-label="클릭하여 선택 좌표 지정"></canvas></div><div class="options"><label><input id="anchorToggle" type="checkbox" checked>앵커 정렬</label><label><input id="guideToggle" type="checkbox" checked>가이드</label></div><div class="coordinate-legend"><span>노랑 · 기준선</span><span>청록 · 발 중심</span><span>빨강 · 최종 앵커</span></div><p id="frameStatus"></p><pre id="reviewError" role="alert"></pre></section>
 </main><script>
 const reviewFrameRecords=__FRAME_RECORDS__;
 const reviewSourceMetadata=__SOURCE_METADATA__;
@@ -29,7 +30,7 @@ function updatePreviewGroundSize(){
  const requestedTileWidth=Number(previewTileWidthElement.value),requestedTileHeight=requestedTileWidth/PREVIEW_TILE_ASPECT_RATIO;
  if(!Number.isInteger(requestedTileWidth)||!Number.isInteger(requestedTileHeight)||requestedTileWidth<PREVIEW_TILE_MINIMUM_WIDTH||requestedTileWidth>PREVIEW_TILE_MAXIMUM_WIDTH||requestedTileHeight<PREVIEW_TILE_MINIMUM_HEIGHT||requestedTileHeight>PREVIEW_TILE_MAXIMUM_HEIGHT){document.querySelector('#groundPreviewError').textContent=`너비는 ${PREVIEW_TILE_MINIMUM_WIDTH}–${PREVIEW_TILE_MAXIMUM_WIDTH}px 범위의 짝수를 입력하세요. 높이는 2:1 비율로 자동 계산하며 마지막 유효한 크기를 표시합니다.`;return false;}
  previewTileWidthValue=requestedTileWidth;previewTileHeightValue=requestedTileHeight;previewTileHeightElement.value=String(requestedTileHeight);document.querySelector('#groundPreviewError').textContent='';
- document.querySelector('#groundPreviewStatus').textContent=`가상 타일 ${previewTileWidthValue} × ${previewTileHeightValue}px (2:1) · 그림자 ${previewTileWidthValue*PREVIEW_SHADOW_SCALE_RATIO} × ${previewTileHeightValue*PREVIEW_SHADOW_SCALE_RATIO}px (50%) · 원본 좌표는 변경하지 않습니다.`;return true;
+ document.querySelector('#groundPreviewStatus').textContent=`가상 타일 ${previewTileWidthValue} × ${previewTileHeightValue}px · 그림자 ${previewTileWidthValue*PREVIEW_SHADOW_SCALE_RATIO} × ${previewTileHeightValue*PREVIEW_SHADOW_SCALE_RATIO}px · 표시 설정`;return true;
 }
 previewTileWidthElement.oninput=updatePreviewGroundSize;updatePreviewGroundSize();
 function calculatePreviewGroundHeight(){return Math.min(REVIEW_ANCHOR_POSITION.y,REVIEW_CANVAS_HEIGHT-previewTileHeightValue/2-PREVIEW_GROUND_BOTTOM_MARGIN);}
@@ -44,6 +45,60 @@ function drawPreviewGroundPlane(){
  reviewCanvasContext.restore();
 }
 const reviewImageElements={};let animationPlaybackActive=false,animationStartedTime=0,currentSpriteOffsetX=0,currentSpriteOffsetY=0;
+const initialCoordinateRecords=reviewFrameRecords.map(copyFrameCoordinates);
+const coordinateUndoHistory=[],coordinateRedoHistory=[];
+let downloadedCoordinateSnapshot=JSON.stringify(initialCoordinateRecords);
+function copyFrameCoordinates(currentFrameRecord){return {anchor:{...currentFrameRecord.anchor},contacts:currentFrameRecord.contacts.map(currentPointRecord=>({...currentPointRecord})),endpoints:currentFrameRecord.endpoints.map(currentPointRecord=>({...currentPointRecord}))};}
+function refreshCoordinateStatus(){
+ const currentCoordinateRecords=reviewFrameRecords.map(copyFrameCoordinates);
+ const modifiedFrameCount=currentCoordinateRecords.filter((currentCoordinateRecord,currentFrameIndex)=>JSON.stringify(currentCoordinateRecord)!==JSON.stringify(initialCoordinateRecords[currentFrameIndex])).length;
+ const coordinateDownloadPending=JSON.stringify(currentCoordinateRecords)!==downloadedCoordinateSnapshot;
+ document.body.dataset.coordinateDownloadPending=String(coordinateDownloadPending);
+ document.querySelector('#coordinateEditStatus').textContent=`원본 대비 ${modifiedFrameCount}개 프레임 변경 · ${coordinateDownloadPending?'다운로드 필요':'추가 다운로드 불필요'}`;
+ document.querySelector('#undoCoordinateChange').disabled=coordinateUndoHistory.length===0;
+ document.querySelector('#redoCoordinateChange').disabled=coordinateRedoHistory.length===0;
+ document.dispatchEvent(new CustomEvent('review-coordinate-state',{detail:{pending:coordinateDownloadPending}}));
+}
+function recordCoordinateChange(currentFrameRecord,previousCoordinateRecord){
+ const nextCoordinateRecord=copyFrameCoordinates(currentFrameRecord);
+ if(JSON.stringify(previousCoordinateRecord)===JSON.stringify(nextCoordinateRecord))return;
+ coordinateUndoHistory.push({frameIndex:reviewFrameRecords.indexOf(currentFrameRecord),before:previousCoordinateRecord,after:nextCoordinateRecord});
+ coordinateRedoHistory.length=0;
+ document.querySelector('#coordinateDownloadStatus').textContent='';
+ refreshCoordinateStatus();
+}
+function restoreFrameCoordinates(currentFrameRecord,nextCoordinateRecord){Object.assign(currentFrameRecord,copyFrameCoordinates(nextCoordinateRecord));}
+function replayCoordinateChange(undoRequestedValue){
+ const sourceHistoryRecords=undoRequestedValue?coordinateUndoHistory:coordinateRedoHistory;
+ const targetHistoryRecords=undoRequestedValue?coordinateRedoHistory:coordinateUndoHistory;
+ const selectedHistoryRecord=sourceHistoryRecords.pop();
+ if(!selectedHistoryRecord)return;
+ pauseFramePlayback();
+ const currentFrameRecord=reviewFrameRecords[selectedHistoryRecord.frameIndex];
+ restoreFrameCoordinates(currentFrameRecord,undoRequestedValue?selectedHistoryRecord.before:selectedHistoryRecord.after);
+ directionChoiceElement.value=currentFrameRecord.direction;
+ frameChoiceElement.value=currentFrameRecord.frameId.split('.').at(-1);
+ targetHistoryRecords.push(selectedHistoryRecord);
+ document.querySelector('#reviewError').textContent='';
+ document.querySelector('#coordinateDownloadStatus').textContent='';
+ refreshCoordinateStatus();
+}
+document.querySelector('#undoCoordinateChange').onclick=()=>replayCoordinateChange(true);
+document.querySelector('#redoCoordinateChange').onclick=()=>replayCoordinateChange(false);
+document.querySelector('#resetCurrentFrame').onclick=()=>{
+ pauseFramePlayback();
+ const currentFrameRecord=selectCurrentFrame(),previousCoordinateRecord=copyFrameCoordinates(currentFrameRecord);
+ restoreFrameCoordinates(currentFrameRecord,initialCoordinateRecords[reviewFrameRecords.indexOf(currentFrameRecord)]);
+ document.querySelector('#reviewError').textContent='';
+ recordCoordinateChange(currentFrameRecord,previousCoordinateRecord);
+};
+document.addEventListener('keydown',currentKeyboardEvent=>{
+ if(!(currentKeyboardEvent.ctrlKey||currentKeyboardEvent.metaKey)||currentKeyboardEvent.altKey||currentKeyboardEvent.target.closest('input,select,textarea,[contenteditable]'))return;
+ if(currentKeyboardEvent.key.toLowerCase()==='z'){currentKeyboardEvent.preventDefault();replayCoordinateChange(!currentKeyboardEvent.shiftKey);}
+});
+document.addEventListener('review-pane-hidden',pauseFramePlayback);
+window.addEventListener('beforeunload',currentUnloadEvent=>{if(document.body.dataset.coordinateDownloadPending==='true'){currentUnloadEvent.preventDefault();currentUnloadEvent.returnValue='';}});
+refreshCoordinateStatus();
 frameChoiceElement.max=String(REVIEW_FRAME_COUNT-1);
 if(usesAnchorOnlyMode){document.querySelector('#coordinateHelp').textContent='초기 좌표는 수동 편집 시작점입니다. 떠 있는 발의 중간점 대신 지면 기준점을 지정하세요.';document.querySelector('h1').textContent='걷기 앵커 편집';document.querySelector('h1+p').textContent='초기 앵커는 셀 하단 중앙의 편집 시작점입니다. 자동 검출 좌표가 아닙니다. 떠 있는 발의 중간점 대신 지면 기준점을 프레임별로 지정하세요. 정수 원본 픽셀 단위로 저장합니다.';}
 if(reviewSourceMetadata.registeredSource){document.querySelector('h1').textContent=reviewSourceMetadata.displayNameKo+' · 앵커 편집';document.querySelector('h1+p').textContent=reviewSourceMetadata.description;document.querySelector('#coordinateHelp').textContent='등록된 원본 앵커를 불러왔습니다. 소수 좌표는 유지하며 클릭 지정은 정수 픽셀을 사용합니다.';}
@@ -55,10 +110,10 @@ function updateFrameCoordinates(currentFrameValue){if(usesAnchorOnlyMode){curren
 function pauseFramePlayback(){animationPlaybackActive=false;document.querySelector('#playToggle').textContent='재생'}
 function moveFrameSelection(frameStepAmount){pauseFramePlayback();frameChoiceElement.value=String((Number(frameChoiceElement.value)+frameStepAmount+REVIEW_FRAME_COUNT)%REVIEW_FRAME_COUNT)}
 function moveSelectedPoint(pointDeltaX,pointDeltaY){
- pauseFramePlayback();const currentFrameValue=selectCurrentFrame(),editablePointValues=usesFootCentersOnly?currentFrameValue.contacts:currentFrameValue.endpoints;
+ pauseFramePlayback();if(pointDeltaX===0&&pointDeltaY===0)return;const currentFrameValue=selectCurrentFrame(),previousCoordinateRecord=copyFrameCoordinates(currentFrameValue),editablePointValues=usesFootCentersOnly?currentFrameValue.contacts:currentFrameValue.endpoints;
  const affectedPointValues=pointChoiceElement.value==='anchor'?editablePointValues:[editablePointValues[Number(pointChoiceElement.value)]];
  if(affectedPointValues.some(currentPointValue=>currentPointValue.x+pointDeltaX<0||currentPointValue.y+pointDeltaY<0||currentPointValue.x+pointDeltaX>=currentFrameValue.rect.width||currentPointValue.y+pointDeltaY>=currentFrameValue.rect.height)){document.querySelector('#reviewError').textContent='좌표가 셀을 벗어나 이동하지 않았습니다.';return}
- affectedPointValues.forEach(currentPointValue=>{currentPointValue.x+=pointDeltaX;currentPointValue.y+=pointDeltaY});updateFrameCoordinates(currentFrameValue);document.querySelector('#reviewError').textContent='';
+ affectedPointValues.forEach(currentPointValue=>{currentPointValue.x+=pointDeltaX;currentPointValue.y+=pointDeltaY});updateFrameCoordinates(currentFrameValue);document.querySelector('#reviewError').textContent='';recordCoordinateChange(currentFrameValue,previousCoordinateRecord);
 }
 function drawReviewFrame(currentAnimationTime){
  if(animationPlaybackActive)frameChoiceElement.value=String(Math.floor((currentAnimationTime-animationStartedTime)/REVIEW_FRAME_DURATION)%REVIEW_FRAME_COUNT);
@@ -72,7 +127,7 @@ function drawReviewFrame(currentAnimationTime){
   reviewCanvasContext.strokeStyle='#ffdf66';reviewCanvasContext.beginPath();reviewCanvasContext.moveTo(0,calculatePreviewGroundHeight());reviewCanvasContext.lineTo(650,calculatePreviewGroundHeight());reviewCanvasContext.moveTo(325,0);reviewCanvasContext.lineTo(325,800);reviewCanvasContext.stroke();
   for(let endpointPairOffset=0;endpointPairOffset<currentFrameValue.endpoints.length;endpointPairOffset+=2){reviewCanvasContext.beginPath();reviewCanvasContext.moveTo(currentSpriteOffsetX+currentFrameValue.endpoints[endpointPairOffset].x,currentSpriteOffsetY+currentFrameValue.endpoints[endpointPairOffset].y);reviewCanvasContext.lineTo(currentSpriteOffsetX+currentFrameValue.endpoints[endpointPairOffset+1].x,currentSpriteOffsetY+currentFrameValue.endpoints[endpointPairOffset+1].y);reviewCanvasContext.stroke()}
   reviewCanvasContext.strokeStyle='#00ffff';reviewCanvasContext.beginPath();currentFrameValue.contacts.forEach((currentPointValue,currentPointIndex)=>{if(currentPointIndex===0)reviewCanvasContext.moveTo(currentSpriteOffsetX+currentPointValue.x,currentSpriteOffsetY+currentPointValue.y);else reviewCanvasContext.lineTo(currentSpriteOffsetX+currentPointValue.x,currentSpriteOffsetY+currentPointValue.y)});reviewCanvasContext.stroke();
-  [...currentFrameValue.contacts,currentFrameValue.anchor].forEach((currentPointValue,currentPointIndex)=>{reviewCanvasContext.fillStyle=currentPointIndex===2?'#ff4444':'#00ffff';reviewCanvasContext.beginPath();reviewCanvasContext.arc(currentSpriteOffsetX+currentPointValue.x,currentSpriteOffsetY+currentPointValue.y,4,0,Math.PI*2);reviewCanvasContext.fill()});
+  [...currentFrameValue.contacts,currentFrameValue.anchor].forEach((currentPointValue,currentPointIndex)=>{reviewCanvasContext.fillStyle=currentPointIndex===currentFrameValue.contacts.length?'#ff4444':'#00ffff';reviewCanvasContext.beginPath();reviewCanvasContext.arc(currentSpriteOffsetX+currentPointValue.x,currentSpriteOffsetY+currentPointValue.y,4,0,Math.PI*2);reviewCanvasContext.fill()});
  }
  const selectedPointValue=pointChoiceElement.value==='anchor'?currentFrameValue.anchor:(usesFootCentersOnly?currentFrameValue.contacts:currentFrameValue.endpoints)[Number(pointChoiceElement.value)];
  document.querySelector('#pointStatus').textContent=`X ${selectedPointValue.x} / Y ${selectedPointValue.y}`;
@@ -83,11 +138,11 @@ function drawReviewFrame(currentAnimationTime){
 document.querySelector('#previousFrame').onclick=()=>moveFrameSelection(-1);
 document.querySelector('#nextFrame').onclick=()=>moveFrameSelection(1);
 frameChoiceElement.oninput=pauseFramePlayback;
-directionChoiceElement.onchange=()=>{pauseFramePlayback();frameChoiceElement.value='0'};
+directionChoiceElement.onchange=pauseFramePlayback;
 document.querySelector('#playToggle').onclick=()=>{animationPlaybackActive=!animationPlaybackActive;animationStartedTime=performance.now()-Number(frameChoiceElement.value)*REVIEW_FRAME_DURATION;document.querySelector('#playToggle').textContent=animationPlaybackActive?'일시정지':'재생'};
 document.querySelectorAll('[data-move-x]').forEach(currentButtonElement=>currentButtonElement.onclick=()=>moveSelectedPoint(Number(currentButtonElement.dataset.moveX),Number(currentButtonElement.dataset.moveY)));
 reviewCanvasElement.onclick=(pointerClickEvent)=>{if(animationPlaybackActive)return;const currentFrameValue=selectCurrentFrame(),canvasClientBounds=reviewCanvasElement.getBoundingClientRect();const clickedPointPosition={x:Math.round((pointerClickEvent.clientX-canvasClientBounds.left)*REVIEW_CANVAS_WIDTH/canvasClientBounds.width-currentSpriteOffsetX),y:Math.round((pointerClickEvent.clientY-canvasClientBounds.top)*REVIEW_CANVAS_HEIGHT/canvasClientBounds.height-currentSpriteOffsetY)};const selectedPointValue=pointChoiceElement.value==='anchor'?currentFrameValue.anchor:(usesFootCentersOnly?currentFrameValue.contacts:currentFrameValue.endpoints)[Number(pointChoiceElement.value)];moveSelectedPoint(clickedPointPosition.x-selectedPointValue.x,clickedPointPosition.y-selectedPointValue.y)};
 function buildCoordinateArtifact(){return {schemaVersion:1,artifactType:reviewSourceMetadata.artifactType||'character-standing-anchor-review',description:reviewSourceMetadata.description||'스탠딩 정수 앵커 검수 좌표. 셀 왼쪽 위 원점, x 오른쪽·y 아래. points는 화면 왼쪽 발부터 두 발 중심 또는 각 발 앞뒤 네 점이며 anchor는 발 중심 평균을 반올림한다.',coordinateMode:reviewSourceMetadata.coordinateMode,source:{animationId:reviewAnimationIdentity,animationVersion:reviewAnimationVersion,sheets:reviewSourceMetadata.sheets},frames:reviewFrameRecords.map(currentFrameValue=>({frameId:currentFrameValue.frameId,direction:currentFrameValue.direction,image:currentFrameValue.image,rect:currentFrameValue.rect,points:usesAnchorOnlyMode?[currentFrameValue.anchor]:usesFootCentersOnly?currentFrameValue.contacts:currentFrameValue.endpoints,anchor:currentFrameValue.anchor}))}}
-document.querySelector('#saveCoordinates').onclick=()=>{const downloadAnchorElement=document.createElement('a');downloadAnchorElement.href=URL.createObjectURL(new Blob([JSON.stringify(buildCoordinateArtifact(),null,2)+'\n'],{type:'application/json'}));downloadAnchorElement.download=reviewExportFilename;downloadAnchorElement.click();setTimeout(()=>URL.revokeObjectURL(downloadAnchorElement.href),1000)};
+document.querySelector('#saveCoordinates').onclick=()=>{const downloadAnchorElement=document.createElement('a');downloadAnchorElement.href=URL.createObjectURL(new Blob([JSON.stringify(buildCoordinateArtifact(),null,2)+'\n'],{type:'application/json'}));downloadAnchorElement.download=reviewExportFilename;downloadAnchorElement.click();downloadedCoordinateSnapshot=JSON.stringify(reviewFrameRecords.map(copyFrameCoordinates));refreshCoordinateStatus();document.querySelector('#coordinateDownloadStatus').textContent='다운로드 요청됨 · 브라우저에서 파일을 확인하세요.';setTimeout(()=>URL.revokeObjectURL(downloadAnchorElement.href),1000)};
 Promise.all([...new Set(reviewFrameRecords.map(currentFrameValue=>currentFrameValue.image))].map(currentImageFilename=>new Promise((resolveImageLoad,rejectImageLoad)=>{const currentImageElement=new Image();currentImageElement.onload=()=>{reviewImageElements[currentImageFilename]=currentImageElement;resolveImageLoad()};currentImageElement.onerror=()=>rejectImageLoad(new Error(`이미지 로드 실패: ${currentImageFilename}`));currentImageElement.src=currentImageFilename}))).then(()=>requestAnimationFrame(drawReviewFrame)).catch(currentLoadError=>document.querySelector('#reviewError').textContent=currentLoadError.message);
 </script></html>

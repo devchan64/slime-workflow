@@ -1,12 +1,12 @@
 <!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>워크프레임 관리도구</title><style>
 nav button{background:transparent;color:var(--text-secondary)}#context{display:flex;justify-content:space-between;gap:12px;font-size:12px;color:var(--text-secondary)}iframe{border:0;width:100%;height:100%;display:block;background:var(--surface-base)}iframe[hidden]{display:none}footer{border-top:1px solid var(--border-subtle);font-size:12px;color:var(--text-secondary)}
-</style><body class="manager-shell"><header><div><h1>워크프레임 관리도구</h1><p>애니메이션 비교 · 프레임별 앵커 편집</p></div><div class="manager-header-actions"><span class="badge">로컬 검수</span><button id="toggleNavigation" type="button" aria-expanded="true" aria-controls="managerPicker">검색·목록 접기</button></div></header><div class="manager-layout"><section id="managerPicker" class="manager-picker" aria-label="검수 대상 검색">
+</style><body class="manager-shell"><header><div><h1>워크프레임 관리도구</h1><p>애니메이션 비교 · 프레임별 앵커 편집</p></div><div class="manager-header-actions"><span id="managerEditStatus" role="status"></span><span class="badge">로컬 검수</span><button id="toggleNavigation" type="button" aria-expanded="true" aria-controls="managerPicker">검색·목록 접기</button></div></header><div class="manager-layout"><section id="managerPicker" class="manager-picker" aria-label="검수 대상 검색">
 <div class="search-controls"><label>검색<input id="assetSearch" type="search" placeholder="한국어 이름, ID, 검수 종류, 실행 날짜" aria-label="애니메이션 및 웹 검수 검색" autocomplete="off"></label><label>분류<select id="reviewCategory"><option value="all">전체</option><option value="animation">등록 애니메이션</option><option value="web-review">기존 웹 검수</option></select></label><button id="clearSearch" type="button">검색 초기화</button></div>
 <p id="searchStatus" role="status" aria-live="polite"></p><nav id="assetSelection" aria-label="검수 대상 목록"></nav>
-</section><div class="manager-content"><nav id="context" aria-label="현재 검수 위치와 이동"><div class="current-review-location"><span id="currentCategoryLabel" class="muted"></span><strong id="currentPageLabel" aria-live="polite"></strong><details><summary>원본 정보</summary><span id="currentLabel"></span></details></div><div class="review-page-navigation"><button id="previousReview" type="button" aria-label="이전 검수 항목">← 이전</button><span id="navigationPosition" role="status"></span><button id="nextReview" type="button" aria-label="다음 검수 항목">다음 →</button><button id="revealCurrentReview" type="button" hidden>현재 항목 찾기</button><a id="standaloneLink" target="_blank" rel="noopener">별도 탭 ↗</a></div></nav><main id="workspace"></main></div></div><footer>메뉴를 전환해도 편집 중인 좌표는 유지됩니다. 종료·새로고침 전에 좌표 JSON을 저장하세요.</footer><script>
+</section><div class="manager-content"><nav id="context" aria-label="현재 검수 위치와 이동"><div class="current-review-location"><span id="currentCategoryLabel" class="muted"></span><strong id="currentPageLabel" aria-live="polite"></strong><details><summary>원본 정보</summary><span id="currentLabel"></span></details></div><div class="review-page-navigation"><button id="previousReview" type="button" aria-label="이전 검수 항목">← 이전</button><span id="navigationPosition" role="status"></span><button id="nextReview" type="button" aria-label="다음 검수 항목">다음 →</button><button id="revealCurrentReview" type="button" hidden>현재 항목 찾기</button><a id="standaloneLink" target="_blank" rel="noopener">별도 탭 ↗</a></div></nav><main id="workspace"></main></div></div><footer>메뉴를 전환해도 편집 중인 좌표는 유지됩니다. 종료·새로고침 전에 좌표 JSON을 다운로드하세요.</footer><script>
 const managerPageRecords=__MANAGER_PAGES__;
 const managerPaneElements=new Map();
-let coordinateChangesPending=false;
+const pendingCoordinatePages=new Set();
 let selectedPageIdentifier='';
 let filteredPageRecords=[];
 function filterManagerRecords(searchQueryText,selectedCategoryName){
@@ -40,7 +40,7 @@ function renderManagerResults(){
   currentOptionElement.setAttribute('aria-current',currentPageRecord.id===selectedPageIdentifier?'page':'false');
   currentOptionElement.onclick=()=>selectManagerPage(currentPageRecord.id);
   currentOptionElement.title=currentPageRecord.description;
-  currentOptionElement.textContent=`${currentPageRecord.category==='animation'?'애니메이션':'웹 검수'} · ${currentPageRecord.label}`;
+  currentOptionElement.textContent=`${currentPageRecord.category==='animation'?'애니메이션':'웹 검수'} · ${currentPageRecord.label}${pendingCoordinatePages.has(currentPageRecord.id)?' · 변경됨':''}`;
   assetSelectionElement.append(currentOptionElement);
  }
 
@@ -59,12 +59,15 @@ function selectManagerPage(nextPageIdentifier,historyUpdateMode='push'){
   selectedPaneElement.addEventListener('load',()=>{
    selectedPaneElement.contentDocument.body.classList.add('embedded-review');
    if(!selectedPageRecord.anchorEditor)return;
-   selectedPaneElement.contentDocument.addEventListener('click',currentClickEvent=>{if(currentClickEvent.target.closest('[data-move-x],#reviewCanvas'))coordinateChangesPending=true;});
+   const selectedPaneDocument=selectedPaneElement.contentDocument;
+   const updatePendingCoordinates=()=>{if(selectedPaneDocument.body.dataset.coordinateDownloadPending==='true')pendingCoordinatePages.add(nextPageIdentifier);else pendingCoordinatePages.delete(nextPageIdentifier);document.querySelector('#managerEditStatus').textContent=pendingCoordinatePages.size?`${pendingCoordinatePages.size}개 대상의 좌표 다운로드 필요`:'';for(const currentOptionElement of document.querySelector('#assetSelection').children){const currentPageRecord=managerPageRecords.find(currentPageRecord=>currentPageRecord.id===currentOptionElement.value);currentOptionElement.textContent=`${currentPageRecord.category==='animation'?'애니메이션':'웹 검수'} · ${currentPageRecord.label}${pendingCoordinatePages.has(currentPageRecord.id)?' · 변경됨':''}`;}};
+   selectedPaneDocument.addEventListener('review-coordinate-state',updatePendingCoordinates);
+   updatePendingCoordinates();
   });
   document.querySelector('#workspace').append(selectedPaneElement);
   managerPaneElements.set(nextPageIdentifier,selectedPaneElement);
  }
- for(const [currentPageIdentifier,currentPaneElement]of managerPaneElements)currentPaneElement.hidden=currentPageIdentifier!==nextPageIdentifier;
+ for(const [currentPageIdentifier,currentPaneElement]of managerPaneElements){if(!currentPaneElement.hidden&&currentPageIdentifier!==nextPageIdentifier&&currentPaneElement.contentDocument)currentPaneElement.contentDocument.dispatchEvent(new Event('review-pane-hidden'));currentPaneElement.hidden=currentPageIdentifier!==nextPageIdentifier;}
  for(const currentOptionElement of document.querySelector('#assetSelection').children)currentOptionElement.setAttribute('aria-current',currentOptionElement.value===nextPageIdentifier?'page':'false');
  document.querySelector('#currentLabel').textContent=selectedPageRecord.description;
  document.querySelector('#currentPageLabel').textContent=selectedPageRecord.label;
@@ -99,7 +102,7 @@ function restoreManagerLocation(){
 }
 window.addEventListener('popstate',restoreManagerLocation);
 window.addEventListener('hashchange',restoreManagerLocation);
-window.addEventListener('beforeunload',currentUnloadEvent=>{if(coordinateChangesPending){currentUnloadEvent.preventDefault();currentUnloadEvent.returnValue='';}});
+window.addEventListener('beforeunload',currentUnloadEvent=>{if(pendingCoordinatePages.size){currentUnloadEvent.preventDefault();currentUnloadEvent.returnValue='';}});
 restoreManagerLocation();
 saveManagerLocation('replace');
 </script></body></html>
