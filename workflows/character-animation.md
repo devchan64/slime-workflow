@@ -4,7 +4,7 @@
 
 ## 1. 베이스라인 생성과 선택
 
-[통합 캐릭터 생성](character-baseline-sheet.md)에 따라 신규 캐릭터를 최대 지원 크기의 2×2 베이스라인으로 한 번에 생성한다. 기존 1장 베이스라인은 폐기했다. 현재 승인 외형은 프론트엔드 `src/assets/characters/baseline/character-default-white-shirt-four-directions-v1.png`다.
+[통합 캐릭터 생성](character-baseline-sheet.md)에 따라 신규 캐릭터를 최대 지원 크기의 2×2 베이스라인으로 한 번에 생성한다. 기존 1장 베이스라인은 폐기했다. 현재 승인 외형은 프론트엔드 `src/assets/characters/baseline/character-default-white-shirt-four-directions-v2.png`다.
 
 입력은 시트 전체이며 좌상/우상/좌하/우하가 `up_left`/`up_right`/`down_left`/`down_right`다. 방향별 걷기 생성에서는 필요한 셀의 역할을 프롬프트에 지정한다. 크롭한 단일 캐릭터를 기본 입력으로 사용하거나 생성 결과를 외형 기준으로 연쇄 참조하지 않는다.
 

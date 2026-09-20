@@ -4,7 +4,7 @@ Codex 내장 `image_gen`으로 승인된 **4방향 2×2 베이스라인 시트 �
 
 ## 입력 기준
 
-- 현재 참조 원본: `slime-frontend/src/assets/characters/baseline/character-default-white-shirt-four-directions-v1.png`.
+- 현재 참조 원본: `slime-frontend/src/assets/characters/baseline/character-default-white-shirt-four-directions-v2.png`.
 - 같은 이름의 sidecar YAML에서 실제 크기·셀 좌표·출처를 확인하고 실행 시 파일 해시를 기록한다.
 - 베이스라인 시트 전체를 하나의 참조 이미지로 전달한다. 단일 방향을 잘라 유일한 외형 참조로 사용하거나 기존 스탠딩 결과를 연쇄 참조하지 않는다.
 - 외형·복장·렌더링 스타일과 신체 비율은 승인된 베이스라인을 기준으로 유지한다. 별도의 등신 수치나 체형 보정 문구를 자동 추가하지 않는다.

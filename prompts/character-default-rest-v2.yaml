@@ -3,8 +3,8 @@ recipe_id: character-default-rest
 generator: image_gen
 mode: built-in
 status: ready-not-generated
-reference: slime-frontend/src/assets/characters/baseline/character-default-white-shirt-four-directions-v1.png
-reference_sha256: ac2f96e7bfabcec04e8236248f8039c40bc9c65b2d83cbbe78e78affcebe1afb
+reference: slime-frontend/src/assets/characters/baseline/character-default-white-shirt-four-directions-v2.png
+reference_sha256: 9a425eaa116c4d99ffe66b2db2196a8432be2701ace86bfd652ad76e364cfe98
 reference_layout:
   rows: 2
   columns: 2
