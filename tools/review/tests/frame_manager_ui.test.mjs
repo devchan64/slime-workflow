@@ -34,13 +34,13 @@ if(filterManagerRecords('슬라임 대기','animation').length!==1)throw new Err
 if(filterManagerRecords('MONSTER.SLIME','all').length!==1)throw new Error('대소문자 ID 검색 실패');
 if(filterManagerRecords('2026-09','web-review').length!==1)throw new Error('검수 날짜 검색 실패');
 document.querySelector('#assetSearch').value='없는 결과';renderManagerResults();
-if(!document.querySelector('#assetSelection').disabled||originalAnchorPane.hidden)throw new Error('빈 검색이 편집 화면에 영향을 줌');
+if(document.querySelector('#assetSelection').children.length!==0||originalAnchorPane.hidden)throw new Error('빈 검색이 편집 화면에 영향을 줌');
 document.querySelector('#assetSearch').value='슬라임';renderManagerResults();
 if(originalAnchorPane.hidden)throw new Error('검색 도중 자동 이동');
 document.querySelector('#assetSearch').onkeydown({key:'Enter',preventDefault(){}});
 if(selectedPageIdentifier!=='slime')throw new Error('검색 후 Enter 선택 실패');
 document.querySelector('#clearSearch').onclick();
-if(filteredPageRecords.length!==4||document.querySelector('#assetSelection').value!=='slime')throw new Error('검색 초기화 후 선택 소실');
+if(filteredPageRecords.length!==4||selectedPageIdentifier!=='slime')throw new Error('검색 초기화 후 선택 소실');
 `,testExecutionContext);
 assert.equal(selectedElementLookup.get('#standaloneLink').href,'slime/anchors.html');
 vm.runInContext(`
@@ -61,5 +61,11 @@ document.querySelector('#toggleNavigation').onclick();
 if(!document.querySelector('#managerPicker').hidden||document.querySelector('#toggleNavigation').attributes['aria-expanded']!=='false')throw new Error('탐색 영역 접기 실패');
 document.querySelector('#toggleNavigation').onclick();
 if(document.querySelector('#managerPicker').hidden)throw new Error('탐색 영역 펼치기 실패');
+`,testExecutionContext);
+vm.runInContext(`
+const selectedListButton=document.querySelector('#assetSelection').children[1];
+if(selectedListButton.attributes['aria-current']!=='page')throw new Error('현재 대상 강조 누락');
+document.querySelector('#assetSelection').children[3].onclick();
+if(selectedPageIdentifier!=='slime')throw new Error('목록 클릭 이동 실패');
 `,testExecutionContext);
 console.log('검색·분류·이전/다음·브라우저 방문 기록·필터 복원·현재 위치·접기·편집 보존 통과');
