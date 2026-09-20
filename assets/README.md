@@ -6,7 +6,8 @@
 - `rigs/`: 현재 기본 리그 `five-head-walk/v9`만 보관한다. 사용자 요청으로 v1~v8은 삭제했다.
 - `animation-loops/`: 승인된 4방향×6프레임 오픈포즈 PNG 24장만 보관한다.
 - 출처와 파일 해시는 `generators/animation/config/default_walk_loop.artifact.yaml`에 둔다. 좌표·Depth·마스크·미리보기 등은 `render_pose_frames.py`로 `.tmp`에 재생성한다.
-- `references/`, `previews/`: 제작용 스탠딩 참조와 미리보기. 최종 이미지 관리 원본은 프론트엔드다.
+- `references/`: 제작 입력으로 사용하는 스탠딩 참조. 최종 이미지 관리 원본은 프론트엔드다.
+- 미리보기 HTML과 재생용 메타데이터 사본은 정식 에셋으로 등록하지 않는다. 필요하면 실행별 `.tmp/`에서 생성·확인한다.
 - 이전 `rig-baselines/five-head-walk/v8` 비교 스냅샷은 삭제했다. v9 manifest의 이전 버전 표기는 과거 출처이며 실행 입력이 아니다.
 
 파일은 같은 버전에서 덮어쓰지 않는다. 이번 이동은 저장소 경로 정리이며 원본 모션·리그·포즈 이미지의 바이트를 변경하지 않았다. 과거 실행 경로는 출처 기록으로 남을 수 있지만 활성 생성기는 `assets/`를 사용한다. 승인 전 후보와 실험 프롬프트는 `.tmp/`, 모델 캐시는 `.model/`에 둔다. 폐기한 외형 실험은 이 디렉터리에 등록하지 않는다.
