@@ -9,7 +9,6 @@
 | `character-default-rest-v2.yaml` | 승인된 2×2 기준 시트 전체 → 휴식 2×2 시트 | 수정 완료, 생성 미실행 |
 | `monster-standing-v2.yaml` | 몬스터 10종의 4×4 스탠딩 | 기존 기본·확장판 통합 |
 
-스탠딩 캐릭터 v2의 과거 비율 보정 프롬프트·복구 입력은 `assets/recipes/character-default-standing-v2/v1/`에서 관리한다. [재실행 준비 명령](../workflows/character-standing-replay.md)을 따른다.
 
 ## 실행 계약
 

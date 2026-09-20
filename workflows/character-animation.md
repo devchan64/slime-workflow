@@ -85,3 +85,12 @@ Qwen 동작을 Codex 이미지젠의 동작 참조로 사용해 원형 일러스
 - 리그 렌더: `.local/blender-runtime/bin/python` (bpy 4.5.3, NumPy, Pillow).
 - 소스 이동 뒤에는 컴파일·기본 리그 해시 검증·CLI 도움말·6프레임 재렌더로 연결을 확인한다. MoMask 새 모델 추론과 Qwen 추가 추론을 단순 경로 변경 검사 때문에 반복 실행하지 않는다.
 - `old/`의 이전 테스트는 현재 생성기 검증으로 간주하지 않는다.
+
+## 포즈 맵 원본 경로
+
+후속 이미지 생성에는 `assets/animation-loops/five-head-walk-6f/v1/`의 포즈 맵을 직접 사용한다. 기본 선택은 `generators/animation/config/default_walk_loop.yaml`과 `resolve_default_loop.py`로 검증한다.
+
+- `down_left/`, `down_right/`, `up_left/`, `up_right/` 각각의 `openpose-0001.png`~`openpose-0006.png`, 총 24장이 원본이다.
+- 투영 관절 좌표는 동일 루프의 `openpose-keypoints.json`에서 읽는다.
+- 루프의 `artifact.json`에 등록된 출처·버전·호환 정보·해시를 기준으로 사용한다. 중복 포즈 이미지와 별도 선택 설정은 유지하지 않는다.
+- 원본 루프·v9 리그·MoMask 모션은 재사용 제작 자산이다. 사용자 승인 없이 임시 정리 대상으로 취급하지 않는다.
