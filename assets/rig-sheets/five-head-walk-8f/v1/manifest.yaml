@@ -1,0 +1,65 @@
+asset_id: five-head-walk-8f-rig-sheets
+version: 1
+description: MoMask walk-travel/v1과 승인 five-head-walk/v9 리그의 방향별 걷기 8프레임 참조 시트. 최종
+  캐릭터 외형 생성용 제작 자산.
+source_run: .tmp/2026-09-20_21-01-21
+source_manifest_sha256: 946d4fc7afd078af046be60cf40c7ee9b0e321f8ba508c11cc8c1820114e5158
+generator: generators/animation/render_pose_frames.py
+source_motion:
+  asset_id: walk-travel
+  version: 1
+  sha256: 5f10e35b13cb7cb0cce7faf0dc26ac9b8f8ac36f2dc6e496b044418e3e1b05c5
+source_rig:
+  asset_id: five-head-walk
+  version: 9
+  artifact_sha256: db00df0cf970ba52b346f247b8bda90780505defca81c344b40fc4139023f1ad
+layout:
+  columns: 4
+  rows: 2
+  cell_size:
+  - 512
+  - 512
+  sheet_size:
+  - 2048
+  - 1024
+  order: row-major
+sample_indices:
+- 0
+- 3
+- 6
+- 9
+- 12
+- 15
+- 18
+- 21
+frame_duration_ms: 150
+cycle_seconds: 1.2
+duplicate_end_frame: false
+neutral_head_units: 5
+render:
+  blender: 4.5.3 LTS
+  gpu:
+  - NVIDIA GeForce RTX 5070 Laptop GPU
+  render_size: 512
+  depth_near: 4.0
+  depth_far: 8.0
+  shading:
+    profile: directional-ao-v1
+    samples: 32
+    base_color:
+    - 0.32
+    - 0.36
+    - 0.42
+    - 1
+    ambient_strength: 0.18
+    ao_distance: 0.22
+    key_power: 500
+    fill_power: 90
+files:
+  down_left.png: 53ae85e3276a991f7c8dea5e24bd1ecb8be6ab869d9d22bdf8fe8e6cc8831352
+  down_right.png: 3fd2583beee46829e38009189ddbcdf10bc6d4c7f7c0bffe0dd53eea79432ba7
+  up_left.png: 3757282284f0dffe7fb7e8e45ed38edb944ba896d5c7877c0d6e527c9694ae89
+  up_right.png: 194f7c254d319373c2939e24ea8d25bc2b9e8ec04d6adf91b0c77d5e4e63e2ee
+quality_notes:
+- 5등신은 중립 리그 메시 기준이며 투영 자세에서는 겉보기 등신이 달라질 수 있음
+- 원본 루프와 발 회전 검증; 8프레임의 시각적 부드러움은 검수 필요
