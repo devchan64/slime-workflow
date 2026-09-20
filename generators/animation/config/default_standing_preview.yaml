@@ -1,0 +1,5 @@
+asset_id: default-standing-preview
+version: 1
+reference_asset: default-standing/v2
+preview_path: .result/workflow/reusable/previews/default-standing/v1/preview.html
+artifact_sha256: 673f2487762c4bc0fb1554d7888f2db680e369b67580ab17f8ea3edf803cc9ac
