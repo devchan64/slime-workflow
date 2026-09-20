@@ -22,10 +22,14 @@
 
 모델 준비·GPU 추론은 샌드박스 밖에서 실행한다. CPU 추론이나 준비 실패 시 대체 실행은 허용하지 않는다. 게임 런타임·AWS 배포 변경은 없다.
 
-## 기본 재사용 루프
+## 기본 걷기 참조
 
-`five-head-walk-6f/v1`은 사용자 승인된 5등신 리그의 4방향×6프레임·1.2초 루프다. `generators/animation/config/default_walk_loop.yaml`로 선택하며 `generators/animation/resolve_default_loop.py`가 등록 파일 해시를 검증한다. 자산은 `assets/animation-loops/`에 보관하고 임시 정리 대상에서 제외한다.
+걷기는 방향당 8프레임·150ms·1.2초 루프다. 개별 animation-loops 자산은 삭제하고 `assets/pose-sheets/`의 방향별 시트 4장을 유지한다. 출처·배치·해시는 `generators/animation/config/default_walk_pose_sheets.yaml`에서 관리한다.
 
 ## 캐릭터 기준 시트
 
-[4방향 기준 시트 제작 절차](workflows/character-baseline-sheet.md)는 Codex 내장 image_gen의 참조·실험·가이드 비교·승인 후 등록을 관리한다.
+걷기 이미지젠의 기본 입력은 셰이딩을 보강한 리그 8프레임 시트다. `assets/pose-sheets/five-head-walk-8f/v1/`의 OpenPose 시트는 비교 자료로 유지한다. `generators/animation/build_walk_pose_sheets.py`가 렌더 실행 폴더의 8프레임 포즈를 묶고 출처·파일 해시를 기록한다.
+
+[캐릭터 생성·4방향 기준 시트 통합 절차](workflows/character-baseline-sheet.md)는 신규 캐릭터를 최대 지원 크기의 2×2 베이스라인으로 한 번에 생성한다. 단일 원화 생성 후 시트로 재생성하는 단계를 기본 경로에서 제거했다. 모든 최종 캐릭터 애니메이션은 이미지젠과 2×2 시트 전체를 사용하며 걷기 동작은 리그 8프레임 시트를 참조한다.
+
+[스탠딩 시트 제작 절차](workflows/character-standing-sheet.md)는 승인된 2×2 베이스라인 시트 전체를 참조하여 4방향×4프레임의 4×4 시트를 생성한다. 입력 셀과 출력 행의 방향 대응을 명시하며 기존 standing-v2를 자동 교체하지 않는다.

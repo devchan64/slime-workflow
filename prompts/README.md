@@ -5,12 +5,14 @@
 | 파일 | 역할 | 상태 |
 |---|---|---|
 | `art-style.yaml` | 공통 화풍 및 대상·출력별 조합 | 기존 내용 보존 |
-| `character-baseline-four-directions-v1.yaml` | 원형 단일 이미지 → 2×2 기준 시트 | 승인된 프롬프트 원문 유지 |
+| `character-baseline-four-directions-v1.yaml` | 이전 단일 이미지 → 2×2 생성 출처 | 과거 승인 이력 보존, 신규 기본 경로에서 제외 |
 | `character-default-rest-v2.yaml` | 승인된 2×2 기준 시트 전체 → 휴식 2×2 시트 | 수정 완료, 생성 미실행 |
 | `monster-standing-v2.yaml` | 몬스터 10종의 4×4 스탠딩 | 기존 기본·확장판 통합 |
 
 
 ## 실행 계약
+
+신규 캐릭터는 [통합 생성 절차](../workflows/character-baseline-sheet.md)에 따라 최대 지원 크기의 2×2 베이스라인을 한 번에 생성한다. 새 실행 프롬프트는 `.tmp`에 준비하며 아래 기존 v1 계약을 신규 생성에 적용하지 않는다. v1 YAML은 기존 이미지의 출처로 보존한다.
 
 1. 선택한 YAML의 버전과 대상 ID를 확인한다. 내장 `image_gen`만 사용하며 사용자가 입력한 모델로 바꾸지 않는다.
 2. 기준 시트와 휴식은 `prompt`, 몬스터는 `monsters[대상 ID].prompt`를 실행 원문으로 사용한다. 몬스터 ID는 카탈로그의 10개 키만 허용하고 잘못된 ID에 대체 프롬프트를 적용하지 않는다.

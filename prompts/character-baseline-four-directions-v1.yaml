@@ -1,10 +1,10 @@
 version: 1
 purpose: 캐릭터 베이스라인 4방향 기준 시트
-status: adopted
+status: historical-retired-single-reference
 generator: image_gen
 mode: built-in
 source_run: 2026-09-20_19-05-06
-reference: slime-frontend/src/assets/characters/baseline/character-default-white-shirt-down-left-v1.png
+historical_reference: slime-frontend/src/assets/characters/baseline/character-default-white-shirt-down-left-v1.png
 output: slime-frontend/src/assets/characters/baseline/character-default-white-shirt-four-directions-v1.png
 output_sha256: ac2f96e7bfabcec04e8236248f8039c40bc9c65b2d83cbbe78e78affcebe1afb
 requested_size: 2160x2160
@@ -29,3 +29,5 @@ prompt: 'Create one 2160x2160 PNG with a transparent background containing a fou
 
   '
 reference_sha256: b5e15854ee05ea61d003d1c3ad8cd8936d8bd1fa24793764f2411c059f2c5e35
+
+historical_reference_status: 원본 단일 이미지 폐기; 기존 2×2 시트의 생성 출처만 보존

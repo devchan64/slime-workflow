@@ -15,6 +15,12 @@ SOURCE_START_FRAME = 41
 SOURCE_END_FRAME = 65
 OUTPUT_FRAME_COUNT = 8
 RENDER_PIXEL_SIZE = 256
+RIG_RENDER_SAMPLES = 32
+RIG_SURFACE_COLOR = (.32, .36, .42, 1)
+RIG_AMBIENT_STRENGTH = .18
+RIG_OCCLUSION_DISTANCE = .22
+RIG_KEY_LIGHT_POWER = 500
+RIG_FILL_LIGHT_POWER = 90
 FOOT_PITCH_MINIMUM = np.deg2rad(-20)
 FOOT_PITCH_MAXIMUM = np.deg2rad(25)
 CAMERA_DEPTH_NEAR = 4.0
@@ -154,13 +160,28 @@ def build_render_scene(sample_joint_frames):
         raise RuntimeError('샌드박스 밖 Blender CUDA 장치 없음')
     for device_record_value in device_preferences_value.devices:
         device_record_value.use=device_record_value.type=='CUDA'
-    render_scene_value.cycles.device='GPU';render_scene_value.cycles.samples=8
+    render_scene_value.cycles.device='GPU';render_scene_value.cycles.samples=RIG_RENDER_SAMPLES
     render_scene_value.render.resolution_x=RENDER_PIXEL_SIZE;render_scene_value.render.resolution_y=RENDER_PIXEL_SIZE
     render_scene_value.render.resolution_percentage=100;render_scene_value.render.film_transparent=True
     render_scene_value.render.image_settings.file_format='PNG';render_scene_value.render.image_settings.color_mode='RGBA'
     render_scene_value.view_settings.view_transform='Standard'
     render_scene_value.world=bpy.data.worlds.new('neutral-world');render_scene_value.world.use_nodes=True
     render_scene_value.world.node_tree.nodes['Background'].inputs[0].default_value=(.6,.6,.6,1)
+    render_scene_value.world.node_tree.nodes['Background'].inputs['Strength'].default_value=RIG_AMBIENT_STRENGTH
+    rig_surface_material=bpy.data.materials.new('rig-shaded-surface');rig_surface_material.use_nodes=True
+    surface_shader_node=rig_surface_material.node_tree.nodes.get('Principled BSDF')
+    surface_shader_node.inputs['Roughness'].default_value=.82
+    occlusion_shader_node=rig_surface_material.node_tree.nodes.new('ShaderNodeAmbientOcclusion')
+    occlusion_shader_node.inputs['Color'].default_value=RIG_SURFACE_COLOR
+    occlusion_shader_node.inputs['Distance'].default_value=RIG_OCCLUSION_DISTANCE
+    rig_surface_material.node_tree.links.new(occlusion_shader_node.outputs['Color'],surface_shader_node.inputs['Base Color'])
+    direction_light_objects=[]
+    for light_name_value,light_power_value,light_size_value in [('rig-key-light',RIG_KEY_LIGHT_POWER,2.0),('rig-fill-light',RIG_FILL_LIGHT_POWER,3.0)]:
+        light_data_value=bpy.data.lights.new(light_name_value,'AREA')
+        light_data_value.energy=light_power_value;light_data_value.shape='DISK';light_data_value.size=light_size_value
+        light_object_value=bpy.data.objects.new(light_name_value,light_data_value)
+        render_scene_value.collection.objects.link(light_object_value)
+        direction_light_objects.append(light_object_value)
     bpy.ops.object.armature_add()
     rig_object_value=bpy.context.object;rig_object_value.name='five-head-own-rig'
     bpy.ops.object.mode_set(mode='EDIT');rig_object_value.data.edit_bones.remove(rig_object_value.data.edit_bones[0])
@@ -250,6 +271,7 @@ def build_render_scene(sample_joint_frames):
             pose_bone_value.keyframe_insert('scale',frame=frame_index_value+1)
     for mesh_object_value in render_scene_value.objects:
         if mesh_object_value.type=='MESH':
+            mesh_object_value.data.materials.clear();mesh_object_value.data.materials.append(rig_surface_material)
             for mesh_polygon_value in mesh_object_value.data.polygons:mesh_polygon_value.use_smooth=True
             for mesh_vertex_value in mesh_object_value.data.vertices:
                 if not np.isclose(sum(group.weight for group in mesh_vertex_value.groups),1.0,atol=1e-6):
@@ -279,6 +301,11 @@ def build_render_scene(sample_joint_frames):
         camera_offset_vector=Vector(camera_point_values)-camera_target_vector
         camera_object_value.location=camera_target_vector+camera_offset_vector.normalized()*6
         camera_object_value.rotation_euler=(camera_target_vector-camera_object_value.location).to_track_quat('-Z','Y').to_euler()
+        camera_right_vector=camera_object_value.rotation_euler.to_quaternion()@Vector((1,0,0))
+        camera_front_vector=camera_offset_vector.normalized()
+        for light_object_value,horizontal_offset_value,front_distance_value,height_offset_value in zip(direction_light_objects,[-3.,3.],[3.,2.],[4.,2.]):
+            light_object_value.location=camera_target_vector+camera_right_vector*horizontal_offset_value+camera_front_vector*front_distance_value+Vector((0,0,height_offset_value))
+            light_object_value.rotation_euler=(camera_target_vector-light_object_value.location).to_track_quat('-Z','Y').to_euler()
         if direction_name_value == 'down_left':
             render_scene_value.frame_set(1)
             file_output_node.file_slots[0].path='down_left/depth-'
@@ -293,7 +320,7 @@ def build_render_scene(sample_joint_frames):
             render_scene_value.render.filepath=str(RENDER_OUTPUT_PATH/direction_name_value/f'preview-{frame_index_value+1:04d}.png')
             bpy.ops.render.render(write_still=True)
             write_trace_message('render',f'{direction_name_value} {frame_index_value+1}/{OUTPUT_FRAME_COUNT}')
-    return dict(blender=bpy.app.version_string,gpu=[device.name for device in gpu_device_values],render_size=RENDER_PIXEL_SIZE,depth_near=CAMERA_DEPTH_NEAR,depth_far=CAMERA_DEPTH_FAR)
+    return dict(blender=bpy.app.version_string,gpu=[device.name for device in gpu_device_values],render_size=RENDER_PIXEL_SIZE,depth_near=CAMERA_DEPTH_NEAR,depth_far=CAMERA_DEPTH_FAR,shading={'profile':'directional-ao-v1','samples':RIG_RENDER_SAMPLES,'base_color':RIG_SURFACE_COLOR,'ambient_strength':RIG_AMBIENT_STRENGTH,'ao_distance':RIG_OCCLUSION_DISTANCE,'key_power':RIG_KEY_LIGHT_POWER,'fill_power':RIG_FILL_LIGHT_POWER})
 
 
 def validate_foot_transforms(blender_module_value,rig_object_value,frame_count_value):

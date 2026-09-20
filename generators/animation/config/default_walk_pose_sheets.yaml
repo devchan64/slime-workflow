@@ -1,0 +1,99 @@
+asset_id: five-head-walk-8f-pose-sheets
+version: 1
+asset_path: assets/pose-sheets/five-head-walk-8f/v1
+layout:
+  columns: 4
+  rows: 2
+  cell_size:
+  - 512
+  - 512
+  sheet_size:
+  - 2048
+  - 1024
+  frame_order:
+  - 1
+  - 2
+  - 3
+  - 4
+  - 5
+  - 6
+  - 7
+  - 8
+  order: row-major
+frame_duration_ms: 150
+cycle_seconds: 1.2
+transformation: 원본 RGB 픽셀 그대로 타일 배치; 리사이즈·색상·관절 보정 없음
+generator: generators/animation/build_walk_pose_sheets.py
+source_files:
+  down_left/openpose-0001.png: 3b31864fcd32abc30ddab7957b474c6cd547bc1116fa36618a09f620ec99e05b
+  down_left/openpose-0002.png: 31901917e6a59c369d8918a289a5d6f0830663fb200e0ce0de42b1cf76e9fb8f
+  down_left/openpose-0003.png: aba88a11072ab11fcd3d404947e6afca3eb4ba8594094b6a66ad85ff027b6d8a
+  down_left/openpose-0004.png: 4f1c006205de6b7b07fc60f52bb7d290f8a5e515a2d22ca6bd920a7d512378fa
+  down_left/openpose-0005.png: 9b63f8d10693d6aa3bbe870cc06d3cc443b6416aa92987c050be18a43ad16cfa
+  down_left/openpose-0006.png: 55fcbd5389c7c5e513f9299dfcd3c619bb2294363a1a1bddfc9e238c7fa9ea95
+  down_left/openpose-0007.png: e68c2469b57224c3fb94ecf79c054adf8b18c2993035ab03e6b910357fc214f5
+  down_left/openpose-0008.png: 6c69aa9c115e1a46e1a71b8a5b0912a2fd5b386b47b8b66a79becb4eeef031a6
+  down_right/openpose-0001.png: a97d2c34c9113772484da95300972770660fa54f96e9731fac5036cf26860d44
+  down_right/openpose-0002.png: ece52bf2cafd8ea022f9b078c9ebb4d0a9674788a95bfb126d80ad66e2a1f3b3
+  down_right/openpose-0003.png: a09e12e47dea87882eb3b2387964a7de57ad949bd5421be0b55a722967368d71
+  down_right/openpose-0004.png: 5c82997f8b50b48e4dcc9703d614a66987759e3f1ea7bf48c9ff1318928413fe
+  down_right/openpose-0005.png: 38a81fb3a0fc70656026dace9bc9a237535cf9f8655c67f40e77a80adaaed0af
+  down_right/openpose-0006.png: c89be842d6c1810c24315e0a5de2dfd19af2075a1d85d877bbb1cb6269bd8080
+  down_right/openpose-0007.png: 0463e404ec0c4e995a0477eee38927e1c2a297f1864f941559f4635c622f79cf
+  down_right/openpose-0008.png: f6595068f668aee5cca069760a8fc0680db0648b4f6c6ac0cd95ab83a4f765b2
+  up_left/openpose-0001.png: dcafba29782815d33b001241afaf130b61b454b6bcbead10aa90031991bd4c55
+  up_left/openpose-0002.png: 4bb0b57e1f5d4aaee60a186202f5eb82d464e6b274c9d8a4f24042cf77a0baf4
+  up_left/openpose-0003.png: b26adc31f8bc98930846bbf71d74fb5bc9d98c608e82d0bb3987813bae43efd1
+  up_left/openpose-0004.png: 8e41bab8633dbc37d67f6da3bc1f3aa0ad13854f5eebf3a00ed2af5178b40688
+  up_left/openpose-0005.png: 54fac6f190dac2fa5522b4c488e3105f69b27518813cfcf55ff3c49f629c542f
+  up_left/openpose-0006.png: 78ab0c71364978ac3e52bbc6074adb6ed63f09f654d63c188ddab34e8f631371
+  up_left/openpose-0007.png: 57fa5f27f431a777de4289fdedd3b7dffca77b2249061dfc22690ff4bc83834b
+  up_left/openpose-0008.png: 164ec9c9c019540d33ee132f5f080aee32f1e36507ca251426abccd8e5dc5e18
+  up_right/openpose-0001.png: 4ce5bc9005f7347d9cdfb69ed1ff9b9f85b8799a84418ad533f7e236341f53a6
+  up_right/openpose-0002.png: ac074b3d560fe9bf5db53015555359351b4b17432229378318ddc1dac2872979
+  up_right/openpose-0003.png: 9b3c5e9ce597ef3bb24881080227dab8894d1d533430e80f238eab175534f9cb
+  up_right/openpose-0004.png: ba9f256387d84a97978f08e5fbb2c5803431c3f1e04412ca3a46e619fea2efc2
+  up_right/openpose-0005.png: 746c25178fb2c9d623926ae997345457bb4b0509908f03a25da9e6f76f224878
+  up_right/openpose-0006.png: 14a1d2871470b4c64bb683e14c3266f66549762e3cc2e1a01eff13e19ed06fcd
+  up_right/openpose-0007.png: 89aa83d18bf92655647badd6792225ba147ae7899997b186f25ff5681e10c774
+  up_right/openpose-0008.png: 0c44c5a19315a53314b6c6a2a72297f78488287ea2ab0a449830bd5ad7fe2c9e
+files:
+  down_left.png: b2f7c39c5271aaff3f524d16530a200d2b930185894555b305cc2f25c843e874
+  down_right.png: b96a2f6272580eb4ead00830774fc2c958a0076d16928543ae5e938d44394ee5
+  up_left.png: 7d766fff92d6c0b2a9c242f6d5ebbc453d914ddf657071c5cd3c630e549bae3d
+  up_right.png: 0b44f94b7c5b725b5b80d413a36b837b6102f85d78178b1de6e15965a31ff4cf
+source_motion:
+  asset_id: walk-travel
+  version: 1
+  sha256: 5f10e35b13cb7cb0cce7faf0dc26ac9b8f8ac36f2dc6e496b044418e3e1b05c5
+source_rig:
+  asset_id: five-head-walk
+  version: 9
+compatibility:
+  joint_schema: HumanML3D-22
+  coordinate_system: y-up meters; renderer x,-z,y
+  neutral_head_units: 5
+  directions:
+  - down_left
+  - down_right
+  - up_left
+  - up_right
+  frames_per_direction: 8
+  frame_duration_ms: 150
+  cycle_seconds: 1.2
+  render_size:
+  - 512
+  - 512
+  sample_indices:
+  - 0
+  - 3
+  - 6
+  - 9
+  - 12
+  - 15
+  - 18
+  - 21
+  pose_format: COCO18-compatible projected rig; head center substitutes nose; eyes
+    and ears omitted
+source_frames_note: 개별 포즈 PNG는 사용자 지시로 삭제. source_files 해시는 시트 제작 당시 입력 출처이며 현재 파일
+  의존성이 아님.
