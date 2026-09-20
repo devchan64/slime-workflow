@@ -4,8 +4,8 @@
 
 - `motions/`: 재사용 MoMask 관절 모션.
 - `rigs/`: 현재 기본 리그 `five-head-walk/v9`만 보관한다. 사용자 요청으로 v1~v8은 삭제했다.
-- `animation-loops/`: 승인된 4방향 6프레임 루프, 리그·Depth·마스크·미리보기.
-- 포즈 PNG 24장과 투영 관절 좌표는 `animation-loops/five-head-walk-6f/v1/`의 원본을 직접 사용한다. 별도 복제 패키지는 두지 않는다.
+- `animation-loops/`: 승인된 4방향×6프레임 오픈포즈 PNG 24장만 보관한다.
+- 출처와 파일 해시는 `generators/animation/config/default_walk_loop.artifact.yaml`에 둔다. 좌표·Depth·마스크·미리보기 등은 `render_pose_frames.py`로 `.tmp`에 재생성한다.
 - `references/`, `previews/`: 제작용 스탠딩 참조와 미리보기. 최종 이미지 관리 원본은 프론트엔드다.
 - 이전 `rig-baselines/five-head-walk/v8` 비교 스냅샷은 삭제했다. v9 manifest의 이전 버전 표기는 과거 출처이며 실행 입력이 아니다.
 

@@ -23,17 +23,17 @@
 
 ## 2. 승인된 4방향·6프레임 루프 재사용
 
-사용자 승인 자산 `five-head-walk-6f/v1`을 기본으로 사용한다. 아래 명령으로 등록 manifest와 모든 파일 해시를 검증한다.
+사용자 승인 자산 `five-head-walk-6f/v1`을 기본으로 사용한다. 아래 명령으로 외부 등록 정보와 오픈포즈 PNG 24장의 해시·파일 구성을 검증한다.
 
 ```bash
 .venv/bin/python generators/animation/resolve_default_loop.py
 ```
 
-선택 파일은 `generators/animation/config/default_walk_loop.yaml`, 자산 경로는 `assets/animation-loops/five-head-walk-6f/v1/`이다. `.tmp` 정리와 무관하게 보존하며 덮어쓰지 않는다. `preview.html`로 검수한 루프를 재생하고 각 방향의 `openpose-0001.png`~`openpose-0006.png`를 후속 외형 생성에 재사용한다. 원본 샘플 모션·Blender 리그·Depth·마스크·검증 기록도 함께 보관한다.
+선택 파일은 `generators/animation/config/default_walk_loop.yaml`, 자산 경로는 `assets/animation-loops/five-head-walk-6f/v1/`이다. 이 폴더에는 각 방향의 `openpose-0001.png`~`openpose-0006.png`만 보존한다. 총 24장의 PNG를 후속 외형 생성에 직접 사용한다. 이미지 바이트는 변경하지 않는다.
 
-기존 manifest.json은 실험 시점의 기록으로 유지하며, 정식 승인 상태와 출처·호환 정보의 기준은 artifact.json이다. 루프 승인과 최종 캐릭터 외형 승인은 구분한다. 새로운 모션·체형·프레임률이 필요할 때만 아래 재렌더 절차를 수행하고, 검수 후 새 불변 버전으로 등록한다.
+출처·호환 정보·승인 상태·24장 해시는 `generators/animation/config/default_walk_loop.artifact.yaml`에서 관리한다. 선택 YAML은 이 등록 파일의 해시를 고정한다. 자산 폴더의 JSON·로그·복제 리그·샘플 모션·Depth·마스크·미리보기는 삭제했다. 필요하면 아래 스크립트로 새 `.tmp` 실행 폴더에 재생성한다. 기존 실행 로그는 복구하지 않고 새 실행 기록을 만든다. Blender 장면과 로그의 바이트 동일성은 보장하지 않는다.
 
-### 새 포즈 렌더 실험
+### 파생 자료 재생성
 
 ```bash
 .local/blender-runtime/bin/python generators/animation/render_pose_frames.py
@@ -117,6 +117,6 @@ Qwen 동작을 Codex 이미지젠의 동작 참조로 사용해 원형 일러스
 후속 이미지 생성에는 `assets/animation-loops/five-head-walk-6f/v1/`의 포즈 맵을 직접 사용한다. 기본 선택은 `generators/animation/config/default_walk_loop.yaml`과 `resolve_default_loop.py`로 검증한다.
 
 - `down_left/`, `down_right/`, `up_left/`, `up_right/` 각각의 `openpose-0001.png`~`openpose-0006.png`, 총 24장이 원본이다.
-- 투영 관절 좌표는 동일 루프의 `openpose-keypoints.json`에서 읽는다.
-- 루프의 `artifact.json`에 등록된 출처·버전·호환 정보·해시를 기준으로 사용한다. 중복 포즈 이미지와 별도 선택 설정은 유지하지 않는다.
+- 투영 관절 좌표가 필요하면 재생성 실행 폴더의 `openpose-keypoints.json`을 사용한다. 정식 자산 폴더에는 좌표 JSON을 중복 보관하지 않는다.
+- `generators/animation/config/default_walk_loop.artifact.yaml`의 출처·버전·호환 정보·해시를 기준으로 사용한다. 중복 포즈 이미지는 유지하지 않는다.
 - 원본 루프·v9 리그·MoMask 모션은 재사용 제작 자산이다. 사용자 승인 없이 임시 정리 대상으로 취급하지 않는다.

@@ -1,0 +1,65 @@
+asset_id: five-head-walk-6f
+version: 1
+status: user_accepted
+source_motion:
+  asset_id: walk-travel
+  version: 1
+  sha256: 5f10e35b13cb7cb0cce7faf0dc26ac9b8f8ac36f2dc6e496b044418e3e1b05c5
+source_rig:
+  asset_id: five-head-walk
+  version: 9
+compatibility:
+  joint_schema: HumanML3D-22
+  coordinate_system: y-up meters; renderer x,-z,y
+  neutral_head_units: 5
+  directions:
+  - down_left
+  - down_right
+  - up_left
+  - up_right
+  frames_per_direction: 6
+  frame_duration_ms: 200
+  cycle_seconds: 1.2
+  render_size:
+  - 512
+  - 512
+  sample_indices:
+  - 0
+  - 4
+  - 8
+  - 12
+  - 16
+  - 20
+  pose_format: COCO18-compatible projected rig; head center substitutes nose; eyes
+    and ears omitted
+files:
+  down_left/openpose-0001.png: 3b31864fcd32abc30ddab7957b474c6cd547bc1116fa36618a09f620ec99e05b
+  down_left/openpose-0002.png: 39fd8060bd51e2dc5ed4991ed3997d228c9fb7550797e4200cca2abb09e8eb6a
+  down_left/openpose-0003.png: 16121096440d98f6c7eb0c3eabf265aa7fb29013c9be7ba8647c3508ff01be13
+  down_left/openpose-0004.png: 9b63f8d10693d6aa3bbe870cc06d3cc443b6416aa92987c050be18a43ad16cfa
+  down_left/openpose-0005.png: 89e5081edfcb9ed58e1fe02f06adecc9b7616c10d7e609a73b19eedebf5c60dc
+  down_left/openpose-0006.png: 39a83f4202cc5958e80513dfd0dd7e58f20e581ce63e8620f010c778f630ce59
+  down_right/openpose-0001.png: a97d2c34c9113772484da95300972770660fa54f96e9731fac5036cf26860d44
+  down_right/openpose-0002.png: aa9dc8b108f861053dbc56b4dba3d0136672d3a9e00cb3385cfa30ce03f1500f
+  down_right/openpose-0003.png: a9ccb23ab933b370ad6d8e2950d21cd1ede4e68637f653d9a532880cf41906b6
+  down_right/openpose-0004.png: 38a81fb3a0fc70656026dace9bc9a237535cf9f8655c67f40e77a80adaaed0af
+  down_right/openpose-0005.png: 6e828c73ea732338d871b8f1f94578cba3585be59b7b2e04ef74151af49a7f91
+  down_right/openpose-0006.png: 23c5817bc32f8759d7ab33412394cb567ba3318e2546a935c8e52f15ea235f45
+  up_left/openpose-0001.png: dcafba29782815d33b001241afaf130b61b454b6bcbead10aa90031991bd4c55
+  up_left/openpose-0002.png: 60ba8c40c1b2e1f2588e3b65d9327cfebaf5209b9e8b1a9daeed7d8b8213a3ed
+  up_left/openpose-0003.png: 3daad6bc4f0826b533a51b85d83adfb9536055cd09ed457aeb25efeed6d66a7f
+  up_left/openpose-0004.png: 54fac6f190dac2fa5522b4c488e3105f69b27518813cfcf55ff3c49f629c542f
+  up_left/openpose-0005.png: 8461f2d138209f3d0f9bba3afec6c42ee86c98fc047709e55faaf26472e90497
+  up_left/openpose-0006.png: cb67b3aa680e6d5a7a5fa9fec242b8ab6fd8108062fab240962e74e910f4974e
+  up_right/openpose-0001.png: 4ce5bc9005f7347d9cdfb69ed1ff9b9f85b8799a84418ad533f7e236341f53a6
+  up_right/openpose-0002.png: 255cf93320766a36f1c4363cfe057a360e09c9347cc9752d7d1008bb26070805
+  up_right/openpose-0003.png: 94470f655803ade2ab4c8f091bf50c18a9071a35838f3b6d2929e44864001fbe
+  up_right/openpose-0004.png: 746c25178fb2c9d623926ae997345457bb4b0509908f03a25da9e6f76f224878
+  up_right/openpose-0005.png: 38b08beb2a3fdb48e295314017ca6f7e219f62eb6132a84b4b1c16eea5109c47
+  up_right/openpose-0006.png: dd14b09969f9b458ba6f66dccc68996cf4ca6c13e3025e9185499a295bfcd311
+regeneration:
+  script: generators/animation/render_pose_frames.py
+  output_root: .tmp
+  runtime: .local/blender-runtime/bin/python
+  gpu: CUDA
+  note: 포즈 외 파생 산출물은 새 실행 폴더에 재생성한다. 로그 시각 및 Blender 파일의 바이트 일치는 보장하지 않는다.

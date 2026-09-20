@@ -2,4 +2,4 @@ asset_id: default-standing-preview
 version: 1
 reference_asset: default-standing/v2
 preview_path: assets/previews/default-standing/v1/preview.html
-artifact_sha256: 843eade2e6f9803ace2b229d6ca137e6ebaba95281ec9fb429923e06fcb25f7e
+artifact_sha256: f8ca6e278ecba568e49199abd395fce8fb42984c442a7b4771147c92cb0eaf39

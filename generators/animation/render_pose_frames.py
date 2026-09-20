@@ -9,6 +9,7 @@ import traceback
 import numpy as np
 from PIL import Image, ImageDraw
 import rig_builder as rig_render_module
+from resolve_default_rig import resolve_default_walk_rig
 
 WORKFLOW_REPO_ROOT = Path(__file__).resolve().parents[2]
 SOURCE_RIG_DIRECTORY = WORKFLOW_REPO_ROOT / 'assets/rigs/five-head-walk/v9'
@@ -29,6 +30,8 @@ def execute_six_frame_render():
     rig_render_module.RENDER_PIXEL_SIZE = 512
     threading.Thread(target=rig_render_module.emit_progress_heartbeat,daemon=True).start()
     try:
+        if resolve_default_walk_rig()!=SOURCE_RIG_DIRECTORY:
+            raise ValueError('재생성 입력은 기본 v9 리그여야 합니다')
         source_artifact_record=json.loads((SOURCE_RIG_DIRECTORY/'artifact.json').read_text())
         source_motion_path=SOURCE_RIG_DIRECTORY/'retargeted-motion.npz'
         if hashlib.sha256(source_motion_path.read_bytes()).hexdigest()!=source_artifact_record['files']['retargeted-motion.npz']:
