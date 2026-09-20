@@ -4,7 +4,6 @@ import hashlib
 import json
 import threading
 import time
-import traceback
 import numpy as np
 
 WORKFLOW_ROOT_PATH = Path(__file__).resolve().parents[2]
@@ -31,7 +30,6 @@ SHOE_MESH_RADII = (.09,.18,.07)
 THIGH_MESH_RADIUS = .115
 CALF_MESH_RADIUS = .08
 TORSO_MESH_RADIUS = .235
-REFERENCE_ASSET_PATH = WORKFLOW_ROOT_PATH / 'assets/references/default-standing/v2'
 DIRECTION_CAMERA_POINTS = {'down_left':(4,-6,4),'down_right':(-4,-6,4),'up_left':(4,6,4),'up_right':(-4,6,4)}
 CURRENT_STAGE_RECORD = {'stage':'prepare','completed':0}
 HEARTBEAT_STOP_EVENT = threading.Event()
@@ -323,96 +321,6 @@ def validate_foot_transforms(blender_module_value,rig_object_value,frame_count_v
         foot_frame_records[shoe_name_value]=dict(pitch_degrees=foot_angle_values,max_step_degrees=float(max(foot_angle_deltas)),yaw_roll_locked=True)
     (RENDER_OUTPUT_PATH/'foot-validation.json').write_text(json.dumps(foot_frame_records,indent=2)+'\n')
     write_trace_message('validate','신발 본 연결·평가 회전축·루프 포함 각도 변화 검증 통과')
-
-
-def write_preview_gallery():
-    """같은 화면 높이·발밑 기준선에서 참조 원화와 제작 리그를 비교한다."""
-    from PIL import Image
-    from scipy.ndimage import label
-    def measure_subject_bounds(image_pixel_values):
-        component_label_values,component_count_value=label(image_pixel_values[:,:,3]>127)
-        if component_count_value==0:
-            raise ValueError('미리보기의 불투명 캐릭터 영역 없음')
-        component_size_values=np.bincount(component_label_values.ravel());component_size_values[0]=0
-        subject_row_values,subject_column_values=np.where(component_label_values==component_size_values.argmax())
-        return [int(subject_column_values.min()),int(subject_row_values.min()),int(subject_column_values.max()+1),int(subject_row_values.max()+1)]
-    reference_pixel_values=np.asarray(Image.open(REFERENCE_ASSET_PATH/'reference.png').convert('RGBA'))
-    preview_comparison_records=[]
-    for direction_index_value,direction_name_value in enumerate(DIRECTION_CAMERA_POINTS):
-        reference_top_value=int(direction_index_value*reference_pixel_values.shape[0]/4)
-        reference_bottom_value=int((direction_index_value+1)*reference_pixel_values.shape[0]/4)
-        reference_width_value=int(reference_pixel_values.shape[1]/4)
-        reference_crop_values=reference_pixel_values[reference_top_value:reference_bottom_value,:reference_width_value]
-        reference_bounds_values=measure_subject_bounds(reference_crop_values)
-        reference_bounds_values[1]+=reference_top_value;reference_bounds_values[3]+=reference_top_value
-        render_bounds_values=[]
-        for frame_index_value in range(OUTPUT_FRAME_COUNT):
-            render_pixel_values=np.asarray(Image.open(RENDER_OUTPUT_PATH/direction_name_value/f'preview-{frame_index_value+1:04d}.png').convert('RGBA'))
-            render_bounds_values.append(measure_subject_bounds(render_pixel_values))
-        # 걷기 한 주기의 합집합 높이를 사용해 프레임마다 확대율이 바뀌지 않게 한다.
-        render_union_bounds=[min(value[0] for value in render_bounds_values),min(value[1] for value in render_bounds_values),max(value[2] for value in render_bounds_values),max(value[3] for value in render_bounds_values)]
-        preview_comparison_records.append(dict(direction=direction_name_value,reference=reference_bounds_values,walking=render_union_bounds))
-    preview_html_text="""<!doctype html><meta charset="utf-8"><title>걷기 v9 · 스탠딩 비율 비교</title>
-<style>body{background:#242938;color:#eee;font:16px sans-serif;margin:24px}section{display:inline-block;margin:8px;background:#30384a;padding:12px;border-radius:8px}canvas{width:360px;max-width:100%;display:block}button,input{margin:12px}h2{font-size:17px}.labels{display:flex;justify-content:space-around;font-size:14px;color:#ccd5e6}</style>
-<h1>쇄골 방향·목 노출 개선 · 기본 스탠딩 비교</h1><p>스탠딩과 걷기 한 주기의 화면 높이를 220px로 맞췄습니다. 걷기 배율은 프레임 전체에서 고정합니다.</p><p>하단 선은 발밑 정렬 기준이며 가로선 간격은 표시 높이의 1/5입니다. 2D 투영 비교이며 정확한 3D 신체 치수 측정은 아닙니다.</p>
-<button id="toggle">일시정지</button><input id="frame" type="range" min="0" max="7" value="0"><output id="number">1 / 8</output><div id="comparisons"></div><p id="status">이미지 로딩 중</p><script>
-const comparisonFrameRecords=__RECORDS__;
-const referenceImageSource='../../reusable/references/default-standing/v2/reference.png';
-const previewCanvasWidth=360,previewCanvasHeight=270,subjectDisplayHeight=220,subjectBaselinePosition=240;
-let currentFrameIndex=0,isPlaybackActive=true;
-const frameSliderElement=document.getElementById('frame'),playbackToggleButton=document.getElementById('toggle');
-function loadPreviewImage(imageSourceValue){return new Promise((resolveImageLoad,rejectImageLoad)=>{const loadedImageElement=new Image();loadedImageElement.onload=()=>resolveImageLoad(loadedImageElement);loadedImageElement.onerror=()=>rejectImageLoad(new Error(imageSourceValue));loadedImageElement.src=imageSourceValue})}
-function drawComparisonSubject(canvasContextValue,subjectImageElement,subjectBoundsValues,subjectCenterPosition){const subjectWidthValue=subjectBoundsValues[2]-subjectBoundsValues[0],subjectHeightValue=subjectBoundsValues[3]-subjectBoundsValues[1],subjectScaleValue=subjectDisplayHeight/subjectHeightValue;canvasContextValue.drawImage(subjectImageElement,subjectBoundsValues[0],subjectBoundsValues[1],subjectWidthValue,subjectHeightValue,subjectCenterPosition-subjectWidthValue*subjectScaleValue/2,subjectBaselinePosition-subjectDisplayHeight,subjectWidthValue*subjectScaleValue,subjectDisplayHeight)}
-async function initializeComparisonPreview(){
- const referenceImageElement=await loadPreviewImage(referenceImageSource);
- for(const comparisonFrameRecord of comparisonFrameRecords){
-  const comparisonSectionElement=document.createElement('section');comparisonSectionElement.innerHTML='<h2>'+comparisonFrameRecord.direction+'</h2><div class="labels"><span>기본 스탠딩</span><span>걷기 v9</span></div><canvas width="360" height="270"></canvas>';document.getElementById('comparisons').append(comparisonSectionElement);
-  comparisonFrameRecord.context=comparisonSectionElement.querySelector('canvas').getContext('2d');
-  comparisonFrameRecord.images=await Promise.all(Array.from({length:8},(unusedArrayValue,frameIndexValue)=>loadPreviewImage(comparisonFrameRecord.direction+'/preview-'+String(frameIndexValue+1).padStart(4,'0')+'.png')));
- }
- function updatePreviewFrame(){for(const comparisonFrameRecord of comparisonFrameRecords){const canvasContextValue=comparisonFrameRecord.context;canvasContextValue.clearRect(0,0,previewCanvasWidth,previewCanvasHeight);for(let guideLineIndex=0;guideLineIndex<=5;guideLineIndex++){const guideLinePosition=subjectBaselinePosition-guideLineIndex*subjectDisplayHeight/5;canvasContextValue.strokeStyle=guideLineIndex===0?'#e7bb67':'#566177';canvasContextValue.beginPath();canvasContextValue.moveTo(0,guideLinePosition);canvasContextValue.lineTo(previewCanvasWidth,guideLinePosition);canvasContextValue.stroke()}drawComparisonSubject(canvasContextValue,referenceImageElement,comparisonFrameRecord.reference,90);drawComparisonSubject(canvasContextValue,comparisonFrameRecord.images[currentFrameIndex],comparisonFrameRecord.walking,270)}frameSliderElement.value=currentFrameIndex;document.getElementById('number').textContent=(currentFrameIndex+1)+' / 8'}
- playbackToggleButton.onclick=()=>{isPlaybackActive=!isPlaybackActive;playbackToggleButton.textContent=isPlaybackActive?'일시정지':'재생'};
- frameSliderElement.oninput=()=>{isPlaybackActive=false;playbackToggleButton.textContent='재생';currentFrameIndex=Number(frameSliderElement.value);updatePreviewFrame()};
- updatePreviewFrame();document.getElementById('status').textContent='4방향 로딩 완료 · 원본 스탠딩 에셋은 변경하지 않았습니다';setInterval(()=>{if(isPlaybackActive){currentFrameIndex=(currentFrameIndex+1)%8;updatePreviewFrame()}},150);
-}
-initializeComparisonPreview().catch(previewLoadError=>{document.getElementById('status').textContent='이미지 로드 실패: '+previewLoadError.message});
-</script>""".replace('__RECORDS__',json.dumps(preview_comparison_records))
-    (RENDER_OUTPUT_PATH/'preview.html').write_text(preview_html_text)
-    (RENDER_OUTPUT_PATH/'comparison.json').write_text(json.dumps(preview_comparison_records,indent=2)+'\n')
-
-
-def execute_render_pipeline():
-    if OUTPUT_ASSET_PATH.exists() or RENDER_OUTPUT_PATH.exists():raise FileExistsError('불변 버전 덮어쓰기 금지')
-    RENDER_OUTPUT_PATH.mkdir(parents=True)
-    threading.Thread(target=emit_progress_heartbeat,daemon=True).start()
-    try:
-        write_trace_message('retarget','MoMask 원본 검증 및 5등신 길이 재배치')
-        reference_asset_record=json.loads((REFERENCE_ASSET_PATH/'artifact.json').read_text())
-        if hashlib.sha256((REFERENCE_ASSET_PATH/'reference.png').read_bytes()).hexdigest()!=reference_asset_record['sha256']:
-            raise ValueError('기본 캐릭터 참조 해시 불일치')
-        sample_joint_frames,motion_metadata_record=retarget_motion_sequence()
-        motion_metadata_record['proportion_reference']=reference_asset_record
-        motion_metadata_record['proportion_method']='standing-v2 시각적 비율 수동 추정; 자동 3D 피팅 아님'
-        motion_metadata_record['motion_review']=dict(source_rig_version=4,status='user_accepted',scope='리그 동작 사용 가능; v6는 다리 확대 유지·목 메시 추가·어깨 0.08m 하향')
-        motion_metadata_record['comparison_baseline']='five-head-walk/v8'
-        motion_metadata_record['clavicle_vertical_scale']=.10
-        motion_metadata_record['leg_length_scale']=1.10
-        motion_metadata_record['silhouette_adjustment']='첨부 비교 이미지: 머리 크기·다리 관절 유지, 목 노출 및 연속 몸통·골반 메시 추가; 2D 시각적 추정'
-        motion_metadata_record['rest_proportions']=dict(height_m=2.0,head_height_m=.4,head_width_m=.42,shoulder_width_m=.50,hip_height_m=1.0035,wrist_height_m=.83,shoulder_height_m=1.40,neck_top_height_m=1.60)
-        render_metadata_record=build_render_scene(sample_joint_frames)
-        artifact_metadata_record=dict(asset_id='five-head-walk',version=9,status='generated_review_required',motion=motion_metadata_record,render=render_metadata_record,files={str(file_path_value.relative_to(OUTPUT_ASSET_PATH)):hashlib.sha256(file_path_value.read_bytes()).hexdigest() for file_path_value in OUTPUT_ASSET_PATH.iterdir() if file_path_value.is_file()})
-        (OUTPUT_ASSET_PATH/'artifact.json').write_text(json.dumps(artifact_metadata_record,ensure_ascii=False,indent=2)+'\n')
-        render_file_records={str(file_path_value.relative_to(RENDER_OUTPUT_PATH)):hashlib.sha256(file_path_value.read_bytes()).hexdigest() for file_path_value in sorted(RENDER_OUTPUT_PATH.glob('*/*.png'))}
-        if len(render_file_records)!=96:
-            raise ValueError('렌더 산출물 96장 계약 불일치')
-        (RENDER_OUTPUT_PATH/'manifest.json').write_text(json.dumps(dict(asset_id='five-head-walk',version=9,artifact_sha256=hashlib.sha256((OUTPUT_ASSET_PATH/'artifact.json').read_bytes()).hexdigest(),files=render_file_records),ensure_ascii=False,indent=2)+'\n')
-        write_preview_gallery()
-        write_trace_message('complete','4방향 Depth 32장·마스크 32장 저장')
-    except Exception:
-        write_trace_message('failure',traceback.format_exc())
-        raise
-    finally:
-        HEARTBEAT_STOP_EVENT.set()
 
 if __name__=='__main__':
     raise SystemExit('직접 실행하지 마세요. generators/animation/render_pose_frames.py를 사용하세요.')
