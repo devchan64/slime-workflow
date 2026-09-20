@@ -1,0 +1,22 @@
+version: 3
+purpose: 2x2 베이스라인 전체를 참조하는 5등신 제자리 스탠딩
+status: adopted
+generator: image_gen
+mode: built-in
+reference: slime-frontend/src/assets/characters/default/baseline/character-default-white-shirt-four-directions-v2.png
+reference_mode: full-2x2-sheet
+source_run: 2026-09-20_21-32-33
+output_layout: 4x4
+output_row_order: [down_left, down_right, up_left, up_right]
+frames_per_direction: 4
+prompt: >-
+  첨부 캐릭터의 신체 비율과 화풍을 그대로 유지하여 4×4 투명 배경 스탠딩 시트를 만든다.
+  캐릭터는 5등신으로 표현한다.
+  행은 좌하·우하·좌상·우상 방향이며, 각 행은 양발을 고정한 미세한 호흡 4프레임이다.
+  원본의 머리 크기와 다리 길이를 바꾸지 않는다.
+  모든 프레임은 같은 크기의 전신으로 표현한다.
+review_note: >-
+  사용자가 5등신 표현이 의도를 더 잘 반영한다고 평가하여 프롬프트에 채택했다.
+  참조 비율의 정량 검증과 행별 방향 검수는 별도다.
+  해당 결과를 사용자 지시로 frontend의 characters/default/standing-v3에 등록했다.
+  행 순서 및 방향 혼합은 sidecar로 보정하고 좌하 3개 고유 프레임은 왕복 재생한다.
