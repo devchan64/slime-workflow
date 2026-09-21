@@ -58,8 +58,9 @@ render:
 files:
   down_left.png: 53ae85e3276a991f7c8dea5e24bd1ecb8be6ab869d9d22bdf8fe8e6cc8831352
   down_right.png: 3fd2583beee46829e38009189ddbcdf10bc6d4c7f7c0bffe0dd53eea79432ba7
-  up_left.png: 3757282284f0dffe7fb7e8e45ed38edb944ba896d5c7877c0d6e527c9694ae89
+  up_left.png: 01d981bf6c438b6c99cb4315a4acecbb95928fe82409775719761ec58eed76ad
   up_right.png: 194f7c254d319373c2939e24ea8d25bc2b9e8ec04d6adf91b0c77d5e4e63e2ee
 quality_notes:
 - 5등신은 중립 리그 메시 기준이며 투영 자세에서는 겉보기 등신이 달라질 수 있음
 - 원본 루프와 발 회전 검증; 8프레임의 시각적 부드러움은 검수 필요
+- up_left는 어깨·팔·손목·손 형상을 개선한 생성 후보로 교체되었으며 AnyPose 재검수가 필요함
