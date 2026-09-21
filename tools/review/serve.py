@@ -77,7 +77,9 @@ def prepare_review_directory(parsed_argument_values):
     if getattr(parsed_argument_values, 'worldbuilding_only_mode', False):
         worldbuilding_review_root = Path(__file__).resolve().parents[2]/'.tmp'/datetime.now(ZoneInfo('Asia/Seoul')).strftime('%Y-%m-%d_%H-%M-%S')/'worldbuilding-manager'
         worldbuilding_review_root.mkdir(parents=True,exist_ok=False)
-        (worldbuilding_review_root/'preview.html').write_text('<!doctype html><html lang=ko><meta charset=utf-8><title>세계관 관리도구</title><a href=/worldbuilding/>세계관 작업 열기</a><script>location.replace("/worldbuilding/")</script></html>')
+        document_manager_template=Path(__file__).with_name('frame-manager.html').read_text()
+        document_manager_styles=Path(__file__).with_name('review-ui.css').read_text()
+        (worldbuilding_review_root/'preview.html').write_text(document_manager_template.replace('__MANAGER_PAGES__','[]').replace('</style>','</style><style>'+document_manager_styles+'</style>',1))
         return worldbuilding_review_root
     if parsed_argument_values.frontend_repo:
         if __package__:

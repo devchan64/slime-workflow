@@ -99,6 +99,30 @@ class WorldbuildingManagementTests(unittest.TestCase):
         self.assertEqual(current_read_request.response_status_code,200)
         self.assertIn('합성 도서',current_read_request.wfile.getvalue().decode())
 
+    def test_file_structure_preview_apply_and_rollback_api(self):
+        from generators.worldbuilding.bookbinding import plan_document_book
+        (self.current_source_root/'world/first.md').write_text('# 첫 문서\n\n이동할 본문.\n')
+        (self.current_source_root/'world/second.md').write_text('# 둘째 문서\n')
+        current_plan_values=plan_document_book(self.current_service_handle.workspace_config_values,{'book_title_text':'테스트','source_directory_paths':['world']})
+        current_paragraph_entries=sorted(current_plan_values['paragraph_entries'],key=lambda current_paragraph_entry:(current_paragraph_entry['source_document_path'],current_paragraph_entry['source_start_line']))
+        current_placements=[{'paragraph_id':current_paragraph_entry['paragraph_id'],'target_document_path':current_paragraph_entry['source_document_path']} for current_paragraph_entry in current_paragraph_entries]
+        current_moved_entry=next(current_placement_entry for current_placement_entry,current_paragraph_entry in zip(current_placements,current_paragraph_entries) if current_paragraph_entry['paragraph_text'].startswith('이동할'))
+        current_placements.remove(current_moved_entry)
+        current_moved_entry['target_document_path']='world/second.md'
+        current_placements.append(current_moved_entry)
+        self.current_request_values={'source_directory_paths':['world'],'paragraph_placements':current_placements,'new_document_titles':{}}
+        current_http_request=self.build_http_request(self.current_service_handle.management_csrf_token)
+        current_http_request.path='/worldbuilding/api/reorganize-preview'
+        self.current_service_handle.handle_management_request(current_http_request)
+        self.assertEqual(current_http_request.response_status_code,200,current_http_request.wfile.getvalue())
+        self.current_request_values={'reorganization_id':json.loads(current_http_request.wfile.getvalue())['reorganization_id']}
+        for current_operation_name in ('apply','rollback'):
+            current_http_request=self.build_http_request(self.current_service_handle.management_csrf_token)
+            current_http_request.path='/worldbuilding/api/reorganize-'+current_operation_name
+            self.current_service_handle.handle_management_request(current_http_request)
+            self.assertEqual(current_http_request.response_status_code,200,current_http_request.wfile.getvalue())
+        self.assertEqual((self.current_source_root/'world/first.md').read_text(),'# 첫 문서\n\n이동할 본문.\n')
+
     def test_rejects_second_manager_for_same_workspace(self):
         with self.assertRaises(RuntimeError):
             WorldbuildingManagement(self.current_config_path)

@@ -145,7 +145,7 @@ def scan_source_documents(current_config_values):
         resolve_document_path(source_document_root,current_relative_path)
         if current_document_path.stat().st_size > MAXIMUM_SOURCE_BYTES:
             raise ValueError(f'원본 크기 제한 초과: {current_relative_path}')
-        current_document_text = current_document_path.read_text(encoding='utf-8')
+        current_document_text = current_document_path.read_bytes().decode('utf-8')
         if current_document_path.suffix != '.md':
             load_yaml_document(current_document_path)
         source_document_entries[current_relative_path] = {'source_document_path':current_relative_path,'source_content_hash':calculate_text_digest(current_document_text),'source_document_body':current_document_text}
@@ -263,7 +263,7 @@ def apply_document_changes(current_config_values,current_run_root,planned_change
     source_document_root=Path(current_config_values['source_document_root'])
     for current_change_entry in planned_change_entries:
         current_target_path=resolve_document_path(source_document_root,current_change_entry['document_relative_path'])
-        current_actual_hash=calculate_text_digest(current_target_path.read_text()) if current_target_path.exists() else None
+        current_actual_hash=calculate_text_digest(current_target_path.read_bytes().decode('utf-8')) if current_target_path.exists() else None
         if current_actual_hash!=current_change_entry['previous_content_hash']:
             raise ValueError(f'생성 이후 원본이 변경되었습니다: {current_target_path}')
     save_yaml_document(current_run_root/'transaction.yaml',{'transaction_apply_state':'applying','document_change_entries':planned_change_entries})
@@ -271,7 +271,7 @@ def apply_document_changes(current_config_values,current_run_root,planned_change
     try:
         for current_change_entry in planned_change_entries:
             current_target_path=resolve_document_path(source_document_root,current_change_entry['document_relative_path'])
-            current_actual_hash=calculate_text_digest(current_target_path.read_text()) if current_target_path.exists() else None
+            current_actual_hash=calculate_text_digest(current_target_path.read_bytes().decode('utf-8')) if current_target_path.exists() else None
             if current_actual_hash!=current_change_entry['previous_content_hash']:
                 raise ValueError(f'쓰기 직전 원본이 변경되었습니다: {current_target_path}')
             write_atomic_document(current_target_path,current_change_entry['next_document_text'])
@@ -279,7 +279,7 @@ def apply_document_changes(current_config_values,current_run_root,planned_change
     except Exception:
         for current_change_entry in reversed(applied_change_entries):
             current_target_path=resolve_document_path(source_document_root,current_change_entry['document_relative_path'])
-            if calculate_text_digest(current_target_path.read_text())!=current_change_entry['next_content_hash']:
+            if calculate_text_digest(current_target_path.read_bytes().decode('utf-8'))!=current_change_entry['next_content_hash']:
                 raise RuntimeError('실패 복구 중 외부 변경이 발견되었습니다. transaction.yaml을 확인하세요.')
             if current_change_entry['previous_document_text'] is None:
                 current_target_path.unlink()
@@ -298,7 +298,7 @@ def rollback_document_changes(current_config_values,current_run_root):
     rollback_change_entries=[]
     for current_change_entry in current_transaction_values['document_change_entries']:
         current_target_path=resolve_document_path(source_document_root,current_change_entry['document_relative_path'])
-        current_actual_hash=calculate_text_digest(current_target_path.read_text()) if current_target_path.exists() else None
+        current_actual_hash=calculate_text_digest(current_target_path.read_bytes().decode('utf-8')) if current_target_path.exists() else None
         if current_actual_hash==current_change_entry['previous_content_hash']:
             continue
         if current_actual_hash!=current_change_entry['next_content_hash']:

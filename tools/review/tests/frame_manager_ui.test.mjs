@@ -40,7 +40,7 @@ if(originalAnchorPane.hidden)throw new Error('검색 도중 자동 이동');
 document.querySelector('#assetSearch').onkeydown({key:'Enter',preventDefault(){}});
 if(selectedPageIdentifier!=='slime')throw new Error('검색 후 Enter 선택 실패');
 document.querySelector('#clearSearch').onclick();
-if(filteredPageRecords.length!==4||selectedPageIdentifier!=='slime')throw new Error('검색 초기화 후 선택 소실');
+if(filteredPageRecords.length!==6||selectedPageIdentifier!=='slime')throw new Error('검색 초기화 후 선택 소실');
 `,testExecutionContext);
 assert.equal(selectedElementLookup.get('#standaloneLink').href,'slime/anchors.html');
 vm.runInContext(`
@@ -86,3 +86,16 @@ editedPaneElement.contentDocument.body.dataset.coordinateDownloadPending='false'
 if(pendingCoordinatePages.size)throw new Error('다운로드 후 변경 상태 남음');
 `,testExecutionContext);
 console.log('검색·분류·이전/다음·브라우저 방문 기록·필터 복원·현재 위치·접기·편집 보존 통과');
+
+vm.runInContext(`
+ document.querySelector('#openBookEditor').onclick();
+ if(selectedPageIdentifier!=='worldbuilding-library'||document.querySelector('#reviewCategory').value!=='document-management')throw new Error('도서 편집 통합 메뉴 실패');
+ const currentLibraryPane=managerPaneElements.get('worldbuilding-library');
+ currentLibraryPane.savedParagraphOrder=['paragraph-b','paragraph-a'];
+ document.querySelector('#openWorldbuilding').onclick();
+ if(selectedPageIdentifier!=='worldbuilding-author')throw new Error('세계관 작성 메뉴 실패');
+ document.querySelector('#openBookEditor').onclick();
+ if(managerPaneElements.get('worldbuilding-library')!==currentLibraryPane||currentLibraryPane.savedParagraphOrder[0]!=='paragraph-b')throw new Error('문단 편집 상태 소실');
+ if(filterManagerRecords('파일 분리','document-management').length!==1)throw new Error('파일 구조 도구 검색 실패');
+`,testExecutionContext);
+console.log('세계관 작성·도서 편집 통합 메뉴 및 배치안 유지 통과');

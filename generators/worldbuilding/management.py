@@ -170,7 +170,10 @@ class WorldbuildingManagement:
                 response_type_value='text/html; charset=utf-8'
             elif current_http_handler.command=='GET' and requested_url_path=='/worldbuilding/api/books':
                 from .bookbinding import list_document_books
-                response_body_bytes=json.dumps(list_document_books(self.workspace_config_values),ensure_ascii=False).encode()
+                from .reorganization import list_document_reorganizations
+                current_library_values=list_document_books(self.workspace_config_values)
+                current_library_values['reorganization_entries']=list_document_reorganizations(self.workspace_config_values)
+                response_body_bytes=json.dumps(current_library_values,ensure_ascii=False).encode()
                 response_type_value='application/json; charset=utf-8'
             elif current_http_handler.command=='GET' and requested_url_path.startswith('/worldbuilding/books/'):
                 from .bookbinding import read_book_artifact
@@ -186,11 +189,19 @@ class WorldbuildingManagement:
                 if current_http_handler.headers.get('Origin')!=f'http://{requested_host_text}' or current_http_handler.headers.get('X-Worldbuilding-Token')!=self.management_csrf_token:
                     raise ValueError('같은 관리도구 화면에서 보낸 요청만 허용합니다.')
                 request_content_length=int(current_http_handler.headers.get('Content-Length','0'))
-                current_request_limit=BOOK_REQUEST_LIMIT if requested_url_path in {'/worldbuilding/api/books','/worldbuilding/api/book-plan'} else MANAGEMENT_REQUEST_LIMIT
+                current_request_limit=BOOK_REQUEST_LIMIT if requested_url_path in {'/worldbuilding/api/books','/worldbuilding/api/book-plan','/worldbuilding/api/reorganize-preview'} else MANAGEMENT_REQUEST_LIMIT
                 if not 0<request_content_length<=current_request_limit:
                     raise ValueError('요청 크기가 올바르지 않습니다.')
                 request_body_values=parse_unique_json(current_http_handler.rfile.read(request_content_length).decode())
-                if requested_url_path in {'/worldbuilding/api/books','/worldbuilding/api/book-plan'}:
+                if requested_url_path=='/worldbuilding/api/reorganize-preview':
+                    from .reorganization import preview_document_reorganization
+                    current_response_values=preview_document_reorganization(self.workspace_config_values,request_body_values)
+                elif requested_url_path in {'/worldbuilding/api/reorganize-apply','/worldbuilding/api/reorganize-rollback'}:
+                    from .reorganization import execute_document_reorganization
+                    if not isinstance(request_body_values,dict) or set(request_body_values)!={'reorganization_id'} or not isinstance(request_body_values['reorganization_id'],str):
+                        raise ValueError('올바르지 않은 파일 구조 작업 요청입니다.')
+                    current_response_values=execute_document_reorganization(self.workspace_config_values,request_body_values['reorganization_id'],requested_url_path.rsplit('-',1)[1])
+                elif requested_url_path in {'/worldbuilding/api/books','/worldbuilding/api/book-plan'}:
                     from .bookbinding import build_document_book, plan_document_book
                     current_response_values=(build_document_book if requested_url_path.endswith('/books') else plan_document_book)(self.workspace_config_values,request_body_values)
                 elif requested_url_path=='/worldbuilding/api/tasks':
