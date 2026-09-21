@@ -9,6 +9,10 @@ import shutil
 import threading
 import traceback
 import yaml
+try:
+    from .link_review_file import link_or_copy_review_file
+except ImportError:
+    from link_review_file import link_or_copy_review_file
 
 WORKFLOW_REPO_ROOT = Path(__file__).resolve().parents[2]
 REVIEW_DIRECTION_NAMES = ('down_left', 'down_right', 'up_left', 'up_right')
@@ -236,7 +240,9 @@ def build_frontend_review(frontend_repository_path, ui_bundle_directory=None):
     animation_metadata_paths = sorted(frontend_asset_root.rglob('*.animation.json'))
     if not animation_metadata_paths:
         raise ValueError(f'애니메이션 메타데이터가 없습니다: {frontend_asset_root}')
-    output_review_directory = WORKFLOW_REPO_ROOT/'.tmp'/datetime.now(ZoneInfo('Asia/Seoul')).strftime('%Y-%m-%d_%H-%M-%S')
+    output_review_directory = WORKFLOW_REPO_ROOT/'.tmp'/'manager-current'
+    if output_review_directory.exists():
+        shutil.rmtree(output_review_directory)
     output_review_directory.mkdir(parents=True, exist_ok=False)
     execution_log_path = output_review_directory/'frontend-review.log'
     trace_write_lock = threading.Lock()
@@ -270,18 +276,18 @@ def build_frontend_review(frontend_repository_path, ui_bundle_directory=None):
             destination_asset_directory = output_review_directory/page_identifier_text
             destination_asset_directory.mkdir()
             if animation_identifier_text == 'character.default.white-shirt.walk':
-                rig_source_directory = WORKFLOW_REPO_ROOT/'assets/rig-sheets/five-head-walk-8f/v1'
+                rig_source_directory = WORKFLOW_REPO_ROOT/'assets/rig-sheets/five-head-walk-8f/v2'
                 rig_sheet_records = []
                 for current_direction_name in REVIEW_DIRECTION_NAMES:
                     rig_source_path = rig_source_directory/f'{current_direction_name}.png'
                     if not rig_source_path.is_file():
                         raise ValueError(f'걷기 리그 시트 누락: {rig_source_path}')
                     rig_output_name = f'rig-{current_direction_name}.png'
-                    shutil.copy2(rig_source_path, destination_asset_directory/rig_output_name)
+                    link_or_copy_review_file(rig_source_path, destination_asset_directory/rig_output_name)
                     rig_sheet_records.append({'direction': current_direction_name, 'image': rig_output_name, 'sha256': hashlib.sha256(rig_source_path.read_bytes()).hexdigest()})
                 review_source_metadata['rigSheets'] = rig_sheet_records
             for source_image_path in source_image_paths:
-                shutil.copy2(source_image_path, destination_asset_directory/source_image_path.name)
+                link_or_copy_review_file(source_image_path, destination_asset_directory/source_image_path.name)
             rendered_page_text = anchor_template_text.replace('__FRAME_RECORDS__', json.dumps(review_frame_records, ensure_ascii=False).replace('<', '\\u003c')).replace('__SOURCE_METADATA__', json.dumps(review_source_metadata, ensure_ascii=False).replace('<', '\\u003c'))
             (destination_asset_directory/'anchors.html').write_text(rendered_page_text)
             relative_metadata_path = animation_metadata_path.relative_to(frontend_repository_path).as_posix()

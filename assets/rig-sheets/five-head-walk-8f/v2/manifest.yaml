@@ -1,7 +1,6 @@
 asset_id: five-head-walk-8f-rig-sheets
-version: 1
-description: MoMask walk-travel/v1과 승인 five-head-walk/v9 리그의 방향별 걷기 8프레임 참조 시트. 최종
-  캐릭터 외형 생성용 제작 자산.
+version: 2
+description: MoMask walk-travel/v1과 five-head-walk/v9 리그 포즈를 유지하면서 어깨·팔·손목·손 형상을 개선한 4방향 걷기 8프레임 참조 시트. AnyPose 검수용 제작 자산.
 source_run: .tmp/2026-09-20_21-01-21
 source_manifest_sha256: 946d4fc7afd078af046be60cf40c7ee9b0e321f8ba508c11cc8c1820114e5158
 generator: generators/animation/render_pose_frames.py
@@ -56,11 +55,12 @@ render:
     key_power: 500
     fill_power: 90
 files:
-  down_left.png: 53ae85e3276a991f7c8dea5e24bd1ecb8be6ab869d9d22bdf8fe8e6cc8831352
-  down_right.png: 3fd2583beee46829e38009189ddbcdf10bc6d4c7f7c0bffe0dd53eea79432ba7
+  down_left.png: b689b5263a48c3bc447d4b82974228a7d267818668c4ff2a528738d32cdf1e15
+  down_right.png: f341005e6b5512c18e0fbf6719c7f73b2995530cb20b38843c2ff9949b50d233
   up_left.png: 01d981bf6c438b6c99cb4315a4acecbb95928fe82409775719761ec58eed76ad
-  up_right.png: 194f7c254d319373c2939e24ea8d25bc2b9e8ec04d6adf91b0c77d5e4e63e2ee
+  up_right.png: 2684ffb08c603b6449d52e0b8ae54094812e1bd86f750a92088219c0a502a549
 quality_notes:
 - 5등신은 중립 리그 메시 기준이며 투영 자세에서는 겉보기 등신이 달라질 수 있음
 - 원본 루프와 발 회전 검증; 8프레임의 시각적 부드러움은 검수 필요
 - up_left는 어깨·팔·손목·손 형상을 개선한 생성 후보로 교체되었으며 AnyPose 재검수가 필요함
+- 4방향 모두 어깨·팔·손목·손 형상 개선 생성 후보이며 AnyPose 재검수가 필요함

@@ -27,7 +27,7 @@
 
 ## 2. MoMask 리그 8프레임 시트
 
-현재 재사용 참조는 `assets/rig-sheets/five-head-walk-8f/v1/`의 `down_left.png`, `down_right.png`, `up_left.png`, `up_right.png`다. 셰이딩 보강 실행 `2026-09-20_21-01-21`의 네 시트를 픽셀 변경 없이 등록했으며 출처·해시는 같은 폴더의 `manifest.yaml`에 기록한다. 기존 참조 사용 시 재렌더하지 않는다. 다음 명령은 새 렌더가 필요한 경우 사용한다.
+현재 재사용 참조는 `assets/rig-sheets/five-head-walk-8f/v2/`의 `down_left.png`, `down_right.png`, `up_left.png`, `up_right.png`다. v2는 어깨·팔·손목·손 형상을 개선한 4방향 AnyPose 검수용 참조다. 출처·해시는 같은 폴더의 `manifest.yaml`에 기록한다. 기존 참조 사용 시 재렌더하지 않는다. 다음 명령은 새 렌더가 필요한 경우 사용한다.
 
 ```bash
 .venv/bin/python generators/animation/resolve_default_rig.py
