@@ -32,6 +32,13 @@ class ReviewStartupTests(unittest.TestCase):
             self.assertEqual(serve.prepare_review_directory(parsed_argument_values), Path('/tmp/generated-review'))
             build_manager_mock.assert_called_once_with(parsed_argument_values)
 
+    def test_default_manager_uses_latest_ui_bundle(self):
+        parsed_argument_values = serve.parse_review_arguments(['--frontend-repo', '/tmp/slime-frontend'])
+        with patch.object(serve, 'find_latest_ui_review_bundle', return_value=Path('/tmp/slime-frontend/.tmp/2026-09-21_17-11-44/ui-review')) as find_bundle_mock, patch('tools.review.build_frontend_review.build_frontend_review', return_value=Path('/tmp/generated-review')) as build_review_mock:
+            self.assertEqual(serve.prepare_review_directory(parsed_argument_values), Path('/tmp/generated-review'))
+            find_bundle_mock.assert_called_once_with(Path('/tmp/slime-frontend'))
+            build_review_mock.assert_called_once_with(Path('/tmp/slime-frontend'), ui_bundle_directory=Path('/tmp/slime-frontend/.tmp/2026-09-21_17-11-44/ui-review'))
+
     def test_generation_failure_stops_server(self):
         parsed_argument_values = serve.parse_review_arguments(['--walking', '.tmp/walk', '--standing', '.tmp/stand'])
         with patch('tools.review.build_frame_manager.build_frame_manager', side_effect=ValueError('검수 페이지 누락')), patch.object(serve, 'ThreadingHTTPServer') as review_server_mock:

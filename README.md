@@ -42,7 +42,7 @@
 
 ### 워크프레임 관리도구 시작
 
-워크플로우 저장소 루트에서 옵션 없이 실행한다. Python 환경에 Pillow와 PyYAML이 필요하다.
+워크플로우 저장소 루트에서 옵션 없이 실행한다. 시작 전에 프론트엔드에서 `npm run build:review`를 실행해 검증 가능한 UI 검수 빌드를 만든다. 기본 실행은 최신 UI 빌드를 자동으로 포함하므로 애니메이션·타일·게임 UI·기존 웹 검수를 하나의 목록에서 제공한다. Python 환경에 Pillow와 PyYAML이 필요하다.
 
 ```bash
 python3 tools/review/serve.py

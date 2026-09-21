@@ -49,15 +49,35 @@ def parse_review_arguments(command_argument_values=None):
     return parsed_argument_values
 
 
+def find_latest_ui_review_bundle(frontend_repository_path):
+    frontend_temporary_root = Path(frontend_repository_path).resolve()/'.tmp'
+    if not frontend_temporary_root.is_dir():
+        raise ValueError('통합 관리도구에는 프론트엔드 UI 검수 빌드가 필요합니다. slime-frontend에서 npm run build:review를 실행하세요.')
+    if __package__:
+        from .import_ui_bundle import load_ui_bundle
+    else:
+        from import_ui_bundle import load_ui_bundle
+    candidate_bundle_paths = sorted((current_path for current_path in frontend_temporary_root.glob('*/ui-review') if current_path.is_dir()), reverse=True)
+    validation_errors = []
+    for candidate_bundle_path in candidate_bundle_paths:
+        try:
+            load_ui_bundle(candidate_bundle_path)
+            return candidate_bundle_path
+        except (OSError, ValueError) as current_validation_error:
+            validation_errors.append(f'{candidate_bundle_path}: {current_validation_error}')
+    if not candidate_bundle_paths:
+        raise ValueError('통합 관리도구에는 프론트엔드 UI 검수 빌드가 필요합니다. slime-frontend에서 npm run build:review를 실행하세요.')
+    raise ValueError('검증 가능한 UI 검수 빌드를 찾지 못했습니다. npm run build:review로 새 빌드를 만드세요. '+validation_errors[-1])
+
+
 def prepare_review_directory(parsed_argument_values):
     if parsed_argument_values.frontend_repo:
         if __package__:
             from .build_frontend_review import build_frontend_review
         else:
             from build_frontend_review import build_frontend_review
-        if parsed_argument_values.ui_bundle:
-            return build_frontend_review(parsed_argument_values.frontend_repo, ui_bundle_directory=parsed_argument_values.ui_bundle)
-        return build_frontend_review(parsed_argument_values.frontend_repo)
+        selected_ui_bundle_path = parsed_argument_values.ui_bundle or find_latest_ui_review_bundle(parsed_argument_values.frontend_repo)
+        return build_frontend_review(parsed_argument_values.frontend_repo, ui_bundle_directory=selected_ui_bundle_path)
     if parsed_argument_values.walking:
         if __package__:
             from .build_frame_manager import build_frame_manager

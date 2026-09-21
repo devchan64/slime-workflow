@@ -89,9 +89,11 @@ class FrontendReviewTests(unittest.TestCase):
 
     def test_repository_option_calls_snapshot_builder(self):
         parsed_argument_values = parse_review_arguments(['--frontend-repo', str(self.frontend_asset_root)])
-        with patch('tools.review.build_frontend_review.build_frontend_review', return_value=Path('/tmp/review-output')) as snapshot_builder_mock:
+        selected_ui_bundle_path = self.frontend_asset_root/'.tmp/2026-09-21_17-11-44/ui-review'
+        with patch('tools.review.serve.find_latest_ui_review_bundle', return_value=selected_ui_bundle_path) as find_bundle_mock, patch('tools.review.build_frontend_review.build_frontend_review', return_value=Path('/tmp/review-output')) as snapshot_builder_mock:
             self.assertEqual(prepare_review_directory(parsed_argument_values), Path('/tmp/review-output'))
-            snapshot_builder_mock.assert_called_once_with(self.frontend_asset_root)
+            find_bundle_mock.assert_called_once_with(self.frontend_asset_root)
+            snapshot_builder_mock.assert_called_once_with(self.frontend_asset_root, ui_bundle_directory=selected_ui_bundle_path)
 
 
 if __name__ == '__main__':
