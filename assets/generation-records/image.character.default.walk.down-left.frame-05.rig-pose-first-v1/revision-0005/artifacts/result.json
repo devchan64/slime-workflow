@@ -1,0 +1,59 @@
+{
+  "status": "completed",
+  "model_id": "Qwen/Qwen-Image-Edit-2511",
+  "revision": "6f3ccc0b56e431dc6a0c2b2039706d7d26f22cb9",
+  "size": [
+    512,
+    512
+  ],
+  "reference_vae_size": [
+    512,
+    512
+  ],
+  "reference_condition_size": [
+    384,
+    384
+  ],
+  "steps": 10,
+  "seed": 10107,
+  "true_cfg_scale": 4.0,
+  "guidance_scale": 1.0,
+  "lightning_lora": false,
+  "dtype": "bfloat16",
+  "execution_device": "cuda",
+  "weight_offload": "sequential_cpu_offload",
+  "torch_version": "2.11.0+cu128",
+  "diffusers_version": "0.37.0",
+  "elapsed_seconds": 103.98,
+  "prompt_sha256": "99bfda5ad180482e7f8c776fef25b78dd567df0774ae93b5719ccfd2c96e1a97",
+  "input_order": [
+    "rig-reference.png",
+    "standing-reference.png"
+  ],
+  "input_sha256": {
+    "rig-reference.png": "54926d4a9bbce57f8a750637caec5151b63dca8cd64c2ae7001e1fb2639920b9",
+    "standing-reference.png": "2385964adcc926fc68473e986c03f8c5a43b2630702c789f87846e8a0053c25b"
+  },
+  "quality_warnings": [
+    "실험 결과의 최종 품질 승인이 필요합니다."
+  ],
+  "output": "result.png",
+  "pose_reference_kind": "rig",
+  "reference_order": "pose-first",
+  "prompt_source": {
+    "kind": "experiment-override",
+    "sha256": "99bfda5ad180482e7f8c776fef25b78dd567df0774ae93b5719ccfd2c96e1a97"
+  },
+  "input_references": [
+    {
+      "role": "rig",
+      "path": "/home/cbsim/ws/slime-workflow/.tmp/2026-09-21_10-11-15/rig-reference.png",
+      "sha256": "54926d4a9bbce57f8a750637caec5151b63dca8cd64c2ae7001e1fb2639920b9"
+    },
+    {
+      "role": "character",
+      "path": "/home/cbsim/ws/slime-workflow/.tmp/2026-09-21_10-11-15/standing-reference.png",
+      "sha256": "2385964adcc926fc68473e986c03f8c5a43b2630702c789f87846e8a0053c25b"
+    }
+  ]
+}

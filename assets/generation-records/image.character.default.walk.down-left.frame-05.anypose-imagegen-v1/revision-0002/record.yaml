@@ -1,0 +1,32 @@
+frameId: down_left.4
+source_run: .tmp/2026-09-21_11-16-32
+frontend:
+  repository: slime-frontend
+  path: src/assets/characters/default/walk-v1/approved-frames/walk-down-left-05-anypose-imagegen-v1.png
+  sha256: 46e99032356f317a5deab44220425a9b6eb30004a65f7618d4bd6eb02861e9c3
+generation:
+  qwen: artifacts/result.json
+  imagegen: Codex built-in image_gen
+  imagegen_model: not-exposed
+  imagegen_seed: not-exposed
+baselineSha256: 9a425eaa116c4d99ffe66b2db2196a8432be2701ace86bfd652ad76e364cfe98
+schema_version: 1
+managementId: image.character.default.walk.down-left.frame-05.anypose-imagegen-v1
+history_revision: 2
+recorded_at: '2026-09-21T12:23:19.439197+09:00'
+state: frontend-asset-adopted
+runtimeAdopted: false
+review:
+  pose: user-approved
+  anchor: pending
+previous_record: image.character.default.walk.down-left.frame-05.anypose-imagegen-v1/revision-0001/record.yaml
+private_prompts:
+- repository: slime-backend
+  path: docs/design/frontend/prompts/approved-walk/2026-09-21_11-16-32/down-left-05/prompt.txt
+  sha256: 2eadbd76b2558d45227898255007f7278e3495ef4d76d21b17e5960a10dd2bbc
+- repository: slime-backend
+  path: docs/design/frontend/prompts/approved-walk/2026-09-21_11-16-32/down-left-05/imagegen-prompt.txt
+  sha256: 1f9f5513ca75c05a661a2ec8b9b50e358e29cabefe75eecfb1505cdbbfe7575b
+- repository: slime-backend
+  path: docs/design/frontend/prompts/approved-walk/2026-09-21_11-16-32/down-left-05/prompt-segments.json
+  sha256: 594ca94c995b669ab3daafb65e869ef6e3b3bc465dc3498271a85f659971f76e

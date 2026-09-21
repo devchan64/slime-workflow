@@ -1,0 +1,74 @@
+{
+  "version": 1,
+  "sheets": [
+    {
+      "direction": "down_left",
+      "image": "walk-down-left.png",
+      "sha256": "0c634d2b958f4389aec016974a8245ae53961f5c5776dc92eb0cbb60d6211ae2"
+    },
+    {
+      "direction": "down_right",
+      "image": "walk-down-right.png",
+      "sha256": "e2f66bbc38d190f4be0b9712c90de764b7596fcfb5dd2e7ba6546aea3f84c2ab"
+    },
+    {
+      "direction": "up_left",
+      "image": "walk-up-left.png",
+      "sha256": "00b681ab72e879597523d2f4c82db8867d803027dfa01f6045758fe8b99392ab"
+    },
+    {
+      "direction": "up_right",
+      "image": "walk-up-right.png",
+      "sha256": "0db240d69438904209ba6ae6286aaec9977ab0fe33d21fefc916b0dedbafff8c"
+    }
+  ],
+  "generator": "Codex built-in image_gen",
+  "workflowRun": "2026-09-20_23-46-32",
+  "generationBatchFrames": 4,
+  "layout": {
+    "columns": 4,
+    "rows": 2
+  },
+  "frameDurationMs": 150,
+  "baselineSha256": "9a425eaa116c4d99ffe66b2db2196a8432be2701ace86bfd652ad76e364cfe98",
+  "rigAsset": "five-head-walk-8f/v1",
+  "rigHashes": {
+    "down_left": "53ae85e3276a991f7c8dea5e24bd1ecb8be6ab869d9d22bdf8fe8e6cc8831352",
+    "down_right": "3fd2583beee46829e38009189ddbcdf10bc6d4c7f7c0bffe0dd53eea79432ba7",
+    "up_left": "3757282284f0dffe7fb7e8e45ed38edb944ba896d5c7877c0d6e527c9694ae89",
+    "up_right": "194f7c254d319373c2939e24ea8d25bc2b9e8ec04d6adf91b0c77d5e4e63e2ee"
+  },
+  "anchorMethod": "provisional-head-axis-and-shoe-bottom-minus-20px",
+  "anchorReviewStatus": "pending",
+  "runtimeAdopted": false,
+  "individualRepairs": [
+    "up_left.3",
+    "up_right.0",
+    "down_left.4"
+  ],
+  "approvedFrameIntegrations": [
+    {
+      "frameId": "down_left.4",
+      "approvedSource": "approved-frames/walk-down-left-frame-05-v1.png",
+      "sourceSha256": "de4200545e07ff39e928f370e2612c617023c3fb0c5bfb774ac1e6cc02307846",
+      "scale": 0.5288135593220339,
+      "translation": [
+        -1,
+        6
+      ],
+      "rect": {
+        "x": 0,
+        "y": 640,
+        "width": 640,
+        "height": 640
+      },
+      "anchor": {
+        "x": 320,
+        "y": 608
+      },
+      "anchorStatus": "provisional-needs-ground-review",
+      "workflowRun": "2026-09-21_08-45-14",
+      "outsideReplacementPixelsUnchanged": true
+    }
+  ]
+}

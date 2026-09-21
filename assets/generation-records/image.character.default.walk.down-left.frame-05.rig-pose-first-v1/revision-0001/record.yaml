@@ -1,0 +1,101 @@
+schema_version: 1
+managementId: image.character.default.walk.down-left.frame-05.rig-pose-first-v1
+history_revision: 1
+registered_at: '2026-09-21T10:01:17.174980+09:00'
+state: candidate-not-approved
+frontend: null
+source_run: 2026-09-21_09-58-12
+generation:
+  status: completed
+  model_id: Qwen/Qwen-Image-Edit-2511
+  revision: 6f3ccc0b56e431dc6a0c2b2039706d7d26f22cb9
+  size:
+  - 512
+  - 512
+  reference_vae_size:
+  - 512
+  - 512
+  reference_condition_size:
+  - 384
+  - 384
+  steps: 10
+  seed: 10107
+  true_cfg_scale: 4.0
+  guidance_scale: 1.0
+  lightning_lora: false
+  dtype: bfloat16
+  execution_device: cuda
+  weight_offload: sequential_cpu_offload
+  torch_version: 2.11.0+cu128
+  diffusers_version: 0.37.0
+  elapsed_seconds: 111.58
+  prompt_sha256: a3f1f91d22756b7f4c77d66661daa58be5f57709b77a986eb2d7c302492a2f6d
+  input_order:
+  - rig-reference.png
+  - standing-reference.png
+  input_sha256:
+    rig-reference.png: 54926d4a9bbce57f8a750637caec5151b63dca8cd64c2ae7001e1fb2639920b9
+    standing-reference.png: 2385964adcc926fc68473e986c03f8c5a43b2630702c789f87846e8a0053c25b
+  quality_warnings:
+  - 실험 결과의 최종 품질 승인이 필요합니다.
+  output: result.png
+  pose_reference_kind: rig
+  reference_order: pose-first
+  prompt_source:
+    id: qwen-edit-2511-pose-profile
+    version: 1
+    profile_sha256: 907792763ad2eae3f1687c329168227c265900bcd41382d35c23bd69ccb7ecb6
+    pose_reference_kind: rig
+    validation_status: unverified
+    optional_prompt_enabled: false
+  input_references:
+  - role: rig
+    path: /home/cbsim/ws/slime-workflow/.tmp/2026-09-21_09-58-12/rig-reference.png
+    sha256: 54926d4a9bbce57f8a750637caec5151b63dca8cd64c2ae7001e1fb2639920b9
+  - role: character
+    path: /home/cbsim/ws/slime-workflow/.tmp/2026-09-21_09-58-12/standing-reference.png
+    sha256: 2385964adcc926fc68473e986c03f8c5a43b2630702c789f87846e8a0053c25b
+artifacts:
+- path: artifacts/standing-reference.png
+  sha256: 2385964adcc926fc68473e986c03f8c5a43b2630702c789f87846e8a0053c25b
+- path: artifacts/rig-reference.png
+  sha256: 54926d4a9bbce57f8a750637caec5151b63dca8cd64c2ae7001e1fb2639920b9
+- path: artifacts/result.png
+  sha256: e428ee01263cc3d1e744759ab396952cb8f83659dd3dbe18e1e46c489c2d4326
+- path: artifacts/result.json
+  sha256: 4209d1433a9e2997f0f46a3f90ee72d3d06c6a64e61a33e53e1620f4ad12ed8f
+- path: artifacts/execution.log
+  sha256: 4f94b539e0fecfd29b6465563c78d9dfcd5ec888dbaf1c1c1e7a421f885f1cc8
+- path: artifacts/experiment.json
+  sha256: 67d39cf7d93f2f743086876105a7619c08373e08caa2cb51abe9316ff341a33c
+- path: artifacts/source/generators/animation/generate_qwen_frame.py
+  sha256: d69ff46088ab50a27d2a095451e13abc1ecbcc6998a7d2facdb39d9b824b6415
+- path: artifacts/source/generators/animation/qwen_pose/__init__.py
+  sha256: 29c73a36591ca6289a1647a16b11c090f6bac90c0e21eb75893601d4b6602fbf
+- path: artifacts/source/generators/animation/qwen_pose/runtime.py
+  sha256: a86b7713bd48a89e9a10e7e277cea38ca865279760fe602462e0f0110cf1bb69
+- path: artifacts/source/generators/animation/qwen_pose/prompts.py
+  sha256: 4f4c88f80d29c215a244c41300982c8e59b5cd1008b974b70ac4770aa6fca47f
+prompt:
+  repository: slime-backend
+  path: docs/design/frontend/prompts/qwen-edit-2511-pose-profile-v1.yaml
+  sha256: 907792763ad2eae3f1687c329168227c265900bcd41382d35c23bd69ccb7ecb6
+  template: rig
+  reference_order: pose-first
+  optional_prompt_enabled: false
+review:
+  pose: not-applied-standing-retained
+  reviewer: assistant
+  user_approval: pending
+  conclusion: 리그 먼저·캐릭터 두 번째·옵션 제외 조건에서도 목표 다리 굽힘 미반영
+historical_comparison:
+  run: 2026-09-21_07-48-37
+  actual_input: rig-only
+  steps: 4
+  observation: 리그 단독 마네킹 교체 결과에서 굽힌 다리 포즈 관찰, 캐릭터 아이덴티티 미달
+  difference: 이번에는 두 참조 이미지로 캐릭터의 포즈 변경, 10스텝; 동일 조건 비교가 아님
+reproduction:
+  status: inputs-and-settings-preserved
+  limitations:
+  - 비공개 프롬프트·고정 모델 접근 필요
+  - 픽셀 동일성 보장 없음

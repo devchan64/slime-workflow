@@ -1,0 +1,14 @@
+{
+  "parentRun": "2026-09-21_10-08-32",
+  "direction": "down_left",
+  "displayFrame": 5,
+  "changedVariable": "prompt only",
+  "hypothesis": "이미지 1의 자세·카메라를 유지하고 외형만 재도색하도록 하면 골격 변경과 팔다리 누락을 줄일 수 있다",
+  "promptSource": "experimental-not-baseline",
+  "referenceOrder": [
+    "rig",
+    "character"
+  ],
+  "steps": 10,
+  "seed": 10107
+}

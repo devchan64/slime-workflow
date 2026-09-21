@@ -1,0 +1,35 @@
+{
+  "direction": "up_right",
+  "displayFrame": 3,
+  "frameId": "up_right.2",
+  "baselineCrop": [
+    627,
+    0,
+    627,
+    627
+  ],
+  "poseCrop": [
+    1024,
+    0,
+    512,
+    512
+  ],
+  "sources": {
+    "baseline": {
+      "path": "/home/cbsim/ws/slime-frontend/src/assets/characters/default/baseline/character-default-white-shirt-four-directions-v2.png",
+      "sha256": "9a425eaa116c4d99ffe66b2db2196a8432be2701ace86bfd652ad76e364cfe98"
+    },
+    "pose": {
+      "path": "/home/cbsim/ws/slime-workflow/assets/pose-sheets/five-head-walk-8f/v1/up_right.png",
+      "sha256": "0b44f94b7c5b725b5b80d413a36b837b6102f85d78178b1de6e15965a31ff4cf"
+    },
+    "rig": {
+      "path": "/home/cbsim/ws/slime-workflow/assets/rig-sheets/five-head-walk-8f/v1/up_right.png",
+      "sha256": "194f7c254d319373c2939e24ea8d25bc2b9e8ec04d6adf91b0c77d5e4e63e2ee"
+    },
+    "before": {
+      "path": "/home/cbsim/ws/slime-frontend/src/assets/characters/default/walk-v1/walk-up-right.png",
+      "sha256": "0db240d69438904209ba6ae6286aaec9977ab0fe33d21fefc916b0dedbafff8c"
+    }
+  }
+}

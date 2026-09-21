@@ -1,0 +1,38 @@
+{
+  "direction": "down_left",
+  "displayFrame": 5,
+  "frameId": "down_left.4",
+  "referenceOrder": [
+    "rig",
+    "character"
+  ],
+  "optionalPromptEnabled": false,
+  "size": [
+    512,
+    512
+  ],
+  "steps": 10,
+  "seed": 10107,
+  "comparisonRun": "2026-09-21_08-26-24",
+  "changedConditions": [
+    "OpenPose → 리그",
+    "리그 먼저/캐릭터 두 번째",
+    "외형 유지 옵션 문구 제외"
+  ],
+  "sources": {
+    "character": {
+      "path": "/home/cbsim/ws/slime-workflow/.tmp/2026-09-21_08-26-24/standing-reference.png",
+      "sha256": "2385964adcc926fc68473e986c03f8c5a43b2630702c789f87846e8a0053c25b"
+    },
+    "rig": {
+      "path": "/home/cbsim/ws/slime-workflow/assets/rig-sheets/five-head-walk-8f/v1/down_left.png",
+      "sha256": "53ae85e3276a991f7c8dea5e24bd1ecb8be6ab869d9d22bdf8fe8e6cc8831352",
+      "crop": [
+        0,
+        512,
+        512,
+        512
+      ]
+    }
+  }
+}

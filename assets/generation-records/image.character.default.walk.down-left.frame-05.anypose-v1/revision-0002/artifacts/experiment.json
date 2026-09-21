@@ -1,0 +1,31 @@
+{
+  "parentRun": "2026-09-21_10-39-20",
+  "direction": "down_left",
+  "frameId": "down_left.4",
+  "changes": {
+    "lightning": "removed",
+    "steps": [
+      4,
+      10
+    ],
+    "true_cfg_scale": [
+      1.0,
+      4.0
+    ]
+  },
+  "fixed": {
+    "anypose_base": 0.7,
+    "anypose_helper": 0.7,
+    "size": [
+      512,
+      512
+    ],
+    "seed": 10107,
+    "reference_order": [
+      "character",
+      "rig"
+    ],
+    "prompt": "same as parent"
+  },
+  "note": "스텝뿐 아니라 Lightning·CFG가 변경된 비증류 경로 비교"
+}

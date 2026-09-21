@@ -1,0 +1,29 @@
+schema_version: 1
+managementId: image.character.default.walk.packed-up-v3
+history_revision: 1
+state: candidate-review-hold
+frontend: null
+standard:
+  id: ui.character-sprite
+  version: '1.1'
+parent: image.character.default.walk.packed-up-v2
+source_run: .tmp/2026-09-21_11-50-39
+artifact:
+  path: .tmp/2026-09-21_11-50-39/packed/walk-up.png
+  sha256: a2487cc01e558188c4e984be0a4cfdf85dff747678c06e318a50c5b9179b3f15
+format:
+  size:
+  - 1536
+  - 1536
+  cell:
+  - 384
+  - 384
+  pixelFormat: RGBA8
+  frames: 16
+normalization:
+  path: .tmp/2026-09-21_11-50-39/normalization.json
+  sha256: 53f67c6be4097a8390764b793eea2d84310840e5cb697facde02e0cd50a91cc6
+pendingFrameReview:
+- up_left.4
+generation: 기존 제작 정렬본에서 균일 변환·재패킹. AI 재생성 없음.
+supersedes: image.character.default.walk.packed-up-v2

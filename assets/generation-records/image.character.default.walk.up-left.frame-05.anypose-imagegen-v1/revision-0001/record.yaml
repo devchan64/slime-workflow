@@ -1,0 +1,31 @@
+frameId: up_left.4
+source_run: .tmp/2026-09-21_12-07-15
+frontend:
+  repository: slime-frontend
+  path: src/assets/characters/default/walk-v1/approved-frames/walk-up-left-05-anypose-imagegen-v1.png
+  sha256: 5f14f1a5e388714e18a4c81413ed74a06f2341bdf800e4975ea0c5c21e6bf2df
+generation:
+  qwen: artifacts/result.json
+  imagegen: Codex built-in image_gen
+  imagegen_model: not-exposed
+  imagegen_seed: not-exposed
+baselineSha256: 9a425eaa116c4d99ffe66b2db2196a8432be2701ace86bfd652ad76e364cfe98
+schema_version: 1
+managementId: image.character.default.walk.up-left.frame-05.anypose-imagegen-v1
+history_revision: 1
+recorded_at: '2026-09-21T12:23:19.439197+09:00'
+state: frontend-asset-adopted
+runtimeAdopted: false
+review:
+  pose: user-approved
+  anchor: pending
+private_prompts:
+- repository: slime-backend
+  path: docs/design/frontend/prompts/approved-walk/2026-09-21_12-07-15/up-left-05/prompt.txt
+  sha256: 0c05397d092057937669a315d1c595fe83ecc328ba3c52e29fb2569ddef0e6fa
+- repository: slime-backend
+  path: docs/design/frontend/prompts/approved-walk/2026-09-21_12-07-15/up-left-05/prompt-segments.json
+  sha256: 61a69ad33f67c580ed188a47dd8d9051172d0c4fe44836db5efebe4e2fd7c7a9
+- repository: slime-backend
+  path: docs/design/frontend/prompts/approved-walk/2026-09-21_12-07-15/up-left-05/identity-prompt.txt
+  sha256: 1a1a6b9083244f428de57dae09befa62fb4623b36dcae29ec2ad17c7c01f2c99

@@ -1,0 +1,38 @@
+{
+  "direction": "up_right",
+  "displayFrame": 1,
+  "frameId": "up_right.0",
+  "baselineCrop": [
+    627,
+    0,
+    627,
+    627
+  ],
+  "poseCrop": [
+    0,
+    0,
+    512,
+    512
+  ],
+  "sources": {
+    "baseline": {
+      "path": "/home/cbsim/ws/slime-frontend/src/assets/characters/default/baseline/character-default-white-shirt-four-directions-v2.png",
+      "sha256": "9a425eaa116c4d99ffe66b2db2196a8432be2701ace86bfd652ad76e364cfe98"
+    },
+    "rig": {
+      "path": "/home/cbsim/ws/slime-workflow/assets/rig-sheets/five-head-walk-8f/v1/up_right.png",
+      "sha256": "194f7c254d319373c2939e24ea8d25bc2b9e8ec04d6adf91b0c77d5e4e63e2ee"
+    },
+    "before": {
+      "path": "/home/cbsim/ws/slime-frontend/src/assets/characters/default/walk-v1/walk-up-right.png",
+      "sha256": "0db240d69438904209ba6ae6286aaec9977ab0fe33d21fefc916b0dedbafff8c"
+    }
+  },
+  "poseReferenceKind": "rig",
+  "comparisonRun": "2026-09-21_09-21-16",
+  "changedConditions": [
+    "포즈 입력 OpenPose → 리그 렌더",
+    "기준 프롬프트 openpose → rig"
+  ],
+  "managementId": "image.character.default.walk.up-right.frame-01.qwen-candidate-v1"
+}

@@ -1,0 +1,14 @@
+{
+  "direction": "down_left",
+  "frameId": "down_left.4",
+  "preset": "anypose-lightning-v1",
+  "steps": 4,
+  "true_cfg_scale": 1.0,
+  "reference_order": [
+    "character",
+    "rig"
+  ],
+  "model_card_revision": "27c4b1f7688940d39767e652fe8d87faf44a0881",
+  "model_card_sha256": "7798cc6da7bc0c8e804e4a2830c71e4a1d5d2b93a346a6311fff9d2dc6f3d661",
+  "comparison": "직전 무 LoRA 실험과 달리 어댑터·문구·순서·CFG·스텝이 변경된 도입 검증; 단일 변수 비교 아님"
+}

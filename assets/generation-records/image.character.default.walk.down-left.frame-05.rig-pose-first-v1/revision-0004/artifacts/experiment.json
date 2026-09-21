@@ -1,0 +1,14 @@
+{
+  "parentRun": "2026-09-21_10-05-37",
+  "direction": "down_left",
+  "displayFrame": 5,
+  "changedVariable": "prompt only",
+  "hypothesis": "중국어 최소 포즈 교체 문구로 중복 인물·리그 합성을 줄일 수 있다",
+  "promptSource": "experimental-not-baseline",
+  "referenceOrder": [
+    "rig",
+    "character"
+  ],
+  "steps": 10,
+  "seed": 10107
+}

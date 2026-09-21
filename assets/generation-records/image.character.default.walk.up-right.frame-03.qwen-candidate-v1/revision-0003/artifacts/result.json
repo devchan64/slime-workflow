@@ -1,0 +1,63 @@
+{
+  "status": "completed",
+  "model_id": "Qwen/Qwen-Image-Edit-2511",
+  "revision": "6f3ccc0b56e431dc6a0c2b2039706d7d26f22cb9",
+  "size": [
+    512,
+    512
+  ],
+  "reference_vae_size": [
+    512,
+    512
+  ],
+  "reference_condition_size": [
+    384,
+    384
+  ],
+  "steps": 10,
+  "seed": 10107,
+  "true_cfg_scale": 4.0,
+  "guidance_scale": 1.0,
+  "lightning_lora": false,
+  "dtype": "bfloat16",
+  "execution_device": "cuda",
+  "weight_offload": "sequential_cpu_offload",
+  "torch_version": "2.11.0+cu128",
+  "diffusers_version": "0.37.0",
+  "elapsed_seconds": 127.94,
+  "prompt_sha256": "907b6c7febce2c7c54d9e7c67b9bf52349bf7b8f7038a3b0ad0063db84aae623",
+  "input_order": [
+    "standing-reference.png",
+    "rig-reference.png"
+  ],
+  "input_sha256": {
+    "standing-reference.png": "8f500b512818eb2ce1f0b2e1cfb0c52431b41ad371a0a4ff384c11de8808f09f",
+    "rig-reference.png": "22fb95eb225d6b196198754a687eb9bfb2f78206be928590a2d90cb8d81c71c0"
+  },
+  "quality_warnings": [
+    "실험 결과의 최종 품질 승인이 필요합니다."
+  ],
+  "output": "result.png",
+  "pose_reference_kind": "rig",
+  "reference_order": "standing-first",
+  "prompt_source": {
+    "id": "qwen-edit-2511-pose-profile",
+    "version": 1,
+    "profile_sha256": "907792763ad2eae3f1687c329168227c265900bcd41382d35c23bd69ccb7ecb6",
+    "pose_reference_kind": "rig",
+    "validation_status": "unverified",
+    "optional_prompt_enabled": true
+  },
+  "input_references": [
+    {
+      "role": "character",
+      "path": "/home/cbsim/ws/slime-workflow/.tmp/2026-09-21_09-38-23/frame-03/standing-reference.png",
+      "sha256": "8f500b512818eb2ce1f0b2e1cfb0c52431b41ad371a0a4ff384c11de8808f09f"
+    },
+    {
+      "role": "rig",
+      "path": "/home/cbsim/ws/slime-workflow/.tmp/2026-09-21_09-38-23/frame-03/rig-reference.png",
+      "sha256": "22fb95eb225d6b196198754a687eb9bfb2f78206be928590a2d90cb8d81c71c0"
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+schema_version: 1
+managementId: image.character.default.walk.up-right.frame-01.qwen-candidate-v1
+history_revision: 2
+registered_at: '2026-09-21T09:35:47.571161+09:00'
+state: nonconforming-experiment-not-approved
+frontend: null
+history:
+  previous_revision: 1
+  previous_record: ../revision-0001/record.yaml
+  reason: 사용자 리그 입력 기준과 실제 OpenPose 실행의 불일치 정정
+execution_evidence:
+  record: ../revision-0001/record.yaml
+  pose_reference_kind: openpose
+  artifacts_unchanged: true
+review:
+  required_pose_reference_kind: rig
+  actual_pose_reference_kind: openpose
+  conforms_to_workflow: false
+  cause: 에이전트가 과거 OpenPose 성공 사례를 지정된 리그 기준보다 우선 적용
+  adoption: not-approved
+  corrective_action: 별도 새 실행에서 리그 렌더와 rig 기준 프롬프트 사용
+reproduction:
+  status: inputs-and-settings-preserved
+  limitations:
+  - 프롬프트 원문 접근은 비공개 저장소 권한 필요
+  - 고정 모델 캐시 준비 필요
+  - 동일 GPU·라이브러리 조건에서도 비트 단위 동일 출력 보장은 하지 않음
+  source_replay: artifacts/source/는 실행 코드 보존본. 동일 저장소 배치로 복원하고 명시된 라이브러리·모델 캐시를 준비한다.

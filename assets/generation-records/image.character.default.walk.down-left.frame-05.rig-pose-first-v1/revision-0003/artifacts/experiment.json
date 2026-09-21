@@ -1,0 +1,14 @@
+{
+  "parentRun": "2026-09-21_10-02-41",
+  "direction": "down_left",
+  "displayFrame": 5,
+  "changedVariable": "prompt only",
+  "hypothesis": "중국어 지시와 화면 기준 다리 상태를 명시하면 스탠딩 참조의 포즈 복제를 억제할 수 있다",
+  "promptSource": "experimental-not-baseline",
+  "referenceOrder": [
+    "rig",
+    "character"
+  ],
+  "steps": 10,
+  "seed": 10107
+}

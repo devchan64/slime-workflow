@@ -1,0 +1,31 @@
+source_run: .tmp/2026-09-21_12-07-15
+frontend:
+  repository: slime-frontend
+  path: src/assets/characters/default/walk-v1/walk-down.png
+  sha256: 60d38ebaaf1f5af201d2cc070313cfc9a57e053e6b60ac3b86997103811b6a7d
+format:
+  size:
+  - 1536
+  - 1536
+  cell:
+  - 384
+  - 384
+  pixelFormat: RGBA8
+  frames: 16
+constituentFrames:
+  down_left.4: image.character.default.walk.down-left.frame-05.anypose-imagegen-v1
+  down_right.0: image.character.default.walk.down-right.frame-01.anypose-imagegen-v1
+generation: 승인된 개별 보정 프레임과 기존 프레임을 정렬·패킹
+standard:
+  id: ui.character-sprite
+  version: '1.1'
+schema_version: 1
+managementId: image.character.default.walk.packed-down-v3
+history_revision: 2
+recorded_at: '2026-09-21T12:23:19.439197+09:00'
+state: frontend-asset-adopted
+runtimeAdopted: false
+review:
+  pose: user-approved
+  anchor: pending
+previous_record: image.character.default.walk.packed-down-v3/revision-0001/record.yaml

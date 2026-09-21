@@ -1,0 +1,16 @@
+{
+  "tool": "image_gen.imagegen",
+  "model": "not-exposed-by-tool",
+  "seed": "not-exposed-by-tool",
+  "generatedOriginals": [
+    "/home/cbsim/.codex/generated_images/01a0bce6-7996-7283-89ef-22d34261d8df/exec-0876cd6f-9437-4e8c-85ef-a1f1a5f9117c.png"
+  ],
+  "initialReferences": [
+    "result.png",
+    "../baseline.png"
+  ],
+  "prompt": "identity-prompt.txt",
+  "selectedOutput": "identity.png",
+  "outputSha256": "be5548bba1af484540ed522970ea686ad239a7de318332210371fea06a659efc",
+  "status": "candidate-needs-user-review"
+}

@@ -1,0 +1,20 @@
+schema_version: 1
+managementId: image.frontend.character.default.walk-v1.down-left
+history_revision: 1
+registered_at: '2026-09-21T09:32:19.097418+09:00'
+registration_mode: retrospective
+state: frontend-registered
+frontend:
+  managementId: image.frontend.character.default.walk-v1.down-left
+  path: src/assets/characters/default/walk-v1/walk-down-left.png
+  sha256: 0c634d2b958f4389aec016974a8245ae53961f5c5776dc92eb0cbb60d6211ae2
+reproduction:
+  status: partial
+  limitations:
+  - 과거 실행의 입력·프롬프트·후처리 전체 스냅샷은 아직 이 기록에 수집되지 않음
+  - 내장 이미지젠 모델·seed 미노출로 픽셀 동일 재생성 보장 불가
+history:
+  previous_revision: null
+  reason: 기존 프론트엔드 관리번호를 재현 관리기록과 연결
+generation_runs:
+- 2026-09-20_23-46-32

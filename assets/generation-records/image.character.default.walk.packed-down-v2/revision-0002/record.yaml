@@ -1,0 +1,39 @@
+schema_version: 1
+managementId: image.character.default.walk.packed-down-v2
+history_revision: 2
+registered_at: '2026-09-21T11:39:10.458339+09:00'
+state: superseded-cell-standard
+frontend: null
+source_run: .tmp/2026-09-21_11-16-32
+artifact:
+  repository_path: .tmp/2026-09-21_11-16-32/packed/walk-down.png
+  sha256: f86ac75f0b928897e77ff078cb399fa5d3653878bb8f0fa3678f5b83d16ed77e
+format:
+  width: 1024
+  height: 1024
+  cell:
+  - 256
+  - 256
+  layout:
+  - 4
+  - 4
+  pixelFormat: RGBA8
+  frameCount: 16
+  durationMs: 150
+  referenceBodyHeight: 192
+  gameBodyHeight: 60
+parents:
+  down_left.4: image.character.default.walk.down-left.frame-05.anypose-imagegen-v1
+sourceInputs: .tmp/2026-09-21_11-16-32/source-inputs
+normalization:
+  repository_path: .tmp/2026-09-21_11-16-32/normalization.json
+  sha256: da2244de098e175af9eab3aa75a141d5b8634169f7fefc16e50f3bca8804218a
+sourceCode: .tmp/2026-09-21_11-16-32/code
+verification:
+  packedCellsRGBAEqual: true
+  sourceBodyHeightMaximum: 384
+  runtimeAdopted: false
+  anchorReview: pending
+supersededBy: image.character.default.walk.packed-down-v3
+reason: 사용자 정정에 따라 이전 셀 기준 폐기
+previous_record: ../revision-0001/record.yaml

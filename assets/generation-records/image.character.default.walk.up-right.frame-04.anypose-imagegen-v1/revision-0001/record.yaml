@@ -1,0 +1,121 @@
+schema_version: 1
+managementId: image.character.default.walk.up-right.frame-04.anypose-imagegen-v1
+history_revision: 1
+registered_at: '2026-09-21T11:39:10.444678+09:00'
+state: candidate-not-approved
+frontend: null
+frameId: up_right.3
+source_run: .tmp/2026-09-21_11-16-32/up-right-04
+qwen:
+  status: completed
+  model_id: Qwen/Qwen-Image-Edit-2511
+  revision: 6f3ccc0b56e431dc6a0c2b2039706d7d26f22cb9
+  size:
+  - 512
+  - 512
+  reference_vae_size:
+  - 512
+  - 512
+  reference_condition_size:
+  - 384
+  - 384
+  steps: 10
+  seed: 10107
+  true_cfg_scale: 4.0
+  guidance_scale: 1.0
+  lightning_lora: false
+  dtype: bfloat16
+  execution_device: cuda
+  weight_offload: sequential_cpu_offload
+  torch_version: 2.11.0+cu128
+  diffusers_version: 0.37.0
+  elapsed_seconds: 122.88
+  prompt_sha256: bb3708ea124f7cff9a9a7e9b615f76450164ec909200190c0000cd947c68f8c2
+  input_order:
+  - standing-reference.png
+  - rig-reference.png
+  input_sha256:
+    standing-reference.png: 8f500b512818eb2ce1f0b2e1cfb0c52431b41ad371a0a4ff384c11de8808f09f
+    rig-reference.png: 1d64ef67237fab0cd45f8a1adf0c42ec082a114f2d3b98a4a1e40331842f2c91
+  quality_warnings:
+  - 실험 결과의 최종 품질 승인이 필요합니다.
+  output: result.png
+  pose_reference_kind: rig
+  reference_order: standing-first
+  prompt_source:
+    kind: anypose-model-card
+    sha256: bb3708ea124f7cff9a9a7e9b615f76450164ec909200190c0000cd947c68f8c2
+  adapters:
+  - name: anypose_base
+    repository: lilylilith/AnyPose
+    revision: 27c4b1f7688940d39767e652fe8d87faf44a0881
+    filename: 2511-AnyPose-base-000006250.safetensors
+    sha256: 0396314e43b94f7520cf5242e6aa6e8e9095d784f7e87ee45980c2e541ee8c4d
+    size: 295146208
+    strength: 0.7
+    path: /home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-base-000006250.safetensors
+  - name: anypose_helper
+    repository: lilylilith/AnyPose
+    revision: 27c4b1f7688940d39767e652fe8d87faf44a0881
+    filename: 2511-AnyPose-helper-00006000.safetensors
+    sha256: 674340c62fff3cf981d0cfc55daf2f0e6f51c56b50159e241d931748200cf1eb
+    size: 295146216
+    strength: 0.7
+    path: /home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-helper-00006000.safetensors
+  execution_preset: anypose-standard-v1
+  input_references:
+  - role: character
+    path: /home/cbsim/ws/slime-workflow/.tmp/2026-09-21_11-16-32/up-right-04/standing-reference.png
+    sha256: 8f500b512818eb2ce1f0b2e1cfb0c52431b41ad371a0a4ff384c11de8808f09f
+  - role: rig
+    path: /home/cbsim/ws/slime-workflow/.tmp/2026-09-21_11-16-32/up-right-04/rig-reference.png
+    sha256: 1d64ef67237fab0cd45f8a1adf0c42ec082a114f2d3b98a4a1e40331842f2c91
+imagegen:
+  tool: Codex built-in image_gen
+  model: not-exposed-by-tool
+  seed: null
+  sizeArgumentAvailable: false
+  actualSize:
+  - 1254
+  - 1254
+  promptSha256: e47a25bac57666b49da9b50767a5a3a1fda27fcbfb52bee5234b3498967cfa2d
+  references:
+  - repository_path: .tmp/2026-09-21_11-16-32/up-right-04/result.png
+    sha256: fdb6829c06c8fcbb36e44cd9d63501c2443e97c001f4405a4c34ea37a5c00419
+  - repository_path: .tmp/2026-09-21_11-16-32/baseline.png
+    sha256: 9a425eaa116c4d99ffe66b2db2196a8432be2701ace86bfd652ad76e364cfe98
+  output:
+    repository_path: .tmp/2026-09-21_11-16-32/up-right-04/identity.png
+    sha256: a739220d962d796b94b21c3a9cdaaf5e351182c0278db302cbba183044f93c0a
+promptSegments:
+  poseSha256: 50be43843de2b991510125fbbc52e32519a80e2d33c6ca3e35db5ad8d13698cf
+  optionalDirectionSha256: e11e0ad1011703fdf9a76314625a6d682091f1950e3ee462ec4f5e803b5822c4
+  direction: up-right
+  note: 포즈 기준 문구 유지, 방향 보조 문구 별도. 실제 문자열은 실험 폴더에 보존.
+artifacts:
+- repository_path: .tmp/2026-09-21_11-16-32/up-right-04/standing-reference.png
+  sha256: 8f500b512818eb2ce1f0b2e1cfb0c52431b41ad371a0a4ff384c11de8808f09f
+- repository_path: .tmp/2026-09-21_11-16-32/up-right-04/input-source.json
+  sha256: b673c3d9967d13a86d4f82964838ea29744c7be29e56b492d60e3f02f472e572
+- repository_path: .tmp/2026-09-21_11-16-32/up-right-04/execution.log
+  sha256: 78af8d533c6d4d2e73c52fdf0b6f4580403ca35a929e17f2b5761b857f5e915c
+- repository_path: .tmp/2026-09-21_11-16-32/up-right-04/identity.png
+  sha256: a739220d962d796b94b21c3a9cdaaf5e351182c0278db302cbba183044f93c0a
+- repository_path: .tmp/2026-09-21_11-16-32/up-right-04/result.json
+  sha256: 94ea3ca8dc6086a17d568affabadee0f97a368bddebfc0d3ec13163a1875edde
+- repository_path: .tmp/2026-09-21_11-16-32/up-right-04/rig-reference.png
+  sha256: 1d64ef67237fab0cd45f8a1adf0c42ec082a114f2d3b98a4a1e40331842f2c91
+- repository_path: .tmp/2026-09-21_11-16-32/up-right-04/result.png
+  sha256: fdb6829c06c8fcbb36e44cd9d63501c2443e97c001f4405a4c34ea37a5c00419
+- repository_path: .tmp/2026-09-21_11-16-32/up-right-04/imagegen.json
+  sha256: d8f9eb32558dd2eb79c6431b5a70070329f478867eabcc556e55134845bdef55
+reproduction:
+  status: active-experiment-preserved
+  sourceCode: .tmp/2026-09-21_11-16-32/code
+  limitations:
+  - 이미지젠 내부 모델·시드 미노출로 비트 단위 동일 생성은 보장하지 않음
+  - 실험 원본 정리 전 재사용/보존 근거 확인 필요
+review:
+  adoption: pending
+  pose: 리그·Qwen·이미지젠 비교 페이지 제공; 사용자 최종 검수 필요
+  anchor: provisional

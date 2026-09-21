@@ -1,0 +1,25 @@
+{
+  "tool": "Codex built-in image_gen",
+  "model": "not-exposed-by-tool",
+  "seed": null,
+  "sizeArgumentAvailable": false,
+  "actualSize": [
+    1254,
+    1254
+  ],
+  "promptSha256": "9c941c1b3727efe6a64455ec4587fb5772964af8dbb27b49faf3f788f1058df1",
+  "references": [
+    {
+      "repository_path": ".tmp/2026-09-21_11-16-32/up-right-01/result.png",
+      "sha256": "64fbb995ddd4b158a7557bc2a9226949de1107c5b9c04b1035f14dcf69ac589c"
+    },
+    {
+      "repository_path": ".tmp/2026-09-21_11-16-32/baseline.png",
+      "sha256": "9a425eaa116c4d99ffe66b2db2196a8432be2701ace86bfd652ad76e364cfe98"
+    }
+  ],
+  "output": {
+    "repository_path": ".tmp/2026-09-21_11-16-32/up-right-01/identity.png",
+    "sha256": "171fdf525ccb6ec3da76025df1a6837835922e14b272d8716df76e3b96c23af4"
+  }
+}

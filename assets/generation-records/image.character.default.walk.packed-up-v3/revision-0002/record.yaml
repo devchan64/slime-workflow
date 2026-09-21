@@ -1,0 +1,35 @@
+source_run: .tmp/2026-09-21_12-07-15
+frontend:
+  repository: slime-frontend
+  path: src/assets/characters/default/walk-v1/walk-up.png
+  sha256: f6111a7f46bea32dcd02124e5ffd077b08f44dd4745b3527cd605cf4e4dd22b5
+format:
+  size:
+  - 1536
+  - 1536
+  cell:
+  - 384
+  - 384
+  pixelFormat: RGBA8
+  frames: 16
+constituentFrames:
+  up_right.0: image.character.default.walk.up-right.frame-01.anypose-imagegen-v1
+  up_right.2: image.character.default.walk.up-right.frame-03.anypose-imagegen-v1
+  up_right.3: image.character.default.walk.up-right.frame-04.anypose-imagegen-v1
+  up_left.4: image.character.default.walk.up-left.frame-05.anypose-imagegen-v1
+  up_left.6: image.character.default.walk.up-left.frame-07.anypose-imagegen-v1
+  up_left.7: image.character.default.walk.up-left.frame-08.anypose-imagegen-v1
+generation: 승인된 개별 보정 프레임과 기존 프레임을 정렬·패킹
+standard:
+  id: ui.character-sprite
+  version: '1.1'
+schema_version: 1
+managementId: image.character.default.walk.packed-up-v3
+history_revision: 2
+recorded_at: '2026-09-21T12:23:19.439197+09:00'
+state: frontend-asset-adopted
+runtimeAdopted: false
+review:
+  pose: user-approved
+  anchor: pending
+previous_record: image.character.default.walk.packed-up-v3/revision-0001/record.yaml

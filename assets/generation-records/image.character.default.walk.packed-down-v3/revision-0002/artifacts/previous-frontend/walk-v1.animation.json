@@ -1,0 +1,592 @@
+{
+  "animationId": "character.default.white-shirt.walk",
+  "version": "1",
+  "sheet": {
+    "width": 2560,
+    "height": 1280
+  },
+  "frames": [
+    {
+      "frameId": "down_left.0",
+      "rect": {
+        "x": 0,
+        "y": 0,
+        "width": 640,
+        "height": 640
+      },
+      "anchor": {
+        "x": 320,
+        "y": 601
+      }
+    },
+    {
+      "frameId": "down_left.1",
+      "rect": {
+        "x": 640,
+        "y": 0,
+        "width": 640,
+        "height": 640
+      },
+      "anchor": {
+        "x": 308,
+        "y": 600
+      }
+    },
+    {
+      "frameId": "down_left.2",
+      "rect": {
+        "x": 1280,
+        "y": 0,
+        "width": 640,
+        "height": 640
+      },
+      "anchor": {
+        "x": 326,
+        "y": 569
+      }
+    },
+    {
+      "frameId": "down_left.3",
+      "rect": {
+        "x": 1920,
+        "y": 0,
+        "width": 640,
+        "height": 640
+      },
+      "anchor": {
+        "x": 320,
+        "y": 580
+      }
+    },
+    {
+      "frameId": "down_left.4",
+      "rect": {
+        "x": 0,
+        "y": 640,
+        "width": 640,
+        "height": 640
+      },
+      "anchor": {
+        "x": 320,
+        "y": 608
+      }
+    },
+    {
+      "frameId": "down_left.5",
+      "rect": {
+        "x": 640,
+        "y": 640,
+        "width": 640,
+        "height": 640
+      },
+      "anchor": {
+        "x": 316,
+        "y": 608
+      }
+    },
+    {
+      "frameId": "down_left.6",
+      "rect": {
+        "x": 1280,
+        "y": 640,
+        "width": 640,
+        "height": 640
+      },
+      "anchor": {
+        "x": 320,
+        "y": 569
+      }
+    },
+    {
+      "frameId": "down_left.7",
+      "rect": {
+        "x": 1920,
+        "y": 640,
+        "width": 640,
+        "height": 640
+      },
+      "anchor": {
+        "x": 320,
+        "y": 569
+      }
+    },
+    {
+      "frameId": "down_right.0",
+      "rect": {
+        "x": 0,
+        "y": 0,
+        "width": 640,
+        "height": 640
+      },
+      "anchor": {
+        "x": 320,
+        "y": 594
+      }
+    },
+    {
+      "frameId": "down_right.1",
+      "rect": {
+        "x": 640,
+        "y": 0,
+        "width": 640,
+        "height": 640
+      },
+      "anchor": {
+        "x": 320,
+        "y": 588
+      }
+    },
+    {
+      "frameId": "down_right.2",
+      "rect": {
+        "x": 1280,
+        "y": 0,
+        "width": 640,
+        "height": 640
+      },
+      "anchor": {
+        "x": 338,
+        "y": 581
+      }
+    },
+    {
+      "frameId": "down_right.3",
+      "rect": {
+        "x": 1920,
+        "y": 0,
+        "width": 640,
+        "height": 640
+      },
+      "anchor": {
+        "x": 320,
+        "y": 580
+      }
+    },
+    {
+      "frameId": "down_right.4",
+      "rect": {
+        "x": 0,
+        "y": 640,
+        "width": 640,
+        "height": 640
+      },
+      "anchor": {
+        "x": 321,
+        "y": 610
+      }
+    },
+    {
+      "frameId": "down_right.5",
+      "rect": {
+        "x": 640,
+        "y": 640,
+        "width": 640,
+        "height": 640
+      },
+      "anchor": {
+        "x": 320,
+        "y": 612
+      }
+    },
+    {
+      "frameId": "down_right.6",
+      "rect": {
+        "x": 1280,
+        "y": 640,
+        "width": 640,
+        "height": 640
+      },
+      "anchor": {
+        "x": 323,
+        "y": 553
+      }
+    },
+    {
+      "frameId": "down_right.7",
+      "rect": {
+        "x": 1920,
+        "y": 640,
+        "width": 640,
+        "height": 640
+      },
+      "anchor": {
+        "x": 320,
+        "y": 558
+      }
+    },
+    {
+      "frameId": "up_left.0",
+      "rect": {
+        "x": 0,
+        "y": 0,
+        "width": 640,
+        "height": 640
+      },
+      "anchor": {
+        "x": 320,
+        "y": 599
+      }
+    },
+    {
+      "frameId": "up_left.1",
+      "rect": {
+        "x": 640,
+        "y": 0,
+        "width": 640,
+        "height": 640
+      },
+      "anchor": {
+        "x": 320,
+        "y": 599
+      }
+    },
+    {
+      "frameId": "up_left.2",
+      "rect": {
+        "x": 1280,
+        "y": 0,
+        "width": 640,
+        "height": 640
+      },
+      "anchor": {
+        "x": 320,
+        "y": 587
+      }
+    },
+    {
+      "frameId": "up_left.3",
+      "rect": {
+        "x": 1920,
+        "y": 0,
+        "width": 640,
+        "height": 640
+      },
+      "anchor": {
+        "x": 320,
+        "y": 583
+      }
+    },
+    {
+      "frameId": "up_left.4",
+      "rect": {
+        "x": 0,
+        "y": 640,
+        "width": 640,
+        "height": 640
+      },
+      "anchor": {
+        "x": 320,
+        "y": 606
+      }
+    },
+    {
+      "frameId": "up_left.5",
+      "rect": {
+        "x": 640,
+        "y": 640,
+        "width": 640,
+        "height": 640
+      },
+      "anchor": {
+        "x": 318,
+        "y": 601
+      }
+    },
+    {
+      "frameId": "up_left.6",
+      "rect": {
+        "x": 1280,
+        "y": 640,
+        "width": 640,
+        "height": 640
+      },
+      "anchor": {
+        "x": 320,
+        "y": 577
+      }
+    },
+    {
+      "frameId": "up_left.7",
+      "rect": {
+        "x": 1920,
+        "y": 640,
+        "width": 640,
+        "height": 640
+      },
+      "anchor": {
+        "x": 320,
+        "y": 577
+      }
+    },
+    {
+      "frameId": "up_right.0",
+      "rect": {
+        "x": 0,
+        "y": 0,
+        "width": 640,
+        "height": 640
+      },
+      "anchor": {
+        "x": 320,
+        "y": 581
+      }
+    },
+    {
+      "frameId": "up_right.1",
+      "rect": {
+        "x": 640,
+        "y": 0,
+        "width": 640,
+        "height": 640
+      },
+      "anchor": {
+        "x": 320,
+        "y": 594
+      }
+    },
+    {
+      "frameId": "up_right.2",
+      "rect": {
+        "x": 1280,
+        "y": 0,
+        "width": 640,
+        "height": 640
+      },
+      "anchor": {
+        "x": 320,
+        "y": 574
+      }
+    },
+    {
+      "frameId": "up_right.3",
+      "rect": {
+        "x": 1920,
+        "y": 0,
+        "width": 640,
+        "height": 640
+      },
+      "anchor": {
+        "x": 320,
+        "y": 575
+      }
+    },
+    {
+      "frameId": "up_right.4",
+      "rect": {
+        "x": 0,
+        "y": 640,
+        "width": 640,
+        "height": 640
+      },
+      "anchor": {
+        "x": 344,
+        "y": 601
+      }
+    },
+    {
+      "frameId": "up_right.5",
+      "rect": {
+        "x": 640,
+        "y": 640,
+        "width": 640,
+        "height": 640
+      },
+      "anchor": {
+        "x": 320,
+        "y": 607
+      }
+    },
+    {
+      "frameId": "up_right.6",
+      "rect": {
+        "x": 1280,
+        "y": 640,
+        "width": 640,
+        "height": 640
+      },
+      "anchor": {
+        "x": 320,
+        "y": 577
+      }
+    },
+    {
+      "frameId": "up_right.7",
+      "rect": {
+        "x": 1920,
+        "y": 640,
+        "width": 640,
+        "height": 640
+      },
+      "anchor": {
+        "x": 320,
+        "y": 580
+      }
+    }
+  ],
+  "clips": [
+    {
+      "clipId": "walk.down_left",
+      "action": "walk",
+      "direction": "down_left",
+      "frames": [
+        {
+          "frameId": "down_left.0",
+          "durationMs": 150
+        },
+        {
+          "frameId": "down_left.1",
+          "durationMs": 150
+        },
+        {
+          "frameId": "down_left.2",
+          "durationMs": 150
+        },
+        {
+          "frameId": "down_left.3",
+          "durationMs": 150
+        },
+        {
+          "frameId": "down_left.4",
+          "durationMs": 150
+        },
+        {
+          "frameId": "down_left.5",
+          "durationMs": 150
+        },
+        {
+          "frameId": "down_left.6",
+          "durationMs": 150
+        },
+        {
+          "frameId": "down_left.7",
+          "durationMs": 150
+        }
+      ],
+      "loop": true,
+      "nextClipId": null
+    },
+    {
+      "clipId": "walk.down_right",
+      "action": "walk",
+      "direction": "down_right",
+      "frames": [
+        {
+          "frameId": "down_right.0",
+          "durationMs": 150
+        },
+        {
+          "frameId": "down_right.1",
+          "durationMs": 150
+        },
+        {
+          "frameId": "down_right.2",
+          "durationMs": 150
+        },
+        {
+          "frameId": "down_right.3",
+          "durationMs": 150
+        },
+        {
+          "frameId": "down_right.4",
+          "durationMs": 150
+        },
+        {
+          "frameId": "down_right.5",
+          "durationMs": 150
+        },
+        {
+          "frameId": "down_right.6",
+          "durationMs": 150
+        },
+        {
+          "frameId": "down_right.7",
+          "durationMs": 150
+        }
+      ],
+      "loop": true,
+      "nextClipId": null
+    },
+    {
+      "clipId": "walk.up_left",
+      "action": "walk",
+      "direction": "up_left",
+      "frames": [
+        {
+          "frameId": "up_left.0",
+          "durationMs": 150
+        },
+        {
+          "frameId": "up_left.1",
+          "durationMs": 150
+        },
+        {
+          "frameId": "up_left.2",
+          "durationMs": 150
+        },
+        {
+          "frameId": "up_left.3",
+          "durationMs": 150
+        },
+        {
+          "frameId": "up_left.4",
+          "durationMs": 150
+        },
+        {
+          "frameId": "up_left.5",
+          "durationMs": 150
+        },
+        {
+          "frameId": "up_left.6",
+          "durationMs": 150
+        },
+        {
+          "frameId": "up_left.7",
+          "durationMs": 150
+        }
+      ],
+      "loop": true,
+      "nextClipId": null
+    },
+    {
+      "clipId": "walk.up_right",
+      "action": "walk",
+      "direction": "up_right",
+      "frames": [
+        {
+          "frameId": "up_right.0",
+          "durationMs": 150
+        },
+        {
+          "frameId": "up_right.1",
+          "durationMs": 150
+        },
+        {
+          "frameId": "up_right.2",
+          "durationMs": 150
+        },
+        {
+          "frameId": "up_right.3",
+          "durationMs": 150
+        },
+        {
+          "frameId": "up_right.4",
+          "durationMs": 150
+        },
+        {
+          "frameId": "up_right.5",
+          "durationMs": 150
+        },
+        {
+          "frameId": "up_right.6",
+          "durationMs": 150
+        },
+        {
+          "frameId": "up_right.7",
+          "durationMs": 150
+        }
+      ],
+      "loop": true,
+      "nextClipId": null
+    }
+  ]
+}
