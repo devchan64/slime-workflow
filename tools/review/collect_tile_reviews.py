@@ -62,6 +62,10 @@ def build_tile_review_page(review_data):
     return template_path.read_text(encoding='utf-8').replace('__TILE_REVIEW_DATA__', json.dumps(review_data, ensure_ascii=False).replace('<', '\\u003c'))
 
 
+def build_empty_tile_review_page():
+    return '''<!doctype html><html lang="ko"><meta charset="utf-8"><title>타일 후보 검수</title><style>body{margin:0;background:#16212a;color:#e6eef5;font:16px system-ui,sans-serif}main{max-width:720px;margin:64px auto;padding:24px;background:#202f3a;border:1px solid #3e5563;border-radius:12px}code{color:#a8d8ff;background:#101923;padding:2px 5px;border-radius:4px}</style><main><h1>타일 후보 검수</h1><p>검증 가능한 타일 생성 기록이 아직 없습니다.</p><p>Qwen 타일 생성기를 실행하면 <code>.tmp/한국시간/tile-review.json</code>과 역할별 PNG, 맵 적용 스냅샷이 함께 기록됩니다. 관리도구를 다시 시작하면 반복 이음새·높이 변화·지정 맵 타일 적용 화면이 이 위치에 추가됩니다.</p></main></html>'''
+
+
 def collect_tile_reviews(workflow_repository_root: Path, output_review_directory: Path, emit_review_trace):
     """.tmp 실행 폴더의 검증된 타일 기록만 현재 관리도구에 포함한다."""
     review_page_records = []
@@ -93,4 +97,11 @@ def collect_tile_reviews(workflow_repository_root: Path, output_review_directory
         (destination_root_path / 'tile-review.html').write_text(build_tile_review_page(page_data), encoding='utf-8')
         review_page_records.append({'id': destination_identifier, 'label': record_values['assetId'] + ' · 타일 후보', 'path': destination_identifier + '/tile-review.html', 'category': 'tile-review', 'anchorEditor': False, 'description': f'{record_root_path.relative_to(workflow_repository_root)} · {record_values["tileability"]} · {record_values["tileSize"][0]}×{record_values["tileSize"][1]}'})
         emit_review_trace('tile-review', str(record_root_path.relative_to(workflow_repository_root)))
+    if not review_page_records:
+        destination_identifier = 'tile-review-empty'
+        destination_root_path = output_review_directory / destination_identifier
+        destination_root_path.mkdir()
+        (destination_root_path / 'tile-review.html').write_text(build_empty_tile_review_page(), encoding='utf-8')
+        review_page_records.append({'id': destination_identifier, 'label': '타일 후보 · 생성 기록 없음', 'path': destination_identifier + '/tile-review.html', 'category': 'tile-review', 'anchorEditor': False, 'description': 'Qwen 타일 생성 기록을 기다리는 중'})
+        emit_review_trace('tile-review', '생성 기록 없음')
     return review_page_records
