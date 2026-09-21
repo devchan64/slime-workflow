@@ -48,8 +48,9 @@ GENERATION_SYSTEM_TEXT = '''당신은 한국어 세계관 문서 편집자다. �
 새 내용은 본문에 '상태: 신규 제안'으로 표시한다. 기존 승인 기록을 바꾸거나 신규 제안을 확정 규칙으로 승격하지 않는다.
 기존 문서의 변경은 요청한 대상·종류로만 한다. 읽은 원문에 포함된 정확한 source_reference_id만 인용한다.
 create는 영문 소문자와 하이픈 파일명의 새 Markdown 문서를 작성하고 제목(#)으로 시작한다.
-append는 기존 문서에 추가할 문단만 작성한다. replace는 제공된 구간의 유일한 원문과 대체문을 정확히 작성한다.
+append는 본문을 '상태: 신규 제안'으로 시작하고 기존 문서에 추가할 문단만 작성한다. replace는 제공된 구간의 유일한 원문과 대체문을 정확히 작성한다.
 Markdown 링크는 제공된 경로를 기준으로 대상 문서 위치에서의 상대 경로를 사용한다.
+한 작업의 추가·신규 본문은 핵심 변경을 중심으로 1,200자 이내로 작성한다. 요약은 한 문장, 경고는 최대 3개의 짧은 문장으로 작성하고 실제 사용한 출처만 인용한다. 기존 내용을 길게 반복하지 않는다.
 요청한 변경 외의 서론·코드펜스 없이 지정된 JSON 구조로만 응답한다. 도구·명령·모델 변경을 요청하지 않는다.'''
 
 
@@ -121,6 +122,15 @@ def start_managed_server(current_run_root,current_runtime_kind='generation'):
                 server_process_handle.wait()
 
 
+def build_generation_messages(current_config_values,current_request_values,selected_chunk_entries):
+    """원문·출처·승인 상태만 전달하고 검색·무결성 메타데이터는 실행 기록에 보존한다."""
+    generation_source_fields=('source_reference_id','source_document_path','source_excerpt_text','source_approval_state')
+    generation_source_entries=[{current_field_name:current_source_entry[current_field_name] for current_field_name in generation_source_fields} for current_source_entry in selected_chunk_entries]
+    generation_request_text=json.dumps({'task_instruction_data':current_request_values,'allowed_output_roots':current_config_values['allowed_write_roots'],'inherited_source_entries':generation_source_entries},ensure_ascii=False,separators=(',',':'))
+    generation_contract_text="위 원문 인용은 기존 자료다. 이번 결과에 과거 승인 문구를 복사하거나 새 설정을 이미 채택했다고 쓰지 마라. replacement_fragment_text에 반드시 '상태: 신규 제안'을 포함하라. append는 이 표시로 시작하고 create는 제목 다음 줄에 표시한다. 이번 변경 본문만 1,200자 이내로 작성하고 JSON을 완결하라."
+    return [{'role':'system','content':GENERATION_SYSTEM_TEXT},{'role':'user','content':generation_request_text},{'role':'user','content':generation_contract_text}]
+
+
 def build_generation_schema(current_request_values,selected_chunk_entries):
     """작업 종류·대상·출처를 생성 단계부터 고정한다."""
     current_generation_schema=copy.deepcopy(CHANGE_OUTPUT_SCHEMA)
@@ -128,7 +138,6 @@ def build_generation_schema(current_request_values,selected_chunk_entries):
     current_change_properties['document_change_mode']={'const':current_request_values['requested_operation_mode']}
     if current_request_values['requested_operation_mode'] in {'create','append'}:
         current_change_properties['existing_fragment_text']={'const':''}
-        current_change_properties['replacement_fragment_text']['pattern']=r'^(.|\n)*상태: 신규 제안(.|\n)*$'
     if current_request_values['requested_target_path']:
         current_change_properties['document_relative_path']={'const':current_request_values['requested_target_path']}
         current_generation_schema['properties']['document_change_entries']['maxItems']=1
@@ -248,19 +257,13 @@ def execute_document_task(current_config_path,current_task_identifier):
                         selected_chunk_entries.append(current_chunk_entry)
                 update_task_status(current_run_root,'context',resolved_target_path=current_request_values['requested_target_path'])
                 with start_managed_server(current_run_root):
-                    while True:
-                        user_request_text=json.dumps({'task_instruction_data':current_request_values,'allowed_output_roots':current_config_values['allowed_write_roots'],'inherited_source_entries':selected_chunk_entries},ensure_ascii=False)
-                        generation_message_entries=[{'role':'system','content':GENERATION_SYSTEM_TEXT},{'role':'user','content':user_request_text}]
-                        template_response_data=request_local_model('/apply-template',{'messages':generation_message_entries})
-                        token_response_data=request_local_model('/tokenize',{'content':template_response_data['prompt'],'add_special':False})
-                        prompt_token_count=len(token_response_data['tokens'])
-                        if prompt_token_count<=MODEL_INPUT_LIMIT:
-                            break
-                        optional_chunk_entries=[current_chunk_entry for current_chunk_entry in selected_chunk_entries if not current_chunk_entry['source_required_flag']]
-                        if not optional_chunk_entries:
-                            raise ValueError('필수 승계 문맥과 지시가 모델 입력 예산을 초과했습니다.')
-                        selected_chunk_entries.remove(optional_chunk_entries[-1])
-                    save_yaml_document(current_run_root/'context.yaml',{'selected_source_entries':selected_chunk_entries,'input_token_count':prompt_token_count,'review_scope_label':'선택한 원문 구간만 검토'})
+                    generation_message_entries=build_generation_messages(current_config_values,current_request_values,selected_chunk_entries)
+                    template_response_data=request_local_model('/apply-template',{'messages':generation_message_entries})
+                    token_response_data=request_local_model('/tokenize',{'content':template_response_data['prompt'],'add_special':False})
+                    prompt_token_count=len(token_response_data['tokens'])
+                    save_yaml_document(current_run_root/'context.yaml',{'selected_source_entries':selected_chunk_entries,'input_token_count':prompt_token_count,'input_token_limit':MODEL_INPUT_LIMIT,'review_scope_label':'선택한 원문 구간만 검토'})
+                    if prompt_token_count>MODEL_INPUT_LIMIT:
+                        raise ValueError(f'필수 승계 문맥과 지시가 모델 입력 예산을 초과했습니다: {prompt_token_count} / {MODEL_INPUT_LIMIT} 토큰. 원문을 자동 제거하지 않았습니다. 작업 범위를 나누어 주세요.')
                     save_yaml_document(previous_index_path,{'source_hash_mapping':source_hash_mapping,'latest_workflow_task':current_task_identifier})
                     update_task_status(current_run_root,'generating',context_source_paths=sorted({current_chunk_entry['source_document_path'] for current_chunk_entry in selected_chunk_entries}),input_token_count=prompt_token_count)
                     with worldbuilding.trace_runtime_progress('generating',lambda:f'입력토큰={prompt_token_count} 참조구간={len(selected_chunk_entries)} 서버로그바이트={(current_run_root / "model-server.log").stat().st_size} 응답대기중'):
