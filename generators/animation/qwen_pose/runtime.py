@@ -15,6 +15,7 @@ FIXED_MODEL_DIRECTORY = WORKFLOW_REPO_ROOT / '.model/qwen-image-edit-2511' / FIX
 FIXED_IMAGE_DIMENSIONS = 512
 FIXED_INFERENCE_STEPS = 10
 FIXED_GENERATOR_SEED = 10107
+ANYPOSE_STANDARD_STEP_OPTIONS = (10, 20, 30)
 
 
 PIPELINE_EXECUTION_LOCK = threading.Lock()
@@ -40,13 +41,13 @@ def execute_pose_generation(*, trial_output_root, prompt_text_value,
     if not enable_anypose_adapter and (selected_base_strength != 0.7 or selected_helper_strength != 0.7):
         raise ValueError('AnyPose 비활성 상태에서는 strength를 변경할 수 없습니다.')
     active_lightning_adapter = enable_anypose_adapter and enable_lightning_adapter
-    required_anypose_steps = 4 if active_lightning_adapter else 10
-    if enable_anypose_adapter and (pose_reference_kind != 'rig' or selected_reference_order != 'standing-first' or selected_inference_steps != required_anypose_steps):
-        raise ValueError('AnyPose는 리그·캐릭터 우선, Lightning=4스텝 또는 비Lightning=10스텝이어야 합니다.')
+    required_anypose_steps = 4 if active_lightning_adapter else ANYPOSE_STANDARD_STEP_OPTIONS
+    if enable_anypose_adapter and (pose_reference_kind != 'rig' or selected_reference_order != 'standing-first' or (selected_inference_steps != required_anypose_steps if active_lightning_adapter else selected_inference_steps not in required_anypose_steps)):
+        raise ValueError('AnyPose는 리그·캐릭터 우선, Lightning=4스텝 또는 표준 10/20/30스텝이어야 합니다.')
     selected_true_cfg_scale = 1.0 if active_lightning_adapter else 4.0
     resolved_adapter_records = []
-    if type(selected_inference_steps) is not int or selected_inference_steps not in (4, 10, 20):
-        raise ValueError('steps는 4, 10, 20만 허용합니다.')
+    if type(selected_inference_steps) is not int or selected_inference_steps not in (4, 10, 20, 30):
+        raise ValueError('steps는 4, 10, 20, 30만 허용합니다.')
     if not isinstance(prompt_text_value, str) or not prompt_text_value.strip():
         raise ValueError('편집 프롬프트가 비어 있습니다.')
     prompt_text_value = prompt_text_value.strip()

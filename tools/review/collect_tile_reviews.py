@@ -3,10 +3,13 @@ from __future__ import annotations
 
 import hashlib
 import json
-import shutil
 from pathlib import Path
 
 import yaml
+try:
+    from .link_review_file import link_or_copy_review_file
+except ImportError:
+    from link_review_file import link_or_copy_review_file
 
 
 WORKFLOW_REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
@@ -81,18 +84,18 @@ def collect_tile_reviews(workflow_repository_root: Path, output_review_directory
             if not isinstance(current_variant_record, dict) or set(current_variant_record) != {'role', 'file', 'sha256'} or current_variant_record['role'] not in {'ground', 'wall-front', 'wall-side'}:
                 raise ValueError(f'타일 역할 기록이 올바르지 않습니다: {record_file_path}')
             source_variant_path = validate_record_file(record_root_path, {'file': current_variant_record['file'], 'sha256': current_variant_record['sha256']}, TILE_IMAGE_SUFFIXES)
-            shutil.copy2(source_variant_path, destination_root_path / source_variant_path.name)
+            link_or_copy_review_file(source_variant_path, destination_root_path / source_variant_path.name)
             copied_variant_records.append({'role': current_variant_record['role'], 'file': source_variant_path.name})
         preview_path = None
         if record_values['preview'] is not None:
             source_preview_path = validate_record_file(record_root_path, record_values['preview'], {'.png'})
-            shutil.copy2(source_preview_path, destination_root_path / source_preview_path.name)
+            link_or_copy_review_file(source_preview_path, destination_root_path / source_preview_path.name)
             preview_path = source_preview_path.name
         map_preview_result = load_map_preview_record(record_root_path, record_values['mapPreview'])
         map_preview_values = None
         if map_preview_result is not None:
             source_map_preview_path, map_preview_values = map_preview_result
-            shutil.copy2(source_map_preview_path, destination_root_path / source_map_preview_path.name)
+            link_or_copy_review_file(source_map_preview_path, destination_root_path / source_map_preview_path.name)
         page_data = {'assetId': record_values['assetId'], 'tileSize': record_values['tileSize'], 'tileability': record_values['tileability'], 'heightSteps': record_values['heightSteps'], 'variants': copied_variant_records, 'preview': preview_path, 'mapPreview': map_preview_values, 'qualityWarnings': record_values['qualityWarnings']}
         (destination_root_path / 'tile-review.html').write_text(build_tile_review_page(page_data), encoding='utf-8')
         review_page_records.append({'id': destination_identifier, 'label': record_values['assetId'] + ' · 타일 후보', 'path': destination_identifier + '/tile-review.html', 'category': 'tile-review', 'anchorEditor': False, 'description': f'{record_root_path.relative_to(workflow_repository_root)} · {record_values["tileability"]} · {record_values["tileSize"][0]}×{record_values["tileSize"][1]}'})

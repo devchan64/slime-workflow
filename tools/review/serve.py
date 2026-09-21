@@ -5,7 +5,12 @@ from zoneinfo import ZoneInfo
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import unquote, urlsplit
 import argparse
+import hashlib
+import json
+import shutil
+import subprocess
 import threading
+import time
 import traceback
 import sys
 
@@ -38,6 +43,7 @@ def parse_review_arguments(command_argument_values=None):
     argument_value_parser.add_argument('--port',type=int,default=REVIEW_SERVER_PORT,help='로컬 서버 포트 (기본: 8770)')
     argument_value_parser.add_argument('--ui-bundle',type=Path,help='프론트엔드에서 전달한 UI 검수 빌드 폴더')
     argument_value_parser.add_argument('--worldbuilding-config',type=Path,help='비공개 세계관 작업 공간 설정 YAML')
+    argument_value_parser.add_argument('--watch',action='store_true',help='소스 변경 시 검수 빌드를 다시 만들고 서버를 재시작')
     parsed_argument_values=argument_value_parser.parse_args(command_argument_values)
     if not any((parsed_argument_values.root, parsed_argument_values.walking, parsed_argument_values.frontend_repo, parsed_argument_values.standing, parsed_argument_values.worldbuilding_only_mode)):
         parsed_argument_values.frontend_repo=DEFAULT_FRONTEND_REPOSITORY
@@ -51,16 +57,75 @@ def parse_review_arguments(command_argument_values=None):
         argument_value_parser.error('포트는 1024~65535여야 합니다.')
     return parsed_argument_values
 
+def collect_review_watch_paths(parsed_argument_values):
+    workflow_repo_root = Path(__file__).resolve().parents[2]
+    watch_paths = [Path(__file__).resolve(), workflow_repo_root/'tools/review', workflow_repo_root/'generators/animation']
+    if parsed_argument_values.frontend_repo:
+        watch_paths.append(Path(parsed_argument_values.frontend_repo).resolve()/'src/assets')
+    if parsed_argument_values.root:
+        watch_paths.append(Path(parsed_argument_values.root).resolve())
+    if parsed_argument_values.walking:
+        watch_paths.extend([Path(parsed_argument_values.walking).resolve(), Path(parsed_argument_values.standing).resolve()])
+    return tuple(path for path in watch_paths if path.exists())
+
+def snapshot_review_watch_paths(watch_paths):
+    return tuple(sorted((str(current_file), current_file.stat().st_mtime_ns, current_file.stat().st_size)
+        for current_root_path in watch_paths
+        for current_file in ([current_root_path] if current_root_path.is_file() else current_root_path.rglob('*'))
+        if current_file.is_file() and current_file.suffix.lower() in {'.py', '.html', '.css', '.js', '.json', '.yaml', '.yml', '.png', '.jpg', '.jpeg', '.webp'}))
+
+def run_review_watch_mode(parsed_argument_values):
+    watch_paths = collect_review_watch_paths(parsed_argument_values)
+    previous_watch_snapshot = snapshot_review_watch_paths(watch_paths)
+    watch_command_arguments = [current_argument for current_argument in sys.argv[1:] if current_argument != '--watch']
+    try:
+        while True:
+            review_server_process = subprocess.Popen([sys.executable, str(Path(__file__).resolve()), *watch_command_arguments])
+            try:
+                while review_server_process.poll() is None:
+                    time.sleep(0.5)
+                    current_watch_snapshot = snapshot_review_watch_paths(watch_paths)
+                    if current_watch_snapshot != previous_watch_snapshot:
+                        print(f'{datetime.now().isoformat()}/asset-review-server/watch 변경 감지, 검수 서버를 다시 시작합니다.', flush=True)
+                        previous_watch_snapshot = current_watch_snapshot
+                        review_server_process.terminate()
+                        review_server_process.wait(timeout=5)
+                        break
+                else:
+                    if review_server_process.returncode != 0:
+                        raise RuntimeError(f'검수 서버가 비정상 종료되었습니다: {review_server_process.returncode}')
+                    return
+            finally:
+                if review_server_process.poll() is None:
+                    review_server_process.terminate()
+                    review_server_process.wait(timeout=5)
+            time.sleep(0.2)
+    except KeyboardInterrupt:
+        if 'review_server_process' in locals() and review_server_process.poll() is None:
+            review_server_process.terminate()
+            review_server_process.wait(timeout=5)
+        print(f'{datetime.now().isoformat()}/asset-review-server/stop 감시 종료', flush=True)
+
+
+def calculate_frontend_review_source_hash(frontend_repository_path):
+    frontend_repository_path = Path(frontend_repository_path).resolve()
+    source_file_paths = [frontend_repository_path/'package.json', frontend_repository_path/'package-lock.json', frontend_repository_path/'scripts/build_ui_review.sh', frontend_repository_path/'scripts/build-ui-review.mjs']
+    source_file_paths.extend(sorted((frontend_repository_path/'src').rglob('*')))
+    source_file_paths.extend(sorted((frontend_repository_path/'review').rglob('*')))
+    digest_builder = hashlib.sha256()
+    for source_file_path in source_file_paths:
+        if source_file_path.is_file():
+            digest_builder.update(source_file_path.relative_to(frontend_repository_path).as_posix().encode())
+            digest_builder.update(source_file_path.read_bytes())
+    return digest_builder.hexdigest()
 
 def find_latest_ui_review_bundle(frontend_repository_path):
-    frontend_temporary_root = Path(frontend_repository_path).resolve()/'.tmp'
-    if not frontend_temporary_root.is_dir():
-        raise ValueError('통합 관리도구에는 프론트엔드 UI 검수 빌드가 필요합니다. slime-frontend에서 npm run build:review를 실행하세요.')
+    workflow_temporary_root = Path(__file__).resolve().parents[2]/'.tmp'
     if __package__:
         from .import_ui_bundle import load_ui_bundle
     else:
         from import_ui_bundle import load_ui_bundle
-    candidate_bundle_paths = sorted((current_path for current_path in frontend_temporary_root.glob('*/ui-review') if current_path.is_dir()), reverse=True)
+    candidate_bundle_paths = sorted((current_path for current_path in workflow_temporary_root.glob('*/ui-review') if current_path.is_dir()), reverse=True)
     validation_errors = []
     for candidate_bundle_path in candidate_bundle_paths:
         try:
@@ -69,8 +134,35 @@ def find_latest_ui_review_bundle(frontend_repository_path):
         except (OSError, ValueError) as current_validation_error:
             validation_errors.append(f'{candidate_bundle_path}: {current_validation_error}')
     if not candidate_bundle_paths:
-        raise ValueError('통합 관리도구에는 프론트엔드 UI 검수 빌드가 필요합니다. slime-frontend에서 npm run build:review를 실행하세요.')
-    raise ValueError('검증 가능한 UI 검수 빌드를 찾지 못했습니다. npm run build:review로 새 빌드를 만드세요. '+validation_errors[-1])
+        raise ValueError('검증 가능한 UI 검수 빌드를 찾지 못했습니다.')
+    raise ValueError('검증 가능한 UI 검수 빌드를 찾지 못했습니다. '+validation_errors[-1])
+
+def ensure_frontend_ui_review_bundle(frontend_repository_path):
+    frontend_repository_path = Path(frontend_repository_path).resolve()
+    workflow_temporary_root = Path(__file__).resolve().parents[2]/'.tmp'
+    ui_review_snapshot_root = workflow_temporary_root/'ui-review'
+    source_hash_value = calculate_frontend_review_source_hash(frontend_repository_path)
+    for current_bundle_path in sorted(ui_review_snapshot_root.glob('*/ui-review'), reverse=True):
+        source_hash_path = current_bundle_path.parent/'ui-review-source.json'
+        if source_hash_path.is_file():
+            source_hash_record = json.loads(source_hash_path.read_text())
+            if source_hash_record.get('sourceHash') == source_hash_value:
+                return current_bundle_path
+    print(f'{datetime.now().isoformat()}/asset-review-server/ui-build 프론트엔드 UI 검수 빌드를 생성합니다.', flush=True)
+    subprocess.run(['npm', 'run', 'build:review'], cwd=frontend_repository_path, check=True)
+    frontend_temporary_root = frontend_repository_path/'.tmp'
+    source_bundle_candidates = sorted((current_path for current_path in frontend_temporary_root.glob('*/ui-review') if current_path.is_dir()), reverse=True)
+    if not source_bundle_candidates:
+        raise ValueError('npm run build:review 결과에서 ui-review 사본을 찾지 못했습니다.')
+    source_bundle_path = source_bundle_candidates[0]
+    snapshot_directory = ui_review_snapshot_root/(datetime.now(ZoneInfo('Asia/Seoul')).strftime('%Y-%m-%d_%H-%M-%S')+'-'+source_hash_value[:12])
+    snapshot_directory.mkdir(parents=True, exist_ok=False)
+    destination_bundle_path = snapshot_directory/'ui-review'
+    shutil.copytree(source_bundle_path, destination_bundle_path)
+    source_record = {'sourceHash': source_hash_value, 'sourceRepository': str(frontend_repository_path), 'sourceBundle': str(source_bundle_path), 'snapshotBundle': str(destination_bundle_path)}
+    (snapshot_directory/'ui-review-source.json').write_text(json.dumps(source_record, ensure_ascii=False, indent=2))
+    (ui_review_snapshot_root/'latest.json').write_text(json.dumps(source_record, ensure_ascii=False, indent=2))
+    return destination_bundle_path
 
 
 def prepare_review_directory(parsed_argument_values):
@@ -86,7 +178,7 @@ def prepare_review_directory(parsed_argument_values):
             from .build_frontend_review import build_frontend_review
         else:
             from build_frontend_review import build_frontend_review
-        selected_ui_bundle_path = parsed_argument_values.ui_bundle or find_latest_ui_review_bundle(parsed_argument_values.frontend_repo)
+        selected_ui_bundle_path = parsed_argument_values.ui_bundle or ensure_frontend_ui_review_bundle(parsed_argument_values.frontend_repo)
         return build_frontend_review(parsed_argument_values.frontend_repo, ui_bundle_directory=selected_ui_bundle_path)
     if parsed_argument_values.walking:
         if __package__:
@@ -180,4 +272,8 @@ def run_review_server(parsed_argument_values):
             worldbuilding_management_service.close_management_worker()
 
 if __name__ == '__main__':
-    run_review_server(parse_review_arguments())
+    parsed_argument_values = parse_review_arguments()
+    if parsed_argument_values.watch:
+        run_review_watch_mode(parsed_argument_values)
+    else:
+        run_review_server(parsed_argument_values)

@@ -34,7 +34,7 @@ class ReviewStartupTests(unittest.TestCase):
 
     def test_default_manager_uses_latest_ui_bundle(self):
         parsed_argument_values = serve.parse_review_arguments(['--frontend-repo', '/tmp/slime-frontend'])
-        with patch.object(serve, 'find_latest_ui_review_bundle', return_value=Path('/tmp/slime-frontend/.tmp/2026-09-21_17-11-44/ui-review')) as find_bundle_mock, patch('tools.review.build_frontend_review.build_frontend_review', return_value=Path('/tmp/generated-review')) as build_review_mock:
+        with patch.object(serve, 'ensure_frontend_ui_review_bundle', return_value=Path('/tmp/slime-frontend/.tmp/2026-09-21_17-11-44/ui-review')) as find_bundle_mock, patch('tools.review.build_frontend_review.build_frontend_review', return_value=Path('/tmp/generated-review')) as build_review_mock:
             self.assertEqual(serve.prepare_review_directory(parsed_argument_values), Path('/tmp/generated-review'))
             find_bundle_mock.assert_called_once_with(Path('/tmp/slime-frontend'))
             build_review_mock.assert_called_once_with(Path('/tmp/slime-frontend'), ui_bundle_directory=Path('/tmp/slime-frontend/.tmp/2026-09-21_17-11-44/ui-review'))

@@ -3,7 +3,10 @@ from pathlib import Path
 from html.parser import HTMLParser
 import hashlib
 import json
-import shutil
+try:
+    from .link_review_file import link_or_copy_review_file
+except ImportError:
+    from link_review_file import link_or_copy_review_file
 
 REVIEW_PUBLIC_SUFFIXES = {'.html', '.png', '.jpg', '.jpeg', '.webp', '.gif', '.json', '.js', '.css', '.mp4'}
 REVIEW_COLLECTION_ROOTS = ('.tmp', '.result', 'assets')
@@ -65,7 +68,7 @@ def collect_web_reviews(workflow_repo_root, output_review_directory, emit_review
                         raise ValueError(f'검수 폴더 밖 파일: {source_asset_path}')
                     destination_asset_path = destination_root_path/relative_asset_path
                     destination_asset_path.parent.mkdir(parents=True, exist_ok=True)
-                    shutil.copy2(source_asset_path, destination_asset_path)
+                    link_or_copy_review_file(source_asset_path, destination_asset_path)
                     copied_file_count += 1
                 copied_directory_lookup[source_directory_path] = directory_identifier_text
                 emit_review_trace('web-copy', f'{source_directory_path.relative_to(workflow_repo_root)} files={copied_file_count}')

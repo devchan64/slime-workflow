@@ -30,7 +30,7 @@ body.manager-shell{height:100vh;height:100dvh;display:flex;flex-direction:column
 .manager-shell #workspace { min-height:240px; }
 .anchor-preview { min-width:0; }
 @media(min-width:901px) {
- .embedded-review .anchor-workspace { grid-template-rows:auto minmax(0,1fr); height:100dvh; padding:16px; gap:16px; grid-template-columns:minmax(0,1fr) 300px; }
+ .embedded-review .anchor-workspace { grid-template-rows:auto minmax(0,1fr); height:calc(100dvh - 32px); padding:16px; gap:16px; grid-template-columns:minmax(0,1fr) 300px; }
  .embedded-review .anchor-preview { height:100%; min-height:0; display:flex; flex-direction:column; }
  .embedded-review .anchor-stage { flex:1; min-height:120px; }
  .embedded-review #reviewCanvas { max-height:100%; min-height:0; }
@@ -39,6 +39,13 @@ body.manager-shell{height:100vh;height:100dvh;display:flex;flex-direction:column
 @media(max-width:900px) {
  .anchor-preview { grid-row:1; }
  .anchor-controls { grid-row:2; }
+}
+@media(max-width:900px) {
+ .embedded-review .anchor-workspace { grid-template-columns:minmax(0,1fr) 260px; grid-template-rows:auto minmax(0,1fr); height:calc(100dvh - 32px); }
+ .embedded-review .anchor-preview { grid-column:1; grid-row:1; height:100%; min-height:0; display:flex; flex-direction:column; }
+ .embedded-review .anchor-controls { grid-column:2; grid-row:1; max-height:100%; overflow:auto; display:grid; }
+ .embedded-review .anchor-stage { flex:1; min-height:120px; }
+ .embedded-review #reviewCanvas { max-height:100%; min-height:0; }
 }
 @media(max-width:700px) {
  .manager-layout { flex-direction:column; }
@@ -66,3 +73,7 @@ body.manager-shell{height:100vh;height:100dvh;display:flex;flex-direction:column
 .preview-display-settings summary { cursor:pointer; }
 .preview-display-settings[open] .preview-ground-controls { margin:12px 0 0; }
 .anchor-preview h2 { margin-bottom:8px; }
+.anchor-preview .options input[type=range] { width:120px; }
+.anchor-stage { position:relative; }
+.rig-mini-map { position:absolute; top:12px; left:12px; width:240px; height:240px; padding:6px; background:#111722dd; border:1px solid #8ed1ff; border-radius:8px; box-shadow:0 4px 16px #0008; }
+.rig-mini-map canvas { display:block; width:100%; height:100%; image-rendering:auto; }
