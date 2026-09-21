@@ -6,10 +6,12 @@
 
 - `generators/momask/`: CUDA MoMask 관절 모션 생성. SMPL 의존성 없음.
 - `generators/animation/`: 기본 리그 검증, 4방향 포즈·Depth 렌더, 참조 준비, Qwen 프레임 생성.
+- `generators/terrain/`: 고정 Qwen-Image-Edit-2511 기반 바닥·벽 타일 후보와 높이 변화 미리보기 생성.
 - `workflows/`: 현재 작업의 실행 순서·입출력·검증 절차.
 - `old/`: 이전 노드·음악 파이프라인·실험 생성기와 해당 문서·테스트. 현재 실행 경로에서 사용하지 않는다.
 
 [캐릭터 애니메이션 제작 절차](workflows/character-animation.md)를 따른다.
+[Qwen 맵 타일 생성 워크플로우](workflows/map-tile-generation.md)는 환경 타일 후보를 생성·검수한다.
 
 ## 보관 경로
 
@@ -28,9 +30,9 @@
 
 ## 캐릭터 기준 시트
 
-걷기 이미지젠의 동작 참조 원본은 셰이딩을 보강한 리그 8프레임 시트다. 호출당 최대 4프레임만 생성하며, 1–4번·5–8번 리그를 각각 2×2 참조로 나누어 생성한 뒤 4방향 총 32프레임을 최종 4×4 시트 두 장으로 통합한다. [최종 시트 패킹](workflows/character-animation-export.md)은 최소 3×3 배열을 기준으로 전체 방향을 묶는다. `assets/pose-sheets/five-head-walk-8f/v1/`의 OpenPose 시트는 비교 자료로 유지한다. `generators/animation/build_walk_pose_sheets.py`가 렌더 실행 폴더의 8프레임 포즈를 묶고 출처·파일 해시를 기록한다.
+걷기 이미지젠의 동작 참조 원본은 셰이딩을 보강한 리그 8프레임 시트다. 이미지젠은 [최소 사용 정책](workflows/imagegen-usage-policy.md)에 따라 포즈 검수를 통과한 선택 프레임에만 사용한다. 호출당 최대 4프레임만 생성하며, 1–4번·5–8번 리그를 각각 2×2 참조로 나누어 생성한 뒤 4방향 총 32프레임을 최종 4×4 시트 두 장으로 통합한다. [최종 시트 패킹](workflows/character-animation-export.md)은 최소 3×3 배열을 기준으로 전체 방향을 묶는다. `assets/pose-sheets/five-head-walk-8f/v1/`의 OpenPose 시트는 비교 자료로 유지한다. `generators/animation/build_walk_pose_sheets.py`가 렌더 실행 폴더의 8프레임 포즈를 묶고 출처·파일 해시를 기록한다.
 
-[캐릭터 생성·4방향 기준 시트 통합 절차](workflows/character-baseline-sheet.md)는 신규 캐릭터를 최대 지원 크기의 2×2 베이스라인으로 한 번에 생성한다. 단일 원화 생성 후 시트로 재생성하는 단계를 기본 경로에서 제거했다. 모든 최종 캐릭터 애니메이션은 이미지젠과 2×2 시트 전체를 사용하며 걷기 동작은 리그 시트에서 분할한 해당 4프레임 묶음을 참조한다.
+[캐릭터 생성·4방향 기준 시트 통합 절차](workflows/character-baseline-sheet.md)는 신규 캐릭터를 최대 지원 크기의 2×2 베이스라인으로 한 번에 생성한다. 단일 원화 생성 후 시트로 재생성하는 단계를 기본 경로에서 제거했다. 최종 캐릭터 애니메이션은 2×2 시트를 외형 기준으로 사용하며, 이미지젠은 Qwen·리그 포즈 검수를 통과한 선택 프레임의 외형 복구에만 사용한다.
 
 [스탠딩 시트 제작 절차](workflows/character-standing-sheet.md)는 승인된 2×2 베이스라인 시트 전체를 참조하여 방향별 4프레임의 4×1 소스 시트 4장을 생성하고 최종 프론트엔드 전달 시에는 16프레임을 4×4 한 장으로 패킹한다. 호출당 최대 4프레임 기준을 적용하고 입력 베이스라인 셀과 출력 방향의 대응을 명시한다. 정식 에셋 교체는 사용자 채택 후 수행한다.
 
@@ -104,3 +106,5 @@ python3 tools/review/serve.py --walking .tmp/걷기실행폴더 --standing .tmp/
 [이미지젠·Qwen 조합 및 생성 기록 관리](workflows/character-generation-records.md)를 캐릭터 애니메이션의 상위 제작 절차로 사용한다. 포즈 적용부터 외형 복원·시트 통합까지 실행을 연결하고 검수 근거로 다음 버전을 개선한다.
 
 [AnyPose LoRA 준비·생성](workflows/qwen-anypose.md): 고정 어댑터 해시 검증, 리그 참조, 4스텝 전용 실행기를 제공한다.
+
+[Qwen 맵 타일 생성 워크플로우](workflows/map-tile-generation.md): 맵 타일은 Qwen으로 생성하고, 반복 이음새·역할·알파·결정적 패킹을 검수한다. 이미지젠은 타일 기본 경로에 사용하지 않는다.
