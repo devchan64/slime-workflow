@@ -11,7 +11,7 @@ import traceback
 REVIEW_SERVER_HOST = '127.0.0.1'
 REVIEW_SERVER_PORT = 8770
 DEFAULT_FRONTEND_REPOSITORY = Path(__file__).resolve().parents[3]/'slime-frontend'
-REVIEW_ALLOWED_SUFFIXES = {'.html', '.png', '.jpg', '.jpeg', '.webp', '.gif', '.json', '.js', '.css', '.mp4'}
+REVIEW_ALLOWED_SUFFIXES = {'.html', '.png', '.jpg', '.jpeg', '.webp', '.gif', '.json', '.js', '.css', '.mp4', '.svg', '.woff', '.woff2'}
 REVIEW_HEARTBEAT_SECONDS = 5
 
 def resolve_review_request(review_root_directory, requested_url_path, review_entry_path="preview.html"):
@@ -34,9 +34,12 @@ def parse_review_arguments(command_argument_values=None):
     argument_value_parser.add_argument('--standing',type=Path,help='관리도구에 묶을 스탠딩 검수 폴더 (--walking과 함께 사용)')
     argument_value_parser.add_argument('--entry',default='preview.html',help='--root 폴더 기준 HTML 진입 페이지')
     argument_value_parser.add_argument('--port',type=int,default=REVIEW_SERVER_PORT,help='로컬 서버 포트 (기본: 8770)')
+    argument_value_parser.add_argument('--ui-bundle',type=Path,help='프론트엔드에서 전달한 UI 검수 빌드 폴더')
     parsed_argument_values=argument_value_parser.parse_args(command_argument_values)
     if not any((parsed_argument_values.root, parsed_argument_values.walking, parsed_argument_values.frontend_repo, parsed_argument_values.standing)):
         parsed_argument_values.frontend_repo=DEFAULT_FRONTEND_REPOSITORY
+    if parsed_argument_values.ui_bundle and not parsed_argument_values.frontend_repo:
+        argument_value_parser.error('--ui-bundle은 프론트엔드 관리도구 생성 모드에서 사용하세요.')
     if bool(parsed_argument_values.walking) != bool(parsed_argument_values.standing):
         argument_value_parser.error('--walking과 --standing을 함께 지정하세요.')
     if (parsed_argument_values.walking or parsed_argument_values.frontend_repo) and parsed_argument_values.entry != 'preview.html':
@@ -52,6 +55,8 @@ def prepare_review_directory(parsed_argument_values):
             from .build_frontend_review import build_frontend_review
         else:
             from build_frontend_review import build_frontend_review
+        if parsed_argument_values.ui_bundle:
+            return build_frontend_review(parsed_argument_values.frontend_repo, ui_bundle_directory=parsed_argument_values.ui_bundle)
         return build_frontend_review(parsed_argument_values.frontend_repo)
     if parsed_argument_values.walking:
         if __package__:

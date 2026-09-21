@@ -174,7 +174,7 @@ def load_animation_review(frontend_asset_root, animation_metadata_path):
     return review_frame_records, review_source_metadata, set(direction_sheet_paths.values())
 
 
-def build_frontend_review(frontend_repository_path):
+def build_frontend_review(frontend_repository_path, ui_bundle_directory=None):
     frontend_repository_path = frontend_repository_path.resolve()
     frontend_asset_root = frontend_repository_path/'src/assets'
     if not (frontend_repository_path/'package.json').is_file() or not frontend_asset_root.is_dir() or not frontend_asset_root.resolve().is_relative_to(frontend_repository_path):
@@ -229,6 +229,12 @@ def build_frontend_review(frontend_repository_path):
         else:
             from collect_web_reviews import collect_web_reviews
         manager_page_records.extend(collect_web_reviews(WORKFLOW_REPO_ROOT, output_review_directory, emit_review_trace))
+        if ui_bundle_directory is not None:
+            if __package__:
+                from .import_ui_bundle import import_ui_bundle
+            else:
+                from import_ui_bundle import import_ui_bundle
+            manager_page_records.extend(import_ui_bundle(ui_bundle_directory, output_review_directory, emit_review_trace))
         manager_template_text = Path(__file__).with_name('frame-manager.html').read_text().replace('</style>', '</style><style>'+shared_review_styles+'</style>', 1)
         (output_review_directory/'preview.html').write_text(manager_template_text.replace('__MANAGER_PAGES__', json.dumps(manager_page_records, ensure_ascii=False).replace('<', '\\u003c')))
         (output_review_directory/'manager-source.json').write_text(json.dumps({'frontendRepository': str(frontend_repository_path), 'labelCatalog': {'path': 'src/assets/animation-labels.yaml', 'sha256': hashlib.sha256((frontend_asset_root/'animation-labels.yaml').read_bytes()).hexdigest()}, 'assets': discovered_source_records, 'pages': manager_page_records}, ensure_ascii=False, indent=2))
