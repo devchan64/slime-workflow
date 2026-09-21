@@ -31,7 +31,7 @@ AiBook의 고정 revision·필요 파일만 다운로드·해시 검증 원칙�
 새 `.tmp/한국시간/`에 불투명 RGB 512px `standing-reference.png`, `rig-reference.png`, `prompt.txt`를 준비한다. 도입 검증에서는 고정 revision 모델 카드의 포즈 전이 지시를 먼저 사용하고 프롬프트 출처·해시를 기록한다. 기존 짧은 rig 기준 프롬프트와 혼합하지 않는다. 프롬프트 변경 비교는 별도 실행으로 남긴다.
 
 ```bash
-.venv/bin/python generators/animation/generate_qwen_anypose_frame.py \
+.venv/bin/python generators/animation/generate_pose_transfer_any_pose_frame.py \
   --output-dir .tmp/한국시간-실행폴더 \
   --prompt-file .tmp/한국시간-실행폴더/prompt.txt
 ```
@@ -42,10 +42,10 @@ AiBook의 고정 revision·필요 파일만 다운로드·해시 검증 원칙�
 
 ## Lightning 제외 10스텝 경로
 
-사용자 지정 비교 경로는 `generate_qwen_anypose_standard_frame.py`다. AnyPose Base/Helper 각각 0.7만 로드하며 Lightning은 검증 대상·로드·적용에서 제외한다. 10스텝, true_cfg_scale=4.0, 나머지 입력·seed·512px는 유지한다. 기존 4스텝 CFG 1.0 경로와 구분하며 스텝만 바꾼 비교로 기록하지 않는다. 모델 캐시에 있는 Lightning 파일은 삭제하지 않고 기존 경로 재현에 유지한다.
+사용자 지정 비교 경로는 `generate_pose_transfer_any_pose_standard_frame.py`다. AnyPose Base/Helper 각각 0.7만 로드하며 Lightning은 검증 대상·로드·적용에서 제외한다. 10스텝, true_cfg_scale=4.0, 나머지 입력·seed·512px는 유지한다. 기존 4스텝 CFG 1.0 경로와 구분하며 스텝만 바꾼 비교로 기록하지 않는다. 모델 캐시에 있는 Lightning 파일은 삭제하지 않고 기존 경로 재현에 유지한다.
 
 ```bash
-.venv/bin/python generators/animation/generate_qwen_anypose_standard_frame.py \
+.venv/bin/python generators/animation/generate_pose_transfer_any_pose_standard_frame.py \
   --output-dir .tmp/새로운-실행폴더 \
   --prompt-file .tmp/새로운-실행폴더/prompt.txt
 ```
