@@ -126,3 +126,13 @@ python3 tools/review/serve.py --walking .tmp/걷기실행폴더 --standing .tmp/
 [AnyPose LoRA 준비·생성](workflows/qwen-anypose.md): 고정 어댑터 해시 검증, 리그 참조, 4스텝 전용 실행기를 제공한다.
 
 [Qwen 맵 타일 생성 워크플로우](workflows/map-tile-generation.md): 맵 타일은 Qwen으로 생성하고, 반복 이음새·역할·알파·결정적 패킹을 검수한다. 이미지젠은 타일 기본 경로에 사용하지 않는다.
+
+## 세계관 문서 작업
+
+[로컬 문서 작성·수정 관리도구](workflows/worldbuilding.md)는 기존 비공개 문서를 참고하여 자연어 업무 지시를 수행한다. 환경 준비·고정 Qwen 모델 다운로드·문서 생성/추가/교체·출처·변경 이력·되돌리기를 제공한다. 실행은 GPU 호스트의 샌드박스 밖에서 수행한다.
+
+```bash
+python3 tools/review/serve.py --worldbuilding-only
+```
+
+`http://127.0.0.1:8770/worldbuilding/`에서 지시를 입력한다. 연결 설정은 Git 제외 경로인 `.local/worldbuilding/workspace.yaml`에 관리한다.

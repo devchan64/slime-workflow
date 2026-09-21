@@ -9,7 +9,7 @@ const sourcePageRecords=[
  {id:'slime',label:'슬라임 · 대기 · v1',description:'monster.slime.idle',category:'animation',path:'slime/anchors.html',anchorEditor:true}
 ];
 const selectedElementLookup=new Map();
-function createTestElement(){return {value:'',hidden:false,attributes:{},children:[],listeners:{},append(childElementRecord){this.children.push(childElementRecord);},replaceChildren(){this.children=[];},focus(){this.focused=true;},setAttribute(attributeNameValue,attributeTextValue){this.attributes[attributeNameValue]=attributeTextValue;},addEventListener(eventNameValue,eventHandlerValue){this.listeners[eventNameValue]=eventHandlerValue;}};}
+function createTestElement(){return {value:'',hidden:false,style:{},attributes:{},children:[],listeners:{},append(childElementRecord){this.children.push(childElementRecord);},replaceChildren(){this.children=[];},focus(){this.focused=true;},setAttribute(attributeNameValue,attributeTextValue){this.attributes[attributeNameValue]=attributeTextValue;},addEventListener(eventNameValue,eventHandlerValue){this.listeners[eventNameValue]=eventHandlerValue;}};}
 const documentTestAdapter={createElement:createTestElement,querySelector(selectorTextValue){if(!selectedElementLookup.has(selectorTextValue))selectedElementLookup.set(selectorTextValue,createTestElement());return selectedElementLookup.get(selectorTextValue);}};
 documentTestAdapter.querySelector('#reviewCategory').value='all';
 const windowEventHandlers={};
