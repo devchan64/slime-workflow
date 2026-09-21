@@ -269,6 +269,17 @@ def build_frontend_review(frontend_repository_path, ui_bundle_directory=None):
             page_identifier_text = f'animation-{animation_sequence_index+1}'
             destination_asset_directory = output_review_directory/page_identifier_text
             destination_asset_directory.mkdir()
+            if animation_identifier_text == 'character.default.white-shirt.walk':
+                rig_source_directory = WORKFLOW_REPO_ROOT/'assets/rig-sheets/five-head-walk-8f/v1'
+                rig_sheet_records = []
+                for current_direction_name in REVIEW_DIRECTION_NAMES:
+                    rig_source_path = rig_source_directory/f'{current_direction_name}.png'
+                    if not rig_source_path.is_file():
+                        raise ValueError(f'걷기 리그 시트 누락: {rig_source_path}')
+                    rig_output_name = f'rig-{current_direction_name}.png'
+                    shutil.copy2(rig_source_path, destination_asset_directory/rig_output_name)
+                    rig_sheet_records.append({'direction': current_direction_name, 'image': rig_output_name, 'sha256': hashlib.sha256(rig_source_path.read_bytes()).hexdigest()})
+                review_source_metadata['rigSheets'] = rig_sheet_records
             for source_image_path in source_image_paths:
                 shutil.copy2(source_image_path, destination_asset_directory/source_image_path.name)
             rendered_page_text = anchor_template_text.replace('__FRAME_RECORDS__', json.dumps(review_frame_records, ensure_ascii=False).replace('<', '\\u003c')).replace('__SOURCE_METADATA__', json.dumps(review_source_metadata, ensure_ascii=False).replace('<', '\\u003c'))

@@ -24,7 +24,8 @@ def build_walk_review(review_run_directory):
         if len(review_asset_records)!=4 or {current_asset_record['direction'] for current_asset_record in review_asset_records}!=REVIEW_DIRECTION_NAMES:
             raise ValueError('고유한 4방향 결과가 필요합니다.')
         for current_asset_record in review_asset_records:
-            for current_image_name in (current_asset_record['image'],f"rig-{current_asset_record['direction']}.png"):
+            current_asset_record['rigImage'] = f"rig-{current_asset_record['direction']}.png"
+            for current_image_name in (current_asset_record['image'], current_asset_record['rigImage']):
                 if Path(current_image_name).name!=current_image_name or not (review_run_directory/current_image_name).is_file():
                     raise ValueError(f'검수 이미지 누락 또는 잘못된 경로: {current_image_name}')
             if len(current_asset_record['size'])!=2 or any(type(current_dimension_value)is not int or current_dimension_value<=0 for current_dimension_value in current_asset_record['size']):
