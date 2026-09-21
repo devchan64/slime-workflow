@@ -73,10 +73,10 @@ class WorldbuildingManagementTests(unittest.TestCase):
         self.assertEqual(current_state_values['workflow_job_entries'][0]['requested_instruction_text'],self.current_request_values['requested_instruction_text'])
         self.assertEqual(current_state_values['workflow_job_entries'][0]['current_stage_name'],'queued')
 
-    def test_requires_target_for_existing_document(self):
+    def test_queues_existing_document_for_target_discovery(self):
         self.current_request_values['requested_operation_mode']='replace'
-        with self.assertRaises(ValueError):
-            self.current_service_handle.submit_document_request(self.current_request_values)
+        current_task_values=self.current_service_handle.submit_document_request(self.current_request_values)
+        self.assertIn('workflow_task_id',current_task_values)
 
     def test_rejects_second_manager_for_same_workspace(self):
         with self.assertRaises(RuntimeError):

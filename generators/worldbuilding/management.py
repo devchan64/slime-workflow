@@ -58,6 +58,7 @@ class WorldbuildingManagement:
             current_status_values=load_yaml_document(current_status_path)
             current_request_values=load_yaml_document(current_status_path.parent/'request.yaml')
             current_status_values['requested_instruction_text']=current_request_values['requested_instruction_text']
+            current_status_values['discovery_steps']=[load_yaml_document(current_discovery_path)['discovery_decision_values'] for current_discovery_path in sorted(current_status_path.parent.glob('discovery-*.yaml'))]
             current_changes_path=current_status_path.parent/'changes.yaml'
             if current_changes_path.exists():
                 current_status_values['document_change_entries']=load_yaml_document(current_changes_path)['document_change_entries']
@@ -68,12 +69,10 @@ class WorldbuildingManagement:
         prepare_log_text=''
         if (self.private_state_root/'prepare.log').exists():
             prepare_log_text='\n'.join((self.private_state_root/'prepare.log').read_text(errors='replace').splitlines()[-15:])
-        return {'management_csrf_token':self.management_csrf_token,'runtime_prepared_flag':prepared_manifest_path.exists(),'runtime_prepare_status':self.current_prepare_status,'worker_failure_text':self.worker_failure_text,'runtime_prepare_log':prepare_log_text,'source_document_root':self.workspace_config_values['source_document_root'],'allowed_write_roots':self.workspace_config_values['allowed_write_roots'],'workflow_job_entries':current_job_entries}
+        return {'management_csrf_token':self.management_csrf_token,'runtime_prepared_flag':prepared_manifest_path.exists() and (WORKFLOW_REPOSITORY_ROOT/'.model/worldbuilding/Qwen3-Embedding-0.6B-Q8_0.gguf').exists(),'runtime_prepare_status':self.current_prepare_status,'worker_failure_text':self.worker_failure_text,'runtime_prepare_log':prepare_log_text,'source_document_root':self.workspace_config_values['source_document_root'],'allowed_write_roots':self.workspace_config_values['allowed_write_roots'],'primary_document_roots':[str(Path(self.workspace_config_values['source_document_root'])/current_write_root) for current_write_root in self.workspace_config_values['allowed_write_roots']],'workflow_job_entries':current_job_entries}
 
     def submit_document_request(self,current_request_values):
         Draft202012Validator(REQUEST_INPUT_SCHEMA).validate(current_request_values)
-        if current_request_values['requested_operation_mode']!='create' and not current_request_values['requested_target_path']:
-            raise ValueError('문서 수정은 대상 상대 경로를 입력하세요.')
         current_task_identifier=datetime.now(ZoneInfo('Asia/Seoul')).strftime('%Y%m%d-%H%M%S-')+uuid.uuid4().hex[:8]
         current_run_root=self.private_state_root/'jobs'/current_task_identifier
         current_run_root.mkdir(mode=0o700)
@@ -177,6 +176,8 @@ class WorldbuildingManagement:
                 request_body_values=parse_unique_json(current_http_handler.rfile.read(request_content_length).decode())
                 if requested_url_path=='/worldbuilding/api/tasks':
                     current_response_values=self.submit_document_request(request_body_values)
+                elif requested_url_path=='/worldbuilding/api/learn' and request_body_values=={}:
+                    current_response_values=self.submit_document_request({'requested_instruction_text':'세계관 문서 RAG 색인을 최신 원문으로 학습·갱신합니다.','requested_operation_mode':'index','requested_target_path':''})
                 elif requested_url_path=='/worldbuilding/api/prepare' and request_body_values=={}:
                     self.start_environment_prepare()
                     current_response_values={'runtime_prepare_status':'running'}
