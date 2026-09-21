@@ -193,7 +193,7 @@ def build_discovery_schema(current_request_values,current_candidate_entries,curr
             if current_action_name=='finish':
                 current_schema_fields['source_reference_ids']={'const':list(current_read_lookup)}
             if current_action_name=='finish' and current_request_values['requested_operation_mode']!='create':
-                current_target_values=sorted({current_read_entry['source_document_path'] for current_read_entry in current_read_lookup.values() if current_read_entry['source_document_path'] not in current_config_values['protected_document_paths'] and any(current_read_entry['source_document_path'].startswith(current_write_root.rstrip('/')+'/') for current_write_root in current_config_values['allowed_write_roots']) and (not current_request_values['requested_target_path'] or current_read_entry['source_document_path']==current_request_values['requested_target_path'])})
+                current_target_values=sorted({current_read_entry['source_document_path'] for current_read_entry in current_read_lookup.values() if Path(current_read_entry['source_document_path']).suffix=='.md' and current_read_entry['source_document_path'] not in current_config_values['protected_document_paths'] and any(current_read_entry['source_document_path'].startswith(current_write_root.rstrip('/')+'/') for current_write_root in current_config_values['allowed_write_roots']) and (not current_request_values['requested_target_path'] or current_read_entry['source_document_path']==current_request_values['requested_target_path'])})
                 if not current_target_values:
                     continue
                 current_schema_fields['resolved_target_path']={'enum':current_target_values}
@@ -273,6 +273,8 @@ def discover_document_context(current_config_values,current_request_values,curre
                     raise ValueError('탐색 결과가 사용자가 지정한 수정 대상과 다릅니다.')
                 if resolved_target_path not in {current_read_entry['source_document_path'] for current_read_entry in selected_source_entries}:
                     raise ValueError('수정 대상은 최종 문맥으로 선택한 원문이어야 합니다.')
+                if Path(resolved_target_path).suffix!='.md':
+                    raise ValueError('수정 대상은 Markdown(.md) 문서여야 합니다. YAML은 참고 자료로만 사용합니다.')
                 if resolved_target_path in current_config_values['protected_document_paths'] or not any(resolved_target_path.startswith(current_write_root.rstrip('/')+'/') for current_write_root in current_config_values['allowed_write_roots']):
                     raise ValueError('탐색한 수정 대상이 허용된 쓰기 범위 밖입니다.')
                 resolved_request_values['requested_target_path']=resolved_target_path

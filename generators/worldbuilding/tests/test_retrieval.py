@@ -2,7 +2,7 @@
 import copy
 import hashlib
 import unittest
-from generators.worldbuilding.retrieval import (refresh_document_map,search_document_map,read_document_sections,discover_document_context,validate_discovery_decision)
+from generators.worldbuilding.retrieval import (refresh_document_map,search_document_map,read_document_sections,discover_document_context,validate_discovery_decision,build_discovery_schema)
 
 
 class DocumentDiscoveryTests(unittest.TestCase):
@@ -12,6 +12,23 @@ class DocumentDiscoveryTests(unittest.TestCase):
         self.current_document_map,self.current_index_changes=refresh_document_map(self.source_document_entries)
         self.current_config_values={'source_document_root':'/private/docs','allowed_write_roots':['world'],'required_source_paths':['world/guide.md'],'protected_document_paths':['world/rules.md']}
         self.current_request_values={'requested_instruction_text':'바람지기의 성격을 추가해줘','requested_operation_mode':'append','requested_target_path':''}
+
+    def test_yaml_can_be_read_but_cannot_be_a_write_target(self):
+        from jsonschema import Draft202012Validator
+        from generators.worldbuilding.documents import REQUEST_INPUT_SCHEMA
+        current_yaml_reference={'source_reference_id':'world/profiles.yaml:1-3','source_document_path':'world/profiles.yaml'}
+        current_markdown_reference={'source_reference_id':'world/people.md:1-4','source_document_path':'world/people.md'}
+        current_read_lookup={current_markdown_reference['source_reference_id']:current_markdown_reference}
+        current_schema_values=build_discovery_schema(self.current_request_values,[current_yaml_reference],current_read_lookup,self.current_config_values)
+        current_read_schema=next(current_variant_entry for current_variant_entry in current_schema_values['anyOf'] if current_variant_entry['properties']['action_name']['const']=='read')
+        self.assertIn(current_yaml_reference['source_reference_id'],current_read_schema['properties']['source_reference_ids']['items']['enum'])
+        current_read_lookup[current_yaml_reference['source_reference_id']]=current_yaml_reference
+        current_schema_values=build_discovery_schema(self.current_request_values,[],current_read_lookup,self.current_config_values)
+        current_finish_schema=next(current_variant_entry for current_variant_entry in current_schema_values['anyOf'] if current_variant_entry['properties']['action_name']['const']=='finish')
+        self.assertEqual(current_finish_schema['properties']['resolved_target_path']['enum'],['world/people.md'])
+        self.assertEqual(current_finish_schema['properties']['source_reference_ids']['const'],list(current_read_lookup))
+        self.assertFalse(Draft202012Validator(REQUEST_INPUT_SCHEMA).is_valid(dict(self.current_request_values,requested_target_path='world/profiles.yaml')))
+        self.assertTrue(Draft202012Validator(REQUEST_INPUT_SCHEMA).is_valid(self.current_request_values))
 
     def test_finds_alias_and_incoming_link_label(self):
         for current_query_text in ['바람지기','항구의 수장']:

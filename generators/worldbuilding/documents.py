@@ -19,8 +19,8 @@ MAXIMUM_SOURCE_BYTES = 2_000_000
 MAXIMUM_CHUNK_CHARACTERS = 2600
 MAXIMUM_CONTEXT_CHARACTERS = 14000
 WORKSPACE_CONFIG_FIELDS = {'workspace_schema_version','source_document_root','private_state_root','allowed_write_roots','required_source_paths','protected_document_paths','managed_catalog_path'}
-REQUEST_INPUT_SCHEMA = {'type':'object','additionalProperties':False,'required':['requested_instruction_text','requested_operation_mode','requested_target_path'], 'properties':{'requested_instruction_text':{'type':'string','minLength':5,'maxLength':6000},'requested_operation_mode':{'enum':['create','append','replace','index']},'requested_target_path':{'type':'string','maxLength':300}}}
-CHANGE_OUTPUT_SCHEMA = {'type':'object','additionalProperties':False,'required':['result_summary_text','document_change_entries','source_reference_ids','quality_warnings'], 'properties':{'result_summary_text':{'type':'string'},'source_reference_ids':{'type':'array','minItems':1,'items':{'type':'string'}},'quality_warnings':{'type':'array','items':{'type':'string'}},'document_change_entries':{'type':'array','minItems':1,'maxItems':3,'items':{'type':'object','additionalProperties':False,'required':['document_relative_path','document_change_mode','existing_fragment_text','replacement_fragment_text'],'properties':{'document_relative_path':{'type':'string'},'document_change_mode':{'enum':['create','append','replace']},'existing_fragment_text':{'type':'string'},'replacement_fragment_text':{'type':'string','minLength':1}}}}}}
+REQUEST_INPUT_SCHEMA = {'type':'object','additionalProperties':False,'required':['requested_instruction_text','requested_operation_mode','requested_target_path'], 'properties':{'requested_instruction_text':{'type':'string','minLength':5,'maxLength':6000},'requested_operation_mode':{'enum':['create','append','replace','index']},'requested_target_path':{'type':'string','maxLength':300,'pattern':r'^(?:$|.+\.md$)'}}}
+CHANGE_OUTPUT_SCHEMA = {'type':'object','additionalProperties':False,'required':['proposal_status_text','result_summary_text','document_change_entries','source_reference_ids','quality_warnings'], 'properties':{'proposal_status_text':{'const':'신규 제안'},'result_summary_text':{'type':'string'},'source_reference_ids':{'type':'array','minItems':1,'items':{'type':'string'}},'quality_warnings':{'type':'array','items':{'type':'string'}},'document_change_entries':{'type':'array','minItems':1,'maxItems':3,'items':{'type':'object','additionalProperties':False,'required':['document_relative_path','document_change_mode','existing_fragment_text','replacement_fragment_text'],'properties':{'document_relative_path':{'type':'string'},'document_change_mode':{'enum':['create','append','replace']},'existing_fragment_text':{'type':'string'},'replacement_fragment_text':{'type':'string','minLength':1}}}}}}
 
 
 class StrictYamlLoader(yaml.SafeLoader):
@@ -239,11 +239,12 @@ def validate_change_bundle(current_config_values,current_request_values,current_
                 raise ValueError('신규 생성 대상이 존재하거나 기존 구간을 지정했습니다.')
             if not replacement_fragment_text.startswith('# '):
                 raise ValueError('신규 Markdown은 제목으로 시작해야 합니다.')
-            next_document_text=replacement_fragment_text.rstrip()+'\n'
+            document_heading_text,document_separator_text,document_content_text=replacement_fragment_text.partition('\n')
+            next_document_text=document_heading_text+'\n\n상태: '+current_result_values['proposal_status_text']+'\n\n'+document_content_text.rstrip()+'\n'
         elif current_change_mode=='append':
             if previous_document_text is None or current_change_entry['existing_fragment_text']:
                 raise ValueError('추가 대상이 없거나 기존 구간을 지정했습니다.')
-            next_document_text=previous_document_text.rstrip()+'\n\n'+replacement_fragment_text.rstrip()+'\n'
+            next_document_text=previous_document_text.rstrip()+'\n\n상태: '+current_result_values['proposal_status_text']+'\n\n'+replacement_fragment_text.rstrip()+'\n'
         else:
             existing_fragment_text=current_change_entry['existing_fragment_text']
             if previous_document_text is None or not existing_fragment_text or previous_document_text.count(existing_fragment_text)!=1:
@@ -251,9 +252,6 @@ def validate_change_bundle(current_config_values,current_request_values,current_
             if not any(current_chunk_entry['source_document_path']==current_relative_path and existing_fragment_text in current_chunk_entry['source_excerpt_text'] for current_chunk_entry in selected_chunk_entries):
                 raise ValueError('모델이 읽지 않은 구간을 교체할 수 없습니다.')
             next_document_text=previous_document_text.replace(existing_fragment_text,replacement_fragment_text,1)
-        if current_change_mode in {'create','append'}:
-            if '상태: 신규 제안' not in replacement_fragment_text:
-                raise ValueError('새 내용에는 상태: 신규 제안 표시가 필요합니다.')
         planned_change_entries.append({'document_relative_path':current_relative_path,'previous_document_text':previous_document_text,'next_document_text':next_document_text,'previous_content_hash':calculate_text_digest(previous_document_text) if previous_document_text is not None else None,'next_content_hash':calculate_text_digest(next_document_text)})
     return planned_change_entries
 

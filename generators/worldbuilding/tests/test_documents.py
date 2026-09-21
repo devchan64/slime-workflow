@@ -3,6 +3,7 @@ import copy
 from pathlib import Path
 import tempfile
 import unittest
+from jsonschema.exceptions import ValidationError
 
 from generators.worldbuilding.documents import (load_yaml_document,parse_unique_json,load_workspace_config,save_yaml_document,scan_source_documents,build_inherited_context,validate_change_bundle,apply_document_changes,rollback_document_changes,include_catalog_changes,calculate_text_digest,resolve_document_path)
 
@@ -23,7 +24,7 @@ class WorldbuildingDocumentTests(unittest.TestCase):
         self.current_request_values={'requested_instruction_text':'기존 도시 설정을 참고하여 새로운 도시를 정의해줘','requested_operation_mode':'create','requested_target_path':''}
         self.source_document_entries=scan_source_documents(self.workspace_config_values)
         self.selected_chunk_entries=build_inherited_context(self.workspace_config_values,self.current_request_values,self.source_document_entries)
-        self.current_result_values={'result_summary_text':'도시 후보 작성','source_reference_ids':[self.selected_chunk_entries[0]['source_reference_id']],'quality_warnings':[],'document_change_entries':[{'document_relative_path':'world/new-city.md','document_change_mode':'create','existing_fragment_text':'','replacement_fragment_text':'# 새 도시\n\n상태: 신규 제안\n기존 항구 도시와 교역하는 도시다.\n'}]}
+        self.current_result_values={'proposal_status_text':'신규 제안','result_summary_text':'도시 후보 작성','source_reference_ids':[self.selected_chunk_entries[0]['source_reference_id']],'quality_warnings':[],'document_change_entries':[{'document_relative_path':'world/new-city.md','document_change_mode':'create','existing_fragment_text':'','replacement_fragment_text':'# 새 도시\n\n상태: 신규 제안\n기존 항구 도시와 교역하는 도시다.\n'}]}
         self.current_run_root=Path(self.workspace_config_values['private_state_root'])/'run'
         self.current_run_root.mkdir()
 
@@ -73,8 +74,18 @@ class WorldbuildingDocumentTests(unittest.TestCase):
             self.validate_current_result()
 
     def test_rejects_missing_proposal_status(self):
-        self.current_result_values['document_change_entries'][0]['replacement_fragment_text']='# 도시\n확정 설정이다.'
-        with self.assertRaises(ValueError):
+        del self.current_result_values['proposal_status_text']
+        with self.assertRaises(ValidationError):
+            self.validate_current_result()
+
+    def test_renders_proposal_status_without_model_body_marker(self):
+        self.current_result_values['document_change_entries'][0]['replacement_fragment_text']='# 도시\n새 축제를 제안한다.'
+        self.assertIn('# 도시\n\n상태: 신규 제안\n\n새 축제를 제안한다.',self.validate_current_result()[0]['next_document_text'])
+        self.current_request_values.update(requested_operation_mode='append',requested_target_path='world/cities.md')
+        self.current_result_values['document_change_entries'][0].update(document_relative_path='world/cities.md',document_change_mode='append',replacement_fragment_text='새 축제를 제안한다.')
+        self.assertIn('상태: 신규 제안\n\n새 축제를 제안한다.',self.validate_current_result()[0]['next_document_text'])
+        self.current_result_values['proposal_status_text']='확정'
+        with self.assertRaises(ValidationError):
             self.validate_current_result()
 
     def test_preserves_original_when_appending(self):

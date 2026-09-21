@@ -49,6 +49,14 @@ class WorldbuildingManagementTests(unittest.TestCase):
     def build_http_request(self,current_token_text,current_origin_text='http://127.0.0.1:8770',current_host_text='127.0.0.1:8770'):
         return ManagementRequestStub('/worldbuilding/api/tasks','POST',{'Host':current_host_text,'Origin':current_origin_text,'X-Worldbuilding-Token':current_token_text,'Content-Length':str(len(json.dumps(self.current_request_values).encode()))},self.current_request_values)
 
+    def test_queues_automated_book_with_collection_identity(self):
+        current_task_values=self.current_service_handle.submit_document_request({'task_kind_name':'book-edit','collection_id':'world','book_title_text':'세계관','source_directory_paths':['world'],'requested_instruction_text':'목차와 색인을 자동으로 정리한다.'})
+        current_job_entry=self.current_service_handle.read_management_state()['workflow_job_entries'][0]
+        self.assertEqual(current_job_entry['workflow_task_id'],current_task_values['workflow_task_id'])
+        self.assertEqual(current_job_entry['task_kind_name'],'book-edit')
+        self.assertEqual(current_job_entry['collection_id'],'world')
+        self.assertEqual(current_job_entry['current_stage_name'],'queued')
+
     def test_rejects_cross_origin_submission(self):
         current_http_request=self.build_http_request(self.current_service_handle.management_csrf_token,'https://outside.example')
         self.current_service_handle.handle_management_request(current_http_request)

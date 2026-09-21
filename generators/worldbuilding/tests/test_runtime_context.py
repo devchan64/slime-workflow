@@ -6,7 +6,7 @@ import sys
 import unittest
 
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
-from runtime import build_generation_messages, build_generation_schema
+from runtime import build_generation_messages, build_generation_schema, MODEL_CONTEXT_LIMIT, MODEL_INPUT_LIMIT, MODEL_OUTPUT_LIMIT
 
 
 class GenerationContextTests(unittest.TestCase):
@@ -23,6 +23,10 @@ class GenerationContextTests(unittest.TestCase):
         for current_field_name in current_prompt_source:
             self.assertEqual(current_prompt_source[current_field_name],original_source_entries[0][current_field_name])
         self.assertEqual(current_source_entries,original_source_entries)
+
+    def test_reserves_output_capacity_for_reported_context(self):
+        self.assertGreaterEqual(MODEL_INPUT_LIMIT,7133)
+        self.assertEqual(MODEL_INPUT_LIMIT+MODEL_OUTPUT_LIMIT,MODEL_CONTEXT_LIMIT)
 
     def test_uses_standard_json_string_grammar_for_markdown(self):
         current_request_values={'requested_operation_mode':'append','requested_target_path':'world/town.md'}

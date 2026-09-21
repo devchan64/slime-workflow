@@ -20,6 +20,7 @@ from .documents import (calculate_text_digest,load_yaml_document,save_yaml_docum
 
 REORGANIZATION_REQUEST_SCHEMA={'type':'object','additionalProperties':False,'required':['source_directory_paths','paragraph_placements','new_document_titles'],'properties':{'source_directory_paths':{'type':'array','minItems':1,'uniqueItems':True,'items':{'type':'string'}},'paragraph_placements':{'type':'array','minItems':1,'maxItems':15000,'items':{'type':'object','additionalProperties':False,'required':['paragraph_id','target_document_path'],'properties':{'paragraph_id':{'type':'string'},'target_document_path':{'type':'string','minLength':1,'maxLength':300}}}},'new_document_titles':{'type':'object','additionalProperties':{'type':'string','minLength':1,'maxLength':120,'pattern':r'^[^\r\n]+$'}}}}
 
+REORGANIZATION_REQUEST_SCHEMA['properties']['collection_id']={'enum':['world','system-design']}
 
 @contextlib.contextmanager
 def trace_reorganization_steps(current_run_root,current_stage_name):
@@ -76,6 +77,10 @@ def inspect_markdown_links(current_document_path,current_document_text,current_r
 
 def prepare_reorganization_changes(current_config_values,current_request_values):
     Draft202012Validator(REORGANIZATION_REQUEST_SCHEMA).validate(current_request_values)
+    if 'collection_id' in current_request_values:
+        from .book_collections import resolve_collection_request
+        current_collection_entry=resolve_collection_request(current_config_values,current_request_values)
+        current_config_values={**current_config_values,'allowed_write_roots':current_collection_entry['source_directory_paths']}
     current_plan_values=plan_document_book(current_config_values,{'book_title_text':'문서 구조 편집','source_directory_paths':current_request_values['source_directory_paths']})
     current_paragraph_lookup={current_paragraph_entry['paragraph_id']:current_paragraph_entry for current_paragraph_entry in current_plan_values['paragraph_entries']}
     current_placement_ids=[current_placement_entry['paragraph_id'] for current_placement_entry in current_request_values['paragraph_placements']]
@@ -183,5 +188,5 @@ def list_document_reorganizations(current_config_values):
         current_preview_values=load_yaml_document(current_preview_path)
         current_transaction_path=current_preview_path.parent/'transaction.yaml'
         current_transaction_state=load_yaml_document(current_transaction_path)['transaction_apply_state'] if current_transaction_path.exists() else 'preview'
-        current_result_entries.append({'reorganization_id':current_preview_values['reorganization_id'],'current_stage_name':current_transaction_state,'document_paths':[current_change_entry['document_relative_path'] for current_change_entry in current_preview_values['document_change_entries']],'can_rollback_flag':current_transaction_state in {'applying','applied'}})
+        current_result_entries.append({'reorganization_id':current_preview_values['reorganization_id'],'collection_id':current_preview_values['request_values'].get('collection_id','world' if current_preview_values['request_values']['source_directory_paths']==['world'] else None),'current_stage_name':current_transaction_state,'document_paths':[current_change_entry['document_relative_path'] for current_change_entry in current_preview_values['document_change_entries']],'can_rollback_flag':current_transaction_state in {'applying','applied'}})
     return current_result_entries

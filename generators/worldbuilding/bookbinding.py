@@ -17,7 +17,9 @@ from .documents import (scan_source_documents, save_yaml_document, load_yaml_doc
 
 BOOK_REQUEST_SCHEMA={'type':'object','additionalProperties':False,'required':['book_title_text','source_directory_paths'],'properties':{'book_title_text':{'type':'string','minLength':1,'maxLength':120,'pattern':r'\S'},'source_directory_paths':{'type':'array','minItems':1,'maxItems':50,'uniqueItems':True,'items':{'type':'string','minLength':1,'maxLength':300}}}}
 BOOK_PLACEMENT_SCHEMA={'type':'object','additionalProperties':False,'required':['paragraph_id','chapter_title'],'properties':{'paragraph_id':{'type':'string','minLength':1},'chapter_title':{'type':'string','minLength':1,'maxLength':160,'pattern':r'\S'}}}
+BOOK_PLACEMENT_SCHEMA['properties']['index_terms']={'type':'array','maxItems':5,'uniqueItems':True,'items':{'type':'string','minLength':2,'maxLength':40}}
 BOOK_REQUEST_SCHEMA['properties']['paragraph_placements']={'type':'array','minItems':1,'maxItems':15000,'items':BOOK_PLACEMENT_SCHEMA}
+BOOK_REQUEST_SCHEMA['properties']['collection_id']={'enum':['world','system-design']}
 BOOK_IDENTIFIER_PATTERN=r'[0-9]{8}-[0-9]{6}-[a-f0-9]{8}'
 BOOK_INDEX_STOP_WORDS={'있다','없다','한다','하는','하지','위한','따라','통해','대한','에서','으로','또는','그리고','다만','아직','이후','현재','기존','신규','제안','상태','문서','설정','범위','추가','사용','경우','같은','아래','확인','포함','제외','반영','별도','기준'}
 BOOK_TOTAL_BYTES_LIMIT=20_000_000
@@ -55,6 +57,9 @@ def plan_document_book(current_config_values,current_request_values):
     """Markdown 블록 경계로 원문을 분할하고 제목 키워드로 주제별 장을 구성한다."""
     from markdown_it import MarkdownIt
     Draft202012Validator(BOOK_REQUEST_SCHEMA).validate(current_request_values)
+    if 'collection_id' in current_request_values:
+        from .book_collections import resolve_collection_request
+        resolve_collection_request(current_config_values,current_request_values)
     current_source_entries=collect_book_sources(current_config_values,current_request_values['source_directory_paths'])
     current_paragraph_entries=[]
     current_markdown_parser=MarkdownIt('commonmark',{'html':False}).enable('table')
@@ -97,7 +102,10 @@ def validate_book_placements(current_plan_values,current_request_values):
     current_placement_ids=[current_placement_entry['paragraph_id'] for current_placement_entry in current_placement_entries]
     if len(current_placement_ids)!=len(set(current_placement_ids)) or set(current_placement_ids)!=set(current_paragraph_lookup):
         raise ValueError('문단 누락·중복 또는 원문 변경이 발견되었습니다. 배치안을 다시 불러오세요.')
-    return [{**current_paragraph_lookup[current_placement_entry['paragraph_id']],'chapter_title':current_placement_entry['chapter_title'].strip()} for current_placement_entry in current_placement_entries]
+    for current_placement_entry in current_placement_entries:
+        if any(current_index_term not in current_paragraph_lookup[current_placement_entry['paragraph_id']]['paragraph_text'] for current_index_term in current_placement_entry.get('index_terms',[])):
+            raise ValueError('색인어는 해당 문단 원문에 있어야 합니다.')
+    return [{**current_paragraph_lookup[current_placement_entry['paragraph_id']],**current_placement_entry,'chapter_title':current_placement_entry['chapter_title'].strip()} for current_placement_entry in current_placement_entries]
 
 
 def normalize_heading_anchor(current_heading_text):
@@ -199,7 +207,7 @@ def build_document_book(current_config_values,current_request_values):
                     current_source_label=current_source_path+':'+str(current_paragraph_entry['source_start_line'])+'-'+str(current_paragraph_entry['source_end_line'])
                     current_body_parts.append('<section class="paragraph" id="'+current_paragraph_entry['paragraph_id']+'"><p class="source">'+escape(current_source_label)+' · '+escape(' › '.join(current_paragraph_entry['heading_trail']))+'</p><div class="prose">'+current_body_html+'</div><details><summary>보존 원문 · 출처</summary><p>'+escape(current_paragraph_entry['paragraph_hash'])+'</p><pre>'+escape(current_source_text)+'</pre></details></section>')
                     current_markdown_parts.extend(['<!-- 출처: '+current_source_label+' -->',current_source_text])
-                    for current_term_text in set(re.findall(r'[가-힣A-Za-z][가-힣A-Za-z0-9_-]{1,30}',current_source_text)):
+                    for current_term_text in set(current_paragraph_entry['index_terms'] if 'index_terms' in current_paragraph_entry else re.findall(r'[가-힣A-Za-z][가-힣A-Za-z0-9_-]{1,30}',current_source_text)):
                         if current_term_text not in BOOK_INDEX_STOP_WORDS:
                             current_term_lookup.setdefault(current_term_text,[]).append(current_paragraph_entry['paragraph_id'])
                     record_book_trace('paragraph',current_source_label)
@@ -209,6 +217,8 @@ def build_document_book(current_config_values,current_request_values):
                 current_index_parts.append('<details><summary>'+escape(current_term_text)+' · '+str(len(current_term_lookup[current_term_text]))+'</summary>'+''.join('<a href="#'+current_paragraph_id+'">'+str(current_index_number)+' </a>' for current_index_number,current_paragraph_id in enumerate(current_term_lookup[current_term_text],1))+'</details>')
             current_warning_entries=list(dict.fromkeys(current_warning_entries))
             current_manifest_values={'book_schema_version':1,'book_id':current_book_id,'book_title_text':current_book_title,'created_timestamp_text':current_timestamp_text,'source_directory_paths':current_request_values['source_directory_paths'],'source_hash_mapping':{current_source_path:current_source_entry['source_content_hash'] for current_source_path,current_source_entry in current_source_entries.items()},'chapter_count':len(current_chapter_titles),'paragraph_count':len(current_paragraph_entries),'quality_warnings':current_warning_entries,'paragraph_placements':[{'paragraph_id':current_paragraph_entry['paragraph_id'],'chapter_title':current_paragraph_entry['chapter_title']} for current_paragraph_entry in current_paragraph_entries]}
+            if 'collection_id' in current_request_values:
+                current_manifest_values['collection_id']=current_request_values['collection_id']
             save_yaml_document(current_book_root/'paragraphs.yaml',{'paragraph_entries':current_paragraph_entries})
             current_template_text=BOOK_TEMPLATE_PATH.read_text()
             current_replacements={'@@TITLE@@':escape(current_book_title),'@@TIME@@':escape(current_timestamp_text),'@@COUNT@@':str(len(current_chapter_titles)),'@@INDEX@@':''.join(current_index_parts),'@@TOC@@':''.join(current_toc_parts),'@@BODY@@':''.join(current_body_parts),'@@WARNINGS@@':escape('\n'.join(current_warning_entries) or '포함된 문서의 링크를 연결했습니다.')}
@@ -242,7 +252,14 @@ def list_document_books(current_config_values):
         current_manifest_values['source_changed_flag']=selected_source_hashes!=current_manifest_values['source_hash_mapping']
         del current_manifest_values['source_hash_mapping']
         current_book_entries.append(current_manifest_values)
-    return {'source_directory_paths':sorted(current_directory_paths),'book_entries':current_book_entries}
+    from .book_collections import load_document_collections, DEFAULT_COLLECTION_ROOTS
+    current_collection_entries=load_document_collections(current_config_values)
+    for current_book_entry in current_book_entries:
+        if 'collection_id' not in current_book_entry:
+            current_book_entry['collection_id']=next((current_collection_entry['collection_id'] for current_collection_entry in current_collection_entries if set(current_collection_entry['source_directory_paths'])==set(current_book_entry['source_directory_paths']) or set(DEFAULT_COLLECTION_ROOTS[current_collection_entry['collection_id']])==set(current_book_entry['source_directory_paths'])),None)
+        current_assigned_collection=next((current_collection_entry for current_collection_entry in current_collection_entries if current_collection_entry['collection_id']==current_book_entry.get('collection_id')),None)
+        current_book_entry['collection_roots_changed_flag']=current_assigned_collection is not None and set(current_assigned_collection['source_directory_paths'])!=set(current_book_entry['source_directory_paths'])
+    return {'source_directory_paths':sorted(current_directory_paths),'book_entries':current_book_entries,'collection_entries':current_collection_entries}
 
 
 def read_book_artifact(current_config_values,current_book_id,current_artifact_name):

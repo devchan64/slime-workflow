@@ -59,6 +59,8 @@ class WorldbuildingManagement:
             current_status_values=load_yaml_document(current_status_path)
             current_request_values=load_yaml_document(current_status_path.parent/'request.yaml')
             current_status_values['requested_instruction_text']=current_request_values['requested_instruction_text']
+            current_status_values['collection_id']=current_request_values.get('collection_id')
+            current_status_values['task_kind_name']=current_request_values.get('task_kind_name','worldbuilding')
             current_status_values['discovery_steps']=[load_yaml_document(current_discovery_path)['discovery_decision_values'] for current_discovery_path in sorted(current_status_path.parent.glob('discovery-*.yaml'))]
             current_changes_path=current_status_path.parent/'changes.yaml'
             if current_changes_path.exists():
@@ -73,7 +75,13 @@ class WorldbuildingManagement:
         return {'management_csrf_token':self.management_csrf_token,'runtime_prepared_flag':prepared_manifest_path.exists() and (WORKFLOW_REPOSITORY_ROOT/'.model/worldbuilding/Qwen3-Embedding-0.6B-Q8_0.gguf').exists(),'runtime_prepare_status':self.current_prepare_status,'worker_failure_text':self.worker_failure_text,'runtime_prepare_log':prepare_log_text,'source_document_root':self.workspace_config_values['source_document_root'],'allowed_write_roots':self.workspace_config_values['allowed_write_roots'],'primary_document_roots':[str(Path(self.workspace_config_values['source_document_root'])/current_write_root) for current_write_root in self.workspace_config_values['allowed_write_roots']],'workflow_job_entries':current_job_entries}
 
     def submit_document_request(self,current_request_values):
-        Draft202012Validator(REQUEST_INPUT_SCHEMA).validate(current_request_values)
+        if current_request_values.get('task_kind_name')=='book-edit':
+            from .book_automation import AUTOMATION_REQUEST_SCHEMA
+            from .book_collections import resolve_collection_request
+            Draft202012Validator(AUTOMATION_REQUEST_SCHEMA).validate(current_request_values)
+            resolve_collection_request(self.workspace_config_values,current_request_values)
+        else:
+            Draft202012Validator(REQUEST_INPUT_SCHEMA).validate(current_request_values)
         current_task_identifier=datetime.now(ZoneInfo('Asia/Seoul')).strftime('%Y%m%d-%H%M%S-')+uuid.uuid4().hex[:8]
         current_run_root=self.private_state_root/'jobs'/current_task_identifier
         current_run_root.mkdir(mode=0o700)
@@ -193,7 +201,16 @@ class WorldbuildingManagement:
                 if not 0<request_content_length<=current_request_limit:
                     raise ValueError('요청 크기가 올바르지 않습니다.')
                 request_body_values=parse_unique_json(current_http_handler.rfile.read(request_content_length).decode())
-                if requested_url_path=='/worldbuilding/api/reorganize-preview':
+                if requested_url_path=='/worldbuilding/api/book-ai':
+                    current_response_values=self.submit_document_request({**request_body_values,'task_kind_name':'book-edit'})
+                elif requested_url_path=='/worldbuilding/api/book-ai-result':
+                    if set(request_body_values)!={'workflow_task_id'} or not re.fullmatch(r'[0-9]{8}-[0-9]{6}-[a-f0-9]{8}',request_body_values['workflow_task_id']):
+                        raise ValueError('올바르지 않은 도서 작업 ID입니다.')
+                    current_response_values=load_yaml_document(self.private_state_root/'jobs'/request_body_values['workflow_task_id']/'book-result.yaml')
+                elif requested_url_path=='/worldbuilding/api/book-roots':
+                    from .book_collections import update_document_collection
+                    current_response_values=update_document_collection(self.workspace_config_values,request_body_values)
+                elif requested_url_path=='/worldbuilding/api/reorganize-preview':
                     from .reorganization import preview_document_reorganization
                     current_response_values=preview_document_reorganization(self.workspace_config_values,request_body_values)
                 elif requested_url_path in {'/worldbuilding/api/reorganize-apply','/worldbuilding/api/reorganize-rollback'}:
