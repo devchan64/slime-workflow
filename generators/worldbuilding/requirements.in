@@ -9,3 +9,4 @@ nvidia-cuda-cccl==13.2.27
 nvidia-cuda-culibos==13.2.51
 nvidia-nvvm==13.2.51
 nvidia-cublas==13.3.0.5
+markdown-it-py==3.0.0

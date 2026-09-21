@@ -78,6 +78,27 @@ class WorldbuildingManagementTests(unittest.TestCase):
         current_task_values=self.current_service_handle.submit_document_request(self.current_request_values)
         self.assertIn('workflow_task_id',current_task_values)
 
+    def test_book_plan_requires_csrf_and_build_serves_private_artifact(self):
+        self.current_request_values={'book_title_text':'합성 도서','source_directory_paths':['world']}
+        current_http_request=self.build_http_request('invalid')
+        current_http_request.path='/worldbuilding/api/book-plan'
+        self.current_service_handle.handle_management_request(current_http_request)
+        self.assertEqual(current_http_request.response_status_code,400)
+        current_http_request=self.build_http_request(self.current_service_handle.management_csrf_token)
+        current_http_request.path='/worldbuilding/api/book-plan'
+        self.current_service_handle.handle_management_request(current_http_request)
+        self.assertEqual(current_http_request.response_status_code,200)
+        self.current_request_values['paragraph_placements']=json.loads(current_http_request.wfile.getvalue())['paragraph_placements']
+        current_http_request=self.build_http_request(self.current_service_handle.management_csrf_token)
+        current_http_request.path='/worldbuilding/api/books'
+        self.current_service_handle.handle_management_request(current_http_request)
+        self.assertEqual(current_http_request.response_status_code,200)
+        current_book_id=json.loads(current_http_request.wfile.getvalue())['book_id']
+        current_read_request=ManagementRequestStub('/worldbuilding/books/'+current_book_id+'/book.html','GET',{'Host':'127.0.0.1:8770'},None)
+        self.current_service_handle.handle_management_request(current_read_request)
+        self.assertEqual(current_read_request.response_status_code,200)
+        self.assertIn('합성 도서',current_read_request.wfile.getvalue().decode())
+
     def test_rejects_second_manager_for_same_workspace(self):
         with self.assertRaises(RuntimeError):
             WorldbuildingManagement(self.current_config_path)

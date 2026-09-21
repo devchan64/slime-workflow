@@ -17,6 +17,7 @@ from zoneinfo import ZoneInfo
 from jsonschema import Draft202012Validator
 from .documents import REQUEST_INPUT_SCHEMA, load_workspace_config,load_yaml_document,save_yaml_document,parse_unique_json
 
+BOOK_REQUEST_LIMIT = 2_000_000
 MANAGEMENT_REQUEST_LIMIT = 32768
 WORKFLOW_MODULE_ROOT = Path(__file__).resolve().parent
 WORKFLOW_REPOSITORY_ROOT = WORKFLOW_MODULE_ROOT.parents[1]
@@ -164,6 +165,20 @@ class WorldbuildingManagement:
             if current_http_handler.command=='GET' and requested_url_path in {'/worldbuilding','/worldbuilding/'}:
                 response_body_bytes=(WORKFLOW_MODULE_ROOT/'management.html').read_bytes()
                 response_type_value='text/html; charset=utf-8'
+            elif current_http_handler.command=='GET' and requested_url_path=='/worldbuilding/library':
+                response_body_bytes=(WORKFLOW_MODULE_ROOT/'book-library.html').read_bytes()
+                response_type_value='text/html; charset=utf-8'
+            elif current_http_handler.command=='GET' and requested_url_path=='/worldbuilding/api/books':
+                from .bookbinding import list_document_books
+                response_body_bytes=json.dumps(list_document_books(self.workspace_config_values),ensure_ascii=False).encode()
+                response_type_value='application/json; charset=utf-8'
+            elif current_http_handler.command=='GET' and requested_url_path.startswith('/worldbuilding/books/'):
+                from .bookbinding import read_book_artifact
+                current_url_parts=requested_url_path.split('/')
+                if len(current_url_parts)!=5:
+                    raise ValueError('올바르지 않은 도서 경로입니다.')
+                response_body_bytes=read_book_artifact(self.workspace_config_values,current_url_parts[3],current_url_parts[4])
+                response_type_value='text/html; charset=utf-8' if current_url_parts[4]=='book.html' else 'text/plain; charset=utf-8'
             elif current_http_handler.command=='GET' and requested_url_path=='/worldbuilding/api/state':
                 response_body_bytes=json.dumps(self.read_management_state(),ensure_ascii=False).encode()
                 response_type_value='application/json; charset=utf-8'
@@ -171,10 +186,14 @@ class WorldbuildingManagement:
                 if current_http_handler.headers.get('Origin')!=f'http://{requested_host_text}' or current_http_handler.headers.get('X-Worldbuilding-Token')!=self.management_csrf_token:
                     raise ValueError('같은 관리도구 화면에서 보낸 요청만 허용합니다.')
                 request_content_length=int(current_http_handler.headers.get('Content-Length','0'))
-                if not 0<request_content_length<=MANAGEMENT_REQUEST_LIMIT:
+                current_request_limit=BOOK_REQUEST_LIMIT if requested_url_path in {'/worldbuilding/api/books','/worldbuilding/api/book-plan'} else MANAGEMENT_REQUEST_LIMIT
+                if not 0<request_content_length<=current_request_limit:
                     raise ValueError('요청 크기가 올바르지 않습니다.')
                 request_body_values=parse_unique_json(current_http_handler.rfile.read(request_content_length).decode())
-                if requested_url_path=='/worldbuilding/api/tasks':
+                if requested_url_path in {'/worldbuilding/api/books','/worldbuilding/api/book-plan'}:
+                    from .bookbinding import build_document_book, plan_document_book
+                    current_response_values=(build_document_book if requested_url_path.endswith('/books') else plan_document_book)(self.workspace_config_values,request_body_values)
+                elif requested_url_path=='/worldbuilding/api/tasks':
                     current_response_values=self.submit_document_request(request_body_values)
                 elif requested_url_path=='/worldbuilding/api/learn' and request_body_values=={}:
                     current_response_values=self.submit_document_request({'requested_instruction_text':'세계관 문서 RAG 색인을 최신 원문으로 학습·갱신합니다.','requested_operation_mode':'index','requested_target_path':''})
