@@ -73,7 +73,7 @@ function selectManagerPage(nextPageIdentifier,historyUpdateMode='push'){
  document.querySelector('#currentPageLabel').textContent=selectedPageRecord.label;
  document.querySelector('#currentCategoryLabel').textContent=selectedPageRecord.category==='animation'?'등록 애니메이션':selectedPageRecord.category==='tile-review'?'타일 후보 · 지정 맵 적용':selectedPageRecord.category==='game-ui'?'게임 UI · 디자인 시스템':'기존 웹 검수';
  document.title=selectedPageRecord.label+' · SLIME 검수 관리도구';
- document.querySelector('#standaloneLink').href=selectedPageRecord.path;
+ document.querySelector('#standaloneLink').hidden=true;
  document.querySelector('#uiReviewControls').hidden=selectedPageRecord.category!=='game-ui';
  applyReviewViewport();
  if(selectedPaneElement.contentDocument)selectedPaneElement.contentDocument.dispatchEvent(new Event('review-pane-visible'));
