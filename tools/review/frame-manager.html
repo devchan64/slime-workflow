@@ -1,9 +1,9 @@
-<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>워크프레임 관리도구</title><style>
-nav button{background:transparent;color:var(--text-secondary)}#context{display:flex;justify-content:space-between;gap:12px;font-size:12px;color:var(--text-secondary)}iframe{border:0;width:100%;height:100%;display:block;background:var(--surface-base)}iframe[hidden]{display:none}footer{border-top:1px solid var(--border-subtle);font-size:12px;color:var(--text-secondary)}
-</style><body class="manager-shell"><header><div><h1>워크프레임 관리도구</h1><p>애니메이션 비교 · 프레임별 앵커 편집</p></div><div class="manager-header-actions"><span id="managerEditStatus" role="status"></span><span class="badge">로컬 검수</span><button id="toggleNavigation" type="button" aria-expanded="true" aria-controls="managerPicker">검색·목록 접기</button></div></header><div class="manager-layout"><section id="managerPicker" class="manager-picker" aria-label="검수 대상 검색">
-<div class="search-controls"><label>검색<input id="assetSearch" type="search" placeholder="한국어 이름, ID, 검수 종류, 실행 날짜" aria-label="애니메이션 및 웹 검수 검색" autocomplete="off"></label><label>분류<select id="reviewCategory"><option value="all">전체</option><option value="animation">등록 애니메이션</option><option value="web-review">기존 웹 검수</option></select></label><button id="clearSearch" type="button">검색 초기화</button></div>
+<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>SLIME 검수 관리도구</title><style>
+nav button{background:transparent;color:var(--text-secondary)}#context{display:flex;justify-content:space-between;gap:12px;font-size:12px;color:var(--text-secondary)}iframe{border:0;width:100%;height:100%;display:block;background:var(--surface-base)}iframe[hidden]{display:none}#workspace{overflow:auto}#uiReviewControls{padding:8px;gap:12px;align-items:center}#uiReviewControls:not([hidden]){display:flex;flex-wrap:wrap}#uiReviewControls label{display:flex;gap:8px;align-items:center}footer{border-top:1px solid var(--border-subtle);font-size:12px;color:var(--text-secondary)}
+</style><body class="manager-shell"><header><div><h1>SLIME 검수 관리도구</h1><p>디자인 시스템 · 게임 UI · 애니메이션</p></div><div class="manager-header-actions"><span id="managerEditStatus" role="status"></span><span class="badge">로컬 검수</span><button id="toggleNavigation" type="button" aria-expanded="true" aria-controls="managerPicker">검색·목록 접기</button></div></header><div class="manager-layout"><section id="managerPicker" class="manager-picker" aria-label="검수 대상 검색">
+<div class="search-controls"><label>검색<input id="assetSearch" type="search" placeholder="한국어 이름, ID, 검수 종류, 실행 날짜" aria-label="애니메이션 및 웹 검수 검색" autocomplete="off"></label><label>분류<select id="reviewCategory"><option value="all">전체</option><option value="animation">등록 애니메이션</option><option value="game-ui">게임 UI · 디자인 시스템</option><option value="web-review">기존 웹 검수</option></select></label><button id="clearSearch" type="button">검색 초기화</button></div>
 <p id="searchStatus" role="status" aria-live="polite"></p><nav id="assetSelection" aria-label="검수 대상 목록"></nav>
-</section><div class="manager-content"><nav id="context" aria-label="현재 검수 위치와 이동"><div class="current-review-location"><span id="currentCategoryLabel" class="muted"></span><strong id="currentPageLabel" aria-live="polite"></strong><details><summary>원본 정보</summary><span id="currentLabel"></span></details></div><div class="review-page-navigation"><button id="previousReview" type="button" aria-label="이전 검수 항목">← 이전</button><span id="navigationPosition" role="status"></span><button id="nextReview" type="button" aria-label="다음 검수 항목">다음 →</button><button id="revealCurrentReview" type="button" hidden>현재 항목 찾기</button><a id="standaloneLink" target="_blank" rel="noopener">별도 탭 ↗</a></div></nav><main id="workspace"></main></div></div><footer>메뉴를 전환해도 편집 중인 좌표는 유지됩니다. 종료·새로고침 전에 좌표 JSON을 다운로드하세요.</footer><script>
+</section><div class="manager-content"><nav id="context" aria-label="현재 검수 위치와 이동"><div class="current-review-location"><span id="currentCategoryLabel" class="muted"></span><strong id="currentPageLabel" aria-live="polite"></strong><details><summary>원본 정보</summary><span id="currentLabel"></span></details></div><div class="review-page-navigation"><button id="previousReview" type="button" aria-label="이전 검수 항목">← 이전</button><span id="navigationPosition" role="status"></span><button id="nextReview" type="button" aria-label="다음 검수 항목">다음 →</button><button id="revealCurrentReview" type="button" hidden>현재 항목 찾기</button><a id="standaloneLink" target="_blank" rel="noopener">별도 탭 ↗</a></div></nav><section id="uiReviewControls" hidden aria-label="게임 UI 검수 환경"><label>화면 크기<select id="uiReviewViewport"><option value="1440x900">데스크톱 1440 × 900</option><option value="390x844">모바일 세로 390 × 844</option><option value="844x390">모바일 가로 844 × 390</option></select></label><label>언어<select id="uiReviewLocale"><option value="ko">한국어</option><option value="en">English</option></select></label><button id="resetUiReview">초기 상태 복원</button><span>크기는 CSS 픽셀 기준 · 작은 창에서는 가로 스크롤</span></section><main id="workspace"></main></div></div><footer>메뉴를 전환해도 편집 중인 좌표는 유지됩니다. 종료·새로고침 전에 좌표 JSON을 다운로드하세요.</footer><script>
 const managerPageRecords=__MANAGER_PAGES__;
 const managerPaneElements=new Map();
 const pendingCoordinatePages=new Set();
@@ -40,7 +40,7 @@ function renderManagerResults(){
   currentOptionElement.setAttribute('aria-current',currentPageRecord.id===selectedPageIdentifier?'page':'false');
   currentOptionElement.onclick=()=>selectManagerPage(currentPageRecord.id);
   currentOptionElement.title=currentPageRecord.description;
-  currentOptionElement.textContent=`${currentPageRecord.category==='animation'?'애니메이션':'웹 검수'} · ${currentPageRecord.label}${pendingCoordinatePages.has(currentPageRecord.id)?' · 변경됨':''}`;
+  currentOptionElement.textContent=`${currentPageRecord.category==='animation'?'애니메이션':currentPageRecord.category==='game-ui'?'게임 UI':'웹 검수'} · ${currentPageRecord.label}${pendingCoordinatePages.has(currentPageRecord.id)?' · 변경됨':''}`;
   assetSelectionElement.append(currentOptionElement);
  }
 
@@ -57,10 +57,10 @@ function selectManagerPage(nextPageIdentifier,historyUpdateMode='push'){
   selectedPaneElement.title=selectedPageRecord.label;
   selectedPaneElement.src=selectedPageRecord.path;
   selectedPaneElement.addEventListener('load',()=>{
-   selectedPaneElement.contentDocument.body.classList.add('embedded-review');
+   if(selectedPageRecord.category!=='game-ui')selectedPaneElement.contentDocument.body.classList.add('embedded-review');
    if(!selectedPageRecord.anchorEditor)return;
    const selectedPaneDocument=selectedPaneElement.contentDocument;
-   const updatePendingCoordinates=()=>{if(selectedPaneDocument.body.dataset.coordinateDownloadPending==='true')pendingCoordinatePages.add(nextPageIdentifier);else pendingCoordinatePages.delete(nextPageIdentifier);document.querySelector('#managerEditStatus').textContent=pendingCoordinatePages.size?`${pendingCoordinatePages.size}개 대상의 좌표 다운로드 필요`:'';for(const currentOptionElement of document.querySelector('#assetSelection').children){const currentPageRecord=managerPageRecords.find(currentPageRecord=>currentPageRecord.id===currentOptionElement.value);currentOptionElement.textContent=`${currentPageRecord.category==='animation'?'애니메이션':'웹 검수'} · ${currentPageRecord.label}${pendingCoordinatePages.has(currentPageRecord.id)?' · 변경됨':''}`;}};
+   const updatePendingCoordinates=()=>{if(selectedPaneDocument.body.dataset.coordinateDownloadPending==='true')pendingCoordinatePages.add(nextPageIdentifier);else pendingCoordinatePages.delete(nextPageIdentifier);document.querySelector('#managerEditStatus').textContent=pendingCoordinatePages.size?`${pendingCoordinatePages.size}개 대상의 좌표 다운로드 필요`:'';for(const currentOptionElement of document.querySelector('#assetSelection').children){const currentPageRecord=managerPageRecords.find(currentPageRecord=>currentPageRecord.id===currentOptionElement.value);currentOptionElement.textContent=`${currentPageRecord.category==='animation'?'애니메이션':currentPageRecord.category==='game-ui'?'게임 UI':'웹 검수'} · ${currentPageRecord.label}${pendingCoordinatePages.has(currentPageRecord.id)?' · 변경됨':''}`;}};
    selectedPaneDocument.addEventListener('review-coordinate-state',updatePendingCoordinates);
    updatePendingCoordinates();
   });
@@ -71,9 +71,12 @@ function selectManagerPage(nextPageIdentifier,historyUpdateMode='push'){
  for(const currentOptionElement of document.querySelector('#assetSelection').children)currentOptionElement.setAttribute('aria-current',currentOptionElement.value===nextPageIdentifier?'page':'false');
  document.querySelector('#currentLabel').textContent=selectedPageRecord.description;
  document.querySelector('#currentPageLabel').textContent=selectedPageRecord.label;
- document.querySelector('#currentCategoryLabel').textContent=selectedPageRecord.category==='animation'?'등록 애니메이션':'기존 웹 검수';
- document.title=selectedPageRecord.label+' · 워크프레임 관리도구';
+ document.querySelector('#currentCategoryLabel').textContent=selectedPageRecord.category==='animation'?'등록 애니메이션':selectedPageRecord.category==='game-ui'?'게임 UI · 디자인 시스템':'기존 웹 검수';
+ document.title=selectedPageRecord.label+' · SLIME 검수 관리도구';
  document.querySelector('#standaloneLink').href=selectedPageRecord.path;
+ document.querySelector('#uiReviewControls').hidden=selectedPageRecord.category!=='game-ui';
+ applyReviewViewport();
+ if(selectedPaneElement.contentDocument)selectedPaneElement.contentDocument.dispatchEvent(new Event('review-pane-visible'));
  renderNavigationPosition();
  saveManagerLocation(historyUpdateMode);
  return true;
@@ -100,6 +103,28 @@ function restoreManagerLocation(){
  renderManagerResults();
  if(!selectManagerPage(requestedPageIdentifier,'none'))selectManagerPage(managerPageRecords[0].id,'replace');
 }
+
+const reviewViewportDimensions={'1440x900':[1440,900],'390x844':[390,844],'844x390':[844,390]};
+function applyReviewViewport(){
+ const selectedReviewRecord=managerPageRecords.find(currentPageRecord=>currentPageRecord.id===selectedPageIdentifier);
+ const selectedReviewFrame=managerPaneElements.get(selectedPageIdentifier);
+ if(!selectedReviewFrame)return;
+ const selectedViewportSize=reviewViewportDimensions[document.querySelector('#uiReviewViewport').value];
+ if(selectedReviewRecord.category==='game-ui'){
+  selectedReviewFrame.style.width=selectedViewportSize[0]+'px';selectedReviewFrame.style.height=selectedViewportSize[1]+'px';
+ }else{selectedReviewFrame.style.width='';selectedReviewFrame.style.height='';}
+}
+function resetReviewScenario(){
+ const selectedReviewRecord=managerPageRecords.find(currentPageRecord=>currentPageRecord.id===selectedPageIdentifier);
+ if(selectedReviewRecord.category!=='game-ui')return;
+ const selectedReviewLocation=new URL(selectedReviewRecord.path,location.href);
+ selectedReviewLocation.searchParams.set('locale',document.querySelector('#uiReviewLocale').value);
+ managerPaneElements.get(selectedPageIdentifier).src=selectedReviewLocation.href;
+}
+document.querySelector('#uiReviewViewport').onchange=applyReviewViewport;
+document.querySelector('#uiReviewLocale').onchange=resetReviewScenario;
+document.querySelector('#resetUiReview').onclick=resetReviewScenario;
+
 window.addEventListener('popstate',restoreManagerLocation);
 window.addEventListener('hashchange',restoreManagerLocation);
 window.addEventListener('beforeunload',currentUnloadEvent=>{if(pendingCoordinatePages.size){currentUnloadEvent.preventDefault();currentUnloadEvent.returnValue='';}});
