@@ -6,6 +6,7 @@ from pathlib import Path
 
 from PIL import Image
 
+from generators.terrain.qwen_tile.map_preview import validate_map_preview_snapshot
 from generators.terrain.qwen_tile.runtime import validate_style_reference, validate_tile_set_ticket
 
 
@@ -50,3 +51,16 @@ class QwenTileTicketTest(unittest.TestCase):
         ticket_values['shape_reference_id'] = 'wall-shape-v1'
         with self.assertRaises(ValueError):
             validate_tile_set_ticket(ticket_values)
+
+    def test_accepts_map_preview_with_target_cells(self):
+        map_preview_value = {'schemaVersion': 1, 'mapId': 'meadow', 'displayNameKo': '이슬 초원', 'columns': 2, 'rows': 2,
+                             'terrainRows': ['gg', 'gr'], 'terrainCodes': {'g': {'labelKo': '풀밭', 'color': '#39754a'}, 'r': {'labelKo': '흙길', 'color': '#90714a'}},
+                             'targetCells': [{'column': 1, 'row': 1}]}
+        self.assertEqual(validate_map_preview_snapshot(map_preview_value)['mapId'], 'meadow')
+
+    def test_rejects_map_preview_outside_target_cell(self):
+        map_preview_value = {'schemaVersion': 1, 'mapId': 'meadow', 'displayNameKo': '이슬 초원', 'columns': 1, 'rows': 1,
+                             'terrainRows': ['g'], 'terrainCodes': {'g': {'labelKo': '풀밭', 'color': '#39754a'}},
+                             'targetCells': [{'column': 1, 'row': 0}]}
+        with self.assertRaises(ValueError):
+            validate_map_preview_snapshot(map_preview_value)

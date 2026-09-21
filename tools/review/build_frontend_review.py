@@ -78,6 +78,44 @@ def load_animation_review(frontend_asset_root, animation_metadata_path):
     from PIL import Image
     animation_metadata_path = resolve_frontend_file(frontend_asset_root, animation_metadata_path)
     animation_source_data = read_source_metadata(animation_metadata_path)
+    packed_sheet_manifest_data = None
+    if 'sheets' in animation_source_data:
+        require_record_fields(animation_source_data, ('animationId', 'version', 'referenceBodyHeight', 'gameBodyHeight', 'sheets', 'frames', 'clips', 'poseReviewStatus'), str(animation_metadata_path))
+        if not isinstance(animation_source_data['sheets'], list) or not animation_source_data['sheets']:
+            raise ValueError(f'{animation_metadata_path}: sheets 목록이 필요합니다.')
+        packed_direction_records = []
+        packed_direction_images = {}
+        packed_sheet_size = None
+        for packed_sheet_record in animation_source_data['sheets']:
+            require_record_fields(packed_sheet_record, ('image', 'width', 'height', 'sha256', 'directions', 'managementId'), '패킹 시트')
+            if not isinstance(packed_sheet_record['image'], str) or Path(packed_sheet_record['image']).name != packed_sheet_record['image'] or not isinstance(packed_sheet_record['sha256'], str) or len(packed_sheet_record['sha256']) != 64 or not isinstance(packed_sheet_record['directions'], list):
+                raise ValueError('패킹 시트 이미지·해시·방향 형식이 잘못되었습니다.')
+            current_sheet_size = (packed_sheet_record['width'], packed_sheet_record['height'])
+            if any(type(current_dimension_value) is not int or current_dimension_value < 1 for current_dimension_value in current_sheet_size):
+                raise ValueError('패킹 시트 크기는 양의 정수여야 합니다.')
+            if packed_sheet_size is None:
+                packed_sheet_size = current_sheet_size
+            elif packed_sheet_size != current_sheet_size:
+                raise ValueError('현재 검수기는 같은 크기의 패킹 시트만 지원합니다.')
+            for current_direction_name in packed_sheet_record['directions']:
+                if current_direction_name not in REVIEW_DIRECTION_NAMES or current_direction_name in packed_direction_images:
+                    raise ValueError('패킹 시트 방향이 잘못되었거나 중복되었습니다.')
+                packed_direction_images[current_direction_name] = packed_sheet_record['image']
+                packed_direction_records.append({'direction': current_direction_name, 'image': packed_sheet_record['image'], 'sha256': packed_sheet_record['sha256']})
+        if set(packed_direction_images) != set(REVIEW_DIRECTION_NAMES):
+            raise ValueError('패킹 시트는 네 방향을 모두 포함해야 합니다.')
+        normalized_frame_records = []
+        for packed_frame_record in animation_source_data['frames']:
+            required_packed_frame_fields = {'frameId', 'anchor', 'anchorStatus', 'sha256', 'regenerated', 'texture', 'rect', 'poseReviewStatus'}
+            allowed_packed_frame_fields = required_packed_frame_fields | {'managementId'}
+            if not isinstance(packed_frame_record, dict) or not required_packed_frame_fields.issubset(packed_frame_record) or set(packed_frame_record) - allowed_packed_frame_fields:
+                raise ValueError('패킹 프레임: 필수 필드 누락 또는 알 수 없는 필드')
+            packed_direction_name = packed_frame_record['frameId'].rsplit('.', 1)[0] if isinstance(packed_frame_record['frameId'], str) else ''
+            if packed_direction_name not in packed_direction_images or packed_frame_record['texture'] != packed_direction_images[packed_direction_name]:
+                raise ValueError('패킹 프레임 texture와 방향 시트가 일치하지 않습니다.')
+            normalized_frame_records.append({current_field_name: packed_frame_record[current_field_name] for current_field_name in ('frameId', 'rect', 'anchor')})
+        animation_source_data = {'animationId': animation_source_data['animationId'], 'version': animation_source_data['version'], 'sheet': {'width': packed_sheet_size[0], 'height': packed_sheet_size[1]}, 'frames': normalized_frame_records, 'clips': animation_source_data['clips']}
+        packed_sheet_manifest_data = {'sheets': packed_direction_records}
     require_record_fields(animation_source_data, ('animationId', 'version', 'sheet', 'frames', 'clips'), str(animation_metadata_path))
     for identity_field_name in ('animationId', 'version'):
         if not isinstance(animation_source_data[identity_field_name], str) or not animation_source_data[identity_field_name].strip():
@@ -86,7 +124,7 @@ def load_animation_review(frontend_asset_root, animation_metadata_path):
     if any(type(dimension_pixel_value) is not int or dimension_pixel_value < 1 for dimension_pixel_value in animation_source_data['sheet'].values()):
         raise ValueError('시트 크기는 양의 정수여야 합니다.')
     source_manifest_path = animation_metadata_path.with_name('source.json')
-    source_manifest_data = read_source_metadata(resolve_frontend_file(frontend_asset_root, source_manifest_path)) if source_manifest_path.exists() else {}
+    source_manifest_data = packed_sheet_manifest_data if packed_sheet_manifest_data is not None else (read_source_metadata(resolve_frontend_file(frontend_asset_root, source_manifest_path)) if source_manifest_path.exists() else {})
     if not isinstance(source_manifest_data, dict):
         raise ValueError(f'{source_manifest_path}: 객체가 필요합니다.')
     direction_sheet_paths = {}
@@ -229,6 +267,11 @@ def build_frontend_review(frontend_repository_path, ui_bundle_directory=None):
         else:
             from collect_web_reviews import collect_web_reviews
         manager_page_records.extend(collect_web_reviews(WORKFLOW_REPO_ROOT, output_review_directory, emit_review_trace))
+        if __package__:
+            from .collect_tile_reviews import collect_tile_reviews
+        else:
+            from collect_tile_reviews import collect_tile_reviews
+        manager_page_records.extend(collect_tile_reviews(WORKFLOW_REPO_ROOT, output_review_directory, emit_review_trace))
         if ui_bundle_directory is not None:
             if __package__:
                 from .import_ui_bundle import import_ui_bundle

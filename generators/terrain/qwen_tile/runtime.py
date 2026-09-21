@@ -13,6 +13,8 @@ from pathlib import Path
 
 import yaml
 
+from .map_preview import read_map_preview_snapshot
+
 WORKFLOW_REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 FIXED_MODEL_IDENTIFIER = 'Qwen/Qwen-Image-Edit-2511'
 FIXED_MODEL_REVISION = '6f3ccc0b56e431dc6a0c2b2039706d7d26f22cb9'
@@ -118,7 +120,7 @@ def validate_style_reference(style_reference_path: Path, expected_sha256: str, g
             raise ValueError('스타일 참조는 RGB/RGBA PNG 또는 WEBP여야 합니다.')
         if source_image.mode == 'RGBA' and source_image.getextrema()[3] != (255, 255):
             raise ValueError('스타일 참조 투명도는 완전 불투명이어야 합니다.')
-        return source_image.convert('RGB').resize(tuple(generation_size), Image.Resampling.LANCZOS), actual_sha256
+        return source_image.convert('RGB').resize(tuple(generation_size), Image.LANCZOS), actual_sha256
 
 
 def validate_material_reference(material_reference_path: Path, expected_sha256: str, generation_size: list[int]):
@@ -138,8 +140,8 @@ def validate_shape_reference(shape_reference_path: Path, expected_sha256: str, g
             raise ValueError('형태 참조는 투명 영역이 있는 RGBA 이미지여야 합니다.')
         shape_canvas = Image.new('RGBA', source_image.size, (240, 240, 240, 255))
         shape_canvas.alpha_composite(source_image.convert('RGBA'))
-        generation_reference = shape_canvas.convert('RGB').resize(tuple(generation_size), Image.Resampling.LANCZOS)
-        final_alpha_mask = source_image.getchannel('A').resize(tuple(tile_size), Image.Resampling.LANCZOS)
+        generation_reference = shape_canvas.convert('RGB').resize(tuple(generation_size), Image.LANCZOS)
+        final_alpha_mask = source_image.getchannel('A').resize(tuple(tile_size), Image.LANCZOS)
         return generation_reference, final_alpha_mask, actual_sha256
 
 
@@ -182,7 +184,28 @@ def build_height_preview(tile_images: dict, tile_size: list[int], height_steps: 
     preview_image.save(preview_path)
 
 
-def execute_tile_set_generation(*, ticket_file_path, style_reference_path, trial_output_root, shape_reference_path=None, material_reference_path=None):
+def write_tile_review_record(trial_output_root: Path, result_values: dict, ticket_file_path: Path, map_preview_record: dict | None = None):
+    """관리도구가 실행 폴더만으로 후보를 찾도록 검수 기록을 남긴다."""
+    variant_records = []
+    for current_variant_record in result_values['variants']:
+        current_tile_path = trial_output_root / current_variant_record['tile']
+        variant_records.append({'role': current_variant_record['role'], 'file': current_tile_path.name,
+                                'sha256': hashlib.sha256(current_tile_path.read_bytes()).hexdigest()})
+    preview_file_name = result_values['preview']
+    review_record_values = {'schemaVersion': 1, 'kind': 'qwen-terrain-tile-review',
+                            'assetId': result_values['asset_id'], 'status': result_values['status'],
+                            'modelId': result_values['model_id'], 'modelRevision': result_values['revision'],
+                            'tileSize': result_values['tile_size'], 'tileability': result_values['tileability'],
+                            'heightSteps': result_values['height_steps'], 'ticket': {'file': 'ticket.yaml', 'sha256': hashlib.sha256(ticket_file_path.read_bytes()).hexdigest()},
+                            'variants': variant_records,
+                            'preview': None if preview_file_name is None else {'file': preview_file_name, 'sha256': hashlib.sha256((trial_output_root / preview_file_name).read_bytes()).hexdigest()},
+                            'mapPreview': map_preview_record,
+                            'qualityWarnings': result_values['quality_warnings']}
+    (trial_output_root / 'tile-review.json').write_text(json.dumps(review_record_values, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+    return review_record_values
+
+
+def execute_tile_set_generation(*, ticket_file_path, style_reference_path, trial_output_root, shape_reference_path=None, material_reference_path=None, map_preview_path=None):
     """고정 Qwen 모델로 타일 역할별 후보와 이음새·높이 미리보기를 생성한다."""
     from PIL import Image
     ticket_file_path = Path(ticket_file_path).resolve()
@@ -210,6 +233,10 @@ def execute_tile_set_generation(*, ticket_file_path, style_reference_path, trial
         material_reference_image, material_reference_sha256 = validate_material_reference(Path(material_reference_path), ticket_values['material_reference_sha256'], ticket_values['generation_size'])
     elif material_reference_path is not None:
         raise ValueError('재질 참조 입력에는 티켓의 재질 참조 기록이 필요합니다.')
+    map_preview_snapshot = None
+    map_preview_sha256 = None
+    if map_preview_path is not None:
+        map_preview_snapshot, map_preview_sha256 = read_map_preview_snapshot(Path(map_preview_path))
     if not PIPELINE_EXECUTION_LOCK.acquire(blocking=False):
         raise RuntimeError('동시 Qwen 타일 추론은 허용하지 않습니다.')
     trial_output_root.mkdir(parents=True, exist_ok=False)
@@ -269,7 +296,7 @@ def execute_tile_set_generation(*, ticket_file_path, style_reference_path, trial
             candidate_path = trial_output_root / f'{tile_role}-candidate.png'
             final_path = trial_output_root / f'{tile_role}.png'
             output_image.convert('RGBA').save(candidate_path)
-            final_image = output_image.convert('RGBA').resize(tuple(ticket_values['tile_size']), Image.Resampling.LANCZOS)
+            final_image = output_image.convert('RGBA').resize(tuple(ticket_values['tile_size']), Image.LANCZOS)
             if final_alpha_mask is not None and ticket_values['apply_shape_alpha']:
                 final_image.putalpha(final_alpha_mask)
             final_image.save(final_path)
@@ -279,11 +306,16 @@ def execute_tile_set_generation(*, ticket_file_path, style_reference_path, trial
         if ticket_values['acceptance']['seam_check']:
             preview_tile_images = dict(generated_tile_images)
             if 'ground' not in preview_tile_images:
-                preview_tile_images['ground'] = reference_image.convert('RGBA').resize(tuple(ticket_values['tile_size']), Image.Resampling.LANCZOS)
+                preview_tile_images['ground'] = reference_image.convert('RGBA').resize(tuple(ticket_values['tile_size']), Image.LANCZOS)
             build_height_preview(preview_tile_images, ticket_values['tile_size'], ticket_values['height_steps'], trial_output_root / 'height-preview.png')
         (trial_output_root / 'ticket.yaml').write_text(ticket_file_path.read_text(encoding='utf-8'), encoding='utf-8')
         result_values = {'status': 'candidate-needs-user-review', 'asset_id': ticket_values['asset_id'], 'model_id': FIXED_MODEL_IDENTIFIER, 'revision': FIXED_MODEL_REVISION, 'generation_size': ticket_values['generation_size'], 'tile_size': ticket_values['tile_size'], 'tileability': ticket_values['tileability'], 'height_steps': ticket_values['height_steps'], 'style_reference_id': ticket_values['style_reference_id'], 'style_reference_path': str(Path(style_reference_path).resolve()), 'style_reference_sha256': reference_sha256, 'material_reference_id': ticket_values.get('material_reference_id'), 'material_reference_path': str(Path(material_reference_path).resolve()) if material_reference_path else None, 'material_reference_sha256': material_reference_sha256, 'shape_reference_id': ticket_values.get('shape_reference_id'), 'shape_reference_path': str(Path(shape_reference_path).resolve()) if shape_reference_path else None, 'shape_reference_sha256': shape_reference_sha256, 'shape_alpha_applied': final_alpha_mask is not None and ticket_values.get('apply_shape_alpha', False), 'steps': FIXED_INFERENCE_STEPS, 'true_cfg_scale': FIXED_TRUE_CFG_SCALE, 'guidance_scale': FIXED_GUIDANCE_SCALE, 'seed': FIXED_GENERATOR_SEED, 'execution_device': 'cuda', 'elapsed_seconds': round(time.monotonic() - run_started_time, 2), 'variants': generated_records, 'preview_ground': 'generated-ground' if 'ground' in generated_tile_images else 'style-reference-resize', 'preview': 'height-preview.png' if ticket_values['acceptance']['seam_check'] else None, 'quality_warnings': ['이음새와 높이 변화 미리보기를 검수한 뒤에만 정식 에셋으로 채택합니다.']}
         (trial_output_root / 'result.json').write_text(json.dumps(result_values, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+        map_preview_record = None
+        if map_preview_snapshot is not None:
+            (trial_output_root / 'map-preview.yaml').write_text(Path(map_preview_path).read_text(encoding='utf-8'), encoding='utf-8')
+            map_preview_record = {'file': 'map-preview.yaml', 'sha256': map_preview_sha256, 'mapId': map_preview_snapshot['mapId'], 'targetCells': map_preview_snapshot['targetCells']}
+        write_tile_review_record(trial_output_root, result_values, ticket_file_path, map_preview_record)
         execution_logger.info('complete preview=%s', result_values['preview'])
         return result_values
     except Exception:

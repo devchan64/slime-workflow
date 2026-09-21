@@ -56,7 +56,31 @@
   --output-dir .tmp/새-실행폴더
 ```
 
+특정 맵의 지정 타일을 검수할 때는 같은 시점의 맵 상태를 YAML 스냅샷으로 준비해 함께 전달한다. 이 파일은 백엔드·프론트엔드 경로를 런타임에 참조하지 않고 출력 폴더의 `map-preview.yaml`로 복사된다.
+
+```yaml
+schemaVersion: 1
+mapId: meadow
+displayNameKo: 이슬 초원
+columns: 2
+rows: 1
+terrainRows: [gg]
+terrainCodes:
+  g: {labelKo: 풀밭, color: '#39754a'}
+targetCells:
+  - {column: 1, row: 0}
+```
+
+```bash
+.venv/bin/python generators/terrain/generate_qwen_tile.py \
+  --ticket .tmp/실행폴더/tile-ticket.yaml \
+  --style-reference /승인된/지면-스타일-참조.png \
+  --map-preview .tmp/실행폴더/map-preview.yaml \
+  --output-dir .tmp/새-실행폴더
+```
+
 출력은 역할별 원본 후보, 최종 크기 타일, 역할별 프롬프트, `height-preview.png`, `ticket.yaml`, `result.json`, `execution.log`이다. 명령은 프론트엔드 에셋을 변경하지 않는다.
+또한 `tile-review.json`에는 검수 대상 파일·SHA-256·모델·티켓·맵 스냅샷을 기록한다. 관리도구는 이 기록을 찾아 해시를 다시 확인한 뒤, 지정 셀에 역할별 후보를 적용한 맵 미리보기를 제공한다.
 
 ## 구현 계약
 
