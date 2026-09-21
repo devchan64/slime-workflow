@@ -78,6 +78,8 @@ def load_animation_review(frontend_asset_root, animation_metadata_path):
     from PIL import Image
     animation_metadata_path = resolve_frontend_file(frontend_asset_root, animation_metadata_path)
     animation_source_data = read_source_metadata(animation_metadata_path)
+    declared_reference_body_height = animation_source_data.get('referenceBodyHeight')
+    declared_game_body_height = animation_source_data.get('gameBodyHeight')
     packed_sheet_manifest_data = None
     if 'sheets' in animation_source_data:
         require_record_fields(animation_source_data, ('animationId', 'version', 'referenceBodyHeight', 'gameBodyHeight', 'sheets', 'frames', 'clips', 'poseReviewStatus'), str(animation_metadata_path))
@@ -127,6 +129,7 @@ def load_animation_review(frontend_asset_root, animation_metadata_path):
     source_manifest_data = packed_sheet_manifest_data if packed_sheet_manifest_data is not None else (read_source_metadata(resolve_frontend_file(frontend_asset_root, source_manifest_path)) if source_manifest_path.exists() else {})
     if not isinstance(source_manifest_data, dict):
         raise ValueError(f'{source_manifest_path}: 객체가 필요합니다.')
+    source_reference_body_height = source_manifest_data.get('referenceBodyHeight', declared_reference_body_height)
     direction_sheet_paths = {}
     expected_sheet_hashes = {}
     if 'sheets' in source_manifest_data:
@@ -208,7 +211,19 @@ def load_animation_review(frontend_asset_root, animation_metadata_path):
             review_frame_records.append({**current_frame_record, 'direction': current_direction_name, 'image': direction_sheet_paths[current_direction_name].name, 'contacts': [dict(current_frame_record['anchor']), dict(current_frame_record['anchor'])], 'endpoints': []})
     if len(direction_frame_counts) != 1 or len(frame_duration_values) != 1 or seen_frame_identifiers != set(source_frame_lookup):
         raise ValueError('동일한 방향별 프레임 수·시간 및 전체 프레임 참조가 필요합니다.')
-    review_source_metadata = {'coordinateMode': 'anchor', 'registeredSource': True, 'animationId': animation_source_data['animationId'], 'animationVersion': animation_source_data['version'], 'artifactType': 'character-animation-anchor-review', 'exportFilename': animation_metadata_path.name.removesuffix('.animation.json')+'-anchor-review.json', 'frameDurationMs': next(iter(frame_duration_values)), 'sheets': source_sheet_records, 'description': '프론트엔드 등록 메타데이터의 앵커 검수. 원본 소수 좌표를 유지하며 클릭 지정은 정수 픽셀을 사용합니다. 저장 파일은 별도 검수 산출물입니다.'}
+    animation_identifier_text = animation_source_data['animationId']
+    if animation_identifier_text == 'character.default.white-shirt.rest':
+        runtime_scale_metadata = {'actorKind': 'human-rest', 'baseHeight': 33, 'sourceHeightMultiplier': 0.75, 'defaultSizeClass': 'medium'}
+    elif animation_identifier_text.startswith('monster.'):
+        default_size_class = {'monster.slime.idle': 'small', 'monster.giant.idle': 'large'}.get(animation_identifier_text, 'medium')
+        runtime_scale_metadata = {'actorKind': 'monster', 'baseHeight': 60, 'sourceHeightMultiplier': 0.75, 'defaultSizeClass': default_size_class}
+    else:
+        if type(source_reference_body_height) not in (int, float) or not math.isfinite(source_reference_body_height) or source_reference_body_height <= 0:
+            raise ValueError(f'{animation_metadata_path}: 게임 출력 비율에 필요한 referenceBodyHeight가 없습니다.')
+        if declared_game_body_height is not None and (type(declared_game_body_height) not in (int, float) or not math.isfinite(declared_game_body_height) or declared_game_body_height <= 0):
+            raise ValueError(f'{animation_metadata_path}: gameBodyHeight는 양의 유한 숫자이어야 합니다.')
+        runtime_scale_metadata = {'actorKind': 'human', 'baseHeight': declared_game_body_height or 60, 'sourceHeight': source_reference_body_height, 'defaultSizeClass': 'medium'}
+    review_source_metadata = {'coordinateMode': 'anchor', 'registeredSource': True, 'animationId': animation_identifier_text, 'animationVersion': animation_source_data['version'], 'artifactType': 'character-animation-anchor-review', 'exportFilename': animation_metadata_path.name.removesuffix('.animation.json')+'-anchor-review.json', 'frameDurationMs': next(iter(frame_duration_values)), 'sheets': source_sheet_records, 'runtimeScale': runtime_scale_metadata, 'description': '프론트엔드 등록 메타데이터의 앵커 검수. 원본 소수 좌표를 유지하며 클릭 지정은 정수 픽셀을 사용합니다. 저장 파일은 별도 검수 산출물입니다.'}
     return review_frame_records, review_source_metadata, set(direction_sheet_paths.values())
 
 
