@@ -8,8 +8,8 @@ from qwen_pose import execute_pose_generation
 DIRECTION_POSE_INSTRUCTIONS = {
     'down_left': 'The character is walking toward the down-left direction and looking in the walking direction.',
     'down_right': 'The character is walking toward the down-right direction and looking in the walking direction.',
-    'up_left': 'The character is walking backward toward the left direction in a back view. Show only the back of the head. Do not show the eyes, nose, mouth, or face. Keep the head level.',
-    'up_right': 'The character is walking backward toward the right direction in a back view. Show only the back of the head. Do not show the eyes, nose, mouth, or face. Keep the neck aligned with the torso and keep the chin level.',
+    'up_left': 'The character is walking backward toward the left direction in a back view, showing the back of the head with a level head.',
+    'up_right': 'The character is walking backward toward the right direction in a back view, showing the back of the head with the neck aligned to the torso and the chin level.',
 }
 
 def generate_pose_transfer_openpose_qwen_frame(output_directory, prompt_file_path, direction_name):
