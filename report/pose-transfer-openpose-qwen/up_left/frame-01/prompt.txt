@@ -1,1 +1,1 @@
-Make the person in image 1 do the exact same pose of the person in image 2. The character is walking toward the up-left direction and looking left.
+Make the person in image 1 do the exact same pose of the person in image 2. The character is walking toward the up-left direction and looking in the walking direction.

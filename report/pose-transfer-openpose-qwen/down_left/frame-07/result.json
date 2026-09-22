@@ -24,8 +24,8 @@
   "weight_offload": "sequential_cpu_offload",
   "torch_version": "2.11.0+cu128",
   "diffusers_version": "0.37.0",
-  "elapsed_seconds": 28.49,
-  "prompt_sha256": "efe5eb7f71e5ff7714d909189c9723809b1987cc348f2d5c6fcbe083cdaf02e8",
+  "elapsed_seconds": 25.74,
+  "prompt_sha256": "0775e81681b977aa00ff228d2f00c9943aea10c03d9de4a5ce2d1df7cb2f4624",
   "input_order": [
     "down_left.png",
     "openpose-reference.png"
@@ -44,7 +44,7 @@
     "kind": "qwen-lightning-openpose-reference-batch",
     "direction": "down_left",
     "batch_file": "generators/animation/config/pose_transfer_two_reference_qwen_default_walk.yaml",
-    "sha256": "efe5eb7f71e5ff7714d909189c9723809b1987cc348f2d5c6fcbe083cdaf02e8"
+    "sha256": "0775e81681b977aa00ff228d2f00c9943aea10c03d9de4a5ce2d1df7cb2f4624"
   },
   "adapters": [
     {
@@ -67,7 +67,7 @@
     },
     {
       "role": "openpose",
-      "path": "/home/cbsim/ws/slime-workflow/.tmp/pose-transfer-openpose-qwen/2026-09-22_17-32-56/down_left/frame-07/openpose-reference.png",
+      "path": "/home/cbsim/ws/slime-workflow/.tmp/pose-transfer-openpose-qwen/2026-09-22_17-55-01/down_left/frame-07/openpose-reference.png",
       "sha256": "e68c2469b57224c3fb94ecf79c054adf8b18c2993035ab03e6b910357fc214f5"
     }
   ]
