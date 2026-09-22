@@ -55,7 +55,6 @@ OpenPose와 리그는 서로 대체되지 않는 독립 포즈 참조 조건이�
 AnyPose 없이 Lightning LoRA만 사용하는 전용 생성기는 다음 파일이다.
 
 ```text
-generators/animation/generate_pose_transfer_rig_qwen.py
 generators/animation/generate_pose_transfer_openpose_qwen.py
 ```
 
@@ -67,7 +66,7 @@ Make the person in image 1 do the exact same pose of the person in image 2.
 
 두 실행기는 4스텝 Lightning 경로를 사용하며, 모델·LoRA·스텝·시드·입력 순서·입력 해시·출력 해시를 `result.json`과 실행 로그에 남긴다. 리그와 OpenPose 결과는 동일 프레임 번호로 별도 검수한다.
 
-두 단일 프레임 함수는 각각 `generate_pose_transfer_rig_qwen_frame(...)`과 `generate_pose_transfer_openpose_qwen_frame(...)`이며 다른 워크플로 노드에서 라이브러리로 호출할 수 있다. CLI는 이 함수를 감싸는 얇은 실행기이며, 모델·LoRA 선택을 외부 입력으로 받지 않는다.
+OpenPose 단일 프레임 함수 `generate_pose_transfer_openpose_qwen_frame(...)`은 다른 워크플로 노드에서 라이브러리로 호출할 수 있다. 모델·LoRA 선택은 외부 입력으로 받지 않는다.
 
 ### 32프레임 배치
 
@@ -82,7 +81,7 @@ generators/animation/config/pose_transfer_two_reference_qwen_default_walk.yaml
 ```bash
 .venv/bin/python generators/animation/run_pose_transfer_two_reference_qwen_batch.py \
   --batch-file generators/animation/config/pose_transfer_two_reference_qwen_default_walk.yaml \
-  --reference-kind rig --output-dir .tmp/pose-transfer-rig-qwen/<한국시간 실행일시>
+  --output-dir .tmp/pose-transfer-openpose-qwen/<한국시간 실행일시>
 ```
 
 결과는 지정한 실행일시 폴더 아래 방향·프레임별 폴더에 저장한다. 리그 조건과 OpenPose 조건은 각각 별도 실행한다. 각 프레임은 캐릭터·포즈 참조, `prompt.txt`, `result.png`, `result.json`, `execution.log`를 가지며 배치 전체에는 `batch-result.yaml`을 남긴다.

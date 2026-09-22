@@ -117,13 +117,13 @@ python3 tools/review/serve.py --walking .tmp/걷기실행폴더 --standing .tmp/
 
 ## 걷기 오류 프레임 해결
 
-리그 참조에서 다리 연결이 뒤바뀌는 프레임은 [캐릭터 애니메이션 생성 규칙](workflows/character-animation.md)의 오류 프레임 재생성·정규화 절차를 따른다. Qwen에는 캐릭터 방향 크롭과 리그·OpenPose를, 이미지젠에는 검수된 포즈와 2×2 베이스라인 전체를 전달한다.
+리그 참조에서 다리 연결이 뒤바뀌는 프레임은 [캐릭터 애니메이션 생성 규칙](workflows/character-animation.md)의 오류 프레임 재생성·정규화 절차를 따른다. Qwen에는 캐릭터 방향 크롭과 OpenPose를, 이미지젠에는 검수된 포즈와 2×2 베이스라인 전체를 전달한다.
 
 [캐릭터 애니메이션 생성 규칙](workflows/character-animation.md)은 리그/OpenPose 독립 참조, 기본 포즈 프롬프트, Qwen 생성, AnyPose 오류 프레임 재생성을 함께 정의한다.
 
 [캐릭터 애니메이션 생성 규칙](workflows/character-animation.md)을 캐릭터 애니메이션의 상위 제작 절차로 사용한다. 포즈 적용부터 외형 복원·시트 통합까지 실행을 연결하고 검수 근거로 다음 버전을 개선한다.
 
-[AnyPose 오류 프레임 재생성](workflows/character-animation.md): 고정 어댑터 해시 검증, 방향별 리그 참조, 4스텝 실행기를 제공한다.
+[AnyPose 오류 프레임 재생성](workflows/character-animation.md): 고정 어댑터 해시 검증, 방향별 리그 참조, 4스텝 실행기를 제공한다. Qwen 포즈 전환은 OpenPose 참조 경로를 사용한다.
 
 [Qwen 맵 타일 생성 워크플로우](workflows/map-tile-generation.md): 맵 타일은 Qwen으로 생성하고, 반복 이음새·역할·알파·결정적 패킹을 검수한다. 이미지젠은 타일 기본 경로에 사용하지 않는다.
 
