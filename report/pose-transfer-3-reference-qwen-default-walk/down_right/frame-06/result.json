@@ -1,0 +1,80 @@
+{
+  "status": "completed",
+  "model_id": "Qwen/Qwen-Image-Edit-2511",
+  "revision": "6f3ccc0b56e431dc6a0c2b2039706d7d26f22cb9",
+  "size": [
+    512,
+    512
+  ],
+  "reference_vae_size": [
+    512,
+    512
+  ],
+  "reference_condition_size": [
+    384,
+    384
+  ],
+  "steps": 4,
+  "seed": 10107,
+  "true_cfg_scale": 1.0,
+  "guidance_scale": 1.0,
+  "lightning_lora": true,
+  "dtype": "bfloat16",
+  "execution_device": "cuda",
+  "weight_offload": "sequential_cpu_offload",
+  "torch_version": "2.11.0+cu128",
+  "diffusers_version": "0.37.0",
+  "elapsed_seconds": 35.68,
+  "prompt_sha256": "97dc97a50d53eaa9e3b3d069db97448fcf05e09c1dbd295a646e55d38c17c59c",
+  "input_order": [
+    "character-reference.png",
+    "rig-reference.png",
+    "openpose-reference.png"
+  ],
+  "input_sha256": {
+    "character-reference.png": "482bff347dbe35fb319728a9281763da9de8411910b852dded9ac5dcde6cac18",
+    "rig-reference.png": "689d90be1d948726dff96aa0875d278a90a1375949317368c5980db0ae04c7c9",
+    "openpose-reference.png": "c89be842d6c1810c24315e0a5de2dfd19af2075a1d85d877bbb1cb6269bd8080"
+  },
+  "quality_warnings": [
+    "실험 결과의 최종 품질 승인이 필요합니다."
+  ],
+  "output": "result.png",
+  "pose_reference_kind": "rig",
+  "reference_order": "standing-first",
+  "prompt_source": {
+    "kind": "yaml-batch",
+    "batch_file": "generators/animation/config/pose_transfer_3_reference_qwen_default_walk.yaml",
+    "sha256": "97dc97a50d53eaa9e3b3d069db97448fcf05e09c1dbd295a646e55d38c17c59c"
+  },
+  "adapters": [
+    {
+      "name": "lightning",
+      "repository": "lightx2v/Qwen-Image-Edit-2511-Lightning",
+      "revision": "d74eba145674fd7e31b949324e148e21e7118abd",
+      "filename": "Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors",
+      "sha256": "22226e8d05d354bb356627d428809f5afd7819399b077238a2b70a82883a904f",
+      "size": 849608296,
+      "strength": 1.0,
+      "path": "/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lightx2v--Qwen-Image-Edit-2511-Lightning/d74eba145674fd7e31b949324e148e21e7118abd/Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors"
+    }
+  ],
+  "execution_preset": "qwen-lightning-multi-reference-v1",
+  "input_references": [
+    {
+      "role": "character",
+      "path": "/home/cbsim/ws/slime-workflow/.tmp/pose-transfer-3-reference-qwen-default-walk/down_right/frame-06/character-reference.png",
+      "sha256": "482bff347dbe35fb319728a9281763da9de8411910b852dded9ac5dcde6cac18"
+    },
+    {
+      "role": "rig",
+      "path": "/home/cbsim/ws/slime-workflow/.tmp/pose-transfer-3-reference-qwen-default-walk/down_right/frame-06/rig-reference.png",
+      "sha256": "689d90be1d948726dff96aa0875d278a90a1375949317368c5980db0ae04c7c9"
+    },
+    {
+      "role": "additional-1",
+      "path": "/home/cbsim/ws/slime-workflow/.tmp/pose-transfer-3-reference-qwen-default-walk/down_right/frame-06/openpose-reference.png",
+      "sha256": "c89be842d6c1810c24315e0a5de2dfd19af2075a1d85d877bbb1cb6269bd8080"
+    }
+  ]
+}
