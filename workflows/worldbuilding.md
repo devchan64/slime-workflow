@@ -149,3 +149,35 @@ GPU 시험은 합성 문서 루트를 별도 설정에 연결해 수행한다. �
 작업은 기존 지속 큐에서 순차 실행한다. 화면을 닫아도 작업은 계속되며 다시 열면 상태와 결과를 확인할 수 있다. 모델의 본문 재작성은 허용하지 않고 원문 ID만 반환하게 한다. 문단 누락·중복, 원문에 없는 색인어, YAML 이동, 보호 파일 변경, 링크 의미 변경, 실행 중 원문 변경은 명시적으로 실패시킨다. 큰 단일 문단이 입력 예산을 넘으면 내용을 잘라내지 않고 중단한다.
 
 완료 시 웹 도서를 자동 생성하고 파일 분해·이동·재배치의 변경 미리보기를 보관한다. 원본 반영은 관리도구의 기존 반영 버튼을 사용하며 되돌리기 저널을 유지한다. 목차와 색인만 바뀌어 원본 변경이 없어도 도서는 생성된다. 모델 입력·응답·진행 로그는 비공개 작업 경로에 저장하며 4초 간격 진행 로그를 남긴다.
+
+## 터미널 도서 편집 실행기
+
+저장소 루트에서 `worldbuilding.py book` 명령을 사용한다. CLI와 웹 관리도구는 `jobs.register_document_job`의 요청 검증·등록, `book_automation.run_automated_book`의 단계 상태·실패 처리, 동일한 GPU·문서 잠금과 편집 파이프라인을 공유한다. 모델 선택 인자는 제공하지 않는다.
+
+```bash
+# 관리하는 두 도서와 연결된 루트 확인
+python3 generators/worldbuilding/worldbuilding.py book list
+
+# 로컬 터미널에서 실행하고 완료까지 기다리기
+python3 generators/worldbuilding/worldbuilding.py book edit --collection world --instruction '내용을 보존하며 목차와 색인을 정리한다.'
+
+# 파일에 적은 지시로 시스템 설계 도서 편집
+python3 generators/worldbuilding/worldbuilding.py book edit --collection system-design --instruction-file /절대경로/편집지시.txt
+
+# 실행 중인 관리도구 큐에 등록하고 즉시 종료
+python3 generators/worldbuilding/worldbuilding.py book edit --collection world --instruction '도시별로 관련 문단을 모아 정리한다.' --submit
+
+# 작업 ID로 상태 및 완료 결과 조회
+python3 generators/worldbuilding/worldbuilding.py book status --task 작업ID
+python3 generators/worldbuilding/worldbuilding.py book result --task 작업ID
+
+# 결과의 파일 변경 미리보기를 검토한 후 반영 또는 되돌리기
+python3 generators/worldbuilding/worldbuilding.py book apply --reorganization 변경ID
+python3 generators/worldbuilding/worldbuilding.py book rollback --reorganization 변경ID
+```
+
+`--config /절대경로/workspace.yaml`은 `book` 다음, 하위 명령 앞에 지정한다. 기본 설정은 `.local/worldbuilding/workspace.yaml`이다. `--instruction-file -`는 표준 입력을 UTF-8 지시로 읽으며 `--instruction`과 동시에 사용할 수 없다.
+
+표준 출력은 결과 JSON 한 개이며 단계·진행 로그는 표준 오류와 `execution.log`에 기록한다. 오류는 0이 아닌 종료 코드, `failure_reason_text`, 추적 로그와 마지막 로그로 확인한다. 실행 중 GPU 단계는 웹과 동일하게 4초 간격으로 진행 상황을 기록한다. 원본 파일은 `edit`만으로 반영하지 않는다.
+
+직접 실행 기록은 비공개 상태의 `book-cli-jobs/<작업ID>/`, 큐 등록은 웹과 같은 `jobs/<작업ID>/`에 보관한다. 직접 실행과 웹 큐를 분리해 같은 작업의 이중 실행을 막으며 도서 판본·변경 미리보기·복구 저널은 공유한다. `status`와 `result`는 두 기록 경로를 모두 조회한다. `--submit`은 관리도구가 실행 중일 때만 허용되며, 등록 후에는 터미널 종료와 독립적으로 관리도구가 실행한다.

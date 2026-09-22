@@ -213,8 +213,8 @@ def execute_document_task(current_config_path,current_task_identifier):
             current_request_values=load_yaml_document(current_run_root/'request.yaml')
             if current_request_values.get('task_kind_name')=='book-edit':
                 sys.path.insert(0,str(worldbuilding.WORKFLOW_REPOSITORY_ROOT))
-                from generators.worldbuilding.book_automation import execute_automated_book
-                execute_automated_book(current_config_values,current_run_root)
+                from generators.worldbuilding.book_automation import run_automated_book
+                run_automated_book(current_config_values,current_run_root)
                 return
             update_task_status(current_run_root,'context')
             with worldbuilding.trace_runtime_progress('context',lambda:'원본 목록·해시·관련 구간 수집 중'):

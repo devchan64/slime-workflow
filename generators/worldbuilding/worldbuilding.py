@@ -242,6 +242,11 @@ def run_worldbuilding_command():
             raise RuntimeError('먼저 python3 generators/worldbuilding/worldbuilding.py prepare를 실행하세요.')
         os.execv(str(RUNTIME_PYTHON_PATH), [str(RUNTIME_PYTHON_PATH), str(Path(__file__).resolve()), *sys.argv[1:]])
     sys.modules["worldbuilding"] = sys.modules[__name__]
+    if len(sys.argv)>1 and sys.argv[1]=='book':
+        sys.path.insert(0,str(WORKFLOW_REPOSITORY_ROOT))
+        from generators.worldbuilding.book_cli import run_book_cli
+        run_book_cli(sys.argv[2:])
+        return
     from runtime import execute_document_command
     execute_document_command()
 

@@ -113,3 +113,19 @@ def execute_automated_book(current_config_values,current_run_root):
     current_book_values=build_document_book(current_config_values,current_book_request)
     save_yaml_document(current_run_root/'book-result.yaml',{'collection_id':current_request_values['collection_id'],'book_values':current_book_values,'preview_values':current_preview_values})
     runtime.update_task_status(current_run_root,'completed',result_summary_text='AI 도서 편집 완료: 웹 도서와 원본 변경 미리보기를 생성했습니다.',book_id=current_book_values['book_id'],reorganization_id=current_preview_values['reorganization_id'])
+
+
+def run_automated_book(current_config_values,current_run_root):
+    """웹·CLI 공통 단계 상태, 실패 원인, 추적 로그를 보존한다."""
+    import traceback
+    import runtime
+    import worldbuilding
+    worldbuilding.CURRENT_LOG_PATH=current_run_root/'execution.log'
+    runtime.update_task_status(current_run_root,'context')
+    try:
+        execute_automated_book(current_config_values,current_run_root)
+    except BaseException as current_execution_error:
+        runtime.update_task_status(current_run_root,'failed',failure_reason_text=str(current_execution_error) or type(current_execution_error).__name__)
+        worldbuilding.emit_runtime_trace('failure',traceback.format_exc())
+        print('\n'.join(worldbuilding.CURRENT_LOG_PATH.read_text().splitlines()[-30:]),flush=True)
+        raise

@@ -75,19 +75,9 @@ class WorldbuildingManagement:
         return {'management_csrf_token':self.management_csrf_token,'runtime_prepared_flag':prepared_manifest_path.exists() and (WORKFLOW_REPOSITORY_ROOT/'.model/worldbuilding/Qwen3-Embedding-0.6B-Q8_0.gguf').exists(),'runtime_prepare_status':self.current_prepare_status,'worker_failure_text':self.worker_failure_text,'runtime_prepare_log':prepare_log_text,'source_document_root':self.workspace_config_values['source_document_root'],'allowed_write_roots':self.workspace_config_values['allowed_write_roots'],'primary_document_roots':[str(Path(self.workspace_config_values['source_document_root'])/current_write_root) for current_write_root in self.workspace_config_values['allowed_write_roots']],'workflow_job_entries':current_job_entries}
 
     def submit_document_request(self,current_request_values):
-        if current_request_values.get('task_kind_name')=='book-edit':
-            from .book_automation import AUTOMATION_REQUEST_SCHEMA
-            from .book_collections import resolve_collection_request
-            Draft202012Validator(AUTOMATION_REQUEST_SCHEMA).validate(current_request_values)
-            resolve_collection_request(self.workspace_config_values,current_request_values)
-        else:
-            Draft202012Validator(REQUEST_INPUT_SCHEMA).validate(current_request_values)
-        current_task_identifier=datetime.now(ZoneInfo('Asia/Seoul')).strftime('%Y%m%d-%H%M%S-')+uuid.uuid4().hex[:8]
-        current_run_root=self.private_state_root/'jobs'/current_task_identifier
-        current_run_root.mkdir(mode=0o700)
-        save_yaml_document(current_run_root/'request.yaml',current_request_values)
-        save_yaml_document(current_run_root/'status.yaml',{'workflow_task_id':current_task_identifier,'current_stage_name':'queued','updated_timestamp_text':datetime.now(ZoneInfo('Asia/Seoul')).isoformat()})
-        return {'workflow_task_id':current_task_identifier}
+        from .jobs import register_document_job
+        current_run_root=register_document_job(self.workspace_config_values,current_request_values)
+        return {'workflow_task_id':current_run_root.name}
 
     def process_pending_jobs(self):
         try:
