@@ -2,6 +2,11 @@ schema_version: 1
 reference_kind: openpose
 steps: 4
 frame_count: 32
+directions:
+- down_left
+- down_right
+- up_left
+- up_right
 status: completed
 frames:
 - direction: down_left

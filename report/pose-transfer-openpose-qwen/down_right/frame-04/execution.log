@@ -1,15 +1,15 @@
-2026-09-22 18:00:33,672/qwen-pose/reference vae_size=512x512 output_size=512x512 condition_size=384x384
-2026-09-22 18:00:33,672/qwen-pose/reference order=['character', 'openpose'] kind=openpose
-2026-09-22 18:00:34,655/qwen-pose/load model_id=Qwen/Qwen-Image-Edit-2511 model_path=/home/cbsim/ws/slime-workflow/.model/qwen-image-edit-2511/6f3ccc0b56e431dc6a0c2b2039706d7d26f22cb9
-2026-09-22 18:00:36,240/qwen-pose/adapter name=lightning strength=1.0 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lightx2v--Qwen-Image-Edit-2511-Lightning/d74eba145674fd7e31b949324e148e21e7118abd/Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors
-2026-09-22 18:00:37,077/qwen-pose/inference size=512x512 steps=4 seed=10107 device=cuda dtype=bfloat16 offload=sequential
-2026-09-22 18:00:38,697/qwen-pose/heartbeat stage=inference step=0/4 elapsed=5s gpu=3033 MiB, 57 % log_bytes=767
-2026-09-22 18:00:43,722/qwen-pose/heartbeat stage=inference step=0/4 elapsed=10s gpu=1251 MiB, 60 % log_bytes=880
-2026-09-22 18:00:44,994/qwen-pose/denoise step=1/4
-2026-09-22 18:00:48,746/qwen-pose/heartbeat stage=inference step=1/4 elapsed=15s gpu=1233 MiB, 77 % log_bytes=1045
-2026-09-22 18:00:49,720/qwen-pose/denoise step=2/4
-2026-09-22 18:00:53,770/qwen-pose/heartbeat stage=inference step=2/4 elapsed=20s gpu=1143 MiB, 77 % log_bytes=1211
-2026-09-22 18:00:54,456/qwen-pose/denoise step=3/4
-2026-09-22 18:00:58,793/qwen-pose/heartbeat stage=inference step=3/4 elapsed=25s gpu=1143 MiB, 75 % log_bytes=1377
-2026-09-22 18:00:59,306/qwen-pose/denoise step=4/4
-2026-09-22 18:00:59,774/qwen-pose/complete output=/home/cbsim/ws/slime-workflow/.tmp/pose-transfer-openpose-qwen/2026-09-22_17-55-01/down_right/frame-04/result.png
+2026-09-22 19:20:49,150/qwen-pose/reference vae_size=512x512 output_size=512x512 condition_size=384x384
+2026-09-22 19:20:49,150/qwen-pose/reference order=['character', 'openpose'] kind=openpose
+2026-09-22 19:20:50,278/qwen-pose/load model_id=Qwen/Qwen-Image-Edit-2511 model_path=/home/cbsim/ws/slime-workflow/.model/qwen-image-edit-2511/6f3ccc0b56e431dc6a0c2b2039706d7d26f22cb9
+2026-09-22 19:20:50,943/qwen-pose/adapter name=lightning strength=1.0 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lightx2v--Qwen-Image-Edit-2511-Lightning/d74eba145674fd7e31b949324e148e21e7118abd/Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors
+2026-09-22 19:20:54,252/qwen-pose/heartbeat stage=adapters step=0/4 elapsed=5s gpu=924 MiB, 0 % log_bytes=645
+2026-09-22 19:20:54,338/qwen-pose/inference size=512x512 steps=4 seed=10107 device=cuda dtype=bfloat16 offload=sequential
+2026-09-22 19:20:59,276/qwen-pose/heartbeat stage=inference step=0/4 elapsed=10s gpu=1288 MiB, 59 % log_bytes=877
+2026-09-22 19:21:02,260/qwen-pose/denoise step=1/4
+2026-09-22 19:21:04,299/qwen-pose/heartbeat stage=inference step=1/4 elapsed=15s gpu=1268 MiB, 78 % log_bytes=1042
+2026-09-22 19:21:06,996/qwen-pose/denoise step=2/4
+2026-09-22 19:21:09,321/qwen-pose/heartbeat stage=inference step=2/4 elapsed=20s gpu=1250 MiB, 79 % log_bytes=1208
+2026-09-22 19:21:11,736/qwen-pose/denoise step=3/4
+2026-09-22 19:21:14,345/qwen-pose/heartbeat stage=inference step=3/4 elapsed=25s gpu=1290 MiB, 77 % log_bytes=1374
+2026-09-22 19:21:16,482/qwen-pose/denoise step=4/4
+2026-09-22 19:21:16,960/qwen-pose/complete output=/home/cbsim/ws/slime-workflow/.tmp/pose-transfer-openpose-qwen/2026-09-22_19-15-14/down_right/frame-04/result.png

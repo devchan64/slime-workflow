@@ -24,7 +24,7 @@
   "weight_offload": "sequential_cpu_offload",
   "torch_version": "2.11.0+cu128",
   "diffusers_version": "0.37.0",
-  "elapsed_seconds": 26.1,
+  "elapsed_seconds": 27.81,
   "prompt_sha256": "784c66bc751991afcd0c94b693cd0d96f5ebea5c8ce70f9571c00a21174b434b",
   "input_order": [
     "down_right.png",
@@ -67,7 +67,7 @@
     },
     {
       "role": "openpose",
-      "path": "/home/cbsim/ws/slime-workflow/.tmp/pose-transfer-openpose-qwen/2026-09-22_17-55-01/down_right/frame-04/openpose-reference.png",
+      "path": "/home/cbsim/ws/slime-workflow/.tmp/pose-transfer-openpose-qwen/2026-09-22_19-15-14/down_right/frame-04/openpose-reference.png",
       "sha256": "5c82997f8b50b48e4dcc9703d614a66987759e3f1ea7bf48c9ff1318928413fe"
     }
   ]
