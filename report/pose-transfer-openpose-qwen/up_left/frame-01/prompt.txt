@@ -1,1 +1,0 @@
-Make the person in image 1 do the exact same pose of the person in image 2. The character is facing up-left.
