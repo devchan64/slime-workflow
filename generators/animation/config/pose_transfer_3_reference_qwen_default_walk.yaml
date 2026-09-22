@@ -1,0 +1,16 @@
+schema_version: 1
+prompt_file: generators/animation/config/pose_transfer_3_reference_qwen_prompt.txt
+output_root: .tmp/pose-transfer-3-reference-qwen
+references:
+  baseline_root: assets/animation-references/character-default/baseline-v2
+  rig_root: assets/rig-sheets/five-head-walk-8f/v2
+  openpose_root: assets/animation-references/character-default/openpose-walk-v1
+jobs:
+  - direction: down_left
+    frame_numbers: [1, 2, 3, 4, 5, 6, 7, 8]
+  - direction: down_right
+    frame_numbers: [1, 2, 3, 4, 5, 6, 7, 8]
+  - direction: up_left
+    frame_numbers: [1, 2, 3, 4, 5, 6, 7, 8]
+  - direction: up_right
+    frame_numbers: [1, 2, 3, 4, 5, 6, 7, 8]

@@ -1,0 +1,22 @@
+schema_version: 1
+character_id: default
+baseline_source:
+  path: /home/cbsim/ws/slime-frontend/src/assets/characters/default/baseline/character-default-white-shirt-four-directions-v2.png
+  sha256: 9a425eaa116c4d99ffe66b2db2196a8432be2701ace86bfd652ad76e364cfe98
+baseline_crops:
+  root: baseline-v2
+  cell_size: [512, 512]
+  files:
+    down_left: ca54ff405f6f9d374ffc316bf3d47f2f7403efa9f578ae2f5f1604d0d0bd31ec
+    down_right: 482bff347dbe35fb319728a9281763da9de8411910b852dded9ac5dcde6cac18
+    up_left: bd6d30381084d97d58a423f799631ee845a5d75b254d5afda69ac5f2ac11c284
+    up_right: 2aecc2b5139cd538d25eb1552adada2086dc16e7b277fd3fb8b2d1f3a608b6db
+openpose_sheets:
+  root: openpose-walk-v1
+  sheet_size: [2048, 1024]
+  cell_size: [512, 512]
+  files:
+    down_left: b2f7c39c5271aaff3f524d16530a200d2b930185894555b305cc2f25c843e874
+    down_right: b96a2f6272580eb4ead00830774fc2c958a0076d16928543ae5e938d44394ee5
+    up_left: 7d766fff92d6c0b2a9c242f6d5ebbc453d914ddf657071c5cd3c630e549bae3d
+    up_right: 0b44f94b7c5b725b5b80d413a36b837b6102f85d78178b1de6e15965a31ff4cf
