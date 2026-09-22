@@ -1,0 +1,18 @@
+2026-09-22 17:48:12,821/qwen-pose/reference vae_size=512x512 output_size=512x512 condition_size=384x384
+2026-09-22 17:48:12,821/qwen-pose/reference order=['character', 'openpose'] kind=openpose
+2026-09-22 17:48:16,967/qwen-pose/load model_id=Qwen/Qwen-Image-Edit-2511 model_path=/home/cbsim/ws/slime-workflow/.model/qwen-image-edit-2511/6f3ccc0b56e431dc6a0c2b2039706d7d26f22cb9
+2026-09-22 17:48:17,960/qwen-pose/heartbeat stage=load step=0/4 elapsed=5s gpu=1010 MiB, 0 % log_bytes=378
+2026-09-22 17:48:18,980/qwen-pose/adapter name=lightning strength=1.0 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lightx2v--Qwen-Image-Edit-2511-Lightning/d74eba145674fd7e31b949324e148e21e7118abd/Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors
+2026-09-22 17:48:19,961/qwen-pose/inference size=512x512 steps=4 seed=10107 device=cuda dtype=bfloat16 offload=sequential
+2026-09-22 17:48:22,984/qwen-pose/heartbeat stage=inference step=0/4 elapsed=10s gpu=1996 MiB, 24 % log_bytes=874
+2026-09-22 17:48:28,008/qwen-pose/heartbeat stage=inference step=0/4 elapsed=15s gpu=1154 MiB, 23 % log_bytes=988
+2026-09-22 17:48:33,034/qwen-pose/heartbeat stage=inference step=0/4 elapsed=20s gpu=1230 MiB, 11 % log_bytes=1102
+2026-09-22 17:48:38,054/qwen-pose/heartbeat stage=inference step=0/4 elapsed=25s gpu=1262 MiB, 37 % log_bytes=1217
+2026-09-22 17:48:40,737/qwen-pose/denoise step=1/4
+2026-09-22 17:48:43,077/qwen-pose/heartbeat stage=inference step=1/4 elapsed=30s gpu=1306 MiB, 78 % log_bytes=1383
+2026-09-22 17:48:45,508/qwen-pose/denoise step=2/4
+2026-09-22 17:48:48,102/qwen-pose/heartbeat stage=inference step=2/4 elapsed=35s gpu=1264 MiB, 78 % log_bytes=1549
+2026-09-22 17:48:50,245/qwen-pose/denoise step=3/4
+2026-09-22 17:48:53,126/qwen-pose/heartbeat stage=inference step=3/4 elapsed=40s gpu=1154 MiB, 74 % log_bytes=1715
+2026-09-22 17:48:55,046/qwen-pose/denoise step=4/4
+2026-09-22 17:48:55,530/qwen-pose/complete output=/home/cbsim/ws/slime-workflow/.tmp/pose-transfer-openpose-qwen/2026-09-22_17-32-56/up_right/frame-07/result.png
