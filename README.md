@@ -30,9 +30,9 @@
 
 ## 캐릭터 기준 시트
 
-걷기 이미지젠의 동작 참조 원본은 셰이딩을 보강한 리그 8프레임 시트다. 이미지젠은 [최소 사용 정책](workflows/imagegen-usage-policy.md)에 따라 포즈 검수를 통과한 선택 프레임에만 사용한다. 호출당 최대 4프레임만 생성하며, 1–4번·5–8번 리그를 각각 2×2 참조로 나누어 생성한 뒤 4방향 총 32프레임을 최종 4×4 시트 두 장으로 통합한다. [최종 시트 패킹](workflows/character-animation-export.md)은 최소 3×3 배열을 기준으로 전체 방향을 묶는다. `assets/pose-sheets/five-head-walk-8f/v1/`의 OpenPose 시트는 비교 자료로 유지한다. `generators/animation/build_walk_pose_sheets.py`가 렌더 실행 폴더의 8프레임 포즈를 묶고 출처·파일 해시를 기록한다.
+걷기 이미지젠의 동작 참조 원본은 셰이딩을 보강한 리그 8프레임 시트다. 이미지젠은 [최소 사용 정책](workflows/imagegen-usage-policy.md)에 따라 포즈 검수를 통과한 선택 프레임에만 사용한다. 호출당 최대 4프레임만 생성하며, 1–4번·5–8번 리그를 각각 2×2 참조로 나누어 생성한 뒤 4방향 총 32프레임을 최종 4×4 시트 두 장으로 통합한다. 전체 생성·검수·정규화·시트 패킹 규칙은 [캐릭터 애니메이션 생성 규칙](workflows/character-animation.md)에 따른다. `assets/pose-sheets/five-head-walk-8f/v1/`의 OpenPose 시트는 비교 자료로 유지한다. `generators/animation/build_walk_pose_sheets.py`가 렌더 실행 폴더의 8프레임 포즈를 묶고 출처·파일 해시를 기록한다.
 
-[캐릭터 생성·4방향 기준 시트 통합 절차](workflows/character-baseline-sheet.md)는 신규 캐릭터를 최대 지원 크기의 2×2 베이스라인으로 한 번에 생성한다. 단일 원화 생성 후 시트로 재생성하는 단계를 기본 경로에서 제거했다. 최종 캐릭터 애니메이션은 2×2 시트를 외형 기준으로 사용하며, 이미지젠은 Qwen·리그 포즈 검수를 통과한 선택 프레임의 외형 복구에만 사용한다.
+[캐릭터 애니메이션 생성 규칙](workflows/character-animation.md)은 신규 캐릭터의 2×2 베이스라인과 최종 애니메이션 생성·검수·정규화를 함께 정의한다. 단일 원화 생성 후 시트로 재생성하는 단계를 기본 경로에서 제거했다.
 
 [스탠딩 시트 제작 절차](workflows/character-standing-sheet.md)는 승인된 2×2 베이스라인 시트 전체를 참조하여 방향별 4프레임의 4×1 소스 시트 4장을 생성하고 최종 프론트엔드 전달 시에는 16프레임을 4×4 한 장으로 패킹한다. 호출당 최대 4프레임 기준을 적용하고 입력 베이스라인 셀과 출력 방향의 대응을 명시한다. 정식 에셋 교체는 사용자 채택 후 수행한다.
 
@@ -117,13 +117,13 @@ python3 tools/review/serve.py --walking .tmp/걷기실행폴더 --standing .tmp/
 
 ## 걷기 오류 프레임 해결
 
-리그 참조에서 다리 연결이 뒤바뀌는 프레임은 [Qwen 포즈 변경·이미지젠 아이덴티티 복원·시트 교체](workflows/character-pose-repair.md)를 따른다. Qwen에는 캐릭터 방향 크롭과 리그 렌더를, 이미지젠에는 Qwen 포즈와 2×2 베이스라인 전체를 전달한다. 채택 원본을 보존하고 시트용 사본을 균일 리사이즈하여 실제 셀까지 교체한다.
+리그 참조에서 다리 연결이 뒤바뀌는 프레임은 [캐릭터 애니메이션 생성 규칙](workflows/character-animation.md)의 오류 프레임 재생성·정규화 절차를 따른다. Qwen에는 캐릭터 방향 크롭과 리그·OpenPose를, 이미지젠에는 검수된 포즈와 2×2 베이스라인 전체를 전달한다.
 
-[Qwen 포즈 편집 라이브러리](workflows/qwen-pose-library.md)는 리그/OpenPose 참조를 구분하며 기준 포즈 프롬프트와 옵션 지시를 버전별 프로필에서 조합한다.
+[캐릭터 애니메이션 생성 규칙](workflows/character-animation.md)은 리그/OpenPose 참조, 기본 포즈 프롬프트, 3참조 Qwen, AnyPose 오류 프레임 재생성을 함께 정의한다.
 
-[이미지젠·Qwen 조합 및 생성 기록 관리](workflows/character-generation-records.md)를 캐릭터 애니메이션의 상위 제작 절차로 사용한다. 포즈 적용부터 외형 복원·시트 통합까지 실행을 연결하고 검수 근거로 다음 버전을 개선한다.
+[캐릭터 애니메이션 생성 규칙](workflows/character-animation.md)을 캐릭터 애니메이션의 상위 제작 절차로 사용한다. 포즈 적용부터 외형 복원·시트 통합까지 실행을 연결하고 검수 근거로 다음 버전을 개선한다.
 
-[AnyPose LoRA 준비·생성](workflows/qwen-anypose.md): 고정 어댑터 해시 검증, 리그 참조, 4스텝 전용 실행기를 제공한다.
+[AnyPose 오류 프레임 재생성](workflows/character-animation.md): 고정 어댑터 해시 검증, 방향별 리그 참조, 4스텝 실행기를 제공한다.
 
 [Qwen 맵 타일 생성 워크플로우](workflows/map-tile-generation.md): 맵 타일은 Qwen으로 생성하고, 반복 이음새·역할·알파·결정적 패킹을 검수한다. 이미지젠은 타일 기본 경로에 사용하지 않는다.
 
