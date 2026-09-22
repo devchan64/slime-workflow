@@ -72,9 +72,11 @@ def crop_reference_sheet_cell(source_sheet_path, direction_value, frame_number_v
         source_sheet_image.crop(cell_box_values).convert('RGB').save(destination_path)
 
 
-def execute_pose_transfer_batch_generation(batch_definition_path, run_output_root=None, generation_mode='three-reference-qwen'):
+def execute_pose_transfer_batch_generation(batch_definition_path, run_output_root=None, generation_mode='three-reference-qwen', selected_inference_steps=4):
     if generation_mode not in ('three-reference-qwen', 'anypose-lightning'):
         raise ValueError('지원하지 않는 배치 생성 모드입니다.')
+    if selected_inference_steps not in (4, 10, 20, 30):
+        raise ValueError('배치 steps는 4, 10, 20, 30만 허용합니다.')
     batch_values, expanded_job_values = load_batch_definition_file(batch_definition_path)
     prompt_file_path = resolve_relative_workflow_path(batch_values['prompt_file'], 'prompt_file')
     output_root_base_value = resolve_relative_workflow_path(batch_values['output_root'], 'output_root')
@@ -113,7 +115,7 @@ def execute_pose_transfer_batch_generation(batch_definition_path, run_output_roo
                 white_background_image = Image.new('RGBA', character_reference_image.size, (255, 255, 255, 255))
                 character_reference_image = Image.alpha_composite(white_background_image, character_reference_image)
             character_reference_image.convert('RGB').save(character_reference_copy_path)
-        generation_arguments = {'trial_output_root': frame_output_root, 'prompt_text_value': prompt_source_text, 'character_image_path': character_reference_copy_path, 'pose_reference_path': rig_reference_path, 'pose_reference_kind': 'rig', 'selected_reference_order': 'standing-first', 'selected_inference_steps': 4, 'prompt_source_record': {'kind': 'yaml-batch', 'batch_file': str(batch_definition_path.relative_to(WORKFLOW_REPOSITORY_ROOT)), 'sha256': hashlib.sha256(prompt_source_text.encode()).hexdigest()}}
+        generation_arguments = {'trial_output_root': frame_output_root, 'prompt_text_value': prompt_source_text, 'character_image_path': character_reference_copy_path, 'pose_reference_path': rig_reference_path, 'pose_reference_kind': 'rig', 'selected_reference_order': 'standing-first', 'selected_inference_steps': selected_inference_steps, 'prompt_source_record': {'kind': 'yaml-batch', 'batch_file': str(batch_definition_path.relative_to(WORKFLOW_REPOSITORY_ROOT)), 'sha256': hashlib.sha256(prompt_source_text.encode()).hexdigest()}}
         if generation_mode == 'three-reference-qwen':
             generation_arguments.update(additional_reference_paths=(openpose_reference_path,), enable_anypose_adapter=False, enable_lightning_adapter=True, enable_standalone_lightning_adapter=True)
         else:
@@ -130,8 +132,9 @@ def run_pose_transfer_batch_command():
     argument_parser.add_argument('--batch-file', type=Path, required=True)
     argument_parser.add_argument('--output-dir', type=Path)
     argument_parser.add_argument('--mode', choices=('three-reference-qwen', 'anypose-lightning'), default='three-reference-qwen')
+    argument_parser.add_argument('--steps', type=int, choices=(4, 10, 20, 30), default=4)
     parsed_arguments = argument_parser.parse_args()
-    execute_pose_transfer_batch_generation(parsed_arguments.batch_file.resolve(), parsed_arguments.output_dir, parsed_arguments.mode)
+    execute_pose_transfer_batch_generation(parsed_arguments.batch_file.resolve(), parsed_arguments.output_dir, parsed_arguments.mode, parsed_arguments.steps)
 
 
 if __name__ == '__main__':
