@@ -9,6 +9,7 @@ import yaml
 from PIL import Image
 from qwen_pose import execute_pose_generation
 from qwen_pose.prompts import UniqueKeySafeLoader
+from generate_pose_transfer_openpose_qwen import DIRECTION_POSE_INSTRUCTIONS
 
 WORKFLOW_REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 DIRECTIONS = ('down_left', 'down_right', 'up_left', 'up_right')
@@ -54,7 +55,7 @@ def execute_openpose_qwen_batch(batch_file_path, output_directory):
     values, jobs = load_two_reference_batch_definition(batch_file_path)
     prompt_path = resolve_workflow_relative_path(values['prompt_file'])
     reference_roots = {key: resolve_workflow_relative_path(value) for key, value in values['references'].items()}
-    prompt_text = prompt_path.read_text(encoding='utf-8').strip()
+    prompt_source_text = prompt_path.read_text(encoding='utf-8').strip()
     output_root = Path(output_directory).resolve()
     if not output_root.is_relative_to((WORKFLOW_REPOSITORY_ROOT / '.tmp').resolve()):
         raise ValueError('출력은 .tmp 아래여야 합니다.')
@@ -67,7 +68,8 @@ def execute_openpose_qwen_batch(batch_file_path, output_directory):
         character_path = reference_roots['baseline_root'] / f'{direction}.png'
         pose_path = frame_root / 'openpose-reference.png'
         crop_sheet_frame(reference_roots['openpose_root'] / f'{direction}.png', frame, pose_path)
-        result = execute_pose_generation(trial_output_root=frame_root, prompt_text_value=prompt_text, character_image_path=character_path, pose_reference_path=pose_path, pose_reference_kind='openpose', selected_reference_order='standing-first', selected_inference_steps=4, prompt_source_record={'kind': 'qwen-lightning-openpose-reference-batch', 'batch_file': str(batch_file_path.relative_to(WORKFLOW_REPOSITORY_ROOT)), 'sha256': hashlib.sha256(prompt_text.encode()).hexdigest()}, enable_anypose_adapter=False, enable_lightning_adapter=True, enable_standalone_lightning_adapter=True)
+        prompt_text = f'{prompt_source_text} {DIRECTION_POSE_INSTRUCTIONS[direction]}'
+        result = execute_pose_generation(trial_output_root=frame_root, prompt_text_value=prompt_text, character_image_path=character_path, pose_reference_path=pose_path, pose_reference_kind='openpose', selected_reference_order='standing-first', selected_inference_steps=4, prompt_source_record={'kind': 'qwen-lightning-openpose-reference-batch', 'direction': direction, 'batch_file': str(batch_file_path.relative_to(WORKFLOW_REPOSITORY_ROOT)), 'sha256': hashlib.sha256(prompt_text.encode()).hexdigest()}, enable_anypose_adapter=False, enable_lightning_adapter=True, enable_standalone_lightning_adapter=True)
         results.append({'direction': direction, 'frame': frame, 'status': result['status'], 'output': str(frame_root.relative_to(output_root))})
         print(f'{datetime.now(ZoneInfo("Asia/Seoul")).isoformat()}/qwen-openpose-batch/complete {index}/32', flush=True)
     (output_root / 'batch-result.yaml').write_text(yaml.safe_dump({'schema_version': 1, 'reference_kind': 'openpose', 'steps': 4, 'frame_count': 32, 'status': 'completed', 'frames': results}, allow_unicode=True, sort_keys=False), encoding='utf-8')
