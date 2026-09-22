@@ -24,7 +24,7 @@
   "weight_offload": "sequential_cpu_offload",
   "torch_version": "2.11.0+cu128",
   "diffusers_version": "0.37.0",
-  "elapsed_seconds": 31.46,
+  "elapsed_seconds": 31.71,
   "prompt_sha256": "97dc97a50d53eaa9e3b3d069db97448fcf05e09c1dbd295a646e55d38c17c59c",
   "input_order": [
     "character-reference.png",
@@ -32,7 +32,7 @@
     "openpose-reference.png"
   ],
   "input_sha256": {
-    "character-reference.png": "bd6d30381084d97d58a423f799631ee845a5d75b254d5afda69ac5f2ac11c284",
+    "character-reference.png": "a9e28c979a2ae26738af5cd1a9047c77c77b0f878b096cd16cb9c695e932e569",
     "rig-reference.png": "1bfaeefc57e9281b73582b25602f1525af9bfb2163e93b80210dd42a8abc5e49",
     "openpose-reference.png": "164ec9c9c019540d33ee132f5f080aee32f1e36507ca251426abccd8e5dc5e18"
   },
@@ -63,17 +63,17 @@
   "input_references": [
     {
       "role": "character",
-      "path": "/home/cbsim/ws/slime-workflow/.tmp/pose-transfer-3-reference-qwen-default-walk/up_left/frame-08/character-reference.png",
-      "sha256": "bd6d30381084d97d58a423f799631ee845a5d75b254d5afda69ac5f2ac11c284"
+      "path": "/home/cbsim/ws/slime-workflow/.tmp/pose-transfer-3-reference-qwen/2026-09-22_10-14-37/up_left/frame-08/character-reference.png",
+      "sha256": "a9e28c979a2ae26738af5cd1a9047c77c77b0f878b096cd16cb9c695e932e569"
     },
     {
       "role": "rig",
-      "path": "/home/cbsim/ws/slime-workflow/.tmp/pose-transfer-3-reference-qwen-default-walk/up_left/frame-08/rig-reference.png",
+      "path": "/home/cbsim/ws/slime-workflow/.tmp/pose-transfer-3-reference-qwen/2026-09-22_10-14-37/up_left/frame-08/rig-reference.png",
       "sha256": "1bfaeefc57e9281b73582b25602f1525af9bfb2163e93b80210dd42a8abc5e49"
     },
     {
       "role": "additional-1",
-      "path": "/home/cbsim/ws/slime-workflow/.tmp/pose-transfer-3-reference-qwen-default-walk/up_left/frame-08/openpose-reference.png",
+      "path": "/home/cbsim/ws/slime-workflow/.tmp/pose-transfer-3-reference-qwen/2026-09-22_10-14-37/up_left/frame-08/openpose-reference.png",
       "sha256": "164ec9c9c019540d33ee132f5f080aee32f1e36507ca251426abccd8e5dc5e18"
     }
   ]

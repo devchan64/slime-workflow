@@ -7,10 +7,10 @@ baseline_crops:
   root: baseline-v2
   cell_size: [512, 512]
   files:
-    down_left: ca54ff405f6f9d374ffc316bf3d47f2f7403efa9f578ae2f5f1604d0d0bd31ec
-    down_right: 482bff347dbe35fb319728a9281763da9de8411910b852dded9ac5dcde6cac18
-    up_left: bd6d30381084d97d58a423f799631ee845a5d75b254d5afda69ac5f2ac11c284
-    up_right: 2aecc2b5139cd538d25eb1552adada2086dc16e7b277fd3fb8b2d1f3a608b6db
+    down_left: 2385964adcc926fc68473e986c03f8c5a43b2630702c789f87846e8a0053c25b
+    down_right: 1735425453606746628f005b5ea7130059e44050d76df6a1d4cf345f3de37e44
+    up_left: a9e28c979a2ae26738af5cd1a9047c77c77b0f878b096cd16cb9c695e932e569
+    up_right: 8f500b512818eb2ce1f0b2e1cfb0c52431b41ad371a0a4ff384c11de8808f09f
 openpose_sheets:
   root: openpose-walk-v1
   sheet_size: [2048, 1024]

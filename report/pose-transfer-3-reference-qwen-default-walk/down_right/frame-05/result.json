@@ -24,7 +24,7 @@
   "weight_offload": "sequential_cpu_offload",
   "torch_version": "2.11.0+cu128",
   "diffusers_version": "0.37.0",
-  "elapsed_seconds": 32.62,
+  "elapsed_seconds": 41.59,
   "prompt_sha256": "97dc97a50d53eaa9e3b3d069db97448fcf05e09c1dbd295a646e55d38c17c59c",
   "input_order": [
     "character-reference.png",
@@ -32,7 +32,7 @@
     "openpose-reference.png"
   ],
   "input_sha256": {
-    "character-reference.png": "482bff347dbe35fb319728a9281763da9de8411910b852dded9ac5dcde6cac18",
+    "character-reference.png": "1735425453606746628f005b5ea7130059e44050d76df6a1d4cf345f3de37e44",
     "rig-reference.png": "d7c3b081c60312789be1dbc4655f35590122ddd4cbbdaff95c25897671c857a3",
     "openpose-reference.png": "38a81fb3a0fc70656026dace9bc9a237535cf9f8655c67f40e77a80adaaed0af"
   },
@@ -63,17 +63,17 @@
   "input_references": [
     {
       "role": "character",
-      "path": "/home/cbsim/ws/slime-workflow/.tmp/pose-transfer-3-reference-qwen-default-walk/down_right/frame-05/character-reference.png",
-      "sha256": "482bff347dbe35fb319728a9281763da9de8411910b852dded9ac5dcde6cac18"
+      "path": "/home/cbsim/ws/slime-workflow/.tmp/pose-transfer-3-reference-qwen/2026-09-22_10-14-37/down_right/frame-05/character-reference.png",
+      "sha256": "1735425453606746628f005b5ea7130059e44050d76df6a1d4cf345f3de37e44"
     },
     {
       "role": "rig",
-      "path": "/home/cbsim/ws/slime-workflow/.tmp/pose-transfer-3-reference-qwen-default-walk/down_right/frame-05/rig-reference.png",
+      "path": "/home/cbsim/ws/slime-workflow/.tmp/pose-transfer-3-reference-qwen/2026-09-22_10-14-37/down_right/frame-05/rig-reference.png",
       "sha256": "d7c3b081c60312789be1dbc4655f35590122ddd4cbbdaff95c25897671c857a3"
     },
     {
       "role": "additional-1",
-      "path": "/home/cbsim/ws/slime-workflow/.tmp/pose-transfer-3-reference-qwen-default-walk/down_right/frame-05/openpose-reference.png",
+      "path": "/home/cbsim/ws/slime-workflow/.tmp/pose-transfer-3-reference-qwen/2026-09-22_10-14-37/down_right/frame-05/openpose-reference.png",
       "sha256": "38a81fb3a0fc70656026dace9bc9a237535cf9f8655c67f40e77a80adaaed0af"
     }
   ]

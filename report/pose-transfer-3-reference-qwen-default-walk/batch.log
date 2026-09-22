@@ -1,64 +1,64 @@
-2026-09-22T09:04:27.680020/pose-transfer-3-reference-qwen/start 1/32 direction=down_left frame=1
-2026-09-22T09:05:48.559788/pose-transfer-3-reference-qwen/complete 1/32
-2026-09-22T09:05:48.560435/pose-transfer-3-reference-qwen/start 2/32 direction=down_left frame=2
-2026-09-22T09:06:55.331119/pose-transfer-3-reference-qwen/complete 2/32
-2026-09-22T09:06:55.331588/pose-transfer-3-reference-qwen/start 3/32 direction=down_left frame=3
-2026-09-22T09:07:31.616518/pose-transfer-3-reference-qwen/complete 3/32
-2026-09-22T09:07:31.617098/pose-transfer-3-reference-qwen/start 4/32 direction=down_left frame=4
-2026-09-22T09:08:05.913979/pose-transfer-3-reference-qwen/complete 4/32
-2026-09-22T09:08:05.915184/pose-transfer-3-reference-qwen/start 5/32 direction=down_left frame=5
-2026-09-22T09:08:37.921901/pose-transfer-3-reference-qwen/complete 5/32
-2026-09-22T09:08:37.923681/pose-transfer-3-reference-qwen/start 6/32 direction=down_left frame=6
-2026-09-22T09:09:11.591138/pose-transfer-3-reference-qwen/complete 6/32
-2026-09-22T09:09:11.591780/pose-transfer-3-reference-qwen/start 7/32 direction=down_left frame=7
-2026-09-22T09:09:46.420099/pose-transfer-3-reference-qwen/complete 7/32
-2026-09-22T09:09:46.420750/pose-transfer-3-reference-qwen/start 8/32 direction=down_left frame=8
-2026-09-22T09:10:20.277878/pose-transfer-3-reference-qwen/complete 8/32
-2026-09-22T09:10:20.278842/pose-transfer-3-reference-qwen/start 9/32 direction=down_right frame=1
-2026-09-22T09:10:56.259897/pose-transfer-3-reference-qwen/complete 9/32
-2026-09-22T09:10:56.260632/pose-transfer-3-reference-qwen/start 10/32 direction=down_right frame=2
-2026-09-22T09:11:34.544652/pose-transfer-3-reference-qwen/complete 10/32
-2026-09-22T09:11:34.544820/pose-transfer-3-reference-qwen/start 11/32 direction=down_right frame=3
-2026-09-22T09:12:08.886261/pose-transfer-3-reference-qwen/complete 11/32
-2026-09-22T09:12:08.886414/pose-transfer-3-reference-qwen/start 12/32 direction=down_right frame=4
-2026-09-22T09:12:46.031307/pose-transfer-3-reference-qwen/complete 12/32
-2026-09-22T09:12:46.032577/pose-transfer-3-reference-qwen/start 13/32 direction=down_right frame=5
-2026-09-22T09:13:18.759471/pose-transfer-3-reference-qwen/complete 13/32
-2026-09-22T09:13:18.759632/pose-transfer-3-reference-qwen/start 14/32 direction=down_right frame=6
-2026-09-22T09:13:54.551077/pose-transfer-3-reference-qwen/complete 14/32
-2026-09-22T09:13:54.551237/pose-transfer-3-reference-qwen/start 15/32 direction=down_right frame=7
-2026-09-22T09:14:25.784312/pose-transfer-3-reference-qwen/complete 15/32
-2026-09-22T09:14:25.784471/pose-transfer-3-reference-qwen/start 16/32 direction=down_right frame=8
-2026-09-22T09:14:57.036295/pose-transfer-3-reference-qwen/complete 16/32
-2026-09-22T09:14:57.037025/pose-transfer-3-reference-qwen/start 17/32 direction=up_left frame=1
-2026-09-22T09:15:33.737473/pose-transfer-3-reference-qwen/complete 17/32
-2026-09-22T09:15:33.737628/pose-transfer-3-reference-qwen/start 18/32 direction=up_left frame=2
-2026-09-22T09:16:24.131387/pose-transfer-3-reference-qwen/complete 18/32
-2026-09-22T09:16:24.132023/pose-transfer-3-reference-qwen/start 19/32 direction=up_left frame=3
-2026-09-22T09:17:24.847727/pose-transfer-3-reference-qwen/complete 19/32
-2026-09-22T09:17:24.848813/pose-transfer-3-reference-qwen/start 20/32 direction=up_left frame=4
-2026-09-22T09:18:41.728035/pose-transfer-3-reference-qwen/complete 20/32
-2026-09-22T09:18:41.728809/pose-transfer-3-reference-qwen/start 21/32 direction=up_left frame=5
-2026-09-22T09:19:15.462268/pose-transfer-3-reference-qwen/complete 21/32
-2026-09-22T09:19:15.464011/pose-transfer-3-reference-qwen/start 22/32 direction=up_left frame=6
-2026-09-22T09:19:46.886751/pose-transfer-3-reference-qwen/complete 22/32
-2026-09-22T09:19:46.886918/pose-transfer-3-reference-qwen/start 23/32 direction=up_left frame=7
-2026-09-22T09:20:18.421610/pose-transfer-3-reference-qwen/complete 23/32
-2026-09-22T09:20:18.422405/pose-transfer-3-reference-qwen/start 24/32 direction=up_left frame=8
-2026-09-22T09:20:49.997149/pose-transfer-3-reference-qwen/complete 24/32
-2026-09-22T09:20:49.997843/pose-transfer-3-reference-qwen/start 25/32 direction=up_right frame=1
-2026-09-22T09:21:22.283084/pose-transfer-3-reference-qwen/complete 25/32
-2026-09-22T09:21:22.283789/pose-transfer-3-reference-qwen/start 26/32 direction=up_right frame=2
-2026-09-22T09:21:54.975108/pose-transfer-3-reference-qwen/complete 26/32
-2026-09-22T09:21:54.975276/pose-transfer-3-reference-qwen/start 27/32 direction=up_right frame=3
-2026-09-22T09:22:25.964932/pose-transfer-3-reference-qwen/complete 27/32
-2026-09-22T09:22:25.965602/pose-transfer-3-reference-qwen/start 28/32 direction=up_right frame=4
-2026-09-22T09:22:58.588755/pose-transfer-3-reference-qwen/complete 28/32
-2026-09-22T09:22:58.588931/pose-transfer-3-reference-qwen/start 29/32 direction=up_right frame=5
-2026-09-22T09:23:29.565560/pose-transfer-3-reference-qwen/complete 29/32
-2026-09-22T09:23:29.565725/pose-transfer-3-reference-qwen/start 30/32 direction=up_right frame=6
-2026-09-22T09:24:05.062802/pose-transfer-3-reference-qwen/complete 30/32
-2026-09-22T09:24:05.062958/pose-transfer-3-reference-qwen/start 31/32 direction=up_right frame=7
-2026-09-22T09:24:40.481598/pose-transfer-3-reference-qwen/complete 31/32
-2026-09-22T09:24:40.482048/pose-transfer-3-reference-qwen/start 32/32 direction=up_right frame=8
-2026-09-22T09:25:16.681727/pose-transfer-3-reference-qwen/complete 32/32
+2026-09-22T10:14:55.588916/pose-transfer-3-reference-qwen/start 1/32 direction=down_left frame=1
+2026-09-22T10:15:55.223859/pose-transfer-3-reference-qwen/complete 1/32
+2026-09-22T10:15:55.224615/pose-transfer-3-reference-qwen/start 2/32 direction=down_left frame=2
+2026-09-22T10:16:30.995706/pose-transfer-3-reference-qwen/complete 2/32
+2026-09-22T10:16:30.996243/pose-transfer-3-reference-qwen/start 3/32 direction=down_left frame=3
+2026-09-22T10:17:03.458603/pose-transfer-3-reference-qwen/complete 3/32
+2026-09-22T10:17:03.459198/pose-transfer-3-reference-qwen/start 4/32 direction=down_left frame=4
+2026-09-22T10:17:34.422379/pose-transfer-3-reference-qwen/complete 4/32
+2026-09-22T10:17:34.423022/pose-transfer-3-reference-qwen/start 5/32 direction=down_left frame=5
+2026-09-22T10:18:04.785253/pose-transfer-3-reference-qwen/complete 5/32
+2026-09-22T10:18:04.785999/pose-transfer-3-reference-qwen/start 6/32 direction=down_left frame=6
+2026-09-22T10:18:37.659609/pose-transfer-3-reference-qwen/complete 6/32
+2026-09-22T10:18:37.659769/pose-transfer-3-reference-qwen/start 7/32 direction=down_left frame=7
+2026-09-22T10:19:18.748793/pose-transfer-3-reference-qwen/complete 7/32
+2026-09-22T10:19:18.749655/pose-transfer-3-reference-qwen/start 8/32 direction=down_left frame=8
+2026-09-22T10:19:49.395140/pose-transfer-3-reference-qwen/complete 8/32
+2026-09-22T10:19:49.396051/pose-transfer-3-reference-qwen/start 9/32 direction=down_right frame=1
+2026-09-22T10:20:19.889367/pose-transfer-3-reference-qwen/complete 9/32
+2026-09-22T10:20:19.889540/pose-transfer-3-reference-qwen/start 10/32 direction=down_right frame=2
+2026-09-22T10:20:52.094159/pose-transfer-3-reference-qwen/complete 10/32
+2026-09-22T10:20:52.094331/pose-transfer-3-reference-qwen/start 11/32 direction=down_right frame=3
+2026-09-22T10:21:24.800372/pose-transfer-3-reference-qwen/complete 11/32
+2026-09-22T10:21:24.801030/pose-transfer-3-reference-qwen/start 12/32 direction=down_right frame=4
+2026-09-22T10:21:59.783927/pose-transfer-3-reference-qwen/complete 12/32
+2026-09-22T10:21:59.784492/pose-transfer-3-reference-qwen/start 13/32 direction=down_right frame=5
+2026-09-22T10:22:41.500985/pose-transfer-3-reference-qwen/complete 13/32
+2026-09-22T10:22:41.501347/pose-transfer-3-reference-qwen/start 14/32 direction=down_right frame=6
+2026-09-22T10:23:11.931823/pose-transfer-3-reference-qwen/complete 14/32
+2026-09-22T10:23:11.931986/pose-transfer-3-reference-qwen/start 15/32 direction=down_right frame=7
+2026-09-22T10:23:42.173402/pose-transfer-3-reference-qwen/complete 15/32
+2026-09-22T10:23:42.174014/pose-transfer-3-reference-qwen/start 16/32 direction=down_right frame=8
+2026-09-22T10:24:14.634966/pose-transfer-3-reference-qwen/complete 16/32
+2026-09-22T10:24:14.635762/pose-transfer-3-reference-qwen/start 17/32 direction=up_left frame=1
+2026-09-22T10:24:46.902812/pose-transfer-3-reference-qwen/complete 17/32
+2026-09-22T10:24:46.903727/pose-transfer-3-reference-qwen/start 18/32 direction=up_left frame=2
+2026-09-22T10:25:18.567551/pose-transfer-3-reference-qwen/complete 18/32
+2026-09-22T10:25:18.568296/pose-transfer-3-reference-qwen/start 19/32 direction=up_left frame=3
+2026-09-22T10:26:02.787374/pose-transfer-3-reference-qwen/complete 19/32
+2026-09-22T10:26:02.788252/pose-transfer-3-reference-qwen/start 20/32 direction=up_left frame=4
+2026-09-22T10:26:34.473249/pose-transfer-3-reference-qwen/complete 20/32
+2026-09-22T10:26:34.473420/pose-transfer-3-reference-qwen/start 21/32 direction=up_left frame=5
+2026-09-22T10:27:08.166562/pose-transfer-3-reference-qwen/complete 21/32
+2026-09-22T10:27:08.167114/pose-transfer-3-reference-qwen/start 22/32 direction=up_left frame=6
+2026-09-22T10:27:39.640558/pose-transfer-3-reference-qwen/complete 22/32
+2026-09-22T10:27:39.640734/pose-transfer-3-reference-qwen/start 23/32 direction=up_left frame=7
+2026-09-22T10:28:09.882116/pose-transfer-3-reference-qwen/complete 23/32
+2026-09-22T10:28:09.882806/pose-transfer-3-reference-qwen/start 24/32 direction=up_left frame=8
+2026-09-22T10:28:41.698112/pose-transfer-3-reference-qwen/complete 24/32
+2026-09-22T10:28:41.698835/pose-transfer-3-reference-qwen/start 25/32 direction=up_right frame=1
+2026-09-22T10:29:22.974724/pose-transfer-3-reference-qwen/complete 25/32
+2026-09-22T10:29:22.988080/pose-transfer-3-reference-qwen/start 26/32 direction=up_right frame=2
+2026-09-22T10:29:53.245325/pose-transfer-3-reference-qwen/complete 26/32
+2026-09-22T10:29:53.245496/pose-transfer-3-reference-qwen/start 27/32 direction=up_right frame=3
+2026-09-22T10:30:24.270092/pose-transfer-3-reference-qwen/complete 27/32
+2026-09-22T10:30:24.270775/pose-transfer-3-reference-qwen/start 28/32 direction=up_right frame=4
+2026-09-22T10:30:56.876706/pose-transfer-3-reference-qwen/complete 28/32
+2026-09-22T10:30:56.876888/pose-transfer-3-reference-qwen/start 29/32 direction=up_right frame=5
+2026-09-22T10:31:28.241935/pose-transfer-3-reference-qwen/complete 29/32
+2026-09-22T10:31:28.242116/pose-transfer-3-reference-qwen/start 30/32 direction=up_right frame=6
+2026-09-22T10:32:02.631826/pose-transfer-3-reference-qwen/complete 30/32
+2026-09-22T10:32:02.632383/pose-transfer-3-reference-qwen/start 31/32 direction=up_right frame=7
+2026-09-22T10:32:37.391635/pose-transfer-3-reference-qwen/complete 31/32
+2026-09-22T10:32:37.391812/pose-transfer-3-reference-qwen/start 32/32 direction=up_right frame=8
+2026-09-22T10:33:14.652742/pose-transfer-3-reference-qwen/complete 32/32

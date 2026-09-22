@@ -24,7 +24,7 @@
   "weight_offload": "sequential_cpu_offload",
   "torch_version": "2.11.0+cu128",
   "diffusers_version": "0.37.0",
-  "elapsed_seconds": 32.58,
+  "elapsed_seconds": 30.15,
   "prompt_sha256": "97dc97a50d53eaa9e3b3d069db97448fcf05e09c1dbd295a646e55d38c17c59c",
   "input_order": [
     "character-reference.png",
@@ -32,7 +32,7 @@
     "openpose-reference.png"
   ],
   "input_sha256": {
-    "character-reference.png": "2aecc2b5139cd538d25eb1552adada2086dc16e7b277fd3fb8b2d1f3a608b6db",
+    "character-reference.png": "8f500b512818eb2ce1f0b2e1cfb0c52431b41ad371a0a4ff384c11de8808f09f",
     "rig-reference.png": "cf42ca9bfd2edab11d6bbbf49ffafeeb62a2bb9743072100fc0a3a89577fcf23",
     "openpose-reference.png": "ac074b3d560fe9bf5db53015555359351b4b17432229378318ddc1dac2872979"
   },
@@ -63,17 +63,17 @@
   "input_references": [
     {
       "role": "character",
-      "path": "/home/cbsim/ws/slime-workflow/.tmp/pose-transfer-3-reference-qwen-default-walk/up_right/frame-02/character-reference.png",
-      "sha256": "2aecc2b5139cd538d25eb1552adada2086dc16e7b277fd3fb8b2d1f3a608b6db"
+      "path": "/home/cbsim/ws/slime-workflow/.tmp/pose-transfer-3-reference-qwen/2026-09-22_10-14-37/up_right/frame-02/character-reference.png",
+      "sha256": "8f500b512818eb2ce1f0b2e1cfb0c52431b41ad371a0a4ff384c11de8808f09f"
     },
     {
       "role": "rig",
-      "path": "/home/cbsim/ws/slime-workflow/.tmp/pose-transfer-3-reference-qwen-default-walk/up_right/frame-02/rig-reference.png",
+      "path": "/home/cbsim/ws/slime-workflow/.tmp/pose-transfer-3-reference-qwen/2026-09-22_10-14-37/up_right/frame-02/rig-reference.png",
       "sha256": "cf42ca9bfd2edab11d6bbbf49ffafeeb62a2bb9743072100fc0a3a89577fcf23"
     },
     {
       "role": "additional-1",
-      "path": "/home/cbsim/ws/slime-workflow/.tmp/pose-transfer-3-reference-qwen-default-walk/up_right/frame-02/openpose-reference.png",
+      "path": "/home/cbsim/ws/slime-workflow/.tmp/pose-transfer-3-reference-qwen/2026-09-22_10-14-37/up_right/frame-02/openpose-reference.png",
       "sha256": "ac074b3d560fe9bf5db53015555359351b4b17432229378318ddc1dac2872979"
     }
   ]

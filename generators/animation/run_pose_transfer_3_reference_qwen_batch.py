@@ -109,6 +109,9 @@ def execute_pose_transfer_batch_generation(batch_definition_path, run_output_roo
         with Image.open(character_reference_path) as character_reference_image:
             if character_reference_image.size != REFERENCE_CELL_SIZE:
                 raise ValueError(f'베이스라인 셀 크기 불일치: {character_reference_path}')
+            if character_reference_image.mode == 'RGBA':
+                white_background_image = Image.new('RGBA', character_reference_image.size, (255, 255, 255, 255))
+                character_reference_image = Image.alpha_composite(white_background_image, character_reference_image)
             character_reference_image.convert('RGB').save(character_reference_copy_path)
         generation_arguments = {'trial_output_root': frame_output_root, 'prompt_text_value': prompt_source_text, 'character_image_path': character_reference_copy_path, 'pose_reference_path': rig_reference_path, 'pose_reference_kind': 'rig', 'selected_reference_order': 'standing-first', 'selected_inference_steps': 4, 'prompt_source_record': {'kind': 'yaml-batch', 'batch_file': str(batch_definition_path.relative_to(WORKFLOW_REPOSITORY_ROOT)), 'sha256': hashlib.sha256(prompt_source_text.encode()).hexdigest()}}
         if generation_mode == 'three-reference-qwen':

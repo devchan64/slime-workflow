@@ -24,7 +24,7 @@
   "weight_offload": "sequential_cpu_offload",
   "torch_version": "2.11.0+cu128",
   "diffusers_version": "0.37.0",
-  "elapsed_seconds": 36.0,
+  "elapsed_seconds": 32.31,
   "prompt_sha256": "97dc97a50d53eaa9e3b3d069db97448fcf05e09c1dbd295a646e55d38c17c59c",
   "input_order": [
     "character-reference.png",
@@ -32,7 +32,7 @@
     "openpose-reference.png"
   ],
   "input_sha256": {
-    "character-reference.png": "ca54ff405f6f9d374ffc316bf3d47f2f7403efa9f578ae2f5f1604d0d0bd31ec",
+    "character-reference.png": "2385964adcc926fc68473e986c03f8c5a43b2630702c789f87846e8a0053c25b",
     "rig-reference.png": "01b2a8c599386c65bf56940c03cc7c8f5e2ebce484e575b3e3969ea8fb70ebd4",
     "openpose-reference.png": "aba88a11072ab11fcd3d404947e6afca3eb4ba8594094b6a66ad85ff027b6d8a"
   },
@@ -63,17 +63,17 @@
   "input_references": [
     {
       "role": "character",
-      "path": "/home/cbsim/ws/slime-workflow/.tmp/pose-transfer-3-reference-qwen-default-walk/down_left/frame-03/character-reference.png",
-      "sha256": "ca54ff405f6f9d374ffc316bf3d47f2f7403efa9f578ae2f5f1604d0d0bd31ec"
+      "path": "/home/cbsim/ws/slime-workflow/.tmp/pose-transfer-3-reference-qwen/2026-09-22_10-14-37/down_left/frame-03/character-reference.png",
+      "sha256": "2385964adcc926fc68473e986c03f8c5a43b2630702c789f87846e8a0053c25b"
     },
     {
       "role": "rig",
-      "path": "/home/cbsim/ws/slime-workflow/.tmp/pose-transfer-3-reference-qwen-default-walk/down_left/frame-03/rig-reference.png",
+      "path": "/home/cbsim/ws/slime-workflow/.tmp/pose-transfer-3-reference-qwen/2026-09-22_10-14-37/down_left/frame-03/rig-reference.png",
       "sha256": "01b2a8c599386c65bf56940c03cc7c8f5e2ebce484e575b3e3969ea8fb70ebd4"
     },
     {
       "role": "additional-1",
-      "path": "/home/cbsim/ws/slime-workflow/.tmp/pose-transfer-3-reference-qwen-default-walk/down_left/frame-03/openpose-reference.png",
+      "path": "/home/cbsim/ws/slime-workflow/.tmp/pose-transfer-3-reference-qwen/2026-09-22_10-14-37/down_left/frame-03/openpose-reference.png",
       "sha256": "aba88a11072ab11fcd3d404947e6afca3eb4ba8594094b6a66ad85ff027b6d8a"
     }
   ]
