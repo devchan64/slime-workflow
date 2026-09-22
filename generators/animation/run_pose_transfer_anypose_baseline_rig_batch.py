@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""YAML 목록의 방향·프레임 쌍으로 AnyPose 3참조 32프레임을 생성한다."""
+"""YAML 목록의 방향·프레임 쌍으로 AnyPose 2참조 32프레임을 생성한다."""
 import argparse
 import hashlib
 from datetime import datetime
@@ -30,8 +30,8 @@ def load_anypose_openpose_batch_definition(batch_file_path):
     values = yaml.load(batch_file_path.read_bytes(), Loader=UniqueKeySafeLoader)
     if set(values) != {'schema_version', 'prompt_file', 'references', 'jobs'} or values['schema_version'] != 1:
         raise ValueError('배치 YAML 형식이 올바르지 않습니다.')
-    if set(values['references']) != {'baseline_root', 'rig_root', 'openpose_root'}:
-        raise ValueError('세 참조 경로가 필요합니다.')
+    if set(values['references']) != {'baseline_root', 'rig_root'}:
+        raise ValueError('베이스라인과 리그 참조 경로가 필요합니다.')
     expanded_jobs = []
     for job in values['jobs']:
         if set(job) != {'direction', 'frame_numbers'} or job['direction'] not in DIRECTIONS or job['frame_numbers'] != list(range(1, 9)):
@@ -69,12 +69,10 @@ def execute_anypose_openpose_batch(batch_file_path, output_directory):
         character_path = reference_roots['baseline_root'] / f'{direction}.png'
         rig_path = frame_root / 'rig-reference.png'
         crop_sheet_frame(reference_roots['rig_root'] / f'{direction}.png', frame, rig_path)
-        openpose_path = frame_root / 'openpose-reference.png'
-        crop_sheet_frame(reference_roots['openpose_root'] / f'{direction}.png', frame, openpose_path)
-        result = execute_pose_generation(trial_output_root=frame_root, prompt_text_value=prompt_text, character_image_path=character_path, pose_reference_path=rig_path, additional_reference_paths=(openpose_path,), pose_reference_kind='rig', selected_reference_order='standing-first', selected_inference_steps=4, prompt_source_record={'kind': 'anypose-qwen-openpose-map-batch', 'direction': direction, 'frame': frame, 'batch_file': str(batch_file_path.relative_to(WORKFLOW_REPOSITORY_ROOT)), 'sha256': hashlib.sha256(prompt_text.encode()).hexdigest()}, enable_anypose_adapter=True, enable_lightning_adapter=True)
+        result = execute_pose_generation(trial_output_root=frame_root, prompt_text_value=prompt_text, character_image_path=character_path, pose_reference_path=rig_path, pose_reference_kind='rig', selected_reference_order='standing-first', selected_inference_steps=4, prompt_source_record={'kind': 'anypose-baseline-rig-batch', 'direction': direction, 'frame': frame, 'batch_file': str(batch_file_path.relative_to(WORKFLOW_REPOSITORY_ROOT)), 'sha256': hashlib.sha256(prompt_text.encode()).hexdigest()}, enable_anypose_adapter=True, enable_lightning_adapter=True)
         results.append({'direction': direction, 'frame': frame, 'status': result['status'], 'output': str(frame_root.relative_to(output_root))})
         print(f'{datetime.now(ZoneInfo("Asia/Seoul")).isoformat()}/anypose-openpose-batch/complete {index}/32', flush=True)
-    (output_root / 'batch-result.yaml').write_text(yaml.safe_dump({'schema_version': 1, 'reference_kind': 'rig-plus-openpose-map', 'steps': 4, 'frame_count': 32, 'status': 'completed', 'frames': results}, allow_unicode=True, sort_keys=False), encoding='utf-8')
+    (output_root / 'batch-result.yaml').write_text(yaml.safe_dump({'schema_version': 1, 'reference_kind': 'baseline-plus-rig', 'steps': 4, 'frame_count': 32, 'status': 'completed', 'frames': results}, allow_unicode=True, sort_keys=False), encoding='utf-8')
     return results
 
 

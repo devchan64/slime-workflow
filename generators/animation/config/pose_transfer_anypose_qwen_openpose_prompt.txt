@@ -1,1 +1,0 @@
-Make the person in image 1 do the exact same pose as the person in image 2, using image 3 as an additional pose reference.
