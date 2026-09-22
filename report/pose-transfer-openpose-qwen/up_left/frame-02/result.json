@@ -1,0 +1,74 @@
+{
+  "status": "completed",
+  "model_id": "Qwen/Qwen-Image-Edit-2511",
+  "revision": "6f3ccc0b56e431dc6a0c2b2039706d7d26f22cb9",
+  "size": [
+    512,
+    512
+  ],
+  "reference_vae_size": [
+    512,
+    512
+  ],
+  "reference_condition_size": [
+    384,
+    384
+  ],
+  "steps": 4,
+  "seed": 10107,
+  "true_cfg_scale": 1.0,
+  "guidance_scale": 1.0,
+  "lightning_lora": true,
+  "dtype": "bfloat16",
+  "execution_device": "cuda",
+  "weight_offload": "sequential_cpu_offload",
+  "torch_version": "2.11.0+cu128",
+  "diffusers_version": "0.37.0",
+  "elapsed_seconds": 26.82,
+  "prompt_sha256": "d0e712f0ccda330decb703d27f482862e810e461b692e5d94987676d76102850",
+  "input_order": [
+    "up_left.png",
+    "openpose-reference.png"
+  ],
+  "input_sha256": {
+    "up_left.png": "a9e28c979a2ae26738af5cd1a9047c77c77b0f878b096cd16cb9c695e932e569",
+    "openpose-reference.png": "4bb0b57e1f5d4aaee60a186202f5eb82d464e6b274c9d8a4f24042cf77a0baf4"
+  },
+  "quality_warnings": [
+    "실험 결과의 최종 품질 승인이 필요합니다."
+  ],
+  "output": "result.png",
+  "pose_reference_kind": "openpose",
+  "reference_order": "standing-first",
+  "prompt_source": {
+    "kind": "qwen-lightning-openpose-reference-batch",
+    "direction": "up_left",
+    "batch_file": "generators/animation/config/pose_transfer_two_reference_qwen_default_walk.yaml",
+    "sha256": "d0e712f0ccda330decb703d27f482862e810e461b692e5d94987676d76102850"
+  },
+  "adapters": [
+    {
+      "name": "lightning",
+      "repository": "lightx2v/Qwen-Image-Edit-2511-Lightning",
+      "revision": "d74eba145674fd7e31b949324e148e21e7118abd",
+      "filename": "Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors",
+      "sha256": "22226e8d05d354bb356627d428809f5afd7819399b077238a2b70a82883a904f",
+      "size": 849608296,
+      "strength": 1.0,
+      "path": "/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lightx2v--Qwen-Image-Edit-2511-Lightning/d74eba145674fd7e31b949324e148e21e7118abd/Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors"
+    }
+  ],
+  "execution_preset": "qwen-lightning-multi-reference-v1",
+  "input_references": [
+    {
+      "role": "character",
+      "path": "/home/cbsim/ws/slime-workflow/assets/animation-references/character-default/baseline-v2/up_left.png",
+      "sha256": "a9e28c979a2ae26738af5cd1a9047c77c77b0f878b096cd16cb9c695e932e569"
+    },
+    {
+      "role": "openpose",
+      "path": "/home/cbsim/ws/slime-workflow/.tmp/pose-transfer-openpose-qwen/2026-09-22_16-29-20/up_left/frame-02/openpose-reference.png",
+      "sha256": "4bb0b57e1f5d4aaee60a186202f5eb82d464e6b274c9d8a4f24042cf77a0baf4"
+    }
+  ]
+}

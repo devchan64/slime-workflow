@@ -1,0 +1,19 @@
+2026-09-22 16:29:34,445/qwen-pose/heartbeat stage=imports step=0/4 elapsed=5s gpu=712 MiB, 0 % log_bytes=0
+2026-09-22 16:29:36,241/qwen-pose/reference vae_size=512x512 output_size=512x512 condition_size=384x384
+2026-09-22 16:29:36,241/qwen-pose/reference order=['character', 'openpose'] kind=openpose
+2026-09-22 16:29:37,275/qwen-pose/load model_id=Qwen/Qwen-Image-Edit-2511 model_path=/home/cbsim/ws/slime-workflow/.model/qwen-image-edit-2511/6f3ccc0b56e431dc6a0c2b2039706d7d26f22cb9
+2026-09-22 16:29:38,118/qwen-pose/adapter name=lightning strength=1.0 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lightx2v--Qwen-Image-Edit-2511-Lightning/d74eba145674fd7e31b949324e148e21e7118abd/Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors
+2026-09-22 16:29:39,497/qwen-pose/heartbeat stage=adapters step=0/4 elapsed=10s gpu=711 MiB, 1 % log_bytes=752
+2026-09-22 16:29:41,096/qwen-pose/inference size=512x512 steps=4 seed=10107 device=cuda dtype=bfloat16 offload=sequential
+2026-09-22 16:29:44,531/qwen-pose/heartbeat stage=inference step=0/4 elapsed=15s gpu=1010 MiB, 50 % log_bytes=985
+2026-09-22 16:29:49,555/qwen-pose/heartbeat stage=inference step=0/4 elapsed=20s gpu=1132 MiB, 34 % log_bytes=1099
+2026-09-22 16:29:54,602/qwen-pose/heartbeat stage=inference step=0/4 elapsed=25s gpu=1280 MiB, 20 % log_bytes=1214
+2026-09-22 16:29:56,905/qwen-pose/denoise step=1/4
+2026-09-22 16:29:59,642/qwen-pose/heartbeat stage=inference step=1/4 elapsed=30s gpu=1096 MiB, 53 % log_bytes=1380
+2026-09-22 16:30:03,499/qwen-pose/denoise step=2/4
+2026-09-22 16:30:04,666/qwen-pose/heartbeat stage=inference step=2/4 elapsed=35s gpu=1168 MiB, 76 % log_bytes=1546
+2026-09-22 16:30:08,268/qwen-pose/denoise step=3/4
+2026-09-22 16:30:09,688/qwen-pose/heartbeat stage=inference step=3/4 elapsed=40s gpu=1332 MiB, 78 % log_bytes=1712
+2026-09-22 16:30:13,048/qwen-pose/denoise step=4/4
+2026-09-22 16:30:14,739/qwen-pose/heartbeat stage=inference step=4/4 elapsed=45s gpu=1178 MiB, 0 % log_bytes=1878
+2026-09-22 16:30:15,211/qwen-pose/complete output=/home/cbsim/ws/slime-workflow/.tmp/pose-transfer-openpose-qwen/2026-09-22_16-29-20/down_left/frame-01/result.png
