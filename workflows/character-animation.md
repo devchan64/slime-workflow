@@ -7,7 +7,7 @@
 - 걷기는 4방향(`up_left`, `up_right`, `down_left`, `down_right`) × 8프레임이다.
 - 방향 이름은 2×2 베이스라인의 좌상·우상·좌하·우하와 각각 대응한다.
 - 모든 프레임은 해당 방향의 베이스라인 장면과 같은 시점·방향을 사용한다. 다른 방향 셀을 외형 참조로 섞지 않는다.
-- 기본 포즈 생성은 캐릭터 아이덴티 + 해당 방향 리그 + 해당 방향 OpenPose의 3참조 Qwen 경로를 우선한다.
+- 기본 포즈 생성은 캐릭터 아이덴티와 단일 포즈 참조를 사용하는 Qwen 경로다. 리그 참조와 OpenPose 참조는 서로 독립된 생성 조건으로 실행한다.
 - 잘못 생성된 프레임은 검수로 식별한 뒤 AnyPose 포즈 전이 경로로 개별 재생성한다.
 - 포즈를 통과한 프레임의 아이덴티·크기·스프라이트 정렬은 ImageGen 또는 Qwen-Image-Edit로 정규화한다.
 - 최종 스프라이트에서 캐릭터의 최소 실제 높이는 384px이다. 자세별 바운딩 박스 높이를 매 프레임 같은 값으로 강제하지 않고, 기준 캐릭터의 균일 배율과 앵커를 유지한다.
@@ -41,20 +41,22 @@ slime-frontend/src/assets/characters/default/baseline/character-default-white-sh
 - 리그와 OpenPose는 반드시 같은 방향·프레임 번호를 사용한다.
 - 방향이나 프레임이 불일치한 참조는 생성에 사용하지 않고 실행을 폐기한다.
 
-OpenPose는 리그의 대체 입력이 아니라 3참조 생성의 보조 입력이다. 생성 결과에는 역할별 입력 경로·해시를 기록하여 리그와 OpenPose가 뒤섞이지 않게 한다.
+OpenPose와 리그는 서로 대체되지 않는 독립 포즈 참조 조건이다. 생성 결과에는 참조 종류·입력 경로·해시를 기록한다.
 
-## 3. 3참조 포즈 전환
+## 3. 단일 포즈 참조 Qwen 전환
 
-정상 프레임은 다음 입력 순서로 Qwen-Image-Edit-2511에 전달한다.
+정상 프레임은 다음 두 조건 중 하나로 Qwen-Image-Edit-2511에 전달한다. 3참조 경로는 실험 실패로 분류하며 기본 제작에서 사용하지 않는다.
 
-1. 이미지 1: 해당 방향 베이스라인에서 크롭한 캐릭터 아이덴티
-2. 이미지 2: 동일 방향·동일 프레임의 리그 셀
-3. 이미지 3: 동일 방향·동일 프레임의 OpenPose 셀
+| 생성기 | 이미지 1 | 이미지 2 |
+| --- | --- | --- |
+| 리그 Qwen | 해당 방향 캐릭터 아이덴티 | 동일 방향·프레임 리그 셀 |
+| OpenPose Qwen | 해당 방향 캐릭터 아이덴티 | 동일 방향·프레임 OpenPose 셀 |
 
 AnyPose 없이 Lightning LoRA만 사용하는 전용 생성기는 다음 파일이다.
 
 ```text
-generators/animation/generate_pose_transfer_3_reference_qwen.py
+generators/animation/generate_pose_transfer_rig_qwen.py
+generators/animation/generate_pose_transfer_openpose_qwen.py
 ```
 
 기본 프롬프트는 다음의 짧은 포즈 전이 문구를 사용한다.
@@ -63,26 +65,35 @@ generators/animation/generate_pose_transfer_3_reference_qwen.py
 Make the person in image 1 do the exact same pose of the person in image 2.
 ```
 
-3참조 실행은 4스텝 Lightning 경로를 사용하며, 모델·LoRA·스텝·시드·입력 순서·입력 해시·출력 해시를 `result.json`과 실행 로그에 남긴다. OpenPose는 이미지 3으로 전달하지만, 프롬프트의 이미지 번호는 모델 카드의 이미지 1·2 포즈 전이 계약을 따른다. 3참조 결과는 자동 승인하지 않는다.
+두 실행기는 4스텝 Lightning 경로를 사용하며, 모델·LoRA·스텝·시드·입력 순서·입력 해시·출력 해시를 `result.json`과 실행 로그에 남긴다. 리그와 OpenPose 결과는 동일 프레임 번호로 별도 검수한다.
 
-3참조 단일 프레임 함수 `generate_pose_transfer_three_reference_qwen_frame(...)`은 다른 워크플로 노드에서 라이브러리로 호출할 수 있다. CLI는 이 함수를 감싸는 얇은 실행기이며, 모델·LoRA 선택을 외부 입력으로 받지 않는다.
+두 단일 프레임 함수는 각각 `generate_pose_transfer_rig_qwen_frame(...)`과 `generate_pose_transfer_openpose_qwen_frame(...)`이며 다른 워크플로 노드에서 라이브러리로 호출할 수 있다. CLI는 이 함수를 감싸는 얇은 실행기이며, 모델·LoRA 선택을 외부 입력으로 받지 않는다.
 
 ### 32프레임 배치
 
 4방향×8프레임은 YAML 목록으로 실행한다. 목록 파일과 참조 자산 경로는 워크플로 루트 기준 상대 경로만 사용한다. 기본 목록은 다음 파일이다.
 
 ```text
-generators/animation/config/pose_transfer_3_reference_qwen_default_walk.yaml
+generators/animation/config/pose_transfer_two_reference_qwen_default_walk.yaml
 ```
 
 실행기는 목록을 검증한 뒤 `down_left`, `down_right`, `up_left`, `up_right` 각 8프레임을 순서대로 생성한다.
 
 ```bash
-.venv/bin/python generators/animation/run_pose_transfer_3_reference_qwen_batch.py \
-  --batch-file generators/animation/config/pose_transfer_3_reference_qwen_default_walk.yaml
+.venv/bin/python generators/animation/run_pose_transfer_two_reference_qwen_batch.py \
+  --batch-file generators/animation/config/pose_transfer_two_reference_qwen_default_walk.yaml \
+  --reference-kind rig --output-dir .tmp/pose-transfer-rig-qwen/<한국시간 실행일시>
 ```
 
-결과는 YAML의 `output_root/<한국시간 실행일시>/` 아래 방향·프레임별 폴더에 저장한다. 각 프레임은 캐릭터·리그·OpenPose 참조 사본, `prompt.txt`, `result.png`, `result.json`, `execution.log`를 가지며 배치 전체에는 `batch.log`와 `batch-result.yaml`을 남긴다. 32개 중 하나라도 입력 검증 또는 생성에 실패하면 배치는 즉시 중단한다.
+결과는 지정한 실행일시 폴더 아래 방향·프레임별 폴더에 저장한다. 리그 조건과 OpenPose 조건은 각각 별도 실행한다. 각 프레임은 캐릭터·포즈 참조, `prompt.txt`, `result.png`, `result.json`, `execution.log`를 가지며 배치 전체에는 `batch-result.yaml`을 남긴다.
+
+OpenPose 조건 실행:
+
+```bash
+.venv/bin/python generators/animation/run_pose_transfer_two_reference_qwen_batch.py \
+  --batch-file generators/animation/config/pose_transfer_two_reference_qwen_default_walk.yaml \
+  --reference-kind openpose --output-dir .tmp/pose-transfer-openpose-qwen/<한국시간 실행일시>
+```
 
 ## AnyPose 배치 재생성
 
@@ -90,7 +101,7 @@ generators/animation/config/pose_transfer_3_reference_qwen_default_walk.yaml
 
 ```bash
 .venv/bin/python generators/animation/run_pose_transfer_any_pose_batch.py \
-  --batch-file generators/animation/config/pose_transfer_3_reference_qwen_default_walk.yaml
+  --batch-file generators/animation/config/pose_transfer_two_reference_qwen_default_walk.yaml
 ```
 
 라이브러리 호출은 `execute_pose_transfer_any_pose_batch(batch_definition_path, run_output_root=None)`을 사용한다. 단일 프레임 호출은 `generate_pose_transfer_any_pose_frame(output_directory, prompt_file_path)`를 사용한다. 두 경로 모두 4방향×8프레임 목록을 검증하고, AnyPose 어댑터·Lightning 설정은 코드에 고정한다.

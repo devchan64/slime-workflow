@@ -1,5 +1,5 @@
 schema_version: 1
-prompt_file: generators/animation/config/pose_transfer_3_reference_qwen_prompt.txt
+prompt_file: generators/animation/config/pose_transfer_two_reference_qwen_prompt.txt
 output_root: .tmp/pose-transfer-3-reference-qwen
 references:
   baseline_root: assets/animation-references/character-default/baseline-v2
