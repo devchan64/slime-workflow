@@ -26,11 +26,11 @@
 
 ## 기본 걷기 참조
 
-걷기는 방향당 8프레임·150ms·1.2초 루프다. 개별 animation-loops 자산은 삭제하고 `assets/pose-sheets/`의 방향별 시트 4장을 유지한다. 출처·배치·해시는 `generators/animation/config/default_walk_pose_sheets.yaml`에서 관리한다.
+걷기는 방향당 8프레임·150ms·1.2초 루프다. 개별 animation-loops 자산은 삭제하고 `assets/rigs/mannequin-walk/v1/pose-sheets-v1/`의 방향별 시트 4장을 유지한다. 출처·배치·해시는 `generators/animation/config/default_walk_pose_sheets.yaml`에서 관리한다.
 
 ## 캐릭터 기준 시트
 
-걷기 이미지젠의 동작 참조 원본은 셰이딩을 보강한 리그 8프레임 시트다. 이미지젠은 [최소 사용 정책](workflows/imagegen-usage-policy.md)에 따라 포즈 검수를 통과한 선택 프레임에만 사용한다. 호출당 최대 4프레임만 생성하며, 1–4번·5–8번 리그를 각각 2×2 참조로 나누어 생성한 뒤 4방향 총 32프레임을 최종 4×4 시트 두 장으로 통합한다. 전체 생성·검수·정규화·시트 패킹 규칙은 [캐릭터 애니메이션 생성 규칙](workflows/character-animation.md)에 따른다. `assets/pose-sheets/five-head-walk-8f/v1/`의 OpenPose 시트는 비교 자료로 유지한다. `generators/animation/build_walk_pose_sheets.py`가 렌더 실행 폴더의 8프레임 포즈를 묶고 출처·파일 해시를 기록한다.
+걷기 이미지젠의 동작 참조 원본은 셰이딩을 보강한 리그 8프레임 시트다. 이미지젠은 [최소 사용 정책](workflows/imagegen-usage-policy.md)에 따라 포즈 검수를 통과한 선택 프레임에만 사용한다. 호출당 최대 4프레임만 생성하며, 1–4번·5–8번 리그를 각각 2×2 참조로 나누어 생성한 뒤 4방향 총 32프레임을 최종 4×4 시트 두 장으로 통합한다. 전체 생성·검수·정규화·시트 패킹 규칙은 [캐릭터 애니메이션 생성 규칙](workflows/character-animation.md)에 따른다. `assets/rigs/mannequin-walk/v1/pose-sheets-v1/`의 포즈 시트는 비교 자료로 유지한다. `generators/animation/build_walk_pose_sheets.py`가 렌더 실행 폴더의 8프레임 포즈를 묶고 출처·파일 해시를 기록한다.
 
 [캐릭터 애니메이션 생성 규칙](workflows/character-animation.md)은 신규 캐릭터의 2×2 베이스라인과 최종 애니메이션 생성·검수·정규화를 함께 정의한다. 단일 원화 생성 후 시트로 재생성하는 단계를 기본 경로에서 제거했다.
 

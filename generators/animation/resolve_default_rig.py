@@ -31,19 +31,21 @@ def resolve_default_walk_rig():
     default_config_values = yaml.load(DEFAULT_CONFIG_PATH.read_text(), Loader=UniqueConfigLoader)
     if not isinstance(default_config_values, dict) or set(default_config_values) != {'asset_id', 'version', 'artifact_sha256'}:
         raise ValueError('기본 리그 설정 필드 불일치')
-    if default_config_values['asset_id'] != 'five-head-walk' or type(default_config_values['version']) is not int or default_config_values['version'] < 1:
+    if default_config_values['asset_id'] != 'mannequin-walk' or type(default_config_values['version']) is not int or default_config_values['version'] < 1:
         raise ValueError('기본 리그 식별자·버전 오류')
     expected_manifest_hash = default_config_values['artifact_sha256']
     if not isinstance(expected_manifest_hash, str) or len(expected_manifest_hash) != 64 or any(character not in '0123456789abcdef' for character in expected_manifest_hash):
         raise ValueError('기본 리그 SHA-256 형식 오류')
-    resolved_asset_directory = WORKFLOW_ROOT_PATH / 'assets/rigs' / default_config_values['asset_id'] / f"v{default_config_values['version']}"
+    resolved_asset_directory = WORKFLOW_ROOT_PATH / 'assets/rigs' / default_config_values['asset_id']
+    if default_config_values['asset_id'] != 'mannequin-walk':
+        resolved_asset_directory = resolved_asset_directory / f"v{default_config_values['version']}"
     resolved_manifest_path = resolved_asset_directory / 'artifact.json'
     if hashlib.sha256(resolved_manifest_path.read_bytes()).hexdigest() != expected_manifest_hash:
         raise ValueError('기본 리그 manifest 해시 불일치')
     resolved_manifest_values = json.loads(resolved_manifest_path.read_text())
     if resolved_manifest_values['asset_id'] != default_config_values['asset_id'] or resolved_manifest_values['version'] != default_config_values['version']:
         raise ValueError('기본 리그 manifest 식별자 불일치')
-    for artifact_file_name in ['five-head-walk.blend', 'retargeted-motion.npz']:
+    for artifact_file_name in ['mannequin.blend', 'mannequin-motion.npz']:
         if hashlib.sha256((resolved_asset_directory / artifact_file_name).read_bytes()).hexdigest() != resolved_manifest_values['files'][artifact_file_name]:
             raise ValueError(f'기본 리그 파일 해시 불일치: {artifact_file_name}')
     return resolved_asset_directory

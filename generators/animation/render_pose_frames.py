@@ -12,7 +12,7 @@ import rig_builder as rig_render_module
 from resolve_default_rig import resolve_default_walk_rig
 
 WORKFLOW_REPO_ROOT = Path(__file__).resolve().parents[2]
-SOURCE_RIG_DIRECTORY = WORKFLOW_REPO_ROOT / 'assets/rigs/five-head-walk/v9'
+SOURCE_RIG_DIRECTORY = WORKFLOW_REPO_ROOT / 'assets/rigs/mannequin-walk'
 EXPERIMENT_OUTPUT_ROOT = WORKFLOW_REPO_ROOT / '.tmp' / datetime.now(ZoneInfo('Asia/Seoul')).strftime('%Y-%m-%d_%H-%M-%S')
 OUTPUT_SAMPLE_INDICES = np.arange(8) * 3
 OUTPUT_FRAME_DURATION = 150
@@ -31,12 +31,12 @@ def execute_eight_frame_render():
     threading.Thread(target=rig_render_module.emit_progress_heartbeat,daemon=True).start()
     try:
         if resolve_default_walk_rig()!=SOURCE_RIG_DIRECTORY:
-            raise ValueError('재생성 입력은 기본 v9 리그여야 합니다')
+            raise ValueError('재생성 입력은 기본 mannequin-walk 리그여야 합니다')
         source_artifact_record=json.loads((SOURCE_RIG_DIRECTORY/'artifact.json').read_text())
-        source_motion_path=SOURCE_RIG_DIRECTORY/'retargeted-motion.npz'
-        if hashlib.sha256(source_motion_path.read_bytes()).hexdigest()!=source_artifact_record['files']['retargeted-motion.npz']:
-            raise ValueError('v9 모션 해시 불일치')
-        original_motion_path=WORKFLOW_REPO_ROOT/'assets/motions/walk-travel/v1/motion.npz'
+        source_motion_path=SOURCE_RIG_DIRECTORY/'mannequin-motion.npz'
+        if hashlib.sha256(source_motion_path.read_bytes()).hexdigest()!=source_artifact_record['files']['mannequin-motion.npz']:
+            raise ValueError('mannequin-walk 모션 해시 불일치')
+        original_motion_path=WORKFLOW_REPO_ROOT/'assets/rigs/mannequin-walk/motion-source/source-motion.npz'
         if hashlib.sha256(original_motion_path.read_bytes()).hexdigest()!=source_artifact_record['motion']['source_sha256']:
             raise ValueError('MoMask 원본 해시 불일치')
         with np.load(source_motion_path,allow_pickle=False) as source_motion_bundle:
@@ -49,12 +49,12 @@ def execute_eight_frame_render():
         selected_joint_frames=full_motion_joints[OUTPUT_SAMPLE_INDICES]
         loop_step_distances=np.sqrt(np.mean((np.roll(selected_joint_frames,-1,axis=0)-selected_joint_frames)**2,axis=(1,2)))
         np.savez_compressed(EXPERIMENT_OUTPUT_ROOT/'sampled-motion.npz',joints=selected_joint_frames,rest=resting_joint_points,sample_indices=OUTPUT_SAMPLE_INDICES)
-        rig_render_module.write_trace_message('prepare','MoMask 출처·v9 체형·닫힌 루프 검증; 0,3,6,9,12,15,18,21 표본')
+        rig_render_module.write_trace_message('prepare','MoMask 출처·mannequin-walk 체형·닫힌 루프 검증; 0,3,6,9,12,15,18,21 표본')
         render_result_record=rig_render_module.build_render_scene(selected_joint_frames)
         import bpy
         bpy.context.scene.render.fps=20
         bpy.context.scene.render.fps_base=3
-        bpy.ops.wm.save_as_mainfile(filepath=str(EXPERIMENT_OUTPUT_ROOT/'rig/five-head-walk.blend'))
+            bpy.ops.wm.save_as_mainfile(filepath=str(EXPERIMENT_OUTPUT_ROOT/'rig/mannequin.blend'))
         world_joint_frames=selected_joint_frames[:,:,[0,2,1]].copy();world_joint_frames[:,:,1]*=-1
         direction_pose_records={}
         for direction_name_value,camera_point_values in rig_render_module.DIRECTION_CAMERA_POINTS.items():
@@ -83,7 +83,7 @@ def execute_eight_frame_render():
                 rig_reference_sheet.paste(preview_frame_image,((frame_index_value%4)*512,(frame_index_value//4)*512),preview_frame_image)
             contact_sheet_image.save(EXPERIMENT_OUTPUT_ROOT/direction_name_value/'contact-sheet.png')
             rig_reference_sheet.save(EXPERIMENT_OUTPUT_ROOT/direction_name_value/'rig-sheet.png')
-        manifest_result_record={'source':source_artifact_record['motion'],'rig':'five-head-walk/v9','directions':list(direction_pose_records),'frames_per_direction':8,'frame_duration_ms':150,'cycle_seconds':1.2,'loop':True,'sample_indices':OUTPUT_SAMPLE_INDICES.tolist(),'duplicate_end_frame':False,'closed_endpoint_max_error':float(np.abs(full_motion_joints[0]-full_motion_joints[-1]).max()),'step_rms_m':loop_step_distances.tolist(),'neutral_height_m':2.,'head_height_m':.4,'neutral_head_units':5,'render':render_result_record,'quality_status':'awaiting_user_review','notes':['5등신은 중립 리그 메시 기준이며 투영 자세에서는 겉보기 등신이 달라질 수 있음','원본 루프와 발 회전 검증; 8프레임의 시각적 부드러움은 검수 필요']}
+        manifest_result_record={'source':source_artifact_record['motion'],'rig':'mannequin-walk/v1','directions':list(direction_pose_records),'frames_per_direction':8,'frame_duration_ms':150,'cycle_seconds':1.2,'loop':True,'sample_indices':OUTPUT_SAMPLE_INDICES.tolist(),'duplicate_end_frame':False,'closed_endpoint_max_error':float(np.abs(full_motion_joints[0]-full_motion_joints[-1]).max()),'step_rms_m':loop_step_distances.tolist(),'neutral_height_m':2.,'head_height_m':.4,'neutral_head_units':5,'render':render_result_record,'quality_status':'awaiting_user_review','notes':['5등신은 중립 리그 메시 기준이며 투영 자세에서는 겉보기 등신이 달라질 수 있음','원본 루프와 발 회전 검증; 8프레임의 시각적 부드러움은 검수 필요']}
         (EXPERIMENT_OUTPUT_ROOT/'manifest.json').write_text(json.dumps(manifest_result_record,ensure_ascii=False,indent=2)+'\n')
         (EXPERIMENT_OUTPUT_ROOT/'openpose-keypoints.json').write_text(json.dumps({'format':'COCO18-compatible projected MoMask rig; nose=head center, eyes/ears omitted','frames':direction_pose_records},indent=2)+'\n')
         preview_html_text='''<!doctype html><meta charset="utf-8"><title>MoMask 4방향 · 8프레임 루프</title><style>body{background:#141924;color:#eee;font:16px sans-serif;margin:24px}main{display:grid;grid-template-columns:repeat(4,minmax(200px,1fr));gap:16px}img{width:100%;background:#242b39}button,select{font-size:16px;margin:10px}p{color:#b8c5d8}</style><h1>MoMask · v9 5등신 리그 · 4방향 8프레임</h1><p>1.2초 루프 / 150ms씩 / 마지막 중복 프레임 제외. 중립 리그 5등신, 최종 캐릭터 이미지 아님.</p><button id="toggle">일시정지</button><select id="mode"><option value="preview">리그</option><option value="openpose">OpenPose</option><option value="depth">Depth</option></select><span id="counter"></span><main></main><script>const directionNameValues=['down_left','down_right','up_left','up_right'];let currentFrameIndex=0;let animationIsPlaying=true;const previewMainElement=document.querySelector('main');for(const directionNameValue of directionNameValues){previewMainElement.insertAdjacentHTML('beforeend',`<section><h2>${directionNameValue}</h2><img data-direction="${directionNameValue}"><a href="${directionNameValue}/contact-sheet.png">8프레임 펼쳐보기</a></section>`)}function updatePreviewImages(){for(const imageElementValue of document.querySelectorAll('img'))imageElementValue.src=`${imageElementValue.dataset.direction}/${document.querySelector('#mode').value}-${String(currentFrameIndex+1).padStart(4,'0')}.png`;document.querySelector('#counter').textContent=`${currentFrameIndex+1} / 8`;}document.querySelector('#toggle').onclick=()=>{animationIsPlaying=!animationIsPlaying;document.querySelector('#toggle').textContent=animationIsPlaying?'일시정지':'재생'};document.querySelector('#mode').onchange=updatePreviewImages;updatePreviewImages();setInterval(()=>{if(animationIsPlaying){currentFrameIndex=(currentFrameIndex+1)%8;updatePreviewImages()}},150);</script>'''

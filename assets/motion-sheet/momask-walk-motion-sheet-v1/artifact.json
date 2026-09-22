@@ -2,7 +2,7 @@
   "asset_id": "walk-travel",
   "version": 1,
   "status": "generated_review_required",
-  "file": "motion.npz",
+  "file": "source-motion.npz",
   "sha256": "5f10e35b13cb7cb0cce7faf0dc26ac9b8f8ac36f2dc6e496b044418e3e1b05c5",
   "fps": 20,
   "frames": 96,

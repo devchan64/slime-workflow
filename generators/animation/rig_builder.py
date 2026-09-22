@@ -7,7 +7,7 @@ import time
 import numpy as np
 
 WORKFLOW_ROOT_PATH = Path(__file__).resolve().parents[2]
-SOURCE_MOTION_PATH = WORKFLOW_ROOT_PATH / 'assets/motions/walk-travel/v1/motion.npz'
+SOURCE_MOTION_PATH = WORKFLOW_ROOT_PATH / 'assets/rigs/mannequin-walk/motion-source/source-motion.npz'
 SOURCE_MANIFEST_PATH = SOURCE_MOTION_PATH.with_name('artifact.json')
 OUTPUT_ASSET_PATH = WORKFLOW_ROOT_PATH / 'assets/rigs/five-head-walk/v9'
 RENDER_OUTPUT_PATH = WORKFLOW_ROOT_PATH / '.result/workflow/runs/five-head-walk-v9'
@@ -143,7 +143,7 @@ def retarget_motion_sequence():
     retarget_joint_frames[-1]=retarget_joint_frames[0]
     output_frame_indices=np.arange(OUTPUT_FRAME_COUNT)*3
     OUTPUT_ASSET_PATH.mkdir(parents=True)
-    np.savez_compressed(OUTPUT_ASSET_PATH/'retargeted-motion.npz',joints=retarget_joint_frames,rest=REST_JOINT_POINTS,contacts=np.array(contact_frame_flags),sample_indices=output_frame_indices)
+    np.savez_compressed(OUTPUT_ASSET_PATH/'mannequin-motion.npz',joints=retarget_joint_frames,rest=REST_JOINT_POINTS,contacts=np.array(contact_frame_flags),sample_indices=output_frame_indices)
     return retarget_joint_frames[output_frame_indices],dict(source=source_manifest_record['asset_id'],source_version=source_manifest_record['version'],source_sha256=source_manifest_record['sha256'],source_interval=[SOURCE_START_FRAME,SOURCE_END_FRAME],fps=20,cycle_seconds=1.2,sample_indices=output_frame_indices.tolist(),seam_rms_before_m=seam_error_before,seam_position_after_m=0.0,contact_counts=np.array(contact_frame_flags).sum(axis=0).tolist(),quality_warnings=['관절 길이 재배치 후 접지 높이 IK만 적용; 수평 발 미끄러짐·경계 속도 불연속 검수 필요','5등신은 중립 제작 메시 기준; 참조 원화와 일치하는 최종 외형 메시가 아님','MoMask 가중치·학습자료의 상업 이용 조건 검토 미완료'])
 
 
@@ -311,7 +311,7 @@ def build_render_scene(sample_joint_frames):
             file_output_node.file_slots[0].path='down_left/depth-'
             file_output_node.file_slots[1].path='down_left/mask-'
             render_scene_value.render.filepath=str(RENDER_OUTPUT_PATH/'down_left/preview-0001.png')
-            bpy.ops.wm.save_as_mainfile(filepath=str(OUTPUT_ASSET_PATH/'five-head-walk.blend'))
+            bpy.ops.wm.save_as_mainfile(filepath=str(OUTPUT_ASSET_PATH/'mannequin.blend'))
         for frame_index_value in range(OUTPUT_FRAME_COUNT):
             CURRENT_STAGE_RECORD.update(stage=direction_name_value,completed=frame_index_value)
             render_scene_value.frame_set(frame_index_value+1)

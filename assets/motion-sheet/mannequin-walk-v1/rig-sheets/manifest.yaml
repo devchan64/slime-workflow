@@ -1,17 +1,38 @@
 asset_id: five-head-walk-8f-rig-sheets
 version: 2
-description: MoMask walk-travel/v1과 five-head-walk/v9 리그 포즈를 유지하면서 어깨·팔·손목·손 형상을 개선한 4방향 걷기 8프레임 참조 시트. AnyPose 검수용 제작 자산.
-source_run: .tmp/2026-09-20_21-01-21
+description: MoMask walk-travel/v1과 mannequin-walk/v1 리그 포즈를 유지하면서 어깨·팔·손목·손 형상을 개선한 4방향 걷기 8프레임 참조 시트. AnyPose 검수용 제작 자산.
+source_run: assets/rigs/mannequin-walk/motion-source
 source_manifest_sha256: 946d4fc7afd078af046be60cf40c7ee9b0e321f8ba508c11cc8c1820114e5158
 generator: generators/animation/render_pose_frames.py
 source_motion:
   asset_id: walk-travel
   version: 1
   sha256: 5f10e35b13cb7cb0cce7faf0dc26ac9b8f8ac36f2dc6e496b044418e3e1b05c5
+retargeted_motion:
+  path: ../mannequin-motion.npz
+  sha256: 5ab353ed313a2395c00389f2f94ed3dff9a5d2187dd3f3f4d0f08862ad1866d6
 source_rig:
-  asset_id: five-head-walk
-  version: 9
-  artifact_sha256: db00df0cf970ba52b346f247b8bda90780505defca81c344b40fc4139023f1ad
+  asset_id: mannequin-walk
+  version: 1
+  artifact_sha256: 7d1b0e7c31e72da6e532a372d5f921f54eea74be1c3533b13de84f3acccc5e69
+paired_pose_sheets:
+  path: ../pose-sheets-v1
+  manifest: ../pose-sheets-v1/manifest.yaml
+rig_materials:
+  mannequin_rig_blend:
+    path: ../mannequin.blend
+    sha256: 7b51d90c038589c9d5e6c8ea6457a68fa7ee7fecac4cddd0825bb51db622da4b
+  humanlike_reference_blend:
+    path: ../../humanlike-walk/v1/humanlike-walk.blend
+    sha256: 9039eab963f51f42f579b154d1062af3614aaf97bbc2df77b7fead3911cf09f5
+openpose_reference:
+  path: ../pose-sheets-v1
+  layout: 4열×2행, 2048×1024, 512×512 셀
+  files:
+    down_left.png: b2f7c39c5271aaff3f524d16530a200d2b930185894555b305cc2f25c843e874
+    down_right.png: b96a2f6272580eb4ead00830774fc2c958a0076d16928543ae5e938d44394ee5
+    up_left.png: 7d766fff92d6c0b2a9c242f6d5ebbc453d914ddf657071c5cd3c630e549bae3d
+    up_right.png: 0b44f94b7c5b725b5b80d413a36b837b6102f85d78178b1de6e15965a31ff4cf
 layout:
   columns: 4
   rows: 2

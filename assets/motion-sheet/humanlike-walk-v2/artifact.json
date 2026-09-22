@@ -1,0 +1,12 @@
+{
+  "asset_id": "humanlike-walk",
+  "version": 2,
+  "status": "candidate_visual_revision",
+  "source_rig": "mannequin-walk/v1",
+  "files": {
+    "humanlike-walk.blend": "de71177e26d1b1f962469ceaec7ece0bdf4d8b8db1347990e7952e08f9d69195",
+    "retargeted-motion.npz": "5ab353ed313a2395c00389f2f94ed3dff9a5d2187dd3f3f4d0f08862ad1866d6"
+  },
+  "changes": ["머리·얼굴 비율 14% 축소", "v1 포즈·모션 유지"],
+  "quality_status": "awaiting_visual_review"
+}

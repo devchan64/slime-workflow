@@ -19,10 +19,10 @@
 
 | 베이스라인 위치 | 방향 키 | 걷기 리그 파일 |
 | --- | --- | --- |
-| 좌상 | `up_left` | `assets/rig-sheets/five-head-walk-8f/v2/up_left.png` |
-| 우상 | `up_right` | `assets/rig-sheets/five-head-walk-8f/v2/up_right.png` |
-| 좌하 | `down_left` | `assets/rig-sheets/five-head-walk-8f/v2/down_left.png` |
-| 우하 | `down_right` | `assets/rig-sheets/five-head-walk-8f/v2/down_right.png` |
+| 좌상 | `up_left` | `assets/rigs/mannequin-walk/v1/rig-sheets-v2/up_left.png` |
+| 우상 | `up_right` | `assets/rigs/mannequin-walk/v1/rig-sheets-v2/up_right.png` |
+| 좌하 | `down_left` | `assets/rigs/mannequin-walk/v1/rig-sheets-v2/down_left.png` |
+| 우하 | `down_right` | `assets/rigs/mannequin-walk/v1/rig-sheets-v2/down_right.png` |
 
 베이스라인 크롭은 흰 배경의 512×512 PNG로 만들고, 원본 경계·원본 해시·방향 키를 실행 기록에 남긴다. 캐릭터 크롭은 해당 방향을 사용하며, 좌상 캐릭터로 우하 프레임을 생성하는 식의 대체를 허용하지 않는다.
 
@@ -34,7 +34,7 @@ slime-frontend/src/assets/characters/default/baseline/character-default-white-sh
 
 ## 2. 리그와 OpenPose 준비
 
-재사용 리그는 `assets/rig-sheets/five-head-walk-8f/v2/`를 사용한다. 각 방향 시트는 2048×1024, 4열×2행, 셀 512×512이며 행 우선으로 1–4프레임과 5–8프레임을 배치한다. 해당 시트의 `manifest.yaml`에서 자산 버전과 해시를 확인한다.
+재사용 리그는 `assets/rigs/mannequin-walk/v1/rig-sheets-v2/`를 사용한다. 각 방향 시트는 2048×1024, 4열×2행, 셀 512×512이며 행 우선으로 1–4프레임과 5–8프레임을 배치한다. 해당 시트의 `manifest.yaml`에서 자산 버전과 해시를 확인한다.
 
 - 리그 셀: 실제 관절·몸통·발 연결을 보는 셰이딩된 참조
 - OpenPose 셀: 같은 MoMask 관절의 투영 참조

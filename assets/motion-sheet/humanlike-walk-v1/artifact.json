@@ -1,0 +1,12 @@
+{
+  "asset_id": "humanlike-walk",
+  "version": 1,
+  "status": "candidate_regeneration_asset",
+  "source_rig": "mannequin-walk/v1",
+  "files": {
+    "humanlike-walk.blend": "9039eab963f51f42f579b154d1062af3614aaf97bbc2df77b7fead3911cf09f5",
+    "retargeted-motion.npz": "5ab353ed313a2395c00389f2f94ed3dff9a5d2187dd3f3f4d0f08862ad1866d6"
+  },
+  "pose_contract": "mannequin-walk/v1 본 구조·키프레임 유지",
+  "model_change": "사람형 머리·얼굴·목·몸통·의복·손·발 메시와 재질"
+}

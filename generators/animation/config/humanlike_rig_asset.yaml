@@ -1,0 +1,7 @@
+asset_id: humanlike-walk
+version: 1
+asset_path: assets/rigs/humanlike-walk/v1
+blend_file: humanlike-walk.blend
+motion_file: retargeted-motion.npz
+source_rig: mannequin-walk/v1
+purpose: 애니포즈 리그 참조용 사람형 외형

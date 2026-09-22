@@ -12,7 +12,7 @@ baseline_crops:
     up_left: a9e28c979a2ae26738af5cd1a9047c77c77b0f878b096cd16cb9c695e932e569
     up_right: 8f500b512818eb2ce1f0b2e1cfb0c52431b41ad371a0a4ff384c11de8808f09f
 openpose_sheets:
-  root: openpose-walk-v1
+  root: ../../rigs/mannequin-walk/v1/pose-sheets-v1
   sheet_size: [2048, 1024]
   cell_size: [512, 512]
   files:

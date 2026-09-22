@@ -4,7 +4,7 @@
 
 - `motions/`: 재사용 MoMask 관절 모션.
 - `rigs/`: 현재 기본 리그 `five-head-walk/v9`만 보관한다. 사용자 요청으로 v1~v8은 삭제했다.
-- `pose-sheets/five-head-walk-8f/v1/`: 이미지젠 참조용 4방향 시트. 각 PNG는 4열×2행·2048×1024이며 8개의 원본 포즈를 그대로 묶는다. 배치·출처·해시는 `generators/animation/config/default_walk_pose_sheets.yaml`에서 관리한다.
+- `rigs/mannequin-walk/v1/pose-sheets-v1/`: 이미지젠 참조용 4방향 포즈 시트. 각 PNG는 4열×2행·2048×1024이며 8개의 원본 포즈를 그대로 묶는다. 배치·출처·해시는 `generators/animation/config/default_walk_pose_sheets.yaml`에서 관리한다.
 - 외형 참조 이미지의 관리 원본은 프론트엔드다. 생성 시 명시적으로 선택한 원본을 실행별 `.tmp/`에 준비하고 출처·해시를 기록한다. `assets/`에 참조 사본을 중복 등록하지 않는다.
 - 미리보기 HTML과 재생용 메타데이터 사본은 정식 에셋으로 등록하지 않는다. 필요하면 실행별 `.tmp/`에서 생성·확인한다.
 - 이전 `rig-baselines/five-head-walk/v8` 비교 스냅샷은 삭제했다. v9 manifest의 이전 버전 표기는 과거 출처이며 실행 입력이 아니다.

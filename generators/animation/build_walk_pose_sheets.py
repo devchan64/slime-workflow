@@ -11,7 +11,7 @@ from PIL import Image
 
 
 WORKFLOW_REPO_ROOT = Path(__file__).resolve().parents[2]
-SHEET_ASSET_DIRECTORY = WORKFLOW_REPO_ROOT / 'assets/pose-sheets/five-head-walk-8f/v1'
+SHEET_ASSET_DIRECTORY = WORKFLOW_REPO_ROOT / 'assets/rigs/mannequin-walk/pose-sheets-v1'
 SHEET_MANIFEST_PATH = WORKFLOW_REPO_ROOT / 'generators/animation/config/default_walk_pose_sheets.yaml'
 SHEET_COLUMN_COUNT = 4
 SHEET_ROW_COUNT = 2
@@ -33,8 +33,8 @@ def build_walk_pose_sheets(source_asset_directory):
     try:
         source_manifest_path = source_asset_directory / 'manifest.json'
         source_manifest_record = json.loads(source_manifest_path.read_text())
-        if source_manifest_record['rig'] != 'five-head-walk/v9' or source_manifest_record['sample_indices'] != list(range(0,24,3)) or source_manifest_record['frames_per_direction'] != 8:
-            raise ValueError('v9 8프레임 렌더 입력 계약 불일치')
+        if source_manifest_record['rig'] != 'mannequin-walk/v1' or source_manifest_record['sample_indices'] != list(range(0,24,3)) or source_manifest_record['frames_per_direction'] != 8:
+            raise ValueError('mannequin-walk 8프레임 렌더 입력 계약 불일치')
         if SHEET_ASSET_DIRECTORY.exists() or SHEET_MANIFEST_PATH.exists():
             raise FileExistsError('등록 시트 또는 manifest가 이미 있습니다. 기존 불변 버전을 덮어쓰지 않습니다.')
         record_sheet_progress('prepare', str(source_asset_directory))

@@ -1,6 +1,6 @@
 asset_id: five-head-walk-8f-pose-sheets
 version: 1
-asset_path: assets/pose-sheets/five-head-walk-8f/v1
+asset_path: assets/rigs/mannequin-walk/pose-sheets-v1
 layout:
   columns: 4
   rows: 2
@@ -67,8 +67,8 @@ source_motion:
   version: 1
   sha256: 5f10e35b13cb7cb0cce7faf0dc26ac9b8f8ac36f2dc6e496b044418e3e1b05c5
 source_rig:
-  asset_id: five-head-walk
-  version: 9
+  asset_id: mannequin-walk
+  version: 1
 compatibility:
   joint_schema: HumanML3D-22
   coordinate_system: y-up meters; renderer x,-z,y
