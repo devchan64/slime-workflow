@@ -1,1 +1,1 @@
-Make the person in image 1 do the exact same pose of the person in image 2.
+Use the character in image 1 as the identity and appearance reference. Make the character perform the exact same full-body pose and movement shown in image 2. Preserve the character's face, hair, clothing, body proportions, colors, and visual style from image 1. Match the head, torso, arms, hands, legs, and feet positions from image 2. Keep the entire character visible in a clean game-sprite composition.
