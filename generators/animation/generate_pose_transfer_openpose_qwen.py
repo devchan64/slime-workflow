@@ -6,10 +6,10 @@ from pathlib import Path
 from qwen_pose import execute_pose_generation
 
 DIRECTION_POSE_INSTRUCTIONS = {
-    'down_left': 'The character is facing down-left.',
-    'down_right': 'The character is facing down-right.',
-    'up_left': 'The character is facing up-left.',
-    'up_right': 'The character is facing up-right.',
+    'down_left': 'The character is looking left.',
+    'down_right': 'The character is looking right.',
+    'up_left': 'The character is looking left.',
+    'up_right': 'The character is looking right.',
 }
 
 def generate_pose_transfer_openpose_qwen_frame(output_directory, prompt_file_path, direction_name):
