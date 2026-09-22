@@ -1,0 +1,1 @@
+{'status': 'passed', 'meshes': 30, 'skinned_primitives': 34, 'skin_joint_counts': [24], 'triangles': 97088, 'animation_durations': [1.2000000476837158], 'max_bones_per_vertex': 2, 'sha256': 'e10bd5f7d65f582fee8362e95ecb8a33c8e8c08610963973ff50851cf13d54ed'}

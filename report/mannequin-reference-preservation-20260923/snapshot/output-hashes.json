@@ -1,0 +1,7 @@
+{
+  "rigged-mannequin.blend": "e1fa78b8cbcd4796e40cb9f7f1f8e73e9d2d24c23b0cfff77b06f39c6981f172",
+  "rigged-mannequin.glb": "974bd2d9704d6e88bfc71a8e10e4955d8020bddd409e4b50674e8bc3b34df9a1",
+  "build_parts.py": "fd01ce20e0fbe91bb48ff5df3a3887c84e72524b86a3a712d445ef022feb5a3a",
+  "build_rig.py": "17047d3169c3bf564c6bfc01d877a37d4913fe5cdb57c7a2db4520c7a705a6b1",
+  "refine_weights.py": "2dedc279fad6017823e93e10cfc17f37efb754cd5b1465d182b56fe219db2ff7"
+}

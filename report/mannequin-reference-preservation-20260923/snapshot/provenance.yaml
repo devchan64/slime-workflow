@@ -1,0 +1,10 @@
+status: reference_shape_review_candidate
+source_model: ../2026-09-23_01-02-22/model-review/mannequin.blend
+rejected_previous_model: ../2026-09-23_01-28-22/rigged-mannequin.blend
+source_motion_id: mannequin-walk/v1
+source_motion_sha256: 5ab353ed313a2395c00389f2f94ed3dff9a5d2187dd3f3f4d0f08862ad1866d6
+surface_policy: 채택 모델의 원본 삼각형 표면과 외부 노멀 보존, 좁은 곡선 경계 분할
+joint_policy: 내부 독립 구체와 안쪽 두께 0.0015의 셸, 실물 조립용 설계 아님
+weight_policy: 외곽 연결부 최대 두 본 혼합, 내부 구체 단일 본
+reference_comparison: 원본 시트 정면 측면 후면을 직접 크롭한 기존 입력 사용
+silhouette_metric: 원본 그림이 아닌 채택된 3D 모델을 기준으로 측정

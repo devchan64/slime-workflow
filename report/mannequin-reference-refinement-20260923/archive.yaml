@@ -1,0 +1,8 @@
+schema_version: 1
+experiment_id: mannequin-reference-refinement-20260923
+source_run: .tmp/mannequin-reference-refinement/2026-09-23_07-33-20
+status: review_candidate
+purpose: 외부 공유용 특정 실험의 이력과 결과 사본
+previous_report: mannequin-reference-preservation-20260923
+source_glb_sha256: be59d03879f62862e212eebad884a8a353d1b44bc0d1715e390422e440c48313
+pdf_created: false

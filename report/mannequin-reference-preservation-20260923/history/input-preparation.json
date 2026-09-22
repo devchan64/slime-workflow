@@ -1,0 +1,62 @@
+{
+  "status": "prepared",
+  "method": "원본 픽셀 크롭 + OpenCV GrabCut 색상 분리 + 등방성 크기 정렬",
+  "source_sha256": "7aae9d750b4afcda419dd79ea39f1c369bf46f5a893d595664d02cfd2138348a",
+  "view_orientation": "공식 left.png 예시와 동일하게 코가 화면 왼쪽을 향하는 측면 사용",
+  "views": {
+    "front": {
+      "source_crop": [
+        140,
+        88,
+        441,
+        942
+      ],
+      "foreground_bbox": [
+        9,
+        9,
+        298,
+        847
+      ],
+      "target_height": 900,
+      "foot_baseline": 964,
+      "scale": 1.0739856801909309,
+      "sha256": "5f98aed817402763b4990c90c6818c986c7efa0ebb480ef05324ede4dbf90c51"
+    },
+    "left": {
+      "source_crop": [
+        922,
+        89,
+        1115,
+        941
+      ],
+      "foreground_bbox": [
+        11,
+        9,
+        168,
+        842
+      ],
+      "target_height": 900,
+      "foot_baseline": 964,
+      "scale": 1.0804321728691477,
+      "sha256": "16e06158dc4ce1ce3714a075f37512d2f0c33bbc61d769c7bab8e332348c9248"
+    },
+    "back": {
+      "source_crop": [
+        617,
+        89,
+        922,
+        944
+      ],
+      "foreground_bbox": [
+        4,
+        8,
+        302,
+        844
+      ],
+      "target_height": 900,
+      "foot_baseline": 964,
+      "scale": 1.076555023923445,
+      "sha256": "72da09b8d6e8497921eb7df48d0217c458c239893836c5627c4f0f5620955bed"
+    }
+  }
+}

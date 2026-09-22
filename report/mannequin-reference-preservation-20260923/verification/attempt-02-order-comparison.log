@@ -1,0 +1,15 @@
+2026-09-23T06:57:06.287691+09:00/mannequin-reproduction/integrity 114개 파일 SHA-256 일치
+2026-09-23T06:57:06.291979+09:00/mannequin-reproduction/build_rig ['/home/cbsim/ws/slime-workflow/.local/blender-runtime/bin/python', '-c', "import os,runpy,sys,traceback\nprocess_exit_value=0\ntry:\n sys.path.insert(0,os.path.dirname(sys.argv[1]))\n runpy.run_path(sys.argv[1],run_name='__main__')\nexcept BaseException:\n traceback.print_exc()\n process_exit_value=1\nfinally:\n sys.stdout.flush()\n sys.stderr.flush()\n os._exit(process_exit_value)\n", '/home/cbsim/ws/slime-workflow/.tmp/mannequin-reproduction/2026-09-23_06-57-06/build_rig.py']
+2026-09-23T06:57:09.664169+09:00/mannequin-reproduction/validate_rig ['/home/cbsim/ws/slime-workflow/.local/blender-runtime/bin/python', '-c', "import os,runpy,sys,traceback\nprocess_exit_value=0\ntry:\n sys.path.insert(0,os.path.dirname(sys.argv[1]))\n runpy.run_path(sys.argv[1],run_name='__main__')\nexcept BaseException:\n traceback.print_exc()\n process_exit_value=1\nfinally:\n sys.stdout.flush()\n sys.stderr.flush()\n os._exit(process_exit_value)\n", '/home/cbsim/ws/slime-workflow/.tmp/mannequin-reproduction/2026-09-23_06-57-06/validate_rig.py']
+2026-09-23T06:57:10.230120+09:00/mannequin-reproduction/validate_export ['/home/cbsim/ws/slime-workflow/.local/blender-runtime/bin/python', '-c', "import os,runpy,sys,traceback\nprocess_exit_value=0\ntry:\n sys.path.insert(0,os.path.dirname(sys.argv[1]))\n runpy.run_path(sys.argv[1],run_name='__main__')\nexcept BaseException:\n traceback.print_exc()\n process_exit_value=1\nfinally:\n sys.stdout.flush()\n sys.stderr.flush()\n os._exit(process_exit_value)\n", '/home/cbsim/ws/slime-workflow/.tmp/mannequin-reproduction/2026-09-23_06-57-06/validate_export.py']
+2026-09-23T06:57:10.351685+09:00/mannequin-reproduction/failure Traceback (most recent call last):
+  File "/home/cbsim/ws/slime-workflow/report/mannequin-reference-preservation-20260923/reproduce.py", line 133, in execute_reproduction_run
+    raise ValueError('GLB 좌표/가중치/인덱스/애니메이션 수치 불일치')
+ValueError: GLB 좌표/가중치/인덱스/애니메이션 수치 불일치
+
+Traceback (most recent call last):
+  File "/home/cbsim/ws/slime-workflow/report/mannequin-reference-preservation-20260923/reproduce.py", line 156, in <module>
+    execute_reproduction_run()
+  File "/home/cbsim/ws/slime-workflow/report/mannequin-reference-preservation-20260923/reproduce.py", line 133, in execute_reproduction_run
+    raise ValueError('GLB 좌표/가중치/인덱스/애니메이션 수치 불일치')
+ValueError: GLB 좌표/가중치/인덱스/애니메이션 수치 불일치
