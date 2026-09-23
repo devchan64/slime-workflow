@@ -12,6 +12,7 @@ vm.runInContext(readFileSync(new URL('../manager.js',import.meta.url),'utf8'),cu
 await new Promise(currentResolveCallback=>setImmediate(currentResolveCallback));
 await vm.runInContext('selectWriterJob("test-id")',currentExecutionContext);
 assert.equal(writerDocumentAdapter.querySelector('#apply').hidden,false);
+assert.match(writerDocumentAdapter.querySelector('#request').textContent,/사용자 지시/);
 assert.match(writerDocumentAdapter.querySelector('#workspace').textContent,/private\/documents/);
 assert.equal(writerDocumentAdapter.querySelector('#evidence').children[0].children[1].textContent,'<script>금지</script>');
 writerDocumentAdapter.querySelector('#prompt').value='새 아이디어';
