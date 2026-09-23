@@ -40,7 +40,7 @@ if(originalAnchorPane.hidden)throw new Error('검색 도중 자동 이동');
 document.querySelector('#assetSearch').onkeydown({key:'Enter',preventDefault(){}});
 if(selectedPageIdentifier!=='slime')throw new Error('검색 후 Enter 선택 실패');
 document.querySelector('#clearSearch').onclick();
-if(filteredPageRecords.length!==6||selectedPageIdentifier!=='slime')throw new Error('검색 초기화 후 선택 소실');
+if(filteredPageRecords.length!==8||selectedPageIdentifier!=='slime')throw new Error('검색 초기화 후 선택 소실');
 `,testExecutionContext);
 assert.equal(selectedElementLookup.get('#standaloneLink').href,'slime/anchors.html');
 vm.runInContext(`
@@ -99,3 +99,9 @@ vm.runInContext(`
  if(filterManagerRecords('파일 분리','document-management').length!==1)throw new Error('파일 구조 도구 검색 실패');
 `,testExecutionContext);
 console.log('세계관 작성·도서 편집 통합 메뉴 및 배치안 유지 통과');
+
+vm.runInContext(`
+if(filterManagerRecords('Qwen','image-generation').length!==2)throw new Error('이미지 생성 검색 실패');
+selectManagerPage('image-generator');
+if(managerPaneElements.get('image-generator').src!=='/image-generation/')throw new Error('이미지 생성 진입점 오류');
+`,testExecutionContext);
