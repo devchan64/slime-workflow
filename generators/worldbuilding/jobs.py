@@ -22,6 +22,9 @@ def register_document_job(current_config_values,current_request_values,current_e
     current_run_root=Path(current_config_values['private_state_root'])/current_queue_name/current_task_identifier
     current_run_root.mkdir(parents=True,mode=0o700)
     save_yaml_document(current_run_root/'request.yaml',current_request_values)
+    if current_request_values.get('book_edit_stage_name')=='all-stages':
+        from .book_pipeline import initialize_book_pipeline
+        initialize_book_pipeline(current_run_root,current_request_values)
     # 상태 파일은 요청 기록이 끝난 뒤 공개한다. 직접 실행은 웹 큐와 분리해 이중 실행을 막는다.
     save_yaml_document(current_run_root/'status.yaml',{'workflow_task_id':current_task_identifier,'current_stage_name':'queued' if current_execution_mode=='queued' else 'context','updated_timestamp_text':datetime.now(ZoneInfo('Asia/Seoul')).isoformat()})
     return current_run_root

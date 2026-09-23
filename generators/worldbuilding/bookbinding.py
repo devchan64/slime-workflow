@@ -54,7 +54,7 @@ def collect_book_sources(current_config_values,current_directory_paths):
 
 
 def plan_document_book(current_config_values,current_request_values):
-    """Markdown 블록 경계로 원문을 분할하고 제목 키워드로 주제별 장을 구성한다."""
+    """문서 단위로 주제를 정하고 내부 블록의 원문 순서를 보존한다."""
     from markdown_it import MarkdownIt
     Draft202012Validator(BOOK_REQUEST_SCHEMA).validate(current_request_values)
     if 'collection_id' in current_request_values:
@@ -74,22 +74,20 @@ def plan_document_book(current_config_values,current_request_values):
                 current_block_starts.add(current_parser_token.map[0])
             if current_parser_token.type=='heading_open':
                 current_heading_lookup[current_parser_token.map[0]]=(int(current_parser_token.tag[1:]),current_parsed_tokens[current_token_index+1].content)
+        current_document_title=next((current_heading_title for current_heading_level,current_heading_title in current_heading_lookup.values() if current_heading_level==1),PurePosixPath(current_source_path).stem)
+        current_topic_context=(current_document_title+' '+PurePosixPath(current_source_path).stem).lower()
+        current_topic_scores={current_topic_label:sum(current_topic_context.count(current_topic_keyword) for current_topic_keyword in current_topic_keywords) for current_topic_label,current_topic_keywords in BOOK_TOPIC_KEYWORDS.items()}
+        current_topic_title=max(current_topic_scores,key=current_topic_scores.get) if max(current_topic_scores.values()) else '기타 설정'
         current_block_starts=sorted(current_block_starts)
         current_heading_trail={}
-        current_document_title=PurePosixPath(current_source_path).stem
         for current_block_index,current_start_line in enumerate(current_block_starts):
             current_end_line=current_block_starts[current_block_index+1] if current_block_index+1<len(current_block_starts) else len(current_source_lines)
             if current_start_line in current_heading_lookup:
                 current_heading_level,current_heading_title=current_heading_lookup[current_start_line]
                 current_heading_trail={current_trail_level:current_trail_title for current_trail_level,current_trail_title in current_heading_trail.items() if current_trail_level<current_heading_level}
                 current_heading_trail[current_heading_level]=current_heading_title
-                if current_heading_level==1:
-                    current_document_title=current_heading_title
             current_paragraph_text=''.join(current_source_lines[current_start_line:current_end_line])
             current_paragraph_id='paragraph-'+hashlib.sha256((current_source_path+':'+current_source_entry['source_content_hash']+':'+str(current_start_line)).encode()).hexdigest()[:24]
-            current_topic_context=(current_document_title+' '+PurePosixPath(current_source_path).stem+' '+' '.join(current_heading_trail.values())).lower()
-            current_topic_scores={current_topic_label:sum(current_topic_context.count(current_topic_keyword) for current_topic_keyword in current_topic_keywords) for current_topic_label,current_topic_keywords in BOOK_TOPIC_KEYWORDS.items()}
-            current_topic_title=max(current_topic_scores,key=current_topic_scores.get) if max(current_topic_scores.values()) else '기타 설정'
             current_paragraph_entries.append({'paragraph_id':current_paragraph_id,'source_document_path':current_source_path,'source_content_hash':current_source_entry['source_content_hash'],'source_start_line':current_start_line+1,'source_end_line':current_end_line,'paragraph_text':current_paragraph_text,'paragraph_hash':hashlib.sha256(current_paragraph_text.encode()).hexdigest(),'heading_trail':list(current_heading_trail.values()),'is_heading_flag':current_start_line in current_heading_lookup,'chapter_title':current_topic_title})
     current_chapter_order=list(dict.fromkeys(current_paragraph_entry['chapter_title'] for current_paragraph_entry in current_paragraph_entries))
     current_paragraph_entries.sort(key=lambda current_paragraph_entry:current_chapter_order.index(current_paragraph_entry['chapter_title']))

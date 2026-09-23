@@ -11,7 +11,7 @@ import subprocess
 import sys
 import threading
 import uuid
-from urllib.parse import urlsplit
+from urllib.parse import urlsplit, parse_qs, unquote
 from zoneinfo import ZoneInfo
 
 from jsonschema import Draft202012Validator
@@ -76,8 +76,19 @@ class WorldbuildingManagement:
 
     def submit_document_request(self,current_request_values):
         from .jobs import register_document_job
-        current_run_root=register_document_job(self.workspace_config_values,current_request_values)
-        return {'workflow_task_id':current_run_root.name}
+        if current_request_values.get('task_kind_name')=='book-edit':
+            from .book_automation import AUTOMATION_REQUEST_SCHEMA
+            from .book_collections import resolve_collection_request
+            Draft202012Validator(AUTOMATION_REQUEST_SCHEMA).validate(current_request_values)
+            resolve_collection_request(self.workspace_config_values,current_request_values)
+        with self.queue_operation_lock:
+            if current_request_values.get('book_edit_stage_name')=='all-stages':
+                from .book_job_records import list_book_jobs
+                current_running_tasks=list_book_jobs(self.private_state_root,current_request_values['collection_id'])['active_task_identifiers']
+                if current_running_tasks:
+                    return {'workflow_task_id':current_running_tasks[0],'already_running_flag':True}
+            current_run_root=register_document_job(self.workspace_config_values,current_request_values)
+        return {'workflow_task_id':current_run_root.name,'already_running_flag':False}
 
     def process_pending_jobs(self):
         try:
@@ -96,8 +107,6 @@ class WorldbuildingManagement:
                     continue
                 queued_status_paths=[current_status_path for current_status_path in sorted((self.private_state_root/'jobs').glob('*/status.yaml')) if load_yaml_document(current_status_path)['current_stage_name']=='queued']
                 if not queued_status_paths:
-                    continue
-                if not (WORKFLOW_REPOSITORY_ROOT/'.local/worldbuilding/prepared.json').exists():
                     continue
                 current_run_root=queued_status_paths[0].parent
                 self.current_task_identifier=current_run_root.name
@@ -166,6 +175,25 @@ class WorldbuildingManagement:
             elif current_http_handler.command=='GET' and requested_url_path=='/worldbuilding/library':
                 response_body_bytes=(WORKFLOW_MODULE_ROOT/'book-library.html').read_bytes()
                 response_type_value='text/html; charset=utf-8'
+            elif current_http_handler.command=='GET' and requested_url_path=='/worldbuilding/book-library-jobs.js':
+                response_body_bytes=(WORKFLOW_MODULE_ROOT/'book-library-jobs.js').read_bytes()
+                response_type_value='text/javascript; charset=utf-8'
+            elif current_http_handler.command=='GET' and requested_url_path=='/worldbuilding/api/book-jobs':
+                from .book_job_records import list_book_jobs
+                current_query_values=parse_qs(urlsplit(current_http_handler.path).query)
+                current_response_values=list_book_jobs(self.private_state_root,current_query_values.get('collection_id',['world'])[0],int(current_query_values.get('offset',['0'])[0]))
+                response_body_bytes=json.dumps(current_response_values,ensure_ascii=False).encode()
+                response_type_value='application/json; charset=utf-8'
+            elif current_http_handler.command=='GET' and requested_url_path.startswith('/worldbuilding/book-jobs/'):
+                from .book_job_records import read_book_record
+                current_url_parts=requested_url_path.split('/')
+                if len(current_url_parts)<6 or current_url_parts[4]!='artifacts':
+                    raise ValueError('올바르지 않은 도서 기록 경로입니다.')
+                current_record_values=read_book_record(self.private_state_root,current_url_parts[3],unquote('/'.join(current_url_parts[5:])))
+                response_body_bytes=current_record_values['content_text'].encode()
+                if current_record_values['truncated_flag']:
+                    response_body_bytes=('표시 크기 제한: 일부 내용입니다. 전체 경로: '+current_record_values['absolute_path']+'\n\n').encode()+response_body_bytes
+                response_type_value='text/plain; charset=utf-8'
             elif current_http_handler.command=='GET' and requested_url_path=='/worldbuilding/api/books':
                 from .bookbinding import list_document_books
                 from .reorganization import list_document_reorganizations
@@ -192,7 +220,13 @@ class WorldbuildingManagement:
                     raise ValueError('요청 크기가 올바르지 않습니다.')
                 request_body_values=parse_unique_json(current_http_handler.rfile.read(request_content_length).decode())
                 if requested_url_path=='/worldbuilding/api/book-ai':
-                    current_response_values=self.submit_document_request({**request_body_values,'task_kind_name':'book-edit'})
+                    current_response_values=self.submit_document_request({'book_edit_stage_name':'all-stages',**request_body_values,'task_kind_name':'book-edit'})
+                elif requested_url_path in {'/worldbuilding/api/book-job-detail','/worldbuilding/api/book-job-record'}:
+                    from .book_job_records import read_book_job,read_book_record
+                    current_expected_fields={'workflow_task_id'} if requested_url_path.endswith('detail') else {'workflow_task_id','relative_path'}
+                    if not isinstance(request_body_values,dict) or set(request_body_values)!=current_expected_fields:
+                        raise ValueError('올바르지 않은 도서 기록 조회 요청입니다.')
+                    current_response_values=read_book_job(self.private_state_root,request_body_values['workflow_task_id'],True) if requested_url_path.endswith('detail') else read_book_record(self.private_state_root,request_body_values['workflow_task_id'],request_body_values['relative_path'])
                 elif requested_url_path=='/worldbuilding/api/book-ai-result':
                     if set(request_body_values)!={'workflow_task_id'} or not re.fullmatch(r'[0-9]{8}-[0-9]{6}-[a-f0-9]{8}',request_body_values['workflow_task_id']):
                         raise ValueError('올바르지 않은 도서 작업 ID입니다.')

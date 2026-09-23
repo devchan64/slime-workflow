@@ -57,6 +57,34 @@ class WorldbuildingManagementTests(unittest.TestCase):
         self.assertEqual(current_job_entry['collection_id'],'world')
         self.assertEqual(current_job_entry['current_stage_name'],'queued')
 
+    def test_one_button_api_queues_full_pipeline_and_deduplicates(self):
+        self.current_request_values={'collection_id':'world','book_title_text':'세계관','source_directory_paths':['world'],'requested_instruction_text':'도서 전체 편집을 실행한다.'}
+        current_http_request=self.build_http_request(self.current_service_handle.management_csrf_token)
+        current_http_request.path='/worldbuilding/api/book-ai'
+        self.current_service_handle.handle_management_request(current_http_request)
+        self.assertEqual(current_http_request.response_status_code,200)
+        current_task_values=json.loads(current_http_request.wfile.getvalue())
+        current_repeat_request=self.build_http_request(self.current_service_handle.management_csrf_token)
+        current_repeat_request.path='/worldbuilding/api/book-ai'
+        self.current_service_handle.handle_management_request(current_repeat_request)
+        self.assertTrue(json.loads(current_repeat_request.wfile.getvalue())['already_running_flag'])
+        self.assertEqual(len(self.current_service_handle.read_management_state()['workflow_job_entries']),1)
+        current_history_request=ManagementRequestStub('/worldbuilding/api/book-jobs?collection_id=world','GET',{'Host':'127.0.0.1:8770'},None)
+        self.current_service_handle.handle_management_request(current_history_request)
+        current_history_values=json.loads(current_history_request.wfile.getvalue())
+        self.assertEqual(current_history_values['job_entries'][0]['book_edit_stage_name'],'all-stages')
+        self.assertEqual(len(current_history_values['job_entries'][0]['stage_entries']),4)
+        self.current_request_values={'workflow_task_id':current_task_values['workflow_task_id']}
+        current_detail_request=self.build_http_request(self.current_service_handle.management_csrf_token)
+        current_detail_request.path='/worldbuilding/api/book-job-detail'
+        self.current_service_handle.handle_management_request(current_detail_request)
+        self.assertEqual(current_detail_request.response_status_code,200)
+        self.assertTrue(json.loads(current_detail_request.wfile.getvalue())['artifacts'])
+        current_read_request=ManagementRequestStub('/worldbuilding/book-jobs/'+current_task_values['workflow_task_id']+'/artifacts/request.yaml','GET',{'Host':'127.0.0.1:8770'},None)
+        self.current_service_handle.handle_management_request(current_read_request)
+        self.assertEqual(current_read_request.response_status_code,200)
+        self.assertIn('all-stages',current_read_request.wfile.getvalue().decode())
+
     def test_rejects_cross_origin_submission(self):
         current_http_request=self.build_http_request(self.current_service_handle.management_csrf_token,'https://outside.example')
         self.current_service_handle.handle_management_request(current_http_request)
