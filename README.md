@@ -135,3 +135,7 @@ python3 tools/review/serve.py --walking .tmp/걷기실행폴더 --standing .tmp/
 ## 승인된 MoMask 마네킹 v5
 
 [mannequin-walk/v5](assets/motion-sheet/mannequin-walk-v5/README.md)는 ANNY r3 리그와 쉐이딩 강화 4방향 × 8프레임을 고정한 재사용 제작 자산입니다. 최종 이미지 관리 원본은 `slime-frontend/public/assets/characters/mannequin-walk-v5/`에 전달했으며 두 저장소의 manifest에 SHA-256을 기록했습니다. 기본 생성기·게임 런타임 선택은 별도이며 v2·v3·v4는 폐기 상태를 유지합니다.
+
+## 작가 AI 에이전트
+
+관리도구의 [작가 AI 실행 안내](workflows/writer-agent.md)를 통해 문서를 RAG로 학습하고, 아이디어의 작성 위치·본문과 중복 정리안을 검토·적용한다. 검색 근거와 변경 차이·실행 기록을 관리 화면에서 조회한다.

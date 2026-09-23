@@ -13,6 +13,7 @@ import threading
 import time
 import traceback
 import sys
+import signal
 
 REVIEW_SERVER_HOST = '127.0.0.1'
 REVIEW_SERVER_PORT = 8770
@@ -42,6 +43,7 @@ def parse_review_arguments(command_argument_values=None):
     argument_value_parser.add_argument('--entry',default='preview.html',help='--root 폴더 기준 HTML 진입 페이지')
     argument_value_parser.add_argument('--port',type=int,default=REVIEW_SERVER_PORT,help='로컬 서버 포트 (기본: 8770)')
     argument_value_parser.add_argument('--ui-bundle',type=Path,help='프론트엔드에서 전달한 UI 검수 빌드 폴더')
+    argument_value_parser.add_argument('--writer-agent-config',type=Path,help='작가 에이전트의 로컬 작업 공간 YAML')
     argument_value_parser.add_argument('--watch',action='store_true',help='소스 변경 시 검수 빌드를 다시 만들고 서버를 재시작')
     parsed_argument_values=argument_value_parser.parse_args(command_argument_values)
     if not any((parsed_argument_values.root, parsed_argument_values.walking, parsed_argument_values.frontend_repo, parsed_argument_values.standing)):
@@ -58,7 +60,9 @@ def parse_review_arguments(command_argument_values=None):
 
 def collect_review_watch_paths(parsed_argument_values):
     workflow_repo_root = Path(__file__).resolve().parents[2]
-    watch_paths = [Path(__file__).resolve(), workflow_repo_root/'tools/review', workflow_repo_root/'generators/animation', workflow_repo_root/'generators/worldbuilding']
+    watch_paths = [Path(__file__).resolve(), workflow_repo_root/'tools/review', workflow_repo_root/'generators/animation', workflow_repo_root/'generators/worldbuilding', workflow_repo_root/'generators/writer_agent']
+    current_writer_config=parsed_argument_values.writer_agent_config or workflow_repo_root/'.local/writer-agent/workspace.yaml'
+    watch_paths.append(current_writer_config)
     if parsed_argument_values.frontend_repo:
         watch_paths.append(Path(parsed_argument_values.frontend_repo).resolve()/'src/assets')
     if parsed_argument_values.root:
@@ -221,18 +225,24 @@ def run_review_server(parsed_argument_values):
         from .image_generation import ImageGenerationManager
     else:
         from image_generation import ImageGenerationManager
+    if str(workflow_repo_root) not in sys.path:sys.path.insert(0,str(workflow_repo_root))
+    from generators.writer_agent.management import WriterAgentManager
+    from generators.writer_agent.documents import DEFAULT_WORKSPACE_CONFIG
+    writer_agent_service=WriterAgentManager(parsed_argument_values.writer_agent_config or DEFAULT_WORKSPACE_CONFIG)
     image_generation_service = ImageGenerationManager()
     three_reference_service = ImageGenerationManager(three_reference_mode=True)
     class ReviewRequestHandler(SimpleHTTPRequestHandler):
         def __init__(self,*request_handler_arguments,**request_handler_options):
             super().__init__(*request_handler_arguments,directory=str(review_root_directory),**request_handler_options)
         def do_GET(self):
+            if writer_agent_service.handle_writer_request(self):return
             if three_reference_service.handle_image_request(self):
                 return
             if image_generation_service.handle_image_request(self):
                 return
             super().do_GET()
         def do_POST(self):
+            if writer_agent_service.handle_writer_request(self):return
             if three_reference_service.handle_image_request(self):
                 return
             if image_generation_service.handle_image_request(self):
@@ -260,6 +270,9 @@ def run_review_server(parsed_argument_values):
     def emit_server_heartbeat():
         while not server_stop_event.wait(REVIEW_HEARTBEAT_SECONDS):
             emit_server_trace('heartbeat',f'requests={request_counter_value[0]} root={review_root_directory.name} log_bytes={server_log_path.stat().st_size}')
+    def terminate_review_server(current_signal_number,current_stack_frame):
+        raise KeyboardInterrupt
+    previous_termination_handler=signal.signal(signal.SIGTERM,terminate_review_server)
     try:
         with ThreadingHTTPServer((REVIEW_SERVER_HOST,parsed_argument_values.port),ReviewRequestHandler) as review_http_server:
             emit_server_trace('start',f'http://{REVIEW_SERVER_HOST}:{parsed_argument_values.port}/ root={review_root_directory} entry={parsed_argument_values.entry} log={server_log_path}')
@@ -272,6 +285,9 @@ def run_review_server(parsed_argument_values):
         emit_server_trace('failure',traceback.format_exc())
         print('\n'.join(server_log_path.read_text().splitlines()[-20:]),flush=True)
         raise
+    finally:
+        writer_agent_service.close_writer_worker()
+        signal.signal(signal.SIGTERM,previous_termination_handler)
 
 if __name__ == '__main__':
     parsed_argument_values = parse_review_arguments()
