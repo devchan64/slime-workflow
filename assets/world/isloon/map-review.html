@@ -11,11 +11,12 @@
   .main{padding:18px}.map-header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}.map-title{margin:0;font-size:17px}.summary{margin:0;color:var(--muted);font-size:12px}.canvas-wrap{position:relative;min-height:700px;border:1px solid #2b493c;border-radius:10px;overflow:auto;background-color:#101a16;background-image:linear-gradient(45deg,#14241e 25%,transparent 25%),linear-gradient(-45deg,#14241e 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#14241e 75%),linear-gradient(-45deg,transparent 75%,#14241e 75%);background-size:24px 24px;background-position:0 0,0 12px,12px -12px,0}.map-preview{display:block;width:1152px;height:auto;margin:20px auto;image-rendering:pixelated;box-shadow:0 15px 45px #0008}.badge{position:sticky;display:block;z-index:1;left:16px;top:16px;width:max-content;margin:16px 0 -42px 16px;padding:7px 9px;border:1px solid #4c7865;border-radius:999px;background:#102018dd;color:#b9eac9;font-size:12px}.loading{position:absolute;inset:50% auto auto 50%;transform:translate(-50%,-50%);color:var(--muted)}.zoom-controls{display:flex;align-items:center;gap:7px}.zoom-controls button{width:30px;height:30px;border:1px solid #456c59;border-radius:7px;background:#14271f;color:var(--ink);font-size:17px;cursor:pointer}.zoom-controls input{accent-color:var(--accent)}.zoom-value{width:38px;color:var(--accent);font:12px ui-monospace,monospace;text-align:right}
   .legend{display:flex;flex-wrap:wrap;gap:7px;margin-top:13px}.legend span{border:1px solid #315141;border-radius:999px;background:#102019;padding:5px 8px;color:#bdd3c5;font-size:12px}.legend b{color:var(--water)}
   .volume-panel{margin-top:18px;padding:18px}.volume-header{display:flex;align-items:start;justify-content:space-between;gap:16px;margin-bottom:12px}.volume-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.volume-card{min-width:0;overflow:hidden;border:1px solid #315141;border-radius:10px;background:#101c17}.volume-card h3{margin:0;padding:10px 12px 0;font-size:14px}.volume-card p{margin:4px 12px 0;color:var(--muted);font-size:12px}.volume-card canvas{display:block;width:100%;height:420px}.volume-note{margin:12px 0 0;color:#bed2c5;font-size:12px;line-height:1.5}
+  .appearance-controls{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:12px}.appearance-controls label{display:flex;flex-direction:column;gap:8px;padding:12px;border:1px solid var(--panel-edge);border-radius:9px;min-width:0}.appearance-controls output{font-size:12px;color:var(--muted);overflow-wrap:anywhere}.appearance-controls input{width:100%;min-width:0}.appearance-controls button{align-self:start;background:#203d30;border:1px solid var(--panel-edge);border-radius:5px;color:var(--ink);padding:5px 10px;cursor:pointer}#appearance-error{color:#ffbaaa}
 </style>
 <main class="shell">
   <header class="top"><div><p class="eyebrow">WORLD BUILDING / ISLOON</p><h1 class="title">타일맵검수</h1><p class="subtitle">등록된 타일 원본과 이슬온 도시 조립 결과를 같은 화면에서 검수합니다.</p></div><label><span class="eyebrow">등록 맵</span><select id="map-select" aria-label="검수할 맵"><option>맵 목록 불러오는 중…</option></select></label></header>
   <div class="layout"><aside class="panel side"><h2 class="section-title">등록 타일</h2><p class="section-note">워커플로우에서 생성·등록된 실제 에셋입니다. 각 이미지는 검수 패키지에 하드링크로 연결됩니다.</p><div id="tile-list" class="tile-list"></div></aside><section class="panel main"><header class="map-header"><div><h2 id="map-title" class="map-title">이슬온 도시 배치</h2><p id="summary" class="summary">타일 에셋을 불러오는 중…</p></div><div class="zoom-controls" aria-label="맵 확대 축소 및 회전"><button id="zoom-out" type="button" aria-label="축소">−</button><input id="zoom-range" type="range" min="50" max="200" step="10" value="75" aria-label="확대 비율"><span id="zoom-value" class="zoom-value">75%</span><button id="zoom-in" type="button" aria-label="확대">+</button><button id="rotate-left" type="button" aria-label="맵 반시계 방향 회전">↶</button><span id="rotation-value" class="zoom-value">0°</span><button id="rotate-right" type="button" aria-label="맵 시계 방향 회전">↷</button></div></header><div class="canvas-wrap"><span class="badge">● 45° 입체 시안 · 시점 회전</span><span id="loading" class="loading">조립 맵을 불러오는 중…</span><img id="map-preview" class="map-preview" alt="회전 가능한 이슬온 타일맵 입체 시안"></div><footer class="legend"><span>흰 외곽선: 시작점</span><span><b>청록</b>: 샘터</span><span>적갈색 칸: 출입 금지 영역</span><span>건물: 평면 옥상 · 1층 100px 시안</span></footer></section></div>
-  <section class="panel volume-panel" aria-labelledby="volume-title"><header class="volume-header"><div><h2 id="volume-title" class="section-title">건물 입체감 시안</h2><p class="section-note">같은 바닥 면적에서 벽 높이를 1·2·3층으로 바꿔 비교합니다. 지붕은 평면이고 출입구는 인접 포장도로를 향합니다. 게임 적용 규칙이 아닌 형태 검토용 시안입니다.</p></div><label><span class="eyebrow">건물 형태</span><select id="building-select" aria-label="비교할 건물"></select></label></header><div class="volume-grid"><article class="volume-card"><h3>낮은형</h3><p>벽 높이 1층 · 100px</p><canvas data-height="1" aria-label="벽 높이 1층 건물 시안"></canvas></article><article class="volume-card"><h3>중간형</h3><p>벽 높이 2층 · 200px</p><canvas data-height="2" aria-label="벽 높이 2층 건물 시안"></canvas></article><article class="volume-card"><h3>높은형</h3><p>벽 높이 3층 · 300px</p><canvas data-height="3" aria-label="벽 높이 3층 건물 시안"></canvas></article></div><p class="volume-note">수목 수관과 적갈색 출입 금지 영역이 맵에서 겹치는지 확인합니다. 높이는 비교용 임시 단계입니다.</p></section>
+  <section class="panel volume-panel" aria-labelledby="volume-title"><header class="volume-header"><div><h2 id="volume-title" class="section-title">건물 입체감 시안</h2><p class="section-note">같은 바닥 면적에서 벽 높이를 1·2·3층으로 바꿔 비교합니다. 크기는 가로×세로 타일 수로 구분하며, 출입구는 비교를 위해 같은 벽면에 배치합니다. 게임 적용 규칙이 아닌 형태 검토용 시안입니다.</p></div><label><span class="eyebrow">바닥 크기</span><select id="building-select" aria-label="비교할 바닥 크기"></select></label></header><div class="appearance-controls"><label>벽 이미지 · 한 칸 × 한 층<input type="file" data-appearance-part="wall" accept="image/png,image/jpeg,image/webp"><button type="button" data-reset-part="wall">기본값 복원</button><output id="appearance-wall-status">기본 이미지</output></label><label>지붕 이미지 · 지붕 한 칸<input type="file" data-appearance-part="roof" accept="image/png,image/jpeg,image/webp"><button type="button" data-reset-part="roof">기본값 복원</button><output id="appearance-roof-status">기본 이미지</output></label><label>문 + 간판 이미지 · 위: 간판 · 아래: 문 (권장 54×96px)<input type="file" data-appearance-part="entrance" accept="image/png,image/jpeg,image/webp"><button type="button" data-reset-part="entrance">기본값 복원</button><output id="appearance-entrance-status">기본 이미지</output></label></div><p class="section-note">아래 세 시안에 즉시 적용됩니다. 선택 이미지는 이 화면에서만 사용되며 새로고침하면 초기화됩니다.</p><p id="appearance-error" role="status"></p><div class="volume-grid"><article class="volume-card"><h3>1층</h3><p>벽 높이 1층 · 100px</p><canvas data-height="1" aria-label="벽 높이 1층 건물 시안"></canvas></article><article class="volume-card"><h3>2층</h3><p>벽 높이 2층 · 200px</p><canvas data-height="2" aria-label="벽 높이 2층 건물 시안"></canvas></article><article class="volume-card"><h3>3층</h3><p>벽 높이 3층 · 300px</p><canvas data-height="3" aria-label="벽 높이 3층 건물 시안"></canvas></article></div><p class="volume-note">수목 수관과 적갈색 출입 금지 영역이 맵에서 겹치는지 확인합니다. 높이는 비교용 임시 단계입니다.</p></section>
 </main>
 <script>
 const mapPreviewImage=document.querySelector('#map-preview');
@@ -24,10 +25,22 @@ const mapLoadingMessage=document.querySelector('#loading');
 const mapZoomControl=document.querySelector('#zoom-range');
 const mapZoomLabel=document.querySelector('#zoom-value');
 const mapRotationLabel=document.querySelector('#rotation-value');
-const buildingSelectionControl=document.querySelector('#building-select');
+const buildingSizeControl=document.querySelector('#building-select');
 const tileImageRecords={};
+const buildingAppearanceImages={wall:null,roof:null,entrance:null};
+const appearanceRequestCounts={wall:0,roof:0,entrance:0};
+const APPEARANCE_SIGN_TOP_HEIGHT=96;
+const APPEARANCE_SIGN_BOTTOM_HEIGHT=82;
+const APPEARANCE_ENTRANCE_HALF_WIDTH=.42;
+const VOLUME_TILE_WIDTH_PIXELS=64;
+const VOLUME_TILE_HEIGHT_PIXELS=32;
+const VOLUME_FLOOR_HEIGHT_PIXELS=100;
+const VOLUME_ROOF_HEIGHT_PIXELS=7;
+const VOLUME_CANVAS_HEIGHT_PIXELS=420;
+const VOLUME_CANVAS_PADDING_PIXELS=24;
+const VOLUME_MAXIMUM_FLOOR_COUNT=3;
 let mapReviewRecords=[];
-let buildingPrefabRecords=[];
+let buildingSizeRecords=[];
 let currentMapRotationDegrees=0;
 
 function applyCurrentMapRotation(){
@@ -57,24 +70,41 @@ function projectVolumePoint(columnValue,rowValue,heightValue,originXValue,origin
   return{x:originXValue+(columnValue-rowValue)*tileWidthValue/2,y:originYValue+(columnValue+rowValue)*tileHeightValue/2-heightValue};
 }
 
+function drawProjectedTextureImage(drawingContext,sourceImageValue,topLeftPoint,topRightPoint,bottomLeftPoint){
+  drawingContext.save();
+  drawingContext.transform(topRightPoint.x-topLeftPoint.x,topRightPoint.y-topLeftPoint.y,
+    bottomLeftPoint.x-topLeftPoint.x,bottomLeftPoint.y-topLeftPoint.y,topLeftPoint.x,topLeftPoint.y);
+  drawingContext.drawImage(sourceImageValue,0,0,1,1);
+  drawingContext.restore();
+}
+
 function drawBuildingVolumePreview(canvasElement,prefabRecordValues,floorCountValue){
   const drawingContext=canvasElement.getContext('2d');
   const devicePixelRatioValue=window.devicePixelRatio||1;
-  const canvasWidthValue=Math.max(320,canvasElement.clientWidth);
-  const canvasHeightValue=420;
+  const canvasWidthValue=canvasElement.clientWidth;
+  const canvasHeightValue=VOLUME_CANVAS_HEIGHT_PIXELS;
+  if(!canvasWidthValue)return;
   const footprintWidthValue=prefabRecordValues.size.columns;
   const footprintDepthValue=prefabRecordValues.size.rows;
-  const tileWidthValue=Math.min(27,170/Math.max(footprintWidthValue,footprintDepthValue));
-  const tileHeightValue=tileWidthValue/2;
-  const floorHeightValue=100;
-  const roofRimHeightValue=7;
+  const tileWidthValue=VOLUME_TILE_WIDTH_PIXELS;
+  const tileHeightValue=VOLUME_TILE_HEIGHT_PIXELS;
+  const floorHeightValue=VOLUME_FLOOR_HEIGHT_PIXELS;
+  const roofRimHeightValue=VOLUME_ROOF_HEIGHT_PIXELS;
   const wallTopHeightValue=floorCountValue*floorHeightValue;
-  const originXValue=canvasWidthValue/2;
-  const originYValue=canvasHeightValue/2+wallTopHeightValue/2+roofRimHeightValue/2;
+  const footprintPixelWidth=(footprintWidthValue+footprintDepthValue)*tileWidthValue/2;
+  const footprintPixelHeight=(footprintWidthValue+footprintDepthValue)*tileHeightValue/2;
+  const maximumRoofHeight=VOLUME_MAXIMUM_FLOOR_COUNT*floorHeightValue+roofRimHeightValue;
+  // 세 시안은 같은 배율과 바닥선을 사용하며 모든 축을 함께 축소한다.
+  const previewScaleValue=Math.min(1,
+    (canvasWidthValue-2*VOLUME_CANVAS_PADDING_PIXELS)/footprintPixelWidth,
+    (canvasHeightValue-2*VOLUME_CANVAS_PADDING_PIXELS)/(footprintPixelHeight+maximumRoofHeight));
+  const originXValue=canvasWidthValue/(2*previewScaleValue)-(footprintWidthValue-footprintDepthValue)*tileWidthValue/4;
+  const originYValue=(canvasHeightValue/previewScaleValue-footprintPixelHeight+maximumRoofHeight)/2;
   canvasElement.width=canvasWidthValue*devicePixelRatioValue;
   canvasElement.height=canvasHeightValue*devicePixelRatioValue;
   drawingContext.setTransform(devicePixelRatioValue,0,0,devicePixelRatioValue,0,0);
   drawingContext.clearRect(0,0,canvasWidthValue,canvasHeightValue);
+  drawingContext.setTransform(devicePixelRatioValue*previewScaleValue,0,0,devicePixelRatioValue*previewScaleValue,0,0);
   const pointValues=(columnValue,rowValue,heightValue)=>projectVolumePoint(columnValue,rowValue,heightValue,originXValue,originYValue,tileWidthValue,tileHeightValue);
   const tracePolygon=(pointList,fillStyleValue,strokeStyleValue)=>{
     drawingContext.beginPath();drawingContext.moveTo(pointList[0].x,pointList[0].y);
@@ -88,6 +118,27 @@ function drawBuildingVolumePreview(canvasElement,prefabRecordValues,floorCountVa
   drawingContext.fillStyle='#050a08aa';drawingContext.beginPath();drawingContext.ellipse(originXValue,originYValue+10,(footprintWidthValue+footprintDepthValue)*tileWidthValue*.31,16,0,0,Math.PI*2);drawingContext.fill();
   tracePolygon([cornerPoints[1],cornerPoints[2],wallTopPoints[2],wallTopPoints[1]],'#d3a662','#5c371b');
   tracePolygon([cornerPoints[2],cornerPoints[3],wallTopPoints[3],wallTopPoints[2]],'#b17e45','#4f2f19');
+  const selectedWallImage=buildingAppearanceImages.wall||tileImageRecords.wall_timber;
+  if(selectedWallImage){
+    for(let floorIndexValue=0;floorIndexValue<floorCountValue;floorIndexValue++){
+      const bottomHeightValue=floorIndexValue*floorHeightValue;
+      const topHeightValue=bottomHeightValue+floorHeightValue;
+      for(let columnIndexValue=0;columnIndexValue<footprintWidthValue;columnIndexValue++){
+        drawProjectedTextureImage(drawingContext,selectedWallImage,
+          pointValues(columnIndexValue,footprintDepthValue,topHeightValue),
+          pointValues(columnIndexValue+1,footprintDepthValue,topHeightValue),
+          pointValues(columnIndexValue,footprintDepthValue,bottomHeightValue));
+      }
+      for(let rowIndexValue=0;rowIndexValue<footprintDepthValue;rowIndexValue++){
+        drawProjectedTextureImage(drawingContext,selectedWallImage,
+          pointValues(footprintWidthValue,rowIndexValue+1,topHeightValue),
+          pointValues(footprintWidthValue,rowIndexValue,topHeightValue),
+          pointValues(footprintWidthValue,rowIndexValue+1,bottomHeightValue));
+      }
+    }
+    tracePolygon([cornerPoints[1],cornerPoints[2],wallTopPoints[2],wallTopPoints[1]],'#00000014','#5c371b');
+    tracePolygon([cornerPoints[2],cornerPoints[3],wallTopPoints[3],wallTopPoints[2]],'#00000033','#4f2f19');
+  }
   drawingContext.strokeStyle='#94683b';drawingContext.lineWidth=1;
   for(let columnBoundaryValue=1;columnBoundaryValue<footprintWidthValue;columnBoundaryValue++){
     const wallBasePoint=pointValues(columnBoundaryValue,footprintDepthValue,0);
@@ -99,8 +150,6 @@ function drawBuildingVolumePreview(canvasElement,prefabRecordValues,floorCountVa
     const wallTopPoint=pointValues(footprintWidthValue,rowBoundaryValue,wallTopHeightValue);
     drawingContext.beginPath();drawingContext.moveTo(wallBasePoint.x,wallBasePoint.y);drawingContext.lineTo(wallTopPoint.x,wallTopPoint.y);drawingContext.stroke();
   }
-  const wallPattern=tileImageRecords.wall_timber&&drawingContext.createPattern(tileImageRecords.wall_timber,'repeat');
-  const roofPattern=tileImageRecords.roof_timber&&drawingContext.createPattern(tileImageRecords.roof_timber,'repeat');
   if(floorCountValue>1){
     for(let floorIndexValue=1;floorIndexValue<floorCountValue;floorIndexValue++){
       const seamHeightValue=floorIndexValue*floorHeightValue;
@@ -132,6 +181,16 @@ function drawBuildingVolumePreview(canvasElement,prefabRecordValues,floorCountVa
       const doorPointValues=(alongWallValue,heightValue)=>selectedEntranceSide==='south'
         ?pointValues(alongWallValue,wallEdgeValue,heightValue)
         :pointValues(wallEdgeValue,alongWallValue,heightValue);
+      if(buildingAppearanceImages.entrance){
+        const entranceImageValue=buildingAppearanceImages.entrance;
+        const entranceFitScale=Math.min(APPEARANCE_ENTRANCE_HALF_WIDTH*2*tileWidthValue/entranceImageValue.naturalWidth,APPEARANCE_SIGN_TOP_HEIGHT/entranceImageValue.naturalHeight);
+        const entranceHalfWidth=entranceImageValue.naturalWidth*entranceFitScale/tileWidthValue/2;
+        const entranceImageHeight=entranceImageValue.naturalHeight*entranceFitScale;
+        drawProjectedTextureImage(drawingContext,entranceImageValue,
+          doorPointValues(doorCenterValue-entranceHalfWidth,entranceImageHeight),
+          doorPointValues(doorCenterValue+entranceHalfWidth,entranceImageHeight),
+          doorPointValues(doorCenterValue-entranceHalfWidth,0));
+      }else{
       const doorFrameBottomPoints=[doorPointValues(doorCenterValue-doorFrameHalfWidthValue,0),doorPointValues(doorCenterValue+doorFrameHalfWidthValue,0)];
       const doorFrameTopPoints=[doorPointValues(doorCenterValue-doorFrameHalfWidthValue,doorHeightValue+6),doorPointValues(doorCenterValue+doorFrameHalfWidthValue,doorHeightValue+6)];
       tracePolygon([doorFrameBottomPoints[0],doorFrameBottomPoints[1],doorFrameTopPoints[1],doorFrameTopPoints[0]],'#e0b770','#412919');
@@ -141,11 +200,26 @@ function drawBuildingVolumePreview(canvasElement,prefabRecordValues,floorCountVa
       const entranceTopEnd=doorPointValues(doorCenterValue+doorHalfWidthValue,doorHeightValue);
       tracePolygon([entranceBottomStart,entranceBottomEnd,entranceTopEnd,entranceTopStart],'#57301b','#311f16');
       drawingContext.fillStyle='#ecc466';drawingContext.beginPath();drawingContext.arc(entranceTopEnd.x-2,entranceTopEnd.y+doorHeightValue*.52,2,0,Math.PI*2);drawingContext.fill();
+      tracePolygon([doorPointValues(doorCenterValue-APPEARANCE_ENTRANCE_HALF_WIDTH,APPEARANCE_SIGN_TOP_HEIGHT),doorPointValues(doorCenterValue+APPEARANCE_ENTRANCE_HALF_WIDTH,APPEARANCE_SIGN_TOP_HEIGHT),
+        doorPointValues(doorCenterValue+APPEARANCE_ENTRANCE_HALF_WIDTH,APPEARANCE_SIGN_BOTTOM_HEIGHT),doorPointValues(doorCenterValue-APPEARANCE_ENTRANCE_HALF_WIDTH,APPEARANCE_SIGN_BOTTOM_HEIGHT)],'#e0b770','#412919');
+      }
     }
   }
   tracePolygon([wallTopPoints[1],wallTopPoints[2],roofTopPoints[2],roofTopPoints[1]],'#b55d28','#5b2c16');
   tracePolygon([wallTopPoints[2],wallTopPoints[3],roofTopPoints[3],roofTopPoints[2]],'#994b21','#5b2c16');
-  tracePolygon(roofTopPoints,roofPattern||'#cb7336','#5b2c16');
+  tracePolygon(roofTopPoints,'#cb7336','#5b2c16');
+  const selectedRoofImage=buildingAppearanceImages.roof||tileImageRecords.roof_timber;
+  if(selectedRoofImage){
+    const roofHeightValue=wallTopHeightValue+roofRimHeightValue;
+    for(let columnIndexValue=0;columnIndexValue<footprintWidthValue;columnIndexValue++){
+      for(let rowIndexValue=0;rowIndexValue<footprintDepthValue;rowIndexValue++){
+        drawProjectedTextureImage(drawingContext,selectedRoofImage,
+          pointValues(columnIndexValue,rowIndexValue,roofHeightValue),
+          pointValues(columnIndexValue+1,rowIndexValue,roofHeightValue),
+          pointValues(columnIndexValue,rowIndexValue+1,roofHeightValue));
+      }
+    }
+  }
   drawingContext.strokeStyle='#f0af68';drawingContext.lineWidth=2;drawingContext.beginPath();
   drawingContext.moveTo(roofTopPoints[0].x,roofTopPoints[0].y);drawingContext.lineTo(roofTopPoints[1].x,roofTopPoints[1].y);
   drawingContext.lineTo(roofTopPoints[2].x,roofTopPoints[2].y);drawingContext.lineTo(roofTopPoints[3].x,roofTopPoints[3].y);
@@ -153,14 +227,15 @@ function drawBuildingVolumePreview(canvasElement,prefabRecordValues,floorCountVa
 }
 
 function drawBuildingVolumeComparisons(){
-  const selectedPrefabRecord=buildingPrefabRecords[Number(buildingSelectionControl.value)]||buildingPrefabRecords[0];
+  const selectedPrefabRecord=buildingSizeRecords[Number(buildingSizeControl.value)]||buildingSizeRecords[0];
   if(!selectedPrefabRecord)return;
   for(const canvasElement of document.querySelectorAll('.volume-card canvas')){
     const floorCountValue=Number(canvasElement.dataset.height);
     drawBuildingVolumePreview(canvasElement,selectedPrefabRecord,floorCountValue);
+    canvasElement.previousElementSibling.textContent=`바닥 ${selectedPrefabRecord.size.columns}×${selectedPrefabRecord.size.rows}칸 · 벽 높이 ${floorCountValue}층 · ${floorCountValue*VOLUME_FLOOR_HEIGHT_PIXELS}px`;
   }
   document.querySelectorAll('.volume-card h3').forEach((headingElement,indexValue)=>{
-    headingElement.textContent=`${selectedPrefabRecord.display_name} · ${['낮은형','중간형','높은형'][indexValue]}`;
+    headingElement.textContent=`${selectedPrefabRecord.display_name} · ${indexValue+1}층`;
   });
 }
 
@@ -196,17 +271,74 @@ function showReviewError(currentErrorValue){
   document.querySelector('#summary').textContent='검수 데이터를 불러오지 못했습니다.';
 }
 
+function collectBuildingSizeRecords(prefabRecordValues){
+  const uniqueSizeRecords=new Map();
+  for(const currentPrefabRecord of prefabRecordValues){
+    const {columns:columnCountValue,rows:rowCountValue}=currentPrefabRecord.size;
+    const sizeLabelValue=`${columnCountValue}×${rowCountValue}칸`;
+    uniqueSizeRecords.set(sizeLabelValue,{
+      display_name:sizeLabelValue,
+      size:{columns:columnCountValue,rows:rowCountValue},
+      entrances:[{column:Math.floor((columnCountValue-1)/2),row:rowCountValue-1}]
+    });
+  }
+  return [...uniqueSizeRecords.values()].sort((firstSizeRecord,secondSizeRecord)=>
+    firstSizeRecord.size.columns*firstSizeRecord.size.rows-secondSizeRecord.size.columns*secondSizeRecord.size.rows
+    ||firstSizeRecord.size.columns-secondSizeRecord.size.columns
+    ||firstSizeRecord.size.rows-secondSizeRecord.size.rows);
+}
+
+function configureBuildingAppearanceControls(){
+  const appearanceErrorMessage=document.querySelector('#appearance-error');
+  for(const fileInputElement of document.querySelectorAll('[data-appearance-part]')){
+    const appearancePartName=fileInputElement.dataset.appearancePart;
+    fileInputElement.onchange=async()=>{
+      const selectedImageFile=fileInputElement.files[0];
+      if(!selectedImageFile)return;
+      const requestSequenceValue=++appearanceRequestCounts[appearancePartName];
+      const temporaryImageUrl=URL.createObjectURL(selectedImageFile);
+      try{
+        const loadedImageValue=new Image();
+        loadedImageValue.src=temporaryImageUrl;
+        await loadedImageValue.decode();
+        if(requestSequenceValue!==appearanceRequestCounts[appearancePartName])return;
+        buildingAppearanceImages[appearancePartName]=loadedImageValue;
+        document.querySelector('#appearance-'+appearancePartName+'-status').textContent=selectedImageFile.name;
+        appearanceErrorMessage.textContent='';
+        drawBuildingVolumeComparisons();
+      }catch(currentImageError){
+        if(requestSequenceValue===appearanceRequestCounts[appearancePartName])
+          appearanceErrorMessage.textContent='이미지를 읽지 못했습니다. PNG, JPEG, WebP 파일을 선택하세요.';
+      }finally{
+        URL.revokeObjectURL(temporaryImageUrl);
+      }
+    };
+  }
+  for(const resetButtonElement of document.querySelectorAll('[data-reset-part]')){
+    resetButtonElement.onclick=()=>{
+      const appearancePartName=resetButtonElement.dataset.resetPart;
+      appearanceRequestCounts[appearancePartName]++;
+      buildingAppearanceImages[appearancePartName]=null;
+      document.querySelector('[data-appearance-part="'+appearancePartName+'"]').value='';
+      document.querySelector('#appearance-'+appearancePartName+'-status').textContent='기본 이미지';
+      appearanceErrorMessage.textContent='';
+      drawBuildingVolumeComparisons();
+    };
+  }
+}
+
 async function startMapReview(){
   await loadTileAssets();
   const [mapIndexResponse,prefabResponse]=await Promise.all([fetch('map-index.json'),fetch('building-prefabs.json')]);
   if(!mapIndexResponse.ok)throw new Error('등록 맵 목록을 찾지 못했습니다.');
   if(!prefabResponse.ok)throw new Error('건물 프리셋 목록을 찾지 못했습니다.');
   mapReviewRecords=(await mapIndexResponse.json()).maps;
-  buildingPrefabRecords=(await prefabResponse.json()).prefabs;
+  buildingSizeRecords=collectBuildingSizeRecords((await prefabResponse.json()).prefabs);
   mapSelectionControl.replaceChildren(...mapReviewRecords.map((recordValue,indexValue)=>Object.assign(document.createElement('option'),{value:indexValue,textContent:recordValue.label})));
-  buildingSelectionControl.replaceChildren(...buildingPrefabRecords.map((recordValue,indexValue)=>Object.assign(document.createElement('option'),{value:indexValue,textContent:recordValue.display_name})));
+  buildingSizeControl.replaceChildren(...buildingSizeRecords.map((recordValue,indexValue)=>Object.assign(document.createElement('option'),{value:indexValue,textContent:recordValue.display_name})));
   mapSelectionControl.onchange=()=>loadSelectedMapRecord(mapReviewRecords[Number(mapSelectionControl.value)]).catch(showReviewError);
-  buildingSelectionControl.onchange=drawBuildingVolumeComparisons;
+  buildingSizeControl.onchange=drawBuildingVolumeComparisons;
+  configureBuildingAppearanceControls();
   document.querySelector('#rotate-left').onclick=()=>changeMapRotation(-90);
   document.querySelector('#rotate-right').onclick=()=>changeMapRotation(90);
   drawBuildingVolumeComparisons();
@@ -219,6 +351,7 @@ function changeMapRotation(rotationDeltaDegrees){
 }
 
 mapZoomControl.oninput=applyMapZoom;
+window.addEventListener('resize',drawBuildingVolumeComparisons);
 document.querySelector('#zoom-out').onclick=()=>{mapZoomControl.value=Math.max(Number(mapZoomControl.min),Number(mapZoomControl.value)-10);applyMapZoom()};
 document.querySelector('#zoom-in').onclick=()=>{mapZoomControl.value=Math.min(Number(mapZoomControl.max),Number(mapZoomControl.value)+10);applyMapZoom()};
 applyMapZoom();

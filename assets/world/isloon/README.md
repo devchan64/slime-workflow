@@ -14,6 +14,6 @@ python3 generators/worldbuilding/isloon_tiles.py \
 
 ## 검수
 
-`python3 tools/review/build_isloon_map_review.py --output .tmp/isloon-map-review`로 검수 패키지를 만들고, `map-review.html`을 연다. 통합 관리도구에서는 `타일맵검수` 항목으로 연다.
+`python3 tools/review/build_map_review.py --output .tmp/isloon-map-review`로 검수 패키지를 만들고, `map-review.html`을 연다. 통합 관리도구에서는 `타일맵검수` 항목으로 연다.
 
 타일 원본은 `tile-catalog.yaml`, 구조물은 `building-prefabs.yaml`, 맵 배치는 `maps/*.yaml`에서 수정한다. 후보 생성 결과는 `.tmp/<한국시간>/`에만 두며, 검수 후에만 프론트엔드 에셋 경로에 등록한다.

@@ -3,9 +3,9 @@ import vm from 'node:vm';
 import assert from 'node:assert/strict';
 const sourceTemplateText=readFileSync(new URL('../frame-manager.html',import.meta.url),'utf8');
 const sourcePageRecords=[
- {id:'walk-review',label:'걷기 비교',description:'2026-09-20 preview.html',category:'web-review',path:'walking/preview.html'},
- {id:'walk-anchors',label:'걷기 앵커',description:'좌표 편집',category:'web-review',path:'walking/anchors.html',anchorEditor:true},
- {id:'standing-anchors',label:'스탠딩 앵커',description:'좌표 편집',category:'web-review',path:'standing/preview.html',anchorEditor:true},
+ {id:'walk-review',label:'걷기 비교',description:'2026-09-20 preview.html',category:'animation',path:'walking/preview.html'},
+ {id:'walk-anchors',label:'걷기 앵커',description:'좌표 편집',category:'animation',path:'walking/anchors.html',anchorEditor:true},
+ {id:'standing-anchors',label:'스탠딩 앵커',description:'좌표 편집',category:'animation',path:'standing/preview.html',anchorEditor:true},
  {id:'slime',label:'슬라임 · 대기 · v1',description:'monster.slime.idle',category:'animation',path:'slime/anchors.html',anchorEditor:true}
 ];
 const selectedElementLookup=new Map();
@@ -32,7 +32,7 @@ if(managerPaneElements.get('walk-anchors')!==originalAnchorPane||originalAnchorP
 if(selectManagerPage('missing')!==false)throw new Error('미지원 메뉴 허용');
 if(filterManagerRecords('슬라임 대기','animation').length!==1)throw new Error('한국어 검색 실패');
 if(filterManagerRecords('MONSTER.SLIME','all').length!==1)throw new Error('대소문자 ID 검색 실패');
-if(filterManagerRecords('2026-09','web-review').length!==1)throw new Error('검수 날짜 검색 실패');
+if(filterManagerRecords('2026-09','animation').length!==1)throw new Error('검수 날짜 검색 실패');
 document.querySelector('#assetSearch').value='없는 결과';renderManagerResults();
 if(document.querySelector('#assetSelection').children.length!==0||originalAnchorPane.hidden)throw new Error('빈 검색이 편집 화면에 영향을 줌');
 document.querySelector('#assetSearch').value='슬라임';renderManagerResults();

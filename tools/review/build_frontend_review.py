@@ -307,17 +307,12 @@ def build_frontend_review(frontend_repository_path, ui_bundle_directory=None):
             completed_asset_count[0] += 1
             emit_review_trace('asset', relative_metadata_path)
         if __package__:
-            from .build_isloon_map_review import build_isloon_map_review
+            from .build_map_review import build_map_review
         else:
-            from build_isloon_map_review import build_isloon_map_review
-        isloon_review_directory = build_isloon_map_review(output_root=output_review_directory/'isloon-map-review')
+            from build_map_review import build_map_review
+        isloon_review_directory = build_map_review(output_root=output_review_directory/'isloon-map-review')
         manager_page_records.append({'id': 'map-review', 'label': '타일맵검수', 'path': isloon_review_directory.relative_to(output_review_directory).as_posix()+'/map-review.html', 'anchorEditor': False, 'category': 'tile-review', 'description': '등록 YAML 맵 목록 · 타일 연결 · 건물 충돌 검수'})
         emit_review_trace('tile-map-review', str(isloon_review_directory.relative_to(WORKFLOW_REPO_ROOT)))
-        if __package__:
-            from .collect_web_reviews import collect_web_reviews
-        else:
-            from collect_web_reviews import collect_web_reviews
-        manager_page_records.extend(collect_web_reviews(WORKFLOW_REPO_ROOT, output_review_directory, emit_review_trace))
         if __package__:
             from .collect_tile_reviews import collect_tile_reviews
         else:

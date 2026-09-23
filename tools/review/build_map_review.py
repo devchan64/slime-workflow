@@ -28,7 +28,7 @@ from isloon_tiles import assemble_isloon_map
 
 def project_building_point(column_value, row_value, elevation_value, row_count, half_tile_width, half_tile_height, vertical_offset=0):
     return (row_count * half_tile_width + (column_value - row_value) * half_tile_width,
-            (column_value + row_value) * half_tile_height + half_tile_height - elevation_value + vertical_offset)
+            (column_value + row_value) * half_tile_height - elevation_value + vertical_offset)
 
 
 def rotate_map_cell_position(cell_values, map_dimension, rotation_degrees):
@@ -283,7 +283,7 @@ def draw_building_volume_preview(preview_image, building_instance, prefab_record
     drawing_context.line([roof_top_values[0], roof_top_values[1], roof_top_values[2], roof_top_values[3], roof_top_values[0]], fill=(240, 175, 104, 255), width=3)
 
 
-def build_isloon_map_review(map_path=None, output_root=None):
+def build_map_review(map_path=None, output_root=None):
     map_paths = [Path(map_path).resolve()] if map_path else sorted(DEFAULT_MAP_DIRECTORY.glob('*.yaml'))
     if not map_paths:
         raise ValueError(f'등록된 이슬온 맵이 없습니다: {DEFAULT_MAP_DIRECTORY}')
@@ -325,7 +325,8 @@ def build_isloon_map_review(map_path=None, output_root=None):
         ImageDraw.Draw(isometric_mask).polygon(((half_tile_width, 0), (isometric_tile_width - 1, half_tile_height), (half_tile_width, isometric_tile_height - 1), (0, half_tile_height)), fill=255)
         tile_images = {}
         for tile_id, tile_path in tile_source_paths.items():
-            source_tile_image = Image.open(tile_path).convert('RGBA').resize((128, 128), Image.Resampling.LANCZOS)
+            # 역투영이 읽는 정사각형 전체를 한 타일로 사용한다.
+            source_tile_image = Image.open(tile_path).convert('RGBA').resize((isometric_tile_width, isometric_tile_width), Image.Resampling.LANCZOS)
             projected_tile_image = source_tile_image.transform((isometric_tile_width, isometric_tile_height), Image.Transform.AFFINE, (1, 2, -half_tile_width, -1, 2, half_tile_width), Image.Resampling.BILINEAR)
             projected_tile_image.putalpha(isometric_mask)
             tile_images[tile_id] = projected_tile_image
@@ -348,13 +349,13 @@ def build_isloon_map_review(map_path=None, output_root=None):
     return output_root
 
 
-def run_isloon_map_review_build_command():
+def run_map_review_build_command():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--map', type=Path)
     parser.add_argument('--output', type=Path)
     arguments = parser.parse_args()
-    print(build_isloon_map_review(arguments.map, arguments.output))
+    print(build_map_review(arguments.map, arguments.output))
 
 
 if __name__ == '__main__':
-    run_isloon_map_review_build_command()
+    run_map_review_build_command()
