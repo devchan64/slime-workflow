@@ -7,7 +7,7 @@ import json
 from jsonschema import Draft202012Validator,ValidationError
 from generators.writer_agent.documents import (load_workspace_config,save_yaml_document,scan_workspace_documents,snapshot_document_hashes,chunk_document_blocks,resolve_document_path,parse_unique_json)
 from generators.writer_agent.index import (learn_document_index,load_current_index,find_duplicate_candidates)
-from generators.writer_agent.agent import (build_writing_proposal,build_duplicate_proposal,apply_reviewed_proposal,WRITER_OUTPUT_SCHEMA)
+from generators.writer_agent.agent import (build_writing_proposal,build_duplicate_proposal,apply_reviewed_proposal,WRITER_OUTPUT_SCHEMA,collect_writing_context)
 from generators.writer_agent.jobs import validate_job_request,resolve_job_directory
 
 TEST_PARAGRAPH_TEXT='별빛 도서관은 항해 기록의 관측 시각과 장소를 확인한다. 사서는 두 관측자의 결과가 일치한 경우에만 정식 항로로 등록한다. 폭풍이 일어난 날의 기록은 검토함에 보관한다. 확인되지 않은 항로는 임시 표식을 붙여 정식 항로와 구분한다.'
@@ -40,6 +40,11 @@ class WriterAgentContracts(TestCase):
         current_proposal_values=build_writing_proposal(self.workspace_config_values,self.document_entry_lookup,self.document_chunk_entries,current_model_values)
         current_proposal_values['snapshot_hashes']=snapshot_document_hashes(self.document_entry_lookup)
         return current_proposal_values
+
+    def test_context_marks_protected_sources_read_only(self):
+        current_context_entries=collect_writing_context(self.document_entry_lookup,self.document_chunk_entries,self.document_chunk_entries)
+        for current_chunk_entry in current_context_entries:
+            self.assertEqual(current_chunk_entry['can_append'],current_chunk_entry['path'] not in {'CATALOG.md','world/README.md'})
 
     def test_append_preserves_original(self):
         current_proposal_values=self.create_test_proposal()
