@@ -1,0 +1,11 @@
+{
+  "source_asset": "mannequin-walk/v5",
+  "horizontal_angle_deg": 45,
+  "camera_xy_abs": 5.0990195135927845,
+  "horizontal_distance": 7.211102550927978,
+  "camera_height": 3,
+  "target_height": 0.8,
+  "pitch_deg": 16.966167091928728,
+  "frames": 32,
+  "new_momask_inference": false
+}

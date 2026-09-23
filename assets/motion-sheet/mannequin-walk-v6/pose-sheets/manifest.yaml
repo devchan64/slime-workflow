@@ -1,0 +1,35 @@
+asset_id: mannequin-walk-pose-sheets
+version: 6
+source_rig:
+  asset_id: mannequin-walk
+  version: 6
+layout:
+  columns: 4
+  rows: 2
+  cell_size:
+  - 512
+  - 512
+  sheet_size:
+  - 2048
+  - 1024
+  order: row-major
+sample_indices:
+- 0
+- 3
+- 6
+- 9
+- 12
+- 15
+- 18
+- 21
+frame_duration_ms: 150
+cycle_seconds: 1.2
+files:
+  down_left.png: a6b8d7e10e3cc662e352fa71fbe918d12b7ea51d4c47c605fb9782c7c7286ad8
+  down_right.png: 9637ade6a0bc5bfe6df1963335bf1799bf1644deaea1e04e8ae70817500f6b30
+  up_left.png: 34b9245b5faa1fe637254bfa3d77a5a2cdfa0962d2dbe1822ef1661460b2a226
+  up_right.png: 78469e4fed1e5ff88965e90545f8dcf41bc5982b80741ebddc3928a185944185
+camera:
+  horizontal_angle_deg: 45
+  pitch_deg: 16.966167091928728
+  projection: orthographic
