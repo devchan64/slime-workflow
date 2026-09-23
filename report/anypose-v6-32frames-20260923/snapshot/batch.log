@@ -1,0 +1,1190 @@
+2026-09-23 19:34:54,254/qwen-pose/heartbeat stage=imports step=0/4 elapsed=5s gpu=732 MiB, 7 % log_bytes=0
+2026-09-23 19:34:56,001/qwen-pose/reference vae_size=512x512 output_size=512x512 condition_size=384x384
+2026-09-23 19:34:56,001/qwen-pose/reference order=['character', 'rig'] kind=rig
+2026-09-23 19:34:57,123/qwen-pose/load model_id=Qwen/Qwen-Image-Edit-2511 model_path=/home/cbsim/ws/slime-workflow/.model/qwen-image-edit-2511/6f3ccc0b56e431dc6a0c2b2039706d7d26f22cb9
+Loading pipeline components...:   0%|          | 0/6 [00:00<?, ?it/s]Loading pipeline components...:  17%|█▋        | 1/6 [00:00<00:02,  2.18it/s]
+Loading checkpoint shards:   0%|          | 0/5 [00:00<?, ?it/s][ALoading checkpoint shards: 100%|██████████| 5/5 [00:00<00:00, 98.04it/s]
+Loading pipeline components...:  33%|███▎      | 2/6 [00:00<00:01,  2.64it/s]
+Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s][A
+Loading checkpoint shards:  25%|██▌       | 1/4 [00:00<00:01,  2.34it/s][A
+Loading checkpoint shards:  50%|█████     | 2/4 [00:00<00:00,  4.21it/s][ALoading checkpoint shards: 100%|██████████| 4/4 [00:00<00:00,  6.95it/s]
+Loading pipeline components...:  67%|██████▋   | 4/6 [00:01<00:00,  2.79it/s]Loading pipeline components...: 100%|██████████| 6/6 [00:01<00:00,  4.01it/s]
+2026-09-23 19:34:58,619/qwen-pose/adapter name=anypose_base strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-base-000006250.safetensors
+2026-09-23 19:34:59,119/qwen-pose/adapter name=anypose_helper strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-helper-00006000.safetensors
+/home/cbsim/ws/slime-workflow/.venv/lib/python3.12/site-packages/peft/tuners/tuners_utils.py:285: UserWarning: Already found a `peft_config` attribute in the model. This will lead to having multiple adapters in the model. Make sure to know what you are doing!
+  warnings.warn(
+2026-09-23 19:34:59,416/qwen-pose/heartbeat stage=adapters step=0/4 elapsed=10s gpu=721 MiB, 3 % log_bytes=936
+2026-09-23 19:34:59,723/qwen-pose/adapter name=lightning strength=1.0 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lightx2v--Qwen-Image-Edit-2511-Lightning/d74eba145674fd7e31b949324e148e21e7118abd/Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors
+/home/cbsim/ws/slime-workflow/.venv/lib/python3.12/site-packages/peft/tuners/tuners_utils.py:285: UserWarning: Already found a `peft_config` attribute in the model. This will lead to having multiple adapters in the model. Make sure to know what you are doing!
+  warnings.warn(
+2026-09-23 19:35:00,802/qwen-pose/inference size=512x512 steps=4 seed=10107 device=cuda dtype=bfloat16 offload=sequential
+ negative_prompt is passed but classifier-free guidance is not enabled since true_cfg_scale <= 1
+2026-09-23 19:35:04,450/qwen-pose/heartbeat stage=inference step=0/4 elapsed=15s gpu=1077 MiB, 9 % log_bytes=1436
+2026-09-23 19:35:09,469/qwen-pose/heartbeat stage=inference step=0/4 elapsed=20s gpu=1021 MiB, 5 % log_bytes=1550
+2026-09-23 19:35:14,493/qwen-pose/heartbeat stage=inference step=0/4 elapsed=25s gpu=1177 MiB, 8 % log_bytes=1664
+guidance_scale is passed as 1.0, but ignored since the model is not guidance-distilled.
+  0%|          | 0/4 [00:00<?, ?it/s]2026-09-23 19:35:19,518/qwen-pose/heartbeat stage=inference step=0/4 elapsed=30s gpu=1289 MiB, 18 % log_bytes=1778
+2026-09-23 19:35:24,541/qwen-pose/heartbeat stage=inference step=0/4 elapsed=35s gpu=1223 MiB, 29 % log_bytes=1893
+2026-09-23 19:35:29,569/qwen-pose/heartbeat stage=inference step=0/4 elapsed=40s gpu=1056 MiB, 0 % log_bytes=2008
+2026-09-23 19:35:34,598/qwen-pose/heartbeat stage=inference step=0/4 elapsed=45s gpu=1056 MiB, 0 % log_bytes=2122
+2026-09-23 19:35:39,618/qwen-pose/heartbeat stage=inference step=0/4 elapsed=50s gpu=1280 MiB, 9 % log_bytes=2236
+2026-09-23 19:35:44,651/qwen-pose/heartbeat stage=inference step=0/4 elapsed=55s gpu=1066 MiB, 4 % log_bytes=2350
+2026-09-23 19:35:49,674/qwen-pose/heartbeat stage=inference step=0/4 elapsed=60s gpu=1277 MiB, 4 % log_bytes=2464
+2026-09-23 19:35:54,694/qwen-pose/heartbeat stage=inference step=0/4 elapsed=65s gpu=1233 MiB, 2 % log_bytes=2578
+2026-09-23 19:35:59,721/qwen-pose/heartbeat stage=inference step=0/4 elapsed=70s gpu=1144 MiB, 12 % log_bytes=2692
+2026-09-23 19:36:01,191/qwen-pose/denoise step=1/4
+ 25%|██▌       | 1/4 [00:42<02:06, 42.33s/it]2026-09-23 19:36:04,747/qwen-pose/heartbeat stage=inference step=1/4 elapsed=76s gpu=1317 MiB, 19 % log_bytes=2858
+2026-09-23 19:36:09,768/qwen-pose/heartbeat stage=inference step=1/4 elapsed=81s gpu=1277 MiB, 18 % log_bytes=2973
+2026-09-23 19:36:14,794/qwen-pose/heartbeat stage=inference step=1/4 elapsed=86s gpu=1269 MiB, 19 % log_bytes=3088
+2026-09-23 19:36:19,818/qwen-pose/heartbeat stage=inference step=1/4 elapsed=91s gpu=1247 MiB, 2 % log_bytes=3203
+2026-09-23 19:36:24,841/qwen-pose/heartbeat stage=inference step=1/4 elapsed=96s gpu=1224 MiB, 9 % log_bytes=3317
+2026-09-23 19:36:27,156/qwen-pose/denoise step=2/4
+ 50%|█████     | 2/4 [01:08<01:05, 32.70s/it]2026-09-23 19:36:29,864/qwen-pose/heartbeat stage=inference step=2/4 elapsed=101s gpu=1344 MiB, 13 % log_bytes=3482
+2026-09-23 19:36:34,888/qwen-pose/heartbeat stage=inference step=2/4 elapsed=106s gpu=1266 MiB, 70 % log_bytes=3598
+2026-09-23 19:36:36,867/qwen-pose/denoise step=3/4
+ 75%|███████▌  | 3/4 [01:18<00:22, 22.20s/it]2026-09-23 19:36:39,911/qwen-pose/heartbeat stage=inference step=3/4 elapsed=111s gpu=1038 MiB, 75 % log_bytes=3765
+2026-09-23 19:36:42,553/qwen-pose/denoise step=4/4
+100%|██████████| 4/4 [01:23<00:00, 15.68s/it]100%|██████████| 4/4 [01:23<00:00, 20.92s/it]
+2026-09-23 19:36:44,012/qwen-pose/complete output=/home/cbsim/ws/slime-workflow/.tmp/2026-09-23_19-34-30/down_left/frame-01/result.png
+2026-09-23T19:36:44.525316+09:00/anypose-openpose-batch/complete 1/32
+2026-09-23 19:36:44,640/qwen-pose/reference vae_size=512x512 output_size=512x512 condition_size=384x384
+2026-09-23 19:36:44,640/qwen-pose/reference order=['character', 'rig'] kind=rig
+2026-09-23 19:36:45,755/qwen-pose/load model_id=Qwen/Qwen-Image-Edit-2511 model_path=/home/cbsim/ws/slime-workflow/.model/qwen-image-edit-2511/6f3ccc0b56e431dc6a0c2b2039706d7d26f22cb9
+Loading pipeline components...:   0%|          | 0/6 [00:00<?, ?it/s]Loading pipeline components...:  17%|█▋        | 1/6 [00:00<00:02,  1.78it/s]
+Loading checkpoint shards:   0%|          | 0/5 [00:00<?, ?it/s][ALoading checkpoint shards: 100%|██████████| 5/5 [00:00<00:00, 83.81it/s]
+Loading pipeline components...:  33%|███▎      | 2/6 [00:03<00:08,  2.16s/it]2026-09-23 19:36:49,703/qwen-pose/heartbeat stage=load step=0/4 elapsed=5s gpu=902 MiB, 0 % log_bytes=368
+
+Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s][A
+Loading checkpoint shards:  25%|██▌       | 1/4 [00:00<00:00,  3.41it/s][ALoading checkpoint shards: 100%|██████████| 4/4 [00:00<00:00, 11.28it/s]
+Loading pipeline components...:  67%|██████▋   | 4/6 [00:04<00:01,  1.05it/s]Loading pipeline components...: 100%|██████████| 6/6 [00:04<00:00,  1.39it/s]
+2026-09-23 19:36:50,095/qwen-pose/adapter name=anypose_base strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-base-000006250.safetensors
+2026-09-23 19:36:50,597/qwen-pose/adapter name=anypose_helper strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-helper-00006000.safetensors
+/home/cbsim/ws/slime-workflow/.venv/lib/python3.12/site-packages/peft/tuners/tuners_utils.py:285: UserWarning: Already found a `peft_config` attribute in the model. This will lead to having multiple adapters in the model. Make sure to know what you are doing!
+  warnings.warn(
+2026-09-23 19:36:51,031/qwen-pose/adapter name=lightning strength=1.0 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lightx2v--Qwen-Image-Edit-2511-Lightning/d74eba145674fd7e31b949324e148e21e7118abd/Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors
+2026-09-23 19:36:52,125/qwen-pose/inference size=512x512 steps=4 seed=10107 device=cuda dtype=bfloat16 offload=sequential
+ negative_prompt is passed but classifier-free guidance is not enabled since true_cfg_scale <= 1
+2026-09-23 19:36:54,722/qwen-pose/heartbeat stage=inference step=0/4 elapsed=10s gpu=1940 MiB, 10 % log_bytes=1324
+2026-09-23 19:36:59,741/qwen-pose/heartbeat stage=inference step=0/4 elapsed=15s gpu=1952 MiB, 6 % log_bytes=1439
+2026-09-23 19:37:04,759/qwen-pose/heartbeat stage=inference step=0/4 elapsed=20s gpu=1966 MiB, 6 % log_bytes=1553
+guidance_scale is passed as 1.0, but ignored since the model is not guidance-distilled.
+  0%|          | 0/4 [00:00<?, ?it/s]2026-09-23 19:37:09,783/qwen-pose/heartbeat stage=inference step=0/4 elapsed=25s gpu=1221 MiB, 36 % log_bytes=1667
+2026-09-23 19:37:14,805/qwen-pose/heartbeat stage=inference step=0/4 elapsed=30s gpu=1064 MiB, 3 % log_bytes=1782
+2026-09-23 19:37:19,829/qwen-pose/heartbeat stage=inference step=0/4 elapsed=35s gpu=1275 MiB, 4 % log_bytes=1896
+2026-09-23 19:37:24,848/qwen-pose/heartbeat stage=inference step=0/4 elapsed=40s gpu=1267 MiB, 1 % log_bytes=2010
+2026-09-23 19:37:29,870/qwen-pose/heartbeat stage=inference step=0/4 elapsed=45s gpu=1069 MiB, 3 % log_bytes=2124
+2026-09-23 19:37:34,894/qwen-pose/heartbeat stage=inference step=0/4 elapsed=50s gpu=1053 MiB, 2 % log_bytes=2238
+2026-09-23 19:37:39,917/qwen-pose/heartbeat stage=inference step=0/4 elapsed=55s gpu=1284 MiB, 18 % log_bytes=2352
+2026-09-23 19:37:44,941/qwen-pose/heartbeat stage=inference step=0/4 elapsed=60s gpu=1272 MiB, 4 % log_bytes=2467
+2026-09-23 19:37:49,978/qwen-pose/heartbeat stage=inference step=0/4 elapsed=65s gpu=1264 MiB, 4 % log_bytes=2581
+2026-09-23 19:37:54,545/qwen-pose/denoise step=1/4
+ 25%|██▌       | 1/4 [00:45<02:17, 45.84s/it]2026-09-23 19:37:55,005/qwen-pose/heartbeat stage=inference step=1/4 elapsed=70s gpu=1317 MiB, 6 % log_bytes=2746
+2026-09-23 19:38:00,028/qwen-pose/heartbeat stage=inference step=1/4 elapsed=75s gpu=1289 MiB, 32 % log_bytes=2860
+2026-09-23 19:38:05,052/qwen-pose/heartbeat stage=inference step=1/4 elapsed=80s gpu=1065 MiB, 6 % log_bytes=2975
+2026-09-23 19:38:10,074/qwen-pose/heartbeat stage=inference step=1/4 elapsed=85s gpu=945 MiB, 70 % log_bytes=3089
+2026-09-23 19:38:10,172/qwen-pose/denoise step=2/4
+ 50%|█████     | 2/4 [01:01<00:56, 28.07s/it]2026-09-23 19:38:15,097/qwen-pose/heartbeat stage=inference step=2/4 elapsed=90s gpu=1210 MiB, 51 % log_bytes=3254
+2026-09-23 19:38:16,585/qwen-pose/denoise step=3/4
+ 75%|███████▌  | 3/4 [01:07<00:18, 18.18s/it]2026-09-23 19:38:20,120/qwen-pose/heartbeat stage=inference step=3/4 elapsed=95s gpu=1209 MiB, 68 % log_bytes=3420
+2026-09-23 19:38:22,421/qwen-pose/denoise step=4/4
+100%|██████████| 4/4 [01:13<00:00, 13.31s/it]100%|██████████| 4/4 [01:13<00:00, 18.43s/it]
+2026-09-23 19:38:23,765/qwen-pose/complete output=/home/cbsim/ws/slime-workflow/.tmp/2026-09-23_19-34-30/down_left/frame-02/result.png
+2026-09-23T19:38:23.987748+09:00/anypose-openpose-batch/complete 2/32
+2026-09-23 19:38:24,083/qwen-pose/reference vae_size=512x512 output_size=512x512 condition_size=384x384
+2026-09-23 19:38:24,084/qwen-pose/reference order=['character', 'rig'] kind=rig
+2026-09-23 19:38:25,146/qwen-pose/load model_id=Qwen/Qwen-Image-Edit-2511 model_path=/home/cbsim/ws/slime-workflow/.model/qwen-image-edit-2511/6f3ccc0b56e431dc6a0c2b2039706d7d26f22cb9
+Loading pipeline components...:   0%|          | 0/6 [00:00<?, ?it/s]Loading pipeline components...:  17%|█▋        | 1/6 [00:00<00:02,  1.88it/s]
+Loading checkpoint shards:   0%|          | 0/5 [00:00<?, ?it/s][ALoading checkpoint shards: 100%|██████████| 5/5 [00:00<00:00, 85.04it/s]
+Loading pipeline components...:  33%|███▎      | 2/6 [00:00<00:01,  2.98it/s]
+Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s][A
+Loading checkpoint shards:  25%|██▌       | 1/4 [00:00<00:00,  7.54it/s][ALoading checkpoint shards: 100%|██████████| 4/4 [00:00<00:00, 21.04it/s]
+Loading pipeline components...:  67%|██████▋   | 4/6 [00:01<00:00,  4.40it/s]Loading pipeline components...: 100%|██████████| 6/6 [00:01<00:00,  5.60it/s]
+2026-09-23 19:38:26,228/qwen-pose/adapter name=anypose_base strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-base-000006250.safetensors
+2026-09-23 19:38:28,221/qwen-pose/adapter name=anypose_helper strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-helper-00006000.safetensors
+/home/cbsim/ws/slime-workflow/.venv/lib/python3.12/site-packages/peft/tuners/tuners_utils.py:285: UserWarning: Already found a `peft_config` attribute in the model. This will lead to having multiple adapters in the model. Make sure to know what you are doing!
+  warnings.warn(
+2026-09-23 19:38:28,660/qwen-pose/adapter name=lightning strength=1.0 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lightx2v--Qwen-Image-Edit-2511-Lightning/d74eba145674fd7e31b949324e148e21e7118abd/Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors
+2026-09-23 19:38:29,113/qwen-pose/heartbeat stage=adapters step=0/4 elapsed=5s gpu=909 MiB, 0 % log_bytes=1096
+/home/cbsim/ws/slime-workflow/.venv/lib/python3.12/site-packages/peft/tuners/tuners_utils.py:285: UserWarning: Already found a `peft_config` attribute in the model. This will lead to having multiple adapters in the model. Make sure to know what you are doing!
+  warnings.warn(
+2026-09-23 19:38:30,143/qwen-pose/inference size=512x512 steps=4 seed=10107 device=cuda dtype=bfloat16 offload=sequential
+ negative_prompt is passed but classifier-free guidance is not enabled since true_cfg_scale <= 1
+2026-09-23 19:38:34,135/qwen-pose/heartbeat stage=inference step=0/4 elapsed=10s gpu=1966 MiB, 6 % log_bytes=1329
+2026-09-23 19:38:39,154/qwen-pose/heartbeat stage=inference step=0/4 elapsed=15s gpu=1966 MiB, 4 % log_bytes=1443
+2026-09-23 19:38:44,173/qwen-pose/heartbeat stage=inference step=0/4 elapsed=20s gpu=1978 MiB, 6 % log_bytes=1557
+guidance_scale is passed as 1.0, but ignored since the model is not guidance-distilled.
+  0%|          | 0/4 [00:00<?, ?it/s]2026-09-23 19:38:49,197/qwen-pose/heartbeat stage=inference step=0/4 elapsed=25s gpu=1233 MiB, 66 % log_bytes=1671
+2026-09-23 19:38:54,219/qwen-pose/heartbeat stage=inference step=0/4 elapsed=30s gpu=1221 MiB, 35 % log_bytes=1786
+2026-09-23 19:38:59,259/qwen-pose/heartbeat stage=inference step=0/4 elapsed=35s gpu=1215 MiB, 10 % log_bytes=1901
+2026-09-23 19:39:00,800/qwen-pose/denoise step=1/4
+ 25%|██▌       | 1/4 [00:13<00:41, 13.92s/it]2026-09-23 19:39:04,282/qwen-pose/heartbeat stage=inference step=1/4 elapsed=40s gpu=1244 MiB, 24 % log_bytes=2067
+2026-09-23 19:39:09,305/qwen-pose/heartbeat stage=inference step=1/4 elapsed=45s gpu=1044 MiB, 38 % log_bytes=2182
+2026-09-23 19:39:13,153/qwen-pose/denoise step=2/4
+ 50%|█████     | 2/4 [00:26<00:25, 13.00s/it]2026-09-23 19:39:14,328/qwen-pose/heartbeat stage=inference step=2/4 elapsed=50s gpu=1070 MiB, 74 % log_bytes=2348
+2026-09-23 19:39:18,948/qwen-pose/denoise step=3/4
+ 75%|███████▌  | 3/4 [00:32<00:09,  9.71s/it]2026-09-23 19:39:19,352/qwen-pose/heartbeat stage=inference step=3/4 elapsed=55s gpu=1244 MiB, 60 % log_bytes=2514
+2026-09-23 19:39:24,375/qwen-pose/heartbeat stage=inference step=3/4 elapsed=60s gpu=1053 MiB, 73 % log_bytes=2629
+2026-09-23 19:39:24,737/qwen-pose/denoise step=4/4
+100%|██████████| 4/4 [00:37<00:00,  8.16s/it]100%|██████████| 4/4 [00:37<00:00,  9.47s/it]
+2026-09-23 19:39:26,084/qwen-pose/complete output=/home/cbsim/ws/slime-workflow/.tmp/2026-09-23_19-34-30/down_left/frame-03/result.png
+2026-09-23T19:39:26.112146+09:00/anypose-openpose-batch/complete 3/32
+2026-09-23 19:39:26,136/qwen-pose/reference vae_size=512x512 output_size=512x512 condition_size=384x384
+2026-09-23 19:39:26,136/qwen-pose/reference order=['character', 'rig'] kind=rig
+2026-09-23 19:39:27,138/qwen-pose/load model_id=Qwen/Qwen-Image-Edit-2511 model_path=/home/cbsim/ws/slime-workflow/.model/qwen-image-edit-2511/6f3ccc0b56e431dc6a0c2b2039706d7d26f22cb9
+Loading pipeline components...:   0%|          | 0/6 [00:00<?, ?it/s]Loading pipeline components...:  17%|█▋        | 1/6 [00:00<00:02,  2.19it/s]
+Loading checkpoint shards:   0%|          | 0/5 [00:00<?, ?it/s][ALoading checkpoint shards: 100%|██████████| 5/5 [00:00<00:00, 91.39it/s]
+Loading pipeline components...:  33%|███▎      | 2/6 [00:00<00:01,  3.70it/s]
+Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s][A
+Loading checkpoint shards:  25%|██▌       | 1/4 [00:00<00:00,  3.07it/s][ALoading checkpoint shards: 100%|██████████| 4/4 [00:00<00:00, 10.04it/s]
+Loading pipeline components...:  67%|██████▋   | 4/6 [00:01<00:00,  3.85it/s]Loading pipeline components...: 100%|██████████| 6/6 [00:01<00:00,  5.38it/s]
+2026-09-23 19:39:28,255/qwen-pose/adapter name=anypose_base strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-base-000006250.safetensors
+2026-09-23 19:39:29,336/qwen-pose/adapter name=anypose_helper strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-helper-00006000.safetensors
+/home/cbsim/ws/slime-workflow/.venv/lib/python3.12/site-packages/peft/tuners/tuners_utils.py:285: UserWarning: Already found a `peft_config` attribute in the model. This will lead to having multiple adapters in the model. Make sure to know what you are doing!
+  warnings.warn(
+2026-09-23 19:39:29,785/qwen-pose/adapter name=lightning strength=1.0 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lightx2v--Qwen-Image-Edit-2511-Lightning/d74eba145674fd7e31b949324e148e21e7118abd/Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors
+2026-09-23 19:39:30,781/qwen-pose/inference size=512x512 steps=4 seed=10107 device=cuda dtype=bfloat16 offload=sequential
+ negative_prompt is passed but classifier-free guidance is not enabled since true_cfg_scale <= 1
+2026-09-23 19:39:31,158/qwen-pose/heartbeat stage=inference step=0/4 elapsed=5s gpu=1947 MiB, 1 % log_bytes=1218
+2026-09-23 19:39:36,182/qwen-pose/heartbeat stage=inference step=0/4 elapsed=10s gpu=1953 MiB, 4 % log_bytes=1331
+2026-09-23 19:39:41,204/qwen-pose/heartbeat stage=inference step=0/4 elapsed=15s gpu=1965 MiB, 4 % log_bytes=1445
+2026-09-23 19:39:46,224/qwen-pose/heartbeat stage=inference step=0/4 elapsed=20s gpu=3015 MiB, 6 % log_bytes=1559
+guidance_scale is passed as 1.0, but ignored since the model is not guidance-distilled.
+  0%|          | 0/4 [00:00<?, ?it/s]2026-09-23 19:39:51,247/qwen-pose/heartbeat stage=inference step=0/4 elapsed=25s gpu=1357 MiB, 21 % log_bytes=1673
+2026-09-23 19:39:56,265/qwen-pose/heartbeat stage=inference step=0/4 elapsed=30s gpu=1274 MiB, 22 % log_bytes=1788
+2026-09-23 19:40:01,286/qwen-pose/heartbeat stage=inference step=0/4 elapsed=35s gpu=1202 MiB, 24 % log_bytes=1903
+2026-09-23 19:40:06,315/qwen-pose/heartbeat stage=inference step=0/4 elapsed=40s gpu=1218 MiB, 13 % log_bytes=2018
+2026-09-23 19:40:08,975/qwen-pose/denoise step=1/4
+ 25%|██▌       | 1/4 [00:21<01:03, 21.23s/it]2026-09-23 19:40:11,339/qwen-pose/heartbeat stage=inference step=1/4 elapsed=45s gpu=1214 MiB, 45 % log_bytes=2184
+2026-09-23 19:40:16,362/qwen-pose/heartbeat stage=inference step=1/4 elapsed=50s gpu=1053 MiB, 46 % log_bytes=2299
+2026-09-23 19:40:20,157/qwen-pose/denoise step=2/4
+ 50%|█████     | 2/4 [00:32<00:30, 15.32s/it]2026-09-23 19:40:21,385/qwen-pose/heartbeat stage=inference step=2/4 elapsed=55s gpu=1179 MiB, 71 % log_bytes=2465
+2026-09-23 19:40:25,871/qwen-pose/denoise step=3/4
+ 75%|███████▌  | 3/4 [00:38<00:10, 10.93s/it]2026-09-23 19:40:26,409/qwen-pose/heartbeat stage=inference step=3/4 elapsed=60s gpu=1205 MiB, 47 % log_bytes=2631
+2026-09-23 19:40:31,431/qwen-pose/heartbeat stage=inference step=3/4 elapsed=65s gpu=1045 MiB, 74 % log_bytes=2746
+2026-09-23 19:40:31,605/qwen-pose/denoise step=4/4
+100%|██████████| 4/4 [00:43<00:00,  8.88s/it]100%|██████████| 4/4 [00:43<00:00, 10.96s/it]
+2026-09-23 19:40:32,585/qwen-pose/complete output=/home/cbsim/ws/slime-workflow/.tmp/2026-09-23_19-34-30/down_left/frame-04/result.png
+2026-09-23T19:40:32.609939+09:00/anypose-openpose-batch/complete 4/32
+2026-09-23 19:40:32,635/qwen-pose/reference vae_size=512x512 output_size=512x512 condition_size=384x384
+2026-09-23 19:40:32,635/qwen-pose/reference order=['character', 'rig'] kind=rig
+2026-09-23 19:40:33,675/qwen-pose/load model_id=Qwen/Qwen-Image-Edit-2511 model_path=/home/cbsim/ws/slime-workflow/.model/qwen-image-edit-2511/6f3ccc0b56e431dc6a0c2b2039706d7d26f22cb9
+Loading pipeline components...:   0%|          | 0/6 [00:00<?, ?it/s]Loading pipeline components...:  17%|█▋        | 1/6 [00:00<00:02,  2.27it/s]
+Loading checkpoint shards:   0%|          | 0/5 [00:00<?, ?it/s][ALoading checkpoint shards: 100%|██████████| 5/5 [00:00<00:00, 86.58it/s]
+Loading pipeline components...:  33%|███▎      | 2/6 [00:00<00:01,  3.84it/s]
+Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s][A
+Loading checkpoint shards:  25%|██▌       | 1/4 [00:00<00:00,  3.37it/s][ALoading checkpoint shards: 100%|██████████| 4/4 [00:00<00:00, 10.14it/s]
+Loading pipeline components...:  67%|██████▋   | 4/6 [00:01<00:00,  3.89it/s]Loading pipeline components...: 100%|██████████| 6/6 [00:01<00:00,  5.46it/s]
+2026-09-23 19:40:34,775/qwen-pose/adapter name=anypose_base strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-base-000006250.safetensors
+2026-09-23 19:40:35,865/qwen-pose/adapter name=anypose_helper strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-helper-00006000.safetensors
+/home/cbsim/ws/slime-workflow/.venv/lib/python3.12/site-packages/peft/tuners/tuners_utils.py:285: UserWarning: Already found a `peft_config` attribute in the model. This will lead to having multiple adapters in the model. Make sure to know what you are doing!
+  warnings.warn(
+2026-09-23 19:40:36,315/qwen-pose/adapter name=lightning strength=1.0 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lightx2v--Qwen-Image-Edit-2511-Lightning/d74eba145674fd7e31b949324e148e21e7118abd/Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors
+2026-09-23 19:40:37,454/qwen-pose/inference size=512x512 steps=4 seed=10107 device=cuda dtype=bfloat16 offload=sequential
+ negative_prompt is passed but classifier-free guidance is not enabled since true_cfg_scale <= 1
+2026-09-23 19:40:37,658/qwen-pose/heartbeat stage=inference step=0/4 elapsed=5s gpu=1947 MiB, 0 % log_bytes=1218
+2026-09-23 19:40:42,677/qwen-pose/heartbeat stage=inference step=0/4 elapsed=10s gpu=1955 MiB, 4 % log_bytes=1331
+2026-09-23 19:40:47,696/qwen-pose/heartbeat stage=inference step=0/4 elapsed=15s gpu=1965 MiB, 4 % log_bytes=1445
+2026-09-23 19:40:52,715/qwen-pose/heartbeat stage=inference step=0/4 elapsed=20s gpu=944 MiB, 4 % log_bytes=1559
+guidance_scale is passed as 1.0, but ignored since the model is not guidance-distilled.
+  0%|          | 0/4 [00:00<?, ?it/s]2026-09-23 19:40:57,743/qwen-pose/heartbeat stage=inference step=0/4 elapsed=25s gpu=936 MiB, 59 % log_bytes=1672
+2026-09-23 19:41:02,764/qwen-pose/heartbeat stage=inference step=0/4 elapsed=30s gpu=1052 MiB, 1 % log_bytes=1786
+2026-09-23 19:41:05,914/qwen-pose/denoise step=1/4
+ 25%|██▌       | 1/4 [00:12<00:38, 12.73s/it]2026-09-23 19:41:07,800/qwen-pose/heartbeat stage=inference step=1/4 elapsed=35s gpu=1242 MiB, 24 % log_bytes=1951
+2026-09-23 19:41:12,823/qwen-pose/heartbeat stage=inference step=1/4 elapsed=40s gpu=1067 MiB, 33 % log_bytes=2066
+2026-09-23 19:41:17,720/qwen-pose/denoise step=2/4
+ 50%|█████     | 2/4 [00:24<00:24, 12.19s/it]2026-09-23 19:41:17,847/qwen-pose/heartbeat stage=inference step=2/4 elapsed=45s gpu=1067 MiB, 50 % log_bytes=2232
+2026-09-23 19:41:22,869/qwen-pose/heartbeat stage=inference step=2/4 elapsed=50s gpu=1075 MiB, 72 % log_bytes=2347
+2026-09-23 19:41:23,421/qwen-pose/denoise step=3/4
+ 75%|███████▌  | 3/4 [00:30<00:09,  9.23s/it]2026-09-23 19:41:27,894/qwen-pose/heartbeat stage=inference step=3/4 elapsed=55s gpu=1261 MiB, 73 % log_bytes=2513
+2026-09-23 19:41:29,132/qwen-pose/denoise step=4/4
+100%|██████████| 4/4 [00:35<00:00,  7.84s/it]100%|██████████| 4/4 [00:35<00:00,  8.99s/it]
+2026-09-23 19:41:30,261/qwen-pose/complete output=/home/cbsim/ws/slime-workflow/.tmp/2026-09-23_19-34-30/down_left/frame-05/result.png
+2026-09-23T19:41:30.292174+09:00/anypose-openpose-batch/complete 5/32
+2026-09-23 19:41:30,317/qwen-pose/reference vae_size=512x512 output_size=512x512 condition_size=384x384
+2026-09-23 19:41:30,317/qwen-pose/reference order=['character', 'rig'] kind=rig
+2026-09-23 19:41:31,356/qwen-pose/load model_id=Qwen/Qwen-Image-Edit-2511 model_path=/home/cbsim/ws/slime-workflow/.model/qwen-image-edit-2511/6f3ccc0b56e431dc6a0c2b2039706d7d26f22cb9
+Loading pipeline components...:   0%|          | 0/6 [00:00<?, ?it/s]Loading pipeline components...:  17%|█▋        | 1/6 [00:00<00:02,  2.23it/s]
+Loading checkpoint shards:   0%|          | 0/5 [00:00<?, ?it/s][ALoading checkpoint shards: 100%|██████████| 5/5 [00:00<00:00, 91.59it/s]
+Loading pipeline components...:  33%|███▎      | 2/6 [00:00<00:01,  3.72it/s]
+Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s][A
+Loading checkpoint shards:  25%|██▌       | 1/4 [00:00<00:01,  2.98it/s][ALoading checkpoint shards: 100%|██████████| 4/4 [00:00<00:00,  9.37it/s]
+Loading pipeline components...:  67%|██████▋   | 4/6 [00:01<00:00,  3.71it/s]Loading pipeline components...: 100%|██████████| 6/6 [00:01<00:00,  5.24it/s]
+2026-09-23 19:41:32,501/qwen-pose/adapter name=anypose_base strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-base-000006250.safetensors
+2026-09-23 19:41:33,591/qwen-pose/adapter name=anypose_helper strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-helper-00006000.safetensors
+/home/cbsim/ws/slime-workflow/.venv/lib/python3.12/site-packages/peft/tuners/tuners_utils.py:285: UserWarning: Already found a `peft_config` attribute in the model. This will lead to having multiple adapters in the model. Make sure to know what you are doing!
+  warnings.warn(
+2026-09-23 19:41:34,212/qwen-pose/adapter name=lightning strength=1.0 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lightx2v--Qwen-Image-Edit-2511-Lightning/d74eba145674fd7e31b949324e148e21e7118abd/Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors
+2026-09-23 19:41:35,018/qwen-pose/inference size=512x512 steps=4 seed=10107 device=cuda dtype=bfloat16 offload=sequential
+ negative_prompt is passed but classifier-free guidance is not enabled since true_cfg_scale <= 1
+2026-09-23 19:41:35,340/qwen-pose/heartbeat stage=inference step=0/4 elapsed=5s gpu=1946 MiB, 0 % log_bytes=1218
+2026-09-23 19:41:40,359/qwen-pose/heartbeat stage=inference step=0/4 elapsed=10s gpu=1954 MiB, 6 % log_bytes=1331
+2026-09-23 19:41:45,378/qwen-pose/heartbeat stage=inference step=0/4 elapsed=15s gpu=1966 MiB, 6 % log_bytes=1445
+2026-09-23 19:41:50,401/qwen-pose/heartbeat stage=inference step=0/4 elapsed=20s gpu=3014 MiB, 4 % log_bytes=1559
+guidance_scale is passed as 1.0, but ignored since the model is not guidance-distilled.
+  0%|          | 0/4 [00:00<?, ?it/s]2026-09-23 19:41:55,425/qwen-pose/heartbeat stage=inference step=0/4 elapsed=25s gpu=1230 MiB, 63 % log_bytes=1673
+2026-09-23 19:42:00,451/qwen-pose/heartbeat stage=inference step=0/4 elapsed=30s gpu=1273 MiB, 18 % log_bytes=1788
+2026-09-23 19:42:03,887/qwen-pose/denoise step=1/4
+ 25%|██▌       | 1/4 [00:12<00:37, 12.55s/it]2026-09-23 19:42:05,478/qwen-pose/heartbeat stage=inference step=1/4 elapsed=35s gpu=1211 MiB, 29 % log_bytes=1954
+2026-09-23 19:42:10,500/qwen-pose/heartbeat stage=inference step=1/4 elapsed=40s gpu=1283 MiB, 25 % log_bytes=2069
+2026-09-23 19:42:15,521/qwen-pose/heartbeat stage=inference step=1/4 elapsed=45s gpu=1295 MiB, 34 % log_bytes=2184
+2026-09-23 19:42:18,209/qwen-pose/denoise step=2/4
+ 50%|█████     | 2/4 [00:26<00:27, 13.59s/it]2026-09-23 19:42:20,544/qwen-pose/heartbeat stage=inference step=2/4 elapsed=50s gpu=1280 MiB, 76 % log_bytes=2350
+2026-09-23 19:42:23,984/qwen-pose/denoise step=3/4
+ 75%|███████▌  | 3/4 [00:32<00:10, 10.02s/it]2026-09-23 19:42:25,567/qwen-pose/heartbeat stage=inference step=3/4 elapsed=55s gpu=1278 MiB, 71 % log_bytes=2516
+2026-09-23 19:42:29,901/qwen-pose/denoise step=4/4
+100%|██████████| 4/4 [00:38<00:00,  8.40s/it]100%|██████████| 4/4 [00:38<00:00,  9.64s/it]
+2026-09-23 19:42:30,590/qwen-pose/heartbeat stage=inference step=4/4 elapsed=60s gpu=962 MiB, 2 % log_bytes=2682
+2026-09-23 19:42:31,100/qwen-pose/complete output=/home/cbsim/ws/slime-workflow/.tmp/2026-09-23_19-34-30/down_left/frame-06/result.png
+2026-09-23T19:42:31.129803+09:00/anypose-openpose-batch/complete 6/32
+2026-09-23 19:42:31,154/qwen-pose/reference vae_size=512x512 output_size=512x512 condition_size=384x384
+2026-09-23 19:42:31,154/qwen-pose/reference order=['character', 'rig'] kind=rig
+2026-09-23 19:42:32,175/qwen-pose/load model_id=Qwen/Qwen-Image-Edit-2511 model_path=/home/cbsim/ws/slime-workflow/.model/qwen-image-edit-2511/6f3ccc0b56e431dc6a0c2b2039706d7d26f22cb9
+Loading pipeline components...:   0%|          | 0/6 [00:00<?, ?it/s]Loading pipeline components...:  17%|█▋        | 1/6 [00:00<00:02,  2.12it/s]
+Loading checkpoint shards:   0%|          | 0/5 [00:00<?, ?it/s][ALoading checkpoint shards: 100%|██████████| 5/5 [00:00<00:00, 91.46it/s]
+Loading pipeline components...:  33%|███▎      | 2/6 [00:01<00:02,  1.43it/s]
+Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s][A
+Loading checkpoint shards:  25%|██▌       | 1/4 [00:00<00:01,  2.85it/s][ALoading checkpoint shards: 100%|██████████| 4/4 [00:00<00:00,  9.66it/s]
+Loading pipeline components...:  67%|██████▋   | 4/6 [00:01<00:00,  2.35it/s]Loading pipeline components...: 100%|██████████| 6/6 [00:01<00:00,  3.21it/s]
+2026-09-23 19:42:34,048/qwen-pose/adapter name=anypose_base strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-base-000006250.safetensors
+2026-09-23 19:42:34,574/qwen-pose/adapter name=anypose_helper strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-helper-00006000.safetensors
+/home/cbsim/ws/slime-workflow/.venv/lib/python3.12/site-packages/peft/tuners/tuners_utils.py:285: UserWarning: Already found a `peft_config` attribute in the model. This will lead to having multiple adapters in the model. Make sure to know what you are doing!
+  warnings.warn(
+2026-09-23 19:42:35,011/qwen-pose/adapter name=lightning strength=1.0 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lightx2v--Qwen-Image-Edit-2511-Lightning/d74eba145674fd7e31b949324e148e21e7118abd/Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors
+2026-09-23 19:42:36,179/qwen-pose/heartbeat stage=adapters step=0/4 elapsed=5s gpu=914 MiB, 0 % log_bytes=1096
+2026-09-23 19:42:36,614/qwen-pose/inference size=512x512 steps=4 seed=10107 device=cuda dtype=bfloat16 offload=sequential
+ negative_prompt is passed but classifier-free guidance is not enabled since true_cfg_scale <= 1
+2026-09-23 19:42:41,202/qwen-pose/heartbeat stage=inference step=0/4 elapsed=10s gpu=1960 MiB, 4 % log_bytes=1329
+2026-09-23 19:42:46,222/qwen-pose/heartbeat stage=inference step=0/4 elapsed=15s gpu=1972 MiB, 7 % log_bytes=1443
+2026-09-23 19:42:51,240/qwen-pose/heartbeat stage=inference step=0/4 elapsed=20s gpu=3025 MiB, 5 % log_bytes=1557
+guidance_scale is passed as 1.0, but ignored since the model is not guidance-distilled.
+  0%|          | 0/4 [00:00<?, ?it/s]2026-09-23 19:42:56,263/qwen-pose/heartbeat stage=inference step=0/4 elapsed=25s gpu=1075 MiB, 59 % log_bytes=1671
+2026-09-23 19:43:01,288/qwen-pose/heartbeat stage=inference step=0/4 elapsed=30s gpu=1083 MiB, 28 % log_bytes=1786
+2026-09-23 19:43:04,454/qwen-pose/denoise step=1/4
+ 25%|██▌       | 1/4 [00:12<00:36, 12.18s/it]2026-09-23 19:43:06,330/qwen-pose/heartbeat stage=inference step=1/4 elapsed=35s gpu=1355 MiB, 31 % log_bytes=1952
+2026-09-23 19:43:11,353/qwen-pose/heartbeat stage=inference step=1/4 elapsed=40s gpu=1245 MiB, 27 % log_bytes=2067
+2026-09-23 19:43:16,375/qwen-pose/heartbeat stage=inference step=1/4 elapsed=45s gpu=1065 MiB, 35 % log_bytes=2182
+2026-09-23 19:43:16,769/qwen-pose/denoise step=2/4
+ 50%|█████     | 2/4 [00:24<00:24, 12.26s/it]2026-09-23 19:43:21,398/qwen-pose/heartbeat stage=inference step=2/4 elapsed=50s gpu=1287 MiB, 66 % log_bytes=2348
+2026-09-23 19:43:22,542/qwen-pose/denoise step=3/4
+ 75%|███████▌  | 3/4 [00:30<00:09,  9.30s/it]2026-09-23 19:43:26,423/qwen-pose/heartbeat stage=inference step=3/4 elapsed=55s gpu=1175 MiB, 71 % log_bytes=2514
+2026-09-23 19:43:28,308/qwen-pose/denoise step=4/4
+100%|██████████| 4/4 [00:36<00:00,  7.90s/it]100%|██████████| 4/4 [00:36<00:00,  9.01s/it]
+2026-09-23 19:43:29,209/qwen-pose/complete output=/home/cbsim/ws/slime-workflow/.tmp/2026-09-23_19-34-30/down_left/frame-07/result.png
+2026-09-23T19:43:29.239693+09:00/anypose-openpose-batch/complete 7/32
+2026-09-23 19:43:29,270/qwen-pose/reference vae_size=512x512 output_size=512x512 condition_size=384x384
+2026-09-23 19:43:29,270/qwen-pose/reference order=['character', 'rig'] kind=rig
+2026-09-23 19:43:30,292/qwen-pose/load model_id=Qwen/Qwen-Image-Edit-2511 model_path=/home/cbsim/ws/slime-workflow/.model/qwen-image-edit-2511/6f3ccc0b56e431dc6a0c2b2039706d7d26f22cb9
+Loading pipeline components...:   0%|          | 0/6 [00:00<?, ?it/s]Loading pipeline components...:  17%|█▋        | 1/6 [00:00<00:02,  2.11it/s]
+Loading checkpoint shards:   0%|          | 0/5 [00:00<?, ?it/s][ALoading checkpoint shards: 100%|██████████| 5/5 [00:00<00:00, 77.07it/s]
+Loading pipeline components...:  33%|███▎      | 2/6 [00:00<00:01,  3.61it/s]
+Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s][A
+Loading checkpoint shards:  25%|██▌       | 1/4 [00:00<00:00,  4.96it/s][ALoading checkpoint shards: 100%|██████████| 4/4 [00:00<00:00, 15.35it/s]
+Loading pipeline components...:  67%|██████▋   | 4/6 [00:00<00:00,  4.52it/s]Loading pipeline components...: 100%|██████████| 6/6 [00:01<00:00,  6.00it/s]
+2026-09-23 19:43:31,294/qwen-pose/adapter name=anypose_base strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-base-000006250.safetensors
+2026-09-23 19:43:32,466/qwen-pose/adapter name=anypose_helper strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-helper-00006000.safetensors
+/home/cbsim/ws/slime-workflow/.venv/lib/python3.12/site-packages/peft/tuners/tuners_utils.py:285: UserWarning: Already found a `peft_config` attribute in the model. This will lead to having multiple adapters in the model. Make sure to know what you are doing!
+  warnings.warn(
+2026-09-23 19:43:32,909/qwen-pose/adapter name=lightning strength=1.0 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lightx2v--Qwen-Image-Edit-2511-Lightning/d74eba145674fd7e31b949324e148e21e7118abd/Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors
+2026-09-23 19:43:34,155/qwen-pose/inference size=512x512 steps=4 seed=10107 device=cuda dtype=bfloat16 offload=sequential
+ negative_prompt is passed but classifier-free guidance is not enabled since true_cfg_scale <= 1
+2026-09-23 19:43:34,292/qwen-pose/heartbeat stage=inference step=0/4 elapsed=5s gpu=1965 MiB, 0 % log_bytes=1218
+2026-09-23 19:43:39,310/qwen-pose/heartbeat stage=inference step=0/4 elapsed=10s gpu=1974 MiB, 6 % log_bytes=1331
+2026-09-23 19:43:44,333/qwen-pose/heartbeat stage=inference step=0/4 elapsed=15s gpu=2005 MiB, 5 % log_bytes=1445
+2026-09-23 19:43:49,352/qwen-pose/heartbeat stage=inference step=0/4 elapsed=20s gpu=3036 MiB, 5 % log_bytes=1559
+guidance_scale is passed as 1.0, but ignored since the model is not guidance-distilled.
+  0%|          | 0/4 [00:00<?, ?it/s]2026-09-23 19:43:54,375/qwen-pose/heartbeat stage=inference step=0/4 elapsed=25s gpu=1139 MiB, 67 % log_bytes=1673
+2026-09-23 19:43:59,400/qwen-pose/heartbeat stage=inference step=0/4 elapsed=30s gpu=1067 MiB, 1 % log_bytes=1788
+2026-09-23 19:44:02,006/qwen-pose/denoise step=1/4
+ 25%|██▌       | 1/4 [00:11<00:34, 11.59s/it]2026-09-23 19:44:04,430/qwen-pose/heartbeat stage=inference step=1/4 elapsed=35s gpu=1031 MiB, 52 % log_bytes=1953
+2026-09-23 19:44:09,451/qwen-pose/heartbeat stage=inference step=1/4 elapsed=40s gpu=1235 MiB, 53 % log_bytes=2068
+2026-09-23 19:44:11,632/qwen-pose/denoise step=2/4
+ 50%|█████     | 2/4 [00:21<00:20, 10.44s/it]2026-09-23 19:44:14,472/qwen-pose/heartbeat stage=inference step=2/4 elapsed=45s gpu=1155 MiB, 75 % log_bytes=2234
+2026-09-23 19:44:17,507/qwen-pose/denoise step=3/4
+ 75%|███████▌  | 3/4 [00:27<00:08,  8.35s/it]2026-09-23 19:44:19,497/qwen-pose/heartbeat stage=inference step=3/4 elapsed=50s gpu=1353 MiB, 75 % log_bytes=2400
+2026-09-23 19:44:23,327/qwen-pose/denoise step=4/4
+100%|██████████| 4/4 [00:32<00:00,  7.35s/it]100%|██████████| 4/4 [00:32<00:00,  8.23s/it]
+2026-09-23 19:44:24,254/qwen-pose/complete output=/home/cbsim/ws/slime-workflow/.tmp/2026-09-23_19-34-30/down_left/frame-08/result.png
+2026-09-23T19:44:24.281196+09:00/anypose-openpose-batch/complete 8/32
+2026-09-23 19:44:24,307/qwen-pose/reference vae_size=512x512 output_size=512x512 condition_size=384x384
+2026-09-23 19:44:24,307/qwen-pose/reference order=['character', 'rig'] kind=rig
+2026-09-23 19:44:25,833/qwen-pose/load model_id=Qwen/Qwen-Image-Edit-2511 model_path=/home/cbsim/ws/slime-workflow/.model/qwen-image-edit-2511/6f3ccc0b56e431dc6a0c2b2039706d7d26f22cb9
+Loading pipeline components...:   0%|          | 0/6 [00:00<?, ?it/s]Loading pipeline components...:  17%|█▋        | 1/6 [00:00<00:02,  2.31it/s]
+Loading checkpoint shards:   0%|          | 0/5 [00:00<?, ?it/s][ALoading checkpoint shards: 100%|██████████| 5/5 [00:00<00:00, 91.92it/s]
+Loading pipeline components...:  33%|███▎      | 2/6 [00:00<00:01,  3.77it/s]
+Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s][A
+Loading checkpoint shards:  25%|██▌       | 1/4 [00:00<00:00,  5.12it/s][ALoading checkpoint shards: 100%|██████████| 4/4 [00:00<00:00, 16.14it/s]
+Loading pipeline components...:  67%|██████▋   | 4/6 [00:00<00:00,  4.56it/s]Loading pipeline components...: 100%|██████████| 6/6 [00:00<00:00,  6.13it/s]
+2026-09-23 19:44:26,812/qwen-pose/adapter name=anypose_base strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-base-000006250.safetensors
+2026-09-23 19:44:28,003/qwen-pose/adapter name=anypose_helper strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-helper-00006000.safetensors
+/home/cbsim/ws/slime-workflow/.venv/lib/python3.12/site-packages/peft/tuners/tuners_utils.py:285: UserWarning: Already found a `peft_config` attribute in the model. This will lead to having multiple adapters in the model. Make sure to know what you are doing!
+  warnings.warn(
+2026-09-23 19:44:28,492/qwen-pose/adapter name=lightning strength=1.0 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lightx2v--Qwen-Image-Edit-2511-Lightning/d74eba145674fd7e31b949324e148e21e7118abd/Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors
+2026-09-23 19:44:29,337/qwen-pose/heartbeat stage=adapters step=0/4 elapsed=5s gpu=958 MiB, 0 % log_bytes=1096
+/home/cbsim/ws/slime-workflow/.venv/lib/python3.12/site-packages/peft/tuners/tuners_utils.py:285: UserWarning: Already found a `peft_config` attribute in the model. This will lead to having multiple adapters in the model. Make sure to know what you are doing!
+  warnings.warn(
+2026-09-23 19:44:31,419/qwen-pose/inference size=512x512 steps=4 seed=10107 device=cuda dtype=bfloat16 offload=sequential
+ negative_prompt is passed but classifier-free guidance is not enabled since true_cfg_scale <= 1
+2026-09-23 19:44:34,355/qwen-pose/heartbeat stage=inference step=0/4 elapsed=10s gpu=1975 MiB, 7 % log_bytes=1329
+2026-09-23 19:44:39,374/qwen-pose/heartbeat stage=inference step=0/4 elapsed=15s gpu=2002 MiB, 6 % log_bytes=1443
+2026-09-23 19:44:44,393/qwen-pose/heartbeat stage=inference step=0/4 elapsed=20s gpu=2003 MiB, 7 % log_bytes=1557
+guidance_scale is passed as 1.0, but ignored since the model is not guidance-distilled.
+  0%|          | 0/4 [00:00<?, ?it/s]2026-09-23 19:44:49,467/qwen-pose/heartbeat stage=inference step=0/4 elapsed=25s gpu=1267 MiB, 14 % log_bytes=1671
+2026-09-23 19:44:54,485/qwen-pose/heartbeat stage=inference step=0/4 elapsed=30s gpu=1085 MiB, 55 % log_bytes=1786
+2026-09-23 19:44:59,261/qwen-pose/denoise step=1/4
+ 25%|██▌       | 1/4 [00:12<00:37, 12.41s/it]2026-09-23 19:44:59,523/qwen-pose/heartbeat stage=inference step=1/4 elapsed=35s gpu=1205 MiB, 22 % log_bytes=1952
+2026-09-23 19:45:04,547/qwen-pose/heartbeat stage=inference step=1/4 elapsed=40s gpu=1349 MiB, 49 % log_bytes=2067
+2026-09-23 19:45:08,346/qwen-pose/denoise step=2/4
+ 50%|█████     | 2/4 [00:21<00:20, 10.45s/it]2026-09-23 19:45:09,572/qwen-pose/heartbeat stage=inference step=2/4 elapsed=45s gpu=1280 MiB, 73 % log_bytes=2233
+2026-09-23 19:45:14,085/qwen-pose/denoise step=3/4
+ 75%|███████▌  | 3/4 [00:27<00:08,  8.30s/it]2026-09-23 19:45:14,596/qwen-pose/heartbeat stage=inference step=3/4 elapsed=50s gpu=1064 MiB, 74 % log_bytes=2399
+2026-09-23 19:45:19,620/qwen-pose/heartbeat stage=inference step=3/4 elapsed=55s gpu=1244 MiB, 73 % log_bytes=2514
+2026-09-23 19:45:19,833/qwen-pose/denoise step=4/4
+100%|██████████| 4/4 [00:32<00:00,  7.29s/it]100%|██████████| 4/4 [00:32<00:00,  8.25s/it]
+2026-09-23 19:45:21,029/qwen-pose/complete output=/home/cbsim/ws/slime-workflow/.tmp/2026-09-23_19-34-30/down_right/frame-01/result.png
+2026-09-23T19:45:21.075041+09:00/anypose-openpose-batch/complete 9/32
+2026-09-23 19:45:21,101/qwen-pose/reference vae_size=512x512 output_size=512x512 condition_size=384x384
+2026-09-23 19:45:21,101/qwen-pose/reference order=['character', 'rig'] kind=rig
+2026-09-23 19:45:22,338/qwen-pose/load model_id=Qwen/Qwen-Image-Edit-2511 model_path=/home/cbsim/ws/slime-workflow/.model/qwen-image-edit-2511/6f3ccc0b56e431dc6a0c2b2039706d7d26f22cb9
+Loading pipeline components...:   0%|          | 0/6 [00:00<?, ?it/s]Loading pipeline components...:  17%|█▋        | 1/6 [00:00<00:02,  1.68it/s]
+Loading checkpoint shards:   0%|          | 0/5 [00:00<?, ?it/s][ALoading checkpoint shards: 100%|██████████| 5/5 [00:00<00:00, 92.08it/s]
+Loading pipeline components...:  33%|███▎      | 2/6 [00:00<00:01,  3.04it/s]
+Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s][A
+Loading checkpoint shards:  25%|██▌       | 1/4 [00:00<00:01,  2.81it/s][ALoading checkpoint shards: 100%|██████████| 4/4 [00:00<00:00,  9.28it/s]
+Loading pipeline components...:  67%|██████▋   | 4/6 [00:01<00:00,  3.42it/s]Loading pipeline components...: 100%|██████████| 6/6 [00:01<00:00,  4.65it/s]
+2026-09-23 19:45:23,630/qwen-pose/adapter name=anypose_base strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-base-000006250.safetensors
+2026-09-23 19:45:24,861/qwen-pose/adapter name=anypose_helper strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-helper-00006000.safetensors
+/home/cbsim/ws/slime-workflow/.venv/lib/python3.12/site-packages/peft/tuners/tuners_utils.py:285: UserWarning: Already found a `peft_config` attribute in the model. This will lead to having multiple adapters in the model. Make sure to know what you are doing!
+  warnings.warn(
+2026-09-23 19:45:25,303/qwen-pose/adapter name=lightning strength=1.0 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lightx2v--Qwen-Image-Edit-2511-Lightning/d74eba145674fd7e31b949324e148e21e7118abd/Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors
+2026-09-23 19:45:26,128/qwen-pose/heartbeat stage=adapters step=0/4 elapsed=5s gpu=935 MiB, 0 % log_bytes=1096
+/home/cbsim/ws/slime-workflow/.venv/lib/python3.12/site-packages/peft/tuners/tuners_utils.py:285: UserWarning: Already found a `peft_config` attribute in the model. This will lead to having multiple adapters in the model. Make sure to know what you are doing!
+  warnings.warn(
+2026-09-23 19:45:27,348/qwen-pose/inference size=512x512 steps=4 seed=10107 device=cuda dtype=bfloat16 offload=sequential
+ negative_prompt is passed but classifier-free guidance is not enabled since true_cfg_scale <= 1
+2026-09-23 19:45:31,152/qwen-pose/heartbeat stage=inference step=0/4 elapsed=10s gpu=1990 MiB, 4 % log_bytes=1329
+2026-09-23 19:45:36,173/qwen-pose/heartbeat stage=inference step=0/4 elapsed=15s gpu=1990 MiB, 0 % log_bytes=1443
+2026-09-23 19:45:41,196/qwen-pose/heartbeat stage=inference step=0/4 elapsed=20s gpu=1999 MiB, 4 % log_bytes=1557
+guidance_scale is passed as 1.0, but ignored since the model is not guidance-distilled.
+  0%|          | 0/4 [00:00<?, ?it/s]2026-09-23 19:45:46,217/qwen-pose/heartbeat stage=inference step=0/4 elapsed=25s gpu=1114 MiB, 55 % log_bytes=1671
+2026-09-23 19:45:51,241/qwen-pose/heartbeat stage=inference step=0/4 elapsed=30s gpu=1285 MiB, 25 % log_bytes=1786
+2026-09-23 19:45:56,263/qwen-pose/heartbeat stage=inference step=0/4 elapsed=35s gpu=1298 MiB, 21 % log_bytes=1901
+2026-09-23 19:46:01,290/qwen-pose/heartbeat stage=inference step=0/4 elapsed=40s gpu=1294 MiB, 22 % log_bytes=2016
+2026-09-23 19:46:03,584/qwen-pose/denoise step=1/4
+ 25%|██▌       | 1/4 [00:17<00:53, 17.89s/it]2026-09-23 19:46:06,325/qwen-pose/heartbeat stage=inference step=1/4 elapsed=45s gpu=1070 MiB, 25 % log_bytes=2182
+2026-09-23 19:46:11,349/qwen-pose/heartbeat stage=inference step=1/4 elapsed=50s gpu=1052 MiB, 42 % log_bytes=2297
+2026-09-23 19:46:16,373/qwen-pose/heartbeat stage=inference step=1/4 elapsed=55s gpu=1053 MiB, 44 % log_bytes=2412
+2026-09-23 19:46:17,385/qwen-pose/denoise step=2/4
+ 50%|█████     | 2/4 [00:31<00:30, 15.49s/it]2026-09-23 19:46:21,393/qwen-pose/heartbeat stage=inference step=2/4 elapsed=60s gpu=1268 MiB, 72 % log_bytes=2578
+2026-09-23 19:46:23,119/qwen-pose/denoise step=3/4
+ 75%|███████▌  | 3/4 [00:37<00:11, 11.03s/it]2026-09-23 19:46:26,417/qwen-pose/heartbeat stage=inference step=3/4 elapsed=65s gpu=1244 MiB, 72 % log_bytes=2744
+2026-09-23 19:46:28,939/qwen-pose/denoise step=4/4
+100%|██████████| 4/4 [00:43<00:00,  8.97s/it]100%|██████████| 4/4 [00:43<00:00, 10.81s/it]
+2026-09-23 19:46:30,250/qwen-pose/complete output=/home/cbsim/ws/slime-workflow/.tmp/2026-09-23_19-34-30/down_right/frame-02/result.png
+2026-09-23T19:46:30.278819+09:00/anypose-openpose-batch/complete 10/32
+2026-09-23 19:46:30,302/qwen-pose/reference vae_size=512x512 output_size=512x512 condition_size=384x384
+2026-09-23 19:46:30,302/qwen-pose/reference order=['character', 'rig'] kind=rig
+2026-09-23 19:46:31,380/qwen-pose/load model_id=Qwen/Qwen-Image-Edit-2511 model_path=/home/cbsim/ws/slime-workflow/.model/qwen-image-edit-2511/6f3ccc0b56e431dc6a0c2b2039706d7d26f22cb9
+Loading pipeline components...:   0%|          | 0/6 [00:00<?, ?it/s]Loading pipeline components...:  17%|█▋        | 1/6 [00:00<00:02,  2.18it/s]
+Loading checkpoint shards:   0%|          | 0/5 [00:00<?, ?it/s][ALoading checkpoint shards: 100%|██████████| 5/5 [00:00<00:00, 93.66it/s]
+Loading pipeline components...:  33%|███▎      | 2/6 [00:00<00:01,  3.80it/s]
+Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s][A
+Loading checkpoint shards:  25%|██▌       | 1/4 [00:00<00:00,  3.69it/s][ALoading checkpoint shards: 100%|██████████| 4/4 [00:00<00:00, 10.93it/s]
+Loading pipeline components...:  67%|██████▋   | 4/6 [00:01<00:00,  4.06it/s]Loading pipeline components...: 100%|██████████| 6/6 [00:01<00:00,  5.60it/s]
+2026-09-23 19:46:32,453/qwen-pose/adapter name=anypose_base strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-base-000006250.safetensors
+2026-09-23 19:46:33,575/qwen-pose/adapter name=anypose_helper strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-helper-00006000.safetensors
+/home/cbsim/ws/slime-workflow/.venv/lib/python3.12/site-packages/peft/tuners/tuners_utils.py:285: UserWarning: Already found a `peft_config` attribute in the model. This will lead to having multiple adapters in the model. Make sure to know what you are doing!
+  warnings.warn(
+2026-09-23 19:46:34,057/qwen-pose/adapter name=lightning strength=1.0 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lightx2v--Qwen-Image-Edit-2511-Lightning/d74eba145674fd7e31b949324e148e21e7118abd/Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors
+2026-09-23 19:46:35,377/qwen-pose/heartbeat stage=adapters step=0/4 elapsed=5s gpu=906 MiB, 0 % log_bytes=1096
+2026-09-23 19:46:35,564/qwen-pose/inference size=512x512 steps=4 seed=10107 device=cuda dtype=bfloat16 offload=sequential
+ negative_prompt is passed but classifier-free guidance is not enabled since true_cfg_scale <= 1
+2026-09-23 19:46:40,400/qwen-pose/heartbeat stage=inference step=0/4 elapsed=10s gpu=1950 MiB, 5 % log_bytes=1329
+2026-09-23 19:46:45,422/qwen-pose/heartbeat stage=inference step=0/4 elapsed=15s gpu=1960 MiB, 6 % log_bytes=1443
+2026-09-23 19:46:50,443/qwen-pose/heartbeat stage=inference step=0/4 elapsed=20s gpu=1968 MiB, 5 % log_bytes=1557
+guidance_scale is passed as 1.0, but ignored since the model is not guidance-distilled.
+  0%|          | 0/4 [00:00<?, ?it/s]2026-09-23 19:46:55,466/qwen-pose/heartbeat stage=inference step=0/4 elapsed=25s gpu=1050 MiB, 34 % log_bytes=1671
+2026-09-23 19:47:00,486/qwen-pose/heartbeat stage=inference step=0/4 elapsed=30s gpu=1254 MiB, 28 % log_bytes=1786
+2026-09-23 19:47:05,504/qwen-pose/heartbeat stage=inference step=0/4 elapsed=35s gpu=1239 MiB, 16 % log_bytes=1901
+2026-09-23 19:47:10,529/qwen-pose/heartbeat stage=inference step=0/4 elapsed=40s gpu=1281 MiB, 22 % log_bytes=2016
+2026-09-23 19:47:15,439/qwen-pose/denoise step=1/4
+ 25%|██▌       | 1/4 [00:23<01:09, 23.04s/it]2026-09-23 19:47:15,565/qwen-pose/heartbeat stage=inference step=1/4 elapsed=45s gpu=1229 MiB, 12 % log_bytes=2182
+2026-09-23 19:47:20,587/qwen-pose/heartbeat stage=inference step=1/4 elapsed=50s gpu=1251 MiB, 48 % log_bytes=2297
+2026-09-23 19:47:25,611/qwen-pose/heartbeat stage=inference step=1/4 elapsed=55s gpu=1225 MiB, 28 % log_bytes=2412
+2026-09-23 19:47:26,357/qwen-pose/denoise step=2/4
+ 50%|█████     | 2/4 [00:33<00:31, 15.91s/it]2026-09-23 19:47:30,636/qwen-pose/heartbeat stage=inference step=2/4 elapsed=60s gpu=1258 MiB, 74 % log_bytes=2578
+2026-09-23 19:47:32,150/qwen-pose/denoise step=3/4
+ 75%|███████▌  | 3/4 [00:39<00:11, 11.29s/it]2026-09-23 19:47:35,659/qwen-pose/heartbeat stage=inference step=3/4 elapsed=65s gpu=1204 MiB, 72 % log_bytes=2744
+2026-09-23 19:47:37,938/qwen-pose/denoise step=4/4
+100%|██████████| 4/4 [00:45<00:00,  9.12s/it]100%|██████████| 4/4 [00:45<00:00, 11.39s/it]
+2026-09-23 19:47:38,917/qwen-pose/complete output=/home/cbsim/ws/slime-workflow/.tmp/2026-09-23_19-34-30/down_right/frame-03/result.png
+2026-09-23T19:47:38.946669+09:00/anypose-openpose-batch/complete 11/32
+2026-09-23 19:47:38,970/qwen-pose/reference vae_size=512x512 output_size=512x512 condition_size=384x384
+2026-09-23 19:47:38,970/qwen-pose/reference order=['character', 'rig'] kind=rig
+2026-09-23 19:47:40,048/qwen-pose/load model_id=Qwen/Qwen-Image-Edit-2511 model_path=/home/cbsim/ws/slime-workflow/.model/qwen-image-edit-2511/6f3ccc0b56e431dc6a0c2b2039706d7d26f22cb9
+Loading pipeline components...:   0%|          | 0/6 [00:00<?, ?it/s]Loading pipeline components...:  17%|█▋        | 1/6 [00:00<00:02,  2.29it/s]
+Loading checkpoint shards:   0%|          | 0/5 [00:00<?, ?it/s][ALoading checkpoint shards: 100%|██████████| 5/5 [00:00<00:00, 91.94it/s]
+Loading pipeline components...:  33%|███▎      | 2/6 [00:00<00:01,  3.80it/s]
+Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s][A
+Loading checkpoint shards:  25%|██▌       | 1/4 [00:00<00:00,  3.03it/s][ALoading checkpoint shards: 100%|██████████| 4/4 [00:00<00:00,  9.67it/s]
+Loading pipeline components...:  67%|██████▋   | 4/6 [00:01<00:00,  3.81it/s]Loading pipeline components...: 100%|██████████| 6/6 [00:01<00:00,  5.38it/s]
+2026-09-23 19:47:41,164/qwen-pose/adapter name=anypose_base strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-base-000006250.safetensors
+2026-09-23 19:47:41,512/qwen-pose/adapter name=anypose_helper strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-helper-00006000.safetensors
+/home/cbsim/ws/slime-workflow/.venv/lib/python3.12/site-packages/peft/tuners/tuners_utils.py:285: UserWarning: Already found a `peft_config` attribute in the model. This will lead to having multiple adapters in the model. Make sure to know what you are doing!
+  warnings.warn(
+2026-09-23 19:47:42,734/qwen-pose/adapter name=lightning strength=1.0 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lightx2v--Qwen-Image-Edit-2511-Lightning/d74eba145674fd7e31b949324e148e21e7118abd/Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors
+2026-09-23 19:47:43,991/qwen-pose/heartbeat stage=adapters step=0/4 elapsed=5s gpu=906 MiB, 0 % log_bytes=1096
+2026-09-23 19:47:44,034/qwen-pose/inference size=512x512 steps=4 seed=10107 device=cuda dtype=bfloat16 offload=sequential
+ negative_prompt is passed but classifier-free guidance is not enabled since true_cfg_scale <= 1
+2026-09-23 19:47:49,013/qwen-pose/heartbeat stage=inference step=0/4 elapsed=10s gpu=1952 MiB, 6 % log_bytes=1329
+2026-09-23 19:47:54,033/qwen-pose/heartbeat stage=inference step=0/4 elapsed=15s gpu=1961 MiB, 6 % log_bytes=1443
+2026-09-23 19:47:59,052/qwen-pose/heartbeat stage=inference step=0/4 elapsed=20s gpu=3010 MiB, 5 % log_bytes=1557
+guidance_scale is passed as 1.0, but ignored since the model is not guidance-distilled.
+  0%|          | 0/4 [00:00<?, ?it/s]2026-09-23 19:48:04,075/qwen-pose/heartbeat stage=inference step=0/4 elapsed=25s gpu=1338 MiB, 28 % log_bytes=1671
+2026-09-23 19:48:09,097/qwen-pose/heartbeat stage=inference step=0/4 elapsed=30s gpu=1315 MiB, 25 % log_bytes=1786
+2026-09-23 19:48:14,122/qwen-pose/heartbeat stage=inference step=0/4 elapsed=35s gpu=1230 MiB, 18 % log_bytes=1901
+2026-09-23 19:48:19,142/qwen-pose/heartbeat stage=inference step=0/4 elapsed=40s gpu=1256 MiB, 6 % log_bytes=2016
+2026-09-23 19:48:24,180/qwen-pose/heartbeat stage=inference step=0/4 elapsed=45s gpu=1239 MiB, 16 % log_bytes=2130
+2026-09-23 19:48:26,429/qwen-pose/denoise step=1/4
+ 25%|██▌       | 1/4 [00:26<01:19, 26.49s/it]2026-09-23 19:48:29,204/qwen-pose/heartbeat stage=inference step=1/4 elapsed=50s gpu=1079 MiB, 40 % log_bytes=2296
+2026-09-23 19:48:34,227/qwen-pose/heartbeat stage=inference step=1/4 elapsed=55s gpu=1259 MiB, 12 % log_bytes=2411
+2026-09-23 19:48:39,250/qwen-pose/heartbeat stage=inference step=1/4 elapsed=60s gpu=1235 MiB, 5 % log_bytes=2526
+2026-09-23 19:48:40,296/qwen-pose/denoise step=2/4
+ 50%|█████     | 2/4 [00:40<00:38, 19.06s/it]2026-09-23 19:48:44,274/qwen-pose/heartbeat stage=inference step=2/4 elapsed=65s gpu=1313 MiB, 71 % log_bytes=2691
+2026-09-23 19:48:46,219/qwen-pose/denoise step=3/4
+ 75%|███████▌  | 3/4 [00:46<00:13, 13.06s/it]2026-09-23 19:48:49,298/qwen-pose/heartbeat stage=inference step=3/4 elapsed=70s gpu=1213 MiB, 71 % log_bytes=2857
+2026-09-23 19:48:51,994/qwen-pose/denoise step=4/4
+100%|██████████| 4/4 [00:52<00:00, 10.19s/it]100%|██████████| 4/4 [00:52<00:00, 13.01s/it]
+2026-09-23 19:48:53,287/qwen-pose/complete output=/home/cbsim/ws/slime-workflow/.tmp/2026-09-23_19-34-30/down_right/frame-04/result.png
+2026-09-23T19:48:53.317866+09:00/anypose-openpose-batch/complete 12/32
+2026-09-23 19:48:53,341/qwen-pose/reference vae_size=512x512 output_size=512x512 condition_size=384x384
+2026-09-23 19:48:53,341/qwen-pose/reference order=['character', 'rig'] kind=rig
+2026-09-23 19:48:54,366/qwen-pose/load model_id=Qwen/Qwen-Image-Edit-2511 model_path=/home/cbsim/ws/slime-workflow/.model/qwen-image-edit-2511/6f3ccc0b56e431dc6a0c2b2039706d7d26f22cb9
+Loading pipeline components...:   0%|          | 0/6 [00:00<?, ?it/s]Loading pipeline components...:  17%|█▋        | 1/6 [00:00<00:02,  2.24it/s]
+Loading checkpoint shards:   0%|          | 0/5 [00:00<?, ?it/s][ALoading checkpoint shards: 100%|██████████| 5/5 [00:00<00:00, 92.07it/s]
+Loading pipeline components...:  33%|███▎      | 2/6 [00:01<00:02,  1.39it/s]
+Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s][A
+Loading checkpoint shards:  25%|██▌       | 1/4 [00:00<00:01,  2.92it/s][ALoading checkpoint shards: 100%|██████████| 4/4 [00:00<00:00,  9.88it/s]
+Loading pipeline components...:  67%|██████▋   | 4/6 [00:01<00:00,  2.33it/s]Loading pipeline components...: 100%|██████████| 6/6 [00:01<00:00,  3.19it/s]
+2026-09-23 19:48:56,249/qwen-pose/adapter name=anypose_base strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-base-000006250.safetensors
+2026-09-23 19:48:56,763/qwen-pose/adapter name=anypose_helper strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-helper-00006000.safetensors
+/home/cbsim/ws/slime-workflow/.venv/lib/python3.12/site-packages/peft/tuners/tuners_utils.py:285: UserWarning: Already found a `peft_config` attribute in the model. This will lead to having multiple adapters in the model. Make sure to know what you are doing!
+  warnings.warn(
+2026-09-23 19:48:57,200/qwen-pose/adapter name=lightning strength=1.0 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lightx2v--Qwen-Image-Edit-2511-Lightning/d74eba145674fd7e31b949324e148e21e7118abd/Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors
+2026-09-23 19:48:58,363/qwen-pose/heartbeat stage=adapters step=0/4 elapsed=5s gpu=918 MiB, 0 % log_bytes=1096
+2026-09-23 19:48:58,707/qwen-pose/inference size=512x512 steps=4 seed=10107 device=cuda dtype=bfloat16 offload=sequential
+ negative_prompt is passed but classifier-free guidance is not enabled since true_cfg_scale <= 1
+2026-09-23 19:49:03,383/qwen-pose/heartbeat stage=inference step=0/4 elapsed=10s gpu=1963 MiB, 6 % log_bytes=1329
+2026-09-23 19:49:08,405/qwen-pose/heartbeat stage=inference step=0/4 elapsed=15s gpu=1972 MiB, 1 % log_bytes=1443
+2026-09-23 19:49:13,425/qwen-pose/heartbeat stage=inference step=0/4 elapsed=20s gpu=1978 MiB, 4 % log_bytes=1557
+2026-09-23 19:49:18,444/qwen-pose/heartbeat stage=inference step=0/4 elapsed=25s gpu=3030 MiB, 6 % log_bytes=1671
+guidance_scale is passed as 1.0, but ignored since the model is not guidance-distilled.
+  0%|          | 0/4 [00:00<?, ?it/s]2026-09-23 19:49:23,466/qwen-pose/heartbeat stage=inference step=0/4 elapsed=30s gpu=1080 MiB, 59 % log_bytes=1785
+2026-09-23 19:49:28,490/qwen-pose/heartbeat stage=inference step=0/4 elapsed=35s gpu=1261 MiB, 1 % log_bytes=1900
+2026-09-23 19:49:32,689/qwen-pose/denoise step=1/4
+ 25%|██▌       | 1/4 [00:13<00:39, 13.06s/it]2026-09-23 19:49:33,521/qwen-pose/heartbeat stage=inference step=1/4 elapsed=40s gpu=1264 MiB, 40 % log_bytes=2065
+2026-09-23 19:49:38,545/qwen-pose/heartbeat stage=inference step=1/4 elapsed=45s gpu=1319 MiB, 32 % log_bytes=2180
+2026-09-23 19:49:43,569/qwen-pose/heartbeat stage=inference step=1/4 elapsed=50s gpu=1241 MiB, 29 % log_bytes=2295
+2026-09-23 19:49:45,183/qwen-pose/denoise step=2/4
+ 50%|█████     | 2/4 [00:25<00:25, 12.73s/it]2026-09-23 19:49:48,591/qwen-pose/heartbeat stage=inference step=2/4 elapsed=55s gpu=1355 MiB, 70 % log_bytes=2461
+2026-09-23 19:49:50,916/qwen-pose/denoise step=3/4
+ 75%|███████▌  | 3/4 [00:31<00:09,  9.53s/it]2026-09-23 19:49:53,614/qwen-pose/heartbeat stage=inference step=3/4 elapsed=60s gpu=1302 MiB, 75 % log_bytes=2627
+2026-09-23 19:49:56,626/qwen-pose/denoise step=4/4
+100%|██████████| 4/4 [00:36<00:00,  8.02s/it]100%|██████████| 4/4 [00:37<00:00,  9.25s/it]
+2026-09-23 19:49:57,678/qwen-pose/complete output=/home/cbsim/ws/slime-workflow/.tmp/2026-09-23_19-34-30/down_right/frame-05/result.png
+2026-09-23T19:49:57.712561+09:00/anypose-openpose-batch/complete 13/32
+2026-09-23 19:49:57,736/qwen-pose/reference vae_size=512x512 output_size=512x512 condition_size=384x384
+2026-09-23 19:49:57,737/qwen-pose/reference order=['character', 'rig'] kind=rig
+2026-09-23 19:49:58,828/qwen-pose/load model_id=Qwen/Qwen-Image-Edit-2511 model_path=/home/cbsim/ws/slime-workflow/.model/qwen-image-edit-2511/6f3ccc0b56e431dc6a0c2b2039706d7d26f22cb9
+Loading pipeline components...:   0%|          | 0/6 [00:00<?, ?it/s]Loading pipeline components...:  17%|█▋        | 1/6 [00:00<00:02,  2.02it/s]
+Loading checkpoint shards:   0%|          | 0/5 [00:00<?, ?it/s][ALoading checkpoint shards: 100%|██████████| 5/5 [00:00<00:00, 91.34it/s]
+Loading pipeline components...:  33%|███▎      | 2/6 [00:00<00:01,  3.57it/s]
+Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s][A
+Loading checkpoint shards:  25%|██▌       | 1/4 [00:00<00:00,  4.05it/s][ALoading checkpoint shards: 100%|██████████| 4/4 [00:00<00:00, 12.87it/s]
+Loading pipeline components...:  67%|██████▋   | 4/6 [00:01<00:00,  4.22it/s]Loading pipeline components...: 100%|██████████| 6/6 [00:01<00:00,  5.66it/s]
+2026-09-23 19:49:59,889/qwen-pose/adapter name=anypose_base strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-base-000006250.safetensors
+2026-09-23 19:50:01,010/qwen-pose/adapter name=anypose_helper strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-helper-00006000.safetensors
+/home/cbsim/ws/slime-workflow/.venv/lib/python3.12/site-packages/peft/tuners/tuners_utils.py:285: UserWarning: Already found a `peft_config` attribute in the model. This will lead to having multiple adapters in the model. Make sure to know what you are doing!
+  warnings.warn(
+2026-09-23 19:50:01,451/qwen-pose/adapter name=lightning strength=1.0 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lightx2v--Qwen-Image-Edit-2511-Lightning/d74eba145674fd7e31b949324e148e21e7118abd/Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors
+2026-09-23 19:50:02,759/qwen-pose/heartbeat stage=adapters step=0/4 elapsed=5s gpu=919 MiB, 0 % log_bytes=1096
+2026-09-23 19:50:02,768/qwen-pose/inference size=512x512 steps=4 seed=10107 device=cuda dtype=bfloat16 offload=sequential
+ negative_prompt is passed but classifier-free guidance is not enabled since true_cfg_scale <= 1
+2026-09-23 19:50:07,779/qwen-pose/heartbeat stage=inference step=0/4 elapsed=10s gpu=1969 MiB, 5 % log_bytes=1329
+2026-09-23 19:50:12,797/qwen-pose/heartbeat stage=inference step=0/4 elapsed=15s gpu=1981 MiB, 6 % log_bytes=1443
+2026-09-23 19:50:17,819/qwen-pose/heartbeat stage=inference step=0/4 elapsed=20s gpu=1037 MiB, 67 % log_bytes=1557
+guidance_scale is passed as 1.0, but ignored since the model is not guidance-distilled.
+  0%|          | 0/4 [00:00<?, ?it/s]2026-09-23 19:50:22,841/qwen-pose/heartbeat stage=inference step=0/4 elapsed=25s gpu=1263 MiB, 50 % log_bytes=1672
+2026-09-23 19:50:27,864/qwen-pose/heartbeat stage=inference step=0/4 elapsed=30s gpu=1060 MiB, 33 % log_bytes=1787
+2026-09-23 19:50:30,920/qwen-pose/denoise step=1/4
+ 25%|██▌       | 1/4 [00:12<00:38, 12.96s/it]2026-09-23 19:50:32,904/qwen-pose/heartbeat stage=inference step=1/4 elapsed=35s gpu=1298 MiB, 21 % log_bytes=1953
+2026-09-23 19:50:37,927/qwen-pose/heartbeat stage=inference step=1/4 elapsed=40s gpu=1286 MiB, 42 % log_bytes=2068
+2026-09-23 19:50:42,950/qwen-pose/heartbeat stage=inference step=1/4 elapsed=45s gpu=1246 MiB, 25 % log_bytes=2183
+2026-09-23 19:50:44,889/qwen-pose/denoise step=2/4
+ 50%|█████     | 2/4 [00:26<00:27, 13.55s/it]2026-09-23 19:50:47,975/qwen-pose/heartbeat stage=inference step=2/4 elapsed=50s gpu=1335 MiB, 74 % log_bytes=2349
+2026-09-23 19:50:50,677/qwen-pose/denoise step=3/4
+ 75%|███████▌  | 3/4 [00:32<00:10, 10.01s/it]2026-09-23 19:50:52,999/qwen-pose/heartbeat stage=inference step=3/4 elapsed=55s gpu=1087 MiB, 75 % log_bytes=2515
+2026-09-23 19:50:56,481/qwen-pose/denoise step=4/4
+100%|██████████| 4/4 [00:38<00:00,  8.35s/it]100%|██████████| 4/4 [00:38<00:00,  9.63s/it]
+2026-09-23 19:50:57,499/qwen-pose/complete output=/home/cbsim/ws/slime-workflow/.tmp/2026-09-23_19-34-30/down_right/frame-06/result.png
+2026-09-23T19:50:57.526924+09:00/anypose-openpose-batch/complete 14/32
+2026-09-23 19:50:57,549/qwen-pose/reference vae_size=512x512 output_size=512x512 condition_size=384x384
+2026-09-23 19:50:57,549/qwen-pose/reference order=['character', 'rig'] kind=rig
+2026-09-23 19:50:58,654/qwen-pose/load model_id=Qwen/Qwen-Image-Edit-2511 model_path=/home/cbsim/ws/slime-workflow/.model/qwen-image-edit-2511/6f3ccc0b56e431dc6a0c2b2039706d7d26f22cb9
+Loading pipeline components...:   0%|          | 0/6 [00:00<?, ?it/s]Loading pipeline components...:  17%|█▋        | 1/6 [00:00<00:02,  2.12it/s]
+Loading checkpoint shards:   0%|          | 0/5 [00:00<?, ?it/s][ALoading checkpoint shards: 100%|██████████| 5/5 [00:00<00:00, 91.63it/s]
+Loading pipeline components...:  33%|███▎      | 2/6 [00:00<00:01,  3.65it/s]
+Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s][A
+Loading checkpoint shards:  25%|██▌       | 1/4 [00:00<00:01,  2.62it/s][ALoading checkpoint shards: 100%|██████████| 4/4 [00:00<00:00,  8.44it/s]
+Loading pipeline components...:  67%|██████▋   | 4/6 [00:01<00:00,  3.52it/s]Loading pipeline components...: 100%|██████████| 6/6 [00:01<00:00,  5.00it/s]
+2026-09-23 19:50:59,856/qwen-pose/adapter name=anypose_base strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-base-000006250.safetensors
+2026-09-23 19:51:00,964/qwen-pose/adapter name=anypose_helper strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-helper-00006000.safetensors
+/home/cbsim/ws/slime-workflow/.venv/lib/python3.12/site-packages/peft/tuners/tuners_utils.py:285: UserWarning: Already found a `peft_config` attribute in the model. This will lead to having multiple adapters in the model. Make sure to know what you are doing!
+  warnings.warn(
+2026-09-23 19:51:01,408/qwen-pose/adapter name=lightning strength=1.0 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lightx2v--Qwen-Image-Edit-2511-Lightning/d74eba145674fd7e31b949324e148e21e7118abd/Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors
+2026-09-23 19:51:02,589/qwen-pose/heartbeat stage=adapters step=0/4 elapsed=5s gpu=923 MiB, 0 % log_bytes=1096
+/home/cbsim/ws/slime-workflow/.venv/lib/python3.12/site-packages/peft/tuners/tuners_utils.py:285: UserWarning: Already found a `peft_config` attribute in the model. This will lead to having multiple adapters in the model. Make sure to know what you are doing!
+  warnings.warn(
+2026-09-23 19:51:03,342/qwen-pose/inference size=512x512 steps=4 seed=10107 device=cuda dtype=bfloat16 offload=sequential
+ negative_prompt is passed but classifier-free guidance is not enabled since true_cfg_scale <= 1
+2026-09-23 19:51:07,612/qwen-pose/heartbeat stage=inference step=0/4 elapsed=10s gpu=1967 MiB, 6 % log_bytes=1329
+2026-09-23 19:51:12,631/qwen-pose/heartbeat stage=inference step=0/4 elapsed=15s gpu=1981 MiB, 6 % log_bytes=1443
+2026-09-23 19:51:17,650/qwen-pose/heartbeat stage=inference step=0/4 elapsed=20s gpu=3030 MiB, 5 % log_bytes=1557
+guidance_scale is passed as 1.0, but ignored since the model is not guidance-distilled.
+  0%|          | 0/4 [00:00<?, ?it/s]2026-09-23 19:51:22,673/qwen-pose/heartbeat stage=inference step=0/4 elapsed=25s gpu=1150 MiB, 55 % log_bytes=1671
+2026-09-23 19:51:27,782/qwen-pose/heartbeat stage=inference step=0/4 elapsed=30s gpu=1234 MiB, 3 % log_bytes=1786
+2026-09-23 19:51:29,172/qwen-pose/denoise step=1/4
+ 25%|██▌       | 1/4 [00:10<00:31, 10.39s/it]2026-09-23 19:51:32,812/qwen-pose/heartbeat stage=inference step=1/4 elapsed=35s gpu=1305 MiB, 31 % log_bytes=1951
+2026-09-23 19:51:37,835/qwen-pose/heartbeat stage=inference step=1/4 elapsed=40s gpu=1305 MiB, 24 % log_bytes=2066
+2026-09-23 19:51:41,957/qwen-pose/denoise step=2/4
+ 50%|█████     | 2/4 [00:23<00:23, 11.80s/it]2026-09-23 19:51:42,857/qwen-pose/heartbeat stage=inference step=2/4 elapsed=45s gpu=1283 MiB, 74 % log_bytes=2232
+2026-09-23 19:51:47,752/qwen-pose/denoise step=3/4
+ 75%|███████▌  | 3/4 [00:28<00:09,  9.06s/it]2026-09-23 19:51:47,882/qwen-pose/heartbeat stage=inference step=3/4 elapsed=50s gpu=1242 MiB, 68 % log_bytes=2398
+2026-09-23 19:51:52,906/qwen-pose/heartbeat stage=inference step=3/4 elapsed=55s gpu=1104 MiB, 74 % log_bytes=2513
+2026-09-23 19:51:53,597/qwen-pose/denoise step=4/4
+100%|██████████| 4/4 [00:34<00:00,  7.79s/it]100%|██████████| 4/4 [00:34<00:00,  8.71s/it]
+2026-09-23 19:51:54,865/qwen-pose/complete output=/home/cbsim/ws/slime-workflow/.tmp/2026-09-23_19-34-30/down_right/frame-07/result.png
+2026-09-23T19:51:54.894127+09:00/anypose-openpose-batch/complete 15/32
+2026-09-23 19:51:54,917/qwen-pose/reference vae_size=512x512 output_size=512x512 condition_size=384x384
+2026-09-23 19:51:54,917/qwen-pose/reference order=['character', 'rig'] kind=rig
+2026-09-23 19:51:55,936/qwen-pose/load model_id=Qwen/Qwen-Image-Edit-2511 model_path=/home/cbsim/ws/slime-workflow/.model/qwen-image-edit-2511/6f3ccc0b56e431dc6a0c2b2039706d7d26f22cb9
+Loading pipeline components...:   0%|          | 0/6 [00:00<?, ?it/s]Loading pipeline components...:  17%|█▋        | 1/6 [00:00<00:02,  2.13it/s]
+Loading checkpoint shards:   0%|          | 0/5 [00:00<?, ?it/s][ALoading checkpoint shards: 100%|██████████| 5/5 [00:00<00:00, 90.23it/s]
+Loading pipeline components...:  33%|███▎      | 2/6 [00:00<00:01,  3.78it/s]
+Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s][A
+Loading checkpoint shards:  25%|██▌       | 1/4 [00:00<00:00,  3.00it/s][ALoading checkpoint shards: 100%|██████████| 4/4 [00:00<00:00, 10.46it/s]
+Loading pipeline components...:  67%|██████▋   | 4/6 [00:01<00:00,  2.02it/s]Loading pipeline components...: 100%|██████████| 6/6 [00:01<00:00,  3.21it/s]
+2026-09-23 19:51:57,806/qwen-pose/adapter name=anypose_base strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-base-000006250.safetensors
+2026-09-23 19:51:58,174/qwen-pose/adapter name=anypose_helper strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-helper-00006000.safetensors
+/home/cbsim/ws/slime-workflow/.venv/lib/python3.12/site-packages/peft/tuners/tuners_utils.py:285: UserWarning: Already found a `peft_config` attribute in the model. This will lead to having multiple adapters in the model. Make sure to know what you are doing!
+  warnings.warn(
+2026-09-23 19:51:58,788/qwen-pose/adapter name=lightning strength=1.0 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lightx2v--Qwen-Image-Edit-2511-Lightning/d74eba145674fd7e31b949324e148e21e7118abd/Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors
+2026-09-23 19:51:59,832/qwen-pose/inference size=512x512 steps=4 seed=10107 device=cuda dtype=bfloat16 offload=sequential
+ negative_prompt is passed but classifier-free guidance is not enabled since true_cfg_scale <= 1
+2026-09-23 19:51:59,939/qwen-pose/heartbeat stage=inference step=0/4 elapsed=5s gpu=1960 MiB, 0 % log_bytes=1218
+2026-09-23 19:52:04,962/qwen-pose/heartbeat stage=inference step=0/4 elapsed=10s gpu=1966 MiB, 6 % log_bytes=1331
+2026-09-23 19:52:09,981/qwen-pose/heartbeat stage=inference step=0/4 elapsed=15s gpu=1978 MiB, 7 % log_bytes=1445
+guidance_scale is passed as 1.0, but ignored since the model is not guidance-distilled.
+  0%|          | 0/4 [00:00<?, ?it/s]2026-09-23 19:52:15,008/qwen-pose/heartbeat stage=inference step=0/4 elapsed=20s gpu=1064 MiB, 61 % log_bytes=1559
+2026-09-23 19:52:20,033/qwen-pose/heartbeat stage=inference step=0/4 elapsed=25s gpu=1323 MiB, 35 % log_bytes=1674
+2026-09-23 19:52:25,058/qwen-pose/heartbeat stage=inference step=0/4 elapsed=30s gpu=1091 MiB, 45 % log_bytes=1789
+2026-09-23 19:52:28,063/qwen-pose/denoise step=1/4
+ 25%|██▌       | 1/4 [00:13<00:39, 13.09s/it]2026-09-23 19:52:30,086/qwen-pose/heartbeat stage=inference step=1/4 elapsed=35s gpu=1265 MiB, 31 % log_bytes=1955
+2026-09-23 19:52:35,110/qwen-pose/heartbeat stage=inference step=1/4 elapsed=40s gpu=1297 MiB, 35 % log_bytes=2070
+2026-09-23 19:52:40,001/qwen-pose/denoise step=2/4
+ 50%|█████     | 2/4 [00:25<00:24, 12.41s/it]2026-09-23 19:52:40,133/qwen-pose/heartbeat stage=inference step=2/4 elapsed=45s gpu=1081 MiB, 45 % log_bytes=2236
+2026-09-23 19:52:45,157/qwen-pose/heartbeat stage=inference step=2/4 elapsed=50s gpu=1125 MiB, 71 % log_bytes=2351
+2026-09-23 19:52:45,733/qwen-pose/denoise step=3/4
+ 75%|███████▌  | 3/4 [00:30<00:09,  9.36s/it]2026-09-23 19:52:50,179/qwen-pose/heartbeat stage=inference step=3/4 elapsed=55s gpu=1098 MiB, 68 % log_bytes=2517
+2026-09-23 19:52:51,506/qwen-pose/denoise step=4/4
+100%|██████████| 4/4 [00:36<00:00,  7.95s/it]100%|██████████| 4/4 [00:36<00:00,  9.13s/it]
+2026-09-23 19:52:52,748/qwen-pose/complete output=/home/cbsim/ws/slime-workflow/.tmp/2026-09-23_19-34-30/down_right/frame-08/result.png
+2026-09-23T19:52:52.775350+09:00/anypose-openpose-batch/complete 16/32
+2026-09-23 19:52:52,801/qwen-pose/reference vae_size=512x512 output_size=512x512 condition_size=384x384
+2026-09-23 19:52:52,801/qwen-pose/reference order=['character', 'rig'] kind=rig
+2026-09-23 19:52:54,110/qwen-pose/load model_id=Qwen/Qwen-Image-Edit-2511 model_path=/home/cbsim/ws/slime-workflow/.model/qwen-image-edit-2511/6f3ccc0b56e431dc6a0c2b2039706d7d26f22cb9
+Loading pipeline components...:   0%|          | 0/6 [00:00<?, ?it/s]Loading pipeline components...:  17%|█▋        | 1/6 [00:00<00:02,  2.12it/s]
+Loading checkpoint shards:   0%|          | 0/5 [00:00<?, ?it/s][ALoading checkpoint shards: 100%|██████████| 5/5 [00:00<00:00, 90.78it/s]
+Loading pipeline components...:  33%|███▎      | 2/6 [00:01<00:02,  1.38it/s]
+Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s][A
+Loading checkpoint shards:  25%|██▌       | 1/4 [00:00<00:01,  2.87it/s][ALoading checkpoint shards: 100%|██████████| 4/4 [00:00<00:00,  9.81it/s]
+Loading pipeline components...:  67%|██████▋   | 4/6 [00:01<00:00,  2.32it/s]Loading pipeline components...: 100%|██████████| 6/6 [00:01<00:00,  3.16it/s]
+2026-09-23 19:52:56,011/qwen-pose/adapter name=anypose_base strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-base-000006250.safetensors
+2026-09-23 19:52:56,535/qwen-pose/adapter name=anypose_helper strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-helper-00006000.safetensors
+/home/cbsim/ws/slime-workflow/.venv/lib/python3.12/site-packages/peft/tuners/tuners_utils.py:285: UserWarning: Already found a `peft_config` attribute in the model. This will lead to having multiple adapters in the model. Make sure to know what you are doing!
+  warnings.warn(
+2026-09-23 19:52:56,976/qwen-pose/adapter name=lightning strength=1.0 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lightx2v--Qwen-Image-Edit-2511-Lightning/d74eba145674fd7e31b949324e148e21e7118abd/Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors
+2026-09-23 19:52:57,823/qwen-pose/heartbeat stage=adapters step=0/4 elapsed=5s gpu=939 MiB, 0 % log_bytes=1096
+2026-09-23 19:52:58,531/qwen-pose/inference size=512x512 steps=4 seed=10107 device=cuda dtype=bfloat16 offload=sequential
+ negative_prompt is passed but classifier-free guidance is not enabled since true_cfg_scale <= 1
+2026-09-23 19:53:02,847/qwen-pose/heartbeat stage=inference step=0/4 elapsed=10s gpu=1964 MiB, 6 % log_bytes=1329
+2026-09-23 19:53:07,866/qwen-pose/heartbeat stage=inference step=0/4 elapsed=15s gpu=1980 MiB, 9 % log_bytes=1443
+guidance_scale is passed as 1.0, but ignored since the model is not guidance-distilled.
+  0%|          | 0/4 [00:00<?, ?it/s]2026-09-23 19:53:12,889/qwen-pose/heartbeat stage=inference step=0/4 elapsed=20s gpu=1067 MiB, 56 % log_bytes=1557
+2026-09-23 19:53:17,914/qwen-pose/heartbeat stage=inference step=0/4 elapsed=25s gpu=1091 MiB, 40 % log_bytes=1672
+2026-09-23 19:53:22,937/qwen-pose/heartbeat stage=inference step=0/4 elapsed=30s gpu=1081 MiB, 34 % log_bytes=1787
+2026-09-23 19:53:27,893/qwen-pose/denoise step=1/4
+ 25%|██▌       | 1/4 [00:15<00:45, 15.07s/it]2026-09-23 19:53:27,967/qwen-pose/heartbeat stage=inference step=1/4 elapsed=35s gpu=1055 MiB, 12 % log_bytes=1953
+2026-09-23 19:53:32,990/qwen-pose/heartbeat stage=inference step=1/4 elapsed=40s gpu=1071 MiB, 36 % log_bytes=2068
+2026-09-23 19:53:38,014/qwen-pose/heartbeat stage=inference step=1/4 elapsed=45s gpu=1332 MiB, 7 % log_bytes=2183
+2026-09-23 19:53:40,447/qwen-pose/denoise step=2/4
+ 50%|█████     | 2/4 [00:27<00:27, 13.59s/it]2026-09-23 19:53:43,037/qwen-pose/heartbeat stage=inference step=2/4 elapsed=50s gpu=1079 MiB, 76 % log_bytes=2348
+2026-09-23 19:53:46,161/qwen-pose/denoise step=3/4
+ 75%|███████▌  | 3/4 [00:33<00:09,  9.99s/it]2026-09-23 19:53:48,061/qwen-pose/heartbeat stage=inference step=3/4 elapsed=55s gpu=1283 MiB, 75 % log_bytes=2514
+2026-09-23 19:53:51,936/qwen-pose/denoise step=4/4
+100%|██████████| 4/4 [00:39<00:00,  8.33s/it]100%|██████████| 4/4 [00:39<00:00,  9.78s/it]
+2026-09-23 19:53:52,912/qwen-pose/complete output=/home/cbsim/ws/slime-workflow/.tmp/2026-09-23_19-34-30/up_left/frame-01/result.png
+2026-09-23T19:53:52.942699+09:00/anypose-openpose-batch/complete 17/32
+2026-09-23 19:53:52,967/qwen-pose/reference vae_size=512x512 output_size=512x512 condition_size=384x384
+2026-09-23 19:53:52,967/qwen-pose/reference order=['character', 'rig'] kind=rig
+2026-09-23 19:53:54,145/qwen-pose/load model_id=Qwen/Qwen-Image-Edit-2511 model_path=/home/cbsim/ws/slime-workflow/.model/qwen-image-edit-2511/6f3ccc0b56e431dc6a0c2b2039706d7d26f22cb9
+Loading pipeline components...:   0%|          | 0/6 [00:00<?, ?it/s]Loading pipeline components...:  17%|█▋        | 1/6 [00:00<00:02,  2.24it/s]
+Loading checkpoint shards:   0%|          | 0/5 [00:00<?, ?it/s][ALoading checkpoint shards: 100%|██████████| 5/5 [00:00<00:00, 90.40it/s]
+Loading pipeline components...:  33%|███▎      | 2/6 [00:00<00:01,  3.77it/s]
+Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s][A
+Loading checkpoint shards:  25%|██▌       | 1/4 [00:00<00:00,  3.11it/s][ALoading checkpoint shards: 100%|██████████| 4/4 [00:00<00:00,  9.72it/s]
+Loading pipeline components...:  67%|██████▋   | 4/6 [00:01<00:00,  3.80it/s]Loading pipeline components...: 100%|██████████| 6/6 [00:01<00:00,  5.36it/s]
+2026-09-23 19:53:55,266/qwen-pose/adapter name=anypose_base strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-base-000006250.safetensors
+2026-09-23 19:53:56,407/qwen-pose/adapter name=anypose_helper strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-helper-00006000.safetensors
+/home/cbsim/ws/slime-workflow/.venv/lib/python3.12/site-packages/peft/tuners/tuners_utils.py:285: UserWarning: Already found a `peft_config` attribute in the model. This will lead to having multiple adapters in the model. Make sure to know what you are doing!
+  warnings.warn(
+2026-09-23 19:53:56,853/qwen-pose/adapter name=lightning strength=1.0 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lightx2v--Qwen-Image-Edit-2511-Lightning/d74eba145674fd7e31b949324e148e21e7118abd/Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors
+2026-09-23 19:53:57,998/qwen-pose/heartbeat stage=adapters step=0/4 elapsed=5s gpu=926 MiB, 0 % log_bytes=1096
+/home/cbsim/ws/slime-workflow/.venv/lib/python3.12/site-packages/peft/tuners/tuners_utils.py:285: UserWarning: Already found a `peft_config` attribute in the model. This will lead to having multiple adapters in the model. Make sure to know what you are doing!
+  warnings.warn(
+2026-09-23 19:53:59,086/qwen-pose/inference size=512x512 steps=4 seed=10107 device=cuda dtype=bfloat16 offload=sequential
+ negative_prompt is passed but classifier-free guidance is not enabled since true_cfg_scale <= 1
+2026-09-23 19:54:03,021/qwen-pose/heartbeat stage=inference step=0/4 elapsed=10s gpu=1973 MiB, 7 % log_bytes=1329
+2026-09-23 19:54:08,040/qwen-pose/heartbeat stage=inference step=0/4 elapsed=15s gpu=1981 MiB, 6 % log_bytes=1443
+2026-09-23 19:54:13,062/qwen-pose/heartbeat stage=inference step=0/4 elapsed=20s gpu=3034 MiB, 6 % log_bytes=1557
+guidance_scale is passed as 1.0, but ignored since the model is not guidance-distilled.
+  0%|          | 0/4 [00:00<?, ?it/s]2026-09-23 19:54:18,085/qwen-pose/heartbeat stage=inference step=0/4 elapsed=25s gpu=1281 MiB, 39 % log_bytes=1671
+2026-09-23 19:54:23,108/qwen-pose/heartbeat stage=inference step=0/4 elapsed=30s gpu=1272 MiB, 26 % log_bytes=1786
+2026-09-23 19:54:28,135/qwen-pose/heartbeat stage=inference step=0/4 elapsed=35s gpu=1062 MiB, 3 % log_bytes=1901
+2026-09-23 19:54:29,630/qwen-pose/denoise step=1/4
+ 25%|██▌       | 1/4 [00:15<00:46, 15.53s/it]2026-09-23 19:54:33,159/qwen-pose/heartbeat stage=inference step=1/4 elapsed=40s gpu=1284 MiB, 43 % log_bytes=2066
+2026-09-23 19:54:38,182/qwen-pose/heartbeat stage=inference step=1/4 elapsed=45s gpu=1286 MiB, 30 % log_bytes=2181
+2026-09-23 19:54:43,209/qwen-pose/heartbeat stage=inference step=1/4 elapsed=50s gpu=1286 MiB, 22 % log_bytes=2296
+2026-09-23 19:54:44,660/qwen-pose/denoise step=2/4
+ 50%|█████     | 2/4 [00:30<00:30, 15.24s/it]2026-09-23 19:54:48,241/qwen-pose/heartbeat stage=inference step=2/4 elapsed=55s gpu=1249 MiB, 57 % log_bytes=2462
+2026-09-23 19:54:51,611/qwen-pose/denoise step=3/4
+ 75%|███████▌  | 3/4 [00:37<00:11, 11.45s/it]2026-09-23 19:54:53,265/qwen-pose/heartbeat stage=inference step=3/4 elapsed=60s gpu=1289 MiB, 73 % log_bytes=2628
+2026-09-23 19:54:57,429/qwen-pose/denoise step=4/4
+100%|██████████| 4/4 [00:43<00:00,  9.23s/it]100%|██████████| 4/4 [00:43<00:00, 10.83s/it]
+2026-09-23 19:54:58,299/qwen-pose/heartbeat stage=inference step=4/4 elapsed=65s gpu=1001 MiB, 75 % log_bytes=2794
+2026-09-23 19:54:58,415/qwen-pose/complete output=/home/cbsim/ws/slime-workflow/.tmp/2026-09-23_19-34-30/up_left/frame-02/result.png
+2026-09-23T19:54:58.442783+09:00/anypose-openpose-batch/complete 18/32
+2026-09-23 19:54:58,467/qwen-pose/reference vae_size=512x512 output_size=512x512 condition_size=384x384
+2026-09-23 19:54:58,467/qwen-pose/reference order=['character', 'rig'] kind=rig
+2026-09-23 19:54:59,682/qwen-pose/load model_id=Qwen/Qwen-Image-Edit-2511 model_path=/home/cbsim/ws/slime-workflow/.model/qwen-image-edit-2511/6f3ccc0b56e431dc6a0c2b2039706d7d26f22cb9
+Loading pipeline components...:   0%|          | 0/6 [00:00<?, ?it/s]Loading pipeline components...:  17%|█▋        | 1/6 [00:00<00:02,  2.20it/s]
+Loading checkpoint shards:   0%|          | 0/5 [00:00<?, ?it/s][ALoading checkpoint shards: 100%|██████████| 5/5 [00:00<00:00, 86.64it/s]
+Loading pipeline components...:  33%|███▎      | 2/6 [00:00<00:01,  3.12it/s]
+Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s][A
+Loading checkpoint shards:  25%|██▌       | 1/4 [00:00<00:01,  2.95it/s][ALoading checkpoint shards: 100%|██████████| 4/4 [00:00<00:00,  9.48it/s]
+Loading pipeline components...:  67%|██████▋   | 4/6 [00:01<00:00,  3.49it/s]Loading pipeline components...: 100%|██████████| 6/6 [00:01<00:00,  4.89it/s]
+2026-09-23 19:55:00,911/qwen-pose/adapter name=anypose_base strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-base-000006250.safetensors
+2026-09-23 19:55:02,037/qwen-pose/adapter name=anypose_helper strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-helper-00006000.safetensors
+/home/cbsim/ws/slime-workflow/.venv/lib/python3.12/site-packages/peft/tuners/tuners_utils.py:285: UserWarning: Already found a `peft_config` attribute in the model. This will lead to having multiple adapters in the model. Make sure to know what you are doing!
+  warnings.warn(
+2026-09-23 19:55:02,494/qwen-pose/adapter name=lightning strength=1.0 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lightx2v--Qwen-Image-Edit-2511-Lightning/d74eba145674fd7e31b949324e148e21e7118abd/Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors
+2026-09-23 19:55:03,489/qwen-pose/heartbeat stage=adapters step=0/4 elapsed=5s gpu=925 MiB, 0 % log_bytes=1096
+2026-09-23 19:55:03,796/qwen-pose/inference size=512x512 steps=4 seed=10107 device=cuda dtype=bfloat16 offload=sequential
+ negative_prompt is passed but classifier-free guidance is not enabled since true_cfg_scale <= 1
+2026-09-23 19:55:08,510/qwen-pose/heartbeat stage=inference step=0/4 elapsed=10s gpu=1971 MiB, 6 % log_bytes=1329
+2026-09-23 19:55:13,529/qwen-pose/heartbeat stage=inference step=0/4 elapsed=15s gpu=1977 MiB, 6 % log_bytes=1443
+2026-09-23 19:55:18,548/qwen-pose/heartbeat stage=inference step=0/4 elapsed=20s gpu=1993 MiB, 5 % log_bytes=1557
+guidance_scale is passed as 1.0, but ignored since the model is not guidance-distilled.
+  0%|          | 0/4 [00:00<?, ?it/s]2026-09-23 19:55:23,571/qwen-pose/heartbeat stage=inference step=0/4 elapsed=25s gpu=1090 MiB, 37 % log_bytes=1671
+2026-09-23 19:55:28,595/qwen-pose/heartbeat stage=inference step=0/4 elapsed=30s gpu=1287 MiB, 30 % log_bytes=1786
+2026-09-23 19:55:33,619/qwen-pose/heartbeat stage=inference step=0/4 elapsed=35s gpu=1062 MiB, 30 % log_bytes=1901
+2026-09-23 19:55:38,662/qwen-pose/heartbeat stage=inference step=0/4 elapsed=40s gpu=1240 MiB, 3 % log_bytes=2016
+2026-09-23 19:55:40,259/qwen-pose/denoise step=1/4
+ 25%|██▌       | 1/4 [00:18<00:55, 18.65s/it]2026-09-23 19:55:43,685/qwen-pose/heartbeat stage=inference step=1/4 elapsed=45s gpu=1277 MiB, 35 % log_bytes=2181
+2026-09-23 19:55:48,709/qwen-pose/heartbeat stage=inference step=1/4 elapsed=50s gpu=1250 MiB, 18 % log_bytes=2296
+2026-09-23 19:55:51,983/qwen-pose/denoise step=2/4
+ 50%|█████     | 2/4 [00:30<00:29, 14.58s/it]2026-09-23 19:55:53,732/qwen-pose/heartbeat stage=inference step=2/4 elapsed=55s gpu=1075 MiB, 69 % log_bytes=2462
+2026-09-23 19:55:57,807/qwen-pose/denoise step=3/4
+ 75%|███████▌  | 3/4 [00:36<00:10, 10.58s/it]2026-09-23 19:55:58,754/qwen-pose/heartbeat stage=inference step=3/4 elapsed=60s gpu=1273 MiB, 73 % log_bytes=2628
+2026-09-23 19:56:03,569/qwen-pose/denoise step=4/4
+100%|██████████| 4/4 [00:41<00:00,  8.68s/it]100%|██████████| 4/4 [00:41<00:00, 10.49s/it]
+2026-09-23 19:56:03,777/qwen-pose/heartbeat stage=inference step=4/4 elapsed=65s gpu=931 MiB, 58 % log_bytes=2794
+2026-09-23 19:56:04,622/qwen-pose/complete output=/home/cbsim/ws/slime-workflow/.tmp/2026-09-23_19-34-30/up_left/frame-03/result.png
+2026-09-23T19:56:04.655845+09:00/anypose-openpose-batch/complete 19/32
+2026-09-23 19:56:04,680/qwen-pose/reference vae_size=512x512 output_size=512x512 condition_size=384x384
+2026-09-23 19:56:04,680/qwen-pose/reference order=['character', 'rig'] kind=rig
+2026-09-23 19:56:05,725/qwen-pose/load model_id=Qwen/Qwen-Image-Edit-2511 model_path=/home/cbsim/ws/slime-workflow/.model/qwen-image-edit-2511/6f3ccc0b56e431dc6a0c2b2039706d7d26f22cb9
+Loading pipeline components...:   0%|          | 0/6 [00:00<?, ?it/s]Loading pipeline components...:  17%|█▋        | 1/6 [00:00<00:02,  2.22it/s]
+Loading checkpoint shards:   0%|          | 0/5 [00:00<?, ?it/s][ALoading checkpoint shards: 100%|██████████| 5/5 [00:00<00:00, 86.46it/s]
+Loading pipeline components...:  33%|███▎      | 2/6 [00:00<00:01,  3.70it/s]
+Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s][A
+Loading checkpoint shards:  25%|██▌       | 1/4 [00:00<00:01,  2.89it/s][ALoading checkpoint shards: 100%|██████████| 4/4 [00:00<00:00,  9.06it/s]
+Loading pipeline components...:  67%|██████▋   | 4/6 [00:01<00:00,  3.61it/s]Loading pipeline components...: 100%|██████████| 6/6 [00:01<00:00,  5.12it/s]
+2026-09-23 19:56:06,899/qwen-pose/adapter name=anypose_base strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-base-000006250.safetensors
+2026-09-23 19:56:08,067/qwen-pose/adapter name=anypose_helper strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-helper-00006000.safetensors
+/home/cbsim/ws/slime-workflow/.venv/lib/python3.12/site-packages/peft/tuners/tuners_utils.py:285: UserWarning: Already found a `peft_config` attribute in the model. This will lead to having multiple adapters in the model. Make sure to know what you are doing!
+  warnings.warn(
+2026-09-23 19:56:08,518/qwen-pose/adapter name=lightning strength=1.0 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lightx2v--Qwen-Image-Edit-2511-Lightning/d74eba145674fd7e31b949324e148e21e7118abd/Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors
+2026-09-23 19:56:09,654/qwen-pose/inference size=512x512 steps=4 seed=10107 device=cuda dtype=bfloat16 offload=sequential
+2026-09-23 19:56:09,704/qwen-pose/heartbeat stage=inference step=0/4 elapsed=5s gpu=927 MiB, 0 % log_bytes=1218
+ negative_prompt is passed but classifier-free guidance is not enabled since true_cfg_scale <= 1
+2026-09-23 19:56:14,723/qwen-pose/heartbeat stage=inference step=0/4 elapsed=10s gpu=1975 MiB, 6 % log_bytes=1330
+2026-09-23 19:56:19,742/qwen-pose/heartbeat stage=inference step=0/4 elapsed=15s gpu=1987 MiB, 6 % log_bytes=1444
+2026-09-23 19:56:24,767/qwen-pose/heartbeat stage=inference step=0/4 elapsed=20s gpu=988 MiB, 66 % log_bytes=1558
+guidance_scale is passed as 1.0, but ignored since the model is not guidance-distilled.
+  0%|          | 0/4 [00:00<?, ?it/s]2026-09-23 19:56:29,791/qwen-pose/heartbeat stage=inference step=0/4 elapsed=25s gpu=1298 MiB, 63 % log_bytes=1672
+2026-09-23 19:56:34,819/qwen-pose/heartbeat stage=inference step=0/4 elapsed=30s gpu=1299 MiB, 18 % log_bytes=1787
+2026-09-23 19:56:37,672/qwen-pose/denoise step=1/4
+ 25%|██▌       | 1/4 [00:12<00:38, 12.72s/it]2026-09-23 19:56:39,843/qwen-pose/heartbeat stage=inference step=1/4 elapsed=35s gpu=1077 MiB, 31 % log_bytes=1953
+2026-09-23 19:56:44,865/qwen-pose/heartbeat stage=inference step=1/4 elapsed=40s gpu=1279 MiB, 29 % log_bytes=2068
+2026-09-23 19:56:49,891/qwen-pose/heartbeat stage=inference step=1/4 elapsed=45s gpu=1265 MiB, 21 % log_bytes=2183
+2026-09-23 19:56:50,294/qwen-pose/denoise step=2/4
+ 50%|█████     | 2/4 [00:25<00:25, 12.66s/it]2026-09-23 19:56:54,914/qwen-pose/heartbeat stage=inference step=2/4 elapsed=50s gpu=1073 MiB, 71 % log_bytes=2349
+2026-09-23 19:56:56,454/qwen-pose/denoise step=3/4
+ 75%|███████▌  | 3/4 [00:31<00:09,  9.69s/it]2026-09-23 19:56:59,938/qwen-pose/heartbeat stage=inference step=3/4 elapsed=55s gpu=1325 MiB, 71 % log_bytes=2515
+2026-09-23 19:57:02,232/qwen-pose/denoise step=4/4
+100%|██████████| 4/4 [00:37<00:00,  8.15s/it]100%|██████████| 4/4 [00:37<00:00,  9.32s/it]
+2026-09-23 19:57:03,159/qwen-pose/complete output=/home/cbsim/ws/slime-workflow/.tmp/2026-09-23_19-34-30/up_left/frame-04/result.png
+2026-09-23T19:57:03.186574+09:00/anypose-openpose-batch/complete 20/32
+2026-09-23 19:57:03,211/qwen-pose/reference vae_size=512x512 output_size=512x512 condition_size=384x384
+2026-09-23 19:57:03,211/qwen-pose/reference order=['character', 'rig'] kind=rig
+2026-09-23 19:57:04,402/qwen-pose/load model_id=Qwen/Qwen-Image-Edit-2511 model_path=/home/cbsim/ws/slime-workflow/.model/qwen-image-edit-2511/6f3ccc0b56e431dc6a0c2b2039706d7d26f22cb9
+Loading pipeline components...:   0%|          | 0/6 [00:00<?, ?it/s]Loading pipeline components...:  17%|█▋        | 1/6 [00:00<00:02,  2.22it/s]
+Loading checkpoint shards:   0%|          | 0/5 [00:00<?, ?it/s][ALoading checkpoint shards: 100%|██████████| 5/5 [00:00<00:00, 89.17it/s]
+Loading pipeline components...:  33%|███▎      | 2/6 [00:00<00:01,  3.71it/s]
+Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s][A
+Loading checkpoint shards:  25%|██▌       | 1/4 [00:00<00:01,  2.95it/s][ALoading checkpoint shards: 100%|██████████| 4/4 [00:00<00:00,  9.57it/s]
+Loading pipeline components...:  67%|██████▋   | 4/6 [00:01<00:00,  3.76it/s]Loading pipeline components...: 100%|██████████| 6/6 [00:01<00:00,  5.30it/s]
+2026-09-23 19:57:05,535/qwen-pose/adapter name=anypose_base strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-base-000006250.safetensors
+2026-09-23 19:57:06,664/qwen-pose/adapter name=anypose_helper strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-helper-00006000.safetensors
+/home/cbsim/ws/slime-workflow/.venv/lib/python3.12/site-packages/peft/tuners/tuners_utils.py:285: UserWarning: Already found a `peft_config` attribute in the model. This will lead to having multiple adapters in the model. Make sure to know what you are doing!
+  warnings.warn(
+2026-09-23 19:57:07,114/qwen-pose/adapter name=lightning strength=1.0 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lightx2v--Qwen-Image-Edit-2511-Lightning/d74eba145674fd7e31b949324e148e21e7118abd/Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors
+2026-09-23 19:57:08,241/qwen-pose/heartbeat stage=adapters step=0/4 elapsed=5s gpu=925 MiB, 0 % log_bytes=1096
+/home/cbsim/ws/slime-workflow/.venv/lib/python3.12/site-packages/peft/tuners/tuners_utils.py:285: UserWarning: Already found a `peft_config` attribute in the model. This will lead to having multiple adapters in the model. Make sure to know what you are doing!
+  warnings.warn(
+2026-09-23 19:57:09,783/qwen-pose/inference size=512x512 steps=4 seed=10107 device=cuda dtype=bfloat16 offload=sequential
+ negative_prompt is passed but classifier-free guidance is not enabled since true_cfg_scale <= 1
+2026-09-23 19:57:13,266/qwen-pose/heartbeat stage=inference step=0/4 elapsed=10s gpu=1966 MiB, 7 % log_bytes=1329
+2026-09-23 19:57:18,284/qwen-pose/heartbeat stage=inference step=0/4 elapsed=15s gpu=1980 MiB, 7 % log_bytes=1443
+2026-09-23 19:57:23,305/qwen-pose/heartbeat stage=inference step=0/4 elapsed=20s gpu=1049 MiB, 34 % log_bytes=1557
+guidance_scale is passed as 1.0, but ignored since the model is not guidance-distilled.
+  0%|          | 0/4 [00:00<?, ?it/s]2026-09-23 19:57:28,328/qwen-pose/heartbeat stage=inference step=0/4 elapsed=25s gpu=1257 MiB, 29 % log_bytes=1672
+2026-09-23 19:57:33,348/qwen-pose/heartbeat stage=inference step=0/4 elapsed=30s gpu=1279 MiB, 30 % log_bytes=1787
+2026-09-23 19:57:38,372/qwen-pose/heartbeat stage=inference step=0/4 elapsed=35s gpu=1245 MiB, 25 % log_bytes=1902
+2026-09-23 19:57:42,931/qwen-pose/denoise step=1/4
+ 25%|██▌       | 1/4 [00:19<00:57, 19.11s/it]2026-09-23 19:57:43,400/qwen-pose/heartbeat stage=inference step=1/4 elapsed=40s gpu=1078 MiB, 30 % log_bytes=2068
+2026-09-23 19:57:48,425/qwen-pose/heartbeat stage=inference step=1/4 elapsed=45s gpu=1246 MiB, 41 % log_bytes=2183
+2026-09-23 19:57:53,444/qwen-pose/heartbeat stage=inference step=1/4 elapsed=50s gpu=1267 MiB, 47 % log_bytes=2298
+2026-09-23 19:57:53,733/qwen-pose/denoise step=2/4
+ 50%|█████     | 2/4 [00:29<00:28, 14.22s/it]2026-09-23 19:57:58,468/qwen-pose/heartbeat stage=inference step=2/4 elapsed=55s gpu=1048 MiB, 72 % log_bytes=2464
+2026-09-23 19:57:59,493/qwen-pose/denoise step=3/4
+ 75%|███████▌  | 3/4 [00:35<00:10, 10.36s/it]2026-09-23 19:58:03,491/qwen-pose/heartbeat stage=inference step=3/4 elapsed=60s gpu=1094 MiB, 71 % log_bytes=2630
+2026-09-23 19:58:05,275/qwen-pose/denoise step=4/4
+100%|██████████| 4/4 [00:41<00:00,  8.55s/it]100%|██████████| 4/4 [00:41<00:00, 10.36s/it]
+2026-09-23 19:58:06,252/qwen-pose/complete output=/home/cbsim/ws/slime-workflow/.tmp/2026-09-23_19-34-30/up_left/frame-05/result.png
+2026-09-23T19:58:06.281212+09:00/anypose-openpose-batch/complete 21/32
+2026-09-23 19:58:06,306/qwen-pose/reference vae_size=512x512 output_size=512x512 condition_size=384x384
+2026-09-23 19:58:06,306/qwen-pose/reference order=['character', 'rig'] kind=rig
+2026-09-23 19:58:07,423/qwen-pose/load model_id=Qwen/Qwen-Image-Edit-2511 model_path=/home/cbsim/ws/slime-workflow/.model/qwen-image-edit-2511/6f3ccc0b56e431dc6a0c2b2039706d7d26f22cb9
+Loading pipeline components...:   0%|          | 0/6 [00:00<?, ?it/s]Loading pipeline components...:  17%|█▋        | 1/6 [00:00<00:02,  2.23it/s]
+Loading checkpoint shards:   0%|          | 0/5 [00:00<?, ?it/s][ALoading checkpoint shards: 100%|██████████| 5/5 [00:00<00:00, 91.75it/s]
+Loading pipeline components...:  33%|███▎      | 2/6 [00:00<00:01,  3.76it/s]
+Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s][A
+Loading checkpoint shards:  25%|██▌       | 1/4 [00:00<00:00,  3.02it/s][ALoading checkpoint shards: 100%|██████████| 4/4 [00:00<00:00, 10.17it/s]
+Loading pipeline components...:  67%|██████▋   | 4/6 [00:01<00:00,  3.91it/s]Loading pipeline components...: 100%|██████████| 6/6 [00:01<00:00,  5.44it/s]
+2026-09-23 19:58:08,526/qwen-pose/adapter name=anypose_base strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-base-000006250.safetensors
+2026-09-23 19:58:09,711/qwen-pose/adapter name=anypose_helper strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-helper-00006000.safetensors
+/home/cbsim/ws/slime-workflow/.venv/lib/python3.12/site-packages/peft/tuners/tuners_utils.py:285: UserWarning: Already found a `peft_config` attribute in the model. This will lead to having multiple adapters in the model. Make sure to know what you are doing!
+  warnings.warn(
+2026-09-23 19:58:10,153/qwen-pose/adapter name=lightning strength=1.0 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lightx2v--Qwen-Image-Edit-2511-Lightning/d74eba145674fd7e31b949324e148e21e7118abd/Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors
+2026-09-23 19:58:11,340/qwen-pose/heartbeat stage=adapters step=0/4 elapsed=5s gpu=930 MiB, 0 % log_bytes=1096
+2026-09-23 19:58:12,085/qwen-pose/inference size=512x512 steps=4 seed=10107 device=cuda dtype=bfloat16 offload=sequential
+ negative_prompt is passed but classifier-free guidance is not enabled since true_cfg_scale <= 1
+2026-09-23 19:58:16,360/qwen-pose/heartbeat stage=inference step=0/4 elapsed=10s gpu=1977 MiB, 7 % log_bytes=1329
+2026-09-23 19:58:21,383/qwen-pose/heartbeat stage=inference step=0/4 elapsed=15s gpu=1989 MiB, 7 % log_bytes=1443
+2026-09-23 19:58:26,406/qwen-pose/heartbeat stage=inference step=0/4 elapsed=20s gpu=3039 MiB, 5 % log_bytes=1557
+guidance_scale is passed as 1.0, but ignored since the model is not guidance-distilled.
+  0%|          | 0/4 [00:00<?, ?it/s]2026-09-23 19:58:31,429/qwen-pose/heartbeat stage=inference step=0/4 elapsed=25s gpu=1179 MiB, 29 % log_bytes=1671
+2026-09-23 19:58:36,451/qwen-pose/heartbeat stage=inference step=0/4 elapsed=30s gpu=1294 MiB, 29 % log_bytes=1786
+2026-09-23 19:58:41,488/qwen-pose/heartbeat stage=inference step=0/4 elapsed=35s gpu=1260 MiB, 1 % log_bytes=1901
+2026-09-23 19:58:41,638/qwen-pose/denoise step=1/4
+ 25%|██▌       | 1/4 [00:14<00:43, 14.41s/it]2026-09-23 19:58:46,511/qwen-pose/heartbeat stage=inference step=1/4 elapsed=40s gpu=1300 MiB, 27 % log_bytes=2066
+2026-09-23 19:58:51,531/qwen-pose/heartbeat stage=inference step=1/4 elapsed=45s gpu=1231 MiB, 45 % log_bytes=2181
+2026-09-23 19:58:53,152/qwen-pose/denoise step=2/4
+ 50%|█████     | 2/4 [00:25<00:25, 12.71s/it]2026-09-23 19:58:56,554/qwen-pose/heartbeat stage=inference step=2/4 elapsed=50s gpu=1301 MiB, 70 % log_bytes=2347
+2026-09-23 19:58:58,863/qwen-pose/denoise step=3/4
+ 75%|███████▌  | 3/4 [00:31<00:09,  9.51s/it]2026-09-23 19:59:01,587/qwen-pose/heartbeat stage=inference step=3/4 elapsed=55s gpu=1075 MiB, 73 % log_bytes=2513
+2026-09-23 19:59:04,721/qwen-pose/denoise step=4/4
+100%|██████████| 4/4 [00:37<00:00,  8.07s/it]100%|██████████| 4/4 [00:37<00:00,  9.37s/it]
+2026-09-23 19:59:05,948/qwen-pose/complete output=/home/cbsim/ws/slime-workflow/.tmp/2026-09-23_19-34-30/up_left/frame-06/result.png
+2026-09-23T19:59:05.975356+09:00/anypose-openpose-batch/complete 22/32
+2026-09-23 19:59:05,999/qwen-pose/reference vae_size=512x512 output_size=512x512 condition_size=384x384
+2026-09-23 19:59:05,999/qwen-pose/reference order=['character', 'rig'] kind=rig
+2026-09-23 19:59:07,087/qwen-pose/load model_id=Qwen/Qwen-Image-Edit-2511 model_path=/home/cbsim/ws/slime-workflow/.model/qwen-image-edit-2511/6f3ccc0b56e431dc6a0c2b2039706d7d26f22cb9
+Loading pipeline components...:   0%|          | 0/6 [00:00<?, ?it/s]Loading pipeline components...:  17%|█▋        | 1/6 [00:00<00:02,  2.16it/s]
+Loading checkpoint shards:   0%|          | 0/5 [00:00<?, ?it/s][ALoading checkpoint shards: 100%|██████████| 5/5 [00:00<00:00, 92.64it/s]
+Loading pipeline components...:  33%|███▎      | 2/6 [00:00<00:01,  3.68it/s]
+Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s][A
+Loading checkpoint shards:  25%|██▌       | 1/4 [00:00<00:01,  2.73it/s][ALoading checkpoint shards: 100%|██████████| 4/4 [00:00<00:00,  9.30it/s]
+Loading pipeline components...:  67%|██████▋   | 4/6 [00:01<00:00,  3.71it/s]Loading pipeline components...: 100%|██████████| 6/6 [00:01<00:00,  5.22it/s]
+2026-09-23 19:59:08,237/qwen-pose/adapter name=anypose_base strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-base-000006250.safetensors
+2026-09-23 19:59:09,372/qwen-pose/adapter name=anypose_helper strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-helper-00006000.safetensors
+/home/cbsim/ws/slime-workflow/.venv/lib/python3.12/site-packages/peft/tuners/tuners_utils.py:285: UserWarning: Already found a `peft_config` attribute in the model. This will lead to having multiple adapters in the model. Make sure to know what you are doing!
+  warnings.warn(
+2026-09-23 19:59:09,816/qwen-pose/adapter name=lightning strength=1.0 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lightx2v--Qwen-Image-Edit-2511-Lightning/d74eba145674fd7e31b949324e148e21e7118abd/Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors
+2026-09-23 19:59:11,028/qwen-pose/heartbeat stage=adapters step=0/4 elapsed=5s gpu=925 MiB, 0 % log_bytes=1096
+/home/cbsim/ws/slime-workflow/.venv/lib/python3.12/site-packages/peft/tuners/tuners_utils.py:285: UserWarning: Already found a `peft_config` attribute in the model. This will lead to having multiple adapters in the model. Make sure to know what you are doing!
+  warnings.warn(
+2026-09-23 19:59:12,448/qwen-pose/inference size=512x512 steps=4 seed=10107 device=cuda dtype=bfloat16 offload=sequential
+ negative_prompt is passed but classifier-free guidance is not enabled since true_cfg_scale <= 1
+2026-09-23 19:59:16,050/qwen-pose/heartbeat stage=inference step=0/4 elapsed=10s gpu=1971 MiB, 8 % log_bytes=1329
+2026-09-23 19:59:21,070/qwen-pose/heartbeat stage=inference step=0/4 elapsed=15s gpu=1983 MiB, 7 % log_bytes=1443
+2026-09-23 19:59:26,093/qwen-pose/heartbeat stage=inference step=0/4 elapsed=20s gpu=997 MiB, 41 % log_bytes=1557
+guidance_scale is passed as 1.0, but ignored since the model is not guidance-distilled.
+  0%|          | 0/4 [00:00<?, ?it/s]2026-09-23 19:59:31,119/qwen-pose/heartbeat stage=inference step=0/4 elapsed=25s gpu=1267 MiB, 32 % log_bytes=1671
+2026-09-23 19:59:36,142/qwen-pose/heartbeat stage=inference step=0/4 elapsed=30s gpu=1254 MiB, 3 % log_bytes=1786
+2026-09-23 19:59:41,167/qwen-pose/heartbeat stage=inference step=0/4 elapsed=35s gpu=1276 MiB, 39 % log_bytes=1900
+2026-09-23 19:59:45,649/qwen-pose/denoise step=1/4
+ 25%|██▌       | 1/4 [00:19<00:58, 19.39s/it]2026-09-23 19:59:46,195/qwen-pose/heartbeat stage=inference step=1/4 elapsed=40s gpu=1360 MiB, 8 % log_bytes=2066
+2026-09-23 19:59:51,218/qwen-pose/heartbeat stage=inference step=1/4 elapsed=45s gpu=1240 MiB, 45 % log_bytes=2180
+2026-09-23 19:59:56,242/qwen-pose/heartbeat stage=inference step=1/4 elapsed=50s gpu=1243 MiB, 40 % log_bytes=2295
+2026-09-23 19:59:57,081/qwen-pose/denoise step=2/4
+ 50%|█████     | 2/4 [00:30<00:29, 14.71s/it]2026-09-23 20:00:01,266/qwen-pose/heartbeat stage=inference step=2/4 elapsed=55s gpu=1281 MiB, 73 % log_bytes=2461
+2026-09-23 20:00:02,785/qwen-pose/denoise step=3/4
+ 75%|███████▌  | 3/4 [00:36<00:10, 10.60s/it]2026-09-23 20:00:06,290/qwen-pose/heartbeat stage=inference step=3/4 elapsed=60s gpu=1299 MiB, 72 % log_bytes=2627
+2026-09-23 20:00:08,553/qwen-pose/denoise step=4/4
+100%|██████████| 4/4 [00:42<00:00,  8.69s/it]100%|██████████| 4/4 [00:42<00:00, 10.57s/it]
+2026-09-23 20:00:09,840/qwen-pose/complete output=/home/cbsim/ws/slime-workflow/.tmp/2026-09-23_19-34-30/up_left/frame-07/result.png
+2026-09-23T20:00:09.870286+09:00/anypose-openpose-batch/complete 23/32
+2026-09-23 20:00:09,894/qwen-pose/reference vae_size=512x512 output_size=512x512 condition_size=384x384
+2026-09-23 20:00:09,895/qwen-pose/reference order=['character', 'rig'] kind=rig
+2026-09-23 20:00:12,666/qwen-pose/load model_id=Qwen/Qwen-Image-Edit-2511 model_path=/home/cbsim/ws/slime-workflow/.model/qwen-image-edit-2511/6f3ccc0b56e431dc6a0c2b2039706d7d26f22cb9
+Loading pipeline components...:   0%|          | 0/6 [00:00<?, ?it/s]Loading pipeline components...:  17%|█▋        | 1/6 [00:00<00:02,  2.17it/s]
+Loading checkpoint shards:   0%|          | 0/5 [00:00<?, ?it/s][ALoading checkpoint shards: 100%|██████████| 5/5 [00:00<00:00, 92.25it/s]
+Loading pipeline components...:  33%|███▎      | 2/6 [00:00<00:01,  3.80it/s]
+Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s][A
+Loading checkpoint shards:  25%|██▌       | 1/4 [00:00<00:00,  3.14it/s][ALoading checkpoint shards: 100%|██████████| 4/4 [00:00<00:00, 10.64it/s]
+Loading pipeline components...:  67%|██████▋   | 4/6 [00:01<00:00,  4.00it/s]Loading pipeline components...: 100%|██████████| 6/6 [00:01<00:00,  5.55it/s]
+2026-09-23 20:00:13,748/qwen-pose/adapter name=anypose_base strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-base-000006250.safetensors
+2026-09-23 20:00:14,951/qwen-pose/adapter name=anypose_helper strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-helper-00006000.safetensors
+/home/cbsim/ws/slime-workflow/.venv/lib/python3.12/site-packages/peft/tuners/tuners_utils.py:285: UserWarning: Already found a `peft_config` attribute in the model. This will lead to having multiple adapters in the model. Make sure to know what you are doing!
+  warnings.warn(
+2026-09-23 20:00:15,012/qwen-pose/heartbeat stage=adapters step=0/4 elapsed=5s gpu=929 MiB, 0 % log_bytes=829
+2026-09-23 20:00:15,444/qwen-pose/adapter name=lightning strength=1.0 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lightx2v--Qwen-Image-Edit-2511-Lightning/d74eba145674fd7e31b949324e148e21e7118abd/Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors
+2026-09-23 20:00:18,275/qwen-pose/inference size=512x512 steps=4 seed=10107 device=cuda dtype=bfloat16 offload=sequential
+ negative_prompt is passed but classifier-free guidance is not enabled since true_cfg_scale <= 1
+2026-09-23 20:00:20,046/qwen-pose/heartbeat stage=inference step=0/4 elapsed=10s gpu=1969 MiB, 8 % log_bytes=1328
+2026-09-23 20:00:25,068/qwen-pose/heartbeat stage=inference step=0/4 elapsed=15s gpu=1974 MiB, 4 % log_bytes=1442
+2026-09-23 20:00:30,086/qwen-pose/heartbeat stage=inference step=0/4 elapsed=20s gpu=1988 MiB, 7 % log_bytes=1556
+guidance_scale is passed as 1.0, but ignored since the model is not guidance-distilled.
+  0%|          | 0/4 [00:00<?, ?it/s]2026-09-23 20:00:35,116/qwen-pose/heartbeat stage=inference step=0/4 elapsed=25s gpu=1262 MiB, 42 % log_bytes=1670
+2026-09-23 20:00:40,139/qwen-pose/heartbeat stage=inference step=0/4 elapsed=30s gpu=1264 MiB, 21 % log_bytes=1785
+2026-09-23 20:00:45,163/qwen-pose/heartbeat stage=inference step=0/4 elapsed=35s gpu=1092 MiB, 22 % log_bytes=1900
+2026-09-23 20:00:50,189/qwen-pose/heartbeat stage=inference step=0/4 elapsed=40s gpu=1278 MiB, 18 % log_bytes=2015
+2026-09-23 20:00:51,099/qwen-pose/denoise step=1/4
+ 25%|██▌       | 1/4 [00:16<00:50, 16.74s/it]2026-09-23 20:00:55,209/qwen-pose/heartbeat stage=inference step=1/4 elapsed=45s gpu=1243 MiB, 40 % log_bytes=2181
+2026-09-23 20:01:00,234/qwen-pose/heartbeat stage=inference step=1/4 elapsed=50s gpu=1249 MiB, 35 % log_bytes=2296
+2026-09-23 20:01:01,969/qwen-pose/denoise step=2/4
+ 50%|█████     | 2/4 [00:27<00:26, 13.29s/it]2026-09-23 20:01:05,257/qwen-pose/heartbeat stage=inference step=2/4 elapsed=55s gpu=1077 MiB, 73 % log_bytes=2462
+2026-09-23 20:01:07,910/qwen-pose/denoise step=3/4
+ 75%|███████▌  | 3/4 [00:33<00:09,  9.93s/it]2026-09-23 20:01:10,281/qwen-pose/heartbeat stage=inference step=3/4 elapsed=60s gpu=1269 MiB, 75 % log_bytes=2628
+2026-09-23 20:01:13,628/qwen-pose/denoise step=4/4
+100%|██████████| 4/4 [00:39<00:00,  8.27s/it]100%|██████████| 4/4 [00:39<00:00,  9.82s/it]
+2026-09-23 20:01:14,677/qwen-pose/complete output=/home/cbsim/ws/slime-workflow/.tmp/2026-09-23_19-34-30/up_left/frame-08/result.png
+2026-09-23T20:01:14.706142+09:00/anypose-openpose-batch/complete 24/32
+2026-09-23 20:01:14,732/qwen-pose/reference vae_size=512x512 output_size=512x512 condition_size=384x384
+2026-09-23 20:01:14,732/qwen-pose/reference order=['character', 'rig'] kind=rig
+2026-09-23 20:01:16,054/qwen-pose/load model_id=Qwen/Qwen-Image-Edit-2511 model_path=/home/cbsim/ws/slime-workflow/.model/qwen-image-edit-2511/6f3ccc0b56e431dc6a0c2b2039706d7d26f22cb9
+Loading pipeline components...:   0%|          | 0/6 [00:00<?, ?it/s]Loading pipeline components...:  17%|█▋        | 1/6 [00:00<00:02,  2.27it/s]
+Loading checkpoint shards:   0%|          | 0/5 [00:00<?, ?it/s][ALoading checkpoint shards: 100%|██████████| 5/5 [00:00<00:00, 81.92it/s]
+Loading pipeline components...:  33%|███▎      | 2/6 [00:00<00:01,  3.73it/s]
+Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s][A
+Loading checkpoint shards:  25%|██▌       | 1/4 [00:00<00:00,  3.25it/s][ALoading checkpoint shards: 100%|██████████| 4/4 [00:00<00:00, 10.20it/s]
+Loading pipeline components...:  67%|██████▋   | 4/6 [00:01<00:00,  3.82it/s]Loading pipeline components...: 100%|██████████| 6/6 [00:01<00:00,  5.36it/s]
+2026-09-23 20:01:17,174/qwen-pose/adapter name=anypose_base strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-base-000006250.safetensors
+2026-09-23 20:01:18,288/qwen-pose/adapter name=anypose_helper strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-helper-00006000.safetensors
+/home/cbsim/ws/slime-workflow/.venv/lib/python3.12/site-packages/peft/tuners/tuners_utils.py:285: UserWarning: Already found a `peft_config` attribute in the model. This will lead to having multiple adapters in the model. Make sure to know what you are doing!
+  warnings.warn(
+2026-09-23 20:01:18,747/qwen-pose/adapter name=lightning strength=1.0 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lightx2v--Qwen-Image-Edit-2511-Lightning/d74eba145674fd7e31b949324e148e21e7118abd/Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors
+2026-09-23 20:01:19,758/qwen-pose/heartbeat stage=adapters step=0/4 elapsed=5s gpu=950 MiB, 0 % log_bytes=1096
+2026-09-23 20:01:19,849/qwen-pose/inference size=512x512 steps=4 seed=10107 device=cuda dtype=bfloat16 offload=sequential
+ negative_prompt is passed but classifier-free guidance is not enabled since true_cfg_scale <= 1
+2026-09-23 20:01:24,782/qwen-pose/heartbeat stage=inference step=0/4 elapsed=10s gpu=1974 MiB, 5 % log_bytes=1329
+2026-09-23 20:01:29,801/qwen-pose/heartbeat stage=inference step=0/4 elapsed=15s gpu=1986 MiB, 7 % log_bytes=1443
+guidance_scale is passed as 1.0, but ignored since the model is not guidance-distilled.
+  0%|          | 0/4 [00:00<?, ?it/s]2026-09-23 20:01:34,876/qwen-pose/heartbeat stage=inference step=0/4 elapsed=20s gpu=1282 MiB, 58 % log_bytes=1557
+2026-09-23 20:01:39,900/qwen-pose/heartbeat stage=inference step=0/4 elapsed=25s gpu=1113 MiB, 34 % log_bytes=1672
+2026-09-23 20:01:44,930/qwen-pose/heartbeat stage=inference step=0/4 elapsed=30s gpu=1365 MiB, 16 % log_bytes=1787
+2026-09-23 20:01:45,500/qwen-pose/denoise step=1/4
+ 25%|██▌       | 1/4 [00:10<00:32, 10.81s/it]2026-09-23 20:01:50,014/qwen-pose/heartbeat stage=inference step=1/4 elapsed=35s gpu=1111 MiB, 66 % log_bytes=1953
+2026-09-23 20:01:52,557/qwen-pose/denoise step=2/4
+ 50%|█████     | 2/4 [00:17<00:17,  8.60s/it]2026-09-23 20:01:55,038/qwen-pose/heartbeat stage=inference step=2/4 elapsed=40s gpu=1281 MiB, 72 % log_bytes=2119
+2026-09-23 20:01:58,294/qwen-pose/denoise step=3/4
+ 75%|███████▌  | 3/4 [00:23<00:07,  7.29s/it]2026-09-23 20:02:00,058/qwen-pose/heartbeat stage=inference step=3/4 elapsed=45s gpu=1299 MiB, 77 % log_bytes=2285
+2026-09-23 20:02:04,010/qwen-pose/denoise step=4/4
+100%|██████████| 4/4 [00:29<00:00,  6.67s/it]100%|██████████| 4/4 [00:29<00:00,  7.33s/it]
+2026-09-23 20:02:05,004/qwen-pose/complete output=/home/cbsim/ws/slime-workflow/.tmp/2026-09-23_19-34-30/up_right/frame-01/result.png
+2026-09-23T20:02:05.035657+09:00/anypose-openpose-batch/complete 25/32
+2026-09-23 20:02:05,061/qwen-pose/reference vae_size=512x512 output_size=512x512 condition_size=384x384
+2026-09-23 20:02:05,061/qwen-pose/reference order=['character', 'rig'] kind=rig
+2026-09-23 20:02:09,209/qwen-pose/load model_id=Qwen/Qwen-Image-Edit-2511 model_path=/home/cbsim/ws/slime-workflow/.model/qwen-image-edit-2511/6f3ccc0b56e431dc6a0c2b2039706d7d26f22cb9
+Loading pipeline components...:   0%|          | 0/6 [00:00<?, ?it/s]Loading pipeline components...:  17%|█▋        | 1/6 [00:00<00:02,  2.24it/s]
+Loading checkpoint shards:   0%|          | 0/5 [00:00<?, ?it/s][ALoading checkpoint shards: 100%|██████████| 5/5 [00:00<00:00, 94.23it/s]
+Loading pipeline components...:  33%|███▎      | 2/6 [00:00<00:01,  3.85it/s]Loading pipeline components...:  50%|█████     | 3/6 [00:00<00:00,  5.20it/s]2026-09-23 20:02:10,244/qwen-pose/heartbeat stage=load step=0/4 elapsed=5s gpu=928 MiB, 0 % log_bytes=368
+
+Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s][A
+Loading checkpoint shards:  25%|██▌       | 1/4 [00:00<00:01,  2.65it/s][A
+Loading checkpoint shards:  50%|█████     | 2/4 [00:00<00:00,  4.23it/s][A
+Loading checkpoint shards:  75%|███████▌  | 3/4 [00:00<00:00,  5.61it/s][ALoading checkpoint shards: 100%|██████████| 4/4 [00:00<00:00,  6.40it/s]
+Loading pipeline components...:  67%|██████▋   | 4/6 [00:02<00:01,  1.41it/s]Loading pipeline components...: 100%|██████████| 6/6 [00:02<00:00,  2.72it/s]
+2026-09-23 20:02:11,416/qwen-pose/adapter name=anypose_base strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-base-000006250.safetensors
+2026-09-23 20:02:11,829/qwen-pose/adapter name=anypose_helper strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-helper-00006000.safetensors
+/home/cbsim/ws/slime-workflow/.venv/lib/python3.12/site-packages/peft/tuners/tuners_utils.py:285: UserWarning: Already found a `peft_config` attribute in the model. This will lead to having multiple adapters in the model. Make sure to know what you are doing!
+  warnings.warn(
+2026-09-23 20:02:12,441/qwen-pose/adapter name=lightning strength=1.0 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lightx2v--Qwen-Image-Edit-2511-Lightning/d74eba145674fd7e31b949324e148e21e7118abd/Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors
+2026-09-23 20:02:15,277/qwen-pose/heartbeat stage=adapters step=0/4 elapsed=10s gpu=926 MiB, 0 % log_bytes=1202
+/home/cbsim/ws/slime-workflow/.venv/lib/python3.12/site-packages/peft/tuners/tuners_utils.py:285: UserWarning: Already found a `peft_config` attribute in the model. This will lead to having multiple adapters in the model. Make sure to know what you are doing!
+  warnings.warn(
+2026-09-23 20:02:15,913/qwen-pose/inference size=512x512 steps=4 seed=10107 device=cuda dtype=bfloat16 offload=sequential
+ negative_prompt is passed but classifier-free guidance is not enabled since true_cfg_scale <= 1
+2026-09-23 20:02:20,298/qwen-pose/heartbeat stage=inference step=0/4 elapsed=15s gpu=1982 MiB, 11 % log_bytes=1436
+guidance_scale is passed as 1.0, but ignored since the model is not guidance-distilled.
+  0%|          | 0/4 [00:00<?, ?it/s]2026-09-23 20:02:25,324/qwen-pose/heartbeat stage=inference step=0/4 elapsed=20s gpu=1052 MiB, 66 % log_bytes=1551
+2026-09-23 20:02:30,362/qwen-pose/heartbeat stage=inference step=0/4 elapsed=25s gpu=1231 MiB, 48 % log_bytes=1666
+2026-09-23 20:02:35,402/qwen-pose/heartbeat stage=inference step=0/4 elapsed=30s gpu=1283 MiB, 26 % log_bytes=1781
+2026-09-23 20:02:36,328/qwen-pose/denoise step=1/4
+ 25%|██▌       | 1/4 [00:12<00:37, 12.50s/it]2026-09-23 20:02:40,426/qwen-pose/heartbeat stage=inference step=1/4 elapsed=35s gpu=1293 MiB, 42 % log_bytes=1947
+2026-09-23 20:02:45,449/qwen-pose/heartbeat stage=inference step=1/4 elapsed=40s gpu=1293 MiB, 46 % log_bytes=2062
+2026-09-23 20:02:48,787/qwen-pose/denoise step=2/4
+ 50%|█████     | 2/4 [00:24<00:24, 12.48s/it]2026-09-23 20:02:50,473/qwen-pose/heartbeat stage=inference step=2/4 elapsed=45s gpu=1249 MiB, 74 % log_bytes=2228
+2026-09-23 20:02:54,576/qwen-pose/denoise step=3/4
+ 75%|███████▌  | 3/4 [00:30<00:09,  9.42s/it]2026-09-23 20:02:55,496/qwen-pose/heartbeat stage=inference step=3/4 elapsed=50s gpu=1222 MiB, 74 % log_bytes=2394
+2026-09-23 20:03:00,388/qwen-pose/denoise step=4/4
+100%|██████████| 4/4 [00:36<00:00,  8.00s/it]100%|██████████| 4/4 [00:36<00:00,  9.14s/it]
+2026-09-23 20:03:00,517/qwen-pose/heartbeat stage=inference step=4/4 elapsed=55s gpu=938 MiB, 71 % log_bytes=2560
+2026-09-23 20:03:01,280/qwen-pose/complete output=/home/cbsim/ws/slime-workflow/.tmp/2026-09-23_19-34-30/up_right/frame-02/result.png
+2026-09-23T20:03:01.307629+09:00/anypose-openpose-batch/complete 26/32
+2026-09-23 20:03:01,332/qwen-pose/reference vae_size=512x512 output_size=512x512 condition_size=384x384
+2026-09-23 20:03:01,332/qwen-pose/reference order=['character', 'rig'] kind=rig
+2026-09-23 20:03:02,367/qwen-pose/load model_id=Qwen/Qwen-Image-Edit-2511 model_path=/home/cbsim/ws/slime-workflow/.model/qwen-image-edit-2511/6f3ccc0b56e431dc6a0c2b2039706d7d26f22cb9
+Loading pipeline components...:   0%|          | 0/6 [00:00<?, ?it/s]Loading pipeline components...:  17%|█▋        | 1/6 [00:00<00:02,  2.25it/s]
+Loading checkpoint shards:   0%|          | 0/5 [00:00<?, ?it/s][ALoading checkpoint shards: 100%|██████████| 5/5 [00:00<00:00, 88.73it/s]
+Loading pipeline components...:  33%|███▎      | 2/6 [00:01<00:02,  1.36it/s]
+Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s][A
+Loading checkpoint shards:  25%|██▌       | 1/4 [00:00<00:01,  2.91it/s][ALoading checkpoint shards: 100%|██████████| 4/4 [00:00<00:00, 10.04it/s]
+Loading pipeline components...:  67%|██████▋   | 4/6 [00:01<00:00,  2.30it/s]Loading pipeline components...: 100%|██████████| 6/6 [00:01<00:00,  3.15it/s]
+2026-09-23 20:03:04,274/qwen-pose/adapter name=anypose_base strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-base-000006250.safetensors
+2026-09-23 20:03:04,802/qwen-pose/adapter name=anypose_helper strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-helper-00006000.safetensors
+/home/cbsim/ws/slime-workflow/.venv/lib/python3.12/site-packages/peft/tuners/tuners_utils.py:285: UserWarning: Already found a `peft_config` attribute in the model. This will lead to having multiple adapters in the model. Make sure to know what you are doing!
+  warnings.warn(
+2026-09-23 20:03:05,242/qwen-pose/adapter name=lightning strength=1.0 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lightx2v--Qwen-Image-Edit-2511-Lightning/d74eba145674fd7e31b949324e148e21e7118abd/Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors
+2026-09-23 20:03:06,355/qwen-pose/heartbeat stage=adapters step=0/4 elapsed=5s gpu=928 MiB, 0 % log_bytes=1096
+/home/cbsim/ws/slime-workflow/.venv/lib/python3.12/site-packages/peft/tuners/tuners_utils.py:285: UserWarning: Already found a `peft_config` attribute in the model. This will lead to having multiple adapters in the model. Make sure to know what you are doing!
+  warnings.warn(
+2026-09-23 20:03:08,019/qwen-pose/inference size=512x512 steps=4 seed=10107 device=cuda dtype=bfloat16 offload=sequential
+ negative_prompt is passed but classifier-free guidance is not enabled since true_cfg_scale <= 1
+2026-09-23 20:03:11,376/qwen-pose/heartbeat stage=inference step=0/4 elapsed=10s gpu=1976 MiB, 10 % log_bytes=1329
+2026-09-23 20:03:16,395/qwen-pose/heartbeat stage=inference step=0/4 elapsed=15s gpu=1994 MiB, 8 % log_bytes=1444
+guidance_scale is passed as 1.0, but ignored since the model is not guidance-distilled.
+  0%|          | 0/4 [00:00<?, ?it/s]2026-09-23 20:03:21,415/qwen-pose/heartbeat stage=inference step=0/4 elapsed=20s gpu=1248 MiB, 11 % log_bytes=1558
+2026-09-23 20:03:26,438/qwen-pose/heartbeat stage=inference step=0/4 elapsed=25s gpu=1091 MiB, 0 % log_bytes=1673
+2026-09-23 20:03:31,482/qwen-pose/heartbeat stage=inference step=0/4 elapsed=30s gpu=1367 MiB, 15 % log_bytes=1787
+2026-09-23 20:03:31,730/qwen-pose/denoise step=1/4
+ 25%|██▌       | 1/4 [00:13<00:39, 13.12s/it]2026-09-23 20:03:36,518/qwen-pose/heartbeat stage=inference step=1/4 elapsed=35s gpu=1303 MiB, 36 % log_bytes=1953
+2026-09-23 20:03:41,541/qwen-pose/heartbeat stage=inference step=1/4 elapsed=40s gpu=1088 MiB, 39 % log_bytes=2068
+2026-09-23 20:03:44,308/qwen-pose/denoise step=2/4
+ 50%|█████     | 2/4 [00:25<00:25, 12.80s/it]2026-09-23 20:03:46,564/qwen-pose/heartbeat stage=inference step=2/4 elapsed=45s gpu=1072 MiB, 68 % log_bytes=2234
+2026-09-23 20:03:50,089/qwen-pose/denoise step=3/4
+ 75%|███████▌  | 3/4 [00:31<00:09,  9.60s/it]2026-09-23 20:03:51,589/qwen-pose/heartbeat stage=inference step=3/4 elapsed=50s gpu=1264 MiB, 75 % log_bytes=2400
+2026-09-23 20:03:55,855/qwen-pose/denoise step=4/4
+100%|██████████| 4/4 [00:37<00:00,  8.08s/it]100%|██████████| 4/4 [00:37<00:00,  9.31s/it]
+2026-09-23 20:03:56,611/qwen-pose/heartbeat stage=inference step=4/4 elapsed=55s gpu=950 MiB, 0 % log_bytes=2566
+2026-09-23 20:03:57,413/qwen-pose/complete output=/home/cbsim/ws/slime-workflow/.tmp/2026-09-23_19-34-30/up_right/frame-03/result.png
+2026-09-23T20:03:57.439986+09:00/anypose-openpose-batch/complete 27/32
+2026-09-23 20:03:57,464/qwen-pose/reference vae_size=512x512 output_size=512x512 condition_size=384x384
+2026-09-23 20:03:57,465/qwen-pose/reference order=['character', 'rig'] kind=rig
+2026-09-23 20:03:58,531/qwen-pose/load model_id=Qwen/Qwen-Image-Edit-2511 model_path=/home/cbsim/ws/slime-workflow/.model/qwen-image-edit-2511/6f3ccc0b56e431dc6a0c2b2039706d7d26f22cb9
+Loading pipeline components...:   0%|          | 0/6 [00:00<?, ?it/s]Loading pipeline components...:  17%|█▋        | 1/6 [00:00<00:02,  2.24it/s]
+Loading checkpoint shards:   0%|          | 0/5 [00:00<?, ?it/s][ALoading checkpoint shards: 100%|██████████| 5/5 [00:00<00:00, 90.65it/s]
+Loading pipeline components...:  33%|███▎      | 2/6 [00:00<00:01,  3.75it/s]
+Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s][A
+Loading checkpoint shards:  25%|██▌       | 1/4 [00:00<00:01,  2.62it/s][ALoading checkpoint shards: 100%|██████████| 4/4 [00:00<00:00,  8.51it/s]
+Loading pipeline components...:  67%|██████▋   | 4/6 [00:01<00:00,  3.56it/s]Loading pipeline components...: 100%|██████████| 6/6 [00:01<00:00,  5.10it/s]
+2026-09-23 20:03:59,710/qwen-pose/adapter name=anypose_base strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-base-000006250.safetensors
+2026-09-23 20:04:00,918/qwen-pose/adapter name=anypose_helper strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-helper-00006000.safetensors
+/home/cbsim/ws/slime-workflow/.venv/lib/python3.12/site-packages/peft/tuners/tuners_utils.py:285: UserWarning: Already found a `peft_config` attribute in the model. This will lead to having multiple adapters in the model. Make sure to know what you are doing!
+  warnings.warn(
+2026-09-23 20:04:01,358/qwen-pose/adapter name=lightning strength=1.0 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lightx2v--Qwen-Image-Edit-2511-Lightning/d74eba145674fd7e31b949324e148e21e7118abd/Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors
+2026-09-23 20:04:02,493/qwen-pose/heartbeat stage=adapters step=0/4 elapsed=5s gpu=938 MiB, 0 % log_bytes=1096
+/home/cbsim/ws/slime-workflow/.venv/lib/python3.12/site-packages/peft/tuners/tuners_utils.py:285: UserWarning: Already found a `peft_config` attribute in the model. This will lead to having multiple adapters in the model. Make sure to know what you are doing!
+  warnings.warn(
+2026-09-23 20:04:03,865/qwen-pose/inference size=512x512 steps=4 seed=10107 device=cuda dtype=bfloat16 offload=sequential
+ negative_prompt is passed but classifier-free guidance is not enabled since true_cfg_scale <= 1
+2026-09-23 20:04:07,517/qwen-pose/heartbeat stage=inference step=0/4 elapsed=10s gpu=1988 MiB, 8 % log_bytes=1329
+2026-09-23 20:04:12,538/qwen-pose/heartbeat stage=inference step=0/4 elapsed=15s gpu=1057 MiB, 26 % log_bytes=1443
+guidance_scale is passed as 1.0, but ignored since the model is not guidance-distilled.
+  0%|          | 0/4 [00:00<?, ?it/s]2026-09-23 20:04:17,561/qwen-pose/heartbeat stage=inference step=0/4 elapsed=20s gpu=1107 MiB, 41 % log_bytes=1558
+2026-09-23 20:04:22,586/qwen-pose/heartbeat stage=inference step=0/4 elapsed=25s gpu=1255 MiB, 32 % log_bytes=1673
+2026-09-23 20:04:25,509/qwen-pose/denoise step=1/4
+ 25%|██▌       | 1/4 [00:12<00:37, 12.49s/it]2026-09-23 20:04:27,656/qwen-pose/heartbeat stage=inference step=1/4 elapsed=30s gpu=1273 MiB, 50 % log_bytes=1839
+2026-09-23 20:04:32,682/qwen-pose/heartbeat stage=inference step=1/4 elapsed=35s gpu=1317 MiB, 67 % log_bytes=1954
+2026-09-23 20:04:33,129/qwen-pose/denoise step=2/4
+ 50%|█████     | 2/4 [00:20<00:19,  9.62s/it]2026-09-23 20:04:37,707/qwen-pose/heartbeat stage=inference step=2/4 elapsed=40s gpu=1288 MiB, 76 % log_bytes=2120
+2026-09-23 20:04:38,844/qwen-pose/denoise step=3/4
+ 75%|███████▌  | 3/4 [00:25<00:07,  7.84s/it]2026-09-23 20:04:42,732/qwen-pose/heartbeat stage=inference step=3/4 elapsed=45s gpu=1270 MiB, 73 % log_bytes=2286
+2026-09-23 20:04:44,574/qwen-pose/denoise step=4/4
+100%|██████████| 4/4 [00:31<00:00,  7.01s/it]100%|██████████| 4/4 [00:31<00:00,  7.89s/it]
+2026-09-23 20:04:45,546/qwen-pose/complete output=/home/cbsim/ws/slime-workflow/.tmp/2026-09-23_19-34-30/up_right/frame-04/result.png
+2026-09-23T20:04:45.580672+09:00/anypose-openpose-batch/complete 28/32
+2026-09-23 20:04:45,606/qwen-pose/reference vae_size=512x512 output_size=512x512 condition_size=384x384
+2026-09-23 20:04:45,606/qwen-pose/reference order=['character', 'rig'] kind=rig
+2026-09-23 20:04:46,838/qwen-pose/load model_id=Qwen/Qwen-Image-Edit-2511 model_path=/home/cbsim/ws/slime-workflow/.model/qwen-image-edit-2511/6f3ccc0b56e431dc6a0c2b2039706d7d26f22cb9
+Loading pipeline components...:   0%|          | 0/6 [00:00<?, ?it/s]Loading pipeline components...:  17%|█▋        | 1/6 [00:00<00:02,  2.21it/s]
+Loading checkpoint shards:   0%|          | 0/5 [00:00<?, ?it/s][ALoading checkpoint shards: 100%|██████████| 5/5 [00:00<00:00, 91.57it/s]
+Loading pipeline components...:  33%|███▎      | 2/6 [00:00<00:01,  3.70it/s]
+Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s][A
+Loading checkpoint shards:  25%|██▌       | 1/4 [00:00<00:01,  2.90it/s][ALoading checkpoint shards: 100%|██████████| 4/4 [00:00<00:00,  9.73it/s]
+Loading pipeline components...:  67%|██████▋   | 4/6 [00:01<00:00,  3.79it/s]Loading pipeline components...: 100%|██████████| 6/6 [00:01<00:00,  5.33it/s]
+2026-09-23 20:04:47,965/qwen-pose/adapter name=anypose_base strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-base-000006250.safetensors
+2026-09-23 20:04:49,129/qwen-pose/adapter name=anypose_helper strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-helper-00006000.safetensors
+/home/cbsim/ws/slime-workflow/.venv/lib/python3.12/site-packages/peft/tuners/tuners_utils.py:285: UserWarning: Already found a `peft_config` attribute in the model. This will lead to having multiple adapters in the model. Make sure to know what you are doing!
+  warnings.warn(
+2026-09-23 20:04:49,577/qwen-pose/adapter name=lightning strength=1.0 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lightx2v--Qwen-Image-Edit-2511-Lightning/d74eba145674fd7e31b949324e148e21e7118abd/Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors
+2026-09-23 20:04:50,633/qwen-pose/heartbeat stage=adapters step=0/4 elapsed=5s gpu=934 MiB, 0 % log_bytes=1096
+/home/cbsim/ws/slime-workflow/.venv/lib/python3.12/site-packages/peft/tuners/tuners_utils.py:285: UserWarning: Already found a `peft_config` attribute in the model. This will lead to having multiple adapters in the model. Make sure to know what you are doing!
+  warnings.warn(
+2026-09-23 20:04:51,653/qwen-pose/inference size=512x512 steps=4 seed=10107 device=cuda dtype=bfloat16 offload=sequential
+ negative_prompt is passed but classifier-free guidance is not enabled since true_cfg_scale <= 1
+2026-09-23 20:04:55,652/qwen-pose/heartbeat stage=inference step=0/4 elapsed=10s gpu=1982 MiB, 8 % log_bytes=1329
+2026-09-23 20:05:00,672/qwen-pose/heartbeat stage=inference step=0/4 elapsed=15s gpu=1997 MiB, 14 % log_bytes=1443
+guidance_scale is passed as 1.0, but ignored since the model is not guidance-distilled.
+  0%|          | 0/4 [00:00<?, ?it/s]2026-09-23 20:05:05,698/qwen-pose/heartbeat stage=inference step=0/4 elapsed=20s gpu=1229 MiB, 36 % log_bytes=1558
+2026-09-23 20:05:10,722/qwen-pose/heartbeat stage=inference step=0/4 elapsed=25s gpu=1307 MiB, 31 % log_bytes=1673
+2026-09-23 20:05:15,745/qwen-pose/heartbeat stage=inference step=0/4 elapsed=30s gpu=1247 MiB, 12 % log_bytes=1788
+2026-09-23 20:05:19,311/qwen-pose/denoise step=1/4
+ 25%|██▌       | 1/4 [00:16<00:48, 16.31s/it]2026-09-23 20:05:20,782/qwen-pose/heartbeat stage=inference step=1/4 elapsed=35s gpu=1253 MiB, 34 % log_bytes=1954
+2026-09-23 20:05:25,806/qwen-pose/heartbeat stage=inference step=1/4 elapsed=40s gpu=1200 MiB, 32 % log_bytes=2069
+2026-09-23 20:05:30,827/qwen-pose/heartbeat stage=inference step=1/4 elapsed=45s gpu=1246 MiB, 38 % log_bytes=2184
+2026-09-23 20:05:33,430/qwen-pose/denoise step=2/4
+ 50%|█████     | 2/4 [00:30<00:30, 15.02s/it]2026-09-23 20:05:35,853/qwen-pose/heartbeat stage=inference step=2/4 elapsed=50s gpu=1292 MiB, 73 % log_bytes=2350
+2026-09-23 20:05:40,608/qwen-pose/denoise step=3/4
+ 75%|███████▌  | 3/4 [00:37<00:11, 11.44s/it]2026-09-23 20:05:40,877/qwen-pose/heartbeat stage=inference step=3/4 elapsed=55s gpu=1275 MiB, 52 % log_bytes=2516
+2026-09-23 20:05:45,902/qwen-pose/heartbeat stage=inference step=3/4 elapsed=60s gpu=1099 MiB, 73 % log_bytes=2631
+2026-09-23 20:05:46,354/qwen-pose/denoise step=4/4
+100%|██████████| 4/4 [00:43<00:00,  9.19s/it]100%|██████████| 4/4 [00:43<00:00, 10.84s/it]
+2026-09-23 20:05:47,869/qwen-pose/complete output=/home/cbsim/ws/slime-workflow/.tmp/2026-09-23_19-34-30/up_right/frame-05/result.png
+2026-09-23T20:05:47.904973+09:00/anypose-openpose-batch/complete 29/32
+2026-09-23 20:05:47,930/qwen-pose/reference vae_size=512x512 output_size=512x512 condition_size=384x384
+2026-09-23 20:05:47,930/qwen-pose/reference order=['character', 'rig'] kind=rig
+2026-09-23 20:05:49,042/qwen-pose/load model_id=Qwen/Qwen-Image-Edit-2511 model_path=/home/cbsim/ws/slime-workflow/.model/qwen-image-edit-2511/6f3ccc0b56e431dc6a0c2b2039706d7d26f22cb9
+Loading pipeline components...:   0%|          | 0/6 [00:00<?, ?it/s]Loading pipeline components...:  17%|█▋        | 1/6 [00:00<00:02,  2.09it/s]
+Loading checkpoint shards:   0%|          | 0/5 [00:00<?, ?it/s][ALoading checkpoint shards: 100%|██████████| 5/5 [00:00<00:00, 85.03it/s]
+Loading pipeline components...:  33%|███▎      | 2/6 [00:00<00:01,  2.99it/s]
+Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s][A
+Loading checkpoint shards:  25%|██▌       | 1/4 [00:00<00:00,  3.85it/s][ALoading checkpoint shards: 100%|██████████| 4/4 [00:00<00:00, 12.70it/s]
+Loading pipeline components...:  67%|██████▋   | 4/6 [00:01<00:00,  3.81it/s]Loading pipeline components...: 100%|██████████| 6/6 [00:01<00:00,  5.16it/s]
+2026-09-23 20:05:50,206/qwen-pose/adapter name=anypose_base strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-base-000006250.safetensors
+2026-09-23 20:05:51,389/qwen-pose/adapter name=anypose_helper strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-helper-00006000.safetensors
+/home/cbsim/ws/slime-workflow/.venv/lib/python3.12/site-packages/peft/tuners/tuners_utils.py:285: UserWarning: Already found a `peft_config` attribute in the model. This will lead to having multiple adapters in the model. Make sure to know what you are doing!
+  warnings.warn(
+2026-09-23 20:05:51,833/qwen-pose/adapter name=lightning strength=1.0 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lightx2v--Qwen-Image-Edit-2511-Lightning/d74eba145674fd7e31b949324e148e21e7118abd/Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors
+2026-09-23 20:05:52,956/qwen-pose/heartbeat stage=adapters step=0/4 elapsed=5s gpu=939 MiB, 0 % log_bytes=1096
+/home/cbsim/ws/slime-workflow/.venv/lib/python3.12/site-packages/peft/tuners/tuners_utils.py:285: UserWarning: Already found a `peft_config` attribute in the model. This will lead to having multiple adapters in the model. Make sure to know what you are doing!
+  warnings.warn(
+2026-09-23 20:05:54,439/qwen-pose/inference size=512x512 steps=4 seed=10107 device=cuda dtype=bfloat16 offload=sequential
+ negative_prompt is passed but classifier-free guidance is not enabled since true_cfg_scale <= 1
+2026-09-23 20:05:57,980/qwen-pose/heartbeat stage=inference step=0/4 elapsed=10s gpu=1983 MiB, 7 % log_bytes=1329
+2026-09-23 20:06:02,999/qwen-pose/heartbeat stage=inference step=0/4 elapsed=15s gpu=1997 MiB, 6 % log_bytes=1443
+guidance_scale is passed as 1.0, but ignored since the model is not guidance-distilled.
+  0%|          | 0/4 [00:00<?, ?it/s]2026-09-23 20:06:08,027/qwen-pose/heartbeat stage=inference step=0/4 elapsed=20s gpu=1059 MiB, 40 % log_bytes=1557
+2026-09-23 20:06:13,052/qwen-pose/heartbeat stage=inference step=0/4 elapsed=25s gpu=1259 MiB, 50 % log_bytes=1672
+2026-09-23 20:06:18,075/qwen-pose/heartbeat stage=inference step=0/4 elapsed=30s gpu=1321 MiB, 1 % log_bytes=1787
+2026-09-23 20:06:19,276/qwen-pose/denoise step=1/4
+ 25%|██▌       | 1/4 [00:12<00:38, 12.70s/it]2026-09-23 20:06:23,117/qwen-pose/heartbeat stage=inference step=1/4 elapsed=35s gpu=1262 MiB, 32 % log_bytes=1952
+2026-09-23 20:06:28,140/qwen-pose/heartbeat stage=inference step=1/4 elapsed=40s gpu=1104 MiB, 16 % log_bytes=2067
+2026-09-23 20:06:33,164/qwen-pose/heartbeat stage=inference step=1/4 elapsed=45s gpu=1107 MiB, 26 % log_bytes=2182
+2026-09-23 20:06:33,717/qwen-pose/denoise step=2/4
+ 50%|█████     | 2/4 [00:27<00:27, 13.72s/it]2026-09-23 20:06:38,187/qwen-pose/heartbeat stage=inference step=2/4 elapsed=50s gpu=1299 MiB, 72 % log_bytes=2348
+2026-09-23 20:06:39,442/qwen-pose/denoise step=3/4
+ 75%|███████▌  | 3/4 [00:32<00:10, 10.07s/it]2026-09-23 20:06:43,211/qwen-pose/heartbeat stage=inference step=3/4 elapsed=55s gpu=1265 MiB, 70 % log_bytes=2514
+2026-09-23 20:06:45,253/qwen-pose/denoise step=4/4
+100%|██████████| 4/4 [00:38<00:00,  8.39s/it]100%|██████████| 4/4 [00:38<00:00,  9.67s/it]
+2026-09-23 20:06:46,499/qwen-pose/complete output=/home/cbsim/ws/slime-workflow/.tmp/2026-09-23_19-34-30/up_right/frame-06/result.png
+2026-09-23T20:06:46.529424+09:00/anypose-openpose-batch/complete 30/32
+2026-09-23 20:06:46,555/qwen-pose/reference vae_size=512x512 output_size=512x512 condition_size=384x384
+2026-09-23 20:06:46,555/qwen-pose/reference order=['character', 'rig'] kind=rig
+2026-09-23 20:06:47,611/qwen-pose/load model_id=Qwen/Qwen-Image-Edit-2511 model_path=/home/cbsim/ws/slime-workflow/.model/qwen-image-edit-2511/6f3ccc0b56e431dc6a0c2b2039706d7d26f22cb9
+Loading pipeline components...:   0%|          | 0/6 [00:00<?, ?it/s]Loading pipeline components...:  17%|█▋        | 1/6 [00:00<00:02,  2.21it/s]
+Loading checkpoint shards:   0%|          | 0/5 [00:00<?, ?it/s][ALoading checkpoint shards: 100%|██████████| 5/5 [00:00<00:00, 92.76it/s]
+Loading pipeline components...:  33%|███▎      | 2/6 [00:00<00:01,  3.93it/s]
+Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s][A
+Loading checkpoint shards:  25%|██▌       | 1/4 [00:00<00:00,  3.68it/s][ALoading checkpoint shards: 100%|██████████| 4/4 [00:00<00:00, 11.40it/s]
+Loading pipeline components...:  67%|██████▋   | 4/6 [00:01<00:00,  4.16it/s]Loading pipeline components...: 100%|██████████| 6/6 [00:01<00:00,  5.75it/s]
+2026-09-23 20:06:48,655/qwen-pose/adapter name=anypose_base strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-base-000006250.safetensors
+2026-09-23 20:06:49,802/qwen-pose/adapter name=anypose_helper strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-helper-00006000.safetensors
+/home/cbsim/ws/slime-workflow/.venv/lib/python3.12/site-packages/peft/tuners/tuners_utils.py:285: UserWarning: Already found a `peft_config` attribute in the model. This will lead to having multiple adapters in the model. Make sure to know what you are doing!
+  warnings.warn(
+2026-09-23 20:06:50,436/qwen-pose/adapter name=lightning strength=1.0 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lightx2v--Qwen-Image-Edit-2511-Lightning/d74eba145674fd7e31b949324e148e21e7118abd/Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors
+2026-09-23 20:06:51,580/qwen-pose/heartbeat stage=adapters step=0/4 elapsed=5s gpu=932 MiB, 0 % log_bytes=1096
+/home/cbsim/ws/slime-workflow/.venv/lib/python3.12/site-packages/peft/tuners/tuners_utils.py:285: UserWarning: Already found a `peft_config` attribute in the model. This will lead to having multiple adapters in the model. Make sure to know what you are doing!
+  warnings.warn(
+2026-09-23 20:06:52,266/qwen-pose/inference size=512x512 steps=4 seed=10107 device=cuda dtype=bfloat16 offload=sequential
+ negative_prompt is passed but classifier-free guidance is not enabled since true_cfg_scale <= 1
+2026-09-23 20:06:56,603/qwen-pose/heartbeat stage=inference step=0/4 elapsed=10s gpu=1977 MiB, 7 % log_bytes=1329
+2026-09-23 20:07:01,627/qwen-pose/heartbeat stage=inference step=0/4 elapsed=15s gpu=1990 MiB, 13 % log_bytes=1443
+guidance_scale is passed as 1.0, but ignored since the model is not guidance-distilled.
+  0%|          | 0/4 [00:00<?, ?it/s]2026-09-23 20:07:06,653/qwen-pose/heartbeat stage=inference step=0/4 elapsed=20s gpu=1080 MiB, 31 % log_bytes=1558
+2026-09-23 20:07:11,675/qwen-pose/heartbeat stage=inference step=0/4 elapsed=25s gpu=1110 MiB, 46 % log_bytes=1673
+2026-09-23 20:07:16,698/qwen-pose/heartbeat stage=inference step=0/4 elapsed=30s gpu=1080 MiB, 12 % log_bytes=1788
+2026-09-23 20:07:18,596/qwen-pose/denoise step=1/4
+ 25%|██▌       | 1/4 [00:14<00:43, 14.36s/it]2026-09-23 20:07:21,727/qwen-pose/heartbeat stage=inference step=1/4 elapsed=35s gpu=1301 MiB, 26 % log_bytes=1954
+2026-09-23 20:07:26,752/qwen-pose/heartbeat stage=inference step=1/4 elapsed=40s gpu=1339 MiB, 42 % log_bytes=2069
+2026-09-23 20:07:30,408/qwen-pose/denoise step=2/4
+ 50%|█████     | 2/4 [00:26<00:25, 12.86s/it]2026-09-23 20:07:31,776/qwen-pose/heartbeat stage=inference step=2/4 elapsed=45s gpu=1278 MiB, 30 % log_bytes=2235
+2026-09-23 20:07:36,799/qwen-pose/heartbeat stage=inference step=2/4 elapsed=50s gpu=1087 MiB, 73 % log_bytes=2350
+2026-09-23 20:07:37,353/qwen-pose/denoise step=3/4
+ 75%|███████▌  | 3/4 [00:33<00:10, 10.16s/it]2026-09-23 20:07:41,823/qwen-pose/heartbeat stage=inference step=3/4 elapsed=55s gpu=1077 MiB, 73 % log_bytes=2516
+2026-09-23 20:07:43,135/qwen-pose/denoise step=4/4
+100%|██████████| 4/4 [00:38<00:00,  8.43s/it]100%|██████████| 4/4 [00:38<00:00,  9.73s/it]
+2026-09-23 20:07:44,136/qwen-pose/complete output=/home/cbsim/ws/slime-workflow/.tmp/2026-09-23_19-34-30/up_right/frame-07/result.png
+2026-09-23T20:07:44.166926+09:00/anypose-openpose-batch/complete 31/32
+2026-09-23 20:07:44,192/qwen-pose/reference vae_size=512x512 output_size=512x512 condition_size=384x384
+2026-09-23 20:07:44,192/qwen-pose/reference order=['character', 'rig'] kind=rig
+2026-09-23 20:07:45,249/qwen-pose/load model_id=Qwen/Qwen-Image-Edit-2511 model_path=/home/cbsim/ws/slime-workflow/.model/qwen-image-edit-2511/6f3ccc0b56e431dc6a0c2b2039706d7d26f22cb9
+Loading pipeline components...:   0%|          | 0/6 [00:00<?, ?it/s]Loading pipeline components...:  17%|█▋        | 1/6 [00:00<00:02,  2.17it/s]
+Loading checkpoint shards:   0%|          | 0/5 [00:00<?, ?it/s][A
+Loading checkpoint shards:  60%|██████    | 3/5 [00:00<00:00,  3.55it/s][ALoading checkpoint shards: 100%|██████████| 5/5 [00:00<00:00,  5.81it/s]
+Loading pipeline components...:  33%|███▎      | 2/6 [00:01<00:02,  1.34it/s]
+Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s][A
+Loading checkpoint shards:  25%|██▌       | 1/4 [00:00<00:00,  3.49it/s][ALoading checkpoint shards: 100%|██████████| 4/4 [00:00<00:00, 12.20it/s]
+Loading pipeline components...:  67%|██████▋   | 4/6 [00:01<00:00,  2.38it/s]Loading pipeline components...: 100%|██████████| 6/6 [00:01<00:00,  3.21it/s]
+2026-09-23 20:07:47,117/qwen-pose/adapter name=anypose_base strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-base-000006250.safetensors
+2026-09-23 20:07:47,482/qwen-pose/adapter name=anypose_helper strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-helper-00006000.safetensors
+/home/cbsim/ws/slime-workflow/.venv/lib/python3.12/site-packages/peft/tuners/tuners_utils.py:285: UserWarning: Already found a `peft_config` attribute in the model. This will lead to having multiple adapters in the model. Make sure to know what you are doing!
+  warnings.warn(
+2026-09-23 20:07:48,106/qwen-pose/adapter name=lightning strength=1.0 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lightx2v--Qwen-Image-Edit-2511-Lightning/d74eba145674fd7e31b949324e148e21e7118abd/Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors
+2026-09-23 20:07:49,236/qwen-pose/heartbeat stage=adapters step=0/4 elapsed=5s gpu=939 MiB, 0 % log_bytes=1096
+/home/cbsim/ws/slime-workflow/.venv/lib/python3.12/site-packages/peft/tuners/tuners_utils.py:285: UserWarning: Already found a `peft_config` attribute in the model. This will lead to having multiple adapters in the model. Make sure to know what you are doing!
+  warnings.warn(
+2026-09-23 20:07:49,985/qwen-pose/inference size=512x512 steps=4 seed=10107 device=cuda dtype=bfloat16 offload=sequential
+ negative_prompt is passed but classifier-free guidance is not enabled since true_cfg_scale <= 1
+2026-09-23 20:07:54,259/qwen-pose/heartbeat stage=inference step=0/4 elapsed=10s gpu=1982 MiB, 9 % log_bytes=1329
+2026-09-23 20:07:59,282/qwen-pose/heartbeat stage=inference step=0/4 elapsed=15s gpu=1998 MiB, 12 % log_bytes=1443
+guidance_scale is passed as 1.0, but ignored since the model is not guidance-distilled.
+  0%|          | 0/4 [00:00<?, ?it/s]2026-09-23 20:08:04,306/qwen-pose/heartbeat stage=inference step=0/4 elapsed=20s gpu=1174 MiB, 51 % log_bytes=1558
+2026-09-23 20:08:09,329/qwen-pose/heartbeat stage=inference step=0/4 elapsed=25s gpu=1261 MiB, 21 % log_bytes=1673
+2026-09-23 20:08:14,358/qwen-pose/heartbeat stage=inference step=0/4 elapsed=30s gpu=1323 MiB, 12 % log_bytes=1788
+2026-09-23 20:08:15,488/qwen-pose/denoise step=1/4
+ 25%|██▌       | 1/4 [00:13<00:40, 13.47s/it]2026-09-23 20:08:19,383/qwen-pose/heartbeat stage=inference step=1/4 elapsed=35s gpu=1279 MiB, 31 % log_bytes=1954
+2026-09-23 20:08:24,406/qwen-pose/heartbeat stage=inference step=1/4 elapsed=40s gpu=1351 MiB, 40 % log_bytes=2069
+2026-09-23 20:08:27,381/qwen-pose/denoise step=2/4
+ 50%|█████     | 2/4 [00:25<00:25, 12.54s/it]2026-09-23 20:08:29,431/qwen-pose/heartbeat stage=inference step=2/4 elapsed=45s gpu=1267 MiB, 75 % log_bytes=2235
+2026-09-23 20:08:33,158/qwen-pose/denoise step=3/4
+ 75%|███████▌  | 3/4 [00:31<00:09,  9.45s/it]2026-09-23 20:08:34,454/qwen-pose/heartbeat stage=inference step=3/4 elapsed=50s gpu=1276 MiB, 75 % log_bytes=2401
+2026-09-23 20:08:38,935/qwen-pose/denoise step=4/4
+100%|██████████| 4/4 [00:36<00:00,  8.00s/it]100%|██████████| 4/4 [00:36<00:00,  9.23s/it]
+2026-09-23 20:08:39,477/qwen-pose/heartbeat stage=inference step=4/4 elapsed=55s gpu=952 MiB, 0 % log_bytes=2567
+2026-09-23 20:08:40,536/qwen-pose/complete output=/home/cbsim/ws/slime-workflow/.tmp/2026-09-23_19-34-30/up_right/frame-08/result.png
+2026-09-23T20:08:40.568969+09:00/anypose-openpose-batch/complete 32/32
+2026-09-23T20:08:49/review/complete frames=32
+2026-09-23T20:08:50/overview/complete

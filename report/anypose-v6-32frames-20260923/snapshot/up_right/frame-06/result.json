@@ -1,0 +1,96 @@
+{
+  "status": "completed",
+  "model_id": "Qwen/Qwen-Image-Edit-2511",
+  "revision": "6f3ccc0b56e431dc6a0c2b2039706d7d26f22cb9",
+  "size": [
+    512,
+    512
+  ],
+  "reference_vae_size": [
+    512,
+    512
+  ],
+  "reference_condition_size": [
+    384,
+    384
+  ],
+  "steps": 4,
+  "seed": 10107,
+  "true_cfg_scale": 1.0,
+  "guidance_scale": 1.0,
+  "lightning_lora": true,
+  "dtype": "bfloat16",
+  "execution_device": "cuda",
+  "weight_offload": "sequential_cpu_offload",
+  "torch_version": "2.11.0+cu128",
+  "diffusers_version": "0.37.0",
+  "elapsed_seconds": 58.47,
+  "prompt_sha256": "31b51a942187cc253716fe21813c086ca7f19705797531622babaa33f29f9bd1",
+  "input_order": [
+    "up_right.png",
+    "rig-reference.png"
+  ],
+  "input_sha256": {
+    "up_right.png": "8f500b512818eb2ce1f0b2e1cfb0c52431b41ad371a0a4ff384c11de8808f09f",
+    "rig-reference.png": "46413871dd27389cb70ae4d30b63fb82ba13238525b52d59db0130c6a14be0dd"
+  },
+  "quality_warnings": [
+    "실험 결과의 최종 품질 승인이 필요합니다."
+  ],
+  "output": "result.png",
+  "pose_reference_kind": "rig",
+  "reference_order": "standing-first",
+  "prompt_source": {
+    "kind": "anypose-baseline-rig-batch",
+    "direction": "up_right",
+    "frame": 6,
+    "batch_file": ".tmp/2026-09-23_19-34-30/batch.yaml",
+    "sha256": "31b51a942187cc253716fe21813c086ca7f19705797531622babaa33f29f9bd1",
+    "rear_prompt_applied": true
+  },
+  "adapters": [
+    {
+      "name": "anypose_base",
+      "repository": "lilylilith/AnyPose",
+      "revision": "27c4b1f7688940d39767e652fe8d87faf44a0881",
+      "filename": "2511-AnyPose-base-000006250.safetensors",
+      "sha256": "0396314e43b94f7520cf5242e6aa6e8e9095d784f7e87ee45980c2e541ee8c4d",
+      "size": 295146208,
+      "strength": 0.7,
+      "path": "/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-base-000006250.safetensors"
+    },
+    {
+      "name": "anypose_helper",
+      "repository": "lilylilith/AnyPose",
+      "revision": "27c4b1f7688940d39767e652fe8d87faf44a0881",
+      "filename": "2511-AnyPose-helper-00006000.safetensors",
+      "sha256": "674340c62fff3cf981d0cfc55daf2f0e6f51c56b50159e241d931748200cf1eb",
+      "size": 295146216,
+      "strength": 0.7,
+      "path": "/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-helper-00006000.safetensors"
+    },
+    {
+      "name": "lightning",
+      "repository": "lightx2v/Qwen-Image-Edit-2511-Lightning",
+      "revision": "d74eba145674fd7e31b949324e148e21e7118abd",
+      "filename": "Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors",
+      "sha256": "22226e8d05d354bb356627d428809f5afd7819399b077238a2b70a82883a904f",
+      "size": 849608296,
+      "strength": 1.0,
+      "path": "/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lightx2v--Qwen-Image-Edit-2511-Lightning/d74eba145674fd7e31b949324e148e21e7118abd/Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors"
+    }
+  ],
+  "execution_preset": "anypose-lightning-v1",
+  "input_references": [
+    {
+      "role": "character",
+      "path": "/home/cbsim/ws/slime-workflow/assets/animation-references/character-default/baseline-v2/up_right.png",
+      "sha256": "8f500b512818eb2ce1f0b2e1cfb0c52431b41ad371a0a4ff384c11de8808f09f"
+    },
+    {
+      "role": "rig",
+      "path": "/home/cbsim/ws/slime-workflow/.tmp/2026-09-23_19-34-30/up_right/frame-06/rig-reference.png",
+      "sha256": "46413871dd27389cb70ae4d30b63fb82ba13238525b52d59db0130c6a14be0dd"
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+schema_version: 1
+prefabs:
+  - id: house_small
+    display_name: 작은 집
+    size: {columns: 4, rows: 3}
+    anchor: {column: 1, row: 2}
+    cells:
+      - {column: 0, row: 0, tile: roof_red, layer: roof}
+      - {column: 1, row: 0, tile: roof_red, layer: roof}
+      - {column: 2, row: 0, tile: roof_red, layer: roof}
+      - {column: 3, row: 0, tile: roof_red, layer: roof}
+      - {column: 0, row: 1, tile: wall_stone, layer: object}
+      - {column: 1, row: 1, tile: wall_stone, layer: object}
+      - {column: 2, row: 1, tile: wall_stone, layer: object}
+      - {column: 3, row: 1, tile: wall_stone, layer: object}
+      - {column: 1, row: 2, tile: door_wood, layer: object}
+    collision: [{column: 0, row: 1}, {column: 1, row: 1}, {column: 2, row: 1}, {column: 3, row: 1}]

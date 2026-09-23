@@ -1,0 +1,85 @@
+#!/usr/bin/env python3
+"""이슬온 타일 카탈로그와 건물 프리셋을 조립·검증한다."""
+from pathlib import Path
+import argparse
+import json
+import yaml
+
+WORKFLOW_ROOT = Path(__file__).resolve().parents[2]
+ISLOON_ROOT = WORKFLOW_ROOT / 'assets/world/isloon'
+
+
+def load_yaml_document(document_path):
+    with Path(document_path).open(encoding='utf-8') as document_file:
+        document_values = yaml.safe_load(document_file)
+    if not isinstance(document_values, dict) or document_values.get('schema_version') != 1:
+        raise ValueError(f'지원하지 않는 YAML 문서: {document_path}')
+    return document_values
+
+
+def expand_rectangle_tiles(rectangle_values, tile_identifier):
+    return [{'column': rectangle_values['column'] + column_offset, 'row': rectangle_values['row'] + row_offset, 'tile': tile_identifier}
+            for row_offset in range(rectangle_values['rows'])
+            for column_offset in range(rectangle_values['columns'])]
+
+
+def match_adjacent_tile_connections(layer_cells, connection_values):
+    cell_lookup = {(cell['column'], cell['row']): cell['tile'] for cell in layer_cells}
+    connection_lookup = {(connection['from'], connection['to']): connection['id'] for connection in connection_values}
+    matched_connections = []
+    for (column, row), tile_identifier in cell_lookup.items():
+        for neighbor_column, neighbor_row, edge_name in ((column + 1, row, 'east'), (column, row + 1, 'south')):
+            neighbor_tile = cell_lookup.get((neighbor_column, neighbor_row))
+            connection_id = connection_lookup.get((tile_identifier, neighbor_tile))
+            reverse_connection_id = connection_lookup.get((neighbor_tile, tile_identifier))
+            if connection_id or reverse_connection_id:
+                matched_connections.append({'column': column, 'row': row, 'edge': edge_name, 'from': tile_identifier, 'to': neighbor_tile, 'connection': connection_id or reverse_connection_id})
+    return matched_connections
+
+
+def assemble_isloon_map(map_path, output_path):
+    catalog_values = load_yaml_document(ISLOON_ROOT / 'tile-catalog.yaml')
+    prefab_values = load_yaml_document(ISLOON_ROOT / 'building-prefabs.yaml')
+    map_values = load_yaml_document(map_path)
+    tile_values = {tile['id']: tile for tile in catalog_values['tiles']}
+    prefab_lookup = {prefab['id']: prefab for prefab in prefab_values['prefabs']}
+    grid_values = map_values['grid']
+    assembled_layers = {'ground': [], 'object': [], 'roof': []}
+    ground_values = map_values['layers']['ground']
+    for row in range(grid_values['rows']):
+        for column in range(grid_values['columns']):
+            assembled_layers['ground'].append({'column': column, 'row': row, 'tile': ground_values['default']})
+    for patch_values in ground_values.get('patches', []):
+        assembled_layers['ground'] = [cell for cell in assembled_layers['ground'] if not (
+            patch_values['rectangle']['column'] <= cell['column'] < patch_values['rectangle']['column'] + patch_values['rectangle']['columns'] and
+            patch_values['rectangle']['row'] <= cell['row'] < patch_values['rectangle']['row'] + patch_values['rectangle']['rows'])]
+        assembled_layers['ground'].extend(expand_rectangle_tiles(patch_values['rectangle'], patch_values['tile']))
+    collisions = []
+    for building_instance in map_values['buildings']:
+        prefab = prefab_lookup[building_instance['prefab']]
+        origin = building_instance['position']
+        for cell in prefab['cells']:
+            layer_name = cell['layer']
+            assembled_layers[layer_name].append({'column': origin['column'] + cell['column'], 'row': origin['row'] + cell['row'], 'tile': cell['tile']})
+        collisions.extend({'column': origin['column'] + cell['column'], 'row': origin['row'] + cell['row']} for cell in prefab['collision'])
+    all_cells = [cell for layer_cells in assembled_layers.values() for cell in layer_cells]
+    for cell in all_cells:
+        if cell['tile'] not in tile_values:
+            raise ValueError(f'등록되지 않은 타일: {cell["tile"]}')
+        if not 0 <= cell['column'] < grid_values['columns'] or not 0 <= cell['row'] < grid_values['rows']:
+            raise ValueError(f'맵 밖 타일: {cell}')
+    assembled_values = {'schema_version': 1, 'map_id': map_values['map_id'], 'grid': grid_values, 'layers': assembled_layers, 'connections': match_adjacent_tile_connections(assembled_layers['ground'], catalog_values['connections']), 'collision': collisions, 'spawn': map_values['spawn'], 'tile_catalog': 'tile-catalog.yaml', 'building_prefabs': 'building-prefabs.yaml'}
+    Path(output_path).write_text(json.dumps(assembled_values, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+    return assembled_values
+
+
+def run_isloon_tile_assembly_command():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--map', type=Path, default=ISLOON_ROOT / 'maps/village-01.yaml')
+    parser.add_argument('--output', type=Path, required=True)
+    arguments = parser.parse_args()
+    assemble_isloon_map(arguments.map, arguments.output)
+
+
+if __name__ == '__main__':
+    run_isloon_tile_assembly_command()

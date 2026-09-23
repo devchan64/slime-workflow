@@ -1,0 +1,8 @@
+<!doctype html><meta charset="utf-8"><title>이슬온 타일 맵 검수</title>
+<style>body{font:14px sans-serif;background:#15202b;color:#eef;padding:20px}canvas{display:block;width:min(90vw,768px);image-rendering:pixelated;border:1px solid #789;margin-top:12px}</style>
+<h1>이슬온 타일 맵 검수</h1><input id="file" type="file" accept=".json"><p id="summary">조립 결과 JSON을 선택하세요.</p><canvas id="map" width="768" height="576"></canvas>
+<script>
+const canvas=document.querySelector('#map'),context=canvas.getContext('2d'),colors={grass:'#83a85d',road_horizontal:'#b97958',water:'#4c86a8',wall_stone:'#6c7480',door_wood:'#d5b16c',roof_red:'#b84f4f'};
+function draw_isloon_map(map){const cell_size=Math.min(canvas.width/map.grid.columns,canvas.height/map.grid.rows);context.clearRect(0,0,canvas.width,canvas.height);for(const layer_name of ['ground','object','roof'])for(const cell of map.layers[layer_name]||[]){context.fillStyle=colors[cell.tile]||'#fff';context.fillRect(cell.column*cell_size,cell.row*cell_size,cell_size,cell_size)}context.fillStyle='#fff';context.fillRect((map.spawn.column+.25)*cell_size,(map.spawn.row+.25)*cell_size,cell_size*.5,cell_size*.5);document.querySelector('#summary').textContent=`${map.map_id} · ${map.grid.columns}×${map.grid.rows} · 연결 ${map.connections?.length||0}개 · 충돌 ${map.collision?.length||0}칸`}
+document.querySelector('#file').onchange=async event=>draw_isloon_map(JSON.parse(await event.target.files[0].text()));
+</script>

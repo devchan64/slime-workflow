@@ -1,0 +1,19 @@
+report_id: anypose-v6-32frames-20260923
+source_directory: .tmp/2026-09-23_19-34-30_
+original_execution_directory: .tmp/2026-09-23_19-34-30
+source_copy_files: 152
+copy_verification: passed
+frame_count: 32
+source_rig: mannequin-walk/v6
+steps: 4
+seed: 10107
+cfg: 1
+lightning: true
+prompt_files_excluded: true
+prompt_sha256:
+  base-prompt.txt: d81b68de9b3f6483ef3bff681854c1d1a2f5de6405d42edfcdaf2e1125822967
+  auxiliary-prompt.txt: 30ab2955daef5fc18afdabb00f4bfdb880d077435c94d7a9d469c1f757273024
+gpu_reproduction: not_run
+quality_warnings:
+- 좌하 4·5·8번 신발 소실
+- 단일 시트 육안 검수이며 전 프레임 포즈 정확도 정량 검증 아님
