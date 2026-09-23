@@ -7,7 +7,7 @@ from pathlib import Path
 from PIL import Image
 
 from generators.terrain.qwen_tile.map_preview import validate_map_preview_snapshot
-from generators.terrain.qwen_tile.runtime import validate_style_reference, validate_tile_set_ticket
+from generators.terrain.qwen_tile.runtime import build_variant_prompt, validate_style_reference, validate_tile_set_ticket
 
 
 def build_ticket_values(reference_sha256_value):
@@ -51,6 +51,16 @@ class QwenTileTicketTest(unittest.TestCase):
         ticket_values['shape_reference_id'] = 'wall-shape-v1'
         with self.assertRaises(ValueError):
             validate_tile_set_ticket(ticket_values)
+
+    def test_accepts_non_repeating_door_and_builds_single_entrance_prompt(self):
+        ticket_values = build_ticket_values('0' * 64)
+        ticket_values['tileability'] = 'none'
+        ticket_values['tile_variants'] = ['door']
+        validated_ticket_values = validate_tile_set_ticket(ticket_values)
+        prompt_text = build_variant_prompt(validated_ticket_values, 'door')
+        self.assertIn('one centered closed door', prompt_text)
+        self.assertIn('Do not repeat the entrance object', prompt_text)
+        self.assertNotIn('individual object', prompt_text)
 
     def test_accepts_map_preview_with_target_cells(self):
         map_preview_value = {'schemaVersion': 1, 'mapId': 'meadow', 'displayNameKo': '이슬 초원', 'columns': 2, 'rows': 2,

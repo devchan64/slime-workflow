@@ -23,7 +23,7 @@ FIXED_INFERENCE_STEPS = 10
 FIXED_GENERATOR_SEED = 21409
 FIXED_TRUE_CFG_SCALE = 4.0
 FIXED_GUIDANCE_SCALE = 1.0
-ALLOWED_TILE_ROLES = frozenset({'ground', 'wall-front', 'wall-side', 'roof', 'facade'})
+ALLOWED_TILE_ROLES = frozenset({'ground', 'wall-front', 'wall-side', 'roof', 'facade', 'door'})
 ALLOWED_TILEABILITY = frozenset({'repeat-x', 'repeat-y', 'repeat-both', 'none'})
 ASSET_IDENTIFIER_PATTERN = re.compile(r'^[a-z][a-z0-9]*(?:[.-][a-z0-9]+)*$')
 PIPELINE_EXECUTION_LOCK = threading.Lock()
@@ -155,11 +155,15 @@ def build_variant_prompt(ticket_values: dict, tile_role: str) -> str:
         'wall-side': 'side-facing vertical wall tile for a height change',
         'roof': 'top-down roof tile, a flat roof surface',
         'facade': 'front-facing building facade tile, a flat vertical wall surface',
+        'door': 'front-facing building entrance door tile, centered on a flat vertical facade',
     }[tile_role]
     reference_instruction = " Preserve the reference tile's material, orthographic lighting, slab boundaries, and surface layout; only refine it into a seamless repeat." if ticket_values.get('preserve_reference_layout', False) else ' Use the reference only for the overall painted game-tile palette and clean orthographic finish.'
     material_instruction = ' Use the material reference only as a repeating rock or soil surface-pattern guide.' if 'material_reference_id' in ticket_values else ''
     shape_instruction = ' Preserve the first reference silhouette and visible material layout.' if 'shape_reference_id' in ticket_values else ''
-    return f"Create one square flat orthographic 2D {role_description} surface pattern.{reference_instruction}{material_instruction}{shape_instruction} {ticket_values['prompt'].strip()} Repeat seamlessly in both axes. Surface pattern only: no cast shadow, individual object, extruded wall, perspective, character, person, text, UI, watermark, scene, border, or tile grid."
+    repeat_instruction = ' Repeat seamlessly in both axes.' if ticket_values['tileability'] == 'repeat-both' else (' Repeat seamlessly along the horizontal axis only.' if ticket_values['tileability'] == 'repeat-x' else (' Repeat seamlessly along the vertical axis only.' if ticket_values['tileability'] == 'repeat-y' else ' Do not repeat the entrance object beyond this single tile.'))
+    door_instruction = ' Keep one centered closed door, a clear frame, and a small handle; no window, sign, text, or second door.' if tile_role == 'door' else ''
+    prohibited_subjects = 'no cast shadow, extruded wall, perspective, character, person, text, UI, watermark, scene, border, or tile grid.' if tile_role == 'door' else 'no cast shadow, individual object, extruded wall, perspective, character, person, text, UI, watermark, scene, border, or tile grid.'
+    return f"Create one square flat orthographic 2D {role_description} surface pattern.{reference_instruction}{material_instruction}{shape_instruction}{door_instruction} {ticket_values['prompt'].strip()}{repeat_instruction} Surface pattern only: {prohibited_subjects}"
 
 
 def build_height_preview(tile_images: dict, tile_size: list[int], height_steps: int, preview_path: Path):
