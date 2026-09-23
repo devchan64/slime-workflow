@@ -1,1 +1,0 @@
-Make the person in image 1 do the exact same pose of the person in image 2. The character is walking backward toward the right direction in a back view, showing the back of the head with the neck aligned to the torso and the chin level.
