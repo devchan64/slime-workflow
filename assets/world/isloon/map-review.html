@@ -5,4 +5,5 @@
 const canvas=document.querySelector('#map'),context=canvas.getContext('2d'),colors={grass:'#83a85d',road_horizontal:'#b97958',water:'#4c86a8',wall_stone:'#6c7480',door_wood:'#d5b16c',roof_red:'#b84f4f'};
 function draw_isloon_map(map){const cell_size=Math.min(canvas.width/map.grid.columns,canvas.height/map.grid.rows);context.clearRect(0,0,canvas.width,canvas.height);for(const layer_name of ['ground','object','roof'])for(const cell of map.layers[layer_name]||[]){context.fillStyle=colors[cell.tile]||'#fff';context.fillRect(cell.column*cell_size,cell.row*cell_size,cell_size,cell_size)}context.fillStyle='#fff';context.fillRect((map.spawn.column+.25)*cell_size,(map.spawn.row+.25)*cell_size,cell_size*.5,cell_size*.5);document.querySelector('#summary').textContent=`${map.map_id} · ${map.grid.columns}×${map.grid.rows} · 연결 ${map.connections?.length||0}개 · 충돌 ${map.collision?.length||0}칸`}
 document.querySelector('#file').onchange=async event=>draw_isloon_map(JSON.parse(await event.target.files[0].text()));
+fetch('assembled-map.json').then(response=>response.ok?response.json():Promise.reject()).then(draw_isloon_map).catch(()=>{});
 </script>
