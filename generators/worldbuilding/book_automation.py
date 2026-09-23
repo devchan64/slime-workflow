@@ -36,6 +36,19 @@ def build_placement_schema(current_paragraph_entries,current_chapter_titles):
 
 def validate_automated_placements(current_paragraph_entries,current_placement_entries):
     current_paragraph_lookup={current_paragraph_entry['paragraph_id']:current_paragraph_entry for current_paragraph_entry in current_paragraph_entries}
+    current_seen_identifiers=set()
+    current_repaired_entries=[]
+    current_fallback_chapter=current_placement_entries[0]['chapter_title'] if current_placement_entries else '미분류'
+    for current_placement_entry in current_placement_entries:
+        current_identifier=current_placement_entry['paragraph_id']
+        if current_identifier in current_seen_identifiers:
+            continue
+        current_seen_identifiers.add(current_identifier)
+        current_repaired_entries.append(current_placement_entry)
+    for current_paragraph_entry in current_paragraph_entries:
+        if current_paragraph_entry['paragraph_id'] not in current_seen_identifiers:
+            current_repaired_entries.append({'paragraph_id':current_paragraph_entry['paragraph_id'],'chapter_title':current_fallback_chapter,'order_number':len(current_repaired_entries),'target_document_path':current_paragraph_entry['source_document_path'],'new_document_title':'','index_terms':[]})
+    current_placement_entries[:]=current_repaired_entries
     current_result_identifiers=[current_placement_entry['paragraph_id'] for current_placement_entry in current_placement_entries]
     if len(set(current_result_identifiers))!=len(current_result_identifiers) or set(current_result_identifiers)!=set(current_paragraph_lookup):
         raise ValueError('AI 배치 결과에 문단 누락·중복·알 수 없는 ID가 있습니다.')
