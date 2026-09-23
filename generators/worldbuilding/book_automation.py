@@ -73,6 +73,14 @@ def execute_automated_book(current_config_values,current_run_root):
     current_source_entries=collect_book_sources(current_config_values,current_request_values['source_directory_paths'])
     current_source_hashes={current_source_path:current_source_entry['source_content_hash'] for current_source_path,current_source_entry in current_source_entries.items()}
     current_catalog_entries=[{'document_path':current_source_path,'headings':list(dict.fromkeys(current_heading_text for current_paragraph_entry in current_plan_values['paragraph_entries'] if current_paragraph_entry['source_document_path']==current_source_path for current_heading_text in current_paragraph_entry['heading_trail']))[:1]} for current_source_path in current_source_entries]
+    if current_request_values.get('book_edit_stage_name')=='document-reconstruction':
+        current_deterministic_placements=[]
+        for current_order_number,current_paragraph_entry in enumerate(current_plan_values['paragraph_entries']):
+            current_heading_title=current_paragraph_entry['heading_trail'][0] if current_paragraph_entry['heading_trail'] else Path(current_paragraph_entry['source_document_path']).stem
+            current_deterministic_placements.append({'paragraph_id':current_paragraph_entry['paragraph_id'],'chapter_title':current_heading_title,'order_number':current_order_number,'target_document_path':current_paragraph_entry['source_document_path'],'new_document_title':'','index_terms':[]})
+        save_yaml_document(current_run_root/'book-result.yaml',{'collection_id':current_request_values['collection_id'],'book_edit_stage_name':'document-reconstruction','paragraph_placements':current_deterministic_placements,'reconstruction_mode':'deterministic-heading-grouping'})
+        runtime.update_task_status(current_run_root,'completed',result_summary_text=f'문서 재구성안 완료: {len(current_deterministic_placements)}개 문단',paragraph_count=len(current_deterministic_placements))
+        return
     current_base_payload={'instruction':current_request_values['requested_instruction_text'],'allowed_roots':current_request_values['source_directory_paths'],'protected_paths':current_config_values['protected_document_paths'],'document_catalog':current_catalog_entries}
     def prepare_model_messages(current_payload_values):
         return [{'role':'system','content':AUTOMATION_SYSTEM_TEXT},{'role':'user','content':json.dumps(current_payload_values,ensure_ascii=False,separators=(',',':'))}]
