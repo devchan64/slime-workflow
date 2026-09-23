@@ -23,6 +23,33 @@ def expand_rectangle_tiles(rectangle_values, tile_identifier):
             for column_offset in range(rectangle_values['columns'])]
 
 
+def expand_prefab_cells(prefab_values):
+    if 'cells' in prefab_values:
+        return prefab_values['cells']
+    size_values = prefab_values['size']
+    if 'tile' in prefab_values:
+        return [{'column': column_index, 'row': row_index, 'tile': prefab_values['tile'], 'layer': 'roof'}
+                for row_index in range(size_values['rows'])
+                for column_index in range(size_values['columns'])]
+    roof_rows = prefab_values['roof_rows']
+    return [{'column': column_index, 'row': row_index,
+             'tile': prefab_values['roof_tile'] if row_index < roof_rows else prefab_values['facade_tile'],
+             'layer': 'roof' if row_index < roof_rows else 'object'}
+            for row_index in range(size_values['rows'])
+            for column_index in range(size_values['columns'])]
+
+
+def expand_prefab_collision(prefab_values):
+    if 'collision' in prefab_values:
+        return prefab_values['collision']
+    entrance_cells = {(cell['column'], cell['row']) for cell in prefab_values.get('entrances', [])}
+    size_values = prefab_values['size']
+    return [{'column': column_index, 'row': row_index}
+            for row_index in range(size_values['rows'])
+            for column_index in range(size_values['columns'])
+            if (column_index, row_index) not in entrance_cells]
+
+
 def match_adjacent_tile_connections(layer_cells, connection_values):
     cell_lookup = {(cell['column'], cell['row']): cell['tile'] for cell in layer_cells}
     connection_lookup = {(connection['from'], connection['to']): connection['id'] for connection in connection_values}
@@ -58,17 +85,17 @@ def assemble_isloon_map(map_path, output_path):
     for building_instance in map_values['buildings']:
         prefab = prefab_lookup[building_instance['prefab']]
         origin = building_instance['position']
-        for cell in prefab['cells']:
+        for cell in expand_prefab_cells(prefab):
             layer_name = cell['layer']
             assembled_layers[layer_name].append({'column': origin['column'] + cell['column'], 'row': origin['row'] + cell['row'], 'tile': cell['tile']})
-        collisions.extend({'column': origin['column'] + cell['column'], 'row': origin['row'] + cell['row']} for cell in prefab['collision'])
+        collisions.extend({'column': origin['column'] + cell['column'], 'row': origin['row'] + cell['row']} for cell in expand_prefab_collision(prefab))
     all_cells = [cell for layer_cells in assembled_layers.values() for cell in layer_cells]
     for cell in all_cells:
         if cell['tile'] not in tile_values:
             raise ValueError(f'등록되지 않은 타일: {cell["tile"]}')
         if not 0 <= cell['column'] < grid_values['columns'] or not 0 <= cell['row'] < grid_values['rows']:
             raise ValueError(f'맵 밖 타일: {cell}')
-    assembled_values = {'schema_version': 1, 'map_id': map_values['map_id'], 'grid': grid_values, 'layers': assembled_layers, 'connections': match_adjacent_tile_connections(assembled_layers['ground'], catalog_values['connections']), 'collision': collisions, 'spawn': map_values['spawn'], 'tile_catalog': 'tile-catalog.yaml', 'building_prefabs': 'building-prefabs.yaml'}
+    assembled_values = {'schema_version': 1, 'map_id': map_values['map_id'], 'display_name': map_values.get('display_name', map_values['map_id']), 'safe_town': map_values.get('safe_town', False), 'grid': grid_values, 'layers': assembled_layers, 'connections': match_adjacent_tile_connections(assembled_layers['ground'], catalog_values['connections']), 'collision': collisions, 'spawn': map_values['spawn'], 'map_connections': map_values.get('connections', []), 'tile_catalog': 'tile-catalog.yaml', 'building_prefabs': 'building-prefabs.yaml'}
     Path(output_path).write_text(json.dumps(assembled_values, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
     return assembled_values
 

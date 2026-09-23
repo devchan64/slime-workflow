@@ -23,7 +23,7 @@ FIXED_INFERENCE_STEPS = 10
 FIXED_GENERATOR_SEED = 21409
 FIXED_TRUE_CFG_SCALE = 4.0
 FIXED_GUIDANCE_SCALE = 1.0
-ALLOWED_TILE_ROLES = frozenset({'ground', 'wall-front', 'wall-side'})
+ALLOWED_TILE_ROLES = frozenset({'ground', 'wall-front', 'wall-side', 'roof', 'facade'})
 ALLOWED_TILEABILITY = frozenset({'repeat-x', 'repeat-y', 'repeat-both', 'none'})
 ASSET_IDENTIFIER_PATTERN = re.compile(r'^[a-z][a-z0-9]*(?:[.-][a-z0-9]+)*$')
 PIPELINE_EXECUTION_LOCK = threading.Lock()
@@ -53,7 +53,7 @@ def read_tile_set_ticket(ticket_file_path: Path) -> dict:
 def validate_tile_set_ticket(ticket_values: dict) -> dict:
     """모델 선택을 포함하지 않는 엄격한 타일 세트 티켓을 검증한다."""
     required_ticket_keys = {'asset_id', 'tile_size', 'generation_size', 'tileability', 'tile_variants', 'style_reference_id', 'style_reference_sha256', 'prompt', 'height_steps', 'acceptance'}
-    optional_ticket_keys = {'shape_reference_id', 'shape_reference_sha256', 'apply_shape_alpha', 'material_reference_id', 'material_reference_sha256'}
+    optional_ticket_keys = {'shape_reference_id', 'shape_reference_sha256', 'apply_shape_alpha', 'material_reference_id', 'material_reference_sha256', 'preserve_reference_layout'}
     unknown_ticket_keys = set(ticket_values) - required_ticket_keys - optional_ticket_keys
     missing_ticket_keys = required_ticket_keys - set(ticket_values)
     if unknown_ticket_keys or missing_ticket_keys:
@@ -79,6 +79,8 @@ def validate_tile_set_ticket(ticket_values: dict) -> dict:
         raise ValueError('style_reference_sha256은 소문자 SHA-256이어야 합니다.')
     if not isinstance(ticket_values['prompt'], str) or not ticket_values['prompt'].strip() or len(ticket_values['prompt']) > 600:
         raise ValueError('prompt는 1~600자의 문자열이어야 합니다.')
+    if 'preserve_reference_layout' in ticket_values and type(ticket_values['preserve_reference_layout']) is not bool:
+        raise ValueError('preserve_reference_layout은 불리언이어야 합니다.')
     if type(ticket_values['height_steps']) is not int or not 1 <= ticket_values['height_steps'] <= 8:
         raise ValueError('height_steps는 1~8 정수여야 합니다.')
     if not isinstance(ticket_values['acceptance'], dict) or set(ticket_values['acceptance']) != {'seam_check', 'transparent_background'}:
@@ -151,10 +153,13 @@ def build_variant_prompt(ticket_values: dict, tile_role: str) -> str:
         'ground': 'top-down ground tile, flat walkable top surface',
         'wall-front': 'front-facing vertical wall tile for a height change',
         'wall-side': 'side-facing vertical wall tile for a height change',
+        'roof': 'top-down roof tile, a flat roof surface',
+        'facade': 'front-facing building facade tile, a flat vertical wall surface',
     }[tile_role]
-    material_instruction = ' Use the single reference only as a repeating rock or soil surface-pattern guide.' if 'material_reference_id' in ticket_values else ''
+    reference_instruction = " Preserve the reference tile's material, orthographic lighting, slab boundaries, and surface layout; only refine it into a seamless repeat." if ticket_values.get('preserve_reference_layout', False) else ' Use the reference only for the overall painted game-tile palette and clean orthographic finish.'
+    material_instruction = ' Use the material reference only as a repeating rock or soil surface-pattern guide.' if 'material_reference_id' in ticket_values else ''
     shape_instruction = ' Preserve the first reference silhouette and visible material layout.' if 'shape_reference_id' in ticket_values else ''
-    return f"Create one square flat orthographic 2D {role_description} surface pattern.{material_instruction}{shape_instruction} {ticket_values['prompt'].strip()} Repeat seamlessly in both axes. Surface pattern only: no individual object, extruded wall, perspective, character, person, text, UI, watermark, scene, border, or tile grid."
+    return f"Create one square flat orthographic 2D {role_description} surface pattern.{reference_instruction}{material_instruction}{shape_instruction} {ticket_values['prompt'].strip()} Repeat seamlessly in both axes. Surface pattern only: no cast shadow, individual object, extruded wall, perspective, character, person, text, UI, watermark, scene, border, or tile grid."
 
 
 def build_height_preview(tile_images: dict, tile_size: list[int], height_steps: int, preview_path: Path):

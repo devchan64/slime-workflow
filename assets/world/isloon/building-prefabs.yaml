@@ -1,17 +1,42 @@
 schema_version: 1
 prefabs:
-  - id: house_small
-    display_name: 작은 집
+  - id: iseulon-guild
+    display_name: 길드 회관
     size: {columns: 4, rows: 3}
+    anchor: {column: 2, row: 2}
+    roof_tile: roof_timber
+    facade_tile: wall_timber
+    roof_rows: 2
+    entrances: [{column: 2, row: 2}]
+  - id: iseulon-bookshop
+    display_name: 서점
+    size: {columns: 3, rows: 3}
     anchor: {column: 1, row: 2}
-    cells:
-      - {column: 0, row: 0, tile: roof_red, layer: roof}
-      - {column: 1, row: 0, tile: roof_red, layer: roof}
-      - {column: 2, row: 0, tile: roof_red, layer: roof}
-      - {column: 3, row: 0, tile: roof_red, layer: roof}
-      - {column: 0, row: 1, tile: wall_stone, layer: object}
-      - {column: 1, row: 1, tile: wall_stone, layer: object}
-      - {column: 2, row: 1, tile: wall_stone, layer: object}
-      - {column: 3, row: 1, tile: wall_stone, layer: object}
-      - {column: 1, row: 2, tile: door_wood, layer: object}
-    collision: [{column: 0, row: 1}, {column: 1, row: 1}, {column: 2, row: 1}, {column: 3, row: 1}]
+    roof_tile: roof_timber
+    facade_tile: wall_timber
+    roof_rows: 2
+    entrances: [{column: 1, row: 2}]
+  - id: iseulon-inn
+    display_name: 여관
+    size: {columns: 4, rows: 4}
+    anchor: {column: 3, row: 2}
+    roof_tile: roof_timber
+    facade_tile: wall_timber
+    roof_rows: 3
+    entrances: [{column: 3, row: 2}]
+  - id: iseulon-workshop
+    display_name: 대장간·공방
+    size: {columns: 4, rows: 3}
+    anchor: {column: 0, row: 1}
+    roof_tile: roof_timber
+    facade_tile: wall_timber
+    roof_rows: 2
+    entrances: [{column: 0, row: 1}]
+  - id: iseulon-market
+    display_name: 시장
+    size: {columns: 4, rows: 2}
+    anchor: {column: 1, row: 0}
+    roof_tile: roof_timber
+    facade_tile: wall_timber
+    roof_rows: 1
+    entrances: [{column: 1, row: 0}]

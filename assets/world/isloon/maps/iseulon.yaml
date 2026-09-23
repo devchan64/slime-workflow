@@ -1,0 +1,33 @@
+schema_version: 1
+map_id: iseulon
+display_name: 이슬온
+grid: {columns: 24, rows: 24}
+safe_town: true
+layers:
+  ground:
+    default: grass
+    patches:
+      - {tile: paving, rectangle: {column: 6, row: 7, columns: 13, rows: 2}}
+      - {tile: paving, rectangle: {column: 8, row: 9, columns: 8, rows: 6}}
+      - {tile: paving, rectangle: {column: 7, row: 15, columns: 10, rows: 2}}
+      - {tile: paving, rectangle: {column: 10, row: 17, columns: 2, rows: 1}}
+      - {tile: paving, rectangle: {column: 10, row: 18, columns: 10, rows: 1}}
+      - {tile: paving, rectangle: {column: 10, row: 19, columns: 2, rows: 5}}
+      - {tile: spring_water, rectangle: {column: 11, row: 10, columns: 2, rows: 2}}
+      - {tile: flower_bed, rectangle: {column: 7, row: 9, columns: 1, rows: 2}}
+      - {tile: flower_bed, rectangle: {column: 16, row: 9, columns: 1, rows: 2}}
+      - {tile: flower_bed, rectangle: {column: 7, row: 12, columns: 1, rows: 2}}
+      - {tile: flower_bed, rectangle: {column: 16, row: 12, columns: 1, rows: 2}}
+  objects: []
+  roofs: []
+buildings:
+  - {prefab: iseulon-guild, position: {column: 4, row: 4}}
+  - {prefab: iseulon-bookshop, position: {column: 17, row: 4}}
+  - {prefab: iseulon-inn, position: {column: 3, row: 14}}
+  - {prefab: iseulon-workshop, position: {column: 17, row: 14}}
+  - {prefab: iseulon-market, position: {column: 17, row: 19}}
+spawn: {column: 12, row: 13}
+connections:
+  - {id: iseulon-to-moss-clearing, position: {column: 0, row: 12}, direction: west}
+  - {id: iseulon-to-lantern-wood, position: {column: 23, row: 12}, direction: east}
+  - {id: iseulon-to-meadow, position: {column: 12, row: 23}, direction: south}

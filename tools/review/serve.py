@@ -171,7 +171,15 @@ def prepare_review_directory(parsed_argument_values):
         worldbuilding_review_root.mkdir(parents=True,exist_ok=False)
         document_manager_template=Path(__file__).with_name('frame-manager.html').read_text()
         document_manager_styles=Path(__file__).with_name('review-ui.css').read_text()
-        (worldbuilding_review_root/'preview.html').write_text(document_manager_template.replace('__MANAGER_PAGES__','[]').replace('</style>','</style><style>'+document_manager_styles+'</style>',1))
+        isloon_review_root = worldbuilding_review_root / 'isloon'
+        if __package__:
+            from .build_isloon_map_review import build_isloon_map_review
+        else:
+            from build_isloon_map_review import build_isloon_map_review
+        build_isloon_map_review(output_root=isloon_review_root)
+        manager_page_records = [{'id':'map-review','label':'타일맵검수','path':'isloon/map-review.html','category':'tile-review','anchorEditor':False,'description':'YAML 타일 조립 결과·연결 규칙·건물 충돌 검수'}]
+        manager_html = document_manager_template.replace('__MANAGER_PAGES__',json.dumps(manager_page_records,ensure_ascii=False).replace('<','\\u003c'))
+        (worldbuilding_review_root/'preview.html').write_text(manager_html.replace('</style>','</style><style>'+document_manager_styles+'</style>',1))
         return worldbuilding_review_root
     if parsed_argument_values.frontend_repo:
         if __package__:
@@ -220,14 +228,28 @@ def run_review_server(parsed_argument_values):
         from generators.worldbuilding.management import WorldbuildingManagement
     elif getattr(parsed_argument_values, 'worldbuilding_config', None):
         raise ValueError('세계관 작업 공간 설정 파일이 없습니다.')
+    if __package__:
+        from .image_generation import ImageGenerationManager
+    else:
+        from image_generation import ImageGenerationManager
+    image_generation_service = ImageGenerationManager()
+    three_reference_service = ImageGenerationManager(three_reference_mode=True)
     class ReviewRequestHandler(SimpleHTTPRequestHandler):
         def __init__(self,*request_handler_arguments,**request_handler_options):
             super().__init__(*request_handler_arguments,directory=str(review_root_directory),**request_handler_options)
         def do_GET(self):
+            if three_reference_service.handle_image_request(self):
+                return
+            if image_generation_service.handle_image_request(self):
+                return
             if worldbuilding_management_service and worldbuilding_management_service.handle_management_request(self):
                 return
             super().do_GET()
         def do_POST(self):
+            if three_reference_service.handle_image_request(self):
+                return
+            if image_generation_service.handle_image_request(self):
+                return
             if worldbuilding_management_service and worldbuilding_management_service.handle_management_request(self):
                 return
             self.send_error(404, '지원하지 않는 작업 경로')

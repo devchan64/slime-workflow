@@ -1,46 +1,13 @@
 schema_version: 1
 tile_size: 64
+# 이슬온 24×24 안전 도시의 정식 지형 구성이다.
 tiles:
-  - id: grass
-    category: ground
-    asset: terrain/grass-v3.png
-    walkable: true
-    movement_cost: 1
-  - id: road_horizontal
-    category: ground
-    asset: terrain/road-v3.png
-    walkable: true
-    movement_cost: 1
-  - id: water
-    category: ground
-    asset: terrain/water-v3.png
-    walkable: false
-    movement_cost: 99
-  - id: wall_stone
-    category: structure
-    asset: terrain/extension-v1/stone-128.webp
-    walkable: false
-    movement_cost: 99
-  - id: door_wood
-    category: structure
-    asset: terrain/extension-v1/paving-128.webp
-    walkable: true
-    movement_cost: 1
-  - id: roof_red
-    category: roof
-    asset: terrain/meadow-backdrop-v2.png
-    walkable: false
-    movement_cost: 99
+  - {id: grass, category: ground, asset: terrain/grass-v3.png, walkable: true, movement_cost: 1}
+  - {id: paving, category: ground, asset: world/isloon/terrain/paving-v1.png, walkable: true, movement_cost: 1}
+  - {id: spring_water, category: ground, asset: terrain/water-v3.png, walkable: false, movement_cost: 99}
+  - {id: flower_bed, category: decoration, asset: terrain/flowers-v3.png, walkable: true, movement_cost: 1}
+  - {id: roof_timber, category: roof, asset: world/isloon/buildings/roof-timber-v1.png, walkable: false, movement_cost: 99}
+  - {id: wall_timber, category: structure, asset: world/isloon/buildings/wall-timber-v1.png, walkable: false, movement_cost: 99}
 connections:
-  - id: grass-to-road
-    from: grass
-    to: road_horizontal
-    variants: [straight, corner, tee, cross]
-  - id: road-to-water
-    from: road_horizontal
-    to: water
-    variants: [bank-straight, bank-corner]
-  - id: wall-to-door
-    from: wall_stone
-    to: door_wood
-    variants: [wall-door]
+  - {id: grass-to-paving, from: grass, to: paving, variants: [straight, corner, tee, cross]}
+  - {id: paving-to-spring, from: paving, to: spring_water, variants: [bank-straight, bank-corner]}

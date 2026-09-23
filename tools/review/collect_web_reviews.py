@@ -41,6 +41,10 @@ def collect_web_reviews(workflow_repo_root, output_review_directory, emit_review
         source_page_iterator = source_collection_root.rglob('*.html') if review_root_name == 'assets' else source_collection_root.glob('*/*.html')
         for source_page_path in sorted(source_page_iterator, reverse=True):
             source_directory_path = source_page_path.parent
+            source_relative_path = source_page_path.relative_to(workflow_repo_root)
+            is_isloon_map_review = source_page_path.name == 'map-review.html' and (source_directory_path/'map-index.json').is_file()
+            if source_relative_path == Path('assets/world/isloon/map-review.html') or 'isloon-map-review' in source_directory_path.name or is_isloon_map_review:
+                continue
             if source_directory_path == source_collection_root or source_page_path.is_symlink() or not source_page_path.resolve().is_relative_to(source_collection_root.resolve()):
                 continue
             source_parent_paths = (source_directory_path, *source_directory_path.parents)
@@ -52,7 +56,7 @@ def collect_web_reviews(workflow_repo_root, output_review_directory, emit_review
             title_parser_value = ReviewTitleParser()
             title_parser_value.feed(source_page_text)
             page_title_text = ''.join(title_parser_value.page_title_parts).strip() or source_page_path.stem
-            source_relative_path = source_page_path.relative_to(workflow_repo_root).as_posix()
+            source_relative_path = source_relative_path.as_posix()
             directory_identifier_text = 'web-'+hashlib.sha256(str(source_directory_path.relative_to(workflow_repo_root)).encode()).hexdigest()[:16]
             if source_directory_path not in copied_directory_lookup:
                 destination_root_path = output_review_directory/directory_identifier_text

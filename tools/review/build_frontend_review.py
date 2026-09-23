@@ -232,6 +232,19 @@ def load_animation_review(frontend_asset_root, animation_metadata_path):
     return review_frame_records, review_source_metadata, set(direction_sheet_paths.values())
 
 
+def clear_generated_review_files(output_review_directory):
+    """재생성 가능한 화면만 지우고 사용자의 이미지 생성 이력은 보존한다."""
+    preserved_history_names = {'qwen-2511', 'qwen-2512'}
+    output_review_directory.mkdir(parents=True, exist_ok=True)
+    for current_review_path in output_review_directory.iterdir():
+        if current_review_path.name in preserved_history_names:
+            continue
+        if current_review_path.is_dir() and not current_review_path.is_symlink():
+            shutil.rmtree(current_review_path)
+        else:
+            current_review_path.unlink()
+
+
 def build_frontend_review(frontend_repository_path, ui_bundle_directory=None):
     frontend_repository_path = frontend_repository_path.resolve()
     frontend_asset_root = frontend_repository_path/'src/assets'
@@ -241,9 +254,7 @@ def build_frontend_review(frontend_repository_path, ui_bundle_directory=None):
     if not animation_metadata_paths:
         raise ValueError(f'애니메이션 메타데이터가 없습니다: {frontend_asset_root}')
     output_review_directory = WORKFLOW_REPO_ROOT/'.tmp'/'manager-current'
-    if output_review_directory.exists():
-        shutil.rmtree(output_review_directory)
-    output_review_directory.mkdir(parents=True, exist_ok=False)
+    clear_generated_review_files(output_review_directory)
     execution_log_path = output_review_directory/'frontend-review.log'
     trace_write_lock = threading.Lock()
     heartbeat_stop_event = threading.Event()
@@ -276,7 +287,7 @@ def build_frontend_review(frontend_repository_path, ui_bundle_directory=None):
             destination_asset_directory = output_review_directory/page_identifier_text
             destination_asset_directory.mkdir()
             if animation_identifier_text == 'character.default.white-shirt.walk':
-                rig_source_directory = WORKFLOW_REPO_ROOT/'assets/rigs/mannequin-walk/v1/rig-sheets-v2'
+                rig_source_directory = WORKFLOW_REPO_ROOT/'assets/motion-sheet/mannequin-walk-v6/rig-sheets'
                 rig_sheet_records = []
                 for current_direction_name in REVIEW_DIRECTION_NAMES:
                     rig_source_path = rig_source_directory/f'{current_direction_name}.png'
@@ -295,6 +306,13 @@ def build_frontend_review(frontend_repository_path, ui_bundle_directory=None):
             discovered_source_records.append({'metadata': relative_metadata_path, 'displayNameKo': review_source_metadata['displayNameKo'], 'sha256': hashlib.sha256(animation_metadata_path.read_bytes()).hexdigest(), 'sheets': review_source_metadata['sheets']})
             completed_asset_count[0] += 1
             emit_review_trace('asset', relative_metadata_path)
+        if __package__:
+            from .build_isloon_map_review import build_isloon_map_review
+        else:
+            from build_isloon_map_review import build_isloon_map_review
+        isloon_review_directory = build_isloon_map_review(output_root=output_review_directory/'isloon-map-review')
+        manager_page_records.append({'id': 'map-review', 'label': '타일맵검수', 'path': isloon_review_directory.relative_to(output_review_directory).as_posix()+'/map-review.html', 'anchorEditor': False, 'category': 'tile-review', 'description': '등록 YAML 맵 목록 · 타일 연결 · 건물 충돌 검수'})
+        emit_review_trace('tile-map-review', str(isloon_review_directory.relative_to(WORKFLOW_REPO_ROOT)))
         if __package__:
             from .collect_web_reviews import collect_web_reviews
         else:

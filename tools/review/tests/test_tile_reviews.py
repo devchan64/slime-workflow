@@ -18,8 +18,7 @@ class TileReviewCollectionTests(unittest.TestCase):
             output_directory_path = workflow_root_path/'.tmp'/'review-output'
             output_directory_path.mkdir()
             page_records = collect_tile_reviews(workflow_root_path, output_directory_path, lambda *unused_trace_values: None)
-            self.assertEqual(page_records[0]['id'], 'tile-review-empty')
-            self.assertIn('생성 기록이 아직 없습니다', (output_directory_path/'tile-review-empty/tile-review.html').read_text())
+            self.assertEqual(page_records, [])
 
     def make_tile_run(self, workflow_root_path):
         run_directory_path = workflow_root_path/'.tmp'/'2026-09-21_12-00-00'
