@@ -75,6 +75,10 @@
 ## Workflow Model Policy
 - Nodes must not select models from user input.
 - Model selection must be fixed by code/pipeline configuration.
+- Qwen 로컬 생성은 프롬프트 단어 수와 순서의 영향을 크게 받으므로 전체 프롬프트를 100단어 미만으로 유지하고, 캐릭터·동작·카메라·스타일처럼 핵심 요구를 짧고 우선순위가 분명한 양성 지시로 작성한다.
+- Qwen 로컬 생성에서 긴 부정적 프롬프트에 의존하지 않는다. 부정적 프롬프트는 기본 보정 수단으로 사용하지 말고, 필요한 경우에도 짧은 금지어만 최소한으로 사용하며 실제 교정은 양성 지시와 참조 이미지로 해결한다.
+- 프롬프트에는 의미가 충돌하거나 스타일을 오인시킬 수 있는 표현을 넣지 않는다. 예를 들어 포즈 정밀도를 뜻하는 `pixel accurate` 대신 `match the pose precisely`처럼 작성하고, `pixel art`와 혼동될 수 있는 표현은 명시적으로 피한다.
+- 생성 실험은 최종 프롬프트 원문·단어 수·해시를 실행 기록에 보존하고, 프롬프트 변경마다 1프레임 샘플로 먼저 검증한 뒤 배치 생성으로 확대한다.
 - Use `.model` only as model download/cache directory.
 - Validate model input/output schemas strictly; fail fast on violations.
 - Accept only allowed output formats; disallow permissive recovery parsing.
