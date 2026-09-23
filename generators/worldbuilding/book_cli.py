@@ -25,7 +25,7 @@ def parse_book_arguments(current_argument_values=None):
     current_subcommand_parser.add_parser('list',help='도서와 연결된 루트 조회')
     current_edit_parser=current_subcommand_parser.add_parser('edit',help='AI 자동 편집 실행 또는 작업 등록')
     current_edit_parser.add_argument('--collection',choices=['world','system-design'],required=True)
-    current_edit_parser.add_argument('--stage',choices=BOOK_EDIT_STAGE_NAMES,default='document-reconstruction',help='도서 편집 단계')
+    current_edit_parser.add_argument('--stage',choices=[*BOOK_EDIT_STAGE_NAMES,'all-stages'],default='document-reconstruction',help='도서 편집 단계')
     current_instruction_group=current_edit_parser.add_mutually_exclusive_group(required=True)
     current_instruction_group.add_argument('--instruction',help='편집 지시')
     current_instruction_group.add_argument('--instruction-file',type=Path,help='UTF-8 지시 파일. - 는 표준 입력')
