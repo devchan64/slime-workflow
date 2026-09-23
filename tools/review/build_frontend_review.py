@@ -314,6 +314,11 @@ def build_frontend_review(frontend_repository_path, ui_bundle_directory=None):
         manager_page_records.append({'id': 'map-review', 'label': '타일맵검수', 'path': isloon_review_directory.relative_to(output_review_directory).as_posix()+'/map-review.html', 'anchorEditor': False, 'category': 'tile-review', 'description': '등록 YAML 맵 목록 · 타일 연결 · 건물 충돌 검수'})
         emit_review_trace('tile-map-review', str(isloon_review_directory.relative_to(WORKFLOW_REPO_ROOT)))
         if __package__:
+            from .build_animation_tools import build_animation_tools
+        else:
+            from build_animation_tools import build_animation_tools
+        manager_page_records.extend(build_animation_tools(output_review_directory))
+        if __package__:
             from .collect_tile_reviews import collect_tile_reviews
         else:
             from collect_tile_reviews import collect_tile_reviews
