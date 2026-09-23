@@ -1,6 +1,0 @@
-2026-09-23T07:44:21+0900/rig-validation/frame 5
-2026-09-23T07:44:21+0900/rig-validation/frame 10
-2026-09-23T07:44:21+0900/rig-validation/frame 15
-2026-09-23T07:44:21+0900/rig-validation/frame 20
-2026-09-23T07:44:21+0900/rig-validation/frame 25
-2026-09-23T07:44:21+0900/rig-validation/complete {'status': 'passed', 'frames': 25, 'bones': 24, 'parts': 30, 'surface_weight_policy': '외곽 연결부 최대 두 본 혼합, 내부 구체만 강체', 'triangles': 97088, 'max_internal_ball_edge_length_error': 2.6113868386440364e-07, 'max_socket_center_error': 3.0282737959774696e-07, 'max_ground_height_error': 1.1362135410308838e-07, 'loop_max_vertex_error': 0.0, 'joint_center_errors': {'left-shoulder': 2.4329142312099525e-07, 'left-elbow': 1.9436771300764667e-07, 'left-wrist': 2.7486483373786085e-07, 'left-hip': 1.3186685756167664e-07, 'left-knee': 1.2334311851220805e-07, 'left-ankle': 8.560065398421926e-08, 'right-shoulder': 2.403028819392642e-07, 'right-elbow': 2.661839833921919e-07, 'right-wrist': 3.0282737959774696e-07, 'right-hip': 1.7943374184954607e-07, 'right-knee': 1.2036781326982014e-07, 'right-ankle': 7.77863451012265e-08}, 'source_motion_id': 'mannequin-walk/v1', 'coordinate_units': '정규화 모델 높이 2.0, Blender 미터 단위', 'quality_warnings': ['검증은 제공된 보행 루프 범위이며 극단 각도 충돌을 보증하지 않음', '손가락 개별 리그 미적용', '내부 연결면은 디지털용으로 실물 조립 구조가 아님']}

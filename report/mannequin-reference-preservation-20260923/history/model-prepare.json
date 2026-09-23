@@ -1,6 +1,0 @@
-{
-  "status": "prepared",
-  "model_id": "tencent/Hunyuan3D-2mv",
-  "revision": "3a761b539b29fe4ff64714813aa9560fd66f5de0",
-  "model_root": "/home/cbsim/ws/slime-workflow/.model/hunyuan3d-2mv"
-}

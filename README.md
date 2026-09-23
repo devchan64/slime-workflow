@@ -140,6 +140,8 @@ python3 tools/review/serve.py --worldbuilding-only
 
 ## ANNY 마네킹 제작
 
-[ANNY 모델 생성·재현 워크플로우](workflows/anny-mannequin-generation.md)는 native 파라미터 생성부터 리그·32프레임 출력·검증까지 설명한다. [마네킹 v3](assets/motion-sheet/mannequin-walk-v3/README.md)에 승인 입력과 재현 코드를 보관한다.
+[ANNY 모델 생성·재현 워크플로우](workflows/anny-mannequin-generation.md)를 참고한다. 마네킹 v2·v3·v4는 사용자 요청으로 폐기했으며 기본 참조는 기존 v1로 복원했다. ANNY 기준 모델의 재현 자료는 [기준 모델 리포트](report/anny-reference-baseline-20260923-r3/README.md)에 보관한다.
 
-[마네킹 v4](assets/motion-sheet/mannequin-walk-v4/README.md)는 v3의 체형·모션을 유지하고 포즈 판독을 위한 방향성 조명을 보강한 기본 참조 자산이다.
+## 승인된 MoMask 마네킹 v5
+
+[mannequin-walk/v5](assets/motion-sheet/mannequin-walk-v5/README.md)는 ANNY r3 리그와 쉐이딩 강화 4방향 × 8프레임을 고정한 재사용 제작 자산입니다. 최종 이미지 관리 원본은 `slime-frontend/public/assets/characters/mannequin-walk-v5/`에 전달했으며 두 저장소의 manifest에 SHA-256을 기록했습니다. 기본 생성기·게임 런타임 선택은 별도이며 v2·v3·v4는 폐기 상태를 유지합니다.

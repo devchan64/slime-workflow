@@ -1,0 +1,8 @@
+schema_version: 1
+baseline_id: anny-reference-baseline-20260923-r3
+report_path: report/anny-reference-baseline-20260923-r3
+attributes_path: report/anny-reference-baseline-20260923-r3/snapshot/inputs/attributes.json
+attributes_sha256: e0cccddd6650f7beb2de834b703cfc779625dc76b127663b2e5db583570fa474
+blend_path: report/anny-reference-baseline-20260923-r3/snapshot/anny-raw-rig.blend
+glb_path: report/anny-reference-baseline-20260923-r3/snapshot/anny-raw-rig.glb
+status: user_selected_static_model

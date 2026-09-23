@@ -12,7 +12,7 @@ def execute_anypose_generation():
     argument_value_parser.add_argument('--prompt-file', type=Path, required=True)
     argument_value_parser.add_argument('--base-strength', type=float, default=0.7)
     argument_value_parser.add_argument('--helper-strength', type=float, default=0.7)
-    argument_value_parser.add_argument('--steps', type=int, choices=(10, 20, 30), default=10)
+    argument_value_parser.add_argument('--steps', type=int, choices=(10, 20, 30, 40), default=10)
     parsed_argument_values = argument_value_parser.parse_args()
     trial_output_root = parsed_argument_values.output_dir.resolve()
     prompt_source_text = parsed_argument_values.prompt_file.read_text().strip()

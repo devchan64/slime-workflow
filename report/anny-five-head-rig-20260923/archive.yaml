@@ -1,9 +1,0 @@
-schema_version: 1
-experiment_id: anny-five-head-rig-20260923
-status: review_candidate
-source_run: .tmp/anny-five-head-rig/2026-09-23_07-47-56
-model_id: anny==0.6.0
-purpose: 외부 공유용 실험 이력과 결과 사본
-verification_scope: 보관 모델 사본의 GLB 재수입 비교
-full_generation_rerun: false
-pdf_created: false

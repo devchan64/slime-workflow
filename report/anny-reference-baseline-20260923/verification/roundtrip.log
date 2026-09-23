@@ -1,5 +1,0 @@
-12:33:11 | INFO: Data are loaded, start creating Blender stuff
-12:33:11 | INFO: Blender create Mesh node AnnyBodySurface
-12:33:11 | INFO: glTF import finished in 0.06s
-bounds 1 [-2.31010184e-01 -2.20855638e-01  3.85007848e-09] [0.23101026 0.07358471 1.60000002] [-2.31010348e-01 -2.20855564e-01  2.92945231e-07] [0.23101017 0.07358474 1.5999999 ]
-{'status': 'passed', 'frame_max_errors': {1: 6.036349873284053e-07}, 'tolerance': 0.0001, 'method': 'GLB 재수입 후 기본 자세의 모든 정점과 원본 Blender 표면 정점 사이 최근접 거리'}

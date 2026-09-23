@@ -1,8 +1,0 @@
-status: review_candidate
-rig_validation: passed
-glb_validation: passed
-quality_warnings:
-  - 정면 투영 외곽 지표는 향상되었으나 측면과 후면은 감소함
-  - 얼굴 렌즈와 눈꺼풀 접합 및 골반 굴곡은 추가 조형 대상
-  - 수동 굽힘·벌림 이미지는 모든 각도의 충돌 검증이 아님
-  - 실물 탄성 줄과 이중 관절 기구는 구현하지 않음

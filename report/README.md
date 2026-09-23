@@ -20,3 +20,7 @@
 
 - [마네킨 외형 보존과 구체관절 리그 실험](mannequin-reference-preservation-20260923/README.md): 2026-09-23 버전, 3방향 레퍼런스 비교, 제작 과정, 보행 검증, 입력과 결과 사본 및 재현 실행기.
 - [OpenPose와 Qwen 포즈 전이 결과](pose-transfer-openpose-qwen/): 기존 방향별 프레임과 비교 결과 보관본.
+
+- [이전 ANNY 체형 기준 r2](anny-reference-baseline-20260923-r2/README.md): 손 0.5·발 0.5·발목 둘레 -0.75. 사용자 채택 모델·입력·재현 코드·정면/측면 검수 사본. 이전 기준 리포트는 이력으로 유지한다.
+
+- [현재 ANNY 체형 기준 r3](anny-reference-baseline-20260923-r3/README.md): upperleg01 Z 회전벡터 L +8° / R −8°. 손0.5·발0.5·발목둘레−0.75 유지. 사용자 채택 모델·재현 코드·검수 사본.
