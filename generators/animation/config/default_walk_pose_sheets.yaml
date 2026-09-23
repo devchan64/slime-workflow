@@ -1,6 +1,6 @@
 asset_id: mannequin-walk-pose-sheets
-version: 2
-asset_path: assets/motion-sheet/mannequin-walk-v2/pose-sheets
+version: 4
+asset_path: assets/motion-sheet/mannequin-walk-v4/pose-sheets
 layout:
   columns: 4
   rows: 2
@@ -25,54 +25,54 @@ cycle_seconds: 1.2
 transformation: 원본 RGB 픽셀 그대로 타일 배치; 리사이즈·색상·관절 보정 없음
 generator: generators/animation/build_walk_pose_sheets.py
 source_files:
-  down_left/openpose-0001.png: c4203bd5fb831fc5b4226a728199fcb61d665b25b9964ca1f950a35ba36faeb9
-  down_left/openpose-0002.png: c8ff17952415e0ec12af8f463158b0e008fb3fb0a23c86c77c683f69eb53e442
-  down_left/openpose-0003.png: eb8d7f1bb1a4f8e96f9b5bff94f1ec84844ae897948598390778f1ee6200a447
-  down_left/openpose-0004.png: 1d533d9f17949b0a813fe5f6884ec4d5ded369dbc9faf8cbbdc200e9bd23f127
-  down_left/openpose-0005.png: d93e1cfec156254c5616a912a893ce2b5fac7027304f908716b2f48e5237eb53
-  down_left/openpose-0006.png: 131ac24aa7ac1f715ee6da04310091c2f2b92dba46cd80cc3ad14b1ee3027fd0
-  down_left/openpose-0007.png: 53a9e71b0e11b68097918e2ec71a885fdb079dfa52a8bd1c686eebe0d956873d
-  down_left/openpose-0008.png: a52f4a2012202ad78bded50e0abe94520ab7d02d0ebc1670f02d830438dad1e1
-  down_right/openpose-0001.png: afe9f9e928619cb7a10a0b12d14481a0820cac60139cbf18d235fe422a00b3b6
-  down_right/openpose-0002.png: bba7e54dc9f17d22cc1571fe0034228ae7e517506a11b26bc5fb5cf72f802a04
-  down_right/openpose-0003.png: 2774235cbdd6a557a445951737397ce173406153a95f40d184d528a58871321e
-  down_right/openpose-0004.png: cb389c1f2ce5a2781652cd802f9682584d724ac4a704516ddb713b6e68039af4
-  down_right/openpose-0005.png: 43a71d9db273aecc173e91692230e0e2232007b287e76f42bc645a1755b35f24
-  down_right/openpose-0006.png: 5706d03e3eb4e6611da14da81d9954212600402485bee2597b7b6b854fb30466
-  down_right/openpose-0007.png: 4c83ddc609656fceab63fd9e11788d5f3b7ed30189cbfc74efdf9ffad022b145
-  down_right/openpose-0008.png: ee56b7af7fc7f042fa221ef2ec832b367710b4b1b7633b30560049478b8f428f
-  up_left/openpose-0001.png: 032e770cfa23ae1c44d211862e6cd247c0ef687c4288d1b22d6e9f154d671c67
-  up_left/openpose-0002.png: 6ebc349d33d8ac2d239e0d09611a6b01fa1ea02de06a510e0f36a880e2b2419d
-  up_left/openpose-0003.png: be347fbaff99e4c39d52014ede48ee194d1e01bbdfab7f4721e50b8d6871077b
-  up_left/openpose-0004.png: 6fd706fed230076606ddbdb0efc0bf81ff3d0be50f4845e819f86dcb46d20534
-  up_left/openpose-0005.png: 83030831b53edce27c2d3c9fb58c5087ed91edd6bbc6eb7a36d646bad220e99f
-  up_left/openpose-0006.png: b1649d7037c6b485dda4a75701c5885799d76f6d54a9ea73266a20e2421cb30f
-  up_left/openpose-0007.png: fade8833a5aa06286a40fd6a20c08f602e0f8dbbea0bc1cbbf97f984ee5b2e44
-  up_left/openpose-0008.png: a88cdef048a3833f8f21311885edf4aafa65046af52c12f3c1a699c007871c9e
-  up_right/openpose-0001.png: 67082282016375fbdeebaa5fc682fde95b7102d216c2f12c83cf72964deee049
-  up_right/openpose-0002.png: e251f308d10d365234cfbf9357cf544587d70debe8d28761e26540eefbef022e
-  up_right/openpose-0003.png: 424728a6325ce9a108115b63934f236282c90c666e59f789e397f439223cad83
-  up_right/openpose-0004.png: 28cc48e487ac0c362343a46f90aa4db637bba925f1fec32cfaf365816dff6fa8
-  up_right/openpose-0005.png: cdd1817102ae8fb4eb3ebba8675d0b6be17a5ad8f8d9ce4aacc275e6834378b0
-  up_right/openpose-0006.png: b38c945b58f0be8a338a5759c7ab0f6bbdd97e352e81758c71091c2a2cce03ef
-  up_right/openpose-0007.png: b849399b7cc70ce95592ff8a5fd7556a6a72b4bfada23a33b375229a094d72b9
-  up_right/openpose-0008.png: 948c524018be2caa60d7e88ada05653617503ceb56d3666d4e604ba085c8f321
+  down_left/openpose-0001.png: fcbaad1ae024547572fc64fe9b2f8126b71e4cd3ad1f4ff74e7d5239e24ba261
+  down_left/openpose-0002.png: fc043316932f76330ae3f39306d368c4f034670a49862ecb7ca22262efef9f88
+  down_left/openpose-0003.png: ba5b186fa2b78e395b165a3e4889499c0f78d207e8abb5b4a277a8997fee2b3f
+  down_left/openpose-0004.png: fa3f3f81fec205625159d5e0d5e1207b9a044904ef9a52cebc7e2c1fffd16e02
+  down_left/openpose-0005.png: a606164dcef29a80e9ca0c2b9a9c8a2cf5e039688ca8c6154512f0c66aa79ca6
+  down_left/openpose-0006.png: ca2693e1b6d217361802dbd675f412d487186a70fe55d6091336242756e3bbd9
+  down_left/openpose-0007.png: b7cddd1001f4a5823116fb8274ac26b6961c17fc9b6831109505db3e9702c752
+  down_left/openpose-0008.png: 99ae943955b3f2839864ea8a1df93fbc4153ee58e72082a09f14db2fd7d022c2
+  down_right/openpose-0001.png: 556fea80cbb5b719fda6d3b32bf9290d279cce4aba7d8cfbb590c4d4857b0db2
+  down_right/openpose-0002.png: 745a1e14abaa190d085cdc75c8fbddf5e9b865f2c0724e89043956f1697f59c1
+  down_right/openpose-0003.png: d4ce3aaa98f34bc7b00931d3d902f6b4eea4044bf82a7e4f61de06f419f9cdc6
+  down_right/openpose-0004.png: 00a5a3e3488d2ad9b570dee8b8a82e5d0d4ec3b6eb1fad416826e63564db5e67
+  down_right/openpose-0005.png: 8148dd3df1fdb17701ac739043294c5e0076459915c4e0d96a540ef68d25e27e
+  down_right/openpose-0006.png: 227203b4571cf419e3b661ea480e5700b1140a838be1e97e75da4d26b4bb9b7a
+  down_right/openpose-0007.png: 5dd22db007ae6382f209ea8529b5bec6a410abc3ed38af31ff16495ec42c12fd
+  down_right/openpose-0008.png: 0a3139147ee0a3ea1f81d67d58924a99e7b7d4f1e504c7cb32f1b3a626499b59
+  up_left/openpose-0001.png: 8d136e3fc36a14c2722480148b54678a787b2826a0106dd3bd271acd70787488
+  up_left/openpose-0002.png: ebd8b0b57c27b55a63a5a018f65234487ea1e38f07f5b06b8222e6e816125a85
+  up_left/openpose-0003.png: c6c6ff357f9cbc005f2763caf5339d849da4e9de3fdc1a232b040f4d1cf363dd
+  up_left/openpose-0004.png: 53e4df48ff133d3c14bd9bc0a8a1bc43270b985e1c785f9e2e33c7f727eb85af
+  up_left/openpose-0005.png: 7da7c9d9af5b5b313ed9c08b2d371cd0c8447c41f4fbdd8458e255f4940efec0
+  up_left/openpose-0006.png: 59d69f2000cd0825a46bb9ba958d18c28ebaa2b49c5c9090f7bd0e39cc56207b
+  up_left/openpose-0007.png: 23c2bc524094343e7c1c478b7d5d312f088f049fda8bee0c012f8735985a73e5
+  up_left/openpose-0008.png: 1104ea6718995c8edfe8ab6ac4296e1a0f09d3d71b1098838536a4f4219fae5b
+  up_right/openpose-0001.png: 401478d37b410a7a55b354cae65164ecd265b6a8d672bdbb5ea6bcfedfa19cd5
+  up_right/openpose-0002.png: 54c7bfe7da21a63b66e467e6bbc90e13700d0a84705fa5a1b622d30e24b16491
+  up_right/openpose-0003.png: dc7a5fe1250211af6fe11a0eb7c9747b8e103edea8c2c11c31c11519ca28ad1e
+  up_right/openpose-0004.png: 735145dfc231b1b1a3be503b1b66c072e0aa0aa04661d5df9ccdd1873c7ec4a5
+  up_right/openpose-0005.png: cc433aed98f713ce361c3be80c199b4cca3b24ae4a272860b977da9b5e2313cd
+  up_right/openpose-0006.png: 88b0ae19dd2240f0ae75a1b980e41eb6927f385c12333c51931b0b13209fc073
+  up_right/openpose-0007.png: 9e646908b0e96e8bf332359bf5eaf2e035efa47ff275b680b98a19f6bba7ad7f
+  up_right/openpose-0008.png: a135dda773eddfc3bb2a7341514d395b23361abc26b6bb6425f0fb16c293e4f7
 files:
-  down_left.png: f38463100d317f0dd9ea4abcdbea9a6136fbd8659609e77c852dd3c8deef763a
-  down_right.png: c10fb5c6f53ccdfd0e99e9bb6fa2eb0915c3ddbe038c8db800e6fd2fa029a69f
-  up_left.png: 86d0ae67a75ceaefff4c58ed335a16ef11f72d8bb3acead1a936d27ed742ddb7
-  up_right.png: 52c9d9ff527ccbaaf8c6d93d51c5080648c0070f82526822396598410bab8604
+  down_left.png: 7a43b2bcd8bc2bcf368f7c4978dc1597c6ab9ed82f0a8f5c685578338f551c35
+  down_right.png: 827bdbc10226d5185cd6660a6f457fe390ce8abf9f328020584d41bedce7680a
+  up_left.png: 1e1d254167db4ec368cbfbf375d8f92f656b4b69c1556dc2014fdf761fa7bc68
+  up_right.png: 28c645792e0d9d3a542f54c138e5c370c74ef338f35b4e6ffd9d77f8876ec7ea
 source_motion:
   asset_id: walk-travel
   version: 1
   sha256: 5f10e35b13cb7cb0cce7faf0dc26ac9b8f8ac36f2dc6e496b044418e3e1b05c5
 source_rig:
   asset_id: mannequin-walk
-  version: 2
+  version: 4
 compatibility:
   joint_schema: HumanML3D22 mapped ANNY104
   coordinate_system: y-up meters; renderer x,-z,y
-  neutral_head_units: 5.624667167663574
+  neutral_head_units: 5.6393609046936035
   directions:
   - down_left
   - down_right
@@ -95,4 +95,4 @@ compatibility:
   - 21
   pose_format: COCO18-compatible projected rig; head center substitutes nose; eyes
     and ears omitted
-source_frames_note: v2 개별 OpenPose 32프레임과 대응 리그 32프레임을 함께 보관.
+source_frames_note: v4 개별 OpenPose 32프레임과 대응 리그 32프레임을 함께 보관.

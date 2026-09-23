@@ -137,3 +137,9 @@ python3 tools/review/serve.py --worldbuilding-only
 ```
 
 `http://127.0.0.1:8770/worldbuilding/`에서 지시를 입력한다. 연결 설정은 Git 제외 경로인 `.local/worldbuilding/workspace.yaml`에 관리한다.
+
+## ANNY 마네킹 제작
+
+[ANNY 모델 생성·재현 워크플로우](workflows/anny-mannequin-generation.md)는 native 파라미터 생성부터 리그·32프레임 출력·검증까지 설명한다. [마네킹 v3](assets/motion-sheet/mannequin-walk-v3/README.md)에 승인 입력과 재현 코드를 보관한다.
+
+[마네킹 v4](assets/motion-sheet/mannequin-walk-v4/README.md)는 v3의 체형·모션을 유지하고 포즈 판독을 위한 방향성 조명을 보강한 기본 참조 자산이다.
