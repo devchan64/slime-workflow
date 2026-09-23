@@ -189,4 +189,4 @@ python3 generators/worldbuilding/worldbuilding.py book rollback --reorganization
 
 표준 출력은 결과 JSON 한 개이며 단계·진행 로그는 표준 오류와 `execution.log`에 기록한다. 오류는 0이 아닌 종료 코드, `failure_reason_text`, 추적 로그와 마지막 로그로 확인한다. 실행 중 GPU 단계는 웹과 동일하게 4초 간격으로 진행 상황을 기록한다. 원본 파일은 `edit`만으로 반영하지 않는다.
 
-직접 실행 기록은 비공개 상태의 `book-cli-jobs/<작업ID>/`, 큐 등록은 웹과 같은 `jobs/<작업ID>/`에 보관한다. 직접 실행과 웹 큐를 분리해 같은 작업의 이중 실행을 막으며 도서 판본·변경 미리보기·복구 저널은 공유한다. `status`와 `result`는 두 기록 경로를 모두 조회한다. `--submit`은 관리도구가 실행 중일 때만 허용되며, 등록 후에는 터미널 종료와 독립적으로 관리도구가 실행한다.
+직접 실행 기록은 검수 가능한 `book_review_root/book-cli-jobs/<작업ID>/`에 보관한다. `book_review_root`는 워크플로 저장소의 실행별 `.tmp/YYYY-MM-DD_HH-mm-ss/` 아래로 지정한다. 큐 등록은 비공개 상태의 `jobs/<작업ID>/`에 보관한다. 직접 실행과 웹 큐를 분리해 같은 작업의 이중 실행을 막으며 도서 판본·변경 미리보기·복구 저널은 공유한다. `status`와 `result`는 두 기록 경로를 모두 조회한다. `--submit`은 관리도구가 실행 중일 때만 허용되며, 등록 후에는 터미널 종료와 독립적으로 관리도구가 실행한다.
