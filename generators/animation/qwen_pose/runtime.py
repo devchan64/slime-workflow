@@ -22,7 +22,7 @@ PIPELINE_EXECUTION_LOCK = threading.Lock()
 
 
 def execute_pose_generation(*, trial_output_root, prompt_text_value,
-                            character_image_path, pose_reference_path,
+                            character_image_path, pose_reference_path=None,
                             pose_reference_kind, selected_reference_order='standing-first',
                             selected_inference_steps=FIXED_INFERENCE_STEPS,
                             prompt_source_record=None, enable_anypose_adapter=False, enable_lightning_adapter=True,
@@ -67,12 +67,12 @@ def execute_pose_generation(*, trial_output_root, prompt_text_value,
         raise ValueError('후보 에셋 출력은 저장소 .tmp 하위만 허용합니다.')
     if any((trial_output_root / output_file_name).exists() for output_file_name in ('result.png', 'result.json', 'execution.log')):
         raise FileExistsError('기존 실행을 덮어쓸 수 없습니다. 새 실행 경로를 사용하세요.')
-    input_image_paths = [Path(character_image_path).resolve(), Path(pose_reference_path).resolve(), *(Path(reference_path).resolve() for reference_path in additional_reference_paths)]
+    input_image_paths = [Path(character_image_path).resolve()] + ([Path(pose_reference_path).resolve()] if pose_reference_path is not None else []) + [Path(reference_path).resolve() for reference_path in additional_reference_paths]
     if enable_text_only_generation:
         if enable_anypose_adapter:
             raise ValueError('텍스트 생성에서는 AnyPose를 사용할 수 없습니다.')
         input_image_paths = []
-    input_image_roles = ['character', pose_reference_kind, *([f'additional-{reference_index + 1}' for reference_index in range(len(additional_reference_paths))])]
+    input_image_roles = ['character'] + ([pose_reference_kind] if pose_reference_path is not None else []) + [f'additional-{reference_index + 1}' for reference_index in range(len(additional_reference_paths))]
     if enable_text_only_generation:
         input_image_roles = []
     if selected_reference_order == 'pose-first':

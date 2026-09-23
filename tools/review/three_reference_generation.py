@@ -1,4 +1,4 @@
-"""Qwen 2511 고정 3참조 입력의 검증·작업 저장."""
+"""Qwen 2511 고정 참조 입력의 검증·작업 저장."""
 import base64
 import binascii
 import io
@@ -17,8 +17,8 @@ def validate_three_reference_request(current_request_record):
         raise ValueError('3참조 요청 필드 오류')
     if not isinstance(current_request_record['prompt'],str) or not 1<=len(current_request_record['prompt'].strip())<=8000:
         raise ValueError('프롬프트는 1~8000자여야 합니다.')
-    if not isinstance(current_request_record['images'],list) or len(current_request_record['images']) not in (0,3):
-        raise ValueError('텍스트 생성은 참조 0장, 참조 생성은 3장이 필요합니다.')
+    if not isinstance(current_request_record['images'],list) or not 0 <= len(current_request_record['images']) <= 3:
+        raise ValueError('텍스트 생성은 참조 0장, 참조 생성은 1~3장이 필요합니다.')
     for current_size_key in ('width','height'):
         current_size_value=current_request_record[current_size_key]
         if type(current_size_value) is not int or not 256 <= current_size_value <= 1664 or current_size_value % 16:

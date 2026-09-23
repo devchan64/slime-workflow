@@ -19,6 +19,8 @@ class ThreeReferenceGenerationTests(unittest.TestCase):
         current_image_values=[self.encode_reference_fixture(current_image_color) for current_image_color in ('red','green','blue')]
         current_request_record={'action':'generate','steps':30,'width':512,'height':512,'prompt':'참조 순서 유지','images':current_image_values}
         validate_three_reference_request(current_request_record)
+        validate_three_reference_request({**current_request_record,'images':current_image_values[:1]})
+        validate_three_reference_request({**current_request_record,'images':current_image_values[:2]})
         validate_three_reference_request({**current_request_record,'images':[]})
         with tempfile.TemporaryDirectory() as current_directory_name:
             current_output_record=save_three_reference_inputs(Path(current_directory_name),current_request_record)
@@ -26,7 +28,7 @@ class ThreeReferenceGenerationTests(unittest.TestCase):
                 self.assertEqual((Path(current_directory_name)/f'reference-{current_image_index}.png').read_bytes(),base64.b64decode(current_image_text))
             self.assertEqual(current_output_record['references'],['reference-1.png','reference-2.png','reference-3.png'])
             self.assertNotIn('images',current_output_record)
-        for current_invalid_images in (current_image_values[:2],current_image_values*2,['invalid']*3,[self.encode_reference_fixture((0,0,0,0))]*3,[self.encode_reference_fixture('red',(256,512))]*3,[self.encode_reference_fixture('red',selected_image_format='WEBP')]*3):
+        for current_invalid_images in (current_image_values*2,['invalid']*3,[self.encode_reference_fixture((0,0,0,0))]*3,[self.encode_reference_fixture('red',(256,512))]*3,[self.encode_reference_fixture('red',selected_image_format='WEBP')]*3):
             with self.assertRaises(ValueError):
                 validate_three_reference_request({**current_request_record,'images':current_invalid_images})
         with self.assertRaises(ValueError):
@@ -47,7 +49,7 @@ class ThreeReferenceGenerationTests(unittest.TestCase):
         self.assertFalse(ImageGenerationManager().handle_image_request(current_http_handler))
         self.assertTrue(ImageGenerationManager(three_reference_mode=True).handle_image_request(current_http_handler))
         self.assertEqual(current_http_handler.status,200)
-        self.assertIn('3참조'.encode(),current_http_handler.wfile.getvalue())
+        self.assertIn('참조 이미지'.encode(),current_http_handler.wfile.getvalue())
 
 
 if __name__=='__main__':
