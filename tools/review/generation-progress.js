@@ -39,3 +39,10 @@ async function synchronizeGenerationAvailability(){
   document.querySelector('#status').textContent='현재 작업이 실행 중입니다. 완료 또는 취소 후 생성할 수 있습니다.';
  }
 }
+
+document.querySelector('#randomize-seed').onclick=()=>{
+ const generatedSeedValues=new Uint32Array(1);
+ crypto.getRandomValues(generatedSeedValues);
+ document.querySelector('#seed').value=String(generatedSeedValues[0]);
+ document.querySelector('#seed').dispatchEvent(new Event('input',{bubbles:true}));
+};

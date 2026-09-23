@@ -28,11 +28,13 @@ def execute_pose_generation(*, trial_output_root, prompt_text_value,
                             prompt_source_record=None, enable_anypose_adapter=False, enable_lightning_adapter=True,
                             selected_base_strength=0.7, selected_helper_strength=0.7,
                             enable_standalone_lightning_adapter=False,
-                            additional_reference_paths=(), selected_output_width=512, selected_output_height=512, enable_text_only_generation=False):
+                            additional_reference_paths=(), selected_output_width=512, selected_output_height=512, enable_text_only_generation=False, selected_generator_seed=FIXED_GENERATOR_SEED):
     """준비된 512px 참조로 포즈를 변경한다. GPU 실행은 샌드박스 밖에서 호출한다."""
     for selected_output_size in (selected_output_width,selected_output_height):
         if type(selected_output_size) is not int or not 256 <= selected_output_size <= 1664 or selected_output_size % 16:
             raise ValueError('출력 크기는 256~1664 범위의 16 배수여야 합니다.')
+    if type(selected_generator_seed) is not int or not 0 <= selected_generator_seed <= 4294967295:
+        raise ValueError('seed는 0~4294967295 범위의 정수여야 합니다.')
     from PIL import Image
     from .prompts import validate_reference_options
     validate_reference_options(pose_reference_kind, selected_reference_order)
@@ -160,7 +162,7 @@ def execute_pose_generation(*, trial_output_root, prompt_text_value,
         image_edit_pipeline.vae.enable_slicing()
         image_edit_pipeline.vae.enable_tiling()
         current_stage_state['stage']='inference'
-        run_output_logger.info('inference size=%sx%s steps=%s seed=%s device=cuda dtype=bfloat16 offload=sequential',selected_output_width,selected_output_height,selected_inference_steps,FIXED_GENERATOR_SEED)
+        run_output_logger.info('inference size=%sx%s steps=%s seed=%s device=cuda dtype=bfloat16 offload=sequential',selected_output_width,selected_output_height,selected_inference_steps,selected_generator_seed)
 
         def record_denoise_progress(pipeline_instance_value, step_index_value, timestep_value, callback_value_dictionary):
             current_stage_state['step']=step_index_value+1
@@ -168,11 +170,11 @@ def execute_pose_generation(*, trial_output_root, prompt_text_value,
             return callback_value_dictionary
 
         with torch.inference_mode():
-            output_image_value = image_edit_pipeline(**({} if enable_text_only_generation else {"image":input_image_values}),prompt=prompt_text_value,negative_prompt=' ',width=selected_output_width,height=selected_output_height,num_inference_steps=selected_inference_steps,true_cfg_scale=selected_true_cfg_scale,guidance_scale=1.0,generator=torch.Generator(device='cuda').manual_seed(FIXED_GENERATOR_SEED),num_images_per_prompt=1,callback_on_step_end=record_denoise_progress).images[0]
+            output_image_value = image_edit_pipeline(**({} if enable_text_only_generation else {"image":input_image_values}),prompt=prompt_text_value,negative_prompt=' ',width=selected_output_width,height=selected_output_height,num_inference_steps=selected_inference_steps,true_cfg_scale=selected_true_cfg_scale,guidance_scale=1.0,generator=torch.Generator(device='cuda').manual_seed(selected_generator_seed),num_images_per_prompt=1,callback_on_step_end=record_denoise_progress).images[0]
         if output_image_value.size != (selected_output_width,selected_output_height):
             raise ValueError(f'출력 크기 불일치: {output_image_value.size}')
         output_image_value.save(trial_output_root/'result.png')
-        trial_result_record = {'status':'completed','model_id':'Qwen/Qwen-Image-Edit-2511','revision':FIXED_MODEL_REVISION,'size':[selected_output_width,selected_output_height],'reference_vae_size':[512,512],'reference_condition_size':[384,384],'steps':selected_inference_steps,'seed':FIXED_GENERATOR_SEED,'true_cfg_scale':selected_true_cfg_scale,'guidance_scale':1.0,'lightning_lora':active_lightning_adapter,'dtype':'bfloat16','execution_device':'cuda','weight_offload':'sequential_cpu_offload','torch_version':torch.__version__,'diffusers_version':diffusers.__version__,'elapsed_seconds':round(time.monotonic()-run_started_time,2),'prompt_sha256':hashlib.sha256(prompt_text_value.encode()).hexdigest(),'input_order':[input_file_path.name for input_file_path in input_image_paths],'input_sha256':{input_file_path.name:hashlib.sha256(input_file_path.read_bytes()).hexdigest() for input_file_path in input_image_paths},'quality_warnings':['실험 결과의 최종 품질 승인이 필요합니다.'],'output':'result.png'}
+        trial_result_record = {'status':'completed','model_id':'Qwen/Qwen-Image-Edit-2511','revision':FIXED_MODEL_REVISION,'size':[selected_output_width,selected_output_height],'reference_vae_size':[512,512],'reference_condition_size':[384,384],'steps':selected_inference_steps,'seed':selected_generator_seed,'true_cfg_scale':selected_true_cfg_scale,'guidance_scale':1.0,'lightning_lora':active_lightning_adapter,'dtype':'bfloat16','execution_device':'cuda','weight_offload':'sequential_cpu_offload','torch_version':torch.__version__,'diffusers_version':diffusers.__version__,'elapsed_seconds':round(time.monotonic()-run_started_time,2),'prompt_sha256':hashlib.sha256(prompt_text_value.encode()).hexdigest(),'input_order':[input_file_path.name for input_file_path in input_image_paths],'input_sha256':{input_file_path.name:hashlib.sha256(input_file_path.read_bytes()).hexdigest() for input_file_path in input_image_paths},'quality_warnings':['실험 결과의 최종 품질 승인이 필요합니다.'],'output':'result.png'}
         trial_result_record.update({'pose_reference_kind': pose_reference_kind, 'reference_order': selected_reference_order, 'prompt_source': prompt_source_record, 'adapters': resolved_adapter_records, 'execution_preset': ('anypose-lightning-v1' if enable_anypose_adapter else 'qwen-lightning-multi-reference-v1') if active_lightning_adapter else 'anypose-standard-v1', 'input_references': [{'role': input_image_role, 'path': str(input_file_path), 'sha256': hashlib.sha256(input_file_path.read_bytes()).hexdigest()} for input_image_role, input_file_path in zip(input_image_roles, input_image_paths)]})
         (trial_output_root/'result.json').write_text(json.dumps(trial_result_record,ensure_ascii=False,indent=2)+'\n')
         current_stage_state['stage']='complete'

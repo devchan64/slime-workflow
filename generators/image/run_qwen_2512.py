@@ -42,7 +42,7 @@ def execute_image_worker():
             validate_qwen_2512_assets()
         else:
             current_stage_state['stage'] = 'generate'
-            generate_qwen_2512_lightning_image(output_directory=current_job_root, prompt_text=current_request_record['prompt'], width=current_request_record['width'], height=current_request_record['height'], selected_inference_steps=current_request_record['steps'])
+            generate_qwen_2512_lightning_image(selected_generator_seed=current_request_record.get('seed',251204),output_directory=current_job_root, prompt_text=current_request_record['prompt'], width=current_request_record['width'], height=current_request_record['height'], selected_inference_steps=current_request_record['steps'])
         (current_job_root / 'status.json').write_text(json.dumps({'status':'completed'}, ensure_ascii=False))
         logging.info('complete output=%s', current_job_root)
     except Exception as current_error_value:

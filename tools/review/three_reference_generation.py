@@ -8,7 +8,12 @@ REFERENCE_IMAGE_LIMIT = 3_000_000
 
 
 def validate_three_reference_request(current_request_record):
-    if not isinstance(current_request_record,dict) or set(current_request_record)!={'action','prompt','images','steps','width','height'} or current_request_record['action']!='generate':
+    if isinstance(current_request_record,dict) and current_request_record.get('action')=='generate':
+        current_request_record=dict(current_request_record)
+        current_request_record.setdefault('seed',10107)
+        if type(current_request_record['seed']) is not int or not 0 <= current_request_record['seed'] <= 4294967295:
+            raise ValueError('seed는 0~4294967295 범위의 정수여야 합니다.')
+    if not isinstance(current_request_record,dict) or set(current_request_record)!={'action','prompt','images','steps','width','height','seed'} or current_request_record['action']!='generate':
         raise ValueError('3참조 요청 필드 오류')
     if not isinstance(current_request_record['prompt'],str) or not 1<=len(current_request_record['prompt'].strip())<=8000:
         raise ValueError('프롬프트는 1~8000자여야 합니다.')
@@ -43,7 +48,7 @@ def decode_reference_image(current_image_text):
 def save_three_reference_inputs(current_job_root,current_request_record):
     for current_image_index,current_image_text in enumerate(current_request_record['images'],1):
         (current_job_root/f'reference-{current_image_index}.png').write_bytes(decode_reference_image(current_image_text))
-    return {'action':'generate','prompt':current_request_record['prompt'],'width':current_request_record['width'],'height':current_request_record['height'],'steps':current_request_record['steps'],'references':[f'reference-{current_image_index}.png' for current_image_index in range(1,len(current_request_record['images'])+1)]}
+    return {'action':'generate','prompt':current_request_record['prompt'],'width':current_request_record['width'],'height':current_request_record['height'],'seed':current_request_record.get('seed',10107),'steps':current_request_record['steps'],'references':[f'reference-{current_image_index}.png' for current_image_index in range(1,len(current_request_record['images'])+1)]}
 
 
 def resolve_reference_settings(selected_inference_steps):

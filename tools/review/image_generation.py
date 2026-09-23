@@ -28,11 +28,16 @@ def parse_unique_request(current_pair_values):
 
 
 def validate_image_request(current_request_record):
+    if isinstance(current_request_record,dict) and current_request_record.get('action')=='generate':
+        current_request_record=dict(current_request_record)
+        current_request_record.setdefault('seed',251204)
+        if type(current_request_record['seed']) is not int or not 0 <= current_request_record['seed'] <= 4294967295:
+            raise ValueError('seed는 0~4294967295 범위의 정수여야 합니다.')
     if not isinstance(current_request_record, dict):
         raise ValueError('JSON 객체가 필요합니다.')
     if current_request_record.get('action') == 'prepare' and set(current_request_record) == {'action'}:
         return current_request_record
-    if set(current_request_record) != {'action','prompt','width','height','steps'} or current_request_record['action'] != 'generate':
+    if set(current_request_record) != {'action','prompt','width','height','steps','seed'} or current_request_record['action'] != 'generate':
         raise ValueError('요청 필드 오류')
     if not isinstance(current_request_record['prompt'],str) or not 1 <= len(current_request_record['prompt'].strip()) <= 8000:
         raise ValueError('프롬프트는 1~8000자여야 합니다.')
@@ -144,9 +149,9 @@ class ImageGenerationManager:
                         from .three_reference_generation import validate_three_reference_request, save_three_reference_inputs
                     else:
                         from three_reference_generation import validate_three_reference_request, save_three_reference_inputs
-                    validate_three_reference_request(current_request_record)
+                    current_request_record=validate_three_reference_request(current_request_record)
                 else:
-                    validate_image_request(current_request_record)
+                    current_request_record=validate_image_request(current_request_record)
                 with self.current_request_lock:
                     if self.current_worker_process is not None and self.current_worker_process.poll() is None:
                         send_response_data(409,{'error':'이미지 생성 작업이 실행 중입니다.'})

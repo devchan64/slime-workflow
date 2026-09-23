@@ -47,7 +47,9 @@ def validate_qwen_2512_assets(*, enable_lightning_adapter=True, verify_adapter_h
         raise ValueError(f'Lightning 파일 크기/SHA-256 불일치: {lightning_file_path}')
     return model_index_path, lightning_file_path
 
-def generate_qwen_2512_lightning_image(*, output_directory: Path, prompt_text: str, width: int = 1024, height: int = 1024, selected_inference_steps: int = 4) -> dict:
+def generate_qwen_2512_lightning_image(*, output_directory: Path, prompt_text: str, width: int = 1024, height: int = 1024, selected_inference_steps: int = 4, selected_generator_seed: int = FIXED_GENERATOR_SEED) -> dict:
+    if type(selected_generator_seed) is not int or not 0 <= selected_generator_seed <= 4294967295:
+        raise ValueError('seed는 0~4294967295 범위의 정수여야 합니다.')
     if not prompt_text.strip():
         raise ValueError('생성 프롬프트가 비어 있습니다.')
     if type(width) is not int or type(height) is not int or width < 256 or height < 256 or width > 1664 or height > 1664 or width % 16 or height % 16:
@@ -79,8 +81,8 @@ def generate_qwen_2512_lightning_image(*, output_directory: Path, prompt_text: s
         logging.info('denoise step=%s/%s',current_step_index+1,selected_inference_steps)
         return current_callback_values
     logging.info('stage=inference')
-    result_image = pipeline(callback_on_step_end=record_denoise_progress,prompt=prompt_text.strip(), width=width, height=height, negative_prompt=" ", num_inference_steps=selected_inference_steps, true_cfg_scale=selected_guidance_scale, guidance_scale=1.0, generator=torch.Generator(device='cuda').manual_seed(FIXED_GENERATOR_SEED)).images[0]
+    result_image = pipeline(callback_on_step_end=record_denoise_progress,prompt=prompt_text.strip(), width=width, height=height, negative_prompt=" ", num_inference_steps=selected_inference_steps, true_cfg_scale=selected_guidance_scale, guidance_scale=1.0, generator=torch.Generator(device='cuda').manual_seed(selected_generator_seed)).images[0]
     result_image.save(output_image_path)
-    result_record = {'status': 'completed', 'model_id': FIXED_MODEL_IDENTIFIER, 'model_revision': FIXED_MODEL_REVISION, 'lightning_repository': FIXED_LIGHTNING_REPOSITORY if enable_lightning_adapter else None, 'lightning_revision': FIXED_LIGHTNING_REVISION if enable_lightning_adapter else None, 'lightning_file': FIXED_LIGHTNING_FILENAME if enable_lightning_adapter else None, 'steps': selected_inference_steps, 'lightning_lora': enable_lightning_adapter, 'true_cfg_scale': selected_guidance_scale, 'seed': FIXED_GENERATOR_SEED, 'size': [width, height], 'prompt_sha256': hashlib.sha256(prompt_text.strip().encode()).hexdigest(), 'elapsed_seconds': round(time.monotonic() - started_at, 2), 'output': 'result.png'}
+    result_record = {'status': 'completed', 'model_id': FIXED_MODEL_IDENTIFIER, 'model_revision': FIXED_MODEL_REVISION, 'lightning_repository': FIXED_LIGHTNING_REPOSITORY if enable_lightning_adapter else None, 'lightning_revision': FIXED_LIGHTNING_REVISION if enable_lightning_adapter else None, 'lightning_file': FIXED_LIGHTNING_FILENAME if enable_lightning_adapter else None, 'steps': selected_inference_steps, 'lightning_lora': enable_lightning_adapter, 'true_cfg_scale': selected_guidance_scale, 'seed': selected_generator_seed, 'size': [width, height], 'prompt_sha256': hashlib.sha256(prompt_text.strip().encode()).hexdigest(), 'elapsed_seconds': round(time.monotonic() - started_at, 2), 'output': 'result.png'}
     (output_directory / 'result.json').write_text(json.dumps(result_record, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
     return result_record

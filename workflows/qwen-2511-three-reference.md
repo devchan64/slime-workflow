@@ -13,6 +13,6 @@
 
 관리 API는 `tools/review/image_generation.py`, 입력 검증은 `tools/review/three_reference_generation.py`, 작업자는 `generators/image/run_qwen_2511_three_reference.py`이다. 페이지 경로는 `/image-generation-2511/`이며 관리 서버 코드 변경 후 서버 재시작이 필요하다.
 
-최소 출력 프리셋은 256×256(약 0.07 MP)이다. 기존 기본 해상도는 유지하며 최소 크기를 직접 선택할 수 있다. 2511의 참조 이미지 입력 조건은 출력 크기와 별개로 512×512를 유지한다.
+출력 해상도 선택지의 최소 크기는 384×384이다. 256×256 프리셋은 제거했으며 기존 기본 해상도는 유지한다. 2511의 참조 이미지 입력 조건은 출력 크기와 별개로 512×512를 유지한다.
 
 입력 방식에서 텍스트 전용(참조 0장)과 3참조를 선택한다. 텍스트 전용은 동일 2511 가중치를 QwenImagePipeline에 로드하며, 참조 모드는 QwenImageEditPlusPipeline을 사용한다. 4스텝 Lightning / 30스텝 표준 설정은 공통이다.
