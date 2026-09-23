@@ -162,8 +162,16 @@ if __name__ == '__main__':
     argument_value_parser.add_argument('--worker', action='store_true')
     argument_value_parser.add_argument('--output-dir', type=Path, default=MOTION_RUN_DIRECTORY)
     argument_value_parser.add_argument('--prepared-manifest', type=Path, default=PREPARED_MODEL_MANIFEST)
+    argument_value_parser.add_argument('--prompt')
+    argument_value_parser.add_argument('--frames', type=int)
     parsed_argument_values = argument_value_parser.parse_args()
     MOTION_RUN_DIRECTORY = parsed_argument_values.output_dir.resolve()
+    if parsed_argument_values.prompt:
+        MOTION_TEXT_PROMPT = parsed_argument_values.prompt
+    if parsed_argument_values.frames:
+        if parsed_argument_values.frames < 8 or parsed_argument_values.frames % 4:
+            raise ValueError('프레임 수는 8 이상 4의 배수여야 합니다.')
+        MOTION_FRAME_COUNT = parsed_argument_values.frames
     if not MOTION_RUN_DIRECTORY.is_relative_to(WORKFLOW_REPOSITORY_ROOT / '.tmp'):
         raise ValueError('후보 모션 출력은 저장소 .tmp 하위만 허용합니다.')
     MOTION_ASSET_DIRECTORY = MOTION_RUN_DIRECTORY / 'motion'

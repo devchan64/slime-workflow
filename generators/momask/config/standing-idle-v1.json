@@ -1,0 +1,12 @@
+{
+  "asset_id": "standing-idle",
+  "version": 1,
+  "prompt": "A person stands in place, breathing gently, shifts weight subtly, then performs a small relaxed shoulder and arm stretch before returning to the initial standing pose.",
+  "source_frames": 48,
+  "fps": 20,
+  "playtime_seconds": 2.4,
+  "rendered_samples_per_direction": 8,
+  "rendered_frame_duration_ms": 300,
+  "directions": ["down_left", "down_right", "up_left", "up_right"],
+  "facial_animation": "MoMask HumanML3D-22 has no eye joints; add blink in the image-frame stage if needed."
+}
