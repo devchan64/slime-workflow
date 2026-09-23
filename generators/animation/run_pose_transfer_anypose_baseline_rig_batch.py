@@ -2,6 +2,7 @@
 """YAML 목록의 방향·프레임 쌍으로 AnyPose 2참조 32프레임을 생성한다."""
 import argparse
 import hashlib
+import json
 from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -63,7 +64,7 @@ def compose_direction_prompt(base_prompt_text, rear_prompt_text, current_directi
     return base_prompt_text.strip()
 
 
-def execute_anypose_openpose_batch(batch_file_path, output_directory):
+def execute_anypose_openpose_batch(batch_file_path, output_directory, resume=False):
     values, jobs = load_anypose_openpose_batch_definition(batch_file_path)
     prompt_path = resolve_workflow_relative_path(values['prompt_file'])
     reference_roots = {key: resolve_workflow_relative_path(value) for key, value in values['references'].items()}
@@ -83,7 +84,14 @@ def execute_anypose_openpose_batch(batch_file_path, output_directory):
         direction, frame = job['direction'], job['frame']
         selected_prompt_text = compose_direction_prompt(prompt_text, rear_prompt_text, direction)
         frame_root = output_root / direction / f'frame-{frame:02d}'
-        frame_root.mkdir(parents=True, exist_ok=False)
+        result_path = frame_root / 'result.json'
+        if resume and result_path.is_file():
+            prior_result = json.loads(result_path.read_text(encoding='utf-8'))
+            if prior_result.get('status') == 'completed' and (frame_root / prior_result.get('output', '')).is_file():
+                results.append({'direction': direction, 'frame': frame, 'status': 'reused', 'output': str(frame_root.relative_to(output_root))})
+                print(f'{datetime.now(ZoneInfo("Asia/Seoul")).isoformat()}/anypose-openpose-batch/reused {index}/32', flush=True)
+                continue
+        frame_root.mkdir(parents=True, exist_ok=resume)
         character_path = reference_roots['baseline_root'] / f'{direction}.png'
         rig_path = frame_root / 'rig-reference.png'
         crop_sheet_frame(reference_roots['rig_root'] / f'{direction}.png', frame, rig_path)
@@ -98,8 +106,9 @@ def run_anypose_openpose_batch_command():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--batch-file', type=Path, required=True)
     parser.add_argument('--output-dir', type=Path, required=True)
+    parser.add_argument('--resume', action='store_true', help='완료된 result.json 프레임을 재사용하고 나머지 프레임을 계속 생성')
     arguments = parser.parse_args()
-    execute_anypose_openpose_batch(arguments.batch_file.resolve(), arguments.output_dir)
+    execute_anypose_openpose_batch(arguments.batch_file.resolve(), arguments.output_dir, arguments.resume)
 
 
 if __name__ == '__main__':
