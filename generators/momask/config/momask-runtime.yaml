@@ -1,0 +1,17 @@
+schema_version: 1
+runtime_id: momask-humanml3d-runner-v1
+source_root: .local/motion-depth/momask
+model_manifest: .model/motion-depth/artifacts/momask-model-manifest.json
+model_bundle: .model/motion-depth/artifacts/weight-p7-5-15-momask-humanml3d
+clip_weights: .model/motion-depth/artifacts/weight-p7-5-15-momask-clip/ViT-B-32.pt
+models:
+  transformer: t2m_nlayer8_nhead6_ld384_ff1024_cdp0.1_rvq6ns
+  residual: tres_nlayer8_ld384_ff1024_rvq6ns_cdp0.2_sw
+inference:
+  fps: 20
+  seed: 10107
+  mask_steps: 18
+  mask_guidance: 4
+  residual_guidance: 5
+  temperature: 1
+  topk_filter_threshold: 0.9
