@@ -19,6 +19,7 @@ REVIEW_SERVER_PORT = 8770
 DEFAULT_FRONTEND_REPOSITORY = Path(__file__).resolve().parents[3]/'slime-frontend'
 REVIEW_ALLOWED_SUFFIXES = {'.html', '.png', '.jpg', '.jpeg', '.webp', '.gif', '.json', '.js', '.css', '.mp4', '.svg', '.woff', '.woff2'}
 REVIEW_HEARTBEAT_SECONDS = 5
+REVIEW_SERVER_RETRY_SECONDS = 3
 
 def resolve_review_request(review_root_directory, requested_url_path, review_entry_path="preview.html"):
     decoded_request_path = unquote(urlsplit(requested_url_path).path)
@@ -34,7 +35,6 @@ def resolve_review_request(review_root_directory, requested_url_path, review_ent
 def parse_review_arguments(command_argument_values=None):
     argument_value_parser=argparse.ArgumentParser(description=__doc__)
     source_argument_group=argument_value_parser.add_mutually_exclusive_group()
-    source_argument_group.add_argument('--worldbuilding-only',action='store_true',dest='worldbuilding_only_mode',help='에셋 검수 빌드 없이 세계관 관리 화면만 실행')
     source_argument_group.add_argument('--frontend-repo',type=Path,help='프론트엔드 저장소 (기본: 워크플로우 옆 slime-frontend)' )
     source_argument_group.add_argument('--root',type=Path,help='기존 검수 또는 관리도구 폴더')
     source_argument_group.add_argument('--walking',type=Path,help='관리도구에 묶을 걷기 검수 폴더')
@@ -42,10 +42,9 @@ def parse_review_arguments(command_argument_values=None):
     argument_value_parser.add_argument('--entry',default='preview.html',help='--root 폴더 기준 HTML 진입 페이지')
     argument_value_parser.add_argument('--port',type=int,default=REVIEW_SERVER_PORT,help='로컬 서버 포트 (기본: 8770)')
     argument_value_parser.add_argument('--ui-bundle',type=Path,help='프론트엔드에서 전달한 UI 검수 빌드 폴더')
-    argument_value_parser.add_argument('--worldbuilding-config',type=Path,help='비공개 세계관 작업 공간 설정 YAML')
     argument_value_parser.add_argument('--watch',action='store_true',help='소스 변경 시 검수 빌드를 다시 만들고 서버를 재시작')
     parsed_argument_values=argument_value_parser.parse_args(command_argument_values)
-    if not any((parsed_argument_values.root, parsed_argument_values.walking, parsed_argument_values.frontend_repo, parsed_argument_values.standing, parsed_argument_values.worldbuilding_only_mode)):
+    if not any((parsed_argument_values.root, parsed_argument_values.walking, parsed_argument_values.frontend_repo, parsed_argument_values.standing)):
         parsed_argument_values.frontend_repo=DEFAULT_FRONTEND_REPOSITORY
     if parsed_argument_values.ui_bundle and not parsed_argument_values.frontend_repo:
         argument_value_parser.error('--ui-bundle은 프론트엔드 관리도구 생성 모드에서 사용하세요.')
@@ -59,7 +58,7 @@ def parse_review_arguments(command_argument_values=None):
 
 def collect_review_watch_paths(parsed_argument_values):
     workflow_repo_root = Path(__file__).resolve().parents[2]
-    watch_paths = [Path(__file__).resolve(), workflow_repo_root/'tools/review', workflow_repo_root/'generators/animation']
+    watch_paths = [Path(__file__).resolve(), workflow_repo_root/'tools/review', workflow_repo_root/'generators/animation', workflow_repo_root/'generators/worldbuilding']
     if parsed_argument_values.frontend_repo:
         watch_paths.append(Path(parsed_argument_values.frontend_repo).resolve()/'src/assets')
     if parsed_argument_values.root:
@@ -69,10 +68,16 @@ def collect_review_watch_paths(parsed_argument_values):
     return tuple(path for path in watch_paths if path.exists())
 
 def snapshot_review_watch_paths(watch_paths):
-    return tuple(sorted((str(current_file), current_file.stat().st_mtime_ns, current_file.stat().st_size)
-        for current_root_path in watch_paths
-        for current_file in ([current_root_path] if current_root_path.is_file() else current_root_path.rglob('*'))
-        if current_file.is_file() and current_file.suffix.lower() in {'.py', '.html', '.css', '.js', '.json', '.yaml', '.yml', '.png', '.jpg', '.jpeg', '.webp'}))
+    watched_file_records = []
+    for current_root_path in watch_paths:
+        current_file_paths = [current_root_path] if current_root_path.is_file() else current_root_path.rglob('*')
+        for current_file_path in current_file_paths:
+            if not current_file_path.is_file() or current_file_path.suffix.lower() not in {'.py', '.html', '.css', '.js', '.json', '.yaml', '.yml', '.png', '.jpg', '.jpeg', '.webp'}:
+                continue
+            if any(current_path_part.startswith('.') for current_path_part in current_file_path.relative_to(current_root_path if current_root_path.is_dir() else current_root_path.parent).parts):
+                continue
+            watched_file_records.append((str(current_file_path), current_file_path.stat().st_mtime_ns, current_file_path.stat().st_size))
+    return tuple(sorted(watched_file_records))
 
 def run_review_watch_mode(parsed_argument_values):
     watch_paths = collect_review_watch_paths(parsed_argument_values)
@@ -93,7 +98,15 @@ def run_review_watch_mode(parsed_argument_values):
                         break
                 else:
                     if review_server_process.returncode != 0:
-                        raise RuntimeError(f'검수 서버가 비정상 종료되었습니다: {review_server_process.returncode}')
+                        print(f'{datetime.now().isoformat()}/asset-review-server/retry 서버가 종료 코드 {review_server_process.returncode}로 끝났습니다. {REVIEW_SERVER_RETRY_SECONDS}초 후 다시 시작합니다.', flush=True)
+                        for retry_interval_index in range(REVIEW_SERVER_RETRY_SECONDS * 2):
+                            time.sleep(0.5)
+                            current_watch_snapshot = snapshot_review_watch_paths(watch_paths)
+                            if current_watch_snapshot != previous_watch_snapshot:
+                                previous_watch_snapshot = current_watch_snapshot
+                                print(f'{datetime.now().isoformat()}/asset-review-server/watch 재시도 대기 중 변경 감지', flush=True)
+                                break
+                        continue
                     return
             finally:
                 if review_server_process.poll() is None:
@@ -166,21 +179,6 @@ def ensure_frontend_ui_review_bundle(frontend_repository_path):
 
 
 def prepare_review_directory(parsed_argument_values):
-    if getattr(parsed_argument_values, 'worldbuilding_only_mode', False):
-        worldbuilding_review_root = Path(__file__).resolve().parents[2]/'.tmp'/datetime.now(ZoneInfo('Asia/Seoul')).strftime('%Y-%m-%d_%H-%M-%S')/'worldbuilding-manager'
-        worldbuilding_review_root.mkdir(parents=True,exist_ok=False)
-        document_manager_template=Path(__file__).with_name('frame-manager.html').read_text()
-        document_manager_styles=Path(__file__).with_name('review-ui.css').read_text()
-        isloon_review_root = worldbuilding_review_root / 'isloon'
-        if __package__:
-            from .build_isloon_map_review import build_isloon_map_review
-        else:
-            from build_isloon_map_review import build_isloon_map_review
-        build_isloon_map_review(output_root=isloon_review_root)
-        manager_page_records = [{'id':'map-review','label':'타일맵검수','path':'isloon/map-review.html','category':'tile-review','anchorEditor':False,'description':'YAML 타일 조립 결과·연결 규칙·건물 충돌 검수'}]
-        manager_html = document_manager_template.replace('__MANAGER_PAGES__',json.dumps(manager_page_records,ensure_ascii=False).replace('<','\\u003c'))
-        (worldbuilding_review_root/'preview.html').write_text(manager_html.replace('</style>','</style><style>'+document_manager_styles+'</style>',1))
-        return worldbuilding_review_root
     if parsed_argument_values.frontend_repo:
         if __package__:
             from .build_frontend_review import build_frontend_review
@@ -207,8 +205,8 @@ def run_review_server(parsed_argument_values):
         raise ValueError('진입 페이지는 검수 폴더 기준 상대 HTML 경로여야 합니다.')
     resolve_review_request(review_root_directory,'/'+parsed_argument_values.entry)
     if not 1024 <= parsed_argument_values.port <= 65535: raise ValueError('포트는 1024~65535여야 합니다.')
-    server_log_directory = review_root_directory if (parsed_argument_values.walking or parsed_argument_values.frontend_repo or getattr(parsed_argument_values, 'worldbuilding_only_mode', False)) else workflow_repo_root/'.tmp'/datetime.now(ZoneInfo('Asia/Seoul')).strftime('%Y-%m-%d_%H-%M-%S')
-    if not (parsed_argument_values.walking or parsed_argument_values.frontend_repo or getattr(parsed_argument_values, 'worldbuilding_only_mode', False)):
+    server_log_directory = review_root_directory if (parsed_argument_values.walking or parsed_argument_values.frontend_repo) else workflow_repo_root/'.tmp'/datetime.now(ZoneInfo('Asia/Seoul')).strftime('%Y-%m-%d_%H-%M-%S')
+    if not (parsed_argument_values.walking or parsed_argument_values.frontend_repo):
         server_log_directory.mkdir(parents=True,exist_ok=False)
     server_log_path = server_log_directory/'review-server.log'
     trace_write_lock = threading.Lock()
@@ -219,15 +217,6 @@ def run_review_server(parsed_argument_values):
         with trace_write_lock:
             print(trace_line_text,flush=True)
             with server_log_path.open('a') as trace_file_stream: trace_file_stream.write(trace_line_text+'\n')
-    worldbuilding_management_service = None
-    worldbuilding_config_path = getattr(parsed_argument_values, 'worldbuilding_config', None) or workflow_repo_root/'.local/worldbuilding/workspace.yaml'
-    if getattr(parsed_argument_values, 'worldbuilding_only_mode', False) and not worldbuilding_config_path.exists():
-        raise ValueError('세계관 작업 공간 설정 파일이 없습니다.')
-    if worldbuilding_config_path.exists():
-        sys.path.insert(0, str(workflow_repo_root))
-        from generators.worldbuilding.management import WorldbuildingManagement
-    elif getattr(parsed_argument_values, 'worldbuilding_config', None):
-        raise ValueError('세계관 작업 공간 설정 파일이 없습니다.')
     if __package__:
         from .image_generation import ImageGenerationManager
     else:
@@ -242,15 +231,11 @@ def run_review_server(parsed_argument_values):
                 return
             if image_generation_service.handle_image_request(self):
                 return
-            if worldbuilding_management_service and worldbuilding_management_service.handle_management_request(self):
-                return
             super().do_GET()
         def do_POST(self):
             if three_reference_service.handle_image_request(self):
                 return
             if image_generation_service.handle_image_request(self):
-                return
-            if worldbuilding_management_service and worldbuilding_management_service.handle_management_request(self):
                 return
             self.send_error(404, '지원하지 않는 작업 경로')
         def send_head(self):
@@ -277,8 +262,6 @@ def run_review_server(parsed_argument_values):
             emit_server_trace('heartbeat',f'requests={request_counter_value[0]} root={review_root_directory.name} log_bytes={server_log_path.stat().st_size}')
     try:
         with ThreadingHTTPServer((REVIEW_SERVER_HOST,parsed_argument_values.port),ReviewRequestHandler) as review_http_server:
-            if worldbuilding_config_path.exists():
-                worldbuilding_management_service = WorldbuildingManagement(worldbuilding_config_path)
             emit_server_trace('start',f'http://{REVIEW_SERVER_HOST}:{parsed_argument_values.port}/ root={review_root_directory} entry={parsed_argument_values.entry} log={server_log_path}')
             heartbeat_worker_thread = threading.Thread(target=emit_server_heartbeat,daemon=True)
             heartbeat_worker_thread.start()
@@ -289,9 +272,6 @@ def run_review_server(parsed_argument_values):
         emit_server_trace('failure',traceback.format_exc())
         print('\n'.join(server_log_path.read_text().splitlines()[-20:]),flush=True)
         raise
-    finally:
-        if worldbuilding_management_service:
-            worldbuilding_management_service.close_management_worker()
 
 if __name__ == '__main__':
     parsed_argument_values = parse_review_arguments()

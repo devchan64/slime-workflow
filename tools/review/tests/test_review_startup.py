@@ -22,7 +22,7 @@ class ReviewStartupTests(unittest.TestCase):
         self.assertEqual(serve.prepare_review_directory(parsed_argument_values), Path('.tmp/example').resolve())
 
     def test_reject_invalid_option_combinations(self):
-        for command_argument_values in (['--walking', '.tmp/walk'], ['--standing', '.tmp/stand'], ['--root', '.tmp/review', '--walking', '.tmp/walk', '--standing', '.tmp/stand'], ['--walking', '.tmp/walk', '--standing', '.tmp/stand', '--entry', 'anchors.html'], ['--root', '.tmp/review', '--port', '80']):
+        for command_argument_values in (['--worldbuilding-only'], ['--worldbuilding-config', '/tmp/workspace.yaml'], ['--walking', '.tmp/walk'], ['--standing', '.tmp/stand'], ['--root', '.tmp/review', '--walking', '.tmp/walk', '--standing', '.tmp/stand'], ['--walking', '.tmp/walk', '--standing', '.tmp/stand', '--entry', 'anchors.html'], ['--root', '.tmp/review', '--port', '80']):
             with self.subTest(arguments=command_argument_values), contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
                 serve.parse_review_arguments(command_argument_values)
 

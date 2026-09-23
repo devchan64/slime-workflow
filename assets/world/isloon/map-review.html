@@ -10,18 +10,218 @@
   select{min-width:250px;border:1px solid var(--panel-edge);border-radius:9px;background:#12201b;color:var(--ink);padding:10px 12px;font:inherit}.layout{display:grid;grid-template-columns:300px minmax(0,1fr);gap:18px}.panel{border:1px solid var(--panel-edge);background:color-mix(in srgb,var(--panel) 92%,black);border-radius:14px;box-shadow:0 16px 50px #0005}.side{padding:18px}.section-title{margin:0 0 5px;font-size:15px}.section-note{margin:0 0 14px;color:var(--muted);font-size:12px;line-height:1.5}.tile-list{display:grid;grid-template-columns:1fr 1fr;gap:9px}.tile-card{min-width:0;padding:7px;border:1px solid #294439;border-radius:9px;background:#10201a}.tile-card img{display:block;width:100%;aspect-ratio:1;object-fit:cover;image-rendering:pixelated;border-radius:5px;background:#23352d}.tile-card code{display:block;overflow:hidden;margin-top:6px;color:#d9eadf;font:11px ui-monospace,monospace;text-overflow:ellipsis;white-space:nowrap}
   .main{padding:18px}.map-header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}.map-title{margin:0;font-size:17px}.summary{margin:0;color:var(--muted);font-size:12px}.canvas-wrap{position:relative;min-height:700px;border:1px solid #2b493c;border-radius:10px;overflow:auto;background-color:#101a16;background-image:linear-gradient(45deg,#14241e 25%,transparent 25%),linear-gradient(-45deg,#14241e 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#14241e 75%),linear-gradient(-45deg,transparent 75%,#14241e 75%);background-size:24px 24px;background-position:0 0,0 12px,12px -12px,0}.map-preview{display:block;width:1152px;height:auto;margin:20px auto;image-rendering:pixelated;box-shadow:0 15px 45px #0008}.badge{position:sticky;display:block;z-index:1;left:16px;top:16px;width:max-content;margin:16px 0 -42px 16px;padding:7px 9px;border:1px solid #4c7865;border-radius:999px;background:#102018dd;color:#b9eac9;font-size:12px}.loading{position:absolute;inset:50% auto auto 50%;transform:translate(-50%,-50%);color:var(--muted)}.zoom-controls{display:flex;align-items:center;gap:7px}.zoom-controls button{width:30px;height:30px;border:1px solid #456c59;border-radius:7px;background:#14271f;color:var(--ink);font-size:17px;cursor:pointer}.zoom-controls input{accent-color:var(--accent)}.zoom-value{width:38px;color:var(--accent);font:12px ui-monospace,monospace;text-align:right}
   .legend{display:flex;flex-wrap:wrap;gap:7px;margin-top:13px}.legend span{border:1px solid #315141;border-radius:999px;background:#102019;padding:5px 8px;color:#bdd3c5;font-size:12px}.legend b{color:var(--water)}
+  .volume-panel{margin-top:18px;padding:18px}.volume-header{display:flex;align-items:start;justify-content:space-between;gap:16px;margin-bottom:12px}.volume-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.volume-card{min-width:0;overflow:hidden;border:1px solid #315141;border-radius:10px;background:#101c17}.volume-card h3{margin:0;padding:10px 12px 0;font-size:14px}.volume-card p{margin:4px 12px 0;color:var(--muted);font-size:12px}.volume-card canvas{display:block;width:100%;height:420px}.volume-note{margin:12px 0 0;color:#bed2c5;font-size:12px;line-height:1.5}
 </style>
 <main class="shell">
   <header class="top"><div><p class="eyebrow">WORLD BUILDING / ISLOON</p><h1 class="title">타일맵검수</h1><p class="subtitle">등록된 타일 원본과 이슬온 도시 조립 결과를 같은 화면에서 검수합니다.</p></div><label><span class="eyebrow">등록 맵</span><select id="map-select" aria-label="검수할 맵"><option>맵 목록 불러오는 중…</option></select></label></header>
-  <div class="layout"><aside class="panel side"><h2 class="section-title">등록 타일</h2><p class="section-note">워커플로우에서 생성·등록된 실제 에셋입니다. 각 이미지는 검수 패키지에 하드링크로 연결됩니다.</p><div id="tile-list" class="tile-list"></div></aside><section class="panel main"><header class="map-header"><div><h2 id="map-title" class="map-title">이슬온 도시 배치</h2><p id="summary" class="summary">타일 에셋을 불러오는 중…</p></div><div class="zoom-controls" aria-label="맵 확대 축소"><button id="zoom-out" type="button" aria-label="축소">−</button><input id="zoom-range" type="range" min="50" max="200" step="10" value="75" aria-label="확대 비율"><span id="zoom-value" class="zoom-value">75%</span><button id="zoom-in" type="button" aria-label="확대">+</button></div></header><div class="canvas-wrap"><span class="badge">● 생성 타일 적용 · 45°</span><span id="loading" class="loading">조립 맵을 불러오는 중…</span><img id="map-preview" class="map-preview" alt="이슬온 실제 타일 조립 미리보기"></div><footer class="legend"><span>흰 사각형: 시작점</span><span><b>청록</b>: 샘터</span><span>황토: 지붕</span><span>크림: 목조 외벽</span></footer></section></div>
+  <div class="layout"><aside class="panel side"><h2 class="section-title">등록 타일</h2><p class="section-note">워커플로우에서 생성·등록된 실제 에셋입니다. 각 이미지는 검수 패키지에 하드링크로 연결됩니다.</p><div id="tile-list" class="tile-list"></div></aside><section class="panel main"><header class="map-header"><div><h2 id="map-title" class="map-title">이슬온 도시 배치</h2><p id="summary" class="summary">타일 에셋을 불러오는 중…</p></div><div class="zoom-controls" aria-label="맵 확대 축소 및 회전"><button id="zoom-out" type="button" aria-label="축소">−</button><input id="zoom-range" type="range" min="50" max="200" step="10" value="75" aria-label="확대 비율"><span id="zoom-value" class="zoom-value">75%</span><button id="zoom-in" type="button" aria-label="확대">+</button><button id="rotate-left" type="button" aria-label="맵 반시계 방향 회전">↶</button><span id="rotation-value" class="zoom-value">0°</span><button id="rotate-right" type="button" aria-label="맵 시계 방향 회전">↷</button></div></header><div class="canvas-wrap"><span class="badge">● 45° 입체 시안 · 시점 회전</span><span id="loading" class="loading">조립 맵을 불러오는 중…</span><img id="map-preview" class="map-preview" alt="회전 가능한 이슬온 타일맵 입체 시안"></div><footer class="legend"><span>흰 외곽선: 시작점</span><span><b>청록</b>: 샘터</span><span>적갈색 칸: 출입 금지 영역</span><span>건물: 평면 옥상 · 1층 100px 시안</span></footer></section></div>
+  <section class="panel volume-panel" aria-labelledby="volume-title"><header class="volume-header"><div><h2 id="volume-title" class="section-title">건물 입체감 시안</h2><p class="section-note">같은 바닥 면적에서 벽 높이를 1·2·3층으로 바꿔 비교합니다. 지붕은 평면이고 출입구는 인접 포장도로를 향합니다. 게임 적용 규칙이 아닌 형태 검토용 시안입니다.</p></div><label><span class="eyebrow">건물 형태</span><select id="building-select" aria-label="비교할 건물"></select></label></header><div class="volume-grid"><article class="volume-card"><h3>낮은형</h3><p>벽 높이 1층 · 100px</p><canvas data-height="1" aria-label="벽 높이 1층 건물 시안"></canvas></article><article class="volume-card"><h3>중간형</h3><p>벽 높이 2층 · 200px</p><canvas data-height="2" aria-label="벽 높이 2층 건물 시안"></canvas></article><article class="volume-card"><h3>높은형</h3><p>벽 높이 3층 · 300px</p><canvas data-height="3" aria-label="벽 높이 3층 건물 시안"></canvas></article></div><p class="volume-note">수목 수관과 적갈색 출입 금지 영역이 맵에서 겹치는지 확인합니다. 높이는 비교용 임시 단계입니다.</p></section>
 </main>
 <script>
-const mapPreview=document.querySelector('#map-preview');const mapSelect=document.querySelector('#map-select');const loading=document.querySelector('#loading');const zoomRange=document.querySelector('#zoom-range');const zoomValue=document.querySelector('#zoom-value');const tileImages={};let mapRecords=[];
-function applyZoom(){const zoomPercent=Number(zoomRange.value);mapPreview.style.width=`${1536*zoomPercent/100}px`;zoomValue.textContent=`${zoomPercent}%`}
-function drawMap(map,mapRecord){mapPreview.src=mapRecord.preview;document.querySelector('#map-title').textContent=`${map.display_name||map.map_id} 도시 배치`;document.querySelector('#summary').textContent=`${map.grid.columns}×${map.grid.rows} · 충돌 ${map.collision.length}칸 · 출구 ${map.map_connections?.length||0}개 · 연결 ${map.connections.length}개`;loading.hidden=true}
-async function loadTileAssets(){const response=await fetch('tile-assets.json');if(!response.ok)throw new Error('등록 타일 에셋 목록을 찾지 못했습니다.');const tiles=(await response.json()).tiles;const list=document.querySelector('#tile-list');const loadPromises=[];for(const [tileId,tileRecord] of Object.entries(tiles)){const image=new Image();image.src=tileRecord.file;tileImages[tileId]=image;const card=document.createElement('article');card.className='tile-card';const label=document.createElement('code');label.textContent=tileId;card.append(image,label);list.append(card);loadPromises.push(new Promise((resolve,reject)=>{image.onload=resolve;image.onerror=()=>reject(new Error(`${tileId} 에셋을 불러오지 못했습니다.`))}))}await Promise.all(loadPromises)}
-async function loadMap(mapRecord){const response=await fetch(mapRecord.file);if(!response.ok)throw new Error('조립된 맵을 찾지 못했습니다.');drawMap(await response.json(),mapRecord)}
-async function startReview(){await loadTileAssets();const response=await fetch('map-index.json');if(!response.ok)throw new Error('등록 맵 목록을 찾지 못했습니다.');mapRecords=(await response.json()).maps;mapSelect.replaceChildren(...mapRecords.map((record,index)=>Object.assign(document.createElement('option'),{value:index,textContent:record.label})));mapSelect.onchange=()=>loadMap(mapRecords[Number(mapSelect.value)]).catch(showError);if(mapRecords.length)await loadMap(mapRecords[0])}
-zoomRange.oninput=applyZoom;document.querySelector('#zoom-out').onclick=()=>{zoomRange.value=Math.max(Number(zoomRange.min),Number(zoomRange.value)-10);applyZoom()};document.querySelector('#zoom-in').onclick=()=>{zoomRange.value=Math.min(Number(zoomRange.max),Number(zoomRange.value)+10);applyZoom()};applyZoom();function showError(error){loading.textContent=error.message;loading.hidden=false;document.querySelector('#summary').textContent='검수 데이터를 불러오지 못했습니다.'}startReview().catch(showError);
+const mapPreviewImage=document.querySelector('#map-preview');
+const mapSelectionControl=document.querySelector('#map-select');
+const mapLoadingMessage=document.querySelector('#loading');
+const mapZoomControl=document.querySelector('#zoom-range');
+const mapZoomLabel=document.querySelector('#zoom-value');
+const mapRotationLabel=document.querySelector('#rotation-value');
+const buildingSelectionControl=document.querySelector('#building-select');
+const tileImageRecords={};
+let mapReviewRecords=[];
+let buildingPrefabRecords=[];
+let currentMapRotationDegrees=0;
+
+function applyCurrentMapRotation(){
+  const selectedMapRecord=mapReviewRecords[Number(mapSelectionControl.value)];
+  if(!selectedMapRecord)return;
+  mapPreviewImage.onload=applyMapZoom;
+  mapPreviewImage.src=selectedMapRecord.previews?.[String(currentMapRotationDegrees)]||selectedMapRecord.preview;
+  mapRotationLabel.textContent=`${currentMapRotationDegrees}°`;
+}
+
+function applyMapZoom(){
+  const currentZoomPercent=Number(mapZoomControl.value);
+  const imageBaseWidth=mapPreviewImage.naturalWidth||1536;
+  mapPreviewImage.style.width=`${imageBaseWidth*currentZoomPercent/100}px`;
+  mapZoomLabel.textContent=`${currentZoomPercent}%`;
+}
+
+function drawMapDetails(mapDocumentValues,mapRecordValues){
+  document.querySelector('#map-title').textContent=`${mapDocumentValues.display_name||mapDocumentValues.map_id} 도시 배치`;
+  document.querySelector('#summary').textContent=`${mapDocumentValues.grid.columns}×${mapDocumentValues.grid.rows} · 충돌 ${mapDocumentValues.collision.length}칸 · 출구 ${mapDocumentValues.map_connections?.length||0}개 · 연결 ${mapDocumentValues.connections.length}개`;
+  currentMapRotationDegrees=0;
+  applyCurrentMapRotation();
+  mapPreviewImage.onload=()=>{applyMapZoom();mapLoadingMessage.hidden=true};
+}
+
+function projectVolumePoint(columnValue,rowValue,heightValue,originXValue,originYValue,tileWidthValue,tileHeightValue){
+  return{x:originXValue+(columnValue-rowValue)*tileWidthValue/2,y:originYValue+(columnValue+rowValue)*tileHeightValue/2-heightValue};
+}
+
+function drawBuildingVolumePreview(canvasElement,prefabRecordValues,floorCountValue){
+  const drawingContext=canvasElement.getContext('2d');
+  const devicePixelRatioValue=window.devicePixelRatio||1;
+  const canvasWidthValue=Math.max(320,canvasElement.clientWidth);
+  const canvasHeightValue=420;
+  const footprintWidthValue=prefabRecordValues.size.columns;
+  const footprintDepthValue=prefabRecordValues.size.rows;
+  const tileWidthValue=Math.min(27,170/Math.max(footprintWidthValue,footprintDepthValue));
+  const tileHeightValue=tileWidthValue/2;
+  const floorHeightValue=100;
+  const roofRimHeightValue=7;
+  const wallTopHeightValue=floorCountValue*floorHeightValue;
+  const originXValue=canvasWidthValue/2;
+  const originYValue=canvasHeightValue/2+wallTopHeightValue/2+roofRimHeightValue/2;
+  canvasElement.width=canvasWidthValue*devicePixelRatioValue;
+  canvasElement.height=canvasHeightValue*devicePixelRatioValue;
+  drawingContext.setTransform(devicePixelRatioValue,0,0,devicePixelRatioValue,0,0);
+  drawingContext.clearRect(0,0,canvasWidthValue,canvasHeightValue);
+  const pointValues=(columnValue,rowValue,heightValue)=>projectVolumePoint(columnValue,rowValue,heightValue,originXValue,originYValue,tileWidthValue,tileHeightValue);
+  const tracePolygon=(pointList,fillStyleValue,strokeStyleValue)=>{
+    drawingContext.beginPath();drawingContext.moveTo(pointList[0].x,pointList[0].y);
+    for(const currentPoint of pointList.slice(1))drawingContext.lineTo(currentPoint.x,currentPoint.y);
+    drawingContext.closePath();drawingContext.fillStyle=fillStyleValue;drawingContext.fill();
+    drawingContext.strokeStyle=strokeStyleValue;drawingContext.lineWidth=1;drawingContext.stroke();
+  };
+  const cornerPoints=[pointValues(0,0,0),pointValues(footprintWidthValue,0,0),pointValues(footprintWidthValue,footprintDepthValue,0),pointValues(0,footprintDepthValue,0)];
+  const wallTopPoints=[pointValues(0,0,wallTopHeightValue),pointValues(footprintWidthValue,0,wallTopHeightValue),pointValues(footprintWidthValue,footprintDepthValue,wallTopHeightValue),pointValues(0,footprintDepthValue,wallTopHeightValue)];
+  const roofTopPoints=[pointValues(0,0,wallTopHeightValue+roofRimHeightValue),pointValues(footprintWidthValue,0,wallTopHeightValue+roofRimHeightValue),pointValues(footprintWidthValue,footprintDepthValue,wallTopHeightValue+roofRimHeightValue),pointValues(0,footprintDepthValue,wallTopHeightValue+roofRimHeightValue)];
+  drawingContext.fillStyle='#050a08aa';drawingContext.beginPath();drawingContext.ellipse(originXValue,originYValue+10,(footprintWidthValue+footprintDepthValue)*tileWidthValue*.31,16,0,0,Math.PI*2);drawingContext.fill();
+  tracePolygon([cornerPoints[1],cornerPoints[2],wallTopPoints[2],wallTopPoints[1]],'#d3a662','#5c371b');
+  tracePolygon([cornerPoints[2],cornerPoints[3],wallTopPoints[3],wallTopPoints[2]],'#b17e45','#4f2f19');
+  drawingContext.strokeStyle='#94683b';drawingContext.lineWidth=1;
+  for(let columnBoundaryValue=1;columnBoundaryValue<footprintWidthValue;columnBoundaryValue++){
+    const wallBasePoint=pointValues(columnBoundaryValue,footprintDepthValue,0);
+    const wallTopPoint=pointValues(columnBoundaryValue,footprintDepthValue,wallTopHeightValue);
+    drawingContext.beginPath();drawingContext.moveTo(wallBasePoint.x,wallBasePoint.y);drawingContext.lineTo(wallTopPoint.x,wallTopPoint.y);drawingContext.stroke();
+  }
+  for(let rowBoundaryValue=1;rowBoundaryValue<footprintDepthValue;rowBoundaryValue++){
+    const wallBasePoint=pointValues(footprintWidthValue,rowBoundaryValue,0);
+    const wallTopPoint=pointValues(footprintWidthValue,rowBoundaryValue,wallTopHeightValue);
+    drawingContext.beginPath();drawingContext.moveTo(wallBasePoint.x,wallBasePoint.y);drawingContext.lineTo(wallTopPoint.x,wallTopPoint.y);drawingContext.stroke();
+  }
+  const wallPattern=tileImageRecords.wall_timber&&drawingContext.createPattern(tileImageRecords.wall_timber,'repeat');
+  const roofPattern=tileImageRecords.roof_timber&&drawingContext.createPattern(tileImageRecords.roof_timber,'repeat');
+  if(floorCountValue>1){
+    for(let floorIndexValue=1;floorIndexValue<floorCountValue;floorIndexValue++){
+      const seamHeightValue=floorIndexValue*floorHeightValue;
+      const seamFrontStart=pointValues(footprintWidthValue,footprintDepthValue,seamHeightValue);
+      const seamFrontMiddle=pointValues(0,footprintDepthValue,seamHeightValue);
+      const seamSideEnd=pointValues(footprintWidthValue,0,seamHeightValue);
+      drawingContext.strokeStyle='#684222';drawingContext.beginPath();drawingContext.moveTo(seamFrontStart.x,seamFrontStart.y);
+      drawingContext.lineTo(seamFrontMiddle.x,seamFrontMiddle.y);drawingContext.moveTo(seamFrontStart.x,seamFrontStart.y);
+      drawingContext.lineTo(seamSideEnd.x,seamSideEnd.y);drawingContext.stroke();
+    }
+  }
+  const entranceCellValue=prefabRecordValues.entrances?.[0];
+  if(entranceCellValue){
+    const candidateEntranceSides=[
+      {name:'north',distance:entranceCellValue.row},
+      {name:'east',distance:footprintWidthValue-1-entranceCellValue.column},
+      {name:'south',distance:footprintDepthValue-1-entranceCellValue.row},
+      {name:'west',distance:entranceCellValue.column}
+    ];
+    const selectedEntranceSide=candidateEntranceSides.sort((firstSideValue,secondSideValue)=>firstSideValue.distance-secondSideValue.distance)[0].name;
+    if(selectedEntranceSide==='south'||selectedEntranceSide==='east'){
+      const doorHeightValue=72;
+      const wallSpanValue=selectedEntranceSide==='south'?footprintWidthValue:footprintDepthValue;
+      const wallEdgeValue=selectedEntranceSide==='south'?footprintDepthValue:footprintWidthValue;
+      const entranceOffsetValue=selectedEntranceSide==='south'?entranceCellValue.column+.5:entranceCellValue.row+.5;
+      const doorCenterValue=Math.min(Math.max(entranceOffsetValue,.5),wallSpanValue-.5);
+      const doorFrameHalfWidthValue=Math.min(.32,doorCenterValue,wallSpanValue-doorCenterValue);
+      const doorHalfWidthValue=Math.min(.28,doorFrameHalfWidthValue-.04);
+      const doorPointValues=(alongWallValue,heightValue)=>selectedEntranceSide==='south'
+        ?pointValues(alongWallValue,wallEdgeValue,heightValue)
+        :pointValues(wallEdgeValue,alongWallValue,heightValue);
+      const doorFrameBottomPoints=[doorPointValues(doorCenterValue-doorFrameHalfWidthValue,0),doorPointValues(doorCenterValue+doorFrameHalfWidthValue,0)];
+      const doorFrameTopPoints=[doorPointValues(doorCenterValue-doorFrameHalfWidthValue,doorHeightValue+6),doorPointValues(doorCenterValue+doorFrameHalfWidthValue,doorHeightValue+6)];
+      tracePolygon([doorFrameBottomPoints[0],doorFrameBottomPoints[1],doorFrameTopPoints[1],doorFrameTopPoints[0]],'#e0b770','#412919');
+      const entranceBottomStart=doorPointValues(doorCenterValue-doorHalfWidthValue,0);
+      const entranceBottomEnd=doorPointValues(doorCenterValue+doorHalfWidthValue,0);
+      const entranceTopStart=doorPointValues(doorCenterValue-doorHalfWidthValue,doorHeightValue);
+      const entranceTopEnd=doorPointValues(doorCenterValue+doorHalfWidthValue,doorHeightValue);
+      tracePolygon([entranceBottomStart,entranceBottomEnd,entranceTopEnd,entranceTopStart],'#57301b','#311f16');
+      drawingContext.fillStyle='#ecc466';drawingContext.beginPath();drawingContext.arc(entranceTopEnd.x-2,entranceTopEnd.y+doorHeightValue*.52,2,0,Math.PI*2);drawingContext.fill();
+    }
+  }
+  tracePolygon([wallTopPoints[1],wallTopPoints[2],roofTopPoints[2],roofTopPoints[1]],'#b55d28','#5b2c16');
+  tracePolygon([wallTopPoints[2],wallTopPoints[3],roofTopPoints[3],roofTopPoints[2]],'#994b21','#5b2c16');
+  tracePolygon(roofTopPoints,roofPattern||'#cb7336','#5b2c16');
+  drawingContext.strokeStyle='#f0af68';drawingContext.lineWidth=2;drawingContext.beginPath();
+  drawingContext.moveTo(roofTopPoints[0].x,roofTopPoints[0].y);drawingContext.lineTo(roofTopPoints[1].x,roofTopPoints[1].y);
+  drawingContext.lineTo(roofTopPoints[2].x,roofTopPoints[2].y);drawingContext.lineTo(roofTopPoints[3].x,roofTopPoints[3].y);
+  drawingContext.closePath();drawingContext.stroke();
+}
+
+function drawBuildingVolumeComparisons(){
+  const selectedPrefabRecord=buildingPrefabRecords[Number(buildingSelectionControl.value)]||buildingPrefabRecords[0];
+  if(!selectedPrefabRecord)return;
+  for(const canvasElement of document.querySelectorAll('.volume-card canvas')){
+    const floorCountValue=Number(canvasElement.dataset.height);
+    drawBuildingVolumePreview(canvasElement,selectedPrefabRecord,floorCountValue);
+  }
+  document.querySelectorAll('.volume-card h3').forEach((headingElement,indexValue)=>{
+    headingElement.textContent=`${selectedPrefabRecord.display_name} · ${['낮은형','중간형','높은형'][indexValue]}`;
+  });
+}
+
+async function loadTileAssets(){
+  const responseValue=await fetch('tile-assets.json');
+  if(!responseValue.ok)throw new Error('등록 타일 에셋 목록을 찾지 못했습니다.');
+  const tileRecords=(await responseValue.json()).tiles;
+  const tileListElement=document.querySelector('#tile-list');
+  const imageLoadPromises=[];
+  for(const [tileIdentifier,tileRecord] of Object.entries(tileRecords)){
+    const imageElement=new Image();tileImageRecords[tileIdentifier]=imageElement;
+    const cardElement=document.createElement('article');cardElement.className='tile-card';
+    const labelElement=document.createElement('code');labelElement.textContent=tileIdentifier;
+    cardElement.append(imageElement,labelElement);tileListElement.append(cardElement);
+    imageLoadPromises.push(new Promise((resolveValue,rejectValue)=>{
+      imageElement.onload=resolveValue;
+      imageElement.onerror=()=>rejectValue(new Error(`${tileIdentifier} 타일을 불러오지 못했습니다.`));
+      imageElement.src=tileRecord.file;
+    }));
+  }
+  await Promise.all(imageLoadPromises);
+}
+
+async function loadSelectedMapRecord(mapRecordValues){
+  const responseValue=await fetch(mapRecordValues.file);
+  if(!responseValue.ok)throw new Error('조립된 맵을 찾지 못했습니다.');
+  drawMapDetails(await responseValue.json(),mapRecordValues);
+}
+
+function showReviewError(currentErrorValue){
+  mapLoadingMessage.textContent=currentErrorValue.message;
+  mapLoadingMessage.hidden=false;
+  document.querySelector('#summary').textContent='검수 데이터를 불러오지 못했습니다.';
+}
+
+async function startMapReview(){
+  await loadTileAssets();
+  const [mapIndexResponse,prefabResponse]=await Promise.all([fetch('map-index.json'),fetch('building-prefabs.json')]);
+  if(!mapIndexResponse.ok)throw new Error('등록 맵 목록을 찾지 못했습니다.');
+  if(!prefabResponse.ok)throw new Error('건물 프리셋 목록을 찾지 못했습니다.');
+  mapReviewRecords=(await mapIndexResponse.json()).maps;
+  buildingPrefabRecords=(await prefabResponse.json()).prefabs;
+  mapSelectionControl.replaceChildren(...mapReviewRecords.map((recordValue,indexValue)=>Object.assign(document.createElement('option'),{value:indexValue,textContent:recordValue.label})));
+  buildingSelectionControl.replaceChildren(...buildingPrefabRecords.map((recordValue,indexValue)=>Object.assign(document.createElement('option'),{value:indexValue,textContent:recordValue.display_name})));
+  mapSelectionControl.onchange=()=>loadSelectedMapRecord(mapReviewRecords[Number(mapSelectionControl.value)]).catch(showReviewError);
+  buildingSelectionControl.onchange=drawBuildingVolumeComparisons;
+  document.querySelector('#rotate-left').onclick=()=>changeMapRotation(-90);
+  document.querySelector('#rotate-right').onclick=()=>changeMapRotation(90);
+  drawBuildingVolumeComparisons();
+  if(mapReviewRecords.length)await loadSelectedMapRecord(mapReviewRecords[0]);
+}
+
+function changeMapRotation(rotationDeltaDegrees){
+  currentMapRotationDegrees=(currentMapRotationDegrees+rotationDeltaDegrees+360)%360;
+  applyCurrentMapRotation();
+}
+
+mapZoomControl.oninput=applyMapZoom;
+document.querySelector('#zoom-out').onclick=()=>{mapZoomControl.value=Math.max(Number(mapZoomControl.min),Number(mapZoomControl.value)-10);applyMapZoom()};
+document.querySelector('#zoom-in').onclick=()=>{mapZoomControl.value=Math.min(Number(mapZoomControl.max),Number(mapZoomControl.value)+10);applyMapZoom()};
+applyMapZoom();
+startMapReview().catch(showReviewError);
 </script>
 </html>

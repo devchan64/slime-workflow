@@ -20,6 +20,26 @@ layers:
       - {tile: flower_bed, rectangle: {column: 16, row: 12, columns: 1, rows: 2}}
   objects: []
   roofs: []
+vegetation:
+  - {id: north-west-oak, kind: broadleaf, position: {column: 2, row: 2}, crown_scale: 1.0}
+  - {id: west-grove-oak, kind: broadleaf, position: {column: 2, row: 8}, crown_scale: 1.0}
+  - {id: south-west-oak, kind: broadleaf, position: {column: 2, row: 20}, crown_scale: 1.0}
+  - {id: north-east-oak, kind: broadleaf, position: {column: 21, row: 2}, crown_scale: 1.0}
+  - {id: east-grove-oak, kind: broadleaf, position: {column: 22, row: 10}, crown_scale: 1.0}
+  - {id: south-east-oak, kind: broadleaf, position: {column: 22, row: 21}, crown_scale: 1.0}
+no_entry_zones:
+  - id: north-west-grove-no-entry
+    cells: [{column: 1, row: 1}, {column: 2, row: 1}, {column: 1, row: 2}, {column: 2, row: 2}]
+  - id: west-grove-no-entry
+    cells: [{column: 1, row: 7}, {column: 2, row: 7}, {column: 1, row: 8}, {column: 2, row: 8}]
+  - id: south-west-grove-no-entry
+    cells: [{column: 1, row: 19}, {column: 2, row: 19}, {column: 1, row: 20}, {column: 2, row: 20}]
+  - id: north-east-grove-no-entry
+    cells: [{column: 20, row: 1}, {column: 21, row: 1}, {column: 20, row: 2}, {column: 21, row: 2}]
+  - id: east-grove-no-entry
+    cells: [{column: 21, row: 9}, {column: 22, row: 9}, {column: 21, row: 10}, {column: 22, row: 10}]
+  - id: south-east-grove-no-entry
+    cells: [{column: 21, row: 20}, {column: 22, row: 20}, {column: 21, row: 21}, {column: 22, row: 21}]
 buildings:
   - {prefab: iseulon-guild, position: {column: 4, row: 4}}
   - {prefab: iseulon-bookshop, position: {column: 17, row: 4}}

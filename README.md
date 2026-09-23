@@ -128,16 +128,6 @@ python3 tools/review/serve.py --walking .tmp/걷기실행폴더 --standing .tmp/
 
 [Qwen 맵 타일 생성 워크플로우](workflows/map-tile-generation.md): 맵 타일은 Qwen으로 생성하고, 반복 이음새·역할·알파·결정적 패킹을 검수한다. 이미지젠은 타일 기본 경로에 사용하지 않는다.
 
-## 세계관 문서 작업
-
-[로컬 문서 작성·수정 관리도구](workflows/worldbuilding.md)는 기존 비공개 문서를 참고하여 자연어 업무 지시를 수행한다. 환경 준비·고정 Qwen 모델 다운로드·문서 생성/추가/교체·출처·변경 이력·되돌리기를 제공한다. 실행은 GPU 호스트의 샌드박스 밖에서 수행한다.
-
-```bash
-python3 tools/review/serve.py --worldbuilding-only
-```
-
-`http://127.0.0.1:8770/worldbuilding/`에서 지시를 입력한다. 연결 설정은 Git 제외 경로인 `.local/worldbuilding/workspace.yaml`에 관리한다.
-
 ## ANNY 마네킹 제작
 
 [ANNY 모델 생성·재현 워크플로우](workflows/anny-mannequin-generation.md)를 참고한다. 마네킹 v2·v3·v4는 사용자 요청으로 폐기했으며 기본 참조는 기존 v1로 복원했다. ANNY 기준 모델의 재현 자료는 [기준 모델 리포트](report/anny-reference-baseline-20260923-r3/README.md)에 보관한다.
