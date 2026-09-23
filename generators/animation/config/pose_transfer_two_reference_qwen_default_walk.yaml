@@ -1,9 +1,9 @@
 schema_version: 1
 prompt_file: generators/animation/config/pose_transfer_openpose_qwen_prompt.txt
-output_root: .tmp/pose-transfer-openpose-qwen
+output_root: .tmp/test/openpose-qwen-4step-32frames/<한국시간 실행일시>
 references:
   baseline_root: assets/animation-references/character-default/baseline-v2
-  openpose_root: assets/motion-sheet/mannequin-walk-v1/pose-sheets
+  openpose_root: assets/motion-sheet/mannequin-walk-v6/pose-sheets
 jobs:
   - direction: down_left
     frame_numbers: [1, 2, 3, 4, 5, 6, 7, 8]

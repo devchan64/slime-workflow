@@ -81,17 +81,17 @@ generators/animation/config/pose_transfer_two_reference_qwen_default_walk.yaml
 ```bash
 .venv/bin/python generators/animation/run_pose_transfer_two_reference_qwen_batch.py \
   --batch-file generators/animation/config/pose_transfer_two_reference_qwen_default_walk.yaml \
-  --output-dir .tmp/pose-transfer-openpose-qwen/<한국시간 실행일시>
+  --output-dir .tmp/test/openpose-qwen-4step-32frames/<한국시간 실행일시>
 ```
 
-결과는 지정한 실행일시 폴더 아래 방향·프레임별 폴더에 저장한다. 리그 조건과 OpenPose 조건은 각각 별도 실행한다. 각 프레임은 캐릭터·포즈 참조, `prompt.txt`, `result.png`, `result.json`, `execution.log`를 가지며 배치 전체에는 `batch-result.yaml`을 남긴다.
+결과는 지정한 `.tmp/test/<실험명>/<한국시간 실행일시>` 폴더 아래 방향·프레임별 폴더에 저장한다. 리그 조건과 OpenPose 조건은 각각 별도 실행한다. 각 프레임은 캐릭터·포즈 참조, `prompt.txt`, `result.png`, `result.json`, `execution.log`를 가지며 배치 전체에는 `batch-result.yaml`을 남긴다.
 
 OpenPose 조건 실행:
 
 ```bash
 .venv/bin/python generators/animation/run_pose_transfer_two_reference_qwen_batch.py \
   --batch-file generators/animation/config/pose_transfer_two_reference_qwen_default_walk.yaml \
-  --output-dir .tmp/pose-transfer-openpose-qwen/<한국시간 실행일시>
+  --output-dir .tmp/test/openpose-qwen-4step-32frames/<한국시간 실행일시>
 ```
 
 ## AnyPose 배치 생성 기준
