@@ -91,6 +91,10 @@ def execute_automated_book(current_config_values,current_run_root):
             runtime.update_task_status(current_run_root,'completed',result_summary_text=f'문서 요약 완료: {len(current_document_summary_entries)}개 문서',summary_document_count=len(current_document_summary_entries))
             return
         current_outline_values=request_structured_plan({**current_base_payload,'operation':'문서 목록과 제목을 참고해 도서의 통합 목차 chapter_titles를 설계한다.'},OUTLINE_RESULT_SCHEMA,'outline')
+        if current_book_edit_stage_name=='table-of-contents':
+            save_yaml_document(current_run_root/'book-result.yaml',{'collection_id':current_request_values['collection_id'],'book_edit_stage_name':current_book_edit_stage_name,'outline_values':current_outline_values,'document_groups':current_catalog_entries})
+            runtime.update_task_status(current_run_root,'completed',result_summary_text=f'목차 구성 완료: {len(current_outline_values["chapter_titles"])}개 장',chapter_count=len(current_outline_values['chapter_titles']))
+            return
         current_placement_entries=[]
         current_source_paragraphs=sorted(current_plan_values['paragraph_entries'],key=lambda current_paragraph_entry:(current_paragraph_entry['source_document_path'],current_paragraph_entry['source_start_line']))
         while len(current_placement_entries)<len(current_source_paragraphs):
