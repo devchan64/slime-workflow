@@ -12,12 +12,20 @@ def copy(source, destination):
 
 
 def page(title, note, frames, command=''):
-    frame_json = json.dumps(frames).replace('<', '\\\\u003c')
+    config = json.dumps({'frames': frames}, ensure_ascii=False).replace('<', '\\u003c')
     command_html = '<pre>'+command+'</pre>' if command else ''
-    return f'''<!doctype html><meta charset="utf-8"><title>{title}</title><style>body{{margin:0;padding:28px;background:#101814;color:#e7f2e9;font:14px system-ui}}main{{max-width:1080px;margin:auto}}.stage{{height:600px;display:grid;place-items:center;background:#07100b;border:1px solid #3c6249;border-radius:12px}}img{{max-width:100%;max-height:580px;image-rendering:pixelated}}button,input{{margin:12px 8px 0 0;padding:8px}}pre{{white-space:pre-wrap;background:#07100b;padding:12px;border-radius:8px;color:#bce6c8}}</style><main><h1>{title}</h1><p>{note}</p>{command_html}<div class="stage"><img id="image"></div><p><button id="previous">이전</button><button id="play">재생</button><button id="next">다음</button><input id="range" type="range"><output id="count"></output></p></main><script>const frames={frame_json},image=document.querySelector('#image'),range=document.querySelector('#range'),count=document.querySelector('#count');let index=0,timer;range.max=Math.max(0,frames.length-1);function draw(){{image.src=frames[index]||'';count.textContent=`${{index+1}} / ${{frames.length}}`;range.value=index}}function step(n){{index=(index+n+frames.length)%frames.length;draw()}}document.querySelector('#previous').onclick=()=>step(-1);document.querySelector('#next').onclick=()=>step(1);range.oninput=()=>{{index=Number(range.value);draw()}};document.querySelector('#play').onclick=e=>{{if(timer){{clearInterval(timer);timer=null;e.target.textContent='재생'}}else{{timer=setInterval(()=>step(1),150);e.target.textContent='정지'}}}};draw();</script>'''
+    return f'''<!doctype html><meta charset="utf-8"><title>{title}</title><link rel="stylesheet" href="../animation-tools-common/player.css"><main><h1>{title}</h1><p>{note}</p>{command_html}<div class="stage"><img id="image"></div><p><button id="previous">이전</button><button id="play">재생</button><button id="next">다음</button><input id="range" type="range"><output id="count"></output></p></main><script>window.ANIMATION_TOOL={config};</script><script src="../animation-tools-common/player.js"></script>'''
+
+
+def write_common_player(output):
+    common = output / 'animation-tools-common'
+    common.mkdir(parents=True, exist_ok=True)
+    (common / 'player.css').write_text('body{margin:0;padding:28px;background:#101814;color:#e7f2e9;font:14px system-ui}main{max-width:1080px;margin:auto}.stage{height:600px;display:grid;place-items:center;background:#07100b;border:1px solid #3c6249;border-radius:12px}img{max-width:100%;max-height:580px;image-rendering:pixelated}button,input{margin:12px 8px 0 0;padding:8px}pre{white-space:pre-wrap;background:#07100b;padding:12px;border-radius:8px;color:#bce6c8}', encoding='utf-8')
+    (common / 'player.js').write_text("const {frames=[]}=window.ANIMATION_TOOL;const image=document.querySelector('#image'),range=document.querySelector('#range'),count=document.querySelector('#count');let index=0,timer;range.max=Math.max(0,frames.length-1);function draw(){image.src=frames[index]||'';count.textContent=`${index+1} / ${frames.length}`;range.value=index}function step(n){index=(index+n+frames.length)%frames.length;draw()}document.querySelector('#previous').onclick=()=>step(-1);document.querySelector('#next').onclick=()=>step(1);range.oninput=()=>{index=Number(range.value);draw()};document.querySelector('#play').onclick=e=>{if(timer){clearInterval(timer);timer=null;e.target.textContent='재생'}else{timer=setInterval(()=>step(1),150);e.target.textContent='정지'}};draw();", encoding='utf-8')
 
 
 def build_animation_tools(output):
+    write_common_player(output)
     records=[]
     openpose=[]
     for direction in DIRECTIONS:
