@@ -49,7 +49,7 @@ OpenPose와 리그는 서로 대체되지 않는 독립 포즈 참조 조건이�
 
 | 생성기 | 이미지 1 | 이미지 2 |
 | --- | --- | --- |
-| 리그 Qwen | 해당 방향 캐릭터 아이덴티 | 동일 방향·프레임 리그 셀 |
+| 리그 AnyPose | 해당 방향 캐릭터 아이덴티 | 동일 방향·프레임 리그 셀 |
 | OpenPose Qwen | 해당 방향 캐릭터 아이덴티 | 동일 방향·프레임 OpenPose 셀 |
 
 AnyPose 없이 Lightning LoRA만 사용하는 전용 생성기는 다음 파일이다.
@@ -58,7 +58,7 @@ AnyPose 없이 Lightning LoRA만 사용하는 전용 생성기는 다음 파일�
 generators/animation/generate_pose_transfer_openpose_qwen.py
 ```
 
-기본 프롬프트는 다음의 짧은 포즈 전이 문구를 사용한다.
+OpenPose 전용 기본 프롬프트는 `generators/animation/config/pose_transfer_openpose_qwen_prompt.txt`에서 관리하며, 포즈 변경 지시만 포함한다. 방향별 보조 프롬프트는 `DIRECTION_POSE_INSTRUCTIONS`로 분리해 걷기 방향만 지정한다.
 
 ```text
 Make the person in image 1 do the exact same pose of the person in image 2.
@@ -91,7 +91,7 @@ OpenPose 조건 실행:
 ```bash
 .venv/bin/python generators/animation/run_pose_transfer_two_reference_qwen_batch.py \
   --batch-file generators/animation/config/pose_transfer_two_reference_qwen_default_walk.yaml \
-  --reference-kind openpose --output-dir .tmp/pose-transfer-openpose-qwen/<한국시간 실행일시>
+  --output-dir .tmp/pose-transfer-openpose-qwen/<한국시간 실행일시>
 ```
 
 ## AnyPose 배치 생성 기준
