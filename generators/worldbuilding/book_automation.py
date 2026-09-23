@@ -81,10 +81,14 @@ def execute_automated_book(current_config_values,current_run_root):
     with worldbuilding.lock_gpu_runtime(),runtime.start_managed_server(current_run_root):
         runtime.update_task_status(current_run_root,'generating',result_summary_text=f'도서 편집 {current_book_edit_stage_name} 단계를 실행하고 있습니다.')
         if current_book_edit_stage_name=='document-summary':
-            current_summary_payload={**current_base_payload,'operation':'각 문서의 내용·목적·주제 그룹을 요약한다.','documents':[{'document_path':current_source_path,'headings':current_catalog_entry['headings'],'text':current_source_entries[current_source_path]['source_document_body']} for current_source_path,current_catalog_entry in zip(current_source_entries,current_catalog_entries)]}
-            current_summary_values=request_structured_plan(current_summary_payload,DOCUMENT_SUMMARY_SCHEMA,'document-summary')
-            save_yaml_document(current_run_root/'book-result.yaml',{'collection_id':current_request_values['collection_id'],'book_edit_stage_name':current_book_edit_stage_name,'document_summary_values':current_summary_values})
-            runtime.update_task_status(current_run_root,'completed',result_summary_text=f'문서 요약 완료: {len(current_summary_values["document_summaries"])}개 문서',summary_document_count=len(current_summary_values['document_summaries']))
+            current_document_summary_entries=[]
+            for current_document_number,(current_source_path,current_catalog_entry) in enumerate(zip(current_source_entries,current_catalog_entries),1):
+                current_summary_payload={**current_base_payload,'operation':'이 문서의 내용·목적·주제 그룹을 요약한다.','documents':[{'document_path':current_source_path,'headings':current_catalog_entry['headings'],'text':current_source_entries[current_source_path]['source_document_body']}]}
+                current_summary_values=request_structured_plan(current_summary_payload,DOCUMENT_SUMMARY_SCHEMA,f'document-summary-{current_document_number:04d}')
+                current_document_summary_entries.extend(current_summary_values['document_summaries'])
+                runtime.update_task_status(current_run_root,'generating',result_summary_text=f'문서 요약 {current_document_number} / {len(current_source_entries)}')
+            save_yaml_document(current_run_root/'book-result.yaml',{'collection_id':current_request_values['collection_id'],'book_edit_stage_name':current_book_edit_stage_name,'document_summary_values':{'document_summaries':current_document_summary_entries}})
+            runtime.update_task_status(current_run_root,'completed',result_summary_text=f'문서 요약 완료: {len(current_document_summary_entries)}개 문서',summary_document_count=len(current_document_summary_entries))
             return
         current_outline_values=request_structured_plan({**current_base_payload,'operation':'문서 목록과 제목을 참고해 도서의 통합 목차 chapter_titles를 설계한다.'},OUTLINE_RESULT_SCHEMA,'outline')
         current_placement_entries=[]
