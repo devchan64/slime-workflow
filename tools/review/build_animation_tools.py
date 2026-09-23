@@ -38,6 +38,11 @@ def build_animation_tools(output):
         name=f'{direction}.png'; copy(SOURCE/'rig-sheets'/name,output/'momask-rig-player'/name); rig.append(name)
     (output/'momask-rig-player'/'index.html').write_text(page('MoMask 애니메이션 리그 플레이어','MoMask 모션을 Anny 리그에 적용한 방향별 리그 시트입니다.',rig),encoding='utf-8')
     records.append({'id':'momask-rig-player','label':'MoMask 애니메이션 리그 플레이어','path':'momask-rig-player/index.html','anchorEditor':False,'category':'animation-tool','description':'MoMask 걷기 · Anny 리그 시트 4방향'})
+    standing_source = ROOT / 'assets/motion-sheet/momask-standing-idle-v1'
+    copy(standing_source / 'artifact.json', output / 'momask-standing-idle' / 'artifact.json')
+    copy(standing_source / 'source-motion.npz', output / 'momask-standing-idle' / 'source-motion.npz')
+    (output / 'momask-standing-idle' / 'index.html').write_text('''<!doctype html><meta charset="utf-8"><link rel="stylesheet" href="../animation-tools-common/player.css"><main><h1>MoMask 스탠딩 아이들 모션</h1><p>48프레임 · 20fps · 2.4초 원본 관절 모션입니다. 렌더링은 4방향 × 8샘플, 총 32프레임으로 제한합니다.</p><p>호흡·체중 이동·작은 어깨와 팔 스트레칭을 포함합니다. HumanML3D-22에는 눈 관절이 없어 눈깜박임은 이미지 프레임 단계에서 추가합니다.</p><p><a href="artifact.json">생성 메타데이터</a> · <a href="source-motion.npz" download>원본 모션 다운로드</a></p></main>''', encoding='utf-8')
+    records.append({'id':'momask-standing-idle','label':'MoMask 스탠딩 아이들 모션','path':'momask-standing-idle/index.html','anchorEditor':False,'category':'animation-tool','description':'호흡·작은 스트레칭 · 48프레임 원본 · 4방향 32프레임 렌더 계획'})
     copy(SOURCE/'camera45-four-view.gif',output/'anny-model-viewer'/'turntable.gif'); copy(SOURCE/'mannequin.glb',output/'anny-model-viewer'/'mannequin.glb')
     (output/'anny-model-viewer'/'index.html').write_text('<!doctype html><meta charset="utf-8"><style>body{background:#101814;color:#e7f2e9;font:14px system-ui;padding:28px}img{max-width:100%}a{color:#9febb1}</style><h1>Anny 모델링 뷰어</h1><p>45° 4방향 워크 턴테이블과 로컬 GLB 원본입니다.</p><img src="turntable.gif"><p><a href="mannequin.glb" download>mannequin.glb 다운로드</a></p>',encoding='utf-8')
     records.append({'id':'anny-model-viewer','label':'Anny 모델링 뷰어','path':'anny-model-viewer/index.html','anchorEditor':False,'category':'animation-tool','description':'Anny 리그 45° 턴테이블 · GLB 원본'})

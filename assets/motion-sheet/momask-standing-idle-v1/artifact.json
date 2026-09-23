@@ -1,0 +1,29 @@
+{
+  "asset_id": "standing-idle",
+  "version": 1,
+  "status": "generated_review_required",
+  "file": "source-motion.npz",
+  "sha256": "2dc36767c89fad642fa415d1aea90eb9f5f8fd8bdb0edf342f07b8fbf5954a80",
+  "fps": 20,
+  "frames": 48,
+  "playtime_seconds": 2.4,
+  "joint_schema": "HumanML3D-22",
+  "coordinate_system": "upstream recover_from_ric: y-up, meters",
+  "root_motion": "preserved",
+  "prompt": "A person stands in place, breathing gently, shifts weight subtly, then performs a small relaxed shoulder and arm stretch before returning to the initial standing pose.",
+  "sample_plan": {
+    "directions": [
+      "down_left",
+      "down_right",
+      "up_left",
+      "up_right"
+    ],
+    "samples_per_direction": 8,
+    "frame_duration_ms": 300,
+    "total_rendered_frames": 32
+  },
+  "facial_animation": "MoMask HumanML3D-22 has no eye joints; add blink in the image-frame stage if needed.",
+  "quality_warnings": [
+    "WARN: 4방향 Anny 리그 렌더와 루프 검수 전 원본 관절 모션"
+  ]
+}
