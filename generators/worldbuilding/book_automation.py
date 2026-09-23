@@ -40,6 +40,7 @@ def validate_automated_placements(current_paragraph_entries,current_placement_en
     if len(set(current_result_identifiers))!=len(current_result_identifiers) or set(current_result_identifiers)!=set(current_paragraph_lookup):
         raise ValueError('AI 배치 결과에 문단 누락·중복·알 수 없는 ID가 있습니다.')
     for current_placement_entry in current_placement_entries:
+        current_placement_entry['index_terms']=list(dict.fromkeys(current_placement_entry['index_terms']))
         current_paragraph_entry=current_paragraph_lookup[current_placement_entry['paragraph_id']]
         if any(current_index_term not in current_paragraph_entry['paragraph_text'] for current_index_term in current_placement_entry['index_terms']):
             raise ValueError('AI 색인어가 해당 원문에 없습니다.')
@@ -76,6 +77,8 @@ def execute_automated_book(current_config_values,current_run_root):
         if current_response_values['choices'][0]['finish_reason']!='stop':
             raise ValueError('AI 도서 배치 응답의 출력 예산이 소진되었습니다.')
         current_result_values=runtime.parse_unique_json(current_response_values['choices'][0]['message']['content'])
+        for current_placement_entry in current_result_values.get('paragraph_placements',[]):
+            current_placement_entry['index_terms']=list(dict.fromkeys(current_placement_entry.get('index_terms',[])))
         Draft202012Validator(current_schema_values).validate(current_result_values)
         return current_result_values
     with worldbuilding.lock_gpu_runtime(),runtime.start_managed_server(current_run_root):
@@ -110,6 +113,10 @@ def execute_automated_book(current_config_values,current_run_root):
             current_placement_entries.extend(current_result_values['paragraph_placements'])
             runtime.update_task_status(current_run_root,'generating',result_summary_text=f'AI 문단 편집 {len(current_placement_entries)} / {len(current_source_paragraphs)}')
     current_placement_entries.sort(key=lambda current_placement_entry:(current_outline_values['chapter_titles'].index(current_placement_entry['chapter_title']),current_placement_entry['order_number']))
+    if current_book_edit_stage_name=='document-reconstruction':
+        save_yaml_document(current_run_root/'book-result.yaml',{'collection_id':current_request_values['collection_id'],'book_edit_stage_name':current_book_edit_stage_name,'outline_values':current_outline_values,'paragraph_placements':current_placement_entries})
+        runtime.update_task_status(current_run_root,'completed',result_summary_text=f'문서 재구성안 완료: {len(current_placement_entries)}개 문단',paragraph_count=len(current_placement_entries))
+        return
     current_new_titles={}
     for current_placement_entry in current_placement_entries:
         current_target_path=current_placement_entry['target_document_path']
