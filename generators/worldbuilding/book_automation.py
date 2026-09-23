@@ -6,7 +6,7 @@ from pathlib import Path
 from jsonschema import Draft202012Validator
 from .bookbinding import plan_document_book, build_document_book, validate_book_placements, collect_book_sources
 from .book_collections import resolve_collection_request
-from .documents import load_yaml_document, save_yaml_document
+from .documents import load_yaml_document, save_yaml_document, write_atomic_document
 from .reorganization import preview_document_reorganization
 
 BOOK_EDIT_STAGE_NAMES=['document-summary','table-of-contents','document-reconstruction','document-cleanup']
@@ -73,6 +73,31 @@ def execute_automated_book(current_config_values,current_run_root):
     current_source_entries=collect_book_sources(current_config_values,current_request_values['source_directory_paths'])
     current_source_hashes={current_source_path:current_source_entry['source_content_hash'] for current_source_path,current_source_entry in current_source_entries.items()}
     current_catalog_entries=[{'document_path':current_source_path,'headings':list(dict.fromkeys(current_heading_text for current_paragraph_entry in current_plan_values['paragraph_entries'] if current_paragraph_entry['source_document_path']==current_source_path for current_heading_text in current_paragraph_entry['heading_trail']))[:1]} for current_source_path in current_source_entries]
+    if current_request_values.get('book_edit_stage_name')=='document-cleanup':
+        current_paragraph_entries=current_plan_values['paragraph_entries']
+        current_paragraph_identifiers=[current_paragraph_entry['paragraph_id'] for current_paragraph_entry in current_paragraph_entries]
+        current_invalid_paths=[current_paragraph_entry['source_document_path'] for current_paragraph_entry in current_paragraph_entries if current_paragraph_entry['source_document_path'] not in current_source_entries]
+        if len(current_paragraph_identifiers)!=len(set(current_paragraph_identifiers)) or current_invalid_paths:
+            raise ValueError('문서 정리 검수에서 문단 ID 중복 또는 원본 경로 불일치를 발견했습니다.')
+        current_completed_book_root=current_run_root/'completed-book'
+        current_chapter_root=current_completed_book_root/'chapters'
+        current_chapter_root.mkdir(parents=True,exist_ok=False)
+        current_chapter_entries=[]
+        current_chapter_groups={}
+        for current_paragraph_entry in current_paragraph_entries:
+            current_chapter_title=current_paragraph_entry['heading_trail'][0] if current_paragraph_entry['heading_trail'] else Path(current_paragraph_entry['source_document_path']).stem
+            current_chapter_groups.setdefault(current_chapter_title,[]).append(current_paragraph_entry)
+        for current_chapter_number,(current_chapter_title,current_chapter_paragraphs) in enumerate(current_chapter_groups.items(),1):
+            current_chapter_filename=f'{current_chapter_number:02d}-chapter.md'
+            current_chapter_text='# '+current_chapter_title+'\n\n'+''.join(current_paragraph_entry['paragraph_text'] for current_paragraph_entry in current_chapter_paragraphs)
+            write_atomic_document(current_chapter_root/current_chapter_filename,current_chapter_text)
+            current_chapter_entries.append({'chapter_number':current_chapter_number,'chapter_title':current_chapter_title,'file_path':'chapters/'+current_chapter_filename,'paragraph_count':len(current_chapter_paragraphs),'source_document_paths':sorted({current_paragraph_entry['source_document_path'] for current_paragraph_entry in current_chapter_paragraphs})})
+        write_atomic_document(current_completed_book_root/'README.md','# '+current_request_values['book_title_text']+'\n\n완성 문서 구조 검수본입니다. 원문은 변경하지 않았습니다.\n\n'+''.join(f'- [{current_chapter_entry["chapter_title"]}]({current_chapter_entry["file_path"]}) · {current_chapter_entry["paragraph_count"]}개 문단\n' for current_chapter_entry in current_chapter_entries))
+        save_yaml_document(current_completed_book_root/'manifest.yaml',{'collection_id':current_request_values['collection_id'],'chapter_entries':current_chapter_entries,'source_hashes':current_source_hashes})
+        current_cleanup_values={'source_document_count':len(current_source_entries),'paragraph_count':len(current_paragraph_entries),'duplicate_paragraph_count':0,'invalid_source_paths':[],'source_hashes':current_source_hashes,'original_change_required_flag':False}
+        save_yaml_document(current_run_root/'book-result.yaml',{'collection_id':current_request_values['collection_id'],'book_edit_stage_name':'document-cleanup','cleanup_values':current_cleanup_values,'completed_book_directory':str(current_completed_book_root)})
+        runtime.update_task_status(current_run_root,'completed',result_summary_text=f'문서 정리 검수 완료: {len(current_source_entries)}개 문서 · {len(current_paragraph_entries)}개 문단',paragraph_count=len(current_paragraph_entries))
+        return
     if current_request_values.get('book_edit_stage_name')=='document-reconstruction':
         current_deterministic_placements=[]
         for current_order_number,current_paragraph_entry in enumerate(current_plan_values['paragraph_entries']):
