@@ -9,7 +9,7 @@ import sys
 import signal
 import traceback
 from jsonschema import Draft202012Validator
-from .book_automation import AUTOMATION_REQUEST_SCHEMA,run_automated_book
+from .book_automation import AUTOMATION_REQUEST_SCHEMA,BOOK_EDIT_STAGE_NAMES,run_automated_book
 from .book_collections import load_document_collections,resolve_collection_request
 from .bookbinding import BOOK_IDENTIFIER_PATTERN
 from .documents import load_workspace_config,load_yaml_document,save_yaml_document
@@ -25,6 +25,7 @@ def parse_book_arguments(current_argument_values=None):
     current_subcommand_parser.add_parser('list',help='도서와 연결된 루트 조회')
     current_edit_parser=current_subcommand_parser.add_parser('edit',help='AI 자동 편집 실행 또는 작업 등록')
     current_edit_parser.add_argument('--collection',choices=['world','system-design'],required=True)
+    current_edit_parser.add_argument('--stage',choices=BOOK_EDIT_STAGE_NAMES,default='document-reconstruction',help='도서 편집 단계')
     current_instruction_group=current_edit_parser.add_mutually_exclusive_group(required=True)
     current_instruction_group.add_argument('--instruction',help='편집 지시')
     current_instruction_group.add_argument('--instruction-file',type=Path,help='UTF-8 지시 파일. - 는 표준 입력')
@@ -86,7 +87,7 @@ def execute_book_arguments(current_argument_values):
     else:
         current_instruction_text=current_argument_values.instruction
     current_collection_entry=next(current_collection_entry for current_collection_entry in load_document_collections(current_config_values) if current_collection_entry['collection_id']==current_argument_values.collection)
-    current_request_values={**current_collection_entry,'requested_instruction_text':current_instruction_text.strip(),'task_kind_name':'book-edit'}
+    current_request_values={**current_collection_entry,'requested_instruction_text':current_instruction_text.strip(),'book_edit_stage_name':current_argument_values.stage,'task_kind_name':'book-edit'}
     Draft202012Validator(AUTOMATION_REQUEST_SCHEMA).validate(current_request_values)
     resolve_collection_request(current_config_values,current_request_values)
     if current_argument_values.submit:
