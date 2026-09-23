@@ -1,0 +1,27 @@
+{
+  "status": "generated",
+  "anny_version": "0.6.0",
+  "device": "NVIDIA GeForce RTX 5070 Laptop GPU",
+  "parameters": {
+    "gender": 0.5,
+    "age": 0.12,
+    "muscle": 0.25,
+    "weight": 0.45,
+    "height": 0.5,
+    "proportions": 0.5
+  },
+  "head_scale_parameter": 0.9357927739620209,
+  "head_ratio": 5.0,
+  "head_measurement": "Crown maximum Z to fixed anterior under-chin vertex 5155; rest-pose vertical measurement",
+  "chin_vertex_index": 5155,
+  "chin_position": [
+    0.0026683658361434937,
+    -0.08994902670383453,
+    0.3086220324039459
+  ],
+  "height": 0.9786890745162964,
+  "vertices": 13718,
+  "triangles": 27420,
+  "bones": 104,
+  "cache": "/home/cbsim/ws/slime-workflow/.model/anny"
+}

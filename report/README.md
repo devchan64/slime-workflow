@@ -10,6 +10,12 @@
 
 ## 리포트 목록
 
+- [ANNY 새 파라미터·레퍼런스 자세 기준 결과](anny-reference-baseline-20260923/README.md): 목 높이 0.5, 허벅지·종아리 길이 0.7, 약 5.625등신 모델과 60% 오버레이, 입력·코드·리그 사본 및 재현 검증.
+
+- [ANNY 목 둘레 추가 보정 결과](anny-neck-refinement-20260923/README.md): 최신 5등신 모델·리그, 60% 오버레이, 재현 입력·코드 및 사본 재실행 검증.
+
+- [ANNY 기반 5등신 리그 실험](anny-five-head-rig-20260923/README.md): 5등신 체형 탐색, 104본 리그, 가동 자세·GLB 검증 및 생성 코드와 결과 사본.
+
 - [마네킨 체형·고관절 개선 실험](mannequin-reference-refinement-20260923/README.md): 추가 관절 도면, 고관절 축소와 외피 개선 과정, 결과 및 재현 검증 사본.
 
 - [마네킨 외형 보존과 구체관절 리그 실험](mannequin-reference-preservation-20260923/README.md): 2026-09-23 버전, 3방향 레퍼런스 비교, 제작 과정, 보행 검증, 입력과 결과 사본 및 재현 실행기.

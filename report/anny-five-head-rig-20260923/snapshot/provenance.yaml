@@ -1,0 +1,11 @@
+schema_version: 1
+experiment_id: anny-five-head-rig
+status: review_candidate
+model_id: anny==0.6.0
+rig: anny
+topology: anny
+skinning: lbs
+target_head_ratio: 5.0
+previous_experiment_replaced: false
+motion: manual_range_check
+source: https://github.com/naver/anny

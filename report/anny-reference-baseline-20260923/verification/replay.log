@@ -1,0 +1,7 @@
+2026-09-23T12:32:55.576210/report-replay/start generation output=/home/cbsim/ws/slime-workflow/.tmp/anny-report-replay/2026-09-23_12-32-55
+2026-09-23T12:32:57.710199/report-replay/start build output=/home/cbsim/ws/slime-workflow/.tmp/anny-report-replay/2026-09-23_12-32-55
+2026-09-23T12:33:02.710867/report-replay/heartbeat build log_bytes=16628
+2026-09-23T12:33:07.711210/report-replay/heartbeat build log_bytes=28219
+2026-09-23T12:33:10.795374/report-replay/start roundtrip output=/home/cbsim/ws/slime-workflow/.tmp/anny-report-replay/2026-09-23_12-32-55
+2026-09-23T12:33:11.210259/report-replay/start package output=/home/cbsim/ws/slime-workflow/.tmp/anny-report-replay/2026-09-23_12-32-55
+{"status": "passed", "output": "/home/cbsim/ws/slime-workflow/.tmp/anny-report-replay/2026-09-23_12-32-55", "arrays": {"vertices": {"exact_match": true, "max_abs_error": 0.0}, "faces": {"exact_match": true, "max_abs_error": 0.0}, "bone_matrices": {"exact_match": true, "max_abs_error": 0.0}, "bone_parents": {"exact_match": true, "max_abs_error": 0.0}, "bone_names": {"exact_match": true, "max_abs_error": null}, "weights": {"exact_match": true, "max_abs_error": 0.0}, "indices": {"exact_match": true, "max_abs_error": 0.0}}, "gpu_generation_rerun": true, "render_rerun": true, "note": "정적 모델 재현 검증. 모션 자연스러움 검증 아님."}

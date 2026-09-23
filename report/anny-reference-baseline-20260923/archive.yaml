@@ -1,0 +1,16 @@
+schema_version: 1
+experiment_id: anny-reference-baseline-20260923
+purpose: 외부 공유용 실험 이력과 기준 결과 사본
+status: user_selected_report_baseline
+source_run: .tmp/anny-neck-leg-length/2026-09-23_12-29-13
+model_id: anny==0.6.0
+head_ratio: 5.624667167663574
+vertices: 13718
+triangles: 27420
+bones: 104
+overlay_opacity: 0.6
+pdf_created: false
+runtime_asset_registered: false
+gpu_generation_rerun: true
+full_gpu_render_rerun: true
+npz_all_arrays_exact_match: true

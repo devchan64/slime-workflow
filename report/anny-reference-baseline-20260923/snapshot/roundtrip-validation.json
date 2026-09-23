@@ -1,0 +1,8 @@
+{
+  "status": "passed",
+  "frame_max_errors": {
+    "1": 6.036349873284053e-07
+  },
+  "tolerance": 0.0001,
+  "method": "GLB 재수입 후 기본 자세의 모든 정점과 원본 Blender 표면 정점 사이 최근접 거리"
+}
