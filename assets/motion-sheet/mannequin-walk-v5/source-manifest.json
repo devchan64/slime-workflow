@@ -1,0 +1,36 @@
+{
+  "baseline": "anny-reference-baseline-20260923-r3",
+  "attributes_sha256": "e0cccddd6650f7beb2de834b703cfc779625dc76b127663b2e5db583570fa474",
+  "motion_source": "assets/motion-sheet/momask-walk-motion-sheet-v1/source-motion.npz",
+  "loop_source": "assets/motion-sheet/mannequin-walk-v1/mannequin-motion.npz",
+  "loop_sha256": "5ab353ed313a2395c00389f2f94ed3dff9a5d2187dd3f3f4d0f08862ad1866d6",
+  "new_momask_inference": false,
+  "comparison": "same registered MoMask loop, new user-selected r3 model",
+  "sample_blender_frames": [
+    1,
+    4,
+    7,
+    10,
+    13,
+    16,
+    19,
+    22
+  ],
+  "directions": [
+    "down_left",
+    "down_right",
+    "up_left",
+    "up_right"
+  ],
+  "total_frames": 32,
+  "source_rig_run": ".tmp/anny-r3-momask-eight/2026-09-23_16-57-26",
+  "shading": {
+    "world_strength": 0.035,
+    "look": "AgX - High Contrast",
+    "key_power": 500,
+    "key_size": 0.75,
+    "fill_power": 35,
+    "rim_power": 160,
+    "samples": 64
+  }
+}

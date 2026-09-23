@@ -28,7 +28,7 @@ def resolve_workflow_relative_path(relative_path_value):
 
 def load_anypose_openpose_batch_definition(batch_file_path):
     values = yaml.load(batch_file_path.read_bytes(), Loader=UniqueKeySafeLoader)
-    if set(values) != {'schema_version', 'prompt_file', 'references', 'jobs'} or values['schema_version'] != 1:
+    if not isinstance(values, dict) or set(values) not in ({'schema_version', 'prompt_file', 'references', 'jobs'}, {'schema_version', 'prompt_file', 'rear_prompt_file', 'references', 'jobs'}) or values['schema_version'] != 1:
         raise ValueError('배치 YAML 형식이 올바르지 않습니다.')
     if set(values['references']) != {'baseline_root', 'rig_root'}:
         raise ValueError('베이스라인과 리그 참조 경로가 필요합니다.')
@@ -52,11 +52,28 @@ def crop_sheet_frame(source_sheet_path, frame_number, destination_path):
         source_image.crop((column * 512, row * 512, (column + 1) * 512, (row + 1) * 512)).convert('RGB').save(destination_path)
 
 
+def compose_direction_prompt(base_prompt_text, rear_prompt_text, current_direction_name):
+    """좌상·우상은 동일한 보조 문구를 사용한다."""
+    if current_direction_name not in DIRECTIONS:
+        raise ValueError('지원하지 않는 방향입니다.')
+    if not base_prompt_text.strip():
+        raise ValueError('기본 프롬프트가 비어 있습니다.')
+    if current_direction_name in ('up_left', 'up_right') and rear_prompt_text:
+        return base_prompt_text.strip() + '\n\n' + rear_prompt_text.strip()
+    return base_prompt_text.strip()
+
+
 def execute_anypose_openpose_batch(batch_file_path, output_directory):
     values, jobs = load_anypose_openpose_batch_definition(batch_file_path)
     prompt_path = resolve_workflow_relative_path(values['prompt_file'])
     reference_roots = {key: resolve_workflow_relative_path(value) for key, value in values['references'].items()}
     prompt_text = prompt_path.read_text(encoding='utf-8').strip()
+    rear_prompt_text = ''
+    if 'rear_prompt_file' in values:
+        rear_prompt_path = resolve_workflow_relative_path(values['rear_prompt_file'])
+        rear_prompt_text = rear_prompt_path.read_text(encoding='utf-8').strip()
+        if not rear_prompt_text:
+            raise ValueError('후면 공통 보조 프롬프트가 비어 있습니다.')
     output_root = Path(output_directory).resolve()
     if not output_root.is_relative_to((WORKFLOW_REPOSITORY_ROOT / '.tmp').resolve()):
         raise ValueError('출력은 .tmp 아래여야 합니다.')
@@ -64,12 +81,13 @@ def execute_anypose_openpose_batch(batch_file_path, output_directory):
     results = []
     for index, job in enumerate(jobs, 1):
         direction, frame = job['direction'], job['frame']
+        selected_prompt_text = compose_direction_prompt(prompt_text, rear_prompt_text, direction)
         frame_root = output_root / direction / f'frame-{frame:02d}'
         frame_root.mkdir(parents=True, exist_ok=False)
         character_path = reference_roots['baseline_root'] / f'{direction}.png'
         rig_path = frame_root / 'rig-reference.png'
         crop_sheet_frame(reference_roots['rig_root'] / f'{direction}.png', frame, rig_path)
-        result = execute_pose_generation(trial_output_root=frame_root, prompt_text_value=prompt_text, character_image_path=character_path, pose_reference_path=rig_path, pose_reference_kind='rig', selected_reference_order='standing-first', selected_inference_steps=4, prompt_source_record={'kind': 'anypose-baseline-rig-batch', 'direction': direction, 'frame': frame, 'batch_file': str(batch_file_path.relative_to(WORKFLOW_REPOSITORY_ROOT)), 'sha256': hashlib.sha256(prompt_text.encode()).hexdigest()}, enable_anypose_adapter=True, enable_lightning_adapter=True)
+        result = execute_pose_generation(trial_output_root=frame_root, prompt_text_value=selected_prompt_text, character_image_path=character_path, pose_reference_path=rig_path, pose_reference_kind='rig', selected_reference_order='standing-first', selected_inference_steps=4, prompt_source_record={'kind': 'anypose-baseline-rig-batch', 'direction': direction, 'frame': frame, 'batch_file': str(batch_file_path.relative_to(WORKFLOW_REPOSITORY_ROOT)), 'sha256': hashlib.sha256(selected_prompt_text.encode()).hexdigest(), 'rear_prompt_applied': bool(rear_prompt_text) and direction in ('up_left', 'up_right')}, enable_anypose_adapter=True, enable_lightning_adapter=True)
         results.append({'direction': direction, 'frame': frame, 'status': result['status'], 'output': str(frame_root.relative_to(output_root))})
         print(f'{datetime.now(ZoneInfo("Asia/Seoul")).isoformat()}/anypose-openpose-batch/complete {index}/32', flush=True)
     (output_root / 'batch-result.yaml').write_text(yaml.safe_dump({'schema_version': 1, 'reference_kind': 'baseline-plus-rig', 'steps': 4, 'frame_count': 32, 'status': 'completed', 'frames': results}, allow_unicode=True, sort_keys=False), encoding='utf-8')

@@ -94,16 +94,19 @@ OpenPose 조건 실행:
   --reference-kind openpose --output-dir .tmp/pose-transfer-openpose-qwen/<한국시간 실행일시>
 ```
 
-## AnyPose 배치 재생성
+## AnyPose 배치 생성 기준
 
-오류 프레임을 AnyPose로 재생성해야 할 때도 같은 YAML 목록을 재사용한다. AnyPose는 캐릭터·리그 참조를 사용하고, 목록에 포함된 OpenPose 자산은 입력 계약 확인과 실행 기록을 위해 함께 보관한다.
+2026-09-23 채택 기준은 캐릭터 baseline-v2 + mannequin-walk/v5 리그의 2참조 생성기이다. 전 방향에 짧은 기본 프롬프트를 사용하고 좌상·우상에만 동일한 후면 보조 프롬프트를 추가한다. AnyPose + Lightning 4 steps, seed 10107, 512×512, 4방향 × 8프레임을 사용한다.
 
 ```bash
-.venv/bin/python generators/animation/run_pose_transfer_any_pose_batch.py \
-  --batch-file generators/animation/config/pose_transfer_two_reference_qwen_default_walk.yaml
+.venv/bin/python generators/animation/run_pose_transfer_any_pose_batch.py
 ```
 
-라이브러리 호출은 `execute_pose_transfer_any_pose_batch(batch_definition_path, run_output_root=None)`을 사용한다. 단일 프레임 호출은 `generate_pose_transfer_any_pose_frame(output_directory, prompt_file_path)`를 사용한다. 두 경로 모두 4방향×8프레임 목록을 검증하고, AnyPose 어댑터·Lightning 설정은 코드에 고정한다.
+기본 설정은 `generators/animation/config/pose_transfer_anypose_baseline_rig_default_walk.yaml`이다. `--batch-file`과 `--output-dir`로 명시적으로 변경할 수 있다. 이전 3참조 배치 YAML은 이 진입점과 호환되지 않으며 자동 변환하지 않는다.
+
+채택 프롬프트 원본은 비공개 문서에서 관리한다. 실행 전에 승인된 `base-prompt.txt`, `auxiliary-prompt.txt`를 `.local/production-prompts/anypose-v5-v1/`에 전달해야 한다. 누락 시 즉시 실패하며 구형 프롬프트로 대체하지 않는다. 공개 저장소는 이 원본 저장소를 런타임 의존성으로 읽지 않는다.
+
+라이브러리 진입점은 `execute_pose_transfer_any_pose_batch(batch_definition_path, run_output_root=None)`이다. 프레임별 결과에 실제 결합 프롬프트 해시와 `rear_prompt_applied`를 기록한다. 생성기 기준 채택은 생성 이미지의 품질 승인과 별개이며 신발·머리카락 소실 여부는 계속 검수한다.
 
 ## 4. 프레임 검수와 AnyPose 재생성
 
