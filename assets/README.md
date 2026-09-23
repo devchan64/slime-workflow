@@ -1,16 +1,12 @@
 # 워크플로우 재사용 자산
 
-이 디렉터리는 Git 추적 대상이다. 정식 제작 자산은 파일과 출처·버전·해시를 함께 관리한다.
+이 경로는 Git 추적 대상 제작 자산을 버전·출처·해시와 함께 보관한다. 게임 런타임 채택과 구분한다.
 
-- `motions/`: 재사용 MoMask 관절 모션.
-- `rigs/`: 현재 기본 리그 `five-head-walk/v9`만 보관한다. 사용자 요청으로 v1~v8은 삭제했다.
-- `rigs/mannequin-walk/v1/pose-sheets-v1/`: 이미지젠 참조용 4방향 포즈 시트. 각 PNG는 4열×2행·2048×1024이며 8개의 원본 포즈를 그대로 묶는다. 배치·출처·해시는 `generators/animation/config/default_walk_pose_sheets.yaml`에서 관리한다.
-- 외형 참조 이미지의 관리 원본은 프론트엔드다. 생성 시 명시적으로 선택한 원본을 실행별 `.tmp/`에 준비하고 출처·해시를 기록한다. `assets/`에 참조 사본을 중복 등록하지 않는다.
-- 미리보기 HTML과 재생용 메타데이터 사본은 정식 에셋으로 등록하지 않는다. 필요하면 실행별 `.tmp/`에서 생성·확인한다.
-- 이전 `rig-baselines/five-head-walk/v8` 비교 스냅샷은 삭제했다. v9 manifest의 이전 버전 표기는 과거 출처이며 실행 입력이 아니다.
+- 현재 기본 리그: [mannequin-walk/v2](motion-sheet/mannequin-walk-v2/README.md). ANNY104 리그, MoMask 기반 1.2초 루프, 4방향 × 8프레임 OpenPose·리그 이미지와 대응 시트.
+- 이전 리그: motion-sheet/mannequin-walk-v1 보존.
+- 원천 모션: motion-sheet/momask-walk-motion-sheet-v1. 같은 버전 파일을 덮어쓰지 않는다.
+- 다른 외형 이력: motion-sheet/humanlike-walk-v1 및 v2.
+- animation-references/: 외형 참조 이력.
+- generation-records/: 관리번호별 생성 이력·재현 입력 및 출력 사본.
 
-파일은 같은 버전에서 덮어쓰지 않는다. 이번 이동은 저장소 경로 정리이며 원본 모션·리그·포즈 이미지의 바이트를 변경하지 않았다. 과거 실행 경로는 출처 기록으로 남을 수 있지만 활성 생성기는 `assets/`를 사용한다. 승인 전 후보와 실험 프롬프트는 `.tmp/`, 모델 캐시는 `.model/`에 둔다. 폐기한 외형 실험은 이 디렉터리에 등록하지 않는다.
-
-개별 animation-loops 자산은 사용자 지시로 삭제했다. 포즈 시트·MoMask 원본·v9 리그는 유지한다. 시트 제작 당시의 개별 프레임 해시는 출처 기록으로만 남긴다.
-
-- `generation-records/`: 관리번호별 생성 이력·재현용 입력/출력/코드 스냅샷. 정식 에셋 원본과 후보 증거를 구분하며 프론트엔드에 전달한 파일은 동일 관리번호로 연결한다.
+기본 선택은 generators/animation/config/default_walk_rig.yaml 및 default_walk_pose_sheets.yaml에서 관리한다. 미리보기 HTML은 실행별 .tmp/에서 제공하며 정식 자산에 중복 등록하지 않는다. 모델 다운로드는 .model/, 승인 전 후보·비공개 실험 프롬프트는 .tmp/에 둔다. 공개 자산에 비공개 기획·설계·프롬프트·인증 정보를 포함하지 않는다.

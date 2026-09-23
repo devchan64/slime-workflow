@@ -1,0 +1,28 @@
+asset_id: mannequin-walk-rig-sheets
+version: 2
+source_rig: mannequin-walk/v2
+layout:
+  columns: 4
+  rows: 2
+  cell_size:
+  - 512
+  - 512
+  sheet_size:
+  - 2048
+  - 1024
+  order: row-major
+sample_indices:
+- 0
+- 3
+- 6
+- 9
+- 12
+- 15
+- 18
+- 21
+frame_duration_ms: 150
+files:
+  down_left.png: 3cdaa8e024bfe38dcecf4bf089242dde09824d4cbc7945190fee29879618099d
+  down_right.png: d75e3545dccf6f5c29202785577139cc3335a2fcd8fe1b5059aed2c609a4a2c8
+  up_left.png: 386eb80d001e8eb22346c3fee40aab5530ce4d9fbdba3b1b420a6351e3e0cd5a
+  up_right.png: 12ff90956a524bd1d6f8ab8590e3e8aba1e682068973c9f79bdfc65b218c80d4

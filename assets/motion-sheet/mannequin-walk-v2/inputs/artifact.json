@@ -1,0 +1,14 @@
+{
+  "asset_id": "mannequin-walk",
+  "version": 1,
+  "status": "archived_reference_rig",
+  "purpose": "포즈·관절·키프레임 기준 및 재생성 입력",
+  "files": {
+    "mannequin.blend": "7b51d90c038589c9d5e6c8ea6457a68fa7ee7fecac4cddd0825bb51db622da4b",
+    "mannequin-motion.npz": "5ab353ed313a2395c00389f2f94ed3dff9a5d2187dd3f3f4d0f08862ad1866d6"
+  },
+  "migration": {
+    "previous_label": "five-head-walk/v9",
+    "replacement_label": "mannequin-walk/v1"
+  }
+}
