@@ -12,7 +12,7 @@ import yaml
 
 WORKFLOW_REPOSITORY_ROOT=Path(__file__).resolve().parents[2]
 DEFAULT_WORKSPACE_CONFIG=WORKFLOW_REPOSITORY_ROOT/'.local/writer-agent/workspace.yaml'
-WORKSPACE_REQUIRED_FIELDS={'schema_version','document_root','state_root','write_roots','excluded_roots','protected_paths'}
+WORKSPACE_REQUIRED_FIELDS={'schema_version','document_root','state_root','write_roots','excluded_roots','protected_paths','catalog_path'}
 MAXIMUM_DOCUMENT_BYTES=2_000_000
 MAXIMUM_CHUNK_CHARACTERS=2400
 MINIMUM_DUPLICATE_CHARACTERS=100
@@ -87,6 +87,10 @@ def load_workspace_config(current_config_path=DEFAULT_WORKSPACE_CONFIG):
         current_path_values=current_config_values[current_field_name]
         if not isinstance(current_path_values,list) or any(not isinstance(current_path_value,str) for current_path_value in current_path_values) or len(set(current_path_values))!=len(current_path_values):raise ValueError('경로 목록 오류')
         for current_path_value in current_path_values:resolve_document_path(current_document_root,current_path_value)
+    current_catalog_path=current_config_values['catalog_path']
+    if current_catalog_path is not None:
+        if not isinstance(current_catalog_path,str) or not current_catalog_path.endswith('.md'):raise ValueError('목록 경로 오류')
+        if not resolve_document_path(current_document_root,current_catalog_path).is_file():raise ValueError('목록 파일이 없습니다.')
     if not current_config_values['write_roots']:raise ValueError('쓰기 허용 루트가 필요합니다.')
     current_state_root.mkdir(parents=True,exist_ok=True)
     return current_config_values
@@ -151,11 +155,16 @@ def chunk_document_blocks(current_document_entry):
     if current_source_text[current_block_start:].strip():current_block_ranges.append((current_block_start,len(current_source_text)))
     current_chunk_entries=[]
     current_heading_text=current_document_entry['title']
+    current_heading_stack=[]
     for current_start_offset,current_end_offset in current_block_ranges:
         current_block_text=current_source_text[current_start_offset:current_end_offset]
-        current_heading_match=re.match(r'^#{1,6} +(.+)',current_block_text)
-        if current_heading_match:current_heading_text=current_heading_match.group(1)
-        current_removable_flag=(current_document_entry['writable'] and MINIMUM_DUPLICATE_CHARACTERS<=len(current_block_text.strip())<=MAXIMUM_CHUNK_CHARACTERS and not re.search(r'^\s*(?:[#>|`~]|[-*+] |\d+[.)] )',current_block_text,re.M) and not re.search(r'확정|승인|SSOT|채택|상태:',current_heading_text+'\n'+current_block_text) and not DOCUMENT_LINK_PATTERN.search(current_block_text))
+        current_heading_match=re.match(r'^(#{1,6}) +(.+)',current_block_text)
+        if current_heading_match:
+            current_heading_level=len(current_heading_match.group(1))
+            current_heading_stack=[current_heading_entry for current_heading_entry in current_heading_stack if current_heading_entry[0]<current_heading_level]
+            current_heading_stack.append((current_heading_level,current_heading_match.group(2)))
+            current_heading_text=' / '.join(current_heading_entry[1] for current_heading_entry in current_heading_stack)
+        current_removable_flag=(current_document_entry['writable'] and MINIMUM_DUPLICATE_CHARACTERS<=len(current_block_text.strip())<=MAXIMUM_CHUNK_CHARACTERS and not re.search(r'^\s*(?:[#>|`~]|[-*+] |\d+[.)] )',current_block_text,re.M) and not re.search(r'확정|승인|SSOT|채택|상태:',current_document_entry['title']+'\n'+current_heading_text+'\n'+current_block_text) and not DOCUMENT_LINK_PATTERN.search(current_block_text))
         for current_chunk_start in range(current_start_offset,current_end_offset,MAXIMUM_CHUNK_CHARACTERS):
             current_chunk_end=min(current_end_offset,current_chunk_start+MAXIMUM_CHUNK_CHARACTERS)
             current_chunk_text=current_source_text[current_chunk_start:current_chunk_end]

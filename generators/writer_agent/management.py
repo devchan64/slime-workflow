@@ -9,7 +9,7 @@ import sys
 import threading
 import uuid
 from .documents import (DEFAULT_WORKSPACE_CONFIG,WORKFLOW_REPOSITORY_ROOT,load_workspace_config,read_yaml_document,save_yaml_document,parse_unique_json,calculate_content_hash,lock_workspace_state)
-from .jobs import create_writer_job,resolve_job_directory,update_job_status
+from .jobs import create_writer_job,resolve_job_directory,update_job_status,read_process_identity
 from .agent import apply_reviewed_proposal
 from . import prepare
 
@@ -35,10 +35,18 @@ class WriterAgentManager:
         for current_job_root in sorted((Path(current_config_values['state_root'])/'jobs').glob('*'),reverse=True)[:40]:
             if not current_job_root.is_dir() or current_job_root.is_symlink() or not (current_job_root/'status.yaml').is_file():continue
             current_status_values=read_yaml_document(current_job_root/'status.yaml')
-            if current_status_values['stage'] in ACTIVE_JOB_STAGES and current_job_root.name!=current_state_values['active_job']:
-                current_status_values={**current_status_values,'stage':'interrupted','error':'실행 프로세스와 연결되지 않은 작업입니다. 로그를 확인하고 새 작업으로 실행하세요.'}
+            current_status_values=self.resolve_observed_status(current_status_values)
+            if current_status_values['stage'] in ACTIVE_JOB_STAGES:current_state_values['active_job']=current_job_root.name
             current_state_values['jobs'].append(current_status_values)
         return current_state_values
+
+    def resolve_observed_status(self,current_status_values):
+        if current_status_values['stage'] not in ACTIVE_JOB_STAGES:return current_status_values
+        if current_status_values['id']==self.worker_job_identifier and self.worker_process_handle and self.worker_process_handle.poll() is None:return current_status_values
+        current_process_identifier=current_status_values.get('process_id')
+        current_process_identity=current_status_values.get('process_identity')
+        if type(current_process_identifier) is int and current_process_identity and read_process_identity(current_process_identifier)==current_process_identity:return current_status_values
+        return {**current_status_values,'stage':'interrupted','error':'실행 프로세스가 종료된 작업입니다. 로그를 확인하고 새 작업으로 실행하세요.'}
 
     def launch_writer_process(self,current_request_values):
         current_config_values=load_workspace_config(self.workspace_config_path)
@@ -80,14 +88,14 @@ class WriterAgentManager:
         current_config_values=load_workspace_config(self.workspace_config_path)
         current_job_root=resolve_job_directory(current_config_values,current_job_identifier)
         if not current_job_root.is_dir():raise ValueError('작업이 없습니다.')
-        current_result_values={'id':current_job_identifier,'job_path':str(current_job_root),'status':read_yaml_document(current_job_root/'status.yaml'),'request':read_yaml_document(current_job_root/'request.yaml')}
+        current_result_values={'id':current_job_identifier,'job_path':str(current_job_root),'status':self.resolve_observed_status(read_yaml_document(current_job_root/'status.yaml')),'request':read_yaml_document(current_job_root/'request.yaml')}
         for current_record_name in ('proposal','result','search','application'):
             current_record_path=current_job_root/(current_record_name+'.yaml')
             if current_record_path.exists():
                 current_record_values=read_yaml_document(current_record_path)
                 if isinstance(current_record_values,dict):current_record_values.pop('snapshot_hashes',None)
                 current_result_values[current_record_name]=current_record_values
-        current_log_path=current_job_root/'worker.log'
+        current_log_path=current_job_root/'execution.log'
         if current_log_path.exists():
             with current_log_path.open('rb') as current_log_stream:
                 current_log_stream.seek(max(0,current_log_path.stat().st_size-MAXIMUM_LOG_BYTES))

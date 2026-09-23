@@ -11,7 +11,7 @@ import urllib.error
 import urllib.request
 from jsonschema import Draft202012Validator
 from . import prepare
-from .documents import parse_unique_json
+from .documents import parse_unique_json,save_yaml_document
 from .index import normalize_embedding_vector
 
 EMBEDDING_SERVER_PORT=8774
@@ -55,7 +55,7 @@ def start_managed_server(current_run_root,current_runtime_kind='generation'):
     server_environment_values=os.environ.copy()
     server_environment_values['LD_LIBRARY_PATH']=':'.join(current_manifest_data['runtime_library_paths'])
     server_environment_values['CUDA_VISIBLE_DEVICES']='0'
-    server_command_parts=[str(prepare.RUNTIME_SERVER_PATH),'-m',str(prepare.MODEL_DOWNLOAD_ROOT/prepare.MODEL_DOWNLOAD_NAME),'--alias',MODEL_SERVER_ALIAS,'--host','127.0.0.1','--port',str(MODEL_SERVER_PORT),'-ngl','all','--fit','off','-c',str(MODEL_CONTEXT_LIMIT),'-np','1','-b','256','-ub','128','--jinja','--reasoning','off','--no-context-shift','--verbosity','4','--cors-origins','http://127.0.0.1:8769']
+    server_command_parts=[str(prepare.RUNTIME_SERVER_PATH),'-m',str(prepare.MODEL_DOWNLOAD_ROOT/prepare.MODEL_DOWNLOAD_NAME),'--alias',MODEL_SERVER_ALIAS,'--host','127.0.0.1','--port',str(MODEL_SERVER_PORT),'-ngl','all','--fit','off','-c',str(MODEL_CONTEXT_LIMIT),'-np','1','-b','256','-ub','128','--jinja','--reasoning','off','--no-context-shift','--verbosity','4','--cors-origins','http://127.0.0.1:8773']
     if embedding_runtime_flag:
         server_command_parts=[str(prepare.RUNTIME_SERVER_PATH),'-m',str(prepare.MODEL_DOWNLOAD_ROOT/current_model_name),'--alias','slime-writer-embedding','--host','127.0.0.1','--port',str(current_server_port),'-ngl','all','--fit','off','-c','4096','-b','4096','-ub','4096','-np','1','--embedding','--pooling','last','--verbosity','4']
     prepare.emit_runtime_trace('server',f'CUDA 서버 시작: {current_runtime_kind}')
@@ -107,7 +107,9 @@ def request_structured_result(current_system_text,current_request_values,current
     current_token_values=request_local_model('/tokenize',{'content':current_prompt_values['prompt'],'add_special':False})
     if len(current_token_values['tokens'])+current_output_limit>MODEL_CONTEXT_LIMIT:
         raise ValueError('관련 원문이 모델 입력 예산을 초과했습니다. 지시 범위를 좁혀 주세요. 원문은 자동 절단하지 않습니다.')
-    current_response_values=request_local_model('/v1/chat/completions',{'model':MODEL_SERVER_ALIAS,'messages':current_messages,'temperature':0.1,'max_tokens':current_output_limit,'response_format':{'type':'json_schema','json_schema':{'name':'writer_proposal','strict':True,'schema':current_output_schema}}})
+    current_response_values=request_local_model('/v1/chat/completions',{'model':MODEL_SERVER_ALIAS,'messages':current_messages,'temperature':0.6,'top_p':0.95,'top_k':20,'presence_penalty':1.5,'repeat_penalty':1.05,'max_tokens':current_output_limit,'response_format':{'type':'json_schema','json_schema':{'name':'writer_proposal','strict':True,'schema':current_output_schema}}})
+    if prepare.CURRENT_LOG_PATH:
+        save_yaml_document(prepare.CURRENT_LOG_PATH.parent/f'model-response-{time.time_ns()}.yaml',current_response_values)
     if len(current_response_values.get('choices',[]))!=1 or current_response_values['choices'][0]['finish_reason']!='stop':raise ValueError('모델 출력 미완료 또는 응답 계약 오류')
     current_result_values=parse_unique_json(current_response_values['choices'][0]['message']['content'])
     Draft202012Validator(current_output_schema).validate(current_result_values)

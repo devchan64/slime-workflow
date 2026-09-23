@@ -2,8 +2,10 @@
 from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
+from copy import deepcopy
 import argparse
 import json
+import os
 import re
 import traceback
 import uuid
@@ -44,15 +46,29 @@ def create_writer_job(current_config_values,current_request_values):
     update_job_status(current_job_root,'queued',id=current_job_identifier,mode=current_request_values['mode'],created_at=datetime.now(ZoneInfo('Asia/Seoul')).isoformat())
     return current_job_identifier
 
+def describe_writer_progress(current_job_root):
+    current_status_values=read_yaml_document(current_job_root/'status.yaml')
+    current_artifact_bytes=sum(current_file_path.stat().st_size for current_file_path in current_job_root.iterdir() if current_file_path.is_file())
+    return f"상태={current_status_values['stage']} 진행={current_status_values.get('progress',{})} 산출바이트={current_artifact_bytes} 경로={current_job_root}"
+
+def read_process_identity(current_process_identifier):
+    current_process_path=Path('/proc')/str(current_process_identifier)
+    try:
+        current_process_fields=(current_process_path/'stat').read_text().rsplit(')',1)[1].split()
+        return current_process_fields[19] if current_process_fields[0]!='Z' else None
+    except FileNotFoundError:return None
+
+
 def execute_writer_job(current_config_path,current_job_identifier):
     current_config_values=load_workspace_config(current_config_path)
     current_job_root=resolve_job_directory(current_config_values,current_job_identifier)
     current_request_values=validate_job_request(read_yaml_document(current_job_root/'request.yaml'))
     if read_yaml_document(current_job_root/'status.yaml')['stage']!='queued':raise ValueError('이미 실행된 작업입니다.')
+    update_job_status(current_job_root,'queued',process_id=os.getpid(),process_identity=read_process_identity(os.getpid()))
     prepare.RUNTIME_INSTALL_ROOT.mkdir(parents=True,exist_ok=True)
     prepare.CURRENT_LOG_PATH=current_job_root/'execution.log'
     try:
-        with lock_workspace_state(current_config_values),prepare.lock_gpu_runtime(),prepare.trace_runtime_progress('working',lambda:f"상태={read_yaml_document(current_job_root/'status.yaml')['stage']} 로그={current_job_root}"):
+        with lock_workspace_state(current_config_values),prepare.lock_gpu_runtime(),prepare.trace_runtime_progress('working',lambda:describe_writer_progress(current_job_root)):
             update_job_status(current_job_root,'indexing' if current_request_values['mode']=='learn' else 'searching')
             prepare.emit_runtime_trace('start',f"mode={current_request_values['mode']} source={current_config_values['document_root']} output={current_job_root}")
             if current_request_values['mode']=='learn':
@@ -74,8 +90,10 @@ def execute_writer_job(current_config_path,current_job_identifier):
                 current_context_entries=collect_writing_context(current_document_entries,current_chunk_entries,current_ranked_entries)
                 current_model_input={'instruction':current_request_values['prompt'],'sources':current_context_entries,'folders':available_writing_folders(current_config_values,current_document_entries)}
                 save_yaml_document(current_job_root/'context.yaml',current_model_input)
+                current_writer_schema=deepcopy(WRITER_OUTPUT_SCHEMA)
+                current_writer_schema['properties']['source_ids']['items']={'type':'string','enum':[current_chunk_entry['id'] for current_chunk_entry in current_context_entries]}
                 with runtime.start_managed_server(current_job_root):
-                    current_model_result=runtime.request_structured_result(WRITER_SYSTEM_PROMPT,current_model_input,WRITER_OUTPUT_SCHEMA)
+                    current_model_result=runtime.request_structured_result(WRITER_SYSTEM_PROMPT,current_model_input,current_writer_schema)
                 save_yaml_document(current_job_root/'model-result.yaml',current_model_result)
                 current_proposal_values=build_writing_proposal(current_config_values,current_document_entries,current_context_entries,current_model_result)
             else:
@@ -84,7 +102,7 @@ def execute_writer_job(current_config_path,current_job_identifier):
                 if current_candidate_pairs:
                     with runtime.start_managed_server(current_job_root):
                         for current_pair_number,current_candidate_values in enumerate(current_candidate_pairs,1):
-                            current_model_input={'instruction':current_request_values['prompt'],'keep':public_chunk_record(current_candidate_values['keep']),'remove':public_chunk_record(current_candidate_values['remove']),'dependency':{'keep':current_candidate_values['keep_dependency'],'remove':current_candidate_values['remove_dependency']}}
+                            current_model_input={'instruction':current_request_values['prompt'],'keep':public_chunk_record(current_candidate_values['keep']),'remove':public_chunk_record(current_candidate_values['remove'])}
                             current_verdict_values=runtime.request_structured_result(DUPLICATE_SYSTEM_PROMPT,current_model_input,DUPLICATE_OUTPUT_SCHEMA,600)
                             current_review_entries.append((current_candidate_values,current_verdict_values))
                             save_yaml_document(current_job_root/f'comparison-{current_pair_number:02d}.yaml',{'input':current_model_input,'verdict':current_verdict_values})

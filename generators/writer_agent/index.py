@@ -12,7 +12,7 @@ import uuid
 from .documents import chunk_document_blocks,snapshot_document_hashes,scan_workspace_documents
 
 EMBEDDING_VECTOR_DIMENSIONS=1024
-INDEX_SCHEMA_VERSION='writer-rag-v1-qwen3-embedding-q8'
+INDEX_SCHEMA_VERSION='writer-rag-v2-qwen3-embedding-q8'
 SEARCH_RESULT_LIMIT=12
 DUPLICATE_PAIR_LIMIT=12
 DUPLICATE_SIMILARITY_THRESHOLD=0.93
@@ -42,7 +42,7 @@ def learn_document_index(current_config_values,current_embedding_function,curren
     try:
         with closing(sqlite3.connect(current_temporary_path)) as current_database_handle:
             current_database_handle.executescript('CREATE TABLE metadata(key TEXT PRIMARY KEY,value TEXT NOT NULL);CREATE TABLE documents(path TEXT PRIMARY KEY,hash TEXT NOT NULL,record TEXT NOT NULL);CREATE TABLE chunks(id TEXT PRIMARY KEY,path TEXT NOT NULL,text_hash TEXT NOT NULL,record TEXT NOT NULL,vector BLOB NOT NULL);CREATE INDEX chunk_document_path ON chunks(path);')
-            current_database_handle.executemany('INSERT INTO metadata VALUES (?,?)',[('version',INDEX_SCHEMA_VERSION),('root',current_config_values['document_root'])])
+            current_database_handle.executemany('INSERT INTO metadata VALUES (?,?)',[('version',INDEX_SCHEMA_VERSION),('root',current_config_values['document_root']),('config',json.dumps(current_config_values,sort_keys=True))])
             for current_document_number,(current_document_path,current_document_entry) in enumerate(current_document_entries.items(),1):
                 current_database_handle.execute('INSERT INTO documents VALUES (?,?,?)',(current_document_path,current_document_entry['hash'],json.dumps({current_field_key:current_field_value for current_field_key,current_field_value in current_document_entry.items() if current_field_key!='text'},ensure_ascii=False)))
                 for current_chunk_entry in chunk_document_blocks(current_document_entry):
@@ -70,7 +70,7 @@ def load_current_index(current_config_values):
     if not current_index_path.is_file():raise ValueError('먼저 학습 명령으로 문서 RAG를 구성하세요.')
     with closing(sqlite3.connect(f'file:{current_index_path}?mode=ro',uri=True)) as current_database_handle:
         current_metadata_values=dict(current_database_handle.execute('SELECT key,value FROM metadata'))
-        if current_metadata_values!={'version':INDEX_SCHEMA_VERSION,'root':current_config_values['document_root']}:raise ValueError('색인 버전·문서 루트 오류. 올바른 색인으로 학습하세요.')
+        if current_metadata_values!={'version':INDEX_SCHEMA_VERSION,'root':current_config_values['document_root'],'config':json.dumps(current_config_values,sort_keys=True)}:raise ValueError('색인 버전·문서 루트 오류. 올바른 색인으로 학습하세요.')
         current_snapshot_hashes=dict(current_database_handle.execute('SELECT path,hash FROM documents'))
         current_document_entries=scan_workspace_documents(current_config_values)
         if snapshot_document_hashes(current_document_entries)!=current_snapshot_hashes:raise ValueError('문서 추가·수정·삭제 이후 색인이 오래되었습니다. 학습 갱신이 필요합니다.')
@@ -115,7 +115,8 @@ def find_duplicate_candidates(current_document_entries,current_chunk_entries,cur
             current_term_overlap=len(current_left_terms&current_right_terms)/max(1,len(current_left_terms|current_right_terms))
             if current_term_overlap<.35:continue
             current_compared_pairs+=1
-            current_similarity_score=sum(current_left_value*current_right_value for current_left_value,current_right_value in zip(current_left_entry['vector'],current_right_entry['vector']))
+            current_exact_match=re.sub(r'\s+',' ',current_left_entry['text']).strip()==re.sub(r'\s+',' ',current_right_entry['text']).strip()
+            current_similarity_score=1.0 if current_exact_match else sum(current_left_value*current_right_value for current_left_value,current_right_value in zip(current_left_entry['vector'],current_right_entry['vector']))
             if current_similarity_score<DUPLICATE_SIMILARITY_THRESHOLD:continue
             current_left_score=calculate_dependency_score(current_left_entry,current_document_entries[current_left_entry['path']])
             current_right_score=calculate_dependency_score(current_right_entry,current_document_entries[current_right_entry['path']])

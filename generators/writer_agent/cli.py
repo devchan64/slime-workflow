@@ -16,6 +16,7 @@ def run_writer_command():
     current_config_parser.add_argument('--state-root',type=Path,required=True)
     current_config_parser.add_argument('--write-root',action='append',required=True)
     current_config_parser.add_argument('--exclude-root',action='append',default=[])
+    current_config_parser.add_argument('--catalog-path',default=None)
     current_config_parser.add_argument('--protect-path',action='append',default=[])
     for current_command_name in ('learn','write','deduplicate'):
         current_job_parser=current_command_parsers.add_parser(current_command_name)
@@ -25,7 +26,7 @@ def run_writer_command():
     current_argument_values=current_argument_parser.parse_args()
     if current_argument_values.command_name=='configure':
         if current_argument_values.config.exists():raise ValueError('기존 설정은 자동 덮어쓰지 않습니다.')
-        current_config_values={'schema_version':1,'document_root':str(current_argument_values.document_root.resolve()),'state_root':str(current_argument_values.state_root.resolve()),'write_roots':current_argument_values.write_root,'excluded_roots':current_argument_values.exclude_root,'protected_paths':current_argument_values.protect_path}
+        current_config_values={'schema_version':1,'catalog_path':current_argument_values.catalog_path,'document_root':str(current_argument_values.document_root.resolve()),'state_root':str(current_argument_values.state_root.resolve()),'write_roots':current_argument_values.write_root,'excluded_roots':current_argument_values.exclude_root,'protected_paths':current_argument_values.protect_path}
         save_yaml_document(current_argument_values.config,current_config_values)
         try:load_workspace_config(current_argument_values.config)
         except Exception:
