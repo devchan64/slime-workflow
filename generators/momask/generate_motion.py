@@ -19,7 +19,7 @@ WORKFLOW_REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 MOTION_MODEL_SOURCE = WORKFLOW_REPOSITORY_ROOT / '.local/motion-depth/momask'
 MOTION_MODEL_BUNDLE = WORKFLOW_REPOSITORY_ROOT / '.model/motion-depth/artifacts/weight-p7-5-15-momask-humanml3d'
 MOTION_CLIP_WEIGHTS = WORKFLOW_REPOSITORY_ROOT / '.model/motion-depth/artifacts/weight-p7-5-15-momask-clip/ViT-B-32.pt'
-PREPARED_MODEL_MANIFEST = WORKFLOW_REPOSITORY_ROOT / '.result/workflow/runs/motion-depth-attempt-v2/prepared.json'
+PREPARED_MODEL_MANIFEST = WORKFLOW_REPOSITORY_ROOT / '.model/motion-depth/artifacts/momask-prepared.json'
 MOTION_RUN_DIRECTORY = WORKFLOW_REPOSITORY_ROOT / '.tmp' / datetime.now(ZoneInfo('Asia/Seoul')).strftime('%Y-%m-%d_%H-%M-%S')
 MOTION_ASSET_DIRECTORY = MOTION_RUN_DIRECTORY / 'motion'
 MOTION_FRAME_COUNT = 96
@@ -142,7 +142,7 @@ def run_logged_attempt():
     threading.Thread(target=print_heartbeat_message, daemon=True).start()
     print(f'{time.strftime("%Y-%m-%dT%H:%M:%S%z")}/motion-depth/start model_id=MoMask-HumanML3D model_root={MOTION_MODEL_BUNDLE} binary_path={sys.executable}', flush=True)
     try:
-        with subprocess.Popen([sys.executable, '-u', str(Path(__file__).resolve()), '--worker', '--output-dir', str(MOTION_RUN_DIRECTORY), '--prepared-manifest', str(PREPARED_MODEL_MANIFEST)], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True) as motion_process_handle:
+        with subprocess.Popen([sys.executable, '-u', str(Path(__file__).resolve()), '--worker', '--output-dir', str(MOTION_RUN_DIRECTORY), '--prepared-manifest', str(PREPARED_MODEL_MANIFEST), '--frames', str(MOTION_FRAME_COUNT), '--prompt', MOTION_TEXT_PROMPT], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True) as motion_process_handle:
             for motion_output_line in motion_process_handle.stdout:
                 motion_log_lines.append(motion_output_line.rstrip())
                 print(motion_output_line, end='', flush=True)
