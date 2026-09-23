@@ -32,11 +32,15 @@ def expand_prefab_cells(prefab_values):
                 for row_index in range(size_values['rows'])
                 for column_index in range(size_values['columns'])]
     roof_rows = prefab_values['roof_rows']
-    return [{'column': column_index, 'row': row_index,
-             'tile': prefab_values['roof_tile'] if row_index < roof_rows else prefab_values['facade_tile'],
-             'layer': 'roof' if row_index < roof_rows else 'object'}
-            for row_index in range(size_values['rows'])
-            for column_index in range(size_values['columns'])]
+    entrance_positions = {(cell['column'], cell['row']) for cell in prefab_values.get('entrances', [])}
+    cells = [{'column': column_index, 'row': row_index,
+              'tile': prefab_values['roof_tile'] if row_index < roof_rows else prefab_values['wall_tile'],
+              'layer': 'roof' if row_index < roof_rows else 'object'}
+             for row_index in range(size_values['rows'])
+             for column_index in range(size_values['columns'])]
+    cells.extend({'column': column_index, 'row': row_index, 'tile': prefab_values['door_tile'], 'layer': 'object'}
+                 for column_index, row_index in entrance_positions)
+    return cells
 
 
 def expand_prefab_collision(prefab_values):

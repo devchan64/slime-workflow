@@ -4,39 +4,44 @@ prefabs:
     display_name: 길드 회관
     size: {columns: 4, rows: 3}
     anchor: {column: 2, row: 2}
-    roof_tile: roof_timber
-    facade_tile: wall_timber
+    roof_tile: guild_roof
+    wall_tile: guild_wall
+    door_tile: guild_door
     roof_rows: 2
     entrances: [{column: 2, row: 2}]
   - id: iseulon-bookshop
     display_name: 서점
     size: {columns: 3, rows: 3}
     anchor: {column: 1, row: 2}
-    roof_tile: roof_timber
-    facade_tile: wall_timber
+    roof_tile: bookshop_roof
+    wall_tile: bookshop_wall
+    door_tile: bookshop_door
     roof_rows: 2
     entrances: [{column: 1, row: 2}]
   - id: iseulon-inn
     display_name: 여관
     size: {columns: 4, rows: 4}
     anchor: {column: 3, row: 2}
-    roof_tile: roof_timber
-    facade_tile: wall_timber
+    roof_tile: inn_roof
+    wall_tile: inn_wall
+    door_tile: inn_door
     roof_rows: 3
     entrances: [{column: 3, row: 2}]
   - id: iseulon-workshop
     display_name: 대장간·공방
     size: {columns: 4, rows: 3}
     anchor: {column: 0, row: 1}
-    roof_tile: roof_timber
-    facade_tile: wall_timber
+    roof_tile: workshop_roof
+    wall_tile: workshop_wall
+    door_tile: workshop_door
     roof_rows: 2
     entrances: [{column: 0, row: 1}]
   - id: iseulon-market
     display_name: 시장
     size: {columns: 4, rows: 2}
     anchor: {column: 1, row: 0}
-    roof_tile: roof_timber
-    facade_tile: wall_timber
+    roof_tile: market_roof
+    wall_tile: market_wall
+    door_tile: market_door
     roof_rows: 1
     entrances: [{column: 1, row: 0}]
