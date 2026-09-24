@@ -1,6 +1,6 @@
 {
   "asset_id": "standing-loops",
-  "version": 8,
+  "version": 9,
   "generator": "MoMask text-to-motion",
   "fps": 4,
   "actions": {
@@ -14,7 +14,7 @@
         19
       ],
       "playtime_seconds": 1.0,
-      "prompt": "A person stands still with both arms hanging by the body and hands near the thighs."
+      "prompt": "A person stands at attention, completely still, with both arms straight down by the sides."
     },
     "deep_breath": {
       "source_frames": 40,
