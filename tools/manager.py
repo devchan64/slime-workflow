@@ -1,10 +1,12 @@
 """관리도구 통합 CLI: command로 실행하고 help로 사용법을 조회한다."""
 import argparse
 import sys
+from functools import partial
+from review.qwen_commands import execute_qwen_command
 from review.momask_commands import execute_cli_command
 
-MANAGEMENT_COMMAND_HANDLERS = {'momask': execute_cli_command}
-MANAGEMENT_COMMAND_DESCRIPTIONS = {'momask': 'MoMask 생성·상태·로그·이력 조회·취소 (웹과 기록 공유)'}
+MANAGEMENT_COMMAND_HANDLERS = {'momask': execute_cli_command, 'qwen-2512': partial(execute_qwen_command,'qwen-2512'), 'qwen-2511': partial(execute_qwen_command,'qwen-2511')}
+MANAGEMENT_COMMAND_DESCRIPTIONS = {'momask': 'MoMask 생성·상태·로그·이력 조회·취소 (웹과 기록 공유)', 'qwen-2512': 'Qwen 2512 텍스트 이미지 생성 (관리 서버 필요)', 'qwen-2511': 'Qwen 2511 텍스트·1~3장 참조 이미지 생성 (관리 서버 필요)'}
 
 
 def execute_management_client(command_argument_list=None):
