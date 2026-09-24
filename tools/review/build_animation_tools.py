@@ -44,15 +44,20 @@ def build_animation_tools(output):
     for identifier,title,note,command in [('openpose-frame-generator','OpenPose 맵 애니메이션 프레임 생성기','캐릭터 기준 이미지와 OpenPose 맵으로 Qwen 프레임을 생성합니다.','python3 generators/animation/generate_pose_transfer_openpose_qwen.py --output-dir .tmp/<run>/frame --prompt-file generators/animation/config/pose_transfer_openpose_qwen_prompt.txt --direction down_right'),('anypose-frame-generator','AnyPose 애니메이션 프레임 생성기','캐릭터 기준 이미지와 리그 참조로 AnyPose 프레임을 생성합니다.','python3 generators/animation/run_pose_transfer_any_pose_batch.py --batch-file <batch.yaml> --output-dir .tmp/<run> --resume')]:
         folder=output/identifier;folder.mkdir(parents=True,exist_ok=True);copy(SOURCE/'down_right'/'openpose-0001.png',folder/'reference.png');(folder/'index.html').write_text(page(title,note,['reference.png'],command),encoding='utf-8');records.append({'id':identifier,'label':title,'path':identifier+'/index.html','anchorEditor':False,'category':'animation-tool','description':note})
     loop_source = ROOT / 'assets/motion-sheet/momask-standing-loops-v1'
-    copy(loop_source / 'artifact.json', output / 'momask-standing-loops' / 'artifact.json')
-    sections = []
-    for action, title in (('standing', '일반호흡 스탠딩 · 4프레임 · 1초'), ('deep-breath', '심호흡 · 8프레임 · 2초'), ('stretch', '스트레칭 · 20프레임 · 5초')):
+    for action, identifier, title, note in (
+        ('standing', 'momask-normal-breath-standing', 'MoMask 일반호흡 스탠딩', '4프레임 · 1초 · 4방향'),
+        ('deep-breath', 'momask-deep-breath', 'MoMask 심호흡', '8프레임 · 2초 · 4방향'),
+        ('stretch', 'momask-stretch', 'MoMask 스트레칭', '20프레임 · 5초 · 4방향'),
+    ):
+        folder = output / identifier
+        copy(loop_source / 'artifact.json', folder / 'artifact.json')
+        copy(loop_source / action / 'source-motion.npz', folder / 'source-motion.npz')
+        copy(loop_source / action / 'pose-sheets' / 'manifest.json', folder / 'pose-sheets-manifest.json')
         action_images = []
         for direction in DIRECTIONS:
-            name = f'{action}-{direction}.png'
-            copy(loop_source / action / 'pose-sheets' / f'{direction}.png', output / 'momask-standing-loops' / name)
-            action_images.append(f'<img src=\"{name}\" alt=\"{title} {direction}\" style=\"width:100%\">')
-        sections.append(f'<h2>{title}</h2><section style=\"display:grid;grid-template-columns:1fr 1fr;gap:12px\">'+''.join(action_images)+'</section>')
-    (output / 'momask-standing-loops' / 'index.html').write_text('<!doctype html><meta charset=\"utf-8\"><link rel=\"stylesheet\" href=\"../animation-tools-common/player.css\"><main><h1>MoMask 스탠딩 루프</h1><p>일반호흡 스탠딩·심호흡·스트레칭을 독립 루프로 분리했습니다. 눈깜박임은 이미지 프레임 단계에서 추가합니다.</p><p><a href=\"artifact.json\">생성 메타데이터</a></p>'+''.join(sections)+'</main>', encoding='utf-8')
-    records.append({'id':'momask-standing-loops','label':'MoMask 스탠딩·호흡·스트레칭 루프','path':'momask-standing-loops/index.html','anchorEditor':False,'category':'animation-tool','description':'일반호흡 스탠딩 4프레임 · 심호흡 8프레임 · 스트레칭 20프레임 · 각 4방향'})
+            name = f'{direction}.png'
+            copy(loop_source / action / 'pose-sheets' / name, folder / name)
+            action_images.append(f'<img src="{name}" alt="{title} {direction}" style="width:100%">')
+        (folder / 'index.html').write_text('<!doctype html><meta charset="utf-8"><link rel="stylesheet" href="../animation-tools-common/player.css"><main><h1>'+title+'</h1><p>'+note+'</p><p>HumanML3D-22에는 눈 관절이 없어 눈깜박임은 이미지 프레임 단계에서 추가합니다.</p><p><a href="artifact.json">생성 메타데이터</a> · <a href="source-motion.npz" download>원본 모션 다운로드</a></p><section style="display:grid;grid-template-columns:1fr 1fr;gap:12px">'+''.join(action_images)+'</section></main>', encoding='utf-8')
+        records.append({'id':identifier,'label':title,'path':identifier+'/index.html','anchorEditor':False,'category':'animation-tool','description':note})
     return records
