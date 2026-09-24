@@ -17,22 +17,47 @@ def page(title, note, frames, command=''):
     return f'''<!doctype html><meta charset="utf-8"><title>{title}</title><link rel="stylesheet" href="../animation-tools-common/player.css"><main><h1>{title}</h1><p>{note}</p>{command_html}<div class="stage"><img id="image"></div><p><button id="previous">이전</button><button id="play">재생</button><button id="next">다음</button><input id="range" type="range"><output id="count"></output></p></main><script>window.ANIMATION_TOOL={config};</script><script src="../animation-tools-common/player.js"></script>'''
 
 
+def openpose_selector_page(motions):
+    config = json.dumps({'motions': motions, 'interval_ms': 250}, ensure_ascii=False).replace('<', '\u003c')
+    return ('<!doctype html><meta charset="utf-8"><title>MoMask 애니메이션 OpenPose 맵 플레이어</title>'
+            '<link rel="stylesheet" href="../animation-tools-common/player.css"><main>'
+            '<h1>MoMask 애니메이션 OpenPose 맵 플레이어</h1>'
+            '<p>동작과 방향을 선택하면 해당 OpenPose 맵 프레임만 반복 재생합니다.</p>'
+            '<p><label>동작 <select id="motion"></select></label><label>방향 <select id="direction"></select></label></p>'
+            '<div class="stage"><img id="image"></div><p><button id="previous">이전</button><button id="play">재생</button><button id="next">다음</button><input id="range" type="range"><output id="count"></output></p></main>'
+            '<script>window.ANIMATION_TOOL='+config+';</script><script src="../animation-tools-common/player.js"></script>')
+
+
 def write_common_player(output):
     common = output / 'animation-tools-common'
     common.mkdir(parents=True, exist_ok=True)
-    (common / 'player.css').write_text('body{margin:0;padding:28px;background:#101814;color:#e7f2e9;font:14px system-ui}main{max-width:1080px;margin:auto}.stage{height:600px;display:grid;place-items:center;background:#07100b;border:1px solid #3c6249;border-radius:12px}img{max-width:100%;max-height:580px;image-rendering:pixelated}button,input{margin:12px 8px 0 0;padding:8px}pre{white-space:pre-wrap;background:#07100b;padding:12px;border-radius:8px;color:#bce6c8}', encoding='utf-8')
-    (common / 'player.js').write_text("const {frames=[]}=window.ANIMATION_TOOL;const image=document.querySelector('#image'),range=document.querySelector('#range'),count=document.querySelector('#count');let index=0,timer;range.max=Math.max(0,frames.length-1);function draw(){image.src=frames[index]||'';count.textContent=`${index+1} / ${frames.length}`;range.value=index}function step(n){index=(index+n+frames.length)%frames.length;draw()}document.querySelector('#previous').onclick=()=>step(-1);document.querySelector('#next').onclick=()=>step(1);range.oninput=()=>{index=Number(range.value);draw()};document.querySelector('#play').onclick=e=>{if(timer){clearInterval(timer);timer=null;e.target.textContent='재생'}else{timer=setInterval(()=>step(1),150);e.target.textContent='정지'}};draw();", encoding='utf-8')
+    (common / 'player.css').write_text('body{margin:0;padding:28px;background:#101814;color:#e7f2e9;font:14px system-ui}main{max-width:1080px;margin:auto}.stage{height:600px;display:grid;place-items:center;background:#07100b;border:1px solid #3c6249;border-radius:12px}img{max-width:100%;max-height:580px;image-rendering:pixelated}button,input,select{margin:12px 8px 0 0;padding:8px}pre{white-space:pre-wrap;background:#07100b;padding:12px;border-radius:8px;color:#bce6c8}', encoding='utf-8')
+    player = """const config=window.ANIMATION_TOOL||{};const image=document.querySelector('#image'),range=document.querySelector('#range'),count=document.querySelector('#count'),play=document.querySelector('#play');let index=0,timer,frames=config.frames||[];const stop=()=>{if(timer){clearInterval(timer);timer=null;play.textContent='재생'}};const draw=()=>{image.src=frames[index]||'';count.textContent=`${index+1} / ${frames.length}`;range.max=Math.max(0,frames.length-1);range.value=index};const step=n=>{if(!frames.length)return;index=(index+n+frames.length)%frames.length;draw()};document.querySelector('#previous').onclick=()=>step(-1);document.querySelector('#next').onclick=()=>step(1);range.oninput=()=>{index=Number(range.value);draw()};play.onclick=()=>{if(timer)stop();else{timer=setInterval(()=>step(1),config.interval_ms||150);play.textContent='정지'}};if(config.motions){const motion=document.querySelector('#motion'),direction=document.querySelector('#direction');for(const [id,item] of Object.entries(config.motions))motion.add(new Option(item.label,id));const selectDirection=()=>{direction.replaceChildren();for(const [id,item] of Object.entries(config.motions[motion.value].directions))direction.add(new Option(item.label,id));};const selectFrames=()=>{stop();frames=config.motions[motion.value].directions[direction.value].frames;index=0;draw()};motion.onchange=()=>{selectDirection();selectFrames()};direction.onchange=selectFrames;selectDirection();selectFrames()}else draw();"""
+    (common / 'player.js').write_text(player, encoding='utf-8')
 
 
 def build_animation_tools(output):
     write_common_player(output)
     records=[]
-    openpose=[]
-    for direction in DIRECTIONS:
-        for number in range(1,9):
-            name=f'{direction}-{number:04d}.png'; copy(SOURCE/direction/f'openpose-{number:04d}.png', output/'momask-openpose-player'/name); openpose.append(name)
-    (output/'momask-openpose-player'/'index.html').write_text(page('MoMask 애니메이션 OpenPose 맵 플레이어','MoMask 걷기 모션에서 추출한 4방향 32개 OpenPose 맵입니다.',openpose),encoding='utf-8')
-    records.append({'id':'momask-openpose-player','label':'MoMask 애니메이션 OpenPose 맵 플레이어','path':'momask-openpose-player/index.html','anchorEditor':False,'category':'animation-tool','description':'MoMask 걷기 · OpenPose 4방향 32프레임'})
+    openpose_motions = {}
+    openpose_sources = (
+        ('walk', '걷기', SOURCE, {direction: list(range(1, 9)) for direction in DIRECTIONS}),
+        ('standing', '일반호흡 스탠딩', ROOT / 'assets/motion-sheet/momask-standing-loops-v1' / 'standing' / 'openpose', {direction: list(range(1, 5)) for direction in DIRECTIONS}),
+        ('deep-breath', '심호흡', ROOT / 'assets/motion-sheet/momask-standing-loops-v1' / 'deep-breath' / 'openpose', {direction: list(range(1, 9)) for direction in DIRECTIONS}),
+        ('stretch', '스트레칭', ROOT / 'assets/motion-sheet/momask-standing-loops-v1' / 'stretch' / 'openpose', {direction: list(range(1, 21)) for direction in DIRECTIONS}),
+    )
+    for motion_id, label, source_root, direction_numbers in openpose_sources:
+        motion_directions = {}
+        for direction in DIRECTIONS:
+            frames = []
+            for number in direction_numbers[direction]:
+                name = f'{motion_id}-{direction}-{number:04d}.png'
+                copy(source_root / direction / f'openpose-{number:04d}.png', output / 'momask-openpose-player' / name)
+                frames.append(name)
+            motion_directions[direction] = {'label': direction, 'frames': frames}
+        openpose_motions[motion_id] = {'label': label, 'directions': motion_directions}
+    (output/'momask-openpose-player'/'index.html').write_text(openpose_selector_page(openpose_motions),encoding='utf-8')
+    records.append({'id':'momask-openpose-player','label':'MoMask 애니메이션 OpenPose 맵 플레이어','path':'momask-openpose-player/index.html','anchorEditor':False,'category':'animation-tool','description':'걷기·일반호흡·심호흡·스트레칭 선택 · 각 4방향'})
     rig=[]
     for direction in DIRECTIONS:
         name=f'{direction}.png'; copy(SOURCE/'rig-sheets'/name,output/'momask-rig-player'/name); rig.append(name)
