@@ -6,6 +6,7 @@ import sys
 import time
 
 WORKFLOW_ROOT_DIRECTORY = Path(__file__).resolve().parents[2]
+from .management_gateway import execute_momask_command
 from .momask_jobs import start_generation_job, cancel_generation_job, resolve_generation_directory, SUPPORTED_ACTION_NAMES, SUPPORTED_DIRECTION_NAMES, list_generation_history, read_generation_status, reset_generation_history
 
 
@@ -22,13 +23,13 @@ def execute_cli_command(command_argument_list=None):
     command_subparser_group.add_parser('history-reset', help='누적 이력만 수동 초기화; 결과 파일 보존')
     command_argument_values = command_argument_parser.parse_args(command_argument_list)
     if command_argument_values.command == 'history':
-        print(json.dumps(list_generation_history(), ensure_ascii=False, indent=2))
+        print(json.dumps(execute_momask_command('history',{}), ensure_ascii=False, indent=2))
         return 0
     if command_argument_values.command == 'history-reset':
-        print(json.dumps(reset_generation_history()))
+        print(json.dumps(execute_momask_command('history-reset',{})))
         return 0
     if command_argument_values.command == 'generate':
-        generation_record_value = start_generation_job(command_argument_values.action, command_argument_values.directions)
+        generation_record_value = execute_momask_command('generate',{'action':command_argument_values.action,'directions':command_argument_values.directions})
         generation_job_identifier = generation_record_value['id']
         print(json.dumps(generation_record_value, ensure_ascii=False), flush=True)
         generation_job_path = resolve_generation_directory(generation_job_identifier)
@@ -48,14 +49,14 @@ def execute_cli_command(command_argument_list=None):
                     return 0 if generation_status_value['status']=='completed' else 1
                 time.sleep(1)
         except KeyboardInterrupt:
-            cancel_generation_job(generation_job_identifier)
+            execute_momask_command('cancel',{'id':generation_job_identifier})
             print('\n취소 요청을 기록했습니다.')
             return 130
     generation_job_path = resolve_generation_directory(command_argument_values.id)
     if command_argument_values.command == 'cancel':
-        print(json.dumps(cancel_generation_job(command_argument_values.id)))
+        print(json.dumps(execute_momask_command('cancel',{'id':command_argument_values.id})))
     elif command_argument_values.command == 'status':
-        print(json.dumps(read_generation_status(command_argument_values.id),ensure_ascii=False,indent=2))
+        print(json.dumps(execute_momask_command('status',{'id':command_argument_values.id}),ensure_ascii=False,indent=2))
     else:
         print((generation_job_path/'worker.log').read_text())
     return 0

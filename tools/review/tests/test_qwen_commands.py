@@ -6,11 +6,13 @@ import io
 import json
 from pathlib import Path
 import tempfile
+import sys
 import unittest
 from unittest.mock import patch
 
 COMMAND_MODULE_PATH = Path(__file__).resolve().parents[1]/'qwen_commands.py'
-COMMAND_MODULE_SPEC = importlib.util.spec_from_file_location('qwen_commands',COMMAND_MODULE_PATH)
+sys.path.insert(0,str(COMMAND_MODULE_PATH.parents[1]))
+COMMAND_MODULE_SPEC = importlib.util.spec_from_file_location('review.qwen_commands',COMMAND_MODULE_PATH)
 COMMAND_MODULE_VALUE = importlib.util.module_from_spec(COMMAND_MODULE_SPEC)
 COMMAND_MODULE_SPEC.loader.exec_module(COMMAND_MODULE_VALUE)
 

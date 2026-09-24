@@ -8,6 +8,7 @@ import time
 import urllib.error
 import urllib.request
 from urllib.parse import urlsplit
+from .management_gateway import identify_management_command
 
 QWEN_ROUTE_PREFIXES = {'qwen-2512':'/image-generation', 'qwen-2511':'/image-generation-2511'}
 REFERENCE_FILE_BYTE_LIMIT = 3_000_000
@@ -19,6 +20,12 @@ def call_management_api(server_base_address, request_route_path, request_body_va
     if request_body_value is not None:
         request_body_bytes = json.dumps(request_body_value,ensure_ascii=False).encode()
         request_header_values['Content-Type']='application/json'
+    command_envelope_parts=identify_management_command(request_route_path,'POST' if request_body_value is not None else 'GET',request_body_value)
+    if command_envelope_parts is None:raise ValueError('지원하지 않는 관리 명령 경로')
+    service_command_name,operation_command_name,command_payload_value=command_envelope_parts
+    request_route_path='/management/command'
+    request_body_bytes=json.dumps({'service':service_command_name,'command':operation_command_name,'payload':command_payload_value},ensure_ascii=False).encode()
+    request_header_values['Content-Type']='application/json'
     management_request_value = urllib.request.Request(server_base_address+request_route_path, data=request_body_bytes, headers=request_header_values)
     try:
         with urllib.request.urlopen(management_request_value, timeout=30) as management_response_handle:

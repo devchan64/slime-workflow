@@ -65,3 +65,17 @@ python3 tools/manager.py command qwen-2512 history-reset
 - 이력: `.tmp/manager-current/qwen-2512/`, `.tmp/manager-current/qwen-2511/`
 
 실행 결과는 해당 웹 생성기의 이력에서 조회할 수 있다. `history-reset`은 명시적으로 실행할 때만 누적 이력을 초기화한다.
+
+## 통합 명령 게이트웨이
+
+`management_gateway.py`가 `momask`, `qwen-2512`, `qwen-2511`의 허용 명령과 HTTP 경로를 관리한다. GUI의 기존 API 호출은 서버 진입점에서 이 게이트웨이를 통과한다. Qwen 통합 CLI는 `POST /management/command`에 `{service, command, payload}`를 보내 같은 서비스 어댑터를 호출한다. MoMask의 로컬 CLI와 웹 어댑터는 공용 `execute_momask_command`를 사용한다.
+
+```text
+GUI 기존 API → 명령 경로 변환 ─┐
+                             ├→ 통합 명령 게이트웨이 → 생성기 서비스 → 공용 기록
+CLI command → 명령 봉투 ──────┘
+```
+
+브라우저 요청마다 CLI 프로세스나 셸을 실행하는 방식이 아니라, 통합 CLI와 명령 계약·디스패처를 공유하는 구조다. 생성 원본·이미지·정적 UI 자산은 기존 파일 조회 경로로 제공한다. `command`와 `help`의 기존 사용법은 유지한다. ANNY·작가 에이전트 등 아직 통합 CLI에 등록되지 않은 관리 기능은 이번 게이트웨이 범위에 포함하지 않는다.
+
+게이트웨이는 Host·Origin·JSON 형식·최대 요청 크기·중복 필드·허용 서비스/명령·생성 ID를 확인한 뒤 기존 입력 검증기로 전달한다. 작업에 임의 실행 파일이나 셸 문자열을 전달할 수 없다.

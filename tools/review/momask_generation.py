@@ -3,10 +3,12 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 import json, re, html, yaml
 try:
+ from .management_gateway import execute_momask_command
  from .momask_jobs import start_generation_job, cancel_generation_job, check_generation_running, list_generation_history, read_generation_status, reset_generation_history
  from .openpose_maps import generate_openpose_maps
  from .management_log_viewer import MANAGEMENT_LOG_VIEWER_SCRIPT
 except ImportError:
+ from management_gateway import execute_momask_command
  from momask_jobs import start_generation_job, cancel_generation_job, check_generation_running, list_generation_history, read_generation_status, reset_generation_history
  from openpose_maps import generate_openpose_maps
  from management_log_viewer import MANAGEMENT_LOG_VIEWER_SCRIPT
@@ -49,9 +51,9 @@ class MoMaskGenerationManager:
  def send(self,h,status,payload,ctype='application/json; charset=utf-8'):
   data=payload if isinstance(payload,bytes) else json.dumps(payload,ensure_ascii=False).encode();h.send_response(status);h.send_header('Content-Type',ctype);h.send_header('Content-Length',str(len(data)));h.send_header('Cache-Control','no-store');h.end_headers();h.wfile.write(data)
  def history(self):
-  return list_generation_history()
+  return execute_momask_command('history',{})
  def status(self,identifier):
-  return read_generation_status(identifier)
+  return execute_momask_command('status',{'id':identifier})
  def handle(self,h):
   request=urlsplit(h.path);path=request.path;query=parse_qs(request.query)
   if not(path==self.route or path.startswith(self.route+'/')): return False
@@ -87,10 +89,10 @@ class MoMaskGenerationManager:
     self.send(h,200,generate_openpose_maps(JOB_ROOT/body['id']));return True
    if path==self.route+'/history/reset':
     if body!={'action':'reset'}: raise ValueError('초기화 요청 오류')
-    self.send(h,200,reset_generation_history());return True
+    self.send(h,200,execute_momask_command('history-reset',{}));return True
    if path==self.route+'/cancel':
     if set(body)!={'id'}: raise ValueError('취소 요청 오류')
-    self.send(h,200,cancel_generation_job(body['id']));return True
+    self.send(h,200,execute_momask_command('cancel',body));return True
    if path!=self.route+'/jobs' or set(body)!={'action','directions'} or body['action'] not in ACTIONS or not isinstance(body['directions'],list) or not body['directions'] or set(body['directions'])-set(DIRECTIONS) or len(set(body['directions']))!=len(body['directions']): raise ValueError('포즈 또는 방향 요청 오류')
-   self.send(h,202,start_generation_job(body['action'],body['directions']));return True
+   self.send(h,202,execute_momask_command('generate',body));return True
   except (ValueError,FileNotFoundError,json.JSONDecodeError) as e:self.send(h,400,{'error':str(e)});return True
