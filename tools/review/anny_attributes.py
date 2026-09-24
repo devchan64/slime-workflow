@@ -39,16 +39,16 @@ class AnnyAttributeManager:
    if h.headers.get('Origin')!=f'http://127.0.0.1:{h.server.server_port}':raise ValueError('허용하지 않는 요청 출처')
    changed=json.loads(h.rfile.read(int(h.headers['Content-Length'])))
    if not isinstance(changed,dict):raise ValueError('속성 객체가 필요합니다.')
-   if set(changed)-{'age','weight','height','torso-scale-horiz-incr','torso-scale-depth-incr','measure-shoulder-dist-incr','upperlegs-height-incr','lowerlegs-height-incr'}:raise ValueError('지원하지 않는 속성')
+   if set(changed)-{'age','weight','height','torso-scale-horiz-incr','torso-scale-depth-incr','measure-shoulder-dist-incr','upperlegs-height-incr','lowerlegs-height-incr','rotation_y'}:raise ValueError('지원하지 않는 속성')
    if not isinstance(changed,dict):raise ValueError('속성 객체가 필요합니다.')
    for attribute_key_name,attribute_numeric_value in changed.items():
-    attribute_minimum_value=0 if attribute_key_name in {'age','weight','height'} else -1
-    if type(attribute_numeric_value) not in (int,float) or not attribute_minimum_value<=attribute_numeric_value<=1:raise ValueError('속성 범위 오류')
-   attrs=json.loads(BASE.read_text());attrs['phenotype_kwargs'].update({k:v for k,v in changed.items() if k in attrs['phenotype_kwargs']});attrs['local_changes_kwargs'].update({k:v for k,v in changed.items() if k not in attrs['phenotype_kwargs']})
+    attribute_minimum_value=-180 if attribute_key_name=='rotation_y' else 0 if attribute_key_name in {'age','weight','height'} else -1
+    if type(attribute_numeric_value) not in (int,float) or not attribute_minimum_value<=attribute_numeric_value<=(180 if attribute_key_name=='rotation_y' else 1):raise ValueError('속성 범위 오류')
+   attrs=json.loads(BASE.read_text());attrs['phenotype_kwargs'].update({k:v for k,v in changed.items() if k in attrs['phenotype_kwargs']});attrs['local_changes_kwargs'].update({k:v for k,v in changed.items() if k not in attrs['phenotype_kwargs'] and k!='rotation_y'})
    ident=uuid.uuid4().hex[:8];root=JOBS/ident;root.mkdir(parents=True);(root/'attributes.json').write_text(json.dumps(attrs));(root/'status.json').write_text(json.dumps({'status':'running'}))
    (root/'history.json').write_text(json.dumps({'id':ident,'created_at':datetime.now(ZoneInfo('Asia/Seoul')).isoformat(),'request':{'attributes':changed},'status':{'status':'running'}},ensure_ascii=False))
    def work():
-    code=subprocess.run([str(ROOT/'.venv/bin/python'),str(ROOT/'generators/animation/render_anny_attribute_preview.py'),'--attributes',str(root/'attributes.json'),'--output-dir',str(root/'render')],stdout=(root/'worker.log').open('w'),stderr=subprocess.STDOUT).returncode
+    code=subprocess.run([str(ROOT/'.venv/bin/python'),str(ROOT/'generators/animation/render_anny_attribute_preview.py'),'--attributes',str(root/'attributes.json'),'--output-dir',str(root/'render'),'--rotation-y',str(changed.get('rotation_y',0))],stdout=(root/'worker.log').open('w'),stderr=subprocess.STDOUT).returncode
     for name in ('front.png','side.png'):
      source=root/'render'/name
      if source.exists():source.replace(root/name)

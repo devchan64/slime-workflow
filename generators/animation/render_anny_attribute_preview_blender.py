@@ -75,7 +75,11 @@ for current_light_location,current_light_power,current_light_size in [((-3,-4,5)
 bpy.ops.mesh.primitive_plane_add(size=200,location=(0,0,-.005));floor_mesh_object=bpy.context.object
 floor_material_value=bpy.data.materials.new('StudioGround');floor_material_value.diffuse_color=(.2,.22,.24,1);floor_mesh_object.data.materials.append(floor_material_value)
 bpy.ops.wm.save_as_mainfile(filepath=str(EXPERIMENT_OUTPUT_ROOT/'anny-raw-rig.blend'))
+# UI의 Y-up 수직축 회전은 Blender Z-up 좌표계에서 카메라 방위각으로 표현한다.
+render_view_settings=EXPERIMENT_OUTPUT_ROOT/'view.json'
+render_yaw_radians=math.radians(json.loads(render_view_settings.read_text()).get('rotation_y',0)) if render_view_settings.exists() else 0
 for current_view_name,current_camera_location,current_frame_value in [('front',(0,-5,.8),1),('side',(5,0,.8),1),('back',(0,5,.8),1),('three-quarter',(3,-5,1.6),1)]:
+ current_camera_location=(current_camera_location[0]*math.cos(render_yaw_radians)-current_camera_location[1]*math.sin(render_yaw_radians),current_camera_location[0]*math.sin(render_yaw_radians)+current_camera_location[1]*math.cos(render_yaw_radians),current_camera_location[2])
  scene_render_value.frame_set(current_frame_value);camera_object_value.location=current_camera_location;camera_object_value.rotation_euler=(Vector((0,0,.8))-camera_object_value.location).to_track_quat('-Z','Y').to_euler();scene_render_value.render.filepath=str(EXPERIMENT_OUTPUT_ROOT/f'{current_view_name}.png');bpy.ops.render.render(write_still=True)
 print(validation_result_record,flush=True)
 

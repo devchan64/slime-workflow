@@ -17,7 +17,8 @@ def reject_duplicate_fields(field_pair_values):
  return output_field_values
 threading.Thread(target=emit_progress_trace,daemon=True).start()
 import argparse
-argument_parser=argparse.ArgumentParser();argument_parser.add_argument('--attributes',type=Path,required=True);argument_parser.add_argument('--output-dir',type=Path,required=True);args=argument_parser.parse_args();EXPERIMENT_OUTPUT_ROOT=args.output_dir.resolve();EXPERIMENT_OUTPUT_ROOT.mkdir(parents=True,exist_ok=False);input_source_path=args.attributes.resolve()
+argument_parser=argparse.ArgumentParser();argument_parser.add_argument('--attributes',type=Path,required=True);argument_parser.add_argument('--output-dir',type=Path,required=True);argument_parser.add_argument('--rotation-y',type=float,default=0);args=argument_parser.parse_args();EXPERIMENT_OUTPUT_ROOT=args.output_dir.resolve();EXPERIMENT_OUTPUT_ROOT.mkdir(parents=True,exist_ok=False);input_source_path=args.attributes.resolve()
+(EXPERIMENT_OUTPUT_ROOT/'view.json').write_text(json.dumps({'rotation_y':args.rotation_y}))
 input_attribute_values=json.loads(input_source_path.read_text(),object_pairs_hook=reject_duplicate_fields)
 required_field_names={'phenotype_kwargs','local_changes_kwargs','facial_actions','pose_parameterization','pose_parameters'}
 if set(input_attribute_values)!=required_field_names:raise ValueError('입력 최상위 필드 불일치')
