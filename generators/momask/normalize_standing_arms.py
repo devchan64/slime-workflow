@@ -17,7 +17,7 @@ def normalize(path: Path) -> dict:
     joints[:,:,[0,2]]-=root_offset[:,None,:]
     joints[:,LOWER_BODY]=joints[0,LOWER_BODY]
     # 대기 중에는 발을 떼지 않고 1.2cm 범위에서만 체중을 좌우로 옮긴다.
-    sway=0.036*np.sin(np.linspace(0,2*np.pi,len(joints),endpoint=False))
+    sway=0.060*np.sin(np.linspace(0,2*np.pi,len(joints),endpoint=False))
     joints[:,UPPER_BODY,0]+=sway[:,None]
     for shoulder,elbow,wrist in ARMS:
         upper_lengths=np.linalg.norm(joints[:,elbow]-joints[:,shoulder],axis=1)
