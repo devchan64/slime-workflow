@@ -2,6 +2,7 @@
 from pathlib import Path
 import argparse, hashlib, json, shutil, subprocess
 import numpy as np
+import yaml
 
 ROOT=Path(__file__).resolve().parents[2]
 SOURCE=ROOT/'assets/motion-sheet/mannequin-walk-v6'
@@ -19,8 +20,16 @@ def render(motion_path, output_dir, directions, sample_indices):
     output_dir.mkdir(parents=True,exist_ok=False);(output_dir/'inputs').mkdir()
     source_motion=output_dir/'inputs/mannequin-motion.npz';np.savez_compressed(source_motion,joints=joints,rest=joints[0],contacts=np.zeros((len(joints),2),dtype=np.float32),sample_indices=np.array(sample_indices))
     (output_dir/'inputs/artifact.json').write_text(json.dumps({'files':{'mannequin-motion.npz':digest(source_motion)}},ensure_ascii=False))
-    shutil.copy2(SOURCE/'inputs/anny-reference-fit-rig.blend',output_dir/'inputs/anny-reference-fit-rig.blend')
-    for name in ('run_stage.py','retarget_loop.py','render_asset.py','mannequin.blend'):
+    baseline_selection_record=yaml.safe_load((ROOT/'generators/animation/config/anny_model_baseline.yaml').read_text())
+    baseline_manifest_record=yaml.safe_load((ROOT/baseline_selection_record['manifest_path']).read_text())
+    baseline_blend_path=ROOT/baseline_selection_record['blend_path']
+    baseline_blend_hash=digest(baseline_blend_path)
+    if baseline_blend_hash!=baseline_manifest_record['files'][baseline_blend_path.name]['sha256']:raise ValueError('기준 모델 Blender 해시 불일치')
+    baseline_model_record={'baseline_id':baseline_selection_record['baseline_id'],'source_generation_id':baseline_manifest_record['source_generation_id'],'blend_sha256':baseline_blend_hash,'attributes_sha256':baseline_selection_record['attributes_sha256']}
+    (output_dir/'baseline-model.json').write_text(json.dumps(baseline_model_record,ensure_ascii=False,indent=2))
+    print('ANNY 기준 모델: '+baseline_selection_record['baseline_id'],flush=True)
+    shutil.copy2(baseline_blend_path,output_dir/'inputs/anny-reference-fit-rig.blend')
+    for name in ('run_stage.py','retarget_loop.py','render_asset.py'):
         shutil.copy2(SOURCE/name,output_dir/name)
     retarget=(output_dir/'retarget_loop.py').read_text()
     retarget=retarget.replace("assert source_joint_frames.shape==(25,22,3) and np.isfinite(source_joint_frames).all()", "assert source_joint_frames.ndim==3 and source_joint_frames.shape[1:]==(22,3) and np.isfinite(source_joint_frames).all()")
@@ -40,6 +49,6 @@ def render(motion_path, output_dir, directions, sample_indices):
     for direction in directions:
         target=output_dir/direction/'frames';target.mkdir()
         for number in range(1,len(sample_indices)+1): shutil.copy2(output_dir/direction/f'preview-{number:04d}.png',target/f'anny-{number:04d}.png')
-    (output_dir/'result.json').write_text(json.dumps({'renderer':'Anny Blender retarget','frames':len(sample_indices),'directions':directions,'samples':16},ensure_ascii=False,indent=2)+'\n')
+    (output_dir/'result.json').write_text(json.dumps({'renderer':'Anny Blender retarget','frames':len(sample_indices),'directions':directions,'samples':16,'baseline_model':baseline_model_record},ensure_ascii=False,indent=2)+'\n')
 if __name__=='__main__':
  p=argparse.ArgumentParser(description=__doc__);p.add_argument('--motion',type=Path,required=True);p.add_argument('--output-dir',type=Path,required=True);p.add_argument('--directions',required=True);p.add_argument('--sample-indices',required=True);a=p.parse_args();render(a.motion,a.output_dir,a.directions.split(','),[int(x) for x in a.sample_indices.split(',')])
