@@ -1,6 +1,7 @@
 {
   "asset_id": "standing-loops",
-  "version": 3,
+  "version": 4,
+  "generator": "MoMask text-to-motion",
   "fps": 4,
   "actions": {
     "standing": {
@@ -13,7 +14,7 @@
         19
       ],
       "playtime_seconds": 1.0,
-      "prompt": "A person is waiting naturally while standing still. Neutral relaxed posture, both arms hanging loosely by the sides, feet planted comfortably shoulder-width apart. A small natural breathing cycle gently raises and lowers the chest. No walking, no waving, no stretching, no large arm movement; finish in the same relaxed standing pose."
+      "prompt": "A person stands still, waiting casually with arms relaxed at their sides."
     },
     "deep_breath": {
       "source_frames": 40,
@@ -29,7 +30,7 @@
         39
       ],
       "playtime_seconds": 2.0,
-      "prompt": "A person stands at ease and takes one ordinary slow deep breath: begins relaxed with arms by the sides, inhales as the ribcage expands and shoulders rise slightly, pauses briefly, then exhales and settles back into exactly the original relaxed standing posture. Feet remain planted; no arm gesture, no walking, no turning, no stretch."
+      "prompt": "A person stands in one spot, breathing deeply."
     },
     "stretch": {
       "source_frames": 40,
@@ -57,7 +58,7 @@
         39
       ],
       "playtime_seconds": 5.0,
-      "prompt": "A person standing casually does one common morning stretch: starts relaxed with arms at the sides, slowly raises both hands overhead, lengthens the torso and reaches upward for a moment, then gently lowers both arms and returns to the same relaxed standing posture. Feet stay planted, no walking, no turning, no dance."
+      "prompt": "A person standing still raises both arms above their head to stretch, then lowers them."
     }
   },
   "directions": [
@@ -66,5 +67,11 @@
     "up_left",
     "up_right"
   ],
-  "facial_animation": "Add blinking only in the image-frame stage; HumanML3D-22 has no eye joints."
+  "facial_animation": "Add blinking only in the image-frame stage; HumanML3D-22 has no eye joints.",
+  "quality_gates": {
+    "standing_max_horizontal_displacement_m": 0.12,
+    "deep_breath_max_horizontal_displacement_m": 0.12,
+    "stretch_max_horizontal_displacement_m": 0.2,
+    "stretch_min_wrist_height_change_m": 0.3
+  }
 }
