@@ -16,6 +16,13 @@ class ReviewStartupTests(unittest.TestCase):
         self.assertEqual(parsed_argument_values.port, 8770)
         self.assertEqual(parsed_argument_values.entry, 'preview.html')
 
+    def test_live_reload_script_is_added_once_before_body_end(self):
+        page_content = b'<html><body>review</body></html>'
+        rendered_content = serve.inject_review_live_reload(page_content)
+        self.assertEqual(rendered_content.count(b'id=\"review-live-reload\"'), 1)
+        self.assertLess(rendered_content.index(b'id=\"review-live-reload\"'), rendered_content.index(b'</body>'))
+        self.assertEqual(serve.inject_review_live_reload(rendered_content), rendered_content)
+
     def test_existing_review_options(self):
         parsed_argument_values = serve.parse_review_arguments(['--root', '.tmp/example', '--entry', 'anchors.html'])
         self.assertEqual(parsed_argument_values.entry, 'anchors.html')

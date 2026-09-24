@@ -5,6 +5,7 @@ from zoneinfo import ZoneInfo
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import unquote, urlsplit
 import argparse
+import io
 import hashlib
 import json
 import shutil
@@ -21,6 +22,17 @@ DEFAULT_FRONTEND_REPOSITORY = Path(__file__).resolve().parents[3]/'slime-fronten
 REVIEW_ALLOWED_SUFFIXES = {'.html', '.png', '.jpg', '.jpeg', '.webp', '.gif', '.json', '.js', '.css', '.mp4', '.svg', '.woff', '.woff2'}
 REVIEW_HEARTBEAT_SECONDS = 5
 REVIEW_SERVER_RETRY_SECONDS = 3
+REVIEW_LIVE_RELOAD_PATH = '/__review_live_reload__'
+REVIEW_LIVE_RELOAD_SCRIPT = b'''<script id="review-live-reload">(()=>{let instanceId;const poll=async()=>{try{const response=await fetch('/__review_live_reload__',{cache:'no-store'});if(!response.ok)throw new Error('watch unavailable');const nextInstanceId=(await response.json()).instanceId;if(instanceId&&instanceId!==nextInstanceId){location.reload();return}instanceId=nextInstanceId}catch(_error){}finally{setTimeout(poll,1000)}};poll()})()</script>'''
+
+def inject_review_live_reload(html_content):
+    if b'id="review-live-reload"' in html_content:
+        return html_content
+    closing_body_index = html_content.lower().rfind(b'</body>')
+    if closing_body_index == -1:
+        return html_content + REVIEW_LIVE_RELOAD_SCRIPT
+    return html_content[:closing_body_index] + REVIEW_LIVE_RELOAD_SCRIPT + html_content[closing_body_index:]
+
 
 def resolve_review_request(review_root_directory, requested_url_path, review_entry_path="preview.html"):
     decoded_request_path = unquote(urlsplit(requested_url_path).path)
@@ -216,6 +228,7 @@ def run_review_server(parsed_argument_values):
     trace_write_lock = threading.Lock()
     server_stop_event = threading.Event()
     request_counter_value = [0]
+    review_server_instance_id = f'{time.time_ns():x}'
     def emit_server_trace(trace_stage_name, trace_message_text):
         trace_line_text = f'{datetime.now().isoformat()}/asset-review-server/{trace_stage_name} {trace_message_text}'
         with trace_write_lock:
@@ -240,6 +253,14 @@ def run_review_server(parsed_argument_values):
         def __init__(self,*request_handler_arguments,**request_handler_options):
             super().__init__(*request_handler_arguments,directory=str(review_root_directory),**request_handler_options)
         def do_GET(self):
+            if urlsplit(self.path).path == REVIEW_LIVE_RELOAD_PATH:
+                encoded_record = json.dumps({'instanceId': review_server_instance_id}).encode()
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json; charset=utf-8')
+                self.send_header('Content-Length', str(len(encoded_record)))
+                self.end_headers()
+                self.wfile.write(encoded_record)
+                return
             if writer_agent_service.handle_writer_request(self):return
             if momask_generation_service.handle(self):return
             if three_reference_service.handle_image_request(self):
@@ -262,6 +283,13 @@ def run_review_server(parsed_argument_values):
                 self.send_error(404,'Review asset not found')
                 return None
             self.path = '/'+validated_request_path.relative_to(review_root_directory).as_posix()
+            if validated_request_path.suffix.lower() == '.html':
+                response_content = inject_review_live_reload(validated_request_path.read_bytes())
+                self.send_response(200)
+                self.send_header('Content-Type', 'text/html; charset=utf-8')
+                self.send_header('Content-Length', str(len(response_content)))
+                self.end_headers()
+                return io.BytesIO(response_content)
             return super().send_head()
         def list_directory(self,requested_directory_path):
             self.send_error(403,'Directory listing disabled')
