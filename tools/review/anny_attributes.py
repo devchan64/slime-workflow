@@ -1,12 +1,29 @@
 from pathlib import Path
 from urllib.parse import urlsplit
-import json, subprocess, threading, uuid, re
+import json, subprocess, threading, uuid, re, math
 from datetime import datetime
 from zoneinfo import ZoneInfo
 ROOT=Path(__file__).resolve().parents[2]
 BASE=ROOT/'assets/motion-sheet/mannequin-walk-v6/inputs/attributes.json'
 JOBS=ROOT/'.tmp/anny-attribute-renderer'
 PAGE=Path(__file__).with_name('anny-attributes.html').read_text()
+THIGH_ROTATION_FIELDS={f'thigh_{side_label_value}_{axis_label_value}':(bone_label_value,axis_index_value) for side_label_value,bone_label_value in [('left','upperleg01.L'),('right','upperleg01.R')] for axis_index_value,axis_label_value in enumerate(('x','y','z'))}
+def apply_thigh_rotation(attribute_pose_values,changed_attribute_values):
+ # 공식 데모와 같은 회전 벡터(도)를 현재 본의 로컬 회전에 합성한다.
+ for target_bone_label in ('upperleg01.L','upperleg01.R'):
+  rotation_vector_values=[0.0,0.0,0.0]
+  for attribute_field_name,(mapped_bone_label,rotation_axis_index) in THIGH_ROTATION_FIELDS.items():
+   if mapped_bone_label==target_bone_label:rotation_vector_values[rotation_axis_index]=math.radians(changed_attribute_values.get(attribute_field_name,0))
+  rotation_angle_value=math.sqrt(sum(component_axis_value**2 for component_axis_value in rotation_vector_values))
+  if rotation_angle_value==0:continue
+  rotation_axis_values=[component_axis_value/rotation_angle_value for component_axis_value in rotation_vector_values]
+  axis_cross_matrix=[[0,-rotation_axis_values[2],rotation_axis_values[1]],[rotation_axis_values[2],0,-rotation_axis_values[0]],[-rotation_axis_values[1],rotation_axis_values[0],0]]
+  rotation_delta_matrix=[[math.cos(rotation_angle_value)*(row_axis_index==column_axis_index)+(1-math.cos(rotation_angle_value))*rotation_axis_values[row_axis_index]*rotation_axis_values[column_axis_index]+math.sin(rotation_angle_value)*axis_cross_matrix[row_axis_index][column_axis_index] for column_axis_index in range(3)] for row_axis_index in range(3)]
+  original_pose_matrix=attribute_pose_values['pose_parameters'][target_bone_label]
+  updated_pose_matrix=[matrix_row_values[:] for matrix_row_values in original_pose_matrix]
+  for row_axis_index in range(3):
+   for column_axis_index in range(3):updated_pose_matrix[row_axis_index][column_axis_index]=sum(original_pose_matrix[row_axis_index][inner_axis_index]*rotation_delta_matrix[inner_axis_index][column_axis_index] for inner_axis_index in range(3))
+  attribute_pose_values['pose_parameters'][target_bone_label]=updated_pose_matrix
 class AnnyAttributeManager:
  def send(self,h,status,payload,ctype='application/json; charset=utf-8'):
   data=payload if isinstance(payload,bytes) else json.dumps(payload,ensure_ascii=False).encode();h.send_response(status);h.send_header('Content-Type',ctype);h.send_header('Content-Length',str(len(data)));h.end_headers();h.wfile.write(data)
@@ -46,12 +63,13 @@ class AnnyAttributeManager:
    if h.headers.get('Origin')!=f'http://127.0.0.1:{h.server.server_port}':raise ValueError('허용하지 않는 요청 출처')
    changed=json.loads(h.rfile.read(int(h.headers['Content-Length'])))
    if not isinstance(changed,dict):raise ValueError('속성 객체가 필요합니다.')
-   if set(changed)-{'age','weight','height','torso-scale-horiz-incr','torso-scale-depth-incr','measure-shoulder-dist-incr','upperlegs-height-incr','lowerlegs-height-incr','rotation_y'}:raise ValueError('지원하지 않는 속성')
+   if set(changed)-set(THIGH_ROTATION_FIELDS)-{'age','weight','height','torso-scale-horiz-incr','torso-scale-depth-incr','measure-shoulder-dist-incr','upperlegs-height-incr','lowerlegs-height-incr','rotation_y'}:raise ValueError('지원하지 않는 속성')
    if not isinstance(changed,dict):raise ValueError('속성 객체가 필요합니다.')
    for attribute_key_name,attribute_numeric_value in changed.items():
-    attribute_minimum_value=-180 if attribute_key_name=='rotation_y' else 0 if attribute_key_name in {'age','weight','height'} else -1
-    if type(attribute_numeric_value) not in (int,float) or not attribute_minimum_value<=attribute_numeric_value<=(180 if attribute_key_name=='rotation_y' else 1):raise ValueError('속성 범위 오류')
-   attrs=json.loads(BASE.read_text());attrs['phenotype_kwargs'].update({k:v for k,v in changed.items() if k in attrs['phenotype_kwargs']});attrs['local_changes_kwargs'].update({k:v for k,v in changed.items() if k not in attrs['phenotype_kwargs'] and k!='rotation_y'})
+    attribute_minimum_value=-180 if (attribute_key_name=='rotation_y' or attribute_key_name in THIGH_ROTATION_FIELDS) else 0 if attribute_key_name in {'age','weight','height'} else -1
+    if type(attribute_numeric_value) not in (int,float) or not attribute_minimum_value<=attribute_numeric_value<=(180 if (attribute_key_name=='rotation_y' or attribute_key_name in THIGH_ROTATION_FIELDS) else 1):raise ValueError('속성 범위 오류')
+   attrs=json.loads(BASE.read_text());attrs['phenotype_kwargs'].update({k:v for k,v in changed.items() if k in attrs['phenotype_kwargs']});attrs['local_changes_kwargs'].update({k:v for k,v in changed.items() if k not in attrs['phenotype_kwargs'] and k!='rotation_y' and k not in THIGH_ROTATION_FIELDS})
+   apply_thigh_rotation(attrs,changed)
    ident=uuid.uuid4().hex[:8];root=JOBS/ident;root.mkdir(parents=True);(root/'attributes.json').write_text(json.dumps(attrs));(root/'status.json').write_text(json.dumps({'status':'running'}))
    (root/'history.json').write_text(json.dumps({'id':ident,'created_at':datetime.now(ZoneInfo('Asia/Seoul')).isoformat(),'request':{'attributes':changed,'kind':'preview' if path.endswith('/preview') else 'render'},'status':{'status':'running'}},ensure_ascii=False))
    preview_mesh_only=path=='/anny-attributes/preview'
