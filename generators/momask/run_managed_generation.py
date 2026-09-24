@@ -19,10 +19,12 @@ def main():
  if a.action in ('standing','deep_breath'):
   subprocess.run([str(ROOT/'.venv/bin/python'),str(ROOT/'generators/momask/normalize_standing_arms.py'),'--motion',str(motion),'--correction-config',str(ROOT/'generators/momask/config'/('standing-corrections.yaml' if a.action=='standing' else 'deep-breath-corrections.yaml'))],check=True)
  result=a.job_dir/'result'; joints=np.load(motion)['joints']; frames=len(joints); indices=','.join(map(str,range(frames)))
+ motion_quality_warnings=[]
  if a.action=='stretch':
   endpoint_wrist_offsets=joints[[0,-1]][:,[20,21],1]-joints[[0,-1]][:,[16,17],1]
   if np.any(endpoint_wrist_offsets>-.15):
-   raise ValueError('스트레칭 원본 자세 검사 실패: 시작과 종료 시 양손이 어깨보다 15cm 이상 아래에 있어야 합니다. 생성 원본은 motion-run/motion에 보존했습니다.')
+   motion_quality_warnings.append('스트레칭 시작·종료 시 양손을 충분히 내리지 못했습니다. 결과 자세를 검수하세요.')
+   print('품질 경고: '+motion_quality_warnings[-1],flush=True)
  if a.action in ('standing','deep_breath'):
   standing_correction_values=yaml.safe_load((motion.parent/'standing-corrections.yaml').read_text())
   upper_ratios=[]
@@ -41,7 +43,7 @@ def main():
  subprocess.run([str(ROOT/'.venv/bin/python'),str(ROOT/'generators/momask/render_anny_frames.py'),'--motion',str(motion),'--output-dir',str(result/'anny'),'--directions',','.join(directions),'--sample-indices',indices]+(['--animate-hand-closure'] if a.action=='stretch' else []),check=True)
  for direction in DIRECTIONS-set(directions):
   shutil.rmtree(result/'openpose'/direction)
- (a.job_dir/'result.json').write_text(json.dumps({'action':a.action,'label':label,'frames':frames,'anny_frames':frames,'fps':4,'directions':directions,'prompt':spec['prompt'],'sampling':'none','hand_pose':json.loads((result/'anny/result.json').read_text())['hand_pose'],'baseline_model':json.loads((result/'anny/result.json').read_text())['baseline_model'],'status':'completed'},ensure_ascii=False,indent=2)+'\n')
+ (a.job_dir/'result.json').write_text(json.dumps({'action':a.action,'label':label,'frames':frames,'anny_frames':frames,'fps':4,'directions':directions,'prompt':spec['prompt'],'sampling':'none','quality_warnings':motion_quality_warnings,'hand_pose':json.loads((result/'anny/result.json').read_text())['hand_pose'],'baseline_model':json.loads((result/'anny/result.json').read_text())['baseline_model'],'status':'completed'},ensure_ascii=False,indent=2)+'\n')
  sys.path.insert(0,str(ROOT/'tools/review'))
  from openpose_maps import generate_openpose_maps
  generate_openpose_maps(a.job_dir)
