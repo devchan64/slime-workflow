@@ -30,6 +30,18 @@
 - Local backend stack: `FastAPI + uvicorn`, `DynamoDB Local (Docker)`, optional `SAM local`.
 - Separate environments by stage: `local/dev/prod`.
 - Local default config must never point to production resources.
+## Management Client and Gateway Standard
+- 관리도구의 기준 구조는 **GUI·통합 CLI → 공용 명령 게이트웨이 → 작업 서비스 → 공용 기록 저장소**이다. 상세 구현·사용법은 [관리도구 클라이언트 가이드](workflows/management-clients.md)를 따른다.
+- `tools/manager.py`는 CLI 진입점만 담당한다. 서비스·명령 등록, 최상위 `command`·`help`, 실행 디스패치와 HTTP 명령 전송은 `tools/review/management_gateway.py`에서 관리한다. 별도 CLI 실행 체계나 중복 서비스 레지스트리를 만들지 않는다.
+- 생성기별 `*_commands.py`는 옵션 파싱·입력 파일 처리·진행 표시를 담당하는 어댑터다. 생성·상태 변경·취소·기록 저장 로직을 GUI와 CLI에 각각 구현하지 않는다.
+- 웹 페이지는 GUI 클라이언트다. 명령 요청은 게이트웨이를 거쳐 CLI와 같은 작업 서비스를 호출한다. 기존 웹 API 주소는 호환 어댑터로 유지할 수 있으며, 새 통합 HTTP 명령은 `POST /management/command`의 `{service, command, payload}` 계약을 사용한다.
+- 브라우저 요청을 셸 문자열로 변환하거나 요청마다 CLI 프로세스를 실행하지 않는다. 명령 게이트웨이와 서비스 코드를 공유한다. 이미지·프레임·정적 UI 파일 조회는 명령 실행과 구분한다.
+- 현재 통합 대상은 `momask`, `qwen-2512`, `qwen-2511`이다. MoMask는 로컬 작업 서비스를 통해 서버 없이 CLI 실행이 가능하고 Qwen 두 종류는 실행 중인 관리 서버 API를 사용한다. ANNY·작가 에이전트 등 미통합 기능까지 완료된 것으로 기술하지 않는다. 신규 관리 기능과 기존 기능의 통합 작업에는 이 구조를 적용한다.
+- GUI와 CLI는 같은 생성 ID·요청·상태·로그·결과·이력 경로를 공유한다. 클라이언트별 저장소를 만들거나 기존 경로를 임의로 이전하지 않는다. 현재 서비스별 경로는 클라이언트 가이드를 기준으로 하며, 이 경로에 대한 통합 작업은 일반 실험 폴더 규칙을 이유로 기존 기록을 이동하지 않는다.
+- 생성 이력은 누적하고 결과를 양쪽에서 조회할 수 있어야 한다. 초기화는 명시적인 수동 명령으로만 수행하며, 이력 초기화와 결과 파일 삭제를 구분한다. 초기화된 이력을 작업 종료 시 자동 복원하지 않는다.
+- 입력 검증·동시 실행 제어·취소·완료/실패 상태 기록은 작업 서비스가 책임진다. HTTP 어댑터는 Host·Origin·요청 크기·JSON 형식 검사를 유지하고, 허용된 서비스·명령만 전달한다. GPU 실행 및 모델 경로 정책도 GUI·CLI에서 동일하게 적용한다.
+- 새 명령을 추가하면 게이트웨이 등록·CLI 인자·`help`·GUI 연결·사용 가이드를 함께 갱신한다. 해당 기능의 GUI/CLI 계약 일치, 잘못된 입력 거절, 상태·이력 공유를 검증한다. 구조 변경 시 `test_management_gateway.py`, `test_momask_jobs.py`, `test_qwen_commands.py` 중 영향받는 테스트를 실행하고 필요한 계약 검증을 보강한다.
+
 ## Language Rules (Current default in this repository)
 - Runtime output/comments/docstrings/markdown should be Korean-first.
 - Keep identifiers (variables/functions/files), standard keywords, and AWS resource names in English.
