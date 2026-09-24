@@ -3,7 +3,7 @@ from pathlib import Path
 import argparse, json, shutil, subprocess, sys
 import numpy as np
 ROOT=Path(__file__).resolve().parents[2]
-ACTIONS={'standing':('standing','대기'),'deep_breath':('deep-breath','심호흡'),'stretch':('stretch','스트레칭')}
+ACTIONS={'walking':('walking','걷기'),'standing':('standing','대기'),'deep_breath':('deep-breath','심호흡'),'stretch':('stretch','스트레칭')}
 DIRECTIONS={'down_left','down_right','up_left','up_right'}
 def main():
  p=argparse.ArgumentParser();p.add_argument('--job-dir',type=Path,required=True);p.add_argument('--action',choices=ACTIONS);p.add_argument('--directions',required=True);a=p.parse_args()
@@ -14,11 +14,15 @@ def main():
  generation_root = a.job_dir / 'motion-run'
  command=[str(ROOT/'.venv/bin/python'),str(ROOT/'generators/momask/generate_motion.py'),'--output-dir',str(generation_root),'--frames',str(spec['source_frames']),'--prompt',spec['prompt']]
  subprocess.run(command,check=True)
- motion=generation_root/'motion/motion.npz'; subprocess.run([str(ROOT/'.venv/bin/python'),str(ROOT/'generators/momask/normalize_standing_arms.py'),'--motion',str(motion)],check=True); result=a.job_dir/'result'; joints=np.load(motion)['joints']; frames=len(joints); indices=','.join(map(str,range(frames)))
- upper_ratios=[]
- for shoulder,elbow in ((16,18),(17,19)):
-  upper=joints[:,elbow]-joints[:,shoulder];upper_ratios.extend((np.linalg.norm(upper[:,[0,2]],axis=1)/np.maximum(-upper[:,1],1e-6)).tolist())
- if max(upper_ratios)>.05: raise ValueError('대기 팔 벌림 품질 기준 초과')
+ motion=generation_root/'motion/motion.npz'
+ if a.action=='standing':
+  subprocess.run([str(ROOT/'.venv/bin/python'),str(ROOT/'generators/momask/normalize_standing_arms.py'),'--motion',str(motion)],check=True)
+ result=a.job_dir/'result'; joints=np.load(motion)['joints']; frames=len(joints); indices=','.join(map(str,range(frames)))
+ if a.action=='standing':
+  upper_ratios=[]
+  for shoulder,elbow in ((16,18),(17,19)):
+   upper=joints[:,elbow]-joints[:,shoulder];upper_ratios.extend((np.linalg.norm(upper[:,[0,2]],axis=1)/np.maximum(-upper[:,1],1e-6)).tolist())
+  if max(upper_ratios)>.05: raise ValueError('대기 팔 벌림 품질 기준 초과')
  subprocess.run([str(ROOT/'.venv/bin/python'),str(ROOT/'generators/momask/render_openpose_frames.py'),'--motion',str(motion),'--output-dir',str(result/'openpose'),'--sample-indices',indices],check=True)
  subprocess.run([str(ROOT/'.venv/bin/python'),str(ROOT/'generators/momask/render_rig_frames.py'),'--motion',str(motion),'--output-dir',str(result/'rig'),'--sample-indices',indices],check=True)
  for direction in DIRECTIONS-set(directions):
