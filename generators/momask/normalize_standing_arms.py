@@ -61,7 +61,8 @@ def normalize(path: Path) -> dict:
         joints[:,wrist]=joints[:,elbow]+np.column_stack((np.zeros(len(joints)), -lower_lengths, np.zeros(len(joints))))
     joints=correct_standing_posture(joints)
     # 가슴 아래 관절을 중심으로 상부를 뒤로 회전한다. 어깨 승모 동작은 추가하지 않는다.
-    chest_upper_indices=[9,12,13,14,15,16,17,18,19,20,21]
+    chest_upper_indices=[9,12,13,14,15,16,17]
+    shoulder_before_values=joints[:,[16,17]].copy()
     chest_pivot_values=joints[:,6,None].copy()
     chest_relative_values=joints[:,chest_upper_indices]-chest_pivot_values
     chest_rotation_values=-np.radians(STANDING_CORRECTION_VALUES['chest_backward_rotation_degrees'])*breathing_cycle_values
@@ -70,6 +71,10 @@ def normalize(path: Path) -> dict:
     chest_relative_values[:,:,1]=np.cos(chest_rotation_values)[:,None]*chest_height_values-np.sin(chest_rotation_values)[:,None]*chest_depth_values
     chest_relative_values[:,:,2]=np.sin(chest_rotation_values)[:,None]*chest_height_values+np.cos(chest_rotation_values)[:,None]*chest_depth_values
     joints[:,chest_upper_indices]=chest_relative_values+chest_pivot_values
+    # 팔은 가슴 회전각을 복제하지 않고 어깨 이동만 따라간다.
+    for shoulder_side_index,(shoulder_joint_index,elbow_joint_index,wrist_joint_index) in enumerate(ARMS):
+        shoulder_shift_values=joints[:,shoulder_joint_index]-shoulder_before_values[:,shoulder_side_index]
+        joints[:,[elbow_joint_index,wrist_joint_index]]+=shoulder_shift_values[:,None]
     result={name:bundle[name] for name in bundle.files};result['joints']=joints
     np.savez_compressed(path,**result)
     (path.parent/'standing-corrections.yaml').write_text(yaml.safe_dump(STANDING_CORRECTION_VALUES,sort_keys=False))

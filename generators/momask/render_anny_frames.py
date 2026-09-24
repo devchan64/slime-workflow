@@ -36,6 +36,10 @@ def render(motion_path, output_dir, directions, sample_indices):
     retarget=retarget.replace("scene_render_value.frame_start=1;scene_render_value.frame_end=25", "scene_render_value.frame_start=1;scene_render_value.frame_end=len(source_joint_frames)")
     retarget=retarget.replace("for current_frame_number in [1,25]:", "for current_frame_number in [1,len(source_joint_frames)]:")
     retarget=retarget.replace("for current_frame_number in range(1,26):", "for current_frame_number in range(1,len(source_joint_frames)+1):")
+    if (motion_path.parent/'standing-corrections.yaml').is_file():
+        # 대기 호흡은 골반→가슴 전체 기울기가 아닌 가슴 구간의 상대 회전을 전달한다.
+        retarget=retarget.replace("torso_rotation_value=calculate_body_rotation(current_joint_points,9)", "torso_rotation_value=calculate_body_rotation(current_joint_points,9)\n source_chest_reference=Vector(source_joint_frames[0,9]-source_joint_frames[0,6])\n current_chest_direction=Vector(current_joint_points[9]-current_joint_points[6])\n chest_rotation_delta=source_chest_reference.rotation_difference(current_chest_direction)")
+        retarget=retarget.replace("elif current_bone_name.startswith('spine'):target_rotation_value=torso_rotation_value@rest_bone_rotations[current_bone_name]", "elif current_bone_name in ('spine01','spine02'):target_rotation_value=chest_rotation_delta@rest_bone_rotations[current_bone_name]\n  elif current_bone_name=='spine03':target_rotation_value=chest_rotation_delta.__class__((1,0,0,0)).slerp(chest_rotation_delta,.5)@rest_bone_rotations[current_bone_name]\n  elif current_bone_name.startswith('spine'):target_rotation_value=rest_bone_rotations[current_bone_name]")
     (output_dir/'retarget_loop.py').write_text(retarget)
     cameras={key:value for key,value in {'down_left':(26**.5,-26**.5,3),'down_right':(-26**.5,-26**.5,3),'up_left':(26**.5,26**.5,3),'up_right':(-26**.5,26**.5,3)}.items() if key in directions}
     renderer=(output_dir/'render_asset.py').read_text()
