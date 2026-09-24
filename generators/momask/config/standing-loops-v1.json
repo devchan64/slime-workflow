@@ -1,6 +1,6 @@
 {
   "asset_id": "standing-loops",
-  "version": 5,
+  "version": 6,
   "generator": "MoMask text-to-motion",
   "fps": 4,
   "actions": {
@@ -30,7 +30,7 @@
         39
       ],
       "playtime_seconds": 2.0,
-      "prompt": "A person stands in one spot, breathing deeply."
+      "prompt": "A person stands in one spot and takes a deep breath while both arms hang by the body with hands near the thighs."
     },
     "stretch": {
       "source_frames": 40,
