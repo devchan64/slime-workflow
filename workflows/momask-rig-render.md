@@ -80,7 +80,7 @@ OpenPose와 ANNY는 같은 보정 모션을 사용하지만 서로 다른 골격
 심호흡 실행 프롬프트 (`actions.deep_breath.prompt`):
 
 ```text
-A person stands in place with both arms relaxed at the sides, slowly takes a deep breath, lifts the chest, and exhales back to a neutral standing posture.
+A person starts in a neutral standing posture with both arms relaxed at the sides, takes a deep breath in and out, then returns to the same neutral standing posture.
 ```
 
 대기의 `A person stands.`와 구분한다. 32프레임·가슴 후방 회전 15°·위팔 25°·아래팔 15° 설정은 유지한다.
