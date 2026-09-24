@@ -11,6 +11,7 @@ BONE_ROTATION_FIELDS={'upperleg_left_rotation_z':('upperleg01.L',2),'upperleg_ri
 BONE_ROTATION_FIELDS.update({f'{part_label_value}_{side_label_value}_rotation_{axis_label_value}':(f'{part_label_value}01.{side_suffix_value}',axis_index_value) for part_label_value in ('upperarm','lowerarm') for side_label_value,side_suffix_value in [('left','L'),('right','R')] for axis_index_value,axis_label_value in enumerate(('x','y','z'))})
 def load_attribute_defaults():
  baseline_attribute_values=json.loads(BASE.read_text())
+ baseline_attribute_values['local_changes_kwargs']['hip-waist-up']=0.0
  baseline_attribute_values['local_changes_kwargs'].setdefault('torso-muscle-dorsi-incr',0.0)
  return baseline_attribute_values
 def extract_bone_rotation(pose_matrix_values):
@@ -71,6 +72,7 @@ class AnnyAttributeManager:
    if h.headers.get('Origin')!=f'http://127.0.0.1:{h.server.server_port}':raise ValueError('허용하지 않는 요청 출처')
    changed=json.loads(h.rfile.read(int(h.headers['Content-Length'])))
    if not isinstance(changed,dict):raise ValueError('속성 객체가 필요합니다.')
+   if 'hip-waist-up' in changed and (type(changed['hip-waist-up']) not in (int,float) or changed['hip-waist-up']!=0):raise ValueError('hip-waist-up은 0으로 잠긴 속성입니다.')
    attrs=load_attribute_defaults()
    allowed_attribute_fields=set(attrs['phenotype_kwargs'])|set(attrs['local_changes_kwargs'])|set(attrs['facial_actions'])|set(BONE_ROTATION_FIELDS)|{'rotation_y'}
    if set(changed)-allowed_attribute_fields:raise ValueError('지원하지 않는 속성')
