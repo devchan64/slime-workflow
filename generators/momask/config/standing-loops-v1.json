@@ -1,6 +1,6 @@
 {
   "asset_id": "standing-loops",
-  "version": 18,
+  "version": 19,
   "generator": "MoMask text-to-motion",
   "fps": 4,
   "actions": {
@@ -46,8 +46,8 @@
       "description": "가벼운 보행 원본. 관리도구 생성은 원본 프레임 전체를 출력한다."
     },
     "standing": {
-      "source_frames": 12,
-      "rendered_frames": 12,
+      "source_frames": 40,
+      "rendered_frames": 40,
       "sample_indices": [
         0,
         1,
@@ -60,9 +60,37 @@
         8,
         9,
         10,
-        11
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39
       ],
-      "playtime_seconds": 3.0,
+      "playtime_seconds": 10.0,
       "prompt": "A person stands lightly.",
       "description": "“가볍게 서있다” 고정 스크립트. 팔은 생성 후 몸통 옆 수직 자세로 정규화한다."
     },
