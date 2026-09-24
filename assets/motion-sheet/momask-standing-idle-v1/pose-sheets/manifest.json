@@ -4,13 +4,13 @@
   "source_frames": 48,
   "sample_indices": [
     0,
-    6,
-    13,
+    0,
+    0,
+    0,
+    0,
+    12,
     20,
-    26,
-    33,
-    40,
-    47
+    0
   ],
   "directions": [
     "down_left",
@@ -26,5 +26,5 @@
     512,
     512
   ],
-  "frame_duration_ms": 300
+  "frame_duration_ms": 750
 }

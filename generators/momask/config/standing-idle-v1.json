@@ -4,9 +4,39 @@
   "prompt": "A person stands in place, breathing gently, shifts weight subtly, then performs a small relaxed shoulder and arm stretch before returning to the initial standing pose.",
   "source_frames": 48,
   "fps": 20,
-  "playtime_seconds": 2.4,
+  "playtime_seconds": 6.0,
   "rendered_samples_per_direction": 8,
-  "rendered_frame_duration_ms": 300,
-  "directions": ["down_left", "down_right", "up_left", "up_right"],
-  "facial_animation": "MoMask HumanML3D-22 has no eye joints; add blink in the image-frame stage if needed."
+  "rendered_frame_duration_ms": 750,
+  "directions": [
+    "down_left",
+    "down_right",
+    "up_left",
+    "up_right"
+  ],
+  "facial_animation": "MoMask HumanML3D-22 has no eye joints; add blink in the image-frame stage if needed.",
+  "sample_indices": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    12,
+    20,
+    0
+  ],
+  "cadence": {
+    "still_frames": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      7
+    ],
+    "movement_frames": [
+      5,
+      6
+    ],
+    "description": "처음 3.75초와 마지막 0.75초는 기본 대기 자세를 유지하고, 중간 1.5초만 작은 호흡·스트레칭 동작을 재생한다."
+  }
 }
