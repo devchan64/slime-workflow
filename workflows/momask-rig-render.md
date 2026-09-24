@@ -84,3 +84,9 @@ A person starts in a neutral standing posture with both arms relaxed at the side
 ```
 
 대기의 `A person stands.`와 구분한다. 32프레임·가슴 후방 회전 15°·위팔 25°·아래팔 15° 설정은 유지한다.
+
+## ANNY 손 자세
+
+신규 ANNY 렌더는 양손에 고정 주먹 자세(`fist-v1`)를 적용한다. `anny_hand_pose.py`에서 손바닥 안쪽 방향을 계산해 검지부터 소지까지 각 마디를 65°·80°·55°, 엄지는 25°·35°·30° 굽힌다. 매 프레임 손가락 30개 본에 동일한 로컬 회전을 적용하여 팔 동작 중에도 주먹을 유지한다. 생성 결과 JSON에 `hand_pose`를 기록한다.
+
+HumanML3D 22관절과 현재 COCO18 신체 포즈 맵에는 손가락 관절이 없으므로 주먹 표현은 ANNY 리그와 렌더에 적용된다. 기존 생성 이력과 등록 에셋은 변경하지 않으며 새 렌더부터 적용한다.
