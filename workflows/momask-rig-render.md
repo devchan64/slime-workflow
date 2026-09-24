@@ -73,6 +73,14 @@ OpenPose와 ANNY는 같은 보정 모션을 사용하지만 서로 다른 골격
 
 ## 심호흡 생성
 
-심호흡은 대기와 동일한 MoMask 입력 및 보정·리타기팅 경로를 사용하며, `deep-breath-corrections.yaml`에서 가슴 후방 회전을 **15°**로 확대한다. 심호흡의 팔 벌림은 위팔 25°·아래팔 15°이며, 대기는 위팔 18°·아래팔 10°를 유지한다. 골반·발 고정은 동일하다. **32프레임·4fps·8초**, 선택한 4방향 전체를 샘플링 없이 렌더한다. 관리도구의 심호흡 보정값 펼치기는 해당 설정을 표시한다.
+심호흡은 대기와 별도의 MoMask 프롬프트를 사용하고 보정·리타기팅 경로는 공유하며, `deep-breath-corrections.yaml`에서 가슴 후방 회전을 **15°**로 확대한다. 심호흡의 팔 벌림은 위팔 25°·아래팔 15°이며, 대기는 위팔 18°·아래팔 10°를 유지한다. 골반·발 고정은 동일하다. **32프레임·4fps·8초**, 선택한 4방향 전체를 샘플링 없이 렌더한다. 관리도구의 심호흡 보정값 펼치기는 해당 설정을 표시한다.
 
 실행별 `motion-run/motion/standing-corrections.yaml`은 공용 보정기의 적용값 사본이므로, 심호흡 실행에서는 15°가 기록된다. 기존 대기 에셋과 이전 심호흡 결과는 변경하지 않는다.
+
+심호흡 실행 프롬프트 (`actions.deep_breath.prompt`):
+
+```text
+A person stands in place with both arms relaxed at the sides, slowly takes a deep breath, lifts the chest, and exhales back to a neutral standing posture.
+```
+
+대기의 `A person stands.`와 구분한다. 32프레임·가슴 후방 회전 15°·위팔 25°·아래팔 15° 설정은 유지한다.

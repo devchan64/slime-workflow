@@ -108,7 +108,7 @@
         31
       ],
       "playtime_seconds": 8.0,
-      "prompt": "A person stands.",
+      "prompt": "A person stands in place with both arms relaxed at the sides, slowly takes a deep breath, lifts the chest, and exhales back to a neutral standing posture.",
       "description": "대기와 같은 보정 경로에 가슴 후방 회전 15도를 적용하는 심호흡"
     },
     "stretch": {
