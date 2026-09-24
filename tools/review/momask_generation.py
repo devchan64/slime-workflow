@@ -36,7 +36,7 @@ class MoMaskGenerationManager:
    if h.headers.get('Host')!=origin.removeprefix('http://'): raise ValueError('허용하지 않는 Host')
    if h.command=='GET' and path in (self.route,self.route+'/'): self.send(h,200,PAGE.encode(),'text/html; charset=utf-8');return True
    if h.command=='GET' and path==self.route+'/history': self.send(h,200,{'records':self.history(),'running':self.process is not None and self.process.poll() is None});return True
-   match=re.fullmatch(self.route+r'/jobs/([0-9a-f-]+)(?:/result/(down_left|down_right|up_left|up_right)/(openpose-\d{4}\.png))?',path)
+   match=re.fullmatch(self.route+r'/jobs/([0-9a-f_-]+)(?:/result/(down_left|down_right|up_left|up_right)/(openpose-\d{4}\.png))?',path)
    if h.command=='GET' and match:
     root=JOB_ROOT/match[1]
     if match[2]: self.send(h,200,(root/'result'/match[2]/match[3]).read_bytes(),'image/png');return True

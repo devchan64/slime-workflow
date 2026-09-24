@@ -10,9 +10,10 @@ def main():
  if not directions or set(directions)-DIRECTIONS or len(set(directions))!=len(directions): raise ValueError('방향 선택 오류')
  config=json.loads((ROOT/'generators/momask/config/standing-loops-v1.json').read_text())
  spec=config['actions'][a.action]; folder,label,frames=ACTIONS[a.action]
- command=[str(ROOT/'.venv/bin/python'),str(ROOT/'generators/momask/generate_motion.py'),'--output-dir',str(a.job_dir),'--frames',str(spec['source_frames']),'--prompt',spec['prompt']]
+ generation_root = a.job_dir / 'motion-run'
+ command=[str(ROOT/'.venv/bin/python'),str(ROOT/'generators/momask/generate_motion.py'),'--output-dir',str(generation_root),'--frames',str(spec['source_frames']),'--prompt',spec['prompt']]
  subprocess.run(command,check=True)
- motion=a.job_dir/'motion/motion.npz'; result=a.job_dir/'result'; indices=','.join(map(str,spec['sample_indices']))
+ motion=generation_root/'motion/motion.npz'; result=a.job_dir/'result'; indices=','.join(map(str,spec['sample_indices']))
  subprocess.run([str(ROOT/'.venv/bin/python'),str(ROOT/'generators/momask/render_openpose_frames.py'),'--motion',str(motion),'--output-dir',str(result),'--sample-indices',indices],check=True)
  for direction in DIRECTIONS-set(directions): shutil.rmtree(result/direction)
  (a.job_dir/'result.json').write_text(json.dumps({'action':a.action,'label':label,'frames':frames,'fps':4,'directions':directions,'prompt':spec['prompt'],'status':'completed'},ensure_ascii=False,indent=2)+'\n')
