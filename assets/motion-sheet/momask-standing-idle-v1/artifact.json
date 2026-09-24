@@ -25,5 +25,26 @@
   "facial_animation": "MoMask HumanML3D-22 has no eye joints; add blink in the image-frame stage if needed.",
   "quality_warnings": [
     "WARN: 4방향 Anny 리그 렌더와 루프 검수 전 원본 관절 모션"
-  ]
+  ],
+  "pose_sheets": {
+    "manifest": "pose-sheets/manifest.json",
+    "directions": [
+      "down_left",
+      "down_right",
+      "up_left",
+      "up_right"
+    ],
+    "samples_per_direction": 8,
+    "cell_size": [
+      512,
+      512
+    ]
+  },
+  "files": {
+    "pose-sheets/down_left.png": "ba5a74a9a90f3862c1340ee92b03baac56159c2c8a0c82705f89ad9e65b55d3d",
+    "pose-sheets/down_right.png": "c391b2666782a5148eff5a878dab4ddb1a9329451c45618d13970030362f8787",
+    "pose-sheets/manifest.json": "1a30b7f83c78676485ca380e248869eaab7582f3f7b830a73f5dca9246edd293",
+    "pose-sheets/up_left.png": "9b08ce2228d081ea000adc66e5e98a3a5ff84f1419c750844f9ec3390da30524",
+    "pose-sheets/up_right.png": "c64f4e584044b7f329fc658857823fe12d8f69d23cd8d72aa5d822ce4b58cc6f"
+  }
 }
