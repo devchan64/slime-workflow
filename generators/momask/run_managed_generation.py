@@ -19,6 +19,10 @@ def main():
  if a.action in ('standing','deep_breath'):
   subprocess.run([str(ROOT/'.venv/bin/python'),str(ROOT/'generators/momask/normalize_standing_arms.py'),'--motion',str(motion),'--correction-config',str(ROOT/'generators/momask/config'/('standing-corrections.yaml' if a.action=='standing' else 'deep-breath-corrections.yaml'))],check=True)
  result=a.job_dir/'result'; joints=np.load(motion)['joints']; frames=len(joints); indices=','.join(map(str,range(frames)))
+ if a.action=='stretch':
+  endpoint_wrist_offsets=joints[[0,-1]][:,[20,21],1]-joints[[0,-1]][:,[16,17],1]
+  if np.any(endpoint_wrist_offsets>-.15):
+   raise ValueError('스트레칭 원본 자세 검사 실패: 시작과 종료 시 양손이 어깨보다 15cm 이상 아래에 있어야 합니다. 생성 원본은 motion-run/motion에 보존했습니다.')
  if a.action in ('standing','deep_breath'):
   standing_correction_values=yaml.safe_load((motion.parent/'standing-corrections.yaml').read_text())
   upper_ratios=[]
