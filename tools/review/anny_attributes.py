@@ -78,7 +78,7 @@ class AnnyAttributeManager:
     attrs[attribute_group_name].update({attribute_key_name:attribute_numeric_value for attribute_key_name,attribute_numeric_value in changed.items() if attribute_key_name in attrs[attribute_group_name]})
    apply_thigh_rotation(attrs,changed)
    ident=uuid.uuid4().hex[:8];root=JOBS/ident;root.mkdir(parents=True);(root/'attributes.json').write_text(json.dumps(attrs));(root/'status.json').write_text(json.dumps({'status':'running'}))
-   (root/'history.json').write_text(json.dumps({'id':ident,'created_at':datetime.now(ZoneInfo('Asia/Seoul')).isoformat(),'request':{'attributes':changed,'kind':'preview' if path.endswith('/preview') else 'render'},'status':{'status':'running'}},ensure_ascii=False))
+   (root/'history.json').write_text(json.dumps({'id':ident,'created_at':datetime.now(ZoneInfo('Asia/Seoul')).isoformat(),'request':{'attributes':{attribute_field_name:attribute_field_value for attribute_field_name,attribute_field_value in changed.items() if attribute_field_name!='rotation_y'},'render_settings':{'rotation_y':changed.get('rotation_y',0)},'kind':'preview' if path.endswith('/preview') else 'render'},'status':{'status':'running'}},ensure_ascii=False))
    preview_mesh_only=path=='/anny-attributes/preview'
    def work():
     code=subprocess.run([str(ROOT/'.venv/bin/python'),str(ROOT/'generators/animation/render_anny_attribute_preview.py'),'--attributes',str(root/'attributes.json'),'--output-dir',str(root/'render'),'--rotation-y',str(changed.get('rotation_y',0))]+(['--mesh-only'] if preview_mesh_only else []),stdout=(root/'worker.log').open('w'),stderr=subprocess.STDOUT).returncode
