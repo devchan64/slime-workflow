@@ -11,3 +11,5 @@
 - generation-records/: 사용자 지시로 보존한 리포트·생성기 직접 연결 기록만 관리. 일반 생성 기록은 `.tmp/test/`에 보관.
 
 기본 선택은 generators/animation/config/default_walk_rig.yaml 및 default_walk_pose_sheets.yaml에서 관리한다. 미리보기 HTML은 실행별 .tmp/에서 제공하며 정식 자산에 중복 등록하지 않는다. 모델 다운로드는 .model/, 승인 전 후보·비공개 실험 프롬프트는 .tmp/에 둔다. 공개 자산에 비공개 기획·설계·프롬프트·인증 정보를 포함하지 않는다.
+
+- 기본 대기 모션: [momask-standing/v2](motion-sheet/momask-standing-v2/README.md). 16프레임·4fps·4방향, 선택 설정 `generators/animation/config/default_standing_motion.yaml`.

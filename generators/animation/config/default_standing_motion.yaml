@@ -1,0 +1,12 @@
+schema_version: 1
+asset_id: momask-standing
+version: 2
+asset_path: assets/motion-sheet/momask-standing-v2
+manifest_path: assets/motion-sheet/momask-standing-v2/manifest.yaml
+motion_path: assets/motion-sheet/momask-standing-v2/motion.npz
+motion_sha256: 7f81131d494b20bf46e80b16df6c8493426fdf6996979025a7b8034f372575c2
+openpose_path: assets/motion-sheet/momask-standing-v2/openpose
+frames: 16
+fps: 4
+cycle_seconds: 4
+baseline_model: anny-39eab167-v1

@@ -66,3 +66,7 @@ OpenPose와 ANNY는 같은 보정 모션을 사용하지만 서로 다른 골격
 - 이 검증은 회전 전달 확인이며 최종 모션의 자연스러움에 대한 사용자 승인을 대신하지 않는다.
 
 이전의 전신 상하 이동·가슴 상하/전후 이동량 보정은 현재 사용하지 않는다. 보정값 변경 후에는 새 생성 이력에서 결과를 확인한다. GPU 추론과 Blender CUDA 렌더는 샌드박스 밖에서 실행한다.
+
+## 재사용 대기 에셋
+
+검증 이력 `2026-09-24_20-31-23-13336ffa`는 `assets/motion-sheet/momask-standing-v2`로 등록했다. 향후 포즈 생성에서는 `generators/animation/config/default_standing_motion.yaml`의 모션·OpenPose 경로를 사용한다. 관리도구 OpenPose 플레이어와 대기 페이지도 이 선택 설정을 따른다. 모션은 보정 적용본이며 원본 이력의 파일을 덮어쓰지 않는다.

@@ -1,5 +1,5 @@
 from pathlib import Path
-import json, shutil
+import json, shutil, yaml
 
 ROOT = Path(__file__).resolve().parents[2]
 SOURCE = ROOT / 'assets/motion-sheet/mannequin-walk-v6'
@@ -40,9 +40,10 @@ def build_animation_tools(output):
     write_common_player(output)
     records=[]
     openpose_motions = {}
+    standing_motion_selection=yaml.safe_load((ROOT/'generators/animation/config/default_standing_motion.yaml').read_text())
     openpose_sources = (
         ('walk', '걷기', SOURCE, {direction: list(range(1, 9)) for direction in DIRECTIONS}),
-        ('standing', '대기 스탠딩', ROOT / 'assets/motion-sheet/momask-standing-loops-v1' / 'standing' / 'openpose', {direction: list(range(1, 41)) for direction in DIRECTIONS}),
+        ('standing', '대기 스탠딩', ROOT / standing_motion_selection['openpose_path'], {direction: list(range(1, standing_motion_selection['frames']+1)) for direction in DIRECTIONS}),
         ('deep-breath', '심호흡', ROOT / 'assets/motion-sheet/momask-standing-loops-v1' / 'deep-breath' / 'openpose', {direction: list(range(1, 9)) for direction in DIRECTIONS}),
         ('stretch', '스트레칭', ROOT / 'assets/motion-sheet/momask-standing-loops-v1' / 'stretch' / 'openpose', {direction: list(range(1, 21)) for direction in DIRECTIONS}),
     )
@@ -71,6 +72,14 @@ def build_animation_tools(output):
         ('stretch', 'momask-stretch', 'MoMask 스트레칭', '20프레임 · 5초 · 4방향'),
     ):
         folder = output / identifier
+        if action=='standing':
+            for direction in DIRECTIONS:
+                for frame_number in range(1,standing_motion_selection['frames']+1):
+                    frame_file_name=f'{direction}-{frame_number:04d}.png'
+                    copy(ROOT/standing_motion_selection['openpose_path']/direction/f'openpose-{frame_number:04d}.png',folder/frame_file_name)
+            (folder/'index.html').write_text(openpose_selector_page({'standing':{'label':'대기 · v2 · 16프레임', 'directions':{direction:{'label':direction,'frames':[f'{direction}-{number:04d}.png' for number in range(1,standing_motion_selection['frames']+1)]} for direction in DIRECTIONS}}}),encoding='utf-8')
+            records.append({'id':identifier,'label':title,'path':identifier+'/index.html','anchorEditor':False,'category':'animation-tool','description':'승인 대기 v2 · 16프레임 · 4초 · 4방향'})
+            continue
         copy(loop_source / 'artifact.json', folder / 'artifact.json')
         copy(loop_source / action / 'source-motion.npz', folder / 'source-motion.npz')
         copy(loop_source / action / 'pose-sheets' / 'manifest.json', folder / 'pose-sheets-manifest.json')
