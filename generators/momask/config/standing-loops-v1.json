@@ -1,6 +1,6 @@
 {
   "asset_id": "standing-loops",
-  "version": 10,
+  "version": 11,
   "generator": "MoMask text-to-motion",
   "fps": 4,
   "actions": {
@@ -14,7 +14,7 @@
         19
       ],
       "playtime_seconds": 1.0,
-      "prompt": "A person stands at attention, completely still, with both arms straight down by the sides.",
+      "prompt": "A person stands still with both arms down at the sides.",
       "description": "MoMask 원본에서 양손이 가장 낮은 프레임을 4회 반복하는 정지 대기 루프."
     },
     "deep_breath": {
