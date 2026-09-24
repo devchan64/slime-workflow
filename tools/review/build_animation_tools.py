@@ -58,6 +58,7 @@ def build_animation_tools(output):
         openpose_motions[motion_id] = {'label': label, 'directions': motion_directions}
     (output/'momask-openpose-player'/'index.html').write_text(openpose_selector_page(openpose_motions),encoding='utf-8')
     records.append({'id':'momask-openpose-player','label':'MoMask 애니메이션 OpenPose 맵 플레이어','path':'momask-openpose-player/index.html','anchorEditor':False,'category':'animation-tool','description':'걷기·일반호흡·심호흡·스트레칭 선택 · 각 4방향'})
+    records.append({'id':'momask-generator','label':'MoMask 모션 생성기','path':'/momask-generator/','anchorEditor':False,'category':'animation-tool','description':'고정 포즈 스크립트 · 방향 선택 · 생성 로그·취소·결과 재생'})
     rig=[]
     for direction in DIRECTIONS:
         name=f'{direction}.png'; copy(SOURCE/'rig-sheets'/name,output/'momask-rig-player'/name); rig.append(name)

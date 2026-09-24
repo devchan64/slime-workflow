@@ -230,12 +230,18 @@ def run_review_server(parsed_argument_values):
     from generators.writer_agent.documents import DEFAULT_WORKSPACE_CONFIG
     writer_agent_service=WriterAgentManager(parsed_argument_values.writer_agent_config or DEFAULT_WORKSPACE_CONFIG)
     image_generation_service = ImageGenerationManager()
+    if __package__:
+        from .momask_generation import MoMaskGenerationManager
+    else:
+        from momask_generation import MoMaskGenerationManager
+    momask_generation_service = MoMaskGenerationManager()
     three_reference_service = ImageGenerationManager(three_reference_mode=True)
     class ReviewRequestHandler(SimpleHTTPRequestHandler):
         def __init__(self,*request_handler_arguments,**request_handler_options):
             super().__init__(*request_handler_arguments,directory=str(review_root_directory),**request_handler_options)
         def do_GET(self):
             if writer_agent_service.handle_writer_request(self):return
+            if momask_generation_service.handle(self):return
             if three_reference_service.handle_image_request(self):
                 return
             if image_generation_service.handle_image_request(self):
@@ -243,6 +249,7 @@ def run_review_server(parsed_argument_values):
             super().do_GET()
         def do_POST(self):
             if writer_agent_service.handle_writer_request(self):return
+            if momask_generation_service.handle(self):return
             if three_reference_service.handle_image_request(self):
                 return
             if image_generation_service.handle_image_request(self):
