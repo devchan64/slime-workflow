@@ -1,6 +1,6 @@
 {
   "asset_id": "standing-loops",
-  "version": 19,
+  "version": 20,
   "generator": "MoMask text-to-motion",
   "fps": 4,
   "actions": {
@@ -137,7 +137,7 @@
         39
       ],
       "playtime_seconds": 5.0,
-      "prompt": "A person starts standing still with both arms hanging by the body and hands near the thighs, raises both arms above the head for a gentle stretch, then lowers both arms back beside the body and ends in the same standing pose."
+      "prompt": "A person reaches both hands up high, then brings them back down and stands still."
     }
   },
   "directions": [
