@@ -2,7 +2,7 @@ from pathlib import Path
 import json, shutil, yaml
 
 ROOT = Path(__file__).resolve().parents[2]
-SOURCE = ROOT / 'assets/motion-sheet/mannequin-walk-v7'
+SOURCE = ROOT / 'assets/motion-sheet/mannequin-walk-v8'
 DIRECTIONS = ('down_left', 'down_right', 'up_left', 'up_right')
 
 

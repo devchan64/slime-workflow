@@ -2,7 +2,7 @@ schema_version: 1
 prompt_file: .local/production-prompts/anypose-v5-v1/base-prompt.txt
 references:
   baseline_root: assets/animation-references/character-default/baseline-v2
-  rig_root: assets/motion-sheet/mannequin-walk-v7/rig-sheets
+  rig_root: assets/motion-sheet/mannequin-walk-v8/rig-sheets
 jobs:
 - direction: down_left
   frame_numbers:

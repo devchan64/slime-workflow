@@ -1,6 +1,6 @@
 # MoMask 리그 렌더 기준
 
-기본 걷기는 **mannequin-walk/v7**이다. 선택 이력 `2026-09-24_20-55-53-4e2f4cb2`의 32프레임·4fps·4방향을 재사용한다. 기존 v1~v6 기본 선택은 폐기했다. ANNY 모델은 39eab167이며 모션 신규 추론 없이 재렌더한다.
+기본 걷기는 **mannequin-walk/v8**이다. 선택 이력 `2026-09-24_22-04-47-42b7a56f`의 32프레임·4fps·4방향을 재사용한다. 기존 v1~v7 기본 선택은 폐기했다. ANNY 모델은 39eab167이며 모션 신규 추론 없이 재렌더한다.
 
 ```bash
 .venv/bin/python generators/animation/render_momask_rig.py

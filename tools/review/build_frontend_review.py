@@ -287,7 +287,7 @@ def build_frontend_review(frontend_repository_path, ui_bundle_directory=None):
             destination_asset_directory = output_review_directory/page_identifier_text
             destination_asset_directory.mkdir()
             if animation_identifier_text == 'character.default.white-shirt.walk':
-                rig_source_directory = WORKFLOW_REPO_ROOT/'assets/motion-sheet/mannequin-walk-v7/rig-sheets'
+                rig_source_directory = WORKFLOW_REPO_ROOT/'assets/motion-sheet/mannequin-walk-v8/rig-sheets'
                 rig_sheet_records = []
                 for current_direction_name in REVIEW_DIRECTION_NAMES:
                     rig_source_path = rig_source_directory/f'{current_direction_name}.png'

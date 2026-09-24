@@ -3,7 +3,7 @@
 이 경로는 Git 추적 대상 제작 자산을 버전·출처·해시와 함께 보관한다. 게임 런타임 채택과 구분한다.
 
 - 애니메이션 기준 모델: [anny-39eab167-v1](animation-models/anny-39eab167-v1/README.md). 선택 설정은 `generators/animation/config/anny_model_baseline.yaml`.
-- 현재 기본 걷기: [mannequin-walk/v7](motion-sheet/mannequin-walk-v7/README.md). ANNY 39eab167 기준, 32프레임·4fps·4방향. v1~v6은 폐기되어 신규 생성에 사용하지 않는다.
+- 현재 기본 걷기: [mannequin-walk/v8](motion-sheet/mannequin-walk-v8/README.md). ANNY 39eab167 기준, 32프레임·4fps·4방향. v1~v7은 폐기되어 신규 생성에 사용하지 않는다.
 - 이전 리그: motion-sheet/mannequin-walk-v1 보존.
 - 원천 모션: motion-sheet/momask-walk-motion-sheet-v1. 같은 버전 파일을 덮어쓰지 않는다.
 - 다른 외형 이력: motion-sheet/humanlike-walk-v1 및 v2.

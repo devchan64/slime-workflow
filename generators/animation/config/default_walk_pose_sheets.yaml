@@ -1,6 +1,6 @@
 asset_id: mannequin-walk-pose-sheets
-version: 7
-asset_path: assets/motion-sheet/mannequin-walk-v7/pose-sheets
+version: 8
+asset_path: assets/motion-sheet/mannequin-walk-v8/pose-sheets
 layout:
   columns: 4
   rows: 8
@@ -47,7 +47,7 @@ layout:
 frame_duration_ms: 250
 cycle_seconds: 8
 files:
-  down_left.png: c5ee13e21b8f60b4cf4c04b26744ed34e8d04c4190d41f5ff6971d3e80ffea18
-  down_right.png: 27b4feef12e371eaf75380f93d9efe10a016092364410333babea0250d112647
-  up_left.png: 6f07625742c0106eb06d6c8ad51af886fa0a093fcc99151a0c3fd9575bd09cde
-  up_right.png: 3a064282146ef6bfc78757dd59404a1a77f8a582842f59a6d8e4d950da4c90a2
+  down_left.png: d1529823f66b79c5d64914b9c98966487d94288bd6fb5e2581907cdf2fb3e8ea
+  down_right.png: 61ca96319d6b6741e8b58d6097febbe67c89718f7bff79d845a9ef2ac113690a
+  up_left.png: c2cfe618b21ae1f3f609ca36f3c83ac99a8033998f1242d3ddd693498159122c
+  up_right.png: b0f4b65d2d530616678b2cf855ddcd320f1efbfa036466daa76a1d9b90cc25b2
