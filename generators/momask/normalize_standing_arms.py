@@ -40,7 +40,8 @@ def correct_standing_posture(motion_joint_values):
         motion_joint_values[:,wrist_joint_index]=motion_joint_values[:,elbow_joint_index]+forearm_direction_values*lower_length_values[:,None]
     return motion_joint_values
 
-def normalize(path: Path) -> dict:
+def normalize(path: Path, correction_config_path=None) -> dict:
+    applied_correction_values=yaml.safe_load(Path(correction_config_path).read_text()) if correction_config_path else STANDING_CORRECTION_VALUES
     bundle=np.load(path,allow_pickle=False)
     if 'joints' not in bundle.files: raise ValueError('joints 모션이 필요합니다.')
     joints=bundle['joints'].copy()
@@ -65,7 +66,7 @@ def normalize(path: Path) -> dict:
     shoulder_before_values=joints[:,[16,17]].copy()
     chest_pivot_values=joints[:,6,None].copy()
     chest_relative_values=joints[:,chest_upper_indices]-chest_pivot_values
-    chest_rotation_values=-np.radians(STANDING_CORRECTION_VALUES['chest_backward_rotation_degrees'])*breathing_cycle_values
+    chest_rotation_values=-np.radians(applied_correction_values['chest_backward_rotation_degrees'])*breathing_cycle_values
     chest_height_values=chest_relative_values[:,:,1].copy()
     chest_depth_values=chest_relative_values[:,:,2].copy()
     chest_relative_values[:,:,1]=np.cos(chest_rotation_values)[:,None]*chest_height_values-np.sin(chest_rotation_values)[:,None]*chest_depth_values
@@ -77,7 +78,7 @@ def normalize(path: Path) -> dict:
         joints[:,[elbow_joint_index,wrist_joint_index]]+=shoulder_shift_values[:,None]
     result={name:bundle[name] for name in bundle.files};result['joints']=joints
     np.savez_compressed(path,**result)
-    (path.parent/'standing-corrections.yaml').write_text(yaml.safe_dump(STANDING_CORRECTION_VALUES,sort_keys=False))
+    (path.parent/'standing-corrections.yaml').write_text(yaml.safe_dump(applied_correction_values,sort_keys=False))
     ratios=[]
     for shoulder,elbow,_ in ARMS:
         upper=joints[:,elbow]-joints[:,shoulder]
@@ -87,4 +88,4 @@ def normalize(path: Path) -> dict:
     return {'max_upper_arm_horizontal_to_down_ratio':float(max(ratios)),'max_root_horizontal_displacement_m':root_travel,'head_vertical_range_m':head_vertical_range}
 
 if __name__=='__main__':
-    parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--motion',type=Path,required=True);args=parser.parse_args();print(normalize(args.motion))
+    parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--motion',type=Path,required=True);parser.add_argument('--correction-config',type=Path);args=parser.parse_args();print(normalize(args.motion,args.correction_config))

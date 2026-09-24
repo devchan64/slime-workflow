@@ -16,10 +16,10 @@ def main():
  command=[str(ROOT/'.venv/bin/python'),str(ROOT/'generators/momask/generate_motion.py'),'--output-dir',str(generation_root),'--frames',str(spec['source_frames']),'--prompt',spec['prompt']]
  subprocess.run(command,check=True)
  motion=generation_root/'motion/motion.npz'
- if a.action=='standing':
-  subprocess.run([str(ROOT/'.venv/bin/python'),str(ROOT/'generators/momask/normalize_standing_arms.py'),'--motion',str(motion)],check=True)
+ if a.action in ('standing','deep_breath'):
+  subprocess.run([str(ROOT/'.venv/bin/python'),str(ROOT/'generators/momask/normalize_standing_arms.py'),'--motion',str(motion),'--correction-config',str(ROOT/'generators/momask/config'/('standing-corrections.yaml' if a.action=='standing' else 'deep-breath-corrections.yaml'))],check=True)
  result=a.job_dir/'result'; joints=np.load(motion)['joints']; frames=len(joints); indices=','.join(map(str,range(frames)))
- if a.action=='standing':
+ if a.action in ('standing','deep_breath'):
   upper_ratios=[]
   for shoulder,elbow in ((16,18),(17,19)):
    upper=joints[:,elbow]-joints[:,shoulder];upper_ratios.extend((np.linalg.norm(upper[:,[0,2]],axis=1)/np.maximum(-upper[:,1],1e-6)).tolist())
@@ -27,7 +27,7 @@ def main():
   root_travel=float(np.linalg.norm(joints[:,0,[0,2]]-joints[0,0,[0,2]],axis=1).max())
   if root_travel>.025: raise ValueError('대기 수평 이동 품질 기준 초과')
   head_vertical_range=float(np.ptp(joints[:,15,1]))
-  if head_vertical_range>.015: raise ValueError('대기 머리 상하 움직임 과다')
+  if head_vertical_range>(.015 if a.action=='standing' else .04): raise ValueError('대기 머리 상하 움직임 과다')
   standing_correction_values=yaml.safe_load((motion.parent/'standing-corrections.yaml').read_text())
   backward_rotation_limit=standing_correction_values['chest_backward_rotation_degrees']+standing_correction_values['max_torso_pitch_degrees']
   torso_direction_values=joints[:,9]-joints[:,0]
