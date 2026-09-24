@@ -4,6 +4,7 @@ from pathlib import Path
 from datetime import datetime
 from zoneinfo import ZoneInfo
 import argparse
+import json
 import shutil
 import subprocess
 import time
@@ -26,6 +27,10 @@ def execute_baseline_rig_render():
     for runtime_python_path in (BLENDER_PYTHON_PATH, PACKAGE_PYTHON_PATH):
         if not runtime_python_path.is_file():
             raise FileNotFoundError(runtime_python_path)
+    selected_asset_record=json.loads((source_asset_root/'artifact.json').read_text())
+    if selected_asset_record['version']>=7:
+        subprocess.run([str(PACKAGE_PYTHON_PATH),str(WORKFLOW_ROOT_PATH/'generators/momask/render_anny_frames.py'),'--motion',str(source_asset_root/'mannequin-motion.npz'),'--output-dir',str(experiment_output_root),'--directions','down_left,down_right,up_left,up_right','--sample-indices',','.join(map(str,range(selected_asset_record['frames'])))],check=True)
+        return
     experiment_output_root.mkdir(parents=True, exist_ok=False)
     for current_file_name in REPRODUCTION_FILE_NAMES:
         shutil.copy2(source_asset_root / current_file_name, experiment_output_root / current_file_name)

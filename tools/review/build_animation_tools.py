@@ -2,7 +2,7 @@ from pathlib import Path
 import json, shutil, yaml
 
 ROOT = Path(__file__).resolve().parents[2]
-SOURCE = ROOT / 'assets/motion-sheet/mannequin-walk-v6'
+SOURCE = ROOT / 'assets/motion-sheet/mannequin-walk-v7'
 DIRECTIONS = ('down_left', 'down_right', 'up_left', 'up_right')
 
 
@@ -42,7 +42,7 @@ def build_animation_tools(output):
     openpose_motions = {}
     standing_motion_selection=yaml.safe_load((ROOT/'generators/animation/config/default_standing_motion.yaml').read_text())
     openpose_sources = (
-        ('walk', '걷기', SOURCE, {direction: list(range(1, 9)) for direction in DIRECTIONS}),
+        ('walk', '걷기', SOURCE, {direction: list(range(1, 33)) for direction in DIRECTIONS}),
         ('standing', '대기 스탠딩', ROOT / standing_motion_selection['openpose_path'], {direction: list(range(1, standing_motion_selection['frames']+1)) for direction in DIRECTIONS}),
         ('deep-breath', '심호흡', ROOT / 'assets/motion-sheet/momask-standing-loops-v1' / 'deep-breath' / 'openpose', {direction: list(range(1, 9)) for direction in DIRECTIONS}),
         ('stretch', '스트레칭', ROOT / 'assets/motion-sheet/momask-standing-loops-v1' / 'stretch' / 'openpose', {direction: list(range(1, 21)) for direction in DIRECTIONS}),

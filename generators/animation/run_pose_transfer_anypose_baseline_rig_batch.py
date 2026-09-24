@@ -35,7 +35,7 @@ def load_anypose_openpose_batch_definition(batch_file_path):
         raise ValueError('베이스라인과 리그 참조 경로가 필요합니다.')
     expanded_jobs = []
     for job in values['jobs']:
-        if set(job) != {'direction', 'frame_numbers'} or job['direction'] not in DIRECTIONS or job['frame_numbers'] != list(range(1, 9)):
+        if set(job) != {'direction', 'frame_numbers'} or job['direction'] not in DIRECTIONS or job['frame_numbers'] not in (list(range(1, 9)),list(range(1,33))):
             raise ValueError('각 방향은 1~8프레임을 가져야 합니다.')
         expanded_jobs.extend({'direction': job['direction'], 'frame': frame} for frame in job['frame_numbers'])
     if len(expanded_jobs) != 32:
@@ -45,8 +45,9 @@ def load_anypose_openpose_batch_definition(batch_file_path):
 
 def crop_sheet_frame(source_sheet_path, frame_number, destination_path):
     with Image.open(source_sheet_path) as source_image:
-        if source_image.size != (2048, 1024):
+        if source_image.size not in ((2048, 1024),(2048,4096)):
             raise ValueError(f'시트 크기 불일치: {source_sheet_path}')
+        if not 1<=frame_number<=(source_image.height//512)*4:raise ValueError('시트 프레임 범위 오류')
         column = (frame_number - 1) % 4
         row = (frame_number - 1) // 4
         destination_path.parent.mkdir(parents=True, exist_ok=True)

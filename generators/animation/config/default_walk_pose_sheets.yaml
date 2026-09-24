@@ -1,15 +1,15 @@
 asset_id: mannequin-walk-pose-sheets
-version: 1
-asset_path: assets/motion-sheet/mannequin-walk-v1/pose-sheets
+version: 7
+asset_path: assets/motion-sheet/mannequin-walk-v7/pose-sheets
 layout:
   columns: 4
-  rows: 2
+  rows: 8
   cell_size:
   - 512
   - 512
   sheet_size:
   - 2048
-  - 1024
+  - 4096
   frame_order:
   - 1
   - 2
@@ -19,21 +19,35 @@ layout:
   - 6
   - 7
   - 8
+  - 9
+  - 10
+  - 11
+  - 12
+  - 13
+  - 14
+  - 15
+  - 16
+  - 17
+  - 18
+  - 19
+  - 20
+  - 21
+  - 22
+  - 23
+  - 24
+  - 25
+  - 26
+  - 27
+  - 28
+  - 29
+  - 30
+  - 31
+  - 32
   order: row-major
-frame_duration_ms: 150
-cycle_seconds: 1.2
-transformation: 원본 RGB 픽셀 그대로 타일 배치; 리사이즈·색상·관절 보정 없음
-generator: generators/animation/build_walk_pose_sheets.py
+frame_duration_ms: 250
+cycle_seconds: 8
 files:
-  down_left.png: b2f7c39c5271aaff3f524d16530a200d2b930185894555b305cc2f25c843e874
-  down_right.png: b96a2f6272580eb4ead00830774fc2c958a0076d16928543ae5e938d44394ee5
-  up_left.png: 7d766fff92d6c0b2a9c242f6d5ebbc453d914ddf657071c5cd3c630e549bae3d
-  up_right.png: 0b44f94b7c5b725b5b80d413a36b837b6102f85d78178b1de6e15965a31ff4cf
-source_motion:
-  asset_id: walk-travel
-  version: 1
-  sha256: 5f10e35b13cb7cb0cce7faf0dc26ac9b8f8ac36f2dc6e496b044418e3e1b05c5
-source_rig:
-  asset_id: mannequin-walk
-  version: 1
-source_frames_note: v2·v3·v4 폐기 후 기존 v1 보관 시트를 기본 참조로 복원. 개별 프레임 대신 시트가 보관되어 있다.
+  down_left.png: c5ee13e21b8f60b4cf4c04b26744ed34e8d04c4190d41f5ff6971d3e80ffea18
+  down_right.png: 27b4feef12e371eaf75380f93d9efe10a016092364410333babea0250d112647
+  up_left.png: 6f07625742c0106eb06d6c8ad51af886fa0a093fcc99151a0c3fd9575bd09cde
+  up_right.png: 3a064282146ef6bfc78757dd59404a1a77f8a582842f59a6d8e4d950da4c90a2
