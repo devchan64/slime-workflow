@@ -1,6 +1,7 @@
 """관리도구 요청으로 고정 MoMask 프롬프트 모션을 생성한다."""
 from pathlib import Path
 import argparse, json, shutil, subprocess, sys
+import numpy as np
 ROOT=Path(__file__).resolve().parents[2]
 ACTIONS={'standing':('standing','대기',4),'deep_breath':('deep-breath','심호흡',8),'stretch':('stretch','스트레칭',20)}
 DIRECTIONS={'down_left','down_right','up_left','up_right'}
