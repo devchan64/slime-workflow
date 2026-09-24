@@ -5,6 +5,7 @@ import numpy as np
 
 ARMS = ((16,18,20),(17,19,21))  # shoulder, elbow, wrist
 LOWER_BODY = (1,2,4,5,7,8,10,11)  # hips, knees, ankles, toes
+UPPER_BODY = (0,3,6,9,12,13,14,15,16,17)  # pelvis-to-head and shoulders
 
 def normalize(path: Path) -> dict:
     bundle=np.load(path,allow_pickle=False)
@@ -15,6 +16,9 @@ def normalize(path: Path) -> dict:
     root_offset=joints[:,0,[0,2]]-joints[0,0,[0,2]]
     joints[:,:,[0,2]]-=root_offset[:,None,:]
     joints[:,LOWER_BODY]=joints[0,LOWER_BODY]
+    # 대기 중에는 발을 떼지 않고 1.2cm 범위에서만 체중을 좌우로 옮긴다.
+    sway=0.012*np.sin(np.linspace(0,2*np.pi,len(joints),endpoint=False))
+    joints[:,UPPER_BODY,0]+=sway[:,None]
     for shoulder,elbow,wrist in ARMS:
         upper_lengths=np.linalg.norm(joints[:,elbow]-joints[:,shoulder],axis=1)
         lower_lengths=np.linalg.norm(joints[:,wrist]-joints[:,elbow],axis=1)
