@@ -209,9 +209,9 @@ def run_review_server(parsed_argument_values):
         raise ValueError('진입 페이지는 검수 폴더 기준 상대 HTML 경로여야 합니다.')
     resolve_review_request(review_root_directory,'/'+parsed_argument_values.entry)
     if not 1024 <= parsed_argument_values.port <= 65535: raise ValueError('포트는 1024~65535여야 합니다.')
-    server_log_directory = review_root_directory if (parsed_argument_values.walking or parsed_argument_values.frontend_repo) else workflow_repo_root/'.tmp'/datetime.now(ZoneInfo('Asia/Seoul')).strftime('%Y-%m-%d_%H-%M-%S')
-    if not (parsed_argument_values.walking or parsed_argument_values.frontend_repo):
-        server_log_directory.mkdir(parents=True,exist_ok=False)
+    # 관리도구 빌드는 review_root_directory 자체를 교체할 수 있으므로 서버 로그는 별도 안정 경로에 둔다.
+    server_log_directory = workflow_repo_root/'.tmp'/'review-server-logs'/datetime.now(ZoneInfo('Asia/Seoul')).strftime('%Y-%m-%d_%H-%M-%S')
+    server_log_directory.mkdir(parents=True,exist_ok=False)
     server_log_path = server_log_directory/'review-server.log'
     trace_write_lock = threading.Lock()
     server_stop_event = threading.Event()
@@ -276,7 +276,9 @@ def run_review_server(parsed_argument_values):
             emit_server_trace('request',(request_message_format % request_message_arguments).replace('\n',' '))
     def emit_server_heartbeat():
         while not server_stop_event.wait(REVIEW_HEARTBEAT_SECONDS):
-            emit_server_trace('heartbeat',f'requests={request_counter_value[0]} root={review_root_directory.name} log_bytes={server_log_path.stat().st_size}')
+            try: log_size_value=server_log_path.stat().st_size
+            except FileNotFoundError: log_size_value=0
+            emit_server_trace('heartbeat',f'requests={request_counter_value[0]} root={review_root_directory.name} log_bytes={log_size_value}')
     def terminate_review_server(current_signal_number,current_stack_frame):
         raise KeyboardInterrupt
     previous_termination_handler=signal.signal(signal.SIGTERM,terminate_review_server)
