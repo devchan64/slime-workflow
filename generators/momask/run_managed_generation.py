@@ -38,4 +38,7 @@ def main():
  for direction in DIRECTIONS-set(directions):
   shutil.rmtree(result/'openpose'/direction)
  (a.job_dir/'result.json').write_text(json.dumps({'action':a.action,'label':label,'frames':frames,'anny_frames':frames,'fps':4,'directions':directions,'prompt':spec['prompt'],'sampling':'none','baseline_model':json.loads((result/'anny/result.json').read_text())['baseline_model'],'status':'completed'},ensure_ascii=False,indent=2)+'\n')
+ sys.path.insert(0,str(ROOT/'tools/review'))
+ from openpose_maps import generate_openpose_maps
+ generate_openpose_maps(a.job_dir)
 if __name__=='__main__':main()
