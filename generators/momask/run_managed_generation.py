@@ -2,6 +2,7 @@
 from pathlib import Path
 import argparse, json, shutil, subprocess, sys
 import numpy as np
+import yaml
 ROOT=Path(__file__).resolve().parents[2]
 ACTIONS={'walking':('walking','걷기'),'standing':('standing','대기'),'deep_breath':('deep-breath','심호흡'),'stretch':('stretch','스트레칭')}
 DIRECTIONS={'down_left','down_right','up_left','up_right'}
@@ -27,8 +28,10 @@ def main():
   if root_travel>.025: raise ValueError('대기 수평 이동 품질 기준 초과')
   head_vertical_range=float(np.ptp(joints[:,15,1]))
   if head_vertical_range>.015: raise ValueError('대기 머리 상하 움직임 과다')
+  standing_correction_values=yaml.safe_load((motion.parent/'standing-corrections.yaml').read_text())
+  backward_rotation_limit=standing_correction_values['chest_backward_rotation_degrees']+standing_correction_values['max_torso_pitch_degrees']
   torso_direction_values=joints[:,9]-joints[:,0]
-  if np.max(np.degrees(np.arctan2(torso_direction_values[:,2],torso_direction_values[:,1])))>1.01 or np.min(np.degrees(np.arctan2(torso_direction_values[:,2],torso_direction_values[:,1]))) < -4:raise ValueError('대기 상체 전방 기울기 과다')
+  if np.max(np.degrees(np.arctan2(torso_direction_values[:,2],torso_direction_values[:,1])))>1.01 or np.min(np.degrees(np.arctan2(torso_direction_values[:,2],torso_direction_values[:,1]))) < -backward_rotation_limit:raise ValueError('대기 상체 전방 기울기 과다')
  subprocess.run([str(ROOT/'.venv/bin/python'),str(ROOT/'generators/momask/render_openpose_frames.py'),'--motion',str(motion),'--output-dir',str(result/'openpose'),'--sample-indices',indices],check=True)
  subprocess.run([str(ROOT/'.venv/bin/python'),str(ROOT/'generators/momask/render_anny_frames.py'),'--motion',str(motion),'--output-dir',str(result/'anny'),'--directions',','.join(directions),'--sample-indices',indices],check=True)
  for direction in DIRECTIONS-set(directions):
