@@ -22,11 +22,13 @@ def main():
   upper_ratios=[]
   for shoulder,elbow in ((16,18),(17,19)):
    upper=joints[:,elbow]-joints[:,shoulder];upper_ratios.extend((np.linalg.norm(upper[:,[0,2]],axis=1)/np.maximum(-upper[:,1],1e-6)).tolist())
-  if max(upper_ratios)>.05: raise ValueError('대기 팔 벌림 품질 기준 초과')
+  if max(upper_ratios)>np.tan(np.radians(12)): raise ValueError('대기 팔 벌림 품질 기준 초과')
   root_travel=float(np.linalg.norm(joints[:,0,[0,2]]-joints[0,0,[0,2]],axis=1).max())
   if root_travel>.025: raise ValueError('대기 수평 이동 품질 기준 초과')
   head_vertical_range=float(np.ptp(joints[:,15,1]))
-  if head_vertical_range<.12: raise ValueError('대기 상하 움직임 품질 기준 미달')
+  if head_vertical_range>.015: raise ValueError('대기 머리 상하 움직임 과다')
+  torso_direction_values=joints[:,9]-joints[:,0]
+  if np.max(np.abs(np.degrees(np.arctan2(torso_direction_values[:,2],torso_direction_values[:,1]))))>1.01:raise ValueError('대기 상체 전방 기울기 과다')
  subprocess.run([str(ROOT/'.venv/bin/python'),str(ROOT/'generators/momask/render_openpose_frames.py'),'--motion',str(motion),'--output-dir',str(result/'openpose'),'--sample-indices',indices],check=True)
  subprocess.run([str(ROOT/'.venv/bin/python'),str(ROOT/'generators/momask/render_anny_frames.py'),'--motion',str(motion),'--output-dir',str(result/'anny'),'--directions',','.join(directions),'--sample-indices',indices],check=True)
  for direction in DIRECTIONS-set(directions):

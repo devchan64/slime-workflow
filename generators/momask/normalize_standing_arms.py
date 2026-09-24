@@ -2,10 +2,43 @@
 from pathlib import Path
 import argparse
 import numpy as np
+import yaml
 
 ARMS = ((16,18,20),(17,19,21))  # shoulder, elbow, wrist
 LOWER_BODY = (1,2,4,5,7,8,10,11)  # hips, knees, ankles, toes
 UPPER_BODY = (0,3,6,9,12,13,14,15,16,17)  # pelvis-to-head and shoulders
+
+STANDING_CORRECTION_VALUES=yaml.safe_load((Path(__file__).parent/'config/standing-corrections.yaml').read_text())
+MAX_TORSO_PITCH_DEGREES=STANDING_CORRECTION_VALUES['max_torso_pitch_degrees']
+ARM_CLEARANCE_ANGLE_DEGREES=STANDING_CORRECTION_VALUES['upper_arm_outward_degrees']
+FOREARM_CLEARANCE_ANGLE_DEGREES=STANDING_CORRECTION_VALUES['forearm_outward_degrees']
+
+def correct_standing_posture(motion_joint_values):
+    # 골반 기준 상체 전방 기울기를 제한하고 팔을 몸통 옆으로 소폭 벌린다.
+    torso_direction_values=motion_joint_values[:,9]-motion_joint_values[:,0]
+    torso_pitch_values=np.arctan2(torso_direction_values[:,2],torso_direction_values[:,1])
+    correction_angle_values=np.clip(torso_pitch_values,-np.radians(MAX_TORSO_PITCH_DEGREES),np.radians(MAX_TORSO_PITCH_DEGREES))-torso_pitch_values
+    upper_joint_indices=[3,6,9,12,13,14,15,16,17,18,19,20,21]
+    relative_joint_values=motion_joint_values[:,upper_joint_indices]-motion_joint_values[:,0,None]
+    original_height_values=relative_joint_values[:,:,1].copy()
+    original_depth_values=relative_joint_values[:,:,2].copy()
+    relative_joint_values[:,:,1]=np.cos(correction_angle_values)[:,None]*original_height_values-np.sin(correction_angle_values)[:,None]*original_depth_values
+    relative_joint_values[:,:,2]=np.sin(correction_angle_values)[:,None]*original_height_values+np.cos(correction_angle_values)[:,None]*original_depth_values
+    motion_joint_values[:,upper_joint_indices]=relative_joint_values+motion_joint_values[:,0,None]
+    shoulder_lateral_values=motion_joint_values[:,16]-motion_joint_values[:,17]
+    shoulder_lateral_values[:,1]=0
+    shoulder_lateral_values/=np.maximum(np.linalg.norm(shoulder_lateral_values,axis=1)[:,None],1e-8)
+    for shoulder_joint_index,elbow_joint_index,wrist_joint_index in ARMS:
+        upper_length_values=np.linalg.norm(motion_joint_values[:,elbow_joint_index]-motion_joint_values[:,shoulder_joint_index],axis=1)
+        lower_length_values=np.linalg.norm(motion_joint_values[:,wrist_joint_index]-motion_joint_values[:,elbow_joint_index],axis=1)
+        outward_direction_values=shoulder_lateral_values*(1 if shoulder_joint_index==16 else -1)
+        arm_direction_values=outward_direction_values*np.sin(np.radians(ARM_CLEARANCE_ANGLE_DEGREES))
+        arm_direction_values[:,1]=-np.cos(np.radians(ARM_CLEARANCE_ANGLE_DEGREES))
+        motion_joint_values[:,elbow_joint_index]=motion_joint_values[:,shoulder_joint_index]+arm_direction_values*upper_length_values[:,None]
+        forearm_direction_values=outward_direction_values*np.sin(np.radians(FOREARM_CLEARANCE_ANGLE_DEGREES))
+        forearm_direction_values[:,1]=-np.cos(np.radians(FOREARM_CLEARANCE_ANGLE_DEGREES))
+        motion_joint_values[:,wrist_joint_index]=motion_joint_values[:,elbow_joint_index]+forearm_direction_values*lower_length_values[:,None]
+    return motion_joint_values
 
 def normalize(path: Path) -> dict:
     bundle=np.load(path,allow_pickle=False)
@@ -16,19 +49,24 @@ def normalize(path: Path) -> dict:
     root_offset=joints[:,0,[0,2]]-joints[0,0,[0,2]]
     joints[:,:,[0,2]]-=root_offset[:,None,:]
     joints[:,LOWER_BODY]=joints[0,LOWER_BODY]
-    # 발은 고정하고, 작은 좌우 이동보다 상체의 느린 상하 리듬을 분명하게 보인다.
+    # 전신 상하 이동 대신 가슴의 작은 팽창을 강조하고 어깨 움직임은 억제한다.
     phase=np.linspace(0,2*np.pi,len(joints),endpoint=False)
-    lateral_sway=0.015*np.sin(phase)
-    vertical_sway=0.080*np.sin(phase)
-    joints[:,UPPER_BODY,0]+=lateral_sway[:,None]
-    joints[:,UPPER_BODY,1]+=vertical_sway[:,None]
+    breathing_cycle_values=(1-np.cos(phase))/2
+    stable_upper_positions=joints[0,UPPER_BODY].copy()
+    joints[:,UPPER_BODY]=stable_upper_positions
+    joints[:,6,1]+=STANDING_CORRECTION_VALUES['lower_chest_vertical_m']*breathing_cycle_values
+    joints[:,9,1]+=STANDING_CORRECTION_VALUES['chest_vertical_m']*breathing_cycle_values
+    joints[:,9,2]+=STANDING_CORRECTION_VALUES['chest_forward_m']*breathing_cycle_values
+    joints[:,[13,14,16,17],1]+=STANDING_CORRECTION_VALUES['shoulder_vertical_m']*breathing_cycle_values[:,None]
     for shoulder,elbow,wrist in ARMS:
         upper_lengths=np.linalg.norm(joints[:,elbow]-joints[:,shoulder],axis=1)
         lower_lengths=np.linalg.norm(joints[:,wrist]-joints[:,elbow],axis=1)
         joints[:,elbow]=joints[:,shoulder]+np.column_stack((np.zeros(len(joints)), -upper_lengths, np.zeros(len(joints))))
         joints[:,wrist]=joints[:,elbow]+np.column_stack((np.zeros(len(joints)), -lower_lengths, np.zeros(len(joints))))
+    joints=correct_standing_posture(joints)
     result={name:bundle[name] for name in bundle.files};result['joints']=joints
     np.savez_compressed(path,**result)
+    (path.parent/'standing-corrections.yaml').write_text(yaml.safe_dump(STANDING_CORRECTION_VALUES,sort_keys=False))
     ratios=[]
     for shoulder,elbow,_ in ARMS:
         upper=joints[:,elbow]-joints[:,shoulder]
