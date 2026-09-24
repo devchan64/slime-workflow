@@ -5,11 +5,16 @@ import hashlib
 from pathlib import Path
 from qwen_pose import execute_pose_generation
 
+# Qwen 방향 토큰 규칙: forward/backward가 up/down보다 진행 방향 해석에 안정적이다.
+# down_left/down_right/up_left/up_right 키는 기존 에셋·배치 계약 때문에 유지하지만,
+# 보조 프롬프트에는 up/down·upper/lower를 쓰지 않아 머리의 수직 움직임으로 오인되지 않게 한다.
+# 매핑: down_left=forward-left(좌측앞), down_right=forward-right(우측앞),
+# up_left=backward-left(좌측뒤편), up_right=backward-right(우측뒤편).
 DIRECTION_POSE_INSTRUCTIONS = {
-    'down_left': 'The character is walking toward the down-left direction and looking in the walking direction.',
-    'down_right': 'The character is walking toward the down-right direction and looking in the walking direction.',
-    'up_left': 'The character is walking backward toward the left direction in a back view, showing the back of the head with a level head.',
-    'up_right': 'The character is walking backward toward the right direction in a back view, showing the back of the head with the neck aligned to the torso and the chin level.',
+    'down_left': 'Direction: forward-left. The character walks forward toward the left side, showing the left-front side, with the head and gaze aligned to the forward-left direction.',
+    'down_right': 'Direction: forward-right. The character walks forward toward the right side, showing the right-front side, with the head and gaze aligned to the forward-right direction.',
+    'up_left': 'Direction: backward-left. The character walks backward toward the left side, showing the left-rear back view, with the head level and aligned to the torso.',
+    'up_right': 'Direction: backward-right. The character walks backward toward the right side, showing the right-rear back view, with the head level and aligned to the torso.',
 }
 
 def generate_pose_transfer_openpose_qwen_frame(output_directory, prompt_file_path, direction_name):
