@@ -17,7 +17,7 @@ def reject_duplicate_fields(field_pair_values):
  return output_field_values
 threading.Thread(target=emit_progress_trace,daemon=True).start()
 import argparse
-argument_parser=argparse.ArgumentParser();argument_parser.add_argument('--attributes',type=Path,required=True);argument_parser.add_argument('--output-dir',type=Path,required=True);argument_parser.add_argument('--rotation-y',type=float,default=0);args=argument_parser.parse_args();EXPERIMENT_OUTPUT_ROOT=args.output_dir.resolve();EXPERIMENT_OUTPUT_ROOT.mkdir(parents=True,exist_ok=False);input_source_path=args.attributes.resolve()
+argument_parser=argparse.ArgumentParser();argument_parser.add_argument('--attributes',type=Path,required=True);argument_parser.add_argument('--output-dir',type=Path,required=True);argument_parser.add_argument('--mesh-only',action='store_true');argument_parser.add_argument('--rotation-y',type=float,default=0);args=argument_parser.parse_args();EXPERIMENT_OUTPUT_ROOT=args.output_dir.resolve();EXPERIMENT_OUTPUT_ROOT.mkdir(parents=True,exist_ok=False);input_source_path=args.attributes.resolve()
 (EXPERIMENT_OUTPUT_ROOT/'view.json').write_text(json.dumps({'rotation_y':args.rotation_y}))
 input_attribute_values=json.loads(input_source_path.read_text(),object_pairs_hook=reject_duplicate_fields)
 required_field_names={'phenotype_kwargs','local_changes_kwargs','facial_actions','pose_parameterization','pose_parameters'}
@@ -46,4 +46,9 @@ resolved_phenotype_values={current_label_name:input_attribute_values['phenotype_
 result_output_values={'status':'generated','model':'anny==0.6.0','input_sha256':hashlib.sha256(input_source_path.read_bytes()).hexdigest(),'requested_local_changes':input_attribute_values['local_changes_kwargs'],'requested_phenotypes':input_attribute_values['phenotype_kwargs'],'resolved_phenotypes':resolved_phenotype_values,'pose_parameterization':'local-ref','pose_bones':len(pose_tensor_values),'postprocess':'없음; Blender 검수 출력만 전신 높이 1.6m로 균일 정규화','source_height':float(np.ptp(source_vertex_array[:,2])),'head_ratio':float(np.ptp(source_vertex_array[:,2])/(source_vertex_array[:,2].max()-source_vertex_array[5155,2])),'vertices':len(source_vertex_array),'triangles':len(model_source_value.faces),'device':torch.cuda.get_device_name(0)}
 (EXPERIMENT_OUTPUT_ROOT/'generation.json').write_text(json.dumps(result_output_values,ensure_ascii=False,indent=2))
 print(result_output_values,flush=True)
+(EXPERIMENT_OUTPUT_ROOT/'mesh.pending').write_text(json.dumps({'vertices':source_vertex_array.tolist(),'faces':model_source_value.faces.cpu().numpy().tolist()},separators=(',',':')))
+(EXPERIMENT_OUTPUT_ROOT/'mesh.pending').replace(EXPERIMENT_OUTPUT_ROOT/'mesh.json')
+if args.mesh_only:
+ print('웹 프리뷰 메시 생성 완료',flush=True)
+ sys.exit(0)
 preview_script=WORKFLOW_SOURCE_ROOT/'generators/animation/render_anny_attribute_preview_blender.py';shutil.copy2(preview_script,EXPERIMENT_OUTPUT_ROOT/'render_preview.py');subprocess.run([str(WORKFLOW_SOURCE_ROOT/'.local/blender-runtime/bin/python'),str(EXPERIMENT_OUTPUT_ROOT/'render_preview.py')],cwd=EXPERIMENT_OUTPUT_ROOT,check=True)
