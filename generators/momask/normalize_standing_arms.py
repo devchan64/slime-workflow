@@ -9,15 +9,12 @@ LOWER_BODY = (1,2,4,5,7,8,10,11)  # hips, knees, ankles, toes
 UPPER_BODY = (0,3,6,9,12,13,14,15,16,17)  # pelvis-to-head and shoulders
 
 STANDING_CORRECTION_VALUES=yaml.safe_load((Path(__file__).parent/'config/standing-corrections.yaml').read_text())
-MAX_TORSO_PITCH_DEGREES=STANDING_CORRECTION_VALUES['max_torso_pitch_degrees']
-ARM_CLEARANCE_ANGLE_DEGREES=STANDING_CORRECTION_VALUES['upper_arm_outward_degrees']
-FOREARM_CLEARANCE_ANGLE_DEGREES=STANDING_CORRECTION_VALUES['forearm_outward_degrees']
-
-def correct_standing_posture(motion_joint_values):
+def correct_standing_posture(motion_joint_values, applied_correction_values=None):
+    applied_correction_values=STANDING_CORRECTION_VALUES if applied_correction_values is None else applied_correction_values
     # 골반 기준 상체 전방 기울기를 제한하고 팔을 몸통 옆으로 소폭 벌린다.
     torso_direction_values=motion_joint_values[:,9]-motion_joint_values[:,0]
     torso_pitch_values=np.arctan2(torso_direction_values[:,2],torso_direction_values[:,1])
-    correction_angle_values=np.clip(torso_pitch_values,-np.radians(MAX_TORSO_PITCH_DEGREES),np.radians(MAX_TORSO_PITCH_DEGREES))-torso_pitch_values
+    correction_angle_values=np.clip(torso_pitch_values,-np.radians(applied_correction_values['max_torso_pitch_degrees']),np.radians(applied_correction_values['max_torso_pitch_degrees']))-torso_pitch_values
     upper_joint_indices=[3,6,9,12,13,14,15,16,17,18,19,20,21]
     relative_joint_values=motion_joint_values[:,upper_joint_indices]-motion_joint_values[:,0,None]
     original_height_values=relative_joint_values[:,:,1].copy()
@@ -32,11 +29,11 @@ def correct_standing_posture(motion_joint_values):
         upper_length_values=np.linalg.norm(motion_joint_values[:,elbow_joint_index]-motion_joint_values[:,shoulder_joint_index],axis=1)
         lower_length_values=np.linalg.norm(motion_joint_values[:,wrist_joint_index]-motion_joint_values[:,elbow_joint_index],axis=1)
         outward_direction_values=shoulder_lateral_values*(1 if shoulder_joint_index==16 else -1)
-        arm_direction_values=outward_direction_values*np.sin(np.radians(ARM_CLEARANCE_ANGLE_DEGREES))
-        arm_direction_values[:,1]=-np.cos(np.radians(ARM_CLEARANCE_ANGLE_DEGREES))
+        arm_direction_values=outward_direction_values*np.sin(np.radians(applied_correction_values['upper_arm_outward_degrees']))
+        arm_direction_values[:,1]=-np.cos(np.radians(applied_correction_values['upper_arm_outward_degrees']))
         motion_joint_values[:,elbow_joint_index]=motion_joint_values[:,shoulder_joint_index]+arm_direction_values*upper_length_values[:,None]
-        forearm_direction_values=outward_direction_values*np.sin(np.radians(FOREARM_CLEARANCE_ANGLE_DEGREES))
-        forearm_direction_values[:,1]=-np.cos(np.radians(FOREARM_CLEARANCE_ANGLE_DEGREES))
+        forearm_direction_values=outward_direction_values*np.sin(np.radians(applied_correction_values['forearm_outward_degrees']))
+        forearm_direction_values[:,1]=-np.cos(np.radians(applied_correction_values['forearm_outward_degrees']))
         motion_joint_values[:,wrist_joint_index]=motion_joint_values[:,elbow_joint_index]+forearm_direction_values*lower_length_values[:,None]
     return motion_joint_values
 
@@ -60,7 +57,7 @@ def normalize(path: Path, correction_config_path=None) -> dict:
         lower_lengths=np.linalg.norm(joints[:,wrist]-joints[:,elbow],axis=1)
         joints[:,elbow]=joints[:,shoulder]+np.column_stack((np.zeros(len(joints)), -upper_lengths, np.zeros(len(joints))))
         joints[:,wrist]=joints[:,elbow]+np.column_stack((np.zeros(len(joints)), -lower_lengths, np.zeros(len(joints))))
-    joints=correct_standing_posture(joints)
+    joints=correct_standing_posture(joints,applied_correction_values)
     # 가슴 아래 관절을 중심으로 상부를 뒤로 회전한다. 어깨 승모 동작은 추가하지 않는다.
     chest_upper_indices=[9,12,13,14,15,16,17]
     shoulder_before_values=joints[:,[16,17]].copy()

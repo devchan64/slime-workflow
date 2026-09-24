@@ -20,10 +20,11 @@ def main():
   subprocess.run([str(ROOT/'.venv/bin/python'),str(ROOT/'generators/momask/normalize_standing_arms.py'),'--motion',str(motion),'--correction-config',str(ROOT/'generators/momask/config'/('standing-corrections.yaml' if a.action=='standing' else 'deep-breath-corrections.yaml'))],check=True)
  result=a.job_dir/'result'; joints=np.load(motion)['joints']; frames=len(joints); indices=','.join(map(str,range(frames)))
  if a.action in ('standing','deep_breath'):
+  standing_correction_values=yaml.safe_load((motion.parent/'standing-corrections.yaml').read_text())
   upper_ratios=[]
   for shoulder,elbow in ((16,18),(17,19)):
    upper=joints[:,elbow]-joints[:,shoulder];upper_ratios.extend((np.linalg.norm(upper[:,[0,2]],axis=1)/np.maximum(-upper[:,1],1e-6)).tolist())
-  if max(upper_ratios)>np.tan(np.radians(22)): raise ValueError('대기 팔 벌림 품질 기준 초과')
+  if max(upper_ratios)>np.tan(np.radians(standing_correction_values['upper_arm_outward_degrees']+2)): raise ValueError('대기 팔 벌림 품질 기준 초과')
   root_travel=float(np.linalg.norm(joints[:,0,[0,2]]-joints[0,0,[0,2]],axis=1).max())
   if root_travel>.025: raise ValueError('대기 수평 이동 품질 기준 초과')
   head_vertical_range=float(np.ptp(joints[:,15,1]))
