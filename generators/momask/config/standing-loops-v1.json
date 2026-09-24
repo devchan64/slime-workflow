@@ -1,6 +1,6 @@
 {
   "asset_id": "standing-loops",
-  "version": 21,
+  "version": 22,
   "generator": "MoMask text-to-motion",
   "fps": 4,
   "actions": {
@@ -237,7 +237,7 @@
         119
       ],
       "playtime_seconds": 30.0,
-      "prompt": "A person reaches both hands up high, then brings them back down and stands still."
+      "prompt": "A person reaches both hands up high, holds them overhead to stretch their torso, then brings them back down and stands still."
     }
   },
   "directions": [
