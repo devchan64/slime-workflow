@@ -24,9 +24,8 @@ def main():
    upper=joints[:,elbow]-joints[:,shoulder];upper_ratios.extend((np.linalg.norm(upper[:,[0,2]],axis=1)/np.maximum(-upper[:,1],1e-6)).tolist())
   if max(upper_ratios)>.05: raise ValueError('대기 팔 벌림 품질 기준 초과')
  subprocess.run([str(ROOT/'.venv/bin/python'),str(ROOT/'generators/momask/render_openpose_frames.py'),'--motion',str(motion),'--output-dir',str(result/'openpose'),'--sample-indices',indices],check=True)
- subprocess.run([str(ROOT/'.venv/bin/python'),str(ROOT/'generators/momask/render_rig_frames.py'),'--motion',str(motion),'--output-dir',str(result/'rig'),'--sample-indices',indices],check=True)
+ subprocess.run([str(ROOT/'.venv/bin/python'),str(ROOT/'generators/momask/render_anny_frames.py'),'--motion',str(motion),'--output-dir',str(result/'anny'),'--directions',','.join(directions),'--sample-indices',indices],check=True)
  for direction in DIRECTIONS-set(directions):
   shutil.rmtree(result/'openpose'/direction)
-  shutil.rmtree(result/'rig'/direction)
- (a.job_dir/'result.json').write_text(json.dumps({'action':a.action,'label':label,'frames':frames,'rig_frames':frames,'fps':4,'directions':directions,'prompt':spec['prompt'],'sampling':'none','status':'completed'},ensure_ascii=False,indent=2)+'\n')
+ (a.job_dir/'result.json').write_text(json.dumps({'action':a.action,'label':label,'frames':frames,'anny_frames':frames,'fps':4,'directions':directions,'prompt':spec['prompt'],'sampling':'none','status':'completed'},ensure_ascii=False,indent=2)+'\n')
 if __name__=='__main__':main()
