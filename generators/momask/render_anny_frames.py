@@ -9,14 +9,13 @@ BLENDER=ROOT/'.local/blender-runtime/bin/python'
 DIRECTIONS={'down_left','down_right','up_left','up_right'}
 
 def digest(path): return hashlib.sha256(path.read_bytes()).hexdigest()
-def render(motion_path, output_dir, directions, sample_indices, torso_pitch_degrees=0.0):
+def render(motion_path, output_dir, directions, sample_indices):
     motion_path=Path(motion_path).resolve();output_dir=Path(output_dir).resolve()
     if not output_dir.is_relative_to(ROOT/'.tmp'): raise ValueError('Anny 출력은 .tmp 하위여야 합니다.')
     joints=np.load(motion_path,allow_pickle=False)['joints']
     if joints.ndim!=3 or joints.shape[1:]!=(22,3): raise ValueError('HumanML3D-22 관절 모션이 필요합니다.')
     if not sample_indices or min(sample_indices)<0 or max(sample_indices)>=len(joints): raise ValueError('유효한 샘플 인덱스가 필요합니다.')
     if not set(directions) or set(directions)-DIRECTIONS: raise ValueError('방향 선택 오류')
-    if not -15.0 <= torso_pitch_degrees <= 15.0: raise ValueError('몸통 피치 보정은 -15~15도여야 합니다.')
     output_dir.mkdir(parents=True,exist_ok=False);(output_dir/'inputs').mkdir()
     source_motion=output_dir/'inputs/mannequin-motion.npz';np.savez_compressed(source_motion,joints=joints,rest=joints[0],contacts=np.zeros((len(joints),2),dtype=np.float32),sample_indices=np.array(sample_indices))
     (output_dir/'inputs/artifact.json').write_text(json.dumps({'files':{'mannequin-motion.npz':digest(source_motion)}},ensure_ascii=False))
@@ -28,8 +27,6 @@ def render(motion_path, output_dir, directions, sample_indices, torso_pitch_degr
     retarget=retarget.replace("scene_render_value.frame_start=1;scene_render_value.frame_end=25", "scene_render_value.frame_start=1;scene_render_value.frame_end=len(source_joint_frames)")
     retarget=retarget.replace("for current_frame_number in [1,25]:", "for current_frame_number in [1,len(source_joint_frames)]:")
     retarget=retarget.replace("for current_frame_number in range(1,26):", "for current_frame_number in range(1,len(source_joint_frames)+1):")
-    retarget=retarget.replace("from mathutils import Vector, Matrix", "from mathutils import Vector, Matrix, Quaternion\nfrom math import radians")
-    retarget=retarget.replace("torso_rotation_value=calculate_body_rotation(current_joint_points,9)", f"torso_rotation_value=calculate_body_rotation(current_joint_points,9)\n torso_pitch_axis=torso_rotation_value@Vector((1,0,0))\n torso_rotation_value=Quaternion(torso_pitch_axis,radians({torso_pitch_degrees!r}))@torso_rotation_value")
     (output_dir/'retarget_loop.py').write_text(retarget)
     cameras={key:value for key,value in {'down_left':(26**.5,-26**.5,3),'down_right':(-26**.5,-26**.5,3),'up_left':(26**.5,26**.5,3),'up_right':(-26**.5,26**.5,3)}.items() if key in directions}
     renderer=(output_dir/'render_asset.py').read_text()
@@ -43,6 +40,6 @@ def render(motion_path, output_dir, directions, sample_indices, torso_pitch_degr
     for direction in directions:
         target=output_dir/direction/'frames';target.mkdir()
         for number in range(1,len(sample_indices)+1): shutil.copy2(output_dir/direction/f'preview-{number:04d}.png',target/f'anny-{number:04d}.png')
-    (output_dir/'result.json').write_text(json.dumps({'renderer':'Anny Blender retarget','frames':len(sample_indices),'directions':directions,'samples':16,'torso_pitch_degrees':torso_pitch_degrees},ensure_ascii=False,indent=2)+'\n')
+    (output_dir/'result.json').write_text(json.dumps({'renderer':'Anny Blender retarget','frames':len(sample_indices),'directions':directions,'samples':16},ensure_ascii=False,indent=2)+'\n')
 if __name__=='__main__':
- p=argparse.ArgumentParser(description=__doc__);p.add_argument('--motion',type=Path,required=True);p.add_argument('--output-dir',type=Path,required=True);p.add_argument('--directions',required=True);p.add_argument('--sample-indices',required=True);p.add_argument('--torso-pitch-degrees',type=float,default=0.0);a=p.parse_args();render(a.motion,a.output_dir,a.directions.split(','),[int(x) for x in a.sample_indices.split(',')],a.torso_pitch_degrees)
+ p=argparse.ArgumentParser(description=__doc__);p.add_argument('--motion',type=Path,required=True);p.add_argument('--output-dir',type=Path,required=True);p.add_argument('--directions',required=True);p.add_argument('--sample-indices',required=True);a=p.parse_args();render(a.motion,a.output_dir,a.directions.split(','),[int(x) for x in a.sample_indices.split(',')])
