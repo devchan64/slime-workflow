@@ -1,3 +1,9 @@
+// 생성기별 페이지는 빈 컨테이너와 API 경로만 제공한다. 이력 UI는 이 파일에서 공통 관리한다.
+const generationHistoryContainer=document.querySelector('#generation-history');
+generationHistoryContainer.innerHTML='<h2>생성 이력</h2><p>결과는 누적 보관됩니다. 목록 초기화는 수동으로 실행하며 원본 파일은 유지됩니다.</p><div><button type="button" id="history-refresh">이력 새로고침</button> <button type="button" id="history-reset">이력 수동 초기화</button></div><p id="history-status" role="status"></p><div id="history-list"></div>';
+const generationHistoryStyles=document.createElement('style');
+generationHistoryStyles.textContent='#generation-history{margin-top:24px;padding:18px;border:1px solid #42604c;border-radius:12px}#history-list details{padding:12px 0;border-bottom:1px solid #42604c}#history-list summary{cursor:pointer;overflow-wrap:anywhere}#history-list pre{white-space:pre-wrap;max-height:220px;overflow:auto}#history-list button,#history-list a{display:inline-block;margin:6px 10px 0 0}';
+document.head.append(generationHistoryStyles);
 const historyRoutePrefix=document.querySelector('#generation-history').dataset.route;
 const historyStatusElement=document.querySelector('#history-status');
 async function refreshGenerationHistory(){
