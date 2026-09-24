@@ -25,6 +25,9 @@ REVIEW_SERVER_RETRY_SECONDS = 3
 REVIEW_LIVE_RELOAD_PATH = '/__review_live_reload__'
 REVIEW_LIVE_RELOAD_SCRIPT = b'''<script id="review-live-reload">(()=>{let instanceId;const poll=async()=>{try{const response=await fetch('/__review_live_reload__',{cache:'no-store'});if(!response.ok)throw new Error('watch unavailable');const nextInstanceId=(await response.json()).instanceId;if(instanceId&&instanceId!==nextInstanceId){location.reload();return}instanceId=nextInstanceId}catch(_error){}finally{setTimeout(poll,1000)}};poll()})()</script>'''
 
+def is_review_live_reload_request(request_path):
+    return urlsplit(request_path).path == REVIEW_LIVE_RELOAD_PATH
+
 def inject_review_live_reload(html_content):
     if b'id="review-live-reload"' in html_content:
         return html_content
@@ -253,7 +256,7 @@ def run_review_server(parsed_argument_values):
         def __init__(self,*request_handler_arguments,**request_handler_options):
             super().__init__(*request_handler_arguments,directory=str(review_root_directory),**request_handler_options)
         def do_GET(self):
-            if urlsplit(self.path).path == REVIEW_LIVE_RELOAD_PATH:
+            if is_review_live_reload_request(self.path):
                 encoded_record = json.dumps({'instanceId': review_server_instance_id}).encode()
                 self.send_response(200)
                 self.send_header('Content-Type', 'application/json; charset=utf-8')
@@ -300,6 +303,9 @@ def run_review_server(parsed_argument_values):
             self.send_header('Cross-Origin-Resource-Policy','same-origin')
             super().end_headers()
         def log_message(self,request_message_format,*request_message_arguments):
+            # 자동 새로고침 상태 확인은 각 iframe에서 반복되므로 서버 로그·요청 수에서 제외한다.
+            if is_review_live_reload_request(self.path):
+                return
             request_counter_value[0]+=1
             emit_server_trace('request',(request_message_format % request_message_arguments).replace('\n',' '))
     def emit_server_heartbeat():

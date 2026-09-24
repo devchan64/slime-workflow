@@ -16,6 +16,10 @@ class ReviewStartupTests(unittest.TestCase):
         self.assertEqual(parsed_argument_values.port, 8770)
         self.assertEqual(parsed_argument_values.entry, 'preview.html')
 
+    def test_live_reload_status_path_is_identified_without_query_string(self):
+        self.assertTrue(serve.is_review_live_reload_request('/__review_live_reload__?cache=none'))
+        self.assertFalse(serve.is_review_live_reload_request('/preview.html'))
+
     def test_live_reload_script_is_added_once_before_body_end(self):
         page_content = b'<html><body>review</body></html>'
         rendered_content = serve.inject_review_live_reload(page_content)
