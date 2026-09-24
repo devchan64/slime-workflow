@@ -13,6 +13,18 @@ CUDA가 필요한 실행은 샌드박스 밖에서 수행한다. 기본 리그 �
 
 `#momask-generator`는 `generators/momask/run_managed_generation.py`를 통해 MoMask 모션을 새로 추론하고, 대기에만 `normalize_standing_arms.py` 보정을 적용한다. 위의 기존 보행 리그 재렌더 경로와 별도다. 기준 모델은 `generators/animation/config/anny_model_baseline.yaml`이 선택한 **anny-39eab167-v1**이며 원본 생성 ID는 `39eab167`이다.
 
+### 대기 모션 프롬프트
+
+현재 실행 프롬프트 원문은 다음과 같다.
+
+```text
+A person stands.
+```
+
+뜻은 “사람이 서 있다”이며, 관리 원본은 [`standing-loops-v1.json`](../generators/momask/config/standing-loops-v1.json)의 `actions.standing.prompt`이다. `run_managed_generation.py`가 이 값을 읽어 MoMask 추론에 전달한다. 관리도구에서는 고정 스크립트로 표시하며 사용자가 수정하지 않는다.
+
+프롬프트에는 “가볍게” 또는 호흡 표현을 추가하지 않는다. 가슴 후방 회전 10°와 위팔 18°·아래팔 10° 벌림은 텍스트 지시가 아니라 생성 후 대기 보정 및 ANNY 리타기팅으로 적용한다. 입력 모션은 16프레임이며, 4fps·4초로 재생한다.
+
 ### 현재 보정값
 
 관리 원본은 [`standing-corrections.yaml`](../generators/momask/config/standing-corrections.yaml)이다. 관리도구의 **대기 모션 보정값** 펼치기도 이 파일을 읽는다.
