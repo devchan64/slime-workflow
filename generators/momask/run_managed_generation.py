@@ -15,7 +15,10 @@ def main():
  command=[str(ROOT/'.venv/bin/python'),str(ROOT/'generators/momask/generate_motion.py'),'--output-dir',str(generation_root),'--frames',str(spec['source_frames']),'--prompt',spec['prompt']]
  subprocess.run(command,check=True)
  motion=generation_root/'motion/motion.npz'; result=a.job_dir/'result'; frames=len(np.load(motion)['joints']); indices=','.join(map(str,range(frames)))
- subprocess.run([str(ROOT/'.venv/bin/python'),str(ROOT/'generators/momask/render_openpose_frames.py'),'--motion',str(motion),'--output-dir',str(result),'--sample-indices',indices],check=True)
- for direction in DIRECTIONS-set(directions): shutil.rmtree(result/direction)
- (a.job_dir/'result.json').write_text(json.dumps({'action':a.action,'label':label,'frames':frames,'fps':4,'directions':directions,'prompt':spec['prompt'],'sampling':'none','status':'completed'},ensure_ascii=False,indent=2)+'\n')
+ subprocess.run([str(ROOT/'.venv/bin/python'),str(ROOT/'generators/momask/render_openpose_frames.py'),'--motion',str(motion),'--output-dir',str(result/'openpose'),'--sample-indices',indices],check=True)
+ subprocess.run([str(ROOT/'.venv/bin/python'),str(ROOT/'generators/momask/render_rig_frames.py'),'--motion',str(motion),'--output-dir',str(result/'rig'),'--sample-indices',indices],check=True)
+ for direction in DIRECTIONS-set(directions):
+  shutil.rmtree(result/'openpose'/direction)
+  shutil.rmtree(result/'rig'/direction)
+ (a.job_dir/'result.json').write_text(json.dumps({'action':a.action,'label':label,'frames':frames,'rig_frames':frames,'fps':4,'directions':directions,'prompt':spec['prompt'],'sampling':'none','status':'completed'},ensure_ascii=False,indent=2)+'\n')
 if __name__=='__main__':main()
