@@ -12,6 +12,7 @@ BONE_ROTATION_FIELDS.update({f'{part_label_value}_{side_label_value}_rotation_{a
 def load_attribute_defaults():
  baseline_attribute_values=json.loads(BASE.read_text())
  baseline_attribute_values['local_changes_kwargs']['hip-waist-up']=0.0
+ baseline_attribute_values['local_changes_kwargs']['measure-waist-circ-incr']=-0.2
  baseline_attribute_values['local_changes_kwargs'].setdefault('torso-muscle-dorsi-incr',0.0)
  return baseline_attribute_values
 def extract_bone_rotation(pose_matrix_values):
