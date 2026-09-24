@@ -15,8 +15,8 @@ ACTIONS={'standing':{'label':'대기','frames':16},'deep_breath':{'label':'심�
 DIRECTIONS=('down_left','down_right','up_left','up_right')
 def render_standing_corrections():
  correction_config_values=yaml.safe_load((ROOT/'generators/momask/config/standing-corrections.yaml').read_text())
- correction_display_fields=[('max_torso_pitch_degrees','상체 전방 기울기 제한','°',1),('upper_arm_outward_degrees','위팔 바깥 벌림','°',1),('forearm_outward_degrees','아래팔 바깥 벌림','°',1),('lower_chest_vertical_m','가슴 아래 상하 이동','mm',1000),('chest_vertical_m','가슴 상하 이동','mm',1000),('chest_forward_m','가슴 앞뒤 이동','mm',1000),('shoulder_vertical_m','어깨 상하 이동','mm',1000)]
- return '<dl>'+''.join('<dt>'+display_field_label+'</dt><dd>'+str(correction_config_values[config_field_name]*display_unit_scale)+' '+display_unit_label+'</dd>' for config_field_name,display_field_label,display_unit_label,display_unit_scale in correction_display_fields)+'</dl><p>골반 수평 이동과 발 위치 고정 · 원본 프레임 수 유지</p>'
+ correction_display_fields=[('max_torso_pitch_degrees','상체 전방 기울기 제한','°',1),('upper_arm_outward_degrees','위팔 바깥 벌림','°',1),('forearm_outward_degrees','아래팔 바깥 벌림','°',1),('chest_backward_rotation_degrees','가슴 후방 회전','°',1)]
+ return '<dl>'+''.join('<dt>'+display_field_label+'</dt><dd>'+str(correction_config_values[config_field_name]*display_unit_scale)+' '+display_unit_label+'</dd>' for config_field_name,display_field_label,display_unit_label,display_unit_scale in correction_display_fields)+'</dl><p>가슴 아래를 중심으로 뒤로 회전 · 어깨 상하 이동 보정 없음 · 골반·발 위치 고정 · 원본 프레임 수 유지</p>'
 
 PAGE = r"""<!doctype html>
 <meta charset="utf-8"><title>MoMask 모션 생성기</title>

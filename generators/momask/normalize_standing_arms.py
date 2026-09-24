@@ -1,4 +1,4 @@
-"""대기 모션의 팔을 몸통 옆 수직 자세로 정규화한다."""
+"""대기 모션의 팔 간격과 가슴 중심 후방 호흡을 보정한다."""
 from pathlib import Path
 import argparse
 import numpy as np
@@ -54,16 +54,22 @@ def normalize(path: Path) -> dict:
     breathing_cycle_values=(1-np.cos(phase))/2
     stable_upper_positions=joints[0,UPPER_BODY].copy()
     joints[:,UPPER_BODY]=stable_upper_positions
-    joints[:,6,1]+=STANDING_CORRECTION_VALUES['lower_chest_vertical_m']*breathing_cycle_values
-    joints[:,9,1]+=STANDING_CORRECTION_VALUES['chest_vertical_m']*breathing_cycle_values
-    joints[:,9,2]+=STANDING_CORRECTION_VALUES['chest_forward_m']*breathing_cycle_values
-    joints[:,[13,14,16,17],1]+=STANDING_CORRECTION_VALUES['shoulder_vertical_m']*breathing_cycle_values[:,None]
     for shoulder,elbow,wrist in ARMS:
         upper_lengths=np.linalg.norm(joints[:,elbow]-joints[:,shoulder],axis=1)
         lower_lengths=np.linalg.norm(joints[:,wrist]-joints[:,elbow],axis=1)
         joints[:,elbow]=joints[:,shoulder]+np.column_stack((np.zeros(len(joints)), -upper_lengths, np.zeros(len(joints))))
         joints[:,wrist]=joints[:,elbow]+np.column_stack((np.zeros(len(joints)), -lower_lengths, np.zeros(len(joints))))
     joints=correct_standing_posture(joints)
+    # 가슴 아래 관절을 중심으로 상부를 뒤로 회전한다. 어깨 승모 동작은 추가하지 않는다.
+    chest_upper_indices=[9,12,13,14,15,16,17,18,19,20,21]
+    chest_pivot_values=joints[:,6,None].copy()
+    chest_relative_values=joints[:,chest_upper_indices]-chest_pivot_values
+    chest_rotation_values=-np.radians(STANDING_CORRECTION_VALUES['chest_backward_rotation_degrees'])*breathing_cycle_values
+    chest_height_values=chest_relative_values[:,:,1].copy()
+    chest_depth_values=chest_relative_values[:,:,2].copy()
+    chest_relative_values[:,:,1]=np.cos(chest_rotation_values)[:,None]*chest_height_values-np.sin(chest_rotation_values)[:,None]*chest_depth_values
+    chest_relative_values[:,:,2]=np.sin(chest_rotation_values)[:,None]*chest_height_values+np.cos(chest_rotation_values)[:,None]*chest_depth_values
+    joints[:,chest_upper_indices]=chest_relative_values+chest_pivot_values
     result={name:bundle[name] for name in bundle.files};result['joints']=joints
     np.savez_compressed(path,**result)
     (path.parent/'standing-corrections.yaml').write_text(yaml.safe_dump(STANDING_CORRECTION_VALUES,sort_keys=False))

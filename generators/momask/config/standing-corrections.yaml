@@ -1,8 +1,5 @@
 schema_version: 1
 max_torso_pitch_degrees: 1.0
-upper_arm_outward_degrees: 10.0
-forearm_outward_degrees: 5.0
-lower_chest_vertical_m: 0.004
-chest_vertical_m: 0.008
-chest_forward_m: 0.006
-shoulder_vertical_m: 0.001
+upper_arm_outward_degrees: 18.0
+forearm_outward_degrees: 10.0
+chest_backward_rotation_degrees: 3.0
