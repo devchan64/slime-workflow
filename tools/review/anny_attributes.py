@@ -1,10 +1,10 @@
 from pathlib import Path
 from urllib.parse import urlsplit
-import json, subprocess, threading, uuid
+import json, subprocess, threading, uuid, re
 ROOT=Path(__file__).resolve().parents[2]
 BASE=ROOT/'assets/motion-sheet/mannequin-walk-v6/inputs/attributes.json'
 JOBS=ROOT/'.tmp/anny-attribute-renderer'
-PAGE='''<!doctype html><meta charset="utf-8"><title>Anny 속성 렌더러</title><style>body{background:#101814;color:#e7f2e9;font:14px system-ui;padding:28px}main{max-width:900px;margin:auto}label{display:block;margin:12px 0}input{width:280px}img{max-width:48%;background:#000}pre{background:#07100b;padding:12px}</style><main><h1>Anny 속성 렌더러</h1><p>현재 사용 중인 Anny 기준 속성에서 값만 바꿔 프리뷰를 렌더합니다.</p><div id=f></div><p id=s>기준값 불러오는 중</p><section id=r></section></main><script>let timer;const f=document.querySelector('#f'),s=document.querySelector('#s'),r=document.querySelector('#r');const fields=[['age','나이',0,1],['weight','체중',0,1],['height','키',0,1],['torso-scale-horiz-incr','몸통 너비',-1,1],['torso-scale-depth-incr','몸통 깊이',-1,1],['measure-shoulder-dist-incr','어깨 너비',-1,1],['upperlegs-height-incr','다리 길이',-1,1]];let base;const values=()=>Object.fromEntries([...f.querySelectorAll('input')].map(x=>[x.name,+x.value]));async function render(){s.textContent='Anny 렌더 요청 중';let q=await fetch('/anny-attributes/render',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(values())}),j=await q.json();if(!q.ok){s.textContent=j.error;return}let poll=async()=>{let a=await fetch('/anny-attributes/jobs/'+j.id),v=await a.json();s.textContent=v.status==='failed'?'렌더 실패: '+v.log:v.status;if(v.status==='running')return setTimeout(poll,1000);if(v.status==='completed')r.innerHTML='<img src="/anny-attributes/jobs/'+j.id+'/front.png"><img src="/anny-attributes/jobs/'+j.id+'/side.png">'};poll()}fetch('/anny-attributes/base').then(x=>x.json()).then(x=>{base=x;for(const [n,l,min,max] of fields){let v=(x.phenotype_kwargs[n]??x.local_changes_kwargs[n]??0);f.insertAdjacentHTML('beforeend',`<label>${l} <input name="${n}" type=range min=${min} max=${max} step=.05 value=${v}><output>${v}</output></label>`)}f.oninput=e=>{e.target.nextElementSibling.textContent=e.target.value;clearTimeout(timer);timer=setTimeout(render,500)};s.textContent='기준값을 수정하면 자동으로 렌더합니다.'})</script>'''
+PAGE=Path(__file__).with_name('anny-attributes.html').read_text()
 class AnnyAttributeManager:
  def send(self,h,status,payload,ctype='application/json; charset=utf-8'):
   data=payload if isinstance(payload,bytes) else json.dumps(payload,ensure_ascii=False).encode();h.send_response(status);h.send_header('Content-Type',ctype);h.send_header('Content-Length',str(len(data)));h.end_headers();h.wfile.write(data)
@@ -15,13 +15,22 @@ class AnnyAttributeManager:
    if h.command=='GET' and path=='/anny-attributes/':self.send(h,200,PAGE.encode(),'text/html; charset=utf-8');return True
    if h.command=='GET' and path=='/anny-attributes/base':self.send(h,200,json.loads(BASE.read_text()));return True
    if h.command=='GET' and path.startswith('/anny-attributes/jobs/'):
-    parts=path.split('/');root=JOBS/parts[3]
+    parts=path.split('/')
+    if len(parts) not in (4,5) or not re.fullmatch(r'[0-9a-f]{8}',parts[3]):raise ValueError('잘못된 작업 경로')
+    if len(parts)==5 and parts[4] not in {'front.png','side.png'}:raise ValueError('허용하지 않는 결과 파일')
+    root=JOBS/parts[3]
     if len(parts)==4:
      state=json.loads((root/'status.json').read_text());state['log']=(root/'worker.log').read_text(errors='replace')[-2000:] if (root/'worker.log').exists() else '';self.send(h,200,state);return True
     self.send(h,200,(root/parts[4]).read_bytes(),'image/png');return True
    if h.command!='POST' or path!='/anny-attributes/render':raise ValueError('요청 오류')
+   if h.headers.get('Origin')!=f'http://127.0.0.1:{h.server.server_port}':raise ValueError('허용하지 않는 요청 출처')
    changed=json.loads(h.rfile.read(int(h.headers['Content-Length'])))
-   if set(changed)-{'age','weight','height','torso-scale-horiz-incr','torso-scale-depth-incr','measure-shoulder-dist-incr','upperlegs-height-incr'}:raise ValueError('지원하지 않는 속성')
+   if not isinstance(changed,dict):raise ValueError('속성 객체가 필요합니다.')
+   if set(changed)-{'age','weight','height','torso-scale-horiz-incr','torso-scale-depth-incr','measure-shoulder-dist-incr','upperlegs-height-incr','lowerlegs-height-incr'}:raise ValueError('지원하지 않는 속성')
+   if not isinstance(changed,dict):raise ValueError('속성 객체가 필요합니다.')
+   for attribute_key_name,attribute_numeric_value in changed.items():
+    attribute_minimum_value=0 if attribute_key_name in {'age','weight','height'} else -1
+    if type(attribute_numeric_value) not in (int,float) or not attribute_minimum_value<=attribute_numeric_value<=1:raise ValueError('속성 범위 오류')
    attrs=json.loads(BASE.read_text());attrs['phenotype_kwargs'].update({k:v for k,v in changed.items() if k in attrs['phenotype_kwargs']});attrs['local_changes_kwargs'].update({k:v for k,v in changed.items() if k not in attrs['phenotype_kwargs']})
    ident=uuid.uuid4().hex[:8];root=JOBS/ident;root.mkdir(parents=True);(root/'attributes.json').write_text(json.dumps(attrs));(root/'status.json').write_text(json.dumps({'status':'running'}))
    def work():
