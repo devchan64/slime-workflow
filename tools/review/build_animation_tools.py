@@ -39,26 +39,7 @@ def write_common_player(output):
 def build_animation_tools(output):
     write_common_player(output)
     records=[]
-    openpose_motions = {}
     standing_motion_selection=yaml.safe_load((ROOT/'generators/animation/config/default_standing_motion.yaml').read_text())
-    openpose_sources = (
-        ('walk', '걷기', SOURCE, {direction: list(range(1, 33)) for direction in DIRECTIONS}),
-        ('standing', '대기 스탠딩', ROOT / standing_motion_selection['openpose_path'], {direction: list(range(1, standing_motion_selection['frames']+1)) for direction in DIRECTIONS}),
-        ('deep-breath', '심호흡', ROOT / 'assets/motion-sheet/momask-standing-loops-v1' / 'deep-breath' / 'openpose', {direction: list(range(1, 9)) for direction in DIRECTIONS}),
-        ('stretch', '스트레칭', ROOT / 'assets/motion-sheet/momask-standing-loops-v1' / 'stretch' / 'openpose', {direction: list(range(1, 21)) for direction in DIRECTIONS}),
-    )
-    for motion_id, label, source_root, direction_numbers in openpose_sources:
-        motion_directions = {}
-        for direction in DIRECTIONS:
-            frames = []
-            for number in direction_numbers[direction]:
-                name = f'{motion_id}-{direction}-{number:04d}.png'
-                copy(source_root / direction / f'openpose-{number:04d}.png', output / 'momask-openpose-player' / name)
-                frames.append(name)
-            motion_directions[direction] = {'label': direction, 'frames': frames}
-        openpose_motions[motion_id] = {'label': label, 'directions': motion_directions}
-    (output/'momask-openpose-player'/'index.html').write_text(openpose_selector_page(openpose_motions),encoding='utf-8')
-    records.append({'id':'momask-openpose-player','label':'MoMask 애니메이션 OpenPose 맵 플레이어','path':'momask-openpose-player/index.html','anchorEditor':False,'category':'animation-tool','description':'걷기·일반호흡·심호흡·스트레칭 선택 · 각 4방향'})
     records.append({'id':'momask-generator','label':'MoMask 모션 생성기','path':'/momask-generator/','anchorEditor':False,'category':'animation-tool','description':'고정 포즈 스크립트 · 방향 선택 · 생성 로그·취소·결과 재생'})
     attribute_page = '''<!doctype html><meta charset="utf-8"><title>Anny 속성 렌더러</title><link rel="stylesheet" href="../animation-tools-common/player.css"><main><h1>Anny 속성 렌더러</h1><p>네이버랩스 Anny의 체형·국소 속성 입력을 검토합니다. 값은 새 렌더 후보의 입력으로 기록됩니다.</p><form id="attributes"><h2>기본 체형</h2><label>나이 <input name="age" type="range" min="0" max="1" step="0.05" value="0.15"><output></output></label><label>체중 <input name="weight" type="range" min="0" max="1" step="0.05" value="0.25"><output></output></label><label>키 <input name="height" type="range" min="0" max="1" step="0.05" value="0.25"><output></output></label><h2>국소 체형</h2><label>몸통 너비 <input name="torso-scale-horiz-incr" type="range" min="-1" max="1" step="0.05" value="-0.5"><output></output></label><label>몸통 깊이 <input name="torso-scale-depth-incr" type="range" min="-1" max="1" step="0.05" value="-0.5"><output></output></label><label>어깨 너비 <input name="measure-shoulder-dist-incr" type="range" min="-1" max="1" step="0.05" value="0.5"><output></output></label><label>다리 길이 <input name="upperlegs-height-incr" type="range" min="-1" max="1" step="0.05" value="0.7"><output></output></label><button type="button" id="export">렌더 입력 JSON 내려받기</button></form><pre id="preview"></pre></main><script>const f=document.querySelector('#attributes'),p=document.querySelector('#preview');const render=()=>{for(const i of f.querySelectorAll('input'))i.nextElementSibling.textContent=i.value;const a=Object.fromEntries(new FormData(f));p.textContent=JSON.stringify({phenotype_kwargs:{age:+a.age,weight:+a.weight,height:+a.height},local_changes_kwargs:Object.fromEntries(Object.entries(a).filter(([k])=>!['age','weight','height'].includes(k)).map(([k,v])=>[k,+v]))},null,2)};f.oninput=render;render();document.querySelector('#export').onclick=()=>{const b=new Blob([p.textContent],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='anny-attributes.json';a.click();URL.revokeObjectURL(a.href)}</script>'''
     folder=output/'anny-attribute-renderer';folder.mkdir(parents=True,exist_ok=True);(folder/'index.html').write_text(attribute_page,encoding='utf-8')
