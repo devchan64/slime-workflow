@@ -1,8 +1,0 @@
-{
-  "exit_code": 0,
-  "motion_created": true,
-  "smpl_created": false,
-  "depth_created": false,
-  "log": "/home/cbsim/ws/slime-workflow/.tmp/momask-generator/jobs/2026-09-24_20-31-23-13336ffa/motion-run/generation.log",
-  "failure_tail": []
-}

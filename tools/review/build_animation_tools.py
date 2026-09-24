@@ -58,8 +58,8 @@ def build_animation_tools(output):
                 for frame_number in range(1,standing_motion_selection['frames']+1):
                     frame_file_name=f'{direction}-{frame_number:04d}.png'
                     copy(ROOT/standing_motion_selection['openpose_path']/direction/f'openpose-{frame_number:04d}.png',folder/frame_file_name)
-            (folder/'index.html').write_text(openpose_selector_page({'standing':{'label':'대기 · v2 · 16프레임', 'directions':{direction:{'label':direction,'frames':[f'{direction}-{number:04d}.png' for number in range(1,standing_motion_selection['frames']+1)]} for direction in DIRECTIONS}}}),encoding='utf-8')
-            records.append({'id':identifier,'label':title,'path':identifier+'/index.html','anchorEditor':False,'category':'animation-tool','description':'승인 대기 v2 · 16프레임 · 4초 · 4방향'})
+            (folder/'index.html').write_text(openpose_selector_page({'standing':{'label':'대기 · v3 · 16프레임', 'directions':{direction:{'label':direction,'frames':[f'{direction}-{number:04d}.png' for number in range(1,standing_motion_selection['frames']+1)]} for direction in DIRECTIONS}}}),encoding='utf-8')
+            records.append({'id':identifier,'label':title,'path':identifier+'/index.html','anchorEditor':False,'category':'animation-tool','description':'승인 대기 v3 · 16프레임 · 4초 · 4방향'})
             continue
         copy(loop_source / 'artifact.json', folder / 'artifact.json')
         copy(loop_source / action / 'source-motion.npz', folder / 'source-motion.npz')

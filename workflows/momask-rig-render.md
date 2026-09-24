@@ -69,7 +69,7 @@ OpenPose와 ANNY는 같은 보정 모션을 사용하지만 서로 다른 골격
 
 ## 재사용 대기 에셋
 
-검증 이력 `2026-09-24_20-31-23-13336ffa`는 `assets/motion-sheet/momask-standing-v2`로 등록했다. 향후 포즈 생성에서는 `generators/animation/config/default_standing_motion.yaml`의 모션·OpenPose 경로를 사용한다. 관리도구 대기 페이지도 이 선택 설정을 따른다. 독립 OpenPose 플레이어는 폐기했으며 생성 결과는 MoMask 생성기에서 재생한다. 모션은 보정 적용본이며 원본 이력의 파일을 덮어쓰지 않는다.
+선택 이력 `2026-09-24_21-58-55-a17ffc87`는 `assets/motion-sheet/momask-standing-v3`로 등록했다. 향후 포즈 생성에서는 `generators/animation/config/default_standing_motion.yaml`의 모션·OpenPose 경로를 사용한다. 관리도구 대기 페이지도 이 선택 설정을 따른다. 독립 OpenPose 플레이어는 폐기했으며 생성 결과는 MoMask 생성기에서 재생한다. 모션은 보정 적용본이며 원본 이력의 파일을 덮어쓰지 않는다.
 
 ## 심호흡 생성
 
