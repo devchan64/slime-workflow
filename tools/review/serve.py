@@ -247,6 +247,11 @@ def run_review_server(parsed_argument_values):
     writer_agent_service=WriterAgentManager(parsed_argument_values.writer_agent_config or DEFAULT_WORKSPACE_CONFIG)
     image_generation_service = ImageGenerationManager()
     if __package__:
+        from .anny_attributes import AnnyAttributeManager
+    else:
+        from anny_attributes import AnnyAttributeManager
+    anny_attribute_service = AnnyAttributeManager()
+    if __package__:
         from .momask_generation import MoMaskGenerationManager
     else:
         from momask_generation import MoMaskGenerationManager
@@ -264,6 +269,7 @@ def run_review_server(parsed_argument_values):
                 self.end_headers()
                 self.wfile.write(encoded_record)
                 return
+            if anny_attribute_service.handle(self):return
             if writer_agent_service.handle_writer_request(self):return
             if momask_generation_service.handle(self):return
             if three_reference_service.handle_image_request(self):
