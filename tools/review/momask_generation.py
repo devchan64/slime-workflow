@@ -1,13 +1,13 @@
 """관리도구의 고정 프롬프트 MoMask 생성 작업 API."""
 from pathlib import Path
-from datetime import datetime
-from zoneinfo import ZoneInfo
 from urllib.parse import parse_qs, urlsplit
-import json, os, re, signal, subprocess, threading, uuid, html, yaml
+import json, re, html, yaml
 try:
+ from .momask_jobs import start_generation_job, cancel_generation_job, check_generation_running, list_generation_history, read_generation_status, reset_generation_history
  from .openpose_maps import generate_openpose_maps
  from .management_log_viewer import MANAGEMENT_LOG_VIEWER_SCRIPT
 except ImportError:
+ from momask_jobs import start_generation_job, cancel_generation_job, check_generation_running, list_generation_history, read_generation_status, reset_generation_history
  from openpose_maps import generate_openpose_maps
  from management_log_viewer import MANAGEMENT_LOG_VIEWER_SCRIPT
 ROOT=Path(__file__).resolve().parents[2]
@@ -46,15 +46,12 @@ def unique(pairs):
  return d
 class MoMaskGenerationManager:
  route='/momask-generator'
- def __init__(self): self.process=None;self.job=None;self.lock=threading.Lock()
  def send(self,h,status,payload,ctype='application/json; charset=utf-8'):
   data=payload if isinstance(payload,bytes) else json.dumps(payload,ensure_ascii=False).encode();h.send_response(status);h.send_header('Content-Type',ctype);h.send_header('Content-Length',str(len(data)));h.send_header('Cache-Control','no-store');h.end_headers();h.wfile.write(data)
  def history(self):
-  HISTORY_ROOT.mkdir(parents=True,exist_ok=True);return [json.loads(p.read_text()) for p in sorted(HISTORY_ROOT.glob('*.json'),reverse=True)]
+  return list_generation_history()
  def status(self,identifier):
-  root=JOB_ROOT/identifier;state=json.loads((root/'status.json').read_text());log=(root/'worker.log').read_text(errors='replace')[-12000:] if (root/'worker.log').exists() else '';state['log']=log
-  if (root/'result.json').exists(): state['result']=json.loads((root/'result.json').read_text())
-  return state
+  return read_generation_status(identifier)
  def handle(self,h):
   request=urlsplit(h.path);path=request.path;query=parse_qs(request.query)
   if not(path==self.route or path.startswith(self.route+'/')): return False
@@ -67,7 +64,7 @@ class MoMaskGenerationManager:
     self.send(h,200,Path(__file__).with_name(stylesheet_file_name).read_bytes(),'text/css; charset=utf-8');return True
    if h.command=='GET' and path==self.route+'/history':
     page=max(1,int(query.get('page',['1'])[0]));page_size=8;records=self.history();total=len(records);page_count=max(1,(total+page_size-1)//page_size);page=min(page,page_count);start=(page-1)*page_size
-    self.send(h,200,{'records':records[start:start+page_size],'total':total,'page':page,'page_size':page_size,'page_count':page_count,'running':self.process is not None and self.process.poll() is None});return True
+    self.send(h,200,{'records':records[start:start+page_size],'total':total,'page':page,'page_size':page_size,'page_count':page_count,'running':check_generation_running()});return True
    match=re.fullmatch(self.route+r'/jobs/([0-9a-f_-]+)',path)
    frame_match=re.fullmatch(self.route+r'/jobs/([0-9a-f_-]+)/result/(openpose-map|openpose|rig)/(down_left|down_right|up_left|up_right)/((?:openpose-map|openpose|rig)-\d{4}\.png)',path)
    legacy_frame_match=re.fullmatch(self.route+r'/jobs/([0-9a-f_-]+)/result/(down_left|down_right|up_left|up_right)/(openpose-\d{4}\.png)',path)
@@ -90,19 +87,10 @@ class MoMaskGenerationManager:
     self.send(h,200,generate_openpose_maps(JOB_ROOT/body['id']));return True
    if path==self.route+'/history/reset':
     if body!={'action':'reset'}: raise ValueError('초기화 요청 오류')
-    for p in HISTORY_ROOT.glob('*.json'):p.unlink()
-    self.send(h,200,{'status':'cleared'});return True
+    self.send(h,200,reset_generation_history());return True
    if path==self.route+'/cancel':
-    if set(body)!={'id'} or body['id']!=self.job or not self.process or self.process.poll() is not None: raise ValueError('실행 중인 작업이 아닙니다.')
-    os.killpg(self.process.pid,signal.SIGTERM);(JOB_ROOT/self.job/'status.json').write_text(json.dumps({'status':'cancelled'}));self.send(h,200,{'status':'cancelled'});return True
+    if set(body)!={'id'}: raise ValueError('취소 요청 오류')
+    self.send(h,200,cancel_generation_job(body['id']));return True
    if path!=self.route+'/jobs' or set(body)!={'action','directions'} or body['action'] not in ACTIONS or not isinstance(body['directions'],list) or not body['directions'] or set(body['directions'])-set(DIRECTIONS) or len(set(body['directions']))!=len(body['directions']): raise ValueError('포즈 또는 방향 요청 오류')
-   with self.lock:
-    if self.process and self.process.poll() is None: raise ValueError('MoMask 생성 작업이 실행 중입니다.')
-    identifier=datetime.now(ZoneInfo('Asia/Seoul')).strftime('%Y-%m-%d_%H-%M-%S')+'-'+uuid.uuid4().hex[:8];root=JOB_ROOT/identifier;root.mkdir(parents=True);(root/'status.json').write_text(json.dumps({'status':'running'}));(root/'request.json').write_text(json.dumps(body,ensure_ascii=False));log=(root/'worker.log').open('w');self.process=subprocess.Popen([str(ROOT/'.venv/bin/python'),str(ROOT/'generators/momask/run_managed_generation.py'),'--job-dir',str(root),'--action',body['action'],'--directions',','.join(body['directions'])],stdout=log,stderr=subprocess.STDOUT,start_new_session=True);self.job=identifier;HISTORY_ROOT.mkdir(parents=True,exist_ok=True);record={'id':identifier,'created_at':datetime.now(ZoneInfo('Asia/Seoul')).isoformat(),'action':body['action'],'directions':body['directions'],'status':'running'};(HISTORY_ROOT/(identifier+'.json')).write_text(json.dumps(record,ensure_ascii=False))
-    def watch():
-     code=self.process.wait();state={'status':'completed' if code==0 else 'failed','exit_code':code};status_path=root/'status.json';
-     if json.loads(status_path.read_text()).get('status')=='running':status_path.write_text(json.dumps(state,ensure_ascii=False))
-     record['status']=json.loads(status_path.read_text()).get('status');(HISTORY_ROOT/(identifier+'.json')).write_text(json.dumps(record,ensure_ascii=False))
-    threading.Thread(target=watch,daemon=True).start()
-   self.send(h,202,{'id':identifier,'status':'running'});return True
+   self.send(h,202,start_generation_job(body['action'],body['directions']));return True
   except (ValueError,FileNotFoundError,json.JSONDecodeError) as e:self.send(h,400,{'error':str(e)});return True
