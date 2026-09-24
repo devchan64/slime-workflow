@@ -1,6 +1,8 @@
 from pathlib import Path
 from urllib.parse import urlsplit
 import json, subprocess, threading, uuid, re
+from datetime import datetime
+from zoneinfo import ZoneInfo
 ROOT=Path(__file__).resolve().parents[2]
 BASE=ROOT/'assets/motion-sheet/mannequin-walk-v6/inputs/attributes.json'
 JOBS=ROOT/'.tmp/anny-attribute-renderer'
@@ -13,6 +15,17 @@ class AnnyAttributeManager:
   if not path.startswith('/anny-attributes'): return False
   try:
    if h.command=='GET' and path=='/anny-attributes/':self.send(h,200,PAGE.encode(),'text/html; charset=utf-8');return True
+   if h.command=='GET' and path=='/anny-attributes/history-ui.js':self.send(h,200,Path(__file__).with_name('generation-history.js').read_bytes(),'text/javascript');return True
+   if h.command=='GET' and path=='/anny-attributes/history':
+    stored_history_records=[]
+    for history_record_path in sorted(JOBS.glob('*/history.json'),key=lambda item:item.stat().st_mtime,reverse=True):
+     current_history_record=json.loads(history_record_path.read_text());current_history_record['status']=json.loads((history_record_path.parent/'status.json').read_text());stored_history_records.append(current_history_record)
+    self.send(h,200,{'records':stored_history_records});return True
+   if h.command=='POST' and path=='/anny-attributes/history/reset':
+    if h.headers.get('Origin')!=f'http://127.0.0.1:{h.server.server_port}':raise ValueError('허용하지 않는 요청 출처')
+    if json.loads(h.rfile.read(int(h.headers['Content-Length'])))!={'action':'reset'}:raise ValueError('초기화 요청 오류')
+    for history_record_path in JOBS.glob('*/history.json'):history_record_path.unlink()
+    self.send(h,200,{'status':'cleared'});return True
    if h.command=='GET' and path=='/anny-attributes/base':self.send(h,200,json.loads(BASE.read_text()));return True
    if h.command=='GET' and path.startswith('/anny-attributes/jobs/'):
     parts=path.split('/')
@@ -33,6 +46,7 @@ class AnnyAttributeManager:
     if type(attribute_numeric_value) not in (int,float) or not attribute_minimum_value<=attribute_numeric_value<=1:raise ValueError('속성 범위 오류')
    attrs=json.loads(BASE.read_text());attrs['phenotype_kwargs'].update({k:v for k,v in changed.items() if k in attrs['phenotype_kwargs']});attrs['local_changes_kwargs'].update({k:v for k,v in changed.items() if k not in attrs['phenotype_kwargs']})
    ident=uuid.uuid4().hex[:8];root=JOBS/ident;root.mkdir(parents=True);(root/'attributes.json').write_text(json.dumps(attrs));(root/'status.json').write_text(json.dumps({'status':'running'}))
+   (root/'history.json').write_text(json.dumps({'id':ident,'created_at':datetime.now(ZoneInfo('Asia/Seoul')).isoformat(),'request':{'attributes':changed},'status':{'status':'running'}},ensure_ascii=False))
    def work():
     code=subprocess.run([str(ROOT/'.venv/bin/python'),str(ROOT/'generators/animation/render_anny_attribute_preview.py'),'--attributes',str(root/'attributes.json'),'--output-dir',str(root/'render')],stdout=(root/'worker.log').open('w'),stderr=subprocess.STDOUT).returncode
     for name in ('front.png','side.png'):
