@@ -278,6 +278,7 @@ def run_review_server(parsed_argument_values):
                 return
             super().do_GET()
         def do_POST(self):
+            if anny_attribute_service.handle(self):return
             if writer_agent_service.handle_writer_request(self):return
             if momask_generation_service.handle(self):return
             if three_reference_service.handle_image_request(self):
