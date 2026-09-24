@@ -38,17 +38,21 @@ def build_animation_tools(output):
         name=f'{direction}.png'; copy(SOURCE/'rig-sheets'/name,output/'momask-rig-player'/name); rig.append(name)
     (output/'momask-rig-player'/'index.html').write_text(page('MoMask 애니메이션 리그 플레이어','MoMask 모션을 Anny 리그에 적용한 방향별 리그 시트입니다.',rig),encoding='utf-8')
     records.append({'id':'momask-rig-player','label':'MoMask 애니메이션 리그 플레이어','path':'momask-rig-player/index.html','anchorEditor':False,'category':'animation-tool','description':'MoMask 걷기 · Anny 리그 시트 4방향'})
-    standing_source = ROOT / 'assets/motion-sheet/momask-standing-idle-v1'
-    copy(standing_source / 'artifact.json', output / 'momask-standing-idle' / 'artifact.json')
-    copy(standing_source / 'source-motion.npz', output / 'momask-standing-idle' / 'source-motion.npz')
-    for direction in DIRECTIONS:
-        copy(standing_source / 'pose-sheets' / f'{direction}.png', output / 'momask-standing-idle' / f'{direction}.png')
-    copy(standing_source / 'pose-sheets' / 'manifest.json', output / 'momask-standing-idle' / 'pose-sheets-manifest.json')
-    (output / 'momask-standing-idle' / 'index.html').write_text('''<!doctype html><meta charset="utf-8"><link rel="stylesheet" href="../animation-tools-common/player.css"><main><h1>MoMask 스탠딩 아이들 모션</h1><p>48프레임 · 20fps 원본 관절 모션입니다. 24셀을 250ms 간격으로 재생하는 4fps·6초 대기 루프입니다.</p><p>처음 3.75초는 대기, 중간 1.5초는 작은 호흡·스트레칭 6프레임, 마지막 0.75초는 시작 자세로 복귀합니다. HumanML3D-22에는 눈 관절이 없어 눈깜박임은 이미지 프레임 단계에서 추가합니다.</p><p><a href="artifact.json">생성 메타데이터</a> · <a href="source-motion.npz" download>원본 모션 다운로드</a></p><section style="display:grid;grid-template-columns:1fr 1fr;gap:12px"><img src="down_left.png" alt="좌하향 포즈 시트" style="width:100%"><img src="down_right.png" alt="우하향 포즈 시트" style="width:100%"><img src="up_left.png" alt="좌상향 포즈 시트" style="width:100%"><img src="up_right.png" alt="우상향 포즈 시트" style="width:100%"></section></main>''', encoding='utf-8')
-    records.append({'id':'momask-standing-idle','label':'MoMask 스탠딩 아이들 모션','path':'momask-standing-idle/index.html','anchorEditor':False,'category':'animation-tool','description':'호흡·작은 스트레칭 · 48프레임 원본 · 4방향 32프레임 렌더 계획'})
     copy(SOURCE/'camera45-four-view.gif',output/'anny-model-viewer'/'turntable.gif'); copy(SOURCE/'mannequin.glb',output/'anny-model-viewer'/'mannequin.glb')
     (output/'anny-model-viewer'/'index.html').write_text('<!doctype html><meta charset="utf-8"><style>body{background:#101814;color:#e7f2e9;font:14px system-ui;padding:28px}img{max-width:100%}a{color:#9febb1}</style><h1>Anny 모델링 뷰어</h1><p>45° 4방향 워크 턴테이블과 로컬 GLB 원본입니다.</p><img src="turntable.gif"><p><a href="mannequin.glb" download>mannequin.glb 다운로드</a></p>',encoding='utf-8')
     records.append({'id':'anny-model-viewer','label':'Anny 모델링 뷰어','path':'anny-model-viewer/index.html','anchorEditor':False,'category':'animation-tool','description':'Anny 리그 45° 턴테이블 · GLB 원본'})
     for identifier,title,note,command in [('openpose-frame-generator','OpenPose 맵 애니메이션 프레임 생성기','캐릭터 기준 이미지와 OpenPose 맵으로 Qwen 프레임을 생성합니다.','python3 generators/animation/generate_pose_transfer_openpose_qwen.py --output-dir .tmp/<run>/frame --prompt-file generators/animation/config/pose_transfer_openpose_qwen_prompt.txt --direction down_right'),('anypose-frame-generator','AnyPose 애니메이션 프레임 생성기','캐릭터 기준 이미지와 리그 참조로 AnyPose 프레임을 생성합니다.','python3 generators/animation/run_pose_transfer_any_pose_batch.py --batch-file <batch.yaml> --output-dir .tmp/<run> --resume')]:
         folder=output/identifier;folder.mkdir(parents=True,exist_ok=True);copy(SOURCE/'down_right'/'openpose-0001.png',folder/'reference.png');(folder/'index.html').write_text(page(title,note,['reference.png'],command),encoding='utf-8');records.append({'id':identifier,'label':title,'path':identifier+'/index.html','anchorEditor':False,'category':'animation-tool','description':note})
+    loop_source = ROOT / 'assets/motion-sheet/momask-standing-loops-v1'
+    copy(loop_source / 'artifact.json', output / 'momask-standing-loops' / 'artifact.json')
+    sections = []
+    for action, title in (('standing', '일반호흡 스탠딩 · 4프레임 · 1초'), ('deep-breath', '심호흡 · 8프레임 · 2초'), ('stretch', '스트레칭 · 20프레임 · 5초')):
+        action_images = []
+        for direction in DIRECTIONS:
+            name = f'{action}-{direction}.png'
+            copy(loop_source / action / 'pose-sheets' / f'{direction}.png', output / 'momask-standing-loops' / name)
+            action_images.append(f'<img src=\"{name}\" alt=\"{title} {direction}\" style=\"width:100%\">')
+        sections.append(f'<h2>{title}</h2><section style=\"display:grid;grid-template-columns:1fr 1fr;gap:12px\">'+''.join(action_images)+'</section>')
+    (output / 'momask-standing-loops' / 'index.html').write_text('<!doctype html><meta charset=\"utf-8\"><link rel=\"stylesheet\" href=\"../animation-tools-common/player.css\"><main><h1>MoMask 스탠딩 루프</h1><p>일반호흡 스탠딩·심호흡·스트레칭을 독립 루프로 분리했습니다. 눈깜박임은 이미지 프레임 단계에서 추가합니다.</p><p><a href=\"artifact.json\">생성 메타데이터</a></p>'+''.join(sections)+'</main>', encoding='utf-8')
+    records.append({'id':'momask-standing-loops','label':'MoMask 스탠딩·호흡·스트레칭 루프','path':'momask-standing-loops/index.html','anchorEditor':False,'category':'animation-tool','description':'일반호흡 스탠딩 4프레임 · 심호흡 8프레임 · 스트레칭 20프레임 · 각 4방향'})
     return records

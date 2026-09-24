@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "kind": "momask-joint-pose-sheets",
+  "source_frames": 16,
+  "sample_indices": [
+    0,
+    5,
+    10,
+    15
+  ],
+  "directions": [
+    "down_left",
+    "down_right",
+    "up_left",
+    "up_right"
+  ],
+  "sheet_size": [
+    2048,
+    512
+  ],
+  "cell_size": [
+    512,
+    512
+  ],
+  "frame_duration_ms": 250
+}

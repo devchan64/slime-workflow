@@ -1,0 +1,116 @@
+{
+  "asset_id": "momask-standing-loops",
+  "version": 2,
+  "fps": 4,
+  "joint_schema": "HumanML3D-22",
+  "directions": [
+    "down_left",
+    "down_right",
+    "up_left",
+    "up_right"
+  ],
+  "actions": {
+    "standing": {
+      "label": "일반호흡 스탠딩",
+      "frames": 4,
+      "source_frames": 16,
+      "duration_seconds": 1.0,
+      "source_motion": "standing/source-motion.npz",
+      "pose_sheet_manifest": "standing/pose-sheets/manifest.json"
+    },
+    "deep-breath": {
+      "label": "심호흡",
+      "frames": 8,
+      "source_frames": 40,
+      "duration_seconds": 2.0,
+      "source_motion": "deep-breath/source-motion.npz",
+      "pose_sheet_manifest": "deep-breath/pose-sheets/manifest.json"
+    },
+    "stretch": {
+      "label": "스트레칭",
+      "frames": 20,
+      "source_frames": 20,
+      "duration_seconds": 5.0,
+      "source_motion": "stretch/source-motion.npz",
+      "pose_sheet_manifest": "stretch/pose-sheets/manifest.json"
+    }
+  },
+  "files": [
+    {
+      "path": "standing/source-motion.npz",
+      "sha256": "194cce6c35305aa2351946ce2fef7cf61eb43842ac372a05dabaa5c5e253fe1e"
+    },
+    {
+      "path": "standing/pose-sheets/manifest.json",
+      "sha256": "7af522bbd7298e9d6f6876389440e533c3c5c11a6f1b7904b4886909fe52e0fc"
+    },
+    {
+      "path": "standing/pose-sheets/down_left.png",
+      "sha256": "ea5e9f896e67cd511c62b7b4316eab2eacc5881bd39ec46000c23fbc5dd8cbf0"
+    },
+    {
+      "path": "standing/pose-sheets/down_right.png",
+      "sha256": "ad332668f8f1a873137ccd7e19deea5cbc2b3f52e486153aaaa27205582b0814"
+    },
+    {
+      "path": "standing/pose-sheets/up_left.png",
+      "sha256": "61dcce5f7a5b550361b7facaeaf899322a3f6dcf4608c53d5bb584af5b1d0833"
+    },
+    {
+      "path": "standing/pose-sheets/up_right.png",
+      "sha256": "452e59774a59b8604e45f6922c999452bee5948c282df04474f920895aae3e22"
+    },
+    {
+      "path": "deep-breath/source-motion.npz",
+      "sha256": "b1e3d278a61292cf21c1a68ab9ed7c32c64b4908e64e33d798bea628c2a83a68"
+    },
+    {
+      "path": "deep-breath/pose-sheets/manifest.json",
+      "sha256": "62b07c5de3ef38896c12fea70a7b269c9722fea88d3181b0b9f75db5cb4e8b86"
+    },
+    {
+      "path": "deep-breath/pose-sheets/down_left.png",
+      "sha256": "ecb4d4ecdeff6e68bf47b4ba0f58e036caec55cc2e02fcca70c2fec9ea64580a"
+    },
+    {
+      "path": "deep-breath/pose-sheets/down_right.png",
+      "sha256": "cc7bba6ebc20d25a40a8ea49daac6bd0ea0ccc9a0beebef08d0686f1f5df42ca"
+    },
+    {
+      "path": "deep-breath/pose-sheets/up_left.png",
+      "sha256": "d0222c0f470d104659147141d59781ebd93d81de662c08dec525fdd1bd17296d"
+    },
+    {
+      "path": "deep-breath/pose-sheets/up_right.png",
+      "sha256": "20919cb2a2b02c26d5d63132edccb19a42bd3615cb9fb0a44e5d3352d34e1c79"
+    },
+    {
+      "path": "stretch/source-motion.npz",
+      "sha256": "98856c8e24b85bc53f82a677ec13a3998da194c08c04bee20f81a8b51ff679e7"
+    },
+    {
+      "path": "stretch/pose-sheets/manifest.json",
+      "sha256": "5d162a88eab9fc2424d1eae4a55760ff8e6afa513f186a93b5cd5668c74a8b10"
+    },
+    {
+      "path": "stretch/pose-sheets/down_left.png",
+      "sha256": "3b51e4b66e0c6b8f9873d496af0228439ee736f9c310e353d2ba28e54515c06d"
+    },
+    {
+      "path": "stretch/pose-sheets/down_right.png",
+      "sha256": "c3e0cb39ebb131276a05e7d8b651b378b5a61301bce56a0e8dd78a254442d176"
+    },
+    {
+      "path": "stretch/pose-sheets/up_left.png",
+      "sha256": "28a975aa3a54a938bceba375f8a620a945cafbc43fcf5ccce20d556f2830b311"
+    },
+    {
+      "path": "stretch/pose-sheets/up_right.png",
+      "sha256": "9c9e0003a06a65f19d9a29df21c43bd10c63bd3e1eb3b9be3f02f713b0bd56fe"
+    }
+  ],
+  "quality_warnings": [
+    "HumanML3D-22 has no face joints; apply blinking during image-frame generation.",
+    "Review each direction before character rig conversion."
+  ]
+}

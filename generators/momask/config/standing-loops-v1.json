@@ -1,0 +1,70 @@
+{
+  "asset_id": "standing-loops",
+  "version": 2,
+  "fps": 4,
+  "actions": {
+    "standing": {
+      "source_frames": 16,
+      "rendered_frames": 4,
+      "sample_indices": [
+        0,
+        5,
+        10,
+        15
+      ],
+      "playtime_seconds": 1.0,
+      "prompt": "A person stands calmly in place and breathes normally. Very subtle chest and shoulder rise and fall only. Arms remain relaxed at the sides, feet stay planted, no gesture, no stretch, no weight shift, return to the initial standing pose."
+    },
+    "deep_breath": {
+      "source_frames": 40,
+      "rendered_frames": 8,
+      "sample_indices": [
+        0,
+        5,
+        11,
+        17,
+        23,
+        29,
+        34,
+        39
+      ],
+      "playtime_seconds": 2.0,
+      "prompt": "A person stands completely in place and takes one slow gentle deep breath. Only a subtle chest and shoulder rise and fall. Arms remain relaxed at the sides, feet stay planted, no stretch, no gesture, no weight shift, return to the initial standing pose."
+    },
+    "stretch": {
+      "source_frames": 20,
+      "rendered_frames": 20,
+      "sample_indices": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19
+      ],
+      "playtime_seconds": 5.0,
+      "prompt": "A person begins from a calm standing pose, performs one gentle relaxed standing stretch by slowly raising both arms overhead, then returns toward the initial standing pose. Feet remain planted, movement is controlled and natural, no walking or turning."
+    }
+  },
+  "directions": [
+    "down_left",
+    "down_right",
+    "up_left",
+    "up_right"
+  ],
+  "facial_animation": "Add blinking only in the image-frame stage; HumanML3D-22 has no eye joints."
+}
