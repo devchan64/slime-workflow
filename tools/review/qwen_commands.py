@@ -5,41 +5,11 @@ import json
 from pathlib import Path
 import re
 import time
-import urllib.error
-import urllib.request
 from urllib.parse import urlsplit
-from .management_gateway import identify_management_command
+from .management_gateway import call_management_api, MANAGEMENT_SERVICE_ROUTES, MANAGEMENT_SERVICE_COMMANDS
 
-QWEN_ROUTE_PREFIXES = {'qwen-2512':'/image-generation', 'qwen-2511':'/image-generation-2511'}
 REFERENCE_FILE_BYTE_LIMIT = 3_000_000
 
-
-def call_management_api(server_base_address, request_route_path, request_body_value=None, expect_json_response=True):
-    request_header_values = {'Origin':server_base_address}
-    request_body_bytes = None
-    if request_body_value is not None:
-        request_body_bytes = json.dumps(request_body_value,ensure_ascii=False).encode()
-        request_header_values['Content-Type']='application/json'
-    command_envelope_parts=identify_management_command(request_route_path,'POST' if request_body_value is not None else 'GET',request_body_value)
-    if command_envelope_parts is None:raise ValueError('지원하지 않는 관리 명령 경로')
-    service_command_name,operation_command_name,command_payload_value=command_envelope_parts
-    request_route_path='/management/command'
-    request_body_bytes=json.dumps({'service':service_command_name,'command':operation_command_name,'payload':command_payload_value},ensure_ascii=False).encode()
-    request_header_values['Content-Type']='application/json'
-    management_request_value = urllib.request.Request(server_base_address+request_route_path, data=request_body_bytes, headers=request_header_values)
-    try:
-        with urllib.request.urlopen(management_request_value, timeout=30) as management_response_handle:
-            response_body_text = management_response_handle.read().decode()
-        return json.loads(response_body_text) if expect_json_response else response_body_text
-    except urllib.error.HTTPError as management_http_error:
-        response_error_text = management_http_error.read().decode(errors='replace')
-        try:
-            response_error_text=json.loads(response_error_text).get('error',response_error_text)
-        except ValueError:
-            pass
-        raise ValueError(f'관리 API 오류 ({management_http_error.code}): {response_error_text}') from None
-    except urllib.error.URLError as management_connection_error:
-        raise ValueError(f'관리도구 서버에 연결할 수 없습니다: {server_base_address}. 서버 실행과 포트를 확인하세요.') from management_connection_error
 
 
 def execute_qwen_command(service_command_name, command_argument_list=None):
@@ -57,9 +27,11 @@ def execute_qwen_command(service_command_name, command_argument_list=None):
     generate_argument_parser.add_argument('--detach',action='store_true',help='생성 ID 출력 후 반환')
     if service_command_name=='qwen-2511':
         generate_argument_parser.add_argument('--reference',type=Path,action='append',default=[],help='512×512 RGB/불투명 RGBA PNG, 최대 3회 지정; 생략 시 텍스트 생성')
-    for command_name_value in ('status','logs','cancel'):
+    for command_name_value in MANAGEMENT_SERVICE_COMMANDS[service_command_name]:
+        if command_name_value not in ('status','logs','cancel'):continue
         command_subparser_group.add_parser(command_name_value).add_argument('id')
-    for command_name_value in ('history','active','model-status','history-reset'):
+    for command_name_value in MANAGEMENT_SERVICE_COMMANDS[service_command_name]:
+        if command_name_value not in ('history','active','model-status','history-reset'):continue
         command_subparser_group.add_parser(command_name_value)
     if service_command_name=='qwen-2512':
         command_subparser_group.add_parser('prepare',help='웹과 동일한 모델 준비 작업 시작')
@@ -68,7 +40,7 @@ def execute_qwen_command(service_command_name, command_argument_list=None):
     server_address_parts = urlsplit(server_base_address)
     if server_address_parts.scheme!='http' or server_address_parts.hostname!='127.0.0.1' or server_address_parts.username or server_address_parts.password or server_address_parts.path or server_address_parts.query or server_address_parts.fragment:
         raise ValueError('관리도구 주소는 http://127.0.0.1:포트 형식이어야 합니다.')
-    request_route_prefix = QWEN_ROUTE_PREFIXES[service_command_name]
+    request_route_prefix = MANAGEMENT_SERVICE_ROUTES[service_command_name]
     def invoke_management_api(request_route_suffix, request_body_value=None, expect_json_response=True):
         return call_management_api(server_base_address,request_route_prefix+request_route_suffix,request_body_value,expect_json_response)
     if command_argument_values.command in ('generate','prepare'):

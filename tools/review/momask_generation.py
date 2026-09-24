@@ -86,7 +86,7 @@ class MoMaskGenerationManager:
    if path==self.route+'/openpose-map':
     if set(body)!={'id'} or not re.fullmatch(r'[0-9a-f_-]+',body['id']):raise ValueError('생성 이력 ID 오류')
     if self.status(body['id'])['status']!='completed':raise ValueError('완료된 생성 이력이 필요합니다.')
-    self.send(h,200,generate_openpose_maps(JOB_ROOT/body['id']));return True
+    self.send(h,200,execute_momask_command('openpose-map',body));return True
    if path==self.route+'/history/reset':
     if body!={'action':'reset'}: raise ValueError('초기화 요청 오류')
     self.send(h,200,execute_momask_command('history-reset',{}));return True

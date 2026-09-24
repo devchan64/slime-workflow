@@ -1,4 +1,5 @@
 """브라우저 호환 요청과 CLI 명령 봉투가 같은 서비스로 연결되는지 검증."""
+import contextlib
 import io
 import json
 import sys
@@ -6,7 +7,7 @@ from pathlib import Path
 from types import SimpleNamespace
 import unittest
 sys.path.insert(0,str(Path(__file__).resolve().parents[2]))
-from review.management_gateway import ManagementCommandGateway, resolve_management_command
+from review.management_gateway import ManagementCommandGateway, resolve_management_command, execute_gateway_cli, MANAGEMENT_SERVICE_COMMANDS
 
 
 class GatewayContractTest(unittest.TestCase):
@@ -17,6 +18,13 @@ class GatewayContractTest(unittest.TestCase):
         handler.send_header=lambda *args:None
         handler.end_headers=lambda:None
         return handler
+
+    def test_cli_help_matches_gateway_commands(self):
+        for service_name_value,command_name_values in MANAGEMENT_SERVICE_COMMANDS.items():
+            for command_name_value in command_name_values:
+                with contextlib.redirect_stdout(io.StringIO()), self.assertRaises(SystemExit) as command_exit_context:
+                    execute_gateway_cli(['help',service_name_value,command_name_value])
+                self.assertEqual(command_exit_context.exception.code,0)
 
     def test_gui_and_cli_reach_same_operation(self):
         calls=[]

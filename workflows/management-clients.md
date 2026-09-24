@@ -79,3 +79,16 @@ CLI command → 명령 봉투 ──────┘
 브라우저 요청마다 CLI 프로세스나 셸을 실행하는 방식이 아니라, 통합 CLI와 명령 계약·디스패처를 공유하는 구조다. 생성 원본·이미지·정적 UI 자산은 기존 파일 조회 경로로 제공한다. `command`와 `help`의 기존 사용법은 유지한다. ANNY·작가 에이전트 등 아직 통합 CLI에 등록되지 않은 관리 기능은 이번 게이트웨이 범위에 포함하지 않는다.
 
 게이트웨이는 Host·Origin·JSON 형식·최대 요청 크기·중복 필드·허용 서비스/명령·생성 ID를 확인한 뒤 기존 입력 검증기로 전달한다. 작업에 임의 실행 파일이나 셸 문자열을 전달할 수 없다.
+
+## CLI·게이트웨이 일체화
+
+`tools/manager.py`는 `management_gateway.execute_gateway_cli()`를 호출하는 진입점만 가진다. 서비스·명령 등록, 최상위 `command`/`help` 파싱, 로컬 실행 디스패치와 HTTP 명령 전송은 모두 게이트웨이에 둔다. `momask_commands.py`와 `qwen_commands.py`는 생성기별 옵션·파일 입력·진행 표시를 담당하는 인자 어댑터이며 별도 서비스 레지스트리를 갖지 않는다. 게이트웨이 명령 전체의 CLI 도움말 진입을 테스트한다.
+
+MoMask의 OpenPose 맵 생성도 동일 명령으로 사용할 수 있다.
+
+```bash
+python3 tools/manager.py help momask openpose-map
+python3 tools/manager.py command momask openpose-map GENERATION_ID
+```
+
+기존 GUI 주소·이력 경로·관리 서버 필요 여부는 유지한다.

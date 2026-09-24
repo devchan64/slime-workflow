@@ -6,7 +6,7 @@ import sys
 import time
 
 WORKFLOW_ROOT_DIRECTORY = Path(__file__).resolve().parents[2]
-from .management_gateway import execute_momask_command
+from .management_gateway import execute_momask_command, MANAGEMENT_SERVICE_COMMANDS
 from .momask_jobs import start_generation_job, cancel_generation_job, resolve_generation_directory, SUPPORTED_ACTION_NAMES, SUPPORTED_DIRECTION_NAMES, list_generation_history, read_generation_status, reset_generation_history
 
 
@@ -17,7 +17,8 @@ def execute_cli_command(command_argument_list=None):
     generate_argument_parser.add_argument('--action', choices=SUPPORTED_ACTION_NAMES, required=True)
     generate_argument_parser.add_argument('--directions', nargs='+', choices=SUPPORTED_DIRECTION_NAMES, default=list(SUPPORTED_DIRECTION_NAMES))
     generate_argument_parser.add_argument('--detach', action='store_true', help='백그라운드에서 계속 실행')
-    for command_name_value in ('status', 'logs', 'cancel'):
+    for command_name_value in MANAGEMENT_SERVICE_COMMANDS['momask']:
+        if command_name_value not in ('status','logs','cancel','openpose-map'):continue
         command_subparser_group.add_parser(command_name_value).add_argument('id')
     command_subparser_group.add_parser('history')
     command_subparser_group.add_parser('history-reset', help='누적 이력만 수동 초기화; 결과 파일 보존')
@@ -53,10 +54,12 @@ def execute_cli_command(command_argument_list=None):
             print('\n취소 요청을 기록했습니다.')
             return 130
     generation_job_path = resolve_generation_directory(command_argument_values.id)
-    if command_argument_values.command == 'cancel':
+    if command_argument_values.command == 'openpose-map':
+        print(json.dumps(execute_momask_command('openpose-map',{'id':command_argument_values.id}),ensure_ascii=False))
+    elif command_argument_values.command == 'cancel':
         print(json.dumps(execute_momask_command('cancel',{'id':command_argument_values.id})))
     elif command_argument_values.command == 'status':
         print(json.dumps(execute_momask_command('status',{'id':command_argument_values.id}),ensure_ascii=False,indent=2))
     else:
-        print((generation_job_path/'worker.log').read_text())
+        print(execute_momask_command('logs',{'id':command_argument_values.id}))
     return 0
