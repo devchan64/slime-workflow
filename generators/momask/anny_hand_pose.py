@@ -2,8 +2,8 @@
 import math
 from mathutils import Vector, Quaternion
 
-FINGER_CURL_DEGREES=(85,95,65)
-THUMB_CURL_DEGREES=(45,55,45)
+FINGER_CURL_DEGREES=(85,90,45)
+THUMB_CURL_DEGREES=(50,40,30)
 
 def build_fist_rotations(character_rig_object):
     finger_rotation_values={}
@@ -22,6 +22,10 @@ def build_fist_rotations(character_rig_object):
                 finger_bone_value=character_rig_object.data.bones[finger_bone_name]
                 finger_length_direction=(finger_bone_value.tail_local-finger_bone_value.head_local).normalized()
                 finger_bend_axis=finger_length_direction.cross(palm_inward_normal).normalized()
+                if finger_number_value==1 and finger_segment_index==1:
+                    # 엄지는 몸통 방향이 아니라 나머지 손가락 쪽으로 대립시킨다.
+                    thumb_opposition_direction=((index_bone_value.head_local+pinky_bone_value.head_local)/2-finger_bone_value.head_local).normalized()
+                    finger_bend_axis=finger_length_direction.cross(thumb_opposition_direction).normalized()
                 local_bend_axis=finger_bone_value.matrix_local.to_quaternion().inverted()@finger_bend_axis
                 curl_angle_values=THUMB_CURL_DEGREES if finger_number_value==1 else FINGER_CURL_DEGREES
                 finger_rotation_values[finger_bone_name]=Quaternion(local_bend_axis,math.radians(curl_angle_values[finger_segment_index-1]))
