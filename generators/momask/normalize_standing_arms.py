@@ -16,9 +16,12 @@ def normalize(path: Path) -> dict:
     root_offset=joints[:,0,[0,2]]-joints[0,0,[0,2]]
     joints[:,:,[0,2]]-=root_offset[:,None,:]
     joints[:,LOWER_BODY]=joints[0,LOWER_BODY]
-    # 대기 중에는 발을 떼지 않고 1.2cm 범위에서만 체중을 좌우로 옮긴다.
-    sway=0.060*np.sin(np.linspace(0,2*np.pi,len(joints),endpoint=False))
-    joints[:,UPPER_BODY,0]+=sway[:,None]
+    # 발은 고정하고, 작은 좌우 이동보다 상체의 느린 상하 리듬을 분명하게 보인다.
+    phase=np.linspace(0,2*np.pi,len(joints),endpoint=False)
+    lateral_sway=0.015*np.sin(phase)
+    vertical_sway=0.080*np.sin(phase)
+    joints[:,UPPER_BODY,0]+=lateral_sway[:,None]
+    joints[:,UPPER_BODY,1]+=vertical_sway[:,None]
     for shoulder,elbow,wrist in ARMS:
         upper_lengths=np.linalg.norm(joints[:,elbow]-joints[:,shoulder],axis=1)
         lower_lengths=np.linalg.norm(joints[:,wrist]-joints[:,elbow],axis=1)
@@ -31,7 +34,8 @@ def normalize(path: Path) -> dict:
         upper=joints[:,elbow]-joints[:,shoulder]
         ratios.extend((np.linalg.norm(upper[:,[0,2]],axis=1)/np.maximum(-upper[:,1],1e-6)).tolist())
     root_travel=float(np.linalg.norm(joints[:,0,[0,2]]-joints[0,0,[0,2]],axis=1).max())
-    return {'max_upper_arm_horizontal_to_down_ratio':float(max(ratios)),'max_root_horizontal_displacement_m':root_travel}
+    head_vertical_range=float(np.ptp(joints[:,15,1]))
+    return {'max_upper_arm_horizontal_to_down_ratio':float(max(ratios)),'max_root_horizontal_displacement_m':root_travel,'head_vertical_range_m':head_vertical_range}
 
 if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--motion',type=Path,required=True);args=parser.parse_args();print(normalize(args.motion))
