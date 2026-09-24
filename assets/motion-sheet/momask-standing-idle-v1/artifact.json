@@ -18,20 +18,37 @@
       "up_left",
       "up_right"
     ],
-    "samples_per_direction": 8,
-    "frame_duration_ms": 750,
-    "total_rendered_frames": 32,
+    "samples_per_direction": 24,
+    "frame_duration_ms": 250,
+    "fps": 4,
+    "total_rendered_frames": 96,
     "sample_indices": [
       0,
       0,
       0,
       0,
       0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      4,
+      8,
       12,
+      16,
       20,
+      24,
+      0,
+      0,
       0
     ],
-    "cadence": "처음 3.75초와 마지막 0.75초는 기본 대기 자세, 중간 1.5초만 작은 호흡·스트레칭 동작"
+    "cadence": "3.75초 대기, 중간 1.5초 작은 호흡·스트레칭, 마지막 0.75초 대기 복귀"
   },
   "facial_animation": "MoMask HumanML3D-22 has no eye joints; add blink in the image-frame stage if needed.",
   "quality_warnings": [
@@ -52,10 +69,10 @@
     ]
   },
   "files": {
-    "pose-sheets/down_left.png": "a9232dc133de6729c29e4261c8fd8a0f4d08f27a07e6b4b28e940362db3d90c8",
-    "pose-sheets/down_right.png": "bace57b8d5dd3375281d8693e3e2664be63b861bbb7136b865b26f9ff8236176",
-    "pose-sheets/manifest.json": "567d9aa249b698ad01d0db46e41e60f7ed7cf1c3d0151a6012bbfa1d19865847",
-    "pose-sheets/up_left.png": "9be7f5b70b75d82e4d17ccd26af4340ee6ddb8fa670b8101a9ab0a016d4f06a2",
-    "pose-sheets/up_right.png": "d79598c55a4c1c7fee3e3dbe22d7c500b61c500bb7d15b6f449aceff8dfedb8a"
+    "pose-sheets/down_left.png": "5283fc5d6e74b6313eca9dfbcb4b5f7725c2f193b30bc108ec1984cb244ec7fc",
+    "pose-sheets/down_right.png": "aec580866140023ffae3c35fca68cc21800158a8ea018882f7d882ef42b31158",
+    "pose-sheets/manifest.json": "5910e6c52e9d60066fbfafb812de3a943cf86ac3a29995f10535cafa3a3872f6",
+    "pose-sheets/up_left.png": "0ee255afb43b35aeea1aa0758b700c990012e5eb43376efe001d263de8092cf0",
+    "pose-sheets/up_right.png": "f65b36cc48f3d7e59d2eecb4c34ea50dbd0a9fa70e3fa2211fca092a81b4aafa"
   }
 }
