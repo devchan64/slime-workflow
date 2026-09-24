@@ -1,6 +1,6 @@
 {
   "asset_id": "standing-loops",
-  "version": 4,
+  "version": 5,
   "generator": "MoMask text-to-motion",
   "fps": 4,
   "actions": {
@@ -14,7 +14,7 @@
         19
       ],
       "playtime_seconds": 1.0,
-      "prompt": "A person stands still, waiting casually with arms relaxed at their sides."
+      "prompt": "A person stands still with both arms hanging by the body and hands near the thighs."
     },
     "deep_breath": {
       "source_frames": 40,
