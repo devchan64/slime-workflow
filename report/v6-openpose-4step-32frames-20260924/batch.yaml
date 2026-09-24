@@ -1,0 +1,15 @@
+schema_version: 1
+prompt_file: generators/animation/config/pose_transfer_two_reference_qwen_prompt.txt
+output_root: .tmp/test/v6-openpose-4step-32frames/2026-09-24_00-44-35/results
+references:
+  baseline_root: assets/animation-references/character-default/baseline-v2
+  openpose_root: assets/motion-sheet/mannequin-walk-v6/pose-sheets
+jobs:
+  - direction: down_left
+    frame_numbers: [1, 2, 3, 4, 5, 6, 7, 8]
+  - direction: down_right
+    frame_numbers: [1, 2, 3, 4, 5, 6, 7, 8]
+  - direction: up_left
+    frame_numbers: [1, 2, 3, 4, 5, 6, 7, 8]
+  - direction: up_right
+    frame_numbers: [1, 2, 3, 4, 5, 6, 7, 8]
