@@ -1,7 +1,8 @@
 /* 색상·입력·버튼·로그는 generation-studio.css를 공유한다. */
-.app-header{max-width:1560px;margin:0 auto;padding:28px 32px 0}
+:root{--motion-studio-max-width:1800px}
+.app-header{max-width:var(--motion-studio-max-width);margin:0 auto;padding:28px 32px 0}
 .app-header p{margin:6px 0}
-.motion-studio-layout{display:grid;grid-template-columns:minmax(300px,360px) minmax(0,1fr);gap:24px;align-items:start;padding-top:24px}
+.motion-studio-layout{max-width:var(--motion-studio-max-width);display:grid;grid-template-columns:minmax(300px,360px) minmax(0,1fr);gap:24px;align-items:start;padding-top:24px}
 .motion-studio-layout>*{min-width:0}
 .control-panel h3{margin:20px 0 8px;font-size:14px;color:var(--muted)}
 .form-label{display:block}.form-label select{display:block;width:100%;margin:8px 0 0}
@@ -19,10 +20,10 @@ input[type=checkbox],input[type=range]{accent-color:var(--accent)}
 .result-toolbar{display:flex;flex-direction:column;gap:12px;margin-bottom:20px}
 .result-toolbar h2{margin:0}.result-toolbar>div{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .result-toolbar select{margin:0 0 0 6px;padding:8px}.frame-scrubber{flex:1;min-width:140px}
-.stages{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
-.stage{margin:0;min-width:0;min-height:400px;background:var(--page);border:1px solid var(--line);border-radius:12px;overflow:hidden;display:grid;grid-template-rows:auto 1fr;place-items:center}
+.stages{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}
+.stage{margin:0;min-width:0;min-height:0;background:var(--page);border:1px solid var(--line);border-radius:12px;overflow:hidden;display:grid;grid-template-rows:auto 1fr;place-items:center}
 .stage figcaption{width:100%;padding:12px;border-bottom:1px solid var(--line);color:var(--muted);font-size:13px;overflow-wrap:anywhere}
-.stage img{max-width:100%;max-height:480px;object-fit:contain}.stage img:not([src]){visibility:hidden}
+.stage img{display:block;width:100%;aspect-ratio:1;height:auto;object-fit:contain}.stage img:not([src]){visibility:hidden}
 .frame-count{font-variant-numeric:tabular-nums;margin:16px 0 0}
 .motion-history-panel{grid-column:1/-1}.history-actions{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px}.history-actions>p{margin:0}
 .history-header{display:flex;justify-content:space-between;align-items:center;gap:12px}.history-header h2{margin:0}.history-header span{color:var(--muted);font-size:13px}
