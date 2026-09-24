@@ -2,6 +2,7 @@
 
 이 경로는 Git 추적 대상 제작 자산을 버전·출처·해시와 함께 보관한다. 게임 런타임 채택과 구분한다.
 
+- 애니메이션 기준 모델: [anny-39eab167-v1](animation-models/anny-39eab167-v1/README.md). 선택 설정은 `generators/animation/config/anny_model_baseline.yaml`.
 - 현재 기본 리그: [mannequin-walk/v2](motion-sheet/mannequin-walk-v2/README.md). ANNY104 리그, MoMask 기반 1.2초 루프, 4방향 × 8프레임 OpenPose·리그 이미지와 대응 시트.
 - 이전 리그: motion-sheet/mannequin-walk-v1 보존.
 - 원천 모션: motion-sheet/momask-walk-motion-sheet-v1. 같은 버전 파일을 덮어쓰지 않는다.

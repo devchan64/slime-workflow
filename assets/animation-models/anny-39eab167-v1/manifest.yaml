@@ -1,0 +1,52 @@
+schema_version: 1
+asset_id: anny-39eab167
+version: 1
+role: animation_baseline_model
+source_generation_id: 39eab167
+source_path: .tmp/anny-attribute-renderer/39eab167
+status: user_approved
+model: anny==0.6.0
+rig: anny
+bone_count: 104
+pose_parameterization: local-ref
+coordinate_system:
+  npz: Z-up, native ANNY coordinates
+  blend: Z-up, ground aligned, height 1.6m
+  glb: glTF Y-up, height 1.6m
+files:
+  attributes.json:
+    sha256: 1c5b9b30f4d2f21f7fb5ae997192fcd74740d29d2c9fa34f1f355b6263e99933
+    bytes: 13196
+  source-history.json:
+    sha256: 3cccffbd34446b33a8ab8cad16f002bbecdf428a4c2b0f0fac1b15b2c6523028
+    bytes: 1544
+  anny-raw-rig.blend:
+    sha256: 874865dcb2b4b1b27923a046bedc8cf01d9c957a1efc4e04628251ccc20d10b3
+    bytes: 2790982
+  anny-raw-rig.glb:
+    sha256: 190fd589e970fd51e95001021db82c7c37ab8c6ad87d0f141c35af3e5dd2f6dd
+    bytes: 1351632
+  anny-rest-rig.npz:
+    sha256: 8734f04a502aa209f906fbf36261d62cd56c2d42744a4aefafef70f1c0451dd0
+    bytes: 2318906
+  generation.json:
+    sha256: 5c73f8358add4b2608b4d6d3522afea089002ad6e8d51cdd2defe44bdfc58446
+    bytes: 1613
+  validation.json:
+    sha256: a8107f22134d713ace7c950a2a50849b4af3103f590f395ef13fbf01b1ad0bdb
+    bytes: 244
+  view.json:
+    sha256: 10c37c5a2ff2d3bd28fc28e805fc1268e889ff1adc92d6f8e611bc266a264dc9
+    bytes: 19
+  front.png:
+    sha256: 83e08c7e6c63e93ed5921119cea421199420b55880e40e224b3e92cfb3e70388
+    bytes: 539812
+  side.png:
+    sha256: ca2de329b89c36e110d1122b6fc48d3be3e0f5d6ac9092b5c860911612e1eb75
+    bytes: 525329
+  back.png:
+    sha256: df9ffad798d1ac838947f35760477dfede59f0068c6f7f7eff58d58a527be1eb
+    bytes: 539211
+  three-quarter.png:
+    sha256: 5d336fe317341f97da230b8eb98012cfda93f418424d8c3c94b361049626cb09
+    bytes: 592248

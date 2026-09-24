@@ -1,10 +1,11 @@
 from pathlib import Path
 from urllib.parse import urlsplit
-import json, subprocess, threading, uuid, re, math
+import json, subprocess, threading, uuid, re, math, yaml
 from datetime import datetime
 from zoneinfo import ZoneInfo
 ROOT=Path(__file__).resolve().parents[2]
-BASE=ROOT/'assets/motion-sheet/mannequin-walk-v6/inputs/attributes.json'
+BASELINE_SELECTION_PATH=ROOT/'generators/animation/config/anny_model_baseline.yaml'
+BASE=ROOT/yaml.safe_load(BASELINE_SELECTION_PATH.read_text())['attributes_path']
 JOBS=ROOT/'.tmp/anny-attribute-renderer'
 PAGE=Path(__file__).with_name('anny-attributes.html').read_text()
 BONE_ROTATION_FIELDS={'upperleg_left_rotation_z':('upperleg01.L',2),'upperleg_right_rotation_z':('upperleg01.R',2)}
