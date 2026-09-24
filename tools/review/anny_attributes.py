@@ -13,7 +13,7 @@ def load_attribute_defaults():
  baseline_attribute_values=json.loads(BASE.read_text())
  baseline_attribute_values['local_changes_kwargs']['hip-waist-up']=0.0
  baseline_attribute_values['local_changes_kwargs']['measure-waist-circ-incr']=-0.2
- baseline_attribute_values['local_changes_kwargs'].setdefault('torso-muscle-dorsi-incr',0.0)
+ baseline_attribute_values['local_changes_kwargs']['torso-muscle-dorsi-incr']=0.0
  return baseline_attribute_values
 def extract_bone_rotation(pose_matrix_values):
  rotation_angle_value=math.acos(max(-1,min(1,(sum(pose_matrix_values[axis_index_value][axis_index_value] for axis_index_value in range(3))-1)/2)))
@@ -73,7 +73,8 @@ class AnnyAttributeManager:
    if h.headers.get('Origin')!=f'http://127.0.0.1:{h.server.server_port}':raise ValueError('허용하지 않는 요청 출처')
    changed=json.loads(h.rfile.read(int(h.headers['Content-Length'])))
    if not isinstance(changed,dict):raise ValueError('속성 객체가 필요합니다.')
-   if 'hip-waist-up' in changed and (type(changed['hip-waist-up']) not in (int,float) or changed['hip-waist-up']!=0):raise ValueError('hip-waist-up은 0으로 잠긴 속성입니다.')
+   for locked_attribute_name in ('hip-waist-up','torso-muscle-dorsi-incr'):
+    if locked_attribute_name in changed and (type(changed[locked_attribute_name]) not in (int,float) or changed[locked_attribute_name]!=0):raise ValueError(f'{locked_attribute_name}은 0으로 잠긴 속성입니다.')
    attrs=load_attribute_defaults()
    allowed_attribute_fields=set(attrs['phenotype_kwargs'])|set(attrs['local_changes_kwargs'])|set(attrs['facial_actions'])|set(BONE_ROTATION_FIELDS)|{'rotation_y'}
    if set(changed)-allowed_attribute_fields:raise ValueError('지원하지 않는 속성')
