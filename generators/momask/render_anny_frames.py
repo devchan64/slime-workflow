@@ -10,7 +10,7 @@ BLENDER=ROOT/'.local/blender-runtime/bin/python'
 DIRECTIONS={'down_left','down_right','up_left','up_right'}
 
 def digest(path): return hashlib.sha256(path.read_bytes()).hexdigest()
-def render(motion_path, output_dir, directions, sample_indices):
+def render(motion_path, output_dir, directions, sample_indices, animate_hand_closure=False):
     motion_path=Path(motion_path).resolve();output_dir=Path(output_dir).resolve()
     if not output_dir.is_relative_to(ROOT/'.tmp'): raise ValueError('Anny 출력은 .tmp 하위여야 합니다.')
     joints=np.load(motion_path,allow_pickle=False)['joints']
@@ -33,9 +33,10 @@ def render(motion_path, output_dir, directions, sample_indices):
         shutil.copy2(SOURCE/name,output_dir/name)
     shutil.copy2(ROOT/'generators/momask/anny_hand_pose.py',output_dir/'anny_hand_pose.py')
     retarget=(output_dir/'retarget_loop.py').read_text()
-    retarget=retarget.replace('from mathutils import Vector, Matrix','from mathutils import Vector, Matrix\nfrom anny_hand_pose import build_fist_rotations')
+    retarget=retarget.replace('from mathutils import Vector, Matrix','from mathutils import Vector, Matrix\nfrom anny_hand_pose import build_fist_rotations, calculate_fist_weight')
     retarget=retarget.replace('rig_object_value.animation_data_clear();', 'finger_rotation_values=build_fist_rotations(rig_object_value)\nrig_object_value.animation_data_clear();')
-    retarget=retarget.replace("  current_pose_bone.keyframe_insert('rotation_quaternion',frame=current_frame_number)", "  if current_bone_name in finger_rotation_values:current_pose_bone.rotation_quaternion=finger_rotation_values[current_bone_name]\n  current_pose_bone.keyframe_insert('rotation_quaternion',frame=current_frame_number)")
+    retarget=retarget.replace("  current_pose_bone.keyframe_insert('rotation_quaternion',frame=current_frame_number)", "  if current_bone_name in finger_rotation_values:current_pose_bone.rotation_quaternion=finger_rotation_values[current_bone_name].__class__((1,0,0,0)).slerp(finger_rotation_values[current_bone_name], calculate_fist_weight(current_frame_number,len(source_joint_frames),ANIMATE_HAND_CLOSURE))\n  current_pose_bone.keyframe_insert('rotation_quaternion',frame=current_frame_number)")
+    retarget=retarget.replace('ANIMATE_HAND_CLOSURE',repr(animate_hand_closure))
     retarget=retarget.replace("assert source_joint_frames.shape==(25,22,3) and np.isfinite(source_joint_frames).all()", "assert source_joint_frames.ndim==3 and source_joint_frames.shape[1:]==(22,3) and np.isfinite(source_joint_frames).all()")
     retarget=retarget.replace("scene_render_value.frame_start=1;scene_render_value.frame_end=25", "scene_render_value.frame_start=1;scene_render_value.frame_end=len(source_joint_frames)")
     retarget=retarget.replace("for current_frame_number in [1,25]:", "for current_frame_number in [1,len(source_joint_frames)]:")
@@ -57,6 +58,6 @@ def render(motion_path, output_dir, directions, sample_indices):
     for direction in directions:
         target=output_dir/direction/'frames';target.mkdir()
         for number in range(1,len(sample_indices)+1): shutil.copy2(output_dir/direction/f'preview-{number:04d}.png',target/f'anny-{number:04d}.png')
-    (output_dir/'result.json').write_text(json.dumps({'renderer':'Anny Blender retarget','frames':len(sample_indices),'directions':directions,'samples':16,'hand_pose':'fist-v1','baseline_model':baseline_model_record},ensure_ascii=False,indent=2)+'\n')
+    (output_dir/'result.json').write_text(json.dumps({'renderer':'Anny Blender retarget','frames':len(sample_indices),'directions':directions,'samples':16,'hand_pose':'fist-v2','hand_closure_animation':animate_hand_closure,'baseline_model':baseline_model_record},ensure_ascii=False,indent=2)+'\n')
 if __name__=='__main__':
- p=argparse.ArgumentParser(description=__doc__);p.add_argument('--motion',type=Path,required=True);p.add_argument('--output-dir',type=Path,required=True);p.add_argument('--directions',required=True);p.add_argument('--sample-indices',required=True);a=p.parse_args();render(a.motion,a.output_dir,a.directions.split(','),[int(x) for x in a.sample_indices.split(',')])
+ p=argparse.ArgumentParser(description=__doc__);p.add_argument('--motion',type=Path,required=True);p.add_argument('--output-dir',type=Path,required=True);p.add_argument('--directions',required=True);p.add_argument('--sample-indices',required=True);p.add_argument('--animate-hand-closure',action='store_true');a=p.parse_args();render(a.motion,a.output_dir,a.directions.split(','),[int(x) for x in a.sample_indices.split(',')],a.animate_hand_closure)

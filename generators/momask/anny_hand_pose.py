@@ -2,8 +2,8 @@
 import math
 from mathutils import Vector, Quaternion
 
-FINGER_CURL_DEGREES=(65,80,55)
-THUMB_CURL_DEGREES=(25,35,30)
+FINGER_CURL_DEGREES=(85,95,65)
+THUMB_CURL_DEGREES=(45,55,45)
 
 def build_fist_rotations(character_rig_object):
     finger_rotation_values={}
@@ -26,3 +26,12 @@ def build_fist_rotations(character_rig_object):
                 curl_angle_values=THUMB_CURL_DEGREES if finger_number_value==1 else FINGER_CURL_DEGREES
                 finger_rotation_values[finger_bone_name]=Quaternion(local_bend_axis,math.radians(curl_angle_values[finger_segment_index-1]))
     return finger_rotation_values
+
+
+def calculate_fist_weight(current_frame_number, total_frame_count, animate_hand_closure):
+    """스트레칭의 처음과 마지막 20%에서 부드럽게 쥐고 편다."""
+    if not animate_hand_closure:
+        return 1.0
+    normalized_frame_progress = (current_frame_number - 1) / max(total_frame_count - 1, 1)
+    hand_closure_progress = min(normalized_frame_progress / .2, (1 - normalized_frame_progress) / .2, 1.0)
+    return hand_closure_progress * hand_closure_progress * (3 - 2 * hand_closure_progress)

@@ -34,7 +34,7 @@ def main():
   torso_direction_values=joints[:,9]-joints[:,0]
   if np.max(np.degrees(np.arctan2(torso_direction_values[:,2],torso_direction_values[:,1])))>1.01 or np.min(np.degrees(np.arctan2(torso_direction_values[:,2],torso_direction_values[:,1]))) < -backward_rotation_limit:raise ValueError('대기 상체 전방 기울기 과다')
  subprocess.run([str(ROOT/'.venv/bin/python'),str(ROOT/'generators/momask/render_openpose_frames.py'),'--motion',str(motion),'--output-dir',str(result/'openpose'),'--sample-indices',indices],check=True)
- subprocess.run([str(ROOT/'.venv/bin/python'),str(ROOT/'generators/momask/render_anny_frames.py'),'--motion',str(motion),'--output-dir',str(result/'anny'),'--directions',','.join(directions),'--sample-indices',indices],check=True)
+ subprocess.run([str(ROOT/'.venv/bin/python'),str(ROOT/'generators/momask/render_anny_frames.py'),'--motion',str(motion),'--output-dir',str(result/'anny'),'--directions',','.join(directions),'--sample-indices',indices]+(['--animate-hand-closure'] if a.action=='stretch' else []),check=True)
  for direction in DIRECTIONS-set(directions):
   shutil.rmtree(result/'openpose'/direction)
  (a.job_dir/'result.json').write_text(json.dumps({'action':a.action,'label':label,'frames':frames,'anny_frames':frames,'fps':4,'directions':directions,'prompt':spec['prompt'],'sampling':'none','hand_pose':json.loads((result/'anny/result.json').read_text())['hand_pose'],'baseline_model':json.loads((result/'anny/result.json').read_text())['baseline_model'],'status':'completed'},ensure_ascii=False,indent=2)+'\n')
