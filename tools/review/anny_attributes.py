@@ -7,19 +7,20 @@ ROOT=Path(__file__).resolve().parents[2]
 BASE=ROOT/'assets/motion-sheet/mannequin-walk-v6/inputs/attributes.json'
 JOBS=ROOT/'.tmp/anny-attribute-renderer'
 PAGE=Path(__file__).with_name('anny-attributes.html').read_text()
-THIGH_ROTATION_FIELDS={'upperleg_left_rotation_z':'upperleg01.L','upperleg_right_rotation_z':'upperleg01.R'}
+BONE_ROTATION_FIELDS={'upperleg_left_rotation_z':('upperleg01.L',2),'upperleg_right_rotation_z':('upperleg01.R',2)}
+BONE_ROTATION_FIELDS.update({f'{part_label_value}_{side_label_value}_rotation_{axis_label_value}':(f'{part_label_value}01.{side_suffix_value}',axis_index_value) for part_label_value in ('upperarm','lowerarm') for side_label_value,side_suffix_value in [('left','L'),('right','R')] for axis_index_value,axis_label_value in enumerate(('x','y','z'))})
 def extract_bone_rotation(pose_matrix_values):
  rotation_angle_value=math.acos(max(-1,min(1,(sum(pose_matrix_values[axis_index_value][axis_index_value] for axis_index_value in range(3))-1)/2)))
  if rotation_angle_value<1e-8:return [0.0,0.0,0.0]
  rotation_scale_value=math.degrees(rotation_angle_value)/(2*math.sin(rotation_angle_value))
  return [(pose_matrix_values[2][1]-pose_matrix_values[1][2])*rotation_scale_value,(pose_matrix_values[0][2]-pose_matrix_values[2][0])*rotation_scale_value,(pose_matrix_values[1][0]-pose_matrix_values[0][1])*rotation_scale_value]
-def apply_thigh_rotation(attribute_pose_values,changed_attribute_values):
- # 추가 회전이 아니라 공식 데모의 절대 회전 벡터 Z값을 수정한다.
- for attribute_field_name,target_bone_label in THIGH_ROTATION_FIELDS.items():
+def apply_bone_rotations(attribute_pose_values,changed_attribute_values):
+ # 추가 회전이 아니라 공식 데모의 절대 회전 벡터 값을 수정한다.
+ for attribute_field_name,(target_bone_label,rotation_axis_index) in BONE_ROTATION_FIELDS.items():
   if attribute_field_name not in changed_attribute_values:continue
   original_pose_matrix=attribute_pose_values['pose_parameters'][target_bone_label]
   rotation_vector_values=extract_bone_rotation(original_pose_matrix)
-  rotation_vector_values[2]=changed_attribute_values[attribute_field_name]
+  rotation_vector_values[rotation_axis_index]=changed_attribute_values[attribute_field_name]
   rotation_vector_values=[math.radians(component_axis_value) for component_axis_value in rotation_vector_values]
   rotation_angle_value=math.sqrt(sum(component_axis_value**2 for component_axis_value in rotation_vector_values))
   rotation_axis_values=[component_axis_value/rotation_angle_value for component_axis_value in rotation_vector_values] if rotation_angle_value else [0,0,0]
@@ -49,7 +50,7 @@ class AnnyAttributeManager:
     for history_record_path in JOBS.glob('*/history.json'):history_record_path.unlink()
     self.send(h,200,{'status':'cleared'});return True
    if h.command=='GET' and path=='/anny-attributes/base':
-    baseline_attribute_values=json.loads(BASE.read_text());baseline_attribute_values['bone_rotation_defaults']={attribute_field_name:round(extract_bone_rotation(baseline_attribute_values['pose_parameters'][target_bone_label])[2],6) for attribute_field_name,target_bone_label in THIGH_ROTATION_FIELDS.items()};self.send(h,200,baseline_attribute_values);return True
+    baseline_attribute_values=json.loads(BASE.read_text());baseline_attribute_values['bone_rotation_defaults']={attribute_field_name:round(extract_bone_rotation(baseline_attribute_values['pose_parameters'][target_bone_label])[rotation_axis_index],6) for attribute_field_name,(target_bone_label,rotation_axis_index) in BONE_ROTATION_FIELDS.items()};self.send(h,200,baseline_attribute_values);return True
    if h.command=='GET' and path.startswith('/anny-attributes/jobs/'):
     parts=path.split('/')
     if len(parts) not in (4,5) or not re.fullmatch(r'[0-9a-f]{8}',parts[3]):raise ValueError('잘못된 작업 경로')
@@ -67,16 +68,16 @@ class AnnyAttributeManager:
    changed=json.loads(h.rfile.read(int(h.headers['Content-Length'])))
    if not isinstance(changed,dict):raise ValueError('속성 객체가 필요합니다.')
    attrs=json.loads(BASE.read_text())
-   allowed_attribute_fields=set(attrs['phenotype_kwargs'])|set(attrs['local_changes_kwargs'])|set(attrs['facial_actions'])|set(THIGH_ROTATION_FIELDS)|{'rotation_y'}
+   allowed_attribute_fields=set(attrs['phenotype_kwargs'])|set(attrs['local_changes_kwargs'])|set(attrs['facial_actions'])|set(BONE_ROTATION_FIELDS)|{'rotation_y'}
    if set(changed)-allowed_attribute_fields:raise ValueError('지원하지 않는 속성')
    for attribute_key_name,attribute_numeric_value in changed.items():
-    rotation_attribute_flag=attribute_key_name=='rotation_y' or attribute_key_name in THIGH_ROTATION_FIELDS
+    rotation_attribute_flag=attribute_key_name=='rotation_y' or attribute_key_name in BONE_ROTATION_FIELDS
     attribute_minimum_value=-180 if rotation_attribute_flag else -1 if attribute_key_name in attrs['local_changes_kwargs'] else 0
     attribute_maximum_value=180 if rotation_attribute_flag else 1
     if type(attribute_numeric_value) not in (int,float) or not attribute_minimum_value<=attribute_numeric_value<=attribute_maximum_value:raise ValueError('속성 범위 오류')
    for attribute_group_name in ('phenotype_kwargs','local_changes_kwargs','facial_actions'):
     attrs[attribute_group_name].update({attribute_key_name:attribute_numeric_value for attribute_key_name,attribute_numeric_value in changed.items() if attribute_key_name in attrs[attribute_group_name]})
-   apply_thigh_rotation(attrs,changed)
+   apply_bone_rotations(attrs,changed)
    ident=uuid.uuid4().hex[:8];root=JOBS/ident;root.mkdir(parents=True);(root/'attributes.json').write_text(json.dumps(attrs));(root/'status.json').write_text(json.dumps({'status':'running'}))
    (root/'history.json').write_text(json.dumps({'id':ident,'created_at':datetime.now(ZoneInfo('Asia/Seoul')).isoformat(),'request':{'attributes':{attribute_field_name:attribute_field_value for attribute_field_name,attribute_field_value in changed.items() if attribute_field_name!='rotation_y'},'render_settings':{'rotation_y':changed.get('rotation_y',0)},'kind':'preview' if path.endswith('/preview') else 'render'},'status':{'status':'running'}},ensure_ascii=False))
    preview_mesh_only=path=='/anny-attributes/preview'
