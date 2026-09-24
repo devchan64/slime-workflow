@@ -1,6 +1,6 @@
 {
   "asset_id": "standing-loops",
-  "version": 13,
+  "version": 14,
   "generator": "MoMask text-to-motion",
   "fps": 4,
   "actions": {
@@ -8,14 +8,14 @@
       "source_frames": 20,
       "rendered_frames": 4,
       "sample_indices": [
-        19,
-        19,
-        19,
+        0,
+        6,
+        12,
         19
       ],
       "playtime_seconds": 1.0,
-      "prompt": "A person is standing still.",
-      "description": "MoMask 중립 서기 원본. 관리도구 생성은 원본 프레임 전체를 출력한다."
+      "prompt": "A person stands still and gently shifts body weight from side to side. Both arms hang relaxed at the sides.",
+      "description": "팔을 내린 대기 자세에서 미세하게 좌우 체중을 옮긴다. 관리도구 생성은 원본 프레임 전체를 출력한다."
     },
     "deep_breath": {
       "source_frames": 40,

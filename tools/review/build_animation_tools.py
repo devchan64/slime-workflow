@@ -42,7 +42,7 @@ def build_animation_tools(output):
     openpose_motions = {}
     openpose_sources = (
         ('walk', '걷기', SOURCE, {direction: list(range(1, 9)) for direction in DIRECTIONS}),
-        ('standing', '일반호흡 스탠딩', ROOT / 'assets/motion-sheet/momask-standing-loops-v1' / 'standing' / 'openpose', {direction: list(range(1, 5)) for direction in DIRECTIONS}),
+        ('standing', '대기 스탠딩', ROOT / 'assets/motion-sheet/momask-standing-loops-v1' / 'standing' / 'openpose', {direction: list(range(1, 5)) for direction in DIRECTIONS}),
         ('deep-breath', '심호흡', ROOT / 'assets/motion-sheet/momask-standing-loops-v1' / 'deep-breath' / 'openpose', {direction: list(range(1, 9)) for direction in DIRECTIONS}),
         ('stretch', '스트레칭', ROOT / 'assets/motion-sheet/momask-standing-loops-v1' / 'stretch' / 'openpose', {direction: list(range(1, 21)) for direction in DIRECTIONS}),
     )
@@ -71,7 +71,7 @@ def build_animation_tools(output):
         folder=output/identifier;folder.mkdir(parents=True,exist_ok=True);copy(SOURCE/'down_right'/'openpose-0001.png',folder/'reference.png');(folder/'index.html').write_text(page(title,note,['reference.png'],command),encoding='utf-8');records.append({'id':identifier,'label':title,'path':identifier+'/index.html','anchorEditor':False,'category':'animation-tool','description':note})
     loop_source = ROOT / 'assets/motion-sheet/momask-standing-loops-v1'
     for action, identifier, title, note in (
-        ('standing', 'momask-normal-breath-standing', 'MoMask 일반호흡 스탠딩', '4프레임 · 1초 · 4방향'),
+        ('standing', 'momask-normal-breath-standing', 'MoMask 대기 스탠딩', '4프레임 · 1초 · 4방향 · 미세 체중 이동'),
         ('deep-breath', 'momask-deep-breath', 'MoMask 심호흡', '8프레임 · 2초 · 4방향'),
         ('stretch', 'momask-stretch', 'MoMask 스트레칭', '20프레임 · 5초 · 4방향'),
     ):

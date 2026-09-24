@@ -3,9 +3,9 @@
   "kind": "momask-joint-pose-sheets",
   "source_frames": 20,
   "sample_indices": [
-    19,
-    19,
-    19,
+    0,
+    6,
+    12,
     19
   ],
   "directions": [

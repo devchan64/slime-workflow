@@ -1,6 +1,6 @@
 {
   "asset_id": "momask-standing-loops",
-  "version": 4,
+  "version": 5,
   "generator": "MoMask text-to-motion",
   "fps": 4,
   "directions": [
@@ -18,7 +18,7 @@
       "source_motion": "standing/source-motion.npz",
       "pose_sheet_manifest": "standing/pose-sheets/manifest.json",
       "quality_measurements": {
-        "root_horizontal_displacement_m": 0.036947
+        "root_horizontal_displacement_m": 0.015
       },
       "openpose": {
         "frames": 4,
@@ -32,67 +32,67 @@
         "files": [
           {
             "path": "standing/openpose/down_left/openpose-0001.png",
-            "sha256": "9f35fa6eca5236d387c933f91dbc2f33a8d96b4a6666bf1e84f5a51b8f348026"
+            "sha256": "5d3070fef7af53a91fdd39440f69dec515e2573465df0cb815ad76013a816832"
           },
           {
             "path": "standing/openpose/down_left/openpose-0002.png",
-            "sha256": "4185f8104383e8c4a918c383f62708adadba47428ee638b3861dd4ca5db29741"
+            "sha256": "612fd30a0c809df8afdb377cc36132924cb46e0373d6e571c71d6b42ab252f05"
           },
           {
             "path": "standing/openpose/down_left/openpose-0003.png",
-            "sha256": "5aa434c8736ca74e9c0de826ead5311be3b809809b2681bcc3f0660a83cd92e4"
+            "sha256": "871cb85f215d8b594fee3f925383f9cfa989b9e64977973d7f6684c0927159ae"
           },
           {
             "path": "standing/openpose/down_left/openpose-0004.png",
-            "sha256": "682e9da329b98ac2f12f6abd3fcce3965acb44a4e3e891e1b5e86eeb2a1a5a26"
+            "sha256": "cefa64231bc2f9cffaff10a7442a4b535e21b9bf876c0d2fe8f83f9607b6eb90"
           },
           {
             "path": "standing/openpose/down_right/openpose-0001.png",
-            "sha256": "861123d8da210c3edc598291dc00d32d06f48f1cde2be4a0ffd64603c2f712d5"
+            "sha256": "6b02f4f9fcbfb701b0df9643ef2d15c241b299bfcc36e54d0f719b3f00c2247b"
           },
           {
             "path": "standing/openpose/down_right/openpose-0002.png",
-            "sha256": "b00faf0d16a41a6445ab15a97eb7b77dcdb72a11b4707289e432fa17778f53bc"
+            "sha256": "0482773f80253ceba9a92b3e86db89eb39c8e3d35f8db17079509bf8b96eb7e9"
           },
           {
             "path": "standing/openpose/down_right/openpose-0003.png",
-            "sha256": "41d235dc4f35a6dab48aae599bdad076a489583db6c427e6ef67866b9ea8ce5b"
+            "sha256": "da8f69d087a2feb4beb03065a96cd254fe910ca611dbf7b78ddccbea5f1104bb"
           },
           {
             "path": "standing/openpose/down_right/openpose-0004.png",
-            "sha256": "8e921dea1c25d9a7d65bdecd45547e31ac4597d05e80cc60646615fec10c339a"
+            "sha256": "b893d37f21a8577638bf2944defb42bdde0e9dcca6bfee1724986238e3fb122c"
           },
           {
             "path": "standing/openpose/up_left/openpose-0001.png",
-            "sha256": "a70188044b659f4549d482c776eed3d201f5276f9399d2b479f9ab2e76ecaf1c"
+            "sha256": "9ee6c3ada9174690793ec9db648a43c06060f68b5c1716362ce8f7e61fdddff8"
           },
           {
             "path": "standing/openpose/up_left/openpose-0002.png",
-            "sha256": "052b50d97b16e701e40ec3dbc41697c97d50b661a193dbe31e3dc0690f48f036"
+            "sha256": "cac7a82960e6b47db2f86ff27f2d9e2677ad7a9bc5252e9069d51ecd133b2343"
           },
           {
             "path": "standing/openpose/up_left/openpose-0003.png",
-            "sha256": "19da5f9ddc8838c6d5107cacd8abad704e7ecfaac48b49f07efb90efd51aee9b"
+            "sha256": "d18da02f2d76967be8dd9effe791fba040451c3a82320bd3d969ebe5ef783ab4"
           },
           {
             "path": "standing/openpose/up_left/openpose-0004.png",
-            "sha256": "90637d97e3351ba7eb4e57e421488a6400cf2485d79d9aaea7e9372ee01c160b"
+            "sha256": "fe46161c74c4fb17cfe13096d9e9228f9bfb04928eb6872d0fa763d97308fd9a"
           },
           {
             "path": "standing/openpose/up_right/openpose-0001.png",
-            "sha256": "ad56df0e5761c30683ed39a3df1b6cc8d85f746c24bbe76dc91e428b7b3bbf32"
+            "sha256": "8c629eb9f58080a35c44fe67a8cdedf5361821f94decb85e0973b41bcadc8f49"
           },
           {
             "path": "standing/openpose/up_right/openpose-0002.png",
-            "sha256": "299288332e8e1d02c7ab0c6266e059de0046fd79ec7700a43a51049ea43994e2"
+            "sha256": "a92d411c400969e94270b24eb935fed32abd55260670c7e29da80918efc0e981"
           },
           {
             "path": "standing/openpose/up_right/openpose-0003.png",
-            "sha256": "704554a6d0cca60de8b1c9f3e4778f15b2aeb3fe49cc39d63c74d81c3cd79390"
+            "sha256": "d209e143528909ff9fd7d9f35e8598233c8d6796eb2b0c2ca3977322da3efd1f"
           },
           {
             "path": "standing/openpose/up_right/openpose-0004.png",
-            "sha256": "ee646b77f157a4473eb6ab925cdf0c4e02224951f959d4e7bcff08fba8811202"
+            "sha256": "1f9f35ac7651fb15d0db0e91c46d23d2ef865820feeee7a440b2594c7a38ba27"
           }
         ]
       }
@@ -595,30 +595,6 @@
   },
   "files": [
     {
-      "path": "standing/source-motion.npz",
-      "sha256": "ee3e9ac5ce89bb0af518a7bd2b08204325a372ad35766c7d812f6f9082acf2fe"
-    },
-    {
-      "path": "standing/pose-sheets/manifest.json",
-      "sha256": "7059676145d5eb1afac89fd18a234c0e666b69f87d946ed101e69c3d8586c55b"
-    },
-    {
-      "path": "standing/pose-sheets/down_left.png",
-      "sha256": "5747eb9020e4a32abecb2d6bf32bc2eccbfa3138852ac6813e76e27d4c0ef5d7"
-    },
-    {
-      "path": "standing/pose-sheets/down_right.png",
-      "sha256": "e1b5493e2c6abe99fde66a61f1bcbd7086173dde206169b4779094bacb803662"
-    },
-    {
-      "path": "standing/pose-sheets/up_left.png",
-      "sha256": "759e5df2bbbd69bc2451b28fb545c940e141f18ea043ea3f175104da9ad41085"
-    },
-    {
-      "path": "standing/pose-sheets/up_right.png",
-      "sha256": "dc21e3f19efece69d6eef968674bda49ff1d7530ed603f155c032ad333f3516f"
-    },
-    {
       "path": "deep-breath/source-motion.npz",
       "sha256": "9474b5e7488df2bf585e9a9eeafb08e0da265b1defdf48f760a499878fc3886c"
     },
@@ -665,6 +641,94 @@
     {
       "path": "stretch/pose-sheets/up_right.png",
       "sha256": "32f12f72b0e7e6ac9c8d323f37eabc594571717f3bbddabf20cee5c839dc8d8d"
+    },
+    {
+      "path": "standing/openpose/down_left/openpose-0001.png",
+      "sha256": "5d3070fef7af53a91fdd39440f69dec515e2573465df0cb815ad76013a816832"
+    },
+    {
+      "path": "standing/openpose/down_left/openpose-0002.png",
+      "sha256": "612fd30a0c809df8afdb377cc36132924cb46e0373d6e571c71d6b42ab252f05"
+    },
+    {
+      "path": "standing/openpose/down_left/openpose-0003.png",
+      "sha256": "871cb85f215d8b594fee3f925383f9cfa989b9e64977973d7f6684c0927159ae"
+    },
+    {
+      "path": "standing/openpose/down_left/openpose-0004.png",
+      "sha256": "cefa64231bc2f9cffaff10a7442a4b535e21b9bf876c0d2fe8f83f9607b6eb90"
+    },
+    {
+      "path": "standing/openpose/down_right/openpose-0001.png",
+      "sha256": "6b02f4f9fcbfb701b0df9643ef2d15c241b299bfcc36e54d0f719b3f00c2247b"
+    },
+    {
+      "path": "standing/openpose/down_right/openpose-0002.png",
+      "sha256": "0482773f80253ceba9a92b3e86db89eb39c8e3d35f8db17079509bf8b96eb7e9"
+    },
+    {
+      "path": "standing/openpose/down_right/openpose-0003.png",
+      "sha256": "da8f69d087a2feb4beb03065a96cd254fe910ca611dbf7b78ddccbea5f1104bb"
+    },
+    {
+      "path": "standing/openpose/down_right/openpose-0004.png",
+      "sha256": "b893d37f21a8577638bf2944defb42bdde0e9dcca6bfee1724986238e3fb122c"
+    },
+    {
+      "path": "standing/openpose/up_left/openpose-0001.png",
+      "sha256": "9ee6c3ada9174690793ec9db648a43c06060f68b5c1716362ce8f7e61fdddff8"
+    },
+    {
+      "path": "standing/openpose/up_left/openpose-0002.png",
+      "sha256": "cac7a82960e6b47db2f86ff27f2d9e2677ad7a9bc5252e9069d51ecd133b2343"
+    },
+    {
+      "path": "standing/openpose/up_left/openpose-0003.png",
+      "sha256": "d18da02f2d76967be8dd9effe791fba040451c3a82320bd3d969ebe5ef783ab4"
+    },
+    {
+      "path": "standing/openpose/up_left/openpose-0004.png",
+      "sha256": "fe46161c74c4fb17cfe13096d9e9228f9bfb04928eb6872d0fa763d97308fd9a"
+    },
+    {
+      "path": "standing/openpose/up_right/openpose-0001.png",
+      "sha256": "8c629eb9f58080a35c44fe67a8cdedf5361821f94decb85e0973b41bcadc8f49"
+    },
+    {
+      "path": "standing/openpose/up_right/openpose-0002.png",
+      "sha256": "a92d411c400969e94270b24eb935fed32abd55260670c7e29da80918efc0e981"
+    },
+    {
+      "path": "standing/openpose/up_right/openpose-0003.png",
+      "sha256": "d209e143528909ff9fd7d9f35e8598233c8d6796eb2b0c2ca3977322da3efd1f"
+    },
+    {
+      "path": "standing/openpose/up_right/openpose-0004.png",
+      "sha256": "1f9f35ac7651fb15d0db0e91c46d23d2ef865820feeee7a440b2594c7a38ba27"
+    },
+    {
+      "path": "standing/pose-sheets/down_left.png",
+      "sha256": "fb8cf61edb870210644911c4bddce36d0a7cce43d296aa882b2dc4d9ea949ebf"
+    },
+    {
+      "path": "standing/pose-sheets/down_right.png",
+      "sha256": "6b95549e4ecfb744af7709fa6f107b6dcf6a7f40c374491e399642091a0149d7"
+    },
+    {
+      "path": "standing/pose-sheets/manifest.json",
+      "sha256": "7059676145d5eb1afac89fd18a234c0e666b69f87d946ed101e69c3d8586c55b"
+    },
+    {
+      "path": "standing/pose-sheets/up_left.png",
+      "sha256": "1a1939fdbe0541b2ccde74ada98559b5b3e91e5e5baa7dae743c5f03d3923eca"
+    },
+    {
+      "path": "standing/pose-sheets/up_right.png",
+      "sha256": "145fbcd9ddf4a702d9a98b8c4f7e0cc9e533121d7d7f7a46cce722da72997a38"
+    },
+    {
+      "path": "standing/source-motion.npz",
+      "sha256": "285719f287379975671124e0a5727431521627f823c98bff6c509db6000da01d"
     }
   ],
   "quality_gates": {
