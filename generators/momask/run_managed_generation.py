@@ -14,7 +14,11 @@ def main():
  generation_root = a.job_dir / 'motion-run'
  command=[str(ROOT/'.venv/bin/python'),str(ROOT/'generators/momask/generate_motion.py'),'--output-dir',str(generation_root),'--frames',str(spec['source_frames']),'--prompt',spec['prompt']]
  subprocess.run(command,check=True)
- motion=generation_root/'motion/motion.npz'; result=a.job_dir/'result'; frames=len(np.load(motion)['joints']); indices=','.join(map(str,range(frames)))
+ motion=generation_root/'motion/motion.npz'; subprocess.run([str(ROOT/'.venv/bin/python'),str(ROOT/'generators/momask/normalize_standing_arms.py'),'--motion',str(motion)],check=True); result=a.job_dir/'result'; joints=np.load(motion)['joints']; frames=len(joints); indices=','.join(map(str,range(frames)))
+ upper_ratios=[]
+ for shoulder,elbow in ((16,18),(17,19)):
+  upper=joints[:,elbow]-joints[:,shoulder];upper_ratios.extend((np.linalg.norm(upper[:,[0,2]],axis=1)/np.maximum(-upper[:,1],1e-6)).tolist())
+ if max(upper_ratios)>.05: raise ValueError('대기 팔 벌림 품질 기준 초과')
  subprocess.run([str(ROOT/'.venv/bin/python'),str(ROOT/'generators/momask/render_openpose_frames.py'),'--motion',str(motion),'--output-dir',str(result/'openpose'),'--sample-indices',indices],check=True)
  subprocess.run([str(ROOT/'.venv/bin/python'),str(ROOT/'generators/momask/render_rig_frames.py'),'--motion',str(motion),'--output-dir',str(result/'rig'),'--sample-indices',indices],check=True)
  for direction in DIRECTIONS-set(directions):

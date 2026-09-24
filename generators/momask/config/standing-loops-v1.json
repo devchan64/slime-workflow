@@ -1,6 +1,6 @@
 {
   "asset_id": "standing-loops",
-  "version": 14,
+  "version": 15,
   "generator": "MoMask text-to-motion",
   "fps": 4,
   "actions": {
@@ -14,8 +14,8 @@
         19
       ],
       "playtime_seconds": 1.0,
-      "prompt": "A person stands still and gently shifts body weight from side to side. Both arms hang relaxed at the sides.",
-      "description": "팔을 내린 대기 자세에서 미세하게 좌우 체중을 옮긴다. 관리도구 생성은 원본 프레임 전체를 출력한다."
+      "prompt": "A person stands still with both arms vertically against the sides of the torso and hands resting on the outer thighs. The elbows point down. A subtle side-to-side weight shift only.",
+      "description": "팔을 몸통 옆 수직 자세로 정규화한 뒤 미세하게 좌우 체중을 옮긴다. 관리도구 생성은 원본 프레임 전체를 출력한다."
     },
     "deep_breath": {
       "source_frames": 40,
