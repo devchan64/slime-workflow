@@ -84,7 +84,7 @@ CLI command → 명령 봉투 ──────┘
 
 ## CLI·게이트웨이 일체화
 
-`tools/manager.py`는 `management_gateway.execute_gateway_cli()`를 호출하는 진입점만 가진다. 서비스·명령 등록, 최상위 `command`/`help` 파싱, 로컬 실행 디스패치와 HTTP 명령 전송은 모두 게이트웨이에 둔다. `momask_commands.py`와 `qwen_commands.py`는 생성기별 옵션·파일 입력·진행 표시를 담당하는 인자 어댑터이며 별도 서비스 레지스트리를 갖지 않는다. 게이트웨이 명령 전체의 CLI 도움말 진입을 테스트한다.
+`tools/manager.py`는 `management_gateway.execute_gateway_cli()`를 호출하는 진입점만 가진다. 서비스·명령 등록, 최상위 `command`/`help` 파싱, 로컬 실행 디스패치와 HTTP 명령 전송은 모두 게이트웨이에 둔다. 생성기별 CLI 실행 모듈은 제거했다. 옵션 파싱·입력 파일 처리·진행 대기·취소도 게이트웨이에 통합하며 GUI와 CLI는 `execute_management_command`를 사용한다. 게이트웨이 명령 전체의 CLI 도움말 진입을 테스트한다.
 
 MoMask의 OpenPose 맵 생성도 동일 명령으로 사용할 수 있다.
 
@@ -94,3 +94,13 @@ python3 tools/manager.py command momask openpose-map GENERATION_ID
 ```
 
 기존 GUI 주소·이력 경로·관리 서버 필요 여부는 유지한다.
+
+### 단일 실행 구현
+
+`tools/review/momask_commands.py`와 `qwen_commands.py`는 폐기했다. `execute_gateway_arguments`가 등록된 명령의 인자를 해석하고 `execute_management_command`가 로컬 서비스·HTTP 전송·GUI 서비스 어댑터를 선택한다. CLI는 상태·로그 파일을 직접 읽지 않고 명령 서비스를 통해 조회한다. 생성 완료 대기와 Ctrl+C 취소도 생성기별로 중복 구현하지 않는다.
+
+MoMask는 기본 로컬 실행을 유지하며, 아래처럼 서버 경로를 명시하여 GUI와 같은 HTTP 게이트웨이로 실행할 수도 있다.
+
+```bash
+python3 tools/manager.py command momask --server-url http://127.0.0.1:8770 history
+```

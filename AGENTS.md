@@ -33,7 +33,7 @@
 ## Management Client and Gateway Standard
 - 관리도구의 기준 구조는 **GUI·통합 CLI → 공용 명령 게이트웨이 → 작업 서비스 → 공용 기록 저장소**이다. 상세 구현·사용법은 [관리도구 클라이언트 가이드](workflows/management-clients.md)를 따른다.
 - `tools/manager.py`는 CLI 진입점만 담당한다. 서비스·명령 등록, 최상위 `command`·`help`, 실행 디스패치와 HTTP 명령 전송은 `tools/review/management_gateway.py`에서 관리한다. 별도 CLI 실행 체계나 중복 서비스 레지스트리를 만들지 않는다.
-- 생성기별 `*_commands.py`는 옵션 파싱·입력 파일 처리·진행 표시를 담당하는 어댑터다. 생성·상태 변경·취소·기록 저장 로직을 GUI와 CLI에 각각 구현하지 않는다.
+- CLI 인자 파싱·파일 입력·진행 대기·취소와 명령 디스패치는 게이트웨이의 공통 구현을 사용한다. 생성기별 독립 CLI 실행 모듈이나 로그/상태 직접 조회 루프를 만들지 않는다. GUI와 CLI 모두 `execute_management_command`로 진입하며 실제 생성·상태 변경·기록 저장은 작업 서비스에 둔다.
 - 웹 페이지는 GUI 클라이언트다. 명령 요청은 게이트웨이를 거쳐 CLI와 같은 작업 서비스를 호출한다. 기존 웹 API 주소는 호환 어댑터로 유지할 수 있으며, 새 통합 HTTP 명령은 `POST /management/command`의 `{service, command, payload}` 계약을 사용한다.
 - 브라우저 요청을 셸 문자열로 변환하거나 요청마다 CLI 프로세스를 실행하지 않는다. 명령 게이트웨이와 서비스 코드를 공유한다. 이미지·프레임·정적 UI 파일 조회는 명령 실행과 구분한다.
 - 현재 통합 대상은 `momask`, `qwen-2512`, `qwen-2511`이다. MoMask는 로컬 작업 서비스를 통해 서버 없이 CLI 실행이 가능하고 Qwen 두 종류는 실행 중인 관리 서버 API를 사용한다. ANNY·작가 에이전트 등 미통합 기능까지 완료된 것으로 기술하지 않는다. 신규 관리 기능과 기존 기능의 통합 작업에는 이 구조를 적용한다.
