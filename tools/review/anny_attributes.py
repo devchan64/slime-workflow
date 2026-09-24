@@ -19,7 +19,7 @@ class AnnyAttributeManager:
    if h.command=='GET' and path=='/anny-attributes/history':
     stored_history_records=[]
     for history_record_path in sorted(JOBS.glob('*/history.json'),key=lambda item:item.stat().st_mtime,reverse=True):
-     current_history_record=json.loads(history_record_path.read_text());current_history_record['status']=json.loads((history_record_path.parent/'status.json').read_text());stored_history_records.append(current_history_record)
+     current_history_record=json.loads(history_record_path.read_text());current_history_record['status']=json.loads((history_record_path.parent/'status.json').read_text());current_history_record['preview_ready']=all((history_record_path.parent/name).is_file() or (history_record_path.parent/'render'/name).is_file() for name in ('front.png','side.png'));stored_history_records.append(current_history_record)
     self.send(h,200,{'records':stored_history_records});return True
    if h.command=='POST' and path=='/anny-attributes/history/reset':
     if h.headers.get('Origin')!=f'http://127.0.0.1:{h.server.server_port}':raise ValueError('허용하지 않는 요청 출처')
@@ -33,8 +33,10 @@ class AnnyAttributeManager:
     if len(parts)==5 and parts[4] not in {'front.png','side.png'}:raise ValueError('허용하지 않는 결과 파일')
     root=JOBS/parts[3]
     if len(parts)==4:
-     state=json.loads((root/'status.json').read_text());state['log']=(root/'worker.log').read_text(errors='replace')[-2000:] if (root/'worker.log').exists() else '';self.send(h,200,state);return True
-    self.send(h,200,(root/parts[4]).read_bytes(),'image/png');return True
+     state=json.loads((root/'status.json').read_text());state['preview_ready']=all((root/name).is_file() or (root/'render'/name).is_file() for name in ('front.png','side.png'));state['log']=(root/'worker.log').read_text(errors='replace')[-2000:] if (root/'worker.log').exists() else '';self.send(h,200,state);return True
+    preview_image_path=root/parts[4]
+    if not preview_image_path.is_file():preview_image_path=root/'render'/parts[4]
+    self.send(h,200,preview_image_path.read_bytes(),'image/png');return True
    if h.command!='POST' or path!='/anny-attributes/render':raise ValueError('요청 오류')
    if h.headers.get('Origin')!=f'http://127.0.0.1:{h.server.server_port}':raise ValueError('허용하지 않는 요청 출처')
    changed=json.loads(h.rfile.read(int(h.headers['Content-Length'])))

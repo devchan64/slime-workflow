@@ -10,6 +10,9 @@ let historySelectionActive=false,baselineAttributeValues,attributeChangeVersion=
 const collectAttributeValues=()=>Object.fromEntries([...attributeFieldPanel.querySelectorAll('input')].map(input=>[input.name,Number(input.value)]));
 async function fetchRenderRecord(url,options){const response=await fetch(url,options);const record=await response.json();if(!response.ok)throw Error(record.error||'요청 실패');return record}
 function scheduleAttributeRender(){historySelectionActive=false;attributeChangeVersion++;clearTimeout(pendingRenderTimer);renderStatusLabel.textContent='변경값 적용 대기 중';pendingRenderTimer=setTimeout(requestAttributeRender,500)}
+async function showPreparedPreview(recordId){
+ await Promise.all(['front','side'].map(async view=>{const target=document.querySelector('#'+view);const url='/anny-attributes/jobs/'+recordId+'/'+view+'.png';if(target.getAttribute('src')===url)return;const image=new Image();image.src=url;await image.decode();target.src=url;target.hidden=false}));
+}
 async function requestAttributeRender(){
  if(activeRenderPromise)return;
  const requestedChangeVersion=attributeChangeVersion;
@@ -18,7 +21,7 @@ async function requestAttributeRender(){
  renderStatusLabel.textContent='ANNY 프리뷰 렌더 중 · 추가 변경은 다음 렌더에 반영됩니다.';
  const record=await fetchRenderRecord('/anny-attributes/render',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(collectAttributeValues())});
  let state;
- do{await new Promise(resolve=>setTimeout(resolve,1000));state=await fetchRenderRecord('/anny-attributes/jobs/'+record.id);document.querySelector('#log').textContent=state.log||'';if(document.querySelector('#logs').open){const log=document.querySelector('#log');log.scrollTop=log.scrollHeight}}while(state.status==='running');
+ do{await new Promise(resolve=>setTimeout(resolve,1000));state=await fetchRenderRecord('/anny-attributes/jobs/'+record.id);if(state.preview_ready&&requestedChangeVersion===attributeChangeVersion){await showPreparedPreview(record.id);renderStatusLabel.textContent='프리뷰 준비 완료 · 후속 작업 처리 중';}document.querySelector('#log').textContent=state.log||'';if(document.querySelector('#logs').open){const log=document.querySelector('#log');log.scrollTop=log.scrollHeight}}while(state.status==='running');
  if(requestedChangeVersion!==attributeChangeVersion)return;
  if(state.status!=='completed')throw Error('렌더 실패 · 로그를 확인하세요.');
  await Promise.all(['front','side'].map(async view=>{const url='/anny-attributes/jobs/'+record.id+'/'+view+'.png';const image=new Image();image.src=url;await image.decode();if(requestedChangeVersion===attributeChangeVersion){document.querySelector('#'+view).src=url;document.querySelector('#'+view).hidden=false}}));
@@ -37,6 +40,7 @@ fetchRenderRecord('/anny-attributes/base').then(record=>{
  for(const [name,label,min,max] of attributeFieldSpecs){const row=document.createElement('label');row.textContent=label;const input=document.createElement('input');input.type='range';input.name=name;input.min=min;input.max=max;input.step=name==='rotation_y'?5:.05;input.setAttribute('aria-label',label);row.append(document.createElement('br'),input,document.createElement('output'));attributeFieldPanel.append(row)}
  attributeFieldPanel.oninput=event=>{event.target.nextElementSibling.textContent=event.target.value;scheduleAttributeRender()};
  restoreAttributeDefaults();
+ fetchRenderRecord('/anny-attributes/history').then(payload=>{const latest=payload.records.find(item=>item.preview_ready||item.status.status==='completed');if(latest&&attributeChangeVersion===1)window.restoreGenerationRecord(latest)}).catch(()=>{});
 }).catch(error=>renderStatusLabel.textContent=error.message);
 window.restoreGenerationRecord=record=>{historySelectionActive=true;
  clearTimeout(pendingRenderTimer);attributeChangeVersion++;
