@@ -30,6 +30,11 @@
 - Local backend stack: `FastAPI + uvicorn`, `DynamoDB Local (Docker)`, optional `SAM local`.
 - Separate environments by stage: `local/dev/prod`.
 - Local default config must never point to production resources.
+## Management UI Guide
+- 관리도구 UI를 신규 작성하거나 수정할 때 [관리도구 UI 가이드](workflows/management-ui.md)를 기준으로 한다. 공용 색상·레이아웃, 고정 설정 표시, 생성 버튼 상태, 로그, 누적 이력, 재생 컨트롤과 검증 범위를 다룬다.
+- 공통 UI 동작은 공용 코드에서 관리하고 페이지별 복제를 피한다. 비활성 버튼에는 사유와 해결 방법을 표시하며, 실행 중인 사용자 작업을 UI 검증 목적으로 취소하거나 덮어쓰지 않는다.
+- GUI·CLI 명령 및 기록 저장 구조는 아래 Management Client and Gateway Standard와 [관리도구 클라이언트 가이드](workflows/management-clients.md)를 함께 따른다.
+
 ## Management Client and Gateway Standard
 - 관리도구의 기준 구조는 **GUI·통합 CLI → 공용 명령 게이트웨이 → 작업 서비스 → 공용 기록 저장소**이다. 상세 구현·사용법은 [관리도구 클라이언트 가이드](workflows/management-clients.md)를 따른다.
 - `tools/manager.py`는 CLI 진입점만 담당한다. 서비스·명령 등록, 최상위 `command`·`help`, 실행 디스패치와 HTTP 명령 전송은 `tools/review/management_gateway.py`에서 관리한다. 별도 CLI 실행 체계나 중복 서비스 레지스트리를 만들지 않는다.
