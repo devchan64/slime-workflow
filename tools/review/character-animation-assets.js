@@ -46,7 +46,7 @@ function resetMotionAssetPreview(){
 window.selectMotionAssetPreview=motionRecordValue=>{
  if(assetMotionRecord?.id===motionRecordValue.id)return;
  assetMotionRecord=motionRecordValue;
- assetElementLookup('asset-motion-title').textContent=`${motionRecordValue.label} · ${motionRecordValue.frames}프레임 · ${motionRecordValue.frames/motionRecordValue.fps}초 · ${motionRecordValue.fps} FPS`;
+ assetElementLookup('asset-motion-title').textContent=`${motionRecordValue.label} · 원본 ${motionRecordValue.frames}프레임 · 기준 ${motionRecordValue.fps} FPS에서 ${motionRecordValue.frames/motionRecordValue.fps}초`;
  resetMotionAssetPreview();
 };
 assetElementLookup('asset-direction-choice').onchange=()=>{if(assetMotionRecord)resetMotionAssetPreview();};

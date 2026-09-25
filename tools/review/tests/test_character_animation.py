@@ -43,6 +43,24 @@ class CharacterAnimationTests(unittest.TestCase):
         for frame_step_value in (1,2,4,8):
             self.assertEqual(assets.prepare_animation_request({**self.make_selection_record(),'frame_step':frame_step_value})['selected_frame_numbers'],list(range(1,17,frame_step_value)))
 
+    def test_progress_separates_images_source_frames_and_inference(self):
+        request_record_value=assets.prepare_animation_request({**self.make_selection_record(),'directions':['down_left','up_right'],'steps':30})
+        with tempfile.TemporaryDirectory() as temporary_root_name:
+            generation_job_path=Path(temporary_root_name)
+            frame_log_path=generation_job_path/'down_left/frame-0003/execution.log'
+            frame_log_path.parent.mkdir(parents=True)
+            frame_log_path.write_text('date/qwen-pose/load model=x\ndate/qwen-pose/inference steps=30\ndate/qwen-pose/denoise step=7/30\n')
+            status_record_value={'status':'running','progress':{'completed':1,'total':999}}
+            result_record_value=jobs.describe_generation_progress(generation_job_path,request_record_value,status_record_value)
+            self.assertEqual((result_record_value['completed'],result_record_value['total']),(1,16))
+            self.assertEqual((result_record_value['direction_index'],result_record_value['direction_total'],result_record_value['frame']),(2,8,3))
+            self.assertEqual((result_record_value['inference_completed'],result_record_value['inference_steps']),(7,30))
+            for final_status_name in ('cancelled','failed'):
+                result_record_value=jobs.describe_generation_progress(generation_job_path,request_record_value,{**status_record_value,'status':final_status_name})
+                self.assertEqual(result_record_value['stage'],final_status_name)
+                self.assertEqual(result_record_value['completed'],1)
+                self.assertNotIn('direction',result_record_value)
+
     def test_inference_steps_contract(self):
         for step_count_value in (4,30):
             request_record_value=assets.prepare_animation_request({**self.make_selection_record(),'steps':step_count_value})

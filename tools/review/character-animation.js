@@ -2,6 +2,7 @@
 const animationDirectionLabels={down_left:'전방 좌측',down_right:'전방 우측',up_left:'후방 좌측',up_right:'후방 우측'};
 const animationElementLookup=elementIdentifier=>document.getElementById(elementIdentifier);
 const animationLogController=ManagementLogViewer.attach(animationElementLookup('execution-log'),animationElementLookup('execution-log-text'));
+let cancellationRequestPending=false;
 let lastSelectedMotionIdentifier=null;
 let generationSubmissionPending=false,generationAvailabilityChecked=false,activeGenerationProgress=null;
 let animationCatalogRecord=null,activeGenerationIdentifier=null,playbackResultRecord=null,playbackJobIdentifier=null,currentFramePosition=0,animationPlaybackTimer=null,playbackRequestCounter=0;
@@ -41,7 +42,7 @@ function renderAnimationFrame(){
  currentFramePosition=(currentFramePosition+currentDirectionFrames.length)%currentDirectionFrames.length;
  animationElementLookup('output-frame').src=`/character-animation/files/${playbackJobIdentifier}/${currentDirectionFrames[currentFramePosition]}`;
  animationElementLookup('frame-position').value=currentFramePosition;
- animationElementLookup('frame-label').textContent=`${currentFramePosition+1} / ${currentDirectionFrames.length} · ${animationElementLookup('result-playback-fps').value} FPS`;
+ animationElementLookup('frame-label').textContent=`${currentFramePosition+1} / ${currentDirectionFrames.length}장${playbackResultRecord.source_frame_numbers?.[animationElementLookup('playback-direction').value]?` · 원본 ${playbackResultRecord.source_frame_numbers[animationElementLookup('playback-direction').value][currentFramePosition]}번`:''} · ${animationElementLookup('result-playback-fps').value} FPS · ${(currentDirectionFrames.length/Number(animationElementLookup('result-playback-fps').value)).toLocaleString('ko-KR',{maximumFractionDigits:2})}초/회`;
 }
 function selectPlaybackDirection(){
  stopAnimationPlayback();currentFramePosition=0;
@@ -71,14 +72,38 @@ animationElementLookup('animation-form').onchange=refreshAnimationSelection;
 animationElementLookup('select-all').onclick=()=>{document.querySelectorAll('[name=animation-direction]').forEach(directionCheckboxElement=>directionCheckboxElement.checked=true);refreshAnimationSelection();};
 animationElementLookup('animation-form').onsubmit=async submissionEventValue=>{
  submissionEventValue.preventDefault();if(generationSubmissionPending||activeGenerationIdentifier)return;generationSubmissionPending=true;refreshGenerationAvailability();
- try{const generationStartRecord=await executeAnimationCommand('generate',readAnimationSelection());activeGenerationIdentifier=generationStartRecord.id;animationElementLookup('status').textContent='생성을 시작했습니다.';animationElementLookup('cancel-generation').disabled=false;await refreshGenerationHistory();}
+ try{const generationStartRecord=await executeAnimationCommand('generate',readAnimationSelection());activeGenerationIdentifier=generationStartRecord.id;activeGenerationProgress=null;cancellationRequestPending=false;animationElementLookup('status').textContent='생성을 시작했습니다.';animationElementLookup('cancel-generation').disabled=false;await refreshGenerationHistory();}
  catch(generationErrorValue){animationElementLookup('status').textContent=generationErrorValue.message;}
  finally{generationSubmissionPending=false;refreshGenerationAvailability();}
 };
 animationElementLookup('cancel-generation').onclick=async()=>{
  if(!activeGenerationIdentifier)return;animationElementLookup('cancel-generation').disabled=true;
- try{await executeAnimationCommand('cancel',{id:activeGenerationIdentifier});animationElementLookup('status').textContent='취소 요청 중…';}catch(cancelErrorValue){animationElementLookup('status').textContent=cancelErrorValue.message;}
+ try{cancellationRequestPending=true;await executeAnimationCommand('cancel',{id:activeGenerationIdentifier});animationElementLookup('status').textContent='취소 요청 중…';}catch(cancelErrorValue){cancellationRequestPending=false;animationElementLookup('status').textContent=cancelErrorValue.message;}
 };
+function renderGenerationStatus(generationStatusRecord){
+ const progressRecordValue=generationStatusRecord.progress,requestRecordValue=generationStatusRecord.request;
+ const stageLabelValues={preparing:'생성 준비 중',load:'모델 불러오는 중',inference:'이미지 생성 중',saving:'결과 저장 중','waiting-gpu':'GPU 작업 대기 중',completed:'생성 완료',failed:'생성 실패',cancelled:'생성 취소됨'};
+ const isRunningValue=generationStatusRecord.status==='running';
+ const currentStageValue=isRunningValue?progressRecordValue?.stage:generationStatusRecord.status;
+ animationElementLookup('status').textContent=cancellationRequestPending&&isRunningValue?'취소 요청 처리 중':stageLabelValues[currentStageValue]||'진행 상황 확인 중';
+ if(requestRecordValue){
+  const motionLabelText=animationCatalogRecord.motions.find(motionRecordValue=>motionRecordValue.id===requestRecordValue.motion)?.label||requestRecordValue.motion;
+  const perDirectionCount=requestRecordValue.frames_per_direction;
+  animationElementLookup('job-summary').textContent=`접수된 작업 · ${motionLabelText} · ${requestRecordValue.source==='anny'?'ANNY':'OpenPose'} · ${requestRecordValue.steps===30?'30스텝 표준':'4스텝 Lightning'} · ${requestRecordValue.frame_step||1}프레임 간격 · ${requestRecordValue.directions.length}방향${perDirectionCount?` × 방향당 ${perDirectionCount}장`:''}`;
+ }
+ const completedCountValue=progressRecordValue?.completed,totalCountValue=progressRecordValue?.total;
+ const hasValidCounts=Number.isInteger(completedCountValue)&&Number.isInteger(totalCountValue)&&totalCountValue>0&&completedCountValue>=0&&completedCountValue<=totalCountValue;
+ const percentageValue=hasValidCounts?Math.floor(1000*completedCountValue/totalCountValue)/10:null;
+ animationElementLookup('completed-image-count').textContent=hasValidCounts?`${completedCountValue} / ${totalCountValue}장`:'확인 중';
+ animationElementLookup('completed-image-percent').textContent=percentageValue===null?'—':`${percentageValue}%`;
+ if(percentageValue===null)animationElementLookup('generation-progress').removeAttribute('value');else animationElementLookup('generation-progress').value=percentageValue;
+ animationElementLookup('current-image-position').textContent=isRunningValue&&progressRecordValue?.direction?`${animationDirectionLabels[progressRecordValue.direction]} · ${progressRecordValue.direction_index}/${progressRecordValue.direction_total}번째 (원본 ${progressRecordValue.frame}번)`:'—';
+ animationElementLookup('current-inference-step').textContent=isRunningValue&&Number.isInteger(progressRecordValue?.inference_completed)?`${progressRecordValue.inference_completed} / ${progressRecordValue.inference_steps}스텝`:isRunningValue?'스텝 시작 전':'—';
+ animationElementLookup('generation-stage-note').textContent=generationStatusRecord.error|| (isRunningValue?'전체 진행률은 저장 완료된 이미지 기준입니다. 추론 스텝은 현재 이미지 한 장의 진행 상황입니다.':generationStatusRecord.status==='completed'?'모든 이미지 저장을 마쳤습니다. 아래에서 결과를 재생할 수 있습니다.':'작업이 종료되었습니다. 완료 수는 종료 시점까지 저장한 이미지 수입니다. 로그에서 상세 내용을 확인하세요.');
+ animationElementLookup('job-location').textContent=`ID: ${generationStatusRecord.id||activeGenerationIdentifier}\n저장 경로: ${generationStatusRecord.path}`;
+ animationLogController.update(generationStatusRecord.log);
+ animationElementLookup('cancel-generation').disabled=!isRunningValue||cancellationRequestPending;
+}
 async function pollAnimationGeneration(){
  try{
   if(!animationCatalogRecord)return;
@@ -86,14 +111,9 @@ async function pollAnimationGeneration(){
   if(activeGenerationIdentifier){
    const generationStatusRecord=await executeAnimationCommand('status',{id:activeGenerationIdentifier});
    const generationProgressRecord=generationStatusRecord.progress;activeGenerationProgress=generationProgressRecord;
-   animationElementLookup('status').textContent=({running:'생성 중',completed:'완료',failed:'실패',cancelled:'취소됨'}[generationStatusRecord.status]||generationStatusRecord.status)+(generationProgressRecord?` · ${generationProgressRecord.completed}/${generationProgressRecord.total} 프레임`:' · 모델 준비 중');
-   animationElementLookup('job-location').textContent=activeGenerationIdentifier+' · '+generationStatusRecord.path;
-   animationLogController.update(generationStatusRecord.log);
-   if(generationProgressRecord)animationElementLookup('generation-progress').value=100*generationProgressRecord.completed/generationProgressRecord.total;
-   else animationElementLookup('generation-progress').removeAttribute('value');
-   animationElementLookup('cancel-generation').disabled=generationStatusRecord.status!=='running';
+   renderGenerationStatus(generationStatusRecord);
    if(generationStatusRecord.status!=='running'){
-    const completedGenerationIdentifier=activeGenerationIdentifier;activeGenerationIdentifier=null;activeGenerationProgress=null;
+    const completedGenerationIdentifier=activeGenerationIdentifier;activeGenerationIdentifier=null;activeGenerationProgress=null;cancellationRequestPending=false;
     if(generationStatusRecord.status==='completed')await window.playGenerationRecord({id:completedGenerationIdentifier});
     await refreshGenerationHistory();
    }
