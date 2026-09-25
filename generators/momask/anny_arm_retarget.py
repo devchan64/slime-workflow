@@ -28,6 +28,17 @@ def calculate_arm_rotations(current_joint_points, rest_bone_positions, rest_bone
         previous_arm_planes[current_side_label] = target_elbow_normal.copy()
         for bone_name_prefix, rest_segment_direction, target_segment_direction in [('upperarm', rest_upper_direction, target_upper_direction), ('lowerarm', rest_lower_direction, target_lower_direction)]:
             segment_swing_rotation = rest_segment_direction.rotation_difference(target_segment_direction)
+            if arm_correction_values:
+                # 매 프레임 기준 자세와 180° 근처를 비교하면 회전축이 급변한다.
+                # 스트레칭은 직전 방향에서 현재 방향으로 최소 회전을 누적한다.
+                previous_direction_key = bone_name_prefix+'.direction.'+current_side_label
+                previous_swing_key = bone_name_prefix+'.swing.'+current_side_label
+                if previous_direction_key in previous_arm_planes:
+                    incremental_swing_rotation = previous_arm_planes[previous_direction_key].rotation_difference(target_segment_direction)
+                    segment_swing_rotation = incremental_swing_rotation @ previous_arm_planes[previous_swing_key]
+                    segment_swing_rotation.normalize()
+                previous_arm_planes[previous_direction_key] = target_segment_direction.copy()
+                previous_arm_planes[previous_swing_key] = segment_swing_rotation.copy()
             target_segment_axis = target_segment_direction.normalized()
             swung_plane_normal = segment_swing_rotation @ rest_elbow_normal
             desired_plane_normal = target_elbow_normal-target_segment_axis*target_elbow_normal.dot(target_segment_axis)
