@@ -24,7 +24,7 @@ function renderAnimationFrame(){
  currentFramePosition=(currentFramePosition+currentDirectionFrames.length)%currentDirectionFrames.length;
  animationElementLookup('output-frame').src=`/character-animation/files/${playbackJobIdentifier}/${currentDirectionFrames[currentFramePosition]}`;
  animationElementLookup('frame-position').value=currentFramePosition;
- animationElementLookup('frame-label').textContent=`${currentFramePosition+1} / ${currentDirectionFrames.length} · ${playbackResultRecord.fps} FPS`;
+ animationElementLookup('frame-label').textContent=`${currentFramePosition+1} / ${currentDirectionFrames.length} · ${animationElementLookup('result-playback-fps').value} FPS`;
 }
 function selectPlaybackDirection(){
  stopAnimationPlayback();currentFramePosition=0;
@@ -46,7 +46,7 @@ window.playGenerationRecord=async historyRecordValue=>{
  }catch(playbackErrorValue){animationElementLookup('status').textContent=playbackErrorValue.message;}
 };
 animationElementLookup('playback-direction').onchange=selectPlaybackDirection;
-animationElementLookup('frame-play').onclick=()=>{if(!playbackResultRecord)return;stopAnimationPlayback();animationPlaybackTimer=setInterval(()=>{currentFramePosition++;renderAnimationFrame();},1000/playbackResultRecord.fps);};
+animationElementLookup('frame-play').onclick=()=>{if(!playbackResultRecord)return;stopAnimationPlayback();animationPlaybackTimer=setInterval(()=>{currentFramePosition++;renderAnimationFrame();},1000/Number(animationElementLookup('result-playback-fps').value));};
 animationElementLookup('frame-stop').onclick=stopAnimationPlayback;
 for(const [elementIdentifier,frameIncrementValue] of [['frame-previous',-1],['frame-next',1]])animationElementLookup(elementIdentifier).onclick=()=>{stopAnimationPlayback();currentFramePosition+=frameIncrementValue;renderAnimationFrame();};
 animationElementLookup('frame-position').oninput=()=>{stopAnimationPlayback();currentFramePosition=Number(animationElementLookup('frame-position').value);renderAnimationFrame();};
@@ -94,3 +94,5 @@ async function pollAnimationGeneration(){
  }catch(catalogErrorValue){animationElementLookup('status').textContent=catalogErrorValue.message;}
  pollAnimationGeneration();
 })();
+
+animationElementLookup('result-playback-fps').onchange=()=>{if(!playbackResultRecord)return;const wasPlaybackRunning=animationPlaybackTimer!==null;renderAnimationFrame();if(wasPlaybackRunning)animationElementLookup('frame-play').click();};
