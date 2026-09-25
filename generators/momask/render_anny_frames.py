@@ -5,7 +5,7 @@ import numpy as np
 import yaml
 
 ROOT=Path(__file__).resolve().parents[2]
-SOURCE=ROOT/'assets/motion-sheet/mannequin-walk-v6'
+SOURCE=ROOT/'generators/momask/templates'
 BLENDER=ROOT/'.local/blender-runtime/bin/python'
 DIRECTIONS={'down_left','down_right','up_left','up_right'}
 
