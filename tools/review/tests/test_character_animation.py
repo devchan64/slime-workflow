@@ -43,6 +43,17 @@ class CharacterAnimationTests(unittest.TestCase):
         for frame_step_value in (1,2,4,8):
             self.assertEqual(assets.prepare_animation_request({**self.make_selection_record(),'frame_step':frame_step_value})['selected_frame_numbers'],list(range(1,17,frame_step_value)))
 
+    def test_inference_steps_contract(self):
+        for step_count_value in (4,30):
+            request_record_value=assets.prepare_animation_request({**self.make_selection_record(),'steps':step_count_value})
+            self.assertEqual(request_record_value['steps'],step_count_value)
+            self.assertEqual(request_record_value['lightning'],step_count_value==4)
+            with patch.object(gateway,'execute_management_command',return_value={'id':'test'}) as execute_mock,contextlib.redirect_stdout(io.StringIO()):
+                gateway.execute_gateway_cli(['command','character-animation','generate','--motion','standing-v3','--character','character-default','--steps',str(step_count_value),'--detach'])
+            self.assertEqual(execute_mock.call_args.args[2]['steps'],step_count_value)
+        for step_count_value in (0,10,True,'30'):
+            with self.assertRaises(ValueError):assets.prepare_animation_request({**self.make_selection_record(),'steps':step_count_value})
+
     def test_original_asset_preview_bounds_and_sources(self):
         for motion_identifier_value,frame_count_value in [('standing-v3',16),('walking-v8',32),('stretch-v1',120)]:
             for source_kind_value in ('openpose','anny'):
@@ -111,8 +122,8 @@ class CharacterAnimationTests(unittest.TestCase):
     def test_worker_normalizes_references_and_selects_adapters(self):
         from generators.animation.run_character_animation import generate_character_frame
         from PIL import Image
-        for source_kind_value in ('openpose','anny'):
-            generation_request_record=assets.prepare_animation_request({**self.make_selection_record(),'source':source_kind_value})
+        for source_kind_value,selected_step_count in [('openpose',4),('openpose',30),('anny',4),('anny',30)]:
+            generation_request_record=assets.prepare_animation_request({**self.make_selection_record(),'source':source_kind_value,'steps':selected_step_count})
             with tempfile.TemporaryDirectory() as temporary_root_name:
                 generation_job_path=Path(temporary_root_name)
                 (generation_job_path/'request.json').write_text(json.dumps(generation_request_record))
@@ -121,7 +132,9 @@ class CharacterAnimationTests(unittest.TestCase):
                     generate_character_frame(generation_job_path,0)
                 execution_keyword_values=pose_execute_mock.call_args.kwargs
                 self.assertEqual(execution_keyword_values['enable_anypose_adapter'],source_kind_value=='anny')
-                self.assertEqual(execution_keyword_values['enable_standalone_lightning_adapter'],source_kind_value=='openpose')
+                self.assertEqual(execution_keyword_values['enable_standalone_lightning_adapter'],source_kind_value=='openpose' and selected_step_count==4)
+                self.assertEqual(execution_keyword_values['enable_lightning_adapter'],selected_step_count==4)
+                self.assertEqual(execution_keyword_values['selected_inference_steps'],selected_step_count)
                 for reference_path_field in ('character_image_path','pose_reference_path'):
                     with Image.open(execution_keyword_values[reference_path_field]) as image_reference_value:
                         self.assertEqual(image_reference_value.size,(512,512))

@@ -67,8 +67,11 @@ def build_animation_catalog():
     return {'motions':animation_motion_records,'characters':[{'id':animation_character_identifier,'label':animation_character_record['label']} for animation_character_identifier,animation_character_record in animation_config_record['characters'].items()], 'directions':list(SUPPORTED_DIRECTION_NAMES),'frame_steps':list(SUPPORTED_FRAME_STEPS),'prompts':read_fixed_prompts(animation_config_record),'direction_prompts':compose_direction_prompts(read_fixed_prompts(animation_config_record))}
 
 def prepare_animation_request(command_payload_value):
-    if set(command_payload_value) not in ({'motion','character','source','directions'},{'motion','character','source','directions','frame_step'}):
-        raise ValueError('motion·character·source·directions·frame_step만 허용합니다. 프롬프트는 수정할 수 없습니다.')
+    if not {'motion','character','source','directions'} <= set(command_payload_value) or set(command_payload_value)-{'motion','character','source','directions','frame_step','steps'}:
+        raise ValueError('motion·character·source·directions·frame_step·steps만 허용합니다. 프롬프트는 수정할 수 없습니다.')
+    selected_inference_steps = command_payload_value.get('steps',4)
+    if type(selected_inference_steps) is not int or selected_inference_steps not in (4,30):
+        raise ValueError('생성 스텝은 4(Lightning) 또는 30이어야 합니다.')
     animation_config_record = load_animation_configuration()
     for selection_field_name, selection_group_name in (('motion','motions'),('character','characters')):
         if not isinstance(command_payload_value[selection_field_name],str) or command_payload_value[selection_field_name] not in animation_config_record[selection_group_name]:
@@ -102,7 +105,7 @@ def prepare_animation_request(command_payload_value):
             generation_frame_records.append({'direction':direction_name_value,'frame':current_frame_number,'character_path':str(character_file_path.relative_to(WORKFLOW_ROOT_DIRECTORY)),'character_sha256':character_file_hash,'pose_path':str(pose_reference_path.relative_to(WORKFLOW_ROOT_DIRECTORY)),'pose_sha256':pose_reference_hash})
     fixed_prompt_values = read_fixed_prompts(animation_config_record)
     combined_prompt_text = '\n\n'.join(fixed_prompt_values.values())
-    return {**command_payload_value,'frame_step':selected_frame_step,'source_frames_per_direction':motion_manifest_record['frames'],'selected_frame_numbers':list(range(1,motion_manifest_record['frames']+1,selected_frame_step)),'direction_prompts':compose_direction_prompts(fixed_prompt_values),'prompts':fixed_prompt_values,'prompt_sha256':hashlib.sha256(combined_prompt_text.encode()).hexdigest(),'prompt_words':len(combined_prompt_text.split()),'frames_per_direction':len(range(1,motion_manifest_record['frames']+1,selected_frame_step)),'fps':motion_manifest_record['fps'],'motion_manifest_sha256':hash_asset_file(motion_manifest_path),'character_manifest_sha256':hash_asset_file(character_manifest_path),'frames':generation_frame_records,'sampling':'none' if selected_frame_step==1 else 'frame-step','model':'Qwen/Qwen-Image-Edit-2511','steps':4}
+    return {**command_payload_value,'frame_step':selected_frame_step,'source_frames_per_direction':motion_manifest_record['frames'],'selected_frame_numbers':list(range(1,motion_manifest_record['frames']+1,selected_frame_step)),'direction_prompts':compose_direction_prompts(fixed_prompt_values),'prompts':fixed_prompt_values,'prompt_sha256':hashlib.sha256(combined_prompt_text.encode()).hexdigest(),'prompt_words':len(combined_prompt_text.split()),'frames_per_direction':len(range(1,motion_manifest_record['frames']+1,selected_frame_step)),'fps':motion_manifest_record['fps'],'motion_manifest_sha256':hash_asset_file(motion_manifest_path),'character_manifest_sha256':hash_asset_file(character_manifest_path),'frames':generation_frame_records,'sampling':'none' if selected_frame_step==1 else 'frame-step','model':'Qwen/Qwen-Image-Edit-2511','steps':selected_inference_steps,'lightning':selected_inference_steps==4}
 
 def resolve_motion_preview(selected_motion_name, selected_source_kind, selected_direction_name, selected_frame_number):
     """프롬프트·캐릭터·생성 이력 없이 등록 모션의 단일 프레임을 조회한다."""

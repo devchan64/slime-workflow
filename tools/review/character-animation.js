@@ -9,7 +9,7 @@ async function executeAnimationCommand(commandOperationName,commandPayloadValue=
  const commandResponseValue=await fetch('/management/command',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({service:'character-animation',command:commandOperationName,payload:commandPayloadValue})});
  const commandResponseRecord=await commandResponseValue.json();if(!commandResponseValue.ok)throw Error(commandResponseRecord.error);return commandResponseRecord;
 }
-function readAnimationSelection(){return {motion:animationElementLookup('motion-choice').value,character:animationElementLookup('character-choice').value,source:animationElementLookup('source-choice').value,frame_step:Number(animationElementLookup('generation-frame-step').value),directions:Array.from(document.querySelectorAll('[name=animation-direction]:checked')).map(directionCheckboxElement=>directionCheckboxElement.value)};}
+function readAnimationSelection(){return {motion:animationElementLookup('motion-choice').value,character:animationElementLookup('character-choice').value,source:animationElementLookup('source-choice').value,steps:Number(animationElementLookup('generation-steps').value),frame_step:Number(animationElementLookup('generation-frame-step').value),directions:Array.from(document.querySelectorAll('[name=animation-direction]:checked')).map(directionCheckboxElement=>directionCheckboxElement.value)};}
 function refreshAnimationSelection(){
  if(!animationCatalogRecord)return;
  const selectedAnimationValues=readAnimationSelection(),selectedMotionRecord=animationCatalogRecord.motions.find(motionRecordValue=>motionRecordValue.id===selectedAnimationValues.motion);
@@ -56,7 +56,7 @@ window.playGenerationRecord=async historyRecordValue=>{
   if(generationStatusRecord.status!=='completed'||!generationStatusRecord.result)throw Error('완료된 결과가 필요합니다.');
   playbackJobIdentifier=historyRecordValue.id;playbackResultRecord=generationStatusRecord.result;
   animationElementLookup('playback-direction').replaceChildren(...Object.keys(playbackResultRecord.frames).map(directionNameValue=>new Option(animationDirectionLabels[directionNameValue],directionNameValue)));
-  animationElementLookup('result-title').textContent=`${playbackJobIdentifier} · ${generationStatusRecord.request.motion} · ${generationStatusRecord.request.character} · ${generationStatusRecord.request.source}`;
+  animationElementLookup('result-title').textContent=`${playbackJobIdentifier} · ${generationStatusRecord.request.motion} · ${generationStatusRecord.request.character} · ${generationStatusRecord.request.source} · ${(generationStatusRecord.request.steps||4)===4?'4스텝 Lightning':'30스텝'}`;
   for(const elementIdentifier of ['playback-direction','frame-previous','frame-play','frame-stop','frame-next','frame-position'])animationElementLookup(elementIdentifier).disabled=false;
   animationElementLookup('output-frame').hidden=false;animationElementLookup('playback-empty').hidden=true;selectPlaybackDirection();
   animationElementLookup('result-title').scrollIntoView({behavior:'smooth',block:'center'});

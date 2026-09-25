@@ -111,9 +111,9 @@ python3 tools/manager.py command momask --server-url http://127.0.0.1:8770 histo
 
 관리도구의 `#character-animation`은 등록된 대기 v3(16프레임), 걷기 v8(32프레임), 스트레칭 v1(120프레임)에 캐릭터 레퍼런스를 적용한다. 방향은 전체 또는 일부를 선택한다. 현재 등록된 캐릭터는 기본 흰 셔츠 v2이며 등록 설정을 통해 확장한다. 생성 프레임 간격은 1·2·4·8 중 선택한다. 대기의 기본 간격은 2(1·3·5…15번, 방향당 8장), 걷기·스트레칭은 1이다. 원본 에셋은 수정하지 않으며 생성 결과의 기본 FPS는 4이다. 간격을 늘리면 생성 장수와 4 FPS 기준 재생 시간이 함께 줄어든다.
 
-- `openpose`: 등록된 COCO18 맵과 캐릭터 이미지를 Qwen Image Edit 2511 + Lightning에 입력한다.
-- `anny`: 등록된 ANNY 리그 렌더 프레임과 캐릭터 이미지를 Qwen Image Edit 2511 + AnyPose + Lightning에 입력한다. 원본 리그나 모션을 다시 생성하지 않는다.
-- 모델·4스텝·시드는 공용 Qwen 포즈 실행기의 고정 설정이다. 보조 프롬프트는 선택한 방향별로 머리·시선·가슴·무릎·발목·발끝 방향을 명시한다. 기본·보조 프롬프트는 화면과 `catalog`에서 조회만 가능하며 실행 API에서 변경할 수 없다.
+- `openpose`: 등록된 COCO18 맵과 캐릭터 이미지를 Qwen Image Edit 2511에 입력한다.
+- `anny`: 등록된 ANNY 리그 렌더 프레임과 캐릭터 이미지를 Qwen Image Edit 2511 + AnyPose에 입력한다. 원본 리그나 모션을 다시 생성하지 않는다.
+- 모델·시드는 공용 Qwen 포즈 실행기의 고정 설정이다. 생성 방식은 4스텝 Lightning(기본) 또는 30스텝 표준 생성이며, 30스텝에서는 Lightning 어댑터를 비활성화한다. 보조 프롬프트는 선택한 방향별로 머리·시선·가슴·무릎·발목·발끝 방향을 명시한다. 기본·보조 프롬프트는 화면과 `catalog`에서 조회만 가능하며 실행 API에서 변경할 수 없다.
 - 기본·보조 프롬프트 파일 위치와 등록 에셋은 `generators/animation/config/character_animation.yaml`에 둔다. 프롬프트 원문은 기존 정책에 따라 `.local/production-prompts/`에서 관리하며 저장소에 복제하지 않는다. 다른 환경에서는 설정의 두 UTF-8 파일을 먼저 배치한다. 파일 누락 시 명확한 오류로 중단한다.
 
 ```bash
@@ -141,3 +141,5 @@ python3 tools/manager.py command character-animation history-reset
 원본 에셋과 생성 결과 플레이어는 각각 **재생 속도**에서 4·8·12·16 FPS를 선택할 수 있다. 기본은 4 FPS이며 재생 중에도 변경된다. 이는 검수용 재생 속도로, 원본 프레임 수·생성 설정·결과 메타데이터의 FPS는 바꾸지 않는다.
 
 `character-animation generate --frame-step 2`로 프레임 간격을 CLI에서도 지정한다. 생략하면 모션별 기본값을 따른다. `request.json`에는 `frame_step`, `selected_frame_numbers`, 방향별 최종 프롬프트·단어 수·해시를 기록하고, `result.json`에는 방향별 원본 프레임 번호를 기록한다. 기존 이력은 당시 요청과 결과를 그대로 사용한다. 원본 에셋 검수 플레이어는 생성 간격과 관계없이 전체 프레임을 재생한다.
+
+캐릭터 애니메이션 CLI의 `--steps 4` / `--steps 30`은 웹의 생성 방식 선택과 같다. 예: `python3 tools/manager.py command character-animation generate --motion standing-v3 --character character-default --source anny --steps 30 --detach`. 실행 요청·결과·이력에 선택 스텝을 보존한다. 기존 이력의 스텝 필드가 없으면 기존 방식인 4스텝으로 표시한다.
