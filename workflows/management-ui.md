@@ -16,7 +16,7 @@
 
 ## 2. 공용 색상과 스타일
 
-[generation-studio.css](../tools/review/generation-studio.css)의 CSS 변수를 기준으로 사용한다. 페이지별 스타일은 기능에 필요한 배치만 추가하며 공용 색상·버튼·로그·이력 스타일을 복사하지 않는다.
+[generation-studio.css](../tools/review/ui/shared/generation-studio.css)의 CSS 변수를 기준으로 사용한다. 페이지별 스타일은 기능에 필요한 배치만 추가하며 공용 색상·버튼·로그·이력 스타일을 복사하지 않는다.
 
 | 토큰 | 기본값 | 용도 |
 | --- | --- | --- |
@@ -66,7 +66,7 @@
 
 ## 5. 로그
 
-접이식 로그의 기준 구현은 [management_log_viewer.py](../tools/review/management_log_viewer.py)의 `ManagementLogViewer.attach(details, output)`이다.
+접이식 로그의 기준 구현은 [management_log_viewer.py](../tools/review/common/management_log_viewer.py)의 `ManagementLogViewer.attach(details, output)`이다.
 
 - 펼칠 때 마지막 줄로 이동한다.
 - 펼쳐진 상태에서 로그가 갱신되면 마지막 줄을 따라간다.
@@ -79,7 +79,7 @@
 
 ## 6. 생성 이력
 
-기준 시나리오는 MoMask의 목록·결과 재생 흐름이며, 이미지 생성기의 참조 복원·결과 조회 장점도 기능에 맞게 사용한다. 공용 이력 구현은 [generation-history.js](../tools/review/generation-history.js)이다.
+기준 시나리오는 MoMask의 목록·결과 재생 흐름이며, 이미지 생성기의 참조 복원·결과 조회 장점도 기능에 맞게 사용한다. 공용 이력 구현은 [generation-history.js](../tools/review/ui/shared/generation-history.js)이다.
 
 - 이력은 서버에 누적 저장하고 새로고침·서버 재시작 이후 다시 조회한다.
 - 드롭다운 대신 최신순 목록과 페이지네이션을 사용한다. 현재 공용 UI는 페이지당 8건이다.
@@ -102,17 +102,17 @@
 - 긴 모션은 제한된 수의 프레임을 캐시하고 필요한 프레임을 미리 읽는다. 전체 모션을 무조건 메모리에 적재하지 않는다.
 - 파일 누락·로딩 실패는 검수 영역에 표시한다. 오래된 이미지를 새 결과처럼 표시하지 않는다.
 
-현재 원본 에셋 재생 구현은 [character-animation-assets.js](../tools/review/character-animation-assets.js), 생성 결과 재생은 [character-animation.js](../tools/review/character-animation.js)를 참고한다. 아직 독립된 범용 플레이어로 통합된 상태는 아니다. 다른 페이지에서 같은 기능이 필요하면 공용 플레이어로 추출해 함께 사용한다.
+현재 원본 에셋 재생 구현은 [character-animation-assets.js](../tools/review/ui/character_animation/character-animation-assets.js), 생성 결과 재생은 [character-animation.js](../tools/review/ui/character_animation/character-animation.js)를 참고한다. 아직 독립된 범용 플레이어로 통합된 상태는 아니다. 다른 페이지에서 같은 기능이 필요하면 공용 플레이어로 추출해 함께 사용한다.
 
 ## 8. 공용 코드와 서비스 연결
 
 | 책임 | 기준 파일 |
 | --- | --- |
-| 색상·기본 레이아웃·입력·버튼 | [generation-studio.css](../tools/review/generation-studio.css) |
-| 목록·페이지네이션·이력 로그 | [generation-history.js](../tools/review/generation-history.js) |
-| 접이식 로그의 자동 스크롤 | [management_log_viewer.py](../tools/review/management_log_viewer.py) |
-| 기존 이미지 생성 진행 UI | [generation-progress.js](../tools/review/generation-progress.js) |
-| GUI·CLI 명령 계약 | [management_gateway.py](../tools/review/management_gateway.py) |
+| 색상·기본 레이아웃·입력·버튼 | [generation-studio.css](../tools/review/ui/shared/generation-studio.css) |
+| 목록·페이지네이션·이력 로그 | [generation-history.js](../tools/review/ui/shared/generation-history.js) |
+| 접이식 로그의 자동 스크롤 | [management_log_viewer.py](../tools/review/common/management_log_viewer.py) |
+| 기존 이미지 생성 진행 UI | [generation-progress.js](../tools/review/ui/shared/generation-progress.js) |
+| GUI·CLI 명령 계약 | [management_gateway.py](../tools/review/common/management_gateway.py) |
 | HTTP 제공·watch | [serve.py](../tools/review/serve.py) |
 
 `generation-progress.js`는 기존 이미지 생성기의 DOM·응답 형식에 의존한다. 다른 생성기에 그대로 연결하지 말고 계약을 확인해 필요한 공용 동작을 추출한다. GUI는 공용 게이트웨이로 명령을 전달하고, 파일·이미지 조회는 정적 조회 경로를 사용한다. 별도 웹 전용 실행 서비스나 이력 저장소를 만들지 않는다.
@@ -137,4 +137,4 @@
 
 ## 공용 작업 영역 탐색
 
-[management-workflow.js](../tools/review/management-workflow.js)는 `data-workflow-label`이 지정된 영역으로 이동하는 공용 메뉴를 만든다. `data-help-title` 영역은 접이식 도움말로 표시한다. 이동은 생성·취소·입력 변경을 실행하지 않는다. 캐릭터 애니메이션, MoMask, ANNY, Qwen 두 화면에 적용하며 키보드 포커스와 모션 감소 설정을 반영한다. 공용 이력 UI는 ID·입력 검색과 상태 필터를 제공하고, 필터 변경 시 첫 페이지로 이동한다. MoMask의 기존 전용 이력은 아직 이 검색 필터로 통합되지 않았다.
+[management-workflow.js](../tools/review/ui/shared/management-workflow.js)는 `data-workflow-label`이 지정된 영역으로 이동하는 공용 메뉴를 만든다. `data-help-title` 영역은 접이식 도움말로 표시한다. 이동은 생성·취소·입력 변경을 실행하지 않는다. 캐릭터 애니메이션, MoMask, ANNY, Qwen 두 화면에 적용하며 키보드 포커스와 모션 감소 설정을 반영한다. 공용 이력 UI는 ID·입력 검색과 상태 필터를 제공하고, 필터 변경 시 첫 페이지로 이동한다. MoMask의 기존 전용 이력은 아직 이 검색 필터로 통합되지 않았다.

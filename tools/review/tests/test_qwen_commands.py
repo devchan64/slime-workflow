@@ -10,7 +10,7 @@ import sys
 import unittest
 from unittest.mock import patch
 
-COMMAND_MODULE_PATH = Path(__file__).resolve().parents[1]/'management_gateway.py'
+COMMAND_MODULE_PATH = Path(__file__).resolve().parents[1]/'common/management_gateway.py'
 sys.path.insert(0,str(COMMAND_MODULE_PATH.parents[1]))
 COMMAND_MODULE_SPEC = importlib.util.spec_from_file_location('review.management_gateway',COMMAND_MODULE_PATH)
 COMMAND_MODULE_VALUE = importlib.util.module_from_spec(COMMAND_MODULE_SPEC)

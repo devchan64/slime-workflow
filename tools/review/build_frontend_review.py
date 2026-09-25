@@ -1,6 +1,9 @@
 """프론트엔드 에셋 계약을 읽어 독립적인 애니메이션 검수 스냅샷을 만든다."""
-from datetime import datetime
+import sys
 from pathlib import Path
+sys.path.insert(0,str(Path(__file__).resolve().parents[2]))
+from tools.review.ui_assets import resolve_review_ui_asset
+from datetime import datetime
 from zoneinfo import ZoneInfo
 import hashlib
 import json
@@ -273,7 +276,7 @@ def build_frontend_review(frontend_repository_path, ui_bundle_directory=None):
     heartbeat_worker_thread.start()
     try:
         animation_label_lookup = load_animation_labels(frontend_asset_root)
-        shared_review_styles = Path(__file__).with_name('review-ui.css').read_text()
+        shared_review_styles = resolve_review_ui_asset('review-ui.css').read_text()
         anchor_template_text = (WORKFLOW_REPO_ROOT/'generators/animation/review_standing_anchors.html').read_text().replace('</style>', '</style><style>'+shared_review_styles+'</style>', 1)
         manager_page_records = []
         discovered_source_records = []
@@ -329,7 +332,7 @@ def build_frontend_review(frontend_repository_path, ui_bundle_directory=None):
             else:
                 from import_ui_bundle import import_ui_bundle
             manager_page_records.extend(import_ui_bundle(ui_bundle_directory, output_review_directory, emit_review_trace))
-        manager_template_text = Path(__file__).with_name('frame-manager.html').read_text().replace('</style>', '</style><style>'+shared_review_styles+'</style>', 1)
+        manager_template_text = resolve_review_ui_asset('frame-manager.html').read_text().replace('</style>', '</style><style>'+shared_review_styles+'</style>', 1)
         (output_review_directory/'preview.html').write_text(manager_template_text.replace('__MANAGER_PAGES__', json.dumps(manager_page_records, ensure_ascii=False).replace('<', '\\u003c')))
         (output_review_directory/'manager-source.json').write_text(json.dumps({'frontendRepository': str(frontend_repository_path), 'labelCatalog': {'path': 'src/assets/animation-labels.yaml', 'sha256': hashlib.sha256((frontend_asset_root/'animation-labels.yaml').read_bytes()).hexdigest()}, 'assets': discovered_source_records, 'pages': manager_page_records}, ensure_ascii=False, indent=2))
         emit_review_trace('complete', str(output_review_directory/'preview.html'))

@@ -1,9 +1,12 @@
 """Qwen 타일 생성 기록을 독립 검수 페이지로 복사한다."""
 from __future__ import annotations
+import sys
+from pathlib import Path
+sys.path.insert(0,str(Path(__file__).resolve().parents[2]))
+from tools.review.ui_assets import resolve_review_ui_asset
 
 import hashlib
 import json
-from pathlib import Path
 
 import yaml
 try:
@@ -61,7 +64,7 @@ def load_map_preview_record(record_root_path: Path, map_preview_record: dict | N
 
 def build_tile_review_page(review_data):
     """반복 이음새와 지정 셀 적용 상태를 한 페이지에서 표시한다."""
-    template_path = Path(__file__).with_name('tile-review.html')
+    template_path = resolve_review_ui_asset('tile-review.html')
     return template_path.read_text(encoding='utf-8').replace('__TILE_REVIEW_DATA__', json.dumps(review_data, ensure_ascii=False).replace('<', '\\u003c'))
 
 

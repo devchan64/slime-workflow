@@ -11,7 +11,7 @@
 
 입력·프롬프트·실행 로그·파라미터·입출력 해시·결과는 `.tmp/test/qwen-image-2511-three-reference/<한국시간>-<식별자>/`에 저장한다. 자동 에셋 등록이나 커밋은 하지 않는다.
 
-관리 API는 `tools/review/image_generation.py`, 입력 검증은 `tools/review/three_reference_generation.py`, 작업자는 `generators/image/run_qwen_2511_three_reference.py`이다. 페이지 경로는 `/image-generation-2511/`이며 관리 서버 코드 변경 후 서버 재시작이 필요하다.
+관리 API는 `tools/review/domains/image/image_generation.py`, 입력 검증은 `tools/review/domains/image/three_reference_generation.py`, 작업자는 `generators/image/run_qwen_2511_three_reference.py`이다. 페이지 경로는 `/image-generation-2511/`이며 관리 서버 코드 변경 후 서버 재시작이 필요하다.
 
 출력 해상도 선택지의 최소 크기는 384×384이다. 256×256 프리셋은 제거했으며 기존 기본 해상도는 유지한다. 2511의 참조 이미지 입력 조건은 출력 크기와 별개로 512×512를 유지한다.
 

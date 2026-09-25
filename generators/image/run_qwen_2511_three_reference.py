@@ -10,7 +10,7 @@ WORKFLOW_ROOT_PATH=Path(__file__).resolve().parents[2]
 sys.path.insert(0,str(WORKFLOW_ROOT_PATH/'generators/animation'))
 from qwen_pose import execute_pose_generation
 sys.path.insert(0,str(WORKFLOW_ROOT_PATH))
-from tools.review.three_reference_generation import resolve_reference_settings
+from tools.review.domains.image.three_reference_generation import resolve_reference_settings
 
 
 def execute_three_reference_worker():

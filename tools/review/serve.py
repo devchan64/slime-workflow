@@ -1,5 +1,8 @@
 """워크플로우 실행 결과·제작 자산의 로컬 읽기 전용 공통 검수 서버."""
+import sys
 from pathlib import Path
+sys.path.insert(0,str(Path(__file__).resolve().parents[2]))
+from tools.review.ui_assets import resolve_review_ui_asset
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
@@ -13,7 +16,6 @@ import subprocess
 import threading
 import time
 import traceback
-import sys
 import signal
 
 REVIEW_SERVER_HOST = '127.0.0.1'
@@ -237,34 +239,19 @@ def run_review_server(parsed_argument_values):
         with trace_write_lock:
             print(trace_line_text,flush=True)
             with server_log_path.open('a') as trace_file_stream: trace_file_stream.write(trace_line_text+'\n')
-    if __package__:
-        from .image_generation import ImageGenerationManager
-    else:
-        from image_generation import ImageGenerationManager
+    from tools.review.domains.image.image_generation import ImageGenerationManager
     if str(workflow_repo_root) not in sys.path:sys.path.insert(0,str(workflow_repo_root))
     from generators.writer_agent.management import WriterAgentManager
     from generators.writer_agent.documents import DEFAULT_WORKSPACE_CONFIG
     writer_agent_service=WriterAgentManager(parsed_argument_values.writer_agent_config or DEFAULT_WORKSPACE_CONFIG)
     image_generation_service = ImageGenerationManager()
-    if __package__:
-        from .anny_attributes import AnnyAttributeManager
-    else:
-        from anny_attributes import AnnyAttributeManager
+    from tools.review.domains.anny.anny_attributes import AnnyAttributeManager
     anny_attribute_service = AnnyAttributeManager()
-    if __package__:
-        from .momask_generation import MoMaskGenerationManager
-    else:
-        from momask_generation import MoMaskGenerationManager
+    from tools.review.domains.momask.momask_generation import MoMaskGenerationManager
     momask_generation_service = MoMaskGenerationManager()
     three_reference_service = ImageGenerationManager(three_reference_mode=True)
-    if __package__:
-        from .management_gateway import ManagementCommandGateway
-    else:
-        from management_gateway import ManagementCommandGateway
-    if __package__:
-        from .character_animation import CharacterAnimationManager
-    else:
-        from character_animation import CharacterAnimationManager
+    from tools.review.common.management_gateway import ManagementCommandGateway
+    from tools.review.domains.character_animation.character_animation import CharacterAnimationManager
     character_animation_service = CharacterAnimationManager()
     management_command_gateway = ManagementCommandGateway({'character-animation':character_animation_service.handle,'momask':momask_generation_service.handle,'qwen-2512':image_generation_service.handle_image_request,'qwen-2511':three_reference_service.handle_image_request})
     class ReviewRequestHandler(SimpleHTTPRequestHandler):
@@ -272,7 +259,7 @@ def run_review_server(parsed_argument_values):
             super().__init__(*request_handler_arguments,directory=str(review_root_directory),**request_handler_options)
         def do_GET(self):
             if urlsplit(self.path).path=='/management/workflow-ui.js':
-                response_content=(Path(__file__).resolve().parent/'management-workflow.js').read_bytes()
+                response_content=resolve_review_ui_asset('management-workflow.js').read_bytes()
                 self.send_response(200);self.send_header('Content-Type','text/javascript; charset=utf-8');self.send_header('Content-Length',str(len(response_content)));self.end_headers();self.wfile.write(response_content)
                 return
             if is_review_live_reload_request(self.path):

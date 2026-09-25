@@ -7,8 +7,8 @@ import sys
 
 WORKFLOW_ROOT_DIRECTORY=Path(__file__).resolve().parents[2]
 sys.path.insert(0,str(WORKFLOW_ROOT_DIRECTORY))
-from tools.review.character_animation_assets import hash_asset_file, resolve_asset_path
-from tools.review.momask_jobs import write_record_atomically
+from tools.review.domains.character_animation.character_animation_assets import hash_asset_file, resolve_asset_path
+from tools.review.common.generation_records import write_record_atomically
 from generators.image.worker_lock import acquire_worker_lock
 
 

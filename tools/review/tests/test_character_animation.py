@@ -10,10 +10,10 @@ import unittest
 from unittest.mock import patch, MagicMock
 
 sys.path.insert(0,str(Path(__file__).resolve().parents[3]))
-from tools.review import character_animation_assets as assets
-from tools.review import character_animation_jobs as jobs
-from tools.review import management_gateway as gateway
-from tools.review.character_animation import CharacterAnimationManager
+from tools.review.domains.character_animation import character_animation_assets as assets
+from tools.review.domains.character_animation import character_animation_jobs as jobs
+from tools.review.common import management_gateway as gateway
+from tools.review.domains.character_animation.character_animation import CharacterAnimationManager
 
 class CharacterAnimationTests(unittest.TestCase):
     def make_selection_record(self,**selection_override_values):
@@ -97,7 +97,7 @@ class CharacterAnimationTests(unittest.TestCase):
         self.assertEqual(command_execute_mock.call_args.args[:3],('character-animation','generate',selection_request_record))
         command_request_bytes=json.dumps({'service':'character-animation','command':'generate','payload':selection_request_record}).encode()
         http_request_handler=SimpleNamespace(command='POST',path='/management/command',headers={'Host':'127.0.0.1:8770','Origin':'http://127.0.0.1:8770','Content-Type':'application/json','Content-Length':str(len(command_request_bytes))},server=SimpleNamespace(server_port=8770),rfile=io.BytesIO(command_request_bytes),wfile=io.BytesIO(),send_response=MagicMock(),send_header=MagicMock(),end_headers=MagicMock())
-        with patch('tools.review.character_animation.execute_animation_command',return_value={'id':'test'}) as service_execute_mock:
+        with patch('tools.review.domains.character_animation.character_animation.execute_animation_command',return_value={'id':'test'}) as service_execute_mock:
             gateway.ManagementCommandGateway({'character-animation':CharacterAnimationManager().handle}).handle(http_request_handler)
         service_execute_mock.assert_called_once_with('generate',selection_request_record)
 

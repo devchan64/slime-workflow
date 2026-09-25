@@ -203,7 +203,7 @@ def build_anchor_review(parsed_argument_values):
         (output_review_directory/'character-default-standing-v4-anchor-review.json').write_text(json.dumps(coordinate_artifact_data,ensure_ascii=False,indent=2)+'\n')
         html_template_path = Path(__file__).with_suffix('.html')
         review_page_text = html_template_path.read_text().replace('__FRAME_RECORDS__',json.dumps(output_review_records,ensure_ascii=False)).replace('__SOURCE_METADATA__',json.dumps(source_manifest_data,ensure_ascii=False))
-        review_page_text = review_page_text.replace('</style>', '</style><style>'+(Path(__file__).resolve().parents[2]/'tools/review/review-ui.css').read_text()+'</style>',1)
+        review_page_text = review_page_text.replace('</style>', '</style><style>'+(Path(__file__).resolve().parents[2]/'tools/review/ui/shared/review-ui.css').read_text()+'</style>',1)
         (output_review_directory/'preview.html').write_text(review_page_text)
         # 육안 검수용: 네 방향 첫 프레임을 같은 스케일과 공통 앵커에 표시한다.
         overview_image_canvas = Image.new('RGB',(1200,760),'#29313f')

@@ -1,16 +1,10 @@
-"""관리도구 공통 접이식 로그 뷰어 스크립트."""
-MANAGEMENT_LOG_VIEWER_SCRIPT = r"""(() => {
-  const scrollToEnd = element => requestAnimationFrame(() => { element.scrollTop = element.scrollHeight; });
-  window.ManagementLogViewer = {
-    attach(details, output) {
-      details.addEventListener('toggle', () => { if (details.open) scrollToEnd(output); });
-      return {
-        update(text) {
-          output.textContent = text || '로그 대기';
-          if (details.open) scrollToEnd(output);
-        },
-        scrollToEnd: () => scrollToEnd(output),
-      };
-    },
-  };
-})();"""
+"""이전 import·실행 경로 호환용. 구현은 common/management_log_viewer.py에 있다."""
+import sys
+from pathlib import Path
+from importlib import import_module
+sys.path.insert(0,str(Path(__file__).resolve().parents[2]))
+if __name__=='__main__':
+    import runpy
+    runpy.run_module('tools.review.common.management_log_viewer',run_name='__main__')
+else:
+    sys.modules[__name__]=import_module('tools.review.common.management_log_viewer')

@@ -1,11 +1,14 @@
 """3참조 Qwen 걷기 리포트의 결과·리그·OpenPose 비교 시트를 만든다."""
 from __future__ import annotations
+import sys
+from pathlib import Path
+sys.path.insert(0,str(Path(__file__).resolve().parents[2]))
+from tools.review.ui_assets import resolve_review_ui_asset
 
 import argparse
 import hashlib
 import json
 import shutil
-from pathlib import Path
 
 WORKFLOW_REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 SUPPORTED_DIRECTIONS = ('down_left', 'down_right', 'up_left', 'up_right')
@@ -60,7 +63,7 @@ def build_pose_transfer_review(report_root_path: Path, output_directory_path: Pa
                 copied_file_records[role_name] = {'path': destination_relative_path.as_posix(), 'sha256': source_hash_value}
             frame_records.append({'frame': frame_number, 'files': copied_file_records, 'size': result_record['size'], 'modelRevision': result_record.get('revision', '')})
         direction_records.append({'direction': direction_name, 'frames': frame_records})
-    template_text = (Path(__file__).with_name('pose-transfer-review.html')).read_text(encoding='utf-8')
+    template_text = (resolve_review_ui_asset('pose-transfer-review.html')).read_text(encoding='utf-8')
     page_data = {'report': report_root_path.name, 'directions': direction_records}
     (output_directory_path / 'preview.html').write_text(template_text.replace('__POSE_TRANSFER_DATA__', json.dumps(page_data, ensure_ascii=False).replace('<', '\\u003c')), encoding='utf-8')
     return output_directory_path

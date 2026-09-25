@@ -4,8 +4,8 @@ import tempfile
 import unittest
 from pathlib import Path
 from PIL import Image
-from tools.review.three_reference_generation import validate_three_reference_request, save_three_reference_inputs, resolve_reference_settings
-from tools.review.image_generation import ImageGenerationManager
+from tools.review.domains.image.three_reference_generation import validate_three_reference_request, save_three_reference_inputs, resolve_reference_settings
+from tools.review.domains.image.image_generation import ImageGenerationManager
 from tools.review.tests.test_image_generation import ImageGenerationTests
 
 

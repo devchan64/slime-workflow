@@ -6,7 +6,7 @@ import tempfile
 import unittest
 from unittest.mock import patch, Mock
 
-MODULE_FILE_PATH = Path(__file__).resolve().parents[1]/'momask_jobs.py'
+MODULE_FILE_PATH = Path(__file__).resolve().parents[1]/'domains/momask/momask_jobs.py'
 MODULE_IMPORT_SPEC = importlib.util.spec_from_file_location('momask_jobs', MODULE_FILE_PATH)
 JOB_SERVICE_MODULE = importlib.util.module_from_spec(MODULE_IMPORT_SPEC)
 MODULE_IMPORT_SPEC.loader.exec_module(JOB_SERVICE_MODULE)

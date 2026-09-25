@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 from types import SimpleNamespace
-from tools.review.image_generation import ImageGenerationManager, validate_image_request, parse_unique_request
+from tools.review.domains.image.image_generation import ImageGenerationManager, validate_image_request, parse_unique_request
 
 
 class ImageGenerationTests(unittest.TestCase):

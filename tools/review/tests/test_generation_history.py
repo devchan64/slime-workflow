@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
-from tools.review.image_generation import ImageGenerationManager, summarize_generation_progress
+from tools.review.domains.image.image_generation import ImageGenerationManager, summarize_generation_progress
 from tools.review.tests import test_image_generation
 
 
@@ -18,7 +18,7 @@ class GenerationHistoryTests(unittest.TestCase):
         self.assertEqual(summarize_generation_progress('denoise step=2/4','failed')['stage'],'failed')
 
     def test_history_reset_scope(self):
-        with tempfile.TemporaryDirectory() as current_directory_name, patch('tools.review.image_generation.MANAGER_HISTORY_ROOT',Path(current_directory_name)/'history'):
+        with tempfile.TemporaryDirectory() as current_directory_name, patch('tools.review.domains.image.image_generation.MANAGER_HISTORY_ROOT',Path(current_directory_name)/'history'):
             current_manager_value=ImageGenerationManager(three_reference_mode=True)
             other_manager_value=ImageGenerationManager()
             current_manager_value.job_storage_root=Path(current_directory_name)/'jobs'
