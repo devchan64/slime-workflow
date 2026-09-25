@@ -114,7 +114,7 @@ python3 tools/manager.py command momask --server-url http://127.0.0.1:8770 histo
 - `openpose`: 등록된 COCO18 맵과 캐릭터 이미지를 Qwen Image Edit 2511에 입력한다.
 - `anny`: 등록된 ANNY 리그 렌더 프레임과 캐릭터 이미지를 Qwen Image Edit 2511 + AnyPose에 입력한다. 원본 리그나 모션을 다시 생성하지 않는다.
 - 모델·시드는 공용 Qwen 포즈 실행기의 고정 설정이다. 생성 방식은 4스텝 Lightning(기본) 또는 30스텝 표준 생성이며, 30스텝에서는 Lightning 어댑터를 비활성화한다. 보조 프롬프트는 선택한 방향별로 얼굴·시선과 양발·발끝의 동일 방향, 발목과 다리의 정렬을 짧게 명시한다. 기본·보조 프롬프트는 화면과 `catalog`에서 조회만 가능하며 실행 API에서 변경할 수 없다.
-- 기본·보조 프롬프트 파일 위치와 등록 에셋은 `generators/animation/config/character_animation.yaml`에 둔다. 프롬프트 원문은 기존 정책에 따라 `.local/production-prompts/`에서 관리하며 저장소에 복제하지 않는다. 다른 환경에서는 설정의 두 UTF-8 파일을 먼저 배치한다. 파일 누락 시 명확한 오류로 중단한다.
+- 기본·보조 프롬프트 파일 위치와 등록 에셋은 `generators/animation/config/character_animation.yaml`에 둔다. 프롬프트 원문은 기존 정책에 따라 `.local/production-prompts/`에서 관리하며 저장소에 복제하지 않는다. 다른 환경에서는 설정의 기본·전방 보조·후방 보조 UTF-8 파일을 먼저 배치한다. 파일 누락 시 명확한 오류로 중단한다.
 
 ```bash
 python3 tools/manager.py help character-animation
@@ -143,3 +143,5 @@ python3 tools/manager.py command character-animation history-reset
 `character-animation generate --frame-step 2`로 프레임 간격을 CLI에서도 지정한다. 생략하면 모션별 기본값을 따른다. `request.json`에는 `frame_step`, `selected_frame_numbers`, 방향별 최종 프롬프트·단어 수·해시를 기록하고, `result.json`에는 방향별 원본 프레임 번호를 기록한다. 기존 이력은 당시 요청과 결과를 그대로 사용한다. 원본 에셋 검수 플레이어는 생성 간격과 관계없이 전체 프레임을 재생한다.
 
 캐릭터 애니메이션 CLI의 `--steps 4` / `--steps 30`은 웹의 생성 방식 선택과 같다. 예: `python3 tools/manager.py command character-animation generate --motion standing-v3 --character character-default --source anny --steps 30 --detach`. 실행 요청·결과·이력에 선택 스텝을 보존한다. 기존 이력의 스텝 필드가 없으면 기존 방식인 4스텝으로 표시한다.
+
+보조 프롬프트는 `auxiliary`(전방)와 `auxiliary_rear`(후방)의 로컬 파일로 분리한다. 기본 프롬프트는 공통으로 유지한다. 후방은 뒷머리 노출·카메라 반대쪽 시선·머리와 몸통 및 발 방향 정렬을 명시한다. 실제 선택한 보조 문구만 기본 프롬프트와 결합하고 화면 단어 수·실행 해시에 반영한다.

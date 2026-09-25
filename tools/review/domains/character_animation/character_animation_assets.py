@@ -42,8 +42,8 @@ def load_animation_configuration():
     animation_config_record = read_asset_mapping(ANIMATION_CONFIG_PATH)
     if set(animation_config_record) != {'schema_version','prompts','motions','characters'} or animation_config_record['schema_version'] != 1:
         raise ValueError('애니메이션 설정 형식 오류')
-    if set(animation_config_record['prompts']) != {'base','auxiliary'}:
-        raise ValueError('기본·보조 프롬프트 설정 필요')
+    if set(animation_config_record['prompts']) != {'base','auxiliary','auxiliary_rear'}:
+        raise ValueError('기본·전방 보조·후방 보조 프롬프트 설정 필요')
     for animation_motion_record in animation_config_record['motions'].values():
         if set(animation_motion_record) != {'label','root','manifest','openpose','anny','frame_step'}:
             raise ValueError('모션 등록 형식 오류')
@@ -56,7 +56,7 @@ def load_animation_configuration():
 
 def read_fixed_prompts(animation_config_record):
     fixed_prompt_values = {prompt_role_name:resolve_asset_path(prompt_file_name).read_text().strip() for prompt_role_name,prompt_file_name in animation_config_record['prompts'].items()}
-    if not all(fixed_prompt_values.values()) or len(' '.join(fixed_prompt_values.values()).split()) >= 100:
+    if not all(fixed_prompt_values.values()) or any(len((fixed_prompt_values['base']+' '+fixed_prompt_values[prompt_role_name]).split()) >= 100 for prompt_role_name in ('auxiliary','auxiliary_rear')):
         raise ValueError('고정 프롬프트는 비어 있지 않고 합계 100단어 미만이어야 합니다.')
     return fixed_prompt_values
 
@@ -106,7 +106,7 @@ def prepare_animation_request(command_payload_value):
                 raise ValueError(f'모션 프레임 무결성 오류: {pose_relative_path}')
             generation_frame_records.append({'direction':direction_name_value,'frame':current_frame_number,'character_path':str(character_file_path.relative_to(WORKFLOW_ROOT_DIRECTORY)),'character_sha256':character_file_hash,'pose_path':str(pose_reference_path.relative_to(WORKFLOW_ROOT_DIRECTORY)),'pose_sha256':pose_reference_hash})
     fixed_prompt_values = read_fixed_prompts(animation_config_record)
-    combined_prompt_text = '\n\n'.join(fixed_prompt_values.values())
+    combined_prompt_text = fixed_prompt_values['base']+'\n\n'+fixed_prompt_values['auxiliary']
     return {**command_payload_value,'frame_step':selected_frame_step,'source_frames_per_direction':motion_manifest_record['frames'],'selected_frame_numbers':list(range(1,motion_manifest_record['frames']+1,selected_frame_step)),'direction_prompts':compose_direction_prompts(fixed_prompt_values),'prompts':fixed_prompt_values,'prompt_sha256':hashlib.sha256(combined_prompt_text.encode()).hexdigest(),'prompt_words':len(combined_prompt_text.split()),'frames_per_direction':len(range(1,motion_manifest_record['frames']+1,selected_frame_step)),'fps':motion_manifest_record['fps'],'motion_manifest_sha256':hash_asset_file(motion_manifest_path),'character_manifest_sha256':hash_asset_file(character_manifest_path),'frames':generation_frame_records,'sampling':'none' if selected_frame_step==1 else 'frame-step','model':'Qwen/Qwen-Image-Edit-2511','steps':selected_inference_steps,'lightning':selected_inference_steps==4}
 
 def resolve_motion_preview(selected_motion_name, selected_source_kind, selected_direction_name, selected_frame_number):
@@ -128,7 +128,8 @@ def resolve_motion_preview(selected_motion_name, selected_source_kind, selected_
 def compose_direction_prompts(fixed_prompt_values):
     direction_prompt_records = {}
     for direction_name_value, direction_label_text in DIRECTION_PROMPT_LABELS.items():
-        auxiliary_prompt_text = fixed_prompt_values['auxiliary'].format(direction=direction_label_text)
+        auxiliary_prompt_role = 'auxiliary_rear' if direction_name_value in ('up_left','up_right') else 'auxiliary'
+        auxiliary_prompt_text = fixed_prompt_values[auxiliary_prompt_role].format(direction=direction_label_text)
         combined_prompt_text = fixed_prompt_values['base']+'\n\n'+auxiliary_prompt_text
         if len(combined_prompt_text.split()) >= 100:
             raise ValueError('방향별 프롬프트는 100단어 미만이어야 합니다.')

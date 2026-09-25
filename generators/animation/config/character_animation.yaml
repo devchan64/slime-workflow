@@ -2,6 +2,7 @@ schema_version: 1
 prompts:
   base: .local/production-prompts/anypose-v5-v1/base-prompt.txt
   auxiliary: .local/production-prompts/character-animation-v1/auxiliary-prompt.txt
+  auxiliary_rear: .local/production-prompts/character-animation-v1/auxiliary-rear-prompt.txt
 motions:
   standing-v3:
     frame_step: 2

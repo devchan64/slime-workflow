@@ -75,6 +75,14 @@ class CharacterAnimationTests(unittest.TestCase):
             state['status']='cancelled'
             self.assertIsNone(jobs.estimate_generation_remaining(job_path,request_record_value,state)['remaining_seconds'])
 
+    def test_rear_auxiliary_selection_keeps_common_base(self):
+        prompt_values={'base':'Common base.','auxiliary':'Front {direction}.','auxiliary_rear':'Rear head {direction}.'}
+        result_values=assets.compose_direction_prompts(prompt_values)
+        for direction_name,record_value in result_values.items():
+            self.assertTrue(record_value['text'].startswith('Common base.\n\n'))
+            self.assertEqual(record_value['auxiliary'].startswith('Rear head'),direction_name.startswith('up_'))
+            self.assertEqual(record_value['words'],len(record_value['text'].split()))
+
     def test_inference_steps_contract(self):
         for step_count_value in (4,30):
             request_record_value=assets.prepare_animation_request({**self.make_selection_record(),'steps':step_count_value})
