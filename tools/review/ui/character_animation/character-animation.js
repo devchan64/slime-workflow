@@ -103,6 +103,13 @@ function renderGenerationStatus(generationStatusRecord){
  animationElementLookup('current-image-position').textContent=isRunningValue&&progressRecordValue?.direction?`${animationDirectionLabels[progressRecordValue.direction]} · ${progressRecordValue.direction_index}/${progressRecordValue.direction_total}번째 (원본 ${progressRecordValue.frame}번)`:'—';
  animationElementLookup('current-inference-step').textContent=isRunningValue&&Number.isInteger(progressRecordValue?.inference_completed)?`${progressRecordValue.inference_completed} / ${progressRecordValue.inference_steps}스텝`:isRunningValue?'스텝 시작 전':'—';
  animationElementLookup('generation-stage-note').textContent=generationStatusRecord.error|| (isRunningValue?'전체 진행률은 저장 완료된 이미지 기준입니다. 추론 스텝은 현재 이미지 한 장의 진행 상황입니다.':generationStatusRecord.status==='completed'?'모든 이미지 저장을 마쳤습니다. 아래에서 결과를 재생할 수 있습니다.':'작업이 종료되었습니다. 완료 수는 종료 시점까지 저장한 이미지 수입니다. 로그에서 상세 내용을 확인하세요.');
+ const estimateRecordValue=generationStatusRecord.estimate;
+ const remainingSecondsValue=estimateRecordValue?.remaining_seconds;
+ const hasTimeEstimate=isRunningValue&&Number.isFinite(remainingSecondsValue);
+ const remainingMinuteCount=hasTimeEstimate?Math.max(1,Math.ceil(remainingSecondsValue/60)):0;
+ animationElementLookup('generation-time-remaining').textContent=hasTimeEstimate?(remainingMinuteCount>=60?`약 ${Math.floor(remainingMinuteCount/60)}시간 ${remainingMinuteCount%60}분`:`약 ${remainingMinuteCount}분`):isRunningValue?'계산 중':'—';
+ animationElementLookup('generation-finish-time').textContent=hasTimeEstimate&&estimateRecordValue.estimated_finish_at?new Date(estimateRecordValue.estimated_finish_at).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}):'—';
+ animationElementLookup('generation-estimate-note').textContent=!isRunningValue?'':hasTimeEstimate?`최근 완료 이미지 ${estimateRecordValue.samples}장의 처리 시간 기준 추정입니다. GPU 부하에 따라 달라질 수 있습니다.`:estimateRecordValue?.reason==='overrun'?'현재 이미지가 평균보다 오래 걸리고 있습니다. 완료 후 예상 시간을 다시 계산합니다.':'첫 이미지가 완료되면 실제 처리 시간을 기준으로 예상 시간을 표시합니다.';
  animationElementLookup('job-location').textContent=`ID: ${generationStatusRecord.id||activeGenerationIdentifier}\n저장 경로: ${generationStatusRecord.path}`;
  animationLogController.update(generationStatusRecord.log);
  animationElementLookup('cancel-generation').disabled=!isRunningValue||cancellationRequestPending;

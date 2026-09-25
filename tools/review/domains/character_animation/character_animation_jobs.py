@@ -64,6 +64,32 @@ def describe_generation_progress(generation_job_path, generation_request_record,
         progress_display_record['stage']='waiting-gpu'
     return progress_display_record
 
+def estimate_generation_remaining(generation_job_path, generation_request_record, generation_status_record):
+    """같은 작업의 최근 완료 이미지 최대 5장으로 남은 시간을 추정한다."""
+    if generation_status_record['status']!='running':
+        return {'remaining_seconds':0 if generation_status_record['status']=='completed' else None,'reason':'finished','samples':0}
+    progress_record_value=generation_status_record['progress']
+    completed_frame_count=progress_record_value['completed']
+    source_frame_records=generation_request_record['frames']
+    completed_duration_values=[]
+    for frame_record_value in source_frame_records[max(0,completed_frame_count-5):completed_frame_count]:
+        frame_result_path=generation_job_path/frame_record_value['direction']/f"frame-{frame_record_value['frame']:04d}"/'result.json'
+        if frame_result_path.exists():
+            duration_seconds_value=json.loads(frame_result_path.read_text()).get('elapsed_seconds')
+            if isinstance(duration_seconds_value,(int,float)) and not isinstance(duration_seconds_value,bool) and 0<duration_seconds_value<float('inf'):
+                completed_duration_values.append(duration_seconds_value)
+    if not completed_duration_values:return {'remaining_seconds':None,'reason':'first-frame','samples':0}
+    average_duration_seconds=sum(completed_duration_values)/len(completed_duration_values)
+    current_elapsed_seconds=0
+    if completed_frame_count<len(source_frame_records):
+        current_frame_record=source_frame_records[completed_frame_count]
+        current_reference_path=generation_job_path/current_frame_record['direction']/f"frame-{current_frame_record['frame']:04d}"/'character-reference.png'
+        if current_reference_path.exists():current_elapsed_seconds=max(0,time.time()-current_reference_path.stat().st_mtime)
+        if current_elapsed_seconds>=average_duration_seconds:
+            return {'remaining_seconds':None,'reason':'overrun','samples':len(completed_duration_values)}
+    remaining_seconds_value=max(0,round(average_duration_seconds*(len(source_frame_records)-completed_frame_count)-current_elapsed_seconds))
+    return {'remaining_seconds':remaining_seconds_value,'estimated_finish_at':datetime.fromtimestamp(time.time()+remaining_seconds_value,ZoneInfo('Asia/Seoul')).isoformat(),'reason':'measured','samples':len(completed_duration_values)}
+
 def read_generation_status(generation_job_identifier):
     generation_job_path = resolve_generation_directory(generation_job_identifier)
     generation_status_record = json.loads((generation_job_path/'status.json').read_text())
@@ -77,6 +103,7 @@ def read_generation_status(generation_job_identifier):
             generation_status_record[record_file_name] = json.loads(record_file_path.read_text())
     generation_status_record.update(id=generation_job_identifier,path=str(generation_job_path),request=json.loads((generation_job_path/'request.json').read_text()))
     generation_status_record['progress']=describe_generation_progress(generation_job_path,generation_status_record['request'],generation_status_record)
+    generation_status_record['estimate']=estimate_generation_remaining(generation_job_path,generation_status_record['request'],generation_status_record)
     return generation_status_record
 
 def start_animation_generation(command_payload_value):

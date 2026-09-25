@@ -61,6 +61,20 @@ class CharacterAnimationTests(unittest.TestCase):
                 self.assertEqual(result_record_value['completed'],1)
                 self.assertNotIn('direction',result_record_value)
 
+    def test_remaining_time_uses_completed_images(self):
+        request_record_value=assets.prepare_animation_request(self.make_selection_record())
+        with tempfile.TemporaryDirectory() as temporary_root_name:
+            job_path=Path(temporary_root_name)
+            state={'status':'running','progress':{'completed':0}}
+            self.assertIsNone(jobs.estimate_generation_remaining(job_path,request_record_value,state)['remaining_seconds'])
+            result_path=job_path/'down_left/frame-0001/result.json';result_path.parent.mkdir(parents=True);result_path.write_text('{"elapsed_seconds":120}')
+            state['progress']['completed']=1
+            estimate=jobs.estimate_generation_remaining(job_path,request_record_value,state)
+            self.assertEqual(estimate['remaining_seconds'],840)
+            self.assertEqual(estimate['samples'],1)
+            state['status']='cancelled'
+            self.assertIsNone(jobs.estimate_generation_remaining(job_path,request_record_value,state)['remaining_seconds'])
+
     def test_inference_steps_contract(self):
         for step_count_value in (4,30):
             request_record_value=assets.prepare_animation_request({**self.make_selection_record(),'steps':step_count_value})
