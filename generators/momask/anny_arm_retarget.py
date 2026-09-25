@@ -6,7 +6,8 @@ MAX_ARM_TWIST_DEGREES = 25
 MAX_TWIST_FRAME_DEGREES = 5
 
 
-def calculate_arm_rotations(current_joint_points, rest_bone_positions, rest_bone_rotations, previous_arm_planes):
+def calculate_arm_rotations(current_joint_points, rest_bone_positions, rest_bone_rotations, previous_arm_planes, arm_correction_values=None):
+    arm_correction_values = arm_correction_values or {}
     arm_rotation_values = {}
     for current_side_label, current_joint_indices in [('L', (16, 18, 20)), ('R', (17, 19, 21))]:
         shoulder_joint_index, elbow_joint_index, wrist_joint_index = current_joint_indices
@@ -32,10 +33,12 @@ def calculate_arm_rotations(current_joint_points, rest_bone_positions, rest_bone
             desired_plane_normal = target_elbow_normal-target_segment_axis*target_elbow_normal.dot(target_segment_axis)
             desired_plane_normal.normalize()
             signed_twist_angle = math.atan2(target_segment_axis.dot(swung_plane_normal.cross(desired_plane_normal)), swung_plane_normal.dot(desired_plane_normal))
-            signed_twist_angle = max(-math.radians(MAX_ARM_TWIST_DEGREES), min(math.radians(MAX_ARM_TWIST_DEGREES), signed_twist_angle))
+            signed_twist_angle *= arm_correction_values.get('twist_strength',1.0)
+            maximum_segment_twist = math.radians(arm_correction_values.get('upper_arm_twist_degrees' if bone_name_prefix=='upperarm' else 'forearm_twist_degrees',MAX_ARM_TWIST_DEGREES))
+            signed_twist_angle = max(-maximum_segment_twist, min(maximum_segment_twist, signed_twist_angle))
             previous_twist_key = bone_name_prefix+'.'+current_side_label
             previous_twist_angle = previous_arm_planes.get(previous_twist_key, signed_twist_angle)
-            maximum_twist_step = math.radians(MAX_TWIST_FRAME_DEGREES)
+            maximum_twist_step = math.radians(arm_correction_values.get('max_twist_step_degrees',MAX_TWIST_FRAME_DEGREES))
             signed_twist_angle = previous_twist_angle + max(-maximum_twist_step, min(maximum_twist_step, signed_twist_angle-previous_twist_angle))
             previous_arm_planes[previous_twist_key] = signed_twist_angle
             segment_world_rotation = Quaternion(target_segment_axis, signed_twist_angle) @ segment_swing_rotation

@@ -1,0 +1,5 @@
+# 스트레칭의 추가 축 회전 보정만 제한한다. 팔을 드는 방향은 유지한다.
+upper_arm_twist_degrees: 8
+forearm_twist_degrees: 12
+max_twist_step_degrees: 2
+twist_strength: 0.4
