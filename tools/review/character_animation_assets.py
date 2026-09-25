@@ -6,6 +6,8 @@ import yaml
 
 WORKFLOW_ROOT_DIRECTORY = Path(__file__).resolve().parents[2]
 ANIMATION_CONFIG_PATH = WORKFLOW_ROOT_DIRECTORY/'generators/animation/config/character_animation.yaml'
+SUPPORTED_FRAME_STEPS = (1,2,4,8)
+DIRECTION_PROMPT_LABELS = {'down_left':'forward-left, showing the front-left view','down_right':'forward-right, showing the front-right view','up_left':'backward-left, showing the rear-left view','up_right':'backward-right, showing the rear-right view'}
 SUPPORTED_DIRECTION_NAMES = ('down_left','down_right','up_left','up_right')
 
 class UniqueMappingLoader(yaml.SafeLoader):
@@ -41,8 +43,10 @@ def load_animation_configuration():
     if set(animation_config_record['prompts']) != {'base','auxiliary'}:
         raise ValueError('기본·보조 프롬프트 설정 필요')
     for animation_motion_record in animation_config_record['motions'].values():
-        if set(animation_motion_record) != {'label','root','manifest','openpose','anny'}:
+        if set(animation_motion_record) != {'label','root','manifest','openpose','anny','frame_step'}:
             raise ValueError('모션 등록 형식 오류')
+        if type(animation_motion_record['frame_step']) is not int or animation_motion_record['frame_step'] not in SUPPORTED_FRAME_STEPS:
+            raise ValueError('기본 프레임 간격 오류')
     for animation_character_record in animation_config_record['characters'].values():
         if set(animation_character_record) != {'label','root','manifest'}:
             raise ValueError('캐릭터 등록 형식 오류')
@@ -59,12 +63,12 @@ def build_animation_catalog():
     animation_motion_records = []
     for animation_motion_identifier, animation_motion_record in animation_config_record['motions'].items():
         motion_manifest_record = read_asset_mapping(resolve_asset_path(animation_motion_record['root']+'/'+animation_motion_record['manifest']))
-        animation_motion_records.append({'id':animation_motion_identifier,'label':animation_motion_record['label'],'frames':motion_manifest_record['frames'],'fps':motion_manifest_record['fps']})
-    return {'motions':animation_motion_records,'characters':[{'id':animation_character_identifier,'label':animation_character_record['label']} for animation_character_identifier,animation_character_record in animation_config_record['characters'].items()], 'directions':list(SUPPORTED_DIRECTION_NAMES),'prompts':read_fixed_prompts(animation_config_record)}
+        animation_motion_records.append({'id':animation_motion_identifier,'label':animation_motion_record['label'],'frames':motion_manifest_record['frames'],'fps':motion_manifest_record['fps'],'frame_step':animation_motion_record['frame_step']})
+    return {'motions':animation_motion_records,'characters':[{'id':animation_character_identifier,'label':animation_character_record['label']} for animation_character_identifier,animation_character_record in animation_config_record['characters'].items()], 'directions':list(SUPPORTED_DIRECTION_NAMES),'frame_steps':list(SUPPORTED_FRAME_STEPS),'prompts':read_fixed_prompts(animation_config_record),'direction_prompts':compose_direction_prompts(read_fixed_prompts(animation_config_record))}
 
 def prepare_animation_request(command_payload_value):
-    if set(command_payload_value) != {'motion','character','source','directions'}:
-        raise ValueError('motion·character·source·directions만 허용합니다. 프롬프트는 수정할 수 없습니다.')
+    if set(command_payload_value) not in ({'motion','character','source','directions'},{'motion','character','source','directions','frame_step'}):
+        raise ValueError('motion·character·source·directions·frame_step만 허용합니다. 프롬프트는 수정할 수 없습니다.')
     animation_config_record = load_animation_configuration()
     for selection_field_name, selection_group_name in (('motion','motions'),('character','characters')):
         if not isinstance(command_payload_value[selection_field_name],str) or command_payload_value[selection_field_name] not in animation_config_record[selection_group_name]:
@@ -75,6 +79,9 @@ def prepare_animation_request(command_payload_value):
     if command_payload_value['source'] not in ('openpose','anny'):
         raise ValueError('포즈 입력은 openpose 또는 anny입니다.')
     animation_motion_record = animation_config_record['motions'][command_payload_value['motion']]
+    selected_frame_step = command_payload_value.get('frame_step',animation_motion_record['frame_step'])
+    if type(selected_frame_step) is not int or selected_frame_step not in SUPPORTED_FRAME_STEPS:
+        raise ValueError('프레임 간격은 1·2·4·8 중 하나여야 합니다.')
     animation_character_record = animation_config_record['characters'][command_payload_value['character']]
     motion_manifest_path = resolve_asset_path(animation_motion_record['root']+'/'+animation_motion_record['manifest'])
     character_manifest_path = resolve_asset_path(animation_character_record['root']+'/'+animation_character_record['manifest'])
@@ -86,7 +93,7 @@ def prepare_animation_request(command_payload_value):
         character_file_hash = hash_asset_file(character_file_path)
         if character_file_hash != character_manifest_record['baseline_crops']['files'][direction_name_value]:
             raise ValueError('캐릭터 레퍼런스 무결성 오류')
-        for current_frame_number in range(1,motion_manifest_record['frames']+1):
+        for current_frame_number in range(1,motion_manifest_record['frames']+1,selected_frame_step):
             pose_relative_path = animation_motion_record[command_payload_value['source']].format(direction=direction_name_value,frame=current_frame_number)
             pose_reference_path = resolve_asset_path(animation_motion_record['root']+'/'+pose_relative_path)
             pose_reference_hash = hash_asset_file(pose_reference_path)
@@ -95,7 +102,7 @@ def prepare_animation_request(command_payload_value):
             generation_frame_records.append({'direction':direction_name_value,'frame':current_frame_number,'character_path':str(character_file_path.relative_to(WORKFLOW_ROOT_DIRECTORY)),'character_sha256':character_file_hash,'pose_path':str(pose_reference_path.relative_to(WORKFLOW_ROOT_DIRECTORY)),'pose_sha256':pose_reference_hash})
     fixed_prompt_values = read_fixed_prompts(animation_config_record)
     combined_prompt_text = '\n\n'.join(fixed_prompt_values.values())
-    return {**command_payload_value,'prompts':fixed_prompt_values,'prompt_sha256':hashlib.sha256(combined_prompt_text.encode()).hexdigest(),'prompt_words':len(combined_prompt_text.split()),'frames_per_direction':motion_manifest_record['frames'],'fps':motion_manifest_record['fps'],'motion_manifest_sha256':hash_asset_file(motion_manifest_path),'character_manifest_sha256':hash_asset_file(character_manifest_path),'frames':generation_frame_records,'sampling':'none','model':'Qwen/Qwen-Image-Edit-2511','steps':4}
+    return {**command_payload_value,'frame_step':selected_frame_step,'source_frames_per_direction':motion_manifest_record['frames'],'selected_frame_numbers':list(range(1,motion_manifest_record['frames']+1,selected_frame_step)),'direction_prompts':compose_direction_prompts(fixed_prompt_values),'prompts':fixed_prompt_values,'prompt_sha256':hashlib.sha256(combined_prompt_text.encode()).hexdigest(),'prompt_words':len(combined_prompt_text.split()),'frames_per_direction':len(range(1,motion_manifest_record['frames']+1,selected_frame_step)),'fps':motion_manifest_record['fps'],'motion_manifest_sha256':hash_asset_file(motion_manifest_path),'character_manifest_sha256':hash_asset_file(character_manifest_path),'frames':generation_frame_records,'sampling':'none' if selected_frame_step==1 else 'frame-step','model':'Qwen/Qwen-Image-Edit-2511','steps':4}
 
 def resolve_motion_preview(selected_motion_name, selected_source_kind, selected_direction_name, selected_frame_number):
     """프롬프트·캐릭터·생성 이력 없이 등록 모션의 단일 프레임을 조회한다."""
@@ -111,3 +118,14 @@ def resolve_motion_preview(selected_motion_name, selected_source_kind, selected_
     if hash_asset_file(pose_reference_path) != motion_manifest_record['files'][pose_relative_path]:
         raise ValueError('모션 프레임 무결성 오류')
     return pose_reference_path
+
+
+def compose_direction_prompts(fixed_prompt_values):
+    direction_prompt_records = {}
+    for direction_name_value, direction_label_text in DIRECTION_PROMPT_LABELS.items():
+        auxiliary_prompt_text = fixed_prompt_values['auxiliary'].format(direction=direction_label_text)
+        combined_prompt_text = fixed_prompt_values['base']+'\n\n'+auxiliary_prompt_text
+        if len(combined_prompt_text.split()) >= 100:
+            raise ValueError('방향별 프롬프트는 100단어 미만이어야 합니다.')
+        direction_prompt_records[direction_name_value] = {'auxiliary':auxiliary_prompt_text,'text':combined_prompt_text,'sha256':hashlib.sha256(combined_prompt_text.encode()).hexdigest(),'words':len(combined_prompt_text.split())}
+    return direction_prompt_records

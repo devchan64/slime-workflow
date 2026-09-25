@@ -1,4 +1,4 @@
-"""고정된 제작 자산의 모든 프레임을 Qwen 포즈 편집으로 생성한다."""
+"""고정된 제작 자산의 선택한 간격의 프레임을 Qwen 포즈 편집으로 생성한다."""
 from pathlib import Path
 import argparse
 import json
@@ -31,8 +31,12 @@ def generate_character_frame(generation_job_path,current_frame_index):
             reference_background_image.alpha_composite(reference_image_value.convert('RGBA'))
             reference_background_image.convert('RGB').save(reference_output_path)
         input_reference_paths[reference_role_name]=reference_output_path
+    selected_direction_prompt=generation_request_record.get('direction_prompts',{}).get(source_frame_record['direction'])
+    selected_prompt_text=selected_direction_prompt['text'] if selected_direction_prompt else '\n\n'.join(generation_request_record['prompts'].values())
+    selected_prompt_hash=selected_direction_prompt['sha256'] if selected_direction_prompt else generation_request_record['prompt_sha256']
+    selected_prompt_words=selected_direction_prompt['words'] if selected_direction_prompt else generation_request_record['prompt_words']
     selected_anny_mode=generation_request_record['source']=='anny'
-    execute_pose_generation(trial_output_root=frame_output_directory,prompt_text_value='\n\n'.join(generation_request_record['prompts'].values()),character_image_path=input_reference_paths['character'],pose_reference_path=input_reference_paths['pose'],pose_reference_kind='rig' if selected_anny_mode else 'openpose',selected_inference_steps=4,prompt_source_record={'kind':'registered-character-animation','motion':generation_request_record['motion'],'sha256':generation_request_record['prompt_sha256'],'words':generation_request_record['prompt_words']},enable_anypose_adapter=selected_anny_mode,enable_lightning_adapter=True,enable_standalone_lightning_adapter=not selected_anny_mode)
+    execute_pose_generation(trial_output_root=frame_output_directory,prompt_text_value=selected_prompt_text,character_image_path=input_reference_paths['character'],pose_reference_path=input_reference_paths['pose'],pose_reference_kind='rig' if selected_anny_mode else 'openpose',selected_inference_steps=4,prompt_source_record={'kind':'registered-character-animation','motion':generation_request_record['motion'],'sha256':selected_prompt_hash,'words':selected_prompt_words,'direction':source_frame_record['direction']},enable_anypose_adapter=selected_anny_mode,enable_lightning_adapter=True,enable_standalone_lightning_adapter=not selected_anny_mode)
 
 
 def generate_character_animation(generation_job_path):
@@ -49,7 +53,7 @@ def generate_character_animation(generation_job_path):
             result_relative_path=f"{source_frame_record['direction']}/frame-{source_frame_record['frame']:04d}/result.png"
             if not (generation_job_path/result_relative_path).is_file():raise ValueError('생성 이미지 누락')
             generation_result_frames[source_frame_record['direction']].append(result_relative_path)
-        write_record_atomically(generation_job_path/'result.json',{'fps':generation_request_record['fps'],'frames':generation_result_frames,'motion':generation_request_record['motion'],'source':generation_request_record['source'],'sampling':'none'})
+        write_record_atomically(generation_job_path/'result.json',{'fps':generation_request_record['fps'],'frames':generation_result_frames,'motion':generation_request_record['motion'],'source':generation_request_record['source'],'sampling':generation_request_record['sampling'],'frame_step':generation_request_record.get('frame_step',1),'source_frame_numbers':{direction_name_value:[frame_record_value['frame'] for frame_record_value in generation_request_record['frames'] if frame_record_value['direction']==direction_name_value] for direction_name_value in generation_request_record['directions']}})
         write_record_atomically(generation_job_path/'progress.json',{'completed':len(generation_request_record['frames']),'total':len(generation_request_record['frames'])})
 
 if __name__=='__main__':

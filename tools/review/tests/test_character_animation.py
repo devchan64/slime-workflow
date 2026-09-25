@@ -23,12 +23,25 @@ class CharacterAnimationTests(unittest.TestCase):
         for motion_identifier_value,expected_frame_count in [('standing-v3',16),('walking-v8',32),('stretch-v1',120)]:
             for source_kind_value in ('openpose','anny'):
                 selection_request_record=self.make_selection_record()
-                selection_request_record.update(motion=motion_identifier_value,source=source_kind_value,directions=list(assets.SUPPORTED_DIRECTION_NAMES))
+                selection_request_record.update(motion=motion_identifier_value,source=source_kind_value,frame_step=1,directions=list(assets.SUPPORTED_DIRECTION_NAMES))
                 generation_request_record=assets.prepare_animation_request(selection_request_record)
                 self.assertEqual(len(generation_request_record['frames']),expected_frame_count*4)
                 self.assertEqual(generation_request_record['fps'],4)
                 self.assertEqual(generation_request_record['frames'][-1]['frame'],expected_frame_count)
                 self.assertLess(generation_request_record['prompt_words'],100)
+
+    def test_frame_step_defaults_and_direction_prompts(self):
+        request_record_value=assets.prepare_animation_request(self.make_selection_record())
+        self.assertEqual(request_record_value['selected_frame_numbers'],list(range(1,17,2)))
+        self.assertEqual(request_record_value['frames_per_direction'],8)
+        for direction_name_value,prompt_record_value in request_record_value['direction_prompts'].items():
+            self.assertIn(assets.DIRECTION_PROMPT_LABELS[direction_name_value],prompt_record_value['text'])
+            self.assertIn('ankles',prompt_record_value['text'])
+            self.assertLess(prompt_record_value['words'],100)
+        for invalid_step_value in (0,3,True,'2'):
+            with self.assertRaises(ValueError):assets.prepare_animation_request({**self.make_selection_record(),'frame_step':invalid_step_value})
+        for frame_step_value in (1,2,4,8):
+            self.assertEqual(assets.prepare_animation_request({**self.make_selection_record(),'frame_step':frame_step_value})['selected_frame_numbers'],list(range(1,17,frame_step_value)))
 
     def test_original_asset_preview_bounds_and_sources(self):
         for motion_identifier_value,frame_count_value in [('standing-v3',16),('walking-v8',32),('stretch-v1',120)]:
@@ -122,13 +135,14 @@ class CharacterAnimationTests(unittest.TestCase):
             (generation_job_path/'request.json').write_text(json.dumps(generation_request_record))
             def complete_mock_frame(command_argument_values,check):
                 current_frame_index=int(command_argument_values[-1])
-                result_image_path=generation_job_path/'down_left'/f'frame-{current_frame_index+1:04d}'/'result.png'
+                source_frame_number=generation_request_record['frames'][current_frame_index]['frame']
+                result_image_path=generation_job_path/'down_left'/f'frame-{source_frame_number:04d}'/'result.png'
                 result_image_path.parent.mkdir(parents=True);result_image_path.write_bytes(b'mocked')
             with patch.object(worker,'WORKFLOW_ROOT_DIRECTORY',generation_job_path),patch.object(worker.subprocess,'run',side_effect=complete_mock_frame) as subprocess_run_mock:
                 worker.generate_character_animation(generation_job_path)
             result_record_value=json.loads((generation_job_path/'result.json').read_text())
-            self.assertEqual(subprocess_run_mock.call_count,16)
+            self.assertEqual(subprocess_run_mock.call_count,8)
             self.assertEqual(result_record_value['fps'],4)
-            self.assertEqual(len(result_record_value['frames']['down_left']),16)
+            self.assertEqual(len(result_record_value['frames']['down_left']),8)
 
 if __name__=='__main__':unittest.main()

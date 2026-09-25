@@ -4,18 +4,21 @@ prompts:
   auxiliary: .local/production-prompts/character-animation-v1/auxiliary-prompt.txt
 motions:
   standing-v3:
+    frame_step: 2
     label: 대기 v3
     root: assets/motion-sheet/momask-standing-v3
     manifest: manifest.yaml
     openpose: openpose/{direction}/openpose-{frame:04d}.png
     anny: anny/{direction}/anny-{frame:04d}.png
   walking-v8:
+    frame_step: 1
     label: 걷기 v8
     root: assets/motion-sheet/mannequin-walk-v8
     manifest: artifact.json
     openpose: '{direction}/openpose-{frame:04d}.png'
     anny: '{direction}/preview-{frame:04d}.png'
   stretch-v1:
+    frame_step: 1
     label: 스트레칭 v1
     root: assets/motion-sheet/momask-stretch-v1
     manifest: manifest.yaml

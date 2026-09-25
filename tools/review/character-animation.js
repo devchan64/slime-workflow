@@ -2,17 +2,21 @@
 const animationDirectionLabels={down_left:'전방 좌측',down_right:'전방 우측',up_left:'후방 좌측',up_right:'후방 우측'};
 const animationElementLookup=elementIdentifier=>document.getElementById(elementIdentifier);
 const animationLogController=ManagementLogViewer.attach(animationElementLookup('execution-log'),animationElementLookup('execution-log-text'));
+let lastSelectedMotionIdentifier=null;
 let animationCatalogRecord=null,activeGenerationIdentifier=null,playbackResultRecord=null,playbackJobIdentifier=null,currentFramePosition=0,animationPlaybackTimer=null,playbackRequestCounter=0;
 async function executeAnimationCommand(commandOperationName,commandPayloadValue={}){
  const commandResponseValue=await fetch('/management/command',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({service:'character-animation',command:commandOperationName,payload:commandPayloadValue})});
  const commandResponseRecord=await commandResponseValue.json();if(!commandResponseValue.ok)throw Error(commandResponseRecord.error);return commandResponseRecord;
 }
-function readAnimationSelection(){return {motion:animationElementLookup('motion-choice').value,character:animationElementLookup('character-choice').value,source:animationElementLookup('source-choice').value,directions:Array.from(document.querySelectorAll('[name=animation-direction]:checked')).map(directionCheckboxElement=>directionCheckboxElement.value)};}
+function readAnimationSelection(){return {motion:animationElementLookup('motion-choice').value,character:animationElementLookup('character-choice').value,source:animationElementLookup('source-choice').value,frame_step:Number(animationElementLookup('generation-frame-step').value),directions:Array.from(document.querySelectorAll('[name=animation-direction]:checked')).map(directionCheckboxElement=>directionCheckboxElement.value)};}
 function refreshAnimationSelection(){
  if(!animationCatalogRecord)return;
  const selectedAnimationValues=readAnimationSelection(),selectedMotionRecord=animationCatalogRecord.motions.find(motionRecordValue=>motionRecordValue.id===selectedAnimationValues.motion);
+ if(lastSelectedMotionIdentifier!==selectedMotionRecord.id){animationElementLookup('generation-frame-step').value=selectedMotionRecord.frame_step;selectedAnimationValues.frame_step=selectedMotionRecord.frame_step;lastSelectedMotionIdentifier=selectedMotionRecord.id;}
+ const selectedFrameCount=Math.ceil(selectedMotionRecord.frames/selectedAnimationValues.frame_step);
+ animationElementLookup('auxiliary-prompt').textContent=selectedAnimationValues.directions.map(directionNameValue=>animationDirectionLabels[directionNameValue]+'\n'+animationCatalogRecord.direction_prompts[directionNameValue].auxiliary).join('\n\n')||'생성할 방향을 선택하세요.';
  window.selectMotionAssetPreview(selectedMotionRecord);
- animationElementLookup('frame-count').textContent=`${selectedMotionRecord.frames}프레임 × ${selectedAnimationValues.directions.length}방향 = ${selectedMotionRecord.frames*selectedAnimationValues.directions.length}장 · 방향당 ${selectedMotionRecord.frames/selectedMotionRecord.fps}초`;
+ animationElementLookup('frame-count').textContent=`원본 ${selectedMotionRecord.frames}프레임 · ${selectedAnimationValues.frame_step}프레임 간격 → ${selectedFrameCount}프레임 × ${selectedAnimationValues.directions.length}방향 = ${selectedFrameCount*selectedAnimationValues.directions.length}장 · ${selectedMotionRecord.fps} FPS 재생 시 방향당 ${selectedFrameCount/selectedMotionRecord.fps}초`;
  const previewDirectionName=selectedAnimationValues.directions[0]||'down_left';
  for(const referenceRoleName of ['character','pose']){const previewImageElement=animationElementLookup(referenceRoleName+'-preview'),previewImagePath=`/character-animation/reference/${selectedAnimationValues.motion}/${selectedAnimationValues.character}/${selectedAnimationValues.source}/${previewDirectionName}/${referenceRoleName}`;if(previewImageElement.getAttribute('src')!==previewImagePath)previewImageElement.src=previewImagePath;}
  animationElementLookup('submit').disabled=Boolean(activeGenerationIdentifier)||!selectedAnimationValues.directions.length;

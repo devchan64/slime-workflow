@@ -178,6 +178,7 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
         if operation_command_name=='generate':
             operation_argument_parser.add_argument('--detach',action='store_true',help='작업 ID 출력 후 반환')
             if service_command_name=='character-animation':
+                operation_argument_parser.add_argument('--frame-step',type=int,choices=(1,2,4,8),help='원본 프레임 간격. 기본: 대기 2, 나머지 1')
                 operation_argument_parser.add_argument('--motion',required=True,help='catalog의 모션 ID')
                 operation_argument_parser.add_argument('--character',required=True,help='catalog의 캐릭터 ID')
                 operation_argument_parser.add_argument('--source',choices=('openpose','anny'),default='openpose')
@@ -211,6 +212,7 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
     if operation_command_name=='generate':
         if service_command_name=='character-animation':
             command_payload_value={'motion':command_argument_values.motion,'character':command_argument_values.character,'source':command_argument_values.source,'directions':command_argument_values.directions}
+            if command_argument_values.frame_step is not None:command_payload_value['frame_step']=command_argument_values.frame_step
         elif service_command_name=='momask':
             command_payload_value={'action':command_argument_values.action,'directions':command_argument_values.directions}
         else:
