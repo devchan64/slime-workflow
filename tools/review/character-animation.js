@@ -18,7 +18,7 @@ function refreshAnimationSelection(){
  window.selectMotionAssetPreview(selectedMotionRecord);
  animationElementLookup('frame-count').textContent=`원본 ${selectedMotionRecord.frames}프레임 · ${selectedAnimationValues.frame_step}프레임 간격 → ${selectedFrameCount}프레임 × ${selectedAnimationValues.directions.length}방향 = ${selectedFrameCount*selectedAnimationValues.directions.length}장 · ${selectedMotionRecord.fps} FPS 재생 시 방향당 ${selectedFrameCount/selectedMotionRecord.fps}초`;
  const previewDirectionName=selectedAnimationValues.directions[0]||'down_left';
- for(const referenceRoleName of ['character','pose']){const previewImageElement=animationElementLookup(referenceRoleName+'-preview'),previewImagePath=`/character-animation/reference/${selectedAnimationValues.motion}/${selectedAnimationValues.character}/${selectedAnimationValues.source}/${previewDirectionName}/${referenceRoleName}`;if(previewImageElement.getAttribute('src')!==previewImagePath)previewImageElement.src=previewImagePath;}
+ for(const referenceRoleName of ['character']){const previewImageElement=animationElementLookup(referenceRoleName+'-preview'),previewImagePath=`/character-animation/reference/${selectedAnimationValues.motion}/${selectedAnimationValues.character}/${selectedAnimationValues.source}/${previewDirectionName}/${referenceRoleName}`;if(previewImageElement.getAttribute('src')!==previewImagePath)previewImageElement.src=previewImagePath;}
  animationElementLookup('submit').disabled=Boolean(activeGenerationIdentifier)||!selectedAnimationValues.directions.length;
 }
 function stopAnimationPlayback(){clearInterval(animationPlaybackTimer);animationPlaybackTimer=null;}
