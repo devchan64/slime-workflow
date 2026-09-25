@@ -271,6 +271,10 @@ def run_review_server(parsed_argument_values):
         def __init__(self,*request_handler_arguments,**request_handler_options):
             super().__init__(*request_handler_arguments,directory=str(review_root_directory),**request_handler_options)
         def do_GET(self):
+            if urlsplit(self.path).path=='/management/workflow-ui.js':
+                response_content=(Path(__file__).resolve().parent/'management-workflow.js').read_bytes()
+                self.send_response(200);self.send_header('Content-Type','text/javascript; charset=utf-8');self.send_header('Content-Length',str(len(response_content)));self.end_headers();self.wfile.write(response_content)
+                return
             if is_review_live_reload_request(self.path):
                 encoded_record = json.dumps({'instanceId': review_server_instance_id}).encode()
                 self.send_response(200)

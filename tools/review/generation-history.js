@@ -1,6 +1,6 @@
 // 생성기별 페이지는 빈 컨테이너와 API 경로만 제공한다. 이력 UI는 이 파일에서 공통 관리한다.
 const generationHistoryContainer=document.querySelector('#generation-history');
-generationHistoryContainer.innerHTML='<h2>생성 이력</h2><p>결과는 누적 보관됩니다. 목록 초기화는 수동으로 실행하며 원본 파일은 유지됩니다.</p><div><button type="button" id="history-refresh">이력 새로고침</button> <button type="button" id="history-reset">이력 수동 초기화</button></div><p id="history-status" role="status"></p><ul id="history-list"></ul><div class="history-pager"><button id="history-prev" type="button">← 이전</button> <span id="history-page"></span> <button id="history-next" type="button">다음 →</button></div><details id="history-log-details"><summary>선택한 작업 로그</summary><pre id="history-log">이력에서 로그 보기를 선택하세요.</pre></details>';
+generationHistoryContainer.innerHTML='<h2>생성 이력</h2><p>결과는 누적 보관됩니다. 목록 초기화는 수동으로 실행하며 원본 파일은 유지됩니다.</p><div><button type="button" id="history-refresh">이력 새로고침</button> <button type="button" id="history-reset">이력 수동 초기화</button></div><div class="history-filters"><label>이력 검색<input id="history-search" type="search" placeholder="ID·모션·프롬프트 검색"></label><label>작업 상태<select id="history-state-filter"><option value="">전체 상태</option><option value="completed">완료</option><option value="running">생성 중</option><option value="failed">실패</option><option value="cancelled">취소됨</option></select></label></div><p id="history-status" role="status"></p><ul id="history-list"></ul><div class="history-pager"><button id="history-prev" type="button">← 이전</button> <span id="history-page"></span> <button id="history-next" type="button">다음 →</button></div><details id="history-log-details"><summary>선택한 작업 로그</summary><pre id="history-log">이력에서 로그 보기를 선택하세요.</pre></details>';
 const generationHistoryStyles=document.createElement('style');
 generationHistoryStyles.textContent='#generation-history{margin-top:24px;padding:18px;border:1px solid var(--line, #314055);border-radius:12px}#history-list details{padding:12px 0;border-bottom:1px solid var(--line, #314055)}#history-list summary{cursor:pointer;overflow-wrap:anywhere}#history-list pre{white-space:pre-wrap;max-height:220px;overflow:auto}#history-list button,#history-list a{display:inline-block;margin:6px 10px 0 0}';
 generationHistoryStyles.textContent+='#history-list{list-style:none;padding:0}#history-list>li{padding:12px 0;border-bottom:1px solid var(--line, #314055)}#history-list>li.selected{background:var(--panel, #192230);border-radius:8px;padding:12px}#history-list .history-meta{font-size:12px;color:var(--muted, #a7b5c8);overflow-wrap:anywhere}#history-log{white-space:pre-wrap;max-height:220px;overflow:auto}';
@@ -21,20 +21,27 @@ document.querySelector('#history-prev').onclick=()=>{currentHistoryPage--;refres
 document.querySelector('#history-next').onclick=()=>{currentHistoryPage++;refreshGenerationHistory()};
 const historyRoutePrefix=document.querySelector('#generation-history').dataset.route;
 const historyStatusElement=document.querySelector('#history-status');
+let historyRequestVersion=0;
 async function refreshGenerationHistory(){
+ const currentRequestVersion=++historyRequestVersion;
  try{
   const currentHistoryResponse=await fetch(historyRoutePrefix+'/history');
   const currentHistoryPayload=await currentHistoryResponse.json();
   if(!currentHistoryResponse.ok)throw Error(currentHistoryPayload.error);
+  if(currentRequestVersion!==historyRequestVersion)return;
+  const historySearchText=document.querySelector('#history-search').value.trim().toLocaleLowerCase();
+  const historyStateValue=document.querySelector('#history-state-filter').value;
+  const visibleHistoryRecords=currentHistoryPayload.records.filter(historyRecordValue=>(!historyStateValue||historyRecordValue.status.status===historyStateValue)&&(!historySearchText||JSON.stringify([historyRecordValue.id,historyRecordValue.request]).toLocaleLowerCase().includes(historySearchText)));
   const currentHistoryList=document.querySelector('#history-list');
   const currentOpenRecords=new Set(Array.from(currentHistoryList.querySelectorAll('details[open]')).map(currentOpenElement=>currentOpenElement.dataset.id));currentHistoryList.replaceChildren();
-  const historyPageCount=Math.max(1,Math.ceil(currentHistoryPayload.records.length/historyPageSize));currentHistoryPage=Math.min(Math.max(1,currentHistoryPage),historyPageCount);
+  const historyPageCount=Math.max(1,Math.ceil(visibleHistoryRecords.length/historyPageSize));currentHistoryPage=Math.min(Math.max(1,currentHistoryPage),historyPageCount);
   document.querySelector('#history-page').textContent=currentHistoryPage+' / '+historyPageCount;
   document.querySelector('#history-prev').disabled=currentHistoryPage<=1;document.querySelector('#history-next').disabled=currentHistoryPage>=historyPageCount;
-  for(const currentHistoryRecord of currentHistoryPayload.records.slice((currentHistoryPage-1)*historyPageSize,currentHistoryPage*historyPageSize)){
+  for(const currentHistoryRecord of visibleHistoryRecords.slice((currentHistoryPage-1)*historyPageSize,currentHistoryPage*historyPageSize)){
    const historyListRow=document.createElement('li');historyListRow.classList.toggle('selected',currentHistoryRecord.id===selectedHistoryIdentifier);
    const historyRecordMeta=document.createElement('div');historyRecordMeta.className='history-meta';historyRecordMeta.textContent=currentHistoryRecord.created_at+' · '+currentHistoryRecord.id;historyListRow.append(historyRecordMeta);
    for(const [buttonLabel,buttonAction] of [['ID 복사',()=>navigator.clipboard.writeText(currentHistoryRecord.id).then(()=>historyStatusElement.textContent='ID를 복사했습니다.').catch(()=>historyStatusElement.textContent='ID 복사 실패')],['로그 보기',()=>{selectedHistoryIdentifier=currentHistoryRecord.id;document.querySelector('#history-log-details').open=true;loadSelectedHistoryLog();refreshGenerationHistory()}]]){const historyActionButton=document.createElement('button');historyActionButton.type='button';historyActionButton.textContent=buttonLabel;historyActionButton.onclick=buttonAction;historyListRow.append(historyActionButton)}
+   const historyStateLabel=document.createElement('span');historyStateLabel.className='history-state-label';historyStateLabel.dataset.state=currentHistoryRecord.status.status;historyStateLabel.textContent=({running:'생성 중',completed:'완료',cancelled:'취소됨',failed:'실패',missing:'파일 없음'}[currentHistoryRecord.status.status]||currentHistoryRecord.status.status);historyListRow.prepend(historyStateLabel);
    const currentHistoryArticle=document.createElement('details');currentHistoryArticle.dataset.id=currentHistoryRecord.id;currentHistoryArticle.open=currentOpenRecords.has(currentHistoryRecord.id);
    const currentHistorySummary=document.createElement('summary');
    currentHistorySummary.textContent=currentHistoryRecord.created_at+' · '+({running:'생성 중',completed:'완료',cancelled:'취소됨',failed:'실패',missing:'파일 없음'}[currentHistoryRecord.status.status]||currentHistoryRecord.status.status)+' · '+(currentHistoryRecord.request.motion?[currentHistoryRecord.request.motion,currentHistoryRecord.request.character,currentHistoryRecord.request.source,currentHistoryRecord.request.directions.join(', '),(currentHistoryRecord.request.frame_step||1)+'프레임 간격',(currentHistoryRecord.request.steps||4)===4?'4스텝 Lightning':'30스텝'].join(' · '):currentHistoryRecord.request.attributes?'ANNY 속성':(currentHistoryRecord.request.steps||4)+'스텝');
@@ -48,9 +55,13 @@ async function refreshGenerationHistory(){
    if(currentHistoryRecord.status.error){const currentErrorElement=document.createElement('p');currentErrorElement.textContent=currentHistoryRecord.status.error;currentHistoryArticle.append(currentErrorElement);}
    historyListRow.append(currentHistoryArticle);currentHistoryList.append(historyListRow);
   }
-  historyStatusElement.textContent='총 '+currentHistoryPayload.records.length+'건 · 최신순';
+  historyStatusElement.textContent='전체 '+currentHistoryPayload.records.length+'건 · 표시 '+visibleHistoryRecords.length+'건 · 최신순';
+  if(!visibleHistoryRecords.length){const emptyHistoryMessage=document.createElement('li');emptyHistoryMessage.textContent=currentHistoryPayload.records.length?'조건에 맞는 이력이 없습니다. 검색어나 상태 필터를 변경하세요.':'아직 생성 이력이 없습니다. 작업을 생성하면 이곳에서 결과를 다시 확인할 수 있습니다.';currentHistoryList.append(emptyHistoryMessage);}
  }catch(currentHistoryError){historyStatusElement.textContent=currentHistoryError.message;}
 }
+let historySearchTimer=null;
+document.querySelector('#history-search').oninput=()=>{clearTimeout(historySearchTimer);historySearchTimer=setTimeout(()=>{currentHistoryPage=1;refreshGenerationHistory();},250);};
+document.querySelector('#history-state-filter').onchange=()=>{currentHistoryPage=1;refreshGenerationHistory();};
 document.querySelector('#history-refresh').onclick=refreshGenerationHistory;
 document.querySelector('#history-reset').onclick=async()=>{
  if(!confirm('이 생성기의 프롬프트·이력 목록을 초기화할까요? 실험 폴더의 입력과 결과 파일은 유지됩니다.'))return;
