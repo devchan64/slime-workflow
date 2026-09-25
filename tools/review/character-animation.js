@@ -11,6 +11,7 @@ function readAnimationSelection(){return {motion:animationElementLookup('motion-
 function refreshAnimationSelection(){
  if(!animationCatalogRecord)return;
  const selectedAnimationValues=readAnimationSelection(),selectedMotionRecord=animationCatalogRecord.motions.find(motionRecordValue=>motionRecordValue.id===selectedAnimationValues.motion);
+ window.selectMotionAssetPreview(selectedMotionRecord);
  animationElementLookup('frame-count').textContent=`${selectedMotionRecord.frames}프레임 × ${selectedAnimationValues.directions.length}방향 = ${selectedMotionRecord.frames*selectedAnimationValues.directions.length}장 · 방향당 ${selectedMotionRecord.frames/selectedMotionRecord.fps}초`;
  const previewDirectionName=selectedAnimationValues.directions[0]||'down_left';
  for(const referenceRoleName of ['character','pose']){const previewImageElement=animationElementLookup(referenceRoleName+'-preview'),previewImagePath=`/character-animation/reference/${selectedAnimationValues.motion}/${selectedAnimationValues.character}/${selectedAnimationValues.source}/${previewDirectionName}/${referenceRoleName}`;if(previewImageElement.getAttribute('src')!==previewImagePath)previewImageElement.src=previewImagePath;}

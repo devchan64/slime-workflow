@@ -5,12 +5,12 @@ import mimetypes
 from urllib.parse import urlsplit, unquote
 if __package__:
     from .character_animation_jobs import execute_animation_command, resolve_generation_directory
-    from .character_animation_assets import prepare_animation_request, resolve_asset_path
+    from .character_animation_assets import prepare_animation_request, resolve_asset_path, resolve_motion_preview
     from .management_gateway import identify_management_command
     from .management_log_viewer import MANAGEMENT_LOG_VIEWER_SCRIPT
 else:
     from character_animation_jobs import execute_animation_command, resolve_generation_directory
-    from character_animation_assets import prepare_animation_request, resolve_asset_path
+    from character_animation_assets import prepare_animation_request, resolve_asset_path, resolve_motion_preview
     from management_gateway import identify_management_command
     from management_log_viewer import MANAGEMENT_LOG_VIEWER_SCRIPT
 
@@ -28,7 +28,7 @@ class CharacterAnimationManager:
                 response_payload_bytes=response_record_value.encode() if isinstance(response_record_value,str) else json.dumps(response_record_value,ensure_ascii=False).encode()
                 response_content_type='text/plain' if isinstance(response_record_value,str) else 'application/json'
             elif current_http_handler.command=='GET':
-                static_file_mapping={'':'character-animation.html','app.js':'character-animation.js','studio.css':'generation-studio.css','history.js':'generation-history.js'}
+                static_file_mapping={'':'character-animation.html','app.js':'character-animation.js','studio.css':'generation-studio.css','history.js':'generation-history.js','asset-player.js':'character-animation-assets.js'}
                 request_route_suffix=request_route_path.removeprefix('/character-animation/')
                 if request_route_suffix in static_file_mapping:
                     response_file_path=REVIEW_SOURCE_DIRECTORY/static_file_mapping[request_route_suffix]
@@ -41,6 +41,12 @@ class CharacterAnimationManager:
                     generation_job_path=resolve_generation_directory(request_path_parts[1]).resolve()
                     response_file_path=(generation_job_path/('/'.join(request_path_parts[2:]))).resolve()
                     if not response_file_path.is_relative_to(generation_job_path) or response_file_path.suffix!='.png' or not response_file_path.is_file():raise ValueError('허용하지 않는 결과 파일')
+                    response_payload_bytes=response_file_path.read_bytes();response_content_type='image/png'
+                elif request_route_suffix.startswith('asset/'):
+                    request_path_parts=request_route_suffix.split('/')
+                    if len(request_path_parts)!=5:raise ValueError('모션 프레임 조회 형식 오류')
+                    _,selected_motion_name,selected_source_kind,selected_direction_name,selected_frame_text=request_path_parts
+                    response_file_path=resolve_motion_preview(selected_motion_name,selected_source_kind,selected_direction_name,int(selected_frame_text))
                     response_payload_bytes=response_file_path.read_bytes();response_content_type='image/png'
                 elif request_route_suffix.startswith('reference/'):
                     request_path_parts=request_route_suffix.split('/')

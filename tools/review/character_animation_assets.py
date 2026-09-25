@@ -96,3 +96,18 @@ def prepare_animation_request(command_payload_value):
     fixed_prompt_values = read_fixed_prompts(animation_config_record)
     combined_prompt_text = '\n\n'.join(fixed_prompt_values.values())
     return {**command_payload_value,'prompts':fixed_prompt_values,'prompt_sha256':hashlib.sha256(combined_prompt_text.encode()).hexdigest(),'prompt_words':len(combined_prompt_text.split()),'frames_per_direction':motion_manifest_record['frames'],'fps':motion_manifest_record['fps'],'motion_manifest_sha256':hash_asset_file(motion_manifest_path),'character_manifest_sha256':hash_asset_file(character_manifest_path),'frames':generation_frame_records,'sampling':'none','model':'Qwen/Qwen-Image-Edit-2511','steps':4}
+
+def resolve_motion_preview(selected_motion_name, selected_source_kind, selected_direction_name, selected_frame_number):
+    """프롬프트·캐릭터·생성 이력 없이 등록 모션의 단일 프레임을 조회한다."""
+    animation_config_record = load_animation_configuration()
+    if selected_motion_name not in animation_config_record['motions'] or selected_source_kind not in ('openpose','anny') or selected_direction_name not in SUPPORTED_DIRECTION_NAMES:
+        raise ValueError('등록되지 않은 모션·포즈 종류·방향입니다.')
+    animation_motion_record = animation_config_record['motions'][selected_motion_name]
+    motion_manifest_record = read_asset_mapping(resolve_asset_path(animation_motion_record['root']+'/'+animation_motion_record['manifest']))
+    if type(selected_frame_number) is not int or not 1 <= selected_frame_number <= motion_manifest_record['frames']:
+        raise ValueError('모션 프레임 범위를 벗어났습니다.')
+    pose_relative_path = animation_motion_record[selected_source_kind].format(direction=selected_direction_name,frame=selected_frame_number)
+    pose_reference_path = resolve_asset_path(animation_motion_record['root']+'/'+pose_relative_path)
+    if hash_asset_file(pose_reference_path) != motion_manifest_record['files'][pose_relative_path]:
+        raise ValueError('모션 프레임 무결성 오류')
+    return pose_reference_path

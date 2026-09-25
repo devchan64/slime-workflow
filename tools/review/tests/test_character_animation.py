@@ -30,6 +30,15 @@ class CharacterAnimationTests(unittest.TestCase):
                 self.assertEqual(generation_request_record['frames'][-1]['frame'],expected_frame_count)
                 self.assertLess(generation_request_record['prompt_words'],100)
 
+    def test_original_asset_preview_bounds_and_sources(self):
+        for motion_identifier_value,frame_count_value in [('standing-v3',16),('walking-v8',32),('stretch-v1',120)]:
+            for source_kind_value in ('openpose','anny'):
+                for direction_name_value in assets.SUPPORTED_DIRECTION_NAMES:
+                    self.assertTrue(assets.resolve_motion_preview(motion_identifier_value,source_kind_value,direction_name_value,frame_count_value).is_file())
+            for invalid_frame_number in (0,-1,frame_count_value+1,True):
+                with self.assertRaises(ValueError):assets.resolve_motion_preview(motion_identifier_value,'anny','down_left',invalid_frame_number)
+        with self.assertRaises(ValueError):assets.resolve_motion_preview('../bad','anny','down_left',1)
+
     def test_reject_prompt_override_and_bad_selection(self):
         for invalid_selection_values in ({'prompt':'override'},{'motion':'../bad'},{'source':[]},{'directions':[]},{'directions':['down_left','down_left']},{'directions':['bad']},{'character':{}}):
             with self.assertRaises((ValueError,TypeError)):
