@@ -261,7 +261,12 @@ def run_review_server(parsed_argument_values):
         from .management_gateway import ManagementCommandGateway
     else:
         from management_gateway import ManagementCommandGateway
-    management_command_gateway = ManagementCommandGateway({'momask':momask_generation_service.handle,'qwen-2512':image_generation_service.handle_image_request,'qwen-2511':three_reference_service.handle_image_request})
+    if __package__:
+        from .character_animation import CharacterAnimationManager
+    else:
+        from character_animation import CharacterAnimationManager
+    character_animation_service = CharacterAnimationManager()
+    management_command_gateway = ManagementCommandGateway({'character-animation':character_animation_service.handle,'momask':momask_generation_service.handle,'qwen-2512':image_generation_service.handle_image_request,'qwen-2511':three_reference_service.handle_image_request})
     class ReviewRequestHandler(SimpleHTTPRequestHandler):
         def __init__(self,*request_handler_arguments,**request_handler_options):
             super().__init__(*request_handler_arguments,directory=str(review_root_directory),**request_handler_options)
@@ -275,6 +280,7 @@ def run_review_server(parsed_argument_values):
                 self.wfile.write(encoded_record)
                 return
             if management_command_gateway.handle(self):return
+            if character_animation_service.handle(self):return
             if anny_attribute_service.handle(self):return
             if writer_agent_service.handle_writer_request(self):return
             if momask_generation_service.handle(self):return

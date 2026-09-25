@@ -11,9 +11,9 @@ import urllib.request
 from email.message import Message
 from urllib.parse import urlsplit, parse_qs
 
-MANAGEMENT_SERVICE_ROUTES = {'momask':'/momask-generator','qwen-2512':'/image-generation','qwen-2511':'/image-generation-2511'}
-MANAGEMENT_COMMAND_ROUTES = {'generate':('POST','/jobs'),'prepare':('POST','/jobs'),'status':('GET','/jobs/{id}'),'logs':('GET','/jobs/{id}/worker.log'),'history':('GET','/history'),'active':('GET','/active'),'model-status':('GET','/model-status'),'cancel':('POST','/cancel'),'history-reset':('POST','/history/reset'),'openpose-map':('POST','/openpose-map')}
-MANAGEMENT_SERVICE_COMMANDS = {'momask':('generate','status','logs','history','cancel','history-reset','openpose-map'),'qwen-2512':('generate','prepare','status','logs','history','active','model-status','cancel','history-reset'),'qwen-2511':('generate','status','logs','history','active','model-status','cancel','history-reset')}
+MANAGEMENT_SERVICE_ROUTES = {'character-animation':'/character-animation','momask':'/momask-generator','qwen-2512':'/image-generation','qwen-2511':'/image-generation-2511'}
+MANAGEMENT_COMMAND_ROUTES = {'catalog':('GET','/catalog'),'generate':('POST','/jobs'),'prepare':('POST','/jobs'),'status':('GET','/jobs/{id}'),'logs':('GET','/jobs/{id}/worker.log'),'history':('GET','/history'),'active':('GET','/active'),'model-status':('GET','/model-status'),'cancel':('POST','/cancel'),'history-reset':('POST','/history/reset'),'openpose-map':('POST','/openpose-map')}
+MANAGEMENT_SERVICE_COMMANDS = {'character-animation':('catalog','generate','status','logs','history','active','cancel','history-reset'),'momask':('generate','status','logs','history','cancel','history-reset','openpose-map'),'qwen-2512':('generate','prepare','status','logs','history','active','model-status','cancel','history-reset'),'qwen-2511':('generate','status','logs','history','active','model-status','cancel','history-reset')}
 
 
 def resolve_management_command(service_command_name, operation_command_name, command_payload_value):
@@ -149,12 +149,18 @@ class ManagementCommandGateway:
         return True
 
 
-MANAGEMENT_COMMAND_DESCRIPTIONS = {'momask': 'MoMask 생성·상태·로그·이력 조회·취소 (웹과 기록 공유)', 'qwen-2512': 'Qwen 2512 텍스트 이미지 생성 (관리 서버 필요)', 'qwen-2511': 'Qwen 2511 텍스트·1~3장 참조 이미지 생성 (관리 서버 필요)'}
+MANAGEMENT_COMMAND_DESCRIPTIONS = {'character-animation':'등록 모션·캐릭터 기반 애니메이션 생성·이력·재생 결과 조회','momask': 'MoMask 생성·상태·로그·이력 조회·취소 (웹과 기록 공유)', 'qwen-2512': 'Qwen 2512 텍스트 이미지 생성 (관리 서버 필요)', 'qwen-2511': 'Qwen 2511 텍스트·1~3장 참조 이미지 생성 (관리 서버 필요)'}
 
 def execute_management_command(service_command_name, operation_command_name, command_payload_value, server_base_address=None, *, gateway_request_handler=None, service_handler_values=None):
     request_method_value,request_route_value=resolve_management_command(service_command_name,operation_command_name,command_payload_value)
     if gateway_request_handler is not None:
         return service_handler_values[service_command_name](GatewayRequestAdapter(gateway_request_handler,request_method_value,request_route_value,command_payload_value))
+    if service_command_name=='character-animation' and server_base_address is None:
+        if __package__:
+            from .character_animation_jobs import execute_animation_command
+        else:
+            from character_animation_jobs import execute_animation_command
+        return execute_animation_command(operation_command_name,command_payload_value)
     if service_command_name=='momask' and server_base_address is None:
         return execute_momask_command(operation_command_name,command_payload_value)
     server_base_address=server_base_address or 'http://127.0.0.1:8770'
@@ -163,7 +169,7 @@ def execute_management_command(service_command_name, operation_command_name, com
 
 def execute_gateway_arguments(service_command_name, command_argument_list):
     command_argument_parser=argparse.ArgumentParser(prog=f'python3 tools/manager.py command {service_command_name}',description=MANAGEMENT_COMMAND_DESCRIPTIONS[service_command_name])
-    command_argument_parser.add_argument('--server-url',help='HTTP 게이트웨이 주소. 생략 시 MoMask는 로컬, Qwen은 127.0.0.1:8770')
+    command_argument_parser.add_argument('--server-url',help='HTTP 게이트웨이 주소. 생략 시 MoMask·character-animation은 로컬, Qwen은 127.0.0.1:8770')
     command_subparser_group=command_argument_parser.add_subparsers(dest='command',required=True)
     for operation_command_name in MANAGEMENT_SERVICE_COMMANDS[service_command_name]:
         operation_argument_parser=command_subparser_group.add_parser(operation_command_name)
@@ -171,7 +177,12 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
             operation_argument_parser.add_argument('id')
         if operation_command_name=='generate':
             operation_argument_parser.add_argument('--detach',action='store_true',help='작업 ID 출력 후 반환')
-            if service_command_name=='momask':
+            if service_command_name=='character-animation':
+                operation_argument_parser.add_argument('--motion',required=True,help='catalog의 모션 ID')
+                operation_argument_parser.add_argument('--character',required=True,help='catalog의 캐릭터 ID')
+                operation_argument_parser.add_argument('--source',choices=('openpose','anny'),default='openpose')
+                operation_argument_parser.add_argument('--directions',nargs='+',choices=('down_left','down_right','up_left','up_right'),default=['down_left','down_right','up_left','up_right'])
+            elif service_command_name=='momask':
                 operation_argument_parser.add_argument('--action',choices=('standing','deep_breath','stretch','walking'),required=True)
                 operation_argument_parser.add_argument('--directions',nargs='+',choices=('down_left','down_right','up_left','up_right'),default=['down_left','down_right','up_left','up_right'])
             else:
@@ -198,7 +209,9 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
     if operation_command_name=='history-reset':command_payload_value={'action':'reset'}
     if operation_command_name=='prepare':command_payload_value={'action':'prepare'}
     if operation_command_name=='generate':
-        if service_command_name=='momask':
+        if service_command_name=='character-animation':
+            command_payload_value={'motion':command_argument_values.motion,'character':command_argument_values.character,'source':command_argument_values.source,'directions':command_argument_values.directions}
+        elif service_command_name=='momask':
             command_payload_value={'action':command_argument_values.action,'directions':command_argument_values.directions}
         else:
             command_payload_value={'action':'generate','prompt':command_argument_values.prompt if command_argument_values.prompt is not None else command_argument_values.prompt_file.read_text(encoding='utf-8'),'width':command_argument_values.width,'height':command_argument_values.height,'steps':command_argument_values.steps,'seed':command_argument_values.seed}
