@@ -2,6 +2,8 @@
 class AnnyMeshPreview {
  constructor(previewCanvasElement) {
   this.previewCanvasElement=previewCanvasElement;
+  const previewBackgroundValue=getComputedStyle(previewCanvasElement).getPropertyValue('--page').trim();
+  this.previewBackgroundChannels=[1,3,5].map(channelOffsetValue=>parseInt(previewBackgroundValue.slice(channelOffsetValue,channelOffsetValue+2),16)/255);
   const previewWebglContext=previewCanvasElement.getContext('webgl2');
   if(!previewWebglContext)throw Error('웹 3D 프리뷰에 WebGL2가 필요합니다.');
   this.previewWebglContext=previewWebglContext;
@@ -47,7 +49,7 @@ class AnnyMeshPreview {
   if(!this.previewTriangleCount)return;
   const previewWebglContext=this.previewWebglContext,previewCanvasElement=this.previewCanvasElement;
   previewCanvasElement.width=previewCanvasElement.clientWidth*devicePixelRatio;previewCanvasElement.height=previewCanvasElement.clientHeight*devicePixelRatio;
-  previewWebglContext.viewport(0,0,previewCanvasElement.width,previewCanvasElement.height);previewWebglContext.clearColor(.045,.075,.06,1);previewWebglContext.clear(previewWebglContext.COLOR_BUFFER_BIT|previewWebglContext.DEPTH_BUFFER_BIT);previewWebglContext.enable(previewWebglContext.DEPTH_TEST);previewWebglContext.useProgram(this.previewShaderProgram);
+  previewWebglContext.viewport(0,0,previewCanvasElement.width,previewCanvasElement.height);previewWebglContext.clearColor(...this.previewBackgroundChannels,1);previewWebglContext.clear(previewWebglContext.COLOR_BUFFER_BIT|previewWebglContext.DEPTH_BUFFER_BIT);previewWebglContext.enable(previewWebglContext.DEPTH_TEST);previewWebglContext.useProgram(this.previewShaderProgram);
   previewWebglContext.uniform3fv(previewWebglContext.getUniformLocation(this.previewShaderProgram,'center'),this.previewCenterValues);previewWebglContext.uniform4f(previewWebglContext.getUniformLocation(this.previewShaderProgram,'view'),this.previewYawRadians,this.previewPitchRadians,1.7/this.previewHeightValue*this.previewZoomFactor,previewCanvasElement.width/previewCanvasElement.height);previewWebglContext.drawElements(previewWebglContext.TRIANGLES,this.previewTriangleCount,previewWebglContext.UNSIGNED_INT,0);
  }
 }

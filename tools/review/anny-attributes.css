@@ -1,0 +1,23 @@
+/* 색상·입력·버튼·로그·이력은 generation-studio.css를 공유한다. */
+.layout{display:grid;grid-template-columns:minmax(300px,360px) minmax(0,1fr);gap:24px;align-items:stretch}
+.layout>aside{contain:size;min-height:0;display:flex;flex-direction:column;overflow:hidden}
+.layout>section{min-width:0}
+.attribute-panel-header{flex:none;padding-bottom:16px;border-bottom:1px solid var(--line)}
+.attribute-panel-header h2{margin:0 0 12px}.attribute-panel-header button{width:100%;margin:0}
+.attribute-scroll-region{flex:1;min-height:0;overflow-y:auto;scrollbar-gutter:stable;overscroll-behavior-y:contain;padding-right:8px;padding-top:16px}
+.attribute-scroll-region>p{font-size:12px}
+fieldset{min-width:0;margin:0 0 18px;padding:8px 14px 16px;border:1px solid var(--line);border-radius:10px}
+legend{padding:0 8px;color:var(--accent);font-weight:650}
+.attribute-lock-badge{display:inline-block;margin-left:8px;padding:2px 7px;border:1px solid var(--line);border-radius:5px;background:var(--page);color:var(--muted);font-size:12px;vertical-align:middle}
+input:disabled{opacity:.55;cursor:not-allowed}small{color:var(--muted);overflow-wrap:anywhere}
+label{display:block;margin:14px 0 8px}input[type=range]{width:calc(100% - 64px);accent-color:var(--accent);vertical-align:middle}
+output{float:right;color:var(--accent);font-variant-numeric:tabular-nums;min-width:48px;text-align:right}
+#retry{margin:0;background:var(--accent);color:var(--page);font-weight:700}
+#mesh-preview{display:block;width:100%;height:520px;touch-action:none;background:var(--page);border:1px solid var(--line);border-radius:12px;margin-bottom:24px}
+.views{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.views figure{margin:0;min-width:0;background:var(--page);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.views figcaption{padding:12px;color:var(--muted);border-bottom:1px solid var(--line);font-size:13px}
+.views img{display:block;width:100%;aspect-ratio:1;object-fit:contain}
+#logs{margin-top:20px;border-top:1px solid var(--line);padding-top:8px}
+@media(max-width:900px){.layout{grid-template-columns:1fr}.layout>aside{contain:none;max-height:65dvh}#mesh-preview{height:440px}}
+@media(max-width:540px){.views{grid-template-columns:1fr}#mesh-preview{height:340px}}

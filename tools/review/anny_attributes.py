@@ -42,6 +42,9 @@ class AnnyAttributeManager:
   if not path.startswith('/anny-attributes'): return False
   try:
    if h.command=='GET' and path=='/anny-attributes/':self.send(h,200,PAGE.encode(),'text/html; charset=utf-8');return True
+   if h.command=='GET' and path in ('/anny-attributes/studio.css','/anny-attributes/layout.css'):
+    stylesheet_file_name='generation-studio.css' if path.endswith('/studio.css') else 'anny-attributes.css'
+    self.send(h,200,Path(__file__).with_name(stylesheet_file_name).read_bytes(),'text/css; charset=utf-8');return True
    if h.command=='GET' and path=='/anny-attributes/mesh-viewer.js':self.send(h,200,Path(__file__).with_name('anny-mesh-viewer.js').read_bytes(),'text/javascript');return True
    if h.command=='GET' and path=='/anny-attributes/history-ui.js':self.send(h,200,Path(__file__).with_name('generation-history.js').read_bytes(),'text/javascript');return True
    if h.command=='GET' and path=='/anny-attributes/history':
