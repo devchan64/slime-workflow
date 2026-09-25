@@ -27,7 +27,6 @@ def build_animation_tools(output):
     records.append({'id':'anny-attribute-renderer','label':'Anny 속성 렌더러','path':'/anny-attributes/','anchorEditor':False,'category':'animation-tool','description':'나이·체중·키와 몸통·어깨·다리 로컬 속성의 렌더 입력 검토'})
     loop_source = ROOT / 'assets/motion-sheet/momask-standing-loops-v1'
     for action, identifier, title, note in (
-        ('deep-breath', 'momask-deep-breath', 'MoMask 심호흡', '8프레임 · 2초 · 4방향'),
         ('stretch', 'momask-stretch', 'MoMask 스트레칭', '20프레임 · 5초 · 4방향'),
     ):
         folder = output / identifier
