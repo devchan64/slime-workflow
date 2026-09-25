@@ -1,0 +1,16 @@
+schema_version: 1
+asset_id: momask-stretch
+version: 1
+asset_path: assets/motion-sheet/momask-stretch-v1
+manifest_path: assets/motion-sheet/momask-stretch-v1/manifest.yaml
+motion_path: assets/motion-sheet/momask-stretch-v1/motion.npz
+motion_sha256: 13e99b214c13876b206658be280ee0f0dba05e009212959382de691ee71fe063
+humanml3d_path: assets/motion-sheet/momask-stretch-v1/humanml3d
+openpose_path: assets/motion-sheet/momask-stretch-v1/openpose
+anny_path: assets/motion-sheet/momask-stretch-v1/anny
+frames: 120
+fps: 4
+playtime_seconds: 30
+source_fps: 20
+baseline_model: anny-39eab167-v1
+openpose_format: COCO18 body, face omitted

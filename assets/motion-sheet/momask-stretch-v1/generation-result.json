@@ -1,0 +1,27 @@
+{
+  "action": "stretch",
+  "label": "스트레칭",
+  "frames": 120,
+  "anny_frames": 120,
+  "fps": 4,
+  "directions": [
+    "down_left",
+    "down_right",
+    "up_left",
+    "up_right"
+  ],
+  "sampling": "none",
+  "quality_warnings": [],
+  "hand_pose": "fist-v3",
+  "arm_retarget": "parallel-transport-v3",
+  "skinning": "dual-quaternion-corrective-v1",
+  "baseline_model": {
+    "baseline_id": "anny-39eab167-v1",
+    "source_generation_id": "39eab167",
+    "blend_sha256": "874865dcb2b4b1b27923a046bedc8cf01d9c957a1efc4e04628251ccc20d10b3",
+    "attributes_sha256": "1c5b9b30f4d2f21f7fb5ae997192fcd74740d29d2c9fa34f1f355b6263e99933"
+  },
+  "status": "completed",
+  "openpose_map_frames": 120,
+  "source_generation_id": "2026-09-25_09-56-57-42fc2f95"
+}
