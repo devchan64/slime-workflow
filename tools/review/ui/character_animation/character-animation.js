@@ -17,6 +17,9 @@ function refreshAnimationSelection(){
  if(lastSelectedMotionIdentifier!==selectedMotionRecord.id){animationElementLookup('generation-frame-step').value=selectedMotionRecord.frame_step;selectedAnimationValues.frame_step=selectedMotionRecord.frame_step;lastSelectedMotionIdentifier=selectedMotionRecord.id;}
  const selectedFrameCount=Math.ceil(selectedMotionRecord.frames/selectedAnimationValues.frame_step);
  animationElementLookup('auxiliary-prompt').textContent=selectedAnimationValues.directions.map(directionNameValue=>animationDirectionLabels[directionNameValue]+'\n'+animationCatalogRecord.direction_prompts[directionNameValue].auxiliary).join('\n\n')||'생성할 방향을 선택하세요.';
+ const basePromptWordCount=animationCatalogRecord.prompts.base.trim().split(/\s+/).length;
+ animationElementLookup('base-prompt-word-count').textContent=`기본 ${basePromptWordCount}단어 · 공백 기준`;
+ animationElementLookup('auxiliary-prompt-word-count').textContent=selectedAnimationValues.directions.map(directionNameValue=>{const directionPromptRecord=animationCatalogRecord.direction_prompts[directionNameValue];return `${animationDirectionLabels[directionNameValue]}: 보조 ${directionPromptRecord.auxiliary.trim().split(/\s+/).length}단어 · 최종 합계 ${directionPromptRecord.words}단어`;}).join(' / ')||'방향을 선택하면 단어 수를 표시합니다.';
  window.selectMotionAssetPreview(selectedMotionRecord);
  animationElementLookup('frame-count').textContent=`원본 ${selectedMotionRecord.frames}프레임 · ${selectedAnimationValues.frame_step}프레임 간격 → ${selectedFrameCount}프레임 × ${selectedAnimationValues.directions.length}방향 = ${selectedFrameCount*selectedAnimationValues.directions.length}장 · ${selectedMotionRecord.fps} FPS 재생 시 방향당 ${selectedFrameCount/selectedMotionRecord.fps}초`;
  const previewDirectionName=selectedAnimationValues.directions[0]||'down_left';
