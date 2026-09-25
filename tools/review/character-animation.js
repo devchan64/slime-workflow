@@ -3,6 +3,7 @@ const animationDirectionLabels={down_left:'전방 좌측',down_right:'전방 우
 const animationElementLookup=elementIdentifier=>document.getElementById(elementIdentifier);
 const animationLogController=ManagementLogViewer.attach(animationElementLookup('execution-log'),animationElementLookup('execution-log-text'));
 let lastSelectedMotionIdentifier=null;
+let generationSubmissionPending=false,generationAvailabilityChecked=false,activeGenerationProgress=null;
 let animationCatalogRecord=null,activeGenerationIdentifier=null,playbackResultRecord=null,playbackJobIdentifier=null,currentFramePosition=0,animationPlaybackTimer=null,playbackRequestCounter=0;
 async function executeAnimationCommand(commandOperationName,commandPayloadValue={}){
  const commandResponseValue=await fetch('/management/command',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({service:'character-animation',command:commandOperationName,payload:commandPayloadValue})});
@@ -19,8 +20,20 @@ function refreshAnimationSelection(){
  animationElementLookup('frame-count').textContent=`원본 ${selectedMotionRecord.frames}프레임 · ${selectedAnimationValues.frame_step}프레임 간격 → ${selectedFrameCount}프레임 × ${selectedAnimationValues.directions.length}방향 = ${selectedFrameCount*selectedAnimationValues.directions.length}장 · ${selectedMotionRecord.fps} FPS 재생 시 방향당 ${selectedFrameCount/selectedMotionRecord.fps}초`;
  const previewDirectionName=selectedAnimationValues.directions[0]||'down_left';
  for(const referenceRoleName of ['character']){const previewImageElement=animationElementLookup(referenceRoleName+'-preview'),previewImagePath=`/character-animation/reference/${selectedAnimationValues.motion}/${selectedAnimationValues.character}/${selectedAnimationValues.source}/${previewDirectionName}/${referenceRoleName}`;if(previewImageElement.getAttribute('src')!==previewImagePath)previewImageElement.src=previewImagePath;}
- animationElementLookup('submit').disabled=Boolean(activeGenerationIdentifier)||!selectedAnimationValues.directions.length;
+ refreshGenerationAvailability();
 }
+function refreshGenerationAvailability(){
+ const generationSubmitButton=animationElementLookup('submit'),availabilityMessageElement=animationElementLookup('generation-availability');
+ const selectedDirectionCount=document.querySelectorAll('[name=animation-direction]:checked').length;
+ generationSubmitButton.disabled=!animationCatalogRecord||!generationAvailabilityChecked||generationSubmissionPending||Boolean(activeGenerationIdentifier)||!selectedDirectionCount;
+ generationSubmitButton.textContent=generationSubmissionPending?'생성 시작 중…':activeGenerationIdentifier?'생성 진행 중':'애니메이션 생성';
+ animationElementLookup('show-active-generation').hidden=!activeGenerationIdentifier;
+ if(generationSubmissionPending)availabilityMessageElement.textContent='생성 요청을 접수하고 있습니다.';
+ else if(!animationCatalogRecord||!generationAvailabilityChecked)availabilityMessageElement.textContent='서버의 생성 가능 여부를 확인하는 중입니다.';
+ else if(activeGenerationIdentifier)availabilityMessageElement.textContent=`실행 중: ${activeGenerationIdentifier}${activeGenerationProgress?` · ${activeGenerationProgress.completed}/${activeGenerationProgress.total}프레임 완료`:''}. 완료 또는 취소 후 새로 생성할 수 있습니다.`;
+ else availabilityMessageElement.textContent=selectedDirectionCount?'생성할 수 있습니다.':'생성할 방향을 하나 이상 선택하세요.';
+}
+animationElementLookup('show-active-generation').onclick=()=>{animationElementLookup('execution-log').open=true;animationElementLookup('status').scrollIntoView({behavior:'smooth',block:'center'});};
 function stopAnimationPlayback(){clearInterval(animationPlaybackTimer);animationPlaybackTimer=null;}
 function renderAnimationFrame(){
  if(!playbackResultRecord)return;
@@ -57,9 +70,10 @@ animationElementLookup('frame-position').oninput=()=>{stopAnimationPlayback();cu
 animationElementLookup('animation-form').onchange=refreshAnimationSelection;
 animationElementLookup('select-all').onclick=()=>{document.querySelectorAll('[name=animation-direction]').forEach(directionCheckboxElement=>directionCheckboxElement.checked=true);refreshAnimationSelection();};
 animationElementLookup('animation-form').onsubmit=async submissionEventValue=>{
- submissionEventValue.preventDefault();animationElementLookup('submit').disabled=true;
+ submissionEventValue.preventDefault();if(generationSubmissionPending||activeGenerationIdentifier)return;generationSubmissionPending=true;refreshGenerationAvailability();
  try{const generationStartRecord=await executeAnimationCommand('generate',readAnimationSelection());activeGenerationIdentifier=generationStartRecord.id;animationElementLookup('status').textContent='생성을 시작했습니다.';animationElementLookup('cancel-generation').disabled=false;await refreshGenerationHistory();}
- catch(generationErrorValue){animationElementLookup('status').textContent=generationErrorValue.message;refreshAnimationSelection();}
+ catch(generationErrorValue){animationElementLookup('status').textContent=generationErrorValue.message;}
+ finally{generationSubmissionPending=false;refreshGenerationAvailability();}
 };
 animationElementLookup('cancel-generation').onclick=async()=>{
  if(!activeGenerationIdentifier)return;animationElementLookup('cancel-generation').disabled=true;
@@ -68,10 +82,10 @@ animationElementLookup('cancel-generation').onclick=async()=>{
 async function pollAnimationGeneration(){
  try{
   if(!animationCatalogRecord)return;
-  if(!activeGenerationIdentifier){const activeGenerationRecord=await executeAnimationCommand('active');if(activeGenerationRecord.running)activeGenerationIdentifier=activeGenerationRecord.id;}
+  if(!activeGenerationIdentifier&&!generationSubmissionPending){const activeGenerationRecord=await executeAnimationCommand('active');if(activeGenerationRecord.running)activeGenerationIdentifier=activeGenerationRecord.id;generationAvailabilityChecked=true;}
   if(activeGenerationIdentifier){
    const generationStatusRecord=await executeAnimationCommand('status',{id:activeGenerationIdentifier});
-   const generationProgressRecord=generationStatusRecord.progress;
+   const generationProgressRecord=generationStatusRecord.progress;activeGenerationProgress=generationProgressRecord;
    animationElementLookup('status').textContent=({running:'생성 중',completed:'완료',failed:'실패',cancelled:'취소됨'}[generationStatusRecord.status]||generationStatusRecord.status)+(generationProgressRecord?` · ${generationProgressRecord.completed}/${generationProgressRecord.total} 프레임`:' · 모델 준비 중');
    animationElementLookup('job-location').textContent=activeGenerationIdentifier+' · '+generationStatusRecord.path;
    animationLogController.update(generationStatusRecord.log);
@@ -79,12 +93,13 @@ async function pollAnimationGeneration(){
    else animationElementLookup('generation-progress').removeAttribute('value');
    animationElementLookup('cancel-generation').disabled=generationStatusRecord.status!=='running';
    if(generationStatusRecord.status!=='running'){
-    const completedGenerationIdentifier=activeGenerationIdentifier;activeGenerationIdentifier=null;
+    const completedGenerationIdentifier=activeGenerationIdentifier;activeGenerationIdentifier=null;activeGenerationProgress=null;
     if(generationStatusRecord.status==='completed')await window.playGenerationRecord({id:completedGenerationIdentifier});
     await refreshGenerationHistory();
    }
    refreshAnimationSelection();
   }
+  refreshGenerationAvailability();
  }catch(pollErrorValue){animationElementLookup('status').textContent='상태 조회 오류: '+pollErrorValue.message;}
  finally{setTimeout(pollAnimationGeneration,1500);}
 }
