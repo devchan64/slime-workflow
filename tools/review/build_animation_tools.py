@@ -2,19 +2,12 @@ from pathlib import Path
 import json, shutil, yaml
 
 ROOT = Path(__file__).resolve().parents[2]
-SOURCE = ROOT / 'assets/motion-sheet/mannequin-walk-v8'
 DIRECTIONS = ('down_left', 'down_right', 'up_left', 'up_right')
 
 
 def copy(source, destination):
     destination.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(source, destination)
-
-
-def page(title, note, frames, command=''):
-    config = json.dumps({'frames': frames}, ensure_ascii=False).replace('<', '\\u003c')
-    command_html = '<pre>'+command+'</pre>' if command else ''
-    return f'''<!doctype html><meta charset="utf-8"><title>{title}</title><link rel="stylesheet" href="../animation-tools-common/player.css"><main><h1>{title}</h1><p>{note}</p>{command_html}<div class="stage"><img id="image"></div><p><button id="previous">이전</button><button id="play">재생</button><button id="next">다음</button><input id="range" type="range"><output id="count"></output></p></main><script>window.ANIMATION_TOOL={config};</script><script src="../animation-tools-common/player.js"></script>'''
 
 
 def openpose_selector_page(motions):
@@ -44,8 +37,6 @@ def build_animation_tools(output):
     attribute_page = '''<!doctype html><meta charset="utf-8"><title>Anny 속성 렌더러</title><link rel="stylesheet" href="../animation-tools-common/player.css"><main><h1>Anny 속성 렌더러</h1><p>네이버랩스 Anny의 체형·국소 속성 입력을 검토합니다. 값은 새 렌더 후보의 입력으로 기록됩니다.</p><form id="attributes"><h2>기본 체형</h2><label>나이 <input name="age" type="range" min="0" max="1" step="0.05" value="0.15"><output></output></label><label>체중 <input name="weight" type="range" min="0" max="1" step="0.05" value="0.25"><output></output></label><label>키 <input name="height" type="range" min="0" max="1" step="0.05" value="0.25"><output></output></label><h2>국소 체형</h2><label>몸통 너비 <input name="torso-scale-horiz-incr" type="range" min="-1" max="1" step="0.05" value="-0.5"><output></output></label><label>몸통 깊이 <input name="torso-scale-depth-incr" type="range" min="-1" max="1" step="0.05" value="-0.5"><output></output></label><label>어깨 너비 <input name="measure-shoulder-dist-incr" type="range" min="-1" max="1" step="0.05" value="0.5"><output></output></label><label>다리 길이 <input name="upperlegs-height-incr" type="range" min="-1" max="1" step="0.05" value="0.7"><output></output></label><button type="button" id="export">렌더 입력 JSON 내려받기</button></form><pre id="preview"></pre></main><script>const f=document.querySelector('#attributes'),p=document.querySelector('#preview');const render=()=>{for(const i of f.querySelectorAll('input'))i.nextElementSibling.textContent=i.value;const a=Object.fromEntries(new FormData(f));p.textContent=JSON.stringify({phenotype_kwargs:{age:+a.age,weight:+a.weight,height:+a.height},local_changes_kwargs:Object.fromEntries(Object.entries(a).filter(([k])=>!['age','weight','height'].includes(k)).map(([k,v])=>[k,+v]))},null,2)};f.oninput=render;render();document.querySelector('#export').onclick=()=>{const b=new Blob([p.textContent],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='anny-attributes.json';a.click();URL.revokeObjectURL(a.href)}</script>'''
     folder=output/'anny-attribute-renderer';folder.mkdir(parents=True,exist_ok=True);(folder/'index.html').write_text(attribute_page,encoding='utf-8')
     records.append({'id':'anny-attribute-renderer','label':'Anny 속성 렌더러','path':'/anny-attributes/','anchorEditor':False,'category':'animation-tool','description':'나이·체중·키와 몸통·어깨·다리 로컬 속성의 렌더 입력 검토'})
-    for identifier,title,note,command in [('anypose-frame-generator','AnyPose 애니메이션 프레임 생성기','캐릭터 기준 이미지와 리그 참조로 AnyPose 프레임을 생성합니다.','python3 generators/animation/run_pose_transfer_any_pose_batch.py --batch-file <batch.yaml> --output-dir .tmp/<run> --resume')]:
-        folder=output/identifier;folder.mkdir(parents=True,exist_ok=True);copy(SOURCE/'down_right'/'openpose-0001.png',folder/'reference.png');(folder/'index.html').write_text(page(title,note,['reference.png'],command),encoding='utf-8');records.append({'id':identifier,'label':title,'path':identifier+'/index.html','anchorEditor':False,'category':'animation-tool','description':note})
     loop_source = ROOT / 'assets/motion-sheet/momask-standing-loops-v1'
     for action, identifier, title, note in (
         ('standing', 'momask-normal-breath-standing', 'MoMask 대기 스탠딩', '40프레임 · 10초 · 4방향 · 미세 체중 이동'),
