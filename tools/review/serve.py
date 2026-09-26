@@ -270,12 +270,14 @@ def run_review_server(parsed_argument_values):
     from tools.review.common.record_folders import handle_record_folder_request
     from tools.review.domains.character_animation.character_animation_jobs import GENERATION_ROOT_DIRECTORY, resolve_generation_directory
     from tools.review.domains.anny.anny_attributes import JOBS as ANNY_RECORD_DIRECTORY
+    from tools.review.domains.momask.momask_jobs import GENERATION_JOB_DIRECTORY as MOMASK_RECORD_DIRECTORY, resolve_generation_directory as resolve_momask_record_directory
     record_folder_routes = {
         '/tile-map-generator': (tile_generation_service.job_storage_root, lambda record_identifier_value: tile_generation_service.job_storage_root/record_identifier_value),
         '/character-animation': (GENERATION_ROOT_DIRECTORY, resolve_generation_directory),
         '/anny-attributes': (ANNY_RECORD_DIRECTORY, lambda record_identifier_value: ANNY_RECORD_DIRECTORY/record_identifier_value),
         '/image-generation': (image_generation_service.job_storage_root, lambda record_identifier_value: image_generation_service.job_storage_root/record_identifier_value),
         '/image-generation-2511': (three_reference_service.job_storage_root, lambda record_identifier_value: three_reference_service.job_storage_root/record_identifier_value),
+        '/momask-generator': (MOMASK_RECORD_DIRECTORY, resolve_momask_record_directory),
     }
     management_menu_url = None
     from tools.review.common.gradio_process import ensure_anny_attributes_server, ensure_character_animation_server, ensure_gradio_server, ensure_management_menu_server, ensure_map_review_server, ensure_qwen_2511_server, ensure_qwen_2512_server, ensure_sprite_editor_server, ensure_tile_map_server, ensure_writer_agent_server
