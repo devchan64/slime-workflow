@@ -39,6 +39,14 @@ class TileGenerationTests(unittest.TestCase):
                 history_record_values=image_manager_value.list_generation_history()
             self.assertEqual([record_value['id'] for record_value in history_record_values],['2026-09-26_12-00-00-abcdef12'])
             self.assertEqual(history_record_values[0]['status']['status'],'completed')
+            with patch.object(image_manager_value,'job_storage_root',temporary_root_path/'jobs'),patch.object(image_manager_value,'history_storage_path',return_value=temporary_root_path/'history'):
+                image_manager_value.reset_generation_history()
+                # 작업 종료로 폴더 시각이 바뀌어도 초기화한 기록을 복원하지 않는다.
+                (job_root_path/'later-output.txt').write_text('완료')
+                self.assertEqual(image_manager_value.list_generation_history(),[])
+                self.assertTrue((job_root_path/'request.json').exists())
+                self.assertTrue((job_root_path/'status.json').exists())
+
     def test_cli_passes_only_user_prompt(self):
         with patch.object(management_gateway,'execute_management_command',return_value={'id':'test'}) as execute_command_mock:
             management_gateway.execute_gateway_arguments('tile-map',['generate','--tile-type','wall','--prompt','Oak wood.','--detach'])

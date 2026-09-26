@@ -78,7 +78,7 @@ document.querySelector('#history-state-filter').onchange=()=>{currentHistoryPage
 document.querySelector('#history-refresh').onclick=refreshGenerationHistory;
 document.querySelector('#history-reset').onclick=async()=>{
  if(!confirm('이 생성기의 프롬프트·이력 목록을 초기화할까요? 실험 폴더의 입력과 결과 파일은 유지됩니다.'))return;
- try{const currentResetResponse=await fetch(historyRoutePrefix+'/history/reset',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'reset'})});const currentResetPayload=await currentResetResponse.json();if(!currentResetResponse.ok)throw Error(currentResetPayload.error);await refreshGenerationHistory();}catch(currentResetError){historyStatusElement.textContent=currentResetError.message;}
+ try{const currentResetResponse=await fetch(historyRoutePrefix+'/history/reset',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'reset'})});const currentResetPayload=await currentResetResponse.json();if(!currentResetResponse.ok)throw Error(currentResetPayload.error);currentHistoryPage=1;selectedHistoryIdentifier=null;clearTimeout(historyLogPollTimer);document.querySelector('#history-log').textContent='이력에서 로그 보기를 선택하세요.';document.querySelector('#history-log-details').open=false;await refreshGenerationHistory();}catch(currentResetError){historyStatusElement.textContent=currentResetError.message;}
 };
 refreshGenerationHistory();
 setInterval(refreshGenerationHistory,10000);

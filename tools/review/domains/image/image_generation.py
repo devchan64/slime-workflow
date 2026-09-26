@@ -85,6 +85,11 @@ class ImageGenerationManager:
     def history_storage_path(self):
         return MANAGER_HISTORY_ROOT / ('qwen-2511' if self.three_reference_mode else 'qwen-2512')
 
+    def reset_generation_history(self):
+        with MANAGER_HISTORY_LOCK:
+            for current_record_path in self.history_storage_path().glob('*.json'):
+                current_record_path.unlink()
+
     def list_generation_history(self):
         current_history_records = []
         with MANAGER_HISTORY_LOCK:
@@ -152,9 +157,7 @@ class ImageGenerationManager:
                 if current_url_path == self.route_prefix_value+'/history/reset':
                     if current_request_record != {'action':'reset'}:
                         raise ValueError('초기화 요청 필드 오류')
-                    with MANAGER_HISTORY_LOCK:
-                        for current_record_path in self.history_storage_path().glob('*.json'):
-                            current_record_path.unlink()
+                    self.reset_generation_history()
                     send_response_data(200,{'status':'cleared'})
                     return True
                 if self.three_reference_mode:
