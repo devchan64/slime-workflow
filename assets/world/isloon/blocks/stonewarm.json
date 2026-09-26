@@ -1,9 +1,9 @@
 {
-  "id": "iseulon",
-  "name": "이슬온",
+  "id": "stonewarm",
+  "name": "돌온재",
   "nameTranslations": {
-    "ko": "이슬온",
-    "en": "Iseulon"
+    "ko": "돌온재",
+    "en": "Stonewarm"
   },
   "version": "city-1-blocks-1",
   "columns": 24,
@@ -643,35 +643,35 @@
   "ramps": [],
   "elevationTiles": [],
   "terrainRows": [
-    "gggggggggggggggggggggggg",
-    "gggggggggggggggggggggggg",
-    "gggggggggggggggggggggggg",
-    "gggggggggggggggggggggggg",
-    "gggggggggggggggggggggggg",
-    "gggggggggggggggggggggggg",
-    "gggggggggggggggggggggggg",
-    "ggggggpppppppppppppggggg",
-    "ggggggpppppppppppppggggg",
-    "ggggggggppppppppgggggggg",
-    "ggggggggpppwwpppgggggggg",
-    "ggggggggpppwwpppgggggggg",
-    "ggggggggppppppppgggggggg",
-    "ggggggggppppppppgggggggg",
-    "ggggggggppppppppgggggggg",
-    "gggggggppppppppppggggggg",
-    "gggggggppppppppppggggggg",
-    "gggggggggggppggggggggggg",
-    "gggggggggggppppppppggggg",
-    "gggggggggggppggggggggggg",
-    "gggggggggggppggggggggggg",
-    "gggggggggggppggggggggggg",
-    "gggggggggggppggggggggggg",
-    "gggggggggggppggggggggggg"
+    "vvvbbbbbbbvvpvvbbbbbbbvv",
+    "vvvbbbbbbbvvpvvbbbbbbbvv",
+    "vvvvvvvvvvvvpvvvvvvvvvvv",
+    "bbvvvvvvvvvvpvvvvvvvvvbb",
+    "bbvvvvvvvvvvpvvvvvvvvvbb",
+    "bbvvvvvpvvvvpvvvvpvvvvbb",
+    "bbvvvvvpvvvvpvvvvpvvvvbb",
+    "bbvvvvvpvvvvpvvvvpvvvvbb",
+    "bbvvvvvpppppppppvpvvvvbb",
+    "bbvvvvvpppppppppvpvvvvbb",
+    "bbvvvvvpppppppppvpvvvvbb",
+    "bbvvvvvpppppppppvpvvvvbb",
+    "bbvvvvvpppppppppvpvvvvbb",
+    "bbvvvvvpppppppppppvvvvbb",
+    "bbvvvvvpppppppppvvvvvvbb",
+    "bbvvvvvpppppppppvvvvvvbb",
+    "bbvvvvvpvvvvpvvvvvvvvvbb",
+    "bbvvvvvpvvvvpvvvvvvvvvbb",
+    "vvvvvvvpvvvvvvvvvvvvvvbb",
+    "vvvvvvvpvvvvvvvvvvvvvvbb",
+    "vvvvvvvvvvvvvvvvvvvvvvvv",
+    "vvvvvvvvvvvvvvvvvvvvvvvv",
+    "vvvvvvvvvvvvvvvvvvvvvvvv",
+    "vvvvvvvvvvvvvvvvvvvvvvvv"
   ],
   "terrainCodes": {
-    "g": "grass",
     "p": "paving",
-    "w": "water"
+    "v": "gravel",
+    "b": "boulder"
   },
   "movementCosts": {
     "version": 1,
@@ -873,128 +873,308 @@
   },
   "blocked": [
     {
-      "column": 4,
-      "row": 15
+      "column": 0,
+      "row": 3
     },
     {
-      "column": 4,
-      "row": 16
-    },
-    {
-      "column": 4,
-      "row": 17
-    },
-    {
-      "column": 5,
+      "column": 0,
       "row": 4
     },
     {
-      "column": 5,
+      "column": 0,
       "row": 5
     },
     {
-      "column": 5,
+      "column": 0,
       "row": 6
     },
     {
-      "column": 5,
-      "row": 15
+      "column": 0,
+      "row": 7
     },
     {
-      "column": 5,
-      "row": 16
+      "column": 0,
+      "row": 8
     },
     {
-      "column": 5,
-      "row": 17
+      "column": 0,
+      "row": 9
     },
     {
-      "column": 6,
-      "row": 4
-    },
-    {
-      "column": 6,
-      "row": 5
-    },
-    {
-      "column": 6,
-      "row": 6
-    },
-    {
-      "column": 6,
-      "row": 15
-    },
-    {
-      "column": 6,
-      "row": 16
-    },
-    {
-      "column": 6,
-      "row": 17
-    },
-    {
-      "column": 7,
-      "row": 4
-    },
-    {
-      "column": 7,
-      "row": 5
-    },
-    {
-      "column": 7,
-      "row": 6
-    },
-    {
-      "column": 11,
+      "column": 0,
       "row": 10
     },
     {
-      "column": 11,
+      "column": 0,
       "row": 11
     },
     {
-      "column": 12,
+      "column": 0,
+      "row": 12
+    },
+    {
+      "column": 0,
+      "row": 13
+    },
+    {
+      "column": 0,
+      "row": 14
+    },
+    {
+      "column": 0,
+      "row": 15
+    },
+    {
+      "column": 0,
+      "row": 16
+    },
+    {
+      "column": 0,
+      "row": 17
+    },
+    {
+      "column": 1,
+      "row": 3
+    },
+    {
+      "column": 1,
+      "row": 4
+    },
+    {
+      "column": 1,
+      "row": 5
+    },
+    {
+      "column": 1,
+      "row": 6
+    },
+    {
+      "column": 1,
+      "row": 7
+    },
+    {
+      "column": 1,
+      "row": 8
+    },
+    {
+      "column": 1,
+      "row": 9
+    },
+    {
+      "column": 1,
       "row": 10
     },
     {
-      "column": 12,
+      "column": 1,
       "row": 11
     },
     {
-      "column": 17,
-      "row": 4
+      "column": 1,
+      "row": 12
     },
     {
-      "column": 17,
-      "row": 5
+      "column": 1,
+      "row": 13
     },
     {
-      "column": 17,
-      "row": 6
-    },
-    {
-      "column": 17,
+      "column": 1,
       "row": 14
     },
     {
-      "column": 17,
+      "column": 1,
       "row": 15
     },
     {
-      "column": 17,
+      "column": 1,
       "row": 16
     },
     {
-      "column": 17,
+      "column": 1,
+      "row": 17
+    },
+    {
+      "column": 3,
+      "row": 0
+    },
+    {
+      "column": 3,
+      "row": 1
+    },
+    {
+      "column": 4,
+      "row": 0
+    },
+    {
+      "column": 4,
+      "row": 1
+    },
+    {
+      "column": 4,
+      "row": 4
+    },
+    {
+      "column": 4,
+      "row": 5
+    },
+    {
+      "column": 4,
+      "row": 6
+    },
+    {
+      "column": 4,
+      "row": 18
+    },
+    {
+      "column": 4,
       "row": 19
     },
     {
-      "column": 17,
+      "column": 4,
       "row": 20
     },
     {
+      "column": 5,
+      "row": 0
+    },
+    {
+      "column": 5,
+      "row": 1
+    },
+    {
+      "column": 5,
+      "row": 4
+    },
+    {
+      "column": 5,
+      "row": 5
+    },
+    {
+      "column": 5,
+      "row": 6
+    },
+    {
+      "column": 5,
+      "row": 18
+    },
+    {
+      "column": 5,
+      "row": 19
+    },
+    {
+      "column": 5,
+      "row": 20
+    },
+    {
+      "column": 6,
+      "row": 0
+    },
+    {
+      "column": 6,
+      "row": 1
+    },
+    {
+      "column": 6,
+      "row": 4
+    },
+    {
+      "column": 6,
+      "row": 5
+    },
+    {
+      "column": 6,
+      "row": 6
+    },
+    {
+      "column": 6,
+      "row": 18
+    },
+    {
+      "column": 6,
+      "row": 19
+    },
+    {
+      "column": 6,
+      "row": 20
+    },
+    {
+      "column": 7,
+      "row": 0
+    },
+    {
+      "column": 7,
+      "row": 1
+    },
+    {
+      "column": 8,
+      "row": 0
+    },
+    {
+      "column": 8,
+      "row": 1
+    },
+    {
+      "column": 9,
+      "row": 0
+    },
+    {
+      "column": 9,
+      "row": 1
+    },
+    {
+      "column": 11,
+      "row": 18
+    },
+    {
+      "column": 11,
+      "row": 19
+    },
+    {
+      "column": 11,
+      "row": 20
+    },
+    {
+      "column": 12,
+      "row": 18
+    },
+    {
+      "column": 12,
+      "row": 19
+    },
+    {
+      "column": 12,
+      "row": 20
+    },
+    {
+      "column": 15,
+      "row": 0
+    },
+    {
+      "column": 15,
+      "row": 1
+    },
+    {
+      "column": 16,
+      "row": 0
+    },
+    {
+      "column": 16,
+      "row": 1
+    },
+    {
       "column": 17,
-      "row": 21
+      "row": 0
+    },
+    {
+      "column": 17,
+      "row": 1
+    },
+    {
+      "column": 18,
+      "row": 0
+    },
+    {
+      "column": 18,
+      "row": 1
     },
     {
       "column": 18,
@@ -1010,75 +1190,231 @@
     },
     {
       "column": 18,
+      "row": 12
+    },
+    {
+      "column": 18,
+      "row": 13
+    },
+    {
+      "column": 18,
       "row": 14
     },
     {
-      "column": 18,
+      "column": 19,
+      "row": 0
+    },
+    {
+      "column": 19,
+      "row": 1
+    },
+    {
+      "column": 19,
+      "row": 4
+    },
+    {
+      "column": 19,
+      "row": 5
+    },
+    {
+      "column": 19,
+      "row": 6
+    },
+    {
+      "column": 19,
+      "row": 12
+    },
+    {
+      "column": 19,
+      "row": 13
+    },
+    {
+      "column": 19,
+      "row": 14
+    },
+    {
+      "column": 20,
+      "row": 0
+    },
+    {
+      "column": 20,
+      "row": 1
+    },
+    {
+      "column": 21,
+      "row": 0
+    },
+    {
+      "column": 21,
+      "row": 1
+    },
+    {
+      "column": 22,
+      "row": 3
+    },
+    {
+      "column": 22,
+      "row": 4
+    },
+    {
+      "column": 22,
+      "row": 5
+    },
+    {
+      "column": 22,
+      "row": 6
+    },
+    {
+      "column": 22,
+      "row": 7
+    },
+    {
+      "column": 22,
+      "row": 8
+    },
+    {
+      "column": 22,
+      "row": 9
+    },
+    {
+      "column": 22,
+      "row": 10
+    },
+    {
+      "column": 22,
+      "row": 11
+    },
+    {
+      "column": 22,
+      "row": 12
+    },
+    {
+      "column": 22,
+      "row": 13
+    },
+    {
+      "column": 22,
+      "row": 14
+    },
+    {
+      "column": 22,
       "row": 15
     },
     {
-      "column": 18,
+      "column": 22,
       "row": 16
     },
     {
-      "column": 18,
+      "column": 22,
+      "row": 17
+    },
+    {
+      "column": 22,
+      "row": 18
+    },
+    {
+      "column": 22,
       "row": 19
     },
     {
-      "column": 18,
-      "row": 20
+      "column": 23,
+      "row": 3
     },
     {
-      "column": 18,
-      "row": 21
+      "column": 23,
+      "row": 4
+    },
+    {
+      "column": 23,
+      "row": 5
+    },
+    {
+      "column": 23,
+      "row": 6
+    },
+    {
+      "column": 23,
+      "row": 7
+    },
+    {
+      "column": 23,
+      "row": 8
+    },
+    {
+      "column": 23,
+      "row": 9
+    },
+    {
+      "column": 23,
+      "row": 10
+    },
+    {
+      "column": 23,
+      "row": 11
+    },
+    {
+      "column": 23,
+      "row": 12
+    },
+    {
+      "column": 23,
+      "row": 13
+    },
+    {
+      "column": 23,
+      "row": 14
+    },
+    {
+      "column": 23,
+      "row": 15
+    },
+    {
+      "column": 23,
+      "row": 16
+    },
+    {
+      "column": 23,
+      "row": 17
+    },
+    {
+      "column": 23,
+      "row": 18
+    },
+    {
+      "column": 23,
+      "row": 19
     }
   ],
   "connections": [
     {
-      "column": 0,
-      "row": 12,
-      "id": "iseulon-to-moss-clearing",
-      "target": "moss-clearing",
-      "direction": "west",
-      "targetWaypointId": "moss-clearing-to-iseulon"
-    },
-    {
-      "column": 23,
-      "row": 12,
-      "id": "iseulon-to-lantern-wood",
-      "target": "lantern-wood",
-      "direction": "east",
-      "targetWaypointId": "lantern-wood-to-iseulon"
-    },
-    {
       "column": 12,
-      "row": 23,
-      "id": "iseulon-to-meadow",
-      "target": "meadow",
-      "direction": "south",
-      "targetWaypointId": "gate-north"
+      "row": 0,
+      "id": "stonewarm-to-broken-quarry",
+      "target": "broken-quarry",
+      "direction": "north",
+      "targetWaypointId": "broken-quarry-to-stonewarm"
     }
   ],
   "buildings": [
     {
-      "id": "iseulon-guild",
+      "id": "stonewarm-guild",
       "name": "길드 회관",
-      "facilityId": "iseulon-guild",
+      "facilityId": "stonewarm-guild",
       "origin": {
-        "column": 5,
+        "column": 4,
         "row": 4
       },
       "width": 3,
       "height": 3,
       "entrance": {
-        "column": 6,
-        "row": 7
+        "column": 7,
+        "row": 5
       },
-      "facing": "south",
+      "facing": "east",
       "blockSchemaVersion": 1,
       "blocks": [
         {
-          "id": "iseulon-guild-0-0-0",
+          "id": "stonewarm-guild-0-0-0",
           "column": 0,
           "row": 0,
           "layer": 0,
@@ -1089,7 +1425,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-guild-0-0-32",
+          "id": "stonewarm-guild-0-0-32",
           "column": 0,
           "row": 0,
           "layer": 1,
@@ -1100,7 +1436,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-guild-roof-0-0",
+          "id": "stonewarm-guild-roof-0-0",
           "column": 0,
           "row": 0,
           "layer": 1,
@@ -1112,7 +1448,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-guild-1-0-0",
+          "id": "stonewarm-guild-1-0-0",
           "column": 1,
           "row": 0,
           "layer": 0,
@@ -1123,7 +1459,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-guild-1-0-32",
+          "id": "stonewarm-guild-1-0-32",
           "column": 1,
           "row": 0,
           "layer": 1,
@@ -1134,7 +1470,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-guild-roof-1-0",
+          "id": "stonewarm-guild-roof-1-0",
           "column": 1,
           "row": 0,
           "layer": 2,
@@ -1146,7 +1482,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-guild-2-0-0",
+          "id": "stonewarm-guild-2-0-0",
           "column": 2,
           "row": 0,
           "layer": 0,
@@ -1157,7 +1493,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-guild-2-0-32",
+          "id": "stonewarm-guild-2-0-32",
           "column": 2,
           "row": 0,
           "layer": 1,
@@ -1168,7 +1504,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-guild-roof-2-0",
+          "id": "stonewarm-guild-roof-2-0",
           "column": 2,
           "row": 0,
           "layer": 1,
@@ -1180,7 +1516,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-guild-0-1-0",
+          "id": "stonewarm-guild-0-1-0",
           "column": 0,
           "row": 1,
           "layer": 0,
@@ -1191,7 +1527,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-guild-0-1-32",
+          "id": "stonewarm-guild-0-1-32",
           "column": 0,
           "row": 1,
           "layer": 1,
@@ -1202,7 +1538,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-guild-roof-0-1",
+          "id": "stonewarm-guild-roof-0-1",
           "column": 0,
           "row": 1,
           "layer": 1,
@@ -1214,7 +1550,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-guild-1-1-0",
+          "id": "stonewarm-guild-1-1-0",
           "column": 1,
           "row": 1,
           "layer": 0,
@@ -1225,7 +1561,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-guild-1-1-32",
+          "id": "stonewarm-guild-1-1-32",
           "column": 1,
           "row": 1,
           "layer": 1,
@@ -1236,7 +1572,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-guild-roof-1-1",
+          "id": "stonewarm-guild-roof-1-1",
           "column": 1,
           "row": 1,
           "layer": 2,
@@ -1248,7 +1584,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-guild-2-1-0",
+          "id": "stonewarm-guild-2-1-0",
           "column": 2,
           "row": 1,
           "layer": 0,
@@ -1259,7 +1595,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-guild-2-1-32",
+          "id": "stonewarm-guild-2-1-32",
           "column": 2,
           "row": 1,
           "layer": 1,
@@ -1270,7 +1606,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-guild-roof-2-1",
+          "id": "stonewarm-guild-roof-2-1",
           "column": 2,
           "row": 1,
           "layer": 1,
@@ -1282,7 +1618,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-guild-0-2-0",
+          "id": "stonewarm-guild-0-2-0",
           "column": 0,
           "row": 2,
           "layer": 0,
@@ -1293,7 +1629,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-guild-0-2-32",
+          "id": "stonewarm-guild-0-2-32",
           "column": 0,
           "row": 2,
           "layer": 1,
@@ -1304,7 +1640,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-guild-roof-0-2",
+          "id": "stonewarm-guild-roof-0-2",
           "column": 0,
           "row": 2,
           "layer": 1,
@@ -1316,7 +1652,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-guild-1-2-0",
+          "id": "stonewarm-guild-1-2-0",
           "column": 1,
           "row": 2,
           "layer": 0,
@@ -1327,7 +1663,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-guild-1-2-32",
+          "id": "stonewarm-guild-1-2-32",
           "column": 1,
           "row": 2,
           "layer": 1,
@@ -1338,7 +1674,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-guild-roof-1-2",
+          "id": "stonewarm-guild-roof-1-2",
           "column": 1,
           "row": 2,
           "layer": 2,
@@ -1350,7 +1686,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-guild-2-2-0",
+          "id": "stonewarm-guild-2-2-0",
           "column": 2,
           "row": 2,
           "layer": 0,
@@ -1361,7 +1697,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-guild-2-2-32",
+          "id": "stonewarm-guild-2-2-32",
           "column": 2,
           "row": 2,
           "layer": 1,
@@ -1372,7 +1708,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-guild-roof-2-2",
+          "id": "stonewarm-guild-roof-2-2",
           "column": 2,
           "row": 2,
           "layer": 1,
@@ -1385,12 +1721,7 @@
         }
       ],
       "facilityKind": "guild",
-      "npcs": [
-        {
-          "id": "iseulon-registrar",
-          "name": "하린"
-        }
-      ],
+      "npcs": [],
       "faces": [
         {
           "vertices": [
@@ -2357,24 +2688,24 @@
       ]
     },
     {
-      "id": "iseulon-bookshop",
+      "id": "stonewarm-bookshop",
       "name": "서점",
-      "facilityId": "iseulon-bookshop",
+      "facilityId": "stonewarm-bookshop",
       "origin": {
-        "column": 17,
+        "column": 18,
         "row": 4
       },
       "width": 2,
       "height": 3,
       "entrance": {
-        "column": 18,
-        "row": 7
+        "column": 17,
+        "row": 5
       },
-      "facing": "south",
+      "facing": "west",
       "blockSchemaVersion": 1,
       "blocks": [
         {
-          "id": "iseulon-bookshop-0-0-0",
+          "id": "stonewarm-bookshop-0-0-0",
           "column": 0,
           "row": 0,
           "layer": 0,
@@ -2385,7 +2716,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-bookshop-0-0-32",
+          "id": "stonewarm-bookshop-0-0-32",
           "column": 0,
           "row": 0,
           "layer": 1,
@@ -2396,7 +2727,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-bookshop-roof-0-0",
+          "id": "stonewarm-bookshop-roof-0-0",
           "column": 0,
           "row": 0,
           "layer": 1,
@@ -2408,7 +2739,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-bookshop-1-0-0",
+          "id": "stonewarm-bookshop-1-0-0",
           "column": 1,
           "row": 0,
           "layer": 0,
@@ -2419,7 +2750,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-bookshop-1-0-32",
+          "id": "stonewarm-bookshop-1-0-32",
           "column": 1,
           "row": 0,
           "layer": 1,
@@ -2430,7 +2761,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-bookshop-roof-1-0",
+          "id": "stonewarm-bookshop-roof-1-0",
           "column": 1,
           "row": 0,
           "layer": 1,
@@ -2442,7 +2773,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-bookshop-0-1-0",
+          "id": "stonewarm-bookshop-0-1-0",
           "column": 0,
           "row": 1,
           "layer": 0,
@@ -2453,7 +2784,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-bookshop-0-1-32",
+          "id": "stonewarm-bookshop-0-1-32",
           "column": 0,
           "row": 1,
           "layer": 1,
@@ -2464,7 +2795,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-bookshop-roof-0-1",
+          "id": "stonewarm-bookshop-roof-0-1",
           "column": 0,
           "row": 1,
           "layer": 1,
@@ -2476,7 +2807,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-bookshop-1-1-0",
+          "id": "stonewarm-bookshop-1-1-0",
           "column": 1,
           "row": 1,
           "layer": 0,
@@ -2487,7 +2818,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-bookshop-1-1-32",
+          "id": "stonewarm-bookshop-1-1-32",
           "column": 1,
           "row": 1,
           "layer": 1,
@@ -2498,7 +2829,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-bookshop-roof-1-1",
+          "id": "stonewarm-bookshop-roof-1-1",
           "column": 1,
           "row": 1,
           "layer": 1,
@@ -2510,7 +2841,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-bookshop-0-2-0",
+          "id": "stonewarm-bookshop-0-2-0",
           "column": 0,
           "row": 2,
           "layer": 0,
@@ -2521,7 +2852,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-bookshop-0-2-32",
+          "id": "stonewarm-bookshop-0-2-32",
           "column": 0,
           "row": 2,
           "layer": 1,
@@ -2532,7 +2863,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-bookshop-roof-0-2",
+          "id": "stonewarm-bookshop-roof-0-2",
           "column": 0,
           "row": 2,
           "layer": 1,
@@ -2544,7 +2875,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-bookshop-1-2-0",
+          "id": "stonewarm-bookshop-1-2-0",
           "column": 1,
           "row": 2,
           "layer": 0,
@@ -2555,7 +2886,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-bookshop-1-2-32",
+          "id": "stonewarm-bookshop-1-2-32",
           "column": 1,
           "row": 2,
           "layer": 1,
@@ -2566,7 +2897,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-bookshop-roof-1-2",
+          "id": "stonewarm-bookshop-roof-1-2",
           "column": 1,
           "row": 2,
           "layer": 1,
@@ -3364,24 +3695,24 @@
       ]
     },
     {
-      "id": "iseulon-inn",
+      "id": "stonewarm-inn",
       "name": "여관",
-      "facilityId": "iseulon-inn",
+      "facilityId": "stonewarm-inn",
       "origin": {
         "column": 4,
-        "row": 15
+        "row": 18
       },
       "width": 3,
       "height": 3,
       "entrance": {
         "column": 7,
-        "row": 16
+        "row": 19
       },
       "facing": "east",
       "blockSchemaVersion": 1,
       "blocks": [
         {
-          "id": "iseulon-inn-0-0-0",
+          "id": "stonewarm-inn-0-0-0",
           "column": 0,
           "row": 0,
           "layer": 0,
@@ -3392,7 +3723,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-inn-0-0-32",
+          "id": "stonewarm-inn-0-0-32",
           "column": 0,
           "row": 0,
           "layer": 1,
@@ -3403,7 +3734,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-inn-roof-0-0",
+          "id": "stonewarm-inn-roof-0-0",
           "column": 0,
           "row": 0,
           "layer": 1,
@@ -3415,7 +3746,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-inn-1-0-0",
+          "id": "stonewarm-inn-1-0-0",
           "column": 1,
           "row": 0,
           "layer": 0,
@@ -3426,7 +3757,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-inn-1-0-32",
+          "id": "stonewarm-inn-1-0-32",
           "column": 1,
           "row": 0,
           "layer": 1,
@@ -3437,7 +3768,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-inn-roof-1-0",
+          "id": "stonewarm-inn-roof-1-0",
           "column": 1,
           "row": 0,
           "layer": 2,
@@ -3449,7 +3780,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-inn-2-0-0",
+          "id": "stonewarm-inn-2-0-0",
           "column": 2,
           "row": 0,
           "layer": 0,
@@ -3460,7 +3791,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-inn-2-0-32",
+          "id": "stonewarm-inn-2-0-32",
           "column": 2,
           "row": 0,
           "layer": 1,
@@ -3471,7 +3802,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-inn-roof-2-0",
+          "id": "stonewarm-inn-roof-2-0",
           "column": 2,
           "row": 0,
           "layer": 1,
@@ -3483,7 +3814,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-inn-0-1-0",
+          "id": "stonewarm-inn-0-1-0",
           "column": 0,
           "row": 1,
           "layer": 0,
@@ -3494,7 +3825,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-inn-0-1-32",
+          "id": "stonewarm-inn-0-1-32",
           "column": 0,
           "row": 1,
           "layer": 1,
@@ -3505,7 +3836,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-inn-roof-0-1",
+          "id": "stonewarm-inn-roof-0-1",
           "column": 0,
           "row": 1,
           "layer": 1,
@@ -3517,7 +3848,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-inn-1-1-0",
+          "id": "stonewarm-inn-1-1-0",
           "column": 1,
           "row": 1,
           "layer": 0,
@@ -3528,7 +3859,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-inn-1-1-32",
+          "id": "stonewarm-inn-1-1-32",
           "column": 1,
           "row": 1,
           "layer": 1,
@@ -3539,7 +3870,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-inn-roof-1-1",
+          "id": "stonewarm-inn-roof-1-1",
           "column": 1,
           "row": 1,
           "layer": 2,
@@ -3551,7 +3882,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-inn-2-1-0",
+          "id": "stonewarm-inn-2-1-0",
           "column": 2,
           "row": 1,
           "layer": 0,
@@ -3562,7 +3893,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-inn-2-1-32",
+          "id": "stonewarm-inn-2-1-32",
           "column": 2,
           "row": 1,
           "layer": 1,
@@ -3573,7 +3904,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-inn-roof-2-1",
+          "id": "stonewarm-inn-roof-2-1",
           "column": 2,
           "row": 1,
           "layer": 1,
@@ -3585,7 +3916,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-inn-0-2-0",
+          "id": "stonewarm-inn-0-2-0",
           "column": 0,
           "row": 2,
           "layer": 0,
@@ -3596,7 +3927,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-inn-0-2-32",
+          "id": "stonewarm-inn-0-2-32",
           "column": 0,
           "row": 2,
           "layer": 1,
@@ -3607,7 +3938,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-inn-roof-0-2",
+          "id": "stonewarm-inn-roof-0-2",
           "column": 0,
           "row": 2,
           "layer": 1,
@@ -3619,7 +3950,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-inn-1-2-0",
+          "id": "stonewarm-inn-1-2-0",
           "column": 1,
           "row": 2,
           "layer": 0,
@@ -3630,7 +3961,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-inn-1-2-32",
+          "id": "stonewarm-inn-1-2-32",
           "column": 1,
           "row": 2,
           "layer": 1,
@@ -3641,7 +3972,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-inn-roof-1-2",
+          "id": "stonewarm-inn-roof-1-2",
           "column": 1,
           "row": 2,
           "layer": 2,
@@ -3653,7 +3984,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-inn-2-2-0",
+          "id": "stonewarm-inn-2-2-0",
           "column": 2,
           "row": 2,
           "layer": 0,
@@ -3664,7 +3995,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-inn-2-2-32",
+          "id": "stonewarm-inn-2-2-32",
           "column": 2,
           "row": 2,
           "layer": 1,
@@ -3675,7 +4006,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-inn-roof-2-2",
+          "id": "stonewarm-inn-roof-2-2",
           "column": 2,
           "row": 2,
           "layer": 1,
@@ -4655,24 +4986,24 @@
       ]
     },
     {
-      "id": "iseulon-workshop",
+      "id": "stonewarm-workshop",
       "name": "대장간·공방",
-      "facilityId": "iseulon-workshop",
+      "facilityId": "stonewarm-workshop",
       "origin": {
-        "column": 17,
-        "row": 14
+        "column": 11,
+        "row": 18
       },
       "width": 2,
       "height": 3,
       "entrance": {
-        "column": 16,
-        "row": 15
+        "column": 12,
+        "row": 17
       },
-      "facing": "west",
+      "facing": "north",
       "blockSchemaVersion": 1,
       "blocks": [
         {
-          "id": "iseulon-workshop-0-0-0",
+          "id": "stonewarm-workshop-0-0-0",
           "column": 0,
           "row": 0,
           "layer": 0,
@@ -4683,7 +5014,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-workshop-0-0-32",
+          "id": "stonewarm-workshop-0-0-32",
           "column": 0,
           "row": 0,
           "layer": 1,
@@ -4694,7 +5025,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-workshop-roof-0-0",
+          "id": "stonewarm-workshop-roof-0-0",
           "column": 0,
           "row": 0,
           "layer": 1,
@@ -4706,7 +5037,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-workshop-1-0-0",
+          "id": "stonewarm-workshop-1-0-0",
           "column": 1,
           "row": 0,
           "layer": 0,
@@ -4717,7 +5048,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-workshop-1-0-32",
+          "id": "stonewarm-workshop-1-0-32",
           "column": 1,
           "row": 0,
           "layer": 1,
@@ -4728,7 +5059,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-workshop-roof-1-0",
+          "id": "stonewarm-workshop-roof-1-0",
           "column": 1,
           "row": 0,
           "layer": 1,
@@ -4740,7 +5071,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-workshop-0-1-0",
+          "id": "stonewarm-workshop-0-1-0",
           "column": 0,
           "row": 1,
           "layer": 0,
@@ -4751,7 +5082,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-workshop-0-1-32",
+          "id": "stonewarm-workshop-0-1-32",
           "column": 0,
           "row": 1,
           "layer": 1,
@@ -4762,7 +5093,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-workshop-roof-0-1",
+          "id": "stonewarm-workshop-roof-0-1",
           "column": 0,
           "row": 1,
           "layer": 1,
@@ -4774,7 +5105,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-workshop-1-1-0",
+          "id": "stonewarm-workshop-1-1-0",
           "column": 1,
           "row": 1,
           "layer": 0,
@@ -4785,7 +5116,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-workshop-1-1-32",
+          "id": "stonewarm-workshop-1-1-32",
           "column": 1,
           "row": 1,
           "layer": 1,
@@ -4796,7 +5127,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-workshop-roof-1-1",
+          "id": "stonewarm-workshop-roof-1-1",
           "column": 1,
           "row": 1,
           "layer": 1,
@@ -4808,7 +5139,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-workshop-0-2-0",
+          "id": "stonewarm-workshop-0-2-0",
           "column": 0,
           "row": 2,
           "layer": 0,
@@ -4819,7 +5150,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-workshop-0-2-32",
+          "id": "stonewarm-workshop-0-2-32",
           "column": 0,
           "row": 2,
           "layer": 1,
@@ -4830,7 +5161,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-workshop-roof-0-2",
+          "id": "stonewarm-workshop-roof-0-2",
           "column": 0,
           "row": 2,
           "layer": 1,
@@ -4842,7 +5173,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-workshop-1-2-0",
+          "id": "stonewarm-workshop-1-2-0",
           "column": 1,
           "row": 2,
           "layer": 0,
@@ -4853,7 +5184,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-workshop-1-2-32",
+          "id": "stonewarm-workshop-1-2-32",
           "column": 1,
           "row": 2,
           "layer": 1,
@@ -4864,7 +5195,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-workshop-roof-1-2",
+          "id": "stonewarm-workshop-roof-1-2",
           "column": 1,
           "row": 2,
           "layer": 1,
@@ -4877,7 +5208,12 @@
         }
       ],
       "facilityKind": "workshop",
-      "npcs": [],
+      "npcs": [
+        {
+          "id": "stonewarm-smith",
+          "name": "무겸"
+        }
+      ],
       "faces": [
         {
           "vertices": [
@@ -5662,24 +5998,24 @@
       ]
     },
     {
-      "id": "iseulon-market",
+      "id": "stonewarm-market",
       "name": "시장",
-      "facilityId": "iseulon-market",
+      "facilityId": "stonewarm-market",
       "origin": {
-        "column": 17,
-        "row": 19
+        "column": 18,
+        "row": 12
       },
       "width": 2,
       "height": 3,
       "entrance": {
-        "column": 18,
-        "row": 18
+        "column": 17,
+        "row": 13
       },
-      "facing": "north",
+      "facing": "west",
       "blockSchemaVersion": 1,
       "blocks": [
         {
-          "id": "iseulon-market-0-0-0",
+          "id": "stonewarm-market-0-0-0",
           "column": 0,
           "row": 0,
           "layer": 0,
@@ -5690,7 +6026,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-market-roof-0-0",
+          "id": "stonewarm-market-roof-0-0",
           "column": 0,
           "row": 0,
           "layer": 0,
@@ -5702,7 +6038,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-market-1-0-0",
+          "id": "stonewarm-market-1-0-0",
           "column": 1,
           "row": 0,
           "layer": 0,
@@ -5713,7 +6049,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-market-roof-1-0",
+          "id": "stonewarm-market-roof-1-0",
           "column": 1,
           "row": 0,
           "layer": 0,
@@ -5725,7 +6061,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-market-0-1-0",
+          "id": "stonewarm-market-0-1-0",
           "column": 0,
           "row": 1,
           "layer": 0,
@@ -5736,7 +6072,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-market-roof-0-1",
+          "id": "stonewarm-market-roof-0-1",
           "column": 0,
           "row": 1,
           "layer": 0,
@@ -5748,7 +6084,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-market-1-1-0",
+          "id": "stonewarm-market-1-1-0",
           "column": 1,
           "row": 1,
           "layer": 0,
@@ -5759,7 +6095,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-market-roof-1-1",
+          "id": "stonewarm-market-roof-1-1",
           "column": 1,
           "row": 1,
           "layer": 0,
@@ -5771,7 +6107,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-market-0-2-0",
+          "id": "stonewarm-market-0-2-0",
           "column": 0,
           "row": 2,
           "layer": 0,
@@ -5782,7 +6118,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-market-roof-0-2",
+          "id": "stonewarm-market-roof-0-2",
           "column": 0,
           "row": 2,
           "layer": 0,
@@ -5794,7 +6130,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-market-1-2-0",
+          "id": "stonewarm-market-1-2-0",
           "column": 1,
           "row": 2,
           "layer": 0,
@@ -5805,7 +6141,7 @@
           "walkable": false
         },
         {
-          "id": "iseulon-market-roof-1-2",
+          "id": "stonewarm-market-roof-1-2",
           "column": 1,
           "row": 2,
           "layer": 0,
@@ -5820,8 +6156,8 @@
       "facilityKind": "market",
       "npcs": [
         {
-          "id": "iseulon-grocer",
-          "name": "모라"
+          "id": "stonewarm-factor",
+          "name": "로엔"
         }
       ],
       "faces": [
@@ -6349,16 +6685,16 @@
     }
   ],
   "environment": {
-    "themeId": "iseulon",
+    "themeId": "stonewarm",
     "backdrop": "meadow-backdrop",
     "terrainPalette": [
-      "grass",
       "paving",
-      "water"
+      "gravel",
+      "boulder"
     ]
   },
   "reviewProvenance": {
-    "sourceSha256": "c41b9b9d12ac72b389de4e2a424b84e48f035db4acad753f71423f0083170225",
+    "sourceSha256": "ecc80e2cdfd76049f432bb2ef36aee6415c4e64676a1e3c0d92cddc99db1a0ce",
     "geometrySha256": "27eb4566c33a4cd423c7abf908f1b93f7e2ed3e1d36fefe8148704a9fc10064f",
     "temporaryMaterials": true
   }
