@@ -1,5 +1,6 @@
 """MoMask HumanML3D 관절 모션을 Anny 모델 프레임으로 리타깃·렌더한다."""
 from pathlib import Path
+import math
 import argparse, hashlib, json, shutil, subprocess
 import numpy as np
 import yaml
@@ -10,7 +11,7 @@ BLENDER=ROOT/'.local/blender-runtime/bin/python'
 DIRECTIONS={'down_left','down_right','up_left','up_right'}
 
 def digest(path): return hashlib.sha256(path.read_bytes()).hexdigest()
-def render(motion_path, output_dir, directions, sample_indices, animate_hand_closure=False, arm_correction_config=None):
+def render(motion_path, output_dir, directions, sample_indices, animate_hand_closure=False, arm_correction_config=None, camera_azimuth_degrees=45):
     motion_path=Path(motion_path).resolve();output_dir=Path(output_dir).resolve()
     if not output_dir.is_relative_to(ROOT/'.tmp'): raise ValueError('Anny 출력은 .tmp 하위여야 합니다.')
     joints=np.load(motion_path,allow_pickle=False)['joints']
@@ -64,7 +65,11 @@ def render(motion_path, output_dir, directions, sample_indices, animate_hand_clo
         retarget=retarget.replace("torso_rotation_value=calculate_body_rotation(current_joint_points,9)", "torso_rotation_value=calculate_body_rotation(current_joint_points,9)\n source_chest_reference=Vector(source_joint_frames[0,9]-source_joint_frames[0,6])\n current_chest_direction=Vector(current_joint_points[9]-current_joint_points[6])\n chest_rotation_delta=source_chest_reference.rotation_difference(current_chest_direction)")
         retarget=retarget.replace("elif current_bone_name.startswith('spine'):target_rotation_value=torso_rotation_value@rest_bone_rotations[current_bone_name]", "elif current_bone_name in ('spine01','spine02'):target_rotation_value=chest_rotation_delta@rest_bone_rotations[current_bone_name]\n  elif current_bone_name=='spine03':target_rotation_value=chest_rotation_delta.__class__((1,0,0,0)).slerp(chest_rotation_delta,.5)@rest_bone_rotations[current_bone_name]\n  elif current_bone_name.startswith('spine'):target_rotation_value=rest_bone_rotations[current_bone_name]")
     (output_dir/'retarget_loop.py').write_text(retarget)
-    cameras={key:value for key,value in {'down_left':(26**.5,-26**.5,3),'down_right':(-26**.5,-26**.5,3),'up_left':(26**.5,26**.5,3),'up_right':(-26**.5,26**.5,3)}.items() if key in directions}
+    if not 0<camera_azimuth_degrees<90:raise ValueError('카메라 수평 방향각 범위 오류')
+    camera_horizontal_x=math.sqrt(52)*math.sin(math.radians(camera_azimuth_degrees))
+    camera_horizontal_y=math.sqrt(52)*math.cos(math.radians(camera_azimuth_degrees))
+    cameras={key:value for key,value in {'down_left':(camera_horizontal_x,-camera_horizontal_y,3),'down_right':(-camera_horizontal_x,-camera_horizontal_y,3),'up_left':(camera_horizontal_x,camera_horizontal_y,3),'up_right':(-camera_horizontal_x,camera_horizontal_y,3)}.items() if key in directions}
+    (output_dir/'camera-settings.json').write_text(json.dumps({'azimuth_degrees':camera_azimuth_degrees,'elevation_degrees':math.degrees(math.atan2(2.2,math.sqrt(52))),'positions':cameras}))
     renderer=(output_dir/'render_asset.py').read_text()
     renderer=renderer.replace('OUTPUT_SAMPLE_FRAMES=[1,4,7,10,13,16,19,22]',f'OUTPUT_SAMPLE_FRAMES={[index+1 for index in sample_indices]!r}')
     renderer=renderer.replace("DIRECTION_CAMERA_POINTS={'down_left':(CAMERA_HORIZONTAL_OFFSET,-CAMERA_HORIZONTAL_OFFSET,3),'down_right':(-CAMERA_HORIZONTAL_OFFSET,-CAMERA_HORIZONTAL_OFFSET,3),'up_left':(CAMERA_HORIZONTAL_OFFSET,CAMERA_HORIZONTAL_OFFSET,3),'up_right':(-CAMERA_HORIZONTAL_OFFSET,CAMERA_HORIZONTAL_OFFSET,3)}",f'DIRECTION_CAMERA_POINTS={cameras!r}')
@@ -78,4 +83,4 @@ def render(motion_path, output_dir, directions, sample_indices, animate_hand_clo
         for number in range(1,len(sample_indices)+1): shutil.copy2(output_dir/direction/f'preview-{number:04d}.png',target/f'anny-{number:04d}.png')
     (output_dir/'result.json').write_text(json.dumps({'renderer':'Anny Blender retarget','frames':len(sample_indices),'directions':directions,'samples':16,'hand_pose':'fist-v3','arm_retarget':'parallel-transport-v3','arm_corrections':arm_correction_values,'skinning':'dual-quaternion-corrective-v1','hand_closure_animation':animate_hand_closure,'baseline_model':baseline_model_record},ensure_ascii=False,indent=2)+'\n')
 if __name__=='__main__':
- p=argparse.ArgumentParser(description=__doc__);p.add_argument('--motion',type=Path,required=True);p.add_argument('--output-dir',type=Path,required=True);p.add_argument('--directions',required=True);p.add_argument('--sample-indices',required=True);p.add_argument('--animate-hand-closure',action='store_true');p.add_argument('--arm-correction-config',type=Path);a=p.parse_args();render(a.motion,a.output_dir,a.directions.split(','),[int(x) for x in a.sample_indices.split(',')],a.animate_hand_closure,a.arm_correction_config)
+ p=argparse.ArgumentParser(description=__doc__);p.add_argument('--motion',type=Path,required=True);p.add_argument('--output-dir',type=Path,required=True);p.add_argument('--directions',required=True);p.add_argument('--sample-indices',required=True);p.add_argument('--animate-hand-closure',action='store_true');p.add_argument('--arm-correction-config',type=Path);p.add_argument('--camera-azimuth-degrees',type=float,default=45);a=p.parse_args();render(a.motion,a.output_dir,a.directions.split(','),[int(x) for x in a.sample_indices.split(',')],a.animate_hand_closure,a.arm_correction_config,a.camera_azimuth_degrees)

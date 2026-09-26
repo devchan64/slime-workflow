@@ -11,6 +11,7 @@ def main():
  directions=a.directions.split(',')
  if not directions or set(directions)-DIRECTIONS or len(set(directions))!=len(directions): raise ValueError('방향 선택 오류')
  config=json.loads((ROOT/'generators/momask/config/standing-loops-v1.json').read_text())
+ camera_angle_values=yaml.safe_load((ROOT/'generators/momask/config/camera-angles.yaml').read_text())
  spec=config['actions'][a.action]; folder,label=ACTIONS[a.action]
  generation_root = a.job_dir / 'motion-run'
  command=[str(ROOT/'.venv/bin/python'),str(ROOT/'generators/momask/generate_motion.py'),'--output-dir',str(generation_root),'--frames',str(spec['source_frames']),'--prompt',spec['prompt']]
@@ -39,8 +40,8 @@ def main():
   backward_rotation_limit=standing_correction_values['chest_backward_rotation_degrees']+standing_correction_values['max_torso_pitch_degrees']
   torso_direction_values=joints[:,9]-joints[:,0]
   if np.max(np.degrees(np.arctan2(torso_direction_values[:,2],torso_direction_values[:,1])))>1.01 or np.min(np.degrees(np.arctan2(torso_direction_values[:,2],torso_direction_values[:,1]))) < -backward_rotation_limit:raise ValueError('대기 상체 전방 기울기 과다')
- subprocess.run([str(ROOT/'.venv/bin/python'),str(ROOT/'generators/momask/render_openpose_frames.py'),'--motion',str(motion),'--output-dir',str(result/'openpose'),'--sample-indices',indices],check=True)
- subprocess.run([str(ROOT/'.venv/bin/python'),str(ROOT/'generators/momask/render_anny_frames.py'),'--motion',str(motion),'--output-dir',str(result/'anny'),'--directions',','.join(directions),'--sample-indices',indices]+(['--animate-hand-closure','--arm-correction-config',str(ROOT/'generators/momask/config/stretch-arm-corrections.yaml')] if a.action=='stretch' else []),check=True)
+ subprocess.run([str(ROOT/'.venv/bin/python'),str(ROOT/'generators/momask/render_openpose_frames.py'),'--motion',str(motion),'--output-dir',str(result/'openpose'),'--sample-indices',indices,'--camera-azimuth-degrees',str(camera_angle_values[a.action])],check=True)
+ subprocess.run([str(ROOT/'.venv/bin/python'),str(ROOT/'generators/momask/render_anny_frames.py'),'--motion',str(motion),'--output-dir',str(result/'anny'),'--directions',','.join(directions),'--sample-indices',indices,'--camera-azimuth-degrees',str(camera_angle_values[a.action])]+(['--animate-hand-closure','--arm-correction-config',str(ROOT/'generators/momask/config/stretch-arm-corrections.yaml')] if a.action=='stretch' else []),check=True)
  for direction in DIRECTIONS-set(directions):
   shutil.rmtree(result/'openpose'/direction)
  (a.job_dir/'result.json').write_text(json.dumps({'action':a.action,'label':label,'frames':frames,'anny_frames':frames,'fps':4,'directions':directions,'prompt':spec['prompt'],'sampling':'none','quality_warnings':motion_quality_warnings,'hand_pose':json.loads((result/'anny/result.json').read_text())['hand_pose'],'arm_retarget':json.loads((result/'anny/result.json').read_text())['arm_retarget'],'skinning':json.loads((result/'anny/result.json').read_text())['skinning'],'baseline_model':json.loads((result/'anny/result.json').read_text())['baseline_model'],'status':'completed'},ensure_ascii=False,indent=2)+'\n')

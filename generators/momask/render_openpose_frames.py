@@ -9,14 +9,17 @@ DIRECTIONS = {"down_left": 45, "down_right": -45, "up_left": 135, "up_right": -1
 EDGES = ((0,1),(0,2),(0,3),(1,4),(2,5),(3,6),(4,7),(5,8),(6,9),(7,10),(8,11),(9,12),(12,13),(12,14),(12,15),(13,16),(14,17),(16,18),(17,19),(18,20),(19,21))
 PALETTE = ((255,0,0),(255,85,0),(255,170,0),(255,255,0),(170,255,0),(85,255,0),(0,255,0),(0,255,85),(0,255,170),(0,255,255),(0,170,255),(0,85,255),(0,0,255),(85,0,255),(170,0,255),(255,0,255),(255,0,170),(255,0,85),(255,255,255),(170,170,255),(255,170,170))
 
-def render(motion_path, output_root, sample_indices):
+def render(motion_path, output_root, sample_indices, camera_azimuth_degrees=45):
+    if not math.isfinite(camera_azimuth_degrees) or not 0 < camera_azimuth_degrees < 90:
+        raise ValueError("카메라 수평 방향각은 0도 초과 90도 미만이어야 합니다.")
     joints = np.load(motion_path)["joints"]
     if joints.ndim != 3 or joints.shape[1:] != (22, 3):
         raise ValueError("HumanML3D-22 관절 모션이 필요합니다.")
     if not sample_indices or min(sample_indices) < 0 or max(sample_indices) >= len(joints):
         raise ValueError("유효한 샘플 인덱스가 필요합니다.")
     output_root = Path(output_root)
-    for direction, angle in DIRECTIONS.items():
+    direction_angles={"down_left":camera_azimuth_degrees,"down_right":-camera_azimuth_degrees,"up_left":180-camera_azimuth_degrees,"up_right":camera_azimuth_degrees-180}
+    for direction, angle in direction_angles.items():
         radians = math.radians(angle)
         x = joints[:,:,0] * math.cos(radians) - joints[:,:,2] * math.sin(radians)
         y = joints[:,:,1]
@@ -39,5 +42,6 @@ if __name__ == "__main__":
     parser.add_argument("--motion", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--sample-indices", required=True)
+    parser.add_argument("--camera-azimuth-degrees", type=float, default=45)
     args = parser.parse_args()
-    render(args.motion, args.output_dir, [int(value) for value in args.sample_indices.split(",")])
+    render(args.motion, args.output_dir, [int(value) for value in args.sample_indices.split(",")], args.camera_azimuth_degrees)
