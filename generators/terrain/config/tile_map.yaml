@@ -3,7 +3,7 @@ style_prompt: "Hand-painted fantasy game texture, clean readable shapes, consist
 types:
   rooftop:
     label: 지붕 타일
-    base_prompt: "A single seamless flat-roof tile surface viewed directly from above, made of low-profile roof tiles laid across the entire square. Show only the horizontal rooftop plane with shallow tile relief, no walls, facade, windows, doors, or vertical panels."
+    base_prompt: "Orthographic top-down material texture for a flat rooftop. Uniform square slabs aligned in a regular grid, consistent size across the image, flush surface, subtle joints, even diffuse lighting, matching opposite edges. The material surface fills the entire square."
   wall:
     label: 벽 타일
     base_prompt: "A single building wall tile with a window, straight-on orthographic elevation, flat facade filling the square, horizontally repeating edges."
