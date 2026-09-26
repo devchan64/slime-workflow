@@ -83,6 +83,7 @@ class ImageGenerationManager:
                 current_history_record = json.loads(current_record_path.read_text())
                 current_job_root = self.job_storage_root / current_history_record['id']
                 current_status_path = current_job_root / 'status.json'
+                current_history_record['path'] = str(current_job_root.resolve())
                 current_history_record['status'] = json.loads(current_status_path.read_text()) if current_status_path.exists() else current_history_record.get('status',{'status':'missing'})
                 current_history_record['image'] = f"{self.route_prefix_value}/jobs/{current_history_record['id']}/result.png" if (current_job_root/'result.png').exists() else None
                 current_history_records.append(current_history_record)

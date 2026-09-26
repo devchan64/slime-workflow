@@ -150,7 +150,7 @@ def execute_animation_command(operation_command_name,command_payload_value):
         for history_record_path in sorted(GENERATION_HISTORY_DIRECTORY.glob('*.json'),reverse=True):
             history_record_value = json.loads(history_record_path.read_text())
             generation_status_value = read_generation_status(history_record_value['id'])
-            history_record_values.append({**history_record_value,'status':{'status':generation_status_value['status'],'error':generation_status_value.get('error')},'request':{**{key:generation_status_value['request'][key] for key in ('motion','character','source','directions')},'frame_step':generation_status_value['request'].get('frame_step',1),'steps':generation_status_value['request'].get('steps',4)},'playable':generation_status_value['status']=='completed'})
+            history_record_values.append({**history_record_value,'path':generation_status_value['path'],'status':{'status':generation_status_value['status'],'error':generation_status_value.get('error')},'request':{**{key:generation_status_value['request'][key] for key in ('motion','character','source','directions')},'frame_step':generation_status_value['request'].get('frame_step',1),'steps':generation_status_value['request'].get('steps',4)},'playable':generation_status_value['status']=='completed'})
         return {'records':history_record_values}
     if operation_command_name=='history-reset':
         for history_record_path in GENERATION_HISTORY_DIRECTORY.glob('*.json'):history_record_path.unlink(missing_ok=True)

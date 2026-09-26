@@ -53,7 +53,7 @@ class AnnyAttributeManager:
    if h.command=='GET' and path=='/anny-attributes/history':
     stored_history_records=[]
     for history_record_path in sorted(JOBS.glob('*/history.json'),key=lambda item:item.stat().st_mtime,reverse=True):
-     current_history_record=json.loads(history_record_path.read_text());current_history_record['status']=json.loads((history_record_path.parent/'status.json').read_text());
+     current_history_record=json.loads(history_record_path.read_text());current_history_record['path']=str(history_record_path.parent.resolve());current_history_record['status']=json.loads((history_record_path.parent/'status.json').read_text());
      if current_history_record.get('request',{}).get('kind')=='preview' and (history_record_path.parent/'render'/'mesh.json').is_file():current_history_record['status']={'status':'completed'}
      current_history_record['preview_ready']=all((history_record_path.parent/name).is_file() or (history_record_path.parent/'render'/name).is_file() for name in ('front.png','side.png'));stored_history_records.append(current_history_record)
     self.send(h,200,{'records':stored_history_records});return True

@@ -254,6 +254,15 @@ def run_review_server(parsed_argument_values):
     from tools.review.domains.character_animation.character_animation import CharacterAnimationManager
     character_animation_service = CharacterAnimationManager()
     management_command_gateway = ManagementCommandGateway({'character-animation':character_animation_service.handle,'momask':momask_generation_service.handle,'qwen-2512':image_generation_service.handle_image_request,'qwen-2511':three_reference_service.handle_image_request})
+    from tools.review.common.record_folders import handle_record_folder_request
+    from tools.review.domains.character_animation.character_animation_jobs import GENERATION_ROOT_DIRECTORY, resolve_generation_directory
+    from tools.review.domains.anny.anny_attributes import JOBS as ANNY_RECORD_DIRECTORY
+    record_folder_routes = {
+        '/character-animation': (GENERATION_ROOT_DIRECTORY, resolve_generation_directory),
+        '/anny-attributes': (ANNY_RECORD_DIRECTORY, lambda record_identifier_value: ANNY_RECORD_DIRECTORY/record_identifier_value),
+        '/image-generation': (image_generation_service.job_storage_root, lambda record_identifier_value: image_generation_service.job_storage_root/record_identifier_value),
+        '/image-generation-2511': (three_reference_service.job_storage_root, lambda record_identifier_value: three_reference_service.job_storage_root/record_identifier_value),
+    }
     class ReviewRequestHandler(SimpleHTTPRequestHandler):
         def __init__(self,*request_handler_arguments,**request_handler_options):
             super().__init__(*request_handler_arguments,directory=str(review_root_directory),**request_handler_options)
@@ -290,6 +299,7 @@ def run_review_server(parsed_argument_values):
                 return
             super().do_GET()
         def do_POST(self):
+            if handle_record_folder_request(self,record_folder_routes):return
             if management_command_gateway.handle(self):return
             if anny_attribute_service.handle(self):return
             if writer_agent_service.handle_writer_request(self):return
