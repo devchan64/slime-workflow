@@ -26,6 +26,13 @@ class GradioManagementMenuTests(unittest.TestCase):
         self.assertIn('MoMask 모션 생성기',preview_html_text)
         self.assertIn('allow="clipboard-write http://127.0.0.1:8770 http://127.0.0.1:8871"',preview_html_text)
 
+    def test_static_review_uses_gradio_component_path(self):
+        static_review_records=[{'id':'walk-review','label':'걷기 검수','path':'walk/anchors.html','category':'animation','uiMode':'gradio-static','description':'앵커'}]
+
+        preview_html_text=create_page_preview_html('walk-review',static_review_records,8770)
+
+        self.assertIn('/management/frame/static-review/?review=walk-review',preview_html_text)
+
     def test_tool_choices_include_category_for_long_lists(self):
         self.assertEqual(
             create_tool_choice_values(self.page_record_values),
