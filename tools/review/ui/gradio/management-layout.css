@@ -12,8 +12,11 @@
 #motion-generate-button{font-weight:700}
 #motion-history-panel{margin-top:8px}
 #motion-history-panel .label-wrap{font-weight:700}
+#motion-history-toolbar{display:grid!important;grid-template-columns:minmax(120px,max-content) minmax(90px,120px) minmax(0,1fr);align-items:end;gap:8px!important}
+#motion-history-toolbar button{margin:0;white-space:nowrap}
+#motion-history-toolbar p{margin:0 0 8px!important;text-align:right;font-variant-numeric:tabular-nums}
 .motion-empty-state{min-height:350px;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;color:#a7b5c8;background:#101925;border:1px dashed #40516a;border-radius:12px;padding:24px}
-@media(max-width:800px){.gradio-container{padding:8px!important}#motion-controls,#motion-preview{min-width:100%!important}#motion-command-actions{grid-template-columns:1fr 1fr!important}#motion-generate-button{grid-column:1/-1}#motion-direction-selection .wrap{grid-template-columns:1fr}}
+@media(max-width:800px){.gradio-container{padding:8px!important}#motion-controls,#motion-preview{min-width:100%!important}#motion-command-actions{grid-template-columns:1fr 1fr!important}#motion-generate-button{grid-column:1/-1}#motion-direction-selection .wrap{grid-template-columns:1fr}#motion-history-toolbar{grid-template-columns:1fr 1fr!important}#motion-history-toolbar>div:last-child{grid-column:1/-1}#motion-history-toolbar p{text-align:left}}
 
 /* 이동 버튼과 위치 표시는 내용 길이에 관계없이 같은 줄에 유지한다. */
 .management-pagination{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(5ch,max-content) minmax(0,1fr);align-items:center;gap:8px!important;flex:none!important;width:100%;min-width:0}

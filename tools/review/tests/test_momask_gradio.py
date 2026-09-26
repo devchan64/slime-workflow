@@ -53,3 +53,4 @@ class GradioMoMaskTests(unittest.TestCase):
         self.assertNotIn('gr.Tab(',interface_source_text)
         self.assertIn('### 1. 새 모션 생성',interface_source_text)
         self.assertIn("gr.Accordion('2. 생성 이력 · 결과 조회'",interface_source_text)
+        self.assertLess(interface_source_text.index("elem_id='motion-history-toolbar'"),interface_source_text.index("elem_id='motion-history-selection'"))

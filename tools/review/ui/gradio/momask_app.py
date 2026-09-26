@@ -103,6 +103,10 @@ def build_momask_interface(server_base_address):
                 gr.Markdown('예상 시간: 측정 자료가 없어 계산할 수 없습니다. 실행 로그에서 단계를 확인하세요.')
                 with gr.Accordion('2. 생성 이력 · 결과 조회',open=False,elem_id='motion-history-panel'):
                     gr.Markdown('완료된 결과를 재생하거나 중단된 작업을 재개할 때 이력을 선택하세요.')
+                    with gr.Row(elem_id='motion-history-toolbar'):
+                        history_refresh_value=gr.Button('이력 새로고침',variant='secondary')
+                        history_page_value=gr.Number(value=1,precision=0,minimum=1,label='페이지',scale=1,min_width=100)
+                        history_count_value=gr.Markdown()
                     history_table_value=gr.Radio(choices=[],label='조회할 생성 결과',interactive=True,elem_id='motion-history-selection')
                     history_selected_value=gr.Markdown('조회할 생성이력을 선택하세요.')
                     with gr.Row():
@@ -112,10 +116,6 @@ def build_momask_interface(server_base_address):
                     build_history_input_controls(history_table_value, read_saved_motion_inputs,
                                                  restore_saved_motion_inputs,
                                                  [action_select_value, direction_select_value, face_checkbox_value, prompt_text_value, settings_text_value])
-                    with gr.Row():
-                        history_page_value=gr.Number(value=1,precision=0,minimum=1,label='페이지',scale=1,min_width=100)
-                        history_refresh_value=gr.Button('이력 새로고침')
-                        history_count_value=gr.Markdown()
                     reset_control_values=build_history_reset_controls('이력 목록만 초기화합니다. 결과 파일은 보존됩니다.')
             with gr.Column(scale=2,min_width=480,elem_id='motion-preview'):
                 gr.Markdown('### 결과 재생')
