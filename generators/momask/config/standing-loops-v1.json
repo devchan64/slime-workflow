@@ -67,8 +67,8 @@
         15
       ],
       "playtime_seconds": 4.0,
-      "prompt": "A person stands.",
-      "description": "“서 있다” 고정 스크립트. 팔은 생성 후 몸통 옆 수직 자세로 정규화한다."
+      "prompt": "A person stands with both arms down at their sides.",
+      "description": "양팔을 몸 옆으로 내리고 서 있는 동작. 생성 후 팔 자세 보정은 적용하지 않는다."
     },
     "stretch": {
       "source_frames": 120,
