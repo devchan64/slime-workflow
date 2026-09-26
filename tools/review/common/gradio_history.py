@@ -2,6 +2,19 @@
 import gradio as gr
 
 
+HISTORY_SUMMARY_FIELD_NAMES=('tile_type','motion','width','height','steps','seed')
+
+
+def format_history_choice_label(current_history_record):
+    current_status_record=current_history_record.get('status',{})
+    current_status_label=current_status_record.get('status','unknown') if isinstance(current_status_record,dict) else current_status_record
+    current_request_record=current_history_record.get('request',{})
+    current_created_text=current_history_record.get('created_at') or current_history_record.get('createdAt') or '시각 없음'
+    current_summary_values=[f'{current_field_name}={current_request_record[current_field_name]}' for current_field_name in HISTORY_SUMMARY_FIELD_NAMES if current_field_name in current_request_record]
+    current_summary_text=' · '.join(current_summary_values) or '설정 요약 없음'
+    return f"{current_status_label} · {current_created_text} · {current_history_record['id']} · {current_summary_text}"
+
+
 def build_history_reset_controls(deletion_scope_text):
     with gr.Accordion('생성 이력 초기화',open=False):
         gr.Markdown(deletion_scope_text)
@@ -56,9 +69,7 @@ def build_generation_history_view(execute_service_command,server_base_address,de
         current_page_records=current_history_records[(current_page_number-1)*8:current_page_number*8]
         current_choice_values=[]
         for current_history_record in current_page_records:
-            current_status_record=current_history_record.get('status',{})
-            current_status_label=current_status_record.get('status','unknown') if isinstance(current_status_record,dict) else current_status_record
-            current_choice_values.append((f"{current_history_record['id']} · {current_status_label}",current_history_record['id']))
+            current_choice_values.append((format_history_choice_label(current_history_record),current_history_record['id']))
         selected_history_identifier=current_selected_identifier if current_selected_identifier in [value for _,value in current_choice_values] else None
         return gr.update(choices=current_choice_values,value=selected_history_identifier),f'{len(current_history_records)}개 · {current_page_number} / {current_page_count}페이지',current_page_number
 
