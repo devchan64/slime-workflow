@@ -185,3 +185,9 @@ python3 tools/manager.py character-animation sprite-save asset:character.default
 ### 캐릭터 애니메이션 재개
 
 취소·실패 이력의 `이어서 생성` 또는 `python3 tools/manager.py character-animation resume <ID>`로 같은 작업을 재개한다. 저장된 요청과 프롬프트를 유지하며 완료된 `result.json`·유효한 PNG가 있는 프레임은 재사용한다. 미완료 프레임 디렉터리는 `-incomplete-<고유값>` 이름으로 보존한 후 다시 생성한다. 작업 로그는 이어 쓰며 완료 이력을 새로 만들지 않는다. 다른 캐릭터 애니메이션 작업이 실행 중이면 재개를 거절한다.
+
+### MoMask 얼굴 포인트
+
+MoMask 화면의 `얼굴 포인트 ON`을 선택해 새 모션을 생성하거나, 완료된 이력에서 `OpenPose 맵 생성`을 실행한다. 기존 신체맵에 ANNY 공식 COCO 회귀점(코·양눈·양귀)을 같은 카메라로 투영하며 표면에 가려진 점은 제외한다. 68점 얼굴 윤곽·표정 검출 기능은 아니다. OFF는 기존 신체 전용 맵을 생성한다. 결과 캡션과 `result.json`의 `openpose_face_enabled`에 실제 적용값을 기록한다.
+
+CLI는 `momask generate ... --face` 또는 `momask openpose-map <ID> --face`를 사용한다. `--no-face`는 얼굴을 제외한다. 기존 이력의 얼굴맵 생성에는 `result/anny/mannequin.blend`와 투영 기록이 필요하다. 정점 수가 공식 회귀 데이터와 다르면 오류로 중단한다. 얼굴 회귀 데이터는 NAVER ANNY의 Apache-2.0 데이터에서 현재 ANNY 토폴로지의 정점 순서로 추출했으며 원본 해시를 함께 보관한다.

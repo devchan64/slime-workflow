@@ -41,7 +41,8 @@ def check_generation_running():
     return False
 
 
-def start_generation_job(action_name_value, direction_name_values):
+def start_generation_job(action_name_value, direction_name_values, include_face_points=False):
+    if type(include_face_points) is not bool:raise ValueError("얼굴 옵션 형식 오류")
     if action_name_value not in SUPPORTED_ACTION_NAMES or not direction_name_values or len(set(direction_name_values)) != len(direction_name_values) or set(direction_name_values)-set(SUPPORTED_DIRECTION_NAMES):
         raise ValueError('포즈 또는 방향 요청 오류')
     GENERATION_JOB_DIRECTORY.mkdir(parents=True, exist_ok=True)
@@ -57,7 +58,7 @@ def start_generation_job(action_name_value, direction_name_values):
         generation_job_path = resolve_generation_directory(generation_job_identifier)
         generation_job_path.mkdir()
         generation_record_value = dict(id=generation_job_identifier, created_at=creation_time_value.isoformat(), action=action_name_value, directions=direction_name_values, status='running')
-        write_record_atomically(generation_job_path/'request.json', dict(action=action_name_value, directions=direction_name_values))
+        write_record_atomically(generation_job_path/'request.json', dict(action=action_name_value, directions=direction_name_values, face=include_face_points))
         write_record_atomically(generation_job_path/'status.json', {'status':'running'})
         write_record_atomically(GENERATION_HISTORY_DIRECTORY/(generation_job_identifier+'.json'), generation_record_value)
         try:

@@ -63,7 +63,7 @@ def execute_momask_command(operation_command_name, command_payload_value):
         import tools.review.domains.momask.momask_jobs as momask_jobs
     resolve_management_command('momask',operation_command_name,command_payload_value)
     if operation_command_name=='generate':
-        return momask_jobs.start_generation_job(command_payload_value['action'],command_payload_value['directions'])
+        return momask_jobs.start_generation_job(command_payload_value['action'],command_payload_value['directions'],command_payload_value.get('face',False))
     if operation_command_name=='history':
         return momask_jobs.list_generation_history()
     if operation_command_name=='status':
@@ -74,7 +74,7 @@ def execute_momask_command(operation_command_name, command_payload_value):
         from tools.review.domains.momask.openpose_maps import generate_openpose_maps
         if momask_jobs.read_generation_status(command_payload_value['id'])['status']!='completed':
             raise ValueError('완료된 생성 이력이 필요합니다.')
-        return generate_openpose_maps(momask_jobs.resolve_generation_directory(command_payload_value['id']))
+        return generate_openpose_maps(momask_jobs.resolve_generation_directory(command_payload_value['id']),command_payload_value.get('face',False))
     if operation_command_name=='cancel':
         return momask_jobs.cancel_generation_job(command_payload_value['id'])
     if operation_command_name=='history-reset':
@@ -169,6 +169,8 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
     command_subparser_group=command_argument_parser.add_subparsers(dest='command',required=True)
     for operation_command_name in MANAGEMENT_SERVICE_COMMANDS[service_command_name]:
         operation_argument_parser=command_subparser_group.add_parser(operation_command_name)
+        if service_command_name=='momask' and operation_command_name in ('generate','openpose-map'):
+            operation_argument_parser.add_argument('--face',action=argparse.BooleanOptionalAction,default=False,help='ANNY 얼굴 5점 포함')
         if operation_command_name in ('sprite-source','sprite-save','sprite-load'):
             operation_argument_parser.add_argument('id')
             if operation_command_name=='sprite-save':operation_argument_parser.add_argument('--document-file',type=Path,required=True)
@@ -207,6 +209,7 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
             raise ValueError('관리도구 주소는 http://127.0.0.1:포트 형식이어야 합니다.')
     operation_command_name=command_argument_values.command
     command_payload_value={}
+    if hasattr(command_argument_values,'face'):command_payload_value['face']=command_argument_values.face
     if hasattr(command_argument_values,'id'):
         command_payload_value['id']=command_argument_values.id
     if operation_command_name in ('sprite-source','sprite-save','sprite-load'):
@@ -221,7 +224,7 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
             if command_argument_values.speed is not None:command_payload_value['speed']=command_argument_values.speed
             if command_argument_values.target_fps is not None:command_payload_value['target_fps']=command_argument_values.target_fps
         elif service_command_name=='momask':
-            command_payload_value={'action':command_argument_values.action,'directions':command_argument_values.directions}
+            command_payload_value={'action':command_argument_values.action,'directions':command_argument_values.directions,'face':command_argument_values.face}
         else:
             command_payload_value={'action':'generate','prompt':command_argument_values.prompt if command_argument_values.prompt is not None else command_argument_values.prompt_file.read_text(encoding='utf-8'),'width':command_argument_values.width,'height':command_argument_values.height,'steps':command_argument_values.steps,'seed':command_argument_values.seed}
             if service_command_name=='tile-map':

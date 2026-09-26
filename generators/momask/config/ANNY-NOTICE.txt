@@ -1,0 +1,5 @@
+Face keypoint regression weights derived from NAVER ANNY coco.pth.
+Copyright (C) 2025 NAVER Corp. Apache License, Version 2.0.
+Source: https://github.com/naver/anny
+Modification: selected five COCO facial points and reordered weights to ANNY topology (13718 vertices).
+Original data SHA-256 is recorded in face_keypoints.json.
