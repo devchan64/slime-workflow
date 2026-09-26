@@ -89,3 +89,15 @@ document.addEventListener('generation-history-reset',resetEventValue=>{
 });
 
 for(const promptToggleId of ['tile-use-base','tile-use-style'])document.getElementById(promptToggleId).onchange=updateTilePromptDisplay;
+
+// 입력 순서: 타일 종류 → 참조 → 프롬프트 → 생성 설정 → 실행.
+const tileSettingsRow=document.querySelector('#generate .settings-row');
+const tilePromptLabel=document.querySelector('label[for="prompt"]');
+const tileReferenceGroup=document.querySelector('.reference-input-group');
+const tileTypeLabel=document.querySelector('label[for="tile-type"]');
+const tileGenerateForm=document.querySelector('#generate');
+tileGenerateForm.prepend(tileTypeLabel,tileTypeSelector,tileReferenceGroup);
+const tileToggleGroup=document.createElement('div');tileToggleGroup.className='prompt-toggle-row';
+for(const toggleElementId of ['tile-use-base','tile-use-style'])tileToggleGroup.append(document.getElementById(toggleElementId).closest('label'));
+tilePromptLabel.before(tileToggleGroup);
+if(tileSettingsRow)document.querySelector('#generate .generation-actions').before(tileSettingsRow);

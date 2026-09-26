@@ -125,6 +125,11 @@ class TileGenerationManager(ImageGenerationManager):
         page_source_value=page_source_value.replace('<label for="prompt">',reference_input_section+'<label for="prompt">')
         page_source_value=page_source_value.replace('만들 이미지 설명','사용자 프롬프트').replace('원하는 대상, 배경, 구도, 스타일을 설명하세요.','재질, 색상, 건물의 용도 등 추가 요구를 입력하세요.')
         page_source_value=page_source_value.replace('<script src="/tile-map-generator/history-ui.js">','<script src="/tile-map-generator/tile-ui.js"></script><script src="/tile-map-generator/history-ui.js">')
+        page_source_value=page_source_value.replace('<body>','<body class="tile-generator-page">')
+        page_source_value=page_source_value.replace('<fieldset><legend>참조 이미지','<fieldset class="reference-input-group"><legend>참조 이미지')
+        page_source_value=page_source_value.replace('</p><section data-reference-slot=','</p><div class="reference-input-grid"><section data-reference-slot=',1)
+        page_source_value=page_source_value.replace('</section></fieldset>','</section></div></fieldset>')
+        page_source_value=page_source_value.replace('참조 칸을 선택한 뒤 Ctrl+V / ⌘V로 PNG를 붙여넣거나 파일을 고르세요. 파일에서 고를 때만 파일 선택을 누르세요. 이미지 1·2·3 순서로 전달합니다. 사용자 프롬프트에 각 참조의 역할을 적으세요. 참조가 있으면 Qwen 2511, 없으면 기존 Qwen 2512로 생성합니다.','칸을 선택해 Ctrl+V / ⌘V로 붙여넣거나 PNG를 드래그하세요. 이미지 1 → 2 → 3 순서로 전달합니다. 참조 사용: Qwen 2511 / 참조 없음: Qwen 2512.')
         return page_source_value.encode()
     def handle_image_request(self,current_http_handler):
         route_path_value=urlsplit(current_http_handler.path).path
