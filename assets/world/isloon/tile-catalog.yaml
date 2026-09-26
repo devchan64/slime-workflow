@@ -7,6 +7,7 @@ tiles:
   - {id: spring_water, category: ground, asset: terrain/water-v3.png, walkable: false, movement_cost: 99}
   - {id: flower_bed, category: decoration, asset: terrain/flowers-v3.png, walkable: true, movement_cost: 1}
   - {id: marble_large_window_wall, category: structure, asset: world/isloon/buildings/marble-large-window-wall-v1.png, walkable: false, movement_cost: 99}
+  - {id: marble_plain_wall, category: structure, asset: world/isloon/buildings/marble-plain-wall-v1.png, walkable: false, movement_cost: 99}
   - {id: marble_roof, category: roof, asset: world/isloon/buildings/marble-roof-v1.png, walkable: false, movement_cost: 99}
   - {id: marble_small_door, category: door, asset: world/isloon/buildings/marble-small-door-v1.png, walkable: true, movement_cost: 1}
   - {id: wood_large_window_wall, category: structure, asset: world/isloon/buildings/wood-large-window-wall-v1.png, walkable: false, movement_cost: 99}
