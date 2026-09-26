@@ -7,7 +7,6 @@ from pathlib import Path
 import sys
 import threading
 import time
-from urllib.parse import quote
 
 import gradio as gr
 
@@ -66,8 +65,6 @@ def create_page_preview_html(selected_page_identifier, page_record_values, revie
     selected_page_path=selected_page_record['path']
     if selected_page_record.get('uiMode')=='gradio':
         selected_page_path=f'{MANAGEMENT_FRAME_PATH_PREFIX}{selected_page_record["id"]}/'
-    elif selected_page_record.get('uiMode')=='gradio-static':
-        selected_page_path=f'{MANAGEMENT_FRAME_PATH_PREFIX}static-review/?path={quote(selected_page_path,safe="")}'
     selected_page_path=html.escape(selected_page_path,quote=True)
     return f'<iframe title="{html.escape(selected_page_record["label"],quote=True)}" class="management-page-frame" allow="clipboard-write http://127.0.0.1:{review_server_port} http://127.0.0.1:{review_server_port+101}" src="http://127.0.0.1:{review_server_port}{selected_page_path}"></iframe>'
 
