@@ -68,7 +68,7 @@ class AnnyAttributeManager:
   path=urlsplit(h.path).path
   if not path.startswith('/anny-attributes'): return False
   try:
-   if h.command=='GET' and path=='/anny-attributes/':self.send(h,200,PAGE.encode(),'text/html; charset=utf-8');return True
+   if h.command=='GET' and path in {'/anny-attributes/','/anny-attributes/embedded/'}:self.send(h,200,PAGE.encode(),'text/html; charset=utf-8');return True
    if h.command=='GET' and path in ('/anny-attributes/studio.css','/anny-attributes/layout.css'):
     stylesheet_file_name='generation-studio.css' if path.endswith('/studio.css') else 'anny-attributes.css'
     self.send(h,200,resolve_review_ui_asset(stylesheet_file_name).read_bytes(),'text/css; charset=utf-8');return True
