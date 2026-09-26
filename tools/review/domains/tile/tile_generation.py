@@ -3,6 +3,8 @@ import hashlib
 import html
 import json
 import time
+import re
+import shutil
 from datetime import datetime
 from urllib.parse import urlsplit
 from zoneinfo import ZoneInfo
@@ -72,9 +74,23 @@ class TileGenerationManager(ImageGenerationManager):
             current_history_record['image']=f'{self.route_prefix_value}/jobs/{current_history_record["id"]}/result.png' if (current_job_root/'result.png').is_file() else None
         return history_records
     def reset_generation_history(self):
-        self.history_storage_path().mkdir(parents=True,exist_ok=True)
-        self.history_reset_marker_path().touch()
-        super().reset_generation_history()
+        with self.current_request_lock:
+            if self.current_worker_process is not None and self.current_worker_process.poll() is None:
+                raise ValueError('생성 중에는 초기화할 수 없습니다. 완료 또는 취소 후 다시 실행하세요.')
+            deletion_target_paths=[]
+            for current_job_root in self.job_storage_root.iterdir() if self.job_storage_root.is_dir() else []:
+                if not re.fullmatch(r'\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-[a-f0-9]{8}',current_job_root.name):continue
+                if current_job_root.is_symlink():raise ValueError('심볼릭 링크 작업 경로는 삭제할 수 없습니다.')
+                if not current_job_root.is_dir():continue
+                current_status_path=current_job_root/'status.json'
+                if current_status_path.exists() and json.loads(current_status_path.read_text()).get('status')=='running':
+                    raise ValueError('실행 중인 타일 기록이 있습니다. 작업 종료 후 초기화하세요.')
+                deletion_target_paths.append(current_job_root)
+            for current_job_root in deletion_target_paths:shutil.rmtree(current_job_root)
+            self.history_storage_path().mkdir(parents=True,exist_ok=True)
+            self.history_reset_marker_path().touch()
+            super().reset_generation_history()
+            self.current_job_identifier=None
     def validate_generation_request(self, request_record_value):return prepare_tile_request(request_record_value)
     def enrich_generation_status(self, current_job_root, current_status_record):
         if current_status_record['status']!='running':return current_status_record
@@ -103,6 +119,7 @@ class TileGenerationManager(ImageGenerationManager):
         fixed_prompt_section='<label for="tile-type">타일 종류</label><select id="tile-type">'+tile_option_values+'</select><details><summary>기본 프롬프트 · 고정 <small id="base-word-count"></small></summary><pre id="tile-base-prompt"></pre></details><details><summary>화풍 프롬프트 · 항상 적용 <small id="style-word-count"></small></summary><pre id="tile-style-prompt"></pre></details><p id="tile-word-count" role="status"></p>'
         page_source_value=page_source_value[:start_style_position]+fixed_prompt_section+page_source_value[end_style_position:]
         reference_input_section='<fieldset><legend>참조 이미지 · 선택 사항, 최대 3장</legend><p id="tile-reference-guidance">참조 칸을 선택한 뒤 Ctrl+V / ⌘V로 PNG를 붙여넣거나 파일을 고르세요. 파일에서 고를 때만 파일 선택을 누르세요. 이미지 1·2·3 순서로 전달합니다. 사용자 프롬프트에 각 참조의 역할을 적으세요. 참조가 있으면 Qwen 2511, 없으면 기존 Qwen 2512로 생성합니다.</p>'+''.join(f'<section data-reference-slot="{reference_slot_index}" tabindex="0" role="button" aria-pressed="false" aria-describedby="tile-reference-guidance" aria-label="참조 이미지 {reference_slot_index} 선택">이미지 {reference_slot_index}<input id="tile-reference-{reference_slot_index}" type="file" accept="image/png" hidden><img id="tile-reference-preview-{reference_slot_index}" alt="참조 {reference_slot_index}" hidden style="max-width:128px"><button type="button" data-select-reference="{reference_slot_index}">파일 선택</button><button type="button" data-clear-reference="{reference_slot_index}">제거</button></section>' for reference_slot_index in range(1,4))+'</fieldset>'
+        page_source_value=page_source_value.replace('id="generation-history"','id="generation-history" data-reset-deletes-files="true"')
         page_source_value=page_source_value.replace('<label for="prompt">',reference_input_section+'<label for="prompt">')
         page_source_value=page_source_value.replace('만들 이미지 설명','사용자 프롬프트').replace('원하는 대상, 배경, 구도, 스타일을 설명하세요.','재질, 색상, 건물의 용도 등 추가 요구를 입력하세요.')
         page_source_value=page_source_value.replace('<script src="/tile-map-generator/history-ui.js">','<script src="/tile-map-generator/tile-ui.js"></script><script src="/tile-map-generator/history-ui.js">')

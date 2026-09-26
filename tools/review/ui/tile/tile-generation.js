@@ -79,3 +79,11 @@ document.addEventListener('paste',pasteEventValue=>{
  if(!clipboardImageFile)return;
  pasteEventValue.preventDefault();setTileReferenceFile(selectedReferenceSlotIndex,clipboardImageFile);
 });
+
+document.addEventListener('generation-history-reset',resetEventValue=>{
+ if(resetEventValue.detail.route!=='/tile-map-generator')return;
+ activeJobIdentifier=null;sessionStorage.removeItem('tileMapJob');
+ const previousResultImage=document.querySelector('#result');previousResultImage.hidden=true;previousResultImage.removeAttribute('src');
+ document.querySelector('#download').hidden=true;resetGenerationProgress();setBusyState(false);
+ tileGenerationStatus.textContent='타일 생성 이력과 결과 파일을 삭제했습니다.';
+});

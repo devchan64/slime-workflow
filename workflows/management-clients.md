@@ -195,3 +195,5 @@ CLI는 `momask generate ... --face` 또는 `momask openpose-map <ID> --face`를 
 ### 타일 생성 참조 입력
 
 타일 생성기는 선택한 PNG 최대 3장을 순서대로 전달한다. 기존 3참조 검증·입력 저장·Qwen 2511 실행기를 공유하며 512×512 RGB/RGBA 불투명 PNG, 장당 3MB 제한을 적용한다. 참조가 없으면 기존 Qwen 2512를 사용한다. 기본·사용자·화풍 프롬프트를 서버에서 결합하며 참조와 타일 설정은 같은 실행 이력에 저장한다. CLI는 `tile-map generate ... --reference first.png --reference second.png --reference third.png`로 같은 경로를 사용한다.
+
+타일 생성기의 수동 초기화는 예외적으로 `.tmp/test/qwen-image-2512/tile-map/<실행 ID>/`의 참조·결과·로그 파일과 이력 인덱스를 함께 삭제한다. 확인창에서 삭제 범위를 안내하며 생성 중에는 거절한다. 정식 에셋 사본은 삭제하지 않는다. 다른 생성기의 이력 초기화 정책은 유지한다.
