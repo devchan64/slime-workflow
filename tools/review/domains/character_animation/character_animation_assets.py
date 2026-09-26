@@ -100,8 +100,8 @@ def build_animation_catalog():
     return {'motions':available_motion_records,'characters':available_character_records,'unavailable_assets':unavailable_asset_records,'directions':list(SUPPORTED_DIRECTION_NAMES),'prompts':fixed_prompt_values,'direction_prompts':compose_direction_prompts(fixed_prompt_values)}
 
 def prepare_animation_request(command_payload_value):
-    if not {'motion','character','source','directions'} <= set(command_payload_value) or set(command_payload_value)-{'motion','character','source','directions','frame_step','target_fps','speed','steps','resolution'}:
-        raise ValueError('motion·character·source·directions·target_fps·speed·steps·resolution·frame_step만 허용합니다. 프롬프트는 수정할 수 없습니다.')
+    if not {'motion','character','source','directions'} <= set(command_payload_value) or set(command_payload_value)-{'motion','character','source','directions','frame_step','target_fps','speed','steps','resolution','start_frame','end_frame'}:
+        raise ValueError('motion·character·source·directions·start_frame·end_frame·target_fps·speed·steps·resolution·frame_step만 허용합니다. 프롬프트는 수정할 수 없습니다.')
     selected_output_resolution=command_payload_value.get('resolution',512)
     if type(selected_output_resolution) is not int or selected_output_resolution not in (512,768,1024,1280):raise ValueError('해상도는 512·768·1024·1280 중 선택하세요.')
     selected_inference_steps = command_payload_value.get('steps',4)
@@ -125,11 +125,17 @@ def prepare_animation_request(command_payload_value):
     character_manifest_path = resolve_asset_path(animation_character_record['root']+'/'+animation_character_record['manifest'])
     motion_manifest_record = read_asset_mapping(motion_manifest_path)
     character_manifest_record = read_asset_mapping(character_manifest_path)
+    selected_start_frame = command_payload_value.get('start_frame',1)
+    selected_end_frame = command_payload_value.get('end_frame',motion_manifest_record['frames'])
+    if type(selected_start_frame) is not int or type(selected_end_frame) is not int or not 1 <= selected_start_frame <= selected_end_frame <= motion_manifest_record['frames']:
+        raise ValueError(f"시작·종료 프레임은 1부터 {motion_manifest_record['frames']} 사이에서 시작값이 종료값보다 작거나 같아야 합니다.")
     if ('target_fps' in command_payload_value or 'speed' in command_payload_value) and 'frame_step' in command_payload_value:
         raise ValueError('타겟 FPS와 이전 프레임 간격은 함께 지정할 수 없습니다.')
     legacy_frame_sampling = 'frame_step' in command_payload_value
     selected_target_fps = command_payload_value.get('target_fps',animation_motion_record['target_fps'])
-    selected_frame_numbers = list(range(1,motion_manifest_record['frames']+1,selected_frame_step)) if legacy_frame_sampling else select_target_fps_frames(motion_manifest_record['frames'],motion_manifest_record['fps'],selected_target_fps,command_payload_value.get('speed',1))
+    selected_range_frame_count = selected_end_frame-selected_start_frame+1
+    selected_frame_offsets = list(range(0,selected_range_frame_count,selected_frame_step)) if legacy_frame_sampling else [frame_number-1 for frame_number in select_target_fps_frames(selected_range_frame_count,motion_manifest_record['fps'],selected_target_fps,command_payload_value.get('speed',1))]
+    selected_frame_numbers = [selected_start_frame+frame_offset for frame_offset in selected_frame_offsets]
     output_frame_rate = motion_manifest_record['fps'] if legacy_frame_sampling else selected_target_fps
 
     generation_frame_records = []
@@ -147,7 +153,7 @@ def prepare_animation_request(command_payload_value):
             generation_frame_records.append({'direction':direction_name_value,'frame':current_frame_number,'character_path':str(character_file_path.relative_to(WORKFLOW_ROOT_DIRECTORY)),'character_sha256':character_file_hash,'pose_path':str(pose_reference_path.relative_to(WORKFLOW_ROOT_DIRECTORY)),'pose_sha256':pose_reference_hash})
     fixed_prompt_values = read_fixed_prompts(animation_config_record)
     combined_prompt_text = fixed_prompt_values['base']+'\n\n'+fixed_prompt_values['auxiliary']
-    return {**command_payload_value,'resolution':selected_output_resolution,'speed':command_payload_value.get('speed',1),'frame_step':selected_frame_step,'source_frames_per_direction':motion_manifest_record['frames'],'selected_frame_numbers':selected_frame_numbers,'target_fps':None if legacy_frame_sampling else selected_target_fps,'source_fps':motion_manifest_record['fps'],'direction_prompts':compose_direction_prompts(fixed_prompt_values),'prompts':fixed_prompt_values,'prompt_sha256':hashlib.sha256(combined_prompt_text.encode()).hexdigest(),'prompt_words':len(combined_prompt_text.split()),'frames_per_direction':len(selected_frame_numbers),'fps':output_frame_rate,'motion_manifest_sha256':hash_asset_file(motion_manifest_path),'character_manifest_sha256':hash_asset_file(character_manifest_path),'frames':generation_frame_records,'sampling':('none' if selected_frame_step==1 else 'frame-step') if legacy_frame_sampling else 'target-fps','model':'Qwen/Qwen-Image-Edit-2511','steps':selected_inference_steps,'lightning':selected_inference_steps==4}
+    return {**command_payload_value,'resolution':selected_output_resolution,'speed':command_payload_value.get('speed',1),'frame_step':selected_frame_step,'start_frame':selected_start_frame,'end_frame':selected_end_frame,'source_frames_per_direction':motion_manifest_record['frames'],'selected_frame_numbers':selected_frame_numbers,'target_fps':None if legacy_frame_sampling else selected_target_fps,'source_fps':motion_manifest_record['fps'],'direction_prompts':compose_direction_prompts(fixed_prompt_values),'prompts':fixed_prompt_values,'prompt_sha256':hashlib.sha256(combined_prompt_text.encode()).hexdigest(),'prompt_words':len(combined_prompt_text.split()),'frames_per_direction':len(selected_frame_numbers),'fps':output_frame_rate,'motion_manifest_sha256':hash_asset_file(motion_manifest_path),'character_manifest_sha256':hash_asset_file(character_manifest_path),'frames':generation_frame_records,'sampling':('none' if selected_frame_step==1 else 'frame-step') if legacy_frame_sampling else 'target-fps','model':'Qwen/Qwen-Image-Edit-2511','steps':selected_inference_steps,'lightning':selected_inference_steps==4}
 
 def resolve_motion_preview(selected_motion_name, selected_source_kind, selected_direction_name, selected_frame_number):
     """프롬프트·캐릭터·생성 이력 없이 등록 모션의 단일 프레임을 조회한다."""

@@ -16,6 +16,11 @@ class CharacterAnimationGradioTests(unittest.TestCase):
         self.assertIn('이전',player_html_text)
         self.assertIn('character-animation/files',player_html_text)
 
+    def test_motion_preview_player_has_pose_asset_and_controls(self):
+        preview_html_text=character_animation_app.create_motion_preview_player('standing-v8','anny','down_left',10,20,'http://127.0.0.1:8770')
+        self.assertIn('character-animation/asset/standing-v8/anny/down_left/10',preview_html_text)
+        self.assertIn('재생',preview_html_text)
+
     def test_restore_animation_inputs_uses_historical_request(self):
-        restored_input_values=character_animation_app.restore_animation_inputs({'request':{'motion':'standing-v7','character':'anny-v1','source':'anny','directions':['down_left'],'resolution':768,'steps':30,'target_fps':2,'speed':1.5}})
-        self.assertEqual(restored_input_values[:8],('standing-v7','anny-v1','anny',['down_left'],768,30,2,1.5))
+        restored_input_values=character_animation_app.restore_animation_inputs({'request':{'motion':'standing-v7','character':'anny-v1','source':'anny','directions':['down_left'],'start_frame':10,'end_frame':20,'resolution':768,'steps':30,'target_fps':2,'speed':1.5}})
+        self.assertEqual(restored_input_values[:10],('standing-v7','anny-v1','anny',['down_left'],10,20,768,30,2,1.5))

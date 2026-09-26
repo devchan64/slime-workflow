@@ -34,12 +34,20 @@ def format_unavailable_asset_notice(catalog_record_value):
         notice_lines.append(f"- **{asset_kind_label} · {asset_record_value['label']}**: {asset_record_value['reason']}")
     return '\n\n'.join(notice_lines)
 
-def build_animation_request(motion_name_value,character_name_value,source_name_value,direction_name_values,resolution_value,step_value,target_fps_value,speed_value):
-    return {'motion':motion_name_value,'character':character_name_value,'source':source_name_value,'directions':direction_name_values,'resolution':resolution_value,'steps':step_value,'target_fps':target_fps_value,'speed':speed_value}
+def build_animation_request(motion_name_value,character_name_value,source_name_value,direction_name_values,start_frame_value,end_frame_value,resolution_value,step_value,target_fps_value,speed_value):
+    return {'motion':motion_name_value,'character':character_name_value,'source':source_name_value,'directions':direction_name_values,'start_frame':start_frame_value,'end_frame':end_frame_value,'resolution':resolution_value,'steps':step_value,'target_fps':target_fps_value,'speed':speed_value}
 
 def restore_animation_inputs(current_history_record):
     current_request_record=current_history_record.get('request',{})
-    return current_request_record.get('motion'),current_request_record.get('character'),current_request_record.get('source','anny'),current_request_record.get('directions',[]),current_request_record.get('resolution',512),current_request_record.get('steps',4),current_request_record.get('target_fps',4),current_request_record.get('speed',1),'선택한 이력의 입력값을 불러왔습니다. 생성 전에 내용을 확인하세요.'
+    return current_request_record.get('motion'),current_request_record.get('character'),current_request_record.get('source','anny'),current_request_record.get('directions',[]),current_request_record.get('start_frame',1),current_request_record.get('end_frame'),current_request_record.get('resolution',512),current_request_record.get('steps',4),current_request_record.get('target_fps',4),current_request_record.get('speed',1),'선택한 이력의 입력값을 불러왔습니다. 생성 전에 내용을 확인하세요.'
+
+def create_motion_preview_player(selected_motion_name,selected_source_kind,selected_direction_name,selected_start_frame,selected_end_frame,server_base_address):
+    if type(selected_start_frame) is not int or type(selected_end_frame) is not int or selected_start_frame > selected_end_frame:
+        return '<div>시작 프레임과 종료 프레임을 확인하세요.</div>'
+    frame_url_values=[f'{server_base_address}/character-animation/asset/{selected_motion_name}/{selected_source_kind}/{selected_direction_name}/{frame_number}' for frame_number in range(selected_start_frame,selected_end_frame+1)]
+    player_payload_value={'frames':frame_url_values,'start':selected_start_frame}
+    player_source_text='''<!doctype html><meta charset="utf-8"><style>body{margin:8px;background:#10151f;color:#e5e7eb;font:14px sans-serif}button,select,input{padding:8px;background:#243449;color:inherit;border:1px solid #526078;border-radius:6px}nav{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}img{width:min(100%,720px);max-height:440px;object-fit:contain;background:#000}#seek{width:min(100%,720px)}</style><nav><button id="previous">이전</button><button id="play">재생</button><button id="stop">중지</button><button id="next">다음</button><select id="fps"><option>4</option><option>8</option><option>12</option><option>16</option></select></nav><img id="frame"><p id="count"></p><input id="seek" type="range" min="0" value="0"><script>const data=__PAYLOAD__,$=id=>document.getElementById(id);let i=0,t=null;function draw(){$('frame').src=data.frames[i];$('count').textContent='원본 프레임 '+(data.start+i)+' · '+(i+1)+' / '+data.frames.length;$('seek').value=i;$('seek').max=data.frames.length-1}function stop(){clearInterval(t);t=null}function step(n){i=(i+n+data.frames.length)%data.frames.length;draw()}$('previous').onclick=()=>{stop();step(-1)};$('next').onclick=()=>{stop();step(1)};$('stop').onclick=stop;$('play').onclick=()=>{stop();t=setInterval(()=>step(1),1000/+$('fps').value)};$('fps').onchange=()=>{if(t)$('play').click()};$('seek').oninput=()=>{stop();i=+$('seek').value;draw()};draw()</script>'''.replace('__PAYLOAD__',json.dumps(player_payload_value).replace('<','\\u003c'))
+    return '<iframe title="입력 포즈 미리보기" style="width:100%;height:560px;border:0" sandbox="allow-scripts" srcdoc="'+html.escape(player_source_text,quote=True)+'"></iframe>'
 
 def create_animation_player(generation_job_identifier,generation_status_record,server_base_address):
     result_record_value=generation_status_record.get('result') or {}
@@ -52,6 +60,7 @@ def build_character_animation_interface(server_base_address):
     catalog_record_value=read_animation_catalog()
     motion_choice_values=[(record['label'],record['id']) for record in catalog_record_value['motions']]
     character_choice_values=[(record['label'],record['id']) for record in catalog_record_value['characters']]
+    motion_frame_count_values={record['id']:record['frames'] for record in catalog_record_value['motions']}
     with gr.Blocks(title='캐릭터 애니메이션 생성기') as interface_blocks_value:
         gr.Markdown('## 캐릭터 애니메이션 생성기\n등록된 모션과 캐릭터 레퍼런스로 방향별 프레임을 생성합니다.')
         unavailable_asset_notice = format_unavailable_asset_notice(catalog_record_value)
@@ -69,6 +78,11 @@ def build_character_animation_interface(server_base_address):
                 character_select_value=gr.Dropdown(character_choice_values,value=character_choice_values[0][1],label='캐릭터')
                 source_select_value=gr.Radio([('ANNY','anny'),('OpenPose','openpose')],value='anny',label='포즈 입력')
                 direction_select_value=gr.CheckboxGroup(DIRECTION_LABEL_VALUES,value=[value for _,value in DIRECTION_LABEL_VALUES],label='생성 방향')
+                initial_motion_frame_count=motion_frame_count_values[motion_choice_values[0][1]]
+                with gr.Row():
+                    start_frame_value=gr.Number(value=1,minimum=1,maximum=initial_motion_frame_count,precision=0,label='시작 프레임')
+                    end_frame_value=gr.Number(value=initial_motion_frame_count,minimum=1,maximum=initial_motion_frame_count,precision=0,label='종료 프레임')
+                preview_direction_value=gr.Dropdown(DIRECTION_LABEL_VALUES,value='down_left',label='미리보기 방향')
                 with gr.Row():
                     resolution_select_value=gr.Dropdown([512,768,1024,1280],value=512,label='해상도')
                     step_select_value=gr.Radio([4,30],value=4,label='생성 스텝')
@@ -80,15 +94,24 @@ def build_character_animation_interface(server_base_address):
                 status_text_value=gr.Markdown('생성 가능 · 설정을 확인하세요.')
             with gr.Column(scale=2):
                 generation_identifier_value=gr.Textbox(label='생성 ID',interactive=False)
+                motion_preview_html_value=gr.HTML(create_motion_preview_player(motion_choice_values[0][1],'anny','down_left',1,initial_motion_frame_count,server_base_address))
                 player_html_value=gr.HTML('<div>완료된 생성 결과를 선택하면 재생합니다.</div>')
                 cancel_button_value=gr.Button('생성 취소')
         logs_text_value,log_refresh_enabled,_=build_execution_logs()
-        read_history_page,history_output_values=build_generation_history_view(execute_animation_gateway,server_base_address,'이력 목록만 초기화합니다. 생성 프레임과 로그 파일은 유지됩니다. 생성 중에는 초기화할 수 없습니다.',restore_input_callback=restore_animation_inputs,restore_output_components=[motion_select_value,character_select_value,source_select_value,direction_select_value,resolution_select_value,step_select_value,target_fps_select_value,speed_select_value,status_text_value],result_renderer_callback=create_animation_player,record_folder_route='/character-animation')
+        read_history_page,history_output_values=build_generation_history_view(execute_animation_gateway,server_base_address,'이력 목록만 초기화합니다. 생성 프레임과 로그 파일은 유지됩니다. 생성 중에는 초기화할 수 없습니다.',restore_input_callback=restore_animation_inputs,restore_output_components=[motion_select_value,character_select_value,source_select_value,direction_select_value,start_frame_value,end_frame_value,resolution_select_value,step_select_value,target_fps_select_value,speed_select_value,status_text_value],result_renderer_callback=create_animation_player,record_folder_route='/character-animation')
         def start_animation(*selection_values):
             request_payload_value=build_animation_request(*selection_values)
             generation_record_value=execute_animation_gateway('generate',request_payload_value)
             return generation_record_value['id'],'상태: running'
-        generation_button_value.click(start_animation,[motion_select_value,character_select_value,source_select_value,direction_select_value,resolution_select_value,step_select_value,target_fps_select_value,speed_select_value],[generation_identifier_value,status_text_value])
+        generation_button_value.click(start_animation,[motion_select_value,character_select_value,source_select_value,direction_select_value,start_frame_value,end_frame_value,resolution_select_value,step_select_value,target_fps_select_value,speed_select_value],[generation_identifier_value,status_text_value])
+        def change_motion_range(selected_motion_name,selected_source_kind,selected_direction_name):
+            selected_frame_count=motion_frame_count_values[selected_motion_name]
+            return gr.update(value=1,maximum=selected_frame_count),gr.update(value=selected_frame_count,maximum=selected_frame_count),create_motion_preview_player(selected_motion_name,selected_source_kind,selected_direction_name,1,selected_frame_count,server_base_address)
+        def refresh_motion_preview(selected_motion_name,selected_source_kind,selected_direction_name,selected_start_frame,selected_end_frame):
+            return create_motion_preview_player(selected_motion_name,selected_source_kind,selected_direction_name,selected_start_frame,selected_end_frame,server_base_address)
+        motion_select_value.change(change_motion_range,[motion_select_value,source_select_value,preview_direction_value],[start_frame_value,end_frame_value,motion_preview_html_value],queue=False)
+        for preview_input_value in (source_select_value,preview_direction_value,start_frame_value,end_frame_value):
+            preview_input_value.change(refresh_motion_preview,[motion_select_value,source_select_value,preview_direction_value,start_frame_value,end_frame_value],motion_preview_html_value,queue=False)
         interface_blocks_value.load(lambda:read_history_page(1),outputs=history_output_values)
         def refresh_status(identifier,refresh_logs):
             if not identifier:return '생성 ID를 선택하세요.',gr.skip()

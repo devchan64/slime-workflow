@@ -114,6 +114,14 @@ characters:
         for frame_step_value in (1,2,4,8):
             self.assertEqual(assets.prepare_animation_request({**self.make_selection_record(),'frame_step':frame_step_value})['selected_frame_numbers'],list(range(1,121,frame_step_value)))
 
+    def test_selected_frame_range_limits_generation_frames(self):
+        request_record_value=assets.prepare_animation_request({**self.make_selection_record(),'start_frame':10,'end_frame':20,'target_fps':2})
+        self.assertEqual(request_record_value['selected_frame_numbers'],[10,12,14,16,18,20])
+        self.assertEqual((request_record_value['start_frame'],request_record_value['end_frame']),(10,20))
+        for invalid_range_values in ({'start_frame':0},{'end_frame':121},{'start_frame':30,'end_frame':20},{'start_frame':'1'},{'end_frame':True}):
+            with self.assertRaises(ValueError):
+                assets.prepare_animation_request({**self.make_selection_record(),**invalid_range_values})
+
     def test_progress_separates_images_source_frames_and_inference(self):
         request_record_value=assets.prepare_animation_request({**self.make_selection_record(),'directions':['down_left','up_right'],'target_fps':2,'steps':30})
         with tempfile.TemporaryDirectory() as temporary_root_name:

@@ -185,6 +185,8 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
                 operation_argument_parser.add_argument('--resolution',type=int,choices=(512,768,1024,1280),default=512)
                 operation_argument_parser.add_argument('--speed',type=float,choices=(1,1.5,2,4),help='생성 배속. 기본 1, 2배는 절반 길이')
                 operation_argument_parser.add_argument('--target-fps',type=int,help='초당 생성 장수. 원본 FPS 이하 정수 (기본 4)')
+                operation_argument_parser.add_argument('--start-frame',type=int,help='생성할 시작 프레임 (기본 1)')
+                operation_argument_parser.add_argument('--end-frame',type=int,help='생성할 종료 프레임 (기본 모션 마지막)')
                 operation_argument_parser.add_argument('--motion',required=True,help='catalog의 모션 ID')
                 operation_argument_parser.add_argument('--character',required=True,help='catalog의 캐릭터 ID')
                 operation_argument_parser.add_argument('--source',choices=('openpose','anny'),default='anny')
@@ -231,6 +233,8 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
             if command_argument_values.steps is not None:command_payload_value['steps']=command_argument_values.steps
             if command_argument_values.speed is not None:command_payload_value['speed']=command_argument_values.speed
             if command_argument_values.target_fps is not None:command_payload_value['target_fps']=command_argument_values.target_fps
+            if command_argument_values.start_frame is not None:command_payload_value['start_frame']=command_argument_values.start_frame
+            if command_argument_values.end_frame is not None:command_payload_value['end_frame']=command_argument_values.end_frame
         elif service_command_name=='momask':
             command_payload_value={'action':command_argument_values.action,'directions':command_argument_values.directions,'face':command_argument_values.face}
         else:
