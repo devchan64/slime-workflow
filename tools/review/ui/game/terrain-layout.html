@@ -1,0 +1,35 @@
+<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>필드 탐색 검수</title>
+<style>__SHARED_REVIEW_STYLES__</style>
+<style>
+.studio-grid{grid-template-columns:280px minmax(0,1fr)}.setting-field{display:grid;gap:8px;margin-bottom:20px}.setting-field select{width:100%;margin:0}.preview-actions{display:flex;flex-wrap:wrap;gap:8px}.preview-actions button{margin:0}.game-preview-frame{width:100%;height:650px;border:0;display:block}.preview-status{font-size:13px;overflow-wrap:anywhere}.studio-panel:has(.game-preview-frame){padding:16px}.preview-guidance{font-size:13px}
+@media(max-width:960px){.studio-grid{grid-template-columns:1fr}.game-preview-frame{height:600px}}
+</style>
+<main><header><h1>필드 탐색 검수</h1><p>맵을 선택하고 실제 게임 화면에서 타일 크기와 캐릭터 배치를 확인합니다.</p></header>
+<div class="studio-grid"><section class="studio-panel"><h2>검수 설정</h2><label class="setting-field">맵 선택<select id="review-map-choice" disabled><option value="meadow">이슬 초원</option><option value="grove">푸른 숲</option><option value="mist-lake">안개 호수</option><option value="wind-hills">바람 구릉</option></select></label>
+<h2>화면 조정</h2><div class="preview-actions"><button data-review-action="zoom-out" disabled>축소</button><button data-review-action="zoom-in" disabled>확대</button><button data-review-action="preview-focus" disabled>기본 시점</button></div><p class="preview-guidance">지도를 드래그해 이동하고 휠로 확대합니다. 회전과 게임 메뉴는 미리보기 안에서 사용할 수 있습니다.</p><h2>표시 기준</h2><p id="review-metrics" class="preview-status" role="status">미리보기를 준비하고 있습니다. 준비 후 설정을 사용할 수 있습니다.</p></section>
+<section class="studio-panel"><h2>게임 미리보기</h2><iframe id="review-game-frame" class="game-preview-frame" src="terrain-preview.html" title="필드 탐색 게임 미리보기"></iframe></section></div></main>
+<script>
+const currentReviewFrame=document.querySelector('#review-game-frame');
+let currentStatusObserver;
+currentReviewFrame.addEventListener('load',()=>{
+ currentStatusObserver?.disconnect();
+ const currentFrameDocument=currentReviewFrame.contentDocument;
+ const currentFrameStyles=currentFrameDocument.createElement('style');
+ currentFrameStyles.textContent='.preview-tools{display:none!important}';currentFrameDocument.head.append(currentFrameStyles);
+ const currentFrameStatus=currentFrameDocument.querySelector('#result');
+ if(!currentFrameStatus){document.querySelector('#review-metrics').textContent='미리보기 규격을 찾을 수 없습니다. 검수 빌드를 확인하세요.';return;}
+ const updateReviewStatus=()=>{
+  const currentStatusText=currentFrameStatus.textContent;
+  document.querySelector('#review-metrics').textContent=currentStatusText;
+  const currentPreviewReady=currentStatusText.includes('타일');
+  document.querySelectorAll('button,select').forEach(currentControlElement=>currentControlElement.disabled=!currentPreviewReady);
+ };
+ currentStatusObserver=new MutationObserver(updateReviewStatus);currentStatusObserver.observe(currentFrameStatus,{childList:true,characterData:true,subtree:true});updateReviewStatus();
+});
+document.querySelector('#review-map-choice').addEventListener('change',currentChangeEvent=>{
+ const currentFrameSelector=currentReviewFrame.contentDocument.querySelector('#map-choice');currentFrameSelector.value=currentChangeEvent.target.value;currentFrameSelector.dispatchEvent(new currentReviewFrame.contentWindow.Event('change',{bubbles:true}));
+});
+document.querySelectorAll('[data-review-action]').forEach(currentActionButton=>currentActionButton.addEventListener('click',()=>currentReviewFrame.contentDocument.getElementById(currentActionButton.dataset.reviewAction).click()));
+for(const currentVisibilityEvent of ['review-pane-hidden','review-pane-visible'])document.addEventListener(currentVisibilityEvent,()=>currentReviewFrame.contentDocument?.dispatchEvent(new currentReviewFrame.contentWindow.Event(currentVisibilityEvent)));
+window.addEventListener('pagehide',()=>currentStatusObserver?.disconnect());
+</script></html>

@@ -1,4 +1,5 @@
 """명시적으로 전달한 게임 UI 검수 빌드를 검증하고 독립 사본으로 가져온다."""
+from tools.review.ui_assets import resolve_review_ui_asset, read_review_shared_styles
 import hashlib
 import json
 import re
@@ -74,5 +75,8 @@ def import_ui_bundle(source_bundle_directory, output_review_directory, emit_revi
         destination_file_path.parent.mkdir(parents=True, exist_ok=True)
         destination_file_path.write_bytes(current_source_bytes)
     (destination_bundle_root/'manifest.json').write_bytes(manifest_source_bytes)
+    if any(current_page_record['id'] == 'terrain-layout' for current_page_record in bundle_manifest_data['pages']):
+        manager_layout_template = resolve_review_ui_asset('terrain-layout.html').read_text()
+        (destination_bundle_root/'review'/'terrain-layout-manager.html').write_text(manager_layout_template.replace('__SHARED_REVIEW_STYLES__', read_review_shared_styles()))
     emit_review_trace('ui-bundle', f'{destination_bundle_name} files={len(validated_bundle_files)} commit={bundle_manifest_data["sourceCommit"]}')
-    return [{'id': destination_bundle_name+'-'+current_page_record['id'], 'label': current_page_record['label'], 'path': destination_bundle_name+'/'+current_page_record['path'], 'category': 'game-ui', 'anchorEditor': False, 'description': f'{bundle_manifest_data["sourceCommit"]} · {"로컬 수정 포함" if bundle_manifest_data["sourceDirty"] else "커밋 원본"} · {bundle_manifest_data["createdAt"]} · {bundle_content_digest}'} for current_page_record in bundle_manifest_data['pages']]
+    return [{'id': destination_bundle_name+'-'+current_page_record['id'], 'label': current_page_record['label'], 'path': destination_bundle_name+'/'+('review/terrain-layout-manager.html' if current_page_record['id']=='terrain-layout' else current_page_record['path']), 'category': 'game-ui', 'anchorEditor': False, 'description': f'{bundle_manifest_data["sourceCommit"]} · {"로컬 수정 포함" if bundle_manifest_data["sourceDirty"] else "커밋 원본"} · {bundle_manifest_data["createdAt"]} · {bundle_content_digest}'} for current_page_record in bundle_manifest_data['pages']]
