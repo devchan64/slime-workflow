@@ -30,7 +30,8 @@ for current_field_name,allowed_label_values,minimum_value,maximum_value in [('ph
  current_field_values=input_attribute_values[current_field_name]
  if not isinstance(current_field_values,dict) or set(current_field_values)-set(allowed_label_values):raise ValueError(f'알 수 없는 속성 {current_field_name}')
  for current_label_name,current_numeric_value in current_field_values.items():
-  if type(current_numeric_value) not in (int,float) or not np.isfinite(current_numeric_value) or not minimum_value<=current_numeric_value<=maximum_value:raise ValueError(f'속성 범위 오류 {current_label_name}')
+  attribute_maximum_value=3 if current_field_name=='local_changes_kwargs' and current_label_name in {'head-scale-horiz-incr','head-scale-vert-incr','head-scale-depth-incr'} else maximum_value
+  if type(current_numeric_value) not in (int,float) or not np.isfinite(current_numeric_value) or not minimum_value<=current_numeric_value<=attribute_maximum_value:raise ValueError(f'속성 범위 오류 {current_label_name}')
 if set(input_attribute_values['pose_parameters'])!=set(model_source_value.bone_labels):raise ValueError('포즈 본 목록 불일치')
 pose_tensor_values={}
 for current_bone_name,current_matrix_values in input_attribute_values['pose_parameters'].items():

@@ -13,13 +13,14 @@ PAGE=resolve_review_ui_asset('anny-attributes.html').read_text()
 BONE_ROTATION_FIELDS={'upperleg_left_rotation_z':('upperleg01.L',2),'upperleg_right_rotation_z':('upperleg01.R',2)}
 BONE_ROTATION_FIELDS.update({f'{part_label_value}_{side_label_value}_rotation_{axis_label_value}':(f'{part_label_value}01.{side_suffix_value}',axis_index_value) for part_label_value in ('upperarm','lowerarm') for side_label_value,side_suffix_value in [('left','L'),('right','R')] for axis_index_value,axis_label_value in enumerate(('x','y','z'))})
 PROFILE_DIRECTORY_PATH=ROOT/'generators/animation/config/anny_profiles'
+HEAD_SCALE_ATTRIBUTE_NAMES={'head-scale-horiz-incr','head-scale-vert-incr','head-scale-depth-incr'}
 PROFILE_REQUIRED_FIELDS={'schema_version','profile_id','label','source_asset_id','asset_path','manifest_path','attributes_path','attributes_sha256','blend_path','glb_path','rig_path','status','attribute_overrides'}
 def load_profile_record(profile_path):
  profile_path=Path(profile_path).resolve()
  if not profile_path.is_relative_to(PROFILE_DIRECTORY_PATH.resolve()) or not profile_path.is_file():raise ValueError('ANNY 프로필 경로 오류')
  profile_record=yaml.safe_load(profile_path.read_text())
  if not isinstance(profile_record,dict) or set(profile_record)!=PROFILE_REQUIRED_FIELDS or profile_record['schema_version']!=1 or not all(isinstance(profile_record[field_name],str) and profile_record[field_name] for field_name in PROFILE_REQUIRED_FIELDS-{'schema_version','attribute_overrides'}):raise ValueError('ANNY 프로필 형식 오류')
- if not isinstance(profile_record['attribute_overrides'],dict) or any(not isinstance(attribute_name,str) or type(attribute_value) not in (int,float) or not -1<=attribute_value<=1 for attribute_name,attribute_value in profile_record['attribute_overrides'].items()):raise ValueError('ANNY 프로필 속성 형식 오류')
+ if not isinstance(profile_record['attribute_overrides'],dict) or any(not isinstance(attribute_name,str) or type(attribute_value) not in (int,float) or not -1<=attribute_value<=(3 if attribute_name in HEAD_SCALE_ATTRIBUTE_NAMES else 1) for attribute_name,attribute_value in profile_record['attribute_overrides'].items()):raise ValueError('ANNY 프로필 속성 형식 오류')
  return profile_record
 def load_active_profile():
  baseline_selection_record=yaml.safe_load(BASELINE_SELECTION_PATH.read_text())
@@ -40,7 +41,6 @@ def load_profile_attribute_defaults(profile_record):
   for attribute_group_name in ('phenotype_kwargs','local_changes_kwargs','facial_actions'):
    if attribute_name in baseline_attribute_values[attribute_group_name]:baseline_attribute_values[attribute_group_name][attribute_name]=attribute_value
  baseline_attribute_values['local_changes_kwargs']['hip-waist-up']=0.0
- baseline_attribute_values['local_changes_kwargs']['measure-waist-circ-incr']=-0.5
  baseline_attribute_values['local_changes_kwargs']['torso-muscle-dorsi-incr']=0.0
  return baseline_attribute_values
 def extract_bone_rotation(pose_matrix_values):
@@ -117,7 +117,7 @@ class AnnyAttributeManager:
    for attribute_key_name,attribute_numeric_value in changed.items():
     rotation_attribute_flag=attribute_key_name=='rotation_y' or attribute_key_name in BONE_ROTATION_FIELDS
     attribute_minimum_value=-180 if rotation_attribute_flag else -1 if attribute_key_name in attrs['local_changes_kwargs'] else 0
-    attribute_maximum_value=180 if rotation_attribute_flag else 1
+    attribute_maximum_value=180 if rotation_attribute_flag else 3 if attribute_key_name in HEAD_SCALE_ATTRIBUTE_NAMES else 1
     if type(attribute_numeric_value) not in (int,float) or not attribute_minimum_value<=attribute_numeric_value<=attribute_maximum_value:raise ValueError('속성 범위 오류')
    for attribute_group_name in ('phenotype_kwargs','local_changes_kwargs','facial_actions'):
     attrs[attribute_group_name].update({attribute_key_name:attribute_numeric_value for attribute_key_name,attribute_numeric_value in changed.items() if attribute_key_name in attrs[attribute_group_name]})
