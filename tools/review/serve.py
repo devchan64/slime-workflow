@@ -31,6 +31,15 @@ REVIEW_LIVE_RELOAD_SCRIPT = b'''<script id="review-live-reload">(()=>{let instan
 def is_review_live_reload_request(request_path):
     return urlsplit(request_path).path == REVIEW_LIVE_RELOAD_PATH
 
+
+def write_proxy_response_body(response_output_stream, response_body_bytes):
+    """연결이 해제된 브라우저에는 Gradio 프록시 본문 쓰기를 생략한다."""
+    try:
+        response_output_stream.write(response_body_bytes)
+    except (BrokenPipeError, ConnectionResetError):
+        return False
+    return True
+
 def inject_review_live_reload(html_content):
     if b'id="review-live-reload"' in html_content:
         return html_content
@@ -319,11 +328,15 @@ def run_review_server(parsed_argument_values):
             proxy_connection_value.request(self.command,proxied_request_path,body=request_body_bytes,headers=proxy_header_values)
             proxy_response_value=proxy_connection_value.getresponse()
             response_body_bytes=proxy_response_value.read()
-            self.send_response(proxy_response_value.status)
-            for header_name,header_value in proxy_response_value.getheaders():
-                if header_name.lower() not in ('connection','transfer-encoding','content-length'):self.send_header(header_name,header_value)
-            self.send_header('Content-Length',str(len(response_body_bytes)));self.end_headers();self.wfile.write(response_body_bytes)
-            proxy_connection_value.close()
+            try:
+                self.send_response(proxy_response_value.status)
+                for header_name,header_value in proxy_response_value.getheaders():
+                    if header_name.lower() not in ('connection','transfer-encoding','content-length'):self.send_header(header_name,header_value)
+                self.send_header('Content-Length',str(len(response_body_bytes)));self.end_headers()
+                write_proxy_response_body(self.wfile,response_body_bytes)
+            except (BrokenPipeError, ConnectionResetError):
+                pass
+            finally:proxy_connection_value.close()
             return True
         def do_GET(self):
             if urlsplit(self.path).path=='/' and manager_source_path.is_file():
