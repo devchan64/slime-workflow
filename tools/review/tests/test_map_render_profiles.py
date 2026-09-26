@@ -1,4 +1,4 @@
-"""맵과 건물 입체감 검수가 같은 렌더링 프로필을 사용하는지 검증한다."""
+"""맵 검수가 렌더링 프로필을 사용하는지 검증한다."""
 from pathlib import Path
 import unittest
 
@@ -16,7 +16,3 @@ class MapRenderProfileTests(unittest.TestCase):
         map_review_source = (WORKFLOW_ROOT / 'assets/world/isloon/map-review.html').read_text(encoding='utf-8')
         self.assertNotIn('VOLUME_FLOOR_HEIGHT_PIXELS', map_review_source)
         self.assertIn('currentVolumeRenderProfile.wall_height', map_review_source)
-
-        volume_review_source = (WORKFLOW_ROOT / 'assets/world/isloon/building-volume-review.html').read_text(encoding='utf-8')
-        self.assertIn("fetch('building-render-profile.json')", volume_review_source)
-        self.assertIn('buildingRenderProfile.wall_height', volume_review_source)

@@ -1,6 +1,8 @@
 """게임 렌더 크기를 검수 빌드 시 읽어 출처가 있는 정적 사본으로 전달한다."""
 import hashlib
 import re
+import json
+from pathlib import Path
 
 
 def load_game_render_metrics(frontend_repository_path):
@@ -13,10 +15,16 @@ def load_game_render_metrics(frontend_repository_path):
         if len(matched_constant_values) != 1:
             raise ValueError(f'게임 크기 상수 누락 또는 지원하지 않는 선언: {constant_identifier_text}')
         return float(matched_constant_values[0])
-    required_metric_names = {'wallHeight':'TOWN_WALL_HEIGHT','canopyHeight':'TOWN_CANOPY_HEIGHT','defaultZoom':'MAP_DEFAULT_ZOOM','tileWidth':'MAP_TILE_WIDTH','tileHeight':'MAP_TILE_HEIGHT','townTileWidth':'TOWN_TILE_WIDTH','townTileHeight':'TOWN_TILE_HEIGHT','characterHeight':'CHARACTER_BODY_HEIGHT','elevationHeight':'MAP_ELEVATION_HEIGHT','baseThickness':'MAP_BASE_THICKNESS'}
+    required_metric_names = {'defaultZoom':'MAP_DEFAULT_ZOOM','tileWidth':'MAP_TILE_WIDTH','tileHeight':'MAP_TILE_HEIGHT','townTileWidth':'TOWN_TILE_WIDTH','townTileHeight':'TOWN_TILE_HEIGHT','characterHeight':'CHARACTER_BODY_HEIGHT','elevationHeight':'MAP_ELEVATION_HEIGHT','baseThickness':'MAP_BASE_THICKNESS'}
     current_metric_values = {key:read_numeric_constant(metrics_source_text,name) for key,name in required_metric_names.items()}
+    block_snapshot_path=Path(__file__).resolve().parents[3]/'assets/world/isloon/blocks/iseulon.json'
+    block_snapshot_record=json.loads(block_snapshot_path.read_text())
+    for metric_key_name,facility_kind_name in [('wallHeight','guild'),('canopyHeight','market')]:
+        selected_building_record=next(value for value in block_snapshot_record['buildings'] if value['facilityKind']==facility_kind_name)
+        current_metric_values[metric_key_name]=min(value['layer']*32+value['offsetHeight'] for value in selected_building_record['blocks'] if value['material']=='roof')
     if any(value <= 0 for value in current_metric_values.values()):
         raise ValueError('게임 렌더 크기는 양수여야 합니다.')
     current_metric_values['restHeightRatio'] = read_numeric_constant(actors_source_text,'HUMAN_REST_HEIGHT_RATIO')
     current_metric_values['sources'] = [{'path':source_file_path.relative_to(frontend_repository_path).as_posix(),'sha256':hashlib.sha256(source_file_path.read_bytes()).hexdigest()} for source_file_path in (metrics_source_path,actors_source_path)]
+    current_metric_values['sources'].append({'path':'assets/world/isloon/blocks/iseulon.json','sha256':hashlib.sha256(block_snapshot_path.read_bytes()).hexdigest()})
     return current_metric_values

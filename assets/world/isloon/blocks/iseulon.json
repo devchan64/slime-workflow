@@ -1,0 +1,8927 @@
+{
+  "id": "iseulon",
+  "name": "이슬온",
+  "nameTranslations": {
+    "ko": "이슬온",
+    "en": "Iseulon"
+  },
+  "version": "city-1-blocks-1",
+  "columns": 24,
+  "rows": 24,
+  "safeTown": true,
+  "startPoint": {
+    "column": 12,
+    "row": 13
+  },
+  "safeRadius": 48,
+  "elevations": [
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  ],
+  "ramps": [],
+  "elevationTiles": [],
+  "terrainRows": [
+    "gggggggggggggggggggggggg",
+    "gggggggggggggggggggggggg",
+    "gggggggggggggggggggggggg",
+    "gggggggggggggggggggggggg",
+    "gggggggggggggggggggggggg",
+    "gggggggggggggggggggggggg",
+    "gggggggggggggggggggggggg",
+    "ggggggpppppppppppppggggg",
+    "ggggggpppppppppppppggggg",
+    "ggggggggppppppppgggggggg",
+    "ggggggggpppwwpppgggggggg",
+    "ggggggggpppwwpppgggggggg",
+    "ggggggggppppppppgggggggg",
+    "ggggggggppppppppgggggggg",
+    "ggggggggppppppppgggggggg",
+    "gggggggppppppppppggggggg",
+    "gggggggppppppppppggggggg",
+    "gggggggggggppggggggggggg",
+    "gggggggggggppppppppggggg",
+    "gggggggggggppggggggggggg",
+    "gggggggggggppggggggggggg",
+    "gggggggggggppggggggggggg",
+    "gggggggggggppggggggggggg",
+    "gggggggggggppggggggggggg"
+  ],
+  "terrainCodes": {
+    "g": "grass",
+    "p": "paving",
+    "w": "water"
+  },
+  "movementCosts": {
+    "version": 1,
+    "rollTarget": "destination_tile",
+    "rows": [
+      {
+        "tileId": "ash",
+        "walkable": true,
+        "fp": {
+          "baseCost": 0,
+          "extraChanceBasisPoints": 0,
+          "extraCost": 0
+        },
+        "ap": {
+          "baseCost": 1,
+          "extraChanceBasisPoints": 1500,
+          "extraCost": 1
+        }
+      },
+      {
+        "tileId": "boulder",
+        "walkable": false,
+        "fp": null,
+        "ap": null
+      },
+      {
+        "tileId": "dew",
+        "walkable": true,
+        "fp": {
+          "baseCost": 0,
+          "extraChanceBasisPoints": 0,
+          "extraCost": 0
+        },
+        "ap": {
+          "baseCost": 1,
+          "extraChanceBasisPoints": 1000,
+          "extraCost": 1
+        }
+      },
+      {
+        "tileId": "flowers",
+        "walkable": true,
+        "fp": {
+          "baseCost": 0,
+          "extraChanceBasisPoints": 0,
+          "extraCost": 0
+        },
+        "ap": {
+          "baseCost": 1,
+          "extraChanceBasisPoints": 500,
+          "extraCost": 1
+        }
+      },
+      {
+        "tileId": "grass",
+        "walkable": true,
+        "fp": {
+          "baseCost": 0,
+          "extraChanceBasisPoints": 0,
+          "extraCost": 0
+        },
+        "ap": {
+          "baseCost": 1,
+          "extraChanceBasisPoints": 500,
+          "extraCost": 1
+        }
+      },
+      {
+        "tileId": "gravel",
+        "walkable": true,
+        "fp": {
+          "baseCost": 0,
+          "extraChanceBasisPoints": 0,
+          "extraCost": 0
+        },
+        "ap": {
+          "baseCost": 1,
+          "extraChanceBasisPoints": 2000,
+          "extraCost": 1
+        }
+      },
+      {
+        "tileId": "leaf-litter",
+        "walkable": true,
+        "fp": {
+          "baseCost": 0,
+          "extraChanceBasisPoints": 0,
+          "extraCost": 0
+        },
+        "ap": {
+          "baseCost": 1,
+          "extraChanceBasisPoints": 1500,
+          "extraCost": 1
+        }
+      },
+      {
+        "tileId": "moss",
+        "walkable": true,
+        "fp": {
+          "baseCost": 0,
+          "extraChanceBasisPoints": 0,
+          "extraCost": 0
+        },
+        "ap": {
+          "baseCost": 1,
+          "extraChanceBasisPoints": 2000,
+          "extraCost": 1
+        }
+      },
+      {
+        "tileId": "mud",
+        "walkable": true,
+        "fp": {
+          "baseCost": 0,
+          "extraChanceBasisPoints": 0,
+          "extraCost": 0
+        },
+        "ap": {
+          "baseCost": 1,
+          "extraChanceBasisPoints": 3500,
+          "extraCost": 1
+        }
+      },
+      {
+        "tileId": "paving",
+        "walkable": true,
+        "fp": {
+          "baseCost": 0,
+          "extraChanceBasisPoints": 0,
+          "extraCost": 0
+        },
+        "ap": {
+          "baseCost": 1,
+          "extraChanceBasisPoints": 0,
+          "extraCost": 0
+        }
+      },
+      {
+        "tileId": "reed-bed",
+        "walkable": true,
+        "fp": {
+          "baseCost": 0,
+          "extraChanceBasisPoints": 0,
+          "extraCost": 0
+        },
+        "ap": {
+          "baseCost": 1,
+          "extraChanceBasisPoints": 2500,
+          "extraCost": 1
+        }
+      },
+      {
+        "tileId": "road",
+        "walkable": true,
+        "fp": {
+          "baseCost": 0,
+          "extraChanceBasisPoints": 0,
+          "extraCost": 0
+        },
+        "ap": {
+          "baseCost": 1,
+          "extraChanceBasisPoints": 0,
+          "extraCost": 0
+        }
+      },
+      {
+        "tileId": "stone",
+        "walkable": true,
+        "fp": {
+          "baseCost": 0,
+          "extraChanceBasisPoints": 0,
+          "extraCost": 0
+        },
+        "ap": {
+          "baseCost": 1,
+          "extraChanceBasisPoints": 1000,
+          "extraCost": 1
+        }
+      },
+      {
+        "tileId": "tree-base",
+        "walkable": false,
+        "fp": null,
+        "ap": null
+      },
+      {
+        "tileId": "wall",
+        "walkable": false,
+        "fp": null,
+        "ap": null
+      },
+      {
+        "tileId": "water",
+        "walkable": false,
+        "fp": null,
+        "ap": null
+      }
+    ]
+  },
+  "blocked": [
+    {
+      "column": 3,
+      "row": 14
+    },
+    {
+      "column": 3,
+      "row": 15
+    },
+    {
+      "column": 3,
+      "row": 16
+    },
+    {
+      "column": 3,
+      "row": 17
+    },
+    {
+      "column": 4,
+      "row": 4
+    },
+    {
+      "column": 4,
+      "row": 5
+    },
+    {
+      "column": 4,
+      "row": 6
+    },
+    {
+      "column": 4,
+      "row": 14
+    },
+    {
+      "column": 4,
+      "row": 15
+    },
+    {
+      "column": 4,
+      "row": 16
+    },
+    {
+      "column": 4,
+      "row": 17
+    },
+    {
+      "column": 5,
+      "row": 4
+    },
+    {
+      "column": 5,
+      "row": 5
+    },
+    {
+      "column": 5,
+      "row": 6
+    },
+    {
+      "column": 5,
+      "row": 14
+    },
+    {
+      "column": 5,
+      "row": 15
+    },
+    {
+      "column": 5,
+      "row": 16
+    },
+    {
+      "column": 5,
+      "row": 17
+    },
+    {
+      "column": 6,
+      "row": 4
+    },
+    {
+      "column": 6,
+      "row": 5
+    },
+    {
+      "column": 6,
+      "row": 6
+    },
+    {
+      "column": 6,
+      "row": 14
+    },
+    {
+      "column": 6,
+      "row": 15
+    },
+    {
+      "column": 6,
+      "row": 16
+    },
+    {
+      "column": 6,
+      "row": 17
+    },
+    {
+      "column": 7,
+      "row": 4
+    },
+    {
+      "column": 7,
+      "row": 5
+    },
+    {
+      "column": 7,
+      "row": 6
+    },
+    {
+      "column": 11,
+      "row": 10
+    },
+    {
+      "column": 11,
+      "row": 11
+    },
+    {
+      "column": 12,
+      "row": 10
+    },
+    {
+      "column": 12,
+      "row": 11
+    },
+    {
+      "column": 17,
+      "row": 4
+    },
+    {
+      "column": 17,
+      "row": 5
+    },
+    {
+      "column": 17,
+      "row": 6
+    },
+    {
+      "column": 17,
+      "row": 14
+    },
+    {
+      "column": 17,
+      "row": 15
+    },
+    {
+      "column": 17,
+      "row": 16
+    },
+    {
+      "column": 17,
+      "row": 19
+    },
+    {
+      "column": 17,
+      "row": 20
+    },
+    {
+      "column": 18,
+      "row": 4
+    },
+    {
+      "column": 18,
+      "row": 5
+    },
+    {
+      "column": 18,
+      "row": 6
+    },
+    {
+      "column": 18,
+      "row": 14
+    },
+    {
+      "column": 18,
+      "row": 15
+    },
+    {
+      "column": 18,
+      "row": 16
+    },
+    {
+      "column": 18,
+      "row": 19
+    },
+    {
+      "column": 18,
+      "row": 20
+    },
+    {
+      "column": 19,
+      "row": 4
+    },
+    {
+      "column": 19,
+      "row": 5
+    },
+    {
+      "column": 19,
+      "row": 6
+    },
+    {
+      "column": 19,
+      "row": 14
+    },
+    {
+      "column": 19,
+      "row": 15
+    },
+    {
+      "column": 19,
+      "row": 16
+    },
+    {
+      "column": 19,
+      "row": 19
+    },
+    {
+      "column": 19,
+      "row": 20
+    },
+    {
+      "column": 20,
+      "row": 14
+    },
+    {
+      "column": 20,
+      "row": 15
+    },
+    {
+      "column": 20,
+      "row": 16
+    },
+    {
+      "column": 20,
+      "row": 19
+    },
+    {
+      "column": 20,
+      "row": 20
+    }
+  ],
+  "connections": [
+    {
+      "column": 0,
+      "row": 12,
+      "id": "iseulon-to-moss-clearing",
+      "target": "moss-clearing",
+      "direction": "west",
+      "targetWaypointId": "moss-clearing-to-iseulon"
+    },
+    {
+      "column": 23,
+      "row": 12,
+      "id": "iseulon-to-lantern-wood",
+      "target": "lantern-wood",
+      "direction": "east",
+      "targetWaypointId": "lantern-wood-to-iseulon"
+    },
+    {
+      "column": 12,
+      "row": 23,
+      "id": "iseulon-to-meadow",
+      "target": "meadow",
+      "direction": "south",
+      "targetWaypointId": "gate-north"
+    }
+  ],
+  "buildings": [
+    {
+      "id": "iseulon-guild",
+      "name": "길드 회관",
+      "facilityId": "iseulon-guild",
+      "origin": {
+        "column": 4,
+        "row": 4
+      },
+      "width": 4,
+      "height": 3,
+      "entrance": {
+        "column": 6,
+        "row": 7
+      },
+      "facing": "south",
+      "blockSchemaVersion": 1,
+      "blocks": [
+        {
+          "id": "iseulon-guild-0-0-0",
+          "column": 0,
+          "row": 0,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-guild-0-0-32",
+          "column": 0,
+          "row": 0,
+          "layer": 1,
+          "offsetHeight": 0,
+          "height": 16,
+          "shape": "slab",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-guild-roof-0-0",
+          "column": 0,
+          "row": 0,
+          "layer": 1,
+          "offsetHeight": 16,
+          "height": 16,
+          "shape": "ramp",
+          "highSide": "east",
+          "material": "roof",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-guild-1-0-0",
+          "column": 1,
+          "row": 0,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-guild-1-0-32",
+          "column": 1,
+          "row": 0,
+          "layer": 1,
+          "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-guild-roof-1-0",
+          "column": 1,
+          "row": 0,
+          "layer": 2,
+          "offsetHeight": 0,
+          "height": 16,
+          "shape": "ramp",
+          "highSide": "east",
+          "material": "roof",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-guild-2-0-0",
+          "column": 2,
+          "row": 0,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-guild-2-0-32",
+          "column": 2,
+          "row": 0,
+          "layer": 1,
+          "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-guild-roof-2-0",
+          "column": 2,
+          "row": 0,
+          "layer": 2,
+          "offsetHeight": 0,
+          "height": 16,
+          "shape": "ramp",
+          "highSide": "west",
+          "material": "roof",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-guild-3-0-0",
+          "column": 3,
+          "row": 0,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-guild-3-0-32",
+          "column": 3,
+          "row": 0,
+          "layer": 1,
+          "offsetHeight": 0,
+          "height": 16,
+          "shape": "slab",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-guild-roof-3-0",
+          "column": 3,
+          "row": 0,
+          "layer": 1,
+          "offsetHeight": 16,
+          "height": 16,
+          "shape": "ramp",
+          "highSide": "west",
+          "material": "roof",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-guild-0-1-0",
+          "column": 0,
+          "row": 1,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-guild-0-1-32",
+          "column": 0,
+          "row": 1,
+          "layer": 1,
+          "offsetHeight": 0,
+          "height": 16,
+          "shape": "slab",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-guild-roof-0-1",
+          "column": 0,
+          "row": 1,
+          "layer": 1,
+          "offsetHeight": 16,
+          "height": 16,
+          "shape": "ramp",
+          "highSide": "east",
+          "material": "roof",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-guild-1-1-0",
+          "column": 1,
+          "row": 1,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-guild-1-1-32",
+          "column": 1,
+          "row": 1,
+          "layer": 1,
+          "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-guild-roof-1-1",
+          "column": 1,
+          "row": 1,
+          "layer": 2,
+          "offsetHeight": 0,
+          "height": 16,
+          "shape": "ramp",
+          "highSide": "east",
+          "material": "roof",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-guild-2-1-0",
+          "column": 2,
+          "row": 1,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-guild-2-1-32",
+          "column": 2,
+          "row": 1,
+          "layer": 1,
+          "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-guild-roof-2-1",
+          "column": 2,
+          "row": 1,
+          "layer": 2,
+          "offsetHeight": 0,
+          "height": 16,
+          "shape": "ramp",
+          "highSide": "west",
+          "material": "roof",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-guild-3-1-0",
+          "column": 3,
+          "row": 1,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-guild-3-1-32",
+          "column": 3,
+          "row": 1,
+          "layer": 1,
+          "offsetHeight": 0,
+          "height": 16,
+          "shape": "slab",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-guild-roof-3-1",
+          "column": 3,
+          "row": 1,
+          "layer": 1,
+          "offsetHeight": 16,
+          "height": 16,
+          "shape": "ramp",
+          "highSide": "west",
+          "material": "roof",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-guild-0-2-0",
+          "column": 0,
+          "row": 2,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-guild-0-2-32",
+          "column": 0,
+          "row": 2,
+          "layer": 1,
+          "offsetHeight": 0,
+          "height": 16,
+          "shape": "slab",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-guild-roof-0-2",
+          "column": 0,
+          "row": 2,
+          "layer": 1,
+          "offsetHeight": 16,
+          "height": 16,
+          "shape": "ramp",
+          "highSide": "east",
+          "material": "roof",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-guild-1-2-0",
+          "column": 1,
+          "row": 2,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-guild-1-2-32",
+          "column": 1,
+          "row": 2,
+          "layer": 1,
+          "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-guild-roof-1-2",
+          "column": 1,
+          "row": 2,
+          "layer": 2,
+          "offsetHeight": 0,
+          "height": 16,
+          "shape": "ramp",
+          "highSide": "east",
+          "material": "roof",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-guild-2-2-0",
+          "column": 2,
+          "row": 2,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-guild-2-2-32",
+          "column": 2,
+          "row": 2,
+          "layer": 1,
+          "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-guild-roof-2-2",
+          "column": 2,
+          "row": 2,
+          "layer": 2,
+          "offsetHeight": 0,
+          "height": 16,
+          "shape": "ramp",
+          "highSide": "west",
+          "material": "roof",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-guild-3-2-0",
+          "column": 3,
+          "row": 2,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-guild-3-2-32",
+          "column": 3,
+          "row": 2,
+          "layer": 1,
+          "offsetHeight": 0,
+          "height": 16,
+          "shape": "slab",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-guild-roof-3-2",
+          "column": 3,
+          "row": 2,
+          "layer": 1,
+          "offsetHeight": 16,
+          "height": 16,
+          "shape": "ramp",
+          "highSide": "west",
+          "material": "roof",
+          "walkable": false
+        }
+      ],
+      "facilityKind": "guild",
+      "npcs": [
+        {
+          "id": "iseulon-registrar",
+          "name": "하린"
+        }
+      ],
+      "faces": [
+        {
+          "vertices": [
+            {
+              "column": -0.5,
+              "row": -0.5,
+              "height": 0
+            },
+            {
+              "column": 0.5,
+              "row": -0.5,
+              "height": 0
+            },
+            {
+              "column": 0.5,
+              "row": -0.5,
+              "height": 32
+            },
+            {
+              "column": -0.5,
+              "row": -0.5,
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": -0.5,
+              "row": 0.5,
+              "height": 0
+            },
+            {
+              "column": -0.5,
+              "row": -0.5,
+              "height": 0
+            },
+            {
+              "column": -0.5,
+              "row": -0.5,
+              "height": 32
+            },
+            {
+              "column": -0.5,
+              "row": 0.5,
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": -0.5,
+              "row": -0.5,
+              "height": 32
+            },
+            {
+              "column": 0.5,
+              "row": -0.5,
+              "height": 32
+            },
+            {
+              "column": 0.5,
+              "row": -0.5,
+              "height": 48
+            },
+            {
+              "column": -0.5,
+              "row": -0.5,
+              "height": 48
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": -0.5,
+              "row": 0.5,
+              "height": 32
+            },
+            {
+              "column": -0.5,
+              "row": -0.5,
+              "height": 32
+            },
+            {
+              "column": -0.5,
+              "row": -0.5,
+              "height": 48
+            },
+            {
+              "column": -0.5,
+              "row": 0.5,
+              "height": 48
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": -0.5,
+              "row": -0.5,
+              "height": 48
+            },
+            {
+              "column": 0.5,
+              "row": -0.5,
+              "height": 64
+            },
+            {
+              "column": 0.5,
+              "row": 0.5,
+              "height": 64
+            },
+            {
+              "column": -0.5,
+              "row": 0.5,
+              "height": 48
+            }
+          ],
+          "material": "roof",
+          "top": true
+        },
+        {
+          "vertices": [
+            {
+              "column": -0.5,
+              "row": -0.5,
+              "height": 48
+            },
+            {
+              "column": 0.5,
+              "row": -0.5,
+              "height": 48
+            },
+            {
+              "column": 0.5,
+              "row": -0.5,
+              "height": 64
+            },
+            {
+              "column": -0.5,
+              "row": -0.5,
+              "height": 48
+            }
+          ],
+          "material": "roof",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 0.5,
+              "row": -0.5,
+              "height": 0
+            },
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 0
+            },
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 32
+            },
+            {
+              "column": 0.5,
+              "row": -0.5,
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 0.5,
+              "row": -0.5,
+              "height": 32
+            },
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 32
+            },
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 64
+            },
+            {
+              "column": 0.5,
+              "row": -0.5,
+              "height": 64
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 0.5,
+              "row": -0.5,
+              "height": 64
+            },
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 80
+            },
+            {
+              "column": 1.5,
+              "row": 0.5,
+              "height": 80
+            },
+            {
+              "column": 0.5,
+              "row": 0.5,
+              "height": 64
+            }
+          ],
+          "material": "roof",
+          "top": true
+        },
+        {
+          "vertices": [
+            {
+              "column": 0.5,
+              "row": -0.5,
+              "height": 64
+            },
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 64
+            },
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 80
+            },
+            {
+              "column": 0.5,
+              "row": -0.5,
+              "height": 64
+            }
+          ],
+          "material": "roof",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 0
+            },
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 0
+            },
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 32
+            },
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 32
+            },
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 32
+            },
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 64
+            },
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 64
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 80
+            },
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 64
+            },
+            {
+              "column": 2.5,
+              "row": 0.5,
+              "height": 64
+            },
+            {
+              "column": 1.5,
+              "row": 0.5,
+              "height": 80
+            }
+          ],
+          "material": "roof",
+          "top": true
+        },
+        {
+          "vertices": [
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 64
+            },
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 64
+            },
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 64
+            },
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 80
+            }
+          ],
+          "material": "roof",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 0
+            },
+            {
+              "column": 3.5,
+              "row": -0.5,
+              "height": 0
+            },
+            {
+              "column": 3.5,
+              "row": -0.5,
+              "height": 32
+            },
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 3.5,
+              "row": -0.5,
+              "height": 0
+            },
+            {
+              "column": 3.5,
+              "row": 0.5,
+              "height": 0
+            },
+            {
+              "column": 3.5,
+              "row": 0.5,
+              "height": 32
+            },
+            {
+              "column": 3.5,
+              "row": -0.5,
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 32
+            },
+            {
+              "column": 3.5,
+              "row": -0.5,
+              "height": 32
+            },
+            {
+              "column": 3.5,
+              "row": -0.5,
+              "height": 48
+            },
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 48
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 3.5,
+              "row": -0.5,
+              "height": 32
+            },
+            {
+              "column": 3.5,
+              "row": 0.5,
+              "height": 32
+            },
+            {
+              "column": 3.5,
+              "row": 0.5,
+              "height": 48
+            },
+            {
+              "column": 3.5,
+              "row": -0.5,
+              "height": 48
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 64
+            },
+            {
+              "column": 3.5,
+              "row": -0.5,
+              "height": 48
+            },
+            {
+              "column": 3.5,
+              "row": 0.5,
+              "height": 48
+            },
+            {
+              "column": 2.5,
+              "row": 0.5,
+              "height": 64
+            }
+          ],
+          "material": "roof",
+          "top": true
+        },
+        {
+          "vertices": [
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 48
+            },
+            {
+              "column": 3.5,
+              "row": -0.5,
+              "height": 48
+            },
+            {
+              "column": 3.5,
+              "row": -0.5,
+              "height": 48
+            },
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 64
+            }
+          ],
+          "material": "roof",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": -0.5,
+              "row": 1.5,
+              "height": 0
+            },
+            {
+              "column": -0.5,
+              "row": 0.5,
+              "height": 0
+            },
+            {
+              "column": -0.5,
+              "row": 0.5,
+              "height": 32
+            },
+            {
+              "column": -0.5,
+              "row": 1.5,
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": -0.5,
+              "row": 1.5,
+              "height": 32
+            },
+            {
+              "column": -0.5,
+              "row": 0.5,
+              "height": 32
+            },
+            {
+              "column": -0.5,
+              "row": 0.5,
+              "height": 48
+            },
+            {
+              "column": -0.5,
+              "row": 1.5,
+              "height": 48
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": -0.5,
+              "row": 0.5,
+              "height": 48
+            },
+            {
+              "column": 0.5,
+              "row": 0.5,
+              "height": 64
+            },
+            {
+              "column": 0.5,
+              "row": 1.5,
+              "height": 64
+            },
+            {
+              "column": -0.5,
+              "row": 1.5,
+              "height": 48
+            }
+          ],
+          "material": "roof",
+          "top": true
+        },
+        {
+          "vertices": [
+            {
+              "column": 0.5,
+              "row": 0.5,
+              "height": 64
+            },
+            {
+              "column": 1.5,
+              "row": 0.5,
+              "height": 80
+            },
+            {
+              "column": 1.5,
+              "row": 1.5,
+              "height": 80
+            },
+            {
+              "column": 0.5,
+              "row": 1.5,
+              "height": 64
+            }
+          ],
+          "material": "roof",
+          "top": true
+        },
+        {
+          "vertices": [
+            {
+              "column": 1.5,
+              "row": 0.5,
+              "height": 80
+            },
+            {
+              "column": 2.5,
+              "row": 0.5,
+              "height": 64
+            },
+            {
+              "column": 2.5,
+              "row": 1.5,
+              "height": 64
+            },
+            {
+              "column": 1.5,
+              "row": 1.5,
+              "height": 80
+            }
+          ],
+          "material": "roof",
+          "top": true
+        },
+        {
+          "vertices": [
+            {
+              "column": 3.5,
+              "row": 0.5,
+              "height": 0
+            },
+            {
+              "column": 3.5,
+              "row": 1.5,
+              "height": 0
+            },
+            {
+              "column": 3.5,
+              "row": 1.5,
+              "height": 32
+            },
+            {
+              "column": 3.5,
+              "row": 0.5,
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 3.5,
+              "row": 0.5,
+              "height": 32
+            },
+            {
+              "column": 3.5,
+              "row": 1.5,
+              "height": 32
+            },
+            {
+              "column": 3.5,
+              "row": 1.5,
+              "height": 48
+            },
+            {
+              "column": 3.5,
+              "row": 0.5,
+              "height": 48
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 2.5,
+              "row": 0.5,
+              "height": 64
+            },
+            {
+              "column": 3.5,
+              "row": 0.5,
+              "height": 48
+            },
+            {
+              "column": 3.5,
+              "row": 1.5,
+              "height": 48
+            },
+            {
+              "column": 2.5,
+              "row": 1.5,
+              "height": 64
+            }
+          ],
+          "material": "roof",
+          "top": true
+        },
+        {
+          "vertices": [
+            {
+              "column": 0.5,
+              "row": 2.5,
+              "height": 0
+            },
+            {
+              "column": -0.5,
+              "row": 2.5,
+              "height": 0
+            },
+            {
+              "column": -0.5,
+              "row": 2.5,
+              "height": 32
+            },
+            {
+              "column": 0.5,
+              "row": 2.5,
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": -0.5,
+              "row": 2.5,
+              "height": 0
+            },
+            {
+              "column": -0.5,
+              "row": 1.5,
+              "height": 0
+            },
+            {
+              "column": -0.5,
+              "row": 1.5,
+              "height": 32
+            },
+            {
+              "column": -0.5,
+              "row": 2.5,
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 0.5,
+              "row": 2.5,
+              "height": 32
+            },
+            {
+              "column": -0.5,
+              "row": 2.5,
+              "height": 32
+            },
+            {
+              "column": -0.5,
+              "row": 2.5,
+              "height": 48
+            },
+            {
+              "column": 0.5,
+              "row": 2.5,
+              "height": 48
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": -0.5,
+              "row": 2.5,
+              "height": 32
+            },
+            {
+              "column": -0.5,
+              "row": 1.5,
+              "height": 32
+            },
+            {
+              "column": -0.5,
+              "row": 1.5,
+              "height": 48
+            },
+            {
+              "column": -0.5,
+              "row": 2.5,
+              "height": 48
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": -0.5,
+              "row": 1.5,
+              "height": 48
+            },
+            {
+              "column": 0.5,
+              "row": 1.5,
+              "height": 64
+            },
+            {
+              "column": 0.5,
+              "row": 2.5,
+              "height": 64
+            },
+            {
+              "column": -0.5,
+              "row": 2.5,
+              "height": 48
+            }
+          ],
+          "material": "roof",
+          "top": true
+        },
+        {
+          "vertices": [
+            {
+              "column": 0.5,
+              "row": 2.5,
+              "height": 48
+            },
+            {
+              "column": -0.5,
+              "row": 2.5,
+              "height": 48
+            },
+            {
+              "column": -0.5,
+              "row": 2.5,
+              "height": 48
+            },
+            {
+              "column": 0.5,
+              "row": 2.5,
+              "height": 64
+            }
+          ],
+          "material": "roof",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 1.5,
+              "row": 2.5,
+              "height": 0
+            },
+            {
+              "column": 0.5,
+              "row": 2.5,
+              "height": 0
+            },
+            {
+              "column": 0.5,
+              "row": 2.5,
+              "height": 32
+            },
+            {
+              "column": 1.5,
+              "row": 2.5,
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 1.5,
+              "row": 2.5,
+              "height": 32
+            },
+            {
+              "column": 0.5,
+              "row": 2.5,
+              "height": 32
+            },
+            {
+              "column": 0.5,
+              "row": 2.5,
+              "height": 64
+            },
+            {
+              "column": 1.5,
+              "row": 2.5,
+              "height": 64
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 0.5,
+              "row": 1.5,
+              "height": 64
+            },
+            {
+              "column": 1.5,
+              "row": 1.5,
+              "height": 80
+            },
+            {
+              "column": 1.5,
+              "row": 2.5,
+              "height": 80
+            },
+            {
+              "column": 0.5,
+              "row": 2.5,
+              "height": 64
+            }
+          ],
+          "material": "roof",
+          "top": true
+        },
+        {
+          "vertices": [
+            {
+              "column": 1.5,
+              "row": 2.5,
+              "height": 64
+            },
+            {
+              "column": 0.5,
+              "row": 2.5,
+              "height": 64
+            },
+            {
+              "column": 0.5,
+              "row": 2.5,
+              "height": 64
+            },
+            {
+              "column": 1.5,
+              "row": 2.5,
+              "height": 80
+            }
+          ],
+          "material": "roof",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 2.5,
+              "row": 2.5,
+              "height": 0
+            },
+            {
+              "column": 1.5,
+              "row": 2.5,
+              "height": 0
+            },
+            {
+              "column": 1.5,
+              "row": 2.5,
+              "height": 32
+            },
+            {
+              "column": 2.5,
+              "row": 2.5,
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 2.5,
+              "row": 2.5,
+              "height": 32
+            },
+            {
+              "column": 1.5,
+              "row": 2.5,
+              "height": 32
+            },
+            {
+              "column": 1.5,
+              "row": 2.5,
+              "height": 64
+            },
+            {
+              "column": 2.5,
+              "row": 2.5,
+              "height": 64
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 1.5,
+              "row": 1.5,
+              "height": 80
+            },
+            {
+              "column": 2.5,
+              "row": 1.5,
+              "height": 64
+            },
+            {
+              "column": 2.5,
+              "row": 2.5,
+              "height": 64
+            },
+            {
+              "column": 1.5,
+              "row": 2.5,
+              "height": 80
+            }
+          ],
+          "material": "roof",
+          "top": true
+        },
+        {
+          "vertices": [
+            {
+              "column": 2.5,
+              "row": 2.5,
+              "height": 64
+            },
+            {
+              "column": 1.5,
+              "row": 2.5,
+              "height": 64
+            },
+            {
+              "column": 1.5,
+              "row": 2.5,
+              "height": 80
+            },
+            {
+              "column": 2.5,
+              "row": 2.5,
+              "height": 64
+            }
+          ],
+          "material": "roof",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 3.5,
+              "row": 1.5,
+              "height": 0
+            },
+            {
+              "column": 3.5,
+              "row": 2.5,
+              "height": 0
+            },
+            {
+              "column": 3.5,
+              "row": 2.5,
+              "height": 32
+            },
+            {
+              "column": 3.5,
+              "row": 1.5,
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 3.5,
+              "row": 2.5,
+              "height": 0
+            },
+            {
+              "column": 2.5,
+              "row": 2.5,
+              "height": 0
+            },
+            {
+              "column": 2.5,
+              "row": 2.5,
+              "height": 32
+            },
+            {
+              "column": 3.5,
+              "row": 2.5,
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 3.5,
+              "row": 1.5,
+              "height": 32
+            },
+            {
+              "column": 3.5,
+              "row": 2.5,
+              "height": 32
+            },
+            {
+              "column": 3.5,
+              "row": 2.5,
+              "height": 48
+            },
+            {
+              "column": 3.5,
+              "row": 1.5,
+              "height": 48
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 3.5,
+              "row": 2.5,
+              "height": 32
+            },
+            {
+              "column": 2.5,
+              "row": 2.5,
+              "height": 32
+            },
+            {
+              "column": 2.5,
+              "row": 2.5,
+              "height": 48
+            },
+            {
+              "column": 3.5,
+              "row": 2.5,
+              "height": 48
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 2.5,
+              "row": 1.5,
+              "height": 64
+            },
+            {
+              "column": 3.5,
+              "row": 1.5,
+              "height": 48
+            },
+            {
+              "column": 3.5,
+              "row": 2.5,
+              "height": 48
+            },
+            {
+              "column": 2.5,
+              "row": 2.5,
+              "height": 64
+            }
+          ],
+          "material": "roof",
+          "top": true
+        },
+        {
+          "vertices": [
+            {
+              "column": 3.5,
+              "row": 2.5,
+              "height": 48
+            },
+            {
+              "column": 2.5,
+              "row": 2.5,
+              "height": 48
+            },
+            {
+              "column": 2.5,
+              "row": 2.5,
+              "height": 64
+            },
+            {
+              "column": 3.5,
+              "row": 2.5,
+              "height": 48
+            }
+          ],
+          "material": "roof",
+          "top": false
+        }
+      ]
+    },
+    {
+      "id": "iseulon-bookshop",
+      "name": "서점",
+      "facilityId": "iseulon-bookshop",
+      "origin": {
+        "column": 17,
+        "row": 4
+      },
+      "width": 3,
+      "height": 3,
+      "entrance": {
+        "column": 18,
+        "row": 7
+      },
+      "facing": "south",
+      "blockSchemaVersion": 1,
+      "blocks": [
+        {
+          "id": "iseulon-bookshop-0-0-0",
+          "column": 0,
+          "row": 0,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-bookshop-0-0-32",
+          "column": 0,
+          "row": 0,
+          "layer": 1,
+          "offsetHeight": 0,
+          "height": 16,
+          "shape": "slab",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-bookshop-roof-0-0",
+          "column": 0,
+          "row": 0,
+          "layer": 1,
+          "offsetHeight": 16,
+          "height": 16,
+          "shape": "ramp",
+          "highSide": "east",
+          "material": "roof",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-bookshop-1-0-0",
+          "column": 1,
+          "row": 0,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-bookshop-1-0-32",
+          "column": 1,
+          "row": 0,
+          "layer": 1,
+          "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-bookshop-roof-1-0",
+          "column": 1,
+          "row": 0,
+          "layer": 2,
+          "offsetHeight": 0,
+          "height": 0,
+          "shape": "cap",
+          "highSide": "west",
+          "material": "roof",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-bookshop-2-0-0",
+          "column": 2,
+          "row": 0,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-bookshop-2-0-32",
+          "column": 2,
+          "row": 0,
+          "layer": 1,
+          "offsetHeight": 0,
+          "height": 16,
+          "shape": "slab",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-bookshop-roof-2-0",
+          "column": 2,
+          "row": 0,
+          "layer": 1,
+          "offsetHeight": 16,
+          "height": 16,
+          "shape": "ramp",
+          "highSide": "west",
+          "material": "roof",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-bookshop-0-1-0",
+          "column": 0,
+          "row": 1,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-bookshop-0-1-32",
+          "column": 0,
+          "row": 1,
+          "layer": 1,
+          "offsetHeight": 0,
+          "height": 16,
+          "shape": "slab",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-bookshop-roof-0-1",
+          "column": 0,
+          "row": 1,
+          "layer": 1,
+          "offsetHeight": 16,
+          "height": 16,
+          "shape": "ramp",
+          "highSide": "east",
+          "material": "roof",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-bookshop-1-1-0",
+          "column": 1,
+          "row": 1,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-bookshop-1-1-32",
+          "column": 1,
+          "row": 1,
+          "layer": 1,
+          "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-bookshop-roof-1-1",
+          "column": 1,
+          "row": 1,
+          "layer": 2,
+          "offsetHeight": 0,
+          "height": 0,
+          "shape": "cap",
+          "highSide": "west",
+          "material": "roof",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-bookshop-2-1-0",
+          "column": 2,
+          "row": 1,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-bookshop-2-1-32",
+          "column": 2,
+          "row": 1,
+          "layer": 1,
+          "offsetHeight": 0,
+          "height": 16,
+          "shape": "slab",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-bookshop-roof-2-1",
+          "column": 2,
+          "row": 1,
+          "layer": 1,
+          "offsetHeight": 16,
+          "height": 16,
+          "shape": "ramp",
+          "highSide": "west",
+          "material": "roof",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-bookshop-0-2-0",
+          "column": 0,
+          "row": 2,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-bookshop-0-2-32",
+          "column": 0,
+          "row": 2,
+          "layer": 1,
+          "offsetHeight": 0,
+          "height": 16,
+          "shape": "slab",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-bookshop-roof-0-2",
+          "column": 0,
+          "row": 2,
+          "layer": 1,
+          "offsetHeight": 16,
+          "height": 16,
+          "shape": "ramp",
+          "highSide": "east",
+          "material": "roof",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-bookshop-1-2-0",
+          "column": 1,
+          "row": 2,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-bookshop-1-2-32",
+          "column": 1,
+          "row": 2,
+          "layer": 1,
+          "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-bookshop-roof-1-2",
+          "column": 1,
+          "row": 2,
+          "layer": 2,
+          "offsetHeight": 0,
+          "height": 0,
+          "shape": "cap",
+          "highSide": "west",
+          "material": "roof",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-bookshop-2-2-0",
+          "column": 2,
+          "row": 2,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-bookshop-2-2-32",
+          "column": 2,
+          "row": 2,
+          "layer": 1,
+          "offsetHeight": 0,
+          "height": 16,
+          "shape": "slab",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-bookshop-roof-2-2",
+          "column": 2,
+          "row": 2,
+          "layer": 1,
+          "offsetHeight": 16,
+          "height": 16,
+          "shape": "ramp",
+          "highSide": "west",
+          "material": "roof",
+          "walkable": false
+        }
+      ],
+      "facilityKind": "bookshop",
+      "npcs": [],
+      "faces": [
+        {
+          "vertices": [
+            {
+              "column": -0.5,
+              "row": -0.5,
+              "height": 0
+            },
+            {
+              "column": 0.5,
+              "row": -0.5,
+              "height": 0
+            },
+            {
+              "column": 0.5,
+              "row": -0.5,
+              "height": 32
+            },
+            {
+              "column": -0.5,
+              "row": -0.5,
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": -0.5,
+              "row": 0.5,
+              "height": 0
+            },
+            {
+              "column": -0.5,
+              "row": -0.5,
+              "height": 0
+            },
+            {
+              "column": -0.5,
+              "row": -0.5,
+              "height": 32
+            },
+            {
+              "column": -0.5,
+              "row": 0.5,
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": -0.5,
+              "row": -0.5,
+              "height": 32
+            },
+            {
+              "column": 0.5,
+              "row": -0.5,
+              "height": 32
+            },
+            {
+              "column": 0.5,
+              "row": -0.5,
+              "height": 48
+            },
+            {
+              "column": -0.5,
+              "row": -0.5,
+              "height": 48
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": -0.5,
+              "row": 0.5,
+              "height": 32
+            },
+            {
+              "column": -0.5,
+              "row": -0.5,
+              "height": 32
+            },
+            {
+              "column": -0.5,
+              "row": -0.5,
+              "height": 48
+            },
+            {
+              "column": -0.5,
+              "row": 0.5,
+              "height": 48
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": -0.5,
+              "row": -0.5,
+              "height": 48
+            },
+            {
+              "column": 0.5,
+              "row": -0.5,
+              "height": 64
+            },
+            {
+              "column": 0.5,
+              "row": 0.5,
+              "height": 64
+            },
+            {
+              "column": -0.5,
+              "row": 0.5,
+              "height": 48
+            }
+          ],
+          "material": "roof",
+          "top": true
+        },
+        {
+          "vertices": [
+            {
+              "column": -0.5,
+              "row": -0.5,
+              "height": 48
+            },
+            {
+              "column": 0.5,
+              "row": -0.5,
+              "height": 48
+            },
+            {
+              "column": 0.5,
+              "row": -0.5,
+              "height": 64
+            },
+            {
+              "column": -0.5,
+              "row": -0.5,
+              "height": 48
+            }
+          ],
+          "material": "roof",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 0.5,
+              "row": -0.5,
+              "height": 0
+            },
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 0
+            },
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 32
+            },
+            {
+              "column": 0.5,
+              "row": -0.5,
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 0.5,
+              "row": -0.5,
+              "height": 32
+            },
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 32
+            },
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 64
+            },
+            {
+              "column": 0.5,
+              "row": -0.5,
+              "height": 64
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 0.5,
+              "row": -0.5,
+              "height": 64
+            },
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 64
+            },
+            {
+              "column": 1.5,
+              "row": 0.5,
+              "height": 64
+            },
+            {
+              "column": 0.5,
+              "row": 0.5,
+              "height": 64
+            }
+          ],
+          "material": "roof",
+          "top": true
+        },
+        {
+          "vertices": [
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 0
+            },
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 0
+            },
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 32
+            },
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 0
+            },
+            {
+              "column": 2.5,
+              "row": 0.5,
+              "height": 0
+            },
+            {
+              "column": 2.5,
+              "row": 0.5,
+              "height": 32
+            },
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 32
+            },
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 32
+            },
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 48
+            },
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 48
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 32
+            },
+            {
+              "column": 2.5,
+              "row": 0.5,
+              "height": 32
+            },
+            {
+              "column": 2.5,
+              "row": 0.5,
+              "height": 48
+            },
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 48
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 64
+            },
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 48
+            },
+            {
+              "column": 2.5,
+              "row": 0.5,
+              "height": 48
+            },
+            {
+              "column": 1.5,
+              "row": 0.5,
+              "height": 64
+            }
+          ],
+          "material": "roof",
+          "top": true
+        },
+        {
+          "vertices": [
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 48
+            },
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 48
+            },
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 48
+            },
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 64
+            }
+          ],
+          "material": "roof",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": -0.5,
+              "row": 1.5,
+              "height": 0
+            },
+            {
+              "column": -0.5,
+              "row": 0.5,
+              "height": 0
+            },
+            {
+              "column": -0.5,
+              "row": 0.5,
+              "height": 32
+            },
+            {
+              "column": -0.5,
+              "row": 1.5,
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": -0.5,
+              "row": 1.5,
+              "height": 32
+            },
+            {
+              "column": -0.5,
+              "row": 0.5,
+              "height": 32
+            },
+            {
+              "column": -0.5,
+              "row": 0.5,
+              "height": 48
+            },
+            {
+              "column": -0.5,
+              "row": 1.5,
+              "height": 48
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": -0.5,
+              "row": 0.5,
+              "height": 48
+            },
+            {
+              "column": 0.5,
+              "row": 0.5,
+              "height": 64
+            },
+            {
+              "column": 0.5,
+              "row": 1.5,
+              "height": 64
+            },
+            {
+              "column": -0.5,
+              "row": 1.5,
+              "height": 48
+            }
+          ],
+          "material": "roof",
+          "top": true
+        },
+        {
+          "vertices": [
+            {
+              "column": 0.5,
+              "row": 0.5,
+              "height": 64
+            },
+            {
+              "column": 1.5,
+              "row": 0.5,
+              "height": 64
+            },
+            {
+              "column": 1.5,
+              "row": 1.5,
+              "height": 64
+            },
+            {
+              "column": 0.5,
+              "row": 1.5,
+              "height": 64
+            }
+          ],
+          "material": "roof",
+          "top": true
+        },
+        {
+          "vertices": [
+            {
+              "column": 2.5,
+              "row": 0.5,
+              "height": 0
+            },
+            {
+              "column": 2.5,
+              "row": 1.5,
+              "height": 0
+            },
+            {
+              "column": 2.5,
+              "row": 1.5,
+              "height": 32
+            },
+            {
+              "column": 2.5,
+              "row": 0.5,
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 2.5,
+              "row": 0.5,
+              "height": 32
+            },
+            {
+              "column": 2.5,
+              "row": 1.5,
+              "height": 32
+            },
+            {
+              "column": 2.5,
+              "row": 1.5,
+              "height": 48
+            },
+            {
+              "column": 2.5,
+              "row": 0.5,
+              "height": 48
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 1.5,
+              "row": 0.5,
+              "height": 64
+            },
+            {
+              "column": 2.5,
+              "row": 0.5,
+              "height": 48
+            },
+            {
+              "column": 2.5,
+              "row": 1.5,
+              "height": 48
+            },
+            {
+              "column": 1.5,
+              "row": 1.5,
+              "height": 64
+            }
+          ],
+          "material": "roof",
+          "top": true
+        },
+        {
+          "vertices": [
+            {
+              "column": 0.5,
+              "row": 2.5,
+              "height": 0
+            },
+            {
+              "column": -0.5,
+              "row": 2.5,
+              "height": 0
+            },
+            {
+              "column": -0.5,
+              "row": 2.5,
+              "height": 32
+            },
+            {
+              "column": 0.5,
+              "row": 2.5,
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": -0.5,
+              "row": 2.5,
+              "height": 0
+            },
+            {
+              "column": -0.5,
+              "row": 1.5,
+              "height": 0
+            },
+            {
+              "column": -0.5,
+              "row": 1.5,
+              "height": 32
+            },
+            {
+              "column": -0.5,
+              "row": 2.5,
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 0.5,
+              "row": 2.5,
+              "height": 32
+            },
+            {
+              "column": -0.5,
+              "row": 2.5,
+              "height": 32
+            },
+            {
+              "column": -0.5,
+              "row": 2.5,
+              "height": 48
+            },
+            {
+              "column": 0.5,
+              "row": 2.5,
+              "height": 48
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": -0.5,
+              "row": 2.5,
+              "height": 32
+            },
+            {
+              "column": -0.5,
+              "row": 1.5,
+              "height": 32
+            },
+            {
+              "column": -0.5,
+              "row": 1.5,
+              "height": 48
+            },
+            {
+              "column": -0.5,
+              "row": 2.5,
+              "height": 48
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": -0.5,
+              "row": 1.5,
+              "height": 48
+            },
+            {
+              "column": 0.5,
+              "row": 1.5,
+              "height": 64
+            },
+            {
+              "column": 0.5,
+              "row": 2.5,
+              "height": 64
+            },
+            {
+              "column": -0.5,
+              "row": 2.5,
+              "height": 48
+            }
+          ],
+          "material": "roof",
+          "top": true
+        },
+        {
+          "vertices": [
+            {
+              "column": 0.5,
+              "row": 2.5,
+              "height": 48
+            },
+            {
+              "column": -0.5,
+              "row": 2.5,
+              "height": 48
+            },
+            {
+              "column": -0.5,
+              "row": 2.5,
+              "height": 48
+            },
+            {
+              "column": 0.5,
+              "row": 2.5,
+              "height": 64
+            }
+          ],
+          "material": "roof",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 1.5,
+              "row": 2.5,
+              "height": 0
+            },
+            {
+              "column": 0.5,
+              "row": 2.5,
+              "height": 0
+            },
+            {
+              "column": 0.5,
+              "row": 2.5,
+              "height": 32
+            },
+            {
+              "column": 1.5,
+              "row": 2.5,
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 1.5,
+              "row": 2.5,
+              "height": 32
+            },
+            {
+              "column": 0.5,
+              "row": 2.5,
+              "height": 32
+            },
+            {
+              "column": 0.5,
+              "row": 2.5,
+              "height": 64
+            },
+            {
+              "column": 1.5,
+              "row": 2.5,
+              "height": 64
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 0.5,
+              "row": 1.5,
+              "height": 64
+            },
+            {
+              "column": 1.5,
+              "row": 1.5,
+              "height": 64
+            },
+            {
+              "column": 1.5,
+              "row": 2.5,
+              "height": 64
+            },
+            {
+              "column": 0.5,
+              "row": 2.5,
+              "height": 64
+            }
+          ],
+          "material": "roof",
+          "top": true
+        },
+        {
+          "vertices": [
+            {
+              "column": 2.5,
+              "row": 1.5,
+              "height": 0
+            },
+            {
+              "column": 2.5,
+              "row": 2.5,
+              "height": 0
+            },
+            {
+              "column": 2.5,
+              "row": 2.5,
+              "height": 32
+            },
+            {
+              "column": 2.5,
+              "row": 1.5,
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 2.5,
+              "row": 2.5,
+              "height": 0
+            },
+            {
+              "column": 1.5,
+              "row": 2.5,
+              "height": 0
+            },
+            {
+              "column": 1.5,
+              "row": 2.5,
+              "height": 32
+            },
+            {
+              "column": 2.5,
+              "row": 2.5,
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 2.5,
+              "row": 1.5,
+              "height": 32
+            },
+            {
+              "column": 2.5,
+              "row": 2.5,
+              "height": 32
+            },
+            {
+              "column": 2.5,
+              "row": 2.5,
+              "height": 48
+            },
+            {
+              "column": 2.5,
+              "row": 1.5,
+              "height": 48
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 2.5,
+              "row": 2.5,
+              "height": 32
+            },
+            {
+              "column": 1.5,
+              "row": 2.5,
+              "height": 32
+            },
+            {
+              "column": 1.5,
+              "row": 2.5,
+              "height": 48
+            },
+            {
+              "column": 2.5,
+              "row": 2.5,
+              "height": 48
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 1.5,
+              "row": 1.5,
+              "height": 64
+            },
+            {
+              "column": 2.5,
+              "row": 1.5,
+              "height": 48
+            },
+            {
+              "column": 2.5,
+              "row": 2.5,
+              "height": 48
+            },
+            {
+              "column": 1.5,
+              "row": 2.5,
+              "height": 64
+            }
+          ],
+          "material": "roof",
+          "top": true
+        },
+        {
+          "vertices": [
+            {
+              "column": 2.5,
+              "row": 2.5,
+              "height": 48
+            },
+            {
+              "column": 1.5,
+              "row": 2.5,
+              "height": 48
+            },
+            {
+              "column": 1.5,
+              "row": 2.5,
+              "height": 64
+            },
+            {
+              "column": 2.5,
+              "row": 2.5,
+              "height": 48
+            }
+          ],
+          "material": "roof",
+          "top": false
+        }
+      ]
+    },
+    {
+      "id": "iseulon-inn",
+      "name": "여관",
+      "facilityId": "iseulon-inn",
+      "origin": {
+        "column": 3,
+        "row": 14
+      },
+      "width": 4,
+      "height": 4,
+      "entrance": {
+        "column": 7,
+        "row": 16
+      },
+      "facing": "east",
+      "blockSchemaVersion": 1,
+      "blocks": [
+        {
+          "id": "iseulon-inn-0-0-0",
+          "column": 0,
+          "row": 0,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-inn-0-0-32",
+          "column": 0,
+          "row": 0,
+          "layer": 1,
+          "offsetHeight": 0,
+          "height": 16,
+          "shape": "slab",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-inn-roof-0-0",
+          "column": 0,
+          "row": 0,
+          "layer": 1,
+          "offsetHeight": 16,
+          "height": 16,
+          "shape": "ramp",
+          "highSide": "east",
+          "material": "roof",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-inn-1-0-0",
+          "column": 1,
+          "row": 0,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-inn-1-0-32",
+          "column": 1,
+          "row": 0,
+          "layer": 1,
+          "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-inn-roof-1-0",
+          "column": 1,
+          "row": 0,
+          "layer": 2,
+          "offsetHeight": 0,
+          "height": 16,
+          "shape": "ramp",
+          "highSide": "east",
+          "material": "roof",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-inn-2-0-0",
+          "column": 2,
+          "row": 0,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-inn-2-0-32",
+          "column": 2,
+          "row": 0,
+          "layer": 1,
+          "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-inn-roof-2-0",
+          "column": 2,
+          "row": 0,
+          "layer": 2,
+          "offsetHeight": 0,
+          "height": 16,
+          "shape": "ramp",
+          "highSide": "west",
+          "material": "roof",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-inn-3-0-0",
+          "column": 3,
+          "row": 0,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-inn-3-0-32",
+          "column": 3,
+          "row": 0,
+          "layer": 1,
+          "offsetHeight": 0,
+          "height": 16,
+          "shape": "slab",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-inn-roof-3-0",
+          "column": 3,
+          "row": 0,
+          "layer": 1,
+          "offsetHeight": 16,
+          "height": 16,
+          "shape": "ramp",
+          "highSide": "west",
+          "material": "roof",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-inn-0-1-0",
+          "column": 0,
+          "row": 1,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-inn-0-1-32",
+          "column": 0,
+          "row": 1,
+          "layer": 1,
+          "offsetHeight": 0,
+          "height": 16,
+          "shape": "slab",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-inn-roof-0-1",
+          "column": 0,
+          "row": 1,
+          "layer": 1,
+          "offsetHeight": 16,
+          "height": 16,
+          "shape": "ramp",
+          "highSide": "east",
+          "material": "roof",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-inn-1-1-0",
+          "column": 1,
+          "row": 1,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-inn-1-1-32",
+          "column": 1,
+          "row": 1,
+          "layer": 1,
+          "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-inn-roof-1-1",
+          "column": 1,
+          "row": 1,
+          "layer": 2,
+          "offsetHeight": 0,
+          "height": 16,
+          "shape": "ramp",
+          "highSide": "east",
+          "material": "roof",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-inn-2-1-0",
+          "column": 2,
+          "row": 1,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-inn-2-1-32",
+          "column": 2,
+          "row": 1,
+          "layer": 1,
+          "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-inn-roof-2-1",
+          "column": 2,
+          "row": 1,
+          "layer": 2,
+          "offsetHeight": 0,
+          "height": 16,
+          "shape": "ramp",
+          "highSide": "west",
+          "material": "roof",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-inn-3-1-0",
+          "column": 3,
+          "row": 1,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-inn-3-1-32",
+          "column": 3,
+          "row": 1,
+          "layer": 1,
+          "offsetHeight": 0,
+          "height": 16,
+          "shape": "slab",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-inn-roof-3-1",
+          "column": 3,
+          "row": 1,
+          "layer": 1,
+          "offsetHeight": 16,
+          "height": 16,
+          "shape": "ramp",
+          "highSide": "west",
+          "material": "roof",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-inn-0-2-0",
+          "column": 0,
+          "row": 2,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-inn-0-2-32",
+          "column": 0,
+          "row": 2,
+          "layer": 1,
+          "offsetHeight": 0,
+          "height": 16,
+          "shape": "slab",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-inn-roof-0-2",
+          "column": 0,
+          "row": 2,
+          "layer": 1,
+          "offsetHeight": 16,
+          "height": 16,
+          "shape": "ramp",
+          "highSide": "east",
+          "material": "roof",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-inn-1-2-0",
+          "column": 1,
+          "row": 2,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-inn-1-2-32",
+          "column": 1,
+          "row": 2,
+          "layer": 1,
+          "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-inn-roof-1-2",
+          "column": 1,
+          "row": 2,
+          "layer": 2,
+          "offsetHeight": 0,
+          "height": 16,
+          "shape": "ramp",
+          "highSide": "east",
+          "material": "roof",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-inn-2-2-0",
+          "column": 2,
+          "row": 2,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-inn-2-2-32",
+          "column": 2,
+          "row": 2,
+          "layer": 1,
+          "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-inn-roof-2-2",
+          "column": 2,
+          "row": 2,
+          "layer": 2,
+          "offsetHeight": 0,
+          "height": 16,
+          "shape": "ramp",
+          "highSide": "west",
+          "material": "roof",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-inn-3-2-0",
+          "column": 3,
+          "row": 2,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-inn-3-2-32",
+          "column": 3,
+          "row": 2,
+          "layer": 1,
+          "offsetHeight": 0,
+          "height": 16,
+          "shape": "slab",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-inn-roof-3-2",
+          "column": 3,
+          "row": 2,
+          "layer": 1,
+          "offsetHeight": 16,
+          "height": 16,
+          "shape": "ramp",
+          "highSide": "west",
+          "material": "roof",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-inn-0-3-0",
+          "column": 0,
+          "row": 3,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-inn-0-3-32",
+          "column": 0,
+          "row": 3,
+          "layer": 1,
+          "offsetHeight": 0,
+          "height": 16,
+          "shape": "slab",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-inn-roof-0-3",
+          "column": 0,
+          "row": 3,
+          "layer": 1,
+          "offsetHeight": 16,
+          "height": 16,
+          "shape": "ramp",
+          "highSide": "east",
+          "material": "roof",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-inn-1-3-0",
+          "column": 1,
+          "row": 3,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-inn-1-3-32",
+          "column": 1,
+          "row": 3,
+          "layer": 1,
+          "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-inn-roof-1-3",
+          "column": 1,
+          "row": 3,
+          "layer": 2,
+          "offsetHeight": 0,
+          "height": 16,
+          "shape": "ramp",
+          "highSide": "east",
+          "material": "roof",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-inn-2-3-0",
+          "column": 2,
+          "row": 3,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-inn-2-3-32",
+          "column": 2,
+          "row": 3,
+          "layer": 1,
+          "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-inn-roof-2-3",
+          "column": 2,
+          "row": 3,
+          "layer": 2,
+          "offsetHeight": 0,
+          "height": 16,
+          "shape": "ramp",
+          "highSide": "west",
+          "material": "roof",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-inn-3-3-0",
+          "column": 3,
+          "row": 3,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-inn-3-3-32",
+          "column": 3,
+          "row": 3,
+          "layer": 1,
+          "offsetHeight": 0,
+          "height": 16,
+          "shape": "slab",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-inn-roof-3-3",
+          "column": 3,
+          "row": 3,
+          "layer": 1,
+          "offsetHeight": 16,
+          "height": 16,
+          "shape": "ramp",
+          "highSide": "west",
+          "material": "roof",
+          "walkable": false
+        }
+      ],
+      "facilityKind": "inn",
+      "npcs": [],
+      "faces": [
+        {
+          "vertices": [
+            {
+              "column": -0.5,
+              "row": -0.5,
+              "height": 0
+            },
+            {
+              "column": 0.5,
+              "row": -0.5,
+              "height": 0
+            },
+            {
+              "column": 0.5,
+              "row": -0.5,
+              "height": 32
+            },
+            {
+              "column": -0.5,
+              "row": -0.5,
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": -0.5,
+              "row": 0.5,
+              "height": 0
+            },
+            {
+              "column": -0.5,
+              "row": -0.5,
+              "height": 0
+            },
+            {
+              "column": -0.5,
+              "row": -0.5,
+              "height": 32
+            },
+            {
+              "column": -0.5,
+              "row": 0.5,
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": -0.5,
+              "row": -0.5,
+              "height": 32
+            },
+            {
+              "column": 0.5,
+              "row": -0.5,
+              "height": 32
+            },
+            {
+              "column": 0.5,
+              "row": -0.5,
+              "height": 48
+            },
+            {
+              "column": -0.5,
+              "row": -0.5,
+              "height": 48
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": -0.5,
+              "row": 0.5,
+              "height": 32
+            },
+            {
+              "column": -0.5,
+              "row": -0.5,
+              "height": 32
+            },
+            {
+              "column": -0.5,
+              "row": -0.5,
+              "height": 48
+            },
+            {
+              "column": -0.5,
+              "row": 0.5,
+              "height": 48
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": -0.5,
+              "row": -0.5,
+              "height": 48
+            },
+            {
+              "column": 0.5,
+              "row": -0.5,
+              "height": 64
+            },
+            {
+              "column": 0.5,
+              "row": 0.5,
+              "height": 64
+            },
+            {
+              "column": -0.5,
+              "row": 0.5,
+              "height": 48
+            }
+          ],
+          "material": "roof",
+          "top": true
+        },
+        {
+          "vertices": [
+            {
+              "column": -0.5,
+              "row": -0.5,
+              "height": 48
+            },
+            {
+              "column": 0.5,
+              "row": -0.5,
+              "height": 48
+            },
+            {
+              "column": 0.5,
+              "row": -0.5,
+              "height": 64
+            },
+            {
+              "column": -0.5,
+              "row": -0.5,
+              "height": 48
+            }
+          ],
+          "material": "roof",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 0.5,
+              "row": -0.5,
+              "height": 0
+            },
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 0
+            },
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 32
+            },
+            {
+              "column": 0.5,
+              "row": -0.5,
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 0.5,
+              "row": -0.5,
+              "height": 32
+            },
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 32
+            },
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 64
+            },
+            {
+              "column": 0.5,
+              "row": -0.5,
+              "height": 64
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 0.5,
+              "row": -0.5,
+              "height": 64
+            },
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 80
+            },
+            {
+              "column": 1.5,
+              "row": 0.5,
+              "height": 80
+            },
+            {
+              "column": 0.5,
+              "row": 0.5,
+              "height": 64
+            }
+          ],
+          "material": "roof",
+          "top": true
+        },
+        {
+          "vertices": [
+            {
+              "column": 0.5,
+              "row": -0.5,
+              "height": 64
+            },
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 64
+            },
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 80
+            },
+            {
+              "column": 0.5,
+              "row": -0.5,
+              "height": 64
+            }
+          ],
+          "material": "roof",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 0
+            },
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 0
+            },
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 32
+            },
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 32
+            },
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 32
+            },
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 64
+            },
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 64
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 80
+            },
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 64
+            },
+            {
+              "column": 2.5,
+              "row": 0.5,
+              "height": 64
+            },
+            {
+              "column": 1.5,
+              "row": 0.5,
+              "height": 80
+            }
+          ],
+          "material": "roof",
+          "top": true
+        },
+        {
+          "vertices": [
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 64
+            },
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 64
+            },
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 64
+            },
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 80
+            }
+          ],
+          "material": "roof",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 0
+            },
+            {
+              "column": 3.5,
+              "row": -0.5,
+              "height": 0
+            },
+            {
+              "column": 3.5,
+              "row": -0.5,
+              "height": 32
+            },
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 3.5,
+              "row": -0.5,
+              "height": 0
+            },
+            {
+              "column": 3.5,
+              "row": 0.5,
+              "height": 0
+            },
+            {
+              "column": 3.5,
+              "row": 0.5,
+              "height": 32
+            },
+            {
+              "column": 3.5,
+              "row": -0.5,
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 32
+            },
+            {
+              "column": 3.5,
+              "row": -0.5,
+              "height": 32
+            },
+            {
+              "column": 3.5,
+              "row": -0.5,
+              "height": 48
+            },
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 48
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 3.5,
+              "row": -0.5,
+              "height": 32
+            },
+            {
+              "column": 3.5,
+              "row": 0.5,
+              "height": 32
+            },
+            {
+              "column": 3.5,
+              "row": 0.5,
+              "height": 48
+            },
+            {
+              "column": 3.5,
+              "row": -0.5,
+              "height": 48
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 64
+            },
+            {
+              "column": 3.5,
+              "row": -0.5,
+              "height": 48
+            },
+            {
+              "column": 3.5,
+              "row": 0.5,
+              "height": 48
+            },
+            {
+              "column": 2.5,
+              "row": 0.5,
+              "height": 64
+            }
+          ],
+          "material": "roof",
+          "top": true
+        },
+        {
+          "vertices": [
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 48
+            },
+            {
+              "column": 3.5,
+              "row": -0.5,
+              "height": 48
+            },
+            {
+              "column": 3.5,
+              "row": -0.5,
+              "height": 48
+            },
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 64
+            }
+          ],
+          "material": "roof",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": -0.5,
+              "row": 1.5,
+              "height": 0
+            },
+            {
+              "column": -0.5,
+              "row": 0.5,
+              "height": 0
+            },
+            {
+              "column": -0.5,
+              "row": 0.5,
+              "height": 32
+            },
+            {
+              "column": -0.5,
+              "row": 1.5,
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": -0.5,
+              "row": 1.5,
+              "height": 32
+            },
+            {
+              "column": -0.5,
+              "row": 0.5,
+              "height": 32
+            },
+            {
+              "column": -0.5,
+              "row": 0.5,
+              "height": 48
+            },
+            {
+              "column": -0.5,
+              "row": 1.5,
+              "height": 48
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": -0.5,
+              "row": 0.5,
+              "height": 48
+            },
+            {
+              "column": 0.5,
+              "row": 0.5,
+              "height": 64
+            },
+            {
+              "column": 0.5,
+              "row": 1.5,
+              "height": 64
+            },
+            {
+              "column": -0.5,
+              "row": 1.5,
+              "height": 48
+            }
+          ],
+          "material": "roof",
+          "top": true
+        },
+        {
+          "vertices": [
+            {
+              "column": 0.5,
+              "row": 0.5,
+              "height": 64
+            },
+            {
+              "column": 1.5,
+              "row": 0.5,
+              "height": 80
+            },
+            {
+              "column": 1.5,
+              "row": 1.5,
+              "height": 80
+            },
+            {
+              "column": 0.5,
+              "row": 1.5,
+              "height": 64
+            }
+          ],
+          "material": "roof",
+          "top": true
+        },
+        {
+          "vertices": [
+            {
+              "column": 1.5,
+              "row": 0.5,
+              "height": 80
+            },
+            {
+              "column": 2.5,
+              "row": 0.5,
+              "height": 64
+            },
+            {
+              "column": 2.5,
+              "row": 1.5,
+              "height": 64
+            },
+            {
+              "column": 1.5,
+              "row": 1.5,
+              "height": 80
+            }
+          ],
+          "material": "roof",
+          "top": true
+        },
+        {
+          "vertices": [
+            {
+              "column": 3.5,
+              "row": 0.5,
+              "height": 0
+            },
+            {
+              "column": 3.5,
+              "row": 1.5,
+              "height": 0
+            },
+            {
+              "column": 3.5,
+              "row": 1.5,
+              "height": 32
+            },
+            {
+              "column": 3.5,
+              "row": 0.5,
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 3.5,
+              "row": 0.5,
+              "height": 32
+            },
+            {
+              "column": 3.5,
+              "row": 1.5,
+              "height": 32
+            },
+            {
+              "column": 3.5,
+              "row": 1.5,
+              "height": 48
+            },
+            {
+              "column": 3.5,
+              "row": 0.5,
+              "height": 48
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 2.5,
+              "row": 0.5,
+              "height": 64
+            },
+            {
+              "column": 3.5,
+              "row": 0.5,
+              "height": 48
+            },
+            {
+              "column": 3.5,
+              "row": 1.5,
+              "height": 48
+            },
+            {
+              "column": 2.5,
+              "row": 1.5,
+              "height": 64
+            }
+          ],
+          "material": "roof",
+          "top": true
+        },
+        {
+          "vertices": [
+            {
+              "column": -0.5,
+              "row": 2.5,
+              "height": 0
+            },
+            {
+              "column": -0.5,
+              "row": 1.5,
+              "height": 0
+            },
+            {
+              "column": -0.5,
+              "row": 1.5,
+              "height": 32
+            },
+            {
+              "column": -0.5,
+              "row": 2.5,
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": -0.5,
+              "row": 2.5,
+              "height": 32
+            },
+            {
+              "column": -0.5,
+              "row": 1.5,
+              "height": 32
+            },
+            {
+              "column": -0.5,
+              "row": 1.5,
+              "height": 48
+            },
+            {
+              "column": -0.5,
+              "row": 2.5,
+              "height": 48
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": -0.5,
+              "row": 1.5,
+              "height": 48
+            },
+            {
+              "column": 0.5,
+              "row": 1.5,
+              "height": 64
+            },
+            {
+              "column": 0.5,
+              "row": 2.5,
+              "height": 64
+            },
+            {
+              "column": -0.5,
+              "row": 2.5,
+              "height": 48
+            }
+          ],
+          "material": "roof",
+          "top": true
+        },
+        {
+          "vertices": [
+            {
+              "column": 0.5,
+              "row": 1.5,
+              "height": 64
+            },
+            {
+              "column": 1.5,
+              "row": 1.5,
+              "height": 80
+            },
+            {
+              "column": 1.5,
+              "row": 2.5,
+              "height": 80
+            },
+            {
+              "column": 0.5,
+              "row": 2.5,
+              "height": 64
+            }
+          ],
+          "material": "roof",
+          "top": true
+        },
+        {
+          "vertices": [
+            {
+              "column": 1.5,
+              "row": 1.5,
+              "height": 80
+            },
+            {
+              "column": 2.5,
+              "row": 1.5,
+              "height": 64
+            },
+            {
+              "column": 2.5,
+              "row": 2.5,
+              "height": 64
+            },
+            {
+              "column": 1.5,
+              "row": 2.5,
+              "height": 80
+            }
+          ],
+          "material": "roof",
+          "top": true
+        },
+        {
+          "vertices": [
+            {
+              "column": 3.5,
+              "row": 1.5,
+              "height": 0
+            },
+            {
+              "column": 3.5,
+              "row": 2.5,
+              "height": 0
+            },
+            {
+              "column": 3.5,
+              "row": 2.5,
+              "height": 32
+            },
+            {
+              "column": 3.5,
+              "row": 1.5,
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 3.5,
+              "row": 1.5,
+              "height": 32
+            },
+            {
+              "column": 3.5,
+              "row": 2.5,
+              "height": 32
+            },
+            {
+              "column": 3.5,
+              "row": 2.5,
+              "height": 48
+            },
+            {
+              "column": 3.5,
+              "row": 1.5,
+              "height": 48
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 2.5,
+              "row": 1.5,
+              "height": 64
+            },
+            {
+              "column": 3.5,
+              "row": 1.5,
+              "height": 48
+            },
+            {
+              "column": 3.5,
+              "row": 2.5,
+              "height": 48
+            },
+            {
+              "column": 2.5,
+              "row": 2.5,
+              "height": 64
+            }
+          ],
+          "material": "roof",
+          "top": true
+        },
+        {
+          "vertices": [
+            {
+              "column": 0.5,
+              "row": 3.5,
+              "height": 0
+            },
+            {
+              "column": -0.5,
+              "row": 3.5,
+              "height": 0
+            },
+            {
+              "column": -0.5,
+              "row": 3.5,
+              "height": 32
+            },
+            {
+              "column": 0.5,
+              "row": 3.5,
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": -0.5,
+              "row": 3.5,
+              "height": 0
+            },
+            {
+              "column": -0.5,
+              "row": 2.5,
+              "height": 0
+            },
+            {
+              "column": -0.5,
+              "row": 2.5,
+              "height": 32
+            },
+            {
+              "column": -0.5,
+              "row": 3.5,
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 0.5,
+              "row": 3.5,
+              "height": 32
+            },
+            {
+              "column": -0.5,
+              "row": 3.5,
+              "height": 32
+            },
+            {
+              "column": -0.5,
+              "row": 3.5,
+              "height": 48
+            },
+            {
+              "column": 0.5,
+              "row": 3.5,
+              "height": 48
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": -0.5,
+              "row": 3.5,
+              "height": 32
+            },
+            {
+              "column": -0.5,
+              "row": 2.5,
+              "height": 32
+            },
+            {
+              "column": -0.5,
+              "row": 2.5,
+              "height": 48
+            },
+            {
+              "column": -0.5,
+              "row": 3.5,
+              "height": 48
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": -0.5,
+              "row": 2.5,
+              "height": 48
+            },
+            {
+              "column": 0.5,
+              "row": 2.5,
+              "height": 64
+            },
+            {
+              "column": 0.5,
+              "row": 3.5,
+              "height": 64
+            },
+            {
+              "column": -0.5,
+              "row": 3.5,
+              "height": 48
+            }
+          ],
+          "material": "roof",
+          "top": true
+        },
+        {
+          "vertices": [
+            {
+              "column": 0.5,
+              "row": 3.5,
+              "height": 48
+            },
+            {
+              "column": -0.5,
+              "row": 3.5,
+              "height": 48
+            },
+            {
+              "column": -0.5,
+              "row": 3.5,
+              "height": 48
+            },
+            {
+              "column": 0.5,
+              "row": 3.5,
+              "height": 64
+            }
+          ],
+          "material": "roof",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 1.5,
+              "row": 3.5,
+              "height": 0
+            },
+            {
+              "column": 0.5,
+              "row": 3.5,
+              "height": 0
+            },
+            {
+              "column": 0.5,
+              "row": 3.5,
+              "height": 32
+            },
+            {
+              "column": 1.5,
+              "row": 3.5,
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 1.5,
+              "row": 3.5,
+              "height": 32
+            },
+            {
+              "column": 0.5,
+              "row": 3.5,
+              "height": 32
+            },
+            {
+              "column": 0.5,
+              "row": 3.5,
+              "height": 64
+            },
+            {
+              "column": 1.5,
+              "row": 3.5,
+              "height": 64
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 0.5,
+              "row": 2.5,
+              "height": 64
+            },
+            {
+              "column": 1.5,
+              "row": 2.5,
+              "height": 80
+            },
+            {
+              "column": 1.5,
+              "row": 3.5,
+              "height": 80
+            },
+            {
+              "column": 0.5,
+              "row": 3.5,
+              "height": 64
+            }
+          ],
+          "material": "roof",
+          "top": true
+        },
+        {
+          "vertices": [
+            {
+              "column": 1.5,
+              "row": 3.5,
+              "height": 64
+            },
+            {
+              "column": 0.5,
+              "row": 3.5,
+              "height": 64
+            },
+            {
+              "column": 0.5,
+              "row": 3.5,
+              "height": 64
+            },
+            {
+              "column": 1.5,
+              "row": 3.5,
+              "height": 80
+            }
+          ],
+          "material": "roof",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 2.5,
+              "row": 3.5,
+              "height": 0
+            },
+            {
+              "column": 1.5,
+              "row": 3.5,
+              "height": 0
+            },
+            {
+              "column": 1.5,
+              "row": 3.5,
+              "height": 32
+            },
+            {
+              "column": 2.5,
+              "row": 3.5,
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 2.5,
+              "row": 3.5,
+              "height": 32
+            },
+            {
+              "column": 1.5,
+              "row": 3.5,
+              "height": 32
+            },
+            {
+              "column": 1.5,
+              "row": 3.5,
+              "height": 64
+            },
+            {
+              "column": 2.5,
+              "row": 3.5,
+              "height": 64
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 1.5,
+              "row": 2.5,
+              "height": 80
+            },
+            {
+              "column": 2.5,
+              "row": 2.5,
+              "height": 64
+            },
+            {
+              "column": 2.5,
+              "row": 3.5,
+              "height": 64
+            },
+            {
+              "column": 1.5,
+              "row": 3.5,
+              "height": 80
+            }
+          ],
+          "material": "roof",
+          "top": true
+        },
+        {
+          "vertices": [
+            {
+              "column": 2.5,
+              "row": 3.5,
+              "height": 64
+            },
+            {
+              "column": 1.5,
+              "row": 3.5,
+              "height": 64
+            },
+            {
+              "column": 1.5,
+              "row": 3.5,
+              "height": 80
+            },
+            {
+              "column": 2.5,
+              "row": 3.5,
+              "height": 64
+            }
+          ],
+          "material": "roof",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 3.5,
+              "row": 2.5,
+              "height": 0
+            },
+            {
+              "column": 3.5,
+              "row": 3.5,
+              "height": 0
+            },
+            {
+              "column": 3.5,
+              "row": 3.5,
+              "height": 32
+            },
+            {
+              "column": 3.5,
+              "row": 2.5,
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 3.5,
+              "row": 3.5,
+              "height": 0
+            },
+            {
+              "column": 2.5,
+              "row": 3.5,
+              "height": 0
+            },
+            {
+              "column": 2.5,
+              "row": 3.5,
+              "height": 32
+            },
+            {
+              "column": 3.5,
+              "row": 3.5,
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 3.5,
+              "row": 2.5,
+              "height": 32
+            },
+            {
+              "column": 3.5,
+              "row": 3.5,
+              "height": 32
+            },
+            {
+              "column": 3.5,
+              "row": 3.5,
+              "height": 48
+            },
+            {
+              "column": 3.5,
+              "row": 2.5,
+              "height": 48
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 3.5,
+              "row": 3.5,
+              "height": 32
+            },
+            {
+              "column": 2.5,
+              "row": 3.5,
+              "height": 32
+            },
+            {
+              "column": 2.5,
+              "row": 3.5,
+              "height": 48
+            },
+            {
+              "column": 3.5,
+              "row": 3.5,
+              "height": 48
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 2.5,
+              "row": 2.5,
+              "height": 64
+            },
+            {
+              "column": 3.5,
+              "row": 2.5,
+              "height": 48
+            },
+            {
+              "column": 3.5,
+              "row": 3.5,
+              "height": 48
+            },
+            {
+              "column": 2.5,
+              "row": 3.5,
+              "height": 64
+            }
+          ],
+          "material": "roof",
+          "top": true
+        },
+        {
+          "vertices": [
+            {
+              "column": 3.5,
+              "row": 3.5,
+              "height": 48
+            },
+            {
+              "column": 2.5,
+              "row": 3.5,
+              "height": 48
+            },
+            {
+              "column": 2.5,
+              "row": 3.5,
+              "height": 64
+            },
+            {
+              "column": 3.5,
+              "row": 3.5,
+              "height": 48
+            }
+          ],
+          "material": "roof",
+          "top": false
+        }
+      ]
+    },
+    {
+      "id": "iseulon-workshop",
+      "name": "대장간·공방",
+      "facilityId": "iseulon-workshop",
+      "origin": {
+        "column": 17,
+        "row": 14
+      },
+      "width": 4,
+      "height": 3,
+      "entrance": {
+        "column": 16,
+        "row": 15
+      },
+      "facing": "west",
+      "blockSchemaVersion": 1,
+      "blocks": [
+        {
+          "id": "iseulon-workshop-0-0-0",
+          "column": 0,
+          "row": 0,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-workshop-0-0-32",
+          "column": 0,
+          "row": 0,
+          "layer": 1,
+          "offsetHeight": 0,
+          "height": 16,
+          "shape": "slab",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-workshop-roof-0-0",
+          "column": 0,
+          "row": 0,
+          "layer": 1,
+          "offsetHeight": 16,
+          "height": 16,
+          "shape": "ramp",
+          "highSide": "east",
+          "material": "roof",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-workshop-1-0-0",
+          "column": 1,
+          "row": 0,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-workshop-1-0-32",
+          "column": 1,
+          "row": 0,
+          "layer": 1,
+          "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-workshop-roof-1-0",
+          "column": 1,
+          "row": 0,
+          "layer": 2,
+          "offsetHeight": 0,
+          "height": 16,
+          "shape": "ramp",
+          "highSide": "east",
+          "material": "roof",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-workshop-2-0-0",
+          "column": 2,
+          "row": 0,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-workshop-2-0-32",
+          "column": 2,
+          "row": 0,
+          "layer": 1,
+          "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-workshop-roof-2-0",
+          "column": 2,
+          "row": 0,
+          "layer": 2,
+          "offsetHeight": 0,
+          "height": 16,
+          "shape": "ramp",
+          "highSide": "west",
+          "material": "roof",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-workshop-3-0-0",
+          "column": 3,
+          "row": 0,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-workshop-3-0-32",
+          "column": 3,
+          "row": 0,
+          "layer": 1,
+          "offsetHeight": 0,
+          "height": 16,
+          "shape": "slab",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-workshop-roof-3-0",
+          "column": 3,
+          "row": 0,
+          "layer": 1,
+          "offsetHeight": 16,
+          "height": 16,
+          "shape": "ramp",
+          "highSide": "west",
+          "material": "roof",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-workshop-0-1-0",
+          "column": 0,
+          "row": 1,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-workshop-0-1-32",
+          "column": 0,
+          "row": 1,
+          "layer": 1,
+          "offsetHeight": 0,
+          "height": 16,
+          "shape": "slab",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-workshop-roof-0-1",
+          "column": 0,
+          "row": 1,
+          "layer": 1,
+          "offsetHeight": 16,
+          "height": 16,
+          "shape": "ramp",
+          "highSide": "east",
+          "material": "roof",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-workshop-1-1-0",
+          "column": 1,
+          "row": 1,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-workshop-1-1-32",
+          "column": 1,
+          "row": 1,
+          "layer": 1,
+          "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-workshop-roof-1-1",
+          "column": 1,
+          "row": 1,
+          "layer": 2,
+          "offsetHeight": 0,
+          "height": 16,
+          "shape": "ramp",
+          "highSide": "east",
+          "material": "roof",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-workshop-2-1-0",
+          "column": 2,
+          "row": 1,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-workshop-2-1-32",
+          "column": 2,
+          "row": 1,
+          "layer": 1,
+          "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-workshop-roof-2-1",
+          "column": 2,
+          "row": 1,
+          "layer": 2,
+          "offsetHeight": 0,
+          "height": 16,
+          "shape": "ramp",
+          "highSide": "west",
+          "material": "roof",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-workshop-3-1-0",
+          "column": 3,
+          "row": 1,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-workshop-3-1-32",
+          "column": 3,
+          "row": 1,
+          "layer": 1,
+          "offsetHeight": 0,
+          "height": 16,
+          "shape": "slab",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-workshop-roof-3-1",
+          "column": 3,
+          "row": 1,
+          "layer": 1,
+          "offsetHeight": 16,
+          "height": 16,
+          "shape": "ramp",
+          "highSide": "west",
+          "material": "roof",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-workshop-0-2-0",
+          "column": 0,
+          "row": 2,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-workshop-0-2-32",
+          "column": 0,
+          "row": 2,
+          "layer": 1,
+          "offsetHeight": 0,
+          "height": 16,
+          "shape": "slab",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-workshop-roof-0-2",
+          "column": 0,
+          "row": 2,
+          "layer": 1,
+          "offsetHeight": 16,
+          "height": 16,
+          "shape": "ramp",
+          "highSide": "east",
+          "material": "roof",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-workshop-1-2-0",
+          "column": 1,
+          "row": 2,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-workshop-1-2-32",
+          "column": 1,
+          "row": 2,
+          "layer": 1,
+          "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-workshop-roof-1-2",
+          "column": 1,
+          "row": 2,
+          "layer": 2,
+          "offsetHeight": 0,
+          "height": 16,
+          "shape": "ramp",
+          "highSide": "east",
+          "material": "roof",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-workshop-2-2-0",
+          "column": 2,
+          "row": 2,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-workshop-2-2-32",
+          "column": 2,
+          "row": 2,
+          "layer": 1,
+          "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-workshop-roof-2-2",
+          "column": 2,
+          "row": 2,
+          "layer": 2,
+          "offsetHeight": 0,
+          "height": 16,
+          "shape": "ramp",
+          "highSide": "west",
+          "material": "roof",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-workshop-3-2-0",
+          "column": 3,
+          "row": 2,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-workshop-3-2-32",
+          "column": 3,
+          "row": 2,
+          "layer": 1,
+          "offsetHeight": 0,
+          "height": 16,
+          "shape": "slab",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-workshop-roof-3-2",
+          "column": 3,
+          "row": 2,
+          "layer": 1,
+          "offsetHeight": 16,
+          "height": 16,
+          "shape": "ramp",
+          "highSide": "west",
+          "material": "roof",
+          "walkable": false
+        }
+      ],
+      "facilityKind": "workshop",
+      "npcs": [],
+      "faces": [
+        {
+          "vertices": [
+            {
+              "column": -0.5,
+              "row": -0.5,
+              "height": 0
+            },
+            {
+              "column": 0.5,
+              "row": -0.5,
+              "height": 0
+            },
+            {
+              "column": 0.5,
+              "row": -0.5,
+              "height": 32
+            },
+            {
+              "column": -0.5,
+              "row": -0.5,
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": -0.5,
+              "row": 0.5,
+              "height": 0
+            },
+            {
+              "column": -0.5,
+              "row": -0.5,
+              "height": 0
+            },
+            {
+              "column": -0.5,
+              "row": -0.5,
+              "height": 32
+            },
+            {
+              "column": -0.5,
+              "row": 0.5,
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": -0.5,
+              "row": -0.5,
+              "height": 32
+            },
+            {
+              "column": 0.5,
+              "row": -0.5,
+              "height": 32
+            },
+            {
+              "column": 0.5,
+              "row": -0.5,
+              "height": 48
+            },
+            {
+              "column": -0.5,
+              "row": -0.5,
+              "height": 48
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": -0.5,
+              "row": 0.5,
+              "height": 32
+            },
+            {
+              "column": -0.5,
+              "row": -0.5,
+              "height": 32
+            },
+            {
+              "column": -0.5,
+              "row": -0.5,
+              "height": 48
+            },
+            {
+              "column": -0.5,
+              "row": 0.5,
+              "height": 48
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": -0.5,
+              "row": -0.5,
+              "height": 48
+            },
+            {
+              "column": 0.5,
+              "row": -0.5,
+              "height": 64
+            },
+            {
+              "column": 0.5,
+              "row": 0.5,
+              "height": 64
+            },
+            {
+              "column": -0.5,
+              "row": 0.5,
+              "height": 48
+            }
+          ],
+          "material": "roof",
+          "top": true
+        },
+        {
+          "vertices": [
+            {
+              "column": -0.5,
+              "row": -0.5,
+              "height": 48
+            },
+            {
+              "column": 0.5,
+              "row": -0.5,
+              "height": 48
+            },
+            {
+              "column": 0.5,
+              "row": -0.5,
+              "height": 64
+            },
+            {
+              "column": -0.5,
+              "row": -0.5,
+              "height": 48
+            }
+          ],
+          "material": "roof",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 0.5,
+              "row": -0.5,
+              "height": 0
+            },
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 0
+            },
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 32
+            },
+            {
+              "column": 0.5,
+              "row": -0.5,
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 0.5,
+              "row": -0.5,
+              "height": 32
+            },
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 32
+            },
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 64
+            },
+            {
+              "column": 0.5,
+              "row": -0.5,
+              "height": 64
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 0.5,
+              "row": -0.5,
+              "height": 64
+            },
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 80
+            },
+            {
+              "column": 1.5,
+              "row": 0.5,
+              "height": 80
+            },
+            {
+              "column": 0.5,
+              "row": 0.5,
+              "height": 64
+            }
+          ],
+          "material": "roof",
+          "top": true
+        },
+        {
+          "vertices": [
+            {
+              "column": 0.5,
+              "row": -0.5,
+              "height": 64
+            },
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 64
+            },
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 80
+            },
+            {
+              "column": 0.5,
+              "row": -0.5,
+              "height": 64
+            }
+          ],
+          "material": "roof",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 0
+            },
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 0
+            },
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 32
+            },
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 32
+            },
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 32
+            },
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 64
+            },
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 64
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 80
+            },
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 64
+            },
+            {
+              "column": 2.5,
+              "row": 0.5,
+              "height": 64
+            },
+            {
+              "column": 1.5,
+              "row": 0.5,
+              "height": 80
+            }
+          ],
+          "material": "roof",
+          "top": true
+        },
+        {
+          "vertices": [
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 64
+            },
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 64
+            },
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 64
+            },
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 80
+            }
+          ],
+          "material": "roof",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 0
+            },
+            {
+              "column": 3.5,
+              "row": -0.5,
+              "height": 0
+            },
+            {
+              "column": 3.5,
+              "row": -0.5,
+              "height": 32
+            },
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 3.5,
+              "row": -0.5,
+              "height": 0
+            },
+            {
+              "column": 3.5,
+              "row": 0.5,
+              "height": 0
+            },
+            {
+              "column": 3.5,
+              "row": 0.5,
+              "height": 32
+            },
+            {
+              "column": 3.5,
+              "row": -0.5,
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 32
+            },
+            {
+              "column": 3.5,
+              "row": -0.5,
+              "height": 32
+            },
+            {
+              "column": 3.5,
+              "row": -0.5,
+              "height": 48
+            },
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 48
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 3.5,
+              "row": -0.5,
+              "height": 32
+            },
+            {
+              "column": 3.5,
+              "row": 0.5,
+              "height": 32
+            },
+            {
+              "column": 3.5,
+              "row": 0.5,
+              "height": 48
+            },
+            {
+              "column": 3.5,
+              "row": -0.5,
+              "height": 48
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 64
+            },
+            {
+              "column": 3.5,
+              "row": -0.5,
+              "height": 48
+            },
+            {
+              "column": 3.5,
+              "row": 0.5,
+              "height": 48
+            },
+            {
+              "column": 2.5,
+              "row": 0.5,
+              "height": 64
+            }
+          ],
+          "material": "roof",
+          "top": true
+        },
+        {
+          "vertices": [
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 48
+            },
+            {
+              "column": 3.5,
+              "row": -0.5,
+              "height": 48
+            },
+            {
+              "column": 3.5,
+              "row": -0.5,
+              "height": 48
+            },
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 64
+            }
+          ],
+          "material": "roof",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": -0.5,
+              "row": 1.5,
+              "height": 0
+            },
+            {
+              "column": -0.5,
+              "row": 0.5,
+              "height": 0
+            },
+            {
+              "column": -0.5,
+              "row": 0.5,
+              "height": 32
+            },
+            {
+              "column": -0.5,
+              "row": 1.5,
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": -0.5,
+              "row": 1.5,
+              "height": 32
+            },
+            {
+              "column": -0.5,
+              "row": 0.5,
+              "height": 32
+            },
+            {
+              "column": -0.5,
+              "row": 0.5,
+              "height": 48
+            },
+            {
+              "column": -0.5,
+              "row": 1.5,
+              "height": 48
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": -0.5,
+              "row": 0.5,
+              "height": 48
+            },
+            {
+              "column": 0.5,
+              "row": 0.5,
+              "height": 64
+            },
+            {
+              "column": 0.5,
+              "row": 1.5,
+              "height": 64
+            },
+            {
+              "column": -0.5,
+              "row": 1.5,
+              "height": 48
+            }
+          ],
+          "material": "roof",
+          "top": true
+        },
+        {
+          "vertices": [
+            {
+              "column": 0.5,
+              "row": 0.5,
+              "height": 64
+            },
+            {
+              "column": 1.5,
+              "row": 0.5,
+              "height": 80
+            },
+            {
+              "column": 1.5,
+              "row": 1.5,
+              "height": 80
+            },
+            {
+              "column": 0.5,
+              "row": 1.5,
+              "height": 64
+            }
+          ],
+          "material": "roof",
+          "top": true
+        },
+        {
+          "vertices": [
+            {
+              "column": 1.5,
+              "row": 0.5,
+              "height": 80
+            },
+            {
+              "column": 2.5,
+              "row": 0.5,
+              "height": 64
+            },
+            {
+              "column": 2.5,
+              "row": 1.5,
+              "height": 64
+            },
+            {
+              "column": 1.5,
+              "row": 1.5,
+              "height": 80
+            }
+          ],
+          "material": "roof",
+          "top": true
+        },
+        {
+          "vertices": [
+            {
+              "column": 3.5,
+              "row": 0.5,
+              "height": 0
+            },
+            {
+              "column": 3.5,
+              "row": 1.5,
+              "height": 0
+            },
+            {
+              "column": 3.5,
+              "row": 1.5,
+              "height": 32
+            },
+            {
+              "column": 3.5,
+              "row": 0.5,
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 3.5,
+              "row": 0.5,
+              "height": 32
+            },
+            {
+              "column": 3.5,
+              "row": 1.5,
+              "height": 32
+            },
+            {
+              "column": 3.5,
+              "row": 1.5,
+              "height": 48
+            },
+            {
+              "column": 3.5,
+              "row": 0.5,
+              "height": 48
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 2.5,
+              "row": 0.5,
+              "height": 64
+            },
+            {
+              "column": 3.5,
+              "row": 0.5,
+              "height": 48
+            },
+            {
+              "column": 3.5,
+              "row": 1.5,
+              "height": 48
+            },
+            {
+              "column": 2.5,
+              "row": 1.5,
+              "height": 64
+            }
+          ],
+          "material": "roof",
+          "top": true
+        },
+        {
+          "vertices": [
+            {
+              "column": 0.5,
+              "row": 2.5,
+              "height": 0
+            },
+            {
+              "column": -0.5,
+              "row": 2.5,
+              "height": 0
+            },
+            {
+              "column": -0.5,
+              "row": 2.5,
+              "height": 32
+            },
+            {
+              "column": 0.5,
+              "row": 2.5,
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": -0.5,
+              "row": 2.5,
+              "height": 0
+            },
+            {
+              "column": -0.5,
+              "row": 1.5,
+              "height": 0
+            },
+            {
+              "column": -0.5,
+              "row": 1.5,
+              "height": 32
+            },
+            {
+              "column": -0.5,
+              "row": 2.5,
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 0.5,
+              "row": 2.5,
+              "height": 32
+            },
+            {
+              "column": -0.5,
+              "row": 2.5,
+              "height": 32
+            },
+            {
+              "column": -0.5,
+              "row": 2.5,
+              "height": 48
+            },
+            {
+              "column": 0.5,
+              "row": 2.5,
+              "height": 48
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": -0.5,
+              "row": 2.5,
+              "height": 32
+            },
+            {
+              "column": -0.5,
+              "row": 1.5,
+              "height": 32
+            },
+            {
+              "column": -0.5,
+              "row": 1.5,
+              "height": 48
+            },
+            {
+              "column": -0.5,
+              "row": 2.5,
+              "height": 48
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": -0.5,
+              "row": 1.5,
+              "height": 48
+            },
+            {
+              "column": 0.5,
+              "row": 1.5,
+              "height": 64
+            },
+            {
+              "column": 0.5,
+              "row": 2.5,
+              "height": 64
+            },
+            {
+              "column": -0.5,
+              "row": 2.5,
+              "height": 48
+            }
+          ],
+          "material": "roof",
+          "top": true
+        },
+        {
+          "vertices": [
+            {
+              "column": 0.5,
+              "row": 2.5,
+              "height": 48
+            },
+            {
+              "column": -0.5,
+              "row": 2.5,
+              "height": 48
+            },
+            {
+              "column": -0.5,
+              "row": 2.5,
+              "height": 48
+            },
+            {
+              "column": 0.5,
+              "row": 2.5,
+              "height": 64
+            }
+          ],
+          "material": "roof",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 1.5,
+              "row": 2.5,
+              "height": 0
+            },
+            {
+              "column": 0.5,
+              "row": 2.5,
+              "height": 0
+            },
+            {
+              "column": 0.5,
+              "row": 2.5,
+              "height": 32
+            },
+            {
+              "column": 1.5,
+              "row": 2.5,
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 1.5,
+              "row": 2.5,
+              "height": 32
+            },
+            {
+              "column": 0.5,
+              "row": 2.5,
+              "height": 32
+            },
+            {
+              "column": 0.5,
+              "row": 2.5,
+              "height": 64
+            },
+            {
+              "column": 1.5,
+              "row": 2.5,
+              "height": 64
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 0.5,
+              "row": 1.5,
+              "height": 64
+            },
+            {
+              "column": 1.5,
+              "row": 1.5,
+              "height": 80
+            },
+            {
+              "column": 1.5,
+              "row": 2.5,
+              "height": 80
+            },
+            {
+              "column": 0.5,
+              "row": 2.5,
+              "height": 64
+            }
+          ],
+          "material": "roof",
+          "top": true
+        },
+        {
+          "vertices": [
+            {
+              "column": 1.5,
+              "row": 2.5,
+              "height": 64
+            },
+            {
+              "column": 0.5,
+              "row": 2.5,
+              "height": 64
+            },
+            {
+              "column": 0.5,
+              "row": 2.5,
+              "height": 64
+            },
+            {
+              "column": 1.5,
+              "row": 2.5,
+              "height": 80
+            }
+          ],
+          "material": "roof",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 2.5,
+              "row": 2.5,
+              "height": 0
+            },
+            {
+              "column": 1.5,
+              "row": 2.5,
+              "height": 0
+            },
+            {
+              "column": 1.5,
+              "row": 2.5,
+              "height": 32
+            },
+            {
+              "column": 2.5,
+              "row": 2.5,
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 2.5,
+              "row": 2.5,
+              "height": 32
+            },
+            {
+              "column": 1.5,
+              "row": 2.5,
+              "height": 32
+            },
+            {
+              "column": 1.5,
+              "row": 2.5,
+              "height": 64
+            },
+            {
+              "column": 2.5,
+              "row": 2.5,
+              "height": 64
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 1.5,
+              "row": 1.5,
+              "height": 80
+            },
+            {
+              "column": 2.5,
+              "row": 1.5,
+              "height": 64
+            },
+            {
+              "column": 2.5,
+              "row": 2.5,
+              "height": 64
+            },
+            {
+              "column": 1.5,
+              "row": 2.5,
+              "height": 80
+            }
+          ],
+          "material": "roof",
+          "top": true
+        },
+        {
+          "vertices": [
+            {
+              "column": 2.5,
+              "row": 2.5,
+              "height": 64
+            },
+            {
+              "column": 1.5,
+              "row": 2.5,
+              "height": 64
+            },
+            {
+              "column": 1.5,
+              "row": 2.5,
+              "height": 80
+            },
+            {
+              "column": 2.5,
+              "row": 2.5,
+              "height": 64
+            }
+          ],
+          "material": "roof",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 3.5,
+              "row": 1.5,
+              "height": 0
+            },
+            {
+              "column": 3.5,
+              "row": 2.5,
+              "height": 0
+            },
+            {
+              "column": 3.5,
+              "row": 2.5,
+              "height": 32
+            },
+            {
+              "column": 3.5,
+              "row": 1.5,
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 3.5,
+              "row": 2.5,
+              "height": 0
+            },
+            {
+              "column": 2.5,
+              "row": 2.5,
+              "height": 0
+            },
+            {
+              "column": 2.5,
+              "row": 2.5,
+              "height": 32
+            },
+            {
+              "column": 3.5,
+              "row": 2.5,
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 3.5,
+              "row": 1.5,
+              "height": 32
+            },
+            {
+              "column": 3.5,
+              "row": 2.5,
+              "height": 32
+            },
+            {
+              "column": 3.5,
+              "row": 2.5,
+              "height": 48
+            },
+            {
+              "column": 3.5,
+              "row": 1.5,
+              "height": 48
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 3.5,
+              "row": 2.5,
+              "height": 32
+            },
+            {
+              "column": 2.5,
+              "row": 2.5,
+              "height": 32
+            },
+            {
+              "column": 2.5,
+              "row": 2.5,
+              "height": 48
+            },
+            {
+              "column": 3.5,
+              "row": 2.5,
+              "height": 48
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 2.5,
+              "row": 1.5,
+              "height": 64
+            },
+            {
+              "column": 3.5,
+              "row": 1.5,
+              "height": 48
+            },
+            {
+              "column": 3.5,
+              "row": 2.5,
+              "height": 48
+            },
+            {
+              "column": 2.5,
+              "row": 2.5,
+              "height": 64
+            }
+          ],
+          "material": "roof",
+          "top": true
+        },
+        {
+          "vertices": [
+            {
+              "column": 3.5,
+              "row": 2.5,
+              "height": 48
+            },
+            {
+              "column": 2.5,
+              "row": 2.5,
+              "height": 48
+            },
+            {
+              "column": 2.5,
+              "row": 2.5,
+              "height": 64
+            },
+            {
+              "column": 3.5,
+              "row": 2.5,
+              "height": 48
+            }
+          ],
+          "material": "roof",
+          "top": false
+        }
+      ]
+    },
+    {
+      "id": "iseulon-market",
+      "name": "시장",
+      "facilityId": "iseulon-market",
+      "origin": {
+        "column": 17,
+        "row": 19
+      },
+      "width": 4,
+      "height": 2,
+      "entrance": {
+        "column": 18,
+        "row": 18
+      },
+      "facing": "north",
+      "blockSchemaVersion": 1,
+      "blocks": [
+        {
+          "id": "iseulon-market-0-0-0",
+          "column": 0,
+          "row": 0,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 24,
+          "shape": "slab",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-market-roof-0-0",
+          "column": 0,
+          "row": 0,
+          "layer": 0,
+          "offsetHeight": 24,
+          "height": 16,
+          "shape": "ramp",
+          "highSide": "east",
+          "material": "roof",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-market-1-0-0",
+          "column": 1,
+          "row": 0,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-market-1-0-32",
+          "column": 1,
+          "row": 0,
+          "layer": 1,
+          "offsetHeight": 0,
+          "height": 8,
+          "shape": "slab",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-market-roof-1-0",
+          "column": 1,
+          "row": 0,
+          "layer": 1,
+          "offsetHeight": 8,
+          "height": 16,
+          "shape": "ramp",
+          "highSide": "east",
+          "material": "roof",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-market-2-0-0",
+          "column": 2,
+          "row": 0,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-market-2-0-32",
+          "column": 2,
+          "row": 0,
+          "layer": 1,
+          "offsetHeight": 0,
+          "height": 8,
+          "shape": "slab",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-market-roof-2-0",
+          "column": 2,
+          "row": 0,
+          "layer": 1,
+          "offsetHeight": 8,
+          "height": 16,
+          "shape": "ramp",
+          "highSide": "west",
+          "material": "roof",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-market-3-0-0",
+          "column": 3,
+          "row": 0,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 24,
+          "shape": "slab",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-market-roof-3-0",
+          "column": 3,
+          "row": 0,
+          "layer": 0,
+          "offsetHeight": 24,
+          "height": 16,
+          "shape": "ramp",
+          "highSide": "west",
+          "material": "roof",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-market-0-1-0",
+          "column": 0,
+          "row": 1,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 24,
+          "shape": "slab",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-market-roof-0-1",
+          "column": 0,
+          "row": 1,
+          "layer": 0,
+          "offsetHeight": 24,
+          "height": 16,
+          "shape": "ramp",
+          "highSide": "east",
+          "material": "roof",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-market-1-1-0",
+          "column": 1,
+          "row": 1,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-market-1-1-32",
+          "column": 1,
+          "row": 1,
+          "layer": 1,
+          "offsetHeight": 0,
+          "height": 8,
+          "shape": "slab",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-market-roof-1-1",
+          "column": 1,
+          "row": 1,
+          "layer": 1,
+          "offsetHeight": 8,
+          "height": 16,
+          "shape": "ramp",
+          "highSide": "east",
+          "material": "roof",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-market-2-1-0",
+          "column": 2,
+          "row": 1,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-market-2-1-32",
+          "column": 2,
+          "row": 1,
+          "layer": 1,
+          "offsetHeight": 0,
+          "height": 8,
+          "shape": "slab",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-market-roof-2-1",
+          "column": 2,
+          "row": 1,
+          "layer": 1,
+          "offsetHeight": 8,
+          "height": 16,
+          "shape": "ramp",
+          "highSide": "west",
+          "material": "roof",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-market-3-1-0",
+          "column": 3,
+          "row": 1,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 24,
+          "shape": "slab",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "iseulon-market-roof-3-1",
+          "column": 3,
+          "row": 1,
+          "layer": 0,
+          "offsetHeight": 24,
+          "height": 16,
+          "shape": "ramp",
+          "highSide": "west",
+          "material": "roof",
+          "walkable": false
+        }
+      ],
+      "facilityKind": "market",
+      "npcs": [
+        {
+          "id": "iseulon-grocer",
+          "name": "모라"
+        }
+      ],
+      "faces": [
+        {
+          "vertices": [
+            {
+              "column": -0.5,
+              "row": -0.5,
+              "height": 0
+            },
+            {
+              "column": 0.5,
+              "row": -0.5,
+              "height": 0
+            },
+            {
+              "column": 0.5,
+              "row": -0.5,
+              "height": 24
+            },
+            {
+              "column": -0.5,
+              "row": -0.5,
+              "height": 24
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": -0.5,
+              "row": 0.5,
+              "height": 0
+            },
+            {
+              "column": -0.5,
+              "row": -0.5,
+              "height": 0
+            },
+            {
+              "column": -0.5,
+              "row": -0.5,
+              "height": 24
+            },
+            {
+              "column": -0.5,
+              "row": 0.5,
+              "height": 24
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": -0.5,
+              "row": -0.5,
+              "height": 24
+            },
+            {
+              "column": 0.5,
+              "row": -0.5,
+              "height": 40
+            },
+            {
+              "column": 0.5,
+              "row": 0.5,
+              "height": 40
+            },
+            {
+              "column": -0.5,
+              "row": 0.5,
+              "height": 24
+            }
+          ],
+          "material": "roof",
+          "top": true
+        },
+        {
+          "vertices": [
+            {
+              "column": -0.5,
+              "row": -0.5,
+              "height": 24
+            },
+            {
+              "column": 0.5,
+              "row": -0.5,
+              "height": 24
+            },
+            {
+              "column": 0.5,
+              "row": -0.5,
+              "height": 40
+            },
+            {
+              "column": -0.5,
+              "row": -0.5,
+              "height": 24
+            }
+          ],
+          "material": "roof",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 0.5,
+              "row": -0.5,
+              "height": 0
+            },
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 0
+            },
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 32
+            },
+            {
+              "column": 0.5,
+              "row": -0.5,
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 0.5,
+              "row": -0.5,
+              "height": 32
+            },
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 32
+            },
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 40
+            },
+            {
+              "column": 0.5,
+              "row": -0.5,
+              "height": 40
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 0.5,
+              "row": -0.5,
+              "height": 40
+            },
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 56
+            },
+            {
+              "column": 1.5,
+              "row": 0.5,
+              "height": 56
+            },
+            {
+              "column": 0.5,
+              "row": 0.5,
+              "height": 40
+            }
+          ],
+          "material": "roof",
+          "top": true
+        },
+        {
+          "vertices": [
+            {
+              "column": 0.5,
+              "row": -0.5,
+              "height": 40
+            },
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 40
+            },
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 56
+            },
+            {
+              "column": 0.5,
+              "row": -0.5,
+              "height": 40
+            }
+          ],
+          "material": "roof",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 0
+            },
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 0
+            },
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 32
+            },
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 32
+            },
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 32
+            },
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 40
+            },
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 40
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 56
+            },
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 40
+            },
+            {
+              "column": 2.5,
+              "row": 0.5,
+              "height": 40
+            },
+            {
+              "column": 1.5,
+              "row": 0.5,
+              "height": 56
+            }
+          ],
+          "material": "roof",
+          "top": true
+        },
+        {
+          "vertices": [
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 40
+            },
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 40
+            },
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 40
+            },
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 56
+            }
+          ],
+          "material": "roof",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 0
+            },
+            {
+              "column": 3.5,
+              "row": -0.5,
+              "height": 0
+            },
+            {
+              "column": 3.5,
+              "row": -0.5,
+              "height": 24
+            },
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 24
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 3.5,
+              "row": -0.5,
+              "height": 0
+            },
+            {
+              "column": 3.5,
+              "row": 0.5,
+              "height": 0
+            },
+            {
+              "column": 3.5,
+              "row": 0.5,
+              "height": 24
+            },
+            {
+              "column": 3.5,
+              "row": -0.5,
+              "height": 24
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 40
+            },
+            {
+              "column": 3.5,
+              "row": -0.5,
+              "height": 24
+            },
+            {
+              "column": 3.5,
+              "row": 0.5,
+              "height": 24
+            },
+            {
+              "column": 2.5,
+              "row": 0.5,
+              "height": 40
+            }
+          ],
+          "material": "roof",
+          "top": true
+        },
+        {
+          "vertices": [
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 24
+            },
+            {
+              "column": 3.5,
+              "row": -0.5,
+              "height": 24
+            },
+            {
+              "column": 3.5,
+              "row": -0.5,
+              "height": 24
+            },
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 40
+            }
+          ],
+          "material": "roof",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 0.5,
+              "row": 1.5,
+              "height": 0
+            },
+            {
+              "column": -0.5,
+              "row": 1.5,
+              "height": 0
+            },
+            {
+              "column": -0.5,
+              "row": 1.5,
+              "height": 24
+            },
+            {
+              "column": 0.5,
+              "row": 1.5,
+              "height": 24
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": -0.5,
+              "row": 1.5,
+              "height": 0
+            },
+            {
+              "column": -0.5,
+              "row": 0.5,
+              "height": 0
+            },
+            {
+              "column": -0.5,
+              "row": 0.5,
+              "height": 24
+            },
+            {
+              "column": -0.5,
+              "row": 1.5,
+              "height": 24
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": -0.5,
+              "row": 0.5,
+              "height": 24
+            },
+            {
+              "column": 0.5,
+              "row": 0.5,
+              "height": 40
+            },
+            {
+              "column": 0.5,
+              "row": 1.5,
+              "height": 40
+            },
+            {
+              "column": -0.5,
+              "row": 1.5,
+              "height": 24
+            }
+          ],
+          "material": "roof",
+          "top": true
+        },
+        {
+          "vertices": [
+            {
+              "column": 0.5,
+              "row": 1.5,
+              "height": 24
+            },
+            {
+              "column": -0.5,
+              "row": 1.5,
+              "height": 24
+            },
+            {
+              "column": -0.5,
+              "row": 1.5,
+              "height": 24
+            },
+            {
+              "column": 0.5,
+              "row": 1.5,
+              "height": 40
+            }
+          ],
+          "material": "roof",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 1.5,
+              "row": 1.5,
+              "height": 0
+            },
+            {
+              "column": 0.5,
+              "row": 1.5,
+              "height": 0
+            },
+            {
+              "column": 0.5,
+              "row": 1.5,
+              "height": 32
+            },
+            {
+              "column": 1.5,
+              "row": 1.5,
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 1.5,
+              "row": 1.5,
+              "height": 32
+            },
+            {
+              "column": 0.5,
+              "row": 1.5,
+              "height": 32
+            },
+            {
+              "column": 0.5,
+              "row": 1.5,
+              "height": 40
+            },
+            {
+              "column": 1.5,
+              "row": 1.5,
+              "height": 40
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 0.5,
+              "row": 0.5,
+              "height": 40
+            },
+            {
+              "column": 1.5,
+              "row": 0.5,
+              "height": 56
+            },
+            {
+              "column": 1.5,
+              "row": 1.5,
+              "height": 56
+            },
+            {
+              "column": 0.5,
+              "row": 1.5,
+              "height": 40
+            }
+          ],
+          "material": "roof",
+          "top": true
+        },
+        {
+          "vertices": [
+            {
+              "column": 1.5,
+              "row": 1.5,
+              "height": 40
+            },
+            {
+              "column": 0.5,
+              "row": 1.5,
+              "height": 40
+            },
+            {
+              "column": 0.5,
+              "row": 1.5,
+              "height": 40
+            },
+            {
+              "column": 1.5,
+              "row": 1.5,
+              "height": 56
+            }
+          ],
+          "material": "roof",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 2.5,
+              "row": 1.5,
+              "height": 0
+            },
+            {
+              "column": 1.5,
+              "row": 1.5,
+              "height": 0
+            },
+            {
+              "column": 1.5,
+              "row": 1.5,
+              "height": 32
+            },
+            {
+              "column": 2.5,
+              "row": 1.5,
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 2.5,
+              "row": 1.5,
+              "height": 32
+            },
+            {
+              "column": 1.5,
+              "row": 1.5,
+              "height": 32
+            },
+            {
+              "column": 1.5,
+              "row": 1.5,
+              "height": 40
+            },
+            {
+              "column": 2.5,
+              "row": 1.5,
+              "height": 40
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 1.5,
+              "row": 0.5,
+              "height": 56
+            },
+            {
+              "column": 2.5,
+              "row": 0.5,
+              "height": 40
+            },
+            {
+              "column": 2.5,
+              "row": 1.5,
+              "height": 40
+            },
+            {
+              "column": 1.5,
+              "row": 1.5,
+              "height": 56
+            }
+          ],
+          "material": "roof",
+          "top": true
+        },
+        {
+          "vertices": [
+            {
+              "column": 2.5,
+              "row": 1.5,
+              "height": 40
+            },
+            {
+              "column": 1.5,
+              "row": 1.5,
+              "height": 40
+            },
+            {
+              "column": 1.5,
+              "row": 1.5,
+              "height": 56
+            },
+            {
+              "column": 2.5,
+              "row": 1.5,
+              "height": 40
+            }
+          ],
+          "material": "roof",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 3.5,
+              "row": 0.5,
+              "height": 0
+            },
+            {
+              "column": 3.5,
+              "row": 1.5,
+              "height": 0
+            },
+            {
+              "column": 3.5,
+              "row": 1.5,
+              "height": 24
+            },
+            {
+              "column": 3.5,
+              "row": 0.5,
+              "height": 24
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 3.5,
+              "row": 1.5,
+              "height": 0
+            },
+            {
+              "column": 2.5,
+              "row": 1.5,
+              "height": 0
+            },
+            {
+              "column": 2.5,
+              "row": 1.5,
+              "height": 24
+            },
+            {
+              "column": 3.5,
+              "row": 1.5,
+              "height": 24
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 2.5,
+              "row": 0.5,
+              "height": 40
+            },
+            {
+              "column": 3.5,
+              "row": 0.5,
+              "height": 24
+            },
+            {
+              "column": 3.5,
+              "row": 1.5,
+              "height": 24
+            },
+            {
+              "column": 2.5,
+              "row": 1.5,
+              "height": 40
+            }
+          ],
+          "material": "roof",
+          "top": true
+        },
+        {
+          "vertices": [
+            {
+              "column": 3.5,
+              "row": 1.5,
+              "height": 24
+            },
+            {
+              "column": 2.5,
+              "row": 1.5,
+              "height": 24
+            },
+            {
+              "column": 2.5,
+              "row": 1.5,
+              "height": 40
+            },
+            {
+              "column": 3.5,
+              "row": 1.5,
+              "height": 24
+            }
+          ],
+          "material": "roof",
+          "top": false
+        }
+      ]
+    }
+  ],
+  "environment": {
+    "themeId": "iseulon",
+    "backdrop": "meadow-backdrop",
+    "terrainPalette": [
+      "grass",
+      "paving",
+      "water"
+    ]
+  },
+  "reviewProvenance": {
+    "sourceSha256": "92cc8895ffa7224b15ecf9a68860ab3a151cd46dc8163370b5f1a9b6af6ace39",
+    "geometrySha256": "27eb4566c33a4cd423c7abf908f1b93f7e2ed3e1d36fefe8148704a9fc10064f",
+    "temporaryMaterials": true
+  }
+}

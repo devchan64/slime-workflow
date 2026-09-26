@@ -1,0 +1,12 @@
+schema_version: 1
+status: temporary
+note: 경사면과 박공용 정식 타일 채택 전 검수용 단색 재질
+materials:
+  grass: '#668a51'
+  paving: '#b7ac8d'
+  water: '#4e829a'
+  reed-bed: '#667753'
+  gravel: '#89877a'
+  boulder: '#646d70'
+  wall: '#c8b68d'
+  roof: '#467c75'

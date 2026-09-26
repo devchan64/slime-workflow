@@ -36,6 +36,7 @@ ISOMETRIC_DOOR_FRAME_HALF_WIDTH_TILES = .32
 ISOMETRIC_MAP_ROTATIONS = (0, 90, 180, 270)
 ISOMETRIC_VISIBLE_BUILDING_SIDES = {'east', 'south'}
 
+sys.path.insert(0, str(WORKFLOW_ROOT))
 sys.path.insert(0, str(WORKFLOW_ROOT / 'generators/worldbuilding'))
 from isloon_tiles import assemble_isloon_map
 
@@ -331,6 +332,10 @@ def draw_building_volume_preview(preview_image, building_instance, prefab_record
 
 
 def build_map_review(map_path=None, output_root=None):
+    if map_path is None or Path(map_path).stem == 'iseulon':
+        from tools.review.build_block_map_review import build_block_map_review
+        selected_output_directory = output_root or WORKFLOW_ROOT / '.tmp' / datetime.now(ZoneInfo('Asia/Seoul')).strftime('%Y-%m-%d_%H-%M-%S') / 'isloon-map-review'
+        return build_block_map_review(selected_output_directory)
     map_paths = [Path(map_path).resolve()] if map_path else sorted(DEFAULT_MAP_DIRECTORY.glob('*.yaml'))
     if not map_paths:
         raise ValueError(f'등록된 이슬온 맵이 없습니다: {DEFAULT_MAP_DIRECTORY}')
@@ -417,9 +422,6 @@ def build_map_review(map_path=None, output_root=None):
     shutil.copy2(WORKFLOW_ROOT/'tools/review/ui/map/map-character-preview.js',output_root/'map-character-preview.js')
     shutil.copy2(WORKFLOW_ROOT/'tools/review/ui/map/map-review-layout.css',output_root/'map-review-layout.css')
     shutil.copy2(REVIEW_TEMPLATE_PATH, output_root / 'map-review.html')
-    shutil.copy2(WORKFLOW_ROOT / 'assets/world/isloon/building-volume-review.html', output_root / 'building-volume-review.html')
-    building_render_profile = {**MAP_RENDER_PROFILE_VALUES['town'], 'wall_height': MAP_RENDER_PROFILE_VALUES['wall_height'], 'character_height': MAP_RENDER_PROFILE_VALUES['character_height']}
-    (output_root / 'building-render-profile.json').write_text(json.dumps(building_render_profile, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
     (output_root / 'README.txt').write_text('검수 서버: python3 tools/review/serve.py --root "' + str(output_root) + '" --entry map-review.html\n', encoding='utf-8')
     return output_root
 
