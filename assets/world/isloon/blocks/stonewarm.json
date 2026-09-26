@@ -1001,6 +1001,30 @@
       "row": 1
     },
     {
+      "column": 3,
+      "row": 4
+    },
+    {
+      "column": 3,
+      "row": 5
+    },
+    {
+      "column": 3,
+      "row": 6
+    },
+    {
+      "column": 3,
+      "row": 18
+    },
+    {
+      "column": 3,
+      "row": 19
+    },
+    {
+      "column": 3,
+      "row": 20
+    },
+    {
       "column": 4,
       "row": 0
     },
@@ -1401,10 +1425,10 @@
       "name": "길드 회관",
       "facilityId": "stonewarm-guild",
       "origin": {
-        "column": 4,
+        "column": 3,
         "row": 4
       },
-      "width": 3,
+      "width": 4,
       "height": 3,
       "entrance": {
         "column": 7,
@@ -1486,9 +1510,9 @@
           "row": 0,
           "layer": 2,
           "offsetHeight": 16,
-          "height": 0,
-          "shape": "cap",
-          "highSide": "west",
+          "height": 32,
+          "shape": "ramp",
+          "highSide": "east",
           "material": "roof",
           "walkable": false
         },
@@ -1509,6 +1533,17 @@
           "row": 0,
           "layer": 1,
           "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "stonewarm-guild-2-0-64",
+          "column": 2,
+          "row": 0,
+          "layer": 2,
+          "offsetHeight": 0,
           "height": 16,
           "shape": "slab",
           "material": "wall",
@@ -1517,6 +1552,40 @@
         {
           "id": "stonewarm-guild-roof-2-0",
           "column": 2,
+          "row": 0,
+          "layer": 2,
+          "offsetHeight": 16,
+          "height": 32,
+          "shape": "ramp",
+          "highSide": "west",
+          "material": "roof",
+          "walkable": false
+        },
+        {
+          "id": "stonewarm-guild-3-0-0",
+          "column": 3,
+          "row": 0,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "stonewarm-guild-3-0-32",
+          "column": 3,
+          "row": 0,
+          "layer": 1,
+          "offsetHeight": 0,
+          "height": 16,
+          "shape": "slab",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "stonewarm-guild-roof-3-0",
+          "column": 3,
           "row": 0,
           "layer": 1,
           "offsetHeight": 16,
@@ -1599,9 +1668,9 @@
           "row": 1,
           "layer": 2,
           "offsetHeight": 16,
-          "height": 0,
-          "shape": "cap",
-          "highSide": "west",
+          "height": 32,
+          "shape": "ramp",
+          "highSide": "east",
           "material": "roof",
           "walkable": false
         },
@@ -1622,6 +1691,17 @@
           "row": 1,
           "layer": 1,
           "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "stonewarm-guild-2-1-64",
+          "column": 2,
+          "row": 1,
+          "layer": 2,
+          "offsetHeight": 0,
           "height": 16,
           "shape": "slab",
           "material": "wall",
@@ -1630,6 +1710,40 @@
         {
           "id": "stonewarm-guild-roof-2-1",
           "column": 2,
+          "row": 1,
+          "layer": 2,
+          "offsetHeight": 16,
+          "height": 32,
+          "shape": "ramp",
+          "highSide": "west",
+          "material": "roof",
+          "walkable": false
+        },
+        {
+          "id": "stonewarm-guild-3-1-0",
+          "column": 3,
+          "row": 1,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "stonewarm-guild-3-1-32",
+          "column": 3,
+          "row": 1,
+          "layer": 1,
+          "offsetHeight": 0,
+          "height": 16,
+          "shape": "slab",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "stonewarm-guild-roof-3-1",
+          "column": 3,
           "row": 1,
           "layer": 1,
           "offsetHeight": 16,
@@ -1712,9 +1826,9 @@
           "row": 2,
           "layer": 2,
           "offsetHeight": 16,
-          "height": 0,
-          "shape": "cap",
-          "highSide": "west",
+          "height": 32,
+          "shape": "ramp",
+          "highSide": "east",
           "material": "roof",
           "walkable": false
         },
@@ -1735,6 +1849,17 @@
           "row": 2,
           "layer": 1,
           "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "stonewarm-guild-2-2-64",
+          "column": 2,
+          "row": 2,
+          "layer": 2,
+          "offsetHeight": 0,
           "height": 16,
           "shape": "slab",
           "material": "wall",
@@ -1743,6 +1868,40 @@
         {
           "id": "stonewarm-guild-roof-2-2",
           "column": 2,
+          "row": 2,
+          "layer": 2,
+          "offsetHeight": 16,
+          "height": 32,
+          "shape": "ramp",
+          "highSide": "west",
+          "material": "roof",
+          "walkable": false
+        },
+        {
+          "id": "stonewarm-guild-3-2-0",
+          "column": 3,
+          "row": 2,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "stonewarm-guild-3-2-32",
+          "column": 3,
+          "row": 2,
+          "layer": 1,
+          "offsetHeight": 0,
+          "height": 16,
+          "shape": "slab",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "stonewarm-guild-roof-3-2",
+          "column": 3,
           "row": 2,
           "layer": 1,
           "offsetHeight": 16,
@@ -2000,12 +2159,12 @@
             {
               "column": 1.5,
               "row": -0.5,
-              "height": 80
+              "height": 112
             },
             {
               "column": 1.5,
               "row": 0.5,
-              "height": 80
+              "height": 112
             },
             {
               "column": 0.5,
@@ -2019,128 +2178,128 @@
         {
           "vertices": [
             {
-              "column": 1.5,
+              "column": 0.5,
               "row": -0.5,
-              "height": 0
+              "height": 80
             },
-            {
-              "column": 2.5,
-              "row": -0.5,
-              "height": 0
-            },
-            {
-              "column": 2.5,
-              "row": -0.5,
-              "height": 32
-            },
-            {
-              "column": 1.5,
-              "row": -0.5,
-              "height": 32
-            }
-          ],
-          "material": "wall",
-          "top": false
-        },
-        {
-          "vertices": [
-            {
-              "column": 2.5,
-              "row": -0.5,
-              "height": 0
-            },
-            {
-              "column": 2.5,
-              "row": 0.5,
-              "height": 0
-            },
-            {
-              "column": 2.5,
-              "row": 0.5,
-              "height": 32
-            },
-            {
-              "column": 2.5,
-              "row": -0.5,
-              "height": 32
-            }
-          ],
-          "material": "wall",
-          "top": false
-        },
-        {
-          "vertices": [
-            {
-              "column": 1.5,
-              "row": -0.5,
-              "height": 32
-            },
-            {
-              "column": 2.5,
-              "row": -0.5,
-              "height": 32
-            },
-            {
-              "column": 2.5,
-              "row": -0.5,
-              "height": 48
-            },
-            {
-              "column": 1.5,
-              "row": -0.5,
-              "height": 48
-            }
-          ],
-          "material": "wall",
-          "top": false
-        },
-        {
-          "vertices": [
-            {
-              "column": 2.5,
-              "row": -0.5,
-              "height": 32
-            },
-            {
-              "column": 2.5,
-              "row": 0.5,
-              "height": 32
-            },
-            {
-              "column": 2.5,
-              "row": 0.5,
-              "height": 48
-            },
-            {
-              "column": 2.5,
-              "row": -0.5,
-              "height": 48
-            }
-          ],
-          "material": "wall",
-          "top": false
-        },
-        {
-          "vertices": [
             {
               "column": 1.5,
               "row": -0.5,
               "height": 80
             },
             {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 112
+            },
+            {
+              "column": 0.5,
+              "row": -0.5,
+              "height": 80
+            }
+          ],
+          "material": "roof",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 0
+            },
+            {
               "column": 2.5,
               "row": -0.5,
-              "height": 48
+              "height": 0
+            },
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 32
+            },
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 32
+            },
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 32
+            },
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 64
+            },
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 64
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 64
+            },
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 64
+            },
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 80
+            },
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 80
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 112
+            },
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 80
             },
             {
               "column": 2.5,
               "row": 0.5,
-              "height": 48
+              "height": 80
             },
             {
               "column": 1.5,
               "row": 0.5,
-              "height": 80
+              "height": 112
             }
           ],
           "material": "roof",
@@ -2151,20 +2310,176 @@
             {
               "column": 1.5,
               "row": -0.5,
-              "height": 48
+              "height": 80
             },
             {
               "column": 2.5,
               "row": -0.5,
-              "height": 48
+              "height": 80
             },
             {
               "column": 2.5,
               "row": -0.5,
-              "height": 48
+              "height": 80
             },
             {
               "column": 1.5,
+              "row": -0.5,
+              "height": 112
+            }
+          ],
+          "material": "roof",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 0
+            },
+            {
+              "column": 3.5,
+              "row": -0.5,
+              "height": 0
+            },
+            {
+              "column": 3.5,
+              "row": -0.5,
+              "height": 32
+            },
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 3.5,
+              "row": -0.5,
+              "height": 0
+            },
+            {
+              "column": 3.5,
+              "row": 0.5,
+              "height": 0
+            },
+            {
+              "column": 3.5,
+              "row": 0.5,
+              "height": 32
+            },
+            {
+              "column": 3.5,
+              "row": -0.5,
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 32
+            },
+            {
+              "column": 3.5,
+              "row": -0.5,
+              "height": 32
+            },
+            {
+              "column": 3.5,
+              "row": -0.5,
+              "height": 48
+            },
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 48
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 3.5,
+              "row": -0.5,
+              "height": 32
+            },
+            {
+              "column": 3.5,
+              "row": 0.5,
+              "height": 32
+            },
+            {
+              "column": 3.5,
+              "row": 0.5,
+              "height": 48
+            },
+            {
+              "column": 3.5,
+              "row": -0.5,
+              "height": 48
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 80
+            },
+            {
+              "column": 3.5,
+              "row": -0.5,
+              "height": 48
+            },
+            {
+              "column": 3.5,
+              "row": 0.5,
+              "height": 48
+            },
+            {
+              "column": 2.5,
+              "row": 0.5,
+              "height": 80
+            }
+          ],
+          "material": "roof",
+          "top": true
+        },
+        {
+          "vertices": [
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 48
+            },
+            {
+              "column": 3.5,
+              "row": -0.5,
+              "height": 48
+            },
+            {
+              "column": 3.5,
+              "row": -0.5,
+              "height": 48
+            },
+            {
+              "column": 2.5,
               "row": -0.5,
               "height": 80
             }
@@ -2260,12 +2575,12 @@
             {
               "column": 1.5,
               "row": 0.5,
-              "height": 80
+              "height": 112
             },
             {
               "column": 1.5,
               "row": 1.5,
-              "height": 80
+              "height": 112
             },
             {
               "column": 0.5,
@@ -2279,74 +2594,100 @@
         {
           "vertices": [
             {
-              "column": 2.5,
-              "row": 0.5,
-              "height": 0
-            },
-            {
-              "column": 2.5,
-              "row": 1.5,
-              "height": 0
-            },
-            {
-              "column": 2.5,
-              "row": 1.5,
-              "height": 32
-            },
-            {
-              "column": 2.5,
-              "row": 0.5,
-              "height": 32
-            }
-          ],
-          "material": "wall",
-          "top": false
-        },
-        {
-          "vertices": [
-            {
-              "column": 2.5,
-              "row": 0.5,
-              "height": 32
-            },
-            {
-              "column": 2.5,
-              "row": 1.5,
-              "height": 32
-            },
-            {
-              "column": 2.5,
-              "row": 1.5,
-              "height": 48
-            },
-            {
-              "column": 2.5,
-              "row": 0.5,
-              "height": 48
-            }
-          ],
-          "material": "wall",
-          "top": false
-        },
-        {
-          "vertices": [
-            {
               "column": 1.5,
+              "row": 0.5,
+              "height": 112
+            },
+            {
+              "column": 2.5,
               "row": 0.5,
               "height": 80
             },
             {
               "column": 2.5,
-              "row": 0.5,
-              "height": 48
+              "row": 1.5,
+              "height": 80
             },
             {
-              "column": 2.5,
+              "column": 1.5,
+              "row": 1.5,
+              "height": 112
+            }
+          ],
+          "material": "roof",
+          "top": true
+        },
+        {
+          "vertices": [
+            {
+              "column": 3.5,
+              "row": 0.5,
+              "height": 0
+            },
+            {
+              "column": 3.5,
+              "row": 1.5,
+              "height": 0
+            },
+            {
+              "column": 3.5,
+              "row": 1.5,
+              "height": 32
+            },
+            {
+              "column": 3.5,
+              "row": 0.5,
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 3.5,
+              "row": 0.5,
+              "height": 32
+            },
+            {
+              "column": 3.5,
+              "row": 1.5,
+              "height": 32
+            },
+            {
+              "column": 3.5,
               "row": 1.5,
               "height": 48
             },
             {
-              "column": 1.5,
+              "column": 3.5,
+              "row": 0.5,
+              "height": 48
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 2.5,
+              "row": 0.5,
+              "height": 80
+            },
+            {
+              "column": 3.5,
+              "row": 0.5,
+              "height": 48
+            },
+            {
+              "column": 3.5,
+              "row": 1.5,
+              "height": 48
+            },
+            {
+              "column": 2.5,
               "row": 1.5,
               "height": 80
             }
@@ -2598,12 +2939,12 @@
             {
               "column": 1.5,
               "row": 1.5,
-              "height": 80
+              "height": 112
             },
             {
               "column": 1.5,
               "row": 2.5,
-              "height": 80
+              "height": 112
             },
             {
               "column": 0.5,
@@ -2617,128 +2958,128 @@
         {
           "vertices": [
             {
-              "column": 2.5,
-              "row": 1.5,
-              "height": 0
-            },
-            {
-              "column": 2.5,
-              "row": 2.5,
-              "height": 0
-            },
-            {
-              "column": 2.5,
-              "row": 2.5,
-              "height": 32
-            },
-            {
-              "column": 2.5,
-              "row": 1.5,
-              "height": 32
-            }
-          ],
-          "material": "wall",
-          "top": false
-        },
-        {
-          "vertices": [
-            {
-              "column": 2.5,
-              "row": 2.5,
-              "height": 0
-            },
-            {
               "column": 1.5,
               "row": 2.5,
-              "height": 0
-            },
-            {
-              "column": 1.5,
-              "row": 2.5,
-              "height": 32
-            },
-            {
-              "column": 2.5,
-              "row": 2.5,
-              "height": 32
-            }
-          ],
-          "material": "wall",
-          "top": false
-        },
-        {
-          "vertices": [
-            {
-              "column": 2.5,
-              "row": 1.5,
-              "height": 32
-            },
-            {
-              "column": 2.5,
-              "row": 2.5,
-              "height": 32
-            },
-            {
-              "column": 2.5,
-              "row": 2.5,
-              "height": 48
-            },
-            {
-              "column": 2.5,
-              "row": 1.5,
-              "height": 48
-            }
-          ],
-          "material": "wall",
-          "top": false
-        },
-        {
-          "vertices": [
-            {
-              "column": 2.5,
-              "row": 2.5,
-              "height": 32
-            },
-            {
-              "column": 1.5,
-              "row": 2.5,
-              "height": 32
-            },
-            {
-              "column": 1.5,
-              "row": 2.5,
-              "height": 48
-            },
-            {
-              "column": 2.5,
-              "row": 2.5,
-              "height": 48
-            }
-          ],
-          "material": "wall",
-          "top": false
-        },
-        {
-          "vertices": [
-            {
-              "column": 1.5,
-              "row": 1.5,
               "height": 80
             },
             {
+              "column": 0.5,
+              "row": 2.5,
+              "height": 80
+            },
+            {
+              "column": 0.5,
+              "row": 2.5,
+              "height": 80
+            },
+            {
+              "column": 1.5,
+              "row": 2.5,
+              "height": 112
+            }
+          ],
+          "material": "roof",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
               "column": 2.5,
-              "row": 1.5,
-              "height": 48
+              "row": 2.5,
+              "height": 0
+            },
+            {
+              "column": 1.5,
+              "row": 2.5,
+              "height": 0
+            },
+            {
+              "column": 1.5,
+              "row": 2.5,
+              "height": 32
             },
             {
               "column": 2.5,
               "row": 2.5,
-              "height": 48
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 2.5,
+              "row": 2.5,
+              "height": 32
+            },
+            {
+              "column": 1.5,
+              "row": 2.5,
+              "height": 32
+            },
+            {
+              "column": 1.5,
+              "row": 2.5,
+              "height": 64
+            },
+            {
+              "column": 2.5,
+              "row": 2.5,
+              "height": 64
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 2.5,
+              "row": 2.5,
+              "height": 64
+            },
+            {
+              "column": 1.5,
+              "row": 2.5,
+              "height": 64
             },
             {
               "column": 1.5,
               "row": 2.5,
               "height": 80
+            },
+            {
+              "column": 2.5,
+              "row": 2.5,
+              "height": 80
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 1.5,
+              "row": 1.5,
+              "height": 112
+            },
+            {
+              "column": 2.5,
+              "row": 1.5,
+              "height": 80
+            },
+            {
+              "column": 2.5,
+              "row": 2.5,
+              "height": 80
+            },
+            {
+              "column": 1.5,
+              "row": 2.5,
+              "height": 112
             }
           ],
           "material": "roof",
@@ -2749,12 +3090,7 @@
             {
               "column": 2.5,
               "row": 2.5,
-              "height": 48
-            },
-            {
-              "column": 1.5,
-              "row": 2.5,
-              "height": 48
+              "height": 80
             },
             {
               "column": 1.5,
@@ -2762,7 +3098,168 @@
               "height": 80
             },
             {
+              "column": 1.5,
+              "row": 2.5,
+              "height": 112
+            },
+            {
               "column": 2.5,
+              "row": 2.5,
+              "height": 80
+            }
+          ],
+          "material": "roof",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 3.5,
+              "row": 1.5,
+              "height": 0
+            },
+            {
+              "column": 3.5,
+              "row": 2.5,
+              "height": 0
+            },
+            {
+              "column": 3.5,
+              "row": 2.5,
+              "height": 32
+            },
+            {
+              "column": 3.5,
+              "row": 1.5,
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 3.5,
+              "row": 2.5,
+              "height": 0
+            },
+            {
+              "column": 2.5,
+              "row": 2.5,
+              "height": 0
+            },
+            {
+              "column": 2.5,
+              "row": 2.5,
+              "height": 32
+            },
+            {
+              "column": 3.5,
+              "row": 2.5,
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 3.5,
+              "row": 1.5,
+              "height": 32
+            },
+            {
+              "column": 3.5,
+              "row": 2.5,
+              "height": 32
+            },
+            {
+              "column": 3.5,
+              "row": 2.5,
+              "height": 48
+            },
+            {
+              "column": 3.5,
+              "row": 1.5,
+              "height": 48
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 3.5,
+              "row": 2.5,
+              "height": 32
+            },
+            {
+              "column": 2.5,
+              "row": 2.5,
+              "height": 32
+            },
+            {
+              "column": 2.5,
+              "row": 2.5,
+              "height": 48
+            },
+            {
+              "column": 3.5,
+              "row": 2.5,
+              "height": 48
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 2.5,
+              "row": 1.5,
+              "height": 80
+            },
+            {
+              "column": 3.5,
+              "row": 1.5,
+              "height": 48
+            },
+            {
+              "column": 3.5,
+              "row": 2.5,
+              "height": 48
+            },
+            {
+              "column": 2.5,
+              "row": 2.5,
+              "height": 80
+            }
+          ],
+          "material": "roof",
+          "top": true
+        },
+        {
+          "vertices": [
+            {
+              "column": 3.5,
+              "row": 2.5,
+              "height": 48
+            },
+            {
+              "column": 2.5,
+              "row": 2.5,
+              "height": 48
+            },
+            {
+              "column": 2.5,
+              "row": 2.5,
+              "height": 80
+            },
+            {
+              "column": 3.5,
               "row": 2.5,
               "height": 48
             }
@@ -3784,10 +4281,10 @@
       "name": "여관",
       "facilityId": "stonewarm-inn",
       "origin": {
-        "column": 4,
+        "column": 3,
         "row": 18
       },
-      "width": 3,
+      "width": 4,
       "height": 3,
       "entrance": {
         "column": 7,
@@ -3869,9 +4366,9 @@
           "row": 0,
           "layer": 2,
           "offsetHeight": 16,
-          "height": 0,
-          "shape": "cap",
-          "highSide": "west",
+          "height": 32,
+          "shape": "ramp",
+          "highSide": "east",
           "material": "roof",
           "walkable": false
         },
@@ -3892,6 +4389,17 @@
           "row": 0,
           "layer": 1,
           "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "stonewarm-inn-2-0-64",
+          "column": 2,
+          "row": 0,
+          "layer": 2,
+          "offsetHeight": 0,
           "height": 16,
           "shape": "slab",
           "material": "wall",
@@ -3900,6 +4408,40 @@
         {
           "id": "stonewarm-inn-roof-2-0",
           "column": 2,
+          "row": 0,
+          "layer": 2,
+          "offsetHeight": 16,
+          "height": 32,
+          "shape": "ramp",
+          "highSide": "west",
+          "material": "roof",
+          "walkable": false
+        },
+        {
+          "id": "stonewarm-inn-3-0-0",
+          "column": 3,
+          "row": 0,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "stonewarm-inn-3-0-32",
+          "column": 3,
+          "row": 0,
+          "layer": 1,
+          "offsetHeight": 0,
+          "height": 16,
+          "shape": "slab",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "stonewarm-inn-roof-3-0",
+          "column": 3,
           "row": 0,
           "layer": 1,
           "offsetHeight": 16,
@@ -3982,9 +4524,9 @@
           "row": 1,
           "layer": 2,
           "offsetHeight": 16,
-          "height": 0,
-          "shape": "cap",
-          "highSide": "west",
+          "height": 32,
+          "shape": "ramp",
+          "highSide": "east",
           "material": "roof",
           "walkable": false
         },
@@ -4005,6 +4547,17 @@
           "row": 1,
           "layer": 1,
           "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "stonewarm-inn-2-1-64",
+          "column": 2,
+          "row": 1,
+          "layer": 2,
+          "offsetHeight": 0,
           "height": 16,
           "shape": "slab",
           "material": "wall",
@@ -4013,6 +4566,40 @@
         {
           "id": "stonewarm-inn-roof-2-1",
           "column": 2,
+          "row": 1,
+          "layer": 2,
+          "offsetHeight": 16,
+          "height": 32,
+          "shape": "ramp",
+          "highSide": "west",
+          "material": "roof",
+          "walkable": false
+        },
+        {
+          "id": "stonewarm-inn-3-1-0",
+          "column": 3,
+          "row": 1,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "stonewarm-inn-3-1-32",
+          "column": 3,
+          "row": 1,
+          "layer": 1,
+          "offsetHeight": 0,
+          "height": 16,
+          "shape": "slab",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "stonewarm-inn-roof-3-1",
+          "column": 3,
           "row": 1,
           "layer": 1,
           "offsetHeight": 16,
@@ -4095,9 +4682,9 @@
           "row": 2,
           "layer": 2,
           "offsetHeight": 16,
-          "height": 0,
-          "shape": "cap",
-          "highSide": "west",
+          "height": 32,
+          "shape": "ramp",
+          "highSide": "east",
           "material": "roof",
           "walkable": false
         },
@@ -4118,6 +4705,17 @@
           "row": 2,
           "layer": 1,
           "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "stonewarm-inn-2-2-64",
+          "column": 2,
+          "row": 2,
+          "layer": 2,
+          "offsetHeight": 0,
           "height": 16,
           "shape": "slab",
           "material": "wall",
@@ -4126,6 +4724,40 @@
         {
           "id": "stonewarm-inn-roof-2-2",
           "column": 2,
+          "row": 2,
+          "layer": 2,
+          "offsetHeight": 16,
+          "height": 32,
+          "shape": "ramp",
+          "highSide": "west",
+          "material": "roof",
+          "walkable": false
+        },
+        {
+          "id": "stonewarm-inn-3-2-0",
+          "column": 3,
+          "row": 2,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 32,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "stonewarm-inn-3-2-32",
+          "column": 3,
+          "row": 2,
+          "layer": 1,
+          "offsetHeight": 0,
+          "height": 16,
+          "shape": "slab",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "stonewarm-inn-roof-3-2",
+          "column": 3,
           "row": 2,
           "layer": 1,
           "offsetHeight": 16,
@@ -4383,12 +5015,12 @@
             {
               "column": 1.5,
               "row": -0.5,
-              "height": 80
+              "height": 112
             },
             {
               "column": 1.5,
               "row": 0.5,
-              "height": 80
+              "height": 112
             },
             {
               "column": 0.5,
@@ -4402,128 +5034,128 @@
         {
           "vertices": [
             {
-              "column": 1.5,
+              "column": 0.5,
               "row": -0.5,
-              "height": 0
+              "height": 80
             },
-            {
-              "column": 2.5,
-              "row": -0.5,
-              "height": 0
-            },
-            {
-              "column": 2.5,
-              "row": -0.5,
-              "height": 32
-            },
-            {
-              "column": 1.5,
-              "row": -0.5,
-              "height": 32
-            }
-          ],
-          "material": "wall",
-          "top": false
-        },
-        {
-          "vertices": [
-            {
-              "column": 2.5,
-              "row": -0.5,
-              "height": 0
-            },
-            {
-              "column": 2.5,
-              "row": 0.5,
-              "height": 0
-            },
-            {
-              "column": 2.5,
-              "row": 0.5,
-              "height": 32
-            },
-            {
-              "column": 2.5,
-              "row": -0.5,
-              "height": 32
-            }
-          ],
-          "material": "wall",
-          "top": false
-        },
-        {
-          "vertices": [
-            {
-              "column": 1.5,
-              "row": -0.5,
-              "height": 32
-            },
-            {
-              "column": 2.5,
-              "row": -0.5,
-              "height": 32
-            },
-            {
-              "column": 2.5,
-              "row": -0.5,
-              "height": 48
-            },
-            {
-              "column": 1.5,
-              "row": -0.5,
-              "height": 48
-            }
-          ],
-          "material": "wall",
-          "top": false
-        },
-        {
-          "vertices": [
-            {
-              "column": 2.5,
-              "row": -0.5,
-              "height": 32
-            },
-            {
-              "column": 2.5,
-              "row": 0.5,
-              "height": 32
-            },
-            {
-              "column": 2.5,
-              "row": 0.5,
-              "height": 48
-            },
-            {
-              "column": 2.5,
-              "row": -0.5,
-              "height": 48
-            }
-          ],
-          "material": "wall",
-          "top": false
-        },
-        {
-          "vertices": [
             {
               "column": 1.5,
               "row": -0.5,
               "height": 80
             },
             {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 112
+            },
+            {
+              "column": 0.5,
+              "row": -0.5,
+              "height": 80
+            }
+          ],
+          "material": "roof",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 0
+            },
+            {
               "column": 2.5,
               "row": -0.5,
-              "height": 48
+              "height": 0
+            },
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 32
+            },
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 32
+            },
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 32
+            },
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 64
+            },
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 64
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 64
+            },
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 64
+            },
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 80
+            },
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 80
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 112
+            },
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 80
             },
             {
               "column": 2.5,
               "row": 0.5,
-              "height": 48
+              "height": 80
             },
             {
               "column": 1.5,
               "row": 0.5,
-              "height": 80
+              "height": 112
             }
           ],
           "material": "roof",
@@ -4534,20 +5166,176 @@
             {
               "column": 1.5,
               "row": -0.5,
-              "height": 48
+              "height": 80
             },
             {
               "column": 2.5,
               "row": -0.5,
-              "height": 48
+              "height": 80
             },
             {
               "column": 2.5,
               "row": -0.5,
-              "height": 48
+              "height": 80
             },
             {
               "column": 1.5,
+              "row": -0.5,
+              "height": 112
+            }
+          ],
+          "material": "roof",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 0
+            },
+            {
+              "column": 3.5,
+              "row": -0.5,
+              "height": 0
+            },
+            {
+              "column": 3.5,
+              "row": -0.5,
+              "height": 32
+            },
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 3.5,
+              "row": -0.5,
+              "height": 0
+            },
+            {
+              "column": 3.5,
+              "row": 0.5,
+              "height": 0
+            },
+            {
+              "column": 3.5,
+              "row": 0.5,
+              "height": 32
+            },
+            {
+              "column": 3.5,
+              "row": -0.5,
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 32
+            },
+            {
+              "column": 3.5,
+              "row": -0.5,
+              "height": 32
+            },
+            {
+              "column": 3.5,
+              "row": -0.5,
+              "height": 48
+            },
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 48
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 3.5,
+              "row": -0.5,
+              "height": 32
+            },
+            {
+              "column": 3.5,
+              "row": 0.5,
+              "height": 32
+            },
+            {
+              "column": 3.5,
+              "row": 0.5,
+              "height": 48
+            },
+            {
+              "column": 3.5,
+              "row": -0.5,
+              "height": 48
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 80
+            },
+            {
+              "column": 3.5,
+              "row": -0.5,
+              "height": 48
+            },
+            {
+              "column": 3.5,
+              "row": 0.5,
+              "height": 48
+            },
+            {
+              "column": 2.5,
+              "row": 0.5,
+              "height": 80
+            }
+          ],
+          "material": "roof",
+          "top": true
+        },
+        {
+          "vertices": [
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 48
+            },
+            {
+              "column": 3.5,
+              "row": -0.5,
+              "height": 48
+            },
+            {
+              "column": 3.5,
+              "row": -0.5,
+              "height": 48
+            },
+            {
+              "column": 2.5,
               "row": -0.5,
               "height": 80
             }
@@ -4643,12 +5431,12 @@
             {
               "column": 1.5,
               "row": 0.5,
-              "height": 80
+              "height": 112
             },
             {
               "column": 1.5,
               "row": 1.5,
-              "height": 80
+              "height": 112
             },
             {
               "column": 0.5,
@@ -4662,74 +5450,100 @@
         {
           "vertices": [
             {
-              "column": 2.5,
-              "row": 0.5,
-              "height": 0
-            },
-            {
-              "column": 2.5,
-              "row": 1.5,
-              "height": 0
-            },
-            {
-              "column": 2.5,
-              "row": 1.5,
-              "height": 32
-            },
-            {
-              "column": 2.5,
-              "row": 0.5,
-              "height": 32
-            }
-          ],
-          "material": "wall",
-          "top": false
-        },
-        {
-          "vertices": [
-            {
-              "column": 2.5,
-              "row": 0.5,
-              "height": 32
-            },
-            {
-              "column": 2.5,
-              "row": 1.5,
-              "height": 32
-            },
-            {
-              "column": 2.5,
-              "row": 1.5,
-              "height": 48
-            },
-            {
-              "column": 2.5,
-              "row": 0.5,
-              "height": 48
-            }
-          ],
-          "material": "wall",
-          "top": false
-        },
-        {
-          "vertices": [
-            {
               "column": 1.5,
+              "row": 0.5,
+              "height": 112
+            },
+            {
+              "column": 2.5,
               "row": 0.5,
               "height": 80
             },
             {
               "column": 2.5,
-              "row": 0.5,
-              "height": 48
+              "row": 1.5,
+              "height": 80
             },
             {
-              "column": 2.5,
+              "column": 1.5,
+              "row": 1.5,
+              "height": 112
+            }
+          ],
+          "material": "roof",
+          "top": true
+        },
+        {
+          "vertices": [
+            {
+              "column": 3.5,
+              "row": 0.5,
+              "height": 0
+            },
+            {
+              "column": 3.5,
+              "row": 1.5,
+              "height": 0
+            },
+            {
+              "column": 3.5,
+              "row": 1.5,
+              "height": 32
+            },
+            {
+              "column": 3.5,
+              "row": 0.5,
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 3.5,
+              "row": 0.5,
+              "height": 32
+            },
+            {
+              "column": 3.5,
+              "row": 1.5,
+              "height": 32
+            },
+            {
+              "column": 3.5,
               "row": 1.5,
               "height": 48
             },
             {
-              "column": 1.5,
+              "column": 3.5,
+              "row": 0.5,
+              "height": 48
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 2.5,
+              "row": 0.5,
+              "height": 80
+            },
+            {
+              "column": 3.5,
+              "row": 0.5,
+              "height": 48
+            },
+            {
+              "column": 3.5,
+              "row": 1.5,
+              "height": 48
+            },
+            {
+              "column": 2.5,
               "row": 1.5,
               "height": 80
             }
@@ -4981,12 +5795,12 @@
             {
               "column": 1.5,
               "row": 1.5,
-              "height": 80
+              "height": 112
             },
             {
               "column": 1.5,
               "row": 2.5,
-              "height": 80
+              "height": 112
             },
             {
               "column": 0.5,
@@ -5000,128 +5814,128 @@
         {
           "vertices": [
             {
-              "column": 2.5,
-              "row": 1.5,
-              "height": 0
-            },
-            {
-              "column": 2.5,
-              "row": 2.5,
-              "height": 0
-            },
-            {
-              "column": 2.5,
-              "row": 2.5,
-              "height": 32
-            },
-            {
-              "column": 2.5,
-              "row": 1.5,
-              "height": 32
-            }
-          ],
-          "material": "wall",
-          "top": false
-        },
-        {
-          "vertices": [
-            {
-              "column": 2.5,
-              "row": 2.5,
-              "height": 0
-            },
-            {
               "column": 1.5,
               "row": 2.5,
-              "height": 0
-            },
-            {
-              "column": 1.5,
-              "row": 2.5,
-              "height": 32
-            },
-            {
-              "column": 2.5,
-              "row": 2.5,
-              "height": 32
-            }
-          ],
-          "material": "wall",
-          "top": false
-        },
-        {
-          "vertices": [
-            {
-              "column": 2.5,
-              "row": 1.5,
-              "height": 32
-            },
-            {
-              "column": 2.5,
-              "row": 2.5,
-              "height": 32
-            },
-            {
-              "column": 2.5,
-              "row": 2.5,
-              "height": 48
-            },
-            {
-              "column": 2.5,
-              "row": 1.5,
-              "height": 48
-            }
-          ],
-          "material": "wall",
-          "top": false
-        },
-        {
-          "vertices": [
-            {
-              "column": 2.5,
-              "row": 2.5,
-              "height": 32
-            },
-            {
-              "column": 1.5,
-              "row": 2.5,
-              "height": 32
-            },
-            {
-              "column": 1.5,
-              "row": 2.5,
-              "height": 48
-            },
-            {
-              "column": 2.5,
-              "row": 2.5,
-              "height": 48
-            }
-          ],
-          "material": "wall",
-          "top": false
-        },
-        {
-          "vertices": [
-            {
-              "column": 1.5,
-              "row": 1.5,
               "height": 80
             },
             {
+              "column": 0.5,
+              "row": 2.5,
+              "height": 80
+            },
+            {
+              "column": 0.5,
+              "row": 2.5,
+              "height": 80
+            },
+            {
+              "column": 1.5,
+              "row": 2.5,
+              "height": 112
+            }
+          ],
+          "material": "roof",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
               "column": 2.5,
-              "row": 1.5,
-              "height": 48
+              "row": 2.5,
+              "height": 0
+            },
+            {
+              "column": 1.5,
+              "row": 2.5,
+              "height": 0
+            },
+            {
+              "column": 1.5,
+              "row": 2.5,
+              "height": 32
             },
             {
               "column": 2.5,
               "row": 2.5,
-              "height": 48
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 2.5,
+              "row": 2.5,
+              "height": 32
+            },
+            {
+              "column": 1.5,
+              "row": 2.5,
+              "height": 32
+            },
+            {
+              "column": 1.5,
+              "row": 2.5,
+              "height": 64
+            },
+            {
+              "column": 2.5,
+              "row": 2.5,
+              "height": 64
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 2.5,
+              "row": 2.5,
+              "height": 64
+            },
+            {
+              "column": 1.5,
+              "row": 2.5,
+              "height": 64
             },
             {
               "column": 1.5,
               "row": 2.5,
               "height": 80
+            },
+            {
+              "column": 2.5,
+              "row": 2.5,
+              "height": 80
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 1.5,
+              "row": 1.5,
+              "height": 112
+            },
+            {
+              "column": 2.5,
+              "row": 1.5,
+              "height": 80
+            },
+            {
+              "column": 2.5,
+              "row": 2.5,
+              "height": 80
+            },
+            {
+              "column": 1.5,
+              "row": 2.5,
+              "height": 112
             }
           ],
           "material": "roof",
@@ -5132,12 +5946,7 @@
             {
               "column": 2.5,
               "row": 2.5,
-              "height": 48
-            },
-            {
-              "column": 1.5,
-              "row": 2.5,
-              "height": 48
+              "height": 80
             },
             {
               "column": 1.5,
@@ -5145,7 +5954,168 @@
               "height": 80
             },
             {
+              "column": 1.5,
+              "row": 2.5,
+              "height": 112
+            },
+            {
               "column": 2.5,
+              "row": 2.5,
+              "height": 80
+            }
+          ],
+          "material": "roof",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 3.5,
+              "row": 1.5,
+              "height": 0
+            },
+            {
+              "column": 3.5,
+              "row": 2.5,
+              "height": 0
+            },
+            {
+              "column": 3.5,
+              "row": 2.5,
+              "height": 32
+            },
+            {
+              "column": 3.5,
+              "row": 1.5,
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 3.5,
+              "row": 2.5,
+              "height": 0
+            },
+            {
+              "column": 2.5,
+              "row": 2.5,
+              "height": 0
+            },
+            {
+              "column": 2.5,
+              "row": 2.5,
+              "height": 32
+            },
+            {
+              "column": 3.5,
+              "row": 2.5,
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 3.5,
+              "row": 1.5,
+              "height": 32
+            },
+            {
+              "column": 3.5,
+              "row": 2.5,
+              "height": 32
+            },
+            {
+              "column": 3.5,
+              "row": 2.5,
+              "height": 48
+            },
+            {
+              "column": 3.5,
+              "row": 1.5,
+              "height": 48
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 3.5,
+              "row": 2.5,
+              "height": 32
+            },
+            {
+              "column": 2.5,
+              "row": 2.5,
+              "height": 32
+            },
+            {
+              "column": 2.5,
+              "row": 2.5,
+              "height": 48
+            },
+            {
+              "column": 3.5,
+              "row": 2.5,
+              "height": 48
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 2.5,
+              "row": 1.5,
+              "height": 80
+            },
+            {
+              "column": 3.5,
+              "row": 1.5,
+              "height": 48
+            },
+            {
+              "column": 3.5,
+              "row": 2.5,
+              "height": 48
+            },
+            {
+              "column": 2.5,
+              "row": 2.5,
+              "height": 80
+            }
+          ],
+          "material": "roof",
+          "top": true
+        },
+        {
+          "vertices": [
+            {
+              "column": 3.5,
+              "row": 2.5,
+              "height": 48
+            },
+            {
+              "column": 2.5,
+              "row": 2.5,
+              "height": 48
+            },
+            {
+              "column": 2.5,
+              "row": 2.5,
+              "height": 80
+            },
+            {
+              "column": 3.5,
               "row": 2.5,
               "height": 48
             }
@@ -6864,7 +7834,7 @@
     ]
   },
   "reviewProvenance": {
-    "sourceSha256": "7ab3c99c33e46a5acb1499374b98ff887a6a05492990d8289f3ebe974258b168",
+    "sourceSha256": "ca1622bc8fc6a33f5095e9d63ac4a9fcdf0eb16551881bd693cb63729aae83dc",
     "geometrySha256": "27eb4566c33a4cd423c7abf908f1b93f7e2ed3e1d36fefe8148704a9fc10064f",
     "temporaryMaterials": true
   }
