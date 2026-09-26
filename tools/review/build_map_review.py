@@ -404,8 +404,8 @@ def build_map_review(map_path=None, output_root=None):
     (output_root / 'building-prefabs.json').write_text(json.dumps(building_prefab_values, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
     # 게임 런타임과 같은 스탠딩 프레임·발 기준점을 검수 패키지에 복사한다.
     from PIL import Image
-    character_source_directory = FRONTEND_ASSET_ROOT/'characters/default/standing-v4'
-    character_animation_record = json.loads((character_source_directory/'idle-v4.animation.json').read_text())
+    character_source_directory = FRONTEND_ASSET_ROOT/'characters/default/standing-v5'
+    character_animation_record = json.loads((character_source_directory/'idle-v5.animation.json').read_text())
     character_source_record = json.loads((character_source_directory/'source.json').read_text())
     character_preview_records = {}
     character_output_directory = output_root/'character'
