@@ -27,6 +27,8 @@ class CharacterAnimationGradioTests(unittest.TestCase):
         self.assertIn('입력 포즈 프레임',preview_html_text)
         self.assertIn('allow-same-origin',preview_html_text)
         self.assertNotIn('<select id="fps">',preview_html_text)
+        self.assertIn('loading&lt;4',preview_html_text)
+        self.assertIn('미리보기 프레임 준비가 끝난 뒤 재생할 수 있습니다.',preview_html_text)
 
     def test_motion_preview_uses_generation_sampling(self):
         self.assertEqual(character_animation_app.calculate_preview_frame_numbers(10,20,4,2,1),[10,12,14,16,18,20])
