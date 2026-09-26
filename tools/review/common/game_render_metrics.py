@@ -21,7 +21,7 @@ def load_game_render_metrics(frontend_repository_path):
     block_snapshot_record=json.loads(block_snapshot_path.read_text())
     for metric_key_name,facility_kind_name in [('wallHeight','guild'),('canopyHeight','market')]:
         selected_building_record=next(value for value in block_snapshot_record['buildings'] if value['facilityKind']==facility_kind_name)
-        current_metric_values[metric_key_name]=min(value['layer']*32+value['offsetHeight'] for value in selected_building_record['blocks'] if value['material']=='roof')
+        current_metric_values[metric_key_name]=min(value['layer']*value['height']+value['offsetHeight'] for value in selected_building_record['blocks'] if value['material']=='roof')
     if any(value <= 0 for value in current_metric_values.values()):
         raise ValueError('게임 렌더 크기는 양수여야 합니다.')
     current_metric_values['restHeightRatio'] = read_numeric_constant(actors_source_text,'HUMAN_REST_HEIGHT_RATIO')
