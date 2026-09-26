@@ -2,7 +2,7 @@
 import sys
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[2]))
-from tools.review.ui_assets import resolve_review_ui_asset
+from tools.review.ui_assets import resolve_review_ui_asset, read_review_shared_styles
 import argparse
 from datetime import datetime
 import json
@@ -34,7 +34,7 @@ def build_walk_review(review_run_directory):
             if len(current_asset_record['size'])!=2 or any(type(current_dimension_value)is not int or current_dimension_value<=0 for current_dimension_value in current_asset_record['size']):
                 raise ValueError('이미지 크기는 양의 정수 2개여야 합니다.')
         review_template_text=resolve_review_ui_asset('walk-sheet.html').read_text()
-        review_template_text=review_template_text.replace('</style>', '</style><style>'+(resolve_review_ui_asset('review-ui.css')).read_text()+'</style>',1)
+        review_template_text=review_template_text.replace('</style>', '</style><style>'+read_review_shared_styles()+'</style>',1)
         embedded_asset_json=json.dumps(review_asset_records,ensure_ascii=False).replace('<','\\u003c')
         (review_run_directory/'preview.html').write_text(review_template_text.replace('__ASSET_RECORDS__',embedded_asset_json))
         emit_review_trace('complete',str(review_run_directory/'preview.html'))

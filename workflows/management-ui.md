@@ -16,7 +16,7 @@
 
 ## 2. 공용 색상과 스타일
 
-[generation-studio.css](../tools/review/ui/shared/generation-studio.css)의 CSS 변수를 기준으로 사용한다. 페이지별 스타일은 기능에 필요한 배치만 추가하며 공용 색상·버튼·로그·이력 스타일을 복사하지 않는다.
+[management.css](../tools/review/ui/shared/management.css)의 CSS 변수를 기준으로 사용한다. 페이지별 스타일은 기능에 필요한 배치만 추가하며 공용 색상·버튼·로그·이력 스타일을 복사하지 않는다.
 
 | 토큰 | 기본값 | 용도 |
 | --- | --- | --- |
@@ -30,6 +30,16 @@
 공용 클래스는 `.studio-grid`, `.studio-panel`, `.setting-field`, `.generation-actions`, `.result-canvas`, `.playback-controls` 등의 기존 사용처를 확인해 활용한다. 클래스가 페이지에만 정의되어 있다면 공용 제공으로 가정하지 않는다. 여러 페이지에 같은 배치가 필요할 때 공용 CSS로 추출한다.
 
 상태는 색상과 텍스트를 함께 사용한다. 선택·실행·완료·실패를 색상만으로 구분하지 않는다. 모션·속성 이름과 조작 안내는 한국어를 우선하고 모델명·에셋 ID는 원문을 유지한다.
+
+### 전역 스타일 적용 계약
+
+- 시각 기준은 MoMask 생성기다. 정식 원본은 `tools/review/ui/shared/management.css`, 웹 공용 주소는 `/management/style.css`다. 생성기·작가 에이전트는 이 주소를 직접 연결한다.
+- 색상 토큰 → 기본 타이포그래피·입력·버튼 → 패널·로그·상태·이력·탐색 컴포넌트를 전역 CSS에서 관리한다. 페이지별 CSS는 열 개수·미리보기 크기·스크롤 영역 같은 도메인 배치를 맡는다.
+- 주요 버튼에는 `primary`, 위험 동작에는 `danger`, 패널에는 `studio-panel`을 사용한다. 키보드 포커스·hover·disabled·선택 상태도 공용 규칙을 따른다.
+- 기존 `generation-studio.css`와 서비스별 `studio.css` 주소는 호환 연결로만 남긴다. 새 색상이나 컴포넌트를 이 파일에 추가하지 않는다.
+- 검수 페이지와 관리 셸은 `read_review_shared_styles()`로 전역 CSS와 `review-ui.css` 배치를 함께 삽입한다. 생성된 HTML을 단독으로 열어도 색상이 유지된다. 과거 산출물은 재빌드해야 반영된다.
+- 게임 캔버스·타일·이미지의 색과 투명도 검수용 배경은 UI 색상과 구분한다. 전역 테마 때문에 실제 산출물 색을 바꾸지 않는다.
+- 변경 시 MoMask·ANNY·캐릭터 애니메이션·Qwen 두 페이지·작가 에이전트·관리 셸에서 로딩, 공통 색상, 좁은 화면 넘침을 확인한다. 실제 생성·취소는 스타일 검증에 사용하지 않는다.
 
 ## 3. 입력과 고정 설정
 
@@ -108,7 +118,7 @@
 
 | 책임 | 기준 파일 |
 | --- | --- |
-| 색상·기본 레이아웃·입력·버튼 | [generation-studio.css](../tools/review/ui/shared/generation-studio.css) |
+| 색상·기본 레이아웃·입력·버튼 | [management.css](../tools/review/ui/shared/management.css) |
 | 목록·페이지네이션·이력 로그 | [generation-history.js](../tools/review/ui/shared/generation-history.js) |
 | 접이식 로그의 자동 스크롤 | [management_log_viewer.py](../tools/review/common/management_log_viewer.py) |
 | 기존 이미지 생성 진행 UI | [generation-progress.js](../tools/review/ui/shared/generation-progress.js) |

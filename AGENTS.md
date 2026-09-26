@@ -35,6 +35,7 @@
 - 루트의 이전 서비스 파일은 import·직접 실행 호환 연결이다. 신규 기능은 정식 도메인 모듈에 추가하며 URL·CLI·기록 저장 경로를 디렉터리 이동에 맞춰 바꾸지 않는다.
 
 ## Management UI Guide
+- 전역 스타일은 MoMask 생성기를 기준으로 한 `tools/review/ui/shared/management.css`에서 관리한다. 웹 페이지는 `/management/style.css`를 연결하고, 단독 검수 HTML은 `read_review_shared_styles()`로 삽입한다. 도메인 CSS에는 배치만 추가하며 공용 색상·상태 스타일을 복제하지 않는다.
 - 생성 UI는 [예상 시간 표시 규칙](workflows/management-ui.md#생성-예상-시간-표시-규칙)에 따라 예상 남은 시간·완료 시각과 추정 근거를 표시한다. 근거가 없으면 계산 중임을 안내한다.
 - 프롬프트 원문을 표시할 때는 [단어 수 표시 규칙](workflows/management-ui.md#프롬프트-단어-수-표시-규칙)에 따라 개별·최종 단어 수를 함께 표시한다. 최종 수치는 방향·변수 치환 후 실제 모델 입력을 기준으로 한다.
 - 관리도구 UI를 신규 작성하거나 수정할 때 [관리도구 UI 가이드](workflows/management-ui.md)를 기준으로 한다. 공용 색상·레이아웃, 고정 설정 표시, 생성 버튼 상태, 로그, 누적 이력, 재생 컨트롤과 검증 범위를 다룬다.

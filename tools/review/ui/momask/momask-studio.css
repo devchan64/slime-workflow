@@ -1,4 +1,4 @@
-/* 색상·입력·버튼·로그는 generation-studio.css를 공유한다. */
+/* 색상·입력·버튼·로그는 management.css를 공유한다. */
 :root{--motion-studio-max-width:1800px}
 .app-header{max-width:var(--motion-studio-max-width);margin:0 auto;padding:28px 32px 0}
 .app-header p{margin:6px 0}
@@ -8,11 +8,11 @@
 .form-label{display:block}.form-label select{display:block;width:100%;margin:8px 0 0}
 .directions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:8px 0 20px}
 .directions label{padding:8px;border:1px solid var(--line);border-radius:8px;cursor:pointer}
-input[type=checkbox],input[type=range]{accent-color:var(--accent)}
+
 .action-row,.pager{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .action-row button,.pager button,.result-toolbar button{margin:0}
-.control-panel>.action-row{margin:20px 0}.primary{background:var(--accent);color:var(--page);font-weight:750}
-.danger{color:var(--danger);background:transparent}.status-help,.history-meta{color:var(--muted);font-size:12px}
+.control-panel>.action-row{margin:20px 0}
+.status-help,.history-meta{color:var(--muted);font-size:12px}
 .control-panel details{border-top:1px solid var(--line);padding-top:6px}
 .control-panel dl{display:grid;grid-template-columns:1fr auto;gap:8px;font-size:13px}
 .control-panel dd{margin:0;color:var(--accent);font-variant-numeric:tabular-nums}

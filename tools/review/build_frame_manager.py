@@ -2,7 +2,7 @@
 import sys
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[2]))
-from tools.review.ui_assets import resolve_review_ui_asset
+from tools.review.ui_assets import resolve_review_ui_asset, read_review_shared_styles
 from datetime import datetime
 from zoneinfo import ZoneInfo
 import argparse
@@ -29,7 +29,7 @@ def build_frame_manager(parsed_argument_values):
     try:
         emit_manager_trace('start',str(output_manager_directory))
         manager_page_records=[]
-        shared_review_styles=resolve_review_ui_asset('review-ui.css').read_text()
+        shared_review_styles=read_review_shared_styles()
         for source_kind_name,source_directory_path in selected_source_directories.items():
             destination_asset_directory=output_manager_directory/source_kind_name
             destination_asset_directory.mkdir()
@@ -53,7 +53,7 @@ def build_frame_manager(parsed_argument_values):
             copied_review_path.write_text(current_template_html.replace('</style>','</style><style>'+shared_review_styles+'</style>',1))
             manager_page_records.append({'id':page_identifier_text,'label':page_label_text,'path':f'{source_kind_name}/{page_filename_text}','category':'animation','anchorEditor':anchor_editor_enabled,'description':f'{page_label_text} · 원본 실행 {selected_source_directories[source_kind_name].name}'})
         manager_template_text=resolve_review_ui_asset('frame-manager.html').read_text()
-        manager_template_text=manager_template_text.replace('</style>', '</style><style>'+(resolve_review_ui_asset('review-ui.css')).read_text()+'</style>',1)
+        manager_template_text=manager_template_text.replace('</style>', '</style><style>'+read_review_shared_styles()+'</style>',1)
         (output_manager_directory/'preview.html').write_text(manager_template_text.replace('__MANAGER_PAGES__',json.dumps(manager_page_records,ensure_ascii=False).replace('<','\\u003c')))
         (output_manager_directory/'manager-source.json').write_text(json.dumps({'description':'워크프레임 통합 검수 실행 스냅샷','sources':{source_kind_name:str(source_directory_path) for source_kind_name,source_directory_path in selected_source_directories.items()},'pages':manager_page_records},ensure_ascii=False,indent=2))
         emit_manager_trace('complete',str(output_manager_directory/'preview.html'))
