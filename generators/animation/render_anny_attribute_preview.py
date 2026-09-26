@@ -51,4 +51,6 @@ print(result_output_values,flush=True)
 if args.mesh_only:
  print('웹 프리뷰 메시 생성 완료',flush=True)
  sys.exit(0)
-preview_script=WORKFLOW_SOURCE_ROOT/'generators/animation/render_anny_attribute_preview_blender.py';shutil.copy2(preview_script,EXPERIMENT_OUTPUT_ROOT/'render_preview.py');subprocess.run([str(WORKFLOW_SOURCE_ROOT/'.local/blender-runtime/bin/python'),str(EXPERIMENT_OUTPUT_ROOT/'render_preview.py')],cwd=EXPERIMENT_OUTPUT_ROOT,check=True)
+preview_script=WORKFLOW_SOURCE_ROOT/'generators/animation/render_anny_attribute_preview_blender.py';shutil.copy2(preview_script,EXPERIMENT_OUTPUT_ROOT/'render_preview.py');subprocess.run([str(WORKFLOW_SOURCE_ROOT/'.local/blender-runtime/bin/python'),str(WORKFLOW_SOURCE_ROOT/'generators/momask/templates/run_stage.py'),str(EXPERIMENT_OUTPUT_ROOT/'render_preview.py')],cwd=EXPERIMENT_OUTPUT_ROOT,check=True)
+
+print('ANNY 이미지 렌더 완료',flush=True)

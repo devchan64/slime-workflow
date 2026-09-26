@@ -126,10 +126,21 @@ class AnnyAttributeManager:
    (root/'history.json').write_text(json.dumps({'id':ident,'created_at':datetime.now(ZoneInfo('Asia/Seoul')).isoformat(),'request':{'attributes':{attribute_field_name:attribute_field_value for attribute_field_name,attribute_field_value in changed.items() if attribute_field_name!='rotation_y'},'render_settings':{'rotation_y':changed.get('rotation_y',0)},'kind':'preview' if path.endswith('/preview') else 'render'},'status':{'status':'running'}},ensure_ascii=False))
    preview_mesh_only=path=='/anny-attributes/preview'
    def work():
-    code=subprocess.run([str(ROOT/'.venv/bin/python'),str(ROOT/'generators/animation/render_anny_attribute_preview.py'),'--attributes',str(root/'attributes.json'),'--output-dir',str(root/'render'),'--rotation-y',str(changed.get('rotation_y',0))]+(['--mesh-only'] if preview_mesh_only else []),stdout=(root/'worker.log').open('w'),stderr=subprocess.STDOUT).returncode
-    for name in ('front.png','side.png'):
-     source=root/'render'/name
-     if source.exists():source.replace(root/name)
-    (root/'status.json').write_text(json.dumps({'status':'completed' if code==0 else 'failed','exit_code':code}))
+    final_status_record={'status':'failed','exit_code':None}
+    try:
+     with (root/'worker.log').open('w') as worker_log_stream:
+      code=subprocess.run([str(ROOT/'.venv/bin/python'),str(ROOT/'generators/animation/render_anny_attribute_preview.py'),'--attributes',str(root/'attributes.json'),'--output-dir',str(root/'render'),'--rotation-y',str(changed.get('rotation_y',0))]+(['--mesh-only'] if preview_mesh_only else []),stdout=worker_log_stream,stderr=subprocess.STDOUT).returncode
+     for name in ('front.png','side.png'):
+      source=root/'render'/name
+      if source.exists():source.replace(root/name)
+     final_status_record={'status':'completed' if code==0 else 'failed','exit_code':code}
+    except Exception as worker_error_value:
+     final_status_record['error']=str(worker_error_value)
+     with (root/'worker.log').open('a') as worker_log_stream:
+      worker_log_stream.write(f'\nANNY 작업 실패: {worker_error_value}\n')
+    finally:
+     pending_status_path=root/'status.pending'
+     pending_status_path.write_text(json.dumps(final_status_record,ensure_ascii=False))
+     pending_status_path.replace(root/'status.json')
    threading.Thread(target=work,daemon=True).start();self.send(h,202,{'id':ident});return True
   except (ValueError,KeyError,FileNotFoundError,json.JSONDecodeError) as e:self.send(h,400,{'error':str(e)});return True
