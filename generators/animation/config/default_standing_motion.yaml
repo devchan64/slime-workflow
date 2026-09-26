@@ -1,14 +1,14 @@
 schema_version: 1
 asset_id: momask-standing
-version: 7
-asset_path: assets/motion-sheet/momask-standing-v7
-manifest_path: assets/motion-sheet/momask-standing-v7/manifest.yaml
-motion_path: assets/motion-sheet/momask-standing-v7/motion.npz
-motion_sha256: 7f81131d494b20bf46e80b16df6c8493426fdf6996979025a7b8034f372575c2
-openpose_path: assets/motion-sheet/momask-standing-v7/openpose
-frames: 16
+version: 8
+asset_path: assets/motion-sheet/momask-standing-v8
+manifest_path: assets/motion-sheet/momask-standing-v8/manifest.yaml
+motion_path: assets/motion-sheet/momask-standing-v8/motion.npz
+motion_sha256: 66634dc13a00f9a16c17c2508599d32a9c95f1055074c11365d31e98e36ddee3
+openpose_path: assets/motion-sheet/momask-standing-v8/openpose
+frames: 120
 fps: 4
-cycle_seconds: 4
+cycle_seconds: 30
 baseline_model: anny-neutral-v4
-humanml3d_path: assets/motion-sheet/momask-standing-v7/humanml3d
+humanml3d_path: assets/motion-sheet/momask-standing-v8/humanml3d
 openpose_format: COCO18 body with projected visible nose, eyes and ears

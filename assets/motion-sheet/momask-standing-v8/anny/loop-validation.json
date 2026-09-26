@@ -1,0 +1,7 @@
+{
+  "status": "measured_review_required",
+  "endpoint_max_error_m": 0.06828770041465759,
+  "frames_per_direction": 120,
+  "directions": 4,
+  "total_pose_frames": 480
+}
