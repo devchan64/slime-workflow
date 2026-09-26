@@ -79,6 +79,7 @@ assert.equal(vm.runInContext('buildCoordinateArtifact().artifactType',testExecut
 console.log('프레임 전환·1px 이동·다른 프레임 보존·정수 JSON 내보내기·가상 타일·그림자 검사 통과');
 // 등록 소수 앵커와 두 발 중심·앞뒤 네 점 모드도 원본을 정확하게 복원한다.
 const anchorTemplateSource=readFileSync(new URL('../../../generators/animation/review_standing_anchors.html',import.meta.url),'utf8').split('<script>')[1].split('</script>')[0];
+assert.match(anchorTemplateSource,/resolveReviewAssetUrl\(currentImageFilename\)/);
 for(const coordinateModeValue of ['anchor','foot-centers','endpoints']){
  const sampleContactPoints=coordinateModeValue==='anchor'?[{x:10.25,y:20.75}]:[{x:8,y:20},{x:12,y:20}];
  const sampleFrameRecords=['down_left','down_right','up_left','up_right'].map(currentDirectionName=>({frameId:currentDirectionName+'.0',direction:currentDirectionName,image:'test.png',rect:{x:0,y:0,width:100,height:100},anchor:coordinateModeValue==='anchor'?{...sampleContactPoints[0]}:{x:10,y:20},contacts:sampleContactPoints.map(currentPointRecord=>({...currentPointRecord})),endpoints:coordinateModeValue==='endpoints'?[{x:6,y:20},{x:10,y:20},{x:10,y:20},{x:14,y:20}]:[]}));

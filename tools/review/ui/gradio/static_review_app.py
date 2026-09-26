@@ -41,9 +41,10 @@ const staticReviewPageLocation=new URL(selectedReviewPath,reviewServerBase);
 staticReviewPageLocation.searchParams.set('embedded','gradio-static');
 const staticReviewPageUrl=staticReviewPageLocation.href;
 const staticReviewAssetUrl=new URL('.',staticReviewPageUrl).href;
+window.resolveStaticReviewAssetUrl=assetPathValue=>typeof assetPathValue==='string'&&!/^(?:[a-z]+:|[/])/i.test(assetPathValue)?new URL(assetPathValue,staticReviewAssetUrl).href:assetPathValue;
 const originalFetchRequest=window.fetch.bind(window);
 window.fetch=(requestValue,...requestOptionValues)=>{{
-  if(typeof requestValue==='string'&&!/^(?:[a-z]+:|\\/)/i.test(requestValue))return originalFetchRequest(new URL(requestValue,staticReviewAssetUrl),...requestOptionValues);
+  if(typeof requestValue==='string'&&!/^(?:[a-z]+:|[/])/i.test(requestValue))return originalFetchRequest(new URL(requestValue,staticReviewAssetUrl),...requestOptionValues);
   return originalFetchRequest(requestValue,...requestOptionValues);
 }};
 try{{
