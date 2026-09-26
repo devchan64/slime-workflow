@@ -16,6 +16,6 @@ class MoMaskBaselinePageTests(unittest.TestCase):
                 self.assertTrue(manager.handle(request))
                 self.assertEqual(response.call_args.args[1], 200)
                 page = response.call_args.args[2].decode()
-                self.assertIn('새 생성 기준 모델: 중성형 v1', page)
+                self.assertIn('새 생성 기준 모델: 중성형 v2', page)
                 self.assertNotIn('__ANNY_BASELINE_MODEL__', page)
                 self.assertNotIn('ANNY 쇄골·어깨 적용 방식', page)

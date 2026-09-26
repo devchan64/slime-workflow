@@ -1,0 +1,58 @@
+schema_version: 1
+asset_id: anny-neutral
+version: 2
+role: animation_baseline_model
+profile_id: neutral_v2
+display_name: 중성형 v2
+source_generation_id: 6a06369f
+source_path: .tmp/anny-attribute-renderer/6a06369f
+status: user_approved
+model: anny==0.6.0
+rig: anny
+bone_count: 104
+pose_parameterization: local-ref
+coordinate_system:
+  npz: Z-up, native ANNY coordinates
+  blend: Z-up, ground aligned, height 1.6m
+  glb: glTF Y-up, height 1.6m
+files:
+  anny-raw-rig.blend:
+    sha256: 7aa697c88ddcf16247d9344c03d59654658ad908052a6df0fda79f7e5430ff98
+    bytes: 2790982
+  anny-raw-rig.glb:
+    sha256: c15cb0955bb8d2d7d9098abc34b5cf48a223c62b79fd02686558b89babba3029
+    bytes: 1351700
+  anny-rest-rig.npz:
+    sha256: ab893d55a47eca113aab267fde3093fc1753b142aca0021fbc4fafb917456def
+    bytes: 2318906
+  attributes.json:
+    sha256: a8d1ec5f10603820b4f1fc862dd97e2d185ccafe850128b2db8b8d4292360adf
+    bytes: 13203
+  back.png:
+    sha256: ccf6c9913223abfc230897fdf8a7fa291aad0f64b50872dfc7e20d8d625dd995
+    bytes: 541728
+  front.png:
+    sha256: a4ceaeebd6b752ffa8922e6b8a4b21001121dbdc111bb01345b70c045176c59e
+    bytes: 541680
+  generation.json:
+    sha256: fd5fa789a6733aad34cf6c8c79c87eba58048208b4a79b88a4e8d8705c50f347
+    bytes: 1612
+  side.png:
+    sha256: 330e95f2c987ef5be1dd65e912dcbed0d60e6c6371e6d152e06c678c7464d409
+    bytes: 526854
+  source-history.json:
+    sha256: d3790b3b179e4dea8eab5db59e768d72463d116238fb0e536fbda44bb8061054
+    bytes: 1545
+  source-status.json:
+    sha256: 9655c4a8972db86775257d7d1375907f40845ccf8955a163ea2df5393fe95c05
+    bytes: 39
+  three-quarter.png:
+    sha256: c46649482967019dc53ec6f78bd433dfef205b22965cda68ecea8cf7b0cfc2a0
+    bytes: 593810
+  validation.json:
+    sha256: a8107f22134d713ace7c950a2a50849b4af3103f590f395ef13fbf01b1ad0bdb
+    bytes: 244
+  view.json:
+    sha256: 10c37c5a2ff2d3bd28fc28e805fc1268e889ff1adc92d6f8e611bc266a264dc9
+    bytes: 19
+replaces: anny-neutral-v1
