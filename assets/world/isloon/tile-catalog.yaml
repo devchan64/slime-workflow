@@ -13,7 +13,7 @@ tiles:
   - {id: marble_small_door, category: door, asset: world/isloon/buildings/marble-small-door-v1.png, walkable: true, movement_cost: 1}
   - {id: wood_large_window_wall, category: structure, asset: world/isloon/buildings/wood-large-window-wall-v1.png, walkable: false, movement_cost: 99}
   - {id: wood_small_window_wall, category: structure, asset: world/isloon/buildings/wood-small-window-wall-v1.png, walkable: false, movement_cost: 99}
-  - {id: wood_roof, category: roof, asset: world/isloon/buildings/wood-roof-v1.png, walkable: false, movement_cost: 99}
+  - {id: wood_roof, category: roof, asset: world/isloon/buildings/wood-roof-v2.png, walkable: false, movement_cost: 99}
   - {id: wood_door, category: door, asset: world/isloon/buildings/wood-door-v1.png, walkable: true, movement_cost: 1}
   - {id: wood_plain_wall, category: structure, asset: world/isloon/buildings/wood-plain-wall-v1.png, walkable: false, movement_cost: 99}
 connections:
