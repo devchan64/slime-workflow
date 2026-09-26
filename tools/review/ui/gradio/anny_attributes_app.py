@@ -41,7 +41,10 @@ def build_anny_attribute_interface(review_server_port):
     return interface_blocks_value
 
 
-if __name__ == '__main__':
+from pathlib import Path as ManagementStylePath
+MANAGEMENT_DENSITY_STYLES=(ManagementStylePath(__file__).parents[1]/'shared/management-density.css').read_text()
+
+if __name__=='__main__':
     argument_parser_value = argparse.ArgumentParser()
     argument_parser_value.add_argument('--port', type=int, required=True)
     argument_parser_value.add_argument('--review-port', type=int, required=True)
@@ -51,4 +54,4 @@ if __name__ == '__main__':
     threading.Thread(target=lambda: time.sleep(1), daemon=True).start()
     build_anny_attribute_interface(argument_values.review_port).queue().launch(
         server_name='127.0.0.1', server_port=argument_values.port, root_path=argument_values.root_path,
-        css=ANNY_ATTRIBUTE_STYLE_PATH.read_text(), js=create_anny_attribute_loader(argument_values.review_port), allowed_paths=[])
+        css=ANNY_ATTRIBUTE_STYLE_PATH.read_text()+MANAGEMENT_DENSITY_STYLES, js=create_anny_attribute_loader(argument_values.review_port), allowed_paths=[])

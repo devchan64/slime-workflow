@@ -60,26 +60,27 @@ def build_generation_history_view(execute_service_command,server_base_address,de
     """목록·페이지·명시적 조회·결과·입력·로그·초기화를 묶은 공용 영역."""
     import html
     from tools.review.common.gradio_logs import build_execution_logs,create_copyable_log_textbox
-    with gr.Tabs():
-        with gr.Tab('생성 이력 · 결과 조회'):
-            history_selection_value=gr.Radio(choices=[],label='생성 이력')
-            with gr.Row():
-                history_page_value=gr.Number(value=1,minimum=1,precision=0,label='페이지')
-                history_refresh_button=gr.Button('이력 새로고침')
-                result_lookup_button=gr.Button('선택 결과 조회',variant='primary')
-            if restore_input_callback is not None:
-                restore_input_button=gr.Button('입력값 다시 불러오기')
-            history_count_value=gr.Markdown()
-            reset_control_values=build_history_reset_controls(deletion_scope_text)
-    result_identifier_value=create_copyable_log_textbox(label='조회한 생성 ID',interactive=False)
-    result_path_value=create_copyable_log_textbox(label='기록 폴더 절대 경로 · 복사 가능',interactive=False)
-    folder_open_status_value=gr.Markdown()
-    folder_open_button_value=gr.Button('기록 폴더 열기',interactive=record_folder_route is not None)
-    result_status_value=gr.Markdown('이력을 선택한 뒤 결과 조회를 누르세요.')
-    result_image_value=gr.HTML()
-    with gr.Accordion('저장된 입력값 · 기록',open=False):
-        result_record_value=gr.JSON(label='생성 기록')
-    log_output_value,log_refresh_value,log_panel_value=build_execution_logs()
+    with gr.Column(elem_classes=['generation-history-workspace']):
+        with gr.Tabs():
+            with gr.Tab('생성 이력 · 결과 조회'):
+                history_selection_value=gr.Radio(choices=[],label='생성 이력')
+                with gr.Row():
+                    history_page_value=gr.Number(value=1,minimum=1,precision=0,label='페이지')
+                    history_refresh_button=gr.Button('이력 새로고침')
+                    result_lookup_button=gr.Button('선택 결과 조회',variant='primary')
+                if restore_input_callback is not None:
+                    restore_input_button=gr.Button('입력값 다시 불러오기')
+                history_count_value=gr.Markdown()
+                reset_control_values=build_history_reset_controls(deletion_scope_text)
+        result_identifier_value=create_copyable_log_textbox(label='조회한 생성 ID',interactive=False)
+        result_path_value=create_copyable_log_textbox(label='기록 폴더 절대 경로 · 복사 가능',interactive=False)
+        folder_open_status_value=gr.Markdown()
+        folder_open_button_value=gr.Button('기록 폴더 열기',interactive=record_folder_route is not None)
+        result_status_value=gr.Markdown('이력을 선택한 뒤 결과 조회를 누르세요.')
+        result_image_value=gr.HTML()
+        with gr.Accordion('저장된 입력값 · 기록',open=False):
+            result_record_value=gr.JSON(label='생성 기록')
+        log_output_value,log_refresh_value,log_panel_value=build_execution_logs()
 
     def read_history_page(current_page_number,current_selected_identifier=None):
         current_history_records=execute_service_command('history',{}).get('records',[])

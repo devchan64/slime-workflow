@@ -32,3 +32,19 @@
 /* Gradio가 Radio를 감싸는 form도 남은 높이를 받아야 목록이 접히지 않는다. */
 #management-sidebar>.form:has(#management-tool-list){display:flex;flex-direction:column;flex-wrap:nowrap;flex:1 1 0!important;min-height:180px;overflow:hidden}
 @media(max-width:800px){#management-sidebar>.form:has(#management-tool-list){flex:none!important;min-height:0}}
+
+/* 관리 셸은 화면 폭을 활용하고 탐색 폭은 일정하게 유지한다. */
+.gradio-container:has(#management-shell){max-width:none!important;padding:8px 12px!important}
+#management-header{align-items:center;gap:12px!important}
+#management-header h2,#management-header p{margin:0!important}
+#management-shell{gap:12px!important;min-height:calc(100dvh - 72px)}
+#management-sidebar{flex:0 0 252px!important;min-width:240px!important;padding:8px!important;gap:8px!important;height:calc(100dvh - 76px);top:8px}
+#management-workspace{flex:1 1 0!important;min-width:0!important;gap:6px!important}
+.management-page-frame{height:calc(100dvh - 110px);min-height:420px}
+@media(max-width:800px){#management-shell{flex-direction:column}#management-sidebar{flex:0 0 auto!important;width:100%;height:auto}#management-tool-list{max-height:180px}.management-page-frame{height:75dvh;min-height:360px}}
+
+.gradio-container:has(#management-shell){width:100%!important;margin:0!important}
+/* GPU 점유 정보는 스크롤 중에도 상단에서 확인한다. */
+#management-header{position:sticky;top:0;z-index:30;background:var(--body-background-fill,#10151f);padding:6px 0!important;border-bottom:1px solid var(--border-color-primary,#314055)}
+#management-gpu-status{flex:2 1 320px!important;min-width:0!important;font-size:13px;overflow-wrap:anywhere}
+@media(max-width:800px){#management-gpu-status{flex-basis:100%!important}}

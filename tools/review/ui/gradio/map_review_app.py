@@ -7,7 +7,7 @@ import time
 import gradio as gr
 
 
-MAP_REVIEW_APPLICATION_STYLES='#map-review-root{min-height:700px}.map-review-error{padding:16px;border:1px solid #9c4b4b;border-radius:8px;color:#ffd3d3}'
+MAP_REVIEW_APPLICATION_STYLES='#map-review-root{min-height:0}.gradio-container{max-width:none!important;padding:8px!important}.map-review-error{padding:16px;border:1px solid #9c4b4b;border-radius:8px;color:#ffd3d3}'
 
 
 def create_map_review_loader(review_server_port):
@@ -48,11 +48,13 @@ try{{
 
 def build_map_review_interface(review_server_port):
     with gr.Blocks(title='마을 맵 검수') as interface_blocks_value:
-        gr.Markdown('## 마을 맵 검수\n등록된 맵과 타일을 같은 작업 영역에서 회전·선택·마커 배치로 검수합니다.')
         gr.HTML('<section id="map-review-root" aria-label="마을 맵 검수"><p>맵 검수 화면을 준비하고 있습니다…</p></section>')
     return interface_blocks_value
 
 
+from pathlib import Path as ManagementStylePath
+MANAGEMENT_DENSITY_STYLES=(ManagementStylePath(__file__).parents[1]/'shared/management-density.css').read_text()
+
 if __name__=='__main__':
     parser_value=argparse.ArgumentParser();parser_value.add_argument('--port',type=int,required=True);parser_value.add_argument('--review-port',type=int,required=True);parser_value.add_argument('--owner-pid',type=int,required=True);parser_value.add_argument('--root-path',default='/management/frame/map-review/');arguments_value=parser_value.parse_args()
-    threading.Thread(target=lambda:time.sleep(1),daemon=True).start();build_map_review_interface(arguments_value.review_port).queue().launch(server_name='127.0.0.1',server_port=arguments_value.port,root_path=arguments_value.root_path,css=MAP_REVIEW_APPLICATION_STYLES,js=create_map_review_loader(arguments_value.review_port),allowed_paths=[])
+    threading.Thread(target=lambda:time.sleep(1),daemon=True).start();build_map_review_interface(arguments_value.review_port).queue().launch(server_name='127.0.0.1',server_port=arguments_value.port,root_path=arguments_value.root_path,css=MAP_REVIEW_APPLICATION_STYLES+MANAGEMENT_DENSITY_STYLES,js=create_map_review_loader(arguments_value.review_port),allowed_paths=[])

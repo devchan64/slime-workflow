@@ -213,3 +213,10 @@ input:disabled{opacity:.55;cursor:not-allowed}
  .history-record-card>.generation-history-thumbnail{width:64px;height:64px}
  .history-record-card .history-record-actions button{flex:0 1 auto}
 }
+
+/* 화면 폭과 공용 작업 여백을 모든 검수 도구에서 통일한다. */
+main{max-width:none;padding:16px}header{margin-bottom:12px}h2{margin-bottom:10px}
+.studio-grid{gap:12px}.studio-panel,#generation-history{padding:14px;border-radius:12px}
+textarea{margin:6px 0 10px}select{margin:4px 8px 8px 0}button{margin:4px 6px 4px 0;padding:7px 12px;min-height:36px}
+.references{margin:10px 0 14px}.reference-slot{padding:8px}
+@media(max-width:700px){main{padding:10px}.studio-panel,#generation-history{padding:10px}.studio-grid{grid-template-columns:minmax(0,1fr)}}

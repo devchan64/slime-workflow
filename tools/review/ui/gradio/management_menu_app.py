@@ -84,11 +84,11 @@ def build_management_menu_interface(page_record_values, review_server_port):
     initial_page_identifier=page_record_values[0]['id'] if page_record_values else ''
     initial_selection_script=create_initial_selection_script(page_record_values)
     with gr.Blocks(title='SLIME 관리도구') as interface_blocks_value:
-        with gr.Row():
-            gr.Markdown('## SLIME 관리도구\n생성기와 검수 도구를 검색해 열고, 전환된 Gradio 화면만 따로 확인할 수 있습니다.',scale=3)
+        with gr.Row(elem_id='management-header'):
+            gr.Markdown('## SLIME 관리도구',scale=3)
             gpu_status_value=gr.Markdown('GPU 상태 확인 중',elem_id='management-gpu-status',scale=2)
         with gr.Row(elem_id='management-shell'):
-            with gr.Column(scale=1,min_width=280,elem_id='management-sidebar'):
+            with gr.Column(scale=1,min_width=240,elem_id='management-sidebar'):
                 gr.Markdown('### 도구 탐색')
                 search_text_value=gr.Textbox(label='도구 검색',placeholder='이름, ID, 기능',info='검색 결과에서 도구를 선택하면 해당 주소로 이동합니다.')
                 category_select_value=gr.Dropdown(choices=[(current_label_value,current_name_value) for current_name_value,current_label_value in CATEGORY_LABEL_VALUES.items()],value='all',label='분류')
@@ -133,6 +133,9 @@ def build_management_menu_interface(page_record_values, review_server_port):
         if hasattr(gr,'Timer'):gr.Timer(3).tick(lambda:format_gpu_status(read_gpu_status()),outputs=gpu_status_value,show_progress='hidden')
     return interface_blocks_value,initial_selection_script
 
+from pathlib import Path as ManagementStylePath
+MANAGEMENT_DENSITY_STYLES=(ManagementStylePath(__file__).parents[1]/'shared/management-density.css').read_text()
+
 if __name__=='__main__':
     argument_parser_value=argparse.ArgumentParser()
     argument_parser_value.add_argument('--port',type=int,required=True)
@@ -148,4 +151,4 @@ if __name__=='__main__':
     application_css_text='''.gradio-container{max-width:1560px!important;padding:16px!important}#management-shell{align-items:stretch;min-height:calc(100vh - 132px)}#management-sidebar{position:sticky;top:12px;height:calc(100vh - 30px);overflow:hidden;display:flex;flex-direction:column;padding:12px;background:#192230;border:1px solid #314055;border-radius:12px}#management-sidebar>div{min-height:0}#management-tool-count{margin-top:4px;margin-bottom:2px;color:#b9cae2}#management-tool-list{flex:1;min-height:180px;overflow-y:auto;padding:6px 2px;border-top:1px solid #314055;border-bottom:1px solid #314055}#management-tool-list .wrap{display:flex;flex-direction:column;gap:4px}#management-tool-list label{padding:7px 8px;border-radius:7px;line-height:1.35}#management-tool-list label:hover{background:#26374d}#management-tool-list label:has(input:checked){background:#315482}.management-page-frame{width:100%;height:calc(100vh - 220px);min-height:560px;border:1px solid #314055;border-radius:12px;background:#10151f}.menu-empty-state{min-height:320px;display:grid;place-items:center;border:1px dashed #40516a;border-radius:12px;color:#a7b5c8}@media(max-width:800px){#management-shell{min-height:0}#management-sidebar{position:static;height:auto;max-height:none;overflow:visible}#management-tool-list{max-height:300px;flex:none}.management-page-frame{height:70vh;min-height:460px}}'''
     application_css_text+=(Path(__file__).parent/'management-layout.css').read_text()
     interface_blocks_value,initial_selection_script=build_management_menu_interface(load_manager_page_records(parsed_argument_values.source_file),parsed_argument_values.review_port)
-    interface_blocks_value.queue().launch(server_name='127.0.0.1',server_port=parsed_argument_values.port,root_path=parsed_argument_values.root_path,theme=gr.themes.Soft(),css=application_css_text,js=initial_selection_script,allowed_paths=[])
+    interface_blocks_value.queue().launch(server_name='127.0.0.1',server_port=parsed_argument_values.port,root_path=parsed_argument_values.root_path,theme=gr.themes.Soft(),css=application_css_text+MANAGEMENT_DENSITY_STYLES,js=initial_selection_script,allowed_paths=[])

@@ -101,22 +101,6 @@ def build_momask_interface(server_base_address):
                     status_refresh_button_value=gr.Button('상태 새로고침',elem_id='motion-status-refresh-button')
                 status_text_value=gr.Markdown('작업 상태 조회 중')
                 gr.Markdown('예상 시간: 측정 자료가 없어 계산할 수 없습니다. 실행 로그에서 단계를 확인하세요.')
-                with gr.Accordion('2. 생성 이력 · 결과 조회',open=False,elem_id='motion-history-panel'):
-                    gr.Markdown('완료된 결과를 재생하거나 중단된 작업을 재개할 때 이력을 선택하세요.')
-                    with gr.Row(elem_id='motion-history-toolbar'):
-                        history_refresh_value=gr.Button('이력 새로고침',variant='secondary')
-                        history_page_value=gr.Number(value=1,precision=0,minimum=1,label='페이지',scale=1,min_width=100)
-                        history_count_value=gr.Markdown()
-                    history_table_value=gr.Radio(choices=[],label='조회할 생성 결과',interactive=True,elem_id='motion-history-selection')
-                    history_selected_value=gr.Markdown('조회할 생성이력을 선택하세요.')
-                    with gr.Row():
-                        history_result_button=gr.Button('선택한 결과 조회',variant='primary',interactive=False)
-                        history_resume_button=gr.Button('생성 재개',interactive=False)
-                    history_resume_help=gr.Markdown('취소되거나 실패한 작업을 선택하면 이어서 생성할 수 있습니다. 리그 생성이 완료된 작업만 지원합니다.')
-                    build_history_input_controls(history_table_value, read_saved_motion_inputs,
-                                                 restore_saved_motion_inputs,
-                                                 [action_select_value, direction_select_value, face_checkbox_value, prompt_text_value, settings_text_value])
-                    reset_control_values=build_history_reset_controls('이력 목록만 초기화합니다. 결과 파일은 보존됩니다.')
             with gr.Column(scale=2,min_width=480,elem_id='motion-preview'):
                 gr.Markdown('### 결과 재생')
                 viewed_identifier_value=create_copyable_textbox(label='조회한 결과 이력 ID · 오른쪽 아이콘으로 복사',interactive=False,elem_id='viewed-motion-identifier')
@@ -131,6 +115,22 @@ def build_momask_interface(server_base_address):
                     record_folder_status_value=gr.Markdown()
                     input_record_value=gr.JSON(label='저장된 입력 · 결과 정보')
         logs_text_value,log_refresh_enabled,log_panel_element=build_execution_logs()
+        with gr.Accordion('2. 생성 이력 · 결과 조회',open=False,elem_id='motion-history-panel',elem_classes=['generation-history-workspace']):
+            gr.Markdown('완료된 결과를 재생하거나 중단된 작업을 재개할 때 이력을 선택하세요.')
+            with gr.Row(elem_id='motion-history-toolbar'):
+                history_refresh_value=gr.Button('이력 새로고침',variant='secondary')
+                history_page_value=gr.Number(value=1,precision=0,minimum=1,label='페이지',scale=1,min_width=100)
+                history_count_value=gr.Markdown()
+            history_table_value=gr.Radio(choices=[],label='조회할 생성 결과',interactive=True,elem_id='motion-history-selection')
+            history_selected_value=gr.Markdown('조회할 생성이력을 선택하세요.')
+            with gr.Row():
+                history_result_button=gr.Button('선택한 결과 조회',variant='primary',interactive=False)
+                history_resume_button=gr.Button('생성 재개',interactive=False)
+            history_resume_help=gr.Markdown('취소되거나 실패한 작업을 선택하면 이어서 생성할 수 있습니다. 리그 생성이 완료된 작업만 지원합니다.')
+            build_history_input_controls(history_table_value, read_saved_motion_inputs,
+                                         restore_saved_motion_inputs,
+                                         [action_select_value, direction_select_value, face_checkbox_value, prompt_text_value, settings_text_value])
+            reset_control_values=build_history_reset_controls('이력 목록만 초기화합니다. 결과 파일은 보존됩니다.')
         action_select_value.change(read_motion_settings,action_select_value,[prompt_text_value,settings_text_value],queue=False)
         generate_button_value.click(start_motion_generation,[action_select_value,direction_select_value,face_checkbox_value],identifier_text_value)
         cancel_button_value.click(lambda identifier: execute_motion_command('cancel',{'id':identifier}),identifier_text_value,input_record_value)
@@ -199,6 +199,9 @@ def build_momask_interface(server_base_address):
         interface_blocks_value.load(list_motion_history,[history_page_value,history_table_value],[history_table_value,history_count_value])
     return interface_blocks_value
 
+from pathlib import Path as ManagementStylePath
+MANAGEMENT_DENSITY_STYLES=(ManagementStylePath(__file__).parents[1]/'shared/management-density.css').read_text()
+
 if __name__=='__main__':
     argument_parser_value=argparse.ArgumentParser()
     argument_parser_value.add_argument('--port',type=int,required=True)
@@ -210,4 +213,4 @@ if __name__=='__main__':
         while os.getppid()==parsed_argument_values.owner_pid:time.sleep(1)
         os._exit(0)
     threading.Thread(target=monitor_parent_process,daemon=True).start()
-    build_momask_interface(f'http://127.0.0.1:{parsed_argument_values.review_port}').queue().launch(server_name='127.0.0.1',server_port=parsed_argument_values.port,root_path=parsed_argument_values.root_path,theme=gr.themes.Soft(),css=(Path(__file__).parent/'management-layout.css').read_text()+LOG_PANEL_STYLES,allowed_paths=[])
+    build_momask_interface(f'http://127.0.0.1:{parsed_argument_values.review_port}').queue().launch(server_name='127.0.0.1',server_port=parsed_argument_values.port,root_path=parsed_argument_values.root_path,theme=gr.themes.Soft(),css=(Path(__file__).parent/'management-layout.css').read_text()+LOG_PANEL_STYLES+MANAGEMENT_DENSITY_STYLES,allowed_paths=[])

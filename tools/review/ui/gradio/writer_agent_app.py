@@ -25,7 +25,10 @@ def build_writer_agent_interface(review_server_port):
     return interface_blocks_value
 
 
-if __name__ == '__main__':
+from pathlib import Path as ManagementStylePath
+MANAGEMENT_DENSITY_STYLES=(ManagementStylePath(__file__).parents[1]/'shared/management-density.css').read_text()
+
+if __name__=='__main__':
     argument_parser_value = argparse.ArgumentParser()
     argument_parser_value.add_argument('--port', type=int, required=True)
     argument_parser_value.add_argument('--review-port', type=int, required=True)
@@ -35,4 +38,4 @@ if __name__ == '__main__':
     threading.Thread(target=lambda: time.sleep(1), daemon=True).start()
     build_writer_agent_interface(argument_values.review_port).queue().launch(
         server_name='127.0.0.1', server_port=argument_values.port, root_path=argument_values.root_path,
-        css='#writer-agent-root{max-width:1100px}#writer-agent-root section{margin:20px 0}#writer-agent-root .actions{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0}#writer-agent-root pre{max-height:480px;overflow:auto}#writer-agent-root .path{overflow-wrap:anywhere}', js=create_writer_agent_loader(argument_values.review_port), allowed_paths=[])
+        css='#writer-agent-root{max-width:1100px}#writer-agent-root section{margin:20px 0}#writer-agent-root .actions{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0}#writer-agent-root pre{max-height:480px;overflow:auto}#writer-agent-root .path{overflow-wrap:anywhere}'+MANAGEMENT_DENSITY_STYLES, js=create_writer_agent_loader(argument_values.review_port), allowed_paths=[])

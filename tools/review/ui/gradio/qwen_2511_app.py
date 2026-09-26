@@ -48,7 +48,10 @@ def build_qwen_2511_interface(server_base_address):
         cancel_button_value.click(lambda identifier_text_value:execute_reference_gateway('cancel',{'id':identifier_text_value}),identifier_value,status_value)
     return interface_blocks_value
 
+from pathlib import Path as ManagementStylePath
+MANAGEMENT_DENSITY_STYLES=(ManagementStylePath(__file__).parents[1]/'shared/management-density.css').read_text()
+
 if __name__=='__main__':
     parser_value=argparse.ArgumentParser();parser_value.add_argument('--port',type=int,required=True);parser_value.add_argument('--review-port',type=int,required=True);parser_value.add_argument('--owner-pid',type=int,required=True);parser_value.add_argument('--root-path',default='/management/frame/three-reference-generator/');arguments_value=parser_value.parse_args()
     threading.Thread(target=lambda: (time.sleep(1),os._exit(0)) if os.getppid()!=arguments_value.owner_pid else None,daemon=True).start()
-    build_qwen_2511_interface(f'http://127.0.0.1:{arguments_value.review_port}').queue().launch(server_name='127.0.0.1',server_port=arguments_value.port,root_path=arguments_value.root_path,theme=gr.themes.Soft(),css=LOG_PANEL_STYLES+'.qwen-result-image{max-width:100%;max-height:700px}.image-result-empty{min-height:360px;display:grid;place-items:center}',allowed_paths=[])
+    build_qwen_2511_interface(f'http://127.0.0.1:{arguments_value.review_port}').queue().launch(server_name='127.0.0.1',server_port=arguments_value.port,root_path=arguments_value.root_path,theme=gr.themes.Soft(),css=LOG_PANEL_STYLES+'.qwen-result-image{max-width:100%;max-height:700px}.image-result-empty{min-height:360px;display:grid;place-items:center}'+MANAGEMENT_DENSITY_STYLES,allowed_paths=[])

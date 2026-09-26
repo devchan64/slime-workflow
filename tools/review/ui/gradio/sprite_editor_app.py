@@ -27,7 +27,10 @@ def build_sprite_editor_interface(review_server_port):
         gr.HTML(read_sprite_editor_markup())
     return interface_blocks_value
 
+from pathlib import Path as ManagementStylePath
+MANAGEMENT_DENSITY_STYLES=(ManagementStylePath(__file__).parents[1]/'shared/management-density.css').read_text()
+
 if __name__=='__main__':
     parser_value=argparse.ArgumentParser();parser_value.add_argument('--port',type=int,required=True);parser_value.add_argument('--review-port',type=int,required=True);parser_value.add_argument('--owner-pid',type=int,required=True);parser_value.add_argument('--root-path',default='/management/frame/sprite-editor/');arguments_value=parser_value.parse_args()
     threading.Thread(target=lambda:time.sleep(1),daemon=True).start()
-    build_sprite_editor_interface(arguments_value.review_port).queue().launch(server_name='127.0.0.1',server_port=arguments_value.port,root_path=arguments_value.root_path,css='.studio-grid{grid-template-columns:320px minmax(0,1fr)}#sprite-canvas{max-width:100%;height:auto;background:repeating-conic-gradient(#25364c 0% 25%,#192230 0% 50%) 0/24px 24px;touch-action:none}.sprite-fields{display:grid;grid-template-columns:1fr 1fr;gap:12px}.sprite-strip{display:flex;gap:8px;overflow-x:auto;padding:8px}.sprite-toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:6px}',js=create_sprite_editor_loader(arguments_value.review_port),allowed_paths=[])
+    build_sprite_editor_interface(arguments_value.review_port).queue().launch(server_name='127.0.0.1',server_port=arguments_value.port,root_path=arguments_value.root_path,css='.studio-grid{grid-template-columns:320px minmax(0,1fr)}#sprite-canvas{max-width:100%;height:auto;background:repeating-conic-gradient(#25364c 0% 25%,#192230 0% 50%) 0/24px 24px;touch-action:none}.sprite-fields{display:grid;grid-template-columns:1fr 1fr;gap:12px}.sprite-strip{display:flex;gap:8px;overflow-x:auto;padding:8px}.sprite-toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:6px}'+MANAGEMENT_DENSITY_STYLES,js=create_sprite_editor_loader(arguments_value.review_port),allowed_paths=[])

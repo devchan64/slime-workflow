@@ -78,6 +78,9 @@ def build_static_review_interface(static_review_paths):
     return interface_blocks_value
 
 
+from pathlib import Path as ManagementStylePath
+MANAGEMENT_DENSITY_STYLES=(ManagementStylePath(__file__).parents[1]/'shared/management-density.css').read_text()
+
 if __name__=='__main__':
     parser_value=argparse.ArgumentParser()
     parser_value.add_argument('--port',type=int,required=True)
@@ -91,4 +94,4 @@ if __name__=='__main__':
         while os.getppid()==arguments_value.owner_pid:time.sleep(1)
         os._exit(0)
     threading.Thread(target=monitor_owner_process,daemon=True).start()
-    build_static_review_interface(static_review_paths).queue().launch(server_name='127.0.0.1',server_port=arguments_value.port,root_path=arguments_value.root_path,css=STATIC_REVIEW_APPLICATION_STYLES,js=create_static_review_loader(arguments_value.review_port,static_review_paths),allowed_paths=[])
+    build_static_review_interface(static_review_paths).queue().launch(server_name='127.0.0.1',server_port=arguments_value.port,root_path=arguments_value.root_path,css=STATIC_REVIEW_APPLICATION_STYLES+MANAGEMENT_DENSITY_STYLES,js=create_static_review_loader(arguments_value.review_port,static_review_paths),allowed_paths=[])
