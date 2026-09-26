@@ -1,13 +1,13 @@
 schema_version: 1
-profile_id: neutral_v2
-label: 중성형 v2
-source_asset_id: anny-neutral-v2
-asset_path: assets/animation-models/anny-neutral-v2
-manifest_path: assets/animation-models/anny-neutral-v2/manifest.yaml
-attributes_path: assets/animation-models/anny-neutral-v2/attributes.json
-attributes_sha256: a8d1ec5f10603820b4f1fc862dd97e2d185ccafe850128b2db8b8d4292360adf
-blend_path: assets/animation-models/anny-neutral-v2/anny-raw-rig.blend
-glb_path: assets/animation-models/anny-neutral-v2/anny-raw-rig.glb
-rig_path: assets/animation-models/anny-neutral-v2/anny-rest-rig.npz
+profile_id: neutral_v4
+label: 중성형 v4
+source_asset_id: anny-neutral-v4
+asset_path: assets/animation-models/anny-neutral-v4
+manifest_path: assets/animation-models/anny-neutral-v4/manifest.yaml
+attributes_path: assets/animation-models/anny-neutral-v4/attributes.json
+attributes_sha256: 0a3037b9c336772136141924e3e3acfbe6a551a8ff7d2e1eec8c28683f9a31ad
+blend_path: assets/animation-models/anny-neutral-v4/anny-raw-rig.blend
+glb_path: assets/animation-models/anny-neutral-v4/anny-raw-rig.glb
+rig_path: assets/animation-models/anny-neutral-v4/anny-rest-rig.npz
 status: user_selected_animation_model
 attribute_overrides: {}

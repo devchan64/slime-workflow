@@ -6,9 +6,9 @@ from tools.review.ui_assets import resolve_review_ui_asset
 class AnnyProfileTests(unittest.TestCase):
     def test_neutral_is_the_active_default_profile(self):
         active_profile_record=load_active_profile()
-        self.assertEqual(active_profile_record['profile_id'],'neutral_v2')
-        self.assertEqual(active_profile_record['label'],'중성형 v2')
-        self.assertEqual(active_profile_record['source_asset_id'],'anny-neutral-v2')
+        self.assertEqual(active_profile_record['profile_id'],'neutral_v4')
+        self.assertEqual(active_profile_record['label'],'중성형 v4')
+        self.assertEqual(active_profile_record['source_asset_id'],'anny-neutral-v4')
 
     def test_retired_profiles_are_unavailable(self):
         for profile_identifier in ('female_type_a_v1','female_type_a_v2','male_type_a_v1'):

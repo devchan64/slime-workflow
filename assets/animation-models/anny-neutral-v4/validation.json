@@ -1,0 +1,10 @@
+{
+  "status": "passed",
+  "rest_max_error": 1.7881393432617188e-07,
+  "weight_sum_max_error": 1.1920928955078125e-07,
+  "frames": 1,
+  "bones": 104,
+  "triangles": 27420,
+  "motion_source": "없음; 업로드한 기본 포즈",
+  "height": 1.6
+}
