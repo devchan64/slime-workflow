@@ -1,0 +1,13 @@
+/* 이미지 원본 높이·타일 목록 길이는 페이지 높이를 늘리지 않는다. */
+html,body{height:100%;margin:0;overflow:hidden}
+.shell{height:100dvh;max-width:none;padding:16px;display:flex;flex-direction:column;min-height:0;overflow:hidden}
+.top{flex:none;margin-bottom:12px;gap:12px}
+.layout{flex:1;min-height:0;grid-template-rows:minmax(0,1fr);align-items:stretch}
+.side{min-height:0;overflow:auto;padding:12px}
+.main{display:flex;flex-direction:column;min-height:0;padding:12px}
+.map-header{flex:none;flex-wrap:wrap;margin-bottom:8px}
+.main>p{flex:none;margin:0 0 8px;font-size:12px}
+.main .canvas-wrap{flex:1 1 0;height:auto;min-height:0;max-height:none;overflow:auto}
+.legend{flex:none;margin-top:8px;font-size:12px}
+.zoom-controls{flex-wrap:wrap}
+@media(max-width:760px){.shell{padding:8px}.top{align-items:start;flex-wrap:wrap}.title{font-size:22px}.subtitle{display:none}.layout{grid-template-columns:minmax(0,1fr);grid-template-rows:100px minmax(0,1fr);gap:8px}.side{padding:8px}.tile-list{grid-template-columns:repeat(6,minmax(0,1fr))}.main{padding:8px}select{min-width:0;max-width:100%}.legend span{padding:3px 6px}.map-header{gap:6px}}

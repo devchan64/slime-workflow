@@ -418,6 +418,7 @@ def build_map_review(map_path=None, output_root=None):
         character_preview_records[character_direction_name]={'file':'character/'+character_direction_name+'.png','anchor':character_frame_record['anchor'],'width':character_frame_rectangle['width'],'height':character_frame_rectangle['height']}
     (output_root/'character-preview.json').write_text(json.dumps({'directions':character_preview_records,'body_height':character_source_record['referenceBodyHeight'],'top_padding':ISOMETRIC_PREVIEW_TOP_PADDING}))
     shutil.copy2(WORKFLOW_ROOT/'tools/review/ui/map/map-character-preview.js',output_root/'map-character-preview.js')
+    shutil.copy2(WORKFLOW_ROOT/'tools/review/ui/map/map-review-layout.css',output_root/'map-review-layout.css')
     shutil.copy2(REVIEW_TEMPLATE_PATH, output_root / 'map-review.html')
     (output_root / 'README.txt').write_text('검수 서버: python3 tools/review/serve.py --root "' + str(output_root) + '" --entry map-review.html\n', encoding='utf-8')
     return output_root

@@ -103,7 +103,7 @@ document.querySelector('#assetSearch').onkeydown=currentKeyboardEvent=>{
  if(currentKeyboardEvent.key==='Escape'){document.querySelector('#assetSearch').value='';updateManagerFilters();}
 };
 function restoreManagerLocation(){
- const requestedPageIdentifier=location.hash.slice(1);
+ const requestedPageIdentifier=location.hash.slice(1)==='map-reviewdetails'?'map-review':location.hash.slice(1);
  const savedNavigationState=history.state;
  if(savedNavigationState&&savedNavigationState.pageIdentifier===requestedPageIdentifier){document.querySelector('#assetSearch').value=savedNavigationState.searchQueryText;document.querySelector('#reviewCategory').value=savedNavigationState.selectedCategoryName;}
  else{document.querySelector('#assetSearch').value='';document.querySelector('#reviewCategory').value='all';}
