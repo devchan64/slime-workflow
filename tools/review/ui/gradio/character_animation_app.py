@@ -39,7 +39,7 @@ def build_animation_request(motion_name_value,character_name_value,source_name_v
 
 def restore_animation_inputs(current_history_record):
     current_request_record=current_history_record.get('request',{})
-    return current_request_record.get('motion'),current_request_record.get('character'),current_request_record.get('source','openpose'),current_request_record.get('directions',[]),current_request_record.get('resolution',512),current_request_record.get('steps',4),current_request_record.get('target_fps',4),current_request_record.get('speed',1),'선택한 이력의 입력값을 불러왔습니다. 생성 전에 내용을 확인하세요.'
+    return current_request_record.get('motion'),current_request_record.get('character'),current_request_record.get('source','anny'),current_request_record.get('directions',[]),current_request_record.get('resolution',512),current_request_record.get('steps',4),current_request_record.get('target_fps',4),current_request_record.get('speed',1),'선택한 이력의 입력값을 불러왔습니다. 생성 전에 내용을 확인하세요.'
 
 def create_animation_player(generation_job_identifier,generation_status_record,server_base_address):
     result_record_value=generation_status_record.get('result') or {}
@@ -67,7 +67,7 @@ def build_character_animation_interface(server_base_address):
             with gr.Column(scale=1):
                 motion_select_value=gr.Dropdown(motion_choice_values,value=motion_choice_values[0][1],label='모션')
                 character_select_value=gr.Dropdown(character_choice_values,value=character_choice_values[0][1],label='캐릭터')
-                source_select_value=gr.Radio([('OpenPose','openpose'),('ANNY','anny')],value='openpose',label='포즈 입력')
+                source_select_value=gr.Radio([('ANNY','anny'),('OpenPose','openpose')],value='anny',label='포즈 입력')
                 direction_select_value=gr.CheckboxGroup(DIRECTION_LABEL_VALUES,value=[value for _,value in DIRECTION_LABEL_VALUES],label='생성 방향')
                 with gr.Row():
                     resolution_select_value=gr.Dropdown([512,768,1024,1280],value=512,label='해상도')

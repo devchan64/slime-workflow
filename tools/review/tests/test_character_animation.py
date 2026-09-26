@@ -17,7 +17,7 @@ from tools.review.domains.character_animation.character_animation import Charact
 
 class CharacterAnimationTests(unittest.TestCase):
     def make_selection_record(self,**selection_override_values):
-        return dict(motion='standing-v8',character='character-default',source='openpose',directions=['down_left'],**selection_override_values)
+        return dict(motion='standing-v8',character='character-default',source='anny',directions=['down_left'],**selection_override_values)
 
     def test_catalog_skips_missing_asset_and_reports_reason(self):
         with tempfile.TemporaryDirectory() as temporary_root_name:
@@ -72,17 +72,17 @@ characters:
                 assets.prepare_animation_request(self.make_selection_record(resolution=invalid_resolution_value))
 
     def test_target_fps_sampling_and_validation(self):
-        for target_frame_rate, expected_frame_numbers in [(1,[1,5,9,13]),(2,list(range(1,17,2))),(3,[1,2,3,5,6,7,9,10,11,13,14,15]),(4,list(range(1,17)))]:
+        for target_frame_rate, expected_frame_numbers in [(1,list(range(1,121,4))),(2,list(range(1,121,2))),(3,[1,2,3,5,6,7,9,10,11,13,14,15]+[value for value in range(17,121) if value%4 in (1,2,3)]),(4,list(range(1,121)))]:
             request_record_value=assets.prepare_animation_request(self.make_selection_record(target_fps=target_frame_rate))
             self.assertEqual(request_record_value['selected_frame_numbers'],expected_frame_numbers)
             self.assertEqual(request_record_value['fps'],target_frame_rate)
-            self.assertEqual(request_record_value['frames_per_direction']/target_frame_rate,4)
+            self.assertEqual(request_record_value['frames_per_direction']/target_frame_rate,30)
         for invalid_frame_rate in (0,5,True,'2',2.5):
             with self.assertRaises(ValueError):assets.prepare_animation_request(self.make_selection_record(target_fps=invalid_frame_rate))
         with self.assertRaises(ValueError):assets.prepare_animation_request(self.make_selection_record(target_fps=2,frame_step=2))
 
     def test_generation_speed_changes_sampling_not_fps(self):
-        for selected_speed_value, expected_frame_numbers in [(1,list(range(1,17))),(1.5,[1,2,4,5,7,8,10,11,13,14,16]),(2,list(range(1,17,2))),(4,[1,5,9,13])]:
+        for selected_speed_value, expected_frame_numbers in [(1,list(range(1,121))),(1.5,[frame_index_value for frame_index_value in range(1,121) if frame_index_value%3 in (1,2)]),(2,list(range(1,121,2))),(4,list(range(1,121,4)))]:
             request_record_value=assets.prepare_animation_request(self.make_selection_record(target_fps=4,speed=selected_speed_value))
             self.assertEqual(request_record_value['selected_frame_numbers'],expected_frame_numbers)
             self.assertEqual(request_record_value['fps'],4)
@@ -104,15 +104,15 @@ characters:
 
     def test_frame_step_defaults_and_direction_prompts(self):
         request_record_value=assets.prepare_animation_request(self.make_selection_record())
-        self.assertEqual(request_record_value['selected_frame_numbers'],list(range(1,17)))
-        self.assertEqual(request_record_value['frames_per_direction'],16)
+        self.assertEqual(request_record_value['selected_frame_numbers'],list(range(1,121)))
+        self.assertEqual(request_record_value['frames_per_direction'],120)
         for direction_name_value,prompt_record_value in request_record_value['direction_prompts'].items():
             self.assertIn(assets.DIRECTION_PROMPT_LABELS[direction_name_value],prompt_record_value['text'])
             self.assertLess(prompt_record_value['words'],100)
         for invalid_step_value in (0,3,True,'2'):
             with self.assertRaises(ValueError):assets.prepare_animation_request({**self.make_selection_record(),'frame_step':invalid_step_value})
         for frame_step_value in (1,2,4,8):
-            self.assertEqual(assets.prepare_animation_request({**self.make_selection_record(),'frame_step':frame_step_value})['selected_frame_numbers'],list(range(1,17,frame_step_value)))
+            self.assertEqual(assets.prepare_animation_request({**self.make_selection_record(),'frame_step':frame_step_value})['selected_frame_numbers'],list(range(1,121,frame_step_value)))
 
     def test_progress_separates_images_source_frames_and_inference(self):
         request_record_value=assets.prepare_animation_request({**self.make_selection_record(),'directions':['down_left','up_right'],'target_fps':2,'steps':30})
@@ -123,8 +123,8 @@ characters:
             frame_log_path.write_text('date/qwen-pose/load model=x\ndate/qwen-pose/inference steps=30\ndate/qwen-pose/denoise step=7/30\n')
             status_record_value={'status':'running','progress':{'completed':1,'total':999}}
             result_record_value=jobs.describe_generation_progress(generation_job_path,request_record_value,status_record_value)
-            self.assertEqual((result_record_value['completed'],result_record_value['total']),(1,16))
-            self.assertEqual((result_record_value['direction_index'],result_record_value['direction_total'],result_record_value['frame']),(2,8,3))
+            self.assertEqual((result_record_value['completed'],result_record_value['total']),(1,120))
+            self.assertEqual((result_record_value['direction_index'],result_record_value['direction_total'],result_record_value['frame']),(2,60,3))
             self.assertEqual((result_record_value['inference_completed'],result_record_value['inference_steps']),(7,30))
             for final_status_name in ('cancelled','failed'):
                 result_record_value=jobs.describe_generation_progress(generation_job_path,request_record_value,{**status_record_value,'status':final_status_name})
@@ -141,7 +141,7 @@ characters:
             result_path=job_path/'down_left/frame-0001/result.json';result_path.parent.mkdir(parents=True);result_path.write_text('{"elapsed_seconds":120}')
             state['progress']['completed']=1
             estimate=jobs.estimate_generation_remaining(job_path,request_record_value,state)
-            self.assertEqual(estimate['remaining_seconds'],840)
+            self.assertEqual(estimate['remaining_seconds'],7080)
             self.assertEqual(estimate['samples'],1)
             state['status']='cancelled'
             self.assertIsNone(jobs.estimate_generation_remaining(job_path,request_record_value,state)['remaining_seconds'])
@@ -274,8 +274,8 @@ characters:
             with patch.object(worker,'WORKFLOW_ROOT_DIRECTORY',generation_job_path),patch.object(worker.subprocess,'run',side_effect=complete_mock_frame) as subprocess_run_mock:
                 worker.generate_character_animation(generation_job_path)
             result_record_value=json.loads((generation_job_path/'result.json').read_text())
-            self.assertEqual(subprocess_run_mock.call_count,8)
+            self.assertEqual(subprocess_run_mock.call_count,60)
             self.assertEqual(result_record_value['fps'],2)
-            self.assertEqual(len(result_record_value['frames']['down_left']),8)
+            self.assertEqual(len(result_record_value['frames']['down_left']),60)
 
 if __name__=='__main__':unittest.main()

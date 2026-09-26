@@ -187,7 +187,7 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
                 operation_argument_parser.add_argument('--target-fps',type=int,help='초당 생성 장수. 원본 FPS 이하 정수 (기본 4)')
                 operation_argument_parser.add_argument('--motion',required=True,help='catalog의 모션 ID')
                 operation_argument_parser.add_argument('--character',required=True,help='catalog의 캐릭터 ID')
-                operation_argument_parser.add_argument('--source',choices=('openpose','anny'),default='openpose')
+                operation_argument_parser.add_argument('--source',choices=('openpose','anny'),default='anny')
                 operation_argument_parser.add_argument('--directions',nargs='+',choices=('down_left','down_right','up_left','up_right'),default=['down_left','down_right','up_left','up_right'])
             elif service_command_name=='momask':
                 operation_argument_parser.add_argument('--action',choices=('standing','walking'),required=True)
