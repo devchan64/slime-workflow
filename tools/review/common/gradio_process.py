@@ -22,6 +22,7 @@ def ensure_gradio_application(review_server_port, application_name, application_
             'sprite-editor':('sprite_editor_app.py',106,'/management/frame/sprite-editor/'),
             'map-review':('map_review_app.py',107,'/management/frame/map-review/'),
             'anny-attributes':('anny_attributes_app.py',108,'/management/frame/anny-attributes/'),
+            'writer-agent':('writer_agent_app.py',109,'/management/frame/writer-agent/'),
         }
         if application_name not in application_definitions:raise ValueError('지원하지 않는 Gradio 관리 화면')
         application_filename,port_offset_value,application_root_path=application_definitions[application_name]
@@ -80,3 +81,6 @@ def ensure_map_review_server(review_server_port):
 
 def ensure_anny_attributes_server(review_server_port):
     return ensure_gradio_application(review_server_port,'anny-attributes')
+
+def ensure_writer_agent_server(review_server_port):
+    return ensure_gradio_application(review_server_port,'writer-agent')

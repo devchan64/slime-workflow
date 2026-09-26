@@ -120,7 +120,7 @@ class WriterAgentManager:
             if current_http_handler.headers.get('Host')!=current_origin_text.removeprefix('http://'):raise ValueError('허용하지 않는 Host')
             current_route_path=current_url_parts.path
             if current_http_handler.command=='GET':
-                if current_route_path in {WRITER_ROUTE_PREFIX,WRITER_ROUTE_PREFIX+'/'}:send_writer_response(200,Path(__file__).with_name('manager.html').read_bytes(),'text/html; charset=utf-8')
+                if current_route_path in {WRITER_ROUTE_PREFIX,WRITER_ROUTE_PREFIX+'/',WRITER_ROUTE_PREFIX+'/embedded/'}:send_writer_response(200,Path(__file__).with_name('manager.html').read_bytes(),'text/html; charset=utf-8')
                 elif current_route_path==WRITER_ROUTE_PREFIX+'/manager.js':send_writer_response(200,Path(__file__).with_name('manager.js').read_bytes(),'text/javascript; charset=utf-8')
                 elif current_route_path==WRITER_ROUTE_PREFIX+'/api/state':send_writer_response(200,self.read_workspace_state())
                 elif current_route_path==WRITER_ROUTE_PREFIX+'/api/job':
