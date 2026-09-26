@@ -15,7 +15,6 @@ if str(WORKFLOW_ROOT_DIRECTORY) not in sys.path:sys.path.insert(0,str(WORKFLOW_R
 from tools.review.common.gradio_logs import build_execution_logs, LOG_PANEL_STYLES
 from tools.review.common.gradio_history import build_generation_history_view
 from tools.review.common.management_gateway import execute_management_command
-from tools.review.common.gradio_navigation import build_management_navigation, MANAGEMENT_NAVIGATION_STYLES
 
 DIRECTION_LABEL_VALUES=[('전방 좌측','down_left'),('전방 우측','down_right'),('후방 좌측','up_left'),('후방 우측','up_right')]
 
@@ -44,7 +43,6 @@ def build_character_animation_interface(server_base_address):
     motion_choice_values=[(record['label'],record['id']) for record in catalog_record_value['motions']]
     character_choice_values=[(record['label'],record['id']) for record in catalog_record_value['characters']]
     with gr.Blocks(title='캐릭터 애니메이션 생성기') as interface_blocks_value:
-        gr.HTML(build_management_navigation('/character-animation/'))
         gr.Markdown('## 캐릭터 애니메이션 생성기\n등록된 모션과 캐릭터 레퍼런스로 방향별 프레임을 생성합니다.')
         with gr.Row():
             with gr.Column(scale=1):
@@ -89,4 +87,4 @@ if __name__=='__main__':
         while os.getppid()==arguments_value.owner_pid:time.sleep(1)
         os._exit(0)
     threading.Thread(target=monitor_parent_process,daemon=True).start()
-    build_character_animation_interface(f'http://127.0.0.1:{arguments_value.review_port}').queue().launch(server_name='127.0.0.1',server_port=arguments_value.port,root_path=arguments_value.root_path,theme=gr.themes.Soft(),css=LOG_PANEL_STYLES+MANAGEMENT_NAVIGATION_STYLES,allowed_paths=[])
+    build_character_animation_interface(f'http://127.0.0.1:{arguments_value.review_port}').queue().launch(server_name='127.0.0.1',server_port=arguments_value.port,root_path=arguments_value.root_path,theme=gr.themes.Soft(),css=LOG_PANEL_STYLES,allowed_paths=[])
