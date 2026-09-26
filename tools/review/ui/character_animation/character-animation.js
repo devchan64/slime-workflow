@@ -59,11 +59,11 @@ window.playGenerationRecord=async historyRecordValue=>{
  try{
   const generationStatusRecord=await executeAnimationCommand('status',{id:historyRecordValue.id});
   if(currentPlaybackRequest!==playbackRequestCounter)return;
-  if(generationStatusRecord.status!=='completed'||!generationStatusRecord.result)throw Error('완료된 결과가 필요합니다.');
+  if(!generationStatusRecord.result)throw Error('저장 완료된 프레임이 아직 없습니다.');
   playbackJobIdentifier=historyRecordValue.id;playbackResultRecord=generationStatusRecord.result;
   const currentResultFps=playbackResultRecord.fps;const currentFpsControl=animationElementLookup('result-playback-fps');if(!Array.from(currentFpsControl.options).some(currentOptionValue=>Number(currentOptionValue.value)===currentResultFps))currentFpsControl.add(new Option(`${currentResultFps} FPS`,currentResultFps));currentFpsControl.value=String(currentResultFps);
   animationElementLookup('playback-direction').replaceChildren(...Object.keys(playbackResultRecord.frames).map(directionNameValue=>new Option(animationDirectionLabels[directionNameValue],directionNameValue)));
-  animationElementLookup('result-title').textContent=`${playbackJobIdentifier} · ${generationStatusRecord.request.motion} · ${generationStatusRecord.request.character} · ${generationStatusRecord.request.source} · ${(generationStatusRecord.request.steps||4)===4?'4스텝 Lightning':'30스텝'}`;
+  animationElementLookup('result-title').textContent=`${playbackJobIdentifier}${playbackResultRecord.partial?` · 부분 결과 ${playbackResultRecord.completed}/${playbackResultRecord.total}장`:''} · ${generationStatusRecord.request.motion} · ${generationStatusRecord.request.character} · ${generationStatusRecord.request.source} · ${(generationStatusRecord.request.steps||4)===4?'4스텝 Lightning':'30스텝'}`;
   for(const elementIdentifier of ['playback-direction','frame-previous','frame-play','frame-stop','frame-next','frame-position'])animationElementLookup(elementIdentifier).disabled=false;
   animationElementLookup('output-frame').hidden=false;animationElementLookup('playback-empty').hidden=true;selectPlaybackDirection();
   animationElementLookup('result-title').scrollIntoView({behavior:'smooth',block:'center'});

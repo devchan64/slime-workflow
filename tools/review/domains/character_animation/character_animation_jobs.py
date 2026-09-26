@@ -90,6 +90,21 @@ def estimate_generation_remaining(generation_job_path, generation_request_record
     remaining_seconds_value=max(0,round(average_duration_seconds*(len(source_frame_records)-completed_frame_count)-current_elapsed_seconds))
     return {'remaining_seconds':remaining_seconds_value,'estimated_finish_at':datetime.fromtimestamp(time.time()+remaining_seconds_value,ZoneInfo('Asia/Seoul')).isoformat(),'reason':'measured','samples':len(completed_duration_values)}
 
+def collect_partial_result(generation_job_path, generation_request_record):
+    completed_frame_records={}
+    source_number_records={}
+    for source_frame_record in generation_request_record['frames']:
+        frame_direction_name=source_frame_record['direction']
+        frame_relative_directory=f"{frame_direction_name}/frame-{source_frame_record['frame']:04d}"
+        frame_output_directory=generation_job_path/frame_relative_directory
+        frame_result_path=frame_output_directory/'result.json'
+        if not frame_result_path.is_file() or not (frame_output_directory/'result.png').is_file():continue
+        if json.loads(frame_result_path.read_text()).get('status')!='completed':continue
+        completed_frame_records.setdefault(frame_direction_name,[]).append(frame_relative_directory+'/result.png')
+        source_number_records.setdefault(frame_direction_name,[]).append(source_frame_record['frame'])
+    if not completed_frame_records:return None
+    return {'frames':completed_frame_records,'source_frame_numbers':source_number_records,'fps':generation_request_record['fps'],'partial':True,'completed':sum(map(len,completed_frame_records.values())),'total':len(generation_request_record['frames'])}
+
 def read_generation_status(generation_job_identifier):
     generation_job_path = resolve_generation_directory(generation_job_identifier)
     generation_status_record = json.loads((generation_job_path/'status.json').read_text())
@@ -110,6 +125,8 @@ def read_generation_status(generation_job_identifier):
         latest_frame_directory=f"{latest_frame_record['direction']}/frame-{latest_frame_record['frame']:04d}"
         if (generation_job_path/latest_frame_directory/'result.png').is_file():
             generation_status_record['preview']={'direction':latest_frame_record['direction'],'frame':latest_frame_record['frame'],'completed':completed_frame_count,'image':latest_frame_directory+'/result.png','reference':latest_frame_directory+'/character-reference.png'}
+    if generation_status_record['status']!='completed':
+        generation_status_record['result']=collect_partial_result(generation_job_path,generation_status_record['request'])
     generation_status_record['estimate']=estimate_generation_remaining(generation_job_path,generation_status_record['request'],generation_status_record)
     return generation_status_record
 
@@ -183,7 +200,7 @@ def execute_animation_command(operation_command_name,command_payload_value):
         for history_record_path in sorted(GENERATION_HISTORY_DIRECTORY.glob('*.json'),reverse=True):
             history_record_value = json.loads(history_record_path.read_text())
             generation_status_value = read_generation_status(history_record_value['id'])
-            history_record_values.append({**history_record_value,'path':generation_status_value['path'],'status':{'status':generation_status_value['status'],'error':generation_status_value.get('error')},'request':{**{key:generation_status_value['request'][key] for key in ('motion','character','source','directions')},'speed':generation_status_value['request'].get('speed',1),'target_fps':generation_status_value['request'].get('target_fps'),'frame_step':generation_status_value['request'].get('frame_step',1),'steps':generation_status_value['request'].get('steps',4)},'playable':generation_status_value['status']=='completed'})
+            history_record_values.append({**history_record_value,'path':generation_status_value['path'],'status':{'status':generation_status_value['status'],'error':generation_status_value.get('error')},'request':{**{key:generation_status_value['request'][key] for key in ('motion','character','source','directions')},'speed':generation_status_value['request'].get('speed',1),'target_fps':generation_status_value['request'].get('target_fps'),'frame_step':generation_status_value['request'].get('frame_step',1),'steps':generation_status_value['request'].get('steps',4)},'playable':bool(generation_status_value.get('result'))})
         return {'records':history_record_values}
     if operation_command_name=='history-reset':
         for history_record_path in GENERATION_HISTORY_DIRECTORY.glob('*.json'):history_record_path.unlink(missing_ok=True)
