@@ -40,7 +40,7 @@ def bind_history_reset_action(control_component_values,execute_service_command,r
     return execute_confirmed_reset
 
 
-def build_generation_history_view(execute_service_command,server_base_address,deletion_scope_text,restore_input_callback=None,restore_output_components=None):
+def build_generation_history_view(execute_service_command,server_base_address,deletion_scope_text,restore_input_callback=None,restore_output_components=None,result_renderer_callback=None):
     """목록·페이지·명시적 조회·결과·입력·로그·초기화를 묶은 공용 영역."""
     import html
     from tools.review.common.gradio_logs import build_execution_logs,create_copyable_log_textbox
@@ -78,11 +78,12 @@ def build_generation_history_view(execute_service_command,server_base_address,de
         current_status_record=execute_service_command('status',{'id':current_selected_identifier})
         current_history_records=execute_service_command('history',{}).get('records',[])
         current_history_record=next((value for value in current_history_records if value['id']==current_selected_identifier),{})
-        current_image_path=current_status_record.get('image')
-        current_image_html='<p>아직 생성된 결과 이미지가 없습니다.</p>'
-        if current_image_path:
-            current_image_url=server_base_address.rstrip('/')+current_image_path
-            current_image_html=f'<a href="{html.escape(current_image_url,quote=True)}" target="_blank" rel="noopener"><img src="{html.escape(current_image_url,quote=True)}" alt="생성 결과" style="width:100%;max-height:620px;object-fit:contain"></a>'
+        current_image_html=result_renderer_callback(current_selected_identifier,current_status_record,server_base_address) if result_renderer_callback is not None else '<p>아직 생성된 결과 이미지가 없습니다.</p>'
+        if result_renderer_callback is None:
+            current_image_path=current_status_record.get('image')
+            if current_image_path:
+                current_image_url=server_base_address.rstrip('/')+current_image_path
+                current_image_html=f'<a href="{html.escape(current_image_url,quote=True)}" target="_blank" rel="noopener"><img src="{html.escape(current_image_url,quote=True)}" alt="생성 결과" style="width:100%;max-height:620px;object-fit:contain"></a>'
         return current_selected_identifier,'상태: '+str(current_status_record.get('status','unknown')),current_image_html,current_history_record,gr.update(value=current_status_record.get('log') or '기록된 로그가 없습니다.',label='실행 로그 · '+current_selected_identifier)
 
     if restore_input_callback is not None:

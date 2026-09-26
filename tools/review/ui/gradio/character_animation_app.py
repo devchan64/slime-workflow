@@ -13,6 +13,7 @@ import gradio as gr
 WORKFLOW_ROOT_DIRECTORY=Path(__file__).resolve().parents[4]
 if str(WORKFLOW_ROOT_DIRECTORY) not in sys.path:sys.path.insert(0,str(WORKFLOW_ROOT_DIRECTORY))
 from tools.review.common.gradio_logs import build_execution_logs, LOG_PANEL_STYLES
+from tools.review.common.gradio_history import build_generation_history_view
 from tools.review.common.management_gateway import execute_management_command
 from tools.review.common.gradio_navigation import build_management_navigation, MANAGEMENT_NAVIGATION_STYLES
 
@@ -59,30 +60,15 @@ def build_character_animation_interface(server_base_address):
             with gr.Column(scale=2):
                 generation_identifier_value=gr.Textbox(label='생성 ID',interactive=False)
                 player_html_value=gr.HTML('<div>완료된 생성 결과를 선택하면 재생합니다.</div>')
-                history_select_value=gr.Radio(choices=[],label='생성 이력')
-                with gr.Row():
-                    history_refresh_button_value=gr.Button('이력 새로고침')
-                    result_button_value=gr.Button('선택 결과 재생')
                 cancel_button_value=gr.Button('생성 취소')
         logs_text_value,log_refresh_enabled,_=build_execution_logs()
+        read_history_page,history_output_values=build_generation_history_view(execute_animation_gateway,server_base_address,'이력 목록만 초기화합니다. 생성 프레임과 로그 파일은 유지됩니다. 생성 중에는 초기화할 수 없습니다.',result_renderer_callback=create_animation_player)
         def start_animation(*selection_values):
             request_payload_value=build_animation_request(*selection_values)
             generation_record_value=execute_animation_gateway('generate',request_payload_value)
             return generation_record_value['id'],'상태: running'
         generation_button_value.click(start_animation,[motion_select_value,character_select_value,source_select_value,direction_select_value,resolution_select_value,step_select_value,target_fps_select_value,speed_select_value],[generation_identifier_value,status_text_value])
-        def read_history_records(selected_identifier_value=None):
-            history_record_values=execute_animation_gateway('history',{})['records']
-            choice_values=[(f"{record['id']} · {record['status']['status']} · {record['request']['motion']}",record['id']) for record in history_record_values]
-            return gr.update(choices=choice_values,value=selected_identifier_value if selected_identifier_value in [value for _,value in choice_values] else None)
-        history_refresh_button_value.click(read_history_records,history_select_value,history_select_value,queue=False)
-        interface_blocks_value.load(read_history_records,outputs=history_select_value)
-        history_select_value.change(lambda identifier:identifier or '',history_select_value,generation_identifier_value,queue=False)
-        def show_result(identifier):
-            if not identifier:raise gr.Error('생성 이력을 선택하세요.')
-            status_record_value=execute_animation_gateway('status',{'id':identifier})
-            if not status_record_value.get('result'):raise gr.Error('완료된 결과가 없습니다.')
-            return create_animation_player(identifier,status_record_value,server_base_address),'상태: '+status_record_value['status']
-        result_button_value.click(show_result,generation_identifier_value,[player_html_value,status_text_value])
+        interface_blocks_value.load(lambda:read_history_page(1),outputs=history_output_values)
         def refresh_status(identifier,refresh_logs):
             if not identifier:return '생성 ID를 선택하세요.',gr.skip()
             status_record_value=execute_animation_gateway('status',{'id':identifier})
