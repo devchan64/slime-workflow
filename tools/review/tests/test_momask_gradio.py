@@ -47,3 +47,9 @@ class GradioMoMaskTests(unittest.TestCase):
 
     def test_interface_builds(self):
         self.assertGreater(len(MODULE_SOURCE_VALUE.build_momask_interface('http://127.0.0.1:8770').blocks),30)
+
+    def test_interface_uses_single_workspace_without_tabs(self):
+        interface_source_text=(WORKFLOW_ROOT_DIRECTORY/'tools/review/ui/gradio/momask_app.py').read_text()
+        self.assertNotIn('gr.Tab(',interface_source_text)
+        self.assertIn('### 1. 새 모션 생성',interface_source_text)
+        self.assertIn('### 2. 생성 이력 · 결과 조회',interface_source_text)

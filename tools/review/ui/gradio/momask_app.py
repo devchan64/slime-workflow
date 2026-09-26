@@ -87,39 +87,39 @@ def build_momask_interface(server_base_address):
         gr.Markdown('## MoMask 모션 생성기')
         with gr.Row(elem_id='motion-workspace'):
             with gr.Column(scale=1,min_width=340,elem_id='motion-controls'):
-                with gr.Tab('새 모션 생성'):
-                    action_select_value=gr.Dropdown(MOTION_ACTION_LABELS,value='standing',label='포즈')
-                    direction_select_value=gr.CheckboxGroup(MOTION_DIRECTION_LABELS,value=[value for _,value in MOTION_DIRECTION_LABELS],label='생성 방향')
-                    face_checkbox_value=gr.Checkbox(value=True,label='얼굴 포인트 ON · 가려진 점 제외')
-                    settings_initial_values=read_motion_settings('standing')
-                    prompt_text_value=gr.Textbox(value=settings_initial_values[0],label='고정 스크립트',interactive=False,lines=4)
-                    settings_text_value=gr.Markdown(settings_initial_values[1])
-                    gr.HTML(render_position_retarget_policy())
-                    with gr.Row():
-                        generate_button_value=gr.Button('모션 생성 시작',variant='primary')
-                        cancel_button_value=gr.Button('생성 취소')
-                        status_refresh_button_value=gr.Button('상태 새로고침')
-                    status_text_value=gr.Markdown('작업 상태 조회 중')
-                    gr.Markdown('예상 시간: 측정 자료가 없어 계산할 수 없습니다. 실행 로그에서 단계를 확인하세요.')
-                with gr.Tab('생성이력 · 결과 조회'):
-                    gr.Markdown('이력을 선택한 뒤 **결과 조회**를 누르세요.')
-                    history_table_value=gr.Radio(choices=[],label='조회할 생성 결과',interactive=True,elem_id='motion-history-selection')
-                    history_selected_value=gr.Markdown('조회할 생성이력을 선택하세요.')
-                    history_resume_button=gr.Button('생성 재개',interactive=False)
-                    history_resume_help=gr.Markdown('취소되거나 실패한 작업을 선택하면 이어서 생성할 수 있습니다. 리그 생성이 완료된 작업만 지원합니다.')
-                    history_result_button=gr.Button('선택한 결과 조회',variant='primary',interactive=False)
-                    build_history_input_controls(history_table_value, read_saved_motion_inputs,
-                                                 restore_saved_motion_inputs,
-                                                 [action_select_value, direction_select_value, face_checkbox_value, prompt_text_value, settings_text_value])
-                    with gr.Row():
-                        history_page_value=gr.Number(value=1,precision=0,minimum=1,label='페이지',scale=1,min_width=100)
-                        history_refresh_value=gr.Button('이력 새로고침')
-                        history_count_value=gr.Markdown()
-                    reset_control_values=build_history_reset_controls('이력 목록만 초기화합니다. 결과 파일은 보존됩니다.')
+                gr.Markdown('### 1. 새 모션 생성')
+                action_select_value=gr.Dropdown(MOTION_ACTION_LABELS,value='standing',label='포즈')
+                direction_select_value=gr.CheckboxGroup(MOTION_DIRECTION_LABELS,value=[value for _,value in MOTION_DIRECTION_LABELS],label='생성 방향')
+                face_checkbox_value=gr.Checkbox(value=True,label='얼굴 포인트 ON · 가려진 점 제외')
+                settings_initial_values=read_motion_settings('standing')
+                prompt_text_value=gr.Textbox(value=settings_initial_values[0],label='고정 스크립트',interactive=False,lines=4)
+                settings_text_value=gr.Markdown(settings_initial_values[1])
+                gr.HTML(render_position_retarget_policy())
+                with gr.Row():
+                    generate_button_value=gr.Button('모션 생성 시작',variant='primary')
+                    cancel_button_value=gr.Button('생성 취소')
+                    status_refresh_button_value=gr.Button('상태 새로고침')
+                status_text_value=gr.Markdown('작업 상태 조회 중')
+                gr.Markdown('예상 시간: 측정 자료가 없어 계산할 수 없습니다. 실행 로그에서 단계를 확인하세요.')
+                gr.Markdown('---\n### 2. 생성 이력 · 결과 조회')
+                gr.Markdown('이력을 선택한 뒤 **결과 조회**를 누르세요.')
+                history_table_value=gr.Radio(choices=[],label='조회할 생성 결과',interactive=True,elem_id='motion-history-selection')
+                history_selected_value=gr.Markdown('조회할 생성이력을 선택하세요.')
+                history_resume_button=gr.Button('생성 재개',interactive=False)
+                history_resume_help=gr.Markdown('취소되거나 실패한 작업을 선택하면 이어서 생성할 수 있습니다. 리그 생성이 완료된 작업만 지원합니다.')
+                history_result_button=gr.Button('선택한 결과 조회',variant='primary',interactive=False)
+                build_history_input_controls(history_table_value, read_saved_motion_inputs,
+                                             restore_saved_motion_inputs,
+                                             [action_select_value, direction_select_value, face_checkbox_value, prompt_text_value, settings_text_value])
+                with gr.Row():
+                    history_page_value=gr.Number(value=1,precision=0,minimum=1,label='페이지',scale=1,min_width=100)
+                    history_refresh_value=gr.Button('이력 새로고침')
+                    history_count_value=gr.Markdown()
+                reset_control_values=build_history_reset_controls('이력 목록만 초기화합니다. 결과 파일은 보존됩니다.')
             with gr.Column(scale=2,min_width=480,elem_id='motion-preview'):
                 gr.Markdown('### 결과 재생')
                 viewed_identifier_value=create_copyable_textbox(label='조회한 결과 이력 ID · 오른쪽 아이콘으로 복사',interactive=False,elem_id='viewed-motion-identifier')
-                player_html_value=gr.HTML('<div class="motion-empty-state">아직 선택된 결과가 없습니다.<br>왼쪽 <b>생성이력 · 결과 조회</b>에서 이력을 선택하고 조회하세요.</div>')
+                player_html_value=gr.HTML('<div class="motion-empty-state">아직 선택된 결과가 없습니다.<br>왼쪽 <b>생성 이력 · 결과 조회</b>에서 이력을 선택하고 조회하세요.</div>')
                 with gr.Accordion('생성 ID로 직접 조회',open=False):
                     identifier_text_value=create_copyable_textbox(label='생성 ID',interactive=True)
                     result_button_value=gr.Button('ID로 결과 조회')
@@ -156,7 +156,7 @@ def build_momask_interface(server_base_address):
                     selected_job_directory=resolve_generation_directory(selected_history_identifier)
                     required_resume_paths=('result/anny/mannequin.blend','result/anny/render_asset.py','result/anny/run_stage.py','result/anny/baseline-model.json','motion-run/motion/motion.npz','motion-run/prompt.txt')
                     if not all((selected_job_directory/path_value).is_file() for path_value in required_resume_paths):
-                        resume_help_text='리그 생성 전에 중단되어 재개할 수 없습니다. 새 모션 생성 탭에서 다시 생성하세요.'
+                        resume_help_text='리그 생성 전에 중단되어 재개할 수 없습니다. 새 모션 생성 영역에서 다시 생성하세요.'
                     elif check_generation_running():
                         resume_help_text='다른 작업이 생성 중입니다. 종료 후 재개할 수 있습니다.'
                     else:
