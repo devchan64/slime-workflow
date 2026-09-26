@@ -3,6 +3,7 @@ import sys
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[4]))
 from tools.review.ui_assets import resolve_review_ui_asset
+from tools.review.domains.anny.anny_attributes import load_active_profile
 from urllib.parse import parse_qs, urlsplit
 import json, re, html, yaml
 from tools.review.common.management_gateway import execute_momask_command
@@ -62,7 +63,7 @@ class MoMaskGenerationManager:
   try:
    origin=f'http://127.0.0.1:{h.server.server_port}'
    if h.headers.get('Host')!=origin.removeprefix('http://'): raise ValueError('허용하지 않는 Host')
-   if h.command=='GET' and path in (self.route,self.route+'/'): self.send(h,200,PAGE.replace('__STRETCH_ARM_CORRECTIONS__',render_stretch_arm_corrections()).replace('__DEEP_BREATH_CORRECTION_DETAILS__',render_standing_corrections('deep-breath-corrections.yaml')).replace('__STANDING_CORRECTION_DETAILS__',render_standing_corrections()).replace('__ANNY_BASELINE_MODEL__',html.escape(yaml.safe_load((ROOT/'generators/animation/config/anny_model_baseline.yaml').read_text())['baseline_id'])).replace('__MANAGEMENT_LOG_VIEWER_SCRIPT__',MANAGEMENT_LOG_VIEWER_SCRIPT).encode(),'text/html; charset=utf-8');return True
+   if h.command=='GET' and path in (self.route,self.route+'/'): self.send(h,200,PAGE.replace('__STRETCH_ARM_CORRECTIONS__',render_stretch_arm_corrections()).replace('__DEEP_BREATH_CORRECTION_DETAILS__',render_standing_corrections('deep-breath-corrections.yaml')).replace('__STANDING_CORRECTION_DETAILS__',render_standing_corrections()).replace('__ANNY_BASELINE_MODEL__',html.escape(load_active_profile()['label'])).replace('__MANAGEMENT_LOG_VIEWER_SCRIPT__',MANAGEMENT_LOG_VIEWER_SCRIPT).encode(),'text/html; charset=utf-8');return True
    if h.command=='GET' and path in (self.route+'/studio.css',self.route+'/layout.css'):
     stylesheet_file_name='generation-studio.css' if path.endswith('/studio.css') else 'momask-studio.css'
     self.send(h,200,resolve_review_ui_asset(stylesheet_file_name).read_bytes(),'text/css; charset=utf-8');return True
