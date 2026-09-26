@@ -26,6 +26,8 @@ def load_tile_configuration():
 
 def prepare_tile_request(request_record_value):
     if request_record_value=={'action':'prepare'}:return request_record_value
+    reference_image_values=request_record_value.get('images',[]) if isinstance(request_record_value,dict) else []
+    if isinstance(request_record_value,dict):request_record_value={key:value for key,value in request_record_value.items() if key!='images'}
     if not isinstance(request_record_value,dict) or set(request_record_value)!={'action','tile_type','user_prompt','width','height','steps','seed'}:
         raise ValueError('타일 종류·사용자 프롬프트·생성 설정만 수정할 수 있습니다.')
     configuration_record_value=load_tile_configuration()
@@ -40,11 +42,14 @@ def prepare_tile_request(request_record_value):
     if len(combined_prompt_value.split())>=100:raise ValueError('기본·사용자·화풍의 최종 프롬프트는 100단어 미만이어야 합니다.')
     validated_request_value=validate_image_request({key:request_record_value[key] for key in ('action','width','height','steps','seed')}|{'prompt':combined_prompt_value})
     if validated_request_value['width']!=validated_request_value['height']:raise ValueError('타일은 정사각형 해상도를 선택하세요.')
-    return validated_request_value|{'tile_type':selected_tile_kind,'user_prompt':user_prompt_value,'base_prompt':base_prompt_value,'style_prompt':style_prompt_value,'prompt_words':len(combined_prompt_value.split()),'prompt_sha256':hashlib.sha256(combined_prompt_value.encode()).hexdigest()}
+    from tools.review.domains.image.three_reference_generation import validate_three_reference_request
+    validate_three_reference_request({**validated_request_value,'images':reference_image_values})
+    return validated_request_value|{'images':reference_image_values}|{'tile_type':selected_tile_kind,'user_prompt':user_prompt_value,'base_prompt':base_prompt_value,'style_prompt':style_prompt_value,'prompt_words':len(combined_prompt_value.split()),'prompt_sha256':hashlib.sha256(combined_prompt_value.encode()).hexdigest()}
 
 class TileGenerationManager(ImageGenerationManager):
     def __init__(self):
         super().__init__()
+        self.reference_upload_enabled=True
         self.route_prefix_value='/tile-map-generator'
         self.job_storage_root=IMAGE_JOB_ROOT/'tile-map'
     def history_storage_path(self):return MANAGER_HISTORY_ROOT/'tile-map'
@@ -97,6 +102,8 @@ class TileGenerationManager(ImageGenerationManager):
         tile_option_values=''.join(f'<option value="{kind_name_value}">{html.escape(kind_record_value["label"])}</option>' for kind_name_value,kind_record_value in tile_configuration_value['types'].items())
         fixed_prompt_section='<label for="tile-type">타일 종류</label><select id="tile-type">'+tile_option_values+'</select><h3>기본 프롬프트 · 고정 <small id="base-word-count"></small></h3><pre id="tile-base-prompt"></pre><h3>화풍 프롬프트 · 항상 적용 <small id="style-word-count"></small></h3><pre id="tile-style-prompt"></pre><p id="tile-word-count" role="status"></p>'
         page_source_value=page_source_value[:start_style_position]+fixed_prompt_section+page_source_value[end_style_position:]
+        reference_input_section='<fieldset><legend>참조 이미지 · 선택 사항, 최대 3장</legend><p>512×512 불투명 PNG. 이미지 1·2·3 순서로 전달합니다. 사용자 프롬프트에 각 참조의 역할을 적으세요. 참조가 있으면 Qwen 2511, 없으면 기존 Qwen 2512로 생성합니다.</p>'+''.join(f'<label>이미지 {reference_slot_index}<input id="tile-reference-{reference_slot_index}" type="file" accept="image/png"><img id="tile-reference-preview-{reference_slot_index}" alt="참조 {reference_slot_index}" hidden style="max-width:128px"><button type="button" data-clear-reference="{reference_slot_index}">제거</button></label>' for reference_slot_index in range(1,4))+'</fieldset>'
+        page_source_value=page_source_value.replace('<label for="prompt">',reference_input_section+'<label for="prompt">')
         page_source_value=page_source_value.replace('만들 이미지 설명','사용자 프롬프트').replace('원하는 대상, 배경, 구도, 스타일을 설명하세요.','재질, 색상, 건물의 용도 등 추가 요구를 입력하세요.')
         page_source_value=page_source_value.replace('<script src="/tile-map-generator/history-ui.js">','<script src="/tile-map-generator/tile-ui.js"></script><script src="/tile-map-generator/history-ui.js">')
         return page_source_value.encode()

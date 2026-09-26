@@ -191,3 +191,7 @@ python3 tools/manager.py character-animation sprite-save asset:character.default
 MoMask 화면의 `얼굴 포인트 ON`을 선택해 새 모션을 생성하거나, 완료된 이력에서 `OpenPose 맵 생성`을 실행한다. 기존 신체맵에 ANNY 공식 COCO 회귀점(코·양눈·양귀)을 같은 카메라로 투영하며 표면에 가려진 점은 제외한다. 68점 얼굴 윤곽·표정 검출 기능은 아니다. OFF는 기존 신체 전용 맵을 생성한다. 결과 캡션과 `result.json`의 `openpose_face_enabled`에 실제 적용값을 기록한다.
 
 CLI는 `momask generate ... --face` 또는 `momask openpose-map <ID> --face`를 사용한다. `--no-face`는 얼굴을 제외한다. 기존 이력의 얼굴맵 생성에는 `result/anny/mannequin.blend`와 투영 기록이 필요하다. 정점 수가 공식 회귀 데이터와 다르면 오류로 중단한다. 얼굴 회귀 데이터는 NAVER ANNY의 Apache-2.0 데이터에서 현재 ANNY 토폴로지의 정점 순서로 추출했으며 원본 해시를 함께 보관한다.
+
+### 타일 생성 참조 입력
+
+타일 생성기는 선택한 PNG 최대 3장을 순서대로 전달한다. 기존 3참조 검증·입력 저장·Qwen 2511 실행기를 공유하며 512×512 RGB/RGBA 불투명 PNG, 장당 3MB 제한을 적용한다. 참조가 없으면 기존 Qwen 2512를 사용한다. 기본·사용자·화풍 프롬프트를 서버에서 결합하며 참조와 타일 설정은 같은 실행 이력에 저장한다. CLI는 `tile-map generate ... --reference first.png --reference second.png --reference third.png`로 같은 경로를 사용한다.

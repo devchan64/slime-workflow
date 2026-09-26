@@ -125,7 +125,7 @@ class ImageGenerationManager:
                 if current_url_path not in (self.route_prefix_value+'/jobs',self.route_prefix_value+'/history/reset',self.route_prefix_value+'/cancel') or current_http_handler.headers.get('Content-Type','').split(';')[0] != 'application/json':
                     raise ValueError('요청 경로 또는 형식 오류')
                 current_body_length = int(current_http_handler.headers.get('Content-Length','0'))
-                if not 1 <= current_body_length <= (12_100_000 if self.three_reference_mode else IMAGE_REQUEST_LIMIT):
+                if not 1 <= current_body_length <= (12_100_000 if self.three_reference_mode or getattr(self,'reference_upload_enabled',False) else IMAGE_REQUEST_LIMIT):
                     raise ValueError('요청 크기 오류')
                 current_request_record = json.loads(current_http_handler.rfile.read(current_body_length),object_pairs_hook=parse_unique_request)
                 if current_url_path == self.route_prefix_value+'/cancel':
@@ -172,15 +172,19 @@ class ImageGenerationManager:
                     current_job_identifier = datetime.now(ZoneInfo('Asia/Seoul')).strftime('%Y-%m-%d_%H-%M-%S')+'-'+uuid.uuid4().hex[:8]
                     current_job_root = self.job_storage_root / current_job_identifier
                     current_job_root.mkdir(parents=True,exist_ok=False)
-                    if self.three_reference_mode:
-                        current_request_record = save_three_reference_inputs(current_job_root,current_request_record)
+                    if self.three_reference_mode or current_request_record.get('images'):
+                        from tools.review.domains.image.three_reference_generation import save_three_reference_inputs
+                        reference_request_record=save_three_reference_inputs(current_job_root,current_request_record)
+                        current_request_record={**{key:value for key,value in current_request_record.items() if key!='images'},**reference_request_record}
+                    else:
+                        current_request_record.pop('images',None)
                     (current_job_root/'request.json').write_text(json.dumps(current_request_record,ensure_ascii=False))
                     (current_job_root/'status.json').write_text('{"status":"running"}')
                     with MANAGER_HISTORY_LOCK:
                         self.history_storage_path().mkdir(parents=True,exist_ok=True)
                         (self.history_storage_path()/(current_job_identifier+'.json')).write_text(json.dumps({'id':current_job_identifier,'created_at':datetime.now(ZoneInfo('Asia/Seoul')).isoformat(),'request':current_request_record,'status':{'status':'running'},'job_path':str(current_job_root)},ensure_ascii=False))
                     with (current_job_root/'worker.log').open('w') as current_log_handle:
-                        self.current_worker_process = subprocess.Popen([str(WORKFLOW_ROOT_PATH/'.venv/bin/python'),str(WORKFLOW_ROOT_PATH/('generators/image/run_qwen_2511_three_reference.py' if self.three_reference_mode else 'generators/image/run_qwen_2512.py')),'--job-dir',str(current_job_root)],stdout=current_log_handle,stderr=subprocess.STDOUT,start_new_session=True)
+                        self.current_worker_process = subprocess.Popen([str(WORKFLOW_ROOT_PATH/'.venv/bin/python'),str(WORKFLOW_ROOT_PATH/('generators/image/run_qwen_2511_three_reference.py' if self.three_reference_mode or current_request_record.get('references') else 'generators/image/run_qwen_2512.py')),'--job-dir',str(current_job_root)],stdout=current_log_handle,stderr=subprocess.STDOUT,start_new_session=True)
                     self.current_job_identifier = current_job_identifier
                     current_worker_process = self.current_worker_process
                     def watch_worker_exit():

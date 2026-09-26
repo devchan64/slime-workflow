@@ -198,7 +198,7 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
                 operation_argument_parser.add_argument('--height',type=int,default=1024)
                 operation_argument_parser.add_argument('--steps',type=int,choices=(4,30),default=4)
                 operation_argument_parser.add_argument('--seed',type=int,default=10107 if service_command_name=='qwen-2511' else 251204)
-                if service_command_name=='qwen-2511':
+                if service_command_name in ('qwen-2511','tile-map'):
                     operation_argument_parser.add_argument('--reference',type=Path,action='append',default=[],help='512×512 불투명 PNG, 최대 3장')
     command_argument_values=command_argument_parser.parse_args(command_argument_list)
     server_base_address=command_argument_values.server_url
@@ -230,7 +230,7 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
             if service_command_name=='tile-map':
                 command_payload_value['tile_type']=command_argument_values.tile_type
                 command_payload_value['user_prompt']=command_payload_value.pop('prompt')
-            if service_command_name=='qwen-2511':
+            if service_command_name in ('qwen-2511','tile-map'):
                 if len(command_argument_values.reference)>3:raise ValueError('참조 이미지는 최대 3장입니다.')
                 command_payload_value['images']=[]
                 for reference_image_path in command_argument_values.reference:

@@ -47,6 +47,17 @@ class TileGenerationTests(unittest.TestCase):
                 self.assertTrue((job_root_path/'request.json').exists())
                 self.assertTrue((job_root_path/'status.json').exists())
 
+    def test_three_references_are_validated(self):
+        import base64,io
+        from PIL import Image
+        image_output_buffer=io.BytesIO()
+        Image.new('RGB',(512,512),'white').save(image_output_buffer,format='PNG')
+        image_payload_value=base64.b64encode(image_output_buffer.getvalue()).decode()
+        result_request_value=prepare_tile_request(self.make_tile_request()|{'images':[image_payload_value]*3})
+        self.assertEqual(len(result_request_value['images']),3)
+        for invalid_image_values in ([image_payload_value]*4,['invalid']):
+            with self.assertRaises(ValueError):prepare_tile_request(self.make_tile_request()|{'images':invalid_image_values})
+
     def test_cli_passes_only_user_prompt(self):
         with patch.object(management_gateway,'execute_management_command',return_value={'id':'test'}) as execute_command_mock:
             management_gateway.execute_gateway_arguments('tile-map',['generate','--tile-type','wall','--prompt','Oak wood.','--detach'])
