@@ -234,6 +234,7 @@ def run_review_server(parsed_argument_values):
     server_stop_event = threading.Event()
     request_counter_value = [0]
     review_server_instance_id = f'{time.time_ns():x}'
+    manager_source_path = review_root_directory/'manager-source.json'
     def emit_server_trace(trace_stage_name, trace_message_text):
         trace_line_text = f'{datetime.now().isoformat()}/asset-review-server/{trace_stage_name} {trace_message_text}'
         with trace_write_lock:
@@ -270,6 +271,15 @@ def run_review_server(parsed_argument_values):
         def __init__(self,*request_handler_arguments,**request_handler_options):
             super().__init__(*request_handler_arguments,directory=str(review_root_directory),**request_handler_options)
         def do_GET(self):
+            if urlsplit(self.path).path=='/' and manager_source_path.is_file():
+                from tools.review.common.gradio_process import ensure_management_menu_server
+                try:
+                    management_menu_url=ensure_management_menu_server(self.server.server_port,manager_source_path)
+                except ValueError as gradio_error_value:
+                    self.send_error(503,str(gradio_error_value))
+                    return
+                self.send_response(302);self.send_header('Location',management_menu_url);self.send_header('Cache-Control','no-store');self.end_headers()
+                return
             if urlsplit(self.path).path=='/management/gpu-status':
                 from tools.review.common.gpu_status import read_gpu_status
                 response_content=json.dumps(read_gpu_status(),ensure_ascii=False).encode()
