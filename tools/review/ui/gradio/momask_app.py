@@ -14,7 +14,7 @@ import yaml
 
 WORKFLOW_ROOT_DIRECTORY = Path(__file__).resolve().parents[4]
 sys.path.insert(0, str(WORKFLOW_ROOT_DIRECTORY))
-from tools.review.common.gradio_history import build_history_reset_controls, bind_history_reset_action
+from tools.review.common.gradio_history import build_history_reset_controls, bind_history_reset_action, format_history_choice_label
 from tools.review.common.management_gateway import execute_management_command
 from tools.review.common.gradio_logs import build_execution_logs, LOG_PANEL_STYLES
 from tools.review.domains.momask.momask_jobs import check_generation_running
@@ -41,8 +41,10 @@ def list_motion_history(history_page_number=1, selected_history_identifier=None)
     history_record_values=execute_motion_command('history',{})
     selected_page_number=max(1,min(int(history_page_number or 1),max(1,(len(history_record_values)+7)//8)))
     history_page_records=history_record_values[(selected_page_number-1)*8:selected_page_number*8]
-    history_status_labels={'completed':'완료','running':'생성 중','cancelled':'취소','failed':'실패'}
-    history_choice_values=[(record_value['id']+' · '+dict((v,k) for k,v in MOTION_ACTION_LABELS).get(record_value['action'],record_value['action'])+' · '+history_status_labels.get(record_value['status'],record_value['status'])+' · '+str(len(record_value.get('directions',[])))+'방향',record_value['id']) for record_value in history_page_records]
+    history_choice_values=[]
+    for record_value in history_page_records:
+        history_record_value={'id':record_value['id'],'created_at':record_value.get('created_at'),'status':{'status':record_value['status']},'request':{'action':dict((value,label) for label,value in MOTION_ACTION_LABELS).get(record_value['action'],record_value['action']),'directions':len(record_value.get('directions',[]))}}
+        history_choice_values.append((format_history_choice_label(history_record_value),record_value['id']))
     retained_history_identifier=selected_history_identifier if selected_history_identifier in [value for _,value in history_choice_values] else None
     return gr.update(choices=history_choice_values,value=retained_history_identifier), f"{selected_page_number} / {max(1,(len(history_record_values)+7)//8)} 페이지 · 총 {len(history_record_values)}건"
 
