@@ -64,7 +64,7 @@ def build_tile_interface(server_base_address):
                 start_value=gr.Button('타일 생성 시작',variant='primary');status_value=gr.Markdown('생성 가능 · 최종 프롬프트는 100단어 미만이어야 합니다.')
                 identifier_value=gr.Textbox(label='실행 중 생성 ID',interactive=False)
             with gr.Column(scale=2):
-                read_history_page,history_output_values=build_generation_history_view(execute_tile_gateway,server_base_address,'이력 목록만 초기화합니다. 결과·참조 사본·로그 파일은 유지됩니다. 생성 중에는 초기화할 수 없습니다.',lambda record:restore_tile_inputs(record,server_base_address),[tile_value,prompt_value,width_value,step_value,seed_value,base_value,style_value,reference_style_value,*reference_image_controls,status_value])
+                read_history_page,history_output_values=build_generation_history_view(execute_tile_gateway,server_base_address,'이력 목록만 초기화합니다. 결과·참조 사본·로그 파일은 유지됩니다. 생성 중에는 초기화할 수 없습니다.',lambda record:restore_tile_inputs(record,server_base_address),[tile_value,prompt_value,width_value,step_value,seed_value,base_value,style_value,reference_style_value,*reference_image_controls,status_value],record_folder_route='/tile-map-generator')
         def start_tile(*input_values):
             record_value=execute_tile_gateway('generate',build_tile_request(*input_values));return record_value['id'],'상태: running'
         start_value.click(start_tile,[tile_value,prompt_value,width_value,step_value,seed_value,base_value,style_value,reference_style_value,*reference_image_controls],[identifier_value,status_value])
