@@ -19,6 +19,8 @@ def ensure_gradio_application(review_server_port, application_name, application_
             'qwen-2512':('qwen_2512_app.py',103,'/management/frame/image-generator/'),
             'qwen-2511':('qwen_2511_app.py',104,'/management/frame/three-reference-generator/'),
             'tile-map':('tile_map_app.py',105,'/management/frame/tile-map-generator/'),
+            'sprite-editor':('sprite_editor_app.py',106,'/management/frame/sprite-editor/'),
+            'map-review':('map_review_app.py',107,'/management/frame/map-review/'),
         }
         if application_name not in application_definitions:raise ValueError('지원하지 않는 Gradio 관리 화면')
         application_filename,port_offset_value,application_root_path=application_definitions[application_name]
@@ -68,3 +70,9 @@ def ensure_qwen_2511_server(review_server_port):
 
 def ensure_tile_map_server(review_server_port):
     return ensure_gradio_application(review_server_port,'tile-map')
+
+def ensure_sprite_editor_server(review_server_port):
+    return ensure_gradio_application(review_server_port,'sprite-editor')
+
+def ensure_map_review_server(review_server_port):
+    return ensure_gradio_application(review_server_port,'map-review')

@@ -269,7 +269,7 @@ def run_review_server(parsed_argument_values):
         '/image-generation-2511': (three_reference_service.job_storage_root, lambda record_identifier_value: three_reference_service.job_storage_root/record_identifier_value),
     }
     management_menu_url = None
-    from tools.review.common.gradio_process import ensure_character_animation_server, ensure_gradio_server, ensure_management_menu_server, ensure_qwen_2511_server, ensure_qwen_2512_server, ensure_tile_map_server
+    from tools.review.common.gradio_process import ensure_character_animation_server, ensure_gradio_server, ensure_management_menu_server, ensure_map_review_server, ensure_qwen_2511_server, ensure_qwen_2512_server, ensure_sprite_editor_server, ensure_tile_map_server
     if manager_source_path.is_file():
         try:
             management_menu_url=ensure_management_menu_server(parsed_argument_values.port,manager_source_path)
@@ -283,6 +283,8 @@ def run_review_server(parsed_argument_values):
             ('/management/frame/image-generator/',parsed_argument_values.port+103,lambda:ensure_qwen_2512_server(parsed_argument_values.port)),
             ('/management/frame/three-reference-generator/',parsed_argument_values.port+104,lambda:ensure_qwen_2511_server(parsed_argument_values.port)),
             ('/management/frame/tile-map-generator/',parsed_argument_values.port+105,lambda:ensure_tile_map_server(parsed_argument_values.port)),
+            ('/management/frame/sprite-editor/',parsed_argument_values.port+106,lambda:ensure_sprite_editor_server(parsed_argument_values.port)),
+            ('/management/frame/map-review/',parsed_argument_values.port+107,lambda:ensure_map_review_server(parsed_argument_values.port)),
             ('/management/',parsed_argument_values.port+100,lambda:ensure_management_menu_server(parsed_argument_values.port,manager_source_path)),
             ('/momask-generator/',parsed_argument_values.port+100,lambda:ensure_management_menu_server(parsed_argument_values.port,manager_source_path)),
             ('/character-animation/',parsed_argument_values.port+100,lambda:ensure_management_menu_server(parsed_argument_values.port,manager_source_path)),
