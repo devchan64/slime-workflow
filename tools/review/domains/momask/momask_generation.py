@@ -89,6 +89,9 @@ class MoMaskGenerationManager:
    if path==self.route+'/history/reset':
     if body!={'action':'reset'}: raise ValueError('초기화 요청 오류')
     self.send(h,200,execute_momask_command('history-reset',{}));return True
+   if path==self.route+'/resume':
+    if set(body)!={'id'}: raise ValueError('재개 요청 오류')
+    self.send(h,202,execute_momask_command('resume',body));return True
    if path==self.route+'/cancel':
     if set(body)!={'id'}: raise ValueError('취소 요청 오류')
     self.send(h,200,execute_momask_command('cancel',body));return True

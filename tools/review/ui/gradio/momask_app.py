@@ -79,6 +79,8 @@ def build_momask_interface(server_base_address):
                     gr.Markdown('이력을 선택한 뒤 **결과 조회**를 누르세요.')
                     history_table_value=gr.Radio(choices=[],label='조회할 생성 결과',interactive=True,elem_id='motion-history-selection')
                     history_selected_value=gr.Markdown('조회할 생성이력을 선택하세요.')
+                    history_resume_button=gr.Button('생성 재개',interactive=False)
+                    history_resume_help=gr.Markdown('취소되거나 실패한 작업을 선택하면 이어서 생성할 수 있습니다. 리그 생성이 완료된 작업만 지원합니다.')
                     history_result_button=gr.Button('선택한 결과 조회',variant='primary',interactive=False)
                     with gr.Row():
                         history_page_value=gr.Number(value=1,precision=0,minimum=1,label='페이지',scale=1,min_width=100)
@@ -98,7 +100,7 @@ def build_momask_interface(server_base_address):
                     map_button_value=gr.Button('OpenPose 맵 생성 · 설정의 얼굴 포인트 옵션 적용')
                     record_path_value=create_copyable_textbox(label='기록 폴더',interactive=False)
                     input_record_value=gr.JSON(label='저장된 입력 · 결과 정보')
-        logs_text_value,log_refresh_enabled=build_execution_logs()
+        logs_text_value,log_refresh_enabled,log_panel_element=build_execution_logs()
         action_select_value.change(read_motion_settings,action_select_value,[prompt_text_value,settings_text_value,correction_html_value],queue=False)
         generate_button_value.click(start_motion_generation,[action_select_value,direction_select_value,face_checkbox_value],identifier_text_value)
         cancel_button_value.click(lambda identifier: execute_motion_command('cancel',{'id':identifier}),identifier_text_value,input_record_value)
@@ -119,22 +121,51 @@ def build_momask_interface(server_base_address):
         result_button_value.click(show_motion_result,identifier_text_value,[player_html_value,record_path_value,input_record_value,viewed_identifier_value])
         identifier_text_value.submit(show_motion_result,identifier_text_value,[player_html_value,record_path_value,input_record_value,viewed_identifier_value])
         def select_history_result(selected_history_identifier):
-            return ('선택한 이력: `'+selected_history_identifier+'`') if selected_history_identifier else '조회할 생성이력을 선택하세요.', gr.update(interactive=bool(selected_history_identifier))
-        history_table_value.change(select_history_result,history_table_value,[history_selected_value,history_result_button],queue=False)
+            resume_enabled_value=False
+            resume_help_text='취소되거나 실패한 작업을 선택하면 이어서 생성할 수 있습니다. 리그 생성이 완료된 작업만 지원합니다.'
+            if selected_history_identifier:
+                selected_status_record=execute_motion_command('status',{'id':selected_history_identifier})
+                if selected_status_record['status'] in ('cancelled','failed'):
+                    from tools.review.domains.momask.momask_jobs import resolve_generation_directory
+                    selected_job_directory=resolve_generation_directory(selected_history_identifier)
+                    required_resume_paths=('result/anny/mannequin.blend','result/anny/render_asset.py','result/anny/run_stage.py','result/anny/baseline-model.json','result/anny/arm-corrections.json','motion-run/motion/motion.npz','motion-run/prompt.txt')
+                    if not all((selected_job_directory/path_value).is_file() for path_value in required_resume_paths):
+                        resume_help_text='리그 생성 전에 중단되어 재개할 수 없습니다. 새 모션 생성 탭에서 다시 생성하세요.'
+                    elif check_generation_running():
+                        resume_help_text='다른 작업이 생성 중입니다. 종료 후 재개할 수 있습니다.'
+                    else:
+                        resume_enabled_value=True
+                        resume_help_text='취소되거나 실패한 작업을 이어서 생성합니다. 완료된 프레임과 기존 로그는 유지됩니다.'
+                else:
+                    resume_help_text='취소되거나 실패한 작업만 재개할 수 있습니다.'
+            return ('선택한 이력: `'+selected_history_identifier+'`') if selected_history_identifier else '조회할 생성이력을 선택하세요.', gr.update(interactive=bool(selected_history_identifier)), gr.update(interactive=resume_enabled_value), resume_help_text
+        history_table_value.change(select_history_result,history_table_value,[history_selected_value,history_result_button,history_resume_button,history_resume_help],queue=False)
         history_table_value.input(lambda selected_identifier: selected_identifier or '',history_table_value,identifier_text_value,queue=False)
+        history_resume_button.click(lambda selected_identifier: execute_motion_command('resume',{'id':selected_identifier})['id'],history_table_value,identifier_text_value)
         history_result_button.click(show_motion_result,history_table_value,[player_html_value,record_path_value,input_record_value,viewed_identifier_value],scroll_to_output=True)
 
         map_button_value.click(lambda identifier,face:execute_motion_command('openpose-map',{'id':identifier,'face':face}),[identifier_text_value,face_checkbox_value],input_record_value).then(show_motion_result,identifier_text_value,[player_html_value,record_path_value,input_record_value,viewed_identifier_value])
         def refresh_motion_status(generation_job_identifier,log_refresh_checked):
             generation_running_value=check_generation_running()
             if not generation_job_identifier:
-                return '다른 작업 생성 중' if generation_running_value else '생성 가능 · 설정 후 생성 시작을 누르세요.','',gr.update(interactive=not generation_running_value),gr.update(interactive=False)
+                return '다른 작업 생성 중' if generation_running_value else '생성 가능 · 설정 후 생성 시작을 누르세요.','생성이력을 선택하거나 새 모션을 생성하면 로그가 표시됩니다.',gr.update(interactive=not generation_running_value),gr.update(interactive=False)
             try:
                 generation_status_record=execute_motion_command('status',{'id':generation_job_identifier})
             except (ValueError,FileNotFoundError):
-                return '유효한 생성 ID를 입력하거나 이력 행을 선택하세요.','',gr.update(interactive=not generation_running_value),gr.update(interactive=False)
-            return '상태: '+generation_status_record['status'],gr.update(value=generation_status_record['log'],label='실행 로그 · '+generation_job_identifier) if log_refresh_checked else gr.skip(),gr.update(interactive=not generation_running_value),gr.update(interactive=generation_status_record['status']=='running')
+                return '유효한 생성 ID를 입력하거나 이력 행을 선택하세요.','선택한 작업의 로그를 불러올 수 없습니다. ID와 기록 폴더를 확인하세요.',gr.update(interactive=not generation_running_value),gr.update(interactive=False)
+            return '상태: '+generation_status_record['status'],gr.update(value=generation_status_record['log'] or '작업이 접수되었습니다. 첫 실행 로그를 기다리고 있습니다.',label='실행 로그 · '+generation_job_identifier) if log_refresh_checked else gr.skip(),gr.update(interactive=not generation_running_value),gr.update(interactive=generation_status_record['status']=='running')
         status_refresh_button_value.click(refresh_motion_status,[identifier_text_value,log_refresh_enabled],[status_text_value,logs_text_value,generate_button_value,cancel_button_value],queue=False)
+        status_output_components=[status_text_value,logs_text_value,generate_button_value,cancel_button_value]
+        def read_selected_log(generation_job_identifier):
+            return refresh_motion_status(generation_job_identifier,True)
+        identifier_text_value.change(read_selected_log,identifier_text_value,status_output_components,queue=False)
+        log_refresh_enabled.change(refresh_motion_status,[identifier_text_value,log_refresh_enabled],status_output_components,queue=False)
+        if hasattr(log_panel_element,'expand'):
+            log_panel_element.expand(read_selected_log,identifier_text_value,status_output_components,queue=False)
+        if hasattr(gr,'Timer'):
+            gr.Timer(2).tick(refresh_motion_status,[identifier_text_value,log_refresh_enabled],status_output_components,show_progress='hidden')
+        else:
+            interface_blocks_value.load(refresh_motion_status,[identifier_text_value,log_refresh_enabled],status_output_components,every=2,show_progress='hidden')
         def restore_running_motion():
             return next((record_value['id'] for record_value in execute_motion_command('history',{}) if record_value['status']=='running'),'')
         interface_blocks_value.load(restore_running_motion,outputs=identifier_text_value)

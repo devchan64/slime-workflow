@@ -74,6 +74,33 @@ def start_generation_job(action_name_value, direction_name_values, include_face_
         generation_lock_handle.close()
 
 
+def resume_generation_job(generation_job_identifier):
+    generation_job_path=resolve_generation_directory(generation_job_identifier)
+    with GENERATION_LOCK_FILE.open('a') as generation_lock_handle:
+        try:fcntl.flock(generation_lock_handle,fcntl.LOCK_EX|fcntl.LOCK_NB)
+        except BlockingIOError:raise ValueError('MoMask 생성 작업이 실행 중입니다.') from None
+        previous_status_record=json.loads((generation_job_path/'status.json').read_text())
+        if previous_status_record['status'] not in ('cancelled','failed'):raise ValueError('취소·실패 작업만 재개할 수 있습니다.')
+        for relative_file_path in ('result/anny/mannequin.blend','result/anny/render_asset.py','result/anny/run_stage.py','result/anny/baseline-model.json','result/anny/arm-corrections.json','motion-run/motion/motion.npz','motion-run/prompt.txt'):
+            if not (generation_job_path/relative_file_path).is_file():raise ValueError('리그 렌더 단계부터 재개할 수 있습니다. 누락: '+relative_file_path)
+        (generation_job_path/'cancel.request').unlink(missing_ok=True)
+        (generation_job_path/'resume.request').touch()
+        try:
+            with (generation_job_path/'worker.log').open('a') as generation_log_handle:
+                generation_log_handle.write('\nMoMask 렌더 재개 요청\n');generation_log_handle.flush()
+                write_record_atomically(generation_job_path/'status.json',{'status':'running','resumed':True})
+                subprocess.Popen([sys.executable,str(Path(__file__).resolve()),'--supervise',generation_job_identifier,'--lock-fd',str(generation_lock_handle.fileno())],stdout=generation_log_handle,stderr=subprocess.STDOUT,start_new_session=True,pass_fds=(generation_lock_handle.fileno(),))
+        except Exception:
+            write_record_atomically(generation_job_path/'status.json',previous_status_record)
+            raise
+        generation_history_path=GENERATION_HISTORY_DIRECTORY/(generation_job_identifier+'.json')
+        if generation_history_path.exists():
+            generation_history_record=json.loads(generation_history_path.read_text())
+            generation_history_record.update(status='running',resumed=True)
+            write_record_atomically(generation_history_path,generation_history_record)
+        return {'id':generation_job_identifier,'status':'running','resumed':True}
+
+
 def list_generation_history():
     GENERATION_HISTORY_DIRECTORY.mkdir(parents=True, exist_ok=True)
     return [json.loads(record_file_path.read_text()) for record_file_path in sorted(GENERATION_HISTORY_DIRECTORY.glob('*.json'), reverse=True)]
@@ -109,7 +136,11 @@ def supervise_generation_job(generation_job_identifier, inherited_lock_descripto
     generation_final_state = {'status':'failed'}
     generation_worker_process = None
     try:
-        generation_worker_process = subprocess.Popen([str(WORKFLOW_ROOT_DIRECTORY/'.venv/bin/python'), str(WORKFLOW_ROOT_DIRECTORY/'generators/momask/run_managed_generation.py'), '--job-dir', str(generation_job_path), '--action', generation_request_value['action'], '--directions', ','.join(generation_request_value['directions'])], start_new_session=True)
+        if (generation_job_path/'resume.request').exists():
+            generation_command_values=[str(WORKFLOW_ROOT_DIRECTORY/'.venv/bin/python'),str(WORKFLOW_ROOT_DIRECTORY/'generators/momask/resume_render.py'),'--job-dir',str(generation_job_path)]
+        else:
+            generation_command_values=[str(WORKFLOW_ROOT_DIRECTORY/'.venv/bin/python'),str(WORKFLOW_ROOT_DIRECTORY/'generators/momask/run_managed_generation.py'),'--job-dir',str(generation_job_path),'--action',generation_request_value['action'],'--directions',','.join(generation_request_value['directions'])]
+        generation_worker_process=subprocess.Popen(generation_command_values,start_new_session=True)
         while generation_worker_process.poll() is None:
             if (generation_job_path/'cancel.request').exists():
                 os.killpg(generation_worker_process.pid, signal.SIGTERM)

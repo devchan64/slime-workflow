@@ -20,4 +20,4 @@ def build_execution_logs():
     log_follow_enabled.change(lambda follow_enabled:gr.update(autoscroll=follow_enabled),log_follow_enabled,log_output_element,queue=False)
     log_scroll_script="() => {requestAnimationFrame(()=>{const element=document.querySelector('#management-execution-log textarea');if(element)element.scrollTop=element.scrollHeight;});}"
     log_latest_button.click(fn=None,js=log_scroll_script,queue=False)
-    return log_output_element,log_refresh_enabled
+    return log_output_element,log_refresh_enabled,log_panel_element
