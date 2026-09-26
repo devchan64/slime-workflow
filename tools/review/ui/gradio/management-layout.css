@@ -1,0 +1,10 @@
+/* Gradio 관리도구 공용 배치: 설정·이력은 좌측, 결과는 우측. */
+.gradio-container{max-width:1560px!important;padding:16px!important}
+#motion-workspace{gap:20px;align-items:flex-start}
+#motion-controls{flex-basis:360px!important;flex-grow:1!important}
+#motion-preview{flex-grow:2.4!important;min-width:min(480px,100%)!important}
+#motion-history-selection .wrap{display:flex;flex-direction:column;gap:6px}
+#motion-history-selection label{font-size:13px;overflow-wrap:anywhere}
+#motion-history-selection label:has(input:checked){outline:2px solid #93baff;background:#243449}
+.motion-empty-state{min-height:350px;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;color:#a7b5c8;background:#101925;border:1px dashed #40516a;border-radius:12px;padding:24px}
+@media(max-width:800px){.gradio-container{padding:8px!important}#motion-controls,#motion-preview{min-width:100%!important}}

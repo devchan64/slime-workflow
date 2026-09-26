@@ -201,3 +201,15 @@ CLI는 `momask generate ... --face` 또는 `momask openpose-map <ID> --face`를 
 타일의 기본·화풍 프롬프트는 각각 ON/OFF할 수 있으며 기본값은 둘 다 ON이다. 원문은 읽기 전용이며 최종 단어 수와 해시는 활성 항목과 사용자 프롬프트를 결합한 실제 입력 기준이다. 이력에는 `use_base_prompt`, `use_style_prompt`를 저장한다. CLI에서는 `--no-use-base-prompt`, `--no-use-style-prompt`로 제외한다. 모든 프롬프트가 비면 요청을 거절한다.
 
 캐릭터 애니메이션 출력 해상도는 GUI 또는 CLI의 `--resolution 512|768|1024|1280`으로 선택한다. 기본값은 테스트용 512×512이며 참조 입력은 512px 정규화를 유지한다. 선택 해상도는 요청·결과에 보존하며 재개 시 같은 설정을 사용한다. 생성이력의 입력 내용에서 해상도, FPS, 배속, 스텝, 선택 프레임, 참조 경로·매니페스트 해시와 방향별 실제 프롬프트·단어 수를 확인한다.
+
+### Gradio MoMask UI
+
+MoMask 페이지는 Gradio Blocks로 전환한다. `/momask-generator/`는 관리 서버 포트 + 100의 로컬 Gradio UI로 연결한다(기본 8870). 외부 공개 없이 `127.0.0.1`에 바인딩하고 관리 서버 종료 시 UI 프로세스도 종료한다. 생성 작업은 기존 독립 감독 프로세스에서 계속 실행한다. CLI·HTTP API·기록 경로는 유지한다.
+
+관리 UI 의존성은 모델 환경과 분리한다. 최초 설치는 `python3 -m venv .venv-management` 이후 `.venv-management/bin/pip install -r tools/review/ui/gradio/requirements.lock`으로 수행한다. 실행 로그는 `.tmp/manager-current/gradio.log`에 기록한다. 현재 전환 범위는 MoMask이며 다른 생성기는 기존 UI를 유지한다.
+
+설정·보정값·로그·페이지별 이력·수동 초기화는 Gradio에서 구성한다. 결과 ID 또는 이력 라디오 선택 후 ‘결과 보기’로 HumanML3D·ANNY·OpenPose 동기 재생기를 연다. 재생은 브라우저에서 실행하며 Python 프레임별 호출을 하지 않는다. 아직 기존 공용 이력 UI의 썸네일과 파일 관리자 열기 기능은 이 전환 페이지에 이식되지 않았다.
+
+Gradio 이력은 페이지당 8건의 단일 선택 목록으로 표시하며 선택 후 결과 조회 버튼으로 연다. 공용 로그 패널은 `tools/review/common/gradio_logs.py`를 사용한다. 전체 너비의 접이식 패널에 작업 ID·최근 로그·복사·자동 갱신·최신 줄 따라가기·마지막 줄 이동을 제공한다. 자동 갱신을 끄면 표시 내용을 유지하며 작업 실행은 계속된다.
+
+MoMask Gradio 화면은 좌측의 ‘새 모션 생성’·‘생성이력 · 결과 조회’ 탭과 우측 결과 재생 영역으로 구성한다. ID 직접 조회·결과 상세는 접이식으로 제공하고, 실행 로그는 두 열 아래 전체 너비로 배치한다. 화면 폭이 좁으면 한 열로 전환한다. 배치는 `tools/review/ui/gradio/management-layout.css`에서 관리한다.

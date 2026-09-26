@@ -16,3 +16,5 @@ __pycache__/
 .test/
 .DS_Store
 .tmp/
+
+.venv-management/
