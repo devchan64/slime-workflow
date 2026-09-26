@@ -19,6 +19,16 @@ class CharacterAnimationTests(unittest.TestCase):
     def make_selection_record(self,**selection_override_values):
         return dict(motion='standing-v3',character='character-default',source='openpose',directions=['down_left'],**selection_override_values)
 
+    def test_target_fps_sampling_and_validation(self):
+        for target_frame_rate, expected_frame_numbers in [(1,[1,5,9,13]),(2,list(range(1,17,2))),(3,[1,2,3,5,6,7,9,10,11,13,14,15]),(4,list(range(1,17)))]:
+            request_record_value=assets.prepare_animation_request(self.make_selection_record(target_fps=target_frame_rate))
+            self.assertEqual(request_record_value['selected_frame_numbers'],expected_frame_numbers)
+            self.assertEqual(request_record_value['fps'],target_frame_rate)
+            self.assertEqual(request_record_value['frames_per_direction']/target_frame_rate,4)
+        for invalid_frame_rate in (0,5,True,'2',2.5):
+            with self.assertRaises(ValueError):assets.prepare_animation_request(self.make_selection_record(target_fps=invalid_frame_rate))
+        with self.assertRaises(ValueError):assets.prepare_animation_request(self.make_selection_record(target_fps=2,frame_step=2))
+
     def test_registered_sources_all_frames_integrity(self):
         for motion_identifier_value,expected_frame_count in [('standing-v3',16),('walking-v8',32),('stretch-v1',120)]:
             for source_kind_value in ('openpose','anny'):
@@ -32,8 +42,8 @@ class CharacterAnimationTests(unittest.TestCase):
 
     def test_frame_step_defaults_and_direction_prompts(self):
         request_record_value=assets.prepare_animation_request(self.make_selection_record())
-        self.assertEqual(request_record_value['selected_frame_numbers'],list(range(1,17,2)))
-        self.assertEqual(request_record_value['frames_per_direction'],8)
+        self.assertEqual(request_record_value['selected_frame_numbers'],list(range(1,17)))
+        self.assertEqual(request_record_value['frames_per_direction'],16)
         for direction_name_value,prompt_record_value in request_record_value['direction_prompts'].items():
             self.assertIn(assets.DIRECTION_PROMPT_LABELS[direction_name_value],prompt_record_value['text'])
             self.assertIn('ankles',prompt_record_value['text'])
@@ -44,7 +54,7 @@ class CharacterAnimationTests(unittest.TestCase):
             self.assertEqual(assets.prepare_animation_request({**self.make_selection_record(),'frame_step':frame_step_value})['selected_frame_numbers'],list(range(1,17,frame_step_value)))
 
     def test_progress_separates_images_source_frames_and_inference(self):
-        request_record_value=assets.prepare_animation_request({**self.make_selection_record(),'directions':['down_left','up_right'],'steps':30})
+        request_record_value=assets.prepare_animation_request({**self.make_selection_record(),'directions':['down_left','up_right'],'target_fps':2,'steps':30})
         with tempfile.TemporaryDirectory() as temporary_root_name:
             generation_job_path=Path(temporary_root_name)
             frame_log_path=generation_job_path/'down_left/frame-0003/execution.log'
@@ -62,7 +72,7 @@ class CharacterAnimationTests(unittest.TestCase):
                 self.assertNotIn('direction',result_record_value)
 
     def test_remaining_time_uses_completed_images(self):
-        request_record_value=assets.prepare_animation_request(self.make_selection_record())
+        request_record_value=assets.prepare_animation_request(self.make_selection_record(target_fps=2))
         with tempfile.TemporaryDirectory() as temporary_root_name:
             job_path=Path(temporary_root_name)
             state={'status':'running','progress':{'completed':0}}
@@ -110,7 +120,7 @@ class CharacterAnimationTests(unittest.TestCase):
 
     def test_hash_mismatch_fails_before_launch(self):
         with patch.object(assets,'hash_asset_file',return_value='invalid'),self.assertRaisesRegex(ValueError,'무결성'):
-            assets.prepare_animation_request(self.make_selection_record())
+            assets.prepare_animation_request(self.make_selection_record(target_fps=2))
 
     def test_cli_and_http_envelope_have_same_selection(self):
         selection_request_record=self.make_selection_record()
@@ -127,7 +137,7 @@ class CharacterAnimationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary_root_name:
             temporary_root_path=Path(temporary_root_name)
             with patch.object(jobs,'GENERATION_ROOT_DIRECTORY',temporary_root_path),patch.object(jobs,'GENERATION_HISTORY_DIRECTORY',temporary_root_path/'history'),patch.object(jobs,'GENERATION_LOCK_PATH',temporary_root_path/'generation.lock'),patch.object(jobs.subprocess,'Popen'):
-                generation_start_record=jobs.start_animation_generation(self.make_selection_record())
+                generation_start_record=jobs.start_animation_generation(self.make_selection_record(target_fps=2))
                 generation_job_identifier=generation_start_record['id']
                 self.assertTrue(jobs.execute_animation_command('active',{})['running'])
                 self.assertEqual(jobs.execute_animation_command('history',{})['records'][0]['id'],generation_job_identifier)
@@ -146,7 +156,7 @@ class CharacterAnimationTests(unittest.TestCase):
                 with jobs.GENERATION_LOCK_PATH.open('a') as generation_lock_handle:
                     fcntl.flock(generation_lock_handle,fcntl.LOCK_EX|fcntl.LOCK_NB)
                     with self.assertRaisesRegex(ValueError,'이미 진행'):
-                        jobs.start_animation_generation(self.make_selection_record())
+                        jobs.start_animation_generation(self.make_selection_record(target_fps=2))
 
     def test_missing_result_is_failed_and_manual_reset_not_restored(self):
         with tempfile.TemporaryDirectory() as temporary_root_name:
@@ -184,7 +194,7 @@ class CharacterAnimationTests(unittest.TestCase):
         from generators.animation import run_character_animation as worker
         with tempfile.TemporaryDirectory() as temporary_root_name:
             generation_job_path=Path(temporary_root_name)
-            generation_request_record=assets.prepare_animation_request(self.make_selection_record())
+            generation_request_record=assets.prepare_animation_request(self.make_selection_record(target_fps=2))
             (generation_job_path/'request.json').write_text(json.dumps(generation_request_record))
             def complete_mock_frame(command_argument_values,check):
                 current_frame_index=int(command_argument_values[-1])
@@ -195,7 +205,7 @@ class CharacterAnimationTests(unittest.TestCase):
                 worker.generate_character_animation(generation_job_path)
             result_record_value=json.loads((generation_job_path/'result.json').read_text())
             self.assertEqual(subprocess_run_mock.call_count,8)
-            self.assertEqual(result_record_value['fps'],4)
+            self.assertEqual(result_record_value['fps'],2)
             self.assertEqual(len(result_record_value['frames']['down_left']),8)
 
 if __name__=='__main__':unittest.main()

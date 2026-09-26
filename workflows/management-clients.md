@@ -109,7 +109,7 @@ python3 tools/manager.py command momask --server-url http://127.0.0.1:8770 histo
 
 ## 등록 모션 기반 캐릭터 애니메이션
 
-관리도구의 `#character-animation`은 등록된 대기 v3(16프레임), 걷기 v8(32프레임), 스트레칭 v1(120프레임)에 캐릭터 레퍼런스를 적용한다. 방향은 전체 또는 일부를 선택한다. 현재 등록된 캐릭터는 기본 흰 셔츠 v2이며 등록 설정을 통해 확장한다. 생성 프레임 간격은 1·2·4·8 중 선택한다. 대기의 기본 간격은 2(1·3·5…15번, 방향당 8장), 걷기·스트레칭은 1이다. 원본 에셋은 수정하지 않으며 생성 결과의 기본 FPS는 4이다. 간격을 늘리면 생성 장수와 4 FPS 기준 재생 시간이 함께 줄어든다.
+관리도구의 `#character-animation`은 등록된 대기 v3(16프레임), 걷기 v8(32프레임), 스트레칭 v1(120프레임)에 캐릭터 레퍼런스를 적용한다. 방향은 전체 또는 일부를 선택한다. 현재 등록된 캐릭터는 기본 흰 셔츠 v2이며 등록 설정을 통해 확장한다. 타겟 FPS는 원본 FPS 이하의 양의 정수로 선택하며 기본값은 4다. 시간축에서 floor(출력 프레임 번호 × 원본 FPS / 타겟 FPS) 위치를 선택하고, 결과의 기본 재생 FPS도 타겟값으로 기록한다. 대기 16프레임·4 FPS 원본을 2 FPS로 생성하면 방향당 8장·4초가 된다. 비정수 장수는 올림하므로 길이 차이는 타겟 한 프레임 미만이다. 보간·중복 프레임 생성은 하지 않는다.
 
 - `openpose`: 등록된 COCO18 맵과 캐릭터 이미지를 Qwen Image Edit 2511에 입력한다.
 - `anny`: 등록된 ANNY 리그 렌더 프레임과 캐릭터 이미지를 Qwen Image Edit 2511 + AnyPose에 입력한다. 원본 리그나 모션을 다시 생성하지 않는다.
@@ -140,7 +140,7 @@ python3 tools/manager.py command character-animation history-reset
 
 원본 에셋과 생성 결과 플레이어는 각각 **재생 속도**에서 4·8·12·16 FPS를 선택할 수 있다. 기본은 4 FPS이며 재생 중에도 변경된다. 이는 검수용 재생 속도로, 원본 프레임 수·생성 설정·결과 메타데이터의 FPS는 바꾸지 않는다.
 
-`character-animation generate --frame-step 2`로 프레임 간격을 CLI에서도 지정한다. 생략하면 모션별 기본값을 따른다. `request.json`에는 `frame_step`, `selected_frame_numbers`, 방향별 최종 프롬프트·단어 수·해시를 기록하고, `result.json`에는 방향별 원본 프레임 번호를 기록한다. 기존 이력은 당시 요청과 결과를 그대로 사용한다. 원본 에셋 검수 플레이어는 생성 간격과 관계없이 전체 프레임을 재생한다.
+`character-animation generate --target-fps 2`로 CLI에서도 지정한다. 요청에는 `target_fps`, `source_fps`, `selected_frame_numbers`와 프롬프트 출처를 기록한다. 결과에는 타겟 `fps`와 원본 프레임 번호를 기록한다. 기존 간격 방식 이력은 수정하지 않으며 기존 API의 명시적 `frame_step` 요청은 호환 처리한다. 두 방식의 동시 지정은 거절한다. 원본 검수 플레이어는 항상 전체 원본 프레임을 사용한다.
 
 캐릭터 애니메이션 CLI의 `--steps 4` / `--steps 30`은 웹의 생성 방식 선택과 같다. 예: `python3 tools/manager.py command character-animation generate --motion standing-v3 --character character-default --source anny --steps 30 --detach`. 실행 요청·결과·이력에 선택 스텝을 보존한다. 기존 이력의 스텝 필드가 없으면 기존 방식인 4스텝으로 표시한다.
 
