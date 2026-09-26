@@ -48,7 +48,7 @@ class CharacterAnimationTests(unittest.TestCase):
         with self.assertRaises(ValueError):assets.prepare_animation_request(self.make_selection_record(speed=2,frame_step=2))
 
     def test_registered_sources_all_frames_integrity(self):
-        for motion_identifier_value,expected_frame_count in [('standing-v7',16),('walking-v8',32),('stretch-v1',120)]:
+        for motion_identifier_value,expected_frame_count in [('standing-v7',16),('walking-v9',32),('stretch-v1',120)]:
             for source_kind_value in ('openpose','anny'):
                 selection_request_record=self.make_selection_record(resolution=512)
                 selection_request_record.update(motion=motion_identifier_value,source=source_kind_value,frame_step=1,directions=list(assets.SUPPORTED_DIRECTION_NAMES))
@@ -122,7 +122,7 @@ class CharacterAnimationTests(unittest.TestCase):
             with self.assertRaises(ValueError):assets.prepare_animation_request({**self.make_selection_record(),'steps':step_count_value})
 
     def test_original_asset_preview_bounds_and_sources(self):
-        for motion_identifier_value,frame_count_value in [('standing-v7',16),('walking-v8',32),('stretch-v1',120)]:
+        for motion_identifier_value,frame_count_value in [('standing-v7',16),('walking-v9',32),('stretch-v1',120)]:
             for source_kind_value in ('openpose','anny'):
                 for direction_name_value in assets.SUPPORTED_DIRECTION_NAMES:
                     self.assertTrue(assets.resolve_motion_preview(motion_identifier_value,source_kind_value,direction_name_value,frame_count_value).is_file())
