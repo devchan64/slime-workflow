@@ -17,6 +17,13 @@ class TileGenerationTests(unittest.TestCase):
             self.assertIn('Red brick house.',output_request_value['prompt'])
             self.assertEqual(output_request_value['prompt_words'],len(output_request_value['prompt'].split()))
             self.assertLess(output_request_value['prompt_words'],100)
+    def test_default_seed_is_10107_and_explicit_seed_is_preserved(self):
+        request=self.make_tile_request()
+        request.pop('seed')
+        self.assertEqual(prepare_tile_request(request)['seed'],10107)
+        self.assertEqual(prepare_tile_request(request|{'seed':0})['seed'],0)
+        self.assertIn('value="10107"',TileGenerationManager().render_generation_page().decode())
+
     def test_user_prompt_is_last_for_every_toggle_combination(self):
         from itertools import product
         for base_enabled,style_enabled,reference_enabled in product((False,True),repeat=3):

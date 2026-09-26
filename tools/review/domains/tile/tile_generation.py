@@ -29,6 +29,7 @@ def load_tile_configuration():
 
 def prepare_tile_request(request_record_value):
     if request_record_value=={'action':'prepare'}:return request_record_value
+    if isinstance(request_record_value,dict):request_record_value={'seed':10107,**request_record_value}
     prompt_toggle_values={key:request_record_value.get(key,True) for key in ('use_base_prompt','use_style_prompt')} if isinstance(request_record_value,dict) else {}
     if isinstance(request_record_value,dict):prompt_toggle_values['use_reference_style_prompt']=request_record_value.get('use_reference_style_prompt',False)
     if any(type(value) is not bool for value in prompt_toggle_values.values()):raise ValueError('프롬프트 선택은 ON/OFF여야 합니다.')
@@ -116,6 +117,7 @@ class TileGenerationManager(ImageGenerationManager):
         # 모델 준비·생성·취소·진행·이력은 기존 이미지 생성 화면을 공유한다.
         page_source_value=super().render_generation_page().decode().replace('/image-generation','/tile-map-generator').replace('qwen2512Job','tileMapJob')
         page_source_value=page_source_value.replace('Qwen 2512 · 이미지 생성','타일 에셋 생성기').replace('Qwen 2512 이미지 생성','타일 에셋 생성기').replace('텍스트 설명으로 이미지를 생성합니다. 4스텝 Lightning / 30스텝 표준을 선택하세요.','지붕·벽·맵 타일을 생성합니다. 문은 벽 타일 프롬프트로 함께 처리합니다.')
+        page_source_value=page_source_value.replace('value="251204"','value="10107"')
         start_style_position=page_source_value.index('<div class="style-prompt-setting">')
         end_style_position=page_source_value.index('<label for="prompt">',start_style_position)
         tile_configuration_value=load_tile_configuration()

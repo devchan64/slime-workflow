@@ -201,7 +201,7 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
                 operation_argument_parser.add_argument('--width',type=int,default=1024)
                 operation_argument_parser.add_argument('--height',type=int,default=1024)
                 operation_argument_parser.add_argument('--steps',type=int,choices=(4,30),default=4)
-                operation_argument_parser.add_argument('--seed',type=int,default=10107 if service_command_name=='qwen-2511' else 251204)
+                operation_argument_parser.add_argument('--seed',type=int,default=10107 if service_command_name in ('qwen-2511','tile-map') else 251204)
                 if service_command_name in ('qwen-2511','tile-map'):
                     operation_argument_parser.add_argument('--reference',type=Path,action='append',default=[],help='512×512 불투명 PNG, 최대 3장')
     command_argument_values=command_argument_parser.parse_args(command_argument_list)
