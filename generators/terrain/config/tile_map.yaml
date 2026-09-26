@@ -3,7 +3,7 @@ style_prompt: "Hand-painted fantasy game texture, clean readable shapes, consist
 types:
   rooftop:
     label: 지붕 타일
-    base_prompt: "Orthographic top-down material texture for a flat rooftop. Uniform square slabs aligned in a regular grid, consistent size across the image, flush surface, subtle joints, even diffuse lighting, matching opposite edges. The material surface fills the entire square."
+    base_prompt: "Seamless roof covering texture for sloped block surfaces. Orthographic view perpendicular to the material plane. Small overlapping roofing pieces in evenly spaced horizontal courses, running left to right; overlap faces image bottom. Consistent scale, matching opposite edges, subtle relief, neutral diffuse lighting. Material fills the square edge to edge; no building silhouette or perspective."
   wall:
     label: 벽 타일
     base_prompt: "A single plain building wall tile, straight-on orthographic elevation, flat facade filling the square, horizontally repeating edges."

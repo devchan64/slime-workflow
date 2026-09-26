@@ -10,6 +10,7 @@ import gradio as gr
 WORKFLOW_ROOT_DIRECTORY=Path(__file__).resolve().parents[4]
 if str(WORKFLOW_ROOT_DIRECTORY) not in sys.path:sys.path.insert(0,str(WORKFLOW_ROOT_DIRECTORY))
 from tools.review.common.management_gateway import execute_management_command
+from tools.review.domains.tile.tile_generation import REFERENCE_STYLE_PROMPT
 
 def execute_tile_gateway(command_name_value,payload_value):return execute_management_command('tile-map',command_name_value,payload_value)
 def build_tile_request(tile_type_value,user_prompt_value,width_value,step_value,seed_value,use_base_value,use_style_value,use_reference_style_value):
@@ -23,6 +24,17 @@ def build_tile_interface(server_base_address):
             with gr.Column():
                 tile_value=gr.Dropdown(tile_choices,value=tile_choices[0][1],label='타일 종류');prompt_value=gr.Textbox(label='사용자 프롬프트',lines=5)
                 base_value=gr.Checkbox(value=True,label='기본 프롬프트 적용');style_value=gr.Checkbox(value=True,label='화풍 프롬프트 적용');reference_style_value=gr.Checkbox(value=False,label='참조 화풍 보존 적용')
+                initial_base_prompt=catalog_record_value['types'][tile_choices[0][1]]['base_prompt']
+                with gr.Accordion('기본 프롬프트 · 고정',open=False):
+                    base_prompt_display=gr.Textbox(value=initial_base_prompt,label=f'기본 프롬프트 · {len(initial_base_prompt.split())}단어',interactive=False,lines=4)
+                with gr.Accordion('화풍 프롬프트 · 고정',open=False):
+                    gr.Textbox(value=catalog_record_value['style_prompt'],label=f"화풍 프롬프트 · {len(catalog_record_value['style_prompt'].split())}단어",interactive=False,lines=3)
+                with gr.Accordion('참조 화풍 보존 프롬프트 · 고정',open=False):
+                    gr.Textbox(value=REFERENCE_STYLE_PROMPT,label=f'참조 화풍 보존 · {len(REFERENCE_STYLE_PROMPT.split())}단어',interactive=False,lines=3)
+                def update_base_prompt(selected_tile_kind):
+                    current_prompt_text=catalog_record_value['types'][selected_tile_kind]['base_prompt']
+                    return gr.update(value=current_prompt_text,label=f'기본 프롬프트 · {len(current_prompt_text.split())}단어')
+                tile_value.change(update_base_prompt,inputs=tile_value,outputs=base_prompt_display,queue=False)
                 width_value=gr.Dropdown([512,768,1024],value=1024,label='정사각형 해상도');step_value=gr.Radio([4,30],value=4,label='생성 스텝');seed_value=gr.Number(value=10107,precision=0,label='Seed')
                 start_value=gr.Button('타일 생성 시작',variant='primary');status_value=gr.Markdown('생성 가능 · 최종 프롬프트는 100단어 미만이어야 합니다.')
             with gr.Column():identifier_value=gr.Textbox(label='생성 ID',interactive=False);history_value=gr.Radio(choices=[],label='생성 이력');refresh_value=gr.Button('이력 새로고침')
