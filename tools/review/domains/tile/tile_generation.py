@@ -28,8 +28,10 @@ def load_tile_configuration():
 
 def prepare_tile_request(request_record_value):
     if request_record_value=={'action':'prepare'}:return request_record_value
+    prompt_toggle_values={key:request_record_value.get(key,True) for key in ('use_base_prompt','use_style_prompt')} if isinstance(request_record_value,dict) else {}
+    if any(type(value) is not bool for value in prompt_toggle_values.values()):raise ValueError('프롬프트 선택은 ON/OFF여야 합니다.')
     reference_image_values=request_record_value.get('images',[]) if isinstance(request_record_value,dict) else []
-    if isinstance(request_record_value,dict):request_record_value={key:value for key,value in request_record_value.items() if key!='images'}
+    if isinstance(request_record_value,dict):request_record_value={key:value for key,value in request_record_value.items() if key not in ('images','use_base_prompt','use_style_prompt')}
     if not isinstance(request_record_value,dict) or set(request_record_value)!={'action','tile_type','user_prompt','width','height','steps','seed'}:
         raise ValueError('타일 종류·사용자 프롬프트·생성 설정만 수정할 수 있습니다.')
     configuration_record_value=load_tile_configuration()
@@ -40,13 +42,13 @@ def prepare_tile_request(request_record_value):
     base_prompt_value=configuration_record_value['types'][selected_tile_kind]['base_prompt']
     style_prompt_value=configuration_record_value['style_prompt']
     user_prompt_value=request_record_value['user_prompt'].strip()
-    combined_prompt_value='\n\n'.join([base_prompt_value,user_prompt_value,style_prompt_value])
+    combined_prompt_value='\n\n'.join(value for value in [base_prompt_value if prompt_toggle_values['use_base_prompt'] else '',user_prompt_value,style_prompt_value if prompt_toggle_values['use_style_prompt'] else ''] if value)
     if len(combined_prompt_value.split())>=100:raise ValueError('기본·사용자·화풍의 최종 프롬프트는 100단어 미만이어야 합니다.')
     validated_request_value=validate_image_request({key:request_record_value[key] for key in ('action','width','height','steps','seed')}|{'prompt':combined_prompt_value})
     if validated_request_value['width']!=validated_request_value['height']:raise ValueError('타일은 정사각형 해상도를 선택하세요.')
     from tools.review.domains.image.three_reference_generation import validate_three_reference_request
     validate_three_reference_request({**validated_request_value,'images':reference_image_values})
-    return validated_request_value|{'images':reference_image_values}|{'tile_type':selected_tile_kind,'user_prompt':user_prompt_value,'base_prompt':base_prompt_value,'style_prompt':style_prompt_value,'prompt_words':len(combined_prompt_value.split()),'prompt_sha256':hashlib.sha256(combined_prompt_value.encode()).hexdigest()}
+    return validated_request_value|prompt_toggle_values|{'images':reference_image_values}|{'tile_type':selected_tile_kind,'user_prompt':user_prompt_value,'base_prompt':base_prompt_value,'style_prompt':style_prompt_value,'prompt_words':len(combined_prompt_value.split()),'prompt_sha256':hashlib.sha256(combined_prompt_value.encode()).hexdigest()}
 
 class TileGenerationManager(ImageGenerationManager):
     def __init__(self):
@@ -116,7 +118,7 @@ class TileGenerationManager(ImageGenerationManager):
         end_style_position=page_source_value.index('<label for="prompt">',start_style_position)
         tile_configuration_value=load_tile_configuration()
         tile_option_values=''.join(f'<option value="{kind_name_value}">{html.escape(kind_record_value["label"])}</option>' for kind_name_value,kind_record_value in tile_configuration_value['types'].items())
-        fixed_prompt_section='<label for="tile-type">타일 종류</label><select id="tile-type">'+tile_option_values+'</select><details><summary>기본 프롬프트 · 고정 <small id="base-word-count"></small></summary><pre id="tile-base-prompt"></pre></details><details><summary>화풍 프롬프트 · 항상 적용 <small id="style-word-count"></small></summary><pre id="tile-style-prompt"></pre></details><p id="tile-word-count" role="status"></p>'
+        fixed_prompt_section='<label for="tile-type">타일 종류</label><select id="tile-type">'+tile_option_values+'</select><label><input id="tile-use-base" type="checkbox" checked> 기본 프롬프트 적용</label><details><summary>기본 프롬프트 · 고정 <small id="base-word-count"></small></summary><pre id="tile-base-prompt"></pre></details><label><input id="tile-use-style" type="checkbox" checked> 화풍 프롬프트 적용</label><details><summary>화풍 프롬프트 · 고정 <small id="style-word-count"></small></summary><pre id="tile-style-prompt"></pre></details><p id="tile-word-count" role="status"></p>'
         page_source_value=page_source_value[:start_style_position]+fixed_prompt_section+page_source_value[end_style_position:]
         reference_input_section='<fieldset><legend>참조 이미지 · 선택 사항, 최대 3장</legend><p id="tile-reference-guidance">참조 칸을 선택한 뒤 Ctrl+V / ⌘V로 PNG를 붙여넣거나 파일을 고르세요. 파일에서 고를 때만 파일 선택을 누르세요. 이미지 1·2·3 순서로 전달합니다. 사용자 프롬프트에 각 참조의 역할을 적으세요. 참조가 있으면 Qwen 2511, 없으면 기존 Qwen 2512로 생성합니다.</p>'+''.join(f'<section data-reference-slot="{reference_slot_index}" tabindex="0" role="button" aria-pressed="false" aria-describedby="tile-reference-guidance" aria-label="참조 이미지 {reference_slot_index} 선택">이미지 {reference_slot_index}<input id="tile-reference-{reference_slot_index}" type="file" accept="image/png" hidden><img id="tile-reference-preview-{reference_slot_index}" alt="참조 {reference_slot_index}" hidden style="max-width:128px"><button type="button" data-select-reference="{reference_slot_index}">파일 선택</button><button type="button" data-clear-reference="{reference_slot_index}">제거</button></section>' for reference_slot_index in range(1,4))+'</fieldset>'
         page_source_value=page_source_value.replace('id="generation-history"','id="generation-history" data-reset-deletes-files="true"')

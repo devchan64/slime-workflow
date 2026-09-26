@@ -12,7 +12,7 @@ function updateTilePromptDisplay(){
  const selectedTileRecord=tileConfigurationRecord.types[tileTypeSelector.value];
  document.querySelector('#tile-base-prompt').textContent=selectedTileRecord.base_prompt;
  document.querySelector('#tile-style-prompt').textContent=tileConfigurationRecord.style_prompt;
- const baseWordCount=countTileWords(selectedTileRecord.base_prompt),styleWordCount=countTileWords(tileConfigurationRecord.style_prompt),userWordCount=countTileWords(tileUserPrompt.value);
+ const baseWordCount=document.querySelector('#tile-use-base').checked?countTileWords(selectedTileRecord.base_prompt):0,styleWordCount=document.querySelector('#tile-use-style').checked?countTileWords(tileConfigurationRecord.style_prompt):0,userWordCount=countTileWords(tileUserPrompt.value);
  document.querySelector('#base-word-count').textContent=baseWordCount+'단어';document.querySelector('#style-word-count').textContent=styleWordCount+'단어';
  document.querySelector('#tile-word-count').textContent='사용자 '+userWordCount+'단어 · 최종 '+(baseWordCount+styleWordCount+userWordCount)+'단어 / 100단어 미만';
  tileUserPrompt.setCustomValidity(baseWordCount+styleWordCount+userWordCount>=100?'최종 프롬프트를 100단어 미만으로 줄이세요.':'');
@@ -33,7 +33,7 @@ document.querySelector('#generate').onsubmit=async eventValue=>{
   referenceImageValues.push(referenceDataUrl.split(',')[1]);
  }
  }catch(referenceReadError){tileGenerationStatus.textContent=referenceReadError.message;return;}
- startGenerationJob({images:referenceImageValues,action:'generate' ,tile_type:tileTypeSelector.value,user_prompt:tileUserPrompt.value,seed:Number(document.querySelector('#seed').value),steps:Number(document.querySelector('#steps').value),width:Number(document.querySelector('#resolution').value.split('x')[0]),height:Number(document.querySelector('#resolution').value.split('x')[1])});
+ startGenerationJob({use_base_prompt:document.querySelector('#tile-use-base').checked,use_style_prompt:document.querySelector('#tile-use-style').checked,images:referenceImageValues,action:'generate' ,tile_type:tileTypeSelector.value,user_prompt:tileUserPrompt.value,seed:Number(document.querySelector('#seed').value),steps:Number(document.querySelector('#steps').value),width:Number(document.querySelector('#resolution').value.split('x')[0]),height:Number(document.querySelector('#resolution').value.split('x')[1])});
 };
 const tileEstimateElement=document.createElement('p');tileEstimateElement.className='input-hint';tileEstimateElement.setAttribute('role','status');tileEstimateElement.textContent='예상 시간 · 생성 시작 후 같은 설정의 완료 이력으로 계산합니다.';document.querySelector('.progress-panel').append(tileEstimateElement);
 const sharedProgressRenderer=renderGenerationProgress;
@@ -87,3 +87,5 @@ document.addEventListener('generation-history-reset',resetEventValue=>{
  document.querySelector('#download').hidden=true;resetGenerationProgress();setBusyState(false);
  tileGenerationStatus.textContent='타일 생성 이력과 결과 파일을 삭제했습니다.';
 });
+
+for(const promptToggleId of ['tile-use-base','tile-use-style'])document.getElementById(promptToggleId).onchange=updateTilePromptDisplay;

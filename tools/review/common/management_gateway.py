@@ -191,6 +191,9 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
                 operation_argument_parser.add_argument('--directions',nargs='+',choices=('down_left','down_right','up_left','up_right'),default=['down_left','down_right','up_left','up_right'])
             else:
                 if service_command_name=='tile-map':operation_argument_parser.add_argument('--tile-type',choices=('rooftop','wall','ground'),required=True)
+                if service_command_name=='tile-map':
+                    operation_argument_parser.add_argument('--use-base-prompt',action=argparse.BooleanOptionalAction,default=True)
+                    operation_argument_parser.add_argument('--use-style-prompt',action=argparse.BooleanOptionalAction,default=True)
                 prompt_argument_group=operation_argument_parser.add_mutually_exclusive_group(required=True)
                 prompt_argument_group.add_argument('--prompt')
                 prompt_argument_group.add_argument('--prompt-file',type=Path,help='UTF-8 프롬프트 파일')
@@ -229,6 +232,8 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
             command_payload_value={'action':'generate','prompt':command_argument_values.prompt if command_argument_values.prompt is not None else command_argument_values.prompt_file.read_text(encoding='utf-8'),'width':command_argument_values.width,'height':command_argument_values.height,'steps':command_argument_values.steps,'seed':command_argument_values.seed}
             if service_command_name=='tile-map':
                 command_payload_value['tile_type']=command_argument_values.tile_type
+                command_payload_value['use_base_prompt']=command_argument_values.use_base_prompt
+                command_payload_value['use_style_prompt']=command_argument_values.use_style_prompt
                 command_payload_value['user_prompt']=command_payload_value.pop('prompt')
             if service_command_name in ('qwen-2511','tile-map'):
                 if len(command_argument_values.reference)>3:raise ValueError('참조 이미지는 최대 3장입니다.')

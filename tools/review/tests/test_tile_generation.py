@@ -32,7 +32,7 @@ class TileGenerationTests(unittest.TestCase):
         self.assertIn('data-select-reference="1"',rendered_page_value)
         self.assertIn('aria-pressed="false"',rendered_page_value)
         self.assertIn('<details><summary>기본 프롬프트 · 고정',rendered_page_value)
-        self.assertIn('<details><summary>화풍 프롬프트 · 항상 적용',rendered_page_value)
+        self.assertIn('<details><summary>화풍 프롬프트 · 고정',rendered_page_value)
     def test_existing_job_directories_appear_in_history(self):
         with tempfile.TemporaryDirectory() as temporary_directory_name:
             temporary_root_path=Path(temporary_directory_name)
@@ -61,6 +61,16 @@ class TileGenerationTests(unittest.TestCase):
         self.assertEqual(len(result_request_value['images']),3)
         for invalid_image_values in ([image_payload_value]*4,['invalid']):
             with self.assertRaises(ValueError):prepare_tile_request(self.make_tile_request()|{'images':invalid_image_values})
+
+    def test_prompt_toggle_combinations(self):
+        for use_base_prompt in (True,False):
+            for use_style_prompt in (True,False):
+                result_request_value=prepare_tile_request(self.make_tile_request()|{'use_base_prompt':use_base_prompt,'use_style_prompt':use_style_prompt})
+                expected_prompt_parts=([result_request_value['base_prompt']] if use_base_prompt else [])+['Red brick house.']+([result_request_value['style_prompt']] if use_style_prompt else [])
+                self.assertEqual(result_request_value['prompt'],'\n\n'.join(expected_prompt_parts))
+                self.assertEqual(result_request_value['use_base_prompt'],use_base_prompt)
+        with self.assertRaises(ValueError):prepare_tile_request(self.make_tile_request()|{'use_base_prompt':'false'})
+        with self.assertRaises(ValueError):prepare_tile_request(self.make_tile_request()|{'use_base_prompt':False,'use_style_prompt':False,'user_prompt':''})
 
     def test_cli_passes_only_user_prompt(self):
         with patch.object(management_gateway,'execute_management_command',return_value={'id':'test'}) as execute_command_mock:
