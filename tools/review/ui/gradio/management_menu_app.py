@@ -20,7 +20,7 @@ DEFAULT_PAGE_RECORDS=(
     {'id':'tile-map-generator','label':'타일 에셋 생성기','path':'/tile-map-generator/','category':'tile-review','description':'지붕 · 벽 · 맵 타일 에셋 생성'},
     {'id':'writer-agent','label':'작가 AI 에이전트','path':'/writer-agent/','category':'writer-agent','description':'문서 학습 · 아이디어 작성 · 실행 기록'},
     {'id':'three-reference-generator','label':'Qwen 2511 3참조 생성','path':'/image-generation-2511/','category':'image-generation','description':'참조 이미지 3장 · 프롬프트 · 결과 비교'},
-    {'id':'image-generator','label':'Qwen 2512 이미지 생성','path':'/image-generation/','category':'image-generation','description':'프롬프트로 이미지 생성 · 실행 상태 · 결과 다운로드'},
+    {'id':'image-generator','label':'Qwen 2512 이미지 생성','path':'/image-generation/','category':'image-generation','uiMode':'gradio','description':'Gradio · 프롬프트 · 실행 상태 · 생성 이력 · 결과 다운로드'},
 )
 
 def format_gpu_status(gpu_status_record):
@@ -72,7 +72,7 @@ def build_management_menu_interface(page_record_values, review_server_port):
     initial_page_identifier=page_record_values[0]['id'] if page_record_values else ''
     route_path_values={current_page_record['path']:current_page_index for current_page_index,current_page_record in enumerate(page_record_values)}
     initial_selection_script=f"""()=>{{const routePageIndexes={json.dumps(route_path_values).replace('<','\\u003c')};const selectedPageIndex=routePageIndexes[window.location.pathname];if(selectedPageIndex===undefined)return;window.setTimeout(()=>{{document.querySelectorAll('#management-tool-list input')[selectedPageIndex]?.click();}},80);}}"""
-    with gr.Blocks(title='SLIME 관리도구',js=initial_selection_script) as interface_blocks_value:
+    with gr.Blocks(title='SLIME 관리도구') as interface_blocks_value:
         with gr.Row():
             gr.Markdown('## SLIME 관리도구\n생성기와 검수 도구를 검색해 열고, 전환된 Gradio 화면만 따로 확인할 수 있습니다.',scale=3)
             gpu_status_value=gr.Markdown('GPU 상태 확인 중',elem_id='management-gpu-status',scale=2)
@@ -120,7 +120,7 @@ def build_management_menu_interface(page_record_values, review_server_port):
         next_page_button_value.click(fn=None,js="()=>{const toolInputValues=[...document.querySelectorAll('#management-tool-list input')];const selectedIndexValue=toolInputValues.findIndex((currentInputValue)=>currentInputValue.checked);toolInputValues[Math.min(toolInputValues.length-1,selectedIndexValue+1)]?.click();}",queue=False)
         interface_blocks_value.load(lambda:format_gpu_status(read_gpu_status()),outputs=gpu_status_value,queue=False)
         if hasattr(gr,'Timer'):gr.Timer(3).tick(lambda:format_gpu_status(read_gpu_status()),outputs=gpu_status_value,show_progress='hidden')
-    return interface_blocks_value
+    return interface_blocks_value,initial_selection_script
 
 if __name__=='__main__':
     argument_parser_value=argparse.ArgumentParser()
@@ -135,4 +135,5 @@ if __name__=='__main__':
         os._exit(0)
     threading.Thread(target=monitor_parent_process,daemon=True).start()
     application_css_text='''.gradio-container{max-width:1560px!important;padding:16px!important}#management-shell{align-items:stretch;min-height:calc(100vh - 132px)}#management-sidebar{position:sticky;top:12px;height:calc(100vh - 30px);overflow:hidden;display:flex;flex-direction:column;padding:12px;background:#192230;border:1px solid #314055;border-radius:12px}#management-sidebar>div{min-height:0}#management-tool-count{margin-top:4px;margin-bottom:2px;color:#b9cae2}#management-tool-list{flex:1;min-height:180px;overflow-y:auto;padding:6px 2px;border-top:1px solid #314055;border-bottom:1px solid #314055}#management-tool-list .wrap{display:flex;flex-direction:column;gap:4px}#management-tool-list label{padding:7px 8px;border-radius:7px;line-height:1.35}#management-tool-list label:hover{background:#26374d}#management-tool-list label:has(input:checked){background:#315482}.management-page-frame{width:100%;height:calc(100vh - 220px);min-height:560px;border:1px solid #314055;border-radius:12px;background:#10151f}.menu-empty-state{min-height:320px;display:grid;place-items:center;border:1px dashed #40516a;border-radius:12px;color:#a7b5c8}@media(max-width:800px){#management-shell{min-height:0}#management-sidebar{position:static;height:auto;max-height:none;overflow:visible}#management-tool-list{max-height:300px;flex:none}.management-page-frame{height:70vh;min-height:460px}}'''
-    build_management_menu_interface(load_manager_page_records(parsed_argument_values.source_file),parsed_argument_values.review_port).queue().launch(server_name='127.0.0.1',server_port=parsed_argument_values.port,root_path=parsed_argument_values.root_path,theme=gr.themes.Soft(),css=application_css_text,allowed_paths=[])
+    interface_blocks_value,initial_selection_script=build_management_menu_interface(load_manager_page_records(parsed_argument_values.source_file),parsed_argument_values.review_port)
+    interface_blocks_value.queue().launch(server_name='127.0.0.1',server_port=parsed_argument_values.port,root_path=parsed_argument_values.root_path,theme=gr.themes.Soft(),css=application_css_text,js=initial_selection_script,allowed_paths=[])

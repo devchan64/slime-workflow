@@ -16,6 +16,7 @@ def ensure_gradio_application(review_server_port, application_name, application_
             'management-menu':('management_menu_app.py',100,'/management/'),
             'momask':('momask_app.py',101,'/management/frame/momask-generator/'),
             'character-animation':('character_animation_app.py',102,'/management/frame/character-animation/'),
+            'qwen-2512':('qwen_2512_app.py',103,'/management/frame/image-generator/'),
         }
         if application_name not in application_definitions:raise ValueError('지원하지 않는 Gradio 관리 화면')
         application_filename,port_offset_value,application_root_path=application_definitions[application_name]
@@ -56,3 +57,6 @@ def ensure_management_menu_server(review_server_port, manager_source_path):
 
 def ensure_character_animation_server(review_server_port):
     return ensure_gradio_application(review_server_port,'character-animation')
+
+def ensure_qwen_2512_server(review_server_port):
+    return ensure_gradio_application(review_server_port,'qwen-2512')
