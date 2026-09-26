@@ -10,18 +10,18 @@ async function executeAnimationCommand(commandOperationName,commandPayloadValue=
  const commandResponseValue=await fetch('/management/command',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({service:'character-animation',command:commandOperationName,payload:commandPayloadValue})});
  const commandResponseRecord=await commandResponseValue.json();if(!commandResponseValue.ok)throw Error(commandResponseRecord.error);return commandResponseRecord;
 }
-function readAnimationSelection(){return {motion:animationElementLookup('motion-choice').value,character:animationElementLookup('character-choice').value,source:animationElementLookup('source-choice').value,steps:Number(animationElementLookup('generation-steps').value),target_fps:Number(animationElementLookup('generation-target-fps').value),directions:Array.from(document.querySelectorAll('[name=animation-direction]:checked')).map(directionCheckboxElement=>directionCheckboxElement.value)};}
+function readAnimationSelection(){return {motion:animationElementLookup('motion-choice').value,character:animationElementLookup('character-choice').value,source:animationElementLookup('source-choice').value,steps:Number(animationElementLookup('generation-steps').value),speed:Number(animationElementLookup('generation-speed').value),target_fps:Number(animationElementLookup('generation-target-fps').value),directions:Array.from(document.querySelectorAll('[name=animation-direction]:checked')).map(directionCheckboxElement=>directionCheckboxElement.value)};}
 function refreshAnimationSelection(){
  if(!animationCatalogRecord)return;
  const selectedAnimationValues=readAnimationSelection(),selectedMotionRecord=animationCatalogRecord.motions.find(motionRecordValue=>motionRecordValue.id===selectedAnimationValues.motion);
  if(lastSelectedMotionIdentifier!==selectedMotionRecord.id){animationElementLookup('generation-target-fps').replaceChildren(...Array.from({length:Math.floor(selectedMotionRecord.fps)},(_,currentFpsIndex)=>new Option(`${currentFpsIndex+1} FPS`,currentFpsIndex+1)));animationElementLookup('generation-target-fps').value=selectedMotionRecord.target_fps;selectedAnimationValues.target_fps=selectedMotionRecord.target_fps;lastSelectedMotionIdentifier=selectedMotionRecord.id;}
- const selectedFrameCount=Math.ceil(selectedMotionRecord.frames*selectedAnimationValues.target_fps/selectedMotionRecord.fps);
+ const selectedFrameCount=Math.ceil(selectedMotionRecord.frames*selectedAnimationValues.target_fps/(selectedMotionRecord.fps*selectedAnimationValues.speed));
  animationElementLookup('auxiliary-prompt').textContent=selectedAnimationValues.directions.map(directionNameValue=>animationDirectionLabels[directionNameValue]+'\n'+animationCatalogRecord.direction_prompts[directionNameValue].auxiliary).join('\n\n')||'생성할 방향을 선택하세요.';
  const basePromptWordCount=animationCatalogRecord.prompts.base.trim().split(/\s+/).length;
  animationElementLookup('base-prompt-word-count').textContent=`기본 ${basePromptWordCount}단어 · 공백 기준`;
  animationElementLookup('auxiliary-prompt-word-count').textContent=selectedAnimationValues.directions.map(directionNameValue=>{const directionPromptRecord=animationCatalogRecord.direction_prompts[directionNameValue];return `${animationDirectionLabels[directionNameValue]}: 보조 ${directionPromptRecord.auxiliary.trim().split(/\s+/).length}단어 · 최종 합계 ${directionPromptRecord.words}단어`;}).join(' / ')||'방향을 선택하면 단어 수를 표시합니다.';
  window.selectMotionAssetPreview(selectedMotionRecord);
- animationElementLookup('frame-count').textContent=`원본 ${selectedMotionRecord.frames}프레임 · 타겟 ${selectedAnimationValues.target_fps} FPS → ${selectedFrameCount}프레임 × ${selectedAnimationValues.directions.length}방향 = ${selectedFrameCount*selectedAnimationValues.directions.length}장 · ${selectedAnimationValues.target_fps} FPS 재생 시 방향당 ${(selectedFrameCount/selectedAnimationValues.target_fps).toFixed(2)}초 · 원본 ${selectedMotionRecord.fps} FPS`;
+ animationElementLookup('frame-count').textContent=`원본 ${selectedMotionRecord.frames}프레임 · 타겟 ${selectedAnimationValues.target_fps} FPS · ${selectedAnimationValues.speed}배 생성 → ${selectedFrameCount}프레임 × ${selectedAnimationValues.directions.length}방향 = ${selectedFrameCount*selectedAnimationValues.directions.length}장 · ${selectedAnimationValues.target_fps} FPS 재생 시 방향당 ${(selectedFrameCount/selectedAnimationValues.target_fps).toFixed(2)}초 · 원본 ${selectedMotionRecord.fps} FPS`;
  const previewDirectionName=selectedAnimationValues.directions[0]||'down_left';
  for(const referenceRoleName of ['character']){const previewImageElement=animationElementLookup(referenceRoleName+'-preview'),previewImagePath=`/character-animation/reference/${selectedAnimationValues.motion}/${selectedAnimationValues.character}/${selectedAnimationValues.source}/${previewDirectionName}/${referenceRoleName}`;if(previewImageElement.getAttribute('src')!==previewImagePath)previewImageElement.src=previewImagePath;}
  refreshGenerationAvailability();
@@ -45,7 +45,7 @@ function renderAnimationFrame(){
  currentFramePosition=(currentFramePosition+currentDirectionFrames.length)%currentDirectionFrames.length;
  animationElementLookup('output-frame').src=`/character-animation/files/${playbackJobIdentifier}/${currentDirectionFrames[currentFramePosition]}`;
  animationElementLookup('frame-position').value=currentFramePosition;
- animationElementLookup('frame-label').textContent=`${currentFramePosition+1} / ${currentDirectionFrames.length}장${playbackResultRecord.source_frame_numbers?.[animationElementLookup('playback-direction').value]?` · 원본 ${playbackResultRecord.source_frame_numbers[animationElementLookup('playback-direction').value][currentFramePosition]}번`:''} · ${animationElementLookup('result-playback-fps').value} FPS · ${animationElementLookup('result-playback-speed').value}배 · ${(currentDirectionFrames.length/(Number(animationElementLookup('result-playback-fps').value)*Number(animationElementLookup('result-playback-speed').value))).toLocaleString('ko-KR',{maximumFractionDigits:2})}초/회`;
+ animationElementLookup('frame-label').textContent=`${currentFramePosition+1} / ${currentDirectionFrames.length}장${playbackResultRecord.source_frame_numbers?.[animationElementLookup('playback-direction').value]?` · 원본 ${playbackResultRecord.source_frame_numbers[animationElementLookup('playback-direction').value][currentFramePosition]}번`:''} · ${animationElementLookup('result-playback-fps').value} FPS · ${(currentDirectionFrames.length/Number(animationElementLookup('result-playback-fps').value)).toLocaleString('ko-KR',{maximumFractionDigits:2})}초/회`;
 }
 function selectPlaybackDirection(){
  stopAnimationPlayback();currentFramePosition=0;
@@ -59,7 +59,7 @@ window.playGenerationRecord=async historyRecordValue=>{
   if(currentPlaybackRequest!==playbackRequestCounter)return;
   if(generationStatusRecord.status!=='completed'||!generationStatusRecord.result)throw Error('완료된 결과가 필요합니다.');
   playbackJobIdentifier=historyRecordValue.id;playbackResultRecord=generationStatusRecord.result;
-  animationElementLookup('result-playback-fps').value='4';animationElementLookup('result-playback-speed').value='1';
+  const currentResultFps=playbackResultRecord.fps;const currentFpsControl=animationElementLookup('result-playback-fps');if(!Array.from(currentFpsControl.options).some(currentOptionValue=>Number(currentOptionValue.value)===currentResultFps))currentFpsControl.add(new Option(`${currentResultFps} FPS`,currentResultFps));currentFpsControl.value=String(currentResultFps);
   animationElementLookup('playback-direction').replaceChildren(...Object.keys(playbackResultRecord.frames).map(directionNameValue=>new Option(animationDirectionLabels[directionNameValue],directionNameValue)));
   animationElementLookup('result-title').textContent=`${playbackJobIdentifier} · ${generationStatusRecord.request.motion} · ${generationStatusRecord.request.character} · ${generationStatusRecord.request.source} · ${(generationStatusRecord.request.steps||4)===4?'4스텝 Lightning':'30스텝'}`;
   for(const elementIdentifier of ['playback-direction','frame-previous','frame-play','frame-stop','frame-next','frame-position'])animationElementLookup(elementIdentifier).disabled=false;
@@ -68,7 +68,7 @@ window.playGenerationRecord=async historyRecordValue=>{
  }catch(playbackErrorValue){animationElementLookup('status').textContent=playbackErrorValue.message;}
 };
 animationElementLookup('playback-direction').onchange=selectPlaybackDirection;
-animationElementLookup('frame-play').onclick=()=>{if(!playbackResultRecord)return;stopAnimationPlayback();animationPlaybackTimer=setInterval(()=>{currentFramePosition++;renderAnimationFrame();},1000/(Number(animationElementLookup('result-playback-fps').value)*Number(animationElementLookup('result-playback-speed').value)));};
+animationElementLookup('frame-play').onclick=()=>{if(!playbackResultRecord)return;stopAnimationPlayback();animationPlaybackTimer=setInterval(()=>{currentFramePosition++;renderAnimationFrame();},1000/Number(animationElementLookup('result-playback-fps').value));};
 animationElementLookup('frame-stop').onclick=stopAnimationPlayback;
 for(const [elementIdentifier,frameIncrementValue] of [['frame-previous',-1],['frame-next',1]])animationElementLookup(elementIdentifier).onclick=()=>{stopAnimationPlayback();currentFramePosition+=frameIncrementValue;renderAnimationFrame();};
 animationElementLookup('frame-position').oninput=()=>{stopAnimationPlayback();currentFramePosition=Number(animationElementLookup('frame-position').value);renderAnimationFrame();};
@@ -93,7 +93,7 @@ function renderGenerationStatus(generationStatusRecord){
  if(requestRecordValue){
   const motionLabelText=animationCatalogRecord.motions.find(motionRecordValue=>motionRecordValue.id===requestRecordValue.motion)?.label||requestRecordValue.motion;
   const perDirectionCount=requestRecordValue.frames_per_direction;
-  animationElementLookup('job-summary').textContent=`접수된 작업 · ${motionLabelText} · ${requestRecordValue.source==='anny'?'ANNY':'OpenPose'} · ${requestRecordValue.steps===30?'30스텝 표준':'4스텝 Lightning'} · ${requestRecordValue.target_fps?`타겟 ${requestRecordValue.target_fps} FPS`:`${requestRecordValue.frame_step||1}프레임 간격`} · ${requestRecordValue.directions.length}방향${perDirectionCount?` × 방향당 ${perDirectionCount}장`:''}`;
+  animationElementLookup('job-summary').textContent=`접수된 작업 · ${requestRecordValue.speed||1}배 생성 · ${motionLabelText} · ${requestRecordValue.source==='anny'?'ANNY':'OpenPose'} · ${requestRecordValue.steps===30?'30스텝 표준':'4스텝 Lightning'} · ${requestRecordValue.target_fps?`타겟 ${requestRecordValue.target_fps} FPS`:`${requestRecordValue.frame_step||1}프레임 간격`} · ${requestRecordValue.directions.length}방향${perDirectionCount?` × 방향당 ${perDirectionCount}장`:''}`;
  }
  const completedCountValue=progressRecordValue?.completed,totalCountValue=progressRecordValue?.total;
  const hasValidCounts=Number.isInteger(completedCountValue)&&Number.isInteger(totalCountValue)&&totalCountValue>0&&completedCountValue>=0&&completedCountValue<=totalCountValue;
@@ -146,5 +146,3 @@ async function pollAnimationGeneration(){
 })();
 
 animationElementLookup('result-playback-fps').onchange=()=>{if(!playbackResultRecord)return;const wasPlaybackRunning=animationPlaybackTimer!==null;renderAnimationFrame();if(wasPlaybackRunning)animationElementLookup('frame-play').click();};
-
-animationElementLookup('result-playback-speed').onchange=()=>animationElementLookup('result-playback-fps').onchange();

@@ -175,6 +175,7 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
             operation_argument_parser.add_argument('--detach',action='store_true',help='작업 ID 출력 후 반환')
             if service_command_name=='character-animation':
                 operation_argument_parser.add_argument('--steps',type=int,choices=(4,30),default=None,help='4: Lightning, 30: 표준 생성 (기본 4)')
+                operation_argument_parser.add_argument('--speed',type=float,choices=(1,1.5,2,4),help='생성 배속. 기본 1, 2배는 절반 길이')
                 operation_argument_parser.add_argument('--target-fps',type=int,help='초당 생성 장수. 원본 FPS 이하 정수 (기본 4)')
                 operation_argument_parser.add_argument('--motion',required=True,help='catalog의 모션 ID')
                 operation_argument_parser.add_argument('--character',required=True,help='catalog의 캐릭터 ID')
@@ -211,6 +212,7 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
         if service_command_name=='character-animation':
             command_payload_value={'motion':command_argument_values.motion,'character':command_argument_values.character,'source':command_argument_values.source,'directions':command_argument_values.directions}
             if command_argument_values.steps is not None:command_payload_value['steps']=command_argument_values.steps
+            if command_argument_values.speed is not None:command_payload_value['speed']=command_argument_values.speed
             if command_argument_values.target_fps is not None:command_payload_value['target_fps']=command_argument_values.target_fps
         elif service_command_name=='momask':
             command_payload_value={'action':command_argument_values.action,'directions':command_argument_values.directions}

@@ -161,3 +161,5 @@ python3 tools/manager.py command tile-map history
 ```
 
 GUI와 CLI는 같은 `tile-map` 게이트웨이 서비스와 기록을 사용한다. CLI도 실행 중인 관리 서버가 필요하다. 생성 종류별 별도 추론 실행기는 만들지 않는다.
+
+캐릭터 생성 배속은 `--speed 1|1.5|2|4`로 지정한다. 기본은 1이며 `--target-fps 4 --speed 2`는 동일 FPS에서 원본의 절반 길이를 생성한다. 배속은 요청·결과·이력에 `speed`로 기록한다. 원본 모션 검수 재생에는 적용하지 않는다.

@@ -29,6 +29,16 @@ class CharacterAnimationTests(unittest.TestCase):
             with self.assertRaises(ValueError):assets.prepare_animation_request(self.make_selection_record(target_fps=invalid_frame_rate))
         with self.assertRaises(ValueError):assets.prepare_animation_request(self.make_selection_record(target_fps=2,frame_step=2))
 
+    def test_generation_speed_changes_sampling_not_fps(self):
+        for selected_speed_value, expected_frame_numbers in [(1,list(range(1,17))),(1.5,[1,2,4,5,7,8,10,11,13,14,16]),(2,list(range(1,17,2))),(4,[1,5,9,13])]:
+            request_record_value=assets.prepare_animation_request(self.make_selection_record(target_fps=4,speed=selected_speed_value))
+            self.assertEqual(request_record_value['selected_frame_numbers'],expected_frame_numbers)
+            self.assertEqual(request_record_value['fps'],4)
+            self.assertEqual(request_record_value['speed'],selected_speed_value)
+        for invalid_speed_value in (0,-1,0.5,True,'2',float('nan')):
+            with self.assertRaises(ValueError):assets.prepare_animation_request(self.make_selection_record(speed=invalid_speed_value))
+        with self.assertRaises(ValueError):assets.prepare_animation_request(self.make_selection_record(speed=2,frame_step=2))
+
     def test_registered_sources_all_frames_integrity(self):
         for motion_identifier_value,expected_frame_count in [('standing-v3',16),('walking-v8',32),('stretch-v1',120)]:
             for source_kind_value in ('openpose','anny'):
