@@ -139,3 +139,28 @@ input:disabled{opacity:.55;cursor:not-allowed}
 
 .history-record-folder{margin:12px 0;padding:12px;background:var(--page);border:1px solid var(--line);border-radius:9px}
 .history-record-folder code{display:block;font-size:12px;overflow-wrap:anywhere;user-select:text;color:var(--muted)}
+
+/* 공용 생성 이력: 작업 식별 → 입력 요약 → 결과 동작 → 기록 경로 → 상세 입력 */
+.history-heading{display:flex;justify-content:space-between;align-items:start;gap:16px;flex-wrap:wrap}
+.history-heading p{margin-bottom:0}
+.history-management-actions{display:flex;gap:8px;flex-wrap:wrap}
+.history-management-actions button{margin:0}
+.history-filters{padding:16px 0;border-bottom:1px solid var(--line)}
+.history-filters label:first-child{flex:1;min-width:180px}
+#history-list{list-style:none;padding:0;display:grid;gap:16px}
+#history-list>.history-record-card{padding:20px;border:1px solid var(--line);border-radius:12px;min-width:0}
+#history-list>.history-record-card.selected{border-color:var(--accent);box-shadow:inset 3px 0 var(--accent)}
+.history-record-header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+.history-record-header .history-meta{font-size:12px;color:var(--muted)}
+.history-record-id{display:block;margin:8px 0;font-size:13px;overflow-wrap:anywhere}
+.history-input-summary{font-size:13px;overflow-wrap:anywhere}
+.history-record-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:12px 0}
+#history-list .history-record-actions button,#history-list .history-record-actions a{margin:0}
+#history-list .history-record-actions .primary{order:-1}
+#history-list details{border-bottom:0;margin-top:12px;padding:8px 0 0}
+#history-list summary{font-size:13px;overflow-wrap:anywhere}
+#history-list pre,#history-log{max-height:260px}
+.history-pager{display:flex;align-items:center;justify-content:center;gap:12px}
+#history-log-details{border-top:1px solid var(--line);padding-top:12px}
+#history-log-details summary{overflow-wrap:anywhere}
+@media(max-width:600px){#history-list>.history-record-card{padding:14px}.history-heading{display:block}.history-management-actions{margin-top:12px}.history-filters{align-items:stretch}.history-record-actions button{flex:1}.history-record-folder button{font-size:12px}}
