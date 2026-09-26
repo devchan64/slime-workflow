@@ -4,10 +4,10 @@ prompts:
   auxiliary: .local/production-prompts/character-animation-v1/auxiliary-prompt.txt
   auxiliary_rear: .local/production-prompts/character-animation-v1/auxiliary-rear-prompt.txt
 motions:
-  standing-v4:
+  standing-v6:
     target_fps: 4
-    label: 대기 v4
-    root: assets/motion-sheet/momask-standing-v4
+    label: 대기 v6
+    root: assets/motion-sheet/momask-standing-v6
     manifest: manifest.yaml
     openpose: openpose/{direction}/openpose-{frame:04d}.png
     anny: anny/{direction}/anny-{frame:04d}.png

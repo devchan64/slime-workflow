@@ -1,0 +1,29 @@
+{
+  "action": "standing",
+  "label": "대기",
+  "frames": 16,
+  "anny_frames": 16,
+  "fps": 4,
+  "directions": [
+    "down_left",
+    "down_right",
+    "up_left",
+    "up_right"
+  ],
+  "prompt": "A person stands.",
+  "sampling": "none",
+  "quality_warnings": [],
+  "hand_pose": "fist-v3",
+  "arm_retarget": "parallel-transport-v3",
+  "skinning": "dual-quaternion-corrective-v1",
+  "baseline_model": {
+    "baseline_id": "neutral_v2",
+    "source_generation_id": "6a06369f",
+    "blend_sha256": "7aa697c88ddcf16247d9344c03d59654658ad908052a6df0fda79f7e5430ff98",
+    "attributes_sha256": "a8d1ec5f10603820b4f1fc862dd97e2d185ccafe850128b2db8b8d4292360adf"
+  },
+  "status": "completed",
+  "openpose_face_enabled": true,
+  "openpose_map_revision": 1790423700805520944,
+  "openpose_map_frames": 16
+}
