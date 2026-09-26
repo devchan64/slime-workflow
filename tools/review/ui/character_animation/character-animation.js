@@ -115,6 +115,17 @@ function renderGenerationStatus(generationStatusRecord){
  animationLogController.update(generationStatusRecord.log);
  animationElementLookup('cancel-generation').disabled=!isRunningValue||cancellationRequestPending;
 }
+function renderGenerationPreview(generationStatusRecord){
+ const latestPreviewRecord=generationStatusRecord.preview;
+ animationElementLookup('live-preview-images').hidden=!latestPreviewRecord;
+ if(!latestPreviewRecord){animationElementLookup('live-preview-note').textContent='첫 이미지가 저장되면 자동으로 표시합니다.';return;}
+ const previewRootUrl='/character-animation/files/'+encodeURIComponent(generationStatusRecord.id)+'/';
+ for(const [previewElementName,previewRelativePath] of [['output',latestPreviewRecord.image],['reference',latestPreviewRecord.reference]]){
+  const previewImageElement=animationElementLookup('live-preview-'+previewElementName),previewImageUrl=previewRootUrl+previewRelativePath;
+  if(previewImageElement.getAttribute('src')!==previewImageUrl)previewImageElement.src=previewImageUrl;
+ }
+ animationElementLookup('live-preview-note').textContent=`${generationStatusRecord.id} · ${animationDirectionLabels[latestPreviewRecord.direction]} · 원본 ${latestPreviewRecord.frame}번 · ${latestPreviewRecord.completed}장 완료. 저장된 새 프레임을 자동 표시합니다.`;
+}
 async function pollAnimationGeneration(){
  try{
   if(!animationCatalogRecord)return;
@@ -123,6 +134,7 @@ async function pollAnimationGeneration(){
    const generationStatusRecord=await executeAnimationCommand('status',{id:activeGenerationIdentifier});
    const generationProgressRecord=generationStatusRecord.progress;activeGenerationProgress=generationProgressRecord;
    renderGenerationStatus(generationStatusRecord);
+   renderGenerationPreview(generationStatusRecord);
    if(generationStatusRecord.status!=='running'){
     const completedGenerationIdentifier=activeGenerationIdentifier;activeGenerationIdentifier=null;activeGenerationProgress=null;cancellationRequestPending=false;
     if(generationStatusRecord.status==='completed')await window.playGenerationRecord({id:completedGenerationIdentifier});

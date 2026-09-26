@@ -103,6 +103,13 @@ def read_generation_status(generation_job_identifier):
             generation_status_record[record_file_name] = json.loads(record_file_path.read_text())
     generation_status_record.update(id=generation_job_identifier,path=str(generation_job_path),request=json.loads((generation_job_path/'request.json').read_text()))
     generation_status_record['progress']=describe_generation_progress(generation_job_path,generation_status_record['request'],generation_status_record)
+    generation_status_record['preview']=None
+    completed_frame_count=generation_status_record['progress']['completed']
+    if completed_frame_count:
+        latest_frame_record=generation_status_record['request']['frames'][completed_frame_count-1]
+        latest_frame_directory=f"{latest_frame_record['direction']}/frame-{latest_frame_record['frame']:04d}"
+        if (generation_job_path/latest_frame_directory/'result.png').is_file():
+            generation_status_record['preview']={'direction':latest_frame_record['direction'],'frame':latest_frame_record['frame'],'completed':completed_frame_count,'image':latest_frame_directory+'/result.png','reference':latest_frame_directory+'/character-reference.png'}
     generation_status_record['estimate']=estimate_generation_remaining(generation_job_path,generation_status_record['request'],generation_status_record)
     return generation_status_record
 
