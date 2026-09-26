@@ -8,6 +8,18 @@ import io
 from PIL import Image
 
 REFERENCE_IMAGE_LIMIT = 3_000_000
+WORKFLOW_ROOT_PATH = Path(__file__).resolve().parents[4]
+ALLOWED_REFERENCE_JOB_ROOTS = (
+    WORKFLOW_ROOT_PATH/'.tmp/test/qwen-image-2511-three-reference',
+    WORKFLOW_ROOT_PATH/'.tmp/test/qwen-image-2512/tile-map',
+)
+
+
+def validate_three_reference_job_path(current_job_root):
+    resolved_job_root = Path(current_job_root).resolve()
+    if not any(resolved_job_root.is_relative_to(allowed_job_root) for allowed_job_root in ALLOWED_REFERENCE_JOB_ROOTS):
+        raise ValueError('작업 경로 오류')
+    return resolved_job_root
 
 
 def validate_three_reference_request(current_request_record):

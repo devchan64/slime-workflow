@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from PIL import Image
-from tools.review.domains.image.three_reference_generation import validate_three_reference_request, save_three_reference_inputs, resolve_reference_settings
+from tools.review.domains.image.three_reference_generation import ALLOWED_REFERENCE_JOB_ROOTS, validate_three_reference_job_path, validate_three_reference_request, save_three_reference_inputs, resolve_reference_settings
 from tools.review.domains.image.image_generation import ImageGenerationManager
 from tools.review.tests.test_image_generation import ImageGenerationTests
 
@@ -43,6 +43,12 @@ class ThreeReferenceGenerationTests(unittest.TestCase):
         for current_invalid_steps in (True,4.0,'4',20,None):
             with self.assertRaises(ValueError):
                 resolve_reference_settings(current_invalid_steps)
+
+    def test_tile_reference_job_path_is_allowed(self):
+        for allowed_job_root in ALLOWED_REFERENCE_JOB_ROOTS:
+            self.assertEqual(validate_three_reference_job_path(allowed_job_root/'2026-09-26_18-43-54-6b5f63d6'),(allowed_job_root/'2026-09-26_18-43-54-6b5f63d6').resolve())
+        with self.assertRaises(ValueError):
+            validate_three_reference_job_path(Path('/tmp/invalid-reference-job'))
 
     def test_route_prefix_isolation(self):
         current_http_handler=ImageGenerationTests().make_http_handler('/image-generation-2511/')

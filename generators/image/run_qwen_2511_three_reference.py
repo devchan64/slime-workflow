@@ -10,16 +10,14 @@ WORKFLOW_ROOT_PATH=Path(__file__).resolve().parents[2]
 sys.path.insert(0,str(WORKFLOW_ROOT_PATH/'generators/animation'))
 from qwen_pose import execute_pose_generation
 sys.path.insert(0,str(WORKFLOW_ROOT_PATH))
-from tools.review.domains.image.three_reference_generation import resolve_reference_settings
+from tools.review.domains.image.three_reference_generation import resolve_reference_settings, validate_three_reference_job_path
 
 
 def execute_three_reference_worker():
     argument_parser_value=argparse.ArgumentParser(description=__doc__)
     argument_parser_value.add_argument('--job-dir',type=Path,required=True)
     parsed_argument_values=argument_parser_value.parse_args()
-    current_job_root=parsed_argument_values.job_dir.resolve()
-    if not current_job_root.is_relative_to(WORKFLOW_ROOT_PATH/'.tmp/test/qwen-image-2511-three-reference'):
-        raise ValueError('작업 경로 오류')
+    current_job_root=validate_three_reference_job_path(parsed_argument_values.job_dir)
     current_lock_path=WORKFLOW_ROOT_PATH/'.local/image-generation-gpu.lock'
     current_lock_path.parent.mkdir(parents=True,exist_ok=True)
     with current_lock_path.open('a') as current_lock_handle:
