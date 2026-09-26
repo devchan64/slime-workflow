@@ -1,6 +1,5 @@
 """고정 타일 프롬프트를 서버에서 결합하고 공용 Qwen 작업자로 실행한다."""
 import hashlib
-import html
 import json
 import time
 import re
@@ -10,7 +9,6 @@ from urllib.parse import urlsplit
 from zoneinfo import ZoneInfo
 import yaml
 from tools.review.domains.image.image_generation import ImageGenerationManager, IMAGE_JOB_ROOT, MANAGER_HISTORY_ROOT, WORKFLOW_ROOT_PATH, validate_image_request
-from tools.review.ui_assets import resolve_review_ui_asset
 
 REFERENCE_STYLE_PROMPT = 'Preserve the established visual style, character design, colors, proportions, and rendering treatment of the reference images. Do not render as pixel art unless explicitly requested.'
 TILE_CONFIGURATION_PATH = WORKFLOW_ROOT_PATH/'generators/terrain/config/tile_map.yaml'
@@ -113,32 +111,9 @@ class TileGenerationManager(ImageGenerationManager):
         if completed_duration_values:
             remaining_seconds_value=max(0,sum(completed_duration_values)/len(completed_duration_values)-(time.time()-(current_job_root/'request.json').stat().st_mtime))
         return current_status_record|{'estimate':{'remaining_seconds':remaining_seconds_value,'samples':len(completed_duration_values)}}
-    def render_generation_page(self):
-        # 모델 준비·생성·취소·진행·이력은 기존 이미지 생성 화면을 공유한다.
-        page_source_value=super().render_generation_page().decode().replace('/image-generation','/tile-map-generator').replace('qwen2512Job','tileMapJob')
-        page_source_value=page_source_value.replace('Qwen 2512 · 이미지 생성','타일 에셋 생성기').replace('Qwen 2512 이미지 생성','타일 에셋 생성기').replace('텍스트 설명으로 이미지를 생성합니다. 4스텝 Lightning / 30스텝 표준을 선택하세요.','지붕·벽·맵 타일을 생성합니다. 문은 벽 타일 프롬프트로 함께 처리합니다.')
-        page_source_value=page_source_value.replace('value="251204"','value="10107"')
-        start_style_position=page_source_value.index('<div class="style-prompt-setting">')
-        end_style_position=page_source_value.index('<label for="prompt">',start_style_position)
-        tile_configuration_value=load_tile_configuration()
-        tile_option_values=''.join(f'<option value="{kind_name_value}">{html.escape(kind_record_value["label"])}</option>' for kind_name_value,kind_record_value in tile_configuration_value['types'].items())
-        fixed_prompt_section='<label for="tile-type">타일 종류</label><select id="tile-type">'+tile_option_values+'</select><label><input id="tile-use-base" type="checkbox" checked> 기본 프롬프트 적용</label><details><summary>기본 프롬프트 · 고정 <small id="base-word-count"></small></summary><pre id="tile-base-prompt"></pre></details><label><input id="tile-use-style" type="checkbox" checked> 화풍 프롬프트 적용</label><details><summary>화풍 프롬프트 · 고정 <small id="style-word-count"></small></summary><pre id="tile-style-prompt"></pre></details><p id="tile-word-count" role="status"></p>'
-        fixed_prompt_section+='<label><input id="tile-use-reference-style" type="checkbox"> 참조 화풍 보존 적용</label><details><summary>참조 화풍 보존 · 고정 <small id="reference-style-word-count"></small></summary><pre id="tile-reference-style-prompt">'+REFERENCE_STYLE_PROMPT+'</pre></details>'
-        page_source_value=page_source_value[:start_style_position]+fixed_prompt_section+page_source_value[end_style_position:]
-        reference_input_section='<fieldset><legend>참조 이미지 · 선택 사항, 최대 3장</legend><p id="tile-reference-guidance">참조 칸을 선택한 뒤 Ctrl+V / ⌘V로 PNG를 붙여넣거나 파일을 고르세요. 파일에서 고를 때만 파일 선택을 누르세요. 이미지 1·2·3 순서로 전달합니다. 사용자 프롬프트에 각 참조의 역할을 적으세요. 참조가 있으면 Qwen 2511, 없으면 기존 Qwen 2512로 생성합니다.</p>'+''.join(f'<section data-reference-slot="{reference_slot_index}" tabindex="0" role="button" aria-pressed="false" aria-describedby="tile-reference-guidance" aria-label="참조 이미지 {reference_slot_index} 선택">이미지 {reference_slot_index}<input id="tile-reference-{reference_slot_index}" type="file" accept="image/png" hidden><img id="tile-reference-preview-{reference_slot_index}" alt="참조 {reference_slot_index}" hidden style="max-width:128px"><button type="button" data-select-reference="{reference_slot_index}">파일 선택</button><button type="button" data-clear-reference="{reference_slot_index}">제거</button></section>' for reference_slot_index in range(1,4))+'</fieldset>'
-        page_source_value=page_source_value.replace('id="generation-history"','id="generation-history" data-reset-deletes-files="true"')
-        page_source_value=page_source_value.replace('<label for="prompt">',reference_input_section+'<label for="prompt">')
-        page_source_value=page_source_value.replace('만들 이미지 설명','사용자 프롬프트').replace('원하는 대상, 배경, 구도, 스타일을 설명하세요.','재질, 색상, 건물의 용도 등 추가 요구를 입력하세요.')
-        page_source_value=page_source_value.replace('<script src="/tile-map-generator/history-ui.js">','<script src="/tile-map-generator/tile-ui.js"></script><script src="/tile-map-generator/history-ui.js">')
-        page_source_value=page_source_value.replace('<body>','<body class="tile-generator-page">')
-        page_source_value=page_source_value.replace('<fieldset><legend>참조 이미지','<fieldset class="reference-input-group"><legend>참조 이미지')
-        page_source_value=page_source_value.replace('</p><section data-reference-slot=','</p><div class="reference-input-grid"><section data-reference-slot=',1)
-        page_source_value=page_source_value.replace('</section></fieldset>','</section></div></fieldset>')
-        page_source_value=page_source_value.replace('참조 칸을 선택한 뒤 Ctrl+V / ⌘V로 PNG를 붙여넣거나 파일을 고르세요. 파일에서 고를 때만 파일 선택을 누르세요. 이미지 1·2·3 순서로 전달합니다. 사용자 프롬프트에 각 참조의 역할을 적으세요. 참조가 있으면 Qwen 2511, 없으면 기존 Qwen 2512로 생성합니다.','칸을 선택해 Ctrl+V / ⌘V로 붙여넣거나 PNG를 드래그하세요. 이미지 1 → 2 → 3 순서로 전달합니다. 참조 사용: Qwen 2511 / 참조 없음: Qwen 2512.')
-        return page_source_value.encode()
     def handle_image_request(self,current_http_handler):
         route_path_value=urlsplit(current_http_handler.path).path
-        if current_http_handler.command=='GET' and route_path_value in ('/tile-map-generator/catalog','/tile-map-generator/tile-ui.js'):
-            response_payload_value=json.dumps(load_tile_configuration(),ensure_ascii=False).encode() if route_path_value.endswith('/catalog') else resolve_review_ui_asset('tile-generation.js').read_bytes()
-            current_http_handler.send_response(200);current_http_handler.send_header('Content-Type','application/json; charset=utf-8' if route_path_value.endswith('/catalog') else 'text/javascript; charset=utf-8');current_http_handler.send_header('Content-Length',str(len(response_payload_value)));current_http_handler.end_headers();current_http_handler.wfile.write(response_payload_value);return True
+        if current_http_handler.command=='GET' and route_path_value=='/tile-map-generator/catalog':
+            response_payload_value=json.dumps(load_tile_configuration(),ensure_ascii=False).encode()
+            current_http_handler.send_response(200);current_http_handler.send_header('Content-Type','application/json; charset=utf-8');current_http_handler.send_header('Content-Length',str(len(response_payload_value)));current_http_handler.end_headers();current_http_handler.wfile.write(response_payload_value);return True
         return super().handle_image_request(current_http_handler)

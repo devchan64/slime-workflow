@@ -2,10 +2,8 @@
 import sys
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[4]))
-from tools.review.ui_assets import resolve_review_ui_asset
-from tools.review.domains.anny.anny_attributes import load_active_profile
 from urllib.parse import parse_qs, urlsplit
-import json, re, html, yaml
+import json, re
 from tools.review.common.management_gateway import execute_momask_command
 from tools.review.domains.momask.momask_jobs import start_generation_job, cancel_generation_job, check_generation_running, list_generation_history, read_generation_status, reset_generation_history
 from tools.review.domains.momask.openpose_maps import generate_openpose_maps
@@ -41,13 +39,7 @@ class MoMaskGenerationManager:
    origin=f'http://127.0.0.1:{h.server.server_port}'
    if h.headers.get('Host')!=origin.removeprefix('http://'): raise ValueError('허용하지 않는 Host')
    if h.command=='GET' and path in (self.route,self.route+'/'):
-    from tools.review.common.gradio_process import ensure_gradio_server
-    gradio_page_url=ensure_gradio_server(h.server.server_port)
-    h.send_response(302);h.send_header('Location',gradio_page_url);h.send_header('Cache-Control','no-store');h.end_headers();return True
-   if h.command=='GET' and path in (self.route+'/studio.css',self.route+'/layout.css'):
-    stylesheet_file_name='generation-studio.css' if path.endswith('/studio.css') else 'momask-studio.css'
-    self.send(h,200,resolve_review_ui_asset(stylesheet_file_name).read_bytes(),'text/css; charset=utf-8');return True
-   if h.command=='GET' and path==self.route+'/history-ui.js':self.send(h,200,resolve_review_ui_asset('generation-history.js').read_bytes(),'text/javascript');return True
+    self.send(h,410,{'error':'이전 관리 화면은 폐기되었습니다. /management/에서 Gradio 화면을 여세요.'});return True
    if h.command=='GET' and path==self.route+'/history':
     records=self.history()
     for history_record_value in records:

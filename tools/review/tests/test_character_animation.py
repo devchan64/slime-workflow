@@ -150,6 +150,13 @@ class CharacterAnimationTests(unittest.TestCase):
             gateway.ManagementCommandGateway({'character-animation':CharacterAnimationManager().handle}).handle(http_request_handler)
         service_execute_mock.assert_called_once_with('generate',selection_request_record)
 
+    def test_retired_page_returns_gone(self):
+        response_status_values=[]
+        current_http_handler=SimpleNamespace(command='GET',path='/character-animation/',headers={},server=SimpleNamespace(server_port=8770),wfile=io.BytesIO(),send_response=response_status_values.append,send_header=lambda *current_header_values:None,end_headers=lambda:None)
+        self.assertTrue(CharacterAnimationManager().handle(current_http_handler))
+        self.assertEqual(response_status_values,[410])
+        self.assertIn('이전 관리 화면은 폐기되었습니다.',json.loads(current_http_handler.wfile.getvalue())['error'])
+
     def test_history_reset_retains_results_and_cancel_is_shared(self):
         with tempfile.TemporaryDirectory() as temporary_root_name:
             temporary_root_path=Path(temporary_root_name)

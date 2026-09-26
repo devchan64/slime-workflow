@@ -2,7 +2,6 @@
 import sys
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[4]))
-from tools.review.ui_assets import resolve_review_ui_asset
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from urllib.parse import urlsplit
@@ -78,9 +77,6 @@ class ImageGenerationManager:
 
     def validate_generation_request(self, request_record_value):
         return validate_image_request(request_record_value)
-
-    def render_generation_page(self):
-        return resolve_review_ui_asset('three-reference-generation.html' if self.three_reference_mode else 'image-generation.html').read_bytes()
 
     def history_storage_path(self):
         return MANAGER_HISTORY_ROOT / ('qwen-2511' if self.three_reference_mode else 'qwen-2512')
@@ -219,14 +215,8 @@ class ImageGenerationManager:
                         send_response_data(200,{'ready':True,'message':'모델·Lightning 파일 준비됨. 생성 시 해시를 검증합니다.'})
                     except (ValueError,FileNotFoundError) as current_model_error:
                         send_response_data(200,{'ready':False,'message':str(current_model_error)})
-            elif current_url_path == self.route_prefix_value+'/studio.css':
-                send_response_data(200,resolve_review_ui_asset('generation-studio.css').read_bytes(),'text/css; charset=utf-8')
-            elif current_url_path == self.route_prefix_value+'/progress-ui.js':
-                send_response_data(200,resolve_review_ui_asset('generation-progress.js').read_bytes(),'text/javascript; charset=utf-8')
-            elif current_url_path == self.route_prefix_value+'/history-ui.js':
-                send_response_data(200,resolve_review_ui_asset('generation-history.js').read_bytes(),'text/javascript; charset=utf-8')
             elif current_url_path in (self.route_prefix_value,self.route_prefix_value+'/'):
-                send_response_data(200,self.render_generation_page(),'text/html; charset=utf-8')
+                send_response_data(410,{'error':'이전 관리 화면은 폐기되었습니다. /management/에서 Gradio 화면을 여세요.'})
             else:
                 current_path_match = re.fullmatch(re.escape(self.route_prefix_value)+r'/jobs/([0-9]{4}-[0-9-]{5}_[0-9-]{8}-[a-f0-9]{8})(/result.png|/worker.log|/reference-[123]\.png)?',current_url_path)
                 if not current_path_match:

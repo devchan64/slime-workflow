@@ -19,17 +19,15 @@ class CharacterAnimationManager:
         if not request_route_path.startswith('/character-animation/'):return False
         try:
             if current_http_handler.command=='GET' and request_route_path=='/character-animation/':
-                from tools.review.common.gradio_process import ensure_character_animation_server
-                gradio_page_url=ensure_character_animation_server(current_http_handler.server.server_port)
-                current_http_handler.send_response(302);current_http_handler.send_header('Location',gradio_page_url);current_http_handler.send_header('Cache-Control','no-store');current_http_handler.end_headers();return True
-            command_route_record=identify_management_command(current_http_handler.path,current_http_handler.command)
-            if command_route_record:
+                response_payload_bytes=json.dumps({'error':'이전 관리 화면은 폐기되었습니다. /management/에서 Gradio 화면을 여세요.'},ensure_ascii=False).encode()
+                current_http_handler.send_response(410);current_http_handler.send_header('Content-Type','application/json; charset=utf-8');current_http_handler.send_header('Content-Length',str(len(response_payload_bytes)));current_http_handler.end_headers();current_http_handler.wfile.write(response_payload_bytes);return True
+            elif (command_route_record:=identify_management_command(current_http_handler.path,current_http_handler.command)):
                 command_payload_value=json.loads(current_http_handler.rfile.read(int(current_http_handler.headers['Content-Length']))) if current_http_handler.command=='POST' else command_route_record[2]
                 response_record_value=execute_animation_command(command_route_record[1],command_payload_value)
                 response_payload_bytes=response_record_value.encode() if isinstance(response_record_value,str) else json.dumps(response_record_value,ensure_ascii=False).encode()
                 response_content_type='text/plain' if isinstance(response_record_value,str) else 'application/json'
             elif current_http_handler.command=='GET':
-                static_file_mapping={'sprite-editor':'sprite-editor.html','sprite-editor.js':'sprite-editor.js','':'character-animation.html','app.js':'character-animation.js','studio.css':'generation-studio.css','history.js':'generation-history.js','asset-player.js':'character-animation-assets.js'}
+                static_file_mapping={'sprite-editor':'sprite-editor.html','sprite-editor.js':'sprite-editor.js'}
                 request_route_suffix=request_route_path.removeprefix('/character-animation/')
                 if request_route_suffix in static_file_mapping:
                     response_file_path=resolve_review_ui_asset(static_file_mapping[request_route_suffix])

@@ -30,11 +30,11 @@ class ImageGenerationTests(unittest.TestCase):
         current_handler_value.end_headers=lambda:None
         return current_handler_value
 
-    def test_page_status_and_origin(self):
+    def test_retired_page_status_and_origin(self):
         current_manager_value=ImageGenerationManager()
         current_handler_value=self.make_http_handler('/image-generation/')
         self.assertTrue(current_manager_value.handle_image_request(current_handler_value))
-        self.assertEqual(current_handler_value.status,200)
+        self.assertEqual(current_handler_value.status,410)
         current_handler_value=self.make_http_handler('/image-generation/jobs','POST','https://elsewhere.invalid')
         current_manager_value.handle_image_request(current_handler_value)
         self.assertEqual(current_handler_value.status,400)

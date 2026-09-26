@@ -64,8 +64,7 @@ class ThreeReferenceGenerationTests(unittest.TestCase):
         current_http_handler=ImageGenerationTests().make_http_handler('/image-generation-2511/')
         self.assertFalse(ImageGenerationManager().handle_image_request(current_http_handler))
         self.assertTrue(ImageGenerationManager(three_reference_mode=True).handle_image_request(current_http_handler))
-        self.assertEqual(current_http_handler.status,200)
-        self.assertIn('참조 이미지'.encode(),current_http_handler.wfile.getvalue())
+        self.assertEqual(current_http_handler.status,410)
 
 
 if __name__=='__main__':

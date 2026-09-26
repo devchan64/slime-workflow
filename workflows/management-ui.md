@@ -114,7 +114,7 @@
 - 긴 모션은 제한된 수의 프레임을 캐시하고 필요한 프레임을 미리 읽는다. 전체 모션을 무조건 메모리에 적재하지 않는다.
 - 파일 누락·로딩 실패는 검수 영역에 표시한다. 오래된 이미지를 새 결과처럼 표시하지 않는다.
 
-현재 원본 에셋 재생 구현은 [character-animation-assets.js](../tools/review/ui/character_animation/character-animation-assets.js), 생성 결과 재생은 [character-animation.js](../tools/review/ui/character_animation/character-animation.js)를 참고한다. 아직 독립된 범용 플레이어로 통합된 상태는 아니다. 다른 페이지에서 같은 기능이 필요하면 공용 플레이어로 추출해 함께 사용한다.
+현재 원본 에셋과 생성 결과 재생은 [character_animation_app.py](../tools/review/ui/gradio/character_animation_app.py)의 Gradio 결과 플레이어를 기준으로 한다. 다른 페이지에서 같은 기능이 필요하면 공용 플레이어로 추출해 함께 사용한다.
 
 ## 8. 공용 코드와 서비스 연결
 

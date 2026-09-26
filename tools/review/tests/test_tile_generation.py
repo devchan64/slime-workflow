@@ -22,7 +22,6 @@ class TileGenerationTests(unittest.TestCase):
         request.pop('seed')
         self.assertEqual(prepare_tile_request(request)['seed'],10107)
         self.assertEqual(prepare_tile_request(request|{'seed':0})['seed'],0)
-        self.assertIn('value="10107"',TileGenerationManager().render_generation_page().decode())
 
     def test_user_prompt_is_last_for_every_toggle_combination(self):
         from itertools import product
@@ -46,19 +45,10 @@ class TileGenerationTests(unittest.TestCase):
     def test_fixed_prompt_override_and_invalid_input_rejected(self):
         for invalid_request_value in ({'base_prompt':'override'},{'style_prompt':''},{'prompt':'override'},{'tile_type':'other'},{'width':768},{'seed':True},{'user_prompt':'word '*100}):
             with self.assertRaises(ValueError):prepare_tile_request(self.make_tile_request()|invalid_request_value)
-    def test_tile_storage_and_shared_page(self):
+    def test_tile_storage_uses_separate_history(self):
         image_manager_value=TileGenerationManager()
         self.assertEqual(image_manager_value.job_storage_root.name,'tile-map')
         self.assertEqual(image_manager_value.history_storage_path().name,'tile-map')
-        rendered_page_value=image_manager_value.render_generation_page().decode()
-        self.assertIn('tile-map-generator/tile-ui.js',rendered_page_value)
-        self.assertNotIn('id="use-style-prompt"',rendered_page_value)
-        self.assertIn('Ctrl+V / ⌘V',rendered_page_value)
-        self.assertIn('data-reference-slot="1"',rendered_page_value)
-        self.assertIn('data-select-reference="1"',rendered_page_value)
-        self.assertIn('aria-pressed="false"',rendered_page_value)
-        self.assertIn('<details><summary>기본 프롬프트 · 고정',rendered_page_value)
-        self.assertIn('<details><summary>화풍 프롬프트 · 고정',rendered_page_value)
     def test_existing_job_directories_appear_in_history(self):
         with tempfile.TemporaryDirectory() as temporary_directory_name:
             temporary_root_path=Path(temporary_directory_name)
