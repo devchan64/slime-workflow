@@ -155,7 +155,7 @@ class PositionChannelRetargetTests(unittest.TestCase):
         rig_archive_values = np.load(REPOSITORY_ROOT_PATH / 'assets/animation-models/anny-neutral-v4/anny-rest-rig.npz')
         rest_position_values = {current_bone_name: Vector(current_matrix_values[:3, 3]) for current_bone_name, current_matrix_values in zip(rig_archive_values['bone_names'], rig_archive_values['bone_matrices'])}
         rest_rotation_values = {current_bone_name: Matrix(current_matrix_values.tolist()).to_quaternion() for current_bone_name, current_matrix_values in zip(rig_archive_values['bone_names'], rig_archive_values['bone_matrices'])}
-        for current_motion_name in ('momask-standing-v7', 'momask-walking-v9', 'momask-stretch-v1'):
+        for current_motion_name in ('momask-standing-v8', 'momask-walking-v9', 'momask-stretch-v1'):
             source_joint_frames = np.load(REPOSITORY_ROOT_PATH / 'assets/motion-sheet' / current_motion_name / 'motion.npz')['joints'] @ np.asarray(profile_record_values['coordinate_matrix']).T
             current_solver_value = PositionRetargetSolver(profile_record_values, rest_position_values, rest_rotation_values)
             for current_joint_points in source_joint_frames:

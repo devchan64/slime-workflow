@@ -4,7 +4,6 @@
 
 |모션|프레임|재생 시간|방향별 시트|
 |---|---:|---:|---|
-|스탠딩 v3|16|4초|4열×4행 1장|
 |걷기 v8|32|8초|4열×8행 1장|
 |스트레칭 v1|120|30초|4열×8행 3장 + 4열×6행 1장|
 
@@ -13,13 +12,6 @@
 원본 모션의 20fps를 4fps로 다운샘플링한 것이 아니라, 등록 에셋의 4fps 재생 기준으로 모든 프레임을 유지했다. 기존 걷기 v8 시트 및 기본 설정은 보존했다.
 
 ## 파일
-
-### standing-v3
-
-- down_left: [시트 1](standing-v3/down_left/page-01.png)
-- down_right: [시트 1](standing-v3/down_right/page-01.png)
-- up_left: [시트 1](standing-v3/up_left/page-01.png)
-- up_right: [시트 1](standing-v3/up_right/page-01.png)
 
 ### walking-v8
 

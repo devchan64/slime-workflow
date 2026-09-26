@@ -3,10 +3,9 @@ asset_id: game-motion-pose-sheets
 version: 1
 asset_path: assets/pose-sheets/game-motion-4fps-v1
 manifest_path: assets/pose-sheets/game-motion-4fps-v1/manifest.yaml
-manifest_sha256: c310271a7cae7cfc203faad95d85f79178ee464cd2a1dbc655f3f4f92e0ebcfd
+manifest_sha256: 6618a6ac71577e988f7add8a770ef4cc2fb3d32b37b902e1a3adcfc6cce92227
 fps: 4
 frame_duration_ms: 250
 motions:
-- standing-v3
 - walking-v8
 - stretch-v1
