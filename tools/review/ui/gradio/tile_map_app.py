@@ -38,6 +38,25 @@ def restore_tile_inputs(current_history_record,server_base_address):
                 restored_image_values.append(current_image_value.copy())
     return [request_record_value['tile_type'],request_record_value['user_prompt'],request_record_value['width'],request_record_value['steps'],request_record_value['seed'],request_record_value.get('use_base_prompt',True),request_record_value.get('use_style_prompt',True),request_record_value.get('use_reference_style_prompt',False),*restored_image_values,*([None]*(3-len(restored_image_values))),'입력값과 참조 사본을 불러왔습니다. 고정 프롬프트는 현재 설정을 사용하며 자동 생성하지 않습니다.']
 
+def cancel_tile_generation(current_generation_identifier):
+    if not current_generation_identifier:raise gr.Error('취소할 실행 중 작업이 없습니다.')
+    current_active_record=execute_tile_gateway('active',{})
+    if not current_active_record.get('running') or current_active_record.get('id')!=current_generation_identifier:
+        raise gr.Error('해당 작업은 실행 중이 아닙니다. 상태를 새로고침하세요.')
+    current_cancel_record=execute_tile_gateway('cancel',{'id':current_generation_identifier})
+    if current_cancel_record.get('status')!='cancelled':raise gr.Error('취소 완료를 확인하지 못했습니다. 상태를 새로고침하세요.')
+    return '생성을 취소했습니다. 생성 이력과 로그는 보존됩니다.',gr.update(interactive=False),gr.update(interactive=True)
+
+def refresh_tile_execution(current_generation_identifier):
+    current_active_record=execute_tile_gateway('active',{})
+    if current_active_record.get('running'):
+        return current_active_record['id'],'생성 중 · 취소할 수 있습니다.',gr.update(interactive=True),gr.update(interactive=False)
+    current_status_message='실행 중인 작업이 없습니다. 생성 후에 취소할 수 있습니다.'
+    if current_generation_identifier:
+        current_status_record=execute_tile_gateway('status',{'id':current_generation_identifier})
+        current_status_message='상태: '+str(current_status_record.get('status','unknown'))
+    return current_generation_identifier or '',current_status_message,gr.update(interactive=False),gr.update(interactive=True)
+
 def build_tile_interface(server_base_address):
     catalog_record_value=execute_tile_gateway('catalog',{})
     tile_choices=[(record['label'],name) for name,record in catalog_record_value['types'].items()]
@@ -62,13 +81,22 @@ def build_tile_interface(server_base_address):
                 tile_value.change(update_base_prompt,inputs=tile_value,outputs=base_prompt_display,queue=False)
                 width_value=gr.Dropdown([512,768,1024],value=512,label='정사각형 해상도');step_value=gr.Radio([4,30],value=4,label='생성 스텝');seed_value=gr.Number(value=10107,precision=0,label='Seed')
                 start_value=gr.Button('타일 생성 시작',variant='primary');status_value=gr.Markdown('생성 가능 · 최종 프롬프트는 100단어 미만이어야 합니다.')
+                with gr.Row():
+                    cancel_value=gr.Button('생성 취소',interactive=False)
+                    execution_refresh_value=gr.Button('진행 상태 새로고침')
                 identifier_value=gr.Textbox(label='실행 중 생성 ID',interactive=False)
             with gr.Column(scale=2):
                 read_history_page,history_output_values=build_generation_history_view(execute_tile_gateway,server_base_address,'이력 목록만 초기화합니다. 결과·참조 사본·로그 파일은 유지됩니다. 생성 중에는 초기화할 수 없습니다.',lambda record:restore_tile_inputs(record,server_base_address),[tile_value,prompt_value,width_value,step_value,seed_value,base_value,style_value,reference_style_value,*reference_image_controls,status_value],record_folder_route='/tile-map-generator')
         def start_tile(*input_values):
-            record_value=execute_tile_gateway('generate',build_tile_request(*input_values));return record_value['id'],'상태: running'
-        start_value.click(start_tile,[tile_value,prompt_value,width_value,step_value,seed_value,base_value,style_value,reference_style_value,*reference_image_controls],[identifier_value,status_value])
+            record_value=execute_tile_gateway('generate',build_tile_request(*input_values));return record_value['id'],'생성 중 · 취소할 수 있습니다.',gr.update(interactive=True),gr.update(interactive=False)
+        start_value.click(start_tile,[tile_value,prompt_value,width_value,step_value,seed_value,base_value,style_value,reference_style_value,*reference_image_controls],[identifier_value,status_value,cancel_value,start_value])
         blocks_value.load(lambda:read_history_page(1),outputs=history_output_values)
+        cancel_value.click(cancel_tile_generation,identifier_value,[status_value,cancel_value,start_value],queue=False).then(lambda:read_history_page(1),outputs=history_output_values)
+        execution_output_values=[identifier_value,status_value,cancel_value,start_value]
+        execution_refresh_value.click(refresh_tile_execution,identifier_value,execution_output_values,queue=False)
+        blocks_value.load(refresh_tile_execution,identifier_value,execution_output_values)
+        if hasattr(gr,'Timer'):gr.Timer(3).tick(refresh_tile_execution,identifier_value,execution_output_values,queue=False)
+
     return blocks_value
 if __name__=='__main__':
     parser_value=argparse.ArgumentParser();parser_value.add_argument('--port',type=int,required=True);parser_value.add_argument('--review-port',type=int,required=True);parser_value.add_argument('--owner-pid',type=int,required=True);parser_value.add_argument('--root-path',default='/management/frame/tile-map-generator/');arguments_value=parser_value.parse_args()
