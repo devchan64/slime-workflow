@@ -104,7 +104,7 @@ def parse_review_arguments(command_argument_values=None):
 
 def collect_review_watch_paths(parsed_argument_values):
     workflow_repo_root = Path(__file__).resolve().parents[2]
-    watch_paths = [Path(__file__).resolve(), workflow_repo_root/'tools/review', workflow_repo_root/'generators/animation', workflow_repo_root/'generators/worldbuilding', workflow_repo_root/'generators/writer_agent']
+    watch_paths = [Path(__file__).resolve(), workflow_repo_root/'tools/review', workflow_repo_root/'generators']
     current_writer_config=parsed_argument_values.writer_agent_config or workflow_repo_root/'.local/writer-agent/workspace.yaml'
     watch_paths.append(current_writer_config)
     if parsed_argument_values.frontend_repo:
@@ -348,13 +348,18 @@ def run_review_server(parsed_argument_values):
             proxy_connection_value=http.client.HTTPConnection('127.0.0.1',gradio_server_port,timeout=30)
             proxy_header_values={header_name:header_value for header_name,header_value in self.headers.items() if header_name.lower() not in ('host','connection','transfer-encoding')}
             proxy_header_values['Host']=f'127.0.0.1:{gradio_server_port}'
+            proxy_header_values['Accept-Encoding']='identity'
             proxy_connection_value.request(self.command,proxied_request_path,body=request_body_bytes,headers=proxy_header_values)
             proxy_response_value=proxy_connection_value.getresponse()
             response_body_bytes=proxy_response_value.read()
+            proxy_html_response=proxy_response_value.getheader('Content-Type','').split(';')[0].strip().lower()=='text/html'
+            if proxy_html_response:
+                response_body_bytes=inject_review_live_reload(response_body_bytes)
             try:
                 self.send_response(proxy_response_value.status)
                 for header_name,header_value in proxy_response_value.getheaders():
-                    if header_name.lower() not in ('connection','transfer-encoding','content-length'):self.send_header(header_name,header_value)
+                    if header_name.lower() not in ('connection','transfer-encoding','content-length') and not (proxy_html_response and header_name.lower() in ('etag','last-modified','cache-control')):self.send_header(header_name,header_value)
+                if proxy_html_response:self.send_header('Cache-Control','no-store')
                 self.send_header('Content-Length',str(len(response_body_bytes)));self.end_headers()
                 write_proxy_response_body(self.wfile,response_body_bytes)
             except (BrokenPipeError, ConnectionResetError):

@@ -4,12 +4,28 @@ import contextlib
 import io
 from pathlib import Path
 import unittest
+import tempfile
 from unittest.mock import patch
 
 from tools.review import serve
 
 
 class ReviewStartupTests(unittest.TestCase):
+    def test_generator_settings_are_watched(self):
+        parsed_argument_values = serve.parse_review_arguments([])
+        watched_root_paths = serve.collect_review_watch_paths(parsed_argument_values)
+        repository_root_path = Path(serve.__file__).resolve().parents[2]
+        for generator_relative_path in ('generators/momask/config/standing-loops-v1.json', 'generators/terrain/config/tile_map.yaml'):
+            self.assertTrue(any((repository_root_path/generator_relative_path).is_relative_to(current_root_path) for current_root_path in watched_root_paths))
+
+    def test_watch_detects_configuration_edit(self):
+        with tempfile.TemporaryDirectory() as temporary_directory_path:
+            configuration_file_path = Path(temporary_directory_path)/'prompt.json'
+            configuration_file_path.write_text('{"prompt":"before"}')
+            previous_watch_snapshot = serve.snapshot_review_watch_paths([Path(temporary_directory_path)])
+            configuration_file_path.write_text('{"prompt":"updated prompt"}')
+            self.assertNotEqual(previous_watch_snapshot, serve.snapshot_review_watch_paths([Path(temporary_directory_path)]))
+
     def test_default_repository_and_port(self):
         parsed_argument_values = serve.parse_review_arguments([])
         self.assertEqual(parsed_argument_values.frontend_repo, Path(serve.__file__).resolve().parents[3]/'slime-frontend')
