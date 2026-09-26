@@ -28,6 +28,10 @@ def read_animation_catalog():
 def build_animation_request(motion_name_value,character_name_value,source_name_value,direction_name_values,resolution_value,step_value,target_fps_value,speed_value):
     return {'motion':motion_name_value,'character':character_name_value,'source':source_name_value,'directions':direction_name_values,'resolution':resolution_value,'steps':step_value,'target_fps':target_fps_value,'speed':speed_value}
 
+def restore_animation_inputs(current_history_record):
+    current_request_record=current_history_record.get('request',{})
+    return current_request_record.get('motion'),current_request_record.get('character'),current_request_record.get('source','openpose'),current_request_record.get('directions',[]),current_request_record.get('resolution',512),current_request_record.get('steps',4),current_request_record.get('target_fps',4),current_request_record.get('speed',1),'선택한 이력의 입력값을 불러왔습니다. 생성 전에 내용을 확인하세요.'
+
 def create_animation_player(generation_job_identifier,generation_status_record,server_base_address):
     result_record_value=generation_status_record.get('result') or {}
     frame_values=result_record_value.get('frames',{})
@@ -62,7 +66,7 @@ def build_character_animation_interface(server_base_address):
                 player_html_value=gr.HTML('<div>완료된 생성 결과를 선택하면 재생합니다.</div>')
                 cancel_button_value=gr.Button('생성 취소')
         logs_text_value,log_refresh_enabled,_=build_execution_logs()
-        read_history_page,history_output_values=build_generation_history_view(execute_animation_gateway,server_base_address,'이력 목록만 초기화합니다. 생성 프레임과 로그 파일은 유지됩니다. 생성 중에는 초기화할 수 없습니다.',result_renderer_callback=create_animation_player,record_folder_route='/character-animation')
+        read_history_page,history_output_values=build_generation_history_view(execute_animation_gateway,server_base_address,'이력 목록만 초기화합니다. 생성 프레임과 로그 파일은 유지됩니다. 생성 중에는 초기화할 수 없습니다.',restore_input_callback=restore_animation_inputs,restore_output_components=[motion_select_value,character_select_value,source_select_value,direction_select_value,resolution_select_value,step_select_value,target_fps_select_value,speed_select_value,status_text_value],result_renderer_callback=create_animation_player,record_folder_route='/character-animation')
         def start_animation(*selection_values):
             request_payload_value=build_animation_request(*selection_values)
             generation_record_value=execute_animation_gateway('generate',request_payload_value)

@@ -15,3 +15,7 @@ class CharacterAnimationGradioTests(unittest.TestCase):
         player_html_text=character_animation_app.create_animation_player('sample',{'result':{'frames':{'down_left':['down_left/frame-0001/result.png']},'fps':4}},'http://127.0.0.1:8770')
         self.assertIn('이전',player_html_text)
         self.assertIn('character-animation/files',player_html_text)
+
+    def test_restore_animation_inputs_uses_historical_request(self):
+        restored_input_values=character_animation_app.restore_animation_inputs({'request':{'motion':'standing-v7','character':'anny-v1','source':'anny','directions':['down_left'],'resolution':768,'steps':30,'target_fps':2,'speed':1.5}})
+        self.assertEqual(restored_input_values[:8],('standing-v7','anny-v1','anny',['down_left'],768,30,2,1.5))

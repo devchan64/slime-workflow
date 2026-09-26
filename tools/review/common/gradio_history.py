@@ -2,7 +2,7 @@
 import gradio as gr
 
 
-HISTORY_SUMMARY_FIELD_NAMES=('tile_type','motion','action','directions','width','height','steps','seed')
+HISTORY_SUMMARY_FIELD_NAMES=('tile_type','motion','action','directions','width','height','resolution','steps','seed')
 
 
 def format_history_choice_label(current_history_record):
