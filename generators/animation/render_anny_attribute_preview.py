@@ -1,14 +1,18 @@
 from pathlib import Path
 import sys,os,json,threading,time,datetime,hashlib,shutil,subprocess
 import numpy as np
+import gc
+from anny_render_process import run_blender_render
 EXPERIMENT_OUTPUT_ROOT=Path(__file__).resolve().parent
 WORKFLOW_SOURCE_ROOT=Path(__file__).resolve().parents[2]
 sys.path.insert(0,str(WORKFLOW_SOURCE_ROOT/'.local/anny-runtime'))
 os.environ['ANNY_CACHE_DIR']=str(WORKFLOW_SOURCE_ROOT/'.model/anny')
+CURRENT_RENDER_STAGE={'name':'입력 검증·모델 로딩'}
+PROGRESS_STOP_EVENT=threading.Event()
 def emit_progress_trace():
- while True:
-  print(f'{datetime.datetime.now().isoformat()}/anny-attributes/heartbeat 입력 검증·CUDA 생성 진행',flush=True)
-  time.sleep(5)
+ while not PROGRESS_STOP_EVENT.is_set():
+  print(f'{datetime.datetime.now().isoformat()}/anny-attributes/heartbeat {CURRENT_RENDER_STAGE["name"]}',flush=True)
+  PROGRESS_STOP_EVENT.wait(5)
 def reject_duplicate_fields(field_pair_values):
  output_field_values={}
  for current_field_name,current_field_value in field_pair_values:
@@ -39,6 +43,7 @@ for current_bone_name,current_matrix_values in input_attribute_values['pose_para
  if current_matrix_array.shape!=(4,4) or not np.isfinite(current_matrix_array).all():raise ValueError('포즈 행렬 오류')
  if not np.allclose(current_matrix_array[3],[0,0,0,1]) or not np.allclose(current_matrix_array[:3,:3].T@current_matrix_array[:3,:3],np.eye(3),atol=1e-5) or not np.isclose(np.linalg.det(current_matrix_array[:3,:3]),1):raise ValueError('포즈 강체 회전 오류')
  pose_tensor_values[current_bone_name]=torch.as_tensor(current_matrix_array,device='cuda').unsqueeze(0)
+CURRENT_RENDER_STAGE['name']='CUDA 메시 생성'
 with torch.no_grad():
  model_output_values=model_source_value(phenotype_kwargs=input_attribute_values['phenotype_kwargs'],local_changes_kwargs=input_attribute_values['local_changes_kwargs'],facial_actions=input_attribute_values['facial_actions'],pose_parameterization='local-ref',pose_parameters=pose_tensor_values)
 source_vertex_array=model_output_values['vertices'][0].cpu().numpy()
@@ -49,9 +54,20 @@ result_output_values={'status':'generated','model':'anny==0.6.0','input_sha256':
 print(result_output_values,flush=True)
 (EXPERIMENT_OUTPUT_ROOT/'mesh.pending').write_text(json.dumps({'vertices':source_vertex_array.tolist(),'faces':model_source_value.faces.cpu().numpy().tolist()},separators=(',',':')))
 (EXPERIMENT_OUTPUT_ROOT/'mesh.pending').replace(EXPERIMENT_OUTPUT_ROOT/'mesh.json')
+# Blender를 기다리는 동안 추론 모델과 텐서가 GPU를 점유하지 않도록 해제한다.
+del model_output_values,model_source_value,pose_tensor_values
+gc.collect()
+torch.cuda.empty_cache()
+print('ANNY 추론 GPU 텐서·캐시 해제 완료',flush=True)
 if args.mesh_only:
+ PROGRESS_STOP_EVENT.set()
  print('웹 프리뷰 메시 생성 완료',flush=True)
  sys.exit(0)
-preview_script=WORKFLOW_SOURCE_ROOT/'generators/animation/render_anny_attribute_preview_blender.py';shutil.copy2(preview_script,EXPERIMENT_OUTPUT_ROOT/'render_preview.py');subprocess.run([str(WORKFLOW_SOURCE_ROOT/'.local/blender-runtime/bin/python'),str(WORKFLOW_SOURCE_ROOT/'generators/momask/templates/run_stage.py'),str(EXPERIMENT_OUTPUT_ROOT/'render_preview.py')],cwd=EXPERIMENT_OUTPUT_ROOT,check=True)
-
-print('ANNY 이미지 렌더 완료',flush=True)
+preview_script=WORKFLOW_SOURCE_ROOT/'generators/animation/render_anny_attribute_preview_blender.py'
+shutil.copy2(preview_script,EXPERIMENT_OUTPUT_ROOT/'render_preview.py')
+CURRENT_RENDER_STAGE['name']='Blender 렌더·종료 대기 (최대 600초)'
+try:
+ run_blender_render([str(WORKFLOW_SOURCE_ROOT/'.local/blender-runtime/bin/python'),str(WORKFLOW_SOURCE_ROOT/'generators/momask/templates/run_stage.py'),str(EXPERIMENT_OUTPUT_ROOT/'render_preview.py')],EXPERIMENT_OUTPUT_ROOT)
+ print('ANNY 이미지 렌더 완료',flush=True)
+finally:
+ PROGRESS_STOP_EVENT.set()
