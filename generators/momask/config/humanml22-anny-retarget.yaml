@@ -313,8 +313,8 @@ segments:
   - lowerarm02.R
   transfer_mode: absolute_direction
 source_reference:
-  id: momask-bvh-template-c88a9626
-  source_url: https://github.com/EricGuo5513/momask-codes/blob/c88a9626bb099499d8bc1ac2cb71dc0888c26169/visualization/data/template.bvh
+  id: momask-bvh-template-108003b0
+  source_url: https://github.com/EricGuo5513/momask-codes/blob/108003b0268fad7e973e059a1fa5ea9dff90889c/visualization/data/template.bvh
   source_sha256: d53a5420b1cf5529c881d14fd2ccd0d170950f2b6412091a1abac95204339d67
   joint_positions:
   - - 0.0

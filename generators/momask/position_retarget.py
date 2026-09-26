@@ -83,6 +83,9 @@ def load_retarget_profile(profile_source_path):
         raise ValueError('원본 기준 골격 필드 오류')
     if any(not isinstance(source_reference_record[current_field_name], str) or not source_reference_record[current_field_name] for current_field_name in ('id', 'source_url', 'source_sha256')):
         raise ValueError('원본 기준 골격 출처 누락')
+    source_reference_hash = source_reference_record['source_sha256']
+    if len(source_reference_hash) != 64 or any(current_hash_character not in '0123456789abcdef' for current_hash_character in source_reference_hash):
+        raise ValueError('원본 기준 골격 SHA-256 형식 오류')
     source_reference_points = source_reference_record['joint_positions']
     if not isinstance(source_reference_points, list) or len(source_reference_points) != source_joint_count or any(not isinstance(current_point_values, list) or len(current_point_values) != 3 or any(type(current_axis_value) not in (int, float) or not math.isfinite(current_axis_value) for current_axis_value in current_point_values) for current_point_values in source_reference_points):
         raise ValueError('원본 기준 골격 관절 오류')

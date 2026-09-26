@@ -79,5 +79,6 @@ def write_coordinate_audit(output_directory_path, source_joint_frames, profile_r
     print(f'{time.strftime("%Y-%m-%dT%H:%M:%S")}/anny-momask/coordinate-audit 기록={audit_record_path} 프레임={len(source_joint_frames)} 루트배율={motion_scale_value:.6f}', flush=True)
     for current_segment_record in segment_audit_records:
         current_direction_record = current_segment_record['directions']['primary']
+        print(f'{time.strftime("%Y-%m-%dT%H:%M:%S")}/anny-momask/reference-delta 구간={current_segment_record["segment_id"]} 방식={current_segment_record["transfer_mode"]} 원본기준대비_평균={np.mean(current_direction_record["source_reference_delta_degrees"]):.3f}', flush=True)
         print(f'{time.strftime("%Y-%m-%dT%H:%M:%S")}/anny-momask/coordinate-audit 구간={current_segment_record["segment_id"]} 원본={current_direction_record["source_joint_pair"]} 대상={current_direction_record["target_bone_pair"]} 기준방향차이_평균={current_direction_record["rest_alignment_mean_degrees"]:.3f} 최대={current_direction_record["rest_alignment_max_degrees"]:.3f}', flush=True)
     return audit_record_values

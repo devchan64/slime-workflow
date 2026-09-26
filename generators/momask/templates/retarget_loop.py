@@ -32,6 +32,8 @@ if set(source_motion_bundle.files) != {'joints', 'rest', 'contacts', 'sample_ind
     raise ValueError('위치 채널 입력 필드 오류')
 profile_source_path = EXPERIMENT_OUTPUT_ROOT / 'retarget-profile.yaml'
 profile_record_values = load_retarget_profile(profile_source_path)
+if not np.array_equal(source_motion_bundle['rest'], np.asarray(profile_record_values['source_reference']['joint_positions'])):
+    raise ValueError('입력 기준 골격과 고정 원본 프로필이 다릅니다.')
 source_joint_frames = source_motion_bundle['joints']
 if source_joint_frames.ndim != 3 or source_joint_frames.shape[1:] != (profile_record_values['joint_count'], 3) or not len(source_joint_frames) or not np.isfinite(source_joint_frames).all():
     raise ValueError('위치 채널 배열 형태·유한값 오류')
@@ -73,6 +75,7 @@ ordered_pose_bones = sorted(rig_object_value.pose.bones, key=lambda current_pose
 previous_bone_quaternions = {}
 frame_diagnostic_records = []
 actual_direction_errors = []
+actual_rotation_errors = []
 CURRENT_PROGRESS_STATE['stage'] = 'retarget'
 for current_frame_index, current_joint_points in enumerate(source_joint_frames):
     current_frame_number = current_frame_index + 1
@@ -98,18 +101,26 @@ for current_frame_index, current_joint_points in enumerate(source_joint_frames):
     rig_object_value.keyframe_insert('location', frame=current_frame_number)
     bpy.context.view_layer.update()
     current_direction_errors = []
+    current_rotation_errors = []
     for current_segment_record in profile_record_values['segments']:
         target_start_name, target_end_name = current_segment_record['target_primary']
         source_start_index, source_end_index = current_segment_record['source_primary']
         target_direction_value = (rig_object_value.pose.bones[target_end_name].head - rig_object_value.pose.bones[target_start_name].head).normalized()
         source_direction_value = Vector(current_joint_points[source_end_index] - current_joint_points[source_start_index]).normalized()
         expected_direction_value = Vector(frame_diagnostic_values[current_segment_record['segment_id']]['expected_target_direction'])
+        driven_bone_name = current_segment_record['target_bones'][0]
+        evaluated_bone_rotation = rig_object_value.pose.bones[driven_bone_name].matrix.to_quaternion()
+        rotation_error_quaternion = frame_rotation_values[driven_bone_name].rotation_difference(evaluated_bone_rotation)
+        rotation_error_degrees = float(np.degrees(2 * np.arctan2(Vector(rotation_error_quaternion[1:]).length, abs(rotation_error_quaternion.w))))
+        current_rotation_errors.append(rotation_error_degrees)
         source_alignment_degrees = float(np.degrees(np.arctan2(target_direction_value.cross(source_direction_value).length, target_direction_value.dot(source_direction_value))))
         current_error_degrees = float(np.degrees(np.arctan2(target_direction_value.cross(expected_direction_value).length, target_direction_value.dot(expected_direction_value))))
         current_direction_errors.append(current_error_degrees)
         frame_diagnostic_values[current_segment_record['segment_id']]['evaluated_direction_error_degrees'] = current_error_degrees
         frame_diagnostic_values[current_segment_record['segment_id']]['source_alignment_degrees'] = source_alignment_degrees
+        frame_diagnostic_values[current_segment_record['segment_id']]['evaluated_rotation_error_degrees'] = rotation_error_degrees
     actual_direction_errors.append(current_direction_errors)
+    actual_rotation_errors.append(current_rotation_errors)
     frame_diagnostic_records.append(frame_diagnostic_values)
 rig_object_value.animation_data.action.name = f'MoMask_{len(source_joint_frames)}frames_{scene_render_value.render.fps}fps'
 scene_render_value.frame_set(1)
@@ -132,6 +143,7 @@ review_result_record = {
     'solver_sha256': hashlib.sha256((EXPERIMENT_OUTPUT_ROOT / 'position_retarget.py').read_bytes()).hexdigest(),
     'ground_method': 'none', 'hand_pose': 'inherit-rest-local',
     'evaluated_direction_error_max_degrees': float(np.max(actual_direction_errors)),
+    'evaluated_rotation_error_max_degrees': float(np.max(actual_rotation_errors)),
     'frame_diagnostics': frame_diagnostic_records, 'quality_warnings': retarget_quality_warnings,
 }
 (EXPERIMENT_OUTPUT_ROOT / 'review-metrics.json').write_text(json.dumps(review_result_record, ensure_ascii=False, indent=2))
