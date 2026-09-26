@@ -2,6 +2,8 @@ schema_version: 1
 asset_id: anny-39eab167
 version: 1
 role: animation_baseline_model
+profile_id: female_type_a_v1
+display_name: 여성 타입 A · 버전 1
 source_generation_id: 39eab167
 source_path: .tmp/anny-attribute-renderer/39eab167
 status: user_approved

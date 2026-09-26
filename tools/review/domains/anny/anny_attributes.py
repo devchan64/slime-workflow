@@ -8,13 +8,37 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 ROOT=Path(__file__).resolve().parents[4]
 BASELINE_SELECTION_PATH=ROOT/'generators/animation/config/anny_model_baseline.yaml'
-BASE=ROOT/yaml.safe_load(BASELINE_SELECTION_PATH.read_text())['attributes_path']
 JOBS=ROOT/'.tmp/anny-attribute-renderer'
 PAGE=resolve_review_ui_asset('anny-attributes.html').read_text()
 BONE_ROTATION_FIELDS={'upperleg_left_rotation_z':('upperleg01.L',2),'upperleg_right_rotation_z':('upperleg01.R',2)}
 BONE_ROTATION_FIELDS.update({f'{part_label_value}_{side_label_value}_rotation_{axis_label_value}':(f'{part_label_value}01.{side_suffix_value}',axis_index_value) for part_label_value in ('upperarm','lowerarm') for side_label_value,side_suffix_value in [('left','L'),('right','R')] for axis_index_value,axis_label_value in enumerate(('x','y','z'))})
+PROFILE_DIRECTORY_PATH=ROOT/'generators/animation/config/anny_profiles'
+PROFILE_REQUIRED_FIELDS={'schema_version','profile_id','label','source_asset_id','asset_path','manifest_path','attributes_path','attributes_sha256','blend_path','glb_path','rig_path','status','attribute_overrides'}
+def load_profile_record(profile_path):
+ profile_path=Path(profile_path).resolve()
+ if not profile_path.is_relative_to(PROFILE_DIRECTORY_PATH.resolve()) or not profile_path.is_file():raise ValueError('ANNY 프로필 경로 오류')
+ profile_record=yaml.safe_load(profile_path.read_text())
+ if not isinstance(profile_record,dict) or set(profile_record)!=PROFILE_REQUIRED_FIELDS or profile_record['schema_version']!=1 or not all(isinstance(profile_record[field_name],str) and profile_record[field_name] for field_name in PROFILE_REQUIRED_FIELDS-{'schema_version','attribute_overrides'}):raise ValueError('ANNY 프로필 형식 오류')
+ if not isinstance(profile_record['attribute_overrides'],dict) or any(not isinstance(attribute_name,str) or type(attribute_value) not in (int,float) or not -1<=attribute_value<=1 for attribute_name,attribute_value in profile_record['attribute_overrides'].items()):raise ValueError('ANNY 프로필 속성 형식 오류')
+ return profile_record
+def load_active_profile():
+ baseline_selection_record=yaml.safe_load(BASELINE_SELECTION_PATH.read_text())
+ if not isinstance(baseline_selection_record,dict) or set(baseline_selection_record)!={'schema_version','active_profile_path'} or baseline_selection_record['schema_version']!=1:raise ValueError('ANNY 기본 프로필 선택 형식 오류')
+ return load_profile_record(ROOT/baseline_selection_record['active_profile_path'])
+def load_profile_by_identifier(profile_identifier):
+ if not isinstance(profile_identifier,str) or not re.fullmatch(r'[a-z]+(?:_[a-z0-9]+)*_v[0-9]+',profile_identifier):raise ValueError('ANNY 프로필 식별자 오류')
+ for profile_file_path in PROFILE_DIRECTORY_PATH.glob('*.yaml'):
+  profile_record=load_profile_record(profile_file_path)
+  if profile_record['profile_id']==profile_identifier:return profile_record
+ raise ValueError('등록되지 않은 ANNY 프로필')
 def load_attribute_defaults():
- baseline_attribute_values=json.loads(BASE.read_text())
+ return load_profile_attribute_defaults(load_active_profile())
+def load_profile_attribute_defaults(profile_record):
+ baseline_attribute_values=json.loads((ROOT/profile_record['attributes_path']).read_text())
+ for attribute_name,attribute_value in profile_record['attribute_overrides'].items():
+  if attribute_name not in baseline_attribute_values['phenotype_kwargs'] and attribute_name not in baseline_attribute_values['local_changes_kwargs'] and attribute_name not in baseline_attribute_values['facial_actions']:raise ValueError('ANNY 프로필 속성 대상 오류')
+  for attribute_group_name in ('phenotype_kwargs','local_changes_kwargs','facial_actions'):
+   if attribute_name in baseline_attribute_values[attribute_group_name]:baseline_attribute_values[attribute_group_name][attribute_name]=attribute_value
  baseline_attribute_values['local_changes_kwargs']['hip-waist-up']=0.0
  baseline_attribute_values['local_changes_kwargs']['measure-waist-circ-incr']=-0.5
  baseline_attribute_values['local_changes_kwargs']['torso-muscle-dorsi-incr']=0.0
@@ -49,6 +73,9 @@ class AnnyAttributeManager:
     stylesheet_file_name='generation-studio.css' if path.endswith('/studio.css') else 'anny-attributes.css'
     self.send(h,200,resolve_review_ui_asset(stylesheet_file_name).read_bytes(),'text/css; charset=utf-8');return True
    if h.command=='GET' and path=='/anny-attributes/mesh-viewer.js':self.send(h,200,resolve_review_ui_asset('anny-mesh-viewer.js').read_bytes(),'text/javascript');return True
+   if h.command=='GET' and path=='/anny-attributes/log-viewer.js':
+    from tools.review.common.management_log_viewer import MANAGEMENT_LOG_VIEWER_SCRIPT
+    self.send(h,200,MANAGEMENT_LOG_VIEWER_SCRIPT.encode(),'text/javascript');return True
    if h.command=='GET' and path=='/anny-attributes/history-ui.js':self.send(h,200,resolve_review_ui_asset('generation-history.js').read_bytes(),'text/javascript');return True
    if h.command=='GET' and path=='/anny-attributes/history':
     stored_history_records=[]
@@ -62,8 +89,10 @@ class AnnyAttributeManager:
     if json.loads(h.rfile.read(int(h.headers['Content-Length'])))!={'action':'reset'}:raise ValueError('초기화 요청 오류')
     for history_record_path in JOBS.glob('*/history.json'):history_record_path.unlink()
     self.send(h,200,{'status':'cleared'});return True
-   if h.command=='GET' and path=='/anny-attributes/base':
-    baseline_attribute_values=load_attribute_defaults();baseline_attribute_values['bone_rotation_defaults']={attribute_field_name:round(extract_bone_rotation(baseline_attribute_values['pose_parameters'][target_bone_label])[rotation_axis_index],6) for attribute_field_name,(target_bone_label,rotation_axis_index) in BONE_ROTATION_FIELDS.items()};self.send(h,200,baseline_attribute_values);return True
+   if h.command=='GET' and path=='/anny-attributes/profiles':
+    profile_records=[load_profile_record(profile_file_path) for profile_file_path in sorted(PROFILE_DIRECTORY_PATH.glob('*.yaml'))];self.send(h,200,{'profiles':[{'id':profile_record['profile_id'],'label':profile_record['label']} for profile_record in profile_records]});return True
+   if h.command=='GET' and (path=='/anny-attributes/base' or path.startswith('/anny-attributes/base/')):
+    profile_record=load_active_profile() if path=='/anny-attributes/base' else load_profile_by_identifier(path.removeprefix('/anny-attributes/base/'));baseline_attribute_values=load_profile_attribute_defaults(profile_record);baseline_attribute_values['profile']={field_name:profile_record[field_name] for field_name in ('profile_id','label','source_asset_id')};baseline_attribute_values['bone_rotation_defaults']={attribute_field_name:round(extract_bone_rotation(baseline_attribute_values['pose_parameters'][target_bone_label])[rotation_axis_index],6) for attribute_field_name,(target_bone_label,rotation_axis_index) in BONE_ROTATION_FIELDS.items()};self.send(h,200,baseline_attribute_values);return True
    if h.command=='GET' and path.startswith('/anny-attributes/jobs/'):
     parts=path.split('/')
     if len(parts) not in (4,5) or not re.fullmatch(r'[0-9a-f]{8}',parts[3]):raise ValueError('잘못된 작업 경로')

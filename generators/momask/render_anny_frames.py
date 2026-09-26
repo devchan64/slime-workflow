@@ -21,13 +21,14 @@ def render(motion_path, output_dir, directions, sample_indices, animate_hand_clo
     source_motion=output_dir/'inputs/mannequin-motion.npz';np.savez_compressed(source_motion,joints=joints,rest=joints[0],contacts=np.zeros((len(joints),2),dtype=np.float32),sample_indices=np.array(sample_indices))
     (output_dir/'inputs/artifact.json').write_text(json.dumps({'files':{'mannequin-motion.npz':digest(source_motion)}},ensure_ascii=False))
     baseline_selection_record=yaml.safe_load((ROOT/'generators/animation/config/anny_model_baseline.yaml').read_text())
+    baseline_selection_record=yaml.safe_load((ROOT/baseline_selection_record['active_profile_path']).read_text())
     baseline_manifest_record=yaml.safe_load((ROOT/baseline_selection_record['manifest_path']).read_text())
     baseline_blend_path=ROOT/baseline_selection_record['blend_path']
     baseline_blend_hash=digest(baseline_blend_path)
     if baseline_blend_hash!=baseline_manifest_record['files'][baseline_blend_path.name]['sha256']:raise ValueError('기준 모델 Blender 해시 불일치')
-    baseline_model_record={'baseline_id':baseline_selection_record['baseline_id'],'source_generation_id':baseline_manifest_record['source_generation_id'],'blend_sha256':baseline_blend_hash,'attributes_sha256':baseline_selection_record['attributes_sha256']}
+    baseline_model_record={'baseline_id':baseline_selection_record['profile_id'],'source_generation_id':baseline_manifest_record['source_generation_id'],'blend_sha256':baseline_blend_hash,'attributes_sha256':baseline_selection_record['attributes_sha256']}
     (output_dir/'baseline-model.json').write_text(json.dumps(baseline_model_record,ensure_ascii=False,indent=2))
-    print('ANNY 기준 모델: '+baseline_selection_record['baseline_id'],flush=True)
+    print('ANNY 기준 모델: '+baseline_selection_record['profile_id'],flush=True)
     shutil.copy2(baseline_blend_path,output_dir/'inputs/anny-reference-fit-rig.blend')
     for name in ('run_stage.py','retarget_loop.py','render_asset.py'):
         shutil.copy2(SOURCE/name,output_dir/name)

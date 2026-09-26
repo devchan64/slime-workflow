@@ -1,0 +1,13 @@
+schema_version: 1
+profile_id: female_type_a_v1
+label: 여성 타입 A · 버전 1
+source_asset_id: anny-39eab167-v1
+asset_path: assets/animation-models/anny-39eab167-v1
+manifest_path: assets/animation-models/anny-39eab167-v1/manifest.yaml
+attributes_path: assets/animation-models/anny-39eab167-v1/attributes.json
+attributes_sha256: 1c5b9b30f4d2f21f7fb5ae997192fcd74740d29d2c9fa34f1f355b6263e99933
+blend_path: assets/animation-models/anny-39eab167-v1/anny-raw-rig.blend
+glb_path: assets/animation-models/anny-39eab167-v1/anny-raw-rig.glb
+rig_path: assets/animation-models/anny-39eab167-v1/anny-rest-rig.npz
+status: user_selected_animation_model
+attribute_overrides: {}
