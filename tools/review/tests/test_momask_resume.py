@@ -10,7 +10,7 @@ class MoMaskResumeTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary_directory_name:
             temporary_root_path=Path(temporary_directory_name)
             job_directory_path=temporary_root_path/'sample';job_directory_path.mkdir()
-            for relative_file_path in ('result/anny/mannequin.blend','result/anny/render_asset.py','result/anny/run_stage.py','result/anny/baseline-model.json','result/anny/arm-corrections.json','motion-run/motion/motion.npz','motion-run/prompt.txt'):
+            for relative_file_path in ('result/anny/mannequin.blend','result/anny/render_asset.py','result/anny/run_stage.py','result/anny/baseline-model.json','motion-run/motion/motion.npz','motion-run/prompt.txt'):
                 output_file_path=job_directory_path/relative_file_path;output_file_path.parent.mkdir(parents=True,exist_ok=True);output_file_path.touch()
             (job_directory_path/'status.json').write_text(json.dumps({'status':'cancelled'}))
             (job_directory_path/'worker.log').write_text('previous log\n')

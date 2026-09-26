@@ -9,15 +9,15 @@ ROOT=Path(__file__).resolve().parents[2]
 SOURCE=ROOT/'generators/momask/templates'
 BLENDER=ROOT/'.local/blender-runtime/bin/python'
 DIRECTIONS={'down_left','down_right','up_left','up_right'}
-JOINT_SMOOTHING_FACTOR = 0.5
-JOINT_SMOOTHING_ITERATIONS = 4
+RETARGET_PROFILE_PATH = ROOT/'generators/momask/config/humanml22-anny-retarget.yaml'
+RETARGET_ALGORITHM_VERSION = 'position-profile-transport-v2'
 
 def digest(path): return hashlib.sha256(path.read_bytes()).hexdigest()
-def render(motion_path, output_dir, directions, sample_indices, animate_hand_closure=False, arm_correction_config=None, camera_azimuth_degrees=45):
+def render(motion_path, output_dir, directions, sample_indices, camera_azimuth_degrees=45):
     motion_path=Path(motion_path).resolve();output_dir=Path(output_dir).resolve()
     if not output_dir.is_relative_to(ROOT/'.tmp'): raise ValueError('Anny 출력은 .tmp 하위여야 합니다.')
     joints=np.load(motion_path,allow_pickle=False)['joints']
-    if joints.ndim!=3 or joints.shape[1:]!=(22,3): raise ValueError('HumanML3D-22 관절 모션이 필요합니다.')
+    if joints.ndim!=3 or joints.shape[1:]!=(22,3) or not len(joints) or not np.isfinite(joints).all(): raise ValueError('HumanML3D-22 관절 모션이 필요합니다.')
     if not sample_indices or min(sample_indices)<0 or max(sample_indices)>=len(joints): raise ValueError('유효한 샘플 인덱스가 필요합니다.')
     if not set(directions) or set(directions)-DIRECTIONS: raise ValueError('방향 선택 오류')
     output_dir.mkdir(parents=True,exist_ok=False);(output_dir/'inputs').mkdir()
@@ -35,36 +35,10 @@ def render(motion_path, output_dir, directions, sample_indices, animate_hand_clo
     shutil.copy2(baseline_blend_path,output_dir/'inputs/anny-reference-fit-rig.blend')
     for name in ('run_stage.py','retarget_loop.py','render_asset.py'):
         shutil.copy2(SOURCE/name,output_dir/name)
-    shutil.copy2(ROOT/'generators/momask/anny_hand_pose.py',output_dir/'anny_hand_pose.py')
-    shutil.copy2(ROOT/'generators/momask/anny_arm_retarget.py',output_dir/'anny_arm_retarget.py')
-    arm_correction_values={}
-    if arm_correction_config:
-        arm_correction_values=yaml.safe_load(Path(arm_correction_config).read_text())
-        required_correction_keys={'upper_arm_twist_degrees','forearm_twist_degrees','max_twist_step_degrees','twist_strength','max_upper_arm_step_degrees','max_forearm_step_degrees','shoulder_elevation_degrees'}
-        if not isinstance(arm_correction_values,dict) or set(arm_correction_values)!=required_correction_keys or any(type(value) not in (int,float) or not np.isfinite(value) or value<0 for value in arm_correction_values.values()):raise ValueError('팔 회전 보정 설정 오류')
-        if arm_correction_values['twist_strength']>1 or max(arm_correction_values[key] for key in required_correction_keys-{'twist_strength'})>25:raise ValueError('팔 회전 보정 범위 오류')
-    (output_dir/'arm-corrections.json').write_text(json.dumps(arm_correction_values))
-    retarget=(output_dir/'retarget_loop.py').read_text()
-    retarget=retarget.replace('from mathutils import Vector, Matrix','from mathutils import Vector, Matrix\nfrom anny_hand_pose import build_fist_rotations, calculate_fist_weight')
-    retarget=retarget.replace('rig_object_value.animation_data_clear();', 'finger_rotation_values=build_fist_rotations(rig_object_value)\nrig_object_value.animation_data_clear();')
-    retarget=retarget.replace("  current_pose_bone.keyframe_insert('rotation_quaternion',frame=current_frame_number)", "  if current_bone_name in finger_rotation_values:current_pose_bone.rotation_quaternion=finger_rotation_values[current_bone_name].__class__((1,0,0,0)).slerp(finger_rotation_values[current_bone_name], calculate_fist_weight(current_frame_number,len(source_joint_frames),ANIMATE_HAND_CLOSURE))\n  current_pose_bone.keyframe_insert('rotation_quaternion',frame=current_frame_number)")
-    # 스트레칭은 아래에서 쇄골 상승을 추가하고 나머지 모션은 기준 자세를 유지한다.
-    retarget=retarget.replace("rig_object_value.animation_data_clear();", "for current_skin_modifier in body_object_value.modifiers:\n if current_skin_modifier.type=='ARMATURE':current_skin_modifier.use_deform_preserve_volume=True\nrig_object_value.animation_data_clear();")
-    retarget=retarget.replace('from anny_hand_pose import', 'from anny_arm_retarget import calculate_arm_rotations\nfrom anny_hand_pose import')
-    retarget=retarget.replace("CURRENT_PROGRESS_STATE['stage']='retarget'", "previous_arm_planes={}\narm_correction_values=json.loads((EXPERIMENT_OUTPUT_ROOT/'arm-corrections.json').read_text())\nCURRENT_PROGRESS_STATE['stage']='retarget'")
-    retarget=retarget.replace(' pelvis_rotation_value=calculate_body_rotation', ' arm_rotation_values=calculate_arm_rotations(current_joint_points,rest_bone_positions,rest_bone_rotations,previous_arm_planes,arm_correction_values)\n pelvis_rotation_value=calculate_body_rotation')
-    retarget=retarget.replace("  if target_rotation_value is not None:", "  if arm_correction_values and current_bone_name.startswith('clavicle.'):\n   current_side_label=current_bone_name[-1]\n   current_shoulder_index,current_elbow_index=(16,18) if current_side_label=='L' else (17,19)\n   current_arm_direction=Vector(current_joint_points[current_elbow_index]-current_joint_points[current_shoulder_index]).normalized()\n   current_body_vertical=(torso_rotation_value @ Vector((0,0,1))).normalized()\n   shoulder_lift_weight=max(0.0,min(1.0,(current_arm_direction.dot(current_body_vertical)+0.7071)/1.7071))\n   opposite_side_label='R' if current_side_label=='L' else 'L'\n   rest_outward_direction=rest_bone_positions['upperarm01.'+current_side_label]-rest_bone_positions['upperarm01.'+opposite_side_label]\n   shoulder_rotation_axis=rest_outward_direction.cross(Vector((0,0,1))).normalized()\n   target_rotation_value=torso_rotation_value @ Quaternion(shoulder_rotation_axis,math.radians(arm_correction_values['shoulder_elevation_degrees'])*shoulder_lift_weight) @ rest_bone_rotations[current_bone_name]\n  if target_rotation_value is not None:")
-    retarget=retarget.replace('from mathutils import Vector, Matrix', 'import math\nfrom mathutils import Vector, Matrix, Quaternion')
-    retarget=retarget.replace("  if target_rotation_value is not None:", "  if current_bone_name in arm_rotation_values:target_rotation_value=arm_rotation_values[current_bone_name]\n  if target_rotation_value is not None:")
-    retarget=retarget.replace("scene_render_value=bpy.context.scene;", f"joint_corrective_modifier=body_object_value.modifiers.new('AnnyJointCorrective','CORRECTIVE_SMOOTH')\njoint_corrective_modifier.factor={JOINT_SMOOTHING_FACTOR}\njoint_corrective_modifier.iterations={JOINT_SMOOTHING_ITERATIONS}\njoint_corrective_modifier.smooth_type='LENGTH_WEIGHTED'\nscene_render_value=bpy.context.scene;")
-    retarget=retarget.replace('previous_arm_planes={}', 'previous_arm_planes={}\nprevious_bone_quaternions={}')
-    retarget=retarget.replace("  current_pose_bone.keyframe_insert('rotation_quaternion',frame=current_frame_number)", "  previous_bone_rotation=previous_bone_quaternions.get(current_bone_name)\n  if previous_bone_rotation is not None and previous_bone_rotation.dot(current_pose_bone.rotation_quaternion)<0:current_pose_bone.rotation_quaternion.negate()\n  previous_bone_quaternions[current_bone_name]=current_pose_bone.rotation_quaternion.copy()\n  current_pose_bone.keyframe_insert('rotation_quaternion',frame=current_frame_number)")
-    retarget=retarget.replace('ANIMATE_HAND_CLOSURE',repr(animate_hand_closure))
-    if (motion_path.parent/'standing-corrections.yaml').is_file():
-        # 대기 호흡은 골반→가슴 전체 기울기가 아닌 가슴 구간의 상대 회전을 전달한다.
-        retarget=retarget.replace("torso_rotation_value=calculate_body_rotation(current_joint_points,9)", "torso_rotation_value=calculate_body_rotation(current_joint_points,9)\n source_chest_reference=Vector(source_joint_frames[0,9]-source_joint_frames[0,6])\n current_chest_direction=Vector(current_joint_points[9]-current_joint_points[6])\n chest_rotation_delta=source_chest_reference.rotation_difference(current_chest_direction)")
-        retarget=retarget.replace("elif current_bone_name.startswith('spine'):target_rotation_value=torso_rotation_value@rest_bone_rotations[current_bone_name]", "elif current_bone_name in ('spine01','spine02'):target_rotation_value=chest_rotation_delta@rest_bone_rotations[current_bone_name]\n  elif current_bone_name=='spine03':target_rotation_value=chest_rotation_delta.__class__((1,0,0,0)).slerp(chest_rotation_delta,.5)@rest_bone_rotations[current_bone_name]\n  elif current_bone_name.startswith('spine'):target_rotation_value=rest_bone_rotations[current_bone_name]")
-    (output_dir/'retarget_loop.py').write_text(retarget)
+    shutil.copy2(ROOT/'generators/momask/position_retarget.py',output_dir/'position_retarget.py')
+    shutil.copy2(RETARGET_PROFILE_PATH,output_dir/'retarget-profile.yaml')
+    retarget_result_record={'renderer':'Anny Blender retarget','frames':len(sample_indices),'directions':directions,'samples':16,'hand_pose':'inherit-rest-local','arm_retarget':RETARGET_ALGORITHM_VERSION,'skinning':'dual-quaternion','baseline_model':baseline_model_record,'profile_sha256':digest(output_dir/'retarget-profile.yaml'),'solver_sha256':digest(output_dir/'position_retarget.py')}
+    (output_dir/'retarget-contract.json').write_text(json.dumps(retarget_result_record,ensure_ascii=False,indent=2))
     if not 0<camera_azimuth_degrees<90:raise ValueError('카메라 수평 방향각 범위 오류')
     camera_horizontal_x=math.sqrt(52)*math.sin(math.radians(camera_azimuth_degrees))
     camera_horizontal_y=math.sqrt(52)*math.cos(math.radians(camera_azimuth_degrees))
@@ -80,6 +54,6 @@ def render(motion_path, output_dir, directions, sample_indices, animate_hand_clo
     for direction in directions:
         target=output_dir/direction/'frames';target.mkdir()
         for number in range(1,len(sample_indices)+1): shutil.copy2(output_dir/direction/f'preview-{number:04d}.png',target/f'anny-{number:04d}.png')
-    (output_dir/'result.json').write_text(json.dumps({'renderer':'Anny Blender retarget','frames':len(sample_indices),'directions':directions,'samples':16,'hand_pose':'fist-v3','arm_retarget':'parallel-transport-limited-v4' if arm_correction_values else 'parallel-transport-v3','arm_corrections':arm_correction_values,'skinning':'dual-quaternion-corrective-v1','hand_closure_animation':animate_hand_closure,'baseline_model':baseline_model_record},ensure_ascii=False,indent=2)+'\n')
+    (output_dir/'result.json').write_text(json.dumps(retarget_result_record,ensure_ascii=False,indent=2)+'\n')
 if __name__=='__main__':
- p=argparse.ArgumentParser(description=__doc__);p.add_argument('--motion',type=Path,required=True);p.add_argument('--output-dir',type=Path,required=True);p.add_argument('--directions',required=True);p.add_argument('--sample-indices',required=True);p.add_argument('--animate-hand-closure',action='store_true');p.add_argument('--arm-correction-config',type=Path);p.add_argument('--camera-azimuth-degrees',type=float,default=45);a=p.parse_args();render(a.motion,a.output_dir,a.directions.split(','),[int(x) for x in a.sample_indices.split(',')],a.animate_hand_closure,a.arm_correction_config,a.camera_azimuth_degrees)
+ p=argparse.ArgumentParser(description=__doc__);p.add_argument('--motion',type=Path,required=True);p.add_argument('--output-dir',type=Path,required=True);p.add_argument('--directions',required=True);p.add_argument('--sample-indices',required=True);p.add_argument('--camera-azimuth-degrees',type=float,default=45);a=p.parse_args();render(a.motion,a.output_dir,a.directions.split(','),[int(x) for x in a.sample_indices.split(',')],camera_azimuth_degrees=a.camera_azimuth_degrees)

@@ -1,9 +1,0 @@
-# 스트레칭 전용: 축 비틀림과 프레임당 전체 회전 변화량을 제한한다.
-# 쇄골 상승은 팔 높이에 연동하며 대기·걷기에는 적용하지 않는다.
-upper_arm_twist_degrees: 8
-forearm_twist_degrees: 12
-max_twist_step_degrees: 2
-twist_strength: 0.4
-max_upper_arm_step_degrees: 12
-max_forearm_step_degrees: 16
-shoulder_elevation_degrees: 8

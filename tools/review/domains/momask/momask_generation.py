@@ -5,7 +5,7 @@ sys.path.insert(0,str(Path(__file__).resolve().parents[4]))
 from tools.review.ui_assets import resolve_review_ui_asset
 from tools.review.domains.anny.anny_attributes import load_active_profile
 from urllib.parse import parse_qs, urlsplit
-import json, re, html, yaml, ast
+import json, re, html, yaml
 from tools.review.common.management_gateway import execute_momask_command
 from tools.review.domains.momask.momask_jobs import start_generation_job, cancel_generation_job, check_generation_running, list_generation_history, read_generation_status, reset_generation_history
 from tools.review.domains.momask.openpose_maps import generate_openpose_maps
@@ -16,33 +16,9 @@ HISTORY_ROOT=ROOT/'.tmp/momask-generator/history'
 ACTIONS={'standing':{'label':'대기','frames':16},'stretch':{'label':'스트레칭','frames':120},'walking':{'label':'걷기','frames':32}}
 HISTORICAL_ACTIONS={**ACTIONS,'deep_breath':{'label':'심호흡','frames':32}}
 DIRECTIONS=('down_left','down_right','up_left','up_right')
-def render_standing_corrections(correction_file_name='standing-corrections.yaml'):
- correction_config_values=yaml.safe_load((ROOT/'generators/momask/config'/correction_file_name).read_text())
- correction_display_fields=[('max_torso_pitch_degrees','상체 전방 기울기 제한','°',1),('upper_arm_outward_degrees','위팔 바깥 벌림','°',1),('forearm_outward_degrees','아래팔 바깥 벌림','°',1),('chest_backward_rotation_degrees','가슴 후방 회전','°',1)]
- return '<dl>'+''.join('<dt>'+display_field_label+'</dt><dd>'+str(correction_config_values[config_field_name]*display_unit_scale)+' '+display_unit_label+'</dd>' for config_field_name,display_field_label,display_unit_label,display_unit_scale in correction_display_fields)+'</dl><p>가슴 아래를 중심으로 뒤로 회전 · 골반·발 위치 고정 · 원본 프레임 수 유지</p>'
+def render_position_retarget_policy():
+ return '<p><strong>위치 채널 기반 공통 리타깃</strong></p><p>모든 동작에 같은 관절 대응과 회전 계산을 적용합니다. 원본 관절 위치를 동작별로 보정하지 않으며 회전 제한·쇄골 상승·손가락 자동 자세·관절 스무딩·접지 보정을 추가하지 않습니다. 위치로 알 수 없는 비틀림은 연속 전달하고 손가락 등 미대응 본은 기준 자세를 유지합니다. 새 생성부터 적용되며 기존 결과는 유지됩니다.</p>'
 
-def read_correction_constants(source_relative_path, selected_constant_names):
- source_syntax_tree=ast.parse((ROOT/source_relative_path).read_text())
- return {assignment_node.targets[0].id:ast.literal_eval(assignment_node.value) for assignment_node in source_syntax_tree.body if isinstance(assignment_node,ast.Assign) and isinstance(assignment_node.targets[0],ast.Name) and assignment_node.targets[0].id in selected_constant_names}
-
-def render_stretch_arm_corrections():
- correction_config_values=yaml.safe_load((ROOT/'generators/momask/config/stretch-arm-corrections.yaml').read_text())
- smoothing_constant_values=read_correction_constants('generators/momask/render_anny_frames.py',{'JOINT_SMOOTHING_FACTOR','JOINT_SMOOTHING_ITERATIONS'})
- finger_constant_values=read_correction_constants('generators/momask/anny_hand_pose.py',{'FINGER_CURL_DEGREES','THUMB_CURL_DEGREES'})
- correction_display_fields=[('upper_arm_twist_degrees','위팔 추가 비틀림 한도','°'),('forearm_twist_degrees','아래팔 추가 비틀림 한도','°'),('max_twist_step_degrees','프레임당 추가 비틀림 변화 한도','°')]
- correction_rows=[(label,str(correction_config_values[key])+unit) for key,label,unit in correction_display_fields]
- correction_rows.extend([
- ('추가 비틀림 적용 비율',str(round(correction_config_values['twist_strength']*100))+'%'),
- ('위팔 전체 회전 변화 한도',str(correction_config_values['max_upper_arm_step_degrees'])+'°/프레임'),
- ('아래팔 전체 회전 변화 한도',str(correction_config_values['max_forearm_step_degrees'])+'°/프레임'),
- ('쇄골·어깨','팔 올림에 따라 쇄골 최대 '+str(correction_config_values['shoulder_elevation_degrees'])+'° 상승'),
- ('스키닝','볼륨 보존 ON'),
- ('관절 스무딩 강도',str(smoothing_constant_values['JOINT_SMOOTHING_FACTOR'])),
- ('관절 스무딩 반복',str(smoothing_constant_values['JOINT_SMOOTHING_ITERATIONS'])+'회'),
- ('손가락 굽힘 · 첫째/둘째/셋째 관절',' / '.join(str(value)+'°' for value in finger_constant_values['FINGER_CURL_DEGREES'])),
- ('엄지 굽힘 · 첫째/둘째/셋째 관절',' / '.join(str(value)+'°' for value in finger_constant_values['THUMB_CURL_DEGREES'])),
- ('발 접지','프레임별 최저 표면 높이 보정 · 발 고정 IK 없음')])
- return '<p>새 스트레칭 생성에 적용할 현재 설정입니다. 과거 결과의 설정과는 다를 수 있습니다.</p><dl>'+''.join('<dt>'+html.escape(label)+'</dt><dd>'+html.escape(value)+'</dd>' for label,value in correction_rows)+'</dl><p>추가 비틀림 제한은 팔을 들어 올리는 전체 회전량을 제한하지 않습니다.</p>'
 
 def unique(pairs):
  d={}

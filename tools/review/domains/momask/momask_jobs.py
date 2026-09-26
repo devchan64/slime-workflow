@@ -81,7 +81,7 @@ def resume_generation_job(generation_job_identifier):
         except BlockingIOError:raise ValueError('MoMask 생성 작업이 실행 중입니다.') from None
         previous_status_record=json.loads((generation_job_path/'status.json').read_text())
         if previous_status_record['status'] not in ('cancelled','failed'):raise ValueError('취소·실패 작업만 재개할 수 있습니다.')
-        for relative_file_path in ('result/anny/mannequin.blend','result/anny/render_asset.py','result/anny/run_stage.py','result/anny/baseline-model.json','result/anny/arm-corrections.json','motion-run/motion/motion.npz','motion-run/prompt.txt'):
+        for relative_file_path in ('result/anny/mannequin.blend','result/anny/render_asset.py','result/anny/run_stage.py','result/anny/baseline-model.json','motion-run/motion/motion.npz','motion-run/prompt.txt'):
             if not (generation_job_path/relative_file_path).is_file():raise ValueError('리그 렌더 단계부터 재개할 수 있습니다. 누락: '+relative_file_path)
         (generation_job_path/'cancel.request').unlink(missing_ok=True)
         (generation_job_path/'resume.request').touch()

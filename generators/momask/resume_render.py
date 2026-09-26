@@ -42,8 +42,22 @@ def resume_render_frames(generation_job_path):
             with Image.open(image_output_path) as image_content_value:image_content_value.verify()
             shutil.copy2(image_output_path,frame_directory_path/f'anny-{frame_number_value:04d}.png')
     baseline_record_value=json.loads((render_output_path/'baseline-model.json').read_text())
-    result_record_value={'action':request_record_value['action'],'label':{'standing':'대기','deep_breath':'심호흡','stretch':'스트레칭','walking':'걷기'}[request_record_value['action']],'frames':frame_count_value,'anny_frames':frame_count_value,'fps':4,'directions':request_record_value['directions'],'prompt':(generation_job_path/'motion-run/prompt.txt').read_text().strip(),'sampling':'none','hand_pose':'fist-v3','arm_retarget':'parallel-transport-v3','skinning':'dual-quaternion-corrective-v1','baseline_model':baseline_record_value,'status':'completed','resumed':True}
-    write_record_atomically(render_output_path/'result.json',{**result_record_value,'arm_corrections':json.loads((render_output_path/'arm-corrections.json').read_text())})
+    # 재개는 저장된 리그를 렌더하므로 최신 알고리즘 이름으로 다시 표시하지 않는다.
+    saved_contract_path=render_output_path/'retarget-contract.json'
+    saved_result_path=render_output_path/'result.json'
+    if saved_contract_path.is_file():
+        saved_retarget_record=json.loads(saved_contract_path.read_text())
+    elif saved_result_path.is_file():
+        saved_retarget_record=json.loads(saved_result_path.read_text())
+    else:
+        saved_retarget_record={'arm_retarget':'legacy-saved-rig-unversioned','hand_pose':'legacy-saved-rig','skinning':'legacy-saved-rig'}
+    result_record_value={'action':request_record_value['action'],'label':{'standing':'대기','deep_breath':'심호흡','stretch':'스트레칭','walking':'걷기'}[request_record_value['action']],'frames':frame_count_value,'anny_frames':frame_count_value,'fps':4,'directions':request_record_value['directions'],'prompt':(generation_job_path/'motion-run/prompt.txt').read_text().strip(),'sampling':'none','hand_pose':saved_retarget_record['hand_pose'],'arm_retarget':saved_retarget_record['arm_retarget'],'skinning':saved_retarget_record['skinning'],'baseline_model':baseline_record_value,'status':'completed','resumed':True}
+    resumed_result_record={**saved_retarget_record,**result_record_value}
+    # 과거 실행의 출처는 유지하되 신규 기록에 폐기된 설정 필드를 생성하지 않는다.
+    historical_correction_path=render_output_path/'arm-corrections.json'
+    if historical_correction_path.is_file() and 'arm_corrections' not in resumed_result_record:
+        resumed_result_record['arm_corrections']=json.loads(historical_correction_path.read_text())
+    write_record_atomically(render_output_path/'result.json',resumed_result_record)
     write_record_atomically(generation_job_path/'result.json',result_record_value)
     from tools.review.domains.momask.openpose_maps import generate_openpose_maps
     generate_openpose_maps(generation_job_path,request_record_value.get('face',False))

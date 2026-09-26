@@ -17,7 +17,7 @@ sys.path.insert(0, str(WORKFLOW_ROOT_DIRECTORY))
 from tools.review.common.management_gateway import execute_management_command
 from tools.review.common.gradio_logs import build_execution_logs, LOG_PANEL_STYLES
 from tools.review.domains.momask.momask_jobs import check_generation_running
-from tools.review.domains.momask.momask_generation import render_standing_corrections, render_stretch_arm_corrections
+from tools.review.domains.momask.momask_generation import render_position_retarget_policy
 
 MOTION_ACTION_LABELS = [('대기','standing'),('스트레칭','stretch'),('걷기','walking')]
 MOTION_DIRECTION_LABELS = [('전방 좌측','down_left'),('전방 우측','down_right'),('후방 좌측','up_left'),('후방 우측','up_right')]
@@ -34,8 +34,7 @@ def read_motion_settings(selected_action_name):
     action_config_record=json.loads((WORKFLOW_ROOT_DIRECTORY/'generators/momask/config/standing-loops-v1.json').read_text())['actions'][selected_action_name]
     camera_config_record=yaml.safe_load((WORKFLOW_ROOT_DIRECTORY/'generators/momask/config/camera-angles.yaml').read_text())
     prompt_content_value=action_config_record['prompt']
-    correction_html_value=render_standing_corrections() if selected_action_name=='standing' else render_stretch_arm_corrections() if selected_action_name=='stretch' else '<p>걷기는 원본 관절 모션을 사용합니다.</p>'
-    return prompt_content_value, f"{len(prompt_content_value.split())}단어 · 원본 {action_config_record['source_frames']}프레임 · 수평 {camera_config_record[selected_action_name]}° · 내려다보기 약 17°", correction_html_value
+    return prompt_content_value, f"{len(prompt_content_value.split())}단어 · 원본 {action_config_record['source_frames']}프레임 · 수평 {camera_config_record[selected_action_name]}° · 내려다보기 약 17°"
 
 def list_motion_history(history_page_number=1, selected_history_identifier=None):
     history_record_values=execute_motion_command('history',{})
@@ -67,8 +66,7 @@ def build_momask_interface(server_base_address):
                     settings_initial_values=read_motion_settings('standing')
                     prompt_text_value=gr.Textbox(value=settings_initial_values[0],label='고정 스크립트',interactive=False,lines=4)
                     settings_text_value=gr.Markdown(settings_initial_values[1])
-                    with gr.Accordion('모션 보정값',open=False):
-                        correction_html_value=gr.HTML(settings_initial_values[2])
+                    gr.HTML(render_position_retarget_policy())
                     with gr.Row():
                         generate_button_value=gr.Button('모션 생성 시작',variant='primary')
                         cancel_button_value=gr.Button('생성 취소')
@@ -101,7 +99,7 @@ def build_momask_interface(server_base_address):
                     record_path_value=create_copyable_textbox(label='기록 폴더',interactive=False)
                     input_record_value=gr.JSON(label='저장된 입력 · 결과 정보')
         logs_text_value,log_refresh_enabled,log_panel_element=build_execution_logs()
-        action_select_value.change(read_motion_settings,action_select_value,[prompt_text_value,settings_text_value,correction_html_value],queue=False)
+        action_select_value.change(read_motion_settings,action_select_value,[prompt_text_value,settings_text_value],queue=False)
         generate_button_value.click(start_motion_generation,[action_select_value,direction_select_value,face_checkbox_value],identifier_text_value)
         cancel_button_value.click(lambda identifier: execute_motion_command('cancel',{'id':identifier}),identifier_text_value,input_record_value)
         history_refresh_value.click(list_motion_history,[history_page_value,history_table_value],[history_table_value,history_count_value],queue=False)
@@ -128,7 +126,7 @@ def build_momask_interface(server_base_address):
                 if selected_status_record['status'] in ('cancelled','failed'):
                     from tools.review.domains.momask.momask_jobs import resolve_generation_directory
                     selected_job_directory=resolve_generation_directory(selected_history_identifier)
-                    required_resume_paths=('result/anny/mannequin.blend','result/anny/render_asset.py','result/anny/run_stage.py','result/anny/baseline-model.json','result/anny/arm-corrections.json','motion-run/motion/motion.npz','motion-run/prompt.txt')
+                    required_resume_paths=('result/anny/mannequin.blend','result/anny/render_asset.py','result/anny/run_stage.py','result/anny/baseline-model.json','motion-run/motion/motion.npz','motion-run/prompt.txt')
                     if not all((selected_job_directory/path_value).is_file() for path_value in required_resume_paths):
                         resume_help_text='리그 생성 전에 중단되어 재개할 수 없습니다. 새 모션 생성 탭에서 다시 생성하세요.'
                     elif check_generation_running():

@@ -1,0 +1,292 @@
+# 동작 보정 없이 관절 의미·대상 본 대응만 선언한다.
+schema_version: 1
+profile_id: humanml22-anny-v1
+joint_count: 22
+coordinate_matrix:
+- - 1
+  - 0
+  - 0
+- - 0
+  - 0
+  - -1
+- - 0
+  - 1
+  - 0
+root_joint: 0
+scale_source:
+- 1
+- 4
+scale_target:
+- upperleg01.L
+- lowerleg01.L
+unmapped_policy: inherit_rest_local
+segments:
+- segment_id: pelvis_frame
+  source_primary:
+  - 0
+  - 3
+  target_primary:
+  - root
+  - spine03
+  source_secondary:
+  - 2
+  - 1
+  target_secondary:
+  - upperleg01.R
+  - upperleg01.L
+  target_bones:
+  - root
+- segment_id: lower_spine
+  source_primary:
+  - 0
+  - 3
+  target_primary:
+  - spine05
+  - spine03
+  source_secondary:
+  - 17
+  - 16
+  target_secondary:
+  - upperarm01.R
+  - upperarm01.L
+  target_bones:
+  - spine05
+  - spine04
+- segment_id: middle_spine
+  source_primary:
+  - 3
+  - 6
+  target_primary:
+  - spine03
+  - spine01
+  source_secondary:
+  - 17
+  - 16
+  target_secondary:
+  - upperarm01.R
+  - upperarm01.L
+  target_bones:
+  - spine03
+  - spine02
+- segment_id: upper_spine
+  source_primary:
+  - 6
+  - 9
+  target_primary:
+  - spine01
+  - neck01
+  source_secondary:
+  - 17
+  - 16
+  target_secondary:
+  - upperarm01.R
+  - upperarm01.L
+  target_bones:
+  - spine01
+- segment_id: lower_neck
+  source_primary:
+  - 9
+  - 12
+  target_primary:
+  - neck01
+  - neck02
+  source_secondary: null
+  target_secondary: null
+  target_bones:
+  - neck01
+- segment_id: upper_neck
+  source_primary:
+  - 12
+  - 15
+  target_primary:
+  - neck02
+  - head
+  source_secondary: null
+  target_secondary: null
+  target_bones:
+  - neck02
+  - neck03
+- segment_id: hip_l
+  source_primary:
+  - 0
+  - 1
+  target_primary:
+  - pelvis.L
+  - upperleg01.L
+  source_secondary: null
+  target_secondary: null
+  target_bones:
+  - pelvis.L
+- segment_id: thigh_l
+  source_primary:
+  - 1
+  - 4
+  target_primary:
+  - upperleg01.L
+  - lowerleg01.L
+  source_secondary: null
+  target_secondary: null
+  target_bones:
+  - upperleg01.L
+  - upperleg02.L
+- segment_id: shin_l
+  source_primary:
+  - 4
+  - 7
+  target_primary:
+  - lowerleg01.L
+  - foot.L
+  source_secondary: null
+  target_secondary: null
+  target_bones:
+  - lowerleg01.L
+  - lowerleg02.L
+- segment_id: foot_l
+  source_primary:
+  - 7
+  - 10
+  target_primary:
+  - foot.L
+  - toe3-1.L
+  source_secondary: null
+  target_secondary: null
+  target_bones:
+  - foot.L
+- segment_id: collar_l
+  source_primary:
+  - 9
+  - 13
+  target_primary:
+  - clavicle.L
+  - shoulder01.L
+  source_secondary: null
+  target_secondary: null
+  target_bones:
+  - clavicle.L
+- segment_id: shoulder_l
+  source_primary:
+  - 13
+  - 16
+  target_primary:
+  - shoulder01.L
+  - upperarm01.L
+  source_secondary: null
+  target_secondary: null
+  target_bones:
+  - shoulder01.L
+- segment_id: upper_arm_l
+  source_primary:
+  - 16
+  - 18
+  target_primary:
+  - upperarm01.L
+  - lowerarm01.L
+  source_secondary: null
+  target_secondary: null
+  target_bones:
+  - upperarm01.L
+  - upperarm02.L
+- segment_id: forearm_l
+  source_primary:
+  - 18
+  - 20
+  target_primary:
+  - lowerarm01.L
+  - wrist.L
+  source_secondary: null
+  target_secondary: null
+  target_bones:
+  - lowerarm01.L
+  - lowerarm02.L
+- segment_id: hip_r
+  source_primary:
+  - 0
+  - 2
+  target_primary:
+  - pelvis.R
+  - upperleg01.R
+  source_secondary: null
+  target_secondary: null
+  target_bones:
+  - pelvis.R
+- segment_id: thigh_r
+  source_primary:
+  - 2
+  - 5
+  target_primary:
+  - upperleg01.R
+  - lowerleg01.R
+  source_secondary: null
+  target_secondary: null
+  target_bones:
+  - upperleg01.R
+  - upperleg02.R
+- segment_id: shin_r
+  source_primary:
+  - 5
+  - 8
+  target_primary:
+  - lowerleg01.R
+  - foot.R
+  source_secondary: null
+  target_secondary: null
+  target_bones:
+  - lowerleg01.R
+  - lowerleg02.R
+- segment_id: foot_r
+  source_primary:
+  - 8
+  - 11
+  target_primary:
+  - foot.R
+  - toe3-1.R
+  source_secondary: null
+  target_secondary: null
+  target_bones:
+  - foot.R
+- segment_id: collar_r
+  source_primary:
+  - 9
+  - 14
+  target_primary:
+  - clavicle.R
+  - shoulder01.R
+  source_secondary: null
+  target_secondary: null
+  target_bones:
+  - clavicle.R
+- segment_id: shoulder_r
+  source_primary:
+  - 14
+  - 17
+  target_primary:
+  - shoulder01.R
+  - upperarm01.R
+  source_secondary: null
+  target_secondary: null
+  target_bones:
+  - shoulder01.R
+- segment_id: upper_arm_r
+  source_primary:
+  - 17
+  - 19
+  target_primary:
+  - upperarm01.R
+  - lowerarm01.R
+  source_secondary: null
+  target_secondary: null
+  target_bones:
+  - upperarm01.R
+  - upperarm02.R
+- segment_id: forearm_r
+  source_primary:
+  - 19
+  - 21
+  target_primary:
+  - lowerarm01.R
+  - wrist.R
+  source_secondary: null
+  target_secondary: null
+  target_bones:
+  - lowerarm01.R
+  - lowerarm02.R

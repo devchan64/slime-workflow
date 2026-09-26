@@ -16,7 +16,7 @@ class GradioMoMaskTests(unittest.TestCase):
             gateway_call_value.assert_called_once_with('momask','generate',{'action':'walking','directions':['down_left'],'face':True})
 
     def test_settings_read_shared_configuration(self):
-        prompt_text_value,summary_text_value,_=MODULE_SOURCE_VALUE.read_motion_settings('walking')
+        prompt_text_value,summary_text_value=MODULE_SOURCE_VALUE.read_motion_settings('walking')
         self.assertIn('centerline',prompt_text_value)
         self.assertIn('25°',summary_text_value)
 
