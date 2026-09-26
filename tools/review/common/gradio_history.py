@@ -5,6 +5,22 @@ import gradio as gr
 HISTORY_SUMMARY_FIELD_NAMES=('tile_type','motion','action','directions','width','height','resolution','steps','seed')
 
 
+def build_history_input_controls(history_selection_component, read_input_callback,
+                                 restore_input_callback, restore_output_components):
+    """저장된 입력 조회와 사용자 입력 복원을 별도 명시적 동작으로 연결한다."""
+    with gr.Accordion('생성 당시 입력값', open=False):
+        gr.Markdown('이력을 먼저 선택하세요. 조회는 현재 설정을 바꾸지 않으며, 불러오기는 입력란만 변경합니다. 생성은 시작하지 않습니다.')
+        with gr.Row():
+            input_lookup_button = gr.Button('입력값 조회')
+            input_restore_button = gr.Button('입력값 불러오기')
+        saved_input_display = gr.JSON(label='선택한 이력의 저장된 입력값')
+        input_restore_status = gr.Markdown()
+    input_lookup_button.click(read_input_callback, history_selection_component, saved_input_display, queue=False)
+    input_restore_button.click(restore_input_callback, history_selection_component,
+                               [*restore_output_components, input_restore_status], queue=False)
+    return saved_input_display
+
+
 def format_history_choice_label(current_history_record):
     current_status_record=current_history_record.get('status',{})
     current_status_label=current_status_record.get('status','unknown') if isinstance(current_status_record,dict) else current_status_record

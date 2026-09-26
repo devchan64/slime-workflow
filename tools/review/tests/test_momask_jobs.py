@@ -13,6 +13,16 @@ MODULE_IMPORT_SPEC.loader.exec_module(JOB_SERVICE_MODULE)
 
 
 class SharedGenerationJobsTest(unittest.TestCase):
+    def test_status_returns_saved_request_and_prompt(self):
+        generation_job_identifier = self.create_test_record()
+        generation_job_path = JOB_SERVICE_MODULE.resolve_generation_directory(generation_job_identifier)
+        (generation_job_path/'motion-run').mkdir()
+        (generation_job_path/'motion-run/prompt.txt').write_text('Saved original prompt.')
+        generation_status_record = JOB_SERVICE_MODULE.read_generation_status(generation_job_identifier)
+        self.assertEqual(generation_status_record['request']['action'], 'standing')
+        self.assertEqual(generation_status_record['prompt'], 'Saved original prompt.')
+        self.assertEqual(generation_status_record['prompt_word_count'], 3)
+
     def setUp(self):
         self.test_directory_handle = tempfile.TemporaryDirectory()
         self.test_root_directory = Path(self.test_directory_handle.name)

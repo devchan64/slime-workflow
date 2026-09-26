@@ -10,6 +10,22 @@ MODULE_SOURCE_VALUE=importlib.util.module_from_spec(MODULE_SOURCE_SPEC)
 MODULE_SOURCE_SPEC.loader.exec_module(MODULE_SOURCE_VALUE)
 
 class GradioMoMaskTests(unittest.TestCase):
+    def test_saved_inputs_use_record_not_current_configuration(self):
+        saved_status_record = {'request': {'action': 'walking', 'directions': ['up_left'], 'face': False}, 'prompt': 'Historical prompt.', 'prompt_word_count': 2}
+        with patch.object(MODULE_SOURCE_VALUE, 'execute_motion_command', return_value=saved_status_record) as gateway_call_value:
+            saved_input_record = MODULE_SOURCE_VALUE.read_saved_motion_inputs('saved-id')
+            self.assertEqual(saved_input_record['prompt'], 'Historical prompt.')
+            restored_input_values = MODULE_SOURCE_VALUE.restore_saved_motion_inputs('saved-id')
+            self.assertEqual(restored_input_values[:3], ('walking', ['up_left'], False))
+            self.assertIn('동일 결과 재생성을 보장하지 않습니다', restored_input_values[-1])
+            self.assertTrue(all(current_call.args[0] == 'status' for current_call in gateway_call_value.call_args_list))
+
+    def test_restore_rejects_unsupported_saved_input(self):
+        saved_status_record = {'request': {'action': 'unknown', 'directions': ['up_left'], 'face': False}, 'prompt': None, 'prompt_word_count': None}
+        with patch.object(MODULE_SOURCE_VALUE, 'execute_motion_command', return_value=saved_status_record):
+            with self.assertRaises(Exception):
+                MODULE_SOURCE_VALUE.restore_saved_motion_inputs('saved-id')
+
     def test_generate_uses_shared_gateway(self):
         with patch.object(MODULE_SOURCE_VALUE,'execute_management_command',return_value={'id':'sample'}) as gateway_call_value:
             self.assertEqual(MODULE_SOURCE_VALUE.start_motion_generation('walking',['down_left'],True),'sample')

@@ -14,7 +14,7 @@ import yaml
 
 WORKFLOW_ROOT_DIRECTORY = Path(__file__).resolve().parents[4]
 sys.path.insert(0, str(WORKFLOW_ROOT_DIRECTORY))
-from tools.review.common.gradio_history import build_history_reset_controls, bind_history_reset_action, format_history_choice_label
+from tools.review.common.gradio_history import build_history_reset_controls, bind_history_reset_action, format_history_choice_label, build_history_input_controls
 from tools.review.common.management_gateway import execute_management_command
 from tools.review.common.gradio_logs import build_execution_logs, LOG_PANEL_STYLES
 from tools.review.domains.momask.momask_jobs import check_generation_running
@@ -52,6 +52,31 @@ def start_motion_generation(selected_action_name, selected_direction_names, sele
     generation_record_value=execute_motion_command('generate',{'action':selected_action_name,'directions':selected_direction_names,'face':selected_face_enabled})
     return generation_record_value['id']
 
+def read_saved_motion_inputs(selected_history_identifier):
+    if not selected_history_identifier:
+        raise gr.Error('입력값을 조회하거나 불러올 생성이력을 먼저 선택하세요.')
+    saved_status_record = execute_motion_command('status', {'id': selected_history_identifier})
+    return {'id': selected_history_identifier, 'request': saved_status_record['request'],
+            'prompt': saved_status_record['prompt'], 'prompt_word_count': saved_status_record['prompt_word_count'],
+            'prompt_status': '생성 당시 원문' if saved_status_record['prompt'] is not None else '프롬프트 저장 전 중단 또는 생성 준비 중'}
+
+
+def restore_saved_motion_inputs(selected_history_identifier):
+    saved_input_record = read_saved_motion_inputs(selected_history_identifier)
+    saved_request_record = saved_input_record['request']
+    if set(saved_request_record) != {'action', 'directions', 'face'}:
+        raise gr.Error('저장된 입력 필드가 현재 계약과 다릅니다. 입력값 조회로 원문을 확인하세요.')
+    selected_action_name = saved_request_record['action']
+    selected_direction_names = saved_request_record['directions']
+    selected_face_enabled = saved_request_record['face']
+    if selected_action_name not in [value for _, value in MOTION_ACTION_LABELS] or not isinstance(selected_direction_names, list) or not selected_direction_names or any(not isinstance(current_direction_name, str) for current_direction_name in selected_direction_names) or len(set(selected_direction_names)) != len(selected_direction_names) or set(selected_direction_names) - {value for _, value in MOTION_DIRECTION_LABELS} or type(selected_face_enabled) is not bool:
+        raise gr.Error('현재 지원하지 않는 포즈·방향·얼굴 옵션입니다. 입력값 조회로 원문을 확인하세요.')
+    current_prompt_text, current_settings_text = read_motion_settings(selected_action_name)
+    restore_status_text = f'{selected_history_identifier}의 포즈·방향·얼굴 옵션을 새 모션 생성 입력란에 불러왔습니다. 생성은 시작하지 않았습니다.'
+    if saved_input_record['prompt'] is None or saved_input_record['prompt'].strip() != current_prompt_text.strip():
+        restore_status_text += ' 고정 스크립트는 현재 설정을 사용합니다. 과거 원문과 다르거나 기록이 없어 동일 결과 재생성을 보장하지 않습니다.'
+    return selected_action_name, selected_direction_names, selected_face_enabled, current_prompt_text, current_settings_text, restore_status_text
+
 def create_motion_player(generation_job_identifier, generation_result_record, server_base_address):
     player_payload_value={'id':generation_job_identifier,'result':generation_result_record,'base':server_base_address}
     player_source_text=(Path(__file__).parent/'motion-player.html').read_text().replace('__PLAYER_PAYLOAD__',json.dumps(player_payload_value).replace('<','\\u003c'))
@@ -83,6 +108,9 @@ def build_momask_interface(server_base_address):
                     history_resume_button=gr.Button('생성 재개',interactive=False)
                     history_resume_help=gr.Markdown('취소되거나 실패한 작업을 선택하면 이어서 생성할 수 있습니다. 리그 생성이 완료된 작업만 지원합니다.')
                     history_result_button=gr.Button('선택한 결과 조회',variant='primary',interactive=False)
+                    build_history_input_controls(history_table_value, read_saved_motion_inputs,
+                                                 restore_saved_motion_inputs,
+                                                 [action_select_value, direction_select_value, face_checkbox_value, prompt_text_value, settings_text_value])
                     with gr.Row():
                         history_page_value=gr.Number(value=1,precision=0,minimum=1,label='페이지',scale=1,min_width=100)
                         history_refresh_value=gr.Button('이력 새로고침')
@@ -114,7 +142,7 @@ def build_momask_interface(server_base_address):
             if generation_status_record['status']!='completed':
                 return '<p>선택한 이력은 '+html.escape(generation_status_record['status'])+' 상태입니다. 실행 로그를 확인하세요.</p>',str(WORKFLOW_ROOT_DIRECTORY/'.tmp/momask-generator/jobs'/generation_job_identifier),generation_status_record,generation_job_identifier
             generation_job_path=WORKFLOW_ROOT_DIRECTORY/'.tmp/momask-generator/jobs'/generation_job_identifier
-            return create_motion_player(generation_job_identifier,generation_status_record['result'],server_base_address),str(generation_job_path),{'request':json.loads((generation_job_path/'request.json').read_text()),'result':generation_status_record['result']},generation_job_identifier
+            return create_motion_player(generation_job_identifier,generation_status_record['result'],server_base_address),str(generation_job_path),{'request':generation_status_record['request'],'prompt':generation_status_record['prompt'],'prompt_word_count':generation_status_record['prompt_word_count'],'result':generation_status_record['result']},generation_job_identifier
         result_button_value.click(show_motion_result,identifier_text_value,[player_html_value,record_path_value,input_record_value,viewed_identifier_value])
         identifier_text_value.submit(show_motion_result,identifier_text_value,[player_html_value,record_path_value,input_record_value,viewed_identifier_value])
         record_folder_button_value.click(fn=None,inputs=viewed_identifier_value,outputs=record_folder_status_value,js="""async(identifierValue)=>{if(!identifierValue)throw new Error('먼저 생성 결과를 조회하세요.');const responseValue=await fetch('/management/record-folder/open',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({route:'/momask-generator',id:identifierValue})});const payloadValue=await responseValue.json();if(!responseValue.ok)throw new Error(payloadValue.error);return payloadValue.message;}""",queue=False)

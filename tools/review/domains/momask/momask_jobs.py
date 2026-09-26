@@ -109,6 +109,10 @@ def list_generation_history():
 def read_generation_status(generation_job_identifier):
     generation_job_path = resolve_generation_directory(generation_job_identifier)
     generation_status_value = json.loads((generation_job_path/'status.json').read_text())
+    generation_status_value['request'] = json.loads((generation_job_path/'request.json').read_text())
+    saved_prompt_path = generation_job_path/'motion-run/prompt.txt'
+    generation_status_value['prompt'] = saved_prompt_path.read_text() if saved_prompt_path.exists() else None
+    generation_status_value['prompt_word_count'] = len(generation_status_value['prompt'].split()) if generation_status_value['prompt'] is not None else None
     generation_log_path = generation_job_path/'worker.log'
     generation_status_value['log'] = generation_log_path.read_text(errors='replace')[-12000:] if generation_log_path.exists() else ''
     if (generation_job_path/'result.json').exists():
