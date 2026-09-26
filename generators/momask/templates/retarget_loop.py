@@ -15,14 +15,14 @@ assert hashlib.sha256(source_motion_path.read_bytes()).hexdigest()==source_manif
 source_motion_bundle=np.load(source_motion_path,allow_pickle=False)
 assert set(source_motion_bundle.files)=={'joints','rest','contacts','sample_indices'}
 source_joint_frames=source_motion_bundle['joints']
-assert source_joint_frames.shape==(25,22,3) and np.isfinite(source_joint_frames).all()
+assert source_joint_frames.ndim==3 and source_joint_frames.shape[1:]==(22,3) and np.isfinite(source_joint_frames).all()
 source_joint_frames=source_joint_frames[:,:,[0,2,1]].copy();source_joint_frames[:,:,1]*=-1
 bpy.ops.wm.open_mainfile(filepath=str(EXPERIMENT_OUTPUT_ROOT/'inputs/anny-reference-fit-rig.blend'))
 rig_object_value=bpy.data.objects['AnnyAttributesRig'];body_object_value=bpy.data.objects['AnnyAttributesBody']
 rig_object_value.animation_data_clear();rig_object_value.location=(0,0,0)
 for current_pose_bone in rig_object_value.pose.bones:
  current_pose_bone.matrix_basis=Matrix.Identity(4);current_pose_bone.rotation_mode='QUATERNION'
-scene_render_value=bpy.context.scene;scene_render_value.frame_start=1;scene_render_value.frame_end=25;scene_render_value.render.fps=20
+scene_render_value=bpy.context.scene;scene_render_value.frame_start=1;scene_render_value.frame_end=len(source_joint_frames);scene_render_value.render.fps=source_manifest_record['fps']
 rest_bone_positions={current_bone_value.name:current_bone_value.head_local.copy() for current_bone_value in rig_object_value.data.bones}
 rest_bone_rotations={current_bone_value.name:current_bone_value.matrix_local.to_quaternion() for current_bone_value in rig_object_value.data.bones}
 segment_mapping_values={}
@@ -83,18 +83,18 @@ for current_frame_index,current_joint_points in enumerate(source_joint_frames):
  bpy.context.view_layer.update()
  surface_frame_values.append(collect_surface_vertices())
  foot_track_frames.append([list(rig_object_value.matrix_world@rig_object_value.pose.bones[current_foot_name].head) for current_foot_name in ['foot.L','foot.R','toe3-1.L','toe3-1.R']])
-rig_object_value.animation_data.action.name='MoMaskLoop25_20fps'
+rig_object_value.animation_data.action.name=f'MoMask_{len(source_joint_frames)}frames_{scene_render_value.render.fps}fps'
 scene_render_value.frame_set(1)
 bpy.ops.object.select_all(action='DESELECT');body_object_value.select_set(True);rig_object_value.select_set(True);bpy.context.view_layer.objects.active=rig_object_value
 bpy.ops.export_scene.gltf(filepath=str(EXPERIMENT_OUTPUT_ROOT/'mannequin.glb'),use_selection=True,export_animations=True,export_all_influences=True)
 np.savez_compressed(EXPERIMENT_OUTPUT_ROOT/'retarget-diagnostics.npz',foot_tracks=np.array(foot_track_frames),ground_shifts=np.array(ground_shift_values))
 # 접촉 추정은 원본 발끝 높이·속도로 계산하며, IK로 수치를 감추지 않는다.
 source_toe_positions=source_joint_frames[:,[10,11]]
-source_toe_speeds=np.linalg.norm(np.diff(source_toe_positions[:,:,:2],axis=0),axis=2)*20
+source_toe_speeds=np.linalg.norm(np.diff(source_toe_positions[:,:,:2],axis=0),axis=2)*scene_render_value.render.fps
 source_contact_mask=(source_toe_positions[:-1,:,2]<.06)&(source_toe_speeds<.20)
-target_toe_speeds=np.linalg.norm(np.diff(np.array(foot_track_frames)[:,2:,:2],axis=0),axis=2)*20
+target_toe_speeds=np.linalg.norm(np.diff(np.array(foot_track_frames)[:,2:,:2],axis=0),axis=2)*scene_render_value.render.fps
 contact_speed_values=target_toe_speeds[source_contact_mask]
-review_result_record={'status':'generated_review_required','source_asset_id':'mannequin-walk','source_version':1,'source_sha256':source_manifest_record['files']['mannequin-motion.npz'],'frames':25,'fps':20,'bones':104,'motion_scale':motion_scale_value,'retarget_method':'HumanML3D 22 관절 방향을 ANNY 분할 본 전역 회전에 대응; 본 길이·가중치 유지','ground_method':'프레임별 최저 표면 높이 보정; 발 고정 IK 없음','contact_samples':int(source_contact_mask.sum()),'contact_toe_speed_mean_mps':float(contact_speed_values.mean()) if len(contact_speed_values) else None,'contact_toe_speed_max_mps':float(contact_speed_values.max()) if len(contact_speed_values) else None,'ground_shift_range_m':[min(ground_shift_values),max(ground_shift_values)],'finite_vertices':bool(np.isfinite(surface_frame_values).all()),'quality_warnings':['관절 위치 기반으로 축 비틀림을 완전히 복원할 수 없음','손가락·얼굴은 기본 자세 유지','원본은 25프레임 닫힌 보행 루프','접지 높이 보정은 발 고정 IK를 대체하지 않음']}
+review_result_record={'status':'generated_review_required','source_motion':source_manifest_record['source_motion'],'source_sha256':source_manifest_record['files']['mannequin-motion.npz'],'frames':len(source_joint_frames),'fps':scene_render_value.render.fps,'bones':len(rig_object_value.data.bones),'motion_scale':motion_scale_value,'retarget_method':'HumanML3D 22 관절 방향을 ANNY 분할 본 전역 회전에 대응; 본 길이·가중치 유지','ground_method':'프레임별 최저 표면 높이 보정; 발 고정 IK 없음','contact_samples':int(source_contact_mask.sum()),'contact_toe_speed_mean_mps':float(contact_speed_values.mean()) if len(contact_speed_values) else None,'contact_toe_speed_max_mps':float(contact_speed_values.max()) if len(contact_speed_values) else None,'ground_shift_range_m':[min(ground_shift_values),max(ground_shift_values)],'finite_vertices':bool(np.isfinite(surface_frame_values).all()),'quality_warnings':['관절 위치 기반으로 축 비틀림을 완전히 복원할 수 없음','접지 높이 보정은 발 고정 IK를 대체하지 않음']}
 (EXPERIMENT_OUTPUT_ROOT/'review-metrics.json').write_text(json.dumps(review_result_record,ensure_ascii=False,indent=2))
 
 bpy.ops.wm.save_as_mainfile(filepath=str(EXPERIMENT_OUTPUT_ROOT/'mannequin.blend'))

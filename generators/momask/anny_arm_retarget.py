@@ -53,6 +53,16 @@ def calculate_arm_rotations(current_joint_points, rest_bone_positions, rest_bone
             signed_twist_angle = previous_twist_angle + max(-maximum_twist_step, min(maximum_twist_step, signed_twist_angle-previous_twist_angle))
             previous_arm_planes[previous_twist_key] = signed_twist_angle
             segment_world_rotation = Quaternion(target_segment_axis, signed_twist_angle) @ segment_swing_rotation
+            if arm_correction_values:
+                previous_rotation_key = bone_name_prefix+'.rotation.'+current_side_label
+                previous_segment_rotation = previous_arm_planes.get(previous_rotation_key, segment_world_rotation)
+                if previous_segment_rotation.dot(segment_world_rotation) < 0:
+                    segment_world_rotation.negate()
+                segment_rotation_delta = previous_segment_rotation.rotation_difference(segment_world_rotation).angle
+                maximum_rotation_step = math.radians(arm_correction_values['max_upper_arm_step_degrees' if bone_name_prefix=='upperarm' else 'max_forearm_step_degrees'])
+                if segment_rotation_delta > maximum_rotation_step:
+                    segment_world_rotation = previous_segment_rotation.slerp(segment_world_rotation, maximum_rotation_step / segment_rotation_delta)
+                previous_arm_planes[previous_rotation_key] = segment_world_rotation.copy()
             for current_bone_name in rest_bone_rotations:
                 if current_bone_name.startswith(bone_name_prefix) and current_bone_name.endswith('.'+current_side_label):
                     arm_rotation_values[current_bone_name] = segment_world_rotation @ rest_bone_rotations[current_bone_name]

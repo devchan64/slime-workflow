@@ -74,24 +74,24 @@ for current_direction_name,current_camera_position in DIRECTION_CAMERA_POINTS.it
   direction_frame_records[current_direction_name].append(current_keypoint_values)
   scene_render_value.render.filepath=str(EXPERIMENT_OUTPUT_ROOT/current_direction_name/f'preview-{current_sample_index+1:04d}.png')
   bpy.ops.render.render(write_still=True)
-(EXPERIMENT_OUTPUT_ROOT/'openpose-keypoints.json').write_text(json.dumps({'format':'COCO18-compatible 14 projected rig points; head center substitutes nose; eyes/ears omitted','source':'MoMask-derived loop retargeted to ANNY104','source_frames':OUTPUT_SAMPLE_FRAMES,'frames':direction_frame_records},indent=2))
-# 닫힌 루프 표면 검증
+(EXPERIMENT_OUTPUT_ROOT/'openpose-keypoints.json').write_text(json.dumps({'format':'COCO18-compatible 14 projected rig points; head center substitutes nose; eyes/ears omitted','source':'MoMask motion retargeted to ANNY','source_frames':OUTPUT_SAMPLE_FRAMES,'frames':direction_frame_records},indent=2))
+# 시작·끝 표면 차이 측정: 일반 모션의 닫힌 루프를 가정하지 않는다.
 endpoint_vertex_arrays=[]
-for current_frame_number in [1,25]:
+for current_frame_number in [scene_render_value.frame_start,scene_render_value.frame_end]:
  scene_render_value.frame_set(current_frame_number);bpy.context.view_layer.update()
  current_evaluated_body=current_body_object.evaluated_get(bpy.context.evaluated_depsgraph_get())
  endpoint_vertex_arrays.append(np.array([(current_evaluated_body.matrix_world@current_vertex_value.co)[:] for current_vertex_value in current_evaluated_body.data.vertices]))
 endpoint_max_error=float(np.abs(endpoint_vertex_arrays[0]-endpoint_vertex_arrays[1]).max())
-if endpoint_max_error>1e-5:raise ValueError(f'루프 끝점 불일치 {endpoint_max_error}')
-(EXPERIMENT_OUTPUT_ROOT/'loop-validation.json').write_text(json.dumps({'status':'passed','endpoint_max_error_m':endpoint_max_error,'frames_per_direction':8,'directions':4,'total_pose_frames':32},indent=2))
+print(f'시작·끝 표면 차이 {endpoint_max_error}; 루프 여부는 별도 검수')
+(EXPERIMENT_OUTPUT_ROOT/'loop-validation.json').write_text(json.dumps({'status':'measured_review_required','endpoint_max_error_m':endpoint_max_error,'frames_per_direction':len(OUTPUT_SAMPLE_FRAMES),'directions':len(DIRECTION_CAMERA_POINTS),'total_pose_frames':len(OUTPUT_SAMPLE_FRAMES)*len(DIRECTION_CAMERA_POINTS)},indent=2))
 print(f'{time.strftime("%Y-%m-%dT%H:%M:%S")}/baseline-r2-momask/complete',flush=True)
 
 motion_bone_names=['root','upperleg01.L','upperleg01.R','spine05','lowerleg01.L','lowerleg01.R','spine03','foot.L','foot.R','spine01','toe3-1.L','toe3-1.R','neck01','clavicle.L','clavicle.R','head','upperarm01.L','upperarm01.R','lowerarm01.L','lowerarm01.R','wrist.L','wrist.R']
 target_joint_frames=[]
-for current_frame_number in range(1,26):
+for current_frame_number in range(scene_render_value.frame_start,scene_render_value.frame_end+1):
  scene_render_value.frame_set(current_frame_number);bpy.context.view_layer.update()
  target_joint_frames.append([(current_rig_object.matrix_world@current_rig_object.pose.bones[current_bone_name].head)[:] for current_bone_name in motion_bone_names])
 target_joint_frames=np.array(target_joint_frames)[:,:,[0,2,1]];target_joint_frames[:,:,2]*=-1
 target_rest_points=np.array([current_rig_object.data.bones[current_bone_name].head_local[:] for current_bone_name in motion_bone_names])[:,[0,2,1]];target_rest_points[:,2]*=-1
 source_loop_bundle=np.load(EXPERIMENT_OUTPUT_ROOT/'inputs/mannequin-motion.npz')
-np.savez_compressed(EXPERIMENT_OUTPUT_ROOT/'mannequin-motion.npz',joints=target_joint_frames,rest=target_rest_points,contacts=source_loop_bundle['contacts'],sample_indices=np.arange(8)*3)
+np.savez_compressed(EXPERIMENT_OUTPUT_ROOT/'mannequin-motion.npz',joints=target_joint_frames,rest=target_rest_points,contacts=source_loop_bundle['contacts'],sample_indices=np.array(OUTPUT_SAMPLE_FRAMES)-1)
