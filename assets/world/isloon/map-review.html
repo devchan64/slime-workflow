@@ -61,7 +61,15 @@ function drawMapDetails(mapDocumentValues,mapRecordValues){
   currentMapRotationDegrees=0;
   window.configureMapCharacterPreview(mapDocumentValues,mapRecordValues);
   applyCurrentMapRotation();
-  mapPreviewImage.onload=()=>{applyMapZoom();mapLoadingMessage.hidden=true};
+  mapPreviewImage.onload=()=>{
+    applyMapZoom();mapLoadingMessage.hidden=true;
+    requestAnimationFrame(()=>{
+      const mapScrollContainer=mapPreviewImage.parentElement;
+      mapScrollContainer.scrollLeft=Math.max(0,mapPreviewImage.offsetLeft+mapPreviewImage.clientWidth/2-mapScrollContainer.clientWidth/2);
+      mapScrollContainer.scrollTop=Math.max(0,mapPreviewImage.offsetTop+mapPreviewImage.clientHeight/2-mapScrollContainer.clientHeight/2);
+    });
+  };
+
 }
 
 function projectVolumePoint(columnValue,rowValue,heightValue,originXValue,originYValue,tileWidthValue,tileHeightValue){
