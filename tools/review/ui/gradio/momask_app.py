@@ -20,7 +20,7 @@ from tools.review.common.gradio_logs import build_execution_logs, LOG_PANEL_STYL
 from tools.review.domains.momask.momask_jobs import check_generation_running
 from tools.review.domains.momask.momask_generation import render_position_retarget_policy
 
-MOTION_ACTION_LABELS = [('대기','standing'),('스트레칭','stretch'),('걷기','walking')]
+MOTION_ACTION_LABELS = [('대기','standing'),('걷기','walking')]
 MOTION_DIRECTION_LABELS = [('전방 좌측','down_left'),('전방 우측','down_right'),('후방 좌측','up_left'),('후방 우측','up_right')]
 
 def create_copyable_textbox(**textbox_keyword_values):

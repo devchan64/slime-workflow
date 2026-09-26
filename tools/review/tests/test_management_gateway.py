@@ -11,6 +11,11 @@ from tools.review.common.management_gateway import ManagementCommandGateway, res
 
 
 class GatewayContractTest(unittest.TestCase):
+    def test_retired_stretch_cli_is_rejected(self):
+        with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit) as command_exit_context:
+            execute_gateway_cli(['command','momask','generate','--action','stretch'])
+        self.assertEqual(command_exit_context.exception.code,2)
+
     def create_request_handler(self,path,body,origin='http://127.0.0.1:8770'):
         data=json.dumps(body).encode()
         handler=SimpleNamespace(path=path,command='POST',headers={'Host':'127.0.0.1:8770','Origin':origin,'Content-Type':'application/json','Content-Length':str(len(data))},server=SimpleNamespace(server_port=8770),rfile=io.BytesIO(data),wfile=io.BytesIO(),responses=[])

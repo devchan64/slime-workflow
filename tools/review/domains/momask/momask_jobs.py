@@ -18,7 +18,7 @@ WORKFLOW_ROOT_DIRECTORY = Path(__file__).resolve().parents[4]
 GENERATION_JOB_DIRECTORY = WORKFLOW_ROOT_DIRECTORY / '.tmp/momask-generator/jobs'
 GENERATION_HISTORY_DIRECTORY = WORKFLOW_ROOT_DIRECTORY / '.tmp/momask-generator/history'
 GENERATION_LOCK_FILE = GENERATION_JOB_DIRECTORY.parent / 'generation.lock'
-SUPPORTED_ACTION_NAMES = ('standing', 'stretch', 'walking')
+SUPPORTED_ACTION_NAMES = ('standing', 'walking')
 SUPPORTED_DIRECTION_NAMES = ('down_left', 'down_right', 'up_left', 'up_right')
 
 

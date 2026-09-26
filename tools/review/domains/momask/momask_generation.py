@@ -11,8 +11,8 @@ from tools.review.common.management_log_viewer import MANAGEMENT_LOG_VIEWER_SCRI
 ROOT=Path(__file__).resolve().parents[4]
 JOB_ROOT=ROOT/'.tmp/momask-generator/jobs'
 HISTORY_ROOT=ROOT/'.tmp/momask-generator/history'
-ACTIONS={'standing':{'label':'대기','frames':16},'stretch':{'label':'스트레칭','frames':120},'walking':{'label':'걷기','frames':32}}
-HISTORICAL_ACTIONS={**ACTIONS,'deep_breath':{'label':'심호흡','frames':32}}
+ACTIONS={'standing':{'label':'대기','frames':16},'walking':{'label':'걷기','frames':32}}
+HISTORICAL_ACTIONS={**ACTIONS,'stretch':{'label':'스트레칭','frames':120},'deep_breath':{'label':'심호흡','frames':32}}
 DIRECTIONS=('down_left','down_right','up_left','up_right')
 def render_position_retarget_policy():
  return '<p><strong>위치 채널 기반 공통 리타깃</strong></p><p>모든 동작에 같은 관절 대응과 회전 계산을 적용합니다. 원본 관절 위치를 동작별로 보정하지 않으며 회전 제한·쇄골 상승·손가락 자동 자세·관절 스무딩·접지 보정을 추가하지 않습니다. 위치로 알 수 없는 비틀림은 연속 전달하고 손가락 등 미대응 본은 기준 자세를 유지합니다. 새 생성부터 적용되며 기존 결과는 유지됩니다.</p>'

@@ -4,7 +4,7 @@ import argparse, json, shutil, subprocess, sys
 import numpy as np
 import yaml
 ROOT=Path(__file__).resolve().parents[2]
-ACTIONS={'walking':('walking','걷기'),'standing':('standing','대기'),'stretch':('stretch','스트레칭')}
+ACTIONS={'walking':('walking','걷기'),'standing':('standing','대기')}
 DIRECTIONS={'down_left','down_right','up_left','up_right'}
 def main():
  p=argparse.ArgumentParser();p.add_argument('--job-dir',type=Path,required=True);p.add_argument('--action',choices=ACTIONS);p.add_argument('--directions',required=True);a=p.parse_args()
@@ -19,11 +19,6 @@ def main():
  motion=generation_root/'motion/motion.npz'
  result=a.job_dir/'result'; joints=np.load(motion)['joints']; frames=len(joints); indices=','.join(map(str,range(frames)))
  motion_quality_warnings=[]
- if a.action=='stretch':
-  endpoint_wrist_offsets=joints[[0,-1]][:,[20,21],1]-joints[[0,-1]][:,[16,17],1]
-  if np.any(endpoint_wrist_offsets>-.15):
-   motion_quality_warnings.append('스트레칭 시작·종료 시 양손을 충분히 내리지 못했습니다. 결과 자세를 검수하세요.')
-   print('품질 경고: '+motion_quality_warnings[-1],flush=True)
  subprocess.run([str(ROOT/'.venv/bin/python'),str(ROOT/'generators/momask/render_openpose_frames.py'),'--motion',str(motion),'--output-dir',str(result/'openpose'),'--sample-indices',indices,'--camera-azimuth-degrees',str(camera_angle_values[a.action])],check=True)
  subprocess.run([str(ROOT/'.venv/bin/python'),str(ROOT/'generators/momask/render_anny_frames.py'),'--motion',str(motion),'--output-dir',str(result/'anny'),'--directions',','.join(directions),'--sample-indices',indices,'--camera-azimuth-degrees',str(camera_angle_values[a.action])],check=True)
  for direction in DIRECTIONS-set(directions):

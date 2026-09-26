@@ -22,7 +22,7 @@ MoMask 작업은 `tools/review/domains/momask/momask_jobs.py` 공용 서비스�
 python3 tools/manager.py help
 python3 tools/manager.py help momask
 python3 tools/manager.py help momask generate
-python3 tools/manager.py command momask generate --action stretch --directions down_left down_right up_left up_right
+python3 tools/manager.py command momask generate --action walking --directions down_left down_right up_left up_right
 python3 tools/manager.py command momask generate --action standing --directions down_left --detach
 python3 tools/manager.py command momask history
 python3 tools/manager.py command momask status GENERATION_ID
@@ -30,6 +30,8 @@ python3 tools/manager.py command momask logs GENERATION_ID
 python3 tools/manager.py command momask cancel GENERATION_ID
 python3 tools/manager.py command momask history-reset
 ```
+
+MoMask 신규 생성은 대기(`standing`)와 걷기(`walking`)만 지원한다. 폐기된 스트레칭의 기존 생성 이력·결과 조회는 유지하며 새 생성 입력으로 불러올 수 없다.
 
 `generate` 기본 실행은 완료까지 로그를 출력한다. `--detach`는 ID와 기록 경로를 출력하고 반환한다. 대기 중 Ctrl+C는 해당 작업에 취소를 요청한다. 프롬프트·프레임·모델 설정은 웹과 같은 고정 설정을 사용한다. `--directions` 생략 시 네 방향을 생성한다.
 

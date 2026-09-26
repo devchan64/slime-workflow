@@ -54,6 +54,11 @@ class SharedGenerationJobsTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             JOB_SERVICE_MODULE.start_generation_job('deep_breath', ['down_left'])
 
+    def test_retired_stretch_action_is_rejected(self):
+        with self.assertRaises(ValueError):
+            JOB_SERVICE_MODULE.start_generation_job('stretch', ['down_left'])
+        self.assertFalse((self.test_root_directory/'jobs').exists())
+
     def test_completion_and_reset_retention(self):
         for clear_history_first in (False, True):
             identifier=self.create_test_record()
