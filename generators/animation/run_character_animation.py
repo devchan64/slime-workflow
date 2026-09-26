@@ -4,6 +4,7 @@ import argparse
 import json
 import subprocess
 import sys
+import uuid
 
 WORKFLOW_ROOT_DIRECTORY=Path(__file__).resolve().parents[2]
 sys.path.insert(0,str(WORKFLOW_ROOT_DIRECTORY))
@@ -49,6 +50,15 @@ def generate_character_animation(generation_job_path):
     with generation_gpu_lock_path.open('a') as generation_gpu_lock_handle:
         acquire_worker_lock(generation_gpu_lock_handle,'waiting-gpu')
         for current_frame_index,source_frame_record in enumerate(generation_request_record['frames']):
+            frame_output_directory=generation_job_path/source_frame_record['direction']/f"frame-{source_frame_record['frame']:04d}"
+            frame_result_path=frame_output_directory/'result.json'
+            if frame_result_path.is_file() and (frame_output_directory/'result.png').is_file() and json.loads(frame_result_path.read_text()).get('status')=='completed':
+                from PIL import Image
+                with Image.open(frame_output_directory/'result.png') as completed_frame_image:completed_frame_image.verify()
+                generation_result_frames[source_frame_record['direction']].append(str((frame_output_directory/'result.png').relative_to(generation_job_path)))
+                continue
+            if frame_output_directory.exists():
+                frame_output_directory.rename(frame_output_directory.with_name(frame_output_directory.name+'-incomplete-'+uuid.uuid4().hex[:8]))
             write_record_atomically(generation_job_path/'progress.json',{'completed':current_frame_index,'total':len(generation_request_record['frames']),'direction':source_frame_record['direction'],'frame':source_frame_record['frame']})
             # 프레임별 프로세스 종료로 모델·CUDA 메모리를 확실히 회수한다.
             subprocess.run([sys.executable,str(Path(__file__).resolve()),'--job-dir',str(generation_job_path),'--frame-index',str(current_frame_index)],check=True)

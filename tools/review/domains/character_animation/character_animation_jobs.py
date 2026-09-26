@@ -138,10 +138,33 @@ def start_animation_generation(command_payload_value):
     finally:
         generation_lock_handle.close()
 
+def resume_animation_generation(command_payload_value):
+    if set(command_payload_value)!={'id'}:raise ValueError('재개에는 작업 ID만 필요합니다.')
+    generation_job_identifier=command_payload_value['id']
+    generation_job_path=resolve_generation_directory(generation_job_identifier)
+    with GENERATION_LOCK_PATH.open('a') as generation_lock_handle:
+        try:fcntl.flock(generation_lock_handle,fcntl.LOCK_EX|fcntl.LOCK_NB)
+        except BlockingIOError:raise ValueError('다른 캐릭터 애니메이션 생성이 진행 중입니다.') from None
+        generation_status_record=read_generation_status(generation_job_identifier)
+        if generation_status_record['status'] not in ('cancelled','failed'):raise ValueError('취소되거나 실패한 작업만 재개할 수 있습니다.')
+        (generation_job_path/'cancel.request').unlink(missing_ok=True)
+        write_record_atomically(generation_job_path/'status.json',{'status':'running'})
+        write_record_atomically(GENERATION_ROOT_DIRECTORY/'active.json',{'id':generation_job_identifier})
+        try:
+            with (generation_job_path/'worker.log').open('a') as generation_log_handle:
+                generation_log_handle.write(f'{datetime.now().isoformat()}/character-animation/resume id={generation_job_identifier}\n')
+                generation_log_handle.flush()
+                subprocess.Popen([sys.executable,str(Path(__file__).resolve()),'--supervise',generation_job_identifier,'--lock-fd',str(generation_lock_handle.fileno())],stdout=generation_log_handle,stderr=subprocess.STDOUT,start_new_session=True,pass_fds=(generation_lock_handle.fileno(),))
+        except Exception as generation_start_error:
+            write_record_atomically(generation_job_path/'status.json',{'status':'failed','error':str(generation_start_error)})
+            raise
+    return {'id':generation_job_identifier,'status':'running','path':str(generation_job_path)}
+
 def execute_animation_command(operation_command_name,command_payload_value):
     if operation_command_name in ('sprite-source','sprite-save','sprite-load'):
         from .sprite_editor import execute_sprite_editor_command
         return execute_sprite_editor_command(operation_command_name,command_payload_value)
+    if operation_command_name=='resume':return resume_animation_generation(command_payload_value)
     if operation_command_name=='catalog':
         return build_animation_catalog()
     if operation_command_name=='generate':

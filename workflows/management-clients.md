@@ -181,3 +181,7 @@ python3 tools/manager.py character-animation sprite-save asset:character.default
 ```
 
 `--document-file`에는 내보낸 JSON의 `project` 객체를 전달한다.
+
+### 캐릭터 애니메이션 재개
+
+취소·실패 이력의 `이어서 생성` 또는 `python3 tools/manager.py character-animation resume <ID>`로 같은 작업을 재개한다. 저장된 요청과 프롬프트를 유지하며 완료된 `result.json`·유효한 PNG가 있는 프레임은 재사용한다. 미완료 프레임 디렉터리는 `-incomplete-<고유값>` 이름으로 보존한 후 다시 생성한다. 작업 로그는 이어 쓰며 완료 이력을 새로 만들지 않는다. 다른 캐릭터 애니메이션 작업이 실행 중이면 재개를 거절한다.

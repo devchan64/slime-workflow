@@ -14,8 +14,8 @@ from email.message import Message
 from urllib.parse import urlsplit, parse_qs
 
 MANAGEMENT_SERVICE_ROUTES = {'tile-map':'/tile-map-generator','character-animation':'/character-animation','momask':'/momask-generator','qwen-2512':'/image-generation','qwen-2511':'/image-generation-2511'}
-MANAGEMENT_COMMAND_ROUTES = {'sprite-source':('POST','/sprite/source'),'sprite-save':('POST','/sprite/save'),'sprite-load':('POST','/sprite/load'),'catalog':('GET','/catalog'),'generate':('POST','/jobs'),'prepare':('POST','/jobs'),'status':('GET','/jobs/{id}'),'logs':('GET','/jobs/{id}/worker.log'),'history':('GET','/history'),'active':('GET','/active'),'model-status':('GET','/model-status'),'cancel':('POST','/cancel'),'history-reset':('POST','/history/reset'),'openpose-map':('POST','/openpose-map')}
-MANAGEMENT_SERVICE_COMMANDS = {'tile-map':('catalog','generate','prepare','status','logs','history','active','model-status','cancel','history-reset'),'character-animation':('sprite-source','sprite-save','sprite-load','catalog','generate','status','logs','history','active','cancel','history-reset'),'momask':('generate','status','logs','history','cancel','history-reset','openpose-map'),'qwen-2512':('generate','prepare','status','logs','history','active','model-status','cancel','history-reset'),'qwen-2511':('generate','status','logs','history','active','model-status','cancel','history-reset')}
+MANAGEMENT_COMMAND_ROUTES = {'resume':('POST','/resume'),'sprite-source':('POST','/sprite/source'),'sprite-save':('POST','/sprite/save'),'sprite-load':('POST','/sprite/load'),'catalog':('GET','/catalog'),'generate':('POST','/jobs'),'prepare':('POST','/jobs'),'status':('GET','/jobs/{id}'),'logs':('GET','/jobs/{id}/worker.log'),'history':('GET','/history'),'active':('GET','/active'),'model-status':('GET','/model-status'),'cancel':('POST','/cancel'),'history-reset':('POST','/history/reset'),'openpose-map':('POST','/openpose-map')}
+MANAGEMENT_SERVICE_COMMANDS = {'tile-map':('catalog','generate','prepare','status','logs','history','active','model-status','cancel','history-reset'),'character-animation':('resume','sprite-source','sprite-save','sprite-load','catalog','generate','status','logs','history','active','cancel','history-reset'),'momask':('generate','status','logs','history','cancel','history-reset','openpose-map'),'qwen-2512':('generate','prepare','status','logs','history','active','model-status','cancel','history-reset'),'qwen-2511':('generate','status','logs','history','active','model-status','cancel','history-reset')}
 
 
 def resolve_management_command(service_command_name, operation_command_name, command_payload_value):
@@ -172,7 +172,7 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
         if operation_command_name in ('sprite-source','sprite-save','sprite-load'):
             operation_argument_parser.add_argument('id')
             if operation_command_name=='sprite-save':operation_argument_parser.add_argument('--document-file',type=Path,required=True)
-        if operation_command_name in ('status','logs','cancel','openpose-map'):
+        if operation_command_name in ('status','logs','cancel','openpose-map','resume'):
             operation_argument_parser.add_argument('id')
         if operation_command_name=='generate':
             operation_argument_parser.add_argument('--detach',action='store_true',help='작업 ID 출력 후 반환')

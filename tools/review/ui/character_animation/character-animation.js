@@ -158,3 +158,11 @@ async function pollAnimationGeneration(){
 })();
 
 animationElementLookup('result-playback-fps').onchange=()=>{if(!playbackResultRecord)return;const wasPlaybackRunning=animationPlaybackTimer!==null;renderAnimationFrame();if(wasPlaybackRunning)animationElementLookup('frame-play').click();};
+
+window.resumeGenerationRecord=async generationHistoryRecord=>{
+ const resumedGenerationRecord=await executeAnimationCommand('resume',{id:generationHistoryRecord.id});
+ activeGenerationIdentifier=resumedGenerationRecord.id;cancellationRequestPending=false;
+ animationElementLookup('status').textContent='기존 완료 프레임을 유지하고 남은 생성을 재개합니다.';
+ animationElementLookup('status').scrollIntoView({behavior:'smooth',block:'center'});
+ refreshGenerationAvailability();
+};
