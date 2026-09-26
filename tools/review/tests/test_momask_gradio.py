@@ -52,4 +52,4 @@ class GradioMoMaskTests(unittest.TestCase):
         interface_source_text=(WORKFLOW_ROOT_DIRECTORY/'tools/review/ui/gradio/momask_app.py').read_text()
         self.assertNotIn('gr.Tab(',interface_source_text)
         self.assertIn('### 1. 새 모션 생성',interface_source_text)
-        self.assertIn('### 2. 생성 이력 · 결과 조회',interface_source_text)
+        self.assertIn("gr.Accordion('2. 생성 이력 · 결과 조회'",interface_source_text)

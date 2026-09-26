@@ -6,8 +6,14 @@
 #motion-history-selection .wrap{display:flex;flex-direction:column;gap:6px}
 #motion-history-selection label{font-size:13px;overflow-wrap:anywhere}
 #motion-history-selection label:has(input:checked){outline:2px solid #93baff;background:#243449}
+#motion-direction-selection .wrap{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 10px}
+#motion-command-actions{display:grid!important;grid-template-columns:minmax(0,1.5fr) repeat(2,minmax(0,1fr));gap:8px!important}
+#motion-command-actions button{width:100%;min-width:0;margin:0;white-space:nowrap}
+#motion-generate-button{font-weight:700}
+#motion-history-panel{margin-top:8px}
+#motion-history-panel .label-wrap{font-weight:700}
 .motion-empty-state{min-height:350px;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;color:#a7b5c8;background:#101925;border:1px dashed #40516a;border-radius:12px;padding:24px}
-@media(max-width:800px){.gradio-container{padding:8px!important}#motion-controls,#motion-preview{min-width:100%!important}}
+@media(max-width:800px){.gradio-container{padding:8px!important}#motion-controls,#motion-preview{min-width:100%!important}#motion-command-actions{grid-template-columns:1fr 1fr!important}#motion-generate-button{grid-column:1/-1}#motion-direction-selection .wrap{grid-template-columns:1fr}}
 
 /* 이동 버튼과 위치 표시는 내용 길이에 관계없이 같은 줄에 유지한다. */
 .management-pagination{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(5ch,max-content) minmax(0,1fr);align-items:center;gap:8px!important;flex:none!important;width:100%;min-width:0}
