@@ -48,9 +48,12 @@ class TileGenerationManager(ImageGenerationManager):
         self.route_prefix_value='/tile-map-generator'
         self.job_storage_root=IMAGE_JOB_ROOT/'tile-map'
     def history_storage_path(self):return MANAGER_HISTORY_ROOT/'tile-map'
+    def history_reset_marker_path(self):return self.history_storage_path()/'.reset-marker'
     def list_generation_history(self):
         history_records_by_identifier={record_value['id']:record_value for record_value in super().list_generation_history()}
+        reset_marker_timestamp=self.history_reset_marker_path().stat().st_mtime if self.history_reset_marker_path().is_file() else 0
         for current_job_root in sorted(self.job_storage_root.iterdir(),key=lambda path_value:path_value.stat().st_mtime,reverse=True) if self.job_storage_root.is_dir() else []:
+            if current_job_root.stat().st_mtime<=reset_marker_timestamp:continue
             request_file_path=current_job_root/'request.json'
             status_file_path=current_job_root/'status.json'
             if not current_job_root.is_dir() or not request_file_path.is_file() or not status_file_path.is_file():continue
@@ -63,6 +66,13 @@ class TileGenerationManager(ImageGenerationManager):
             current_history_record['path']=str(current_job_root.resolve())
             current_history_record['image']=f'{self.route_prefix_value}/jobs/{current_history_record["id"]}/result.png' if (current_job_root/'result.png').is_file() else None
         return history_records
+    def handle_image_request(self,current_http_handler):
+        route_path_value=urlsplit(current_http_handler.path).path
+        handled_request_value=super().handle_image_request(current_http_handler)
+        if handled_request_value and current_http_handler.command=='POST' and route_path_value==self.route_prefix_value+'/history/reset':
+            self.history_storage_path().mkdir(parents=True,exist_ok=True)
+            self.history_reset_marker_path().touch()
+        return handled_request_value
     def validate_generation_request(self, request_record_value):return prepare_tile_request(request_record_value)
     def enrich_generation_status(self, current_job_root, current_status_record):
         if current_status_record['status']!='running':return current_status_record

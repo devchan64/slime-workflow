@@ -2,6 +2,8 @@
 const animationDirectionLabels={down_left:'전방 좌측',down_right:'전방 우측',up_left:'후방 좌측',up_right:'후방 우측'};
 const animationElementLookup=elementIdentifier=>document.getElementById(elementIdentifier);
 const animationLogController=ManagementLogViewer.attach(animationElementLookup('execution-log'),animationElementLookup('execution-log-text'));
+function enableAnimationPromptCollapses(){for(const promptHeadingText of ['기본 프롬프트 · 고정','보조 프롬프트 · 고정']){const promptHeadingElement=[...document.querySelectorAll('h2')].find(headingElement=>headingElement.textContent.trim()===promptHeadingText);if(!promptHeadingElement||promptHeadingElement.parentElement.matches('details'))continue;const promptDetailsElement=document.createElement('details');promptDetailsElement.open=false;const promptSummaryElement=document.createElement('summary');promptSummaryElement.textContent=promptHeadingText;promptDetailsElement.append(promptSummaryElement);const promptWordCountElement=promptHeadingElement.nextElementSibling,promptTextElement=promptWordCountElement?.nextElementSibling;promptHeadingElement.replaceWith(promptDetailsElement);if(promptWordCountElement)promptDetailsElement.append(promptWordCountElement);if(promptTextElement)promptDetailsElement.append(promptTextElement);}}
+enableAnimationPromptCollapses();
 let cancellationRequestPending=false;
 let lastSelectedMotionIdentifier=null;
 let generationSubmissionPending=false,generationAvailabilityChecked=false,activeGenerationProgress=null;
