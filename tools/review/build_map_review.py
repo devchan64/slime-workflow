@@ -402,6 +402,22 @@ def build_map_review(map_path=None, output_root=None):
     (output_root / 'map-index.json').write_text(json.dumps({'schema_version': 1, 'maps': map_records}, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
     (output_root / 'tile-assets.json').write_text(json.dumps({'schema_version': 1, 'tiles': tile_asset_records}, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
     (output_root / 'building-prefabs.json').write_text(json.dumps(building_prefab_values, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+    # 게임 런타임과 같은 스탠딩 프레임·발 기준점을 검수 패키지에 복사한다.
+    from PIL import Image
+    character_source_directory = FRONTEND_ASSET_ROOT/'characters/default/standing-v4'
+    character_animation_record = json.loads((character_source_directory/'idle-v4.animation.json').read_text())
+    character_source_record = json.loads((character_source_directory/'source.json').read_text())
+    character_preview_records = {}
+    character_output_directory = output_root/'character'
+    character_output_directory.mkdir()
+    for character_direction_name in ('down_left','down_right','up_left','up_right'):
+        character_frame_record = next(frame_record_value for frame_record_value in character_animation_record['frames'] if frame_record_value['frameId']==character_direction_name+'.0')
+        character_frame_rectangle = character_frame_record['rect']
+        with Image.open(character_source_directory/('standing-'+character_direction_name.replace('_','-')+'.png')) as character_sheet_image:
+            character_sheet_image.crop((character_frame_rectangle['x'],character_frame_rectangle['y'],character_frame_rectangle['x']+character_frame_rectangle['width'],character_frame_rectangle['y']+character_frame_rectangle['height'])).save(character_output_directory/(character_direction_name+'.png'))
+        character_preview_records[character_direction_name]={'file':'character/'+character_direction_name+'.png','anchor':character_frame_record['anchor'],'width':character_frame_rectangle['width'],'height':character_frame_rectangle['height']}
+    (output_root/'character-preview.json').write_text(json.dumps({'directions':character_preview_records,'body_height':character_source_record['referenceBodyHeight'],'top_padding':ISOMETRIC_PREVIEW_TOP_PADDING}))
+    shutil.copy2(WORKFLOW_ROOT/'tools/review/ui/map/map-character-preview.js',output_root/'map-character-preview.js')
     shutil.copy2(REVIEW_TEMPLATE_PATH, output_root / 'map-review.html')
     (output_root / 'README.txt').write_text('검수 서버: python3 tools/review/serve.py --root "' + str(output_root) + '" --entry map-review.html\n', encoding='utf-8')
     return output_root

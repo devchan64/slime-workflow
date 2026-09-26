@@ -17,6 +17,7 @@
   <div class="layout"><aside class="panel side"><h2 class="section-title">등록 타일</h2><p class="section-note">워커플로우에서 생성·등록된 실제 에셋입니다. 각 이미지는 검수 패키지에 하드링크로 연결됩니다.</p><div id="tile-list" class="tile-list"></div></aside><section class="panel main"><header class="map-header"><div><h2 id="map-title" class="map-title">이슬온 도시 배치</h2><p id="summary" class="summary">타일 에셋을 불러오는 중…</p></div><div class="zoom-controls" aria-label="맵 확대 축소 및 회전"><button id="zoom-out" type="button" aria-label="축소">−</button><input id="zoom-range" type="range" min="50" max="200" step="10" value="75" aria-label="확대 비율"><span id="zoom-value" class="zoom-value">75%</span><button id="zoom-in" type="button" aria-label="확대">+</button><button id="rotate-left" type="button" aria-label="맵 반시계 방향 회전">↶</button><span id="rotation-value" class="zoom-value">0°</span><button id="rotate-right" type="button" aria-label="맵 시계 방향 회전">↷</button></div></header><div class="canvas-wrap"><span class="badge">● 45° 입체 시안 · 시점 회전</span><span id="loading" class="loading">조립 맵을 불러오는 중…</span><img id="map-preview" class="map-preview" alt="회전 가능한 이슬온 타일맵 입체 시안"></div><footer class="legend"><span>흰 외곽선: 시작점</span><span><b>청록</b>: 샘터</span><span>적갈색 칸: 출입 금지 영역</span><span>건물: 평면 옥상 · 1층 100px 시안</span></footer></section></div>
   <section class="panel volume-panel" aria-labelledby="volume-title"><header class="volume-header"><div><h2 id="volume-title" class="section-title">건물 입체감 시안</h2><p class="section-note">같은 바닥 면적에서 벽 높이를 1·2·3층으로 바꿔 비교합니다. 크기는 가로×세로 타일 수로 구분하며, 출입구는 비교를 위해 같은 벽면에 배치합니다. 게임 적용 규칙이 아닌 형태 검토용 시안입니다.</p></div><label><span class="eyebrow">건물</span><select id="building-select" aria-label="비교할 바닥 크기"></select></label></header><div class="volume-grid"><article class="volume-card"><h3>1층</h3><p>벽 높이 1층 · 100px</p><canvas data-height="1" aria-label="벽 높이 1층 건물 시안"></canvas></article><article class="volume-card"><h3>2층</h3><p>벽 높이 2층 · 200px</p><canvas data-height="2" aria-label="벽 높이 2층 건물 시안"></canvas></article><article class="volume-card"><h3>3층</h3><p>벽 높이 3층 · 300px</p><canvas data-height="3" aria-label="벽 높이 3층 건물 시안"></canvas></article></div><p class="volume-note">수목 수관과 적갈색 출입 금지 영역이 맵에서 겹치는지 확인합니다. 높이는 비교용 임시 단계입니다.</p></section>
 </main>
+<script src="map-character-preview.js"></script>
 <script>
 const mapPreviewImage=document.querySelector('#map-preview');
 const mapSelectionControl=document.querySelector('#map-select');
@@ -50,12 +51,14 @@ function applyMapZoom(){
   const imageBaseWidth=mapPreviewImage.naturalWidth||1536;
   mapPreviewImage.style.width=`${imageBaseWidth*currentZoomPercent/100}px`;
   mapZoomLabel.textContent=`${currentZoomPercent}%`;
+  window.updateMapCharacterPreview?.(currentMapRotationDegrees);
 }
 
 function drawMapDetails(mapDocumentValues,mapRecordValues){
   document.querySelector('#map-title').textContent=`${mapDocumentValues.display_name||mapDocumentValues.map_id} 도시 배치`;
   document.querySelector('#summary').textContent=`${mapDocumentValues.grid.columns}×${mapDocumentValues.grid.rows} · 타일 ${mapRecordValues.render_profile.tile_width}×${mapRecordValues.render_profile.tile_height}px · 벽 ${mapRecordValues.render_profile.wall_height}px · 캐릭터 기준 ${mapRecordValues.render_profile.character_height}px · 충돌 ${mapDocumentValues.collision.length}칸 · 출구 ${mapDocumentValues.map_connections?.length||0}개 · 연결 ${mapDocumentValues.connections.length}개`;
   currentMapRotationDegrees=0;
+  window.configureMapCharacterPreview(mapDocumentValues,mapRecordValues);
   applyCurrentMapRotation();
   mapPreviewImage.onload=()=>{applyMapZoom();mapLoadingMessage.hidden=true};
 }
