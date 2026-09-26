@@ -1,6 +1,7 @@
 """공용 게이트웨이를 사용하는 MoMask Gradio 클라이언트."""
 import argparse
 import html
+import inspect
 import json
 import os
 from pathlib import Path
@@ -20,6 +21,11 @@ from tools.review.domains.momask.momask_generation import render_standing_correc
 
 MOTION_ACTION_LABELS = [('대기','standing'),('심호흡','deep_breath'),('스트레칭','stretch'),('걷기','walking')]
 MOTION_DIRECTION_LABELS = [('전방 좌측','down_left'),('전방 우측','down_right'),('후방 좌측','up_left'),('후방 우측','up_right')]
+
+def create_copyable_textbox(**textbox_keyword_values):
+    copy_option_name='show_copy_button' if 'show_copy_button' in inspect.signature(gr.Textbox).parameters else 'buttons'
+    textbox_keyword_values[copy_option_name]=True if copy_option_name=='show_copy_button' else ['copy']
+    return gr.Textbox(**textbox_keyword_values)
 
 def execute_motion_command(operation_command_name, command_payload_value):
     return execute_management_command('momask', operation_command_name, command_payload_value)
@@ -66,6 +72,7 @@ def build_momask_interface(server_base_address):
                     with gr.Row():
                         generate_button_value=gr.Button('모션 생성 시작',variant='primary')
                         cancel_button_value=gr.Button('생성 취소')
+                        status_refresh_button_value=gr.Button('상태 새로고침')
                     status_text_value=gr.Markdown('작업 상태 조회 중')
                     gr.Markdown('예상 시간: 측정 자료가 없어 계산할 수 없습니다. 실행 로그에서 단계를 확인하세요.')
                 with gr.Tab('생성이력 · 결과 조회'):
@@ -82,13 +89,14 @@ def build_momask_interface(server_base_address):
                         reset_button_value=gr.Button('이력 초기화')
             with gr.Column(scale=2,min_width=480,elem_id='motion-preview'):
                 gr.Markdown('### 결과 재생')
+                viewed_identifier_value=create_copyable_textbox(label='조회한 결과 이력 ID · 오른쪽 아이콘으로 복사',interactive=False,elem_id='viewed-motion-identifier')
                 player_html_value=gr.HTML('<div class="motion-empty-state">아직 선택된 결과가 없습니다.<br>왼쪽 <b>생성이력 · 결과 조회</b>에서 이력을 선택하고 조회하세요.</div>')
                 with gr.Accordion('생성 ID로 직접 조회',open=False):
-                    identifier_text_value=gr.Textbox(label='생성 ID',interactive=True,buttons=['copy'])
+                    identifier_text_value=create_copyable_textbox(label='생성 ID',interactive=True)
                     result_button_value=gr.Button('ID로 결과 조회')
                 with gr.Accordion('결과 상세 · OpenPose 맵 생성',open=False):
                     map_button_value=gr.Button('OpenPose 맵 생성 · 설정의 얼굴 포인트 옵션 적용')
-                    record_path_value=gr.Textbox(label='기록 폴더',interactive=False,buttons=['copy'])
+                    record_path_value=create_copyable_textbox(label='기록 폴더',interactive=False)
                     input_record_value=gr.JSON(label='저장된 입력 · 결과 정보')
         logs_text_value,log_refresh_enabled=build_execution_logs()
         action_select_value.change(read_motion_settings,action_select_value,[prompt_text_value,settings_text_value,correction_html_value],queue=False)
@@ -105,18 +113,18 @@ def build_momask_interface(server_base_address):
             if not generation_job_identifier:raise gr.Error('생성이력 행을 선택하거나 생성 ID를 입력하세요.')
             generation_status_record=execute_motion_command('status',{'id':generation_job_identifier})
             if generation_status_record['status']!='completed':
-                return '<p>선택한 이력은 '+html.escape(generation_status_record['status'])+' 상태입니다. 실행 로그를 확인하세요.</p>',str(WORKFLOW_ROOT_DIRECTORY/'.tmp/momask-generator/jobs'/generation_job_identifier),generation_status_record
+                return '<p>선택한 이력은 '+html.escape(generation_status_record['status'])+' 상태입니다. 실행 로그를 확인하세요.</p>',str(WORKFLOW_ROOT_DIRECTORY/'.tmp/momask-generator/jobs'/generation_job_identifier),generation_status_record,generation_job_identifier
             generation_job_path=WORKFLOW_ROOT_DIRECTORY/'.tmp/momask-generator/jobs'/generation_job_identifier
-            return create_motion_player(generation_job_identifier,generation_status_record['result'],server_base_address),str(generation_job_path),{'request':json.loads((generation_job_path/'request.json').read_text()),'result':generation_status_record['result']}
-        result_button_value.click(show_motion_result,identifier_text_value,[player_html_value,record_path_value,input_record_value])
-        identifier_text_value.submit(show_motion_result,identifier_text_value,[player_html_value,record_path_value,input_record_value])
+            return create_motion_player(generation_job_identifier,generation_status_record['result'],server_base_address),str(generation_job_path),{'request':json.loads((generation_job_path/'request.json').read_text()),'result':generation_status_record['result']},generation_job_identifier
+        result_button_value.click(show_motion_result,identifier_text_value,[player_html_value,record_path_value,input_record_value,viewed_identifier_value])
+        identifier_text_value.submit(show_motion_result,identifier_text_value,[player_html_value,record_path_value,input_record_value,viewed_identifier_value])
         def select_history_result(selected_history_identifier):
             return ('선택한 이력: `'+selected_history_identifier+'`') if selected_history_identifier else '조회할 생성이력을 선택하세요.', gr.update(interactive=bool(selected_history_identifier))
         history_table_value.change(select_history_result,history_table_value,[history_selected_value,history_result_button],queue=False)
         history_table_value.input(lambda selected_identifier: selected_identifier or '',history_table_value,identifier_text_value,queue=False)
-        history_result_button.click(show_motion_result,history_table_value,[player_html_value,record_path_value,input_record_value],scroll_to_output=True)
+        history_result_button.click(show_motion_result,history_table_value,[player_html_value,record_path_value,input_record_value,viewed_identifier_value],scroll_to_output=True)
 
-        map_button_value.click(lambda identifier,face:execute_motion_command('openpose-map',{'id':identifier,'face':face}),[identifier_text_value,face_checkbox_value],input_record_value).then(show_motion_result,identifier_text_value,[player_html_value,record_path_value,input_record_value])
+        map_button_value.click(lambda identifier,face:execute_motion_command('openpose-map',{'id':identifier,'face':face}),[identifier_text_value,face_checkbox_value],input_record_value).then(show_motion_result,identifier_text_value,[player_html_value,record_path_value,input_record_value,viewed_identifier_value])
         def refresh_motion_status(generation_job_identifier,log_refresh_checked):
             generation_running_value=check_generation_running()
             if not generation_job_identifier:
@@ -126,12 +134,11 @@ def build_momask_interface(server_base_address):
             except (ValueError,FileNotFoundError):
                 return '유효한 생성 ID를 입력하거나 이력 행을 선택하세요.','',gr.update(interactive=not generation_running_value),gr.update(interactive=False)
             return '상태: '+generation_status_record['status'],gr.update(value=generation_status_record['log'],label='실행 로그 · '+generation_job_identifier) if log_refresh_checked else gr.skip(),gr.update(interactive=not generation_running_value),gr.update(interactive=generation_status_record['status']=='running')
-        gr.Timer(2).tick(refresh_motion_status,[identifier_text_value,log_refresh_enabled],[status_text_value,logs_text_value,generate_button_value,cancel_button_value],show_progress='hidden')
+        status_refresh_button_value.click(refresh_motion_status,[identifier_text_value,log_refresh_enabled],[status_text_value,logs_text_value,generate_button_value,cancel_button_value],queue=False)
         def restore_running_motion():
             return next((record_value['id'] for record_value in execute_motion_command('history',{}) if record_value['status']=='running'),'')
         interface_blocks_value.load(restore_running_motion,outputs=identifier_text_value)
         interface_blocks_value.load(list_motion_history,[history_page_value,history_table_value],[history_table_value,history_count_value])
-        gr.Timer(5).tick(list_motion_history,[history_page_value,history_table_value],[history_table_value,history_count_value],show_progress='hidden')
     return interface_blocks_value
 
 if __name__=='__main__':
