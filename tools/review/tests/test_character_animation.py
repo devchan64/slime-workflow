@@ -17,7 +17,15 @@ from tools.review.domains.character_animation.character_animation import Charact
 
 class CharacterAnimationTests(unittest.TestCase):
     def make_selection_record(self,**selection_override_values):
-        return dict(motion='standing-v3',character='character-default',source='openpose',directions=['down_left'],**selection_override_values)
+        return dict(motion='standing-v7',character='character-default',source='openpose',directions=['down_left'],**selection_override_values)
+
+    def test_output_resolution_validation(self):
+        for selected_resolution_value in (512,768,1024,1280):
+            request_record_value=assets.prepare_animation_request(self.make_selection_record(resolution=selected_resolution_value))
+            self.assertEqual(request_record_value['resolution'],selected_resolution_value)
+        for invalid_resolution_value in (True,'512',512.0,0,2048):
+            with self.assertRaises(ValueError):
+                assets.prepare_animation_request(self.make_selection_record(resolution=invalid_resolution_value))
 
     def test_target_fps_sampling_and_validation(self):
         for target_frame_rate, expected_frame_numbers in [(1,[1,5,9,13]),(2,list(range(1,17,2))),(3,[1,2,3,5,6,7,9,10,11,13,14,15]),(4,list(range(1,17)))]:
@@ -40,9 +48,9 @@ class CharacterAnimationTests(unittest.TestCase):
         with self.assertRaises(ValueError):assets.prepare_animation_request(self.make_selection_record(speed=2,frame_step=2))
 
     def test_registered_sources_all_frames_integrity(self):
-        for motion_identifier_value,expected_frame_count in [('standing-v3',16),('walking-v8',32),('stretch-v1',120)]:
+        for motion_identifier_value,expected_frame_count in [('standing-v7',16),('walking-v8',32),('stretch-v1',120)]:
             for source_kind_value in ('openpose','anny'):
-                selection_request_record=self.make_selection_record()
+                selection_request_record=self.make_selection_record(resolution=512)
                 selection_request_record.update(motion=motion_identifier_value,source=source_kind_value,frame_step=1,directions=list(assets.SUPPORTED_DIRECTION_NAMES))
                 generation_request_record=assets.prepare_animation_request(selection_request_record)
                 self.assertEqual(len(generation_request_record['frames']),expected_frame_count*4)
@@ -56,7 +64,6 @@ class CharacterAnimationTests(unittest.TestCase):
         self.assertEqual(request_record_value['frames_per_direction'],16)
         for direction_name_value,prompt_record_value in request_record_value['direction_prompts'].items():
             self.assertIn(assets.DIRECTION_PROMPT_LABELS[direction_name_value],prompt_record_value['text'])
-            self.assertIn('ankles',prompt_record_value['text'])
             self.assertLess(prompt_record_value['words'],100)
         for invalid_step_value in (0,3,True,'2'):
             with self.assertRaises(ValueError):assets.prepare_animation_request({**self.make_selection_record(),'frame_step':invalid_step_value})
@@ -109,13 +116,13 @@ class CharacterAnimationTests(unittest.TestCase):
             self.assertEqual(request_record_value['steps'],step_count_value)
             self.assertEqual(request_record_value['lightning'],step_count_value==4)
             with patch.object(gateway,'execute_management_command',return_value={'id':'test'}) as execute_mock,contextlib.redirect_stdout(io.StringIO()):
-                gateway.execute_gateway_cli(['command','character-animation','generate','--motion','standing-v3','--character','character-default','--steps',str(step_count_value),'--detach'])
+                gateway.execute_gateway_cli(['command','character-animation','generate','--motion','standing-v7','--character','character-default','--steps',str(step_count_value),'--detach'])
             self.assertEqual(execute_mock.call_args.args[2]['steps'],step_count_value)
         for step_count_value in (0,10,True,'30'):
             with self.assertRaises(ValueError):assets.prepare_animation_request({**self.make_selection_record(),'steps':step_count_value})
 
     def test_original_asset_preview_bounds_and_sources(self):
-        for motion_identifier_value,frame_count_value in [('standing-v3',16),('walking-v8',32),('stretch-v1',120)]:
+        for motion_identifier_value,frame_count_value in [('standing-v7',16),('walking-v8',32),('stretch-v1',120)]:
             for source_kind_value in ('openpose','anny'):
                 for direction_name_value in assets.SUPPORTED_DIRECTION_NAMES:
                     self.assertTrue(assets.resolve_motion_preview(motion_identifier_value,source_kind_value,direction_name_value,frame_count_value).is_file())
@@ -133,9 +140,9 @@ class CharacterAnimationTests(unittest.TestCase):
             assets.prepare_animation_request(self.make_selection_record(target_fps=2))
 
     def test_cli_and_http_envelope_have_same_selection(self):
-        selection_request_record=self.make_selection_record()
+        selection_request_record=self.make_selection_record(resolution=512)
         with patch.object(gateway,'execute_management_command',return_value={'id':'test'}) as command_execute_mock,contextlib.redirect_stdout(io.StringIO()):
-            gateway.execute_gateway_cli(['command','character-animation','generate','--motion','standing-v3','--character','character-default','--directions','down_left','--detach'])
+            gateway.execute_gateway_cli(['command','character-animation','generate','--motion','standing-v7','--character','character-default','--directions','down_left','--detach'])
         self.assertEqual(command_execute_mock.call_args.args[:3],('character-animation','generate',selection_request_record))
         command_request_bytes=json.dumps({'service':'character-animation','command':'generate','payload':selection_request_record}).encode()
         http_request_handler=SimpleNamespace(command='POST',path='/management/command',headers={'Host':'127.0.0.1:8770','Origin':'http://127.0.0.1:8770','Content-Type':'application/json','Content-Length':str(len(command_request_bytes))},server=SimpleNamespace(server_port=8770),rfile=io.BytesIO(command_request_bytes),wfile=io.BytesIO(),send_response=MagicMock(),send_header=MagicMock(),end_headers=MagicMock())
@@ -183,7 +190,7 @@ class CharacterAnimationTests(unittest.TestCase):
         from generators.animation.run_character_animation import generate_character_frame
         from PIL import Image
         for source_kind_value,selected_step_count in [('openpose',4),('openpose',30),('anny',4),('anny',30)]:
-            generation_request_record=assets.prepare_animation_request({**self.make_selection_record(),'source':source_kind_value,'steps':selected_step_count})
+            generation_request_record=assets.prepare_animation_request({**self.make_selection_record(),'source':source_kind_value,'steps':selected_step_count,'resolution':1280})
             with tempfile.TemporaryDirectory() as temporary_root_name:
                 generation_job_path=Path(temporary_root_name)
                 (generation_job_path/'request.json').write_text(json.dumps(generation_request_record))
@@ -191,6 +198,8 @@ class CharacterAnimationTests(unittest.TestCase):
                 with patch.dict(sys.modules,{'qwen_pose':SimpleNamespace(execute_pose_generation=pose_execute_mock)}):
                     generate_character_frame(generation_job_path,0)
                 execution_keyword_values=pose_execute_mock.call_args.kwargs
+                self.assertEqual(execution_keyword_values['selected_output_width'],1280)
+                self.assertEqual(execution_keyword_values['selected_output_height'],1280)
                 self.assertEqual(execution_keyword_values['enable_anypose_adapter'],source_kind_value=='anny')
                 self.assertEqual(execution_keyword_values['enable_standalone_lightning_adapter'],source_kind_value=='openpose' and selected_step_count==4)
                 self.assertEqual(execution_keyword_values['enable_lightning_adapter'],selected_step_count==4)

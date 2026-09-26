@@ -12,7 +12,7 @@ async function executeAnimationCommand(commandOperationName,commandPayloadValue=
  const commandResponseValue=await fetch('/management/command',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({service:'character-animation',command:commandOperationName,payload:commandPayloadValue})});
  const commandResponseRecord=await commandResponseValue.json();if(!commandResponseValue.ok)throw Error(commandResponseRecord.error);return commandResponseRecord;
 }
-function readAnimationSelection(){return {motion:animationElementLookup('motion-choice').value,character:animationElementLookup('character-choice').value,source:animationElementLookup('source-choice').value,steps:Number(animationElementLookup('generation-steps').value),speed:Number(animationElementLookup('generation-speed').value),target_fps:Number(animationElementLookup('generation-target-fps').value),directions:Array.from(document.querySelectorAll('[name=animation-direction]:checked')).map(directionCheckboxElement=>directionCheckboxElement.value)};}
+function readAnimationSelection(){return {resolution:Number(animationElementLookup('generation-resolution').value),motion:animationElementLookup('motion-choice').value,character:animationElementLookup('character-choice').value,source:animationElementLookup('source-choice').value,steps:Number(animationElementLookup('generation-steps').value),speed:Number(animationElementLookup('generation-speed').value),target_fps:Number(animationElementLookup('generation-target-fps').value),directions:Array.from(document.querySelectorAll('[name=animation-direction]:checked')).map(directionCheckboxElement=>directionCheckboxElement.value)};}
 function refreshAnimationSelection(){
  if(!animationCatalogRecord)return;
  const selectedAnimationValues=readAnimationSelection(),selectedMotionRecord=animationCatalogRecord.motions.find(motionRecordValue=>motionRecordValue.id===selectedAnimationValues.motion);
@@ -95,7 +95,7 @@ function renderGenerationStatus(generationStatusRecord){
  if(requestRecordValue){
   const motionLabelText=animationCatalogRecord.motions.find(motionRecordValue=>motionRecordValue.id===requestRecordValue.motion)?.label||requestRecordValue.motion;
   const perDirectionCount=requestRecordValue.frames_per_direction;
-  animationElementLookup('job-summary').textContent=`접수된 작업 · ${requestRecordValue.speed||1}배 생성 · ${motionLabelText} · ${requestRecordValue.source==='anny'?'ANNY':'OpenPose'} · ${requestRecordValue.steps===30?'30스텝 표준':'4스텝 Lightning'} · ${requestRecordValue.target_fps?`타겟 ${requestRecordValue.target_fps} FPS`:`${requestRecordValue.frame_step||1}프레임 간격`} · ${requestRecordValue.directions.length}방향${perDirectionCount?` × 방향당 ${perDirectionCount}장`:''}`;
+  animationElementLookup('job-summary').textContent=`접수된 작업 · ${requestRecordValue.resolution||512}px · ${requestRecordValue.speed||1}배 생성 · ${motionLabelText} · ${requestRecordValue.source==='anny'?'ANNY':'OpenPose'} · ${requestRecordValue.steps===30?'30스텝 표준':'4스텝 Lightning'} · ${requestRecordValue.target_fps?`타겟 ${requestRecordValue.target_fps} FPS`:`${requestRecordValue.frame_step||1}프레임 간격`} · ${requestRecordValue.directions.length}방향${perDirectionCount?` × 방향당 ${perDirectionCount}장`:''}`;
  }
  const completedCountValue=progressRecordValue?.completed,totalCountValue=progressRecordValue?.total;
  const hasValidCounts=Number.isInteger(completedCountValue)&&Number.isInteger(totalCountValue)&&totalCountValue>0&&completedCountValue>=0&&completedCountValue<=totalCountValue;
