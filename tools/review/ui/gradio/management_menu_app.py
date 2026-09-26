@@ -4,12 +4,16 @@ import html
 import json
 import os
 from pathlib import Path
+import sys
 import threading
 import time
 
 import gradio as gr
 
 WORKFLOW_ROOT_DIRECTORY=Path(__file__).resolve().parents[4]
+if str(WORKFLOW_ROOT_DIRECTORY) not in sys.path:sys.path.insert(0,str(WORKFLOW_ROOT_DIRECTORY))
+from tools.review.common.gpu_status import read_gpu_status
+
 CATEGORY_LABEL_VALUES={'all':'전체','writer-agent':'작가 AI 에이전트','image-generation':'이미지 생성','animation':'등록 애니메이션','animation-tool':'애니메이션 도구','tile-review':'타일맵 검수','game-ui':'게임 UI · 디자인 시스템'}
 DEFAULT_PAGE_RECORDS=(
     {'id':'tile-map-generator','label':'타일 에셋 생성기','path':'/tile-map-generator/','category':'tile-review','description':'지붕 · 벽 · 맵 타일 에셋 생성'},
@@ -17,6 +21,17 @@ DEFAULT_PAGE_RECORDS=(
     {'id':'three-reference-generator','label':'Qwen 2511 3참조 생성','path':'/image-generation-2511/','category':'image-generation','description':'참조 이미지 3장 · 프롬프트 · 결과 비교'},
     {'id':'image-generator','label':'Qwen 2512 이미지 생성','path':'/image-generation/','category':'image-generation','description':'프롬프트로 이미지 생성 · 실행 상태 · 결과 다운로드'},
 )
+
+def format_gpu_status(gpu_status_record):
+    if gpu_status_record.get('status')=='busy':
+        process_status_values=[]
+        for current_process_record in gpu_status_record.get('processes',[]):
+            identifier_text_value=current_process_record.get('id') or f"PID {current_process_record.get('pid','?')}"
+            memory_text_value=f" · {current_process_record['memory_mib']} MiB" if current_process_record.get('memory_mib') is not None else ''
+            process_status_values.append(f"{current_process_record.get('command','외부 GPU 작업')} · {identifier_text_value}{memory_text_value}")
+        return 'GPU 사용 중 · '+' / '.join(process_status_values)
+    if gpu_status_record.get('status')=='idle':return 'GPU · 실행 중인 연산 작업 없음'
+    return 'GPU · 상태 확인 불가'
 
 def load_manager_page_records(source_file_path):
     source_record_values=json.loads(source_file_path.read_text())
@@ -45,7 +60,9 @@ def create_page_preview_html(selected_page_identifier, page_record_values, revie
 def build_management_menu_interface(page_record_values, review_server_port):
     initial_page_identifier=page_record_values[0]['id'] if page_record_values else ''
     with gr.Blocks(title='SLIME 관리도구') as interface_blocks_value:
-        gr.Markdown('## SLIME 관리도구\n생성기와 검수 도구를 검색해 열고, 전환된 Gradio 화면만 따로 확인할 수 있습니다.')
+        with gr.Row():
+            gr.Markdown('## SLIME 관리도구\n생성기와 검수 도구를 검색해 열고, 전환된 Gradio 화면만 따로 확인할 수 있습니다.',scale=3)
+            gpu_status_value=gr.Markdown('GPU 상태 확인 중',elem_id='management-gpu-status',scale=2)
         with gr.Row():
             search_text_value=gr.Textbox(label='검색',placeholder='이름, ID, 검수 종류')
             category_select_value=gr.Dropdown(choices=[(current_label_value,current_name_value) for current_name_value,current_label_value in CATEGORY_LABEL_VALUES.items()],value='all',label='분류')
@@ -80,6 +97,8 @@ def build_management_menu_interface(page_record_values, review_server_port):
         page_select_value.change(lambda selected_page_identifier,search_text_value,category_name_value,ui_mode_name_value: move_menu_page(selected_page_identifier,search_text_value,category_name_value,ui_mode_name_value,0)[3],[page_select_value,search_text_value,category_select_value,ui_mode_select_value],navigation_position_value,queue=False)
         previous_page_button_value.click(lambda selected_page_identifier,search_text_value,category_name_value,ui_mode_name_value: move_menu_page(selected_page_identifier,search_text_value,category_name_value,ui_mode_name_value,-1),[page_select_value,search_text_value,category_select_value,ui_mode_select_value],[page_select_value,selected_page_status_value,page_preview_value,navigation_position_value],queue=False)
         next_page_button_value.click(lambda selected_page_identifier,search_text_value,category_name_value,ui_mode_name_value: move_menu_page(selected_page_identifier,search_text_value,category_name_value,ui_mode_name_value,1),[page_select_value,search_text_value,category_select_value,ui_mode_select_value],[page_select_value,selected_page_status_value,page_preview_value,navigation_position_value],queue=False)
+        interface_blocks_value.load(lambda:format_gpu_status(read_gpu_status()),outputs=gpu_status_value,queue=False)
+        if hasattr(gr,'Timer'):gr.Timer(3).tick(lambda:format_gpu_status(read_gpu_status()),outputs=gpu_status_value,show_progress='hidden')
     return interface_blocks_value
 
 if __name__=='__main__':

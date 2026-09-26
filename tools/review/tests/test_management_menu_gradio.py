@@ -1,7 +1,7 @@
 """Gradio 관리 메뉴의 목록 필터와 내부 화면 연결을 검증한다."""
 import unittest
 
-from tools.review.ui.gradio.management_menu_app import create_page_preview_html, filter_manager_page_records
+from tools.review.ui.gradio.management_menu_app import create_page_preview_html, filter_manager_page_records, format_gpu_status
 
 
 class GradioManagementMenuTests(unittest.TestCase):
@@ -20,3 +20,6 @@ class GradioManagementMenuTests(unittest.TestCase):
         self.assertIn('http://127.0.0.1:8770/momask-generator/',preview_html_text)
         self.assertIn('MoMask 모션 생성기',preview_html_text)
 
+    def test_gpu_status_is_human_readable(self):
+        self.assertEqual(format_gpu_status({'status':'idle','processes':[]}),'GPU · 실행 중인 연산 작업 없음')
+        self.assertIn('MoMask 모션 생성 · sample · 512 MiB',format_gpu_status({'status':'busy','processes':[{'command':'MoMask 모션 생성','id':'sample','memory_mib':512}]}))

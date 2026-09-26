@@ -267,16 +267,21 @@ def run_review_server(parsed_argument_values):
         '/image-generation': (image_generation_service.job_storage_root, lambda record_identifier_value: image_generation_service.job_storage_root/record_identifier_value),
         '/image-generation-2511': (three_reference_service.job_storage_root, lambda record_identifier_value: three_reference_service.job_storage_root/record_identifier_value),
     }
+    management_menu_url = None
+    if manager_source_path.is_file():
+        from tools.review.common.gradio_process import ensure_management_menu_server
+        try:
+            management_menu_url=ensure_management_menu_server(parsed_argument_values.port,manager_source_path)
+            emit_server_trace('gradio-menu',management_menu_url)
+        except ValueError as gradio_error_value:
+            emit_server_trace('gradio-menu-failure',str(gradio_error_value))
     class ReviewRequestHandler(SimpleHTTPRequestHandler):
         def __init__(self,*request_handler_arguments,**request_handler_options):
             super().__init__(*request_handler_arguments,directory=str(review_root_directory),**request_handler_options)
         def do_GET(self):
             if urlsplit(self.path).path=='/' and manager_source_path.is_file():
-                from tools.review.common.gradio_process import ensure_management_menu_server
-                try:
-                    management_menu_url=ensure_management_menu_server(self.server.server_port,manager_source_path)
-                except ValueError as gradio_error_value:
-                    self.send_error(503,str(gradio_error_value))
+                if management_menu_url is None:
+                    self.send_error(503,'Gradio startup failed')
                     return
                 self.send_response(302);self.send_header('Location',management_menu_url);self.send_header('Cache-Control','no-store');self.end_headers()
                 return

@@ -23,6 +23,11 @@ def ensure_gradio_application(review_server_port, application_name, application_
         process_record_value=GRADIO_SERVER_PROCESSES.get(process_key_value)
         if process_record_value is not None and process_record_value.poll() is None:
             return f'http://127.0.0.1:{gradio_server_port}/?__theme=dark'
+        try:
+            with urllib.request.urlopen(f'http://127.0.0.1:{gradio_server_port}/config',timeout=.3) as response_value:
+                if response_value.status==200:return f'http://127.0.0.1:{gradio_server_port}/?__theme=dark'
+        except OSError:
+            pass
         log_directory_path=WORKFLOW_ROOT_DIRECTORY/'.tmp/manager-current'
         log_directory_path.mkdir(parents=True,exist_ok=True)
         with (log_directory_path/'gradio.log').open('a') as log_output_stream:
