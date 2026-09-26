@@ -9,6 +9,12 @@ const managerPaneElements=new Map();
 const pendingCoordinatePages=new Set();
 let selectedPageIdentifier='';
 let filteredPageRecords=[];
+function formatManagerMenuLabel(currentPageRecord){
+ const categoryLabelValues={'writer-agent':'작가 AI','image-generation':'이미지 생성',animation:'애니메이션','animation-tool':'애니메이션 도구','game-ui':'게임 UI'};
+ const categoryPrefixValue=currentPageRecord.category==='tile-review'?'':(categoryLabelValues[currentPageRecord.category]||'검수')+' · ';
+ const pageDisplayLabel=currentPageRecord.id==='map-review'?'이슬온 타일맵 검수':currentPageRecord.label;
+ return categoryPrefixValue+pageDisplayLabel+(pendingCoordinatePages.has(currentPageRecord.id)?' · 변경됨':'');
+}
 function filterManagerRecords(searchQueryText,selectedCategoryName){
  const searchTokenValues=searchQueryText.normalize('NFKC').toLocaleLowerCase('ko').trim().split(/\s+/).filter(Boolean);
  return managerPageRecords.filter(currentPageRecord=>{
@@ -40,7 +46,7 @@ function renderManagerResults(){
   currentOptionElement.setAttribute('aria-current',currentPageRecord.id===selectedPageIdentifier?'page':'false');
   currentOptionElement.onclick=()=>selectManagerPage(currentPageRecord.id);
   currentOptionElement.title=currentPageRecord.description;
-  currentOptionElement.textContent=`${currentPageRecord.category==='writer-agent'?'작가 AI':currentPageRecord.category==='image-generation'?'이미지 생성':currentPageRecord.category==='animation'?'애니메이션':currentPageRecord.category==='tile-review'?'타일맵 검수':currentPageRecord.category==='animation-tool'?'애니메이션 도구':currentPageRecord.category==='game-ui'?'게임 UI':'검수'} · ${currentPageRecord.label}${pendingCoordinatePages.has(currentPageRecord.id)?' · 변경됨':''}`;
+  currentOptionElement.textContent=formatManagerMenuLabel(currentPageRecord);
   assetSelectionElement.append(currentOptionElement);
  }
 
@@ -60,7 +66,7 @@ function selectManagerPage(nextPageIdentifier,historyUpdateMode='push'){
    if(selectedPageRecord.category!=='game-ui')selectedPaneElement.contentDocument.body.classList.add('embedded-review');
    if(!selectedPageRecord.anchorEditor)return;
    const selectedPaneDocument=selectedPaneElement.contentDocument;
-   const updatePendingCoordinates=()=>{if(selectedPaneDocument.body.dataset.coordinateDownloadPending==='true')pendingCoordinatePages.add(nextPageIdentifier);else pendingCoordinatePages.delete(nextPageIdentifier);document.querySelector('#managerEditStatus').textContent=pendingCoordinatePages.size?`${pendingCoordinatePages.size}개 대상의 좌표 다운로드 필요`:'';for(const currentOptionElement of document.querySelector('#assetSelection').children){const currentPageRecord=managerPageRecords.find(currentPageRecord=>currentPageRecord.id===currentOptionElement.value);currentOptionElement.textContent=`${currentPageRecord.category==='writer-agent'?'작가 AI':currentPageRecord.category==='image-generation'?'이미지 생성':currentPageRecord.category==='animation'?'애니메이션':currentPageRecord.category==='tile-review'?'타일맵 검수':currentPageRecord.category==='animation-tool'?'애니메이션 도구':currentPageRecord.category==='game-ui'?'게임 UI':'검수'} · ${currentPageRecord.label}${pendingCoordinatePages.has(currentPageRecord.id)?' · 변경됨':''}`;}};
+   const updatePendingCoordinates=()=>{if(selectedPaneDocument.body.dataset.coordinateDownloadPending==='true')pendingCoordinatePages.add(nextPageIdentifier);else pendingCoordinatePages.delete(nextPageIdentifier);document.querySelector('#managerEditStatus').textContent=pendingCoordinatePages.size?`${pendingCoordinatePages.size}개 대상의 좌표 다운로드 필요`:'';for(const currentOptionElement of document.querySelector('#assetSelection').children){const currentPageRecord=managerPageRecords.find(currentPageRecord=>currentPageRecord.id===currentOptionElement.value);currentOptionElement.textContent=formatManagerMenuLabel(currentPageRecord);}};
    selectedPaneDocument.addEventListener('review-coordinate-state',updatePendingCoordinates);
    updatePendingCoordinates();
   });
