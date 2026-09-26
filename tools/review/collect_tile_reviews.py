@@ -97,6 +97,6 @@ def collect_tile_reviews(workflow_repository_root: Path, output_review_directory
             link_or_copy_review_file(source_map_preview_path, destination_root_path / source_map_preview_path.name)
         page_data = {'assetId': record_values['assetId'], 'tileSize': record_values['tileSize'], 'tileability': record_values['tileability'], 'heightSteps': record_values['heightSteps'], 'variants': copied_variant_records, 'preview': preview_path, 'mapPreview': map_preview_values, 'qualityWarnings': record_values['qualityWarnings']}
         (destination_root_path / 'tile-review.html').write_text(build_tile_review_page(page_data), encoding='utf-8')
-        review_page_records.append({'id': destination_identifier, 'label': record_values['assetId'] + ' · 타일 후보', 'path': destination_identifier + '/tile-review.html', 'category': 'tile-review', 'anchorEditor': False, 'description': f'{record_root_path.relative_to(workflow_repository_root)} · {record_values["tileability"]} · {record_values["tileSize"][0]}×{record_values["tileSize"][1]}'})
+        review_page_records.append({'id': destination_identifier, 'label': record_values['assetId'] + ' · 타일맵 검수', 'path': destination_identifier + '/tile-review.html', 'category': 'tile-review', 'anchorEditor': False, 'description': f'{record_root_path.relative_to(workflow_repository_root)} · {record_values["tileability"]} · {record_values["tileSize"][0]}×{record_values["tileSize"][1]}'})
         emit_review_trace('tile-review', str(record_root_path.relative_to(workflow_repository_root)))
     return review_page_records

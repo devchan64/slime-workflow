@@ -154,7 +154,7 @@ def draw_tree_volume_preview(preview_image, vegetation_record, map_dimension, ro
 
 
 def render_isometric_map_preview(assembled_map_values, map_source_values, prefab_lookup, tile_images,
-                                 tile_width, tile_height, rotation_degrees):
+                                 tile_width, tile_height, rotation_degrees, wall_texture_images):
     from PIL import Image, ImageDraw
     half_tile_width = tile_width // 2
     half_tile_height = tile_height // 2
@@ -203,11 +203,38 @@ def render_isometric_map_preview(assembled_map_values, map_source_values, prefab
             continue
         _, transformed_building, prefab_record = instance_values
         draw_building_volume_preview(preview_image, transformed_building, prefab_record, map_rows,
-                                     half_tile_width, half_tile_height, transformed_building['entrance_side'])
+                                     half_tile_width, half_tile_height, transformed_building['entrance_side'], wall_texture_images[prefab_record['wall_tile']])
     return preview_image
 
 
-def draw_building_volume_preview(preview_image, building_instance, prefab_record, row_count, half_tile_width, half_tile_height, entrance_side):
+def paste_projected_wall_texture(preview_image, wall_texture_image, top_left_point, top_right_point, bottom_left_point):
+    """원본 타일 전체를 벽의 평행사변형에 투영한다."""
+    from PIL import Image
+    import math
+    horizontal_axis_vector = (top_right_point[0] - top_left_point[0], top_right_point[1] - top_left_point[1])
+    vertical_axis_vector = (bottom_left_point[0] - top_left_point[0], bottom_left_point[1] - top_left_point[1])
+    bottom_right_point = (top_right_point[0] + vertical_axis_vector[0], top_right_point[1] + vertical_axis_vector[1])
+    corner_point_values = (top_left_point, top_right_point, bottom_left_point, bottom_right_point)
+    output_left_position = math.floor(min(current_point[0] for current_point in corner_point_values))
+    output_top_position = math.floor(min(current_point[1] for current_point in corner_point_values))
+    output_image_width = math.ceil(max(current_point[0] for current_point in corner_point_values)) - output_left_position
+    output_image_height = math.ceil(max(current_point[1] for current_point in corner_point_values)) - output_top_position
+    transform_determinant_value = horizontal_axis_vector[0]*vertical_axis_vector[1] - horizontal_axis_vector[1]*vertical_axis_vector[0]
+    if transform_determinant_value == 0:
+        raise ValueError('벽면 투영 영역이 비어 있습니다.')
+    inverse_horizontal_x = wall_texture_image.width * vertical_axis_vector[1] / transform_determinant_value
+    inverse_horizontal_y = -wall_texture_image.width * vertical_axis_vector[0] / transform_determinant_value
+    inverse_vertical_x = -wall_texture_image.height * horizontal_axis_vector[1] / transform_determinant_value
+    inverse_vertical_y = wall_texture_image.height * horizontal_axis_vector[0] / transform_determinant_value
+    offset_horizontal_value = output_left_position - top_left_point[0]
+    offset_vertical_value = output_top_position - top_left_point[1]
+    projected_wall_image = wall_texture_image.transform((output_image_width, output_image_height), Image.Transform.AFFINE,
+        (inverse_horizontal_x, inverse_horizontal_y, inverse_horizontal_x*offset_horizontal_value + inverse_horizontal_y*offset_vertical_value,
+         inverse_vertical_x, inverse_vertical_y, inverse_vertical_x*offset_horizontal_value + inverse_vertical_y*offset_vertical_value), Image.Resampling.BILINEAR)
+    preview_image.alpha_composite(projected_wall_image, (output_left_position, output_top_position))
+
+
+def draw_building_volume_preview(preview_image, building_instance, prefab_record, row_count, half_tile_width, half_tile_height, entrance_side, wall_texture_image):
     from PIL import ImageDraw
     drawing_context = ImageDraw.Draw(preview_image)
     origin_column = building_instance['position']['column']
@@ -226,6 +253,20 @@ def draw_building_volume_preview(preview_image, building_instance, prefab_record
                             fill=(211, 166, 98, 255), outline=(92, 55, 27, 255))
     drawing_context.polygon([corner_values[2], corner_values[3], upper_corner_values[3], upper_corner_values[2]],
                             fill=(177, 126, 69, 255), outline=(79, 47, 25, 255))
+    # 카탈로그의 창문 포함 벽 타일을 한 칸·한 층마다 투영한다.
+    for current_floor_index in range(ISOMETRIC_BUILDING_PREVIEW_LEVEL):
+        current_bottom_height = current_floor_index * ISOMETRIC_BUILDING_WALL_HEIGHT
+        current_top_height = current_bottom_height + ISOMETRIC_BUILDING_WALL_HEIGHT
+        for current_column_index in range(building_width):
+            paste_projected_wall_texture(preview_image, wall_texture_image,
+                point_values(current_column_index, building_depth, current_top_height),
+                point_values(current_column_index + 1, building_depth, current_top_height),
+                point_values(current_column_index, building_depth, current_bottom_height))
+        for current_row_index in range(building_depth):
+            paste_projected_wall_texture(preview_image, wall_texture_image,
+                point_values(building_width, current_row_index + 1, current_top_height),
+                point_values(building_width, current_row_index, current_top_height),
+                point_values(building_width, current_row_index + 1, current_bottom_height))
     for horizontal_tile_boundary in range(1, building_width):
         wall_top_start = point_values(horizontal_tile_boundary, building_depth, wall_height)
         wall_base_start = point_values(horizontal_tile_boundary, building_depth, 0)
@@ -330,13 +371,15 @@ def build_map_review(map_path=None, output_root=None):
             projected_tile_image = source_tile_image.transform((isometric_tile_width, isometric_tile_height), Image.Transform.AFFINE, (1, 2, -half_tile_width, -1, 2, half_tile_width), Image.Resampling.BILINEAR)
             projected_tile_image.putalpha(isometric_mask)
             tile_images[tile_id] = projected_tile_image
+        wall_texture_images = {tile_record['id']: Image.open(tile_source_paths[tile_record['id']]).convert('RGBA')
+                               for tile_record in catalog_values['tiles'] if tile_record['category'] == 'structure'}
         prefab_lookup = {prefab_record['id']: prefab_record for prefab_record in building_prefab_values['prefabs']}
         map_source_values = load_yaml_document(current_map_path)
         preview_records = {}
         for rotation_degrees in ISOMETRIC_MAP_ROTATIONS:
             preview_image = render_isometric_map_preview(assembled_map_values, map_source_values, prefab_lookup,
                                                          tile_images, isometric_tile_width, isometric_tile_height,
-                                                         rotation_degrees)
+                                                         rotation_degrees, wall_texture_images)
             preview_path = map_output_directory / f'{current_map_path.stem}.rotation-{rotation_degrees}.png'
             preview_image.save(preview_path)
             preview_records[str(rotation_degrees)] = f'maps/{preview_path.name}'
