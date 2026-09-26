@@ -5,7 +5,7 @@ prefabs:
     material: marble
     size: {columns: 2, rows: 3}
     anchor: {column: 1, row: 2}
-    roof_tile: guild_roof
+    roof_tile: marble_roof
     wall_tile: marble_wall
     door_tile: marble_small_door
     floor_count: 2
@@ -16,9 +16,9 @@ prefabs:
     material: wood
     size: {columns: 2, rows: 2}
     anchor: {column: 1, row: 1}
-    roof_tile: bookshop_roof
+    roof_tile: wood_roof
     wall_tile: wood_wall
-    door_tile: bookshop_door
+    door_tile: wood_door
     roof_rows: 2
     floor_count: 1
     entrances: [{column: 1, row: 1}]
@@ -27,9 +27,9 @@ prefabs:
     material: wood
     size: {columns: 2, rows: 2}
     anchor: {column: 1, row: 1}
-    roof_tile: inn_roof
+    roof_tile: wood_roof
     wall_tile: wood_wall
-    door_tile: inn_door
+    door_tile: wood_door
     roof_rows: 3
     floor_count: 1
     entrances: [{column: 1, row: 1}]
@@ -38,7 +38,7 @@ prefabs:
     material: marble
     size: {columns: 2, rows: 2}
     anchor: {column: 0, row: 1}
-    roof_tile: workshop_roof
+    roof_tile: marble_roof
     wall_tile: marble_wall
     door_tile: marble_small_door
     roof_rows: 2
@@ -49,7 +49,7 @@ prefabs:
     material: marble
     size: {columns: 2, rows: 2}
     anchor: {column: 1, row: 0}
-    roof_tile: market_roof
+    roof_tile: marble_roof
     wall_tile: marble_wall
     door_tile: marble_small_door
     roof_rows: 1

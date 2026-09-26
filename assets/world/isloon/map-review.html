@@ -8,17 +8,18 @@
   *{box-sizing:border-box}body{margin:0;min-width:960px;background:radial-gradient(circle at 70% 0,#213a30 0,#0b1411 48rem);color:var(--ink);font:14px ui-sans-serif,system-ui,sans-serif}
   .shell{max-width:1480px;margin:0 auto;padding:30px}.top{display:flex;align-items:end;justify-content:space-between;gap:24px;margin-bottom:22px}.eyebrow{margin:0 0 6px;color:var(--accent);font-size:12px;font-weight:800;letter-spacing:.13em}.title{margin:0;font-size:30px;letter-spacing:-.045em}.subtitle{margin:7px 0 0;color:var(--muted)}
   select{min-width:250px;border:1px solid var(--panel-edge);border-radius:9px;background:#12201b;color:var(--ink);padding:10px 12px;font:inherit}.layout{display:grid;grid-template-columns:300px minmax(0,1fr);gap:18px;min-height:0}.panel{border:1px solid var(--panel-edge);background:color-mix(in srgb,var(--panel) 92%,black);border-radius:14px;box-shadow:0 16px 50px #0005}.side{padding:18px}.section-title{margin:0 0 5px;font-size:15px}.section-note{margin:0 0 14px;color:var(--muted);font-size:12px;line-height:1.5}.tile-list{display:grid;grid-template-columns:1fr 1fr;gap:9px}.tile-card{min-width:0;padding:7px;border:1px solid #294439;border-radius:9px;background:#10201a}.tile-card img{display:block;width:100%;aspect-ratio:1;object-fit:cover;image-rendering:pixelated;border-radius:5px;background:#23352d}.tile-card code{display:block;overflow:hidden;margin-top:6px;color:#d9eadf;font:11px ui-monospace,monospace;text-overflow:ellipsis;white-space:nowrap}
-  .main{min-height:0;overflow:hidden;padding:18px}.map-header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}.map-title{margin:0;font-size:17px}.summary{margin:0;color:var(--muted);font-size:12px}.canvas-wrap{position:relative;height:600px;min-height:0;max-height:600px;flex:none;border:1px solid #2b493c;border-radius:10px;overflow:auto;background-color:#101a16;background-image:linear-gradient(45deg,#14241e 25%,transparent 25%),linear-gradient(-45deg,#14241e 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#14241e 75%),linear-gradient(-45deg,transparent 75%,#14241e 75%);background-size:24px 24px;background-position:0 0,0 12px,12px -12px,0}.map-preview{display:block;width:1152px;height:auto;margin:20px auto;image-rendering:pixelated;box-shadow:0 15px 45px #0008}.badge{position:sticky;display:block;z-index:1;left:16px;top:16px;width:max-content;margin:16px 0 -42px 16px;padding:7px 9px;border:1px solid #4c7865;border-radius:999px;background:#102018dd;color:#b9eac9;font-size:12px}.loading{position:absolute;inset:50% auto auto 50%;transform:translate(-50%,-50%);color:var(--muted)}.zoom-controls{display:flex;align-items:center;gap:7px}.zoom-controls button{width:30px;height:30px;border:1px solid #456c59;border-radius:7px;background:#14271f;color:var(--ink);font-size:17px;cursor:pointer}.zoom-controls input{accent-color:var(--accent)}.zoom-value{width:38px;color:var(--accent);font:12px ui-monospace,monospace;text-align:right}
+  .main{min-height:0;overflow:hidden;padding:18px}.map-header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}.map-title{margin:0;font-size:17px}.summary{margin:0;color:var(--muted);font-size:12px}.canvas-wrap{position:relative;height:600px;min-height:0;max-height:600px;flex:none;border:1px solid #2b493c;border-radius:10px;overflow:auto;background-color:#101a16;background-image:linear-gradient(45deg,#14241e 25%,transparent 25%),linear-gradient(-45deg,#14241e 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#14241e 75%),linear-gradient(-45deg,transparent 75%,#14241e 75%);background-size:24px 24px;background-position:0 0,0 12px,12px -12px,0}.map-preview{display:block;width:1152px;height:auto;margin:20px auto;image-rendering:pixelated;box-shadow:0 15px 45px #0008}.map-overview{position:sticky;z-index:2;float:right;top:12px;right:12px;width:200px;max-height:150px;object-fit:contain;margin:12px 12px -162px 0;border:1px solid #66917a;border-radius:8px;background:#0b1411;box-shadow:0 8px 20px #0009;image-rendering:pixelated}.badge{position:sticky;display:block;z-index:1;left:16px;top:16px;width:max-content;margin:16px 0 -42px 16px;padding:7px 9px;border:1px solid #4c7865;border-radius:999px;background:#102018dd;color:#b9eac9;font-size:12px}.loading{position:absolute;inset:50% auto auto 50%;transform:translate(-50%,-50%);color:var(--muted)}.zoom-controls{display:flex;align-items:center;gap:7px}.zoom-controls button{width:30px;height:30px;border:1px solid #456c59;border-radius:7px;background:#14271f;color:var(--ink);font-size:17px;cursor:pointer}.zoom-controls input{accent-color:var(--accent)}.zoom-value{width:38px;color:var(--accent);font:12px ui-monospace,monospace;text-align:right}
   .legend{display:flex;flex-wrap:wrap;gap:7px;margin-top:13px}.legend span{border:1px solid #315141;border-radius:999px;background:#102019;padding:5px 8px;color:#bdd3c5;font-size:12px}.legend b{color:var(--water)}
 </style>
 <link rel="stylesheet" href="map-review-layout.css">
 <main class="shell">
   <header class="top"><div><p class="eyebrow">WORLD BUILDING / ISLOON</p><h1 class="title">마을 맵 검수</h1><p class="subtitle">등록된 타일 원본과 이슬온 도시 조립 결과를 같은 화면에서 검수합니다.</p></div><label><span class="eyebrow">등록 맵</span><select id="map-select" aria-label="검수할 맵"><option>맵 목록 불러오는 중…</option></select></label></header>
-  <div class="layout"><aside class="panel side"><h2 class="section-title">등록 타일</h2><p class="section-note">워커플로우에서 생성·등록된 실제 에셋입니다. 각 이미지는 검수 패키지에 하드링크로 연결됩니다.</p><div id="tile-list" class="tile-list"></div></aside><section class="panel main"><header class="map-header"><div><h2 id="map-title" class="map-title">이슬온 도시 배치</h2><p id="summary" class="summary">타일 에셋을 불러오는 중…</p></div><div class="zoom-controls" aria-label="맵 확대 축소 및 회전"><button id="zoom-out" type="button" aria-label="축소">−</button><input id="zoom-range" type="range" min="50" max="200" step="10" value="75" aria-label="확대 비율"><span id="zoom-value" class="zoom-value">75%</span><button id="zoom-in" type="button" aria-label="확대">+</button><button id="rotate-left" type="button" aria-label="맵 반시계 방향 회전">↶</button><span id="rotation-value" class="zoom-value">0°</span><button id="rotate-right" type="button" aria-label="맵 시계 방향 회전">↷</button></div></header><div class="canvas-wrap"><span class="badge">● 45° 입체 시안 · 시점 회전</span><span id="loading" class="loading">조립 맵을 불러오는 중…</span><img id="map-preview" class="map-preview" alt="회전 가능한 이슬온 타일맵 입체 시안"></div><footer class="legend"><span>흰 외곽선: 시작점</span><span><b>청록</b>: 샘터</span><span>적갈색 칸: 출입 금지 영역</span><span>건물: 평면 옥상 · 1층 100px 시안</span></footer></section></div>
+  <div class="layout"><aside class="panel side"><h2 class="section-title">등록 타일</h2><p class="section-note">워커플로우에서 생성·등록된 실제 에셋입니다. 각 이미지는 검수 패키지에 하드링크로 연결됩니다.</p><div id="tile-list" class="tile-list"></div></aside><section class="panel main"><header class="map-header"><div><h2 id="map-title" class="map-title">이슬온 도시 배치</h2><p id="summary" class="summary">타일 에셋을 불러오는 중…</p></div><div class="zoom-controls" aria-label="맵 확대 축소 및 회전"><button id="zoom-out" type="button" aria-label="축소">−</button><input id="zoom-range" type="range" min="50" max="200" step="10" value="75" aria-label="확대 비율"><span id="zoom-value" class="zoom-value">75%</span><button id="zoom-in" type="button" aria-label="확대">+</button><button id="rotate-left" type="button" aria-label="맵 반시계 방향 회전">↶</button><span id="rotation-value" class="zoom-value">0°</span><button id="rotate-right" type="button" aria-label="맵 시계 방향 회전">↷</button></div></header><div class="canvas-wrap"><img id="map-overview" class="map-overview" alt="이슬온 전체 배치 축소 미리보기"><span class="badge">● 45° 입체 시안 · 시점 회전</span><span id="loading" class="loading">조립 맵을 불러오는 중…</span><img id="map-preview" class="map-preview" alt="회전 가능한 이슬온 타일맵 입체 시안"></div><footer class="legend"><span>흰 외곽선: 시작점</span><span><b>청록</b>: 샘터</span><span>적갈색 칸: 출입 금지 영역</span><span>건물: 평면 옥상 · 1층 100px 시안</span></footer></section></div>
 </main>
 <script src="map-character-preview.js"></script>
 <script>
 const mapPreviewImage=document.querySelector('#map-preview');
+const mapOverviewImage=document.querySelector('#map-overview');
 const mapSelectionControl=document.querySelector('#map-select');
 const mapLoadingMessage=document.querySelector('#loading');
 const mapZoomControl=document.querySelector('#zoom-range');
@@ -28,7 +29,7 @@ const tileImageRecords={};
 const VOLUME_TILE_WIDTH_PIXELS=128;
 const VOLUME_TILE_HEIGHT_PIXELS=64;
 const VOLUME_FLOOR_HEIGHT_PIXELS=100;
-const VOLUME_ROOF_HEIGHT_PIXELS=7;
+const VOLUME_ROOF_HEIGHT_PIXELS=0;
 const VOLUME_CANVAS_HEIGHT_PIXELS=420;
 const VOLUME_CANVAS_PADDING_PIXELS=24;
 const VOLUME_MAXIMUM_FLOOR_COUNT=3;
@@ -42,7 +43,9 @@ function applyCurrentMapRotation(){
   const selectedMapRecord=mapReviewRecords[Number(mapSelectionControl.value)];
   if(!selectedMapRecord)return;
   mapPreviewImage.onload=applyMapZoom;
-  mapPreviewImage.src=selectedMapRecord.previews?.[String(currentMapRotationDegrees)]||selectedMapRecord.preview;
+  const selectedPreviewPath=selectedMapRecord.previews?.[String(currentMapRotationDegrees)]||selectedMapRecord.preview;
+  mapPreviewImage.src=`${selectedPreviewPath}?revision=${Date.now()}`;
+  mapOverviewImage.src=`${selectedPreviewPath}?revision=${Date.now()}`;
   mapRotationLabel.textContent=`${currentMapRotationDegrees}°`;
 }
 
@@ -141,30 +144,6 @@ function drawBuildingVolumePreview(canvasElement,prefabRecordValues,floorCountVa
           pointValues(footprintWidthValue,rowIndexValue+1,bottomHeightValue));
       }
     }
-    tracePolygon([cornerPoints[1],cornerPoints[2],wallTopPoints[2],wallTopPoints[1]],'#00000014','#5c371b');
-    tracePolygon([cornerPoints[2],cornerPoints[3],wallTopPoints[3],wallTopPoints[2]],'#00000033','#4f2f19');
-  }
-  drawingContext.strokeStyle='#94683b';drawingContext.lineWidth=1;
-  for(let columnBoundaryValue=1;columnBoundaryValue<footprintWidthValue;columnBoundaryValue++){
-    const wallBasePoint=pointValues(columnBoundaryValue,footprintDepthValue,0);
-    const wallTopPoint=pointValues(columnBoundaryValue,footprintDepthValue,wallTopHeightValue);
-    drawingContext.beginPath();drawingContext.moveTo(wallBasePoint.x,wallBasePoint.y);drawingContext.lineTo(wallTopPoint.x,wallTopPoint.y);drawingContext.stroke();
-  }
-  for(let rowBoundaryValue=1;rowBoundaryValue<footprintDepthValue;rowBoundaryValue++){
-    const wallBasePoint=pointValues(footprintWidthValue,rowBoundaryValue,0);
-    const wallTopPoint=pointValues(footprintWidthValue,rowBoundaryValue,wallTopHeightValue);
-    drawingContext.beginPath();drawingContext.moveTo(wallBasePoint.x,wallBasePoint.y);drawingContext.lineTo(wallTopPoint.x,wallTopPoint.y);drawingContext.stroke();
-  }
-  if(floorCountValue>1){
-    for(let floorIndexValue=1;floorIndexValue<floorCountValue;floorIndexValue++){
-      const seamHeightValue=floorIndexValue*floorHeightValue;
-      const seamFrontStart=pointValues(footprintWidthValue,footprintDepthValue,seamHeightValue);
-      const seamFrontMiddle=pointValues(0,footprintDepthValue,seamHeightValue);
-      const seamSideEnd=pointValues(footprintWidthValue,0,seamHeightValue);
-      drawingContext.strokeStyle='#684222';drawingContext.beginPath();drawingContext.moveTo(seamFrontStart.x,seamFrontStart.y);
-      drawingContext.lineTo(seamFrontMiddle.x,seamFrontMiddle.y);drawingContext.moveTo(seamFrontStart.x,seamFrontStart.y);
-      drawingContext.lineTo(seamSideEnd.x,seamSideEnd.y);drawingContext.stroke();
-    }
   }
   const entranceCellValue=prefabRecordValues.entrances?.[0];
   if(entranceCellValue){
@@ -210,9 +189,6 @@ function drawBuildingVolumePreview(canvasElement,prefabRecordValues,floorCountVa
       }
     }
   }
-  tracePolygon([wallTopPoints[1],wallTopPoints[2],roofTopPoints[2],roofTopPoints[1]],'#b55d28','#5b2c16');
-  tracePolygon([wallTopPoints[2],wallTopPoints[3],roofTopPoints[3],roofTopPoints[2]],'#994b21','#5b2c16');
-  tracePolygon(roofTopPoints,'#cb7336','#5b2c16');
   const selectedRoofImage=tileImageRecords[prefabRecordValues.roof_tile];
   if(selectedRoofImage){
     const roofHeightValue=wallTopHeightValue+roofRimHeightValue;
@@ -225,10 +201,6 @@ function drawBuildingVolumePreview(canvasElement,prefabRecordValues,floorCountVa
       }
     }
   }
-  drawingContext.strokeStyle='#f0af68';drawingContext.lineWidth=2;drawingContext.beginPath();
-  drawingContext.moveTo(roofTopPoints[0].x,roofTopPoints[0].y);drawingContext.lineTo(roofTopPoints[1].x,roofTopPoints[1].y);
-  drawingContext.lineTo(roofTopPoints[2].x,roofTopPoints[2].y);drawingContext.lineTo(roofTopPoints[3].x,roofTopPoints[3].y);
-  drawingContext.closePath();drawingContext.stroke();
 }
 
 function drawBuildingVolumeComparisons(){
@@ -283,7 +255,7 @@ function collectBuildingSizeRecords(prefabRecordValues){
 
 async function startMapReview(){
   await loadTileAssets();
-  const mapIndexResponse=await fetch('map-index.json');
+  const mapIndexResponse=await fetch(`map-index.json?revision=${Date.now()}`,{cache:'no-store'});
   if(!mapIndexResponse.ok)throw new Error('등록 맵 목록을 찾지 못했습니다.');
   mapReviewRecords=(await mapIndexResponse.json()).maps;
   mapSelectionControl.replaceChildren(...mapReviewRecords.map((recordValue,indexValue)=>Object.assign(document.createElement('option'),{value:indexValue,textContent:recordValue.label})));

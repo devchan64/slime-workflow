@@ -27,11 +27,10 @@ def load_map_render_profiles():
 
 MAP_RENDER_PROFILE_VALUES = load_map_render_profiles()
 ISOMETRIC_BUILDING_WALL_HEIGHT = MAP_RENDER_PROFILE_VALUES['wall_height']
-ISOMETRIC_BUILDING_ROOF_HEIGHT = 7
+ISOMETRIC_BUILDING_ROOF_HEIGHT = 0
 ISOMETRIC_BUILDING_PREVIEW_LEVEL = 2
 ISOMETRIC_PREVIEW_TOP_PADDING = ISOMETRIC_BUILDING_PREVIEW_LEVEL * ISOMETRIC_BUILDING_WALL_HEIGHT + ISOMETRIC_BUILDING_ROOF_HEIGHT + 32
 ISOMETRIC_DOOR_HEIGHT = 72
-ISOMETRIC_DOOR_HALF_WIDTH_TILES = .28
 ISOMETRIC_DOOR_FRAME_HALF_WIDTH_TILES = .32
 ISOMETRIC_MAP_ROTATIONS = (0, 90, 180, 270)
 ISOMETRIC_VISIBLE_BUILDING_SIDES = {'east', 'south'}
@@ -168,7 +167,7 @@ def draw_tree_volume_preview(preview_image, vegetation_record, map_dimension, ro
 
 
 def render_isometric_map_preview(assembled_map_values, map_source_values, prefab_lookup, tile_images,
-                                 tile_width, tile_height, rotation_degrees, wall_texture_images):
+                                 tile_width, tile_height, rotation_degrees, wall_texture_images, door_texture_images):
     from PIL import Image, ImageDraw
     half_tile_width = tile_width // 2
     half_tile_height = tile_height // 2
@@ -217,7 +216,10 @@ def render_isometric_map_preview(assembled_map_values, map_source_values, prefab
             continue
         _, transformed_building, prefab_record = instance_values
         draw_building_volume_preview(preview_image, transformed_building, prefab_record, map_rows,
-                                     half_tile_width, half_tile_height, transformed_building['entrance_side'], wall_texture_images[prefab_record['wall_tile']])
+                                     half_tile_width, half_tile_height, transformed_building['entrance_side'],
+                                     wall_texture_images[prefab_record['wall_tile']],
+                                     door_texture_images[prefab_record['door_tile']],
+                                     tile_images[prefab_record['roof_tile']])
     return preview_image
 
 
@@ -248,7 +250,8 @@ def paste_projected_wall_texture(preview_image, wall_texture_image, top_left_poi
     preview_image.alpha_composite(projected_wall_image, (output_left_position, output_top_position))
 
 
-def draw_building_volume_preview(preview_image, building_instance, prefab_record, row_count, half_tile_width, half_tile_height, entrance_side, wall_texture_image):
+def draw_building_volume_preview(preview_image, building_instance, prefab_record, row_count, half_tile_width, half_tile_height,
+                                 entrance_side, wall_texture_image, door_texture_image, roof_tile_image):
     from PIL import ImageDraw
     drawing_context = ImageDraw.Draw(preview_image)
     origin_column = building_instance['position']['column']
@@ -257,6 +260,7 @@ def draw_building_volume_preview(preview_image, building_instance, prefab_record
     building_depth = building_instance['size']['rows']
     building_floor_count = prefab_record['floor_count']
     wall_height = building_floor_count * ISOMETRIC_BUILDING_WALL_HEIGHT
+    entrance_cell = building_instance['entrance_cell']
     point_values = lambda column_value, row_value, elevation_value: project_building_point(
         origin_column + column_value, origin_row + row_value, elevation_value,
         row_count, half_tile_width, half_tile_height, ISOMETRIC_PREVIEW_TOP_PADDING)
@@ -264,79 +268,43 @@ def draw_building_volume_preview(preview_image, building_instance, prefab_record
                      point_values(building_width, building_depth, 0), point_values(0, building_depth, 0)]
     upper_corner_values = [point_values(0, 0, wall_height), point_values(building_width, 0, wall_height),
                            point_values(building_width, building_depth, wall_height), point_values(0, building_depth, wall_height)]
-    drawing_context.polygon([corner_values[1], corner_values[2], upper_corner_values[2], upper_corner_values[1]],
-                            fill=(211, 166, 98, 255), outline=(92, 55, 27, 255))
-    drawing_context.polygon([corner_values[2], corner_values[3], upper_corner_values[3], upper_corner_values[2]],
-                            fill=(177, 126, 69, 255), outline=(79, 47, 25, 255))
+    drawing_context.polygon([corner_values[1], corner_values[2], upper_corner_values[2], upper_corner_values[1]], fill=(211, 166, 98, 255))
+    drawing_context.polygon([corner_values[2], corner_values[3], upper_corner_values[3], upper_corner_values[2]], fill=(177, 126, 69, 255))
     # 카탈로그의 창문 포함 벽 타일을 한 칸·한 층마다 투영한다.
     for current_floor_index in range(building_floor_count):
         current_bottom_height = current_floor_index * ISOMETRIC_BUILDING_WALL_HEIGHT
         current_top_height = current_bottom_height + ISOMETRIC_BUILDING_WALL_HEIGHT
         for current_column_index in range(building_width):
+            if entrance_side == 'south' and current_floor_index == 0 and current_column_index == entrance_cell['column']:
+                continue
             paste_projected_wall_texture(preview_image, wall_texture_image,
                 point_values(current_column_index, building_depth, current_top_height),
                 point_values(current_column_index + 1, building_depth, current_top_height),
                 point_values(current_column_index, building_depth, current_bottom_height))
         for current_row_index in range(building_depth):
+            if entrance_side == 'east' and current_floor_index == 0 and current_row_index == entrance_cell['row']:
+                continue
             paste_projected_wall_texture(preview_image, wall_texture_image,
                 point_values(building_width, current_row_index + 1, current_top_height),
                 point_values(building_width, current_row_index, current_top_height),
                 point_values(building_width, current_row_index + 1, current_bottom_height))
-    for horizontal_tile_boundary in range(1, building_width):
-        wall_top_start = point_values(horizontal_tile_boundary, building_depth, wall_height)
-        wall_base_start = point_values(horizontal_tile_boundary, building_depth, 0)
-        drawing_context.line((wall_base_start, wall_top_start), fill=(153, 106, 60, 190), width=1)
-    for depth_tile_boundary in range(1, building_depth):
-        wall_top_end = point_values(building_width, depth_tile_boundary, wall_height)
-        wall_base_end = point_values(building_width, depth_tile_boundary, 0)
-        drawing_context.line((wall_base_end, wall_top_end), fill=(137, 93, 53, 190), width=1)
-    for level_index in range(1, ISOMETRIC_BUILDING_PREVIEW_LEVEL):
-        seam_elevation = level_index * ISOMETRIC_BUILDING_WALL_HEIGHT
-        seam_start = point_values(building_width, building_depth, seam_elevation)
-        seam_middle = point_values(0, building_depth, seam_elevation)
-        seam_end = point_values(building_width, 0, seam_elevation)
-        drawing_context.line((seam_start, seam_middle), fill=(105, 66, 34, 255), width=2)
-        drawing_context.line((seam_start, seam_end), fill=(125, 78, 38, 255), width=2)
     if entrance_side in ISOMETRIC_VISIBLE_BUILDING_SIDES:
-        entrance_cell = building_instance['entrance_cell']
-        if entrance_side in {'north', 'south'}:
-            wall_span = building_width
-            wall_row = 0 if entrance_side == 'north' else building_depth
-            door_center_value = entrance_cell['column'] + .5
-            door_position_values = lambda horizontal_value, height_value: point_values(horizontal_value, wall_row, height_value)
+        if entrance_side == 'south':
+            paste_projected_wall_texture(preview_image, door_texture_image,
+                point_values(entrance_cell['column'], building_depth, ISOMETRIC_BUILDING_WALL_HEIGHT),
+                point_values(entrance_cell['column'] + 1, building_depth, ISOMETRIC_BUILDING_WALL_HEIGHT),
+                point_values(entrance_cell['column'], building_depth, 0))
         else:
-            wall_span = building_depth
-            wall_column = 0 if entrance_side == 'west' else building_width
-            door_center_value = entrance_cell['row'] + .5
-            door_position_values = lambda horizontal_value, height_value: point_values(wall_column, horizontal_value, height_value)
-        door_center_value = min(max(door_center_value, .5), wall_span - .5)
-        frame_half_width = min(ISOMETRIC_DOOR_FRAME_HALF_WIDTH_TILES, door_center_value, wall_span - door_center_value)
-        leaf_half_width = min(ISOMETRIC_DOOR_HALF_WIDTH_TILES, frame_half_width - .04)
-        frame_bottom_points = (door_position_values(door_center_value - frame_half_width, 0),
-                               door_position_values(door_center_value + frame_half_width, 0))
-        frame_top_points = (door_position_values(door_center_value - frame_half_width, ISOMETRIC_DOOR_HEIGHT + 6),
-                            door_position_values(door_center_value + frame_half_width, ISOMETRIC_DOOR_HEIGHT + 6))
-        drawing_context.polygon([frame_bottom_points[0], frame_bottom_points[1], frame_top_points[1], frame_top_points[0]],
-                                fill=(224, 183, 112, 255), outline=(65, 40, 25, 255))
-        door_bottom_points = (door_position_values(door_center_value - leaf_half_width, 0),
-                              door_position_values(door_center_value + leaf_half_width, 0))
-        door_top_points = (door_position_values(door_center_value - leaf_half_width, ISOMETRIC_DOOR_HEIGHT),
-                           door_position_values(door_center_value + leaf_half_width, ISOMETRIC_DOOR_HEIGHT))
-        drawing_context.polygon([door_bottom_points[0], door_bottom_points[1], door_top_points[1], door_top_points[0]],
-                                fill=(87, 48, 27, 255), outline=(49, 31, 22, 255))
-        handle_point = door_position_values(door_center_value + leaf_half_width * .58, ISOMETRIC_DOOR_HEIGHT * .48)
-        drawing_context.ellipse((handle_point[0] - 2, handle_point[1] - 2,
-                                 handle_point[0] + 2, handle_point[1] + 2), fill=(236, 196, 102, 255))
-    roof_top_values = [point_values(0, 0, wall_height + ISOMETRIC_BUILDING_ROOF_HEIGHT),
-                       point_values(building_width, 0, wall_height + ISOMETRIC_BUILDING_ROOF_HEIGHT),
-                       point_values(building_width, building_depth, wall_height + ISOMETRIC_BUILDING_ROOF_HEIGHT),
-                       point_values(0, building_depth, wall_height + ISOMETRIC_BUILDING_ROOF_HEIGHT)]
-    drawing_context.polygon([upper_corner_values[1], upper_corner_values[2], roof_top_values[2], roof_top_values[1]],
-                            fill=(181, 93, 40, 255), outline=(91, 44, 22, 255))
-    drawing_context.polygon([upper_corner_values[2], upper_corner_values[3], roof_top_values[3], roof_top_values[2]],
-                            fill=(153, 75, 33, 255), outline=(91, 44, 22, 255))
-    drawing_context.polygon(roof_top_values, fill=(203, 115, 54, 255), outline=(91, 44, 22, 255))
-    drawing_context.line([roof_top_values[0], roof_top_values[1], roof_top_values[2], roof_top_values[3], roof_top_values[0]], fill=(240, 175, 104, 255), width=3)
+            paste_projected_wall_texture(preview_image, door_texture_image,
+                point_values(building_width, entrance_cell['row'] + 1, ISOMETRIC_BUILDING_WALL_HEIGHT),
+                point_values(building_width, entrance_cell['row'], ISOMETRIC_BUILDING_WALL_HEIGHT),
+                point_values(building_width, entrance_cell['row'] + 1, 0))
+    for current_column_index in range(building_width):
+        for current_row_index in range(building_depth):
+            roof_center_point = point_values(current_column_index + .5, current_row_index + .5,
+                                             wall_height + ISOMETRIC_BUILDING_ROOF_HEIGHT)
+            preview_image.alpha_composite(roof_tile_image, (round(roof_center_point[0] - half_tile_width),
+                                                             round(roof_center_point[1] - half_tile_height)))
 
 
 def build_map_review(map_path=None, output_root=None):
@@ -352,7 +320,10 @@ def build_map_review(map_path=None, output_root=None):
     output_root.mkdir(parents=True, exist_ok=False)
     map_output_directory = output_root / 'maps'
     map_output_directory.mkdir()
-    from link_review_file import link_or_copy_review_file
+    if __package__:
+        from .link_review_file import link_or_copy_review_file
+    else:
+        from link_review_file import link_or_copy_review_file
     from isloon_tiles import load_yaml_document
     catalog_values = load_yaml_document(WORKFLOW_ROOT / 'assets/world/isloon/tile-catalog.yaml')
     building_prefab_values = load_yaml_document(WORKFLOW_ROOT / 'assets/world/isloon/building-prefabs.yaml')
@@ -389,13 +360,15 @@ def build_map_review(map_path=None, output_root=None):
             tile_images[tile_id] = projected_tile_image
         wall_texture_images = {tile_record['id']: Image.open(tile_source_paths[tile_record['id']]).convert('RGBA')
                                for tile_record in catalog_values['tiles'] if tile_record['category'] == 'structure'}
+        door_texture_images = {tile_record['id']: Image.open(tile_source_paths[tile_record['id']]).convert('RGBA')
+                               for tile_record in catalog_values['tiles'] if tile_record['category'] == 'door'}
         prefab_lookup = {prefab_record['id']: prefab_record for prefab_record in building_prefab_values['prefabs']}
         map_source_values = load_yaml_document(current_map_path)
         preview_records = {}
         for rotation_degrees in ISOMETRIC_MAP_ROTATIONS:
             preview_image = render_isometric_map_preview(assembled_map_values, map_source_values, prefab_lookup,
                                                          tile_images, isometric_tile_width, isometric_tile_height,
-                                                         rotation_degrees, wall_texture_images)
+                                                         rotation_degrees, wall_texture_images, door_texture_images)
             preview_path = map_output_directory / f'{current_map_path.stem}.rotation-{rotation_degrees}.png'
             preview_image.save(preview_path)
             preview_records[str(rotation_degrees)] = f'maps/{preview_path.name}'

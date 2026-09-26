@@ -8,7 +8,14 @@ layers:
     default: grass
     patches:
       - {tile: paving, rectangle: {column: 6, row: 7, columns: 13, rows: 2}}
-      - {tile: paving, rectangle: {column: 8, row: 9, columns: 8, rows: 6}}
+      # 중앙 광장은 6×4로 축소하고, 각 건물 문까지 도로를 연결한다.
+      - {tile: paving, rectangle: {column: 9, row: 10, columns: 6, rows: 4}}
+      - {tile: paving, rectangle: {column: 9, row: 9, columns: 6, rows: 1}}
+      - {tile: paving, rectangle: {column: 5, row: 6, columns: 1, rows: 3}}
+      - {tile: paving, rectangle: {column: 18, row: 5, columns: 1, rows: 4}}
+      - {tile: paving, rectangle: {column: 4, row: 15, columns: 4, rows: 1}}
+      - {tile: paving, rectangle: {column: 16, row: 15, columns: 2, rows: 1}}
+      - {tile: paving, rectangle: {column: 18, row: 19, columns: 1, rows: 1}}
       - {tile: paving, rectangle: {column: 7, row: 15, columns: 10, rows: 2}}
       - {tile: paving, rectangle: {column: 10, row: 17, columns: 2, rows: 1}}
       - {tile: paving, rectangle: {column: 10, row: 18, columns: 10, rows: 1}}
