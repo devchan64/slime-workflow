@@ -5,5 +5,5 @@ field:
 town:
   tile_width: 128
   tile_height: 64
-wall_height: 100
+wall_height: 80
 character_height: 60

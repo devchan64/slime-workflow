@@ -21,8 +21,9 @@ def load_map_render_profiles():
         profile_size_record = profile_record_values[profile_kind_name]
         if set(profile_size_record)!={'tile_width','tile_height'} or any(type(size_value) is not int or size_value<=0 for size_value in profile_size_record.values()) or profile_size_record['tile_width']!=2*profile_size_record['tile_height']:
             raise ValueError('맵 타일은 양의 정수 2:1 크기여야 합니다.')
-    if profile_record_values['wall_height']!=100 or profile_record_values['character_height']!=60:
-        raise ValueError('벽 높이 100px와 캐릭터 기준 60px는 고정입니다.')
+    if any(type(profile_record_values[metric_name]) is not int or profile_record_values[metric_name] <= 0
+           for metric_name in ('wall_height', 'character_height')):
+        raise ValueError('벽 높이와 캐릭터 기준은 양의 정수여야 합니다.')
     return profile_record_values
 
 MAP_RENDER_PROFILE_VALUES = load_map_render_profiles()
@@ -396,8 +397,8 @@ def build_map_review(map_path=None, output_root=None):
     shutil.copy2(WORKFLOW_ROOT/'tools/review/ui/map/map-review-layout.css',output_root/'map-review-layout.css')
     shutil.copy2(REVIEW_TEMPLATE_PATH, output_root / 'map-review.html')
     shutil.copy2(WORKFLOW_ROOT / 'assets/world/isloon/building-volume-review.html', output_root / 'building-volume-review.html')
-    from tools.review.common.game_render_metrics import load_game_render_metrics
-    (output_root / 'game-render-metrics.json').write_text(json.dumps(load_game_render_metrics(FRONTEND_ASSET_ROOT.parents[1]), ensure_ascii=False, indent=2))
+    building_render_profile = {**MAP_RENDER_PROFILE_VALUES['town'], 'wall_height': MAP_RENDER_PROFILE_VALUES['wall_height'], 'character_height': MAP_RENDER_PROFILE_VALUES['character_height']}
+    (output_root / 'building-render-profile.json').write_text(json.dumps(building_render_profile, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
     (output_root / 'README.txt').write_text('검수 서버: python3 tools/review/serve.py --root "' + str(output_root) + '" --entry map-review.html\n', encoding='utf-8')
     return output_root
 

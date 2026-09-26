@@ -14,7 +14,7 @@
 <link rel="stylesheet" href="map-review-layout.css">
 <main class="shell">
   <header class="top"><div><p class="eyebrow">WORLD BUILDING / ISLOON</p><h1 class="title">마을 맵 검수</h1><p class="subtitle">등록된 타일 원본과 이슬온 도시 조립 결과를 같은 화면에서 검수합니다.</p></div><label><span class="eyebrow">등록 맵</span><select id="map-select" aria-label="검수할 맵"><option>맵 목록 불러오는 중…</option></select></label></header>
-  <div class="layout"><aside class="panel side"><h2 class="section-title">등록 타일</h2><p class="section-note">워커플로우에서 생성·등록된 실제 에셋입니다. 각 이미지는 검수 패키지에 하드링크로 연결됩니다.</p><div id="tile-list" class="tile-list"></div></aside><section class="panel main"><header class="map-header"><div><h2 id="map-title" class="map-title">이슬온 도시 배치</h2><p id="summary" class="summary">타일 에셋을 불러오는 중…</p></div><div class="zoom-controls" aria-label="맵 확대 축소 및 회전"><button id="zoom-out" type="button" aria-label="축소">−</button><input id="zoom-range" type="range" min="50" max="200" step="10" value="75" aria-label="확대 비율"><span id="zoom-value" class="zoom-value">75%</span><button id="zoom-in" type="button" aria-label="확대">+</button><button id="rotate-left" type="button" aria-label="맵 반시계 방향 회전">↶</button><span id="rotation-value" class="zoom-value">0°</span><button id="rotate-right" type="button" aria-label="맵 시계 방향 회전">↷</button></div></header><div class="canvas-wrap"><img id="map-overview" class="map-overview" alt="이슬온 전체 배치 축소 미리보기"><span class="badge">● 45° 입체 시안 · 시점 회전</span><span id="loading" class="loading">조립 맵을 불러오는 중…</span><img id="map-preview" class="map-preview" alt="회전 가능한 이슬온 타일맵 입체 시안"></div><footer class="legend"><span>흰 외곽선: 시작점</span><span><b>청록</b>: 샘터</span><span>적갈색 칸: 출입 금지 영역</span><span>건물: 평면 옥상 · 1층 100px 시안</span></footer></section></div>
+  <div class="layout"><aside class="panel side"><h2 class="section-title">등록 타일</h2><p class="section-note">워커플로우에서 생성·등록된 실제 에셋입니다. 각 이미지는 검수 패키지에 하드링크로 연결됩니다.</p><div id="tile-list" class="tile-list"></div></aside><section class="panel main"><header class="map-header"><div><h2 id="map-title" class="map-title">이슬온 도시 배치</h2><p id="summary" class="summary">타일 에셋을 불러오는 중…</p></div><div class="zoom-controls" aria-label="맵 확대 축소 및 회전"><button id="zoom-out" type="button" aria-label="축소">−</button><input id="zoom-range" type="range" min="50" max="200" step="10" value="75" aria-label="확대 비율"><span id="zoom-value" class="zoom-value">75%</span><button id="zoom-in" type="button" aria-label="확대">+</button><button id="rotate-left" type="button" aria-label="맵 반시계 방향 회전">↶</button><span id="rotation-value" class="zoom-value">0°</span><button id="rotate-right" type="button" aria-label="맵 시계 방향 회전">↷</button></div></header><div class="canvas-wrap"><img id="map-overview" class="map-overview" alt="이슬온 전체 배치 축소 미리보기"><span class="badge">● 45° 입체 시안 · 시점 회전</span><span id="loading" class="loading">조립 맵을 불러오는 중…</span><img id="map-preview" class="map-preview" alt="회전 가능한 이슬온 타일맵 입체 시안"></div><footer class="legend"><span>흰 외곽선: 시작점</span><span><b>청록</b>: 샘터</span><span>적갈색 칸: 출입 금지 영역</span><span id="building-height-legend">건물 검수 기준을 불러오는 중…</span></footer></section></div>
 </main>
 <script src="map-character-preview.js"></script>
 <script>
@@ -26,9 +26,6 @@ const mapZoomControl=document.querySelector('#zoom-range');
 const mapZoomLabel=document.querySelector('#zoom-value');
 const mapRotationLabel=document.querySelector('#rotation-value');
 const tileImageRecords={};
-const VOLUME_TILE_WIDTH_PIXELS=128;
-const VOLUME_TILE_HEIGHT_PIXELS=64;
-const VOLUME_FLOOR_HEIGHT_PIXELS=100;
 const VOLUME_ROOF_HEIGHT_PIXELS=0;
 const VOLUME_CANVAS_HEIGHT_PIXELS=420;
 const VOLUME_CANVAS_PADDING_PIXELS=24;
@@ -38,6 +35,7 @@ const TOWN_MAP_DEFAULT_ZOOM_PERCENT=FIELD_MAP_DEFAULT_ZOOM_PERCENT*2;
 let mapReviewRecords=[];
 let buildingSizeRecords=[];
 let currentMapRotationDegrees=0;
+let currentVolumeRenderProfile;
 
 function applyCurrentMapRotation(){
   const selectedMapRecord=mapReviewRecords[Number(mapSelectionControl.value)];
@@ -60,6 +58,8 @@ function applyMapZoom(){
 function drawMapDetails(mapDocumentValues,mapRecordValues){
   document.querySelector('#map-title').textContent=`${mapDocumentValues.display_name||mapDocumentValues.map_id} 도시 배치`;
   document.querySelector('#summary').textContent=`${mapDocumentValues.grid.columns}×${mapDocumentValues.grid.rows} · 타일 ${mapRecordValues.render_profile.tile_width}×${mapRecordValues.render_profile.tile_height}px · 벽 ${mapRecordValues.render_profile.wall_height}px · 캐릭터 기준 ${mapRecordValues.render_profile.character_height}px · 충돌 ${mapDocumentValues.collision.length}칸 · 출구 ${mapDocumentValues.map_connections?.length||0}개 · 연결 ${mapDocumentValues.connections.length}개`;
+  currentVolumeRenderProfile=mapRecordValues.render_profile;
+  document.querySelector('#building-height-legend').textContent=`건물: 평면 옥상 · 1층 ${currentVolumeRenderProfile.wall_height}px 공용 검수 기준`;
   currentMapRotationDegrees=0;
   mapZoomControl.value=mapDocumentValues.safe_town?TOWN_MAP_DEFAULT_ZOOM_PERCENT:FIELD_MAP_DEFAULT_ZOOM_PERCENT;
   window.configureMapCharacterPreview(mapDocumentValues,mapRecordValues);
@@ -94,9 +94,9 @@ function drawBuildingVolumePreview(canvasElement,prefabRecordValues,floorCountVa
   if(!canvasWidthValue)return;
   const footprintWidthValue=prefabRecordValues.size.columns;
   const footprintDepthValue=prefabRecordValues.size.rows;
-  const tileWidthValue=VOLUME_TILE_WIDTH_PIXELS;
-  const tileHeightValue=VOLUME_TILE_HEIGHT_PIXELS;
-  const floorHeightValue=VOLUME_FLOOR_HEIGHT_PIXELS;
+  const tileWidthValue=currentVolumeRenderProfile.tile_width;
+  const tileHeightValue=currentVolumeRenderProfile.tile_height;
+  const floorHeightValue=currentVolumeRenderProfile.wall_height;
   const roofRimHeightValue=VOLUME_ROOF_HEIGHT_PIXELS;
   const wallTopHeightValue=floorCountValue*floorHeightValue;
   const footprintPixelWidth=(footprintWidthValue+footprintDepthValue)*tileWidthValue/2;
@@ -209,7 +209,7 @@ function drawBuildingVolumeComparisons(){
   for(const canvasElement of document.querySelectorAll('.volume-card canvas')){
     const floorCountValue=Number(canvasElement.dataset.height);
     drawBuildingVolumePreview(canvasElement,selectedPrefabRecord,floorCountValue);
-    canvasElement.previousElementSibling.textContent=`바닥 ${selectedPrefabRecord.size.columns}×${selectedPrefabRecord.size.rows}칸 · 벽 높이 ${floorCountValue}층 · ${floorCountValue*VOLUME_FLOOR_HEIGHT_PIXELS}px`;
+    canvasElement.previousElementSibling.textContent=`바닥 ${selectedPrefabRecord.size.columns}×${selectedPrefabRecord.size.rows}칸 · 벽 높이 ${floorCountValue}층 · ${floorCountValue*currentVolumeRenderProfile.wall_height}px`;
   }
   document.querySelectorAll('.volume-card h3').forEach((headingElement,indexValue)=>{
     headingElement.textContent=`${selectedPrefabRecord.display_name} · ${indexValue+1}층`;
