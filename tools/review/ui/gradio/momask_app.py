@@ -14,6 +14,7 @@ import yaml
 
 WORKFLOW_ROOT_DIRECTORY = Path(__file__).resolve().parents[4]
 sys.path.insert(0, str(WORKFLOW_ROOT_DIRECTORY))
+from tools.review.common.gradio_history import build_history_reset_controls, bind_history_reset_action
 from tools.review.common.management_gateway import execute_management_command
 from tools.review.common.gradio_logs import build_execution_logs, LOG_PANEL_STYLES
 from tools.review.domains.momask.momask_jobs import check_generation_running
@@ -84,9 +85,7 @@ def build_momask_interface(server_base_address):
                         history_page_value=gr.Number(value=1,precision=0,minimum=1,label='페이지',scale=1,min_width=100)
                         history_refresh_value=gr.Button('이력 새로고침')
                         history_count_value=gr.Markdown()
-                    with gr.Accordion('이력 수동 초기화',open=False):
-                        reset_confirm_value=gr.Checkbox(label='이력 목록만 초기화합니다. 결과 파일은 보존됩니다.')
-                        reset_button_value=gr.Button('이력 초기화')
+                    reset_control_values=build_history_reset_controls('이력 목록만 초기화합니다. 결과 파일은 보존됩니다.')
             with gr.Column(scale=2,min_width=480,elem_id='motion-preview'):
                 gr.Markdown('### 결과 재생')
                 viewed_identifier_value=create_copyable_textbox(label='조회한 결과 이력 ID · 오른쪽 아이콘으로 복사',interactive=False,elem_id='viewed-motion-identifier')
@@ -104,11 +103,7 @@ def build_momask_interface(server_base_address):
         cancel_button_value.click(lambda identifier: execute_motion_command('cancel',{'id':identifier}),identifier_text_value,input_record_value)
         history_refresh_value.click(list_motion_history,[history_page_value,history_table_value],[history_table_value,history_count_value],queue=False)
         history_page_value.change(list_motion_history,[history_page_value,history_table_value],[history_table_value,history_count_value],queue=False)
-        def clear_history_records(reset_confirm_checked):
-            if not reset_confirm_checked: raise gr.Error('초기화 확인란을 선택하세요.')
-            execute_motion_command('history-reset',{})
-            return list_motion_history(1)
-        reset_button_value.click(clear_history_records,reset_confirm_value,[history_table_value,history_count_value])
+        bind_history_reset_action(reset_control_values,execute_motion_command,lambda:[*list_motion_history(1),1],[history_table_value,history_count_value,history_page_value])
         def show_motion_result(generation_job_identifier):
             if not generation_job_identifier:raise gr.Error('생성이력 행을 선택하거나 생성 ID를 입력하세요.')
             generation_status_record=execute_motion_command('status',{'id':generation_job_identifier})

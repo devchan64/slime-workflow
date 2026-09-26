@@ -201,8 +201,8 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
                 prompt_argument_group=operation_argument_parser.add_mutually_exclusive_group(required=True)
                 prompt_argument_group.add_argument('--prompt')
                 prompt_argument_group.add_argument('--prompt-file',type=Path,help='UTF-8 프롬프트 파일')
-                operation_argument_parser.add_argument('--width',type=int,default=1024)
-                operation_argument_parser.add_argument('--height',type=int,default=1024)
+                operation_argument_parser.add_argument('--width',type=int,default=512 if service_command_name=='tile-map' else 1024)
+                operation_argument_parser.add_argument('--height',type=int,default=512 if service_command_name=='tile-map' else 1024)
                 operation_argument_parser.add_argument('--steps',type=int,choices=(4,30),default=4)
                 operation_argument_parser.add_argument('--seed',type=int,default=10107 if service_command_name in ('qwen-2511','tile-map') else 251204)
                 if service_command_name in ('qwen-2511','tile-map'):
