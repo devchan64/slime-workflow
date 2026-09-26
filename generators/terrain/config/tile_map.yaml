@@ -3,7 +3,7 @@ style_prompt: "Hand-painted fantasy game texture, clean readable shapes, consist
 types:
   rooftop:
     label: 지붕 타일
-    base_prompt: "A single seamless rooftop material tile, top-down orthographic view, repeating roof shingles covering the entire square."
+    base_prompt: "A single seamless rooftop material tile, top-down orthographic view, repeating roof tiles covering the entire square."
   wall:
     label: 벽 타일
     base_prompt: "A single building wall tile with a window, straight-on orthographic elevation, flat facade filling the square, horizontally repeating edges."
