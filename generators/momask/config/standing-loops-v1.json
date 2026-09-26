@@ -1,6 +1,6 @@
 {
   "asset_id": "standing-loops",
-  "version": 22,
+  "version": 23,
   "generator": "MoMask text-to-motion",
   "fps": 4,
   "actions": {
@@ -42,8 +42,8 @@
         31
       ],
       "playtime_seconds": 8.0,
-      "prompt": "A person walks forward at a relaxed pace.",
-      "description": "가벼운 보행 원본. 관리도구 생성은 원본 프레임 전체를 출력한다."
+      "prompt": "A person walks straight forward with a narrow natural stride, placing each foot close to the body centerline, toes pointing forward.",
+      "description": "몸 중심 가까이 양발을 번갈아 내딛는 자연스러운 좁은 보폭. 발끝은 전방을 향하며 원본 프레임 전체를 출력한다."
     },
     "standing": {
       "source_frames": 16,
