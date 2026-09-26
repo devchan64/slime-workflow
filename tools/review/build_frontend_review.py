@@ -2,6 +2,7 @@
 import sys
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[2]))
+from tools.review.common.game_render_metrics import load_game_render_metrics
 from tools.review.ui_assets import resolve_review_ui_asset, read_review_shared_styles
 from datetime import datetime
 from zoneinfo import ZoneInfo
@@ -278,10 +279,14 @@ def build_frontend_review(frontend_repository_path, ui_bundle_directory=None):
         animation_label_lookup = load_animation_labels(frontend_asset_root)
         shared_review_styles = read_review_shared_styles()
         anchor_template_text = (WORKFLOW_REPO_ROOT/'generators/animation/review_standing_anchors.html').read_text().replace('</style>', '</style><style>'+shared_review_styles+'</style>', 1)
+        game_render_metrics = load_game_render_metrics(frontend_repository_path)
         manager_page_records = []
         discovered_source_records = []
         for animation_sequence_index, animation_metadata_path in enumerate(animation_metadata_paths):
             review_frame_records, review_source_metadata, source_image_paths = load_animation_review(frontend_asset_root, animation_metadata_path)
+            review_source_metadata['gameRenderMetrics'] = game_render_metrics
+            runtime_scale_metadata = review_source_metadata['runtimeScale']
+            runtime_scale_metadata['baseHeight'] = game_render_metrics['characterHeight'] * (game_render_metrics['restHeightRatio'] if runtime_scale_metadata['actorKind'] == 'human-rest' else 1)
             animation_identifier_text = review_source_metadata['animationId']
             if animation_identifier_text not in animation_label_lookup:
                 raise ValueError(f'한국어 라벨 누락: {animation_identifier_text} / src/assets/animation-labels.yaml')
