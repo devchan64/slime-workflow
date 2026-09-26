@@ -144,4 +144,4 @@ python3 tools/manager.py command character-animation history-reset
 
 캐릭터 애니메이션 CLI의 `--steps 4` / `--steps 30`은 웹의 생성 방식 선택과 같다. 예: `python3 tools/manager.py command character-animation generate --motion standing-v3 --character character-default --source anny --steps 30 --detach`. 실행 요청·결과·이력에 선택 스텝을 보존한다. 기존 이력의 스텝 필드가 없으면 기존 방식인 4스텝으로 표시한다.
 
-보조 프롬프트는 `auxiliary`(전방)와 `auxiliary_rear`(후방)의 로컬 파일로 분리한다. 기본 프롬프트는 공통으로 유지한다. 후방은 뒷머리 노출·카메라 반대쪽 시선·머리와 몸통 및 발 방향 정렬을 명시한다. 실제 선택한 보조 문구만 기본 프롬프트와 결합하고 화면 단어 수·실행 해시에 반영한다.
+보조 프롬프트는 `auxiliary`(전방)와 `auxiliary_rear`(후방)의 로컬 파일로 분리한다. 기본 프롬프트는 공통으로 유지한다. 후방은 뒷머리의 머리카락·등·양쪽 발뒤꿈치가 보이도록 명시한다. 방향 앵커는 `back-left`·`back-right`를 사용하고 머리·몸통·발이 같은 방향을 유지하도록 지시한다. 실제 선택한 보조 문구만 기본 프롬프트와 결합하고 화면 단어 수·실행 해시에 반영한다.

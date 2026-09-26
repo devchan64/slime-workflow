@@ -9,7 +9,7 @@ import yaml
 WORKFLOW_ROOT_DIRECTORY = Path(__file__).resolve().parents[4]
 ANIMATION_CONFIG_PATH = WORKFLOW_ROOT_DIRECTORY/'generators/animation/config/character_animation.yaml'
 SUPPORTED_FRAME_STEPS = (1,2,4,8)
-DIRECTION_PROMPT_LABELS = {'down_left':'forward-left, showing the front-left view','down_right':'forward-right, showing the front-right view','up_left':'rear-left','up_right':'rear-right'}
+DIRECTION_PROMPT_LABELS = {'down_left':'forward-left, showing the front-left view','down_right':'forward-right, showing the front-right view','up_left':'back-left','up_right':'back-right'}
 SUPPORTED_DIRECTION_NAMES = ('down_left','down_right','up_left','up_right')
 
 class UniqueMappingLoader(yaml.SafeLoader):
