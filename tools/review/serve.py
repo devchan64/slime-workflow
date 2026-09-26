@@ -6,7 +6,7 @@ from tools.review.ui_assets import resolve_review_ui_asset
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import unquote, urlsplit
+from urllib.parse import quote, unquote, urlsplit
 import argparse
 import io
 import http.client
@@ -39,6 +39,23 @@ def write_proxy_response_body(response_output_stream, response_body_bytes):
     except (BrokenPipeError, ConnectionResetError):
         return False
     return True
+
+
+def load_static_review_route_identifiers(manager_source_path):
+    """직접 접속을 Gradio로 보낼 정적 검수 HTML 경로와 식별자를 읽는다."""
+    if not manager_source_path.is_file():return {}
+    manager_source_record=json.loads(manager_source_path.read_text())
+    static_review_routes={}
+    for current_page_record in manager_source_record.get('pages',[]):
+        if not isinstance(current_page_record,dict) or current_page_record.get('uiMode')!='gradio-static':continue
+        current_identifier_value=current_page_record.get('id')
+        current_page_path=current_page_record.get('path')
+        if not isinstance(current_identifier_value,str) or not current_identifier_value or not isinstance(current_page_path,str):
+            raise ValueError('정적 검수 경로 항목 형식 오류')
+        current_request_path='/'+urlsplit(current_page_path).path.lstrip('/')
+        if not current_request_path.endswith('.html'):raise ValueError('정적 검수 페이지는 HTML 경로여야 합니다.')
+        static_review_routes[current_request_path]=current_identifier_value
+    return static_review_routes
 
 def inject_review_live_reload(html_content):
     if b'id="review-live-reload"' in html_content:
@@ -245,6 +262,7 @@ def run_review_server(parsed_argument_values):
     request_counter_value = [0]
     review_server_instance_id = f'{time.time_ns():x}'
     manager_source_path = review_root_directory/'manager-source.json'
+    static_review_route_identifiers=load_static_review_route_identifiers(manager_source_path)
     def emit_server_trace(trace_stage_name, trace_message_text):
         trace_line_text = f'{datetime.now().isoformat()}/asset-review-server/{trace_stage_name} {trace_message_text}'
         with trace_write_lock:
@@ -382,6 +400,11 @@ def run_review_server(parsed_argument_values):
                 return
             if urlsplit(self.path).path=='/isloon-map-review/map-review.html' and 'embedded=1' not in urlsplit(self.path).query.split('&'):
                 self.send_response(302);self.send_header('Location','/management/?tool=map-review');self.send_header('Cache-Control','no-store');self.end_headers()
+                return
+            requested_review_path=urlsplit(self.path).path
+            if requested_review_path in static_review_route_identifiers and 'embedded=gradio-static' not in urlsplit(self.path).query.split('&'):
+                selected_review_identifier=quote(static_review_route_identifiers[requested_review_path],safe='')
+                self.send_response(302);self.send_header('Location',f'/management/?tool={selected_review_identifier}');self.send_header('Cache-Control','no-store');self.end_headers()
                 return
             if self.proxy_gradio_request():return
             if management_command_gateway.handle(self):return

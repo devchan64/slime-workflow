@@ -1,7 +1,7 @@
 """Gradio 관리 메뉴의 목록 필터와 내부 화면 연결을 검증한다."""
 import unittest
 
-from tools.review.ui.gradio.management_menu_app import create_page_preview_html, create_tool_choice_values, filter_manager_page_records, format_gpu_status
+from tools.review.ui.gradio.management_menu_app import create_initial_selection_script, create_page_preview_html, create_tool_choice_values, filter_manager_page_records, format_gpu_status
 
 
 class GradioManagementMenuTests(unittest.TestCase):
@@ -32,6 +32,12 @@ class GradioManagementMenuTests(unittest.TestCase):
         preview_html_text=create_page_preview_html('walk-review',static_review_records,8770)
 
         self.assertIn('/management/frame/static-review/?review=walk-review',preview_html_text)
+
+    def test_direct_static_review_tool_identifier_selects_the_page(self):
+        initial_selection_script=create_initial_selection_script(self.page_record_values)
+
+        self.assertIn('pageIdentifierIndexes',initial_selection_script)
+        self.assertIn('selectedToolIdentifier',initial_selection_script)
 
     def test_tool_choices_include_category_for_long_lists(self):
         self.assertEqual(

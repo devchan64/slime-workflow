@@ -71,10 +71,16 @@ def create_page_preview_html(selected_page_identifier, page_record_values, revie
     selected_page_path=html.escape(selected_page_path,quote=True)
     return f'<iframe title="{html.escape(selected_page_record["label"],quote=True)}" class="management-page-frame" allow="clipboard-write http://127.0.0.1:{review_server_port} http://127.0.0.1:{review_server_port+101}" src="http://127.0.0.1:{review_server_port}{selected_page_path}"></iframe>'
 
+
+def create_initial_selection_script(page_record_values):
+    route_path_values={current_page_record['path']:current_page_index for current_page_index,current_page_record in enumerate(page_record_values)}
+    page_identifier_indexes={current_page_record['id']:current_page_index for current_page_index,current_page_record in enumerate(page_record_values)}
+    return f"""()=>{{const routePageIndexes={json.dumps(route_path_values).replace('<','\\u003c')};const pageIdentifierIndexes={json.dumps(page_identifier_indexes).replace('<','\\u003c')};const selectedToolIdentifier=new URLSearchParams(window.location.search).get("tool");const selectedPageIndex=selectedToolIdentifier?pageIdentifierIndexes[selectedToolIdentifier]:routePageIndexes[window.location.pathname];if(selectedPageIndex===undefined)return;window.setTimeout(()=>{{document.querySelectorAll('#management-tool-list input')[selectedPageIndex]?.click();}},80);}}"""
+
+
 def build_management_menu_interface(page_record_values, review_server_port):
     initial_page_identifier=page_record_values[0]['id'] if page_record_values else ''
-    route_path_values={current_page_record['path']:current_page_index for current_page_index,current_page_record in enumerate(page_record_values)}
-    initial_selection_script=f"""()=>{{const routePageIndexes={json.dumps(route_path_values).replace('<','\\u003c')};const selectedPageIndex=routePageIndexes[new URLSearchParams(window.location.search).get("tool")==="map-review"?"/isloon-map-review/map-review.html":window.location.pathname];if(selectedPageIndex===undefined)return;window.setTimeout(()=>{{document.querySelectorAll('#management-tool-list input')[selectedPageIndex]?.click();}},80);}}"""
+    initial_selection_script=create_initial_selection_script(page_record_values)
     with gr.Blocks(title='SLIME 관리도구') as interface_blocks_value:
         with gr.Row():
             gr.Markdown('## SLIME 관리도구\n생성기와 검수 도구를 검색해 열고, 전환된 Gradio 화면만 따로 확인할 수 있습니다.',scale=3)

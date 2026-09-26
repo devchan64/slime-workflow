@@ -36,7 +36,9 @@ const reviewServerBase={review_server_base};
 const reviewIdentifier=new URLSearchParams(window.location.search).get('review');
 const selectedReviewPath=staticReviewPaths[reviewIdentifier];
 if(!selectedReviewPath){{staticReviewRoot.innerHTML='<p class="static-review-error" role="alert">표시할 정적 검수 페이지를 찾을 수 없습니다.</p>';return;}}
-const staticReviewPageUrl=new URL(selectedReviewPath,reviewServerBase).href;
+const staticReviewPageLocation=new URL(selectedReviewPath,reviewServerBase);
+staticReviewPageLocation.searchParams.set('embedded','gradio-static');
+const staticReviewPageUrl=staticReviewPageLocation.href;
 const staticReviewAssetUrl=new URL('.',staticReviewPageUrl).href;
 const originalFetchRequest=window.fetch.bind(window);
 window.fetch=(requestValue,...requestOptionValues)=>{{
