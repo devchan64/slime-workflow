@@ -17,6 +17,7 @@ from tools.review.common.gpu_status import read_gpu_status
 
 CATEGORY_LABEL_VALUES={'all':'전체','writer-agent':'작가 AI 에이전트','image-generation':'이미지 생성','animation':'등록 애니메이션','animation-tool':'애니메이션 도구','tile-review':'타일맵 검수','game-ui':'게임 UI · 디자인 시스템'}
 MANAGEMENT_FRAME_PATH_PREFIX='/management/frame/'
+MANAGEMENT_FRAME_IDENTIFIER_VALUES={'anny-attribute-renderer':'anny-attributes'}
 DEFAULT_PAGE_RECORDS=(
     {'id':'tile-map-generator','label':'타일 에셋 생성기','path':'/tile-map-generator/','category':'tile-review','uiMode':'gradio','description':'Gradio · 지붕 · 벽 · 맵 타일 에셋 생성'},
     {'id':'writer-agent','label':'작가 AI 에이전트','path':'/writer-agent/','category':'writer-agent','uiMode':'gradio','description':'Gradio · 문서 학습 · 아이디어 작성 · 실행 기록'},
@@ -65,7 +66,8 @@ def create_page_preview_html(selected_page_identifier, page_record_values, revie
     if selected_page_record is None:return '<div class="menu-empty-state">표시할 관리 화면을 선택하세요.</div>'
     selected_page_path=selected_page_record['path']
     if selected_page_record.get('uiMode')=='gradio':
-        selected_page_path=f'{MANAGEMENT_FRAME_PATH_PREFIX}{selected_page_record["id"]}/'
+        frame_application_identifier=MANAGEMENT_FRAME_IDENTIFIER_VALUES.get(selected_page_record['id'],selected_page_record['id'])
+        selected_page_path=f'{MANAGEMENT_FRAME_PATH_PREFIX}{frame_application_identifier}/'
     elif selected_page_record.get('uiMode')=='gradio-static':
         selected_page_path=f'{MANAGEMENT_FRAME_PATH_PREFIX}static-review/?review={quote(selected_page_record["id"],safe="")}'
     selected_page_path=html.escape(selected_page_path,quote=True)

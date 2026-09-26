@@ -33,6 +33,14 @@ class GradioManagementMenuTests(unittest.TestCase):
 
         self.assertIn('/management/frame/static-review/?review=walk-review',preview_html_text)
 
+    def test_uses_gradio_frame_identifier_when_page_id_is_a_public_alias(self):
+        anny_page_records=[{'id':'anny-attribute-renderer','label':'Anny 속성 렌더러','path':'/anny-attributes/','category':'animation-tool','uiMode':'gradio','description':'속성 렌더'}]
+
+        preview_html_text=create_page_preview_html('anny-attribute-renderer',anny_page_records,8770)
+
+        self.assertIn('/management/frame/anny-attributes/',preview_html_text)
+        self.assertNotIn('/management/frame/anny-attribute-renderer/',preview_html_text)
+
     def test_direct_static_review_tool_identifier_selects_the_page(self):
         initial_selection_script=create_initial_selection_script(self.page_record_values)
 
