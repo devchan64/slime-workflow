@@ -98,6 +98,8 @@ def build_momask_interface(server_base_address):
                 with gr.Accordion('결과 상세 · OpenPose 맵 생성',open=False):
                     map_button_value=gr.Button('OpenPose 맵 생성 · 설정의 얼굴 포인트 옵션 적용')
                     record_path_value=create_copyable_textbox(label='기록 폴더',interactive=False)
+                    record_folder_button_value=gr.Button('기록 폴더 열기')
+                    record_folder_status_value=gr.Markdown()
                     input_record_value=gr.JSON(label='저장된 입력 · 결과 정보')
         logs_text_value,log_refresh_enabled,log_panel_element=build_execution_logs()
         action_select_value.change(read_motion_settings,action_select_value,[prompt_text_value,settings_text_value],queue=False)
@@ -115,6 +117,7 @@ def build_momask_interface(server_base_address):
             return create_motion_player(generation_job_identifier,generation_status_record['result'],server_base_address),str(generation_job_path),{'request':json.loads((generation_job_path/'request.json').read_text()),'result':generation_status_record['result']},generation_job_identifier
         result_button_value.click(show_motion_result,identifier_text_value,[player_html_value,record_path_value,input_record_value,viewed_identifier_value])
         identifier_text_value.submit(show_motion_result,identifier_text_value,[player_html_value,record_path_value,input_record_value,viewed_identifier_value])
+        record_folder_button_value.click(fn=None,inputs=viewed_identifier_value,outputs=record_folder_status_value,js="""async(identifierValue)=>{if(!identifierValue)throw new Error('먼저 생성 결과를 조회하세요.');const responseValue=await fetch('/management/record-folder/open',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({route:'/momask-generator',id:identifierValue})});const payloadValue=await responseValue.json();if(!responseValue.ok)throw new Error(payloadValue.error);return payloadValue.message;}""",queue=False)
         def select_history_result(selected_history_identifier):
             resume_enabled_value=False
             resume_help_text='취소되거나 실패한 작업을 선택하면 이어서 생성할 수 있습니다. 리그 생성이 완료된 작업만 지원합니다.'
