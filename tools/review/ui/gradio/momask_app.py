@@ -37,7 +37,23 @@ def read_motion_settings(selected_action_name):
     prompt_content_value=action_config_record['prompt']
     return prompt_content_value, f"{len(prompt_content_value.split())}단어 · 원본 {action_config_record['source_frames']}프레임 · 수평 {camera_config_record[selected_action_name]}° · 내려다보기 약 17°"
 
-def list_motion_history(history_page_number=1, selected_history_identifier=None):
+def collect_motion_history_thumbnails(history_record_values,server_base_address):
+    thumbnail_item_values=[]
+    thumbnail_identifier_values=[]
+    for current_history_record in history_record_values:
+        if current_history_record.get('status')!='completed':
+            continue
+        current_result_directory=WORKFLOW_ROOT_DIRECTORY/'.tmp/momask-generator/jobs'/current_history_record['id']/'result'
+        preview_image_paths=sorted(current_result_directory.glob('anny/*/frames/anny-0001.png')) or sorted(current_result_directory.glob('openpose/*/openpose-0001.png')) or sorted(current_result_directory.glob('*/openpose-0001.png'))
+        if not preview_image_paths:
+            continue
+        preview_relative_path=preview_image_paths[0].relative_to(current_result_directory).as_posix()
+        thumbnail_item_values.append((server_base_address.rstrip('/')+f"/momask-generator/jobs/{current_history_record['id']}/result/{preview_relative_path}",f"completed · {current_history_record['id']}"))
+        thumbnail_identifier_values.append(current_history_record['id'])
+    return thumbnail_item_values,thumbnail_identifier_values
+
+
+def list_motion_history(history_page_number=1, selected_history_identifier=None,server_base_address=''):
     history_record_values=execute_motion_command('history',{})
     selected_page_number=max(1,min(int(history_page_number or 1),max(1,(len(history_record_values)+7)//8)))
     history_page_records=history_record_values[(selected_page_number-1)*8:selected_page_number*8]
@@ -46,7 +62,8 @@ def list_motion_history(history_page_number=1, selected_history_identifier=None)
         history_record_value={'id':record_value['id'],'created_at':record_value.get('created_at'),'status':{'status':record_value['status']},'request':{'action':dict((value,label) for label,value in MOTION_ACTION_LABELS).get(record_value['action'],record_value['action']),'directions':len(record_value.get('directions',[]))}}
         history_choice_values.append((format_history_choice_label(history_record_value),record_value['id']))
     retained_history_identifier=selected_history_identifier if selected_history_identifier in [value for _,value in history_choice_values] else None
-    return gr.update(choices=history_choice_values,value=retained_history_identifier), f"{selected_page_number} / {max(1,(len(history_record_values)+7)//8)} 페이지 · 총 {len(history_record_values)}건"
+    thumbnail_item_values,thumbnail_identifier_values=collect_motion_history_thumbnails(history_page_records,server_base_address)
+    return gr.update(choices=history_choice_values,value=retained_history_identifier),f"{selected_page_number} / {max(1,(len(history_record_values)+7)//8)} 페이지 · 총 {len(history_record_values)}건",gr.update(value=thumbnail_item_values,visible=bool(thumbnail_item_values)),thumbnail_identifier_values
 
 def start_motion_generation(selected_action_name, selected_direction_names, selected_face_enabled):
     generation_record_value=execute_motion_command('generate',{'action':selected_action_name,'directions':selected_direction_names,'face':selected_face_enabled})
@@ -121,6 +138,8 @@ def build_momask_interface(server_base_address):
                 history_refresh_value=gr.Button('이력 새로고침',variant='secondary')
                 history_page_value=gr.Number(value=1,precision=0,minimum=1,label='페이지',scale=1,min_width=100)
                 history_count_value=gr.Markdown()
+            history_thumbnail_value=gr.Gallery(label='이미지가 있는 생성 이력',columns=4,object_fit='cover',height='auto',visible=False,elem_id='motion-history-thumbnails')
+            history_thumbnail_identifier_state=gr.State([])
             history_table_value=gr.Radio(choices=[],label='조회할 생성 결과',interactive=True,elem_id='motion-history-selection')
             history_selected_value=gr.Markdown('조회할 생성이력을 선택하세요.')
             with gr.Row():
@@ -134,9 +153,19 @@ def build_momask_interface(server_base_address):
         action_select_value.change(read_motion_settings,action_select_value,[prompt_text_value,settings_text_value],queue=False)
         generate_button_value.click(start_motion_generation,[action_select_value,direction_select_value,face_checkbox_value],identifier_text_value)
         cancel_button_value.click(lambda identifier: execute_motion_command('cancel',{'id':identifier}),identifier_text_value,input_record_value)
-        history_refresh_value.click(list_motion_history,[history_page_value,history_table_value],[history_table_value,history_count_value],queue=False)
-        history_page_value.change(list_motion_history,[history_page_value,history_table_value],[history_table_value,history_count_value],queue=False)
-        bind_history_reset_action(reset_control_values,execute_motion_command,lambda:[*list_motion_history(1),1],[history_table_value,history_count_value,history_page_value])
+        def refresh_motion_history(current_page_number,current_history_identifier):
+            return list_motion_history(current_page_number,current_history_identifier,server_base_address)
+        history_refresh_value.click(refresh_motion_history,[history_page_value,history_table_value],[history_table_value,history_count_value,history_thumbnail_value,history_thumbnail_identifier_state],queue=False)
+        history_page_value.change(refresh_motion_history,[history_page_value,history_table_value],[history_table_value,history_count_value,history_thumbnail_value,history_thumbnail_identifier_state],queue=False)
+        def reset_motion_history():
+            return [*list_motion_history(1,None,server_base_address),1]
+        bind_history_reset_action(reset_control_values,execute_motion_command,reset_motion_history,[history_table_value,history_count_value,history_thumbnail_value,history_thumbnail_identifier_state,history_page_value])
+        def select_motion_history_thumbnail(thumbnail_identifier_values,selection_event_data:gr.SelectData):
+            selected_thumbnail_index=selection_event_data.index
+            if not isinstance(selected_thumbnail_index,int) or selected_thumbnail_index<0 or selected_thumbnail_index>=len(thumbnail_identifier_values):
+                raise gr.Error('선택한 썸네일의 생성 이력을 찾을 수 없습니다. 목록을 새로고침하세요.')
+            return gr.update(value=thumbnail_identifier_values[selected_thumbnail_index])
+        history_thumbnail_value.select(select_motion_history_thumbnail,history_thumbnail_identifier_state,history_table_value,queue=False)
         def show_motion_result(generation_job_identifier):
             if not generation_job_identifier:raise gr.Error('생성이력 행을 선택하거나 생성 ID를 입력하세요.')
             generation_status_record=execute_motion_command('status',{'id':generation_job_identifier})
@@ -196,7 +225,7 @@ def build_momask_interface(server_base_address):
         def restore_running_motion():
             return next((record_value['id'] for record_value in execute_motion_command('history',{}) if record_value['status']=='running'),'')
         interface_blocks_value.load(restore_running_motion,outputs=identifier_text_value)
-        interface_blocks_value.load(list_motion_history,[history_page_value,history_table_value],[history_table_value,history_count_value])
+        interface_blocks_value.load(refresh_motion_history,[history_page_value,history_table_value],[history_table_value,history_count_value,history_thumbnail_value,history_thumbnail_identifier_state])
     return interface_blocks_value
 
 from pathlib import Path as ManagementStylePath

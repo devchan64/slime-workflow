@@ -1,6 +1,7 @@
 """Gradio 클라이언트의 공용 명령·프롬프트·재생 계약 검증."""
 import importlib.util
 from pathlib import Path
+import tempfile
 import unittest
 from unittest.mock import patch
 
@@ -44,6 +45,18 @@ class GradioMoMaskTests(unittest.TestCase):
         self.assertIn('allow-scripts',player_html_value)
         self.assertIn('up_left',player_html_value)
         self.assertIn('HumanML3D',player_html_value)
+
+    def test_completed_history_uses_first_result_frame_as_thumbnail(self):
+        with tempfile.TemporaryDirectory() as temporary_directory_name,patch.object(MODULE_SOURCE_VALUE,'WORKFLOW_ROOT_DIRECTORY',Path(temporary_directory_name)):
+            result_frame_path=Path(temporary_directory_name)/'.tmp/momask-generator/jobs/completed-id/result/anny/down_left/frames/anny-0001.png'
+            result_frame_path.parent.mkdir(parents=True)
+            result_frame_path.write_bytes(b'image')
+            thumbnail_item_values,thumbnail_identifier_values=MODULE_SOURCE_VALUE.collect_motion_history_thumbnails([
+                {'id':'completed-id','status':'completed'},
+                {'id':'running-id','status':'running'},
+            ],'http://127.0.0.1:8770')
+        self.assertEqual(thumbnail_item_values,[('http://127.0.0.1:8770/momask-generator/jobs/completed-id/result/anny/down_left/frames/anny-0001.png','completed · completed-id')])
+        self.assertEqual(thumbnail_identifier_values,['completed-id'])
 
     def test_interface_builds(self):
         self.assertGreater(len(MODULE_SOURCE_VALUE.build_momask_interface('http://127.0.0.1:8770').blocks),30)
