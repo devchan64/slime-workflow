@@ -17,7 +17,51 @@ from tools.review.domains.character_animation.character_animation import Charact
 
 class CharacterAnimationTests(unittest.TestCase):
     def make_selection_record(self,**selection_override_values):
-        return dict(motion='standing-v7',character='character-default',source='openpose',directions=['down_left'],**selection_override_values)
+        return dict(motion='standing-v8',character='character-default',source='openpose',directions=['down_left'],**selection_override_values)
+
+    def test_catalog_skips_missing_asset_and_reports_reason(self):
+        with tempfile.TemporaryDirectory() as temporary_root_name:
+            temporary_root_path=Path(temporary_root_name)
+            (temporary_root_path/'prompts').mkdir()
+            for prompt_file_name in ('base.txt','front.txt','rear.txt'):
+                (temporary_root_path/'prompts'/prompt_file_name).write_text('short prompt')
+            (temporary_root_path/'assets/motions/available').mkdir(parents=True)
+            (temporary_root_path/'assets/motions/available/manifest.yaml').write_text('frames: 8\nfps: 4\n')
+            (temporary_root_path/'assets/characters/default').mkdir(parents=True)
+            (temporary_root_path/'assets/characters/default/manifest.yaml').write_text('baseline_crops: {}\n')
+            temporary_config_path=temporary_root_path/'character-animation.yaml'
+            temporary_config_path.write_text('''schema_version: 1
+prompts:
+  base: prompts/base.txt
+  auxiliary: prompts/front.txt
+  auxiliary_rear: prompts/rear.txt
+motions:
+  available:
+    label: 사용 가능
+    root: assets/motions/available
+    manifest: manifest.yaml
+    openpose: openpose/{direction}/frame-{frame:04d}.png
+    anny: anny/{direction}/frame-{frame:04d}.png
+    target_fps: 4
+  removed:
+    label: 제거됨
+    root: assets/motions/removed
+    manifest: manifest.yaml
+    openpose: openpose/{direction}/frame-{frame:04d}.png
+    anny: anny/{direction}/frame-{frame:04d}.png
+    target_fps: 4
+characters:
+  default:
+    label: 기본 캐릭터
+    root: assets/characters/default
+    manifest: manifest.yaml
+''')
+            with patch.object(assets,'WORKFLOW_ROOT_DIRECTORY',temporary_root_path),patch.object(assets,'ANIMATION_CONFIG_PATH',temporary_config_path):
+                catalog_record_value=assets.build_animation_catalog()
+            self.assertEqual([record['id'] for record in catalog_record_value['motions']],['available'])
+            self.assertEqual(catalog_record_value['characters'][0]['id'],'default')
+            self.assertEqual(catalog_record_value['unavailable_assets'][0]['id'],'removed')
+            self.assertIn('등록 파일을 찾을 수 없습니다',catalog_record_value['unavailable_assets'][0]['reason'])
 
     def test_output_resolution_validation(self):
         for selected_resolution_value in (512,768,1024,1280):
@@ -48,7 +92,7 @@ class CharacterAnimationTests(unittest.TestCase):
         with self.assertRaises(ValueError):assets.prepare_animation_request(self.make_selection_record(speed=2,frame_step=2))
 
     def test_registered_sources_all_frames_integrity(self):
-        for motion_identifier_value,expected_frame_count in [('standing-v7',16),('walking-v9',32),('stretch-v1',120)]:
+        for motion_identifier_value,expected_frame_count in [('standing-v8',120),('walking-v10',60)]:
             for source_kind_value in ('openpose','anny'):
                 selection_request_record=self.make_selection_record(resolution=512)
                 selection_request_record.update(motion=motion_identifier_value,source=source_kind_value,frame_step=1,directions=list(assets.SUPPORTED_DIRECTION_NAMES))
@@ -116,13 +160,13 @@ class CharacterAnimationTests(unittest.TestCase):
             self.assertEqual(request_record_value['steps'],step_count_value)
             self.assertEqual(request_record_value['lightning'],step_count_value==4)
             with patch.object(gateway,'execute_management_command',return_value={'id':'test'}) as execute_mock,contextlib.redirect_stdout(io.StringIO()):
-                gateway.execute_gateway_cli(['command','character-animation','generate','--motion','standing-v7','--character','character-default','--steps',str(step_count_value),'--detach'])
+                gateway.execute_gateway_cli(['command','character-animation','generate','--motion','standing-v8','--character','character-default','--steps',str(step_count_value),'--detach'])
             self.assertEqual(execute_mock.call_args.args[2]['steps'],step_count_value)
         for step_count_value in (0,10,True,'30'):
             with self.assertRaises(ValueError):assets.prepare_animation_request({**self.make_selection_record(),'steps':step_count_value})
 
     def test_original_asset_preview_bounds_and_sources(self):
-        for motion_identifier_value,frame_count_value in [('standing-v7',16),('walking-v9',32),('stretch-v1',120)]:
+        for motion_identifier_value,frame_count_value in [('standing-v8',120),('walking-v10',60)]:
             for source_kind_value in ('openpose','anny'):
                 for direction_name_value in assets.SUPPORTED_DIRECTION_NAMES:
                     self.assertTrue(assets.resolve_motion_preview(motion_identifier_value,source_kind_value,direction_name_value,frame_count_value).is_file())
@@ -142,7 +186,7 @@ class CharacterAnimationTests(unittest.TestCase):
     def test_cli_and_http_envelope_have_same_selection(self):
         selection_request_record=self.make_selection_record(resolution=512)
         with patch.object(gateway,'execute_management_command',return_value={'id':'test'}) as command_execute_mock,contextlib.redirect_stdout(io.StringIO()):
-            gateway.execute_gateway_cli(['command','character-animation','generate','--motion','standing-v7','--character','character-default','--directions','down_left','--detach'])
+            gateway.execute_gateway_cli(['command','character-animation','generate','--motion','standing-v8','--character','character-default','--directions','down_left','--detach'])
         self.assertEqual(command_execute_mock.call_args.args[:3],('character-animation','generate',selection_request_record))
         command_request_bytes=json.dumps({'service':'character-animation','command':'generate','payload':selection_request_record}).encode()
         http_request_handler=SimpleNamespace(command='POST',path='/management/command',headers={'Host':'127.0.0.1:8770','Origin':'http://127.0.0.1:8770','Content-Type':'application/json','Content-Length':str(len(command_request_bytes))},server=SimpleNamespace(server_port=8770),rfile=io.BytesIO(command_request_bytes),wfile=io.BytesIO(),send_response=MagicMock(),send_header=MagicMock(),end_headers=MagicMock())

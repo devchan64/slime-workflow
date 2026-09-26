@@ -69,13 +69,35 @@ def read_fixed_prompts(animation_config_record):
         raise ValueError('고정 프롬프트는 비어 있지 않고 합계 100단어 미만이어야 합니다.')
     return fixed_prompt_values
 
+def collect_catalog_asset_records(animation_config_record):
+    """현재 사용할 수 있는 등록 자산과 제외 사유를 분리한다."""
+    available_motion_records = []
+    available_character_records = []
+    unavailable_asset_records = []
+    for motion_identifier_value, motion_config_record in animation_config_record['motions'].items():
+        try:
+            motion_manifest_path = resolve_asset_path(motion_config_record['root']+'/'+motion_config_record['manifest'])
+            motion_manifest_record = read_asset_mapping(motion_manifest_path)
+            if type(motion_manifest_record.get('frames')) is not int or motion_manifest_record['frames'] < 1 or type(motion_manifest_record.get('fps')) is not int or motion_manifest_record['fps'] < 1:
+                raise ValueError('모션 manifest의 frames·fps 값이 올바르지 않습니다.')
+        except (OSError, ValueError, yaml.YAMLError) as asset_error_value:
+            unavailable_asset_records.append({'kind':'motion','id':motion_identifier_value,'label':motion_config_record['label'],'reason':str(asset_error_value)})
+            continue
+        available_motion_records.append({'id':motion_identifier_value,'label':motion_config_record['label'],'frames':motion_manifest_record['frames'],'fps':motion_manifest_record['fps'],'target_fps':motion_config_record['target_fps']})
+    for character_identifier_value, character_config_record in animation_config_record['characters'].items():
+        try:
+            resolve_asset_path(character_config_record['root']+'/'+character_config_record['manifest'])
+        except (OSError, ValueError, yaml.YAMLError) as asset_error_value:
+            unavailable_asset_records.append({'kind':'character','id':character_identifier_value,'label':character_config_record['label'],'reason':str(asset_error_value)})
+            continue
+        available_character_records.append({'id':character_identifier_value,'label':character_config_record['label']})
+    return available_motion_records, available_character_records, unavailable_asset_records
+
 def build_animation_catalog():
     animation_config_record = load_animation_configuration()
-    animation_motion_records = []
-    for animation_motion_identifier, animation_motion_record in animation_config_record['motions'].items():
-        motion_manifest_record = read_asset_mapping(resolve_asset_path(animation_motion_record['root']+'/'+animation_motion_record['manifest']))
-        animation_motion_records.append({'id':animation_motion_identifier,'label':animation_motion_record['label'],'frames':motion_manifest_record['frames'],'fps':motion_manifest_record['fps'],'target_fps':animation_motion_record['target_fps']})
-    return {'motions':animation_motion_records,'characters':[{'id':animation_character_identifier,'label':animation_character_record['label']} for animation_character_identifier,animation_character_record in animation_config_record['characters'].items()], 'directions':list(SUPPORTED_DIRECTION_NAMES),'prompts':read_fixed_prompts(animation_config_record),'direction_prompts':compose_direction_prompts(read_fixed_prompts(animation_config_record))}
+    available_motion_records, available_character_records, unavailable_asset_records = collect_catalog_asset_records(animation_config_record)
+    fixed_prompt_values = read_fixed_prompts(animation_config_record)
+    return {'motions':available_motion_records,'characters':available_character_records,'unavailable_assets':unavailable_asset_records,'directions':list(SUPPORTED_DIRECTION_NAMES),'prompts':fixed_prompt_values,'direction_prompts':compose_direction_prompts(fixed_prompt_values)}
 
 def prepare_animation_request(command_payload_value):
     if not {'motion','character','source','directions'} <= set(command_payload_value) or set(command_payload_value)-{'motion','character','source','directions','frame_step','target_fps','speed','steps','resolution'}:

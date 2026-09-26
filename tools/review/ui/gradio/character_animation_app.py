@@ -24,6 +24,16 @@ def execute_animation_gateway(command_name_value, payload_value):
 def read_animation_catalog():
     return execute_animation_gateway('catalog',{})
 
+def format_unavailable_asset_notice(catalog_record_value):
+    unavailable_asset_records = catalog_record_value.get('unavailable_assets',[])
+    if not unavailable_asset_records:
+        return ''
+    notice_lines = ['### 일부 등록 자산을 사용할 수 없습니다', '파일이 교체·삭제된 자산은 선택지에서 제외했습니다. 자산을 복구하거나 설정을 갱신하면 다음 새로고침부터 다시 표시됩니다.']
+    for asset_record_value in unavailable_asset_records:
+        asset_kind_label = '모션' if asset_record_value['kind']=='motion' else '캐릭터'
+        notice_lines.append(f"- **{asset_kind_label} · {asset_record_value['label']}**: {asset_record_value['reason']}")
+    return '\n\n'.join(notice_lines)
+
 def build_animation_request(motion_name_value,character_name_value,source_name_value,direction_name_values,resolution_value,step_value,target_fps_value,speed_value):
     return {'motion':motion_name_value,'character':character_name_value,'source':source_name_value,'directions':direction_name_values,'resolution':resolution_value,'steps':step_value,'target_fps':target_fps_value,'speed':speed_value}
 
@@ -44,6 +54,15 @@ def build_character_animation_interface(server_base_address):
     character_choice_values=[(record['label'],record['id']) for record in catalog_record_value['characters']]
     with gr.Blocks(title='캐릭터 애니메이션 생성기') as interface_blocks_value:
         gr.Markdown('## 캐릭터 애니메이션 생성기\n등록된 모션과 캐릭터 레퍼런스로 방향별 프레임을 생성합니다.')
+        unavailable_asset_notice = format_unavailable_asset_notice(catalog_record_value)
+        if unavailable_asset_notice:
+            gr.Markdown(unavailable_asset_notice)
+        if not motion_choice_values or not character_choice_values:
+            missing_asset_kind_values = []
+            if not motion_choice_values:missing_asset_kind_values.append('모션')
+            if not character_choice_values:missing_asset_kind_values.append('캐릭터')
+            gr.Markdown('> ⚠️ 사용할 수 있는 '+ '·'.join(missing_asset_kind_values) +' 자산이 없어 새 생성을 시작할 수 없습니다. 위 안내를 확인한 뒤 자산 또는 등록 설정을 갱신하세요.')
+            return interface_blocks_value
         with gr.Row():
             with gr.Column(scale=1):
                 motion_select_value=gr.Dropdown(motion_choice_values,value=motion_choice_values[0][1],label='모션')
