@@ -39,6 +39,8 @@ class StaticReviewGradioTest(unittest.TestCase):
         self.assertIn('staticReviewPaths',loader_script_value)
         self.assertIn('selectedReviewPath',loader_script_value)
         self.assertIn("searchParams.set('embedded','gradio-static')",loader_script_value)
+        self.assertIn("rel='modulepreload'",loader_script_value)
+        self.assertIn('await import(',loader_script_value)
         self.assertNotIn('<iframe',loader_script_value)
         self.assertIn('static-review-root',str(interface_blocks_value.get_config_file()))
 

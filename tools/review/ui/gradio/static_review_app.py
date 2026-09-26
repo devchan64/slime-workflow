@@ -56,9 +56,13 @@ try{{
   for(const sourceLinkElement of staticReviewDocument.querySelectorAll('link[rel="stylesheet"]')){{
     const nextLinkElement=document.createElement('link');nextLinkElement.rel='stylesheet';nextLinkElement.href=new URL(sourceLinkElement.getAttribute('href'),staticReviewPageUrl).href;nextLinkElement.dataset.staticReviewComponent='true';document.head.append(nextLinkElement);
   }}
+  for(const sourcePreloadElement of staticReviewDocument.querySelectorAll('link[rel="modulepreload"]')){{
+    const nextPreloadElement=document.createElement('link');nextPreloadElement.rel='modulepreload';nextPreloadElement.href=new URL(sourcePreloadElement.getAttribute('href'),staticReviewPageUrl).href;nextPreloadElement.crossOrigin='anonymous';nextPreloadElement.dataset.staticReviewComponent='true';document.head.append(nextPreloadElement);
+  }}
   const staticReviewMarkup=[...staticReviewDocument.body.children].filter(currentElementValue=>currentElementValue.tagName!=='SCRIPT').map(currentElementValue=>currentElementValue.outerHTML).join('');
   staticReviewRoot.innerHTML=staticReviewMarkup;
   for(const sourceScriptElement of staticReviewDocument.querySelectorAll('script')){{
+    if(sourceScriptElement.type==='module'&&sourceScriptElement.src){{await import(new URL(sourceScriptElement.getAttribute('src'),staticReviewPageUrl).href);continue;}}
     const nextScriptElement=document.createElement('script');nextScriptElement.dataset.staticReviewComponent='true';
     if(sourceScriptElement.type)nextScriptElement.type=sourceScriptElement.type;
     if(sourceScriptElement.src){{nextScriptElement.src=new URL(sourceScriptElement.getAttribute('src'),staticReviewPageUrl).href;await new Promise((resolveValue,rejectValue)=>{{nextScriptElement.onload=resolveValue;nextScriptElement.onerror=()=>rejectValue(new Error('정적 검수 스크립트를 불러오지 못했습니다.'));document.body.append(nextScriptElement);}});}}

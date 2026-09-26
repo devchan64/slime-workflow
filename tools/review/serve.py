@@ -316,7 +316,7 @@ def run_review_server(parsed_argument_values):
             ('/management/frame/map-review/',parsed_argument_values.port+107,lambda:ensure_map_review_server(parsed_argument_values.port)),
             ('/management/frame/anny-attributes/',parsed_argument_values.port+108,lambda:ensure_anny_attributes_server(parsed_argument_values.port)),
             ('/management/frame/writer-agent/',parsed_argument_values.port+109,lambda:ensure_writer_agent_server(parsed_argument_values.port)),
-            ('/management/frame/static-review/',parsed_argument_values.port+111,lambda:ensure_static_review_server(parsed_argument_values.port,manager_source_path)),
+            ('/management/frame/static-review/',parsed_argument_values.port+112,lambda:ensure_static_review_server(parsed_argument_values.port,manager_source_path)),
             ('/management/',parsed_argument_values.port+100,lambda:ensure_management_menu_server(parsed_argument_values.port,manager_source_path)),
             ('/momask-generator/',parsed_argument_values.port+100,lambda:ensure_management_menu_server(parsed_argument_values.port,manager_source_path)),
             ('/character-animation/',parsed_argument_values.port+100,lambda:ensure_management_menu_server(parsed_argument_values.port,manager_source_path)),
