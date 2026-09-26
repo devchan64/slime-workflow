@@ -66,7 +66,7 @@ def build_qwen_2512_interface(server_base_address):
                 generation_identifier_value=gr.Textbox(label='생성 ID',interactive=False)
                 result_preview_value=gr.HTML(create_result_preview_html(None))
         log_output_value,log_refresh_enabled,_=build_execution_logs()
-        read_history_page,history_output_values=build_generation_history_view(execute_image_gateway,server_base_address,'이력 목록만 초기화합니다. 결과 이미지와 로그 파일은 유지됩니다. 생성 중에는 초기화할 수 없습니다.')
+        read_history_page,history_output_values=build_generation_history_view(execute_image_gateway,server_base_address,'이력 목록만 초기화합니다. 결과 이미지와 로그 파일은 유지됩니다. 생성 중에는 초기화할 수 없습니다.',record_folder_route='/image-generation')
         prompt_text_value.change(lambda prompt_text_value:f'최종 프롬프트: **{count_prompt_words(prompt_text_value)}단어**',prompt_text_value,prompt_word_count_value,queue=False)
         def check_model_ready():
             model_record_value=execute_image_gateway('model-status',{})

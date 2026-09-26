@@ -62,7 +62,7 @@ def build_character_animation_interface(server_base_address):
                 player_html_value=gr.HTML('<div>완료된 생성 결과를 선택하면 재생합니다.</div>')
                 cancel_button_value=gr.Button('생성 취소')
         logs_text_value,log_refresh_enabled,_=build_execution_logs()
-        read_history_page,history_output_values=build_generation_history_view(execute_animation_gateway,server_base_address,'이력 목록만 초기화합니다. 생성 프레임과 로그 파일은 유지됩니다. 생성 중에는 초기화할 수 없습니다.',result_renderer_callback=create_animation_player)
+        read_history_page,history_output_values=build_generation_history_view(execute_animation_gateway,server_base_address,'이력 목록만 초기화합니다. 생성 프레임과 로그 파일은 유지됩니다. 생성 중에는 초기화할 수 없습니다.',result_renderer_callback=create_animation_player,record_folder_route='/character-animation')
         def start_animation(*selection_values):
             request_payload_value=build_animation_request(*selection_values)
             generation_record_value=execute_animation_gateway('generate',request_payload_value)

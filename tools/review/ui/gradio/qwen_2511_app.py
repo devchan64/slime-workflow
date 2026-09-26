@@ -36,7 +36,7 @@ def build_qwen_2511_interface(server_base_address):
             with gr.Column(scale=2):
                 identifier_value=gr.Textbox(label='생성 ID',interactive=False);preview_value=gr.HTML(result_preview_html(None))
         log_value,refresh_log_value,_=build_execution_logs()
-        read_history_page,history_output_values=build_generation_history_view(execute_reference_gateway,server_base_address,'이력 목록만 초기화합니다. 결과 이미지·참조 입력 사본·로그 파일은 유지됩니다. 생성 중에는 초기화할 수 없습니다.')
+        read_history_page,history_output_values=build_generation_history_view(execute_reference_gateway,server_base_address,'이력 목록만 초기화합니다. 결과 이미지·참조 입력 사본·로그 파일은 유지됩니다. 생성 중에는 초기화할 수 없습니다.',record_folder_route='/image-generation-2511')
         def start_generation(*input_values):
             generation_record_value=execute_reference_gateway('generate',build_reference_request(*input_values));return generation_record_value['id'],'상태: running'
         generation_button_value.click(start_generation,[prompt_text_value,reference_file_values,width_value,height_value,step_value,seed_value],[identifier_value,status_value])

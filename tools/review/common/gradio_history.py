@@ -40,7 +40,7 @@ def bind_history_reset_action(control_component_values,execute_service_command,r
     return execute_confirmed_reset
 
 
-def build_generation_history_view(execute_service_command,server_base_address,deletion_scope_text,restore_input_callback=None,restore_output_components=None,result_renderer_callback=None):
+def build_generation_history_view(execute_service_command,server_base_address,deletion_scope_text,restore_input_callback=None,restore_output_components=None,result_renderer_callback=None,record_folder_route=None):
     """목록·페이지·명시적 조회·결과·입력·로그·초기화를 묶은 공용 영역."""
     import html
     from tools.review.common.gradio_logs import build_execution_logs,create_copyable_log_textbox
@@ -56,6 +56,9 @@ def build_generation_history_view(execute_service_command,server_base_address,de
             history_count_value=gr.Markdown()
             reset_control_values=build_history_reset_controls(deletion_scope_text)
     result_identifier_value=create_copyable_log_textbox(label='조회한 생성 ID',interactive=False)
+    result_path_value=create_copyable_log_textbox(label='기록 폴더 절대 경로 · 복사 가능',interactive=False)
+    folder_open_status_value=gr.Markdown()
+    folder_open_button_value=gr.Button('기록 폴더 열기',interactive=record_folder_route is not None)
     result_status_value=gr.Markdown('이력을 선택한 뒤 결과 조회를 누르세요.')
     result_image_value=gr.HTML()
     with gr.Accordion('저장된 입력값 · 기록',open=False):
@@ -84,7 +87,7 @@ def build_generation_history_view(execute_service_command,server_base_address,de
             if current_image_path:
                 current_image_url=server_base_address.rstrip('/')+current_image_path
                 current_image_html=f'<a href="{html.escape(current_image_url,quote=True)}" target="_blank" rel="noopener"><img src="{html.escape(current_image_url,quote=True)}" alt="생성 결과" style="width:100%;max-height:620px;object-fit:contain"></a>'
-        return current_selected_identifier,'상태: '+str(current_status_record.get('status','unknown')),current_image_html,current_history_record,gr.update(value=current_status_record.get('log') or '기록된 로그가 없습니다.',label='실행 로그 · '+current_selected_identifier)
+        return current_selected_identifier,current_history_record.get('path','기록 경로가 없습니다.'),'상태: '+str(current_status_record.get('status','unknown')),current_image_html,current_history_record,gr.update(value=current_status_record.get('log') or '기록된 로그가 없습니다.',label='실행 로그 · '+current_selected_identifier)
 
     if restore_input_callback is not None:
         def restore_selected_inputs(current_selected_identifier):
@@ -96,13 +99,16 @@ def build_generation_history_view(execute_service_command,server_base_address,de
         restore_input_button.click(restore_selected_inputs,history_selection_value,restore_output_components,queue=False)
     history_refresh_button.click(read_history_page,[history_page_value,history_selection_value],[history_selection_value,history_count_value,history_page_value],queue=False)
     history_page_value.change(read_history_page,[history_page_value,history_selection_value],[history_selection_value,history_count_value,history_page_value],queue=False)
-    result_lookup_button.click(read_selected_result,history_selection_value,[result_identifier_value,result_status_value,result_image_value,result_record_value,log_output_value],queue=False)
+    result_lookup_button.click(read_selected_result,history_selection_value,[result_identifier_value,result_path_value,result_status_value,result_image_value,result_record_value,log_output_value],queue=False)
+    if record_folder_route is not None:
+        folder_open_script=f"""async(identifierValue)=>{{if(!identifierValue)throw new Error('먼저 생성 이력을 선택하세요.');const responseValue=await fetch('/management/record-folder/open',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify({{route:{record_folder_route!r},id:identifierValue}})}});const payloadValue=await responseValue.json();if(!responseValue.ok)throw new Error(payloadValue.error);return payloadValue.message;}}"""
+        folder_open_button_value.click(fn=None,inputs=result_identifier_value,outputs=folder_open_status_value,js=folder_open_script,queue=False)
     def refresh_selected_logs(current_selected_identifier,current_refresh_enabled):
         if not current_selected_identifier or not current_refresh_enabled:return gr.skip()
         return execute_service_command('status',{'id':current_selected_identifier}).get('log') or '기록된 로그가 없습니다.'
     log_panel_value.expand(refresh_selected_logs,[result_identifier_value,log_refresh_value],log_output_value,queue=False)
     if hasattr(gr,'Timer'):gr.Timer(3).tick(refresh_selected_logs,[result_identifier_value,log_refresh_value],log_output_value,queue=False)
     def reset_view_values():
-        return [*read_history_page(1),'','초기화했습니다.','',{},gr.update(value='',label='작업을 선택하세요')]
-    bind_history_reset_action(reset_control_values,execute_service_command,reset_view_values,[history_selection_value,history_count_value,history_page_value,result_identifier_value,result_status_value,result_image_value,result_record_value,log_output_value])
+        return [*read_history_page(1),'','초기화했습니다.','', '',{},gr.update(value='',label='작업을 선택하세요')]
+    bind_history_reset_action(reset_control_values,execute_service_command,reset_view_values,[history_selection_value,history_count_value,history_page_value,result_identifier_value,result_path_value,result_status_value,result_image_value,result_record_value,log_output_value])
     return read_history_page,[history_selection_value,history_count_value,history_page_value]
