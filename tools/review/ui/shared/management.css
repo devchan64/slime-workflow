@@ -192,3 +192,24 @@ input:disabled{opacity:.55;cursor:not-allowed}
 .tile-generator-page #tile-reference-guidance{font-size:12px}
 @media(max-width:900px){.tile-generator-page .studio-grid{grid-template-columns:minmax(0,1fr)}}
 @media(max-width:440px){.reference-input-grid{grid-template-columns:minmax(0,1fr)}.reference-input-grid img{height:140px}}
+
+/* 생성이력의 이미지와 모션 첫 프레임을 같은 크기로 표시한다. */
+.generation-history-thumbnail{width:112px;height:112px;object-fit:contain;flex-shrink:0;border:1px solid var(--line);border-radius:8px;background:var(--page);}
+
+/* 썸네일 옆의 여백에 요약과 작업을 모으고 상세 경로는 펼침 영역에 둔다. */
+#history-list>.history-record-card{display:grid;grid-template-columns:minmax(0,1fr);gap:4px 12px;padding:10px}
+#history-list>.history-record-card.has-thumbnail{grid-template-columns:88px minmax(0,1fr)}
+.history-record-card.has-thumbnail> :not(.generation-history-thumbnail){grid-column:2;min-width:0}
+.history-record-card>.generation-history-thumbnail{grid-column:1;grid-row:1/span 4;width:88px;height:88px}
+.history-record-card .history-record-id,.history-record-card .history-input-summary,.history-record-card .history-record-actions{margin:0}
+#history-list>.history-record-card>details{grid-column:1/-1;margin-top:0}
+#history-list .history-row:has(>.generation-history-thumbnail){grid-template-columns:80px minmax(0,1fr) auto auto;gap:8px;padding:8px}
+.history-row>.generation-history-thumbnail{width:80px;height:80px}
+@media(max-width:620px){
+ #history-list .history-row:has(>.generation-history-thumbnail){grid-template-columns:64px minmax(0,1fr) auto}
+ #history-list .history-row:has(>.generation-history-thumbnail)>div{grid-column:2/-1}
+ #history-list .history-row>.generation-history-thumbnail{grid-row:1/span 2;width:64px;height:64px}
+ #history-list>.history-record-card.has-thumbnail{grid-template-columns:64px minmax(0,1fr)}
+ .history-record-card>.generation-history-thumbnail{width:64px;height:64px}
+ .history-record-card .history-record-actions button{flex:0 1 auto}
+}
