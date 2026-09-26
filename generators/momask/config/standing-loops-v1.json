@@ -46,8 +46,8 @@
       "description": "몸 중심 가까이 양발을 번갈아 내딛는 자연스러운 좁은 보폭. 발끝은 전방을 향하며 원본 프레임 전체를 출력한다."
     },
     "standing": {
-      "source_frames": 16,
-      "rendered_frames": 16,
+      "source_frames": 40,
+      "rendered_frames": 40,
       "sample_indices": [
         0,
         1,
@@ -64,11 +64,35 @@
         12,
         13,
         14,
-        15
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39
       ],
-      "playtime_seconds": 4.0,
-      "prompt": "A person stands with both arms down at their sides.",
-      "description": "양팔을 몸 옆으로 내리고 서 있는 동작. 생성 후 팔 자세 보정은 적용하지 않는다."
+      "playtime_seconds": 10.0,
+      "prompt": "A person stands for a few seconds",
+      "description": "몇 초 동안 서 있는 동작. 원본 40프레임 전체를 출력하며 생성 후 팔 자세 보정은 적용하지 않는다."
     },
     "stretch": {
       "source_frames": 120,
