@@ -11,10 +11,10 @@ motions:
     manifest: manifest.yaml
     openpose: openpose/{direction}/openpose-{frame:04d}.png
     anny: anny/{direction}/anny-{frame:04d}.png
-  walking-v9:
+  walking-v10:
     target_fps: 4
-    label: 걷기 v9
-    root: assets/motion-sheet/momask-walking-v9
+    label: 걷기 v10
+    root: assets/motion-sheet/momask-walking-v10
     manifest: manifest.yaml
     openpose: openpose/{direction}/openpose-{frame:04d}.png
     anny: anny/{direction}/anny-{frame:04d}.png

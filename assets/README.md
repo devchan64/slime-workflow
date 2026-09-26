@@ -3,7 +3,7 @@
 이 경로는 Git 추적 대상 제작 자산을 버전·출처·해시와 함께 보관한다. 게임 런타임 채택과 구분한다.
 
 - 애니메이션 기준 모델: [anny-neutral-v4](animation-models/anny-neutral-v4/README.md). 선택 설정은 `generators/animation/config/anny_model_baseline.yaml`.
-- 현재 기본 걷기: [momask-walking/v9](motion-sheet/momask-walking-v9/README.md). 중성형 v4, 32프레임·4fps·4방향, 카메라 수평 25°. v8은 신규 생성 선택에서 제외하며 기존 결과·시트의 출처로 보존한다.
+- 현재 기본 걷기: [momask-walking/v10](motion-sheet/momask-walking-v10/README.md). 중성형 v4, 60프레임·4fps·4방향, 카메라 수평 25°. v8은 신규 생성 선택에서 제외하며 기존 결과·시트의 출처로 보존한다.
 - 이전 리그: motion-sheet/mannequin-walk-v1 보존.
 - 원천 모션: motion-sheet/momask-walk-motion-sheet-v1. 같은 버전 파일을 덮어쓰지 않는다.
 - 다른 외형 이력: motion-sheet/humanlike-walk-v1 및 v2.

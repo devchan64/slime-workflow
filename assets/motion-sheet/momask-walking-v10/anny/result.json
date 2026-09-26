@@ -1,0 +1,22 @@
+{
+  "renderer": "Anny Blender retarget",
+  "frames": 60,
+  "directions": [
+    "down_left",
+    "down_right",
+    "up_left",
+    "up_right"
+  ],
+  "samples": 16,
+  "hand_pose": "inherit-rest-local",
+  "arm_retarget": "position-reference-transport-v3",
+  "skinning": "dual-quaternion",
+  "baseline_model": {
+    "baseline_id": "neutral_v4",
+    "source_generation_id": "4e952f72",
+    "blend_sha256": "db16e20ad203093fd227418748927fb8e3f6206413d288ce039d3e45d9004b95",
+    "attributes_sha256": "0a3037b9c336772136141924e3e3acfbe6a551a8ff7d2e1eec8c28683f9a31ad"
+  },
+  "profile_sha256": "cd473749c2609c26f84fff85c55296e77d22c3b9045f99f887540442d324dfb8",
+  "solver_sha256": "f8d220b14718d5da8998cc63f643fffb5fe93bf2c9559cac100e27a40ddec9bc"
+}
