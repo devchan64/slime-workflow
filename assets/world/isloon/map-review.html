@@ -26,8 +26,8 @@ const mapZoomLabel=document.querySelector('#zoom-value');
 const mapRotationLabel=document.querySelector('#rotation-value');
 const buildingSizeControl=document.querySelector('#building-select');
 const tileImageRecords={};
-const VOLUME_TILE_WIDTH_PIXELS=64;
-const VOLUME_TILE_HEIGHT_PIXELS=32;
+const VOLUME_TILE_WIDTH_PIXELS=128;
+const VOLUME_TILE_HEIGHT_PIXELS=64;
 const VOLUME_FLOOR_HEIGHT_PIXELS=100;
 const VOLUME_ROOF_HEIGHT_PIXELS=7;
 const VOLUME_CANVAS_HEIGHT_PIXELS=420;
@@ -54,7 +54,7 @@ function applyMapZoom(){
 
 function drawMapDetails(mapDocumentValues,mapRecordValues){
   document.querySelector('#map-title').textContent=`${mapDocumentValues.display_name||mapDocumentValues.map_id} 도시 배치`;
-  document.querySelector('#summary').textContent=`${mapDocumentValues.grid.columns}×${mapDocumentValues.grid.rows} · 충돌 ${mapDocumentValues.collision.length}칸 · 출구 ${mapDocumentValues.map_connections?.length||0}개 · 연결 ${mapDocumentValues.connections.length}개`;
+  document.querySelector('#summary').textContent=`${mapDocumentValues.grid.columns}×${mapDocumentValues.grid.rows} · 타일 ${mapRecordValues.render_profile.tile_width}×${mapRecordValues.render_profile.tile_height}px · 벽 ${mapRecordValues.render_profile.wall_height}px · 캐릭터 기준 ${mapRecordValues.render_profile.character_height}px · 충돌 ${mapDocumentValues.collision.length}칸 · 출구 ${mapDocumentValues.map_connections?.length||0}개 · 연결 ${mapDocumentValues.connections.length}개`;
   currentMapRotationDegrees=0;
   applyCurrentMapRotation();
   mapPreviewImage.onload=()=>{applyMapZoom();mapLoadingMessage.hidden=true};

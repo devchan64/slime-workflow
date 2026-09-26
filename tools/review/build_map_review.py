@@ -12,7 +12,21 @@ WORKFLOW_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_MAP_DIRECTORY = WORKFLOW_ROOT / 'assets/world/isloon/maps'
 REVIEW_TEMPLATE_PATH = WORKFLOW_ROOT / 'assets/world/isloon/map-review.html'
 FRONTEND_ASSET_ROOT = WORKFLOW_ROOT.parent / 'slime-frontend/src/assets'
-ISOMETRIC_BUILDING_WALL_HEIGHT = 100
+def load_map_render_profiles():
+    import yaml
+    profile_record_values = yaml.safe_load((WORKFLOW_ROOT/'assets/world/isloon/render-profiles.yaml').read_text())
+    if not isinstance(profile_record_values,dict) or set(profile_record_values)!={'schema_version','field','town','wall_height','character_height'} or profile_record_values['schema_version']!=1:
+        raise ValueError('맵 렌더링 프로필 형식 오류')
+    for profile_kind_name in ('field','town'):
+        profile_size_record = profile_record_values[profile_kind_name]
+        if set(profile_size_record)!={'tile_width','tile_height'} or any(type(size_value) is not int or size_value<=0 for size_value in profile_size_record.values()) or profile_size_record['tile_width']!=2*profile_size_record['tile_height']:
+            raise ValueError('맵 타일은 양의 정수 2:1 크기여야 합니다.')
+    if profile_record_values['wall_height']!=100 or profile_record_values['character_height']!=60:
+        raise ValueError('벽 높이 100px와 캐릭터 기준 60px는 고정입니다.')
+    return profile_record_values
+
+MAP_RENDER_PROFILE_VALUES = load_map_render_profiles()
+ISOMETRIC_BUILDING_WALL_HEIGHT = MAP_RENDER_PROFILE_VALUES['wall_height']
 ISOMETRIC_BUILDING_ROOF_HEIGHT = 7
 ISOMETRIC_BUILDING_PREVIEW_LEVEL = 2
 ISOMETRIC_PREVIEW_TOP_PADDING = ISOMETRIC_BUILDING_PREVIEW_LEVEL * ISOMETRIC_BUILDING_WALL_HEIGHT + ISOMETRIC_BUILDING_ROOF_HEIGHT + 32
@@ -358,8 +372,9 @@ def build_map_review(map_path=None, output_root=None):
         assembled_map_path = map_output_directory / f'{current_map_path.stem}.json'
         assembled_map_values = assemble_isloon_map(current_map_path, assembled_map_path)
         from PIL import Image, ImageDraw
-        isometric_tile_width = 64
-        isometric_tile_height = 32
+        selected_render_profile = MAP_RENDER_PROFILE_VALUES['town' if assembled_map_values['safe_town'] else 'field']
+        isometric_tile_width = selected_render_profile['tile_width']
+        isometric_tile_height = selected_render_profile['tile_height']
         half_tile_width = isometric_tile_width // 2
         half_tile_height = isometric_tile_height // 2
         isometric_mask = Image.new('L', (isometric_tile_width, isometric_tile_height), 0)
@@ -383,7 +398,7 @@ def build_map_review(map_path=None, output_root=None):
             preview_path = map_output_directory / f'{current_map_path.stem}.rotation-{rotation_degrees}.png'
             preview_image.save(preview_path)
             preview_records[str(rotation_degrees)] = f'maps/{preview_path.name}'
-        map_records.append({'id': assembled_map_values['map_id'], 'label': assembled_map_values['display_name'], 'file': f'maps/{assembled_map_path.name}', 'preview': preview_records['0'], 'previews': preview_records, 'source': str(current_map_path.relative_to(WORKFLOW_ROOT))})
+        map_records.append({'id': assembled_map_values['map_id'], 'label': assembled_map_values['display_name'], 'file': f'maps/{assembled_map_path.name}', 'preview': preview_records['0'], 'previews': preview_records, 'source': str(current_map_path.relative_to(WORKFLOW_ROOT)), 'render_profile': {**selected_render_profile, 'wall_height': ISOMETRIC_BUILDING_WALL_HEIGHT, 'character_height': MAP_RENDER_PROFILE_VALUES['character_height']}})
     (output_root / 'map-index.json').write_text(json.dumps({'schema_version': 1, 'maps': map_records}, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
     (output_root / 'tile-assets.json').write_text(json.dumps({'schema_version': 1, 'tiles': tile_asset_records}, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
     (output_root / 'building-prefabs.json').write_text(json.dumps(building_prefab_values, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
