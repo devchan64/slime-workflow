@@ -1,6 +1,6 @@
 import unittest
 
-from tools.review.common.gradio_history import format_history_choice_label
+from tools.review.common.gradio_history import collect_image_history_thumbnails, format_history_choice_label
 
 
 class GradioHistoryTest(unittest.TestCase):
@@ -11,3 +11,11 @@ class GradioHistoryTest(unittest.TestCase):
 
     def test_history_choice_handles_legacy_minimal_record(self):
         self.assertEqual(format_history_choice_label({'id':'legacy-1','status':'failed','request':{}}),'failed · 시각 없음 · legacy-1 · 설정 요약 없음')
+
+    def test_collects_only_image_history_thumbnails(self):
+        thumbnail_item_values,thumbnail_identifier_values=collect_image_history_thumbnails([
+            {'id':'completed-image','status':{'status':'completed'},'image':'/image-generation/jobs/completed-image/result.png'},
+            {'id':'running-image','status':{'status':'running'},'image':None},
+        ],'http://127.0.0.1:8770')
+        self.assertEqual(thumbnail_item_values,[('http://127.0.0.1:8770/image-generation/jobs/completed-image/result.png','completed · completed-image')])
+        self.assertEqual(thumbnail_identifier_values,['completed-image'])
