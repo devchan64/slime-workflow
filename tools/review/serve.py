@@ -280,7 +280,7 @@ def run_review_server(parsed_argument_values):
         '/momask-generator': (MOMASK_RECORD_DIRECTORY, resolve_momask_record_directory),
     }
     management_menu_url = None
-    from tools.review.common.gradio_process import ensure_anny_attributes_server, ensure_character_animation_server, ensure_gradio_server, ensure_management_menu_server, ensure_map_review_server, ensure_qwen_2511_server, ensure_qwen_2512_server, ensure_sprite_editor_server, ensure_tile_map_server, ensure_writer_agent_server
+    from tools.review.common.gradio_process import ensure_anny_attributes_server, ensure_character_animation_server, ensure_gradio_server, ensure_management_menu_server, ensure_map_review_server, ensure_qwen_2511_server, ensure_qwen_2512_server, ensure_sprite_editor_server, ensure_static_review_server, ensure_tile_map_server, ensure_writer_agent_server
     if manager_source_path.is_file():
         try:
             management_menu_url=ensure_management_menu_server(parsed_argument_values.port,manager_source_path)
@@ -298,6 +298,7 @@ def run_review_server(parsed_argument_values):
             ('/management/frame/map-review/',parsed_argument_values.port+107,lambda:ensure_map_review_server(parsed_argument_values.port)),
             ('/management/frame/anny-attributes/',parsed_argument_values.port+108,lambda:ensure_anny_attributes_server(parsed_argument_values.port)),
             ('/management/frame/writer-agent/',parsed_argument_values.port+109,lambda:ensure_writer_agent_server(parsed_argument_values.port)),
+            ('/management/frame/static-review/',parsed_argument_values.port+110,lambda:ensure_static_review_server(parsed_argument_values.port,manager_source_path)),
             ('/management/',parsed_argument_values.port+100,lambda:ensure_management_menu_server(parsed_argument_values.port,manager_source_path)),
             ('/momask-generator/',parsed_argument_values.port+100,lambda:ensure_management_menu_server(parsed_argument_values.port,manager_source_path)),
             ('/character-animation/',parsed_argument_values.port+100,lambda:ensure_management_menu_server(parsed_argument_values.port,manager_source_path)),
@@ -317,6 +318,9 @@ def run_review_server(parsed_argument_values):
             super().__init__(*request_handler_arguments,directory=str(review_root_directory),**request_handler_options)
         def proxy_gradio_request(self):
             request_path_value=urlsplit(self.path).path
+            # 내장 캔버스와 메뉴를 포함한 직접 접속 주소를 분리한다.
+            if request_path_value=='/isloon-map-review/map-review.html' and 'embedded=1' in urlsplit(self.path).query.split('&'):
+                return False
             try:gradio_proxy_target=resolve_gradio_proxy_port(request_path_value)
             except ValueError:return False
             if gradio_proxy_target is None:return False
@@ -375,6 +379,9 @@ def run_review_server(parsed_argument_values):
                 self.send_header('Content-Length', str(len(encoded_record)))
                 self.end_headers()
                 self.wfile.write(encoded_record)
+                return
+            if urlsplit(self.path).path=='/isloon-map-review/map-review.html' and 'embedded=1' not in urlsplit(self.path).query.split('&'):
+                self.send_response(302);self.send_header('Location','/management/?tool=map-review');self.send_header('Cache-Control','no-store');self.end_headers()
                 return
             if self.proxy_gradio_request():return
             if management_command_gateway.handle(self):return
