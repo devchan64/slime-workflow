@@ -2,6 +2,8 @@
 let tileConfigurationRecord=null;
 const tileTypeSelector=document.querySelector('#tile-type');
 const tileUserPrompt=document.querySelector('#prompt');
+// 입력하면서 사용자·최종 단어수를 바로 확인하도록 입력란 아래에 둔다.
+tileUserPrompt.after(document.querySelector('#tile-word-count'));
 const tileSubmitButton=document.querySelector('#submit');
 const tileGenerationStatus=document.querySelector('#status');
 const tileReferenceFileRecords=new Map();
@@ -12,10 +14,12 @@ function updateTilePromptDisplay(){
  const selectedTileRecord=tileConfigurationRecord.types[tileTypeSelector.value];
  document.querySelector('#tile-base-prompt').textContent=selectedTileRecord.base_prompt;
  document.querySelector('#tile-style-prompt').textContent=tileConfigurationRecord.style_prompt;
+ const referenceStyleWordCount=document.querySelector('#tile-use-reference-style').checked?countTileWords(document.querySelector('#tile-reference-style-prompt').textContent):0;
+ document.querySelector('#reference-style-word-count').textContent=referenceStyleWordCount+'단어';
  const baseWordCount=document.querySelector('#tile-use-base').checked?countTileWords(selectedTileRecord.base_prompt):0,styleWordCount=document.querySelector('#tile-use-style').checked?countTileWords(tileConfigurationRecord.style_prompt):0,userWordCount=countTileWords(tileUserPrompt.value);
  document.querySelector('#base-word-count').textContent=baseWordCount+'단어';document.querySelector('#style-word-count').textContent=styleWordCount+'단어';
- document.querySelector('#tile-word-count').textContent='사용자 '+userWordCount+'단어 · 최종 '+(baseWordCount+styleWordCount+userWordCount)+'단어 / 100단어 미만';
- tileUserPrompt.setCustomValidity(baseWordCount+styleWordCount+userWordCount>=100?'최종 프롬프트를 100단어 미만으로 줄이세요.':'');
+ document.querySelector('#tile-word-count').textContent='사용자 '+userWordCount+'단어 · 최종 '+(baseWordCount+styleWordCount+userWordCount+referenceStyleWordCount)+'단어 / 100단어 미만';
+ tileUserPrompt.setCustomValidity(baseWordCount+styleWordCount+userWordCount+referenceStyleWordCount>=100?'최종 프롬프트를 100단어 미만으로 줄이세요.':'');
 }
 for(const resolutionOptionValue of [...document.querySelector('#resolution').options]){const [widthValue,heightValue]=resolutionOptionValue.value.split('x');if(widthValue!==heightValue)resolutionOptionValue.remove();}
 document.querySelector('#resolution').value='512x512';
@@ -33,7 +37,7 @@ document.querySelector('#generate').onsubmit=async eventValue=>{
   referenceImageValues.push(referenceDataUrl.split(',')[1]);
  }
  }catch(referenceReadError){tileGenerationStatus.textContent=referenceReadError.message;return;}
- startGenerationJob({use_base_prompt:document.querySelector('#tile-use-base').checked,use_style_prompt:document.querySelector('#tile-use-style').checked,images:referenceImageValues,action:'generate' ,tile_type:tileTypeSelector.value,user_prompt:tileUserPrompt.value,seed:Number(document.querySelector('#seed').value),steps:Number(document.querySelector('#steps').value),width:Number(document.querySelector('#resolution').value.split('x')[0]),height:Number(document.querySelector('#resolution').value.split('x')[1])});
+ startGenerationJob({use_reference_style_prompt:document.querySelector('#tile-use-reference-style').checked,use_base_prompt:document.querySelector('#tile-use-base').checked,use_style_prompt:document.querySelector('#tile-use-style').checked,images:referenceImageValues,action:'generate' ,tile_type:tileTypeSelector.value,user_prompt:tileUserPrompt.value,seed:Number(document.querySelector('#seed').value),steps:Number(document.querySelector('#steps').value),width:Number(document.querySelector('#resolution').value.split('x')[0]),height:Number(document.querySelector('#resolution').value.split('x')[1])});
 };
 const tileEstimateElement=document.createElement('p');tileEstimateElement.className='input-hint';tileEstimateElement.setAttribute('role','status');tileEstimateElement.textContent='예상 시간 · 생성 시작 후 같은 설정의 완료 이력으로 계산합니다.';document.querySelector('.progress-panel').append(tileEstimateElement);
 const sharedProgressRenderer=renderGenerationProgress;
@@ -88,7 +92,7 @@ document.addEventListener('generation-history-reset',resetEventValue=>{
  tileGenerationStatus.textContent='타일 생성 이력과 결과 파일을 삭제했습니다.';
 });
 
-for(const promptToggleId of ['tile-use-base','tile-use-style'])document.getElementById(promptToggleId).onchange=updateTilePromptDisplay;
+for(const promptToggleId of ['tile-use-base','tile-use-style','tile-use-reference-style'])document.getElementById(promptToggleId).onchange=updateTilePromptDisplay;
 
 // 입력 순서: 타일 종류 → 참조 → 프롬프트 → 생성 설정 → 실행.
 const tileSettingsRow=document.querySelector('#generate .settings-row');
@@ -98,7 +102,7 @@ const tileTypeLabel=document.querySelector('label[for="tile-type"]');
 const tileGenerateForm=document.querySelector('#generate');
 tileGenerateForm.prepend(tileTypeLabel,tileTypeSelector,tileReferenceGroup);
 const tileToggleGroup=document.createElement('div');tileToggleGroup.className='prompt-toggle-row';
-for(const toggleElementId of ['tile-use-base','tile-use-style'])tileToggleGroup.append(document.getElementById(toggleElementId).closest('label'));
+for(const toggleElementId of ['tile-use-base','tile-use-style','tile-use-reference-style'])tileToggleGroup.append(document.getElementById(toggleElementId).closest('label'));
 tilePromptLabel.before(tileToggleGroup);
 if(tileSettingsRow)document.querySelector('#generate .generation-actions').before(tileSettingsRow);
 
@@ -126,6 +130,7 @@ async function restoreReferenceInputs(historyRecordValue){
  for(let referenceIndex=1;referenceIndex<=3;referenceIndex++)setTileReferenceFile(referenceIndex,restoredReferenceFiles[referenceIndex-1]??null);
  document.querySelector('#tile-use-base').checked=historyRecordValue.request.use_base_prompt??true;
  document.querySelector('#tile-use-style').checked=historyRecordValue.request.use_style_prompt??true;
+ document.querySelector('#tile-use-reference-style').checked=historyRecordValue.request.use_reference_style_prompt??false;
  selectTileReferenceSlot(1);
  updateTilePromptDisplay();
 }

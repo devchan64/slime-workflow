@@ -17,6 +17,25 @@ class TileGenerationTests(unittest.TestCase):
             self.assertIn('Red brick house.',output_request_value['prompt'])
             self.assertEqual(output_request_value['prompt_words'],len(output_request_value['prompt'].split()))
             self.assertLess(output_request_value['prompt_words'],100)
+    def test_user_prompt_is_last_for_every_toggle_combination(self):
+        from itertools import product
+        for base_enabled,style_enabled,reference_enabled in product((False,True),repeat=3):
+            request=self.make_tile_request()|{'use_base_prompt':base_enabled,'use_style_prompt':style_enabled,'use_reference_style_prompt':reference_enabled}
+            record=prepare_tile_request(request)
+            expected=[record['reference_style_prompt'] if reference_enabled else '',record['base_prompt'] if base_enabled else '',record['style_prompt'] if style_enabled else '',record['user_prompt']]
+            self.assertEqual(record['prompt'],'\n\n'.join(part for part in expected if part))
+            self.assertTrue(record['prompt'].endswith(record['user_prompt']))
+
+    def test_reference_style_toggle_defaults_off(self):
+        default_record=prepare_tile_request(self.make_tile_request())
+        self.assertFalse(default_record['use_reference_style_prompt'])
+        self.assertNotIn(default_record['reference_style_prompt'],default_record['prompt'])
+        enabled_record=prepare_tile_request(self.make_tile_request()|{'use_reference_style_prompt':True})
+        self.assertTrue(enabled_record['prompt'].startswith(enabled_record['reference_style_prompt']))
+        self.assertEqual(enabled_record['prompt_words'],len(enabled_record['prompt'].split()))
+        with self.assertRaises(ValueError):
+            prepare_tile_request(self.make_tile_request()|{'use_reference_style_prompt':'on'})
+
     def test_fixed_prompt_override_and_invalid_input_rejected(self):
         for invalid_request_value in ({'base_prompt':'override'},{'style_prompt':''},{'prompt':'override'},{'tile_type':'other'},{'width':768},{'seed':True},{'user_prompt':'word '*100}):
             with self.assertRaises(ValueError):prepare_tile_request(self.make_tile_request()|invalid_request_value)
@@ -66,7 +85,7 @@ class TileGenerationTests(unittest.TestCase):
         for use_base_prompt in (True,False):
             for use_style_prompt in (True,False):
                 result_request_value=prepare_tile_request(self.make_tile_request()|{'use_base_prompt':use_base_prompt,'use_style_prompt':use_style_prompt})
-                expected_prompt_parts=([result_request_value['base_prompt']] if use_base_prompt else [])+['Red brick house.']+([result_request_value['style_prompt']] if use_style_prompt else [])
+                expected_prompt_parts=([result_request_value['base_prompt']] if use_base_prompt else [])+([result_request_value['style_prompt']] if use_style_prompt else [])+['Red brick house.']
                 self.assertEqual(result_request_value['prompt'],'\n\n'.join(expected_prompt_parts))
                 self.assertEqual(result_request_value['use_base_prompt'],use_base_prompt)
         with self.assertRaises(ValueError):prepare_tile_request(self.make_tile_request()|{'use_base_prompt':'false'})
