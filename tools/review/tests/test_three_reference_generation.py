@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from PIL import Image
-from tools.review.domains.image.three_reference_generation import ALLOWED_REFERENCE_JOB_ROOTS, validate_three_reference_job_path, validate_three_reference_request, save_three_reference_inputs, resolve_reference_settings
+from tools.review.domains.image.three_reference_generation import ALLOWED_REFERENCE_JOB_ROOTS, validate_three_reference_job_path, validate_three_reference_request, save_three_reference_inputs, resolve_reference_settings, verify_reference_snapshots
 from tools.review.domains.image.image_generation import ImageGenerationManager
 from tools.review.tests.test_image_generation import ImageGenerationTests
 
@@ -14,6 +14,16 @@ class ThreeReferenceGenerationTests(unittest.TestCase):
         current_image_buffer=io.BytesIO()
         Image.new('RGBA',selected_image_size,selected_image_color).save(current_image_buffer,format=selected_image_format)
         return base64.b64encode(current_image_buffer.getvalue()).decode()
+
+    def test_snapshot_detects_changed_reference_before_generation(self):
+        request={'action':'generate','steps':4,'width':512,'height':512,'prompt':'wall','images':[self.encode_reference_fixture('red')]}
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory)
+            saved=save_three_reference_inputs(root,request)
+            verify_reference_snapshots(root,saved)
+            (root/'reference-1.png').write_bytes(b'changed')
+            with self.assertRaisesRegex(ValueError,'무결성'):
+                verify_reference_snapshots(root,saved)
 
     def test_reference_validation_and_order(self):
         current_image_values=[self.encode_reference_fixture(current_image_color) for current_image_color in ('red','green','blue')]

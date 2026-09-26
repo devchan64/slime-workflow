@@ -4,6 +4,7 @@ from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[4]))
 import base64
 import binascii
+import hashlib
 import io
 from PIL import Image
 
@@ -61,9 +62,14 @@ def decode_reference_image(current_image_text):
 
 
 def save_three_reference_inputs(current_job_root,current_request_record):
+    reference_snapshot_records=[]
     for current_image_index,current_image_text in enumerate(current_request_record['images'],1):
-        (current_job_root/f'reference-{current_image_index}.png').write_bytes(decode_reference_image(current_image_text))
-    return {'action':'generate','prompt':current_request_record['prompt'],'width':current_request_record['width'],'height':current_request_record['height'],'seed':current_request_record.get('seed',10107),'steps':current_request_record['steps'],'references':[f'reference-{current_image_index}.png' for current_image_index in range(1,len(current_request_record['images'])+1)]}
+        reference_snapshot_path=current_job_root/f'reference-{current_image_index}.png'
+        reference_snapshot_bytes=decode_reference_image(current_image_text)
+        with reference_snapshot_path.open('xb') as reference_output_stream:
+            reference_output_stream.write(reference_snapshot_bytes)
+        reference_snapshot_records.append({'path':reference_snapshot_path.name,'sha256':hashlib.sha256(reference_snapshot_bytes).hexdigest(),'bytes':len(reference_snapshot_bytes),'order':current_image_index})
+    return {'action':'generate','prompt':current_request_record['prompt'],'width':current_request_record['width'],'height':current_request_record['height'],'seed':current_request_record.get('seed',10107),'steps':current_request_record['steps'],'reference_snapshots':reference_snapshot_records,'references':[f'reference-{current_image_index}.png' for current_image_index in range(1,len(current_request_record['images'])+1)]}
 
 
 def resolve_reference_settings(selected_inference_steps):
@@ -73,3 +79,19 @@ def resolve_reference_settings(selected_inference_steps):
             'enable_anypose_adapter':False,
             'enable_lightning_adapter':False,
             'enable_standalone_lightning_adapter':selected_inference_steps==4}
+
+
+def verify_reference_snapshots(current_job_root, current_request_record):
+    # 이전 이력은 기존 참조 계약을 유지하며 신규 이력은 생성 전에 사본을 검증한다.
+    if 'reference_snapshots' not in current_request_record:
+        return
+    reference_snapshot_records=current_request_record['reference_snapshots']
+    if [record['path'] for record in reference_snapshot_records]!=current_request_record['references']:
+        raise ValueError('참조 사본 순서 불일치')
+    for reference_image_index,reference_snapshot_record in enumerate(reference_snapshot_records,1):
+        reference_snapshot_path=Path(current_job_root)/f'reference-{reference_image_index}.png'
+        if reference_snapshot_record['path']!=reference_snapshot_path.name or reference_snapshot_record['order']!=reference_image_index or reference_snapshot_path.is_symlink():
+            raise ValueError('참조 사본 경로 또는 순서 오류')
+        reference_snapshot_bytes=reference_snapshot_path.read_bytes()
+        if len(reference_snapshot_bytes)!=reference_snapshot_record['bytes'] or hashlib.sha256(reference_snapshot_bytes).hexdigest()!=reference_snapshot_record['sha256']:
+            raise ValueError('참조 사본 무결성 오류')

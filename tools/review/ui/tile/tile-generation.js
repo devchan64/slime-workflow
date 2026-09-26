@@ -101,3 +101,31 @@ const tileToggleGroup=document.createElement('div');tileToggleGroup.className='p
 for(const toggleElementId of ['tile-use-base','tile-use-style'])tileToggleGroup.append(document.getElementById(toggleElementId).closest('label'));
 tilePromptLabel.before(tileToggleGroup);
 if(tileSettingsRow)document.querySelector('#generate .generation-actions').before(tileSettingsRow);
+
+// 공용 이력의 입력 복원 훅: 모든 사본을 확인한 뒤 기존 슬롯을 교체한다.
+async function restoreReferenceInputs(historyRecordValue){
+ const referenceNames=historyRecordValue.request.references??[];
+ if(!Array.isArray(referenceNames)||referenceNames.length>3)throw Error('저장된 참조 개수 오류');
+ const restoredReferenceFiles=await Promise.all(referenceNames.map(async(referenceName,referenceIndex)=>{
+  if(referenceName!==`reference-${referenceIndex+1}.png`)throw Error('저장된 참조 순서 오류');
+  const referenceResponse=await fetch('/tile-map-generator/jobs/'+encodeURIComponent(historyRecordValue.id)+'/'+referenceName,{cache:'no-store'});
+  if(!referenceResponse.ok)throw Error('참조 이미지 '+(referenceIndex+1)+' 사본을 찾을 수 없습니다.');
+  const referenceBytes=await referenceResponse.arrayBuffer();
+  if(referenceBytes.byteLength>3000000)throw Error('참조 PNG는 장당 3MB 이하입니다.');
+  const snapshotRecord=historyRecordValue.request.reference_snapshots?.[referenceIndex];
+  if(snapshotRecord){
+   const referenceDigest=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',referenceBytes)),value=>value.toString(16).padStart(2,'0')).join('');
+   if(snapshotRecord.path!==referenceName||snapshotRecord.bytes!==referenceBytes.byteLength||snapshotRecord.sha256!==referenceDigest)throw Error('참조 이미지 사본 무결성 오류');
+  }
+  const referenceFile=new File([referenceBytes],referenceName,{type:'image/png'});
+  const referenceBitmap=await createImageBitmap(referenceFile);
+  const validDimensions=referenceBitmap.width===512&&referenceBitmap.height===512;referenceBitmap.close();
+  if(!validDimensions)throw Error('저장된 참조 크기 오류');
+  return referenceFile;
+ }));
+ for(let referenceIndex=1;referenceIndex<=3;referenceIndex++)setTileReferenceFile(referenceIndex,restoredReferenceFiles[referenceIndex-1]??null);
+ document.querySelector('#tile-use-base').checked=historyRecordValue.request.use_base_prompt??true;
+ document.querySelector('#tile-use-style').checked=historyRecordValue.request.use_style_prompt??true;
+ selectTileReferenceSlot(1);
+ updateTilePromptDisplay();
+}
