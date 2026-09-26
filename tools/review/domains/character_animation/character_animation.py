@@ -25,7 +25,7 @@ class CharacterAnimationManager:
                 response_payload_bytes=response_record_value.encode() if isinstance(response_record_value,str) else json.dumps(response_record_value,ensure_ascii=False).encode()
                 response_content_type='text/plain' if isinstance(response_record_value,str) else 'application/json'
             elif current_http_handler.command=='GET':
-                static_file_mapping={'':'character-animation.html','app.js':'character-animation.js','studio.css':'generation-studio.css','history.js':'generation-history.js','asset-player.js':'character-animation-assets.js'}
+                static_file_mapping={'sprite-editor':'sprite-editor.html','sprite-editor.js':'sprite-editor.js','':'character-animation.html','app.js':'character-animation.js','studio.css':'generation-studio.css','history.js':'generation-history.js','asset-player.js':'character-animation-assets.js'}
                 request_route_suffix=request_route_path.removeprefix('/character-animation/')
                 if request_route_suffix in static_file_mapping:
                     response_file_path=resolve_review_ui_asset(static_file_mapping[request_route_suffix])

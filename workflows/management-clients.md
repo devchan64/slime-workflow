@@ -163,3 +163,21 @@ python3 tools/manager.py command tile-map history
 GUI와 CLI는 같은 `tile-map` 게이트웨이 서비스와 기록을 사용한다. CLI도 실행 중인 관리 서버가 필요하다. 생성 종류별 별도 추론 실행기는 만들지 않는다.
 
 캐릭터 생성 배속은 `--speed 1|1.5|2|4`로 지정한다. 기본은 1이며 `--target-fps 4 --speed 2`는 동일 FPS에서 원본의 절반 길이를 생성한다. 배속은 요청·결과·이력에 `speed`로 기록한다. 원본 모션 검수 재생에는 적용하지 않는다.
+
+## 스프라이트 정규화 편집기
+
+관리 메뉴 `#sprite-editor`에서 프론트 등록 애니메이션 또는 완료된 캐릭터 애니메이션 결과 ID 하나를 불러온다. 프론트 원본은 검수 빌드가 만든 `sprite-assets.json`과 이미지 사본을 사용한다. 여러 결과 병합은 지원하지 않는다.
+
+중심·바닥·머리 가이드와 기준점, 배치·배율을 프레임별로 편집하고 현재 방향 또는 원본 전체에 적용한다. 이전 프레임 겹침과 머리 연결선으로 정렬을 확인한다. 생성 결과의 초기 가이드는 자동 검출값이 아니므로 사용자가 지정해야 한다.
+
+`프로젝트 저장`은 `.local/sprite-editor/<원본 ID 해시>/`에 버전별 JSON을 누적하고 재진입 시 최신 편집을 복원한다. 원본 버전이 바뀌면 기존 저장 파일을 보존하고 새 편집으로 연다. PNG는 현재 방향을 512×512 셀로 내보내며 원본 배경·투명도를 유지한다. 정규화 JSON에는 원본 프레임과 변환값이 포함된다. 프론트 원본은 덮어쓰지 않는다.
+
+GUI와 CLI는 같은 명령·저장소를 사용한다.
+
+```sh
+python3 tools/manager.py character-animation sprite-source asset:character.default.white-shirt.idle
+python3 tools/manager.py character-animation sprite-load asset:character.default.white-shirt.idle
+python3 tools/manager.py character-animation sprite-save asset:character.default.white-shirt.idle --document-file project.json
+```
+
+`--document-file`에는 내보낸 JSON의 `project` 객체를 전달한다.

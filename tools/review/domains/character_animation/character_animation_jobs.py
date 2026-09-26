@@ -132,6 +132,9 @@ def start_animation_generation(command_payload_value):
         generation_lock_handle.close()
 
 def execute_animation_command(operation_command_name,command_payload_value):
+    if operation_command_name in ('sprite-source','sprite-save','sprite-load'):
+        from .sprite_editor import execute_sprite_editor_command
+        return execute_sprite_editor_command(operation_command_name,command_payload_value)
     if operation_command_name=='catalog':
         return build_animation_catalog()
     if operation_command_name=='generate':
