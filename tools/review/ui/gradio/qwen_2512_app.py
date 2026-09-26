@@ -12,6 +12,7 @@ import gradio as gr
 WORKFLOW_ROOT_DIRECTORY=Path(__file__).resolve().parents[4]
 if str(WORKFLOW_ROOT_DIRECTORY) not in sys.path:sys.path.insert(0,str(WORKFLOW_ROOT_DIRECTORY))
 from tools.review.common.gradio_logs import build_execution_logs, LOG_PANEL_STYLES
+from tools.review.common.gradio_history import build_generation_history_view
 from tools.review.common.management_gateway import execute_management_command
 
 IMAGE_SIZE_VALUES=(512,768,1024,1280)
@@ -64,11 +65,8 @@ def build_qwen_2512_interface(server_base_address):
             with gr.Column(scale=2,min_width=520):
                 generation_identifier_value=gr.Textbox(label='생성 ID',interactive=False)
                 result_preview_value=gr.HTML(create_result_preview_html(None))
-                history_select_value=gr.Radio(choices=[],label='생성 이력')
-                with gr.Row():
-                    history_refresh_button_value=gr.Button('이력 새로고침')
-                    result_show_button_value=gr.Button('선택 결과 보기')
         log_output_value,log_refresh_enabled,_=build_execution_logs()
+        read_history_page,history_output_values=build_generation_history_view(execute_image_gateway,server_base_address,'이력 목록만 초기화합니다. 결과 이미지와 로그 파일은 유지됩니다. 생성 중에는 초기화할 수 없습니다.')
         prompt_text_value.change(lambda prompt_text_value:f'최종 프롬프트: **{count_prompt_words(prompt_text_value)}단어**',prompt_text_value,prompt_word_count_value,queue=False)
         def check_model_ready():
             model_record_value=execute_image_gateway('model-status',{})
@@ -78,19 +76,7 @@ def build_qwen_2512_interface(server_base_address):
             generation_record_value=execute_image_gateway('generate',build_generation_request(prompt_text_value,width_value,height_value,step_value,seed_value))
             return generation_record_value['id'],'상태: running · 생성 작업을 시작했습니다.'
         generation_button_value.click(start_generation,[prompt_text_value,width_select_value,height_select_value,step_select_value,seed_number_value],[generation_identifier_value,generation_status_value])
-        def read_history_records(selected_identifier_value=None):
-            history_record_values=execute_image_gateway('history',{}).get('records',[])
-            choice_values=[(f"{current_record_value['id']} · {current_record_value.get('status',{}).get('status','unknown')} · {current_record_value.get('request',{}).get('width','?')}×{current_record_value.get('request',{}).get('height','?')}",current_record_value['id']) for current_record_value in history_record_values]
-            retained_identifier_value=selected_identifier_value if selected_identifier_value in [current_value for _,current_value in choice_values] else None
-            return gr.update(choices=choice_values,value=retained_identifier_value)
-        history_refresh_button_value.click(read_history_records,history_select_value,history_select_value,queue=False)
-        interface_blocks_value.load(read_history_records,outputs=history_select_value)
-        history_select_value.change(lambda selected_identifier_value:selected_identifier_value or '',history_select_value,generation_identifier_value,queue=False)
-        def show_selected_result(generation_identifier_value):
-            if not generation_identifier_value:raise gr.Error('생성 이력을 선택하세요.')
-            status_record_value=execute_image_gateway('status',{'id':generation_identifier_value})
-            return create_result_preview_html(status_record_value.get('image')),format_generation_status(status_record_value)
-        result_show_button_value.click(show_selected_result,generation_identifier_value,[result_preview_value,generation_status_value],queue=False)
+        interface_blocks_value.load(lambda:read_history_page(1),outputs=history_output_values)
         def refresh_generation_status(generation_identifier_value,refresh_log_enabled):
             if not generation_identifier_value:return '생성 ID를 선택하세요.',gr.skip(),gr.skip()
             status_record_value=execute_image_gateway('status',{'id':generation_identifier_value})
