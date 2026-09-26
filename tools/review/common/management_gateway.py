@@ -13,9 +13,9 @@ import urllib.request
 from email.message import Message
 from urllib.parse import urlsplit, parse_qs
 
-MANAGEMENT_SERVICE_ROUTES = {'character-animation':'/character-animation','momask':'/momask-generator','qwen-2512':'/image-generation','qwen-2511':'/image-generation-2511'}
+MANAGEMENT_SERVICE_ROUTES = {'tile-map':'/tile-map-generator','character-animation':'/character-animation','momask':'/momask-generator','qwen-2512':'/image-generation','qwen-2511':'/image-generation-2511'}
 MANAGEMENT_COMMAND_ROUTES = {'catalog':('GET','/catalog'),'generate':('POST','/jobs'),'prepare':('POST','/jobs'),'status':('GET','/jobs/{id}'),'logs':('GET','/jobs/{id}/worker.log'),'history':('GET','/history'),'active':('GET','/active'),'model-status':('GET','/model-status'),'cancel':('POST','/cancel'),'history-reset':('POST','/history/reset'),'openpose-map':('POST','/openpose-map')}
-MANAGEMENT_SERVICE_COMMANDS = {'character-animation':('catalog','generate','status','logs','history','active','cancel','history-reset'),'momask':('generate','status','logs','history','cancel','history-reset','openpose-map'),'qwen-2512':('generate','prepare','status','logs','history','active','model-status','cancel','history-reset'),'qwen-2511':('generate','status','logs','history','active','model-status','cancel','history-reset')}
+MANAGEMENT_SERVICE_COMMANDS = {'tile-map':('catalog','generate','prepare','status','logs','history','active','model-status','cancel','history-reset'),'character-animation':('catalog','generate','status','logs','history','active','cancel','history-reset'),'momask':('generate','status','logs','history','cancel','history-reset','openpose-map'),'qwen-2512':('generate','prepare','status','logs','history','active','model-status','cancel','history-reset'),'qwen-2511':('generate','status','logs','history','active','model-status','cancel','history-reset')}
 
 
 def resolve_management_command(service_command_name, operation_command_name, command_payload_value):
@@ -148,7 +148,7 @@ class ManagementCommandGateway:
         return True
 
 
-MANAGEMENT_COMMAND_DESCRIPTIONS = {'character-animation':'등록 모션·캐릭터 기반 애니메이션 생성·이력·재생 결과 조회','momask': 'MoMask 생성·상태·로그·이력 조회·취소 (웹과 기록 공유)', 'qwen-2512': 'Qwen 2512 텍스트 이미지 생성 (관리 서버 필요)', 'qwen-2511': 'Qwen 2511 텍스트·1~3장 참조 이미지 생성 (관리 서버 필요)'}
+MANAGEMENT_COMMAND_DESCRIPTIONS = {'tile-map':'타일 종류별 고정 기본·화풍과 사용자 지시로 생성 (관리 서버 필요)','character-animation':'등록 모션·캐릭터 기반 애니메이션 생성·이력·재생 결과 조회','momask': 'MoMask 생성·상태·로그·이력 조회·취소 (웹과 기록 공유)', 'qwen-2512': 'Qwen 2512 텍스트 이미지 생성 (관리 서버 필요)', 'qwen-2511': 'Qwen 2511 텍스트·1~3장 참조 이미지 생성 (관리 서버 필요)'}
 
 def execute_management_command(service_command_name, operation_command_name, command_payload_value, server_base_address=None, *, gateway_request_handler=None, service_handler_values=None):
     request_method_value,request_route_value=resolve_management_command(service_command_name,operation_command_name,command_payload_value)
@@ -184,6 +184,7 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
                 operation_argument_parser.add_argument('--action',choices=('standing','deep_breath','stretch','walking'),required=True)
                 operation_argument_parser.add_argument('--directions',nargs='+',choices=('down_left','down_right','up_left','up_right'),default=['down_left','down_right','up_left','up_right'])
             else:
+                if service_command_name=='tile-map':operation_argument_parser.add_argument('--tile-type',choices=('rooftop','wall','door','ground'),required=True)
                 prompt_argument_group=operation_argument_parser.add_mutually_exclusive_group(required=True)
                 prompt_argument_group.add_argument('--prompt')
                 prompt_argument_group.add_argument('--prompt-file',type=Path,help='UTF-8 프롬프트 파일')
@@ -215,6 +216,9 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
             command_payload_value={'action':command_argument_values.action,'directions':command_argument_values.directions}
         else:
             command_payload_value={'action':'generate','prompt':command_argument_values.prompt if command_argument_values.prompt is not None else command_argument_values.prompt_file.read_text(encoding='utf-8'),'width':command_argument_values.width,'height':command_argument_values.height,'steps':command_argument_values.steps,'seed':command_argument_values.seed}
+            if service_command_name=='tile-map':
+                command_payload_value['tile_type']=command_argument_values.tile_type
+                command_payload_value['user_prompt']=command_payload_value.pop('prompt')
             if service_command_name=='qwen-2511':
                 if len(command_argument_values.reference)>3:raise ValueError('참조 이미지는 최대 3장입니다.')
                 command_payload_value['images']=[]

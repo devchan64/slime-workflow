@@ -245,6 +245,8 @@ def run_review_server(parsed_argument_values):
     from generators.writer_agent.documents import DEFAULT_WORKSPACE_CONFIG
     writer_agent_service=WriterAgentManager(parsed_argument_values.writer_agent_config or DEFAULT_WORKSPACE_CONFIG)
     image_generation_service = ImageGenerationManager()
+    from tools.review.domains.tile.tile_generation import TileGenerationManager
+    tile_generation_service = TileGenerationManager()
     from tools.review.domains.anny.anny_attributes import AnnyAttributeManager
     anny_attribute_service = AnnyAttributeManager()
     from tools.review.domains.momask.momask_generation import MoMaskGenerationManager
@@ -253,11 +255,12 @@ def run_review_server(parsed_argument_values):
     from tools.review.common.management_gateway import ManagementCommandGateway
     from tools.review.domains.character_animation.character_animation import CharacterAnimationManager
     character_animation_service = CharacterAnimationManager()
-    management_command_gateway = ManagementCommandGateway({'character-animation':character_animation_service.handle,'momask':momask_generation_service.handle,'qwen-2512':image_generation_service.handle_image_request,'qwen-2511':three_reference_service.handle_image_request})
+    management_command_gateway = ManagementCommandGateway({'tile-map':tile_generation_service.handle_image_request,'character-animation':character_animation_service.handle,'momask':momask_generation_service.handle,'qwen-2512':image_generation_service.handle_image_request,'qwen-2511':three_reference_service.handle_image_request})
     from tools.review.common.record_folders import handle_record_folder_request
     from tools.review.domains.character_animation.character_animation_jobs import GENERATION_ROOT_DIRECTORY, resolve_generation_directory
     from tools.review.domains.anny.anny_attributes import JOBS as ANNY_RECORD_DIRECTORY
     record_folder_routes = {
+        '/tile-map-generator': (tile_generation_service.job_storage_root, lambda record_identifier_value: tile_generation_service.job_storage_root/record_identifier_value),
         '/character-animation': (GENERATION_ROOT_DIRECTORY, resolve_generation_directory),
         '/anny-attributes': (ANNY_RECORD_DIRECTORY, lambda record_identifier_value: ANNY_RECORD_DIRECTORY/record_identifier_value),
         '/image-generation': (image_generation_service.job_storage_root, lambda record_identifier_value: image_generation_service.job_storage_root/record_identifier_value),
@@ -295,6 +298,7 @@ def run_review_server(parsed_argument_values):
             if momask_generation_service.handle(self):return
             if three_reference_service.handle_image_request(self):
                 return
+            if tile_generation_service.handle_image_request(self):return
             if image_generation_service.handle_image_request(self):
                 return
             super().do_GET()
@@ -306,6 +310,7 @@ def run_review_server(parsed_argument_values):
             if momask_generation_service.handle(self):return
             if three_reference_service.handle_image_request(self):
                 return
+            if tile_generation_service.handle_image_request(self):return
             if image_generation_service.handle_image_request(self):
                 return
             self.send_error(404, '지원하지 않는 작업 경로')

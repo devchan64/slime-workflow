@@ -73,6 +73,15 @@ class ImageGenerationManager:
         self.current_job_identifier = None
         self.current_request_lock = threading.Lock()
 
+    def enrich_generation_status(self, current_job_root, current_status_record):
+        return current_status_record
+
+    def validate_generation_request(self, request_record_value):
+        return validate_image_request(request_record_value)
+
+    def render_generation_page(self):
+        return resolve_review_ui_asset('three-reference-generation.html' if self.three_reference_mode else 'image-generation.html').read_bytes()
+
     def history_storage_path(self):
         return MANAGER_HISTORY_ROOT / ('qwen-2511' if self.three_reference_mode else 'qwen-2512')
 
@@ -152,7 +161,7 @@ class ImageGenerationManager:
                     from tools.review.domains.image.three_reference_generation import validate_three_reference_request, save_three_reference_inputs
                     current_request_record=validate_three_reference_request(current_request_record)
                 else:
-                    current_request_record=validate_image_request(current_request_record)
+                    current_request_record=self.validate_generation_request(current_request_record)
                 with self.current_request_lock:
                     if self.current_worker_process is not None and self.current_worker_process.poll() is None:
                         send_response_data(409,{'error':'이미지 생성 작업이 실행 중입니다.'})
@@ -210,7 +219,7 @@ class ImageGenerationManager:
             elif current_url_path == self.route_prefix_value+'/history-ui.js':
                 send_response_data(200,resolve_review_ui_asset('generation-history.js').read_bytes(),'text/javascript; charset=utf-8')
             elif current_url_path in (self.route_prefix_value,self.route_prefix_value+'/'):
-                send_response_data(200,resolve_review_ui_asset('three-reference-generation.html' if self.three_reference_mode else 'image-generation.html').read_bytes(),'text/html; charset=utf-8')
+                send_response_data(200,self.render_generation_page(),'text/html; charset=utf-8')
             else:
                 current_path_match = re.fullmatch(re.escape(self.route_prefix_value)+r'/jobs/([0-9]{4}-[0-9-]{5}_[0-9-]{8}-[a-f0-9]{8})(/result.png|/worker.log|/reference-[123]\.png)?',current_url_path)
                 if not current_path_match:
@@ -231,7 +240,7 @@ class ImageGenerationManager:
                     current_status_record['log_url']=f'{self.route_prefix_value}/jobs/{current_path_match[1]}/worker.log'
                     current_status_record['log_updated_at']=current_log_path.stat().st_mtime if current_log_path.exists() else None
                     current_status_record['image']=f'{self.route_prefix_value}/jobs/{current_path_match[1]}/result.png' if (current_job_root/'result.png').exists() else None
-                    send_response_data(200,current_status_record)
+                    send_response_data(200,self.enrich_generation_status(current_job_root,current_status_record))
         except (ValueError,FileNotFoundError) as current_error_value:
             send_response_data(400,{'error':str(current_error_value)})
         return True

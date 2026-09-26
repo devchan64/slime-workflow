@@ -145,3 +145,19 @@ python3 tools/manager.py command character-animation history-reset
 캐릭터 애니메이션 CLI의 `--steps 4` / `--steps 30`은 웹의 생성 방식 선택과 같다. 예: `python3 tools/manager.py command character-animation generate --motion standing-v3 --character character-default --source anny --steps 30 --detach`. 실행 요청·결과·이력에 선택 스텝을 보존한다. 기존 이력의 스텝 필드가 없으면 기존 방식인 4스텝으로 표시한다.
 
 보조 프롬프트는 `auxiliary`(전방)와 `auxiliary_rear`(후방)의 로컬 파일로 분리한다. 기본 프롬프트는 공통으로 유지한다. 후방은 뒷머리의 머리카락·등·양쪽 발뒤꿈치가 보이도록 명시한다. 방향 앵커는 `back-left`·`back-right`를 사용하고 머리·몸통·발이 같은 방향을 유지하도록 지시한다. 실제 선택한 보조 문구만 기본 프롬프트와 결합하고 화면 단어 수·실행 해시에 반영한다.
+
+
+## 타일맵 생성기
+
+관리도구 `#tile-map-generator`에서 지붕(`rooftop`)·벽(`wall`)·문(`door`)·맵 바닥(`ground`)을 선택한다. `generators/terrain/config/tile_map.yaml`의 기본·화풍 프롬프트는 고정이며 사용자 지시만 편집한다. 서버에서 세 문구를 결합하고 원문·단어 수·SHA-256을 기록한다. 최종 입력은 100단어 미만이며 정사각형 해상도만 지원한다. 생성 이미지는 검수 후보이고, 무봉제 품질이나 게임 에셋 채택을 자동 보장하지 않는다.
+
+Qwen 2512의 공용 작업자·GPU 잠금·준비·취소·진행 조회를 사용한다. 실행 폴더는 `.tmp/test/qwen-image-2512/tile-map/<생성 ID>/`, 누적 이력은 기존 공용 이력 루트의 `tile-map/`이다. 목록 초기화는 수동이며 결과 파일을 삭제하지 않는다. 같은 스텝·크기의 완료 이력이 있을 때만 예상 시간을 표시한다.
+
+```sh
+python3 tools/manager.py help tile-map
+python3 tools/manager.py command tile-map catalog
+python3 tools/manager.py command tile-map generate --tile-type wall --prompt 'Warm stone facade with a wooden window.' --width 512 --height 512 --steps 4 --detach
+python3 tools/manager.py command tile-map history
+```
+
+GUI와 CLI는 같은 `tile-map` 게이트웨이 서비스와 기록을 사용한다. CLI도 실행 중인 관리 서버가 필요하다. 생성 종류별 별도 추론 실행기는 만들지 않는다.
