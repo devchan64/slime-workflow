@@ -258,6 +258,15 @@ def run_review_server(parsed_argument_values):
         def __init__(self,*request_handler_arguments,**request_handler_options):
             super().__init__(*request_handler_arguments,directory=str(review_root_directory),**request_handler_options)
         def do_GET(self):
+            if urlsplit(self.path).path=='/management/studio.css':
+                response_content=resolve_review_ui_asset('generation-studio.css').read_bytes()
+                self.send_response(200)
+                self.send_header('Content-Type','text/css; charset=utf-8')
+                self.send_header('Content-Length',str(len(response_content)))
+                self.send_header('Cache-Control','no-store')
+                self.end_headers()
+                self.wfile.write(response_content)
+                return
             if urlsplit(self.path).path=='/management/workflow-ui.js':
                 response_content=resolve_review_ui_asset('management-workflow.js').read_bytes()
                 self.send_response(200);self.send_header('Content-Type','text/javascript; charset=utf-8');self.send_header('Content-Length',str(len(response_content)));self.end_headers();self.wfile.write(response_content)
