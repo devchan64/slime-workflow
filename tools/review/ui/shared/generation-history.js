@@ -64,7 +64,8 @@ async function refreshGenerationHistory(){
    if(currentHistoryRecord.request.attributes&&typeof window.restoreGenerationRecord==='function'){const historyReplayButton=document.createElement('button');historyReplayButton.textContent='결과 보기 · 입력 복원';historyReplayButton.disabled=currentHistoryRecord.status.status!=='completed'&&!currentHistoryRecord.preview_ready;historyReplayButton.onclick=()=>window.restoreGenerationRecord(currentHistoryRecord);historyRecordActions.append(historyReplayButton);}
    if(['cancelled','failed'].includes(currentHistoryRecord.status.status)&&typeof window.resumeGenerationRecord==='function'){const historyResumeButton=document.createElement('button');historyResumeButton.textContent='이어서 생성';historyResumeButton.onclick=async()=>{historyResumeButton.disabled=true;try{await window.resumeGenerationRecord(currentHistoryRecord);await refreshGenerationHistory();}catch(resumeRequestError){historyResumeButton.disabled=false;document.getElementById('history-status').textContent=resumeRequestError.message;}};historyRecordActions.append(historyResumeButton);}
    if(currentHistoryRecord.playable&&typeof window.playGenerationRecord==='function'){const historyPlaybackButton=document.createElement('button');historyPlaybackButton.textContent='결과 보기 · 재생';historyPlaybackButton.className='primary';historyPlaybackButton.onclick=()=>{selectedHistoryIdentifier=currentHistoryRecord.id;for(const historySelectedRow of document.querySelectorAll('#history-list>li'))historySelectedRow.classList.toggle('selected',historySelectedRow===historyListRow);window.playGenerationRecord(currentHistoryRecord);};historyRecordActions.append(historyPlaybackButton);}
-   if(currentHistoryRecord.image){const currentResultLink=document.createElement('a');currentResultLink.href=currentHistoryRecord.image;currentResultLink.target='_blank';currentResultLink.rel='noopener';currentResultLink.textContent='결과 보기';historyRecordActions.append(currentResultLink);}
+   if(currentHistoryRecord.image){const currentResultButton=document.createElement('button');currentResultButton.type='button';currentResultButton.textContent='결과 보기';currentResultButton.onclick=()=>showHistoryImageResult(currentHistoryRecord);historyRecordActions.append(currentResultButton);}
+
    if(currentHistoryRecord.status.error){const currentErrorElement=document.createElement('p');currentErrorElement.textContent=currentHistoryRecord.status.error;currentErrorElement.className='error';historyListRow.append(currentErrorElement);}
    historyInputSummary.after(historyRecordActions);historyListRow.append(currentHistoryArticle);currentHistoryList.append(historyListRow);
   }
@@ -82,3 +83,21 @@ document.querySelector('#history-reset').onclick=async()=>{
 };
 refreshGenerationHistory();
 setInterval(refreshGenerationHistory,10000);
+
+// 이미지 생성기에서 같은 결과 보기 화면을 사용한다. 실행 중인 작업 상태는 바꾸지 않는다.
+function showHistoryImageResult(historyRecordValue){
+ let resultDialogElement=document.querySelector('#history-image-dialog');
+ if(!resultDialogElement){
+  resultDialogElement=document.createElement('dialog');resultDialogElement.id='history-image-dialog';resultDialogElement.className='studio-panel';resultDialogElement.style.cssText='width:min(900px,90vw);max-height:90vh;overflow:auto';
+  resultDialogElement.innerHTML='<h2>생성 결과</h2><p data-result-description></p><p data-result-status role="status"></p><img data-result-image alt="선택한 생성 결과" style="display:block;max-width:100%;max-height:65vh;margin:auto;object-fit:contain"><div class="generation-actions"><a data-result-original target="_blank" rel="noopener">원본 이미지 열기</a><button type="button" data-result-close>닫기</button></div>';
+  document.body.append(resultDialogElement);resultDialogElement.querySelector('[data-result-close]').onclick=()=>resultDialogElement.close();
+ }
+ const resultImageElement=resultDialogElement.querySelector('[data-result-image]');
+ resultDialogElement.querySelector('[data-result-description]').textContent=historyRecordValue.id+' · '+(historyRecordValue.request.tile_type||'이미지');
+ const resultStatusElement=resultDialogElement.querySelector('[data-result-status]');resultStatusElement.textContent='이미지를 불러오는 중…';
+ resultImageElement.onload=()=>{resultStatusElement.textContent=resultImageElement.naturalWidth+' × '+resultImageElement.naturalHeight+' px';};
+ resultImageElement.onerror=()=>{resultStatusElement.textContent='결과 이미지를 불러오지 못했습니다. 기록 파일을 확인하세요.';};
+ resultImageElement.src=historyRecordValue.image;
+ resultDialogElement.querySelector('[data-result-original]').href=historyRecordValue.image;
+ if(!resultDialogElement.open)resultDialogElement.showModal();
+}
