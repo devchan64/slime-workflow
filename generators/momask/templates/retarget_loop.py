@@ -9,6 +9,7 @@ import bpy
 import numpy as np
 from mathutils import Matrix, Vector
 from position_retarget import PositionRetargetSolver, RETARGET_ALGORITHM_VERSION, load_retarget_profile
+from retarget_audit import write_coordinate_audit
 
 EXPERIMENT_OUTPUT_ROOT = Path(__file__).resolve().parent
 CURRENT_PROGRESS_STATE = {'stage': 'start', 'frame': 0}
@@ -62,6 +63,10 @@ target_scale_length = (rest_bone_positions[target_scale_end] - rest_bone_positio
 if np.min(source_scale_lengths) <= 1e-8 or target_scale_length <= 1e-8:
     raise ValueError('루트 이동 배율의 기준 구간 길이가 0입니다.')
 motion_scale_value = target_scale_length / float(source_scale_lengths.mean())
+CURRENT_PROGRESS_STATE['stage'] = 'coordinate-audit'
+write_coordinate_audit(EXPERIMENT_OUTPUT_ROOT, source_motion_bundle['joints'],
+                       profile_record_values, rest_bone_positions,
+                       motion_scale_value, source_manifest_record)
 source_root_index = profile_record_values['root_joint']
 # 부모를 먼저 적용해야 전역 회전의 로컬 변환이 다음 본에 정확히 반영된다.
 ordered_pose_bones = sorted(rig_object_value.pose.bones, key=lambda current_pose_bone: len(current_pose_bone.parent_recursive))
@@ -98,9 +103,12 @@ for current_frame_index, current_joint_points in enumerate(source_joint_frames):
         source_start_index, source_end_index = current_segment_record['source_primary']
         target_direction_value = (rig_object_value.pose.bones[target_end_name].head - rig_object_value.pose.bones[target_start_name].head).normalized()
         source_direction_value = Vector(current_joint_points[source_end_index] - current_joint_points[source_start_index]).normalized()
-        current_error_degrees = float(np.degrees(np.arctan2(target_direction_value.cross(source_direction_value).length, target_direction_value.dot(source_direction_value))))
+        expected_direction_value = Vector(frame_diagnostic_values[current_segment_record['segment_id']]['expected_target_direction'])
+        source_alignment_degrees = float(np.degrees(np.arctan2(target_direction_value.cross(source_direction_value).length, target_direction_value.dot(source_direction_value))))
+        current_error_degrees = float(np.degrees(np.arctan2(target_direction_value.cross(expected_direction_value).length, target_direction_value.dot(expected_direction_value))))
         current_direction_errors.append(current_error_degrees)
         frame_diagnostic_values[current_segment_record['segment_id']]['evaluated_direction_error_degrees'] = current_error_degrees
+        frame_diagnostic_values[current_segment_record['segment_id']]['source_alignment_degrees'] = source_alignment_degrees
     actual_direction_errors.append(current_direction_errors)
     frame_diagnostic_records.append(frame_diagnostic_values)
 rig_object_value.animation_data.action.name = f'MoMask_{len(source_joint_frames)}frames_{scene_render_value.render.fps}fps'

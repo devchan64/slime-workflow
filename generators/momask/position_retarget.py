@@ -5,11 +5,11 @@ from pathlib import Path
 import yaml
 from mathutils import Matrix, Quaternion, Vector
 
-RETARGET_ALGORITHM_VERSION = 'position-profile-transport-v2'
+RETARGET_ALGORITHM_VERSION = 'position-reference-transport-v3'
 MINIMUM_DIRECTION_LENGTH = 1e-8
 MINIMUM_FRAME_SINE = 1e-6
-PROFILE_REQUIRED_FIELDS = {'schema_version', 'profile_id', 'joint_count', 'coordinate_matrix', 'root_joint', 'scale_source', 'scale_target', 'segments', 'unmapped_policy'}
-SEGMENT_REQUIRED_FIELDS = {'segment_id', 'source_primary', 'target_primary', 'source_secondary', 'target_secondary', 'target_bones'}
+PROFILE_REQUIRED_FIELDS = {'schema_version', 'profile_id', 'joint_count', 'coordinate_matrix', 'root_joint', 'scale_source', 'scale_target', 'segments', 'unmapped_policy', 'source_reference'}
+SEGMENT_REQUIRED_FIELDS = {'segment_id', 'source_primary', 'target_primary', 'source_secondary', 'target_secondary', 'target_bones', 'transfer_mode'}
 
 
 class UniqueProfileLoader(yaml.SafeLoader):
@@ -73,11 +73,19 @@ def load_retarget_profile(profile_source_path):
     profile_record_values = yaml.load(Path(profile_source_path).read_text(), Loader=UniqueProfileLoader)
     if not isinstance(profile_record_values, dict) or set(profile_record_values) != PROFILE_REQUIRED_FIELDS:
         raise ValueError('리타깃 프로필 필드가 계약과 다릅니다.')
-    if type(profile_record_values['schema_version']) is not int or profile_record_values['schema_version'] != 1 or not isinstance(profile_record_values['profile_id'], str) or not profile_record_values['profile_id']:
+    if type(profile_record_values['schema_version']) is not int or profile_record_values['schema_version'] != 2 or not isinstance(profile_record_values['profile_id'], str) or not profile_record_values['profile_id']:
         raise ValueError('리타깃 프로필 버전·식별자 오류')
     source_joint_count = profile_record_values['joint_count']
     if type(source_joint_count) is not int or source_joint_count < 2:
         raise ValueError('리타깃 관절 수 오류')
+    source_reference_record = profile_record_values['source_reference']
+    if not isinstance(source_reference_record, dict) or set(source_reference_record) != {'id', 'source_url', 'source_sha256', 'joint_positions'}:
+        raise ValueError('원본 기준 골격 필드 오류')
+    if any(not isinstance(source_reference_record[current_field_name], str) or not source_reference_record[current_field_name] for current_field_name in ('id', 'source_url', 'source_sha256')):
+        raise ValueError('원본 기준 골격 출처 누락')
+    source_reference_points = source_reference_record['joint_positions']
+    if not isinstance(source_reference_points, list) or len(source_reference_points) != source_joint_count or any(not isinstance(current_point_values, list) or len(current_point_values) != 3 or any(type(current_axis_value) not in (int, float) or not math.isfinite(current_axis_value) for current_axis_value in current_point_values) for current_point_values in source_reference_points):
+        raise ValueError('원본 기준 골격 관절 오류')
     if type(profile_record_values['root_joint']) is not int or not 0 <= profile_record_values['root_joint'] < source_joint_count:
         raise ValueError('루트 관절 인덱스 오류')
     if profile_record_values['unmapped_policy'] != 'inherit_rest_local':
@@ -98,6 +106,8 @@ def load_retarget_profile(profile_source_path):
     for current_segment_record in profile_record_values['segments']:
         if not isinstance(current_segment_record, dict) or set(current_segment_record) != SEGMENT_REQUIRED_FIELDS:
             raise ValueError('리타깃 구간 필드 오류')
+        if current_segment_record['transfer_mode'] not in ('absolute_direction', 'reference_delta'):
+            raise ValueError('지원하지 않는 방향 전달 방식')
         current_segment_label = current_segment_record['segment_id']
         if not isinstance(current_segment_label, str) or not current_segment_label or current_segment_label in assigned_segment_names:
             raise ValueError('리타깃 구간 식별자 오류·중복')
@@ -130,6 +140,7 @@ class PositionRetargetSolver:
         self.rest_bone_rotations = rest_bone_rotations
         self.segment_binding_values = {}
         self.previous_segment_states = {}
+        source_reference_points = [Matrix(profile_record_values['coordinate_matrix']) @ Vector(current_point_values) for current_point_values in profile_record_values['source_reference']['joint_positions']]
         for current_segment_record in profile_record_values['segments']:
             for current_pair_field in ('target_primary', 'target_secondary'):
                 for current_bone_name in current_segment_record[current_pair_field] or []:
@@ -139,14 +150,18 @@ class PositionRetargetSolver:
                 if current_bone_name not in rest_bone_rotations:
                     raise ValueError(f'대상 본 누락: {current_bone_name}')
             rest_primary_value = normalize_valid_direction(calculate_pair_direction(rest_bone_positions, current_segment_record['target_primary']), current_segment_record['segment_id'])
+            reference_point_values = source_reference_points if current_segment_record['transfer_mode'] == 'reference_delta' else rest_bone_positions
+            reference_primary_pair = current_segment_record['source_primary'] if current_segment_record['transfer_mode'] == 'reference_delta' else current_segment_record['target_primary']
+            reference_secondary_pair = current_segment_record['source_secondary'] if current_segment_record['transfer_mode'] == 'reference_delta' else current_segment_record['target_secondary']
+            reference_primary_value = normalize_valid_direction(calculate_pair_direction(reference_point_values, reference_primary_pair), current_segment_record['segment_id'])
             rest_frame_rotation = None
             if current_segment_record['target_secondary'] is not None:
-                rest_frame_rotation = build_observed_frame(rest_primary_value, calculate_pair_direction(rest_bone_positions, current_segment_record['target_secondary']), current_segment_record['segment_id'])
+                rest_frame_rotation = build_observed_frame(reference_primary_value, calculate_pair_direction(reference_point_values, reference_secondary_pair), current_segment_record['segment_id'])
             # 기준 본의 축 중 주 방향과 가장 독립적인 축으로 초기 미관측 회전을 정의한다.
             first_bone_rotation = rest_bone_rotations[current_segment_record['target_bones'][0]]
             reference_axis_values = [first_bone_rotation @ Vector(current_axis_values) for current_axis_values in ((1, 0, 0), (0, 1, 0), (0, 0, 1))]
-            rest_reference_axis = min(reference_axis_values, key=lambda current_axis_value: abs(current_axis_value.dot(rest_primary_value)))
-            self.segment_binding_values[current_segment_record['segment_id']] = (rest_primary_value, rest_frame_rotation, rest_reference_axis)
+            rest_reference_axis = min(reference_axis_values, key=lambda current_axis_value: abs(current_axis_value.dot(reference_primary_value)))
+            self.segment_binding_values[current_segment_record['segment_id']] = (reference_primary_value, rest_frame_rotation, rest_reference_axis, rest_primary_value)
 
     def calculate_frame_rotations(self, current_joint_points):
         if len(current_joint_points) != self.profile_record_values['joint_count'] or any(len(current_joint_point) != 3 or not all(math.isfinite(current_axis_value) for current_axis_value in current_joint_point) for current_joint_point in current_joint_points):
@@ -156,7 +171,7 @@ class PositionRetargetSolver:
         next_segment_states = {}
         for current_segment_record in self.profile_record_values['segments']:
             current_segment_label = current_segment_record['segment_id']
-            rest_primary_value, rest_frame_rotation, rest_reference_axis = self.segment_binding_values[current_segment_label]
+            rest_primary_value, rest_frame_rotation, rest_reference_axis, target_rest_primary = self.segment_binding_values[current_segment_label]
             target_primary_value = normalize_valid_direction(calculate_pair_direction(current_joint_points, current_segment_record['source_primary']), current_segment_label)
             previous_segment_state = self.previous_segment_states.get(current_segment_label)
             if rest_frame_rotation is not None:
@@ -175,7 +190,8 @@ class PositionRetargetSolver:
             actual_primary_value = segment_delta_rotation @ rest_primary_value
             direction_error_degrees = math.degrees(math.atan2(actual_primary_value.cross(target_primary_value).length, actual_primary_value.dot(target_primary_value)))
             rotation_step_degrees = 0.0 if previous_segment_state is None else math.degrees(2 * math.acos(min(1.0, abs(previous_segment_state[1].dot(segment_delta_rotation)))))
-            frame_diagnostic_values[current_segment_label] = {'observation': segment_observation_mode, 'direction_error_degrees': direction_error_degrees, 'rotation_step_degrees': rotation_step_degrees}
+            expected_target_direction = segment_delta_rotation @ target_rest_primary
+            frame_diagnostic_values[current_segment_label] = {'observation': segment_observation_mode, 'transfer_mode': current_segment_record['transfer_mode'], 'direction_error_degrees': direction_error_degrees, 'rotation_step_degrees': rotation_step_degrees, 'expected_target_direction': list(expected_target_direction)}
             for current_bone_name in current_segment_record['target_bones']:
                 frame_rotation_values[current_bone_name] = segment_delta_rotation @ self.rest_bone_rotations[current_bone_name]
         self.previous_segment_states = next_segment_states

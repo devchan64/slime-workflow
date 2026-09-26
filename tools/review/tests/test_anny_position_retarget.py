@@ -20,11 +20,11 @@ from position_retarget import PositionRetargetSolver, load_retarget_profile
 
 
 def create_segment_profile():
-    return {'schema_version': 1, 'profile_id': 'synthetic-rig', 'joint_count': 3,
+    return {'schema_version': 2, 'source_reference': {'id':'synthetic-reference', 'source_url':'test://reference', 'source_sha256':'0'*64, 'joint_positions':[[0,0,0],[0,-1,0],[1,0,0]]}, 'profile_id': 'synthetic-rig', 'joint_count': 3,
             'coordinate_matrix': [[1, 0, 0], [0, 1, 0], [0, 0, 1]],
             'root_joint': 0, 'scale_source': [0, 1], 'scale_target': ['start', 'end'],
             'unmapped_policy': 'inherit_rest_local',
-            'segments': [{'segment_id': 'segment', 'source_primary': [0, 1],
+            'segments': [{'transfer_mode': 'absolute_direction', 'segment_id': 'segment', 'source_primary': [0, 1],
                           'target_primary': ['start', 'end'], 'source_secondary': None,
                           'target_secondary': None, 'target_bones': ['start', 'split']}]}
 

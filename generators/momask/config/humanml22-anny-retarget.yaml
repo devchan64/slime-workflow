@@ -1,6 +1,6 @@
-# 동작 보정 없이 관절 의미·대상 본 대응만 선언한다.
-schema_version: 1
-profile_id: humanml22-anny-v1
+# 동작별 보정 없이 고정 원본 골격과 관측 의미에 따른 전달 방식을 선언한다.
+schema_version: 2
+profile_id: humanml22-anny-v2
 joint_count: 22
 coordinate_matrix:
 - - 1
@@ -36,6 +36,7 @@ segments:
   - upperleg01.L
   target_bones:
   - root
+  transfer_mode: reference_delta
 - segment_id: lower_spine
   source_primary:
   - 0
@@ -52,6 +53,7 @@ segments:
   target_bones:
   - spine05
   - spine04
+  transfer_mode: reference_delta
 - segment_id: middle_spine
   source_primary:
   - 3
@@ -68,6 +70,7 @@ segments:
   target_bones:
   - spine03
   - spine02
+  transfer_mode: reference_delta
 - segment_id: upper_spine
   source_primary:
   - 6
@@ -83,6 +86,7 @@ segments:
   - upperarm01.L
   target_bones:
   - spine01
+  transfer_mode: reference_delta
 - segment_id: lower_neck
   source_primary:
   - 9
@@ -94,6 +98,7 @@ segments:
   target_secondary: null
   target_bones:
   - neck01
+  transfer_mode: reference_delta
 - segment_id: upper_neck
   source_primary:
   - 12
@@ -106,6 +111,7 @@ segments:
   target_bones:
   - neck02
   - neck03
+  transfer_mode: reference_delta
 - segment_id: hip_l
   source_primary:
   - 0
@@ -117,6 +123,7 @@ segments:
   target_secondary: null
   target_bones:
   - pelvis.L
+  transfer_mode: reference_delta
 - segment_id: thigh_l
   source_primary:
   - 1
@@ -129,6 +136,7 @@ segments:
   target_bones:
   - upperleg01.L
   - upperleg02.L
+  transfer_mode: absolute_direction
 - segment_id: shin_l
   source_primary:
   - 4
@@ -141,6 +149,7 @@ segments:
   target_bones:
   - lowerleg01.L
   - lowerleg02.L
+  transfer_mode: absolute_direction
 - segment_id: foot_l
   source_primary:
   - 7
@@ -152,6 +161,7 @@ segments:
   target_secondary: null
   target_bones:
   - foot.L
+  transfer_mode: absolute_direction
 - segment_id: collar_l
   source_primary:
   - 9
@@ -163,6 +173,7 @@ segments:
   target_secondary: null
   target_bones:
   - clavicle.L
+  transfer_mode: reference_delta
 - segment_id: shoulder_l
   source_primary:
   - 13
@@ -174,6 +185,7 @@ segments:
   target_secondary: null
   target_bones:
   - shoulder01.L
+  transfer_mode: reference_delta
 - segment_id: upper_arm_l
   source_primary:
   - 16
@@ -186,6 +198,7 @@ segments:
   target_bones:
   - upperarm01.L
   - upperarm02.L
+  transfer_mode: absolute_direction
 - segment_id: forearm_l
   source_primary:
   - 18
@@ -198,6 +211,7 @@ segments:
   target_bones:
   - lowerarm01.L
   - lowerarm02.L
+  transfer_mode: absolute_direction
 - segment_id: hip_r
   source_primary:
   - 0
@@ -209,6 +223,7 @@ segments:
   target_secondary: null
   target_bones:
   - pelvis.R
+  transfer_mode: reference_delta
 - segment_id: thigh_r
   source_primary:
   - 2
@@ -221,6 +236,7 @@ segments:
   target_bones:
   - upperleg01.R
   - upperleg02.R
+  transfer_mode: absolute_direction
 - segment_id: shin_r
   source_primary:
   - 5
@@ -233,6 +249,7 @@ segments:
   target_bones:
   - lowerleg01.R
   - lowerleg02.R
+  transfer_mode: absolute_direction
 - segment_id: foot_r
   source_primary:
   - 8
@@ -244,6 +261,7 @@ segments:
   target_secondary: null
   target_bones:
   - foot.R
+  transfer_mode: absolute_direction
 - segment_id: collar_r
   source_primary:
   - 9
@@ -255,6 +273,7 @@ segments:
   target_secondary: null
   target_bones:
   - clavicle.R
+  transfer_mode: reference_delta
 - segment_id: shoulder_r
   source_primary:
   - 14
@@ -266,6 +285,7 @@ segments:
   target_secondary: null
   target_bones:
   - shoulder01.R
+  transfer_mode: reference_delta
 - segment_id: upper_arm_r
   source_primary:
   - 17
@@ -278,6 +298,7 @@ segments:
   target_bones:
   - upperarm01.R
   - upperarm02.R
+  transfer_mode: absolute_direction
 - segment_id: forearm_r
   source_primary:
   - 19
@@ -290,3 +311,75 @@ segments:
   target_bones:
   - lowerarm01.R
   - lowerarm02.R
+  transfer_mode: absolute_direction
+source_reference:
+  id: momask-bvh-template-c88a9626
+  source_url: https://github.com/EricGuo5513/momask-codes/blob/c88a9626bb099499d8bc1ac2cb71dc0888c26169/visualization/data/template.bvh
+  source_sha256: d53a5420b1cf5529c881d14fd2ccd0d170950f2b6412091a1abac95204339d67
+  joint_positions:
+  - - 0.0
+    - 0.0
+    - 0.0
+  - - 0.06952
+    - -0.091406
+    - -0.006815
+  - - -0.06767
+    - -0.090522
+    - -0.00432
+  - - -0.002533
+    - 0.108963
+    - -0.026696
+  - - 0.103797
+    - -0.466605
+    - -0.011311
+  - - -0.10596
+    - -0.473091
+    - -0.01317
+  - - 0.002954
+    - 0.244143
+    - -0.025604
+  - - 0.090201
+    - -0.864566
+    - -0.055004
+  - - -0.090186
+    - -0.871506
+    - -0.055482
+  - - 0.004411
+    - 0.297065
+    - -0.000179
+  - - 0.116559
+    - -0.920357
+    - 0.064284
+  - - -0.115558
+    - -0.91965
+    - 0.067866
+  - - 0.001633
+    - 0.510935
+    - -0.043036
+  - - 0.083256
+    - 0.418814
+    - -0.034269
+  - - -0.077348
+    - 0.415898
+    - -0.038794
+  - - 0.006785
+    - 0.575905
+    - 0.008313
+  - - 0.174233
+    - 0.449283
+    - -0.043137
+  - - -0.17336
+    - 0.448449
+    - -0.047937
+  - - 0.433845
+    - 0.436511
+    - -0.070593
+  - - -0.427102
+    - 0.43512
+    - -0.069338
+  - - 0.683079
+    - 0.445497
+    - -0.071764
+  - - -0.6824
+    - 0.442892
+    - -0.074897

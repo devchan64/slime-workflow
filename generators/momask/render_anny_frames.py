@@ -10,7 +10,7 @@ SOURCE=ROOT/'generators/momask/templates'
 BLENDER=ROOT/'.local/blender-runtime/bin/python'
 DIRECTIONS={'down_left','down_right','up_left','up_right'}
 RETARGET_PROFILE_PATH = ROOT/'generators/momask/config/humanml22-anny-retarget.yaml'
-RETARGET_ALGORITHM_VERSION = 'position-profile-transport-v2'
+RETARGET_ALGORITHM_VERSION = 'position-reference-transport-v3'
 
 def digest(path): return hashlib.sha256(path.read_bytes()).hexdigest()
 def render(motion_path, output_dir, directions, sample_indices, camera_azimuth_degrees=45):
@@ -21,7 +21,8 @@ def render(motion_path, output_dir, directions, sample_indices, camera_azimuth_d
     if not sample_indices or min(sample_indices)<0 or max(sample_indices)>=len(joints): raise ValueError('유효한 샘플 인덱스가 필요합니다.')
     if not set(directions) or set(directions)-DIRECTIONS: raise ValueError('방향 선택 오류')
     output_dir.mkdir(parents=True,exist_ok=False);(output_dir/'inputs').mkdir()
-    source_motion=output_dir/'inputs/mannequin-motion.npz';np.savez_compressed(source_motion,joints=joints,rest=joints[0],contacts=np.zeros((len(joints),2),dtype=np.float32),sample_indices=np.array(sample_indices))
+    source_reference_record=yaml.safe_load(RETARGET_PROFILE_PATH.read_text())['source_reference']
+    source_motion=output_dir/'inputs/mannequin-motion.npz';np.savez_compressed(source_motion,joints=joints,rest=np.asarray(source_reference_record['joint_positions']),contacts=np.zeros((len(joints),2),dtype=np.float32),sample_indices=np.array(sample_indices))
     (output_dir/'inputs/artifact.json').write_text(json.dumps({'files':{'mannequin-motion.npz':digest(source_motion)},'fps':4,'source_motion':str(motion_path.relative_to(ROOT))},ensure_ascii=False))
     baseline_selection_record=yaml.safe_load((ROOT/'generators/animation/config/anny_model_baseline.yaml').read_text())
     baseline_selection_record=yaml.safe_load((ROOT/baseline_selection_record['active_profile_path']).read_text())
@@ -36,6 +37,7 @@ def render(motion_path, output_dir, directions, sample_indices, camera_azimuth_d
     for name in ('run_stage.py','retarget_loop.py','render_asset.py'):
         shutil.copy2(SOURCE/name,output_dir/name)
     shutil.copy2(ROOT/'generators/momask/position_retarget.py',output_dir/'position_retarget.py')
+    shutil.copy2(ROOT/'generators/momask/retarget_audit.py',output_dir/'retarget_audit.py')
     shutil.copy2(RETARGET_PROFILE_PATH,output_dir/'retarget-profile.yaml')
     retarget_result_record={'renderer':'Anny Blender retarget','frames':len(sample_indices),'directions':directions,'samples':16,'hand_pose':'inherit-rest-local','arm_retarget':RETARGET_ALGORITHM_VERSION,'skinning':'dual-quaternion','baseline_model':baseline_model_record,'profile_sha256':digest(output_dir/'retarget-profile.yaml'),'solver_sha256':digest(output_dir/'position_retarget.py')}
     (output_dir/'retarget-contract.json').write_text(json.dumps(retarget_result_record,ensure_ascii=False,indent=2))
