@@ -190,7 +190,7 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
                 operation_argument_parser.add_argument('--source',choices=('openpose','anny'),default='openpose')
                 operation_argument_parser.add_argument('--directions',nargs='+',choices=('down_left','down_right','up_left','up_right'),default=['down_left','down_right','up_left','up_right'])
             elif service_command_name=='momask':
-                operation_argument_parser.add_argument('--action',choices=('standing','deep_breath','stretch','walking'),required=True)
+                operation_argument_parser.add_argument('--action',choices=('standing','stretch','walking'),required=True)
                 operation_argument_parser.add_argument('--directions',nargs='+',choices=('down_left','down_right','up_left','up_right'),default=['down_left','down_right','up_left','up_right'])
             else:
                 if service_command_name=='tile-map':operation_argument_parser.add_argument('--tile-type',choices=('rooftop','wall','ground'),required=True)

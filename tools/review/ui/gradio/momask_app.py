@@ -19,7 +19,7 @@ from tools.review.common.gradio_logs import build_execution_logs, LOG_PANEL_STYL
 from tools.review.domains.momask.momask_jobs import check_generation_running
 from tools.review.domains.momask.momask_generation import render_standing_corrections, render_stretch_arm_corrections
 
-MOTION_ACTION_LABELS = [('대기','standing'),('심호흡','deep_breath'),('스트레칭','stretch'),('걷기','walking')]
+MOTION_ACTION_LABELS = [('대기','standing'),('스트레칭','stretch'),('걷기','walking')]
 MOTION_DIRECTION_LABELS = [('전방 좌측','down_left'),('전방 우측','down_right'),('후방 좌측','up_left'),('후방 우측','up_right')]
 
 def create_copyable_textbox(**textbox_keyword_values):
@@ -34,7 +34,7 @@ def read_motion_settings(selected_action_name):
     action_config_record=json.loads((WORKFLOW_ROOT_DIRECTORY/'generators/momask/config/standing-loops-v1.json').read_text())['actions'][selected_action_name]
     camera_config_record=yaml.safe_load((WORKFLOW_ROOT_DIRECTORY/'generators/momask/config/camera-angles.yaml').read_text())
     prompt_content_value=action_config_record['prompt']
-    correction_html_value=render_standing_corrections() if selected_action_name=='standing' else render_standing_corrections('deep-breath-corrections.yaml') if selected_action_name=='deep_breath' else render_stretch_arm_corrections() if selected_action_name=='stretch' else '<p>걷기는 원본 관절 모션을 사용합니다.</p>'
+    correction_html_value=render_standing_corrections() if selected_action_name=='standing' else render_stretch_arm_corrections() if selected_action_name=='stretch' else '<p>걷기는 원본 관절 모션을 사용합니다.</p>'
     return prompt_content_value, f"{len(prompt_content_value.split())}단어 · 원본 {action_config_record['source_frames']}프레임 · 수평 {camera_config_record[selected_action_name]}° · 내려다보기 약 17°", correction_html_value
 
 def list_motion_history(history_page_number=1, selected_history_identifier=None):
@@ -177,9 +177,10 @@ if __name__=='__main__':
     argument_parser_value.add_argument('--port',type=int,required=True)
     argument_parser_value.add_argument('--review-port',type=int,required=True)
     argument_parser_value.add_argument('--owner-pid',type=int,required=True)
+    argument_parser_value.add_argument('--root-path',default='/momask-generator/')
     parsed_argument_values=argument_parser_value.parse_args()
     def monitor_parent_process():
         while os.getppid()==parsed_argument_values.owner_pid:time.sleep(1)
         os._exit(0)
     threading.Thread(target=monitor_parent_process,daemon=True).start()
-    build_momask_interface(f'http://127.0.0.1:{parsed_argument_values.review_port}').queue().launch(server_name='127.0.0.1',server_port=parsed_argument_values.port,theme=gr.themes.Soft(),css=(Path(__file__).parent/'management-layout.css').read_text()+LOG_PANEL_STYLES,allowed_paths=[])
+    build_momask_interface(f'http://127.0.0.1:{parsed_argument_values.review_port}').queue().launch(server_name='127.0.0.1',server_port=parsed_argument_values.port,root_path=parsed_argument_values.root_path,theme=gr.themes.Soft(),css=(Path(__file__).parent/'management-layout.css').read_text()+LOG_PANEL_STYLES,allowed_paths=[])

@@ -70,47 +70,6 @@
       "prompt": "A person stands.",
       "description": "“서 있다” 고정 스크립트. 팔은 생성 후 몸통 옆 수직 자세로 정규화한다."
     },
-    "deep_breath": {
-      "source_frames": 32,
-      "rendered_frames": 32,
-      "sample_indices": [
-        0,
-        1,
-        2,
-        3,
-        4,
-        5,
-        6,
-        7,
-        8,
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18,
-        19,
-        20,
-        21,
-        22,
-        23,
-        24,
-        25,
-        26,
-        27,
-        28,
-        29,
-        30,
-        31
-      ],
-      "playtime_seconds": 8.0,
-      "prompt": "A person starts in a neutral standing posture with both arms relaxed at the sides, takes a deep breath in and out, then returns to the same neutral standing posture.",
-      "description": "대기와 같은 보정 경로에 가슴 후방 회전 15도를 적용하는 심호흡"
-    },
     "stretch": {
       "source_frames": 120,
       "rendered_frames": 120,
@@ -249,7 +208,6 @@
   "facial_animation": "Add blinking only in the image-frame stage; HumanML3D-22 has no eye joints.",
   "quality_gates": {
     "standing_max_horizontal_displacement_m": 0.12,
-    "deep_breath_max_horizontal_displacement_m": 0.12,
     "stretch_max_horizontal_displacement_m": 0.2,
     "stretch_min_wrist_height_change_m": 0.3
   }

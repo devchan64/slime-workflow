@@ -40,6 +40,10 @@ class SharedGenerationJobsTest(unittest.TestCase):
             with self.assertRaises(ValueError):
                 JOB_SERVICE_MODULE.start_generation_job('standing', ['down_left'])
 
+    def test_deep_breath_action_is_rejected(self):
+        with self.assertRaises(ValueError):
+            JOB_SERVICE_MODULE.start_generation_job('deep_breath', ['down_left'])
+
     def test_completion_and_reset_retention(self):
         for clear_history_first in (False, True):
             identifier=self.create_test_record()

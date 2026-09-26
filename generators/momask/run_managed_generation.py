@@ -4,7 +4,7 @@ import argparse, json, shutil, subprocess, sys
 import numpy as np
 import yaml
 ROOT=Path(__file__).resolve().parents[2]
-ACTIONS={'walking':('walking','걷기'),'standing':('standing','대기'),'deep_breath':('deep-breath','심호흡'),'stretch':('stretch','스트레칭')}
+ACTIONS={'walking':('walking','걷기'),'standing':('standing','대기'),'stretch':('stretch','스트레칭')}
 DIRECTIONS={'down_left','down_right','up_left','up_right'}
 def main():
  p=argparse.ArgumentParser();p.add_argument('--job-dir',type=Path,required=True);p.add_argument('--action',choices=ACTIONS);p.add_argument('--directions',required=True);a=p.parse_args()
@@ -17,8 +17,8 @@ def main():
  command=[str(ROOT/'.venv/bin/python'),str(ROOT/'generators/momask/generate_motion.py'),'--output-dir',str(generation_root),'--frames',str(spec['source_frames']),'--prompt',spec['prompt']]
  subprocess.run(command,check=True)
  motion=generation_root/'motion/motion.npz'
- if a.action in ('standing','deep_breath'):
-  subprocess.run([str(ROOT/'.venv/bin/python'),str(ROOT/'generators/momask/normalize_standing_arms.py'),'--motion',str(motion),'--correction-config',str(ROOT/'generators/momask/config'/('standing-corrections.yaml' if a.action=='standing' else 'deep-breath-corrections.yaml'))],check=True)
+ if a.action == 'standing':
+  subprocess.run([str(ROOT/'.venv/bin/python'),str(ROOT/'generators/momask/normalize_standing_arms.py'),'--motion',str(motion),'--correction-config',str(ROOT/'generators/momask/config/standing-corrections.yaml')],check=True)
  result=a.job_dir/'result'; joints=np.load(motion)['joints']; frames=len(joints); indices=','.join(map(str,range(frames)))
  motion_quality_warnings=[]
  if a.action=='stretch':
@@ -26,7 +26,7 @@ def main():
   if np.any(endpoint_wrist_offsets>-.15):
    motion_quality_warnings.append('스트레칭 시작·종료 시 양손을 충분히 내리지 못했습니다. 결과 자세를 검수하세요.')
    print('품질 경고: '+motion_quality_warnings[-1],flush=True)
- if a.action in ('standing','deep_breath'):
+ if a.action == 'standing':
   standing_correction_values=yaml.safe_load((motion.parent/'standing-corrections.yaml').read_text())
   upper_ratios=[]
   for shoulder,elbow in ((16,18),(17,19)):
@@ -35,7 +35,7 @@ def main():
   root_travel=float(np.linalg.norm(joints[:,0,[0,2]]-joints[0,0,[0,2]],axis=1).max())
   if root_travel>.025: raise ValueError('대기 수평 이동 품질 기준 초과')
   head_vertical_range=float(np.ptp(joints[:,15,1]))
-  if head_vertical_range>(.015 if a.action=='standing' else .04): raise ValueError('대기 머리 상하 움직임 과다')
+  if head_vertical_range>.015: raise ValueError('대기 머리 상하 움직임 과다')
   standing_correction_values=yaml.safe_load((motion.parent/'standing-corrections.yaml').read_text())
   backward_rotation_limit=standing_correction_values['chest_backward_rotation_degrees']+standing_correction_values['max_torso_pitch_degrees']
   torso_direction_values=joints[:,9]-joints[:,0]

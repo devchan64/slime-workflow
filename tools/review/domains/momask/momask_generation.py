@@ -13,7 +13,8 @@ from tools.review.common.management_log_viewer import MANAGEMENT_LOG_VIEWER_SCRI
 ROOT=Path(__file__).resolve().parents[4]
 JOB_ROOT=ROOT/'.tmp/momask-generator/jobs'
 HISTORY_ROOT=ROOT/'.tmp/momask-generator/history'
-ACTIONS={'standing':{'label':'대기','frames':16},'deep_breath':{'label':'심호흡','frames':32},'stretch':{'label':'스트레칭','frames':120},'walking':{'label':'걷기','frames':32}}
+ACTIONS={'standing':{'label':'대기','frames':16},'stretch':{'label':'스트레칭','frames':120},'walking':{'label':'걷기','frames':32}}
+HISTORICAL_ACTIONS={**ACTIONS,'deep_breath':{'label':'심호흡','frames':32}}
 DIRECTIONS=('down_left','down_right','up_left','up_right')
 def render_standing_corrections(correction_file_name='standing-corrections.yaml'):
  correction_config_values=yaml.safe_load((ROOT/'generators/momask/config'/correction_file_name).read_text())
@@ -76,7 +77,7 @@ class MoMaskGenerationManager:
     for history_record_value in records:
      history_status_value=history_record_value['status']
      history_record_value['status']={'status':history_status_value}
-     history_record_value['request']={'action':history_record_value['action'],'directions':history_record_value.get('directions',[]),'frames':ACTIONS[history_record_value['action']]['frames']}
+     history_record_value['request']={'action':history_record_value['action'],'directions':history_record_value.get('directions',[]),'frames':HISTORICAL_ACTIONS[history_record_value['action']]['frames']}
      history_record_value['playable']=history_status_value=='completed'
      history_record_value['path']=str(JOB_ROOT/history_record_value['id'])
      if history_status_value!='completed':continue

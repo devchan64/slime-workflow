@@ -71,20 +71,6 @@ OpenPose와 ANNY는 같은 보정 모션을 사용하지만 서로 다른 골격
 
 선택 이력 `2026-09-24_21-58-55-a17ffc87`는 `assets/motion-sheet/momask-standing-v3`로 등록했다. 향후 포즈 생성에서는 `generators/animation/config/default_standing_motion.yaml`의 모션·OpenPose 경로를 사용한다. 관리도구 대기 페이지도 이 선택 설정을 따른다. 독립 OpenPose 플레이어는 폐기했으며 생성 결과는 MoMask 생성기에서 재생한다. 모션은 보정 적용본이며 원본 이력의 파일을 덮어쓰지 않는다.
 
-## 심호흡 생성
-
-심호흡은 대기와 별도의 MoMask 프롬프트를 사용하고 보정·리타기팅 경로는 공유하며, `deep-breath-corrections.yaml`에서 가슴 후방 회전을 **15°**로 확대한다. 심호흡의 팔 벌림은 위팔 25°·아래팔 15°이며, 대기는 위팔 18°·아래팔 10°를 유지한다. 골반·발 고정은 동일하다. **32프레임·4fps·8초**, 선택한 4방향 전체를 샘플링 없이 렌더한다. 관리도구의 심호흡 보정값 펼치기는 해당 설정을 표시한다.
-
-실행별 `motion-run/motion/standing-corrections.yaml`은 공용 보정기의 적용값 사본이므로, 심호흡 실행에서는 15°가 기록된다. 기존 대기 에셋과 이전 심호흡 결과는 변경하지 않는다.
-
-심호흡 실행 프롬프트 (`actions.deep_breath.prompt`):
-
-```text
-A person starts in a neutral standing posture with both arms relaxed at the sides, takes a deep breath in and out, then returns to the same neutral standing posture.
-```
-
-대기의 `A person stands.`와 구분한다. 32프레임·가슴 후방 회전 15°·위팔 25°·아래팔 15° 설정은 유지한다.
-
 ## ANNY 손 자세
 
 신규 ANNY 렌더는 양손에 주먹 자세(`fist-v3`)를 적용한다. `anny_hand_pose.py`에서 손바닥 안쪽 방향을 계산해 검지부터 소지까지 각 마디를 85°·90°·45°, 엄지는 50°·40°·30° 굽힌다. 손가락 30개 본에 로컬 회전을 적용한다. 스트레칭은 처음 20% 구간에서 손을 쥐고 중간에 유지한 뒤 마지막 20%에서 손을 편다. 전환에는 smoothstep을 사용하며 나머지 동작은 주먹을 유지한다. 생성 결과 JSON에 `hand_pose`를 기록한다.

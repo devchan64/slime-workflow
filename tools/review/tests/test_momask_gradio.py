@@ -20,6 +20,9 @@ class GradioMoMaskTests(unittest.TestCase):
         self.assertIn('centerline',prompt_text_value)
         self.assertIn('25°',summary_text_value)
 
+    def test_action_choices_do_not_include_deep_breath(self):
+        self.assertNotIn(('심호흡','deep_breath'),MODULE_SOURCE_VALUE.MOTION_ACTION_LABELS)
+
     def test_player_keeps_frame_count_and_directions(self):
         player_html_value=MODULE_SOURCE_VALUE.create_motion_player('sample',{'frames':32,'directions':['up_left']},'http://127.0.0.1:8770')
         self.assertIn('allow-scripts',player_html_value)
