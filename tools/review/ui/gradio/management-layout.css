@@ -8,3 +8,18 @@
 #motion-history-selection label:has(input:checked){outline:2px solid #93baff;background:#243449}
 .motion-empty-state{min-height:350px;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;color:#a7b5c8;background:#101925;border:1px dashed #40516a;border-radius:12px;padding:24px}
 @media(max-width:800px){.gradio-container{padding:8px!important}#motion-controls,#motion-preview{min-width:100%!important}}
+
+/* 이동 버튼과 위치 표시는 내용 길이에 관계없이 같은 줄에 유지한다. */
+.management-pagination{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(5ch,max-content) minmax(0,1fr);align-items:center;gap:8px!important;flex:none!important;width:100%;min-width:0}
+.management-pagination>button{width:100%!important;min-width:0!important;margin:0;white-space:nowrap}
+.management-pagination-position{min-width:5ch!important;width:auto!important;padding:0!important;text-align:center;white-space:nowrap;overflow-wrap:normal;font-variant-numeric:tabular-nums}
+.management-pagination-position p{margin:0!important;white-space:nowrap}
+
+/* 긴 도구 목록이 다음 가로 열로 넘어가 이동 영역을 밀어내지 않게 한다. */
+#management-sidebar{flex-wrap:nowrap!important;height:calc(100dvh - 144px);max-height:calc(100dvh - 24px)}
+#management-tool-list{flex:1 1 0!important;min-height:0!important;min-width:0!important}
+#management-sidebar>.management-pagination{flex-shrink:0!important}
+@media(max-width:800px){#management-sidebar{height:auto;max-height:none}#management-tool-list{flex:none!important;max-height:300px}}
+/* Gradio가 Radio를 감싸는 form도 남은 높이를 받아야 목록이 접히지 않는다. */
+#management-sidebar>.form:has(#management-tool-list){display:flex;flex-direction:column;flex-wrap:nowrap;flex:1 1 0!important;min-height:180px;overflow:hidden}
+@media(max-width:800px){#management-sidebar>.form:has(#management-tool-list){flex:none!important;min-height:0}}

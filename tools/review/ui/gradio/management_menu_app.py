@@ -87,10 +87,10 @@ def build_management_menu_interface(page_record_values, review_server_port):
                 ui_mode_select_value=gr.Dropdown(choices=[('전체','all'),('Gradio 전환 완료','gradio'),('기존 화면','html')],value='all',label='화면 방식')
                 tool_count_value=gr.Markdown(f'**{len(page_record_values)}개** 도구',elem_id='management-tool-count')
                 page_select_value=gr.Radio(choices=create_tool_choice_values(page_record_values),value=initial_page_identifier,label='도구 목록',elem_id='management-tool-list')
-                with gr.Row():
-                    previous_page_button_value=gr.Button('← 이전',scale=1)
-                    navigation_position_value=gr.Markdown(f'1 / {len(page_record_values)}',scale=1)
-                    next_page_button_value=gr.Button('다음 →',scale=1)
+                with gr.Row(elem_classes=['management-pagination']):
+                    previous_page_button_value=gr.Button('← 이전',scale=0,min_width=0)
+                    navigation_position_value=gr.Markdown(f'1 / {len(page_record_values)}',elem_classes=['management-pagination-position'])
+                    next_page_button_value=gr.Button('다음 →',scale=0,min_width=0)
             with gr.Column(scale=3,min_width=520,elem_id='management-workspace'):
                 selected_page_status_value=gr.Markdown(f"**{html.escape(page_record_values[0]['label'])}** · {html.escape(page_record_values[0]['description'])}" if page_record_values else '표시할 관리 화면이 없습니다.')
                 page_preview_value=gr.HTML(create_page_preview_html(initial_page_identifier,page_record_values,review_server_port))
@@ -138,5 +138,6 @@ if __name__=='__main__':
         os._exit(0)
     threading.Thread(target=monitor_parent_process,daemon=True).start()
     application_css_text='''.gradio-container{max-width:1560px!important;padding:16px!important}#management-shell{align-items:stretch;min-height:calc(100vh - 132px)}#management-sidebar{position:sticky;top:12px;height:calc(100vh - 30px);overflow:hidden;display:flex;flex-direction:column;padding:12px;background:#192230;border:1px solid #314055;border-radius:12px}#management-sidebar>div{min-height:0}#management-tool-count{margin-top:4px;margin-bottom:2px;color:#b9cae2}#management-tool-list{flex:1;min-height:180px;overflow-y:auto;padding:6px 2px;border-top:1px solid #314055;border-bottom:1px solid #314055}#management-tool-list .wrap{display:flex;flex-direction:column;gap:4px}#management-tool-list label{padding:7px 8px;border-radius:7px;line-height:1.35}#management-tool-list label:hover{background:#26374d}#management-tool-list label:has(input:checked){background:#315482}.management-page-frame{width:100%;height:calc(100vh - 220px);min-height:560px;border:1px solid #314055;border-radius:12px;background:#10151f}.menu-empty-state{min-height:320px;display:grid;place-items:center;border:1px dashed #40516a;border-radius:12px;color:#a7b5c8}@media(max-width:800px){#management-shell{min-height:0}#management-sidebar{position:static;height:auto;max-height:none;overflow:visible}#management-tool-list{max-height:300px;flex:none}.management-page-frame{height:70vh;min-height:460px}}'''
+    application_css_text+=(Path(__file__).parent/'management-layout.css').read_text()
     interface_blocks_value,initial_selection_script=build_management_menu_interface(load_manager_page_records(parsed_argument_values.source_file),parsed_argument_values.review_port)
     interface_blocks_value.queue().launch(server_name='127.0.0.1',server_port=parsed_argument_values.port,root_path=parsed_argument_values.root_path,theme=gr.themes.Soft(),css=application_css_text,js=initial_selection_script,allowed_paths=[])
