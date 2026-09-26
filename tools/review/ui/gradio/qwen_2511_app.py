@@ -12,6 +12,7 @@ import gradio as gr
 WORKFLOW_ROOT_DIRECTORY=Path(__file__).resolve().parents[4]
 if str(WORKFLOW_ROOT_DIRECTORY) not in sys.path:sys.path.insert(0,str(WORKFLOW_ROOT_DIRECTORY))
 from tools.review.common.gradio_logs import build_execution_logs, LOG_PANEL_STYLES
+from tools.review.common.gradio_history import build_generation_history_view
 from tools.review.common.management_gateway import execute_management_command
 
 def execute_reference_gateway(command_name_value,payload_value):return execute_management_command('qwen-2511',command_name_value,payload_value)
@@ -33,18 +34,16 @@ def build_qwen_2511_interface(server_base_address):
                 gr.Markdown('예상 시간: 실행 이력 기반 추정 자료를 수집 중입니다. 실행 로그에서 진행 단계를 확인하세요.')
                 generation_button_value=gr.Button('이미지 생성 시작',variant='primary');status_value=gr.Markdown('생성 가능 · 설정을 확인하세요.');cancel_button_value=gr.Button('생성 취소')
             with gr.Column(scale=2):
-                identifier_value=gr.Textbox(label='생성 ID',interactive=False);preview_value=gr.HTML(result_preview_html(None));history_value=gr.Radio(choices=[],label='생성 이력');history_button_value=gr.Button('이력 새로고침');result_button_value=gr.Button('선택 결과 보기')
+                identifier_value=gr.Textbox(label='생성 ID',interactive=False);preview_value=gr.HTML(result_preview_html(None))
         log_value,refresh_log_value,_=build_execution_logs()
+        read_history_page,history_output_values=build_generation_history_view(execute_reference_gateway,server_base_address,'이력 목록만 초기화합니다. 결과 이미지·참조 입력 사본·로그 파일은 유지됩니다. 생성 중에는 초기화할 수 없습니다.')
         def start_generation(*input_values):
             generation_record_value=execute_reference_gateway('generate',build_reference_request(*input_values));return generation_record_value['id'],'상태: running'
         generation_button_value.click(start_generation,[prompt_text_value,reference_file_values,width_value,height_value,step_value,seed_value],[identifier_value,status_value])
-        def refresh_history(selected_identifier_value=None):
-            record_values=execute_reference_gateway('history',{}).get('records',[]);choices=[(f"{record['id']} · {record.get('status',{}).get('status','unknown')}",record['id']) for record in record_values];return gr.update(choices=choices,value=selected_identifier_value if selected_identifier_value in [value for _,value in choices] else None)
-        interface_blocks_value.load(refresh_history,outputs=history_value);history_button_value.click(refresh_history,history_value,history_value,queue=False);history_value.change(lambda value:value or '',history_value,identifier_value,queue=False)
         def refresh_status(identifier_text_value,refresh_log_enabled):
             if not identifier_text_value:return '생성 ID를 선택하세요.',gr.skip(),gr.skip()
             status_record_value=execute_reference_gateway('status',{'id':identifier_text_value});return '상태: '+status_record_value['status'],gr.update(value=status_record_value.get('log','')) if refresh_log_enabled else gr.skip(),result_preview_html(status_record_value.get('image')) if status_record_value.get('image') else gr.skip()
-        result_button_value.click(lambda identifier_text_value:refresh_status(identifier_text_value,True),identifier_value,[status_value,log_value,preview_value]);gr.Button('상태 새로고침').click(refresh_status,[identifier_value,refresh_log_value],[status_value,log_value,preview_value],queue=False)
+        interface_blocks_value.load(lambda:read_history_page(1),outputs=history_output_values);gr.Button('상태 새로고침').click(refresh_status,[identifier_value,refresh_log_value],[status_value,log_value,preview_value],queue=False)
         if hasattr(gr,'Timer'):gr.Timer(2).tick(refresh_status,[identifier_value,refresh_log_value],[status_value,log_value,preview_value],show_progress='hidden')
         cancel_button_value.click(lambda identifier_text_value:execute_reference_gateway('cancel',{'id':identifier_text_value}),identifier_value,status_value)
     return interface_blocks_value
