@@ -4,6 +4,8 @@ const tileTypeSelector=document.querySelector('#tile-type');
 const tileUserPrompt=document.querySelector('#prompt');
 const tileSubmitButton=document.querySelector('#submit');
 const tileGenerationStatus=document.querySelector('#status');
+const tileReferenceFileRecords=new Map();
+let selectedReferenceSlotIndex=1;
 const countTileWords=promptTextValue=>promptTextValue.trim()?promptTextValue.trim().split(/\s+/).length:0;
 function updateTilePromptDisplay(){
  if(!tileConfigurationRecord)return;
@@ -25,7 +27,7 @@ document.querySelector('#generate').onsubmit=async eventValue=>{
  const referenceImageValues=[];
  try{
  for(let referenceSlotIndex=1;referenceSlotIndex<=3;referenceSlotIndex++){
-  const referenceFileValue=document.querySelector('#tile-reference-'+referenceSlotIndex).files[0];if(!referenceFileValue)continue;
+  const referenceFileValue=tileReferenceFileRecords.get(referenceSlotIndex);if(!referenceFileValue)continue;
   if(referenceFileValue.size>3000000)throw Error('참조 PNG는 장당 3MB 이하입니다.');
   const referenceDataUrl=await new Promise((resolveReferenceRead,rejectReferenceRead)=>{const referenceFileReader=new FileReader();referenceFileReader.onload=()=>resolveReferenceRead(referenceFileReader.result);referenceFileReader.onerror=()=>rejectReferenceRead(Error('참조 읽기 실패'));referenceFileReader.readAsDataURL(referenceFileValue);});
   referenceImageValues.push(referenceDataUrl.split(',')[1]);
@@ -38,8 +40,42 @@ const sharedProgressRenderer=renderGenerationProgress;
 renderGenerationProgress=currentJobRecord=>{sharedProgressRenderer(currentJobRecord);const remainingSecondsValue=currentJobRecord.estimate?.remaining_seconds;tileEstimateElement.textContent=currentJobRecord.status!=='running'?'예상 시간 · 작업 종료':remainingSecondsValue>0?'예상 남은 시간 약 '+Math.ceil(remainingSecondsValue/60)+'분 · 완료 예상 '+new Date(Date.now()+remainingSecondsValue*1000).toLocaleString('ko-KR')+' · 같은 스텝·크기의 완료 이력 기준 (GPU 대기 시 지연 가능)':'예상 시간 계산 중 · 비교할 이력이 없거나 기존 시간을 초과했습니다.';};
 fetch('/tile-map-generator/catalog').then(async responseValue=>{if(!responseValue.ok)throw Error('타일 설정 조회 실패');tileConfigurationRecord=await responseValue.json();updateTilePromptDisplay();await synchronizeGenerationAvailability();}).catch(errorValue=>{tileGenerationStatus.textContent=errorValue.message;tileSubmitButton.disabled=true;});
 
-for(let referenceSlotIndex=1;referenceSlotIndex<=3;referenceSlotIndex++){
+function setTileReferenceFile(referenceSlotIndex,referenceFileValue){
  const referenceInputElement=document.querySelector('#tile-reference-'+referenceSlotIndex),referencePreviewElement=document.querySelector('#tile-reference-preview-'+referenceSlotIndex);
- referenceInputElement.onchange=()=>{if(referencePreviewElement.dataset.objectUrl)URL.revokeObjectURL(referencePreviewElement.dataset.objectUrl);const referenceFileValue=referenceInputElement.files[0];referencePreviewElement.hidden=!referenceFileValue;if(referenceFileValue){referencePreviewElement.dataset.objectUrl=URL.createObjectURL(referenceFileValue);referencePreviewElement.src=referencePreviewElement.dataset.objectUrl;}};
- document.querySelector('[data-clear-reference="'+referenceSlotIndex+'"]').onclick=()=>{referenceInputElement.value='';referenceInputElement.onchange();};
+ if(referenceFileValue&&referenceFileValue.type!=='image/png'){tileGenerationStatus.textContent='참조 이미지는 PNG만 사용할 수 있습니다.';return;}
+ if(referenceFileValue&&referenceFileValue.size>3000000){tileGenerationStatus.textContent='참조 PNG는 장당 3MB 이하입니다.';return;}
+ if(referencePreviewElement.dataset.objectUrl)URL.revokeObjectURL(referencePreviewElement.dataset.objectUrl);
+ if(referenceFileValue){tileReferenceFileRecords.set(referenceSlotIndex,referenceFileValue);referencePreviewElement.dataset.objectUrl=URL.createObjectURL(referenceFileValue);referencePreviewElement.src=referencePreviewElement.dataset.objectUrl;referencePreviewElement.hidden=false;}else{tileReferenceFileRecords.delete(referenceSlotIndex);referencePreviewElement.removeAttribute('src');referencePreviewElement.hidden=true;}
+ referenceInputElement.value='';selectTileReferenceSlot(referenceSlotIndex);
+ tileGenerationStatus.textContent='이미지 '+referenceSlotIndex+(referenceFileValue?' 추가 완료':' 제거 완료');
 }
+function selectTileReferenceSlot(referenceSlotIndex){
+ selectedReferenceSlotIndex=referenceSlotIndex;
+ for(let currentSlotIndex=1;currentSlotIndex<=3;currentSlotIndex++){
+  const currentSlotElement=document.querySelector('[data-reference-slot="'+currentSlotIndex+'"]'),isSelectedSlot=currentSlotIndex===referenceSlotIndex;
+  currentSlotElement.classList.toggle('is-selected',isSelectedSlot);currentSlotElement.setAttribute('aria-pressed',String(isSelectedSlot));
+ }
+}
+for(let referenceSlotIndex=1;referenceSlotIndex<=3;referenceSlotIndex++){
+ const referenceInputElement=document.querySelector('#tile-reference-'+referenceSlotIndex),referenceSlotElement=document.querySelector('[data-reference-slot="'+referenceSlotIndex+'"]');
+ referenceSlotElement.onclick=()=>{selectTileReferenceSlot(referenceSlotIndex);referenceSlotElement.focus({preventScroll:true});};
+ referenceSlotElement.addEventListener('focusin',()=>selectTileReferenceSlot(referenceSlotIndex));
+ referenceSlotElement.addEventListener('dragover',referenceDragEvent=>{referenceDragEvent.preventDefault();referenceDragEvent.dataTransfer.dropEffect='copy';});
+ referenceSlotElement.addEventListener('drop',referenceDropEvent=>{
+  referenceDropEvent.preventDefault();referenceDropEvent.stopPropagation();selectTileReferenceSlot(referenceSlotIndex);referenceSlotElement.focus({preventScroll:true});
+  const droppedReferenceFiles=Array.from(referenceDropEvent.dataTransfer?.files||[]);
+  if(droppedReferenceFiles.length!==1){tileGenerationStatus.textContent='한 칸에 PNG 이미지 한 장을 놓으세요.';return;}
+  setTileReferenceFile(referenceSlotIndex,droppedReferenceFiles[0]);
+ });
+ referenceSlotElement.onfocus=()=>selectTileReferenceSlot(referenceSlotIndex);
+ referenceSlotElement.onkeydown=keyboardEventValue=>{if(keyboardEventValue.key==='Enter'||keyboardEventValue.key===' '){keyboardEventValue.preventDefault();selectTileReferenceSlot(referenceSlotIndex);}};
+ referenceInputElement.onchange=()=>setTileReferenceFile(referenceSlotIndex,referenceInputElement.files[0]);
+ document.querySelector('[data-select-reference="'+referenceSlotIndex+'"]').onclick=()=>{selectTileReferenceSlot(referenceSlotIndex);referenceInputElement.click();};
+ document.querySelector('[data-clear-reference="'+referenceSlotIndex+'"]').onclick=()=>setTileReferenceFile(referenceSlotIndex,null);
+}
+selectTileReferenceSlot(selectedReferenceSlotIndex);
+document.addEventListener('paste',pasteEventValue=>{
+ const clipboardImageFile=Array.from(pasteEventValue.clipboardData?.items||[]).map(currentClipboardItem=>currentClipboardItem.kind==='file'?currentClipboardItem.getAsFile():null).find(currentFileValue=>currentFileValue?.type.startsWith('image/'));
+ if(!clipboardImageFile)return;
+ pasteEventValue.preventDefault();setTileReferenceFile(selectedReferenceSlotIndex,clipboardImageFile);
+});

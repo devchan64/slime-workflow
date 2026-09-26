@@ -27,6 +27,12 @@ class TileGenerationTests(unittest.TestCase):
         rendered_page_value=image_manager_value.render_generation_page().decode()
         self.assertIn('tile-map-generator/tile-ui.js',rendered_page_value)
         self.assertNotIn('id="use-style-prompt"',rendered_page_value)
+        self.assertIn('Ctrl+V / ⌘V',rendered_page_value)
+        self.assertIn('data-reference-slot="1"',rendered_page_value)
+        self.assertIn('data-select-reference="1"',rendered_page_value)
+        self.assertIn('aria-pressed="false"',rendered_page_value)
+        self.assertIn('<details><summary>기본 프롬프트 · 고정',rendered_page_value)
+        self.assertIn('<details><summary>화풍 프롬프트 · 항상 적용',rendered_page_value)
     def test_existing_job_directories_appear_in_history(self):
         with tempfile.TemporaryDirectory() as temporary_directory_name:
             temporary_root_path=Path(temporary_directory_name)
