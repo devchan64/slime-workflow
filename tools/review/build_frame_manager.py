@@ -51,7 +51,7 @@ def build_frame_manager(parsed_argument_values):
                 embedded_json_value,_=json.JSONDecoder().raw_decode(copied_review_html.split(embedded_marker_text,1)[1].lstrip())
                 current_template_html=current_template_html.replace(template_marker_text,json.dumps(embedded_json_value,ensure_ascii=False).replace('<','\\u003c'))
             copied_review_path.write_text(current_template_html.replace('</style>','</style><style>'+shared_review_styles+'</style>',1))
-            manager_page_records.append({'id':page_identifier_text,'label':page_label_text,'path':f'{source_kind_name}/{page_filename_text}','category':'animation','anchorEditor':anchor_editor_enabled,'description':f'{page_label_text} · 원본 실행 {selected_source_directories[source_kind_name].name}'})
+            manager_page_records.append({'id':page_identifier_text,'label':page_label_text,'path':f'{source_kind_name}/{page_filename_text}','category':'animation','anchorEditor':anchor_editor_enabled,'uiMode':'gradio-static','description':f'Gradio · {page_label_text} · 원본 실행 {selected_source_directories[source_kind_name].name}'})
         manager_template_text=resolve_review_ui_asset('frame-manager.html').read_text()
         manager_template_text=manager_template_text.replace('</style>', '</style><style>'+read_review_shared_styles()+'</style>',1)
         (output_manager_directory/'preview.html').write_text(manager_template_text.replace('__MANAGER_PAGES__',json.dumps(manager_page_records,ensure_ascii=False).replace('<','\\u003c')))

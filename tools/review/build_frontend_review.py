@@ -312,7 +312,7 @@ def build_frontend_review(frontend_repository_path, ui_bundle_directory=None):
             (destination_asset_directory/'anchors.html').write_text(rendered_page_text)
             sprite_asset_records.append({'id':'asset:'+animation_identifier_text,'label':review_source_metadata['displayNameKo']+' v'+review_source_metadata['animationVersion'],'fps':1000/review_source_metadata['frameDurationMs'],'frames':[{**frame_record_value,'url':'/'+page_identifier_text+'/'+frame_record_value['image']} for frame_record_value in review_frame_records],'source':review_source_metadata})
             relative_metadata_path = animation_metadata_path.relative_to(frontend_repository_path).as_posix()
-            manager_page_records.append({'id': page_identifier_text, 'label': review_source_metadata['displayNameKo']+' · v'+review_source_metadata['animationVersion'], 'path': page_identifier_text+'/anchors.html', 'anchorEditor': True, 'category': 'animation', 'description': animation_identifier_text+' · '+relative_metadata_path})
+            manager_page_records.append({'id': page_identifier_text, 'label': review_source_metadata['displayNameKo']+' · v'+review_source_metadata['animationVersion'], 'path': page_identifier_text+'/anchors.html', 'anchorEditor': True, 'category': 'animation', 'uiMode':'gradio-static', 'description':'Gradio · '+animation_identifier_text+' · '+relative_metadata_path})
             discovered_source_records.append({'metadata': relative_metadata_path, 'displayNameKo': review_source_metadata['displayNameKo'], 'sha256': hashlib.sha256(animation_metadata_path.read_bytes()).hexdigest(), 'sheets': review_source_metadata['sheets']})
             completed_asset_count[0] += 1
             emit_review_trace('asset', relative_metadata_path)
