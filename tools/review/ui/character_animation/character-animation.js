@@ -45,7 +45,7 @@ function renderAnimationFrame(){
  currentFramePosition=(currentFramePosition+currentDirectionFrames.length)%currentDirectionFrames.length;
  animationElementLookup('output-frame').src=`/character-animation/files/${playbackJobIdentifier}/${currentDirectionFrames[currentFramePosition]}`;
  animationElementLookup('frame-position').value=currentFramePosition;
- animationElementLookup('frame-label').textContent=`${currentFramePosition+1} / ${currentDirectionFrames.length}장${playbackResultRecord.source_frame_numbers?.[animationElementLookup('playback-direction').value]?` · 원본 ${playbackResultRecord.source_frame_numbers[animationElementLookup('playback-direction').value][currentFramePosition]}번`:''} · ${animationElementLookup('result-playback-fps').value} FPS · ${(currentDirectionFrames.length/Number(animationElementLookup('result-playback-fps').value)).toLocaleString('ko-KR',{maximumFractionDigits:2})}초/회`;
+ animationElementLookup('frame-label').textContent=`${currentFramePosition+1} / ${currentDirectionFrames.length}장${playbackResultRecord.source_frame_numbers?.[animationElementLookup('playback-direction').value]?` · 원본 ${playbackResultRecord.source_frame_numbers[animationElementLookup('playback-direction').value][currentFramePosition]}번`:''} · ${animationElementLookup('result-playback-fps').value} FPS · ${animationElementLookup('result-playback-speed').value}배 · ${(currentDirectionFrames.length/(Number(animationElementLookup('result-playback-fps').value)*Number(animationElementLookup('result-playback-speed').value))).toLocaleString('ko-KR',{maximumFractionDigits:2})}초/회`;
 }
 function selectPlaybackDirection(){
  stopAnimationPlayback();currentFramePosition=0;
@@ -59,7 +59,7 @@ window.playGenerationRecord=async historyRecordValue=>{
   if(currentPlaybackRequest!==playbackRequestCounter)return;
   if(generationStatusRecord.status!=='completed'||!generationStatusRecord.result)throw Error('완료된 결과가 필요합니다.');
   playbackJobIdentifier=historyRecordValue.id;playbackResultRecord=generationStatusRecord.result;
-  const currentResultFps=playbackResultRecord.fps;const currentFpsControl=animationElementLookup('result-playback-fps');if(!Array.from(currentFpsControl.options).some(currentOptionValue=>Number(currentOptionValue.value)===currentResultFps))currentFpsControl.add(new Option(`${currentResultFps} FPS`,currentResultFps));currentFpsControl.value=String(currentResultFps);
+  animationElementLookup('result-playback-fps').value='4';animationElementLookup('result-playback-speed').value='1';
   animationElementLookup('playback-direction').replaceChildren(...Object.keys(playbackResultRecord.frames).map(directionNameValue=>new Option(animationDirectionLabels[directionNameValue],directionNameValue)));
   animationElementLookup('result-title').textContent=`${playbackJobIdentifier} · ${generationStatusRecord.request.motion} · ${generationStatusRecord.request.character} · ${generationStatusRecord.request.source} · ${(generationStatusRecord.request.steps||4)===4?'4스텝 Lightning':'30스텝'}`;
   for(const elementIdentifier of ['playback-direction','frame-previous','frame-play','frame-stop','frame-next','frame-position'])animationElementLookup(elementIdentifier).disabled=false;
@@ -68,7 +68,7 @@ window.playGenerationRecord=async historyRecordValue=>{
  }catch(playbackErrorValue){animationElementLookup('status').textContent=playbackErrorValue.message;}
 };
 animationElementLookup('playback-direction').onchange=selectPlaybackDirection;
-animationElementLookup('frame-play').onclick=()=>{if(!playbackResultRecord)return;stopAnimationPlayback();animationPlaybackTimer=setInterval(()=>{currentFramePosition++;renderAnimationFrame();},1000/Number(animationElementLookup('result-playback-fps').value));};
+animationElementLookup('frame-play').onclick=()=>{if(!playbackResultRecord)return;stopAnimationPlayback();animationPlaybackTimer=setInterval(()=>{currentFramePosition++;renderAnimationFrame();},1000/(Number(animationElementLookup('result-playback-fps').value)*Number(animationElementLookup('result-playback-speed').value)));};
 animationElementLookup('frame-stop').onclick=stopAnimationPlayback;
 for(const [elementIdentifier,frameIncrementValue] of [['frame-previous',-1],['frame-next',1]])animationElementLookup(elementIdentifier).onclick=()=>{stopAnimationPlayback();currentFramePosition+=frameIncrementValue;renderAnimationFrame();};
 animationElementLookup('frame-position').oninput=()=>{stopAnimationPlayback();currentFramePosition=Number(animationElementLookup('frame-position').value);renderAnimationFrame();};
@@ -146,3 +146,5 @@ async function pollAnimationGeneration(){
 })();
 
 animationElementLookup('result-playback-fps').onchange=()=>{if(!playbackResultRecord)return;const wasPlaybackRunning=animationPlaybackTimer!==null;renderAnimationFrame();if(wasPlaybackRunning)animationElementLookup('frame-play').click();};
+
+animationElementLookup('result-playback-speed').onchange=()=>animationElementLookup('result-playback-fps').onchange();

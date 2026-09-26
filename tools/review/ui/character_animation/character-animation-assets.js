@@ -25,7 +25,7 @@ async function renderMotionAssetFrame(){
   if(currentSelectionVersion!==assetSelectionVersion||currentRenderVersion!==assetRenderVersion)return false;
   ['openpose','anny'].forEach((sourceKindValue,sourceImageIndex)=>{const sourceFrameCanvas=assetElementLookup(`asset-${sourceKindValue}-frame`),sourceCanvasContext=sourceFrameCanvas.getContext('2d');sourceCanvasContext.clearRect(0,0,512,512);sourceCanvasContext.drawImage(sourceFrameImages[sourceImageIndex],0,0,512,512);});
   assetElementLookup('asset-frame-position').value=requestedFramePosition;
-  assetElementLookup('asset-frame-label').textContent=`${requestedFramePosition+1} / ${assetMotionRecord.frames} · ${assetElementLookup('asset-playback-fps').value} FPS`;
+  assetElementLookup('asset-frame-label').textContent=`${requestedFramePosition+1} / ${assetMotionRecord.frames} · ${assetElementLookup('asset-playback-fps').value} FPS · ${assetElementLookup('asset-playback-speed').value}배`;
   assetElementLookup('asset-playback-status').textContent=assetPlaybackRunning?'원본 에셋 재생 중 · OpenPose / ANNY 동기 재생':'정지 · 같은 프레임의 관절과 외형을 비교하세요.';
   for(const elementIdentifier of ['asset-frame-previous','asset-frame-play','asset-frame-stop','asset-frame-next','asset-frame-position'])assetElementLookup(elementIdentifier).disabled=false;
   // 다음 프레임만 미리 읽어 긴 스트레칭에서도 메모리 사용량을 제한한다.
@@ -56,13 +56,15 @@ assetElementLookup('asset-frame-play').onclick=()=>{
  const advanceMotionAssetFrame=async()=>{
   if(!assetPlaybackRunning||playbackSelectionVersion!==assetSelectionVersion)return;
   const frameStartTimestamp=performance.now();assetFramePosition++;
-  if(await renderMotionAssetFrame()&&assetPlaybackRunning&&playbackSelectionVersion===assetSelectionVersion)assetPlaybackTimer=setTimeout(advanceMotionAssetFrame,Math.max(0,1000/Number(assetElementLookup('asset-playback-fps').value)-(performance.now()-frameStartTimestamp)));
+  if(await renderMotionAssetFrame()&&assetPlaybackRunning&&playbackSelectionVersion===assetSelectionVersion)assetPlaybackTimer=setTimeout(advanceMotionAssetFrame,Math.max(0,1000/(Number(assetElementLookup('asset-playback-fps').value)*Number(assetElementLookup('asset-playback-speed').value))-(performance.now()-frameStartTimestamp)));
  };
- assetPlaybackTimer=setTimeout(advanceMotionAssetFrame,1000/Number(assetElementLookup('asset-playback-fps').value));
+ assetPlaybackTimer=setTimeout(advanceMotionAssetFrame,1000/(Number(assetElementLookup('asset-playback-fps').value)*Number(assetElementLookup('asset-playback-speed').value)));
 };
 assetElementLookup('asset-frame-stop').onclick=()=>{stopMotionAssetPlayback();assetRenderVersion++;assetFramePosition=Number(assetElementLookup('asset-frame-position').value);assetElementLookup('asset-playback-status').textContent='정지 · 같은 프레임의 관절과 외형을 비교하세요.';};
 for(const [elementIdentifier,frameIncrementValue] of [['asset-frame-previous',-1],['asset-frame-next',1]])assetElementLookup(elementIdentifier).onclick=()=>{stopMotionAssetPlayback();assetFramePosition+=frameIncrementValue;renderMotionAssetFrame();};
 assetElementLookup('asset-frame-position').oninput=()=>{stopMotionAssetPlayback();assetFramePosition=Number(assetElementLookup('asset-frame-position').value);renderMotionAssetFrame();};
 document.addEventListener('visibilitychange',()=>{if(document.hidden)assetElementLookup('asset-frame-stop').click();});
 
-assetElementLookup('asset-playback-fps').onchange=()=>{if(!assetMotionRecord)return;assetElementLookup('asset-frame-label').textContent=`${Number(assetElementLookup('asset-frame-position').value)+1} / ${assetMotionRecord.frames} · ${assetElementLookup('asset-playback-fps').value} FPS`;};
+assetElementLookup('asset-playback-fps').onchange=()=>{if(!assetMotionRecord)return;assetElementLookup('asset-frame-label').textContent=`${Number(assetElementLookup('asset-frame-position').value)+1} / ${assetMotionRecord.frames} · ${assetElementLookup('asset-playback-fps').value} FPS · ${assetElementLookup('asset-playback-speed').value}배`;};
+
+assetElementLookup('asset-playback-speed').onchange=()=>assetElementLookup('asset-playback-fps').onchange();
