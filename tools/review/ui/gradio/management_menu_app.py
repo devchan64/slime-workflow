@@ -17,7 +17,7 @@ from tools.review.common.gpu_status import read_gpu_status
 CATEGORY_LABEL_VALUES={'all':'전체','writer-agent':'작가 AI 에이전트','image-generation':'이미지 생성','animation':'등록 애니메이션','animation-tool':'애니메이션 도구','tile-review':'타일맵 검수','game-ui':'게임 UI · 디자인 시스템'}
 MANAGEMENT_FRAME_PATH_PREFIX='/management/frame/'
 DEFAULT_PAGE_RECORDS=(
-    {'id':'tile-map-generator','label':'타일 에셋 생성기','path':'/tile-map-generator/','category':'tile-review','description':'지붕 · 벽 · 맵 타일 에셋 생성'},
+    {'id':'tile-map-generator','label':'타일 에셋 생성기','path':'/tile-map-generator/','category':'tile-review','uiMode':'gradio','description':'Gradio · 지붕 · 벽 · 맵 타일 에셋 생성'},
     {'id':'writer-agent','label':'작가 AI 에이전트','path':'/writer-agent/','category':'writer-agent','description':'문서 학습 · 아이디어 작성 · 실행 기록'},
     {'id':'three-reference-generator','label':'Qwen 2511 3참조 생성','path':'/image-generation-2511/','category':'image-generation','uiMode':'gradio','description':'Gradio · 참조 이미지 3장 · 프롬프트 · 결과 비교'},
     {'id':'image-generator','label':'Qwen 2512 이미지 생성','path':'/image-generation/','category':'image-generation','uiMode':'gradio','description':'Gradio · 프롬프트 · 실행 상태 · 생성 이력 · 결과 다운로드'},
