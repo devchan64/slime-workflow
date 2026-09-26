@@ -6,7 +6,7 @@ types:
     base_prompt: "Orthographic top-down material texture for a flat rooftop. Uniform square slabs aligned in a regular grid, consistent size across the image, flush surface, subtle joints, even diffuse lighting, matching opposite edges. The material surface fills the entire square."
   wall:
     label: 벽 타일
-    base_prompt: "A single building wall tile with a window, straight-on orthographic elevation, flat facade filling the square, horizontally repeating edges."
+    base_prompt: "A single plain building wall tile, straight-on orthographic elevation, flat facade filling the square, horizontally repeating edges."
   ground:
     label: 맵 타일
     base_prompt: "A single seamless ground material tile, top-down orthographic view, uniform scale, texture filling the square with matching edges."
