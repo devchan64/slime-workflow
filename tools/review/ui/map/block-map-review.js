@@ -29,7 +29,6 @@ function drawTexturedSurface(currentFaceRecord,currentTextureImage){
  const matchingLowVertex=hasRoofSlope?currentFaceVertices.find(currentVertexPoint=>Math.abs((roofSlopeColumn?currentVertexPoint.row:currentVertexPoint.column)-(roofSlopeColumn?highestRoofVertex.row:highestRoofVertex.column))<0.001&&currentVertexPoint.height<highestRoofVertex.height):null;
  const roofDownhillSign=matchingLowVertex?Math.sign(roofSlopeColumn?matchingLowVertex.column-highestRoofVertex.column:matchingLowVertex.row-highestRoofVertex.row):1;
  const currentTexturePoints=currentFaceVertices.map(currentVertexPoint=>{
-  if(currentFaceRecord.roofFacingSign)return {x:-currentVertexPoint.row*currentFaceRecord.roofFacingSign*currentTextureImage.width,y:(currentVertexPoint.column-(currentFaceRecord.building.width-1)/2)*currentFaceRecord.roofFacingSign*currentTextureImage.height};
   if(hasRoofSlope)return {x:(roofSlopeColumn?-currentVertexPoint.row:currentVertexPoint.column)*roofDownhillSign*currentTextureImage.width,y:(roofSlopeColumn?currentVertexPoint.column:currentVertexPoint.row)*roofDownhillSign*currentTextureImage.height};
   return {x:(currentFaceRecord.top?currentVertexPoint.column:currentAlongColumn?currentVertexPoint.column+0.5:currentVertexPoint.row+0.5)*currentTextureImage.width,y:(currentFaceRecord.top?currentVertexPoint.row:1-currentVertexPoint.height/48)*currentTextureImage.height};
  });
@@ -52,21 +51,6 @@ const currentBlockedCells=new Set(currentMapRecord.blocked.map(currentCell=>`${c
 function projectBlockVertex(currentVertexPoint){let currentColumnValue=currentVertexPoint.column,currentRowValue=currentVertexPoint.row;for(let currentRotationIndex=0;currentRotationIndex<currentCameraRotation;currentRotationIndex++)[currentColumnValue,currentRowValue]=[-currentRowValue,currentColumnValue];return {x:(currentColumnValue-currentRowValue)*80,y:(currentColumnValue+currentRowValue)*40-(currentVertexPoint.height??0)}}
 function drawSurfacePolygon(currentSurfacePoints,currentFillColor){currentDrawingContext.beginPath();currentSurfacePoints.forEach((currentPointValue,currentPointIndex)=>currentPointIndex?currentDrawingContext.lineTo(currentPointValue.x,currentPointValue.y):currentDrawingContext.moveTo(currentPointValue.x,currentPointValue.y));currentDrawingContext.closePath();currentDrawingContext.fillStyle=currentFillColor;currentDrawingContext.fill();if(document.querySelector('#edges').checked){currentDrawingContext.strokeStyle='#354039';currentDrawingContext.lineWidth=1/currentScaleValue;currentDrawingContext.stroke()}}
 // 층 경계를 넘는 블록 면은 48px 층 단위로 분리한다.
-// 홀수 폭의 평평한 용마루도 중앙에서 나눠 양쪽 처마 방향을 적용한다.
-function splitRoofDirections(currentFaceRecord,currentBuildingRecord){
- if(!currentFaceRecord.top||currentFaceRecord.material!=='roof')return [currentFaceRecord];
- const roofCenterColumn=(currentBuildingRecord.width-1)/2;
- return [-1,1].map(currentFacingSign=>{
-  const clippedRoofVertices=[];
-  currentFaceRecord.vertices.forEach((currentVertexPoint,currentVertexIndex)=>{
-   const nextVertexPoint=currentFaceRecord.vertices[(currentVertexIndex+1)%currentFaceRecord.vertices.length];
-   const currentInsideHalf=(currentVertexPoint.column-roofCenterColumn)*currentFacingSign>=0,nextInsideHalf=(nextVertexPoint.column-roofCenterColumn)*currentFacingSign>=0;
-   if(currentInsideHalf)clippedRoofVertices.push(currentVertexPoint);
-   if(currentInsideHalf!==nextInsideHalf){const currentEdgeFraction=(roofCenterColumn-currentVertexPoint.column)/(nextVertexPoint.column-currentVertexPoint.column);clippedRoofVertices.push({column:roofCenterColumn,row:currentVertexPoint.row+(nextVertexPoint.row-currentVertexPoint.row)*currentEdgeFraction,height:currentVertexPoint.height+(nextVertexPoint.height-currentVertexPoint.height)*currentEdgeFraction})}
-  });
-  return {...currentFaceRecord,vertices:clippedRoofVertices,roofFacingSign:currentFacingSign};
- }).filter(currentSplitFace=>currentSplitFace.vertices.length>=3);
-}
 function splitWallFloors(currentFaceRecord){
  if(currentFaceRecord.top)return [currentFaceRecord];
  const minimumFaceHeight=Math.min(...currentFaceRecord.vertices.map(currentVertexPoint=>currentVertexPoint.height)),maximumFaceHeight=Math.max(...currentFaceRecord.vertices.map(currentVertexPoint=>currentVertexPoint.height));
@@ -101,7 +85,7 @@ document.querySelector('#zoom-level').textContent=Math.round(currentScaleValue*1
 document.querySelector('#zoom-in').disabled=currentScaleValue>=MAX_MAP_SCALE;document.querySelector('#zoom-out').disabled=currentScaleValue<=MIN_MAP_SCALE;
 currentDrawingContext.setTransform(currentScaleValue,0,0,currentScaleValue,currentOffsetX,currentOffsetY);
 for(let currentRowIndex=0;currentRowIndex<currentMapRecord.rows;currentRowIndex++)for(let currentColumnIndex=0;currentColumnIndex<currentMapRecord.columns;currentColumnIndex++){const currentTerrainName=currentMapRecord.terrainCodes[currentMapRecord.terrainRows[currentRowIndex][currentColumnIndex]];drawSurfacePolygon([[-.5,-.5],[.5,-.5],[.5,.5],[-.5,.5]].map(([c,r])=>projectBlockVertex({column:currentColumnIndex+c,row:currentRowIndex+r})),currentMaterialColors[currentTerrainName]);const currentGroundImage=loadedTextureImages[groundTextureNames[currentTerrainName]];if(currentGroundImage){const currentGroundVertices=[[-.5,-.5],[.5,-.5],[.5,.5],[-.5,.5]].map(([currentColumnOffset,currentRowOffset])=>({column:currentColumnIndex+currentColumnOffset,row:currentRowIndex+currentRowOffset,height:0}));drawTexturedSurface({top:true,vertices:currentGroundVertices,points:currentGroundVertices.map(projectBlockVertex)},currentGroundImage)}}
-const currentRenderFaces=currentMapRecord.buildings.flatMap(currentBuilding=>currentBuilding.faces.flatMap(currentFaceRecord=>splitRoofDirections(currentFaceRecord,currentBuilding)).flatMap(splitWallFloors).map(currentFace=>({...currentFace,building:currentBuilding,textureTiles:buildingTileRecords[currentBuilding.id]||buildingTileRecords['iseulon-'+currentBuilding.facilityKind],points:currentFace.vertices.map(currentVertex=>projectBlockVertex({column:currentBuilding.origin.column+currentVertex.column,row:currentBuilding.origin.row+currentVertex.row,height:currentVertex.height})),depth:currentFace.vertices.reduce((s,v)=>s+projectBlockVertex({column:currentBuilding.origin.column+v.column,row:currentBuilding.origin.row+v.row}).y,0)/currentFace.vertices.length}))).sort((a,b)=>a.depth-b.depth);
+const currentRenderFaces=currentMapRecord.buildings.flatMap(currentBuilding=>currentBuilding.faces.flatMap(splitWallFloors).map(currentFace=>({...currentFace,building:currentBuilding,textureTiles:buildingTileRecords[currentBuilding.id]||buildingTileRecords['iseulon-'+currentBuilding.facilityKind],points:currentFace.vertices.map(currentVertex=>projectBlockVertex({column:currentBuilding.origin.column+currentVertex.column,row:currentBuilding.origin.row+currentVertex.row,height:currentVertex.height})),depth:currentFace.vertices.reduce((s,v)=>s+projectBlockVertex({column:currentBuilding.origin.column+v.column,row:currentBuilding.origin.row+v.row}).y,0)/currentFace.vertices.length}))).sort((a,b)=>a.depth-b.depth);
 for(const currentFace of currentRenderFaces){const currentAreaValue=currentFace.points.reduce((s,p,i)=>{const n=currentFace.points[(i+1)%currentFace.points.length];return s+p.x*n.y-n.x*p.y},0);if(currentFace.top||currentAreaValue>0){drawSurfacePolygon(currentFace.points,currentMaterialColors[currentFace.material]);// 지붕 경사 측면은 막힌 벽으로 두고 일반 벽 구간에만 창문을 교차 배치한다.
 const currentTextureRole=selectWallTexture(currentFace);
 const currentTextureName=currentFace.textureTiles[currentTextureRole];drawTexturedSurface(currentFace,loadedTextureImages[currentTextureName])}}

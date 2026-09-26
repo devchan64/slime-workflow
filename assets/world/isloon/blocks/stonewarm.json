@@ -1441,7 +1441,7 @@
           "row": 0,
           "layer": 1,
           "offsetHeight": 16,
-          "height": 16,
+          "height": 32,
           "shape": "ramp",
           "highSide": "east",
           "material": "roof",
@@ -1470,11 +1470,22 @@
           "walkable": false
         },
         {
-          "id": "stonewarm-guild-roof-1-0",
+          "id": "stonewarm-guild-1-0-64",
           "column": 1,
           "row": 0,
           "layer": 2,
           "offsetHeight": 0,
+          "height": 16,
+          "shape": "slab",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "stonewarm-guild-roof-1-0",
+          "column": 1,
+          "row": 0,
+          "layer": 2,
+          "offsetHeight": 16,
           "height": 0,
           "shape": "cap",
           "highSide": "west",
@@ -1509,7 +1520,7 @@
           "row": 0,
           "layer": 1,
           "offsetHeight": 16,
-          "height": 16,
+          "height": 32,
           "shape": "ramp",
           "highSide": "west",
           "material": "roof",
@@ -1543,7 +1554,7 @@
           "row": 1,
           "layer": 1,
           "offsetHeight": 16,
-          "height": 16,
+          "height": 32,
           "shape": "ramp",
           "highSide": "east",
           "material": "roof",
@@ -1572,11 +1583,22 @@
           "walkable": false
         },
         {
-          "id": "stonewarm-guild-roof-1-1",
+          "id": "stonewarm-guild-1-1-64",
           "column": 1,
           "row": 1,
           "layer": 2,
           "offsetHeight": 0,
+          "height": 16,
+          "shape": "slab",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "stonewarm-guild-roof-1-1",
+          "column": 1,
+          "row": 1,
+          "layer": 2,
+          "offsetHeight": 16,
           "height": 0,
           "shape": "cap",
           "highSide": "west",
@@ -1611,7 +1633,7 @@
           "row": 1,
           "layer": 1,
           "offsetHeight": 16,
-          "height": 16,
+          "height": 32,
           "shape": "ramp",
           "highSide": "west",
           "material": "roof",
@@ -1645,7 +1667,7 @@
           "row": 2,
           "layer": 1,
           "offsetHeight": 16,
-          "height": 16,
+          "height": 32,
           "shape": "ramp",
           "highSide": "east",
           "material": "roof",
@@ -1674,11 +1696,22 @@
           "walkable": false
         },
         {
-          "id": "stonewarm-guild-roof-1-2",
+          "id": "stonewarm-guild-1-2-64",
           "column": 1,
           "row": 2,
           "layer": 2,
           "offsetHeight": 0,
+          "height": 16,
+          "shape": "slab",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "stonewarm-guild-roof-1-2",
+          "column": 1,
+          "row": 2,
+          "layer": 2,
+          "offsetHeight": 16,
           "height": 0,
           "shape": "cap",
           "highSide": "west",
@@ -1713,7 +1746,7 @@
           "row": 2,
           "layer": 1,
           "offsetHeight": 16,
-          "height": 16,
+          "height": 32,
           "shape": "ramp",
           "highSide": "west",
           "material": "roof",
@@ -1837,12 +1870,12 @@
             {
               "column": 0.5,
               "row": -0.5,
-              "height": 64
+              "height": 80
             },
             {
               "column": 0.5,
               "row": 0.5,
-              "height": 64
+              "height": 80
             },
             {
               "column": -0.5,
@@ -1868,7 +1901,7 @@
             {
               "column": 0.5,
               "row": -0.5,
-              "height": 64
+              "height": 80
             },
             {
               "column": -0.5,
@@ -1945,143 +1978,39 @@
             },
             {
               "column": 1.5,
+              "row": -0.5,
+              "height": 80
+            },
+            {
+              "column": 0.5,
+              "row": -0.5,
+              "height": 80
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 0.5,
+              "row": -0.5,
+              "height": 80
+            },
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 80
+            },
+            {
+              "column": 1.5,
               "row": 0.5,
-              "height": 64
+              "height": 80
             },
             {
               "column": 0.5,
               "row": 0.5,
-              "height": 64
-            }
-          ],
-          "material": "roof",
-          "top": true
-        },
-        {
-          "vertices": [
-            {
-              "column": 1.5,
-              "row": -0.5,
-              "height": 0
-            },
-            {
-              "column": 2.5,
-              "row": -0.5,
-              "height": 0
-            },
-            {
-              "column": 2.5,
-              "row": -0.5,
-              "height": 32
-            },
-            {
-              "column": 1.5,
-              "row": -0.5,
-              "height": 32
-            }
-          ],
-          "material": "wall",
-          "top": false
-        },
-        {
-          "vertices": [
-            {
-              "column": 2.5,
-              "row": -0.5,
-              "height": 0
-            },
-            {
-              "column": 2.5,
-              "row": 0.5,
-              "height": 0
-            },
-            {
-              "column": 2.5,
-              "row": 0.5,
-              "height": 32
-            },
-            {
-              "column": 2.5,
-              "row": -0.5,
-              "height": 32
-            }
-          ],
-          "material": "wall",
-          "top": false
-        },
-        {
-          "vertices": [
-            {
-              "column": 1.5,
-              "row": -0.5,
-              "height": 32
-            },
-            {
-              "column": 2.5,
-              "row": -0.5,
-              "height": 32
-            },
-            {
-              "column": 2.5,
-              "row": -0.5,
-              "height": 48
-            },
-            {
-              "column": 1.5,
-              "row": -0.5,
-              "height": 48
-            }
-          ],
-          "material": "wall",
-          "top": false
-        },
-        {
-          "vertices": [
-            {
-              "column": 2.5,
-              "row": -0.5,
-              "height": 32
-            },
-            {
-              "column": 2.5,
-              "row": 0.5,
-              "height": 32
-            },
-            {
-              "column": 2.5,
-              "row": 0.5,
-              "height": 48
-            },
-            {
-              "column": 2.5,
-              "row": -0.5,
-              "height": 48
-            }
-          ],
-          "material": "wall",
-          "top": false
-        },
-        {
-          "vertices": [
-            {
-              "column": 1.5,
-              "row": -0.5,
-              "height": 64
-            },
-            {
-              "column": 2.5,
-              "row": -0.5,
-              "height": 48
-            },
-            {
-              "column": 2.5,
-              "row": 0.5,
-              "height": 48
-            },
-            {
-              "column": 1.5,
-              "row": 0.5,
-              "height": 64
+              "height": 80
             }
           ],
           "material": "roof",
@@ -2092,10 +2021,135 @@
             {
               "column": 1.5,
               "row": -0.5,
+              "height": 0
+            },
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 0
+            },
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 32
+            },
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 0
+            },
+            {
+              "column": 2.5,
+              "row": 0.5,
+              "height": 0
+            },
+            {
+              "column": 2.5,
+              "row": 0.5,
+              "height": 32
+            },
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 32
+            },
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 32
+            },
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 48
+            },
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 48
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 32
+            },
+            {
+              "column": 2.5,
+              "row": 0.5,
+              "height": 32
+            },
+            {
+              "column": 2.5,
+              "row": 0.5,
               "height": 48
             },
             {
               "column": 2.5,
+              "row": -0.5,
+              "height": 48
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 80
+            },
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 48
+            },
+            {
+              "column": 2.5,
+              "row": 0.5,
+              "height": 48
+            },
+            {
+              "column": 1.5,
+              "row": 0.5,
+              "height": 80
+            }
+          ],
+          "material": "roof",
+          "top": true
+        },
+        {
+          "vertices": [
+            {
+              "column": 1.5,
               "row": -0.5,
               "height": 48
             },
@@ -2105,9 +2159,14 @@
               "height": 48
             },
             {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 48
+            },
+            {
               "column": 1.5,
               "row": -0.5,
-              "height": 64
+              "height": 80
             }
           ],
           "material": "roof",
@@ -2175,250 +2234,16 @@
             {
               "column": 0.5,
               "row": 0.5,
-              "height": 64
+              "height": 80
             },
             {
               "column": 0.5,
               "row": 1.5,
-              "height": 64
+              "height": 80
             },
             {
               "column": -0.5,
               "row": 1.5,
-              "height": 48
-            }
-          ],
-          "material": "roof",
-          "top": true
-        },
-        {
-          "vertices": [
-            {
-              "column": 0.5,
-              "row": 0.5,
-              "height": 64
-            },
-            {
-              "column": 1.5,
-              "row": 0.5,
-              "height": 64
-            },
-            {
-              "column": 1.5,
-              "row": 1.5,
-              "height": 64
-            },
-            {
-              "column": 0.5,
-              "row": 1.5,
-              "height": 64
-            }
-          ],
-          "material": "roof",
-          "top": true
-        },
-        {
-          "vertices": [
-            {
-              "column": 2.5,
-              "row": 0.5,
-              "height": 0
-            },
-            {
-              "column": 2.5,
-              "row": 1.5,
-              "height": 0
-            },
-            {
-              "column": 2.5,
-              "row": 1.5,
-              "height": 32
-            },
-            {
-              "column": 2.5,
-              "row": 0.5,
-              "height": 32
-            }
-          ],
-          "material": "wall",
-          "top": false
-        },
-        {
-          "vertices": [
-            {
-              "column": 2.5,
-              "row": 0.5,
-              "height": 32
-            },
-            {
-              "column": 2.5,
-              "row": 1.5,
-              "height": 32
-            },
-            {
-              "column": 2.5,
-              "row": 1.5,
-              "height": 48
-            },
-            {
-              "column": 2.5,
-              "row": 0.5,
-              "height": 48
-            }
-          ],
-          "material": "wall",
-          "top": false
-        },
-        {
-          "vertices": [
-            {
-              "column": 1.5,
-              "row": 0.5,
-              "height": 64
-            },
-            {
-              "column": 2.5,
-              "row": 0.5,
-              "height": 48
-            },
-            {
-              "column": 2.5,
-              "row": 1.5,
-              "height": 48
-            },
-            {
-              "column": 1.5,
-              "row": 1.5,
-              "height": 64
-            }
-          ],
-          "material": "roof",
-          "top": true
-        },
-        {
-          "vertices": [
-            {
-              "column": 0.5,
-              "row": 2.5,
-              "height": 0
-            },
-            {
-              "column": -0.5,
-              "row": 2.5,
-              "height": 0
-            },
-            {
-              "column": -0.5,
-              "row": 2.5,
-              "height": 32
-            },
-            {
-              "column": 0.5,
-              "row": 2.5,
-              "height": 32
-            }
-          ],
-          "material": "wall",
-          "top": false
-        },
-        {
-          "vertices": [
-            {
-              "column": -0.5,
-              "row": 2.5,
-              "height": 0
-            },
-            {
-              "column": -0.5,
-              "row": 1.5,
-              "height": 0
-            },
-            {
-              "column": -0.5,
-              "row": 1.5,
-              "height": 32
-            },
-            {
-              "column": -0.5,
-              "row": 2.5,
-              "height": 32
-            }
-          ],
-          "material": "wall",
-          "top": false
-        },
-        {
-          "vertices": [
-            {
-              "column": 0.5,
-              "row": 2.5,
-              "height": 32
-            },
-            {
-              "column": -0.5,
-              "row": 2.5,
-              "height": 32
-            },
-            {
-              "column": -0.5,
-              "row": 2.5,
-              "height": 48
-            },
-            {
-              "column": 0.5,
-              "row": 2.5,
-              "height": 48
-            }
-          ],
-          "material": "wall",
-          "top": false
-        },
-        {
-          "vertices": [
-            {
-              "column": -0.5,
-              "row": 2.5,
-              "height": 32
-            },
-            {
-              "column": -0.5,
-              "row": 1.5,
-              "height": 32
-            },
-            {
-              "column": -0.5,
-              "row": 1.5,
-              "height": 48
-            },
-            {
-              "column": -0.5,
-              "row": 2.5,
-              "height": 48
-            }
-          ],
-          "material": "wall",
-          "top": false
-        },
-        {
-          "vertices": [
-            {
-              "column": -0.5,
-              "row": 1.5,
-              "height": 48
-            },
-            {
-              "column": 0.5,
-              "row": 1.5,
-              "height": 64
-            },
-            {
-              "column": 0.5,
-              "row": 2.5,
-              "height": 64
-            },
-            {
-              "column": -0.5,
-              "row": 2.5,
               "height": 48
             }
           ],
@@ -2429,6 +2254,240 @@
           "vertices": [
             {
               "column": 0.5,
+              "row": 0.5,
+              "height": 80
+            },
+            {
+              "column": 1.5,
+              "row": 0.5,
+              "height": 80
+            },
+            {
+              "column": 1.5,
+              "row": 1.5,
+              "height": 80
+            },
+            {
+              "column": 0.5,
+              "row": 1.5,
+              "height": 80
+            }
+          ],
+          "material": "roof",
+          "top": true
+        },
+        {
+          "vertices": [
+            {
+              "column": 2.5,
+              "row": 0.5,
+              "height": 0
+            },
+            {
+              "column": 2.5,
+              "row": 1.5,
+              "height": 0
+            },
+            {
+              "column": 2.5,
+              "row": 1.5,
+              "height": 32
+            },
+            {
+              "column": 2.5,
+              "row": 0.5,
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 2.5,
+              "row": 0.5,
+              "height": 32
+            },
+            {
+              "column": 2.5,
+              "row": 1.5,
+              "height": 32
+            },
+            {
+              "column": 2.5,
+              "row": 1.5,
+              "height": 48
+            },
+            {
+              "column": 2.5,
+              "row": 0.5,
+              "height": 48
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 1.5,
+              "row": 0.5,
+              "height": 80
+            },
+            {
+              "column": 2.5,
+              "row": 0.5,
+              "height": 48
+            },
+            {
+              "column": 2.5,
+              "row": 1.5,
+              "height": 48
+            },
+            {
+              "column": 1.5,
+              "row": 1.5,
+              "height": 80
+            }
+          ],
+          "material": "roof",
+          "top": true
+        },
+        {
+          "vertices": [
+            {
+              "column": 0.5,
+              "row": 2.5,
+              "height": 0
+            },
+            {
+              "column": -0.5,
+              "row": 2.5,
+              "height": 0
+            },
+            {
+              "column": -0.5,
+              "row": 2.5,
+              "height": 32
+            },
+            {
+              "column": 0.5,
+              "row": 2.5,
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": -0.5,
+              "row": 2.5,
+              "height": 0
+            },
+            {
+              "column": -0.5,
+              "row": 1.5,
+              "height": 0
+            },
+            {
+              "column": -0.5,
+              "row": 1.5,
+              "height": 32
+            },
+            {
+              "column": -0.5,
+              "row": 2.5,
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 0.5,
+              "row": 2.5,
+              "height": 32
+            },
+            {
+              "column": -0.5,
+              "row": 2.5,
+              "height": 32
+            },
+            {
+              "column": -0.5,
+              "row": 2.5,
+              "height": 48
+            },
+            {
+              "column": 0.5,
+              "row": 2.5,
+              "height": 48
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": -0.5,
+              "row": 2.5,
+              "height": 32
+            },
+            {
+              "column": -0.5,
+              "row": 1.5,
+              "height": 32
+            },
+            {
+              "column": -0.5,
+              "row": 1.5,
+              "height": 48
+            },
+            {
+              "column": -0.5,
+              "row": 2.5,
+              "height": 48
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": -0.5,
+              "row": 1.5,
+              "height": 48
+            },
+            {
+              "column": 0.5,
+              "row": 1.5,
+              "height": 80
+            },
+            {
+              "column": 0.5,
+              "row": 2.5,
+              "height": 80
+            },
+            {
+              "column": -0.5,
+              "row": 2.5,
+              "height": 48
+            }
+          ],
+          "material": "roof",
+          "top": true
+        },
+        {
+          "vertices": [
+            {
+              "column": 0.5,
               "row": 2.5,
               "height": 48
             },
@@ -2445,7 +2504,7 @@
             {
               "column": 0.5,
               "row": 2.5,
-              "height": 64
+              "height": 80
             }
           ],
           "material": "roof",
@@ -2506,16 +2565,6 @@
         {
           "vertices": [
             {
-              "column": 0.5,
-              "row": 1.5,
-              "height": 64
-            },
-            {
-              "column": 1.5,
-              "row": 1.5,
-              "height": 64
-            },
-            {
               "column": 1.5,
               "row": 2.5,
               "height": 64
@@ -2524,6 +2573,42 @@
               "column": 0.5,
               "row": 2.5,
               "height": 64
+            },
+            {
+              "column": 0.5,
+              "row": 2.5,
+              "height": 80
+            },
+            {
+              "column": 1.5,
+              "row": 2.5,
+              "height": 80
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 0.5,
+              "row": 1.5,
+              "height": 80
+            },
+            {
+              "column": 1.5,
+              "row": 1.5,
+              "height": 80
+            },
+            {
+              "column": 1.5,
+              "row": 2.5,
+              "height": 80
+            },
+            {
+              "column": 0.5,
+              "row": 2.5,
+              "height": 80
             }
           ],
           "material": "roof",
@@ -2638,7 +2723,7 @@
             {
               "column": 1.5,
               "row": 1.5,
-              "height": 64
+              "height": 80
             },
             {
               "column": 2.5,
@@ -2653,7 +2738,7 @@
             {
               "column": 1.5,
               "row": 2.5,
-              "height": 64
+              "height": 80
             }
           ],
           "material": "roof",
@@ -2674,7 +2759,7 @@
             {
               "column": 1.5,
               "row": 2.5,
-              "height": 64
+              "height": 80
             },
             {
               "column": 2.5,
@@ -2732,7 +2817,7 @@
           "row": 0,
           "layer": 1,
           "offsetHeight": 16,
-          "height": 16,
+          "height": 32,
           "shape": "ramp",
           "highSide": "east",
           "material": "roof",
@@ -2766,7 +2851,7 @@
           "row": 0,
           "layer": 1,
           "offsetHeight": 16,
-          "height": 16,
+          "height": 32,
           "shape": "ramp",
           "highSide": "west",
           "material": "roof",
@@ -2800,7 +2885,7 @@
           "row": 1,
           "layer": 1,
           "offsetHeight": 16,
-          "height": 16,
+          "height": 32,
           "shape": "ramp",
           "highSide": "east",
           "material": "roof",
@@ -2834,7 +2919,7 @@
           "row": 1,
           "layer": 1,
           "offsetHeight": 16,
-          "height": 16,
+          "height": 32,
           "shape": "ramp",
           "highSide": "west",
           "material": "roof",
@@ -2868,7 +2953,7 @@
           "row": 2,
           "layer": 1,
           "offsetHeight": 16,
-          "height": 16,
+          "height": 32,
           "shape": "ramp",
           "highSide": "east",
           "material": "roof",
@@ -2902,7 +2987,7 @@
           "row": 2,
           "layer": 1,
           "offsetHeight": 16,
-          "height": 16,
+          "height": 32,
           "shape": "ramp",
           "highSide": "west",
           "material": "roof",
@@ -3026,12 +3111,12 @@
             {
               "column": 0.5,
               "row": -0.5,
-              "height": 64
+              "height": 80
             },
             {
               "column": 0.5,
               "row": 0.5,
-              "height": 64
+              "height": 80
             },
             {
               "column": -0.5,
@@ -3057,7 +3142,7 @@
             {
               "column": 0.5,
               "row": -0.5,
-              "height": 64
+              "height": 80
             },
             {
               "column": -0.5,
@@ -3177,7 +3262,7 @@
             {
               "column": 0.5,
               "row": -0.5,
-              "height": 64
+              "height": 80
             },
             {
               "column": 1.5,
@@ -3192,189 +3277,7 @@
             {
               "column": 0.5,
               "row": 0.5,
-              "height": 64
-            }
-          ],
-          "material": "roof",
-          "top": true
-        },
-        {
-          "vertices": [
-            {
-              "column": 0.5,
-              "row": -0.5,
-              "height": 48
-            },
-            {
-              "column": 1.5,
-              "row": -0.5,
-              "height": 48
-            },
-            {
-              "column": 1.5,
-              "row": -0.5,
-              "height": 48
-            },
-            {
-              "column": 0.5,
-              "row": -0.5,
-              "height": 64
-            }
-          ],
-          "material": "roof",
-          "top": false
-        },
-        {
-          "vertices": [
-            {
-              "column": -0.5,
-              "row": 1.5,
-              "height": 0
-            },
-            {
-              "column": -0.5,
-              "row": 0.5,
-              "height": 0
-            },
-            {
-              "column": -0.5,
-              "row": 0.5,
-              "height": 32
-            },
-            {
-              "column": -0.5,
-              "row": 1.5,
-              "height": 32
-            }
-          ],
-          "material": "wall",
-          "top": false
-        },
-        {
-          "vertices": [
-            {
-              "column": -0.5,
-              "row": 1.5,
-              "height": 32
-            },
-            {
-              "column": -0.5,
-              "row": 0.5,
-              "height": 32
-            },
-            {
-              "column": -0.5,
-              "row": 0.5,
-              "height": 48
-            },
-            {
-              "column": -0.5,
-              "row": 1.5,
-              "height": 48
-            }
-          ],
-          "material": "wall",
-          "top": false
-        },
-        {
-          "vertices": [
-            {
-              "column": -0.5,
-              "row": 0.5,
-              "height": 48
-            },
-            {
-              "column": 0.5,
-              "row": 0.5,
-              "height": 64
-            },
-            {
-              "column": 0.5,
-              "row": 1.5,
-              "height": 64
-            },
-            {
-              "column": -0.5,
-              "row": 1.5,
-              "height": 48
-            }
-          ],
-          "material": "roof",
-          "top": true
-        },
-        {
-          "vertices": [
-            {
-              "column": 1.5,
-              "row": 0.5,
-              "height": 0
-            },
-            {
-              "column": 1.5,
-              "row": 1.5,
-              "height": 0
-            },
-            {
-              "column": 1.5,
-              "row": 1.5,
-              "height": 32
-            },
-            {
-              "column": 1.5,
-              "row": 0.5,
-              "height": 32
-            }
-          ],
-          "material": "wall",
-          "top": false
-        },
-        {
-          "vertices": [
-            {
-              "column": 1.5,
-              "row": 0.5,
-              "height": 32
-            },
-            {
-              "column": 1.5,
-              "row": 1.5,
-              "height": 32
-            },
-            {
-              "column": 1.5,
-              "row": 1.5,
-              "height": 48
-            },
-            {
-              "column": 1.5,
-              "row": 0.5,
-              "height": 48
-            }
-          ],
-          "material": "wall",
-          "top": false
-        },
-        {
-          "vertices": [
-            {
-              "column": 0.5,
-              "row": 0.5,
-              "height": 64
-            },
-            {
-              "column": 1.5,
-              "row": 0.5,
-              "height": 48
-            },
-            {
-              "column": 1.5,
-              "row": 1.5,
-              "height": 48
-            },
-            {
-              "column": 0.5,
-              "row": 1.5,
-              "height": 64
+              "height": 80
             }
           ],
           "material": "roof",
@@ -3384,22 +3287,48 @@
           "vertices": [
             {
               "column": 0.5,
-              "row": 2.5,
-              "height": 0
+              "row": -0.5,
+              "height": 48
             },
             {
-              "column": -0.5,
-              "row": 2.5,
-              "height": 0
+              "column": 1.5,
+              "row": -0.5,
+              "height": 48
             },
             {
-              "column": -0.5,
-              "row": 2.5,
-              "height": 32
+              "column": 1.5,
+              "row": -0.5,
+              "height": 48
             },
             {
               "column": 0.5,
-              "row": 2.5,
+              "row": -0.5,
+              "height": 80
+            }
+          ],
+          "material": "roof",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": -0.5,
+              "row": 1.5,
+              "height": 0
+            },
+            {
+              "column": -0.5,
+              "row": 0.5,
+              "height": 0
+            },
+            {
+              "column": -0.5,
+              "row": 0.5,
+              "height": 32
+            },
+            {
+              "column": -0.5,
+              "row": 1.5,
               "height": 32
             }
           ],
@@ -3410,22 +3339,74 @@
           "vertices": [
             {
               "column": -0.5,
-              "row": 2.5,
+              "row": 1.5,
+              "height": 32
+            },
+            {
+              "column": -0.5,
+              "row": 0.5,
+              "height": 32
+            },
+            {
+              "column": -0.5,
+              "row": 0.5,
+              "height": 48
+            },
+            {
+              "column": -0.5,
+              "row": 1.5,
+              "height": 48
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": -0.5,
+              "row": 0.5,
+              "height": 48
+            },
+            {
+              "column": 0.5,
+              "row": 0.5,
+              "height": 80
+            },
+            {
+              "column": 0.5,
+              "row": 1.5,
+              "height": 80
+            },
+            {
+              "column": -0.5,
+              "row": 1.5,
+              "height": 48
+            }
+          ],
+          "material": "roof",
+          "top": true
+        },
+        {
+          "vertices": [
+            {
+              "column": 1.5,
+              "row": 0.5,
               "height": 0
             },
             {
-              "column": -0.5,
+              "column": 1.5,
               "row": 1.5,
               "height": 0
             },
             {
-              "column": -0.5,
+              "column": 1.5,
               "row": 1.5,
               "height": 32
             },
             {
-              "column": -0.5,
-              "row": 2.5,
+              "column": 1.5,
+              "row": 0.5,
               "height": 32
             }
           ],
@@ -3435,23 +3416,23 @@
         {
           "vertices": [
             {
-              "column": 0.5,
-              "row": 2.5,
+              "column": 1.5,
+              "row": 0.5,
               "height": 32
             },
             {
-              "column": -0.5,
-              "row": 2.5,
+              "column": 1.5,
+              "row": 1.5,
               "height": 32
             },
             {
-              "column": -0.5,
-              "row": 2.5,
+              "column": 1.5,
+              "row": 1.5,
               "height": 48
             },
             {
-              "column": 0.5,
-              "row": 2.5,
+              "column": 1.5,
+              "row": 0.5,
               "height": 48
             }
           ],
@@ -3461,50 +3442,24 @@
         {
           "vertices": [
             {
-              "column": -0.5,
-              "row": 2.5,
-              "height": 32
+              "column": 0.5,
+              "row": 0.5,
+              "height": 80
             },
             {
-              "column": -0.5,
-              "row": 1.5,
-              "height": 32
-            },
-            {
-              "column": -0.5,
-              "row": 1.5,
+              "column": 1.5,
+              "row": 0.5,
               "height": 48
             },
             {
-              "column": -0.5,
-              "row": 2.5,
-              "height": 48
-            }
-          ],
-          "material": "wall",
-          "top": false
-        },
-        {
-          "vertices": [
-            {
-              "column": -0.5,
+              "column": 1.5,
               "row": 1.5,
               "height": 48
             },
             {
               "column": 0.5,
               "row": 1.5,
-              "height": 64
-            },
-            {
-              "column": 0.5,
-              "row": 2.5,
-              "height": 64
-            },
-            {
-              "column": -0.5,
-              "row": 2.5,
-              "height": 48
+              "height": 80
             }
           ],
           "material": "roof",
@@ -3515,6 +3470,136 @@
             {
               "column": 0.5,
               "row": 2.5,
+              "height": 0
+            },
+            {
+              "column": -0.5,
+              "row": 2.5,
+              "height": 0
+            },
+            {
+              "column": -0.5,
+              "row": 2.5,
+              "height": 32
+            },
+            {
+              "column": 0.5,
+              "row": 2.5,
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": -0.5,
+              "row": 2.5,
+              "height": 0
+            },
+            {
+              "column": -0.5,
+              "row": 1.5,
+              "height": 0
+            },
+            {
+              "column": -0.5,
+              "row": 1.5,
+              "height": 32
+            },
+            {
+              "column": -0.5,
+              "row": 2.5,
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 0.5,
+              "row": 2.5,
+              "height": 32
+            },
+            {
+              "column": -0.5,
+              "row": 2.5,
+              "height": 32
+            },
+            {
+              "column": -0.5,
+              "row": 2.5,
+              "height": 48
+            },
+            {
+              "column": 0.5,
+              "row": 2.5,
+              "height": 48
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": -0.5,
+              "row": 2.5,
+              "height": 32
+            },
+            {
+              "column": -0.5,
+              "row": 1.5,
+              "height": 32
+            },
+            {
+              "column": -0.5,
+              "row": 1.5,
+              "height": 48
+            },
+            {
+              "column": -0.5,
+              "row": 2.5,
+              "height": 48
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": -0.5,
+              "row": 1.5,
+              "height": 48
+            },
+            {
+              "column": 0.5,
+              "row": 1.5,
+              "height": 80
+            },
+            {
+              "column": 0.5,
+              "row": 2.5,
+              "height": 80
+            },
+            {
+              "column": -0.5,
+              "row": 2.5,
+              "height": 48
+            }
+          ],
+          "material": "roof",
+          "top": true
+        },
+        {
+          "vertices": [
+            {
+              "column": 0.5,
+              "row": 2.5,
               "height": 48
             },
             {
@@ -3530,7 +3615,7 @@
             {
               "column": 0.5,
               "row": 2.5,
-              "height": 64
+              "height": 80
             }
           ],
           "material": "roof",
@@ -3645,7 +3730,7 @@
             {
               "column": 0.5,
               "row": 1.5,
-              "height": 64
+              "height": 80
             },
             {
               "column": 1.5,
@@ -3660,7 +3745,7 @@
             {
               "column": 0.5,
               "row": 2.5,
-              "height": 64
+              "height": 80
             }
           ],
           "material": "roof",
@@ -3681,7 +3766,7 @@
             {
               "column": 0.5,
               "row": 2.5,
-              "height": 64
+              "height": 80
             },
             {
               "column": 1.5,
@@ -3739,7 +3824,7 @@
           "row": 0,
           "layer": 1,
           "offsetHeight": 16,
-          "height": 16,
+          "height": 32,
           "shape": "ramp",
           "highSide": "east",
           "material": "roof",
@@ -3768,11 +3853,22 @@
           "walkable": false
         },
         {
-          "id": "stonewarm-inn-roof-1-0",
+          "id": "stonewarm-inn-1-0-64",
           "column": 1,
           "row": 0,
           "layer": 2,
           "offsetHeight": 0,
+          "height": 16,
+          "shape": "slab",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "stonewarm-inn-roof-1-0",
+          "column": 1,
+          "row": 0,
+          "layer": 2,
+          "offsetHeight": 16,
           "height": 0,
           "shape": "cap",
           "highSide": "west",
@@ -3807,7 +3903,7 @@
           "row": 0,
           "layer": 1,
           "offsetHeight": 16,
-          "height": 16,
+          "height": 32,
           "shape": "ramp",
           "highSide": "west",
           "material": "roof",
@@ -3841,7 +3937,7 @@
           "row": 1,
           "layer": 1,
           "offsetHeight": 16,
-          "height": 16,
+          "height": 32,
           "shape": "ramp",
           "highSide": "east",
           "material": "roof",
@@ -3870,11 +3966,22 @@
           "walkable": false
         },
         {
-          "id": "stonewarm-inn-roof-1-1",
+          "id": "stonewarm-inn-1-1-64",
           "column": 1,
           "row": 1,
           "layer": 2,
           "offsetHeight": 0,
+          "height": 16,
+          "shape": "slab",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "stonewarm-inn-roof-1-1",
+          "column": 1,
+          "row": 1,
+          "layer": 2,
+          "offsetHeight": 16,
           "height": 0,
           "shape": "cap",
           "highSide": "west",
@@ -3909,7 +4016,7 @@
           "row": 1,
           "layer": 1,
           "offsetHeight": 16,
-          "height": 16,
+          "height": 32,
           "shape": "ramp",
           "highSide": "west",
           "material": "roof",
@@ -3943,7 +4050,7 @@
           "row": 2,
           "layer": 1,
           "offsetHeight": 16,
-          "height": 16,
+          "height": 32,
           "shape": "ramp",
           "highSide": "east",
           "material": "roof",
@@ -3972,11 +4079,22 @@
           "walkable": false
         },
         {
-          "id": "stonewarm-inn-roof-1-2",
+          "id": "stonewarm-inn-1-2-64",
           "column": 1,
           "row": 2,
           "layer": 2,
           "offsetHeight": 0,
+          "height": 16,
+          "shape": "slab",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "stonewarm-inn-roof-1-2",
+          "column": 1,
+          "row": 2,
+          "layer": 2,
+          "offsetHeight": 16,
           "height": 0,
           "shape": "cap",
           "highSide": "west",
@@ -4011,7 +4129,7 @@
           "row": 2,
           "layer": 1,
           "offsetHeight": 16,
-          "height": 16,
+          "height": 32,
           "shape": "ramp",
           "highSide": "west",
           "material": "roof",
@@ -4135,12 +4253,12 @@
             {
               "column": 0.5,
               "row": -0.5,
-              "height": 64
+              "height": 80
             },
             {
               "column": 0.5,
               "row": 0.5,
-              "height": 64
+              "height": 80
             },
             {
               "column": -0.5,
@@ -4166,7 +4284,7 @@
             {
               "column": 0.5,
               "row": -0.5,
-              "height": 64
+              "height": 80
             },
             {
               "column": -0.5,
@@ -4243,143 +4361,39 @@
             },
             {
               "column": 1.5,
+              "row": -0.5,
+              "height": 80
+            },
+            {
+              "column": 0.5,
+              "row": -0.5,
+              "height": 80
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 0.5,
+              "row": -0.5,
+              "height": 80
+            },
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 80
+            },
+            {
+              "column": 1.5,
               "row": 0.5,
-              "height": 64
+              "height": 80
             },
             {
               "column": 0.5,
               "row": 0.5,
-              "height": 64
-            }
-          ],
-          "material": "roof",
-          "top": true
-        },
-        {
-          "vertices": [
-            {
-              "column": 1.5,
-              "row": -0.5,
-              "height": 0
-            },
-            {
-              "column": 2.5,
-              "row": -0.5,
-              "height": 0
-            },
-            {
-              "column": 2.5,
-              "row": -0.5,
-              "height": 32
-            },
-            {
-              "column": 1.5,
-              "row": -0.5,
-              "height": 32
-            }
-          ],
-          "material": "wall",
-          "top": false
-        },
-        {
-          "vertices": [
-            {
-              "column": 2.5,
-              "row": -0.5,
-              "height": 0
-            },
-            {
-              "column": 2.5,
-              "row": 0.5,
-              "height": 0
-            },
-            {
-              "column": 2.5,
-              "row": 0.5,
-              "height": 32
-            },
-            {
-              "column": 2.5,
-              "row": -0.5,
-              "height": 32
-            }
-          ],
-          "material": "wall",
-          "top": false
-        },
-        {
-          "vertices": [
-            {
-              "column": 1.5,
-              "row": -0.5,
-              "height": 32
-            },
-            {
-              "column": 2.5,
-              "row": -0.5,
-              "height": 32
-            },
-            {
-              "column": 2.5,
-              "row": -0.5,
-              "height": 48
-            },
-            {
-              "column": 1.5,
-              "row": -0.5,
-              "height": 48
-            }
-          ],
-          "material": "wall",
-          "top": false
-        },
-        {
-          "vertices": [
-            {
-              "column": 2.5,
-              "row": -0.5,
-              "height": 32
-            },
-            {
-              "column": 2.5,
-              "row": 0.5,
-              "height": 32
-            },
-            {
-              "column": 2.5,
-              "row": 0.5,
-              "height": 48
-            },
-            {
-              "column": 2.5,
-              "row": -0.5,
-              "height": 48
-            }
-          ],
-          "material": "wall",
-          "top": false
-        },
-        {
-          "vertices": [
-            {
-              "column": 1.5,
-              "row": -0.5,
-              "height": 64
-            },
-            {
-              "column": 2.5,
-              "row": -0.5,
-              "height": 48
-            },
-            {
-              "column": 2.5,
-              "row": 0.5,
-              "height": 48
-            },
-            {
-              "column": 1.5,
-              "row": 0.5,
-              "height": 64
+              "height": 80
             }
           ],
           "material": "roof",
@@ -4390,10 +4404,135 @@
             {
               "column": 1.5,
               "row": -0.5,
+              "height": 0
+            },
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 0
+            },
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 32
+            },
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 0
+            },
+            {
+              "column": 2.5,
+              "row": 0.5,
+              "height": 0
+            },
+            {
+              "column": 2.5,
+              "row": 0.5,
+              "height": 32
+            },
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 32
+            },
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 32
+            },
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 48
+            },
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 48
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 32
+            },
+            {
+              "column": 2.5,
+              "row": 0.5,
+              "height": 32
+            },
+            {
+              "column": 2.5,
+              "row": 0.5,
               "height": 48
             },
             {
               "column": 2.5,
+              "row": -0.5,
+              "height": 48
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 1.5,
+              "row": -0.5,
+              "height": 80
+            },
+            {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 48
+            },
+            {
+              "column": 2.5,
+              "row": 0.5,
+              "height": 48
+            },
+            {
+              "column": 1.5,
+              "row": 0.5,
+              "height": 80
+            }
+          ],
+          "material": "roof",
+          "top": true
+        },
+        {
+          "vertices": [
+            {
+              "column": 1.5,
               "row": -0.5,
               "height": 48
             },
@@ -4403,9 +4542,14 @@
               "height": 48
             },
             {
+              "column": 2.5,
+              "row": -0.5,
+              "height": 48
+            },
+            {
               "column": 1.5,
               "row": -0.5,
-              "height": 64
+              "height": 80
             }
           ],
           "material": "roof",
@@ -4473,250 +4617,16 @@
             {
               "column": 0.5,
               "row": 0.5,
-              "height": 64
+              "height": 80
             },
             {
               "column": 0.5,
               "row": 1.5,
-              "height": 64
+              "height": 80
             },
             {
               "column": -0.5,
               "row": 1.5,
-              "height": 48
-            }
-          ],
-          "material": "roof",
-          "top": true
-        },
-        {
-          "vertices": [
-            {
-              "column": 0.5,
-              "row": 0.5,
-              "height": 64
-            },
-            {
-              "column": 1.5,
-              "row": 0.5,
-              "height": 64
-            },
-            {
-              "column": 1.5,
-              "row": 1.5,
-              "height": 64
-            },
-            {
-              "column": 0.5,
-              "row": 1.5,
-              "height": 64
-            }
-          ],
-          "material": "roof",
-          "top": true
-        },
-        {
-          "vertices": [
-            {
-              "column": 2.5,
-              "row": 0.5,
-              "height": 0
-            },
-            {
-              "column": 2.5,
-              "row": 1.5,
-              "height": 0
-            },
-            {
-              "column": 2.5,
-              "row": 1.5,
-              "height": 32
-            },
-            {
-              "column": 2.5,
-              "row": 0.5,
-              "height": 32
-            }
-          ],
-          "material": "wall",
-          "top": false
-        },
-        {
-          "vertices": [
-            {
-              "column": 2.5,
-              "row": 0.5,
-              "height": 32
-            },
-            {
-              "column": 2.5,
-              "row": 1.5,
-              "height": 32
-            },
-            {
-              "column": 2.5,
-              "row": 1.5,
-              "height": 48
-            },
-            {
-              "column": 2.5,
-              "row": 0.5,
-              "height": 48
-            }
-          ],
-          "material": "wall",
-          "top": false
-        },
-        {
-          "vertices": [
-            {
-              "column": 1.5,
-              "row": 0.5,
-              "height": 64
-            },
-            {
-              "column": 2.5,
-              "row": 0.5,
-              "height": 48
-            },
-            {
-              "column": 2.5,
-              "row": 1.5,
-              "height": 48
-            },
-            {
-              "column": 1.5,
-              "row": 1.5,
-              "height": 64
-            }
-          ],
-          "material": "roof",
-          "top": true
-        },
-        {
-          "vertices": [
-            {
-              "column": 0.5,
-              "row": 2.5,
-              "height": 0
-            },
-            {
-              "column": -0.5,
-              "row": 2.5,
-              "height": 0
-            },
-            {
-              "column": -0.5,
-              "row": 2.5,
-              "height": 32
-            },
-            {
-              "column": 0.5,
-              "row": 2.5,
-              "height": 32
-            }
-          ],
-          "material": "wall",
-          "top": false
-        },
-        {
-          "vertices": [
-            {
-              "column": -0.5,
-              "row": 2.5,
-              "height": 0
-            },
-            {
-              "column": -0.5,
-              "row": 1.5,
-              "height": 0
-            },
-            {
-              "column": -0.5,
-              "row": 1.5,
-              "height": 32
-            },
-            {
-              "column": -0.5,
-              "row": 2.5,
-              "height": 32
-            }
-          ],
-          "material": "wall",
-          "top": false
-        },
-        {
-          "vertices": [
-            {
-              "column": 0.5,
-              "row": 2.5,
-              "height": 32
-            },
-            {
-              "column": -0.5,
-              "row": 2.5,
-              "height": 32
-            },
-            {
-              "column": -0.5,
-              "row": 2.5,
-              "height": 48
-            },
-            {
-              "column": 0.5,
-              "row": 2.5,
-              "height": 48
-            }
-          ],
-          "material": "wall",
-          "top": false
-        },
-        {
-          "vertices": [
-            {
-              "column": -0.5,
-              "row": 2.5,
-              "height": 32
-            },
-            {
-              "column": -0.5,
-              "row": 1.5,
-              "height": 32
-            },
-            {
-              "column": -0.5,
-              "row": 1.5,
-              "height": 48
-            },
-            {
-              "column": -0.5,
-              "row": 2.5,
-              "height": 48
-            }
-          ],
-          "material": "wall",
-          "top": false
-        },
-        {
-          "vertices": [
-            {
-              "column": -0.5,
-              "row": 1.5,
-              "height": 48
-            },
-            {
-              "column": 0.5,
-              "row": 1.5,
-              "height": 64
-            },
-            {
-              "column": 0.5,
-              "row": 2.5,
-              "height": 64
-            },
-            {
-              "column": -0.5,
-              "row": 2.5,
               "height": 48
             }
           ],
@@ -4727,6 +4637,240 @@
           "vertices": [
             {
               "column": 0.5,
+              "row": 0.5,
+              "height": 80
+            },
+            {
+              "column": 1.5,
+              "row": 0.5,
+              "height": 80
+            },
+            {
+              "column": 1.5,
+              "row": 1.5,
+              "height": 80
+            },
+            {
+              "column": 0.5,
+              "row": 1.5,
+              "height": 80
+            }
+          ],
+          "material": "roof",
+          "top": true
+        },
+        {
+          "vertices": [
+            {
+              "column": 2.5,
+              "row": 0.5,
+              "height": 0
+            },
+            {
+              "column": 2.5,
+              "row": 1.5,
+              "height": 0
+            },
+            {
+              "column": 2.5,
+              "row": 1.5,
+              "height": 32
+            },
+            {
+              "column": 2.5,
+              "row": 0.5,
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 2.5,
+              "row": 0.5,
+              "height": 32
+            },
+            {
+              "column": 2.5,
+              "row": 1.5,
+              "height": 32
+            },
+            {
+              "column": 2.5,
+              "row": 1.5,
+              "height": 48
+            },
+            {
+              "column": 2.5,
+              "row": 0.5,
+              "height": 48
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 1.5,
+              "row": 0.5,
+              "height": 80
+            },
+            {
+              "column": 2.5,
+              "row": 0.5,
+              "height": 48
+            },
+            {
+              "column": 2.5,
+              "row": 1.5,
+              "height": 48
+            },
+            {
+              "column": 1.5,
+              "row": 1.5,
+              "height": 80
+            }
+          ],
+          "material": "roof",
+          "top": true
+        },
+        {
+          "vertices": [
+            {
+              "column": 0.5,
+              "row": 2.5,
+              "height": 0
+            },
+            {
+              "column": -0.5,
+              "row": 2.5,
+              "height": 0
+            },
+            {
+              "column": -0.5,
+              "row": 2.5,
+              "height": 32
+            },
+            {
+              "column": 0.5,
+              "row": 2.5,
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": -0.5,
+              "row": 2.5,
+              "height": 0
+            },
+            {
+              "column": -0.5,
+              "row": 1.5,
+              "height": 0
+            },
+            {
+              "column": -0.5,
+              "row": 1.5,
+              "height": 32
+            },
+            {
+              "column": -0.5,
+              "row": 2.5,
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 0.5,
+              "row": 2.5,
+              "height": 32
+            },
+            {
+              "column": -0.5,
+              "row": 2.5,
+              "height": 32
+            },
+            {
+              "column": -0.5,
+              "row": 2.5,
+              "height": 48
+            },
+            {
+              "column": 0.5,
+              "row": 2.5,
+              "height": 48
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": -0.5,
+              "row": 2.5,
+              "height": 32
+            },
+            {
+              "column": -0.5,
+              "row": 1.5,
+              "height": 32
+            },
+            {
+              "column": -0.5,
+              "row": 1.5,
+              "height": 48
+            },
+            {
+              "column": -0.5,
+              "row": 2.5,
+              "height": 48
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": -0.5,
+              "row": 1.5,
+              "height": 48
+            },
+            {
+              "column": 0.5,
+              "row": 1.5,
+              "height": 80
+            },
+            {
+              "column": 0.5,
+              "row": 2.5,
+              "height": 80
+            },
+            {
+              "column": -0.5,
+              "row": 2.5,
+              "height": 48
+            }
+          ],
+          "material": "roof",
+          "top": true
+        },
+        {
+          "vertices": [
+            {
+              "column": 0.5,
               "row": 2.5,
               "height": 48
             },
@@ -4743,7 +4887,7 @@
             {
               "column": 0.5,
               "row": 2.5,
-              "height": 64
+              "height": 80
             }
           ],
           "material": "roof",
@@ -4804,16 +4948,6 @@
         {
           "vertices": [
             {
-              "column": 0.5,
-              "row": 1.5,
-              "height": 64
-            },
-            {
-              "column": 1.5,
-              "row": 1.5,
-              "height": 64
-            },
-            {
               "column": 1.5,
               "row": 2.5,
               "height": 64
@@ -4822,6 +4956,42 @@
               "column": 0.5,
               "row": 2.5,
               "height": 64
+            },
+            {
+              "column": 0.5,
+              "row": 2.5,
+              "height": 80
+            },
+            {
+              "column": 1.5,
+              "row": 2.5,
+              "height": 80
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 0.5,
+              "row": 1.5,
+              "height": 80
+            },
+            {
+              "column": 1.5,
+              "row": 1.5,
+              "height": 80
+            },
+            {
+              "column": 1.5,
+              "row": 2.5,
+              "height": 80
+            },
+            {
+              "column": 0.5,
+              "row": 2.5,
+              "height": 80
             }
           ],
           "material": "roof",
@@ -4936,7 +5106,7 @@
             {
               "column": 1.5,
               "row": 1.5,
-              "height": 64
+              "height": 80
             },
             {
               "column": 2.5,
@@ -4951,7 +5121,7 @@
             {
               "column": 1.5,
               "row": 2.5,
-              "height": 64
+              "height": 80
             }
           ],
           "material": "roof",
@@ -4972,7 +5142,7 @@
             {
               "column": 1.5,
               "row": 2.5,
-              "height": 64
+              "height": 80
             },
             {
               "column": 2.5,
@@ -5030,7 +5200,7 @@
           "row": 0,
           "layer": 1,
           "offsetHeight": 16,
-          "height": 16,
+          "height": 32,
           "shape": "ramp",
           "highSide": "east",
           "material": "roof",
@@ -5064,7 +5234,7 @@
           "row": 0,
           "layer": 1,
           "offsetHeight": 16,
-          "height": 16,
+          "height": 32,
           "shape": "ramp",
           "highSide": "west",
           "material": "roof",
@@ -5098,7 +5268,7 @@
           "row": 1,
           "layer": 1,
           "offsetHeight": 16,
-          "height": 16,
+          "height": 32,
           "shape": "ramp",
           "highSide": "east",
           "material": "roof",
@@ -5132,7 +5302,7 @@
           "row": 1,
           "layer": 1,
           "offsetHeight": 16,
-          "height": 16,
+          "height": 32,
           "shape": "ramp",
           "highSide": "west",
           "material": "roof",
@@ -5166,7 +5336,7 @@
           "row": 2,
           "layer": 1,
           "offsetHeight": 16,
-          "height": 16,
+          "height": 32,
           "shape": "ramp",
           "highSide": "east",
           "material": "roof",
@@ -5200,7 +5370,7 @@
           "row": 2,
           "layer": 1,
           "offsetHeight": 16,
-          "height": 16,
+          "height": 32,
           "shape": "ramp",
           "highSide": "west",
           "material": "roof",
@@ -5329,12 +5499,12 @@
             {
               "column": 0.5,
               "row": -0.5,
-              "height": 64
+              "height": 80
             },
             {
               "column": 0.5,
               "row": 0.5,
-              "height": 64
+              "height": 80
             },
             {
               "column": -0.5,
@@ -5360,7 +5530,7 @@
             {
               "column": 0.5,
               "row": -0.5,
-              "height": 64
+              "height": 80
             },
             {
               "column": -0.5,
@@ -5480,7 +5650,7 @@
             {
               "column": 0.5,
               "row": -0.5,
-              "height": 64
+              "height": 80
             },
             {
               "column": 1.5,
@@ -5495,189 +5665,7 @@
             {
               "column": 0.5,
               "row": 0.5,
-              "height": 64
-            }
-          ],
-          "material": "roof",
-          "top": true
-        },
-        {
-          "vertices": [
-            {
-              "column": 0.5,
-              "row": -0.5,
-              "height": 48
-            },
-            {
-              "column": 1.5,
-              "row": -0.5,
-              "height": 48
-            },
-            {
-              "column": 1.5,
-              "row": -0.5,
-              "height": 48
-            },
-            {
-              "column": 0.5,
-              "row": -0.5,
-              "height": 64
-            }
-          ],
-          "material": "roof",
-          "top": false
-        },
-        {
-          "vertices": [
-            {
-              "column": -0.5,
-              "row": 1.5,
-              "height": 0
-            },
-            {
-              "column": -0.5,
-              "row": 0.5,
-              "height": 0
-            },
-            {
-              "column": -0.5,
-              "row": 0.5,
-              "height": 32
-            },
-            {
-              "column": -0.5,
-              "row": 1.5,
-              "height": 32
-            }
-          ],
-          "material": "wall",
-          "top": false
-        },
-        {
-          "vertices": [
-            {
-              "column": -0.5,
-              "row": 1.5,
-              "height": 32
-            },
-            {
-              "column": -0.5,
-              "row": 0.5,
-              "height": 32
-            },
-            {
-              "column": -0.5,
-              "row": 0.5,
-              "height": 48
-            },
-            {
-              "column": -0.5,
-              "row": 1.5,
-              "height": 48
-            }
-          ],
-          "material": "wall",
-          "top": false
-        },
-        {
-          "vertices": [
-            {
-              "column": -0.5,
-              "row": 0.5,
-              "height": 48
-            },
-            {
-              "column": 0.5,
-              "row": 0.5,
-              "height": 64
-            },
-            {
-              "column": 0.5,
-              "row": 1.5,
-              "height": 64
-            },
-            {
-              "column": -0.5,
-              "row": 1.5,
-              "height": 48
-            }
-          ],
-          "material": "roof",
-          "top": true
-        },
-        {
-          "vertices": [
-            {
-              "column": 1.5,
-              "row": 0.5,
-              "height": 0
-            },
-            {
-              "column": 1.5,
-              "row": 1.5,
-              "height": 0
-            },
-            {
-              "column": 1.5,
-              "row": 1.5,
-              "height": 32
-            },
-            {
-              "column": 1.5,
-              "row": 0.5,
-              "height": 32
-            }
-          ],
-          "material": "wall",
-          "top": false
-        },
-        {
-          "vertices": [
-            {
-              "column": 1.5,
-              "row": 0.5,
-              "height": 32
-            },
-            {
-              "column": 1.5,
-              "row": 1.5,
-              "height": 32
-            },
-            {
-              "column": 1.5,
-              "row": 1.5,
-              "height": 48
-            },
-            {
-              "column": 1.5,
-              "row": 0.5,
-              "height": 48
-            }
-          ],
-          "material": "wall",
-          "top": false
-        },
-        {
-          "vertices": [
-            {
-              "column": 0.5,
-              "row": 0.5,
-              "height": 64
-            },
-            {
-              "column": 1.5,
-              "row": 0.5,
-              "height": 48
-            },
-            {
-              "column": 1.5,
-              "row": 1.5,
-              "height": 48
-            },
-            {
-              "column": 0.5,
-              "row": 1.5,
-              "height": 64
+              "height": 80
             }
           ],
           "material": "roof",
@@ -5687,22 +5675,48 @@
           "vertices": [
             {
               "column": 0.5,
-              "row": 2.5,
-              "height": 0
+              "row": -0.5,
+              "height": 48
             },
             {
-              "column": -0.5,
-              "row": 2.5,
-              "height": 0
+              "column": 1.5,
+              "row": -0.5,
+              "height": 48
             },
             {
-              "column": -0.5,
-              "row": 2.5,
-              "height": 32
+              "column": 1.5,
+              "row": -0.5,
+              "height": 48
             },
             {
               "column": 0.5,
-              "row": 2.5,
+              "row": -0.5,
+              "height": 80
+            }
+          ],
+          "material": "roof",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": -0.5,
+              "row": 1.5,
+              "height": 0
+            },
+            {
+              "column": -0.5,
+              "row": 0.5,
+              "height": 0
+            },
+            {
+              "column": -0.5,
+              "row": 0.5,
+              "height": 32
+            },
+            {
+              "column": -0.5,
+              "row": 1.5,
               "height": 32
             }
           ],
@@ -5713,22 +5727,74 @@
           "vertices": [
             {
               "column": -0.5,
-              "row": 2.5,
+              "row": 1.5,
+              "height": 32
+            },
+            {
+              "column": -0.5,
+              "row": 0.5,
+              "height": 32
+            },
+            {
+              "column": -0.5,
+              "row": 0.5,
+              "height": 48
+            },
+            {
+              "column": -0.5,
+              "row": 1.5,
+              "height": 48
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": -0.5,
+              "row": 0.5,
+              "height": 48
+            },
+            {
+              "column": 0.5,
+              "row": 0.5,
+              "height": 80
+            },
+            {
+              "column": 0.5,
+              "row": 1.5,
+              "height": 80
+            },
+            {
+              "column": -0.5,
+              "row": 1.5,
+              "height": 48
+            }
+          ],
+          "material": "roof",
+          "top": true
+        },
+        {
+          "vertices": [
+            {
+              "column": 1.5,
+              "row": 0.5,
               "height": 0
             },
             {
-              "column": -0.5,
+              "column": 1.5,
               "row": 1.5,
               "height": 0
             },
             {
-              "column": -0.5,
+              "column": 1.5,
               "row": 1.5,
               "height": 32
             },
             {
-              "column": -0.5,
-              "row": 2.5,
+              "column": 1.5,
+              "row": 0.5,
               "height": 32
             }
           ],
@@ -5738,23 +5804,23 @@
         {
           "vertices": [
             {
-              "column": 0.5,
-              "row": 2.5,
+              "column": 1.5,
+              "row": 0.5,
               "height": 32
             },
             {
-              "column": -0.5,
-              "row": 2.5,
+              "column": 1.5,
+              "row": 1.5,
               "height": 32
             },
             {
-              "column": -0.5,
-              "row": 2.5,
+              "column": 1.5,
+              "row": 1.5,
               "height": 48
             },
             {
-              "column": 0.5,
-              "row": 2.5,
+              "column": 1.5,
+              "row": 0.5,
               "height": 48
             }
           ],
@@ -5764,50 +5830,24 @@
         {
           "vertices": [
             {
-              "column": -0.5,
-              "row": 2.5,
-              "height": 32
+              "column": 0.5,
+              "row": 0.5,
+              "height": 80
             },
             {
-              "column": -0.5,
-              "row": 1.5,
-              "height": 32
-            },
-            {
-              "column": -0.5,
-              "row": 1.5,
+              "column": 1.5,
+              "row": 0.5,
               "height": 48
             },
             {
-              "column": -0.5,
-              "row": 2.5,
-              "height": 48
-            }
-          ],
-          "material": "wall",
-          "top": false
-        },
-        {
-          "vertices": [
-            {
-              "column": -0.5,
+              "column": 1.5,
               "row": 1.5,
               "height": 48
             },
             {
               "column": 0.5,
               "row": 1.5,
-              "height": 64
-            },
-            {
-              "column": 0.5,
-              "row": 2.5,
-              "height": 64
-            },
-            {
-              "column": -0.5,
-              "row": 2.5,
-              "height": 48
+              "height": 80
             }
           ],
           "material": "roof",
@@ -5818,6 +5858,136 @@
             {
               "column": 0.5,
               "row": 2.5,
+              "height": 0
+            },
+            {
+              "column": -0.5,
+              "row": 2.5,
+              "height": 0
+            },
+            {
+              "column": -0.5,
+              "row": 2.5,
+              "height": 32
+            },
+            {
+              "column": 0.5,
+              "row": 2.5,
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": -0.5,
+              "row": 2.5,
+              "height": 0
+            },
+            {
+              "column": -0.5,
+              "row": 1.5,
+              "height": 0
+            },
+            {
+              "column": -0.5,
+              "row": 1.5,
+              "height": 32
+            },
+            {
+              "column": -0.5,
+              "row": 2.5,
+              "height": 32
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": 0.5,
+              "row": 2.5,
+              "height": 32
+            },
+            {
+              "column": -0.5,
+              "row": 2.5,
+              "height": 32
+            },
+            {
+              "column": -0.5,
+              "row": 2.5,
+              "height": 48
+            },
+            {
+              "column": 0.5,
+              "row": 2.5,
+              "height": 48
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": -0.5,
+              "row": 2.5,
+              "height": 32
+            },
+            {
+              "column": -0.5,
+              "row": 1.5,
+              "height": 32
+            },
+            {
+              "column": -0.5,
+              "row": 1.5,
+              "height": 48
+            },
+            {
+              "column": -0.5,
+              "row": 2.5,
+              "height": 48
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": -0.5,
+              "row": 1.5,
+              "height": 48
+            },
+            {
+              "column": 0.5,
+              "row": 1.5,
+              "height": 80
+            },
+            {
+              "column": 0.5,
+              "row": 2.5,
+              "height": 80
+            },
+            {
+              "column": -0.5,
+              "row": 2.5,
+              "height": 48
+            }
+          ],
+          "material": "roof",
+          "top": true
+        },
+        {
+          "vertices": [
+            {
+              "column": 0.5,
+              "row": 2.5,
               "height": 48
             },
             {
@@ -5833,7 +6003,7 @@
             {
               "column": 0.5,
               "row": 2.5,
-              "height": 64
+              "height": 80
             }
           ],
           "material": "roof",
@@ -5948,7 +6118,7 @@
             {
               "column": 0.5,
               "row": 1.5,
-              "height": 64
+              "height": 80
             },
             {
               "column": 1.5,
@@ -5963,7 +6133,7 @@
             {
               "column": 0.5,
               "row": 2.5,
-              "height": 64
+              "height": 80
             }
           ],
           "material": "roof",
@@ -5984,7 +6154,7 @@
             {
               "column": 0.5,
               "row": 2.5,
-              "height": 64
+              "height": 80
             },
             {
               "column": 1.5,
@@ -6031,7 +6201,7 @@
           "row": 0,
           "layer": 0,
           "offsetHeight": 24,
-          "height": 16,
+          "height": 32,
           "shape": "ramp",
           "highSide": "east",
           "material": "roof",
@@ -6054,7 +6224,7 @@
           "row": 0,
           "layer": 0,
           "offsetHeight": 24,
-          "height": 16,
+          "height": 32,
           "shape": "ramp",
           "highSide": "west",
           "material": "roof",
@@ -6077,7 +6247,7 @@
           "row": 1,
           "layer": 0,
           "offsetHeight": 24,
-          "height": 16,
+          "height": 32,
           "shape": "ramp",
           "highSide": "east",
           "material": "roof",
@@ -6100,7 +6270,7 @@
           "row": 1,
           "layer": 0,
           "offsetHeight": 24,
-          "height": 16,
+          "height": 32,
           "shape": "ramp",
           "highSide": "west",
           "material": "roof",
@@ -6123,7 +6293,7 @@
           "row": 2,
           "layer": 0,
           "offsetHeight": 24,
-          "height": 16,
+          "height": 32,
           "shape": "ramp",
           "highSide": "east",
           "material": "roof",
@@ -6146,7 +6316,7 @@
           "row": 2,
           "layer": 0,
           "offsetHeight": 24,
-          "height": 16,
+          "height": 32,
           "shape": "ramp",
           "highSide": "west",
           "material": "roof",
@@ -6223,12 +6393,12 @@
             {
               "column": 0.5,
               "row": -0.5,
-              "height": 40
+              "height": 56
             },
             {
               "column": 0.5,
               "row": 0.5,
-              "height": 40
+              "height": 56
             },
             {
               "column": -0.5,
@@ -6254,7 +6424,7 @@
             {
               "column": 0.5,
               "row": -0.5,
-              "height": 40
+              "height": 56
             },
             {
               "column": -0.5,
@@ -6322,7 +6492,7 @@
             {
               "column": 0.5,
               "row": -0.5,
-              "height": 40
+              "height": 56
             },
             {
               "column": 1.5,
@@ -6337,137 +6507,7 @@
             {
               "column": 0.5,
               "row": 0.5,
-              "height": 40
-            }
-          ],
-          "material": "roof",
-          "top": true
-        },
-        {
-          "vertices": [
-            {
-              "column": 0.5,
-              "row": -0.5,
-              "height": 24
-            },
-            {
-              "column": 1.5,
-              "row": -0.5,
-              "height": 24
-            },
-            {
-              "column": 1.5,
-              "row": -0.5,
-              "height": 24
-            },
-            {
-              "column": 0.5,
-              "row": -0.5,
-              "height": 40
-            }
-          ],
-          "material": "roof",
-          "top": false
-        },
-        {
-          "vertices": [
-            {
-              "column": -0.5,
-              "row": 1.5,
-              "height": 0
-            },
-            {
-              "column": -0.5,
-              "row": 0.5,
-              "height": 0
-            },
-            {
-              "column": -0.5,
-              "row": 0.5,
-              "height": 24
-            },
-            {
-              "column": -0.5,
-              "row": 1.5,
-              "height": 24
-            }
-          ],
-          "material": "wall",
-          "top": false
-        },
-        {
-          "vertices": [
-            {
-              "column": -0.5,
-              "row": 0.5,
-              "height": 24
-            },
-            {
-              "column": 0.5,
-              "row": 0.5,
-              "height": 40
-            },
-            {
-              "column": 0.5,
-              "row": 1.5,
-              "height": 40
-            },
-            {
-              "column": -0.5,
-              "row": 1.5,
-              "height": 24
-            }
-          ],
-          "material": "roof",
-          "top": true
-        },
-        {
-          "vertices": [
-            {
-              "column": 1.5,
-              "row": 0.5,
-              "height": 0
-            },
-            {
-              "column": 1.5,
-              "row": 1.5,
-              "height": 0
-            },
-            {
-              "column": 1.5,
-              "row": 1.5,
-              "height": 24
-            },
-            {
-              "column": 1.5,
-              "row": 0.5,
-              "height": 24
-            }
-          ],
-          "material": "wall",
-          "top": false
-        },
-        {
-          "vertices": [
-            {
-              "column": 0.5,
-              "row": 0.5,
-              "height": 40
-            },
-            {
-              "column": 1.5,
-              "row": 0.5,
-              "height": 24
-            },
-            {
-              "column": 1.5,
-              "row": 1.5,
-              "height": 24
-            },
-            {
-              "column": 0.5,
-              "row": 1.5,
-              "height": 40
+              "height": 56
             }
           ],
           "material": "roof",
@@ -6477,22 +6517,48 @@
           "vertices": [
             {
               "column": 0.5,
-              "row": 2.5,
-              "height": 0
+              "row": -0.5,
+              "height": 24
             },
             {
-              "column": -0.5,
-              "row": 2.5,
-              "height": 0
+              "column": 1.5,
+              "row": -0.5,
+              "height": 24
             },
             {
-              "column": -0.5,
-              "row": 2.5,
+              "column": 1.5,
+              "row": -0.5,
               "height": 24
             },
             {
               "column": 0.5,
-              "row": 2.5,
+              "row": -0.5,
+              "height": 56
+            }
+          ],
+          "material": "roof",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": -0.5,
+              "row": 1.5,
+              "height": 0
+            },
+            {
+              "column": -0.5,
+              "row": 0.5,
+              "height": 0
+            },
+            {
+              "column": -0.5,
+              "row": 0.5,
+              "height": 24
+            },
+            {
+              "column": -0.5,
+              "row": 1.5,
               "height": 24
             }
           ],
@@ -6503,22 +6569,48 @@
           "vertices": [
             {
               "column": -0.5,
-              "row": 2.5,
-              "height": 0
+              "row": 0.5,
+              "height": 24
             },
             {
-              "column": -0.5,
+              "column": 0.5,
+              "row": 0.5,
+              "height": 56
+            },
+            {
+              "column": 0.5,
               "row": 1.5,
-              "height": 0
+              "height": 56
             },
             {
               "column": -0.5,
               "row": 1.5,
               "height": 24
+            }
+          ],
+          "material": "roof",
+          "top": true
+        },
+        {
+          "vertices": [
+            {
+              "column": 1.5,
+              "row": 0.5,
+              "height": 0
             },
             {
-              "column": -0.5,
-              "row": 2.5,
+              "column": 1.5,
+              "row": 1.5,
+              "height": 0
+            },
+            {
+              "column": 1.5,
+              "row": 1.5,
+              "height": 24
+            },
+            {
+              "column": 1.5,
+              "row": 0.5,
               "height": 24
             }
           ],
@@ -6528,24 +6620,24 @@
         {
           "vertices": [
             {
-              "column": -0.5,
+              "column": 0.5,
+              "row": 0.5,
+              "height": 56
+            },
+            {
+              "column": 1.5,
+              "row": 0.5,
+              "height": 24
+            },
+            {
+              "column": 1.5,
               "row": 1.5,
               "height": 24
             },
             {
               "column": 0.5,
               "row": 1.5,
-              "height": 40
-            },
-            {
-              "column": 0.5,
-              "row": 2.5,
-              "height": 40
-            },
-            {
-              "column": -0.5,
-              "row": 2.5,
-              "height": 24
+              "height": 56
             }
           ],
           "material": "roof",
@@ -6556,6 +6648,84 @@
             {
               "column": 0.5,
               "row": 2.5,
+              "height": 0
+            },
+            {
+              "column": -0.5,
+              "row": 2.5,
+              "height": 0
+            },
+            {
+              "column": -0.5,
+              "row": 2.5,
+              "height": 24
+            },
+            {
+              "column": 0.5,
+              "row": 2.5,
+              "height": 24
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": -0.5,
+              "row": 2.5,
+              "height": 0
+            },
+            {
+              "column": -0.5,
+              "row": 1.5,
+              "height": 0
+            },
+            {
+              "column": -0.5,
+              "row": 1.5,
+              "height": 24
+            },
+            {
+              "column": -0.5,
+              "row": 2.5,
+              "height": 24
+            }
+          ],
+          "material": "wall",
+          "top": false
+        },
+        {
+          "vertices": [
+            {
+              "column": -0.5,
+              "row": 1.5,
+              "height": 24
+            },
+            {
+              "column": 0.5,
+              "row": 1.5,
+              "height": 56
+            },
+            {
+              "column": 0.5,
+              "row": 2.5,
+              "height": 56
+            },
+            {
+              "column": -0.5,
+              "row": 2.5,
+              "height": 24
+            }
+          ],
+          "material": "roof",
+          "top": true
+        },
+        {
+          "vertices": [
+            {
+              "column": 0.5,
+              "row": 2.5,
               "height": 24
             },
             {
@@ -6571,7 +6741,7 @@
             {
               "column": 0.5,
               "row": 2.5,
-              "height": 40
+              "height": 56
             }
           ],
           "material": "roof",
@@ -6634,7 +6804,7 @@
             {
               "column": 0.5,
               "row": 1.5,
-              "height": 40
+              "height": 56
             },
             {
               "column": 1.5,
@@ -6649,7 +6819,7 @@
             {
               "column": 0.5,
               "row": 2.5,
-              "height": 40
+              "height": 56
             }
           ],
           "material": "roof",
@@ -6670,7 +6840,7 @@
             {
               "column": 0.5,
               "row": 2.5,
-              "height": 40
+              "height": 56
             },
             {
               "column": 1.5,
@@ -6694,7 +6864,7 @@
     ]
   },
   "reviewProvenance": {
-    "sourceSha256": "ecc80e2cdfd76049f432bb2ef36aee6415c4e64676a1e3c0d92cddc99db1a0ce",
+    "sourceSha256": "7ab3c99c33e46a5acb1499374b98ff887a6a05492990d8289f3ebe974258b168",
     "geometrySha256": "27eb4566c33a4cd423c7abf908f1b93f7e2ed3e1d36fefe8148704a9fc10064f",
     "temporaryMaterials": true
   }
