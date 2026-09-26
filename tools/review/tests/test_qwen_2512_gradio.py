@@ -20,3 +20,8 @@ class Qwen2512GradioTests(unittest.TestCase):
     def test_prompt_word_count_and_result_preview(self):
         self.assertEqual(qwen_2512_app.count_prompt_words('  short scene prompt '),3)
         self.assertIn('/image-generation/jobs/sample/result.png',qwen_2512_app.create_result_preview_html('/image-generation/jobs/sample/result.png'))
+
+    def test_restore_generation_inputs_uses_historical_request(self):
+        restored_input_values=qwen_2512_app.restore_generation_inputs({'request':{'prompt':'misty forest','width':768,'height':1024,'steps':30,'seed':42}})
+        self.assertEqual(restored_input_values[:5],('misty forest',768,1024,30,42))
+        self.assertEqual(restored_input_values[5],'최종 프롬프트: **2단어**')

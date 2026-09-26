@@ -28,6 +28,11 @@ def count_prompt_words(prompt_text_value):
 def build_generation_request(prompt_text_value,width_value,height_value,step_value,seed_value):
     return {'action':'generate','prompt':prompt_text_value.strip(),'width':int(width_value),'height':int(height_value),'steps':int(step_value),'seed':int(seed_value)}
 
+def restore_generation_inputs(current_history_record):
+    current_request_record=current_history_record.get('request',{})
+    restored_prompt_text=current_request_record.get('prompt','')
+    return restored_prompt_text,current_request_record.get('width',1024),current_request_record.get('height',1024),current_request_record.get('steps',4),current_request_record.get('seed',DEFAULT_IMAGE_SEED),f'최종 프롬프트: **{count_prompt_words(restored_prompt_text)}단어**','선택한 이력의 입력값을 불러왔습니다. 생성 전에 내용을 확인하세요.'
+
 def format_generation_status(status_record_value):
     progress_record_value=status_record_value.get('progress') or {}
     progress_text_value=''
@@ -66,7 +71,14 @@ def build_qwen_2512_interface(server_base_address):
                 generation_identifier_value=gr.Textbox(label='생성 ID',interactive=False)
                 result_preview_value=gr.HTML(create_result_preview_html(None))
         log_output_value,log_refresh_enabled,_=build_execution_logs()
-        read_history_page,history_output_values=build_generation_history_view(execute_image_gateway,server_base_address,'이력 목록만 초기화합니다. 결과 이미지와 로그 파일은 유지됩니다. 생성 중에는 초기화할 수 없습니다.',record_folder_route='/image-generation')
+        read_history_page,history_output_values=build_generation_history_view(
+            execute_image_gateway,
+            server_base_address,
+            '이력 목록만 초기화합니다. 결과 이미지와 로그 파일은 유지됩니다. 생성 중에는 초기화할 수 없습니다.',
+            restore_input_callback=restore_generation_inputs,
+            restore_output_components=[prompt_text_value,width_select_value,height_select_value,step_select_value,seed_number_value,prompt_word_count_value,generation_status_value],
+            record_folder_route='/image-generation',
+        )
         prompt_text_value.change(lambda prompt_text_value:f'최종 프롬프트: **{count_prompt_words(prompt_text_value)}단어**',prompt_text_value,prompt_word_count_value,queue=False)
         def check_model_ready():
             model_record_value=execute_image_gateway('model-status',{})
