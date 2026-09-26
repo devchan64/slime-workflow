@@ -1,0 +1,26 @@
+{
+  "status": "generated_review_required",
+  "source_asset_id": "mannequin-walk",
+  "source_version": 1,
+  "source_sha256": "09b17affea4db7732c97b5d18e43f882d234c2a65dbf6731b9c7167b930202cf",
+  "frames": 25,
+  "fps": 20,
+  "bones": 104,
+  "motion_scale": 0.8897638684675853,
+  "retarget_method": "HumanML3D 22 관절 방향을 ANNY 분할 본 전역 회전에 대응; 본 길이·가중치 유지",
+  "ground_method": "프레임별 최저 표면 높이 보정; 발 고정 IK 없음",
+  "contact_samples": 30,
+  "contact_toe_speed_mean_mps": 0.0,
+  "contact_toe_speed_max_mps": 0.0,
+  "ground_shift_range_m": [
+    0.002040676074102521,
+    0.002040676074102521
+  ],
+  "finite_vertices": true,
+  "quality_warnings": [
+    "관절 위치 기반으로 축 비틀림을 완전히 복원할 수 없음",
+    "손가락·얼굴은 기본 자세 유지",
+    "원본은 25프레임 닫힌 보행 루프",
+    "접지 높이 보정은 발 고정 IK를 대체하지 않음"
+  ]
+}
