@@ -3,7 +3,9 @@ import hashlib
 import html
 import json
 import time
+from datetime import datetime
 from urllib.parse import urlsplit
+from zoneinfo import ZoneInfo
 import yaml
 from tools.review.domains.image.image_generation import ImageGenerationManager, IMAGE_JOB_ROOT, MANAGER_HISTORY_ROOT, WORKFLOW_ROOT_PATH, validate_image_request
 from tools.review.ui_assets import resolve_review_ui_asset
@@ -15,7 +17,7 @@ def load_tile_configuration():
     configuration_record_value = yaml.load(TILE_CONFIGURATION_PATH.read_text(),Loader=UniqueMappingLoader)
     if not isinstance(configuration_record_value,dict) or set(configuration_record_value)!={'schema_version','style_prompt','types'} or configuration_record_value['schema_version']!=1:
         raise ValueError('타일 설정 형식 오류')
-    if set(configuration_record_value['types'])!={'rooftop','wall','door','ground'}:
+    if set(configuration_record_value['types'])!={'rooftop','wall','ground'}:
         raise ValueError('타일 종류 설정 오류')
     for tile_type_record in configuration_record_value['types'].values():
         if set(tile_type_record)!={'label','base_prompt'} or not all(isinstance(prompt_text_value,str) and prompt_text_value.strip() for prompt_text_value in tile_type_record.values()):raise ValueError('타일 기본 프롬프트 설정 오류')
@@ -46,6 +48,21 @@ class TileGenerationManager(ImageGenerationManager):
         self.route_prefix_value='/tile-map-generator'
         self.job_storage_root=IMAGE_JOB_ROOT/'tile-map'
     def history_storage_path(self):return MANAGER_HISTORY_ROOT/'tile-map'
+    def list_generation_history(self):
+        history_records_by_identifier={record_value['id']:record_value for record_value in super().list_generation_history()}
+        for current_job_root in sorted(self.job_storage_root.iterdir(),key=lambda path_value:path_value.stat().st_mtime,reverse=True) if self.job_storage_root.is_dir() else []:
+            request_file_path=current_job_root/'request.json'
+            status_file_path=current_job_root/'status.json'
+            if not current_job_root.is_dir() or not request_file_path.is_file() or not status_file_path.is_file():continue
+            job_identifier_value=current_job_root.name
+            if job_identifier_value in history_records_by_identifier:continue
+            history_records_by_identifier[job_identifier_value]={'id':job_identifier_value,'created_at':datetime.fromtimestamp(current_job_root.stat().st_mtime,ZoneInfo('Asia/Seoul')).isoformat(),'request':json.loads(request_file_path.read_text()),'status':json.loads(status_file_path.read_text()),'job_path':str(current_job_root)}
+        history_records=sorted(history_records_by_identifier.values(),key=lambda record_value:record_value.get('created_at',''),reverse=True)
+        for current_history_record in history_records:
+            current_job_root=self.job_storage_root/current_history_record['id']
+            current_history_record['path']=str(current_job_root.resolve())
+            current_history_record['image']=f'{self.route_prefix_value}/jobs/{current_history_record["id"]}/result.png' if (current_job_root/'result.png').is_file() else None
+        return history_records
     def validate_generation_request(self, request_record_value):return prepare_tile_request(request_record_value)
     def enrich_generation_status(self, current_job_root, current_status_record):
         if current_status_record['status']!='running':return current_status_record
@@ -66,7 +83,7 @@ class TileGenerationManager(ImageGenerationManager):
     def render_generation_page(self):
         # 모델 준비·생성·취소·진행·이력은 기존 이미지 생성 화면을 공유한다.
         page_source_value=super().render_generation_page().decode().replace('/image-generation','/tile-map-generator').replace('qwen2512Job','tileMapJob')
-        page_source_value=page_source_value.replace('Qwen 2512 · 이미지 생성','타일맵 생성기').replace('Qwen 2512 이미지 생성','타일맵 생성기').replace('텍스트 설명으로 이미지를 생성합니다. 4스텝 Lightning / 30스텝 표준을 선택하세요.','지붕·벽·문·맵 타일을 생성합니다. 고정 기본·화풍 프롬프트에 사용자 지시를 더합니다.')
+        page_source_value=page_source_value.replace('Qwen 2512 · 이미지 생성','타일 에셋 생성기').replace('Qwen 2512 이미지 생성','타일 에셋 생성기').replace('텍스트 설명으로 이미지를 생성합니다. 4스텝 Lightning / 30스텝 표준을 선택하세요.','지붕·벽·맵 타일을 생성합니다. 문은 벽 타일 프롬프트로 함께 처리합니다.')
         start_style_position=page_source_value.index('<div class="style-prompt-setting">')
         end_style_position=page_source_value.index('<label for="prompt">',start_style_position)
         tile_configuration_value=load_tile_configuration()

@@ -21,6 +21,9 @@ tiles:
   - {id: market_roof, category: roof, asset: world/isloon/buildings/market-roof-v2.png, walkable: false, movement_cost: 99}
   - {id: market_wall, category: structure, asset: world/isloon/buildings/market-wall-v2.png, walkable: false, movement_cost: 99}
   - {id: market_door, category: door, asset: world/isloon/buildings/market-door-v2.png, walkable: true, movement_cost: 1}
+  - {id: marble_wall, category: structure, asset: world/isloon/buildings/marble-wall-v1.png, walkable: false, movement_cost: 99}
+  - {id: marble_small_door, category: door, asset: world/isloon/buildings/marble-small-door-v1.png, walkable: true, movement_cost: 1}
+  - {id: wood_wall, category: structure, asset: world/isloon/buildings/wood-wall-v1.png, walkable: false, movement_cost: 99}
 connections:
   - {id: grass-to-paving, from: grass, to: paving, variants: [straight, corner, tee, cross]}
   - {id: paving-to-spring, from: paving, to: spring_water, variants: [bank-straight, bank-corner]}

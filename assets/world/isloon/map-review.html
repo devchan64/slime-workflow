@@ -2,21 +2,19 @@
 <html lang="ko">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>타일맵 검수 · 이슬온</title>
+<title>마을 맵 검수 · 이슬온</title>
 <style>
   :root{color-scheme:dark;--ink:#eaf3ed;--muted:#9fb7aa;--panel:#16231f;--panel-edge:#355447;--ground:#0b1411;--accent:#87d6a7;--water:#59c7d2}
   *{box-sizing:border-box}body{margin:0;min-width:960px;background:radial-gradient(circle at 70% 0,#213a30 0,#0b1411 48rem);color:var(--ink);font:14px ui-sans-serif,system-ui,sans-serif}
   .shell{max-width:1480px;margin:0 auto;padding:30px}.top{display:flex;align-items:end;justify-content:space-between;gap:24px;margin-bottom:22px}.eyebrow{margin:0 0 6px;color:var(--accent);font-size:12px;font-weight:800;letter-spacing:.13em}.title{margin:0;font-size:30px;letter-spacing:-.045em}.subtitle{margin:7px 0 0;color:var(--muted)}
-  select{min-width:250px;border:1px solid var(--panel-edge);border-radius:9px;background:#12201b;color:var(--ink);padding:10px 12px;font:inherit}.layout{display:grid;grid-template-columns:300px minmax(0,1fr);gap:18px}.panel{border:1px solid var(--panel-edge);background:color-mix(in srgb,var(--panel) 92%,black);border-radius:14px;box-shadow:0 16px 50px #0005}.side{padding:18px}.section-title{margin:0 0 5px;font-size:15px}.section-note{margin:0 0 14px;color:var(--muted);font-size:12px;line-height:1.5}.tile-list{display:grid;grid-template-columns:1fr 1fr;gap:9px}.tile-card{min-width:0;padding:7px;border:1px solid #294439;border-radius:9px;background:#10201a}.tile-card img{display:block;width:100%;aspect-ratio:1;object-fit:cover;image-rendering:pixelated;border-radius:5px;background:#23352d}.tile-card code{display:block;overflow:hidden;margin-top:6px;color:#d9eadf;font:11px ui-monospace,monospace;text-overflow:ellipsis;white-space:nowrap}
-  .main{padding:18px}.map-header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}.map-title{margin:0;font-size:17px}.summary{margin:0;color:var(--muted);font-size:12px}.canvas-wrap{position:relative;min-height:700px;border:1px solid #2b493c;border-radius:10px;overflow:auto;background-color:#101a16;background-image:linear-gradient(45deg,#14241e 25%,transparent 25%),linear-gradient(-45deg,#14241e 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#14241e 75%),linear-gradient(-45deg,transparent 75%,#14241e 75%);background-size:24px 24px;background-position:0 0,0 12px,12px -12px,0}.map-preview{display:block;width:1152px;height:auto;margin:20px auto;image-rendering:pixelated;box-shadow:0 15px 45px #0008}.badge{position:sticky;display:block;z-index:1;left:16px;top:16px;width:max-content;margin:16px 0 -42px 16px;padding:7px 9px;border:1px solid #4c7865;border-radius:999px;background:#102018dd;color:#b9eac9;font-size:12px}.loading{position:absolute;inset:50% auto auto 50%;transform:translate(-50%,-50%);color:var(--muted)}.zoom-controls{display:flex;align-items:center;gap:7px}.zoom-controls button{width:30px;height:30px;border:1px solid #456c59;border-radius:7px;background:#14271f;color:var(--ink);font-size:17px;cursor:pointer}.zoom-controls input{accent-color:var(--accent)}.zoom-value{width:38px;color:var(--accent);font:12px ui-monospace,monospace;text-align:right}
+  select{min-width:250px;border:1px solid var(--panel-edge);border-radius:9px;background:#12201b;color:var(--ink);padding:10px 12px;font:inherit}.layout{display:grid;grid-template-columns:300px minmax(0,1fr);gap:18px;min-height:0}.panel{border:1px solid var(--panel-edge);background:color-mix(in srgb,var(--panel) 92%,black);border-radius:14px;box-shadow:0 16px 50px #0005}.side{padding:18px}.section-title{margin:0 0 5px;font-size:15px}.section-note{margin:0 0 14px;color:var(--muted);font-size:12px;line-height:1.5}.tile-list{display:grid;grid-template-columns:1fr 1fr;gap:9px}.tile-card{min-width:0;padding:7px;border:1px solid #294439;border-radius:9px;background:#10201a}.tile-card img{display:block;width:100%;aspect-ratio:1;object-fit:cover;image-rendering:pixelated;border-radius:5px;background:#23352d}.tile-card code{display:block;overflow:hidden;margin-top:6px;color:#d9eadf;font:11px ui-monospace,monospace;text-overflow:ellipsis;white-space:nowrap}
+  .main{min-height:0;overflow:hidden;padding:18px}.map-header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}.map-title{margin:0;font-size:17px}.summary{margin:0;color:var(--muted);font-size:12px}.canvas-wrap{position:relative;height:600px;min-height:0;max-height:600px;flex:none;border:1px solid #2b493c;border-radius:10px;overflow:auto;background-color:#101a16;background-image:linear-gradient(45deg,#14241e 25%,transparent 25%),linear-gradient(-45deg,#14241e 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#14241e 75%),linear-gradient(-45deg,transparent 75%,#14241e 75%);background-size:24px 24px;background-position:0 0,0 12px,12px -12px,0}.map-preview{display:block;width:1152px;height:auto;margin:20px auto;image-rendering:pixelated;box-shadow:0 15px 45px #0008}.badge{position:sticky;display:block;z-index:1;left:16px;top:16px;width:max-content;margin:16px 0 -42px 16px;padding:7px 9px;border:1px solid #4c7865;border-radius:999px;background:#102018dd;color:#b9eac9;font-size:12px}.loading{position:absolute;inset:50% auto auto 50%;transform:translate(-50%,-50%);color:var(--muted)}.zoom-controls{display:flex;align-items:center;gap:7px}.zoom-controls button{width:30px;height:30px;border:1px solid #456c59;border-radius:7px;background:#14271f;color:var(--ink);font-size:17px;cursor:pointer}.zoom-controls input{accent-color:var(--accent)}.zoom-value{width:38px;color:var(--accent);font:12px ui-monospace,monospace;text-align:right}
   .legend{display:flex;flex-wrap:wrap;gap:7px;margin-top:13px}.legend span{border:1px solid #315141;border-radius:999px;background:#102019;padding:5px 8px;color:#bdd3c5;font-size:12px}.legend b{color:var(--water)}
-  .volume-panel{margin-top:18px;padding:18px}.volume-header{display:flex;align-items:start;justify-content:space-between;gap:16px;margin-bottom:12px}.volume-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.volume-card{min-width:0;overflow:hidden;border:1px solid #315141;border-radius:10px;background:#101c17}.volume-card h3{margin:0;padding:10px 12px 0;font-size:14px}.volume-card p{margin:4px 12px 0;color:var(--muted);font-size:12px}.volume-card canvas{display:block;width:100%;height:420px}.volume-note{margin:12px 0 0;color:#bed2c5;font-size:12px;line-height:1.5}
 </style>
 <link rel="stylesheet" href="map-review-layout.css">
 <main class="shell">
-  <header class="top"><div><p class="eyebrow">WORLD BUILDING / ISLOON</p><h1 class="title">타일맵 검수</h1><p class="subtitle">등록된 타일 원본과 이슬온 도시 조립 결과를 같은 화면에서 검수합니다.</p></div><label><span class="eyebrow">등록 맵</span><select id="map-select" aria-label="검수할 맵"><option>맵 목록 불러오는 중…</option></select></label></header>
+  <header class="top"><div><p class="eyebrow">WORLD BUILDING / ISLOON</p><h1 class="title">마을 맵 검수</h1><p class="subtitle">등록된 타일 원본과 이슬온 도시 조립 결과를 같은 화면에서 검수합니다.</p></div><label><span class="eyebrow">등록 맵</span><select id="map-select" aria-label="검수할 맵"><option>맵 목록 불러오는 중…</option></select></label></header>
   <div class="layout"><aside class="panel side"><h2 class="section-title">등록 타일</h2><p class="section-note">워커플로우에서 생성·등록된 실제 에셋입니다. 각 이미지는 검수 패키지에 하드링크로 연결됩니다.</p><div id="tile-list" class="tile-list"></div></aside><section class="panel main"><header class="map-header"><div><h2 id="map-title" class="map-title">이슬온 도시 배치</h2><p id="summary" class="summary">타일 에셋을 불러오는 중…</p></div><div class="zoom-controls" aria-label="맵 확대 축소 및 회전"><button id="zoom-out" type="button" aria-label="축소">−</button><input id="zoom-range" type="range" min="50" max="200" step="10" value="75" aria-label="확대 비율"><span id="zoom-value" class="zoom-value">75%</span><button id="zoom-in" type="button" aria-label="확대">+</button><button id="rotate-left" type="button" aria-label="맵 반시계 방향 회전">↶</button><span id="rotation-value" class="zoom-value">0°</span><button id="rotate-right" type="button" aria-label="맵 시계 방향 회전">↷</button></div></header><div class="canvas-wrap"><span class="badge">● 45° 입체 시안 · 시점 회전</span><span id="loading" class="loading">조립 맵을 불러오는 중…</span><img id="map-preview" class="map-preview" alt="회전 가능한 이슬온 타일맵 입체 시안"></div><footer class="legend"><span>흰 외곽선: 시작점</span><span><b>청록</b>: 샘터</span><span>적갈색 칸: 출입 금지 영역</span><span>건물: 평면 옥상 · 1층 100px 시안</span></footer></section></div>
-  <section class="panel volume-panel" aria-labelledby="volume-title"><header class="volume-header"><div><h2 id="volume-title" class="section-title">건물 입체감 시안</h2><p class="section-note">같은 바닥 면적에서 벽 높이를 1·2·3층으로 바꿔 비교합니다. 크기는 가로×세로 타일 수로 구분하며, 출입구는 비교를 위해 같은 벽면에 배치합니다. 게임 적용 규칙이 아닌 형태 검토용 시안입니다.</p></div><label><span class="eyebrow">건물</span><select id="building-select" aria-label="비교할 바닥 크기"></select></label></header><div class="volume-grid"><article class="volume-card"><h3>1층</h3><p>벽 높이 1층 · 100px</p><canvas data-height="1" aria-label="벽 높이 1층 건물 시안"></canvas></article><article class="volume-card"><h3>2층</h3><p>벽 높이 2층 · 200px</p><canvas data-height="2" aria-label="벽 높이 2층 건물 시안"></canvas></article><article class="volume-card"><h3>3층</h3><p>벽 높이 3층 · 300px</p><canvas data-height="3" aria-label="벽 높이 3층 건물 시안"></canvas></article></div><p class="volume-note">수목 수관과 적갈색 출입 금지 영역이 맵에서 겹치는지 확인합니다. 높이는 비교용 임시 단계입니다.</p></section>
 </main>
 <script src="map-character-preview.js"></script>
 <script>
@@ -26,7 +24,6 @@ const mapLoadingMessage=document.querySelector('#loading');
 const mapZoomControl=document.querySelector('#zoom-range');
 const mapZoomLabel=document.querySelector('#zoom-value');
 const mapRotationLabel=document.querySelector('#rotation-value');
-const buildingSizeControl=document.querySelector('#building-select');
 const tileImageRecords={};
 const VOLUME_TILE_WIDTH_PIXELS=128;
 const VOLUME_TILE_HEIGHT_PIXELS=64;
@@ -35,6 +32,8 @@ const VOLUME_ROOF_HEIGHT_PIXELS=7;
 const VOLUME_CANVAS_HEIGHT_PIXELS=420;
 const VOLUME_CANVAS_PADDING_PIXELS=24;
 const VOLUME_MAXIMUM_FLOOR_COUNT=3;
+const FIELD_MAP_DEFAULT_ZOOM_PERCENT=75;
+const TOWN_MAP_DEFAULT_ZOOM_PERCENT=FIELD_MAP_DEFAULT_ZOOM_PERCENT*2;
 let mapReviewRecords=[];
 let buildingSizeRecords=[];
 let currentMapRotationDegrees=0;
@@ -59,6 +58,7 @@ function drawMapDetails(mapDocumentValues,mapRecordValues){
   document.querySelector('#map-title').textContent=`${mapDocumentValues.display_name||mapDocumentValues.map_id} 도시 배치`;
   document.querySelector('#summary').textContent=`${mapDocumentValues.grid.columns}×${mapDocumentValues.grid.rows} · 타일 ${mapRecordValues.render_profile.tile_width}×${mapRecordValues.render_profile.tile_height}px · 벽 ${mapRecordValues.render_profile.wall_height}px · 캐릭터 기준 ${mapRecordValues.render_profile.character_height}px · 충돌 ${mapDocumentValues.collision.length}칸 · 출구 ${mapDocumentValues.map_connections?.length||0}개 · 연결 ${mapDocumentValues.connections.length}개`;
   currentMapRotationDegrees=0;
+  mapZoomControl.value=mapDocumentValues.safe_town?TOWN_MAP_DEFAULT_ZOOM_PERCENT:FIELD_MAP_DEFAULT_ZOOM_PERCENT;
   window.configureMapCharacterPreview(mapDocumentValues,mapRecordValues);
   applyCurrentMapRotation();
   mapPreviewImage.onload=()=>{
@@ -69,7 +69,6 @@ function drawMapDetails(mapDocumentValues,mapRecordValues){
       mapScrollContainer.scrollTop=Math.max(0,mapPreviewImage.offsetTop+mapPreviewImage.clientHeight/2-mapScrollContainer.clientHeight/2);
     });
   };
-
 }
 
 function projectVolumePoint(columnValue,rowValue,heightValue,originXValue,originYValue,tileWidthValue,tileHeightValue){
@@ -284,18 +283,13 @@ function collectBuildingSizeRecords(prefabRecordValues){
 
 async function startMapReview(){
   await loadTileAssets();
-  const [mapIndexResponse,prefabResponse]=await Promise.all([fetch('map-index.json'),fetch('building-prefabs.json')]);
+  const mapIndexResponse=await fetch('map-index.json');
   if(!mapIndexResponse.ok)throw new Error('등록 맵 목록을 찾지 못했습니다.');
-  if(!prefabResponse.ok)throw new Error('건물 프리셋 목록을 찾지 못했습니다.');
   mapReviewRecords=(await mapIndexResponse.json()).maps;
-  buildingSizeRecords=collectBuildingSizeRecords((await prefabResponse.json()).prefabs);
   mapSelectionControl.replaceChildren(...mapReviewRecords.map((recordValue,indexValue)=>Object.assign(document.createElement('option'),{value:indexValue,textContent:recordValue.label})));
-  buildingSizeControl.replaceChildren(...buildingSizeRecords.map((recordValue,indexValue)=>Object.assign(document.createElement('option'),{value:indexValue,textContent:recordValue.display_name+' · '+recordValue.size.columns+'×'+recordValue.size.rows+'칸'})));
   mapSelectionControl.onchange=()=>loadSelectedMapRecord(mapReviewRecords[Number(mapSelectionControl.value)]).catch(showReviewError);
-  buildingSizeControl.onchange=drawBuildingVolumeComparisons;
   document.querySelector('#rotate-left').onclick=()=>changeMapRotation(-90);
   document.querySelector('#rotate-right').onclick=()=>changeMapRotation(90);
-  drawBuildingVolumeComparisons();
   if(mapReviewRecords.length)await loadSelectedMapRecord(mapReviewRecords[0]);
 }
 
@@ -305,7 +299,6 @@ function changeMapRotation(rotationDeltaDegrees){
 }
 
 mapZoomControl.oninput=applyMapZoom;
-window.addEventListener('resize',drawBuildingVolumeComparisons);
 document.querySelector('#zoom-out').onclick=()=>{mapZoomControl.value=Math.max(Number(mapZoomControl.min),Number(mapZoomControl.value)-10);applyMapZoom()};
 document.querySelector('#zoom-in').onclick=()=>{mapZoomControl.value=Math.min(Number(mapZoomControl.max),Number(mapZoomControl.value)+10);applyMapZoom()};
 applyMapZoom();

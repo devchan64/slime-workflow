@@ -14,8 +14,8 @@ from email.message import Message
 from urllib.parse import urlsplit, parse_qs
 
 MANAGEMENT_SERVICE_ROUTES = {'tile-map':'/tile-map-generator','character-animation':'/character-animation','momask':'/momask-generator','qwen-2512':'/image-generation','qwen-2511':'/image-generation-2511'}
-MANAGEMENT_COMMAND_ROUTES = {'catalog':('GET','/catalog'),'generate':('POST','/jobs'),'prepare':('POST','/jobs'),'status':('GET','/jobs/{id}'),'logs':('GET','/jobs/{id}/worker.log'),'history':('GET','/history'),'active':('GET','/active'),'model-status':('GET','/model-status'),'cancel':('POST','/cancel'),'history-reset':('POST','/history/reset'),'openpose-map':('POST','/openpose-map')}
-MANAGEMENT_SERVICE_COMMANDS = {'tile-map':('catalog','generate','prepare','status','logs','history','active','model-status','cancel','history-reset'),'character-animation':('catalog','generate','status','logs','history','active','cancel','history-reset'),'momask':('generate','status','logs','history','cancel','history-reset','openpose-map'),'qwen-2512':('generate','prepare','status','logs','history','active','model-status','cancel','history-reset'),'qwen-2511':('generate','status','logs','history','active','model-status','cancel','history-reset')}
+MANAGEMENT_COMMAND_ROUTES = {'sprite-source':('POST','/sprite/source'),'sprite-save':('POST','/sprite/save'),'sprite-load':('POST','/sprite/load'),'catalog':('GET','/catalog'),'generate':('POST','/jobs'),'prepare':('POST','/jobs'),'status':('GET','/jobs/{id}'),'logs':('GET','/jobs/{id}/worker.log'),'history':('GET','/history'),'active':('GET','/active'),'model-status':('GET','/model-status'),'cancel':('POST','/cancel'),'history-reset':('POST','/history/reset'),'openpose-map':('POST','/openpose-map')}
+MANAGEMENT_SERVICE_COMMANDS = {'tile-map':('catalog','generate','prepare','status','logs','history','active','model-status','cancel','history-reset'),'character-animation':('sprite-source','sprite-save','sprite-load','catalog','generate','status','logs','history','active','cancel','history-reset'),'momask':('generate','status','logs','history','cancel','history-reset','openpose-map'),'qwen-2512':('generate','prepare','status','logs','history','active','model-status','cancel','history-reset'),'qwen-2511':('generate','status','logs','history','active','model-status','cancel','history-reset')}
 
 
 def resolve_management_command(service_command_name, operation_command_name, command_payload_value):
@@ -169,6 +169,9 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
     command_subparser_group=command_argument_parser.add_subparsers(dest='command',required=True)
     for operation_command_name in MANAGEMENT_SERVICE_COMMANDS[service_command_name]:
         operation_argument_parser=command_subparser_group.add_parser(operation_command_name)
+        if operation_command_name in ('sprite-source','sprite-save','sprite-load'):
+            operation_argument_parser.add_argument('id')
+            if operation_command_name=='sprite-save':operation_argument_parser.add_argument('--document-file',type=Path,required=True)
         if operation_command_name in ('status','logs','cancel','openpose-map'):
             operation_argument_parser.add_argument('id')
         if operation_command_name=='generate':
@@ -185,7 +188,7 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
                 operation_argument_parser.add_argument('--action',choices=('standing','deep_breath','stretch','walking'),required=True)
                 operation_argument_parser.add_argument('--directions',nargs='+',choices=('down_left','down_right','up_left','up_right'),default=['down_left','down_right','up_left','up_right'])
             else:
-                if service_command_name=='tile-map':operation_argument_parser.add_argument('--tile-type',choices=('rooftop','wall','door','ground'),required=True)
+                if service_command_name=='tile-map':operation_argument_parser.add_argument('--tile-type',choices=('rooftop','wall','ground'),required=True)
                 prompt_argument_group=operation_argument_parser.add_mutually_exclusive_group(required=True)
                 prompt_argument_group.add_argument('--prompt')
                 prompt_argument_group.add_argument('--prompt-file',type=Path,help='UTF-8 프롬프트 파일')
@@ -206,6 +209,9 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
     command_payload_value={}
     if hasattr(command_argument_values,'id'):
         command_payload_value['id']=command_argument_values.id
+    if operation_command_name in ('sprite-source','sprite-save','sprite-load'):
+        command_payload_value={'id':command_argument_values.id}
+        if operation_command_name=='sprite-save':command_payload_value['document']=json.loads(command_argument_values.document_file.read_text())
     if operation_command_name=='history-reset':command_payload_value={'action':'reset'}
     if operation_command_name=='prepare':command_payload_value={'action':'prepare'}
     if operation_command_name=='generate':

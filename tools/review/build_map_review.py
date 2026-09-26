@@ -255,7 +255,8 @@ def draw_building_volume_preview(preview_image, building_instance, prefab_record
     origin_row = building_instance['position']['row']
     building_width = building_instance['size']['columns']
     building_depth = building_instance['size']['rows']
-    wall_height = ISOMETRIC_BUILDING_PREVIEW_LEVEL * ISOMETRIC_BUILDING_WALL_HEIGHT
+    building_floor_count = prefab_record['floor_count']
+    wall_height = building_floor_count * ISOMETRIC_BUILDING_WALL_HEIGHT
     point_values = lambda column_value, row_value, elevation_value: project_building_point(
         origin_column + column_value, origin_row + row_value, elevation_value,
         row_count, half_tile_width, half_tile_height, ISOMETRIC_PREVIEW_TOP_PADDING)
@@ -268,7 +269,7 @@ def draw_building_volume_preview(preview_image, building_instance, prefab_record
     drawing_context.polygon([corner_values[2], corner_values[3], upper_corner_values[3], upper_corner_values[2]],
                             fill=(177, 126, 69, 255), outline=(79, 47, 25, 255))
     # 카탈로그의 창문 포함 벽 타일을 한 칸·한 층마다 투영한다.
-    for current_floor_index in range(ISOMETRIC_BUILDING_PREVIEW_LEVEL):
+    for current_floor_index in range(building_floor_count):
         current_bottom_height = current_floor_index * ISOMETRIC_BUILDING_WALL_HEIGHT
         current_top_height = current_bottom_height + ISOMETRIC_BUILDING_WALL_HEIGHT
         for current_column_index in range(building_width):

@@ -1,5 +1,8 @@
 """타일 종류·고정 프롬프트 및 CLI 계약 검증."""
 import unittest
+import json
+import tempfile
+from pathlib import Path
 from unittest.mock import patch
 from tools.review.domains.tile.tile_generation import prepare_tile_request, TileGenerationManager
 from tools.review.common import management_gateway
@@ -7,7 +10,7 @@ from tools.review.common import management_gateway
 class TileGenerationTests(unittest.TestCase):
     def make_tile_request(self):return {'action':'generate','tile_type':'wall','user_prompt':'Red brick house.','steps':4,'seed':1,'width':512,'height':512}
     def test_all_kinds_keep_base_and_style(self):
-        for tile_kind_name in ('rooftop','wall','door','ground'):
+        for tile_kind_name in ('rooftop','wall','ground'):
             output_request_value=prepare_tile_request(self.make_tile_request()|{'tile_type':tile_kind_name})
             self.assertIn(output_request_value['base_prompt'],output_request_value['prompt'])
             self.assertIn(output_request_value['style_prompt'],output_request_value['prompt'])
@@ -24,10 +27,22 @@ class TileGenerationTests(unittest.TestCase):
         rendered_page_value=image_manager_value.render_generation_page().decode()
         self.assertIn('tile-map-generator/tile-ui.js',rendered_page_value)
         self.assertNotIn('id="use-style-prompt"',rendered_page_value)
+    def test_existing_job_directories_appear_in_history(self):
+        with tempfile.TemporaryDirectory() as temporary_directory_name:
+            temporary_root_path=Path(temporary_directory_name)
+            job_root_path=temporary_root_path/'jobs'/'2026-09-26_12-00-00-abcdef12'
+            job_root_path.mkdir(parents=True)
+            (job_root_path/'request.json').write_text(json.dumps(self.make_tile_request()))
+            (job_root_path/'status.json').write_text(json.dumps({'status':'completed'}))
+            image_manager_value=TileGenerationManager()
+            with patch.object(image_manager_value,'job_storage_root',temporary_root_path/'jobs'),patch.object(image_manager_value,'history_storage_path',return_value=temporary_root_path/'history'):
+                history_record_values=image_manager_value.list_generation_history()
+            self.assertEqual([record_value['id'] for record_value in history_record_values],['2026-09-26_12-00-00-abcdef12'])
+            self.assertEqual(history_record_values[0]['status']['status'],'completed')
     def test_cli_passes_only_user_prompt(self):
         with patch.object(management_gateway,'execute_management_command',return_value={'id':'test'}) as execute_command_mock:
-            management_gateway.execute_gateway_arguments('tile-map',['generate','--tile-type','door','--prompt','Oak wood.','--detach'])
+            management_gateway.execute_gateway_arguments('tile-map',['generate','--tile-type','wall','--prompt','Oak wood.','--detach'])
             current_payload_value=execute_command_mock.call_args.args[2]
-            self.assertEqual(current_payload_value['tile_type'],'door')
+            self.assertEqual(current_payload_value['tile_type'],'wall')
             self.assertEqual(current_payload_value['user_prompt'],'Oak wood.')
             self.assertNotIn('prompt',current_payload_value)

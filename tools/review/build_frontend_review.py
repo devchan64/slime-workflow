@@ -282,6 +282,7 @@ def build_frontend_review(frontend_repository_path, ui_bundle_directory=None):
         game_render_metrics = load_game_render_metrics(frontend_repository_path)
         manager_page_records = []
         discovered_source_records = []
+        sprite_asset_records = []
         for animation_sequence_index, animation_metadata_path in enumerate(animation_metadata_paths):
             review_frame_records, review_source_metadata, source_image_paths = load_animation_review(frontend_asset_root, animation_metadata_path)
             review_source_metadata['gameRenderMetrics'] = game_render_metrics
@@ -309,17 +310,19 @@ def build_frontend_review(frontend_repository_path, ui_bundle_directory=None):
                 link_or_copy_review_file(source_image_path, destination_asset_directory/source_image_path.name)
             rendered_page_text = anchor_template_text.replace('__FRAME_RECORDS__', json.dumps(review_frame_records, ensure_ascii=False).replace('<', '\\u003c')).replace('__SOURCE_METADATA__', json.dumps(review_source_metadata, ensure_ascii=False).replace('<', '\\u003c'))
             (destination_asset_directory/'anchors.html').write_text(rendered_page_text)
+            sprite_asset_records.append({'id':'asset:'+animation_identifier_text,'label':review_source_metadata['displayNameKo']+' v'+review_source_metadata['animationVersion'],'fps':1000/review_source_metadata['frameDurationMs'],'frames':[{**frame_record_value,'url':'/'+page_identifier_text+'/'+frame_record_value['image']} for frame_record_value in review_frame_records],'source':review_source_metadata})
             relative_metadata_path = animation_metadata_path.relative_to(frontend_repository_path).as_posix()
             manager_page_records.append({'id': page_identifier_text, 'label': review_source_metadata['displayNameKo']+' · v'+review_source_metadata['animationVersion'], 'path': page_identifier_text+'/anchors.html', 'anchorEditor': True, 'category': 'animation', 'description': animation_identifier_text+' · '+relative_metadata_path})
             discovered_source_records.append({'metadata': relative_metadata_path, 'displayNameKo': review_source_metadata['displayNameKo'], 'sha256': hashlib.sha256(animation_metadata_path.read_bytes()).hexdigest(), 'sheets': review_source_metadata['sheets']})
             completed_asset_count[0] += 1
             emit_review_trace('asset', relative_metadata_path)
+        (output_review_directory/'sprite-assets.json').write_text(json.dumps({'assets':sprite_asset_records},ensure_ascii=False))
         if __package__:
             from .build_map_review import build_map_review
         else:
             from build_map_review import build_map_review
         isloon_review_directory = build_map_review(output_root=output_review_directory/'isloon-map-review')
-        manager_page_records.append({'id': 'map-review', 'label': '타일맵 검수', 'path': isloon_review_directory.relative_to(output_review_directory).as_posix()+'/map-review.html', 'anchorEditor': False, 'category': 'tile-review', 'description': '등록 YAML 맵 목록 · 타일 연결 · 건물 충돌 검수'})
+        manager_page_records.append({'id': 'map-review', 'label': '마을 맵 검수', 'path': isloon_review_directory.relative_to(output_review_directory).as_posix()+'/map-review.html', 'anchorEditor': False, 'category': 'tile-review', 'description': '등록 YAML 맵 목록 · 타일 연결 · 건물 충돌 검수'})
         manager_page_records.append({'id': 'building-volume-review', 'label': '건물 입체감 시안', 'path': isloon_review_directory.relative_to(output_review_directory).as_posix()+'/building-volume-review.html', 'anchorEditor': False, 'category': 'tile-review', 'description': '건물 바닥 면적별 1·2·3층 높이 비교 시안'})
         emit_review_trace('tile-map-review', str(isloon_review_directory.relative_to(WORKFLOW_REPO_ROOT)))
         if __package__:
