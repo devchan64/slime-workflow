@@ -17,3 +17,5 @@
   helpContentElement.before(helpDetailsElement);helpDetailsElement.append(helpSummaryElement,helpContentElement);
  });
 })();
+
+if(window.top===window&&!document.querySelector('script[src="/management/gpu-status.js"]')){const gpuStatusScript=document.createElement('script');gpuStatusScript.src='/management/gpu-status.js';document.head.append(gpuStatusScript);}

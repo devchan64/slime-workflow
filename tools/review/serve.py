@@ -270,6 +270,15 @@ def run_review_server(parsed_argument_values):
         def __init__(self,*request_handler_arguments,**request_handler_options):
             super().__init__(*request_handler_arguments,directory=str(review_root_directory),**request_handler_options)
         def do_GET(self):
+            if urlsplit(self.path).path=='/management/gpu-status':
+                from tools.review.common.gpu_status import read_gpu_status
+                response_content=json.dumps(read_gpu_status(),ensure_ascii=False).encode()
+                self.send_response(200);self.send_header('Content-Type','application/json; charset=utf-8');self.send_header('Cache-Control','no-store');self.send_header('Content-Length',str(len(response_content)));self.end_headers();self.wfile.write(response_content)
+                return
+            if urlsplit(self.path).path=='/management/gpu-status.js':
+                response_content=(Path(__file__).parent/'ui/shared/gpu-status.js').read_bytes()
+                self.send_response(200);self.send_header('Content-Type','text/javascript');self.send_header('Content-Length',str(len(response_content)));self.end_headers();self.wfile.write(response_content)
+                return
             if urlsplit(self.path).path in ('/management/style.css','/management/studio.css'):
                 response_content=resolve_review_ui_asset('management.css').read_bytes()
                 self.send_response(200)

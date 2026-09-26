@@ -77,3 +77,9 @@ body.manager-shell{height:100vh;height:100dvh;display:flex;flex-direction:column
 .anchor-stage { position:relative; }
 .rig-mini-map { position:absolute; top:12px; left:12px; width:240px; height:240px; padding:6px; background:#111722dd; border:1px solid #8ed1ff; border-radius:8px; box-shadow:0 4px 16px #0008; }
 .rig-mini-map canvas { display:block; width:100%; height:100%; image-rendering:auto; }
+
+/* 상단 여유 폭을 GPU 작업 표시에 사용한다. */
+.manager-shell>header{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:8px 20px;padding:10px 20px;margin-bottom:0;align-items:center}
+.manager-shell>header #management-gpu-status{line-height:1.5}
+.manager-shell>header .manager-header-actions{justify-self:end}
+@media(max-width:700px){.manager-shell>header{grid-template-columns:minmax(0,1fr) auto;padding:8px 12px;gap:4px 10px}.manager-shell>header #management-gpu-status{grid-column:1/-1;grid-row:2}.manager-shell>header .manager-header-actions{grid-column:2;grid-row:1}}
