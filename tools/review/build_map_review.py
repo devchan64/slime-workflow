@@ -219,7 +219,8 @@ def render_isometric_map_preview(assembled_map_values, map_source_values, prefab
                                      half_tile_width, half_tile_height, transformed_building['entrance_side'],
                                      wall_texture_images[prefab_record['wall_tile']],
                                      door_texture_images[prefab_record['door_tile']],
-                                     tile_images[prefab_record['roof_tile']])
+                                     tile_images[prefab_record['roof_tile']],
+                                     wall_texture_images.get(prefab_record.get('ground_floor_plain_wall_tile')))
     return preview_image
 
 
@@ -251,7 +252,7 @@ def paste_projected_wall_texture(preview_image, wall_texture_image, top_left_poi
 
 
 def draw_building_volume_preview(preview_image, building_instance, prefab_record, row_count, half_tile_width, half_tile_height,
-                                 entrance_side, wall_texture_image, door_texture_image, roof_tile_image):
+                                 entrance_side, wall_texture_image, door_texture_image, roof_tile_image, plain_wall_texture=None):
     from PIL import ImageDraw
     drawing_context = ImageDraw.Draw(preview_image)
     origin_column = building_instance['position']['column']
@@ -277,14 +278,14 @@ def draw_building_volume_preview(preview_image, building_instance, prefab_record
         for current_column_index in range(building_width):
             if entrance_side == 'south' and current_floor_index == 0 and current_column_index == entrance_cell['column']:
                 continue
-            paste_projected_wall_texture(preview_image, wall_texture_image,
+            paste_projected_wall_texture(preview_image, plain_wall_texture if plain_wall_texture is not None and current_floor_index==0 and current_column_index%2 else wall_texture_image,
                 point_values(current_column_index, building_depth, current_top_height),
                 point_values(current_column_index + 1, building_depth, current_top_height),
                 point_values(current_column_index, building_depth, current_bottom_height))
         for current_row_index in range(building_depth):
             if entrance_side == 'east' and current_floor_index == 0 and current_row_index == entrance_cell['row']:
                 continue
-            paste_projected_wall_texture(preview_image, wall_texture_image,
+            paste_projected_wall_texture(preview_image, plain_wall_texture if plain_wall_texture is not None and current_floor_index==0 and (building_width+building_depth-1-current_row_index)%2 else wall_texture_image,
                 point_values(building_width, current_row_index + 1, current_top_height),
                 point_values(building_width, current_row_index, current_top_height),
                 point_values(building_width, current_row_index + 1, current_bottom_height))

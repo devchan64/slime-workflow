@@ -18,6 +18,7 @@ prefabs:
     anchor: {column: 1, row: 1}
     roof_tile: wood_roof
     wall_tile: wood_large_window_wall
+    ground_floor_plain_wall_tile: wood_plain_wall
     door_tile: wood_door
     roof_rows: 2
     floor_count: 1
@@ -29,6 +30,7 @@ prefabs:
     anchor: {column: 1, row: 1}
     roof_tile: wood_roof
     wall_tile: wood_large_window_wall
+    ground_floor_plain_wall_tile: wood_plain_wall
     door_tile: wood_door
     roof_rows: 3
     floor_count: 1

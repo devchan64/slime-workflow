@@ -132,13 +132,13 @@ function drawBuildingVolumePreview(canvasElement,prefabRecordValues,floorCountVa
       const bottomHeightValue=floorIndexValue*floorHeightValue;
       const topHeightValue=bottomHeightValue+floorHeightValue;
       for(let columnIndexValue=0;columnIndexValue<footprintWidthValue;columnIndexValue++){
-        drawProjectedTextureImage(drawingContext,selectedWallImage,
+        drawProjectedTextureImage(drawingContext,floorIndexValue===0&&columnIndexValue%2&&prefabRecordValues.ground_floor_plain_wall_tile?tileImageRecords[prefabRecordValues.ground_floor_plain_wall_tile]:selectedWallImage,
           pointValues(columnIndexValue,footprintDepthValue,topHeightValue),
           pointValues(columnIndexValue+1,footprintDepthValue,topHeightValue),
           pointValues(columnIndexValue,footprintDepthValue,bottomHeightValue));
       }
       for(let rowIndexValue=0;rowIndexValue<footprintDepthValue;rowIndexValue++){
-        drawProjectedTextureImage(drawingContext,selectedWallImage,
+        drawProjectedTextureImage(drawingContext,floorIndexValue===0&&(footprintWidthValue+footprintDepthValue-1-rowIndexValue)%2&&prefabRecordValues.ground_floor_plain_wall_tile?tileImageRecords[prefabRecordValues.ground_floor_plain_wall_tile]:selectedWallImage,
           pointValues(footprintWidthValue,rowIndexValue+1,topHeightValue),
           pointValues(footprintWidthValue,rowIndexValue,topHeightValue),
           pointValues(footprintWidthValue,rowIndexValue+1,bottomHeightValue));

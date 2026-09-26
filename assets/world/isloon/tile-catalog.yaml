@@ -12,6 +12,7 @@ tiles:
   - {id: wood_large_window_wall, category: structure, asset: world/isloon/buildings/wood-large-window-wall-v1.png, walkable: false, movement_cost: 99}
   - {id: wood_roof, category: roof, asset: world/isloon/buildings/wood-roof-v1.png, walkable: false, movement_cost: 99}
   - {id: wood_door, category: door, asset: world/isloon/buildings/wood-door-v1.png, walkable: true, movement_cost: 1}
+  - {id: wood_plain_wall, category: structure, asset: world/isloon/buildings/wood-plain-wall-v1.png, walkable: false, movement_cost: 99}
 connections:
   - {id: grass-to-paving, from: grass, to: paving, variants: [straight, corner, tee, cross]}
   - {id: paving-to-spring, from: paving, to: spring_water, variants: [bank-straight, bank-corner]}
