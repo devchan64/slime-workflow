@@ -75,7 +75,7 @@ function selectWallTexture(currentFaceRecord){
  const isEntranceFace=wallAlongColumn?Math.abs(entranceColumnLocal-(currentColumnMinimum+currentColumnMaximum)/2)<0.01&&Math.abs(entranceRowLocal-currentRowMinimum- Math.sign(entranceRowLocal-currentRowMinimum)*0.5)<0.01:Math.abs(entranceRowLocal-(currentRowMinimum+currentRowMaximum)/2)<0.01&&Math.abs(entranceColumnLocal-currentColumnMinimum-Math.sign(entranceColumnLocal-currentColumnMinimum)*0.5)<0.01;
  if(currentFaceRecord.floorIndex===0&&isEntranceFace)return 'door';
  // 처마보다 높은 박공 벽에는 창문을 배치하지 않는다.
- const roofBaseHeight=Math.min(...currentBuildingRecord.blocks.filter(currentBlockRecord=>currentBlockRecord.material==='roof').map(currentBlockRecord=>currentBlockRecord.layer*32+(currentBlockRecord.offsetHeight||0)));
+ const roofBaseHeight=Math.min(...currentBuildingRecord.blocks.filter(currentBlockRecord=>currentBlockRecord.material==='roof').map(currentBlockRecord=>currentBlockRecord.layer*48+(currentBlockRecord.offsetHeight||0)));
  if(Math.min(...currentFaceRecord.vertices.map(currentVertexPoint=>currentVertexPoint.height))>=roofBaseHeight)return 'wall';
  if(currentFaceRecord.floorIndex===0)return currentWallIndex%2===0?'window':'wall';
  return currentWallIndex%2===0?'window':'large_window';
@@ -89,7 +89,16 @@ const currentRenderFaces=currentMapRecord.buildings.flatMap(currentBuilding=>cur
 for(const currentFace of currentRenderFaces){const currentAreaValue=currentFace.points.reduce((s,p,i)=>{const n=currentFace.points[(i+1)%currentFace.points.length];return s+p.x*n.y-n.x*p.y},0);if(currentFace.top||currentAreaValue>0){drawSurfacePolygon(currentFace.points,currentMaterialColors[currentFace.material]);// 지붕 경사 측면은 막힌 벽으로 두고 일반 벽 구간에만 창문을 교차 배치한다.
 const currentTextureRole=selectWallTexture(currentFace);
 const currentTextureName=currentFace.textureTiles[currentTextureRole];drawTexturedSurface(currentFace,loadedTextureImages[currentTextureName])}}
-const currentMarkerPoint=projectBlockVertex(currentCharacterCell);currentDrawingContext.fillStyle='#f5d680';currentDrawingContext.fillRect(currentMarkerPoint.x-8,currentMarkerPoint.y-80,16,80);currentDrawingContext.setTransform(1,0,0,1,0,0);document.querySelector('#status').textContent=`회전 ${currentCameraRotation*90}° · 건물 ${currentMapRecord.buildings.length}개 · 블록 ${currentMapRecord.buildings.reduce((s,b)=>s+b.blocks.length,0)}개 · 검수 마커 높이 80 · 지붕 보행 불가`}
+// 타일을 입힌 뒤 실제 블록의 노출 경계를 다시 그린다. 층별 텍스처 분할선은 제외한다.
+if(document.querySelector('#edges').checked){
+ for(const currentBuildingRecord of currentMapRecord.buildings)for(const currentOriginalFace of currentBuildingRecord.faces){
+  const currentOutlinePoints=currentOriginalFace.vertices.map(currentVertexPoint=>projectBlockVertex({column:currentBuildingRecord.origin.column+currentVertexPoint.column,row:currentBuildingRecord.origin.row+currentVertexPoint.row,height:currentVertexPoint.height}));
+  const currentOutlineArea=currentOutlinePoints.reduce((currentAreaSum,currentPointValue,currentPointIndex)=>{const nextPointValue=currentOutlinePoints[(currentPointIndex+1)%currentOutlinePoints.length];return currentAreaSum+currentPointValue.x*nextPointValue.y-nextPointValue.x*currentPointValue.y},0);
+  if(!currentOriginalFace.top&&currentOutlineArea<=0)continue;
+  currentDrawingContext.beginPath();currentOutlinePoints.forEach((currentPointValue,currentPointIndex)=>currentPointIndex?currentDrawingContext.lineTo(currentPointValue.x,currentPointValue.y):currentDrawingContext.moveTo(currentPointValue.x,currentPointValue.y));currentDrawingContext.closePath();currentDrawingContext.strokeStyle='#dce5ef';currentDrawingContext.lineWidth=1/currentScaleValue;currentDrawingContext.stroke();
+ }
+}
+const currentMarkerPoint=projectBlockVertex(currentCharacterCell);currentDrawingContext.fillStyle='#f5d680';currentDrawingContext.fillRect(currentMarkerPoint.x-8,currentMarkerPoint.y-80,16,80);currentDrawingContext.setTransform(1,0,0,1,0,0);document.querySelector('#status').textContent=`회전 ${currentCameraRotation*90}° · 건물 ${currentMapRecord.buildings.length}개 · 블록 ${currentMapRecord.buildings.reduce((s,b)=>s+b.blocks.length,0)}개 · 일반·경사 블록 높이 48 · 검수 마커 높이 80 · 지붕 보행 불가`}
 currentMapRecord.buildings.forEach(currentBuilding=>{const currentOption=document.createElement('option');currentOption.value=currentBuilding.id;currentOption.textContent=currentBuilding.name;document.querySelector('#building').append(currentOption)});
 document.querySelector('#building').onchange=currentEvent=>{const currentBuilding=currentMapRecord.buildings.find(b=>b.id===currentEvent.target.value);if(!currentBuilding)return;const currentCenter=projectBlockVertex({column:currentBuilding.origin.column+currentBuilding.width/2-.5,row:currentBuilding.origin.row+currentBuilding.height/2-.5,height:48});currentScaleValue=1;currentOffsetX=currentMapCanvas.width/2-currentCenter.x;currentOffsetY=currentMapCanvas.height/2-currentCenter.y;renderBlockMap()};
 document.querySelector('#rotate').onclick=()=>{currentCameraRotation=(currentCameraRotation+1)%4;renderBlockMap(true)};document.querySelector('#fit').onclick=()=>renderBlockMap(true);document.querySelector('#edges').onchange=()=>renderBlockMap();window.onresize=()=>renderBlockMap(true);
