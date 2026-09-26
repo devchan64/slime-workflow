@@ -42,6 +42,5 @@ class StaticReviewGradioTest(unittest.TestCase):
         self.assertNotIn('<iframe',loader_script_value)
         self.assertIn('static-review-root',str(interface_blocks_value.get_config_file()))
 
-
 if __name__=='__main__':
     unittest.main()

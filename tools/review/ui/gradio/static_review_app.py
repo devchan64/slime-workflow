@@ -1,6 +1,7 @@
 """정적 검수 스냅샷을 Gradio 작업 영역의 사용자 정의 구성 요소로 제공한다."""
 import argparse
 import json
+import os
 import threading
 import time
 from pathlib import Path
@@ -82,5 +83,8 @@ if __name__=='__main__':
     parser_value.add_argument('--root-path',default='/management/frame/static-review/')
     arguments_value=parser_value.parse_args()
     static_review_paths=load_static_review_paths(arguments_value.source_file)
-    threading.Thread(target=lambda:time.sleep(1),daemon=True).start()
+    def monitor_owner_process():
+        while os.getppid()==arguments_value.owner_pid:time.sleep(1)
+        os._exit(0)
+    threading.Thread(target=monitor_owner_process,daemon=True).start()
     build_static_review_interface(static_review_paths).queue().launch(server_name='127.0.0.1',server_port=arguments_value.port,root_path=arguments_value.root_path,css=STATIC_REVIEW_APPLICATION_STYLES,js=create_static_review_loader(arguments_value.review_port,static_review_paths),allowed_paths=[])
