@@ -7,6 +7,9 @@ prefabs:
     anchor: {column: 1, row: 2}
     roof_tile: marble_roof
     wall_tile: marble_plain_wall
+    ground_floor_plain_wall_tile: marble_plain_wall
+    ground_floor_small_window_wall_tile: marble_small_window_wall
+    upper_floor_large_window_wall_tile: marble_large_window_wall
     door_tile: marble_small_door
     floor_count: 2
     roof_rows: 2
@@ -19,6 +22,8 @@ prefabs:
     roof_tile: wood_roof
     wall_tile: wood_large_window_wall
     ground_floor_plain_wall_tile: wood_plain_wall
+    ground_floor_small_window_wall_tile: wood_small_window_wall
+    upper_floor_large_window_wall_tile: wood_large_window_wall
     door_tile: wood_door
     roof_rows: 2
     floor_count: 1
@@ -31,6 +36,8 @@ prefabs:
     roof_tile: wood_roof
     wall_tile: wood_large_window_wall
     ground_floor_plain_wall_tile: wood_plain_wall
+    ground_floor_small_window_wall_tile: wood_small_window_wall
+    upper_floor_large_window_wall_tile: wood_large_window_wall
     door_tile: wood_door
     roof_rows: 3
     floor_count: 1
@@ -42,6 +49,9 @@ prefabs:
     anchor: {column: 0, row: 1}
     roof_tile: marble_roof
     wall_tile: marble_plain_wall
+    ground_floor_plain_wall_tile: marble_plain_wall
+    ground_floor_small_window_wall_tile: marble_small_window_wall
+    upper_floor_large_window_wall_tile: marble_large_window_wall
     door_tile: marble_small_door
     roof_rows: 2
     floor_count: 1
@@ -53,6 +63,9 @@ prefabs:
     anchor: {column: 1, row: 0}
     roof_tile: marble_roof
     wall_tile: marble_plain_wall
+    ground_floor_plain_wall_tile: marble_plain_wall
+    ground_floor_small_window_wall_tile: marble_small_window_wall
+    upper_floor_large_window_wall_tile: marble_large_window_wall
     door_tile: marble_small_door
     roof_rows: 1
     floor_count: 1
