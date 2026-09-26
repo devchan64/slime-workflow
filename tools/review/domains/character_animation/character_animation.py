@@ -18,6 +18,10 @@ class CharacterAnimationManager:
         request_route_path=unquote(urlsplit(current_http_handler.path).path)
         if not request_route_path.startswith('/character-animation/'):return False
         try:
+            if current_http_handler.command=='GET' and request_route_path=='/character-animation/':
+                from tools.review.common.gradio_process import ensure_character_animation_server
+                gradio_page_url=ensure_character_animation_server(current_http_handler.server.server_port)
+                current_http_handler.send_response(302);current_http_handler.send_header('Location',gradio_page_url);current_http_handler.send_header('Cache-Control','no-store');current_http_handler.end_headers();return True
             command_route_record=identify_management_command(current_http_handler.path,current_http_handler.command)
             if command_route_record:
                 command_payload_value=json.loads(current_http_handler.rfile.read(int(current_http_handler.headers['Content-Length']))) if current_http_handler.command=='POST' else command_route_record[2]

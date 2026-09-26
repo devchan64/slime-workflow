@@ -9,6 +9,7 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import unquote, urlsplit
 import argparse
 import io
+import http.client
 import hashlib
 import json
 import shutil
@@ -268,22 +269,53 @@ def run_review_server(parsed_argument_values):
         '/image-generation-2511': (three_reference_service.job_storage_root, lambda record_identifier_value: three_reference_service.job_storage_root/record_identifier_value),
     }
     management_menu_url = None
+    from tools.review.common.gradio_process import ensure_character_animation_server, ensure_gradio_server, ensure_management_menu_server
     if manager_source_path.is_file():
-        from tools.review.common.gradio_process import ensure_management_menu_server
         try:
             management_menu_url=ensure_management_menu_server(parsed_argument_values.port,manager_source_path)
             emit_server_trace('gradio-menu',management_menu_url)
         except ValueError as gradio_error_value:
             emit_server_trace('gradio-menu-failure',str(gradio_error_value))
+    def resolve_gradio_proxy_port(request_path_value):
+        gradio_route_records=(
+            ('/management/',parsed_argument_values.port+100,lambda:ensure_management_menu_server(parsed_argument_values.port,manager_source_path)),
+            ('/momask-generator/',parsed_argument_values.port+101,lambda:ensure_gradio_server(parsed_argument_values.port)),
+            ('/character-animation/',parsed_argument_values.port+102,lambda:ensure_character_animation_server(parsed_argument_values.port)),
+        )
+        for route_prefix_value,gradio_port_value,start_gradio_server in gradio_route_records:
+            if request_path_value==route_prefix_value or request_path_value.startswith(route_prefix_value+'config') or request_path_value.startswith(route_prefix_value+'gradio_api/') or request_path_value.startswith(route_prefix_value+'assets/') or request_path_value.startswith(route_prefix_value+'theme') or request_path_value.startswith(route_prefix_value+'favicon'):
+                start_gradio_server()
+                return gradio_port_value,route_prefix_value
+        return None
     class ReviewRequestHandler(SimpleHTTPRequestHandler):
         def __init__(self,*request_handler_arguments,**request_handler_options):
             super().__init__(*request_handler_arguments,directory=str(review_root_directory),**request_handler_options)
+        def proxy_gradio_request(self):
+            request_path_value=urlsplit(self.path).path
+            try:gradio_proxy_target=resolve_gradio_proxy_port(request_path_value)
+            except ValueError:return False
+            if gradio_proxy_target is None:return False
+            gradio_server_port,route_prefix_value=gradio_proxy_target
+            proxied_request_path='/'+self.path[len(route_prefix_value):]
+            request_body_bytes=self.rfile.read(int(self.headers.get('Content-Length','0'))) if self.command=='POST' else None
+            proxy_connection_value=http.client.HTTPConnection('127.0.0.1',gradio_server_port,timeout=30)
+            proxy_header_values={header_name:header_value for header_name,header_value in self.headers.items() if header_name.lower() not in ('host','connection','transfer-encoding')}
+            proxy_header_values['Host']=f'127.0.0.1:{gradio_server_port}'
+            proxy_connection_value.request(self.command,proxied_request_path,body=request_body_bytes,headers=proxy_header_values)
+            proxy_response_value=proxy_connection_value.getresponse()
+            response_body_bytes=proxy_response_value.read()
+            self.send_response(proxy_response_value.status)
+            for header_name,header_value in proxy_response_value.getheaders():
+                if header_name.lower() not in ('connection','transfer-encoding','content-length'):self.send_header(header_name,header_value)
+            self.send_header('Content-Length',str(len(response_body_bytes)));self.end_headers();self.wfile.write(response_body_bytes)
+            proxy_connection_value.close()
+            return True
         def do_GET(self):
             if urlsplit(self.path).path=='/' and manager_source_path.is_file():
                 if management_menu_url is None:
                     self.send_error(503,'Gradio startup failed')
                     return
-                self.send_response(302);self.send_header('Location',management_menu_url);self.send_header('Cache-Control','no-store');self.end_headers()
+                self.send_response(302);self.send_header('Location','/management/');self.send_header('Cache-Control','no-store');self.end_headers()
                 return
             if urlsplit(self.path).path=='/management/gpu-status':
                 from tools.review.common.gpu_status import read_gpu_status
@@ -315,6 +347,7 @@ def run_review_server(parsed_argument_values):
                 self.end_headers()
                 self.wfile.write(encoded_record)
                 return
+            if self.proxy_gradio_request():return
             if management_command_gateway.handle(self):return
             if character_animation_service.handle(self):return
             if anny_attribute_service.handle(self):return
@@ -327,6 +360,7 @@ def run_review_server(parsed_argument_values):
                 return
             super().do_GET()
         def do_POST(self):
+            if self.proxy_gradio_request():return
             if handle_record_folder_request(self,record_folder_routes):return
             if management_command_gateway.handle(self):return
             if anny_attribute_service.handle(self):return

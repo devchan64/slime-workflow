@@ -16,6 +16,7 @@ WORKFLOW_ROOT_DIRECTORY = Path(__file__).resolve().parents[4]
 sys.path.insert(0, str(WORKFLOW_ROOT_DIRECTORY))
 from tools.review.common.management_gateway import execute_management_command
 from tools.review.common.gradio_logs import build_execution_logs, LOG_PANEL_STYLES
+from tools.review.common.gradio_navigation import build_management_navigation, MANAGEMENT_NAVIGATION_STYLES
 from tools.review.domains.momask.momask_jobs import check_generation_running
 from tools.review.domains.momask.momask_generation import render_standing_corrections, render_stretch_arm_corrections
 
@@ -57,6 +58,7 @@ def create_motion_player(generation_job_identifier, generation_result_record, se
 
 def build_momask_interface(server_base_address):
     with gr.Blocks(title='MoMask 모션 생성기') as interface_blocks_value:
+        gr.HTML(build_management_navigation('/momask-generator/'))
         gr.Markdown('## MoMask 모션 생성기')
         with gr.Row(elem_id='motion-workspace'):
             with gr.Column(scale=1,min_width=340,elem_id='motion-controls'):
@@ -183,4 +185,4 @@ if __name__=='__main__':
         while os.getppid()==parsed_argument_values.owner_pid:time.sleep(1)
         os._exit(0)
     threading.Thread(target=monitor_parent_process,daemon=True).start()
-    build_momask_interface(f'http://127.0.0.1:{parsed_argument_values.review_port}').queue().launch(server_name='127.0.0.1',server_port=parsed_argument_values.port,root_path=parsed_argument_values.root_path,theme=gr.themes.Soft(),css=(Path(__file__).parent/'management-layout.css').read_text()+LOG_PANEL_STYLES,allowed_paths=[])
+    build_momask_interface(f'http://127.0.0.1:{parsed_argument_values.review_port}').queue().launch(server_name='127.0.0.1',server_port=parsed_argument_values.port,root_path=parsed_argument_values.root_path,theme=gr.themes.Soft(),css=(Path(__file__).parent/'management-layout.css').read_text()+LOG_PANEL_STYLES+MANAGEMENT_NAVIGATION_STYLES,allowed_paths=[])
