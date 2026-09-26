@@ -1,5 +1,7 @@
 'use strict';
 const spriteElementLookup=id=>document.getElementById('sprite-'+id);
+const spriteServerBase=window.spriteEditorServerBase||window.location.origin;
+const spriteServerUrl=currentPathValue=>new URL(currentPathValue,spriteServerBase).toString();
 const spriteCanvasElement=spriteElementLookup('canvas'),spriteCanvasContext=spriteCanvasElement.getContext('2d');
 const spriteFieldLabels={center:'원본 중심 X',floor:'원본 바닥 Y',head:'원본 머리 Y',anchorX:'기준점 X',anchorY:'기준점 Y',x:'배치 X',y:'배치 Y',scale:'배율'};
 const spriteSizeProfiles={small:{label:'소형',pixels:128},medium:{label:'중형',pixels:256},large:{label:'대형',pixels:384},'extra-large':{label:'초대형',pixels:512}};
@@ -15,8 +17,8 @@ const spriteSetStatus=text=>spriteElementLookup('status').textContent=text;
 const spriteStopPlayback=()=>{spritePlaybackVersion++;clearTimeout(spritePlaybackTimer);spritePlaybackTimer=null;};
 function rememberSpriteChange(){spriteUndoRecords.push(structuredClone(spriteProjectDocument));if(spriteUndoRecords.length>40)spriteUndoRecords.shift();spriteDirtyState=true;}
 function defaultSpriteSettings(frame){return {center:frame.anchor.x,floor:frame.anchor.y,head:0,anchorX:frame.anchor.x,anchorY:frame.anchor.y,x:0,y:0,scale:1};}
-async function spriteCommandRequest(command,payload){const response=await fetch('/management/command',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({service:'character-animation',command,payload})});const result=await response.json();if(!response.ok||result.error)throw Error(result.error||'명령 실패');return result;}
-async function loadSpriteImage(url){if(!spriteImageCache.has(url))spriteImageCache.set(url,new Promise((resolve,reject)=>{const image=new Image();image.onload=()=>resolve(image);image.onerror=()=>{spriteImageCache.delete(url);reject(Error('이미지 로드 실패'));};image.src=url;}));return spriteImageCache.get(url);}
+async function spriteCommandRequest(command,payload){const response=await fetch(spriteServerUrl('/management/command'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({service:'character-animation',command,payload})});const result=await response.json();if(!response.ok||result.error)throw Error(result.error||'명령 실패');return result;}
+async function loadSpriteImage(url){const imageUrl=spriteServerUrl(url);if(!spriteImageCache.has(imageUrl))spriteImageCache.set(imageUrl,new Promise((resolve,reject)=>{const image=new Image();image.onload=()=>resolve(image);image.onerror=()=>{spriteImageCache.delete(imageUrl);reject(Error('이미지 로드 실패'));};image.src=imageUrl;}));return spriteImageCache.get(imageUrl);}
 function drawSpriteFrame(context,frame,settings,image){const rect=frame.rect,anchor=spriteCanvasAnchorPoint();context.drawImage(image,rect.x,rect.y,rect.width,rect.height,anchor.x-settings.anchorX*settings.scale+settings.x,anchor.y-settings.anchorY*settings.scale+settings.y,rect.width*settings.scale,rect.height*settings.scale);}
 function spritePointPosition(settings,x,y){const anchor=spriteCanvasAnchorPoint();return {x:anchor.x+(x-settings.anchorX)*settings.scale+settings.x,y:anchor.y+(y-settings.anchorY)*settings.scale+settings.y};}
 function drawSpriteGuideLine(x1,y1,x2,y2,color){spriteCanvasContext.strokeStyle=color;spriteCanvasContext.beginPath();spriteCanvasContext.moveTo(x1,y1);spriteCanvasContext.lineTo(x2,y2);spriteCanvasContext.stroke();}
@@ -75,4 +77,4 @@ spriteCanvasElement.onpointermove=event=>{if(!spriteDragOrigin)return;const boun
 spriteCanvasElement.onpointerup=spriteCanvasElement.onpointercancel=()=>{spriteDragOrigin=null;};
 window.addEventListener('beforeunload',event=>{if(spriteDirtyState){event.preventDefault();event.returnValue='';}});
 for(const name of ['review-pane-hidden','visibilitychange'])document.addEventListener(name,()=>{if(name==='review-pane-hidden'||document.hidden)spriteStopPlayback();});
-fetch('/sprite-assets.json').then(response=>{if(!response.ok)throw Error('프론트 에셋 목록을 다시 빌드해야 합니다.');return response.json();}).then(catalog=>spriteElementLookup('asset').append(...catalog.assets.map(asset=>new Option(asset.label,asset.id)))).catch(error=>spriteSetStatus(error.message));
+fetch(spriteServerUrl('/sprite-assets.json')).then(response=>{if(!response.ok)throw Error('프론트 에셋 목록을 다시 빌드해야 합니다.');return response.json();}).then(catalog=>spriteElementLookup('asset').append(...catalog.assets.map(asset=>new Option(asset.label,asset.id)))).catch(error=>spriteSetStatus(error.message));
