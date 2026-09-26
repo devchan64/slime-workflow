@@ -18,13 +18,6 @@ motions:
     manifest: manifest.yaml
     openpose: openpose/{direction}/openpose-{frame:04d}.png
     anny: anny/{direction}/anny-{frame:04d}.png
-  stretch-v1:
-    target_fps: 4
-    label: 스트레칭 v1
-    root: assets/motion-sheet/momask-stretch-v1
-    manifest: manifest.yaml
-    openpose: openpose/{direction}/openpose-{frame:04d}.png
-    anny: anny/{direction}/anny-{frame:04d}.png
 characters:
   character-default:
     label: 기본 캐릭터 · 흰 셔츠 v2
