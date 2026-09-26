@@ -420,6 +420,9 @@ def build_map_review(map_path=None, output_root=None):
     shutil.copy2(WORKFLOW_ROOT/'tools/review/ui/map/map-character-preview.js',output_root/'map-character-preview.js')
     shutil.copy2(WORKFLOW_ROOT/'tools/review/ui/map/map-review-layout.css',output_root/'map-review-layout.css')
     shutil.copy2(REVIEW_TEMPLATE_PATH, output_root / 'map-review.html')
+    shutil.copy2(WORKFLOW_ROOT / 'assets/world/isloon/building-volume-review.html', output_root / 'building-volume-review.html')
+    from tools.review.common.game_render_metrics import load_game_render_metrics
+    (output_root / 'game-render-metrics.json').write_text(json.dumps(load_game_render_metrics(FRONTEND_ASSET_ROOT.parents[1]), ensure_ascii=False, indent=2))
     (output_root / 'README.txt').write_text('검수 서버: python3 tools/review/serve.py --root "' + str(output_root) + '" --entry map-review.html\n', encoding='utf-8')
     return output_root
 

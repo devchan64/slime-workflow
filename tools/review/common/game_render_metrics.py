@@ -13,7 +13,7 @@ def load_game_render_metrics(frontend_repository_path):
         if len(matched_constant_values) != 1:
             raise ValueError(f'게임 크기 상수 누락 또는 지원하지 않는 선언: {constant_identifier_text}')
         return float(matched_constant_values[0])
-    required_metric_names = {'defaultZoom':'MAP_DEFAULT_ZOOM','tileWidth':'MAP_TILE_WIDTH','tileHeight':'MAP_TILE_HEIGHT','townTileWidth':'TOWN_TILE_WIDTH','townTileHeight':'TOWN_TILE_HEIGHT','characterHeight':'CHARACTER_BODY_HEIGHT','elevationHeight':'MAP_ELEVATION_HEIGHT','baseThickness':'MAP_BASE_THICKNESS'}
+    required_metric_names = {'wallHeight':'TOWN_WALL_HEIGHT','canopyHeight':'TOWN_CANOPY_HEIGHT','defaultZoom':'MAP_DEFAULT_ZOOM','tileWidth':'MAP_TILE_WIDTH','tileHeight':'MAP_TILE_HEIGHT','townTileWidth':'TOWN_TILE_WIDTH','townTileHeight':'TOWN_TILE_HEIGHT','characterHeight':'CHARACTER_BODY_HEIGHT','elevationHeight':'MAP_ELEVATION_HEIGHT','baseThickness':'MAP_BASE_THICKNESS'}
     current_metric_values = {key:read_numeric_constant(metrics_source_text,name) for key,name in required_metric_names.items()}
     if any(value <= 0 for value in current_metric_values.values()):
         raise ValueError('게임 렌더 크기는 양수여야 합니다.')
