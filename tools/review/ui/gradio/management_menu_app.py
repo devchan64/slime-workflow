@@ -15,6 +15,7 @@ if str(WORKFLOW_ROOT_DIRECTORY) not in sys.path:sys.path.insert(0,str(WORKFLOW_R
 from tools.review.common.gpu_status import read_gpu_status
 
 CATEGORY_LABEL_VALUES={'all':'전체','writer-agent':'작가 AI 에이전트','image-generation':'이미지 생성','animation':'등록 애니메이션','animation-tool':'애니메이션 도구','tile-review':'타일맵 검수','game-ui':'게임 UI · 디자인 시스템'}
+MANAGEMENT_FRAME_PATH_PREFIX='/management/frame/'
 DEFAULT_PAGE_RECORDS=(
     {'id':'tile-map-generator','label':'타일 에셋 생성기','path':'/tile-map-generator/','category':'tile-review','description':'지붕 · 벽 · 맵 타일 에셋 생성'},
     {'id':'writer-agent','label':'작가 AI 에이전트','path':'/writer-agent/','category':'writer-agent','description':'문서 학습 · 아이디어 작성 · 실행 기록'},
@@ -61,12 +62,17 @@ def create_tool_choice_values(page_record_values):
 def create_page_preview_html(selected_page_identifier, page_record_values, review_server_port):
     selected_page_record=next((current_page_record for current_page_record in page_record_values if current_page_record['id']==selected_page_identifier),None)
     if selected_page_record is None:return '<div class="menu-empty-state">표시할 관리 화면을 선택하세요.</div>'
-    selected_page_path=html.escape(selected_page_record['path'],quote=True)
+    selected_page_path=selected_page_record['path']
+    if selected_page_record.get('uiMode')=='gradio':
+        selected_page_path=f'{MANAGEMENT_FRAME_PATH_PREFIX}{selected_page_record["id"]}/'
+    selected_page_path=html.escape(selected_page_path,quote=True)
     return f'<iframe title="{html.escape(selected_page_record["label"],quote=True)}" class="management-page-frame" allow="clipboard-write http://127.0.0.1:{review_server_port} http://127.0.0.1:{review_server_port+101}" src="http://127.0.0.1:{review_server_port}{selected_page_path}"></iframe>'
 
 def build_management_menu_interface(page_record_values, review_server_port):
     initial_page_identifier=page_record_values[0]['id'] if page_record_values else ''
-    with gr.Blocks(title='SLIME 관리도구') as interface_blocks_value:
+    route_path_values={current_page_record['path']:current_page_index for current_page_index,current_page_record in enumerate(page_record_values)}
+    initial_selection_script=f"""()=>{{const routePageIndexes={json.dumps(route_path_values).replace('<','\\u003c')};const selectedPageIndex=routePageIndexes[window.location.pathname];if(selectedPageIndex===undefined)return;window.setTimeout(()=>{{document.querySelectorAll('#management-tool-list input')[selectedPageIndex]?.click();}},80);}}"""
+    with gr.Blocks(title='SLIME 관리도구',js=initial_selection_script) as interface_blocks_value:
         with gr.Row():
             gr.Markdown('## SLIME 관리도구\n생성기와 검수 도구를 검색해 열고, 전환된 Gradio 화면만 따로 확인할 수 있습니다.',scale=3)
             gpu_status_value=gr.Markdown('GPU 상태 확인 중',elem_id='management-gpu-status',scale=2)

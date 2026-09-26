@@ -17,7 +17,7 @@ class GradioManagementMenuTests(unittest.TestCase):
 
     def test_preview_uses_review_server_path(self):
         preview_html_text=create_page_preview_html('momask-generator',self.page_record_values,8770)
-        self.assertIn('http://127.0.0.1:8770/momask-generator/',preview_html_text)
+        self.assertIn('http://127.0.0.1:8770/management/frame/momask-generator/',preview_html_text)
         self.assertIn('MoMask 모션 생성기',preview_html_text)
         self.assertIn('allow="clipboard-write http://127.0.0.1:8770 http://127.0.0.1:8871"',preview_html_text)
 

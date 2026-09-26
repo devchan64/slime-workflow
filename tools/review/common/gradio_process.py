@@ -14,8 +14,8 @@ def ensure_gradio_application(review_server_port, application_name, application_
     with GRADIO_PROCESS_LOCK:
         application_definitions={
             'management-menu':('management_menu_app.py',100,'/management/'),
-            'momask':('momask_app.py',101,'/momask-generator/'),
-            'character-animation':('character_animation_app.py',102,'/character-animation/'),
+            'momask':('momask_app.py',101,'/management/frame/momask-generator/'),
+            'character-animation':('character_animation_app.py',102,'/management/frame/character-animation/'),
         }
         if application_name not in application_definitions:raise ValueError('지원하지 않는 Gradio 관리 화면')
         application_filename,port_offset_value,application_root_path=application_definitions[application_name]

@@ -278,9 +278,11 @@ def run_review_server(parsed_argument_values):
             emit_server_trace('gradio-menu-failure',str(gradio_error_value))
     def resolve_gradio_proxy_port(request_path_value):
         gradio_route_records=(
+            ('/management/frame/momask-generator/',parsed_argument_values.port+101,lambda:ensure_gradio_server(parsed_argument_values.port)),
+            ('/management/frame/character-animation/',parsed_argument_values.port+102,lambda:ensure_character_animation_server(parsed_argument_values.port)),
             ('/management/',parsed_argument_values.port+100,lambda:ensure_management_menu_server(parsed_argument_values.port,manager_source_path)),
-            ('/momask-generator/',parsed_argument_values.port+101,lambda:ensure_gradio_server(parsed_argument_values.port)),
-            ('/character-animation/',parsed_argument_values.port+102,lambda:ensure_character_animation_server(parsed_argument_values.port)),
+            ('/momask-generator/',parsed_argument_values.port+100,lambda:ensure_management_menu_server(parsed_argument_values.port,manager_source_path)),
+            ('/character-animation/',parsed_argument_values.port+100,lambda:ensure_management_menu_server(parsed_argument_values.port,manager_source_path)),
         )
         for route_prefix_value,gradio_port_value,start_gradio_server in gradio_route_records:
             if request_path_value==route_prefix_value or request_path_value.startswith(route_prefix_value+'config') or request_path_value.startswith(route_prefix_value+'gradio_api/') or request_path_value.startswith(route_prefix_value+'assets/') or request_path_value.startswith(route_prefix_value+'theme') or request_path_value.startswith(route_prefix_value+'favicon'):
