@@ -15,6 +15,11 @@ class GradioManagementMenuTests(unittest.TestCase):
         self.assertEqual([record['id'] for record in filter_manager_page_records(self.page_record_values,'모션','animation-tool','gradio')],['momask-generator'])
         self.assertEqual([record['id'] for record in filter_manager_page_records(self.page_record_values,'','animation-tool','html')],['character-animation'])
 
+    def test_filter_includes_static_gradio_review(self):
+        static_review_records=[{'id':'static-review','label':'정적 검수','path':'/review.html','category':'animation','uiMode':'gradio-static','description':'검수'}]
+
+        self.assertEqual([record['id'] for record in filter_manager_page_records(static_review_records,'','all','gradio')],['static-review'])
+
     def test_preview_uses_review_server_path(self):
         preview_html_text=create_page_preview_html('momask-generator',self.page_record_values,8770)
         self.assertIn('http://127.0.0.1:8770/management/frame/momask-generator/',preview_html_text)

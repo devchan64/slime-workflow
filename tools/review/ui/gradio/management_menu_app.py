@@ -51,7 +51,7 @@ def load_manager_page_records(source_file_path):
 
 def filter_manager_page_records(page_record_values, search_text_value, category_name_value, ui_mode_name_value):
     search_token_values=search_text_value.casefold().split()
-    return [current_page_record for current_page_record in page_record_values if (category_name_value=='all' or current_page_record['category']==category_name_value) and (ui_mode_name_value=='all' or (ui_mode_name_value=='gradio')==((current_page_record.get('uiMode')=='gradio'))) and all(current_search_token in f"{current_page_record['label']} {current_page_record['description']} {current_page_record['id']}".casefold() for current_search_token in search_token_values)]
+    return [current_page_record for current_page_record in page_record_values if (category_name_value=='all' or current_page_record['category']==category_name_value) and (ui_mode_name_value=='all' or (ui_mode_name_value=='gradio')==(current_page_record.get('uiMode') in {'gradio','gradio-static'})) and all(current_search_token in f"{current_page_record['label']} {current_page_record['description']} {current_page_record['id']}".casefold() for current_search_token in search_token_values)]
 
 def create_tool_choice_values(page_record_values):
     """분류를 함께 표시해 긴 도구 목록에서도 찾기 쉽게 만든다."""
