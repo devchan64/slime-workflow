@@ -52,7 +52,7 @@ class GradioMoMaskTests(unittest.TestCase):
 
     def test_resting_settings_use_fixed_prompt(self):
         prompt_text_value, summary_text_value = MODULE_SOURCE_VALUE.read_motion_settings('resting')
-        self.assertEqual(prompt_text_value, 'A person starts standing upright, then crosses the left leg in front of the right, lowers into a seated position, places both hands on the floor, then stands and uncrosses the legs.')
+        self.assertEqual(prompt_text_value, 'A person starts standing upright and remains standing for a few seconds, then crosses the left leg in front of the right, lowers into a seated position and remains seated for a few seconds, places both hands on the floor, then stands and uncrosses the legs.')
         self.assertIn('120프레임', summary_text_value)
 
     def test_player_keeps_frame_count_and_directions(self):
@@ -79,7 +79,7 @@ class GradioMoMaskTests(unittest.TestCase):
         interface_source_text=(WORKFLOW_ROOT_DIRECTORY/'tools/review/ui/gradio/momask_app.py').read_text()
         self.assertNotIn('gr.Tab(',interface_source_text)
         self.assertIn('### 새 모션 생성',interface_source_text)
-        self.assertIn("gr.Accordion('위치 채널 기반 공통 리타깃', open=False)",interface_source_text)
+        self.assertIn("gr.Accordion('위치 채널 기반 공통 리타깃', open=False,elem_id='motion-retarget-policy')",interface_source_text)
         self.assertIn('build_generation_history_view(',interface_source_text)
         self.assertNotIn("gr.Gallery(label='이미지가 있는 생성 이력'",interface_source_text)
         self.assertIn("gr.Button('현재 생성 취소'",interface_source_text)

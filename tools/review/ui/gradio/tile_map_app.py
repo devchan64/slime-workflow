@@ -60,7 +60,8 @@ def build_tile_interface(server_base_address):
                 generation_tag_value=gr.Textbox(label='생성 이력 태그 · 선택 사항',placeholder='예: 이슬온 시장 외벽 후보',max_lines=1)
                 base_value=gr.Checkbox(value=True,label='기본 프롬프트 적용');style_value=gr.Checkbox(value=True,label='화풍 프롬프트 적용');reference_style_value=gr.Checkbox(value=False,label='참조 화풍 보존 적용')
                 with gr.Accordion('참조 이미지 · 최대 3장',open=False):
-                    reference_image_controls=[gr.Image(type='pil',label=f'참조 이미지 {index+1}') for index in range(3)]
+                    with gr.Row(elem_classes=['tile-reference-upload-grid']):
+                        reference_image_controls=[gr.Image(type='pil',label=f'참조 이미지 {index+1}',height=160,scale=1,min_width=180) for index in range(3)]
                 initial_base_prompt=catalog_record_value['types'][tile_choices[0][1]]['base_prompt']
                 with gr.Accordion('기본 프롬프트 · 고정',open=False):
                     base_prompt_display=gr.Textbox(value=initial_base_prompt,label=f'기본 프롬프트 · {len(initial_base_prompt.split())}단어',interactive=False,lines=4)

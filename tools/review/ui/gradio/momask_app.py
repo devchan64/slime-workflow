@@ -118,7 +118,7 @@ def build_momask_interface(server_base_address):
             settings_initial_values=read_motion_settings('standing')
             prompt_text_value=gr.Textbox(value=settings_initial_values[0],label='고정 스크립트',interactive=False,lines=4)
             settings_text_value=gr.Markdown(settings_initial_values[1])
-            with gr.Accordion('위치 채널 기반 공통 리타깃', open=False):
+            with gr.Accordion('위치 채널 기반 공통 리타깃', open=False,elem_id='motion-retarget-policy'):
                 gr.HTML(render_position_retarget_policy())
             with gr.Row(elem_id='motion-command-actions'):
                 generate_button_value=gr.Button('모션 생성 시작',variant='primary',elem_id='motion-generate-button')

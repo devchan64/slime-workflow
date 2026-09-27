@@ -215,8 +215,8 @@
         116, 117, 118, 119
       ],
       "playtime_seconds": 30.0,
-      "prompt": "A person starts standing upright, then crosses the left leg in front of the right, lowers into a seated position, places both hands on the floor, then stands and uncrosses the legs.",
-      "description": "왼다리를 오른다리 앞으로 교차한 뒤 몸을 낮춰 앉고, 양손을 바닥에 짚은 후 다시 일어나 다리를 푸는 휴식 동작. 원본 120프레임 전체를 출력한다."
+      "prompt": "A person starts standing upright and remains standing for a few seconds, then crosses the left leg in front of the right, lowers into a seated position and remains seated for a few seconds, places both hands on the floor, then stands and uncrosses the legs.",
+      "description": "몇 초 똑바로 서 있다가 왼다리를 오른다리 앞으로 교차해 몸을 낮춰 앉고, 앉은 자세로 몇 초 머무른 뒤 양손을 바닥에 짚고 다시 일어나 다리를 푸는 휴식 동작. 원본 120프레임 전체를 출력한다."
     }
   },
   "directions": [
