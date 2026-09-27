@@ -70,6 +70,21 @@ class TileGenerationTests(unittest.TestCase):
                 self.assertFalse(job_root_path.exists())
                 self.assertEqual(image_manager_value.current_job_identifier,None)
 
+    def test_individual_history_delete_hides_tile_job_and_preserves_result(self):
+        with tempfile.TemporaryDirectory() as temporary_directory_name:
+            temporary_root_path=Path(temporary_directory_name)
+            generation_job_identifier='2026-09-26_12-00-00-abcdef12'
+            job_root_path=temporary_root_path/'jobs'/generation_job_identifier
+            job_root_path.mkdir(parents=True)
+            (job_root_path/'request.json').write_text(json.dumps(self.make_tile_request()))
+            (job_root_path/'status.json').write_text(json.dumps({'status':'completed'}))
+            (job_root_path/'result.png').write_bytes(b'image')
+            image_manager_value=TileGenerationManager()
+            with patch.object(image_manager_value,'job_storage_root',temporary_root_path/'jobs'),patch.object(image_manager_value,'history_storage_path',return_value=temporary_root_path/'history'):
+                self.assertEqual(image_manager_value.delete_generation_history(generation_job_identifier),{'deleted':generation_job_identifier,'files_preserved':True})
+                self.assertEqual(image_manager_value.list_generation_history(),[])
+                self.assertTrue((job_root_path/'result.png').exists())
+
     def test_three_references_are_validated(self):
         import base64,io
         from PIL import Image

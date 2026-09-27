@@ -1,5 +1,11 @@
 /* 모든 관리도구의 공용 작업 밀도. 미리보기 원본 크기·배율은 변경하지 않는다. */
 .gradio-container{max-width:none!important;width:100%!important;padding:10px!important;--layout-gap:10px;--block-padding:10px;--block-radius:10px}
+.gradio-container>.main.fillable{width:100%!important;max-width:none!important}
+.gradio-container>.main.fillable>.wrap,.gradio-container>.main.fillable main.contain{width:100%!important;max-width:none!important;flex:1 1 100%!important}
+.gradio-container>.main.fillable main.contain>.column{width:100%!important;max-width:none!important;flex:1 1 100%!important}
+.management-generator-root.main.fillable{width:100%!important;max-width:none!important}
+.management-generator-root.main.fillable>.wrap,.management-generator-root main.contain{width:100%!important;max-width:none!important;flex:1 1 100%!important}
+.management-generator-root main.contain>.column{width:100%!important;max-width:none!important;flex:1 1 100%!important}
 .gradio-container .gap{gap:10px}
 .gradio-container h1,.gradio-container h2{margin-top:0!important;margin-bottom:8px!important}
 .gradio-container .prose p{margin-top:4px;margin-bottom:8px}
@@ -40,7 +46,12 @@
 .generation-history-toolbar button{align-self:center!important}
 #generation-history-selection .wrap{display:flex!important;flex-direction:column!important;gap:6px!important}
 #generation-history-selection .wrap>label{width:100%!important;box-sizing:border-box!important;margin:0!important}
+.generation-history-selection-input{position:absolute!important;width:1px!important;height:1px!important;overflow:hidden!important;clip:rect(0 0 0 0)!important;clip-path:inset(50%)!important;white-space:nowrap!important}
 .generation-history-workspace .generation-history-actions{gap:8px!important}
+.generation-history-selected-actions{width:100%;gap:10px!important;padding:12px!important;background:var(--block-background-fill)!important;border:1px solid var(--border-color-primary)!important;border-radius:10px!important}
+.generation-history-selected-actions>.prose{margin:0!important;padding:0!important}
+.generation-history-selected-actions>.prose p{margin:0!important;line-height:1.55!important;overflow-wrap:anywhere}
+.generation-history-selected-actions .generation-history-actions{margin-top:2px!important}
 @media(max-width:520px){.generation-history-identifiers>.form{grid-template-columns:1fr!important}.generation-history-toolbar{gap:6px!important}}
 
 .generation-history-toolbar>button{min-width:94px!important;padding:8px 12px!important;white-space:nowrap!important;flex-shrink:0!important}

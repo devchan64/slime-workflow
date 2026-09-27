@@ -130,6 +130,14 @@ def reset_generation_history():
     return {'status':'cleared'}
 
 
+def delete_generation_history(generation_job_identifier):
+    generation_status_record=read_generation_status(generation_job_identifier)
+    if generation_status_record['status'] in ('queued','running'):
+        raise ValueError('대기·실행 중인 작업은 먼저 중지한 뒤 삭제하세요.')
+    (GENERATION_HISTORY_DIRECTORY/(generation_job_identifier+'.json')).unlink(missing_ok=True)
+    return {'deleted':generation_job_identifier,'files_preserved':True}
+
+
 def cancel_generation_job(generation_job_identifier):
     generation_job_path = resolve_generation_directory(generation_job_identifier)
     if json.loads((generation_job_path/'status.json').read_text())['status'] not in ('running','queued'):

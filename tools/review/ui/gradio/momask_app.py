@@ -14,7 +14,7 @@ import yaml
 
 WORKFLOW_ROOT_DIRECTORY = Path(__file__).resolve().parents[4]
 sys.path.insert(0, str(WORKFLOW_ROOT_DIRECTORY))
-from tools.review.common.gradio_history import build_generation_history_view
+from tools.review.common.gradio_history import HISTORY_CARD_SELECTION_SCRIPT, build_generation_history_view
 from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_confirmation
 from tools.review.common.management_gateway import execute_management_command
 from tools.review.common.gradio_logs import build_execution_logs, LOG_PANEL_STYLES
@@ -105,7 +105,7 @@ def render_motion_history_result(generation_job_identifier,generation_status_rec
     return create_motion_player(generation_job_identifier,generation_status_record.get('result',{}),server_base_address)
 
 def build_momask_interface(server_base_address):
-    with gr.Blocks(title='MoMask 모션 생성기') as interface_blocks_value:
+    with gr.Blocks(title='MoMask 모션 생성기',js=HISTORY_CARD_SELECTION_SCRIPT) as interface_blocks_value:
         gr.Markdown('## MoMask 모션 생성기\n포즈와 방향을 설정해 모션을 생성하고, 아래 이력 카드에서 결과 재생·입력 재사용·중지·재개를 처리합니다.')
         with gr.Column(elem_id='motion-workspace'):
             gr.Markdown('### 새 모션 생성')
@@ -122,10 +122,14 @@ def build_momask_interface(server_base_address):
                 gr.HTML(render_position_retarget_policy())
             with gr.Row(elem_id='motion-command-actions'):
                 generate_button_value=gr.Button('모션 생성 시작',variant='primary',elem_id='motion-generate-button')
+                cancel_button_value=gr.Button('현재 생성 취소',elem_id='motion-cancel-button',interactive=False)
                 status_refresh_button_value=gr.Button('상태 새로고침',elem_id='motion-status-refresh-button')
             current_identifier_value=create_copyable_textbox(label='현재 생성 ID',interactive=False)
             status_text_value=gr.Markdown('생성 가능 · 설정을 확인하세요.')
             gr.Markdown('실행 중인 작업은 아래 생성 이력에서 선택한 뒤 **작업 중지**를 사용하세요. 예상 시간은 측정 자료가 없어 계산 중입니다.')
+            with gr.Accordion('생성 ID로 직접 결과 조회',open=False):
+                direct_result_identifier_value=gr.Textbox(label='생성 ID',placeholder='예: 2026-09-27_11-22-36-facd740e')
+                direct_result_button_value=gr.Button('ID로 결과 조회')
         action_select_value.change(read_motion_settings,action_select_value,[prompt_text_value,settings_text_value],queue=False)
         def start_motion_with_status(*input_values):
             generation_identifier_value=start_motion_generation(*input_values)
@@ -134,14 +138,20 @@ def build_momask_interface(server_base_address):
         def refresh_motion_status(generation_job_identifier):
             generation_running_value=check_generation_running()
             if not generation_job_identifier:
-                return ('다른 작업 생성 중 · 아래 생성 이력에서 작업을 선택하세요.' if generation_running_value else '생성 가능 · 설정을 확인하세요.'),gr.update(interactive=not generation_running_value)
+                return ('다른 작업 생성 중 · 아래 생성 이력에서 작업을 선택하세요.' if generation_running_value else '생성 가능 · 설정을 확인하세요.'),gr.update(interactive=not generation_running_value),gr.update(interactive=False)
             try:
                 generation_status_record=execute_motion_command('status',{'id':generation_job_identifier})
             except (ValueError,FileNotFoundError):
-                return '현재 생성 ID의 상태를 불러오지 못했습니다. 생성 이력에서 해당 작업을 선택하세요.',gr.update(interactive=not generation_running_value)
-            return '상태: '+generation_status_record['status']+' · '+generation_status_record.get('message',''),gr.update(interactive=not generation_running_value)
-        status_refresh_button_value.click(refresh_motion_status,current_identifier_value,[status_text_value,generate_button_value],queue=False)
-        if hasattr(gr,'Timer'):gr.Timer(2).tick(refresh_motion_status,current_identifier_value,[status_text_value,generate_button_value],show_progress='hidden')
+                return '현재 생성 ID의 상태를 불러오지 못했습니다. 생성 이력에서 해당 작업을 선택하세요.',gr.update(interactive=not generation_running_value),gr.update(interactive=False)
+            return '상태: '+generation_status_record['status']+' · '+generation_status_record.get('message',''),gr.update(interactive=not generation_running_value),gr.update(interactive=generation_status_record['status'] in ('running','queued'))
+        def cancel_current_motion(generation_job_identifier):
+            if not generation_job_identifier:
+                raise gr.Error('취소할 현재 생성 작업이 없습니다. 생성 이력에서 작업을 선택하세요.')
+            execute_motion_command('cancel',{'id':generation_job_identifier})
+            return '생성 중지 요청을 접수했습니다. 완료 상태는 새로고침 또는 생성 이력에서 확인하세요.'
+        status_refresh_button_value.click(refresh_motion_status,current_identifier_value,[status_text_value,generate_button_value,cancel_button_value],queue=False)
+        cancel_button_value.click(cancel_current_motion,current_identifier_value,status_text_value,queue=False)
+        if hasattr(gr,'Timer'):gr.Timer(2).tick(refresh_motion_status,current_identifier_value,[status_text_value,generate_button_value,cancel_button_value],show_progress='hidden')
         read_history_page,history_output_values=build_generation_history_view(
             lambda command_name_value,payload_value:execute_motion_history_command(command_name_value,payload_value,server_base_address),
             server_base_address,
@@ -150,6 +160,9 @@ def build_momask_interface(server_base_address):
             restore_output_components=[action_select_value,direction_select_value,face_checkbox_value,generation_tag_value,prompt_text_value,settings_text_value,status_text_value],
             result_renderer_callback=render_motion_history_result,
             record_folder_route='/momask-generator',
+            allow_individual_delete=True,
+            direct_result_identifier_component=direct_result_identifier_value,
+            direct_result_button_component=direct_result_button_value,
         )
         history_selection_value=history_output_values[0]
         with gr.Accordion('선택 이력 · OpenPose 맵 생성',open=False):
@@ -165,6 +178,7 @@ def build_momask_interface(server_base_address):
 
 from pathlib import Path as ManagementStylePath
 MANAGEMENT_DENSITY_STYLES=(ManagementStylePath(__file__).parents[1]/'shared/management-density.css').read_text()
+MANAGEMENT_SHARED_STYLES=(ManagementStylePath(__file__).parents[1]/'shared/management.css').read_text()+MANAGEMENT_DENSITY_STYLES
 
 if __name__=='__main__':
     argument_parser_value=argparse.ArgumentParser()
@@ -177,4 +191,4 @@ if __name__=='__main__':
         while os.getppid()==parsed_argument_values.owner_pid:time.sleep(1)
         os._exit(0)
     threading.Thread(target=monitor_parent_process,daemon=True).start()
-    build_momask_interface(f'http://127.0.0.1:{parsed_argument_values.review_port}').queue().launch(server_name='127.0.0.1',server_port=parsed_argument_values.port,root_path=parsed_argument_values.root_path,theme=gr.themes.Soft(),css=(Path(__file__).parent/'management-layout.css').read_text()+LOG_PANEL_STYLES+MANAGEMENT_DENSITY_STYLES,allowed_paths=[])
+    build_momask_interface(f'http://127.0.0.1:{parsed_argument_values.review_port}').queue().launch(server_name='127.0.0.1',server_port=parsed_argument_values.port,root_path=parsed_argument_values.root_path,theme=gr.themes.Soft(),css=(Path(__file__).parent/'management-layout.css').read_text()+LOG_PANEL_STYLES+MANAGEMENT_SHARED_STYLES,allowed_paths=[])

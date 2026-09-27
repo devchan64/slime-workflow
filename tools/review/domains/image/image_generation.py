@@ -89,6 +89,22 @@ class ImageGenerationManager:
             for current_record_path in self.history_storage_path().glob('*.json'):
                 current_record_path.unlink()
 
+    def delete_generation_history(self, generation_job_identifier):
+        """완료된 이력 레코드만 제거하고 원본 작업 산출물은 보존한다."""
+        current_history_path=self.history_storage_path()/(generation_job_identifier+'.json')
+        current_job_root=self.job_storage_root/generation_job_identifier
+        with MANAGER_HISTORY_LOCK:
+            if not current_history_path.is_file():
+                raise ValueError('삭제할 생성 이력을 찾을 수 없습니다.')
+            if not current_job_root.is_dir():
+                raise ValueError('생성 작업 경로를 찾을 수 없습니다.')
+            current_status_path=current_job_root/'status.json'
+            current_status_record=json.loads(current_status_path.read_text()) if current_status_path.is_file() else {'status':'missing'}
+            if current_status_record.get('status') in ('queued','running'):
+                raise ValueError('대기·실행 중인 작업은 먼저 중지한 뒤 삭제하세요.')
+            current_history_path.unlink()
+        return {'deleted':generation_job_identifier,'files_preserved':True}
+
     def list_generation_history(self):
         current_history_records = []
         with MANAGER_HISTORY_LOCK:
@@ -121,7 +137,8 @@ class ImageGenerationManager:
             if current_http_handler.command == 'POST':
                 if current_http_handler.headers.get('Origin') != expected_origin_value:
                     raise ValueError('동일 출처 요청만 허용합니다.')
-                if current_url_path not in (self.route_prefix_value+'/jobs',self.route_prefix_value+'/history/reset',self.route_prefix_value+'/cancel',self.route_prefix_value+'/resume') or current_http_handler.headers.get('Content-Type','').split(';')[0] != 'application/json':
+                history_delete_match=re.fullmatch(re.escape(self.route_prefix_value)+r'/history/([0-9]{4}-[0-9-]{5}_[0-9-]{8}-[a-f0-9]{8})/delete',current_url_path)
+                if (current_url_path not in (self.route_prefix_value+'/jobs',self.route_prefix_value+'/history/reset',self.route_prefix_value+'/cancel',self.route_prefix_value+'/resume') and history_delete_match is None) or current_http_handler.headers.get('Content-Type','').split(';')[0] != 'application/json':
                     raise ValueError('요청 경로 또는 형식 오류')
                 current_body_length = int(current_http_handler.headers.get('Content-Length','0'))
                 if not 1 <= current_body_length <= (12_100_000 if self.three_reference_mode or getattr(self,'reference_upload_enabled',False) else IMAGE_REQUEST_LIMIT):
@@ -144,6 +161,16 @@ class ImageGenerationManager:
                     self.reset_generation_history()
                     send_response_data(200,{'status':'cleared'})
                     return True
+                if history_delete_match is not None:
+                    generation_job_identifier=history_delete_match.group(1)
+                    if current_request_record != {'id':generation_job_identifier}:
+                        raise ValueError('이력 삭제 요청 필드 오류')
+                    send_response_data(200,self.delete_generation_history(generation_job_identifier))
+                    return True
+                with self.current_request_lock:
+                    if self.current_worker_process is not None and self.current_worker_process.poll() is None:
+                        send_response_data(409,{'error':'이미지 생성 작업이 실행 중입니다. 생성 이력에서 상태를 확인하세요.'})
+                        return True
                 if self.three_reference_mode:
                     from tools.review.domains.image.three_reference_generation import validate_three_reference_request, save_three_reference_inputs
                     current_request_record=validate_three_reference_request(current_request_record)

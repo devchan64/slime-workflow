@@ -78,6 +78,15 @@ class SharedGenerationJobsTest(unittest.TestCase):
             self.assertEqual(json.loads((self.test_root_directory/'jobs'/identifier/'status.json').read_text())['status'],'completed')
             self.assertEqual(history_path.exists(),not clear_history_first)
 
+    def test_individual_history_delete_keeps_completed_generation_files(self):
+        identifier=self.create_test_record()
+        generation_job_path=self.test_root_directory/'jobs'/identifier
+        (generation_job_path/'status.json').write_text('{"status":"completed"}')
+
+        self.assertEqual(JOB_SERVICE_MODULE.delete_generation_history(identifier),{'deleted':identifier,'files_preserved':True})
+        self.assertFalse((self.test_root_directory/'history'/(identifier+'.json')).exists())
+        self.assertTrue(generation_job_path.exists())
+
     def test_cancel_shared_worker(self):
         identifier=self.create_test_record()
         JOB_SERVICE_MODULE.cancel_generation_job(identifier)

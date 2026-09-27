@@ -1,6 +1,8 @@
 """관리 서버 수명에 연결된 로컬 Gradio UI 프로세스."""
+import json
 import os
 from pathlib import Path
+import signal
 import subprocess
 import threading
 import time
@@ -11,6 +13,54 @@ GRADIO_PROCESS_LOCK=threading.Lock()
 GRADIO_SERVER_PROCESSES={}
 GRADIO_SERVER_SOURCE_FINGERPRINTS={}
 GRADIO_UI_SOURCE_SUFFIXES=('.css','.html','.js','.py')
+
+
+def create_gradio_process_marker_path(review_server_port,application_name):
+    marker_directory_path=WORKFLOW_ROOT_DIRECTORY/'.tmp/manager-current'
+    return marker_directory_path/f'gradio-{review_server_port}-{application_name}.json'
+
+
+def write_gradio_process_marker(marker_path_value, process_identifier_value, source_fingerprint_value):
+    marker_path_value.parent.mkdir(parents=True,exist_ok=True)
+    marker_path_value.write_text(json.dumps({'pid':process_identifier_value,'fingerprint':source_fingerprint_value}),encoding='utf-8')
+
+
+def read_gradio_process_marker(marker_path_value):
+    try:
+        marker_record_value=json.loads(marker_path_value.read_text(encoding='utf-8'))
+    except (FileNotFoundError,json.JSONDecodeError):
+        return None
+    if not isinstance(marker_record_value,dict) or not isinstance(marker_record_value.get('pid'),int):
+        return None
+    return marker_record_value
+
+
+def list_orphaned_gradio_processes(application_file_path,gradio_server_port):
+    process_listing_value=subprocess.run(['ps','-eo','pid=,args='],capture_output=True,text=True,check=True).stdout.splitlines()
+    application_path_text=str(application_file_path)
+    port_argument_text=f'--port {gradio_server_port}'
+    process_identifier_values=[]
+    for process_line_text in process_listing_value:
+        process_parts_value=process_line_text.strip().split(maxsplit=1)
+        if len(process_parts_value)!=2 or application_path_text not in process_parts_value[1] or port_argument_text not in process_parts_value[1]:
+            continue
+        process_identifier_values.append(int(process_parts_value[0]))
+    return process_identifier_values
+
+
+def stop_orphaned_gradio_processes(application_file_path,gradio_server_port,marker_path_value):
+    process_identifier_values=list_orphaned_gradio_processes(application_file_path,gradio_server_port)
+    if not process_identifier_values:
+        raise ValueError(f'Gradio 포트 {gradio_server_port}를 사용하는 기존 프로세스를 확인할 수 없습니다.')
+    for process_identifier_value in process_identifier_values:
+        if process_identifier_value!=os.getpid():
+            os.kill(process_identifier_value,signal.SIGTERM)
+    for attempt_index_value in range(50):
+        if not list_orphaned_gradio_processes(application_file_path,gradio_server_port):
+            marker_path_value.unlink(missing_ok=True)
+            return
+        time.sleep(.1)
+    raise ValueError(f'기존 Gradio 프로세스를 종료하지 못했습니다: 포트 {gradio_server_port}')
 
 def create_gradio_source_fingerprint(application_source_path,application_file_path):
     gradio_source_directory=WORKFLOW_ROOT_DIRECTORY/'tools/review/ui/gradio'
@@ -43,6 +93,7 @@ def ensure_gradio_application(review_server_port, application_name, application_
         gradio_page_url=f'http://127.0.0.1:{gradio_server_port}{application_root_path}?__theme=dark'
         gradio_config_url=f'http://127.0.0.1:{gradio_server_port}/config'
         process_key_value=(review_server_port,application_name)
+        process_marker_path=create_gradio_process_marker_path(review_server_port,application_name)
         process_record_value=GRADIO_SERVER_PROCESSES.get(process_key_value)
         source_fingerprint_value=create_gradio_source_fingerprint(application_source_path,application_file_path)
         if process_record_value is not None and process_record_value.poll() is None:
@@ -52,9 +103,14 @@ def ensure_gradio_application(review_server_port, application_name, application_
             process_record_value.wait(timeout=5)
             GRADIO_SERVER_PROCESSES.pop(process_key_value,None)
             GRADIO_SERVER_SOURCE_FINGERPRINTS.pop(process_key_value,None)
+            process_marker_path.unlink(missing_ok=True)
         try:
             with urllib.request.urlopen(gradio_config_url,timeout=.3) as response_value:
-                if response_value.status==200:return gradio_page_url
+                if response_value.status==200:
+                    marker_record_value=read_gradio_process_marker(process_marker_path)
+                    if marker_record_value is not None and marker_record_value.get('fingerprint')==list(source_fingerprint_value):
+                        return gradio_page_url
+                    stop_orphaned_gradio_processes(application_file_path,gradio_server_port,process_marker_path)
         except OSError:
             pass
         log_directory_path=WORKFLOW_ROOT_DIRECTORY/'.tmp/manager-current'
@@ -65,6 +121,7 @@ def ensure_gradio_application(review_server_port, application_name, application_
             process_record_value=subprocess.Popen(application_command_values,cwd=WORKFLOW_ROOT_DIRECTORY,stdout=log_output_stream,stderr=subprocess.STDOUT,env={**os.environ,'GRADIO_ANALYTICS_ENABLED':'False'})
         GRADIO_SERVER_PROCESSES[process_key_value]=process_record_value
         GRADIO_SERVER_SOURCE_FINGERPRINTS[process_key_value]=source_fingerprint_value
+        write_gradio_process_marker(process_marker_path,process_record_value.pid,source_fingerprint_value)
         for attempt_index_value in range(100):
             if process_record_value.poll() is not None:raise ValueError('Gradio 시작 실패: .tmp/manager-current/gradio.log를 확인하세요.')
             try:

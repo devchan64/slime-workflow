@@ -82,3 +82,5 @@ class GradioMoMaskTests(unittest.TestCase):
         self.assertIn("gr.Accordion('위치 채널 기반 공통 리타깃', open=False)",interface_source_text)
         self.assertIn('build_generation_history_view(',interface_source_text)
         self.assertNotIn("gr.Gallery(label='이미지가 있는 생성 이력'",interface_source_text)
+        self.assertIn("gr.Button('현재 생성 취소'",interface_source_text)
+        self.assertIn("gr.Accordion('생성 ID로 직접 결과 조회'",interface_source_text)
