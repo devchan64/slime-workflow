@@ -5,7 +5,7 @@ from pathlib import Path
 import tempfile
 import unittest
 from PIL import Image
-from tools.review.build_frontend_review import load_animation_review, load_animation_labels, read_source_metadata, REVIEW_DIRECTION_NAMES
+from tools.review.build_frontend_review import DEFAULT_MANAGEMENT_TOOL_PAGE_RECORDS, load_animation_review, load_animation_labels, read_source_metadata, REVIEW_DIRECTION_NAMES
 from tools.review.serve import parse_review_arguments, prepare_review_directory
 from unittest.mock import patch
 
@@ -86,6 +86,11 @@ class FrontendReviewTests(unittest.TestCase):
             (self.frontend_asset_root/'animation-labels.yaml').write_text(label_catalog_text)
             with self.assertRaisesRegex(ValueError, '중복'):
                 load_animation_labels(self.frontend_asset_root)
+
+    def test_manager_source_includes_all_default_gradio_tools(self):
+        default_tool_identifier_values={current_page_record['id'] for current_page_record in DEFAULT_MANAGEMENT_TOOL_PAGE_RECORDS}
+        self.assertEqual(default_tool_identifier_values,{'tile-map-generator','writer-agent','three-reference-generator','image-generator'})
+        self.assertTrue(all(current_page_record['uiMode']=='gradio' for current_page_record in DEFAULT_MANAGEMENT_TOOL_PAGE_RECORDS))
 
     def test_repository_option_calls_snapshot_builder(self):
         parsed_argument_values = parse_review_arguments(['--frontend-repo', str(self.frontend_asset_root)])

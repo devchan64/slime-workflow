@@ -22,6 +22,12 @@ WORKFLOW_REPO_ROOT = Path(__file__).resolve().parents[2]
 REVIEW_DIRECTION_NAMES = ('down_left', 'down_right', 'up_left', 'up_right')
 REVIEW_IMAGE_SUFFIXES = {'.png', '.jpg', '.jpeg', '.webp'}
 REVIEW_HEARTBEAT_SECONDS = 5
+DEFAULT_MANAGEMENT_TOOL_PAGE_RECORDS = (
+    {'id':'tile-map-generator','label':'타일 에셋 생성기','path':'/tile-map-generator/','anchorEditor':False,'category':'tile-review','uiMode':'gradio','description':'Gradio · 지붕 · 벽 · 맵 타일 에셋 생성'},
+    {'id':'writer-agent','label':'작가 AI 에이전트','path':'/writer-agent/','anchorEditor':False,'category':'writer-agent','uiMode':'gradio','description':'Gradio · 문서 학습 · 아이디어 작성 · 실행 기록'},
+    {'id':'three-reference-generator','label':'Qwen 2511 3참조 생성','path':'/image-generation-2511/','anchorEditor':False,'category':'image-generation','uiMode':'gradio','description':'Gradio · 참조 이미지 3장 · 프롬프트 · 결과 비교'},
+    {'id':'image-generator','label':'Qwen 2512 이미지 생성','path':'/image-generation/','anchorEditor':False,'category':'image-generation','uiMode':'gradio','description':'Gradio · 프롬프트 · 실행 상태 · 생성 이력 · 결과 다운로드'},
+)
 
 
 def reject_duplicate_fields(object_field_pairs):
@@ -340,6 +346,8 @@ def build_frontend_review(frontend_repository_path, ui_bundle_directory=None):
             else:
                 from import_ui_bundle import import_ui_bundle
             manager_page_records.extend(import_ui_bundle(ui_bundle_directory, output_review_directory, emit_review_trace))
+        existing_page_identifier_values={current_page_record['id'] for current_page_record in manager_page_records}
+        manager_page_records.extend(current_page_record for current_page_record in DEFAULT_MANAGEMENT_TOOL_PAGE_RECORDS if current_page_record['id'] not in existing_page_identifier_values)
         manager_template_text = resolve_review_ui_asset('frame-manager.html').read_text().replace('</style>', '</style><style>'+shared_review_styles+'</style>', 1)
         (output_review_directory/'preview.html').write_text(manager_template_text.replace('__MANAGER_PAGES__', json.dumps(manager_page_records, ensure_ascii=False).replace('<', '\\u003c')))
         (output_review_directory/'manager-source.json').write_text(json.dumps({'frontendRepository': str(frontend_repository_path), 'labelCatalog': {'path': 'src/assets/animation-labels.yaml', 'sha256': hashlib.sha256((frontend_asset_root/'animation-labels.yaml').read_bytes()).hexdigest()}, 'assets': discovered_source_records, 'pages': manager_page_records}, ensure_ascii=False, indent=2))
