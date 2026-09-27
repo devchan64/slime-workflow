@@ -37,6 +37,30 @@ def format_gpu_status(gpu_status_record):
     if gpu_status_record.get('status')=='idle':return 'GPU · 실행 중인 연산 작업 없음'
     return 'GPU · 상태 확인 불가'
 
+
+def render_gpu_status_card(gpu_status_record):
+    if gpu_status_record.get('status') == 'busy':
+        status_kind_name = 'busy'
+        status_title_text = 'GPU 사용 중'
+        process_card_values=[]
+        for process_record in gpu_status_record.get('processes',[]):
+            process_name_text=html.escape(str(process_record.get('command','이름 없는 작업')))
+            process_identifier_text=str(process_record.get('id',''))
+            process_summary_text=html.escape(process_identifier_text[-8:]) if process_identifier_text else 'ID 없음'
+            process_title_text=html.escape(f'{process_record.get("command","이름 없는 작업")} · {process_identifier_text}')
+            memory_amount_text=html.escape(str(process_record.get('memory_mib','?')))
+            process_card_values.append(f'<span class="management-gpu-process" title="{process_title_text}"><span class="management-gpu-process-name">{process_name_text}</span><span class="management-gpu-process-id">#{process_summary_text}</span><strong>{memory_amount_text} MiB</strong></span>')
+        status_detail_text=f'<span class="management-gpu-process-list">{"".join(process_card_values)}</span>'
+    elif gpu_status_record.get('status') == 'idle':
+        status_kind_name = 'idle'
+        status_title_text = 'GPU 대기'
+        status_detail_text = '<span class="management-gpu-status-message">실행 중인 연산 작업 없음</span>'
+    else:
+        status_kind_name = 'unavailable'
+        status_title_text = 'GPU 상태 확인 필요'
+        status_detail_text = '<span class="management-gpu-status-message">상태 조회 연결을 확인하세요.</span>'
+    return f'<div class="management-gpu-status-card is-{status_kind_name}" role="status" aria-live="polite"><span class="management-gpu-status-indicator" aria-hidden="true"></span><strong>{html.escape(status_title_text)}</strong><span class="management-gpu-status-detail">{status_detail_text}</span></div>'
+
 def load_manager_page_records(source_file_path):
     source_record_values=json.loads(source_file_path.read_text())
     page_record_values=source_record_values.get('pages',[])
@@ -118,7 +142,7 @@ def build_management_menu_interface(page_record_values, review_server_port):
     with gr.Blocks(title='SLIME 관리도구') as interface_blocks_value:
         with gr.Row(elem_id='management-header'):
             gr.Markdown('## SLIME 관리도구',scale=3)
-            gpu_status_value=gr.Markdown('GPU 상태 확인 중',elem_id='management-gpu-status',scale=2)
+            gpu_status_value=gr.HTML(render_gpu_status_card({}),elem_id='management-gpu-status',scale=2)
         with gr.Row(elem_id='management-shell'):
             with gr.Column(scale=1,min_width=240,elem_id='management-sidebar'):
                 gr.Markdown('### 도구 탐색')
@@ -163,8 +187,8 @@ def build_management_menu_interface(page_record_values, review_server_port):
         page_select_value.change(lambda selected_page_identifier,search_text_value,category_name_value: move_menu_page(selected_page_identifier,search_text_value,category_name_value,0)[3],[page_select_value,search_text_value,category_select_value],navigation_position_value,queue=False)
         previous_page_button_value.click(fn=None,js="()=>{const toolInputValues=[...document.querySelectorAll('#management-tool-list input')];const selectedIndexValue=toolInputValues.findIndex((currentInputValue)=>currentInputValue.checked);toolInputValues[Math.max(0,selectedIndexValue-1)]?.click();}",queue=False)
         next_page_button_value.click(fn=None,js="()=>{const toolInputValues=[...document.querySelectorAll('#management-tool-list input')];const selectedIndexValue=toolInputValues.findIndex((currentInputValue)=>currentInputValue.checked);toolInputValues[Math.min(toolInputValues.length-1,selectedIndexValue+1)]?.click();}",queue=False)
-        interface_blocks_value.load(lambda:format_gpu_status(read_gpu_status()),outputs=gpu_status_value,queue=False)
-        if hasattr(gr,'Timer'):gr.Timer(3).tick(lambda:format_gpu_status(read_gpu_status()),outputs=gpu_status_value,show_progress='hidden')
+        interface_blocks_value.load(lambda:render_gpu_status_card(read_gpu_status()),outputs=gpu_status_value,queue=False)
+        if hasattr(gr,'Timer'):gr.Timer(3).tick(lambda:render_gpu_status_card(read_gpu_status()),outputs=gpu_status_value,show_progress='hidden')
     return interface_blocks_value,initial_selection_script
 
 from pathlib import Path as ManagementStylePath
@@ -182,7 +206,8 @@ if __name__=='__main__':
         while os.getppid()==parsed_argument_values.owner_pid:time.sleep(1)
         os._exit(0)
     threading.Thread(target=monitor_parent_process,daemon=True).start()
-    application_css_text='''.gradio-container{max-width:1560px!important;padding:16px!important}#management-shell{align-items:stretch;min-height:calc(100vh - 132px)}#management-sidebar{position:sticky;top:12px;height:calc(100vh - 30px);overflow:hidden;display:flex;flex-direction:column;padding:12px;background:#192230;border:1px solid #314055;border-radius:12px}#management-sidebar>div{min-height:0}#management-tool-count{margin-top:4px;margin-bottom:2px;color:#b9cae2}#management-tool-list{flex:1;min-height:180px;overflow-y:auto;padding:6px 2px;border-top:1px solid #314055;border-bottom:1px solid #314055}#management-tool-list .wrap{display:flex;flex-direction:column;gap:4px}#management-tool-list label{padding:7px 8px;border-radius:7px;line-height:1.35}#management-tool-list label:hover{background:#26374d}#management-tool-list label:has(input:checked){background:#315482}.management-page-frame{width:100%;height:calc(100vh - 220px);min-height:560px;border:1px solid #314055;border-radius:12px;background:#10151f}.menu-empty-state{min-height:320px;display:grid;place-items:center;border:1px dashed #40516a;border-radius:12px;color:#a7b5c8}@media(max-width:800px){#management-shell{min-height:0}#management-sidebar{position:static;height:auto;max-height:none;overflow:visible}#management-tool-list{max-height:300px;flex:none}.management-page-frame{height:70vh;min-height:460px}}'''
+    application_css_text=(Path(__file__).parents[1]/'shared/management.css').read_text()
+    application_css_text+='''.gradio-container{max-width:1560px!important;padding:16px!important}#management-shell{align-items:stretch;min-height:calc(100vh - 132px)}#management-sidebar{position:sticky;top:12px;height:calc(100vh - 30px);overflow:hidden;display:flex;flex-direction:column;padding:12px;background:#192230;border:1px solid #314055;border-radius:12px}#management-sidebar>div{min-height:0}#management-tool-count{margin-top:4px;margin-bottom:2px;color:#b9cae2}#management-tool-list{flex:1;min-height:180px;overflow-y:auto;padding:6px 2px;border-top:1px solid #314055;border-bottom:1px solid #314055}#management-tool-list .wrap{display:flex;flex-direction:column;gap:4px}#management-tool-list label{padding:7px 8px;border-radius:7px;line-height:1.35}#management-tool-list label:hover{background:#26374d}#management-tool-list label:has(input:checked){background:#315482}.management-page-frame{width:100%;height:calc(100vh - 220px);min-height:560px;border:1px solid #314055;border-radius:12px;background:#10151f}.menu-empty-state{min-height:320px;display:grid;place-items:center;border:1px dashed #40516a;border-radius:12px;color:#a7b5c8}@media(max-width:800px){#management-shell{min-height:0}#management-sidebar{position:static;height:auto;max-height:none;overflow:visible}#management-tool-list{max-height:300px;flex:none}.management-page-frame{height:70vh;min-height:460px}}'''
     application_css_text+=(Path(__file__).parent/'management-layout.css').read_text()
     interface_blocks_value,initial_selection_script=build_management_menu_interface(load_manager_page_records(parsed_argument_values.source_file),parsed_argument_values.review_port)
     interface_blocks_value.queue().launch(server_name='127.0.0.1',server_port=parsed_argument_values.port,root_path=parsed_argument_values.root_path,theme=gr.themes.Soft(),css=application_css_text+MANAGEMENT_DENSITY_STYLES,js=initial_selection_script,allowed_paths=[])

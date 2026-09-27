@@ -1,7 +1,7 @@
 """Gradio 관리 메뉴의 목록 필터와 내부 화면 연결을 검증한다."""
 import unittest
 
-from tools.review.ui.gradio.management_menu_app import create_initial_selection_script, create_menu_navigation_script, create_page_preview_html, create_tool_choice_values, filter_manager_page_records, format_gpu_status
+from tools.review.ui.gradio.management_menu_app import create_initial_selection_script, create_menu_navigation_script, create_page_preview_html, create_tool_choice_values, filter_manager_page_records, format_gpu_status, render_gpu_status_card
 
 
 class GradioManagementMenuTests(unittest.TestCase):
@@ -62,3 +62,16 @@ class GradioManagementMenuTests(unittest.TestCase):
     def test_gpu_status_is_human_readable(self):
         self.assertEqual(format_gpu_status({'status':'idle','processes':[]}),'GPU · 실행 중인 연산 작업 없음')
         self.assertIn('MoMask 모션 생성 · sample · 512 MiB',format_gpu_status({'status':'busy','processes':[{'command':'MoMask 모션 생성','id':'sample','memory_mib':512}]}))
+
+    def test_gpu_status_card_exposes_idle_and_busy_states(self):
+        idle_status_card = render_gpu_status_card({'status':'idle','processes':[]})
+        busy_status_card = render_gpu_status_card({'status':'busy','processes':[{'command':'MoMask 모션 생성','id':'sample','memory_mib':512}]})
+
+        self.assertIn('is-idle', idle_status_card)
+        self.assertIn('GPU 대기', idle_status_card)
+        self.assertIn('실행 중인 연산 작업 없음', idle_status_card)
+        self.assertIn('is-busy', busy_status_card)
+        self.assertIn('GPU 사용 중', busy_status_card)
+        self.assertIn('management-gpu-process', busy_status_card)
+        self.assertIn('MoMask 모션 생성', busy_status_card)
+        self.assertIn('#sample', busy_status_card)
