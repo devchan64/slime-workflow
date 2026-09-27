@@ -117,7 +117,7 @@ def build_character_animation_interface(server_base_address):
             generation_button_value=gr.Button('애니메이션 생성 시작',variant='primary',elem_id='character-generation-start')
             status_text_value=gr.Markdown('생성 가능 · 설정을 확인하세요.')
         logs_text_value,log_refresh_enabled,_=build_execution_logs()
-        read_history_page,history_output_values=build_generation_history_view(execute_animation_gateway,server_base_address,'이력 목록만 초기화합니다. 생성 프레임과 로그 파일은 유지됩니다. 생성 중에는 초기화할 수 없습니다.',restore_input_callback=restore_animation_inputs,restore_output_components=[motion_select_value,character_select_value,source_select_value,direction_select_value,start_frame_value,end_frame_value,resolution_select_value,step_select_value,target_fps_select_value,speed_select_value,status_text_value],result_renderer_callback=create_animation_player,record_folder_route='/character-animation')
+        read_history_page,history_output_values=build_generation_history_view(execute_animation_gateway,server_base_address,'이력 목록만 초기화합니다. 생성 프레임과 로그 파일은 유지됩니다. 생성 중에는 초기화할 수 없습니다.',restore_input_callback=restore_animation_inputs,restore_output_components=[motion_select_value,character_select_value,source_select_value,direction_select_value,start_frame_value,end_frame_value,resolution_select_value,step_select_value,target_fps_select_value,speed_select_value,status_text_value],result_renderer_callback=create_animation_player,record_folder_route='/character-animation',allow_individual_delete=True)
         def start_animation(*selection_values):
             yield gr.skip(),'생성 요청을 접수하고 있습니다.',gr.update(interactive=False,value='요청 접수 중…'),True
             try:

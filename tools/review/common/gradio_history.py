@@ -137,7 +137,7 @@ def render_history_detail_cards(history_record_values, selected_history_identifi
     return '<div class="generation-detail-cards">'+''.join(card_html_values)+'</div>'
 
 
-def build_generation_history_view(execute_service_command,server_base_address,deletion_scope_text,restore_input_callback=None,restore_output_components=None,result_renderer_callback=None,record_folder_route=None):
+def build_generation_history_view(execute_service_command,server_base_address,deletion_scope_text,restore_input_callback=None,restore_output_components=None,result_renderer_callback=None,record_folder_route=None,allow_individual_delete=False):
     """목록·페이지·명시적 조회·결과·입력·로그·초기화를 묶은 공용 영역."""
     import html
     from tools.review.common.gradio_logs import build_execution_logs,create_copyable_log_textbox
@@ -151,21 +151,24 @@ def build_generation_history_view(execute_service_command,server_base_address,de
             history_next_button=gr.Button('다음 →',scale=0,min_width=80,interactive=False)
         history_selection_value=gr.Radio(choices=[],label='이력 선택',interactive=True,visible=False)
         history_cards_value=gr.HTML(render_history_detail_cards([]),js_on_load="element.addEventListener('click',event=>{const card=event.target.closest('[data-job-id]');if(card)trigger('click',{id:card.dataset.jobId});});",elem_id='generation-history-cards')
-        history_selection_summary=gr.Markdown('목록에서 작업을 선택하세요. 결과 조회·입력 재사용·중지·재개를 할 수 있습니다.')
-        with gr.Row(elem_classes=['generation-history-actions']):
-            result_lookup_button=gr.Button('결과 조회',variant='primary',interactive=False)
-            if restore_input_callback is not None:
-                restore_input_button=gr.Button('입력값 불러오기',interactive=False)
-            else:
-                gr.Button('입력 복원 미지원',interactive=False)
-            history_resume_button=gr.Button('생성 재개',interactive=False)
-            history_cancel_button=gr.Button('작업 중지',interactive=False)
+        with gr.Column(visible=False,elem_classes=['generation-history-selected-actions']) as history_selected_panel:
+            history_selection_summary=gr.Markdown('목록에서 작업을 선택하세요. 결과 조회·입력 재사용·중지·재개를 할 수 있습니다.')
+            with gr.Row(elem_classes=['generation-history-actions']):
+                result_lookup_button=gr.Button('결과 조회',variant='primary',interactive=False)
+                if restore_input_callback is not None:
+                    restore_input_button=gr.Button('입력값 불러오기',interactive=False)
+                else:
+                    gr.Button('입력 복원 미지원',interactive=False)
+                history_resume_button=gr.Button('생성 재개',interactive=False)
+                history_cancel_button=gr.Button('작업 중지',interactive=False)
+            if allow_individual_delete:
+                history_delete_button=gr.Button('선택 이력 삭제',interactive=False)
+        history_remaining_cards=gr.HTML('',js_on_load="element.addEventListener('click',event=>{const card=event.target.closest('[data-job-id]');if(card)trigger('click',{id:card.dataset.jobId});});")
+        result_identifier_value=create_copyable_log_textbox(label='조회한 생성 ID',interactive=False,elem_id='generation-history-result-anchor')
         result_status_value=gr.Markdown('')
         result_image_value=gr.HTML(visible=False)
-        with gr.Accordion('선택 결과의 ID · 기록 위치 · 저장 입력',open=False):
-            with gr.Row(elem_classes=['generation-history-identifiers']):
-                result_identifier_value=create_copyable_log_textbox(label='조회한 생성 ID',interactive=False)
-                result_path_value=create_copyable_log_textbox(label='기록 폴더 절대 경로',interactive=False)
+        with gr.Accordion('기록 위치 · 저장 입력',open=False):
+            result_path_value=create_copyable_log_textbox(label='기록 폴더 절대 경로',interactive=False)
             folder_open_button_value=gr.Button('기록 폴더 열기',interactive=record_folder_route is not None,size='sm')
             folder_open_status_value=gr.Markdown()
             result_record_value=gr.JSON(label='저장된 입력 · 생성 기록')
@@ -178,6 +181,7 @@ def build_generation_history_view(execute_service_command,server_base_address,de
         if selected_job_identifier not in [record['id'] for record in saved_history_records]:raise gr.Error('이력을 새로고침하세요.')
         return selected_job_identifier
     history_cards_value.click(select_history_detail_card,outputs=history_selection_value,queue=False)
+    history_remaining_cards.click(select_history_detail_card,outputs=history_selection_value,queue=False)
 
     def update_selected_generation(current_selected_identifier, selected_operation_name):
         if not current_selected_identifier:raise gr.Error('이력을 선택하세요.')
@@ -205,9 +209,14 @@ def build_generation_history_view(execute_service_command,server_base_address,de
         for current_history_record in current_page_records:
             current_choice_values.append((format_history_choice_label(current_history_record),current_history_record['id']))
         selected_history_identifier=current_selected_identifier if current_selected_identifier in [value for _,value in current_choice_values] else None
-        return gr.update(choices=current_choice_values,value=selected_history_identifier),f'총 {len(current_history_records)}건 · {current_page_number} / {current_page_count}페이지' if current_history_records else '생성 이력이 없습니다. 위 설정에서 생성을 시작하세요.',gr.update(value=current_page_number,maximum=current_page_count,interactive=current_page_count>1),render_history_detail_cards(current_page_records,selected_history_identifier,server_base_address),gr.update(interactive=current_page_number>1),gr.update(interactive=current_page_number<current_page_count)
+        selected_card_end=next((index+1 for index,record in enumerate(current_page_records) if record['id']==selected_history_identifier),len(current_page_records))
+        return gr.update(choices=current_choice_values,value=selected_history_identifier),f'총 {len(current_history_records)}건 · {current_page_number} / {current_page_count}페이지' if current_history_records else '생성 이력이 없습니다. 위 설정에서 생성을 시작하세요.',gr.update(value=current_page_number,maximum=current_page_count,interactive=current_page_count>1),render_history_detail_cards(current_page_records[:selected_card_end],selected_history_identifier,server_base_address),gr.update(interactive=current_page_number>1),gr.update(interactive=current_page_number<current_page_count),render_history_detail_cards(current_page_records[selected_card_end:],None,server_base_address),gr.update(visible=bool(selected_history_identifier))
 
-    history_selection_value.change(lambda current_page_number,current_selected_identifier:read_history_page(current_page_number,current_selected_identifier)[3],[history_page_value,history_selection_value],history_cards_value,queue=False)
+    def update_selected_card_layout(current_page_number,current_selected_identifier):
+        current_page_updates=read_history_page(current_page_number,current_selected_identifier)
+        return [current_page_updates[index] for index in (3,6,7)]
+
+    history_selection_value.change(update_selected_card_layout,[history_page_value,history_selection_value],[history_cards_value,history_remaining_cards,history_selected_panel],queue=False)
 
     def read_selected_result(current_selected_identifier):
         if not current_selected_identifier:raise gr.Error('목록에서 작업을 선택하세요. 결과 조회·입력 재사용·중지·재개를 할 수 있습니다.')
@@ -245,12 +254,12 @@ def build_generation_history_view(execute_service_command,server_base_address,de
     history_selection_output_values=[history_selection_summary,result_lookup_button]
     if restore_input_callback is not None:history_selection_output_values.append(restore_input_button)
     history_selection_value.change(describe_selected_history,history_selection_value,history_selection_output_values,queue=False)
-    gr.Timer(3).tick(read_history_page,[history_page_value,history_selection_value],[history_selection_value,history_count_value,history_page_value,history_cards_value,history_previous_button,history_next_button],queue=False)
-    history_refresh_button.click(read_history_page,[history_page_value,history_selection_value],[history_selection_value,history_count_value,history_page_value,history_cards_value,history_previous_button,history_next_button],queue=False)
-    history_previous_button.click(lambda current_page_number,current_selected_identifier:read_history_page((current_page_number or 1)-1,current_selected_identifier),[history_page_value,history_selection_value],[history_selection_value,history_count_value,history_page_value,history_cards_value,history_previous_button,history_next_button],queue=False)
-    history_next_button.click(lambda current_page_number,current_selected_identifier:read_history_page((current_page_number or 1)+1,current_selected_identifier),[history_page_value,history_selection_value],[history_selection_value,history_count_value,history_page_value,history_cards_value,history_previous_button,history_next_button],queue=False)
-    history_page_value.change(read_history_page,[history_page_value,history_selection_value],[history_selection_value,history_count_value,history_page_value,history_cards_value,history_previous_button,history_next_button],queue=False)
-    result_lookup_button.click(read_selected_result,history_selection_value,[result_identifier_value,result_path_value,result_status_value,result_image_value,result_record_value,log_output_value],queue=False)
+    gr.Timer(3).tick(read_history_page,[history_page_value,history_selection_value],[history_selection_value,history_count_value,history_page_value,history_cards_value,history_previous_button,history_next_button,history_remaining_cards,history_selected_panel],queue=False)
+    history_refresh_button.click(read_history_page,[history_page_value,history_selection_value],[history_selection_value,history_count_value,history_page_value,history_cards_value,history_previous_button,history_next_button,history_remaining_cards,history_selected_panel],queue=False)
+    history_previous_button.click(lambda current_page_number,current_selected_identifier:read_history_page((current_page_number or 1)-1,current_selected_identifier),[history_page_value,history_selection_value],[history_selection_value,history_count_value,history_page_value,history_cards_value,history_previous_button,history_next_button,history_remaining_cards,history_selected_panel],queue=False)
+    history_next_button.click(lambda current_page_number,current_selected_identifier:read_history_page((current_page_number or 1)+1,current_selected_identifier),[history_page_value,history_selection_value],[history_selection_value,history_count_value,history_page_value,history_cards_value,history_previous_button,history_next_button,history_remaining_cards,history_selected_panel],queue=False)
+    history_page_value.change(read_history_page,[history_page_value,history_selection_value],[history_selection_value,history_count_value,history_page_value,history_cards_value,history_previous_button,history_next_button,history_remaining_cards,history_selected_panel],queue=False)
+    result_lookup_button.click(read_selected_result,history_selection_value,[result_identifier_value,result_path_value,result_status_value,result_image_value,result_record_value,log_output_value],queue=False).success(fn=None,js="()=>{requestAnimationFrame(()=>{document.getElementById('generation-history-result-anchor')?.scrollIntoView({behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth',block:'start'});});}")
     if record_folder_route is not None:
         folder_open_script=f"""async(identifierValue)=>{{if(!identifierValue)throw new Error('먼저 생성 이력을 선택하세요.');const responseValue=await fetch('/management/record-folder/open',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify({{route:{record_folder_route!r},id:identifierValue}})}});const payloadValue=await responseValue.json();if(!responseValue.ok)throw new Error(payloadValue.error);return payloadValue.message;}}"""
         folder_open_button_value.click(fn=None,inputs=result_identifier_value,outputs=folder_open_status_value,js=folder_open_script,queue=False)
@@ -263,7 +272,17 @@ def build_generation_history_view(execute_service_command,server_base_address,de
         reset_output_values=[*read_history_page(1),'','','',gr.update(value='',visible=False),{},gr.update(value='',label='작업을 선택하세요'),'목록에서 작업을 선택하세요. 결과 조회·입력 재사용·중지·재개를 할 수 있습니다.',gr.update(interactive=False)]
         if restore_input_callback is not None:reset_output_values.append(gr.update(interactive=False))
         return reset_output_values
-    reset_output_components=[history_selection_value,history_count_value,history_page_value,history_cards_value,history_previous_button,history_next_button,result_identifier_value,result_path_value,result_status_value,result_image_value,result_record_value,log_output_value,history_selection_summary,result_lookup_button]
+    reset_output_components=[history_selection_value,history_count_value,history_page_value,history_cards_value,history_previous_button,history_next_button,history_remaining_cards,history_selected_panel,result_identifier_value,result_path_value,result_status_value,result_image_value,result_record_value,log_output_value,history_selection_summary,result_lookup_button]
     if restore_input_callback is not None:reset_output_components.append(restore_input_button)
+    if allow_individual_delete:
+        history_delete_confirmation=gr.Checkbox(value=False,visible=False)
+        history_selection_value.change(lambda identifier:gr.update(interactive=bool(identifier)),history_selection_value,history_delete_button,queue=False)
+        def delete_selected_history(selected_job_identifier,confirmed_delete_value):
+            if confirmed_delete_value is not True:
+                return [gr.skip() for _ in reset_output_components]
+            if not selected_job_identifier:raise gr.Error('삭제할 이력을 선택하세요.')
+            execute_service_command('history-delete',{'id':selected_job_identifier})
+            return reset_view_values()
+        history_delete_button.click(delete_selected_history,[history_selection_value,history_delete_confirmation],reset_output_components,js="(identifier)=>[identifier,!!identifier && window.confirm('선택한 생성 이력을 삭제할까요?\\nID: '+identifier+'\\n이력 목록에서만 삭제합니다. 결과·참조 이미지·로그 파일은 유지됩니다. 대기·실행 중 작업은 먼저 중지하세요.')]")
     bind_history_reset_action(reset_control_values,execute_service_command,reset_view_values,reset_output_components)
-    return read_history_page,[history_selection_value,history_count_value,history_page_value,history_cards_value,history_previous_button,history_next_button]
+    return read_history_page,[history_selection_value,history_count_value,history_page_value,history_cards_value,history_previous_button,history_next_button,history_remaining_cards,history_selected_panel]
