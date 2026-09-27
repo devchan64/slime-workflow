@@ -20,7 +20,7 @@ from tools.review.common.management_gateway import execute_management_command
 from tools.review.domains.tile.tile_generation import REFERENCE_STYLE_PROMPT
 
 # 채택 예시 출처: 2026-09-27_19-33-08-a3f9691b
-ROOFTOP_TILE_PROMPT_EXAMPLE = '크고 넓은 지붕재, 이음매는 적고 간격은 넓게, 잔무늬 없이 단순한 표면 디테일, 게임 화면에서 작게 표시해도 형태가 또렷하게 보이도록 한다.'
+ROOFTOP_TILE_PROMPT_EXAMPLE = '석판 지붕. 크고 넓은 석판을 5줄로 겹쳐 배치한다. 이음매는 적고 간격은 넓게, 표면 디테일은 단순하게 표현한다.'
 
 WALL_TILE_KOREAN_EXAMPLE = '석재 벽면, 양옆에 기둥이 절반이 보이게 배치한다, 상단에 단을 배치한다.'
 SMALL_WINDOW_WALL_KOREAN_EXAMPLE = '이미지 1은 밖에서 보는 벽면이다. 실내가 보이지 않는 작은 창문은 상단에 추가한다.'

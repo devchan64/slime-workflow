@@ -3,7 +3,7 @@ style_prompt: "Hand-painted fantasy game texture, clean readable shapes, consist
 types:
   rooftop:
     label: 지붕 타일
-    base_prompt: "Top-down single flat roofing surface filling the image, thin outer frame flush with the roof surface, no raised rim, matching edges; no interior beams, tiers, or background."
+    base_prompt: "Top-down single flat roofing surface filling the image, thin painted edge stripe on the same surface, matching edges; no interior beams, tiers, or background."
   wall:
     label: 벽 타일
     base_prompt: "Orthographic wall, half-visible columns at both edges, a top beam, aligned for adjacent placement."
