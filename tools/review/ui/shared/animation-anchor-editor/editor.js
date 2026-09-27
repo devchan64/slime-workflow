@@ -151,8 +151,8 @@ function drawReviewFrame(currentAnimationTime){
  if(animationPlaybackActive)frameChoiceElement.value=String(Math.floor((currentAnimationTime-animationStartedTime)/REVIEW_FRAME_DURATION)%REVIEW_FRAME_COUNT);
  const currentFrameValue=selectCurrentFrame(),currentFrameBounds=currentFrameValue.rect;
  currentSpriteScale=calculateCurrentSpriteScale(currentFrameBounds);
- currentSpriteOffsetX=REVIEW_ANCHOR_POSITION.x-(anchorToggleElement.checked?currentFrameValue.anchor.x*currentSpriteScale:currentFrameBounds.width*currentSpriteScale/2);
- currentSpriteOffsetY=calculatePreviewGroundHeight()-(anchorToggleElement.checked?currentFrameValue.anchor.y*currentSpriteScale:currentFrameBounds.height*currentSpriteScale);
+ currentSpriteOffsetX=REVIEW_ANCHOR_POSITION.x-currentFrameValue.anchor.x*currentSpriteScale;
+ currentSpriteOffsetY=calculatePreviewGroundHeight()-currentFrameValue.anchor.y*currentSpriteScale;
  reviewCanvasContext.clearRect(0,0,REVIEW_CANVAS_WIDTH,REVIEW_CANVAS_HEIGHT);
  drawPreviewGroundPlane();
  drawRigMiniMap(currentFrameValue);
