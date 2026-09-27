@@ -17,7 +17,7 @@ class MemoryHistoryTests(unittest.TestCase):
             summary=json.loads((Path(directory)/'summary.json').read_text())
             self.assertEqual(summary['momask']['retained_runs'],20)
             self.assertEqual(summary['anny']['retained_runs'],1)
-            self.assertEqual(memory.estimate_required_memory('momask',4096)['required_memory_mib'],4096)
+            self.assertEqual(memory.estimate_required_memory('momask',4096)['required_memory_mib'],1482)
 
     def test_failed_or_unmeasured_samples_do_not_lower_or_inflate_estimate(self):
         with tempfile.TemporaryDirectory() as directory, patch.object(memory,'MEMORY_HISTORY_DIRECTORY',Path(directory)):

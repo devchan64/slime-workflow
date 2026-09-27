@@ -60,6 +60,26 @@ def cancel_gpu_generation(generation_job_path):
     return {'status':generation_status_record['status'], 'cancel_requested':True}
 
 
+def select_runnable_ticket(available_memory_mib):
+    """잠금 안에서 접수 순서대로 확인해 메모리가 맞는 첫 작업을 선택한다."""
+    for waiting_ticket_path in sorted(GPU_QUEUE_DIRECTORY.glob('*.json')):
+        try:
+            waiting_ticket_record = json.loads(waiting_ticket_path.read_text())
+            os.kill(waiting_ticket_record['pid'], 0)
+            waiting_job_directory = Path(waiting_ticket_record['path'])
+            if (waiting_job_directory/'cancel.request').exists():
+                continue
+            waiting_command_record = json.loads((waiting_job_directory/'gpu-command.json').read_text())
+        except (FileNotFoundError, ProcessLookupError):
+            continue
+        waiting_memory_estimate = estimate_required_memory(
+            waiting_command_record['service'], GPU_MEMORY_REQUIREMENTS[waiting_command_record['service']],
+            identify_execution_command(waiting_command_record['command']))
+        if waiting_memory_estimate['required_memory_mib'] <= available_memory_mib:
+            return waiting_ticket_path
+    return None
+
+
 def execute_queued_generation(generation_job_path):
     generation_job_path = Path(generation_job_path)
     generation_command_record = json.loads((generation_job_path/'gpu-command.json').read_text())
@@ -114,17 +134,22 @@ def execute_queued_generation(generation_job_path):
                             except ProcessLookupError:
                                 reservation_path.unlink(missing_ok=True)
                                 continue
-                            reserved_memory_value += reservation_record['required_memory_mib']
-                        # 실측 여유에서 예약도 차감해 모델 로딩 전 동시 접수의 과다 실행을 막는다.
+                            # 실측 여유에는 이미 사용 중인 메모리가 반영되어 있다.
+                            try:
+                                measured_reservation_mib = read_worker_memory(reservation_record['pid'])
+                            except (OSError, ValueError, subprocess.SubprocessError):
+                                measured_reservation_mib = 0
+                            reserved_memory_value += max(0, reservation_record['required_memory_mib']-measured_reservation_mib)
+                        # 아직 사용하지 않은 예약분만 차감해 모델 로딩 여유를 확보한다.
                         memory_total_value, memory_free_value = read_gpu_memory()
                         available_memory_value = max(0, memory_free_value-reserved_memory_value-GPU_MEMORY_MARGIN_MIB)
-                        if queue_position_value == 1 and available_memory_value >= required_memory_value:
+                        if select_runnable_ticket(available_memory_value) == queue_ticket_path:
                             write_record_atomically(active_reservation_path, {'pid':os.getpid(), 'path':str(generation_job_path), 'required_memory_mib':required_memory_value})
                             queue_ticket_path.unlink(missing_ok=True)
                             break
                     finally:
                         fcntl.flock(gpu_execution_handle, fcntl.LOCK_UN)
-                queue_status_record = {'status':'queued', 'queue_position':queue_position_value, 'free_memory_mib':memory_free_value, 'required_memory_mib':required_memory_value, 'reserved_memory_mib':reserved_memory_value, 'available_memory_mib':available_memory_value, 'memory_estimate':memory_estimate_record, 'message':'GPU 메모리 예약 여유 또는 앞선 요청 접수 대기'}
+                queue_status_record = {'status':'queued', 'queue_position':queue_position_value, 'free_memory_mib':memory_free_value, 'required_memory_mib':required_memory_value, 'reserved_memory_mib':reserved_memory_value, 'available_memory_mib':available_memory_value, 'memory_estimate':memory_estimate_record, 'message':'GPU 메모리 여유 또는 실행 가능한 앞선 작업 대기'}
                 write_record_atomically(generation_job_path/'status.json', queue_status_record)
                 print(f'{time.strftime("%Y-%m-%dT%H:%M:%S")}/gpu-queue/wait {queue_status_record}', flush=True)
                 time.sleep(GPU_POLL_INTERVAL)

@@ -21,6 +21,9 @@ class GpuJobQueueTests(unittest.TestCase):
         self.memory_history_patch = patch.object(gpu_memory_history,'MEMORY_HISTORY_DIRECTORY',Path(self.temporary_job_root.name)/'memory')
         self.memory_history_patch.start()
         self.addCleanup(self.memory_history_patch.stop)
+        self.worker_memory_patch = patch.object(queue_module,'read_worker_memory',return_value=0)
+        self.worker_memory_patch.start()
+        self.addCleanup(self.worker_memory_patch.stop)
         self.signal_handler_patch = patch('signal.signal')
         self.signal_handler_patch.start()
         self.addCleanup(self.signal_handler_patch.stop)
@@ -58,7 +61,7 @@ class GpuJobQueueTests(unittest.TestCase):
         (active/'existing.json').write_text(json.dumps({'pid':os.getpid(),'required_memory_mib':4096}))
         worker=Mock(returncode=0)
         worker.poll.return_value=0
-        with patch.object(queue_module,'read_gpu_memory',return_value=(24000,12000)),patch.object(queue_module.subprocess,'Popen',return_value=worker) as launch:
+        with patch.object(queue_module,'read_gpu_memory',return_value=(8151,4000)),patch.object(queue_module,'read_worker_memory',return_value=3000),patch.object(queue_module.subprocess,'Popen',return_value=worker) as launch:
             self.assertEqual(queue_module.execute_queued_generation(self.current_job_path),0)
             launch.assert_called_once()
         self.assertEqual(len(list(active.glob('*.json'))),1)
@@ -109,3 +112,35 @@ class GpuJobQueueTests(unittest.TestCase):
             queue_module.execute_queued_generation(self.current_job_path)
             terminate_group_mock.assert_called_once()
         self.assertEqual(json.loads((self.current_job_path/'status.json').read_text())['status'],'cancelled')
+
+    def test_later_job_runs_when_earlier_job_does_not_fit(self):
+        import os
+        earlier_job_path = Path(self.temporary_job_root.name)/'earlier'
+        earlier_job_path.mkdir()
+        (earlier_job_path/'gpu-command.json').write_text(json.dumps({'command':['large-worker'],'service':'image'}))
+        queue_module.GPU_QUEUE_DIRECTORY.mkdir()
+        earlier_ticket_path = queue_module.GPU_QUEUE_DIRECTORY/'00000000000000000000.json'
+        earlier_ticket_path.write_text(json.dumps({'pid':os.getpid(),'path':str(earlier_job_path)}))
+        worker_process_mock = Mock(returncode=0)
+        worker_process_mock.poll.return_value = 0
+        with patch.object(queue_module,'read_gpu_memory',return_value=(8151,4000)),patch.object(queue_module.subprocess,'Popen',return_value=worker_process_mock) as worker_launch_mock:
+            self.assertEqual(queue_module.execute_queued_generation(self.current_job_path),0)
+            worker_launch_mock.assert_called_once_with(['test-worker'],start_new_session=True)
+        self.assertTrue(earlier_ticket_path.exists())
+
+    def test_first_fitting_ticket_keeps_order_and_skips_cancelled(self):
+        import os
+        queue_module.GPU_QUEUE_DIRECTORY.mkdir()
+        ticket_paths = []
+        for index, service in enumerate(['image','anny','momask']):
+            job_directory_path = Path(self.temporary_job_root.name)/str(index)
+            job_directory_path.mkdir()
+            (job_directory_path/'gpu-command.json').write_text(json.dumps({'command':['worker'],'service':service}))
+            ticket_file_path = queue_module.GPU_QUEUE_DIRECTORY/f'{index:020d}.json'
+            ticket_file_path.write_text(json.dumps({'pid':os.getpid(),'path':str(job_directory_path)}))
+            ticket_paths.append(ticket_file_path)
+        self.assertEqual(queue_module.select_runnable_ticket(7000),ticket_paths[0])
+        self.assertEqual(queue_module.select_runnable_ticket(5000),ticket_paths[1])
+        self.assertIsNone(queue_module.select_runnable_ticket(1000))
+        (Path(self.temporary_job_root.name)/'1/cancel.request').touch()
+        self.assertEqual(queue_module.select_runnable_ticket(5000),ticket_paths[2])

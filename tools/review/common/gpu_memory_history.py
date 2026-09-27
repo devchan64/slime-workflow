@@ -76,8 +76,8 @@ def estimate_required_memory(service, configured_floor_mib, command_identity_nam
     observations = [record for _,record in load_recent_observations(service, command_identity_name)[:20]]
     summary = summarize_memory_observations(service, observations)
     measured_peak_mib = summary['peak_memory_mib']
-    # 측정 간격 사이의 피크·외형/해상도 차이를 위해 기존 기준을 하한으로 유지한다.
-    required_memory_mib = max(configured_floor_mib, math.ceil(measured_peak_mib*1.2)+256 if measured_peak_mib else 0)
+    # 완료된 실측값이 없을 때만 초기 기준을 사용한다.
+    required_memory_mib = math.ceil(measured_peak_mib*1.2)+256 if measured_peak_mib else configured_floor_mib
     return {'required_memory_mib':required_memory_mib, 'samples':summary['usable_runs'],
             'retained_runs':summary['retained_runs'], 'observed_peak_mib':measured_peak_mib, 'configured_floor_mib':configured_floor_mib,
             'method':'recent-20-max-successful-peak-plus-20-percent-and-256mib'}
