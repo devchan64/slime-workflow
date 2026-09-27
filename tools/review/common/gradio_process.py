@@ -9,6 +9,18 @@ import urllib.request
 WORKFLOW_ROOT_DIRECTORY=Path(__file__).resolve().parents[3]
 GRADIO_PROCESS_LOCK=threading.Lock()
 GRADIO_SERVER_PROCESSES={}
+GRADIO_SERVER_SOURCE_FINGERPRINTS={}
+
+def create_gradio_source_fingerprint(application_source_path,application_file_path):
+    tracked_source_paths=(
+        application_file_path,
+        application_source_path,
+        WORKFLOW_ROOT_DIRECTORY/'tools/review/common/gradio_history.py',
+        WORKFLOW_ROOT_DIRECTORY/'tools/review/common/gradio_gpu_confirmation.py',
+        WORKFLOW_ROOT_DIRECTORY/'tools/review/ui/shared/management-density.css',
+        WORKFLOW_ROOT_DIRECTORY/'tools/review/ui/shared/management.css',
+    )
+    return tuple((str(current_source_path),current_source_path.stat().st_mtime_ns if current_source_path is not None and current_source_path.is_file() else None) for current_source_path in tracked_source_paths)
 
 def ensure_gradio_application(review_server_port, application_name, application_source_path=None):
     with GRADIO_PROCESS_LOCK:
@@ -27,13 +39,20 @@ def ensure_gradio_application(review_server_port, application_name, application_
         }
         if application_name not in application_definitions:raise ValueError('지원하지 않는 Gradio 관리 화면')
         application_filename,port_offset_value,application_root_path=application_definitions[application_name]
+        application_file_path=WORKFLOW_ROOT_DIRECTORY/'tools/review/ui/gradio'/application_filename
         gradio_server_port=review_server_port+port_offset_value
         gradio_page_url=f'http://127.0.0.1:{gradio_server_port}{application_root_path}?__theme=dark'
         gradio_config_url=f'http://127.0.0.1:{gradio_server_port}/config'
         process_key_value=(review_server_port,application_name)
         process_record_value=GRADIO_SERVER_PROCESSES.get(process_key_value)
+        source_fingerprint_value=create_gradio_source_fingerprint(application_source_path,application_file_path)
         if process_record_value is not None and process_record_value.poll() is None:
-            return gradio_page_url
+            if GRADIO_SERVER_SOURCE_FINGERPRINTS.get(process_key_value)==source_fingerprint_value:
+                return gradio_page_url
+            process_record_value.terminate()
+            process_record_value.wait(timeout=5)
+            GRADIO_SERVER_PROCESSES.pop(process_key_value,None)
+            GRADIO_SERVER_SOURCE_FINGERPRINTS.pop(process_key_value,None)
         try:
             with urllib.request.urlopen(gradio_config_url,timeout=.3) as response_value:
                 if response_value.status==200:return gradio_page_url
@@ -42,10 +61,11 @@ def ensure_gradio_application(review_server_port, application_name, application_
         log_directory_path=WORKFLOW_ROOT_DIRECTORY/'.tmp/manager-current'
         log_directory_path.mkdir(parents=True,exist_ok=True)
         with (log_directory_path/'gradio.log').open('a') as log_output_stream:
-            application_command_values=[str(WORKFLOW_ROOT_DIRECTORY/'.venv-management/bin/python'),str(WORKFLOW_ROOT_DIRECTORY/'tools/review/ui/gradio'/application_filename),'--port',str(gradio_server_port),'--review-port',str(review_server_port),'--owner-pid',str(os.getpid()),'--root-path',application_root_path]
+            application_command_values=[str(WORKFLOW_ROOT_DIRECTORY/'.venv-management/bin/python'),str(application_file_path),'--port',str(gradio_server_port),'--review-port',str(review_server_port),'--owner-pid',str(os.getpid()),'--root-path',application_root_path]
             if application_source_path is not None:application_command_values.extend(['--source-file',str(application_source_path)])
             process_record_value=subprocess.Popen(application_command_values,cwd=WORKFLOW_ROOT_DIRECTORY,stdout=log_output_stream,stderr=subprocess.STDOUT,env={**os.environ,'GRADIO_ANALYTICS_ENABLED':'False'})
         GRADIO_SERVER_PROCESSES[process_key_value]=process_record_value
+        GRADIO_SERVER_SOURCE_FINGERPRINTS[process_key_value]=source_fingerprint_value
         for attempt_index_value in range(100):
             if process_record_value.poll() is not None:raise ValueError('Gradio 시작 실패: .tmp/manager-current/gradio.log를 확인하세요.')
             try:
