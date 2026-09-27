@@ -655,7 +655,7 @@
     "gggggggggggggggggrrwwwww",
     "gggggggggggggggggrrwwwww",
     "gggggggggggggggggrrwwwww",
-    "gggggggggggggggggrrwwwww",
+    "gggggpgggggggggggrrwwwww",
     "gggggpggggggpggggrrwwwww",
     "gggggpgpppppppppprrwwwww",
     "gggggpgpppppppppprrwwwww",
@@ -1551,7 +1551,7 @@
       "width": 3,
       "height": 2,
       "entrance": {
-        "column": 4,
+        "column": 5,
         "row": 5
       },
       "facing": "south",
@@ -1561,6 +1561,61 @@
           "id": "reedhaven-guild-0-0-0",
           "column": 0,
           "row": 0,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 80,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "reedhaven-guild-1-0-0",
+          "column": 1,
+          "row": 0,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 80,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "reedhaven-guild-2-0-0",
+          "column": 2,
+          "row": 0,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 80,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "reedhaven-guild-0-1-0",
+          "column": 0,
+          "row": 1,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 80,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "reedhaven-guild-1-1-0",
+          "column": 1,
+          "row": 1,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 80,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "reedhaven-guild-2-1-0",
+          "column": 2,
+          "row": 1,
           "layer": 0,
           "offsetHeight": 0,
           "height": 80,
@@ -1581,32 +1636,10 @@
           "walkable": false
         },
         {
-          "id": "reedhaven-guild-1-0-0",
-          "column": 1,
-          "row": 0,
-          "layer": 0,
-          "offsetHeight": 0,
-          "height": 80,
-          "shape": "full",
-          "material": "wall",
-          "walkable": false
-        },
-        {
-          "id": "reedhaven-guild-1-0-60",
-          "column": 1,
-          "row": 0,
-          "layer": 1,
-          "offsetHeight": 0,
-          "height": 80,
-          "shape": "full",
-          "material": "wall",
-          "walkable": false
-        },
-        {
           "id": "reedhaven-guild-roof-1-0",
           "column": 1,
           "row": 0,
-          "layer": 2,
+          "layer": 1,
           "offsetHeight": 0,
           "height": 80,
           "shape": "ramp",
@@ -1615,48 +1648,15 @@
           "walkable": false
         },
         {
-          "id": "reedhaven-guild-2-0-0",
-          "column": 2,
-          "row": 0,
-          "layer": 0,
-          "offsetHeight": 0,
-          "height": 80,
-          "shape": "full",
-          "material": "wall",
-          "walkable": false
-        },
-        {
-          "id": "reedhaven-guild-2-0-60",
+          "id": "reedhaven-guild-roof-2-0",
           "column": 2,
           "row": 0,
           "layer": 1,
           "offsetHeight": 0,
           "height": 80,
-          "shape": "full",
-          "material": "wall",
-          "walkable": false
-        },
-        {
-          "id": "reedhaven-guild-roof-2-0",
-          "column": 2,
-          "row": 0,
-          "layer": 2,
-          "offsetHeight": 0,
-          "height": 80,
           "shape": "ramp",
           "highSide": "west",
           "material": "roof",
-          "walkable": false
-        },
-        {
-          "id": "reedhaven-guild-0-1-0",
-          "column": 0,
-          "row": 1,
-          "layer": 0,
-          "offsetHeight": 0,
-          "height": 80,
-          "shape": "full",
-          "material": "wall",
           "walkable": false
         },
         {
@@ -1672,32 +1672,10 @@
           "walkable": false
         },
         {
-          "id": "reedhaven-guild-1-1-0",
-          "column": 1,
-          "row": 1,
-          "layer": 0,
-          "offsetHeight": 0,
-          "height": 80,
-          "shape": "full",
-          "material": "wall",
-          "walkable": false
-        },
-        {
-          "id": "reedhaven-guild-1-1-60",
-          "column": 1,
-          "row": 1,
-          "layer": 1,
-          "offsetHeight": 0,
-          "height": 80,
-          "shape": "full",
-          "material": "wall",
-          "walkable": false
-        },
-        {
           "id": "reedhaven-guild-roof-1-1",
           "column": 1,
           "row": 1,
-          "layer": 2,
+          "layer": 1,
           "offsetHeight": 0,
           "height": 80,
           "shape": "ramp",
@@ -1706,32 +1684,10 @@
           "walkable": false
         },
         {
-          "id": "reedhaven-guild-2-1-0",
-          "column": 2,
-          "row": 1,
-          "layer": 0,
-          "offsetHeight": 0,
-          "height": 80,
-          "shape": "full",
-          "material": "wall",
-          "walkable": false
-        },
-        {
-          "id": "reedhaven-guild-2-1-60",
-          "column": 2,
-          "row": 1,
-          "layer": 1,
-          "offsetHeight": 0,
-          "height": 80,
-          "shape": "full",
-          "material": "wall",
-          "walkable": false
-        },
-        {
           "id": "reedhaven-guild-roof-2-1",
           "column": 2,
           "row": 1,
-          "layer": 2,
+          "layer": 1,
           "offsetHeight": 0,
           "height": 80,
           "shape": "ramp",
@@ -2767,6 +2723,61 @@
           "walkable": false
         },
         {
+          "id": "reedhaven-bookshop-1-0-0",
+          "column": 1,
+          "row": 0,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 80,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "reedhaven-bookshop-0-1-0",
+          "column": 0,
+          "row": 1,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 80,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "reedhaven-bookshop-1-1-0",
+          "column": 1,
+          "row": 1,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 80,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "reedhaven-bookshop-0-2-0",
+          "column": 0,
+          "row": 2,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 80,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "reedhaven-bookshop-1-2-0",
+          "column": 1,
+          "row": 2,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 80,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
           "id": "reedhaven-bookshop-roof-0-0",
           "column": 0,
           "row": 0,
@@ -2776,17 +2787,6 @@
           "shape": "ramp",
           "highSide": "east",
           "material": "roof",
-          "walkable": false
-        },
-        {
-          "id": "reedhaven-bookshop-1-0-0",
-          "column": 1,
-          "row": 0,
-          "layer": 0,
-          "offsetHeight": 0,
-          "height": 80,
-          "shape": "full",
-          "material": "wall",
           "walkable": false
         },
         {
@@ -2802,17 +2802,6 @@
           "walkable": false
         },
         {
-          "id": "reedhaven-bookshop-0-1-0",
-          "column": 0,
-          "row": 1,
-          "layer": 0,
-          "offsetHeight": 0,
-          "height": 80,
-          "shape": "full",
-          "material": "wall",
-          "walkable": false
-        },
-        {
           "id": "reedhaven-bookshop-roof-0-1",
           "column": 0,
           "row": 1,
@@ -2822,17 +2811,6 @@
           "shape": "ramp",
           "highSide": "east",
           "material": "roof",
-          "walkable": false
-        },
-        {
-          "id": "reedhaven-bookshop-1-1-0",
-          "column": 1,
-          "row": 1,
-          "layer": 0,
-          "offsetHeight": 0,
-          "height": 80,
-          "shape": "full",
-          "material": "wall",
           "walkable": false
         },
         {
@@ -2848,17 +2826,6 @@
           "walkable": false
         },
         {
-          "id": "reedhaven-bookshop-0-2-0",
-          "column": 0,
-          "row": 2,
-          "layer": 0,
-          "offsetHeight": 0,
-          "height": 80,
-          "shape": "full",
-          "material": "wall",
-          "walkable": false
-        },
-        {
           "id": "reedhaven-bookshop-roof-0-2",
           "column": 0,
           "row": 2,
@@ -2868,17 +2835,6 @@
           "shape": "ramp",
           "highSide": "east",
           "material": "roof",
-          "walkable": false
-        },
-        {
-          "id": "reedhaven-bookshop-1-2-0",
-          "column": 1,
-          "row": 2,
-          "layer": 0,
-          "offsetHeight": 0,
-          "height": 80,
-          "shape": "full",
-          "material": "wall",
           "walkable": false
         },
         {
@@ -3435,8 +3391,8 @@
       "width": 6,
       "height": 2,
       "entrance": {
-        "column": 9,
-        "row": 18
+        "column": 7,
+        "row": 16
       },
       "facing": "east",
       "blockSchemaVersion": 1,
@@ -3445,6 +3401,127 @@
           "id": "reedhaven-inn-0-0-0",
           "column": 0,
           "row": 0,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 80,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "reedhaven-inn-1-0-0",
+          "column": 1,
+          "row": 0,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 80,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "reedhaven-inn-2-0-0",
+          "column": 2,
+          "row": 0,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 80,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "reedhaven-inn-3-0-0",
+          "column": 3,
+          "row": 0,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 80,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "reedhaven-inn-0-1-0",
+          "column": 0,
+          "row": 1,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 80,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "reedhaven-inn-1-1-0",
+          "column": 1,
+          "row": 1,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 80,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "reedhaven-inn-2-1-0",
+          "column": 2,
+          "row": 1,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 80,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "reedhaven-inn-3-1-0",
+          "column": 3,
+          "row": 1,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 80,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "reedhaven-inn-4-0-0",
+          "column": 4,
+          "row": 0,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 80,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "reedhaven-inn-5-0-0",
+          "column": 5,
+          "row": 0,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 80,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "reedhaven-inn-4-1-0",
+          "column": 4,
+          "row": 1,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 80,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "reedhaven-inn-5-1-0",
+          "column": 5,
+          "row": 1,
           "layer": 0,
           "offsetHeight": 0,
           "height": 80,
@@ -3465,32 +3542,10 @@
           "walkable": false
         },
         {
-          "id": "reedhaven-inn-1-0-0",
-          "column": 1,
-          "row": 0,
-          "layer": 0,
-          "offsetHeight": 0,
-          "height": 80,
-          "shape": "full",
-          "material": "wall",
-          "walkable": false
-        },
-        {
-          "id": "reedhaven-inn-1-0-60",
-          "column": 1,
-          "row": 0,
-          "layer": 1,
-          "offsetHeight": 0,
-          "height": 80,
-          "shape": "full",
-          "material": "wall",
-          "walkable": false
-        },
-        {
           "id": "reedhaven-inn-roof-1-0",
           "column": 1,
           "row": 0,
-          "layer": 2,
+          "layer": 1,
           "offsetHeight": 0,
           "height": 80,
           "shape": "ramp",
@@ -3499,48 +3554,15 @@
           "walkable": false
         },
         {
-          "id": "reedhaven-inn-2-0-0",
-          "column": 2,
-          "row": 0,
-          "layer": 0,
-          "offsetHeight": 0,
-          "height": 80,
-          "shape": "full",
-          "material": "wall",
-          "walkable": false
-        },
-        {
-          "id": "reedhaven-inn-2-0-60",
+          "id": "reedhaven-inn-roof-2-0",
           "column": 2,
           "row": 0,
           "layer": 1,
           "offsetHeight": 0,
           "height": 80,
-          "shape": "full",
-          "material": "wall",
-          "walkable": false
-        },
-        {
-          "id": "reedhaven-inn-roof-2-0",
-          "column": 2,
-          "row": 0,
-          "layer": 2,
-          "offsetHeight": 0,
-          "height": 80,
           "shape": "ramp",
           "highSide": "west",
           "material": "roof",
-          "walkable": false
-        },
-        {
-          "id": "reedhaven-inn-3-0-0",
-          "column": 3,
-          "row": 0,
-          "layer": 0,
-          "offsetHeight": 0,
-          "height": 80,
-          "shape": "full",
-          "material": "wall",
           "walkable": false
         },
         {
@@ -3556,17 +3578,6 @@
           "walkable": false
         },
         {
-          "id": "reedhaven-inn-0-1-0",
-          "column": 0,
-          "row": 1,
-          "layer": 0,
-          "offsetHeight": 0,
-          "height": 80,
-          "shape": "full",
-          "material": "wall",
-          "walkable": false
-        },
-        {
           "id": "reedhaven-inn-roof-0-1",
           "column": 0,
           "row": 1,
@@ -3579,32 +3590,10 @@
           "walkable": false
         },
         {
-          "id": "reedhaven-inn-1-1-0",
-          "column": 1,
-          "row": 1,
-          "layer": 0,
-          "offsetHeight": 0,
-          "height": 80,
-          "shape": "full",
-          "material": "wall",
-          "walkable": false
-        },
-        {
-          "id": "reedhaven-inn-1-1-60",
-          "column": 1,
-          "row": 1,
-          "layer": 1,
-          "offsetHeight": 0,
-          "height": 80,
-          "shape": "full",
-          "material": "wall",
-          "walkable": false
-        },
-        {
           "id": "reedhaven-inn-roof-1-1",
           "column": 1,
           "row": 1,
-          "layer": 2,
+          "layer": 1,
           "offsetHeight": 0,
           "height": 80,
           "shape": "ramp",
@@ -3613,48 +3602,15 @@
           "walkable": false
         },
         {
-          "id": "reedhaven-inn-2-1-0",
-          "column": 2,
-          "row": 1,
-          "layer": 0,
-          "offsetHeight": 0,
-          "height": 80,
-          "shape": "full",
-          "material": "wall",
-          "walkable": false
-        },
-        {
-          "id": "reedhaven-inn-2-1-60",
+          "id": "reedhaven-inn-roof-2-1",
           "column": 2,
           "row": 1,
           "layer": 1,
           "offsetHeight": 0,
           "height": 80,
-          "shape": "full",
-          "material": "wall",
-          "walkable": false
-        },
-        {
-          "id": "reedhaven-inn-roof-2-1",
-          "column": 2,
-          "row": 1,
-          "layer": 2,
-          "offsetHeight": 0,
-          "height": 80,
           "shape": "ramp",
           "highSide": "west",
           "material": "roof",
-          "walkable": false
-        },
-        {
-          "id": "reedhaven-inn-3-1-0",
-          "column": 3,
-          "row": 1,
-          "layer": 0,
-          "offsetHeight": 0,
-          "height": 80,
-          "shape": "full",
-          "material": "wall",
           "walkable": false
         },
         {
@@ -3670,17 +3626,6 @@
           "walkable": false
         },
         {
-          "id": "reedhaven-inn-4-0-0",
-          "column": 4,
-          "row": 0,
-          "layer": 0,
-          "offsetHeight": 0,
-          "height": 80,
-          "shape": "full",
-          "material": "wall",
-          "walkable": false
-        },
-        {
           "id": "reedhaven-inn-roof-4-0",
           "column": 4,
           "row": 0,
@@ -3690,17 +3635,6 @@
           "shape": "ramp",
           "highSide": "west",
           "material": "roof",
-          "walkable": false
-        },
-        {
-          "id": "reedhaven-inn-5-0-0",
-          "column": 5,
-          "row": 0,
-          "layer": 0,
-          "offsetHeight": 0,
-          "height": 80,
-          "shape": "full",
-          "material": "wall",
           "walkable": false
         },
         {
@@ -3716,17 +3650,6 @@
           "walkable": false
         },
         {
-          "id": "reedhaven-inn-4-1-0",
-          "column": 4,
-          "row": 1,
-          "layer": 0,
-          "offsetHeight": 0,
-          "height": 80,
-          "shape": "full",
-          "material": "wall",
-          "walkable": false
-        },
-        {
           "id": "reedhaven-inn-roof-4-1",
           "column": 4,
           "row": 1,
@@ -3736,17 +3659,6 @@
           "shape": "ramp",
           "highSide": "west",
           "material": "roof",
-          "walkable": false
-        },
-        {
-          "id": "reedhaven-inn-5-1-0",
-          "column": 5,
-          "row": 1,
-          "layer": 0,
-          "offsetHeight": 0,
-          "height": 80,
-          "shape": "full",
-          "material": "wall",
           "walkable": false
         },
         {
@@ -4784,6 +4696,61 @@
           "walkable": false
         },
         {
+          "id": "reedhaven-workshop-1-0-0",
+          "column": 1,
+          "row": 0,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 80,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "reedhaven-workshop-0-1-0",
+          "column": 0,
+          "row": 1,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 80,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "reedhaven-workshop-1-1-0",
+          "column": 1,
+          "row": 1,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 80,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "reedhaven-workshop-0-2-0",
+          "column": 0,
+          "row": 2,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 80,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "reedhaven-workshop-1-2-0",
+          "column": 1,
+          "row": 2,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 80,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
           "id": "reedhaven-workshop-roof-0-0",
           "column": 0,
           "row": 0,
@@ -4793,17 +4760,6 @@
           "shape": "ramp",
           "highSide": "east",
           "material": "roof",
-          "walkable": false
-        },
-        {
-          "id": "reedhaven-workshop-1-0-0",
-          "column": 1,
-          "row": 0,
-          "layer": 0,
-          "offsetHeight": 0,
-          "height": 80,
-          "shape": "full",
-          "material": "wall",
           "walkable": false
         },
         {
@@ -4819,17 +4775,6 @@
           "walkable": false
         },
         {
-          "id": "reedhaven-workshop-0-1-0",
-          "column": 0,
-          "row": 1,
-          "layer": 0,
-          "offsetHeight": 0,
-          "height": 80,
-          "shape": "full",
-          "material": "wall",
-          "walkable": false
-        },
-        {
           "id": "reedhaven-workshop-roof-0-1",
           "column": 0,
           "row": 1,
@@ -4839,17 +4784,6 @@
           "shape": "ramp",
           "highSide": "east",
           "material": "roof",
-          "walkable": false
-        },
-        {
-          "id": "reedhaven-workshop-1-1-0",
-          "column": 1,
-          "row": 1,
-          "layer": 0,
-          "offsetHeight": 0,
-          "height": 80,
-          "shape": "full",
-          "material": "wall",
           "walkable": false
         },
         {
@@ -4865,17 +4799,6 @@
           "walkable": false
         },
         {
-          "id": "reedhaven-workshop-0-2-0",
-          "column": 0,
-          "row": 2,
-          "layer": 0,
-          "offsetHeight": 0,
-          "height": 80,
-          "shape": "full",
-          "material": "wall",
-          "walkable": false
-        },
-        {
           "id": "reedhaven-workshop-roof-0-2",
           "column": 0,
           "row": 2,
@@ -4885,17 +4808,6 @@
           "shape": "ramp",
           "highSide": "east",
           "material": "roof",
-          "walkable": false
-        },
-        {
-          "id": "reedhaven-workshop-1-2-0",
-          "column": 1,
-          "row": 2,
-          "layer": 0,
-          "offsetHeight": 0,
-          "height": 80,
-          "shape": "full",
-          "material": "wall",
           "walkable": false
         },
         {
@@ -5465,6 +5377,61 @@
           "walkable": false
         },
         {
+          "id": "reedhaven-market-1-0-0",
+          "column": 1,
+          "row": 0,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 80,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "reedhaven-market-0-1-0",
+          "column": 0,
+          "row": 1,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 80,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "reedhaven-market-1-1-0",
+          "column": 1,
+          "row": 1,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 80,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "reedhaven-market-0-2-0",
+          "column": 0,
+          "row": 2,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 80,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
+          "id": "reedhaven-market-1-2-0",
+          "column": 1,
+          "row": 2,
+          "layer": 0,
+          "offsetHeight": 0,
+          "height": 80,
+          "shape": "full",
+          "material": "wall",
+          "walkable": false
+        },
+        {
           "id": "reedhaven-market-roof-0-0",
           "column": 0,
           "row": 0,
@@ -5474,17 +5441,6 @@
           "shape": "ramp",
           "highSide": "east",
           "material": "roof",
-          "walkable": false
-        },
-        {
-          "id": "reedhaven-market-1-0-0",
-          "column": 1,
-          "row": 0,
-          "layer": 0,
-          "offsetHeight": 0,
-          "height": 80,
-          "shape": "full",
-          "material": "wall",
           "walkable": false
         },
         {
@@ -5500,17 +5456,6 @@
           "walkable": false
         },
         {
-          "id": "reedhaven-market-0-1-0",
-          "column": 0,
-          "row": 1,
-          "layer": 0,
-          "offsetHeight": 0,
-          "height": 80,
-          "shape": "full",
-          "material": "wall",
-          "walkable": false
-        },
-        {
           "id": "reedhaven-market-roof-0-1",
           "column": 0,
           "row": 1,
@@ -5520,17 +5465,6 @@
           "shape": "ramp",
           "highSide": "east",
           "material": "roof",
-          "walkable": false
-        },
-        {
-          "id": "reedhaven-market-1-1-0",
-          "column": 1,
-          "row": 1,
-          "layer": 0,
-          "offsetHeight": 0,
-          "height": 80,
-          "shape": "full",
-          "material": "wall",
           "walkable": false
         },
         {
@@ -5546,17 +5480,6 @@
           "walkable": false
         },
         {
-          "id": "reedhaven-market-0-2-0",
-          "column": 0,
-          "row": 2,
-          "layer": 0,
-          "offsetHeight": 0,
-          "height": 80,
-          "shape": "full",
-          "material": "wall",
-          "walkable": false
-        },
-        {
           "id": "reedhaven-market-roof-0-2",
           "column": 0,
           "row": 2,
@@ -5566,17 +5489,6 @@
           "shape": "ramp",
           "highSide": "east",
           "material": "roof",
-          "walkable": false
-        },
-        {
-          "id": "reedhaven-market-1-2-0",
-          "column": 1,
-          "row": 2,
-          "layer": 0,
-          "offsetHeight": 0,
-          "height": 80,
-          "shape": "full",
-          "material": "wall",
           "walkable": false
         },
         {

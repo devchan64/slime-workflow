@@ -61,7 +61,7 @@ class MapRenderProfileTests(unittest.TestCase):
         guild_building_record = next(building for building in reedhaven_map_record['buildings'] if building['id'] == 'reedhaven-guild')
 
         self.assertEqual((guild_building_record['width'], guild_building_record['height']), (3, 2))
-        self.assertEqual(guild_building_record['entrance'], {'column': 4, 'row': 5})
+        self.assertEqual(guild_building_record['entrance'], {'column': 5, 'row': 5})
         self.assertTrue(all(block['column'] < 3 and block['row'] < 2 for block in guild_building_record['blocks']))
 
     def test_reedhaven_inn_has_six_by_two_block_footprint(self):
@@ -69,8 +69,30 @@ class MapRenderProfileTests(unittest.TestCase):
         inn_building_record = next(building for building in reedhaven_map_record['buildings'] if building['id'] == 'reedhaven-inn')
 
         self.assertEqual((inn_building_record['width'], inn_building_record['height']), (6, 2))
-        self.assertEqual(inn_building_record['entrance'], {'column': 9, 'row': 18})
+        self.assertEqual(inn_building_record['entrance'], {'column': 7, 'row': 16})
         self.assertTrue(all(block['column'] < 6 and block['row'] < 2 for block in inn_building_record['blocks']))
+
+    def test_reedhaven_buildings_have_one_wall_floor(self):
+        reedhaven_map_record = json.loads((WORKFLOW_ROOT / 'assets/world/isloon/blocks/reedhaven.json').read_text(encoding='utf-8'))
+
+        for building_record in reedhaven_map_record['buildings']:
+            wall_layer_values = {block['layer'] for block in building_record['blocks'] if block['material'] == 'wall'}
+            roof_layer_values = {block['layer'] for block in building_record['blocks'] if block['material'] == 'roof'}
+            self.assertEqual(wall_layer_values, {0}, building_record['id'])
+            self.assertEqual(roof_layer_values, {1}, building_record['id'])
+
+    def test_reedhaven_entrances_touch_paved_roads(self):
+        reedhaven_map_record = json.loads((WORKFLOW_ROOT / 'assets/world/isloon/blocks/reedhaven.json').read_text(encoding='utf-8'))
+
+        for building_record in reedhaven_map_record['buildings']:
+            entrance_record = building_record['entrance']
+            self.assertEqual(reedhaven_map_record['terrainRows'][entrance_record['row']][entrance_record['column']], 'p', building_record['id'])
+            column_minimum = building_record['origin']['column']
+            column_maximum = column_minimum + building_record['width'] - 1
+            row_minimum = building_record['origin']['row']
+            row_maximum = row_minimum + building_record['height'] - 1
+            entrance_distance = min(abs(entrance_record['column'] - current_column) + abs(entrance_record['row'] - current_row) for current_column in range(column_minimum, column_maximum + 1) for current_row in range(row_minimum, row_maximum + 1))
+            self.assertEqual(entrance_distance, 1, building_record['id'])
 
     def test_stonewarm_uses_registered_stone_wall(self):
         tile_catalog_source = (WORKFLOW_ROOT / 'assets/world/isloon/tile-catalog.yaml').read_text(encoding='utf-8')

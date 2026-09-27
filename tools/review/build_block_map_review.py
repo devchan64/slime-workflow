@@ -29,6 +29,33 @@ def validate_town_block_heights(map_record_values, block_height_value):
                     raise ValueError(f'블록 면 높이 오류: {map_record_values["id"]}')
 
 
+def build_current_block_faces(block_record_values, block_height_value):
+    """현재 블록 구성으로 검수 전용 면을 다시 만든다."""
+    current_face_records=[]
+    for current_block_record in block_record_values:
+        current_base_height=current_block_record['layer']*block_height_value+current_block_record['offsetHeight']
+        current_top_height=current_base_height+current_block_record['height']
+        current_column=current_block_record['column']
+        current_row=current_block_record['row']
+        current_corners=[
+            {'column':current_column-.5,'row':current_row-.5,'height':current_base_height},
+            {'column':current_column+.5,'row':current_row-.5,'height':current_base_height},
+            {'column':current_column+.5,'row':current_row+.5,'height':current_base_height},
+            {'column':current_column-.5,'row':current_row+.5,'height':current_base_height},
+        ]
+        current_top_corners=[{**current_corner,'height':current_top_height} for current_corner in current_corners]
+        if current_block_record['shape']=='ramp':
+            high_side_name=current_block_record['highSide']
+            for current_corner in current_top_corners:
+                if (high_side_name=='east' and current_corner['column']>current_column) or (high_side_name=='west' and current_corner['column']<current_column) or (high_side_name=='south' and current_corner['row']>current_row) or (high_side_name=='north' and current_corner['row']<current_row):
+                    current_corner['height']+=current_block_record['height']
+        current_face_records.append({'vertices':current_top_corners,'material':current_block_record['material'],'top':True})
+        for current_corner_index in range(4):
+            next_corner_index=(current_corner_index+1)%4
+            current_face_records.append({'vertices':[current_corners[current_corner_index],current_corners[next_corner_index],current_top_corners[next_corner_index],current_top_corners[current_corner_index]],'material':current_block_record['material'],'top':False})
+    return current_face_records
+
+
 def build_block_map_review(output_directory_path):
     output_directory_path=Path(output_directory_path).resolve()
     if not output_directory_path.is_relative_to(WORKFLOW_ROOT_DIRECTORY/'.tmp'):
@@ -50,8 +77,10 @@ def build_block_map_review(output_directory_path):
         required_material_names=set(current_map_record['terrainCodes'].values())|{'wall','roof'}
         if required_material_names-set(current_material_record['materials']):
             raise ValueError(f'임시 재질이 정의되지 않았습니다: {source_map_path.name}')
+        for current_building_record in current_map_record['buildings']:
+            current_building_record['faces']=build_current_block_faces(current_building_record['blocks'],town_block_height)
         target_map_filename=f"block-map-{current_map_record['id']}.json"
-        shutil.copy2(source_map_path,output_directory_path/target_map_filename)
+        (output_directory_path/target_map_filename).write_text(json.dumps(current_map_record,ensure_ascii=False))
         exported_map_records.append({'id':current_map_record['id'],'name':current_map_record['name'],'path':target_map_filename})
     if not exported_map_records:
         raise ValueError('검수할 마을 맵이 없습니다.')
