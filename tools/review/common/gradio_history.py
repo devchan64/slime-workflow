@@ -28,6 +28,7 @@ def format_history_choice_label(current_history_record):
     current_request_record=current_history_record.get('request',{})
     current_created_text=format_history_created_time(current_history_record)
     current_summary_text=format_history_request_summary(current_request_record)
+    current_status_label={'queued':'GPU 대기 중'}.get(current_status_label,current_status_label)
     return f"{current_status_label} · {current_created_text}\n{current_summary_text}\nID · {current_history_record['id']}"
 
 
@@ -120,6 +121,8 @@ def build_generation_history_view(execute_service_command,server_base_address,de
                 history_selection_value=gr.Radio(choices=[],label='조회할 생성 이력',interactive=True,elem_id='generation-history-selection')
                 history_selection_summary=gr.Markdown('조회할 생성 이력을 선택하세요.')
                 with gr.Row():
+                    history_cancel_button=gr.Button('선택 작업 중지',interactive=False)
+                    history_resume_button=gr.Button('취소·실패 작업 재개',interactive=False)
                     result_lookup_button=gr.Button('선택 결과 조회',variant='primary',interactive=False)
                     if restore_input_callback is not None:
                         restore_input_button=gr.Button('입력값 다시 불러오기',interactive=False)
@@ -133,6 +136,23 @@ def build_generation_history_view(execute_service_command,server_base_address,de
         with gr.Accordion('저장된 입력값 · 기록',open=False):
             result_record_value=gr.JSON(label='생성 기록')
         log_output_value,log_refresh_value,log_panel_value=build_execution_logs()
+
+    def update_selected_generation(current_selected_identifier, selected_operation_name):
+        if not current_selected_identifier:raise gr.Error('이력을 선택하세요.')
+        try:
+            selected_operation_result=execute_service_command(selected_operation_name,{'id':current_selected_identifier})
+        except (ValueError,RuntimeError) as selected_operation_error:
+            raise gr.Error(str(selected_operation_error))
+        return '중지를 요청했습니다.' if selected_operation_name=='cancel' else '재개 요청을 접수했습니다. GPU 여유가 생기면 실행합니다.'
+    history_cancel_button.click(lambda selected_job_identifier:update_selected_generation(selected_job_identifier,'cancel'),history_selection_value,result_status_value,queue=False)
+    history_resume_button.click(lambda selected_job_identifier:update_selected_generation(selected_job_identifier,'resume'),history_selection_value,result_status_value,queue=False)
+
+    def refresh_history_controls(current_selected_identifier):
+        if not current_selected_identifier:return gr.update(interactive=False),gr.update(interactive=False)
+        current_status_value=execute_service_command('status',{'id':current_selected_identifier}).get('status')
+        return gr.update(interactive=current_status_value in ('running','queued')),gr.update(interactive=current_status_value in ('failed','cancelled'))
+    history_selection_value.change(refresh_history_controls,history_selection_value,[history_cancel_button,history_resume_button],queue=False)
+    gr.Timer(3).tick(refresh_history_controls,history_selection_value,[history_cancel_button,history_resume_button],queue=False)
 
     def read_history_page(current_page_number,current_selected_identifier=None):
         current_history_records=execute_service_command('history',{}).get('records',[])
@@ -157,7 +177,7 @@ def build_generation_history_view(execute_service_command,server_base_address,de
             if current_image_path:
                 current_image_url=server_base_address.rstrip('/')+current_image_path
                 current_image_html=f'<a href="{html.escape(current_image_url,quote=True)}" target="_blank" rel="noopener"><img src="{html.escape(current_image_url,quote=True)}" alt="생성 결과" style="width:100%;max-height:620px;object-fit:contain"></a>'
-        return current_selected_identifier,current_history_record.get('path','기록 경로가 없습니다.'),'상태: '+str(current_status_record.get('status','unknown')),current_image_html,current_history_record,gr.update(value=current_status_record.get('log') or '기록된 로그가 없습니다.',label='실행 로그 · '+current_selected_identifier)
+        return current_selected_identifier,current_history_record.get('path','기록 경로가 없습니다.'),'상태: '+str(current_status_record.get('status','unknown'))+' · '+str(current_status_record.get('message',''))+(' · 대기 순서 '+str(current_status_record['queue_position']) if 'queue_position' in current_status_record else ''),current_image_html,current_history_record,gr.update(value=current_status_record.get('log') or '기록된 로그가 없습니다.',label='실행 로그 · '+current_selected_identifier)
 
     def describe_selected_history(current_selected_identifier):
         if not current_selected_identifier:
@@ -182,6 +202,7 @@ def build_generation_history_view(execute_service_command,server_base_address,de
     history_selection_output_values=[history_selection_summary,result_lookup_button]
     if restore_input_callback is not None:history_selection_output_values.append(restore_input_button)
     history_selection_value.change(describe_selected_history,history_selection_value,history_selection_output_values,queue=False)
+    gr.Timer(3).tick(read_history_page,[history_page_value,history_selection_value],[history_selection_value,history_count_value,history_page_value,history_thumbnail_value,history_thumbnail_identifier_state],queue=False)
     history_refresh_button.click(read_history_page,[history_page_value,history_selection_value],[history_selection_value,history_count_value,history_page_value,history_thumbnail_value,history_thumbnail_identifier_state],queue=False)
     history_page_value.change(read_history_page,[history_page_value,history_selection_value],[history_selection_value,history_count_value,history_page_value,history_thumbnail_value,history_thumbnail_identifier_state],queue=False)
     def select_history_thumbnail(thumbnail_identifier_values,selection_event_data:gr.SelectData):

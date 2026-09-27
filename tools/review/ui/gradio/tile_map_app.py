@@ -40,12 +40,8 @@ def restore_tile_inputs(current_history_record,server_base_address):
 
 def cancel_tile_generation(current_generation_identifier):
     if not current_generation_identifier:raise gr.Error('취소할 실행 중 작업이 없습니다.')
-    current_active_record=execute_tile_gateway('active',{})
-    if not current_active_record.get('running') or current_active_record.get('id')!=current_generation_identifier:
-        raise gr.Error('해당 작업은 실행 중이 아닙니다. 상태를 새로고침하세요.')
-    current_cancel_record=execute_tile_gateway('cancel',{'id':current_generation_identifier})
-    if current_cancel_record.get('status')!='cancelled':raise gr.Error('취소 완료를 확인하지 못했습니다. 상태를 새로고침하세요.')
-    return '생성을 취소했습니다. 생성 이력과 로그는 보존됩니다.',gr.update(interactive=False),gr.update(interactive=True)
+    execute_tile_gateway('cancel',{'id':current_generation_identifier})
+    return '중지를 요청했습니다. 이력에서 종료 상태를 확인하세요.',gr.update(interactive=False),gr.update(interactive=True)
 
 def refresh_tile_execution(current_generation_identifier):
     current_active_record=execute_tile_gateway('active',{})
