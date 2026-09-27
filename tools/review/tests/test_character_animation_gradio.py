@@ -23,12 +23,14 @@ class CharacterAnimationGradioTests(unittest.TestCase):
         preview_html_text=character_animation_app.create_motion_preview_player('standing-v8','anny','down_left',10,20,4,2,1,'http://127.0.0.1:8770')
         self.assertIn('character-animation/asset/standing-v8/anny/down_left/10',preview_html_text)
         self.assertIn('character-animation/asset/standing-v8/anny/down_left/12',preview_html_text)
-        self.assertIn('재생',preview_html_text)
+        self.assertIn('미리보기 불러오기',preview_html_text)
+        self.assertIn('id=&quot;play&quot; disabled',preview_html_text)
         self.assertIn('입력 포즈 프레임',preview_html_text)
         self.assertIn('allow-same-origin',preview_html_text)
         self.assertNotIn('<select id="fps">',preview_html_text)
         self.assertIn('loading&lt;4',preview_html_text)
-        self.assertIn('미리보기 프레임 준비가 끝난 뒤 재생할 수 있습니다.',preview_html_text)
+        self.assertIn('load&#x27;).onclick',preview_html_text)
+        self.assertNotIn('};preloadNext()</script>',preview_html_text)
 
     def test_motion_preview_uses_generation_sampling(self):
         self.assertEqual(character_animation_app.calculate_preview_frame_numbers(10,20,4,2,1),[10,12,14,16,18,20])
