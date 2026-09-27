@@ -267,3 +267,7 @@ GUI의 좌표 생성 이력에서 저장 시각·완료 상태·프레임 수를
 GUI와 CLI는 `character-animation sprite-history <원본 ID>` 명령을 공유한다. 응답 `items`에는 `id`, `created_at`, `frames`, `label`, `compatible`, `document`가 포함된다. 예: `python tools/manager.py character-animation sprite-history asset:character.default.white-shirt.idle`. 새 저장은 `sprite-save`, 최신 저장본 조회는 기존 `sprite-load`를 사용한다.
 
 스프라이트 이력 카드를 선택하면 `선택 이력 초기화`, 목록 마지막의 `이력 수동 초기화`를 펼치면 `전체 이력 초기화`를 제공한다. 전체 범위는 현재 원본 ID의 저장 이력이다. 두 동작은 대상·범위를 확인한 뒤 목록에서만 제외하며 저장 JSON과 원본 이미지·현재 편집은 보존한다. 제외된 최신 저장본은 재접속 시 자동 복원하지 않는다. 이후 새로 저장한 이력만 목록에 추가된다. GUI/CLI는 `sprite-history-delete <원본 ID> --revision <이력 ID>`와 `sprite-history-reset <원본 ID>`를 공유한다. 제외 목록은 기존 저장소의 `hidden-history.json`에 영구 보존한다.
+
+프로젝트 저장은 서버에서 각 프레임의 배치·배율을 렌더링해 동일 이력 ID의 `.png`를 `.json`과 함께 보존한다. PNG는 방향별 행·시간순 열의 투명 시트이며 가이드·검수 배경을 포함하지 않는다. 시트 생성 실패 시 성공 이력을 게시하지 않는다. 정규화 JSON·PNG 시트의 브라우저 다운로드 기능은 폐기했다. 프로젝트 저장으로 서버에 보관하고 저장 이력으로 관리한다. 이전 JSON 전용 이력은 입력값을 불러온 후 다시 저장하면 PNG가 생성된다. 초기화는 PNG 파일도 보존한다.
+
+출력 크기 선택·목표 높이 입력 UI는 제거했다. 원본 선택은 항상 표시하고, 저장 시 원본과 동일한 정사각형 셀 크기를 사용한다. 과거 출력 크기가 다른 편집은 배치·배율을 비례 환산한다. 현재 지원 범위는 동일한 크기의 정사각형 원본 셀이며, 크기가 다르거나 직사각형이면 명확한 오류로 거절한다.

@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from uuid import uuid4
 from tools.review.common.generation_records import write_record_atomically
+from .sprite_sheet import render_sprite_saved_sheet
 
 SPRITE_PROJECT_DIRECTORY = Path(__file__).resolve().parents[4]/'.local/sprite-editor'
 SPRITE_HISTORY_COMMAND_LOCK=threading.RLock()
@@ -61,7 +62,7 @@ def execute_sprite_locked_command(operation_command_name, command_payload_value)
         for current_revision_path in sorted(revision_file_paths,reverse=True):
             if current_revision_path.stem in hidden_revision_values:continue
             current_saved_record=json.loads(current_revision_path.read_text())
-            history_record_items.append({'id':current_saved_record['revision'],'created_at':current_saved_record['saved_at'],'frames':len(current_saved_record['document']['frames']),'label':'스프라이트 저장','compatible':current_saved_record['source_digest']==current_source_digest,'document':current_saved_record['document']})
+            history_record_items.append({'id':current_saved_record['revision'],'created_at':current_saved_record['saved_at'],'frames':len(current_saved_record['document']['frames']),'label':'스프라이트 저장','compatible':current_saved_record['source_digest']==current_source_digest,'document':current_saved_record['document'],'sheet':current_saved_record.get('sheet')})
         return {'items':history_record_items}
     if operation_command_name=='sprite-load':
         latest_project_path=project_output_directory/'latest.json'
@@ -82,7 +83,7 @@ def execute_sprite_locked_command(operation_command_name, command_payload_value)
         if not isinstance(current_output_settings,dict) or set(current_output_settings)!={'cellSize','targetHeight'}:raise ValueError('출력 설정 필드 오류')
         output_cell_pixels=current_output_settings['cellSize']
         target_body_height=current_output_settings['targetHeight']
-        if type(output_cell_pixels) is not int or output_cell_pixels not in (128,256,384,512):raise ValueError('출력 셀은 128·256·384·512px만 지원합니다.')
+        if type(output_cell_pixels) is not int or not 1<=output_cell_pixels<=4096:raise ValueError('출력 셀은 1~4096px 정수여야 합니다.')
         if type(target_body_height) not in (int,float) or not math.isfinite(target_body_height) or not 0<target_body_height<=output_cell_pixels:raise ValueError('목표 몸체 높이는 출력 셀 안의 양수여야 합니다.')
     current_guide_records=current_project_document.get('guides',[])
     if not isinstance(current_guide_records,list) or len(current_guide_records)>32:raise ValueError('추가 가이드는 최대 32개 목록이어야 합니다.')
@@ -101,6 +102,8 @@ def execute_sprite_locked_command(operation_command_name, command_payload_value)
     project_output_directory.mkdir(parents=True,exist_ok=True)
     revision_identifier=datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S')+'-'+uuid4().hex[:8]
     saved_project_record={'revision':revision_identifier,'document':current_project_document,'source_digest':hashlib.sha256(json.dumps(source_asset_record,sort_keys=True).encode()).hexdigest(),'saved_at':datetime.now(timezone.utc).isoformat()}
+    saved_project_record['sheet']=render_sprite_saved_sheet(source_asset_record,current_project_document,project_output_directory/(revision_identifier+'.png'))
+    saved_project_record['sheet']['url']='/character-animation/sprite-sheet/'+project_output_directory.name+'/'+revision_identifier+'.png'
     write_record_atomically(project_output_directory/(revision_identifier+'.json'),saved_project_record)
     write_record_atomically(project_output_directory/'latest.json',saved_project_record)
     return {**saved_project_record,'path':str(project_output_directory/(revision_identifier+'.json'))}

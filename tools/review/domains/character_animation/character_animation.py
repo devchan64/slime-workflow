@@ -34,6 +34,13 @@ class CharacterAnimationManager:
                     response_payload_bytes=response_file_path.read_bytes()
                     if request_route_suffix=='sprite-editor.js':response_payload_bytes=(response_file_path.parents[1]/'shared/saved-record-history.js').read_bytes()+b'\n'+response_payload_bytes
                     response_content_type=mimetypes.guess_type(response_file_path)[0] or 'text/plain'
+                elif request_route_suffix.startswith('sprite-sheet/'):
+                    import re
+                    from .sprite_editor import SPRITE_PROJECT_DIRECTORY
+                    if not re.fullmatch(r'sprite-sheet/[0-9a-f]{24}/\d{8}T\d{6}-[0-9a-f]{8}\.png',request_route_suffix):raise ValueError('저장 시트 경로 오류')
+                    response_file_path=(SPRITE_PROJECT_DIRECTORY/request_route_suffix.removeprefix('sprite-sheet/')).resolve()
+                    if not response_file_path.is_relative_to(SPRITE_PROJECT_DIRECTORY.resolve()):raise ValueError('저장 시트 경로 이탈')
+                    response_payload_bytes=response_file_path.read_bytes();response_content_type='image/png'
                 elif request_route_suffix=='log-viewer.js':
                     response_payload_bytes=MANAGEMENT_LOG_VIEWER_SCRIPT.encode();response_content_type='text/javascript'
                 elif request_route_suffix.startswith('files/'):

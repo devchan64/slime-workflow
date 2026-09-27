@@ -19,8 +19,10 @@ class SpriteEditorGradioTests(unittest.TestCase):
 
     def test_comparison_and_export_use_shared_styles(self):
         editor_markup_text=read_sprite_editor_markup()
-        for required_element_name in ('sprite-canvas','sprite-directions','sprite-png-all','sprite-sheet','sprite-size'):
+        for required_element_name in ('sprite-canvas','sprite-directions','sprite-sheet'):
             self.assertIn(required_element_name,editor_markup_text)
         self.assertNotIn('id="sprite-original"',editor_markup_text)
+        for removed_control_name in ('sprite-json','sprite-png','sprite-png-all','sprite-size','sprite-height'):
+            self.assertNotIn('id="'+removed_control_name+'"',editor_markup_text)
         self.assertIn('--page:',read_sprite_editor_styles())
         self.assertIn('#sprite-editor-root>header',read_sprite_editor_styles())
