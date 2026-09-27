@@ -9,7 +9,7 @@ from pathlib import Path
 import gradio as gr
 
 
-STATIC_REVIEW_APPLICATION_STYLES='#static-review-root{min-height:640px}.static-review-error{padding:16px;border:1px solid #9c4b4b;border-radius:8px;color:#ffd3d3}'
+STATIC_REVIEW_APPLICATION_STYLES='#static-review-root{width:100%;min-height:640px}.static-review-error{padding:16px;border:1px solid #9c4b4b;border-radius:8px;color:#ffd3d3}'
 
 
 def load_static_review_paths(source_file_path):
@@ -69,13 +69,14 @@ try{{
     if(sourceScriptElement.src){{nextScriptElement.src=new URL(sourceScriptElement.getAttribute('src'),staticReviewPageUrl).href;await new Promise((resolveValue,rejectValue)=>{{nextScriptElement.onload=resolveValue;nextScriptElement.onerror=()=>rejectValue(new Error('정적 검수 스크립트를 불러오지 못했습니다.'));document.body.append(nextScriptElement);}});}}
     else{{nextScriptElement.textContent=sourceScriptElement.textContent;document.body.append(nextScriptElement);}}
   }}
-}}catch(currentErrorValue){{staticReviewRoot.innerHTML='<p class="static-review-error" role="alert">'+currentErrorValue.message+'</p>';}}
+  staticReviewRoot.setAttribute('aria-busy','false');
+}}catch(currentErrorValue){{staticReviewRoot.setAttribute('aria-busy','false');staticReviewRoot.innerHTML='<p class="static-review-error" role="alert">'+currentErrorValue.message+'</p>';}}
 }}"""
 
 
 def build_static_review_interface(static_review_paths):
     with gr.Blocks(title='정적 검수') as interface_blocks_value:
-        gr.HTML('<section id="static-review-root" aria-label="정적 검수"><p>검수 화면을 준비하고 있습니다…</p></section>')
+        gr.HTML('<section id="static-review-root" aria-label="정적 검수" aria-live="polite" aria-busy="true"><p>검수 화면을 준비하고 있습니다…</p></section>')
     return interface_blocks_value
 
 

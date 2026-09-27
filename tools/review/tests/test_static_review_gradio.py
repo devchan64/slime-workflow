@@ -42,8 +42,10 @@ class StaticReviewGradioTest(unittest.TestCase):
         self.assertIn('resolveStaticReviewAssetUrl',loader_script_value)
         self.assertIn("rel='modulepreload'",loader_script_value)
         self.assertIn('await import(',loader_script_value)
+        self.assertIn("setAttribute('aria-busy','false')",loader_script_value)
         self.assertNotIn('<iframe',loader_script_value)
         self.assertIn('static-review-root',str(interface_blocks_value.get_config_file()))
+        self.assertIn('aria-busy="true"',str(interface_blocks_value.get_config_file()))
 
 if __name__=='__main__':
     unittest.main()
