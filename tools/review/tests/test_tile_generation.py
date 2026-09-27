@@ -14,6 +14,8 @@ class TileGenerationTests(unittest.TestCase):
             output_request_value=prepare_tile_request(self.make_tile_request()|{'tile_type':tile_kind_name})
             self.assertIn(output_request_value['base_prompt'],output_request_value['prompt'])
             self.assertIn(output_request_value['style_prompt'],output_request_value['prompt'])
+            self.assertNotRegex(output_request_value['base_prompt'],r'\btile\b')
+            self.assertIn('visible outer boundary lines',output_request_value['base_prompt'])
             self.assertIn('Red brick house.',output_request_value['prompt'])
             self.assertEqual(output_request_value['prompt_words'],len(output_request_value['prompt'].split()))
             self.assertLess(output_request_value['prompt_words'],100)
@@ -22,6 +24,14 @@ class TileGenerationTests(unittest.TestCase):
         request.pop('seed')
         self.assertEqual(prepare_tile_request(request)['seed'],10107)
         self.assertEqual(prepare_tile_request(request|{'seed':0})['seed'],0)
+
+    def test_random_seed_value_stays_within_gateway_range(self):
+        from tools.review.ui.gradio.tile_map_app import generate_random_seed_value
+        for generation_attempt_index in range(8):
+            random_seed_value=generate_random_seed_value()
+            self.assertIsInstance(random_seed_value,int)
+            self.assertGreaterEqual(random_seed_value,0)
+            self.assertLessEqual(random_seed_value,4294967295)
 
     def test_user_prompt_is_last_for_every_toggle_combination(self):
         from itertools import product
@@ -84,6 +94,9 @@ class TileGenerationTests(unittest.TestCase):
                 self.assertEqual(image_manager_value.delete_generation_history(generation_job_identifier),{'deleted':generation_job_identifier,'files_preserved':True})
                 self.assertEqual(image_manager_value.list_generation_history(),[])
                 self.assertTrue((job_root_path/'result.png').exists())
+            restarted_manager_value=TileGenerationManager()
+            with patch.object(restarted_manager_value,'job_storage_root',temporary_root_path/'jobs'),patch.object(restarted_manager_value,'history_storage_path',return_value=temporary_root_path/'new-history'):
+                self.assertEqual(restarted_manager_value.list_generation_history(),[])
 
     def test_three_references_are_validated(self):
         import base64,io

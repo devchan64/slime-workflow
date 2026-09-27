@@ -2,6 +2,8 @@ import io
 import json
 from pathlib import Path
 import tempfile
+import threading
+import time
 import unittest
 from unittest.mock import patch
 from types import SimpleNamespace
@@ -58,10 +60,28 @@ class ImageGenerationTests(unittest.TestCase):
                 current_handler_value=self.make_http_handler('/image-generation/jobs/'+current_job_root.name+'/request.json')
                 current_manager_value.handle_image_request(current_handler_value)
                 self.assertEqual(current_handler_value.status,404)
-        current_manager_value.current_worker_process=SimpleNamespace(poll=lambda:None)
+    def test_running_image_generation_does_not_block_queue_submission(self):
+        current_manager_value=ImageGenerationManager()
+        current_request_value={'action':'generate','prompt':'대기열 검증','width':512,'height':512,'steps':4,'seed':1}
+        current_request_bytes=json.dumps(current_request_value).encode()
         current_handler_value=self.make_http_handler('/image-generation/jobs','POST')
-        current_manager_value.handle_image_request(current_handler_value)
-        self.assertEqual(current_handler_value.status,409)
+        current_handler_value.rfile=io.BytesIO(current_request_bytes)
+        current_handler_value.headers['Content-Length']=str(len(current_request_bytes))
+        worker_finished_event=threading.Event()
+        queued_worker_process=SimpleNamespace(poll=lambda:None,wait=worker_finished_event.wait)
+        with tempfile.TemporaryDirectory() as temporary_directory_name:
+            temporary_root_path=Path(temporary_directory_name)
+            def launch_queued_process(command_argument_values,generation_job_path,generation_service_name,**process_option_values):
+                (generation_job_path/'status.json').write_text('{"status":"queued"}')
+                return queued_worker_process
+            with patch.object(current_manager_value,'job_storage_root',temporary_root_path/'jobs'),patch.object(current_manager_value,'history_storage_path',return_value=temporary_root_path/'history'),patch('tools.review.domains.image.image_generation.launch_gpu_process',side_effect=launch_queued_process):
+                current_manager_value.current_worker_process=SimpleNamespace(poll=lambda:None)
+                current_manager_value.handle_image_request(current_handler_value)
+                self.assertEqual(current_handler_value.status,202)
+                self.assertEqual(json.loads(current_handler_value.wfile.getvalue())['status'],'queued')
+                self.assertEqual(len(current_manager_value.list_generation_history()),1)
+                worker_finished_event.set()
+                time.sleep(.01)
 
 
 if __name__=='__main__':

@@ -3,10 +3,10 @@ style_prompt: "Hand-painted fantasy game texture, clean readable shapes, consist
 types:
   rooftop:
     label: 지붕 타일
-    base_prompt: "Seamless sloped-roof material, viewed perpendicular to its surface. Uniform overlapping roofing pieces in horizontal rows, overlaps facing downward. Matching edges, subtle relief, neutral lighting, edge-to-edge coverage. No building silhouette or perspective."
+    base_prompt: "Orthographic sloped roof surface, uniform overlapping shingles in horizontal rows, downward overlaps, visible outer boundary lines, neutral lighting."
   wall:
     label: 벽 타일
-    base_prompt: "A single plain building wall tile, straight-on orthographic elevation, flat facade filling the square, horizontally repeating edges."
+    base_prompt: "Orthographic flat building wall, square facade, visible outer boundary lines."
   ground:
     label: 맵 타일
-    base_prompt: "A single seamless ground material tile, top-down orthographic view, uniform scale, texture filling the square with matching edges."
+    base_prompt: "Top-down ground material, uniform scale, square coverage, visible outer boundary lines."

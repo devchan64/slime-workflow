@@ -6,6 +6,7 @@ import urllib.request
 from PIL import Image
 import os
 from pathlib import Path
+import secrets
 import sys
 import threading
 import time
@@ -19,6 +20,7 @@ from tools.review.common.management_gateway import execute_management_command
 from tools.review.domains.tile.tile_generation import REFERENCE_STYLE_PROMPT
 
 def execute_tile_gateway(command_name_value,payload_value):return execute_management_command('tile-map',command_name_value,payload_value)
+def generate_random_seed_value():return secrets.randbelow(4294967296)
 def build_tile_request(tile_type_value,user_prompt_value,generation_tag_value,width_value,step_value,seed_value,use_base_value,use_style_value,use_reference_style_value,*reference_image_values):
     encoded_reference_values=[]
     for current_reference_image in reference_image_values:
@@ -42,7 +44,7 @@ def restore_tile_inputs(current_history_record,server_base_address):
 def refresh_tile_execution(current_generation_identifier):
     current_active_record=execute_tile_gateway('active',{})
     if current_active_record.get('running'):
-        return current_active_record['id'],'생성 중 · 아래 생성 이력에서 작업을 선택해 중지할 수 있습니다.',gr.update(interactive=False)
+        return current_active_record['id'],'GPU 작업이 실행 또는 대기 중입니다. 새 요청은 확인 후 대기열에 추가할 수 있습니다.',gr.update(interactive=True)
     current_status_message='실행 중인 작업이 없습니다. 생성 이력에서 결과와 실행 상태를 확인하세요.'
     if current_generation_identifier:
         current_status_record=execute_tile_gateway('status',{'id':current_generation_identifier})
@@ -57,11 +59,12 @@ def build_tile_interface(server_base_address):
         with gr.Row():
             with gr.Column():
                 tile_value=gr.Dropdown(tile_choices,value=tile_choices[0][1],label='타일 종류');prompt_value=gr.Textbox(label='사용자 프롬프트',lines=5)
+                gr.Markdown('> **주의:** 프롬프트에 `타일`을 입력하면 분리된 타일 형태로 생성될 수 있습니다. 연속된 바닥이나 지면을 원하면 원하는 표면·재질·구성을 직접 설명하세요.')
                 generation_tag_value=gr.Textbox(label='생성 이력 태그 · 선택 사항',placeholder='예: 이슬온 시장 외벽 후보',max_lines=1)
                 base_value=gr.Checkbox(value=True,label='기본 프롬프트 적용');style_value=gr.Checkbox(value=True,label='화풍 프롬프트 적용');reference_style_value=gr.Checkbox(value=False,label='참조 화풍 보존 적용')
                 with gr.Accordion('참조 이미지 · 최대 3장',open=False,elem_id='tile-reference-images'):
                     with gr.Row(elem_classes=['tile-reference-upload-grid']):
-                        reference_image_controls=[gr.Image(type='pil',sources=['upload'],label=f'참조 이미지 {index+1}',height=160,scale=1,min_width=180) for index in range(3)]
+                        reference_image_controls=[gr.Image(type='pil',sources=['upload','clipboard'],label=f'참조 이미지 {index+1}',height=160,scale=1,min_width=180) for index in range(3)]
                 initial_base_prompt=catalog_record_value['types'][tile_choices[0][1]]['base_prompt']
                 with gr.Accordion('기본 프롬프트 · 고정',open=False):
                     base_prompt_display=gr.Textbox(value=initial_base_prompt,label=f'기본 프롬프트 · {len(initial_base_prompt.split())}단어',interactive=False,lines=4)
@@ -73,14 +76,19 @@ def build_tile_interface(server_base_address):
                     current_prompt_text=catalog_record_value['types'][selected_tile_kind]['base_prompt']
                     return gr.update(value=current_prompt_text,label=f'기본 프롬프트 · {len(current_prompt_text.split())}단어')
                 tile_value.change(update_base_prompt,inputs=tile_value,outputs=base_prompt_display,queue=False)
-                width_value=gr.Dropdown([512,768,1024],value=512,label='정사각형 해상도');step_value=gr.Radio([4,30],value=4,label='생성 스텝');seed_value=gr.Number(value=10107,precision=0,label='Seed')
+                width_value=gr.Dropdown([512,768,1024],value=512,label='정사각형 해상도');step_value=gr.Radio([4,30],value=4,label='생성 스텝')
+                with gr.Group(elem_classes=['seed-control-group']):
+                    with gr.Row():
+                        seed_value=gr.Number(value=10107,precision=0,label='Seed',scale=4,min_width=0)
+                        randomize_seed_value=gr.Button('무작위 생성',scale=1,min_width=120)
+                randomize_seed_value.click(generate_random_seed_value,outputs=seed_value,queue=False)
                 start_value=gr.Button('타일 생성 시작',variant='primary');status_value=gr.Markdown('생성 가능 · 최종 프롬프트는 100단어 미만이어야 합니다.')
                 execution_refresh_value=gr.Button('진행 상태 새로고침')
                 gr.Markdown('실행 중인 작업은 아래 생성 이력에서 선택한 뒤 **작업 중지**를 사용하세요.')
                 identifier_value=gr.Textbox(label='실행 중 생성 ID',interactive=False)
         read_history_page,history_output_values=build_generation_history_view(execute_tile_gateway,server_base_address,'이력 목록만 초기화합니다. 결과·참조 사본·로그 파일은 유지됩니다. 생성 중에는 초기화할 수 없습니다.',lambda record:restore_tile_inputs(record,server_base_address),[tile_value,prompt_value,generation_tag_value,width_value,step_value,seed_value,base_value,style_value,reference_style_value,*reference_image_controls,status_value],record_folder_route='/tile-map-generator',allow_individual_delete=True)
         def start_tile(*input_values):
-            record_value=execute_tile_gateway('generate',build_tile_request(*input_values));return record_value['id'],'생성 중 · 아래 생성 이력에서 작업을 선택해 중지할 수 있습니다.',gr.update(interactive=False)
+            record_value=execute_tile_gateway('generate',build_tile_request(*input_values));status_label_value='대기열에 추가했습니다. 생성 이력에서 작업 순서와 상태를 확인하세요.' if record_value['status']=='queued' else '생성을 시작했습니다. 새 요청은 확인 후 대기열에 추가할 수 있습니다.';return record_value['id'],status_label_value,gr.update(interactive=True)
         bind_gpu_generation_confirmation(start_value,start_tile,[tile_value,prompt_value,generation_tag_value,width_value,step_value,seed_value,base_value,style_value,reference_style_value,*reference_image_controls],[identifier_value,status_value,start_value])
         blocks_value.load(lambda:read_history_page(1),outputs=history_output_values)
         execution_output_values=[identifier_value,status_value,start_value]

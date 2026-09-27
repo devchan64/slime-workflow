@@ -63,10 +63,12 @@ class TileGenerationManager(ImageGenerationManager):
         self.job_storage_root=IMAGE_JOB_ROOT/'tile-map'
     def history_storage_path(self):return MANAGER_HISTORY_ROOT/'tile-map'
     def history_reset_marker_path(self):return self.history_storage_path()/'.reset-marker'
-    def history_deleted_marker_path(self,generation_job_identifier):return self.history_storage_path()/'deleted'/generation_job_identifier
+    def history_deleted_marker_path(self,generation_job_identifier):return self.job_storage_root/generation_job_identifier/'.history-deleted'
+    def legacy_history_deleted_marker_path(self,generation_job_identifier):return self.history_storage_path()/'deleted'/generation_job_identifier
+    def is_generation_history_deleted(self,generation_job_identifier):return self.history_deleted_marker_path(generation_job_identifier).is_file() or self.legacy_history_deleted_marker_path(generation_job_identifier).is_file()
     def list_generation_history(self):
         history_records_by_identifier={record_value['id']:record_value for record_value in super().list_generation_history()}
-        history_records_by_identifier={record_identifier:record_value for record_identifier,record_value in history_records_by_identifier.items() if not self.history_deleted_marker_path(record_identifier).is_file()}
+        history_records_by_identifier={record_identifier:record_value for record_identifier,record_value in history_records_by_identifier.items() if not self.is_generation_history_deleted(record_identifier)}
         reset_marker_timestamp=self.history_reset_marker_path().stat().st_mtime if self.history_reset_marker_path().is_file() else 0
         for current_job_root in sorted(self.job_storage_root.iterdir(),key=lambda path_value:path_value.stat().st_mtime,reverse=True) if self.job_storage_root.is_dir() else []:
             request_file_path=current_job_root/'request.json'
@@ -74,7 +76,7 @@ class TileGenerationManager(ImageGenerationManager):
             if not current_job_root.is_dir() or not request_file_path.is_file() or not status_file_path.is_file():continue
             if request_file_path.stat().st_mtime<=reset_marker_timestamp:continue
             job_identifier_value=current_job_root.name
-            if self.history_deleted_marker_path(job_identifier_value).is_file():continue
+            if self.is_generation_history_deleted(job_identifier_value):continue
             if job_identifier_value in history_records_by_identifier:continue
             history_records_by_identifier[job_identifier_value]={'id':job_identifier_value,'created_at':datetime.fromtimestamp(current_job_root.stat().st_mtime,ZoneInfo('Asia/Seoul')).isoformat(),'request':json.loads(request_file_path.read_text()),'status':json.loads(status_file_path.read_text()),'job_path':str(current_job_root)}
         history_records=sorted(history_records_by_identifier.values(),key=lambda record_value:record_value.get('created_at',''),reverse=True)
@@ -99,8 +101,8 @@ class TileGenerationManager(ImageGenerationManager):
             for current_job_root in deletion_target_paths:shutil.rmtree(current_job_root)
             self.history_storage_path().mkdir(parents=True,exist_ok=True)
             self.history_reset_marker_path().touch()
-            deleted_marker_directory=self.history_storage_path()/'deleted'
-            if deleted_marker_directory.is_dir():shutil.rmtree(deleted_marker_directory)
+            legacy_marker_directory=self.history_storage_path()/'deleted'
+            if legacy_marker_directory.is_dir():shutil.rmtree(legacy_marker_directory)
             super().reset_generation_history()
             self.current_job_identifier=None
     def delete_generation_history(self,generation_job_identifier):
@@ -113,7 +115,6 @@ class TileGenerationManager(ImageGenerationManager):
         current_history_path=self.history_storage_path()/(generation_job_identifier+'.json')
         current_history_path.unlink(missing_ok=True)
         deleted_marker_path=self.history_deleted_marker_path(generation_job_identifier)
-        deleted_marker_path.parent.mkdir(parents=True,exist_ok=True)
         deleted_marker_path.touch()
         return {'deleted':generation_job_identifier,'files_preserved':True}
     def validate_generation_request(self, request_record_value):return prepare_tile_request(request_record_value)

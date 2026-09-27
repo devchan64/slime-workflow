@@ -167,10 +167,6 @@ class ImageGenerationManager:
                         raise ValueError('이력 삭제 요청 필드 오류')
                     send_response_data(200,self.delete_generation_history(generation_job_identifier))
                     return True
-                with self.current_request_lock:
-                    if self.current_worker_process is not None and self.current_worker_process.poll() is None:
-                        send_response_data(409,{'error':'이미지 생성 작업이 실행 중입니다. 생성 이력에서 상태를 확인하세요.'})
-                        return True
                 if self.three_reference_mode:
                     from tools.review.domains.image.three_reference_generation import validate_three_reference_request, save_three_reference_inputs
                     current_request_record=validate_three_reference_request(current_request_record)
@@ -208,11 +204,11 @@ class ImageGenerationManager:
                                     current_history_record['status']=json.loads((current_job_root/'status.json').read_text())
                                     current_history_path.write_text(json.dumps(current_history_record,ensure_ascii=False))
                     threading.Thread(target=watch_worker_exit,daemon=True).start()
-                send_response_data(202,{'id':current_job_identifier,'status':'running'})
+                current_status_record=json.loads((current_job_root/'status.json').read_text())
+                send_response_data(202,{'id':current_job_identifier,'status':current_status_record['status']})
             elif current_url_path == self.route_prefix_value+'/active':
-                with self.current_request_lock:
-                    current_worker_running=self.current_worker_process is not None and self.current_worker_process.poll() is None
-                    send_response_data(200,{'running':current_worker_running,'id':self.current_job_identifier if current_worker_running else None})
+                active_history_records=[record_value for record_value in self.list_generation_history() if record_value.get('status',{}).get('status') in ('queued','running')]
+                send_response_data(200,{'running':bool(active_history_records),'id':active_history_records[0]['id'] if active_history_records else None})
             elif current_url_path == self.route_prefix_value+'/history':
                 send_response_data(200,{'records':self.list_generation_history()})
             elif current_url_path == self.route_prefix_value+'/model-status':

@@ -374,7 +374,8 @@ def run_review_server(parsed_argument_values):
         def do_GET(self):
             if urlsplit(self.path).path=='/management/gpu-queue':
                 from tools.review.common.gpu_job_queue import list_waiting_gpu_jobs
-                response_content=json.dumps(list_waiting_gpu_jobs(),ensure_ascii=False).encode()
+                from tools.review.common.gpu_status import read_gpu_status
+                response_content=json.dumps(list_waiting_gpu_jobs()|{'gpu_status':read_gpu_status()},ensure_ascii=False).encode()
                 self.send_response(200);self.send_header('Content-Type','application/json');self.send_header('Cache-Control','no-store');self.send_header('Content-Length',str(len(response_content)));self.end_headers();self.wfile.write(response_content)
                 return
             if urlsplit(self.path).path=='/management/gpu-queue-confirmation.js':
