@@ -3,7 +3,7 @@
 이 경로는 Git 추적 대상 제작 자산을 버전·출처·해시와 함께 보관한다. 게임 런타임 채택과 구분한다.
 
 - 애니메이션 기준 모델: [anny-neutral-v4](animation-models/anny-neutral-v4/README.md). 선택 설정은 `generators/animation/config/anny_model_baseline.yaml`.
-- 현재 기본 걷기: [momask-walking/v11](motion-sheet/momask-walking-v11/README.md). 중성형 v4, 60프레임·4fps·4방향, 카메라 수평 25°. 이전 MoMask 걷기 v9·v10은 폐기했다. 구형 mannequin-walk-v8 리그·포즈 시트도 폐기했다.
+- 현재 기본 걷기: [momask-walking/v12](motion-sheet/momask-walking-v12/README.md). 중성형 v4, 60프레임·4fps·4방향, 방위각 30°·325°·140°·200°. 이전 걷기 버전은 폐기했다.
 - 이전 리그: motion-sheet/mannequin-walk-v1 보존.
 - 다른 외형 이력: motion-sheet/humanlike-walk-v1 및 v2.
 - animation-references/: 외형 참조 이력.
@@ -17,4 +17,4 @@
 
 - 게임용 4fps 포즈 시트: [game-motion-4fps/v1](pose-sheets/game-motion-4fps-v1/README.md). 스탠딩 v3·걷기 v8·스트레칭 v1, 4방향·총 24장. 선택 설정 `generators/animation/config/default_game_pose_sheets.yaml`.
 
-- 휴식 모션: [momask-resting/v1](motion-sheet/momask-resting-v1/README.md). 승인 생성 `2026-09-27_13-22-20-9a11c35d`, 160프레임·4fps·4방향. 캐릭터 애니메이션에서 `resting-v1`로 선택합니다.
+- 휴식 모션: [momask-resting/v2](motion-sheet/momask-resting-v2/README.md). 승인 생성 `2026-09-27_16-16-30-a283042c`, 160프레임·4fps·4방향. 캐릭터 애니메이션에서 `resting-v2`로 선택합니다.
