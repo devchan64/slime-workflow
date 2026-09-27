@@ -87,3 +87,6 @@
 .generation-detail-card{padding:10px!important;gap:4px}
 .history-card-fields{gap:4px}
 .generation-detail-card dl{gap:4px 12px;margin:2px 0}
+
+.generation-history-actions.generation-history-actions-five{grid-template-columns:repeat(5,minmax(0,1fr))!important}
+.generation-history-actions-five>button{padding:6px 4px!important;font-size:12px!important}

@@ -153,7 +153,7 @@ def build_generation_history_view(execute_service_command,server_base_address,de
         history_cards_value=gr.HTML(render_history_detail_cards([]),js_on_load="element.addEventListener('click',event=>{const card=event.target.closest('[data-job-id]');if(card)trigger('click',{id:card.dataset.jobId});});",elem_id='generation-history-cards')
         with gr.Column(visible=False,elem_classes=['generation-history-selected-actions']) as history_selected_panel:
             history_selection_summary=gr.Markdown('목록에서 작업을 선택하세요. 결과 조회·입력 재사용·중지·재개를 할 수 있습니다.')
-            with gr.Row(elem_classes=['generation-history-actions']):
+            with gr.Row(elem_classes=['generation-history-actions']+(['generation-history-actions-five'] if allow_individual_delete else [])):
                 result_lookup_button=gr.Button('결과 조회',variant='primary',interactive=False)
                 if restore_input_callback is not None:
                     restore_input_button=gr.Button('입력값 불러오기',interactive=False)
@@ -161,8 +161,8 @@ def build_generation_history_view(execute_service_command,server_base_address,de
                     gr.Button('입력 복원 미지원',interactive=False)
                 history_resume_button=gr.Button('생성 재개',interactive=False)
                 history_cancel_button=gr.Button('작업 중지',interactive=False)
-            if allow_individual_delete:
-                history_delete_button=gr.Button('선택 이력 삭제',interactive=False)
+                if allow_individual_delete:
+                    history_delete_button=gr.Button('선택 이력 삭제',interactive=False)
         history_remaining_cards=gr.HTML('',js_on_load="element.addEventListener('click',event=>{const card=event.target.closest('[data-job-id]');if(card)trigger('click',{id:card.dataset.jobId});});")
         result_identifier_value=create_copyable_log_textbox(label='조회한 생성 ID',interactive=False,elem_id='generation-history-result-anchor')
         result_status_value=gr.Markdown('')
