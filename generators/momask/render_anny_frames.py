@@ -38,6 +38,7 @@ def render(motion_path, output_dir, directions, sample_indices, camera_azimuth_d
         shutil.copy2(SOURCE/name,output_dir/name)
     shutil.copy2(ROOT/'generators/momask/position_retarget.py',output_dir/'position_retarget.py')
     shutil.copy2(ROOT/'generators/momask/retarget_audit.py',output_dir/'retarget_audit.py')
+    shutil.copy2(ROOT/'generators/momask/skin_surface.py',output_dir/'skin_surface.py')
     shutil.copy2(RETARGET_PROFILE_PATH,output_dir/'retarget-profile.yaml')
     retarget_result_record={'renderer':'Anny Blender retarget','frames':len(sample_indices),'directions':directions,'samples':16,'hand_pose':'inherit-rest-local','arm_retarget':RETARGET_ALGORITHM_VERSION,'skinning':'dual-quaternion','baseline_model':baseline_model_record,'profile_sha256':digest(output_dir/'retarget-profile.yaml'),'solver_sha256':digest(output_dir/'position_retarget.py')}
     (output_dir/'retarget-contract.json').write_text(json.dumps(retarget_result_record,ensure_ascii=False,indent=2))
@@ -56,6 +57,7 @@ def render(motion_path, output_dir, directions, sample_indices, camera_azimuth_d
     for direction in directions:
         target=output_dir/direction/'frames';target.mkdir()
         for number in range(1,len(sample_indices)+1): shutil.copy2(output_dir/direction/f'preview-{number:04d}.png',target/f'anny-{number:04d}.png')
+    retarget_result_record['surface_correction']=json.loads((output_dir/'surface-correction.json').read_text())
     (output_dir/'result.json').write_text(json.dumps(retarget_result_record,ensure_ascii=False,indent=2)+'\n')
 if __name__=='__main__':
  p=argparse.ArgumentParser(description=__doc__);p.add_argument('--motion',type=Path,required=True);p.add_argument('--output-dir',type=Path,required=True);p.add_argument('--directions',required=True);p.add_argument('--sample-indices',required=True);p.add_argument('--camera-azimuth-degrees',type=float,default=45);a=p.parse_args();render(a.motion,a.output_dir,a.directions.split(','),[int(x) for x in a.sample_indices.split(',')],camera_azimuth_degrees=a.camera_azimuth_degrees)

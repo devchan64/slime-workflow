@@ -10,6 +10,7 @@ import numpy as np
 from mathutils import Matrix, Vector
 from position_retarget import PositionRetargetSolver, RETARGET_ALGORITHM_VERSION, load_retarget_profile
 from retarget_audit import write_coordinate_audit
+from skin_surface import inspect_skin_rig
 
 EXPERIMENT_OUTPUT_ROOT = Path(__file__).resolve().parent
 CURRENT_PROGRESS_STATE = {'stage': 'start', 'frame': 0}
@@ -142,6 +143,7 @@ review_result_record = {
     'profile_sha256': hashlib.sha256(profile_source_path.read_bytes()).hexdigest(),
     'solver_sha256': hashlib.sha256((EXPERIMENT_OUTPUT_ROOT / 'position_retarget.py').read_bytes()).hexdigest(),
     'ground_method': 'none', 'hand_pose': 'inherit-rest-local',
+    'rig_inspection': inspect_skin_rig(body_object_value, rig_object_value),
     'evaluated_direction_error_max_degrees': float(np.max(actual_direction_errors)),
     'evaluated_rotation_error_max_degrees': float(np.max(actual_rotation_errors)),
     'frame_diagnostics': frame_diagnostic_records, 'quality_warnings': retarget_quality_warnings,

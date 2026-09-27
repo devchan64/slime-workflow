@@ -1,4 +1,5 @@
 from pathlib import Path
+from skin_surface import apply_surface_correction
 import bpy,numpy as np,json,time,threading
 from mathutils import Vector
 from bpy_extras.object_utils import world_to_camera_view
@@ -15,6 +16,7 @@ threading.Thread(target=emit_render_heartbeat,daemon=True).start()
 bpy.ops.wm.open_mainfile(filepath=str(EXPERIMENT_OUTPUT_ROOT/'mannequin.blend'))
 current_rig_object=bpy.data.objects['AnnyAttributesRig']
 current_body_object=bpy.data.objects['AnnyAttributesBody']
+(EXPERIMENT_OUTPUT_ROOT/'surface-correction.json').write_text(json.dumps(apply_surface_correction(current_body_object),indent=2))
 scene_render_value=bpy.context.scene
 scene_render_value.render.engine='CYCLES';scene_render_value.cycles.samples=64
 render_device_preferences=bpy.context.preferences.addons['cycles'].preferences
