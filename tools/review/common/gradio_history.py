@@ -2,7 +2,8 @@
 import gradio as gr
 
 
-HISTORY_SUMMARY_FIELD_NAMES=('tile_type','motion','action','directions','width','height','resolution','steps','seed')
+HISTORY_SUMMARY_FIELD_NAMES=('tile_type','motion','action','start_frame','end_frame','directions','width','height','resolution','target_fps','speed','steps','seed')
+HISTORY_SUMMARY_LABELS={'tile_type':'타일','motion':'모션','action':'동작','width':'너비','height':'높이','resolution':'해상도','target_fps':'타겟 FPS','speed':'배속','steps':'스텝','seed':'시드'}
 
 
 def build_history_input_controls(history_selection_component, read_input_callback,
@@ -25,10 +26,31 @@ def format_history_choice_label(current_history_record):
     current_status_record=current_history_record.get('status',{})
     current_status_label=current_status_record.get('status','unknown') if isinstance(current_status_record,dict) else current_status_record
     current_request_record=current_history_record.get('request',{})
-    current_created_text=current_history_record.get('created_at') or current_history_record.get('createdAt') or '시각 없음'
-    current_summary_values=[f'{current_field_name}={current_request_record[current_field_name]}' for current_field_name in HISTORY_SUMMARY_FIELD_NAMES if current_field_name in current_request_record]
-    current_summary_text=' · '.join(current_summary_values) or '설정 요약 없음'
-    return f"{current_status_label} · {current_created_text} · {current_history_record['id']} · {current_summary_text}"
+    current_created_text=format_history_created_time(current_history_record)
+    current_summary_text=format_history_request_summary(current_request_record)
+    return f"{current_status_label} · {current_created_text}\n{current_summary_text}\nID · {current_history_record['id']}"
+
+
+def format_history_created_time(current_history_record):
+    created_time_value=current_history_record.get('created_at') or current_history_record.get('createdAt') or '시각 없음'
+    return created_time_value.replace('T',' ').split('+',1)[0] if isinstance(created_time_value,str) else '시각 없음'
+
+
+def format_history_request_summary(current_request_record):
+    summary_text_values=[]
+    for current_field_name in HISTORY_SUMMARY_FIELD_NAMES:
+        if current_field_name not in current_request_record:
+            continue
+        current_field_value=current_request_record[current_field_name]
+        if current_field_name=='directions' and isinstance(current_field_value,list):
+            summary_text_values.append(f'방향 {len(current_field_value)}개')
+        elif current_field_name=='start_frame' and 'end_frame' in current_request_record:
+            summary_text_values.append(f'프레임 {current_field_value}–{current_request_record["end_frame"]}')
+        elif current_field_name=='end_frame' and 'start_frame' in current_request_record:
+            continue
+        else:
+            summary_text_values.append(f'{HISTORY_SUMMARY_LABELS.get(current_field_name,current_field_name)} {current_field_value}')
+    return ' · '.join(summary_text_values) or '설정 요약 없음'
 
 
 def format_history_selection_summary(current_history_record):
@@ -36,9 +58,9 @@ def format_history_selection_summary(current_history_record):
     current_status_record=current_history_record.get('status',{})
     current_status_label=current_status_record.get('status','unknown') if isinstance(current_status_record,dict) else current_status_record
     current_request_record=current_history_record.get('request',{})
-    current_summary_values=[f'{current_field_name}={current_request_record[current_field_name]}' for current_field_name in HISTORY_SUMMARY_FIELD_NAMES if current_field_name in current_request_record]
-    current_created_text=current_history_record.get('created_at') or current_history_record.get('createdAt') or '시각 없음'
-    return f"선택됨 · **{current_status_label}** · {current_created_text}\n\n`{current_history_record['id']}` · {' · '.join(current_summary_values) or '설정 요약 없음'}"
+    current_created_text=format_history_created_time(current_history_record)
+    current_summary_text=format_history_request_summary(current_request_record)
+    return f"선택됨 · **{current_status_label}** · {current_created_text}\n\n`{current_history_record['id']}` · {current_summary_text}"
 
 
 def collect_image_history_thumbnails(history_record_values, server_base_address):
