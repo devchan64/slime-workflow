@@ -50,9 +50,9 @@ def load_manager_page_records(source_file_path):
         validated_page_records.append(current_page_record)
     return validated_page_records
 
-def filter_manager_page_records(page_record_values, search_text_value, category_name_value, ui_mode_name_value):
+def filter_manager_page_records(page_record_values, search_text_value, category_name_value):
     search_token_values=search_text_value.casefold().split()
-    return [current_page_record for current_page_record in page_record_values if (category_name_value=='all' or current_page_record['category']==category_name_value) and (ui_mode_name_value=='all' or (ui_mode_name_value=='gradio')==(current_page_record.get('uiMode') in {'gradio','gradio-static'})) and all(current_search_token in f"{current_page_record['label']} {current_page_record['description']} {current_page_record['id']}".casefold() for current_search_token in search_token_values)]
+    return [current_page_record for current_page_record in page_record_values if (category_name_value=='all' or current_page_record['category']==category_name_value) and all(current_search_token in f"{current_page_record['label']} {current_page_record['description']} {current_page_record['id']}".casefold() for current_search_token in search_token_values)]
 
 def create_tool_choice_values(page_record_values):
     """분류를 함께 표시해 긴 도구 목록에서도 찾기 쉽게 만든다."""
@@ -74,10 +74,16 @@ def create_page_preview_html(selected_page_identifier, page_record_values, revie
     return f'<iframe title="{html.escape(selected_page_record["label"],quote=True)}" class="management-page-frame" allow="clipboard-write http://127.0.0.1:{review_server_port} http://127.0.0.1:{review_server_port+101}" src="http://127.0.0.1:{review_server_port}{selected_page_path}"></iframe>'
 
 
+def create_menu_navigation_script(page_record_values, history_method_name):
+    """선택 도구와 탐색 필터를 하나의 공개 URL 상태로 동기화한다."""
+    serialized_page_records=json.dumps(page_record_values,ensure_ascii=False).replace('<','\\u003c')
+    return f"""(searchTextValue,categoryNameValue,selectedPageIdentifier)=>{{const pageRecords={serialized_page_records};const searchTokenValues=String(searchTextValue||'').toLocaleLowerCase().trim().split(/\\s+/).filter(Boolean);const filteredPageRecords=pageRecords.filter((pageRecord)=>{{const pageTextValue=`${{pageRecord.label}} ${{pageRecord.description}} ${{pageRecord.id}}`.toLocaleLowerCase();return(categoryNameValue==='all'||pageRecord.category===categoryNameValue)&&searchTokenValues.every((searchTokenValue)=>pageTextValue.includes(searchTokenValue));}});const selectedPageRecord=filteredPageRecords.find((pageRecord)=>pageRecord.id===selectedPageIdentifier)||filteredPageRecords[0];const nextUrlValue=new URL(window.top.location.href);if(selectedPageRecord)nextUrlValue.pathname=selectedPageRecord.path;for(const [parameterName,parameterValue,defaultValue] of [['search',searchTextValue,''],['category',categoryNameValue,'all']]){{if(parameterValue&&parameterValue!==defaultValue)nextUrlValue.searchParams.set(parameterName,parameterValue);else nextUrlValue.searchParams.delete(parameterName);}}nextUrlValue.searchParams.delete('view');window.top.history.{history_method_name}({{managementTool:selectedPageRecord?.id||null,managementFilters:{{search:searchTextValue||'',category:categoryNameValue||'all'}}}},'',nextUrlValue.pathname+nextUrlValue.search+nextUrlValue.hash);}}"""
+
+
 def create_initial_selection_script(page_record_values):
-    route_path_values={current_page_record['path']:current_page_index for current_page_index,current_page_record in enumerate(page_record_values)}
-    page_identifier_indexes={current_page_record['id']:current_page_index for current_page_index,current_page_record in enumerate(page_record_values)}
-    return f"""()=>{{const routePageIndexes={json.dumps(route_path_values).replace('<','\\u003c')};const pageIdentifierIndexes={json.dumps(page_identifier_indexes).replace('<','\\u003c')};const selectedToolIdentifier=new URLSearchParams(window.location.search).get("tool");const selectedPageIndex=selectedToolIdentifier?pageIdentifierIndexes[selectedToolIdentifier]:routePageIndexes[window.location.pathname];if(selectedPageIndex===undefined)return;window.setTimeout(()=>{{document.querySelectorAll('#management-tool-list input')[selectedPageIndex]?.click();}},80);}}"""
+    serialized_page_records=json.dumps(page_record_values,ensure_ascii=False).replace('<','\\u003c')
+    category_name_values=json.dumps(list(CATEGORY_LABEL_VALUES)).replace('<','\\u003c')
+    return f"""()=>{{const pageRecords={serialized_page_records};const categoryNameValues={category_name_values};const currentUrlValue=new URL(window.location.href);const queryParameterValues=currentUrlValue.searchParams;const searchTextValue=queryParameterValues.get('search')||'';const categoryNameValue=categoryNameValues.includes(queryParameterValues.get('category'))?queryParameterValues.get('category'):'all';const setFilterValue=(elementIdentifier,nextValue)=>{{const inputElementValue=document.querySelector(`#${{elementIdentifier}} input, #${{elementIdentifier}} textarea`);if(!inputElementValue)return;inputElementValue.value=nextValue;inputElementValue.dispatchEvent(new Event('input',{{bubbles:true}}));inputElementValue.dispatchEvent(new Event('change',{{bubbles:true}}));}};setFilterValue('management-tool-search',searchTextValue);setFilterValue('management-category-filter',categoryNameValue);const searchTokenValues=searchTextValue.toLocaleLowerCase().trim().split(/\\s+/).filter(Boolean);const filteredPageRecords=pageRecords.filter((pageRecord)=>{{const pageTextValue=`${{pageRecord.label}} ${{pageRecord.description}} ${{pageRecord.id}}`.toLocaleLowerCase();return(categoryNameValue==='all'||pageRecord.category===categoryNameValue)&&searchTokenValues.every((searchTokenValue)=>pageTextValue.includes(searchTokenValue));}});const routePageRecord=pageRecords.find((pageRecord)=>pageRecord.path===currentUrlValue.pathname);const selectedToolIdentifier=queryParameterValues.get('tool');const selectedPageRecord=filteredPageRecords.find((pageRecord)=>pageRecord.id===selectedToolIdentifier)||filteredPageRecords.find((pageRecord)=>pageRecord.id===routePageRecord?.id)||filteredPageRecords[0];if(!selectedPageRecord)return;const selectedPageIndex=filteredPageRecords.findIndex((pageRecord)=>pageRecord.id===selectedPageRecord.id);window.setTimeout(()=>{{document.querySelectorAll('#management-tool-list input')[selectedPageIndex]?.click();}},180);}}"""
 
 
 def build_management_menu_interface(page_record_values, review_server_port):
@@ -90,9 +96,8 @@ def build_management_menu_interface(page_record_values, review_server_port):
         with gr.Row(elem_id='management-shell'):
             with gr.Column(scale=1,min_width=240,elem_id='management-sidebar'):
                 gr.Markdown('### 도구 탐색')
-                search_text_value=gr.Textbox(label='도구 검색',placeholder='이름, ID, 기능',info='검색 결과에서 도구를 선택하면 해당 주소로 이동합니다.')
-                category_select_value=gr.Dropdown(choices=[(current_label_value,current_name_value) for current_name_value,current_label_value in CATEGORY_LABEL_VALUES.items()],value='all',label='분류')
-                ui_mode_select_value=gr.Dropdown(choices=[('전체','all'),('Gradio 전환 완료','gradio'),('기존 화면','html')],value='all',label='화면 방식')
+                search_text_value=gr.Textbox(label='도구 검색',placeholder='이름, ID, 기능',info='검색 결과에서 도구를 선택하면 해당 주소로 이동합니다.',elem_id='management-tool-search')
+                category_select_value=gr.Dropdown(choices=[(current_label_value,current_name_value) for current_name_value,current_label_value in CATEGORY_LABEL_VALUES.items()],value='all',label='분류',elem_id='management-category-filter')
                 tool_count_value=gr.Markdown(f'**{len(page_record_values)}개** 도구',elem_id='management-tool-count')
                 page_select_value=gr.Radio(choices=create_tool_choice_values(page_record_values),value=initial_page_identifier,label='도구 목록',elem_id='management-tool-list')
                 with gr.Row(elem_classes=['management-pagination']):
@@ -102,8 +107,8 @@ def build_management_menu_interface(page_record_values, review_server_port):
             with gr.Column(scale=3,min_width=520,elem_id='management-workspace'):
                 selected_page_status_value=gr.Markdown(f"**{html.escape(page_record_values[0]['label'])}** · {html.escape(page_record_values[0]['description'])}" if page_record_values else '표시할 관리 화면이 없습니다.')
                 page_preview_value=gr.HTML(create_page_preview_html(initial_page_identifier,page_record_values,review_server_port))
-        def update_menu_choices(search_text_value,category_name_value,ui_mode_name_value,selected_page_identifier):
-            filtered_page_records=filter_manager_page_records(page_record_values,search_text_value or '',category_name_value,ui_mode_name_value)
+        def update_menu_choices(search_text_value,category_name_value,selected_page_identifier):
+            filtered_page_records=filter_manager_page_records(page_record_values,search_text_value or '',category_name_value)
             filtered_identifier_values=[current_page_record['id'] for current_page_record in filtered_page_records]
             retained_identifier_value=selected_page_identifier if selected_page_identifier in filtered_identifier_values else (filtered_identifier_values[0] if filtered_identifier_values else None)
             selected_position_value=(filtered_identifier_values.index(retained_identifier_value)+1) if retained_identifier_value else 0
@@ -113,20 +118,23 @@ def build_management_menu_interface(page_record_values, review_server_port):
             selected_page_record=next((current_page_record for current_page_record in page_record_values if current_page_record['id']==selected_page_identifier),None)
             if selected_page_record is None:return '표시할 관리 화면을 선택하세요.','<div class="menu-empty-state">검색 조건을 바꾸거나 메뉴를 선택하세요.</div>'
             return f"**{html.escape(selected_page_record['label'])}** · {html.escape(selected_page_record['description'])}",create_page_preview_html(selected_page_identifier,page_record_values,review_server_port)
-        def move_menu_page(selected_page_identifier,search_text_value,category_name_value,ui_mode_name_value,selection_step_value):
-            filtered_page_records=filter_manager_page_records(page_record_values,search_text_value or '',category_name_value,ui_mode_name_value)
+        def move_menu_page(selected_page_identifier,search_text_value,category_name_value,selection_step_value):
+            filtered_page_records=filter_manager_page_records(page_record_values,search_text_value or '',category_name_value)
             filtered_identifier_values=[current_page_record['id'] for current_page_record in filtered_page_records]
             current_index_value=filtered_identifier_values.index(selected_page_identifier) if selected_page_identifier in filtered_identifier_values else 0
             next_index_value=max(0,min(len(filtered_identifier_values)-1,current_index_value+selection_step_value)) if filtered_identifier_values else 0
             next_identifier_value=filtered_identifier_values[next_index_value] if filtered_identifier_values else None
             next_status_text,next_preview_html=select_menu_page(next_identifier_value)
             return next_identifier_value,next_status_text,next_preview_html,f'{next_index_value+1 if next_identifier_value else 0} / {len(filtered_identifier_values)}'
-        for current_filter_component in (search_text_value,category_select_value,ui_mode_select_value):current_filter_component.change(update_menu_choices,[search_text_value,category_select_value,ui_mode_select_value,page_select_value],[page_select_value,tool_count_value,selected_page_status_value,page_preview_value,navigation_position_value],queue=False)
+        for current_filter_component in (search_text_value,category_select_value):current_filter_component.change(update_menu_choices,[search_text_value,category_select_value,page_select_value],[page_select_value,tool_count_value,selected_page_status_value,page_preview_value,navigation_position_value],queue=False)
         page_select_value.change(select_menu_page,page_select_value,[selected_page_status_value,page_preview_value],queue=False)
-        navigation_paths_text=json.dumps({current_page_record['id']:current_page_record['path'] for current_page_record in page_record_values}).replace('<','\\u003c')
-        page_select_value.input(fn=None,inputs=page_select_value,js=f"(pageIdentifier)=>{{const pagePaths={navigation_paths_text};const selectedPagePath=pagePaths[pageIdentifier];if(selectedPagePath)window.top.history.pushState({{managementTool:pageIdentifier}},'',selectedPagePath);}}",queue=False)
-        search_text_value.submit(lambda search_text_value,category_name_value,ui_mode_name_value: update_menu_choices(search_text_value,category_name_value,ui_mode_name_value,None),[search_text_value,category_select_value,ui_mode_select_value],[page_select_value,tool_count_value,selected_page_status_value,page_preview_value,navigation_position_value],queue=False)
-        page_select_value.change(lambda selected_page_identifier,search_text_value,category_name_value,ui_mode_name_value: move_menu_page(selected_page_identifier,search_text_value,category_name_value,ui_mode_name_value,0)[3],[page_select_value,search_text_value,category_select_value,ui_mode_select_value],navigation_position_value,queue=False)
+        filter_navigation_script=create_menu_navigation_script(page_record_values,'replaceState')
+        page_navigation_script=create_menu_navigation_script(page_record_values,'pushState')
+        for current_filter_component in (search_text_value,category_select_value):
+            current_filter_component.input(fn=None,inputs=[search_text_value,category_select_value,page_select_value],js=filter_navigation_script,queue=False)
+        page_select_value.input(fn=None,inputs=[search_text_value,category_select_value,page_select_value],js=page_navigation_script,queue=False)
+        search_text_value.submit(lambda search_text_value,category_name_value: update_menu_choices(search_text_value,category_name_value,None),[search_text_value,category_select_value],[page_select_value,tool_count_value,selected_page_status_value,page_preview_value,navigation_position_value],queue=False)
+        page_select_value.change(lambda selected_page_identifier,search_text_value,category_name_value: move_menu_page(selected_page_identifier,search_text_value,category_name_value,0)[3],[page_select_value,search_text_value,category_select_value],navigation_position_value,queue=False)
         previous_page_button_value.click(fn=None,js="()=>{const toolInputValues=[...document.querySelectorAll('#management-tool-list input')];const selectedIndexValue=toolInputValues.findIndex((currentInputValue)=>currentInputValue.checked);toolInputValues[Math.max(0,selectedIndexValue-1)]?.click();}",queue=False)
         next_page_button_value.click(fn=None,js="()=>{const toolInputValues=[...document.querySelectorAll('#management-tool-list input')];const selectedIndexValue=toolInputValues.findIndex((currentInputValue)=>currentInputValue.checked);toolInputValues[Math.min(toolInputValues.length-1,selectedIndexValue+1)]?.click();}",queue=False)
         interface_blocks_value.load(lambda:format_gpu_status(read_gpu_status()),outputs=gpu_status_value,queue=False)

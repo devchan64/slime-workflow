@@ -1,7 +1,7 @@
 """Gradio 관리 메뉴의 목록 필터와 내부 화면 연결을 검증한다."""
 import unittest
 
-from tools.review.ui.gradio.management_menu_app import create_initial_selection_script, create_page_preview_html, create_tool_choice_values, filter_manager_page_records, format_gpu_status
+from tools.review.ui.gradio.management_menu_app import create_initial_selection_script, create_menu_navigation_script, create_page_preview_html, create_tool_choice_values, filter_manager_page_records, format_gpu_status
 
 
 class GradioManagementMenuTests(unittest.TestCase):
@@ -11,14 +11,9 @@ class GradioManagementMenuTests(unittest.TestCase):
             {'id':'character-animation','label':'캐릭터 애니메이션 생성기','path':'/character-animation/','category':'animation-tool','description':'방향 선택'},
         ]
 
-    def test_filter_supports_gradio_state_and_search(self):
-        self.assertEqual([record['id'] for record in filter_manager_page_records(self.page_record_values,'모션','animation-tool','gradio')],['momask-generator'])
-        self.assertEqual([record['id'] for record in filter_manager_page_records(self.page_record_values,'','animation-tool','html')],['character-animation'])
-
-    def test_filter_includes_static_gradio_review(self):
-        static_review_records=[{'id':'static-review','label':'정적 검수','path':'/review.html','category':'animation','uiMode':'gradio-static','description':'검수'}]
-
-        self.assertEqual([record['id'] for record in filter_manager_page_records(static_review_records,'','all','gradio')],['static-review'])
+    def test_filter_supports_category_and_search(self):
+        self.assertEqual([record['id'] for record in filter_manager_page_records(self.page_record_values,'모션','animation-tool')],['momask-generator'])
+        self.assertEqual([record['id'] for record in filter_manager_page_records(self.page_record_values,'캐릭터','all')],['character-animation'])
 
     def test_preview_uses_review_server_path(self):
         preview_html_text=create_page_preview_html('momask-generator',self.page_record_values,8770)
@@ -44,8 +39,20 @@ class GradioManagementMenuTests(unittest.TestCase):
     def test_direct_static_review_tool_identifier_selects_the_page(self):
         initial_selection_script=create_initial_selection_script(self.page_record_values)
 
-        self.assertIn('pageIdentifierIndexes',initial_selection_script)
+        self.assertIn("queryParameterValues.get('search')",initial_selection_script)
+        self.assertIn("queryParameterValues.get('category')",initial_selection_script)
+        self.assertIn('management-tool-search',initial_selection_script)
+        self.assertNotIn('management-view-filter',initial_selection_script)
         self.assertIn('selectedToolIdentifier',initial_selection_script)
+
+    def test_navigation_script_persists_filter_values_with_selected_tool_path(self):
+        navigation_script=create_menu_navigation_script(self.page_record_values,'pushState')
+
+        self.assertIn("['search',searchTextValue,'']",navigation_script)
+        self.assertIn("['category',categoryNameValue,'all']",navigation_script)
+        self.assertIn("nextUrlValue.searchParams.delete('view')",navigation_script)
+        self.assertIn('window.top.history.pushState',navigation_script)
+        self.assertIn('filteredPageRecords[0]',navigation_script)
 
     def test_tool_choices_include_category_for_long_lists(self):
         self.assertEqual(
