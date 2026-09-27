@@ -18,22 +18,22 @@ class MapRenderProfileTests(unittest.TestCase):
         self.assertNotIn('VOLUME_FLOOR_HEIGHT_PIXELS', map_review_source)
         self.assertIn('currentVolumeRenderProfile.wall_height', map_review_source)
 
-    def test_stonewarm_roads_use_the_gravel_paving_texture(self):
+    def test_stonewarm_roads_use_the_marble_paving_texture(self):
         tile_catalog_source = (WORKFLOW_ROOT / 'assets/world/isloon/tile-catalog.yaml').read_text(encoding='utf-8')
         map_review_script = (WORKFLOW_ROOT / 'tools/review/ui/map/block-map-review.js').read_text(encoding='utf-8')
 
-        self.assertIn('id: stonewarm-gravel-paving', tile_catalog_source)
-        self.assertIn('world/stonewarm/terrain/gravel-paving-v1.png', tile_catalog_source)
-        self.assertIn("currentMapRecord.id==='stonewarm'?'stonewarm-gravel-paving':'paving'", map_review_script)
+        self.assertIn('id: stonewarm-marble-paving', tile_catalog_source)
+        self.assertIn('world/stonewarm/terrain/marble-paving-v1.png', tile_catalog_source)
+        self.assertIn("currentMapRecord.id==='stonewarm'?'stonewarm-marble-paving':'paving'", map_review_script)
 
-    def test_stonewarm_uses_registered_quarry_plain_wall(self):
+    def test_stonewarm_uses_registered_stone_wall(self):
         tile_catalog_source = (WORKFLOW_ROOT / 'assets/world/isloon/tile-catalog.yaml').read_text(encoding='utf-8')
         stonewarm_map_record = json.loads((WORKFLOW_ROOT / 'assets/world/isloon/blocks/stonewarm.json').read_text(encoding='utf-8'))
         map_review_script = (WORKFLOW_ROOT / 'tools/review/ui/map/block-map-review.js').read_text(encoding='utf-8')
 
-        self.assertIn('id: stonewarm-quarry-plain-wall', tile_catalog_source)
-        self.assertIn('world/stonewarm/buildings/stonewarm-quarry-plain-wall-v1.png', tile_catalog_source)
-        self.assertEqual(stonewarm_map_record['buildingTileOverrides']['wall'], 'stonewarm-quarry-plain-wall')
+        self.assertIn('id: stonewarm-stone-wall', tile_catalog_source)
+        self.assertIn('world/stonewarm/buildings/stone-wall-v1.png', tile_catalog_source)
+        self.assertEqual(stonewarm_map_record['buildingTileOverrides']['wall'], 'stonewarm-stone-wall')
         self.assertIn('readBuildingTileSet', map_review_script)
 
     def test_stonewarm_central_plaza_is_compact(self):
