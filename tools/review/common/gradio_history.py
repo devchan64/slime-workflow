@@ -142,7 +142,15 @@ def render_history_detail_cards(history_record_values, selected_history_identifi
             current_thumbnail_html=f'<img class="history-card-thumbnail" src="{html.escape(current_image_url,quote=True)}" alt="생성 결과 미리보기" loading="lazy" decoding="async">'
         else:
             current_thumbnail_html='<span class="history-card-thumbnail history-card-placeholder">'+('결과 준비 중' if current_status_name in ('queued','running') else '이미지 없음')+'</span>'
-        card_html_values.append(f'<button type="button" class="generation-detail-card" data-job-id="{html.escape(current_job_identifier,quote=True)}" aria-pressed="{str(current_selected_flag).lower()}"><span class="history-card-content">{current_thumbnail_html}<span class="history-card-fields"><span class="history-card-heading"><strong>{html.escape(str(current_card_title))}</strong><span class="history-card-state">{html.escape(HISTORY_STATUS_LABELS.get(current_status_name,current_status_name))}</span></span><time>{html.escape(current_created_text)}</time><dl>{"".join(current_detail_values)}</dl></span></span><span class="history-card-id">ID · {html.escape(current_job_identifier)}</span><span class="history-card-select">{"선택됨" if current_selected_flag else "이 작업 선택"}</span></button>')
+        progress_html_value = ''
+        progress_record_value = current_history_record.get('progress')
+        if progress_record_value:
+            progress_percent_value = max(0, min(100, float(progress_record_value['percent'])))
+            progress_label_value = f"ANNY 렌더 {progress_percent_value:g}% · {progress_record_value['completed_frames']}/{progress_record_value['total_frames']}프레임 저장"
+            if progress_record_value.get('current_source_frame') is not None:
+                progress_label_value += f" · Fra:{progress_record_value['current_source_frame']}"
+            progress_html_value = f'<span class="history-card-progress">{html.escape(progress_label_value)}<progress style="width:100%" value="{progress_percent_value}" max="100" aria-label="ANNY 렌더 진행률"></progress></span>'
+        card_html_values.append(f'<button type="button" class="generation-detail-card" data-job-id="{html.escape(current_job_identifier,quote=True)}" aria-pressed="{str(current_selected_flag).lower()}"><span class="history-card-content">{current_thumbnail_html}<span class="history-card-fields"><span class="history-card-heading"><strong>{html.escape(str(current_card_title))}</strong><span class="history-card-state">{html.escape(HISTORY_STATUS_LABELS.get(current_status_name,current_status_name))}</span></span><time>{html.escape(current_created_text)}</time><dl>{"".join(current_detail_values)}</dl></span></span>{progress_html_value}<span class="history-card-id">ID · {html.escape(current_job_identifier)}</span><span class="history-card-select">{"선택됨" if current_selected_flag else "이 작업 선택"}</span></button>')
     return '<div class="generation-detail-cards">'+''.join(card_html_values)+'</div>'
 
 

@@ -110,6 +110,30 @@ def list_generation_history():
     return [{**json.loads(record_file_path.read_text()), **json.loads((resolve_generation_directory(record_file_path.stem)/'status.json').read_text())} for record_file_path in sorted(GENERATION_HISTORY_DIRECTORY.glob('*.json'), reverse=True)]
 
 
+def read_render_progress(generation_job_path, log_text_value):
+    """Fra는 현재 원본 프레임이며 완료 수는 방향별 저장된 이미지로 계산한다."""
+    render_root_path = generation_job_path/'result/anny'
+    contract_file_path = render_root_path/'retarget-contract.json'
+    if not contract_file_path.exists():
+        return None
+    contract_record_value = json.loads(contract_file_path.read_text())
+    frames_per_direction = contract_record_value['frames']
+    direction_name_values = contract_record_value['directions']
+    total_frame_count = frames_per_direction * len(direction_name_values)
+    if total_frame_count <= 0:
+        return None
+    completed_frame_count = sum(
+        sum((render_root_path/direction/f'preview-{index:04d}.png').is_file()
+            for index in range(1, frames_per_direction + 1))
+        for direction in direction_name_values
+    )
+    frame_match_values = re.findall(r'\bFra:(\d+)\b', log_text_value)
+    return {'stage': 'anny-render', 'completed_frames': completed_frame_count,
+            'total_frames': total_frame_count,
+            'current_source_frame': int(frame_match_values[-1]) if frame_match_values else None,
+            'percent': round(100 * completed_frame_count / total_frame_count, 1)}
+
+
 def read_generation_status(generation_job_identifier):
     generation_job_path = resolve_generation_directory(generation_job_identifier)
     generation_status_value = json.loads((generation_job_path/'status.json').read_text())
@@ -119,6 +143,13 @@ def read_generation_status(generation_job_identifier):
     generation_status_value['prompt_word_count'] = len(generation_status_value['prompt'].split()) if generation_status_value['prompt'] is not None else None
     generation_log_path = generation_job_path/'worker.log'
     generation_status_value['log'] = generation_log_path.read_text(errors='replace')[-12000:] if generation_log_path.exists() else ''
+    generation_status_value['progress'] = read_render_progress(generation_job_path, generation_status_value['log'])
+    if generation_status_value['progress'] is not None:
+        render_progress_value = generation_status_value['progress']
+        progress_message_value = f"ANNY 렌더 {render_progress_value['percent']}% · {render_progress_value['completed_frames']}/{render_progress_value['total_frames']}프레임 저장"
+        if render_progress_value['current_source_frame'] is not None:
+            progress_message_value += f" · 최근 Fra:{render_progress_value['current_source_frame']}"
+        generation_status_value['message'] = (generation_status_value.get('message', '') + ' · ' + progress_message_value).strip(' ·')
     if (generation_job_path/'result.json').exists():
         generation_status_value['result'] = json.loads((generation_job_path/'result.json').read_text())
     return generation_status_value

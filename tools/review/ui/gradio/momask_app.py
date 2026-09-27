@@ -46,6 +46,8 @@ def create_motion_history_records(server_base_address):
         current_status_name=current_history_record.get('status','unknown')
         current_request_record={'action':dict((value,label) for label,value in MOTION_ACTION_LABELS).get(current_history_record.get('action'),current_history_record.get('action','unknown')),'directions':current_history_record.get('directions',[]),'tag':current_history_record.get('tag','')}
         current_history_record['status']={'status':current_status_name}
+        if current_status_name=='running':
+            current_history_record['progress']=execute_motion_command('status',{'id':current_job_identifier}).get('progress')
         current_history_record['request']=current_request_record
         current_history_record['path']=str(WORKFLOW_ROOT_DIRECTORY/'.tmp/momask-generator/jobs'/current_job_identifier)
         if current_status_name=='completed':
