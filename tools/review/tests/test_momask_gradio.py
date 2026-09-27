@@ -47,7 +47,7 @@ class GradioMoMaskTests(unittest.TestCase):
     def test_resting_settings_use_fixed_prompt(self):
         prompt_text_value, summary_text_value = MODULE_SOURCE_VALUE.read_motion_settings('resting')
         self.assertEqual(prompt_text_value, 'A person starts standing upright, then crosses the left leg in front of the right, lowers into a seated position, places both hands on the floor, then stands and uncrosses the legs.')
-        self.assertIn('80프레임', summary_text_value)
+        self.assertIn('120프레임', summary_text_value)
 
     def test_player_keeps_frame_count_and_directions(self):
         player_html_value=MODULE_SOURCE_VALUE.create_motion_player('sample',{'frames':32,'directions':['up_left']},'http://127.0.0.1:8770')
