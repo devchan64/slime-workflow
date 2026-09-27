@@ -44,3 +44,17 @@ tools/manager.py                  통합 CLI 진입점
 HTTP URL, 페이지 해시, CLI 명령, `.tmp` 생성 ID·기록 경로와 `assets` 경로는 변경하지 않는다. 이동 후 서버·CLI import와 실행기 `--help`, 공용 회귀 테스트, 주요 페이지의 CSS·JS 제공을 검증한다.
 
 관련 기준: [UI 가이드](../../workflows/management-ui.md), [클라이언트 가이드](../../workflows/management-clients.md).
+
+## 마을 맵 원장과 검수 사본
+
+마을의 블록 배치·건물 크기·층수는 게임 백엔드의 `config/city_layouts/`가 원장이다. 검수 화면은 런타임에 다른 저장소를 읽지 않고, 게임 데이터에서 명시적으로 내보낸 `assets/world/isloon/game-data/` 사본만 사용한다. 사본의 `source-manifest.json`에는 원장 YAML 해시와 게임 블록 높이를 함께 기록한다.
+
+게임 도시 레이아웃을 다시 컴파일한 뒤 다음 명령으로 검수 사본을 갱신한다.
+
+```bash
+cd /home/cbsim/ws/slime-backend
+.venv/bin/python scripts/export_city_map_review.py \
+  --output-directory /home/cbsim/ws/slime-workflow/assets/world/isloon/game-data
+```
+
+검수 빌드는 게임의 60px 블록을 화면 표현 기준인 80px로만 정규화한다. 원장 배치·층수·블록 계층은 변경하지 않는다.

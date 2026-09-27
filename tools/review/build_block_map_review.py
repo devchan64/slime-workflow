@@ -23,10 +23,24 @@ def validate_town_block_heights(map_record_values, block_height_value):
         for block_record_values in building_record_values['blocks']:
             if block_record_values['height']!=block_height_value:
                 raise ValueError(f'블록 높이 오류: {map_record_values["id"]}/{block_record_values["id"]}')
-        for face_record_values in building_record_values['faces']:
+        for face_record_values in building_record_values.get('faces',[]):
             for vertex_record_values in face_record_values['vertices']:
                 if vertex_record_values['height']%block_height_value:
                     raise ValueError(f'블록 면 높이 오류: {map_record_values["id"]}')
+
+
+def normalize_game_block_heights(map_record_values, source_block_height, target_block_height):
+    """게임 블록 높이를 검수 화면의 블록 높이로 정규화한다."""
+    if not isinstance(source_block_height,int) or source_block_height<=0:
+        raise ValueError('게임 블록 높이 메타데이터가 올바르지 않습니다.')
+    for current_building_record in map_record_values['buildings']:
+        for current_block_record in current_building_record['blocks']:
+            current_block_height=current_block_record['height']
+            current_offset_height=current_block_record['offsetHeight']
+            if current_block_height%source_block_height or current_offset_height%source_block_height:
+                raise ValueError(f'게임 블록 높이 단위 오류: {map_record_values["id"]}/{current_block_record["id"]}')
+            current_block_record['height']=current_block_height//source_block_height*target_block_height
+            current_block_record['offsetHeight']=current_offset_height//source_block_height*target_block_height
 
 
 def build_current_block_faces(block_record_values, block_height_value):
@@ -60,19 +74,27 @@ def build_block_map_review(output_directory_path):
     output_directory_path=Path(output_directory_path).resolve()
     if not output_directory_path.is_relative_to(WORKFLOW_ROOT_DIRECTORY/'.tmp'):
         raise ValueError('검수 출력은 .tmp 하위여야 합니다.')
-    source_asset_directory=WORKFLOW_ROOT_DIRECTORY/'assets/world/isloon/blocks'
+    source_asset_directory=WORKFLOW_ROOT_DIRECTORY/'assets/world/isloon/game-data'
     town_block_height=load_town_block_height()
-    current_material_record=yaml.safe_load((source_asset_directory/'materials.yaml').read_text())
+    current_material_record=yaml.safe_load((WORKFLOW_ROOT_DIRECTORY/'assets/world/isloon/blocks/materials.yaml').read_text())
     output_directory_path.mkdir(parents=True,exist_ok=True)
     prefab_source_records=yaml.safe_load((source_asset_directory.parent/'building-prefabs.yaml').read_text())['prefabs']
     building_tile_records={current_prefab_record['id']:{'roof':current_prefab_record['roof_tile'],'wall':current_prefab_record['ground_floor_plain_wall_tile'],'window':current_prefab_record['ground_floor_small_window_wall_tile'],'large_window':current_prefab_record['upper_floor_large_window_wall_tile'],'door':current_prefab_record['door_tile']} for current_prefab_record in prefab_source_records}
     (output_directory_path/'block-building-tiles.json').write_text(json.dumps(building_tile_records))
     exported_map_records=[]
     # 명시적으로 내보낸 맵 사본만 목록에 게시한다.
+    source_manifest_path=source_asset_directory/'source-manifest.json'
+    if not source_manifest_path.is_file():
+        raise ValueError('게임 도시 맵 사본이 없습니다. slime-backend/scripts/export_city_map_review.py를 실행하세요.')
+    source_manifest_record=json.loads(source_manifest_path.read_text())
+    source_block_height=source_manifest_record.get('blockHeight')
     for source_map_path in sorted(source_asset_directory.glob('*.json')):
+        if source_map_path.name=='source-manifest.json':
+            continue
         current_map_record=json.loads(source_map_path.read_text())
         if current_map_record['id']!=source_map_path.stem or any(current_building_record['blockSchemaVersion']!=1 for current_building_record in current_map_record['buildings']):
             raise ValueError(f'블록 스키마 오류: {source_map_path.name}')
+        normalize_game_block_heights(current_map_record,source_block_height,town_block_height)
         validate_town_block_heights(current_map_record,town_block_height)
         required_material_names=set(current_map_record['terrainCodes'].values())|{'wall','roof'}
         if required_material_names-set(current_material_record['materials']):
