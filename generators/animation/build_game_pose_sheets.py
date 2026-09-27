@@ -14,7 +14,7 @@ POSE_SHEET_COLUMNS=4
 POSE_SHEET_MAX_FRAMES=32
 POSE_FRAME_CELL_SIZE=512
 POSE_DIRECTION_NAMES=('down_left','down_right','up_left','up_right')
-POSE_SOURCE_RECORDS=(('walking-v12','momask-walking-v12',60,'openpose','manifest.yaml'),('stretch-v1','momask-stretch-v1',120,'openpose','manifest.yaml'))
+POSE_SOURCE_RECORDS=(('walking-v13','momask-walking-v13',60,'openpose','manifest.yaml'),('stretch-v1','momask-stretch-v1',120,'openpose','manifest.yaml'))
 
 
 def calculate_asset_digest(asset_file_path):

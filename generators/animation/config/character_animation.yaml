@@ -16,27 +16,27 @@ motions:
     manifest: manifest.yaml
     openpose: openpose/{direction}/openpose-{frame:04d}.png
     anny: anny/{direction}/anny-{frame:04d}.png
-  walking-v12:
+  walking-v13:
     direction_auxiliary_prompts:
       down_left: "The character walks toward the left side of the image, front three-quarter view."
       down_right: "The character walks toward the right side of the image, front three-quarter view."
       up_left: "Back view of the character walking away toward the left side of the image. Show the back of the head and torso."
       up_right: "Back view of the character walking away toward the right side of the image. Show the back of the head and torso."
     target_fps: 4
-    label: 걷기 v12
-    root: assets/motion-sheet/momask-walking-v12
+    label: 걷기 v13
+    root: assets/motion-sheet/momask-walking-v13
     manifest: manifest.yaml
     openpose: openpose/{direction}/openpose-{frame:04d}.png
     anny: anny/{direction}/anny-{frame:04d}.png
-  resting-v2:
+  resting-v3:
     direction_auxiliary_prompts:
       down_left: "The character faces toward the left side of the image, front three-quarter view. Preserve the reference pose."
       down_right: "The character faces toward the right side of the image, front three-quarter view. Preserve the reference pose."
       up_left: "Back view, facing away toward the left side of the image. Show the back of the head and torso. Preserve the reference pose."
       up_right: "Back view, facing away toward the right side of the image. Show the back of the head and torso. Preserve the reference pose."
     target_fps: 4
-    label: 휴식 v2
-    root: assets/motion-sheet/momask-resting-v2
+    label: 휴식 v3
+    root: assets/motion-sheet/momask-resting-v3
     manifest: manifest.yaml
     openpose: openpose/{direction}/openpose-{frame:04d}.png
     anny: anny/{direction}/anny-{frame:04d}.png
