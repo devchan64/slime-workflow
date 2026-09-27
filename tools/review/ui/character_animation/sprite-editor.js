@@ -211,7 +211,7 @@ if(typeof document!=='undefined')void (async function initializeSpriteEditorComp
  for(const currentToggleName of ['guides','onion'])findSpriteElement(currentToggleName).onchange=renderSpriteEditorFrame;
  function updateSpriteDisplayZoom(){
   const selectedDisplayZoom=findSpriteElement('zoom').value;
-  spriteCanvasElement.style.setProperty('--sprite-display-size',selectedDisplayZoom==='fit'?'100%':`${readSpriteCellPixels()*Number(selectedDisplayZoom)}px`);
+  spriteRootElement.style.setProperty('--sprite-display-size',selectedDisplayZoom==='fit'?'100%':`${readSpriteCellPixels()*Number(selectedDisplayZoom)}px`);
  }
  findSpriteElement('zoom').onchange=()=>{updateSpriteDisplayZoom();renderSpriteEditorFrame();};
  findSpriteElement('background').onchange=()=>{spriteRootElement.dataset.background=findSpriteElement('background').value;};
