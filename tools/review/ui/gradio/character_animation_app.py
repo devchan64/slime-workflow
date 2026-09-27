@@ -61,8 +61,8 @@ def create_motion_preview_player(selected_motion_name,selected_source_kind,selec
     selected_frame_numbers=calculate_preview_frame_numbers(selected_start_frame,selected_end_frame,source_frame_rate,target_frame_rate,generation_speed_ratio)
     frame_url_values=[f'{server_base_address}/character-animation/asset/{selected_motion_name}/{selected_source_kind}/{selected_direction_name}/{frame_number}' for frame_number in selected_frame_numbers]
     player_payload_value={'frames':frame_url_values,'sourceFrames':selected_frame_numbers,'fps':target_frame_rate}
-    player_source_text='''<!doctype html><meta charset="utf-8"><style>body{margin:8px;background:#10151f;color:#e5e7eb;font:14px sans-serif}button,input{padding:8px;background:#243449;color:inherit;border:1px solid #526078;border-radius:6px}button:disabled{opacity:.45;cursor:not-allowed}nav{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}img{width:min(100%,720px);min-height:240px;max-height:440px;object-fit:contain;background:#000}#seek{width:min(100%,720px)}</style><nav><button id="load">미리보기 불러오기</button><button id="previous">이전</button><button id="play" disabled>재생</button><button id="stop">중지</button><button id="next">다음</button></nav><img id="frame" alt="입력 포즈 프레임"><p id="count">미리보기 불러오기를 누르면 선택 프레임을 준비합니다.</p><input id="seek" type="range" min="0" value="0"><script>const data=__PAYLOAD__,$=id=>document.getElementById(id),cache=[],ready=[];let i=0,t=null,next=0,loading=0,prepared=0,failed=0;function update(){const total=prepared+failed;$('count').textContent='미리보기 준비 '+total+' / '+data.frames.length+' 프레임'+(failed?' · '+failed+'개 실패':'');if(total===data.frames.length){$('play').disabled=failed>0;draw()}}function preloadNext(){while(loading<4&&next<data.frames.length){const index=next++,image=new Image();cache[index]=image;loading++;image.onload=()=>{ready[index]=true;prepared++;loading--;update();preloadNext()};image.onerror=()=>{ready[index]=false;failed++;loading--;update();preloadNext()};image.src=data.frames[index]}}function draw(){const frame=i;if(!ready[frame]){$('count').textContent='원본 프레임 '+data.sourceFrames[frame]+' 준비 중입니다.';return}$('frame').src=cache[frame].src;$('count').textContent='원본 프레임 '+data.sourceFrames[frame]+' · '+(frame+1)+' / '+data.frames.length;$('seek').value=frame;$('seek').max=data.frames.length-1}function stop(){clearInterval(t);t=null}function step(n){i=(i+n+data.frames.length)%data.frames.length;draw()}$('load').onclick=()=>{$('load').disabled=true;preloadNext()};$('previous').onclick=()=>{stop();step(-1)};$('next').onclick=()=>{stop();step(1)};$('stop').onclick=stop;$('play').onclick=()=>{if($('play').disabled)return;stop();t=setInterval(()=>step(1),1000/data.fps)};$('seek').oninput=()=>{stop();i=+$('seek').value;draw()}</script>'''.replace('__PAYLOAD__',json.dumps(player_payload_value).replace('<','\\u003c'))
-    return '<iframe title="입력 포즈 미리보기" style="width:100%;height:560px;border:0" sandbox="allow-scripts allow-same-origin" srcdoc="'+html.escape(player_source_text,quote=True)+'"></iframe>'
+    player_source_text='''<!doctype html><meta charset="utf-8"><style>*{box-sizing:border-box}body{margin:8px;background:#10151f;color:#e5e7eb;font:14px sans-serif}button,input{padding:8px;background:#243449;color:inherit;border:1px solid #526078;border-radius:6px}button:disabled{opacity:.45;cursor:not-allowed}nav{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}img{width:min(100%,720px);max-height:440px;object-fit:contain;background:#000}#seek{width:min(100%,720px)}</style><nav><button id="load">미리보기 불러오기</button><button id="previous">이전</button><button id="play" disabled>재생</button><button id="stop">중지</button><button id="next">다음</button></nav><img hidden id="frame" alt="입력 포즈 프레임"><p id="count">미리보기 불러오기를 누르면 선택 프레임을 준비합니다.</p><input hidden id="seek" type="range" min="0" value="0"><script>const data=__PAYLOAD__,$=id=>document.getElementById(id),cache=[],ready=[];let i=0,t=null,next=0,loading=0,prepared=0,failed=0;function update(){const total=prepared+failed;$('count').textContent='미리보기 준비 '+total+' / '+data.frames.length+' 프레임'+(failed?' · '+failed+'개 실패':'');if(total===data.frames.length){$('play').disabled=failed>0;draw()}}function preloadNext(){while(loading<4&&next<data.frames.length){const index=next++,image=new Image();cache[index]=image;loading++;image.onload=()=>{ready[index]=true;prepared++;loading--;update();preloadNext()};image.onerror=()=>{ready[index]=false;failed++;loading--;update();preloadNext()};image.src=data.frames[index]}}function draw(){const frame=i;if(!ready[frame]){$('count').textContent='원본 프레임 '+data.sourceFrames[frame]+' 준비 중입니다.';return}$('frame').hidden=false;$('seek').hidden=false;$('frame').src=cache[frame].src;$('count').textContent='원본 프레임 '+data.sourceFrames[frame]+' · '+(frame+1)+' / '+data.frames.length;$('seek').value=frame;$('seek').max=data.frames.length-1}function stop(){clearInterval(t);t=null}function step(n){i=(i+n+data.frames.length)%data.frames.length;draw()}$('load').onclick=()=>{$('load').disabled=true;preloadNext()};$('previous').onclick=()=>{stop();step(-1)};$('next').onclick=()=>{stop();step(1)};$('stop').onclick=stop;$('play').onclick=()=>{if($('play').disabled)return;stop();t=setInterval(()=>step(1),1000/data.fps)};$('seek').oninput=()=>{stop();i=+$('seek').value;draw()};new ResizeObserver(()=>{if(window.frameElement)window.frameElement.style.height=(document.body.getBoundingClientRect().height+16)+'px'}).observe(document.body)</script>'''.replace('__PAYLOAD__',json.dumps(player_payload_value).replace('<','\\u003c'))
+    return '<iframe title="입력 포즈 미리보기" style="width:100%;height:100px;border:0" sandbox="allow-scripts allow-same-origin" srcdoc="'+html.escape(player_source_text,quote=True)+'"></iframe>'
 
 def create_animation_player(generation_job_identifier,generation_status_record,server_base_address):
     result_record_value=generation_status_record.get('result') or {}
@@ -88,17 +88,19 @@ def build_character_animation_interface(server_base_address):
             if not character_choice_values:missing_asset_kind_values.append('캐릭터')
             gr.Markdown('> ⚠️ 사용할 수 있는 '+ '·'.join(missing_asset_kind_values) +' 자산이 없어 새 생성을 시작할 수 없습니다. 위 안내를 확인한 뒤 자산 또는 등록 설정을 갱신하세요.')
             return interface_blocks_value
-        with gr.Row():
-            with gr.Column(scale=1):
-                motion_select_value=gr.Dropdown(motion_choice_values,value=motion_choice_values[0][1],label='모션')
-                character_select_value=gr.Dropdown(character_choice_values,value=character_choice_values[0][1],label='캐릭터')
-                source_select_value=gr.Radio([('ANNY','anny'),('OpenPose','openpose')],value='anny',label='포즈 입력')
-                direction_select_value=gr.CheckboxGroup(DIRECTION_LABEL_VALUES,value=[value for _,value in DIRECTION_LABEL_VALUES],label='생성 방향')
+        with gr.Column(elem_classes=['character-animation-workspace']):
+            with gr.Column():
+                gr.Markdown('### 생성 설정')
+                with gr.Row():
+                    motion_select_value=gr.Dropdown(motion_choice_values,value=motion_choice_values[0][1],label='모션')
+                    character_select_value=gr.Dropdown(character_choice_values,value=character_choice_values[0][1],label='캐릭터')
+                with gr.Row():
+                    source_select_value=gr.Radio([('ANNY','anny'),('OpenPose','openpose')],value='anny',label='포즈 입력')
+                    direction_select_value=gr.CheckboxGroup(DIRECTION_LABEL_VALUES,value=[value for _,value in DIRECTION_LABEL_VALUES],label='생성 방향')
                 initial_motion_frame_count=motion_frame_count_values[motion_choice_values[0][1]]
                 with gr.Row():
                     start_frame_value=gr.Number(value=1,minimum=1,maximum=initial_motion_frame_count,precision=0,label='시작 프레임')
                     end_frame_value=gr.Number(value=initial_motion_frame_count,minimum=1,maximum=initial_motion_frame_count,precision=0,label='종료 프레임')
-                preview_direction_value=gr.Dropdown(DIRECTION_LABEL_VALUES,value='down_left',label='미리보기 방향')
                 with gr.Row():
                     resolution_select_value=gr.Dropdown([512,768,1024,1280],value=512,label='해상도')
                     step_select_value=gr.Radio([4,30],value=4,label='생성 스텝')
@@ -106,15 +108,14 @@ def build_character_animation_interface(server_base_address):
                     target_fps_select_value=gr.Dropdown([1,2,3,4],value=4,label='타겟 FPS')
                     speed_select_value=gr.Dropdown([1,1.5,2,4],value=1,label='생성 배속')
                 prompt_text_value=gr.Textbox(value=catalog_record_value['prompts']['base'],label='고정 기본 프롬프트',interactive=False,lines=4)
-                generation_pending_value=gr.State(False)
-                generation_button_value=gr.Button('애니메이션 생성 시작',variant='primary',elem_id='character-generation-start')
-                status_text_value=gr.Markdown('생성 가능 · 설정을 확인하세요.')
-            with gr.Column(scale=2):
-                generation_identifier_value=gr.Textbox(label='생성 ID',interactive=False)
+            with gr.Accordion('입력 포즈 미리보기',open=False):
+                preview_direction_value=gr.Dropdown(DIRECTION_LABEL_VALUES,value='down_left',label='미리보기 방향')
+                generation_identifier_value=gr.State('')
                 initial_motion_record=motion_catalog_records[motion_choice_values[0][1]]
                 motion_preview_html_value=gr.HTML(create_motion_preview_player(motion_choice_values[0][1],'anny','down_left',1,initial_motion_frame_count,initial_motion_record['fps'],4,1,server_base_address))
-                player_html_value=gr.HTML('<div>완료된 생성 결과를 선택하면 재생합니다.</div>')
-                cancel_button_value=gr.Button('생성 취소')
+            generation_pending_value=gr.State(False)
+            generation_button_value=gr.Button('애니메이션 생성 시작',variant='primary',elem_id='character-generation-start')
+            status_text_value=gr.Markdown('생성 가능 · 설정을 확인하세요.')
         logs_text_value,log_refresh_enabled,_=build_execution_logs()
         read_history_page,history_output_values=build_generation_history_view(execute_animation_gateway,server_base_address,'이력 목록만 초기화합니다. 생성 프레임과 로그 파일은 유지됩니다. 생성 중에는 초기화할 수 없습니다.',restore_input_callback=restore_animation_inputs,restore_output_components=[motion_select_value,character_select_value,source_select_value,direction_select_value,start_frame_value,end_frame_value,resolution_select_value,step_select_value,target_fps_select_value,speed_select_value,status_text_value],result_renderer_callback=create_animation_player,record_folder_route='/character-animation')
         def start_animation(*selection_values):
@@ -146,7 +147,6 @@ def build_character_animation_interface(server_base_address):
         refresh_button_value=gr.Button('상태 새로고침')
         refresh_button_value.click(refresh_status,[generation_identifier_value,log_refresh_enabled,generation_pending_value],[status_text_value,logs_text_value,generation_button_value],queue=False)
         if hasattr(gr,'Timer'):gr.Timer(2).tick(refresh_status,[generation_identifier_value,log_refresh_enabled,generation_pending_value],[status_text_value,logs_text_value,generation_button_value],show_progress='hidden')
-        cancel_button_value.click(lambda identifier:execute_animation_gateway('cancel',{'id':identifier}),generation_identifier_value,status_text_value)
     return interface_blocks_value
 
 from pathlib import Path as ManagementStylePath

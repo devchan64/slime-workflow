@@ -64,3 +64,26 @@
 .history-card-thumbnail{display:block;width:96px!important;height:112px!important;object-fit:contain;border-radius:8px;background:var(--background-fill-secondary)}
 .history-card-placeholder{display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--body-text-color-subdued);text-align:center}
 @media(max-width:520px){.history-card-content{grid-template-columns:72px minmax(0,1fr)}.history-card-thumbnail{width:72px!important;height:96px!important}.generation-detail-card dl{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* 이력 탐색: 입력과 버튼의 높이를 맞추고 좁은 화면에서 건수만 분리한다. */
+.generation-history-toolbar{min-height:32px!important;align-items:center!important}
+.generation-history-toolbar>button{min-width:80px!important;height:32px!important;padding:4px 8px!important}
+.generation-history-toolbar>.form{flex:0 0 60px!important;min-width:60px!important;background:transparent!important;border:0!important;padding:0!important}
+.generation-history-toolbar .generation-history-page{padding:0!important;min-width:60px!important;background:transparent!important;border:0!important}
+.generation-history-toolbar .generation-history-page input{height:32px!important;min-height:32px!important;text-align:center!important;padding:4px 6px!important}
+.generation-history-toolbar button:disabled{opacity:.4;cursor:not-allowed}
+@media(max-width:600px){.generation-history-toolbar>.prose,.generation-history-toolbar>.markdown{flex-basis:100%!important}.generation-history-toolbar{justify-content:flex-end!important}}
+
+.generation-history-toolbar button,.generation-history-toolbar input,.generation-history-toolbar p,.generation-history-toolbar span{font-size:12px!important;line-height:1.4!important;font-weight:400!important}
+
+/* 이력 도구 모음과 카드 사이의 기본 Gradio 여백을 제거한다. */
+.generation-history-workspace{gap:8px!important}
+.generation-history-heading h3{margin:0!important;line-height:1.4!important}
+.generation-history-toolbar{padding:0!important;margin:0!important;min-height:32px!important}
+.generation-history-toolbar .block{padding:0!important;min-height:0!important}
+.generation-history-toolbar p{margin:0!important}
+#generation-history-cards{padding:0!important;margin:0!important}
+.generation-detail-cards{gap:8px}
+.generation-detail-card{padding:10px!important;gap:4px}
+.history-card-fields{gap:4px}
+.generation-detail-card dl{gap:4px 12px;margin:2px 0}
