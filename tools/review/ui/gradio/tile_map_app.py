@@ -19,14 +19,23 @@ from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_conf
 from tools.review.common.management_gateway import execute_management_command
 from tools.review.domains.tile.tile_generation import REFERENCE_STYLE_PROMPT
 
+# 채택 예시 출처: 2026-09-27_19-33-08-a3f9691b
+ROOFTOP_TILE_PROMPT_EXAMPLE = '크고 넓은 지붕재, 이음매는 적고 간격은 넓게, 잔무늬 없이 단순한 표면 디테일, 게임 화면에서 작게 표시해도 형태가 또렷하게 보이도록 한다.'
+
 WALL_TILE_KOREAN_EXAMPLE = '석재 벽면, 양옆에 기둥이 절반이 보이게 배치한다, 상단에 단을 배치한다.'
 SMALL_WINDOW_WALL_KOREAN_EXAMPLE = '이미지 1은 밖에서 보는 벽면이다. 실내가 보이지 않는 작은 창문은 상단에 추가한다.'
-CLOSED_GATE_WALL_KOREAN_EXAMPLE = '닫힌 대문을 추가한다.'
+# 문 예시 출처: 2026-09-27_19-58-40-45f636bf
+CLOSED_GATE_WALL_KOREAN_EXAMPLE = '벽면의 음각으로 닫힌 짙은색의 아치형 대문을 추가한다.'
 GROUND_TILE_KOREAN_EXAMPLE = '불규칙한 모양의 커다란 평면 회색 대리석으로 6개로 이루어진 바닥'
 
 def execute_tile_gateway(command_name_value,payload_value):return execute_management_command('tile-map',command_name_value,payload_value)
 def generate_random_seed_value():return secrets.randbelow(4294967296)
 def clear_user_prompt_value():return ''
+def append_rooftop_tile_example(current_prompt_value):
+    current_prompt_text=(current_prompt_value or '').strip()
+    if ROOFTOP_TILE_PROMPT_EXAMPLE in current_prompt_text:return current_prompt_text
+    return ROOFTOP_TILE_PROMPT_EXAMPLE if not current_prompt_text else current_prompt_text+'\n'+ROOFTOP_TILE_PROMPT_EXAMPLE
+
 def append_wall_tile_example(current_prompt_value):
     current_prompt_text=(current_prompt_value or '').strip()
     if WALL_TILE_KOREAN_EXAMPLE in current_prompt_text:return current_prompt_text
@@ -83,6 +92,7 @@ def build_tile_interface(server_base_address):
                 tile_value=gr.Dropdown(tile_choices,value=tile_choices[0][1],label='타일 종류');prompt_value=gr.Textbox(label='사용자 프롬프트',lines=5)
                 with gr.Row():
                     clear_prompt_button_value=gr.Button('사용자 프롬프트 초기화',size='sm',scale=1)
+                    rooftop_example_button_value=gr.Button('지붕 한글 예시 넣기',visible=tile_choices[0][1]=='rooftop',size='sm',scale=1)
                     wall_example_button_value=gr.Button('벽 타일 한글 예시 넣기',visible=tile_choices[0][1]=='wall',size='sm',scale=1)
                     small_window_example_button_value=gr.Button('작은창문 한글 예시 넣기',visible=tile_choices[0][1]=='wall',size='sm',scale=1)
                     closed_gate_example_button_value=gr.Button('닫힌 대문 한글 예시 넣기',visible=tile_choices[0][1]=='wall',size='sm',scale=1)
@@ -102,8 +112,9 @@ def build_tile_interface(server_base_address):
                     gr.Textbox(value=REFERENCE_STYLE_PROMPT,label=f'참조 화풍 보존 · {len(REFERENCE_STYLE_PROMPT.split())}단어',interactive=False,lines=3)
                 def update_base_prompt(selected_tile_kind):
                     current_prompt_text=catalog_record_value['types'][selected_tile_kind]['base_prompt']
-                    return gr.update(value=current_prompt_text,label=f'기본 프롬프트 · {len(current_prompt_text.split())}단어'),gr.update(visible=selected_tile_kind=='wall'),gr.update(visible=selected_tile_kind=='wall'),gr.update(visible=selected_tile_kind=='wall'),gr.update(visible=selected_tile_kind=='ground')
-                tile_value.change(update_base_prompt,inputs=tile_value,outputs=[base_prompt_display,wall_example_button_value,small_window_example_button_value,closed_gate_example_button_value,ground_example_button_value],queue=False)
+                    return gr.update(value=current_prompt_text,label=f'기본 프롬프트 · {len(current_prompt_text.split())}단어'),gr.update(visible=selected_tile_kind=='wall'),gr.update(visible=selected_tile_kind=='wall'),gr.update(visible=selected_tile_kind=='wall'),gr.update(visible=selected_tile_kind=='ground'),gr.update(visible=selected_tile_kind=='rooftop')
+                tile_value.change(update_base_prompt,inputs=tile_value,outputs=[base_prompt_display,wall_example_button_value,small_window_example_button_value,closed_gate_example_button_value,ground_example_button_value,rooftop_example_button_value],queue=False)
+                rooftop_example_button_value.click(append_rooftop_tile_example,inputs=prompt_value,outputs=prompt_value,queue=False)
                 clear_prompt_button_value.click(clear_user_prompt_value,outputs=prompt_value,queue=False)
                 wall_example_button_value.click(append_wall_tile_example,inputs=prompt_value,outputs=prompt_value,queue=False)
                 small_window_example_button_value.click(append_small_window_wall_example,inputs=prompt_value,outputs=prompt_value,queue=False)
