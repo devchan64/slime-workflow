@@ -27,6 +27,6 @@ class GradioHistoryTest(unittest.TestCase):
         self.assertEqual(thumbnail_identifier_values,['completed-image'])
 
     def test_history_card_uses_tag_and_image_type_as_heading(self):
-        rendered_history_html=render_history_detail_cards([{'id':'image-123','created_at':'2026-09-27T09:15:00+09:00','status':{'status':'completed'},'request':{'tag':'돌온재 자갈 지면','prompt':'gravel ground','width':512,'steps':4}}])
+        rendered_history_html=render_history_detail_cards([{'id':'image-123','created_at':'2026-09-27T09:15:00+09:00','status':{'status':'completed'},'request':{'action':'generate','tag':'돌온재 자갈 지면','prompt':'gravel ground','width':512,'steps':4}}])
         self.assertIn('돌온재 자갈 지면 · 이미지 생성',rendered_history_html)
         self.assertNotIn('<strong>생성 작업</strong>',rendered_history_html)

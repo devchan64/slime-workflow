@@ -116,7 +116,10 @@ def render_history_detail_cards(history_record_values, selected_history_identifi
         current_status_record=current_history_record.get('status',{})
         current_status_name=current_status_record.get('status','unknown') if isinstance(current_status_record,dict) else current_status_record
         current_request_record=current_history_record.get('request',{})
-        current_task_name=current_request_record.get('motion') or current_request_record.get('action') or current_request_record.get('tile_type') or ('이미지 생성' if current_request_record.get('prompt') else '생성 작업')
+        current_action_name=current_request_record.get('action')
+        if current_action_name in ('generate','prepare'):
+            current_action_name=None
+        current_task_name=current_request_record.get('motion') or current_action_name or current_request_record.get('tile_type') or ('이미지 생성' if current_request_record.get('prompt') else '생성 작업')
         current_tag_name=current_request_record.get('tag')
         current_card_title=(str(current_tag_name)+' · '+str(current_task_name)) if isinstance(current_tag_name,str) and current_tag_name.strip() else current_task_name
         current_created_text=format_history_created_time(current_history_record).split('.')[0]
