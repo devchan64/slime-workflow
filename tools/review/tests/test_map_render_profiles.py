@@ -251,6 +251,8 @@ class MapRenderProfileTests(unittest.TestCase):
 
         self.assertIn('groundTextureOffset=currentFaceRecord.ground?0.5:0', map_review_script)
         self.assertIn('ground:true', map_review_script)
+        self.assertIn("const BLOCK_BOUNDARY_COLOR='#dce5ef'", map_review_script)
+        self.assertEqual(map_review_script.count('strokeStyle=BLOCK_BOUNDARY_COLOR'), 2)
 
     def test_roof_texture_frames_are_mapped_to_each_block_boundary(self):
         map_review_script = (WORKFLOW_ROOT / 'tools/review/ui/map/block-map-review.js').read_text(encoding='utf-8')
