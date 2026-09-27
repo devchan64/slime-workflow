@@ -199,8 +199,8 @@
         119
       ],
       "playtime_seconds": 30.0,
-      "prompt": "A person stands for a few seconds, then gently rolls their shoulders and shakes their hands at their sides to loosen up.",
-      "description": "몇 초 동안 서 있다가 어깨를 가볍게 돌리고 몸 옆에서 손을 털며 몸을 푸는 동작. 원본 120프레임 전체를 출력하며 생성 후 팔 자세 보정은 적용하지 않는다."
+      "prompt": "A person stands still with both arms relaxed at their sides for a few seconds, gently stretches their neck for a few seconds while keeping both arms relaxed at their sides, then stands still again for a few seconds.",
+      "description": "양팔을 몸 옆으로 편하게 내리고 몇 초간 가만히 서 있다가, 팔을 내린 채 몇 초간 목을 가볍게 스트레칭하고, 다시 몇 초간 가만히 서 있는 동작. 원본 120프레임 전체를 출력하며 생성 후 팔 자세 보정은 적용하지 않는다."
     },
     "resting": {
       "source_frames": 160,
