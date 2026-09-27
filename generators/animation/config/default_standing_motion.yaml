@@ -1,14 +1,14 @@
 schema_version: 1
 asset_id: momask-standing
-version: 9
-asset_path: assets/motion-sheet/momask-standing-v9
-manifest_path: assets/motion-sheet/momask-standing-v9/manifest.yaml
-motion_path: assets/motion-sheet/momask-standing-v9/motion.npz
+version: 10
+asset_path: assets/motion-sheet/momask-standing-v10
+manifest_path: assets/motion-sheet/momask-standing-v10/manifest.yaml
+motion_path: assets/motion-sheet/momask-standing-v10/motion.npz
 motion_sha256: 7261b1905bb316698b9cea195c54d61699f8dece2687fa3ae8228e6437a2a283
-openpose_path: assets/motion-sheet/momask-standing-v9/openpose
+openpose_path: assets/motion-sheet/momask-standing-v10/openpose
 frames: 120
 fps: 4
 cycle_seconds: 30
 baseline_model: anny-neutral-v4
-humanml3d_path: assets/motion-sheet/momask-standing-v9/humanml3d
+humanml3d_path: assets/motion-sheet/momask-standing-v10/humanml3d
 openpose_format: COCO18 body with projected visible nose, eyes and ears

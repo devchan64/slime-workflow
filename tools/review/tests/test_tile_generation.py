@@ -14,10 +14,11 @@ class TileGenerationTests(unittest.TestCase):
 
     def test_ground_prompt_defines_repeatable_flat_surface(self):
         ground_prompt_text=load_tile_configuration()['types']['ground']['base_prompt']
-        self.assertIn('Orthographic top-down',ground_prompt_text)
-        self.assertIn('matching opposite edges',ground_prompt_text)
-        self.assertIn('uniform scale, even lighting',ground_prompt_text)
-        self.assertIn('no border, perspective, horizon',ground_prompt_text)
+        self.assertIn('Top view, orthographic camera looking straight down',ground_prompt_text)
+        self.assertIn('matching edges',ground_prompt_text)
+        self.assertIn('uniform scale',ground_prompt_text)
+        self.assertIn('thin outer rim flush with the ground',ground_prompt_text)
+        self.assertIn('no raised border, perspective, or scenery',ground_prompt_text)
         self.assertNotIn('boundary lines',ground_prompt_text)
     def test_all_kinds_keep_base_and_style(self):
         for tile_kind_name in ('rooftop','wall','ground'):
@@ -36,7 +37,8 @@ class TileGenerationTests(unittest.TestCase):
         self.assertIn('single flat roofing surface',rooftop_prompt_text)
         self.assertIn('filling the image',rooftop_prompt_text)
         self.assertNotIn('four broad aligned rows',rooftop_prompt_text)
-        self.assertIn('thin outer structural frame',rooftop_prompt_text)
+        self.assertIn('thin outer frame flush with the roof surface',rooftop_prompt_text)
+        self.assertIn('no raised rim',rooftop_prompt_text)
         self.assertLessEqual(len(rooftop_prompt_text.split()),32)
         self.assertNotIn('large clearly separated',rooftop_prompt_text)
         self.assertNotIn('wooden',rooftop_prompt_text)
