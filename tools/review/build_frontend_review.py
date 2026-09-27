@@ -3,7 +3,7 @@ import sys
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[2]))
 from tools.review.common.game_render_metrics import load_game_render_metrics
-from tools.review.ui_assets import resolve_review_ui_asset, read_review_shared_styles
+from tools.review.ui_assets import resolve_review_ui_asset, read_review_shared_styles, read_animation_anchor_template
 from datetime import datetime
 from zoneinfo import ZoneInfo
 import hashlib
@@ -284,7 +284,7 @@ def build_frontend_review(frontend_repository_path, ui_bundle_directory=None):
     try:
         animation_label_lookup = load_animation_labels(frontend_asset_root)
         shared_review_styles = read_review_shared_styles()
-        anchor_template_text = (WORKFLOW_REPO_ROOT/'generators/animation/review_standing_anchors.html').read_text().replace('</style>', '</style><style>'+shared_review_styles+'</style>', 1)
+        anchor_template_text = read_animation_anchor_template().replace('</style>', '</style><style>'+shared_review_styles+'</style>', 1)
         game_render_metrics = load_game_render_metrics(frontend_repository_path)
         manager_page_records = []
         discovered_source_records = []

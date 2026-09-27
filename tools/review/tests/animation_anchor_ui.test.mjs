@@ -78,14 +78,14 @@ for(const frameRecordValue of exportedArtifactValue.frames)for(const pointRecord
 assert.equal(vm.runInContext('buildCoordinateArtifact().artifactType',testExecutionContext),'character-animation-anchor-review');
 console.log('프레임 전환·1px 이동·다른 프레임 보존·정수 JSON 내보내기·가상 타일·그림자 검사 통과');
 // 등록 소수 앵커와 두 발 중심·앞뒤 네 점 모드도 원본을 정확하게 복원한다.
-const anchorTemplateSource=readFileSync(new URL('../../../generators/animation/review_standing_anchors.html',import.meta.url),'utf8').split('<script>')[1].split('</script>')[0];
+const anchorTemplateSource=readFileSync(new URL('../ui/shared/animation-anchor-editor/editor.js',import.meta.url),'utf8');
 assert.match(anchorTemplateSource,/resolveReviewAssetUrl\(currentImageFilename\)/);
 for(const coordinateModeValue of ['anchor','foot-centers','endpoints']){
  const sampleContactPoints=coordinateModeValue==='anchor'?[{x:10.25,y:20.75}]:[{x:8,y:20},{x:12,y:20}];
  const sampleFrameRecords=['down_left','down_right','up_left','up_right'].map(currentDirectionName=>({frameId:currentDirectionName+'.0',direction:currentDirectionName,image:'test.png',rect:{x:0,y:0,width:100,height:100},anchor:coordinateModeValue==='anchor'?{...sampleContactPoints[0]}:{x:10,y:20},contacts:sampleContactPoints.map(currentPointRecord=>({...currentPointRecord})),endpoints:coordinateModeValue==='endpoints'?[{x:6,y:20},{x:10,y:20},{x:10,y:20},{x:14,y:20}]:[]}));
  elementLookupTable.clear();
  const modeExecutionContext=vm.createContext({document:fakeDocumentAdapter,window:{addEventListener(){}},CustomEvent:class{},Image:class{set src(sourceImageLocation){this.onload();}},requestAnimationFrame(){},performance:{now:()=>0},URL,Blob,setTimeout});
- vm.runInContext(anchorTemplateSource.replace('__FRAME_RECORDS__',JSON.stringify(sampleFrameRecords)).replace('__SOURCE_METADATA__',JSON.stringify({coordinateMode:coordinateModeValue,sheets:[]})),modeExecutionContext);
+ vm.runInContext(anchorTemplateSource.replace('__FRAME_RECORDS__',JSON.stringify(sampleFrameRecords)).replace('__SOURCE_METADATA__',JSON.stringify({coordinateMode:coordinateModeValue,sheets:[],gameRenderMetrics:{tileWidth:64,tileHeight:32,characterHeight:60}})),modeExecutionContext);
  vm.runInContext(`
  const originalExportSnapshot=JSON.stringify(buildCoordinateArtifact());
  moveSelectedPoint(1,0);moveFrameSelection(1);directionChoiceElement.value='up_right';directionChoiceElement.onchange();

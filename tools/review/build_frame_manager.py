@@ -2,7 +2,7 @@
 import sys
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[2]))
-from tools.review.ui_assets import resolve_review_ui_asset, read_review_shared_styles
+from tools.review.ui_assets import resolve_review_ui_asset, read_review_shared_styles, read_animation_anchor_template
 from datetime import datetime
 from zoneinfo import ZoneInfo
 import argparse
@@ -41,8 +41,7 @@ def build_frame_manager(parsed_argument_values):
         for page_identifier_text,page_label_text,source_kind_name,page_filename_text,anchor_editor_enabled in MANAGER_PAGE_SPECS:
             copied_review_path=output_manager_directory/source_kind_name/page_filename_text
             copied_review_html=copied_review_path.read_text()
-            current_template_path=(WORKFLOW_REPO_ROOT/'generators/animation/review_standing_anchors.html') if anchor_editor_enabled else resolve_review_ui_asset('walk-sheet.html')
-            current_template_html=current_template_path.read_text()
+            current_template_html=read_animation_anchor_template() if anchor_editor_enabled else resolve_review_ui_asset('walk-sheet.html').read_text()
             embedded_constant_names=(('reviewFrameRecords','__FRAME_RECORDS__'),('reviewSourceMetadata','__SOURCE_METADATA__')) if anchor_editor_enabled else (('reviewAssetRecords','__ASSET_RECORDS__'),)
             for embedded_constant_name,template_marker_text in embedded_constant_names:
                 embedded_marker_text=f'const {embedded_constant_name}='

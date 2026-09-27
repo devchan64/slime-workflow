@@ -9,6 +9,9 @@ import math
 import shutil
 import traceback
 from PIL import Image, ImageDraw
+import sys
+sys.path.insert(0,str(Path(__file__).resolve().parents[2]))
+from tools.review.ui_assets import read_animation_anchor_template, read_review_shared_styles
 
 STANDING_DIRECTION_NAMES = ('down_left', 'down_right', 'up_left', 'up_right')
 STANDING_FRAME_COUNT = 4
@@ -201,8 +204,7 @@ def build_anchor_review(parsed_argument_values):
         (output_review_directory/'contacts.json').write_text(json.dumps(source_manifest_data['contacts'] if parsed_argument_values.coordinate_mode == 'foot-centers' else source_manifest_data['footprintEndpoints'],ensure_ascii=False,indent=2)+'\n')
         coordinate_artifact_data = {'schemaVersion':1,'artifactType':'character-standing-anchor-review','description':'기본 캐릭터 standing-v4 방향별 4프레임 시트 4장의 정수 앵커 검수 좌표. 셀 왼쪽 위 원점, x는 오른쪽, y는 아래. points는 '+('화면 왼쪽·오른쪽 발 중심' if parsed_argument_values.coordinate_mode == 'foot-centers' else '화면 왼쪽 발 앞꿈치·뒤꿈치, 오른쪽 발 앞꿈치·뒤꿈치')+'이다. anchor는 두 발 중심 평균을 반올림하며 프레임별로 독립적이다.','coordinateMode':parsed_argument_values.coordinate_mode,'source':{'animationId':animation_metadata_data['animationId'],'animationVersion':animation_metadata_data['version'],'sheets':source_sheet_records},'frames':[{'frameId':frame_record_value['frameId'],'direction':frame_record_value['direction'],'image':frame_record_value['image'],'rect':frame_record_value['rect'],'points':frame_record_value['contacts'] if parsed_argument_values.coordinate_mode == 'foot-centers' else frame_record_value['endpoints'],'anchor':frame_record_value['anchor']} for frame_record_value in output_review_records]}
         (output_review_directory/'character-default-standing-v4-anchor-review.json').write_text(json.dumps(coordinate_artifact_data,ensure_ascii=False,indent=2)+'\n')
-        html_template_path = Path(__file__).with_suffix('.html')
-        review_page_text = html_template_path.read_text().replace('__FRAME_RECORDS__',json.dumps(output_review_records,ensure_ascii=False)).replace('__SOURCE_METADATA__',json.dumps(source_manifest_data,ensure_ascii=False))
+        review_page_text = read_animation_anchor_template().replace('</style>', '</style><style>'+read_review_shared_styles()+'</style>',1).replace('__FRAME_RECORDS__',json.dumps(output_review_records,ensure_ascii=False)).replace('__SOURCE_METADATA__',json.dumps(source_manifest_data,ensure_ascii=False))
         review_page_text = review_page_text.replace('</style>', '</style><style>'+(Path(__file__).resolve().parents[2]/'tools/review/ui/shared/review-ui.css').read_text()+'</style>',1)
         (output_review_directory/'preview.html').write_text(review_page_text)
         # 육안 검수용: 네 방향 첫 프레임을 같은 스케일과 공통 앵커에 표시한다.

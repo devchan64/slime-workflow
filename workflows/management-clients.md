@@ -235,3 +235,15 @@ Gradio 생성이력에서 취소·실패 이력을 선택하고 ‘생성 재개
 휴식은 첫 프레임부터 양발을 딛고 완전히 직립한 상태로 시작해 잠시 서 있는 구간을 둔 뒤 착석한다. 시작 직립 검수는 첫 프레임뿐 아니라 시작 10% 구간에 적용한다.
 
 휴식 프롬프트의 시작 직립과 바닥 착석 유지 구간에는 각각 `for a few seconds`를 명시한다. 이는 모델에 유지 구간을 요청하는 표현이며 정확한 초 수를 보장하지 않는다.
+
+### 앵커 좌표 생성 이력
+
+공통 앵커 편집기의 `좌표 저장`은 `character-animation anchor-save` 명령을 사용한다. 저장마다 `.tmp/test/animation-anchor-edits/<한국시간>/<생성ID>/`에 request.json, coordinates.json, result.json, status.json을 보관하며 기존 기록을 덮어쓰지 않는다. 원본 애니메이션 에셋 적용과 좌표 저장은 별개다.
+
+```sh
+python tools/manager.py command character-animation anchor-save --document-file coordinates.json
+python tools/manager.py command character-animation anchor-history --animation-id character.default.white-shirt.idle --animation-version 6
+python tools/manager.py command character-animation anchor-load 2026-09-27_22-00-00-12345678
+```
+
+GUI의 좌표 생성 이력에서 저장 시각·완료 상태·프레임 수를 확인하고 불러올 수 있다. 불러오기는 현재 애니메이션 버전·시트 해시·좌표 모드·프레임 구성을 확인한 뒤 편집 화면에 적용한다. JSON 다운로드 기능도 유지한다.

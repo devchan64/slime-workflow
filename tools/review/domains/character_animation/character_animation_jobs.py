@@ -186,6 +186,9 @@ def resume_animation_generation(command_payload_value):
     return {'id':generation_job_identifier,'status':'running','path':str(generation_job_path)}
 
 def execute_animation_command(operation_command_name,command_payload_value):
+    if operation_command_name in ('anchor-save','anchor-history','anchor-load'):
+        from .anchor_history import execute_anchor_history_command
+        return execute_anchor_history_command(operation_command_name,command_payload_value)
     if operation_command_name in ('sprite-source','sprite-save','sprite-load'):
         from .sprite_editor import execute_sprite_editor_command
         return execute_sprite_editor_command(operation_command_name,command_payload_value)

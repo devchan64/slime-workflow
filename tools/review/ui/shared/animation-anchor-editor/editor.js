@@ -1,14 +1,3 @@
-<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>앵커 편집 · 워크프레임</title><style></style>
-<header><div><h1>스탠딩 앵커 편집</h1><p>프레임별 기준점을 확인하고 원본 픽셀 단위로 조정하세요.</p></div><span class="badge">수동 좌표 편집</span></header>
-<main class="anchor-workspace">
-<section class="panel editor-save-panel" aria-label="변경 이력 및 다운로드"><p id="coordinateEditStatus" role="status" aria-live="polite"></p><div class="control-row"><button id="undoCoordinateChange" disabled>실행 취소</button><button id="redoCoordinateChange" disabled>다시 실행</button></div><button class="primary" id="saveCoordinates">좌표 JSON 다운로드</button><p id="coordinateDownloadStatus" role="status"></p></section>
-<aside class="anchor-controls" aria-label="앵커 편집 도구">
-<fieldset><legend>01 · 방향과 프레임</legend><select id="directionChoice" aria-label="방향"><option value="down_left">↙ 좌하</option><option value="down_right">↘ 우하</option><option value="up_left">↖ 좌상</option><option value="up_right">↗ 우상</option></select><div class="control-row"><button id="previousFrame">← 이전</button><button id="playToggle">재생</button><button id="nextFrame">다음 →</button></div><label for="frameChoice">프레임 <span id="frameNumber"></span></label><input id="frameChoice" aria-label="프레임 선택" type="range" min="0" max="3" value="0"></fieldset>
-<fieldset><legend>02 · 좌표 조정</legend><select id="pointChoice" aria-label="편집할 좌표"></select><span id="pointStatus"></span><div class="control-row"><button data-move-x="-1" data-move-y="0">← X −1</button><button data-move-x="1" data-move-y="0">X +1 →</button></div><div class="control-row"><button data-move-x="0" data-move-y="-1">↑ Y −1</button><button data-move-x="0" data-move-y="1">↓ Y +1</button></div><button id="resetCurrentFrame">현재 프레임 원본 복원</button><p id="coordinateHelp">최종 앵커를 이동하면 두 발 좌표가 함께 이동합니다.</p><p>선택한 프레임에만 적용됩니다. 정지 상태에서 미리보기를 클릭하거나 1px씩 이동하세요.</p><p>원점은 셀 왼쪽 위입니다. 오른쪽은 +X, 아래는 +Y입니다.</p></fieldset>
-
-</aside>
-<section class="panel anchor-preview" aria-label="프레임 미리보기"><h2>프레임 미리보기</h2><details class="preview-display-settings"><summary id="groundPreviewStatus"></summary><div class="preview-ground-controls"><label><input id="tilePreviewToggle" type="checkbox" checked>가상 타일</label><label><input id="gameOutputScaleToggle" type="checkbox" checked>게임 출력 비율</label><label>맵 기준 <select id="mapScaleChoice"><option value="field">필드·전투</option><option value="town">마을</option></select></label><label>크기 <select id="actorSizeChoice" aria-label="게임 크기 등급"><option value="small">소형 · 50%</option><option value="medium">중형 · 100%</option><option value="large">대형 · 150%</option><option value="huge">초대형 · 200%</option></select></label><label>출력 높이 (px) <input id="bodyHeightInput" type="number" min="1" step="1" aria-label="출력 높이 px"></label><label>너비 (px) <input id="tilePreviewWidth" type="number" aria-label="가상 타일 너비 px" step="2"></label><label>높이 (px) <input id="tilePreviewHeight" type="number" aria-label="가상 타일 높이 px 자동 계산" readonly></label><label><input id="shadowPreviewToggle" type="checkbox" checked>그림자</label><button id="saveNormalization">정규화 JSON 다운로드</button></div><p id="groundPreviewError" role="alert"></p><p id="normalizationDownloadStatus" role="status"></p></details><div class="anchor-stage"><canvas id="reviewCanvas" width="650" height="400" aria-label="클릭하여 선택 좌표 지정"></canvas><div class="rig-mini-map"><canvas id="rigMiniMap" width="240" height="240" aria-label="현재 프레임 리그"></canvas></div></div><div class="options"><label><input id="anchorToggle" type="checkbox" checked>앵커 정렬</label><label><input id="guideToggle" type="checkbox" checked>가이드</label><label><input id="rigMiniMapToggle" type="checkbox" checked>리그 보기</label></div><div class="coordinate-legend"><span>노랑 · 기준선</span><span>청록 · 발 중심</span><span>빨강 · 최종 앵커</span><span>자주 · 권장 신체 높이</span></div><p id="frameStatus"></p><pre id="reviewError" role="alert"></pre></section>
-</main><script>
 const reviewFrameRecords=__FRAME_RECORDS__;
 const resolveReviewAssetUrl=assetPathValue=>window.resolveStaticReviewAssetUrl?.(assetPathValue)||assetPathValue;
 const reviewSourceMetadata=__SOURCE_METADATA__;
@@ -174,4 +163,41 @@ function buildNormalizationArtifact(){return {schemaVersion:1,artifactType:'anim
 document.querySelector('#saveCoordinates').onclick=()=>{const downloadAnchorElement=document.createElement('a');downloadAnchorElement.href=URL.createObjectURL(new Blob([JSON.stringify(buildCoordinateArtifact(),null,2)+'\n'],{type:'application/json'}));downloadAnchorElement.download=reviewExportFilename;downloadAnchorElement.click();downloadedCoordinateSnapshot=JSON.stringify(reviewFrameRecords.map(copyFrameCoordinates));refreshCoordinateStatus();document.querySelector('#coordinateDownloadStatus').textContent='다운로드 요청됨 · 브라우저에서 파일을 확인하세요.';setTimeout(()=>URL.revokeObjectURL(downloadAnchorElement.href),1000)};
 document.querySelector('#saveNormalization').onclick=()=>{if(!updatePreviewGroundSize())return;const downloadAnchorElement=document.createElement('a');downloadAnchorElement.href=URL.createObjectURL(new Blob([JSON.stringify(buildNormalizationArtifact(),null,2)+'\n'],{type:'application/json'}));downloadAnchorElement.download=reviewAnimationIdentity+'-normalization-review.json';downloadAnchorElement.click();document.querySelector('#normalizationDownloadStatus').textContent='정규화 검수 JSON 다운로드 요청됨 · 적용 전 검토하세요.';setTimeout(()=>URL.revokeObjectURL(downloadAnchorElement.href),1000)};
 Promise.all([...new Set(reviewFrameRecords.map(currentFrameValue=>currentFrameValue.image))].map(currentImageFilename=>new Promise((resolveImageLoad,rejectImageLoad)=>{const currentImageElement=new Image();currentImageElement.onload=()=>{reviewImageElements[currentImageFilename]=currentImageElement;resolveImageLoad()};currentImageElement.onerror=()=>rejectImageLoad(new Error(`이미지 로드 실패: ${currentImageFilename}`));currentImageElement.src=resolveReviewAssetUrl(currentImageFilename)}))).then(()=>Promise.all((reviewSourceMetadata.rigSheets||[]).map(currentRigSheetRecord=>new Promise((resolveRigLoad,rejectRigLoad)=>{const currentRigImageElement=new Image();currentRigImageElement.onload=()=>{reviewRigImageElements[currentRigSheetRecord.image]=currentRigImageElement;resolveRigLoad()};currentRigImageElement.onerror=()=>rejectRigLoad(new Error(`리그 이미지 로드 실패: ${currentRigSheetRecord.image}`));currentRigImageElement.src=resolveReviewAssetUrl(currentRigSheetRecord.image)}))).then(()=>requestAnimationFrame(drawReviewFrame))).catch(currentLoadError=>document.querySelector('#reviewError').textContent=currentLoadError.message);
-</script></html>
+
+// 브라우저 저장과 CLI는 같은 명령 게이트웨이·실행별 기록을 사용한다.
+async function requestAnchorHistoryCommand(commandNameValue,payloadRecordValue){
+ const responseRecordValue=await fetch('/management/command',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({service:'character-animation',command:commandNameValue,payload:payloadRecordValue})});
+ const responsePayloadValue=await responseRecordValue.json();
+ if(!responseRecordValue.ok)throw new Error(responsePayloadValue.error||'좌표 이력 요청 실패');
+ return responsePayloadValue;
+}
+async function refreshAnchorHistoryList(){
+ const historyStatusElement=document.querySelector('#anchorHistoryStatus');
+ try{
+ const responsePayloadValue=await requestAnchorHistoryCommand('anchor-history',{animation_id:reviewAnimationIdentity,animation_version:reviewAnimationVersion});
+ const historyListElement=document.querySelector('#anchorHistoryList');historyListElement.replaceChildren();
+ for(const historyRecordValue of responsePayloadValue.items){
+  const historyButtonElement=document.createElement('button');historyButtonElement.textContent=`${historyRecordValue.created_at} · 완료 · ${historyRecordValue.frames}프레임 · 불러오기`;
+  historyButtonElement.onclick=async()=>{try{
+   const {document:coordinateDocumentValue}=await requestAnchorHistoryCommand('anchor-load',{id:historyRecordValue.id});
+   const currentDocumentValue=buildCoordinateArtifact();
+   if(JSON.stringify(coordinateDocumentValue.source)!==JSON.stringify(currentDocumentValue.source)||coordinateDocumentValue.coordinateMode!==currentDocumentValue.coordinateMode||coordinateDocumentValue.frames.length!==currentDocumentValue.frames.length)throw new Error('현재 애니메이션 출처·시트·좌표 모드와 다른 이력입니다.');
+   coordinateDocumentValue.frames.forEach((frameValue,indexValue)=>{const currentFrameValue=currentDocumentValue.frames[indexValue];for(const fieldNameValue of ['frameId','direction','image','rect'])if(JSON.stringify(frameValue[fieldNameValue])!==JSON.stringify(currentFrameValue[fieldNameValue]))throw new Error('프레임 구성이 다른 이력입니다.');});
+   pauseFramePlayback();
+   coordinateDocumentValue.frames.forEach((frameValue,indexValue)=>{const currentFrameValue=reviewFrameRecords[indexValue],beforeCoordinateValue=copyFrameCoordinates(currentFrameValue);currentFrameValue.anchor={...frameValue.anchor};if(usesAnchorOnlyMode)currentFrameValue.contacts=[{...frameValue.anchor},{...frameValue.anchor}];else if(usesFootCentersOnly)currentFrameValue.contacts=frameValue.points.map(pointValue=>({...pointValue}));else currentFrameValue.endpoints=frameValue.points.map(pointValue=>({...pointValue}));recordCoordinateChange(currentFrameValue,beforeCoordinateValue);});
+   historyStatusElement.textContent=`불러옴 · ${historyRecordValue.id}`;
+  }catch(errorValue){historyStatusElement.textContent=errorValue.message;}};
+  historyListElement.append(historyButtonElement);
+ }
+ historyStatusElement.textContent=`저장 이력 ${responsePayloadValue.items.length}건`;
+ }catch(errorValue){historyStatusElement.textContent=errorValue.message;}
+}
+const saveAnchorHistoryButton=document.querySelector('#saveAnchorHistory');
+saveAnchorHistoryButton.onclick=async()=>{
+ saveAnchorHistoryButton.disabled=true;
+ try{const savedCoordinateSnapshot=JSON.stringify(reviewFrameRecords.map(copyFrameCoordinates));const savedHistoryRecord=await requestAnchorHistoryCommand('anchor-save',{document:buildCoordinateArtifact()});downloadedCoordinateSnapshot=savedCoordinateSnapshot;refreshCoordinateStatus();await refreshAnchorHistoryList();document.querySelector('#anchorHistoryStatus').textContent=`저장 완료 · ${savedHistoryRecord.id}`;}
+ catch(errorValue){document.querySelector('#anchorHistoryStatus').textContent=errorValue.message;}
+ finally{saveAnchorHistoryButton.disabled=false;}
+};
+document.querySelector('#refreshAnchorHistory').onclick=refreshAnchorHistoryList;
+if(typeof window.location!=='undefined'&&/^https?:$/.test(window.location.protocol))refreshAnchorHistoryList();

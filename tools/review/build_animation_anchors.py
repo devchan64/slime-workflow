@@ -2,7 +2,7 @@
 from pathlib import Path
 import sys
 sys.path.insert(0,str(Path(__file__).resolve().parents[2]))
-from tools.review.ui_assets import read_review_shared_styles
+from tools.review.ui_assets import read_review_shared_styles, read_animation_anchor_template
 from datetime import datetime
 import argparse
 import hashlib
@@ -73,7 +73,7 @@ def build_animation_anchors(parsed_argument_values):
                 if not isinstance(imported_anchor_point,dict) or set(imported_anchor_point)!={'x','y'} or any(type(current_coordinate_value)is not int for current_coordinate_value in imported_anchor_point.values()) or not 0<=imported_anchor_point['x']<current_frame_record['rect']['width'] or not 0<=imported_anchor_point['y']<current_frame_record['rect']['height'] or imported_frame_record['points']!=[imported_anchor_point]: raise ValueError('셀 내부 정수 앵커가 필요합니다.')
                 current_frame_record.update(anchor=imported_anchor_point,contacts=[dict(imported_anchor_point),dict(imported_anchor_point)])
         review_source_metadata={'coordinateMode':'anchor','animationId':parsed_argument_values.animation_id,'animationVersion':parsed_argument_values.animation_version,'artifactType':'character-animation-anchor-review','exportFilename':'character-animation-anchor-review.json','frameDurationMs':frame_duration_value,'sheets':source_sheet_records,'description':f"{parsed_argument_values.animation_id} / {parsed_argument_values.animation_version}의 프레임별 수동 지면 앵커. 셀 좌상 원점, x 오른쪽·y 아래, 원본 정수 픽셀. points는 anchor 한 점. 떠 있는 발의 중심과 다르며 초기 셀 하단 중앙은 편집 시작점일 뿐 검수 완료 좌표가 아니다."}
-        template_source_text=(WORKFLOW_REPO_ROOT/'generators/animation/review_standing_anchors.html').read_text()
+        template_source_text=read_animation_anchor_template()
         template_source_text=template_source_text.replace('</style>', '</style><style>'+read_review_shared_styles()+'</style>',1)
         rendered_page_text=template_source_text.replace('__FRAME_RECORDS__',json.dumps(review_frame_records).replace('<','\\u003c')).replace('__SOURCE_METADATA__',json.dumps(review_source_metadata,ensure_ascii=False).replace('<','\\u003c'))
         (review_run_directory/'anchors.html').write_text(rendered_page_text)
