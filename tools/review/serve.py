@@ -32,6 +32,22 @@ def is_review_live_reload_request(request_path):
     return urlsplit(request_path).path == REVIEW_LIVE_RELOAD_PATH
 
 
+def build_gradio_proxy_headers(request_header_values):
+    """Gradio가 브라우저가 접근 가능한 공개 URL을 계산하게 한다."""
+    public_host_value = request_header_values.get('Host')
+    if not public_host_value:
+        raise ValueError('Gradio 프록시 요청에 Host가 필요합니다.')
+    proxy_header_values = {
+        name: value for name, value in request_header_values.items()
+        if name.lower() not in ('host', 'connection', 'transfer-encoding',
+                                'x-forwarded-host', 'x-forwarded-proto', 'x-gradio-server')
+    }
+    proxy_header_values['Host'] = public_host_value
+    proxy_header_values['X-Forwarded-Proto'] = 'http'
+    proxy_header_values['Accept-Encoding'] = 'identity'
+    return proxy_header_values
+
+
 def write_proxy_response_body(response_output_stream, response_body_bytes):
     """연결이 해제된 브라우저에는 Gradio 프록시 본문 쓰기를 생략한다."""
     try:
@@ -351,9 +367,7 @@ def run_review_server(parsed_argument_values):
             proxied_request_path='/'+self.path[len(route_prefix_value):]
             request_body_bytes=self.rfile.read(int(self.headers.get('Content-Length','0'))) if self.command=='POST' else None
             proxy_connection_value=http.client.HTTPConnection('127.0.0.1',gradio_server_port,timeout=30)
-            proxy_header_values={header_name:header_value for header_name,header_value in self.headers.items() if header_name.lower() not in ('host','connection','transfer-encoding')}
-            proxy_header_values['Host']=f'127.0.0.1:{gradio_server_port}'
-            proxy_header_values['Accept-Encoding']='identity'
+            proxy_header_values=build_gradio_proxy_headers(self.headers)
             proxy_connection_value.request(self.command,proxied_request_path,body=request_body_bytes,headers=proxy_header_values)
             proxy_response_value=proxy_connection_value.getresponse()
             response_body_bytes=proxy_response_value.read()
