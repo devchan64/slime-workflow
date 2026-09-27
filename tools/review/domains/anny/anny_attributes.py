@@ -1,6 +1,7 @@
 import sys
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[4]))
+from tools.review.common.gpu_job_queue import launch_gpu_process, cancel_gpu_generation, resume_gpu_generation
 from tools.review.ui_assets import resolve_review_ui_asset
 from urllib.parse import urlsplit
 import json, subprocess, threading, uuid, re, math, yaml
@@ -81,9 +82,18 @@ class AnnyAttributeManager:
     stored_history_records=[]
     for history_record_path in sorted(JOBS.glob('*/history.json'),key=lambda item:item.stat().st_mtime,reverse=True):
      current_history_record=json.loads(history_record_path.read_text());current_history_record['path']=str(history_record_path.parent.resolve());current_history_record['status']=json.loads((history_record_path.parent/'status.json').read_text());
-     if current_history_record.get('request',{}).get('kind')=='preview' and (history_record_path.parent/'render'/'mesh.json').is_file():current_history_record['status']={'status':'completed'}
      current_history_record['preview_ready']=all((history_record_path.parent/name).is_file() or (history_record_path.parent/'render'/name).is_file() for name in ('front.png','side.png'));stored_history_records.append(current_history_record)
     self.send(h,200,{'records':stored_history_records});return True
+   if h.command=='POST' and path in ('/anny-attributes/cancel','/anny-attributes/resume'):
+    if h.headers.get('Origin')!=f'http://127.0.0.1:{h.server.server_port}':raise ValueError('허용하지 않는 요청 출처')
+    selected_request_record=json.loads(h.rfile.read(int(h.headers['Content-Length'])))
+    if set(selected_request_record)!={'id'} or not re.fullmatch(r'[0-9a-f]{8}',selected_request_record['id']):raise ValueError('작업 ID 오류')
+    selected_job_directory=JOBS/selected_request_record['id']
+    if path.endswith('/resume') and not (selected_job_directory/'gpu-command.json').exists():
+     saved_request_record=json.loads((selected_job_directory/'history.json').read_text())['request']
+     saved_command_values=[str(ROOT/'.venv/bin/python'),str(ROOT/'generators/animation/render_anny_attribute_preview.py'),'--attributes',str(selected_job_directory/'attributes.json'),'--output-dir',str(selected_job_directory/'render'),'--rotation-y',str(saved_request_record.get('render_settings',{}).get('rotation_y',0))]+(['--mesh-only'] if saved_request_record.get('kind')=='preview' else [])
+     (selected_job_directory/'gpu-command.json').write_text(json.dumps({'command':saved_command_values,'service':'anny'}))
+    self.send(h,200,(resume_gpu_generation if path.endswith('/resume') else cancel_gpu_generation)(JOBS/selected_request_record['id']));return True
    if h.command=='POST' and path=='/anny-attributes/history/reset':
     if h.headers.get('Origin')!=f'http://127.0.0.1:{h.server.server_port}':raise ValueError('허용하지 않는 요청 출처')
     if json.loads(h.rfile.read(int(h.headers['Content-Length'])))!={'action':'reset'}:raise ValueError('초기화 요청 오류')
@@ -100,7 +110,6 @@ class AnnyAttributeManager:
     root=JOBS/parts[3]
     if len(parts)==4:
      state=json.loads((root/'status.json').read_text());state['preview_ready']=all((root/name).is_file() or (root/'render'/name).is_file() for name in ('front.png','side.png'));state['mesh_ready']=(root/'render'/'mesh.json').is_file();
-     if state['mesh_ready'] and (root/'history.json').is_file() and json.loads((root/'history.json').read_text()).get('request',{}).get('kind')=='preview':state['status']='completed'
      state['log']=(root/'worker.log').read_text(errors='replace')[-2000:] if (root/'worker.log').exists() else '';self.send(h,200,state);return True
     preview_image_path=root/parts[4]
     if not preview_image_path.is_file():preview_image_path=root/'render'/parts[4]
@@ -125,22 +134,8 @@ class AnnyAttributeManager:
    ident=uuid.uuid4().hex[:8];root=JOBS/ident;root.mkdir(parents=True);(root/'attributes.json').write_text(json.dumps(attrs));(root/'status.json').write_text(json.dumps({'status':'running'}))
    (root/'history.json').write_text(json.dumps({'id':ident,'created_at':datetime.now(ZoneInfo('Asia/Seoul')).isoformat(),'request':{'attributes':{attribute_field_name:attribute_field_value for attribute_field_name,attribute_field_value in changed.items() if attribute_field_name!='rotation_y'},'render_settings':{'rotation_y':changed.get('rotation_y',0)},'kind':'preview' if path.endswith('/preview') else 'render'},'status':{'status':'running'}},ensure_ascii=False))
    preview_mesh_only=path=='/anny-attributes/preview'
-   def work():
-    final_status_record={'status':'failed','exit_code':None}
-    try:
-     with (root/'worker.log').open('w') as worker_log_stream:
-      code=subprocess.run([str(ROOT/'.venv/bin/python'),str(ROOT/'generators/animation/render_anny_attribute_preview.py'),'--attributes',str(root/'attributes.json'),'--output-dir',str(root/'render'),'--rotation-y',str(changed.get('rotation_y',0))]+(['--mesh-only'] if preview_mesh_only else []),stdout=worker_log_stream,stderr=subprocess.STDOUT).returncode
-     for name in ('front.png','side.png'):
-      source=root/'render'/name
-      if source.exists():source.replace(root/name)
-     final_status_record={'status':'completed' if code==0 else 'failed','exit_code':code}
-    except Exception as worker_error_value:
-     final_status_record['error']=str(worker_error_value)
-     with (root/'worker.log').open('a') as worker_log_stream:
-      worker_log_stream.write(f'\nANNY 작업 실패: {worker_error_value}\n')
-    finally:
-     pending_status_path=root/'status.pending'
-     pending_status_path.write_text(json.dumps(final_status_record,ensure_ascii=False))
-     pending_status_path.replace(root/'status.json')
-   threading.Thread(target=work,daemon=True).start();self.send(h,202,{'id':ident});return True
+   with (root/'worker.log').open('w') as worker_log_stream:
+    launch_gpu_process([str(ROOT/'.venv/bin/python'),str(ROOT/'generators/animation/render_anny_attribute_preview.py'),'--attributes',str(root/'attributes.json'),'--output-dir',str(root/'render'),'--rotation-y',str(changed.get('rotation_y',0))]+(['--mesh-only'] if preview_mesh_only else []),root,'anny',stdout=worker_log_stream,stderr=subprocess.STDOUT,start_new_session=True)
+   self.send(h,202,{'id':ident});return True
+
   except (ValueError,KeyError,FileNotFoundError,json.JSONDecodeError) as e:self.send(h,400,{'error':str(e)});return True

@@ -12,6 +12,7 @@ import threading
 import uuid
 import os
 import signal
+from tools.review.common.gpu_job_queue import launch_gpu_process, cancel_gpu_generation, resume_gpu_generation
 
 WORKFLOW_ROOT_PATH = Path(__file__).resolve().parents[4]
 IMAGE_JOB_ROOT = WORKFLOW_ROOT_PATH / '.tmp/test/qwen-image-2512'
@@ -118,37 +119,22 @@ class ImageGenerationManager:
             if current_http_handler.command == 'POST':
                 if current_http_handler.headers.get('Origin') != expected_origin_value:
                     raise ValueError('동일 출처 요청만 허용합니다.')
-                if current_url_path not in (self.route_prefix_value+'/jobs',self.route_prefix_value+'/history/reset',self.route_prefix_value+'/cancel') or current_http_handler.headers.get('Content-Type','').split(';')[0] != 'application/json':
+                if current_url_path not in (self.route_prefix_value+'/jobs',self.route_prefix_value+'/history/reset',self.route_prefix_value+'/cancel',self.route_prefix_value+'/resume') or current_http_handler.headers.get('Content-Type','').split(';')[0] != 'application/json':
                     raise ValueError('요청 경로 또는 형식 오류')
                 current_body_length = int(current_http_handler.headers.get('Content-Length','0'))
                 if not 1 <= current_body_length <= (12_100_000 if self.three_reference_mode or getattr(self,'reference_upload_enabled',False) else IMAGE_REQUEST_LIMIT):
                     raise ValueError('요청 크기 오류')
                 current_request_record = json.loads(current_http_handler.rfile.read(current_body_length),object_pairs_hook=parse_unique_request)
-                if current_url_path == self.route_prefix_value+'/cancel':
-                    if not isinstance(current_request_record,dict) or set(current_request_record)!={'id'}:
-                        raise ValueError('취소할 작업 ID가 필요합니다.')
-                    with self.current_request_lock:
-                        if current_request_record['id']!=self.current_job_identifier or self.current_worker_process is None:
-                            send_response_data(409,{'error':'현재 서버가 실행한 작업만 취소할 수 있습니다.'})
-                            return True
-                        current_cancel_process=self.current_worker_process
-                        if current_cancel_process.poll() is not None:
-                            send_response_data(409,{'error':'이미 종료된 작업입니다.'})
-                            return True
-                        try:
-                            os.killpg(current_cancel_process.pid,signal.SIGTERM)
-                            try:
-                                current_cancel_process.wait(timeout=3)
-                            except subprocess.TimeoutExpired:
-                                os.killpg(current_cancel_process.pid,signal.SIGKILL)
-                                current_cancel_process.wait()
-                        except ProcessLookupError:
-                            current_cancel_process.wait()
-                        current_cancel_root=self.job_storage_root/self.current_job_identifier
-                        (current_cancel_root/'status.json').write_text(json.dumps({'status':'cancelled','message':'사용자가 취소했습니다.'},ensure_ascii=False))
-                        with (current_cancel_root/'worker.log').open('a') as current_cancel_log:
-                            current_cancel_log.write('\n'+datetime.now().isoformat()+'/image-manager/cancelled 사용자 취소, 작업 종료 확인\n')
-                    send_response_data(200,{'status':'cancelled'})
+                if current_url_path in (self.route_prefix_value+'/cancel',self.route_prefix_value+'/resume'):
+                    if not isinstance(current_request_record,dict) or set(current_request_record)!={'id'} or not re.fullmatch(r'[0-9a-f_-]+',current_request_record['id']):
+                        raise ValueError('작업 ID 형식 오류')
+                    selected_job_directory=self.job_storage_root/current_request_record['id']
+                    if current_url_path.endswith('/resume') and not (selected_job_directory/'gpu-command.json').exists():
+                        saved_request_record=json.loads((selected_job_directory/'request.json').read_text())
+                        saved_command_values=[str(WORKFLOW_ROOT_PATH/'.venv/bin/python'),str(WORKFLOW_ROOT_PATH/('generators/image/run_qwen_2511_three_reference.py' if self.three_reference_mode or saved_request_record.get('references') else 'generators/image/run_qwen_2512.py')),'--job-dir',str(selected_job_directory)]
+                        (selected_job_directory/'gpu-command.json').write_text(json.dumps({'command':saved_command_values,'service':'image'}))
+                    selected_operation_result=(resume_gpu_generation if current_url_path.endswith('/resume') else cancel_gpu_generation)(selected_job_directory)
+                    send_response_data(200,selected_operation_result)
                     return True
                 if current_url_path == self.route_prefix_value+'/history/reset':
                     if current_request_record != {'action':'reset'}:
@@ -162,9 +148,6 @@ class ImageGenerationManager:
                 else:
                     current_request_record=self.validate_generation_request(current_request_record)
                 with self.current_request_lock:
-                    if self.current_worker_process is not None and self.current_worker_process.poll() is None:
-                        send_response_data(409,{'error':'이미지 생성 작업이 실행 중입니다.'})
-                        return True
                     current_job_identifier = datetime.now(ZoneInfo('Asia/Seoul')).strftime('%Y-%m-%d_%H-%M-%S')+'-'+uuid.uuid4().hex[:8]
                     current_job_root = self.job_storage_root / current_job_identifier
                     current_job_root.mkdir(parents=True,exist_ok=False)
@@ -180,14 +163,14 @@ class ImageGenerationManager:
                         self.history_storage_path().mkdir(parents=True,exist_ok=True)
                         (self.history_storage_path()/(current_job_identifier+'.json')).write_text(json.dumps({'id':current_job_identifier,'created_at':datetime.now(ZoneInfo('Asia/Seoul')).isoformat(),'request':current_request_record,'status':{'status':'running'},'job_path':str(current_job_root)},ensure_ascii=False))
                     with (current_job_root/'worker.log').open('w') as current_log_handle:
-                        self.current_worker_process = subprocess.Popen([str(WORKFLOW_ROOT_PATH/'.venv/bin/python'),str(WORKFLOW_ROOT_PATH/('generators/image/run_qwen_2511_three_reference.py' if self.three_reference_mode or current_request_record.get('references') else 'generators/image/run_qwen_2512.py')),'--job-dir',str(current_job_root)],stdout=current_log_handle,stderr=subprocess.STDOUT,start_new_session=True)
+                        self.current_worker_process = launch_gpu_process([str(WORKFLOW_ROOT_PATH/'.venv/bin/python'),str(WORKFLOW_ROOT_PATH/('generators/image/run_qwen_2511_three_reference.py' if self.three_reference_mode or current_request_record.get('references') else 'generators/image/run_qwen_2512.py')),'--job-dir',str(current_job_root)],current_job_root,'image',stdout=current_log_handle,stderr=subprocess.STDOUT,start_new_session=True)
                     self.current_job_identifier = current_job_identifier
                     current_worker_process = self.current_worker_process
                     def watch_worker_exit():
                         current_exit_code = current_worker_process.wait()
                         with self.current_request_lock:
                             current_status_record = json.loads((current_job_root/'status.json').read_text())
-                            if current_status_record['status']=='running':
+                            if current_status_record['status'] in ('running','queued'):
                                 (current_job_root/'status.json').write_text(json.dumps({'status':'failed','error':f'작업자 종료 코드 {current_exit_code}. 로그를 확인하세요.'},ensure_ascii=False))
                             with MANAGER_HISTORY_LOCK:
                                 current_history_path=self.history_storage_path()/(current_job_identifier+'.json')

@@ -284,7 +284,7 @@ def run_review_server(parsed_argument_values):
     from tools.review.common.management_gateway import ManagementCommandGateway
     from tools.review.domains.character_animation.character_animation import CharacterAnimationManager
     character_animation_service = CharacterAnimationManager()
-    management_command_gateway = ManagementCommandGateway({'tile-map':tile_generation_service.handle_image_request,'character-animation':character_animation_service.handle,'momask':momask_generation_service.handle,'qwen-2512':image_generation_service.handle_image_request,'qwen-2511':three_reference_service.handle_image_request})
+    management_command_gateway = ManagementCommandGateway({'anny':anny_attribute_service.handle,'tile-map':tile_generation_service.handle_image_request,'character-animation':character_animation_service.handle,'momask':momask_generation_service.handle,'qwen-2512':image_generation_service.handle_image_request,'qwen-2511':three_reference_service.handle_image_request})
     from tools.review.common.record_folders import handle_record_folder_request
     from tools.review.domains.character_animation.character_animation_jobs import GENERATION_ROOT_DIRECTORY, resolve_generation_directory
     from tools.review.domains.anny.anny_attributes import JOBS as ANNY_RECORD_DIRECTORY

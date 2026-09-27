@@ -13,6 +13,7 @@ import signal
 import subprocess
 import time
 import uuid
+from tools.review.common.gpu_job_queue import launch_gpu_process
 
 WORKFLOW_ROOT_DIRECTORY = Path(__file__).resolve().parents[4]
 GENERATION_JOB_DIRECTORY = WORKFLOW_ROOT_DIRECTORY / '.tmp/momask-generator/jobs'
@@ -81,10 +82,11 @@ def resume_generation_job(generation_job_identifier):
         except BlockingIOError:raise ValueError('MoMask 생성 작업이 실행 중입니다.') from None
         previous_status_record=json.loads((generation_job_path/'status.json').read_text())
         if previous_status_record['status'] not in ('cancelled','failed'):raise ValueError('취소·실패 작업만 재개할 수 있습니다.')
-        for relative_file_path in ('result/anny/mannequin.blend','result/anny/render_asset.py','result/anny/run_stage.py','result/anny/baseline-model.json','motion-run/motion/motion.npz','motion-run/prompt.txt'):
-            if not (generation_job_path/relative_file_path).is_file():raise ValueError('리그 렌더 단계부터 재개할 수 있습니다. 누락: '+relative_file_path)
         (generation_job_path/'cancel.request').unlink(missing_ok=True)
-        (generation_job_path/'resume.request').touch()
+        if all((generation_job_path/required_resume_path).is_file() for required_resume_path in ('result/anny/mannequin.blend','result/anny/render_asset.py','result/anny/run_stage.py','result/anny/baseline-model.json','motion-run/motion/motion.npz','motion-run/prompt.txt')):
+            (generation_job_path/'resume.request').touch()
+        else:
+            (generation_job_path/'resume.request').unlink(missing_ok=True)
         try:
             with (generation_job_path/'worker.log').open('a') as generation_log_handle:
                 generation_log_handle.write('\nMoMask 렌더 재개 요청\n');generation_log_handle.flush()
@@ -103,7 +105,7 @@ def resume_generation_job(generation_job_identifier):
 
 def list_generation_history():
     GENERATION_HISTORY_DIRECTORY.mkdir(parents=True, exist_ok=True)
-    return [json.loads(record_file_path.read_text()) for record_file_path in sorted(GENERATION_HISTORY_DIRECTORY.glob('*.json'), reverse=True)]
+    return [{**json.loads(record_file_path.read_text()), **json.loads((resolve_generation_directory(record_file_path.stem)/'status.json').read_text())} for record_file_path in sorted(GENERATION_HISTORY_DIRECTORY.glob('*.json'), reverse=True)]
 
 
 def read_generation_status(generation_job_identifier):
@@ -128,13 +130,15 @@ def reset_generation_history():
 
 def cancel_generation_job(generation_job_identifier):
     generation_job_path = resolve_generation_directory(generation_job_identifier)
-    if json.loads((generation_job_path/'status.json').read_text())['status'] != 'running':
+    if json.loads((generation_job_path/'status.json').read_text())['status'] not in ('running','queued'):
         raise ValueError('실행 중인 작업이 아닙니다.')
     (generation_job_path/'cancel.request').touch()
     return {'status':'running', 'cancel_requested':True}
 
 
 def supervise_generation_job(generation_job_identifier, inherited_lock_descriptor):
+    os.close(inherited_lock_descriptor)
+    inherited_lock_descriptor = None
     generation_job_path = resolve_generation_directory(generation_job_identifier)
     generation_request_value = json.loads((generation_job_path/'request.json').read_text())
     generation_final_state = {'status':'failed'}
@@ -144,12 +148,12 @@ def supervise_generation_job(generation_job_identifier, inherited_lock_descripto
             generation_command_values=[str(WORKFLOW_ROOT_DIRECTORY/'.venv/bin/python'),str(WORKFLOW_ROOT_DIRECTORY/'generators/momask/resume_render.py'),'--job-dir',str(generation_job_path)]
         else:
             generation_command_values=[str(WORKFLOW_ROOT_DIRECTORY/'.venv/bin/python'),str(WORKFLOW_ROOT_DIRECTORY/'generators/momask/run_managed_generation.py'),'--job-dir',str(generation_job_path),'--action',generation_request_value['action'],'--directions',','.join(generation_request_value['directions'])]
-        generation_worker_process=subprocess.Popen(generation_command_values,start_new_session=True)
+        generation_worker_process=launch_gpu_process(generation_command_values,generation_job_path,'momask',start_new_session=True)
         while generation_worker_process.poll() is None:
             if (generation_job_path/'cancel.request').exists():
                 os.killpg(generation_worker_process.pid, signal.SIGTERM)
                 try:
-                    generation_worker_process.wait(timeout=5)
+                    generation_worker_process.wait(timeout=15)
                 except subprocess.TimeoutExpired:
                     os.killpg(generation_worker_process.pid, signal.SIGKILL)
                     generation_worker_process.wait()
@@ -160,6 +164,8 @@ def supervise_generation_job(generation_job_identifier, inherited_lock_descripto
         generation_final_state['error']=str(execution_error_value)
         raise
     finally:
+        saved_execution_record = json.loads((generation_job_path/'status.json').read_text())
+        if saved_execution_record.get('error'): generation_final_state['error'] = saved_execution_record['error']
         write_record_atomically(generation_job_path/'status.json', generation_final_state)
         generation_history_path = GENERATION_HISTORY_DIRECTORY/(generation_job_identifier+'.json')
         # 사용자가 수동 초기화한 이력은 작업 종료 시 복원하지 않는다.
@@ -167,7 +173,7 @@ def supervise_generation_job(generation_job_identifier, inherited_lock_descripto
             generation_record_value = json.loads(generation_history_path.read_text())
             generation_record_value.update(generation_final_state)
             write_record_atomically(generation_history_path, generation_record_value)
-        os.close(inherited_lock_descriptor)
+        if inherited_lock_descriptor is not None: os.close(inherited_lock_descriptor)
 
 
 if __name__ == '__main__':

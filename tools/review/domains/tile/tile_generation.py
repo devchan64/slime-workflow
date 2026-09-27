@@ -86,7 +86,7 @@ class TileGenerationManager(ImageGenerationManager):
                 if current_job_root.is_symlink():raise ValueError('심볼릭 링크 작업 경로는 삭제할 수 없습니다.')
                 if not current_job_root.is_dir():continue
                 current_status_path=current_job_root/'status.json'
-                if current_status_path.exists() and json.loads(current_status_path.read_text()).get('status')=='running':
+                if current_status_path.exists() and json.loads(current_status_path.read_text()).get('status') in ('running','queued'):
                     raise ValueError('실행 중인 타일 기록이 있습니다. 작업 종료 후 초기화하세요.')
                 deletion_target_paths.append(current_job_root)
             for current_job_root in deletion_target_paths:shutil.rmtree(current_job_root)

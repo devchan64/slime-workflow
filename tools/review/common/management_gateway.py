@@ -13,9 +13,9 @@ import urllib.request
 from email.message import Message
 from urllib.parse import urlsplit, parse_qs
 
-MANAGEMENT_SERVICE_ROUTES = {'tile-map':'/tile-map-generator','character-animation':'/character-animation','momask':'/momask-generator','qwen-2512':'/image-generation','qwen-2511':'/image-generation-2511'}
+MANAGEMENT_SERVICE_ROUTES = {'anny':'/anny-attributes','tile-map':'/tile-map-generator','character-animation':'/character-animation','momask':'/momask-generator','qwen-2512':'/image-generation','qwen-2511':'/image-generation-2511'}
 MANAGEMENT_COMMAND_ROUTES = {'resume':('POST','/resume'),'sprite-source':('POST','/sprite/source'),'sprite-save':('POST','/sprite/save'),'sprite-load':('POST','/sprite/load'),'catalog':('GET','/catalog'),'generate':('POST','/jobs'),'prepare':('POST','/jobs'),'status':('GET','/jobs/{id}'),'logs':('GET','/jobs/{id}/worker.log'),'history':('GET','/history'),'active':('GET','/active'),'model-status':('GET','/model-status'),'cancel':('POST','/cancel'),'history-reset':('POST','/history/reset'),'openpose-map':('POST','/openpose-map')}
-MANAGEMENT_SERVICE_COMMANDS = {'tile-map':('catalog','generate','prepare','status','logs','history','active','model-status','cancel','history-reset'),'character-animation':('resume','sprite-source','sprite-save','sprite-load','catalog','generate','status','logs','history','active','cancel','history-reset'),'momask':('resume','generate','status','logs','history','cancel','history-reset','openpose-map'),'qwen-2512':('generate','prepare','status','logs','history','active','model-status','cancel','history-reset'),'qwen-2511':('generate','status','logs','history','active','model-status','cancel','history-reset')}
+MANAGEMENT_SERVICE_COMMANDS = {'anny':('status','history','cancel','resume'),'tile-map':('resume','catalog','generate','prepare','status','logs','history','active','model-status','cancel','history-reset'),'character-animation':('resume','sprite-source','sprite-save','sprite-load','catalog','generate','status','logs','history','active','cancel','history-reset'),'momask':('resume','generate','status','logs','history','cancel','history-reset','openpose-map'),'qwen-2512':('resume','generate','prepare','status','logs','history','active','model-status','cancel','history-reset'),'qwen-2511':('resume','generate','status','logs','history','active','model-status','cancel','history-reset')}
 
 
 def resolve_management_command(service_command_name, operation_command_name, command_payload_value):
@@ -26,7 +26,7 @@ def resolve_management_command(service_command_name, operation_command_name, com
     request_method_value, request_suffix_value = MANAGEMENT_COMMAND_ROUTES[operation_command_name]
     if '{id}' in request_suffix_value:
         generation_job_identifier=command_payload_value.get('id','')
-        if not isinstance(generation_job_identifier,str) or not re.fullmatch(r'\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-[a-f0-9]{8}',generation_job_identifier):
+        if not isinstance(generation_job_identifier,str) or not re.fullmatch(r'[a-f0-9]{8}' if service_command_name=='anny' else r'\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-[a-f0-9]{8}',generation_job_identifier):
             raise ValueError('생성 ID 형식 오류')
         request_suffix_value=request_suffix_value.format(id=generation_job_identifier)
     if operation_command_name=='history' and 'page' in command_payload_value:
@@ -44,7 +44,7 @@ def identify_management_command(request_route_value, request_method_value, reque
             expected_method_value,expected_route_value=MANAGEMENT_COMMAND_ROUTES[operation_command_name]
             if expected_method_value!=request_method_value:
                 continue
-            request_match_value=re.fullmatch(re.escape(expected_route_value).replace(r'\{id\}',r'(?P<id>\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-[a-f0-9]{8})'),request_route_suffix)
+            request_match_value=re.fullmatch(re.escape(expected_route_value).replace(r'\{id\}',r'(?P<id>[a-f0-9]{8})' if service_command_name=='anny' else r'(?P<id>\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-[a-f0-9]{8})'),request_route_suffix)
             if request_match_value:
                 command_payload_value=dict(request_payload_value or {})
                 command_payload_value.update(request_match_value.groupdict())
@@ -150,7 +150,7 @@ class ManagementCommandGateway:
         return True
 
 
-MANAGEMENT_COMMAND_DESCRIPTIONS = {'tile-map':'타일 종류별 고정 기본·화풍과 사용자 지시로 생성 (관리 서버 필요)','character-animation':'등록 모션·캐릭터 기반 애니메이션 생성·이력·재생 결과 조회','momask': 'MoMask 생성·상태·로그·이력 조회·취소 (웹과 기록 공유)', 'qwen-2512': 'Qwen 2512 텍스트 이미지 생성 (관리 서버 필요)', 'qwen-2511': 'Qwen 2511 텍스트·1~3장 참조 이미지 생성 (관리 서버 필요)'}
+MANAGEMENT_COMMAND_DESCRIPTIONS = {'anny':'ANNY 이력 상태·중지·재개 (관리 서버 필요)','tile-map':'타일 종류별 고정 기본·화풍과 사용자 지시로 생성 (관리 서버 필요)','character-animation':'등록 모션·캐릭터 기반 애니메이션 생성·이력·재생 결과 조회','momask': 'MoMask 생성·상태·로그·이력 조회·취소 (웹과 기록 공유)', 'qwen-2512': 'Qwen 2512 텍스트 이미지 생성 (관리 서버 필요)', 'qwen-2511': 'Qwen 2511 텍스트·1~3장 참조 이미지 생성 (관리 서버 필요)'}
 
 def execute_management_command(service_command_name, operation_command_name, command_payload_value, server_base_address=None, *, gateway_request_handler=None, service_handler_values=None):
     request_method_value,request_route_value=resolve_management_command(service_command_name,operation_command_name,command_payload_value)
@@ -263,7 +263,7 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
             if current_status_text!=previous_status_text:
                 print(current_status_text,flush=True)
                 previous_status_text=current_status_text
-            if generation_status_value['status']!='running':
+            if generation_status_value['status'] not in ('running','queued'):
                 return 0 if generation_status_value['status']=='completed' else 1
             time.sleep(1)
     except KeyboardInterrupt:

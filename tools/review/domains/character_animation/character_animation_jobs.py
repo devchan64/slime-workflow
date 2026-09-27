@@ -246,6 +246,8 @@ def supervise_animation_generation(generation_job_identifier,inherited_lock_desc
         if generation_worker_process is not None and generation_worker_process.poll() is None:
             os.killpg(generation_worker_process.pid,signal.SIGKILL)
             generation_worker_process.wait()
+        saved_execution_record = json.loads((generation_job_path/'status.json').read_text())
+        if saved_execution_record.get('error'): generation_final_record['error'] = saved_execution_record['error']
         write_record_atomically(generation_job_path/'status.json',generation_final_record)
         # 이력 인덱스는 생성 시에만 기록한다. 수동 초기화 뒤 자동 복원하지 않는다.
         print(f'{datetime.now().isoformat()}/character-animation/end {generation_final_record}',flush=True)
