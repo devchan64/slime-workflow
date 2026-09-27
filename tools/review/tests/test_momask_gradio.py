@@ -28,6 +28,11 @@ class GradioMoMaskTests(unittest.TestCase):
             with self.assertRaises(Exception):
                 MODULE_SOURCE_VALUE.restore_saved_motion_inputs('saved-id')
 
+    def test_card_history_restore_adapts_record_to_identifier(self):
+        with patch.object(MODULE_SOURCE_VALUE,'restore_saved_motion_inputs',return_value=('walking',)) as restore_input_mock:
+            self.assertEqual(MODULE_SOURCE_VALUE.restore_motion_history_record({'id':'saved-id'}),('walking',))
+            restore_input_mock.assert_called_once_with('saved-id')
+
     def test_generate_uses_shared_gateway(self):
         with patch.object(MODULE_SOURCE_VALUE,'execute_management_command',return_value={'id':'sample'}) as gateway_call_value:
             self.assertEqual(MODULE_SOURCE_VALUE.start_motion_generation('walking',['down_left'],True,' 돌온재 '),'sample')

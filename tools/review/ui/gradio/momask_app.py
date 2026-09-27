@@ -91,6 +91,9 @@ def restore_saved_motion_inputs(selected_history_identifier):
         restore_status_text += ' 고정 스크립트는 현재 설정을 사용합니다. 과거 원문과 다르거나 기록이 없어 동일 결과 재생성을 보장하지 않습니다.'
     return selected_action_name, selected_direction_names, selected_face_enabled, saved_request_record.get('tag',''), current_prompt_text, current_settings_text, restore_status_text
 
+def restore_motion_history_record(current_history_record):
+    return restore_saved_motion_inputs(current_history_record['id'])
+
 def create_motion_player(generation_job_identifier, generation_result_record, server_base_address):
     player_payload_value={'id':generation_job_identifier,'result':generation_result_record,'base':server_base_address}
     player_source_text=(Path(__file__).parent/'motion-player.html').read_text().replace('__PLAYER_PAYLOAD__',json.dumps(player_payload_value).replace('<','\\u003c'))
@@ -143,7 +146,7 @@ def build_momask_interface(server_base_address):
             lambda command_name_value,payload_value:execute_motion_history_command(command_name_value,payload_value,server_base_address),
             server_base_address,
             '이력 목록만 초기화합니다. 결과 모션과 로그 파일은 유지됩니다. 생성 중에는 초기화할 수 없습니다.',
-            restore_input_callback=restore_saved_motion_inputs,
+            restore_input_callback=restore_motion_history_record,
             restore_output_components=[action_select_value,direction_select_value,face_checkbox_value,generation_tag_value,prompt_text_value,settings_text_value,status_text_value],
             result_renderer_callback=render_motion_history_result,
             record_folder_route='/momask-generator',
