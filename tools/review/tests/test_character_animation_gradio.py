@@ -42,5 +42,10 @@ class CharacterAnimationGradioTests(unittest.TestCase):
         self.assertEqual(character_animation_app.clamp_selected_frame_range(None,None,60),(1,60))
 
     def test_restore_animation_inputs_uses_historical_request(self):
-        restored_input_values=character_animation_app.restore_animation_inputs({'request':{'motion':'standing-v7','character':'anny-v1','source':'anny','directions':['down_left'],'start_frame':10,'end_frame':20,'resolution':768,'steps':30,'target_fps':2,'speed':1.5}})
+        restored_input_values=character_animation_app.restore_animation_inputs({'request':{'motion':'standing-v7','character':'anny-v1','source':'anny','directions':['down_left'],'start_frame':10,'end_frame':20,'resolution':768,'steps':30,'target_fps':2,'speed':1.5,'tag':'돌온재 걷기'}})
         self.assertEqual(restored_input_values[:10],('standing-v7','anny-v1','anny',['down_left'],10,20,768,30,2,1.5))
+        self.assertEqual(restored_input_values[10],'돌온재 걷기')
+
+    def test_animation_request_includes_trimmed_history_tag(self):
+        request_payload_value=character_animation_app.build_animation_request('standing-v7','anny-v1','anny',['down_left'],10,20,512,4,4,1,' 돌온재 걷기 ')
+        self.assertEqual(request_payload_value['tag'],'돌온재 걷기')
