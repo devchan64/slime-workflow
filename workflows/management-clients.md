@@ -252,4 +252,6 @@ python tools/manager.py command character-animation anchor-history --animation-i
 python tools/manager.py command character-animation anchor-load 2026-09-27_22-00-00-12345678
 ```
 
-GUI의 좌표 생성 이력에서 저장 시각·완료 상태·프레임 수를 확인하고 불러올 수 있다. 불러오기는 현재 애니메이션 버전·시트 해시·좌표 모드·프레임 구성을 확인한 뒤 편집 화면에 적용한다. JSON 다운로드 기능도 유지한다.
+GUI의 좌표 생성 이력에서 저장 시각·완료 상태·프레임 수를 확인하고 불러올 수 있다. 불러오기는 현재 애니메이션 버전·시트 해시·좌표 모드·프레임 구성을 확인한 뒤 편집 화면에 적용한다. 좌표 JSON 다운로드는 제공하지 않는다. 이력은 공용 저장형 카드 UI에서 8건씩 탐색하고, 카드 선택 후 입력값 조회와 불러오기를 분리한다.
+
+좌표 이력 전체 초기화는 현재 애니메이션 ID·버전의 목록만 비우고 원본 파일을 유지한다. GUI 마지막 접이식 영역에서 확인 후 실행하거나 `python3 tools/manager.py command character-animation anchor-history-reset --animation-id <ID> --animation-version <VERSION>`을 사용한다. 초기화 이후 새 저장은 다시 목록에 추가된다.

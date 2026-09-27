@@ -19,6 +19,6 @@ def read_animation_anchor_template():
     """공통 앵커 컴포넌트를 독립 실행 가능한 HTML로 조립한다."""
     component_directory = REVIEW_UI_DIRECTORY/'ui/shared/animation-anchor-editor'
     template_source_text = (component_directory/'editor.html').read_text()
-    component_script_text = (component_directory/'editor.js').read_text()
+    component_script_text = (component_directory.parent/'saved-record-history.js').read_text()+'\n'+(component_directory/'editor.js').read_text()
     component_style_text = (component_directory/'editor.css').read_text()
     return template_source_text.replace('<style></style>', '<style>'+component_style_text+'</style>', 1).replace('__ANCHOR_EDITOR_SCRIPT__', component_script_text)

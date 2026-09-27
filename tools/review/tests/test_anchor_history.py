@@ -22,3 +22,10 @@ class AnchorHistoryTests(unittest.TestCase):
                 with self.assertRaises(ValueError):execute_management_command('character-animation','anchor-save',{'document':invalid_document_value})
             with self.assertRaises(ValueError):execute_management_command('character-animation','anchor-load',{'id':'../outside'})
             self.assertEqual(len(list(Path(temporary_directory_value).glob('*/*/result.json'))),2)
+
+            reset_scope_value={'animation_id':'test.idle','animation_version':'1'}
+            self.assertEqual(execute_management_command('character-animation','anchor-history-reset',reset_scope_value)['cleared'],2)
+            self.assertEqual(execute_management_command('character-animation','anchor-history',reset_scope_value)['items'],[])
+            self.assertEqual(execute_management_command('character-animation','anchor-load',{'id':first_record_value['id']})['document'],document_record_value)
+            execute_management_command('character-animation','anchor-save',{'document':document_record_value})
+            self.assertEqual(len(execute_management_command('character-animation','anchor-history',reset_scope_value)['items']),1)

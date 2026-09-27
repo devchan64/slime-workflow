@@ -29,12 +29,13 @@ if(coordinateUndoHistory.length!==previousHistoryCount)throw new Error('무효 �
 document.querySelector('#resetCurrentFrame').onclick();
 if(document.body.dataset.coordinateDownloadPending!=='false')throw new Error('현재 프레임 복원 오류');
 document.querySelector('#undoCoordinateChange').onclick();
-document.querySelector('#saveCoordinates').onclick();
-if(document.body.dataset.coordinateDownloadPending!=='false'||!document.querySelector('#coordinateDownloadStatus').textContent.includes('요청됨'))throw new Error('다운로드 안내 오류');
+savedCoordinateSnapshotValue=JSON.stringify(reviewFrameRecords.map(copyFrameCoordinates));
+refreshCoordinateStatus();
+if(document.body.dataset.coordinateDownloadPending!=='false')throw new Error('저장 상태 오류');
 document.querySelector('#undoCoordinateChange').onclick();
-if(document.body.dataset.coordinateDownloadPending!=='true')throw new Error('다운로드 이후 변경 감지 누락');
+if(document.body.dataset.coordinateDownloadPending!=='true')throw new Error('저장 이후 변경 감지 누락');
 document.querySelector('#redoCoordinateChange').onclick();
-if(document.body.dataset.coordinateDownloadPending!=='false')throw new Error('다운로드 시점 복원 오류');
+if(document.body.dataset.coordinateDownloadPending!=='false')throw new Error('저장 시점 복원 오류');
 if(JSON.stringify(reviewFrameRecords[0])!==originalFirstFrameCopy)throw new Error('다른 프레임 변경');
 document.querySelector('#previousFrame').onclick();
 if(frameChoiceElement.value!=='0')throw new Error('이전 프레임 오류');
@@ -95,4 +96,4 @@ for(const coordinateModeValue of ['anchor','foot-centers','endpoints']){
  if(JSON.stringify(buildCoordinateArtifact())!==originalExportSnapshot)throw new Error('모드별 프레임 복원 실패');
  `,modeExecutionContext);
 }
-console.log('실행 취소·다시 실행·다운로드 변경 상태·소수 앵커·양발 좌표 복원 검사 통과');
+console.log('실행 취소·다시 실행·저장 변경 상태·소수 앵커·양발 좌표 복원 검사 통과');

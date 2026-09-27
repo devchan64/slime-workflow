@@ -36,13 +36,60 @@
 #static-review-root .anchor-workspace p{color:var(--text-secondary)!important}
 #static-review-root .anchor-workspace .preview-display-settings:not([open])>.preview-ground-controls{display:none!important}
 
-.anchor-history-panel{grid-column:1/-1;grid-row:4;min-width:0}.anchor-history-panel #anchorHistoryList{display:grid;gap:8px}.anchor-history-panel button{overflow-wrap:anywhere;text-align:left}
-/* 저장과 이력을 첫 화면에서 함께 확인한다. */
-.anchor-workspace .anchor-history-panel{grid-column:1/-1;grid-row:2}
-.anchor-workspace .anchor-controls,.anchor-workspace .anchor-preview{grid-row:3}
-.anchor-history-panel #anchorHistoryList{max-height:180px;overflow-y:auto}
-.anchor-history-panel h2{font-size:16px;margin:0 0 8px}
-@media(max-width:700px){.anchor-workspace .anchor-preview{grid-row:4}}
-#static-review-root .anchor-workspace{display:grid;grid-template-columns:minmax(220px,280px) minmax(0,1fr);grid-template-rows:auto auto auto;height:auto}
-#static-review-root .anchor-workspace>.editor-save-panel,#static-review-root .anchor-workspace>.anchor-history-panel{width:100%;box-sizing:border-box;min-width:0}
-@media(max-width:700px){#static-review-root .anchor-workspace{grid-template-columns:minmax(0,1fr)}}
+/* 편집 → 미리보기 → 저장 이력 순서로 배치한다. */
+#static-review-root .anchor-workspace,.anchor-workspace{display:grid;grid-template-columns:minmax(200px,220px) minmax(0,1fr);grid-template-rows:auto auto auto;height:auto;gap:12px}
+#static-review-root .anchor-workspace>.editor-save-panel,.anchor-workspace>.editor-save-panel{grid-column:1/-1;grid-row:1;display:flex;flex-wrap:wrap;align-items:center;gap:8px;width:100%;box-sizing:border-box;min-width:0;padding:10px 12px}
+.anchor-workspace .editor-save-panel p{flex:1 1 180px;margin:0;font-size:12px}
+.anchor-workspace .editor-save-panel .control-row{display:flex;flex-wrap:wrap}
+#static-review-root .anchor-workspace>.anchor-controls{grid-column:1;grid-row:2;min-width:0}
+#static-review-root .anchor-workspace>.anchor-preview{grid-column:2;grid-row:2;min-width:0;padding:12px}
+.anchor-workspace .anchor-preview h2{font-size:16px;margin:0 0 10px}
+.anchor-workspace .anchor-controls fieldset{min-width:0;padding:12px}
+.anchor-workspace .anchor-controls p{font-size:12px;line-height:1.5;margin:8px 0}
+.anchor-workspace .anchor-controls select{width:100%}
+.anchor-workspace .anchor-controls .control-row{display:flex;flex-wrap:wrap}
+.anchor-workspace .anchor-controls .control-row button{flex:1;padding:6px!important}
+.anchor-workspace .preview-display-settings{margin-top:12px}
+.anchor-workspace .preview-display-settings summary{cursor:pointer;font-size:12px;line-height:1.5}
+.anchor-workspace .preview-ground-controls{padding-top:12px}
+#static-review-root .anchor-workspace>.anchor-history-panel,.anchor-workspace>.anchor-history-panel{grid-column:1/-1;grid-row:3;min-width:0;width:100%;box-sizing:border-box}
+.anchor-history-panel .history-heading-row{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.anchor-history-panel h2{font-size:16px;margin:0}
+.anchor-history-panel #anchorHistoryList{display:grid;gap:8px;max-height:220px;overflow-y:auto}
+.anchor-history-panel button{overflow-wrap:anywhere;text-align:left}
+@media(max-width:700px){
+ #static-review-root .anchor-workspace,.anchor-workspace{grid-template-columns:minmax(0,1fr)}
+ #static-review-root .anchor-workspace>.anchor-preview{grid-column:1;grid-row:2}
+ #static-review-root .anchor-workspace>.anchor-controls{grid-column:1;grid-row:3}
+ #static-review-root .anchor-workspace>.anchor-history-panel{grid-row:4}
+}
+
+.anchor-history-panel #anchorHistoryList{max-height:none;overflow:visible}
+.anchor-history-panel .generation-history-toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:12px}
+.anchor-history-panel .generation-history-toolbar>span{margin-right:auto}
+.anchor-history-panel .generation-history-selected-actions{grid-column:1/-1;padding:12px;background:var(--surface-control);border-radius:8px}
+.anchor-history-panel .generation-history-selected-actions button{margin-right:8px}
+.anchor-history-panel #anchorHistoryDetail{max-height:320px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere}
+/* 좌표 검수의 주 작업 공간은 전체 너비 캔버스로 확보한다. */
+#static-review-root .anchor-workspace,.anchor-workspace{grid-template-columns:minmax(0,1fr)}
+#static-review-root .anchor-workspace>.anchor-preview,.anchor-workspace>.anchor-preview{grid-column:1;grid-row:2}
+#static-review-root .anchor-workspace>.anchor-controls,.anchor-workspace>.anchor-controls{grid-column:1;grid-row:3;display:grid;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:12px}
+#static-review-root .anchor-workspace>.anchor-history-panel,.anchor-workspace>.anchor-history-panel{grid-row:4}
+#static-review-root .anchor-workspace #reviewCanvas,.anchor-workspace #reviewCanvas{width:100%;height:auto;max-width:100%;max-height:none;flex:none}
+.anchor-workspace .anchor-stage{width:100%;min-width:0;flex:none}
+@media(max-width:520px){
+ #static-review-root .anchor-workspace>.anchor-controls,.anchor-workspace>.anchor-controls{grid-template-columns:minmax(0,1fr)!important}
+}
+/* 편집 화면의 바깥 여백을 줄여 캔버스에 너비를 돌려준다. */
+.gradio-container:has(.anchor-workspace){max-width:none!important;padding:8px!important}
+.gradio-container:has(.anchor-workspace) main.contain{padding:0!important}
+#static-review-root:has(.anchor-workspace)>header{padding:8px 10px!important;margin-bottom:4px!important;gap:8px}
+#static-review-root:has(.anchor-workspace)>header h1{margin:0 0 4px;font-size:18px}
+#static-review-root:has(.anchor-workspace)>header p{margin:0;line-height:1.4}
+#static-review-root .anchor-workspace{padding:6px!important;gap:8px}
+#static-review-root .anchor-workspace .panel{padding:8px!important}
+.anchor-workspace .control-row{margin:6px 0}
+.anchor-workspace .coordinate-legend{margin-top:6px;gap:6px;font-size:11px}
+.anchor-workspace #frameStatus{margin:6px 0}
+.anchor-workspace :is(#reviewError,#groundPreviewError,#normalizationDownloadStatus):empty{display:none}
+.anchor-workspace .preview-display-settings{margin:6px 0 0}

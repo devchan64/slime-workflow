@@ -5,7 +5,6 @@ const usesAnchorOnlyMode=reviewSourceMetadata.coordinateMode==='anchor';
 const usesFootCentersOnly=usesAnchorOnlyMode||reviewSourceMetadata.coordinateMode==='foot-centers';
 const reviewAnimationIdentity=reviewSourceMetadata.animationId||'character.default.white-shirt.idle';
 const reviewAnimationVersion=reviewSourceMetadata.animationVersion||'4';
-const reviewExportFilename=reviewSourceMetadata.exportFilename||'character-default-standing-v4-anchor-review.json';
 const reviewCanvasElement=document.querySelector('#reviewCanvas'),reviewCanvasContext=reviewCanvasElement.getContext('2d'),rigMiniMapElement=document.querySelector('#rigMiniMap'),rigMiniMapContext=rigMiniMapElement?.getContext('2d');
 const directionChoiceElement=document.querySelector('#directionChoice'),frameChoiceElement=document.querySelector('#frameChoice'),pointChoiceElement=document.querySelector('#pointChoice');
 const anchorToggleElement=document.querySelector('#anchorToggle'),guideToggleElement=document.querySelector('#guideToggle'),rigMiniMapToggleElement=document.querySelector('#rigMiniMapToggle');
@@ -24,7 +23,7 @@ const PREVIEW_TILE_FILL_COLOR='#426b6a55',PREVIEW_TILE_LINE_COLOR='#8abdb3',PREV
 let previewTileWidthValue=PREVIEW_TILE_DEFAULT_WIDTH,previewTileHeightValue=PREVIEW_TILE_DEFAULT_HEIGHT;
 const previewTileWidthElement=document.querySelector('#tilePreviewWidth'),previewTileHeightElement=document.querySelector('#tilePreviewHeight'),gameOutputScaleToggleElement=document.querySelector('#gameOutputScaleToggle'),actorSizeChoiceElement=document.querySelector('#actorSizeChoice'),bodyHeightInputElement=document.querySelector('#bodyHeightInput');
 actorSizeChoiceElement.value=reviewSourceMetadata.runtimeScale?.defaultSizeClass||'medium';
-document.querySelector('.preview-display-settings').open=true;
+document.querySelector('.preview-display-settings').open=false;
 bodyHeightInputElement.value=String(reviewSourceMetadata.runtimeScale?.baseHeight||GAME_OUTPUT_CHARACTER_HEIGHT);
 previewTileWidthElement.value=String(PREVIEW_TILE_DEFAULT_WIDTH);previewTileHeightElement.value=String(PREVIEW_TILE_DEFAULT_HEIGHT);
 previewTileWidthElement.min=String(PREVIEW_TILE_MINIMUM_WIDTH);previewTileWidthElement.max=String(PREVIEW_TILE_MAXIMUM_WIDTH);previewTileHeightElement.min=String(PREVIEW_TILE_MINIMUM_HEIGHT);previewTileHeightElement.max=String(PREVIEW_TILE_MAXIMUM_HEIGHT);
@@ -52,14 +51,14 @@ function drawPreviewGroundPlane(){
 const reviewImageElements={},reviewRigImageElements={};let animationPlaybackActive=false,animationStartedTime=0,currentSpriteOffsetX=0,currentSpriteOffsetY=0,currentSpriteScale=1;
 const initialCoordinateRecords=reviewFrameRecords.map(copyFrameCoordinates);
 const coordinateUndoHistory=[],coordinateRedoHistory=[];
-let downloadedCoordinateSnapshot=JSON.stringify(initialCoordinateRecords);
+let savedCoordinateSnapshotValue=JSON.stringify(initialCoordinateRecords);
 function copyFrameCoordinates(currentFrameRecord){return {anchor:{...currentFrameRecord.anchor},contacts:currentFrameRecord.contacts.map(currentPointRecord=>({...currentPointRecord})),endpoints:currentFrameRecord.endpoints.map(currentPointRecord=>({...currentPointRecord}))};}
 function refreshCoordinateStatus(){
  const currentCoordinateRecords=reviewFrameRecords.map(copyFrameCoordinates);
  const modifiedFrameCount=currentCoordinateRecords.filter((currentCoordinateRecord,currentFrameIndex)=>JSON.stringify(currentCoordinateRecord)!==JSON.stringify(initialCoordinateRecords[currentFrameIndex])).length;
- const coordinateDownloadPending=JSON.stringify(currentCoordinateRecords)!==downloadedCoordinateSnapshot;
+ const coordinateDownloadPending=JSON.stringify(currentCoordinateRecords)!==savedCoordinateSnapshotValue;
  document.body.dataset.coordinateDownloadPending=String(coordinateDownloadPending);
- document.querySelector('#coordinateEditStatus').textContent=`원본 대비 ${modifiedFrameCount}개 프레임 변경 · ${coordinateDownloadPending?'다운로드 필요':'추가 다운로드 불필요'}`;
+ document.querySelector('#coordinateEditStatus').textContent=`원본 대비 ${modifiedFrameCount}개 프레임 변경 · ${coordinateDownloadPending?'저장 필요':'추가 저장 불필요'}`;
  document.querySelector('#undoCoordinateChange').disabled=coordinateUndoHistory.length===0;
  document.querySelector('#redoCoordinateChange').disabled=coordinateRedoHistory.length===0;
  document.dispatchEvent(new CustomEvent('review-coordinate-state',{detail:{pending:coordinateDownloadPending}}));
@@ -69,7 +68,6 @@ function recordCoordinateChange(currentFrameRecord,previousCoordinateRecord){
  if(JSON.stringify(previousCoordinateRecord)===JSON.stringify(nextCoordinateRecord))return;
  coordinateUndoHistory.push({frameIndex:reviewFrameRecords.indexOf(currentFrameRecord),before:previousCoordinateRecord,after:nextCoordinateRecord});
  coordinateRedoHistory.length=0;
- document.querySelector('#coordinateDownloadStatus').textContent='';
  refreshCoordinateStatus();
 }
 function restoreFrameCoordinates(currentFrameRecord,nextCoordinateRecord){Object.assign(currentFrameRecord,copyFrameCoordinates(nextCoordinateRecord));}
@@ -85,7 +83,6 @@ function replayCoordinateChange(undoRequestedValue){
  frameChoiceElement.value=currentFrameRecord.frameId.split('.').at(-1);
  targetHistoryRecords.push(selectedHistoryRecord);
  document.querySelector('#reviewError').textContent='';
- document.querySelector('#coordinateDownloadStatus').textContent='';
  refreshCoordinateStatus();
 }
 document.querySelector('#undoCoordinateChange').onclick=()=>replayCoordinateChange(true);
@@ -160,7 +157,6 @@ document.querySelectorAll('[data-move-x]').forEach(currentButtonElement=>current
 reviewCanvasElement.onclick=(pointerClickEvent)=>{if(animationPlaybackActive)return;const currentFrameValue=selectCurrentFrame(),canvasClientBounds=reviewCanvasElement.getBoundingClientRect();const clickedPointPosition={x:Math.round(((pointerClickEvent.clientX-canvasClientBounds.left)*REVIEW_CANVAS_WIDTH/canvasClientBounds.width-currentSpriteOffsetX)/currentSpriteScale),y:Math.round(((pointerClickEvent.clientY-canvasClientBounds.top)*REVIEW_CANVAS_HEIGHT/canvasClientBounds.height-currentSpriteOffsetY)/currentSpriteScale)};const selectedPointValue=pointChoiceElement.value==='anchor'?currentFrameValue.anchor:(usesFootCentersOnly?currentFrameValue.contacts:currentFrameValue.endpoints)[Number(pointChoiceElement.value)];moveSelectedPoint(clickedPointPosition.x-selectedPointValue.x,clickedPointPosition.y-selectedPointValue.y)};
 function buildCoordinateArtifact(){return {schemaVersion:1,artifactType:reviewSourceMetadata.artifactType||'character-standing-anchor-review',description:reviewSourceMetadata.description||'스탠딩 정수 앵커 검수 좌표. 셀 왼쪽 위 원점, x 오른쪽·y 아래. points는 화면 왼쪽 발부터 두 발 중심 또는 각 발 앞뒤 네 점이며 anchor는 발 중심 평균을 반올림한다.',coordinateMode:reviewSourceMetadata.coordinateMode,source:{animationId:reviewAnimationIdentity,animationVersion:reviewAnimationVersion,sheets:reviewSourceMetadata.sheets},frames:reviewFrameRecords.map(currentFrameValue=>({frameId:currentFrameValue.frameId,direction:currentFrameValue.direction,image:currentFrameValue.image,rect:currentFrameValue.rect,points:usesAnchorOnlyMode?[currentFrameValue.anchor]:usesFootCentersOnly?currentFrameValue.contacts:currentFrameValue.endpoints,anchor:currentFrameValue.anchor}))}}
 function buildNormalizationArtifact(){return {schemaVersion:1,artifactType:'animation-scale-normalization-review',source:{animationId:reviewAnimationIdentity,animationVersion:reviewAnimationVersion,sheets:reviewSourceMetadata.sheets},gameRenderMetrics,mapKind:document.querySelector('#mapScaleChoice').value,normalization:{unit:'px',tileWidth:GAME_OUTPUT_TILE_WIDTH,tileHeight:GAME_OUTPUT_TILE_HEIGHT,gameBodyHeight:Number(bodyHeightInputElement.value),sizeClass:actorSizeChoiceElement.value,sourceHeight:reviewSourceMetadata.runtimeScale?.sourceHeight||null,sourceHeightMultiplier:reviewSourceMetadata.runtimeScale?.sourceHeightMultiplier||null}}}
-document.querySelector('#saveCoordinates').onclick=()=>{const downloadAnchorElement=document.createElement('a');downloadAnchorElement.href=URL.createObjectURL(new Blob([JSON.stringify(buildCoordinateArtifact(),null,2)+'\n'],{type:'application/json'}));downloadAnchorElement.download=reviewExportFilename;downloadAnchorElement.click();downloadedCoordinateSnapshot=JSON.stringify(reviewFrameRecords.map(copyFrameCoordinates));refreshCoordinateStatus();document.querySelector('#coordinateDownloadStatus').textContent='다운로드 요청됨 · 브라우저에서 파일을 확인하세요.';setTimeout(()=>URL.revokeObjectURL(downloadAnchorElement.href),1000)};
 document.querySelector('#saveNormalization').onclick=()=>{if(!updatePreviewGroundSize())return;const downloadAnchorElement=document.createElement('a');downloadAnchorElement.href=URL.createObjectURL(new Blob([JSON.stringify(buildNormalizationArtifact(),null,2)+'\n'],{type:'application/json'}));downloadAnchorElement.download=reviewAnimationIdentity+'-normalization-review.json';downloadAnchorElement.click();document.querySelector('#normalizationDownloadStatus').textContent='정규화 검수 JSON 다운로드 요청됨 · 적용 전 검토하세요.';setTimeout(()=>URL.revokeObjectURL(downloadAnchorElement.href),1000)};
 Promise.all([...new Set(reviewFrameRecords.map(currentFrameValue=>currentFrameValue.image))].map(currentImageFilename=>new Promise((resolveImageLoad,rejectImageLoad)=>{const currentImageElement=new Image();currentImageElement.onload=()=>{reviewImageElements[currentImageFilename]=currentImageElement;resolveImageLoad()};currentImageElement.onerror=()=>rejectImageLoad(new Error(`이미지 로드 실패: ${currentImageFilename}`));currentImageElement.src=resolveReviewAssetUrl(currentImageFilename)}))).then(()=>Promise.all((reviewSourceMetadata.rigSheets||[]).map(currentRigSheetRecord=>new Promise((resolveRigLoad,rejectRigLoad)=>{const currentRigImageElement=new Image();currentRigImageElement.onload=()=>{reviewRigImageElements[currentRigSheetRecord.image]=currentRigImageElement;resolveRigLoad()};currentRigImageElement.onerror=()=>rejectRigLoad(new Error(`리그 이미지 로드 실패: ${currentRigSheetRecord.image}`));currentRigImageElement.src=resolveReviewAssetUrl(currentRigSheetRecord.image)}))).then(()=>requestAnimationFrame(drawReviewFrame))).catch(currentLoadError=>document.querySelector('#reviewError').textContent=currentLoadError.message);
 
@@ -171,14 +167,10 @@ async function requestAnchorHistoryCommand(commandNameValue,payloadRecordValue){
  if(!responseRecordValue.ok)throw new Error(responsePayloadValue.error||'좌표 이력 요청 실패');
  return responsePayloadValue;
 }
-async function refreshAnchorHistoryList(){
+const anchorHistoryViewState={page:0,selected:null};
+async function restoreAnchorHistoryRecord(historyRecordValue){
  const historyStatusElement=document.querySelector('#anchorHistoryStatus');
  try{
- const responsePayloadValue=await requestAnchorHistoryCommand('anchor-history',{animation_id:reviewAnimationIdentity,animation_version:reviewAnimationVersion});
- const historyListElement=document.querySelector('#anchorHistoryList');historyListElement.replaceChildren();
- for(const historyRecordValue of responsePayloadValue.items){
-  const historyButtonElement=document.createElement('button');historyButtonElement.textContent=`${historyRecordValue.created_at} · 완료 · ${historyRecordValue.frames}프레임 · 불러오기`;
-  historyButtonElement.onclick=async()=>{try{
    const {document:coordinateDocumentValue}=await requestAnchorHistoryCommand('anchor-load',{id:historyRecordValue.id});
    const currentDocumentValue=buildCoordinateArtifact();
    if(JSON.stringify(coordinateDocumentValue.source)!==JSON.stringify(currentDocumentValue.source)||coordinateDocumentValue.coordinateMode!==currentDocumentValue.coordinateMode||coordinateDocumentValue.frames.length!==currentDocumentValue.frames.length)throw new Error('현재 애니메이션 출처·시트·좌표 모드와 다른 이력입니다.');
@@ -186,18 +178,34 @@ async function refreshAnchorHistoryList(){
    pauseFramePlayback();
    coordinateDocumentValue.frames.forEach((frameValue,indexValue)=>{const currentFrameValue=reviewFrameRecords[indexValue],beforeCoordinateValue=copyFrameCoordinates(currentFrameValue);currentFrameValue.anchor={...frameValue.anchor};if(usesAnchorOnlyMode)currentFrameValue.contacts=[{...frameValue.anchor},{...frameValue.anchor}];else if(usesFootCentersOnly)currentFrameValue.contacts=frameValue.points.map(pointValue=>({...pointValue}));else currentFrameValue.endpoints=frameValue.points.map(pointValue=>({...pointValue}));recordCoordinateChange(currentFrameValue,beforeCoordinateValue);});
    historyStatusElement.textContent=`불러옴 · ${historyRecordValue.id}`;
-  }catch(errorValue){historyStatusElement.textContent=errorValue.message;}};
-  historyListElement.append(historyButtonElement);
- }
- historyStatusElement.textContent=responsePayloadValue.items.length?`저장 이력 ${responsePayloadValue.items.length}건`:'저장된 좌표가 없습니다. 위의 좌표 저장 버튼으로 생성 이력을 남기세요.';
+
+ }catch(errorValue){historyStatusElement.textContent=errorValue.message;}
+}
+async function refreshAnchorHistoryList(){
+ const historyStatusElement=document.querySelector('#anchorHistoryStatus');
+ try{
+ const responsePayloadValue=await requestAnchorHistoryCommand('anchor-history',{animation_id:reviewAnimationIdentity,animation_version:reviewAnimationVersion});
+ if(!responsePayloadValue.items.some(recordValue=>recordValue.id===anchorHistoryViewState.selected))anchorHistoryViewState.selected=null;
+ renderSavedRecordHistory(document.querySelector('#anchorHistoryList'),responsePayloadValue.items,anchorHistoryViewState,{refresh:refreshAnchorHistoryList,restore:restoreAnchorHistoryRecord,inspect:async(historyRecordValue)=>{
+ try{const responseDocumentValue=await requestAnchorHistoryCommand('anchor-load',{id:historyRecordValue.id});const historyDetailElement=document.querySelector('#anchorHistoryDetail');historyDetailElement.hidden=false;historyDetailElement.textContent=JSON.stringify(responseDocumentValue.document,null,2);}catch(errorValue){historyStatusElement.textContent=errorValue.message;}
+ }});
+ historyStatusElement.textContent=responsePayloadValue.items.length?'카드를 선택한 뒤 저장 입력을 조회하거나 불러오세요.':'저장된 좌표가 없습니다. 좌표 저장 버튼으로 생성 이력을 남기세요.';
  }catch(errorValue){historyStatusElement.textContent=errorValue.message;}
 }
 const saveAnchorHistoryButton=document.querySelector('#saveAnchorHistory');
 saveAnchorHistoryButton.onclick=async()=>{
  saveAnchorHistoryButton.disabled=true;
- try{const savedCoordinateSnapshot=JSON.stringify(reviewFrameRecords.map(copyFrameCoordinates));const savedHistoryRecord=await requestAnchorHistoryCommand('anchor-save',{document:buildCoordinateArtifact()});downloadedCoordinateSnapshot=savedCoordinateSnapshot;refreshCoordinateStatus();await refreshAnchorHistoryList();document.querySelector('#anchorHistoryStatus').textContent=`저장 완료 · ${savedHistoryRecord.id}`;}
+ try{const savedCoordinateSnapshot=JSON.stringify(reviewFrameRecords.map(copyFrameCoordinates));const savedHistoryRecord=await requestAnchorHistoryCommand('anchor-save',{document:buildCoordinateArtifact()});savedCoordinateSnapshotValue=savedCoordinateSnapshot;refreshCoordinateStatus();await refreshAnchorHistoryList();document.querySelector('#anchorHistoryStatus').textContent=`저장 완료 · ${savedHistoryRecord.id}`;}
  catch(errorValue){document.querySelector('#anchorHistoryStatus').textContent=errorValue.message;}
  finally{saveAnchorHistoryButton.disabled=false;}
 };
-document.querySelector('#refreshAnchorHistory').onclick=refreshAnchorHistoryList;
+
 if(typeof window.location!=='undefined'&&/^https?:$/.test(window.location.protocol))refreshAnchorHistoryList();
+
+document.querySelector('#resetAnchorHistory').onclick=async()=>{
+ if(!window.confirm('현재 애니메이션 버전의 좌표 생성 이력을 전체 초기화할까요? 목록만 초기화하며 원본 좌표 파일과 현재 편집값은 유지합니다.'))return;
+ const resetHistoryButton=document.querySelector('#resetAnchorHistory');resetHistoryButton.disabled=true;
+ try{const resetHistoryResult=await requestAnchorHistoryCommand('anchor-history-reset',{animation_id:reviewAnimationIdentity,animation_version:reviewAnimationVersion});anchorHistoryViewState.page=0;anchorHistoryViewState.selected=null;document.querySelector('#anchorHistoryDetail').hidden=true;await refreshAnchorHistoryList();document.querySelector('#anchorHistoryStatus').textContent=`${resetHistoryResult.cleared}건 초기화 완료 · 원본 좌표 파일 유지`;}
+ catch(errorValue){document.querySelector('#anchorHistoryStatus').textContent=errorValue.message;}
+ finally{resetHistoryButton.disabled=false;}
+};

@@ -61,12 +61,18 @@ def execute_anchor_history_command(operation_command_name,command_payload_value)
         write_record_atomically(history_directory_path/'result.json',history_record_value)
         write_record_atomically(history_directory_path/'status.json',{'status':'completed'})
         return history_record_value
-    if operation_command_name=='anchor-history':
+    if operation_command_name in ('anchor-history','anchor-history-reset'):
         if set(command_payload_value)!={'animation_id','animation_version'}:raise ValueError('이력 조회 필드 오류')
         history_record_values=[]
         for result_record_path in ANCHOR_HISTORY_ROOT.glob('*/*/result.json'):
+            if (result_record_path.parent/'history-hidden.json').exists():continue
             history_record_value=json.loads(result_record_path.read_text())
             if history_record_value['source']['animationId']==command_payload_value['animation_id'] and history_record_value['source']['animationVersion']==command_payload_value['animation_version']:history_record_values.append(history_record_value)
+        if operation_command_name=='anchor-history-reset':
+            for history_record_value in history_record_values:
+                history_identifier_value=history_record_value['id']
+                write_record_atomically(ANCHOR_HISTORY_ROOT/history_identifier_value[:19]/history_identifier_value/'history-hidden.json',{'hidden':True})
+            return {'cleared':len(history_record_values)}
         return {'items':sorted(history_record_values,key=lambda r:r['id'],reverse=True)}
     if operation_command_name=='anchor-load':
         if set(command_payload_value)!={'id'} or not re.fullmatch(r'\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-[a-f0-9]{8}',command_payload_value['id']):raise ValueError('이력 ID 오류')
