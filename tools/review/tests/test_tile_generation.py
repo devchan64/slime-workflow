@@ -17,8 +17,9 @@ class TileGenerationTests(unittest.TestCase):
         self.assertIn('Top view, orthographic camera looking straight down',ground_prompt_text)
         self.assertIn('matching edges',ground_prompt_text)
         self.assertIn('uniform scale',ground_prompt_text)
-        self.assertIn('thin outer rim flush with the ground',ground_prompt_text)
-        self.assertIn('no raised border, perspective, or scenery',ground_prompt_text)
+        self.assertIn('all four image edges: top, bottom, left, right',ground_prompt_text)
+        self.assertIn('outline contrasts with the interior',ground_prompt_text)
+        self.assertIn('lies flush with the ground',ground_prompt_text)
         self.assertNotIn('boundary lines',ground_prompt_text)
     def test_all_kinds_keep_base_and_style(self):
         for tile_kind_name in ('rooftop','wall','ground'):
@@ -32,18 +33,13 @@ class TileGenerationTests(unittest.TestCase):
             self.assertEqual(output_request_value['prompt_words'],len(output_request_value['prompt'].split()))
             self.assertLess(output_request_value['prompt_words'],100)
 
-    def test_rooftop_prompt_prioritizes_five_horizontal_bands(self):
+    def test_rooftop_prompt_keeps_layout_user_defined(self):
         rooftop_prompt_text=load_tile_configuration()['types']['rooftop']['base_prompt']
-        self.assertTrue(rooftop_prompt_text.startswith('Exactly five equal-height horizontal bands'))
-        self.assertIn('Top-down flat surface',rooftop_prompt_text)
-        self.assertIn('filling the image',rooftop_prompt_text)
-        self.assertNotIn('four broad aligned rows',rooftop_prompt_text)
-        self.assertIn('thin painted edge stripe on the same surface',rooftop_prompt_text)
-        self.assertNotIn('outer frame',rooftop_prompt_text)
+        self.assertIn('Orthographic top view',rooftop_prompt_text)
+        self.assertIn('Continuous surface filling the image',rooftop_prompt_text)
+        self.assertIn('matching edges',rooftop_prompt_text)
+        self.assertNotRegex(rooftop_prompt_text,r'\d|\b(?:rows?|columns?|five|three|rectangle|width|height)\b')
         self.assertLessEqual(len(rooftop_prompt_text.split()),32)
-        self.assertNotIn('large clearly separated',rooftop_prompt_text)
-        self.assertNotIn('wooden',rooftop_prompt_text)
-        self.assertTrue(rooftop_prompt_text.endswith('Roof covering texture.'))
 
     def test_base_prompts_do_not_prescribe_material(self):
         for tile_type_record in load_tile_configuration()['types'].values():

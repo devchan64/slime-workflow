@@ -19,8 +19,8 @@ from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_conf
 from tools.review.common.management_gateway import execute_management_command
 from tools.review.domains.tile.tile_generation import REFERENCE_STYLE_PROMPT
 
-# 채택 예시 출처: 2026-09-27_19-33-08-a3f9691b
-ROOFTOP_TILE_PROMPT_EXAMPLE = '화면을 정확히 5개의 동일한 높이의 가로 띠로 나눈다. 각 띠는 넓은 석판 3장으로 구성한다. 위쪽 띠가 바로 아래 띠의 윗부분을 살짝 덮는다. 석판 표면은 매끈하고 이음매는 얕다. 탑다운 석판 지붕 텍스처.'
+# 지붕 예시는 전체 장수와 행·열 배치를 먼저 지정한다.
+ROOFTOP_TILE_PROMPT_EXAMPLE = '석판 15장을 세로 5행, 가로 3열로 배치한다. 각 석판은 화면 너비의 1/3, 높이의 1/5를 차지하는 가로로 긴 직사각형 통석판이다. 매끈한 표면과 곧은 모서리, 가늘고 얕은 이음매로 표현한다. 모든 석판은 같은 평면에서 밀착해 화면 끝까지 채운다.'
 
 WALL_TILE_KOREAN_EXAMPLE = '석재 벽면, 양옆에 기둥이 절반이 보이게 배치한다, 상단에 단을 배치한다.'
 SMALL_WINDOW_WALL_KOREAN_EXAMPLE = '이미지 1은 밖에서 보는 벽면이다. 실내가 보이지 않는 작은 창문은 상단에 추가한다.'
