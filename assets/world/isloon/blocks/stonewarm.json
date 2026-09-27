@@ -10,7 +10,9 @@
   "rows": 24,
   "safeTown": true,
   "buildingTileOverrides": {
-    "wall": "stonewarm-stone-wall"
+    "wall": "stonewarm-stone-wall",
+    "window": "stonewarm-small-window-wall",
+    "door": "stonewarm-stone-door"
   },
   "startPoint": {
     "column": 12,

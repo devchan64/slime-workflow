@@ -34,6 +34,12 @@ class MapRenderProfileTests(unittest.TestCase):
         self.assertIn('id: stonewarm-stone-wall', tile_catalog_source)
         self.assertIn('world/stonewarm/buildings/stone-wall-v1.png', tile_catalog_source)
         self.assertEqual(stonewarm_map_record['buildingTileOverrides']['wall'], 'stonewarm-stone-wall')
+        self.assertIn('id: stonewarm-small-window-wall', tile_catalog_source)
+        self.assertIn('world/stonewarm/buildings/stone-small-window-wall-v1.png', tile_catalog_source)
+        self.assertEqual(stonewarm_map_record['buildingTileOverrides']['window'], 'stonewarm-small-window-wall')
+        self.assertIn('id: stonewarm-stone-door', tile_catalog_source)
+        self.assertIn('world/stonewarm/buildings/stone-door-v1.png', tile_catalog_source)
+        self.assertEqual(stonewarm_map_record['buildingTileOverrides']['door'], 'stonewarm-stone-door')
         self.assertIn('readBuildingTileSet', map_review_script)
 
     def test_stonewarm_central_plaza_is_compact(self):

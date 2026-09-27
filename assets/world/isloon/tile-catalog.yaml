@@ -11,6 +11,8 @@ tiles:
   - {id: stonewarm-marble-paving-b, category: ground, asset: world/stonewarm/terrain/marble-paving-b-v1.png, walkable: true, movement_cost: 1}
   - {id: stonewarm-marble-paving-c, category: ground, asset: world/stonewarm/terrain/marble-paving-c-v1.png, walkable: true, movement_cost: 1}
   - {id: stonewarm-stone-wall, category: structure, asset: world/stonewarm/buildings/stone-wall-v1.png, walkable: false, movement_cost: 99}
+  - {id: stonewarm-small-window-wall, category: structure, asset: world/stonewarm/buildings/stone-small-window-wall-v1.png, walkable: false, movement_cost: 99}
+  - {id: stonewarm-stone-door, category: door, asset: world/stonewarm/buildings/stone-door-v1.png, walkable: true, movement_cost: 1}
   - {id: spring_water, category: ground, asset: terrain/water-v3.png, walkable: false, movement_cost: 99}
   - {id: flower_bed, category: decoration, asset: terrain/flowers-v3.png, walkable: true, movement_cost: 1}
   - {id: marble_large_window_wall, category: structure, asset: world/isloon/buildings/marble-large-window-wall-v1.png, walkable: false, movement_cost: 99}
