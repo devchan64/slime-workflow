@@ -13,17 +13,17 @@ class MapRenderProfileTests(unittest.TestCase):
     def test_building_review_templates_use_shared_profile_values(self):
         render_profile_values = load_map_render_profiles()
         self.assertEqual(render_profile_values['wall_height'], 80)
-        self.assertEqual(render_profile_values['block_height'], 70)
+        self.assertEqual(render_profile_values['block_height'], 80)
 
         map_review_source = (WORKFLOW_ROOT / 'assets/world/isloon/map-review.html').read_text(encoding='utf-8')
         self.assertNotIn('VOLUME_FLOOR_HEIGHT_PIXELS', map_review_source)
         self.assertIn('currentVolumeRenderProfile.wall_height', map_review_source)
 
-    def test_block_map_review_uses_the_shared_seventy_pixel_block_height(self):
+    def test_block_map_review_uses_the_shared_eighty_pixel_block_height(self):
         block_review_builder = (WORKFLOW_ROOT / 'tools/review/build_block_map_review.py').read_text(encoding='utf-8')
         block_map_script = (WORKFLOW_ROOT / 'tools/review/ui/map/block-map-review.js').read_text(encoding='utf-8')
 
-        self.assertIn('TOWN_BLOCK_HEIGHT=70', block_review_builder)
+        self.assertIn('TOWN_BLOCK_HEIGHT=80', block_review_builder)
         self.assertIn("'block-render-profile.json'", block_review_builder)
         self.assertIn("fetchMapReviewRecord('block-render-profile.json')", block_map_script)
         self.assertIn('const TOWN_BLOCK_HEIGHT=blockRenderProfile.blockHeight', block_map_script)

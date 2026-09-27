@@ -8,7 +8,7 @@ from PIL import Image
 
 WORKFLOW_ROOT_DIRECTORY=Path(__file__).resolve().parents[2]
 GAME_TILE_SOURCE_SIZE=256
-TOWN_BLOCK_HEIGHT=70
+TOWN_BLOCK_HEIGHT=80
 
 
 def load_town_block_height():
