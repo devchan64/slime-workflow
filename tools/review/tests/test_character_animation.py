@@ -216,7 +216,9 @@ characters:
                 generation_start_record=jobs.start_animation_generation(self.make_selection_record(target_fps=2))
                 generation_job_identifier=generation_start_record['id']
                 self.assertTrue(jobs.execute_animation_command('active',{})['running'])
-                self.assertEqual(jobs.execute_animation_command('history',{})['records'][0]['id'],generation_job_identifier)
+                history_record_value=jobs.execute_animation_command('history',{})['records'][0]
+                self.assertEqual(history_record_value['id'],generation_job_identifier)
+                self.assertEqual((history_record_value['request']['start_frame'],history_record_value['request']['end_frame']),(1,120))
                 jobs.execute_animation_command('cancel',{'id':generation_job_identifier})
                 self.assertTrue((jobs.resolve_generation_directory(generation_job_identifier)/'cancel.request').exists())
                 jobs.execute_animation_command('history-reset',{})

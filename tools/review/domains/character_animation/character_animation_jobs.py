@@ -14,6 +14,7 @@ import subprocess
 import time
 import traceback
 import uuid
+from tools.review.common.gpu_job_queue import launch_gpu_process
 
 from tools.review.domains.character_animation.character_animation_assets import WORKFLOW_ROOT_DIRECTORY, prepare_animation_request, build_animation_catalog
 from tools.review.common.generation_records import write_record_atomically
@@ -38,7 +39,7 @@ def describe_generation_progress(generation_job_path, generation_request_record,
     if generation_status_record['status']=='completed':
         completed_frame_count=total_frame_count
     progress_display_record = {'completed':completed_frame_count,'total':total_frame_count,'stage':'preparing','inference_steps':generation_request_record.get('steps',4),'inference_completed':None}
-    if generation_status_record['status']!='running':
+    if generation_status_record['status'] not in ('running','queued'):
         progress_display_record['stage']=generation_status_record['status']
         return progress_display_record
     if completed_frame_count==total_frame_count:
@@ -66,7 +67,7 @@ def describe_generation_progress(generation_job_path, generation_request_record,
 
 def estimate_generation_remaining(generation_job_path, generation_request_record, generation_status_record):
     """같은 작업의 최근 완료 이미지 최대 5장으로 남은 시간을 추정한다."""
-    if generation_status_record['status']!='running':
+    if generation_status_record['status'] not in ('running','queued'):
         return {'remaining_seconds':0 if generation_status_record['status']=='completed' else None,'reason':'finished','samples':0}
     progress_record_value=generation_status_record['progress']
     completed_frame_count=progress_record_value['completed']
@@ -200,30 +201,32 @@ def execute_animation_command(operation_command_name,command_payload_value):
         for history_record_path in sorted(GENERATION_HISTORY_DIRECTORY.glob('*.json'),reverse=True):
             history_record_value = json.loads(history_record_path.read_text())
             generation_status_value = read_generation_status(history_record_value['id'])
-            history_record_values.append({**history_record_value,'path':generation_status_value['path'],'status':{'status':generation_status_value['status'],'error':generation_status_value.get('error')},'request':{**{key:generation_status_value['request'][key] for key in ('motion','character','source','directions')},'resolution':generation_status_value['request'].get('resolution',512),'speed':generation_status_value['request'].get('speed',1),'target_fps':generation_status_value['request'].get('target_fps'),'frame_step':generation_status_value['request'].get('frame_step',1),'steps':generation_status_value['request'].get('steps',4)},'playable':bool(generation_status_value.get('result'))})
+            history_record_values.append({**history_record_value,'path':generation_status_value['path'],'status':{'status':generation_status_value['status'],'error':generation_status_value.get('error')},'request':{**{key:generation_status_value['request'][key] for key in ('motion','character','source','directions','start_frame','end_frame')},'resolution':generation_status_value['request'].get('resolution',512),'speed':generation_status_value['request'].get('speed',1),'target_fps':generation_status_value['request'].get('target_fps'),'frame_step':generation_status_value['request'].get('frame_step',1),'steps':generation_status_value['request'].get('steps',4)},'playable':bool(generation_status_value.get('result'))})
         return {'records':history_record_values}
     if operation_command_name=='history-reset':
         for history_record_path in GENERATION_HISTORY_DIRECTORY.glob('*.json'):history_record_path.unlink(missing_ok=True)
         return {'status':'cleared'}
     if operation_command_name=='cancel':
         generation_job_path = resolve_generation_directory(command_payload_value['id'])
-        if read_generation_status(command_payload_value['id'])['status']!='running':raise ValueError('실행 중인 작업이 아닙니다.')
+        if read_generation_status(command_payload_value['id'])['status'] not in ('running','queued'):raise ValueError('실행 중인 작업이 아닙니다.')
         (generation_job_path/'cancel.request').touch()
         return {'status':'running','cancel_requested':True}
     raise ValueError('지원하지 않는 명령')
 
 def supervise_animation_generation(generation_job_identifier,inherited_lock_descriptor):
+    os.close(inherited_lock_descriptor)
+    inherited_lock_descriptor = None
     generation_job_path = resolve_generation_directory(generation_job_identifier)
     generation_final_record = {'status':'failed'}
     generation_worker_process = None
     try:
         print(f'{datetime.now().isoformat()}/character-animation/start id={generation_job_identifier} root={generation_job_path}',flush=True)
-        generation_worker_process = subprocess.Popen([str(WORKFLOW_ROOT_DIRECTORY/'.venv/bin/python'),str(WORKFLOW_ROOT_DIRECTORY/'generators/animation/run_character_animation.py'),'--job-dir',str(generation_job_path)],start_new_session=True)
+        generation_worker_process = launch_gpu_process([str(WORKFLOW_ROOT_DIRECTORY/'.venv/bin/python'),str(WORKFLOW_ROOT_DIRECTORY/'generators/animation/run_character_animation.py'),'--job-dir',str(generation_job_path)],generation_job_path,'character-animation',start_new_session=True)
         heartbeat_clock_value = 0
         while generation_worker_process.poll() is None:
             if (generation_job_path/'cancel.request').exists():
                 os.killpg(generation_worker_process.pid,signal.SIGTERM)
-                try:generation_worker_process.wait(timeout=5)
+                try:generation_worker_process.wait(timeout=15)
                 except subprocess.TimeoutExpired:
                     os.killpg(generation_worker_process.pid,signal.SIGKILL)
                     generation_worker_process.wait()
@@ -246,7 +249,7 @@ def supervise_animation_generation(generation_job_identifier,inherited_lock_desc
         write_record_atomically(generation_job_path/'status.json',generation_final_record)
         # 이력 인덱스는 생성 시에만 기록한다. 수동 초기화 뒤 자동 복원하지 않는다.
         print(f'{datetime.now().isoformat()}/character-animation/end {generation_final_record}',flush=True)
-        os.close(inherited_lock_descriptor)
+        if inherited_lock_descriptor is not None: os.close(inherited_lock_descriptor)
 
 if __name__=='__main__':
     execution_argument_parser=argparse.ArgumentParser()
