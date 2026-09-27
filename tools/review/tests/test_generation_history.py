@@ -4,6 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
+from tools.review.common.gradio_history import format_history_progress
 from tools.review.domains.image.image_generation import ImageGenerationManager, summarize_generation_progress
 from tools.review.tests import test_image_generation
 
@@ -66,6 +67,10 @@ class GenerationHistoryTests(unittest.TestCase):
         self.assertIsNone(summarize_generation_progress('stage=load','running')['percent'])
         self.assertEqual(summarize_generation_progress('denoise step=4/4','running')['stage'],'saving')
         self.assertEqual(summarize_generation_progress('denoise step=2/4','failed')['stage'],'failed')
+
+    def test_progress_display_uses_actual_image_steps(self):
+        self.assertEqual(format_history_progress({'stage':'inference','step':2,'total':4,'percent':50}),'추론 중 50% · 2/4스텝')
+        self.assertEqual(format_history_progress({'stage':'queued','queue_position':3}),'GPU 대기 중 · 대기 순서 3')
 
     def test_history_reset_scope(self):
         with tempfile.TemporaryDirectory() as current_directory_name, patch('tools.review.domains.image.image_generation.MANAGER_HISTORY_ROOT',Path(current_directory_name)/'history'):

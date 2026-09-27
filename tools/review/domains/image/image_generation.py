@@ -78,6 +78,22 @@ class ImageGenerationManager:
     def enrich_generation_status(self, current_job_root, current_status_record):
         return current_status_record
 
+    def read_generation_status_record(self, current_job_root, fallback_status_record=None, include_log_value=False):
+        """작업 로그 끝부분에서 확인 가능한 진행 정보만 상태에 보강한다."""
+        current_status_path=current_job_root/'status.json'
+        current_status_record=json.loads(current_status_path.read_text()) if current_status_path.exists() else (fallback_status_record or {'status':'missing'})
+        current_log_path=current_job_root/'worker.log'
+        if current_log_path.exists() and (include_log_value or current_status_record['status'] in ('queued','running')):
+            with current_log_path.open('rb') as current_log_handle:
+                current_log_handle.seek(max(0,current_log_path.stat().st_size-12000))
+                current_status_record['log']=current_log_handle.read().decode(errors='replace')
+        current_progress_record=summarize_generation_progress(current_status_record.get('log',''),current_status_record['status'])
+        if current_status_record['status']=='queued' and isinstance(current_status_record.get('queue_position'),int):
+            current_progress_record['queue_position']=current_status_record['queue_position']
+        current_status_record['progress']=current_progress_record
+        current_status_record['log_updated_at']=current_log_path.stat().st_mtime if current_log_path.exists() else None
+        return current_status_record
+
     def validate_generation_request(self, request_record_value):
         return validate_image_request(request_record_value)
 
@@ -111,9 +127,9 @@ class ImageGenerationManager:
             for current_record_path in sorted(self.history_storage_path().glob('*.json'), reverse=True):
                 current_history_record = json.loads(current_record_path.read_text())
                 current_job_root = self.job_storage_root / current_history_record['id']
-                current_status_path = current_job_root / 'status.json'
                 current_history_record['path'] = str(current_job_root.resolve())
-                current_history_record['status'] = json.loads(current_status_path.read_text()) if current_status_path.exists() else current_history_record.get('status',{'status':'missing'})
+                current_history_record['status'] = self.read_generation_status_record(current_job_root,current_history_record.get('status',{'status':'missing'}))
+                current_history_record['progress'] = current_history_record['status']['progress']
                 current_history_record['image'] = f"{self.route_prefix_value}/jobs/{current_history_record['id']}/result.png" if (current_job_root/'result.png').exists() else None
                 current_history_records.append(current_history_record)
         return current_history_records
@@ -235,15 +251,8 @@ class ImageGenerationManager:
                     current_output_name=current_path_match[2][1:]
                     send_response_data(200,(current_job_root/current_output_name).read_bytes(),'image/png' if current_output_name.endswith('.png') else 'text/plain; charset=utf-8')
                 else:
-                    current_status_record=json.loads((current_job_root/'status.json').read_text())
-                    current_log_path=current_job_root/'worker.log'
-                    if current_log_path.exists():
-                        with current_log_path.open('rb') as current_log_handle:
-                            current_log_handle.seek(max(0,current_log_path.stat().st_size-12000))
-                            current_status_record['log']=current_log_handle.read().decode(errors='replace')
-                    current_status_record['progress']=summarize_generation_progress(current_status_record.get('log',''),current_status_record['status'])
+                    current_status_record=self.read_generation_status_record(current_job_root,include_log_value=True)
                     current_status_record['log_url']=f'{self.route_prefix_value}/jobs/{current_path_match[1]}/worker.log'
-                    current_status_record['log_updated_at']=current_log_path.stat().st_mtime if current_log_path.exists() else None
                     current_status_record['image']=f'{self.route_prefix_value}/jobs/{current_path_match[1]}/result.png' if (current_job_root/'result.png').exists() else None
                     send_response_data(200,self.enrich_generation_status(current_job_root,current_status_record))
         except (ValueError,FileNotFoundError) as current_error_value:

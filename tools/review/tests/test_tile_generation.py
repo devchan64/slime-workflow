@@ -21,6 +21,16 @@ class TileGenerationTests(unittest.TestCase):
             self.assertIn('Red brick house.',output_request_value['prompt'])
             self.assertEqual(output_request_value['prompt_words'],len(output_request_value['prompt'].split()))
             self.assertLess(output_request_value['prompt_words'],100)
+
+    def test_rooftop_prompt_requires_single_surface_and_excludes_building_parts(self):
+        rooftop_prompt_text=load_tile_configuration()['types']['rooftop']['base_prompt']
+        self.assertIn('single continuous roof plane',rooftop_prompt_text)
+        self.assertIn('large wooden planks in four broad aligned horizontal rows',rooftop_prompt_text)
+        self.assertIn('matching opposite edges',rooftop_prompt_text)
+        self.assertNotIn('large clearly separated',rooftop_prompt_text)
+        self.assertNotIn('small wooden shingles',rooftop_prompt_text)
+        for excluded_subject_text in ('no sky','no wall','no gable','no eaves','no building outline'):
+            self.assertIn(excluded_subject_text,rooftop_prompt_text)
     def test_default_seed_is_10107_and_explicit_seed_is_preserved(self):
         request=self.make_tile_request()
         request.pop('seed')
@@ -40,6 +50,16 @@ class TileGenerationTests(unittest.TestCase):
         self.assertEqual(append_wall_tile_example(''),WALL_TILE_KOREAN_EXAMPLE)
         self.assertEqual(append_wall_tile_example('낮은 성벽'), '낮은 성벽\n'+WALL_TILE_KOREAN_EXAMPLE)
         self.assertEqual(append_wall_tile_example(WALL_TILE_KOREAN_EXAMPLE),WALL_TILE_KOREAN_EXAMPLE)
+
+    def test_ground_tile_korean_example_is_inserted_without_overwriting_or_duplication(self):
+        from tools.review.ui.gradio.tile_map_app import GROUND_TILE_KOREAN_EXAMPLE, append_ground_tile_example
+        self.assertEqual(append_ground_tile_example(''),GROUND_TILE_KOREAN_EXAMPLE)
+        self.assertEqual(append_ground_tile_example('광장 바닥'), '광장 바닥\n'+GROUND_TILE_KOREAN_EXAMPLE)
+        self.assertEqual(append_ground_tile_example(GROUND_TILE_KOREAN_EXAMPLE),GROUND_TILE_KOREAN_EXAMPLE)
+
+    def test_user_prompt_clear_action_returns_empty_value(self):
+        from tools.review.ui.gradio.tile_map_app import clear_user_prompt_value
+        self.assertEqual(clear_user_prompt_value(),'')
 
     def test_user_prompt_is_last_for_every_toggle_combination(self):
         from itertools import product

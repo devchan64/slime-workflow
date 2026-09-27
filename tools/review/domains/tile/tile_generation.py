@@ -78,7 +78,8 @@ class TileGenerationManager(ImageGenerationManager):
             job_identifier_value=current_job_root.name
             if self.is_generation_history_deleted(job_identifier_value):continue
             if job_identifier_value in history_records_by_identifier:continue
-            history_records_by_identifier[job_identifier_value]={'id':job_identifier_value,'created_at':datetime.fromtimestamp(current_job_root.stat().st_mtime,ZoneInfo('Asia/Seoul')).isoformat(),'request':json.loads(request_file_path.read_text()),'status':json.loads(status_file_path.read_text()),'job_path':str(current_job_root)}
+            current_status_record=self.read_generation_status_record(current_job_root)
+            history_records_by_identifier[job_identifier_value]={'id':job_identifier_value,'created_at':datetime.fromtimestamp(current_job_root.stat().st_mtime,ZoneInfo('Asia/Seoul')).isoformat(),'request':json.loads(request_file_path.read_text()),'status':current_status_record,'progress':current_status_record['progress'],'job_path':str(current_job_root)}
         history_records=sorted(history_records_by_identifier.values(),key=lambda record_value:record_value.get('created_at',''),reverse=True)
         for current_history_record in history_records:
             current_job_root=self.job_storage_root/current_history_record['id']

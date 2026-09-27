@@ -7,6 +7,7 @@ from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_conf
 HISTORY_SUMMARY_FIELD_NAMES=('tag','tile_type','motion','action','start_frame','end_frame','directions','width','height','resolution','target_fps','speed','steps','seed')
 HISTORY_SUMMARY_LABELS={'tag':'태그','tile_type':'타일','motion':'모션','action':'동작','width':'너비','height':'높이','resolution':'해상도','target_fps':'타겟 FPS','speed':'배속','steps':'스텝','seed':'시드'}
 HISTORY_STATUS_LABELS={'queued':'GPU 대기 중','running':'생성 중','completed':'완료','cancelled':'중지됨','failed':'실패','missing':'기록 누락','unknown':'상태 미상'}
+HISTORY_PROGRESS_STAGE_LABELS={'queued':'GPU 대기 중','starting':'생성 준비 중','load':'모델 로딩 중','inference':'추론 중','saving':'결과 저장 중','completed':'완료','failed':'실패'}
 HISTORY_CARD_SELECTION_SCRIPT="""()=>{if(window.__slimeHistoryCardSelectionBound)return;window.__slimeHistoryCardSelectionBound=true;document.addEventListener('click',(clickEvent)=>{const selectedCardElement=clickEvent.target.closest('[data-job-id]');if(!selectedCardElement)return;const selectedJobIdentifier=selectedCardElement.dataset.jobId;const selectionInputElement=[...document.querySelectorAll('#generation-history-selection input')].find((inputElement)=>inputElement.value===selectedJobIdentifier);selectionInputElement?.click();});}"""
 
 
@@ -69,6 +70,21 @@ def format_history_selection_summary(current_history_record):
     current_summary_text=format_history_request_summary(current_request_record)
     current_status_text=HISTORY_STATUS_LABELS.get(current_status_label,current_status_label)
     return f"**선택한 생성 이력**\n\n상태: **{current_status_text}** · 생성 시각: {current_created_text}\n\nID: `{current_history_record['id']}`\n\n설정: {current_summary_text}"
+
+
+def format_history_progress(current_progress_record):
+    """로그에서 확인 가능한 진행 정보만 카드용 문구로 만든다."""
+    if not isinstance(current_progress_record,dict):
+        return ''
+    current_stage_value=current_progress_record.get('stage','starting')
+    current_label_value=HISTORY_PROGRESS_STAGE_LABELS.get(current_stage_value,current_stage_value)
+    current_percent_value=current_progress_record.get('percent')
+    current_completed_value=current_progress_record.get('completed_frames',current_progress_record.get('step'))
+    current_total_value=current_progress_record.get('total_frames',current_progress_record.get('total'))
+    if isinstance(current_percent_value,(int,float)) and current_total_value:
+        return f'{current_label_value} {current_percent_value:g}% · {current_completed_value}/{current_total_value}'+current_progress_record.get('unit','스텝')
+    current_queue_position=current_progress_record.get('queue_position')
+    return current_label_value+(f' · 대기 순서 {current_queue_position}' if current_queue_position else '')
 
 
 def collect_image_history_thumbnails(history_record_values, server_base_address):
@@ -144,17 +160,18 @@ def render_history_detail_cards(history_record_values, selected_history_identifi
         else:
             current_thumbnail_html='<span class="history-card-thumbnail history-card-placeholder">'+('결과 준비 중' if current_status_name in ('queued','running') else '이미지 없음')+'</span>'
         progress_html_value = ''
-        progress_record_value = current_history_record.get('progress')
+        progress_record_value=current_history_record.get('progress') or (current_status_record.get('progress') if isinstance(current_status_record,dict) else None)
         if progress_record_value:
-            progress_percent_value = max(0, min(100, float(progress_record_value['percent'])))
-            progress_title_value = progress_record_value.get("label", "ANNY 렌더")
-            progress_unit_value = progress_record_value.get("unit", "프레임 저장")
-            progress_label_value = f"{progress_title_value} {progress_percent_value:g}% · {progress_record_value['completed_frames']}/{progress_record_value['total_frames']}{progress_unit_value}"
+            progress_percent_raw_value=progress_record_value.get('percent')
+            progress_percent_value=max(0,min(100,float(progress_percent_raw_value))) if isinstance(progress_percent_raw_value,(int,float)) else None
+            progress_title_value=progress_record_value.get('label',HISTORY_PROGRESS_STAGE_LABELS.get(progress_record_value.get('stage','starting'),'진행 상태'))
+            progress_label_value=format_history_progress(progress_record_value)
             if progress_record_value.get('current_source_frame') is not None:
                 progress_label_value += f" · Fra:{progress_record_value['current_source_frame']}"
             if progress_record_value.get('detail'):
                 progress_label_value += ' · '+progress_record_value['detail']
-            progress_html_value = f'<span class="history-card-progress">{html.escape(progress_label_value)}<progress style="width:100%" value="{progress_percent_value}" max="100" aria-label="{html.escape(progress_title_value,quote=True)} 진행률"></progress></span>'
+            progress_bar_html_value=f'<progress style="width:100%" value="{progress_percent_value}" max="100" aria-label="{html.escape(progress_title_value,quote=True)} 진행률"></progress>' if progress_percent_value is not None else ''
+            progress_html_value = f'<span class="history-card-progress">{html.escape(progress_label_value)}{progress_bar_html_value}</span>'
         card_html_values.append(f'<button type="button" class="generation-detail-card" data-job-id="{html.escape(current_job_identifier,quote=True)}" aria-pressed="{str(current_selected_flag).lower()}"><span class="history-card-content">{current_thumbnail_html}<span class="history-card-fields"><span class="history-card-heading"><strong>{html.escape(str(current_card_title))}</strong><span class="history-card-state">{html.escape(HISTORY_STATUS_LABELS.get(current_status_name,current_status_name))}</span></span><time>{html.escape(current_created_text)}</time><dl>{"".join(current_detail_values)}</dl></span></span>{progress_html_value}<span class="history-card-id">ID · {html.escape(current_job_identifier)}</span><span class="history-card-select">{"선택됨" if current_selected_flag else "이 작업 선택"}</span></button>')
     return '<div class="generation-detail-cards">'+''.join(card_html_values)+'</div>'
 
