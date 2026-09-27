@@ -68,7 +68,7 @@ def build_qwen_2512_interface(server_base_address):
                     generation_button_value=gr.Button('이미지 생성 시작',variant='primary')
                 model_status_value=gr.Markdown('모델 상태를 확인하세요.')
                 generation_status_value=gr.Markdown('생성 가능 · 프롬프트를 입력하세요.')
-                cancel_button_value=gr.Button('생성 취소')
+                gr.Markdown('실행 중인 작업은 아래 생성 이력에서 선택한 뒤 **작업 중지**를 사용하세요.')
             with gr.Column(scale=2,min_width=520):
                 generation_identifier_value=gr.Textbox(label='생성 ID',interactive=False)
                 result_preview_value=gr.HTML(create_result_preview_html(None))
@@ -100,11 +100,6 @@ def build_qwen_2512_interface(server_base_address):
         refresh_button_value=gr.Button('상태 새로고침')
         refresh_button_value.click(refresh_generation_status,[generation_identifier_value,log_refresh_enabled],[generation_status_value,log_output_value,result_preview_value],queue=False)
         if hasattr(gr,'Timer'):gr.Timer(2).tick(refresh_generation_status,[generation_identifier_value,log_refresh_enabled],[generation_status_value,log_output_value,result_preview_value],show_progress='hidden')
-        def cancel_generation(generation_identifier_value):
-            if not generation_identifier_value:raise gr.Error('취소할 생성 ID를 선택하세요.')
-            cancel_record_value=execute_image_gateway('cancel',{'id':generation_identifier_value})
-            return '상태: '+cancel_record_value['status']
-        cancel_button_value.click(cancel_generation,generation_identifier_value,generation_status_value)
     return interface_blocks_value
 
 from pathlib import Path as ManagementStylePath

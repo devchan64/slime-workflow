@@ -39,7 +39,8 @@ def build_qwen_2511_interface(server_base_address):
                 with gr.Row():width_value=gr.Dropdown([512,768,1024,1280],value=1024,label='너비');height_value=gr.Dropdown([512,768,1024,1280],value=1024,label='높이')
                 with gr.Row():step_value=gr.Radio([4,30],value=4,label='생성 스텝');seed_value=gr.Number(value=10107,precision=0,label='Seed')
                 gr.Markdown('예상 시간: 실행 이력 기반 추정 자료를 수집 중입니다. 실행 로그에서 진행 단계를 확인하세요.')
-                generation_button_value=gr.Button('이미지 생성 시작',variant='primary');status_value=gr.Markdown('생성 가능 · 설정을 확인하세요.');cancel_button_value=gr.Button('생성 취소')
+                generation_button_value=gr.Button('이미지 생성 시작',variant='primary');status_value=gr.Markdown('생성 가능 · 설정을 확인하세요.')
+                gr.Markdown('실행 중인 작업은 아래 생성 이력에서 선택한 뒤 **작업 중지**를 사용하세요.')
             with gr.Column(scale=2):
                 identifier_value=gr.Textbox(label='생성 ID',interactive=False);preview_value=gr.HTML(result_preview_html(None))
         log_value,refresh_log_value,_=build_execution_logs()
@@ -57,7 +58,6 @@ def build_qwen_2511_interface(server_base_address):
             status_record_value=execute_reference_gateway('status',{'id':identifier_text_value});return '상태: '+status_record_value['status'],gr.update(value=status_record_value.get('log','')) if refresh_log_enabled else gr.skip(),result_preview_html(status_record_value.get('image')) if status_record_value.get('image') else gr.skip()
         interface_blocks_value.load(lambda:read_history_page(1),outputs=history_output_values);gr.Button('상태 새로고침').click(refresh_status,[identifier_value,refresh_log_value],[status_value,log_value,preview_value],queue=False)
         if hasattr(gr,'Timer'):gr.Timer(2).tick(refresh_status,[identifier_value,refresh_log_value],[status_value,log_value,preview_value],show_progress='hidden')
-        cancel_button_value.click(lambda identifier_text_value:execute_reference_gateway('cancel',{'id':identifier_text_value}),identifier_value,status_value)
     return interface_blocks_value
 
 from pathlib import Path as ManagementStylePath
