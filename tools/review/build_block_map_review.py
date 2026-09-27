@@ -9,6 +9,24 @@ from PIL import Image
 WORKFLOW_ROOT_DIRECTORY=Path(__file__).resolve().parents[2]
 GAME_TILE_SOURCE_SIZE=256
 TOWN_BLOCK_HEIGHT=80
+TOWN_BUILDING_TILE_OVERRIDES={
+    'reedhaven':{
+        'roof':'wood_roof',
+        'wall':'wood_plain_wall',
+        'window':'wood_small_window_wall',
+        'large_window':'wood_large_window_wall',
+        'roof_underlay':'wood_wall_crossbar',
+        'door':'wood_door',
+    },
+    'stonewarm':{
+        'roof':'stonewarm-stone-roof',
+        'wall':'stonewarm-stone-wall',
+        'window':'stonewarm-small-window-wall',
+        'large_window':'stonewarm-large-window-wall',
+        'roof_underlay':'stonewarm-stone-wall-crossbar',
+        'door':'stonewarm-stone-door',
+    },
+}
 
 
 def load_town_block_height():
@@ -111,6 +129,7 @@ def build_block_map_review(output_directory_path):
             raise ValueError(f'블록 스키마 오류: {source_map_path.name}')
         normalize_game_block_heights(current_map_record,source_block_height,town_block_height)
         validate_town_block_heights(current_map_record,town_block_height)
+        current_map_record['buildingTileOverrides']=TOWN_BUILDING_TILE_OVERRIDES.get(current_map_record['id'],{})
         required_material_names=set(current_map_record['terrainCodes'].values())|{'wall','roof'}
         if required_material_names-set(current_material_record['materials']):
             raise ValueError(f'임시 재질이 정의되지 않았습니다: {source_map_path.name}')

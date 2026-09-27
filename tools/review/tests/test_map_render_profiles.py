@@ -58,13 +58,13 @@ class MapRenderProfileTests(unittest.TestCase):
         self.assertIn('const TOWN_BLOCK_HEIGHT=blockRenderProfile.blockHeight', block_map_script)
         self.assertIn('마을 블록 높이 설정이 올바르지 않습니다.', block_map_script)
 
-    def test_stonewarm_roads_use_the_marble_paving_texture(self):
+    def test_stonewarm_roads_use_the_gravel_paving_texture(self):
         tile_catalog_source = (WORKFLOW_ROOT / 'assets/world/isloon/tile-catalog.yaml').read_text(encoding='utf-8')
         map_review_script = (WORKFLOW_ROOT / 'tools/review/ui/map/block-map-review.js').read_text(encoding='utf-8')
 
-        self.assertIn('id: stonewarm-marble-paving', tile_catalog_source)
-        self.assertIn('world/stonewarm/terrain/marble-paving-v1.png', tile_catalog_source)
-        self.assertIn("currentMapRecord.id==='stonewarm'?'stonewarm-marble-paving':currentMapRecord.id==='reedhaven'?'reedhaven-dirt-road':'paving'", map_review_script)
+        self.assertIn('id: stonewarm-gravel-paving', tile_catalog_source)
+        self.assertIn('world/stonewarm/terrain/gravel-paving-v1.png', tile_catalog_source)
+        self.assertIn("currentMapRecord.id==='stonewarm'?'stonewarm-gravel-paving':currentMapRecord.id==='reedhaven'?'reedhaven-dirt-road':'paving'", map_review_script)
 
     def test_reedhaven_roads_use_the_dirt_road_texture(self):
         tile_catalog_source = (WORKFLOW_ROOT / 'assets/world/isloon/tile-catalog.yaml').read_text(encoding='utf-8')
@@ -89,21 +89,36 @@ class MapRenderProfileTests(unittest.TestCase):
         self.assertIn('readBuildingTileSet', map_review_script)
         self.assertIn("return 'roof_underlay'", map_review_script)
 
-    def test_reedhaven_guild_has_three_by_two_block_footprint(self):
+        with TemporaryDirectory(dir=WORKFLOW_ROOT / '.tmp') as current_temporary_directory:
+            current_output_directory = build_block_map_review(Path(current_temporary_directory))
+            reviewed_reedhaven_record = json.loads((current_output_directory / 'block-map-reedhaven.json').read_text(encoding='utf-8'))
+        self.assertEqual(
+            reviewed_reedhaven_record['buildingTileOverrides'],
+            {
+                'roof': 'wood_roof',
+                'wall': 'wood_plain_wall',
+                'window': 'wood_small_window_wall',
+                'large_window': 'wood_large_window_wall',
+                'roof_underlay': 'wood_wall_crossbar',
+                'door': 'wood_door',
+            },
+        )
+
+    def test_reedhaven_guild_has_two_by_two_block_footprint(self):
         reedhaven_map_record = load_exported_game_map('reedhaven')
         guild_building_record = next(building for building in reedhaven_map_record['buildings'] if building['id'] == 'reedhaven-guild')
 
-        self.assertEqual((guild_building_record['width'], guild_building_record['height']), (4, 3))
+        self.assertEqual((guild_building_record['width'], guild_building_record['height']), (2, 2))
         self.assertEqual(guild_building_record['entrance'], {'column': 5, 'row': 6})
-        self.assertTrue(all(block['column'] < 4 and block['row'] < 3 for block in guild_building_record['blocks']))
+        self.assertTrue(all(block['column'] < 2 and block['row'] < 2 for block in guild_building_record['blocks']))
 
-    def test_reedhaven_inn_has_six_by_two_block_footprint(self):
+    def test_reedhaven_inn_has_two_by_six_block_footprint(self):
         reedhaven_map_record = load_exported_game_map('reedhaven')
         inn_building_record = next(building for building in reedhaven_map_record['buildings'] if building['id'] == 'reedhaven-inn')
 
-        self.assertEqual((inn_building_record['width'], inn_building_record['height']), (4, 3))
+        self.assertEqual((inn_building_record['width'], inn_building_record['height']), (2, 6))
         self.assertEqual(inn_building_record['entrance'], {'column': 7, 'row': 18})
-        self.assertTrue(all(block['column'] < 4 and block['row'] < 3 for block in inn_building_record['blocks']))
+        self.assertTrue(all(block['column'] < 2 and block['row'] < 6 for block in inn_building_record['blocks']))
 
     def test_reedhaven_buildings_have_one_wall_floor(self):
         reedhaven_map_record = load_exported_game_map('reedhaven')
@@ -134,15 +149,39 @@ class MapRenderProfileTests(unittest.TestCase):
         self.assertIn('world/stonewarm/buildings/stone-small-window-wall-v1.png', tile_catalog_source)
         self.assertIn('id: stonewarm-large-window-wall', tile_catalog_source)
         self.assertIn('world/stonewarm/buildings/stone-large-window-wall-v1.png', tile_catalog_source)
+        self.assertIn('id: stonewarm-stone-wall-crossbar', tile_catalog_source)
+        self.assertIn('world/stonewarm/buildings/stone-wall-crossbar-v1.png', tile_catalog_source)
+        self.assertIn('id: stonewarm-stone-roof', tile_catalog_source)
+        self.assertIn('world/stonewarm/buildings/stone-roof-v1.png', tile_catalog_source)
         self.assertIn('id: stonewarm-stone-door', tile_catalog_source)
         self.assertIn('world/stonewarm/buildings/stone-door-v1.png', tile_catalog_source)
+        self.assertIn("'roof':'stonewarm-stone-roof'", (WORKFLOW_ROOT / 'tools/review/build_block_map_review.py').read_text(encoding='utf-8'))
+        self.assertIn("'roof_underlay':'stonewarm-stone-wall-crossbar'", (WORKFLOW_ROOT / 'tools/review/build_block_map_review.py').read_text(encoding='utf-8'))
         self.assertIn('readBuildingTileSet', map_review_script)
+
+        with TemporaryDirectory(dir=WORKFLOW_ROOT / '.tmp') as current_temporary_directory:
+            current_output_directory = build_block_map_review(Path(current_temporary_directory))
+            reviewed_stonewarm_record = json.loads((current_output_directory / 'block-map-stonewarm.json').read_text(encoding='utf-8'))
+        self.assertEqual(reviewed_stonewarm_record['buildingTileOverrides']['roof_underlay'], 'stonewarm-stone-wall-crossbar')
+        self.assertEqual(reviewed_stonewarm_record['buildingTileOverrides']['roof'], 'stonewarm-stone-roof')
 
     def test_stonewarm_central_plaza_is_compact(self):
         stonewarm_map_record = load_exported_game_map('stonewarm')
         central_plaza_rows = stonewarm_map_record['terrainRows'][9:13]
 
         self.assertEqual(central_plaza_rows, ['bbvvvvvpppppppppvpvvvvbb'] * 4)
+
+    def test_stonewarm_guild_and_inn_use_the_approved_footprints(self):
+        stonewarm_map_record = load_exported_game_map('stonewarm')
+        guild_building_record = next(building for building in stonewarm_map_record['buildings'] if building['id'] == 'stonewarm-guild')
+        inn_building_record = next(building for building in stonewarm_map_record['buildings'] if building['id'] == 'stonewarm-inn')
+
+        self.assertEqual((guild_building_record['width'], guild_building_record['height']), (2, 4))
+        self.assertEqual(guild_building_record['entrance'], {'column': 5, 'row': 6})
+        self.assertTrue(all(block['column'] < 2 and block['row'] < 4 for block in guild_building_record['blocks']))
+        self.assertEqual((inn_building_record['width'], inn_building_record['height']), (2, 3))
+        self.assertEqual(inn_building_record['entrance'], {'column': 5, 'row': 19})
+        self.assertTrue(all(block['column'] < 2 and block['row'] < 3 for block in inn_building_record['blocks']))
 
     def test_iseulon_game_snapshot_and_review_output_keep_the_new_building_floors(self):
         iseulon_map_record = load_exported_game_map('iseulon')
