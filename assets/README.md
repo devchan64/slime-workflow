@@ -16,3 +16,5 @@
 - 기본 스트레칭 모션: [momask-stretch/v1](motion-sheet/momask-stretch-v1/README.md). 120프레임·4fps·4방향, 선택 설정 `generators/animation/config/default_stretch_motion.yaml`.
 
 - 게임용 4fps 포즈 시트: [game-motion-4fps/v1](pose-sheets/game-motion-4fps-v1/README.md). 스탠딩 v3·걷기 v8·스트레칭 v1, 4방향·총 24장. 선택 설정 `generators/animation/config/default_game_pose_sheets.yaml`.
+
+- 휴식 모션: [momask-resting/v1](motion-sheet/momask-resting-v1/README.md). 승인 생성 `2026-09-27_13-22-20-9a11c35d`, 160프레임·4fps·4방향. 캐릭터 애니메이션에서 `resting-v1`로 선택합니다.

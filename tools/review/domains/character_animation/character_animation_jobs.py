@@ -210,6 +210,17 @@ def execute_animation_command(operation_command_name,command_payload_value):
             generation_status_value = read_generation_status(history_record_value['id'])
             preview_image_record=generation_status_value.get('preview')
             history_record_value['image']=(f"/character-animation/files/{history_record_value['id']}/{preview_image_record['image']}" if preview_image_record else None)
+            measured_progress_record=generation_status_value['progress']
+            completed_image_count=measured_progress_record['completed']
+            total_image_count=measured_progress_record['total']
+            stage_label_value={'preparing':'생성 준비 중','load':'모델 로딩 중','inference':'추론 중','saving':'결과 저장 중','waiting-gpu':'GPU 대기 중','queued':'GPU 대기 중'}.get(measured_progress_record['stage'],measured_progress_record['stage'])
+            if generation_status_value['status']=='queued':stage_label_value='GPU 대기 중'
+            detail_text_value=stage_label_value
+            if measured_progress_record.get('frame') is not None:
+                detail_text_value+=f" · {measured_progress_record['direction']} · 원본 {measured_progress_record['frame']}번"
+            if measured_progress_record.get('inference_completed') is not None:
+                detail_text_value+=f" · 현재 이미지 추론 {measured_progress_record['inference_completed']}/{measured_progress_record['inference_steps']}스텝"
+            history_record_value['progress']={'label':'이미지 생성','unit':'장 완료','completed_frames':completed_image_count,'total_frames':total_image_count,'percent':round(100*completed_image_count/total_image_count,1) if total_image_count else 0,'detail':detail_text_value}
             history_record_values.append({**history_record_value,'path':generation_status_value['path'],'status':{'status':generation_status_value['status'],'error':generation_status_value.get('error')},'request':{**{key:generation_status_value['request'][key] for key in ('motion','character','source','directions','start_frame','end_frame')},'resolution':generation_status_value['request'].get('resolution',512),'speed':generation_status_value['request'].get('speed',1),'target_fps':generation_status_value['request'].get('target_fps'),'frame_step':generation_status_value['request'].get('frame_step',1),'steps':generation_status_value['request'].get('steps',4)},'playable':bool(generation_status_value.get('result'))})
         return {'records':history_record_values}
     if operation_command_name=='history-delete':

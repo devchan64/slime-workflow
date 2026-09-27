@@ -117,3 +117,11 @@
 
 .generation-history-actions.generation-history-actions-five{grid-template-columns:repeat(5,minmax(0,1fr))!important}
 .generation-history-actions-five>button{padding:6px 4px!important;font-size:12px!important}
+
+/* Slider의 24px 숫자 컨테이너에서 공용 36px 버튼이 잘리지 않도록 맞춘다. */
+.gradio-container .management-frame-slider .head{align-items:center;gap:8px;min-height:36px}
+.gradio-container .management-frame-slider .tab-like-container{height:36px!important;min-height:36px;flex-shrink:0;box-sizing:border-box}
+.gradio-container .management-frame-slider input[type="number"]{box-sizing:border-box!important;height:100%!important;min-height:0!important;width:72px;margin:0!important;padding:4px 8px!important}
+.gradio-container .management-frame-slider .reset-button{box-sizing:border-box!important;height:100%!important;min-height:0!important;min-width:32px;margin:0!important;padding:0 8px!important;border-radius:0!important}
+.gradio-container .management-frame-slider .slider_input_container{min-height:28px;align-items:center}
+.gradio-container .management-frame-slider input[type="range"]{min-width:0;flex:1}

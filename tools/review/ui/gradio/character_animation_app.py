@@ -77,6 +77,14 @@ def build_character_animation_interface(server_base_address):
     character_choice_values=[(record['label'],record['id']) for record in catalog_record_value['characters']]
     motion_catalog_records={record['id']:record for record in catalog_record_value['motions']}
     motion_frame_count_values={motion_identifier_value:motion_record_value['frames'] for motion_identifier_value,motion_record_value in motion_catalog_records.items()}
+    def restore_registered_animation_inputs(current_history_record):
+        restored_input_values=list(restore_animation_inputs(current_history_record))
+        selected_frame_count=motion_frame_count_values[restored_input_values[0]]
+        restored_start_frame,restored_end_frame=clamp_selected_frame_range(restored_input_values[4],restored_input_values[5],selected_frame_count)
+        restored_input_values[4]=gr.update(value=restored_start_frame,maximum=selected_frame_count)
+        restored_input_values[5]=gr.update(value=restored_end_frame,maximum=selected_frame_count)
+        return restored_input_values
+
     with gr.Blocks(title='캐릭터 애니메이션 생성기',js=HISTORY_CARD_SELECTION_SCRIPT) as interface_blocks_value:
         gr.Markdown('## 캐릭터 애니메이션 생성기\n등록된 모션과 캐릭터 레퍼런스로 방향별 프레임을 생성합니다.')
         unavailable_asset_notice = format_unavailable_asset_notice(catalog_record_value)
@@ -99,8 +107,8 @@ def build_character_animation_interface(server_base_address):
                     direction_select_value=gr.CheckboxGroup(DIRECTION_LABEL_VALUES,value=[value for _,value in DIRECTION_LABEL_VALUES],label='생성 방향')
                 initial_motion_frame_count=motion_frame_count_values[motion_choice_values[0][1]]
                 with gr.Row():
-                    start_frame_value=gr.Number(value=1,minimum=1,maximum=initial_motion_frame_count,precision=0,label='시작 프레임')
-                    end_frame_value=gr.Number(value=initial_motion_frame_count,minimum=1,maximum=initial_motion_frame_count,precision=0,label='종료 프레임')
+                    start_frame_value=gr.Slider(value=1,minimum=1,maximum=initial_motion_frame_count,step=1,label='시작 프레임',elem_classes=['management-frame-slider'])
+                    end_frame_value=gr.Slider(value=initial_motion_frame_count,minimum=1,maximum=initial_motion_frame_count,step=1,label='종료 프레임',elem_classes=['management-frame-slider'])
                 with gr.Row():
                     resolution_select_value=gr.Dropdown([512,768,1024,1280],value=512,label='해상도')
                     step_select_value=gr.Radio([4,30],value=4,label='생성 스텝')
@@ -118,25 +126,25 @@ def build_character_animation_interface(server_base_address):
             generation_button_value=gr.Button('애니메이션 생성 시작',variant='primary',elem_id='character-generation-start')
             status_text_value=gr.Markdown('생성 가능 · 설정을 확인하세요.')
         logs_text_value,log_refresh_enabled,_=build_execution_logs()
-        read_history_page,history_output_values=build_generation_history_view(execute_animation_gateway,server_base_address,'이력 목록만 초기화합니다. 생성 프레임과 로그 파일은 유지됩니다. 생성 중에는 초기화할 수 없습니다.',restore_input_callback=restore_animation_inputs,restore_output_components=[motion_select_value,character_select_value,source_select_value,direction_select_value,start_frame_value,end_frame_value,resolution_select_value,step_select_value,target_fps_select_value,speed_select_value,generation_tag_value,status_text_value],result_renderer_callback=create_animation_player,record_folder_route='/character-animation',allow_individual_delete=True)
+        read_history_page,history_output_values=build_generation_history_view(execute_animation_gateway,server_base_address,'이력 목록만 초기화합니다. 생성 프레임과 로그 파일은 유지됩니다. 생성 중에는 초기화할 수 없습니다.',restore_input_callback=restore_registered_animation_inputs,restore_output_components=[motion_select_value,character_select_value,source_select_value,direction_select_value,start_frame_value,end_frame_value,resolution_select_value,step_select_value,target_fps_select_value,speed_select_value,generation_tag_value,status_text_value],result_renderer_callback=create_animation_player,record_folder_route='/character-animation',allow_individual_delete=True)
         def start_animation(*selection_values):
             yield gr.skip(),'생성 요청을 접수하고 있습니다.',gr.update(interactive=False,value='요청 접수 중…'),True
             try:
                 request_payload_value=build_animation_request(*selection_values)
                 generation_record_value=execute_animation_gateway('generate',request_payload_value)
-                yield generation_record_value['id'],'작업을 접수했습니다. 완료 또는 중지 후 다시 생성할 수 있습니다.',gr.update(interactive=False,value='생성 작업 진행 중'),False
+                yield generation_record_value['id'],'작업을 접수했습니다. 추가 생성은 확인 후 대기열에 등록됩니다.',gr.update(interactive=True,value='대기열에 추가'),False
             except Exception as generation_request_error:
                 yield gr.skip(),'생성 요청 실패: '+str(generation_request_error),gr.update(interactive=True,value='애니메이션 생성 시작'),False
         bind_gpu_generation_confirmation(generation_button_value,start_animation,[motion_select_value,character_select_value,source_select_value,direction_select_value,start_frame_value,end_frame_value,resolution_select_value,step_select_value,target_fps_select_value,speed_select_value,generation_tag_value],[generation_identifier_value,status_text_value,generation_button_value,generation_pending_value])
         def change_motion_range(selected_motion_name,selected_source_kind,selected_direction_name,selected_target_frame_rate,selected_speed_ratio,current_start_frame,current_end_frame):
             selected_motion_record=motion_catalog_records[selected_motion_name]
             selected_frame_count=selected_motion_record['frames']
-            restored_start_frame,restored_end_frame=clamp_selected_frame_range(current_start_frame,current_end_frame,selected_frame_count)
+            restored_start_frame,restored_end_frame=1,selected_frame_count
             return gr.update(value=restored_start_frame,maximum=selected_frame_count),gr.update(value=restored_end_frame,maximum=selected_frame_count),create_motion_preview_player(selected_motion_name,selected_source_kind,selected_direction_name,restored_start_frame,restored_end_frame,selected_motion_record['fps'],selected_target_frame_rate,selected_speed_ratio,server_base_address)
         def refresh_motion_preview(selected_motion_name,selected_source_kind,selected_direction_name,selected_start_frame,selected_end_frame,selected_target_frame_rate,selected_speed_ratio):
             return create_motion_preview_player(selected_motion_name,selected_source_kind,selected_direction_name,selected_start_frame,selected_end_frame,motion_catalog_records[selected_motion_name]['fps'],selected_target_frame_rate,selected_speed_ratio,server_base_address)
         preview_component_values=[motion_select_value,source_select_value,preview_direction_value,start_frame_value,end_frame_value,target_fps_select_value,speed_select_value]
-        motion_select_value.change(change_motion_range,[motion_select_value,source_select_value,preview_direction_value,target_fps_select_value,speed_select_value,start_frame_value,end_frame_value],[start_frame_value,end_frame_value,motion_preview_html_value],queue=False)
+        motion_select_value.input(change_motion_range,[motion_select_value,source_select_value,preview_direction_value,target_fps_select_value,speed_select_value,start_frame_value,end_frame_value],[start_frame_value,end_frame_value,motion_preview_html_value],queue=False)
         for preview_input_value in (source_select_value,preview_direction_value,start_frame_value,end_frame_value,target_fps_select_value,speed_select_value):
             preview_input_value.change(refresh_motion_preview,preview_component_values,motion_preview_html_value,queue=False)
         interface_blocks_value.load(lambda:read_history_page(1),outputs=history_output_values)
@@ -144,7 +152,7 @@ def build_character_animation_interface(server_base_address):
             if request_pending:return gr.skip(),gr.skip(),gr.skip()
             if not identifier:return '생성 가능 · 설정을 확인하세요.',gr.skip(),gr.update(interactive=True,value='애니메이션 생성 시작')
             status_record_value=execute_animation_gateway('status',{'id':identifier})
-            return '상태: '+status_record_value['status'],gr.update(value=status_record_value['log']) if refresh_logs else gr.skip(),gr.update(interactive=status_record_value['status'] not in ('running','queued'),value='생성 작업 진행 중' if status_record_value['status'] in ('running','queued') else '애니메이션 생성 시작')
+            return '상태: '+status_record_value['status'],gr.update(value=status_record_value['log']) if refresh_logs else gr.skip(),gr.update(interactive=True,value='대기열에 추가' if status_record_value['status'] in ('running','queued') else '애니메이션 생성 시작')
         refresh_button_value=gr.Button('상태 새로고침')
         refresh_button_value.click(refresh_status,[generation_identifier_value,log_refresh_enabled,generation_pending_value],[status_text_value,logs_text_value,generation_button_value],queue=False)
         if hasattr(gr,'Timer'):gr.Timer(2).tick(refresh_status,[generation_identifier_value,log_refresh_enabled,generation_pending_value],[status_text_value,logs_text_value,generation_button_value],show_progress='hidden')
