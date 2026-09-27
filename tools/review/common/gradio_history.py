@@ -31,6 +31,16 @@ def format_history_choice_label(current_history_record):
     return f"{current_status_label} · {current_created_text} · {current_history_record['id']} · {current_summary_text}"
 
 
+def format_history_selection_summary(current_history_record):
+    """목록 선택 직후 판단할 수 있는 짧은 이력 상태 요약을 만든다."""
+    current_status_record=current_history_record.get('status',{})
+    current_status_label=current_status_record.get('status','unknown') if isinstance(current_status_record,dict) else current_status_record
+    current_request_record=current_history_record.get('request',{})
+    current_summary_values=[f'{current_field_name}={current_request_record[current_field_name]}' for current_field_name in HISTORY_SUMMARY_FIELD_NAMES if current_field_name in current_request_record]
+    current_created_text=current_history_record.get('created_at') or current_history_record.get('createdAt') or '시각 없음'
+    return f"선택됨 · **{current_status_label}** · {current_created_text}\n\n`{current_history_record['id']}` · {' · '.join(current_summary_values) or '설정 요약 없음'}"
+
+
 def collect_image_history_thumbnails(history_record_values, server_base_address):
     """결과 이미지가 있는 이력만 갤러리 항목과 선택 ID로 만든다."""
     thumbnail_item_values=[]
@@ -79,16 +89,18 @@ def build_generation_history_view(execute_service_command,server_base_address,de
     with gr.Column(elem_classes=['generation-history-workspace']):
         with gr.Tabs():
             with gr.Tab('생성 이력 · 결과 조회'):
+                with gr.Row():
+                    history_refresh_button=gr.Button('이력 새로고침',variant='secondary')
+                    history_page_value=gr.Number(value=1,minimum=1,precision=0,label='페이지',scale=1,min_width=100)
+                    history_count_value=gr.Markdown('이력을 불러오는 중입니다.',scale=3)
                 history_thumbnail_value=gr.Gallery(label='이미지가 있는 생성 이력',columns=4,object_fit='cover',height='auto',visible=False,elem_id='generation-history-thumbnails')
                 history_thumbnail_identifier_state=gr.State([])
-                history_selection_value=gr.Radio(choices=[],label='생성 이력')
+                history_selection_value=gr.Radio(choices=[],label='조회할 생성 이력',interactive=True,elem_id='generation-history-selection')
+                history_selection_summary=gr.Markdown('조회할 생성 이력을 선택하세요.')
                 with gr.Row():
-                    history_page_value=gr.Number(value=1,minimum=1,precision=0,label='페이지')
-                    history_refresh_button=gr.Button('이력 새로고침')
-                    result_lookup_button=gr.Button('선택 결과 조회',variant='primary')
-                if restore_input_callback is not None:
-                    restore_input_button=gr.Button('입력값 다시 불러오기')
-                history_count_value=gr.Markdown()
+                    result_lookup_button=gr.Button('선택 결과 조회',variant='primary',interactive=False)
+                    if restore_input_callback is not None:
+                        restore_input_button=gr.Button('입력값 다시 불러오기',interactive=False)
                 reset_control_values=build_history_reset_controls(deletion_scope_text)
         result_identifier_value=create_copyable_log_textbox(label='조회한 생성 ID',interactive=False)
         result_path_value=create_copyable_log_textbox(label='기록 폴더 절대 경로 · 복사 가능',interactive=False)
@@ -125,6 +137,18 @@ def build_generation_history_view(execute_service_command,server_base_address,de
                 current_image_html=f'<a href="{html.escape(current_image_url,quote=True)}" target="_blank" rel="noopener"><img src="{html.escape(current_image_url,quote=True)}" alt="생성 결과" style="width:100%;max-height:620px;object-fit:contain"></a>'
         return current_selected_identifier,current_history_record.get('path','기록 경로가 없습니다.'),'상태: '+str(current_status_record.get('status','unknown')),current_image_html,current_history_record,gr.update(value=current_status_record.get('log') or '기록된 로그가 없습니다.',label='실행 로그 · '+current_selected_identifier)
 
+    def describe_selected_history(current_selected_identifier):
+        if not current_selected_identifier:
+            disabled_update_value=gr.update(interactive=False)
+            return ['조회할 생성 이력을 선택하세요.',disabled_update_value,*([disabled_update_value] if restore_input_callback is not None else [])]
+        current_history_records=execute_service_command('history',{}).get('records',[])
+        current_history_record=next((record_value for record_value in current_history_records if record_value['id']==current_selected_identifier),None)
+        if current_history_record is None:
+            disabled_update_value=gr.update(interactive=False)
+            return ['선택한 이력을 찾을 수 없습니다. 목록을 새로고침하세요.',disabled_update_value,*([disabled_update_value] if restore_input_callback is not None else [])]
+        enabled_update_value=gr.update(interactive=True)
+        return [format_history_selection_summary(current_history_record),enabled_update_value,*([enabled_update_value] if restore_input_callback is not None else [])]
+
     if restore_input_callback is not None:
         def restore_selected_inputs(current_selected_identifier):
             if not current_selected_identifier:raise gr.Error('입력값을 불러올 이력을 선택하세요.')
@@ -133,6 +157,9 @@ def build_generation_history_view(execute_service_command,server_base_address,de
             if current_history_record is None:raise gr.Error('선택한 이력을 찾을 수 없습니다. 목록을 새로고침하세요.')
             return restore_input_callback(current_history_record)
         restore_input_button.click(restore_selected_inputs,history_selection_value,restore_output_components,queue=False)
+    history_selection_output_values=[history_selection_summary,result_lookup_button]
+    if restore_input_callback is not None:history_selection_output_values.append(restore_input_button)
+    history_selection_value.change(describe_selected_history,history_selection_value,history_selection_output_values,queue=False)
     history_refresh_button.click(read_history_page,[history_page_value,history_selection_value],[history_selection_value,history_count_value,history_page_value,history_thumbnail_value,history_thumbnail_identifier_state],queue=False)
     history_page_value.change(read_history_page,[history_page_value,history_selection_value],[history_selection_value,history_count_value,history_page_value,history_thumbnail_value,history_thumbnail_identifier_state],queue=False)
     def select_history_thumbnail(thumbnail_identifier_values,selection_event_data:gr.SelectData):
@@ -151,6 +178,10 @@ def build_generation_history_view(execute_service_command,server_base_address,de
     log_panel_value.expand(refresh_selected_logs,[result_identifier_value,log_refresh_value],log_output_value,queue=False)
     if hasattr(gr,'Timer'):gr.Timer(3).tick(refresh_selected_logs,[result_identifier_value,log_refresh_value],log_output_value,queue=False)
     def reset_view_values():
-        return [*read_history_page(1),'','초기화했습니다.','', '',{},gr.update(value='',label='작업을 선택하세요')]
-    bind_history_reset_action(reset_control_values,execute_service_command,reset_view_values,[history_selection_value,history_count_value,history_page_value,history_thumbnail_value,history_thumbnail_identifier_state,result_identifier_value,result_path_value,result_status_value,result_image_value,result_record_value,log_output_value])
+        reset_output_values=[*read_history_page(1),'','초기화했습니다.','', '',{},gr.update(value='',label='작업을 선택하세요'),'조회할 생성 이력을 선택하세요.',gr.update(interactive=False)]
+        if restore_input_callback is not None:reset_output_values.append(gr.update(interactive=False))
+        return reset_output_values
+    reset_output_components=[history_selection_value,history_count_value,history_page_value,history_thumbnail_value,history_thumbnail_identifier_state,result_identifier_value,result_path_value,result_status_value,result_image_value,result_record_value,log_output_value,history_selection_summary,result_lookup_button]
+    if restore_input_callback is not None:reset_output_components.append(restore_input_button)
+    bind_history_reset_action(reset_control_values,execute_service_command,reset_view_values,reset_output_components)
     return read_history_page,[history_selection_value,history_count_value,history_page_value,history_thumbnail_value,history_thumbnail_identifier_state]
