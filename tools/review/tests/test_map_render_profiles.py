@@ -45,3 +45,16 @@ class MapRenderProfileTests(unittest.TestCase):
         self.assertIn('원본 썸네일', map_review_script)
         self.assertIn('normalization_warning', map_review_script)
         self.assertIn("'normalization_warning'", block_review_builder)
+
+    def test_map_review_groups_controls_and_supports_keyboard_navigation(self):
+        map_review_template = (WORKFLOW_ROOT / 'tools/review/ui/map/block-map-review.html').read_text(encoding='utf-8')
+        map_review_script = (WORKFLOW_ROOT / 'tools/review/ui/map/block-map-review.js').read_text(encoding='utf-8')
+
+        self.assertIn('map-toolbar-group', map_review_template)
+        self.assertIn('시점 도구', map_review_template)
+        self.assertIn('검수 대상', map_review_template)
+        self.assertIn('표시 옵션', map_review_template)
+        self.assertIn('role="status"', map_review_template)
+        self.assertIn('tabindex="0"', map_review_template)
+        self.assertIn('MAP_KEYBOARD_PAN_DISTANCE', map_review_script)
+        self.assertIn('currentMapCanvas.onkeydown', map_review_script)

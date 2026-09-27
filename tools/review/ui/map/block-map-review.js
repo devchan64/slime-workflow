@@ -1,4 +1,4 @@
-const MIN_MAP_SCALE=0.05,MAX_MAP_SCALE=4,MAP_ZOOM_FACTOR=1.25,MAP_DRAG_THRESHOLD=4;
+const MIN_MAP_SCALE=0.05,MAX_MAP_SCALE=4,MAP_ZOOM_FACTOR=1.25,MAP_DRAG_THRESHOLD=4,MAP_KEYBOARD_PAN_DISTANCE=48;
 let activeMapPointer=null,suppressMarkerClick=false;
 const currentMapCanvas=document.querySelector('#map'),currentDrawingContext=currentMapCanvas.getContext('2d');
 async function fetchMapReviewRecord(currentFilePath){const currentFetchResponse=await fetch(currentFilePath,{cache:'no-store'});if(!currentFetchResponse.ok)throw Error(`맵 데이터 로드 실패: ${currentFilePath}`);return currentFetchResponse.json()}
@@ -134,6 +134,13 @@ function changeMapZoom(currentZoomFactor,currentAnchorX=currentMapCanvas.width/2
 }
 document.querySelector('#zoom-in').onclick=()=>changeMapZoom(MAP_ZOOM_FACTOR);
 document.querySelector('#zoom-out').onclick=()=>changeMapZoom(1/MAP_ZOOM_FACTOR);
+currentMapCanvas.onkeydown=currentKeyboardEvent=>{
+ const mapKeyboardMoveByKey={ArrowLeft:[MAP_KEYBOARD_PAN_DISTANCE,0],ArrowRight:[-MAP_KEYBOARD_PAN_DISTANCE,0],ArrowUp:[0,MAP_KEYBOARD_PAN_DISTANCE],ArrowDown:[0,-MAP_KEYBOARD_PAN_DISTANCE]}[currentKeyboardEvent.key];
+ if(mapKeyboardMoveByKey){currentKeyboardEvent.preventDefault();currentOffsetX+=mapKeyboardMoveByKey[0];currentOffsetY+=mapKeyboardMoveByKey[1];renderBlockMap();return}
+ if(currentKeyboardEvent.key==='+'||currentKeyboardEvent.key==='='){currentKeyboardEvent.preventDefault();changeMapZoom(MAP_ZOOM_FACTOR);return}
+ if(currentKeyboardEvent.key==='-'){currentKeyboardEvent.preventDefault();changeMapZoom(1/MAP_ZOOM_FACTOR);return}
+ if(currentKeyboardEvent.key==='0'){currentKeyboardEvent.preventDefault();renderBlockMap(true)}
+};
 currentMapCanvas.addEventListener('wheel',currentPointerEvent=>{currentPointerEvent.preventDefault();const currentCanvasBounds=currentMapCanvas.getBoundingClientRect();changeMapZoom(Math.exp(-Math.max(-100,Math.min(100,currentPointerEvent.deltaY))*0.002),currentPointerEvent.clientX-currentCanvasBounds.left,currentPointerEvent.clientY-currentCanvasBounds.top)},{passive:false});
 currentMapCanvas.onpointerdown=currentPointerEvent=>{if(currentPointerEvent.button!==0)return;suppressMarkerClick=false;activeMapPointer={id:currentPointerEvent.pointerId,x:currentPointerEvent.clientX,y:currentPointerEvent.clientY,offsetX:currentOffsetX,offsetY:currentOffsetY};currentMapCanvas.setPointerCapture(currentPointerEvent.pointerId)};
 currentMapCanvas.onpointermove=currentPointerEvent=>{if(!activeMapPointer||activeMapPointer.id!==currentPointerEvent.pointerId)return;const currentDeltaX=currentPointerEvent.clientX-activeMapPointer.x,currentDeltaY=currentPointerEvent.clientY-activeMapPointer.y;if(!suppressMarkerClick&&Math.hypot(currentDeltaX,currentDeltaY)<MAP_DRAG_THRESHOLD)return;suppressMarkerClick=true;currentMapCanvas.style.cursor='grabbing';currentOffsetX=activeMapPointer.offsetX+currentDeltaX;currentOffsetY=activeMapPointer.offsetY+currentDeltaY;renderBlockMap()};
