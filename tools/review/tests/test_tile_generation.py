@@ -11,6 +11,10 @@ class TileGenerationTests(unittest.TestCase):
     def make_tile_request(self):return {'action':'generate','tile_type':'wall','user_prompt':'Red brick house.','steps':4,'seed':1,'width':512,'height':512}
     def test_ground_tile_uses_floor_tile_label(self):
         self.assertEqual(load_tile_configuration()['types']['ground']['label'],'바닥 타일')
+
+    def test_ground_prompt_marks_all_four_placement_edges(self):
+        ground_prompt_text=load_tile_configuration()['types']['ground']['base_prompt']
+        self.assertIn('thin straight boundary lines along all four edges',ground_prompt_text)
     def test_all_kinds_keep_base_and_style(self):
         for tile_kind_name in ('rooftop','wall','ground'):
             output_request_value=prepare_tile_request(self.make_tile_request()|{'tile_type':tile_kind_name})
@@ -27,11 +31,11 @@ class TileGenerationTests(unittest.TestCase):
         rooftop_prompt_text=load_tile_configuration()['types']['rooftop']['base_prompt']
         self.assertIn('continuous roof plane',rooftop_prompt_text)
         self.assertIn('four broad aligned rows',rooftop_prompt_text)
-        self.assertIn('seamless opposite edges',rooftop_prompt_text)
-        self.assertLessEqual(len(rooftop_prompt_text.split()),20)
+        self.assertIn('edges act as seamless connectors to adjacent surfaces',rooftop_prompt_text)
+        self.assertLessEqual(len(rooftop_prompt_text.split()),24)
         self.assertNotIn('large clearly separated',rooftop_prompt_text)
         self.assertNotIn('wooden',rooftop_prompt_text)
-        self.assertIn('no walls, eaves, gables, border, or frame',rooftop_prompt_text)
+        self.assertIn('no walls, eaves, or gables',rooftop_prompt_text)
 
     def test_base_prompts_do_not_prescribe_material(self):
         for tile_type_record in load_tile_configuration()['types'].values():

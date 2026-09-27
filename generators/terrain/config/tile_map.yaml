@@ -3,10 +3,10 @@ style_prompt: "Hand-painted fantasy game texture, clean readable shapes, consist
 types:
   rooftop:
     label: 지붕 타일
-    base_prompt: "Orthographic top-down continuous roof plane, four broad aligned rows, seamless opposite edges, no walls, eaves, gables, border, or frame."
+    base_prompt: "Orthographic top-down continuous roof plane, four broad aligned rows, edges act as seamless connectors to adjacent surfaces, no walls, eaves, or gables."
   wall:
     label: 벽 타일
     base_prompt: "Orthographic flat building wall, square facade, half-visible columns at both edges, a top beam, edge-aligned for adjacent placement."
   ground:
     label: 바닥 타일
-    base_prompt: "Top-down continuous ground surface, uniform scale, square coverage, seamless edge alignment."
+    base_prompt: "Top-down continuous ground surface, uniform scale, square coverage, seamless edge alignment, thin straight boundary lines along all four edges for placement alignment."
