@@ -4,8 +4,10 @@ import hashlib
 import json
 import shutil
 import yaml
+from PIL import Image
 
 WORKFLOW_ROOT_DIRECTORY=Path(__file__).resolve().parents[2]
+GAME_TILE_SOURCE_SIZE=256
 
 
 def build_block_map_review(output_directory_path):
@@ -37,15 +39,20 @@ def build_block_map_review(output_directory_path):
     (output_directory_path/'block-materials.json').write_text(json.dumps(current_material_record['materials']))
     # 게시 시 정식 에셋을 사본으로 전달하고 원본 해시를 보존한다.
     tile_catalog_record=yaml.safe_load((source_asset_directory.parent/'tile-catalog.yaml').read_text())
+    if tile_catalog_record.get('source_tile_size')!=GAME_TILE_SOURCE_SIZE:
+        raise ValueError(f'게임 타일 원본 크기는 {GAME_TILE_SOURCE_SIZE}px여야 합니다.')
     texture_source_root=WORKFLOW_ROOT_DIRECTORY.parent/'slime-frontend/src/assets'
     texture_output_directory=output_directory_path/'textures'
     texture_output_directory.mkdir(exist_ok=True)
     exported_texture_records={}
     for current_tile_record in tile_catalog_record['tiles']:
         texture_source_path=texture_source_root/current_tile_record['asset']
+        with Image.open(texture_source_path) as source_texture_image:
+            source_image_size=list(source_texture_image.size)
+        normalization_warning_value=None if source_image_size==[GAME_TILE_SOURCE_SIZE,GAME_TILE_SOURCE_SIZE] else f'정규화 필요: 현재 {source_image_size[0]}×{source_image_size[1]}px, 기준 {GAME_TILE_SOURCE_SIZE}×{GAME_TILE_SOURCE_SIZE}px'
         texture_target_name=current_tile_record['id']+'.png'
         shutil.copy2(texture_source_path,texture_output_directory/texture_target_name)
-        exported_texture_records[current_tile_record['id']]={'path':'textures/'+texture_target_name+'?v='+hashlib.sha256(texture_source_path.read_bytes()).hexdigest(),'source':current_tile_record['asset'],'sha256':hashlib.sha256(texture_source_path.read_bytes()).hexdigest()}
+        exported_texture_records[current_tile_record['id']]={'path':'textures/'+texture_target_name+'?v='+hashlib.sha256(texture_source_path.read_bytes()).hexdigest(),'source':current_tile_record['asset'],'sha256':hashlib.sha256(texture_source_path.read_bytes()).hexdigest(),'source_size':source_image_size,'expected_source_size':[GAME_TILE_SOURCE_SIZE,GAME_TILE_SOURCE_SIZE],'normalization_warning':normalization_warning_value}
     (output_directory_path/'block-textures.json').write_text(json.dumps(exported_texture_records))
     from tools.review.common.game_render_metrics import load_game_render_metrics
     game_render_metrics=load_game_render_metrics(texture_source_root.parents[1])

@@ -25,6 +25,7 @@ FIXED_TRUE_CFG_SCALE = 4.0
 FIXED_GUIDANCE_SCALE = 1.0
 ALLOWED_TILE_ROLES = frozenset({'ground', 'wall-front', 'wall-side', 'roof', 'facade', 'door'})
 ALLOWED_TILEABILITY = frozenset({'repeat-x', 'repeat-y', 'repeat-both', 'none'})
+GAME_TILE_SOURCE_SIZE = (256, 256)
 ASSET_IDENTIFIER_PATTERN = re.compile(r'^[a-z][a-z0-9]*(?:[.-][a-z0-9]+)*$')
 PIPELINE_EXECUTION_LOCK = threading.Lock()
 
@@ -67,6 +68,8 @@ def validate_tile_set_ticket(ticket_values: dict) -> dict:
         minimum_value, maximum_value = (16, 512) if dimension_key == 'tile_size' else (256, 1024)
         if any(value < minimum_value or value > maximum_value or value % 16 for value in dimension_values):
             raise ValueError(f'{dimension_key}는 {minimum_value}~{maximum_value} 범위의 16 배수여야 합니다.')
+    if tuple(ticket_values['tile_size']) != GAME_TILE_SOURCE_SIZE:
+        raise ValueError('tile_size는 게임 타일 원본 기준 256×256이어야 합니다.')
     if ticket_values['tileability'] not in ALLOWED_TILEABILITY:
         raise ValueError('tileability 값이 올바르지 않습니다.')
     if not isinstance(ticket_values['tile_variants'], list) or not ticket_values['tile_variants']:

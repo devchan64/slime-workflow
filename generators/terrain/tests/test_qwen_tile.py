@@ -12,7 +12,7 @@ from generators.terrain.qwen_tile.runtime import build_variant_prompt, validate_
 
 def build_ticket_values(reference_sha256_value):
     """유효한 최소 타일 세트 티켓을 만든다."""
-    return {'asset_id': 'field.grass-set-v1', 'tile_size': [128, 128], 'generation_size': [384, 384], 'tileability': 'repeat-both', 'tile_variants': ['ground', 'wall-front', 'wall-side'], 'style_reference_id': 'field-style-v1', 'style_reference_sha256': reference_sha256_value, 'prompt': 'Soft grassy soil with small stones.', 'height_steps': 2, 'acceptance': {'seam_check': True, 'transparent_background': False}}
+    return {'asset_id': 'field.grass-set-v1', 'tile_size': [256, 256], 'generation_size': [384, 384], 'tileability': 'repeat-both', 'tile_variants': ['ground', 'wall-front', 'wall-side'], 'style_reference_id': 'field-style-v1', 'style_reference_sha256': reference_sha256_value, 'prompt': 'Soft grassy soil with small stones.', 'height_steps': 2, 'acceptance': {'seam_check': True, 'transparent_background': False}}
 
 
 class QwenTileTicketTest(unittest.TestCase):
@@ -37,6 +37,12 @@ class QwenTileTicketTest(unittest.TestCase):
     def test_rejects_invalid_experiment_size(self):
         ticket_values = build_ticket_values('0' * 64)
         ticket_values['generation_size'] = [274, 384]
+        with self.assertRaises(ValueError):
+            validate_tile_set_ticket(ticket_values)
+
+    def test_rejects_non_game_source_tile_size(self):
+        ticket_values = build_ticket_values('0' * 64)
+        ticket_values['tile_size'] = [128, 128]
         with self.assertRaises(ValueError):
             validate_tile_set_ticket(ticket_values)
 

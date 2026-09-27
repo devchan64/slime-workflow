@@ -3,12 +3,22 @@
 .map-review-workspace header{display:flex;gap:6px 10px;align-items:center;flex-wrap:wrap}
 .map-review-workspace h2{font-size:16px;margin:0 8px 0 0}
 .map-review-workspace button,.map-review-workspace select{padding:6px 10px;min-height:34px}
-.map-review-workspace select{background:#26364a;color:#f4f7fb;border:1px solid #60738b;border-radius:6px;font-weight:600}
+.map-review-workspace .map-select-field{gap:5px;font-weight:600}
+.map-review-workspace .map-select-control{position:relative;display:inline-flex;align-items:center}
+.map-review-workspace .map-select-control::after{content:'▼';position:absolute;right:9px;color:#dce8f6;font-size:11px;line-height:1;pointer-events:none}
+.map-review-workspace .map-select-control select{appearance:none;min-width:108px;padding-right:30px;background:#26364a;color:#f4f7fb;border:1px solid #60738b;border-radius:6px;font-weight:600}
 .map-review-workspace select:focus{outline:2px solid #7d72ff;outline-offset:2px}
 .map-review-workspace select:disabled{background:#313b49;color:#aab6c6;border-color:#536273}
 .map-review-workspace select option{background:#182535;color:#f4f7fb}
 .map-review-workspace p{font-size:12px;margin:0}
 .map-review-workspace details{font-size:12px}
+.map-review-workspace .applied-tile-sources{display:grid;gap:6px;padding:10px 12px;background:#1f3146;border:1px solid #48617f;border-radius:8px;font-size:12px}
+.map-review-workspace .applied-tile-sources summary{cursor:pointer;font-size:13px;font-weight:700;color:#f4f7fb}
+.map-review-workspace .applied-tile-sources ul{display:flex;flex-wrap:wrap;gap:6px;margin:0;padding:0;list-style:none}
+.map-review-workspace .applied-tile-sources li{display:flex;gap:5px;align-items:center;padding:4px 7px;background:#26364a;border-radius:5px;color:#dce8f6}
+.map-review-workspace .applied-tile-sources img{width:42px;height:42px;object-fit:cover;border:1px solid #60738b;border-radius:4px;background:#10151f}
+.map-review-workspace .applied-tile-sources .tile-source-warning{color:#ffd166;font-weight:700}
+.map-review-workspace .applied-tile-sources .tile-source-warning-description{color:#ffe4a0}
 .map-review-workspace canvas{touch-action:none;cursor:grab;width:100%;height:calc(100dvh - 150px);min-height:320px;background:var(--page,#17202e);border:1px solid var(--line,#354457);border-radius:8px}
 @media(max-width:700px){.map-review-workspace canvas{height:65dvh}.map-review-workspace header{gap:6px}}
-</style><main class="map-review-workspace"><header><h2 id="map-title">마을 맵 검수</h2><label>마을 맵 <select id="map-select" aria-label="마을 맵"></select></label><button id="load-map">맵 불러오기</button><button id="rotate">90° 회전</button><button id="zoom-out" aria-label="지도 축소">− 축소</button><output id="zoom-level" aria-live="polite"></output><button id="zoom-in" aria-label="지도 확대">+ 확대</button><button id="actual-size">사람 중심 · 100%</button><button id="fit">전체 보기</button><select id="building"><option value="">건물 선택</option></select><label><input id="show-character" type="checkbox" checked>기본 캐릭터 · 높이 80</label><label><input id="edges" type="checkbox" checked>블록 경계</label></header><details><summary>조작 방법 · 타일 안내</summary><p>등록 타일 적용 · 벽·경사 지붕은 블록 면에 투영 · 미등록 지형(갈대·자갈·바위)은 임시 색상 · 휠로 확대·축소, 드래그로 지도 이동 · 이동 가능한 바닥을 클릭하면 기본 캐릭터를 배치합니다.</p></details><p id="status">불러오는 중</p><canvas id="map"></canvas></main><script type="module" src="block-map-review.js"></script></html>
+</style><main class="map-review-workspace"><header><h2 id="map-title">마을 맵 검수</h2><label class="map-select-field">마을 맵 <span class="map-select-control"><select id="map-select" aria-label="마을 맵 선택"></select></span></label><button id="load-map">맵 불러오기</button><button id="rotate">90° 회전</button><button id="zoom-out" aria-label="지도 축소">− 축소</button><output id="zoom-level" aria-live="polite"></output><button id="zoom-in" aria-label="지도 확대">+ 확대</button><button id="actual-size">사람 중심 · 100%</button><button id="fit">전체 보기</button><label class="map-select-field">건물 <span class="map-select-control"><select id="building" aria-label="건물 선택"><option value="">건물 선택</option></select></span></label><label><input id="show-character" type="checkbox" checked>기본 캐릭터 · 높이 80</label><label><input id="edges" type="checkbox" checked>블록 경계</label></header><details><summary>조작 방법 · 타일 안내</summary><p>등록 타일 적용 · 벽·경사 지붕은 블록 면에 투영 · 미등록 지형(갈대·자갈·바위)은 임시 색상 · 휠로 확대·축소, 드래그로 지도 이동 · 이동 가능한 바닥을 클릭하면 기본 캐릭터를 배치합니다.</p></details><details class="applied-tile-sources"><summary>적용 타일 원본</summary><ul id="applied-tile-list" aria-live="polite"></ul></details><p id="status">불러오는 중</p><canvas id="map"></canvas></main><script type="module" src="block-map-review.js"></script></html>

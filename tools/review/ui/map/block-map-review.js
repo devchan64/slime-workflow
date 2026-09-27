@@ -21,7 +21,23 @@ await Promise.all(Object.entries(currentTextureRecords).map(([currentTextureName
 const reviewCharacterRecord=await fetchMapReviewRecord('review-character.json');
 const reviewCharacterImage=new Image();
 await new Promise((resolveCharacterLoad,rejectCharacterLoad)=>{reviewCharacterImage.onload=resolveCharacterLoad;reviewCharacterImage.onerror=()=>rejectCharacterLoad(Error('기본 캐릭터 로드 실패'));reviewCharacterImage.src=new URL(reviewCharacterRecord.image,import.meta.url).href});
-const groundTextureNames={grass:'grass',paving:'paving',water:'spring_water'};
+const groundTextureNames={grass:'grass',paving:currentMapRecord.id==='stonewarm'?'stonewarm-gravel-paving':'paving',water:'spring_water'};
+function renderAppliedTileSourceList(){
+ const appliedTextureNames=new Set();
+ Object.values(currentMapRecord.terrainCodes).forEach(currentTerrainName=>{const currentTextureName=groundTextureNames[currentTerrainName];if(currentTextureName)appliedTextureNames.add(currentTextureName)});
+ currentMapRecord.buildings.forEach(currentBuildingRecord=>Object.values(buildingTileRecords[currentBuildingRecord.id]||{}).forEach(currentTextureName=>appliedTextureNames.add(currentTextureName)));
+ const appliedTileList=document.querySelector('#applied-tile-list');appliedTileList.replaceChildren();
+ [...appliedTextureNames].sort().forEach(currentTextureName=>{
+  const currentTextureRecord=currentTextureRecords[currentTextureName];const currentListItem=document.createElement('li');const currentName=document.createElement('strong');currentName.textContent=currentTextureName;currentListItem.append(currentName);
+  if(!currentTextureRecord){const currentWarning=document.createElement('span');currentWarning.className='tile-source-warning';currentWarning.textContent='⚠ 원본 미등록';currentWarning.title='타일 카탈로그에 원본 파일이 등록되지 않았습니다.';currentListItem.append(currentWarning);appliedTileList.append(currentListItem);return}
+  const currentThumbnail=document.createElement('img');currentThumbnail.src=new URL(currentTextureRecord.path,import.meta.url).href;currentThumbnail.alt=`${currentTextureName} 원본 썸네일`;currentThumbnail.loading='lazy';currentListItem.prepend(currentThumbnail);
+  const sourceSize=currentTextureRecord.source_size;const expectedSourceSize=currentTextureRecord.expected_source_size;const currentSource=document.createElement('span');currentSource.textContent=`${sourceSize?.join('×')||'?'}px`;currentListItem.append(currentSource);
+  const normalizationWarning=currentTextureRecord.normalization_warning||(sourceSize&&expectedSourceSize&&sourceSize.every((currentValue,currentIndex)=>currentValue===expectedSourceSize[currentIndex])?null:`정규화 확인 필요: 기준 ${expectedSourceSize?.join('×')||'256×256'}px`);
+  if(normalizationWarning){const currentWarning=document.createElement('span');currentWarning.className='tile-source-warning';currentWarning.textContent='⚠';currentWarning.title=normalizationWarning;const currentDescription=document.createElement('span');currentDescription.className='tile-source-warning-description';currentDescription.textContent=normalizationWarning;currentListItem.append(currentWarning,currentDescription)}
+  appliedTileList.append(currentListItem);
+ });
+}
+renderAppliedTileSourceList();
 // 각 면의 실제 좌표에서 UV를 계산해 층 경계에서도 벽 타일이 이어지게 한다.
 function drawTexturedSurface(currentFaceRecord,currentTextureImage){
  const currentFaceVertices=currentFaceRecord.vertices;
