@@ -8,6 +8,7 @@ tiles:
   - {id: paving, category: ground, asset: world/isloon/terrain/paving-v1.png, walkable: true, movement_cost: 1}
   - {id: reedhaven-dirt-road, category: ground, asset: world/reedhaven/terrain/dirt-road-v1.png, walkable: true, movement_cost: 1}
   - {id: stonewarm-gravel-paving, category: ground, asset: world/stonewarm/terrain/gravel-paving-v1.png, walkable: true, movement_cost: 1}
+  - {id: stonewarm-exposed-rock-ground, category: ground, asset: world/stonewarm/terrain/exposed-rock-ground-v1.png, walkable: true, movement_cost: 1}
   - {id: stonewarm-stone-roof, category: roof, asset: world/stonewarm/buildings/stone-roof-v1.png, walkable: false, movement_cost: 99}
   - {id: stonewarm-stone-wall, category: structure, asset: world/stonewarm/buildings/stone-wall-v1.png, walkable: false, movement_cost: 99}
   - {id: stonewarm-small-window-wall, category: structure, asset: world/stonewarm/buildings/stone-small-window-wall-v1.png, walkable: false, movement_cost: 99}
