@@ -65,7 +65,7 @@ class GradioManagementMenuTests(unittest.TestCase):
 
     def test_gpu_status_card_exposes_idle_and_busy_states(self):
         idle_status_card = render_gpu_status_card({'status':'idle','processes':[]})
-        busy_status_card = render_gpu_status_card({'status':'busy','processes':[{'command':'MoMask 모션 생성','id':'sample','memory_mib':512}]})
+        busy_status_card = render_gpu_status_card({'status':'busy','processes':[{'command':'MoMask 모션 생성','id':'sample','memory_mib':512}], 'memory_total_mib': 12288, 'memory_used_mib': 1024, 'memory_free_mib': 11264})
 
         self.assertIn('is-idle', idle_status_card)
         self.assertIn('GPU 대기', idle_status_card)
@@ -75,3 +75,6 @@ class GradioManagementMenuTests(unittest.TestCase):
         self.assertIn('management-gpu-process', busy_status_card)
         self.assertIn('MoMask 모션 생성', busy_status_card)
         self.assertIn('#sample', busy_status_card)
+        self.assertIn('사용 <strong>1,024 MiB</strong>', busy_status_card)
+        self.assertIn('여유 <strong>11,264 MiB</strong>', busy_status_card)
+        self.assertIn('총 12,288 MiB', busy_status_card)

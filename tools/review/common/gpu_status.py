@@ -47,7 +47,22 @@ def read_gpu_status():
                     continue
                 pid = int(row[0].strip())
                 processes.append({'pid':pid,'memory_mib':int(row[1].strip()) if row[1].strip().isdigit() else None,**identify_gpu_command(pid)})
-            record = {'status':'busy' if processes else 'idle','processes':processes}
+            memory_result = subprocess.run(['nvidia-smi','--query-gpu=memory.total,memory.used,memory.free','--format=csv,noheader,nounits'],capture_output=True,text=True,timeout=3,check=True)
+            memory_total_mib = memory_used_mib = memory_free_mib = 0
+            for row in csv.reader(io.StringIO(memory_result.stdout)):
+                if len(row) != 3:
+                    continue
+                try:
+                    total_value,used_value,free_value=(int(current_value.strip()) for current_value in row)
+                except ValueError:
+                    continue
+                memory_total_mib += total_value
+                memory_used_mib += used_value
+                memory_free_mib += free_value
+            if memory_total_mib <= 0:
+                raise ValueError('GPU 메모리 정보를 읽을 수 없습니다.')
+            record = {'status':'busy' if processes else 'idle','processes':processes,
+                'memory_total_mib':memory_total_mib,'memory_used_mib':memory_used_mib,'memory_free_mib':memory_free_mib}
         except (OSError,subprocess.SubprocessError,ValueError):
             record = {'status':'unavailable','processes':[]}
         _status_cache = (time.monotonic(),record)

@@ -39,6 +39,12 @@ def format_gpu_status(gpu_status_record):
 
 
 def render_gpu_status_card(gpu_status_record):
+    memory_total_mib=gpu_status_record.get('memory_total_mib')
+    memory_used_mib=gpu_status_record.get('memory_used_mib')
+    memory_free_mib=gpu_status_record.get('memory_free_mib')
+    memory_summary_text=''
+    if all(isinstance(current_value,int) and current_value >= 0 for current_value in (memory_total_mib,memory_used_mib,memory_free_mib)):
+        memory_summary_text=f'<span class="management-gpu-memory"><span>사용 <strong>{memory_used_mib:,} MiB</strong></span><span>여유 <strong>{memory_free_mib:,} MiB</strong></span><span>총 {memory_total_mib:,} MiB</span></span>'
     if gpu_status_record.get('status') == 'busy':
         status_kind_name = 'busy'
         status_title_text = 'GPU 사용 중'
@@ -50,11 +56,11 @@ def render_gpu_status_card(gpu_status_record):
             process_title_text=html.escape(f'{process_record.get("command","이름 없는 작업")} · {process_identifier_text}')
             memory_amount_text=html.escape(str(process_record.get('memory_mib','?')))
             process_card_values.append(f'<span class="management-gpu-process" title="{process_title_text}"><span class="management-gpu-process-name">{process_name_text}</span><span class="management-gpu-process-id">#{process_summary_text}</span><strong>{memory_amount_text} MiB</strong></span>')
-        status_detail_text=f'<span class="management-gpu-process-list">{"".join(process_card_values)}</span>'
+        status_detail_text=f'<span class="management-gpu-process-list">{"".join(process_card_values)}</span>{memory_summary_text}'
     elif gpu_status_record.get('status') == 'idle':
         status_kind_name = 'idle'
         status_title_text = 'GPU 대기'
-        status_detail_text = '<span class="management-gpu-status-message">실행 중인 연산 작업 없음</span>'
+        status_detail_text = f'<span class="management-gpu-status-message">실행 중인 연산 작업 없음</span>{memory_summary_text}'
     else:
         status_kind_name = 'unavailable'
         status_title_text = 'GPU 상태 확인 필요'
