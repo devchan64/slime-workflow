@@ -6,6 +6,7 @@ const SPRITE_FRAME_FIELDS={center:'원본 중심 X',floor:'원본 바닥 Y',head
 const SPRITE_OUTPUT_FOOT_RATIO=.96;
 const SPRITE_UNDO_RECORD_LIMIT=40;
 const SPRITE_EXPORT_FRAME_LIMIT=128;
+const SPRITE_CUSTOM_GUIDE_LIMIT=32;
 const SPRITE_GUIDE_COLOR_VALUES={center:'#00e5ff',floor:'#ffe338',head:'#f18aff',anchor:'#ff646d'};
 const SPRITE_GUIDE_DISPLAY_STYLE={outline:'#101820',lineWidth:2,outlineWidth:4,dashLength:7,dashGap:5,anchorRadius:7,fontSize:11,labelPadding:4,labelHeight:19,labelInset:4};
 function calculateSpriteOutputAnchor(outputCellPixels){return{x:outputCellPixels/2,y:Math.round(outputCellPixels*SPRITE_OUTPUT_FOOT_RATIO)};}
@@ -118,6 +119,13 @@ if(typeof document!=='undefined')void (async function initializeSpriteEditorComp
   strokeSpriteGuideLine(anchorGuidePoint.x-anchorMarkerRadius,anchorGuidePoint.y,anchorGuidePoint.x+anchorMarkerRadius,anchorGuidePoint.y,SPRITE_GUIDE_COLOR_VALUES.anchor);strokeSpriteGuideLine(anchorGuidePoint.x,anchorGuidePoint.y-anchorMarkerRadius,anchorGuidePoint.x,anchorGuidePoint.y+anchorMarkerRadius,SPRITE_GUIDE_COLOR_VALUES.anchor);
   currentCanvasContext.font=`bold ${guideDisplayStyle.fontSize*guidePixelRatio}px sans-serif`;currentCanvasContext.textBaseline='middle';
   drawSpriteGuideLabel('머리',headGuidePoint.y,SPRITE_GUIDE_COLOR_VALUES.head);drawSpriteGuideLabel('중심',(headGuidePoint.y+floorGuidePoint.y)/2,SPRITE_GUIDE_COLOR_VALUES.center);drawSpriteGuideLabel('바닥',floorGuidePoint.y,SPRITE_GUIDE_COLOR_VALUES.floor);
+  for(const [currentGuideIndex,currentGuideRecord] of (spriteProjectDocument.guides||[]).entries()){
+   const currentGuidePosition=currentGuideRecord.position*outputCellPixels;
+   currentCanvasContext.setLineDash([guideDisplayStyle.dashLength*guidePixelRatio,guideDisplayStyle.dashGap*guidePixelRatio]);
+   if(currentGuideRecord.axis==='horizontal')strokeSpriteGuideLine(0,currentGuidePosition,outputCellPixels,currentGuidePosition,SPRITE_GUIDE_COLOR_VALUES.head);
+   else strokeSpriteGuideLine(currentGuidePosition,0,currentGuidePosition,outputCellPixels,SPRITE_GUIDE_COLOR_VALUES.center);
+   currentCanvasContext.setLineDash([]);
+  }
   currentCanvasContext.restore();
  }
  function renderSpriteSheetCanvas(currentCanvasElement,sourceFrameRecords,currentProjectSnapshot){
@@ -133,8 +141,6 @@ if(typeof document!=='undefined')void (async function initializeSpriteEditorComp
   const currentFrameRecord=readSpriteCurrentFrame();if(!currentFrameRecord)return;
   spriteDirtyState=JSON.stringify(spriteProjectDocument)!==spriteSavedSnapshot;
   const currentFrameSettings=readSpriteCurrentSettings(),outputCellPixels=readSpriteCellPixels(),directionFrameRecords=readSpriteDirectionFrames();
-  const originalCanvasContext=prepareSpriteCanvasContext(findSpriteElement('original'),outputCellPixels);
-  drawSpriteFrameImage(originalCanvasContext,currentFrameRecord,createSpriteDefaultSettings(currentFrameRecord,outputCellPixels,spriteBodyBounds.get(currentFrameRecord.frameId)),outputCellPixels);
   const editedCanvasContext=prepareSpriteCanvasContext(spriteCanvasElement,outputCellPixels);
   if(findSpriteElement('onion').checked&&directionFrameRecords.length>1){const previousFrameRecord=directionFrameRecords[(spriteFramePosition+directionFrameRecords.length-1)%directionFrameRecords.length];editedCanvasContext.globalAlpha=.22;drawSpriteFrameImage(editedCanvasContext,previousFrameRecord,spriteProjectDocument.frames[previousFrameRecord.frameId],outputCellPixels);editedCanvasContext.globalAlpha=1;}
   drawSpriteFrameImage(editedCanvasContext,currentFrameRecord,currentFrameSettings,outputCellPixels);
@@ -161,7 +167,7 @@ if(typeof document!=='undefined')void (async function initializeSpriteEditorComp
    currentButtonElement.onclick=()=>{stopSpritePlayback();spriteFramePosition=currentFrameIndex;renderSpriteEditorFrame();};return currentButtonElement;
   }));
  }
- function refreshSpriteEditedViews(){rebuildSpriteFrameStrip();renderSpriteEditorFrame();refreshSpriteSheetOverview();}
+ function refreshSpriteEditedViews(){renderSpriteCustomGuides();rebuildSpriteFrameStrip();renderSpriteEditorFrame();refreshSpriteSheetOverview();}
  function restoreSpriteOutputControls(){findSpriteElement('size').value=String(spriteProjectDocument.output.cellSize);findSpriteElement('height').max=spriteProjectDocument.output.cellSize;findSpriteElement('height').value=spriteProjectDocument.output.targetHeight;}
  async function openSpriteSourceDocument(sourceIdentifierValue){
   if(!sourceIdentifierValue){appendSpriteStatusMessage('에셋을 선택하거나 완료된 결과 ID를 입력하세요.');return;}
@@ -184,6 +190,7 @@ if(typeof document!=='undefined')void (async function initializeSpriteEditorComp
    findSpriteElement('direction').replaceChildren(...sourceDirectionNames.map(directionKeyName=>new Option(SPRITE_DIRECTION_LABELS[directionKeyName],directionKeyName)));
    findSpriteElement('directions').replaceChildren(...sourceDirectionNames.map(directionKeyName=>{const directionFigureElement=document.createElement('figure'),directionCanvasElement=document.createElement('canvas'),directionCaptionElement=document.createElement('figcaption');directionCaptionElement.textContent=SPRITE_DIRECTION_LABELS[directionKeyName];directionCanvasElement.className='sprite-preview';directionCanvasElement.dataset.direction=directionKeyName;directionCanvasElement.setAttribute('aria-label',SPRITE_DIRECTION_LABELS[directionKeyName]+' 동기 재생');directionFigureElement.append(directionCaptionElement,directionCanvasElement);return directionFigureElement;}));
    findSpriteElement('summary').textContent=`${sourceAssetRecord.label} · 원본 셀 ${sourceAssetRecord.frames[0].rect.width}×${sourceAssetRecord.frames[0].rect.height} · ${sourceAssetRecord.frames.length}프레임 / ${sourceDirectionNames.length}방향 · ${sourceAssetRecord.fps} FPS · 검수 사본`;
+   spriteHistoryViewState.page=0;spriteHistoryViewState.selected=null;findSpriteElement('history-input').textContent='';await refreshSpriteSavedHistory();
    refreshSpriteEditedViews();appendSpriteStatusMessage((savedProjectRecord.warning?savedProjectRecord.warning+' · ':'')+(savedProjectRecord.revision?'저장본 복원: '+savedProjectRecord.revision:'원본 배치로 로딩 완료 · 가이드는 알파 128 이상 영역 기준이며 필요 시 직접 조정하세요.'));
   }catch(currentErrorValue){spriteSourceRecord=null;spriteProjectDocument=null;appendSpriteStatusMessage(currentErrorValue.message);}
   finally{spriteBusyState=false;updateSpriteControlStates();}
@@ -205,6 +212,43 @@ if(typeof document!=='undefined')void (async function initializeSpriteEditorComp
   const currentFieldInput=document.createElement('input'),currentFieldWrapper=document.createElement('label');currentFieldInput.type='number';currentFieldInput.step=currentFieldName==='scale'?'.01':'.5';currentFieldInput.id='sprite-field-'+currentFieldName;currentFieldWrapper.textContent=currentFieldLabel;currentFieldWrapper.append(currentFieldInput);findSpriteElement('fields').append(currentFieldWrapper);
   currentFieldInput.onchange=()=>{if(!spriteProjectDocument)return;try{if(!currentFieldInput.value.trim())throw Error('숫자를 입력하세요.');const nextFrameSettings={...readSpriteCurrentSettings(),[currentFieldName]:Number(currentFieldInput.value)};validateSpriteFrameSettings(nextFrameSettings);rememberSpriteDocumentChange();spriteProjectDocument.frames[readSpriteCurrentFrame().frameId]=nextFrameSettings;refreshSpriteEditedViews();}catch(currentErrorValue){appendSpriteStatusMessage(currentErrorValue.message);renderSpriteEditorFrame();}};
  }
+ const spriteHistoryViewState={page:0,selected:null};
+ async function refreshSpriteSavedHistory(){
+  const currentSourceIdentifier=spriteProjectDocument?.source;
+  if(!currentSourceIdentifier)return;
+  try{
+   const currentHistoryResponse=await requestSpriteManagementCommand('sprite-history',{id:currentSourceIdentifier});
+   if(spriteProjectDocument?.source!==currentSourceIdentifier)return;
+   renderSavedRecordHistory(findSpriteElement('history'),currentHistoryResponse.items,spriteHistoryViewState,{
+    refresh:refreshSpriteSavedHistory,
+    inspect:currentHistoryRecord=>{findSpriteElement('history-input').textContent=JSON.stringify(currentHistoryRecord.document,null,2);findSpriteElement('history-details').open=true;},
+    restore:currentHistoryRecord=>{
+     if(!currentHistoryRecord.compatible){appendSpriteStatusMessage('원본 버전이 다른 이력입니다. 입력값 조회만 가능합니다.');return;}
+     if(spriteDirtyState&&!confirm('저장 전 변경을 선택한 이력으로 교체할까요? 실행 취소로 되돌릴 수 있습니다.'))return;
+     stopSpritePlayback();rememberSpriteDocumentChange();spriteProjectDocument=structuredClone(currentHistoryRecord.document);
+     if(spriteProjectDocument.version===1){spriteProjectDocument.version=2;spriteProjectDocument.output={cellSize:512,targetHeight:80};for(const currentFrameSettings of Object.values(spriteProjectDocument.frames))currentFrameSettings.y-=calculateSpriteOutputAnchor(512).y-448;}
+     restoreSpriteOutputControls();refreshSpriteEditedViews();appendSpriteStatusMessage('이력 불러오기: '+currentHistoryRecord.id+' · 프로젝트 저장으로 새 이력을 남길 수 있습니다.');
+    }
+   });
+   if(!currentHistoryResponse.items.length)findSpriteElement('history').append(document.createTextNode('저장된 이력이 없습니다. 프로젝트 저장으로 첫 이력을 남기세요.'));
+  }catch(currentErrorValue){appendSpriteStatusMessage('저장 이력 조회 실패: '+currentErrorValue.message);}
+ }
+ function renderSpriteCustomGuides(){
+  const currentGuideList=findSpriteElement('guide-list');currentGuideList.replaceChildren();
+  for(const currentGuideAxis of ['horizontal','vertical'])findSpriteElement('guide-'+currentGuideAxis).disabled=!spriteProjectDocument||(spriteProjectDocument.guides||[]).length>=SPRITE_CUSTOM_GUIDE_LIMIT;
+  if(!spriteProjectDocument){currentGuideList.textContent='원본을 불러오면 가이드를 추가할 수 있습니다.';return;}
+  currentGuideList.textContent=(spriteProjectDocument.guides||[]).length?'최대 32개 · 변경 후 프로젝트 저장으로 보존합니다.':'추가 가이드가 없습니다. 가로 또는 세로 가이드 추가를 누르세요.';
+  for(const [currentGuideIndex,currentGuideRecord] of (spriteProjectDocument.guides||[]).entries()){
+   const currentGuideRow=document.createElement('div'),currentGuideLabel=document.createElement('label'),currentGuideInput=document.createElement('input'),currentDeleteButton=document.createElement('button');
+   currentGuideRow.className='sprite-toolbar';currentGuideLabel.textContent=`${currentGuideIndex+1}. ${currentGuideRecord.axis==='horizontal'?'가로 Y':'세로 X'} (px)`;
+   currentGuideInput.type='number';currentGuideInput.min=0;currentGuideInput.max=readSpriteCellPixels();currentGuideInput.step='any';currentGuideInput.value=Number((currentGuideRecord.position*readSpriteCellPixels()).toFixed(2));
+   currentGuideInput.onchange=()=>{const nextGuidePosition=Number(currentGuideInput.value);if(!currentGuideInput.value.trim()||!Number.isFinite(nextGuidePosition)||nextGuidePosition<0||nextGuidePosition>readSpriteCellPixels()){appendSpriteStatusMessage('가이드 위치는 0부터 출력 셀 크기 사이의 숫자여야 합니다.');renderSpriteCustomGuides();return;}rememberSpriteDocumentChange();currentGuideRecord.position=nextGuidePosition/readSpriteCellPixels();refreshSpriteEditedViews();};
+   currentDeleteButton.textContent='삭제';currentDeleteButton.setAttribute('aria-label',`${currentGuideIndex+1}번 가이드 삭제`);currentDeleteButton.onclick=()=>{rememberSpriteDocumentChange();spriteProjectDocument.guides.splice(currentGuideIndex,1);refreshSpriteEditedViews();};
+   currentGuideLabel.append(currentGuideInput);currentGuideRow.append(currentGuideLabel,currentDeleteButton);currentGuideList.append(currentGuideRow);
+  }
+ }
+ for(const currentGuideAxis of ['horizontal','vertical'])findSpriteElement('guide-'+currentGuideAxis).onclick=()=>{if(!spriteProjectDocument||(spriteProjectDocument.guides||[]).length>=SPRITE_CUSTOM_GUIDE_LIMIT)return;rememberSpriteDocumentChange();(spriteProjectDocument.guides??=[]).push({axis:currentGuideAxis,position:.5});findSpriteElement('guides').checked=true;refreshSpriteEditedViews();};
+ renderSpriteCustomGuides();
  findSpriteElement('asset-load').onclick=()=>openSpriteSourceDocument(findSpriteElement('asset').value);
  findSpriteElement('load').onclick=()=>openSpriteSourceDocument(findSpriteElement('job').value.trim());
  findSpriteElement('direction').onchange=()=>{stopSpritePlayback();spriteFramePosition=0;refreshSpriteEditedViews();};
@@ -226,7 +270,7 @@ if(typeof document!=='undefined')void (async function initializeSpriteEditorComp
  findSpriteElement('apply').onclick=()=>{if(!spriteProjectDocument)return;const copiedFrameSettings=structuredClone(readSpriteCurrentSettings());rememberSpriteDocumentChange();const changedFrameRecords=selectedSpriteScopeFrames();for(const currentFrameRecord of changedFrameRecords)spriteProjectDocument.frames[currentFrameRecord.frameId]=structuredClone(copiedFrameSettings);refreshSpriteEditedViews();appendSpriteStatusMessage(`${changedFrameRecords.length}프레임에 설정 복사 · 저장 전 변경`);};
  findSpriteElement('undo').onclick=()=>{if(!spriteUndoRecords.length)return;stopSpritePlayback();spriteProjectDocument=spriteUndoRecords.pop();spriteDirtyState=true;restoreSpriteOutputControls();refreshSpriteEditedViews();};
  findSpriteElement('reset').onclick=()=>{if(!spriteProjectDocument)return;rememberSpriteDocumentChange();const currentFrameRecord=readSpriteCurrentFrame();spriteProjectDocument.frames[currentFrameRecord.frameId]=createSpriteDefaultSettings(currentFrameRecord,readSpriteCellPixels(),spriteBodyBounds.get(currentFrameRecord.frameId));refreshSpriteEditedViews();};
- findSpriteElement('save').onclick=async()=>{if(!spriteProjectDocument)return;const currentProjectSnapshot=structuredClone(spriteProjectDocument);try{const savedProjectRecord=await requestSpriteManagementCommand('sprite-save',{id:currentProjectSnapshot.source,document:currentProjectSnapshot});if(currentProjectSnapshot.source===spriteProjectDocument?.source)spriteSavedSnapshot=JSON.stringify(currentProjectSnapshot);appendSpriteStatusMessage('저장 완료 · '+savedProjectRecord.revision);renderSpriteEditorFrame();}catch(currentErrorValue){appendSpriteStatusMessage(currentErrorValue.message);}};
+ findSpriteElement('save').onclick=async()=>{if(!spriteProjectDocument)return;const currentProjectSnapshot=structuredClone(spriteProjectDocument);try{const savedProjectRecord=await requestSpriteManagementCommand('sprite-save',{id:currentProjectSnapshot.source,document:currentProjectSnapshot});if(currentProjectSnapshot.source===spriteProjectDocument?.source)spriteSavedSnapshot=JSON.stringify(currentProjectSnapshot);appendSpriteStatusMessage('저장 완료 · '+savedProjectRecord.revision);renderSpriteEditorFrame();await refreshSpriteSavedHistory();}catch(currentErrorValue){appendSpriteStatusMessage(currentErrorValue.message);}};
  findSpriteElement('json').onclick=()=>{if(spriteProjectDocument)downloadSpriteOutputBlob(new Blob([JSON.stringify({project:spriteProjectDocument,source:spriteSourceRecord,output:{...createSpriteSheetLayout(spriteSourceRecord.frames,readSpriteCellPixels()),cellSize:readSpriteCellPixels(),anchor:calculateSpriteOutputAnchor(readSpriteCellPixels()),fps:spriteSourceRecord.fps}},null,2)],{type:'application/json'}),'sprite-normalization.json');};
  findSpriteElement('png').onclick=()=>exportSpriteSheetImage(false);findSpriteElement('png-all').onclick=()=>exportSpriteSheetImage(true);findSpriteElement('sheet-details').ontoggle=refreshSpriteSheetOverview;
  spriteCanvasElement.onpointerdown=currentPointerEvent=>{if(!spriteProjectDocument||spriteBusyState)return;const currentFrameSettings=readSpriteCurrentSettings(),currentPointerPosition=calculateSpritePointerPosition({x:currentPointerEvent.clientX,y:currentPointerEvent.clientY},spriteCanvasElement.getBoundingClientRect(),readSpriteCellPixels()),currentOutputAnchor=calculateSpriteOutputAnchor(readSpriteCellPixels()),currentModeValue=findSpriteElement('mode').value;

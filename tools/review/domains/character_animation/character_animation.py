@@ -32,6 +32,7 @@ class CharacterAnimationManager:
                 if request_route_suffix in static_file_mapping:
                     response_file_path=resolve_review_ui_asset(static_file_mapping[request_route_suffix])
                     response_payload_bytes=response_file_path.read_bytes()
+                    if request_route_suffix=='sprite-editor.js':response_payload_bytes=(response_file_path.parents[1]/'shared/saved-record-history.js').read_bytes()+b'\n'+response_payload_bytes
                     response_content_type=mimetypes.guess_type(response_file_path)[0] or 'text/plain'
                 elif request_route_suffix=='log-viewer.js':
                     response_payload_bytes=MANAGEMENT_LOG_VIEWER_SCRIPT.encode();response_content_type='text/javascript'

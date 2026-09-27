@@ -13,9 +13,14 @@ class SpriteEditorPersistenceTests(unittest.TestCase):
             first_saved_record=sprite_editor.execute_sprite_editor_command('sprite-save',{'id':'asset:test','document':project_document_value})
             second_saved_record=sprite_editor.execute_sprite_editor_command('sprite-save',{'id':'asset:test','document':project_document_value})
             self.assertNotEqual(first_saved_record['revision'],second_saved_record['revision'])
+            history_response_value=sprite_editor.execute_sprite_editor_command('sprite-history',{'id':'asset:test'})
+            self.assertEqual(len(history_response_value['items']),2)
+            self.assertTrue(all(current_history_record['compatible'] for current_history_record in history_response_value['items']))
+            self.assertEqual(history_response_value['items'][0]['document'],project_document_value)
             self.assertTrue(Path(first_saved_record['path']).exists())
             self.assertEqual(sprite_editor.execute_sprite_editor_command('sprite-load',{'id':'asset:test'})['document'],project_document_value)
             source_asset_record['version']=2
+            self.assertFalse(sprite_editor.execute_sprite_editor_command('sprite-history',{'id':'asset:test'})['items'][0]['compatible'])
             self.assertIsNone(sprite_editor.execute_sprite_editor_command('sprite-load',{'id':'asset:test'})['document'])
             project_document_value['frames']['front.0']['scale']=float('nan')
             with self.assertRaises(ValueError):sprite_editor.execute_sprite_editor_command('sprite-save',{'id':'asset:test','document':project_document_value})
@@ -28,6 +33,13 @@ class SpriteEditorPersistenceTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary_directory_name, patch.object(sprite_editor,'SPRITE_PROJECT_DIRECTORY',Path(temporary_directory_name)), patch.object(sprite_editor,'load_sprite_editor_source',return_value=source_asset_record):
             sprite_editor.execute_sprite_editor_command('sprite-save',{'id':'asset:test','document':project_document_value})
             self.assertEqual(sprite_editor.execute_sprite_editor_command('sprite-load',{'id':'asset:test'})['document'],project_document_value)
+            project_document_value['guides']=[{'axis':'horizontal','position':.25},{'axis':'vertical','position':.75}]
+            sprite_editor.execute_sprite_editor_command('sprite-save',{'id':'asset:test','document':project_document_value})
+            self.assertEqual(sprite_editor.execute_sprite_editor_command('sprite-load',{'id':'asset:test'})['document']['guides'],project_document_value['guides'])
+            for invalid_guide_records in [None,[{'axis':'diagonal','position':.5}],[{'axis':'vertical','position':True}],[{'axis':'horizontal','position':float('nan')}],[{'axis':'horizontal','position':1.1}],[{'axis':'vertical','position':.5,'unknown':1}],[{'axis':'vertical','position':.5}]*33]:
+                project_document_value['guides']=invalid_guide_records
+                with self.assertRaises(ValueError):sprite_editor.execute_sprite_editor_command('sprite-save',{'id':'asset:test','document':project_document_value})
+            project_document_value['guides']=[]
             for invalid_output_record in [{'cellSize':385,'targetHeight':360},{'cellSize':True,'targetHeight':1},{'cellSize':384,'targetHeight':385},{'cellSize':384,'targetHeight':float('nan')},{'cellSize':384,'targetHeight':360,'unknown':1}]:
                 with self.subTest(invalid_output_record=invalid_output_record):
                     project_document_value['output']=invalid_output_record

@@ -30,11 +30,19 @@ def load_sprite_editor_source(source_identifier_value):
     return {'id':source_identifier_value,'label':source_identifier_value,'fps':generation_status_record['result']['fps'],'frames':frame_output_records}
 
 def execute_sprite_editor_command(operation_command_name, command_payload_value):
-    if operation_command_name not in {'sprite-source','sprite-load','sprite-save'}:raise ValueError('지원하지 않는 스프라이트 명령입니다.')
+    if operation_command_name not in {'sprite-source','sprite-load','sprite-save','sprite-history'}:raise ValueError('지원하지 않는 스프라이트 명령입니다.')
     if set(command_payload_value) != ({'id','document'} if operation_command_name=='sprite-save' else {'id'}):raise ValueError('스프라이트 명령 필드 오류')
     source_asset_record=load_sprite_editor_source(command_payload_value['id'])
     if operation_command_name=='sprite-source':return source_asset_record
     project_output_directory=SPRITE_PROJECT_DIRECTORY/hashlib.sha256(command_payload_value['id'].encode()).hexdigest()[:24]
+    if operation_command_name=='sprite-history':
+        current_source_digest=hashlib.sha256(json.dumps(source_asset_record,sort_keys=True).encode()).hexdigest()
+        history_record_items=[]
+        for current_revision_path in sorted(project_output_directory.glob('*.json'),reverse=True):
+            if current_revision_path.name=='latest.json':continue
+            current_saved_record=json.loads(current_revision_path.read_text())
+            history_record_items.append({'id':current_saved_record['revision'],'created_at':current_saved_record['saved_at'],'frames':len(current_saved_record['document']['frames']),'label':'스프라이트 저장','compatible':current_saved_record['source_digest']==current_source_digest,'document':current_saved_record['document']})
+        return {'items':history_record_items}
     if operation_command_name=='sprite-load':
         latest_project_path=project_output_directory/'latest.json'
         if not latest_project_path.exists():return {'document':None}
@@ -46,6 +54,7 @@ def execute_sprite_editor_command(operation_command_name, command_payload_value)
     if not isinstance(current_project_document,dict):raise ValueError('스프라이트 문서 형식 오류')
     current_document_version=current_project_document.get('version')
     expected_document_fields={'version','source','frames','output'} if current_document_version==2 else {'version','source','frames'}
+    if current_document_version==2 and 'guides' in current_project_document:expected_document_fields.add('guides')
     if type(current_document_version) is not int or current_document_version not in (1,2) or set(current_project_document)!=expected_document_fields or current_project_document['source']!=command_payload_value['id']:raise ValueError('스프라이트 문서 형식 오류')
     if current_document_version==2:
         current_output_settings=current_project_document['output']
@@ -54,6 +63,13 @@ def execute_sprite_editor_command(operation_command_name, command_payload_value)
         target_body_height=current_output_settings['targetHeight']
         if type(output_cell_pixels) is not int or output_cell_pixels not in (128,256,384,512):raise ValueError('출력 셀은 128·256·384·512px만 지원합니다.')
         if type(target_body_height) not in (int,float) or not math.isfinite(target_body_height) or not 0<target_body_height<=output_cell_pixels:raise ValueError('목표 몸체 높이는 출력 셀 안의 양수여야 합니다.')
+    current_guide_records=current_project_document.get('guides',[])
+    if not isinstance(current_guide_records,list) or len(current_guide_records)>32:raise ValueError('추가 가이드는 최대 32개 목록이어야 합니다.')
+    for current_guide_record in current_guide_records:
+        if not isinstance(current_guide_record,dict) or set(current_guide_record)!={'axis','position'}:raise ValueError('추가 가이드 필드 오류')
+        if current_guide_record['axis'] not in ('horizontal','vertical'):raise ValueError('가이드 방향은 가로 또는 세로여야 합니다.')
+        current_guide_position=current_guide_record['position']
+        if type(current_guide_position) not in (int,float) or not math.isfinite(current_guide_position) or not 0<=current_guide_position<=1:raise ValueError('가이드 상대 위치는 0~1이어야 합니다.')
     expected_frame_keys={frame_record_value['frameId'] for frame_record_value in source_asset_record['frames']}
     current_frame_values=current_project_document['frames']
     if not isinstance(current_frame_values,dict) or set(current_frame_values)!=expected_frame_keys or len(expected_frame_keys)>4000:raise ValueError('원본과 편집 프레임 목록이 일치하지 않습니다.')
