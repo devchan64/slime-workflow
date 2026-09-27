@@ -11,6 +11,16 @@
 .gradio-container .prose p{margin-top:4px;margin-bottom:8px}
 .gradio-container .row{gap:12px}
 .gradio-container .column{min-width:0}
+/* JSON 등 컴포넌트 라벨의 장식 아이콘이 콘텐츠 크기로 확장되지 않게 한다. */
+.gradio-container [data-testid="block-label"]{align-items:center;gap:6px}
+.gradio-container [data-testid="block-label"]>span{display:inline-flex;width:14px!important;height:14px!important;min-width:14px!important;max-width:14px!important;flex:0 0 14px;align-items:center;justify-content:center}
+.gradio-container [data-testid="block-label"]>span svg{display:block;width:14px!important;height:14px!important;max-width:14px!important;max-height:14px!important}
+/* JSON 트리 내부 버튼은 일반 작업 버튼 대신 텍스트 행 높이를 따른다. */
+.gradio-container .json-node button.toggle,.gradio-container .json-node button.preview{box-sizing:border-box!important;min-width:0!important;min-height:0!important;height:20px!important;margin:0!important;padding:0 3px!important;border:0!important;border-radius:3px!important;background:transparent!important;font:inherit!important;line-height:20px!important;vertical-align:middle!important}
+.gradio-container .json-node button.toggle{width:20px!important;padding:0!important}
+.gradio-container .json-node button.toggle svg{width:12px!important;height:12px!important}
+.gradio-container .json-node button.preview{width:auto!important}
+.gradio-container .json-node button.toggle:hover,.gradio-container .json-node button.preview:hover{background:var(--button-hover)!important}
 .gradio-container textarea{min-height:0}
 /* 접힌 패널의 내용 폭이 부모보다 커져 빈 가로 스크롤바가 생기지 않게 한다. */
 .gradio-container .gr-accordion,.gradio-container .gr-accordion>.wrap,.gradio-container .gr-accordion .block,.gradio-container .gr-accordion .form{min-width:0!important;max-width:100%!important;overflow-x:hidden!important}
