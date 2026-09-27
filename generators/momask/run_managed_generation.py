@@ -19,6 +19,11 @@ def main():
  motion=generation_root/'motion/motion.npz'
  result=a.job_dir/'result'; joints=np.load(motion)['joints']; frames=len(joints); indices=','.join(map(str,range(frames)))
  motion_quality_warnings=[]
+ if a.action=='resting':
+  from resting_quality import inspect_resting_motion
+  motion_quality_warnings=inspect_resting_motion(joints)
+  (a.job_dir/'motion-quality.json').write_text(json.dumps({'warnings':motion_quality_warnings,'passed':not motion_quality_warnings},ensure_ascii=False,indent=2))
+  for warning in motion_quality_warnings:print('휴식 검수 경고: '+warning,flush=True)
  subprocess.run([str(ROOT/'.venv/bin/python'),str(ROOT/'generators/momask/render_openpose_frames.py'),'--motion',str(motion),'--output-dir',str(result/'openpose'),'--sample-indices',indices,'--camera-azimuth-degrees',str(camera_angle_values[a.action])],check=True)
  subprocess.run([str(ROOT/'.venv/bin/python'),str(ROOT/'generators/momask/render_anny_frames.py'),'--motion',str(motion),'--output-dir',str(result/'anny'),'--directions',','.join(directions),'--sample-indices',indices,'--camera-azimuth-degrees',str(camera_angle_values[a.action])],check=True)
  for direction in DIRECTIONS-set(directions):
