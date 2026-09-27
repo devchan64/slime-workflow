@@ -6,7 +6,6 @@ from urllib.parse import parse_qs, urlsplit
 import json, re
 from tools.review.common.management_gateway import execute_momask_command
 from tools.review.domains.momask.momask_jobs import start_generation_job, cancel_generation_job, check_generation_running, list_generation_history, read_generation_status, reset_generation_history
-from tools.review.domains.momask.openpose_maps import generate_openpose_maps
 from tools.review.common.management_log_viewer import MANAGEMENT_LOG_VIEWER_SCRIPT
 ROOT=Path(__file__).resolve().parents[4]
 JOB_ROOT=ROOT/'.tmp/momask-generator/jobs'
@@ -69,10 +68,6 @@ class MoMaskGenerationManager:
     self.send(h,200,self.status(match[1]));return True
    if h.command!='POST' or h.headers.get('Origin')!=origin or h.headers.get('Content-Type','').split(';')[0]!='application/json': raise ValueError('요청 형식 오류')
    body=json.loads(h.rfile.read(int(h.headers.get('Content-Length','0'))),object_pairs_hook=unique)
-   if path==self.route+'/openpose-map':
-    if set(body)-{'id','face'} or 'id' not in body or not re.fullmatch(r'[0-9a-f_-]+',body['id']):raise ValueError('생성 이력 ID 오류')
-    if self.status(body['id'])['status']!='completed':raise ValueError('완료된 생성 이력이 필요합니다.')
-    self.send(h,200,execute_momask_command('openpose-map',body));return True
    if path==self.route+'/history/reset':
     if body!={'action':'reset'}: raise ValueError('초기화 요청 오류')
     self.send(h,200,execute_momask_command('history-reset',{}));return True

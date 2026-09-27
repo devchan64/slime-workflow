@@ -159,15 +159,6 @@ def build_momask_interface(server_base_address):
             record_folder_route='/momask-generator',
             allow_individual_delete=True,
         )
-        history_selection_value=history_output_values[0]
-        with gr.Accordion('선택 이력 · OpenPose 맵 생성',open=False):
-            gr.Markdown('이력 카드를 먼저 선택하세요. 생성 후 결과 조회를 다시 누르면 최신 결과를 확인할 수 있습니다.')
-            map_button_value=gr.Button('OpenPose 맵 생성 · 현재 얼굴 포인트 옵션 적용')
-            map_status_value=gr.JSON(label='OpenPose 맵 생성 결과')
-        def create_selected_openpose_map(selected_history_identifier,selected_face_enabled):
-            if not selected_history_identifier:raise gr.Error('OpenPose 맵을 만들 생성 이력 카드를 먼저 선택하세요.')
-            return execute_motion_command('openpose-map',{'id':selected_history_identifier,'face':selected_face_enabled})
-        map_button_value.click(create_selected_openpose_map,[history_selection_value,face_checkbox_value],map_status_value)
         interface_blocks_value.load(lambda:read_history_page(1),outputs=history_output_values)
     return interface_blocks_value
 

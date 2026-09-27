@@ -90,13 +90,6 @@ CLI command → 명령 봉투 ──────┘
 
 `tools/manager.py`는 `management_gateway.execute_gateway_cli()`를 호출하는 진입점만 가진다. 서비스·명령 등록, 최상위 `command`/`help` 파싱, 로컬 실행 디스패치와 HTTP 명령 전송은 모두 게이트웨이에 둔다. 생성기별 CLI 실행 모듈은 제거했다. 옵션 파싱·입력 파일 처리·진행 대기·취소도 게이트웨이에 통합하며 GUI와 CLI는 `execute_management_command`를 사용한다. 게이트웨이 명령 전체의 CLI 도움말 진입을 테스트한다.
 
-MoMask의 OpenPose 맵 생성도 동일 명령으로 사용할 수 있다.
-
-```bash
-python3 tools/manager.py help momask openpose-map
-python3 tools/manager.py command momask openpose-map GENERATION_ID
-```
-
 기존 GUI 주소·이력 경로·관리 서버 필요 여부는 유지한다.
 
 ### 단일 실행 구현
@@ -190,9 +183,9 @@ python3 tools/manager.py character-animation sprite-save asset:character.default
 
 ### MoMask 얼굴 포인트
 
-MoMask 화면의 `얼굴 포인트 ON`을 선택해 새 모션을 생성하거나, 완료된 이력에서 `OpenPose 맵 생성`을 실행한다. 기존 신체맵에 ANNY 공식 COCO 회귀점(코·양눈·양귀)을 같은 카메라로 투영하며 표면에 가려진 점은 제외한다. 68점 얼굴 윤곽·표정 검출 기능은 아니다. OFF는 기존 신체 전용 맵을 생성한다. 결과 캡션과 `result.json`의 `openpose_face_enabled`에 실제 적용값을 기록한다.
+MoMask 화면의 `얼굴 포인트 ON`을 선택하면 모션 생성 완료 과정에서 OpenPose 맵을 자동 생성한다. 기존 신체맵에 ANNY 공식 COCO 회귀점(코·양눈·양귀)을 같은 카메라로 투영하며 표면에 가려진 점은 제외한다. 68점 얼굴 윤곽·표정 검출 기능은 아니다. OFF는 기존 신체 전용 맵을 생성한다. 결과 캡션과 `result.json`의 `openpose_face_enabled`에 실제 적용값을 기록한다.
 
-CLI는 `momask generate ... --face` 또는 `momask openpose-map <ID> --face`를 사용한다. `--no-face`는 얼굴을 제외한다. 기존 이력의 얼굴맵 생성에는 `result/anny/mannequin.blend`와 투영 기록이 필요하다. 정점 수가 공식 회귀 데이터와 다르면 오류로 중단한다. 얼굴 회귀 데이터는 NAVER ANNY의 Apache-2.0 데이터에서 현재 ANNY 토폴로지의 정점 순서로 추출했으며 원본 해시를 함께 보관한다.
+CLI는 `momask generate ... --face`를 사용한다. `--no-face`는 얼굴을 제외한다. 정점 수가 공식 회귀 데이터와 다르면 오류로 중단한다. 얼굴 회귀 데이터는 NAVER ANNY의 Apache-2.0 데이터에서 현재 ANNY 토폴로지의 정점 순서로 추출했으며 원본 해시를 함께 보관한다.
 
 ### 타일 생성 참조 입력
 
@@ -231,3 +224,5 @@ Gradio 생성이력에서 취소·실패 이력을 선택하고 ‘생성 재개
 - 대기·실행 중인 타일 작업은 파일 초기화 대상에서 제외한다. 서버 재시작은 별도 실행 중 작업을 중단하지 않으며, 운영체제 종료 뒤에는 자동으로 재실행하지 않는다.
 
 휴식은 서서 시작 → 바닥에 앉아 유지 → 완전히 서서 종료하는 순서다. 다리 교차·손 짚기를 강제하지 않는다. 신규 생성은 `motion-quality.json`과 결과 `quality_warnings`에 직립·낮은 자세 유지 검수를 기록한다. 렌더 완료와 자세 검수 통과를 구분하며, 이 검수는 ANNY 스키닝 적합성을 보장하지 않는다.
+
+휴식 검수는 시작·종료 각 10% 구간의 직립 유지와 중앙 1/3 구간의 골반 높이 변화(다리길이 12% 이내), 골반 기준 관절 편차(20% 이내)를 확인한다. 수치는 휴식 후보 판별용 휴리스틱이며 스키닝 통과 판정이 아니다. 프롬프트는 양발 접지 직립, 다리를 앞으로 둔 착석, 정지 유지, 재기립을 순서대로 지시한다.

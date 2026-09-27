@@ -14,8 +14,8 @@ from email.message import Message
 from urllib.parse import urlsplit, parse_qs
 
 MANAGEMENT_SERVICE_ROUTES = {'anny':'/anny-attributes','tile-map':'/tile-map-generator','character-animation':'/character-animation','momask':'/momask-generator','qwen-2512':'/image-generation','qwen-2511':'/image-generation-2511'}
-MANAGEMENT_COMMAND_ROUTES = {'history-delete':('POST','/history/{id}/delete'),'resume':('POST','/resume'),'sprite-source':('POST','/sprite/source'),'sprite-save':('POST','/sprite/save'),'sprite-load':('POST','/sprite/load'),'catalog':('GET','/catalog'),'generate':('POST','/jobs'),'prepare':('POST','/jobs'),'status':('GET','/jobs/{id}'),'logs':('GET','/jobs/{id}/worker.log'),'history':('GET','/history'),'active':('GET','/active'),'model-status':('GET','/model-status'),'cancel':('POST','/cancel'),'history-reset':('POST','/history/reset'),'openpose-map':('POST','/openpose-map')}
-MANAGEMENT_SERVICE_COMMANDS = {'anny':('status','history','cancel','resume'),'tile-map':('history-delete','resume','catalog','generate','prepare','status','logs','history','active','model-status','cancel','history-reset'),'character-animation':('history-delete','resume','sprite-source','sprite-save','sprite-load','catalog','generate','status','logs','history','active','cancel','history-reset'),'momask':('history-delete','resume','generate','status','logs','history','cancel','history-reset','openpose-map'),'qwen-2512':('history-delete','resume','generate','prepare','status','logs','history','active','model-status','cancel','history-reset'),'qwen-2511':('history-delete','resume','generate','status','logs','history','active','model-status','cancel','history-reset')}
+MANAGEMENT_COMMAND_ROUTES = {'history-delete':('POST','/history/{id}/delete'),'resume':('POST','/resume'),'sprite-source':('POST','/sprite/source'),'sprite-save':('POST','/sprite/save'),'sprite-load':('POST','/sprite/load'),'catalog':('GET','/catalog'),'generate':('POST','/jobs'),'prepare':('POST','/jobs'),'status':('GET','/jobs/{id}'),'logs':('GET','/jobs/{id}/worker.log'),'history':('GET','/history'),'active':('GET','/active'),'model-status':('GET','/model-status'),'cancel':('POST','/cancel'),'history-reset':('POST','/history/reset')}
+MANAGEMENT_SERVICE_COMMANDS = {'anny':('status','history','cancel','resume'),'tile-map':('history-delete','resume','catalog','generate','prepare','status','logs','history','active','model-status','cancel','history-reset'),'character-animation':('history-delete','resume','sprite-source','sprite-save','sprite-load','catalog','generate','status','logs','history','active','cancel','history-reset'),'momask':('history-delete','resume','generate','status','logs','history','cancel','history-reset'),'qwen-2512':('history-delete','resume','generate','prepare','status','logs','history','active','model-status','cancel','history-reset'),'qwen-2511':('history-delete','resume','generate','status','logs','history','active','model-status','cancel','history-reset')}
 
 
 def resolve_management_command(service_command_name, operation_command_name, command_payload_value):
@@ -72,11 +72,6 @@ def execute_momask_command(operation_command_name, command_payload_value):
         return momask_jobs.read_generation_status(command_payload_value['id'])
     if operation_command_name=='logs':
         return (momask_jobs.resolve_generation_directory(command_payload_value['id'])/'worker.log').read_text(errors='replace')
-    if operation_command_name=='openpose-map':
-        from tools.review.domains.momask.openpose_maps import generate_openpose_maps
-        if momask_jobs.read_generation_status(command_payload_value['id'])['status']!='completed':
-            raise ValueError('완료된 생성 이력이 필요합니다.')
-        return generate_openpose_maps(momask_jobs.resolve_generation_directory(command_payload_value['id']),command_payload_value.get('face',False))
     if operation_command_name=='cancel':
         return momask_jobs.cancel_generation_job(command_payload_value['id'])
     if operation_command_name=='history-reset':
@@ -173,12 +168,12 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
     command_subparser_group=command_argument_parser.add_subparsers(dest='command',required=True)
     for operation_command_name in MANAGEMENT_SERVICE_COMMANDS[service_command_name]:
         operation_argument_parser=command_subparser_group.add_parser(operation_command_name)
-        if service_command_name=='momask' and operation_command_name in ('generate','openpose-map'):
+        if service_command_name=='momask' and operation_command_name=='generate':
             operation_argument_parser.add_argument('--face',action=argparse.BooleanOptionalAction,default=False,help='ANNY 얼굴 5점 포함')
         if operation_command_name in ('sprite-source','sprite-save','sprite-load'):
             operation_argument_parser.add_argument('id')
             if operation_command_name=='sprite-save':operation_argument_parser.add_argument('--document-file',type=Path,required=True)
-        if operation_command_name in ('status','logs','cancel','openpose-map','resume','history-delete'):
+        if operation_command_name in ('status','logs','cancel','resume','history-delete'):
             operation_argument_parser.add_argument('id')
         if operation_command_name=='generate':
             operation_argument_parser.add_argument('--detach',action='store_true',help='작업 ID 출력 후 반환')
