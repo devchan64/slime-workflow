@@ -1,7 +1,7 @@
 """스프라이트 편집기 Gradio 연결을 검증한다."""
 import unittest
 
-from tools.review.ui.gradio.sprite_editor_app import build_sprite_editor_interface, create_sprite_editor_loader, read_sprite_editor_markup
+from tools.review.ui.gradio.sprite_editor_app import build_sprite_editor_interface, create_sprite_editor_loader, read_sprite_editor_markup, read_sprite_editor_styles
 
 
 class SpriteEditorGradioTests(unittest.TestCase):
@@ -16,3 +16,10 @@ class SpriteEditorGradioTests(unittest.TestCase):
         self.assertIn("spriteEditorServerBase='http://127.0.0.1:8770'",loader_script_text)
         self.assertIn("+'/character-animation/sprite-editor.js'",loader_script_text)
         self.assertIn('sprite-canvas',read_sprite_editor_markup())
+
+    def test_comparison_and_export_use_shared_styles(self):
+        editor_markup_text=read_sprite_editor_markup()
+        for required_element_name in ('sprite-original','sprite-directions','sprite-png-all','sprite-sheet','sprite-size'):
+            self.assertIn(required_element_name,editor_markup_text)
+        self.assertIn('--page:',read_sprite_editor_styles())
+        self.assertIn('#sprite-editor-root>header',read_sprite_editor_styles())

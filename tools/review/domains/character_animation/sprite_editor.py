@@ -30,6 +30,7 @@ def load_sprite_editor_source(source_identifier_value):
     return {'id':source_identifier_value,'label':source_identifier_value,'fps':generation_status_record['result']['fps'],'frames':frame_output_records}
 
 def execute_sprite_editor_command(operation_command_name, command_payload_value):
+    if operation_command_name not in {'sprite-source','sprite-load','sprite-save'}:raise ValueError('지원하지 않는 스프라이트 명령입니다.')
     if set(command_payload_value) != ({'id','document'} if operation_command_name=='sprite-save' else {'id'}):raise ValueError('스프라이트 명령 필드 오류')
     source_asset_record=load_sprite_editor_source(command_payload_value['id'])
     if operation_command_name=='sprite-source':return source_asset_record
@@ -42,7 +43,17 @@ def execute_sprite_editor_command(operation_command_name, command_payload_value)
             return {'document':None,'warning':'원본 버전이 변경되어 새 편집으로 열었습니다. 이전 저장 파일은 보존됩니다.'}
         return saved_project_record
     current_project_document=command_payload_value['document']
-    if not isinstance(current_project_document,dict) or set(current_project_document)!={'version','source','frames'} or current_project_document['version']!=1 or current_project_document['source']!=command_payload_value['id']:raise ValueError('스프라이트 문서 형식 오류')
+    if not isinstance(current_project_document,dict):raise ValueError('스프라이트 문서 형식 오류')
+    current_document_version=current_project_document.get('version')
+    expected_document_fields={'version','source','frames','output'} if current_document_version==2 else {'version','source','frames'}
+    if type(current_document_version) is not int or current_document_version not in (1,2) or set(current_project_document)!=expected_document_fields or current_project_document['source']!=command_payload_value['id']:raise ValueError('스프라이트 문서 형식 오류')
+    if current_document_version==2:
+        current_output_settings=current_project_document['output']
+        if not isinstance(current_output_settings,dict) or set(current_output_settings)!={'cellSize','targetHeight'}:raise ValueError('출력 설정 필드 오류')
+        output_cell_pixels=current_output_settings['cellSize']
+        target_body_height=current_output_settings['targetHeight']
+        if type(output_cell_pixels) is not int or output_cell_pixels not in (128,256,384,512):raise ValueError('출력 셀은 128·256·384·512px만 지원합니다.')
+        if type(target_body_height) not in (int,float) or not math.isfinite(target_body_height) or not 0<target_body_height<=output_cell_pixels:raise ValueError('목표 몸체 높이는 출력 셀 안의 양수여야 합니다.')
     expected_frame_keys={frame_record_value['frameId'] for frame_record_value in source_asset_record['frames']}
     current_frame_values=current_project_document['frames']
     if not isinstance(current_frame_values,dict) or set(current_frame_values)!=expected_frame_keys or len(expected_frame_keys)>4000:raise ValueError('원본과 편집 프레임 목록이 일치하지 않습니다.')
