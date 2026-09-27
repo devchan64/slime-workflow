@@ -2,12 +2,15 @@
 import hashlib
 import json
 import math
+import re
+import threading
 from datetime import datetime, timezone
 from pathlib import Path
 from uuid import uuid4
 from tools.review.common.generation_records import write_record_atomically
 
 SPRITE_PROJECT_DIRECTORY = Path(__file__).resolve().parents[4]/'.local/sprite-editor'
+SPRITE_HISTORY_COMMAND_LOCK=threading.RLock()
 SPRITE_FRAME_FIELDS = {'center','floor','head','anchorX','anchorY','x','y','scale'}
 
 def load_sprite_editor_source(source_identifier_value):
@@ -30,16 +33,33 @@ def load_sprite_editor_source(source_identifier_value):
     return {'id':source_identifier_value,'label':source_identifier_value,'fps':generation_status_record['result']['fps'],'frames':frame_output_records}
 
 def execute_sprite_editor_command(operation_command_name, command_payload_value):
-    if operation_command_name not in {'sprite-source','sprite-load','sprite-save','sprite-history'}:raise ValueError('지원하지 않는 스프라이트 명령입니다.')
-    if set(command_payload_value) != ({'id','document'} if operation_command_name=='sprite-save' else {'id'}):raise ValueError('스프라이트 명령 필드 오류')
+    with SPRITE_HISTORY_COMMAND_LOCK:
+        return execute_sprite_locked_command(operation_command_name,command_payload_value)
+
+def execute_sprite_locked_command(operation_command_name, command_payload_value):
+    if operation_command_name not in {'sprite-source','sprite-load','sprite-save','sprite-history','sprite-history-reset','sprite-history-delete'}:raise ValueError('지원하지 않는 스프라이트 명령입니다.')
+    if set(command_payload_value) != ({'id','document'} if operation_command_name=='sprite-save' else {'id','revision'} if operation_command_name=='sprite-history-delete' else {'id'}):raise ValueError('스프라이트 명령 필드 오류')
     source_asset_record=load_sprite_editor_source(command_payload_value['id'])
     if operation_command_name=='sprite-source':return source_asset_record
     project_output_directory=SPRITE_PROJECT_DIRECTORY/hashlib.sha256(command_payload_value['id'].encode()).hexdigest()[:24]
+    hidden_history_path=project_output_directory/'hidden-history.json'
+    hidden_revision_values=set(json.loads(hidden_history_path.read_text())['revisions']) if hidden_history_path.exists() else set()
+    revision_file_paths=[current_revision_path for current_revision_path in project_output_directory.glob('*.json') if re.fullmatch(r'\d{8}T\d{6}-[0-9a-f]{8}',current_revision_path.stem)]
+    if operation_command_name in ('sprite-history-reset','sprite-history-delete'):
+        if operation_command_name=='sprite-history-delete':
+            selected_revision_value=command_payload_value['revision']
+            if not isinstance(selected_revision_value,str) or selected_revision_value not in {current_revision_path.stem for current_revision_path in revision_file_paths}:raise ValueError('존재하지 않는 저장 이력입니다.')
+            removed_revision_values={selected_revision_value}
+        else:removed_revision_values={current_revision_path.stem for current_revision_path in revision_file_paths}
+        removed_revision_count=len(removed_revision_values-hidden_revision_values)
+        project_output_directory.mkdir(parents=True,exist_ok=True)
+        write_record_atomically(hidden_history_path,{'revisions':sorted(hidden_revision_values|removed_revision_values)})
+        return {'removed':removed_revision_count,'files_preserved':True}
     if operation_command_name=='sprite-history':
         current_source_digest=hashlib.sha256(json.dumps(source_asset_record,sort_keys=True).encode()).hexdigest()
         history_record_items=[]
-        for current_revision_path in sorted(project_output_directory.glob('*.json'),reverse=True):
-            if current_revision_path.name=='latest.json':continue
+        for current_revision_path in sorted(revision_file_paths,reverse=True):
+            if current_revision_path.stem in hidden_revision_values:continue
             current_saved_record=json.loads(current_revision_path.read_text())
             history_record_items.append({'id':current_saved_record['revision'],'created_at':current_saved_record['saved_at'],'frames':len(current_saved_record['document']['frames']),'label':'스프라이트 저장','compatible':current_saved_record['source_digest']==current_source_digest,'document':current_saved_record['document']})
         return {'items':history_record_items}
@@ -47,6 +67,7 @@ def execute_sprite_editor_command(operation_command_name, command_payload_value)
         latest_project_path=project_output_directory/'latest.json'
         if not latest_project_path.exists():return {'document':None}
         saved_project_record=json.loads(latest_project_path.read_text())
+        if saved_project_record['revision'] in hidden_revision_values:return {'document':None}
         if saved_project_record['source_digest']!=hashlib.sha256(json.dumps(source_asset_record,sort_keys=True).encode()).hexdigest():
             return {'document':None,'warning':'원본 버전이 변경되어 새 편집으로 열었습니다. 이전 저장 파일은 보존됩니다.'}
         return saved_project_record

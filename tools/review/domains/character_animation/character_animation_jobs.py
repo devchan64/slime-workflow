@@ -189,7 +189,7 @@ def execute_animation_command(operation_command_name,command_payload_value):
     if operation_command_name in ('anchor-save','anchor-history','anchor-load','anchor-history-reset'):
         from .anchor_history import execute_anchor_history_command
         return execute_anchor_history_command(operation_command_name,command_payload_value)
-    if operation_command_name in ('sprite-source','sprite-save','sprite-load','sprite-history'):
+    if operation_command_name in ('sprite-source','sprite-save','sprite-load','sprite-history','sprite-history-reset','sprite-history-delete'):
         from .sprite_editor import execute_sprite_editor_command
         return execute_sprite_editor_command(operation_command_name,command_payload_value)
     if operation_command_name=='resume':return resume_animation_generation(command_payload_value)

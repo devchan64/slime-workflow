@@ -265,3 +265,5 @@ GUI의 좌표 생성 이력에서 저장 시각·완료 상태·프레임 수를
 프로젝트 저장은 기존 `.local/sprite-editor/<원본 ID 해시>/`의 누적 버전을 유지한다. 공통 `saved-record-history.js`의 카드·선택·8건 페이지 탐색·새로고침을 사용하며, 선택 이력은 입력값 조회 또는 편집기로 불러올 수 있다. 불러오기는 저장본을 덮어쓰지 않으며 실행 취소할 수 있다. 원본 버전이 다른 이력은 조회만 허용한다.
 
 GUI와 CLI는 `character-animation sprite-history <원본 ID>` 명령을 공유한다. 응답 `items`에는 `id`, `created_at`, `frames`, `label`, `compatible`, `document`가 포함된다. 예: `python tools/manager.py character-animation sprite-history asset:character.default.white-shirt.idle`. 새 저장은 `sprite-save`, 최신 저장본 조회는 기존 `sprite-load`를 사용한다.
+
+스프라이트 이력 카드를 선택하면 `선택 이력 초기화`, 목록 마지막의 `이력 수동 초기화`를 펼치면 `전체 이력 초기화`를 제공한다. 전체 범위는 현재 원본 ID의 저장 이력이다. 두 동작은 대상·범위를 확인한 뒤 목록에서만 제외하며 저장 JSON과 원본 이미지·현재 편집은 보존한다. 제외된 최신 저장본은 재접속 시 자동 복원하지 않는다. 이후 새로 저장한 이력만 목록에 추가된다. GUI/CLI는 `sprite-history-delete <원본 ID> --revision <이력 ID>`와 `sprite-history-reset <원본 ID>`를 공유한다. 제외 목록은 기존 저장소의 `hidden-history.json`에 영구 보존한다.

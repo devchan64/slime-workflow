@@ -45,3 +45,20 @@ class SpriteEditorPersistenceTests(unittest.TestCase):
                     project_document_value['output']=invalid_output_record
                     with self.assertRaises(ValueError):sprite_editor.execute_sprite_editor_command('sprite-save',{'id':'asset:test','document':project_document_value})
             with self.assertRaises(ValueError):sprite_editor.execute_sprite_editor_command('unsupported',{'id':'asset:test'})
+
+    def test_history_reset_preserves_files_and_new_saves(self):
+        source_asset_record={'id':'asset:test','frames':[{'frameId':'front.0'}]}
+        project_document_value={'version':1,'source':'asset:test','frames':{'front.0':dict(center=20,floor=80,head=0,anchorX=20,anchorY=80,x=0,y=0,scale=1)}}
+        with tempfile.TemporaryDirectory() as temporary_directory_name, patch.object(sprite_editor,'SPRITE_PROJECT_DIRECTORY',Path(temporary_directory_name)), patch.object(sprite_editor,'load_sprite_editor_source',return_value=source_asset_record):
+            first_saved_record=sprite_editor.execute_sprite_editor_command('sprite-save',{'id':'asset:test','document':project_document_value})
+            second_saved_record=sprite_editor.execute_sprite_editor_command('sprite-save',{'id':'asset:test','document':project_document_value})
+            sprite_editor.execute_sprite_editor_command('sprite-history-delete',{'id':'asset:test','revision':first_saved_record['revision']})
+            self.assertEqual(len(sprite_editor.execute_sprite_editor_command('sprite-history',{'id':'asset:test'})['items']),1)
+            with self.assertRaises(ValueError):sprite_editor.execute_sprite_editor_command('sprite-history-delete',{'id':'asset:test','revision':'../latest'})
+            sprite_editor.execute_sprite_editor_command('sprite-history-reset',{'id':'asset:test'})
+            self.assertEqual(sprite_editor.execute_sprite_editor_command('sprite-history',{'id':'asset:test'})['items'],[])
+            self.assertIsNone(sprite_editor.execute_sprite_editor_command('sprite-load',{'id':'asset:test'})['document'])
+            self.assertTrue(Path(first_saved_record['path']).exists())
+            self.assertTrue(Path(second_saved_record['path']).exists())
+            third_saved_record=sprite_editor.execute_sprite_editor_command('sprite-save',{'id':'asset:test','document':project_document_value})
+            self.assertEqual([current_history_record['id'] for current_history_record in sprite_editor.execute_sprite_editor_command('sprite-history',{'id':'asset:test'})['items']],[third_saved_record['revision']])

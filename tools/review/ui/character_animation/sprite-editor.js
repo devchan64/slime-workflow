@@ -7,6 +7,7 @@ const SPRITE_OUTPUT_FOOT_RATIO=.96;
 const SPRITE_UNDO_RECORD_LIMIT=40;
 const SPRITE_EXPORT_FRAME_LIMIT=128;
 const SPRITE_CUSTOM_GUIDE_LIMIT=32;
+const SPRITE_NUDGE_DIRECTION_STEPS={up:{x:0,y:-1},left:{x:-1,y:0},right:{x:1,y:0},down:{x:0,y:1}};
 const SPRITE_GUIDE_COLOR_VALUES={center:'#00e5ff',floor:'#ffe338',head:'#f18aff',anchor:'#ff646d'};
 const SPRITE_GUIDE_DISPLAY_STYLE={outline:'#101820',lineWidth:2,outlineWidth:4,dashLength:7,dashGap:5,anchorRadius:7,fontSize:11,labelPadding:4,labelHeight:19,labelInset:4};
 function calculateSpriteOutputAnchor(outputCellPixels){return{x:outputCellPixels/2,y:Math.round(outputCellPixels*SPRITE_OUTPUT_FOOT_RATIO)};}
@@ -213,6 +214,12 @@ if(typeof document!=='undefined')void (async function initializeSpriteEditorComp
   currentFieldInput.onchange=()=>{if(!spriteProjectDocument)return;try{if(!currentFieldInput.value.trim())throw Error('숫자를 입력하세요.');const nextFrameSettings={...readSpriteCurrentSettings(),[currentFieldName]:Number(currentFieldInput.value)};validateSpriteFrameSettings(nextFrameSettings);rememberSpriteDocumentChange();spriteProjectDocument.frames[readSpriteCurrentFrame().frameId]=nextFrameSettings;refreshSpriteEditedViews();}catch(currentErrorValue){appendSpriteStatusMessage(currentErrorValue.message);renderSpriteEditorFrame();}};
  }
  const spriteHistoryViewState={page:0,selected:null};
+ async function resetSpriteSavedHistory(selectedHistoryRecord){
+  const currentSourceIdentifier=spriteProjectDocument?.source;if(!currentSourceIdentifier)return;
+  const currentTargetLabel=selectedHistoryRecord?selectedHistoryRecord.id:currentSourceIdentifier+'의 전체 저장 이력';
+  if(!confirm(currentTargetLabel+'\n이력 목록에서만 제외합니다. 원본 이미지와 저장 JSON 파일, 현재 편집은 유지됩니다. 초기화할까요?'))return;
+  try{await requestSpriteManagementCommand(selectedHistoryRecord?'sprite-history-delete':'sprite-history-reset',{id:currentSourceIdentifier,...(selectedHistoryRecord?{revision:selectedHistoryRecord.id}:{})});if(spriteProjectDocument?.source!==currentSourceIdentifier)return;spriteHistoryViewState.selected=null;findSpriteElement('history-input').textContent='';findSpriteElement('history-details').open=false;await refreshSpriteSavedHistory();appendSpriteStatusMessage('이력 초기화 완료 · 저장 파일은 보존됩니다.');}catch(currentErrorValue){appendSpriteStatusMessage('이력 초기화 실패: '+currentErrorValue.message);}
+ }
  async function refreshSpriteSavedHistory(){
   const currentSourceIdentifier=spriteProjectDocument?.source;
   if(!currentSourceIdentifier)return;
@@ -221,6 +228,8 @@ if(typeof document!=='undefined')void (async function initializeSpriteEditorComp
    if(spriteProjectDocument?.source!==currentSourceIdentifier)return;
    renderSavedRecordHistory(findSpriteElement('history'),currentHistoryResponse.items,spriteHistoryViewState,{
     refresh:refreshSpriteSavedHistory,
+    remove:resetSpriteSavedHistory,
+    reset:()=>resetSpriteSavedHistory(null),
     inspect:currentHistoryRecord=>{findSpriteElement('history-input').textContent=JSON.stringify(currentHistoryRecord.document,null,2);findSpriteElement('history-details').open=true;},
     restore:currentHistoryRecord=>{
      if(!currentHistoryRecord.compatible){appendSpriteStatusMessage('원본 버전이 다른 이력입니다. 입력값 조회만 가능합니다.');return;}
@@ -249,6 +258,11 @@ if(typeof document!=='undefined')void (async function initializeSpriteEditorComp
  }
  for(const currentGuideAxis of ['horizontal','vertical'])findSpriteElement('guide-'+currentGuideAxis).onclick=()=>{if(!spriteProjectDocument||(spriteProjectDocument.guides||[]).length>=SPRITE_CUSTOM_GUIDE_LIMIT)return;rememberSpriteDocumentChange();(spriteProjectDocument.guides??=[]).push({axis:currentGuideAxis,position:.5});findSpriteElement('guides').checked=true;refreshSpriteEditedViews();};
  renderSpriteCustomGuides();
+ for(const [currentDirectionName,currentDirectionStep] of Object.entries(SPRITE_NUDGE_DIRECTION_STEPS))findSpriteElement('nudge-'+currentDirectionName).onclick=()=>{
+  if(!spriteProjectDocument||spriteBusyState)return;
+  const currentFrameSettings=readSpriteCurrentSettings(),nextFrameSettings={...currentFrameSettings,x:currentFrameSettings.x+currentDirectionStep.x,y:currentFrameSettings.y+currentDirectionStep.y};
+  try{validateSpriteFrameSettings(nextFrameSettings);rememberSpriteDocumentChange();Object.assign(currentFrameSettings,nextFrameSettings);refreshSpriteEditedViews();findSpriteElement('nudge-position').textContent=`배치 X ${nextFrameSettings.x}px · Y ${nextFrameSettings.y}px`;}catch(currentErrorValue){appendSpriteStatusMessage(currentErrorValue.message);}
+ };
  findSpriteElement('asset-load').onclick=()=>openSpriteSourceDocument(findSpriteElement('asset').value);
  findSpriteElement('load').onclick=()=>openSpriteSourceDocument(findSpriteElement('job').value.trim());
  findSpriteElement('direction').onchange=()=>{stopSpritePlayback();spriteFramePosition=0;refreshSpriteEditedViews();};
