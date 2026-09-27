@@ -47,6 +47,13 @@ def calculate_preview_frame_numbers(selected_start_frame,selected_end_frame,sour
     selected_frame_count=math.ceil(selected_range_frame_count*target_frame_rate/(source_frame_rate*generation_speed_ratio))
     return [selected_start_frame+math.floor(frame_index_value*source_frame_rate*generation_speed_ratio/target_frame_rate) for frame_index_value in range(selected_frame_count)]
 
+def clamp_selected_frame_range(selected_start_frame,selected_end_frame,maximum_frame_number):
+    normalized_start_frame=selected_start_frame if type(selected_start_frame) is int else 1
+    normalized_end_frame=selected_end_frame if type(selected_end_frame) is int else maximum_frame_number
+    normalized_start_frame=max(1,min(normalized_start_frame,maximum_frame_number))
+    normalized_end_frame=max(normalized_start_frame,min(normalized_end_frame,maximum_frame_number))
+    return normalized_start_frame,normalized_end_frame
+
 def create_motion_preview_player(selected_motion_name,selected_source_kind,selected_direction_name,selected_start_frame,selected_end_frame,source_frame_rate,target_frame_rate,generation_speed_ratio,server_base_address):
     if type(selected_start_frame) is not int or type(selected_end_frame) is not int or selected_start_frame > selected_end_frame:
         return '<div>시작 프레임과 종료 프레임을 확인하세요.</div>'
@@ -113,14 +120,15 @@ def build_character_animation_interface(server_base_address):
             generation_record_value=execute_animation_gateway('generate',request_payload_value)
             return generation_record_value['id'],'상태: running'
         generation_button_value.click(start_animation,[motion_select_value,character_select_value,source_select_value,direction_select_value,start_frame_value,end_frame_value,resolution_select_value,step_select_value,target_fps_select_value,speed_select_value],[generation_identifier_value,status_text_value])
-        def change_motion_range(selected_motion_name,selected_source_kind,selected_direction_name,selected_target_frame_rate,selected_speed_ratio):
+        def change_motion_range(selected_motion_name,selected_source_kind,selected_direction_name,selected_target_frame_rate,selected_speed_ratio,current_start_frame,current_end_frame):
             selected_motion_record=motion_catalog_records[selected_motion_name]
             selected_frame_count=selected_motion_record['frames']
-            return gr.update(value=1,maximum=selected_frame_count),gr.update(value=selected_frame_count,maximum=selected_frame_count),create_motion_preview_player(selected_motion_name,selected_source_kind,selected_direction_name,1,selected_frame_count,selected_motion_record['fps'],selected_target_frame_rate,selected_speed_ratio,server_base_address)
+            restored_start_frame,restored_end_frame=clamp_selected_frame_range(current_start_frame,current_end_frame,selected_frame_count)
+            return gr.update(value=restored_start_frame,maximum=selected_frame_count),gr.update(value=restored_end_frame,maximum=selected_frame_count),create_motion_preview_player(selected_motion_name,selected_source_kind,selected_direction_name,restored_start_frame,restored_end_frame,selected_motion_record['fps'],selected_target_frame_rate,selected_speed_ratio,server_base_address)
         def refresh_motion_preview(selected_motion_name,selected_source_kind,selected_direction_name,selected_start_frame,selected_end_frame,selected_target_frame_rate,selected_speed_ratio):
             return create_motion_preview_player(selected_motion_name,selected_source_kind,selected_direction_name,selected_start_frame,selected_end_frame,motion_catalog_records[selected_motion_name]['fps'],selected_target_frame_rate,selected_speed_ratio,server_base_address)
         preview_component_values=[motion_select_value,source_select_value,preview_direction_value,start_frame_value,end_frame_value,target_fps_select_value,speed_select_value]
-        motion_select_value.change(change_motion_range,[motion_select_value,source_select_value,preview_direction_value,target_fps_select_value,speed_select_value],[start_frame_value,end_frame_value,motion_preview_html_value],queue=False)
+        motion_select_value.change(change_motion_range,[motion_select_value,source_select_value,preview_direction_value,target_fps_select_value,speed_select_value,start_frame_value,end_frame_value],[start_frame_value,end_frame_value,motion_preview_html_value],queue=False)
         for preview_input_value in (source_select_value,preview_direction_value,start_frame_value,end_frame_value,target_fps_select_value,speed_select_value):
             preview_input_value.change(refresh_motion_preview,preview_component_values,motion_preview_html_value,queue=False)
         interface_blocks_value.load(lambda:read_history_page(1),outputs=history_output_values)
