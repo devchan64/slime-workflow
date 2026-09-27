@@ -125,7 +125,8 @@ class GpuJobQueueTests(unittest.TestCase):
         worker_process_mock.poll.return_value = 0
         with patch.object(queue_module,'read_gpu_memory',return_value=(8151,4000)),patch.object(queue_module.subprocess,'Popen',return_value=worker_process_mock) as worker_launch_mock:
             self.assertEqual(queue_module.execute_queued_generation(self.current_job_path),0)
-            worker_launch_mock.assert_called_once_with(['test-worker'],start_new_session=True)
+            self.assertEqual(worker_launch_mock.call_args.args[0],['test-worker'])
+            self.assertIn('SLIME_GPU_RESERVATION_PATH',worker_launch_mock.call_args.kwargs['env'])
         self.assertTrue(earlier_ticket_path.exists())
 
     def test_first_fitting_ticket_keeps_order_and_skips_cancelled(self):

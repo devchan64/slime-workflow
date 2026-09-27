@@ -185,7 +185,7 @@ def execute_queued_generation(generation_job_path):
                 time.sleep(GPU_POLL_INTERVAL)
             queue_ticket_path.unlink(missing_ok=True)
             write_record_atomically(generation_job_path/'status.json', {'status':'running', 'memory_estimate':memory_estimate_record})
-            generation_worker_process = subprocess.Popen(generation_command_record['command'], start_new_session=True)
+            generation_worker_process = subprocess.Popen(generation_command_record['command'], start_new_session=True, env=dict(os.environ, SLIME_GPU_RESERVATION_PATH=str(active_reservation_path.resolve())))
             while generation_worker_process.poll() is None:
                 if (generation_job_path/'cancel.request').exists():
                     import signal

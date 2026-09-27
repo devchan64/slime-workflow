@@ -29,13 +29,14 @@ class TileGenerationTests(unittest.TestCase):
 
     def test_rooftop_prompt_requires_single_surface_and_excludes_building_parts(self):
         rooftop_prompt_text=load_tile_configuration()['types']['rooftop']['base_prompt']
-        self.assertIn('continuous roof plane',rooftop_prompt_text)
-        self.assertIn('four broad aligned rows',rooftop_prompt_text)
-        self.assertIn('edges act as seamless connectors to adjacent surfaces',rooftop_prompt_text)
-        self.assertLessEqual(len(rooftop_prompt_text.split()),24)
+        self.assertIn('one flat continuous plane',rooftop_prompt_text)
+        self.assertIn('filling the entire image',rooftop_prompt_text)
+        self.assertNotIn('four broad aligned rows',rooftop_prompt_text)
+        self.assertIn('cropped on all sides',rooftop_prompt_text)
+        self.assertLessEqual(len(rooftop_prompt_text.split()),28)
         self.assertNotIn('large clearly separated',rooftop_prompt_text)
         self.assertNotIn('wooden',rooftop_prompt_text)
-        self.assertIn('no walls, eaves, or gables',rooftop_prompt_text)
+        self.assertIn('no beams, roof tiers, building silhouette, or background',rooftop_prompt_text)
 
     def test_base_prompts_do_not_prescribe_material(self):
         for tile_type_record in load_tile_configuration()['types'].values():
