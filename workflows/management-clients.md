@@ -227,4 +227,10 @@ Gradio 생성이력에서 취소·실패 이력을 선택하고 ‘생성 재개
 
 휴식 검수는 시작·종료 각 10% 구간의 직립 유지와 중앙 1/3 구간의 골반 높이 변화(다리길이 12% 이내), 골반 기준 관절 편차(20% 이내)를 확인한다. 수치는 휴식 후보 판별용 휴리스틱이며 스키닝 통과 판정이 아니다. 프롬프트는 양발 접지 직립, 다리를 앞으로 둔 착석, 정지 유지, 재기립을 순서대로 지시한다.
 
-휴식 신규 생성은 원본 **160프레임 전체**를 사용하며 4 FPS 재생 기준 40초다. 고정 프롬프트: `A person stands upright, sits on the floor, stays still while seated, then stands fully upright again.` (17단어). 기존 생성 결과의 프레임 수는 변경하지 않는다.
+휴식 신규 생성은 원본 **160프레임 전체**를 사용하며 4 FPS 재생 기준 40초다. 고정 프롬프트: `A person stands fully upright with both feet planted for a few seconds, sits with buttocks on the ground and legs forward for a few seconds, then stands fully upright again.` (31단어). 기존 생성 결과의 프레임 수는 변경하지 않는다.
+
+휴식의 착석은 의자 높이의 공중 착석이 아니라 **엉덩이가 바닥에 닿고 다리를 앞으로 뻗은 자세**로 지시한다. 낮은 골반 검수만으로 바닥 접촉을 보장할 수 없으므로 결과에서 엉덩이 접촉을 별도 확인한다.
+
+휴식은 첫 프레임부터 양발을 딛고 완전히 직립한 상태로 시작해 잠시 서 있는 구간을 둔 뒤 착석한다. 시작 직립 검수는 첫 프레임뿐 아니라 시작 10% 구간에 적용한다.
+
+휴식 프롬프트의 시작 직립과 바닥 착석 유지 구간에는 각각 `for a few seconds`를 명시한다. 이는 모델에 유지 구간을 요청하는 표현이며 정확한 초 수를 보장하지 않는다.

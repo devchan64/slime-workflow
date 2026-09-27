@@ -216,7 +216,7 @@
         140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159
       ],
       "playtime_seconds": 40.0,
-      "prompt": "A person stands upright, sits on the floor, stays still while seated, then stands fully upright again.",
+      "prompt": "A person stands fully upright with both feet planted for a few seconds, sits with buttocks on the ground and legs forward for a few seconds, then stands fully upright again.",
       "description": "똑바로 서서 시작하고 바닥에 앉아 잠시 머무른 뒤 다시 완전히 일어선다. 다리 교차나 손 짚기 자세를 강제하지 않는다. 원본 160프레임 전체를 출력하며 시작·끝 직립과 중간 낮은 자세 유지를 검수한다."
     }
   },
