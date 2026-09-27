@@ -17,7 +17,7 @@ class TileGenerationTests(unittest.TestCase):
             self.assertIn(output_request_value['base_prompt'],output_request_value['prompt'])
             self.assertIn(output_request_value['style_prompt'],output_request_value['prompt'])
             self.assertNotRegex(output_request_value['base_prompt'],r'\btile\b')
-            self.assertIn('no decorative border or frame',output_request_value['base_prompt'])
+            self.assertNotIn('no decorative border or frame',output_request_value['base_prompt'])
             self.assertNotIn('visible outer boundary lines',output_request_value['base_prompt'])
             self.assertIn('Red brick house.',output_request_value['prompt'])
             self.assertEqual(output_request_value['prompt_words'],len(output_request_value['prompt'].split()))
@@ -25,17 +25,23 @@ class TileGenerationTests(unittest.TestCase):
 
     def test_rooftop_prompt_requires_single_surface_and_excludes_building_parts(self):
         rooftop_prompt_text=load_tile_configuration()['types']['rooftop']['base_prompt']
-        self.assertIn('single continuous roof plane',rooftop_prompt_text)
-        self.assertIn('large broad panels in four aligned horizontal rows',rooftop_prompt_text)
-        self.assertIn('matching opposite edges',rooftop_prompt_text)
+        self.assertIn('continuous roof plane',rooftop_prompt_text)
+        self.assertIn('four broad aligned rows',rooftop_prompt_text)
+        self.assertIn('seamless opposite edges',rooftop_prompt_text)
+        self.assertLessEqual(len(rooftop_prompt_text.split()),20)
         self.assertNotIn('large clearly separated',rooftop_prompt_text)
         self.assertNotIn('wooden',rooftop_prompt_text)
-        for excluded_subject_text in ('no sky','no wall','no gable','no eaves','no building outline'):
-            self.assertIn(excluded_subject_text,rooftop_prompt_text)
+        self.assertIn('no walls, eaves, gables, border, or frame',rooftop_prompt_text)
 
     def test_base_prompts_do_not_prescribe_material(self):
         for tile_type_record in load_tile_configuration()['types'].values():
             self.assertNotRegex(tile_type_record['base_prompt'],r'\b(?:wooden|wood|marble|stone|metal|material)\b')
+
+    def test_wall_prompt_uses_columns_and_top_beam_without_prescribing_material(self):
+        wall_prompt_text=load_tile_configuration()['types']['wall']['base_prompt']
+        self.assertIn('half-visible columns at both edges',wall_prompt_text)
+        self.assertIn('a top beam',wall_prompt_text)
+        self.assertNotRegex(wall_prompt_text,r'\b(?:wooden|wood|marble|stone|metal|material)\b')
     def test_default_seed_is_10107_and_explicit_seed_is_preserved(self):
         request=self.make_tile_request()
         request.pop('seed')
@@ -55,6 +61,12 @@ class TileGenerationTests(unittest.TestCase):
         self.assertEqual(append_wall_tile_example(''),WALL_TILE_KOREAN_EXAMPLE)
         self.assertEqual(append_wall_tile_example('낮은 성벽'), '낮은 성벽\n'+WALL_TILE_KOREAN_EXAMPLE)
         self.assertEqual(append_wall_tile_example(WALL_TILE_KOREAN_EXAMPLE),WALL_TILE_KOREAN_EXAMPLE)
+
+    def test_small_window_wall_example_is_inserted_without_overwriting_or_duplication(self):
+        from tools.review.ui.gradio.tile_map_app import SMALL_WINDOW_WALL_KOREAN_EXAMPLE, append_small_window_wall_example
+        self.assertEqual(append_small_window_wall_example(''),SMALL_WINDOW_WALL_KOREAN_EXAMPLE)
+        self.assertEqual(append_small_window_wall_example('낮은 성벽'), '낮은 성벽\n'+SMALL_WINDOW_WALL_KOREAN_EXAMPLE)
+        self.assertEqual(append_small_window_wall_example(SMALL_WINDOW_WALL_KOREAN_EXAMPLE),SMALL_WINDOW_WALL_KOREAN_EXAMPLE)
 
     def test_ground_tile_korean_example_is_inserted_without_overwriting_or_duplication(self):
         from tools.review.ui.gradio.tile_map_app import GROUND_TILE_KOREAN_EXAMPLE, append_ground_tile_example
