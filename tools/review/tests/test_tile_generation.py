@@ -32,9 +32,10 @@ class TileGenerationTests(unittest.TestCase):
             self.assertEqual(output_request_value['prompt_words'],len(output_request_value['prompt'].split()))
             self.assertLess(output_request_value['prompt_words'],100)
 
-    def test_rooftop_prompt_requires_single_surface_and_excludes_building_parts(self):
+    def test_rooftop_prompt_prioritizes_five_horizontal_bands(self):
         rooftop_prompt_text=load_tile_configuration()['types']['rooftop']['base_prompt']
-        self.assertIn('single flat roofing surface',rooftop_prompt_text)
+        self.assertTrue(rooftop_prompt_text.startswith('Exactly five equal-height horizontal bands'))
+        self.assertIn('Top-down flat surface',rooftop_prompt_text)
         self.assertIn('filling the image',rooftop_prompt_text)
         self.assertNotIn('four broad aligned rows',rooftop_prompt_text)
         self.assertIn('thin painted edge stripe on the same surface',rooftop_prompt_text)
@@ -42,7 +43,7 @@ class TileGenerationTests(unittest.TestCase):
         self.assertLessEqual(len(rooftop_prompt_text.split()),32)
         self.assertNotIn('large clearly separated',rooftop_prompt_text)
         self.assertNotIn('wooden',rooftop_prompt_text)
-        self.assertIn('no interior beams, tiers, or background',rooftop_prompt_text)
+        self.assertTrue(rooftop_prompt_text.endswith('Roof covering texture.'))
 
     def test_base_prompts_do_not_prescribe_material(self):
         for tile_type_record in load_tile_configuration()['types'].values():
