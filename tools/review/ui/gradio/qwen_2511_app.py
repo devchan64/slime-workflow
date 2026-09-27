@@ -20,6 +20,11 @@ def execute_reference_gateway(command_name_value,payload_value):return execute_m
 def build_reference_request(prompt_text_value,generation_tag_value,reference_file_values,width_value,height_value,step_value,seed_value):
     reference_bytes_values=[] if not reference_file_values else list(reference_file_values)
     return {'action':'generate','prompt':prompt_text_value.strip(),'tag':generation_tag_value.strip(),'images':[base64.b64encode(current_file_value).decode() for current_file_value in reference_bytes_values],'width':int(width_value),'height':int(height_value),'steps':int(step_value),'seed':int(seed_value)}
+
+def restore_reference_inputs(current_history_record):
+    current_request_record=current_history_record.get('request',{})
+    return current_request_record.get('prompt',''),current_request_record.get('tag',''),current_request_record.get('width',1024),current_request_record.get('height',1024),current_request_record.get('steps',4),current_request_record.get('seed',10107),'선택한 이력의 설정을 불러왔습니다. 참조 이미지는 기록에 보존되지만 의도치 않은 재사용을 막기 위해 다시 업로드하세요.'
+
 def result_preview_html(image_url_value):return f'<img class="qwen-result-image" src="{html.escape(image_url_value,quote=True)}" alt="Qwen 생성 결과">' if image_url_value else '<div class="image-result-empty">완료된 결과를 선택하세요.</div>'
 
 def build_qwen_2511_interface(server_base_address):
@@ -38,7 +43,12 @@ def build_qwen_2511_interface(server_base_address):
             with gr.Column(scale=2):
                 identifier_value=gr.Textbox(label='생성 ID',interactive=False);preview_value=gr.HTML(result_preview_html(None))
         log_value,refresh_log_value,_=build_execution_logs()
-        read_history_page,history_output_values=build_generation_history_view(execute_reference_gateway,server_base_address,'이력 목록만 초기화합니다. 결과 이미지·참조 입력 사본·로그 파일은 유지됩니다. 생성 중에는 초기화할 수 없습니다.',record_folder_route='/image-generation-2511')
+        read_history_page,history_output_values=build_generation_history_view(
+            execute_reference_gateway,server_base_address,
+            '이력 목록만 초기화합니다. 결과 이미지·참조 입력 사본·로그 파일은 유지됩니다. 생성 중에는 초기화할 수 없습니다.',
+            restore_input_callback=restore_reference_inputs,
+            restore_output_components=[prompt_text_value,generation_tag_value,width_value,height_value,step_value,seed_value,status_value],
+            record_folder_route='/image-generation-2511')
         def start_generation(*input_values):
             generation_record_value=execute_reference_gateway('generate',build_reference_request(*input_values));return generation_record_value['id'],'상태: running'
         bind_gpu_generation_confirmation(generation_button_value,start_generation,[prompt_text_value,generation_tag_value,reference_file_values,width_value,height_value,step_value,seed_value],[identifier_value,status_value])
