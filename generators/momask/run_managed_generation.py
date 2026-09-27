@@ -4,7 +4,7 @@ import argparse, json, shutil, subprocess, sys
 import numpy as np
 import yaml
 ROOT=Path(__file__).resolve().parents[2]
-ACTIONS={'walking':('walking','걷기'),'standing':('standing','대기')}
+ACTIONS={'walking':('walking','걷기'),'standing':('standing','대기'),'resting':('resting','휴식')}
 DIRECTIONS={'down_left','down_right','up_left','up_right'}
 def main():
  p=argparse.ArgumentParser();p.add_argument('--job-dir',type=Path,required=True);p.add_argument('--action',choices=ACTIONS);p.add_argument('--directions',required=True);a=p.parse_args()

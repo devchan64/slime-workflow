@@ -54,6 +54,12 @@ class SharedGenerationJobsTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             JOB_SERVICE_MODULE.start_generation_job('deep_breath', ['down_left'])
 
+    def test_resting_action_is_accepted(self):
+        with patch.object(JOB_SERVICE_MODULE.subprocess, 'Popen'):
+            generation_identifier_value = JOB_SERVICE_MODULE.start_generation_job('resting', ['down_left'])['id']
+        generation_request_value = json.loads((self.test_root_directory/'jobs'/generation_identifier_value/'request.json').read_text())
+        self.assertEqual(generation_request_value['action'], 'resting')
+
     def test_retired_stretch_action_is_rejected(self):
         with self.assertRaises(ValueError):
             JOB_SERVICE_MODULE.start_generation_job('stretch', ['down_left'])

@@ -20,7 +20,7 @@ from tools.review.common.gradio_logs import build_execution_logs, LOG_PANEL_STYL
 from tools.review.domains.momask.momask_jobs import check_generation_running
 from tools.review.domains.momask.momask_generation import render_position_retarget_policy
 
-MOTION_ACTION_LABELS = [('대기','standing'),('걷기','walking')]
+MOTION_ACTION_LABELS = [('대기','standing'),('걷기','walking'),('휴식','resting')]
 MOTION_DIRECTION_LABELS = [('전방 좌측','down_left'),('전방 우측','down_right'),('후방 좌측','up_left'),('후방 우측','up_right')]
 
 def create_copyable_textbox(**textbox_keyword_values):
@@ -111,7 +111,8 @@ def build_momask_interface(server_base_address):
                 settings_initial_values=read_motion_settings('standing')
                 prompt_text_value=gr.Textbox(value=settings_initial_values[0],label='고정 스크립트',interactive=False,lines=4)
                 settings_text_value=gr.Markdown(settings_initial_values[1])
-                gr.HTML(render_position_retarget_policy())
+                with gr.Accordion('위치 채널 기반 공통 리타깃', open=False):
+                    gr.HTML(render_position_retarget_policy())
                 with gr.Row(elem_id='motion-command-actions'):
                     generate_button_value=gr.Button('모션 생성 시작',variant='primary',elem_id='motion-generate-button')
                     cancel_button_value=gr.Button('생성 취소',elem_id='motion-cancel-button')

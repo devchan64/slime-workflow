@@ -40,6 +40,14 @@ class GradioMoMaskTests(unittest.TestCase):
     def test_action_choices_do_not_include_deep_breath(self):
         self.assertNotIn(('심호흡','deep_breath'),MODULE_SOURCE_VALUE.MOTION_ACTION_LABELS)
 
+    def test_action_choices_include_resting(self):
+        self.assertIn(('휴식','resting'),MODULE_SOURCE_VALUE.MOTION_ACTION_LABELS)
+
+    def test_resting_settings_use_fixed_prompt(self):
+        prompt_text_value, summary_text_value = MODULE_SOURCE_VALUE.read_motion_settings('resting')
+        self.assertEqual(prompt_text_value, 'A person stands, crosses left leg in front of the right, lowering themselves until they are sitting, both hands on the floor before standing and uncrossing legs.')
+        self.assertIn('60프레임', summary_text_value)
+
     def test_player_keeps_frame_count_and_directions(self):
         player_html_value=MODULE_SOURCE_VALUE.create_motion_player('sample',{'frames':32,'directions':['up_left']},'http://127.0.0.1:8770')
         self.assertIn('allow-scripts',player_html_value)
@@ -65,5 +73,6 @@ class GradioMoMaskTests(unittest.TestCase):
         interface_source_text=(WORKFLOW_ROOT_DIRECTORY/'tools/review/ui/gradio/momask_app.py').read_text()
         self.assertNotIn('gr.Tab(',interface_source_text)
         self.assertIn('### 1. 새 모션 생성',interface_source_text)
+        self.assertIn("gr.Accordion('위치 채널 기반 공통 리타깃', open=False)",interface_source_text)
         self.assertIn("gr.Accordion('2. 생성 이력 · 결과 조회'",interface_source_text)
         self.assertLess(interface_source_text.index("elem_id='motion-history-toolbar'"),interface_source_text.index("elem_id='motion-history-selection'"))
