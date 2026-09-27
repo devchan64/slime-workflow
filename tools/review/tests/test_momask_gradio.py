@@ -41,7 +41,8 @@ class GradioMoMaskTests(unittest.TestCase):
     def test_settings_read_shared_configuration(self):
         prompt_text_value,summary_text_value=MODULE_SOURCE_VALUE.read_motion_settings('walking')
         self.assertIn('treadmill',prompt_text_value)
-        self.assertIn('25°',summary_text_value)
+        self.assertIn('looking straight ahead',prompt_text_value)
+        self.assertIn('30°',summary_text_value)
 
     def test_action_choices_do_not_include_deep_breath(self):
         self.assertNotIn(('심호흡','deep_breath'),MODULE_SOURCE_VALUE.MOTION_ACTION_LABELS)

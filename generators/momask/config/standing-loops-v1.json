@@ -70,8 +70,8 @@
         59
       ],
       "playtime_seconds": 15.0,
-      "prompt": "A person takes four steps on a treadmill at a relaxed pace, swinging their arms naturally.",
-      "description": "트레드밀 위에서 편안한 속도로 네 걸음 걸으며 팔을 자연스럽게 흔드는 동작. 원본 60프레임 전체를 출력한다."
+      "prompt": "A person takes four steps on a treadmill at a relaxed pace, swinging their arms naturally and looking straight ahead.",
+      "description": "트레드밀 위에서 편안한 속도로 네 걸음 걸으며 팔을 자연스럽게 흔들고 시선은 정면을 향하는 동작. 원본 60프레임 전체를 출력한다."
     },
     "standing": {
       "source_frames": 120,
