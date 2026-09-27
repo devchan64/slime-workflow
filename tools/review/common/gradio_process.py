@@ -10,17 +10,16 @@ WORKFLOW_ROOT_DIRECTORY=Path(__file__).resolve().parents[3]
 GRADIO_PROCESS_LOCK=threading.Lock()
 GRADIO_SERVER_PROCESSES={}
 GRADIO_SERVER_SOURCE_FINGERPRINTS={}
+GRADIO_UI_SOURCE_SUFFIXES=('.css','.html','.js','.py')
 
 def create_gradio_source_fingerprint(application_source_path,application_file_path):
-    tracked_source_paths=(
-        application_file_path,
-        application_source_path,
-        WORKFLOW_ROOT_DIRECTORY/'tools/review/common/gradio_history.py',
-        WORKFLOW_ROOT_DIRECTORY/'tools/review/common/gradio_gpu_confirmation.py',
-        WORKFLOW_ROOT_DIRECTORY/'tools/review/ui/shared/management-density.css',
-        WORKFLOW_ROOT_DIRECTORY/'tools/review/ui/shared/management.css',
-    )
-    return tuple((str(current_source_path),current_source_path.stat().st_mtime_ns if current_source_path is not None and current_source_path.is_file() else None) for current_source_path in tracked_source_paths)
+    gradio_source_directory=WORKFLOW_ROOT_DIRECTORY/'tools/review/ui/gradio'
+    common_source_directory=WORKFLOW_ROOT_DIRECTORY/'tools/review/common'
+    shared_ui_directory=WORKFLOW_ROOT_DIRECTORY/'tools/review/ui/shared'
+    tracked_source_paths={application_file_path,application_source_path}
+    for source_directory_path in (gradio_source_directory,common_source_directory,shared_ui_directory):
+        tracked_source_paths.update(current_source_path for current_source_path in source_directory_path.iterdir() if current_source_path.suffix in GRADIO_UI_SOURCE_SUFFIXES)
+    return tuple((str(current_source_path),current_source_path.stat().st_mtime_ns if current_source_path is not None and current_source_path.is_file() else None) for current_source_path in sorted(tracked_source_paths,key=lambda current_source_path:str(current_source_path)))
 
 def ensure_gradio_application(review_server_port, application_name, application_source_path=None):
     with GRADIO_PROCESS_LOCK:
