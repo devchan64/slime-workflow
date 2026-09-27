@@ -16,7 +16,7 @@ class TileGenerationTests(unittest.TestCase):
         ground_prompt_text=load_tile_configuration()['types']['ground']['base_prompt']
         self.assertIn('Seamless repeating ground texture',ground_prompt_text)
         self.assertIn('matching opposite edges horizontally and vertically',ground_prompt_text)
-        self.assertIn('small evenly distributed details',ground_prompt_text)
+        self.assertIn('fine low-contrast texture through every edge',ground_prompt_text)
         self.assertIn('uniform brightness',ground_prompt_text)
         self.assertIn('No border or edge shadow',ground_prompt_text)
 
@@ -26,6 +26,7 @@ class TileGenerationTests(unittest.TestCase):
             self.assertIn(output_request_value['base_prompt'],output_request_value['prompt'])
             self.assertIn(output_request_value['style_prompt'],output_request_value['prompt'])
             self.assertNotRegex(output_request_value['base_prompt'],r'\btile\b')
+            self.assertIn('No text, letters, or numbers on the surface.',output_request_value['base_prompt'])
             self.assertNotIn('no decorative border or frame',output_request_value['base_prompt'])
             self.assertNotIn('visible outer boundary lines',output_request_value['base_prompt'])
             self.assertIn('Red brick house.',output_request_value['prompt'])
