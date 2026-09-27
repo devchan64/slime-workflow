@@ -106,3 +106,11 @@
 .saved-record-history .saved-history-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
 #static-review-root .saved-record-history .saved-history-actions button{margin:0;width:100%;text-align:center}
 #static-review-root .anchor-workspace>.anchor-controls{align-items:start}
+
+.anchor-joypad{display:grid;grid-template-columns:repeat(3,44px);grid-template-rows:repeat(3,40px);gap:4px;justify-content:center;margin:10px 0}
+.anchor-joypad .joypad-up{grid-area:1/2}.anchor-joypad .joypad-left{grid-area:2/1}.anchor-joypad .joypad-right{grid-area:2/3}.anchor-joypad .joypad-down{grid-area:3/2}
+.anchor-joypad .joypad-center{grid-area:2/2;display:grid;place-items:center;font-size:12px;color:var(--text-secondary)}
+#static-review-root .anchor-joypad button{font-size:20px!important;padding:4px!important}
+.anchor-workspace #copyPreviousAnchor{width:100%;margin:4px 0}
+
+.anchor-coordinate-inputs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}.anchor-coordinate-inputs label{display:grid;gap:4px;min-width:0}.anchor-coordinate-inputs input{width:100%}.anchor-coordinate-inputs button{grid-column:1/-1}

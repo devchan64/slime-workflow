@@ -87,6 +87,29 @@ function replayCoordinateChange(undoRequestedValue){
 }
 document.querySelector('#undoCoordinateChange').onclick=()=>replayCoordinateChange(true);
 document.querySelector('#redoCoordinateChange').onclick=()=>replayCoordinateChange(false);
+let coordinateInputIdentity='';
+document.querySelector('#applyCoordinateInputs').onclick=()=>{
+ const requestedPointValue={x:Number(document.querySelector('#coordinateInputX').value),y:Number(document.querySelector('#coordinateInputY').value)};
+ const currentFrameRecord=selectCurrentFrame();
+ if(['X','Y'].some(axisNameValue=>document.querySelector('#coordinateInput'+axisNameValue).value.trim()==='')||!Number.isFinite(requestedPointValue.x)||!Number.isFinite(requestedPointValue.y)||requestedPointValue.x<0||requestedPointValue.y<0||requestedPointValue.x>=currentFrameRecord.rect.width||requestedPointValue.y>=currentFrameRecord.rect.height){document.querySelector('#reviewError').textContent='셀 범위 안의 유한한 X·Y 좌표를 입력하세요.';return;}
+ const selectedPointRecord=pointChoiceElement.value==='anchor'?currentFrameRecord.anchor:(usesFootCentersOnly?currentFrameRecord.contacts:currentFrameRecord.endpoints)[Number(pointChoiceElement.value)];
+ moveSelectedPoint(requestedPointValue.x-selectedPointRecord.x,requestedPointValue.y-selectedPointRecord.y);
+ coordinateInputIdentity='';
+};
+document.querySelector('#copyPreviousAnchor').onclick=()=>{
+ pauseFramePlayback();
+ const currentFrameRecord=selectCurrentFrame();
+ const previousFrameRecord=reviewFrameRecords.find(frameRecordValue=>frameRecordValue.frameId===`${directionChoiceElement.value}.${Number(frameChoiceElement.value)-1}`);
+ if(!previousFrameRecord)return;
+ const previousCoordinateRecord=copyFrameCoordinates(currentFrameRecord);
+ const anchorDeltaValue={x:previousFrameRecord.anchor.x-currentFrameRecord.anchor.x,y:previousFrameRecord.anchor.y-currentFrameRecord.anchor.y};
+ const translatedCoordinateRecord=copyFrameCoordinates(currentFrameRecord);
+ for(const pointRecordValue of [translatedCoordinateRecord.anchor,...translatedCoordinateRecord.contacts,...translatedCoordinateRecord.endpoints]){pointRecordValue.x+=anchorDeltaValue.x;pointRecordValue.y+=anchorDeltaValue.y;}
+ if([translatedCoordinateRecord.anchor,...(usesFootCentersOnly?translatedCoordinateRecord.contacts:translatedCoordinateRecord.endpoints)].some(pointRecordValue=>pointRecordValue.x<0||pointRecordValue.y<0||pointRecordValue.x>=currentFrameRecord.rect.width||pointRecordValue.y>=currentFrameRecord.rect.height)){document.querySelector('#reviewError').textContent='좌표가 셀을 벗어나 이전 앵커를 적용하지 않았습니다.';return;}
+ restoreFrameCoordinates(currentFrameRecord,translatedCoordinateRecord);
+ document.querySelector('#reviewError').textContent='';
+ recordCoordinateChange(currentFrameRecord,previousCoordinateRecord);
+};
 document.querySelector('#resetCurrentFrame').onclick=()=>{
  pauseFramePlayback();
  const currentFrameRecord=selectCurrentFrame(),previousCoordinateRecord=copyFrameCoordinates(currentFrameRecord);
@@ -115,7 +138,7 @@ function moveSelectedPoint(pointDeltaX,pointDeltaY){
  pauseFramePlayback();if(pointDeltaX===0&&pointDeltaY===0)return;const currentFrameValue=selectCurrentFrame(),previousCoordinateRecord=copyFrameCoordinates(currentFrameValue),editablePointValues=usesFootCentersOnly?currentFrameValue.contacts:currentFrameValue.endpoints;
  const affectedPointValues=pointChoiceElement.value==='anchor'?editablePointValues:[editablePointValues[Number(pointChoiceElement.value)]];
  if(affectedPointValues.some(currentPointValue=>currentPointValue.x+pointDeltaX<0||currentPointValue.y+pointDeltaY<0||currentPointValue.x+pointDeltaX>=currentFrameValue.rect.width||currentPointValue.y+pointDeltaY>=currentFrameValue.rect.height)){document.querySelector('#reviewError').textContent='좌표가 셀을 벗어나 이동하지 않았습니다.';return}
- affectedPointValues.forEach(currentPointValue=>{currentPointValue.x+=pointDeltaX;currentPointValue.y+=pointDeltaY});updateFrameCoordinates(currentFrameValue);document.querySelector('#reviewError').textContent='';recordCoordinateChange(currentFrameValue,previousCoordinateRecord);
+ affectedPointValues.forEach(currentPointValue=>{currentPointValue.x+=pointDeltaX;currentPointValue.y+=pointDeltaY});if(pointChoiceElement.value==='anchor'){currentFrameValue.anchor.x+=pointDeltaX;currentFrameValue.anchor.y+=pointDeltaY;if(!usesFootCentersOnly)currentFrameValue.contacts.forEach(pointRecordValue=>{pointRecordValue.x+=pointDeltaX;pointRecordValue.y+=pointDeltaY});}else updateFrameCoordinates(currentFrameValue);document.querySelector('#reviewError').textContent='';recordCoordinateChange(currentFrameValue,previousCoordinateRecord);
 }
 function calculateCurrentSpriteScale(currentFrameBounds){if(!gameOutputScaleToggleElement.checked)return 1;const runtimeScaleMetadata=reviewSourceMetadata.runtimeScale||{},currentSizePreset=GAME_SIZE_PRESETS[actorSizeChoiceElement.value],sourceHeightValue=runtimeScaleMetadata.sourceHeight||currentFrameBounds.height*(runtimeScaleMetadata.sourceHeightMultiplier||1),targetHeightValue=Number(bodyHeightInputElement.value)*currentSizePreset.scale*previewTileWidthValue/GAME_OUTPUT_TILE_WIDTH;return targetHeightValue/sourceHeightValue;}
 function drawRigMiniMap(currentFrameValue){
@@ -143,6 +166,10 @@ function drawReviewFrame(currentAnimationTime){
  const recommendedGuideHeight=GAME_SIZE_PRESETS[actorSizeChoiceElement.value].recommendedGuideHeight*previewTileWidthValue/GAME_OUTPUT_TILE_WIDTH,recommendedGuideTop=calculatePreviewGroundHeight()-recommendedGuideHeight;
  reviewCanvasContext.save();reviewCanvasContext.strokeStyle='#ff4df3';reviewCanvasContext.lineWidth=3;reviewCanvasContext.setLineDash([8,5]);reviewCanvasContext.beginPath();reviewCanvasContext.moveTo(REVIEW_ANCHOR_POSITION.x,calculatePreviewGroundHeight());reviewCanvasContext.lineTo(REVIEW_ANCHOR_POSITION.x,recommendedGuideTop);reviewCanvasContext.stroke();reviewCanvasContext.setLineDash([]);reviewCanvasContext.beginPath();reviewCanvasContext.moveTo(REVIEW_ANCHOR_POSITION.x-12,recommendedGuideTop);reviewCanvasContext.lineTo(REVIEW_ANCHOR_POSITION.x+12,recommendedGuideTop);reviewCanvasContext.stroke();reviewCanvasContext.fillStyle='#ffdcfb';reviewCanvasContext.fillRect(REVIEW_ANCHOR_POSITION.x+8,recommendedGuideTop-23,116,20);reviewCanvasContext.fillStyle='#5d0758';reviewCanvasContext.fillText(`고정 권장 ${GAME_SIZE_PRESETS[actorSizeChoiceElement.value].recommendedGuideHeight}px`,REVIEW_ANCHOR_POSITION.x+12,recommendedGuideTop-8);reviewCanvasContext.restore();
  const selectedPointValue=pointChoiceElement.value==='anchor'?currentFrameValue.anchor:(usesFootCentersOnly?currentFrameValue.contacts:currentFrameValue.endpoints)[Number(pointChoiceElement.value)];
+ document.querySelector('#copyPreviousAnchor').disabled=Number(frameChoiceElement.value)===0;
+ document.querySelector('#previousAnchorStatus').textContent=Number(frameChoiceElement.value)===0?'첫 프레임에는 이전 앵커가 없습니다.':'같은 방향의 이전 프레임 앵커에 맞춥니다.';
+ const currentInputIdentity=`${currentFrameValue.frameId}:${pointChoiceElement.value}:${selectedPointValue.x}:${selectedPointValue.y}`;
+ if(coordinateInputIdentity!==currentInputIdentity){document.querySelector('#coordinateInputX').value=String(selectedPointValue.x);document.querySelector('#coordinateInputY').value=String(selectedPointValue.y);coordinateInputIdentity=currentInputIdentity;}
  document.querySelector('#pointStatus').textContent=`X ${selectedPointValue.x} / Y ${selectedPointValue.y}`;
  document.querySelector('#frameNumber').textContent=`${Number(frameChoiceElement.value)+1} / ${REVIEW_FRAME_COUNT}`;
  document.querySelector('#frameStatus').textContent=`${currentFrameValue.frameId} | 앵커 (${currentFrameValue.anchor.x}, ${currentFrameValue.anchor.y}) | ${REVIEW_FRAME_DURATION}ms · ${REVIEW_FRAME_COUNT*REVIEW_FRAME_DURATION/1000}초 반복`;
