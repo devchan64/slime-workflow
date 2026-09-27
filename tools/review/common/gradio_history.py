@@ -1,5 +1,6 @@
 """생성이력 수동 초기화의 공용 UI와 명령 연결."""
 import gradio as gr
+from pathlib import Path
 from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_confirmation
 
 
@@ -300,6 +301,6 @@ def build_generation_history_view(execute_service_command,server_base_address,de
             if not selected_job_identifier:raise gr.Error('삭제할 이력을 선택하세요.')
             execute_service_command('history-delete',{'id':selected_job_identifier})
             return reset_view_values()
-        history_delete_button.click(delete_selected_history,[history_selection_value,history_delete_confirmation],reset_output_components,js="(identifier)=>[identifier,!!identifier && window.confirm('선택한 생성 이력을 삭제할까요?\\nID: '+identifier+'\\n이력 목록에서만 삭제합니다. 결과·참조 이미지·로그 파일은 유지됩니다. 대기·실행 중 작업은 먼저 중지하세요.')]")
+        history_delete_button.click(delete_selected_history,[history_selection_value,history_delete_confirmation],reset_output_components,js=(Path(__file__).resolve().parents[1]/'ui/shared/history-delete-confirmation.js').read_text(),trigger_mode='once')
     bind_history_reset_action(reset_control_values,execute_service_command,reset_view_values,reset_output_components)
     return read_history_page,[history_selection_value,history_count_value,history_page_value,history_cards_value,history_previous_button,history_next_button,history_remaining_cards,history_selected_panel]

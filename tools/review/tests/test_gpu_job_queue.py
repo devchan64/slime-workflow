@@ -17,6 +17,10 @@ class GpuJobQueueTests(unittest.TestCase):
         self.queue_path_patch = patch.object(queue_module,'GPU_QUEUE_DIRECTORY',Path(self.temporary_job_root.name)/'queue')
         self.queue_path_patch.start()
         self.addCleanup(self.queue_path_patch.stop)
+        from tools.review.common import gpu_memory_history
+        self.memory_history_patch = patch.object(gpu_memory_history,'MEMORY_HISTORY_DIRECTORY',Path(self.temporary_job_root.name)/'memory')
+        self.memory_history_patch.start()
+        self.addCleanup(self.memory_history_patch.stop)
         self.signal_handler_patch = patch('signal.signal')
         self.signal_handler_patch.start()
         self.addCleanup(self.signal_handler_patch.stop)
@@ -36,7 +40,7 @@ class GpuJobQueueTests(unittest.TestCase):
     def test_memory_recovery_starts_worker_and_keeps_result(self):
         worker_process_mock=Mock(returncode=0)
         worker_process_mock.poll.return_value=0
-        with patch.object(queue_module,'read_gpu_memory',side_effect=[(24000,1000),(24000,8000)]),patch.object(queue_module.time,'sleep'),patch.object(queue_module.subprocess,'Popen',return_value=worker_process_mock) as worker_launch_mock:
+        with patch.object(queue_module,'read_gpu_memory',side_effect=[(24000,1000),(24000,1000),(24000,8000),(24000,8000)]),patch.object(queue_module.time,'sleep'),patch.object(queue_module.subprocess,'Popen',return_value=worker_process_mock) as worker_launch_mock:
             self.assertEqual(queue_module.execute_queued_generation(self.current_job_path),0)
             worker_launch_mock.assert_called_once()
         self.assertEqual(json.loads((self.current_job_path/'status.json').read_text())['status'],'completed')
@@ -46,6 +50,27 @@ class GpuJobQueueTests(unittest.TestCase):
             self.assertEqual(queue_module.execute_queued_generation(self.current_job_path),1)
             worker_launch_mock.assert_not_called()
         self.assertIn('요구량',json.loads((self.current_job_path/'status.json').read_text())['error'])
+
+    def test_available_memory_admits_job_alongside_active_reservation(self):
+        active = queue_module.GPU_QUEUE_DIRECTORY/'active'
+        active.mkdir(parents=True)
+        import os
+        (active/'existing.json').write_text(json.dumps({'pid':os.getpid(),'required_memory_mib':4096}))
+        worker=Mock(returncode=0)
+        worker.poll.return_value=0
+        with patch.object(queue_module,'read_gpu_memory',return_value=(24000,12000)),patch.object(queue_module.subprocess,'Popen',return_value=worker) as launch:
+            self.assertEqual(queue_module.execute_queued_generation(self.current_job_path),0)
+            launch.assert_called_once()
+        self.assertEqual(len(list(active.glob('*.json'))),1)
+
+    def test_reservation_prevents_oversubscription_before_model_load(self):
+        active = queue_module.GPU_QUEUE_DIRECTORY/'active'
+        active.mkdir(parents=True)
+        import os
+        (active/'existing.json').write_text(json.dumps({'pid':os.getpid(),'required_memory_mib':6144}))
+        with patch.object(queue_module,'read_gpu_memory',return_value=(10000,8000)),patch.object(queue_module.time,'sleep',side_effect=lambda _:queue_module.cancel_gpu_generation(self.current_job_path)),patch.object(queue_module.subprocess,'Popen') as launch:
+            self.assertEqual(queue_module.execute_queued_generation(self.current_job_path),0)
+            launch.assert_not_called()
 
     def test_resume_preserves_existing_artifacts_and_prevents_duplicate(self):
         (self.current_job_path/'status.json').write_text('{"status":"cancelled"}')

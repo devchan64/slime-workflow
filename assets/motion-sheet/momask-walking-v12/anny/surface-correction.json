@@ -1,0 +1,7 @@
+{
+  "method": "corrective-smooth",
+  "factor": 0.5,
+  "iterations": 10,
+  "pin_boundary": true,
+  "scope": "blender-render-only"
+}
