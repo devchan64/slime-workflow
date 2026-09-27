@@ -4,6 +4,9 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
+
+from tools.review import serve
 
 from tools.review.import_ui_bundle import import_ui_bundle
 
@@ -34,6 +37,20 @@ class UiBundleTests(unittest.TestCase):
             copied_page_path = review_output_directory/page_records[0]['path']
             self.assertEqual(copied_page_path.read_text(), '<html><body>review</body></html>')
             self.assertIn('커밋 원본', page_records[0]['description'])
+
+    def test_invalid_cache_triggers_build_instead_of_reuse(self):
+        with tempfile.TemporaryDirectory() as temporary_directory_name:
+            temporary_directory_path = Path(temporary_directory_name)
+            source_bundle_directory = self.make_bundle(temporary_directory_path)
+            snapshot_parent_path = temporary_directory_path/'.tmp/ui-review/snapshot'
+            snapshot_parent_path.mkdir(parents=True)
+            source_bundle_directory.rename(snapshot_parent_path/'ui-review')
+            (snapshot_parent_path/'ui-review-source.json').write_text(json.dumps({'sourceHash': 'test-source'}))
+            (snapshot_parent_path/'ui-review/review/sample.html').write_text('changed')
+            with patch.object(serve, '__file__', str(temporary_directory_path/'tools/review/serve.py')), patch.object(serve, 'calculate_frontend_review_source_hash', return_value='test-source'), patch.object(serve.subprocess, 'run', side_effect=RuntimeError('build requested')) as rebuild_command_mock:
+                with self.assertRaisesRegex(RuntimeError, 'build requested'):
+                    serve.ensure_frontend_ui_review_bundle(temporary_directory_path)
+                rebuild_command_mock.assert_called_once_with(['npm', 'run', 'build:review'], cwd=temporary_directory_path, check=True)
 
     def test_rejects_changed_bundle_file(self):
         with tempfile.TemporaryDirectory() as temporary_directory_name:

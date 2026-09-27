@@ -215,6 +215,7 @@ def find_latest_ui_review_bundle(frontend_repository_path):
     raise ValueError('검증 가능한 UI 검수 빌드를 찾지 못했습니다. '+validation_errors[-1])
 
 def ensure_frontend_ui_review_bundle(frontend_repository_path):
+    from tools.review.import_ui_bundle import load_ui_bundle
     frontend_repository_path = Path(frontend_repository_path).resolve()
     workflow_temporary_root = Path(__file__).resolve().parents[2]/'.tmp'
     ui_review_snapshot_root = workflow_temporary_root/'ui-review'
@@ -224,6 +225,11 @@ def ensure_frontend_ui_review_bundle(frontend_repository_path):
         if source_hash_path.is_file():
             source_hash_record = json.loads(source_hash_path.read_text())
             if source_hash_record.get('sourceHash') == source_hash_value:
+                try:
+                    load_ui_bundle(current_bundle_path)
+                except (OSError, ValueError) as current_validation_error:
+                    print(f'{datetime.now().isoformat()}/asset-review-server/ui-cache-invalid {current_bundle_path}: {current_validation_error}', flush=True)
+                    break
                 return current_bundle_path
     print(f'{datetime.now().isoformat()}/asset-review-server/ui-build 프론트엔드 UI 검수 빌드를 생성합니다.', flush=True)
     subprocess.run(['npm', 'run', 'build:review'], cwd=frontend_repository_path, check=True)
@@ -232,10 +238,12 @@ def ensure_frontend_ui_review_bundle(frontend_repository_path):
     if not source_bundle_candidates:
         raise ValueError('npm run build:review 결과에서 ui-review 사본을 찾지 못했습니다.')
     source_bundle_path = source_bundle_candidates[0]
+    load_ui_bundle(source_bundle_path)
     snapshot_directory = ui_review_snapshot_root/(datetime.now(ZoneInfo('Asia/Seoul')).strftime('%Y-%m-%d_%H-%M-%S')+'-'+source_hash_value[:12])
     snapshot_directory.mkdir(parents=True, exist_ok=False)
     destination_bundle_path = snapshot_directory/'ui-review'
     shutil.copytree(source_bundle_path, destination_bundle_path)
+    load_ui_bundle(destination_bundle_path)
     source_record = {'sourceHash': source_hash_value, 'sourceRepository': str(frontend_repository_path), 'sourceBundle': str(source_bundle_path), 'snapshotBundle': str(destination_bundle_path)}
     (snapshot_directory/'ui-review-source.json').write_text(json.dumps(source_record, ensure_ascii=False, indent=2))
     (ui_review_snapshot_root/'latest.json').write_text(json.dumps(source_record, ensure_ascii=False, indent=2))

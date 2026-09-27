@@ -189,7 +189,7 @@ async function refreshAnchorHistoryList(){
   }catch(errorValue){historyStatusElement.textContent=errorValue.message;}};
   historyListElement.append(historyButtonElement);
  }
- historyStatusElement.textContent=`저장 이력 ${responsePayloadValue.items.length}건`;
+ historyStatusElement.textContent=responsePayloadValue.items.length?`저장 이력 ${responsePayloadValue.items.length}건`:'저장된 좌표가 없습니다. 위의 좌표 저장 버튼으로 생성 이력을 남기세요.';
  }catch(errorValue){historyStatusElement.textContent=errorValue.message;}
 }
 const saveAnchorHistoryButton=document.querySelector('#saveAnchorHistory');

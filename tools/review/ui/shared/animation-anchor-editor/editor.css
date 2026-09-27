@@ -37,3 +37,12 @@
 #static-review-root .anchor-workspace .preview-display-settings:not([open])>.preview-ground-controls{display:none!important}
 
 .anchor-history-panel{grid-column:1/-1;grid-row:4;min-width:0}.anchor-history-panel #anchorHistoryList{display:grid;gap:8px}.anchor-history-panel button{overflow-wrap:anywhere;text-align:left}
+/* 저장과 이력을 첫 화면에서 함께 확인한다. */
+.anchor-workspace .anchor-history-panel{grid-column:1/-1;grid-row:2}
+.anchor-workspace .anchor-controls,.anchor-workspace .anchor-preview{grid-row:3}
+.anchor-history-panel #anchorHistoryList{max-height:180px;overflow-y:auto}
+.anchor-history-panel h2{font-size:16px;margin:0 0 8px}
+@media(max-width:700px){.anchor-workspace .anchor-preview{grid-row:4}}
+#static-review-root .anchor-workspace{display:grid;grid-template-columns:minmax(220px,280px) minmax(0,1fr);grid-template-rows:auto auto auto;height:auto}
+#static-review-root .anchor-workspace>.editor-save-panel,#static-review-root .anchor-workspace>.anchor-history-panel{width:100%;box-sizing:border-box;min-width:0}
+@media(max-width:700px){#static-review-root .anchor-workspace{grid-template-columns:minmax(0,1fr)}}
