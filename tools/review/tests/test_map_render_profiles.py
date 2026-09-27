@@ -5,6 +5,7 @@ from tempfile import TemporaryDirectory
 import unittest
 
 from tools.review.build_block_map_review import build_block_map_review
+from tools.review.common.game_render_metrics import load_game_render_metrics
 from tools.review.build_map_review import load_map_render_profiles
 
 
@@ -17,6 +18,27 @@ def load_exported_game_map(city_identifier):
 
 
 class MapRenderProfileTests(unittest.TestCase):
+    def test_all_town_reviews_use_the_game_export_as_the_only_layout_snapshot(self):
+        source_manifest_record = json.loads((GAME_MAP_DIRECTORY / 'source-manifest.json').read_text(encoding='utf-8'))
+        expected_city_identifiers = {'iseulon', 'reedhaven', 'stonewarm'}
+
+        self.assertEqual(set(source_manifest_record['cityLayoutSha256']), expected_city_identifiers)
+        self.assertEqual(
+            {current_map_path.stem for current_map_path in GAME_MAP_DIRECTORY.glob('*.json') if current_map_path.name != 'source-manifest.json'},
+            expected_city_identifiers,
+        )
+        for current_city_identifier in expected_city_identifiers:
+            self.assertFalse((WORKFLOW_ROOT / f'assets/world/isloon/blocks/{current_city_identifier}.json').exists())
+
+    def test_game_render_metrics_identify_every_game_city_export_source(self):
+        game_render_metrics = load_game_render_metrics(WORKFLOW_ROOT.parent / 'slime-frontend')
+        metric_source_paths = {current_source_record['path'] for current_source_record in game_render_metrics['sources']}
+
+        self.assertEqual(game_render_metrics['wallHeight'], 80)
+        self.assertIn('assets/world/isloon/game-data/source-manifest.json', metric_source_paths)
+        for current_city_identifier in ('iseulon', 'reedhaven', 'stonewarm'):
+            self.assertIn(f'assets/world/isloon/game-data/{current_city_identifier}.json', metric_source_paths)
+
     def test_building_review_templates_use_shared_profile_values(self):
         render_profile_values = load_map_render_profiles()
         self.assertEqual(render_profile_values['wall_height'], 80)
@@ -118,15 +140,30 @@ class MapRenderProfileTests(unittest.TestCase):
     def test_iseulon_game_snapshot_and_review_output_keep_the_new_building_floors(self):
         iseulon_map_record = load_exported_game_map('iseulon')
         guild_building_record = next(building for building in iseulon_map_record['buildings'] if building['id'] == 'iseulon-guild')
+        map_review_script = (WORKFLOW_ROOT / 'tools/review/ui/map/block-map-review.js').read_text(encoding='utf-8')
 
         self.assertEqual((guild_building_record['width'], guild_building_record['height'], guild_building_record['floors']), (2, 3, 2))
         self.assertTrue(all(building['floors'] == 1 for building in iseulon_map_record['buildings'] if building['id'] != 'iseulon-guild'))
+        for current_building_record in iseulon_map_record['buildings']:
+            if current_building_record['id'] == 'iseulon-guild':
+                continue
+            self.assertGreaterEqual(len(current_building_record['blocks']), current_building_record['width'] * current_building_record['height'] * 2)
         with TemporaryDirectory(dir=WORKFLOW_ROOT / '.tmp') as current_temporary_directory:
             current_output_directory = build_block_map_review(Path(current_temporary_directory))
             reviewed_map_record = json.loads((current_output_directory / 'block-map-iseulon.json').read_text(encoding='utf-8'))
         reviewed_guild_record = next(building for building in reviewed_map_record['buildings'] if building['id'] == 'iseulon-guild')
         self.assertEqual((reviewed_guild_record['width'], reviewed_guild_record['height'], reviewed_guild_record['floors']), (2, 3, 2))
         self.assertTrue(all(block['height'] == 80 for block in reviewed_guild_record['blocks']))
+        reviewed_bookshop_record = next(building for building in reviewed_map_record['buildings'] if building['id'] == 'iseulon-bookshop')
+        self.assertEqual({block['height'] for block in reviewed_bookshop_record['blocks'] if block['material'] == 'roof'}, {80})
+        self.assertTrue(any(not face['top'] for face in reviewed_bookshop_record['faces'] if face['material'] == 'roof'))
+        self.assertEqual({vertex['height'] for face in reviewed_bookshop_record['faces'] if face['material'] == 'roof' for vertex in face['vertices']}, {80, 160})
+        reviewed_inn_record = next(building for building in reviewed_map_record['buildings'] if building['id'] == 'iseulon-inn')
+        self.assertEqual({block['layer'] for block in reviewed_inn_record['blocks'] if block['material'] == 'roof'}, {1, 2})
+        self.assertEqual({block['layer'] for block in reviewed_inn_record['blocks'] if block['material'] == 'wall'}, {0, 1})
+        self.assertEqual(len([face for face in reviewed_inn_record['faces'] if face['material'] == 'roof' and not face['top']]), 14)
+        self.assertIn("currentRoofHeightSummary", map_review_script)
+        self.assertIn('currentBuildingFloorSummary', map_review_script)
 
     def test_map_review_lists_applied_sources_and_normalization_warnings(self):
         map_review_template = (WORKFLOW_ROOT / 'tools/review/ui/map/block-map-review.html').read_text(encoding='utf-8')

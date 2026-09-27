@@ -21,6 +21,7 @@ from tools.review.domains.tile.tile_generation import REFERENCE_STYLE_PROMPT
 
 WALL_TILE_KOREAN_EXAMPLE = '석재 벽면, 양옆에 기둥이 절반이 보이게 배치한다, 상단에 단을 배치한다.'
 SMALL_WINDOW_WALL_KOREAN_EXAMPLE = '이미지 1은 밖에서 보는 벽면이다. 실내가 보이지 않는 작은 창문은 상단에 추가한다.'
+CLOSED_GATE_WALL_KOREAN_EXAMPLE = '닫힌 대문을 추가한다.'
 GROUND_TILE_KOREAN_EXAMPLE = '불규칙한 모양의 커다란 평면 회색 대리석으로 6개로 이루어진 바닥'
 
 def execute_tile_gateway(command_name_value,payload_value):return execute_management_command('tile-map',command_name_value,payload_value)
@@ -34,6 +35,10 @@ def append_small_window_wall_example(current_prompt_value):
     current_prompt_text=(current_prompt_value or '').strip()
     if SMALL_WINDOW_WALL_KOREAN_EXAMPLE in current_prompt_text:return current_prompt_text
     return SMALL_WINDOW_WALL_KOREAN_EXAMPLE if not current_prompt_text else current_prompt_text+'\n'+SMALL_WINDOW_WALL_KOREAN_EXAMPLE
+def append_closed_gate_wall_example(current_prompt_value):
+    current_prompt_text=(current_prompt_value or '').strip()
+    if CLOSED_GATE_WALL_KOREAN_EXAMPLE in current_prompt_text:return current_prompt_text
+    return CLOSED_GATE_WALL_KOREAN_EXAMPLE if not current_prompt_text else current_prompt_text+'\n'+CLOSED_GATE_WALL_KOREAN_EXAMPLE
 def append_ground_tile_example(current_prompt_value):
     current_prompt_text=(current_prompt_value or '').strip()
     if GROUND_TILE_KOREAN_EXAMPLE in current_prompt_text:return current_prompt_text
@@ -80,6 +85,7 @@ def build_tile_interface(server_base_address):
                     clear_prompt_button_value=gr.Button('사용자 프롬프트 초기화',size='sm',scale=1)
                     wall_example_button_value=gr.Button('벽 타일 한글 예시 넣기',visible=tile_choices[0][1]=='wall',size='sm',scale=1)
                     small_window_example_button_value=gr.Button('작은창문 한글 예시 넣기',visible=tile_choices[0][1]=='wall',size='sm',scale=1)
+                    closed_gate_example_button_value=gr.Button('닫힌 대문 한글 예시 넣기',visible=tile_choices[0][1]=='wall',size='sm',scale=1)
                     ground_example_button_value=gr.Button('바닥 타일 예시 넣기',visible=tile_choices[0][1]=='ground',size='sm',scale=1)
                 gr.Markdown('> **주의:** 프롬프트에 `타일`을 입력하면 분리된 타일 형태로 생성될 수 있습니다. 연속된 바닥이나 지면을 원하면 원하는 표면·재질·구성을 직접 설명하세요.')
                 generation_tag_value=gr.Textbox(label='생성 이력 태그 · 선택 사항',placeholder='예: 이슬온 시장 외벽 후보',max_lines=1)
@@ -96,11 +102,12 @@ def build_tile_interface(server_base_address):
                     gr.Textbox(value=REFERENCE_STYLE_PROMPT,label=f'참조 화풍 보존 · {len(REFERENCE_STYLE_PROMPT.split())}단어',interactive=False,lines=3)
                 def update_base_prompt(selected_tile_kind):
                     current_prompt_text=catalog_record_value['types'][selected_tile_kind]['base_prompt']
-                    return gr.update(value=current_prompt_text,label=f'기본 프롬프트 · {len(current_prompt_text.split())}단어'),gr.update(visible=selected_tile_kind=='wall'),gr.update(visible=selected_tile_kind=='wall'),gr.update(visible=selected_tile_kind=='ground')
-                tile_value.change(update_base_prompt,inputs=tile_value,outputs=[base_prompt_display,wall_example_button_value,small_window_example_button_value,ground_example_button_value],queue=False)
+                    return gr.update(value=current_prompt_text,label=f'기본 프롬프트 · {len(current_prompt_text.split())}단어'),gr.update(visible=selected_tile_kind=='wall'),gr.update(visible=selected_tile_kind=='wall'),gr.update(visible=selected_tile_kind=='wall'),gr.update(visible=selected_tile_kind=='ground')
+                tile_value.change(update_base_prompt,inputs=tile_value,outputs=[base_prompt_display,wall_example_button_value,small_window_example_button_value,closed_gate_example_button_value,ground_example_button_value],queue=False)
                 clear_prompt_button_value.click(clear_user_prompt_value,outputs=prompt_value,queue=False)
                 wall_example_button_value.click(append_wall_tile_example,inputs=prompt_value,outputs=prompt_value,queue=False)
                 small_window_example_button_value.click(append_small_window_wall_example,inputs=prompt_value,outputs=prompt_value,queue=False)
+                closed_gate_example_button_value.click(append_closed_gate_wall_example,inputs=prompt_value,outputs=prompt_value,queue=False)
                 ground_example_button_value.click(append_ground_tile_example,inputs=prompt_value,outputs=prompt_value,queue=False)
                 width_value=gr.Dropdown([512,768,1024],value=512,label='정사각형 해상도');step_value=gr.Radio([4,30],value=4,label='생성 스텝')
                 with gr.Group(elem_classes=['seed-control-group']):

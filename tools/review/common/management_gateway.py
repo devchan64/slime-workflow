@@ -14,8 +14,8 @@ from email.message import Message
 from urllib.parse import urlsplit, parse_qs
 
 MANAGEMENT_SERVICE_ROUTES = {'anny':'/anny-attributes','tile-map':'/tile-map-generator','character-animation':'/character-animation','momask':'/momask-generator','qwen-2512':'/image-generation','qwen-2511':'/image-generation-2511'}
-MANAGEMENT_COMMAND_ROUTES = {'history-delete':('POST','/history/{id}/delete'),'resume':('POST','/resume'),'sprite-source':('POST','/sprite/source'),'sprite-save':('POST','/sprite/save'),'sprite-load':('POST','/sprite/load'),'catalog':('GET','/catalog'),'generate':('POST','/jobs'),'prepare':('POST','/jobs'),'status':('GET','/jobs/{id}'),'logs':('GET','/jobs/{id}/worker.log'),'history':('GET','/history'),'active':('GET','/active'),'model-status':('GET','/model-status'),'cancel':('POST','/cancel'),'history-reset':('POST','/history/reset')}
-MANAGEMENT_SERVICE_COMMANDS = {'anny':('status','history','cancel','resume'),'tile-map':('history-delete','resume','catalog','generate','prepare','status','logs','history','active','model-status','cancel','history-reset'),'character-animation':('history-delete','resume','sprite-source','sprite-save','sprite-load','catalog','generate','status','logs','history','active','cancel','history-reset'),'momask':('history-delete','resume','generate','status','logs','history','cancel','history-reset'),'qwen-2512':('history-delete','resume','generate','prepare','status','logs','history','active','model-status','cancel','history-reset'),'qwen-2511':('history-delete','resume','generate','status','logs','history','active','model-status','cancel','history-reset')}
+MANAGEMENT_COMMAND_ROUTES = {'history-delete':('POST','/history/{id}/delete'),'resume':('POST','/resume'),'sprite-source':('POST','/sprite/source'),'sprite-save':('POST','/sprite/save'),'sprite-load':('POST','/sprite/load'),'catalog':('GET','/catalog'),'generate':('POST','/jobs'),'queue':('POST','/jobs'),'prepare':('POST','/jobs'),'status':('GET','/jobs/{id}'),'logs':('GET','/jobs/{id}/worker.log'),'history':('GET','/history'),'active':('GET','/active'),'model-status':('GET','/model-status'),'cancel':('POST','/cancel'),'history-reset':('POST','/history/reset')}
+MANAGEMENT_SERVICE_COMMANDS = {'anny':('status','history','cancel','resume'),'tile-map':('history-delete','resume','catalog','generate','queue','prepare','status','logs','history','active','model-status','cancel','history-reset'),'character-animation':('history-delete','resume','sprite-source','sprite-save','sprite-load','catalog','generate','status','logs','history','active','cancel','history-reset'),'momask':('history-delete','resume','generate','status','logs','history','cancel','history-reset'),'qwen-2512':('history-delete','resume','generate','prepare','status','logs','history','active','model-status','cancel','history-reset'),'qwen-2511':('history-delete','resume','generate','status','logs','history','active','model-status','cancel','history-reset')}
 
 
 def resolve_management_command(service_command_name, operation_command_name, command_payload_value):
@@ -177,6 +177,7 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
             operation_argument_parser.add_argument('id')
         if operation_command_name=='generate':
             operation_argument_parser.add_argument('--detach',action='store_true',help='작업 ID 출력 후 반환')
+        if operation_command_name in ('generate','queue'):
             operation_argument_parser.add_argument('--tag',default='',help='생성 이력 구분 태그, 최대 80자')
             if service_command_name=='character-animation':
                 operation_argument_parser.add_argument('--steps',type=int,choices=(4,30),default=None,help='4: Lightning, 30: 표준 생성 (기본 4)')
@@ -224,7 +225,7 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
         if operation_command_name=='sprite-save':command_payload_value['document']=json.loads(command_argument_values.document_file.read_text())
     if operation_command_name=='history-reset':command_payload_value={'action':'reset'}
     if operation_command_name=='prepare':command_payload_value={'action':'prepare'}
-    if operation_command_name=='generate':
+    if operation_command_name in ('generate','queue'):
         if service_command_name=='character-animation':
             command_payload_value={'motion':command_argument_values.motion,'character':command_argument_values.character,'source':command_argument_values.source,'directions':command_argument_values.directions}
             if command_argument_values.tag:command_payload_value['tag']=command_argument_values.tag

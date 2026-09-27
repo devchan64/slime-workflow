@@ -47,7 +47,7 @@ HTTP URL, 페이지 해시, CLI 명령, `.tmp` 생성 ID·기록 경로와 `asse
 
 ## 마을 맵 원장과 검수 사본
 
-마을의 블록 배치·건물 크기·층수는 게임 백엔드의 `config/city_layouts/`가 원장이다. 검수 화면은 런타임에 다른 저장소를 읽지 않고, 게임 데이터에서 명시적으로 내보낸 `assets/world/isloon/game-data/` 사본만 사용한다. 사본의 `source-manifest.json`에는 원장 YAML 해시와 게임 블록 높이를 함께 기록한다.
+이슬온·갈대나루·돌온재의 블록 배치·건물 크기·층수는 게임 백엔드의 `config/city_layouts/`가 유일한 원장이다. 검수 화면은 런타임에 다른 저장소를 읽지 않고, 게임 데이터에서 명시적으로 내보낸 `assets/world/isloon/game-data/` 사본만 사용한다. 검수 전용 `blocks/<마을>.json` 레이아웃 사본은 두지 않는다. 사본의 `source-manifest.json`에는 세 마을 원장 YAML 해시와 게임 블록 높이를 함께 기록한다.
 
 게임 도시 레이아웃을 다시 컴파일한 뒤 다음 명령으로 검수 사본을 갱신한다.
 

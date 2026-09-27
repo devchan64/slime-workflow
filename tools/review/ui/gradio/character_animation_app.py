@@ -117,11 +117,22 @@ def build_character_animation_interface(server_base_address):
                     speed_select_value=gr.Dropdown([1,1.5,2,4],value=1,label='생성 배속')
                 generation_tag_value=gr.Textbox(label='생성 이력 태그 · 선택 사항',placeholder='예: 돌온재 걷기 후보',max_lines=1)
                 prompt_text_value=gr.Textbox(value=catalog_record_value['prompts']['base'],label='고정 기본 프롬프트',interactive=False,lines=4)
+                reset_base_prompt_button=gr.Button('기본 프롬프트 초기화',size='sm')
                 with gr.Accordion('방향별 보조 프롬프트 · 선택 사항',open=True):
                     gr.Markdown('비워 두면 추가 지시 없이 생성합니다. 입력한 내용은 해당 방향의 고정 프롬프트 뒤에 추가됩니다.')
                     direction_prompt_components=[]
                     for direction_label_text,direction_name_value in DIRECTION_LABEL_VALUES:
                         direction_prompt_components.append(gr.Textbox(value=motion_catalog_records[motion_choice_values[0][1]].get('direction_auxiliary_prompts',{}).get(direction_name_value,''),label=direction_label_text+' 보조 프롬프트',lines=2))
+                    reset_auxiliary_prompt_button=gr.Button('보조 프롬프트 초기화',size='sm')
+                    gr.Markdown('초기화하면 선택한 모션의 기본 보조 문구로 복원합니다. 기본 문구가 없으면 빈 값으로 복원합니다.')
+                def reset_base_prompt_value():
+                    return read_animation_catalog()['prompts']['base']
+                def reset_auxiliary_prompt_values(selected_motion_name):
+                    current_catalog_record=read_animation_catalog()
+                    selected_motion_record=next(record for record in current_catalog_record['motions'] if record['id']==selected_motion_name)
+                    return [selected_motion_record.get('direction_auxiliary_prompts',{}).get(direction,'') for _,direction in DIRECTION_LABEL_VALUES]
+                reset_base_prompt_button.click(reset_base_prompt_value,outputs=prompt_text_value,queue=False)
+                reset_auxiliary_prompt_button.click(reset_auxiliary_prompt_values,inputs=motion_select_value,outputs=direction_prompt_components,queue=False)
             with gr.Accordion('입력 포즈 미리보기',open=False):
                 preview_direction_value=gr.Dropdown(DIRECTION_LABEL_VALUES,value='down_left',label='미리보기 방향')
                 generation_identifier_value=gr.State('')

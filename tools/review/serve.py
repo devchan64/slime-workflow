@@ -120,7 +120,7 @@ def parse_review_arguments(command_argument_values=None):
 
 def collect_review_watch_paths(parsed_argument_values):
     workflow_repo_root = Path(__file__).resolve().parents[2]
-    watch_paths = [Path(__file__).resolve(), workflow_repo_root/'tools/review', workflow_repo_root/'generators']
+    watch_paths = [Path(__file__).resolve(), workflow_repo_root/'tools/review', workflow_repo_root/'generators', workflow_repo_root/'assets/world/isloon/game-data']
     current_writer_config=parsed_argument_values.writer_agent_config or workflow_repo_root/'.local/writer-agent/workspace.yaml'
     watch_paths.append(current_writer_config)
     if parsed_argument_values.frontend_repo:

@@ -21,7 +21,8 @@ def load_town_block_height():
 def validate_town_block_heights(map_record_values, block_height_value):
     for building_record_values in map_record_values['buildings']:
         for block_record_values in building_record_values['blocks']:
-            if block_record_values['height']!=block_height_value:
+            current_block_height=block_record_values['height']
+            if not isinstance(current_block_height,int) or current_block_height<=0 or block_height_value%current_block_height:
                 raise ValueError(f'블록 높이 오류: {map_record_values["id"]}/{block_record_values["id"]}')
         for face_record_values in building_record_values.get('faces',[]):
             for vertex_record_values in face_record_values['vertices']:
@@ -37,15 +38,21 @@ def normalize_game_block_heights(map_record_values, source_block_height, target_
         for current_block_record in current_building_record['blocks']:
             current_block_height=current_block_record['height']
             current_offset_height=current_block_record['offsetHeight']
-            if current_block_height%source_block_height or current_offset_height%source_block_height:
+            current_normalized_block_height=current_block_height*target_block_height
+            current_normalized_offset_height=current_offset_height*target_block_height
+            if current_normalized_block_height%source_block_height or current_normalized_offset_height%source_block_height:
                 raise ValueError(f'게임 블록 높이 단위 오류: {map_record_values["id"]}/{current_block_record["id"]}')
-            current_block_record['height']=current_block_height//source_block_height*target_block_height
-            current_block_record['offsetHeight']=current_offset_height//source_block_height*target_block_height
+            current_block_record['height']=current_normalized_block_height//source_block_height
+            current_block_record['offsetHeight']=current_normalized_offset_height//source_block_height
 
 
 def build_current_block_faces(block_record_values, block_height_value):
-    """현재 블록 구성으로 검수 전용 면을 다시 만든다."""
+    """현재 블록 구성으로 검수 전용 면을 다시 만든다. 경사 블록의 내부 면은 숨긴다."""
     current_face_records=[]
+    minimum_column_value=min(current_block_record['column'] for current_block_record in block_record_values)
+    maximum_column_value=max(current_block_record['column'] for current_block_record in block_record_values)
+    minimum_row_value=min(current_block_record['row'] for current_block_record in block_record_values)
+    maximum_row_value=max(current_block_record['row'] for current_block_record in block_record_values)
     for current_block_record in block_record_values:
         current_base_height=current_block_record['layer']*block_height_value+current_block_record['offsetHeight']
         current_top_height=current_base_height+current_block_record['height']
@@ -60,12 +67,20 @@ def build_current_block_faces(block_record_values, block_height_value):
         current_top_corners=[{**current_corner,'height':current_top_height} for current_corner in current_corners]
         if current_block_record['shape']=='ramp':
             high_side_name=current_block_record['highSide']
+            current_top_corners=[dict(current_corner) for current_corner in current_corners]
             for current_corner in current_top_corners:
                 if (high_side_name=='east' and current_corner['column']>current_column) or (high_side_name=='west' and current_corner['column']<current_column) or (high_side_name=='south' and current_corner['row']>current_row) or (high_side_name=='north' and current_corner['row']<current_row):
                     current_corner['height']+=current_block_record['height']
         current_face_records.append({'vertices':current_top_corners,'material':current_block_record['material'],'top':True})
         for current_corner_index in range(4):
             next_corner_index=(current_corner_index+1)%4
+            if current_block_record['shape']=='ramp' and not (
+                current_corner_index==0 and current_row==minimum_row_value or
+                current_corner_index==1 and current_column==maximum_column_value or
+                current_corner_index==2 and current_row==maximum_row_value or
+                current_corner_index==3 and current_column==minimum_column_value
+            ):
+                continue
             current_face_records.append({'vertices':[current_corners[current_corner_index],current_corners[next_corner_index],current_top_corners[next_corner_index],current_top_corners[current_corner_index]],'material':current_block_record['material'],'top':False})
     return current_face_records
 

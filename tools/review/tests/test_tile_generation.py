@@ -30,13 +30,13 @@ class TileGenerationTests(unittest.TestCase):
     def test_rooftop_prompt_requires_single_surface_and_excludes_building_parts(self):
         rooftop_prompt_text=load_tile_configuration()['types']['rooftop']['base_prompt']
         self.assertIn('one flat continuous plane',rooftop_prompt_text)
-        self.assertIn('filling the entire image',rooftop_prompt_text)
+        self.assertIn('filling the image',rooftop_prompt_text)
         self.assertNotIn('four broad aligned rows',rooftop_prompt_text)
-        self.assertIn('cropped on all sides',rooftop_prompt_text)
-        self.assertLessEqual(len(rooftop_prompt_text.split()),28)
+        self.assertIn('thin structural edge frame along all outer edges for adjacent connections',rooftop_prompt_text)
+        self.assertLessEqual(len(rooftop_prompt_text.split()),32)
         self.assertNotIn('large clearly separated',rooftop_prompt_text)
         self.assertNotIn('wooden',rooftop_prompt_text)
-        self.assertIn('no beams, roof tiers, building silhouette, or background',rooftop_prompt_text)
+        self.assertIn('no interior beams, roof tiers, building silhouette, or background',rooftop_prompt_text)
 
     def test_base_prompts_do_not_prescribe_material(self):
         for tile_type_record in load_tile_configuration()['types'].values():
@@ -72,6 +72,12 @@ class TileGenerationTests(unittest.TestCase):
         self.assertEqual(append_small_window_wall_example(''),SMALL_WINDOW_WALL_KOREAN_EXAMPLE)
         self.assertEqual(append_small_window_wall_example('낮은 성벽'), '낮은 성벽\n'+SMALL_WINDOW_WALL_KOREAN_EXAMPLE)
         self.assertEqual(append_small_window_wall_example(SMALL_WINDOW_WALL_KOREAN_EXAMPLE),SMALL_WINDOW_WALL_KOREAN_EXAMPLE)
+
+    def test_closed_gate_wall_example_is_inserted_without_overwriting_or_duplication(self):
+        from tools.review.ui.gradio.tile_map_app import CLOSED_GATE_WALL_KOREAN_EXAMPLE, append_closed_gate_wall_example
+        self.assertEqual(append_closed_gate_wall_example(''),CLOSED_GATE_WALL_KOREAN_EXAMPLE)
+        self.assertEqual(append_closed_gate_wall_example('낮은 성벽'), '낮은 성벽\n'+CLOSED_GATE_WALL_KOREAN_EXAMPLE)
+        self.assertEqual(append_closed_gate_wall_example(CLOSED_GATE_WALL_KOREAN_EXAMPLE),CLOSED_GATE_WALL_KOREAN_EXAMPLE)
 
     def test_ground_tile_korean_example_is_inserted_without_overwriting_or_duplication(self):
         from tools.review.ui.gradio.tile_map_app import GROUND_TILE_KOREAN_EXAMPLE, append_ground_tile_example
@@ -177,3 +183,12 @@ class TileGenerationTests(unittest.TestCase):
             self.assertEqual(current_payload_value['user_prompt'],'Oak wood.')
             self.assertEqual(current_payload_value['tag'],'돌온재 외벽 후보')
             self.assertNotIn('prompt',current_payload_value)
+
+    def test_cli_queue_adds_tile_request_without_waiting(self):
+        with patch.object(management_gateway,'execute_management_command',return_value={'id':'queued'}) as execute_command_mock:
+            self.assertEqual(management_gateway.execute_gateway_arguments('tile-map',['queue','--tile-type','ground','--prompt','Packed riverbank dirt.','--tag','갈대나루 강변 흙길 후보']),0)
+            self.assertEqual(execute_command_mock.call_args.args[1],'queue')
+            current_payload_value=execute_command_mock.call_args.args[2]
+            self.assertEqual(current_payload_value['action'],'generate')
+            self.assertEqual(current_payload_value['tile_type'],'ground')
+            self.assertEqual(current_payload_value['tag'],'갈대나루 강변 흙길 후보')
