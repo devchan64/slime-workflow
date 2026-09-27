@@ -110,7 +110,7 @@ function selectWallTexture(currentFaceRecord){
  if(currentFaceRecord.floorIndex===0&&isEntranceFace)return 'door';
  // 처마보다 높은 박공 벽에는 창문을 배치하지 않는다.
  const roofBaseHeight=Math.min(...currentBuildingRecord.blocks.filter(currentBlockRecord=>currentBlockRecord.material==='roof').map(currentBlockRecord=>currentBlockRecord.layer*TOWN_BLOCK_HEIGHT+(currentBlockRecord.offsetHeight||0)));
- if(Math.min(...currentFaceRecord.vertices.map(currentVertexPoint=>currentVertexPoint.height))>=roofBaseHeight)return 'wall';
+ if(Math.min(...currentFaceRecord.vertices.map(currentVertexPoint=>currentVertexPoint.height))>=roofBaseHeight)return 'roof_underlay';
  if(currentFaceRecord.floorIndex===0)return currentWallIndex%2===0?'window':'wall';
  return currentWallIndex%2===0?'window':'large_window';
 }

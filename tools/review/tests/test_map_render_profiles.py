@@ -76,11 +76,18 @@ class MapRenderProfileTests(unittest.TestCase):
 
     def test_reedhaven_uses_wood_building_tiles(self):
         tile_catalog_source = (WORKFLOW_ROOT / 'assets/world/isloon/tile-catalog.yaml').read_text(encoding='utf-8')
+        building_prefab_source = (WORKFLOW_ROOT / 'assets/world/isloon/building-prefabs.yaml').read_text(encoding='utf-8')
+        block_review_builder = (WORKFLOW_ROOT / 'tools/review/build_block_map_review.py').read_text(encoding='utf-8')
         map_review_script = (WORKFLOW_ROOT / 'tools/review/ui/map/block-map-review.js').read_text(encoding='utf-8')
 
         self.assertIn('id: wood_roof', tile_catalog_source)
         self.assertIn('id: wood_plain_wall', tile_catalog_source)
+        self.assertIn('id: wood_wall_crossbar', tile_catalog_source)
+        self.assertIn('world/isloon/buildings/wood-wall-crossbar-v1.png', tile_catalog_source)
+        self.assertIn('roof_underlay_wall_tile: wood_wall_crossbar', building_prefab_source)
+        self.assertIn("'roof_underlay':current_prefab_record.get('roof_underlay_wall_tile'", block_review_builder)
         self.assertIn('readBuildingTileSet', map_review_script)
+        self.assertIn("return 'roof_underlay'", map_review_script)
 
     def test_reedhaven_guild_has_three_by_two_block_footprint(self):
         reedhaven_map_record = load_exported_game_map('reedhaven')
