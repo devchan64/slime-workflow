@@ -8,6 +8,25 @@ from PIL import Image
 
 WORKFLOW_ROOT_DIRECTORY=Path(__file__).resolve().parents[2]
 GAME_TILE_SOURCE_SIZE=256
+TOWN_BLOCK_HEIGHT=70
+
+
+def load_town_block_height():
+    render_profile_values=yaml.safe_load((WORKFLOW_ROOT_DIRECTORY/'assets/world/isloon/render-profiles.yaml').read_text())
+    if not isinstance(render_profile_values,dict) or render_profile_values.get('block_height')!=TOWN_BLOCK_HEIGHT:
+        raise ValueError(f'마을 블록 높이는 {TOWN_BLOCK_HEIGHT}px여야 합니다.')
+    return TOWN_BLOCK_HEIGHT
+
+
+def validate_town_block_heights(map_record_values, block_height_value):
+    for building_record_values in map_record_values['buildings']:
+        for block_record_values in building_record_values['blocks']:
+            if block_record_values['height']!=block_height_value:
+                raise ValueError(f'블록 높이 오류: {map_record_values["id"]}/{block_record_values["id"]}')
+        for face_record_values in building_record_values['faces']:
+            for vertex_record_values in face_record_values['vertices']:
+                if vertex_record_values['height']%block_height_value:
+                    raise ValueError(f'블록 면 높이 오류: {map_record_values["id"]}')
 
 
 def build_block_map_review(output_directory_path):
@@ -15,6 +34,7 @@ def build_block_map_review(output_directory_path):
     if not output_directory_path.is_relative_to(WORKFLOW_ROOT_DIRECTORY/'.tmp'):
         raise ValueError('검수 출력은 .tmp 하위여야 합니다.')
     source_asset_directory=WORKFLOW_ROOT_DIRECTORY/'assets/world/isloon/blocks'
+    town_block_height=load_town_block_height()
     current_material_record=yaml.safe_load((source_asset_directory/'materials.yaml').read_text())
     output_directory_path.mkdir(parents=True,exist_ok=True)
     prefab_source_records=yaml.safe_load((source_asset_directory.parent/'building-prefabs.yaml').read_text())['prefabs']
@@ -26,6 +46,7 @@ def build_block_map_review(output_directory_path):
         current_map_record=json.loads(source_map_path.read_text())
         if current_map_record['id']!=source_map_path.stem or any(current_building_record['blockSchemaVersion']!=1 for current_building_record in current_map_record['buildings']):
             raise ValueError(f'블록 스키마 오류: {source_map_path.name}')
+        validate_town_block_heights(current_map_record,town_block_height)
         required_material_names=set(current_map_record['terrainCodes'].values())|{'wall','roof'}
         if required_material_names-set(current_material_record['materials']):
             raise ValueError(f'임시 재질이 정의되지 않았습니다: {source_map_path.name}')
@@ -35,6 +56,7 @@ def build_block_map_review(output_directory_path):
     if not exported_map_records:
         raise ValueError('검수할 마을 맵이 없습니다.')
     (output_directory_path/'block-map-index.json').write_text(json.dumps(exported_map_records,ensure_ascii=False))
+    (output_directory_path/'block-render-profile.json').write_text(json.dumps({'blockHeight':town_block_height}))
     shutil.copy2(source_asset_directory/'iseulon.json',output_directory_path/'block-map.json')
     (output_directory_path/'block-materials.json').write_text(json.dumps(current_material_record['materials']))
     # 게시 시 정식 에셋을 사본으로 전달하고 원본 해시를 보존한다.

@@ -3,10 +3,10 @@ style_prompt: "Hand-painted fantasy game texture, clean readable shapes, consist
 types:
   rooftop:
     label: 지붕 타일
-    base_prompt: "Orthographic top-down single continuous roof plane, large wooden planks in four broad aligned horizontal rows, matching opposite edges, subtle visible outer boundary lines, neutral lighting, no sky, no wall, no gable, no eaves, no building outline."
+    base_prompt: "Orthographic top-down single continuous roof plane, large broad panels in four aligned horizontal rows, matching opposite edges, subtle visible outer boundary lines, neutral lighting, no sky, no wall, no gable, no eaves, no building outline."
   wall:
     label: 벽 타일
     base_prompt: "Orthographic flat building wall, square facade, visible outer boundary lines."
   ground:
     label: 바닥 타일
-    base_prompt: "Top-down ground material, uniform scale, square coverage, visible outer boundary lines."
+    base_prompt: "Top-down ground surface, uniform scale, square coverage, visible outer boundary lines."

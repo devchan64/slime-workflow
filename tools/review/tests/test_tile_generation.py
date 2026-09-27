@@ -25,12 +25,16 @@ class TileGenerationTests(unittest.TestCase):
     def test_rooftop_prompt_requires_single_surface_and_excludes_building_parts(self):
         rooftop_prompt_text=load_tile_configuration()['types']['rooftop']['base_prompt']
         self.assertIn('single continuous roof plane',rooftop_prompt_text)
-        self.assertIn('large wooden planks in four broad aligned horizontal rows',rooftop_prompt_text)
+        self.assertIn('large broad panels in four aligned horizontal rows',rooftop_prompt_text)
         self.assertIn('matching opposite edges',rooftop_prompt_text)
         self.assertNotIn('large clearly separated',rooftop_prompt_text)
-        self.assertNotIn('small wooden shingles',rooftop_prompt_text)
+        self.assertNotIn('wooden',rooftop_prompt_text)
         for excluded_subject_text in ('no sky','no wall','no gable','no eaves','no building outline'):
             self.assertIn(excluded_subject_text,rooftop_prompt_text)
+
+    def test_base_prompts_do_not_prescribe_material(self):
+        for tile_type_record in load_tile_configuration()['types'].values():
+            self.assertNotRegex(tile_type_record['base_prompt'],r'\b(?:wooden|wood|marble|stone|metal|material)\b')
     def test_default_seed_is_10107_and_explicit_seed_is_preserved(self):
         request=self.make_tile_request()
         request.pop('seed')

@@ -15,15 +15,15 @@ FRONTEND_ASSET_ROOT = WORKFLOW_ROOT.parent / 'slime-frontend/src/assets'
 def load_map_render_profiles():
     import yaml
     profile_record_values = yaml.safe_load((WORKFLOW_ROOT/'assets/world/isloon/render-profiles.yaml').read_text())
-    if not isinstance(profile_record_values,dict) or set(profile_record_values)!={'schema_version','field','town','wall_height','character_height'} or profile_record_values['schema_version']!=1:
+    if not isinstance(profile_record_values,dict) or set(profile_record_values)!={'schema_version','field','town','wall_height','character_height','block_height'} or profile_record_values['schema_version']!=1:
         raise ValueError('맵 렌더링 프로필 형식 오류')
     for profile_kind_name in ('field','town'):
         profile_size_record = profile_record_values[profile_kind_name]
         if set(profile_size_record)!={'tile_width','tile_height'} or any(type(size_value) is not int or size_value<=0 for size_value in profile_size_record.values()) or profile_size_record['tile_width']!=2*profile_size_record['tile_height']:
             raise ValueError('맵 타일은 양의 정수 2:1 크기여야 합니다.')
     if any(type(profile_record_values[metric_name]) is not int or profile_record_values[metric_name] <= 0
-           for metric_name in ('wall_height', 'character_height')):
-        raise ValueError('벽 높이와 캐릭터 기준은 양의 정수여야 합니다.')
+           for metric_name in ('wall_height', 'character_height', 'block_height')):
+        raise ValueError('벽·캐릭터·블록 높이 기준은 양의 정수여야 합니다.')
     return profile_record_values
 
 MAP_RENDER_PROFILE_VALUES = load_map_render_profiles()
