@@ -4,11 +4,13 @@ import json
 import tempfile
 from pathlib import Path
 from unittest.mock import patch
-from tools.review.domains.tile.tile_generation import prepare_tile_request, TileGenerationManager
+from tools.review.domains.tile.tile_generation import load_tile_configuration, prepare_tile_request, TileGenerationManager
 from tools.review.common import management_gateway
 
 class TileGenerationTests(unittest.TestCase):
     def make_tile_request(self):return {'action':'generate','tile_type':'wall','user_prompt':'Red brick house.','steps':4,'seed':1,'width':512,'height':512}
+    def test_ground_tile_uses_floor_tile_label(self):
+        self.assertEqual(load_tile_configuration()['types']['ground']['label'],'바닥 타일')
     def test_all_kinds_keep_base_and_style(self):
         for tile_kind_name in ('rooftop','wall','ground'):
             output_request_value=prepare_tile_request(self.make_tile_request()|{'tile_type':tile_kind_name})
@@ -32,6 +34,12 @@ class TileGenerationTests(unittest.TestCase):
             self.assertIsInstance(random_seed_value,int)
             self.assertGreaterEqual(random_seed_value,0)
             self.assertLessEqual(random_seed_value,4294967295)
+
+    def test_wall_tile_korean_example_is_inserted_without_overwriting_or_duplication(self):
+        from tools.review.ui.gradio.tile_map_app import WALL_TILE_KOREAN_EXAMPLE, append_wall_tile_example
+        self.assertEqual(append_wall_tile_example(''),WALL_TILE_KOREAN_EXAMPLE)
+        self.assertEqual(append_wall_tile_example('낮은 성벽'), '낮은 성벽\n'+WALL_TILE_KOREAN_EXAMPLE)
+        self.assertEqual(append_wall_tile_example(WALL_TILE_KOREAN_EXAMPLE),WALL_TILE_KOREAN_EXAMPLE)
 
     def test_user_prompt_is_last_for_every_toggle_combination(self):
         from itertools import product
