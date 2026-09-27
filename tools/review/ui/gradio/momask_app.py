@@ -36,7 +36,13 @@ def read_motion_settings(selected_action_name):
     action_config_record=json.loads((WORKFLOW_ROOT_DIRECTORY/'generators/momask/config/standing-loops-v1.json').read_text())['actions'][selected_action_name]
     camera_config_record=yaml.safe_load((WORKFLOW_ROOT_DIRECTORY/'generators/momask/config/camera-angles.yaml').read_text())
     prompt_content_value=action_config_record['prompt']
-    return prompt_content_value, f"{len(prompt_content_value.split())}단어 · 원본 {action_config_record['source_frames']}프레임 · 수평 {camera_config_record[selected_action_name]}° · 내려다보기 약 17°"
+    summary_items=[('프롬프트',f'{len(prompt_content_value.split())}단어'),('원본 모션',f"{action_config_record['source_frames']}프레임"),('내려다보기','약 17°')]
+    summary_html=''.join(f'<div><dt>{label}</dt><dd>{value}</dd></div>' for label,value in summary_items)
+    camera_html=''.join(f'<div><dt>{html.escape(label)}</dt><dd>{html.escape(str(camera_config_record[selected_action_name][direction]))}°</dd></div>' for label,direction in MOTION_DIRECTION_LABELS)
+    return prompt_content_value, ('<section class="motion-settings-summary" aria-label="모션 생성 설정 요약">'
+        f'<dl class="motion-settings-metrics">{summary_html}</dl>'
+        '<div class="motion-settings-caption">카메라 수평 방위각 <span>정면 0° 기준</span></div>'
+        f'<dl class="motion-camera-angles">{camera_html}</dl></section>')
 
 def create_motion_history_records(server_base_address):
     history_record_values=[]
@@ -119,7 +125,7 @@ def build_momask_interface(server_base_address):
                 generation_tag_value=gr.Textbox(label='생성 이력 태그 · 선택 사항',placeholder='예: 돌온재 걷기 후보',max_lines=1)
             settings_initial_values=read_motion_settings('standing')
             prompt_text_value=gr.Textbox(value=settings_initial_values[0],label='고정 스크립트',interactive=False,lines=4)
-            settings_text_value=gr.Markdown(settings_initial_values[1])
+            settings_text_value=gr.HTML(settings_initial_values[1])
             with gr.Accordion('위치 채널 기반 공통 리타깃', open=False,elem_id='motion-retarget-policy'):
                 gr.HTML(render_position_retarget_policy())
             with gr.Row(elem_id='motion-command-actions'):

@@ -125,3 +125,15 @@
 .gradio-container .management-frame-slider .reset-button{box-sizing:border-box!important;height:100%!important;min-height:0!important;min-width:32px;margin:0!important;padding:0 8px!important;border-radius:0!important}
 .gradio-container .management-frame-slider .slider_input_container{min-height:28px;align-items:center}
 .gradio-container .management-frame-slider input[type="range"]{min-width:0;flex:1}
+
+/* MoMask 설정 요약: 기본 수치와 방향별 방위각을 구분한다. */
+.motion-settings-summary{font-size:12px;line-height:1.5}
+.motion-settings-summary dl{display:grid;gap:8px;margin:0}
+.motion-settings-metrics{grid-template-columns:repeat(3,minmax(0,1fr))}
+.motion-settings-summary dl>div{padding:6px 8px;border:1px solid var(--border-subtle);border-radius:6px}
+.motion-settings-summary dt{color:var(--text-secondary)}
+.motion-settings-summary dd{margin:2px 0 0;font-size:14px;font-weight:600}
+.motion-settings-caption{margin:10px 0 6px;font-weight:600}
+.motion-settings-caption span{margin-left:8px;color:var(--text-secondary);font-weight:400}
+.motion-camera-angles{grid-template-columns:repeat(4,minmax(0,1fr))}
+@media(max-width:600px){.motion-camera-angles{grid-template-columns:repeat(2,minmax(0,1fr))}}

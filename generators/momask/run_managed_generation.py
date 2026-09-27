@@ -24,8 +24,8 @@ def main():
   motion_quality_warnings=inspect_resting_motion(joints)
   (a.job_dir/'motion-quality.json').write_text(json.dumps({'warnings':motion_quality_warnings,'passed':not motion_quality_warnings},ensure_ascii=False,indent=2))
   for warning in motion_quality_warnings:print('휴식 검수 경고: '+warning,flush=True)
- subprocess.run([str(ROOT/'.venv/bin/python'),str(ROOT/'generators/momask/render_openpose_frames.py'),'--motion',str(motion),'--output-dir',str(result/'openpose'),'--sample-indices',indices,'--camera-azimuth-degrees',str(camera_angle_values[a.action])],check=True)
- subprocess.run([str(ROOT/'.venv/bin/python'),str(ROOT/'generators/momask/render_anny_frames.py'),'--motion',str(motion),'--output-dir',str(result/'anny'),'--directions',','.join(directions),'--sample-indices',indices,'--camera-azimuth-degrees',str(camera_angle_values[a.action])],check=True)
+ subprocess.run([str(ROOT/'.venv/bin/python'),str(ROOT/'generators/momask/render_openpose_frames.py'),'--motion',str(motion),'--output-dir',str(result/'openpose'),'--sample-indices',indices,'--camera-direction-angles',json.dumps(camera_angle_values[a.action])],check=True)
+ subprocess.run([str(ROOT/'.venv/bin/python'),str(ROOT/'generators/momask/render_anny_frames.py'),'--motion',str(motion),'--output-dir',str(result/'anny'),'--directions',','.join(directions),'--sample-indices',indices,'--camera-direction-angles',json.dumps(camera_angle_values[a.action])],check=True)
  for direction in DIRECTIONS-set(directions):
   shutil.rmtree(result/'openpose'/direction)
  (a.job_dir/'result.json').write_text(json.dumps({'action':a.action,'label':label,'frames':frames,'anny_frames':frames,'fps':4,'directions':directions,'prompt':spec['prompt'],'sampling':'none','quality_warnings':motion_quality_warnings,'hand_pose':json.loads((result/'anny/result.json').read_text())['hand_pose'],'arm_retarget':json.loads((result/'anny/result.json').read_text())['arm_retarget'],'skinning':json.loads((result/'anny/result.json').read_text())['skinning'],'baseline_model':json.loads((result/'anny/result.json').read_text())['baseline_model'],'status':'completed'},ensure_ascii=False,indent=2)+'\n')

@@ -58,3 +58,13 @@ Blender 이미지 렌더는 체적 보존 스키닝 뒤에 Corrective Smooth를 
 `surface-correction.json`, ANNY `result.json.surface_correction`에 방식과 적용 범위를
 남긴다. 원본 관절·본 회전·키프레임은 변경하지 않는다. 이 보정은 **렌더 표면 전용**이며
 저장된 GLB·리그 자체에 적용된 것으로 해석하지 않는다. 과거 결과는 자동 변경하지 않는다.
+
+### 방향별 카메라 방위각
+
+`generators/momask/config/camera-angles.yaml`은 모션별로 네 방향의 **절대 방위각**을 저장한다.
+정면을 0°로 하며 전방 좌측 30°(`down_left`), 후방 좌측 140°(`up_left`),
+후방 우측 200°(`up_right`), 전방 우측 325°(`down_right`)를 사용한다.
+ANNY 카메라 위치와 HumanML3D 투영이 같은 설정을 사용한다. 관리도구에도 방향별 값을 표시한다.
+새 CLI 인자 `--camera-direction-angles`는 이 네 키의 JSON 객체(각도 0 이상 360 미만)를 받는다.
+기존 `--camera-azimuth-degrees` 단일 값은 호환성을 위해 사분면별 오프셋 의미를 유지한다.
+과거 생성 결과나 등록 에셋의 카메라는 자동 변경하지 않는다.

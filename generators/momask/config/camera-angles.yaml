@@ -1,3 +1,16 @@
-standing: 30
-walking: 30
-resting: 25
+# 정면 0°, 절대 방위각. 전방 좌측 → 후방 좌측 → 후방 우측 → 전방 우측.
+standing:
+  down_left: 30
+  down_right: 325
+  up_left: 140
+  up_right: 200
+walking:
+  down_left: 30
+  down_right: 325
+  up_left: 140
+  up_right: 200
+resting:
+  down_left: 30
+  down_right: 325
+  up_left: 140
+  up_right: 200
