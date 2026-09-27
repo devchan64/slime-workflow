@@ -1,3 +1,2 @@
-asset_id: mannequin-walk
-version: 8
-artifact_sha256: f0f42ba544b181948b91a4e8e29a88c3c8cb05b23e9b8bb0745cf5ab58530ce3
+status: retired
+reason: 구형 mannequin 걷기 에셋 폐기. character_animation.yaml의 walking-v11을 사용하세요.

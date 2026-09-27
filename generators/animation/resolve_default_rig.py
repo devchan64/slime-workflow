@@ -29,6 +29,8 @@ UniqueConfigLoader.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TA
 
 def resolve_default_walk_rig():
     default_config_values = yaml.load(DEFAULT_CONFIG_PATH.read_text(), Loader=UniqueConfigLoader)
+    if isinstance(default_config_values,dict) and default_config_values.get('status')=='retired':
+        raise ValueError(default_config_values['reason'])
     if not isinstance(default_config_values, dict) or set(default_config_values) != {'asset_id', 'version', 'artifact_sha256'}:
         raise ValueError('기본 리그 설정 필드 불일치')
     if default_config_values['asset_id'] != 'mannequin-walk' or type(default_config_values['version']) is not int or default_config_values['version'] < 1:
