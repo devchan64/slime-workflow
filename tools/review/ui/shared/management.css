@@ -261,3 +261,5 @@ textarea{margin:6px 0 10px}select{margin:4px 8px 8px 0}button{margin:4px 6px 4px
 .saved-record-history .saved-history-actions{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
 .saved-record-history .saved-history-actions>button{margin:0;min-width:0}
 @container(max-width:600px){.saved-record-history>.generation-history-toolbar>span{flex-basis:100%}.saved-record-history .saved-history-actions{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+.saved-history-card-wrapper{position:relative;min-width:0}.saved-history-card-wrapper .history-card-id{box-sizing:border-box;padding-right:86px}.saved-history-card-wrapper .history-id-copy{position:absolute;right:12px;bottom:34px;margin:0;font-size:12px}.saved-history-card-wrapper .history-copy-status{margin:0;font-size:12px}.saved-history-card-wrapper .history-copy-status:empty{display:none}.saved-history-card-wrapper:has(.history-copy-status:not(:empty)) .history-id-copy{bottom:56px}
