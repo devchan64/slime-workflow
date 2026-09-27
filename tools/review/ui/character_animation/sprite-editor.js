@@ -61,14 +61,14 @@ if(typeof document!=='undefined')void (async function initializeSpriteEditorComp
  function updateSpriteControlStates(){
   for(const currentButtonElement of spriteRootElement.querySelectorAll('button')){
    const currentButtonName=currentButtonElement.id;
-   let disabledReasonText=spriteBusyState?'원본 로딩 완료 후 사용할 수 있습니다.':!spriteSourceRecord?'에셋 또는 완료된 결과 ID를 먼저 불러오세요.':'';
-   if(['sprite-load','sprite-asset-load'].includes(currentButtonName))disabledReasonText=spriteBusyState?'현재 작업 완료 후 다시 불러오세요.':'';
+   let disabledReasonText=spriteBusyState?'원본 로딩 완료 후 사용할 수 있습니다.':!spriteSourceRecord?'에셋을 선택한 뒤 불러오세요.':'';
+   if(currentButtonName==='sprite-asset-load')disabledReasonText=spriteBusyState?'현재 작업 완료 후 다시 불러오세요.':'';
    if(currentButtonName==='sprite-undo'&&!spriteUndoRecords.length)disabledReasonText='편집한 뒤 실행 취소할 수 있습니다.';
    if(currentButtonName==='sprite-stop'&&spritePlaybackHandle===null)disabledReasonText='재생 버튼을 누르면 일시정지할 수 있습니다.';
    if(currentButtonName==='sprite-play'&&spritePlaybackHandle!==null)disabledReasonText='현재 재생 중입니다. 일시정지 후 다시 재생하세요.';
    currentButtonElement.disabled=Boolean(disabledReasonText);currentButtonElement.title=disabledReasonText;currentButtonElement.setAttribute('aria-description',disabledReasonText);
   }
-  for(const currentInputElement of spriteRootElement.querySelectorAll('input,select'))currentInputElement.disabled=spriteBusyState||(!spriteSourceRecord&&!['sprite-asset','sprite-job'].includes(currentInputElement.id));
+  for(const currentInputElement of spriteRootElement.querySelectorAll('input,select'))currentInputElement.disabled=spriteBusyState||(!spriteSourceRecord&&currentInputElement.id!=='sprite-asset');
  }
  function stopSpritePlayback(){if(spritePlaybackHandle!==null)cancelAnimationFrame(spritePlaybackHandle);spritePlaybackHandle=null;updateSpriteControlStates();}
  function rememberSpriteDocumentChange(){stopSpritePlayback();spriteUndoRecords.push(structuredClone(spriteProjectDocument));if(spriteUndoRecords.length>SPRITE_UNDO_RECORD_LIMIT)spriteUndoRecords.shift();spriteDirtyState=true;}
@@ -185,7 +185,7 @@ if(typeof document!=='undefined')void (async function initializeSpriteEditorComp
   spriteProjectDocument.output={cellSize:sourceCellPixels,targetHeight:spriteProjectDocument.output.targetHeight*cellSizeRatio};
  }
  async function openSpriteSourceDocument(sourceIdentifierValue){
-  if(!sourceIdentifierValue){appendSpriteStatusMessage('에셋을 선택하거나 완료된 결과 ID를 입력하세요.');return;}
+  if(!sourceIdentifierValue){appendSpriteStatusMessage('불러올 에셋을 선택하세요.');return;}
   if(spriteDirtyState&&!confirm('저장하지 않은 편집이 있습니다. 다른 원본을 불러올까요?'))return;
   stopSpritePlayback();spriteBusyState=true;updateSpriteControlStates();const currentLoadingVersion=++spriteLoadingVersion;appendSpriteStatusMessage('원본 이미지와 저장된 편집을 불러오는 중…');
   try{
@@ -275,7 +275,6 @@ if(typeof document!=='undefined')void (async function initializeSpriteEditorComp
   try{validateSpriteFrameSettings(nextFrameSettings);rememberSpriteDocumentChange();Object.assign(currentFrameSettings,nextFrameSettings);refreshSpriteEditedViews();findSpriteElement('nudge-position').textContent=`배치 X ${nextFrameSettings.x}px · Y ${nextFrameSettings.y}px`;}catch(currentErrorValue){appendSpriteStatusMessage(currentErrorValue.message);}
  };
  findSpriteElement('asset-load').onclick=()=>openSpriteSourceDocument(findSpriteElement('asset').value);
- findSpriteElement('load').onclick=()=>openSpriteSourceDocument(findSpriteElement('job').value.trim());
  findSpriteElement('direction').onchange=()=>{stopSpritePlayback();spriteFramePosition=0;refreshSpriteEditedViews();};
  for(const currentToggleName of ['guides','onion'])findSpriteElement(currentToggleName).onchange=renderSpriteEditorFrame;
  function updateSpriteDisplayZoom(){

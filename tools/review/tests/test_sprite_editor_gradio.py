@@ -22,7 +22,7 @@ class SpriteEditorGradioTests(unittest.TestCase):
         for required_element_name in ('sprite-canvas','sprite-directions','sprite-sheet'):
             self.assertIn(required_element_name,editor_markup_text)
         self.assertNotIn('id="sprite-original"',editor_markup_text)
-        for removed_control_name in ('sprite-json','sprite-png','sprite-png-all','sprite-size','sprite-height'):
+        for removed_control_name in ('sprite-json','sprite-png','sprite-png-all','sprite-size','sprite-height','sprite-job','sprite-load'):
             self.assertNotIn('id="'+removed_control_name+'"',editor_markup_text)
         self.assertIn('--page:',read_sprite_editor_styles())
         self.assertIn('#sprite-editor-root>header',read_sprite_editor_styles())
