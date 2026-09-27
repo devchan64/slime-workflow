@@ -1,9 +1,16 @@
+import inspect
 import unittest
 
-from tools.review.common.gradio_history import collect_image_history_thumbnails, format_history_choice_label, format_history_selection_summary, render_history_detail_cards
+from tools.review.common.gradio_history import build_generation_history_view, collect_image_history_thumbnails, format_history_choice_label, format_history_selection_summary, render_history_detail_cards
 
 
 class GradioHistoryTest(unittest.TestCase):
+    def test_history_view_uses_selected_card_as_the_only_result_lookup_entry(self):
+        history_view_parameter_names=inspect.signature(build_generation_history_view).parameters
+
+        self.assertNotIn('direct_result_identifier_component',history_view_parameter_names)
+        self.assertNotIn('direct_result_button_component',history_view_parameter_names)
+
     def test_history_choice_includes_status_time_identifier_and_request_summary(self):
         history_choice_label = format_history_choice_label({'id':'tile-123','created_at':'2026-09-27T09:15:00+09:00','status':{'status':'completed'},'request':{'tile_type':'wall','width':512,'height':512,'steps':30,'seed':10107}})
 

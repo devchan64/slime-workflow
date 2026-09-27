@@ -214,7 +214,7 @@ MoMask 페이지는 Gradio Blocks로 전환한다. `/momask-generator/`는 관�
 
 Gradio 이력은 페이지당 8건의 단일 선택 목록으로 표시하며 선택 후 결과 조회 버튼으로 연다. 공용 로그 패널은 `tools/review/common/gradio_logs.py`를 사용한다. 전체 너비의 접이식 패널에 작업 ID·최근 로그·복사·자동 갱신·최신 줄 따라가기·마지막 줄 이동을 제공한다. 자동 갱신을 끄면 표시 내용을 유지하며 작업 실행은 계속된다.
 
-MoMask Gradio 화면은 좌측의 ‘새 모션 생성’·‘생성이력 · 결과 조회’ 탭과 우측 결과 재생 영역으로 구성한다. ID 직접 조회·결과 상세는 접이식으로 제공하고, 실행 로그는 두 열 아래 전체 너비로 배치한다. 화면 폭이 좁으면 한 열로 전환한다. 배치는 `tools/review/ui/gradio/management-layout.css`에서 관리한다.
+MoMask Gradio 화면은 새 모션 생성과 생성 이력·결과 재생을 한 흐름으로 구성한다. 결과는 이력 카드를 선택한 뒤 `결과 조회`로만 열며, ID 직접 조회 폼은 제공하지 않는다. 실행 로그는 결과·기록 상세 뒤 전체 너비로 배치한다. 화면 폭이 좁으면 한 열로 전환한다. 배치는 `tools/review/ui/gradio/management-layout.css`에서 관리한다.
 
 ### MoMask 렌더 재개
 

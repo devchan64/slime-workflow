@@ -127,9 +127,6 @@ def build_momask_interface(server_base_address):
             current_identifier_value=create_copyable_textbox(label='현재 생성 ID',interactive=False)
             status_text_value=gr.Markdown('생성 가능 · 설정을 확인하세요.')
             gr.Markdown('실행 중인 작업은 아래 생성 이력에서 선택한 뒤 **작업 중지**를 사용하세요. 예상 시간은 측정 자료가 없어 계산 중입니다.')
-            with gr.Accordion('생성 ID로 직접 결과 조회',open=False):
-                direct_result_identifier_value=gr.Textbox(label='생성 ID',placeholder='예: 2026-09-27_11-22-36-facd740e')
-                direct_result_button_value=gr.Button('ID로 결과 조회')
         action_select_value.change(read_motion_settings,action_select_value,[prompt_text_value,settings_text_value],queue=False)
         def start_motion_with_status(*input_values):
             generation_identifier_value=start_motion_generation(*input_values)
@@ -161,8 +158,6 @@ def build_momask_interface(server_base_address):
             result_renderer_callback=render_motion_history_result,
             record_folder_route='/momask-generator',
             allow_individual_delete=True,
-            direct_result_identifier_component=direct_result_identifier_value,
-            direct_result_button_component=direct_result_button_value,
         )
         history_selection_value=history_output_values[0]
         with gr.Accordion('선택 이력 · OpenPose 맵 생성',open=False):
