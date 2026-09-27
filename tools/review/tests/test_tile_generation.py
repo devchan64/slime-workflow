@@ -14,13 +14,12 @@ class TileGenerationTests(unittest.TestCase):
 
     def test_ground_prompt_defines_repeatable_flat_surface(self):
         ground_prompt_text=load_tile_configuration()['types']['ground']['base_prompt']
-        self.assertIn('Top view, orthographic camera looking straight down',ground_prompt_text)
-        self.assertIn('matching edges',ground_prompt_text)
-        self.assertIn('uniform scale',ground_prompt_text)
-        self.assertIn('all four image edges: top, bottom, left, right',ground_prompt_text)
-        self.assertIn('outline contrasts with the interior',ground_prompt_text)
-        self.assertIn('lies flush with the ground',ground_prompt_text)
-        self.assertNotIn('boundary lines',ground_prompt_text)
+        self.assertIn('Seamless repeating ground texture',ground_prompt_text)
+        self.assertIn('matching opposite edges horizontally and vertically',ground_prompt_text)
+        self.assertIn('small evenly distributed details',ground_prompt_text)
+        self.assertIn('uniform brightness',ground_prompt_text)
+        self.assertIn('No border or edge shadow',ground_prompt_text)
+
     def test_all_kinds_keep_base_and_style(self):
         for tile_kind_name in ('rooftop','wall','ground'):
             output_request_value=prepare_tile_request(self.make_tile_request()|{'tile_type':tile_kind_name})

@@ -9,4 +9,4 @@ types:
     base_prompt: "Orthographic wall, half-visible columns at both edges, a top beam, aligned for adjacent placement."
   ground:
     label: 바닥 타일
-    base_prompt: "A thin continuous outline visibly marks all four image edges: top, bottom, left, right. The outline contrasts with the interior and lies flush with the ground. Top view, orthographic camera looking straight down, uniform scale, matching edges."
+    base_prompt: "Seamless repeating ground texture, matching opposite edges horizontally and vertically. Orthographic top view, uniform brightness, small evenly distributed details. No border or edge shadow."
