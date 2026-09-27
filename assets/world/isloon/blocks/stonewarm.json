@@ -12,6 +12,7 @@
   "buildingTileOverrides": {
     "wall": "stonewarm-stone-wall",
     "window": "stonewarm-small-window-wall",
+    "large_window": "stonewarm-large-window-wall",
     "door": "stonewarm-stone-door"
   },
   "startPoint": {

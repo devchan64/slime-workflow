@@ -35,7 +35,42 @@ class MapRenderProfileTests(unittest.TestCase):
 
         self.assertIn('id: stonewarm-marble-paving', tile_catalog_source)
         self.assertIn('world/stonewarm/terrain/marble-paving-v1.png', tile_catalog_source)
-        self.assertIn("currentMapRecord.id==='stonewarm'?'stonewarm-marble-paving':'paving'", map_review_script)
+        self.assertIn("currentMapRecord.id==='stonewarm'?'stonewarm-marble-paving':currentMapRecord.id==='reedhaven'?'reedhaven-dirt-road':'paving'", map_review_script)
+
+    def test_reedhaven_roads_use_the_dirt_road_texture(self):
+        tile_catalog_source = (WORKFLOW_ROOT / 'assets/world/isloon/tile-catalog.yaml').read_text(encoding='utf-8')
+        map_review_script = (WORKFLOW_ROOT / 'tools/review/ui/map/block-map-review.js').read_text(encoding='utf-8')
+
+        self.assertIn('id: reedhaven-dirt-road', tile_catalog_source)
+        self.assertIn('world/reedhaven/terrain/dirt-road-v1.png', tile_catalog_source)
+        self.assertIn("currentMapRecord.id==='reedhaven'?'reedhaven-dirt-road':'paving'", map_review_script)
+
+    def test_reedhaven_uses_wood_building_tiles(self):
+        reedhaven_map_record = json.loads((WORKFLOW_ROOT / 'assets/world/isloon/blocks/reedhaven.json').read_text(encoding='utf-8'))
+
+        self.assertEqual(reedhaven_map_record['buildingTileOverrides'], {
+            'roof': 'wood_roof',
+            'wall': 'wood_plain_wall',
+            'window': 'wood_small_window_wall',
+            'large_window': 'wood_large_window_wall',
+            'door': 'wood_door',
+        })
+
+    def test_reedhaven_guild_has_three_by_two_block_footprint(self):
+        reedhaven_map_record = json.loads((WORKFLOW_ROOT / 'assets/world/isloon/blocks/reedhaven.json').read_text(encoding='utf-8'))
+        guild_building_record = next(building for building in reedhaven_map_record['buildings'] if building['id'] == 'reedhaven-guild')
+
+        self.assertEqual((guild_building_record['width'], guild_building_record['height']), (3, 2))
+        self.assertEqual(guild_building_record['entrance'], {'column': 4, 'row': 5})
+        self.assertTrue(all(block['column'] < 3 and block['row'] < 2 for block in guild_building_record['blocks']))
+
+    def test_reedhaven_inn_has_six_by_two_block_footprint(self):
+        reedhaven_map_record = json.loads((WORKFLOW_ROOT / 'assets/world/isloon/blocks/reedhaven.json').read_text(encoding='utf-8'))
+        inn_building_record = next(building for building in reedhaven_map_record['buildings'] if building['id'] == 'reedhaven-inn')
+
+        self.assertEqual((inn_building_record['width'], inn_building_record['height']), (6, 2))
+        self.assertEqual(inn_building_record['entrance'], {'column': 9, 'row': 18})
+        self.assertTrue(all(block['column'] < 6 and block['row'] < 2 for block in inn_building_record['blocks']))
 
     def test_stonewarm_uses_registered_stone_wall(self):
         tile_catalog_source = (WORKFLOW_ROOT / 'assets/world/isloon/tile-catalog.yaml').read_text(encoding='utf-8')
@@ -48,6 +83,9 @@ class MapRenderProfileTests(unittest.TestCase):
         self.assertIn('id: stonewarm-small-window-wall', tile_catalog_source)
         self.assertIn('world/stonewarm/buildings/stone-small-window-wall-v1.png', tile_catalog_source)
         self.assertEqual(stonewarm_map_record['buildingTileOverrides']['window'], 'stonewarm-small-window-wall')
+        self.assertIn('id: stonewarm-large-window-wall', tile_catalog_source)
+        self.assertIn('world/stonewarm/buildings/stone-large-window-wall-v1.png', tile_catalog_source)
+        self.assertEqual(stonewarm_map_record['buildingTileOverrides']['large_window'], 'stonewarm-large-window-wall')
         self.assertIn('id: stonewarm-stone-door', tile_catalog_source)
         self.assertIn('world/stonewarm/buildings/stone-door-v1.png', tile_catalog_source)
         self.assertEqual(stonewarm_map_record['buildingTileOverrides']['door'], 'stonewarm-stone-door')
