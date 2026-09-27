@@ -26,6 +26,16 @@ class MapRenderProfileTests(unittest.TestCase):
         self.assertIn('world/stonewarm/terrain/gravel-paving-v1.png', tile_catalog_source)
         self.assertIn("currentMapRecord.id==='stonewarm'?'stonewarm-gravel-paving':'paving'", map_review_script)
 
+    def test_stonewarm_uses_registered_quarry_plain_wall(self):
+        tile_catalog_source = (WORKFLOW_ROOT / 'assets/world/isloon/tile-catalog.yaml').read_text(encoding='utf-8')
+        stonewarm_map_record = json.loads((WORKFLOW_ROOT / 'assets/world/isloon/blocks/stonewarm.json').read_text(encoding='utf-8'))
+        map_review_script = (WORKFLOW_ROOT / 'tools/review/ui/map/block-map-review.js').read_text(encoding='utf-8')
+
+        self.assertIn('id: stonewarm-quarry-plain-wall', tile_catalog_source)
+        self.assertIn('world/stonewarm/buildings/stonewarm-quarry-plain-wall-v1.png', tile_catalog_source)
+        self.assertEqual(stonewarm_map_record['buildingTileOverrides']['wall'], 'stonewarm-quarry-plain-wall')
+        self.assertIn('readBuildingTileSet', map_review_script)
+
     def test_stonewarm_central_plaza_is_compact(self):
         stonewarm_map_record = json.loads((WORKFLOW_ROOT / 'assets/world/isloon/blocks/stonewarm.json').read_text(encoding='utf-8'))
         central_plaza_rows = stonewarm_map_record['terrainRows'][9:13]
@@ -58,3 +68,15 @@ class MapRenderProfileTests(unittest.TestCase):
         self.assertIn('tabindex="0"', map_review_template)
         self.assertIn('MAP_KEYBOARD_PAN_DISTANCE', map_review_script)
         self.assertIn('currentMapCanvas.onkeydown', map_review_script)
+
+    def test_ground_texture_boundaries_align_to_block_edges(self):
+        map_review_script = (WORKFLOW_ROOT / 'tools/review/ui/map/block-map-review.js').read_text(encoding='utf-8')
+
+        self.assertIn('groundTextureOffset=currentFaceRecord.ground?0.5:0', map_review_script)
+        self.assertIn('ground:true', map_review_script)
+
+    def test_town_page_hides_cross_town_selection_controls(self):
+        map_review_script = (WORKFLOW_ROOT / 'tools/review/ui/map/block-map-review.js').read_text(encoding='utf-8')
+
+        self.assertIn("isTownSpecificReviewPage", map_review_script)
+        self.assertIn("closest('label').hidden=true", map_review_script)

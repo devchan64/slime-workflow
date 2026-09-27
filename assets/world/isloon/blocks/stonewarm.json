@@ -9,6 +9,9 @@
   "columns": 24,
   "rows": 24,
   "safeTown": true,
+  "buildingTileOverrides": {
+    "wall": "stonewarm-quarry-plain-wall"
+  },
   "startPoint": {
     "column": 12,
     "row": 13

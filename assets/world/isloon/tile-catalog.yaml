@@ -7,6 +7,7 @@ tiles:
   - {id: grass, category: ground, asset: terrain/grass-v3.png, walkable: true, movement_cost: 1}
   - {id: paving, category: ground, asset: world/isloon/terrain/paving-v1.png, walkable: true, movement_cost: 1}
   - {id: stonewarm-gravel-paving, category: ground, asset: world/stonewarm/terrain/gravel-paving-v1.png, walkable: true, movement_cost: 1}
+  - {id: stonewarm-quarry-plain-wall, category: structure, asset: world/stonewarm/buildings/stonewarm-quarry-plain-wall-v1.png, walkable: false, movement_cost: 99}
   - {id: spring_water, category: ground, asset: terrain/water-v3.png, walkable: false, movement_cost: 99}
   - {id: flower_bed, category: decoration, asset: terrain/flowers-v3.png, walkable: true, movement_cost: 1}
   - {id: marble_large_window_wall, category: structure, asset: world/isloon/buildings/marble-large-window-wall-v1.png, walkable: false, movement_cost: 99}

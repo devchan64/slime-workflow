@@ -317,7 +317,11 @@ def build_frontend_review(frontend_repository_path, ui_bundle_directory=None):
         else:
             from build_map_review import build_map_review
         isloon_review_directory = build_map_review(output_root=output_review_directory/'isloon-map-review')
-        manager_page_records.append({'id': 'map-review', 'label': '마을 맵 검수', 'path': isloon_review_directory.relative_to(output_review_directory).as_posix()+'/map-review.html', 'anchorEditor': False, 'category': 'tile-review', 'uiMode':'gradio', 'description': 'Gradio · 등록 YAML 맵 목록 · 타일 연결 · 건물 충돌 검수'})
+        map_review_relative_path=isloon_review_directory.relative_to(output_review_directory).as_posix()+'/map-review.html'
+        map_index_record=json.loads((isloon_review_directory/'block-map-index.json').read_text(encoding='utf-8'))
+        for current_map_record in map_index_record:
+            current_map_identifier=current_map_record['id']
+            manager_page_records.append({'id': f'map-review-{current_map_identifier}', 'label': current_map_record['name']+' · 마을 맵 검수', 'path': map_review_relative_path+f'?map={current_map_identifier}&townPage=1', 'anchorEditor': False, 'category': 'tile-review', 'uiMode':'gradio', 'frameIdentifier':'map-review', 'frameQuery':f'map={current_map_identifier}&townPage=1', 'description': 'Gradio · '+current_map_record['name']+' 전용 검수 · 타일 연결 · 건물 충돌 검수'})
         emit_review_trace('tile-map-review', str(isloon_review_directory.relative_to(WORKFLOW_REPO_ROOT)))
         if __package__:
             from .build_animation_tools import build_animation_tools

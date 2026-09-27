@@ -17,7 +17,8 @@ def create_map_review_loader(review_server_port):
 const mapReviewRoot=document.querySelector('#map-review-root');
 if(!mapReviewRoot||mapReviewRoot.dataset.mapReviewLoaded)return;
 mapReviewRoot.dataset.mapReviewLoaded='true';
-const mapReviewPageUrl={serialized_page_url};
+const mapReviewPageUrl=new URL({serialized_page_url});
+for(const currentParameterName of ['map','townPage']){{const currentParameterValue=new URL(window.location.href).searchParams.get(currentParameterName);if(currentParameterValue)mapReviewPageUrl.searchParams.set(currentParameterName,currentParameterValue)}}
 const mapReviewAssetUrl=new URL('.',mapReviewPageUrl).href;
 const originalFetchRequest=window.fetch.bind(window);
 window.fetch=(requestValue,...requestOptionValues)=>{{

@@ -18,6 +18,7 @@ from tools.review.common.gpu_status import read_gpu_status
 CATEGORY_LABEL_VALUES={'all':'전체','writer-agent':'작가 AI 에이전트','image-generation':'이미지 생성','animation':'등록 애니메이션','animation-tool':'애니메이션 도구','tile-review':'타일맵 검수','game-ui':'게임 UI · 디자인 시스템'}
 MANAGEMENT_FRAME_PATH_PREFIX='/management/frame/'
 MANAGEMENT_FRAME_IDENTIFIER_VALUES={'anny-attribute-renderer':'anny-attributes'}
+LEGACY_PAGE_IDENTIFIER_VALUES={'map-review':'map-review-iseulon'}
 DEFAULT_PAGE_RECORDS=(
     {'id':'tile-map-generator','label':'타일 에셋 생성기','path':'/tile-map-generator/','category':'tile-review','uiMode':'gradio','description':'Gradio · 지붕 · 벽 · 맵 타일 에셋 생성'},
     {'id':'writer-agent','label':'작가 AI 에이전트','path':'/writer-agent/','category':'writer-agent','uiMode':'gradio','description':'Gradio · 문서 학습 · 아이디어 작성 · 실행 기록'},
@@ -44,6 +45,7 @@ def load_manager_page_records(source_file_path):
     validated_page_records=[]
     for current_page_record in [*page_record_values,*DEFAULT_PAGE_RECORDS]:
         if not isinstance(current_page_record,dict) or not all(isinstance(current_page_record.get(current_field_name),str) for current_field_name in ('id','label','path','category','description')):raise ValueError('관리 메뉴 페이지 항목 형식 오류')
+        if any(current_page_record.get(current_field_name) is not None and not isinstance(current_page_record[current_field_name],str) for current_field_name in ('frameIdentifier','frameQuery')):raise ValueError('관리 메뉴 프레임 항목 형식 오류')
         if current_page_record['id'] in page_identifier_values:continue
         if not current_page_record['path'].startswith('/'):current_page_record={**current_page_record,'path':'/'+current_page_record['path']}
         page_identifier_values.add(current_page_record['id'])
@@ -66,8 +68,9 @@ def create_page_preview_html(selected_page_identifier, page_record_values, revie
     if selected_page_record is None:return '<div class="menu-empty-state">표시할 관리 화면을 선택하세요.</div>'
     selected_page_path=selected_page_record['path']
     if selected_page_record.get('uiMode')=='gradio':
-        frame_application_identifier=MANAGEMENT_FRAME_IDENTIFIER_VALUES.get(selected_page_record['id'],selected_page_record['id'])
-        selected_page_path=f'{MANAGEMENT_FRAME_PATH_PREFIX}{frame_application_identifier}/'
+        frame_application_identifier=selected_page_record.get('frameIdentifier') or MANAGEMENT_FRAME_IDENTIFIER_VALUES.get(selected_page_record['id'],selected_page_record['id'])
+        frame_query_value=selected_page_record.get('frameQuery')
+        selected_page_path=f'{MANAGEMENT_FRAME_PATH_PREFIX}{frame_application_identifier}/'+(f'?{frame_query_value}' if frame_query_value else '')
     elif selected_page_record.get('uiMode')=='gradio-static':
         selected_page_path=f'{MANAGEMENT_FRAME_PATH_PREFIX}static-review/?review={quote(selected_page_record["id"],safe="")}'
     selected_page_path=html.escape(selected_page_path,quote=True)
@@ -86,7 +89,9 @@ def create_initial_selection_script(page_record_values):
     return f"""()=>{{
         const pageRecords={serialized_page_records};
         const currentUrlValue=new URL(window.location.href);
-        const selectedPageRecord=pageRecords.find(record=>record.id===currentUrlValue.searchParams.get('tool'))||pageRecords.find(record=>record.path===currentUrlValue.pathname)||pageRecords[0];
+        const requestedPageIdentifier=currentUrlValue.searchParams.get('tool');
+        const resolvedPageIdentifier={json.dumps(LEGACY_PAGE_IDENTIFIER_VALUES)}[requestedPageIdentifier]||requestedPageIdentifier;
+        const selectedPageRecord=pageRecords.find(record=>record.id===resolvedPageIdentifier)||pageRecords.find(record=>record.path===currentUrlValue.pathname)||pageRecords[0];
         if(!selectedPageRecord)return;
         // 초기 선택은 목록 인덱스가 아닌 도구 ID로 확정한다. 충돌 필터는 해제한다.
         const categoryValue=currentUrlValue.searchParams.get('category');

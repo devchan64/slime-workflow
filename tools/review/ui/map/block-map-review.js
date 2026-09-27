@@ -6,10 +6,12 @@ const gameRenderMetrics=await fetchMapReviewRecord('game-render-metrics.json');
 const townHalfTileWidth=gameRenderMetrics.townTileWidth/2,townHalfTileHeight=gameRenderMetrics.townTileHeight/2;
 const availableMapRecords=await fetchMapReviewRecord('block-map-index.json');
 const selectedMapIdentifier=new URLSearchParams(location.search).get('map')||availableMapRecords[0].id;
+const isTownSpecificReviewPage=new URLSearchParams(location.search).get('townPage')==='1';
 const selectedMapRecord=availableMapRecords.find(currentMapEntry=>currentMapEntry.id===selectedMapIdentifier);
 if(!selectedMapRecord){document.querySelector('#status').textContent='등록되지 않은 맵입니다.';throw Error('등록되지 않은 맵: '+selectedMapIdentifier)}
 for(const currentMapEntry of availableMapRecords){const currentMapOption=document.createElement('option');currentMapOption.value=currentMapEntry.id;currentMapOption.textContent=currentMapEntry.name;document.querySelector('#map-select').append(currentMapOption)}
 document.querySelector('#map-select').value=selectedMapIdentifier;
+if(isTownSpecificReviewPage){document.querySelector('#map-select').closest('label').hidden=true;document.querySelector('#load-map').hidden=true}
 document.querySelector('#load-map').onclick=()=>{const selectedMapUrl=new URL(location.href);selectedMapUrl.searchParams.set('map',document.querySelector('#map-select').value);location.assign(selectedMapUrl)};
 const currentMapRecord=await fetchMapReviewRecord(selectedMapRecord.path);
 document.querySelector('#map-title').textContent=currentMapRecord.name+' · 마을 맵 검수';
@@ -22,10 +24,11 @@ const reviewCharacterRecord=await fetchMapReviewRecord('review-character.json');
 const reviewCharacterImage=new Image();
 await new Promise((resolveCharacterLoad,rejectCharacterLoad)=>{reviewCharacterImage.onload=resolveCharacterLoad;reviewCharacterImage.onerror=()=>rejectCharacterLoad(Error('기본 캐릭터 로드 실패'));reviewCharacterImage.src=new URL(reviewCharacterRecord.image,import.meta.url).href});
 const groundTextureNames={grass:'grass',paving:currentMapRecord.id==='stonewarm'?'stonewarm-gravel-paving':'paving',water:'spring_water'};
+function readBuildingTileSet(currentBuildingRecord){return {...(buildingTileRecords[currentBuildingRecord.id]||buildingTileRecords['iseulon-'+currentBuildingRecord.facilityKind]),...(currentMapRecord.buildingTileOverrides||{})}}
 function renderAppliedTileSourceList(){
  const appliedTextureNames=new Set();
  Object.values(currentMapRecord.terrainCodes).forEach(currentTerrainName=>{const currentTextureName=groundTextureNames[currentTerrainName];if(currentTextureName)appliedTextureNames.add(currentTextureName)});
- currentMapRecord.buildings.forEach(currentBuildingRecord=>Object.values(buildingTileRecords[currentBuildingRecord.id]||{}).forEach(currentTextureName=>appliedTextureNames.add(currentTextureName)));
+ currentMapRecord.buildings.forEach(currentBuildingRecord=>Object.values(readBuildingTileSet(currentBuildingRecord)).forEach(currentTextureName=>appliedTextureNames.add(currentTextureName)));
  const appliedTileList=document.querySelector('#applied-tile-list');appliedTileList.replaceChildren();
  [...appliedTextureNames].sort().forEach(currentTextureName=>{
   const currentTextureRecord=currentTextureRecords[currentTextureName];const currentListItem=document.createElement('li');const currentName=document.createElement('strong');currentName.textContent=currentTextureName;currentListItem.append(currentName);
@@ -51,7 +54,9 @@ function drawTexturedSurface(currentFaceRecord,currentTextureImage){
  const roofDownhillSign=matchingLowVertex?Math.sign(roofSlopeColumn?matchingLowVertex.column-highestRoofVertex.column:matchingLowVertex.row-highestRoofVertex.row):1;
  const currentTexturePoints=currentFaceVertices.map(currentVertexPoint=>{
   if(hasRoofSlope)return {x:(roofSlopeColumn?-currentVertexPoint.row:currentVertexPoint.column)*roofDownhillSign*currentTextureImage.width,y:(roofSlopeColumn?currentVertexPoint.column:currentVertexPoint.row)*roofDownhillSign*currentTextureImage.height};
-  return {x:(currentFaceRecord.top?currentVertexPoint.column:currentAlongColumn?currentVertexPoint.column+0.5:currentVertexPoint.row+0.5)*currentTextureImage.width,y:(currentFaceRecord.top?currentVertexPoint.row:1-currentVertexPoint.height/60)*currentTextureImage.height};
+  // 바닥은 셀 모서리에서 원본 텍스처가 시작해야 반복 경계가 셀 중앙을 가르지 않는다.
+  const groundTextureOffset=currentFaceRecord.ground?0.5:0;
+  return {x:(currentFaceRecord.top?currentVertexPoint.column+groundTextureOffset:currentAlongColumn?currentVertexPoint.column+0.5:currentVertexPoint.row+0.5)*currentTextureImage.width,y:(currentFaceRecord.top?currentVertexPoint.row+groundTextureOffset:1-currentVertexPoint.height/60)*currentTextureImage.height};
  });
  for(let currentTriangleIndex=1;currentTriangleIndex<currentFaceVertices.length-1;currentTriangleIndex++){
   const currentTriangleIndices=[0,currentTriangleIndex,currentTriangleIndex+1];
@@ -105,8 +110,8 @@ function renderBlockMap(currentFitRequested=false){currentMapCanvas.width=curren
 document.querySelector('#zoom-level').textContent=Math.round(currentScaleValue*100)+'%';
 document.querySelector('#zoom-in').disabled=currentScaleValue>=MAX_MAP_SCALE;document.querySelector('#zoom-out').disabled=currentScaleValue<=MIN_MAP_SCALE;
 currentDrawingContext.setTransform(currentScaleValue,0,0,currentScaleValue,currentOffsetX,currentOffsetY);
-for(let currentRowIndex=0;currentRowIndex<currentMapRecord.rows;currentRowIndex++)for(let currentColumnIndex=0;currentColumnIndex<currentMapRecord.columns;currentColumnIndex++){const currentTerrainName=currentMapRecord.terrainCodes[currentMapRecord.terrainRows[currentRowIndex][currentColumnIndex]];drawSurfacePolygon([[-.5,-.5],[.5,-.5],[.5,.5],[-.5,.5]].map(([c,r])=>projectBlockVertex({column:currentColumnIndex+c,row:currentRowIndex+r})),currentMaterialColors[currentTerrainName]);const currentGroundImage=loadedTextureImages[groundTextureNames[currentTerrainName]];if(currentGroundImage){const currentGroundVertices=[[-.5,-.5],[.5,-.5],[.5,.5],[-.5,.5]].map(([currentColumnOffset,currentRowOffset])=>({column:currentColumnIndex+currentColumnOffset,row:currentRowIndex+currentRowOffset,height:0}));drawTexturedSurface({top:true,vertices:currentGroundVertices,points:currentGroundVertices.map(projectBlockVertex)},currentGroundImage)}}
-const currentRenderFaces=currentMapRecord.buildings.flatMap(currentBuilding=>currentBuilding.faces.flatMap(splitWallFloors).map(currentFace=>({...currentFace,building:currentBuilding,textureTiles:buildingTileRecords[currentBuilding.id]||buildingTileRecords['iseulon-'+currentBuilding.facilityKind],points:currentFace.vertices.map(currentVertex=>projectBlockVertex({column:currentBuilding.origin.column+currentVertex.column,row:currentBuilding.origin.row+currentVertex.row,height:currentVertex.height})),depth:currentFace.vertices.reduce((s,v)=>s+projectBlockVertex({column:currentBuilding.origin.column+v.column,row:currentBuilding.origin.row+v.row}).y,0)/currentFace.vertices.length}))).sort((a,b)=>a.depth-b.depth);
+for(let currentRowIndex=0;currentRowIndex<currentMapRecord.rows;currentRowIndex++)for(let currentColumnIndex=0;currentColumnIndex<currentMapRecord.columns;currentColumnIndex++){const currentTerrainName=currentMapRecord.terrainCodes[currentMapRecord.terrainRows[currentRowIndex][currentColumnIndex]];drawSurfacePolygon([[-.5,-.5],[.5,-.5],[.5,.5],[-.5,.5]].map(([c,r])=>projectBlockVertex({column:currentColumnIndex+c,row:currentRowIndex+r})),currentMaterialColors[currentTerrainName]);const currentGroundImage=loadedTextureImages[groundTextureNames[currentTerrainName]];if(currentGroundImage){const currentGroundVertices=[[-.5,-.5],[.5,-.5],[.5,.5],[-.5,.5]].map(([currentColumnOffset,currentRowOffset])=>({column:currentColumnIndex+currentColumnOffset,row:currentRowIndex+currentRowOffset,height:0}));drawTexturedSurface({top:true,ground:true,vertices:currentGroundVertices,points:currentGroundVertices.map(projectBlockVertex)},currentGroundImage)}}
+const currentRenderFaces=currentMapRecord.buildings.flatMap(currentBuilding=>currentBuilding.faces.flatMap(splitWallFloors).map(currentFace=>({...currentFace,building:currentBuilding,textureTiles:readBuildingTileSet(currentBuilding),points:currentFace.vertices.map(currentVertex=>projectBlockVertex({column:currentBuilding.origin.column+currentVertex.column,row:currentBuilding.origin.row+currentVertex.row,height:currentVertex.height})),depth:currentFace.vertices.reduce((s,v)=>s+projectBlockVertex({column:currentBuilding.origin.column+v.column,row:currentBuilding.origin.row+v.row}).y,0)/currentFace.vertices.length}))).sort((a,b)=>a.depth-b.depth);
 for(const currentFace of currentRenderFaces){const currentAreaValue=currentFace.points.reduce((s,p,i)=>{const n=currentFace.points[(i+1)%currentFace.points.length];return s+p.x*n.y-n.x*p.y},0);if(currentFace.top||currentAreaValue>0){drawSurfacePolygon(currentFace.points,currentMaterialColors[currentFace.material]);// 지붕 경사 측면은 막힌 벽으로 두고 일반 벽 구간에만 창문을 교차 배치한다.
 const currentTextureRole=selectWallTexture(currentFace);
 const currentTextureName=currentFace.textureTiles[currentTextureRole];drawTexturedSurface(currentFace,loadedTextureImages[currentTextureName])}}
