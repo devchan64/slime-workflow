@@ -106,15 +106,3 @@
 .saved-record-history .saved-history-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
 #static-review-root .saved-record-history .saved-history-actions button{margin:0;width:100%;text-align:center}
 #static-review-root .anchor-workspace>.anchor-controls{align-items:start}
-/* Gradio의 select 초기화 스타일에서도 선택 메뉴임을 명확히 표시한다. */
-#static-review-root .anchor-workspace select,.anchor-workspace select{
- appearance:none!important;
- background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'%3E%3Cpath d='m4 6 4 4 4-4' fill='none' stroke='%23b9cae2' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")!important;
- background-repeat:no-repeat!important;
- background-position:right 12px center!important;
- background-size:16px 16px!important;
- padding-right:38px!important;
- cursor:pointer;
-}
-#static-review-root .anchor-workspace select:hover{border-color:var(--accent)!important}
-@media(forced-colors:active){#static-review-root .anchor-workspace select,.anchor-workspace select{appearance:auto!important;background-image:none!important}}

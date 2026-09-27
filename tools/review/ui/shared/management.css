@@ -241,3 +241,11 @@ main{max-width:none;padding:16px}header{margin-bottom:12px}h2{margin-bottom:10px
 textarea{margin:6px 0 10px}select{margin:4px 8px 8px 0}button{margin:4px 6px 4px 0;padding:7px 12px;min-height:36px}
 .references{margin:10px 0 14px}.reference-slot{padding:8px}
 @media(max-width:700px){main{padding:10px}.studio-panel,#generation-history{padding:10px}.studio-grid{grid-template-columns:minmax(0,1fr)}}
+
+/* 공통 HTML 드롭다운: 네이티브 select와 클릭을 가로채지 않는 화살표 영역. */
+.review-select-control{position:relative;display:inline-block;width:100%;min-width:0;vertical-align:middle}
+.review-select-control>select,#static-review-root .review-select-control>select{appearance:none!important;display:block;box-sizing:border-box;width:100%;min-height:38px;padding:6px 48px 6px 10px!important;background:var(--input-background,#101a27)!important;color:var(--text-primary,#edf3fc)!important;border:1px solid var(--input-border,#455b74)!important;border-radius:6px;cursor:pointer}
+.review-select-control>.review-select-arrow,#static-review-root .review-select-control>.review-select-arrow{position:absolute;right:1px;top:1px;bottom:1px;width:38px;display:flex;align-items:center;justify-content:center;pointer-events:none;color:var(--text-primary,#edf3fc);background:var(--surface-control,#243449);border-left:1px solid var(--input-border,#455b74);border-radius:0 5px 5px 0;font-size:20px;line-height:1}
+.review-select-control>select:focus-visible{outline:2px solid var(--accent,#a5c7ff);outline-offset:2px}
+.review-select-control:has(>select:disabled){opacity:.55}
+@media(forced-colors:active){.review-select-control>select,#static-review-root .review-select-control>select{appearance:auto!important}.review-select-control>.review-select-arrow{display:none!important}}
