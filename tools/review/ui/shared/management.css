@@ -185,6 +185,17 @@ input:disabled{opacity:.55;cursor:not-allowed}
 #history-list .history-state-label{margin:0;padding:1px 6px}
 #history-list summary{padding:4px 0}
 .history-pager button{margin:4px 0}
+.history-navigation-actions{align-items:center;border-bottom:1px solid var(--line);padding:0 0 8px;margin:0 0 8px}
+.history-navigation-actions #history-status{margin:0 auto 0 0;font-size:13px;color:var(--muted)}
+.history-navigation-actions #history-page{min-width:56px;text-align:center;font-variant-numeric:tabular-nums}
+#history-reset-details{margin-top:16px;border-top:1px solid var(--line);padding-top:12px}
+#history-reset-details p{color:var(--muted);font-size:13px}
+.uses-selection-actions .history-record-actions{display:none}
+.history-selected-actions{grid-column:1/-1;margin-top:8px;padding:10px;border:1px solid var(--accent);border-radius:10px;background:color-mix(in srgb,var(--accent) 8%,var(--panel))}
+.history-selected-actions>p{margin:0 0 8px;font-size:13px;overflow-wrap:anywhere}
+.history-selected-action-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}.history-selected-action-grid button{width:100%;margin:0;min-width:0}
+#history-result-reference{margin:12px 0;padding:8px 10px;border:1px solid var(--line);border-radius:8px;color:var(--muted);overflow-wrap:anywhere}
+@media(max-width:600px){.history-navigation-actions #history-status{flex-basis:100%;margin-right:0}.history-selected-action-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @container(min-width:1000px){#history-list{grid-template-columns:repeat(2,minmax(0,1fr))}#history-list>li:only-child{grid-column:1/-1}}
 
 /* 참조 입력과 프롬프트 옵션의 공용 배치 */

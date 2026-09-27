@@ -12,6 +12,7 @@ import gradio as gr
 WORKFLOW_ROOT_DIRECTORY=Path(__file__).resolve().parents[4]
 ANNY_ATTRIBUTE_PAGE_PATH=WORKFLOW_ROOT_DIRECTORY/'tools/review/ui/anny/anny-attributes.html'
 ANNY_ATTRIBUTE_STYLE_PATH=WORKFLOW_ROOT_DIRECTORY/'tools/review/ui/anny/anny-attributes.css'
+MANAGEMENT_SHARED_STYLE_PATH=WORKFLOW_ROOT_DIRECTORY/'tools/review/ui/shared/management.css'
 
 
 def read_anny_attribute_markup():
@@ -36,13 +37,13 @@ def create_anny_attribute_loader(review_server_port):
 
 def build_anny_attribute_interface(review_server_port):
     with gr.Blocks(title='Anny 속성 렌더러') as interface_blocks_value:
-        gr.Markdown('## Anny 속성 렌더러\nGradio 작업 영역에서 체형 설정, 3D 프리뷰, 렌더 결과와 생성 이력을 관리합니다.')
         gr.HTML(read_anny_attribute_markup())
     return interface_blocks_value
 
 
 from pathlib import Path as ManagementStylePath
 MANAGEMENT_DENSITY_STYLES=(ManagementStylePath(__file__).parents[1]/'shared/management-density.css').read_text()
+MANAGEMENT_SHARED_STYLES=MANAGEMENT_SHARED_STYLE_PATH.read_text()+MANAGEMENT_DENSITY_STYLES
 
 if __name__=='__main__':
     argument_parser_value = argparse.ArgumentParser()
@@ -54,4 +55,4 @@ if __name__=='__main__':
     threading.Thread(target=lambda: time.sleep(1), daemon=True).start()
     build_anny_attribute_interface(argument_values.review_port).queue().launch(
         server_name='127.0.0.1', server_port=argument_values.port, root_path=argument_values.root_path,
-        css=ANNY_ATTRIBUTE_STYLE_PATH.read_text()+MANAGEMENT_DENSITY_STYLES, js=create_anny_attribute_loader(argument_values.review_port), allowed_paths=[])
+        css=MANAGEMENT_SHARED_STYLES+ANNY_ATTRIBUTE_STYLE_PATH.read_text(), js=create_anny_attribute_loader(argument_values.review_port), allowed_paths=[])
