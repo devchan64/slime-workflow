@@ -198,6 +198,13 @@ class MapRenderProfileTests(unittest.TestCase):
         self.assertIn('groundTextureOffset=currentFaceRecord.ground?0.5:0', map_review_script)
         self.assertIn('ground:true', map_review_script)
 
+    def test_roof_texture_frames_are_mapped_to_each_block_boundary(self):
+        map_review_script = (WORKFLOW_ROOT / 'tools/review/ui/map/block-map-review.js').read_text(encoding='utf-8')
+
+        self.assertIn("const isRoofTileSurface=currentFaceRecord.top&&currentFaceRecord.material==='roof'", map_review_script)
+        self.assertIn('currentVertexPoint.column-roofTileMinimumColumn', map_review_script)
+        self.assertIn('roofTileMaximumRow-currentVertexPoint.row', map_review_script)
+
     def test_town_page_hides_cross_town_selection_controls(self):
         map_review_script = (WORKFLOW_ROOT / 'tools/review/ui/map/block-map-review.js').read_text(encoding='utf-8')
 

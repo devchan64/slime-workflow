@@ -48,6 +48,9 @@ renderAppliedTileSourceList();
 function drawTexturedSurface(currentFaceRecord,currentTextureImage){
  const currentFaceVertices=currentFaceRecord.vertices;
  const currentAlongColumn=Math.max(...currentFaceVertices.map(currentVertexPoint=>currentVertexPoint.column))-Math.min(...currentFaceVertices.map(currentVertexPoint=>currentVertexPoint.column))>0.001;
+ const isRoofTileSurface=currentFaceRecord.top&&currentFaceRecord.material==='roof';
+ const roofTileMinimumColumn=Math.min(...currentFaceVertices.map(currentVertexPoint=>currentVertexPoint.column));
+ const roofTileMaximumRow=Math.max(...currentFaceVertices.map(currentVertexPoint=>currentVertexPoint.row));
  // 경사면의 높은 점→낮은 점을 텍스처의 세로 방향으로 삼는다.
  const highestRoofVertex=currentFaceVertices.reduce((currentHighestPoint,currentVertexPoint)=>currentVertexPoint.height>currentHighestPoint.height?currentVertexPoint:currentHighestPoint);
  const lowestRoofVertex=currentFaceVertices.reduce((currentLowestPoint,currentVertexPoint)=>currentVertexPoint.height<currentLowestPoint.height?currentVertexPoint:currentLowestPoint);
@@ -56,6 +59,8 @@ function drawTexturedSurface(currentFaceRecord,currentTextureImage){
  const matchingLowVertex=hasRoofSlope?currentFaceVertices.find(currentVertexPoint=>Math.abs((roofSlopeColumn?currentVertexPoint.row:currentVertexPoint.column)-(roofSlopeColumn?highestRoofVertex.row:highestRoofVertex.column))<0.001&&currentVertexPoint.height<highestRoofVertex.height):null;
  const roofDownhillSign=matchingLowVertex?Math.sign(roofSlopeColumn?matchingLowVertex.column-highestRoofVertex.column:matchingLowVertex.row-highestRoofVertex.row):1;
  const currentTexturePoints=currentFaceVertices.map(currentVertexPoint=>{
+  // 지붕 원본의 프레임은 블록 한 칸 전체에만 적용하고, 검수 시점에는 반시계 방향으로 90° 회전한다.
+  if(isRoofTileSurface)return {x:(roofTileMaximumRow-currentVertexPoint.row)*currentTextureImage.width,y:(currentVertexPoint.column-roofTileMinimumColumn)*currentTextureImage.height};
   if(hasRoofSlope)return {x:(roofSlopeColumn?-currentVertexPoint.row:currentVertexPoint.column)*roofDownhillSign*currentTextureImage.width,y:(roofSlopeColumn?currentVertexPoint.column:currentVertexPoint.row)*roofDownhillSign*currentTextureImage.height};
   // 바닥은 셀 모서리에서 원본 텍스처가 시작해야 반복 경계가 셀 중앙을 가르지 않는다.
   const groundTextureOffset=currentFaceRecord.ground?0.5:0;
