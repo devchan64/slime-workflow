@@ -1,0 +1,198 @@
+schema_version: 1
+title: 기본 캐릭터 대기 포즈 ImageGen 변환
+created_at: '2026-09-27T22:07:01.501956+09:00'
+source_run: .tmp/test/standing-baseline-imagegen/2026-09-27_21-49-33
+source_execution_sha256: 497add0a41c253adb2d2b4069c493a46f0c199b6d94c54077800f34a43322b54
+tool: 내장 ImageGen
+model: 도구 관리; 세부 모델·seed 미제공
+status: 검수 후보 — 동일 체형·높이 완전 일치 미달
+result_count: 16
+resolution:
+- 1254
+- 1254
+background: 투명 알파
+source_pose_report: report/default-character-standing-sample-20260927
+baseline_source: assets/animation-references/character-default/baseline-v2
+height_measurement: 흰 배경 합성 후 명도 차 45 초과 경계 상자의 높이를 512px 캔버스로 환산한 근삿값
+quality_warnings:
+- 외형·체형·높이·좌우 위치의 완전한 프레임 일치는 달성하지 못함.
+- 높이 측정은 흰 배경 합성 후 명도 차 45 초과 경계 상자 기준의 근삿값임.
+directions:
+- direction: down_left
+  label: 전방 좌측
+  files:
+  - source_frame: 1
+    file: frames/down_left/frame-0001.png
+    sha256: 88648b4a83b1b6b166935a80d3faed4d04292a63aa41fd91483da068f5085321
+    pose_input: pose-inputs/down_left/frame-0001.png
+    pose_sha256: 4fc3c05d2a7e1d43ea293e9d4699d0fb93f3a8ddbb90a31bd785fbb0bb544d2b
+    height_at_512_approx: 498.12
+    alpha_range:
+    - 0
+    - 255
+  - source_frame: 5
+    file: frames/down_left/frame-0005.png
+    sha256: 6c2ff29271e77406225e85e6f1d8c65338d16dfd6ea70ecf4c72f3699b3c1d59
+    pose_input: pose-inputs/down_left/frame-0005.png
+    pose_sha256: 441fbf3086b6b6eeba6e9fbfa11ee245c0e3f755158104dd1ff613e68539b33b
+    height_at_512_approx: 498.53
+    alpha_range:
+    - 0
+    - 255
+  - source_frame: 9
+    file: frames/down_left/frame-0009.png
+    sha256: 0a42b0ba8ff46c66180a369c83ba32c29f907a5f17b0d9ec0fd9fb5e079a3099
+    pose_input: pose-inputs/down_left/frame-0009.png
+    pose_sha256: 609aa9ce0d9b3d7ce9eaaf303b4c65d778c3b681e93cb44e3af89833b881bd8e
+    height_at_512_approx: 496.89
+    alpha_range:
+    - 0
+    - 255
+  - source_frame: 13
+    file: frames/down_left/frame-0013.png
+    sha256: 479b018566ff4a89894f5bcaacfab3ca027dc00b29e6429d97333aca78b2665a
+    pose_input: pose-inputs/down_left/frame-0013.png
+    pose_sha256: 780a91dba3a907ffadcfdcabd200c949c213733674c6b123de428927543cf222
+    height_at_512_approx: 494.85
+    alpha_range:
+    - 0
+    - 255
+  baseline:
+    file: baseline/down_left.png
+    sha256: 2385964adcc926fc68473e986c03f8c5a43b2630702c789f87846e8a0053c25b
+- direction: down_right
+  label: 전방 우측
+  files:
+  - source_frame: 1
+    file: frames/down_right/frame-0001.png
+    sha256: 5a51e02ff2ec532fd875555b5896d8fb2d2f4b5dfbf4a36c8bcfe4f95c4baf5f
+    pose_input: pose-inputs/down_right/frame-0001.png
+    pose_sha256: 6e76aa42c0f4d1c3080d72fc96f52b2952f5efe9221556b40831d26c5966f6e0
+    height_at_512_approx: 492.4
+    alpha_range:
+    - 0
+    - 255
+  - source_frame: 5
+    file: frames/down_right/frame-0005.png
+    sha256: 5e83f13a681a05ec14adaff411838e2ce4831ffc4081d4c3df91e44088e44c07
+    pose_input: pose-inputs/down_right/frame-0005.png
+    pose_sha256: 3fc0e9f5342db01ed315c9932d885e98326c7418e00ada9f3ffa78158bded5e0
+    height_at_512_approx: 498.12
+    alpha_range:
+    - 0
+    - 255
+  - source_frame: 9
+    file: frames/down_right/frame-0009.png
+    sha256: 10c36a63a13f3f1f3f44f052817bc4c2fed95c952f2a5b145866923d973c4b61
+    pose_input: pose-inputs/down_right/frame-0009.png
+    pose_sha256: 628e0edf839b9f8d184317486e0f1e512f8c3087ec5d4ea0b26bbea7298dd1ee
+    height_at_512_approx: 492.4
+    alpha_range:
+    - 0
+    - 255
+  - source_frame: 13
+    file: frames/down_right/frame-0013.png
+    sha256: db80b487ff435e2c52ee5153e91c7ef6dccccc436326f83a9936159812556b44
+    pose_input: pose-inputs/down_right/frame-0013.png
+    pose_sha256: d9ab0af152ff3fa253a5e5422fd92af207249705fbd9ec19e883262a7519f737
+    height_at_512_approx: 496.89
+    alpha_range:
+    - 0
+    - 255
+  baseline:
+    file: baseline/down_right.png
+    sha256: 1735425453606746628f005b5ea7130059e44050d76df6a1d4cf345f3de37e44
+- direction: up_left
+  label: 후방 좌측
+  files:
+  - source_frame: 1
+    file: frames/up_left/frame-0001.png
+    sha256: 616872d0bb95b1a418707fc3e50facb8791c665817b7efa5bfda4f9781c80fe0
+    pose_input: pose-inputs/up_left/frame-0001.png
+    pose_sha256: 6ed48cd3245806e0fcc7b8176dd7cea678d0cfd2559986a7c5de410cfa0e8f1b
+    height_at_512_approx: 483.83
+    alpha_range:
+    - 0
+    - 255
+  - source_frame: 5
+    file: frames/up_left/frame-0005.png
+    sha256: 76429f31a8644c9a12316df85eefcb1b146566968501bed06d29d5f88b51743d
+    pose_input: pose-inputs/up_left/frame-0005.png
+    pose_sha256: 006cedffcf84ca100827292a9192b365203c7d92b19c8e1f9dbe6b168c9be5c5
+    height_at_512_approx: 480.97
+    alpha_range:
+    - 0
+    - 255
+  - source_frame: 9
+    file: frames/up_left/frame-0009.png
+    sha256: f4da72d50a83ae28f6c272b341f47746731eed68e05b183a55f277776e28431c
+    pose_input: pose-inputs/up_left/frame-0009.png
+    pose_sha256: 1d3b79067b92c86c914f1b41aa72523765123c349bec014f77214d80bd577092
+    height_at_512_approx: 479.74
+    alpha_range:
+    - 0
+    - 255
+  - source_frame: 13
+    file: frames/up_left/frame-0013.png
+    sha256: 0654a95af0902ebe4f4143f138c025eefb890a8286702a856b5b5517ec160635
+    pose_input: pose-inputs/up_left/frame-0013.png
+    pose_sha256: 0e700c4e0899232c18b3891d66a2065a3b47f6c30d3f0be44259a8f6af74c346
+    height_at_512_approx: 487.91
+    alpha_range:
+    - 0
+    - 255
+  baseline:
+    file: baseline/up_left.png
+    sha256: a9e28c979a2ae26738af5cd1a9047c77c77b0f878b096cd16cb9c695e932e569
+- direction: up_right
+  label: 후방 우측
+  files:
+  - source_frame: 1
+    file: frames/up_right/frame-0001.png
+    sha256: 3cc1e7e80878355862decf2a52cb556109b65496a0a2847432faee5e30784d40
+    pose_input: pose-inputs/up_right/frame-0001.png
+    pose_sha256: 5cc0d5f927493de383996ebcdb78d2b5b4a21c1dfb900d1b589757b26c58a9dd
+    height_at_512_approx: 484.24
+    alpha_range:
+    - 0
+    - 255
+  - source_frame: 5
+    file: frames/up_right/frame-0005.png
+    sha256: 8debd601e9a4c41454abaac724705c85c66447240e0e0e645403eaa4430ac754
+    pose_input: pose-inputs/up_right/frame-0005.png
+    pose_sha256: 820828088a24f776ca897a323837f49e4a41181157409b35f7fe881308e70872
+    height_at_512_approx: 487.09
+    alpha_range:
+    - 0
+    - 255
+  - source_frame: 9
+    file: frames/up_right/frame-0009.png
+    sha256: 63270eb32c214a6dc0c09036d75ddd005e16c9e4593401b14e82fcf5b098d23a
+    pose_input: pose-inputs/up_right/frame-0009.png
+    pose_sha256: ea68e2b8dcf5d074f3f8eca289a91d355e67a54ac97b1f8cf8782304a5c24c62
+    height_at_512_approx: 487.5
+    alpha_range:
+    - 0
+    - 255
+  - source_frame: 13
+    file: frames/up_right/frame-0013.png
+    sha256: b9a6f9df5479a00930c5a1a81c8966477be17bc2cf9c38c3549abed4c695e100
+    pose_input: pose-inputs/up_right/frame-0013.png
+    pose_sha256: c908ed837a44f0096bb72432a2c5797f53e9a5aabf662f6043b7c863e9abc383
+    height_at_512_approx: 488.73
+    alpha_range:
+    - 0
+    - 255
+  baseline:
+    file: baseline/up_right.png
+    sha256: 8f500b512818eb2ce1f0b2e1cfb0c52431b41ad371a0a4ff384c11de8808f09f
+prompt_records:
+- source_file: .tmp/test/standing-baseline-imagegen/2026-09-27_21-49-33/prompt.txt
+  sha256: 805dec078aeed5da7a48a4685479d007a4fd0f4cfbd3da028204457b74854116
+  word_count: 101
+- source_file: .tmp/test/standing-baseline-imagegen/2026-09-27_21-49-33/prompt-transparent.txt
+  sha256: a35ff76ecc2b426b0abd68fd077b64d0316d8428e4cb2e6f99abf03fb25194cd
+  word_count: 115
+- source_file: .tmp/test/standing-baseline-imagegen/2026-09-27_21-49-33/prompt-background-extraction.txt
+  sha256: 770c2d18aa4ec3159f46da461ef452972949942ff4f6a9771044485faa146398
+  word_count: 1

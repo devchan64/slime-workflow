@@ -28,3 +28,5 @@
 - [v6 AnyPose 4스텝 32프레임 실험](anypose-v6-32frames-20260923/README.md): 수평 45° 리그, 방향별 보조 프롬프트 적용, 32프레임 시트·GIF·입력·코드·로그 사본과 무결성 검증.
 
 - [기본 캐릭터 대기 애니메이션 샘플](default-character-standing-sample-20260927/README.md): 사용자 지정 두 기록의 4방향·16프레임 조합, 동기 재생 HTML과 출처·해시.
+
+- [기본 캐릭터 대기 포즈 ImageGen 변환](default-character-standing-imagegen-20260927/README.md): 투명 PNG 16장, 방향별 베이스라인·입력 자세 비교, 높이 편차와 출처·해시 검증.
