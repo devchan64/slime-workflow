@@ -10,7 +10,7 @@ from tools.review.common.management_log_viewer import MANAGEMENT_LOG_VIEWER_SCRI
 ROOT=Path(__file__).resolve().parents[4]
 JOB_ROOT=ROOT/'.tmp/momask-generator/jobs'
 HISTORY_ROOT=ROOT/'.tmp/momask-generator/history'
-ACTIONS={'standing':{'label':'대기','frames':16},'walking':{'label':'걷기','frames':32},'resting':{'label':'휴식','frames':120}}
+ACTIONS={'standing':{'label':'대기','frames':16},'walking':{'label':'걷기','frames':32},'resting':{'label':'휴식','frames':160}}
 HISTORICAL_ACTIONS={**ACTIONS,'stretch':{'label':'스트레칭','frames':120},'deep_breath':{'label':'심호흡','frames':32}}
 DIRECTIONS=('down_left','down_right','up_left','up_right')
 def render_position_retarget_policy():

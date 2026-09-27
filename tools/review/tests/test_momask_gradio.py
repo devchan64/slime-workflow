@@ -41,7 +41,7 @@ class GradioMoMaskTests(unittest.TestCase):
     def test_settings_read_shared_configuration(self):
         prompt_text_value,summary_text_value=MODULE_SOURCE_VALUE.read_motion_settings('walking')
         self.assertIn('treadmill',prompt_text_value)
-        self.assertIn('looking straight ahead',prompt_text_value)
+        self.assertIn('gaze slightly lowered',prompt_text_value)
         self.assertIn('30°',summary_text_value)
 
     def test_action_choices_do_not_include_deep_breath(self):
@@ -52,8 +52,8 @@ class GradioMoMaskTests(unittest.TestCase):
 
     def test_resting_settings_use_fixed_prompt(self):
         prompt_text_value, summary_text_value = MODULE_SOURCE_VALUE.read_motion_settings('resting')
-        self.assertEqual(prompt_text_value, 'A person stands upright, sits down on the floor, stays seated for a while, then gets up and finishes standing upright.')
-        self.assertIn('120프레임', summary_text_value)
+        self.assertEqual(prompt_text_value, 'A person stands upright, sits on the floor, stays still while seated, then stands fully upright again.')
+        self.assertIn('160프레임', summary_text_value)
 
     def test_player_keeps_frame_count_and_directions(self):
         player_html_value=MODULE_SOURCE_VALUE.create_motion_player('sample',{'frames':32,'directions':['up_left']},'http://127.0.0.1:8770')
