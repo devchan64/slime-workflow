@@ -39,11 +39,10 @@ class GradioManagementMenuTests(unittest.TestCase):
     def test_direct_static_review_tool_identifier_selects_the_page(self):
         initial_selection_script=create_initial_selection_script(self.page_record_values)
 
-        self.assertIn("queryParameterValues.get('search')",initial_selection_script)
-        self.assertIn("queryParameterValues.get('category')",initial_selection_script)
-        self.assertIn('management-tool-search',initial_selection_script)
-        self.assertNotIn('management-view-filter',initial_selection_script)
-        self.assertIn('selectedToolIdentifier',initial_selection_script)
+        self.assertIn('record.path===currentUrlValue.pathname',initial_selection_script)
+        self.assertIn("searchParams.set('tool',selectedPageRecord.id)",initial_selection_script)
+        self.assertIn('input.value===selectedPageRecord.id',initial_selection_script)
+        self.assertNotIn('selectedPageIndex',initial_selection_script)
 
     def test_navigation_script_persists_filter_values_with_selected_tool_path(self):
         navigation_script=create_menu_navigation_script(self.page_record_values,'pushState')

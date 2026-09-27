@@ -307,6 +307,7 @@ def run_review_server(parsed_argument_values):
             emit_server_trace('gradio-menu-failure',str(gradio_error_value))
     def resolve_gradio_proxy_port(request_path_value):
         gradio_route_records=(
+            ('/',parsed_argument_values.port+100,lambda:ensure_management_menu_server(parsed_argument_values.port,manager_source_path)),
             ('/management/frame/momask-generator/',parsed_argument_values.port+101,lambda:ensure_gradio_server(parsed_argument_values.port)),
             ('/management/frame/character-animation/',parsed_argument_values.port+102,lambda:ensure_character_animation_server(parsed_argument_values.port)),
             ('/management/frame/image-generator/',parsed_argument_values.port+103,lambda:ensure_qwen_2512_server(parsed_argument_values.port)),
@@ -326,6 +327,9 @@ def run_review_server(parsed_argument_values):
             ('/anny-attributes/',parsed_argument_values.port+100,lambda:ensure_management_menu_server(parsed_argument_values.port,manager_source_path)),
             ('/writer-agent/',parsed_argument_values.port+100,lambda:ensure_management_menu_server(parsed_argument_values.port,manager_source_path)),
         )
+        if request_path_value in static_review_route_identifiers or request_path_value=='/isloon-map-review/map-review.html':
+            ensure_management_menu_server(parsed_argument_values.port,manager_source_path)
+            return parsed_argument_values.port+100,request_path_value
         for route_prefix_value,gradio_port_value,start_gradio_server in gradio_route_records:
             if request_path_value==route_prefix_value or request_path_value.startswith(route_prefix_value+'config') or request_path_value.startswith(route_prefix_value+'gradio_api/') or request_path_value.startswith(route_prefix_value+'assets/') or request_path_value.startswith(route_prefix_value+'theme') or request_path_value.startswith(route_prefix_value+'favicon'):
                 start_gradio_server()
@@ -339,6 +343,7 @@ def run_review_server(parsed_argument_values):
             # 내장 캔버스와 메뉴를 포함한 직접 접속 주소를 분리한다.
             if request_path_value=='/isloon-map-review/map-review.html' and 'embedded=1' in urlsplit(self.path).query.split('&'):
                 return False
+            if 'embedded=gradio-static' in urlsplit(self.path).query.split('&'):return False
             try:gradio_proxy_target=resolve_gradio_proxy_port(request_path_value)
             except ValueError:return False
             if gradio_proxy_target is None:return False
@@ -367,12 +372,6 @@ def run_review_server(parsed_argument_values):
             finally:proxy_connection_value.close()
             return True
         def do_GET(self):
-            if urlsplit(self.path).path=='/' and manager_source_path.is_file():
-                if management_menu_url is None:
-                    self.send_error(503,'Gradio startup failed')
-                    return
-                self.send_response(302);self.send_header('Location','/management/');self.send_header('Cache-Control','no-store');self.end_headers()
-                return
             if urlsplit(self.path).path=='/management/gpu-queue':
                 from tools.review.common.gpu_job_queue import list_waiting_gpu_jobs
                 response_content=json.dumps(list_waiting_gpu_jobs(),ensure_ascii=False).encode()
@@ -411,14 +410,6 @@ def run_review_server(parsed_argument_values):
                 self.send_header('Content-Length', str(len(encoded_record)))
                 self.end_headers()
                 self.wfile.write(encoded_record)
-                return
-            if urlsplit(self.path).path=='/isloon-map-review/map-review.html' and 'embedded=1' not in urlsplit(self.path).query.split('&'):
-                self.send_response(302);self.send_header('Location','/management/?tool=map-review');self.send_header('Cache-Control','no-store');self.end_headers()
-                return
-            requested_review_path=urlsplit(self.path).path
-            if requested_review_path in static_review_route_identifiers and 'embedded=gradio-static' not in urlsplit(self.path).query.split('&'):
-                selected_review_identifier=quote(static_review_route_identifiers[requested_review_path],safe='')
-                self.send_response(302);self.send_header('Location',f'/management/?tool={selected_review_identifier}');self.send_header('Cache-Control','no-store');self.end_headers()
                 return
             if self.proxy_gradio_request():return
             if management_command_gateway.handle(self):return

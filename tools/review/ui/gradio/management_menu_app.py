@@ -77,13 +77,34 @@ def create_page_preview_html(selected_page_identifier, page_record_values, revie
 def create_menu_navigation_script(page_record_values, history_method_name):
     """선택 도구와 탐색 필터를 하나의 공개 URL 상태로 동기화한다."""
     serialized_page_records=json.dumps(page_record_values,ensure_ascii=False).replace('<','\\u003c')
-    return f"""(searchTextValue,categoryNameValue,selectedPageIdentifier)=>{{const pageRecords={serialized_page_records};const searchTokenValues=String(searchTextValue||'').toLocaleLowerCase().trim().split(/\\s+/).filter(Boolean);const filteredPageRecords=pageRecords.filter((pageRecord)=>{{const pageTextValue=`${{pageRecord.label}} ${{pageRecord.description}} ${{pageRecord.id}}`.toLocaleLowerCase();return(categoryNameValue==='all'||pageRecord.category===categoryNameValue)&&searchTokenValues.every((searchTokenValue)=>pageTextValue.includes(searchTokenValue));}});const selectedPageRecord=filteredPageRecords.find((pageRecord)=>pageRecord.id===selectedPageIdentifier)||filteredPageRecords[0];const nextUrlValue=new URL(window.top.location.href);if(selectedPageRecord)nextUrlValue.pathname=selectedPageRecord.path;for(const [parameterName,parameterValue,defaultValue] of [['search',searchTextValue,''],['category',categoryNameValue,'all']]){{if(parameterValue&&parameterValue!==defaultValue)nextUrlValue.searchParams.set(parameterName,parameterValue);else nextUrlValue.searchParams.delete(parameterName);}}nextUrlValue.searchParams.delete('view');window.top.history.{history_method_name}({{managementTool:selectedPageRecord?.id||null,managementFilters:{{search:searchTextValue||'',category:categoryNameValue||'all'}}}},'',nextUrlValue.pathname+nextUrlValue.search+nextUrlValue.hash);}}"""
+    return f"""(searchTextValue,categoryNameValue,selectedPageIdentifier)=>{{const pageRecords={serialized_page_records};const searchTokenValues=String(searchTextValue||'').toLocaleLowerCase().trim().split(/\\s+/).filter(Boolean);const filteredPageRecords=pageRecords.filter((pageRecord)=>{{const pageTextValue=`${{pageRecord.label}} ${{pageRecord.description}} ${{pageRecord.id}}`.toLocaleLowerCase();return(categoryNameValue==='all'||pageRecord.category===categoryNameValue)&&searchTokenValues.every((searchTokenValue)=>pageTextValue.includes(searchTokenValue));}});const selectedPageRecord=filteredPageRecords.find((pageRecord)=>pageRecord.id===selectedPageIdentifier)||filteredPageRecords[0];const nextUrlValue=new URL(window.top.location.href);if(selectedPageRecord){{nextUrlValue.pathname='/';nextUrlValue.searchParams.set('tool',selectedPageRecord.id);}}for(const [parameterName,parameterValue,defaultValue] of [['search',searchTextValue,''],['category',categoryNameValue,'all']]){{if(parameterValue&&parameterValue!==defaultValue)nextUrlValue.searchParams.set(parameterName,parameterValue);else nextUrlValue.searchParams.delete(parameterName);}}nextUrlValue.searchParams.delete('view');window.top.history.{history_method_name}({{managementTool:selectedPageRecord?.id||null,managementFilters:{{search:searchTextValue||'',category:categoryNameValue||'all'}}}},'',nextUrlValue.pathname+nextUrlValue.search+nextUrlValue.hash);}}"""
 
 
 def create_initial_selection_script(page_record_values):
     serialized_page_records=json.dumps(page_record_values,ensure_ascii=False).replace('<','\\u003c')
     category_name_values=json.dumps(list(CATEGORY_LABEL_VALUES)).replace('<','\\u003c')
-    return f"""()=>{{const pageRecords={serialized_page_records};const categoryNameValues={category_name_values};const currentUrlValue=new URL(window.location.href);const queryParameterValues=currentUrlValue.searchParams;const searchTextValue=queryParameterValues.get('search')||'';const categoryNameValue=categoryNameValues.includes(queryParameterValues.get('category'))?queryParameterValues.get('category'):'all';const setFilterValue=(elementIdentifier,nextValue)=>{{const inputElementValue=document.querySelector(`#${{elementIdentifier}} input, #${{elementIdentifier}} textarea`);if(!inputElementValue)return;inputElementValue.value=nextValue;inputElementValue.dispatchEvent(new Event('input',{{bubbles:true}}));inputElementValue.dispatchEvent(new Event('change',{{bubbles:true}}));}};setFilterValue('management-tool-search',searchTextValue);setFilterValue('management-category-filter',categoryNameValue);const searchTokenValues=searchTextValue.toLocaleLowerCase().trim().split(/\\s+/).filter(Boolean);const filteredPageRecords=pageRecords.filter((pageRecord)=>{{const pageTextValue=`${{pageRecord.label}} ${{pageRecord.description}} ${{pageRecord.id}}`.toLocaleLowerCase();return(categoryNameValue==='all'||pageRecord.category===categoryNameValue)&&searchTokenValues.every((searchTokenValue)=>pageTextValue.includes(searchTokenValue));}});const routePageRecord=pageRecords.find((pageRecord)=>pageRecord.path===currentUrlValue.pathname);const selectedToolIdentifier=queryParameterValues.get('tool');const selectedPageRecord=filteredPageRecords.find((pageRecord)=>pageRecord.id===selectedToolIdentifier)||filteredPageRecords.find((pageRecord)=>pageRecord.id===routePageRecord?.id)||filteredPageRecords[0];if(!selectedPageRecord)return;const selectedPageIndex=filteredPageRecords.findIndex((pageRecord)=>pageRecord.id===selectedPageRecord.id);window.setTimeout(()=>{{document.querySelectorAll('#management-tool-list input')[selectedPageIndex]?.click();}},180);}}"""
+    return f"""()=>{{
+        const pageRecords={serialized_page_records};
+        const currentUrlValue=new URL(window.location.href);
+        const selectedPageRecord=pageRecords.find(record=>record.id===currentUrlValue.searchParams.get('tool'))||pageRecords.find(record=>record.path===currentUrlValue.pathname)||pageRecords[0];
+        if(!selectedPageRecord)return;
+        // 초기 선택은 목록 인덱스가 아닌 도구 ID로 확정한다. 충돌 필터는 해제한다.
+        const categoryValue=currentUrlValue.searchParams.get('category');
+        if(currentUrlValue.pathname!=='/'||(categoryValue&&categoryValue!=='all'&&categoryValue!==selectedPageRecord.category)){{
+            currentUrlValue.pathname='/';
+            currentUrlValue.searchParams.set('tool',selectedPageRecord.id);
+            currentUrlValue.searchParams.delete('category');
+            currentUrlValue.searchParams.delete('search');
+            window.location.replace(currentUrlValue.href);return;
+        }}
+        let attempts=0;
+        const selectByIdentifier=()=>{{
+            const selectedInput=[...document.querySelectorAll('#management-tool-list input')].find(input=>input.value===selectedPageRecord.id);
+            if(selectedInput){{selectedInput.click();return;}}
+            if(++attempts<40)window.setTimeout(selectByIdentifier,100);
+        }};
+        selectByIdentifier();
+    }}"""
 
 
 def build_management_menu_interface(page_record_values, review_server_port):
