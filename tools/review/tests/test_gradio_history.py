@@ -1,6 +1,6 @@
 import unittest
 
-from tools.review.common.gradio_history import collect_image_history_thumbnails, format_history_choice_label, format_history_selection_summary
+from tools.review.common.gradio_history import collect_image_history_thumbnails, format_history_choice_label, format_history_selection_summary, render_history_detail_cards
 
 
 class GradioHistoryTest(unittest.TestCase):
@@ -25,3 +25,8 @@ class GradioHistoryTest(unittest.TestCase):
         ],'http://127.0.0.1:8770')
         self.assertEqual(thumbnail_item_values,[('http://127.0.0.1:8770/image-generation/jobs/completed-image/result.png','completed · completed-image')])
         self.assertEqual(thumbnail_identifier_values,['completed-image'])
+
+    def test_history_card_uses_tag_and_image_type_as_heading(self):
+        rendered_history_html=render_history_detail_cards([{'id':'image-123','created_at':'2026-09-27T09:15:00+09:00','status':{'status':'completed'},'request':{'tag':'돌온재 자갈 지면','prompt':'gravel ground','width':512,'steps':4}}])
+        self.assertIn('돌온재 자갈 지면 · 이미지 생성',rendered_history_html)
+        self.assertNotIn('<strong>생성 작업</strong>',rendered_history_html)
