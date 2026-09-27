@@ -23,7 +23,9 @@ class AnnyAttributesGradioTest(unittest.TestCase):
         markup_text = read_anny_attribute_markup()
         history_script_text = resolve_review_ui_asset('generation-history.js').read_text()
         self.assertIn('data-selection-actions="true"', markup_text)
+        self.assertIn('data-individual-history-delete="true"', markup_text)
         self.assertIn('createSelectedHistoryActions', history_script_text)
+        self.assertIn('deleteSelectedHistoryRecord', history_script_text)
         self.assertIn('이력 수동 초기화', history_script_text)
 
     def test_loader_preserves_attribute_component_dependencies(self):

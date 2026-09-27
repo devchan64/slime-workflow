@@ -16,6 +16,31 @@ BONE_ROTATION_FIELDS.update({f'{part_label_value}_{side_label_value}_rotation_{a
 PROFILE_DIRECTORY_PATH=ROOT/'generators/animation/config/anny_profiles'
 HEAD_SCALE_ATTRIBUTE_NAMES={'head-scale-horiz-incr','head-scale-vert-incr','head-scale-depth-incr'}
 PROFILE_REQUIRED_FIELDS={'schema_version','profile_id','label','source_asset_id','asset_path','manifest_path','attributes_path','attributes_sha256','blend_path','glb_path','rig_path','status','attribute_overrides'}
+ANNY_ACTIVE_HISTORY_STATES={'running','queued'}
+
+def read_anny_history_status(job_directory_path):
+ status_file_path=job_directory_path/'status.json'
+ if not status_file_path.is_file():raise ValueError('작업 상태 기록이 없습니다.')
+ status_record=json.loads(status_file_path.read_text())
+ if not isinstance(status_record,dict) or not isinstance(status_record.get('status'),str):raise ValueError('작업 상태 기록 형식 오류')
+ return status_record['status']
+
+def delete_anny_history_record(generation_job_identifier):
+ if not isinstance(generation_job_identifier,str) or not re.fullmatch(r'[0-9a-f]{8}',generation_job_identifier):raise ValueError('작업 ID 오류')
+ generation_job_directory=JOBS/generation_job_identifier
+ history_record_path=generation_job_directory/'history.json'
+ if not history_record_path.is_file():raise ValueError('삭제할 생성 이력을 찾을 수 없습니다.')
+ if read_anny_history_status(generation_job_directory) in ANNY_ACTIVE_HISTORY_STATES:raise ValueError('실행 또는 대기 중인 작업은 먼저 중지하세요.')
+ history_record_path.unlink()
+ return {'deleted':generation_job_identifier,'files_preserved':True}
+
+def clear_anny_history_records():
+ history_record_paths=list(JOBS.glob('*/history.json'))
+ for history_record_path in history_record_paths:
+  if read_anny_history_status(history_record_path.parent) in ANNY_ACTIVE_HISTORY_STATES:raise ValueError('실행 또는 대기 중인 작업이 있습니다. 먼저 중지한 뒤 이력 목록을 초기화하세요.')
+ for history_record_path in history_record_paths:history_record_path.unlink()
+ return {'cleared':len(history_record_paths),'files_preserved':True}
+
 def load_profile_record(profile_path):
  profile_path=Path(profile_path).resolve()
  if not profile_path.is_relative_to(PROFILE_DIRECTORY_PATH.resolve()) or not profile_path.is_file():raise ValueError('ANNY 프로필 경로 오류')
@@ -94,11 +119,16 @@ class AnnyAttributeManager:
      saved_command_values=[str(ROOT/'.venv/bin/python'),str(ROOT/'generators/animation/render_anny_attribute_preview.py'),'--attributes',str(selected_job_directory/'attributes.json'),'--output-dir',str(selected_job_directory/'render'),'--rotation-y',str(saved_request_record.get('render_settings',{}).get('rotation_y',0))]+(['--mesh-only'] if saved_request_record.get('kind')=='preview' else [])
      (selected_job_directory/'gpu-command.json').write_text(json.dumps({'command':saved_command_values,'service':'anny'}))
     self.send(h,200,(resume_gpu_generation if path.endswith('/resume') else cancel_gpu_generation)(JOBS/selected_request_record['id']));return True
+   history_delete_match=re.fullmatch(r'/anny-attributes/history/([0-9a-f]{8})/delete',path)
+   if h.command=='POST' and history_delete_match:
+    if h.headers.get('Origin')!=f'http://127.0.0.1:{h.server.server_port}':raise ValueError('허용하지 않는 요청 출처')
+    selected_request_record=json.loads(h.rfile.read(int(h.headers['Content-Length'])))
+    if selected_request_record!={'id':history_delete_match.group(1)}:raise ValueError('삭제 대상 작업 ID 오류')
+    self.send(h,200,delete_anny_history_record(history_delete_match.group(1)));return True
    if h.command=='POST' and path=='/anny-attributes/history/reset':
     if h.headers.get('Origin')!=f'http://127.0.0.1:{h.server.server_port}':raise ValueError('허용하지 않는 요청 출처')
     if json.loads(h.rfile.read(int(h.headers['Content-Length'])))!={'action':'reset'}:raise ValueError('초기화 요청 오류')
-    for history_record_path in JOBS.glob('*/history.json'):history_record_path.unlink()
-    self.send(h,200,{'status':'cleared'});return True
+    self.send(h,200,clear_anny_history_records());return True
    if h.command=='GET' and path=='/anny-attributes/profiles':
     profile_records=[load_profile_record(profile_file_path) for profile_file_path in sorted(PROFILE_DIRECTORY_PATH.glob('*.yaml'))];self.send(h,200,{'profiles':[{'id':profile_record['profile_id'],'label':profile_record['label']} for profile_record in profile_records]});return True
    if h.command=='GET' and (path=='/anny-attributes/base' or path.startswith('/anny-attributes/base/')):
