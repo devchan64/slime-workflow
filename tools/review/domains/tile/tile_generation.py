@@ -32,7 +32,11 @@ def prepare_tile_request(request_record_value):
     if isinstance(request_record_value,dict):prompt_toggle_values['use_reference_style_prompt']=request_record_value.get('use_reference_style_prompt',False)
     if any(type(value) is not bool for value in prompt_toggle_values.values()):raise ValueError('프롬프트 선택은 ON/OFF여야 합니다.')
     reference_image_values=request_record_value.get('images',[]) if isinstance(request_record_value,dict) else []
-    if isinstance(request_record_value,dict):request_record_value={key:value for key,value in request_record_value.items() if key not in ('images','use_base_prompt','use_style_prompt','use_reference_style_prompt')}
+    generation_tag_value=request_record_value.get('tag','') if isinstance(request_record_value,dict) else ''
+    if not isinstance(generation_tag_value,str):raise ValueError('생성 이력 태그는 문자열이어야 합니다.')
+    generation_tag_value=generation_tag_value.strip()
+    if len(generation_tag_value)>80 or '\n' in generation_tag_value or '\r' in generation_tag_value:raise ValueError('생성 이력 태그는 줄바꿈 없이 80자 이하여야 합니다.')
+    if isinstance(request_record_value,dict):request_record_value={key:value for key,value in request_record_value.items() if key not in ('images','tag','use_base_prompt','use_style_prompt','use_reference_style_prompt')}
     if not isinstance(request_record_value,dict) or set(request_record_value)!={'action','tile_type','user_prompt','width','height','steps','seed'}:
         raise ValueError('타일 종류·사용자 프롬프트·생성 설정만 수정할 수 있습니다.')
     configuration_record_value=load_tile_configuration()
@@ -49,7 +53,7 @@ def prepare_tile_request(request_record_value):
     if validated_request_value['width']!=validated_request_value['height']:raise ValueError('타일은 정사각형 해상도를 선택하세요.')
     from tools.review.domains.image.three_reference_generation import validate_three_reference_request
     validate_three_reference_request({**validated_request_value,'images':reference_image_values})
-    return validated_request_value|prompt_toggle_values|{'images':reference_image_values}|{'tile_type':selected_tile_kind,'user_prompt':user_prompt_value,'base_prompt':base_prompt_value,'style_prompt':style_prompt_value,'reference_style_prompt':REFERENCE_STYLE_PROMPT,'prompt_words':len(combined_prompt_value.split()),'prompt_sha256':hashlib.sha256(combined_prompt_value.encode()).hexdigest()}
+    return validated_request_value|prompt_toggle_values|{'images':reference_image_values}|{'tag':generation_tag_value,'tile_type':selected_tile_kind,'user_prompt':user_prompt_value,'base_prompt':base_prompt_value,'style_prompt':style_prompt_value,'reference_style_prompt':REFERENCE_STYLE_PROMPT,'prompt_words':len(combined_prompt_value.split()),'prompt_sha256':hashlib.sha256(combined_prompt_value.encode()).hexdigest()}
 
 class TileGenerationManager(ImageGenerationManager):
     def __init__(self):

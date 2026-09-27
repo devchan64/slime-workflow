@@ -43,8 +43,11 @@ class TileGenerationTests(unittest.TestCase):
             prepare_tile_request(self.make_tile_request()|{'use_reference_style_prompt':'on'})
 
     def test_fixed_prompt_override_and_invalid_input_rejected(self):
-        for invalid_request_value in ({'base_prompt':'override'},{'style_prompt':''},{'prompt':'override'},{'tile_type':'other'},{'width':768},{'seed':True},{'user_prompt':'word '*100}):
+        for invalid_request_value in ({'base_prompt':'override'},{'style_prompt':''},{'prompt':'override'},{'tile_type':'other'},{'width':768},{'seed':True},{'tag':False},{'tag':'새\n태그'},{'tag':'a'*81},{'user_prompt':'word '*100}):
             with self.assertRaises(ValueError):prepare_tile_request(self.make_tile_request()|invalid_request_value)
+    def test_generation_tag_is_saved_for_history_summary(self):
+        prepared_request_value=prepare_tile_request(self.make_tile_request()|{'tag':'이슬온 시장 외벽 후보'})
+        self.assertEqual(prepared_request_value['tag'],'이슬온 시장 외벽 후보')
     def test_tile_storage_uses_separate_history(self):
         image_manager_value=TileGenerationManager()
         self.assertEqual(image_manager_value.job_storage_root.name,'tile-map')
@@ -88,10 +91,11 @@ class TileGenerationTests(unittest.TestCase):
         with self.assertRaises(ValueError):prepare_tile_request(self.make_tile_request()|{'use_base_prompt':'false'})
         with self.assertRaises(ValueError):prepare_tile_request(self.make_tile_request()|{'use_base_prompt':False,'use_style_prompt':False,'user_prompt':''})
 
-    def test_cli_passes_only_user_prompt(self):
+    def test_cli_passes_user_prompt_and_history_tag(self):
         with patch.object(management_gateway,'execute_management_command',return_value={'id':'test'}) as execute_command_mock:
-            management_gateway.execute_gateway_arguments('tile-map',['generate','--tile-type','wall','--prompt','Oak wood.','--detach'])
+            management_gateway.execute_gateway_arguments('tile-map',['generate','--tile-type','wall','--prompt','Oak wood.','--tag','돌온재 외벽 후보','--detach'])
             current_payload_value=execute_command_mock.call_args.args[2]
             self.assertEqual(current_payload_value['tile_type'],'wall')
             self.assertEqual(current_payload_value['user_prompt'],'Oak wood.')
+            self.assertEqual(current_payload_value['tag'],'돌온재 외벽 후보')
             self.assertNotIn('prompt',current_payload_value)

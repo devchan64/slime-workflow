@@ -65,7 +65,7 @@ def execute_momask_command(operation_command_name, command_payload_value):
     if operation_command_name=='resume':
         return momask_jobs.resume_generation_job(command_payload_value['id'])
     if operation_command_name=='generate':
-        return momask_jobs.start_generation_job(command_payload_value['action'],command_payload_value['directions'],command_payload_value.get('face',False))
+        return momask_jobs.start_generation_job(command_payload_value['action'],command_payload_value['directions'],command_payload_value.get('face',False),command_payload_value.get('tag',''))
     if operation_command_name=='history':
         return momask_jobs.list_generation_history()
     if operation_command_name=='status':
@@ -180,6 +180,7 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
             operation_argument_parser.add_argument('id')
         if operation_command_name=='generate':
             operation_argument_parser.add_argument('--detach',action='store_true',help='작업 ID 출력 후 반환')
+            operation_argument_parser.add_argument('--tag',default='',help='생성 이력 구분 태그, 최대 80자')
             if service_command_name=='character-animation':
                 operation_argument_parser.add_argument('--steps',type=int,choices=(4,30),default=None,help='4: Lightning, 30: 표준 생성 (기본 4)')
                 operation_argument_parser.add_argument('--resolution',type=int,choices=(512,768,1024,1280),default=512)
@@ -229,6 +230,7 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
     if operation_command_name=='generate':
         if service_command_name=='character-animation':
             command_payload_value={'motion':command_argument_values.motion,'character':command_argument_values.character,'source':command_argument_values.source,'directions':command_argument_values.directions}
+            if command_argument_values.tag:command_payload_value['tag']=command_argument_values.tag
             command_payload_value['resolution']=command_argument_values.resolution
             if command_argument_values.steps is not None:command_payload_value['steps']=command_argument_values.steps
             if command_argument_values.speed is not None:command_payload_value['speed']=command_argument_values.speed
@@ -237,10 +239,13 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
             if command_argument_values.end_frame is not None:command_payload_value['end_frame']=command_argument_values.end_frame
         elif service_command_name=='momask':
             command_payload_value={'action':command_argument_values.action,'directions':command_argument_values.directions,'face':command_argument_values.face}
+            if command_argument_values.tag:command_payload_value['tag']=command_argument_values.tag
         else:
             command_payload_value={'action':'generate','prompt':command_argument_values.prompt if command_argument_values.prompt is not None else command_argument_values.prompt_file.read_text(encoding='utf-8'),'width':command_argument_values.width,'height':command_argument_values.height,'steps':command_argument_values.steps,'seed':command_argument_values.seed}
+            if command_argument_values.tag:command_payload_value['tag']=command_argument_values.tag
             if service_command_name=='tile-map':
                 command_payload_value['tile_type']=command_argument_values.tile_type
+                command_payload_value['tag']=command_argument_values.tag
                 command_payload_value['use_base_prompt']=command_argument_values.use_base_prompt
                 command_payload_value['use_style_prompt']=command_argument_values.use_style_prompt
                 command_payload_value['use_reference_style_prompt']=command_argument_values.use_reference_style_prompt

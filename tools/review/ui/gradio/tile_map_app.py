@@ -19,13 +19,13 @@ from tools.review.common.management_gateway import execute_management_command
 from tools.review.domains.tile.tile_generation import REFERENCE_STYLE_PROMPT
 
 def execute_tile_gateway(command_name_value,payload_value):return execute_management_command('tile-map',command_name_value,payload_value)
-def build_tile_request(tile_type_value,user_prompt_value,width_value,step_value,seed_value,use_base_value,use_style_value,use_reference_style_value,*reference_image_values):
+def build_tile_request(tile_type_value,user_prompt_value,generation_tag_value,width_value,step_value,seed_value,use_base_value,use_style_value,use_reference_style_value,*reference_image_values):
     encoded_reference_values=[]
     for current_reference_image in reference_image_values:
         if current_reference_image is None:continue
         image_output_buffer=io.BytesIO();current_reference_image.save(image_output_buffer,format='PNG')
         encoded_reference_values.append(base64.b64encode(image_output_buffer.getvalue()).decode())
-    return {'action':'generate','tile_type':tile_type_value,'user_prompt':user_prompt_value.strip(),'width':int(width_value),'height':int(width_value),'steps':int(step_value),'seed':int(seed_value),'use_base_prompt':use_base_value,'use_style_prompt':use_style_value,'use_reference_style_prompt':use_reference_style_value,'images':encoded_reference_values}
+    return {'action':'generate','tile_type':tile_type_value,'user_prompt':user_prompt_value.strip(),'tag':generation_tag_value.strip(),'width':int(width_value),'height':int(width_value),'steps':int(step_value),'seed':int(seed_value),'use_base_prompt':use_base_value,'use_style_prompt':use_style_value,'use_reference_style_prompt':use_reference_style_value,'images':encoded_reference_values}
 def restore_tile_inputs(current_history_record,server_base_address):
     request_record_value=current_history_record['request']
     reference_name_values=request_record_value.get('references',[])
@@ -37,7 +37,7 @@ def restore_tile_inputs(current_history_record,server_base_address):
         with urllib.request.urlopen(reference_image_url,timeout=15) as current_image_response:
             with Image.open(io.BytesIO(current_image_response.read())) as current_image_value:
                 restored_image_values.append(current_image_value.copy())
-    return [request_record_value['tile_type'],request_record_value['user_prompt'],request_record_value['width'],request_record_value['steps'],request_record_value['seed'],request_record_value.get('use_base_prompt',True),request_record_value.get('use_style_prompt',True),request_record_value.get('use_reference_style_prompt',False),*restored_image_values,*([None]*(3-len(restored_image_values))),'입력값과 참조 사본을 불러왔습니다. 고정 프롬프트는 현재 설정을 사용하며 자동 생성하지 않습니다.']
+    return [request_record_value['tile_type'],request_record_value['user_prompt'],request_record_value.get('tag',''),request_record_value['width'],request_record_value['steps'],request_record_value['seed'],request_record_value.get('use_base_prompt',True),request_record_value.get('use_style_prompt',True),request_record_value.get('use_reference_style_prompt',False),*restored_image_values,*([None]*(3-len(restored_image_values))),'입력값과 참조 사본을 불러왔습니다. 고정 프롬프트는 현재 설정을 사용하며 자동 생성하지 않습니다.']
 
 def cancel_tile_generation(current_generation_identifier):
     if not current_generation_identifier:raise gr.Error('취소할 실행 중 작업이 없습니다.')
@@ -62,6 +62,7 @@ def build_tile_interface(server_base_address):
         with gr.Row():
             with gr.Column():
                 tile_value=gr.Dropdown(tile_choices,value=tile_choices[0][1],label='타일 종류');prompt_value=gr.Textbox(label='사용자 프롬프트',lines=5)
+                generation_tag_value=gr.Textbox(label='생성 이력 태그 · 선택 사항',placeholder='예: 이슬온 시장 외벽 후보',max_lines=1)
                 base_value=gr.Checkbox(value=True,label='기본 프롬프트 적용');style_value=gr.Checkbox(value=True,label='화풍 프롬프트 적용');reference_style_value=gr.Checkbox(value=False,label='참조 화풍 보존 적용')
                 with gr.Accordion('참조 이미지 · 최대 3장',open=False):
                     reference_image_controls=[gr.Image(type='pil',label=f'참조 이미지 {index+1}') for index in range(3)]
@@ -82,10 +83,10 @@ def build_tile_interface(server_base_address):
                     cancel_value=gr.Button('생성 취소',interactive=False)
                     execution_refresh_value=gr.Button('진행 상태 새로고침')
                 identifier_value=gr.Textbox(label='실행 중 생성 ID',interactive=False)
-        read_history_page,history_output_values=build_generation_history_view(execute_tile_gateway,server_base_address,'이력 목록만 초기화합니다. 결과·참조 사본·로그 파일은 유지됩니다. 생성 중에는 초기화할 수 없습니다.',lambda record:restore_tile_inputs(record,server_base_address),[tile_value,prompt_value,width_value,step_value,seed_value,base_value,style_value,reference_style_value,*reference_image_controls,status_value],record_folder_route='/tile-map-generator')
+        read_history_page,history_output_values=build_generation_history_view(execute_tile_gateway,server_base_address,'이력 목록만 초기화합니다. 결과·참조 사본·로그 파일은 유지됩니다. 생성 중에는 초기화할 수 없습니다.',lambda record:restore_tile_inputs(record,server_base_address),[tile_value,prompt_value,generation_tag_value,width_value,step_value,seed_value,base_value,style_value,reference_style_value,*reference_image_controls,status_value],record_folder_route='/tile-map-generator')
         def start_tile(*input_values):
             record_value=execute_tile_gateway('generate',build_tile_request(*input_values));return record_value['id'],'생성 중 · 취소할 수 있습니다.',gr.update(interactive=True),gr.update(interactive=False)
-        bind_gpu_generation_confirmation(start_value,start_tile,[tile_value,prompt_value,width_value,step_value,seed_value,base_value,style_value,reference_style_value,*reference_image_controls],[identifier_value,status_value,cancel_value,start_value])
+        bind_gpu_generation_confirmation(start_value,start_tile,[tile_value,prompt_value,generation_tag_value,width_value,step_value,seed_value,base_value,style_value,reference_style_value,*reference_image_controls],[identifier_value,status_value,cancel_value,start_value])
         blocks_value.load(lambda:read_history_page(1),outputs=history_output_values)
         cancel_value.click(cancel_tile_generation,identifier_value,[status_value,cancel_value,start_value],queue=False).then(lambda:read_history_page(1),outputs=history_output_values)
         execution_output_values=[identifier_value,status_value,cancel_value,start_value]

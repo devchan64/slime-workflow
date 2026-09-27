@@ -158,11 +158,11 @@ Qwen 2512의 공용 작업자·GPU 잠금·준비·취소·진행 조회를 사�
 ```sh
 python3 tools/manager.py help tile-map
 python3 tools/manager.py command tile-map catalog
-python3 tools/manager.py command tile-map generate --tile-type wall --prompt 'Warm stone facade with a wooden window.' --width 512 --height 512 --steps 4 --detach
+python3 tools/manager.py command tile-map generate --tile-type wall --prompt 'Warm stone facade with a wooden window.' --tag '돌온재 외벽 후보' --width 512 --height 512 --steps 4 --detach
 python3 tools/manager.py command tile-map history
 ```
 
-GUI와 CLI는 같은 `tile-map` 게이트웨이 서비스와 기록을 사용한다. CLI도 실행 중인 관리 서버가 필요하다. 생성 종류별 별도 추론 실행기는 만들지 않는다.
+GUI와 CLI는 같은 `tile-map` 게이트웨이 서비스와 기록을 사용한다. CLI도 실행 중인 관리 서버가 필요하다. `--tag`는 줄바꿈 없이 최대 80자의 선택형 이력 구분 태그이며, GUI의 생성 이력 태그와 같은 `request.tag`에 저장된다. 태그는 모델 프롬프트·시드·생성 파라미터를 바꾸지 않는다. 생성 종류별 별도 추론 실행기는 만들지 않는다.
 
 캐릭터 생성 배속은 `--speed 1|1.5|2|4`로 지정한다. 기본은 1이며 `--target-fps 4 --speed 2`는 동일 FPS에서 원본의 절반 길이를 생성한다. 배속은 요청·결과·이력에 `speed`로 기록한다. 원본 모션 검수 재생에는 적용하지 않는다.
 

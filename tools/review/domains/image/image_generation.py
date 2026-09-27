@@ -40,8 +40,10 @@ def validate_image_request(current_request_record):
         raise ValueError('JSON 객체가 필요합니다.')
     if current_request_record.get('action') == 'prepare' and set(current_request_record) == {'action'}:
         return current_request_record
-    if set(current_request_record) != {'action','prompt','width','height','steps','seed'} or current_request_record['action'] != 'generate':
+    if set(current_request_record)-{'action','prompt','width','height','steps','seed','tag'} or not {'action','prompt','width','height','steps','seed'} <= set(current_request_record) or current_request_record['action'] != 'generate':
         raise ValueError('요청 필드 오류')
+    from tools.review.common.generation_records import validate_history_tag
+    current_request_record['tag']=validate_history_tag(current_request_record.get('tag',''))
     if not isinstance(current_request_record['prompt'],str) or not 1 <= len(current_request_record['prompt'].strip()) <= 8000:
         raise ValueError('프롬프트는 1~8000자여야 합니다.')
     if type(current_request_record['steps']) is not int or current_request_record['steps'] not in (4,30):

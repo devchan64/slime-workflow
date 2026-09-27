@@ -3,8 +3,8 @@ import gradio as gr
 from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_confirmation
 
 
-HISTORY_SUMMARY_FIELD_NAMES=('tile_type','motion','action','start_frame','end_frame','directions','width','height','resolution','target_fps','speed','steps','seed')
-HISTORY_SUMMARY_LABELS={'tile_type':'타일','motion':'모션','action':'동작','width':'너비','height':'높이','resolution':'해상도','target_fps':'타겟 FPS','speed':'배속','steps':'스텝','seed':'시드'}
+HISTORY_SUMMARY_FIELD_NAMES=('tag','tile_type','motion','action','start_frame','end_frame','directions','width','height','resolution','target_fps','speed','steps','seed')
+HISTORY_SUMMARY_LABELS={'tag':'태그','tile_type':'타일','motion':'모션','action':'동작','width':'너비','height':'높이','resolution':'해상도','target_fps':'타겟 FPS','speed':'배속','steps':'스텝','seed':'시드'}
 
 
 def build_history_input_controls(history_selection_component, read_input_callback,

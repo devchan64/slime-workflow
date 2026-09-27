@@ -100,8 +100,10 @@ def build_animation_catalog():
     return {'motions':available_motion_records,'characters':available_character_records,'unavailable_assets':unavailable_asset_records,'directions':list(SUPPORTED_DIRECTION_NAMES),'prompts':fixed_prompt_values,'direction_prompts':compose_direction_prompts(fixed_prompt_values)}
 
 def prepare_animation_request(command_payload_value):
-    if not {'motion','character','source','directions'} <= set(command_payload_value) or set(command_payload_value)-{'motion','character','source','directions','frame_step','target_fps','speed','steps','resolution','start_frame','end_frame'}:
+    if not {'motion','character','source','directions'} <= set(command_payload_value) or set(command_payload_value)-{'motion','character','source','directions','tag','frame_step','target_fps','speed','steps','resolution','start_frame','end_frame'}:
         raise ValueError('motion·character·source·directions·start_frame·end_frame·target_fps·speed·steps·resolution·frame_step만 허용합니다. 프롬프트는 수정할 수 없습니다.')
+    from tools.review.common.generation_records import validate_history_tag
+    command_payload_value={**command_payload_value,'tag':validate_history_tag(command_payload_value.get('tag',''))}
     selected_output_resolution=command_payload_value.get('resolution',512)
     if type(selected_output_resolution) is not int or selected_output_resolution not in (512,768,1024,1280):raise ValueError('해상도는 512·768·1024·1280 중 선택하세요.')
     selected_inference_steps = command_payload_value.get('steps',4)
