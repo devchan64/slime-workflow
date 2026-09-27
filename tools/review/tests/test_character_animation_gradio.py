@@ -20,9 +20,9 @@ class CharacterAnimationGradioTests(unittest.TestCase):
         self.assertIn('allow-same-origin',player_html_text)
 
     def test_motion_preview_player_has_pose_asset_and_controls(self):
-        preview_html_text=character_animation_app.create_motion_preview_player('standing-v8','anny','down_left',10,20,4,2,1,'http://127.0.0.1:8770')
-        self.assertIn('character-animation/asset/standing-v8/anny/down_left/10',preview_html_text)
-        self.assertIn('character-animation/asset/standing-v8/anny/down_left/12',preview_html_text)
+        preview_html_text=character_animation_app.create_motion_preview_player('standing-v9','anny','down_left',10,20,4,2,1,'http://127.0.0.1:8770')
+        self.assertIn('character-animation/asset/standing-v9/anny/down_left/10',preview_html_text)
+        self.assertIn('character-animation/asset/standing-v9/anny/down_left/12',preview_html_text)
         self.assertIn('미리보기 불러오기',preview_html_text)
         self.assertIn('id=&quot;play&quot; disabled',preview_html_text)
         self.assertIn('입력 포즈 프레임',preview_html_text)

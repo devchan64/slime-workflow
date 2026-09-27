@@ -156,6 +156,14 @@ def execute_queued_generation(generation_job_path):
                             except ProcessLookupError:
                                 reservation_path.unlink(missing_ok=True)
                                 continue
+                            # 구형 실행기의 고정 예약도 완료된 동일 명령 측정값으로 갱신한다.
+                            reservation_job_directory = Path(reservation_record['path']) if 'path' in reservation_record else None
+                            if reservation_job_directory and (reservation_job_directory/'gpu-command.json').exists():
+                                reservation_command_record = json.loads((reservation_job_directory/'gpu-command.json').read_text())
+                                reservation_memory_estimate = estimate_required_memory(reservation_command_record['service'], GPU_MEMORY_REQUIREMENTS[reservation_command_record['service']], identify_execution_command(reservation_command_record['command']))
+                                if reservation_memory_estimate['samples']:
+                                    reservation_record['required_memory_mib'] = reservation_memory_estimate['required_memory_mib']
+                                    write_record_atomically(reservation_path, reservation_record)
                             # 실측 여유에는 이미 사용 중인 메모리가 반영되어 있다.
                             try:
                                 measured_reservation_mib = read_worker_memory(reservation_record['pid'])
