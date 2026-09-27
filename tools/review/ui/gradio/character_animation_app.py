@@ -118,7 +118,7 @@ def build_character_animation_interface(server_base_address):
                 generation_tag_value=gr.Textbox(label='생성 이력 태그 · 선택 사항',placeholder='예: 돌온재 걷기 후보',max_lines=1)
                 prompt_text_value=gr.Textbox(value=catalog_record_value['prompts']['base'],label='고정 기본 프롬프트',interactive=False,lines=4)
                 reset_base_prompt_button=gr.Button('기본 프롬프트 초기화',size='sm')
-                with gr.Accordion('방향별 보조 프롬프트 · 선택 사항',open=True):
+                with gr.Accordion('방향별 보조 프롬프트 · 선택 사항',open=False):
                     gr.Markdown('비워 두면 추가 지시 없이 생성합니다. 입력한 내용은 해당 방향의 고정 프롬프트 뒤에 추가됩니다.')
                     direction_prompt_components=[]
                     for direction_label_text,direction_name_value in DIRECTION_LABEL_VALUES:

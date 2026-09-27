@@ -12,9 +12,13 @@ class TileGenerationTests(unittest.TestCase):
     def test_ground_tile_uses_floor_tile_label(self):
         self.assertEqual(load_tile_configuration()['types']['ground']['label'],'바닥 타일')
 
-    def test_ground_prompt_marks_all_four_placement_edges(self):
+    def test_ground_prompt_defines_repeatable_flat_surface(self):
         ground_prompt_text=load_tile_configuration()['types']['ground']['base_prompt']
-        self.assertIn('thin straight boundary lines along all four edges',ground_prompt_text)
+        self.assertIn('camera pointing straight down',ground_prompt_text)
+        self.assertIn('Match opposite edges without visible seams',ground_prompt_text)
+        self.assertIn('uniform scale and even lighting',ground_prompt_text)
+        self.assertIn('No border, frame, perspective, horizon',ground_prompt_text)
+        self.assertNotIn('boundary lines',ground_prompt_text)
     def test_all_kinds_keep_base_and_style(self):
         for tile_kind_name in ('rooftop','wall','ground'):
             output_request_value=prepare_tile_request(self.make_tile_request()|{'tile_type':tile_kind_name})

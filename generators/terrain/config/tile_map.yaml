@@ -9,4 +9,4 @@ types:
     base_prompt: "Orthographic flat building wall, square facade, half-visible columns at both edges, a top beam, edge-aligned for adjacent placement."
   ground:
     label: 바닥 타일
-    base_prompt: "Top-down continuous ground surface, uniform scale, square coverage, seamless edge alignment, thin straight boundary lines along all four edges for placement alignment."
+    base_prompt: "Orthographic overhead ground texture for repeated placement, camera pointing straight down. Fill the square with one continuous surface at uniform scale and even lighting. Match opposite edges without visible seams. No border, frame, perspective, horizon, vegetation, or landscape composition."
