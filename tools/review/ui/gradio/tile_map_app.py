@@ -28,6 +28,12 @@ SMALL_WINDOW_WALL_KOREAN_EXAMPLE = '이미지 1은 밖에서 보는 벽면이다
 CLOSED_GATE_WALL_KOREAN_EXAMPLE = '벽면의 음각으로 닫힌 짙은색의 아치형 대문을 추가한다.'
 GROUND_TILE_KOREAN_EXAMPLE = '불규칙한 모양의 커다란 평면 회색 대리석으로 6개로 이루어진 바닥'
 
+def format_applied_prompt_words(catalog_record_value,selected_tile_kind,user_prompt_value,use_base_value,use_style_value,use_reference_value):
+    prompt_section_values=[('기본',catalog_record_value['types'][selected_tile_kind]['base_prompt'],use_base_value),('화풍',catalog_record_value['style_prompt'],use_style_value),('참조 화풍',REFERENCE_STYLE_PROMPT,use_reference_value),('사용자',user_prompt_value or '',True)]
+    applied_word_counts=[(label,len(text.split()) if enabled else 0) for label,text,enabled in prompt_section_values]
+    total_word_count=sum(count for _,count in applied_word_counts)
+    return '**적용 프롬프트 총 '+str(total_word_count)+'단어** · '+ ' + '.join(label+' '+str(count) for label,count in applied_word_counts)+'\n\n'+('⚠️ 100단어 미만으로 줄여 주세요.' if total_word_count>=100 else '100단어 미만 · 공백 기준 단어 수이며 모델 토큰 수와 다릅니다.')
+
 def execute_tile_gateway(command_name_value,payload_value):return execute_management_command('tile-map',command_name_value,payload_value)
 def generate_random_seed_value():return secrets.randbelow(4294967296)
 def clear_user_prompt_value():return ''
@@ -126,6 +132,12 @@ def build_tile_interface(server_base_address):
                         seed_value=gr.Number(value=10107,precision=0,label='Seed',scale=4,min_width=0)
                         randomize_seed_value=gr.Button('무작위 생성',scale=1,min_width=120)
                 randomize_seed_value.click(generate_random_seed_value,outputs=seed_value,queue=False)
+                applied_prompt_summary=gr.Markdown(format_applied_prompt_words(catalog_record_value,tile_choices[0][1],'',True,True,False))
+                def refresh_applied_prompt_words(tile_kind,prompt_text,base_enabled,style_enabled,reference_enabled):
+                    return format_applied_prompt_words(catalog_record_value,tile_kind,prompt_text,base_enabled,style_enabled,reference_enabled)
+                prompt_count_inputs=[tile_value,prompt_value,base_value,style_value,reference_style_value]
+                for prompt_count_component in prompt_count_inputs:
+                    prompt_count_component.change(refresh_applied_prompt_words,inputs=prompt_count_inputs,outputs=applied_prompt_summary,queue=False)
                 start_value=gr.Button('타일 생성 시작',variant='primary');status_value=gr.Markdown('생성 가능 · 최종 프롬프트는 100단어 미만이어야 합니다.')
                 execution_refresh_value=gr.Button('진행 상태 새로고침')
                 gr.Markdown('실행 중인 작업은 아래 생성 이력에서 선택한 뒤 **작업 중지**를 사용하세요.')

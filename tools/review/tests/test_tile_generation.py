@@ -14,10 +14,10 @@ class TileGenerationTests(unittest.TestCase):
 
     def test_ground_prompt_defines_repeatable_flat_surface(self):
         ground_prompt_text=load_tile_configuration()['types']['ground']['base_prompt']
-        self.assertIn('camera pointing straight down',ground_prompt_text)
-        self.assertIn('Match opposite edges without visible seams',ground_prompt_text)
-        self.assertIn('uniform scale and even lighting',ground_prompt_text)
-        self.assertIn('No border, frame, perspective, horizon',ground_prompt_text)
+        self.assertIn('Orthographic top-down',ground_prompt_text)
+        self.assertIn('matching opposite edges',ground_prompt_text)
+        self.assertIn('uniform scale, even lighting',ground_prompt_text)
+        self.assertIn('no border, perspective, horizon',ground_prompt_text)
         self.assertNotIn('boundary lines',ground_prompt_text)
     def test_all_kinds_keep_base_and_style(self):
         for tile_kind_name in ('rooftop','wall','ground'):
@@ -33,14 +33,14 @@ class TileGenerationTests(unittest.TestCase):
 
     def test_rooftop_prompt_requires_single_surface_and_excludes_building_parts(self):
         rooftop_prompt_text=load_tile_configuration()['types']['rooftop']['base_prompt']
-        self.assertIn('one flat continuous plane',rooftop_prompt_text)
+        self.assertIn('single flat roofing surface',rooftop_prompt_text)
         self.assertIn('filling the image',rooftop_prompt_text)
         self.assertNotIn('four broad aligned rows',rooftop_prompt_text)
-        self.assertIn('thin structural edge frame along all outer edges for adjacent connections',rooftop_prompt_text)
+        self.assertIn('thin outer structural frame',rooftop_prompt_text)
         self.assertLessEqual(len(rooftop_prompt_text.split()),32)
         self.assertNotIn('large clearly separated',rooftop_prompt_text)
         self.assertNotIn('wooden',rooftop_prompt_text)
-        self.assertIn('no interior beams, roof tiers, building silhouette, or background',rooftop_prompt_text)
+        self.assertIn('no interior beams, tiers, or background',rooftop_prompt_text)
 
     def test_base_prompts_do_not_prescribe_material(self):
         for tile_type_record in load_tile_configuration()['types'].values():

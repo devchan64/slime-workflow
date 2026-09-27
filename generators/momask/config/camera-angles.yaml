@@ -3,14 +3,14 @@ standing:
   down_left: 30
   down_right: 325
   up_left: 140
-  up_right: 200
+  up_right: 215
 walking:
   down_left: 30
   down_right: 325
   up_left: 140
-  up_right: 200
+  up_right: 215
 resting:
   down_left: 30
   down_right: 325
   up_left: 140
-  up_right: 200
+  up_right: 215
