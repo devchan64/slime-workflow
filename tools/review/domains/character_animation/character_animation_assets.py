@@ -54,7 +54,7 @@ def load_animation_configuration():
     if set(animation_config_record['prompts']) != {'base','auxiliary','auxiliary_rear'}:
         raise ValueError('기본·전방 보조·후방 보조 프롬프트 설정 필요')
     for animation_motion_record in animation_config_record['motions'].values():
-        if set(animation_motion_record) != {'label','root','manifest','openpose','anny','target_fps'}:
+        if set(animation_motion_record)-{'direction_auxiliary_prompts'} != {'label','root','manifest','openpose','anny','target_fps'}:
             raise ValueError('모션 등록 형식 오류')
         if type(animation_motion_record['target_fps']) is not int or animation_motion_record['target_fps'] < 1:
             raise ValueError('기본 타겟 FPS 오류')
@@ -83,7 +83,7 @@ def collect_catalog_asset_records(animation_config_record):
         except (OSError, ValueError, yaml.YAMLError) as asset_error_value:
             unavailable_asset_records.append({'kind':'motion','id':motion_identifier_value,'label':motion_config_record['label'],'reason':str(asset_error_value)})
             continue
-        available_motion_records.append({'id':motion_identifier_value,'label':motion_config_record['label'],'frames':motion_manifest_record['frames'],'fps':motion_manifest_record['fps'],'target_fps':motion_config_record['target_fps']})
+        available_motion_records.append({'id':motion_identifier_value,'label':motion_config_record['label'],'frames':motion_manifest_record['frames'],'fps':motion_manifest_record['fps'],'target_fps':motion_config_record['target_fps'],'direction_auxiliary_prompts':motion_config_record.get('direction_auxiliary_prompts',{})})
     for character_identifier_value, character_config_record in animation_config_record['characters'].items():
         try:
             resolve_asset_path(character_config_record['root']+'/'+character_config_record['manifest'])
@@ -100,8 +100,11 @@ def build_animation_catalog():
     return {'motions':available_motion_records,'characters':available_character_records,'unavailable_assets':unavailable_asset_records,'directions':list(SUPPORTED_DIRECTION_NAMES),'prompts':fixed_prompt_values,'direction_prompts':compose_direction_prompts(fixed_prompt_values)}
 
 def prepare_animation_request(command_payload_value):
-    if not {'motion','character','source','directions'} <= set(command_payload_value) or set(command_payload_value)-{'motion','character','source','directions','tag','frame_step','target_fps','speed','steps','resolution','start_frame','end_frame'}:
-        raise ValueError('motion·character·source·directions·start_frame·end_frame·target_fps·speed·steps·resolution·frame_step만 허용합니다. 프롬프트는 수정할 수 없습니다.')
+    if not {'motion','character','source','directions'} <= set(command_payload_value) or set(command_payload_value)-{'motion','character','source','directions','tag','frame_step','target_fps','speed','steps','resolution','start_frame','end_frame','direction_auxiliary_prompts'}:
+        raise ValueError('지원하지 않는 생성 요청 필드입니다. 보조 프롬프트는 direction_auxiliary_prompts로 지정하고 고정 프롬프트는 수정할 수 없습니다.')
+    auxiliary_direction_values = command_payload_value.get('direction_auxiliary_prompts', {})
+    if not isinstance(auxiliary_direction_values, dict) or set(auxiliary_direction_values)-set(SUPPORTED_DIRECTION_NAMES) or any(not isinstance(value,str) for value in auxiliary_direction_values.values()):
+        raise ValueError('방향별 보조 프롬프트는 지원 방향별 문자열이어야 합니다.')
     from tools.review.common.generation_records import validate_history_tag
     command_payload_value={**command_payload_value,'tag':validate_history_tag(command_payload_value.get('tag',''))}
     selected_output_resolution=command_payload_value.get('resolution',512)
@@ -155,7 +158,7 @@ def prepare_animation_request(command_payload_value):
             generation_frame_records.append({'direction':direction_name_value,'frame':current_frame_number,'character_path':str(character_file_path.relative_to(WORKFLOW_ROOT_DIRECTORY)),'character_sha256':character_file_hash,'pose_path':str(pose_reference_path.relative_to(WORKFLOW_ROOT_DIRECTORY)),'pose_sha256':pose_reference_hash})
     fixed_prompt_values = read_fixed_prompts(animation_config_record)
     combined_prompt_text = fixed_prompt_values['base']+'\n\n'+fixed_prompt_values['auxiliary']
-    return {**command_payload_value,'resolution':selected_output_resolution,'speed':command_payload_value.get('speed',1),'frame_step':selected_frame_step,'start_frame':selected_start_frame,'end_frame':selected_end_frame,'source_frames_per_direction':motion_manifest_record['frames'],'selected_frame_numbers':selected_frame_numbers,'target_fps':None if legacy_frame_sampling else selected_target_fps,'source_fps':motion_manifest_record['fps'],'direction_prompts':compose_direction_prompts(fixed_prompt_values),'prompts':fixed_prompt_values,'prompt_sha256':hashlib.sha256(combined_prompt_text.encode()).hexdigest(),'prompt_words':len(combined_prompt_text.split()),'frames_per_direction':len(selected_frame_numbers),'fps':output_frame_rate,'motion_manifest_sha256':hash_asset_file(motion_manifest_path),'character_manifest_sha256':hash_asset_file(character_manifest_path),'frames':generation_frame_records,'sampling':('none' if selected_frame_step==1 else 'frame-step') if legacy_frame_sampling else 'target-fps','model':'Qwen/Qwen-Image-Edit-2511','steps':selected_inference_steps,'lightning':selected_inference_steps==4}
+    return {**command_payload_value,'resolution':selected_output_resolution,'speed':command_payload_value.get('speed',1),'frame_step':selected_frame_step,'start_frame':selected_start_frame,'end_frame':selected_end_frame,'source_frames_per_direction':motion_manifest_record['frames'],'selected_frame_numbers':selected_frame_numbers,'target_fps':None if legacy_frame_sampling else selected_target_fps,'source_fps':motion_manifest_record['fps'],'direction_prompts':compose_direction_prompts(fixed_prompt_values,command_payload_value.get('direction_auxiliary_prompts')),'direction_auxiliary_prompts':{direction:command_payload_value.get('direction_auxiliary_prompts',{}).get(direction,'') for direction in SUPPORTED_DIRECTION_NAMES},'prompts':fixed_prompt_values,'prompt_sha256':hashlib.sha256(combined_prompt_text.encode()).hexdigest(),'prompt_words':len(combined_prompt_text.split()),'frames_per_direction':len(selected_frame_numbers),'fps':output_frame_rate,'motion_manifest_sha256':hash_asset_file(motion_manifest_path),'character_manifest_sha256':hash_asset_file(character_manifest_path),'frames':generation_frame_records,'sampling':('none' if selected_frame_step==1 else 'frame-step') if legacy_frame_sampling else 'target-fps','model':'Qwen/Qwen-Image-Edit-2511','steps':selected_inference_steps,'lightning':selected_inference_steps==4}
 
 def resolve_motion_preview(selected_motion_name, selected_source_kind, selected_direction_name, selected_frame_number):
     """프롬프트·캐릭터·생성 이력 없이 등록 모션의 단일 프레임을 조회한다."""
@@ -173,11 +176,15 @@ def resolve_motion_preview(selected_motion_name, selected_source_kind, selected_
     return pose_reference_path
 
 
-def compose_direction_prompts(fixed_prompt_values):
+def compose_direction_prompts(fixed_prompt_values, direction_auxiliary_prompts=None):
+    direction_auxiliary_prompts = direction_auxiliary_prompts or {}
+    if not isinstance(direction_auxiliary_prompts, dict) or set(direction_auxiliary_prompts)-set(SUPPORTED_DIRECTION_NAMES) or any(not isinstance(value,str) for value in direction_auxiliary_prompts.values()):
+        raise ValueError("방향별 보조 프롬프트는 지원 방향별 문자열이어야 합니다.")
     direction_prompt_records = {}
     for direction_name_value, direction_label_text in DIRECTION_PROMPT_LABELS.items():
         auxiliary_prompt_role = 'auxiliary_rear' if direction_name_value in ('up_left','up_right') else 'auxiliary'
         auxiliary_prompt_text = fixed_prompt_values[auxiliary_prompt_role].format(direction=direction_label_text)
+        auxiliary_prompt_text = '\n\n'.join(filter(None,[auxiliary_prompt_text,direction_auxiliary_prompts.get(direction_name_value,'').strip()]))
         combined_prompt_text = fixed_prompt_values['base']+'\n\n'+auxiliary_prompt_text
         if len(combined_prompt_text.split()) >= 100:
             raise ValueError('방향별 프롬프트는 100단어 미만이어야 합니다.')

@@ -36,12 +36,12 @@ def format_unavailable_asset_notice(catalog_record_value):
         notice_lines.append(f"- **{asset_kind_label} · {asset_record_value['label']}**: {asset_record_value['reason']}")
     return '\n\n'.join(notice_lines)
 
-def build_animation_request(motion_name_value,character_name_value,source_name_value,direction_name_values,start_frame_value,end_frame_value,resolution_value,step_value,target_fps_value,speed_value,generation_tag_value):
-    return {'motion':motion_name_value,'character':character_name_value,'source':source_name_value,'directions':direction_name_values,'start_frame':start_frame_value,'end_frame':end_frame_value,'resolution':resolution_value,'steps':step_value,'target_fps':target_fps_value,'speed':speed_value,'tag':generation_tag_value.strip()}
+def build_animation_request(motion_name_value,character_name_value,source_name_value,direction_name_values,start_frame_value,end_frame_value,resolution_value,step_value,target_fps_value,speed_value,generation_tag_value,*direction_prompt_values):
+    return {'motion':motion_name_value,'character':character_name_value,'source':source_name_value,'directions':direction_name_values,'start_frame':start_frame_value,'end_frame':end_frame_value,'resolution':resolution_value,'steps':step_value,'target_fps':target_fps_value,'speed':speed_value,'tag':generation_tag_value.strip(),'direction_auxiliary_prompts':{direction: text for (_,direction),text in zip(DIRECTION_LABEL_VALUES,direction_prompt_values or ['']*4)}}
 
 def restore_animation_inputs(current_history_record):
     current_request_record=current_history_record.get('request',{})
-    return current_request_record.get('motion'),current_request_record.get('character'),current_request_record.get('source','anny'),current_request_record.get('directions',[]),current_request_record.get('start_frame',1),current_request_record.get('end_frame'),current_request_record.get('resolution',512),current_request_record.get('steps',4),current_request_record.get('target_fps',4),current_request_record.get('speed',1),current_request_record.get('tag',''),'선택한 이력의 입력값을 불러왔습니다. 생성 전에 내용을 확인하세요.'
+    return current_request_record.get('motion'),current_request_record.get('character'),current_request_record.get('source','anny'),current_request_record.get('directions',[]),current_request_record.get('start_frame',1),current_request_record.get('end_frame'),current_request_record.get('resolution',512),current_request_record.get('steps',4),current_request_record.get('target_fps',4),current_request_record.get('speed',1),current_request_record.get('tag',''),*[current_request_record.get('direction_auxiliary_prompts',{}).get(direction,'') for _,direction in DIRECTION_LABEL_VALUES],'선택한 이력의 입력값을 불러왔습니다. 생성 전에 내용을 확인하세요.'
 
 def calculate_preview_frame_numbers(selected_start_frame,selected_end_frame,source_frame_rate,target_frame_rate,generation_speed_ratio):
     selected_range_frame_count=selected_end_frame-selected_start_frame+1
@@ -117,6 +117,11 @@ def build_character_animation_interface(server_base_address):
                     speed_select_value=gr.Dropdown([1,1.5,2,4],value=1,label='생성 배속')
                 generation_tag_value=gr.Textbox(label='생성 이력 태그 · 선택 사항',placeholder='예: 돌온재 걷기 후보',max_lines=1)
                 prompt_text_value=gr.Textbox(value=catalog_record_value['prompts']['base'],label='고정 기본 프롬프트',interactive=False,lines=4)
+                with gr.Accordion('방향별 보조 프롬프트 · 선택 사항',open=True):
+                    gr.Markdown('비워 두면 추가 지시 없이 생성합니다. 입력한 내용은 해당 방향의 고정 프롬프트 뒤에 추가됩니다.')
+                    direction_prompt_components=[]
+                    for direction_label_text,direction_name_value in DIRECTION_LABEL_VALUES:
+                        direction_prompt_components.append(gr.Textbox(value=motion_catalog_records[motion_choice_values[0][1]].get('direction_auxiliary_prompts',{}).get(direction_name_value,''),label=direction_label_text+' 보조 프롬프트',lines=2))
             with gr.Accordion('입력 포즈 미리보기',open=False):
                 preview_direction_value=gr.Dropdown(DIRECTION_LABEL_VALUES,value='down_left',label='미리보기 방향')
                 generation_identifier_value=gr.State('')
@@ -126,7 +131,7 @@ def build_character_animation_interface(server_base_address):
             generation_button_value=gr.Button('애니메이션 생성 시작',variant='primary',elem_id='character-generation-start')
             status_text_value=gr.Markdown('생성 가능 · 설정을 확인하세요.')
         logs_text_value,log_refresh_enabled,_=build_execution_logs()
-        read_history_page,history_output_values=build_generation_history_view(execute_animation_gateway,server_base_address,'이력 목록만 초기화합니다. 생성 프레임과 로그 파일은 유지됩니다. 생성 중에는 초기화할 수 없습니다.',restore_input_callback=restore_registered_animation_inputs,restore_output_components=[motion_select_value,character_select_value,source_select_value,direction_select_value,start_frame_value,end_frame_value,resolution_select_value,step_select_value,target_fps_select_value,speed_select_value,generation_tag_value,status_text_value],result_renderer_callback=create_animation_player,record_folder_route='/character-animation',allow_individual_delete=True)
+        read_history_page,history_output_values=build_generation_history_view(execute_animation_gateway,server_base_address,'이력 목록만 초기화합니다. 생성 프레임과 로그 파일은 유지됩니다. 생성 중에는 초기화할 수 없습니다.',restore_input_callback=restore_registered_animation_inputs,restore_output_components=[motion_select_value,character_select_value,source_select_value,direction_select_value,start_frame_value,end_frame_value,resolution_select_value,step_select_value,target_fps_select_value,speed_select_value,generation_tag_value,*direction_prompt_components,status_text_value],result_renderer_callback=create_animation_player,record_folder_route='/character-animation',allow_individual_delete=True)
         def start_animation(*selection_values):
             yield gr.skip(),'생성 요청을 접수하고 있습니다.',gr.update(interactive=False,value='요청 접수 중…'),True
             try:
@@ -135,7 +140,7 @@ def build_character_animation_interface(server_base_address):
                 yield generation_record_value['id'],'작업을 접수했습니다. 추가 생성은 확인 후 대기열에 등록됩니다.',gr.update(interactive=True,value='대기열에 추가'),False
             except Exception as generation_request_error:
                 yield gr.skip(),'생성 요청 실패: '+str(generation_request_error),gr.update(interactive=True,value='애니메이션 생성 시작'),False
-        bind_gpu_generation_confirmation(generation_button_value,start_animation,[motion_select_value,character_select_value,source_select_value,direction_select_value,start_frame_value,end_frame_value,resolution_select_value,step_select_value,target_fps_select_value,speed_select_value,generation_tag_value],[generation_identifier_value,status_text_value,generation_button_value,generation_pending_value])
+        bind_gpu_generation_confirmation(generation_button_value,start_animation,[motion_select_value,character_select_value,source_select_value,direction_select_value,start_frame_value,end_frame_value,resolution_select_value,step_select_value,target_fps_select_value,speed_select_value,generation_tag_value,*direction_prompt_components],[generation_identifier_value,status_text_value,generation_button_value,generation_pending_value])
         def change_motion_range(selected_motion_name,selected_source_kind,selected_direction_name,selected_target_frame_rate,selected_speed_ratio,current_start_frame,current_end_frame):
             selected_motion_record=motion_catalog_records[selected_motion_name]
             selected_frame_count=selected_motion_record['frames']
@@ -145,6 +150,7 @@ def build_character_animation_interface(server_base_address):
             return create_motion_preview_player(selected_motion_name,selected_source_kind,selected_direction_name,selected_start_frame,selected_end_frame,motion_catalog_records[selected_motion_name]['fps'],selected_target_frame_rate,selected_speed_ratio,server_base_address)
         preview_component_values=[motion_select_value,source_select_value,preview_direction_value,start_frame_value,end_frame_value,target_fps_select_value,speed_select_value]
         motion_select_value.input(change_motion_range,[motion_select_value,source_select_value,preview_direction_value,target_fps_select_value,speed_select_value,start_frame_value,end_frame_value],[start_frame_value,end_frame_value,motion_preview_html_value],queue=False)
+        motion_select_value.input(lambda motion: [motion_catalog_records[motion].get('direction_auxiliary_prompts',{}).get(direction,'') for _,direction in DIRECTION_LABEL_VALUES],motion_select_value,direction_prompt_components,queue=False)
         for preview_input_value in (source_select_value,preview_direction_value,start_frame_value,end_frame_value,target_fps_select_value,speed_select_value):
             preview_input_value.change(refresh_motion_preview,preview_component_values,motion_preview_html_value,queue=False)
         interface_blocks_value.load(lambda:read_history_page(1),outputs=history_output_values)

@@ -41,6 +41,18 @@ class CharacterAnimationGradioTests(unittest.TestCase):
         self.assertEqual(character_animation_app.clamp_selected_frame_range(10,120,60),(10,60))
         self.assertEqual(character_animation_app.clamp_selected_frame_range(None,None,60),(1,60))
 
+    def test_direction_auxiliary_prompts_round_trip(self):
+        request=character_animation_app.build_animation_request('standing-v9','character-default','anny',['down_left'],1,2,512,4,4,1,'','left detail','','rear detail','')
+        self.assertEqual(request['direction_auxiliary_prompts']['down_left'],'left detail')
+        restored=character_animation_app.restore_animation_inputs({'request':request})
+        self.assertEqual(restored[11:15],('left detail','','rear detail',''))
+        from tools.review.domains.character_animation.character_animation_assets import compose_direction_prompts
+        fixed={'base':'Preserve character.','auxiliary':'Face {direction}.','auxiliary_rear':'Back {direction}.'}
+        prompts=compose_direction_prompts(fixed,request['direction_auxiliary_prompts'])
+        self.assertIn('left detail',prompts['down_left']['text'])
+        self.assertNotIn('left detail',prompts['down_right']['text'])
+        self.assertEqual(compose_direction_prompts(fixed),compose_direction_prompts(fixed,{direction:'' for direction in request['direction_auxiliary_prompts']}))
+
     def test_restore_animation_inputs_uses_historical_request(self):
         restored_input_values=character_animation_app.restore_animation_inputs({'request':{'motion':'standing-v7','character':'anny-v1','source':'anny','directions':['down_left'],'start_frame':10,'end_frame':20,'resolution':768,'steps':30,'target_fps':2,'speed':1.5,'tag':'돌온재 걷기'}})
         self.assertEqual(restored_input_values[:10],('standing-v7','anny-v1','anny',['down_left'],10,20,768,30,2,1.5))

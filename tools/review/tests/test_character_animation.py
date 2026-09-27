@@ -19,6 +19,19 @@ class CharacterAnimationTests(unittest.TestCase):
     def make_selection_record(self,**selection_override_values):
         return dict(motion='standing-v9',character='character-default',source='anny',directions=['down_left'],**selection_override_values)
 
+    def test_ui_auxiliary_request_is_accepted_and_composed(self):
+        from tools.review.ui.gradio.character_animation_app import build_animation_request
+        payload=build_animation_request('standing-v9','character-default','anny',['down_left'],1,1,512,4,4,1,'','Walk left.','','','')
+        prepared=assets.prepare_animation_request(payload)
+        self.assertEqual(prepared['direction_auxiliary_prompts']['down_left'],'Walk left.')
+        self.assertIn('Walk left.',prepared['direction_prompts']['down_left']['text'])
+        self.assertNotIn('Walk left.',prepared['direction_prompts']['down_right']['text'])
+        for invalid in [None,[],{'invalid':'text'},{'down_left':42}]:
+            with self.assertRaises(ValueError):
+                assets.prepare_animation_request({**payload,'direction_auxiliary_prompts':invalid})
+        with self.assertRaises(ValueError):
+            assets.prepare_animation_request({**payload,'prompt':'override'})
+
     def test_catalog_skips_missing_asset_and_reports_reason(self):
         with tempfile.TemporaryDirectory() as temporary_root_name:
             temporary_root_path=Path(temporary_root_name)
