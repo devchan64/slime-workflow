@@ -13,6 +13,7 @@ WORKFLOW_ROOT_DIRECTORY=Path(__file__).resolve().parents[4]
 if str(WORKFLOW_ROOT_DIRECTORY) not in sys.path:sys.path.insert(0,str(WORKFLOW_ROOT_DIRECTORY))
 from tools.review.common.gradio_logs import build_execution_logs, LOG_PANEL_STYLES
 from tools.review.common.gradio_history import build_generation_history_view
+from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_confirmation
 from tools.review.common.management_gateway import execute_management_command
 
 IMAGE_SIZE_VALUES=(512,768,1024,1280)
@@ -87,7 +88,7 @@ def build_qwen_2512_interface(server_base_address):
         def start_generation(prompt_text_value,width_value,height_value,step_value,seed_value):
             generation_record_value=execute_image_gateway('generate',build_generation_request(prompt_text_value,width_value,height_value,step_value,seed_value))
             return generation_record_value['id'],'상태: running · 생성 작업을 시작했습니다.'
-        generation_button_value.click(start_generation,[prompt_text_value,width_select_value,height_select_value,step_select_value,seed_number_value],[generation_identifier_value,generation_status_value])
+        bind_gpu_generation_confirmation(generation_button_value,start_generation,[prompt_text_value,width_select_value,height_select_value,step_select_value,seed_number_value],[generation_identifier_value,generation_status_value])
         interface_blocks_value.load(lambda:read_history_page(1),outputs=history_output_values)
         def refresh_generation_status(generation_identifier_value,refresh_log_enabled):
             if not generation_identifier_value:return '생성 ID를 선택하세요.',gr.skip(),gr.skip()

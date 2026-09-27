@@ -138,6 +138,13 @@ def start_animation_generation(command_payload_value):
     try:
         try: fcntl.flock(generation_lock_handle,fcntl.LOCK_EX|fcntl.LOCK_NB)
         except BlockingIOError: raise ValueError('캐릭터 애니메이션 생성이 이미 진행 중입니다.') from None
+        # 동일 입력의 대기·실행 작업은 기존 ID를 반환하여 연속 클릭을 합친다.
+        for existing_status_path in GENERATION_ROOT_DIRECTORY.glob('*/*/status.json'):
+            existing_status_record=json.loads(existing_status_path.read_text())
+            if existing_status_record.get('status') not in ('running','queued'):continue
+            existing_request_path=existing_status_path.parent/'request.json'
+            if existing_request_path.is_file() and json.loads(existing_request_path.read_text())==generation_request_record:
+                return {'id':existing_status_path.parent.name,'status':existing_status_record['status'],'path':str(existing_status_path.parent),'reused':True}
         creation_time_value = datetime.now(ZoneInfo('Asia/Seoul'))
         generation_job_identifier = creation_time_value.strftime('%Y-%m-%d_%H-%M-%S')+'-'+uuid.uuid4().hex[:8]
         generation_job_path = resolve_generation_directory(generation_job_identifier)
@@ -201,6 +208,8 @@ def execute_animation_command(operation_command_name,command_payload_value):
         for history_record_path in sorted(GENERATION_HISTORY_DIRECTORY.glob('*.json'),reverse=True):
             history_record_value = json.loads(history_record_path.read_text())
             generation_status_value = read_generation_status(history_record_value['id'])
+            preview_image_record=generation_status_value.get('preview')
+            history_record_value['image']=(f"/character-animation/files/{history_record_value['id']}/{preview_image_record['image']}" if preview_image_record else None)
             history_record_values.append({**history_record_value,'path':generation_status_value['path'],'status':{'status':generation_status_value['status'],'error':generation_status_value.get('error')},'request':{**{key:generation_status_value['request'][key] for key in ('motion','character','source','directions','start_frame','end_frame')},'resolution':generation_status_value['request'].get('resolution',512),'speed':generation_status_value['request'].get('speed',1),'target_fps':generation_status_value['request'].get('target_fps'),'frame_step':generation_status_value['request'].get('frame_step',1),'steps':generation_status_value['request'].get('steps',4)},'playable':bool(generation_status_value.get('result'))})
         return {'records':history_record_values}
     if operation_command_name=='history-reset':

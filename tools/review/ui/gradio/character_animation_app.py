@@ -15,6 +15,7 @@ WORKFLOW_ROOT_DIRECTORY=Path(__file__).resolve().parents[4]
 if str(WORKFLOW_ROOT_DIRECTORY) not in sys.path:sys.path.insert(0,str(WORKFLOW_ROOT_DIRECTORY))
 from tools.review.common.gradio_logs import build_execution_logs, LOG_PANEL_STYLES
 from tools.review.common.gradio_history import build_generation_history_view
+from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_confirmation
 from tools.review.common.management_gateway import execute_management_command
 
 DIRECTION_LABEL_VALUES=[('전방 좌측','down_left'),('전방 우측','down_right'),('후방 좌측','up_left'),('후방 우측','up_right')]
@@ -105,7 +106,8 @@ def build_character_animation_interface(server_base_address):
                     target_fps_select_value=gr.Dropdown([1,2,3,4],value=4,label='타겟 FPS')
                     speed_select_value=gr.Dropdown([1,1.5,2,4],value=1,label='생성 배속')
                 prompt_text_value=gr.Textbox(value=catalog_record_value['prompts']['base'],label='고정 기본 프롬프트',interactive=False,lines=4)
-                generation_button_value=gr.Button('애니메이션 생성 시작',variant='primary')
+                generation_pending_value=gr.State(False)
+                generation_button_value=gr.Button('애니메이션 생성 시작',variant='primary',elem_id='character-generation-start')
                 status_text_value=gr.Markdown('생성 가능 · 설정을 확인하세요.')
             with gr.Column(scale=2):
                 generation_identifier_value=gr.Textbox(label='생성 ID',interactive=False)
@@ -116,10 +118,14 @@ def build_character_animation_interface(server_base_address):
         logs_text_value,log_refresh_enabled,_=build_execution_logs()
         read_history_page,history_output_values=build_generation_history_view(execute_animation_gateway,server_base_address,'이력 목록만 초기화합니다. 생성 프레임과 로그 파일은 유지됩니다. 생성 중에는 초기화할 수 없습니다.',restore_input_callback=restore_animation_inputs,restore_output_components=[motion_select_value,character_select_value,source_select_value,direction_select_value,start_frame_value,end_frame_value,resolution_select_value,step_select_value,target_fps_select_value,speed_select_value,status_text_value],result_renderer_callback=create_animation_player,record_folder_route='/character-animation')
         def start_animation(*selection_values):
-            request_payload_value=build_animation_request(*selection_values)
-            generation_record_value=execute_animation_gateway('generate',request_payload_value)
-            return generation_record_value['id'],'상태: running'
-        generation_button_value.click(start_animation,[motion_select_value,character_select_value,source_select_value,direction_select_value,start_frame_value,end_frame_value,resolution_select_value,step_select_value,target_fps_select_value,speed_select_value],[generation_identifier_value,status_text_value])
+            yield gr.skip(),'생성 요청을 접수하고 있습니다.',gr.update(interactive=False,value='요청 접수 중…'),True
+            try:
+                request_payload_value=build_animation_request(*selection_values)
+                generation_record_value=execute_animation_gateway('generate',request_payload_value)
+                yield generation_record_value['id'],'작업을 접수했습니다. 완료 또는 중지 후 다시 생성할 수 있습니다.',gr.update(interactive=False,value='생성 작업 진행 중'),False
+            except Exception as generation_request_error:
+                yield gr.skip(),'생성 요청 실패: '+str(generation_request_error),gr.update(interactive=True,value='애니메이션 생성 시작'),False
+        bind_gpu_generation_confirmation(generation_button_value,start_animation,[motion_select_value,character_select_value,source_select_value,direction_select_value,start_frame_value,end_frame_value,resolution_select_value,step_select_value,target_fps_select_value,speed_select_value],[generation_identifier_value,status_text_value,generation_button_value,generation_pending_value])
         def change_motion_range(selected_motion_name,selected_source_kind,selected_direction_name,selected_target_frame_rate,selected_speed_ratio,current_start_frame,current_end_frame):
             selected_motion_record=motion_catalog_records[selected_motion_name]
             selected_frame_count=selected_motion_record['frames']
@@ -132,13 +138,14 @@ def build_character_animation_interface(server_base_address):
         for preview_input_value in (source_select_value,preview_direction_value,start_frame_value,end_frame_value,target_fps_select_value,speed_select_value):
             preview_input_value.change(refresh_motion_preview,preview_component_values,motion_preview_html_value,queue=False)
         interface_blocks_value.load(lambda:read_history_page(1),outputs=history_output_values)
-        def refresh_status(identifier,refresh_logs):
-            if not identifier:return '생성 ID를 선택하세요.',gr.skip()
+        def refresh_status(identifier,refresh_logs,request_pending):
+            if request_pending:return gr.skip(),gr.skip(),gr.skip()
+            if not identifier:return '생성 가능 · 설정을 확인하세요.',gr.skip(),gr.update(interactive=True,value='애니메이션 생성 시작')
             status_record_value=execute_animation_gateway('status',{'id':identifier})
-            return '상태: '+status_record_value['status'],gr.update(value=status_record_value['log']) if refresh_logs else gr.skip()
+            return '상태: '+status_record_value['status'],gr.update(value=status_record_value['log']) if refresh_logs else gr.skip(),gr.update(interactive=status_record_value['status'] not in ('running','queued'),value='생성 작업 진행 중' if status_record_value['status'] in ('running','queued') else '애니메이션 생성 시작')
         refresh_button_value=gr.Button('상태 새로고침')
-        refresh_button_value.click(refresh_status,[generation_identifier_value,log_refresh_enabled],[status_text_value,logs_text_value],queue=False)
-        if hasattr(gr,'Timer'):gr.Timer(2).tick(refresh_status,[generation_identifier_value,log_refresh_enabled],[status_text_value,logs_text_value],show_progress='hidden')
+        refresh_button_value.click(refresh_status,[generation_identifier_value,log_refresh_enabled,generation_pending_value],[status_text_value,logs_text_value,generation_button_value],queue=False)
+        if hasattr(gr,'Timer'):gr.Timer(2).tick(refresh_status,[generation_identifier_value,log_refresh_enabled,generation_pending_value],[status_text_value,logs_text_value,generation_button_value],show_progress='hidden')
         cancel_button_value.click(lambda identifier:execute_animation_gateway('cancel',{'id':identifier}),generation_identifier_value,status_text_value)
     return interface_blocks_value
 

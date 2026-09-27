@@ -226,6 +226,19 @@ characters:
                 self.assertEqual(jobs.execute_animation_command('history',{}),{'records':[]})
                 self.assertTrue((jobs.resolve_generation_directory(generation_job_identifier)/'request.json').exists())
 
+    def test_duplicate_active_input_reuses_job(self):
+        with tempfile.TemporaryDirectory() as temporary_root_name:
+            temporary_root_path=Path(temporary_root_name)
+            with patch.object(jobs,'GENERATION_ROOT_DIRECTORY',temporary_root_path),patch.object(jobs,'GENERATION_HISTORY_DIRECTORY',temporary_root_path/'history'),patch.object(jobs,'GENERATION_LOCK_PATH',temporary_root_path/'generation.lock'),patch.object(jobs.subprocess,'Popen') as worker_launch_mock:
+                first_job_record=jobs.start_animation_generation(self.make_selection_record(target_fps=2))
+                second_job_record=jobs.start_animation_generation(self.make_selection_record(target_fps=2))
+                self.assertEqual(first_job_record['id'],second_job_record['id'])
+                self.assertTrue(second_job_record['reused'])
+                self.assertEqual(worker_launch_mock.call_count,1)
+                jobs.write_record_atomically(jobs.resolve_generation_directory(first_job_record['id'])/'status.json',{'status':'completed'})
+                next_job_record=jobs.start_animation_generation(self.make_selection_record(target_fps=2))
+                self.assertNotEqual(first_job_record['id'],next_job_record['id'])
+
     def test_concurrent_generation_rejected(self):
         import fcntl
         with tempfile.TemporaryDirectory() as temporary_root_name:

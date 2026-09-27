@@ -130,3 +130,20 @@ if __name__ == '__main__':
     queue_argument_parser = argparse.ArgumentParser()
     queue_argument_parser.add_argument('--job-dir', required=True)
     sys.exit(execute_queued_generation(queue_argument_parser.parse_args().job_dir))
+
+
+def list_waiting_gpu_jobs():
+    """살아 있는 대기 실행기의 작업 목록만 읽는다."""
+    waiting_job_records=[]
+    for waiting_ticket_path in sorted(GPU_QUEUE_DIRECTORY.glob('*.json')):
+        try:
+            waiting_ticket_record=json.loads(waiting_ticket_path.read_text())
+            os.kill(waiting_ticket_record['pid'],0)
+            waiting_job_directory=Path(waiting_ticket_record['path'])
+            if not waiting_job_directory.resolve().is_relative_to(WORKFLOW_ROOT_DIRECTORY/'.tmp'):continue
+            waiting_status_record=json.loads((waiting_job_directory/'status.json').read_text())
+            if waiting_status_record['status']!='queued':continue
+            waiting_command_record=json.loads((waiting_job_directory/'gpu-command.json').read_text())
+            waiting_job_records.append({'id':waiting_job_directory.name,'service':waiting_command_record['service']})
+        except (FileNotFoundError,ProcessLookupError):continue
+    return {'jobs':waiting_job_records}

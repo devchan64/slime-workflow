@@ -14,6 +14,7 @@ import gradio as gr
 WORKFLOW_ROOT_DIRECTORY=Path(__file__).resolve().parents[4]
 if str(WORKFLOW_ROOT_DIRECTORY) not in sys.path:sys.path.insert(0,str(WORKFLOW_ROOT_DIRECTORY))
 from tools.review.common.gradio_history import build_generation_history_view
+from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_confirmation
 from tools.review.common.management_gateway import execute_management_command
 from tools.review.domains.tile.tile_generation import REFERENCE_STYLE_PROMPT
 
@@ -84,7 +85,7 @@ def build_tile_interface(server_base_address):
         read_history_page,history_output_values=build_generation_history_view(execute_tile_gateway,server_base_address,'이력 목록만 초기화합니다. 결과·참조 사본·로그 파일은 유지됩니다. 생성 중에는 초기화할 수 없습니다.',lambda record:restore_tile_inputs(record,server_base_address),[tile_value,prompt_value,width_value,step_value,seed_value,base_value,style_value,reference_style_value,*reference_image_controls,status_value],record_folder_route='/tile-map-generator')
         def start_tile(*input_values):
             record_value=execute_tile_gateway('generate',build_tile_request(*input_values));return record_value['id'],'생성 중 · 취소할 수 있습니다.',gr.update(interactive=True),gr.update(interactive=False)
-        start_value.click(start_tile,[tile_value,prompt_value,width_value,step_value,seed_value,base_value,style_value,reference_style_value,*reference_image_controls],[identifier_value,status_value,cancel_value,start_value])
+        bind_gpu_generation_confirmation(start_value,start_tile,[tile_value,prompt_value,width_value,step_value,seed_value,base_value,style_value,reference_style_value,*reference_image_controls],[identifier_value,status_value,cancel_value,start_value])
         blocks_value.load(lambda:read_history_page(1),outputs=history_output_values)
         cancel_value.click(cancel_tile_generation,identifier_value,[status_value,cancel_value,start_value],queue=False).then(lambda:read_history_page(1),outputs=history_output_values)
         execution_output_values=[identifier_value,status_value,cancel_value,start_value]

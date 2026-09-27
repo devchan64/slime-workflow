@@ -15,6 +15,7 @@ import yaml
 WORKFLOW_ROOT_DIRECTORY = Path(__file__).resolve().parents[4]
 sys.path.insert(0, str(WORKFLOW_ROOT_DIRECTORY))
 from tools.review.common.gradio_history import build_history_reset_controls, bind_history_reset_action, format_history_choice_label, build_history_input_controls
+from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_confirmation
 from tools.review.common.management_gateway import execute_management_command
 from tools.review.common.gradio_logs import build_execution_logs, LOG_PANEL_STYLES
 from tools.review.domains.momask.momask_jobs import check_generation_running
@@ -154,7 +155,7 @@ def build_momask_interface(server_base_address):
                                          [action_select_value, direction_select_value, face_checkbox_value, prompt_text_value, settings_text_value])
             reset_control_values=build_history_reset_controls('이력 목록만 초기화합니다. 결과 파일은 보존됩니다.')
         action_select_value.change(read_motion_settings,action_select_value,[prompt_text_value,settings_text_value],queue=False)
-        generate_button_value.click(start_motion_generation,[action_select_value,direction_select_value,face_checkbox_value],identifier_text_value)
+        bind_gpu_generation_confirmation(generate_button_value,start_motion_generation,[action_select_value,direction_select_value,face_checkbox_value],identifier_text_value)
         cancel_button_value.click(lambda identifier: execute_motion_command('cancel',{'id':identifier}),identifier_text_value,input_record_value)
         def refresh_motion_history(current_page_number,current_history_identifier):
             return list_motion_history(current_page_number,current_history_identifier,server_base_address)
@@ -192,7 +193,7 @@ def build_momask_interface(server_base_address):
             return ('선택한 이력: `'+selected_history_identifier+'`') if selected_history_identifier else '조회할 생성이력을 선택하세요.', gr.update(interactive=bool(selected_history_identifier)), gr.update(interactive=resume_enabled_value), resume_help_text
         history_table_value.change(select_history_result,history_table_value,[history_selected_value,history_result_button,history_resume_button,history_resume_help],queue=False)
         history_table_value.input(lambda selected_identifier: selected_identifier or '',history_table_value,identifier_text_value,queue=False)
-        history_resume_button.click(lambda selected_identifier: execute_motion_command('resume',{'id':selected_identifier})['id'],history_table_value,identifier_text_value)
+        bind_gpu_generation_confirmation(history_resume_button,lambda selected_identifier: execute_motion_command('resume',{'id':selected_identifier})['id'],history_table_value,identifier_text_value)
         history_result_button.click(show_motion_result,history_table_value,[player_html_value,record_path_value,input_record_value,viewed_identifier_value],scroll_to_output=True)
 
         map_button_value.click(lambda identifier,face:execute_motion_command('openpose-map',{'id':identifier,'face':face}),[identifier_text_value,face_checkbox_value],input_record_value).then(show_motion_result,identifier_text_value,[player_html_value,record_path_value,input_record_value,viewed_identifier_value])
