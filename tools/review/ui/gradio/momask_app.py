@@ -14,7 +14,7 @@ import yaml
 
 WORKFLOW_ROOT_DIRECTORY = Path(__file__).resolve().parents[4]
 sys.path.insert(0, str(WORKFLOW_ROOT_DIRECTORY))
-from tools.review.common.gradio_history import build_history_reset_controls, bind_history_reset_action, format_history_choice_label, build_history_input_controls
+from tools.review.common.gradio_history import build_generation_history_view
 from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_confirmation
 from tools.review.common.management_gateway import execute_management_command
 from tools.review.common.gradio_logs import build_execution_logs, LOG_PANEL_STYLES
@@ -38,34 +38,29 @@ def read_motion_settings(selected_action_name):
     prompt_content_value=action_config_record['prompt']
     return prompt_content_value, f"{len(prompt_content_value.split())}단어 · 원본 {action_config_record['source_frames']}프레임 · 수평 {camera_config_record[selected_action_name]}° · 내려다보기 약 17°"
 
-def collect_motion_history_thumbnails(history_record_values,server_base_address):
-    thumbnail_item_values=[]
-    thumbnail_identifier_values=[]
-    for current_history_record in history_record_values:
-        if current_history_record.get('status')!='completed':
-            continue
-        current_result_directory=WORKFLOW_ROOT_DIRECTORY/'.tmp/momask-generator/jobs'/current_history_record['id']/'result'
-        preview_image_paths=sorted(current_result_directory.glob('anny/*/frames/anny-0001.png')) or sorted(current_result_directory.glob('openpose/*/openpose-0001.png')) or sorted(current_result_directory.glob('*/openpose-0001.png'))
-        if not preview_image_paths:
-            continue
-        preview_relative_path=preview_image_paths[0].relative_to(current_result_directory).as_posix()
-        thumbnail_label_value=' · '.join(value for value in ('completed',current_history_record.get('tag','').strip(),current_history_record['id']) if value)
-        thumbnail_item_values.append((server_base_address.rstrip('/')+f"/momask-generator/jobs/{current_history_record['id']}/result/{preview_relative_path}",thumbnail_label_value))
-        thumbnail_identifier_values.append(current_history_record['id'])
-    return thumbnail_item_values,thumbnail_identifier_values
+def create_motion_history_records(server_base_address):
+    history_record_values=[]
+    for source_history_record in execute_motion_command('history',{}):
+        current_history_record=dict(source_history_record)
+        current_job_identifier=current_history_record['id']
+        current_status_name=current_history_record.get('status','unknown')
+        current_request_record={'action':dict((value,label) for label,value in MOTION_ACTION_LABELS).get(current_history_record.get('action'),current_history_record.get('action','unknown')),'directions':current_history_record.get('directions',[]),'tag':current_history_record.get('tag','')}
+        current_history_record['status']={'status':current_status_name}
+        current_history_record['request']=current_request_record
+        current_history_record['path']=str(WORKFLOW_ROOT_DIRECTORY/'.tmp/momask-generator/jobs'/current_job_identifier)
+        if current_status_name=='completed':
+            current_result_directory=WORKFLOW_ROOT_DIRECTORY/'.tmp/momask-generator/jobs'/current_job_identifier/'result'
+            preview_image_paths=sorted(current_result_directory.glob('anny/*/frames/anny-0001.png')) or sorted(current_result_directory.glob('openpose/*/openpose-0001.png')) or sorted(current_result_directory.glob('*/openpose-0001.png'))
+            if preview_image_paths:
+                current_history_record['image']='/momask-generator/jobs/'+current_job_identifier+'/result/'+preview_image_paths[0].relative_to(current_result_directory).as_posix()
+        history_record_values.append(current_history_record)
+    return {'records':history_record_values}
 
 
-def list_motion_history(history_page_number=1, selected_history_identifier=None,server_base_address=''):
-    history_record_values=execute_motion_command('history',{})
-    selected_page_number=max(1,min(int(history_page_number or 1),max(1,(len(history_record_values)+7)//8)))
-    history_page_records=history_record_values[(selected_page_number-1)*8:selected_page_number*8]
-    history_choice_values=[]
-    for record_value in history_page_records:
-        history_record_value={'id':record_value['id'],'created_at':record_value.get('created_at'),'status':{'status':record_value['status']},'request':{'action':dict((value,label) for label,value in MOTION_ACTION_LABELS).get(record_value['action'],record_value['action']),'directions':len(record_value.get('directions',[])),'tag':record_value.get('tag','')}}
-        history_choice_values.append((format_history_choice_label(history_record_value),record_value['id']))
-    retained_history_identifier=selected_history_identifier if selected_history_identifier in [value for _,value in history_choice_values] else None
-    thumbnail_item_values,thumbnail_identifier_values=collect_motion_history_thumbnails(history_page_records,server_base_address)
-    return gr.update(choices=history_choice_values,value=retained_history_identifier),f"{selected_page_number} / {max(1,(len(history_record_values)+7)//8)} 페이지 · 총 {len(history_record_values)}건",gr.update(value=thumbnail_item_values,visible=bool(thumbnail_item_values)),thumbnail_identifier_values
+def execute_motion_history_command(operation_command_name,command_payload_value,server_base_address):
+    if operation_command_name=='history':
+        return create_motion_history_records(server_base_address)
+    return execute_motion_command(operation_command_name,command_payload_value)
 
 def start_motion_generation(selected_action_name, selected_direction_names, selected_face_enabled, generation_tag_value):
     generation_record_value=execute_motion_command('generate',{'action':selected_action_name,'directions':selected_direction_names,'face':selected_face_enabled,'tag':generation_tag_value.strip()})
@@ -101,130 +96,68 @@ def create_motion_player(generation_job_identifier, generation_result_record, se
     player_source_text=(Path(__file__).parent/'motion-player.html').read_text().replace('__PLAYER_PAYLOAD__',json.dumps(player_payload_value).replace('<','\\u003c'))
     return '<iframe title="모션 동기 재생" style="width:100%;height:460px;border:0" sandbox="allow-scripts" srcdoc="'+html.escape(player_source_text,quote=True)+'"></iframe>'
 
+def render_motion_history_result(generation_job_identifier,generation_status_record,server_base_address):
+    if generation_status_record.get('status')!='completed':
+        return '<p>선택한 이력은 '+html.escape(str(generation_status_record.get('status','unknown')))+' 상태입니다. 실행 로그를 확인하세요.</p>'
+    return create_motion_player(generation_job_identifier,generation_status_record.get('result',{}),server_base_address)
+
 def build_momask_interface(server_base_address):
     with gr.Blocks(title='MoMask 모션 생성기') as interface_blocks_value:
-        gr.Markdown('## MoMask 모션 생성기')
-        with gr.Row(elem_id='motion-workspace'):
-            with gr.Column(scale=1,min_width=340,elem_id='motion-controls'):
-                gr.Markdown('### 1. 새 모션 생성')
+        gr.Markdown('## MoMask 모션 생성기\n포즈와 방향을 설정해 모션을 생성하고, 아래 이력 카드에서 결과 재생·입력 재사용·중지·재개를 처리합니다.')
+        with gr.Column(elem_id='motion-workspace'):
+            gr.Markdown('### 새 모션 생성')
+            with gr.Row():
                 action_select_value=gr.Dropdown(MOTION_ACTION_LABELS,value='standing',label='포즈')
                 direction_select_value=gr.CheckboxGroup(MOTION_DIRECTION_LABELS,value=[value for _,value in MOTION_DIRECTION_LABELS],label='생성 방향',elem_id='motion-direction-selection')
+            with gr.Row():
                 face_checkbox_value=gr.Checkbox(value=True,label='얼굴 포인트 ON · 가려진 점 제외')
                 generation_tag_value=gr.Textbox(label='생성 이력 태그 · 선택 사항',placeholder='예: 돌온재 걷기 후보',max_lines=1)
-                settings_initial_values=read_motion_settings('standing')
-                prompt_text_value=gr.Textbox(value=settings_initial_values[0],label='고정 스크립트',interactive=False,lines=4)
-                settings_text_value=gr.Markdown(settings_initial_values[1])
-                with gr.Accordion('위치 채널 기반 공통 리타깃', open=False):
-                    gr.HTML(render_position_retarget_policy())
-                with gr.Row(elem_id='motion-command-actions'):
-                    generate_button_value=gr.Button('모션 생성 시작',variant='primary',elem_id='motion-generate-button')
-                    cancel_button_value=gr.Button('생성 취소',elem_id='motion-cancel-button')
-                    status_refresh_button_value=gr.Button('상태 새로고침',elem_id='motion-status-refresh-button')
-                status_text_value=gr.Markdown('작업 상태 조회 중')
-                gr.Markdown('예상 시간: 측정 자료가 없어 계산할 수 없습니다. 실행 로그에서 단계를 확인하세요.')
-            with gr.Column(scale=2,min_width=480,elem_id='motion-preview'):
-                gr.Markdown('### 결과 재생')
-                viewed_identifier_value=create_copyable_textbox(label='조회한 결과 이력 ID · 오른쪽 아이콘으로 복사',interactive=False,elem_id='viewed-motion-identifier')
-                player_html_value=gr.HTML('<div class="motion-empty-state">아직 선택된 결과가 없습니다.<br>왼쪽 <b>생성 이력 · 결과 조회</b>를 펼쳐 이력을 선택하고 조회하세요.</div>')
-                with gr.Accordion('생성 ID로 직접 조회',open=False):
-                    identifier_text_value=create_copyable_textbox(label='생성 ID',interactive=True)
-                    result_button_value=gr.Button('ID로 결과 조회')
-                with gr.Accordion('결과 상세 · OpenPose 맵 생성',open=False):
-                    map_button_value=gr.Button('OpenPose 맵 생성 · 설정의 얼굴 포인트 옵션 적용')
-                    record_path_value=create_copyable_textbox(label='기록 폴더',interactive=False)
-                    record_folder_button_value=gr.Button('기록 폴더 열기')
-                    record_folder_status_value=gr.Markdown()
-                    input_record_value=gr.JSON(label='저장된 입력 · 결과 정보')
-        logs_text_value,log_refresh_enabled,log_panel_element=build_execution_logs()
-        with gr.Accordion('2. 생성 이력 · 결과 조회',open=False,elem_id='motion-history-panel',elem_classes=['generation-history-workspace']):
-            gr.Markdown('완료된 결과를 재생하거나 중단된 작업을 재개할 때 이력을 선택하세요.')
-            with gr.Row(elem_id='motion-history-toolbar'):
-                history_refresh_value=gr.Button('이력 새로고침',variant='secondary')
-                history_page_value=gr.Number(value=1,precision=0,minimum=1,label='페이지',scale=1,min_width=100)
-                history_count_value=gr.Markdown()
-            history_thumbnail_value=gr.Gallery(label='이미지가 있는 생성 이력',columns=4,object_fit='cover',height='auto',visible=False,elem_id='motion-history-thumbnails')
-            history_thumbnail_identifier_state=gr.State([])
-            history_table_value=gr.Radio(choices=[],label='조회할 생성 결과',interactive=True,elem_id='motion-history-selection')
-            history_selected_value=gr.Markdown('조회할 생성이력을 선택하세요.')
-            with gr.Row():
-                history_result_button=gr.Button('선택한 결과 조회',variant='primary',interactive=False)
-                history_resume_button=gr.Button('생성 재개',interactive=False)
-            history_stop_button=gr.Button('선택 작업 중지')
-            history_stop_button.click(lambda selected_job_identifier:execute_motion_command('cancel',{'id':selected_job_identifier}),history_table_value,input_record_value)
-            history_resume_help=gr.Markdown('취소되거나 실패한 작업을 선택하면 이어서 생성할 수 있습니다.')
-            build_history_input_controls(history_table_value, read_saved_motion_inputs,
-                                         restore_saved_motion_inputs,
-                                         [action_select_value, direction_select_value, face_checkbox_value, generation_tag_value, prompt_text_value, settings_text_value])
-            reset_control_values=build_history_reset_controls('이력 목록만 초기화합니다. 결과 파일은 보존됩니다.')
+            settings_initial_values=read_motion_settings('standing')
+            prompt_text_value=gr.Textbox(value=settings_initial_values[0],label='고정 스크립트',interactive=False,lines=4)
+            settings_text_value=gr.Markdown(settings_initial_values[1])
+            with gr.Accordion('위치 채널 기반 공통 리타깃', open=False):
+                gr.HTML(render_position_retarget_policy())
+            with gr.Row(elem_id='motion-command-actions'):
+                generate_button_value=gr.Button('모션 생성 시작',variant='primary',elem_id='motion-generate-button')
+                status_refresh_button_value=gr.Button('상태 새로고침',elem_id='motion-status-refresh-button')
+            current_identifier_value=create_copyable_textbox(label='현재 생성 ID',interactive=False)
+            status_text_value=gr.Markdown('생성 가능 · 설정을 확인하세요.')
+            gr.Markdown('실행 중인 작업은 아래 생성 이력에서 선택한 뒤 **작업 중지**를 사용하세요. 예상 시간은 측정 자료가 없어 계산 중입니다.')
         action_select_value.change(read_motion_settings,action_select_value,[prompt_text_value,settings_text_value],queue=False)
-        bind_gpu_generation_confirmation(generate_button_value,start_motion_generation,[action_select_value,direction_select_value,face_checkbox_value,generation_tag_value],identifier_text_value)
-        cancel_button_value.click(lambda identifier: execute_motion_command('cancel',{'id':identifier}),identifier_text_value,input_record_value)
-        def refresh_motion_history(current_page_number,current_history_identifier):
-            return list_motion_history(current_page_number,current_history_identifier,server_base_address)
-        history_refresh_value.click(refresh_motion_history,[history_page_value,history_table_value],[history_table_value,history_count_value,history_thumbnail_value,history_thumbnail_identifier_state],queue=False)
-        history_page_value.change(refresh_motion_history,[history_page_value,history_table_value],[history_table_value,history_count_value,history_thumbnail_value,history_thumbnail_identifier_state],queue=False)
-        def reset_motion_history():
-            return [*list_motion_history(1,None,server_base_address),1]
-        bind_history_reset_action(reset_control_values,execute_motion_command,reset_motion_history,[history_table_value,history_count_value,history_thumbnail_value,history_thumbnail_identifier_state,history_page_value])
-        def select_motion_history_thumbnail(thumbnail_identifier_values,selection_event_data:gr.SelectData):
-            selected_thumbnail_index=selection_event_data.index
-            if not isinstance(selected_thumbnail_index,int) or selected_thumbnail_index<0 or selected_thumbnail_index>=len(thumbnail_identifier_values):
-                raise gr.Error('선택한 썸네일의 생성 이력을 찾을 수 없습니다. 목록을 새로고침하세요.')
-            return gr.update(value=thumbnail_identifier_values[selected_thumbnail_index])
-        history_thumbnail_value.select(select_motion_history_thumbnail,history_thumbnail_identifier_state,history_table_value,queue=False)
-        def show_motion_result(generation_job_identifier):
-            if not generation_job_identifier:raise gr.Error('생성이력 행을 선택하거나 생성 ID를 입력하세요.')
-            generation_status_record=execute_motion_command('status',{'id':generation_job_identifier})
-            if generation_status_record['status']!='completed':
-                return '<p>선택한 이력은 '+html.escape(generation_status_record['status'])+' 상태입니다. 실행 로그를 확인하세요.</p>',str(WORKFLOW_ROOT_DIRECTORY/'.tmp/momask-generator/jobs'/generation_job_identifier),generation_status_record,generation_job_identifier
-            generation_job_path=WORKFLOW_ROOT_DIRECTORY/'.tmp/momask-generator/jobs'/generation_job_identifier
-            return create_motion_player(generation_job_identifier,generation_status_record['result'],server_base_address),str(generation_job_path),{'request':generation_status_record['request'],'prompt':generation_status_record['prompt'],'prompt_word_count':generation_status_record['prompt_word_count'],'result':generation_status_record['result']},generation_job_identifier
-        result_button_value.click(show_motion_result,identifier_text_value,[player_html_value,record_path_value,input_record_value,viewed_identifier_value])
-        identifier_text_value.submit(show_motion_result,identifier_text_value,[player_html_value,record_path_value,input_record_value,viewed_identifier_value])
-        record_folder_button_value.click(fn=None,inputs=viewed_identifier_value,outputs=record_folder_status_value,js="""async(identifierValue)=>{if(!identifierValue)throw new Error('먼저 생성 결과를 조회하세요.');const responseValue=await fetch('/management/record-folder/open',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({route:'/momask-generator',id:identifierValue})});const payloadValue=await responseValue.json();if(!responseValue.ok)throw new Error(payloadValue.error);return payloadValue.message;}""",queue=False)
-        def select_history_result(selected_history_identifier):
-            resume_enabled_value=False
-            resume_help_text='취소되거나 실패한 작업을 선택하면 이어서 생성할 수 있습니다.'
-            if selected_history_identifier:
-                selected_status_record=execute_motion_command('status',{'id':selected_history_identifier})
-                if selected_status_record['status'] in ('cancelled','failed'):
-                    resume_enabled_value=True
-                    resume_help_text='저장된 입력으로 재개합니다. 완료된 리그가 있으면 렌더를 이어갑니다.'
-                else:
-                    resume_help_text='취소되거나 실패한 작업만 재개할 수 있습니다.'
-            return ('선택한 이력: `'+selected_history_identifier+'`') if selected_history_identifier else '조회할 생성이력을 선택하세요.', gr.update(interactive=bool(selected_history_identifier)), gr.update(interactive=resume_enabled_value), resume_help_text
-        history_table_value.change(select_history_result,history_table_value,[history_selected_value,history_result_button,history_resume_button,history_resume_help],queue=False)
-        history_table_value.input(lambda selected_identifier: selected_identifier or '',history_table_value,identifier_text_value,queue=False)
-        bind_gpu_generation_confirmation(history_resume_button,lambda selected_identifier: execute_motion_command('resume',{'id':selected_identifier})['id'],history_table_value,identifier_text_value)
-        history_result_button.click(show_motion_result,history_table_value,[player_html_value,record_path_value,input_record_value,viewed_identifier_value],scroll_to_output=True)
-
-        map_button_value.click(lambda identifier,face:execute_motion_command('openpose-map',{'id':identifier,'face':face}),[identifier_text_value,face_checkbox_value],input_record_value).then(show_motion_result,identifier_text_value,[player_html_value,record_path_value,input_record_value,viewed_identifier_value])
-        def refresh_motion_status(generation_job_identifier,log_refresh_checked):
+        def start_motion_with_status(*input_values):
+            generation_identifier_value=start_motion_generation(*input_values)
+            return generation_identifier_value,'작업을 접수했습니다. 아래 생성 이력에서 상태와 로그를 확인하세요.'
+        bind_gpu_generation_confirmation(generate_button_value,start_motion_with_status,[action_select_value,direction_select_value,face_checkbox_value,generation_tag_value],[current_identifier_value,status_text_value])
+        def refresh_motion_status(generation_job_identifier):
             generation_running_value=check_generation_running()
             if not generation_job_identifier:
-                return '다른 작업 생성 중' if generation_running_value else '생성 가능 · 설정 후 생성 시작을 누르세요.','생성이력을 선택하거나 새 모션을 생성하면 로그가 표시됩니다.',gr.update(interactive=not generation_running_value),gr.update(interactive=False)
+                return ('다른 작업 생성 중 · 아래 생성 이력에서 작업을 선택하세요.' if generation_running_value else '생성 가능 · 설정을 확인하세요.'),gr.update(interactive=not generation_running_value)
             try:
                 generation_status_record=execute_motion_command('status',{'id':generation_job_identifier})
             except (ValueError,FileNotFoundError):
-                return '유효한 생성 ID를 입력하거나 이력 행을 선택하세요.','선택한 작업의 로그를 불러올 수 없습니다. ID와 기록 폴더를 확인하세요.',gr.update(interactive=not generation_running_value),gr.update(interactive=False)
-            return '상태: '+generation_status_record['status']+' · '+generation_status_record.get('message',''),gr.update(value=generation_status_record['log'] or '작업이 접수되었습니다. 첫 실행 로그를 기다리고 있습니다.',label='실행 로그 · '+generation_job_identifier) if log_refresh_checked else gr.skip(),gr.update(interactive=not generation_running_value),gr.update(interactive=generation_status_record['status'] in ('running','queued'))
-        status_refresh_button_value.click(refresh_motion_status,[identifier_text_value,log_refresh_enabled],[status_text_value,logs_text_value,generate_button_value,cancel_button_value],queue=False)
-        status_output_components=[status_text_value,logs_text_value,generate_button_value,cancel_button_value]
-        def read_selected_log(generation_job_identifier):
-            return refresh_motion_status(generation_job_identifier,True)
-        identifier_text_value.change(read_selected_log,identifier_text_value,status_output_components,queue=False)
-        log_refresh_enabled.change(refresh_motion_status,[identifier_text_value,log_refresh_enabled],status_output_components,queue=False)
-        if hasattr(log_panel_element,'expand'):
-            log_panel_element.expand(read_selected_log,identifier_text_value,status_output_components,queue=False)
-        if hasattr(gr,'Timer'):
-            gr.Timer(3).tick(refresh_motion_history,[history_page_value,history_table_value],[history_table_value,history_count_value,history_thumbnail_value,history_thumbnail_identifier_state],queue=False)
-            gr.Timer(2).tick(refresh_motion_status,[identifier_text_value,log_refresh_enabled],status_output_components,show_progress='hidden')
-        else:
-            interface_blocks_value.load(refresh_motion_status,[identifier_text_value,log_refresh_enabled],status_output_components,every=2,show_progress='hidden')
-        def restore_running_motion():
-            return next((record_value['id'] for record_value in execute_motion_command('history',{}) if record_value['status'] in ('running','queued')),'')
-        interface_blocks_value.load(restore_running_motion,outputs=identifier_text_value)
-        interface_blocks_value.load(refresh_motion_history,[history_page_value,history_table_value],[history_table_value,history_count_value,history_thumbnail_value,history_thumbnail_identifier_state])
+                return '현재 생성 ID의 상태를 불러오지 못했습니다. 생성 이력에서 해당 작업을 선택하세요.',gr.update(interactive=not generation_running_value)
+            return '상태: '+generation_status_record['status']+' · '+generation_status_record.get('message',''),gr.update(interactive=not generation_running_value)
+        status_refresh_button_value.click(refresh_motion_status,current_identifier_value,[status_text_value,generate_button_value],queue=False)
+        if hasattr(gr,'Timer'):gr.Timer(2).tick(refresh_motion_status,current_identifier_value,[status_text_value,generate_button_value],show_progress='hidden')
+        read_history_page,history_output_values=build_generation_history_view(
+            lambda command_name_value,payload_value:execute_motion_history_command(command_name_value,payload_value,server_base_address),
+            server_base_address,
+            '이력 목록만 초기화합니다. 결과 모션과 로그 파일은 유지됩니다. 생성 중에는 초기화할 수 없습니다.',
+            restore_input_callback=restore_saved_motion_inputs,
+            restore_output_components=[action_select_value,direction_select_value,face_checkbox_value,generation_tag_value,prompt_text_value,settings_text_value,status_text_value],
+            result_renderer_callback=render_motion_history_result,
+            record_folder_route='/momask-generator',
+        )
+        history_selection_value=history_output_values[0]
+        with gr.Accordion('선택 이력 · OpenPose 맵 생성',open=False):
+            gr.Markdown('이력 카드를 먼저 선택하세요. 생성 후 결과 조회를 다시 누르면 최신 결과를 확인할 수 있습니다.')
+            map_button_value=gr.Button('OpenPose 맵 생성 · 현재 얼굴 포인트 옵션 적용')
+            map_status_value=gr.JSON(label='OpenPose 맵 생성 결과')
+        def create_selected_openpose_map(selected_history_identifier,selected_face_enabled):
+            if not selected_history_identifier:raise gr.Error('OpenPose 맵을 만들 생성 이력 카드를 먼저 선택하세요.')
+            return execute_motion_command('openpose-map',{'id':selected_history_identifier,'face':selected_face_enabled})
+        map_button_value.click(create_selected_openpose_map,[history_selection_value,face_checkbox_value],map_status_value)
+        interface_blocks_value.load(lambda:read_history_page(1),outputs=history_output_values)
     return interface_blocks_value
 
 from pathlib import Path as ManagementStylePath

@@ -55,17 +55,16 @@ class GradioMoMaskTests(unittest.TestCase):
         self.assertIn('up_left',player_html_value)
         self.assertIn('HumanML3D',player_html_value)
 
-    def test_completed_history_uses_first_result_frame_as_thumbnail(self):
+    def test_completed_history_card_uses_first_result_frame_as_thumbnail(self):
         with tempfile.TemporaryDirectory() as temporary_directory_name,patch.object(MODULE_SOURCE_VALUE,'WORKFLOW_ROOT_DIRECTORY',Path(temporary_directory_name)):
             result_frame_path=Path(temporary_directory_name)/'.tmp/momask-generator/jobs/completed-id/result/anny/down_left/frames/anny-0001.png'
             result_frame_path.parent.mkdir(parents=True)
             result_frame_path.write_bytes(b'image')
-            thumbnail_item_values,thumbnail_identifier_values=MODULE_SOURCE_VALUE.collect_motion_history_thumbnails([
-                {'id':'completed-id','status':'completed'},
-                {'id':'running-id','status':'running'},
-            ],'http://127.0.0.1:8770')
-        self.assertEqual(thumbnail_item_values,[('http://127.0.0.1:8770/momask-generator/jobs/completed-id/result/anny/down_left/frames/anny-0001.png','completed · completed-id')])
-        self.assertEqual(thumbnail_identifier_values,['completed-id'])
+            with patch.object(MODULE_SOURCE_VALUE,'execute_motion_command',return_value=[{'id':'completed-id','status':'completed','action':'walking','directions':['down_left'],'tag':'돌온재'}, {'id':'running-id','status':'running','action':'standing','directions':[]}]):
+                history_records=MODULE_SOURCE_VALUE.create_motion_history_records('http://127.0.0.1:8770')['records']
+        self.assertEqual(history_records[0]['image'],'/momask-generator/jobs/completed-id/result/anny/down_left/frames/anny-0001.png')
+        self.assertEqual(history_records[0]['request']['tag'],'돌온재')
+        self.assertNotIn('image',history_records[1])
 
     def test_interface_builds(self):
         self.assertGreater(len(MODULE_SOURCE_VALUE.build_momask_interface('http://127.0.0.1:8770').blocks),30)
@@ -73,7 +72,7 @@ class GradioMoMaskTests(unittest.TestCase):
     def test_interface_uses_single_workspace_without_tabs(self):
         interface_source_text=(WORKFLOW_ROOT_DIRECTORY/'tools/review/ui/gradio/momask_app.py').read_text()
         self.assertNotIn('gr.Tab(',interface_source_text)
-        self.assertIn('### 1. 새 모션 생성',interface_source_text)
+        self.assertIn('### 새 모션 생성',interface_source_text)
         self.assertIn("gr.Accordion('위치 채널 기반 공통 리타깃', open=False)",interface_source_text)
-        self.assertIn("gr.Accordion('2. 생성 이력 · 결과 조회'",interface_source_text)
-        self.assertLess(interface_source_text.index("elem_id='motion-history-toolbar'"),interface_source_text.index("elem_id='motion-history-selection'"))
+        self.assertIn('build_generation_history_view(',interface_source_text)
+        self.assertNotIn("gr.Gallery(label='이미지가 있는 생성 이력'",interface_source_text)
