@@ -24,3 +24,25 @@
 .generation-history-workspace label{overflow-wrap:anywhere}
 #generation-history-selection label{align-items:flex-start!important;padding:10px 12px!important}
 #generation-history-selection label span{white-space:pre-line!important;line-height:1.5!important}
+.generation-history-actions{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:10px!important}
+.generation-history-actions>button{width:100%!important;min-width:0!important}
+.generation-history-identifiers{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;width:100%!important;max-width:none!important;min-width:100%!important;align-self:stretch!important;flex:0 0 100%!important;gap:12px!important}
+.generation-history-identifiers>*{width:100%!important;min-width:0!important;max-width:none!important;flex:none!important}
+.generation-history-identifiers>.form{display:grid!important;grid-column:1/-1!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;width:100%!important;gap:12px!important}
+.generation-history-identifiers>.form>.block{width:100%!important;min-width:0!important;max-width:none!important}
+@media(max-width:520px){.generation-history-identifiers{grid-template-columns:1fr!important}}
+@media(max-width:520px){.generation-history-actions{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
+
+/* 이력 탐색 → 선택 행동 → 결과·기록 순서의 공용 배치. */
+.generation-history-heading{margin:0!important;padding:0!important}
+.generation-history-toolbar{align-items:center!important;gap:8px!important;flex-wrap:wrap!important}
+.generation-history-toolbar>.form{flex:0 0 80px!important;min-width:75px!important}
+.generation-history-toolbar button{align-self:center!important}
+#generation-history-selection .wrap{display:flex!important;flex-direction:column!important;gap:6px!important}
+#generation-history-selection .wrap>label{width:100%!important;box-sizing:border-box!important;margin:0!important}
+.generation-history-workspace .generation-history-actions{gap:8px!important}
+@media(max-width:520px){.generation-history-identifiers>.form{grid-template-columns:1fr!important}.generation-history-toolbar{gap:6px!important}}
+
+.generation-history-toolbar>button{min-width:94px!important;padding:8px 12px!important;white-space:nowrap!important;flex-shrink:0!important}
+.generation-history-toolbar .block{padding:6px 8px!important}
+.generation-history-toolbar input{min-height:32px!important;padding:6px 8px!important}
