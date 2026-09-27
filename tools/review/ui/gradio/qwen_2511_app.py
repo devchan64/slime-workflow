@@ -17,9 +17,9 @@ from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_conf
 from tools.review.common.management_gateway import execute_management_command
 
 def execute_reference_gateway(command_name_value,payload_value):return execute_management_command('qwen-2511',command_name_value,payload_value)
-def build_reference_request(prompt_text_value,reference_file_values,width_value,height_value,step_value,seed_value):
+def build_reference_request(prompt_text_value,generation_tag_value,reference_file_values,width_value,height_value,step_value,seed_value):
     reference_bytes_values=[] if not reference_file_values else list(reference_file_values)
-    return {'action':'generate','prompt':prompt_text_value.strip(),'images':[base64.b64encode(current_file_value).decode() for current_file_value in reference_bytes_values],'width':int(width_value),'height':int(height_value),'steps':int(step_value),'seed':int(seed_value)}
+    return {'action':'generate','prompt':prompt_text_value.strip(),'tag':generation_tag_value.strip(),'images':[base64.b64encode(current_file_value).decode() for current_file_value in reference_bytes_values],'width':int(width_value),'height':int(height_value),'steps':int(step_value),'seed':int(seed_value)}
 def result_preview_html(image_url_value):return f'<img class="qwen-result-image" src="{html.escape(image_url_value,quote=True)}" alt="Qwen 생성 결과">' if image_url_value else '<div class="image-result-empty">완료된 결과를 선택하세요.</div>'
 
 def build_qwen_2511_interface(server_base_address):
@@ -28,6 +28,7 @@ def build_qwen_2511_interface(server_base_address):
         with gr.Row():
             with gr.Column(scale=1):
                 prompt_text_value=gr.Textbox(label='프롬프트',lines=6)
+                generation_tag_value=gr.Textbox(label='생성 이력 태그 · 선택 사항',placeholder='예: 돌온재 참조 후보',max_lines=1)
                 reference_file_values=gr.File(label='참조 PNG · 최대 3장 · 순서 유지',file_count='multiple',type='binary')
                 gr.Markdown('참조 조건: 512×512 RGB/RGBA PNG, 투명 배경 불가. 순서를 바꾸려면 다시 업로드하세요.')
                 with gr.Row():width_value=gr.Dropdown([512,768,1024,1280],value=1024,label='너비');height_value=gr.Dropdown([512,768,1024,1280],value=1024,label='높이')
@@ -40,7 +41,7 @@ def build_qwen_2511_interface(server_base_address):
         read_history_page,history_output_values=build_generation_history_view(execute_reference_gateway,server_base_address,'이력 목록만 초기화합니다. 결과 이미지·참조 입력 사본·로그 파일은 유지됩니다. 생성 중에는 초기화할 수 없습니다.',record_folder_route='/image-generation-2511')
         def start_generation(*input_values):
             generation_record_value=execute_reference_gateway('generate',build_reference_request(*input_values));return generation_record_value['id'],'상태: running'
-        bind_gpu_generation_confirmation(generation_button_value,start_generation,[prompt_text_value,reference_file_values,width_value,height_value,step_value,seed_value],[identifier_value,status_value])
+        bind_gpu_generation_confirmation(generation_button_value,start_generation,[prompt_text_value,generation_tag_value,reference_file_values,width_value,height_value,step_value,seed_value],[identifier_value,status_value])
         def refresh_status(identifier_text_value,refresh_log_enabled):
             if not identifier_text_value:return '생성 ID를 선택하세요.',gr.skip(),gr.skip()
             status_record_value=execute_reference_gateway('status',{'id':identifier_text_value});return '상태: '+status_record_value['status'],gr.update(value=status_record_value.get('log','')) if refresh_log_enabled else gr.skip(),result_preview_html(status_record_value.get('image')) if status_record_value.get('image') else gr.skip()

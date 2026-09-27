@@ -26,13 +26,13 @@ def execute_image_gateway(command_name_value,payload_value):
 def count_prompt_words(prompt_text_value):
     return len((prompt_text_value or '').split())
 
-def build_generation_request(prompt_text_value,width_value,height_value,step_value,seed_value):
-    return {'action':'generate','prompt':prompt_text_value.strip(),'width':int(width_value),'height':int(height_value),'steps':int(step_value),'seed':int(seed_value)}
+def build_generation_request(prompt_text_value,generation_tag_value,width_value,height_value,step_value,seed_value):
+    return {'action':'generate','prompt':prompt_text_value.strip(),'tag':generation_tag_value.strip(),'width':int(width_value),'height':int(height_value),'steps':int(step_value),'seed':int(seed_value)}
 
 def restore_generation_inputs(current_history_record):
     current_request_record=current_history_record.get('request',{})
     restored_prompt_text=current_request_record.get('prompt','')
-    return restored_prompt_text,current_request_record.get('width',1024),current_request_record.get('height',1024),current_request_record.get('steps',4),current_request_record.get('seed',DEFAULT_IMAGE_SEED),f'최종 프롬프트: **{count_prompt_words(restored_prompt_text)}단어**','선택한 이력의 입력값을 불러왔습니다. 생성 전에 내용을 확인하세요.'
+    return restored_prompt_text,current_request_record.get('tag',''),current_request_record.get('width',1024),current_request_record.get('height',1024),current_request_record.get('steps',4),current_request_record.get('seed',DEFAULT_IMAGE_SEED),f'최종 프롬프트: **{count_prompt_words(restored_prompt_text)}단어**','선택한 이력의 입력값을 불러왔습니다. 생성 전에 내용을 확인하세요.'
 
 def format_generation_status(status_record_value):
     progress_record_value=status_record_value.get('progress') or {}
@@ -54,6 +54,7 @@ def build_qwen_2512_interface(server_base_address):
         with gr.Row():
             with gr.Column(scale=1,min_width=360):
                 prompt_text_value=gr.Textbox(label='프롬프트',placeholder='생성할 장면을 짧고 구체적으로 입력하세요.',lines=8,max_lines=12)
+                generation_tag_value=gr.Textbox(label='생성 이력 태그 · 선택 사항',placeholder='예: 돌온재 배경 후보',max_lines=1)
                 prompt_word_count_value=gr.Markdown('최종 프롬프트: **0단어**')
                 with gr.Row():
                     width_select_value=gr.Dropdown(IMAGE_SIZE_VALUES,value=1024,label='너비')
@@ -77,7 +78,7 @@ def build_qwen_2512_interface(server_base_address):
             server_base_address,
             '이력 목록만 초기화합니다. 결과 이미지와 로그 파일은 유지됩니다. 생성 중에는 초기화할 수 없습니다.',
             restore_input_callback=restore_generation_inputs,
-            restore_output_components=[prompt_text_value,width_select_value,height_select_value,step_select_value,seed_number_value,prompt_word_count_value,generation_status_value],
+            restore_output_components=[prompt_text_value,generation_tag_value,width_select_value,height_select_value,step_select_value,seed_number_value,prompt_word_count_value,generation_status_value],
             record_folder_route='/image-generation',
         )
         prompt_text_value.change(lambda prompt_text_value:f'최종 프롬프트: **{count_prompt_words(prompt_text_value)}단어**',prompt_text_value,prompt_word_count_value,queue=False)
@@ -85,10 +86,10 @@ def build_qwen_2512_interface(server_base_address):
             model_record_value=execute_image_gateway('model-status',{})
             return ('모델 준비됨 · '+model_record_value['message']) if model_record_value.get('ready') else ('모델 준비 필요 · '+model_record_value['message'])
         prepare_button_value.click(check_model_ready,outputs=model_status_value,queue=False)
-        def start_generation(prompt_text_value,width_value,height_value,step_value,seed_value):
-            generation_record_value=execute_image_gateway('generate',build_generation_request(prompt_text_value,width_value,height_value,step_value,seed_value))
+        def start_generation(prompt_text_value,generation_tag_value,width_value,height_value,step_value,seed_value):
+            generation_record_value=execute_image_gateway('generate',build_generation_request(prompt_text_value,generation_tag_value,width_value,height_value,step_value,seed_value))
             return generation_record_value['id'],'상태: running · 생성 작업을 시작했습니다.'
-        bind_gpu_generation_confirmation(generation_button_value,start_generation,[prompt_text_value,width_select_value,height_select_value,step_select_value,seed_number_value],[generation_identifier_value,generation_status_value])
+        bind_gpu_generation_confirmation(generation_button_value,start_generation,[prompt_text_value,generation_tag_value,width_select_value,height_select_value,step_select_value,seed_number_value],[generation_identifier_value,generation_status_value])
         interface_blocks_value.load(lambda:read_history_page(1),outputs=history_output_values)
         def refresh_generation_status(generation_identifier_value,refresh_log_enabled):
             if not generation_identifier_value:return '생성 ID를 선택하세요.',gr.skip(),gr.skip()
