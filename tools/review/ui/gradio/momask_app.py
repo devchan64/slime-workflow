@@ -49,7 +49,8 @@ def collect_motion_history_thumbnails(history_record_values,server_base_address)
         if not preview_image_paths:
             continue
         preview_relative_path=preview_image_paths[0].relative_to(current_result_directory).as_posix()
-        thumbnail_item_values.append((server_base_address.rstrip('/')+f"/momask-generator/jobs/{current_history_record['id']}/result/{preview_relative_path}",f"completed · {current_history_record['id']}"))
+        thumbnail_label_value=' · '.join(value for value in ('completed',current_history_record.get('tag','').strip(),current_history_record['id']) if value)
+        thumbnail_item_values.append((server_base_address.rstrip('/')+f"/momask-generator/jobs/{current_history_record['id']}/result/{preview_relative_path}",thumbnail_label_value))
         thumbnail_identifier_values.append(current_history_record['id'])
     return thumbnail_item_values,thumbnail_identifier_values
 
@@ -60,14 +61,14 @@ def list_motion_history(history_page_number=1, selected_history_identifier=None,
     history_page_records=history_record_values[(selected_page_number-1)*8:selected_page_number*8]
     history_choice_values=[]
     for record_value in history_page_records:
-        history_record_value={'id':record_value['id'],'created_at':record_value.get('created_at'),'status':{'status':record_value['status']},'request':{'action':dict((value,label) for label,value in MOTION_ACTION_LABELS).get(record_value['action'],record_value['action']),'directions':len(record_value.get('directions',[]))}}
+        history_record_value={'id':record_value['id'],'created_at':record_value.get('created_at'),'status':{'status':record_value['status']},'request':{'action':dict((value,label) for label,value in MOTION_ACTION_LABELS).get(record_value['action'],record_value['action']),'directions':len(record_value.get('directions',[])),'tag':record_value.get('tag','')}}
         history_choice_values.append((format_history_choice_label(history_record_value),record_value['id']))
     retained_history_identifier=selected_history_identifier if selected_history_identifier in [value for _,value in history_choice_values] else None
     thumbnail_item_values,thumbnail_identifier_values=collect_motion_history_thumbnails(history_page_records,server_base_address)
     return gr.update(choices=history_choice_values,value=retained_history_identifier),f"{selected_page_number} / {max(1,(len(history_record_values)+7)//8)} 페이지 · 총 {len(history_record_values)}건",gr.update(value=thumbnail_item_values,visible=bool(thumbnail_item_values)),thumbnail_identifier_values
 
-def start_motion_generation(selected_action_name, selected_direction_names, selected_face_enabled):
-    generation_record_value=execute_motion_command('generate',{'action':selected_action_name,'directions':selected_direction_names,'face':selected_face_enabled})
+def start_motion_generation(selected_action_name, selected_direction_names, selected_face_enabled, generation_tag_value):
+    generation_record_value=execute_motion_command('generate',{'action':selected_action_name,'directions':selected_direction_names,'face':selected_face_enabled,'tag':generation_tag_value.strip()})
     return generation_record_value['id']
 
 def read_saved_motion_inputs(selected_history_identifier):
@@ -82,7 +83,7 @@ def read_saved_motion_inputs(selected_history_identifier):
 def restore_saved_motion_inputs(selected_history_identifier):
     saved_input_record = read_saved_motion_inputs(selected_history_identifier)
     saved_request_record = saved_input_record['request']
-    if set(saved_request_record) != {'action', 'directions', 'face'}:
+    if set(saved_request_record) - {'action', 'directions', 'face', 'tag'} or not {'action', 'directions', 'face'} <= set(saved_request_record):
         raise gr.Error('저장된 입력 필드가 현재 계약과 다릅니다. 입력값 조회로 원문을 확인하세요.')
     selected_action_name = saved_request_record['action']
     selected_direction_names = saved_request_record['directions']
@@ -93,7 +94,7 @@ def restore_saved_motion_inputs(selected_history_identifier):
     restore_status_text = f'{selected_history_identifier}의 포즈·방향·얼굴 옵션을 새 모션 생성 입력란에 불러왔습니다. 생성은 시작하지 않았습니다.'
     if saved_input_record['prompt'] is None or saved_input_record['prompt'].strip() != current_prompt_text.strip():
         restore_status_text += ' 고정 스크립트는 현재 설정을 사용합니다. 과거 원문과 다르거나 기록이 없어 동일 결과 재생성을 보장하지 않습니다.'
-    return selected_action_name, selected_direction_names, selected_face_enabled, current_prompt_text, current_settings_text, restore_status_text
+    return selected_action_name, selected_direction_names, selected_face_enabled, saved_request_record.get('tag',''), current_prompt_text, current_settings_text, restore_status_text
 
 def create_motion_player(generation_job_identifier, generation_result_record, server_base_address):
     player_payload_value={'id':generation_job_identifier,'result':generation_result_record,'base':server_base_address}
@@ -109,6 +110,7 @@ def build_momask_interface(server_base_address):
                 action_select_value=gr.Dropdown(MOTION_ACTION_LABELS,value='standing',label='포즈')
                 direction_select_value=gr.CheckboxGroup(MOTION_DIRECTION_LABELS,value=[value for _,value in MOTION_DIRECTION_LABELS],label='생성 방향',elem_id='motion-direction-selection')
                 face_checkbox_value=gr.Checkbox(value=True,label='얼굴 포인트 ON · 가려진 점 제외')
+                generation_tag_value=gr.Textbox(label='생성 이력 태그 · 선택 사항',placeholder='예: 돌온재 걷기 후보',max_lines=1)
                 settings_initial_values=read_motion_settings('standing')
                 prompt_text_value=gr.Textbox(value=settings_initial_values[0],label='고정 스크립트',interactive=False,lines=4)
                 settings_text_value=gr.Markdown(settings_initial_values[1])
@@ -152,10 +154,10 @@ def build_momask_interface(server_base_address):
             history_resume_help=gr.Markdown('취소되거나 실패한 작업을 선택하면 이어서 생성할 수 있습니다.')
             build_history_input_controls(history_table_value, read_saved_motion_inputs,
                                          restore_saved_motion_inputs,
-                                         [action_select_value, direction_select_value, face_checkbox_value, prompt_text_value, settings_text_value])
+                                         [action_select_value, direction_select_value, face_checkbox_value, generation_tag_value, prompt_text_value, settings_text_value])
             reset_control_values=build_history_reset_controls('이력 목록만 초기화합니다. 결과 파일은 보존됩니다.')
         action_select_value.change(read_motion_settings,action_select_value,[prompt_text_value,settings_text_value],queue=False)
-        bind_gpu_generation_confirmation(generate_button_value,start_motion_generation,[action_select_value,direction_select_value,face_checkbox_value],identifier_text_value)
+        bind_gpu_generation_confirmation(generate_button_value,start_motion_generation,[action_select_value,direction_select_value,face_checkbox_value,generation_tag_value],identifier_text_value)
         cancel_button_value.click(lambda identifier: execute_motion_command('cancel',{'id':identifier}),identifier_text_value,input_record_value)
         def refresh_motion_history(current_page_number,current_history_identifier):
             return list_motion_history(current_page_number,current_history_identifier,server_base_address)
