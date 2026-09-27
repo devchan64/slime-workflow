@@ -144,3 +144,13 @@ class GpuJobQueueTests(unittest.TestCase):
         self.assertIsNone(queue_module.select_runnable_ticket(1000))
         (Path(self.temporary_job_root.name)/'1/cancel.request').touch()
         self.assertEqual(queue_module.select_runnable_ticket(5000),ticket_paths[2])
+
+    def test_waiting_reload_preserves_process_and_ticket(self):
+        ticket_file_path = Path(self.temporary_job_root.name)/'ticket.json'
+        with patch.object(queue_module,'calculate_queue_revision',return_value='new'),patch.object(queue_module.os,'execve') as replacement_process_mock:
+            queue_module.reload_waiting_executor(ticket_file_path,'old')
+            replacement_process_mock.assert_called_once()
+            self.assertEqual(replacement_process_mock.call_args.args[2]['SLIME_GPU_QUEUE_TICKET'],str(ticket_file_path.resolve()))
+        with patch.object(queue_module,'calculate_queue_revision',return_value='same'),patch.object(queue_module.os,'execve') as replacement_process_mock:
+            queue_module.reload_waiting_executor(ticket_file_path,'same')
+            replacement_process_mock.assert_not_called()

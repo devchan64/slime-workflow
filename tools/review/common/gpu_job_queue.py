@@ -1,5 +1,6 @@
 """별도 프로세스에서 GPU 메모리와 공용 실행 잠금을 기다리는 영속 작업 대기열."""
 import argparse
+import hashlib
 import fcntl
 import json
 import os
@@ -80,11 +81,31 @@ def select_runnable_ticket(available_memory_mib):
     return None
 
 
+def calculate_queue_revision():
+    """실행기와 메모리 추정 코드의 변경을 감지한다."""
+    source_file_paths = [Path(__file__), Path(__file__).with_name('gpu_memory_history.py')]
+    return hashlib.sha256(b''.join(source_file_path.read_bytes() for source_file_path in source_file_paths)).hexdigest()
+
+
+def reload_waiting_executor(queue_ticket_path, initial_source_revision):
+    """대기 중에만 동일 PID로 교체하여 부모 감시와 접수 순서를 유지한다."""
+    if calculate_queue_revision() == initial_source_revision:
+        return
+    replacement_environment_values = dict(os.environ, SLIME_GPU_QUEUE_TICKET=str(queue_ticket_path.resolve()))
+    os.execve(sys.executable, [sys.executable, str(Path(__file__).resolve()), *sys.argv[1:]], replacement_environment_values)
+
+
 def execute_queued_generation(generation_job_path):
     generation_job_path = Path(generation_job_path)
     generation_command_record = json.loads((generation_job_path/'gpu-command.json').read_text())
     GPU_QUEUE_DIRECTORY.mkdir(parents=True, exist_ok=True)
-    queue_ticket_path = GPU_QUEUE_DIRECTORY/f'{time.time_ns():020d}-{os.getpid()}.json'
+    initial_source_revision = calculate_queue_revision()
+    inherited_ticket_value = os.environ.pop('SLIME_GPU_QUEUE_TICKET', None)
+    queue_ticket_path = Path(inherited_ticket_value) if inherited_ticket_value else GPU_QUEUE_DIRECTORY/f'{time.time_ns():020d}-{os.getpid()}.json'
+    if inherited_ticket_value:
+        inherited_ticket_record = json.loads(queue_ticket_path.read_text())
+        if queue_ticket_path.resolve().parent != GPU_QUEUE_DIRECTORY.resolve() or inherited_ticket_record != {'pid':os.getpid(), 'path':str(generation_job_path)}:
+            raise ValueError('대기열 갱신 티켓이 현재 작업과 일치하지 않습니다.')
     write_record_atomically(queue_ticket_path, {'pid':os.getpid(), 'path':str(generation_job_path)})
     active_reservation_directory = GPU_QUEUE_DIRECTORY/'active'
     active_reservation_directory.mkdir(exist_ok=True)
@@ -102,6 +123,7 @@ def execute_queued_generation(generation_job_path):
                 if (generation_job_path/'cancel.request').exists():
                     write_record_atomically(generation_job_path/'status.json', {'status':'cancelled'})
                     return 0
+                reload_waiting_executor(queue_ticket_path, initial_source_revision)
                 # 죽은 대기 프로세스의 표만 제거한다. 생성 기록은 보존한다.
                 for previous_ticket_path in GPU_QUEUE_DIRECTORY.glob('*.json'):
                     try: os.kill(json.loads(previous_ticket_path.read_text())['pid'], 0)
