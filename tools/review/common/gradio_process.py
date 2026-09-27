@@ -67,6 +67,9 @@ def create_gradio_source_fingerprint(application_source_path,application_file_pa
     common_source_directory=WORKFLOW_ROOT_DIRECTORY/'tools/review/common'
     shared_ui_directory=WORKFLOW_ROOT_DIRECTORY/'tools/review/ui/shared'
     tracked_source_paths={application_file_path,application_source_path}
+    if application_file_path.name=='sprite_editor_app.py':
+        sprite_editor_directory=WORKFLOW_ROOT_DIRECTORY/'tools/review/ui/character_animation'
+        tracked_source_paths.update(sprite_editor_directory/current_file_name for current_file_name in ('sprite-editor.html','sprite-editor.js'))
     for source_directory_path in (gradio_source_directory,common_source_directory,shared_ui_directory):
         tracked_source_paths.update(current_source_path for current_source_path in source_directory_path.iterdir() if current_source_path.suffix in GRADIO_UI_SOURCE_SUFFIXES)
     return tuple((str(current_source_path),current_source_path.stat().st_mtime_ns if current_source_path is not None and current_source_path.is_file() else None) for current_source_path in sorted(tracked_source_paths,key=lambda current_source_path:str(current_source_path)))
