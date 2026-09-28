@@ -4,6 +4,7 @@ logical_tile_size: 64
 source_tile_size: 256
 # 이슬온 24×24 안전 도시의 정식 지형 구성이다.
 tiles:
+  - {id: iseulon-grass-mud-frame, category: ground, asset: world/isloon/terrain/grass-mud-frame-v1.png, walkable: true, movement_cost: 1}
   - {id: grass, category: ground, asset: terrain/grass-v3.png, walkable: true, movement_cost: 1}
   # 이슬온 포장 논리 ID의 실제 원본: 석회석 바닥 타입 A.
   - {id: paving, category: ground, asset: world/isloon/terrain/limestone-floor-type-a-v1.png, walkable: true, movement_cost: 1}
