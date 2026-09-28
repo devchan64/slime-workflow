@@ -14,10 +14,11 @@ class TileGenerationTests(unittest.TestCase):
 
     def test_ground_prompt_defines_square_area(self):
         ground_prompt_text=load_tile_configuration()['types']['ground']['base_prompt']
-        self.assertIn('Top-down view of a flat square area',ground_prompt_text)
-        self.assertIn('aligned with the image borders, surrounded by black background',ground_prompt_text)
-        self.assertIn('All details stay inside',ground_prompt_text)
-        self.assertNotRegex(ground_prompt_text,r'\b(?:plate|frame|soil|grass)\b')
+        self.assertIn('Top view of a flat square surface',ground_prompt_text)
+        self.assertNotIn('parallel to the image plane',ground_prompt_text)
+        self.assertIn('with a black border',ground_prompt_text)
+        self.assertNotIn('black background',ground_prompt_text)
+        self.assertNotRegex(ground_prompt_text,r'\b(?:plate|frame|soil|grass|edges|borders|surrounded|inside)\b')
 
     def test_all_kinds_keep_base_and_style(self):
         for tile_kind_name in ('rooftop','wall','ground'):

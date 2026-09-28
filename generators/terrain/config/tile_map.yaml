@@ -1,5 +1,5 @@
 schema_version: 1
-style_prompt: "Hand-painted texture, clear shapes, soft lighting, natural colors, crisp detail."
+style_prompt: "Hand-painted, clear shapes, soft lighting, natural colors, crisp detail."
 types:
   rooftop:
     label: 지붕 타일
@@ -9,4 +9,4 @@ types:
     base_prompt: "Orthographic wall, half-visible columns at both edges, a top beam, aligned for adjacent placement. No text or symbols."
   ground:
     label: 바닥 타일
-    base_prompt: "Top-down view of a flat square area, aligned with the image borders, surrounded by black background. All details stay inside. No text or symbols."
+    base_prompt: "Top view of a flat square surface with a black border. No text or symbols."
