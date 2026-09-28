@@ -12,10 +12,11 @@ class TileGenerationTests(unittest.TestCase):
     def test_ground_tile_uses_floor_tile_label(self):
         self.assertEqual(load_tile_configuration()['types']['ground']['label'],'바닥 타일')
 
-    def test_ground_prompt_defines_square_ground_plate(self):
+    def test_ground_prompt_defines_square_ground_panel(self):
         ground_prompt_text=load_tile_configuration()['types']['ground']['base_prompt']
         self.assertIn('Orthographic top view',ground_prompt_text)
-        self.assertIn('square ground plate filling the image',ground_prompt_text)
+        self.assertIn('flat square ground panel on a black background',ground_prompt_text)
+        self.assertNotIn('plate',ground_prompt_text)
         self.assertIn('straight edges and equal side lengths',ground_prompt_text)
         self.assertNotIn('frame',ground_prompt_text)
 
@@ -35,7 +36,8 @@ class TileGenerationTests(unittest.TestCase):
     def test_rooftop_prompt_keeps_layout_user_defined(self):
         rooftop_prompt_text=load_tile_configuration()['types']['rooftop']['base_prompt']
         self.assertIn('Orthographic top view',rooftop_prompt_text)
-        self.assertIn('square plate filling the image',rooftop_prompt_text)
+        self.assertIn('flat square panel on a black background',rooftop_prompt_text)
+        self.assertNotIn('plate',rooftop_prompt_text)
         self.assertNotIn('frame',rooftop_prompt_text)
         self.assertIn('straight edges and equal side lengths',rooftop_prompt_text)
         self.assertNotRegex(rooftop_prompt_text,r'\d|\b(?:rows?|columns?|five|three)\b')
