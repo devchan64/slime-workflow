@@ -9,4 +9,4 @@ types:
     base_prompt: "Orthographic wall, half-visible columns at both edges, a top beam, aligned for adjacent placement. No text or symbols."
   ground:
     label: 바닥 타일
-    base_prompt: "Orthographic top view of a flat square ground panel on a black background, with straight edges and equal side lengths. No text or symbols."
+    base_prompt: "Orthographic top view of a flat square ground panel on a black background, with straight edges and equal side lengths. All surface elements stay inside the panel edges; the outside remains plain black. No text or symbols."

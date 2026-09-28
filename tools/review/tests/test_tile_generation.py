@@ -17,6 +17,8 @@ class TileGenerationTests(unittest.TestCase):
         self.assertIn('Orthographic top view',ground_prompt_text)
         self.assertIn('flat square ground panel on a black background',ground_prompt_text)
         self.assertNotIn('plate',ground_prompt_text)
+        self.assertIn('All surface elements stay inside the panel edges',ground_prompt_text)
+        self.assertIn('the outside remains plain black',ground_prompt_text)
         self.assertIn('straight edges and equal side lengths',ground_prompt_text)
         self.assertNotIn('frame',ground_prompt_text)
 
