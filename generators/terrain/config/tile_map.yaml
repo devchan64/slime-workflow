@@ -1,5 +1,5 @@
 schema_version: 1
-style_prompt: "Hand-painted fantasy texture, clear shapes, soft lighting, natural colors, crisp detail."
+style_prompt: "Hand-painted texture, clear shapes, soft lighting, natural colors, crisp detail."
 types:
   rooftop:
     label: 지붕 타일

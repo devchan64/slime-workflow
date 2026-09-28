@@ -92,14 +92,14 @@ class TileGenerationTests(unittest.TestCase):
         from tools.review.ui.gradio.tile_map_app import clear_user_prompt_value
         self.assertEqual(clear_user_prompt_value(),'')
 
-    def test_user_prompt_is_last_for_every_toggle_combination(self):
+    def test_prompt_order_follows_base_user_style(self):
         from itertools import product
         for base_enabled,style_enabled,reference_enabled in product((False,True),repeat=3):
             request=self.make_tile_request()|{'use_base_prompt':base_enabled,'use_style_prompt':style_enabled,'use_reference_style_prompt':reference_enabled}
             record=prepare_tile_request(request)
-            expected=[record['reference_style_prompt'] if reference_enabled else '',record['base_prompt'] if base_enabled else '',record['style_prompt'] if style_enabled else '',record['user_prompt']]
+            expected=[record['reference_style_prompt'] if reference_enabled else '',record['base_prompt'] if base_enabled else '',record['user_prompt'],record['style_prompt'] if style_enabled else '']
             self.assertEqual(record['prompt'],'\n\n'.join(part for part in expected if part))
-            self.assertTrue(record['prompt'].endswith(record['user_prompt']))
+            self.assertTrue(record['prompt'].endswith(record['style_prompt'] if style_enabled else record['user_prompt']))
 
     def test_reference_style_toggle_defaults_off(self):
         default_record=prepare_tile_request(self.make_tile_request())
@@ -172,7 +172,7 @@ class TileGenerationTests(unittest.TestCase):
         for use_base_prompt in (True,False):
             for use_style_prompt in (True,False):
                 result_request_value=prepare_tile_request(self.make_tile_request()|{'use_base_prompt':use_base_prompt,'use_style_prompt':use_style_prompt})
-                expected_prompt_parts=([result_request_value['base_prompt']] if use_base_prompt else [])+([result_request_value['style_prompt']] if use_style_prompt else [])+['Red brick house.']
+                expected_prompt_parts=([result_request_value['base_prompt']] if use_base_prompt else [])+['Red brick house.']+([result_request_value['style_prompt']] if use_style_prompt else [])
                 self.assertEqual(result_request_value['prompt'],'\n\n'.join(expected_prompt_parts))
                 self.assertEqual(result_request_value['use_base_prompt'],use_base_prompt)
         with self.assertRaises(ValueError):prepare_tile_request(self.make_tile_request()|{'use_base_prompt':'false'})

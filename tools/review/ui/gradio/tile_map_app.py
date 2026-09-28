@@ -29,7 +29,7 @@ CLOSED_GATE_WALL_KOREAN_EXAMPLE = '벽면의 음각으로 닫힌 짙은색의 �
 GROUND_TILE_KOREAN_EXAMPLE = '고운 흙에 작고 짧은 풀잎이 낱개로 고르게 흩어져 있다. 흙과 풀의 명암 차이는 작다. 프레임은 진흙으로 구성한다.'
 
 def format_applied_prompt_words(catalog_record_value,selected_tile_kind,user_prompt_value,use_base_value,use_style_value,use_reference_value):
-    prompt_section_values=[('기본',catalog_record_value['types'][selected_tile_kind]['base_prompt'],use_base_value),('화풍',catalog_record_value['style_prompt'],use_style_value),('참조 화풍',REFERENCE_STYLE_PROMPT,use_reference_value),('사용자',user_prompt_value or '',True)]
+    prompt_section_values=[('참조 화풍',REFERENCE_STYLE_PROMPT,use_reference_value),('기본',catalog_record_value['types'][selected_tile_kind]['base_prompt'],use_base_value),('사용자',user_prompt_value or '',True),('화풍',catalog_record_value['style_prompt'],use_style_value)]
     applied_word_counts=[(label,len(text.split()) if enabled else 0) for label,text,enabled in prompt_section_values]
     total_word_count=sum(count for _,count in applied_word_counts)
     return '**적용 프롬프트 총 '+str(total_word_count)+'단어** · '+ ' + '.join(label+' '+str(count) for label,count in applied_word_counts)+'\n\n'+('⚠️ 100단어 미만으로 줄여 주세요.' if total_word_count>=100 else '100단어 미만 · 공백 기준 단어 수이며 모델 토큰 수와 다릅니다.')
