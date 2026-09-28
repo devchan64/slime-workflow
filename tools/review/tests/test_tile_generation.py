@@ -12,12 +12,12 @@ class TileGenerationTests(unittest.TestCase):
     def test_ground_tile_uses_floor_tile_label(self):
         self.assertEqual(load_tile_configuration()['types']['ground']['label'],'바닥 타일')
 
-    def test_ground_prompt_defines_uniform_outer_frame(self):
+    def test_ground_prompt_defines_square_ground_plate(self):
         ground_prompt_text=load_tile_configuration()['types']['ground']['base_prompt']
-        self.assertIn('Top-down ground',ground_prompt_text)
-        self.assertIn('thin rectangular frame',ground_prompt_text)
-        self.assertIn('all four sides share width, height and color',ground_prompt_text)
-        self.assertNotIn('No border',ground_prompt_text)
+        self.assertIn('Orthographic top view',ground_prompt_text)
+        self.assertIn('square ground plate filling the image',ground_prompt_text)
+        self.assertIn('straight edges and equal side lengths',ground_prompt_text)
+        self.assertNotIn('frame',ground_prompt_text)
 
     def test_all_kinds_keep_base_and_style(self):
         for tile_kind_name in ('rooftop','wall','ground'):
