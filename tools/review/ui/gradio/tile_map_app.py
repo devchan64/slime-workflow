@@ -19,10 +19,10 @@ from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_conf
 from tools.review.common.management_gateway import execute_management_command
 from tools.review.domains.tile.tile_generation import REFERENCE_STYLE_PROMPT
 
-# 지붕 예시는 석판 재질과 중앙 십자 이음새를 지정한다.
-ROOFTOP_TILE_PROMPT_EXAMPLE = '석판으로 만들어진 판. 중앙에 십자 이음새가 있다.'
+# 지붕 예시는 나무 판자가 배열된 표면을 지정한다.
+ROOFTOP_TILE_PROMPT_EXAMPLE = '나무 판자가 배열된 표면'
 
-WALL_TILE_KOREAN_EXAMPLE = '석재 벽면, 양옆에 기둥이 절반이 보이게 배치한다, 상단에 단을 배치한다.'
+WALL_TILE_KOREAN_EXAMPLE = '커다른 붉은 블록으로 이루어진 벽.'
 SMALL_WINDOW_WALL_KOREAN_EXAMPLE = '이미지 1은 밖에서 보는 벽면이다. 실내가 보이지 않는 작은 창문은 상단에 추가한다.'
 # 문 예시 출처: 2026-09-27_19-58-40-45f636bf
 CLOSED_GATE_WALL_KOREAN_EXAMPLE = '벽면의 음각으로 닫힌 짙은색의 아치형 대문을 추가한다.'
@@ -100,8 +100,8 @@ def build_tile_interface(server_base_address):
                     clear_prompt_button_value=gr.Button('사용자 프롬프트 초기화',size='sm',scale=1)
                     rooftop_example_button_value=gr.Button('지붕 한글 예시 넣기',visible=tile_choices[0][1]=='rooftop',size='sm',scale=1)
                     wall_example_button_value=gr.Button('벽 타일 한글 예시 넣기',visible=tile_choices[0][1]=='wall',size='sm',scale=1)
-                    small_window_example_button_value=gr.Button('작은창문 한글 예시 넣기',visible=tile_choices[0][1]=='wall',size='sm',scale=1)
-                    closed_gate_example_button_value=gr.Button('닫힌 대문 한글 예시 넣기',visible=tile_choices[0][1]=='wall',size='sm',scale=1)
+                    small_window_example_button_value=gr.Button('참조 이미지에 작은 창문 추가 · 예시 넣기',visible=tile_choices[0][1]=='wall',size='sm',scale=1)
+                    closed_gate_example_button_value=gr.Button('참조 이미지에 닫힌 대문 추가 · 예시 넣기',visible=tile_choices[0][1]=='wall',size='sm',scale=1)
                     ground_example_button_value=gr.Button('바닥 타일 예시 넣기',visible=tile_choices[0][1]=='ground',size='sm',scale=1)
                 gr.Markdown('> **주의:** 프롬프트에 `타일`을 입력하면 분리된 타일 형태로 생성될 수 있습니다. 연속된 바닥이나 지면을 원하면 원하는 표면·재질·구성을 직접 설명하세요.')
                 generation_tag_value=gr.Textbox(label='생성 이력 태그 · 선택 사항',placeholder='예: 이슬온 시장 외벽 후보',max_lines=1)

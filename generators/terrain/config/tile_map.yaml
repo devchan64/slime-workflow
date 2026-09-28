@@ -3,10 +3,10 @@ style_prompt: "Hand-painted, clear shapes, soft lighting, natural colors."
 types:
   rooftop:
     label: 지붕 타일
-    base_prompt: "Orthographic top view of a flat square panel on a black background, with straight edges and equal side lengths. No text or symbols."
+    base_prompt: "Top view of a flat square panel on a black background, with straight edges and equal side lengths."
   wall:
     label: 벽 타일
     base_prompt: "Wall, half-visible columns at both edges, a top beam, aligned for adjacent placement."
   ground:
     label: 바닥 타일
-    base_prompt: "A thin square block on a black background, viewed from above."
+    base_prompt: "A square board placed on a black background, top view."

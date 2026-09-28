@@ -1,0 +1,157 @@
+{
+  "status": "completed",
+  "quality_status": "review-candidate",
+  "tool": "built-in image_gen",
+  "source_job": "2026-09-28_16-53-27-97523f7d",
+  "direction": "down_right",
+  "size": [
+    2304,
+    384
+  ],
+  "cell_size": [
+    384,
+    384
+  ],
+  "scale": 0.5517241379310345,
+  "frames": [
+    {
+      "source_frame": 1,
+      "rect": [
+        0,
+        0,
+        384,
+        384
+      ],
+      "source_crop": [
+        20,
+        107,
+        276,
+        745
+      ],
+      "offset": [
+        121,
+        16
+      ]
+    },
+    {
+      "source_frame": 5,
+      "rect": [
+        384,
+        0,
+        384,
+        384
+      ],
+      "source_crop": [
+        351,
+        107,
+        577,
+        734
+      ],
+      "offset": [
+        129,
+        22
+      ]
+    },
+    {
+      "source_frame": 9,
+      "rect": [
+        768,
+        0,
+        384,
+        384
+      ],
+      "source_crop": [
+        690,
+        107,
+        869,
+        744
+      ],
+      "offset": [
+        142,
+        17
+      ]
+    },
+    {
+      "source_frame": 13,
+      "rect": [
+        1152,
+        0,
+        384,
+        384
+      ],
+      "source_crop": [
+        997,
+        107,
+        1208,
+        745
+      ],
+      "offset": [
+        134,
+        16
+      ]
+    },
+    {
+      "source_frame": 17,
+      "rect": [
+        1536,
+        0,
+        384,
+        384
+      ],
+      "source_crop": [
+        1315,
+        107,
+        1494,
+        745
+      ],
+      "offset": [
+        142,
+        16
+      ]
+    },
+    {
+      "source_frame": 21,
+      "rect": [
+        1920,
+        0,
+        384,
+        384
+      ],
+      "source_crop": [
+        1607,
+        107,
+        1854,
+        745
+      ],
+      "offset": [
+        124,
+        16
+      ]
+    }
+  ],
+  "prompt_words": 374,
+  "prompt_sha256": "940b9c56d048a2fb1152125aab463b94d3febabb08d21319ac42cc50a0915524",
+  "note": "동일 배율 축소 및 하단 배치. 셀384px, 실높이 최대352px. 비율 완전일치·루프 품질 미승인.",
+  "artifacts": [
+    {
+      "path": "imagegen-original.png",
+      "sha256": "f7a3fbabf108a477ac62b9dc4ae12066501a1cc58371ae7b2bfaf572c2210ec1"
+    },
+    {
+      "path": "sprite-sheet-6x384.png",
+      "sha256": "144af96f9c62becccfe25264c0ccd47670702d2fd9f9a5f3dc6b393445c70d48"
+    },
+    {
+      "path": "source-six-frames.png",
+      "sha256": "e649177c10a233a9a1532543f5f11e65ca7543ad8b0352c88da364be9094fff9"
+    },
+    {
+      "path": "preview-4fps.gif",
+      "sha256": "fec7aa9b0c39abd5d8d4e64fb724cddedce669398c10e4b2214c0f1f5895e1e5"
+    },
+    {
+      "path": "identity-reference.png",
+      "sha256": "1735425453606746628f005b5ea7130059e44050d76df6a1d4cf345f3de37e44"
+    }
+  ]
+}

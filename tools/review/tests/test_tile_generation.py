@@ -12,10 +12,10 @@ class TileGenerationTests(unittest.TestCase):
     def test_ground_tile_uses_floor_tile_label(self):
         self.assertEqual(load_tile_configuration()['types']['ground']['label'],'바닥 타일')
 
-    def test_ground_prompt_defines_thin_square_block(self):
+    def test_ground_prompt_defines_square_board(self):
         ground_prompt_text=load_tile_configuration()['types']['ground']['base_prompt']
-        self.assertIn('A thin square block',ground_prompt_text)
-        self.assertIn('viewed from above',ground_prompt_text)
+        self.assertIn('A square board placed',ground_prompt_text)
+        self.assertIn('top view',ground_prompt_text)
         self.assertNotIn('parallel to the image plane',ground_prompt_text)
         self.assertNotIn('black border',ground_prompt_text)
         self.assertIn('on a black background',ground_prompt_text)
@@ -27,10 +27,7 @@ class TileGenerationTests(unittest.TestCase):
             self.assertIn(output_request_value['base_prompt'],output_request_value['prompt'])
             self.assertIn(output_request_value['style_prompt'],output_request_value['prompt'])
             self.assertNotRegex(output_request_value['base_prompt'],r'\btile\b')
-            if tile_kind_name in ('ground','wall'):
-                self.assertNotIn('No text or symbols.',output_request_value['base_prompt'])
-            else:
-                self.assertIn('No text or symbols.',output_request_value['base_prompt'])
+            self.assertNotIn('No text or symbols.',output_request_value['base_prompt'])
             self.assertNotIn('no decorative border or frame',output_request_value['base_prompt'])
             self.assertNotIn('visible outer boundary lines',output_request_value['base_prompt'])
             self.assertIn('Red brick house.',output_request_value['prompt'])
@@ -39,7 +36,8 @@ class TileGenerationTests(unittest.TestCase):
 
     def test_rooftop_prompt_keeps_layout_user_defined(self):
         rooftop_prompt_text=load_tile_configuration()['types']['rooftop']['base_prompt']
-        self.assertIn('Orthographic top view',rooftop_prompt_text)
+        self.assertIn('Top view',rooftop_prompt_text)
+        self.assertNotIn('Orthographic',rooftop_prompt_text)
         self.assertIn('flat square panel on a black background',rooftop_prompt_text)
         self.assertNotIn('plate',rooftop_prompt_text)
         self.assertNotIn('frame',rooftop_prompt_text)
