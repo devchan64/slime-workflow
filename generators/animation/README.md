@@ -13,3 +13,7 @@
 | 스탠딩 앵커 검수 | review_standing_anchors.py, tools/review/ui/shared/animation-anchor-editor/ | workflows/character-standing-sheet.md 및 tools/review |
 
 2026-09-23에 워크플로우 연결이 없는 구형 Qwen/2512 생성기·입력 준비기·구형 리그 렌더·과거 사람형 리그 검증기를 폐기했다. 사본과 폐기 근거는 `.tmp/test/animation-generator-retirement/`에 보관한다. 재현용 리포트·버전 고정 에셋 사본은 변경하지 않는다. 일반 실험 기록은 `.tmp/test/<실험명>/<한국시간 실행일시>/`에 작성하고 명시적 지시 없이 저장소에 승격하지 않는다.
+
+## 캐릭터 애니메이션 기본 프롬프트
+
+기본 프롬프트는 `config/prompts/base-prompt.txt`를 사용하며 Git으로 버전 관리한다. `config/character_animation.yaml`의 `prompts.base`가 이 파일을 참조한다. 사용자 요청에 따라 기존 `.local/production-prompts/character-animation-v1/base-prompt.txt`에서 이동했다. 방향별 보조 프롬프트의 저장 위치는 변경하지 않는다.
