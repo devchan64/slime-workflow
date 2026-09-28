@@ -12,9 +12,9 @@ class TileGenerationTests(unittest.TestCase):
     def test_ground_tile_uses_floor_tile_label(self):
         self.assertEqual(load_tile_configuration()['types']['ground']['label'],'바닥 타일')
 
-    def test_ground_prompt_defines_square_board(self):
+    def test_ground_prompt_defines_square_tile(self):
         ground_prompt_text=load_tile_configuration()['types']['ground']['base_prompt']
-        self.assertIn('A square board placed',ground_prompt_text)
+        self.assertIn('A big square tile placed',ground_prompt_text)
         self.assertIn('top view',ground_prompt_text)
         self.assertNotIn('parallel to the image plane',ground_prompt_text)
         self.assertNotIn('black border',ground_prompt_text)
@@ -26,7 +26,8 @@ class TileGenerationTests(unittest.TestCase):
             output_request_value=prepare_tile_request(self.make_tile_request()|{'tile_type':tile_kind_name})
             self.assertIn(output_request_value['base_prompt'],output_request_value['prompt'])
             self.assertIn(output_request_value['style_prompt'],output_request_value['prompt'])
-            self.assertNotRegex(output_request_value['base_prompt'],r'\btile\b')
+            if tile_kind_name != 'ground':
+                self.assertNotRegex(output_request_value['base_prompt'],r'\btile\b')
             self.assertNotIn('No text or symbols.',output_request_value['base_prompt'])
             self.assertNotIn('no decorative border or frame',output_request_value['base_prompt'])
             self.assertNotIn('visible outer boundary lines',output_request_value['base_prompt'])

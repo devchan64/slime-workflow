@@ -9,4 +9,4 @@ types:
     base_prompt: "Wall, half-visible columns at both edges, a top beam, aligned for adjacent placement."
   ground:
     label: 바닥 타일
-    base_prompt: "A square board placed on a black background, top view."
+    base_prompt: "A big square tile placed on a black background, top view."
