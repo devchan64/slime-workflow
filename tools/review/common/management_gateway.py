@@ -147,7 +147,7 @@ class ManagementCommandGateway:
         return True
 
 
-MANAGEMENT_COMMAND_DESCRIPTIONS = {'anny':'ANNY 이력 상태·중지·재개 (관리 서버 필요)','tile-map':'타일 종류별 고정 기본·화풍과 표면정보 프롬프트로 생성 (관리 서버 필요)','character-animation':'등록 모션·캐릭터 기반 애니메이션 생성·이력·재생 결과 조회','momask': 'MoMask 생성·상태·로그·이력 조회·취소 (웹과 기록 공유)', 'qwen-2512': 'Qwen 2512 텍스트 이미지 생성 (관리 서버 필요)', 'qwen-2511': 'Qwen 2511 텍스트·1~3장 참조 이미지 생성 (관리 서버 필요)'}
+MANAGEMENT_COMMAND_DESCRIPTIONS = {'anny':'ANNY 이력 상태·중지·재개 (관리 서버 필요)','tile-map':'타일 공통 기본·화풍과 표면정보 프롬프트로 생성 (관리 서버 필요)','character-animation':'등록 모션·캐릭터 기반 애니메이션 생성·이력·재생 결과 조회','momask': 'MoMask 생성·상태·로그·이력 조회·취소 (웹과 기록 공유)', 'qwen-2512': 'Qwen 2512 텍스트 이미지 생성 (관리 서버 필요)', 'qwen-2511': 'Qwen 2511 텍스트·1~3장 참조 이미지 생성 (관리 서버 필요)'}
 
 def execute_management_command(service_command_name, operation_command_name, command_payload_value, server_base_address=None, *, gateway_request_handler=None, service_handler_values=None):
     request_method_value,request_route_value=resolve_management_command(service_command_name,operation_command_name,command_payload_value)
@@ -200,7 +200,6 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
                 operation_argument_parser.add_argument('--action',choices=('standing','walking','resting'),required=True)
                 operation_argument_parser.add_argument('--directions',nargs='+',choices=('down_left','down_right','up_left','up_right'),default=['down_left','down_right','up_left','up_right'])
             else:
-                if service_command_name=='tile-map':operation_argument_parser.add_argument('--tile-type',choices=('rooftop','wall','ground'),required=True)
                 if service_command_name=='tile-map':
                     operation_argument_parser.add_argument('--use-base-prompt',action=argparse.BooleanOptionalAction,default=True)
                     operation_argument_parser.add_argument('--use-style-prompt',action=argparse.BooleanOptionalAction,default=True)
@@ -251,7 +250,6 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
             command_payload_value={'action':'generate','prompt':command_argument_values.prompt if command_argument_values.prompt is not None else command_argument_values.prompt_file.read_text(encoding='utf-8'),'width':command_argument_values.width,'height':command_argument_values.height,'steps':command_argument_values.steps,'seed':command_argument_values.seed}
             if command_argument_values.tag:command_payload_value['tag']=command_argument_values.tag
             if service_command_name=='tile-map':
-                command_payload_value['tile_type']=command_argument_values.tile_type
                 command_payload_value['tag']=command_argument_values.tag
                 command_payload_value['use_base_prompt']=command_argument_values.use_base_prompt
                 command_payload_value['use_style_prompt']=command_argument_values.use_style_prompt

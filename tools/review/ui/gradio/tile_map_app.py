@@ -17,7 +17,7 @@ if str(WORKFLOW_ROOT_DIRECTORY) not in sys.path:sys.path.insert(0,str(WORKFLOW_R
 from tools.review.common.gradio_history import HISTORY_CARD_SELECTION_SCRIPT, build_generation_history_view
 from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_confirmation
 from tools.review.common.management_gateway import execute_management_command
-from tools.review.domains.tile.tile_generation import REFERENCE_STYLE_PROMPT, serialize_tile_prompt
+from tools.review.domains.tile.tile_generation import REFERENCE_STYLE_PROMPT, combine_tile_prompt
 
 # 지붕 예시는 나무 판자가 배열된 표면을 지정한다.
 ROOFTOP_TILE_PROMPT_EXAMPLE = '나무 판자가 배열된 표면'
@@ -29,12 +29,12 @@ CLOSED_GATE_WALL_KOREAN_EXAMPLE = '벽면의 음각으로 닫힌 짙은색의 �
 GROUND_TILE_KOREAN_EXAMPLE = '진흙과 잔디'
 BRICK_GROUND_PROMPT_EXAMPLE = '벽돌 바닥'
 
-def format_applied_prompt_words(catalog_record_value,selected_tile_kind,user_prompt_value,use_base_value,use_style_value,use_reference_value):
-    prompt_section_values=[('참조 화풍',REFERENCE_STYLE_PROMPT,use_reference_value),('기본',catalog_record_value['types'][selected_tile_kind]['base_prompt'],use_base_value),('표면정보',user_prompt_value or '',True),('화풍',catalog_record_value['style_prompt'],use_style_value)]
+def format_applied_prompt_words(catalog_record_value,user_prompt_value,use_base_value,use_style_value,use_reference_value):
+    prompt_section_values=[('참조 화풍',REFERENCE_STYLE_PROMPT,use_reference_value),('기본',catalog_record_value['base_prompt'],use_base_value),('표면정보',user_prompt_value or '',True),('화풍',catalog_record_value['style_prompt'],use_style_value)]
     applied_word_counts=[(label,len(text.split()) if enabled else 0) for label,text,enabled in prompt_section_values]
     active_prompt_values=[section_text_value if section_enabled_value else '' for _,section_text_value,section_enabled_value in prompt_section_values]
-    total_word_count=len(serialize_tile_prompt(active_prompt_values[1],active_prompt_values[2],active_prompt_values[3],active_prompt_values[0]).split()) if any(section_text_value.strip() for section_text_value in active_prompt_values) else 0
-    return '**적용 프롬프트 총 '+str(total_word_count)+'단어** · '+ ' + '.join(label+' '+str(count) for label,count in applied_word_counts)+'\n\n'+('⚠️ 100단어 미만으로 줄여 주세요.' if total_word_count>=100 else '100단어 미만 · 총 단어 수는 JSON 키·구문을 포함한 실제 입력 기준이며 모델 토큰 수와 다릅니다.')
+    total_word_count=len(combine_tile_prompt(active_prompt_values[1],active_prompt_values[2],active_prompt_values[3],active_prompt_values[0]).split()) if any(section_text_value.strip() for section_text_value in active_prompt_values) else 0
+    return '**적용 프롬프트 총 '+str(total_word_count)+'단어** · '+ ' + '.join(label+' '+str(count) for label,count in applied_word_counts)+'\n\n'+('⚠️ 100단어 미만으로 줄여 주세요.' if total_word_count>=100 else '100단어 미만 · 총 단어 수는 표면정보 안내 문장을 포함한 실제 입력 기준이며 모델 토큰 수와 다릅니다.')
 
 def execute_tile_gateway(command_name_value,payload_value):return execute_management_command('tile-map',command_name_value,payload_value)
 def generate_random_seed_value():return secrets.randbelow(4294967296)
@@ -66,13 +66,13 @@ def append_ground_tile_example(current_prompt_value):
 
 def append_brick_ground_example(current_prompt_value):
     return append_tile_prompt_example(current_prompt_value,BRICK_GROUND_PROMPT_EXAMPLE)
-def build_tile_request(tile_type_value,user_prompt_value,generation_tag_value,width_value,step_value,seed_value,use_base_value,use_style_value,use_reference_style_value,*reference_image_values):
+def build_tile_request(user_prompt_value,generation_tag_value,width_value,step_value,seed_value,use_base_value,use_style_value,use_reference_style_value,*reference_image_values):
     encoded_reference_values=[]
     for current_reference_image in reference_image_values:
         if current_reference_image is None:continue
         image_output_buffer=io.BytesIO();current_reference_image.save(image_output_buffer,format='PNG')
         encoded_reference_values.append(base64.b64encode(image_output_buffer.getvalue()).decode())
-    return {'action':'generate','tile_type':tile_type_value,'user_prompt':user_prompt_value.strip(),'tag':generation_tag_value.strip(),'width':int(width_value),'height':int(width_value),'steps':int(step_value),'seed':int(seed_value),'use_base_prompt':use_base_value,'use_style_prompt':use_style_value,'use_reference_style_prompt':use_reference_style_value,'images':encoded_reference_values}
+    return {'action':'generate','user_prompt':user_prompt_value.strip(),'tag':generation_tag_value.strip(),'width':int(width_value),'height':int(width_value),'steps':int(step_value),'seed':int(seed_value),'use_base_prompt':use_base_value,'use_style_prompt':use_style_value,'use_reference_style_prompt':use_reference_style_value,'images':encoded_reference_values}
 def restore_tile_inputs(current_history_record,server_base_address):
     request_record_value=current_history_record['request']
     reference_name_values=request_record_value.get('references',[])
@@ -84,7 +84,7 @@ def restore_tile_inputs(current_history_record,server_base_address):
         with urllib.request.urlopen(reference_image_url,timeout=15) as current_image_response:
             with Image.open(io.BytesIO(current_image_response.read())) as current_image_value:
                 restored_image_values.append(current_image_value.copy())
-    return [request_record_value['tile_type'],request_record_value['user_prompt'],request_record_value.get('tag',''),request_record_value['width'],request_record_value['steps'],request_record_value['seed'],request_record_value.get('use_base_prompt',True),request_record_value.get('use_style_prompt',True),request_record_value.get('use_reference_style_prompt',False),*restored_image_values,*([None]*(3-len(restored_image_values))),'입력값과 참조 사본을 불러왔습니다. 고정 프롬프트는 현재 설정을 사용하며 자동 생성하지 않습니다.']
+    return [request_record_value['user_prompt'],request_record_value.get('tag',''),request_record_value['width'],request_record_value['steps'],request_record_value['seed'],request_record_value.get('use_base_prompt',True),request_record_value.get('use_style_prompt',True),request_record_value.get('use_reference_style_prompt',False),*restored_image_values,*([None]*(3-len(restored_image_values))),'입력값과 참조 사본을 불러왔습니다. 고정 프롬프트는 현재 설정을 사용하며 자동 생성하지 않습니다.']
 
 def refresh_tile_execution(current_generation_identifier):
     current_active_record=execute_tile_gateway('active',{})
@@ -98,37 +98,32 @@ def refresh_tile_execution(current_generation_identifier):
 
 def build_tile_interface(server_base_address):
     catalog_record_value=execute_tile_gateway('catalog',{})
-    tile_choices=[(record['label'],name) for name,record in catalog_record_value['types'].items()]
     with gr.Blocks(title='타일 에셋 생성기',js=HISTORY_CARD_SELECTION_SCRIPT,elem_classes=['management-generator-root']) as blocks_value:
         gr.Markdown('## 타일 에셋 생성기\n고정 기본·화풍 프롬프트와 표면정보 프롬프트를 결합해 정사각형 타일을 생성합니다.')
         with gr.Row():
             with gr.Column():
-                tile_value=gr.Dropdown(tile_choices,value=tile_choices[0][1],label='타일 종류');prompt_value=gr.Textbox(label='표면정보 프롬프트',info='표면의 재질·색상·무늬 등 표면정보를 입력하세요.',lines=5)
+                prompt_value=gr.Textbox(label='표면정보 프롬프트',info='표면의 재질·색상·무늬 등 표면정보를 입력하세요.',lines=5)
                 with gr.Row():
                     clear_prompt_button_value=gr.Button('표면정보 프롬프트 초기화',size='sm',scale=1)
-                    rooftop_example_button_value=gr.Button('지붕 한글 예시 넣기',visible=tile_choices[0][1]=='rooftop',size='sm',scale=1)
-                    wall_example_button_value=gr.Button('벽 타일 한글 예시 넣기',visible=tile_choices[0][1]=='wall',size='sm',scale=1)
-                    small_window_example_button_value=gr.Button('참조 이미지에 작은 창문 추가 · 예시 넣기',visible=tile_choices[0][1]=='wall',size='sm',scale=1)
-                    closed_gate_example_button_value=gr.Button('참조 이미지에 닫힌 대문 추가 · 예시 넣기',visible=tile_choices[0][1]=='wall',size='sm',scale=1)
-                    ground_example_button_value=gr.Button('바닥 타일 예시 넣기',visible=tile_choices[0][1]=='ground',size='sm',scale=1)
-                    brick_ground_example_button=gr.Button('벽돌 바닥 타일 예시 넣기',visible=tile_choices[0][1]=='ground',size='sm',scale=1)
+                    rooftop_example_button_value=gr.Button('지붕 한글 예시 넣기',size='sm',scale=1)
+                    wall_example_button_value=gr.Button('벽 타일 한글 예시 넣기',size='sm',scale=1)
+                    small_window_example_button_value=gr.Button('참조 이미지에 작은 창문 추가 · 예시 넣기',size='sm',scale=1)
+                    closed_gate_example_button_value=gr.Button('참조 이미지에 닫힌 대문 추가 · 예시 넣기',size='sm',scale=1)
+                    ground_example_button_value=gr.Button('바닥 타일 예시 넣기',size='sm',scale=1)
+                    brick_ground_example_button=gr.Button('벽돌 바닥 타일 예시 넣기',size='sm',scale=1)
                 gr.Markdown('> **주의:** 프롬프트에 `타일`을 입력하면 분리된 타일 형태로 생성될 수 있습니다. 연속된 바닥이나 지면을 원하면 원하는 표면·재질·구성을 직접 설명하세요.')
                 generation_tag_value=gr.Textbox(label='생성 이력 태그 · 선택 사항',placeholder='예: 이슬온 시장 외벽 후보',max_lines=1)
                 base_value=gr.Checkbox(value=True,label='기본 프롬프트 적용');style_value=gr.Checkbox(value=True,label='화풍 프롬프트 적용');reference_style_value=gr.Checkbox(value=False,label='참조 화풍 보존 적용')
                 with gr.Accordion('참조 이미지 · 최대 3장',open=False,elem_id='tile-reference-images'):
                     with gr.Row(elem_classes=['tile-reference-upload-grid']):
                         reference_image_controls=[gr.Image(type='pil',sources=['upload','clipboard'],label=f'참조 이미지 {index+1}',height=160,scale=1,min_width=180) for index in range(3)]
-                initial_base_prompt=catalog_record_value['types'][tile_choices[0][1]]['base_prompt']
+                initial_base_prompt=catalog_record_value['base_prompt']
                 with gr.Accordion('기본 프롬프트 · 고정',open=False):
                     base_prompt_display=gr.Textbox(value=initial_base_prompt,label=f'기본 프롬프트 · {len(initial_base_prompt.split())}단어',interactive=False,lines=4)
                 with gr.Accordion('화풍 프롬프트 · 고정',open=False):
                     gr.Textbox(value=catalog_record_value['style_prompt'],label=f"화풍 프롬프트 · {len(catalog_record_value['style_prompt'].split())}단어",interactive=False,lines=3)
                 with gr.Accordion('참조 화풍 보존 프롬프트 · 고정',open=False):
                     gr.Textbox(value=REFERENCE_STYLE_PROMPT,label=f'참조 화풍 보존 · {len(REFERENCE_STYLE_PROMPT.split())}단어',interactive=False,lines=3)
-                def update_base_prompt(selected_tile_kind):
-                    current_prompt_text=catalog_record_value['types'][selected_tile_kind]['base_prompt']
-                    return gr.update(value=current_prompt_text,label=f'기본 프롬프트 · {len(current_prompt_text.split())}단어'),gr.update(visible=selected_tile_kind=='wall'),gr.update(visible=selected_tile_kind=='wall'),gr.update(visible=selected_tile_kind=='wall'),gr.update(visible=selected_tile_kind=='ground'),gr.update(visible=selected_tile_kind=='rooftop'),gr.update(visible=selected_tile_kind=='ground')
-                tile_value.change(update_base_prompt,inputs=tile_value,outputs=[base_prompt_display,wall_example_button_value,small_window_example_button_value,closed_gate_example_button_value,ground_example_button_value,rooftop_example_button_value,brick_ground_example_button],queue=False)
                 rooftop_example_button_value.click(append_rooftop_tile_example,inputs=prompt_value,outputs=prompt_value,queue=False)
                 clear_prompt_button_value.click(clear_user_prompt_value,outputs=prompt_value,queue=False)
                 wall_example_button_value.click(append_wall_tile_example,inputs=prompt_value,outputs=prompt_value,queue=False)
@@ -142,20 +137,20 @@ def build_tile_interface(server_base_address):
                         seed_value=gr.Number(value=10107,precision=0,label='Seed',scale=4,min_width=0)
                         randomize_seed_value=gr.Button('무작위 생성',scale=1,min_width=120)
                 randomize_seed_value.click(generate_random_seed_value,outputs=seed_value,queue=False)
-                applied_prompt_summary=gr.Markdown(format_applied_prompt_words(catalog_record_value,tile_choices[0][1],'',True,True,False))
-                def refresh_applied_prompt_words(tile_kind,prompt_text,base_enabled,style_enabled,reference_enabled):
-                    return format_applied_prompt_words(catalog_record_value,tile_kind,prompt_text,base_enabled,style_enabled,reference_enabled)
-                prompt_count_inputs=[tile_value,prompt_value,base_value,style_value,reference_style_value]
+                applied_prompt_summary=gr.Markdown(format_applied_prompt_words(catalog_record_value,'',True,True,False))
+                def refresh_applied_prompt_words(surface_prompt_value,base_prompt_enabled,style_prompt_enabled,reference_prompt_enabled):
+                    return format_applied_prompt_words(catalog_record_value,surface_prompt_value,base_prompt_enabled,style_prompt_enabled,reference_prompt_enabled)
+                prompt_count_inputs=[prompt_value,base_value,style_value,reference_style_value]
                 for prompt_count_component in prompt_count_inputs:
                     prompt_count_component.change(refresh_applied_prompt_words,inputs=prompt_count_inputs,outputs=applied_prompt_summary,queue=False)
                 start_value=gr.Button('타일 생성 시작',variant='primary');status_value=gr.Markdown('생성 가능 · 최종 프롬프트는 100단어 미만이어야 합니다.')
                 execution_refresh_value=gr.Button('진행 상태 새로고침')
                 gr.Markdown('실행 중인 작업은 아래 생성 이력에서 선택한 뒤 **작업 중지**를 사용하세요.')
                 identifier_value=gr.Textbox(label='실행 중 생성 ID',interactive=False)
-        read_history_page,history_output_values=build_generation_history_view(execute_tile_gateway,server_base_address,'이력 목록만 초기화합니다. 결과·참조 사본·로그 파일은 유지됩니다. 생성 중에는 초기화할 수 없습니다.',lambda record:restore_tile_inputs(record,server_base_address),[tile_value,prompt_value,generation_tag_value,width_value,step_value,seed_value,base_value,style_value,reference_style_value,*reference_image_controls,status_value],record_folder_route='/tile-map-generator',allow_individual_delete=True)
+        read_history_page,history_output_values=build_generation_history_view(execute_tile_gateway,server_base_address,'이력 목록만 초기화합니다. 결과·참조 사본·로그 파일은 유지됩니다. 생성 중에는 초기화할 수 없습니다.',lambda record:restore_tile_inputs(record,server_base_address),[prompt_value,generation_tag_value,width_value,step_value,seed_value,base_value,style_value,reference_style_value,*reference_image_controls,status_value],record_folder_route='/tile-map-generator',allow_individual_delete=True)
         def start_tile(*input_values):
             record_value=execute_tile_gateway('generate',build_tile_request(*input_values));status_label_value='대기열에 추가했습니다. 생성 이력에서 작업 순서와 상태를 확인하세요.' if record_value['status']=='queued' else '생성을 시작했습니다. 새 요청은 확인 후 대기열에 추가할 수 있습니다.';return record_value['id'],status_label_value,gr.update(interactive=True)
-        bind_gpu_generation_confirmation(start_value,start_tile,[tile_value,prompt_value,generation_tag_value,width_value,step_value,seed_value,base_value,style_value,reference_style_value,*reference_image_controls],[identifier_value,status_value,start_value])
+        bind_gpu_generation_confirmation(start_value,start_tile,[prompt_value,generation_tag_value,width_value,step_value,seed_value,base_value,style_value,reference_style_value,*reference_image_controls],[identifier_value,status_value,start_value])
         blocks_value.load(lambda:read_history_page(1),outputs=history_output_values)
         execution_output_values=[identifier_value,status_value,start_value]
         execution_refresh_value.click(refresh_tile_execution,identifier_value,execution_output_values,queue=False)

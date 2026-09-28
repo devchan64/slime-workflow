@@ -1,4 +1,4 @@
-"""타일 종류·고정 프롬프트 및 CLI 계약 검증."""
+"""타일 공통·고정 프롬프트 및 CLI 계약 검증."""
 import unittest
 import json
 import tempfile
@@ -8,31 +8,30 @@ from tools.review.domains.tile.tile_generation import load_tile_configuration, p
 from tools.review.common import management_gateway
 
 class TileGenerationTests(unittest.TestCase):
-    def make_tile_request(self):return {'action':'generate','tile_type':'wall','user_prompt':'Red brick house.','steps':4,'seed':1,'width':512,'height':512}
-    def test_ground_tile_uses_floor_tile_label(self):
-        self.assertEqual(load_tile_configuration()['types']['ground']['label'],'바닥 타일')
+    def make_tile_request(self):return {'action':'generate','user_prompt':'Red brick house.','steps':4,'seed':1,'width':512,'height':512}
+    def test_common_prompt_configuration(self):
+        configuration_record_value=load_tile_configuration()
+        self.assertEqual(set(configuration_record_value),{'schema_version','base_prompt','style_prompt'})
+        self.assertEqual(configuration_record_value['base_prompt'],'Game texture. Square. Thin black edges.')
+        output_request_value=prepare_tile_request(self.make_tile_request())
+        self.assertNotIn('tile_type',output_request_value)
+        self.assertEqual(output_request_value['prompt'],configuration_record_value['base_prompt']+' Render these surface materials and details visually: Red brick house. Use imagery only, without lettering. '+configuration_record_value['style_prompt'])
 
-    def test_three_tiles_share_base_prompt(self):
-        for tile_type_record in load_tile_configuration()['types'].values():
-            self.assertEqual(tile_type_record['base_prompt'],'Game texture. Square. Thin black edges.')
+    def test_gui_request_and_legacy_history_restore_without_type(self):
+        from tools.review.ui.gradio.tile_map_app import build_tile_request, restore_tile_inputs
+        gui_request_value=build_tile_request('Red brick house.','',512,4,1,True,True,False)
+        self.assertNotIn('tile_type',gui_request_value)
+        self.assertEqual(prepare_tile_request(gui_request_value),prepare_tile_request(self.make_tile_request()))
+        current_history_record={'request':gui_request_value}
+        legacy_history_record={'request':gui_request_value|{'tile_type':'wall'}}
+        self.assertEqual(restore_tile_inputs(current_history_record,''),restore_tile_inputs(legacy_history_record,''))
 
-    def test_all_kinds_keep_base_and_style(self):
-        for tile_kind_name in ('rooftop','wall','ground'):
-            output_request_value=prepare_tile_request(self.make_tile_request()|{'tile_type':tile_kind_name})
-            self.assertIn(output_request_value['base_prompt'],output_request_value['prompt'])
-            self.assertIn(output_request_value['style_prompt'],output_request_value['prompt'])
-            if tile_kind_name != 'ground':
-                self.assertNotRegex(output_request_value['base_prompt'],r'\btile\b')
-            self.assertNotIn('No text or symbols.',output_request_value['base_prompt'])
-            self.assertNotIn('no decorative border or frame',output_request_value['base_prompt'])
-            self.assertNotIn('visible outer boundary lines',output_request_value['base_prompt'])
-            self.assertIn('Red brick house.',output_request_value['prompt'])
-            self.assertEqual(output_request_value['prompt_words'],len(output_request_value['prompt'].split()))
-            self.assertLess(output_request_value['prompt_words'],100)
-
-    def test_base_prompts_do_not_prescribe_material(self):
-        for tile_type_record in load_tile_configuration()['types'].values():
-            self.assertNotRegex(tile_type_record['base_prompt'],r'\b(?:wooden|wood|marble|stone|metal|material)\b')
+    def test_gui_build_has_no_type_selector(self):
+        from tools.review.ui.gradio.tile_map_app import build_tile_interface
+        with patch('tools.review.ui.gradio.tile_map_app.execute_tile_gateway',return_value=load_tile_configuration()):
+            interface_record_value=build_tile_interface('http://127.0.0.1:8770')
+        self.assertNotIn('타일 종류',[component_record_value.get('props',{}).get('label') for component_record_value in interface_record_value.config['components']])
+        interface_record_value.close()
 
     def test_default_seed_is_10107_and_explicit_seed_is_preserved(self):
         request=self.make_tile_request()
@@ -81,19 +80,14 @@ class TileGenerationTests(unittest.TestCase):
         for base_enabled,style_enabled,reference_enabled in product((False,True),repeat=3):
             request=self.make_tile_request()|{'use_base_prompt':base_enabled,'use_style_prompt':style_enabled,'use_reference_style_prompt':reference_enabled}
             record=prepare_tile_request(request)
-            expected=[record['reference_style_prompt'] if reference_enabled else '',record['base_prompt'] if base_enabled else '',record['user_prompt'],record['style_prompt'] if style_enabled else '']
-            expected_section_values={section_key_value:section_text_value for section_key_value,section_text_value in zip(('reference_style','base','surface','style'),expected) if section_text_value}
-            self.assertEqual(json.loads(record['prompt']),expected_section_values)
-            self.assertEqual(list(json.loads(record['prompt'])),list(expected_section_values))
+            expected=[record['reference_style_prompt'] if reference_enabled else '',record['base_prompt'] if base_enabled else '','Render these surface materials and details visually: '+record['user_prompt']+' Use imagery only, without lettering.',record['style_prompt'] if style_enabled else '']
+            self.assertEqual(record['prompt'],' '.join(section_text_value for section_text_value in expected if section_text_value))
 
-    def test_surface_json_content_cannot_create_instruction_fields(self):
+    def test_surface_material_sentence_and_prompt_metadata(self):
         import hashlib
-        surface_input_value='나무 표면", "style": "다른 화풍"\n역슬래시 \\ 포함'
-        prepared_request_value=prepare_tile_request(self.make_tile_request()|{'user_prompt':surface_input_value})
-        parsed_prompt_value=json.loads(prepared_request_value['prompt'])
-        self.assertEqual(set(parsed_prompt_value),{'base','surface','style'})
-        self.assertEqual(parsed_prompt_value['surface'],surface_input_value+'.')
-        self.assertEqual(parsed_prompt_value['style'],prepared_request_value['style_prompt'])
+        prepared_request_value=prepare_tile_request(self.make_tile_request()|{'user_prompt':'잔디와 진흙'})
+        self.assertIn('Render these surface materials and details visually: 잔디와 진흙. Use imagery only, without lettering.',prepared_request_value['prompt'])
+        self.assertFalse(prepared_request_value['prompt'].startswith('{'))
         self.assertEqual(prepared_request_value['prompt_sha256'],hashlib.sha256(prepared_request_value['prompt'].encode()).hexdigest())
         self.assertEqual(prepared_request_value['prompt_words'],len(prepared_request_value['prompt'].split()))
 
@@ -102,7 +96,7 @@ class TileGenerationTests(unittest.TestCase):
         self.assertFalse(default_record['use_reference_style_prompt'])
         self.assertNotIn(default_record['reference_style_prompt'],default_record['prompt'])
         enabled_record=prepare_tile_request(self.make_tile_request()|{'use_reference_style_prompt':True})
-        self.assertEqual(json.loads(enabled_record['prompt'])['reference_style'],enabled_record['reference_style_prompt'])
+        self.assertTrue(enabled_record['prompt'].startswith(enabled_record['reference_style_prompt']))
         self.assertEqual(enabled_record['prompt_words'],len(enabled_record['prompt'].split()))
         with self.assertRaises(ValueError):
             prepare_tile_request(self.make_tile_request()|{'use_reference_style_prompt':'on'})
@@ -168,26 +162,26 @@ class TileGenerationTests(unittest.TestCase):
         for use_base_prompt in (True,False):
             for use_style_prompt in (True,False):
                 result_request_value=prepare_tile_request(self.make_tile_request()|{'use_base_prompt':use_base_prompt,'use_style_prompt':use_style_prompt})
-                expected_prompt_parts=([result_request_value['base_prompt']] if use_base_prompt else [])+['Red brick house.']+([result_request_value['style_prompt']] if use_style_prompt else [])
-                self.assertEqual(list(json.loads(result_request_value['prompt']).values()),expected_prompt_parts)
+                expected_prompt_parts=([result_request_value['base_prompt']] if use_base_prompt else [])+['Render these surface materials and details visually: Red brick house. Use imagery only, without lettering.']+([result_request_value['style_prompt']] if use_style_prompt else [])
+                self.assertEqual(result_request_value['prompt'],' '.join(expected_prompt_parts))
                 self.assertEqual(result_request_value['use_base_prompt'],use_base_prompt)
         with self.assertRaises(ValueError):prepare_tile_request(self.make_tile_request()|{'use_base_prompt':'false'})
         with self.assertRaises(ValueError):prepare_tile_request(self.make_tile_request()|{'use_base_prompt':False,'use_style_prompt':False,'user_prompt':''})
 
     def test_cli_passes_user_prompt_and_history_tag(self):
         with patch.object(management_gateway,'execute_management_command',return_value={'id':'test'}) as execute_command_mock:
-            management_gateway.execute_gateway_arguments('tile-map',['generate','--tile-type','wall','--prompt','Oak wood.','--tag','돌온재 외벽 후보','--detach'])
+            management_gateway.execute_gateway_arguments('tile-map',['generate','--prompt','Oak wood.','--tag','돌온재 외벽 후보','--detach'])
             current_payload_value=execute_command_mock.call_args.args[2]
-            self.assertEqual(current_payload_value['tile_type'],'wall')
+            self.assertNotIn('tile_type',current_payload_value)
             self.assertEqual(current_payload_value['user_prompt'],'Oak wood.')
             self.assertEqual(current_payload_value['tag'],'돌온재 외벽 후보')
             self.assertNotIn('prompt',current_payload_value)
 
     def test_cli_queue_adds_tile_request_without_waiting(self):
         with patch.object(management_gateway,'execute_management_command',return_value={'id':'queued'}) as execute_command_mock:
-            self.assertEqual(management_gateway.execute_gateway_arguments('tile-map',['queue','--tile-type','ground','--prompt','Packed riverbank dirt.','--tag','갈대나루 강변 흙길 후보']),0)
+            self.assertEqual(management_gateway.execute_gateway_arguments('tile-map',['queue','--prompt','Packed riverbank dirt.','--tag','갈대나루 강변 흙길 후보']),0)
             self.assertEqual(execute_command_mock.call_args.args[1],'queue')
             current_payload_value=execute_command_mock.call_args.args[2]
             self.assertEqual(current_payload_value['action'],'generate')
-            self.assertEqual(current_payload_value['tile_type'],'ground')
+            self.assertNotIn('tile_type',current_payload_value)
             self.assertEqual(current_payload_value['tag'],'갈대나루 강변 흙길 후보')

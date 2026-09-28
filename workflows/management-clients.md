@@ -144,15 +144,15 @@ python3 tools/manager.py command character-animation history-reset
 
 ## 타일맵 생성기
 
-관리도구 `#tile-map-generator`에서 지붕(`rooftop`)·벽(`wall`)·문(`door`)·맵 바닥(`ground`)을 선택한다. `generators/terrain/config/tile_map.yaml`의 기본·화풍 프롬프트는 고정이며 표면의 재질·색상·무늬를 설명하는 표면정보 프롬프트만 편집한다. 서버에서 기본(`base`)·표면정보(`surface`)·화풍(`style`)을 JSON 필드로 구분한 문자열을 모델에 전달한다. 참조 화풍을 켜면 `reference_style` 필드를 맨 앞에 추가하며 비활성·빈 항목은 제외한다. 표면정보 끝에 마침표가 없으면 추가하고, JSON 원문·키와 구문을 포함한 실제 입력 단어 수·SHA-256을 기록한다. 최종 입력은 100단어 미만이며 정사각형 해상도만 지원한다. 생성 이미지는 검수 후보이고, 무봉제 품질이나 게임 에셋 채택을 자동 보장하지 않는다.
+관리도구 `#tile-map-generator`는 타일 종류 선택 없이 공통 프롬프트로 생성한다. 종류별 설정과 CLI `--tile-type` 옵션은 폐기했다. 기존 이력의 종류 정보는 보존하며 다시 불러올 때는 표면정보와 생성 설정만 사용한다. `generators/terrain/config/tile_map.yaml`의 기본·화풍 프롬프트는 고정이며 표면의 재질·색상·무늬를 설명하는 표면정보 프롬프트만 편집한다. 서버에서 기본 → 표면정보 → 화풍 순서로 문장형 프롬프트를 병합한다. 표면정보는 `Render these surface materials and details visually: ... Use imagery only, without lettering.`로 감싸 재질·형태를 그림으로 표현하도록 지시한다. JSON 키나 값의 따옴표는 추가하지 않는다. 참조 화풍을 켜면 맨 앞에 추가하며 비활성·빈 항목은 제외한다. 표면정보 끝에 마침표가 없으면 추가하고, 안내 문장을 포함한 최종 원문·단어 수·SHA-256을 기록한다. 최종 입력은 100단어 미만이며 정사각형 해상도만 지원한다. 생성 이미지는 검수 후보이고, 무봉제 품질이나 게임 에셋 채택을 자동 보장하지 않는다.
 
 Qwen 2512의 공용 작업자·GPU 잠금·준비·취소·진행 조회를 사용한다. 실행 폴더는 `.tmp/test/qwen-image-2512/tile-map/<생성 ID>/`, 누적 이력은 기존 공용 이력 루트의 `tile-map/`이다. 목록 초기화는 수동이며 결과 파일을 삭제하지 않는다. 같은 스텝·크기의 완료 이력이 있을 때만 예상 시간을 표시한다.
 
 ```sh
 python3 tools/manager.py help tile-map
 python3 tools/manager.py command tile-map catalog
-python3 tools/manager.py command tile-map generate --tile-type wall --prompt 'Warm stone facade with a wooden window.' --tag '돌온재 외벽 후보' --width 512 --height 512 --steps 4 --detach
-python3 tools/manager.py command tile-map queue --tile-type ground --prompt '습한 강변의 다져진 흙길, 작은 자갈이 고르게 섞인 평평한 바닥.' --tag '갈대나루 강변 흙길 후보' --width 512 --height 512 --steps 4 --seed 274910381
+python3 tools/manager.py command tile-map generate --prompt 'Warm stone facade with a wooden window.' --tag '돌온재 외벽 후보' --width 512 --height 512 --steps 4 --detach
+python3 tools/manager.py command tile-map queue --prompt '습한 강변의 다져진 흙길, 작은 자갈이 고르게 섞인 평평한 바닥.' --tag '갈대나루 강변 흙길 후보' --width 512 --height 512 --steps 4 --seed 274910381
 python3 tools/manager.py command tile-map history
 ```
 

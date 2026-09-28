@@ -11,35 +11,31 @@ import yaml
 from tools.review.domains.image.image_generation import ImageGenerationManager, IMAGE_JOB_ROOT, MANAGER_HISTORY_ROOT, WORKFLOW_ROOT_PATH, validate_image_request
 
 REFERENCE_STYLE_PROMPT = 'Preserve the established visual style, character design, colors, proportions, and rendering treatment of the reference images. Do not render as pixel art unless explicitly requested.'
+SURFACE_PROMPT_PREFIX = 'Render these surface materials and details visually: '
+SURFACE_PROMPT_SUFFIX = 'Use imagery only, without lettering.'
 TILE_CONFIGURATION_PATH = WORKFLOW_ROOT_PATH/'generators/terrain/config/tile_map.yaml'
 
 def load_tile_configuration():
     from tools.review.domains.character_animation.character_animation_assets import UniqueMappingLoader
     configuration_record_value = yaml.load(TILE_CONFIGURATION_PATH.read_text(),Loader=UniqueMappingLoader)
-    if not isinstance(configuration_record_value,dict) or set(configuration_record_value)!={'schema_version','style_prompt','types'} or configuration_record_value['schema_version']!=1:
+    if not isinstance(configuration_record_value,dict) or set(configuration_record_value)!={'schema_version','base_prompt','style_prompt'} or configuration_record_value['schema_version']!=2:
         raise ValueError('타일 설정 형식 오류')
-    if set(configuration_record_value['types'])!={'rooftop','wall','ground'}:
-        raise ValueError('타일 종류 설정 오류')
-    for tile_type_record in configuration_record_value['types'].values():
-        if set(tile_type_record)!={'label','base_prompt'} or not all(isinstance(prompt_text_value,str) and prompt_text_value.strip() for prompt_text_value in tile_type_record.values()):raise ValueError('타일 기본 프롬프트 설정 오류')
-    if not isinstance(configuration_record_value['style_prompt'],str) or not configuration_record_value['style_prompt'].strip():raise ValueError('화풍 프롬프트 누락')
+    for prompt_field_name in ('base_prompt','style_prompt'):
+        if not isinstance(configuration_record_value[prompt_field_name],str) or not configuration_record_value[prompt_field_name].strip():
+            raise ValueError(f'타일 프롬프트 설정 오류: {prompt_field_name}')
     return configuration_record_value
 
-def serialize_tile_prompt(base_prompt_value,user_prompt_value,style_prompt_value,reference_prompt_value):
-    """활성 지시를 JSON 필드로 구분해 모델 입력 문자열을 만든다."""
+def combine_tile_prompt(base_prompt_value,user_prompt_value,style_prompt_value,reference_prompt_value):
+    """표면정보를 시각적 재질 지시로 감싸 문장형 모델 입력을 만든다."""
     surface_prompt_value=user_prompt_value.strip()
     if surface_prompt_value and not surface_prompt_value.endswith('.'):
         surface_prompt_value+='.'
-    prompt_section_values={
-        'reference_style':reference_prompt_value,
-        'base':base_prompt_value,
-        'surface':surface_prompt_value,
-        'style':style_prompt_value,
-    }
-    active_prompt_sections={section_key_value:section_text_value for section_key_value,section_text_value in prompt_section_values.items() if section_text_value}
+    surface_instruction_value=(SURFACE_PROMPT_PREFIX+surface_prompt_value+' '+SURFACE_PROMPT_SUFFIX) if surface_prompt_value else ''
+    active_prompt_sections=[section_text_value.strip() for section_text_value in (reference_prompt_value,base_prompt_value,surface_instruction_value,style_prompt_value) if section_text_value.strip()]
     if not active_prompt_sections:
         raise ValueError('적용할 프롬프트가 없습니다.')
-    return json.dumps(active_prompt_sections,ensure_ascii=False,indent=2)
+    return ' '.join(active_prompt_sections)
+
 
 def prepare_tile_request(request_record_value):
     if request_record_value=={'action':'prepare'}:return request_record_value
@@ -53,25 +49,23 @@ def prepare_tile_request(request_record_value):
     generation_tag_value=generation_tag_value.strip()
     if len(generation_tag_value)>80 or '\n' in generation_tag_value or '\r' in generation_tag_value:raise ValueError('생성 이력 태그는 줄바꿈 없이 80자 이하여야 합니다.')
     if isinstance(request_record_value,dict):request_record_value={key:value for key,value in request_record_value.items() if key not in ('images','tag','use_base_prompt','use_style_prompt','use_reference_style_prompt')}
-    if not isinstance(request_record_value,dict) or set(request_record_value)!={'action','tile_type','user_prompt','width','height','steps','seed'}:
-        raise ValueError('타일 종류·표면정보 프롬프트·생성 설정만 수정할 수 있습니다.')
+    if not isinstance(request_record_value,dict) or set(request_record_value)!={'action','user_prompt','width','height','steps','seed'}:
+        raise ValueError('표면정보 프롬프트·생성 설정만 수정할 수 있습니다.')
     configuration_record_value=load_tile_configuration()
-    selected_tile_kind=request_record_value['tile_type']
-    if not isinstance(selected_tile_kind,str) or selected_tile_kind not in configuration_record_value['types']:raise ValueError('지원하지 않는 타일 종류')
     if not isinstance(request_record_value['user_prompt'],str):raise ValueError('표면정보 프롬프트는 문자열이어야 합니다.')
     if type(request_record_value['seed']) is not int or not 0<=request_record_value['seed']<=4294967295:raise ValueError('Seed 범위 오류')
-    base_prompt_value=configuration_record_value['types'][selected_tile_kind]['base_prompt']
+    base_prompt_value=configuration_record_value['base_prompt']
     style_prompt_value=configuration_record_value['style_prompt']
     user_prompt_value=request_record_value['user_prompt'].strip()
     if user_prompt_value and not user_prompt_value.endswith('.'):
         user_prompt_value+='.'
-    combined_prompt_value=serialize_tile_prompt(base_prompt_value if prompt_toggle_values['use_base_prompt'] else '',user_prompt_value,style_prompt_value if prompt_toggle_values['use_style_prompt'] else '',REFERENCE_STYLE_PROMPT if prompt_toggle_values['use_reference_style_prompt'] else '')
+    combined_prompt_value=combine_tile_prompt(base_prompt_value if prompt_toggle_values['use_base_prompt'] else '',user_prompt_value,style_prompt_value if prompt_toggle_values['use_style_prompt'] else '',REFERENCE_STYLE_PROMPT if prompt_toggle_values['use_reference_style_prompt'] else '')
     if len(combined_prompt_value.split())>=100:raise ValueError('기본·표면정보·화풍의 최종 프롬프트는 100단어 미만이어야 합니다.')
     validated_request_value=validate_image_request({key:request_record_value[key] for key in ('action','width','height','steps','seed')}|{'prompt':combined_prompt_value})
     if validated_request_value['width']!=validated_request_value['height']:raise ValueError('타일은 정사각형 해상도를 선택하세요.')
     from tools.review.domains.image.three_reference_generation import validate_three_reference_request
     validate_three_reference_request({**validated_request_value,'images':reference_image_values})
-    return validated_request_value|prompt_toggle_values|{'images':reference_image_values}|{'tag':generation_tag_value,'tile_type':selected_tile_kind,'user_prompt':user_prompt_value,'base_prompt':base_prompt_value,'style_prompt':style_prompt_value,'reference_style_prompt':REFERENCE_STYLE_PROMPT,'prompt_words':len(combined_prompt_value.split()),'prompt_sha256':hashlib.sha256(combined_prompt_value.encode()).hexdigest()}
+    return validated_request_value|prompt_toggle_values|{'images':reference_image_values}|{'tag':generation_tag_value,'user_prompt':user_prompt_value,'base_prompt':base_prompt_value,'style_prompt':style_prompt_value,'reference_style_prompt':REFERENCE_STYLE_PROMPT,'prompt_words':len(combined_prompt_value.split()),'prompt_sha256':hashlib.sha256(combined_prompt_value.encode()).hexdigest()}
 
 class TileGenerationManager(ImageGenerationManager):
     def __init__(self):
