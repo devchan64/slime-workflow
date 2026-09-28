@@ -12,15 +12,12 @@ class TileGenerationTests(unittest.TestCase):
     def test_ground_tile_uses_floor_tile_label(self):
         self.assertEqual(load_tile_configuration()['types']['ground']['label'],'바닥 타일')
 
-    def test_ground_prompt_defines_square_ground_panel(self):
+    def test_ground_prompt_defines_square_area(self):
         ground_prompt_text=load_tile_configuration()['types']['ground']['base_prompt']
-        self.assertIn('Orthographic top view',ground_prompt_text)
-        self.assertIn('flat square ground panel on a black background',ground_prompt_text)
-        self.assertNotIn('plate',ground_prompt_text)
-        self.assertIn('All surface elements stay inside the panel edges',ground_prompt_text)
-        self.assertIn('the outside remains plain black',ground_prompt_text)
-        self.assertIn('straight edges and equal side lengths',ground_prompt_text)
-        self.assertNotIn('frame',ground_prompt_text)
+        self.assertIn('Top-down view of a flat square area',ground_prompt_text)
+        self.assertIn('aligned with the image borders, surrounded by black background',ground_prompt_text)
+        self.assertIn('All details stay inside',ground_prompt_text)
+        self.assertNotRegex(ground_prompt_text,r'\b(?:plate|frame|soil|grass)\b')
 
     def test_all_kinds_keep_base_and_style(self):
         for tile_kind_name in ('rooftop','wall','ground'):

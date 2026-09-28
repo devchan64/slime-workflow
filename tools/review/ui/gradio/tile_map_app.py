@@ -26,7 +26,7 @@ WALL_TILE_KOREAN_EXAMPLE = '석재 벽면, 양옆에 기둥이 절반이 보이�
 SMALL_WINDOW_WALL_KOREAN_EXAMPLE = '이미지 1은 밖에서 보는 벽면이다. 실내가 보이지 않는 작은 창문은 상단에 추가한다.'
 # 문 예시 출처: 2026-09-27_19-58-40-45f636bf
 CLOSED_GATE_WALL_KOREAN_EXAMPLE = '벽면의 음각으로 닫힌 짙은색의 아치형 대문을 추가한다.'
-GROUND_TILE_KOREAN_EXAMPLE = '고운 흙에 작고 짧은 풀잎이 낱개로 고르게 흩어져 있다. 흙과 풀의 명암 차이는 작다. 프레임은 진흙으로 구성한다.'
+GROUND_TILE_KOREAN_EXAMPLE = '정사각형 흙바닥 중앙에 소량의 잔디가 있다.'
 
 def format_applied_prompt_words(catalog_record_value,selected_tile_kind,user_prompt_value,use_base_value,use_style_value,use_reference_value):
     prompt_section_values=[('참조 화풍',REFERENCE_STYLE_PROMPT,use_reference_value),('기본',catalog_record_value['types'][selected_tile_kind]['base_prompt'],use_base_value),('사용자',user_prompt_value or '',True),('화풍',catalog_record_value['style_prompt'],use_style_value)]
