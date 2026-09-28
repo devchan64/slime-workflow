@@ -1,0 +1,1 @@
+View: {direction}. Match image 2's arm and leg positions, joint bends, and foot placement. Preserve natural limb occlusions from image 2.

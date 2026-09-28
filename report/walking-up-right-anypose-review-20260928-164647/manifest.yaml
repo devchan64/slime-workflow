@@ -1,0 +1,80 @@
+schema_version: 1
+purpose: 우상 걷기 AnyPose 강도 및 생성 방식 비교 검수
+created_at: '2026-09-28T16:46:47.403005+09:00'
+motion: walking-v13
+frames:
+- 1
+- 5
+- 9
+- 13
+- 17
+- 21
+generation_ids:
+- 2026-09-28_13-28-53-b74b720a
+- 2026-09-28_14-34-29-1815a914
+- 2026-09-28_15-06-32-ce084d85
+prompt_sha256: c55886b9bd6ef74554be26b6097be737a41746b6b42087a70723818977cb84f9
+sources:
+- path: .tmp/test/character-animation/2026-09-28_13-28-53/2026-09-28_13-28-53-b74b720a/request.json
+  sha256: 7e83ce385af7029d494bb1b308ef01f9c31986645a6eaddd067642b560d60117
+- path: .tmp/test/character-animation/2026-09-28_13-28-53/2026-09-28_13-28-53-b74b720a/result.json
+  sha256: 2fa55afad263af497247817149addb09d7b950e77f82d53c7ec23a51798d0711
+- path: .tmp/test/character-animation/2026-09-28_13-28-53/2026-09-28_13-28-53-b74b720a/up_right/frame-0001/result.json
+  sha256: 58dc72276e7daa8130e78a93474f3948ca2d706fa8aea91c268ce33f294dc0b9
+- path: .tmp/test/character-animation/2026-09-28_13-28-53/2026-09-28_13-28-53-b74b720a/up_right/frame-0005/result.json
+  sha256: deee943e520cfa26eb837ff2a7178a851732528b23c26d0464511571aa19db52
+- path: .tmp/test/character-animation/2026-09-28_13-28-53/2026-09-28_13-28-53-b74b720a/up_right/frame-0009/result.json
+  sha256: 6e1da9a4c32d755e25bc133dc87c838f3af2a27e78ad2489a7a31e11a6651afc
+- path: .tmp/test/character-animation/2026-09-28_13-28-53/2026-09-28_13-28-53-b74b720a/up_right/frame-0013/result.json
+  sha256: e728c0afb31475c1d1da0c0d8f4c42ad9aecd9e4b73a18ddda277fcd9232fa44
+- path: .tmp/test/character-animation/2026-09-28_13-28-53/2026-09-28_13-28-53-b74b720a/up_right/frame-0017/result.json
+  sha256: 6ced9a9a67a0569de594296e1e59f2399b93150d580212cb999f9d34f3fe6e12
+- path: .tmp/test/character-animation/2026-09-28_13-28-53/2026-09-28_13-28-53-b74b720a/up_right/frame-0021/result.json
+  sha256: ba960196739f6059570d1f95000101e47bc2fb072b33ba9eaae15d508b83b8da
+- path: .tmp/test/character-animation/2026-09-28_14-34-29/2026-09-28_14-34-29-1815a914/request.json
+  sha256: 92d237aebddb6cba8f1567d4508fb5fc9ba53fa12af622e37ceb8f91dc92b6c1
+- path: .tmp/test/character-animation/2026-09-28_14-34-29/2026-09-28_14-34-29-1815a914/result.json
+  sha256: 2fa55afad263af497247817149addb09d7b950e77f82d53c7ec23a51798d0711
+- path: .tmp/test/character-animation/2026-09-28_14-34-29/2026-09-28_14-34-29-1815a914/up_right/frame-0001/result.json
+  sha256: bf3989550624e8ce88da1ba5346962a0328cdf39a17101b183be1342526299e5
+- path: .tmp/test/character-animation/2026-09-28_14-34-29/2026-09-28_14-34-29-1815a914/up_right/frame-0005/result.json
+  sha256: a6efb8698bdf5e44fda4cb0c536b1526423209c0b54066f3073f7c5301d73b12
+- path: .tmp/test/character-animation/2026-09-28_14-34-29/2026-09-28_14-34-29-1815a914/up_right/frame-0009/result.json
+  sha256: 68f0ec5cfd02b678c86c6c197202b1bdffce920b30cce2cba8e767b064357a69
+- path: .tmp/test/character-animation/2026-09-28_14-34-29/2026-09-28_14-34-29-1815a914/up_right/frame-0013/result.json
+  sha256: 549727d575470a3efc1d02c424429ef7ffa57b8098bec68147fdb48065c30b9d
+- path: .tmp/test/character-animation/2026-09-28_14-34-29/2026-09-28_14-34-29-1815a914/up_right/frame-0017/result.json
+  sha256: 545afd92af9ba330a68c20aa2f2cc978e79ddc5b5eb792e18db02e60125d26d9
+- path: .tmp/test/character-animation/2026-09-28_14-34-29/2026-09-28_14-34-29-1815a914/up_right/frame-0021/result.json
+  sha256: 0ac02b056ba95f6d30954c576851c261e9058802a7430a27cd29b96dc0459983
+- path: .tmp/test/character-animation/2026-09-28_15-06-32/2026-09-28_15-06-32-ce084d85/request.json
+  sha256: d3113fd5f4051b483a7fc4024c105727bfe86a32be1037e3be65b33cdcb9f5ba
+- path: .tmp/test/character-animation/2026-09-28_15-06-32/2026-09-28_15-06-32-ce084d85/result.json
+  sha256: 180b25598b18019737818869bdbb499d5ddbe91d4c0b2f0a19325789e607cea2
+- path: .tmp/test/character-animation/2026-09-28_15-06-32/2026-09-28_15-06-32-ce084d85/up_right/frame-0001/result.json
+  sha256: feb4e6bf29b7a9d3f9514f1bfbf94d43233e540dd64bb2c9bc2111c9c5dc2107
+- path: .tmp/test/character-animation/2026-09-28_15-06-32/2026-09-28_15-06-32-ce084d85/up_right/frame-0005/result.json
+  sha256: 184e66af680588930952293ffc28ab706698b60881ba35ff646909c3e8416de9
+- path: .tmp/test/character-animation/2026-09-28_15-06-32/2026-09-28_15-06-32-ce084d85/up_right/frame-0009/result.json
+  sha256: 9c4ca1f3e9cc2dfb1a2a14e9b9fc1ceb9eea6d0294882e78f022e7c782707efa
+- path: .tmp/test/character-animation/2026-09-28_15-06-32/2026-09-28_15-06-32-ce084d85/up_right/frame-0013/result.json
+  sha256: ae31663a18f074b970f2b4438890b01a3fe7ff1fbf3556e56eade48651ddc9ac
+- path: .tmp/test/character-animation/2026-09-28_15-06-32/2026-09-28_15-06-32-ce084d85/up_right/frame-0017/result.json
+  sha256: 613f00af4f45450bfb03171e21ce5db79dfc06600bff052472adfa770a878acc
+- path: .tmp/test/character-animation/2026-09-28_15-06-32/2026-09-28_15-06-32-ce084d85/up_right/frame-0021/result.json
+  sha256: dbfd1e6499fc4ae221e94b789444236d13e22474977533ca02b89201c742b7da
+- path: .tmp/test/walking-result-gif-review/2026-09-28_15-04-16/walking-up-right-anny-070-085-comparison-4fps.gif
+  sha256: 3e1a34b073454cc447cb1e857dd832c7525be3857a22b43f80cdcc9d963b9b4e
+  copy: strength-comparison.gif
+- path: .tmp/test/walking-result-gif-review/2026-09-28_16-43-39/walking-up-right-anny-4steps-30steps-comparison-4fps.gif
+  sha256: bf9c7da6010442c8470e018404d4d462b6552518a1db8a4906f35018875490b1
+  copy: steps-comparison.gif
+artifacts:
+- path: README.md
+  sha256: 34c8bf8ca4a0fee29ad98ceefc9ede8c3de8fd715967cf0a45635a02b5777212
+- path: frame-comparison.png
+  sha256: 9144a0e46e73141c8dc1788e6d796c17813958849023709044e13b0ea8263d69
+- path: steps-comparison.gif
+  sha256: bf9c7da6010442c8470e018404d4d462b6552518a1db8a4906f35018875490b1
+- path: strength-comparison.gif
+  sha256: 3e1a34b073454cc447cb1e857dd832c7525be3857a22b43f80cdcc9d963b9b4e

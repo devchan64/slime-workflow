@@ -1,0 +1,151 @@
+{
+  "status": "completed",
+  "tool": "built-in image_gen",
+  "source_job": "2026-09-28_15-06-32-ce084d85",
+  "size": [
+    2304,
+    384
+  ],
+  "cell_size": [
+    384,
+    384
+  ],
+  "scale": 0.544891640866873,
+  "frames": [
+    {
+      "source_frame": 1,
+      "rect": [
+        0,
+        0,
+        384,
+        384
+      ],
+      "source_crop": [
+        65,
+        100,
+        291,
+        746
+      ],
+      "offset": [
+        130,
+        16
+      ]
+    },
+    {
+      "source_frame": 5,
+      "rect": [
+        384,
+        0,
+        384,
+        384
+      ],
+      "source_crop": [
+        374,
+        100,
+        577,
+        730
+      ],
+      "offset": [
+        136,
+        25
+      ]
+    },
+    {
+      "source_frame": 9,
+      "rect": [
+        768,
+        0,
+        384,
+        384
+      ],
+      "source_crop": [
+        690,
+        99,
+        880,
+        740
+      ],
+      "offset": [
+        140,
+        19
+      ]
+    },
+    {
+      "source_frame": 13,
+      "rect": [
+        1152,
+        0,
+        384,
+        384
+      ],
+      "source_crop": [
+        974,
+        100,
+        1225,
+        729
+      ],
+      "offset": [
+        123,
+        25
+      ]
+    },
+    {
+      "source_frame": 17,
+      "rect": [
+        1536,
+        0,
+        384,
+        384
+      ],
+      "source_crop": [
+        1271,
+        100,
+        1516,
+        740
+      ],
+      "offset": [
+        125,
+        19
+      ]
+    },
+    {
+      "source_frame": 21,
+      "rect": [
+        1920,
+        0,
+        384,
+        384
+      ],
+      "source_crop": [
+        1638,
+        100,
+        1846,
+        743
+      ],
+      "offset": [
+        135,
+        18
+      ]
+    }
+  ],
+  "note": "이미지젠 원본 보존. 알파 주요 연결 성분의 경계로 셀별 여백을 정리하고 동일 배율·하단 기준선으로 배치. 384는 셀 크기이며 캐릭터 실높이는 약 352px 이하.",
+  "artifacts": [
+    {
+      "path": "imagegen-original.png",
+      "sha256": "7cbbc6389c8cc420aaae93523019b4211516614bc0427f27d9e61f7f2ef6cbec"
+    },
+    {
+      "path": "source-six-frames.png",
+      "sha256": "64ad6acdd6501bc243286186710136680b1157a4f5f6febfd8a55da9b2f7c5e9"
+    },
+    {
+      "path": "identity-reference.png",
+      "sha256": "8f500b512818eb2ce1f0b2e1cfb0c52431b41ad371a0a4ff384c11de8808f09f"
+    },
+    {
+      "path": "walking-up-right-sheet-6x384.png",
+      "sha256": "4e45bfa3e853a110d80b49bd78ebbee393a413a6f607e8f36fd1590fa0cac94f"
+    }
+  ],
+  "prompt_words": 245,
+  "prompt_sha256": "a8d7f4747f0572d043624cdfd77abc3547dc47a3746b721449f4e99cbc25814f"
+}

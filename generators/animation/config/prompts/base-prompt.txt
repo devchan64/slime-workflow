@@ -1,1 +1,1 @@
-Preserve the single character in image 1: head-to-body ratio, relative shoulder and torso widths, limb thickness, appearance, clothing, and image scale. Image 2 guides only joint pose.
+The character is walking. Preserve the single character in image 1: head-to-body ratio, relative shoulder and torso widths, limb thickness, appearance, clothing, and image scale. Image 2 guides only joint pose.

@@ -285,6 +285,8 @@ characters:
                 with patch.dict(sys.modules,{'qwen_pose':SimpleNamespace(execute_pose_generation=pose_execute_mock)}):
                     generate_character_frame(generation_job_path,0)
                 execution_keyword_values=pose_execute_mock.call_args.kwargs
+                self.assertEqual(execution_keyword_values['selected_base_strength'],0.7)
+                self.assertEqual(execution_keyword_values['selected_helper_strength'],0.7)
                 self.assertEqual(execution_keyword_values['selected_output_width'],1280)
                 self.assertEqual(execution_keyword_values['selected_output_height'],1280)
                 self.assertEqual(execution_keyword_values['enable_anypose_adapter'],source_kind_value=='anny')

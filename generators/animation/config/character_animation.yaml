@@ -1,8 +1,8 @@
 schema_version: 1
 prompts:
   base: generators/animation/config/prompts/base-prompt.txt
-  auxiliary: .local/production-prompts/character-animation-v1/auxiliary-prompt.txt
-  auxiliary_rear: .local/production-prompts/character-animation-v1/auxiliary-rear-prompt.txt
+  auxiliary: generators/animation/config/prompts/auxiliary-prompt.txt
+  auxiliary_rear: generators/animation/config/prompts/auxiliary-rear-prompt.txt
 motions:
   standing-v10:
     direction_auxiliary_prompts:
@@ -18,10 +18,10 @@ motions:
     anny: anny/{direction}/anny-{frame:04d}.png
   walking-v13:
     direction_auxiliary_prompts:
-      down_left: "The character walks toward the left side of the image, front three-quarter view."
-      down_right: "The character walks toward the right side of the image, front three-quarter view."
-      up_left: "Back view of the character walking away toward the left side of the image. Show the back of the head and torso."
-      up_right: "The character walks diagonally toward screen-right, with their back visible."
+      down_left: ""
+      down_right: ""
+      up_left: ""
+      up_right: ""
     target_fps: 4
     label: 걷기 v13
     root: assets/motion-sheet/momask-walking-v13
