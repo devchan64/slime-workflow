@@ -12,12 +12,13 @@ class TileGenerationTests(unittest.TestCase):
     def test_ground_tile_uses_floor_tile_label(self):
         self.assertEqual(load_tile_configuration()['types']['ground']['label'],'바닥 타일')
 
-    def test_ground_prompt_defines_square_area(self):
+    def test_ground_prompt_defines_thin_square_block(self):
         ground_prompt_text=load_tile_configuration()['types']['ground']['base_prompt']
-        self.assertIn('Top view of a flat square surface',ground_prompt_text)
+        self.assertIn('A thin square block',ground_prompt_text)
+        self.assertIn('viewed from above',ground_prompt_text)
         self.assertNotIn('parallel to the image plane',ground_prompt_text)
-        self.assertIn('with a black border',ground_prompt_text)
-        self.assertNotIn('black background',ground_prompt_text)
+        self.assertNotIn('black border',ground_prompt_text)
+        self.assertIn('on a black background',ground_prompt_text)
         self.assertNotRegex(ground_prompt_text,r'\b(?:plate|frame|soil|grass|edges|borders|surrounded|inside)\b')
 
     def test_all_kinds_keep_base_and_style(self):
@@ -26,7 +27,10 @@ class TileGenerationTests(unittest.TestCase):
             self.assertIn(output_request_value['base_prompt'],output_request_value['prompt'])
             self.assertIn(output_request_value['style_prompt'],output_request_value['prompt'])
             self.assertNotRegex(output_request_value['base_prompt'],r'\btile\b')
-            self.assertIn('No text or symbols.',output_request_value['base_prompt'])
+            if tile_kind_name in ('ground','wall'):
+                self.assertNotIn('No text or symbols.',output_request_value['base_prompt'])
+            else:
+                self.assertIn('No text or symbols.',output_request_value['base_prompt'])
             self.assertNotIn('no decorative border or frame',output_request_value['base_prompt'])
             self.assertNotIn('visible outer boundary lines',output_request_value['base_prompt'])
             self.assertIn('Red brick house.',output_request_value['prompt'])
