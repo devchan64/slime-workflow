@@ -25,6 +25,22 @@ def load_tile_configuration():
     if not isinstance(configuration_record_value['style_prompt'],str) or not configuration_record_value['style_prompt'].strip():raise ValueError('화풍 프롬프트 누락')
     return configuration_record_value
 
+def serialize_tile_prompt(base_prompt_value,user_prompt_value,style_prompt_value,reference_prompt_value):
+    """활성 지시를 JSON 필드로 구분해 모델 입력 문자열을 만든다."""
+    surface_prompt_value=user_prompt_value.strip()
+    if surface_prompt_value and not surface_prompt_value.endswith('.'):
+        surface_prompt_value+='.'
+    prompt_section_values={
+        'reference_style':reference_prompt_value,
+        'base':base_prompt_value,
+        'surface':surface_prompt_value,
+        'style':style_prompt_value,
+    }
+    active_prompt_sections={section_key_value:section_text_value for section_key_value,section_text_value in prompt_section_values.items() if section_text_value}
+    if not active_prompt_sections:
+        raise ValueError('적용할 프롬프트가 없습니다.')
+    return json.dumps(active_prompt_sections,ensure_ascii=False,indent=2)
+
 def prepare_tile_request(request_record_value):
     if request_record_value=={'action':'prepare'}:return request_record_value
     if isinstance(request_record_value,dict):request_record_value={'seed':10107,**request_record_value}
@@ -49,7 +65,7 @@ def prepare_tile_request(request_record_value):
     user_prompt_value=request_record_value['user_prompt'].strip()
     if user_prompt_value and not user_prompt_value.endswith('.'):
         user_prompt_value+='.'
-    combined_prompt_value='\n\n'.join(value for value in [REFERENCE_STYLE_PROMPT if prompt_toggle_values['use_reference_style_prompt'] else '',base_prompt_value if prompt_toggle_values['use_base_prompt'] else '',user_prompt_value,style_prompt_value if prompt_toggle_values['use_style_prompt'] else ''] if value)
+    combined_prompt_value=serialize_tile_prompt(base_prompt_value if prompt_toggle_values['use_base_prompt'] else '',user_prompt_value,style_prompt_value if prompt_toggle_values['use_style_prompt'] else '',REFERENCE_STYLE_PROMPT if prompt_toggle_values['use_reference_style_prompt'] else '')
     if len(combined_prompt_value.split())>=100:raise ValueError('기본·표면정보·화풍의 최종 프롬프트는 100단어 미만이어야 합니다.')
     validated_request_value=validate_image_request({key:request_record_value[key] for key in ('action','width','height','steps','seed')}|{'prompt':combined_prompt_value})
     if validated_request_value['width']!=validated_request_value['height']:raise ValueError('타일은 정사각형 해상도를 선택하세요.')

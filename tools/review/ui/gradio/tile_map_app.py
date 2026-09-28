@@ -17,7 +17,7 @@ if str(WORKFLOW_ROOT_DIRECTORY) not in sys.path:sys.path.insert(0,str(WORKFLOW_R
 from tools.review.common.gradio_history import HISTORY_CARD_SELECTION_SCRIPT, build_generation_history_view
 from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_confirmation
 from tools.review.common.management_gateway import execute_management_command
-from tools.review.domains.tile.tile_generation import REFERENCE_STYLE_PROMPT
+from tools.review.domains.tile.tile_generation import REFERENCE_STYLE_PROMPT, serialize_tile_prompt
 
 # 지붕 예시는 나무 판자가 배열된 표면을 지정한다.
 ROOFTOP_TILE_PROMPT_EXAMPLE = '나무 판자가 배열된 표면'
@@ -32,8 +32,9 @@ BRICK_GROUND_PROMPT_EXAMPLE = '벽돌 바닥'
 def format_applied_prompt_words(catalog_record_value,selected_tile_kind,user_prompt_value,use_base_value,use_style_value,use_reference_value):
     prompt_section_values=[('참조 화풍',REFERENCE_STYLE_PROMPT,use_reference_value),('기본',catalog_record_value['types'][selected_tile_kind]['base_prompt'],use_base_value),('표면정보',user_prompt_value or '',True),('화풍',catalog_record_value['style_prompt'],use_style_value)]
     applied_word_counts=[(label,len(text.split()) if enabled else 0) for label,text,enabled in prompt_section_values]
-    total_word_count=sum(count for _,count in applied_word_counts)
-    return '**적용 프롬프트 총 '+str(total_word_count)+'단어** · '+ ' + '.join(label+' '+str(count) for label,count in applied_word_counts)+'\n\n'+('⚠️ 100단어 미만으로 줄여 주세요.' if total_word_count>=100 else '100단어 미만 · 공백 기준 단어 수이며 모델 토큰 수와 다릅니다.')
+    active_prompt_values=[section_text_value if section_enabled_value else '' for _,section_text_value,section_enabled_value in prompt_section_values]
+    total_word_count=len(serialize_tile_prompt(active_prompt_values[1],active_prompt_values[2],active_prompt_values[3],active_prompt_values[0]).split()) if any(section_text_value.strip() for section_text_value in active_prompt_values) else 0
+    return '**적용 프롬프트 총 '+str(total_word_count)+'단어** · '+ ' + '.join(label+' '+str(count) for label,count in applied_word_counts)+'\n\n'+('⚠️ 100단어 미만으로 줄여 주세요.' if total_word_count>=100 else '100단어 미만 · 총 단어 수는 JSON 키·구문을 포함한 실제 입력 기준이며 모델 토큰 수와 다릅니다.')
 
 def execute_tile_gateway(command_name_value,payload_value):return execute_management_command('tile-map',command_name_value,payload_value)
 def generate_random_seed_value():return secrets.randbelow(4294967296)
