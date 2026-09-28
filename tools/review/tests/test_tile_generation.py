@@ -12,13 +12,12 @@ class TileGenerationTests(unittest.TestCase):
     def test_ground_tile_uses_floor_tile_label(self):
         self.assertEqual(load_tile_configuration()['types']['ground']['label'],'바닥 타일')
 
-    def test_ground_prompt_defines_repeatable_flat_surface(self):
+    def test_ground_prompt_defines_uniform_outer_frame(self):
         ground_prompt_text=load_tile_configuration()['types']['ground']['base_prompt']
-        self.assertIn('Seamless repeating ground texture',ground_prompt_text)
-        self.assertIn('matching opposite edges horizontally and vertically',ground_prompt_text)
-        self.assertIn('fine low-contrast texture through every edge',ground_prompt_text)
-        self.assertIn('uniform brightness',ground_prompt_text)
-        self.assertIn('No border or edge shadow',ground_prompt_text)
+        self.assertIn('Top-down ground',ground_prompt_text)
+        self.assertIn('thin rectangular frame',ground_prompt_text)
+        self.assertIn('all four sides share width, height and color',ground_prompt_text)
+        self.assertNotIn('No border',ground_prompt_text)
 
     def test_all_kinds_keep_base_and_style(self):
         for tile_kind_name in ('rooftop','wall','ground'):
@@ -26,7 +25,7 @@ class TileGenerationTests(unittest.TestCase):
             self.assertIn(output_request_value['base_prompt'],output_request_value['prompt'])
             self.assertIn(output_request_value['style_prompt'],output_request_value['prompt'])
             self.assertNotRegex(output_request_value['base_prompt'],r'\btile\b')
-            self.assertIn('No text, letters, or numbers on the surface.',output_request_value['base_prompt'])
+            self.assertIn('No text or symbols.',output_request_value['base_prompt'])
             self.assertNotIn('no decorative border or frame',output_request_value['base_prompt'])
             self.assertNotIn('visible outer boundary lines',output_request_value['base_prompt'])
             self.assertIn('Red brick house.',output_request_value['prompt'])
@@ -36,9 +35,9 @@ class TileGenerationTests(unittest.TestCase):
     def test_rooftop_prompt_keeps_layout_user_defined(self):
         rooftop_prompt_text=load_tile_configuration()['types']['rooftop']['base_prompt']
         self.assertIn('Orthographic top view',rooftop_prompt_text)
-        self.assertIn('Continuous surface filling the image',rooftop_prompt_text)
-        self.assertIn('matching edges',rooftop_prompt_text)
-        self.assertNotRegex(rooftop_prompt_text,r'\d|\b(?:rows?|columns?|five|three|rectangle|width|height)\b')
+        self.assertIn('surface enclosed by a thin rectangular frame',rooftop_prompt_text)
+        self.assertIn('all four sides share width, height and color',rooftop_prompt_text)
+        self.assertNotRegex(rooftop_prompt_text,r'\d|\b(?:rows?|columns?|five|three)\b')
         self.assertLessEqual(len(rooftop_prompt_text.split()),32)
 
     def test_base_prompts_do_not_prescribe_material(self):

@@ -20,13 +20,13 @@ from tools.review.common.management_gateway import execute_management_command
 from tools.review.domains.tile.tile_generation import REFERENCE_STYLE_PROMPT
 
 # 지붕 예시는 전체 장수와 행·열 배치를 먼저 지정한다.
-ROOFTOP_TILE_PROMPT_EXAMPLE = '석판 9장을 3열 3행으로 포개어 깐다. 각 윗줄 석판의 아래 끝이 바로 아랫줄 석판의 윗부분을 덮는다. 겹친 가장자리에 얇은 그림자가 생긴다. 표면은 깨끗하고 매끈하다.'
+ROOFTOP_TILE_PROMPT_EXAMPLE = '이끼가 없는 석판 5장을 1행 5열로 나란히 배열한다. 표면은 깨끗하고 매끈하다.'
 
 WALL_TILE_KOREAN_EXAMPLE = '석재 벽면, 양옆에 기둥이 절반이 보이게 배치한다, 상단에 단을 배치한다.'
 SMALL_WINDOW_WALL_KOREAN_EXAMPLE = '이미지 1은 밖에서 보는 벽면이다. 실내가 보이지 않는 작은 창문은 상단에 추가한다.'
 # 문 예시 출처: 2026-09-27_19-58-40-45f636bf
 CLOSED_GATE_WALL_KOREAN_EXAMPLE = '벽면의 음각으로 닫힌 짙은색의 아치형 대문을 추가한다.'
-GROUND_TILE_KOREAN_EXAMPLE = '고운 흙 위에 짧은 잔디가 성기고 고르게 자란다. 풀과 흙의 색 차이는 은은하다.'
+GROUND_TILE_KOREAN_EXAMPLE = '고운 흙에 작고 짧은 풀잎이 낱개로 고르게 흩어져 있다. 흙과 풀의 명암 차이는 작다. 프레임은 진흙으로 구성한다.'
 
 def format_applied_prompt_words(catalog_record_value,selected_tile_kind,user_prompt_value,use_base_value,use_style_value,use_reference_value):
     prompt_section_values=[('기본',catalog_record_value['types'][selected_tile_kind]['base_prompt'],use_base_value),('화풍',catalog_record_value['style_prompt'],use_style_value),('참조 화풍',REFERENCE_STYLE_PROMPT,use_reference_value),('사용자',user_prompt_value or '',True)]
