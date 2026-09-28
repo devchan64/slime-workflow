@@ -35,8 +35,9 @@ class TileGenerationTests(unittest.TestCase):
     def test_rooftop_prompt_keeps_layout_user_defined(self):
         rooftop_prompt_text=load_tile_configuration()['types']['rooftop']['base_prompt']
         self.assertIn('Orthographic top view',rooftop_prompt_text)
-        self.assertIn('surface enclosed by a thin rectangular frame',rooftop_prompt_text)
-        self.assertIn('all four sides share width, height and color',rooftop_prompt_text)
+        self.assertIn('square plate filling the image',rooftop_prompt_text)
+        self.assertNotIn('frame',rooftop_prompt_text)
+        self.assertIn('straight edges and equal side lengths',rooftop_prompt_text)
         self.assertNotRegex(rooftop_prompt_text,r'\d|\b(?:rows?|columns?|five|three)\b')
         self.assertLessEqual(len(rooftop_prompt_text.split()),32)
 

@@ -3,7 +3,7 @@ style_prompt: "Hand-painted fantasy texture, clear shapes, soft lighting, natura
 types:
   rooftop:
     label: 지붕 타일
-    base_prompt: "Orthographic top view, surface enclosed by a thin rectangular frame; all four sides share width, height and color. No text or symbols."
+    base_prompt: "Orthographic top view of a square plate filling the image, with straight edges and equal side lengths. No text or symbols."
   wall:
     label: 벽 타일
     base_prompt: "Orthographic wall, half-visible columns at both edges, a top beam, aligned for adjacent placement. No text or symbols."
