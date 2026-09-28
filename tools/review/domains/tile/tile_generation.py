@@ -47,6 +47,8 @@ def prepare_tile_request(request_record_value):
     base_prompt_value=configuration_record_value['types'][selected_tile_kind]['base_prompt']
     style_prompt_value=configuration_record_value['style_prompt']
     user_prompt_value=request_record_value['user_prompt'].strip()
+    if user_prompt_value and not user_prompt_value.endswith('.'):
+        user_prompt_value+='.'
     combined_prompt_value='\n\n'.join(value for value in [REFERENCE_STYLE_PROMPT if prompt_toggle_values['use_reference_style_prompt'] else '',base_prompt_value if prompt_toggle_values['use_base_prompt'] else '',user_prompt_value,style_prompt_value if prompt_toggle_values['use_style_prompt'] else ''] if value)
     if len(combined_prompt_value.split())>=100:raise ValueError('기본·사용자·화풍의 최종 프롬프트는 100단어 미만이어야 합니다.')
     validated_request_value=validate_image_request({key:request_record_value[key] for key in ('action','width','height','steps','seed')}|{'prompt':combined_prompt_value})
