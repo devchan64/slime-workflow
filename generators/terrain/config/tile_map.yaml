@@ -3,10 +3,10 @@ style_prompt: "Hand-painted, clear shapes, soft lighting, natural colors."
 types:
   rooftop:
     label: 지붕 타일
-    base_prompt: "Top view of a flat square panel on a black background, with straight edges and equal side lengths."
+    base_prompt: "Game texture. Square. Thin black edges."
   wall:
     label: 벽 타일
-    base_prompt: "Wall, half-visible columns at both edges, a top beam, aligned for adjacent placement."
+    base_prompt: "Game texture. Square. Thin black edges."
   ground:
     label: 바닥 타일
-    base_prompt: "A big square tile placed on a black background, top view."
+    base_prompt: "Game texture. Square. Thin black edges."

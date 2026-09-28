@@ -38,11 +38,11 @@ def prepare_tile_request(request_record_value):
     if len(generation_tag_value)>80 or '\n' in generation_tag_value or '\r' in generation_tag_value:raise ValueError('생성 이력 태그는 줄바꿈 없이 80자 이하여야 합니다.')
     if isinstance(request_record_value,dict):request_record_value={key:value for key,value in request_record_value.items() if key not in ('images','tag','use_base_prompt','use_style_prompt','use_reference_style_prompt')}
     if not isinstance(request_record_value,dict) or set(request_record_value)!={'action','tile_type','user_prompt','width','height','steps','seed'}:
-        raise ValueError('타일 종류·사용자 프롬프트·생성 설정만 수정할 수 있습니다.')
+        raise ValueError('타일 종류·표면정보 프롬프트·생성 설정만 수정할 수 있습니다.')
     configuration_record_value=load_tile_configuration()
     selected_tile_kind=request_record_value['tile_type']
     if not isinstance(selected_tile_kind,str) or selected_tile_kind not in configuration_record_value['types']:raise ValueError('지원하지 않는 타일 종류')
-    if not isinstance(request_record_value['user_prompt'],str):raise ValueError('사용자 프롬프트는 문자열이어야 합니다.')
+    if not isinstance(request_record_value['user_prompt'],str):raise ValueError('표면정보 프롬프트는 문자열이어야 합니다.')
     if type(request_record_value['seed']) is not int or not 0<=request_record_value['seed']<=4294967295:raise ValueError('Seed 범위 오류')
     base_prompt_value=configuration_record_value['types'][selected_tile_kind]['base_prompt']
     style_prompt_value=configuration_record_value['style_prompt']
@@ -50,7 +50,7 @@ def prepare_tile_request(request_record_value):
     if user_prompt_value and not user_prompt_value.endswith('.'):
         user_prompt_value+='.'
     combined_prompt_value='\n\n'.join(value for value in [REFERENCE_STYLE_PROMPT if prompt_toggle_values['use_reference_style_prompt'] else '',base_prompt_value if prompt_toggle_values['use_base_prompt'] else '',user_prompt_value,style_prompt_value if prompt_toggle_values['use_style_prompt'] else ''] if value)
-    if len(combined_prompt_value.split())>=100:raise ValueError('기본·사용자·화풍의 최종 프롬프트는 100단어 미만이어야 합니다.')
+    if len(combined_prompt_value.split())>=100:raise ValueError('기본·표면정보·화풍의 최종 프롬프트는 100단어 미만이어야 합니다.')
     validated_request_value=validate_image_request({key:request_record_value[key] for key in ('action','width','height','steps','seed')}|{'prompt':combined_prompt_value})
     if validated_request_value['width']!=validated_request_value['height']:raise ValueError('타일은 정사각형 해상도를 선택하세요.')
     from tools.review.domains.image.three_reference_generation import validate_three_reference_request

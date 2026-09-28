@@ -12,14 +12,9 @@ class TileGenerationTests(unittest.TestCase):
     def test_ground_tile_uses_floor_tile_label(self):
         self.assertEqual(load_tile_configuration()['types']['ground']['label'],'바닥 타일')
 
-    def test_ground_prompt_defines_square_tile(self):
-        ground_prompt_text=load_tile_configuration()['types']['ground']['base_prompt']
-        self.assertIn('A big square tile placed',ground_prompt_text)
-        self.assertIn('top view',ground_prompt_text)
-        self.assertNotIn('parallel to the image plane',ground_prompt_text)
-        self.assertNotIn('black border',ground_prompt_text)
-        self.assertIn('on a black background',ground_prompt_text)
-        self.assertNotRegex(ground_prompt_text,r'\b(?:plate|frame|soil|grass|edges|borders|surrounded|inside)\b')
+    def test_three_tiles_share_base_prompt(self):
+        for tile_type_record in load_tile_configuration()['types'].values():
+            self.assertEqual(tile_type_record['base_prompt'],'Game texture. Square. Thin black edges.')
 
     def test_all_kinds_keep_base_and_style(self):
         for tile_kind_name in ('rooftop','wall','ground'):
@@ -35,26 +30,10 @@ class TileGenerationTests(unittest.TestCase):
             self.assertEqual(output_request_value['prompt_words'],len(output_request_value['prompt'].split()))
             self.assertLess(output_request_value['prompt_words'],100)
 
-    def test_rooftop_prompt_keeps_layout_user_defined(self):
-        rooftop_prompt_text=load_tile_configuration()['types']['rooftop']['base_prompt']
-        self.assertIn('Top view',rooftop_prompt_text)
-        self.assertNotIn('Orthographic',rooftop_prompt_text)
-        self.assertIn('flat square panel on a black background',rooftop_prompt_text)
-        self.assertNotIn('plate',rooftop_prompt_text)
-        self.assertNotIn('frame',rooftop_prompt_text)
-        self.assertIn('straight edges and equal side lengths',rooftop_prompt_text)
-        self.assertNotRegex(rooftop_prompt_text,r'\d|\b(?:rows?|columns?|five|three)\b')
-        self.assertLessEqual(len(rooftop_prompt_text.split()),32)
-
     def test_base_prompts_do_not_prescribe_material(self):
         for tile_type_record in load_tile_configuration()['types'].values():
             self.assertNotRegex(tile_type_record['base_prompt'],r'\b(?:wooden|wood|marble|stone|metal|material)\b')
 
-    def test_wall_prompt_uses_columns_and_top_beam_without_prescribing_material(self):
-        wall_prompt_text=load_tile_configuration()['types']['wall']['base_prompt']
-        self.assertIn('half-visible columns at both edges',wall_prompt_text)
-        self.assertIn('a top beam',wall_prompt_text)
-        self.assertNotRegex(wall_prompt_text,r'\b(?:wooden|wood|marble|stone|metal|material)\b')
     def test_default_seed_is_10107_and_explicit_seed_is_preserved(self):
         request=self.make_tile_request()
         request.pop('seed')

@@ -30,7 +30,7 @@ GROUND_TILE_KOREAN_EXAMPLE = '진흙과 잔디'
 BRICK_GROUND_PROMPT_EXAMPLE = '벽돌 바닥'
 
 def format_applied_prompt_words(catalog_record_value,selected_tile_kind,user_prompt_value,use_base_value,use_style_value,use_reference_value):
-    prompt_section_values=[('참조 화풍',REFERENCE_STYLE_PROMPT,use_reference_value),('기본',catalog_record_value['types'][selected_tile_kind]['base_prompt'],use_base_value),('사용자',user_prompt_value or '',True),('화풍',catalog_record_value['style_prompt'],use_style_value)]
+    prompt_section_values=[('참조 화풍',REFERENCE_STYLE_PROMPT,use_reference_value),('기본',catalog_record_value['types'][selected_tile_kind]['base_prompt'],use_base_value),('표면정보',user_prompt_value or '',True),('화풍',catalog_record_value['style_prompt'],use_style_value)]
     applied_word_counts=[(label,len(text.split()) if enabled else 0) for label,text,enabled in prompt_section_values]
     total_word_count=sum(count for _,count in applied_word_counts)
     return '**적용 프롬프트 총 '+str(total_word_count)+'단어** · '+ ' + '.join(label+' '+str(count) for label,count in applied_word_counts)+'\n\n'+('⚠️ 100단어 미만으로 줄여 주세요.' if total_word_count>=100 else '100단어 미만 · 공백 기준 단어 수이며 모델 토큰 수와 다릅니다.')
@@ -99,12 +99,12 @@ def build_tile_interface(server_base_address):
     catalog_record_value=execute_tile_gateway('catalog',{})
     tile_choices=[(record['label'],name) for name,record in catalog_record_value['types'].items()]
     with gr.Blocks(title='타일 에셋 생성기',js=HISTORY_CARD_SELECTION_SCRIPT,elem_classes=['management-generator-root']) as blocks_value:
-        gr.Markdown('## 타일 에셋 생성기\n고정 기본·화풍 프롬프트와 사용자 요구를 결합해 정사각형 타일을 생성합니다.')
+        gr.Markdown('## 타일 에셋 생성기\n고정 기본·화풍 프롬프트와 표면정보 프롬프트를 결합해 정사각형 타일을 생성합니다.')
         with gr.Row():
             with gr.Column():
-                tile_value=gr.Dropdown(tile_choices,value=tile_choices[0][1],label='타일 종류');prompt_value=gr.Textbox(label='사용자 프롬프트',lines=5)
+                tile_value=gr.Dropdown(tile_choices,value=tile_choices[0][1],label='타일 종류');prompt_value=gr.Textbox(label='표면정보 프롬프트',info='표면의 재질·색상·무늬 등 표면정보를 입력하세요.',lines=5)
                 with gr.Row():
-                    clear_prompt_button_value=gr.Button('사용자 프롬프트 초기화',size='sm',scale=1)
+                    clear_prompt_button_value=gr.Button('표면정보 프롬프트 초기화',size='sm',scale=1)
                     rooftop_example_button_value=gr.Button('지붕 한글 예시 넣기',visible=tile_choices[0][1]=='rooftop',size='sm',scale=1)
                     wall_example_button_value=gr.Button('벽 타일 한글 예시 넣기',visible=tile_choices[0][1]=='wall',size='sm',scale=1)
                     small_window_example_button_value=gr.Button('참조 이미지에 작은 창문 추가 · 예시 넣기',visible=tile_choices[0][1]=='wall',size='sm',scale=1)
