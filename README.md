@@ -49,6 +49,19 @@
 python3 tools/review/serve.py
 ```
 
+소스·에셋·리포트 변경을 감시하면서 관리도구를 자동으로 재생성하려면 저장소 루트에서 watch 실행 스크립트를 사용한다. 기본 접속 주소는 `http://127.0.0.1:8770/`이며 `Ctrl+C`로 종료한다.
+
+```bash
+./scripts/watch_review_server.sh
+```
+
+프론트엔드 저장소나 포트를 바꿀 때는 환경 변수로 지정하고, 추가 관리도구 인자는 뒤에 전달한다.
+
+```bash
+FRONTEND_REPOSITORY_PATH=/경로/slime-frontend REVIEW_SERVER_PORT=8771 ./scripts/watch_review_server.sh
+./scripts/watch_review_server.sh --writer-agent-config .local/writer-agent/workspace.yaml
+```
+
 [관리도구 열기](http://127.0.0.1:8770/) · 종료는 `Ctrl+C`다.
 
 ### 게임 UI · 디자인 시스템 검수
