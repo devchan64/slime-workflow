@@ -131,7 +131,7 @@ def build_tile_interface(server_base_address):
                 with gr.Accordion('화풍 프롬프트 · 고정',open=False):
                     gr.Textbox(value=catalog_record_value['style_prompt'],label=f"화풍 프롬프트 · {len(catalog_record_value['style_prompt'].split())}단어",interactive=False,lines=3)
                 clear_prompt_button_value.click(clear_user_prompt_value,outputs=prompt_value,queue=False)
-                width_value=gr.Dropdown([512,768,1024],value=512,label='정사각형 해상도');step_value=gr.Radio([4,30],value=4,label='생성 스텝')
+                width_value=gr.Dropdown([512,768,1024],value=1024,label='정사각형 해상도');step_value=gr.Radio([4,30],value=4,label='생성 스텝')
                 with gr.Group(elem_classes=['seed-control-group']):
                     with gr.Row():
                         seed_value=gr.Number(value=10107,precision=0,label='Seed',scale=4,min_width=0)
