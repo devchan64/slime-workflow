@@ -5,6 +5,7 @@ import json
 import shutil
 import yaml
 from PIL import Image
+from tools.review.common.map_tile_assets import load_registered_tiles, resolve_registered_tile
 
 WORKFLOW_ROOT_DIRECTORY=Path(__file__).resolve().parents[2]
 GAME_TILE_SOURCE_SIZE=256
@@ -113,6 +114,7 @@ def build_block_map_review(output_directory_path):
     output_directory_path.mkdir(parents=True,exist_ok=True)
     prefab_source_records=yaml.safe_load((source_asset_directory.parent/'building-prefabs.yaml').read_text())['prefabs']
     building_tile_records={current_prefab_record['id']:{'roof':current_prefab_record['roof_tile'],'wall':current_prefab_record['ground_floor_plain_wall_tile'],'window':current_prefab_record['ground_floor_small_window_wall_tile'],'large_window':current_prefab_record['upper_floor_large_window_wall_tile'],'roof_underlay':current_prefab_record.get('roof_underlay_wall_tile',current_prefab_record['ground_floor_plain_wall_tile']),'door':current_prefab_record['door_tile']} for current_prefab_record in prefab_source_records}
+    building_tile_records['stonewarm-guild'] = {'roof': 'stonewarm-guild-red-stone-roof'}
     (output_directory_path/'block-building-tiles.json').write_text(json.dumps(building_tile_records))
     exported_map_records=[]
     # 명시적으로 내보낸 맵 사본만 목록에 게시한다.
@@ -152,14 +154,15 @@ def build_block_map_review(output_directory_path):
     texture_output_directory=output_directory_path/'textures'
     texture_output_directory.mkdir(exist_ok=True)
     exported_texture_records={}
+    asset_repository_path, registered_tile_records = load_registered_tiles()
     for current_tile_record in tile_catalog_record['tiles']:
-        texture_source_path=texture_source_root/current_tile_record['asset']
+        texture_source_path, tile_provenance_record = resolve_registered_tile(current_tile_record['asset'], asset_repository_path, registered_tile_records)
         with Image.open(texture_source_path) as source_texture_image:
             source_image_size=list(source_texture_image.size)
         normalization_warning_value=None if source_image_size==[GAME_TILE_SOURCE_SIZE,GAME_TILE_SOURCE_SIZE] else f'정규화 필요: 현재 {source_image_size[0]}×{source_image_size[1]}px, 기준 {GAME_TILE_SOURCE_SIZE}×{GAME_TILE_SOURCE_SIZE}px'
         texture_target_name=current_tile_record['id']+'.png'
         shutil.copy2(texture_source_path,texture_output_directory/texture_target_name)
-        exported_texture_records[current_tile_record['id']]={'path':'textures/'+texture_target_name+'?v='+hashlib.sha256(texture_source_path.read_bytes()).hexdigest(),'source':current_tile_record['asset'],'sha256':hashlib.sha256(texture_source_path.read_bytes()).hexdigest(),'source_size':source_image_size,'expected_source_size':[GAME_TILE_SOURCE_SIZE,GAME_TILE_SOURCE_SIZE],'normalization_warning':normalization_warning_value}
+        exported_texture_records[current_tile_record['id']]={**tile_provenance_record,'path':'textures/'+texture_target_name+'?v='+hashlib.sha256(texture_source_path.read_bytes()).hexdigest(),'source':current_tile_record['asset'],'sha256':hashlib.sha256(texture_source_path.read_bytes()).hexdigest(),'source_size':source_image_size,'expected_source_size':[GAME_TILE_SOURCE_SIZE,GAME_TILE_SOURCE_SIZE],'normalization_warning':normalization_warning_value}
     (output_directory_path/'block-textures.json').write_text(json.dumps(exported_texture_records))
     from tools.review.common.game_render_metrics import load_game_render_metrics
     game_render_metrics=load_game_render_metrics(texture_source_root.parents[1])

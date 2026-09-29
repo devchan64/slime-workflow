@@ -28,7 +28,7 @@ const reviewCharacterRecord=await fetchMapReviewRecord('review-character.json');
 const reviewCharacterImage=new Image();
 await new Promise((resolveCharacterLoad,rejectCharacterLoad)=>{reviewCharacterImage.onload=resolveCharacterLoad;reviewCharacterImage.onerror=()=>rejectCharacterLoad(Error('기본 캐릭터 로드 실패'));reviewCharacterImage.src=new URL(reviewCharacterRecord.image,import.meta.url).href});
 const groundTextureNames={grass:currentMapRecord.id==='iseulon'?'iseulon-grass-mud-frame':'grass',paving:currentMapRecord.id==='stonewarm'?'stonewarm-gravel-paving':currentMapRecord.id==='reedhaven'?'reedhaven-dirt-road':'paving',gravel:currentMapRecord.id==='stonewarm'?'stonewarm-exposed-rock-ground':undefined,water:'spring_water'};
-function readBuildingTileSet(currentBuildingRecord){return {...(buildingTileRecords[currentBuildingRecord.id]||buildingTileRecords['iseulon-'+currentBuildingRecord.facilityKind]),...(currentMapRecord.buildingTileOverrides||{})}}
+function readBuildingTileSet(currentBuildingRecord){return {...buildingTileRecords['iseulon-'+currentBuildingRecord.facilityKind],...(currentMapRecord.buildingTileOverrides||{}),...(buildingTileRecords[currentBuildingRecord.id]||{})}}
 function renderAppliedTileSourceList(){
  const appliedTextureNames=new Set();
  Object.values(currentMapRecord.terrainCodes).forEach(currentTerrainName=>{const currentTextureName=groundTextureNames[currentTerrainName];if(currentTextureName)appliedTextureNames.add(currentTextureName)});

@@ -359,13 +359,13 @@ def build_map_review(map_path=None, output_root=None):
     tile_output_directory.mkdir()
     tile_asset_records = {}
     tile_source_paths = {}
+    from tools.review.common.map_tile_assets import load_registered_tiles, resolve_registered_tile
+    asset_repository_path, registered_tile_records = load_registered_tiles()
     for tile_record in catalog_values['tiles']:
-        source_asset_path = (FRONTEND_ASSET_ROOT / tile_record['asset']).resolve()
-        if not source_asset_path.is_file() or not source_asset_path.is_relative_to(FRONTEND_ASSET_ROOT.resolve()):
-            raise FileNotFoundError(f'프론트엔드 타일 에셋 누락 또는 범위 밖 경로: {tile_record["asset"]}')
+        source_asset_path, tile_provenance_record = resolve_registered_tile(tile_record['asset'], asset_repository_path, registered_tile_records)
         output_asset_name = f'{tile_record["id"]}{source_asset_path.suffix.lower()}'
         link_or_copy_review_file(source_asset_path, tile_output_directory / output_asset_name)
-        tile_asset_records[tile_record['id']] = {'file': f'tiles/{output_asset_name}', 'source': tile_record['asset']}
+        tile_asset_records[tile_record['id']] = {**tile_provenance_record, 'file': f'tiles/{output_asset_name}'}
         tile_source_paths[tile_record['id']] = source_asset_path
     map_records = []
     for current_map_path in map_paths:

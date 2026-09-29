@@ -18,6 +18,18 @@ def load_exported_game_map(city_identifier):
 
 
 class MapRenderProfileTests(unittest.TestCase):
+    def test_guild_roof_uses_asset_repository_original(self):
+        with TemporaryDirectory(dir=WORKFLOW_ROOT / '.tmp') as current_temporary_directory:
+            current_output_directory = build_block_map_review(Path(current_temporary_directory))
+            building_texture_records = json.loads((current_output_directory / 'block-building-tiles.json').read_text())
+            exported_texture_records = json.loads((current_output_directory / 'block-textures.json').read_text())
+            guild_texture_identifier = building_texture_records['stonewarm-guild']['roof']
+            guild_texture_record = exported_texture_records[guild_texture_identifier]
+            self.assertEqual(guild_texture_record['repository'], 'slime-assets')
+            self.assertEqual(guild_texture_record['version'], '2')
+            self.assertEqual(guild_texture_record['source'], 'assets/tiles/buildings/roof/common/red-stone-roof-v2.png')
+            self.assertEqual(guild_texture_record['sha256'], '44e70c213ff5b69af96035971f9033856473a01832d688f9d341e5d620b9ffe3')
+
     def test_all_town_reviews_use_the_game_export_as_the_only_layout_snapshot(self):
         source_manifest_record = json.loads((GAME_MAP_DIRECTORY / 'source-manifest.json').read_text(encoding='utf-8'))
         expected_city_identifiers = {'iseulon', 'reedhaven', 'stonewarm'}
@@ -63,7 +75,7 @@ class MapRenderProfileTests(unittest.TestCase):
         map_review_script = (WORKFLOW_ROOT / 'tools/review/ui/map/block-map-review.js').read_text(encoding='utf-8')
 
         self.assertIn('id: stonewarm-gravel-paving', tile_catalog_source)
-        self.assertIn('world/stonewarm/terrain/gravel-paving-v1.png', tile_catalog_source)
+        self.assertIn('assets/tiles/terrain/gravel/stonewarm/gravel-paving-v1.png', tile_catalog_source)
         self.assertIn("currentMapRecord.id==='stonewarm'?'stonewarm-gravel-paving':currentMapRecord.id==='reedhaven'?'reedhaven-dirt-road':'paving'", map_review_script)
 
     def test_stonewarm_exposed_rock_ground_uses_the_registered_tile(self):
@@ -71,7 +83,7 @@ class MapRenderProfileTests(unittest.TestCase):
         map_review_script = (WORKFLOW_ROOT / 'tools/review/ui/map/block-map-review.js').read_text(encoding='utf-8')
 
         self.assertIn('id: stonewarm-exposed-rock-ground', tile_catalog_source)
-        self.assertIn('world/stonewarm/terrain/exposed-rock-ground-v1.png', tile_catalog_source)
+        self.assertIn('assets/tiles/terrain/rock/stonewarm/exposed-rock-ground-v1.png', tile_catalog_source)
         self.assertIn("gravel:currentMapRecord.id==='stonewarm'?'stonewarm-exposed-rock-ground':undefined", map_review_script)
 
     def test_reedhaven_roads_use_the_dirt_road_texture(self):
@@ -79,7 +91,7 @@ class MapRenderProfileTests(unittest.TestCase):
         map_review_script = (WORKFLOW_ROOT / 'tools/review/ui/map/block-map-review.js').read_text(encoding='utf-8')
 
         self.assertIn('id: reedhaven-dirt-road', tile_catalog_source)
-        self.assertIn('world/reedhaven/terrain/dirt-road-v1.png', tile_catalog_source)
+        self.assertIn('assets/tiles/terrain/dirt/reedhaven/dirt-road-v1.png', tile_catalog_source)
         self.assertIn("currentMapRecord.id==='reedhaven'?'reedhaven-dirt-road':'paving'", map_review_script)
 
     def test_reedhaven_uses_wood_building_tiles(self):
@@ -91,7 +103,7 @@ class MapRenderProfileTests(unittest.TestCase):
         self.assertIn('id: wood_roof', tile_catalog_source)
         self.assertIn('id: wood_plain_wall', tile_catalog_source)
         self.assertIn('id: wood_wall_crossbar', tile_catalog_source)
-        self.assertIn('world/isloon/buildings/wood-wall-crossbar-v1.png', tile_catalog_source)
+        self.assertIn('assets/tiles/buildings/wall/isloon/wood-wall-crossbar-v1.png', tile_catalog_source)
         self.assertIn('roof_underlay_wall_tile: wood_wall_crossbar', building_prefab_source)
         self.assertIn("'roof_underlay':current_prefab_record.get('roof_underlay_wall_tile'", block_review_builder)
         self.assertIn('readBuildingTileSet', map_review_script)
@@ -152,17 +164,17 @@ class MapRenderProfileTests(unittest.TestCase):
         map_review_script = (WORKFLOW_ROOT / 'tools/review/ui/map/block-map-review.js').read_text(encoding='utf-8')
 
         self.assertIn('id: stonewarm-stone-wall', tile_catalog_source)
-        self.assertIn('world/stonewarm/buildings/stone-wall-v1.png', tile_catalog_source)
+        self.assertIn('assets/tiles/buildings/wall/stonewarm/stone-wall-v1.png', tile_catalog_source)
         self.assertIn('id: stonewarm-small-window-wall', tile_catalog_source)
-        self.assertIn('world/stonewarm/buildings/stone-small-window-wall-v1.png', tile_catalog_source)
+        self.assertIn('assets/tiles/buildings/wall/stonewarm/stone-small-window-wall-v1.png', tile_catalog_source)
         self.assertIn('id: stonewarm-large-window-wall', tile_catalog_source)
-        self.assertIn('world/stonewarm/buildings/stone-large-window-wall-v1.png', tile_catalog_source)
+        self.assertIn('assets/tiles/buildings/wall/stonewarm/stone-large-window-wall-v1.png', tile_catalog_source)
         self.assertIn('id: stonewarm-stone-wall-crossbar', tile_catalog_source)
-        self.assertIn('world/stonewarm/buildings/stone-wall-crossbar-v1.png', tile_catalog_source)
+        self.assertIn('assets/tiles/buildings/wall/stonewarm/stone-wall-crossbar-v1.png', tile_catalog_source)
         self.assertIn('id: stonewarm-stone-roof', tile_catalog_source)
-        self.assertIn('world/stonewarm/buildings/stone-roof-v1.png', tile_catalog_source)
+        self.assertIn('assets/tiles/buildings/roof/stonewarm/stone-roof-v1.png', tile_catalog_source)
         self.assertIn('id: stonewarm-stone-door', tile_catalog_source)
-        self.assertIn('world/stonewarm/buildings/stone-door-v1.png', tile_catalog_source)
+        self.assertIn('assets/tiles/buildings/door/stonewarm/stone-door-v1.png', tile_catalog_source)
         self.assertIn("'roof':'stonewarm-stone-roof'", (WORKFLOW_ROOT / 'tools/review/build_block_map_review.py').read_text(encoding='utf-8'))
         self.assertIn("'roof_underlay':'stonewarm-stone-wall-crossbar'", (WORKFLOW_ROOT / 'tools/review/build_block_map_review.py').read_text(encoding='utf-8'))
         self.assertIn('readBuildingTileSet', map_review_script)
