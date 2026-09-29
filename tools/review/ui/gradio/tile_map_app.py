@@ -34,8 +34,8 @@ def format_applied_prompt_words(catalog_record_value,user_prompt_value,use_base_
     prompt_section_values=[('기본',catalog_record_value['base_prompt'],use_base_value and not reference_images_present),('표면정보',user_prompt_value or '',True),('화풍',catalog_record_value['style_prompt'],use_style_value and not reference_images_present)]
     applied_word_counts=[(label,len(text.split()) if enabled else 0) for label,text,enabled in prompt_section_values]
     active_prompt_values=[text if enabled else '' for _,text,enabled in prompt_section_values]
-    total_word_count=len(combine_tile_prompt(*active_prompt_values).split()) if any(text.strip() for text in active_prompt_values) else 0
-    return '**적용 프롬프트 총 '+str(total_word_count)+'단어** · '+ ' + '.join(label+' '+str(count) for label,count in applied_word_counts)+'\n\n'+('⚠️ 100단어 미만으로 줄여 주세요.' if total_word_count>=100 else '100단어 미만 · 표면정보 안내 문장을 포함한 실제 입력 기준입니다.')
+    total_word_count=len(combine_tile_prompt(*active_prompt_values,reference_images_present=reference_images_present).split()) if any(text.strip() for text in active_prompt_values) else 0
+    return '**적용 프롬프트 총 '+str(total_word_count)+'단어** · '+ ' + '.join(label+' '+str(count) for label,count in applied_word_counts)+'\n\n'+('⚠️ 100단어 미만으로 줄여 주세요.' if total_word_count>=100 else '100단어 미만 · 실제 모델 입력 기준입니다. 참조 이미지 사용 시 자동 접두어를 붙이지 않습니다.')
 
 
 def update_reference_upload_visibility(reference_usage_enabled):

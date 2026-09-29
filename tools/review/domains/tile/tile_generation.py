@@ -25,12 +25,12 @@ def load_tile_configuration():
             raise ValueError(f'타일 프롬프트 설정 오류: {prompt_field_name}')
     return configuration_record_value
 
-def combine_tile_prompt(base_prompt_value,user_prompt_value,style_prompt_value):
-    """표면정보를 시각적 재질 지시로 감싸 문장형 모델 입력을 만든다."""
+def combine_tile_prompt(base_prompt_value,user_prompt_value,style_prompt_value,reference_images_present=False):
+    """참조 편집은 입력 지시만 사용하고 일반 생성에는 표면정보 접두어를 붙인다."""
     surface_prompt_value=user_prompt_value.strip()
     if surface_prompt_value and not surface_prompt_value.endswith('.'):
         surface_prompt_value+='.'
-    surface_instruction_value=(SURFACE_PROMPT_PREFIX+surface_prompt_value) if surface_prompt_value else ''
+    surface_instruction_value=((surface_prompt_value if reference_images_present else SURFACE_PROMPT_PREFIX+surface_prompt_value) if surface_prompt_value else '')
     active_prompt_sections=[section_text_value.strip() for section_text_value in (style_prompt_value,base_prompt_value,surface_instruction_value) if section_text_value.strip()]
     if not active_prompt_sections:
         raise ValueError('적용할 프롬프트가 없습니다.')
@@ -59,7 +59,7 @@ def prepare_tile_request(request_record_value):
     user_prompt_value=request_record_value['user_prompt'].strip()
     if user_prompt_value and not user_prompt_value.endswith('.'):
         user_prompt_value+='.'
-    combined_prompt_value=combine_tile_prompt(base_prompt_value if prompt_toggle_values['use_base_prompt'] else '',user_prompt_value,style_prompt_value if prompt_toggle_values['use_style_prompt'] else '')
+    combined_prompt_value=combine_tile_prompt(base_prompt_value if prompt_toggle_values['use_base_prompt'] else '',user_prompt_value,style_prompt_value if prompt_toggle_values['use_style_prompt'] else '',reference_images_present=bool(reference_image_values))
     if len(combined_prompt_value.split())>=100:raise ValueError('기본·표면정보·화풍의 최종 프롬프트는 100단어 미만이어야 합니다.')
     validated_request_value=validate_image_request({key:request_record_value[key] for key in ('action','width','height','steps','seed')}|{'prompt':combined_prompt_value})
     if validated_request_value['width']!=validated_request_value['height']:raise ValueError('타일은 정사각형 해상도를 선택하세요.')

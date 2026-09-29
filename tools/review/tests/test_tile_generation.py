@@ -108,7 +108,9 @@ class TileGenerationTests(unittest.TestCase):
         reference_image_payload=base64.b64encode(reference_image_buffer.getvalue()).decode()
         reference_request_value=self.make_tile_request()|{'images':[reference_image_payload]}
         prepared_request_value=prepare_tile_request(reference_request_value)
-        self.assertEqual(prepared_request_value['prompt'],'표면 재질: Red brick house.')
+        self.assertEqual(prepared_request_value['prompt'],'Red brick house.')
+        self.assertEqual(prepared_request_value['prompt_words'],3)
+        self.assertIn('총 3단어',format_applied_prompt_words(load_tile_configuration(),'Red brick house.',True,True,True,reference_image_value))
         self.assertFalse(prepared_request_value['use_base_prompt'])
         self.assertFalse(prepared_request_value['use_style_prompt'])
         for fixed_prompt_key in ('use_base_prompt','use_style_prompt'):
