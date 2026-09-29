@@ -16,6 +16,7 @@ RGB_BRIGHTNESS_SCALE = 1000
 BLACK_CHROMA_LIMIT = 16
 WHITE_MARGIN_CHROMA_LIMIT = 16
 BLACK_SATURATION_LIMIT = 0.05
+DARK_NEUTRAL_CHANNEL_TOLERANCE = 5
 
 
 
@@ -62,7 +63,9 @@ def is_black_border(pixel_color_value):
     pixel_maximum_channel = max(pixel_color_value)
     pixel_saturation_value = pixel_channel_difference/pixel_maximum_channel if pixel_maximum_channel else 0
     pixel_brightness_total = sum(current_channel_value*current_channel_weight for current_channel_value, current_channel_weight in zip(pixel_color_value, RGB_BRIGHTNESS_WEIGHTS))
-    return pixel_channel_difference <= BLACK_CHROMA_LIMIT and pixel_saturation_value <= BLACK_SATURATION_LIMIT and pixel_brightness_total <= BLACK_BRIGHTNESS_LIMIT*RGB_BRIGHTNESS_SCALE
+    # 암부의 수 단계 채널 오차가 HSV 채도를 과장하지 않도록 무채색 허용폭을 둔다.
+    pixel_neutral_match = pixel_channel_difference <= DARK_NEUTRAL_CHANNEL_TOLERANCE or pixel_saturation_value <= BLACK_SATURATION_LIMIT
+    return pixel_channel_difference <= BLACK_CHROMA_LIMIT and pixel_neutral_match and pixel_brightness_total <= BLACK_BRIGHTNESS_LIMIT*RGB_BRIGHTNESS_SCALE
 
 
 

@@ -7,9 +7,9 @@ from tools.review.common.image_borders import crop_traced_tile
 
 class ImageBorderCropTests(unittest.TestCase):
     def test_black_classification_limits(self):
-        for pixel_color_value in ((0, 0, 0), (48, 48, 48), (38, 38, 40), (40, 38, 38), (47, 47, 49)):
+        for pixel_color_value in ((0, 0, 0), (48, 48, 48), (38, 38, 40), (40, 38, 38), (47, 47, 49), (9, 11, 12), (1, 2, 3), (35, 38, 40)):
             self.assertTrue(is_black_border(pixel_color_value))
-        for pixel_color_value in ((49, 49, 49), (72, 72, 72), (31, 40, 48), (40, 56, 40), (17, 0, 0), (10, 0, 0), (39, 40, 50), (41, 42, 50), (8, 0, 0), (37, 38, 40), (42, 42, 50)):
+        for pixel_color_value in ((49, 49, 49), (72, 72, 72), (31, 40, 48), (40, 56, 40), (17, 0, 0), (10, 0, 0), (39, 40, 50), (41, 42, 50), (8, 0, 0), (34, 38, 40), (42, 42, 50)):
             self.assertFalse(is_black_border(pixel_color_value))
 
     def test_dark_gray_texture_boundary(self):
