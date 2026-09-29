@@ -156,9 +156,12 @@ def run_review_watch_mode(parsed_argument_values):
                     current_watch_snapshot = snapshot_review_watch_paths(watch_paths)
                     if current_watch_snapshot != previous_watch_snapshot:
                         print(f'{datetime.now().isoformat()}/asset-review-server/watch 변경 감지, 검수 서버를 다시 시작합니다.', flush=True)
-                        previous_watch_snapshot = current_watch_snapshot
                         review_server_process.terminate()
                         review_server_process.wait(timeout=5)
+                        # 검수 서버 재시작 과정에서 프론트엔드 빌드가 생성한
+                        # src/assets 전달 사본을 외부 변경으로 다시 감지하지 않는다.
+                        # 종료 직후를 새 기준점으로 삼고, 다음 실제 변경부터 감시한다.
+                        previous_watch_snapshot = snapshot_review_watch_paths(watch_paths)
                         break
                 else:
                     if review_server_process.returncode != 0:
@@ -167,8 +170,8 @@ def run_review_watch_mode(parsed_argument_values):
                             time.sleep(0.5)
                             current_watch_snapshot = snapshot_review_watch_paths(watch_paths)
                             if current_watch_snapshot != previous_watch_snapshot:
-                                previous_watch_snapshot = current_watch_snapshot
                                 print(f'{datetime.now().isoformat()}/asset-review-server/watch 재시도 대기 중 변경 감지', flush=True)
+                                previous_watch_snapshot = current_watch_snapshot
                                 break
                         continue
                     return
