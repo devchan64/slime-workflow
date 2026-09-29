@@ -3,6 +3,7 @@ import sys
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[2]))
 from tools.review.common.game_render_metrics import load_game_render_metrics
+from tools.review.common.sprite_asset_sources import load_locked_sprite_sources
 from tools.review.ui_assets import resolve_review_ui_asset, read_review_shared_styles, read_animation_anchor_template
 from datetime import datetime
 from zoneinfo import ZoneInfo
@@ -272,7 +273,8 @@ def build_frontend_review(frontend_repository_path, ui_bundle_directory=None):
     frontend_asset_root = frontend_repository_path/'src/assets'
     if not (frontend_repository_path/'package.json').is_file() or not frontend_asset_root.is_dir() or not frontend_asset_root.resolve().is_relative_to(frontend_repository_path):
         raise ValueError('package.json과 src/assets가 있는 프론트엔드 저장소를 지정하세요.')
-    animation_metadata_paths = sorted(frontend_asset_root.rglob('*.animation.json'))
+    registered_sprite_root, locked_sprite_sources = load_locked_sprite_sources(frontend_repository_path)
+    animation_metadata_paths = [frontend_repository_path/current_relative_path for current_relative_path in sorted(locked_sprite_sources) if current_relative_path.endswith('.animation.json')]
     if not animation_metadata_paths:
         raise ValueError(f'애니메이션 메타데이터가 없습니다: {frontend_asset_root}')
     output_review_directory = WORKFLOW_REPO_ROOT/'.tmp'/'manager-current'
@@ -302,7 +304,16 @@ def build_frontend_review(frontend_repository_path, ui_bundle_directory=None):
         discovered_source_records = []
         sprite_asset_records = []
         for animation_sequence_index, animation_metadata_path in enumerate(animation_metadata_paths):
-            review_frame_records, review_source_metadata, source_image_paths = load_animation_review(frontend_asset_root, animation_metadata_path)
+            relative_metadata_path = animation_metadata_path.relative_to(frontend_repository_path).as_posix()
+            registered_metadata_path, metadata_provenance_record = locked_sprite_sources[relative_metadata_path]
+            review_frame_records, review_source_metadata, source_image_paths = load_animation_review(registered_sprite_root, registered_metadata_path)
+            related_source_records = {current_source_path: current_provenance_record for current_source_path, current_provenance_record in locked_sprite_sources.values()}
+            if any(current_source_path not in related_source_records for current_source_path in source_image_paths):
+                raise ValueError('검수 시트가 스프라이트 잠금 목록에 없습니다.')
+            review_source_metadata['provenance'] = {
+                'animation': metadata_provenance_record,
+                'files': [current_provenance_record for current_source_path, current_provenance_record in locked_sprite_sources.values() if current_source_path.parent == registered_metadata_path.parent],
+            }
             review_source_metadata['gameRenderMetrics'] = game_render_metrics
             runtime_scale_metadata = review_source_metadata['runtimeScale']
             runtime_scale_metadata['baseHeight'] = game_render_metrics['characterHeight'] * (game_render_metrics['restHeightRatio'] if runtime_scale_metadata['actorKind'] == 'human-rest' else 1)
@@ -320,7 +331,7 @@ def build_frontend_review(frontend_repository_path, ui_bundle_directory=None):
             sprite_asset_records.append({'id':'asset:'+animation_identifier_text,'label':review_source_metadata['displayNameKo']+' v'+review_source_metadata['animationVersion'],'fps':1000/review_source_metadata['frameDurationMs'],'frames':[{**frame_record_value,'url':'/'+page_identifier_text+'/'+frame_record_value['image']} for frame_record_value in review_frame_records],'source':review_source_metadata})
             relative_metadata_path = animation_metadata_path.relative_to(frontend_repository_path).as_posix()
             manager_page_records.append({'id': page_identifier_text, 'label': review_source_metadata['displayNameKo']+' · v'+review_source_metadata['animationVersion'], 'path': page_identifier_text+'/anchors.html', 'anchorEditor': True, 'category': 'animation', 'uiMode':'gradio-static', 'description':'Gradio · '+animation_identifier_text+' · '+relative_metadata_path})
-            discovered_source_records.append({'metadata': relative_metadata_path, 'displayNameKo': review_source_metadata['displayNameKo'], 'sha256': hashlib.sha256(animation_metadata_path.read_bytes()).hexdigest(), 'sheets': review_source_metadata['sheets']})
+            discovered_source_records.append({'metadata': relative_metadata_path, 'displayNameKo': review_source_metadata['displayNameKo'], 'sha256': metadata_provenance_record['sha256'], 'sheets': review_source_metadata['sheets'], 'provenance': review_source_metadata['provenance']})
             completed_asset_count[0] += 1
             emit_review_trace('asset', relative_metadata_path)
         (output_review_directory/'sprite-assets.json').write_text(json.dumps({'assets':sprite_asset_records},ensure_ascii=False))
