@@ -2,7 +2,7 @@
 // 출력·좌표 계산은 브라우저 미리보기와 PNG 내보내기가 함께 사용한다.
 const SPRITE_DIRECTION_LABELS={down_left:'전방 좌측',down_right:'전방 우측',up_left:'후방 좌측',up_right:'후방 우측'};
 const SPRITE_FRAME_FIELDS={center:'원본 중심 X',floor:'원본 바닥 Y',head:'원본 머리 Y',anchorX:'기준점 X',anchorY:'기준점 Y',x:'배치 X',y:'배치 Y',scale:'배율'};
-const SPRITE_OUTPUT_FOOT_RATIO=.96;
+const SPRITE_OUTPUT_FOOT_RATIO=.9;
 const SPRITE_UNDO_RECORD_LIMIT=40;
 const SPRITE_EXPORT_FRAME_LIMIT=128;
 const SPRITE_CUSTOM_GUIDE_LIMIT=32;
@@ -10,6 +10,13 @@ const SPRITE_NUDGE_DIRECTION_STEPS={up:{x:0,y:-1},left:{x:-1,y:0},right:{x:1,y:0
 const SPRITE_GUIDE_COLOR_VALUES={center:'#00e5ff',floor:'#ffe338',head:'#f18aff',anchor:'#ff646d'};
 const SPRITE_GUIDE_DISPLAY_STYLE={outline:'#101820',lineWidth:2,outlineWidth:4,dashLength:7,dashGap:5,anchorRadius:7,fontSize:11,labelPadding:4,labelHeight:19,labelInset:4};
 function calculateSpriteOutputAnchor(outputCellPixels){return{x:outputCellPixels/2,y:Math.round(outputCellPixels*SPRITE_OUTPUT_FOOT_RATIO)};}
+function upgradeSpriteProjectDocument(currentProjectDocument){
+ if(currentProjectDocument.version===3)return currentProjectDocument;
+ const previousAnchorHeight=currentProjectDocument.version===1?448:Math.round(currentProjectDocument.output.cellSize*.96);
+ if(currentProjectDocument.version===1)currentProjectDocument.output={cellSize:512,targetHeight:80};
+ for(const currentFrameSettings of Object.values(currentProjectDocument.frames))currentFrameSettings.y+=previousAnchorHeight-calculateSpriteOutputAnchor(currentProjectDocument.output.cellSize).y;
+ currentProjectDocument.version=3;return currentProjectDocument;
+}
 function calculateSpriteDrawRectangle(currentFrameRecord,currentFrameSettings,outputCellPixels){
  const outputAnchorPoint=calculateSpriteOutputAnchor(outputCellPixels);
  return{x:outputAnchorPoint.x-currentFrameSettings.anchorX*currentFrameSettings.scale+currentFrameSettings.x,y:outputAnchorPoint.y-currentFrameSettings.anchorY*currentFrameSettings.scale+currentFrameSettings.y,width:currentFrameRecord.rect.width*currentFrameSettings.scale,height:currentFrameRecord.rect.height*currentFrameSettings.scale};
@@ -42,7 +49,7 @@ function calculateSpriteScaleNudge(currentFrameSettings,bodyHeightDelta){
  const nextFrameSettings={...currentFrameSettings,scale:(sourceBodyHeight*currentFrameSettings.scale+bodyHeightDelta)/sourceBodyHeight};
  validateSpriteFrameSettings(nextFrameSettings);return nextFrameSettings;
 }
-if(typeof module!=='undefined')module.exports={calculateSpriteScaleNudge,calculateSpriteOutputAnchor,calculateSpriteDrawRectangle,createSpriteDefaultSettings,calculateSpritePointerPosition,createSpriteSheetLayout,validateSpriteFrameSettings};
+if(typeof module!=='undefined')module.exports={upgradeSpriteProjectDocument,calculateSpriteScaleNudge,calculateSpriteOutputAnchor,calculateSpriteDrawRectangle,createSpriteDefaultSettings,calculateSpritePointerPosition,createSpriteSheetLayout,validateSpriteFrameSettings};
 if(typeof document!=='undefined')void (async function initializeSpriteEditorComponent(){
  const spriteRootElement=document.getElementById('sprite-editor-root')||document.querySelector('main');
  if(spriteRootElement.dataset.initialized==='true')return;
@@ -198,8 +205,8 @@ if(typeof document!=='undefined')void (async function initializeSpriteEditorComp
    const sourceCellDimension=Math.max(sourceAssetRecord.frames[0].rect.width,sourceAssetRecord.frames[0].rect.height),outputCellPixels=sourceCellDimension;
    if(sourceAssetRecord.frames.some(currentFrameRecord=>currentFrameRecord.rect.width!==outputCellPixels||currentFrameRecord.rect.height!==outputCellPixels))throw Error('동일 크기의 정사각형 원본 셀만 지원합니다.');
    const sourceReferenceHeight=sourceAssetRecord.source?.runtimeScale?.sourceHeight||spriteBodyBounds.get(sourceAssetRecord.frames[0].frameId).bottom-spriteBodyBounds.get(sourceAssetRecord.frames[0].frameId).top;
-   const loadedProjectDocument=savedProjectRecord.document||{version:2,source:sourceIdentifierValue,output:{cellSize:outputCellPixels,targetHeight:Math.min(outputCellPixels,sourceReferenceHeight*outputCellPixels/sourceCellDimension)},frames:Object.fromEntries(sourceAssetRecord.frames.map(currentFrameRecord=>[currentFrameRecord.frameId,createSpriteDefaultSettings(currentFrameRecord,outputCellPixels,spriteBodyBounds.get(currentFrameRecord.frameId),sourceIdentifierValue.startsWith('asset:'))]))};
-   if(loadedProjectDocument.version===1){loadedProjectDocument.version=2;loadedProjectDocument.output={cellSize:512,targetHeight:80};for(const currentFrameSettings of Object.values(loadedProjectDocument.frames))currentFrameSettings.y-=calculateSpriteOutputAnchor(512).y-448;}
+   const loadedProjectDocument=savedProjectRecord.document||{version:3,source:sourceIdentifierValue,output:{cellSize:outputCellPixels,targetHeight:Math.min(outputCellPixels,sourceReferenceHeight*outputCellPixels/sourceCellDimension)},frames:Object.fromEntries(sourceAssetRecord.frames.map(currentFrameRecord=>[currentFrameRecord.frameId,createSpriteDefaultSettings(currentFrameRecord,outputCellPixels,spriteBodyBounds.get(currentFrameRecord.frameId),sourceIdentifierValue.startsWith('asset:'))]))};
+   upgradeSpriteProjectDocument(loadedProjectDocument);
    for(const currentFrameRecord of sourceAssetRecord.frames){if(!loadedProjectDocument.frames[currentFrameRecord.frameId])throw Error('원본과 저장된 편집 프레임이 다릅니다.');validateSpriteFrameSettings(loadedProjectDocument.frames[currentFrameRecord.frameId]);}
    spriteSourceRecord=sourceAssetRecord;spriteProjectDocument=loadedProjectDocument;spriteSavedSnapshot=JSON.stringify(loadedProjectDocument);spriteFramePosition=0;spriteUndoRecords.length=0;spriteDirtyState=false;restoreSpriteOutputControls();spriteSavedSnapshot=JSON.stringify(spriteProjectDocument);
    const sourceDirectionNames=Object.keys(SPRITE_DIRECTION_LABELS).filter(directionKeyName=>sourceAssetRecord.frames.some(currentFrameRecord=>currentFrameRecord.direction===directionKeyName));
@@ -242,7 +249,7 @@ if(typeof document!=='undefined')void (async function initializeSpriteEditorComp
      if(!currentHistoryRecord.compatible){appendSpriteStatusMessage('원본 버전이 다른 이력입니다. 입력값 조회만 가능합니다.');return;}
      if(spriteDirtyState&&!confirm('저장 전 변경을 선택한 이력으로 교체할까요? 실행 취소로 되돌릴 수 있습니다.'))return;
      stopSpritePlayback();rememberSpriteDocumentChange();spriteProjectDocument=structuredClone(currentHistoryRecord.document);
-     if(spriteProjectDocument.version===1){spriteProjectDocument.version=2;spriteProjectDocument.output={cellSize:512,targetHeight:80};for(const currentFrameSettings of Object.values(spriteProjectDocument.frames))currentFrameSettings.y-=calculateSpriteOutputAnchor(512).y-448;}
+     upgradeSpriteProjectDocument(spriteProjectDocument);
      restoreSpriteOutputControls();refreshSpriteEditedViews();appendSpriteStatusMessage('이력 불러오기: '+currentHistoryRecord.id+' · 프로젝트 저장으로 새 이력을 남길 수 있습니다.');
     }
    });

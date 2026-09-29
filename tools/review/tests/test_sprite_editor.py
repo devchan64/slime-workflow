@@ -92,3 +92,22 @@ class SpriteSheetRenderingTests(unittest.TestCase):
                 self.assertEqual(saved_image_value.getpixel((20,30)),(0,0,0,0))
                 self.assertEqual(saved_image_value.size,(128,128))
             self.assertEqual(sheet_result_value['anchor'],{'x':64,'y':123})
+
+    def test_v3_retains_pixels_below_anchor(self):
+        from PIL import Image
+        from tools.review.domains.character_animation import sprite_sheet
+        with tempfile.TemporaryDirectory() as temporary_directory_name:
+            current_test_root=Path(temporary_directory_name)
+            source_image_path=current_test_root/'source.png'
+            source_image_value=Image.new('RGBA',(384,384))
+            source_image_value.putpixel((192,374),(255,0,0,255))
+            source_image_value.putpixel((192,2),(0,255,0,255))
+            source_image_value.save(source_image_path)
+            source_asset_record={'id':'asset:test','frames':[{'frameId':'down_left.0','direction':'down_left','rect':{'x':0,'y':0,'width':384,'height':384},'url':'/animation-1/source.png'}]}
+            project_document_value={'version':3,'output':{'cellSize':384},'frames':{'down_left.0':{'anchorX':192,'anchorY':346,'x':0,'y':0,'scale':1}}}
+            with patch.object(sprite_sheet,'resolve_sprite_image_path',return_value=source_image_path):
+                sheet_result_value=sprite_sheet.render_sprite_saved_sheet(source_asset_record,project_document_value,current_test_root/'saved.png')
+            with Image.open(current_test_root/'saved.png') as saved_image_value:
+                self.assertEqual(saved_image_value.getpixel((192,374)),(255,0,0,255))
+                self.assertEqual(saved_image_value.getpixel((192,2)),(0,255,0,255))
+            self.assertEqual(sheet_result_value['anchor'],{'x':192,'y':346})

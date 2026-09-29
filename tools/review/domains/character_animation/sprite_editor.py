@@ -75,10 +75,10 @@ def execute_sprite_locked_command(operation_command_name, command_payload_value)
     current_project_document=command_payload_value['document']
     if not isinstance(current_project_document,dict):raise ValueError('스프라이트 문서 형식 오류')
     current_document_version=current_project_document.get('version')
-    expected_document_fields={'version','source','frames','output'} if current_document_version==2 else {'version','source','frames'}
-    if current_document_version==2 and 'guides' in current_project_document:expected_document_fields.add('guides')
-    if type(current_document_version) is not int or current_document_version not in (1,2) or set(current_project_document)!=expected_document_fields or current_project_document['source']!=command_payload_value['id']:raise ValueError('스프라이트 문서 형식 오류')
-    if current_document_version==2:
+    expected_document_fields={'version','source','frames','output'} if current_document_version in (2,3) else {'version','source','frames'}
+    if current_document_version in (2,3) and 'guides' in current_project_document:expected_document_fields.add('guides')
+    if type(current_document_version) is not int or current_document_version not in (1,2,3) or set(current_project_document)!=expected_document_fields or current_project_document['source']!=command_payload_value['id']:raise ValueError('스프라이트 문서 형식 오류')
+    if current_document_version in (2,3):
         current_output_settings=current_project_document['output']
         if not isinstance(current_output_settings,dict) or set(current_output_settings)!={'cellSize','targetHeight'}:raise ValueError('출력 설정 필드 오류')
         output_cell_pixels=current_output_settings['cellSize']

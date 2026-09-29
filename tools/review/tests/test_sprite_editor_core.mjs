@@ -2,7 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {createRequire} from 'node:module';
 const loadSpriteCoreModule=createRequire(import.meta.url);
-const {calculateSpriteScaleNudge,calculateSpriteDrawRectangle,createSpriteDefaultSettings,calculateSpritePointerPosition,createSpriteSheetLayout,validateSpriteFrameSettings}=loadSpriteCoreModule('../ui/character_animation/sprite-editor.js');
+const {upgradeSpriteProjectDocument,calculateSpriteOutputAnchor,calculateSpriteScaleNudge,calculateSpriteDrawRectangle,createSpriteDefaultSettings,calculateSpritePointerPosition,createSpriteSheetLayout,validateSpriteFrameSettings}=loadSpriteCoreModule('../ui/character_animation/sprite-editor.js');
 const sampleSourceFrame={frameId:'down_left.0',direction:'down_left',rect:{x:0,y:0,width:384,height:384},anchor:{x:192,y:374}};
 test('384px 원본 배치는 발 기준점 때문에 위로 잘리지 않는다',()=>{
  const defaultFrameSettings=createSpriteDefaultSettings(sampleSourceFrame,384,{top:1,bottom:375});
@@ -44,7 +44,25 @@ test('등록 에셋을 다시 열면 런타임 앵커 정렬을 유지한다',()
  const registeredFrameSettings=createSpriteDefaultSettings(registeredFrameRecord,384,{top:1,bottom:375},true);
  assert.equal(registeredFrameSettings.x,0);assert.equal(registeredFrameSettings.y,0);
  assert.equal(calculateSpriteDrawRectangle(registeredFrameRecord,registeredFrameSettings,384).x,-6);
- assert.equal(calculateSpriteDrawRectangle(registeredFrameRecord,registeredFrameSettings,384).y,0);
+ assert.equal(calculateSpriteDrawRectangle(registeredFrameRecord,registeredFrameSettings,384).y,-23);
  const scaledFrameSettings=createSpriteDefaultSettings(registeredFrameRecord,128,{top:1,bottom:375},true);
  assert.equal(calculateSpriteDrawRectangle(registeredFrameRecord,scaledFrameSettings,128).x,-2);
+});
+
+test('384px 출력의 앵커 아래 여백은 38px이며 발 끝이 셀 안에 남는다',()=>{
+ const currentFrameRecord={...sampleSourceFrame,anchor:{x:204,y:346}};
+ const currentFrameSettings=createSpriteDefaultSettings(currentFrameRecord,384,{top:2,bottom:375},true);
+ const currentDrawRectangle=calculateSpriteDrawRectangle(currentFrameRecord,currentFrameSettings,384);
+ assert.equal(calculateSpriteOutputAnchor(384).y,346);
+ assert.equal(currentDrawRectangle.y+374,374);
+ assert.equal(currentDrawRectangle.y+2,2);
+});
+test('기존 v2 저장본은 v3 변환 후 원래 배치를 유지한다',()=>{
+ const currentProjectDocument={version:2,output:{cellSize:384,targetHeight:352},frames:{'down_left.0':{anchorX:192,anchorY:348,x:0,y:-5,scale:1}}};
+ upgradeSpriteProjectDocument(currentProjectDocument);
+ assert.equal(currentProjectDocument.version,3);
+ assert.equal(calculateSpriteDrawRectangle(sampleSourceFrame,currentProjectDocument.frames['down_left.0'],384).y,369-348-5);
+ const previousOffsetValue=currentProjectDocument.frames['down_left.0'].y;
+ upgradeSpriteProjectDocument(currentProjectDocument);
+ assert.equal(currentProjectDocument.frames['down_left.0'].y,previousOffsetValue);
 });

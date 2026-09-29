@@ -7,6 +7,8 @@ from PIL import Image
 
 SPRITE_REVIEW_ROOT=Path(__file__).resolve().parents[4]/'.tmp/manager-current'
 SPRITE_DIRECTION_ORDER=('down_left','down_right','up_left','up_right')
+SPRITE_OUTPUT_FOOT_RATIO=.9
+SPRITE_LEGACY_FOOT_RATIO=.96
 SPRITE_MAXIMUM_PIXELS=33554432
 
 
@@ -44,8 +46,9 @@ def render_sprite_saved_sheet(source_asset_record,current_project_document,outpu
     output_sheet_height=len(direction_frame_groups)*output_cell_pixels
     if output_sheet_width>16384 or output_sheet_width*output_sheet_height>SPRITE_MAXIMUM_PIXELS:raise ValueError('출력 시트가 너무 큽니다.')
     output_sheet_image=Image.new('RGBA',(output_sheet_width,output_sheet_height))
-    previous_anchor_height=448 if current_project_document['version']==1 else math.floor(previous_cell_pixels*.96+.5)
-    output_anchor_height=math.floor(output_cell_pixels*.96+.5)
+    current_anchor_ratio=SPRITE_OUTPUT_FOOT_RATIO if current_project_document['version']==3 else SPRITE_LEGACY_FOOT_RATIO
+    previous_anchor_height=448 if current_project_document['version']==1 else math.floor(previous_cell_pixels*current_anchor_ratio+.5)
+    output_anchor_height=math.floor(output_cell_pixels*current_anchor_ratio+.5)
     for direction_row_index,current_frame_group in enumerate(direction_frame_groups):
         for frame_column_index,current_frame_record in enumerate(current_frame_group):
             current_frame_rect=current_frame_record['rect']
