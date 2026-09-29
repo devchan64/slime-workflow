@@ -27,7 +27,7 @@ class MapRenderProfileTests(unittest.TestCase):
             guild_texture_record = exported_texture_records[guild_texture_identifier]
             self.assertEqual(guild_texture_record['repository'], 'slime-assets')
             self.assertEqual(guild_texture_record['version'], '2')
-            self.assertEqual(guild_texture_record['source'], 'assets/tiles/buildings/roof/common/red-stone-roof-v2.png')
+            self.assertEqual(guild_texture_record['source'], 'assets/tiles/buildings/red-stone/red-stone-roof-v2.png')
             self.assertEqual(guild_texture_record['sha256'], '44e70c213ff5b69af96035971f9033856473a01832d688f9d341e5d620b9ffe3')
 
     def test_all_town_reviews_use_the_game_export_as_the_only_layout_snapshot(self):
@@ -102,7 +102,7 @@ class MapRenderProfileTests(unittest.TestCase):
 
         self.assertIn('id: wood_roof', tile_catalog_source)
         self.assertEqual(tile_catalog_source.count('id: wood_wall,'), 1)
-        self.assertIn('assets/tiles/buildings/wall/common/wood-wall-v2.png', tile_catalog_source)
+        self.assertIn('assets/tiles/buildings/wood/wood-wall-v2.png', tile_catalog_source)
         self.assertIn('roof_underlay_wall_tile: wood_wall', building_prefab_source)
         self.assertIn("'roof_underlay':current_prefab_record.get('roof_underlay_wall_tile'", block_review_builder)
         self.assertIn('readBuildingTileSet', map_review_script)
@@ -163,17 +163,17 @@ class MapRenderProfileTests(unittest.TestCase):
         map_review_script = (WORKFLOW_ROOT / 'tools/review/ui/map/block-map-review.js').read_text(encoding='utf-8')
 
         self.assertIn('id: stonewarm-stone-wall', tile_catalog_source)
-        self.assertIn('assets/tiles/buildings/wall/common/stone-wall-v1.png', tile_catalog_source)
+        self.assertIn('assets/tiles/buildings/stone/stone-wall-v1.png', tile_catalog_source)
         self.assertIn('id: stonewarm-small-window-wall', tile_catalog_source)
-        self.assertIn('assets/tiles/buildings/wall/common/stone-small-window-wall-v1.png', tile_catalog_source)
+        self.assertIn('assets/tiles/buildings/stone/stone-small-window-wall-v1.png', tile_catalog_source)
         self.assertIn('id: stonewarm-large-window-wall', tile_catalog_source)
-        self.assertIn('assets/tiles/buildings/wall/common/stone-large-window-wall-v1.png', tile_catalog_source)
+        self.assertIn('assets/tiles/buildings/stone/stone-large-window-wall-v1.png', tile_catalog_source)
         self.assertIn('id: stonewarm-stone-wall-crossbar', tile_catalog_source)
-        self.assertIn('assets/tiles/buildings/wall/common/stone-wall-crossbar-v1.png', tile_catalog_source)
+        self.assertIn('assets/tiles/buildings/stone/stone-wall-crossbar-v1.png', tile_catalog_source)
         self.assertIn('id: stonewarm-stone-roof', tile_catalog_source)
-        self.assertIn('assets/tiles/buildings/roof/stonewarm/stone-roof-v1.png', tile_catalog_source)
+        self.assertIn('assets/tiles/buildings/stone/stone-roof-v1.png', tile_catalog_source)
         self.assertIn('id: stonewarm-stone-door', tile_catalog_source)
-        self.assertIn('assets/tiles/buildings/door/stonewarm/stone-door-v1.png', tile_catalog_source)
+        self.assertIn('assets/tiles/buildings/stone/stone-door-v1.png', tile_catalog_source)
         self.assertIn("'roof':'stonewarm-stone-roof'", (WORKFLOW_ROOT / 'tools/review/build_block_map_review.py').read_text(encoding='utf-8'))
         self.assertIn("'roof_underlay':'stonewarm-stone-wall-crossbar'", (WORKFLOW_ROOT / 'tools/review/build_block_map_review.py').read_text(encoding='utf-8'))
         self.assertIn('readBuildingTileSet', map_review_script)
