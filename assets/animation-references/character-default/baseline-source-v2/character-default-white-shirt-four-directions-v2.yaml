@@ -1,0 +1,21 @@
+version: 2
+asset_id: character-default-white-shirt-four-directions-v2
+image: character-default-white-shirt-four-directions-v2.png
+role: baseline_reference_sheet
+status: adopted
+runtime_adopted: false
+generator: Codex imagegen
+generation_mode: 4방향 2x2 시트 직접 생성
+references: []
+source_run: 2026-09-20_21-06-02
+requested_size_policy: maximum_supported_square
+maximum_size_verified: false
+width: 1254
+height: 1254
+layout: 2x2
+sha256: 9a425eaa116c4d99ffe66b2db2196a8432be2701ace86bfd652ad76e364cfe98
+cells:
+  up_left: {x: 0, y: 0, width: 627, height: 627}
+  up_right: {x: 627, y: 0, width: 627, height: 627}
+  down_left: {x: 0, y: 627, width: 627, height: 627}
+  down_right: {x: 627, y: 627, width: 627, height: 627}
