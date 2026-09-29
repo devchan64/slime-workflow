@@ -158,6 +158,9 @@ def load_animation_review(frontend_asset_root, animation_metadata_path):
         raise ValueError(f'{source_manifest_path}: 객체가 필요합니다.')
     source_reference_body_height = source_manifest_data.get('referenceBodyHeight', declared_reference_body_height)
     source_game_body_height = source_manifest_data.get('gameBodyHeight', declared_game_body_height)
+    selected_clip_directions = {current_clip_record['direction'] for current_clip_record in animation_source_data['clips']}
+    if selected_clip_directions not in ({'down_left'}, set(REVIEW_DIRECTION_NAMES)):
+        raise ValueError('정면왼쪽 단일 방향 또는 네 방향 클립이 필요합니다.')
     direction_sheet_paths = {}
     expected_sheet_hashes = {}
     if 'sheets' in source_manifest_data:
@@ -176,9 +179,9 @@ def load_animation_review(frontend_asset_root, animation_metadata_path):
     else:
         # 단일 시트는 <이름>.animation.json ↔ <이름>.png 명명 계약을 사용한다.
         single_sheet_path = resolve_frontend_file(frontend_asset_root, animation_metadata_path.with_name(animation_metadata_path.name.removesuffix('.animation.json')+'.png'))
-        direction_sheet_paths = {current_direction_name: single_sheet_path for current_direction_name in REVIEW_DIRECTION_NAMES}
+        direction_sheet_paths = {current_direction_name: single_sheet_path for current_direction_name in selected_clip_directions}
         if 'sha256' in source_manifest_data:
-            expected_sheet_hashes = {current_direction_name: source_manifest_data['sha256'] for current_direction_name in REVIEW_DIRECTION_NAMES}
+            expected_sheet_hashes = {current_direction_name: source_manifest_data['sha256'] for current_direction_name in selected_clip_directions}
     source_sheet_records = []
     for current_direction_name, current_sheet_path in direction_sheet_paths.items():
         if current_sheet_path.suffix.lower() not in REVIEW_IMAGE_SUFFIXES:
@@ -192,8 +195,8 @@ def load_animation_review(frontend_asset_root, animation_metadata_path):
         source_sheet_records.append({'direction': current_direction_name, 'image': current_sheet_path.name, 'sha256': actual_sheet_hash})
     animation_frame_records = animation_source_data['frames']
     animation_clip_records = animation_source_data['clips']
-    if not isinstance(animation_frame_records, list) or not animation_frame_records or not isinstance(animation_clip_records, list) or len(animation_clip_records) != 4:
-        raise ValueError('프레임 목록과 네 방향 클립이 필요합니다.')
+    if not isinstance(animation_frame_records, list) or not animation_frame_records or not isinstance(animation_clip_records, list) or len(animation_clip_records) != len(selected_clip_directions):
+        raise ValueError('프레임 목록과 방향별 클립이 필요합니다.')
     source_frame_lookup = {}
     for current_frame_record in animation_frame_records:
         require_record_fields(current_frame_record, ('frameId', 'rect', 'anchor'), '프레임')

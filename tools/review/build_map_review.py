@@ -407,15 +407,15 @@ def build_map_review(map_path=None, output_root=None):
     # 게임 런타임과 같은 스탠딩 프레임·발 기준점을 검수 패키지에 복사한다.
     from PIL import Image
     from tools.review.common.map_tile_assets import resolve_registered_sprite
-    character_animation_path,character_animation_provenance=resolve_registered_sprite('assets/sprites/characters/default/idle-v6/idle-v6.animation.json')
-    character_source_path,character_source_provenance=resolve_registered_sprite('assets/sprites/characters/default/idle-v6/source.json')
-    character_sheet_path,character_sheet_provenance=resolve_registered_sprite('assets/sprites/characters/default/idle-v6/idle-v6.png')
+    character_animation_path,character_animation_provenance=resolve_registered_sprite('assets/sprites/characters/default/idle-v6/down-left-v1/idle-v6.animation.json')
+    character_source_path,character_source_provenance=resolve_registered_sprite('assets/sprites/characters/default/idle-v6/down-left-v1/source.json')
+    character_sheet_path,character_sheet_provenance=resolve_registered_sprite('assets/sprites/characters/default/idle-v6/down-left-v1/idle-v6.png')
     character_animation_record = json.loads(character_animation_path.read_text())
     character_source_record = json.loads(character_source_path.read_text())
     character_preview_records = {}
     character_output_directory = output_root/'character'
     character_output_directory.mkdir()
-    for character_direction_name in ('down_left','down_right','up_left','up_right'):
+    for character_direction_name in ('down_left',):
         character_frame_record = next(frame_record_value for frame_record_value in character_animation_record['frames'] if frame_record_value['frameId']==character_direction_name+'.0')
         character_frame_rectangle = character_frame_record['rect']
         with Image.open(character_sheet_path) as character_sheet_image:

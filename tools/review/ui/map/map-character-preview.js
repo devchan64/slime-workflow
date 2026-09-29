@@ -23,8 +23,7 @@
   currentRotationDegrees=rotationDegreesValue;
   if(!characterPreviewData||!characterWorldPosition||!mapImageElement.naturalWidth)return;
   const currentViewPosition=rotateCellPosition(characterWorldPosition,currentRotationDegrees);
-  const viewDirectionNames=['down_left','up_left','up_right','down_right'];
-  const currentFrameRecord=characterPreviewData.directions[viewDirectionNames[(viewDirectionNames.indexOf(characterDirectionName)+currentRotationDegrees/90)%4]];
+  const currentFrameRecord=characterPreviewData.directions.down_left;
   const currentZoomScale=mapImageElement.getBoundingClientRect().width/mapImageElement.naturalWidth;
   const currentCharacterScale=selectedMapRecord.render_profile.character_height/characterPreviewData.body_height*currentZoomScale;
   const halfTileWidth=selectedMapRecord.render_profile.tile_width/2,halfTileHeight=selectedMapRecord.render_profile.tile_height/2;
