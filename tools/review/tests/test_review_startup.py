@@ -26,6 +26,22 @@ class ReviewStartupTests(unittest.TestCase):
             configuration_file_path.write_text('{"prompt":"updated prompt"}')
             self.assertNotEqual(previous_watch_snapshot, serve.snapshot_review_watch_paths([Path(temporary_directory_path)]))
 
+    def test_map_asset_source_is_watched_instead_of_frontend_copy(self):
+        with tempfile.TemporaryDirectory() as temporary_directory_path:
+            temporary_root_path = Path(temporary_directory_path)
+            frontend_repository_path = temporary_root_path/'slime-frontend'
+            asset_repository_path = temporary_root_path/'slime-assets'
+            (frontend_repository_path/'src/assets/terrain').mkdir(parents=True)
+            (frontend_repository_path/'map-assets.lock.yaml').write_text('schema_version: 1\n')
+            (asset_repository_path/'assets/tiles').mkdir(parents=True)
+            (asset_repository_path/'asset-registry.yaml').write_text('schema_version: 1\n')
+            parsed_argument_values = serve.parse_review_arguments(['--frontend-repo', str(frontend_repository_path)])
+            watched_root_paths = serve.collect_review_watch_paths(parsed_argument_values)
+            self.assertIn(frontend_repository_path/'map-assets.lock.yaml', watched_root_paths)
+            self.assertIn(asset_repository_path/'asset-registry.yaml', watched_root_paths)
+            self.assertIn(asset_repository_path/'assets/tiles', watched_root_paths)
+            self.assertNotIn(frontend_repository_path/'src/assets', watched_root_paths)
+
     def test_default_repository_and_port(self):
         parsed_argument_values = serve.parse_review_arguments([])
         self.assertEqual(parsed_argument_values.frontend_repo, Path(serve.__file__).resolve().parents[3]/'slime-frontend')

@@ -124,7 +124,15 @@ def collect_review_watch_paths(parsed_argument_values):
     current_writer_config=parsed_argument_values.writer_agent_config or workflow_repo_root/'.local/writer-agent/workspace.yaml'
     watch_paths.append(current_writer_config)
     if parsed_argument_values.frontend_repo:
-        watch_paths.append(Path(parsed_argument_values.frontend_repo).resolve()/'src/assets')
+        frontend_repository_path = Path(parsed_argument_values.frontend_repo).resolve()
+        asset_repository_path = frontend_repository_path.parent/'slime-assets'
+        # src/assets의 타일 사본은 UI 검수 빌드가 매번 다시 만들므로 감시하지
+        # 않는다. 원본 저장소와 잠금 파일을 감시해 실제 에셋 변경만 반영한다.
+        watch_paths.extend([
+            frontend_repository_path/'map-assets.lock.yaml',
+            asset_repository_path/'asset-registry.yaml',
+            asset_repository_path/'assets/tiles',
+        ])
     if parsed_argument_values.root:
         watch_paths.append(Path(parsed_argument_values.root).resolve())
     if parsed_argument_values.walking:
