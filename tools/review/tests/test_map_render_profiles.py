@@ -101,10 +101,9 @@ class MapRenderProfileTests(unittest.TestCase):
         map_review_script = (WORKFLOW_ROOT / 'tools/review/ui/map/block-map-review.js').read_text(encoding='utf-8')
 
         self.assertIn('id: wood_roof', tile_catalog_source)
-        self.assertIn('id: wood_plain_wall', tile_catalog_source)
-        self.assertIn('id: wood_wall_crossbar', tile_catalog_source)
-        self.assertIn('assets/tiles/buildings/wall/isloon/wood-wall-crossbar-v1.png', tile_catalog_source)
-        self.assertIn('roof_underlay_wall_tile: wood_wall_crossbar', building_prefab_source)
+        self.assertEqual(tile_catalog_source.count('id: wood_wall,'), 1)
+        self.assertIn('assets/tiles/buildings/wall/common/wood-wall-v2.png', tile_catalog_source)
+        self.assertIn('roof_underlay_wall_tile: wood_wall', building_prefab_source)
         self.assertIn("'roof_underlay':current_prefab_record.get('roof_underlay_wall_tile'", block_review_builder)
         self.assertIn('readBuildingTileSet', map_review_script)
         self.assertIn("return 'roof_underlay'", map_review_script)
@@ -116,10 +115,10 @@ class MapRenderProfileTests(unittest.TestCase):
             reviewed_reedhaven_record['buildingTileOverrides'],
             {
                 'roof': 'wood_roof',
-                'wall': 'wood_plain_wall',
-                'window': 'wood_small_window_wall',
-                'large_window': 'wood_large_window_wall',
-                'roof_underlay': 'wood_wall_crossbar',
+                'wall': 'wood_wall',
+                'window': 'wood_wall',
+                'large_window': 'wood_wall',
+                'roof_underlay': 'wood_wall',
                 'door': 'wood_door',
             },
         )

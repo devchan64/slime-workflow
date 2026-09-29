@@ -13,10 +13,10 @@ TOWN_BLOCK_HEIGHT=80
 TOWN_BUILDING_TILE_OVERRIDES={
     'reedhaven':{
         'roof':'wood_roof',
-        'wall':'wood_plain_wall',
-        'window':'wood_small_window_wall',
-        'large_window':'wood_large_window_wall',
-        'roof_underlay':'wood_wall_crossbar',
+        'wall':'wood_wall',
+        'window':'wood_wall',
+        'large_window':'wood_wall',
+        'roof_underlay':'wood_wall',
         'door':'wood_door',
     },
     'stonewarm':{

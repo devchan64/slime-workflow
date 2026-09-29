@@ -24,13 +24,10 @@ tiles:
   - {id: marble_small_window_wall, category: structure, asset: assets/tiles/buildings/wall/isloon/marble-small-window-wall-v1.png, walkable: false, movement_cost: 99}
   - {id: marble_roof, category: roof, asset: assets/tiles/buildings/roof/isloon/marble-roof-v2.png, walkable: false, movement_cost: 99}
   - {id: marble_small_door, category: door, asset: assets/tiles/buildings/door/isloon/marble-small-door-v1.png, walkable: true, movement_cost: 1}
-  - {id: wood_large_window_wall, category: structure, asset: assets/tiles/buildings/wall/isloon/wood-large-window-wall-v1.png, walkable: false, movement_cost: 99}
-  - {id: wood_small_window_wall, category: structure, asset: assets/tiles/buildings/wall/isloon/wood-small-window-wall-v1.png, walkable: false, movement_cost: 99}
   - {id: wood_roof, category: roof, asset: assets/tiles/buildings/roof/isloon/wood-roof-v2.png, walkable: false, movement_cost: 99}
   - {id: wood_door, category: door, asset: assets/tiles/buildings/door/isloon/wood-door-v1.png, walkable: true, movement_cost: 1}
-  - {id: wood_plain_wall, category: structure, asset: assets/tiles/buildings/wall/isloon/wood-plain-wall-v1.png, walkable: false, movement_cost: 99}
-  - {id: wood_wall_crossbar, category: structure, asset: assets/tiles/buildings/wall/isloon/wood-wall-crossbar-v1.png, walkable: false, movement_cost: 99}
   - {id: stonewarm-guild-red-stone-roof, category: roof, asset: assets/tiles/buildings/roof/common/red-stone-roof-v2.png, walkable: false, movement_cost: 99}
+  - {id: wood_wall, category: structure, asset: assets/tiles/buildings/wall/common/wood-wall-v2.png, walkable: false, movement_cost: 99}
 connections:
   - {id: grass-to-paving, from: grass, to: paving, variants: [straight, corner, tee, cross]}
   - {id: paving-to-spring, from: paving, to: spring_water, variants: [bank-straight, bank-corner]}
