@@ -5,11 +5,17 @@ from statistics import median
 
 from PIL import Image
 
-BLACK_CHANNEL_LIMIT = 48
+BLACK_BRIGHTNESS_LIMIT = 48
+# 이전 import 경로의 호환 상수. 판정은 최대 채널값이 아닌 명도를 사용한다.
+BLACK_CHANNEL_LIMIT = BLACK_BRIGHTNESS_LIMIT
+RGB_BRIGHTNESS_WEIGHTS = (299, 587, 114)
+RGB_BRIGHTNESS_SCALE = 1000
 
 
 
 BLACK_CHROMA_LIMIT = 16
+WHITE_MARGIN_CHROMA_LIMIT = 16
+BLACK_SATURATION_LIMIT = 0.05
 
 
 
@@ -51,7 +57,12 @@ class TileBorderTrace:
 
 
 def is_black_border(pixel_color_value):
-    return max(pixel_color_value) <= BLACK_CHANNEL_LIMIT and max(pixel_color_value)-min(pixel_color_value) <= BLACK_CHROMA_LIMIT
+    """RGB가 비슷하고 명도와 HSV 채도가 낮은 픽셀을 검은 엣지로 판정한다."""
+    pixel_channel_difference = max(pixel_color_value)-min(pixel_color_value)
+    pixel_maximum_channel = max(pixel_color_value)
+    pixel_saturation_value = pixel_channel_difference/pixel_maximum_channel if pixel_maximum_channel else 0
+    pixel_brightness_total = sum(current_channel_value*current_channel_weight for current_channel_value, current_channel_weight in zip(pixel_color_value, RGB_BRIGHTNESS_WEIGHTS))
+    return pixel_channel_difference <= BLACK_CHROMA_LIMIT and pixel_saturation_value <= BLACK_SATURATION_LIMIT and pixel_brightness_total <= BLACK_BRIGHTNESS_LIMIT*RGB_BRIGHTNESS_SCALE
 
 
 
@@ -138,7 +149,7 @@ def scan_border_transition(scan_pixel_values):
                 reference_pixel_values = scan_pixel_values[frame_start_offset:scan_pixel_offset+1]
                 frame_reference_color = tuple(median(reference_pixel_value[channel_axis_index] for reference_pixel_value in reference_pixel_values) for channel_axis_index in range(3))
             continue
-        white_margin_match = min(pixel_color_value) >= 180 and max(pixel_color_value)-min(pixel_color_value) <= BLACK_CHROMA_LIMIT
+        white_margin_match = min(pixel_color_value) >= 180 and max(pixel_color_value)-min(pixel_color_value) <= WHITE_MARGIN_CHROMA_LIMIT
         if white_margin_match:
             frame_start_offset = None
             frame_reference_color = None

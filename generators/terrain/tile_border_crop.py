@@ -1,6 +1,8 @@
 """기존 타일 크롭 호출을 유지하는 공용 이미지 라이브러리 호환 연결."""
 from tools.review.common.image_edges import (
     BLACK_CHANNEL_LIMIT,
+    BLACK_BRIGHTNESS_LIMIT,
+    BLACK_SATURATION_LIMIT,
     BLACK_CHROMA_LIMIT,
     EDGE_SAMPLE_FRACTION,
     EDGE_SEARCH_FRACTION,
