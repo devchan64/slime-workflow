@@ -48,3 +48,7 @@
 - [통합 manifest와 파일 해시](manifest.yaml).
 
 각 방향의 원본 result/manifest에는 당시 출처 경로가 그대로 남아 있다. 통합 사본의 실제 경로는 이 README와 최상위 manifest를 따른다. 필요한 참조·시트·프롬프트·GIF는 이 리포트 안에 복사되어 있어 검수 열람에 실험 폴더가 필요하지 않다.
+
+## 게임 반영
+
+사용자 지시에 따라 4방향 시트를 프론트엔드 `src/assets/characters/default/walk-v2/`에 등록하고 기본 캐릭터 이동에 연결했다. 384px 셀·6프레임·4FPS를 유지하며 원본 픽셀을 6열 4행으로 패킹했다. 전달 파일과 검증 결과는 `frontend-handoff.yaml`에 기록한다. 기존 후보 표기는 생성 시점의 검수 상태다.
