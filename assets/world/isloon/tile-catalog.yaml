@@ -29,6 +29,7 @@ tiles:
   - {id: stonewarm-guild-red-stone-roof, category: roof, asset: assets/tiles/buildings/roof/common/red-stone-roof-v2.png, walkable: false, movement_cost: 99}
   - {id: wood_wall, category: structure, asset: assets/tiles/buildings/wall/common/wood-wall-v2.png, walkable: false, movement_cost: 99}
   - {id: wood_window_wall, category: structure, asset: assets/tiles/buildings/wall/common/wood-window-wall-v1.png, walkable: false, movement_cost: 99}
+  - {id: wood_door_wall, category: door, asset: assets/tiles/buildings/wall/common/wood-door-wall-v1.png, walkable: true, movement_cost: 1}
 connections:
   - {id: grass-to-paving, from: grass, to: paving, variants: [straight, corner, tee, cross]}
   - {id: paving-to-spring, from: paving, to: spring_water, variants: [bank-straight, bank-corner]}
