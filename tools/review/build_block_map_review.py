@@ -16,7 +16,7 @@ TOWN_BUILDING_TILE_OVERRIDES={
         'wall':'wood_wall',
         'window':'wood_window_wall',
         'large_window':'wood_window_wall',
-        'roof_underlay':'wood_wall',
+        'roof_underlay':'wood_crossbar_wall',
         'door':'wood_door_wall',
     },
     'stonewarm':{

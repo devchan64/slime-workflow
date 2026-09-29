@@ -24,7 +24,7 @@ prefabs:
     ground_floor_plain_wall_tile: wood_wall
     ground_floor_small_window_wall_tile: wood_window_wall
     upper_floor_large_window_wall_tile: wood_window_wall
-    roof_underlay_wall_tile: wood_wall
+    roof_underlay_wall_tile: wood_crossbar_wall
     door_tile: wood_door_wall
     roof_rows: 2
     floor_count: 1
@@ -39,7 +39,7 @@ prefabs:
     ground_floor_plain_wall_tile: wood_wall
     ground_floor_small_window_wall_tile: wood_window_wall
     upper_floor_large_window_wall_tile: wood_window_wall
-    roof_underlay_wall_tile: wood_wall
+    roof_underlay_wall_tile: wood_crossbar_wall
     door_tile: wood_door_wall
     roof_rows: 3
     floor_count: 1
