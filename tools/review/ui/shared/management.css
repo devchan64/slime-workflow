@@ -1,6 +1,72 @@
 /* 관리도구 전역 스타일. MoMask 생성기를 시각 기준으로 사용한다. */
 :root{color-scheme:dark;--page:#10151f;--panel:#192230;--line:#314055;--muted:#a7b5c8;--accent:#a7c8ff;--danger:#ffc2bf;--text-primary:#edf3fc;--text-secondary:var(--muted);--surface-base:var(--page);--surface-panel:var(--panel);--surface-control:#25364c;--border-subtle:var(--line);--accent-primary:var(--accent);--input-background:#101925;--input-border:#40516a;--button-border:#455a76;--button-hover:#344963;--accent-hover:#c5daff;--log-background:#0d1420;--log-text:#c8d7e9;--control-height:40px;--space-small:8px;--space-medium:16px;--space-large:24px}
 
+/* Gradio의 시스템 밝은/어두운 테마 모두 같은 관리도구 팔레트를 사용한다.
+   color-scheme만으로는 Gradio가 정의한 배경·글자 변수가 바뀌지 않는다. */
+.gradio-container.gradio-container,.gradio-container .dark{
+color-scheme:dark;
+background:var(--page);
+color:var(--text-primary);
+--body-background-fill:var(--page);
+--body-text-color:var(--text-primary);
+--body-text-color-subdued:var(--muted);
+--background-fill-primary:var(--page);
+--background-fill-secondary:var(--panel);
+--block-background-fill:var(--panel);
+--block-border-color:var(--line);
+--block-label-background-fill:var(--panel);
+--block-label-text-color:var(--text-primary);
+--block-title-background-fill:var(--panel);
+--block-title-text-color:var(--text-primary);
+--block-info-text-color:var(--muted);
+--panel-background-fill:var(--panel);
+--panel-border-color:var(--line);
+--border-color-primary:var(--line);
+--border-color-accent:var(--accent);
+--border-color-accent-subdued:var(--input-border);
+--color-accent:var(--accent);
+--color-accent-soft:var(--surface-control);
+--input-background-fill:var(--input-background);
+--input-background-fill-focus:var(--input-background);
+--input-background-fill-hover:var(--input-background);
+--input-border-color:var(--input-border);
+--input-border-color-focus:var(--accent);
+--input-border-color-hover:var(--button-border);
+--input-placeholder-color:var(--muted);
+--button-primary-background-fill:var(--accent);
+--button-primary-background-fill-hover:var(--accent-hover);
+--button-primary-text-color:var(--page);
+--button-primary-text-color-hover:var(--page);
+--button-primary-border-color:var(--accent);
+--button-secondary-background-fill:var(--surface-control);
+--button-secondary-background-fill-hover:var(--button-hover);
+--button-secondary-text-color:var(--text-primary);
+--button-secondary-text-color-hover:var(--text-primary);
+--button-secondary-border-color:var(--button-border);
+--checkbox-background-color:var(--input-background);
+--checkbox-background-color-hover:var(--surface-control);
+--checkbox-background-color-focus:var(--surface-control);
+--checkbox-background-color-selected:var(--accent);
+--checkbox-border-color:var(--input-border);
+--checkbox-label-background-fill:var(--input-background);
+--checkbox-label-background-fill-hover:var(--surface-control);
+--checkbox-label-background-fill-selected:var(--surface-control);
+--checkbox-label-border-color:var(--input-border);
+--checkbox-label-border-color-selected:var(--accent);
+--checkbox-label-text-color:var(--text-primary);
+--checkbox-label-text-color-selected:var(--text-primary);
+--accordion-text-color:var(--text-primary);
+--table-text-color:var(--text-primary);
+--table-border-color:var(--line);
+--table-even-background-fill:var(--panel);
+--table-odd-background-fill:var(--page);
+--table-row-focus:var(--surface-control);
+--code-background-fill:var(--log-background);
+--link-text-color:var(--accent);
+--link-text-color-hover:var(--accent-hover);
+--link-text-color-active:var(--accent-hover);
+--link-text-color-visited:var(--accent);
+}
 *{box-sizing:border-box}
 body{margin:0;background:var(--page);color:var(--text-primary);font:15px/1.6 system-ui,sans-serif}
 #management-gpu-status{min-width:0}
