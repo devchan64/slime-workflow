@@ -6,6 +6,7 @@ WORKFLOW_REPOSITORY_PATH="$(cd -- "${SCRIPT_DIRECTORY_PATH}/.." && pwd)"
 FRONTEND_REPOSITORY_PATH="${FRONTEND_REPOSITORY_PATH:-$(cd -- "${WORKFLOW_REPOSITORY_PATH}/../slime-frontend" 2>/dev/null && pwd || true)}"
 REVIEW_SERVER_PORT="${REVIEW_SERVER_PORT:-8770}"
 VIRTUAL_ENVIRONMENT_PATH="${VIRTUAL_ENVIRONMENT_PATH:-${WORKFLOW_REPOSITORY_PATH}/.venv}"
+MANAGEMENT_VIRTUAL_ENVIRONMENT_PATH="${MANAGEMENT_VIRTUAL_ENVIRONMENT_PATH:-${WORKFLOW_REPOSITORY_PATH}/.venv-management}"
 
 log_review_watch_event() {
     printf '%s/asset-review-watch/%s\n' "$(date --iso-8601=seconds)" "$1"
@@ -23,8 +24,14 @@ if [[ ! -x "${VIRTUAL_ENVIRONMENT_PATH}/bin/python" ]]; then
     python3 -m venv "${VIRTUAL_ENVIRONMENT_PATH}"
 fi
 
-log_review_watch_event "의존성 설치 requirements=${WORKFLOW_REPOSITORY_PATH}/requirements.txt"
+if [[ ! -x "${MANAGEMENT_VIRTUAL_ENVIRONMENT_PATH}/bin/python" ]]; then
+    log_review_watch_event "관리 UI 가상환경 생성 path=${MANAGEMENT_VIRTUAL_ENVIRONMENT_PATH}"
+    python3 -m venv "${MANAGEMENT_VIRTUAL_ENVIRONMENT_PATH}"
+fi
+
+log_review_watch_event "의존성 설치 runtime=${VIRTUAL_ENVIRONMENT_PATH} management=${MANAGEMENT_VIRTUAL_ENVIRONMENT_PATH} requirements=${WORKFLOW_REPOSITORY_PATH}/requirements.txt"
 "${VIRTUAL_ENVIRONMENT_PATH}/bin/python" -m pip install --disable-pip-version-check --requirement "${WORKFLOW_REPOSITORY_PATH}/requirements.txt"
+"${MANAGEMENT_VIRTUAL_ENVIRONMENT_PATH}/bin/python" -m pip install --disable-pip-version-check --requirement "${WORKFLOW_REPOSITORY_PATH}/requirements.txt"
 log_review_watch_event "시작 workflow=${WORKFLOW_REPOSITORY_PATH} frontend=${FRONTEND_REPOSITORY_PATH} port=${REVIEW_SERVER_PORT}"
 exec "${VIRTUAL_ENVIRONMENT_PATH}/bin/python" "${WORKFLOW_REPOSITORY_PATH}/tools/review/serve.py" \
     --frontend-repo "${FRONTEND_REPOSITORY_PATH}" \
