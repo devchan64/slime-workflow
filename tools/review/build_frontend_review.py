@@ -44,6 +44,14 @@ def reject_nonfinite_number(invalid_number_text):
 
 
 def read_source_metadata(source_metadata_path):
+    if source_metadata_path.suffix == '.yaml':
+        class UniqueSourceMetadataLoader(yaml.SafeLoader):
+            pass
+        def construct_source_mapping(current_yaml_loader, current_mapping_node):
+            current_yaml_loader.flatten_mapping(current_mapping_node)
+            return reject_duplicate_fields(current_yaml_loader.construct_pairs(current_mapping_node, deep=True))
+        UniqueSourceMetadataLoader.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, construct_source_mapping)
+        return yaml.load(source_metadata_path.read_text(), Loader=UniqueSourceMetadataLoader)
     return json.loads(source_metadata_path.read_text(), object_pairs_hook=reject_duplicate_fields,
                       parse_constant=reject_nonfinite_number)
 
@@ -139,7 +147,11 @@ def load_animation_review(frontend_asset_root, animation_metadata_path):
     require_record_fields(animation_source_data['sheet'], ('width', 'height'), '시트 크기')
     if any(type(dimension_pixel_value) is not int or dimension_pixel_value < 1 for dimension_pixel_value in animation_source_data['sheet'].values()):
         raise ValueError('시트 크기는 양의 정수여야 합니다.')
-    source_manifest_path = animation_metadata_path.with_name('source.json')
+    source_manifest_candidates = [animation_metadata_path.with_name(current_source_filename) for current_source_filename in ('source.yaml', 'source.json')]
+    existing_manifest_paths = [current_manifest_path for current_manifest_path in source_manifest_candidates if current_manifest_path.exists()]
+    if len(existing_manifest_paths) > 1:
+        raise ValueError(f'{animation_metadata_path.parent}: source.yaml과 source.json 원본이 중복되었습니다.')
+    source_manifest_path = existing_manifest_paths[0] if existing_manifest_paths else source_manifest_candidates[0]
     source_manifest_data = packed_sheet_manifest_data if packed_sheet_manifest_data is not None else (read_source_metadata(resolve_frontend_file(frontend_asset_root, source_manifest_path)) if source_manifest_path.exists() else {})
     if not isinstance(source_manifest_data, dict):
         raise ValueError(f'{source_manifest_path}: 객체가 필요합니다.')
@@ -149,7 +161,7 @@ def load_animation_review(frontend_asset_root, animation_metadata_path):
     expected_sheet_hashes = {}
     if 'sheets' in source_manifest_data:
         if not isinstance(source_manifest_data['sheets'], list) or len(source_manifest_data['sheets']) != 4:
-            raise ValueError('source.json의 sheets는 네 방향 목록이어야 합니다.')
+            raise ValueError('출처 메타데이터의 sheets는 네 방향 목록이어야 합니다.')
         for source_sheet_record in source_manifest_data['sheets']:
             require_record_fields(source_sheet_record, ('direction', 'image', 'sha256'), '방향별 시트')
             current_direction_name = source_sheet_record['direction']

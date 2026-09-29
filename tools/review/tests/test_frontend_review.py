@@ -41,6 +41,27 @@ class FrontendReviewTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, '파일 누락'):
             load_animation_review(self.frontend_asset_root, self.animation_metadata_path)
 
+    def test_yaml_character_source_height(self):
+        self.animation_source_data['animationId'] = 'character.default.white-shirt.walk'
+        self.write_source_fixture()
+        source_metadata_path = self.frontend_asset_root/'source.yaml'
+        source_metadata_path.write_text('referenceBodyHeight: 352\ngameBodyHeight: 80\n')
+        _, review_source_metadata, _ = load_animation_review(self.frontend_asset_root, self.animation_metadata_path)
+        self.assertEqual(review_source_metadata['runtimeScale']['sourceHeight'], 352)
+        self.assertEqual(review_source_metadata['runtimeScale']['baseHeight'], 80)
+        source_metadata_path.write_text('referenceBodyHeight: 352\nreferenceBodyHeight: 288\n')
+        with self.assertRaisesRegex(ValueError, '중복 필드'):
+            load_animation_review(self.frontend_asset_root, self.animation_metadata_path)
+        source_metadata_path.write_text('referenceBodyHeight: .nan\n')
+        with self.assertRaisesRegex(ValueError, 'referenceBodyHeight'):
+            load_animation_review(self.frontend_asset_root, self.animation_metadata_path)
+
+    def test_duplicate_source_formats_fail(self):
+        (self.frontend_asset_root/'source.yaml').write_text('{}')
+        (self.frontend_asset_root/'source.json').write_text('{}')
+        with self.assertRaisesRegex(ValueError, '원본이 중복'):
+            load_animation_review(self.frontend_asset_root, self.animation_metadata_path)
+
     def test_duplicate_and_unknown_fields_fail(self):
         self.animation_metadata_path.write_text('{"version":"1","version":"2"}')
         with self.assertRaisesRegex(ValueError, '중복 필드'):
