@@ -75,7 +75,7 @@ class MapRenderProfileTests(unittest.TestCase):
         map_review_script = (WORKFLOW_ROOT / 'tools/review/ui/map/block-map-review.js').read_text(encoding='utf-8')
 
         self.assertIn('id: stonewarm-gravel-paving', tile_catalog_source)
-        self.assertIn('assets/tiles/terrain/gravel/stonewarm/gravel-paving-v1.png', tile_catalog_source)
+        self.assertIn('assets/tiles/terrain/road/gravel-paving-v1.png', tile_catalog_source)
         self.assertIn("currentMapRecord.id==='stonewarm'?'stonewarm-gravel-paving':currentMapRecord.id==='reedhaven'?'reedhaven-dirt-road':'paving'", map_review_script)
 
     def test_stonewarm_exposed_rock_ground_uses_the_registered_tile(self):
@@ -83,7 +83,7 @@ class MapRenderProfileTests(unittest.TestCase):
         map_review_script = (WORKFLOW_ROOT / 'tools/review/ui/map/block-map-review.js').read_text(encoding='utf-8')
 
         self.assertIn('id: stonewarm-exposed-rock-ground', tile_catalog_source)
-        self.assertIn('assets/tiles/terrain/rock/stonewarm/exposed-rock-ground-v1.png', tile_catalog_source)
+        self.assertIn('assets/tiles/terrain/non-road/exposed-rock-ground-v1.png', tile_catalog_source)
         self.assertIn("gravel:currentMapRecord.id==='stonewarm'?'stonewarm-exposed-rock-ground':undefined", map_review_script)
 
     def test_reedhaven_roads_use_the_dirt_road_texture(self):
@@ -91,7 +91,7 @@ class MapRenderProfileTests(unittest.TestCase):
         map_review_script = (WORKFLOW_ROOT / 'tools/review/ui/map/block-map-review.js').read_text(encoding='utf-8')
 
         self.assertIn('id: reedhaven-dirt-road', tile_catalog_source)
-        self.assertIn('assets/tiles/terrain/dirt/reedhaven/dirt-road-v1.png', tile_catalog_source)
+        self.assertIn('assets/tiles/terrain/road/dirt-road-v1.png', tile_catalog_source)
         self.assertIn("currentMapRecord.id==='reedhaven'?'reedhaven-dirt-road':'paving'", map_review_script)
 
     def test_reedhaven_uses_wood_building_tiles(self):

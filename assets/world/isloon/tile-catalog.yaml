@@ -4,21 +4,21 @@ logical_tile_size: 64
 source_tile_size: 256
 # 이슬온 24×24 안전 도시의 정식 지형 구성이다.
 tiles:
-  - {id: iseulon-grass-mud-frame, category: ground, asset: assets/tiles/terrain/grass/isloon/grass-mud-frame-v1.png, walkable: true, movement_cost: 1}
-  - {id: grass, category: ground, asset: assets/tiles/terrain/grass/grass-v3.png, walkable: true, movement_cost: 1}
+  - {id: iseulon-grass-mud-frame, category: ground, asset: assets/tiles/terrain/non-road/grass-mud-frame-v1.png, walkable: true, movement_cost: 1}
+  - {id: grass, category: ground, asset: assets/tiles/terrain/non-road/grass-v3.png, walkable: true, movement_cost: 1}
   # 이슬온 포장 논리 ID의 실제 원본: 석회석 바닥 타입 A.
-  - {id: paving, category: ground, asset: assets/tiles/terrain/limestone/isloon/limestone-floor-type-a-v1.png, walkable: true, movement_cost: 1}
-  - {id: reedhaven-dirt-road, category: ground, asset: assets/tiles/terrain/dirt/reedhaven/dirt-road-v1.png, walkable: true, movement_cost: 1}
-  - {id: stonewarm-gravel-paving, category: ground, asset: assets/tiles/terrain/gravel/stonewarm/gravel-paving-v1.png, walkable: true, movement_cost: 1}
-  - {id: stonewarm-exposed-rock-ground, category: ground, asset: assets/tiles/terrain/rock/stonewarm/exposed-rock-ground-v1.png, walkable: true, movement_cost: 1}
+  - {id: paving, category: ground, asset: assets/tiles/terrain/road/limestone-floor-type-a-v1.png, walkable: true, movement_cost: 1}
+  - {id: reedhaven-dirt-road, category: ground, asset: assets/tiles/terrain/road/dirt-road-v1.png, walkable: true, movement_cost: 1}
+  - {id: stonewarm-gravel-paving, category: ground, asset: assets/tiles/terrain/road/gravel-paving-v1.png, walkable: true, movement_cost: 1}
+  - {id: stonewarm-exposed-rock-ground, category: ground, asset: assets/tiles/terrain/non-road/exposed-rock-ground-v1.png, walkable: true, movement_cost: 1}
   - {id: stonewarm-stone-roof, category: roof, asset: assets/tiles/buildings/stone/stone-roof-v1.png, walkable: false, movement_cost: 99}
   - {id: stonewarm-stone-wall, category: structure, asset: assets/tiles/buildings/stone/stone-wall-v1.png, walkable: false, movement_cost: 99}
   - {id: stonewarm-small-window-wall, category: structure, asset: assets/tiles/buildings/stone/stone-small-window-wall-v1.png, walkable: false, movement_cost: 99}
   - {id: stonewarm-large-window-wall, category: structure, asset: assets/tiles/buildings/stone/stone-large-window-wall-v1.png, walkable: false, movement_cost: 99}
   - {id: stonewarm-stone-wall-crossbar, category: structure, asset: assets/tiles/buildings/stone/stone-wall-crossbar-v1.png, walkable: false, movement_cost: 99}
   - {id: stonewarm-stone-door, category: door, asset: assets/tiles/buildings/stone/stone-door-v1.png, walkable: true, movement_cost: 1}
-  - {id: spring_water, category: ground, asset: assets/tiles/terrain/water/water-v3.png, walkable: false, movement_cost: 99}
-  - {id: flower_bed, category: decoration, asset: assets/tiles/terrain/flowers/flowers-v3.png, walkable: true, movement_cost: 1}
+  - {id: spring_water, category: ground, asset: assets/tiles/terrain/non-road/water-v3.png, walkable: false, movement_cost: 99}
+  - {id: flower_bed, category: decoration, asset: assets/tiles/terrain/non-road/flowers-v3.png, walkable: true, movement_cost: 1}
   - {id: marble_large_window_wall, category: structure, asset: assets/tiles/buildings/marble/marble-large-window-wall-v1.png, walkable: false, movement_cost: 99}
   - {id: marble_plain_wall, category: structure, asset: assets/tiles/buildings/marble/marble-plain-wall-v1.png, walkable: false, movement_cost: 99}
   - {id: marble_small_window_wall, category: structure, asset: assets/tiles/buildings/marble/marble-small-window-wall-v1.png, walkable: false, movement_cost: 99}
@@ -30,8 +30,8 @@ tiles:
   - {id: wood_window_wall, category: structure, asset: assets/tiles/buildings/wood/wood-window-wall-v1.png, walkable: false, movement_cost: 99}
   - {id: wood_door_wall, category: door, asset: assets/tiles/buildings/wood/wood-door-wall-v1.png, walkable: true, movement_cost: 1}
   - {id: wood_crossbar_wall, category: structure, asset: assets/tiles/buildings/wood/wood-crossbar-wall-v1.png, walkable: false, movement_cost: 99}
-  - {id: packed_dirt_road, category: ground, asset: assets/tiles/terrain/dirt/common/packed-dirt-road-v1.png, walkable: true, movement_cost: 1}
-  - {id: stone_slab_road, category: ground, asset: assets/tiles/terrain/stone/common/stone-slab-road-v1.png, walkable: true, movement_cost: 1}
+  - {id: packed_dirt_road, category: ground, asset: assets/tiles/terrain/road/packed-dirt-road-v1.png, walkable: true, movement_cost: 1}
+  - {id: stone_slab_road, category: ground, asset: assets/tiles/terrain/road/stone-slab-road-v1.png, walkable: true, movement_cost: 1}
 connections:
   - {id: grass-to-paving, from: grass, to: paving, variants: [straight, corner, tee, cross]}
   - {id: paving-to-spring, from: paving, to: spring_water, variants: [bank-straight, bank-corner]}
