@@ -12,7 +12,6 @@ from tools.review.domains.image.image_generation import ImageGenerationManager, 
 
 from tools.review.domains.tile.tile_results import TILE_BORDER_CROP_RATIO
 
-REFERENCE_STYLE_PROMPT = '참조 이미지의 기존 화풍, 캐릭터 디자인, 색상, 비율과 표현 방식을 유지한다. 명시적으로 요청하지 않으면 픽셀 아트로 표현하지 않는다.'
 SURFACE_PROMPT_PREFIX = '표면 재질: '
 TILE_CONFIGURATION_PATH = WORKFLOW_ROOT_PATH/'generators/terrain/config/tile_map.yaml'
 
@@ -26,13 +25,13 @@ def load_tile_configuration():
             raise ValueError(f'타일 프롬프트 설정 오류: {prompt_field_name}')
     return configuration_record_value
 
-def combine_tile_prompt(base_prompt_value,user_prompt_value,style_prompt_value,reference_prompt_value):
+def combine_tile_prompt(base_prompt_value,user_prompt_value,style_prompt_value):
     """표면정보를 시각적 재질 지시로 감싸 문장형 모델 입력을 만든다."""
     surface_prompt_value=user_prompt_value.strip()
     if surface_prompt_value and not surface_prompt_value.endswith('.'):
         surface_prompt_value+='.'
     surface_instruction_value=(SURFACE_PROMPT_PREFIX+surface_prompt_value) if surface_prompt_value else ''
-    active_prompt_sections=[section_text_value.strip() for section_text_value in (reference_prompt_value,style_prompt_value,base_prompt_value,surface_instruction_value) if section_text_value.strip()]
+    active_prompt_sections=[section_text_value.strip() for section_text_value in (style_prompt_value,base_prompt_value,surface_instruction_value) if section_text_value.strip()]
     if not active_prompt_sections:
         raise ValueError('적용할 프롬프트가 없습니다.')
     return ' '.join(active_prompt_sections)
@@ -41,15 +40,15 @@ def combine_tile_prompt(base_prompt_value,user_prompt_value,style_prompt_value,r
 def prepare_tile_request(request_record_value):
     if request_record_value=={'action':'prepare'}:return request_record_value
     if isinstance(request_record_value,dict):request_record_value={'seed':10107,**request_record_value}
-    prompt_toggle_values={key:request_record_value.get(key,True) for key in ('use_base_prompt','use_style_prompt')} if isinstance(request_record_value,dict) else {}
-    if isinstance(request_record_value,dict):prompt_toggle_values['use_reference_style_prompt']=request_record_value.get('use_reference_style_prompt',False)
-    if any(type(value) is not bool for value in prompt_toggle_values.values()):raise ValueError('프롬프트 선택은 ON/OFF여야 합니다.')
     reference_image_values=request_record_value.get('images',[]) if isinstance(request_record_value,dict) else []
+    prompt_toggle_values={key:request_record_value.get(key,not bool(reference_image_values)) for key in ('use_base_prompt','use_style_prompt')} if isinstance(request_record_value,dict) else {}
+    if any(type(value) is not bool for value in prompt_toggle_values.values()):raise ValueError('프롬프트 선택은 ON/OFF여야 합니다.')
+    if reference_image_values and any(prompt_toggle_values.values()):raise ValueError('참조 이미지 사용 시 기본·화풍 프롬프트는 사용할 수 없습니다. 두 선택을 끄세요.')
     generation_tag_value=request_record_value.get('tag','') if isinstance(request_record_value,dict) else ''
     if not isinstance(generation_tag_value,str):raise ValueError('생성 이력 태그는 문자열이어야 합니다.')
     generation_tag_value=generation_tag_value.strip()
     if len(generation_tag_value)>80 or '\n' in generation_tag_value or '\r' in generation_tag_value:raise ValueError('생성 이력 태그는 줄바꿈 없이 80자 이하여야 합니다.')
-    if isinstance(request_record_value,dict):request_record_value={key:value for key,value in request_record_value.items() if key not in ('images','tag','use_base_prompt','use_style_prompt','use_reference_style_prompt')}
+    if isinstance(request_record_value,dict):request_record_value={key:value for key,value in request_record_value.items() if key not in ('images','tag','use_base_prompt','use_style_prompt')}
     if not isinstance(request_record_value,dict) or set(request_record_value)!={'action','user_prompt','width','height','steps','seed'}:
         raise ValueError('표면정보 프롬프트·생성 설정만 수정할 수 있습니다.')
     configuration_record_value=load_tile_configuration()
@@ -60,13 +59,13 @@ def prepare_tile_request(request_record_value):
     user_prompt_value=request_record_value['user_prompt'].strip()
     if user_prompt_value and not user_prompt_value.endswith('.'):
         user_prompt_value+='.'
-    combined_prompt_value=combine_tile_prompt(base_prompt_value if prompt_toggle_values['use_base_prompt'] else '',user_prompt_value,style_prompt_value if prompt_toggle_values['use_style_prompt'] else '',REFERENCE_STYLE_PROMPT if prompt_toggle_values['use_reference_style_prompt'] else '')
+    combined_prompt_value=combine_tile_prompt(base_prompt_value if prompt_toggle_values['use_base_prompt'] else '',user_prompt_value,style_prompt_value if prompt_toggle_values['use_style_prompt'] else '')
     if len(combined_prompt_value.split())>=100:raise ValueError('기본·표면정보·화풍의 최종 프롬프트는 100단어 미만이어야 합니다.')
     validated_request_value=validate_image_request({key:request_record_value[key] for key in ('action','width','height','steps','seed')}|{'prompt':combined_prompt_value})
     if validated_request_value['width']!=validated_request_value['height']:raise ValueError('타일은 정사각형 해상도를 선택하세요.')
     from tools.review.domains.image.three_reference_generation import validate_three_reference_request
     validate_three_reference_request({**validated_request_value,'images':reference_image_values})
-    return validated_request_value|prompt_toggle_values|{'images':reference_image_values}|{'border_crop':{'ratio':TILE_BORDER_CROP_RATIO},'tag':generation_tag_value,'user_prompt':user_prompt_value,'base_prompt':base_prompt_value,'style_prompt':style_prompt_value,'reference_style_prompt':REFERENCE_STYLE_PROMPT,'prompt_words':len(combined_prompt_value.split()),'prompt_sha256':hashlib.sha256(combined_prompt_value.encode()).hexdigest()}
+    return validated_request_value|prompt_toggle_values|{'images':reference_image_values}|{'border_crop':{'ratio':TILE_BORDER_CROP_RATIO},'tag':generation_tag_value,'user_prompt':user_prompt_value,'base_prompt':base_prompt_value,'style_prompt':style_prompt_value,'prompt_words':len(combined_prompt_value.split()),'prompt_sha256':hashlib.sha256(combined_prompt_value.encode()).hexdigest()}
 
 class TileGenerationManager(ImageGenerationManager):
     def __init__(self):

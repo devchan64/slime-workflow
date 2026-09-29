@@ -19,7 +19,7 @@ class TileGenerationTests(unittest.TestCase):
 
     def test_gui_request_and_legacy_history_restore_without_type(self):
         from tools.review.ui.gradio.tile_map_app import build_tile_request, restore_tile_inputs
-        gui_request_value=build_tile_request('Red brick house.','',512,4,1,True,True,False)
+        gui_request_value=build_tile_request('Red brick house.','',512,4,1,True,True)
         self.assertNotIn('tile_type',gui_request_value)
         self.assertEqual(prepare_tile_request(gui_request_value),prepare_tile_request(self.make_tile_request()))
         current_history_record={'request':gui_request_value}
@@ -77,10 +77,10 @@ class TileGenerationTests(unittest.TestCase):
 
     def test_prompt_order_follows_style_base_surface(self):
         from itertools import product
-        for base_enabled,style_enabled,reference_enabled in product((False,True),repeat=3):
-            request=self.make_tile_request()|{'use_base_prompt':base_enabled,'use_style_prompt':style_enabled,'use_reference_style_prompt':reference_enabled}
+        for base_enabled,style_enabled in product((False,True),repeat=2):
+            request=self.make_tile_request()|{'use_base_prompt':base_enabled,'use_style_prompt':style_enabled}
             record=prepare_tile_request(request)
-            expected=[record['reference_style_prompt'] if reference_enabled else '',record['style_prompt'] if style_enabled else '',record['base_prompt'] if base_enabled else '','표면 재질: '+record['user_prompt']]
+            expected=[record['style_prompt'] if style_enabled else '',record['base_prompt'] if base_enabled else '','표면 재질: '+record['user_prompt']]
             self.assertEqual(record['prompt'],' '.join(section_text_value for section_text_value in expected if section_text_value))
 
     def test_surface_material_sentence_and_prompt_metadata(self):
@@ -91,15 +91,47 @@ class TileGenerationTests(unittest.TestCase):
         self.assertEqual(prepared_request_value['prompt_sha256'],hashlib.sha256(prepared_request_value['prompt'].encode()).hexdigest())
         self.assertEqual(prepared_request_value['prompt_words'],len(prepared_request_value['prompt'].split()))
 
-    def test_reference_style_toggle_defaults_off(self):
-        default_record=prepare_tile_request(self.make_tile_request())
-        self.assertFalse(default_record['use_reference_style_prompt'])
-        self.assertNotIn(default_record['reference_style_prompt'],default_record['prompt'])
-        enabled_record=prepare_tile_request(self.make_tile_request()|{'use_reference_style_prompt':True})
-        self.assertTrue(enabled_record['prompt'].startswith(enabled_record['reference_style_prompt']))
-        self.assertEqual(enabled_record['prompt_words'],len(enabled_record['prompt'].split()))
-        with self.assertRaises(ValueError):
-            prepare_tile_request(self.make_tile_request()|{'use_reference_style_prompt':'on'})
+    def test_reference_style_feature_is_removed(self):
+        prepared_request_value=prepare_tile_request(self.make_tile_request())
+        self.assertNotIn('reference_style_prompt',prepared_request_value)
+        for removed_toggle_value in (True,False):
+            with self.assertRaises(ValueError):
+                prepare_tile_request(self.make_tile_request()|{'use_reference_style_prompt':removed_toggle_value})
+
+    def test_reference_images_disable_fixed_prompts(self):
+        import base64,io
+        from PIL import Image
+        from tools.review.ui.gradio.tile_map_app import build_tile_request, update_reference_prompt_controls, format_applied_prompt_words
+        reference_image_value=Image.new('RGB',(512,512),'white')
+        reference_image_buffer=io.BytesIO()
+        reference_image_value.save(reference_image_buffer,format='PNG')
+        reference_image_payload=base64.b64encode(reference_image_buffer.getvalue()).decode()
+        reference_request_value=self.make_tile_request()|{'images':[reference_image_payload]}
+        prepared_request_value=prepare_tile_request(reference_request_value)
+        self.assertEqual(prepared_request_value['prompt'],'표면 재질: Red brick house.')
+        self.assertFalse(prepared_request_value['use_base_prompt'])
+        self.assertFalse(prepared_request_value['use_style_prompt'])
+        for fixed_prompt_key in ('use_base_prompt','use_style_prompt'):
+            with self.assertRaisesRegex(ValueError,'참조 이미지'):
+                prepare_tile_request(reference_request_value|{fixed_prompt_key:True})
+        gui_request_value=build_tile_request('Red brick house.','',512,4,1,True,True,True,reference_image_value)
+        self.assertEqual(prepare_tile_request(gui_request_value)['prompt'],prepared_request_value['prompt'])
+        self.assertTrue(all(not update_record['interactive'] and update_record['value'] is False for update_record in update_reference_prompt_controls(True,reference_image_value)))
+        self.assertTrue(all(update_record['interactive'] for update_record in update_reference_prompt_controls(True,None)))
+        self.assertIn('기본 0',format_applied_prompt_words(load_tile_configuration(),'Red brick house.',True,True,True,reference_image_value))
+
+    def test_reference_switch_excludes_retained_images(self):
+        from PIL import Image
+        from tools.review.ui.gradio.tile_map_app import build_tile_request, format_applied_prompt_words, update_reference_prompt_controls, update_reference_upload_visibility
+        reference_image_value=Image.new('RGB',(512,512),'white')
+        disabled_request_value=build_tile_request('벽','',512,4,1,True,True,False,reference_image_value)
+        self.assertEqual(disabled_request_value['images'],[])
+        self.assertTrue(disabled_request_value['use_base_prompt'])
+        self.assertTrue(disabled_request_value['use_style_prompt'])
+        self.assertEqual(format_applied_prompt_words(load_tile_configuration(),'벽',True,True,False,reference_image_value),format_applied_prompt_words(load_tile_configuration(),'벽',True,True))
+        self.assertTrue(all(control_update_value['interactive'] for control_update_value in update_reference_prompt_controls(False,reference_image_value)))
+        self.assertFalse(update_reference_upload_visibility(False)['visible'])
+        self.assertTrue(update_reference_upload_visibility(True)['visible'])
 
     def test_fixed_prompt_override_and_invalid_input_rejected(self):
         for invalid_request_value in ({'base_prompt':'override'},{'style_prompt':''},{'prompt':'override'},{'tile_type':'other'},{'width':768},{'seed':True},{'tag':False},{'tag':'새\n태그'},{'tag':'a'*81},{'user_prompt':'word '*100}):
@@ -176,6 +208,8 @@ class TileGenerationTests(unittest.TestCase):
             self.assertEqual(current_payload_value['user_prompt'],'Oak wood.')
             self.assertEqual(current_payload_value['tag'],'돌온재 외벽 후보')
             self.assertNotIn('prompt',current_payload_value)
+            self.assertNotIn('use_base_prompt',current_payload_value)
+            self.assertNotIn('use_style_prompt',current_payload_value)
 
     def test_cli_queue_adds_tile_request_without_waiting(self):
         with patch.object(management_gateway,'execute_management_command',return_value={'id':'queued'}) as execute_command_mock:
@@ -185,3 +219,7 @@ class TileGenerationTests(unittest.TestCase):
             self.assertEqual(current_payload_value['action'],'generate')
             self.assertNotIn('tile_type',current_payload_value)
             self.assertEqual(current_payload_value['tag'],'갈대나루 강변 흙길 후보')
+
+    def test_removed_reference_style_cli_flag_rejected(self):
+        with self.assertRaises(SystemExit):
+            management_gateway.execute_gateway_arguments('tile-map',['queue','--prompt','벽','--use-reference-style-prompt'])
