@@ -406,19 +406,22 @@ def build_map_review(map_path=None, output_root=None):
     (output_root / 'building-prefabs.json').write_text(json.dumps(building_prefab_values, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
     # 게임 런타임과 같은 스탠딩 프레임·발 기준점을 검수 패키지에 복사한다.
     from PIL import Image
-    character_source_directory = FRONTEND_ASSET_ROOT/'characters/default/standing-v5'
-    character_animation_record = json.loads((character_source_directory/'idle-v5.animation.json').read_text())
-    character_source_record = json.loads((character_source_directory/'source.json').read_text())
+    from tools.review.common.map_tile_assets import resolve_registered_sprite
+    character_animation_path,character_animation_provenance=resolve_registered_sprite('assets/sprites/characters/default/idle-v6/idle-v6.animation.json')
+    character_source_path,character_source_provenance=resolve_registered_sprite('assets/sprites/characters/default/idle-v6/source.json')
+    character_sheet_path,character_sheet_provenance=resolve_registered_sprite('assets/sprites/characters/default/idle-v6/idle-v6.png')
+    character_animation_record = json.loads(character_animation_path.read_text())
+    character_source_record = json.loads(character_source_path.read_text())
     character_preview_records = {}
     character_output_directory = output_root/'character'
     character_output_directory.mkdir()
     for character_direction_name in ('down_left','down_right','up_left','up_right'):
         character_frame_record = next(frame_record_value for frame_record_value in character_animation_record['frames'] if frame_record_value['frameId']==character_direction_name+'.0')
         character_frame_rectangle = character_frame_record['rect']
-        with Image.open(character_source_directory/('standing-'+character_direction_name.replace('_','-')+'.png')) as character_sheet_image:
+        with Image.open(character_sheet_path) as character_sheet_image:
             character_sheet_image.crop((character_frame_rectangle['x'],character_frame_rectangle['y'],character_frame_rectangle['x']+character_frame_rectangle['width'],character_frame_rectangle['y']+character_frame_rectangle['height'])).save(character_output_directory/(character_direction_name+'.png'))
         character_preview_records[character_direction_name]={'file':'character/'+character_direction_name+'.png','anchor':character_frame_record['anchor'],'width':character_frame_rectangle['width'],'height':character_frame_rectangle['height']}
-    (output_root/'character-preview.json').write_text(json.dumps({'directions':character_preview_records,'body_height':character_source_record['referenceBodyHeight'],'top_padding':ISOMETRIC_PREVIEW_TOP_PADDING}))
+    (output_root/'character-preview.json').write_text(json.dumps({'provenance':{'image':character_sheet_provenance,'animation':character_animation_provenance,'metadata':character_source_provenance},'directions':character_preview_records,'body_height':character_source_record['referenceBodyHeight'],'top_padding':ISOMETRIC_PREVIEW_TOP_PADDING}))
     shutil.copy2(WORKFLOW_ROOT/'tools/review/ui/map/map-character-preview.js',output_root/'map-character-preview.js')
     shutil.copy2(WORKFLOW_ROOT/'tools/review/ui/map/map-review-layout.css',output_root/'map-review-layout.css')
     shutil.copy2(REVIEW_TEMPLATE_PATH, output_root / 'map-review.html')

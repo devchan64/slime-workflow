@@ -47,16 +47,25 @@ def load_registered_tiles():
     return asset_repository_path, registered_tile_records
 
 
-def resolve_registered_tile(asset_relative_path, asset_repository_path, registered_tile_records):
-    if not isinstance(asset_relative_path, str) or not asset_relative_path.startswith('assets/tiles/') or '..' in Path(asset_relative_path).parts:
+def resolve_registered_asset(asset_relative_path, asset_repository_path, registered_tile_records, asset_directory_prefix):
+    if not isinstance(asset_relative_path, str) or not asset_relative_path.startswith(asset_directory_prefix+'/') or '..' in Path(asset_relative_path).parts:
         raise ValueError(f'맵 타일 원본 경로 오류: {asset_relative_path}')
     if asset_relative_path not in registered_tile_records:
         raise ValueError(f'미등록 맵 타일: {asset_relative_path}')
     current_asset_record = registered_tile_records[asset_relative_path]
     source_texture_path = (asset_repository_path / asset_relative_path).resolve()
-    if not source_texture_path.is_relative_to(asset_repository_path / 'assets/tiles'):
+    if not source_texture_path.is_relative_to(asset_repository_path / asset_directory_prefix):
         raise ValueError('맵 타일 원본이 에셋 경로 밖에 있습니다.')
     current_asset_digest = hashlib.sha256(source_texture_path.read_bytes()).hexdigest()
     if current_asset_digest != current_asset_record['sha256']:
         raise ValueError(f'맵 타일 원본 해시 불일치: {asset_relative_path}')
     return source_texture_path, {'repository': 'slime-assets', 'source': asset_relative_path, 'managementId': current_asset_record['managementId'], 'version': current_asset_record['version'], 'sha256': current_asset_digest}
+
+
+def resolve_registered_tile(asset_relative_path, asset_repository_path, registered_tile_records):
+    return resolve_registered_asset(asset_relative_path, asset_repository_path, registered_tile_records, 'assets/tiles')
+
+
+def resolve_registered_sprite(asset_relative_path):
+    asset_repository_path, registered_asset_records = load_registered_tiles()
+    return resolve_registered_asset(asset_relative_path, asset_repository_path, registered_asset_records, 'assets/sprites')
