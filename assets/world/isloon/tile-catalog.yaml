@@ -24,7 +24,7 @@ tiles:
   - {id: marble_small_window_wall, category: structure, asset: assets/tiles/buildings/wall/isloon/marble-small-window-wall-v1.png, walkable: false, movement_cost: 99}
   - {id: marble_roof, category: roof, asset: assets/tiles/buildings/roof/isloon/marble-roof-v2.png, walkable: false, movement_cost: 99}
   - {id: marble_small_door, category: door, asset: assets/tiles/buildings/door/isloon/marble-small-door-v1.png, walkable: true, movement_cost: 1}
-  - {id: wood_roof, category: roof, asset: assets/tiles/buildings/roof/isloon/wood-roof-v2.png, walkable: false, movement_cost: 99}
+  - {id: wood_roof, category: roof, asset: assets/tiles/buildings/roof/common/wood-roof-v3.png, walkable: false, movement_cost: 99}
   - {id: wood_door, category: door, asset: assets/tiles/buildings/door/isloon/wood-door-v1.png, walkable: true, movement_cost: 1}
   - {id: stonewarm-guild-red-stone-roof, category: roof, asset: assets/tiles/buildings/roof/common/red-stone-roof-v2.png, walkable: false, movement_cost: 99}
   - {id: wood_wall, category: structure, asset: assets/tiles/buildings/wall/common/wood-wall-v2.png, walkable: false, movement_cost: 99}
