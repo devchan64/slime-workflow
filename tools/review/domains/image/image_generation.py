@@ -12,6 +12,7 @@ import threading
 import uuid
 import os
 import signal
+import shutil
 from tools.review.common.gpu_job_queue import launch_gpu_process, cancel_gpu_generation, resume_gpu_generation
 
 WORKFLOW_ROOT_PATH = Path(__file__).resolve().parents[4]
@@ -101,9 +102,39 @@ class ImageGenerationManager:
         return MANAGER_HISTORY_ROOT / ('qwen-2511' if self.three_reference_mode else 'qwen-2512')
 
     def reset_generation_history(self):
+        if self.route_prefix_value == '/image-generation':
+            return self.clear_image_generation_files()
         with MANAGER_HISTORY_LOCK:
             for current_record_path in self.history_storage_path().glob('*.json'):
                 current_record_path.unlink()
+
+    def clear_image_generation_files(self):
+        """Qwen 2512의 종료된 작업 폴더와 이력을 함께 삭제한다."""
+        with self.current_request_lock, MANAGER_HISTORY_LOCK:
+            if self.current_worker_process is not None and self.current_worker_process.poll() is None:
+                raise ValueError('생성 중에는 초기화할 수 없습니다. 완료 또는 취소 후 다시 실행하세요.')
+            if self.job_storage_root.is_symlink():
+                raise ValueError('심볼릭 링크 작업 저장소는 초기화할 수 없습니다.')
+            deletion_target_paths = []
+            for current_job_root in self.job_storage_root.iterdir() if self.job_storage_root.is_dir() else []:
+                if not re.fullmatch(r'\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-(?:[a-f0-9]{8}|prepare)', current_job_root.name):
+                    continue
+                if current_job_root.is_symlink():
+                    raise ValueError('심볼릭 링크 작업 경로는 삭제할 수 없습니다.')
+                if not current_job_root.is_dir():
+                    continue
+                current_status_path = current_job_root / 'status.json'
+                if not current_status_path.is_file():
+                    raise ValueError(f'작업 상태 파일이 없어 초기화할 수 없습니다: {current_job_root.name}')
+                current_status_value = json.loads(current_status_path.read_text()).get('status')
+                if current_status_value not in ('completed', 'failed', 'cancelled'):
+                    raise ValueError(f'종료되지 않은 작업이 있어 초기화할 수 없습니다: {current_job_root.name} ({current_status_value})')
+                deletion_target_paths.append(current_job_root)
+            for current_job_root in deletion_target_paths:
+                shutil.rmtree(current_job_root)
+            for current_record_path in self.history_storage_path().glob('*.json'):
+                current_record_path.unlink()
+            self.current_job_identifier = None
 
     def delete_generation_history(self, generation_job_identifier):
         """완료된 이력 레코드만 제거하고 원본 작업 산출물은 보존한다."""

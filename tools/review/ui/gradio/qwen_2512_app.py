@@ -76,7 +76,7 @@ def build_qwen_2512_interface(server_base_address):
         read_history_page,history_output_values=build_generation_history_view(
             execute_image_gateway,
             server_base_address,
-            '이력 목록만 초기화합니다. 결과 이미지와 로그 파일은 유지됩니다. 생성 중에는 초기화할 수 없습니다.',
+            '전체 초기화하면 이전에 목록에서 제거한 작업을 포함해 Qwen 2512의 .tmp 작업 폴더(입력·결과 이미지·로그)와 이력을 삭제합니다. 실행·대기 중에는 초기화할 수 없습니다. 정식 등록 에셋과 모델 캐시는 유지됩니다.',
             restore_input_callback=restore_generation_inputs,
             restore_output_components=[prompt_text_value,generation_tag_value,width_select_value,height_select_value,step_select_value,seed_number_value,prompt_word_count_value,generation_status_value],
             record_folder_route='/image-generation',

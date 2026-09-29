@@ -11,6 +11,47 @@ from tools.review.domains.image.image_generation import ImageGenerationManager, 
 
 
 class ImageGenerationTests(unittest.TestCase):
+    def test_reset_removes_orphan_files_and_preserves_other_services(self):
+        with tempfile.TemporaryDirectory() as temporary_root_name:
+            temporary_root_path = Path(temporary_root_name)
+            current_manager_value = ImageGenerationManager()
+            current_manager_value.job_storage_root = temporary_root_path / 'jobs'
+            current_job_directory = current_manager_value.job_storage_root / '2026-09-29_08-43-31-d74d1cd0'
+            current_job_directory.mkdir(parents=True)
+            (current_job_directory / 'status.json').write_text('{"status":"completed"}')
+            (current_job_directory / 'result.png').write_bytes(b'image')
+            other_service_directory = current_manager_value.job_storage_root / 'tile-map'
+            other_service_directory.mkdir()
+            (other_service_directory / 'result.png').write_bytes(b'keep')
+            with patch('tools.review.domains.image.image_generation.MANAGER_HISTORY_ROOT', temporary_root_path / 'history'):
+                current_handler_value = self.make_http_handler('/image-generation/history/reset', 'POST')
+                current_request_bytes = b'{"action":"reset"}'
+                current_handler_value.rfile = io.BytesIO(current_request_bytes)
+                current_handler_value.headers['Content-Length'] = str(len(current_request_bytes))
+                current_manager_value.handle_image_request(current_handler_value)
+                self.assertEqual(current_handler_value.status, 200)
+                self.assertFalse(current_job_directory.exists())
+                self.assertTrue((other_service_directory / 'result.png').exists())
+
+    def test_reset_rejects_active_or_symlink_before_deleting(self):
+        for unsafe_job_kind in ('running', 'queued', 'symlink'):
+            with self.subTest(kind=unsafe_job_kind), tempfile.TemporaryDirectory() as temporary_root_name:
+                temporary_root_path = Path(temporary_root_name)
+                current_manager_value = ImageGenerationManager()
+                current_manager_value.job_storage_root = temporary_root_path / 'jobs'
+                completed_job_directory = current_manager_value.job_storage_root / '2026-09-29_08-43-31-d74d1cd0'
+                completed_job_directory.mkdir(parents=True)
+                (completed_job_directory / 'status.json').write_text('{"status":"completed"}')
+                unsafe_job_directory = current_manager_value.job_storage_root / '2026-09-29_08-43-32-d74d1cd1'
+                if unsafe_job_kind == 'symlink':
+                    unsafe_job_directory.symlink_to(completed_job_directory, target_is_directory=True)
+                else:
+                    unsafe_job_directory.mkdir()
+                    (unsafe_job_directory / 'status.json').write_text(json.dumps({'status': unsafe_job_kind}))
+                with self.assertRaises(ValueError):
+                    current_manager_value.reset_generation_history()
+                self.assertTrue(completed_job_directory.exists())
+
     def test_request_validation(self):
         self.assertEqual(validate_image_request({'action':'prepare'}),{'action':'prepare'})
         validate_image_request({'action':'generate','steps':4,'prompt':'풍경','width':1024,'height':512})

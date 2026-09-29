@@ -70,7 +70,7 @@ python3 tools/manager.py command qwen-2512 history-reset
 - 2511 결과·로그: `.tmp/test/qwen-image-2511-three-reference/<생성 ID>/`
 - 이력: `.tmp/manager-current/qwen-2512/`, `.tmp/manager-current/qwen-2511/`
 
-실행 결과는 해당 웹 생성기의 이력에서 조회할 수 있다. `history-reset`은 명시적으로 실행할 때만 누적 이력을 초기화한다.
+실행 결과는 해당 웹 생성기의 이력에서 조회할 수 있다. `history-reset`은 명시적으로 실행할 때만 누적 이력을 초기화한다. Qwen 2512의 전체 초기화는 이전에 목록에서 제거된 작업도 포함하여 `.tmp/test/qwen-image-2512/` 바로 아래의 생성·준비 작업 폴더(입력·결과·로그)를 삭제한다. 실행·대기 중이거나 상태가 불명확한 작업이 있으면 삭제 전에 거절한다. 하위 `tile-map/`, 정식 등록 에셋, 모델 캐시는 제외한다. Qwen 2511 및 개별 이력 삭제의 파일 보존 동작은 유지한다.
 
 ## 통합 명령 게이트웨이
 
