@@ -5,11 +5,11 @@ from statistics import median
 
 from PIL import Image
 
-BLACK_CHANNEL_LIMIT = 72
+BLACK_CHANNEL_LIMIT = 48
 
 
 
-BLACK_CHROMA_LIMIT = 28
+BLACK_CHROMA_LIMIT = 16
 
 
 

@@ -1,11 +1,22 @@
 """테두리 추적·출력 픽셀 환산 및 검출 실패 검증."""
 import unittest
 from PIL import Image, ImageDraw
-from tools.review.common.image_edges import trace_black_border
+from tools.review.common.image_edges import is_black_border, trace_black_border
 from tools.review.common.image_borders import crop_traced_tile
 
 
 class ImageBorderCropTests(unittest.TestCase):
+    def test_black_classification_limits(self):
+        for pixel_color_value in ((0, 0, 0), (48, 48, 48), (32, 40, 48)):
+            self.assertTrue(is_black_border(pixel_color_value))
+        for pixel_color_value in ((49, 49, 49), (72, 72, 72), (31, 40, 48)):
+            self.assertFalse(is_black_border(pixel_color_value))
+
+    def test_dark_gray_texture_boundary(self):
+        source_image_value = self.create_framed_image()
+        ImageDraw.Draw(source_image_value).rectangle((16, 20, 111, 107), fill=(60, 60, 60))
+        self.assertEqual(trace_black_border(source_image_value).content_crop_bounds, (16, 20, 112, 108))
+
     def create_framed_image(self):
         source_image_value = Image.new('RGB', (128, 128), 'white')
         source_image_draw = ImageDraw.Draw(source_image_value)
