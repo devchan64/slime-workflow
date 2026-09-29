@@ -1,0 +1,4 @@
+# 관리도구와 워크플로우 검수에 필요한 Python 런타임 의존성
+Pillow>=10.0
+PyYAML>=6.0
+jsonschema>=4.23
