@@ -5,6 +5,8 @@ from PIL import Image
 
 from tools.review.common.image_edges import detect_texture_boundary, trace_black_border
 
+OUTER_BOUNDARY_DEPTH_FRACTION = 0.05
+
 def crop_traced_tile(source_image_value, *, output_tile_size=256, retained_edge_pixels=2):
     """최종 출력 기준의 테두리 두께를 원본 좌표로 환산한다.
 
@@ -52,6 +54,11 @@ def crop_inner_border(source_image_value, *, retained_border_ratio=0.01):
         edge_axis_index = 0 if edge_side_name in ('left', 'right') else 1
         cross_axis_index = 1-edge_axis_index
         valid_side_boundaries[edge_side_name] = [texture_start_point[edge_axis_index] for _, texture_start_point in boundary_trace_result.side_transition_records[edge_side_name] if representative_inner_bounds[cross_axis_index] <= texture_start_point[cross_axis_index] < representative_inner_bounds[cross_axis_index+2]]
+        # 대표 외곽에서 깊이 5% 안의 전이만 채택한다. 내부 창문·반대편 프레임은 제외한다.
+        edge_axis_length = source_image_value.size[edge_axis_index]
+        outer_boundary_margin = ceil(edge_axis_length*OUTER_BOUNDARY_DEPTH_FRACTION)
+        representative_edge_value = representative_inner_bounds[edge_axis_index if edge_side_name in ('left', 'top') else edge_axis_index+2]
+        valid_side_boundaries[edge_side_name] = [boundary_axis_value for boundary_axis_value in valid_side_boundaries[edge_side_name] if abs(boundary_axis_value-representative_edge_value) <= outer_boundary_margin]
         if not valid_side_boundaries[edge_side_name]:
             raise ValueError(f'변 내부의 유효한 경계가 없습니다: {edge_side_name}')
     content_left_bound = max(valid_side_boundaries['left'])

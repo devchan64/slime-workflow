@@ -115,6 +115,17 @@ class ImageBorderCropTests(unittest.TestCase):
         self.assertEqual(crop_measurement_record['crop_box'], [18, 19, 113, 109])
         self.assertEqual(cropped_tile_image.size, (95, 90))
 
+    def test_inner_window_cannot_replace_missing_outer_edge(self):
+        from tools.review.common.image_borders import crop_inner_border
+        source_image_value = self.create_framed_image()
+        source_drawing_context = ImageDraw.Draw(source_image_value)
+        source_drawing_context.rectangle((50, 0, 52, 19), fill='white')
+        source_drawing_context.rectangle((50, 45, 52, 85), fill='black')
+        source_drawing_context.rectangle((50, 86, 52, 90), fill=(80, 160, 40))
+        cropped_image_value, crop_measurement_record = crop_inner_border(source_image_value)
+        self.assertEqual(crop_measurement_record['inner_bounds'], [16, 20, 112, 108])
+        self.assertEqual(cropped_image_value.size, (98, 90))
+
     def test_inner_border_rejects_invalid_ratio(self):
         from tools.review.common.image_borders import crop_inner_border
         for invalid_ratio_value in (-0.1, float('nan'), float('inf'), True):
