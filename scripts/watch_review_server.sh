@@ -12,7 +12,16 @@ log_review_watch_event() {
     printf '%s/asset-review-watch/%s\n' "$(date --iso-8601=seconds)" "$1"
 }
 
-trap 'log_review_watch_event "실패 line=${BASH_LINENO[0]} command=${BASH_COMMAND}"' ERR
+trap 'log_review_watch_event "실패 line=${LINENO} command=${BASH_COMMAND}"' ERR
+
+prepare_environment_pip() {
+    local environment_python_path="$1/bin/python"
+    if ! "${environment_python_path}" -c 'import importlib.util, sys; sys.exit(importlib.util.find_spec("pip") is None)'; then
+        log_review_watch_event "pip 준비 python=${environment_python_path}"
+        "${environment_python_path}" -m ensurepip --upgrade
+    fi
+    "${environment_python_path}" -m pip --version
+}
 
 if [[ -z "${FRONTEND_REPOSITORY_PATH}" || ! -d "${FRONTEND_REPOSITORY_PATH}" ]]; then
     log_review_watch_event "프론트엔드 저장소를 찾을 수 없습니다 경로=${FRONTEND_REPOSITORY_PATH:-미지정}"
@@ -28,6 +37,9 @@ if [[ ! -x "${MANAGEMENT_VIRTUAL_ENVIRONMENT_PATH}/bin/python" ]]; then
     log_review_watch_event "관리 UI 가상환경 생성 path=${MANAGEMENT_VIRTUAL_ENVIRONMENT_PATH}"
     python3 -m venv "${MANAGEMENT_VIRTUAL_ENVIRONMENT_PATH}"
 fi
+
+prepare_environment_pip "${VIRTUAL_ENVIRONMENT_PATH}"
+prepare_environment_pip "${MANAGEMENT_VIRTUAL_ENVIRONMENT_PATH}"
 
 log_review_watch_event "의존성 설치 runtime=${VIRTUAL_ENVIRONMENT_PATH} management=${MANAGEMENT_VIRTUAL_ENVIRONMENT_PATH} requirements=${WORKFLOW_REPOSITORY_PATH}/requirements.txt"
 "${VIRTUAL_ENVIRONMENT_PATH}/bin/python" -m pip install --disable-pip-version-check --requirement "${WORKFLOW_REPOSITORY_PATH}/requirements.txt"
