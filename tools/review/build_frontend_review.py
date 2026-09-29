@@ -270,9 +270,9 @@ def clear_generated_review_files(output_review_directory):
 
 def build_frontend_review(frontend_repository_path, ui_bundle_directory=None):
     frontend_repository_path = frontend_repository_path.resolve()
-    frontend_asset_root = frontend_repository_path/'src/assets'
-    if not (frontend_repository_path/'package.json').is_file() or not frontend_asset_root.is_dir() or not frontend_asset_root.resolve().is_relative_to(frontend_repository_path):
-        raise ValueError('package.json과 src/assets가 있는 프론트엔드 저장소를 지정하세요.')
+    frontend_asset_root = frontend_repository_path.parent/'slime-assets/assets/ui'
+    if not (frontend_repository_path/'package.json').is_file() or not frontend_asset_root.is_dir():
+        raise ValueError('package.json과 인접 slime-assets/assets/ui가 있는 프론트엔드 저장소를 지정하세요.')
     registered_sprite_root, locked_sprite_sources = load_locked_sprite_sources(frontend_repository_path)
     animation_metadata_paths = [frontend_repository_path/current_relative_path for current_relative_path in sorted(locked_sprite_sources) if current_relative_path.endswith('.animation.json')]
     if not animation_metadata_paths:
@@ -319,7 +319,7 @@ def build_frontend_review(frontend_repository_path, ui_bundle_directory=None):
             runtime_scale_metadata['baseHeight'] = game_render_metrics['characterHeight'] * (game_render_metrics['restHeightRatio'] if runtime_scale_metadata['actorKind'] == 'human-rest' else 1)
             animation_identifier_text = review_source_metadata['animationId']
             if animation_identifier_text not in animation_label_lookup:
-                raise ValueError(f'한국어 라벨 누락: {animation_identifier_text} / src/assets/animation-labels.yaml')
+                raise ValueError(f'한국어 라벨 누락: {animation_identifier_text} / slime-assets/assets/ui/animation-labels.yaml')
             review_source_metadata['displayNameKo'] = animation_label_lookup[animation_identifier_text]
             page_identifier_text = f'animation-{animation_sequence_index+1}'
             destination_asset_directory = output_review_directory/page_identifier_text
@@ -366,7 +366,7 @@ def build_frontend_review(frontend_repository_path, ui_bundle_directory=None):
         manager_page_records.extend(current_page_record for current_page_record in DEFAULT_MANAGEMENT_TOOL_PAGE_RECORDS if current_page_record['id'] not in existing_page_identifier_values)
         manager_template_text = resolve_review_ui_asset('frame-manager.html').read_text().replace('</style>', '</style><style>'+shared_review_styles+'</style>', 1)
         (output_review_directory/'preview.html').write_text(manager_template_text.replace('__MANAGER_PAGES__', json.dumps(manager_page_records, ensure_ascii=False).replace('<', '\\u003c')))
-        (output_review_directory/'manager-source.json').write_text(json.dumps({'frontendRepository': str(frontend_repository_path), 'labelCatalog': {'path': 'src/assets/animation-labels.yaml', 'sha256': hashlib.sha256((frontend_asset_root/'animation-labels.yaml').read_bytes()).hexdigest()}, 'assets': discovered_source_records, 'pages': manager_page_records}, ensure_ascii=False, indent=2))
+        (output_review_directory/'manager-source.json').write_text(json.dumps({'frontendRepository': str(frontend_repository_path), 'labelCatalog': {'path': 'slime-assets/assets/ui/animation-labels.yaml', 'sha256': hashlib.sha256((frontend_asset_root/'animation-labels.yaml').read_bytes()).hexdigest()}, 'assets': discovered_source_records, 'pages': manager_page_records}, ensure_ascii=False, indent=2))
         emit_review_trace('complete', str(output_review_directory/'preview.html'))
         return output_review_directory
     except Exception:

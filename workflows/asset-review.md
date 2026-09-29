@@ -58,7 +58,7 @@ python3 tools/review/serve.py --root .tmp/생성된관리도구폴더 --port 877
 
 ## 프론트엔드 저장소 자동 탐색
 
-기본 실행은 옵션 없는 `python3 tools/review/serve.py`다. 인접한 `slime-frontend`와 포트 8770을 기본값으로 사용한다. 다른 위치는 `--frontend-repo`로 지정한다. 지정 저장소의 `src/assets/**/*.animation.json`을 탐색해 각 애니메이션·버전의 검수 메뉴를 만든다. 단일 시트는 메타데이터와 같은 이름의 PNG, 방향별 시트는 같은 폴더 `source.json`의 `sheets`를 사용한다. 메타데이터 없는 이미지는 자동으로 프레임을 추정하지 않는다. 현재 프론트엔드의 캐릭터 스탠딩·휴식 및 몬스터 시트를 지원하며 미등록 걷기 후보는 이미 생성된 웹 검수 HTML이 있으면 통합 목록에서, 없으면 기존 생성·명시적 입력 모드에서 검수한다.
+기본 실행은 옵션 없는 `python3 tools/review/serve.py`다. 인접한 `slime-frontend`와 포트 8770을 기본값으로 사용한다. 다른 위치는 `--frontend-repo`로 지정한다. 지정 저장소의 `sprite-assets.lock.yaml`에 등록된 `assets/**/*.animation.json`을 원본 저장소에서 검증해 각 애니메이션·버전의 검수 메뉴를 만든다. 단일 시트는 메타데이터와 같은 이름의 PNG, 방향별 시트는 같은 폴더 `source.json`의 `sheets`를 사용한다. 메타데이터 없는 이미지는 자동으로 프레임을 추정하지 않는다. 현재 프론트엔드의 캐릭터 스탠딩·휴식 및 몬스터 시트를 지원하며 미등록 걷기 후보는 이미 생성된 웹 검수 HTML이 있으면 통합 목록에서, 없으면 기존 생성·명시적 입력 모드에서 검수한다.
 
 소스 변경을 감시하며 관리도구를 다시 생성하고 서버를 재시작하려면 `python3 tools/review/serve.py --watch`를 사용한다. 외부 `watchdog` 패키지 없이 `tools/review`, `generators/animation` 및 기본 프론트엔드 에셋 경로를 감시하며, 종료는 `Ctrl+C`다.
 

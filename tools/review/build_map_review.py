@@ -11,7 +11,7 @@ import sys
 WORKFLOW_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_MAP_DIRECTORY = WORKFLOW_ROOT / 'assets/world/isloon/maps'
 REVIEW_TEMPLATE_PATH = WORKFLOW_ROOT / 'assets/world/isloon/map-review.html'
-FRONTEND_ASSET_ROOT = WORKFLOW_ROOT.parent / 'slime-frontend/src/assets'
+FRONTEND_ASSET_ROOT = WORKFLOW_ROOT.parent / 'slime-frontend/assets'
 def load_map_render_profiles():
     import yaml
     profile_record_values = yaml.safe_load((WORKFLOW_ROOT/'assets/world/isloon/render-profiles.yaml').read_text())

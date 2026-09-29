@@ -13,6 +13,7 @@ import uuid
 import os
 import signal
 import shutil
+from tools.review.domains.image.image_runtime import validate_image_runtime
 from tools.review.common.gpu_job_queue import launch_gpu_process, cancel_gpu_generation, resume_gpu_generation
 
 WORKFLOW_ROOT_PATH = Path(__file__).resolve().parents[4]
@@ -194,6 +195,8 @@ class ImageGenerationManager:
                 if current_url_path in (self.route_prefix_value+'/cancel',self.route_prefix_value+'/resume'):
                     if not isinstance(current_request_record,dict) or set(current_request_record)!={'id'} or not re.fullmatch(r'[0-9a-f_-]+',current_request_record['id']):
                         raise ValueError('작업 ID 형식 오류')
+                    if current_url_path.endswith('/resume'):
+                        validate_image_runtime()
                     selected_job_directory=self.job_storage_root/current_request_record['id']
                     if current_url_path.endswith('/resume') and not (selected_job_directory/'gpu-command.json').exists():
                         saved_request_record=json.loads((selected_job_directory/'request.json').read_text())
@@ -219,6 +222,7 @@ class ImageGenerationManager:
                     current_request_record=validate_three_reference_request(current_request_record)
                 else:
                     current_request_record=self.validate_generation_request(current_request_record)
+                validate_image_runtime()
                 with self.current_request_lock:
                     current_job_identifier = datetime.now(ZoneInfo('Asia/Seoul')).strftime('%Y-%m-%d_%H-%M-%S')+'-'+uuid.uuid4().hex[:8]
                     current_job_root = self.job_storage_root / current_job_identifier

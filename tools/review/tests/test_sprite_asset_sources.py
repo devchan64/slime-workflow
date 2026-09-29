@@ -20,7 +20,7 @@ class SpriteAssetSourceTests(unittest.TestCase):
             registry_asset_record = {'managementId': 'sprite.test', 'version': 'v1', 'path': source_relative_path, 'sha256': source_hash_value, 'source': {'repository': 'test'}}
             frontend_repository_path = temporary_root_path/'frontend'
             frontend_repository_path.mkdir()
-            target_relative_path = 'src/assets/characters/test/test.animation.json'
+            target_relative_path = 'assets/characters/test/test.animation.json'
             lock_asset_record = {'path': target_relative_path, 'source_path': source_relative_path, 'sha256': source_hash_value}
             lock_file_path = frontend_repository_path/'sprite-assets.lock.yaml'
             def write_lock_document(current_lock_records):

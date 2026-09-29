@@ -31,7 +31,7 @@ class ReviewStartupTests(unittest.TestCase):
             temporary_root_path = Path(temporary_directory_path)
             frontend_repository_path = temporary_root_path/'slime-frontend'
             asset_repository_path = temporary_root_path/'slime-assets'
-            (frontend_repository_path/'src/assets/terrain').mkdir(parents=True)
+            (frontend_repository_path/'assets/terrain').mkdir(parents=True)
             (frontend_repository_path/'map-assets.lock.yaml').write_text('schema_version: 1\n')
             (asset_repository_path/'assets/tiles').mkdir(parents=True)
             (asset_repository_path/'asset-registry.yaml').write_text('schema_version: 1\n')
@@ -40,7 +40,7 @@ class ReviewStartupTests(unittest.TestCase):
             self.assertIn(frontend_repository_path/'map-assets.lock.yaml', watched_root_paths)
             self.assertIn(asset_repository_path/'asset-registry.yaml', watched_root_paths)
             self.assertIn(asset_repository_path/'assets/tiles', watched_root_paths)
-            self.assertNotIn(frontend_repository_path/'src/assets', watched_root_paths)
+            self.assertNotIn(frontend_repository_path/'assets', watched_root_paths)
 
     def test_default_repository_and_port(self):
         parsed_argument_values = serve.parse_review_arguments([])

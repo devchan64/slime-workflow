@@ -150,7 +150,7 @@ def build_block_map_review(output_directory_path):
     tile_catalog_record=yaml.safe_load((source_asset_directory.parent/'tile-catalog.yaml').read_text())
     if tile_catalog_record.get('source_tile_size')!=GAME_TILE_SOURCE_SIZE:
         raise ValueError(f'게임 타일 원본 크기는 {GAME_TILE_SOURCE_SIZE}px여야 합니다.')
-    texture_source_root=WORKFLOW_ROOT_DIRECTORY.parent/'slime-frontend/src/assets'
+    texture_source_root=WORKFLOW_ROOT_DIRECTORY.parent/'slime-frontend/assets'
     texture_output_directory=output_directory_path/'textures'
     texture_output_directory.mkdir(exist_ok=True)
     exported_texture_records={}
@@ -165,7 +165,7 @@ def build_block_map_review(output_directory_path):
         exported_texture_records[current_tile_record['id']]={**tile_provenance_record,'path':'textures/'+texture_target_name+'?v='+hashlib.sha256(texture_source_path.read_bytes()).hexdigest(),'source':current_tile_record['asset'],'sha256':hashlib.sha256(texture_source_path.read_bytes()).hexdigest(),'source_size':source_image_size,'expected_source_size':[GAME_TILE_SOURCE_SIZE,GAME_TILE_SOURCE_SIZE],'normalization_warning':normalization_warning_value}
     (output_directory_path/'block-textures.json').write_text(json.dumps(exported_texture_records))
     from tools.review.common.game_render_metrics import load_game_render_metrics
-    game_render_metrics=load_game_render_metrics(texture_source_root.parents[1])
+    game_render_metrics=load_game_render_metrics(texture_source_root.parent)
     (output_directory_path/'game-render-metrics.json').write_text(json.dumps(game_render_metrics))
     character_metadata_path,character_metadata_provenance=resolve_registered_sprite('assets/sprites/characters/default/idle-v6/idle-v6.animation.json')
     character_source_path,character_source_provenance=resolve_registered_sprite('assets/sprites/characters/default/idle-v6/source.json')

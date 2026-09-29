@@ -126,7 +126,7 @@ def collect_review_watch_paths(parsed_argument_values):
     if parsed_argument_values.frontend_repo:
         frontend_repository_path = Path(parsed_argument_values.frontend_repo).resolve()
         asset_repository_path = frontend_repository_path.parent/'slime-assets'
-        # src/assets의 타일 사본은 UI 검수 빌드가 매번 다시 만들므로 감시하지
+        # assets의 타일 사본은 UI 검수 빌드가 매번 다시 만들므로 감시하지
         # 않는다. 원본 저장소와 잠금 파일을 감시해 실제 에셋 변경만 반영한다.
         watch_paths.extend([
             frontend_repository_path/'map-assets.lock.yaml',
@@ -167,7 +167,7 @@ def run_review_watch_mode(parsed_argument_values):
                         review_server_process.terminate()
                         review_server_process.wait(timeout=5)
                         # 검수 서버 재시작 과정에서 프론트엔드 빌드가 생성한
-                        # src/assets 전달 사본을 외부 변경으로 다시 감지하지 않는다.
+                        # assets 전달 사본을 외부 변경으로 다시 감지하지 않는다.
                         # 종료 직후를 새 기준점으로 삼고, 다음 실제 변경부터 감시한다.
                         previous_watch_snapshot = snapshot_review_watch_paths(watch_paths)
                         break

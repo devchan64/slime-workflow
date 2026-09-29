@@ -1,0 +1,11 @@
+/* 참조 이미지 입력은 제목·미리보기·작업 버튼의 간격을 일정하게 둔다. */
+#tile-reference-images{padding:12px!important;gap:12px!important}
+#tile-reference-images .tile-reference-upload-grid{display:grid!important;grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr));gap:12px!important;align-items:start}
+.tile-reference-upload-grid>.block{min-width:0!important;width:100%!important}
+.tile-reference-upload-grid .image-container{min-width:0!important}
+.tile-reference-upload-grid .upload-container{min-width:0!important;max-width:100%}
+.tile-reference-upload-grid .upload-container button{white-space:normal;overflow-wrap:anywhere}
+.tile-reference-upload-grid>.block{height:250px!important}
+#tile-reference-images .tile-reference-upload-grid [data-testid="source-select"]{display:grid!important;grid-template-columns:1fr!important;gap:6px!important;padding:6px!important;box-sizing:border-box;width:100%;height:auto!important}
+#tile-reference-images .tile-reference-upload-grid [data-testid="source-select"] button{width:100%!important;min-width:0!important;margin:0!important;justify-content:center;white-space:normal!important}
+.tile-reference-upload-grid .image-container>.upload-container{height:calc(100% - 90px)!important}

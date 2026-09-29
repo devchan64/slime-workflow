@@ -117,12 +117,6 @@ def build_tile_interface(server_base_address):
                 prompt_value=gr.Textbox(label='표면정보 프롬프트',info='표면의 재질·색상·무늬 등 표면정보를 입력하세요.',lines=5)
                 with gr.Row():
                     clear_prompt_button_value=gr.Button('표면정보 프롬프트 초기화',size='sm',scale=1)
-                    rooftop_example_button_value=gr.Button('지붕 한글 예시 넣기',size='sm',scale=1)
-                    wall_example_button_value=gr.Button('벽 타일 한글 예시 넣기',size='sm',scale=1)
-                    small_window_example_button_value=gr.Button('참조 이미지에 작은 창문 추가 · 예시 넣기',size='sm',scale=1)
-                    closed_gate_example_button_value=gr.Button('참조 이미지에 닫힌 대문 추가 · 예시 넣기',size='sm',scale=1)
-                    ground_example_button_value=gr.Button('바닥 타일 예시 넣기',size='sm',scale=1)
-                    brick_ground_example_button=gr.Button('벽돌 바닥 타일 예시 넣기',size='sm',scale=1)
                 gr.Markdown('> **주의:** 프롬프트에 `타일`을 입력하면 분리된 타일 형태로 생성될 수 있습니다. 연속된 바닥이나 지면을 원하면 원하는 표면·재질·구성을 직접 설명하세요.')
                 generation_tag_value=gr.Textbox(label='생성 이력 태그 · 선택 사항',placeholder='예: 이슬온 시장 외벽 후보',max_lines=1)
                 base_value=gr.Checkbox(value=True,label='기본 프롬프트 적용');style_value=gr.Checkbox(value=True,label='화풍 프롬프트 적용')
@@ -136,13 +130,7 @@ def build_tile_interface(server_base_address):
                     base_prompt_display=gr.Textbox(value=initial_base_prompt,label=f'기본 프롬프트 · {len(initial_base_prompt.split())}단어',interactive=False,lines=4)
                 with gr.Accordion('화풍 프롬프트 · 고정',open=False):
                     gr.Textbox(value=catalog_record_value['style_prompt'],label=f"화풍 프롬프트 · {len(catalog_record_value['style_prompt'].split())}단어",interactive=False,lines=3)
-                rooftop_example_button_value.click(append_rooftop_tile_example,inputs=prompt_value,outputs=prompt_value,queue=False)
                 clear_prompt_button_value.click(clear_user_prompt_value,outputs=prompt_value,queue=False)
-                wall_example_button_value.click(append_wall_tile_example,inputs=prompt_value,outputs=prompt_value,queue=False)
-                small_window_example_button_value.click(append_small_window_wall_example,inputs=prompt_value,outputs=prompt_value,queue=False)
-                closed_gate_example_button_value.click(append_closed_gate_wall_example,inputs=prompt_value,outputs=prompt_value,queue=False)
-                ground_example_button_value.click(append_ground_tile_example,inputs=prompt_value,outputs=prompt_value,queue=False)
-                brick_ground_example_button.click(append_brick_ground_example,inputs=prompt_value,outputs=prompt_value,queue=False)
                 width_value=gr.Dropdown([512,768,1024],value=512,label='정사각형 해상도');step_value=gr.Radio([4,30],value=4,label='생성 스텝')
                 with gr.Group(elem_classes=['seed-control-group']):
                     with gr.Row():
@@ -179,4 +167,4 @@ MANAGEMENT_SHARED_STYLES=(ManagementStylePath(__file__).parents[1]/'shared/manag
 
 if __name__=='__main__':
     parser_value=argparse.ArgumentParser();parser_value.add_argument('--port',type=int,required=True);parser_value.add_argument('--review-port',type=int,required=True);parser_value.add_argument('--owner-pid',type=int,required=True);parser_value.add_argument('--root-path',default='/management/frame/tile-map-generator/');arguments_value=parser_value.parse_args()
-    threading.Thread(target=lambda:time.sleep(1),daemon=True).start();build_tile_interface(f'http://127.0.0.1:{arguments_value.review_port}').queue().launch(server_name='127.0.0.1',server_port=arguments_value.port,root_path=arguments_value.root_path,css=MANAGEMENT_SHARED_STYLES)
+    threading.Thread(target=lambda:time.sleep(1),daemon=True).start();build_tile_interface(f'http://127.0.0.1:{arguments_value.review_port}').queue().launch(server_name='127.0.0.1',server_port=arguments_value.port,root_path=arguments_value.root_path,css=MANAGEMENT_SHARED_STYLES+(Path(__file__).parent/'tile-map-layout.css').read_text())

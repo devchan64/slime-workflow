@@ -15,7 +15,7 @@ def load_locked_sprite_sources(frontend_repository_path):
         if not isinstance(current_lock_record, dict) or set(current_lock_record) != {'path', 'source_path', 'sha256'}:
             raise ValueError('스프라이트 잠금 항목 필드 오류')
         target_relative_path = current_lock_record['path']
-        if not isinstance(target_relative_path, str) or not re.fullmatch(r'src/assets/(characters|monsters|structures)/[\w./-]+', target_relative_path) or '..' in Path(target_relative_path).parts or target_relative_path in locked_source_records:
+        if not isinstance(target_relative_path, str) or not re.fullmatch(r'assets/(characters|monsters|structures)/[\w./-]+', target_relative_path) or '..' in Path(target_relative_path).parts or target_relative_path in locked_source_records:
             raise ValueError('스프라이트 전달 경로 오류 또는 중복')
         source_file_path, source_provenance_record = resolve_registered_asset(current_lock_record['source_path'], asset_repository_path, registered_asset_records, 'assets/sprites')
         if current_lock_record['sha256'] != source_provenance_record['sha256']:
