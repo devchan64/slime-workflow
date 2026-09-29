@@ -334,3 +334,13 @@ textarea{margin:6px 0 10px}select{margin:4px 8px 8px 0}button{margin:4px 6px 4px
 .generation-result-images{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:16px}
 .generation-result-images>section{min-width:0}
 .generation-result-images img{display:block;width:100%;max-height:620px;object-fit:contain}
+
+/* 참조 업로드 패널은 공용 패널·입력 색상으로 계층을 구분한다. */
+.reference-upload-panel,.reference-upload-panel .gr-group{background:var(--panel)!important;border-color:var(--line)!important;border-radius:12px!important}
+.reference-upload-panel .reference-upload-card{background:var(--page)!important;border:1px solid var(--line)!important;border-radius:10px!important}
+.reference-upload-panel .reference-upload-card>[data-testid="block-label"]{background:transparent!important;border:0!important;color:var(--muted)!important}
+.reference-upload-panel button.upload-container{background:transparent!important;border:1px dashed var(--line)!important;border-radius:8px!important}
+.reference-upload-panel button.upload-container:hover{border-color:var(--accent)!important}
+.reference-upload-panel .source-selection{background:transparent!important;border:0!important}
+
+.reference-upload-panel>.styler{background:transparent!important}

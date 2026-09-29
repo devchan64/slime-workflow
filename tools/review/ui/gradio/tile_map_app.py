@@ -121,10 +121,10 @@ def build_tile_interface(server_base_address):
                 generation_tag_value=gr.Textbox(label='생성 이력 태그 · 선택 사항',placeholder='예: 이슬온 시장 외벽 후보',max_lines=1)
                 base_value=gr.Checkbox(value=True,label='기본 프롬프트 적용');style_value=gr.Checkbox(value=True,label='화풍 프롬프트 적용')
                 reference_usage_control=gr.Checkbox(value=False,label='첨부 이미지 사용',info='켜면 첨부 영역이 펼쳐집니다. 끄면 이미지를 보관하되 생성에 사용하지 않습니다.')
-                with gr.Group(visible=False,elem_id='tile-reference-images') as reference_upload_group:
-                    gr.Markdown('참조 이미지 · 최대 3장')
+                with gr.Group(visible=False,elem_id='tile-reference-images',elem_classes=['reference-upload-panel']) as reference_upload_group:
+                    gr.Markdown('### 참조 이미지\n최대 3장 · 이미지를 끌어놓거나 아래 버튼으로 추가하세요.')
                     with gr.Row(elem_classes=['tile-reference-upload-grid']):
-                        reference_image_controls=[gr.Image(type='pil',sources=['upload','clipboard'],label=f'참조 이미지 {index+1}',height=160,scale=1,min_width=180) for index in range(3)]
+                        reference_image_controls=[gr.Image(type='pil',sources=['upload','clipboard'],label=f'참조 이미지 {index+1}',height=230,scale=1,min_width=180,elem_classes=['reference-upload-card'],placeholder='이미지 끌어놓기') for index in range(3)]
                 initial_base_prompt=catalog_record_value['base_prompt']
                 with gr.Accordion('기본 프롬프트 · 고정',open=False):
                     base_prompt_display=gr.Textbox(value=initial_base_prompt,label=f'기본 프롬프트 · {len(initial_base_prompt.split())}단어',interactive=False,lines=4)
