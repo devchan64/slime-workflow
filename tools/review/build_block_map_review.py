@@ -14,8 +14,8 @@ TOWN_BUILDING_TILE_OVERRIDES={
     'reedhaven':{
         'roof':'wood_roof',
         'wall':'wood_wall',
-        'window':'wood_wall',
-        'large_window':'wood_wall',
+        'window':'wood_window_wall',
+        'large_window':'wood_window_wall',
         'roof_underlay':'wood_wall',
         'door':'wood_door',
     },
