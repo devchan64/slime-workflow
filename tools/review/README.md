@@ -10,6 +10,8 @@ tools/manager.py                  통합 CLI 진입점
    common/
      management_gateway.py       공용 명령 계약·CLI·HTTP 디스패치
      generation_records.py       공용 원자적 기록 저장
+     image_edges.py              검정 프레임·텍스처 경계 검출
+     image_borders.py            검출 경계 기반 보더 크롭
      management_log_viewer.py    공용 로그 동작
    domains/
      character_animation/        등록 모션·캐릭터 생성 API·자산·작업
@@ -58,3 +60,7 @@ cd /home/cbsim/ws/slime-backend
 ```
 
 검수 빌드는 게임의 60px 블록을 화면 표현 기준인 80px로만 정규화한다. 원장 배치·층수·블록 계층은 변경하지 않는다.
+
+## 공용 이미지 처리
+
+[이미지 엣지 검출·보더 크롭](common/image_borders.md)은 타일 외에도 검은 프레임을 가진 불투명 RGB/RGBA 이미지에서 재사용할 수 있다. 원본 경계 검출과 크롭·보더 계산을 별도 모듈로 관리하며 저장·등록은 호출자가 담당한다.

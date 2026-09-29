@@ -167,7 +167,7 @@ function showHistoryImageResult(historyRecordValue){
  let resultDialogElement=document.querySelector('#history-image-dialog');
  if(!resultDialogElement){
   resultDialogElement=document.createElement('dialog');resultDialogElement.id='history-image-dialog';resultDialogElement.className='studio-panel';resultDialogElement.style.cssText='width:min(900px,90vw);max-height:90vh;overflow:auto';
-  resultDialogElement.innerHTML='<h2>생성 결과</h2><p data-result-description></p><p data-result-status role="status"></p><img data-result-image alt="선택한 생성 결과" style="display:block;max-width:100%;max-height:65vh;margin:auto;object-fit:contain"><div class="generation-actions"><a data-result-original target="_blank" rel="noopener">원본 이미지 열기</a><button type="button" data-result-close>닫기</button></div>';
+  resultDialogElement.innerHTML='<h2>생성 결과</h2><p data-result-description></p><p data-result-status role="status"></p><div class="generation-result-images"><section><h3>생성 원본</h3><img data-result-image alt="생성 원본"></section><section data-result-crop-section hidden><h3>보더 크롭 결과</h3><p data-result-crop-status role="status"></p><a data-result-crop-link target="_blank" rel="noopener"><img data-result-crop-image alt="보더 크롭 결과"></a></section></div><div class="generation-actions"><a data-result-original target="_blank" rel="noopener">원본 이미지 열기</a><button type="button" data-result-close>닫기</button></div>';
   document.body.append(resultDialogElement);resultDialogElement.querySelector('[data-result-close]').onclick=()=>resultDialogElement.close();
  }
  const resultImageElement=resultDialogElement.querySelector('[data-result-image]');
@@ -177,5 +177,21 @@ function showHistoryImageResult(historyRecordValue){
  resultImageElement.onerror=()=>{resultStatusElement.textContent='결과 이미지를 불러오지 못했습니다. 기록 파일을 확인하세요.';};
  resultImageElement.src=historyRecordValue.image;
  resultDialogElement.querySelector('[data-result-original]').href=historyRecordValue.image;
+ const croppedResultSection=resultDialogElement.querySelector('[data-result-crop-section]');
+ const croppedResultImage=resultDialogElement.querySelector('[data-result-crop-image]');
+ const croppedResultStatus=resultDialogElement.querySelector('[data-result-crop-status]');
+ croppedResultSection.hidden=!historyRecordValue.cropped_image;
+ if(historyRecordValue.cropped_image){
+  croppedResultStatus.textContent='크롭 이미지를 불러오는 중…';
+  croppedResultImage.onload=()=>{croppedResultStatus.textContent=croppedResultImage.naturalWidth+' × '+croppedResultImage.naturalHeight+' px';};
+  croppedResultImage.onerror=()=>{croppedResultStatus.textContent='크롭 이미지를 불러오지 못했습니다. 기록 파일을 확인하세요.';};
+  croppedResultImage.src=historyRecordValue.cropped_image;
+  resultDialogElement.querySelector('[data-result-crop-link]').href=historyRecordValue.cropped_image;
+ }else{
+  croppedResultImage.removeAttribute('src');
+  resultDialogElement.querySelector('[data-result-crop-link]').removeAttribute('href');
+  croppedResultStatus.textContent='';
+ }
+
  if(!resultDialogElement.open)resultDialogElement.showModal();
 }

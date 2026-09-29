@@ -10,9 +10,10 @@ from zoneinfo import ZoneInfo
 import yaml
 from tools.review.domains.image.image_generation import ImageGenerationManager, IMAGE_JOB_ROOT, MANAGER_HISTORY_ROOT, WORKFLOW_ROOT_PATH, validate_image_request
 
-REFERENCE_STYLE_PROMPT = 'Preserve the established visual style, character design, colors, proportions, and rendering treatment of the reference images. Do not render as pixel art unless explicitly requested.'
-SURFACE_PROMPT_PREFIX = 'Render these surface materials and details visually: '
-SURFACE_PROMPT_SUFFIX = 'Use imagery only, without lettering.'
+from tools.review.domains.tile.tile_results import TILE_BORDER_CROP_RATIO
+
+REFERENCE_STYLE_PROMPT = '참조 이미지의 기존 화풍, 캐릭터 디자인, 색상, 비율과 표현 방식을 유지한다. 명시적으로 요청하지 않으면 픽셀 아트로 표현하지 않는다.'
+SURFACE_PROMPT_PREFIX = '표면 재질: '
 TILE_CONFIGURATION_PATH = WORKFLOW_ROOT_PATH/'generators/terrain/config/tile_map.yaml'
 
 def load_tile_configuration():
@@ -30,8 +31,8 @@ def combine_tile_prompt(base_prompt_value,user_prompt_value,style_prompt_value,r
     surface_prompt_value=user_prompt_value.strip()
     if surface_prompt_value and not surface_prompt_value.endswith('.'):
         surface_prompt_value+='.'
-    surface_instruction_value=(SURFACE_PROMPT_PREFIX+surface_prompt_value+' '+SURFACE_PROMPT_SUFFIX) if surface_prompt_value else ''
-    active_prompt_sections=[section_text_value.strip() for section_text_value in (reference_prompt_value,base_prompt_value,surface_instruction_value,style_prompt_value) if section_text_value.strip()]
+    surface_instruction_value=(SURFACE_PROMPT_PREFIX+surface_prompt_value) if surface_prompt_value else ''
+    active_prompt_sections=[section_text_value.strip() for section_text_value in (reference_prompt_value,style_prompt_value,base_prompt_value,surface_instruction_value) if section_text_value.strip()]
     if not active_prompt_sections:
         raise ValueError('적용할 프롬프트가 없습니다.')
     return ' '.join(active_prompt_sections)
@@ -65,7 +66,7 @@ def prepare_tile_request(request_record_value):
     if validated_request_value['width']!=validated_request_value['height']:raise ValueError('타일은 정사각형 해상도를 선택하세요.')
     from tools.review.domains.image.three_reference_generation import validate_three_reference_request
     validate_three_reference_request({**validated_request_value,'images':reference_image_values})
-    return validated_request_value|prompt_toggle_values|{'images':reference_image_values}|{'tag':generation_tag_value,'user_prompt':user_prompt_value,'base_prompt':base_prompt_value,'style_prompt':style_prompt_value,'reference_style_prompt':REFERENCE_STYLE_PROMPT,'prompt_words':len(combined_prompt_value.split()),'prompt_sha256':hashlib.sha256(combined_prompt_value.encode()).hexdigest()}
+    return validated_request_value|prompt_toggle_values|{'images':reference_image_values}|{'border_crop':{'ratio':TILE_BORDER_CROP_RATIO},'tag':generation_tag_value,'user_prompt':user_prompt_value,'base_prompt':base_prompt_value,'style_prompt':style_prompt_value,'reference_style_prompt':REFERENCE_STYLE_PROMPT,'prompt_words':len(combined_prompt_value.split()),'prompt_sha256':hashlib.sha256(combined_prompt_value.encode()).hexdigest()}
 
 class TileGenerationManager(ImageGenerationManager):
     def __init__(self):
@@ -97,6 +98,7 @@ class TileGenerationManager(ImageGenerationManager):
             current_job_root=self.job_storage_root/current_history_record['id']
             current_history_record['path']=str(current_job_root.resolve())
             current_history_record['image']=f'{self.route_prefix_value}/jobs/{current_history_record["id"]}/result.png' if (current_job_root/'result.png').is_file() else None
+            current_history_record['cropped_image']=f'{self.route_prefix_value}/jobs/{current_history_record["id"]}/border-crop.png' if (current_job_root/'border-crop.png').is_file() else None
         return history_records
     def reset_generation_history(self):
         with self.current_request_lock:
@@ -132,6 +134,7 @@ class TileGenerationManager(ImageGenerationManager):
         return {'deleted':generation_job_identifier,'files_preserved':True}
     def validate_generation_request(self, request_record_value):return prepare_tile_request(request_record_value)
     def enrich_generation_status(self, current_job_root, current_status_record):
+        current_status_record=current_status_record|{'cropped_image':f'{self.route_prefix_value}/jobs/{current_job_root.name}/border-crop.png' if (current_job_root/'border-crop.png').is_file() else None}
         if current_status_record['status']!='running':return current_status_record
         current_request_value=json.loads((current_job_root/'request.json').read_text())
         completed_duration_values=[]

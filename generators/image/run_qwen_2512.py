@@ -5,8 +5,11 @@ import argparse
 import json
 import logging
 import threading
+import sys
 import traceback
 from qwen_2512 import *
+sys.path.insert(0,str(WORKFLOW_REPOSITORY_ROOT))
+from tools.review.domains.tile.tile_results import save_tile_border_result
 
 
 def execute_image_worker():
@@ -43,6 +46,9 @@ def execute_image_worker():
         else:
             current_stage_state['stage'] = 'generate'
             generate_qwen_2512_lightning_image(selected_generator_seed=current_request_record.get('seed',251204),output_directory=current_job_root, prompt_text=current_request_record['prompt'], width=current_request_record['width'], height=current_request_record['height'], selected_inference_steps=current_request_record['steps'])
+        if current_request_record['action'] != 'prepare':
+            current_stage_state['stage'] = 'border-crop'
+            save_tile_border_result(current_job_root,current_request_record)
         (current_job_root / 'status.json').write_text(json.dumps({'status':'completed'}, ensure_ascii=False))
         logging.info('complete output=%s', current_job_root)
     except Exception as current_error_value:

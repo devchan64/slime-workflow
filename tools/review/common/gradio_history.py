@@ -176,6 +176,20 @@ def render_history_detail_cards(history_record_values, selected_history_identifi
     return '<div class="generation-detail-cards">'+''.join(card_html_values)+'</div>'
 
 
+def render_generation_images(current_status_record, server_base_address):
+    """저장된 원본·보더 크롭을 이름과 함께 공용 결과 영역에 표시한다."""
+    import html
+    result_image_sections=[]
+    for result_field_name,result_image_label in (('image','생성 원본'),('cropped_image','보더 크롭 결과')):
+        current_image_path=current_status_record.get(result_field_name)
+        if not current_image_path:
+            continue
+        current_image_url=server_base_address.rstrip('/')+current_image_path
+        escaped_image_url=html.escape(current_image_url,quote=True)
+        result_image_sections.append(f'<section><h3>{result_image_label}</h3><a href="{escaped_image_url}" target="_blank" rel="noopener"><img src="{escaped_image_url}" alt="{result_image_label}"></a></section>')
+    return '<div class="generation-result-images">'+''.join(result_image_sections)+'</div>' if result_image_sections else '<p>아직 생성된 결과 이미지가 없습니다.</p>'
+
+
 def build_generation_history_view(execute_service_command,server_base_address,deletion_scope_text,restore_input_callback=None,restore_output_components=None,result_renderer_callback=None,record_folder_route=None,allow_individual_delete=False):
     """목록·페이지·명시적 조회·결과·입력·로그·초기화를 묶은 공용 영역."""
     import html
@@ -256,12 +270,7 @@ def build_generation_history_view(execute_service_command,server_base_address,de
         current_status_record=execute_service_command('status',{'id':current_selected_identifier})
         current_history_records=execute_service_command('history',{}).get('records',[])
         current_history_record=next((value for value in current_history_records if value['id']==current_selected_identifier),{})
-        current_image_html=result_renderer_callback(current_selected_identifier,current_status_record,server_base_address) if result_renderer_callback is not None else '<p>아직 생성된 결과 이미지가 없습니다.</p>'
-        if result_renderer_callback is None:
-            current_image_path=current_status_record.get('image')
-            if current_image_path:
-                current_image_url=server_base_address.rstrip('/')+current_image_path
-                current_image_html=f'<a href="{html.escape(current_image_url,quote=True)}" target="_blank" rel="noopener"><img src="{html.escape(current_image_url,quote=True)}" alt="생성 결과" style="width:100%;max-height:620px;object-fit:contain"></a>'
+        current_image_html=result_renderer_callback(current_selected_identifier,current_status_record,server_base_address) if result_renderer_callback is not None else render_generation_images(current_status_record,server_base_address)
         return current_selected_identifier,current_history_record.get('path','기록 경로가 없습니다.'),'상태: '+str(current_status_record.get('status','unknown'))+' · '+str(current_status_record.get('message',''))+(' · 대기 순서 '+str(current_status_record['queue_position']) if 'queue_position' in current_status_record else ''),gr.update(value=current_image_html,visible=True),current_history_record,gr.update(value=current_status_record.get('log') or '기록된 로그가 없습니다.',label='실행 로그 · '+current_selected_identifier)
 
     def describe_selected_history(current_selected_identifier):

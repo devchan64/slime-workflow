@@ -39,3 +39,17 @@ class GradioHistoryTest(unittest.TestCase):
         rendered_history_html=render_history_detail_cards([{'id':'image-123','created_at':'2026-09-27T09:15:00+09:00','status':{'status':'completed'},'request':{'action':'generate','tag':'돌온재 자갈 지면','prompt':'gravel ground','width':512,'steps':4}}])
         self.assertIn('돌온재 자갈 지면 · 이미지 생성',rendered_history_html)
         self.assertNotIn('<strong>생성 작업</strong>',rendered_history_html)
+
+    def test_result_view_displays_original_and_crop_with_labels(self):
+        from tools.review.common.gradio_history import render_generation_images
+        rendered_result_html=render_generation_images({'image':'/jobs/sample/result.png','cropped_image':'/jobs/sample/border-crop.png'},'http://127.0.0.1:8770')
+        self.assertIn('생성 원본',rendered_result_html)
+        self.assertIn('보더 크롭 결과',rendered_result_html)
+        self.assertEqual(rendered_result_html.count('<img '),2)
+        self.assertIn('http://127.0.0.1:8770/jobs/sample/border-crop.png',rendered_result_html)
+
+    def test_legacy_result_view_does_not_show_missing_crop(self):
+        from tools.review.common.gradio_history import render_generation_images
+        rendered_result_html=render_generation_images({'image':'/jobs/sample/result.png'},'http://127.0.0.1:8770')
+        self.assertEqual(rendered_result_html.count('<img '),1)
+        self.assertNotIn('보더 크롭 결과',rendered_result_html)

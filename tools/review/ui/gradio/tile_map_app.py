@@ -100,6 +100,7 @@ def build_tile_interface(server_base_address):
     catalog_record_value=execute_tile_gateway('catalog',{})
     with gr.Blocks(title='타일 에셋 생성기',js=HISTORY_CARD_SELECTION_SCRIPT,elem_classes=['management-generator-root']) as blocks_value:
         gr.Markdown('## 타일 에셋 생성기\n고정 기본·화풍 프롬프트와 표면정보 프롬프트를 결합해 정사각형 타일을 생성합니다.')
+        gr.Markdown('원본과 보더 크롭을 함께 저장합니다. 보더는 텍스처 가로·세로의 **1%를 각각 올림**하며 크롭 후 크기를 변경하지 않습니다.')
         with gr.Row():
             with gr.Column():
                 prompt_value=gr.Textbox(label='표면정보 프롬프트',info='표면의 재질·색상·무늬 등 표면정보를 입력하세요.',lines=5)

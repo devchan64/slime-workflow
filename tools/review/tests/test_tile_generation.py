@@ -12,10 +12,10 @@ class TileGenerationTests(unittest.TestCase):
     def test_common_prompt_configuration(self):
         configuration_record_value=load_tile_configuration()
         self.assertEqual(set(configuration_record_value),{'schema_version','base_prompt','style_prompt'})
-        self.assertEqual(configuration_record_value['base_prompt'],'Game texture. Square. Thin black edges.')
+        self.assertEqual(configuration_record_value['base_prompt'],'게임용 텍스처. 정사각형. 얇은 검은 테두리.')
         output_request_value=prepare_tile_request(self.make_tile_request())
         self.assertNotIn('tile_type',output_request_value)
-        self.assertEqual(output_request_value['prompt'],configuration_record_value['base_prompt']+' Render these surface materials and details visually: Red brick house. Use imagery only, without lettering. '+configuration_record_value['style_prompt'])
+        self.assertEqual(output_request_value['prompt'],configuration_record_value['style_prompt']+' '+configuration_record_value['base_prompt']+' 표면 재질: Red brick house.')
 
     def test_gui_request_and_legacy_history_restore_without_type(self):
         from tools.review.ui.gradio.tile_map_app import build_tile_request, restore_tile_inputs
@@ -75,18 +75,18 @@ class TileGenerationTests(unittest.TestCase):
         from tools.review.ui.gradio.tile_map_app import clear_user_prompt_value
         self.assertEqual(clear_user_prompt_value(),'')
 
-    def test_prompt_order_follows_base_user_style(self):
+    def test_prompt_order_follows_style_base_surface(self):
         from itertools import product
         for base_enabled,style_enabled,reference_enabled in product((False,True),repeat=3):
             request=self.make_tile_request()|{'use_base_prompt':base_enabled,'use_style_prompt':style_enabled,'use_reference_style_prompt':reference_enabled}
             record=prepare_tile_request(request)
-            expected=[record['reference_style_prompt'] if reference_enabled else '',record['base_prompt'] if base_enabled else '','Render these surface materials and details visually: '+record['user_prompt']+' Use imagery only, without lettering.',record['style_prompt'] if style_enabled else '']
+            expected=[record['reference_style_prompt'] if reference_enabled else '',record['style_prompt'] if style_enabled else '',record['base_prompt'] if base_enabled else '','표면 재질: '+record['user_prompt']]
             self.assertEqual(record['prompt'],' '.join(section_text_value for section_text_value in expected if section_text_value))
 
     def test_surface_material_sentence_and_prompt_metadata(self):
         import hashlib
         prepared_request_value=prepare_tile_request(self.make_tile_request()|{'user_prompt':'잔디와 진흙'})
-        self.assertIn('Render these surface materials and details visually: 잔디와 진흙. Use imagery only, without lettering.',prepared_request_value['prompt'])
+        self.assertIn('표면 재질: 잔디와 진흙.',prepared_request_value['prompt'])
         self.assertFalse(prepared_request_value['prompt'].startswith('{'))
         self.assertEqual(prepared_request_value['prompt_sha256'],hashlib.sha256(prepared_request_value['prompt'].encode()).hexdigest())
         self.assertEqual(prepared_request_value['prompt_words'],len(prepared_request_value['prompt'].split()))
@@ -162,7 +162,7 @@ class TileGenerationTests(unittest.TestCase):
         for use_base_prompt in (True,False):
             for use_style_prompt in (True,False):
                 result_request_value=prepare_tile_request(self.make_tile_request()|{'use_base_prompt':use_base_prompt,'use_style_prompt':use_style_prompt})
-                expected_prompt_parts=([result_request_value['base_prompt']] if use_base_prompt else [])+['Render these surface materials and details visually: Red brick house. Use imagery only, without lettering.']+([result_request_value['style_prompt']] if use_style_prompt else [])
+                expected_prompt_parts=([result_request_value['style_prompt']] if use_style_prompt else [])+([result_request_value['base_prompt']] if use_base_prompt else [])+['표면 재질: Red brick house.']
                 self.assertEqual(result_request_value['prompt'],' '.join(expected_prompt_parts))
                 self.assertEqual(result_request_value['use_base_prompt'],use_base_prompt)
         with self.assertRaises(ValueError):prepare_tile_request(self.make_tile_request()|{'use_base_prompt':'false'})
