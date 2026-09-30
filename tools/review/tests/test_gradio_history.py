@@ -1,10 +1,36 @@
 import inspect
 import unittest
+from unittest.mock import Mock
+import gradio as gr
+from tools.review.common.gradio_history import bind_history_reset_action
 
 from tools.review.common.gradio_history import build_generation_history_view, collect_image_history_thumbnails, format_history_choice_label, format_history_selection_summary, render_history_detail_cards
 
 
 class GradioHistoryTest(unittest.TestCase):
+    def test_reset_requires_confirmation_and_sends_cli_contract(self):
+        service_command_mock = Mock()
+        refresh_history_mock = Mock(return_value=['목록'])
+        reset_button_mock = Mock()
+        reset_callback_value = bind_history_reset_action((Mock(),reset_button_mock,Mock()),service_command_mock,refresh_history_mock,[Mock()])
+        with self.assertRaises(gr.Error):
+            reset_callback_value(False)
+        service_command_mock.assert_not_called()
+        refresh_history_mock.assert_not_called()
+        reset_result_values = reset_callback_value(True)
+        service_command_mock.assert_called_once_with('history-reset',{'action':'reset'})
+        refresh_history_mock.assert_called_once_with()
+        self.assertEqual(reset_result_values[0],'목록')
+        self.assertFalse(reset_result_values[1])
+
+    def test_reset_failure_does_not_clear_history_view(self):
+        service_command_mock = Mock(side_effect=ValueError('실행 중에는 초기화할 수 없습니다.'))
+        refresh_history_mock = Mock()
+        reset_callback_value = bind_history_reset_action((Mock(),Mock(),Mock()),service_command_mock,refresh_history_mock,[])
+        with self.assertRaisesRegex(gr.Error,'실행 중'):
+            reset_callback_value(True)
+        refresh_history_mock.assert_not_called()
+
     def test_history_view_uses_selected_card_as_the_only_result_lookup_entry(self):
         history_view_parameter_names=inspect.signature(build_generation_history_view).parameters
 

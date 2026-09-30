@@ -119,7 +119,10 @@ def bind_history_reset_action(control_component_values,execute_service_command,r
         if current_confirm_value is not True:
             raise gr.Error('초기화 범위를 확인해 주세요.')
         # 삭제 정책과 실행 중 작업 보호는 기존 서비스가 담당한다.
-        execute_service_command('history-reset',{})
+        try:
+            execute_service_command('history-reset',{'action':'reset'})
+        except (ValueError, OSError) as history_reset_error:
+            raise gr.Error(str(history_reset_error)) from history_reset_error
         history_update_values=refresh_history_callback()
         if not isinstance(history_update_values,(list,tuple)):
             history_update_values=[history_update_values]
