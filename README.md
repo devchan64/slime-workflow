@@ -48,7 +48,7 @@
 | 스크립트 | 역할 | 기본값 |
 | --- | --- | --- |
 | [setup_management.sh](scripts/setup_management.sh) | 가상환경 생성·공통 의존성 설치 | `.venv`, `.venv-management` |
-| [run_management_gateway.sh](scripts/run_management_gateway.sh) | 명령 게이트웨이·작업 서비스 실행 | `127.0.0.1:8771` |
+| [run_management_gateway.sh](scripts/run_management_gateway.sh) | 명령 게이트웨이·작업 서비스 실행, `--watch` 지원 | `127.0.0.1:8771` |
 | [run_management_gui.sh](scripts/run_management_gui.sh) | GUI·정적 검수·API 중계 실행 | `127.0.0.1:8770` |
 | [watch_review_server.sh](scripts/watch_review_server.sh) | 기존 watch 명령의 호환 진입점 | `run_management_gui.sh --watch` |
 
@@ -63,6 +63,14 @@
 ```bash
 ./scripts/run_management_gateway.sh
 ```
+
+게이트웨이 코드 변경도 자동 반영하려면 터미널 1의 명령에 `--watch`를 추가한다.
+
+```bash
+./scripts/run_management_gateway.sh --watch
+```
+
+게이트웨이·공용 서비스·도메인 코드와 작가 작업 공간 설정을 감시하며 GUI·생성 기록은 제외한다. 변경이 0.5초 동안 안정되면 게이트웨이만 재시작한다. 독립 GPU 대기·실행 프로세스는 유지하지만 작가 에이전트 작업은 기존 종료 정책을 따른다. 시작 실패 시 반복 재시도하지 않고 원인을 출력한 뒤 종료한다.
 
 터미널 2에서 GUI를 시작한다. `--watch`를 생략하면 변경 감시 없이 실행한다.
 
@@ -121,7 +129,7 @@ python3 tools/manager.py command momask --server-url http://127.0.0.1:9871 histo
 
 #### 종료·재시작·로그
 
-`Ctrl+C`는 해당 터미널에서 시작한 서버와 같은 프로세스 그룹의 자식만 종료한다. GUI 재시작은 게이트웨이를 재시작하지 않으며, 독립 GPU 대기·실행 프로세스와 기존 생성 기록은 유지한다. 게이트웨이 코드 변경은 게이트웨이 터미널에서 종료 후 다시 실행한다. 작가 에이전트는 기존 정책에 따라 게이트웨이 종료 시 작업도 종료한다.
+`Ctrl+C`는 해당 터미널에서 시작한 서버와 같은 프로세스 그룹의 자식만 종료한다. GUI 재시작은 게이트웨이를 재시작하지 않으며, 독립 GPU 대기·실행 프로세스와 기존 생성 기록은 유지한다. 게이트웨이 코드 변경은 `--watch` 실행 시 자동 반영하며, 일반 실행에서는 게이트웨이 터미널에서 종료 후 다시 실행한다. 재시작 중 접수·조회는 잠시 중단될 수 있으므로 실패한 생성 요청은 이력을 확인한 뒤 다시 접수한다. 작가 에이전트는 기존 정책에 따라 게이트웨이 종료 시 작업도 종료한다.
 
 - 실행 스크립트 로그: `.tmp/management-launcher-logs/`
 - 게이트웨이 로그: `.tmp/gateway-server-logs/`

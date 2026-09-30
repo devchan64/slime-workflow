@@ -34,16 +34,24 @@ python3 tools/manager.py command momask generate --action walking --detach
 - 게이트웨이 포트를 바꾸면 `scripts/run_management_gateway.sh --port 9871`, GUI `scripts/run_management_gui.sh --gateway-url http://127.0.0.1:9871`, CLI `<서비스> --server-url http://127.0.0.1:9871 <명령>`을 사용한다. GUI·CLI 기본 접속 주소는 `SLIME_MANAGEMENT_GATEWAY_URL`로 지정할 수도 있다.
 - 기존 브라우저 명령·결과·로그 URL은 GUI 서버가 중계한다. GUI 종료 중에도 CLI는 게이트웨이로 직접 접수·조회·취소·재개할 수 있다. Gradio Python 콜백은 공용 HTTP 클라이언트를 사용하며 로컬 서비스로 우회하지 않는다.
 - `GET /management/health`는 게이트웨이 역할·PID·응답 상태를 반환한다. GUI 주소에서도 같은 경로로 중계 상태를 확인할 수 있다. GPU 가용성은 별도 상태 조회로 확인한다.
-- GUI `--watch`는 게이트웨이·작업 서비스 코드를 감시하지 않는다. 게이트웨이 코드 변경은 해당 프로세스만 명시적으로 재시작한다. 기존 GPU 대기·실행기는 별도 프로세스와 기록을 유지한다. 접수 중 연결이 끊기면 자동 재전송하지 않으므로 이력을 확인한 뒤 다시 요청한다.
+- GUI `--watch`는 게이트웨이·작업 서비스 코드를 감시하지 않는다. `scripts/run_management_gateway.sh --watch` 또는 `python3 tools/review/gateway_server.py --watch`로 실행하면 게이트웨이 코드 변경도 해당 프로세스만 자동 재시작한다. 일반 실행에서는 명시적으로 재시작한다. 기존 GPU 대기·실행기는 별도 프로세스와 기록을 유지한다. 접수 중 연결이 끊기면 자동 재전송하지 않으므로 이력을 확인한 뒤 다시 요청한다.
 - `--writer-agent-config`는 `gateway_server.py`의 옵션으로 이동했다. 작가 작업은 아직 공용 GPU 실행기로 통합되지 않았으며 게이트웨이 종료 시 기존 종료 정책을 따른다. GUI 재시작은 작가 작업 수명에 영향을 주지 않는다.
 - 게이트웨이 서비스 초기화 실패도 `.tmp/gateway-server-logs/`에 원인과 함께 기록한다. 정상 실행은 같은 경로에 로그를 저장하고 5초 heartbeat를 출력한다. GUI 로그·생성 ID·대기열·요청·결과·이력 경로는 유지한다.
+
+### 게이트웨이 변경 감시
+
+`--watch`는 `gateway_server.py`, `tools/review/common/`, `tools/review/domains/`, `generators/writer_agent/`의 Python·YAML·JSON과 지정한 작가 작업 공간 YAML을 감시한다. 파일 추가·수정·삭제를 감지하며 0.5초 동안 변경이 없으면 이전 게이트웨이 종료를 기다린 뒤 같은 포트·작가 설정으로 새 프로세스를 시작한다. GUI·Gradio 모듈·테스트·숨김 폴더·생성 기록은 감시하지 않는다. 감시기와 실행기 자체(`gateway_watch.py`, `management_launcher.py`, `management_process.py`, `management_setup.py`) 변경은 watch 명령을 다시 시작해야 반영된다.
+
+명령 등록·작업 서비스와 요청·이력 경로는 그대로 유지한다. 별도 세션의 GPU 대기·실행기는 재시작하지 않는다. 작가 에이전트는 게이트웨이 수명에 묶인 기존 정책을 유지하므로 watch 재시작 때 진행 작업이 종료된다. 재시작 중 짧은 API 연결 중단이 있으며 접수 응답이 끊긴 경우 자동 재전송하지 말고 이력을 먼저 확인한다.
+
+감시 로그는 `.tmp/management-launcher-logs/*-gateway-watch-*.log`에 저장한다. 5초 heartbeat·변경에 따른 재시작·실패 원인을 기록한다. 시작 또는 실행 실패는 감시 명령을 종료하며 무한 재시도하지 않는다. `Ctrl+C`·SIGTERM은 감시기와 그 게이트웨이를 함께 종료한다.
 
 ### 실행 스크립트 계약
 
 | 스크립트 | 역할 |
 | --- | --- |
 | `scripts/setup_management.sh` | `.venv`·`.venv-management` 준비와 공통 `requirements.txt` 설치 |
-| `scripts/run_management_gateway.sh` | 독립 게이트웨이 시작; 프론트엔드·Gradio 환경 불필요 |
+| `scripts/run_management_gateway.sh` | 독립 게이트웨이 시작; `--watch` 지원; 프론트엔드·Gradio 환경 불필요 |
 | `scripts/run_management_gui.sh` | GUI 시작; `--watch`, `--root`, `--frontend-repo` 등 기존 옵션 전달 |
 | `scripts/watch_review_server.sh` | `run_management_gui.sh --watch` 호환 연결 |
 

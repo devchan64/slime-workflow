@@ -15,6 +15,7 @@ tools/manager.py                  통합 CLI 진입점
      management_launcher.py      실행 스크립트 인자 전달·오류 종료
      management_setup.py         명시적 가상환경·의존성 설치
      management_process.py       출력 로그·heartbeat·소유 프로세스 그룹 종료
+     gateway_watch.py            게이트웨이 소스 감시·변경 안정화·순차 재시작
      management_client.py        GUI 전용 HTTP 명령 클라이언트
      management_transport.py     동일 출처 API 중계·접속 검증
      generation_records.py       공용 원자적 기록 저장
