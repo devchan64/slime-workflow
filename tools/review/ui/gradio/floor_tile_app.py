@@ -23,28 +23,26 @@ def build_floor_interface(server_base_address):
     catalog_record_value = execute_floor_gateway('catalog',{})
     with gr.Blocks(title='바닥 타일 생성기',js=HISTORY_CARD_SELECTION_SCRIPT,elem_classes=['management-generator-root']) as interface_block_value:
         gr.Markdown('## 바닥 타일 생성기\n1단계에서 1024×1024의 9칸 이미지를 생성하고, 2단계에서 중앙 블록 외곽을 기계식 크롭하고, 3단계에서 사용자 설명으로 512×512 이미지를 다시 그립니다.')
+        user_prompt_control = gr.Textbox(value=catalog_record_value['default_user_prompt'],label='사용자 프롬프트 · 바닥 표면',lines=3)
+        generation_tag_control = gr.Textbox(label='생성 이력 태그 · 선택 사항')
+        for prompt_field_name,prompt_label_value in (('base_prompt','기본'),('style_prompt','화풍')):
+            gr.Textbox(value=catalog_record_value[prompt_field_name],label=f'{prompt_label_value} 프롬프트 · 고정 · {len(catalog_record_value[prompt_field_name].split())}단어',interactive=False)
+        def format_floor_preview(user_prompt_value):
+            if not user_prompt_value.strip(): return '바닥 표면을 입력하세요. 생성하려면 사용자 프롬프트가 필요합니다.'
+            combined_prompt_value = combine_floor_prompt(user_prompt_value,catalog_record_value)
+            return f'**사용자 {len(user_prompt_value.split())}단어 · 최종 {len(combined_prompt_value.split())}단어**\n\n{combined_prompt_value}\n\n**3단계 최종 {len(user_prompt_value.strip().split())}단어**\n\n{user_prompt_value.strip()}'
+        prompt_preview_control = gr.Markdown(format_floor_preview(catalog_record_value['default_user_prompt']))
+        user_prompt_control.change(format_floor_preview,user_prompt_control,prompt_preview_control,queue=False)
+        output_size_control = gr.Dropdown([1024],value=1024,label='생성 크기 · 1024 고정',interactive=False)
+        inference_step_control = gr.Radio([4,30],value=4,label='1단계 생성 스텝')
         with gr.Row():
-            with gr.Column():
-                user_prompt_control = gr.Textbox(value=catalog_record_value['default_user_prompt'],label='사용자 프롬프트 · 바닥 표면',lines=3)
-                generation_tag_control = gr.Textbox(label='생성 이력 태그 · 선택 사항')
-                for prompt_field_name,prompt_label_value in (('base_prompt','기본'),('style_prompt','화풍')):
-                    gr.Textbox(value=catalog_record_value[prompt_field_name],label=f'{prompt_label_value} 프롬프트 · 고정 · {len(catalog_record_value[prompt_field_name].split())}단어',interactive=False)
-                def format_floor_preview(user_prompt_value):
-                    if not user_prompt_value.strip(): return '바닥 표면을 입력하세요. 생성하려면 사용자 프롬프트가 필요합니다.'
-                    combined_prompt_value = combine_floor_prompt(user_prompt_value,catalog_record_value)
-                    return f'**사용자 {len(user_prompt_value.split())}단어 · 최종 {len(combined_prompt_value.split())}단어**\n\n{combined_prompt_value}\n\n**3단계 최종 {len(user_prompt_value.strip().split())}단어**\n\n{user_prompt_value.strip()}'
-                prompt_preview_control = gr.Markdown(format_floor_preview(catalog_record_value['default_user_prompt']))
-                user_prompt_control.change(format_floor_preview,user_prompt_control,prompt_preview_control,queue=False)
-                output_size_control = gr.Dropdown([1024],value=1024,label='생성 크기 · 1024 고정',interactive=False)
-                inference_step_control = gr.Radio([4,30],value=4,label='1단계 생성 스텝')
-                with gr.Row():
-                    generation_seed_control = gr.Number(value=251204,precision=0,label='Seed')
-                    random_seed_button = gr.Button('무작위 생성')
-                random_seed_button.click(generate_random_seed_value,outputs=generation_seed_control,queue=False)
-                generation_start_button = gr.Button('바닥 타일 생성 시작',variant='primary')
-                generation_status_control = gr.Markdown('생성 가능 · 100단어 미만의 프롬프트를 입력하세요.')
-            with gr.Column():
-                gr.Markdown('### 생성 과정\n1. Qwen 2512로 1024×1024의 3행×3열 이미지를 생성합니다.\n2. 이미지 외곽의 배경 밝기를 측정하고 검출 마스크의 작은 입자를 제거한 뒤 9개 블록 외곽을 검증하고, 중앙 블록의 네 테두리와 2px 여백을 포함해 원본 픽셀을 크롭합니다. 연결형 판은 닫힌 내부 테두리 9개를 검증하고 이웃 칸 사이 중간선으로 분리합니다. 경계 검출 실패 시 중단하고 원본을 보존합니다.\n3. 크롭 이미지를 512×512 참조로 변환하고 사용자 프롬프트만 전달해 Qwen 2511로 다시 그립니다.\n\n3단계 고정 설정: 512×512 · 4스텝 · Seed 10107. 9칸 원본·검출 경계·원본 크롭·최종 결과를 보존합니다. 재개 시 완료된 단계의 해시를 검증하여 재사용합니다.')
+            generation_seed_control = gr.Number(value=251204,precision=0,label='Seed')
+            random_seed_button = gr.Button('무작위 생성')
+        random_seed_button.click(generate_random_seed_value,outputs=generation_seed_control,queue=False)
+        generation_start_button = gr.Button('바닥 타일 생성 시작',variant='primary')
+        generation_status_control = gr.Markdown('생성 가능 · 100단어 미만의 프롬프트를 입력하세요.')
+        with gr.Accordion('생성 과정 · 고정 설정 안내',open=False):
+            gr.Markdown('### 생성 과정\n1. Qwen 2512로 1024×1024의 3행×3열 이미지를 생성합니다.\n2. 이미지 외곽의 배경 밝기를 측정하고 검출 마스크의 작은 입자를 제거한 뒤 9개 블록 외곽을 검증하고, 중앙 블록의 네 테두리와 2px 여백을 포함해 원본 픽셀을 크롭합니다. 연결형 판은 닫힌 내부 테두리 9개를 검증하고 이웃 칸 사이 중간선으로 분리합니다. 경계 검출 실패 시 중단하고 원본을 보존합니다.\n3. 크롭 이미지를 512×512 참조로 변환하고 사용자 프롬프트만 전달해 Qwen 2511로 다시 그립니다.\n\n3단계 고정 설정: 512×512 · 4스텝 · Seed 10107. 9칸 원본·검출 경계·원본 크롭·최종 결과를 보존합니다. 재개 시 완료된 단계의 해시를 검증하여 재사용합니다.')
         current_identifier_state = gr.State('')
         def start_floor_generation(user_prompt_value,generation_tag_value,output_size_value,inference_step_value,generation_seed_value):
             generation_result_record = execute_floor_gateway('generate',{'action':'generate','user_prompt':user_prompt_value,'tag':generation_tag_value,'width':int(output_size_value),'height':int(output_size_value),'steps':int(inference_step_value),'seed':int(generation_seed_value)})
