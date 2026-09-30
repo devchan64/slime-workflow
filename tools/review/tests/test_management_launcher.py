@@ -45,6 +45,10 @@ class ManagementLauncherTests(unittest.TestCase):
         command_argument_records = [current_call_value.args[0] for current_call_value in run_command_mock.call_args_list]
         self.assertEqual(sum('venv' in current_command_values for current_command_values in command_argument_records), 2)
         self.assertEqual(sum('pip' in current_command_values for current_command_values in command_argument_records), 2)
+        installation_command_records = [current_command_values for current_command_values in command_argument_records if 'pip' in current_command_values]
+        self.assertEqual(installation_command_records[0][-1], str(management_setup.WORKFLOW_ROOT_DIRECTORY/'requirements.txt'))
+        self.assertEqual(installation_command_records[1][-1], str(management_setup.WORKFLOW_ROOT_DIRECTORY/'tools/review/ui/gradio/requirements.txt'))
+        self.assertNotIn('gradio', (management_setup.WORKFLOW_ROOT_DIRECTORY/'requirements.txt').read_text().lower())
 
     def test_failure_preserves_output_and_exact_exit_code(self):
         with tempfile.TemporaryDirectory() as temporary_directory_name, patch.object(management_process, 'WORKFLOW_ROOT_DIRECTORY', Path(temporary_directory_name)), contextlib.redirect_stdout(io.StringIO()):

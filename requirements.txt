@@ -2,5 +2,4 @@
 Pillow>=10.0
 PyYAML>=6.0
 jsonschema>=4.23
-gradio>=5.0
 opencv-python-headless>=4.10

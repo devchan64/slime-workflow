@@ -1,0 +1,3 @@
+# GUI 전용 환경에만 설치한다. GPU 생성 환경과 공유하지 않는다.
+-r ../../../../requirements.txt
+gradio==6.28.0

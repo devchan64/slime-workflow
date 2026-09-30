@@ -47,7 +47,7 @@
 
 | 스크립트 | 역할 | 기본값 |
 | --- | --- | --- |
-| [setup_management.sh](scripts/setup_management.sh) | 가상환경 생성·공통 의존성 설치 | `.venv`, `.venv-management` |
+| [setup_management.sh](scripts/setup_management.sh) | 가상환경 생성·환경별 의존성 설치 | `.venv`, `.venv-management` |
 | [run_management_gateway.sh](scripts/run_management_gateway.sh) | 명령 게이트웨이·작업 서비스 실행, `--watch` 지원 | `127.0.0.1:8771` |
 | [run_management_gui.sh](scripts/run_management_gui.sh) | GUI·정적 검수·API 중계 실행 | `127.0.0.1:8770` |
 | [watch_review_server.sh](scripts/watch_review_server.sh) | 기존 watch 명령의 호환 진입점 | `run_management_gui.sh --watch` |
@@ -57,6 +57,8 @@
 ```bash
 ./scripts/setup_management.sh
 ```
+
+`.venv`에는 루트 `requirements.txt`의 검수 의존성만 설치하고, Gradio는 `.venv-management`에 `tools/review/ui/gradio/requirements.txt`로 설치한다. GPU 모델 환경에 GUI 의존성을 설치하면 `transformers`와 `huggingface-hub` 버전이 충돌할 수 있다. 모델별 추론 의존성 준비는 기존 생성기 절차를 따른다.
 
 터미널 1에서 게이트웨이를 시작한다. GPU 작업을 접수하려면 GPU 접근이 가능한 샌드박스 밖에서 실행한다.
 

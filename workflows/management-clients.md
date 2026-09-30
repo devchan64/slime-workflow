@@ -50,7 +50,7 @@ python3 tools/manager.py command momask generate --action walking --detach
 
 | 스크립트 | 역할 |
 | --- | --- |
-| `scripts/setup_management.sh` | `.venv`·`.venv-management` 준비와 공통 `requirements.txt` 설치 |
+| `scripts/setup_management.sh` | `.venv`·`.venv-management` 준비와 환경별 의존성 설치 |
 | `scripts/run_management_gateway.sh` | 독립 게이트웨이 시작; `--watch` 지원; 프론트엔드·Gradio 환경 불필요 |
 | `scripts/run_management_gui.sh` | GUI 시작; `--watch`, `--root`, `--frontend-repo` 등 기존 옵션 전달 |
 | `scripts/watch_review_server.sh` | `run_management_gui.sh --watch` 호환 연결 |
