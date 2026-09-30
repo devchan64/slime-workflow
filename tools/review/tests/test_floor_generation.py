@@ -105,7 +105,7 @@ class FloorGenerationTests(unittest.TestCase):
             self.assertEqual(prepare_floor_request(self.create_floor_request()|{'user_prompt':'돌 바닥'})['floor_separation']['prompt'],'돌 바닥')
             self.assertNotIn('floor_rectify',prepared_request_value)
             self.assertEqual(prepared_request_value['floor_separation']['prompt'],'잔디밭')
-            self.assertIn('floor-three-stage-v4',build_image_memory_identity('run_qwen_2512.py',current_job_root))
+            self.assertIn('floor-three-stage-v5',build_image_memory_identity('run_qwen_2512.py',current_job_root))
             launched_stage_names = []
             def simulate_stage_process(command_argument_values, **process_keyword_values):
                 stage_output_directory = Path(command_argument_values[-1])
@@ -174,7 +174,7 @@ class FloorGenerationTests(unittest.TestCase):
         cropped_image_value,_,crop_record_value=extract_molding_center(source_image_value)
         self.assertEqual(crop_record_value['crop_box'],original_crop_record['crop_box'])
         self.assertEqual(cropped_image_value.shape,original_crop_value.shape)
-        self.assertEqual(crop_record_value['version'],3)
+        self.assertEqual(crop_record_value['version'],4)
         self.assertEqual(len(crop_record_value['detected_cells']),9)
         selected_cell_bounds=next(record_value['bounds'] for record_value in crop_record_value['detected_cells'] if record_value['row']==2 and record_value['column']==2)
         self.assertEqual(crop_record_value['crop_box'],[selected_cell_bounds[0]-2,selected_cell_bounds[1]-2,selected_cell_bounds[2]+2,selected_cell_bounds[3]+2])
@@ -194,3 +194,33 @@ class FloorGenerationTests(unittest.TestCase):
         np.testing.assert_array_equal(cropped_image_value,source_image_value[361:665,361:665])
         with self.assertRaisesRegex(ValueError,'배경 조건'):
             extract_molding_center(np.full((1024,1024,3),60,dtype='uint8'))
+
+    def test_particle_bridges_do_not_expand_or_merge_tile_bounds(self):
+        from tools.review.domains.tile.floor_crop import extract_molding_center
+        source_image_value = self.create_molding_fixture()
+        _,_,expected_crop_record = extract_molding_center(source_image_value)
+        # 외곽에 붙은 입자와 옆 타일까지 이어지는 가는 입자 연결.
+        cv2.line(source_image_value,(330,420),(370,420),(180,180,180),2)
+        cv2.line(source_image_value,(480,345),(480,365),(180,180,180),2)
+        with self.assertRaises(ValueError):
+            extract_molding_center(source_image_value,3)
+        cropped_image_value,_,crop_record_value = extract_molding_center(source_image_value)
+        self.assertEqual(crop_record_value['crop_box'],expected_crop_record['crop_box'])
+        crop_left_value,crop_top_value,crop_right_value,crop_bottom_value = crop_record_value['crop_box']
+        np.testing.assert_array_equal(cropped_image_value,source_image_value[crop_top_value:crop_bottom_value,crop_left_value:crop_right_value])
+        # 실제 넓은 연결은 입자로 간주하지 않고 실패해야 한다.
+        cv2.rectangle(source_image_value,(330,400),(370,440),(65,65,65),-1)
+        with self.assertRaises(ValueError):
+            extract_molding_center(source_image_value)
+
+    def test_particle_removal_preserves_thin_closed_border(self):
+        from tools.review.domains.tile.floor_crop import extract_molding_center
+        source_image_value = np.zeros((1024,1024,3),dtype='uint8')
+        for current_row_index in range(3):
+            for current_column_index in range(3):
+                left_pixel_value = 30+current_column_index*330
+                top_pixel_value = 30+current_row_index*330
+                cv2.rectangle(source_image_value,(left_pixel_value,top_pixel_value),(left_pixel_value+305,top_pixel_value+305),(65,65,65),1)
+                cv2.rectangle(source_image_value,(left_pixel_value+15,top_pixel_value+15),(left_pixel_value+290,top_pixel_value+290),(40,150,40),-1)
+        _,_,crop_record_value = extract_molding_center(source_image_value)
+        self.assertEqual(crop_record_value['crop_box'],[358,358,668,668])

@@ -107,7 +107,7 @@ def build_image_memory_identity(command_identity_name, generation_job_directory)
             raise ValueError(f'GPU 메모리 예측에 필요한 {request_field_name} 설정이 없습니다: {generation_job_directory}')
     reference_image_count = len(saved_request_record.get('references',saved_request_record.get('images',[])))
     if 'floor_separation' in saved_request_record:
-        command_identity_name += f":floor-three-stage-v{saved_request_record['floor_separation']['version']}" if saved_request_record['floor_separation']['version'] in (2,3,4) else ':floor-two-stage-v1'
+        command_identity_name += f":floor-three-stage-v{saved_request_record['floor_separation']['version']}" if saved_request_record['floor_separation']['version'] in (2,3,4,5) else ':floor-two-stage-v1'
     return f"{command_identity_name}:{saved_request_record['width']}x{saved_request_record['height']}:steps={saved_request_record['steps']}:references={reference_image_count}"
 
 
