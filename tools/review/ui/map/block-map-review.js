@@ -18,7 +18,11 @@ document.querySelector('#map-select').value=selectedMapIdentifier;
 if(isTownSpecificReviewPage){document.querySelector('#map-select').closest('label').hidden=true;document.querySelector('#load-map').hidden=true}
 document.querySelector('#load-map').onclick=()=>{const selectedMapUrl=new URL(location.href);selectedMapUrl.searchParams.set('map',document.querySelector('#map-select').value);location.assign(selectedMapUrl)};
 const currentMapRecord=await fetchMapReviewRecord(selectedMapRecord.path);
-document.querySelector('#map-title').textContent=currentMapRecord.name+' · 마을 맵 검수';
+const currentReviewTitle=currentMapRecord.name+' · '+currentMapRecord.reviewLabel;
+document.querySelector('#map-title').textContent=currentReviewTitle;
+document.title=currentReviewTitle;
+document.querySelector('.map-toolbar').setAttribute('aria-label',currentMapRecord.reviewLabel+' 도구');
+currentMapCanvas.setAttribute('aria-label',currentReviewTitle+'. 방향키로 이동하고 더하기와 빼기 키로 확대 또는 축소하며 0 키로 전체 보기를 적용합니다.');
 const currentMaterialColors=await fetch('block-materials.json').then(currentResponse=>currentResponse.json());
 const buildingTileRecords=await fetchMapReviewRecord('block-building-tiles.json');
 const currentTextureRecords=await fetchMapReviewRecord('block-textures.json');

@@ -1,4 +1,4 @@
-"""마을 맵 검수 정적 구성 요소를 Gradio 작업 영역에서 실행한다."""
+"""맵 검수 정적 구성 요소를 Gradio 작업 영역에서 실행한다."""
 import argparse
 import json
 import threading
@@ -48,8 +48,8 @@ try{{
 
 
 def build_map_review_interface(review_server_port):
-    with gr.Blocks(title='마을 맵 검수') as interface_blocks_value:
-        gr.HTML('<section id="map-review-root" aria-label="마을 맵 검수"><p>맵 검수 화면을 준비하고 있습니다…</p></section>')
+    with gr.Blocks(title='맵 검수') as interface_blocks_value:
+        gr.HTML('<section id="map-review-root" aria-label="맵 검수"><p>맵 검수 화면을 준비하고 있습니다…</p></section>')
     return interface_blocks_value
 
 

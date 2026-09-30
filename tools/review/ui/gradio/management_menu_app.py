@@ -15,7 +15,7 @@ WORKFLOW_ROOT_DIRECTORY=Path(__file__).resolve().parents[4]
 if str(WORKFLOW_ROOT_DIRECTORY) not in sys.path:sys.path.insert(0,str(WORKFLOW_ROOT_DIRECTORY))
 from tools.review.common.gpu_status import read_gpu_status
 
-CATEGORY_LABEL_VALUES={'all':'전체','writer-agent':'작가 AI 에이전트','image-generation':'이미지 생성','animation':'등록 애니메이션','animation-tool':'애니메이션 도구','town-map-review':'마을맵 검수','field-map-review':'필드맵 검수','tile-review':'타일 검수','tile-generation':'타일 생성기','game-ui':'게임 UI · 디자인 시스템'}
+CATEGORY_LABEL_VALUES={'all':'전체','writer-agent':'작가 AI 에이전트','image-generation':'이미지 생성','animation':'등록 애니메이션','animation-tool':'애니메이션 도구','town-map-review':'마을맵 검수','field-map-review':'필드맵 검수','tile-generation':'타일 생성기','game-ui':'게임 UI · 디자인 시스템'}
 MANAGEMENT_FRAME_PATH_PREFIX='/management/frame/'
 MANAGEMENT_FRAME_IDENTIFIER_VALUES={'anny-attribute-renderer':'anny-attributes'}
 LEGACY_PAGE_IDENTIFIER_VALUES={'map-review':'map-review-iseulon'}
@@ -77,6 +77,14 @@ def load_manager_page_records(source_file_path):
     for current_page_record in [*page_record_values,*DEFAULT_PAGE_RECORDS]:
         if not isinstance(current_page_record,dict) or not all(isinstance(current_page_record.get(current_field_name),str) for current_field_name in ('id','label','path','category','description')):raise ValueError('관리 메뉴 페이지 항목 형식 오류')
         if any(current_page_record.get(current_field_name) is not None and not isinstance(current_page_record[current_field_name],str) for current_field_name in ('frameIdentifier','frameQuery')):raise ValueError('관리 메뉴 프레임 항목 형식 오류')
+        if current_page_record['id'].startswith('map-review-'):
+            from tools.review.common.map_asset_sources import MAP_CITY_REVIEW_IDENTIFIERS
+            current_map_identifier=current_page_record['id'].removeprefix('map-review-')
+            current_review_category='town-map-review' if current_map_identifier in MAP_CITY_REVIEW_IDENTIFIERS else 'field-map-review'
+            current_map_name=current_page_record['label'].split(' · ')[0]
+            current_page_record={**current_page_record,'category':current_review_category,'label':current_map_name+' · '+CATEGORY_LABEL_VALUES[current_review_category]}
+        if current_page_record.get('category')=='tile-review':
+            current_page_record={**current_page_record,'category':'tile-generation'}
         if current_page_record['id'] in page_identifier_values:continue
         if not current_page_record['path'].startswith('/'):current_page_record={**current_page_record,'path':'/'+current_page_record['path']}
         page_identifier_values.add(current_page_record['id'])
@@ -90,7 +98,7 @@ def filter_manager_page_records(page_record_values, search_text_value, category_
 def create_tool_choice_values(page_record_values):
     """분류를 함께 표시해 긴 도구 목록에서도 찾기 쉽게 만든다."""
     return [
-        (f"{CATEGORY_LABEL_VALUES.get(current_page_record['category'],current_page_record['category'])} · {current_page_record['label']}",current_page_record['id'])
+        (f"{CATEGORY_LABEL_VALUES.get(current_page_record['category'],current_page_record['category'])} · {current_page_record['label'].split(' · ')[0] if current_page_record['id'].startswith('map-review-') else current_page_record['label']}",current_page_record['id'])
         for current_page_record in page_record_values
     ]
 

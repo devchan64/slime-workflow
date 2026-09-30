@@ -41,7 +41,7 @@ class TileReviewCollectionTests(unittest.TestCase):
             output_directory_path = workflow_root_path/'.tmp'/'review-output'
             output_directory_path.mkdir()
             page_records = collect_tile_reviews(workflow_root_path, output_directory_path, lambda *unused_trace_values: None)
-            self.assertEqual(page_records[0]['category'], 'tile-review')
+            self.assertEqual(page_records[0]['category'], 'tile-generation')
             page_path = output_directory_path/page_records[0]['path']
             self.assertIn('지정 타일', page_path.read_text())
             self.assertTrue((page_path.parent/'ground.png').is_file())

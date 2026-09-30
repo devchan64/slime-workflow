@@ -164,8 +164,9 @@ def build_block_map_review(output_directory_path):
 
 
 def build_registered_map_review(map_identifier_value):
-    from tools.review.common.map_asset_sources import load_registered_map_review, MAP_SOURCE_BLOCK_HEIGHT
+    from tools.review.common.map_asset_sources import load_registered_map_review, MAP_SOURCE_BLOCK_HEIGHT, MAP_CITY_REVIEW_IDENTIFIERS
     current_map_record = load_registered_map_review(map_identifier_value)
+    current_map_record['reviewLabel'] = '마을맵 검수' if map_identifier_value in MAP_CITY_REVIEW_IDENTIFIERS else '필드맵 검수'
     current_block_height = load_town_block_height()
     normalize_game_block_heights(current_map_record,MAP_SOURCE_BLOCK_HEIGHT,current_block_height)
     validate_town_block_heights(current_map_record,current_block_height)
