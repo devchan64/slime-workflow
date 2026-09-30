@@ -4,6 +4,8 @@ import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
+import yaml
+from tools.review.common.map_asset_sources import load_review_map_identifiers
 from tools.review.build_block_map_review import build_block_map_review
 from tools.review.common.map_asset_http import read_map_asset_response
 
@@ -29,3 +31,23 @@ class MapAssetSourceTests(unittest.TestCase):
         for current_request_path in ('/management/map-assets/maps/unknown','/management/map-assets/maps/../../config','/management/map-assets/files/assets/tiles/../../AGENTS.md','/management/map-assets/files/assets/maps/field_tiles/dry-creek.yaml'):
             with self.assertRaises(ValueError):
                 read_map_asset_response(current_request_path)
+
+
+    def test_all_runtime_maps_and_new_city_materials_share_original_hashes(self):
+        current_city_identifiers,current_map_identifiers = load_review_map_identifiers()
+        self.assertEqual(len(current_city_identifiers),5)
+        self.assertEqual(len(current_map_identifiers),31)
+        current_asset_root = WORKFLOW_REPOSITORY_ROOT.parent/'slime-assets'
+        current_map_lock = yaml.safe_load((WORKFLOW_REPOSITORY_ROOT.parent/'slime-backend/map-data.lock.yaml').read_text())
+        current_locked_hashes = {current_file_record['path']:current_file_record['sha256'] for current_file_record in current_map_lock['files']}
+        for current_map_identifier in ('grainstead','saltford','windrow-road','granary-flats','mill-ridge','brine-bank','salt-causeway','salt-flat'):
+            current_map_bytes,_ = read_map_asset_response('/management/map-assets/maps/'+current_map_identifier)
+            current_map_record = json.loads(current_map_bytes)
+            self.assertEqual(current_map_record['id'],current_map_identifier)
+            for current_source_record in current_map_record['provenance']:
+                current_source_path = current_source_record['source']
+                self.assertEqual(current_source_record['sha256'],current_locked_hashes[current_source_path])
+                self.assertEqual(current_source_record['sha256'],hashlib.sha256((current_asset_root/current_source_path).read_bytes()).hexdigest())
+            if current_map_identifier in current_city_identifiers:
+                self.assertEqual(len(current_map_record['buildings']),5)
+                self.assertEqual(current_map_record['buildingTileOverrides']['roof'],'wood_roof')

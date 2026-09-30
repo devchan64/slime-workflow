@@ -3,8 +3,6 @@ from pathlib import Path
 import yaml
 from tools.review.common.map_tile_assets import load_registered_tiles, resolve_registered_asset
 
-MAP_CITY_REVIEW_IDENTIFIERS = ('iseulon','reedhaven','stonewarm')
-MAP_REVIEW_IDENTIFIERS = ('iseulon','reedhaven','stonewarm','dry-creek','reed-crossing','silver-marsh','pebble-shore')
 MAP_CITY_TERRAIN_CODES = dict(g='grass',p='paving',w='water',h='shallow-water',q='deep-water',r='reed-bed',v='gravel',b='boulder')
 MAP_BLOCKED_TERRAIN_NAMES = {'water','wall','boulder','tree-base','cactus','shallow-water','deep-water'}
 MAP_SOURCE_BLOCK_HEIGHT = 60
@@ -21,14 +19,26 @@ class UniqueMapSourceLoader(yaml.SafeLoader):
         return result_mapping_value
 
 
-def read_registered_map_data(relative_source_path, source_provenance_records):
-    asset_root_directory, registered_asset_records = load_registered_tiles()
+def read_registered_map_data(relative_source_path, source_provenance_records, current_source_catalog=None):
+    asset_root_directory, registered_asset_records = load_registered_tiles() if current_source_catalog is None else current_source_catalog
     current_source_path,current_source_record = resolve_registered_asset('assets/maps/'+relative_source_path,asset_root_directory,registered_asset_records,'assets/maps')
     current_source_document = yaml.load(current_source_path.read_text(),Loader=UniqueMapSourceLoader)
     if not isinstance(current_source_document,dict) or set(current_source_document)!={'managementId','data'} or current_source_document['managementId']!=current_source_record['managementId'] or not isinstance(current_source_document['data'],dict):
         raise ValueError('맵 원본 관리 ID·자료형 오류: '+relative_source_path)
     source_provenance_records.append(current_source_record)
     return current_source_document['data']
+
+
+def load_review_map_identifiers(current_source_catalog=None):
+    current_source_catalog = load_registered_tiles() if current_source_catalog is None else current_source_catalog
+    current_source_records = []
+    current_city_index = read_registered_map_data('city_layouts/index.yaml', current_source_records, current_source_catalog)
+    current_field_index = read_registered_map_data('field_tiles/index.yaml', current_source_records, current_source_catalog)
+    current_city_identifiers = tuple(current_city_index['includes']['layouts'])
+    current_field_identifiers = tuple(current_field_index['includes']['maps'])
+    if set(current_city_identifiers) & set(current_field_identifiers):
+        raise ValueError('도시와 필드의 맵 ID가 중복되었습니다.')
+    return current_city_identifiers, (*current_city_identifiers, *current_field_identifiers)
 
 
 def build_source_building_blocks(current_building_record):
@@ -50,11 +60,13 @@ def build_source_building_blocks(current_building_record):
 
 
 def load_registered_map_review(map_identifier_value):
-    if map_identifier_value not in MAP_REVIEW_IDENTIFIERS: raise ValueError('검수 대상 맵 ID가 아닙니다.')
+    current_source_catalog = load_registered_tiles()
+    current_city_identifiers, current_map_identifiers = load_review_map_identifiers(current_source_catalog)
+    if map_identifier_value not in current_map_identifiers: raise ValueError('검수 대상 맵 ID가 아닙니다.')
     source_provenance_records = []
-    read_map_source_data = lambda relative_source_path: read_registered_map_data(relative_source_path,source_provenance_records)
+    read_map_source_data = lambda relative_source_path: read_registered_map_data(relative_source_path,source_provenance_records,current_source_catalog)
     current_name_record = read_map_source_data('map_names/'+map_identifier_value+'.yaml')
-    if map_identifier_value in ('dry-creek','reed-crossing','silver-marsh','pebble-shore'):
+    if map_identifier_value not in current_city_identifiers:
         current_map_record = read_map_source_data('terrain/maps/'+map_identifier_value+'.yaml')
         current_map_record['terrainRows'] = read_map_source_data('field_tiles/'+map_identifier_value+'.yaml')['rows']
         current_map_record['terrainCodes'] = read_map_source_data('field_tiles/codes.yaml')
@@ -82,3 +94,6 @@ def load_registered_map_review(map_identifier_value):
     if len(current_map_record['terrainRows'])!=current_map_record['rows']: raise ValueError('맵 원본 행 수 오류')
     current_map_record['terrainCodes'] = {current_code_value:current_terrain_name for current_code_value,current_terrain_name in current_map_record['terrainCodes'].items() if any(current_code_value in current_row_value for current_row_value in current_map_record['terrainRows'])}
     return current_map_record
+
+# 기존 메뉴·검수 빌드 호출부의 import 계약도 등록 인덱스를 따른다.
+MAP_CITY_REVIEW_IDENTIFIERS, MAP_REVIEW_IDENTIFIERS = load_review_map_identifiers()

@@ -41,6 +41,13 @@ tiles:
   - {id: deep-water, category: ground, asset: assets/tiles/terrain/blocked/deep-water-v1.png, walkable: false, movement_cost: 99}
   - {id: stone, category: ground, asset: assets/tiles/terrain/non-road/stone-128.webp, walkable: true, movement_cost: 1}
   - {id: dry-soil-branches, category: ground, asset: assets/tiles/terrain/non-road/dry-soil-branches-v1.png, walkable: true, movement_cost: 1}
+  - {id: stonewarm-marble-paving, category: ground, asset: assets/tiles/terrain/road/marble-paving-v1.png, walkable: true, movement_cost: 1}
+  - {id: dew, category: ground, asset: assets/tiles/terrain/non-road/dew-v3.webp, walkable: true, movement_cost: 1}
+  - {id: ash, category: ground, asset: assets/tiles/terrain/non-road/ash-128.webp, walkable: true, movement_cost: 1}
+  - {id: moss, category: ground, asset: assets/tiles/terrain/non-road/moss-128.webp, walkable: true, movement_cost: 1}
+  - {id: leaf-litter, category: ground, asset: assets/tiles/terrain/non-road/leaf-litter-128.webp, walkable: true, movement_cost: 1}
+  - {id: tree-base, category: ground, asset: assets/tiles/terrain/blocked/tree-base-128.webp, walkable: false, movement_cost: 99}
+  - {id: cliff-wall, category: ground, asset: assets/tiles/terrain/blocked/dew-meadow-cliff-face-v1.png, walkable: false, movement_cost: 99}
 connections:
   - {id: grass-to-paving, from: grass, to: paving, variants: [straight, corner, tee, cross]}
   - {id: paving-to-spring, from: paving, to: spring_water, variants: [bank-straight, bank-corner]}

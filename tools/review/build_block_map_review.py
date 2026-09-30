@@ -29,6 +29,8 @@ TOWN_BUILDING_TILE_OVERRIDES={
     },
 }
 
+# 두 신규 도시는 같은 등록 목재 원본을 참조한다.
+TOWN_BUILDING_TILE_OVERRIDES.update({current_city_identifier: dict(TOWN_BUILDING_TILE_OVERRIDES['reedhaven']) for current_city_identifier in ('grainstead', 'saltford')})
 
 def load_town_block_height():
     render_profile_values=yaml.safe_load((WORKFLOW_ROOT_DIRECTORY/'assets/world/isloon/render-profiles.yaml').read_text())
@@ -117,9 +119,10 @@ def build_block_map_review(output_directory_path):
     building_tile_records['stonewarm-guild'] = {'roof': 'stonewarm-guild-red-stone-roof'}
     (output_directory_path/'block-building-tiles.json').write_text(json.dumps(building_tile_records))
     exported_map_records=[]
-    # 명시적으로 내보낸 맵 사본만 목록에 게시한다.
-    from tools.review.common.map_asset_sources import MAP_REVIEW_IDENTIFIERS
-    for current_map_identifier in MAP_REVIEW_IDENTIFIERS:
+    # 등록된 맵 원본 인덱스를 따라 검수 목록을 구성한다.
+    from tools.review.common.map_asset_sources import load_review_map_identifiers
+    _, current_map_identifiers = load_review_map_identifiers()
+    for current_map_identifier in current_map_identifiers:
         current_map_record = build_registered_map_review(current_map_identifier)
         required_material_names=set(current_map_record['terrainCodes'].values())|{'wall','roof'}
         if required_material_names-set(current_material_record['materials']):
@@ -164,9 +167,10 @@ def build_block_map_review(output_directory_path):
 
 
 def build_registered_map_review(map_identifier_value):
-    from tools.review.common.map_asset_sources import load_registered_map_review, MAP_SOURCE_BLOCK_HEIGHT, MAP_CITY_REVIEW_IDENTIFIERS
+    from tools.review.common.map_asset_sources import load_registered_map_review, MAP_SOURCE_BLOCK_HEIGHT, load_review_map_identifiers
     current_map_record = load_registered_map_review(map_identifier_value)
-    current_map_record['reviewLabel'] = '마을맵 검수' if map_identifier_value in MAP_CITY_REVIEW_IDENTIFIERS else '필드맵 검수'
+    current_city_identifiers, _ = load_review_map_identifiers()
+    current_map_record['reviewLabel'] = '마을맵 검수' if map_identifier_value in current_city_identifiers else '필드맵 검수'
     current_block_height = load_town_block_height()
     normalize_game_block_heights(current_map_record,MAP_SOURCE_BLOCK_HEIGHT,current_block_height)
     validate_town_block_heights(current_map_record,current_block_height)

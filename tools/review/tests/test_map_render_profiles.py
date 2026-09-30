@@ -6,6 +6,7 @@ import unittest
 
 from tools.review.build_block_map_review import build_block_map_review, build_registered_map_review
 from tools.review.common.map_asset_sources import load_registered_map_review
+from tools.review.common.map_tile_assets import load_registered_tiles
 from tools.review.common.game_render_metrics import load_game_render_metrics
 from tools.review.build_map_review import load_map_render_profiles
 
@@ -27,9 +28,11 @@ class MapRenderProfileTests(unittest.TestCase):
             guild_texture_identifier = building_texture_records['stonewarm-guild']['roof']
             guild_texture_record = exported_texture_records[guild_texture_identifier]
             self.assertEqual(guild_texture_record['repository'], 'slime-assets')
-            self.assertEqual(guild_texture_record['version'], '2')
+            _, current_registered_tiles = load_registered_tiles()
+            current_original_record = current_registered_tiles[guild_texture_record['source']]
+            self.assertEqual(guild_texture_record['version'], current_original_record['version'])
             self.assertEqual(guild_texture_record['source'], 'assets/tiles/buildings/red-stone/red-stone-roof-v2.png')
-            self.assertEqual(guild_texture_record['sha256'], '44e70c213ff5b69af96035971f9033856473a01832d688f9d341e5d620b9ffe3')
+            self.assertEqual(guild_texture_record['sha256'], current_original_record['sha256'])
 
     def test_all_town_reviews_use_the_game_export_as_the_only_layout_snapshot(self):
         self.assertFalse(GAME_MAP_DIRECTORY.exists())
@@ -43,7 +46,7 @@ class MapRenderProfileTests(unittest.TestCase):
         metric_source_paths = {current_source_record['path'] for current_source_record in game_render_metrics['sources']}
 
         self.assertEqual(game_render_metrics['wallHeight'], 80)
-        for current_city_identifier in ('iseulon', 'reedhaven', 'stonewarm'):
+        for current_city_identifier in ('iseulon', 'reedhaven', 'stonewarm', 'grainstead', 'saltford'):
             self.assertIn(f'assets/maps/city_layouts/{current_city_identifier}.yaml', metric_source_paths)
 
     def test_building_review_templates_use_shared_profile_values(self):
@@ -65,13 +68,13 @@ class MapRenderProfileTests(unittest.TestCase):
         self.assertIn('const TOWN_BLOCK_HEIGHT=blockRenderProfile.blockHeight', block_map_script)
         self.assertIn('마을 블록 높이 설정이 올바르지 않습니다.', block_map_script)
 
-    def test_stonewarm_roads_use_the_gravel_paving_texture(self):
+    def test_city_roads_match_current_game_paving_sources(self):
         tile_catalog_source = (WORKFLOW_ROOT / 'assets/world/isloon/tile-catalog.yaml').read_text(encoding='utf-8')
         map_review_script = (WORKFLOW_ROOT / 'tools/review/ui/map/block-map-review.js').read_text(encoding='utf-8')
 
         self.assertIn('id: stonewarm-gravel-paving', tile_catalog_source)
         self.assertIn('assets/tiles/terrain/road/gravel-paving-v1.png', tile_catalog_source)
-        self.assertIn("currentMapRecord.id==='stonewarm'?'stonewarm-gravel-paving':currentMapRecord.id==='reedhaven'?'reedhaven-dirt-road':'paving'", map_review_script)
+        self.assertIn("currentMapRecord.id==='stonewarm'?'stonewarm-marble-paving':currentMapRecord.id==='saltford'?'stonewarm-gravel-paving'", map_review_script)
 
     def test_stonewarm_exposed_rock_ground_uses_the_registered_tile(self):
         tile_catalog_source = (WORKFLOW_ROOT / 'assets/world/isloon/tile-catalog.yaml').read_text(encoding='utf-8')
@@ -87,7 +90,7 @@ class MapRenderProfileTests(unittest.TestCase):
 
         self.assertIn('id: reedhaven-dirt-road', tile_catalog_source)
         self.assertIn('assets/tiles/terrain/road/dirt-road-v1.png', tile_catalog_source)
-        self.assertIn("currentMapRecord.id==='reedhaven'?'reedhaven-dirt-road':'paving'", map_review_script)
+        self.assertIn("['reedhaven','grainstead'].includes(currentMapRecord.id)?'reedhaven-dirt-road':'paving'", map_review_script)
 
     def test_reedhaven_uses_wood_building_tiles(self):
         tile_catalog_source = (WORKFLOW_ROOT / 'assets/world/isloon/tile-catalog.yaml').read_text(encoding='utf-8')
