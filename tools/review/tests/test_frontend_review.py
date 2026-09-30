@@ -110,7 +110,7 @@ class FrontendReviewTests(unittest.TestCase):
 
     def test_manager_source_includes_all_default_gradio_tools(self):
         default_tool_identifier_values={current_page_record['id'] for current_page_record in DEFAULT_MANAGEMENT_TOOL_PAGE_RECORDS}
-        self.assertEqual(default_tool_identifier_values,{'floor-tile-generator','tile-map-generator','writer-agent','three-reference-generator','image-generator'})
+        self.assertEqual(default_tool_identifier_values,{'expression-generator','floor-tile-generator','tile-map-generator','writer-agent','three-reference-generator','image-generator'})
         self.assertTrue(all(current_page_record['uiMode']=='gradio' for current_page_record in DEFAULT_MANAGEMENT_TOOL_PAGE_RECORDS))
 
     def test_repository_option_calls_snapshot_builder(self):

@@ -97,6 +97,9 @@ class ImageGenerationManager:
         return current_status_record
 
     def validate_generation_request(self, request_record_value):
+        if self.three_reference_mode:
+            from tools.review.domains.image.three_reference_generation import validate_three_reference_request
+            return validate_three_reference_request(request_record_value)
         return validate_image_request(request_record_value)
 
     def history_storage_path(self):
@@ -217,11 +220,7 @@ class ImageGenerationManager:
                         raise ValueError('이력 삭제 요청 필드 오류')
                     send_response_data(200,self.delete_generation_history(generation_job_identifier))
                     return True
-                if self.three_reference_mode:
-                    from tools.review.domains.image.three_reference_generation import validate_three_reference_request, save_three_reference_inputs
-                    current_request_record=validate_three_reference_request(current_request_record)
-                else:
-                    current_request_record=self.validate_generation_request(current_request_record)
+                current_request_record=self.validate_generation_request(current_request_record)
                 validate_image_runtime()
                 with self.current_request_lock:
                     current_job_identifier = datetime.now(ZoneInfo('Asia/Seoul')).strftime('%Y-%m-%d_%H-%M-%S')+'-'+uuid.uuid4().hex[:8]

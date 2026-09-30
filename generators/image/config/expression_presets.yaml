@@ -1,0 +1,308 @@
+version: 1
+source:
+  section: AiBook P7-5.9
+  version: v2026.09.16
+  sha256: 5e528ae06367253044e524fe22f5366be924911661fb1bdbdbc666019fbafd2d
+base_prompt: Edit the facial expression of the character in image 1. Use additional
+  images as identity references. Keep facial proportions, iris color, hairstyle, camera,
+  background, lighting and art style unchanged.
+expressions:
+- id: sternness
+  label_ko: 엄격함
+  au_hints:
+  - 4
+  - 23
+  movement_prompt: mild sternness, slightly lowered brows and slightly tightened closed
+    lips, eyes facing forward
+- id: indignation
+  label_ko: 분개
+  au_hints:
+  - 4
+  - 5
+  - 23
+  movement_prompt: indignation, brows drawn downward and together, upper eyelids raised,
+    lips tense and slightly parted
+- id: anger
+  label_ko: 분노
+  au_hints:
+  - 4
+  - 7
+  - 23
+  - 25
+  movement_prompt: anger, strongly lowered inward brows, tense eyelids and tight lips
+    parted to reveal clenched teeth
+- id: rage
+  label_ko: 격노
+  au_hints:
+  - 4
+  - 7
+  - 10
+  - 27
+  movement_prompt: rage, deeply lowered inward brows, tense eyelids, raised upper
+    lip and a wide open shouting mouth, without changing head direction
+- id: disdain
+  label_ko: 경멸
+  au_hints: []
+  movement_prompt: a contemptuous expression, narrowed eyes and brows drawn together,
+    one side of the upper lip lifted slightly more than the other with a little teeth
+    visible, the lower lip relaxed and centered
+- id: aversion
+  label_ko: 반감
+  au_hints:
+  - 9
+  - 10
+  movement_prompt: aversion, the muscles beside the nasal bridge pulled gently upward
+    to form shallow short creases at the upper sides of the bridge, slightly raised
+    upper lip, mouth mostly closed
+- id: disgust
+  label_ko: 혐오
+  au_hints:
+  - 9
+  - 10
+  - 7
+  movement_prompt: disgust, the muscles beside the nasal bridge pulled upward to form
+    short creases at the upper sides of the bridge, raised upper lip and narrowed
+    eyelids
+- id: revulsion
+  label_ko: 극심한 혐오
+  au_hints:
+  - 9
+  - 10
+  - 7
+  - 25
+  movement_prompt: intense revulsion, the muscles beside the nasal bridge pulled strongly
+    upward to form deep short creases at the upper sides of the bridge, strongly raised
+    upper lip, tightly narrowed eyes and an open grimacing mouth, no vomit
+- id: concern
+  label_ko: 걱정
+  au_hints:
+  - 1
+  - 4
+  movement_prompt: mild concern, inner eyebrows slightly raised and drawn together,
+    lips gently tense
+- id: anxiety
+  label_ko: 불안
+  au_hints:
+  - 1
+  - 4
+  - 20
+  movement_prompt: anxiety, inner eyebrows raised and drawn together, eyes slightly
+    widened and lips stretched sideways
+- id: fear
+  label_ko: 두려움
+  au_hints:
+  - 1
+  - 2
+  - 4
+  - 5
+  - 20
+  - 25
+  movement_prompt: fear, raised and drawn-together brows, widened eyes and sideways
+    stretched lips parted in tension
+- id: terror
+  label_ko: 극도의 공포
+  au_hints:
+  - 1
+  - 2
+  - 4
+  - 5
+  - 20
+  - 27
+  movement_prompt: terror, strongly raised and drawn-together brows, very wide eyes
+    and a wide open mouth with tense sideways stretched corners
+- id: satisfaction
+  label_ko: 만족
+  au_hints:
+  - 12
+  movement_prompt: quiet satisfaction, slightly lifted mouth corners with closed lips
+    and relaxed eyes
+- id: amusement
+  label_ko: 즐거움
+  au_hints:
+  - 6
+  - 12
+  movement_prompt: amusement, a clear closed-mouth smile, raised cheeks and gently
+    narrowed eyes
+- id: joy
+  label_ko: 기쁨
+  au_hints:
+  - 6
+  - 12
+  - 25
+  movement_prompt: joy, a broad smile with visible upper teeth, raised cheeks and
+    narrowed smiling eyes
+- id: laughter
+  label_ko: 큰 웃음
+  au_hints:
+  - 6
+  - 12
+  - 25
+  - 26
+  movement_prompt: hearty laughter, a wide open smiling mouth, raised cheeks and eyes
+    nearly closed from smiling, head kept upright
+- id: dejection
+  label_ko: 낙담
+  au_hints:
+  - 1
+  - 15
+  movement_prompt: dejection, slightly raised inner brows and slightly lowered mouth
+    corners, head kept upright
+- id: melancholy
+  label_ko: 우울한 표정
+  au_hints:
+  - 1
+  - 4
+  - 15
+  movement_prompt: melancholy, raised and drawn-together inner brows, lowered mouth
+    corners and gently drooping eyelids
+- id: sadness
+  label_ko: 슬픔
+  au_hints:
+  - 1
+  - 4
+  - 15
+  - 17
+  movement_prompt: sadness, strongly raised inner brows, downturned mouth corners
+    and raised chin skin pushing the lower lip upward, without tears
+- id: grief
+  label_ko: 비통함
+  au_hints:
+  - 1
+  - 4
+  - 15
+  - 17
+  - 25
+  - 26
+  movement_prompt: grief, strongly raised and drawn-together inner brows, tightly
+    narrowed eyes and an open sobbing mouth with downturned corners, without tears
+- id: alertness
+  label_ko: 주의 집중
+  au_hints:
+  - 2
+  - 5
+  movement_prompt: alertness, slightly raised outer brows and slightly widened eyes,
+    relaxed closed mouth
+- id: wonder
+  label_ko: 경이로움
+  au_hints:
+  - 1
+  - 2
+  - 5
+  - 25
+  movement_prompt: wonder, raised eyebrows, widened eyes and gently parted lips, no
+    smile
+- id: surprise
+  label_ko: 놀람
+  au_hints:
+  - 1
+  - 2
+  - 5
+  - 26
+  movement_prompt: surprise, high raised eyebrows, wide eyes and a dropped jaw forming
+    a small round open mouth
+- id: shock
+  label_ko: 충격
+  au_hints:
+  - 1
+  - 2
+  - 5
+  - 27
+  movement_prompt: shock, very high raised eyebrows, very wide eyes and a widely opened
+    mouth with relaxed rather than sideways stretched corners
+- id: pouting
+  label_ko: 삐짐
+  au_hints: []
+  movement_prompt: slightly lowered inner brows, closed lips with the lower lip pushed
+    a little forward, relaxed cheeks and eyes looking forward, keep the original skin
+    tone of the nose and cheeks unchanged
+- id: sulking
+  label_ko: 토라짐
+  au_hints: []
+  movement_prompt: mildly lowered brows, upper eyelids slightly lowered and lips firmly
+    pressed together without protruding, eyes looking forward, keep the original skin
+    tone of the nose and cheeks unchanged
+- id: hurt_feelings
+  label_ko: 서운함
+  au_hints: []
+  movement_prompt: inner brows gently raised and drawn together, mouth corners slightly
+    lowered with closed relaxed lips and eyes looking forward, keep the original skin
+    tone of the nose and cheeks unchanged
+- id: aggrieved
+  label_ko: 억울함
+  au_hints:
+  - 1
+  - 4
+  - 17
+  - 25
+  movement_prompt: hurt by an unfair accusation, inner brow corners raised and gently
+    knitted, lower lip slightly raised, lips slightly parted as if about to protest,
+    looking directly ahead
+- id: shy_smile
+  label_ko: 수줍은 미소
+  au_hints: []
+  movement_prompt: a small symmetric closed-lip smile, relaxed brows and gently lowered
+    upper eyelids, head upright and eyes looking forward, keep the original skin tone
+    of the nose and cheeks unchanged
+- id: sheepish_smile
+  label_ko: 머쓱한 미소
+  au_hints: []
+  movement_prompt: inner brows slightly raised and a small symmetric closed-mouth
+    smile with mildly tense lips, eyes looking forward, keep the original skin tone
+    of the nose and cheeks unchanged
+- id: embarrassed
+  label_ko: 민망함
+  au_hints: []
+  movement_prompt: lips gently rolled inward and held closed, upper eyelids slightly
+    lowered and brows gently raised, eyes looking forward, keep the original skin
+    tone of the nose and cheeks unchanged
+- id: perplexed
+  label_ko: 난처함
+  au_hints:
+  - 1
+  - 24
+  movement_prompt: hesitating to answer an awkward request, inner brow corners slightly
+    raised, lips lightly pressed together, eyes glancing slightly aside
+- id: skeptical
+  label_ko: 의심
+  au_hints: []
+  movement_prompt: one eyebrow raised and the other relaxed, slightly narrowed eyelids
+    and a neutral closed mouth, eyes looking forward, keep the original skin tone
+    of the nose and cheeks unchanged
+- id: unimpressed
+  label_ko: 못마땅함
+  au_hints: []
+  movement_prompt: slightly lowered brows, half-lowered upper eyelids and lips pressed
+    into a nearly horizontal closed line, eyes looking forward, keep the original
+    skin tone of the nose and cheeks unchanged
+- id: mischievous
+  label_ko: 장난기
+  au_hints: []
+  movement_prompt: one mouth corner gently raised, eyes open and alert, brows slightly
+    raised and lips closed, eyes looking forward, keep the original skin tone of the
+    nose and cheeks unchanged
+- id: relieved
+  label_ko: 안도
+  au_hints: []
+  movement_prompt: relaxed brows, eyes softly closed without squeezing and a faint
+    symmetric closed-mouth smile, head upright, keep the original skin tone of the
+    nose and cheeks unchanged
+- id: puffed_pout
+  label_ko: 볼 부푼 삐짐
+  au_hints: []
+  movement_prompt: a restrained closed-mouth pout, lips gently brought together and
+    pushed slightly forward, with only a faint localized fullness in the lower cheeks
+    immediately beside the mouth; keep the original overall face width, jawline and
+    chin shape nearly unchanged, cheeks otherwise relaxed, mildly lowered inner brows,
+    eyes looking forward, keep the original skin tone of the nose and cheeks unchanged
+- id: wink
+  label_ko: 윙크
+  au_hints: []
+  movement_prompt: a gentle wink with the eye on the right side of the picture closed,
+    its upper cheek slightly lifted, the other eye naturally open, relaxed brows and
+    a small closed-mouth smile
+- id: yawn
+  label_ko: 하품
+  au_hints: []
+  movement_prompt: a yawn with eyes squeezed closed, inner brows slightly drawn together,
+    jaw dropped and lips forming a vertical oval, relaxed mouth corners, naturally
+    shaded tongue and upper teeth

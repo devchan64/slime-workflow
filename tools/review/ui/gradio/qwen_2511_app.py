@@ -47,14 +47,40 @@ def restore_reference_inputs(current_history_record):
 
 def result_preview_html(image_url_value):return f'<img class="qwen-result-image" src="{html.escape(image_url_value,quote=True)}" alt="Qwen 생성 결과">' if image_url_value else '<div class="image-result-empty">완료된 결과를 선택하세요.</div>'
 
-def build_qwen_2511_interface(server_base_address):
-    with gr.Blocks(title='Qwen 2511 3참조 생성기',js=HISTORY_CARD_SELECTION_SCRIPT) as interface_blocks_value:
-        gr.Markdown('## Qwen 2511 3참조 생성기\n참조 이미지는 업로드한 순서대로 모델에 전달됩니다.')
+def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False):
+    current_service_name = 'expression' if expression_mode_enabled else 'qwen-2511'
+    current_page_title = '표정 생성기' if expression_mode_enabled else 'Qwen 2511 3참조 생성기'
+    def execute_reference_gateway(command_name_value, payload_value):
+        return execute_management_command(current_service_name, command_name_value, payload_value)
+    def restore_selected_inputs(current_history_record):
+        restored_input_values = list(restore_reference_inputs(current_history_record))
+        if expression_mode_enabled:
+            restored_input_values[0] = current_history_record['request']['expression']['id']
+        return tuple(restored_input_values)
+    with gr.Blocks(title=current_page_title,js=HISTORY_CARD_SELECTION_SCRIPT) as interface_blocks_value:
+        gr.Markdown('## '+current_page_title+'\n참조 이미지는 업로드한 순서대로 모델에 전달됩니다.')
+        if expression_mode_enabled:
+            gr.Markdown('Qwen-Image-Edit-2511 고정 · 참조 1~3장. 첫 이미지를 편집하고 추가 이미지는 동일 캐릭터의 외형 참고로 사용합니다. AU는 움직임 설계 참고이며 검출값·감정 판정·강도 측정이 아닙니다.')
         with gr.Row(equal_height=True):
-            prompt_text_value=gr.Textbox(label='프롬프트',lines=3,scale=1,min_width=240)
+            if expression_mode_enabled:
+                from tools.review.domains.image.expression_generation import load_expression_configuration, build_expression_prompt
+                expression_preset_records = load_expression_configuration()['expressions']
+                prompt_text_value=gr.Dropdown([(record['label_ko'],record['id']) for record in expression_preset_records],value=expression_preset_records[0]['id'],label='표정 · AU 프리셋',scale=1,min_width=240)
+            else:
+                prompt_text_value=gr.Textbox(label='프롬프트',lines=3,scale=1,min_width=240)
             generation_tag_value=gr.Textbox(label='생성 이력 태그 · 선택 사항',placeholder='예: 돌온재 참조 후보',lines=3,scale=1,min_width=240)
+        if expression_mode_enabled:
+            def describe_expression_prompt(expression_identifier_value):
+                final_prompt_value, expression_source_record = build_expression_prompt(expression_identifier_value)
+                base_prompt_value = load_expression_configuration()['base_prompt']
+                return ('AU 참고: '+', '.join('AU'+str(value) for value in expression_source_record['au_hints'])+
+                        '\n\n움직임 ('+str(len(expression_source_record['movement_prompt'].split()))+'단어): '+expression_source_record['movement_prompt']+
+                        '\n\n외형 유지 ('+str(len(base_prompt_value.split()))+'단어): '+base_prompt_value+
+                        '\n\n최종 입력 ('+str(expression_source_record['prompt_word_count'])+'단어): '+final_prompt_value)
+            expression_prompt_preview = gr.Markdown(describe_expression_prompt(expression_preset_records[0]['id']))
+            prompt_text_value.change(describe_expression_prompt,prompt_text_value,expression_prompt_preview,queue=False)
         reference_upload_group,reference_image_controls=build_reference_image_inputs(reference_image_mode=None)
-        gr.Markdown('생성 출력 최소 크기: 512×512. 맵 타일의 최종 규격은 256×256입니다. 참조 이미지의 크기·비율은 자유입니다. RGB/RGBA PNG, 장당 3MB 이하이며 투명 배경은 사용할 수 없습니다.')
+        gr.Markdown('생성 출력 최소 크기: 512×512. 참조 이미지의 크기·비율은 자유입니다. RGB/RGBA PNG, 장당 3MB 이하이며 투명 배경은 사용할 수 없습니다.')
         with gr.Row():
             width_value=gr.Dropdown([512,768,1024,1280],value=512,label='너비',scale=1,min_width=120)
             height_value=gr.Dropdown([512,768,1024,1280],value=512,label='높이',scale=1,min_width=120)
@@ -70,15 +96,19 @@ def build_qwen_2511_interface(server_base_address):
         read_history_page,history_output_values=build_generation_history_view(
             execute_reference_gateway,server_base_address,
             '이력 목록만 초기화합니다. 결과 이미지·참조 입력 사본·로그 파일은 유지됩니다. 생성 중에는 초기화할 수 없습니다.',
-            restore_input_callback=restore_reference_inputs,
+            restore_input_callback=restore_selected_inputs,
             restore_output_components=[prompt_text_value,generation_tag_value,width_value,height_value,step_value,seed_value,status_value],
-            record_folder_route='/image-generation-2511',allow_individual_delete=True)
+            record_folder_route='/expression-generator' if expression_mode_enabled else '/image-generation-2511',allow_individual_delete=True)
         def start_generation(prompt_text_value,generation_tag_value,first_reference_image,second_reference_image,third_reference_image,width_value,height_value,step_value,seed_value):
             reference_bytes_values=prepare_reference_image_bytes((first_reference_image,second_reference_image,third_reference_image))
             from tools.review.domains.image.three_reference_generation import validate_three_reference_request
             try:
                 generation_request_value=build_reference_request(prompt_text_value,generation_tag_value,reference_bytes_values,width_value,height_value,step_value,seed_value)
-                validate_three_reference_request(generation_request_value)
+                if expression_mode_enabled:
+                    from tools.review.domains.image.expression_generation import ExpressionGenerationManager
+                    ExpressionGenerationManager().validate_generation_request(generation_request_value)
+                else:
+                    validate_three_reference_request(generation_request_value)
                 generation_record_value=execute_reference_gateway('generate',generation_request_value)
             except (ValueError,OSError) as generation_request_error:
                 raise gr.Error(str(generation_request_error)) from generation_request_error

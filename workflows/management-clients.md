@@ -365,3 +365,24 @@ python3 tools/manager.py command floor-tile status GENERATION_ID
 이미지 메모리 예측은 실행 스크립트와 `width×height`, `steps`, 참조 이미지 개수를 함께 키로 사용한다. 설정별 최근 20회 중 정상 완료한 실측 최고값을 예약하며 다른 해상도·스텝의 기록을 섞지 않는다. 기존 측정값은 보존된 생성 요청으로 설정을 복원할 수 있을 때만 해당 집계에 포함한다. 해당 설정의 유효 실측이 없으면 서비스 초기 예약량(이미지 6144 MiB)을 사용하고 상태의 `method=configured-initial-estimate`, `samples=0`으로 근거 부재를 표시한다. 스텝 수에 비례해 메모리를 곱하지 않는다. GPU 공통 안전 여유 512 MiB 규칙은 유지한다.
 
 바닥 타일 신규 요청은 파이프라인 v7·크롭 v6을 사용한다. 연결형 판은 밝기 16–40의 여러 기준에서 9칸의 닫힌 테두리·행열 정렬·간격을 검증한다. 최소 두 기준이 통과하고 중앙 크롭 경계 차이가 4px 이내인 경우만 채택한다. 기준별 성공 좌표와 거절 원인을 결과에 기록하며 원본 픽셀만 크롭한다. 기존 요청 버전과 기록은 변경하지 않는다.
+
+## 표정 생성기
+
+관리 메뉴의 **표정 생성기**(`/?tool=expression-generator`)는 Qwen-Image-Edit-2511 고정 모델로 참조 PNG 1~3장을 받아 한 표정을 생성한다. 첫 이미지를 편집 대상으로, 추가 이미지를 동일 캐릭터의 외형 참고로 사용한다. 불투명 RGB/RGBA PNG·장당 3MB 이하이며 크기·비율은 기존 Qwen 참조 입력 검증을 따른다.
+
+AiBook P7-5.9 `v2026.09.16`의 현행 39개 표정을 프리셋으로 채택했다. AU 목록은 얼굴 움직임을 기술하는 설계 참고이며 AU 검출값·감정 판정·FACS 강도 측정이 아니다. 얼굴 동일성, 좌우 눈 감김, 입술·볼 변화는 결과에서 직접 검수한다. 자료의 20스텝 실험을 재현하는 모드는 아니며 기존 실행기의 4스텝 Lightning 또는 30스텝 표준 설정을 사용한다.
+
+실행용 원본은 `generators/image/config/expression_presets.yaml`이다. AiBook 원본 spec 해시·자료 버전과 움직임 지시·AU를 보존하며 다른 저장소를 런타임에 읽지 않는다. 모델 입력은 움직임 지시와 외형 유지 지시를 결합한 100단어 미만의 양성 프롬프트다. GUI는 개별·최종 단어 수를 표시하고 요청에는 선택 ID·AU·출처·설정 해시·최종 프롬프트·단어 수·SHA-256을 기록한다. 참조 사본도 순서·해시를 보존하며 재개 시 검증한다.
+
+```bash
+python3 tools/manager.py help expression generate
+python3 tools/manager.py command expression generate --expression joy --reference face.png --detach
+python3 tools/manager.py command expression history
+python3 tools/manager.py command expression status GENERATION_ID
+python3 tools/manager.py command expression cancel GENERATION_ID
+python3 tools/manager.py command expression resume GENERATION_ID
+```
+
+`--expression`의 선택 목록은 help에서 확인한다. HTTP 계약은 기존 이미지 요청과 같은 `prompt` 필드에 표정 ID를 전달한다. 모델명·임의 추가 필드는 거절한다. 기본값은 512×512·4스텝·Seed 10107이다. GUI·CLI는 `expression` 서비스와 공용 게이트웨이·GPU 작업 실행기를 공유한다. 결과는 `.tmp/test/expression-generator/<한국시간-생성ID>/`, 이력 인덱스는 `.tmp/manager-current/expression/`에 누적한다. 이력 삭제·수동 초기화는 목록만 제거하고 결과·참조·로그는 보존한다. 브라우저 종료는 작업 종료가 아니다.
+
+새 메뉴와 서비스 반영에는 GUI·게이트웨이 코드 갱신이 필요하다. 생성 품질 확인은 참조를 입력한 단일 이미지부터 진행한다. 정식 에셋 등록은 별도 채택 후 수행한다. 이번 추가는 로컬 서비스·UI 확장이며 AWS 배포 구조나 고정 비용 리소스에는 변경이 없다.

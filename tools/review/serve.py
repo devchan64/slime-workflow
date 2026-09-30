@@ -313,7 +313,7 @@ def run_review_server(parsed_argument_values):
             print(trace_line_text,flush=True)
             with server_log_path.open('a') as trace_file_stream: trace_file_stream.write(trace_line_text+'\n')
     management_menu_url = None
-    from tools.review.common.gradio_process import ensure_floor_tile_server, ensure_anny_attributes_server, ensure_character_animation_server, ensure_gradio_server, ensure_management_menu_server, ensure_map_review_server, ensure_qwen_2511_server, ensure_qwen_2512_server, ensure_sprite_editor_server, ensure_static_review_server, ensure_tile_map_server, ensure_writer_agent_server
+    from tools.review.common.gradio_process import ensure_gradio_application, ensure_floor_tile_server, ensure_anny_attributes_server, ensure_character_animation_server, ensure_gradio_server, ensure_management_menu_server, ensure_map_review_server, ensure_qwen_2511_server, ensure_qwen_2512_server, ensure_sprite_editor_server, ensure_static_review_server, ensure_tile_map_server, ensure_writer_agent_server
     if manager_source_path.is_file():
         try:
             management_menu_url=ensure_management_menu_server(parsed_argument_values.port,manager_source_path)
@@ -326,6 +326,7 @@ def run_review_server(parsed_argument_values):
             ('/management/frame/momask-generator/',parsed_argument_values.port+101,lambda:ensure_gradio_server(parsed_argument_values.port)),
             ('/management/frame/character-animation/',parsed_argument_values.port+102,lambda:ensure_character_animation_server(parsed_argument_values.port)),
             ('/management/frame/image-generator/',parsed_argument_values.port+103,lambda:ensure_qwen_2512_server(parsed_argument_values.port)),
+            ('/management/frame/expression-generator/',parsed_argument_values.port+114,lambda:ensure_gradio_application(parsed_argument_values.port,'expression')),
             ('/management/frame/three-reference-generator/',parsed_argument_values.port+104,lambda:ensure_qwen_2511_server(parsed_argument_values.port)),
             ('/management/frame/floor-tile-generator/',parsed_argument_values.port+113,lambda:ensure_floor_tile_server(parsed_argument_values.port)),
             ('/management/frame/tile-map-generator/',parsed_argument_values.port+105,lambda:ensure_tile_map_server(parsed_argument_values.port)),
@@ -339,6 +340,7 @@ def run_review_server(parsed_argument_values):
             ('/character-animation/',parsed_argument_values.port+100,lambda:ensure_management_menu_server(parsed_argument_values.port,manager_source_path)),
             ('/image-generation/',parsed_argument_values.port+100,lambda:ensure_management_menu_server(parsed_argument_values.port,manager_source_path)),
             ('/image-generation-2511/',parsed_argument_values.port+100,lambda:ensure_management_menu_server(parsed_argument_values.port,manager_source_path)),
+            ('/expression-generator/',parsed_argument_values.port+100,lambda:ensure_management_menu_server(parsed_argument_values.port,manager_source_path)),
             ('/floor-tile-generator/',parsed_argument_values.port+100,lambda:ensure_management_menu_server(parsed_argument_values.port,manager_source_path)),
             ('/tile-map-generator/',parsed_argument_values.port+100,lambda:ensure_management_menu_server(parsed_argument_values.port,manager_source_path)),
             ('/anny-attributes/',parsed_argument_values.port+100,lambda:ensure_management_menu_server(parsed_argument_values.port,manager_source_path)),

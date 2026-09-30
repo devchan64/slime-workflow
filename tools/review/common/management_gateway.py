@@ -15,9 +15,9 @@ import urllib.request
 from email.message import Message
 from urllib.parse import urlsplit, parse_qs
 
-MANAGEMENT_SERVICE_ROUTES = {'floor-tile':'/floor-tile-generator','anny':'/anny-attributes','tile-map':'/tile-map-generator','character-animation':'/character-animation','momask':'/momask-generator','qwen-2512':'/image-generation','qwen-2511':'/image-generation-2511'}
+MANAGEMENT_SERVICE_ROUTES = {'expression':'/expression-generator','floor-tile':'/floor-tile-generator','anny':'/anny-attributes','tile-map':'/tile-map-generator','character-animation':'/character-animation','momask':'/momask-generator','qwen-2512':'/image-generation','qwen-2511':'/image-generation-2511'}
 MANAGEMENT_COMMAND_ROUTES = {'anchor-history-reset':('POST','/anchor/history/reset'),'anchor-save':('POST','/anchor/save'),'anchor-history':('POST','/anchor/history'),'anchor-load':('POST','/anchor/load'),'history-delete':('POST','/history/{id}/delete'),'resume':('POST','/resume'),'sprite-source':('POST','/sprite/source'),'sprite-save':('POST','/sprite/save'),'sprite-load':('POST','/sprite/load'),'sprite-history':('POST','/sprite/history'),'sprite-history-reset':('POST','/sprite/history/reset'),'sprite-history-delete':('POST','/sprite/history/delete'),'catalog':('GET','/catalog'),'generate':('POST','/jobs'),'queue':('POST','/jobs'),'prepare':('POST','/jobs'),'status':('GET','/jobs/{id}'),'logs':('GET','/jobs/{id}/worker.log'),'history':('GET','/history'),'active':('GET','/active'),'model-status':('GET','/model-status'),'cancel':('POST','/cancel'),'history-reset':('POST','/history/reset')}
-MANAGEMENT_SERVICE_COMMANDS = {'floor-tile':('history-delete','resume','catalog','generate','prepare','status','logs','history','active','model-status','cancel','history-reset'),'anny':('status','history','cancel','resume'),'tile-map':('history-delete','resume','catalog','generate','queue','prepare','status','logs','history','active','model-status','cancel','history-reset'),'character-animation':('anchor-save','anchor-history','anchor-load','anchor-history-reset','history-delete','resume','sprite-source','sprite-save','sprite-load','sprite-history','sprite-history-reset','sprite-history-delete','catalog','generate','status','logs','history','active','cancel','history-reset'),'momask':('history-delete','resume','generate','status','logs','history','cancel','history-reset'),'qwen-2512':('history-delete','resume','generate','prepare','status','logs','history','active','model-status','cancel','history-reset'),'qwen-2511':('history-delete','resume','generate','status','logs','history','active','model-status','cancel','history-reset')}
+MANAGEMENT_SERVICE_COMMANDS = {'expression':('history-delete','resume','generate','status','logs','history','active','model-status','cancel','history-reset'),'floor-tile':('history-delete','resume','catalog','generate','prepare','status','logs','history','active','model-status','cancel','history-reset'),'anny':('status','history','cancel','resume'),'tile-map':('history-delete','resume','catalog','generate','queue','prepare','status','logs','history','active','model-status','cancel','history-reset'),'character-animation':('anchor-save','anchor-history','anchor-load','anchor-history-reset','history-delete','resume','sprite-source','sprite-save','sprite-load','sprite-history','sprite-history-reset','sprite-history-delete','catalog','generate','status','logs','history','active','cancel','history-reset'),'momask':('history-delete','resume','generate','status','logs','history','cancel','history-reset'),'qwen-2512':('history-delete','resume','generate','prepare','status','logs','history','active','model-status','cancel','history-reset'),'qwen-2511':('history-delete','resume','generate','status','logs','history','active','model-status','cancel','history-reset')}
 
 
 def resolve_management_command(service_command_name, operation_command_name, command_payload_value):
@@ -149,7 +149,7 @@ class ManagementCommandGateway:
         return True
 
 
-MANAGEMENT_COMMAND_DESCRIPTIONS = {'floor-tile':'9칸 생성·중앙 기계식 크롭·512 다시 그리기 (관리 서버 필요)','anny':'ANNY 이력 상태·중지·재개 (관리 서버 필요)','tile-map':'건물 지붕·벽·문 표면을 기본·화풍 프롬프트로 생성 (관리 서버 필요)','character-animation':'등록 모션·캐릭터 기반 애니메이션 생성·이력·재생 결과 조회','momask': 'MoMask 생성·상태·로그·이력 조회·취소 (웹과 기록 공유)', 'qwen-2512': 'Qwen 2512 텍스트 이미지 생성 (관리 서버 필요)', 'qwen-2511': 'Qwen 2511 텍스트·1~3장 참조 이미지 생성 (관리 서버 필요)'}
+MANAGEMENT_COMMAND_DESCRIPTIONS = {'expression':'Qwen 2511 AU 표정 생성 · 참조 1~3장 · --expression에 표정 ID 지정','floor-tile':'9칸 생성·중앙 기계식 크롭·512 다시 그리기 (관리 서버 필요)','anny':'ANNY 이력 상태·중지·재개 (관리 서버 필요)','tile-map':'건물 지붕·벽·문 표면을 기본·화풍 프롬프트로 생성 (관리 서버 필요)','character-animation':'등록 모션·캐릭터 기반 애니메이션 생성·이력·재생 결과 조회','momask': 'MoMask 생성·상태·로그·이력 조회·취소 (웹과 기록 공유)', 'qwen-2512': 'Qwen 2512 텍스트 이미지 생성 (관리 서버 필요)', 'qwen-2511': 'Qwen 2511 텍스트·1~3장 참조 이미지 생성 (관리 서버 필요)'}
 
 def execute_management_command(service_command_name, operation_command_name, command_payload_value, server_base_address=None, *, gateway_request_handler=None, service_handler_values=None):
     request_method_value,request_route_value=resolve_management_command(service_command_name,operation_command_name,command_payload_value)
@@ -206,13 +206,17 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
                     operation_argument_parser.add_argument('--use-base-prompt',action=argparse.BooleanOptionalAction,default=None)
                     operation_argument_parser.add_argument('--use-style-prompt',action=argparse.BooleanOptionalAction,default=None)
                 prompt_argument_group=operation_argument_parser.add_mutually_exclusive_group(required=True)
-                prompt_argument_group.add_argument('--prompt')
+                if service_command_name == 'expression':
+                    from tools.review.domains.image.expression_generation import load_expression_configuration
+                    prompt_argument_group.add_argument('--expression','--prompt',dest='prompt',choices=[current_expression_record['id'] for current_expression_record in load_expression_configuration()['expressions']],help='표정 프리셋 ID (AU 참고 기반)')
+                else:
+                    prompt_argument_group.add_argument('--prompt')
                 prompt_argument_group.add_argument('--prompt-file',type=Path,help='UTF-8 프롬프트 파일')
-                operation_argument_parser.add_argument('--width',type=int,default=512 if service_command_name=='qwen-2511' else 1024)
-                operation_argument_parser.add_argument('--height',type=int,default=512 if service_command_name=='qwen-2511' else 1024)
+                operation_argument_parser.add_argument('--width',type=int,default=512 if service_command_name in ('qwen-2511','expression') else 1024)
+                operation_argument_parser.add_argument('--height',type=int,default=512 if service_command_name in ('qwen-2511','expression') else 1024)
                 operation_argument_parser.add_argument('--steps',type=int,choices=(4,30),default=4)
-                operation_argument_parser.add_argument('--seed',type=int,default=10107 if service_command_name in ('qwen-2511','tile-map') else 251204)
-                if service_command_name in ('qwen-2511','tile-map'):
+                operation_argument_parser.add_argument('--seed',type=int,default=10107 if service_command_name in ('qwen-2511','tile-map','expression') else 251204)
+                if service_command_name in ('qwen-2511','tile-map','expression'):
                     operation_argument_parser.add_argument('--reference',type=Path,action='append',default=[],help='임의 해상도의 불투명 RGB/RGBA PNG, 장당 3MB 이하, 최대 3장')
     command_argument_values=command_argument_parser.parse_args(command_argument_list)
     server_base_address=command_argument_values.server_url
@@ -257,7 +261,7 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
                 if command_argument_values.use_base_prompt is not None:command_payload_value['use_base_prompt']=command_argument_values.use_base_prompt
                 if command_argument_values.use_style_prompt is not None:command_payload_value['use_style_prompt']=command_argument_values.use_style_prompt
                 command_payload_value['user_prompt']=command_payload_value.pop('prompt')
-            if service_command_name in ('qwen-2511','tile-map'):
+            if service_command_name in ('qwen-2511','tile-map','expression'):
                 if len(command_argument_values.reference)>3:raise ValueError('참조 이미지는 최대 3장입니다.')
                 command_payload_value['images']=[]
                 for reference_image_path in command_argument_values.reference:
