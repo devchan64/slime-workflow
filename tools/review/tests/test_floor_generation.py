@@ -105,7 +105,7 @@ class FloorGenerationTests(unittest.TestCase):
             self.assertEqual(prepare_floor_request(self.create_floor_request()|{'user_prompt':'돌 바닥'})['floor_separation']['prompt'],'돌 바닥')
             self.assertNotIn('floor_rectify',prepared_request_value)
             self.assertEqual(prepared_request_value['floor_separation']['prompt'],'잔디밭')
-            self.assertIn('floor-three-stage-v5',build_image_memory_identity('run_qwen_2512.py',current_job_root))
+            self.assertIn('floor-three-stage-v7',build_image_memory_identity('run_qwen_2512.py',current_job_root))
             launched_stage_names = []
             def simulate_stage_process(command_argument_values, **process_keyword_values):
                 stage_output_directory = Path(command_argument_values[-1])
@@ -174,7 +174,7 @@ class FloorGenerationTests(unittest.TestCase):
         cropped_image_value,_,crop_record_value=extract_molding_center(source_image_value)
         self.assertEqual(crop_record_value['crop_box'],original_crop_record['crop_box'])
         self.assertEqual(cropped_image_value.shape,original_crop_value.shape)
-        self.assertEqual(crop_record_value['version'],4)
+        self.assertEqual(crop_record_value['version'],6)
         self.assertEqual(len(crop_record_value['detected_cells']),9)
         selected_cell_bounds=next(record_value['bounds'] for record_value in crop_record_value['detected_cells'] if record_value['row']==2 and record_value['column']==2)
         self.assertEqual(crop_record_value['crop_box'],[selected_cell_bounds[0]-2,selected_cell_bounds[1]-2,selected_cell_bounds[2]+2,selected_cell_bounds[3]+2])
@@ -224,3 +224,33 @@ class FloorGenerationTests(unittest.TestCase):
                 cv2.rectangle(source_image_value,(left_pixel_value+15,top_pixel_value+15),(left_pixel_value+290,top_pixel_value+290),(40,150,40),-1)
         _,_,crop_record_value = extract_molding_center(source_image_value)
         self.assertEqual(crop_record_value['crop_box'],[358,358,668,668])
+
+    def test_connected_board_requires_nine_closed_frames(self):
+        from tools.review.domains.tile.floor_crop import extract_molding_center
+        source_image_value = np.zeros((1024,1024,3),dtype='uint8')
+        cv2.rectangle(source_image_value,(50,50),(974,974),(75,75,75),-1)
+        for current_row_index in range(3):
+            for current_column_index in range(3):
+                left_pixel_value = 85+current_column_index*300
+                top_pixel_value = 85+current_row_index*300
+                cv2.rectangle(source_image_value,(left_pixel_value,top_pixel_value),(left_pixel_value+250,top_pixel_value+250),(0,0,0),-1)
+                cv2.rectangle(source_image_value,(left_pixel_value+10,top_pixel_value+10),(left_pixel_value+240,top_pixel_value+240),(150,110,70),-1)
+        with self.assertRaises(ValueError): extract_molding_center(source_image_value,4)
+        cropped_image_value,_,crop_record_value = extract_molding_center(source_image_value)
+        self.assertEqual(crop_record_value['method'],'nine-closed-frames-gap-midpoints')
+        self.assertEqual(len(crop_record_value['detected_cells']),9)
+        self.assertEqual(crop_record_value['crop_size'],[300,300])
+        crop_left_value,crop_top_value,crop_right_value,crop_bottom_value = crop_record_value['crop_box']
+        np.testing.assert_array_equal(cropped_image_value,source_image_value[crop_top_value:crop_bottom_value,crop_left_value:crop_right_value])
+        # 어두운 내부는 기존 40 기준에서 테두리와 합쳐진다.
+        for current_column_index in range(3):
+            left_pixel_value = 95+current_column_index*300
+            cv2.rectangle(source_image_value,(left_pixel_value,695),(left_pixel_value+230,925),(35,35,35),-1)
+        with self.assertRaisesRegex(ValueError,'테두리 9개'):
+            extract_molding_center(source_image_value,5)
+        _,_,dark_crop_record = extract_molding_center(source_image_value)
+        self.assertEqual(dark_crop_record['crop_box'],crop_record_value['crop_box'])
+        self.assertGreaterEqual(len(dark_crop_record['parameters']['threshold_consensus']),2)
+        cv2.rectangle(source_image_value,(685,685),(935,935),(75,75,75),-1)
+        with self.assertRaisesRegex(ValueError,'테두리 9개'):
+            extract_molding_center(source_image_value)

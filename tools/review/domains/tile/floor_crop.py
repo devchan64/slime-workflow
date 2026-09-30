@@ -82,12 +82,12 @@ GRID_MAXIMUM_BACKGROUND_THRESHOLD = 32
 GRID_PARTICLE_OPENING_SIZE = 5
 
 
-def extract_molding_center(source_image_value, crop_algorithm_version=4):
+def extract_molding_center(source_image_value, crop_algorithm_version=6):
     if source_image_value is None or source_image_value.shape != (1024,1024,3):
         raise ValueError('중앙 외곽 검출은 1024×1024 RGB 원본만 지원합니다.')
     image_height_value,image_width_value = source_image_value.shape[:2]
     source_gray_value = cv2.cvtColor(source_image_value,cv2.COLOR_BGR2GRAY)
-    if crop_algorithm_version not in (2,3,4):
+    if crop_algorithm_version not in (2,3,4,5,6):
         raise ValueError('지원하지 않는 외곽 크롭 알고리즘 버전')
     background_threshold_value = GRID_BACKGROUND_THRESHOLD
     if crop_algorithm_version >= 3:
@@ -104,6 +104,8 @@ def extract_molding_center(source_image_value, crop_algorithm_version=4):
         foreground_mask_value = cv2.morphologyEx(foreground_mask_value,cv2.MORPH_OPEN,np.ones((GRID_PARTICLE_OPENING_SIZE,GRID_PARTICLE_OPENING_SIZE),dtype='uint8'))
     foreground_mask_value = cv2.morphologyEx(foreground_mask_value,cv2.MORPH_CLOSE,np.ones((CLOSING_KERNEL_SIZE,CLOSING_KERNEL_SIZE),dtype='uint8'))
     contour_candidate_values,_ = cv2.findContours(foreground_mask_value,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)
+    if crop_algorithm_version>=5 and any(cv2.contourArea(current_contour_value)>image_width_value*image_height_value*GRID_MAXIMUM_AREA_RATIO for current_contour_value in contour_candidate_values):
+        return extract_consistent_frame_center(source_image_value) if crop_algorithm_version>=6 else extract_connected_frame_center(source_image_value)
     selected_cell_records = {}
     for current_contour_value in contour_candidate_values:
         contour_area_value = cv2.contourArea(current_contour_value)
@@ -135,3 +137,82 @@ def extract_molding_center(source_image_value, crop_algorithm_version=4):
         cv2.rectangle(detected_image_value,tuple(current_cell_bounds[:2]),(current_cell_bounds[2]-1,current_cell_bounds[3]-1),(255,180,0),1)
     cv2.rectangle(detected_image_value,tuple(crop_box_values[:2]),(crop_box_values[2]-1,crop_box_values[3]-1),(0,0,255),2)
     return cropped_image_value,detected_image_value,{'method':'nine-grid-exterior-contours','version':crop_algorithm_version,'crop_box':crop_box_values,'crop_size':[cropped_image_value.shape[1],cropped_image_value.shape[0]],'detected_cells':[{'row':current_cell_position[0]+1,'column':current_cell_position[1]+1,'bounds':current_cell_bounds} for current_cell_position,current_cell_bounds in sorted(selected_cell_records.items())],'parameters':{'background_threshold':background_threshold_value,'sample_width':GRID_BACKGROUND_SAMPLE_WIDTH if crop_algorithm_version>=3 else None,'background_percentile':GRID_BACKGROUND_PERCENTILE_VALUE if crop_algorithm_version>=3 else None,'safety_margin':GRID_BACKGROUND_SAFETY_MARGIN if crop_algorithm_version>=3 else None,'fill_exterior_interiors':crop_algorithm_version>=4,'particle_opening_kernel':GRID_PARTICLE_OPENING_SIZE if crop_algorithm_version>=4 else None,'closing_kernel':CLOSING_KERNEL_SIZE,'outer_padding':GRID_OUTER_PADDING_PIXELS,'minimum_fill_ratio':GRID_MINIMUM_FILL_RATIO,'maximum_aspect_ratio':GRID_MAXIMUM_ASPECT_RATIO}}
+
+
+CONNECTED_FRAME_DARK_THRESHOLD = 40
+CONNECTED_FRAME_CLOSING_SIZE = 3
+CONNECTED_FRAME_MINIMUM_GAP = 4
+CONNECTED_FRAME_MAXIMUM_GAP_RATIO = 0.30
+
+
+def extract_connected_frame_center(source_image_value, dark_threshold_value=CONNECTED_FRAME_DARK_THRESHOLD):
+    """연결된 판에서 9개의 닫힌 내부 테두리를 검증하고 경계 간 중간선으로 분리한다."""
+    source_gray_value = cv2.cvtColor(source_image_value,cv2.COLOR_BGR2GRAY)
+    dark_frame_mask = (source_gray_value<dark_threshold_value).astype('uint8')*255
+    dark_frame_mask = cv2.morphologyEx(dark_frame_mask,cv2.MORPH_CLOSE,np.ones((CONNECTED_FRAME_CLOSING_SIZE,CONNECTED_FRAME_CLOSING_SIZE),dtype='uint8'))
+    frame_contour_values,frame_hierarchy_values = cv2.findContours(dark_frame_mask,cv2.RETR_CCOMP,cv2.CHAIN_APPROX_SIMPLE)
+    selected_cell_records = {}
+    image_height_value,image_width_value = source_gray_value.shape
+    for current_contour_index,current_contour_value in enumerate(frame_contour_values):
+        if frame_hierarchy_values[0,current_contour_index,3]<0: continue
+        contour_area_value = cv2.contourArea(current_contour_value)
+        if not GRID_MINIMUM_AREA_RATIO*image_width_value*image_height_value<contour_area_value<GRID_MAXIMUM_AREA_RATIO*image_width_value*image_height_value: continue
+        left_pixel_value,top_pixel_value,width_pixel_value,height_pixel_value = cv2.boundingRect(current_contour_value)
+        if contour_area_value/(width_pixel_value*height_pixel_value)<GRID_MINIMUM_FILL_RATIO or max(width_pixel_value,height_pixel_value)/min(width_pixel_value,height_pixel_value)>GRID_MAXIMUM_ASPECT_RATIO: continue
+        cell_column_index = int((left_pixel_value+width_pixel_value/2)*3/image_width_value)
+        cell_row_index = int((top_pixel_value+height_pixel_value/2)*3/image_height_value)
+        current_cell_position = (cell_row_index,cell_column_index)
+        if current_cell_position in selected_cell_records: raise ValueError('연결형 테두리의 셀 후보가 중복됩니다.')
+        selected_cell_records[current_cell_position] = [left_pixel_value,top_pixel_value,left_pixel_value+width_pixel_value,top_pixel_value+height_pixel_value]
+    if set(selected_cell_records)!={(current_row_index,current_column_index) for current_row_index in range(3) for current_column_index in range(3)}:
+        raise ValueError(f'연결형 판에서 닫힌 정사각형 테두리 9개가 필요합니다: {len(selected_cell_records)}개')
+    for current_row_index in range(3):
+        for current_column_index in range(3):
+            current_cell_bounds = selected_cell_records[(current_row_index,current_column_index)]
+            for next_cell_position,current_axis_index in (((current_row_index,current_column_index+1),0),((current_row_index+1,current_column_index),1)):
+                if next_cell_position not in selected_cell_records: continue
+                next_cell_bounds = selected_cell_records[next_cell_position]
+                current_gap_width = next_cell_bounds[current_axis_index]-current_cell_bounds[current_axis_index+2]
+                current_cell_width = current_cell_bounds[current_axis_index+2]-current_cell_bounds[current_axis_index]
+                if not CONNECTED_FRAME_MINIMUM_GAP<=current_gap_width<=current_cell_width*CONNECTED_FRAME_MAXIMUM_GAP_RATIO: raise ValueError('연결형 판의 셀 간격이 올바르지 않습니다.')
+                other_axis_index = 1-current_axis_index
+                if abs(sum(current_cell_bounds[other_axis_index::2])-sum(next_cell_bounds[other_axis_index::2]))/2>image_width_value*GRID_CELL_ALIGNMENT_RATIO: raise ValueError('연결형 판의 행·열 정렬 오류')
+    central_cell_bounds = selected_cell_records[(1,1)]
+    crop_box_values = [(selected_cell_records[(1,0)][2]+central_cell_bounds[0])//2,(selected_cell_records[(0,1)][3]+central_cell_bounds[1])//2,(central_cell_bounds[2]+selected_cell_records[(1,2)][0])//2,(central_cell_bounds[3]+selected_cell_records[(2,1)][1])//2]
+    crop_width_value,crop_height_value = crop_box_values[2]-crop_box_values[0],crop_box_values[3]-crop_box_values[1]
+    if max(crop_width_value,crop_height_value)/min(crop_width_value,crop_height_value)>GRID_MAXIMUM_ASPECT_RATIO: raise ValueError('연결형 중앙 크롭의 가로세로 비율 불일치')
+    cropped_image_value = source_image_value[crop_box_values[1]:crop_box_values[3],crop_box_values[0]:crop_box_values[2]].copy()
+    detected_image_value = source_image_value.copy()
+    for current_cell_bounds in selected_cell_records.values():cv2.rectangle(detected_image_value,tuple(current_cell_bounds[:2]),tuple(current_cell_bounds[2:]),(255,180,0),1)
+    cv2.rectangle(detected_image_value,tuple(crop_box_values[:2]),tuple(crop_box_values[2:]),(0,0,255),2)
+    return cropped_image_value,detected_image_value,{'method':'nine-closed-frames-gap-midpoints','version':5,'crop_box':crop_box_values,'crop_size':[crop_width_value,crop_height_value],'detected_cells':[{'row':current_cell_position[0]+1,'column':current_cell_position[1]+1,'bounds':current_cell_bounds} for current_cell_position,current_cell_bounds in sorted(selected_cell_records.items())],'parameters':{'dark_threshold':dark_threshold_value,'closing_kernel':CONNECTED_FRAME_CLOSING_SIZE,'minimum_gap':CONNECTED_FRAME_MINIMUM_GAP,'maximum_gap_ratio':CONNECTED_FRAME_MAXIMUM_GAP_RATIO}}
+
+
+CONNECTED_FRAME_THRESHOLD_VALUES = (16, 20, 24, 28, 32, 36, 40)
+CONNECTED_FRAME_BOUNDARY_TOLERANCE = 4
+
+
+def extract_consistent_frame_center(source_image_value):
+    """밝기별 완전한 9칸 검출의 경계 합의를 검증한다. 불완전한 격자는 거절한다."""
+    accepted_candidate_records = []
+    rejected_candidate_records = []
+    for current_threshold_value in CONNECTED_FRAME_THRESHOLD_VALUES:
+        try:
+            current_candidate_record = extract_connected_frame_center(source_image_value, current_threshold_value)
+        except ValueError as current_validation_error:
+            rejected_candidate_records.append({'threshold':current_threshold_value,'reason':str(current_validation_error)})
+            continue
+        accepted_candidate_records.append(current_candidate_record)
+    if len(accepted_candidate_records)<2:
+        raise ValueError('밝기별 테두리 9개 검출 합의 부족: '+str(rejected_candidate_records))
+    candidate_boundary_values = np.array([current_candidate_record[2]['crop_box'] for current_candidate_record in accepted_candidate_records])
+    if np.any(np.ptp(candidate_boundary_values,axis=0)>CONNECTED_FRAME_BOUNDARY_TOLERANCE):
+        raise ValueError('밝기별 중앙 테두리 위치가 일치하지 않습니다.')
+    median_boundary_values = np.median(candidate_boundary_values,axis=0)
+    selected_candidate_index = int(np.argmin(np.sum(np.abs(candidate_boundary_values-median_boundary_values),axis=1)))
+    cropped_image_value,detected_image_value,crop_result_record = accepted_candidate_records[selected_candidate_index]
+    crop_result_record['version'] = 6
+    crop_result_record['parameters']['threshold_consensus'] = [{'threshold':current_candidate_record[2]['parameters']['dark_threshold'],'crop_box':current_candidate_record[2]['crop_box']} for current_candidate_record in accepted_candidate_records]
+    crop_result_record['parameters']['rejected_thresholds'] = rejected_candidate_records
+    crop_result_record['parameters']['boundary_tolerance'] = CONNECTED_FRAME_BOUNDARY_TOLERANCE
+    return cropped_image_value,detected_image_value,crop_result_record

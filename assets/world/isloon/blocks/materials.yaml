@@ -13,3 +13,6 @@ materials:
   cactus: '#5f763c'
   mud: '#746044'
   road: '#967447'
+  shallow-water: '#4595aa'
+  deep-water: '#163e58'
+  stone: '#85858a'

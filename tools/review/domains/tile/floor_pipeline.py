@@ -66,12 +66,12 @@ def execute_floor_stage(current_job_root, stage_directory_name, worker_file_name
 
 def execute_floor_pipeline(current_job_root, current_request_record):
     pipeline_start_seconds = time.monotonic()
-    mechanical_crop_enabled = current_request_record['floor_separation']['version'] in (2,3,4,5)
+    mechanical_crop_enabled = current_request_record['floor_separation']['version'] in (2,3,4,5,6,7)
     pipeline_stage_count = 3 if mechanical_crop_enabled else 2
     current_stage_name = f'1/{pipeline_stage_count} · 9칸 생성'
     try:
         separation_request_record = current_request_record['floor_separation']
-        if separation_request_record['version'] not in (1,2,3,4,5):
+        if separation_request_record['version'] not in (1,2,3,4,5,6,7):
             raise ValueError('지원하지 않는 바닥 분리 단계 버전')
         write_pipeline_record(current_job_root/'status.json',{'status':'running','stage':current_stage_name})
         grid_request_record = {current_field_name:current_request_record[current_field_name] for current_field_name in ('action','prompt','width','height','steps','seed')}
@@ -120,11 +120,11 @@ def execute_floor_pipeline(current_job_root, current_request_record):
         raise
 
 
-def execute_mechanical_crop(current_job_root, crop_algorithm_version=4):
+def execute_mechanical_crop(current_job_root, crop_algorithm_version=6):
     """기계식 단계 결과와 원본 해시를 보존하고 재개 시 검증한다."""
     import cv2
     from tools.review.domains.tile.floor_crop import extract_molding_center, extract_legacy_molding_center
-    if crop_algorithm_version not in (1,2,3,4):
+    if crop_algorithm_version not in (1,2,3,4,5,6):
         raise ValueError('지원하지 않는 기계식 크롭 알고리즘 버전')
     crop_start_seconds = time.monotonic()
     crop_output_directory = current_job_root/'stage-2-crop'

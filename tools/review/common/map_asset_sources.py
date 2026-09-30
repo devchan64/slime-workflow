@@ -3,9 +3,9 @@ from pathlib import Path
 import yaml
 from tools.review.common.map_tile_assets import load_registered_tiles, resolve_registered_asset
 
-MAP_REVIEW_IDENTIFIERS = ('iseulon','reedhaven','stonewarm','dry-creek')
-MAP_CITY_TERRAIN_CODES = dict(g='grass',p='paving',w='water',r='reed-bed',v='gravel',b='boulder')
-MAP_BLOCKED_TERRAIN_NAMES = {'water','wall','boulder','tree-base','cactus'}
+MAP_REVIEW_IDENTIFIERS = ('iseulon','reedhaven','stonewarm','dry-creek','reed-crossing','silver-marsh','pebble-shore')
+MAP_CITY_TERRAIN_CODES = dict(g='grass',p='paving',w='water',h='shallow-water',q='deep-water',r='reed-bed',v='gravel',b='boulder')
+MAP_BLOCKED_TERRAIN_NAMES = {'water','wall','boulder','tree-base','cactus','shallow-water','deep-water'}
 MAP_SOURCE_BLOCK_HEIGHT = 60
 
 
@@ -53,7 +53,7 @@ def load_registered_map_review(map_identifier_value):
     source_provenance_records = []
     read_map_source_data = lambda relative_source_path: read_registered_map_data(relative_source_path,source_provenance_records)
     current_name_record = read_map_source_data('map_names/'+map_identifier_value+'.yaml')
-    if map_identifier_value=='dry-creek':
+    if map_identifier_value in ('dry-creek','reed-crossing','silver-marsh','pebble-shore'):
         current_map_record = read_map_source_data('terrain/maps/'+map_identifier_value+'.yaml')
         current_map_record['terrainRows'] = read_map_source_data('field_tiles/'+map_identifier_value+'.yaml')['rows']
         current_map_record['terrainCodes'] = read_map_source_data('field_tiles/codes.yaml')

@@ -44,7 +44,7 @@ def build_floor_interface(server_base_address):
                 generation_start_button = gr.Button('바닥 타일 생성 시작',variant='primary')
                 generation_status_control = gr.Markdown('생성 가능 · 100단어 미만의 프롬프트를 입력하세요.')
             with gr.Column():
-                gr.Markdown('### 생성 과정\n1. Qwen 2512로 1024×1024의 3행×3열 이미지를 생성합니다.\n2. 이미지 외곽의 배경 밝기를 측정하고 검출 마스크의 작은 입자를 제거한 뒤 9개 블록 외곽을 검증하고, 중앙 블록의 네 테두리와 2px 여백을 포함해 원본 픽셀을 크롭합니다. 경계 검출 실패 시 중단하고 원본을 보존합니다.\n3. 크롭 이미지를 512×512 참조로 변환하고 사용자 프롬프트만 전달해 Qwen 2511로 다시 그립니다.\n\n3단계 고정 설정: 512×512 · 4스텝 · Seed 10107. 9칸 원본·검출 경계·원본 크롭·최종 결과를 보존합니다. 재개 시 완료된 단계의 해시를 검증하여 재사용합니다.')
+                gr.Markdown('### 생성 과정\n1. Qwen 2512로 1024×1024의 3행×3열 이미지를 생성합니다.\n2. 이미지 외곽의 배경 밝기를 측정하고 검출 마스크의 작은 입자를 제거한 뒤 9개 블록 외곽을 검증하고, 중앙 블록의 네 테두리와 2px 여백을 포함해 원본 픽셀을 크롭합니다. 연결형 판은 닫힌 내부 테두리 9개를 검증하고 이웃 칸 사이 중간선으로 분리합니다. 경계 검출 실패 시 중단하고 원본을 보존합니다.\n3. 크롭 이미지를 512×512 참조로 변환하고 사용자 프롬프트만 전달해 Qwen 2511로 다시 그립니다.\n\n3단계 고정 설정: 512×512 · 4스텝 · Seed 10107. 9칸 원본·검출 경계·원본 크롭·최종 결과를 보존합니다. 재개 시 완료된 단계의 해시를 검증하여 재사용합니다.')
         current_identifier_state = gr.State('')
         def start_floor_generation(user_prompt_value,generation_tag_value,output_size_value,inference_step_value,generation_seed_value):
             generation_result_record = execute_floor_gateway('generate',{'action':'generate','user_prompt':user_prompt_value,'tag':generation_tag_value,'width':int(output_size_value),'height':int(output_size_value),'steps':int(inference_step_value),'seed':int(generation_seed_value)})
