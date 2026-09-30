@@ -3,6 +3,7 @@ import sys
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[2]))
 from tools.review.common.game_render_metrics import load_game_render_metrics
+from tools.review.common.map_asset_sources import MAP_CITY_REVIEW_IDENTIFIERS
 from tools.review.common.sprite_asset_sources import load_locked_sprite_sources
 from tools.review.ui_assets import resolve_review_ui_asset, read_review_shared_styles, read_animation_anchor_template
 from datetime import datetime
@@ -348,7 +349,9 @@ def build_frontend_review(frontend_repository_path, ui_bundle_directory=None):
         map_index_record=json.loads((isloon_review_directory/'block-map-index.json').read_text(encoding='utf-8'))
         for current_map_record in map_index_record:
             current_map_identifier=current_map_record['id']
-            manager_page_records.append({'id': f'map-review-{current_map_identifier}', 'label': current_map_record['name']+' · 마을 맵 검수', 'path': map_review_relative_path+f'?map={current_map_identifier}&townPage=1', 'anchorEditor': False, 'category': 'tile-review', 'uiMode':'gradio', 'frameIdentifier':'map-review', 'frameQuery':f'map={current_map_identifier}&townPage=1', 'description': 'Gradio · '+current_map_record['name']+' 전용 검수 · 타일 연결 · 건물 충돌 검수'})
+            current_review_category = 'town-map-review' if current_map_identifier in MAP_CITY_REVIEW_IDENTIFIERS else 'field-map-review'
+            current_review_label = '마을맵 검수' if current_map_identifier in MAP_CITY_REVIEW_IDENTIFIERS else '필드맵 검수'
+            manager_page_records.append({'id': f'map-review-{current_map_identifier}', 'label': current_map_record['name']+' · '+current_review_label, 'path': map_review_relative_path+f'?map={current_map_identifier}&townPage=1', 'anchorEditor': False, 'category': current_review_category, 'uiMode':'gradio', 'frameIdentifier':'map-review', 'frameQuery':f'map={current_map_identifier}&townPage=1', 'description': 'Gradio · '+current_map_record['name']+' 전용 검수 · 타일 연결 · 건물 충돌 검수'})
         emit_review_trace('tile-map-review', str(isloon_review_directory.relative_to(WORKFLOW_REPO_ROOT)))
         if __package__:
             from .build_animation_tools import build_animation_tools

@@ -3,6 +3,7 @@ from pathlib import Path
 import yaml
 from tools.review.common.map_tile_assets import load_registered_tiles, resolve_registered_asset
 
+MAP_CITY_REVIEW_IDENTIFIERS = ('iseulon','reedhaven','stonewarm')
 MAP_REVIEW_IDENTIFIERS = ('iseulon','reedhaven','stonewarm','dry-creek','reed-crossing','silver-marsh','pebble-shore')
 MAP_CITY_TERRAIN_CODES = dict(g='grass',p='paving',w='water',h='shallow-water',q='deep-water',r='reed-bed',v='gravel',b='boulder')
 MAP_BLOCKED_TERRAIN_NAMES = {'water','wall','boulder','tree-base','cactus','shallow-water','deep-water'}
