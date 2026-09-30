@@ -18,7 +18,7 @@ tiles:
   - {id: stonewarm-stone-wall-crossbar, category: structure, asset: assets/tiles/buildings/stone/stone-wall-crossbar-v1.png, walkable: false, movement_cost: 99}
   - {id: stonewarm-stone-door, category: door, asset: assets/tiles/buildings/stone/stone-door-v1.png, walkable: true, movement_cost: 1}
   - {id: spring_water, category: ground, asset: assets/tiles/terrain/blocked/shallow-water-v1.png, walkable: false, movement_cost: 99}
-  - {id: flower_bed, category: decoration, asset: assets/tiles/terrain/non-road/flowers-v3.png, walkable: true, movement_cost: 1}
+  - {id: flower_bed, category: decoration, asset: assets/tiles/terrain/non-road/wildflowers-v1.png, walkable: true, movement_cost: 1}
   - {id: marble_large_window_wall, category: structure, asset: assets/tiles/buildings/marble/marble-large-window-wall-v1.png, walkable: false, movement_cost: 99}
   - {id: marble_plain_wall, category: structure, asset: assets/tiles/buildings/marble/marble-plain-wall-v1.png, walkable: false, movement_cost: 99}
   - {id: marble_small_window_wall, category: structure, asset: assets/tiles/buildings/marble/marble-small-window-wall-v1.png, walkable: false, movement_cost: 99}
