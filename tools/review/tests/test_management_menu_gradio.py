@@ -19,7 +19,7 @@ class GradioManagementMenuTests(unittest.TestCase):
         preview_html_text=create_page_preview_html('momask-generator',self.page_record_values,8770)
         self.assertIn('http://127.0.0.1:8770/management/frame/momask-generator/',preview_html_text)
         self.assertIn('MoMask 모션 생성기',preview_html_text)
-        self.assertIn('allow="clipboard-write http://127.0.0.1:8770 http://127.0.0.1:8871"',preview_html_text)
+        self.assertIn('allow="clipboard-write http://127.0.0.1:8770 http://127.0.0.1:8871; clipboard-read http://127.0.0.1:8770 http://127.0.0.1:8871"',preview_html_text)
 
     def test_static_review_uses_gradio_component_path(self):
         static_review_records=[{'id':'walk-review','label':'걷기 검수','path':'walk/anchors.html','category':'animation','uiMode':'gradio-static','description':'앵커'}]

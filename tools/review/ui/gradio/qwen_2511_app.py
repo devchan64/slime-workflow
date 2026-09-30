@@ -2,6 +2,7 @@
 import argparse
 import base64
 import html
+import io
 import os
 from pathlib import Path
 import sys
@@ -34,8 +35,9 @@ def build_qwen_2511_interface(server_base_address):
             with gr.Column(scale=1):
                 prompt_text_value=gr.Textbox(label='프롬프트',lines=6)
                 generation_tag_value=gr.Textbox(label='생성 이력 태그 · 선택 사항',placeholder='예: 돌온재 참조 후보',max_lines=1)
-                reference_file_values=gr.File(label='참조 PNG · 최대 3장 · 순서 유지',file_count='multiple',type='binary')
-                gr.Markdown('참조 조건: 512×512 RGB/RGBA PNG, 투명 배경 불가. 순서를 바꾸려면 다시 업로드하세요.')
+                with gr.Row():
+                    reference_image_controls=[gr.Image(type='pil',image_mode=None,sources=['upload','clipboard'],label=f'참조 이미지 {reference_slot_index+1}',height=230,min_width=180,elem_classes=['reference-upload-card']) for reference_slot_index in range(3)]
+                gr.Markdown('참조 조건: 512×512 RGB/RGBA PNG, 투명 배경 불가. 참조 1 → 2 → 3 순서로 전달합니다. 업로드 또는 클립보드 붙여넣기를 사용하세요.')
                 with gr.Row():width_value=gr.Dropdown([512,768,1024,1280],value=1024,label='너비');height_value=gr.Dropdown([512,768,1024,1280],value=1024,label='높이')
                 with gr.Row():step_value=gr.Radio([4,30],value=4,label='생성 스텝');seed_value=gr.Number(value=10107,precision=0,label='Seed')
                 gr.Markdown('예상 시간: 실행 이력 기반 추정 자료를 수집 중입니다. 실행 로그에서 진행 단계를 확인하세요.')
@@ -50,9 +52,16 @@ def build_qwen_2511_interface(server_base_address):
             restore_input_callback=restore_reference_inputs,
             restore_output_components=[prompt_text_value,generation_tag_value,width_value,height_value,step_value,seed_value,status_value],
             record_folder_route='/image-generation-2511',allow_individual_delete=True)
-        def start_generation(*input_values):
-            generation_record_value=execute_reference_gateway('generate',build_reference_request(*input_values));return generation_record_value['id'],'상태: running'
-        bind_gpu_generation_confirmation(generation_button_value,start_generation,[prompt_text_value,generation_tag_value,reference_file_values,width_value,height_value,step_value,seed_value],[identifier_value,status_value])
+        def start_generation(prompt_text_value,generation_tag_value,first_reference_image,second_reference_image,third_reference_image,width_value,height_value,step_value,seed_value):
+            reference_bytes_values=[]
+            for current_reference_image in (first_reference_image,second_reference_image,third_reference_image):
+                if current_reference_image is None: continue
+                reference_image_buffer=io.BytesIO()
+                current_reference_image.save(reference_image_buffer,format='PNG')
+                reference_bytes_values.append(reference_image_buffer.getvalue())
+            generation_record_value=execute_reference_gateway('generate',build_reference_request(prompt_text_value,generation_tag_value,reference_bytes_values,width_value,height_value,step_value,seed_value))
+            return generation_record_value['id'],'상태: running'
+        bind_gpu_generation_confirmation(generation_button_value,start_generation,[prompt_text_value,generation_tag_value,*reference_image_controls,width_value,height_value,step_value,seed_value],[identifier_value,status_value])
         def refresh_status(identifier_text_value,refresh_log_enabled):
             if not identifier_text_value:return '생성 ID를 선택하세요.',gr.skip(),gr.skip()
             status_record_value=execute_reference_gateway('status',{'id':identifier_text_value});return '상태: '+status_record_value['status'],gr.update(value=status_record_value.get('log','')) if refresh_log_enabled else gr.skip(),result_preview_html(status_record_value.get('image')) if status_record_value.get('image') else gr.skip()
