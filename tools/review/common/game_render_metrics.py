@@ -6,41 +6,15 @@ from pathlib import Path
 
 
 WORKFLOW_REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
-GAME_CITY_EXPORT_DIRECTORY = WORKFLOW_REPOSITORY_ROOT / 'assets/world/isloon/game-data'
-GAME_CITY_MANIFEST_FILENAME = 'source-manifest.json'
 
 
 def load_game_city_export_sources():
-    game_manifest_path = GAME_CITY_EXPORT_DIRECTORY / GAME_CITY_MANIFEST_FILENAME
-    if not game_manifest_path.is_file():
-        raise ValueError(f'게임 도시 내보내기 원장 누락: {game_manifest_path}')
-    game_manifest_record = json.loads(game_manifest_path.read_text(encoding='utf-8'))
-    city_layout_hashes = game_manifest_record.get('cityLayoutSha256')
-    game_block_height = game_manifest_record.get('blockHeight')
-    if not isinstance(city_layout_hashes, dict) or not city_layout_hashes:
-        raise ValueError('게임 도시 내보내기 원장의 도시 해시가 올바르지 않습니다.')
-    if not isinstance(game_block_height, (int, float)) or game_block_height <= 0:
-        raise ValueError('게임 도시 내보내기 원장의 블록 높이가 올바르지 않습니다.')
-    game_source_records = [
-        {
-            'path': game_manifest_path.relative_to(WORKFLOW_REPOSITORY_ROOT).as_posix(),
-            'sha256': hashlib.sha256(game_manifest_path.read_bytes()).hexdigest(),
-        }
-    ]
-    for city_identifier in sorted(city_layout_hashes):
-        city_export_path = GAME_CITY_EXPORT_DIRECTORY / f'{city_identifier}.json'
-        if not city_export_path.is_file():
-            raise ValueError(f'게임 도시 검수 사본 누락: {city_export_path}')
-        city_export_record = json.loads(city_export_path.read_text(encoding='utf-8'))
-        if city_export_record.get('id') != city_identifier:
-            raise ValueError(f'게임 도시 검수 사본 식별자가 일치하지 않습니다: {city_export_path}')
-        game_source_records.append(
-            {
-                'path': city_export_path.relative_to(WORKFLOW_REPOSITORY_ROOT).as_posix(),
-                'sha256': hashlib.sha256(city_export_path.read_bytes()).hexdigest(),
-            }
-        )
-    return game_block_height, game_source_records
+    from tools.review.common.map_asset_sources import MAP_REVIEW_IDENTIFIERS, MAP_SOURCE_BLOCK_HEIGHT, load_registered_map_review
+    current_source_records = {}
+    for current_map_identifier in MAP_REVIEW_IDENTIFIERS:
+        for current_source_record in load_registered_map_review(current_map_identifier)['provenance']:
+            current_source_records[current_source_record['source']] = {'repository':'slime-assets','path':current_source_record['source'],'sha256':current_source_record['sha256']}
+    return MAP_SOURCE_BLOCK_HEIGHT, list(current_source_records.values())
 
 
 def load_game_render_metrics(frontend_repository_path):

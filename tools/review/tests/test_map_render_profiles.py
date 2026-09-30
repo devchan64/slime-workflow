@@ -4,7 +4,8 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
 
-from tools.review.build_block_map_review import build_block_map_review
+from tools.review.build_block_map_review import build_block_map_review, build_registered_map_review
+from tools.review.common.map_asset_sources import load_registered_map_review
 from tools.review.common.game_render_metrics import load_game_render_metrics
 from tools.review.build_map_review import load_map_render_profiles
 
@@ -14,7 +15,7 @@ GAME_MAP_DIRECTORY = WORKFLOW_ROOT / 'assets/world/isloon/game-data'
 
 
 def load_exported_game_map(city_identifier):
-    return json.loads((GAME_MAP_DIRECTORY / f'{city_identifier}.json').read_text(encoding='utf-8'))
+    return load_registered_map_review(city_identifier)
 
 
 class MapRenderProfileTests(unittest.TestCase):
@@ -31,25 +32,19 @@ class MapRenderProfileTests(unittest.TestCase):
             self.assertEqual(guild_texture_record['sha256'], '44e70c213ff5b69af96035971f9033856473a01832d688f9d341e5d620b9ffe3')
 
     def test_all_town_reviews_use_the_game_export_as_the_only_layout_snapshot(self):
-        source_manifest_record = json.loads((GAME_MAP_DIRECTORY / 'source-manifest.json').read_text(encoding='utf-8'))
-        expected_city_identifiers = {'iseulon', 'reedhaven', 'stonewarm'}
-
-        self.assertEqual(set(source_manifest_record['cityLayoutSha256']), expected_city_identifiers)
-        self.assertEqual(
-            {current_map_path.stem for current_map_path in GAME_MAP_DIRECTORY.glob('*.json') if current_map_path.name != 'source-manifest.json'},
-            expected_city_identifiers,
-        )
-        for current_city_identifier in expected_city_identifiers:
-            self.assertFalse((WORKFLOW_ROOT / f'assets/world/isloon/blocks/{current_city_identifier}.json').exists())
+        self.assertFalse(GAME_MAP_DIRECTORY.exists())
+        for current_map_identifier in ('iseulon','reedhaven','stonewarm','dry-creek'):
+            current_map_record = load_registered_map_review(current_map_identifier)
+            self.assertTrue(current_map_record['provenance'])
+            self.assertTrue(all(record['repository']=='slime-assets' for record in current_map_record['provenance']))
 
     def test_game_render_metrics_identify_every_game_city_export_source(self):
         game_render_metrics = load_game_render_metrics(WORKFLOW_ROOT.parent / 'slime-frontend')
         metric_source_paths = {current_source_record['path'] for current_source_record in game_render_metrics['sources']}
 
         self.assertEqual(game_render_metrics['wallHeight'], 80)
-        self.assertIn('assets/world/isloon/game-data/source-manifest.json', metric_source_paths)
         for current_city_identifier in ('iseulon', 'reedhaven', 'stonewarm'):
-            self.assertIn(f'assets/world/isloon/game-data/{current_city_identifier}.json', metric_source_paths)
+            self.assertIn(f'assets/maps/city_layouts/{current_city_identifier}.yaml', metric_source_paths)
 
     def test_building_review_templates_use_shared_profile_values(self):
         render_profile_values = load_map_render_profiles()
@@ -84,7 +79,7 @@ class MapRenderProfileTests(unittest.TestCase):
 
         self.assertIn('id: stonewarm-exposed-rock-ground', tile_catalog_source)
         self.assertIn('assets/tiles/terrain/non-road/exposed-rock-ground-v1.png', tile_catalog_source)
-        self.assertIn("gravel:currentMapRecord.id==='stonewarm'?'stonewarm-exposed-rock-ground':undefined", map_review_script)
+        self.assertIn("gravel:currentMapRecord.id==='stonewarm'?'stonewarm-exposed-rock-ground':'gravel'", map_review_script)
 
     def test_reedhaven_roads_use_the_dirt_road_texture(self):
         tile_catalog_source = (WORKFLOW_ROOT / 'assets/world/isloon/tile-catalog.yaml').read_text(encoding='utf-8')
@@ -103,23 +98,23 @@ class MapRenderProfileTests(unittest.TestCase):
         self.assertIn('id: wood_roof', tile_catalog_source)
         self.assertEqual(tile_catalog_source.count('id: wood_wall,'), 1)
         self.assertIn('assets/tiles/buildings/wood/wood-wall-v2.png', tile_catalog_source)
-        self.assertIn('roof_underlay_wall_tile: wood_wall', building_prefab_source)
+        self.assertIn('roof_underlay_wall_tile: wood_crossbar_wall', building_prefab_source)
         self.assertIn("'roof_underlay':current_prefab_record.get('roof_underlay_wall_tile'", block_review_builder)
         self.assertIn('readBuildingTileSet', map_review_script)
         self.assertIn("return 'roof_underlay'", map_review_script)
 
         with TemporaryDirectory(dir=WORKFLOW_ROOT / '.tmp') as current_temporary_directory:
             current_output_directory = build_block_map_review(Path(current_temporary_directory))
-            reviewed_reedhaven_record = json.loads((current_output_directory / 'block-map-reedhaven.json').read_text(encoding='utf-8'))
+            reviewed_reedhaven_record = build_registered_map_review('reedhaven')
         self.assertEqual(
             reviewed_reedhaven_record['buildingTileOverrides'],
             {
                 'roof': 'wood_roof',
                 'wall': 'wood_wall',
-                'window': 'wood_wall',
-                'large_window': 'wood_wall',
-                'roof_underlay': 'wood_wall',
-                'door': 'wood_door',
+                'window': 'wood_window_wall',
+                'large_window': 'wood_window_wall',
+                'roof_underlay': 'wood_crossbar_wall',
+                'door': 'wood_door_wall',
             },
         )
 
@@ -180,7 +175,7 @@ class MapRenderProfileTests(unittest.TestCase):
 
         with TemporaryDirectory(dir=WORKFLOW_ROOT / '.tmp') as current_temporary_directory:
             current_output_directory = build_block_map_review(Path(current_temporary_directory))
-            reviewed_stonewarm_record = json.loads((current_output_directory / 'block-map-stonewarm.json').read_text(encoding='utf-8'))
+            reviewed_stonewarm_record = build_registered_map_review('stonewarm')
         self.assertEqual(reviewed_stonewarm_record['buildingTileOverrides']['roof_underlay'], 'stonewarm-stone-wall-crossbar')
         self.assertEqual(reviewed_stonewarm_record['buildingTileOverrides']['roof'], 'stonewarm-stone-roof')
 
@@ -215,7 +210,7 @@ class MapRenderProfileTests(unittest.TestCase):
             self.assertGreaterEqual(len(current_building_record['blocks']), current_building_record['width'] * current_building_record['height'] * 2)
         with TemporaryDirectory(dir=WORKFLOW_ROOT / '.tmp') as current_temporary_directory:
             current_output_directory = build_block_map_review(Path(current_temporary_directory))
-            reviewed_map_record = json.loads((current_output_directory / 'block-map-iseulon.json').read_text(encoding='utf-8'))
+            reviewed_map_record = build_registered_map_review('iseulon')
         reviewed_guild_record = next(building for building in reviewed_map_record['buildings'] if building['id'] == 'iseulon-guild')
         self.assertEqual((reviewed_guild_record['width'], reviewed_guild_record['height'], reviewed_guild_record['floors']), (2, 3, 2))
         self.assertTrue(all(block['height'] == 80 for block in reviewed_guild_record['blocks']))

@@ -10,3 +10,6 @@ materials:
   boulder: '#646d70'
   wall: '#c8b68d'
   roof: '#467c75'
+  cactus: '#5f763c'
+  mud: '#746044'
+  road: '#967447'

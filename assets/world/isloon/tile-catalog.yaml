@@ -32,6 +32,10 @@ tiles:
   - {id: wood_crossbar_wall, category: structure, asset: assets/tiles/buildings/wood/wood-crossbar-wall-v1.png, walkable: false, movement_cost: 99}
   - {id: packed_dirt_road, category: ground, asset: assets/tiles/terrain/road/packed-dirt-road-v1.png, walkable: true, movement_cost: 1}
   - {id: stone_slab_road, category: ground, asset: assets/tiles/terrain/road/stone-slab-road-v1.png, walkable: true, movement_cost: 1}
+  - {id: cactus, category: ground, asset: assets/tiles/terrain/blocked/cactus-v1.png, walkable: false, movement_cost: 99}
+  - {id: gravel, category: ground, asset: assets/tiles/terrain/non-road/gravel-128.webp, walkable: true, movement_cost: 1}
+  - {id: mud, category: ground, asset: assets/tiles/terrain/non-road/mud-128.webp, walkable: true, movement_cost: 1}
+  - {id: boulder, category: ground, asset: assets/tiles/terrain/blocked/boulder-128.webp, walkable: false, movement_cost: 99}
 connections:
   - {id: grass-to-paving, from: grass, to: paving, variants: [straight, corner, tee, cross]}
   - {id: paving-to-spring, from: paving, to: spring_water, variants: [bank-straight, bank-corner]}

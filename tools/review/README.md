@@ -49,15 +49,8 @@ HTTP URL, 페이지 해시, CLI 명령, `.tmp` 생성 ID·기록 경로와 `asse
 
 ## 마을 맵 원장과 검수 사본
 
-이슬온·갈대나루·돌온재의 블록 배치·건물 크기·층수는 게임 백엔드의 `config/city_layouts/`가 유일한 원장이다. 검수 화면은 런타임에 다른 저장소를 읽지 않고, 게임 데이터에서 명시적으로 내보낸 `assets/world/isloon/game-data/` 사본만 사용한다. 검수 전용 `blocks/<마을>.json` 레이아웃 사본은 두지 않는다. 사본의 `source-manifest.json`에는 세 마을 원장 YAML 해시와 게임 블록 높이를 함께 기록한다.
+맵 배치·통행 원본은 `slime-assets/assets/maps/`이며 등록부 해시를 확인해 직접 읽는다. 관리도구의 `/management/map-assets/maps/<id>`는 요청 시 원본 YAML을 해석하며 맵 JSON 사본을 보관하지 않는다. 타일 이미지도 `/management/map-assets/files/assets/tiles/...`에서 등록된 원본을 직접 제공한다. 백엔드는 같은 맵 원본을 읽어 버전이 있는 게임 API로 제공한다.
 
-게임 도시 레이아웃을 다시 컴파일한 뒤 다음 명령으로 검수 사본을 갱신한다.
-
-```bash
-cd /home/cbsim/ws/slime-backend
-.venv/bin/python scripts/export_city_map_review.py \
-  --output-directory /home/cbsim/ws/slime-workflow/assets/world/isloon/game-data
-```
 
 검수 빌드는 게임의 60px 블록을 화면 표현 기준인 80px로만 정규화한다. 원장 배치·층수·블록 계층은 변경하지 않는다.
 
@@ -70,3 +63,5 @@ cd /home/cbsim/ws/slime-backend
 맵 검수의 `assets/world/isloon/tile-catalog.yaml`에서 `asset`은 `slime-assets` 기준 등록 경로다. 블록 맵과 기존 맵 게시기는 공용 `common/map_tile_assets.py`를 통해 에셋 저장소의 등록부·버전·SHA-256을 검증하고 원본을 직접 복사한다. 기본 경로는 형제 저장소 `slime-assets`이며 `SLIME_ASSETS_ROOT`로 지정할 수 있다. 누락·미등록·해시 불일치는 즉시 실패한다. 프론트엔드 이미지로 대체하지 않는다.
 
 게시한 텍스처 메타데이터에 원본 저장소·경로·관리 ID·버전·해시를 보존한다. 브라우저는 게시된 정적 사본을 사용한다. 캐릭터와 렌더링 수치의 기존 전달 경로는 맵 타일 원본과 구분한다. 건물별 타일 선택은 마을 공통 선택보다 우선하며, 돌온재 길드회관은 `stonewarm-guild-red-stone-roof`를 사용한다. 원본 또는 카탈로그 변경 후 검수 패키지를 다시 게시해야 한다.
+
+마른 개울(`dry-creek`) 필드도 에셋 저장소 원본을 직접 검수한다. 선인장(`cactus`)은 진입 불가이며 원본은 에셋 저장소의 `assets/tiles/terrain/blocked/cactus-v1.png`이다. 맵 응답의 `provenance`에 원본 등록 경로·버전·해시를 표시한다.

@@ -1,4 +1,4 @@
-"""명시적으로 내보낸 게임 블록 기하 사본을 관리도구에 게시한다."""
+"""에셋 원본을 직접 읽는 맵 검수 UI와 연결 정보를 게시한다."""
 from pathlib import Path
 import hashlib
 import json
@@ -108,46 +108,30 @@ def build_block_map_review(output_directory_path):
     output_directory_path=Path(output_directory_path).resolve()
     if not output_directory_path.is_relative_to(WORKFLOW_ROOT_DIRECTORY/'.tmp'):
         raise ValueError('검수 출력은 .tmp 하위여야 합니다.')
-    source_asset_directory=WORKFLOW_ROOT_DIRECTORY/'assets/world/isloon/game-data'
+    source_asset_directory=WORKFLOW_ROOT_DIRECTORY/'assets/world/isloon'
     town_block_height=load_town_block_height()
     current_material_record=yaml.safe_load((WORKFLOW_ROOT_DIRECTORY/'assets/world/isloon/blocks/materials.yaml').read_text())
     output_directory_path.mkdir(parents=True,exist_ok=True)
-    prefab_source_records=yaml.safe_load((source_asset_directory.parent/'building-prefabs.yaml').read_text())['prefabs']
+    prefab_source_records=yaml.safe_load((source_asset_directory/'building-prefabs.yaml').read_text())['prefabs']
     building_tile_records={current_prefab_record['id']:{'roof':current_prefab_record['roof_tile'],'wall':current_prefab_record['ground_floor_plain_wall_tile'],'window':current_prefab_record['ground_floor_small_window_wall_tile'],'large_window':current_prefab_record['upper_floor_large_window_wall_tile'],'roof_underlay':current_prefab_record.get('roof_underlay_wall_tile',current_prefab_record['ground_floor_plain_wall_tile']),'door':current_prefab_record['door_tile']} for current_prefab_record in prefab_source_records}
     building_tile_records['stonewarm-guild'] = {'roof': 'stonewarm-guild-red-stone-roof'}
     (output_directory_path/'block-building-tiles.json').write_text(json.dumps(building_tile_records))
     exported_map_records=[]
     # 명시적으로 내보낸 맵 사본만 목록에 게시한다.
-    source_manifest_path=source_asset_directory/'source-manifest.json'
-    if not source_manifest_path.is_file():
-        raise ValueError('게임 도시 맵 사본이 없습니다. slime-backend/scripts/export_city_map_review.py를 실행하세요.')
-    source_manifest_record=json.loads(source_manifest_path.read_text())
-    source_block_height=source_manifest_record.get('blockHeight')
-    for source_map_path in sorted(source_asset_directory.glob('*.json')):
-        if source_map_path.name=='source-manifest.json':
-            continue
-        current_map_record=json.loads(source_map_path.read_text())
-        if current_map_record['id']!=source_map_path.stem or any(current_building_record['blockSchemaVersion']!=1 for current_building_record in current_map_record['buildings']):
-            raise ValueError(f'블록 스키마 오류: {source_map_path.name}')
-        normalize_game_block_heights(current_map_record,source_block_height,town_block_height)
-        validate_town_block_heights(current_map_record,town_block_height)
-        current_map_record['buildingTileOverrides']=TOWN_BUILDING_TILE_OVERRIDES.get(current_map_record['id'],{})
+    from tools.review.common.map_asset_sources import MAP_REVIEW_IDENTIFIERS
+    for current_map_identifier in MAP_REVIEW_IDENTIFIERS:
+        current_map_record = build_registered_map_review(current_map_identifier)
         required_material_names=set(current_map_record['terrainCodes'].values())|{'wall','roof'}
         if required_material_names-set(current_material_record['materials']):
-            raise ValueError(f'임시 재질이 정의되지 않았습니다: {source_map_path.name}')
-        for current_building_record in current_map_record['buildings']:
-            current_building_record['faces']=build_current_block_faces(current_building_record['blocks'],town_block_height)
-        target_map_filename=f"block-map-{current_map_record['id']}.json"
-        (output_directory_path/target_map_filename).write_text(json.dumps(current_map_record,ensure_ascii=False))
-        exported_map_records.append({'id':current_map_record['id'],'name':current_map_record['name'],'path':target_map_filename})
+            raise ValueError('맵 검수 재질 누락: '+current_map_identifier)
+        exported_map_records.append({'id':current_map_identifier,'name':current_map_record['name'],'path':'/management/map-assets/maps/'+current_map_identifier})
     if not exported_map_records:
         raise ValueError('검수할 마을 맵이 없습니다.')
     (output_directory_path/'block-map-index.json').write_text(json.dumps(exported_map_records,ensure_ascii=False))
     (output_directory_path/'block-render-profile.json').write_text(json.dumps({'blockHeight':town_block_height}))
-    shutil.copy2(source_asset_directory/'iseulon.json',output_directory_path/'block-map.json')
     (output_directory_path/'block-materials.json').write_text(json.dumps(current_material_record['materials']))
-    # 게시 시 정식 에셋을 사본으로 전달하고 원본 해시를 보존한다.
-    tile_catalog_record=yaml.safe_load((source_asset_directory.parent/'tile-catalog.yaml').read_text())
+    # 등록 원본을 직접 제공하며 이미지 사본을 만들지 않는다.
+    tile_catalog_record=yaml.safe_load((source_asset_directory/'tile-catalog.yaml').read_text())
     if tile_catalog_record.get('source_tile_size')!=GAME_TILE_SOURCE_SIZE:
         raise ValueError(f'게임 타일 원본 크기는 {GAME_TILE_SOURCE_SIZE}px여야 합니다.')
     texture_source_root=WORKFLOW_ROOT_DIRECTORY.parent/'slime-frontend/assets'
@@ -160,9 +144,7 @@ def build_block_map_review(output_directory_path):
         with Image.open(texture_source_path) as source_texture_image:
             source_image_size=list(source_texture_image.size)
         normalization_warning_value=None if source_image_size==[GAME_TILE_SOURCE_SIZE,GAME_TILE_SOURCE_SIZE] else f'정규화 필요: 현재 {source_image_size[0]}×{source_image_size[1]}px, 기준 {GAME_TILE_SOURCE_SIZE}×{GAME_TILE_SOURCE_SIZE}px'
-        texture_target_name=current_tile_record['id']+'.png'
-        shutil.copy2(texture_source_path,texture_output_directory/texture_target_name)
-        exported_texture_records[current_tile_record['id']]={**tile_provenance_record,'path':'textures/'+texture_target_name+'?v='+hashlib.sha256(texture_source_path.read_bytes()).hexdigest(),'source':current_tile_record['asset'],'sha256':hashlib.sha256(texture_source_path.read_bytes()).hexdigest(),'source_size':source_image_size,'expected_source_size':[GAME_TILE_SOURCE_SIZE,GAME_TILE_SOURCE_SIZE],'normalization_warning':normalization_warning_value}
+        exported_texture_records[current_tile_record['id']]={**tile_provenance_record,'path':'/management/map-assets/files/'+current_tile_record['asset']+'?v='+tile_provenance_record['sha256'],'source':current_tile_record['asset'],'sha256':hashlib.sha256(texture_source_path.read_bytes()).hexdigest(),'source_size':source_image_size,'expected_source_size':[GAME_TILE_SOURCE_SIZE,GAME_TILE_SOURCE_SIZE],'normalization_warning':normalization_warning_value}
     (output_directory_path/'block-textures.json').write_text(json.dumps(exported_texture_records))
     from tools.review.common.game_render_metrics import load_game_render_metrics
     game_render_metrics=load_game_render_metrics(texture_source_root.parent)
@@ -179,3 +161,15 @@ def build_block_map_review(output_directory_path):
     shutil.copy2(source_ui_directory/'block-map-review.html',output_directory_path/'map-review.html')
     shutil.copy2(source_ui_directory/'block-map-review.js',output_directory_path/'block-map-review.js')
     return output_directory_path
+
+
+def build_registered_map_review(map_identifier_value):
+    from tools.review.common.map_asset_sources import load_registered_map_review, MAP_SOURCE_BLOCK_HEIGHT
+    current_map_record = load_registered_map_review(map_identifier_value)
+    current_block_height = load_town_block_height()
+    normalize_game_block_heights(current_map_record,MAP_SOURCE_BLOCK_HEIGHT,current_block_height)
+    validate_town_block_heights(current_map_record,current_block_height)
+    current_map_record['buildingTileOverrides'] = TOWN_BUILDING_TILE_OVERRIDES.get(map_identifier_value,{})
+    for current_building_record in current_map_record['buildings']:
+        current_building_record['faces'] = build_current_block_faces(current_building_record['blocks'],current_block_height)
+    return current_map_record

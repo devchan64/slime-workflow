@@ -120,7 +120,7 @@ def parse_review_arguments(command_argument_values=None):
 
 def collect_review_watch_paths(parsed_argument_values):
     workflow_repo_root = Path(__file__).resolve().parents[2]
-    watch_paths = [Path(__file__).resolve(), workflow_repo_root/'tools/review', workflow_repo_root/'generators', workflow_repo_root/'assets/world/isloon/game-data']
+    watch_paths = [Path(__file__).resolve(), workflow_repo_root/'tools/review', workflow_repo_root/'generators', workflow_repo_root.parent/'slime-assets/assets/maps']
     current_writer_config=parsed_argument_values.writer_agent_config or workflow_repo_root/'.local/writer-agent/workspace.yaml'
     watch_paths.append(current_writer_config)
     if parsed_argument_values.frontend_repo:
@@ -410,6 +410,15 @@ def run_review_server(parsed_argument_values):
             finally:proxy_connection_value.close()
             return True
         def do_GET(self):
+            current_asset_request_path = urlsplit(self.path).path
+            if current_asset_request_path.startswith('/management/map-assets/'):
+                from tools.review.common.map_asset_http import read_map_asset_response
+                try:
+                    response_content,response_content_type = read_map_asset_response(current_asset_request_path)
+                except (ValueError,KeyError,OSError) as current_asset_error:
+                    self.send_error(404,str(current_asset_error));return
+                self.send_response(200);self.send_header('Content-Type',response_content_type);self.send_header('Cache-Control','no-store');self.send_header('Content-Length',str(len(response_content)));self.end_headers();self.wfile.write(response_content)
+                return
             if urlsplit(self.path).path=='/management/gpu-queue':
                 from tools.review.common.gpu_job_queue import list_waiting_gpu_jobs
                 from tools.review.common.gpu_status import read_gpu_status
