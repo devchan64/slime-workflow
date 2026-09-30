@@ -23,10 +23,12 @@ def build_floor_interface(server_base_address):
     catalog_record_value = execute_floor_gateway('catalog',{})
     with gr.Blocks(title='바닥 타일 생성기',js=HISTORY_CARD_SELECTION_SCRIPT,elem_classes=['management-generator-root']) as interface_block_value:
         gr.Markdown('## 바닥 타일 생성기\n1단계에서 1024×1024의 9칸 이미지를 생성하고, 2단계에서 중앙 블록 외곽을 기계식 크롭하고, 3단계에서 사용자 설명으로 512×512 이미지를 다시 그립니다.')
-        user_prompt_control = gr.Textbox(value=catalog_record_value['default_user_prompt'],label='사용자 프롬프트 · 바닥 표면',lines=3)
-        generation_tag_control = gr.Textbox(label='생성 이력 태그 · 선택 사항')
-        for prompt_field_name,prompt_label_value in (('base_prompt','기본'),('style_prompt','화풍')):
-            gr.Textbox(value=catalog_record_value[prompt_field_name],label=f'{prompt_label_value} 프롬프트 · 고정 · {len(catalog_record_value[prompt_field_name].split())}단어',interactive=False)
+        with gr.Row(equal_height=True):
+            user_prompt_control = gr.Textbox(value=catalog_record_value['default_user_prompt'],label='사용자 프롬프트 · 바닥 표면',lines=3,scale=1,min_width=240)
+            generation_tag_control = gr.Textbox(label='생성 이력 태그 · 선택 사항',lines=3,scale=1,min_width=240)
+        with gr.Row(equal_height=True):
+            for prompt_field_name,prompt_label_value in (('base_prompt','기본'),('style_prompt','화풍')):
+                gr.Textbox(value=catalog_record_value[prompt_field_name],label=f'{prompt_label_value} 프롬프트 · 고정 · {len(catalog_record_value[prompt_field_name].split())}단어',interactive=False,lines=3,scale=1,min_width=240)
         def format_floor_preview(user_prompt_value):
             if not user_prompt_value.strip(): return '바닥 표면을 입력하세요. 생성하려면 사용자 프롬프트가 필요합니다.'
             combined_prompt_value = combine_floor_prompt(user_prompt_value,catalog_record_value)
