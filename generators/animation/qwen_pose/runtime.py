@@ -21,6 +21,21 @@ ANYPOSE_STANDARD_STEP_OPTIONS = (10, 20, 30, 40)
 PIPELINE_EXECUTION_LOCK = threading.Lock()
 
 
+def load_generation_reference_image(input_reference_path, require_pose_dimensions):
+    """일반 참조는 원본 비율을 유지하고 AnyPose 입력만 고정 크기를 검사한다."""
+    from PIL import Image
+    with Image.open(input_reference_path) as input_reference_image:
+        if input_reference_image.format != 'PNG':
+            raise ValueError('입력은 PNG여야 합니다.')
+        if require_pose_dimensions and input_reference_image.size != (FIXED_IMAGE_DIMENSIONS,FIXED_IMAGE_DIMENSIONS):
+            raise ValueError('AnyPose 입력은 512×512 PNG여야 합니다.')
+        if input_reference_image.mode not in ('RGB','RGBA'):
+            raise ValueError('입력은 RGB/RGBA여야 합니다.')
+        if input_reference_image.mode == 'RGBA' and input_reference_image.getextrema()[3] != (255,255):
+            raise ValueError('투명 참조는 먼저 배경을 합성하세요.')
+        return input_reference_image.convert('RGB')
+
+
 def execute_pose_generation(*, trial_output_root, prompt_text_value,
                             character_image_path, pose_reference_path=None,
                             pose_reference_kind, selected_reference_order='standing-first',
@@ -29,7 +44,7 @@ def execute_pose_generation(*, trial_output_root, prompt_text_value,
                             selected_base_strength=0.7, selected_helper_strength=0.7,
                             enable_standalone_lightning_adapter=False,
                             additional_reference_paths=(), selected_output_width=512, selected_output_height=512, enable_text_only_generation=False, selected_generator_seed=FIXED_GENERATOR_SEED):
-    """준비된 512px 참조로 포즈를 변경한다. GPU 실행은 샌드박스 밖에서 호출한다."""
+    """참조 원본으로 이미지를 편집한다. AnyPose는 512px 입력을 사용한다. GPU 실행은 샌드박스 밖에서 호출한다."""
     for selected_output_size in (selected_output_width,selected_output_height):
         if type(selected_output_size) is not int or not 256 <= selected_output_size <= 1664 or selected_output_size % 16:
             raise ValueError('출력 크기는 256~1664 범위의 16 배수여야 합니다.')
@@ -78,16 +93,7 @@ def execute_pose_generation(*, trial_output_root, prompt_text_value,
     if selected_reference_order == 'pose-first':
         input_image_paths.reverse()
         input_image_roles.reverse()
-    input_image_values = []
-    for input_file_path in input_image_paths:
-        with Image.open(input_file_path) as input_image_value:
-            if input_image_value.format != 'PNG' or input_image_value.size != (512, 512):
-                raise ValueError('입력은 512×512 PNG여야 합니다.')
-            if input_image_value.mode not in ('RGB', 'RGBA'):
-                raise ValueError('입력은 RGB/RGBA여야 합니다.')
-            if input_image_value.mode == 'RGBA' and input_image_value.getextrema()[3] != (255, 255):
-                raise ValueError('투명 참조는 먼저 캐릭터=흰색, 포즈=해당 배경으로 합성하세요.')
-            input_image_values.append(input_image_value.convert('RGB'))
+    input_image_values = [load_generation_reference_image(input_file_path,enable_anypose_adapter) for input_file_path in input_image_paths]
     if not PIPELINE_EXECUTION_LOCK.acquire(blocking=False):
         raise RuntimeError('참조 VAE 설정 충돌 방지를 위해 동시 추론을 허용하지 않습니다.')
     try:
