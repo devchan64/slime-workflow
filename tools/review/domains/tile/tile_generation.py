@@ -139,7 +139,7 @@ class TileGenerationManager(ImageGenerationManager):
         completed_duration_values=[]
         for history_record_value in self.list_generation_history():
             previous_request_value=history_record_value['request']
-            if history_record_value['status']['status']!='completed' or any(previous_request_value.get(key)!=current_request_value.get(key) for key in ('steps','width','height','action')):continue
+            if history_record_value['status']['status']!='completed' or any(previous_request_value.get(key)!=current_request_value.get(key) for key in ('steps','width','height','action','floor_separation')):continue
             result_record_path=self.job_storage_root/history_record_value['id']/'result.json'
             if result_record_path.is_file():
                 elapsed_seconds_value=json.loads(result_record_path.read_text()).get('elapsed_seconds')

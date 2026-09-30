@@ -21,6 +21,10 @@ def execute_image_worker():
         raise ValueError('작업 경로 오류')
     current_request_record = json.loads((current_job_root / 'request.json').read_text())
     logging.basicConfig(level=logging.INFO, format='%(asctime)s/qwen-2512/%(message)s', handlers=[logging.FileHandler(current_job_root / 'execution.log'), logging.StreamHandler()])
+    if 'floor_separation' in current_request_record:
+        from tools.review.domains.tile.floor_pipeline import execute_floor_pipeline
+        execute_floor_pipeline(current_job_root,current_request_record)
+        return
     current_stop_event = threading.Event()
     current_stage_state = {'stage': 'cuda-check'}
     def emit_worker_heartbeat():
@@ -49,6 +53,10 @@ def execute_image_worker():
         if current_request_record['action'] != 'prepare':
             current_stage_state['stage'] = 'border-crop'
             save_tile_border_result(current_job_root,current_request_record)
+            if 'floor_rectify' in current_request_record:
+                current_stage_state['stage'] = 'floor-rectify'
+                from tools.review.domains.tile.floor_results import save_floor_rectification
+                save_floor_rectification(current_job_root,current_request_record)
         (current_job_root / 'status.json').write_text(json.dumps({'status':'completed'}, ensure_ascii=False))
         logging.info('complete output=%s', current_job_root)
     except Exception as current_error_value:

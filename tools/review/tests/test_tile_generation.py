@@ -12,7 +12,7 @@ class TileGenerationTests(unittest.TestCase):
     def test_common_prompt_configuration(self):
         configuration_record_value=load_tile_configuration()
         self.assertEqual(set(configuration_record_value),{'schema_version','base_prompt','style_prompt'})
-        self.assertEqual(configuration_record_value['base_prompt'],'게임용 텍스처. 정사각형. 얇은 검은 테두리.')
+        self.assertEqual(configuration_record_value['base_prompt'],'게임용 건물 표면 텍스처. 정사각형. 얇은 검은 테두리.')
         output_request_value=prepare_tile_request(self.make_tile_request())
         self.assertNotIn('tile_type',output_request_value)
         self.assertEqual(output_request_value['prompt'],configuration_record_value['style_prompt']+' '+configuration_record_value['base_prompt']+' 표면 재질: Red brick house.')

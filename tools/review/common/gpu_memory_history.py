@@ -1,12 +1,15 @@
 """GPU 작업별 실측 최고 메모리 기록과 보수적 예약량 추정."""
 import json
 import fcntl
-import math
 import os
 from pathlib import Path
 import subprocess
 import time
 from tools.review.common.generation_records import write_record_atomically
+
+IMAGE_MEMORY_WORKER_NAMES = {'run_qwen_2512.py', 'run_qwen_2511_three_reference.py'}
+WORKFLOW_ROOT_DIRECTORY = Path(__file__).resolve().parents[3]
+IMAGE_HISTORY_ROOT_PATHS = tuple(WORKFLOW_ROOT_DIRECTORY/current_relative_path for current_relative_path in ('.tmp/test/qwen-image-2512', '.tmp/test/qwen-image-2512/tile-map', '.tmp/test/qwen-image-2512/floor-tile', '.tmp/test/qwen-image-2511-three-reference'))
 
 MEMORY_HISTORY_DIRECTORY = Path(__file__).resolve().parents[3]/'.tmp/gpu-memory-history'
 
@@ -41,7 +44,7 @@ def load_recent_observations(service, command_identity_name=None):
             record = json.loads(record_path.read_text())
         except FileNotFoundError:
             continue
-        if record['service']==service and record.get('command_identity')==command_identity_name:
+        if record['service']==service and resolve_observation_identity(record)==command_identity_name:
             records.append((record_path, record))
     return sorted(records, key=lambda item:item[1]['observed_at_ns'], reverse=True)
 
@@ -76,17 +79,44 @@ def estimate_required_memory(service, configured_floor_mib, command_identity_nam
     observations = [record for _,record in load_recent_observations(service, command_identity_name)[:20]]
     summary = summarize_memory_observations(service, observations)
     measured_peak_mib = summary['peak_memory_mib']
+    # 안전 여유는 대기열이 GPU 전체에서 한 번만 차감한다.
     # 완료된 실측값이 없을 때만 초기 기준을 사용한다.
-    required_memory_mib = math.ceil(measured_peak_mib*1.2)+256 if measured_peak_mib else configured_floor_mib
+    required_memory_mib = measured_peak_mib if measured_peak_mib else configured_floor_mib
     return {'required_memory_mib':required_memory_mib, 'samples':summary['usable_runs'],
             'retained_runs':summary['retained_runs'], 'observed_peak_mib':measured_peak_mib, 'configured_floor_mib':configured_floor_mib,
-            'method':'recent-20-max-successful-peak-plus-20-percent-and-256mib'}
+            'command_identity':command_identity_name,
+            'method':'recent-20-max-successful-peak' if measured_peak_mib else 'configured-initial-estimate'}
 
 
-def identify_execution_command(command_argument_values):
-    """실행별 옵션을 제외하고 실행 스크립트 또는 모듈로 구분한다."""
+def identify_execution_command(command_argument_values, generation_job_directory=None):
+    """이미지는 실행기·해상도·스텝·참조 개수까지 메모리 프로필로 구분한다."""
+    if generation_job_directory is not None and len(command_argument_values)>1 and Path(command_argument_values[1]).name in IMAGE_MEMORY_WORKER_NAMES:
+        return build_image_memory_identity(Path(command_argument_values[1]).name, Path(generation_job_directory))
     if len(command_argument_values)>2 and command_argument_values[1]=='-m':
         return command_argument_values[2]
     if len(command_argument_values)>1 and command_argument_values[1].endswith('.py'):
         return Path(command_argument_values[1]).name
     return Path(command_argument_values[0]).name
+
+
+def build_image_memory_identity(command_identity_name, generation_job_directory):
+    saved_request_record = json.loads((generation_job_directory/'request.json').read_text())
+    if saved_request_record.get('action') == 'prepare': return command_identity_name+':prepare'
+    for request_field_name in ('width','height','steps'):
+        if type(saved_request_record.get(request_field_name)) is not int or saved_request_record[request_field_name] <= 0:
+            raise ValueError(f'GPU 메모리 예측에 필요한 {request_field_name} 설정이 없습니다: {generation_job_directory}')
+    reference_image_count = len(saved_request_record.get('references',saved_request_record.get('images',[])))
+    if 'floor_separation' in saved_request_record:
+        command_identity_name += ':floor-three-stage-v2' if saved_request_record['floor_separation']['version'] == 2 else ':floor-two-stage-v1'
+    return f"{command_identity_name}:{saved_request_record['width']}x{saved_request_record['height']}:steps={saved_request_record['steps']}:references={reference_image_count}"
+
+
+def resolve_observation_identity(observation_record_value):
+    """구형 측정값은 남아 있는 원본 요청으로 분류한다. 출처가 없으면 섞지 않는다."""
+    command_identity_name = observation_record_value.get('command_identity')
+    if command_identity_name not in IMAGE_MEMORY_WORKER_NAMES: return command_identity_name
+    generation_job_identifier = observation_record_value.get('job_id','')
+    if not generation_job_identifier or Path(generation_job_identifier).name != generation_job_identifier: return command_identity_name
+    matching_request_paths = [current_root_path/generation_job_identifier for current_root_path in IMAGE_HISTORY_ROOT_PATHS if (current_root_path/generation_job_identifier/'request.json').is_file()]
+    if len(matching_request_paths) != 1: return command_identity_name
+    return build_image_memory_identity(command_identity_name,matching_request_paths[0])

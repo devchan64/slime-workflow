@@ -20,7 +20,8 @@ MANAGEMENT_FRAME_PATH_PREFIX='/management/frame/'
 MANAGEMENT_FRAME_IDENTIFIER_VALUES={'anny-attribute-renderer':'anny-attributes'}
 LEGACY_PAGE_IDENTIFIER_VALUES={'map-review':'map-review-iseulon'}
 DEFAULT_PAGE_RECORDS=(
-    {'id':'tile-map-generator','label':'타일 에셋 생성기','path':'/tile-map-generator/','category':'tile-review','uiMode':'gradio','description':'Gradio · 지붕 · 벽 · 맵 타일 에셋 생성'},
+    {'id':'floor-tile-generator','label':'바닥 타일 생성기','path':'/floor-tile-generator/','category':'tile-review','uiMode':'gradio','description':'9칸 생성 · 중앙 기계식 크롭 · 512 다시 그리기'},
+    {'id':'tile-map-generator','label':'건물 타일 생성기','path':'/tile-map-generator/','category':'tile-review','uiMode':'gradio','description':'Gradio · 건물 지붕 · 벽 · 문 표면 생성'},
     {'id':'writer-agent','label':'작가 AI 에이전트','path':'/writer-agent/','category':'writer-agent','uiMode':'gradio','description':'Gradio · 문서 학습 · 아이디어 작성 · 실행 기록'},
     {'id':'three-reference-generator','label':'Qwen 2511 3참조 생성','path':'/image-generation-2511/','category':'image-generation','uiMode':'gradio','description':'Gradio · 참조 이미지 3장 · 프롬프트 · 결과 비교'},
     {'id':'image-generator','label':'Qwen 2512 이미지 생성','path':'/image-generation/','category':'image-generation','uiMode':'gradio','description':'Gradio · 프롬프트 · 실행 상태 · 생성 이력 · 결과 다운로드'},

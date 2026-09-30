@@ -155,3 +155,21 @@ class GpuJobQueueTests(unittest.TestCase):
         with patch.object(queue_module,'calculate_queue_revision',return_value='same'),patch.object(queue_module.os,'execve') as replacement_process_mock:
             queue_module.reload_waiting_executor(ticket_file_path,'same')
             replacement_process_mock.assert_not_called()
+
+    def test_observed_peak_admits_1280_job_with_single_global_margin(self):
+        from tools.review.common import gpu_memory_history
+        gpu_memory_history.save_memory_observation('image','previous',6202,3,'completed',command_identity_name='run_qwen_2512.py:1280x1280:steps=4:references=0')
+        (self.current_job_path/'request.json').write_text(json.dumps({'width':1280,'height':1280,'steps':4}))
+        (self.current_job_path/'gpu-command.json').write_text(json.dumps({'command':['python','run_qwen_2512.py'],'service':'image'}))
+        worker_process_mock = Mock(returncode=0)
+        worker_process_mock.poll.return_value = 0
+        with patch.object(queue_module,'read_gpu_memory',return_value=(8151,7599)),patch.object(queue_module.subprocess,'Popen',return_value=worker_process_mock) as worker_launch_mock:
+            self.assertEqual(queue_module.execute_queued_generation(self.current_job_path),0)
+            worker_launch_mock.assert_called_once()
+
+    def test_global_margin_still_blocks_insufficient_free_memory(self):
+        from tools.review.common import gpu_memory_history
+        gpu_memory_history.save_memory_observation('anny','previous',6202,3,'completed',command_identity_name='test-worker')
+        with patch.object(queue_module,'read_gpu_memory',return_value=(8151,6500)),patch.object(queue_module.time,'sleep',side_effect=lambda _:queue_module.cancel_gpu_generation(self.current_job_path)),patch.object(queue_module.subprocess,'Popen') as worker_launch_mock:
+            self.assertEqual(queue_module.execute_queued_generation(self.current_job_path),0)
+            worker_launch_mock.assert_not_called()

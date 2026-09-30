@@ -311,6 +311,8 @@ def run_review_server(parsed_argument_values):
     image_generation_service = ImageGenerationManager()
     from tools.review.domains.tile.tile_generation import TileGenerationManager
     tile_generation_service = TileGenerationManager()
+    from tools.review.domains.tile.floor_generation import FloorGenerationManager
+    floor_generation_service = FloorGenerationManager()
     from tools.review.domains.anny.anny_attributes import AnnyAttributeManager
     anny_attribute_service = AnnyAttributeManager()
     from tools.review.domains.momask.momask_generation import MoMaskGenerationManager
@@ -319,12 +321,13 @@ def run_review_server(parsed_argument_values):
     from tools.review.common.management_gateway import ManagementCommandGateway
     from tools.review.domains.character_animation.character_animation import CharacterAnimationManager
     character_animation_service = CharacterAnimationManager()
-    management_command_gateway = ManagementCommandGateway({'anny':anny_attribute_service.handle,'tile-map':tile_generation_service.handle_image_request,'character-animation':character_animation_service.handle,'momask':momask_generation_service.handle,'qwen-2512':image_generation_service.handle_image_request,'qwen-2511':three_reference_service.handle_image_request})
+    management_command_gateway = ManagementCommandGateway({'floor-tile':floor_generation_service.handle_image_request,'anny':anny_attribute_service.handle,'tile-map':tile_generation_service.handle_image_request,'character-animation':character_animation_service.handle,'momask':momask_generation_service.handle,'qwen-2512':image_generation_service.handle_image_request,'qwen-2511':three_reference_service.handle_image_request})
     from tools.review.common.record_folders import handle_record_folder_request
     from tools.review.domains.character_animation.character_animation_jobs import GENERATION_ROOT_DIRECTORY, resolve_generation_directory
     from tools.review.domains.anny.anny_attributes import JOBS as ANNY_RECORD_DIRECTORY
     from tools.review.domains.momask.momask_jobs import GENERATION_JOB_DIRECTORY as MOMASK_RECORD_DIRECTORY, resolve_generation_directory as resolve_momask_record_directory
     record_folder_routes = {
+        '/floor-tile-generator': (floor_generation_service.job_storage_root, lambda record_identifier_value: floor_generation_service.job_storage_root/record_identifier_value),
         '/tile-map-generator': (tile_generation_service.job_storage_root, lambda record_identifier_value: tile_generation_service.job_storage_root/record_identifier_value),
         '/character-animation': (GENERATION_ROOT_DIRECTORY, resolve_generation_directory),
         '/anny-attributes': (ANNY_RECORD_DIRECTORY, lambda record_identifier_value: ANNY_RECORD_DIRECTORY/record_identifier_value),
@@ -333,7 +336,7 @@ def run_review_server(parsed_argument_values):
         '/momask-generator': (MOMASK_RECORD_DIRECTORY, resolve_momask_record_directory),
     }
     management_menu_url = None
-    from tools.review.common.gradio_process import ensure_anny_attributes_server, ensure_character_animation_server, ensure_gradio_server, ensure_management_menu_server, ensure_map_review_server, ensure_qwen_2511_server, ensure_qwen_2512_server, ensure_sprite_editor_server, ensure_static_review_server, ensure_tile_map_server, ensure_writer_agent_server
+    from tools.review.common.gradio_process import ensure_floor_tile_server, ensure_anny_attributes_server, ensure_character_animation_server, ensure_gradio_server, ensure_management_menu_server, ensure_map_review_server, ensure_qwen_2511_server, ensure_qwen_2512_server, ensure_sprite_editor_server, ensure_static_review_server, ensure_tile_map_server, ensure_writer_agent_server
     if manager_source_path.is_file():
         try:
             management_menu_url=ensure_management_menu_server(parsed_argument_values.port,manager_source_path)
@@ -347,6 +350,7 @@ def run_review_server(parsed_argument_values):
             ('/management/frame/character-animation/',parsed_argument_values.port+102,lambda:ensure_character_animation_server(parsed_argument_values.port)),
             ('/management/frame/image-generator/',parsed_argument_values.port+103,lambda:ensure_qwen_2512_server(parsed_argument_values.port)),
             ('/management/frame/three-reference-generator/',parsed_argument_values.port+104,lambda:ensure_qwen_2511_server(parsed_argument_values.port)),
+            ('/management/frame/floor-tile-generator/',parsed_argument_values.port+113,lambda:ensure_floor_tile_server(parsed_argument_values.port)),
             ('/management/frame/tile-map-generator/',parsed_argument_values.port+105,lambda:ensure_tile_map_server(parsed_argument_values.port)),
             ('/management/frame/sprite-editor/',parsed_argument_values.port+106,lambda:ensure_sprite_editor_server(parsed_argument_values.port)),
             ('/management/frame/map-review/',parsed_argument_values.port+107,lambda:ensure_map_review_server(parsed_argument_values.port)),
@@ -358,6 +362,7 @@ def run_review_server(parsed_argument_values):
             ('/character-animation/',parsed_argument_values.port+100,lambda:ensure_management_menu_server(parsed_argument_values.port,manager_source_path)),
             ('/image-generation/',parsed_argument_values.port+100,lambda:ensure_management_menu_server(parsed_argument_values.port,manager_source_path)),
             ('/image-generation-2511/',parsed_argument_values.port+100,lambda:ensure_management_menu_server(parsed_argument_values.port,manager_source_path)),
+            ('/floor-tile-generator/',parsed_argument_values.port+100,lambda:ensure_management_menu_server(parsed_argument_values.port,manager_source_path)),
             ('/tile-map-generator/',parsed_argument_values.port+100,lambda:ensure_management_menu_server(parsed_argument_values.port,manager_source_path)),
             ('/anny-attributes/',parsed_argument_values.port+100,lambda:ensure_management_menu_server(parsed_argument_values.port,manager_source_path)),
             ('/writer-agent/',parsed_argument_values.port+100,lambda:ensure_management_menu_server(parsed_argument_values.port,manager_source_path)),
@@ -453,6 +458,7 @@ def run_review_server(parsed_argument_values):
             if momask_generation_service.handle(self):return
             if three_reference_service.handle_image_request(self):
                 return
+            if floor_generation_service.handle_image_request(self):return
             if tile_generation_service.handle_image_request(self):return
             if image_generation_service.handle_image_request(self):
                 return
@@ -466,6 +472,7 @@ def run_review_server(parsed_argument_values):
             if momask_generation_service.handle(self):return
             if three_reference_service.handle_image_request(self):
                 return
+            if floor_generation_service.handle_image_request(self):return
             if tile_generation_service.handle_image_request(self):return
             if image_generation_service.handle_image_request(self):
                 return

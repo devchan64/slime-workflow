@@ -75,7 +75,7 @@ def select_runnable_ticket(available_memory_mib):
             continue
         waiting_memory_estimate = estimate_required_memory(
             waiting_command_record['service'], GPU_MEMORY_REQUIREMENTS[waiting_command_record['service']],
-            identify_execution_command(waiting_command_record['command']))
+            identify_execution_command(waiting_command_record['command'], waiting_job_directory))
         if waiting_memory_estimate['required_memory_mib'] <= available_memory_mib:
             return waiting_ticket_path
     return None
@@ -132,7 +132,7 @@ def execute_queued_generation(generation_job_path):
                 queued_ticket_values = sorted(GPU_QUEUE_DIRECTORY.glob('*.json'))
                 queue_position_value = queued_ticket_values.index(queue_ticket_path)+1
                 memory_total_value, memory_free_value = read_gpu_memory()
-                memory_estimate_record = estimate_required_memory(generation_command_record['service'], GPU_MEMORY_REQUIREMENTS[generation_command_record['service']], identify_execution_command(generation_command_record['command']))
+                memory_estimate_record = estimate_required_memory(generation_command_record['service'], GPU_MEMORY_REQUIREMENTS[generation_command_record['service']], identify_execution_command(generation_command_record['command'], generation_job_path))
                 required_memory_value = memory_estimate_record['required_memory_mib']
                 if memory_total_value < required_memory_value:
                     raise ValueError(f'GPU 전체 메모리 {memory_total_value} MiB: 요구량 {required_memory_value} MiB보다 작습니다.')
@@ -160,7 +160,7 @@ def execute_queued_generation(generation_job_path):
                             reservation_job_directory = Path(reservation_record['path']) if 'path' in reservation_record else None
                             if reservation_job_directory and (reservation_job_directory/'gpu-command.json').exists():
                                 reservation_command_record = json.loads((reservation_job_directory/'gpu-command.json').read_text())
-                                reservation_memory_estimate = estimate_required_memory(reservation_command_record['service'], GPU_MEMORY_REQUIREMENTS[reservation_command_record['service']], identify_execution_command(reservation_command_record['command']))
+                                reservation_memory_estimate = estimate_required_memory(reservation_command_record['service'], GPU_MEMORY_REQUIREMENTS[reservation_command_record['service']], identify_execution_command(reservation_command_record['command'], reservation_job_directory))
                                 if reservation_memory_estimate['samples']:
                                     reservation_record['required_memory_mib'] = reservation_memory_estimate['required_memory_mib']
                                     write_record_atomically(reservation_path, reservation_record)
@@ -223,7 +223,7 @@ def execute_queued_generation(generation_job_path):
         active_reservation_path.unlink(missing_ok=True)
         if generation_worker_process is not None:
             final_status = json.loads((generation_job_path/'status.json').read_text())['status']
-            observation_record = save_memory_observation(generation_command_record['service'], generation_job_path, peak_memory_mib, memory_sample_count, final_status, memory_measurement_error, identify_execution_command(generation_command_record['command']))
+            observation_record = save_memory_observation(generation_command_record['service'], generation_job_path, peak_memory_mib, memory_sample_count, final_status, memory_measurement_error, identify_execution_command(generation_command_record['command'], generation_job_path))
             write_record_atomically(generation_job_path/'gpu-memory.json', observation_record)
 
 if __name__ == '__main__':

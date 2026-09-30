@@ -1,4 +1,4 @@
-"""타일 에셋 생성기의 공용 게이트웨이 Gradio 클라이언트."""
+"""건물 타일 생성기의 공용 게이트웨이 Gradio 클라이언트."""
 import argparse
 import base64
 import io
@@ -109,16 +109,16 @@ def refresh_tile_execution(current_generation_identifier):
 
 def build_tile_interface(server_base_address):
     catalog_record_value=execute_tile_gateway('catalog',{})
-    with gr.Blocks(title='타일 에셋 생성기',js=HISTORY_CARD_SELECTION_SCRIPT,elem_classes=['management-generator-root']) as blocks_value:
-        gr.Markdown('## 타일 에셋 생성기\n참조 이미지가 없을 때만 기본·화풍 프롬프트를 사용할 수 있습니다. 참조 이미지가 있으면 표면정보 지시만 사용합니다.')
+    with gr.Blocks(title='건물 타일 생성기',js=HISTORY_CARD_SELECTION_SCRIPT,elem_classes=['management-generator-root']) as blocks_value:
+        gr.Markdown('## 건물 타일 생성기\n건물의 지붕·벽·문 표면을 생성합니다. 지형 타일은 별도 이미지 생성기를 사용하세요.\n\n참조 이미지가 없을 때만 기본·화풍 프롬프트를 사용할 수 있습니다. 참조 이미지가 있으면 표면정보 지시만 사용합니다.')
         gr.Markdown('원본과 보더 크롭을 함께 저장합니다. 보더는 텍스처 가로·세로의 **1%를 각각 올림**하며 크롭 후 크기를 변경하지 않습니다.')
         with gr.Row():
             with gr.Column():
-                prompt_value=gr.Textbox(label='표면정보 프롬프트',info='표면의 재질·색상·무늬 등 표면정보를 입력하세요.',lines=5)
+                prompt_value=gr.Textbox(label='표면정보 프롬프트',info='건물 지붕·벽·문의 재질·색상·무늬와 창문 등 표면 구성을 입력하세요.',lines=5)
                 with gr.Row():
                     clear_prompt_button_value=gr.Button('표면정보 프롬프트 초기화',size='sm',scale=1)
-                gr.Markdown('> **주의:** 프롬프트에 `타일`을 입력하면 분리된 타일 형태로 생성될 수 있습니다. 연속된 바닥이나 지면을 원하면 원하는 표면·재질·구성을 직접 설명하세요.')
-                generation_tag_value=gr.Textbox(label='생성 이력 태그 · 선택 사항',placeholder='예: 이슬온 시장 외벽 후보',max_lines=1)
+                gr.Markdown('> **주의:** 프롬프트에 `타일`을 입력하면 분리된 타일 형태로 생성될 수 있습니다. 건물의 연속된 표면이 필요하면 재질·무늬·창문·문 구성을 직접 설명하세요.')
+                generation_tag_value=gr.Textbox(label='생성 이력 태그 · 선택 사항',placeholder='예: 공용 석재 외벽 후보',max_lines=1)
                 base_value=gr.Checkbox(value=True,label='기본 프롬프트 적용');style_value=gr.Checkbox(value=True,label='화풍 프롬프트 적용')
                 reference_usage_control=gr.Checkbox(value=False,label='첨부 이미지 사용',info='켜면 첨부 영역이 펼쳐집니다. 끄면 이미지를 보관하되 생성에 사용하지 않습니다.')
                 with gr.Group(visible=False,elem_id='tile-reference-images',elem_classes=['reference-upload-panel']) as reference_upload_group:

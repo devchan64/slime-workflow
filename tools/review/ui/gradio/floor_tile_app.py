@@ -1,0 +1,82 @@
+"""바닥 타일 9칸 생성·단일 블록 참조 생성의 Gradio 클라이언트."""
+import argparse
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
+from pathlib import Path
+import sys
+import gradio as gr
+
+WORKFLOW_ROOT_DIRECTORY = Path(__file__).resolve().parents[4]
+if str(WORKFLOW_ROOT_DIRECTORY) not in sys.path: sys.path.insert(0,str(WORKFLOW_ROOT_DIRECTORY))
+from tools.review.common.management_gateway import execute_management_command
+from tools.review.common.gradio_history import HISTORY_CARD_SELECTION_SCRIPT, build_generation_history_view
+from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_confirmation
+from tools.review.ui.gradio.tile_map_app import MANAGEMENT_SHARED_STYLES, generate_random_seed_value
+from tools.review.domains.tile.floor_generation import combine_floor_prompt
+
+
+def execute_floor_gateway(command_name_value,payload_record_value):
+    return execute_management_command('floor-tile',command_name_value,payload_record_value)
+
+
+def build_floor_interface(server_base_address):
+    catalog_record_value = execute_floor_gateway('catalog',{})
+    with gr.Blocks(title='바닥 타일 생성기',js=HISTORY_CARD_SELECTION_SCRIPT,elem_classes=['management-generator-root']) as interface_block_value:
+        gr.Markdown('## 바닥 타일 생성기\n1단계에서 1024×1024의 9칸 이미지를 생성하고, 2단계에서 중앙 몰딩을 기계식 크롭하고, 3단계에서 사용자 설명으로 512×512 이미지를 다시 그립니다.')
+        with gr.Row():
+            with gr.Column():
+                user_prompt_control = gr.Textbox(value=catalog_record_value['default_user_prompt'],label='사용자 프롬프트 · 바닥 표면',lines=3)
+                generation_tag_control = gr.Textbox(label='생성 이력 태그 · 선택 사항')
+                for prompt_field_name,prompt_label_value in (('base_prompt','기본'),('style_prompt','화풍')):
+                    gr.Textbox(value=catalog_record_value[prompt_field_name],label=f'{prompt_label_value} 프롬프트 · 고정 · {len(catalog_record_value[prompt_field_name].split())}단어',interactive=False)
+                def format_floor_preview(user_prompt_value):
+                    if not user_prompt_value.strip(): return '바닥 표면을 입력하세요. 생성하려면 사용자 프롬프트가 필요합니다.'
+                    combined_prompt_value = combine_floor_prompt(user_prompt_value,catalog_record_value)
+                    return f'**사용자 {len(user_prompt_value.split())}단어 · 최종 {len(combined_prompt_value.split())}단어**\n\n{combined_prompt_value}\n\n**3단계 최종 {len(user_prompt_value.strip().split())}단어**\n\n{user_prompt_value.strip()}'
+                prompt_preview_control = gr.Markdown(format_floor_preview(catalog_record_value['default_user_prompt']))
+                user_prompt_control.change(format_floor_preview,user_prompt_control,prompt_preview_control,queue=False)
+                output_size_control = gr.Dropdown([1024],value=1024,label='생성 크기 · 1024 고정',interactive=False)
+                inference_step_control = gr.Radio([4,30],value=4,label='1단계 생성 스텝')
+                with gr.Row():
+                    generation_seed_control = gr.Number(value=251204,precision=0,label='Seed')
+                    random_seed_button = gr.Button('무작위 생성')
+                random_seed_button.click(generate_random_seed_value,outputs=generation_seed_control,queue=False)
+                generation_start_button = gr.Button('바닥 타일 생성 시작',variant='primary')
+                generation_status_control = gr.Markdown('생성 가능 · 100단어 미만의 프롬프트를 입력하세요.')
+            with gr.Column():
+                gr.Markdown('### 생성 과정\n1. Qwen 2512로 1024×1024의 3행×3열 이미지를 생성합니다.\n2. 중앙 블록의 몰딩 직선과 바깥 어두운 경계를 추적해 원본 픽셀을 크롭합니다. 경계 검출 실패 시 중단하고 원본을 보존합니다.\n3. 크롭 이미지를 512×512 참조로 변환하고 사용자 프롬프트만 전달해 Qwen 2511로 다시 그립니다.\n\n3단계 고정 설정: 512×512 · 4스텝 · Seed 10107. 9칸 원본·검출 경계·원본 크롭·최종 결과를 보존합니다. 재개 시 완료된 단계의 해시를 검증하여 재사용합니다.')
+        current_identifier_state = gr.State('')
+        def start_floor_generation(user_prompt_value,generation_tag_value,output_size_value,inference_step_value,generation_seed_value):
+            generation_result_record = execute_floor_gateway('generate',{'action':'generate','user_prompt':user_prompt_value,'tag':generation_tag_value,'width':int(output_size_value),'height':int(output_size_value),'steps':int(inference_step_value),'seed':int(generation_seed_value)})
+            return generation_result_record['id'], '생성 요청: '+generation_result_record['id']+' · '+generation_result_record['status']
+        bind_gpu_generation_confirmation(generation_start_button,start_floor_generation,[user_prompt_control,generation_tag_control,output_size_control,inference_step_control,generation_seed_control],[current_identifier_state,generation_status_control])
+        def refresh_floor_progress(current_generation_identifier):
+            active_job_record = execute_floor_gateway('active',{})
+            selected_job_identifier = active_job_record.get('id') or current_generation_identifier
+            if not selected_job_identifier: return '', '생성 가능 · 작업이 없습니다.'
+            current_status_record = execute_floor_gateway('status',{'id':selected_job_identifier})
+            current_status_name = current_status_record['status']
+            if current_status_name == 'queued': return selected_job_identifier, 'GPU 대기열 대기 · 예상 남은 시간·완료 시각 계산 중 (실행 시작 후 추정)'
+            if current_status_name != 'running': return selected_job_identifier, '상태: '+current_status_name+' · '+current_status_record.get('error','결과는 생성 이력에서 확인하세요.')
+            estimate_record_value = current_status_record.get('estimate',{})
+            remaining_seconds_value = estimate_record_value.get('remaining_seconds')
+            if remaining_seconds_value is None: return selected_job_identifier, current_status_record.get('stage','생성 중')+' · 예상 남은 시간·완료 시각 계산 중 (동일 설정 완료 이력 부족)'
+            expected_finish_value = datetime.now(ZoneInfo('Asia/Seoul'))+timedelta(seconds=remaining_seconds_value)
+            return selected_job_identifier, f"{current_status_record.get('stage','생성 중')} · 예상 {remaining_seconds_value:.0f}초 남음 · 완료 {expected_finish_value:%H:%M:%S} KST · 근거: 동일 설정 완료 {estimate_record_value['samples']}건 평균"
+        interface_block_value.load(refresh_floor_progress,current_identifier_state,[current_identifier_state,generation_status_control])
+        gr.Timer(3).tick(refresh_floor_progress,current_identifier_state,[current_identifier_state,generation_status_control],queue=False)
+        def restore_floor_inputs(history_record_value):
+            saved_request_record = history_record_value['request']
+            return [saved_request_record['user_prompt'],saved_request_record.get('tag',''),saved_request_record['width'],saved_request_record['steps'],saved_request_record['seed']]
+        read_history_page,history_output_values = build_generation_history_view(execute_floor_gateway,server_base_address,'초기화하면 바닥 타일 생성 기록과 결과 파일을 삭제합니다. 실행 중에는 사용할 수 없습니다.',restore_floor_inputs,[user_prompt_control,generation_tag_control,output_size_control,inference_step_control,generation_seed_control],record_folder_route='/floor-tile-generator',allow_individual_delete=True)
+        interface_block_value.load(lambda:read_history_page(1),outputs=history_output_values)
+    return interface_block_value
+
+if __name__=='__main__':
+    argument_parser_value = argparse.ArgumentParser()
+    argument_parser_value.add_argument('--port',type=int,required=True)
+    argument_parser_value.add_argument('--review-port',type=int,required=True)
+    argument_parser_value.add_argument('--owner-pid',type=int,required=True)
+    argument_parser_value.add_argument('--root-path',default='/management/frame/floor-tile-generator/')
+    parsed_argument_values = argument_parser_value.parse_args()
+    build_floor_interface(f'http://127.0.0.1:{parsed_argument_values.review_port}').queue().launch(server_name='127.0.0.1',server_port=parsed_argument_values.port,root_path=parsed_argument_values.root_path,css=MANAGEMENT_SHARED_STYLES)

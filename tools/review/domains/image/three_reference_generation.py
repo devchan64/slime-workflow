@@ -13,6 +13,7 @@ WORKFLOW_ROOT_PATH = Path(__file__).resolve().parents[4]
 ALLOWED_REFERENCE_JOB_ROOTS = (
     WORKFLOW_ROOT_PATH/'.tmp/test/qwen-image-2511-three-reference',
     WORKFLOW_ROOT_PATH/'.tmp/test/qwen-image-2512/tile-map',
+    WORKFLOW_ROOT_PATH/'.tmp/test/qwen-image-2512/floor-tile',
 )
 
 

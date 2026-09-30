@@ -154,7 +154,7 @@ Qwen 2512의 공용 작업자·GPU 잠금·준비·취소·진행 조회를 사�
 python3 tools/manager.py help tile-map
 python3 tools/manager.py command tile-map catalog
 python3 tools/manager.py command tile-map generate --prompt 'Warm stone facade with a wooden window.' --tag '돌온재 외벽 후보' --width 512 --height 512 --steps 4 --detach
-python3 tools/manager.py command tile-map queue --prompt '습한 강변의 다져진 흙길, 작은 자갈이 고르게 섞인 평평한 바닥.' --tag '갈대나루 강변 흙길 후보' --width 512 --height 512 --steps 4 --seed 274910381
+python3 tools/manager.py command tile-map queue --prompt '거친 석재 외벽, 작은 창문 하나.' --tag '공용 석재 외벽 후보' --width 512 --height 512 --steps 4 --seed 274910381
 python3 tools/manager.py command tile-map history
 ```
 
@@ -225,7 +225,7 @@ Gradio 생성이력에서 취소·실패 이력을 선택하고 ‘생성 재개
 ### 로컬 GPU 대기·중지·재개
 
 - MoMask, 캐릭터 애니메이션, Qwen 2511/2512, 타일, ANNY 작업은 공용 `gpu_job_queue.py` 실행기를 사용한다. 클라이언트 연결과 무관한 별도 프로세스가 `.tmp/gpu-queue/`의 접수 순서와 실행 잠금을 관리한다.
-- GPU 0의 여유 메모리를 2초마다 조회한다. 초기 입장 기준은 MoMask 4096 MiB, 캐릭터·Qwen·타일 6144 MiB, ANNY 2048 MiB이다. 이는 실측 최대치가 아닌 보수적 실행 입장 기준이며 실제 모델의 최대 사용량을 보장하지 않는다. 기준은 공용 `GPU_MEMORY_REQUIREMENTS`에서 조정한다. 관리 작업은 한 번에 하나씩 GPU를 사용한다.
+- GPU 0의 여유 메모리를 2초마다 조회한다. 초기 입장 기준은 MoMask 4096 MiB, 캐릭터·Qwen·타일 6144 MiB, ANNY 2048 MiB이다. 이는 실측 최대치가 아닌 보수적 실행 입장 기준이며 실제 모델의 최대 사용량을 보장하지 않는다. 기준은 공용 `GPU_MEMORY_REQUIREMENTS`에서 조정한다. 유효 실측 이력이 있으면 최근 20회 중 성공한 작업의 최고 사용량을 예약한다. 현재 여유량에서 실행 중 작업의 미사용 예약분과 GPU 공통 안전 여유 512 MiB를 뺀 값으로 입장을 판단하며, 작업별 추가 여유분은 중복 가산하지 않는다. 공용 대기열은 예약량이 들어가는 작업을 허용하고 각 작업자의 실행 잠금도 유지한다.
 - 메모리가 부족하거나 앞선 작업이 실행 중이면 `queued` 상태에 대기 순서·여유/필요 메모리를 저장한다. GPU 조회 실패 또는 전체 메모리 부족은 사유를 기록하고 실패한다. CPU로 우회하지 않는다.
 - 생성 이력에서 대기·실행 작업을 중지하고 취소·실패 작업을 재개한다. 중지는 비동기 요청이며 실제 프로세스 종료 후 `cancelled`가 된다. 이력 새로고침으로 확인할 수 있다.
 - 같은 ID·저장 입력·참조 사본·누적 로그를 사용한다. 캐릭터 애니메이션은 완료된 프레임을 재사용한다. MoMask는 리그 렌더 재개 자료가 모두 있으면 이어서 렌더하고, 그 이전 단계에서 멈췄으면 저장 입력으로 다시 생성한다. 단일 이미지·ANNY는 저장 입력으로 다시 실행한다.
@@ -281,3 +281,36 @@ GUI와 CLI는 `character-animation sprite-history <원본 ID>` 명령을 공유�
 ### 스프라이트 출력 앵커 하단 여백
 
 새 편집 문서는 v3이며 출력 앵커 Y를 셀 높이의 90%로 둔다. 384px 셀에서는 `(192, 346)`으로 하단 38px를 확보한다. 미리보기와 저장 PNG는 같은 위치를 사용한다. v1/v2 저장본은 불러올 때 배치 Y를 보정하여 기존 출력 위치를 유지하고 다음 저장부터 v3로 보존한다. 기존 저장 PNG는 변경하지 않는다. 수동 이동·확대로 셀을 벗어난 프레임은 기존 잘림 경고를 확인한다.
+
+## 건물 타일 생성기 범위
+
+`tile-map`은 건물의 지붕·벽·문 표면 전용 생성기다. GUI 이름은 건물 타일 생성기이며 지형 타일 실험은 Qwen 이미지 생성기를 사용한다. 호환을 위해 서비스 ID·URL·기록 경로는 유지하며 기존 지형 생성 이력도 조회할 수 있다. 기본 출력은 1024×1024다.
+
+## 바닥 타일 생성기
+
+`floor-tile`은 건물용 `tile-map`과 별도 이력을 사용하는 Qwen 2512 바닥 타일 생성기다. 관리 메뉴의 **바닥 타일 생성기**(`/management/frame/floor-tile-generator/`)와 통합 CLI는 같은 명령 게이트웨이를 사용한다.
+
+- 사용자 프롬프트 기본값: `잔디밭`
+- 기본 프롬프트: `분리된 정사각형 9개. 3행 3열. 얇은 검은 몰딩. 탑뷰.`
+- 화풍 프롬프트: `컬러 일러스트.`
+- 순서: 사용자 → 기본 → 화풍. 기준 실행은 `2026-09-30_12-39-23-04dec642`이다.
+- 생성 크기 **1024×1024 고정**, 기본 4스텝·Seed 251204. 다른 해상도와 고정 프롬프트 변경 요청은 서버에서도 거절한다.
+
+```bash
+python3 tools/manager.py command floor-tile generate --prompt '잔디밭' --detach
+python3 tools/manager.py command floor-tile status GENERATION_ID
+```
+
+신규 실행은 3단계 파이프라인(`floor_separation.version=2`)이다.
+
+1. Qwen 2512로 1024×1024의 9칸 이미지를 생성한다.
+2. 중앙점을 포함한 몰딩 내부 윤곽과 긴 수평·수직선을 검출하고, 각 방향 바깥쪽의 첫 어두운 경계를 추적해 중앙 블록을 원본 픽셀로 크롭한다. 기준 실험은 `[356,348,669,662]`의 313×314px이며 이 좌표를 고정하지 않는다. 저채도 몰딩·직선·사각 비율 검증에 실패하면 원본을 보존하고 중단한다.
+3. 크롭을 512×512 참조로 변환하고 **사용자 프롬프트만** Qwen 2511에 전달한다. 입력이 `잔디밭`이면 최종 프롬프트도 `잔디밭`이다. 기본·화풍·확대 지시는 덧붙이지 않는다. 출력은 512×512·4스텝·Seed 10107로 고정한다.
+
+기록은 `.tmp/test/qwen-image-2512/floor-tile/<생성 ID>/`, 이력은 `.tmp/manager-current/floor-tile/`를 유지한다. `result.png`는 9칸 원본, `quadrilateral.png`는 검출 범위, `center-tile.png`는 원본 픽셀 크롭, `reference-1.png`는 512 참조, `single-tile.png`는 최종 생성 결과다. `stage-1-grid/`·`stage-2-crop/`·`stage-3-redraw/`에 각 단계 요청·결과·완료 해시를 보존하고 루트 `result.json`에 세 단계 출처를 기록한다. 기계식 단계는 검출 파라미터와 크롭 좌표도 기록한다. 프롬프트 원문·단어 수·SHA-256은 실행 요청에 고정한다.
+
+두 모델은 별도 프로세스로 순차 실행한다. 공용 취소는 하위 프로세스도 종료하며 재개는 완료 단계와 참조 원본 해시를 검증해 재사용한다. 미완료 GPU 시도 산출물은 해당 단계 `attempt-*`에 보존한다. 시간·메모리 실측은 이전 파이프라인과 구분한다. 기존 `floor_rectify` v1/v2와 `floor_separation.version=1`의 2단계 이력은 당시 요청으로 재개한다.
+
+심리스 보정이나 정식 에셋 등록은 자동 수행하지 않는다. 개별 이력 삭제는 파일을 보존하고 전체 초기화는 해당 생성기 기록과 결과를 삭제하며 실행 중에는 거절한다.
+
+이미지 메모리 예측은 실행 스크립트와 `width×height`, `steps`, 참조 이미지 개수를 함께 키로 사용한다. 설정별 최근 20회 중 정상 완료한 실측 최고값을 예약하며 다른 해상도·스텝의 기록을 섞지 않는다. 기존 측정값은 보존된 생성 요청으로 설정을 복원할 수 있을 때만 해당 집계에 포함한다. 해당 설정의 유효 실측이 없으면 서비스 초기 예약량(이미지 6144 MiB)을 사용하고 상태의 `method=configured-initial-estimate`, `samples=0`으로 근거 부재를 표시한다. 스텝 수에 비례해 메모리를 곱하지 않는다. GPU 공통 안전 여유 512 MiB 규칙은 유지한다.
