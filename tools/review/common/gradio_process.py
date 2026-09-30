@@ -7,6 +7,7 @@ import subprocess
 import threading
 import time
 import urllib.request
+from tools.review.common.management_environment import DEFAULT_GATEWAY_ADDRESS, resolve_management_environment
 
 WORKFLOW_ROOT_DIRECTORY=Path(__file__).resolve().parents[3]
 GRADIO_PROCESS_LOCK=threading.Lock()
@@ -70,9 +71,11 @@ def create_gradio_source_fingerprint(application_source_path,application_file_pa
     if application_file_path.name=='sprite_editor_app.py':
         sprite_editor_directory=WORKFLOW_ROOT_DIRECTORY/'tools/review/ui/character_animation'
         tracked_source_paths.update(sprite_editor_directory/current_file_name for current_file_name in ('sprite-editor.html','sprite-editor.js'))
-    for source_directory_path in (gradio_source_directory,common_source_directory,shared_ui_directory):
+    tracked_source_paths.update(common_source_directory.glob('gradio_*.py'))
+    tracked_source_paths.update(common_source_directory/current_file_name for current_file_name in ('management_client.py','management_transport.py','management_environment.py'))
+    for source_directory_path in (gradio_source_directory,shared_ui_directory):
         tracked_source_paths.update(current_source_path for current_source_path in source_directory_path.iterdir() if current_source_path.suffix in GRADIO_UI_SOURCE_SUFFIXES)
-    return tuple((str(current_source_path),current_source_path.stat().st_mtime_ns if current_source_path is not None and current_source_path.is_file() else None) for current_source_path in sorted(tracked_source_paths,key=lambda current_source_path:str(current_source_path)))
+    return tuple((str(current_source_path),current_source_path.stat().st_mtime_ns if current_source_path is not None and current_source_path.is_file() else None) for current_source_path in sorted(tracked_source_paths,key=lambda current_source_path:str(current_source_path))) + (('gateway-url',os.environ.get('SLIME_MANAGEMENT_GATEWAY_URL',DEFAULT_GATEWAY_ADDRESS)),('management-environment',str(resolve_management_environment('MANAGEMENT_VIRTUAL_ENVIRONMENT_PATH','.venv-management'))))
 
 def ensure_gradio_application(review_server_port, application_name, application_source_path=None):
     with GRADIO_PROCESS_LOCK:
@@ -112,7 +115,7 @@ def ensure_gradio_application(review_server_port, application_name, application_
             with urllib.request.urlopen(gradio_config_url,timeout=.3) as response_value:
                 if response_value.status==200:
                     marker_record_value=read_gradio_process_marker(process_marker_path)
-                    if marker_record_value is not None and marker_record_value.get('fingerprint')==list(source_fingerprint_value):
+                    if marker_record_value is not None and marker_record_value.get('fingerprint')==json.loads(json.dumps(source_fingerprint_value)):
                         return gradio_page_url
                     stop_orphaned_gradio_processes(application_file_path,gradio_server_port,process_marker_path)
         except OSError:
@@ -120,7 +123,7 @@ def ensure_gradio_application(review_server_port, application_name, application_
         log_directory_path=WORKFLOW_ROOT_DIRECTORY/'.tmp/manager-current'
         log_directory_path.mkdir(parents=True,exist_ok=True)
         with (log_directory_path/'gradio.log').open('a') as log_output_stream:
-            application_command_values=[str(WORKFLOW_ROOT_DIRECTORY/'.venv-management/bin/python'),str(application_file_path),'--port',str(gradio_server_port),'--review-port',str(review_server_port),'--owner-pid',str(os.getpid()),'--root-path',application_root_path]
+            application_command_values=[str(resolve_management_environment('MANAGEMENT_VIRTUAL_ENVIRONMENT_PATH','.venv-management')/'bin/python'),str(application_file_path),'--port',str(gradio_server_port),'--review-port',str(review_server_port),'--owner-pid',str(os.getpid()),'--root-path',application_root_path]
             if application_source_path is not None:application_command_values.extend(['--source-file',str(application_source_path)])
             process_record_value=subprocess.Popen(application_command_values,cwd=WORKFLOW_ROOT_DIRECTORY,stdout=log_output_stream,stderr=subprocess.STDOUT,env={**os.environ,'GRADIO_ANALYTICS_ENABLED':'False'})
         GRADIO_SERVER_PROCESSES[process_key_value]=process_record_value

@@ -3,6 +3,8 @@ import sys
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[3]))
 import argparse
+import os
+from tools.review.common.management_environment import DEFAULT_GATEWAY_ADDRESS
 import base64
 import time
 import io
@@ -158,13 +160,13 @@ def execute_management_command(service_command_name, operation_command_name, com
         return execute_animation_command(operation_command_name,command_payload_value)
     if service_command_name=='momask' and server_base_address is None:
         return execute_momask_command(operation_command_name,command_payload_value)
-    server_base_address=server_base_address or 'http://127.0.0.1:8770'
+    server_base_address=server_base_address or DEFAULT_GATEWAY_ADDRESS
     return call_management_api(server_base_address,request_route_value,command_payload_value if request_method_value=='POST' else None,operation_command_name!='logs')
 
 
 def execute_gateway_arguments(service_command_name, command_argument_list):
     command_argument_parser=argparse.ArgumentParser(prog=f'python3 tools/manager.py command {service_command_name}',description=MANAGEMENT_COMMAND_DESCRIPTIONS[service_command_name])
-    command_argument_parser.add_argument('--server-url',help='HTTP 게이트웨이 주소. 생략 시 MoMask·character-animation은 로컬, Qwen은 127.0.0.1:8770')
+    command_argument_parser.add_argument('--server-url',default=os.environ.get('SLIME_MANAGEMENT_GATEWAY_URL',DEFAULT_GATEWAY_ADDRESS),help='독립 HTTP 게이트웨이 주소 (기본: 127.0.0.1:8771)')
     command_subparser_group=command_argument_parser.add_subparsers(dest='command',required=True)
     for operation_command_name in MANAGEMENT_SERVICE_COMMANDS[service_command_name]:
         operation_argument_parser=command_subparser_group.add_parser(operation_command_name)

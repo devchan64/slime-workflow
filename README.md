@@ -41,28 +41,94 @@
 
 `tools/review/serve.py`가 앵커·리그·Depth·오버레이 페이지를 제공한다. 생성기별 임시 서버 대신 [공통 검수 절차](workflows/asset-review.md)를 사용한다.
 
-### 워크프레임 관리도구 시작
+### 관리도구 실행 스크립트
 
-워크플로우 저장소 루트에서 옵션 없이 실행한다. 시작 전에 프론트엔드에서 `npm run build:review`를 실행해 검증 가능한 UI 검수 빌드를 만든다. 기본 실행은 최신 UI 빌드를 자동으로 포함하므로 애니메이션·타일·게임 UI를 하나의 목록에서 제공한다. Python 환경에 Pillow와 PyYAML이 필요하다.
+저장소 루트에서 실행한다. 환경 준비와 서버 실행은 분리되어 있으며, GUI와 게이트웨이는 각각 별도 터미널에서 실행한다.
 
-```bash
-python3 tools/review/serve.py
-```
+| 스크립트 | 역할 | 기본값 |
+| --- | --- | --- |
+| [setup_management.sh](scripts/setup_management.sh) | 가상환경 생성·공통 의존성 설치 | `.venv`, `.venv-management` |
+| [run_management_gateway.sh](scripts/run_management_gateway.sh) | 명령 게이트웨이·작업 서비스 실행 | `127.0.0.1:8771` |
+| [run_management_gui.sh](scripts/run_management_gui.sh) | GUI·정적 검수·API 중계 실행 | `127.0.0.1:8770` |
+| [watch_review_server.sh](scripts/watch_review_server.sh) | 기존 watch 명령의 호환 진입점 | `run_management_gui.sh --watch` |
 
-소스·에셋·리포트 변경을 감시하면서 관리도구를 자동으로 재생성하려면 저장소 루트에서 watch 실행 스크립트를 사용한다. 기본 접속 주소는 `http://127.0.0.1:8770/`이며 `Ctrl+C`로 종료한다.
-
-```bash
-./scripts/watch_review_server.sh
-```
-
-프론트엔드 저장소나 포트를 바꿀 때는 환경 변수로 지정하고, 추가 관리도구 인자는 뒤에 전달한다.
+최초 준비 또는 의존성 변경 시 서버를 종료한 상태에서 준비 스크립트를 실행한다. 실행 스크립트는 패키지를 자동 설치하지 않으며, 환경이 없으면 준비 명령을 안내하고 실패한다.
 
 ```bash
-FRONTEND_REPOSITORY_PATH=/경로/slime-frontend REVIEW_SERVER_PORT=8771 ./scripts/watch_review_server.sh
-./scripts/watch_review_server.sh --writer-agent-config .local/writer-agent/workspace.yaml
+./scripts/setup_management.sh
 ```
 
-[관리도구 열기](http://127.0.0.1:8770/) · 종료는 `Ctrl+C`다.
+터미널 1에서 게이트웨이를 시작한다. GPU 작업을 접수하려면 GPU 접근이 가능한 샌드박스 밖에서 실행한다.
+
+```bash
+./scripts/run_management_gateway.sh
+```
+
+터미널 2에서 GUI를 시작한다. `--watch`를 생략하면 변경 감시 없이 실행한다.
+
+```bash
+./scripts/run_management_gui.sh --watch
+```
+
+[관리도구 열기](http://127.0.0.1:8770/). 기본 GUI는 인접 `slime-frontend`의 UI 검수 빌드를 확인하며, 입력이 바뀌었거나 빌드 사본이 없으면 `npm run build:review`를 실행한다. 기본 관리 화면에는 프론트엔드 저장소와 npm 환경이 필요하다. 기존 검수 폴더만 제공하려면 `--root`를 사용한다.
+
+GUI 없이 게이트웨이만 실행해도 통합 CLI를 사용할 수 있다. 아래 명령은 생성 이력을 조회한다.
+
+```bash
+python3 tools/manager.py command momask history
+```
+
+#### 포트·경로 변경
+
+게이트웨이 포트를 바꾸면 GUI·CLI의 접속 주소도 함께 지정한다. 다음 서버 명령은 각각 별도 터미널에서 실행한다.
+
+```bash
+# 게이트웨이 터미널
+./scripts/run_management_gateway.sh --port 9871
+
+# GUI 터미널
+./scripts/run_management_gui.sh --port 9870 --gateway-url http://127.0.0.1:9871 --watch
+
+# CLI 터미널
+python3 tools/manager.py command momask --server-url http://127.0.0.1:9871 history
+```
+
+| 환경 변수 | 적용 대상·기본값 |
+| --- | --- |
+| `VIRTUAL_ENVIRONMENT_PATH` | 서버 Python 환경 · `.venv` |
+| `MANAGEMENT_VIRTUAL_ENVIRONMENT_PATH` | Gradio 자식 프로세스 환경 · `.venv-management` |
+| `REVIEW_SERVER_PORT` | GUI 포트 · `8770` |
+| `MANAGEMENT_GATEWAY_PORT` | 게이트웨이 포트 · `8771` |
+| `SLIME_MANAGEMENT_GATEWAY_URL` | GUI·CLI 접속 주소 · `http://127.0.0.1:8771` |
+| `FRONTEND_REPOSITORY_PATH` | GUI 기본 프론트엔드 · 인접 `slime-frontend` |
+
+명시적인 포트·접속 옵션이 환경 변수보다 우선한다. `--root`, `--walking`, `--frontend-repo`를 지정하면 `FRONTEND_REPOSITORY_PATH`를 사용하지 않는다. 스크립트에 전달한 상대 경로는 저장소 루트 기준이다. 서버 Python 환경 설정은 GPU 모델 실행기의 기존 환경 정책을 변경하지 않는다.
+
+```bash
+# 다른 프론트엔드 경로로 GUI 실행
+./scripts/run_management_gui.sh --frontend-repo /경로/slime-frontend --watch
+
+# 기존 검수 폴더만 제공
+./scripts/run_management_gui.sh --root .tmp/검수폴더 --entry overlay-review.html
+
+# 작가 작업 공간 설정은 게이트웨이에 전달
+./scripts/run_management_gateway.sh --writer-agent-config .local/writer-agent/workspace.yaml
+
+# 실행 옵션 확인
+./scripts/run_management_gateway.sh --help
+./scripts/run_management_gui.sh --help
+```
+
+#### 종료·재시작·로그
+
+`Ctrl+C`는 해당 터미널에서 시작한 서버와 같은 프로세스 그룹의 자식만 종료한다. GUI 재시작은 게이트웨이를 재시작하지 않으며, 독립 GPU 대기·실행 프로세스와 기존 생성 기록은 유지한다. 게이트웨이 코드 변경은 게이트웨이 터미널에서 종료 후 다시 실행한다. 작가 에이전트는 기존 정책에 따라 게이트웨이 종료 시 작업도 종료한다.
+
+- 실행 스크립트 로그: `.tmp/management-launcher-logs/`
+- 게이트웨이 로그: `.tmp/gateway-server-logs/`
+- GUI 서버 로그: `.tmp/review-server-logs/`
+- Gradio 로그: `.tmp/manager-current/gradio.log`
+
+실행기는 5초마다 heartbeat를 출력하며, 실패 시 원인·실행 명령과 최근 로그를 표시한다. 게이트웨이의 `GET /management/health`는 역할·PID·응답 상태를 제공하고 GUI의 같은 경로는 중계 상태를 확인한다. 자세한 계약은 [관리도구 클라이언트 가이드](workflows/management-clients.md#독립-실행)를 따른다.
 
 ### 게임 UI · 디자인 시스템 검수
 
@@ -73,7 +139,7 @@ cd /경로/slime-frontend
 npm run build:review
 
 cd /경로/slime-workflow
-python3 tools/review/serve.py --ui-bundle /경로/slime-frontend/.tmp/한국시간/ui-review
+./scripts/run_management_gui.sh --ui-bundle /경로/slime-frontend/.tmp/한국시간/ui-review
 ```
 
 관리도구의 `게임 UI · 디자인 시스템` 분류에서 토큰·기본 컴포넌트, 탐색 메뉴·패널, 캐릭터 설정 대화상자, 전투 레이아웃을 연다. 화면 크기(데스크톱·모바일 세로·모바일 가로), 언어, 초기 상태 복원을 제공한다. 가져오기 전 manifest의 버전·경로·해시를 검증하고 검증된 파일만 관리도구 실행 폴더에 복사한다. 프론트엔드 개발 서버나 소스 경로는 관리도구의 런타임 의존성이 아니다.
@@ -107,19 +173,19 @@ Qwen 타일 생성기는 `.tmp/실행폴더/tile-review.json`에 역할별 타�
 
 ```bash
 # 프론트엔드가 다른 위치에 있을 때
-python3 tools/review/serve.py --frontend-repo /경로/slime-frontend
+./scripts/run_management_gui.sh --frontend-repo /경로/slime-frontend
 
 # 기본 포트가 사용 중일 때
-python3 tools/review/serve.py --port 8771
+./scripts/run_management_gui.sh --port 8780
 
 # 이미 생성한 관리도구 또는 개별 검수 폴더를 그대로 열 때
-python3 tools/review/serve.py --root .tmp/검수폴더
+./scripts/run_management_gui.sh --root .tmp/검수폴더
 
 # 개별 검수 폴더의 다른 진입 페이지
-python3 tools/review/serve.py --root .tmp/검수폴더 --entry overlay-review.html
+./scripts/run_management_gui.sh --root .tmp/검수폴더 --entry overlay-review.html
 
 # 특정 걷기·스탠딩 후보만 묶을 때
-python3 tools/review/serve.py --walking .tmp/걷기실행폴더 --standing .tmp/스탠딩검수폴더
+./scripts/run_management_gui.sh --walking .tmp/걷기실행폴더 --standing .tmp/스탠딩검수폴더
 ```
 
 `--frontend-repo`, `--root`, `--walking/--standing`은 함께 사용할 수 없다. `--entry`는 `--root` 모드에서 지정한다. 기본 저장소가 없거나 포트가 사용 중이면 원인을 표시하고 종료한다. 임의의 저장소·다른 포트로 자동 전환하지 않는다.

@@ -16,9 +16,8 @@ WORKFLOW_ROOT_DIRECTORY = Path(__file__).resolve().parents[4]
 sys.path.insert(0, str(WORKFLOW_ROOT_DIRECTORY))
 from tools.review.common.gradio_history import HISTORY_CARD_SELECTION_SCRIPT, build_generation_history_view
 from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_confirmation
-from tools.review.common.management_gateway import execute_management_command
+from tools.review.common.management_client import execute_remote_management_command as execute_management_command
 from tools.review.common.gradio_logs import build_execution_logs, LOG_PANEL_STYLES
-from tools.review.domains.momask.momask_jobs import check_generation_running
 from tools.review.domains.momask.momask_generation import render_position_retarget_policy
 
 MOTION_ACTION_LABELS = [('대기','standing'),('걷기','walking'),('휴식','resting')]
@@ -45,24 +44,7 @@ def read_motion_settings(selected_action_name):
         f'<dl class="motion-camera-angles">{camera_html}</dl></section>')
 
 def create_motion_history_records(server_base_address):
-    history_record_values=[]
-    for source_history_record in execute_motion_command('history',{}):
-        current_history_record=dict(source_history_record)
-        current_job_identifier=current_history_record['id']
-        current_status_name=current_history_record.get('status','unknown')
-        current_request_record={'action':dict((value,label) for label,value in MOTION_ACTION_LABELS).get(current_history_record.get('action'),current_history_record.get('action','unknown')),'directions':current_history_record.get('directions',[]),'tag':current_history_record.get('tag','')}
-        current_history_record['status']={'status':current_status_name}
-        if current_status_name=='running':
-            current_history_record['progress']=execute_motion_command('status',{'id':current_job_identifier}).get('progress')
-        current_history_record['request']=current_request_record
-        current_history_record['path']=str(WORKFLOW_ROOT_DIRECTORY/'.tmp/momask-generator/jobs'/current_job_identifier)
-        if current_status_name=='completed':
-            current_result_directory=WORKFLOW_ROOT_DIRECTORY/'.tmp/momask-generator/jobs'/current_job_identifier/'result'
-            preview_image_paths=sorted(current_result_directory.glob('anny/*/frames/anny-0001.png')) or sorted(current_result_directory.glob('openpose/*/openpose-0001.png')) or sorted(current_result_directory.glob('*/openpose-0001.png'))
-            if preview_image_paths:
-                current_history_record['image']='/momask-generator/jobs/'+current_job_identifier+'/result/'+preview_image_paths[0].relative_to(current_result_directory).as_posix()
-        history_record_values.append(current_history_record)
-    return {'records':history_record_values}
+    return execute_motion_command('history',{})
 
 
 def execute_motion_history_command(operation_command_name,command_payload_value,server_base_address):
@@ -141,7 +123,7 @@ def build_momask_interface(server_base_address):
             return generation_identifier_value,'작업을 접수했습니다. 아래 생성 이력에서 상태와 로그를 확인하세요.'
         bind_gpu_generation_confirmation(generate_button_value,start_motion_with_status,[action_select_value,direction_select_value,face_checkbox_value,generation_tag_value],[current_identifier_value,status_text_value])
         def refresh_motion_status(generation_job_identifier):
-            generation_running_value=check_generation_running()
+            generation_running_value=execute_motion_command('history',{})['running']
             if not generation_job_identifier:
                 return ('다른 작업 생성 중 · 아래 생성 이력에서 작업을 선택하세요.' if generation_running_value else '생성 가능 · 설정을 확인하세요.'),gr.update(interactive=not generation_running_value),gr.update(interactive=False)
             try:

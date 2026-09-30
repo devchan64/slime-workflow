@@ -4,15 +4,56 @@
 
 구현 기준은 [AGENTS.md의 Management Client and Gateway Standard](../AGENTS.md#management-client-and-gateway-standard)에 명시한다. 이 문서는 해당 기준의 현재 구현·명령 사용법·기록 경로를 설명한다.
 
-MoMask 작업은 `tools/review/domains/momask/momask_jobs.py` 공용 서비스가 관리한다. 웹 페이지는 GUI 클라이언트이고 `tools/manager.py`는 통합 CLI 클라이언트이다. 웹 HTTP 어댑터와 CLI 명령 어댑터는 생성·상태·이력·취소·수동 초기화에 같은 서비스를 호출한다. 통합 명령 레지스트리는 `momask`, `qwen-2512`, `qwen-2511`, `character-animation`을 제공한다. Qwen은 아래 설명처럼 웹 HTTP API를 공유한다.
+## 독립 실행
+
+관리도구는 GUI 서버, 명령 게이트웨이·작업 서비스, 별도 GPU 대기·실행 프로세스로 나눈다. GUI와 CLI는 같은 HTTP 명령 계약을 사용한다.
 
 ```text
-웹 GUI → HTTP 어댑터 ─┐
-                     ├→ 공용 작업 서비스 → 독립 감독 프로세스 → MoMask 실행기
-통합 CLI → 명령 어댑터┘                     └→ 공용 기록 저장소
+Gradio GUI → GUI 서버(8770)의 API 중계 ─┐
+Gradio Python 콜백 → HTTP 클라이언트 ───┼→ 게이트웨이(8771) → 작업 서비스 → GPU 대기·실행기
+통합 CLI → HTTP 클라이언트 ────────────┘                         └→ 기존 공용 기록 저장소
 ```
 
-웹 서버 실행 여부와 관계없이 CLI를 사용할 수 있다. 감독 프로세스는 웹 서버 재시작이나 `--detach` CLI 종료와 독립적으로 결과 상태를 기록한다. 파일 잠금으로 GUI·CLI의 동시 생성을 막고, 양쪽에서 같은 생성 ID를 조회하거나 취소한다. GPU 실행은 GPU 접근이 가능한 로컬 환경에서 수행한다.
+서로 다른 터미널에서 실행한다. GPU 작업을 접수할 게이트웨이는 GPU 접근이 가능한 샌드박스 밖에서 시작한다.
+
+```bash
+# 최초 또는 의존성 변경 시 준비 (서버 시작과 분리)
+./scripts/setup_management.sh
+
+# 터미널 1: 게이트웨이·작업 서비스 (GUI 없이 CLI 사용 가능)
+./scripts/run_management_gateway.sh
+
+# 터미널 2: GUI·정적 검수·Gradio (GUI 코드 변경만 자동 재시작)
+./scripts/run_management_gui.sh --watch
+
+# 터미널 3: 같은 게이트웨이에 작업 접수
+python3 tools/manager.py command momask generate --action walking --detach
+```
+
+- 기본 주소는 GUI `http://127.0.0.1:8770`, 게이트웨이 `http://127.0.0.1:8771`이다. GUI 포트와 게이트웨이 포트를 같게 지정할 수 없다.
+- 게이트웨이 포트를 바꾸면 `scripts/run_management_gateway.sh --port 9871`, GUI `scripts/run_management_gui.sh --gateway-url http://127.0.0.1:9871`, CLI `<서비스> --server-url http://127.0.0.1:9871 <명령>`을 사용한다. GUI·CLI 기본 접속 주소는 `SLIME_MANAGEMENT_GATEWAY_URL`로 지정할 수도 있다.
+- 기존 브라우저 명령·결과·로그 URL은 GUI 서버가 중계한다. GUI 종료 중에도 CLI는 게이트웨이로 직접 접수·조회·취소·재개할 수 있다. Gradio Python 콜백은 공용 HTTP 클라이언트를 사용하며 로컬 서비스로 우회하지 않는다.
+- `GET /management/health`는 게이트웨이 역할·PID·응답 상태를 반환한다. GUI 주소에서도 같은 경로로 중계 상태를 확인할 수 있다. GPU 가용성은 별도 상태 조회로 확인한다.
+- GUI `--watch`는 게이트웨이·작업 서비스 코드를 감시하지 않는다. 게이트웨이 코드 변경은 해당 프로세스만 명시적으로 재시작한다. 기존 GPU 대기·실행기는 별도 프로세스와 기록을 유지한다. 접수 중 연결이 끊기면 자동 재전송하지 않으므로 이력을 확인한 뒤 다시 요청한다.
+- `--writer-agent-config`는 `gateway_server.py`의 옵션으로 이동했다. 작가 작업은 아직 공용 GPU 실행기로 통합되지 않았으며 게이트웨이 종료 시 기존 종료 정책을 따른다. GUI 재시작은 작가 작업 수명에 영향을 주지 않는다.
+- 게이트웨이 서비스 초기화 실패도 `.tmp/gateway-server-logs/`에 원인과 함께 기록한다. 정상 실행은 같은 경로에 로그를 저장하고 5초 heartbeat를 출력한다. GUI 로그·생성 ID·대기열·요청·결과·이력 경로는 유지한다.
+
+### 실행 스크립트 계약
+
+| 스크립트 | 역할 |
+| --- | --- |
+| `scripts/setup_management.sh` | `.venv`·`.venv-management` 준비와 공통 `requirements.txt` 설치 |
+| `scripts/run_management_gateway.sh` | 독립 게이트웨이 시작; 프론트엔드·Gradio 환경 불필요 |
+| `scripts/run_management_gui.sh` | GUI 시작; `--watch`, `--root`, `--frontend-repo` 등 기존 옵션 전달 |
+| `scripts/watch_review_server.sh` | `run_management_gui.sh --watch` 호환 연결 |
+
+공용 진입점은 `tools/review/common/management_launcher.py`다. 환경·접속 설정은 `management_environment.py`, 명시적 설치는 `management_setup.py`, 로그·heartbeat·프로세스 그룹 수명은 `management_process.py`가 맡는다. Gradio는 환경 설정 모듈만 참조한다. 서버 실행 시 패키지를 설치하거나 환경을 자동 복구하지 않는다. 환경이 없으면 준비 명령을 안내하고 즉시 실패한다. `setup`은 서버가 실행 중이지 않을 때 최초 준비 또는 의존성 갱신 목적으로 명시적으로 실행한다.
+
+`VIRTUAL_ENVIRONMENT_PATH`는 서버 Python 환경, `MANAGEMENT_VIRTUAL_ENVIRONMENT_PATH`는 실제 Gradio 자식 환경을 지정한다. GPU 모델 실행기의 기존 환경 정책은 별개다. 상대 경로와 전달한 상대 파일 인자는 저장소 루트를 기준으로 한다. `REVIEW_SERVER_PORT`·`MANAGEMENT_GATEWAY_PORT`는 각 서버 포트이며 명시적인 `--port`가 우선한다. `FRONTEND_REPOSITORY_PATH`는 GUI 기본 프론트엔드 경로로만 사용하고 `--root`·`--walking`·`--frontend-repo`를 지정하면 적용하지 않는다. 게이트웨이 포트를 바꿔도 GUI·CLI 목적지는 자동 변경하지 않으므로 `--gateway-url`·`--server-url` 또는 `SLIME_MANAGEMENT_GATEWAY_URL`도 설정한다.
+
+시작·명령·출력·5초 heartbeat와 실패 traceback은 `.tmp/management-launcher-logs/`에 누적한다. 실패 시 명령과 최근 로그를 출력하고 종료 코드를 반환한다. `Ctrl+C` 또는 SIGTERM은 해당 실행기가 시작한 서버 프로세스 그룹에만 전달한다. GUI와 게이트웨이는 별도 그룹이며 독립 세션으로 시작한 GPU 작업·대기열은 정리 대상이 아니다. 부모 종료 뒤 같은 그룹에 남아 SIGTERM을 무시하는 자식은 강제 종료한다. 다른 실행기가 시작한 그룹과 독립 세션은 건드리지 않는다. 검증이나 재시작을 위해 기존 서버의 포트 점유 프로세스를 강제로 종료하지 않는다.
+
+기존 단일 서버에서 전환할 때 새 게이트웨이를 먼저 시작하고 GUI를 새 명령으로 다시 시작한다. 검증을 위해 실행 중인 생성 작업을 취소하지 않는다. 롤백은 이전 코드의 단일 서버로 복귀하며 기록을 이동하거나 초기화하지 않는다. 로컬 프로세스가 하나 추가되지만 AWS 배포·고정 비용 리소스는 변경하지 않는다.
 
 ## command와 help
 
@@ -46,7 +87,7 @@ MoMask 신규 생성은 대기(`standing`), 걷기(`walking`), 휴식(`resting`)
 
 ## Qwen 이미지 생성 두 종류
 
-`qwen-2512`(텍스트 이미지)와 `qwen-2511`(텍스트 또는 참조 1~3장)를 지원한다. 두 명령은 GUI와 같은 HTTP API를 호출하므로 **관리도구 서버가 실행 중이어야 한다**. MoMask의 서버 없이 실행하는 방식과 구분한다. 입력 검증·모델 선택·취소·이력 저장은 기존 서버 구현을 그대로 사용한다.
+`qwen-2512`(텍스트 이미지)와 `qwen-2511`(텍스트 또는 참조 1~3장)를 지원한다. 모든 통합 CLI 명령은 GUI와 같은 독립 게이트웨이 HTTP API를 호출하므로 **게이트웨이가 실행 중이어야 한다**. GUI 서버는 필요하지 않다. 입력 검증·모델 선택·취소·이력 저장은 기존 서버 구현을 그대로 사용한다.
 
 ```bash
 python3 tools/manager.py help qwen-2512 generate
@@ -96,10 +137,10 @@ CLI command → 명령 봉투 ──────┘
 
 `tools/review/momask_commands.py`와 `qwen_commands.py`는 폐기했다. `execute_gateway_arguments`가 등록된 명령의 인자를 해석하고 `execute_management_command`가 로컬 서비스·HTTP 전송·GUI 서비스 어댑터를 선택한다. CLI는 상태·로그 파일을 직접 읽지 않고 명령 서비스를 통해 조회한다. 생성 완료 대기와 Ctrl+C 취소도 생성기별로 중복 구현하지 않는다.
 
-MoMask는 기본 로컬 실행을 유지하며, 아래처럼 서버 경로를 명시하여 GUI와 같은 HTTP 게이트웨이로 실행할 수도 있다.
+MoMask도 기본적으로 독립 HTTP 게이트웨이에 연결한다. 서비스 함수의 로컬 호출은 내부 작업 서비스·호환 코드에만 남기며 CLI 기본 경로로 사용하지 않는다.
 
 ```bash
-python3 tools/manager.py command momask --server-url http://127.0.0.1:8770 history
+python3 tools/manager.py command momask --server-url http://127.0.0.1:8771 history
 ```
 
 ## 등록 모션 기반 캐릭터 애니메이션
@@ -123,7 +164,7 @@ python3 tools/manager.py command character-animation cancel GENERATION_ID
 python3 tools/manager.py command character-animation history-reset
 ```
 
-`--directions` 생략 시 네 방향을 생성한다. `--detach` 생략 시 공용 CLI가 완료까지 상태를 출력한다. GUI와 로컬 CLI는 같은 작업 서비스를 호출하며 CLI는 서버 없이도 실행한다. HTTP 게이트웨이를 사용하려면 서비스 이름 뒤에 `--server-url http://127.0.0.1:8770`을 넣는다. GPU 실행은 샌드박스 밖에서 수행하고 `.model`에 준비된 모델·어댑터를 사용한다. 이미지 생성기와 공용 GPU 파일 잠금을 사용하므로 기존 작업이 끝날 때까지 대기할 수 있다.
+`--directions` 생략 시 네 방향을 생성한다. `--detach` 생략 시 공용 CLI가 완료까지 상태를 출력한다. GUI와 CLI는 독립 게이트웨이의 같은 작업 서비스를 호출한다. 다른 게이트웨이 주소는 서비스 이름 뒤에 `--server-url http://127.0.0.1:포트`로 지정한다. GPU 실행은 샌드박스 밖에서 수행하고 `.model`에 준비된 모델·어댑터를 사용한다. 이미지 생성기와 공용 GPU 파일 잠금을 사용하므로 기존 작업이 끝날 때까지 대기할 수 있다.
 
 기록은 `.tmp/test/character-animation/<YYYY-MM-DD_HH-mm-ss>/<생성 ID>/`에 저장한다. `request.json`에는 고정 프롬프트 원문·해시·단어 수, 모션·캐릭터 매니페스트 해시, 각 참조 프레임 경로·해시가 기록된다. `worker.log`, `status.json`, `progress.json`, `result.json` 및 방향별 프레임을 보관한다. 프레임별 입력은 불투명 512px PNG로 정규화하며 원본을 변경하지 않는다.
 
@@ -208,9 +249,9 @@ CLI는 `momask generate ... --face`를 사용한다. `--no-face`는 얼굴을 �
 
 ### Gradio MoMask UI
 
-MoMask 페이지는 Gradio Blocks로 전환한다. `/momask-generator/`는 관리 서버 포트 + 100의 로컬 Gradio UI로 연결한다(기본 8870). 외부 공개 없이 `127.0.0.1`에 바인딩하고 관리 서버 종료 시 UI 프로세스도 종료한다. 생성 작업은 기존 독립 감독 프로세스에서 계속 실행한다. CLI·HTTP API·기록 경로는 유지한다.
+MoMask 페이지는 Gradio Blocks로 전환한다. `/momask-generator/`는 관리 셸을 거쳐 GUI 서버 포트 + 101의 로컬 Gradio UI로 연결한다(기본 8871). 외부 공개 없이 `127.0.0.1`에 바인딩하고 관리 서버 종료 시 UI 프로세스도 종료한다. 생성 작업은 기존 독립 감독 프로세스에서 계속 실행한다. CLI·HTTP API·기록 경로는 유지한다.
 
-관리 UI 의존성은 모델 환경과 분리한다. 최초 설치는 `python3 -m venv .venv-management` 이후 `.venv-management/bin/pip install -r tools/review/ui/gradio/requirements.lock`으로 수행한다. 실행 로그는 `.tmp/manager-current/gradio.log`에 기록한다. 현재 전환 범위는 MoMask이며 다른 생성기는 기존 UI를 유지한다.
+관리 UI 의존성은 모델 환경과 분리한다. 최초 설치와 공통 검수 의존성 갱신은 `scripts/setup_management.sh`로 수행한다. 실행 로그는 `.tmp/manager-current/gradio.log`에 기록한다. 현재 전환 범위는 MoMask이며 다른 생성기는 기존 UI를 유지한다.
 
 설정·보정값·로그·페이지별 이력·수동 초기화는 Gradio에서 구성한다. 결과 ID 또는 이력 라디오 선택 후 ‘결과 보기’로 HumanML3D·ANNY·OpenPose 동기 재생기를 연다. 재생은 브라우저에서 실행하며 Python 프레임별 호출을 하지 않는다. 아직 기존 공용 이력 UI의 썸네일과 파일 관리자 열기 기능은 이 전환 페이지에 이식되지 않았다.
 

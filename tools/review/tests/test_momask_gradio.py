@@ -61,17 +61,12 @@ class GradioMoMaskTests(unittest.TestCase):
         self.assertIn('up_left',player_html_value)
         self.assertIn('HumanML3D',player_html_value)
 
-    def test_completed_history_card_uses_first_result_frame_as_thumbnail(self):
-        with tempfile.TemporaryDirectory() as temporary_directory_name,patch.object(MODULE_SOURCE_VALUE,'WORKFLOW_ROOT_DIRECTORY',Path(temporary_directory_name)):
-            result_frame_path=Path(temporary_directory_name)/'.tmp/momask-generator/jobs/completed-id/result/anny/down_left/frames/anny-0001.png'
-            result_frame_path.parent.mkdir(parents=True)
-            result_frame_path.write_bytes(b'image')
-            with patch.object(MODULE_SOURCE_VALUE,'execute_motion_command',side_effect=lambda operation,payload: [{'id':'completed-id','status':'completed','action':'walking','directions':['down_left'],'tag':'돌온재'}, {'id':'running-id','status':'running','action':'standing','directions':[]}] if operation=='history' else {'progress':{'percent':25}}):
-                history_records=MODULE_SOURCE_VALUE.create_motion_history_records('http://127.0.0.1:8770')['records']
-        self.assertEqual(history_records[0]['image'],'/momask-generator/jobs/completed-id/result/anny/down_left/frames/anny-0001.png')
-        self.assertEqual(history_records[0]['request']['tag'],'돌온재')
-        self.assertNotIn('image',history_records[1])
-        self.assertEqual(history_records[1]['progress']['percent'],25)
+    def test_history_uses_gateway_records_without_local_files(self):
+        response_history_record = {'records': [{'id': 'completed-id', 'status': {'status': 'completed'}, 'thumbnail': '/momask-generator/jobs/completed-id/result/anny/down_left/frames/anny-0001.png', 'request': {'tag': '돌온재'}}], 'running': False}
+        with patch.object(MODULE_SOURCE_VALUE, 'execute_motion_command', return_value=response_history_record) as gateway_call_value:
+            history_response_record = MODULE_SOURCE_VALUE.create_motion_history_records('http://127.0.0.1:8770')
+        self.assertEqual(history_response_record, response_history_record)
+        gateway_call_value.assert_called_once_with('history', {})
 
     def test_interface_builds(self):
         self.assertGreater(len(MODULE_SOURCE_VALUE.build_momask_interface('http://127.0.0.1:8770').blocks),30)

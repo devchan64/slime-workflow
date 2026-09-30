@@ -8,6 +8,9 @@ from zoneinfo import ZoneInfo
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import quote, unquote, urlsplit
 import argparse
+import os
+from tools.review.common.management_environment import DEFAULT_GATEWAY_ADDRESS, validate_gateway_address
+from tools.review.common.management_transport import proxy_management_request
 import io
 import http.client
 import hashlib
@@ -103,8 +106,8 @@ def parse_review_arguments(command_argument_values=None):
     argument_value_parser.add_argument('--entry',default='preview.html',help='--root 폴더 기준 HTML 진입 페이지')
     argument_value_parser.add_argument('--port',type=int,default=REVIEW_SERVER_PORT,help='로컬 서버 포트 (기본: 8770)')
     argument_value_parser.add_argument('--ui-bundle',type=Path,help='프론트엔드에서 전달한 UI 검수 빌드 폴더')
-    argument_value_parser.add_argument('--writer-agent-config',type=Path,help='작가 에이전트의 로컬 작업 공간 YAML')
-    argument_value_parser.add_argument('--watch',action='store_true',help='소스 변경 시 검수 빌드를 다시 만들고 서버를 재시작')
+    argument_value_parser.add_argument('--gateway-url',default=os.environ.get('SLIME_MANAGEMENT_GATEWAY_URL',DEFAULT_GATEWAY_ADDRESS),type=validate_gateway_address,help='독립 명령 게이트웨이 주소 (기본: 127.0.0.1:8771)')
+    argument_value_parser.add_argument('--watch',action='store_true',help='소스 변경 시 GUI만 재시작 (독립 게이트웨이·GPU 작업 유지)')
     parsed_argument_values=argument_value_parser.parse_args(command_argument_values)
     if not any((parsed_argument_values.root, parsed_argument_values.walking, parsed_argument_values.frontend_repo, parsed_argument_values.standing)):
         parsed_argument_values.frontend_repo=DEFAULT_FRONTEND_REPOSITORY
@@ -116,13 +119,18 @@ def parse_review_arguments(command_argument_values=None):
         argument_value_parser.error('관리도구 생성 모드에서는 --entry를 변경할 수 없습니다.')
     if not 1024 <= parsed_argument_values.port <= 65535:
         argument_value_parser.error('포트는 1024~65535여야 합니다.')
+    if parsed_argument_values.port == urlsplit(parsed_argument_values.gateway_url).port:
+        argument_value_parser.error('GUI 포트와 게이트웨이 포트는 달라야 합니다.')
     return parsed_argument_values
 
 def collect_review_watch_paths(parsed_argument_values):
     workflow_repo_root = Path(__file__).resolve().parents[2]
-    watch_paths = [Path(__file__).resolve(), workflow_repo_root/'tools/review', workflow_repo_root/'generators', workflow_repo_root.parent/'slime-assets/assets/maps']
-    current_writer_config=parsed_argument_values.writer_agent_config or workflow_repo_root/'.local/writer-agent/workspace.yaml'
-    watch_paths.append(current_writer_config)
+    watch_paths = [Path(__file__).resolve(), workflow_repo_root/'tools/review/ui', workflow_repo_root.parent/'slime-assets/assets/maps']
+    watch_paths.extend(current_config_directory for current_config_directory in (workflow_repo_root/'generators').rglob('config') if current_config_directory.is_dir())
+    watch_paths.extend(workflow_repo_root/'generators/writer_agent'/current_file_name for current_file_name in ('manager.html','manager.js'))
+    watch_paths.extend((workflow_repo_root/'tools/review').glob('build_*.py'))
+    watch_paths.extend((workflow_repo_root/'tools/review/common').glob('gradio_*.py'))
+    watch_paths.extend(workflow_repo_root/'tools/review/common'/current_file_name for current_file_name in ('management_client.py','management_transport.py','management_environment.py'))
     if parsed_argument_values.frontend_repo:
         frontend_repository_path = Path(parsed_argument_values.frontend_repo).resolve()
         asset_repository_path = frontend_repository_path.parent/'slime-assets'
@@ -279,6 +287,7 @@ def prepare_review_directory(parsed_argument_values):
 
 
 def run_review_server(parsed_argument_values):
+    os.environ['SLIME_MANAGEMENT_GATEWAY_URL'] = parsed_argument_values.gateway_url
     review_root_directory = prepare_review_directory(parsed_argument_values)
     workflow_repo_root = Path(__file__).resolve().parents[2]
     allowed_review_roots = [workflow_repo_root/current_root_name for current_root_name in ('.tmp','.result','assets')]
@@ -289,7 +298,7 @@ def run_review_server(parsed_argument_values):
     resolve_review_request(review_root_directory,'/'+parsed_argument_values.entry)
     if not 1024 <= parsed_argument_values.port <= 65535: raise ValueError('포트는 1024~65535여야 합니다.')
     # 관리도구 빌드는 review_root_directory 자체를 교체할 수 있으므로 서버 로그는 별도 안정 경로에 둔다.
-    server_log_directory = workflow_repo_root/'.tmp'/'review-server-logs'/datetime.now(ZoneInfo('Asia/Seoul')).strftime('%Y-%m-%d_%H-%M-%S')
+    server_log_directory = workflow_repo_root/'.tmp'/'review-server-logs'/(datetime.now(ZoneInfo('Asia/Seoul')).strftime('%Y-%m-%d_%H-%M-%S-%f')+f'-{os.getpid()}')
     server_log_directory.mkdir(parents=True,exist_ok=False)
     server_log_path = server_log_directory/'review-server.log'
     trace_write_lock = threading.Lock()
@@ -303,38 +312,6 @@ def run_review_server(parsed_argument_values):
         with trace_write_lock:
             print(trace_line_text,flush=True)
             with server_log_path.open('a') as trace_file_stream: trace_file_stream.write(trace_line_text+'\n')
-    from tools.review.domains.image.image_generation import ImageGenerationManager
-    if str(workflow_repo_root) not in sys.path:sys.path.insert(0,str(workflow_repo_root))
-    from generators.writer_agent.management import WriterAgentManager
-    from generators.writer_agent.documents import DEFAULT_WORKSPACE_CONFIG
-    writer_agent_service=WriterAgentManager(parsed_argument_values.writer_agent_config or DEFAULT_WORKSPACE_CONFIG)
-    image_generation_service = ImageGenerationManager()
-    from tools.review.domains.tile.tile_generation import TileGenerationManager
-    tile_generation_service = TileGenerationManager()
-    from tools.review.domains.tile.floor_generation import FloorGenerationManager
-    floor_generation_service = FloorGenerationManager()
-    from tools.review.domains.anny.anny_attributes import AnnyAttributeManager
-    anny_attribute_service = AnnyAttributeManager()
-    from tools.review.domains.momask.momask_generation import MoMaskGenerationManager
-    momask_generation_service = MoMaskGenerationManager()
-    three_reference_service = ImageGenerationManager(three_reference_mode=True)
-    from tools.review.common.management_gateway import ManagementCommandGateway
-    from tools.review.domains.character_animation.character_animation import CharacterAnimationManager
-    character_animation_service = CharacterAnimationManager()
-    management_command_gateway = ManagementCommandGateway({'floor-tile':floor_generation_service.handle_image_request,'anny':anny_attribute_service.handle,'tile-map':tile_generation_service.handle_image_request,'character-animation':character_animation_service.handle,'momask':momask_generation_service.handle,'qwen-2512':image_generation_service.handle_image_request,'qwen-2511':three_reference_service.handle_image_request})
-    from tools.review.common.record_folders import handle_record_folder_request
-    from tools.review.domains.character_animation.character_animation_jobs import GENERATION_ROOT_DIRECTORY, resolve_generation_directory
-    from tools.review.domains.anny.anny_attributes import JOBS as ANNY_RECORD_DIRECTORY
-    from tools.review.domains.momask.momask_jobs import GENERATION_JOB_DIRECTORY as MOMASK_RECORD_DIRECTORY, resolve_generation_directory as resolve_momask_record_directory
-    record_folder_routes = {
-        '/floor-tile-generator': (floor_generation_service.job_storage_root, lambda record_identifier_value: floor_generation_service.job_storage_root/record_identifier_value),
-        '/tile-map-generator': (tile_generation_service.job_storage_root, lambda record_identifier_value: tile_generation_service.job_storage_root/record_identifier_value),
-        '/character-animation': (GENERATION_ROOT_DIRECTORY, resolve_generation_directory),
-        '/anny-attributes': (ANNY_RECORD_DIRECTORY, lambda record_identifier_value: ANNY_RECORD_DIRECTORY/record_identifier_value),
-        '/image-generation': (image_generation_service.job_storage_root, lambda record_identifier_value: image_generation_service.job_storage_root/record_identifier_value),
-        '/image-generation-2511': (three_reference_service.job_storage_root, lambda record_identifier_value: three_reference_service.job_storage_root/record_identifier_value),
-        '/momask-generator': (MOMASK_RECORD_DIRECTORY, resolve_momask_record_directory),
-    }
     management_menu_url = None
     from tools.review.common.gradio_process import ensure_floor_tile_server, ensure_anny_attributes_server, ensure_character_animation_server, ensure_gradio_server, ensure_management_menu_server, ensure_map_review_server, ensure_qwen_2511_server, ensure_qwen_2512_server, ensure_sprite_editor_server, ensure_static_review_server, ensure_tile_map_server, ensure_writer_agent_server
     if manager_source_path.is_file():
@@ -419,20 +396,9 @@ def run_review_server(parsed_argument_values):
                     self.send_error(404,str(current_asset_error));return
                 self.send_response(200);self.send_header('Content-Type',response_content_type);self.send_header('Cache-Control','no-store');self.send_header('Content-Length',str(len(response_content)));self.end_headers();self.wfile.write(response_content)
                 return
-            if urlsplit(self.path).path=='/management/gpu-queue':
-                from tools.review.common.gpu_job_queue import list_waiting_gpu_jobs
-                from tools.review.common.gpu_status import read_gpu_status
-                response_content=json.dumps(list_waiting_gpu_jobs()|{'gpu_status':read_gpu_status()},ensure_ascii=False).encode()
-                self.send_response(200);self.send_header('Content-Type','application/json');self.send_header('Cache-Control','no-store');self.send_header('Content-Length',str(len(response_content)));self.end_headers();self.wfile.write(response_content)
-                return
             if urlsplit(self.path).path=='/management/gpu-queue-confirmation.js':
                 response_content=(Path(__file__).parent/'ui/shared/gpu-queue-confirmation.js').read_bytes()
                 self.send_response(200);self.send_header('Content-Type','text/javascript');self.send_header('Content-Length',str(len(response_content)));self.end_headers();self.wfile.write(response_content)
-                return
-            if urlsplit(self.path).path=='/management/gpu-status':
-                from tools.review.common.gpu_status import read_gpu_status
-                response_content=json.dumps(read_gpu_status(),ensure_ascii=False).encode()
-                self.send_response(200);self.send_header('Content-Type','application/json; charset=utf-8');self.send_header('Cache-Control','no-store');self.send_header('Content-Length',str(len(response_content)));self.end_headers();self.wfile.write(response_content)
                 return
             if urlsplit(self.path).path=='/management/gpu-status.js':
                 response_content=(Path(__file__).parent/'ui/shared/gpu-status.js').read_bytes()
@@ -460,31 +426,11 @@ def run_review_server(parsed_argument_values):
                 self.wfile.write(encoded_record)
                 return
             if self.proxy_gradio_request():return
-            if management_command_gateway.handle(self):return
-            if character_animation_service.handle(self):return
-            if anny_attribute_service.handle(self):return
-            if writer_agent_service.handle_writer_request(self):return
-            if momask_generation_service.handle(self):return
-            if three_reference_service.handle_image_request(self):
-                return
-            if floor_generation_service.handle_image_request(self):return
-            if tile_generation_service.handle_image_request(self):return
-            if image_generation_service.handle_image_request(self):
-                return
+            if proxy_management_request(self, parsed_argument_values.gateway_url):return
             super().do_GET()
         def do_POST(self):
             if self.proxy_gradio_request():return
-            if handle_record_folder_request(self,record_folder_routes):return
-            if management_command_gateway.handle(self):return
-            if anny_attribute_service.handle(self):return
-            if writer_agent_service.handle_writer_request(self):return
-            if momask_generation_service.handle(self):return
-            if three_reference_service.handle_image_request(self):
-                return
-            if floor_generation_service.handle_image_request(self):return
-            if tile_generation_service.handle_image_request(self):return
-            if image_generation_service.handle_image_request(self):
-                return
+            if proxy_management_request(self, parsed_argument_values.gateway_url):return
             self.send_error(404, '지원하지 않는 작업 경로')
         def send_head(self):
             try:
@@ -536,7 +482,6 @@ def run_review_server(parsed_argument_values):
         print('\n'.join(server_log_path.read_text().splitlines()[-20:]),flush=True)
         raise
     finally:
-        writer_agent_service.close_writer_worker()
         signal.signal(signal.SIGTERM,previous_termination_handler)
 
 if __name__ == '__main__':

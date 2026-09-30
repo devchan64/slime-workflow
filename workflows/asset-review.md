@@ -1,14 +1,14 @@
 # 공통 에셋 웹 검수
 
-웹 검수 서버는 `tools/review/serve.py`에서 관리한다. 기존 애니메이션 전용 `generators/animation/serve_asset_review.py`는 이 경로로 이전했다. 생성기는 HTML·이미지·좌표 산출물만 만들고 웹서버 구현을 복제하지 않는다.
+웹 검수 서버는 `tools/review/serve.py`에서 관리한다. 최초 환경 준비는 `scripts/setup_management.sh`, 실행은 `scripts/run_management_gui.sh`를 사용한다. 생성 명령은 별도 터미널의 `scripts/run_management_gateway.sh`가 필요하며 정적 검수는 GUI만으로 실행할 수 있다. 기존 애니메이션 전용 `generators/animation/serve_asset_review.py`는 이 경로로 이전했다. 생성기는 HTML·이미지·좌표 산출물만 만들고 웹서버 구현을 복제하지 않는다.
 
 ```bash
 # 스탠딩 앵커 검수
-python3 tools/review/serve.py --root .tmp/2026-09-20_22-22-51 --port 8765
+./scripts/run_management_gui.sh --root .tmp/2026-09-20_22-22-51 --port 8765
 # 리그·OpenPose·Depth 검수
-python3 tools/review/serve.py --root .tmp/2026-09-20_21-01-21 --port 8766
+./scripts/run_management_gui.sh --root .tmp/2026-09-20_21-01-21 --port 8766
 # 다른 이름의 오버레이 검수 페이지
-python3 tools/review/serve.py --root .tmp/2026-09-20_19-32-12 --entry overlay-review.html --port 8767
+./scripts/run_management_gui.sh --root .tmp/2026-09-20_19-32-12 --entry overlay-review.html --port 8767
 ```
 
 저장소 루트에서 실행한다. 기본 진입 페이지는 `preview.html`이며 `--entry`는 검수 폴더 기준 상대 HTML 경로다. 실행 시 출력되는 `http://127.0.0.1:포트/`를 연다. 페이지 파일이 없거나 포트가 사용 중이면 즉시 실패한다. 서로 다른 검수 폴더를 동시에 열 때 포트를 구분한다. 종료는 Ctrl+C다.
@@ -45,9 +45,9 @@ python3 tools/review/build_animation_anchors.py --root .tmp/실행폴더 --anima
 
 ```bash
 # 생성 후 즉시 관리도구 실행
-python3 tools/review/serve.py --walking .tmp/걷기실행폴더 --standing .tmp/스탠딩검수폴더 --port 8770
+./scripts/run_management_gui.sh --walking .tmp/걷기실행폴더 --standing .tmp/스탠딩검수폴더 --port 8770
 # 기존 관리도구 재실행
-python3 tools/review/serve.py --root .tmp/생성된관리도구폴더 --port 8770
+./scripts/run_management_gui.sh --root .tmp/생성된관리도구폴더 --port 8770
 ```
 
 걷기 입력은 preview.html과 anchors.html, 스탠딩 입력은 preview.html이 필요하다. 필요한 페이지와 이미지 사본을 새 한국시간 실행 폴더에 모으며 원본 프롬프트와 로그는 복사하지 않는다. 메뉴 경로는 `/#walk-review`, `/#walk-anchors`, `/#standing-anchors`다. 통합 화면은 실행 시점의 스냅샷이며 후속 생성 결과는 명시적으로 다시 묶는다. 원본 실행 정보는 manager-source.json에 기록한다.
@@ -58,11 +58,11 @@ python3 tools/review/serve.py --root .tmp/생성된관리도구폴더 --port 877
 
 ## 프론트엔드 저장소 자동 탐색
 
-기본 실행은 옵션 없는 `python3 tools/review/serve.py`다. 인접한 `slime-frontend`와 포트 8770을 기본값으로 사용한다. 다른 위치는 `--frontend-repo`로 지정한다. 지정 저장소의 `sprite-assets.lock.yaml`에 등록된 `assets/**/*.animation.json`을 원본 저장소에서 검증해 각 애니메이션·버전의 검수 메뉴를 만든다. 단일 시트는 메타데이터와 같은 이름의 PNG, 방향별 시트는 같은 폴더 `source.json`의 `sheets`를 사용한다. 메타데이터 없는 이미지는 자동으로 프레임을 추정하지 않는다. 현재 프론트엔드의 캐릭터 스탠딩·휴식 및 몬스터 시트를 지원하며 미등록 걷기 후보는 이미 생성된 웹 검수 HTML이 있으면 통합 목록에서, 없으면 기존 생성·명시적 입력 모드에서 검수한다.
+기본 실행은 옵션 없는 `./scripts/run_management_gui.sh`다. 인접한 `slime-frontend`와 포트 8770을 기본값으로 사용한다. 다른 위치는 `--frontend-repo`로 지정한다. 지정 저장소의 `sprite-assets.lock.yaml`에 등록된 `assets/**/*.animation.json`을 원본 저장소에서 검증해 각 애니메이션·버전의 검수 메뉴를 만든다. 단일 시트는 메타데이터와 같은 이름의 PNG, 방향별 시트는 같은 폴더 `source.json`의 `sheets`를 사용한다. 메타데이터 없는 이미지는 자동으로 프레임을 추정하지 않는다. 현재 프론트엔드의 캐릭터 스탠딩·휴식 및 몬스터 시트를 지원하며 미등록 걷기 후보는 이미 생성된 웹 검수 HTML이 있으면 통합 목록에서, 없으면 기존 생성·명시적 입력 모드에서 검수한다.
 
-소스 변경을 감시하며 관리도구를 다시 생성하고 서버를 재시작하려면 `python3 tools/review/serve.py --watch`를 사용한다. 외부 `watchdog` 패키지 없이 `tools/review`, `generators/animation` 및 기본 프론트엔드 에셋 경로를 감시하며, 종료는 `Ctrl+C`다.
+소스 변경을 감시하며 관리도구를 다시 생성하고 서버를 재시작하려면 `./scripts/run_management_gui.sh --watch`를 사용한다. 외부 `watchdog` 패키지 없이 GUI 소스·생성기 설정·에셋 원본을 감시한다. 독립 게이트웨이와 작업 서비스는 재시작하지 않으며, 종료는 `Ctrl+C`다.
 
-통합 관리도구는 시작할 때 `slime-frontend`의 UI 검수 입력(`src`, `review`, 검수 빌드 스크립트와 패키지 잠금 파일)을 해시로 비교한다. 해시가 같은 `.tmp/ui-review/<한국시간>-<소스해시>/ui-review` 사본이 있으면 `npm run build:review`를 생략하고, 변경되었거나 사본이 없으면 자동 빌드한 뒤 해당 경로로 독립 복사한다. `.tmp/ui-review/latest.json`에는 원본 저장소·소스 해시·빌드 원본·가져온 사본 경로를 기록한다. 따라서 별도 UI 검수 빌드 명령 없이 `python3 tools/review/serve.py`만 실행하면 된다.
+통합 관리도구는 시작할 때 `slime-frontend`의 UI 검수 입력(`src`, `review`, 검수 빌드 스크립트와 패키지 잠금 파일)을 해시로 비교한다. 해시가 같은 `.tmp/ui-review/<한국시간>-<소스해시>/ui-review` 사본이 있으면 `npm run build:review`를 생략하고, 변경되었거나 사본이 없으면 자동 빌드한 뒤 해당 경로로 독립 복사한다. `.tmp/ui-review/latest.json`에는 원본 저장소·소스 해시·빌드 원본·가져온 사본 경로를 기록한다. 따라서 별도 UI 검수 빌드 명령 없이 `./scripts/run_management_gui.sh`만 실행하면 된다.
 
 현재 검수 UI가 지원하는 계약은 네 방향의 순차 프레임 ID, 동일한 방향별 프레임 수·고정 재생 시간, 독립 반복 클립이다. 계약과 다른 입력은 원인을 표시하고 실패한다. 정수 셀 영역과 원본 소수 앵커를 검증·유지한다. 전체 원본 파일을 제공하지 않고 검수용 이미지 사본과 생성 HTML만 워크플로우 실행 폴더에서 제공하므로 프론트엔드 코드를 런타임에 로드하지 않는다. 저장 JSON은 별도 검수 산출물이며 자동 반영하지 않는다. `frontend-review.log`, `review-server.log`, 출처와 해시를 담은 `manager-source.json`이 생성 폴더에 남는다. 에셋 변경 후에는 명령을 다시 실행해 새 스냅샷을 만든다.
 

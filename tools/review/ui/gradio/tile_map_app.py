@@ -16,7 +16,7 @@ WORKFLOW_ROOT_DIRECTORY=Path(__file__).resolve().parents[4]
 if str(WORKFLOW_ROOT_DIRECTORY) not in sys.path:sys.path.insert(0,str(WORKFLOW_ROOT_DIRECTORY))
 from tools.review.common.gradio_history import HISTORY_CARD_SELECTION_SCRIPT, build_generation_history_view
 from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_confirmation
-from tools.review.common.management_gateway import execute_management_command
+from tools.review.common.management_client import execute_remote_management_command as execute_management_command
 from tools.review.domains.tile.tile_generation import combine_tile_prompt
 
 # 지붕 예시는 나무 판자가 배열된 표면을 지정한다.

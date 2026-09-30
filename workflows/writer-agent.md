@@ -12,7 +12,10 @@ python3 -m generators.writer_agent.cli configure \
   --state-root /absolute/private/documents/.writer-agent \
   --write-root world --write-root ideas \
   --protect-path world/decisions --exclude-root history
-python3 tools/review/serve.py --watch
+# 별도 터미널에서 게이트웨이를 먼저 시작
+./scripts/run_management_gateway.sh
+# GUI 터미널
+./scripts/run_management_gui.sh --watch
 ```
 
 연결 설정은 `schema_version: 1`, `document_root`, `state_root`, `write_roots`, `excluded_roots`, `protected_paths`, `catalog_path`만 허용한다. 경로는 숨김·상위 이동·심볼릭 링크를 거부한다. `catalog_path`의 기본값은 null이며 `--catalog-path CATALOG.md`로 기존 전체 목록을 연결할 수 있다. 연결할 목록은 루트의 Markdown 문서이며 `## 그룹 (개수)`와 `| 문서 | 경로 |` 표, 상대 파일 링크·백틱 경로 열 형식이어야 한다. 신규 문서를 추가할 그룹이 미리 있어야 한다. 목록 갱신도 변경 미리보기에 포함된다.
@@ -40,7 +43,7 @@ python3 tools/review/serve.py --watch
 python3 -m generators.writer_agent.cli show --job-id YYYYMMDD-HHMMSS-xxxxxxxx
 ```
 
-작업은 4초 간격으로 진행 로그를 남긴다. 동시 작업은 상태·GPU 잠금으로 차단한다. 관리 서버 종료 시 실행 중인 자식 프로세스도 종료한다. 실행 중 문서가 바뀌면 실패하며 이전 색인을 유지한다. 부분 적용의 처리 중 예외는 이미 쓴 파일을 원복하되, 외부 편집이 감지된 파일은 덮어쓰지 않고 충돌을 기록한다. 전원 중단 등으로 application 상태가 `applying` 또는 `rollback_conflict`이면 재적용하지 말고 proposal의 before/after 및 해시와 실제 파일을 비교해 복구한다.
+작업은 4초 간격으로 진행 로그를 남긴다. 동시 작업은 상태·GPU 잠금으로 차단한다. 게이트웨이 종료 시 실행 중인 작가 자식 프로세스도 종료한다. GUI 종료는 작가 작업을 종료하지 않는다. 실행 중 문서가 바뀌면 실패하며 이전 색인을 유지한다. 부분 적용의 처리 중 예외는 이미 쓴 파일을 원복하되, 외부 편집이 감지된 파일은 덮어쓰지 않고 충돌을 기록한다. 전원 중단 등으로 application 상태가 `applying` 또는 `rollback_conflict`이면 재적용하지 말고 proposal의 before/after 및 해시와 실제 파일을 비교해 복구한다.
 
 로컬 서버는 127.0.0.1에만 바인딩하며 쓰기 API는 동일 Origin과 세션 토큰을 검사한다. AWS 배포·API·DB 스키마를 변경하지 않으며 외부 유료 API를 호출하지 않는다. GPU는 작업 동안만 적재하고 종료 시 해제한다.
 

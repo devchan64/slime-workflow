@@ -44,7 +44,8 @@ class MoMaskGenerationManager:
     for history_record_value in records:
      history_status_value=history_record_value['status']
      history_record_value['status']={'status':history_status_value}
-     history_record_value['request']={'action':history_record_value['action'],'directions':history_record_value.get('directions',[]),'frames':HISTORICAL_ACTIONS[history_record_value['action']]['frames']}
+     history_record_value['request']={'action':history_record_value['action'],'directions':history_record_value.get('directions',[]),'frames':HISTORICAL_ACTIONS[history_record_value['action']]['frames'],'tag':history_record_value.get('tag','')}
+     if history_status_value=='running':history_record_value['progress']=self.status(history_record_value['id']).get('progress')
      history_record_value['playable']=history_status_value=='completed'
      history_record_value['path']=str(JOB_ROOT/history_record_value['id'])
      if history_status_value!='completed':continue
@@ -77,6 +78,6 @@ class MoMaskGenerationManager:
    if path==self.route+'/cancel':
     if set(body)!={'id'}: raise ValueError('취소 요청 오류')
     self.send(h,200,execute_momask_command('cancel',body));return True
-   if path!=self.route+'/jobs' or set(body)-{'action','directions','face'} or not {'action','directions'}<=set(body) or body['action'] not in ACTIONS or not isinstance(body['directions'],list) or not body['directions'] or set(body['directions'])-set(DIRECTIONS) or len(set(body['directions']))!=len(body['directions']): raise ValueError('포즈 또는 방향 요청 오류')
+   if path!=self.route+'/jobs' or set(body)-{'action','directions','face','tag'} or not {'action','directions'}<=set(body) or body['action'] not in ACTIONS or not isinstance(body['directions'],list) or not body['directions'] or set(body['directions'])-set(DIRECTIONS) or len(set(body['directions']))!=len(body['directions']): raise ValueError('포즈 또는 방향 요청 오류')
    self.send(h,202,execute_momask_command('generate',body));return True
   except (ValueError,FileNotFoundError,json.JSONDecodeError) as e:self.send(h,400,{'error':str(e)});return True

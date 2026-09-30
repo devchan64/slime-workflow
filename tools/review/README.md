@@ -5,10 +5,18 @@
 ```text
 tools/manager.py                  통합 CLI 진입점
  tools/review/
-   serve.py                      HTTP 서버·watch·서비스 연결
+   serve.py                      GUI HTTP 서버·watch·API 중계
+   gateway_server.py             독립 명령 게이트웨이·작업 서비스 서버
    build_*.py                    검수 산출물 빌드 진입점
    common/
      management_gateway.py       공용 명령 계약·CLI·HTTP 디스패치
+     management_runtime.py       서비스 연결·기록 경로·수명 관리
+     management_environment.py   공용 경로·포트·접속 주소 검증
+     management_launcher.py      실행 스크립트 인자 전달·오류 종료
+     management_setup.py         명시적 가상환경·의존성 설치
+     management_process.py       출력 로그·heartbeat·소유 프로세스 그룹 종료
+     management_client.py        GUI 전용 HTTP 명령 클라이언트
+     management_transport.py     동일 출처 API 중계·접속 검증
      generation_records.py       공용 원자적 기록 저장
      image_edges.py              검정 프레임·텍스처 경계 검출
      image_borders.py            검출 경계 기반 보더 크롭
@@ -32,7 +40,8 @@ tools/manager.py                  통합 CLI 진입점
 
 ## 의존성과 확장
 
-- 서버와 통합 게이트웨이가 각 도메인을 연결한다. 신규 구현은 `domains/<domain>/`에 추가한다.
+- 독립 게이트웨이의 `management_runtime.py`가 각 도메인을 연결한다. `ManagementServiceBinding` 한 항목에서 HTTP 처리·기록 루트·기록 경로 해석기를 정의하고 명령·파일 조회·폴더 열기에 같은 연결을 사용한다. 서비스 이름·URL은 `management_gateway.py`의 등록부를 따르며 연결 누락·알 수 없는 서비스는 시작 시 거절한다. GUI 서버는 작업 서비스를 생성하지 않는다. 신규 구현은 `domains/<domain>/`에 추가한다.
+- Gradio는 환경 경로를 `management_environment.py`에서만 가져온다. 설치·프로세스 실행기를 환경 설정 의존성으로 가져오지 않는다. `management_launcher.py`는 스크립트 인자를 전달하며 서비스 명령의 별도 CLI를 만들지 않는다.
 - 도메인 공통 기능은 `common/`, 공통 화면 자원은 `ui/shared/`에 둔다. 다른 생성기의 작업 모듈에서 공용 함수를 가져오지 않는다.
 - UI 파일은 `resolve_review_ui_asset()`으로 조회한다. 파일명은 레지스트리에 명시하며 사용자 입력 경로를 파일 시스템 경로로 직접 사용하지 않는다.
 - 빌드 스크립트와 서버의 위치는 실행 계약이므로 유지한다. 서비스 실행 경로와 모델 실행 코드는 구분하며, 모델 실행기는 기존 `generators/` 도메인에 둔다.
