@@ -24,8 +24,8 @@ REVIEW_DIRECTION_NAMES = ('down_left', 'down_right', 'up_left', 'up_right')
 REVIEW_IMAGE_SUFFIXES = {'.png', '.jpg', '.jpeg', '.webp'}
 REVIEW_HEARTBEAT_SECONDS = 5
 DEFAULT_MANAGEMENT_TOOL_PAGE_RECORDS = (
-    {'id':'floor-tile-generator','label':'바닥 타일 생성기','path':'/floor-tile-generator/','category':'tile-review','uiMode':'gradio','description':'9칸 생성 · 중앙 기계식 크롭 · 512 다시 그리기'},
-    {'id':'tile-map-generator','label':'건물 타일 생성기','path':'/tile-map-generator/','anchorEditor':False,'category':'tile-review','uiMode':'gradio','description':'Gradio · 건물 지붕 · 벽 · 문 표면 생성'},
+    {'id':'floor-tile-generator','label':'바닥 타일 생성기','path':'/floor-tile-generator/','category':'tile-generation','uiMode':'gradio','description':'9칸 생성 · 중앙 기계식 크롭 · 512 다시 그리기'},
+    {'id':'tile-map-generator','label':'건물 타일 생성기','path':'/tile-map-generator/','anchorEditor':False,'category':'tile-generation','uiMode':'gradio','description':'Gradio · 건물 지붕 · 벽 · 문 표면 생성'},
     {'id':'writer-agent','label':'작가 AI 에이전트','path':'/writer-agent/','anchorEditor':False,'category':'writer-agent','uiMode':'gradio','description':'Gradio · 문서 학습 · 아이디어 작성 · 실행 기록'},
     {'id':'three-reference-generator','label':'Qwen 2511 3참조 생성','path':'/image-generation-2511/','anchorEditor':False,'category':'image-generation','uiMode':'gradio','description':'Gradio · 참조 이미지 3장 · 프롬프트 · 결과 비교'},
     {'id':'image-generator','label':'Qwen 2512 이미지 생성','path':'/image-generation/','anchorEditor':False,'category':'image-generation','uiMode':'gradio','description':'Gradio · 프롬프트 · 실행 상태 · 생성 이력 · 결과 다운로드'},
