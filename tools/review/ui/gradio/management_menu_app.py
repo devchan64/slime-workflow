@@ -154,7 +154,7 @@ def build_management_menu_interface(page_record_values, review_server_port):
             with gr.Column(scale=1,min_width=240,elem_id='management-sidebar'):
                 gr.Markdown('### 도구 탐색')
                 search_text_value=gr.Textbox(label='도구 검색',placeholder='이름, ID, 기능',info='검색 결과에서 도구를 선택하면 해당 주소로 이동합니다.',elem_id='management-tool-search')
-                category_select_value=gr.Dropdown(choices=[(current_label_value,current_name_value) for current_name_value,current_label_value in CATEGORY_LABEL_VALUES.items()],value='all',label='분류',elem_id='management-category-filter')
+                category_select_value=gr.Dropdown(choices=[(current_label_value,current_name_value) for current_name_value,current_label_value in sorted(CATEGORY_LABEL_VALUES.items(),key=lambda category_entry_value:(category_entry_value[0]!='all',category_entry_value[1]))],value='all',label='분류',elem_id='management-category-filter')
                 tool_count_value=gr.Markdown(f'**{len(page_record_values)}개** 도구',elem_id='management-tool-count')
                 page_select_value=gr.Radio(choices=create_tool_choice_values(page_record_values),value=initial_page_identifier,label='도구 목록',elem_id='management-tool-list')
                 with gr.Row(elem_classes=['management-pagination']):
