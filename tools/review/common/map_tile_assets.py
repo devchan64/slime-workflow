@@ -1,6 +1,7 @@
 """에셋 저장소에서 등록된 맵 타일 원본과 출처를 검증한다."""
 import hashlib
 import os
+import re
 from pathlib import Path
 
 import yaml
@@ -68,4 +69,16 @@ def resolve_registered_tile(asset_relative_path, asset_repository_path, register
 
 def resolve_registered_sprite(asset_relative_path):
     asset_repository_path, registered_asset_records = load_registered_tiles()
-    return resolve_registered_asset(asset_relative_path, asset_repository_path, registered_asset_records, 'assets/sprites')
+    sprite_directory_prefix = select_sprite_source_prefix(asset_relative_path)
+    return resolve_registered_asset(asset_relative_path, asset_repository_path, registered_asset_records, sprite_directory_prefix)
+
+
+def select_sprite_source_prefix(asset_relative_path):
+    """캐릭터 분류와 몬스터·구조물의 허용 경로를 구분한다."""
+    if not isinstance(asset_relative_path, str) or '..' in Path(asset_relative_path).parts:
+        raise ValueError('스프라이트 원본 경로 오류')
+    if re.fullmatch(r'assets/characters/[\w-]+/(animations|battle-cutins|emotion-cutins)/[\w./-]+', asset_relative_path):
+        return 'assets/characters'
+    if re.fullmatch(r'assets/sprites/(monsters|structures)/[\w./-]+', asset_relative_path):
+        return 'assets/sprites'
+    raise ValueError(f'스프라이트 원본 경로 오류: {asset_relative_path}')

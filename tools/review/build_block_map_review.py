@@ -149,14 +149,14 @@ def build_block_map_review(output_directory_path):
     from tools.review.common.game_render_metrics import load_game_render_metrics
     game_render_metrics=load_game_render_metrics(texture_source_root.parent)
     (output_directory_path/'game-render-metrics.json').write_text(json.dumps(game_render_metrics))
-    character_metadata_path,character_metadata_provenance=resolve_registered_sprite('assets/sprites/characters/default/idle-v6/down-left-v1/idle-v6.animation.json')
-    character_source_path,character_source_provenance=resolve_registered_sprite('assets/sprites/characters/default/idle-v6/down-left-v1/source.json')
+    character_metadata_path,character_metadata_provenance=resolve_registered_sprite('assets/characters/default/animations/idle-v6/down-left-v1/idle-v6.animation.json')
+    character_source_path,character_source_provenance=resolve_registered_sprite('assets/characters/default/animations/idle-v6/down-left-v1/source.json')
     character_metadata_record=json.loads(character_metadata_path.read_text())
     character_source_record=json.loads(character_source_path.read_text())
     character_frame_record=next(current_frame_record for current_frame_record in character_metadata_record['frames'] if current_frame_record['frameId']=='down_left.0')
-    character_image_path,character_image_provenance=resolve_registered_sprite('assets/sprites/characters/default/idle-v6/down-left-v1/idle-v6.png')
+    character_image_path,character_image_provenance=resolve_registered_sprite('assets/characters/default/animations/idle-v6/down-left-v1/idle-v6.png')
     shutil.copy2(character_image_path,texture_output_directory/'review-character.png')
-    (output_directory_path/'review-character.json').write_text(json.dumps({'image':'textures/review-character.png?v='+hashlib.sha256(character_image_path.read_bytes()).hexdigest(),'frame':character_frame_record,'bodyHeight':character_source_record['referenceBodyHeight'],'displayHeight':game_render_metrics['characterHeight'],'source':'assets/sprites/characters/default/idle-v6','provenance':{'image':character_image_provenance,'animation':character_metadata_provenance,'metadata':character_source_provenance}}))
+    (output_directory_path/'review-character.json').write_text(json.dumps({'image':'textures/review-character.png?v='+hashlib.sha256(character_image_path.read_bytes()).hexdigest(),'frame':character_frame_record,'bodyHeight':character_source_record['referenceBodyHeight'],'displayHeight':game_render_metrics['characterHeight'],'source':'assets/characters/default/animations/idle-v6','provenance':{'image':character_image_provenance,'animation':character_metadata_provenance,'metadata':character_source_provenance}}))
     source_ui_directory=WORKFLOW_ROOT_DIRECTORY/'tools/review/ui/map'
     shutil.copy2(source_ui_directory/'block-map-review.html',output_directory_path/'map-review.html')
     shutil.copy2(source_ui_directory/'block-map-review.js',output_directory_path/'block-map-review.js')

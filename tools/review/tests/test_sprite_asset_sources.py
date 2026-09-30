@@ -12,7 +12,7 @@ class SpriteAssetSourceTests(unittest.TestCase):
     def test_locked_source_resolution(self):
         with tempfile.TemporaryDirectory() as temporary_directory_name:
             temporary_root_path = Path(temporary_directory_name)
-            source_relative_path = 'assets/sprites/characters/test/v1/test.animation.json'
+            source_relative_path = 'assets/characters/test/animations/v1/test.animation.json'
             source_file_path = temporary_root_path/source_relative_path
             source_file_path.parent.mkdir(parents=True)
             source_file_path.write_text('{}')

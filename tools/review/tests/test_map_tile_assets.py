@@ -44,7 +44,7 @@ class MapTileAssetTests(unittest.TestCase):
     def test_sprite_metadata_hash_and_tile_scope_rejection(self):
         with TemporaryDirectory() as temporary_asset_directory:
             asset_repository_path=Path(temporary_asset_directory)
-            sprite_relative_path='assets/sprites/characters/default/idle.animation.json'
+            sprite_relative_path='assets/characters/default/animations/idle.animation.json'
             sprite_source_path=asset_repository_path/sprite_relative_path
             sprite_source_path.parent.mkdir(parents=True)
             sprite_source_path.write_bytes(b'{}')
@@ -56,6 +56,10 @@ class MapTileAssetTests(unittest.TestCase):
                 self.assertEqual(sprite_provenance_record['sha256'],sprite_registry_record['sha256'])
                 with self.assertRaisesRegex(ValueError,'경로 오류'):
                     resolve_registered_sprite('assets/tiles/test.png')
+                with self.assertRaisesRegex(ValueError,'경로 오류'):
+                    resolve_registered_sprite('assets/characters/default/unclassified/test.png')
+                with self.assertRaisesRegex(ValueError,'경로 오류'):
+                    resolve_registered_sprite('assets/sprites/characters/default/idle.animation.json')
                 with self.assertRaisesRegex(ValueError,'경로 오류'):
                     resolve_registered_sprite('assets/sprites/../../outside.json')
                 sprite_source_path.write_bytes(b'changed')
