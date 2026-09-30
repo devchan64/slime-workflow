@@ -1,4 +1,4 @@
-"""중앙점과 저채도 몰딩 직선·바깥 어두운 경계로 중앙 타일을 분리한다."""
+"""검은 배경과 블록 외곽을 검증해 중앙 타일의 원본 픽셀을 분리한다."""
 import cv2
 import numpy as np
 
@@ -75,12 +75,26 @@ GRID_CELL_ALIGNMENT_RATIO = 0.06
 GRID_OUTER_PADDING_PIXELS = 2
 
 
-def extract_molding_center(source_image_value):
+GRID_BACKGROUND_SAMPLE_WIDTH = 20
+GRID_BACKGROUND_PERCENTILE_VALUE = 99
+GRID_BACKGROUND_SAFETY_MARGIN = 8
+GRID_MAXIMUM_BACKGROUND_THRESHOLD = 32
+
+
+def extract_molding_center(source_image_value, crop_algorithm_version=3):
     if source_image_value is None or source_image_value.shape != (1024,1024,3):
         raise ValueError('중앙 외곽 검출은 1024×1024 RGB 원본만 지원합니다.')
     image_height_value,image_width_value = source_image_value.shape[:2]
     source_gray_value = cv2.cvtColor(source_image_value,cv2.COLOR_BGR2GRAY)
-    foreground_mask_value = (source_gray_value>GRID_BACKGROUND_THRESHOLD).astype('uint8')*255
+    if crop_algorithm_version not in (2,3):
+        raise ValueError('지원하지 않는 외곽 크롭 알고리즘 버전')
+    background_threshold_value = GRID_BACKGROUND_THRESHOLD
+    if crop_algorithm_version == 3:
+        background_sample_values = np.concatenate((source_gray_value[:GRID_BACKGROUND_SAMPLE_WIDTH].ravel(), source_gray_value[-GRID_BACKGROUND_SAMPLE_WIDTH:].ravel(), source_gray_value[:, :GRID_BACKGROUND_SAMPLE_WIDTH].ravel(), source_gray_value[:, -GRID_BACKGROUND_SAMPLE_WIDTH:].ravel()))
+        background_threshold_value = max(GRID_BACKGROUND_THRESHOLD, int(np.ceil(np.percentile(background_sample_values, GRID_BACKGROUND_PERCENTILE_VALUE))) + GRID_BACKGROUND_SAFETY_MARGIN)
+        if background_threshold_value > GRID_MAXIMUM_BACKGROUND_THRESHOLD:
+            raise ValueError('이미지 외곽이 어두운 배경 조건을 충족하지 않습니다.')
+    foreground_mask_value = (source_gray_value>background_threshold_value).astype('uint8')*255
     foreground_mask_value = cv2.morphologyEx(foreground_mask_value,cv2.MORPH_CLOSE,np.ones((CLOSING_KERNEL_SIZE,CLOSING_KERNEL_SIZE),dtype='uint8'))
     contour_candidate_values,_ = cv2.findContours(foreground_mask_value,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)
     selected_cell_records = {}
@@ -113,4 +127,4 @@ def extract_molding_center(source_image_value):
     for current_cell_position,current_cell_bounds in selected_cell_records.items():
         cv2.rectangle(detected_image_value,tuple(current_cell_bounds[:2]),(current_cell_bounds[2]-1,current_cell_bounds[3]-1),(255,180,0),1)
     cv2.rectangle(detected_image_value,tuple(crop_box_values[:2]),(crop_box_values[2]-1,crop_box_values[3]-1),(0,0,255),2)
-    return cropped_image_value,detected_image_value,{'method':'nine-grid-exterior-contours','version':2,'crop_box':crop_box_values,'crop_size':[cropped_image_value.shape[1],cropped_image_value.shape[0]],'detected_cells':[{'row':current_cell_position[0]+1,'column':current_cell_position[1]+1,'bounds':current_cell_bounds} for current_cell_position,current_cell_bounds in sorted(selected_cell_records.items())],'parameters':{'background_threshold':GRID_BACKGROUND_THRESHOLD,'closing_kernel':CLOSING_KERNEL_SIZE,'outer_padding':GRID_OUTER_PADDING_PIXELS,'minimum_fill_ratio':GRID_MINIMUM_FILL_RATIO,'maximum_aspect_ratio':GRID_MAXIMUM_ASPECT_RATIO}}
+    return cropped_image_value,detected_image_value,{'method':'nine-grid-exterior-contours','version':crop_algorithm_version,'crop_box':crop_box_values,'crop_size':[cropped_image_value.shape[1],cropped_image_value.shape[0]],'detected_cells':[{'row':current_cell_position[0]+1,'column':current_cell_position[1]+1,'bounds':current_cell_bounds} for current_cell_position,current_cell_bounds in sorted(selected_cell_records.items())],'parameters':{'background_threshold':background_threshold_value,'sample_width':GRID_BACKGROUND_SAMPLE_WIDTH if crop_algorithm_version==3 else None,'background_percentile':GRID_BACKGROUND_PERCENTILE_VALUE if crop_algorithm_version==3 else None,'safety_margin':GRID_BACKGROUND_SAFETY_MARGIN if crop_algorithm_version==3 else None,'closing_kernel':CLOSING_KERNEL_SIZE,'outer_padding':GRID_OUTER_PADDING_PIXELS,'minimum_fill_ratio':GRID_MINIMUM_FILL_RATIO,'maximum_aspect_ratio':GRID_MAXIMUM_ASPECT_RATIO}}
