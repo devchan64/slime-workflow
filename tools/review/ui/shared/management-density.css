@@ -35,19 +35,19 @@
 .qwen-result-image{max-height:65dvh!important;object-fit:contain}
 
 .sprite-fields{gap:8px!important}
-.tile-reference-upload-grid{align-items:start!important;gap:10px!important}
-.tile-reference-upload-grid>.column{min-width:0!important;flex:1 1 180px!important}
-.tile-reference-upload-grid [data-testid="upload-text"]{display:flex!important;flex-direction:column!important;justify-content:center!important;align-items:center!important;gap:6px!important;padding:10px!important;text-align:center!important}
-.tile-reference-upload-grid [data-testid="upload-icon"],.tile-reference-upload-grid [data-testid="upload-icon"] svg{width:32px!important;height:32px!important;min-width:32px!important;min-height:32px!important}
-.tile-reference-upload-grid [data-testid="upload-text"] .prompt{font-size:12px!important;line-height:1.35!important;overflow-wrap:anywhere!important}
-.tile-reference-upload-grid [data-testid="upload-text"] .prompt span{display:block!important}
-.tile-reference-upload-grid [data-testid="block-label"]>span{display:none!important}
-.tile-reference-upload-grid .image-container .source-selection{box-sizing:border-box!important;display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;align-items:center!important;justify-content:stretch!important;gap:8px!important;width:100%!important;height:38px!important;margin:6px 0 0!important;padding:0!important}
-.tile-reference-upload-grid .image-container .source-selection button{display:flex!important;align-items:center!important;justify-content:center!important;gap:6px!important;width:100%!important;height:32px!important;min-width:0!important;min-height:32px!important;margin:0!important;white-space:nowrap!important}
-.tile-reference-upload-grid .image-container .source-selection button svg{display:block!important;width:18px!important;height:18px!important;min-width:18px!important;min-height:18px!important}
-.tile-reference-upload-grid .image-container .source-selection button::after{font-size:12px!important;font-weight:600!important;line-height:1!important}
-.tile-reference-upload-grid .image-container .source-selection button:first-child::after{content:'파일 업로드'}
-.tile-reference-upload-grid .image-container .source-selection button:last-child::after{content:'클립보드 붙여넣기'}
+.reference-upload-grid{align-items:start!important;gap:10px!important}
+.reference-upload-grid>.column{min-width:0!important;flex:1 1 180px!important}
+.reference-upload-grid [data-testid="upload-text"]{display:flex!important;flex-direction:column!important;justify-content:center!important;align-items:center!important;gap:6px!important;padding:10px!important;text-align:center!important}
+.reference-upload-grid [data-testid="upload-icon"],.reference-upload-grid [data-testid="upload-icon"] svg{width:32px!important;height:32px!important;min-width:32px!important;min-height:32px!important}
+.reference-upload-grid [data-testid="upload-text"] .prompt{font-size:12px!important;line-height:1.35!important;overflow-wrap:anywhere!important}
+.reference-upload-grid [data-testid="upload-text"] .prompt span{display:block!important}
+.reference-upload-grid [data-testid="block-label"]>span{display:none!important}
+.reference-upload-grid .image-container .source-selection{box-sizing:border-box!important;display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;align-items:center!important;justify-content:stretch!important;gap:8px!important;width:100%!important;height:38px!important;margin:6px 0 0!important;padding:0!important}
+.reference-upload-grid .image-container .source-selection button{display:flex!important;align-items:center!important;justify-content:center!important;gap:6px!important;width:100%!important;height:32px!important;min-width:0!important;min-height:32px!important;margin:0!important;white-space:nowrap!important}
+.reference-upload-grid .image-container .source-selection button svg{display:block!important;width:18px!important;height:18px!important;min-width:18px!important;min-height:18px!important}
+.reference-upload-grid .image-container .source-selection button::after{font-size:12px!important;font-weight:600!important;line-height:1!important}
+.reference-upload-grid .image-container .source-selection button:first-child::after{content:'파일 업로드'}
+.reference-upload-grid .image-container .source-selection button:last-child::after{content:'클립보드 붙여넣기'}
 @media(min-width:1100px){#motion-controls{flex:0 0 340px!important}}
 @media(max-width:800px){.gradio-container{padding:8px!important}#motion-controls{min-width:0!important;flex-basis:100%!important}}
 /* 생성 이력은 설정 열 밖에서 작업 영역 전체 폭을 사용한다. */

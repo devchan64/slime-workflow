@@ -25,6 +25,8 @@ class QwenCommandsTest(unittest.TestCase):
             request_call_args=api_call_handle.call_args.args
             self.assertEqual(request_call_args[1],route_prefix_value+'/jobs')
             self.assertEqual(request_call_args[2]['seed'],default_seed_value)
+            self.assertEqual(request_call_args[2]['width'],512 if service_name_value=='qwen-2511' else 1024)
+            self.assertEqual(request_call_args[2]['height'],512 if service_name_value=='qwen-2511' else 1024)
             self.assertEqual(request_call_args[2]['prompt'],'한국어 프롬프트')
             self.assertEqual('images' in request_call_args[2],service_name_value=='qwen-2511')
 

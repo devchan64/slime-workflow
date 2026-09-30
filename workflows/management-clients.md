@@ -111,7 +111,7 @@ python3 tools/manager.py command qwen-2512 history-reset
 
 두 서비스 모두 `generate`, `status`, `logs`, `history`, `active`, `model-status`, `cancel`, `history-reset`을 제공한다. 2512에는 `prepare`도 제공한다. `--detach`를 생략하면 진행 상태를 표시하며 완료까지 대기하고 결과·로그 URL을 출력한다. Ctrl+C는 서버에 취소를 요청한다. `--seed`를 지정할 수 있고 기본값은 GUI와 동일하다. 다른 포트는 서비스 뒤에 `--server-url http://127.0.0.1:포트`를 지정한다.
 
-2511의 `--reference`는 512×512 RGB 또는 불투명 RGBA PNG를 최대 3장까지 순서대로 지정한다. 생략하면 텍스트 생성이다. 해상도·스텝·참조 검증은 서버가 GUI와 동일하게 수행한다.
+2511의 최소·기본 출력은 512×512이며 `--width`·`--height`로 변경할 수 있다. 최종 맵 타일 규격 256×256과 생성 해상도는 구분한다. 2511의 `--reference`는 크기·비율 제한 없이 RGB 또는 불투명 RGBA PNG를 최대 3장까지 순서대로 지정한다. 생략하면 텍스트 생성이다. 해상도·스텝·참조 검증은 서버가 GUI와 동일하게 수행한다.
 
 기록 경로도 기존 GUI와 같다.
 
@@ -247,7 +247,7 @@ CLI는 `momask generate ... --face`를 사용한다. `--no-face`는 얼굴을 �
 
 ### 타일 생성 참조 입력
 
-타일 생성기는 선택한 PNG 최대 3장을 순서대로 전달한다. 기존 3참조 검증·입력 저장·Qwen 2511 실행기를 공유하며 512×512 RGB/RGBA 불투명 PNG, 장당 3MB 제한을 적용한다. 참조가 없으면 기존 Qwen 2512를 사용한다. 참조가 있으면 기본·화풍 프롬프트를 병합하지 않고 표면정보 지시만 사용한다. 참조와 타일 설정은 같은 실행 이력에 저장한다. 기존 이력 원문은 유지하되 불러와 재생성할 때 현재 참조 프롬프트 제한을 적용한다. CLI는 `tile-map generate ... --reference first.png --reference second.png --reference third.png`로 같은 경로를 사용한다.
+타일 생성기는 선택한 PNG 최대 3장을 순서대로 전달한다. 기존 3참조 검증·입력 저장·Qwen 2511 실행기를 공유하며 임의 해상도의 RGB/RGBA 불투명 PNG, 장당 3MB 제한을 적용한다. 참조가 없으면 기존 Qwen 2512를 사용한다. 참조가 있으면 기본·화풍 프롬프트를 병합하지 않고 표면정보 지시만 사용한다. 참조와 타일 설정은 같은 실행 이력에 저장한다. 기존 이력 원문은 유지하되 불러와 재생성할 때 현재 참조 프롬프트 제한을 적용한다. CLI는 `tile-map generate ... --reference first.png --reference second.png --reference third.png`로 같은 경로를 사용한다.
 
 타일 생성기의 수동 초기화는 예외적으로 `.tmp/test/qwen-image-2512/tile-map/<실행 ID>/`의 참조·결과·로그 파일과 이력 인덱스를 함께 삭제한다. 확인창에서 삭제 범위를 안내하며 생성 중에는 거절한다. 정식 에셋 사본은 삭제하지 않는다. 다른 생성기의 이력 초기화 정책은 유지한다.
 

@@ -38,11 +38,28 @@ class ThreeReferenceGenerationTests(unittest.TestCase):
                 self.assertEqual((Path(current_directory_name)/f'reference-{current_image_index}.png').read_bytes(),base64.b64decode(current_image_text))
             self.assertEqual(current_output_record['references'],['reference-1.png','reference-2.png','reference-3.png'])
             self.assertNotIn('images',current_output_record)
-        for current_invalid_images in (current_image_values*2,['invalid']*3,[self.encode_reference_fixture((0,0,0,0))]*3,[self.encode_reference_fixture('red',(256,512))]*3,[self.encode_reference_fixture('red',selected_image_format='WEBP')]*3):
+        for current_invalid_images in (current_image_values*2,['invalid']*3,[self.encode_reference_fixture((0,0,0,0))]*3,[self.encode_reference_fixture('red',selected_image_format='WEBP')]*3):
             with self.assertRaises(ValueError):
                 validate_three_reference_request({**current_request_record,'images':current_invalid_images})
         with self.assertRaises(ValueError):
             validate_three_reference_request({**current_request_record,'model':'other'})
+
+    def test_mixed_reference_sizes_preserve_original_snapshots(self):
+        current_image_values=[self.encode_reference_fixture('red',(464,455)),self.encode_reference_fixture('blue',(256,256))]
+        current_request_record={'action':'generate','steps':4,'width':512,'height':512,'prompt':'색상 변경','images':current_image_values}
+        validate_three_reference_request(current_request_record)
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_output_record=save_three_reference_inputs(Path(current_directory_name),current_request_record)
+            verify_reference_snapshots(Path(current_directory_name),current_output_record)
+            for current_image_index,current_image_text in enumerate(current_image_values,1):
+                self.assertEqual((Path(current_directory_name)/f'reference-{current_image_index}.png').read_bytes(),base64.b64decode(current_image_text))
+
+    def test_output_rejects_sizes_below_512_with_small_reference_allowed(self):
+        current_request_record={'action':'generate','steps':4,'width':512,'height':512,'prompt':'색상 변경','images':[self.encode_reference_fixture('red',(256,256))]}
+        validate_three_reference_request(current_request_record)
+        for current_size_field in ('width','height'):
+            with self.assertRaisesRegex(ValueError,'512~1664'):
+                validate_three_reference_request({**current_request_record,current_size_field:256})
 
     def test_generation_mode_contract(self):
         for selected_step_count in (4,30):

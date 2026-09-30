@@ -40,8 +40,8 @@ def validate_three_reference_request(current_request_record):
         raise ValueError('텍스트 생성은 참조 0장, 참조 생성은 1~3장이 필요합니다.')
     for current_size_key in ('width','height'):
         current_size_value=current_request_record[current_size_key]
-        if type(current_size_value) is not int or not 256 <= current_size_value <= 1664 or current_size_value % 16:
-            raise ValueError('출력 크기는 256~1664 범위의 16 배수여야 합니다.')
+        if type(current_size_value) is not int or not 512 <= current_size_value <= 1664 or current_size_value % 16:
+            raise ValueError('출력 크기는 512~1664 범위의 16 배수여야 합니다.')
     resolve_reference_settings(current_request_record['steps'])
     for current_image_text in current_request_record['images']:
         decode_reference_image(current_image_text)
@@ -54,8 +54,8 @@ def decode_reference_image(current_image_text):
     try:
         current_image_bytes=base64.b64decode(current_image_text,validate=True)
         with Image.open(io.BytesIO(current_image_bytes)) as current_image_value:
-            if current_image_value.format!='PNG' or current_image_value.size!=(512,512) or current_image_value.mode not in ('RGB','RGBA'):
-                raise ValueError('참조는 512×512 RGB/RGBA PNG여야 합니다.')
+            if current_image_value.format!='PNG' or current_image_value.mode not in ('RGB','RGBA'):
+                raise ValueError('참조는 RGB/RGBA PNG여야 합니다.')
             current_image_value.load()
             if current_image_value.mode=='RGBA' and current_image_value.getextrema()[3]!=(255,255):
                 raise ValueError('투명 이미지는 배경을 합성한 뒤 입력하세요.')
