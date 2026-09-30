@@ -68,9 +68,10 @@ def stop_management_process_group(command_process_handle):
         signal_management_process_group(command_process_handle.pid, signal.SIGKILL)
 
 
-def run_logged_management_command(command_argument_values, launcher_trace_logger):
+def run_logged_management_command(command_argument_values, launcher_trace_logger, command_restart_check=None):
     launcher_trace_logger.emit_launch_trace('command', shlex.join(command_argument_values))
     requested_signal_values = []
+    requested_restart_time = None
     command_process_handle = subprocess.Popen(
         command_argument_values, cwd=WORKFLOW_ROOT_DIRECTORY, stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT, start_new_session=True,
@@ -96,6 +97,12 @@ def run_logged_management_command(command_argument_values, launcher_trace_logger
                         launcher_trace_logger.write_process_output(output_text_decoder.decode(process_output_bytes))
                     else:
                         output_event_selector.unregister(output_event_key.fileobj)
+                if not requested_signal_values and requested_restart_time is None and command_restart_check is not None and command_restart_check():
+                    requested_restart_time = time.monotonic()
+                    launcher_trace_logger.emit_launch_trace('restart', f'소스 변경 · pid={command_process_handle.pid} 종료 후 재시작')
+                    signal_management_process_group(command_process_handle.pid, signal.SIGTERM)
+                if requested_restart_time is not None and time.monotonic() - requested_restart_time >= LAUNCHER_STOP_TIMEOUT_SECONDS:
+                    signal_management_process_group(command_process_handle.pid, signal.SIGKILL)
                 if requested_signal_values and time.monotonic() - requested_signal_values[1] >= LAUNCHER_STOP_TIMEOUT_SECONDS:
                     signal_management_process_group(command_process_handle.pid, signal.SIGKILL)
                 if time.monotonic() >= next_heartbeat_time:
@@ -125,6 +132,9 @@ def run_logged_management_command(command_argument_values, launcher_trace_logger
     if requested_signal_values:
         launcher_trace_logger.emit_launch_trace('stop', f'사용자 종료 signal={requested_signal_values[0]}')
         raise SystemExit(128 + requested_signal_values[0])
+    if requested_restart_time is not None:
+        return True
     if command_process_handle.returncode:
         raise subprocess.CalledProcessError(command_process_handle.returncode, command_argument_values)
     launcher_trace_logger.emit_launch_trace('complete', f'exit={command_process_handle.returncode}')
+    return False

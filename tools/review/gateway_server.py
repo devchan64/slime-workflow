@@ -103,6 +103,7 @@ def run_management_gateway(server_port_number, writer_workspace_config=None):
 def parse_gateway_arguments(command_argument_values=None):
     gateway_argument_parser = argparse.ArgumentParser(description=__doc__)
     gateway_argument_parser.add_argument('--port', type=int, default=GATEWAY_SERVER_PORT)
+    gateway_argument_parser.add_argument('--watch', action='store_true', help='게이트웨이·작업 서비스 코드 변경 시 게이트웨이만 재시작')
     gateway_argument_parser.add_argument('--writer-agent-config', type=Path, help='작가 에이전트 로컬 작업 공간 YAML')
     gateway_argument_values = gateway_argument_parser.parse_args(command_argument_values)
     if not 1024 <= gateway_argument_values.port <= 65535:
@@ -112,4 +113,8 @@ def parse_gateway_arguments(command_argument_values=None):
 
 if __name__ == '__main__':
     gateway_argument_values = parse_gateway_arguments()
-    run_management_gateway(gateway_argument_values.port, gateway_argument_values.writer_agent_config)
+    if gateway_argument_values.watch:
+        from tools.review.common.gateway_watch import run_gateway_watch_mode
+        run_gateway_watch_mode(gateway_argument_values.port, gateway_argument_values.writer_agent_config)
+    else:
+        run_management_gateway(gateway_argument_values.port, gateway_argument_values.writer_agent_config)
