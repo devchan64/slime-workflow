@@ -10,7 +10,7 @@ motions:
       down_right: "The character faces toward the right side of the image, front three-quarter view. Preserve the reference pose."
       up_left: "Back view, facing away toward the left side of the image. Show the back of the head and torso. Preserve the reference pose."
       up_right: "Match image 2's head, torso, and feet orientation, facing screen-right."
-    target_fps: 4
+    target_fps: 8
     label: 대기 v10
     root: assets/motion-sheet/momask-standing-v10
     manifest: manifest.yaml
@@ -22,7 +22,7 @@ motions:
       down_right: ""
       up_left: ""
       up_right: ""
-    target_fps: 4
+    target_fps: 8
     label: 걷기 v13
     root: assets/motion-sheet/momask-walking-v13
     manifest: manifest.yaml
@@ -34,7 +34,7 @@ motions:
       down_right: "The character faces toward the right side of the image, front three-quarter view. Preserve the reference pose."
       up_left: "Back view, facing away toward the left side of the image. Show the back of the head and torso. Preserve the reference pose."
       up_right: "Back view, facing away toward the right side of the image. Show the back of the head and torso. Preserve the reference pose."
-    target_fps: 4
+    target_fps: 8
     label: 휴식 v3
     root: assets/motion-sheet/momask-resting-v3
     manifest: manifest.yaml

@@ -41,12 +41,17 @@ def build_animation_request(motion_name_value,character_name_value,source_name_v
 
 def restore_animation_inputs(current_history_record):
     current_request_record=current_history_record.get('request',{})
-    return current_request_record.get('motion'),current_request_record.get('character'),current_request_record.get('source','anny'),current_request_record.get('directions',[]),current_request_record.get('start_frame',1),current_request_record.get('end_frame'),current_request_record.get('resolution',512),current_request_record.get('steps',4),current_request_record.get('target_fps',4),current_request_record.get('speed',1),current_request_record.get('tag',''),*[current_request_record.get('direction_auxiliary_prompts',{}).get(direction,'') for _,direction in DIRECTION_LABEL_VALUES],'선택한 이력의 입력값을 불러왔습니다. 생성 전에 내용을 확인하세요.'
+    return current_request_record.get('motion'),current_request_record.get('character'),current_request_record.get('source','anny'),current_request_record.get('directions',[]),current_request_record.get('start_frame',1),current_request_record.get('end_frame'),current_request_record.get('resolution',512),current_request_record.get('steps',4),8,(current_request_record.get('speed',2) if current_request_record.get('target_fps') == 8 and current_request_record.get('speed',2) in (1,2,4) else 2),current_request_record.get('tag',''),*[current_request_record.get('direction_auxiliary_prompts',{}).get(direction,'') for _,direction in DIRECTION_LABEL_VALUES],'선택한 이력의 입력값을 불러왔습니다. 이전 FPS·미지원 배속 이력은 신규 생성 기준 8 FPS·2배로 설정합니다. 생성 전에 내용을 확인하세요.'
 
 def calculate_preview_frame_numbers(selected_start_frame,selected_end_frame,source_frame_rate,target_frame_rate,generation_speed_ratio):
+    if type(target_frame_rate) is not int or target_frame_rate != 8:
+        raise ValueError('타겟 FPS는 8만 지원합니다.')
+    if type(generation_speed_ratio) not in (int,float) or generation_speed_ratio not in (1,2,4):
+        raise ValueError('생성 배속은 1·2·4 중 하나여야 합니다.')
     selected_range_frame_count=selected_end_frame-selected_start_frame+1
-    selected_frame_count=math.ceil(selected_range_frame_count*target_frame_rate/(source_frame_rate*generation_speed_ratio))
-    return [selected_start_frame+math.floor(frame_index_value*source_frame_rate*generation_speed_ratio/target_frame_rate) for frame_index_value in range(selected_frame_count)]
+    selected_frame_count=math.ceil(selected_range_frame_count/generation_speed_ratio)
+    return [selected_start_frame+math.floor(frame_index_value*generation_speed_ratio) for frame_index_value in range(selected_frame_count)]
+
 
 def clamp_selected_frame_range(selected_start_frame,selected_end_frame,maximum_frame_number):
     normalized_start_frame=selected_start_frame if type(selected_start_frame) is int else 1
@@ -113,8 +118,8 @@ def build_character_animation_interface(server_base_address):
                     resolution_select_value=gr.Dropdown([512,768,1024,1280],value=512,label='해상도')
                     step_select_value=gr.Radio([4,30],value=4,label='생성 스텝')
                 with gr.Row():
-                    target_fps_select_value=gr.Dropdown([1,2,3,4],value=4,label='타겟 FPS')
-                    speed_select_value=gr.Dropdown([1,1.5,2,4],value=1,label='생성 배속')
+                    target_fps_select_value=gr.Dropdown([8],value=8,label='타겟 FPS',info='재생은 8 FPS 고정입니다. 생성 배속 2는 원본 1·3·5… 프레임을 선택합니다.')
+                    speed_select_value=gr.Dropdown([1,2,4],value=2,label='생성 배속')
                 generation_tag_value=gr.Textbox(label='생성 이력 태그 · 선택 사항',placeholder='예: 돌온재 걷기 후보',max_lines=1)
                 prompt_text_value=gr.Textbox(value=catalog_record_value['prompts']['base'],label='고정 기본 프롬프트',interactive=False,lines=4)
                 reset_base_prompt_button=gr.Button('기본 프롬프트 초기화',size='sm')
@@ -137,7 +142,7 @@ def build_character_animation_interface(server_base_address):
                 preview_direction_value=gr.Dropdown(DIRECTION_LABEL_VALUES,value='down_left',label='미리보기 방향')
                 generation_identifier_value=gr.State('')
                 initial_motion_record=motion_catalog_records[motion_choice_values[0][1]]
-                motion_preview_html_value=gr.HTML(create_motion_preview_player(motion_choice_values[0][1],'anny','down_left',1,initial_motion_frame_count,initial_motion_record['fps'],4,1,server_base_address))
+                motion_preview_html_value=gr.HTML(create_motion_preview_player(motion_choice_values[0][1],'anny','down_left',1,initial_motion_frame_count,initial_motion_record['fps'],8,2,server_base_address))
             generation_pending_value=gr.State(False)
             generation_button_value=gr.Button('애니메이션 생성 시작',variant='primary',elem_id='character-generation-start')
             status_text_value=gr.Markdown('생성 가능 · 설정을 확인하세요.')

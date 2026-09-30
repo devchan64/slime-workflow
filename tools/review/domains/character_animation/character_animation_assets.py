@@ -15,13 +15,13 @@ SUPPORTED_FRAME_STEPS = (1,2,4,8)
 DIRECTION_PROMPT_LABELS = {'down_left':'forward-left, showing the front-left view','down_right':'forward-right, showing the front-right view','up_left':'rear three-quarter, facing screen-left','up_right':'rear three-quarter, facing screen-right'}
 SUPPORTED_DIRECTION_NAMES = ('down_left','down_right','up_left','up_right')
 
-def select_target_fps_frames(source_frame_count, source_frame_rate, target_frame_rate, generation_speed_ratio=1):
-    if type(generation_speed_ratio) not in (int,float) or generation_speed_ratio not in (1,1.5,2,4):
-        raise ValueError('생성 배속은 1·1.5·2·4 중 하나여야 합니다.')
-    if type(target_frame_rate) is not int or target_frame_rate < 1 or target_frame_rate > source_frame_rate:
-        raise ValueError(f'타겟 FPS는 1부터 원본 FPS({source_frame_rate})까지의 정수여야 합니다.')
-    return [math.floor(frame_index_value * source_frame_rate * generation_speed_ratio / target_frame_rate) + 1
-            for frame_index_value in range(math.ceil(source_frame_count * target_frame_rate / (source_frame_rate * generation_speed_ratio)))]
+def select_target_fps_frames(source_frame_count, source_frame_rate, target_frame_rate, generation_speed_ratio=2):
+    if type(generation_speed_ratio) not in (int,float) or generation_speed_ratio not in (1,2,4):
+        raise ValueError('생성 배속은 1·2·4 중 하나여야 합니다.')
+    if type(target_frame_rate) is not int or target_frame_rate != 8:
+        raise ValueError('타겟 FPS는 8만 지원합니다.')
+    return [math.floor(frame_index_value * generation_speed_ratio) + 1
+            for frame_index_value in range(math.ceil(source_frame_count / generation_speed_ratio))]
 
 class UniqueMappingLoader(yaml.SafeLoader):
     pass
@@ -58,7 +58,7 @@ def load_animation_configuration():
     for animation_motion_record in animation_config_record['motions'].values():
         if set(animation_motion_record)-{'direction_auxiliary_prompts'} != {'label','root','manifest','openpose','anny','target_fps'}:
             raise ValueError('모션 등록 형식 오류')
-        if type(animation_motion_record['target_fps']) is not int or animation_motion_record['target_fps'] < 1:
+        if type(animation_motion_record['target_fps']) is not int or animation_motion_record['target_fps'] != 8:
             raise ValueError('기본 타겟 FPS 오류')
     for animation_character_record in animation_config_record['characters'].values():
         if set(animation_character_record) != {'label','root','manifest'}:
@@ -124,6 +124,8 @@ def prepare_animation_request(command_payload_value):
     if command_payload_value['source'] not in ('openpose','anny'):
         raise ValueError('포즈 입력은 openpose 또는 anny입니다.')
     animation_motion_record = animation_config_record['motions'][command_payload_value['motion']]
+    if 'frame_step' in command_payload_value:
+        raise ValueError('이전 프레임 간격 방식은 신규 생성에서 지원하지 않습니다. 타겟 FPS 8을 사용하세요.')
     selected_frame_step = command_payload_value.get('frame_step',1)
     if type(selected_frame_step) is not int or selected_frame_step not in SUPPORTED_FRAME_STEPS:
         raise ValueError('프레임 간격은 1·2·4·8 중 하나여야 합니다.')
@@ -140,8 +142,10 @@ def prepare_animation_request(command_payload_value):
         raise ValueError('타겟 FPS와 이전 프레임 간격은 함께 지정할 수 없습니다.')
     legacy_frame_sampling = 'frame_step' in command_payload_value
     selected_target_fps = command_payload_value.get('target_fps',animation_motion_record['target_fps'])
+    if type(selected_target_fps) is not int or selected_target_fps != 8:
+        raise ValueError('타겟 FPS는 8만 지원합니다.')
     selected_range_frame_count = selected_end_frame-selected_start_frame+1
-    selected_frame_offsets = list(range(0,selected_range_frame_count,selected_frame_step)) if legacy_frame_sampling else [frame_number-1 for frame_number in select_target_fps_frames(selected_range_frame_count,motion_manifest_record['fps'],selected_target_fps,command_payload_value.get('speed',1))]
+    selected_frame_offsets = list(range(0,selected_range_frame_count,selected_frame_step)) if legacy_frame_sampling else [frame_number-1 for frame_number in select_target_fps_frames(selected_range_frame_count,motion_manifest_record['fps'],selected_target_fps,command_payload_value.get('speed',2))]
     selected_frame_numbers = [selected_start_frame+frame_offset for frame_offset in selected_frame_offsets]
     output_frame_rate = motion_manifest_record['fps'] if legacy_frame_sampling else selected_target_fps
 
@@ -160,7 +164,7 @@ def prepare_animation_request(command_payload_value):
             generation_frame_records.append({'direction':direction_name_value,'frame':current_frame_number,'character_path':str(character_file_path.relative_to(WORKFLOW_ROOT_DIRECTORY)),'character_sha256':character_file_hash,'pose_path':str(pose_reference_path.relative_to(WORKFLOW_ROOT_DIRECTORY)),'pose_sha256':pose_reference_hash})
     fixed_prompt_values = read_fixed_prompts(animation_config_record)
     combined_prompt_text = fixed_prompt_values['base']+'\n\n'+fixed_prompt_values['auxiliary']
-    return {**command_payload_value,'anypose_base_strength':CHARACTER_ANYPOSE_BASE_STRENGTH if command_payload_value['source']=='anny' else 0.7,'anypose_helper_strength':CHARACTER_ANYPOSE_HELPER_STRENGTH if command_payload_value['source']=='anny' else 0.7,'resolution':selected_output_resolution,'speed':command_payload_value.get('speed',1),'frame_step':selected_frame_step,'start_frame':selected_start_frame,'end_frame':selected_end_frame,'source_frames_per_direction':motion_manifest_record['frames'],'selected_frame_numbers':selected_frame_numbers,'target_fps':None if legacy_frame_sampling else selected_target_fps,'source_fps':motion_manifest_record['fps'],'direction_prompts':compose_direction_prompts(fixed_prompt_values,command_payload_value.get('direction_auxiliary_prompts')),'direction_auxiliary_prompts':{direction:command_payload_value.get('direction_auxiliary_prompts',{}).get(direction,'') for direction in SUPPORTED_DIRECTION_NAMES},'prompts':fixed_prompt_values,'prompt_sha256':hashlib.sha256(combined_prompt_text.encode()).hexdigest(),'prompt_words':len(combined_prompt_text.split()),'frames_per_direction':len(selected_frame_numbers),'fps':output_frame_rate,'motion_manifest_sha256':hash_asset_file(motion_manifest_path),'character_manifest_sha256':hash_asset_file(character_manifest_path),'frames':generation_frame_records,'sampling':('none' if selected_frame_step==1 else 'frame-step') if legacy_frame_sampling else 'target-fps','model':'Qwen/Qwen-Image-Edit-2511','steps':selected_inference_steps,'lightning':selected_inference_steps==4}
+    return {**command_payload_value,'anypose_base_strength':CHARACTER_ANYPOSE_BASE_STRENGTH if command_payload_value['source']=='anny' else 0.7,'anypose_helper_strength':CHARACTER_ANYPOSE_HELPER_STRENGTH if command_payload_value['source']=='anny' else 0.7,'resolution':selected_output_resolution,'speed':command_payload_value.get('speed',2),'frame_step':selected_frame_step,'start_frame':selected_start_frame,'end_frame':selected_end_frame,'source_frames_per_direction':motion_manifest_record['frames'],'selected_frame_numbers':selected_frame_numbers,'target_fps':None if legacy_frame_sampling else selected_target_fps,'source_fps':motion_manifest_record['fps'],'direction_prompts':compose_direction_prompts(fixed_prompt_values,command_payload_value.get('direction_auxiliary_prompts')),'direction_auxiliary_prompts':{direction:command_payload_value.get('direction_auxiliary_prompts',{}).get(direction,'') for direction in SUPPORTED_DIRECTION_NAMES},'prompts':fixed_prompt_values,'prompt_sha256':hashlib.sha256(combined_prompt_text.encode()).hexdigest(),'prompt_words':len(combined_prompt_text.split()),'frames_per_direction':len(selected_frame_numbers),'fps':output_frame_rate,'motion_manifest_sha256':hash_asset_file(motion_manifest_path),'character_manifest_sha256':hash_asset_file(character_manifest_path),'frames':generation_frame_records,'sampling':('none' if selected_frame_step==1 else 'frame-step') if legacy_frame_sampling else 'target-fps','model':'Qwen/Qwen-Image-Edit-2511','steps':selected_inference_steps,'lightning':selected_inference_steps==4}
 
 def resolve_motion_preview(selected_motion_name, selected_source_kind, selected_direction_name, selected_frame_number):
     """프롬프트·캐릭터·생성 이력 없이 등록 모션의 단일 프레임을 조회한다."""

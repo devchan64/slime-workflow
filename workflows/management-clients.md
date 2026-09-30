@@ -153,7 +153,7 @@ python3 tools/manager.py command momask --server-url http://127.0.0.1:8771 histo
 
 ## 등록 모션 기반 캐릭터 애니메이션
 
-관리도구의 `#character-animation`은 등록된 대기 v3(16프레임), 걷기 v8(32프레임), 스트레칭 v1(120프레임)에 캐릭터 레퍼런스를 적용한다. 방향은 전체 또는 일부를 선택한다. 현재 등록된 캐릭터는 기본 흰 셔츠 v2이며 등록 설정을 통해 확장한다. 타겟 FPS는 원본 FPS 이하의 양의 정수로 선택하며 기본값은 4다. 시간축에서 floor(출력 프레임 번호 × 원본 FPS / 타겟 FPS) 위치를 선택하고, 결과의 기본 재생 FPS도 타겟값으로 기록한다. 대기 16프레임·4 FPS 원본을 2 FPS로 생성하면 방향당 8장·4초가 된다. 비정수 장수는 올림하므로 길이 차이는 타겟 한 프레임 미만이다. 보간·중복 프레임 생성은 하지 않는다.
+관리도구의 `#character-animation`은 등록된 대기 v3(16프레임), 걷기 v8(32프레임), 스트레칭 v1(120프레임)에 캐릭터 레퍼런스를 적용한다. 방향은 전체 또는 일부를 선택한다. 현재 등록된 캐릭터는 기본 흰 셔츠 v2이며 등록 설정을 통해 확장한다. 타겟 FPS는 8만 지원하며 생성 배속 기본값은 2다. 생성 배속은 원본 프레임 선택 간격이다. 시작 프레임 + floor(0부터 시작하는 출력 인덱스 × 생성 배속) 위치를 선택하고, 결과의 기본 재생 FPS도 타겟값으로 기록한다. 대기 16프레임·4 FPS 원본을 8 FPS·2배로 생성하면 방향당 8장·1초가 된다. 비정수 장수는 올림하므로 길이 차이는 타겟 한 프레임 미만이다. 보간·중복 프레임 생성은 하지 않는다.
 
 - `openpose`: 등록된 COCO18 맵과 캐릭터 이미지를 Qwen Image Edit 2511에 입력한다.
 - `anny`: 등록된 ANNY 리그 렌더 프레임과 캐릭터 이미지를 Qwen Image Edit 2511 + AnyPose에 입력한다. 원본 리그나 모션을 다시 생성하지 않는다.
@@ -184,7 +184,7 @@ python3 tools/manager.py command character-animation history-reset
 
 원본 에셋과 생성 결과 플레이어는 각각 **재생 속도**에서 4·8·12·16 FPS를 선택할 수 있다. 기본은 4 FPS이며 재생 중에도 변경된다. 이는 검수용 재생 속도로, 원본 프레임 수·생성 설정·결과 메타데이터의 FPS는 바꾸지 않는다.
 
-`character-animation generate --target-fps 2`로 CLI에서도 지정한다. 요청에는 `target_fps`, `source_fps`, `selected_frame_numbers`와 프롬프트 출처를 기록한다. 결과에는 타겟 `fps`와 원본 프레임 번호를 기록한다. 기존 간격 방식 이력은 수정하지 않으며 기존 API의 명시적 `frame_step` 요청은 호환 처리한다. 두 방식의 동시 지정은 거절한다. 원본 검수 플레이어는 항상 전체 원본 프레임을 사용한다.
+`character-animation generate --target-fps 8 --speed 2`로 CLI에서도 지정한다. 1배는 원본 전체, 2배는 1·3·5…, 4배는 1·5·9…를 선택한다. 원본 FPS와 무관하게 결과는 8 FPS로 재생한다. 요청에는 `target_fps`, `source_fps`, `selected_frame_numbers`와 프롬프트 출처를 기록한다. 결과에는 타겟 `fps`와 원본 프레임 번호를 기록한다. 기존 간격 방식 이력은 수정하지 않으며 신규 `frame_step` 요청은 거절한다. 두 방식의 동시 지정은 거절한다. 원본 검수 플레이어는 항상 전체 원본 프레임을 사용한다.
 
 캐릭터 애니메이션 CLI의 `--steps 4` / `--steps 30`은 웹의 생성 방식 선택과 같다. 예: `python3 tools/manager.py command character-animation generate --motion standing-v3 --character character-default --source anny --steps 30 --detach`. 실행 요청·결과·이력에 선택 스텝을 보존한다. 기존 이력의 스텝 필드가 없으면 기존 방식인 4스텝으로 표시한다.
 
@@ -209,7 +209,7 @@ python3 tools/manager.py command tile-map history
 
 GUI와 CLI는 같은 `tile-map` 게이트웨이 서비스와 기록을 사용한다. CLI도 실행 중인 관리 서버가 필요하다. `queue`는 즉시 생성 완료를 기다리지 않고 작업을 등록해 ID를 반환한다. GPU가 비어 있으면 바로 실행되고, 사용 중이면 기존 순서를 보존해 대기열에 추가된다. `--tag`는 줄바꿈 없이 최대 80자의 선택형 이력 구분 태그이며, GUI의 생성 이력 태그와 같은 `request.tag`에 저장된다. 태그는 모델 프롬프트·시드·생성 파라미터를 바꾸지 않는다. 생성 종류별 별도 추론 실행기는 만들지 않는다.
 
-캐릭터 생성 배속은 `--speed 1|1.5|2|4`로 지정한다. 기본은 1이며 `--target-fps 4 --speed 2`는 동일 FPS에서 원본의 절반 길이를 생성한다. 배속은 요청·결과·이력에 `speed`로 기록한다. 원본 모션 검수 재생에는 적용하지 않는다.
+캐릭터 생성 배속은 `--speed 1|2|4`로 지정한다. 기본은 2이며 `--target-fps 8 --speed 2`는 동일 FPS에서 원본의 절반 길이를 생성한다. 배속은 요청·결과·이력에 `speed`로 기록한다. 원본 모션 검수 재생에는 적용하지 않는다.
 
 ## 스프라이트 정규화 편집기
 

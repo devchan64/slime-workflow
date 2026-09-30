@@ -21,7 +21,7 @@ class CharacterAnimationTests(unittest.TestCase):
 
     def test_ui_auxiliary_request_is_accepted_and_composed(self):
         from tools.review.ui.gradio.character_animation_app import build_animation_request
-        payload=build_animation_request('standing-v10','character-default','anny',['down_left'],1,1,512,4,4,1,'','Walk left.','','','')
+        payload=build_animation_request('standing-v10','character-default','anny',['down_left'],1,1,512,4,8,2,'','Walk left.','','','')
         prepared=assets.prepare_animation_request(payload)
         self.assertEqual(prepared['direction_auxiliary_prompts']['down_left'],'Walk left.')
         self.assertIn('Walk left.',prepared['direction_prompts']['down_left']['text'])
@@ -55,14 +55,14 @@ motions:
     manifest: manifest.yaml
     openpose: openpose/{direction}/frame-{frame:04d}.png
     anny: anny/{direction}/frame-{frame:04d}.png
-    target_fps: 4
+    target_fps: 8
   removed:
     label: 제거됨
     root: assets/motions/removed
     manifest: manifest.yaml
     openpose: openpose/{direction}/frame-{frame:04d}.png
     anny: anny/{direction}/frame-{frame:04d}.png
-    target_fps: 4
+    target_fps: 8
 characters:
   default:
     label: 기본 캐릭터
@@ -85,50 +85,57 @@ characters:
                 assets.prepare_animation_request(self.make_selection_record(resolution=invalid_resolution_value))
 
     def test_target_fps_sampling_and_validation(self):
-        for target_frame_rate, expected_frame_numbers in [(1,list(range(1,121,4))),(2,list(range(1,121,2))),(3,[1,2,3,5,6,7,9,10,11,13,14,15]+[value for value in range(17,121) if value%4 in (1,2,3)]),(4,list(range(1,121)))]:
-            request_record_value=assets.prepare_animation_request(self.make_selection_record(target_fps=target_frame_rate))
-            self.assertEqual(request_record_value['selected_frame_numbers'],expected_frame_numbers)
-            self.assertEqual(request_record_value['fps'],target_frame_rate)
-            self.assertEqual(request_record_value['frames_per_direction']/target_frame_rate,30)
-        for invalid_frame_rate in (0,5,True,'2',2.5):
-            with self.assertRaises(ValueError):assets.prepare_animation_request(self.make_selection_record(target_fps=invalid_frame_rate))
-        with self.assertRaises(ValueError):assets.prepare_animation_request(self.make_selection_record(target_fps=2,frame_step=2))
+        prepared_request_value=assets.prepare_animation_request(self.make_selection_record())
+        self.assertEqual(prepared_request_value['target_fps'],8)
+        self.assertEqual(prepared_request_value['speed'],2)
+        self.assertEqual(prepared_request_value['selected_frame_numbers'],list(range(1,121,2)))
+        for invalid_frame_rate in (0,1,2,3,4,5,True,'8',8.0):
+            with self.assertRaises(ValueError):
+                assets.prepare_animation_request(self.make_selection_record(target_fps=invalid_frame_rate))
+        with self.assertRaises(ValueError):
+            assets.prepare_animation_request(self.make_selection_record(target_fps=8,frame_step=2))
+
+    def test_eight_fps_sampling_is_independent_of_source_fps(self):
+        for source_frame_rate in (4,8,20):
+            self.assertEqual(assets.select_target_fps_frames(28,source_frame_rate,8,2),list(range(1,29,2)))
+        self.assertEqual(assets.select_target_fps_frames(5,4,8,2),[1,3,5])
 
     def test_generation_speed_changes_sampling_not_fps(self):
-        for selected_speed_value, expected_frame_numbers in [(1,list(range(1,121))),(1.5,[frame_index_value for frame_index_value in range(1,121) if frame_index_value%3 in (1,2)]),(2,list(range(1,121,2))),(4,list(range(1,121,4)))]:
-            request_record_value=assets.prepare_animation_request(self.make_selection_record(target_fps=4,speed=selected_speed_value))
-            self.assertEqual(request_record_value['selected_frame_numbers'],expected_frame_numbers)
-            self.assertEqual(request_record_value['fps'],4)
-            self.assertEqual(request_record_value['speed'],selected_speed_value)
-        for invalid_speed_value in (0,-1,0.5,True,'2',float('nan')):
-            with self.assertRaises(ValueError):assets.prepare_animation_request(self.make_selection_record(speed=invalid_speed_value))
-        with self.assertRaises(ValueError):assets.prepare_animation_request(self.make_selection_record(speed=2,frame_step=2))
+        for selected_speed_value, expected_frame_numbers in ((1,list(range(1,121))),(2,list(range(1,121,2))),(4,list(range(1,121,4)))):
+            prepared_request_value=assets.prepare_animation_request(self.make_selection_record(target_fps=8,speed=selected_speed_value))
+            self.assertEqual(prepared_request_value['selected_frame_numbers'],expected_frame_numbers)
+            self.assertEqual(prepared_request_value['fps'],8)
+            self.assertEqual(prepared_request_value['speed'],selected_speed_value)
+        for invalid_speed_value in (0,-1,0.5,1.5,True,'2',float('nan')):
+            with self.assertRaises(ValueError):
+                assets.prepare_animation_request(self.make_selection_record(speed=invalid_speed_value))
 
     def test_registered_sources_all_frames_integrity(self):
         for motion_identifier_value,expected_frame_count in [('standing-v10',120),('walking-v13',60),('resting-v3',160)]:
             for source_kind_value in ('openpose','anny'):
                 selection_request_record=self.make_selection_record(resolution=512)
-                selection_request_record.update(motion=motion_identifier_value,source=source_kind_value,frame_step=1,directions=list(assets.SUPPORTED_DIRECTION_NAMES))
+                selection_request_record.update(motion=motion_identifier_value,source=source_kind_value,speed=1,directions=list(assets.SUPPORTED_DIRECTION_NAMES))
                 generation_request_record=assets.prepare_animation_request(selection_request_record)
                 self.assertEqual(len(generation_request_record['frames']),expected_frame_count*4)
-                self.assertEqual(generation_request_record['fps'],4)
+                self.assertEqual(generation_request_record['fps'],8)
                 self.assertEqual(generation_request_record['frames'][-1]['frame'],expected_frame_count)
                 self.assertLess(generation_request_record['prompt_words'],100)
 
     def test_frame_step_defaults_and_direction_prompts(self):
         request_record_value=assets.prepare_animation_request(self.make_selection_record())
-        self.assertEqual(request_record_value['selected_frame_numbers'],list(range(1,121)))
-        self.assertEqual(request_record_value['frames_per_direction'],120)
+        self.assertEqual(request_record_value['selected_frame_numbers'],list(range(1,121,2)))
+        self.assertEqual(request_record_value['frames_per_direction'],60)
         for direction_name_value,prompt_record_value in request_record_value['direction_prompts'].items():
             self.assertIn(assets.DIRECTION_PROMPT_LABELS[direction_name_value],prompt_record_value['text'])
             self.assertLess(prompt_record_value['words'],100)
         for invalid_step_value in (0,3,True,'2'):
             with self.assertRaises(ValueError):assets.prepare_animation_request({**self.make_selection_record(),'frame_step':invalid_step_value})
         for frame_step_value in (1,2,4,8):
-            self.assertEqual(assets.prepare_animation_request({**self.make_selection_record(),'frame_step':frame_step_value})['selected_frame_numbers'],list(range(1,121,frame_step_value)))
+            with self.assertRaises(ValueError):
+                assets.prepare_animation_request({**self.make_selection_record(),'frame_step':frame_step_value})
 
     def test_selected_frame_range_limits_generation_frames(self):
-        request_record_value=assets.prepare_animation_request({**self.make_selection_record(),'start_frame':10,'end_frame':20,'target_fps':2})
+        request_record_value=assets.prepare_animation_request({**self.make_selection_record(),'start_frame':10,'end_frame':20,'target_fps':8,'speed':2})
         self.assertEqual(request_record_value['selected_frame_numbers'],[10,12,14,16,18,20])
         self.assertEqual((request_record_value['start_frame'],request_record_value['end_frame']),(10,20))
         for invalid_range_values in ({'start_frame':0},{'end_frame':121},{'start_frame':30,'end_frame':20},{'start_frame':'1'},{'end_frame':True}):
@@ -136,7 +143,7 @@ characters:
                 assets.prepare_animation_request({**self.make_selection_record(),**invalid_range_values})
 
     def test_progress_separates_images_source_frames_and_inference(self):
-        request_record_value=assets.prepare_animation_request({**self.make_selection_record(),'directions':['down_left','up_right'],'target_fps':2,'steps':30})
+        request_record_value=assets.prepare_animation_request({**self.make_selection_record(),'directions':['down_left','up_right'],'target_fps':8,'speed':2,'steps':30})
         with tempfile.TemporaryDirectory() as temporary_root_name:
             generation_job_path=Path(temporary_root_name)
             frame_log_path=generation_job_path/'down_left/frame-0003/execution.log'
@@ -154,7 +161,7 @@ characters:
                 self.assertNotIn('direction',result_record_value)
 
     def test_remaining_time_uses_completed_images(self):
-        request_record_value=assets.prepare_animation_request(self.make_selection_record(target_fps=2))
+        request_record_value=assets.prepare_animation_request(self.make_selection_record(target_fps=8,speed=2))
         with tempfile.TemporaryDirectory() as temporary_root_name:
             job_path=Path(temporary_root_name)
             state={'status':'running','progress':{'completed':0}}
@@ -202,7 +209,7 @@ characters:
 
     def test_hash_mismatch_fails_before_launch(self):
         with patch.object(assets,'hash_asset_file',return_value='invalid'),self.assertRaisesRegex(ValueError,'무결성'):
-            assets.prepare_animation_request(self.make_selection_record(target_fps=2))
+            assets.prepare_animation_request(self.make_selection_record(target_fps=8,speed=2))
 
     def test_cli_and_http_envelope_have_same_selection(self):
         selection_request_record=self.make_selection_record(resolution=512)
@@ -226,7 +233,7 @@ characters:
         with tempfile.TemporaryDirectory() as temporary_root_name:
             temporary_root_path=Path(temporary_root_name)
             with patch.object(jobs,'GENERATION_ROOT_DIRECTORY',temporary_root_path),patch.object(jobs,'GENERATION_HISTORY_DIRECTORY',temporary_root_path/'history'),patch.object(jobs,'GENERATION_LOCK_PATH',temporary_root_path/'generation.lock'),patch.object(jobs.subprocess,'Popen'):
-                generation_start_record=jobs.start_animation_generation(self.make_selection_record(target_fps=2))
+                generation_start_record=jobs.start_animation_generation(self.make_selection_record(target_fps=8,speed=2))
                 generation_job_identifier=generation_start_record['id']
                 self.assertTrue(jobs.execute_animation_command('active',{})['running'])
                 history_record_value=jobs.execute_animation_command('history',{})['records'][0]
@@ -243,13 +250,13 @@ characters:
         with tempfile.TemporaryDirectory() as temporary_root_name:
             temporary_root_path=Path(temporary_root_name)
             with patch.object(jobs,'GENERATION_ROOT_DIRECTORY',temporary_root_path),patch.object(jobs,'GENERATION_HISTORY_DIRECTORY',temporary_root_path/'history'),patch.object(jobs,'GENERATION_LOCK_PATH',temporary_root_path/'generation.lock'),patch.object(jobs.subprocess,'Popen') as worker_launch_mock:
-                first_job_record=jobs.start_animation_generation(self.make_selection_record(target_fps=2))
-                second_job_record=jobs.start_animation_generation(self.make_selection_record(target_fps=2))
+                first_job_record=jobs.start_animation_generation(self.make_selection_record(target_fps=8,speed=2))
+                second_job_record=jobs.start_animation_generation(self.make_selection_record(target_fps=8,speed=2))
                 self.assertEqual(first_job_record['id'],second_job_record['id'])
                 self.assertTrue(second_job_record['reused'])
                 self.assertEqual(worker_launch_mock.call_count,1)
                 jobs.write_record_atomically(jobs.resolve_generation_directory(first_job_record['id'])/'status.json',{'status':'completed'})
-                next_job_record=jobs.start_animation_generation(self.make_selection_record(target_fps=2))
+                next_job_record=jobs.start_animation_generation(self.make_selection_record(target_fps=8,speed=2))
                 self.assertNotEqual(first_job_record['id'],next_job_record['id'])
 
     def test_concurrent_generation_rejected(self):
@@ -260,7 +267,7 @@ characters:
                 with jobs.GENERATION_LOCK_PATH.open('a') as generation_lock_handle:
                     fcntl.flock(generation_lock_handle,fcntl.LOCK_EX|fcntl.LOCK_NB)
                     with self.assertRaisesRegex(ValueError,'이미 진행'):
-                        jobs.start_animation_generation(self.make_selection_record(target_fps=2))
+                        jobs.start_animation_generation(self.make_selection_record(target_fps=8,speed=2))
 
     def test_missing_result_is_failed_and_manual_reset_not_restored(self):
         with tempfile.TemporaryDirectory() as temporary_root_name:
@@ -302,7 +309,7 @@ characters:
         from generators.animation import run_character_animation as worker
         with tempfile.TemporaryDirectory() as temporary_root_name:
             generation_job_path=Path(temporary_root_name)
-            generation_request_record=assets.prepare_animation_request(self.make_selection_record(target_fps=2))
+            generation_request_record=assets.prepare_animation_request(self.make_selection_record(target_fps=8,speed=2))
             (generation_job_path/'request.json').write_text(json.dumps(generation_request_record))
             def complete_mock_frame(command_argument_values,check):
                 current_frame_index=int(command_argument_values[-1])
@@ -313,7 +320,7 @@ characters:
                 worker.generate_character_animation(generation_job_path)
             result_record_value=json.loads((generation_job_path/'result.json').read_text())
             self.assertEqual(subprocess_run_mock.call_count,60)
-            self.assertEqual(result_record_value['fps'],2)
+            self.assertEqual(result_record_value['fps'],8)
             self.assertEqual(len(result_record_value['frames']['down_left']),60)
 
 if __name__=='__main__':unittest.main()
