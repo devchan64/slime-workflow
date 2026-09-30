@@ -31,3 +31,5 @@
 - [기본 캐릭터 대기 애니메이션 샘플](default-character-standing-sample-20260927/README.md): 사용자 지정 두 기록의 4방향·16프레임 조합, 동기 재생 HTML과 출처·해시.
 
 - [기본 캐릭터 대기 포즈 ImageGen 변환](default-character-standing-imagegen-20260927/README.md): 투명 PNG 16장, 방향별 베이스라인·입력 자세 비교, 높이 편차와 출처·해시 검증.
+
+- [최신 좌하 걷기 AnyPose 결과](walking-down-left-anypose-20260930-234839/README.md): 기존 4방향 걷기 리포트 대체. 좌하 12프레임·8 FPS GIF, 입력·실행 기록·출처·해시.
