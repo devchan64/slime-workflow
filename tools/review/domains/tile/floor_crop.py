@@ -9,7 +9,7 @@ DARK_SEAM_THRESHOLD = 16
 MAXIMUM_BORDER_SEARCH_RATIO = 0.025
 
 
-def extract_molding_center(source_image_value):
+def extract_legacy_molding_center(source_image_value):
     if source_image_value is None or source_image_value.shape != (1024,1024,3):
         raise ValueError('중앙 몰딩 검출은 1024×1024 RGB 원본만 지원합니다.')
     image_height_value,image_width_value=source_image_value.shape[:2]
@@ -63,3 +63,54 @@ def extract_molding_center(source_image_value):
     detected_image_value = source_image_value.copy()
     cv2.rectangle(detected_image_value,(crop_left_value,crop_top_value),(crop_left_value+crop_width_value-1,crop_top_value+crop_height_value-1),(0,0,255),3)
     return center_crop_value, detected_image_value, {'method':'central-molding-lines-nearest-exterior-dark-seam','version':1,'crop_box':crop_box_values,'crop_size':[crop_width_value,crop_height_value],'inner_lines':inner_boundary_values,'outer_seams':outer_boundary_values,'parameters':{'saturation_max':SATURATION_MAXIMUM_VALUE,'brightness_max':BRIGHTNESS_MAXIMUM_VALUE,'closing_kernel':CLOSING_KERNEL_SIZE,'dark_seam_threshold':DARK_SEAM_THRESHOLD,'search_ratio':MAXIMUM_BORDER_SEARCH_RATIO}}
+
+
+# 검은 배경 기반 v2는 9개 독립 외곽을 검증하며 안쪽 음영을 경계로 사용하지 않는다.
+GRID_BACKGROUND_THRESHOLD = 12
+GRID_MINIMUM_AREA_RATIO = 0.04
+GRID_MAXIMUM_AREA_RATIO = 0.16
+GRID_MINIMUM_FILL_RATIO = 0.85
+GRID_MAXIMUM_ASPECT_RATIO = 1.10
+GRID_CELL_ALIGNMENT_RATIO = 0.06
+GRID_OUTER_PADDING_PIXELS = 2
+
+
+def extract_molding_center(source_image_value):
+    if source_image_value is None or source_image_value.shape != (1024,1024,3):
+        raise ValueError('중앙 외곽 검출은 1024×1024 RGB 원본만 지원합니다.')
+    image_height_value,image_width_value = source_image_value.shape[:2]
+    source_gray_value = cv2.cvtColor(source_image_value,cv2.COLOR_BGR2GRAY)
+    foreground_mask_value = (source_gray_value>GRID_BACKGROUND_THRESHOLD).astype('uint8')*255
+    foreground_mask_value = cv2.morphologyEx(foreground_mask_value,cv2.MORPH_CLOSE,np.ones((CLOSING_KERNEL_SIZE,CLOSING_KERNEL_SIZE),dtype='uint8'))
+    contour_candidate_values,_ = cv2.findContours(foreground_mask_value,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)
+    selected_cell_records = {}
+    for current_contour_value in contour_candidate_values:
+        contour_area_value = cv2.contourArea(current_contour_value)
+        if contour_area_value < image_width_value*image_height_value*GRID_MINIMUM_AREA_RATIO: continue
+        if contour_area_value > image_width_value*image_height_value*GRID_MAXIMUM_AREA_RATIO:
+            raise ValueError('검은 배경에서 블록이 서로 연결됐거나 외곽이 분리되지 않았습니다.')
+        left_pixel_value,top_pixel_value,width_pixel_value,height_pixel_value = cv2.boundingRect(current_contour_value)
+        if contour_area_value/(width_pixel_value*height_pixel_value)<GRID_MINIMUM_FILL_RATIO or max(width_pixel_value,height_pixel_value)/min(width_pixel_value,height_pixel_value)>GRID_MAXIMUM_ASPECT_RATIO:
+            raise ValueError('검출된 외곽이 정사각형 블록과 일치하지 않습니다.')
+        column_index_value=int((left_pixel_value+width_pixel_value/2)*3/image_width_value)
+        row_index_value=int((top_pixel_value+height_pixel_value/2)*3/image_height_value)
+        cell_position_value=(row_index_value,column_index_value)
+        if cell_position_value in selected_cell_records: raise ValueError('같은 셀에서 여러 블록을 검출했습니다.')
+        alignment_margin_value=image_width_value*GRID_CELL_ALIGNMENT_RATIO
+        if left_pixel_value<column_index_value*image_width_value/3-alignment_margin_value or left_pixel_value+width_pixel_value>(column_index_value+1)*image_width_value/3+alignment_margin_value or top_pixel_value<row_index_value*image_height_value/3-alignment_margin_value or top_pixel_value+height_pixel_value>(row_index_value+1)*image_height_value/3+alignment_margin_value:
+            raise ValueError('검출 블록이 3행 3열 배열을 벗어납니다.')
+        selected_cell_records[cell_position_value]=[left_pixel_value,top_pixel_value,left_pixel_value+width_pixel_value,top_pixel_value+height_pixel_value]
+    if set(selected_cell_records)!={(current_row_index,current_column_index) for current_row_index in range(3) for current_column_index in range(3)}:
+        raise ValueError(f'독립된 정사각형 9개가 필요합니다: {len(selected_cell_records)}개 검출')
+    crop_left_value,crop_top_value,crop_right_value,crop_bottom_value=selected_cell_records[(1,1)]
+    crop_box_values=[crop_left_value-GRID_OUTER_PADDING_PIXELS,crop_top_value-GRID_OUTER_PADDING_PIXELS,crop_right_value+GRID_OUTER_PADDING_PIXELS,crop_bottom_value+GRID_OUTER_PADDING_PIXELS]
+    for current_cell_position,current_cell_bounds in selected_cell_records.items():
+        if current_cell_position==(1,1): continue
+        if max(crop_box_values[0],current_cell_bounds[0])<min(crop_box_values[2],current_cell_bounds[2]) and max(crop_box_values[1],current_cell_bounds[1])<min(crop_box_values[3],current_cell_bounds[3]):
+            raise ValueError('테두리 보존 여백이 인접 블록과 겹칩니다.')
+    cropped_image_value=source_image_value[crop_box_values[1]:crop_box_values[3],crop_box_values[0]:crop_box_values[2]].copy()
+    detected_image_value=source_image_value.copy()
+    for current_cell_position,current_cell_bounds in selected_cell_records.items():
+        cv2.rectangle(detected_image_value,tuple(current_cell_bounds[:2]),(current_cell_bounds[2]-1,current_cell_bounds[3]-1),(255,180,0),1)
+    cv2.rectangle(detected_image_value,tuple(crop_box_values[:2]),(crop_box_values[2]-1,crop_box_values[3]-1),(0,0,255),2)
+    return cropped_image_value,detected_image_value,{'method':'nine-grid-exterior-contours','version':2,'crop_box':crop_box_values,'crop_size':[cropped_image_value.shape[1],cropped_image_value.shape[0]],'detected_cells':[{'row':current_cell_position[0]+1,'column':current_cell_position[1]+1,'bounds':current_cell_bounds} for current_cell_position,current_cell_bounds in sorted(selected_cell_records.items())],'parameters':{'background_threshold':GRID_BACKGROUND_THRESHOLD,'closing_kernel':CLOSING_KERNEL_SIZE,'outer_padding':GRID_OUTER_PADDING_PIXELS,'minimum_fill_ratio':GRID_MINIMUM_FILL_RATIO,'maximum_aspect_ratio':GRID_MAXIMUM_ASPECT_RATIO}}

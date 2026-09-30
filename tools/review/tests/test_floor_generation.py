@@ -105,7 +105,7 @@ class FloorGenerationTests(unittest.TestCase):
             self.assertEqual(prepare_floor_request(self.create_floor_request()|{'user_prompt':'돌 바닥'})['floor_separation']['prompt'],'돌 바닥')
             self.assertNotIn('floor_rectify',prepared_request_value)
             self.assertEqual(prepared_request_value['floor_separation']['prompt'],'잔디밭')
-            self.assertIn('floor-three-stage-v2',build_image_memory_identity('run_qwen_2512.py',current_job_root))
+            self.assertIn('floor-three-stage-v3',build_image_memory_identity('run_qwen_2512.py',current_job_root))
             launched_stage_names = []
             def simulate_stage_process(command_argument_values, **process_keyword_values):
                 stage_output_directory = Path(command_argument_values[-1])
@@ -145,7 +145,7 @@ class FloorGenerationTests(unittest.TestCase):
                     execute_floor_pipeline(current_job_root,prepared_request_value)
 
     def create_molding_fixture(self):
-        source_image_value = np.full((1024,1024,3),(40,150,40),dtype='uint8')
+        source_image_value = np.zeros((1024,1024,3),dtype='uint8')
         for current_row_index in range(3):
             for current_column_index in range(3):
                 left_pixel_value = 30+current_column_index*330
@@ -164,3 +164,19 @@ class FloorGenerationTests(unittest.TestCase):
         self.assertTrue(355<=crop_left_value<=365)
         self.assertTrue(660<=crop_right_value<=670)
         with self.assertRaises(ValueError): extract_molding_center(np.full((1024,1024,3),(40,150,40),dtype='uint8'))
+
+    def test_exterior_crop_retains_frame_despite_inner_dark_lines(self):
+        from tools.review.domains.tile.floor_crop import extract_molding_center
+        source_image_value=self.create_molding_fixture()
+        original_crop_value,_,original_crop_record=extract_molding_center(source_image_value)
+        cv2.line(source_image_value,(381,380),(642,380),(0,0,0),3)
+        cv2.line(source_image_value,(640,383),(640,640),(0,0,0),3)
+        cropped_image_value,_,crop_record_value=extract_molding_center(source_image_value)
+        self.assertEqual(crop_record_value['crop_box'],original_crop_record['crop_box'])
+        self.assertEqual(cropped_image_value.shape,original_crop_value.shape)
+        self.assertEqual(crop_record_value['version'],2)
+        self.assertEqual(len(crop_record_value['detected_cells']),9)
+        selected_cell_bounds=next(record_value['bounds'] for record_value in crop_record_value['detected_cells'] if record_value['row']==2 and record_value['column']==2)
+        self.assertEqual(crop_record_value['crop_box'],[selected_cell_bounds[0]-2,selected_cell_bounds[1]-2,selected_cell_bounds[2]+2,selected_cell_bounds[3]+2])
+        cv2.rectangle(source_image_value,(330,400),(370,420),(65,65,65),-1)
+        with self.assertRaises(ValueError): extract_molding_center(source_image_value)

@@ -22,7 +22,7 @@ def execute_floor_gateway(command_name_value,payload_record_value):
 def build_floor_interface(server_base_address):
     catalog_record_value = execute_floor_gateway('catalog',{})
     with gr.Blocks(title='바닥 타일 생성기',js=HISTORY_CARD_SELECTION_SCRIPT,elem_classes=['management-generator-root']) as interface_block_value:
-        gr.Markdown('## 바닥 타일 생성기\n1단계에서 1024×1024의 9칸 이미지를 생성하고, 2단계에서 중앙 몰딩을 기계식 크롭하고, 3단계에서 사용자 설명으로 512×512 이미지를 다시 그립니다.')
+        gr.Markdown('## 바닥 타일 생성기\n1단계에서 1024×1024의 9칸 이미지를 생성하고, 2단계에서 중앙 블록 외곽을 기계식 크롭하고, 3단계에서 사용자 설명으로 512×512 이미지를 다시 그립니다.')
         with gr.Row():
             with gr.Column():
                 user_prompt_control = gr.Textbox(value=catalog_record_value['default_user_prompt'],label='사용자 프롬프트 · 바닥 표면',lines=3)
@@ -44,7 +44,7 @@ def build_floor_interface(server_base_address):
                 generation_start_button = gr.Button('바닥 타일 생성 시작',variant='primary')
                 generation_status_control = gr.Markdown('생성 가능 · 100단어 미만의 프롬프트를 입력하세요.')
             with gr.Column():
-                gr.Markdown('### 생성 과정\n1. Qwen 2512로 1024×1024의 3행×3열 이미지를 생성합니다.\n2. 중앙 블록의 몰딩 직선과 바깥 어두운 경계를 추적해 원본 픽셀을 크롭합니다. 경계 검출 실패 시 중단하고 원본을 보존합니다.\n3. 크롭 이미지를 512×512 참조로 변환하고 사용자 프롬프트만 전달해 Qwen 2511로 다시 그립니다.\n\n3단계 고정 설정: 512×512 · 4스텝 · Seed 10107. 9칸 원본·검출 경계·원본 크롭·최종 결과를 보존합니다. 재개 시 완료된 단계의 해시를 검증하여 재사용합니다.')
+                gr.Markdown('### 생성 과정\n1. Qwen 2512로 1024×1024의 3행×3열 이미지를 생성합니다.\n2. 검은 배경에서 9개 블록 외곽을 검증하고, 중앙 블록의 네 테두리와 2px 여백을 포함해 원본 픽셀을 크롭합니다. 경계 검출 실패 시 중단하고 원본을 보존합니다.\n3. 크롭 이미지를 512×512 참조로 변환하고 사용자 프롬프트만 전달해 Qwen 2511로 다시 그립니다.\n\n3단계 고정 설정: 512×512 · 4스텝 · Seed 10107. 9칸 원본·검출 경계·원본 크롭·최종 결과를 보존합니다. 재개 시 완료된 단계의 해시를 검증하여 재사용합니다.')
         current_identifier_state = gr.State('')
         def start_floor_generation(user_prompt_value,generation_tag_value,output_size_value,inference_step_value,generation_seed_value):
             generation_result_record = execute_floor_gateway('generate',{'action':'generate','user_prompt':user_prompt_value,'tag':generation_tag_value,'width':int(output_size_value),'height':int(output_size_value),'steps':int(inference_step_value),'seed':int(generation_seed_value)})
