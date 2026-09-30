@@ -16,3 +16,4 @@ materials:
   shallow-water: '#4595aa'
   deep-water: '#163e58'
   stone: '#85858a'
+  dry-soil-branches: '#866543'

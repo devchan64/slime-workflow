@@ -40,6 +40,7 @@ tiles:
   - {id: reed-bed, category: ground, asset: assets/tiles/terrain/non-road/reed-bed-128.webp, walkable: true, movement_cost: 1}
   - {id: deep-water, category: ground, asset: assets/tiles/terrain/blocked/deep-water-v1.png, walkable: false, movement_cost: 99}
   - {id: stone, category: ground, asset: assets/tiles/terrain/non-road/stone-128.webp, walkable: true, movement_cost: 1}
+  - {id: dry-soil-branches, category: ground, asset: assets/tiles/terrain/non-road/dry-soil-branches-v1.png, walkable: true, movement_cost: 1}
 connections:
   - {id: grass-to-paving, from: grass, to: paving, variants: [straight, corner, tee, cross]}
   - {id: paving-to-spring, from: paving, to: spring_water, variants: [bank-straight, bank-corner]}
