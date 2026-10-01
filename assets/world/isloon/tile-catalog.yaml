@@ -24,7 +24,7 @@ tiles:
   - {id: marble_small_window_wall, category: structure, asset: assets/tiles/buildings/marble/marble-small-window-wall-v1.png, walkable: false, movement_cost: 99}
   - {id: marble_roof, category: roof, asset: assets/tiles/buildings/marble/marble-roof-v2.png, walkable: false, movement_cost: 99}
   - {id: marble_small_door, category: door, asset: assets/tiles/buildings/marble/marble-small-door-v1.png, walkable: true, movement_cost: 1}
-  - {id: wood_roof, category: roof, asset: assets/tiles/buildings/wood/wood-roof-v3.png, walkable: false, movement_cost: 99}
+  - {id: wood_roof, category: roof, asset: assets/tiles/buildings/wood/wood-roof-v4.png, walkable: false, movement_cost: 99}
   - {id: stonewarm-guild-red-stone-roof, category: roof, asset: assets/tiles/buildings/red-stone/red-stone-roof-v2.png, walkable: false, movement_cost: 99}
   - {id: wood_wall, category: structure, asset: assets/tiles/buildings/wood/wood-wall-v2.png, walkable: false, movement_cost: 99}
   - {id: wood_window_wall, category: structure, asset: assets/tiles/buildings/wood/wood-window-wall-v1.png, walkable: false, movement_cost: 99}

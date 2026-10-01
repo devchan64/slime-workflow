@@ -1,0 +1,33 @@
+version: 1
+asset_id: character-female-four-directions-v1
+image: character-female-four-directions-v1.png
+role: baseline_reference_sheet
+runtime_adopted: false
+generator: Codex imagegen
+body_proportion: 약 5등신 목표, 이미지 육안 검수 기준
+layout: 2x2
+width: 1254
+height: 1254
+sha256: 7577b893a3796144ce6ab4e1e6ad3cc56c9a6f066407b3889cf8718810b93b20
+cells:
+  up_left:
+    x: 0
+    y: 0
+    width: 627
+    height: 627
+  up_right:
+    x: 627
+    y: 0
+    width: 627
+    height: 627
+  down_left:
+    x: 0
+    y: 627
+    width: 627
+    height: 627
+  down_right:
+    x: 627
+    y: 627
+    width: 627
+    height: 627
+source_reference: .tmp/test/female-character-reference/2026-10-01_23-59-34/female-reference.png

@@ -1,0 +1,15 @@
+schema_version: 1
+character_id: female
+baseline_source:
+  path: baseline-source-v1/character-female-four-directions-v1.png
+  sha256: 7577b893a3796144ce6ab4e1e6ad3cc56c9a6f066407b3889cf8718810b93b20
+baseline_crops:
+  root: baseline-v1
+  cell_size:
+  - 512
+  - 512
+  files:
+    up_left: 51db5216274073e96674bab517f56febab44f65f60349667dd6cd2e73e8a21db
+    up_right: 2b1cc2288e5696f6785ef7057054f0d14e6ee65bd902a67396c314c06bd12c28
+    down_left: 10c681e06ae6cb41c85fb2bd227c6073e281250285721c5601ccd88d5d5b6898
+    down_right: b3b16c79ae348750ab1260f29c1eaeb424bc943ad75351ec7f3bc2cc9ad8b7ae

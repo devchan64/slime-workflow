@@ -1,0 +1,57 @@
+schema_version: 1
+source: baseline-source-v1/character-female-four-directions-v1.png
+canvas_size:
+- 512
+- 512
+content_max_height: 476
+bottom_pixel: 494
+common_scale: 0.8013468013468014
+cells:
+  up_left:
+    source_box:
+    - 259
+    - 29
+    - 470
+    - 607
+    output_position:
+    - 171
+    - 31
+    output_size:
+    - 169
+    - 463
+  up_right:
+    source_box:
+    - 783
+    - 29
+    - 993
+    - 606
+    output_position:
+    - 172
+    - 32
+    output_size:
+    - 168
+    - 462
+  down_left:
+    source_box:
+    - 256
+    - 622
+    - 471
+    - 1215
+    output_position:
+    - 170
+    - 19
+    output_size:
+    - 172
+    - 475
+  down_right:
+    source_box:
+    - 779
+    - 621
+    - 995
+    - 1215
+    output_position:
+    - 169
+    - 18
+    output_size:
+    - 173
+    - 476
