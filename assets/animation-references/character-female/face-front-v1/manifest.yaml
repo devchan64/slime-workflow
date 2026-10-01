@@ -1,0 +1,17 @@
+schema_version: 1
+asset_id: character-female-face-front
+version: 1
+character_id: female
+role: front_face_identity_reference
+status: generated
+image: character-female-face-front-v1.png
+sha256: 9298aebb7995715bc8eb508a1a2857db4dcfc51b0b35c8740cf54d05e27497fb
+generator: Codex imagegen
+source_run: 2026-10-02_00-16-46
+source_reference:
+  path: ../baseline-v1/down_left.png
+  sha256: 10c681e06ae6cb41c85fb2bd227c6073e281250285721c5601ccd88d5d5b6898
+usage: 여성 캐릭터 정면 얼굴 베이스라인 · 기본 캐릭터와 같은 머리·목·어깨 구도
+composition_reference:
+  path: ../../character-default/face-front-v1/character-default-face-front-v1.png
+  sha256: 3c1b7b35c3dda337c7fca8fbb5a2a017aeef364fc34fdadb2883726abace30b9

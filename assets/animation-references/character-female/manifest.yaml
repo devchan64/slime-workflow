@@ -13,3 +13,7 @@ baseline_crops:
     up_right: 2b1cc2288e5696f6785ef7057054f0d14e6ee65bd902a67396c314c06bd12c28
     down_left: 10c681e06ae6cb41c85fb2bd227c6073e281250285721c5601ccd88d5d5b6898
     down_right: b3b16c79ae348750ab1260f29c1eaeb424bc943ad75351ec7f3bc2cc9ad8b7ae
+face_reference:
+  path: face-front-v1/character-female-face-front-v1.png
+  manifest: face-front-v1/manifest.yaml
+  sha256: 9298aebb7995715bc8eb508a1a2857db4dcfc51b0b35c8740cf54d05e27497fb
