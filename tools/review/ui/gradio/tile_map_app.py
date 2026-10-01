@@ -6,7 +6,6 @@ import urllib.request
 from PIL import Image
 import os
 from pathlib import Path
-import secrets
 import sys
 import threading
 import time
@@ -14,6 +13,7 @@ import gradio as gr
 
 WORKFLOW_ROOT_DIRECTORY=Path(__file__).resolve().parents[4]
 if str(WORKFLOW_ROOT_DIRECTORY) not in sys.path:sys.path.insert(0,str(WORKFLOW_ROOT_DIRECTORY))
+from tools.review.common.gradio_seed import generate_random_seed_value
 from tools.review.common.gradio_history import HISTORY_CARD_SELECTION_SCRIPT, build_generation_history_view
 from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_confirmation
 from tools.review.common.gradio_reference_images import build_reference_image_inputs
@@ -49,7 +49,6 @@ def update_reference_prompt_controls(reference_usage_enabled,*reference_image_va
     return gr.update(**control_update_values),gr.update(**control_update_values)
 
 def execute_tile_gateway(command_name_value,payload_value):return execute_management_command('tile-map',command_name_value,payload_value)
-def generate_random_seed_value():return secrets.randbelow(4294967296)
 def clear_user_prompt_value():return ''
 def append_rooftop_tile_example(current_prompt_value):
     current_prompt_text=(current_prompt_value or '').strip()
