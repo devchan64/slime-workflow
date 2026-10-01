@@ -18,6 +18,8 @@ from tools.review.common.gradio_history import HISTORY_CARD_SELECTION_SCRIPT, bu
 from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_confirmation
 from tools.review.common.management_client import execute_remote_management_command as execute_management_command
 
+from tools.review.domains.character_animation.character_animation_assets import compose_direction_prompts
+
 DIRECTION_LABEL_VALUES=[('전방 좌측','down_left'),('전방 우측','down_right'),('후방 좌측','up_left'),('후방 우측','up_right')]
 
 def execute_animation_gateway(command_name_value, payload_value):
@@ -35,6 +37,20 @@ def format_unavailable_asset_notice(catalog_record_value):
         asset_kind_label = '모션' if asset_record_value['kind']=='motion' else '캐릭터'
         notice_lines.append(f"- **{asset_kind_label} · {asset_record_value['label']}**: {asset_record_value['reason']}")
     return '\n\n'.join(notice_lines)
+
+def select_motion_prompt_values(catalog_record_value, selected_motion_name):
+    selected_motion_record=next(record for record in catalog_record_value['motions'] if record['id']==selected_motion_name)
+    return selected_motion_record['prompts']
+
+def describe_motion_prompt_words(catalog_record_value, selected_motion_name, *direction_prompt_values):
+    selected_prompt_values=select_motion_prompt_values(catalog_record_value,selected_motion_name)
+    auxiliary_prompt_values={direction_name_value:prompt_text_value for (_,direction_name_value),prompt_text_value in zip(DIRECTION_LABEL_VALUES,direction_prompt_values)}
+    final_prompt_records=compose_direction_prompts(selected_prompt_values,auxiliary_prompt_values)
+    summary_line_values=[f"기본 {len(selected_prompt_values['base'].split())}단어 · 전방 공통 보조 {len(selected_prompt_values['auxiliary'].split())}단어 · 후방 공통 보조 {len(selected_prompt_values['auxiliary_rear'].split())}단어"]
+    for direction_label_text,direction_name_value in DIRECTION_LABEL_VALUES:
+        extra_prompt_words=len(auxiliary_prompt_values.get(direction_name_value,'').split())
+        summary_line_values.append(f"{direction_label_text}: 추가 보조 {extra_prompt_words}단어 · 최종 {final_prompt_records[direction_name_value]['words']}단어")
+    return '  \n'.join(summary_line_values)
 
 def build_animation_request(motion_name_value,character_name_value,source_name_value,direction_name_values,start_frame_value,end_frame_value,resolution_value,step_value,target_fps_value,speed_value,generation_tag_value,*direction_prompt_values):
     return {'motion':motion_name_value,'character':character_name_value,'source':source_name_value,'directions':direction_name_values,'start_frame':start_frame_value,'end_frame':end_frame_value,'resolution':resolution_value,'steps':step_value,'target_fps':target_fps_value,'speed':speed_value,'tag':generation_tag_value.strip(),'direction_auxiliary_prompts':{direction: text for (_,direction),text in zip(DIRECTION_LABEL_VALUES,direction_prompt_values or ['']*4)}}
@@ -121,7 +137,7 @@ def build_character_animation_interface(server_base_address):
                     target_fps_select_value=gr.Dropdown([8],value=8,label='타겟 FPS',info='재생은 8 FPS 고정입니다. 생성 배속 2는 원본 1·3·5… 프레임을 선택합니다.')
                     speed_select_value=gr.Dropdown([1,2,4],value=2,label='생성 배속')
                 generation_tag_value=gr.Textbox(label='생성 이력 태그 · 선택 사항',placeholder='예: 돌온재 걷기 후보',max_lines=1)
-                prompt_text_value=gr.Textbox(value=catalog_record_value['prompts']['base'],label='고정 기본 프롬프트',interactive=False,lines=4)
+                prompt_text_value=gr.Textbox(value=select_motion_prompt_values(catalog_record_value,motion_choice_values[0][1])['base'],label='선택 모션의 고정 기본 프롬프트',interactive=False,lines=4)
                 reset_base_prompt_button=gr.Button('기본 프롬프트 초기화',size='sm')
                 with gr.Accordion('방향별 보조 프롬프트 · 선택 사항',open=False):
                     gr.Markdown('비워 두면 추가 지시 없이 생성합니다. 입력한 내용은 해당 방향의 고정 프롬프트 뒤에 추가됩니다.')
@@ -130,13 +146,14 @@ def build_character_animation_interface(server_base_address):
                         direction_prompt_components.append(gr.Textbox(value=motion_catalog_records[motion_choice_values[0][1]].get('direction_auxiliary_prompts',{}).get(direction_name_value,''),label=direction_label_text+' 보조 프롬프트',lines=2))
                     reset_auxiliary_prompt_button=gr.Button('보조 프롬프트 초기화',size='sm')
                     gr.Markdown('초기화하면 선택한 모션의 기본 보조 문구로 복원합니다. 기본 문구가 없으면 빈 값으로 복원합니다.')
-                def reset_base_prompt_value():
-                    return read_animation_catalog()['prompts']['base']
+                prompt_word_count_value=gr.Markdown(describe_motion_prompt_words(catalog_record_value,motion_choice_values[0][1],*[motion_catalog_records[motion_choice_values[0][1]].get('direction_auxiliary_prompts',{}).get(direction,'') for _,direction in DIRECTION_LABEL_VALUES]))
+                def reset_base_prompt_value(selected_motion_name):
+                    return select_motion_prompt_values(read_animation_catalog(),selected_motion_name)['base']
                 def reset_auxiliary_prompt_values(selected_motion_name):
                     current_catalog_record=read_animation_catalog()
                     selected_motion_record=next(record for record in current_catalog_record['motions'] if record['id']==selected_motion_name)
                     return [selected_motion_record.get('direction_auxiliary_prompts',{}).get(direction,'') for _,direction in DIRECTION_LABEL_VALUES]
-                reset_base_prompt_button.click(reset_base_prompt_value,outputs=prompt_text_value,queue=False)
+                reset_base_prompt_button.click(reset_base_prompt_value,inputs=motion_select_value,outputs=prompt_text_value,queue=False)
                 reset_auxiliary_prompt_button.click(reset_auxiliary_prompt_values,inputs=motion_select_value,outputs=direction_prompt_components,queue=False)
             with gr.Accordion('입력 포즈 미리보기',open=False):
                 preview_direction_value=gr.Dropdown(DIRECTION_LABEL_VALUES,value='down_left',label='미리보기 방향')
@@ -167,6 +184,9 @@ def build_character_animation_interface(server_base_address):
         preview_component_values=[motion_select_value,source_select_value,preview_direction_value,start_frame_value,end_frame_value,target_fps_select_value,speed_select_value]
         motion_select_value.input(change_motion_range,[motion_select_value,source_select_value,preview_direction_value,target_fps_select_value,speed_select_value,start_frame_value,end_frame_value],[start_frame_value,end_frame_value,motion_preview_html_value],queue=False)
         motion_select_value.input(lambda motion: [motion_catalog_records[motion].get('direction_auxiliary_prompts',{}).get(direction,'') for _,direction in DIRECTION_LABEL_VALUES],motion_select_value,direction_prompt_components,queue=False)
+        motion_select_value.change(lambda selected_motion_name: select_motion_prompt_values(catalog_record_value,selected_motion_name)['base'],motion_select_value,prompt_text_value,queue=False)
+        for prompt_input_component in [motion_select_value,*direction_prompt_components]:
+            prompt_input_component.change(lambda selected_motion_name,*direction_prompt_values: describe_motion_prompt_words(catalog_record_value,selected_motion_name,*direction_prompt_values),[motion_select_value,*direction_prompt_components],prompt_word_count_value,queue=False)
         for preview_input_value in (source_select_value,preview_direction_value,start_frame_value,end_frame_value,target_fps_select_value,speed_select_value):
             preview_input_value.change(refresh_motion_preview,preview_component_values,motion_preview_html_value,queue=False)
         interface_blocks_value.load(lambda:read_history_page(1),outputs=history_output_values)

@@ -16,6 +16,33 @@ from tools.review.common import management_gateway as gateway
 from tools.review.domains.character_animation.character_animation import CharacterAnimationManager
 
 class CharacterAnimationTests(unittest.TestCase):
+    def test_motion_prompts_match_catalog_and_saved_request(self):
+        catalog_record_value=assets.build_animation_catalog()
+        expected_action_texts={'standing-v10':'standing idle','walking-v13':'walking','resting-v3':'resting'}
+        for motion_record_value in catalog_record_value['motions']:
+            request_record_value=assets.prepare_animation_request({'motion':motion_record_value['id'],'character':'character-default','source':'anny','directions':['down_left'],'start_frame':1,'end_frame':15,'speed':2,'target_fps':8})
+            self.assertIn(expected_action_texts[motion_record_value['id']],request_record_value['prompts']['base'])
+            if motion_record_value['id']!='walking-v13':
+                self.assertNotIn('walking',request_record_value['prompts']['base'])
+            self.assertEqual(request_record_value['prompts'],motion_record_value['prompts'])
+            self.assertEqual(request_record_value['direction_prompts'],motion_record_value['direction_prompts'])
+            self.assertEqual(request_record_value['selected_frame_numbers'],[1,3,5,7,9,11,13,15])
+            self.assertEqual(request_record_value['frames_per_direction'],8)
+            for final_prompt_record in request_record_value['direction_prompts'].values():
+                self.assertEqual(final_prompt_record['words'],len(final_prompt_record['text'].split()))
+                self.assertLess(final_prompt_record['words'],100)
+
+    def test_motion_action_prompt_is_required(self):
+        animation_config_record=assets.load_animation_configuration()
+        del animation_config_record['motions']['standing-v10']['action_prompt']
+        with patch.object(assets,'read_asset_mapping',return_value=animation_config_record):
+            with self.assertRaisesRegex(ValueError,'모션 등록'):
+                assets.load_animation_configuration()
+        animation_config_record=assets.load_animation_configuration()
+        animation_config_record['motions']['standing-v10']['action_prompt']='missing-action.txt'
+        with self.assertRaisesRegex(ValueError,'등록 파일'):
+            assets.read_fixed_prompts(animation_config_record,'standing-v10')
+
     def make_selection_record(self,**selection_override_values):
         return dict(motion='standing-v10',character='character-default',source='anny',directions=['down_left'],**selection_override_values)
 
@@ -36,7 +63,7 @@ class CharacterAnimationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary_root_name:
             temporary_root_path=Path(temporary_root_name)
             (temporary_root_path/'prompts').mkdir()
-            for prompt_file_name in ('base.txt','front.txt','rear.txt'):
+            for prompt_file_name in ('base.txt','front.txt','rear.txt','action.txt'):
                 (temporary_root_path/'prompts'/prompt_file_name).write_text('short prompt')
             (temporary_root_path/'assets/motions/available').mkdir(parents=True)
             (temporary_root_path/'assets/motions/available/manifest.yaml').write_text('frames: 8\nfps: 4\n')
@@ -50,6 +77,7 @@ prompts:
   auxiliary_rear: prompts/rear.txt
 motions:
   available:
+    action_prompt: prompts/action.txt
     label: 사용 가능
     root: assets/motions/available
     manifest: manifest.yaml
@@ -57,6 +85,7 @@ motions:
     anny: anny/{direction}/frame-{frame:04d}.png
     target_fps: 8
   removed:
+    action_prompt: prompts/action.txt
     label: 제거됨
     root: assets/motions/removed
     manifest: manifest.yaml

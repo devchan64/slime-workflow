@@ -5,6 +5,7 @@ prompts:
   auxiliary_rear: generators/animation/config/prompts/auxiliary-rear-prompt.txt
 motions:
   standing-v10:
+    action_prompt: generators/animation/config/prompts/standing-action.txt
     direction_auxiliary_prompts:
       down_left: "The character faces toward the left side of the image, front three-quarter view. Preserve the reference pose."
       down_right: "The character faces toward the right side of the image, front three-quarter view. Preserve the reference pose."
@@ -17,6 +18,7 @@ motions:
     openpose: openpose/{direction}/openpose-{frame:04d}.png
     anny: anny/{direction}/anny-{frame:04d}.png
   walking-v13:
+    action_prompt: generators/animation/config/prompts/walking-action.txt
     direction_auxiliary_prompts:
       down_left: ""
       down_right: ""
@@ -29,6 +31,7 @@ motions:
     openpose: openpose/{direction}/openpose-{frame:04d}.png
     anny: anny/{direction}/anny-{frame:04d}.png
   resting-v3:
+    action_prompt: generators/animation/config/prompts/resting-action.txt
     direction_auxiliary_prompts:
       down_left: "The character faces toward the left side of the image, front three-quarter view. Preserve the reference pose."
       down_right: "The character faces toward the right side of the image, front three-quarter view. Preserve the reference pose."

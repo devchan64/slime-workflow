@@ -6,6 +6,15 @@ from tools.review.ui.gradio import character_animation_app
 
 
 class CharacterAnimationGradioTests(unittest.TestCase):
+    def test_selected_motion_prompt_display_matches_generation(self):
+        from tools.review.domains.character_animation.character_animation_assets import build_animation_catalog, prepare_animation_request
+        catalog_record_value=build_animation_catalog()
+        for selected_motion_name in ('standing-v10','walking-v13','resting-v3'):
+            request_record_value=prepare_animation_request({'motion':selected_motion_name,'character':'character-default','source':'anny','directions':['down_left'],'start_frame':1,'end_frame':1,'direction_auxiliary_prompts':{'down_left':'Keep pose.'}})
+            self.assertEqual(character_animation_app.select_motion_prompt_values(catalog_record_value,selected_motion_name),request_record_value['prompts'])
+            summary_text_value=character_animation_app.describe_motion_prompt_words(catalog_record_value,selected_motion_name,'Keep pose.','','','')
+            self.assertIn(f"전방 좌측: 추가 보조 2단어 · 최종 {request_record_value['direction_prompts']['down_left']['words']}단어",summary_text_value)
+
     def test_generate_uses_shared_gateway(self):
         with patch.object(character_animation_app,'execute_management_command',return_value={'id':'sample'}) as gateway_call_value:
             self.assertEqual(character_animation_app.execute_animation_gateway('generate',{'motion':'standing-v7'}),{'id':'sample'})

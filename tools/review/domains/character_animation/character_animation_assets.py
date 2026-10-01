@@ -56,8 +56,10 @@ def load_animation_configuration():
     if set(animation_config_record['prompts']) != {'base','auxiliary','auxiliary_rear'}:
         raise ValueError('기본·전방 보조·후방 보조 프롬프트 설정 필요')
     for animation_motion_record in animation_config_record['motions'].values():
-        if set(animation_motion_record)-{'direction_auxiliary_prompts'} != {'label','root','manifest','openpose','anny','target_fps'}:
+        if set(animation_motion_record)-{'direction_auxiliary_prompts'} != {'label','root','manifest','openpose','anny','target_fps','action_prompt'}:
             raise ValueError('모션 등록 형식 오류')
+        if not isinstance(animation_motion_record['action_prompt'], str) or not animation_motion_record['action_prompt'].strip():
+            raise ValueError('모션별 동작 프롬프트 경로가 필요합니다.')
         if type(animation_motion_record['target_fps']) is not int or animation_motion_record['target_fps'] != 8:
             raise ValueError('기본 타겟 FPS 오류')
     for animation_character_record in animation_config_record['characters'].values():
@@ -65,8 +67,15 @@ def load_animation_configuration():
             raise ValueError('캐릭터 등록 형식 오류')
     return animation_config_record
 
-def read_fixed_prompts(animation_config_record):
+def read_fixed_prompts(animation_config_record, selected_motion_name):
     fixed_prompt_values = {prompt_role_name:resolve_asset_path(prompt_file_name).read_text().strip() for prompt_role_name,prompt_file_name in animation_config_record['prompts'].items()}
+    selected_action_path = animation_config_record['motions'][selected_motion_name]['action_prompt']
+    selected_action_text = resolve_asset_path(selected_action_path).read_text().strip()
+    if not selected_action_text:
+        raise ValueError('모션별 동작 프롬프트가 비어 있습니다.')
+    if not fixed_prompt_values['base']:
+        raise ValueError('공통 외형 프롬프트가 비어 있습니다.')
+    fixed_prompt_values['base'] = selected_action_text+' '+fixed_prompt_values['base']
     if not all(fixed_prompt_values.values()) or any(len((fixed_prompt_values['base']+' '+fixed_prompt_values[prompt_role_name]).split()) >= 100 for prompt_role_name in ('auxiliary','auxiliary_rear')):
         raise ValueError('고정 프롬프트는 비어 있지 않고 합계 100단어 미만이어야 합니다.')
     return fixed_prompt_values
@@ -98,7 +107,13 @@ def collect_catalog_asset_records(animation_config_record):
 def build_animation_catalog():
     animation_config_record = load_animation_configuration()
     available_motion_records, available_character_records, unavailable_asset_records = collect_catalog_asset_records(animation_config_record)
-    fixed_prompt_values = read_fixed_prompts(animation_config_record)
+    for available_motion_record in available_motion_records:
+        selected_motion_name = available_motion_record['id']
+        motion_prompt_values = read_fixed_prompts(animation_config_record, selected_motion_name)
+        available_motion_record['prompts'] = motion_prompt_values
+        available_motion_record['direction_prompts'] = compose_direction_prompts(motion_prompt_values)
+    default_motion_name = next(iter(animation_config_record['motions']))
+    fixed_prompt_values = read_fixed_prompts(animation_config_record, default_motion_name)
     return {'motions':available_motion_records,'characters':available_character_records,'unavailable_assets':unavailable_asset_records,'directions':list(SUPPORTED_DIRECTION_NAMES),'prompts':fixed_prompt_values,'direction_prompts':compose_direction_prompts(fixed_prompt_values)}
 
 def prepare_animation_request(command_payload_value):
@@ -162,7 +177,7 @@ def prepare_animation_request(command_payload_value):
             if pose_reference_hash != motion_manifest_record['files'][pose_relative_path]:
                 raise ValueError(f'모션 프레임 무결성 오류: {pose_relative_path}')
             generation_frame_records.append({'direction':direction_name_value,'frame':current_frame_number,'character_path':str(character_file_path.relative_to(WORKFLOW_ROOT_DIRECTORY)),'character_sha256':character_file_hash,'pose_path':str(pose_reference_path.relative_to(WORKFLOW_ROOT_DIRECTORY)),'pose_sha256':pose_reference_hash})
-    fixed_prompt_values = read_fixed_prompts(animation_config_record)
+    fixed_prompt_values = read_fixed_prompts(animation_config_record, command_payload_value['motion'])
     combined_prompt_text = fixed_prompt_values['base']+'\n\n'+fixed_prompt_values['auxiliary']
     return {**command_payload_value,'anypose_base_strength':CHARACTER_ANYPOSE_BASE_STRENGTH if command_payload_value['source']=='anny' else 0.7,'anypose_helper_strength':CHARACTER_ANYPOSE_HELPER_STRENGTH if command_payload_value['source']=='anny' else 0.7,'resolution':selected_output_resolution,'speed':command_payload_value.get('speed',2),'frame_step':selected_frame_step,'start_frame':selected_start_frame,'end_frame':selected_end_frame,'source_frames_per_direction':motion_manifest_record['frames'],'selected_frame_numbers':selected_frame_numbers,'target_fps':None if legacy_frame_sampling else selected_target_fps,'source_fps':motion_manifest_record['fps'],'direction_prompts':compose_direction_prompts(fixed_prompt_values,command_payload_value.get('direction_auxiliary_prompts')),'direction_auxiliary_prompts':{direction:command_payload_value.get('direction_auxiliary_prompts',{}).get(direction,'') for direction in SUPPORTED_DIRECTION_NAMES},'prompts':fixed_prompt_values,'prompt_sha256':hashlib.sha256(combined_prompt_text.encode()).hexdigest(),'prompt_words':len(combined_prompt_text.split()),'frames_per_direction':len(selected_frame_numbers),'fps':output_frame_rate,'motion_manifest_sha256':hash_asset_file(motion_manifest_path),'character_manifest_sha256':hash_asset_file(character_manifest_path),'frames':generation_frame_records,'sampling':('none' if selected_frame_step==1 else 'frame-step') if legacy_frame_sampling else 'target-fps','model':'Qwen/Qwen-Image-Edit-2511','steps':selected_inference_steps,'lightning':selected_inference_steps==4}
 

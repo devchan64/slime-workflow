@@ -386,3 +386,9 @@ python3 tools/manager.py command expression resume GENERATION_ID
 `--expression`의 선택 목록은 help에서 확인한다. HTTP 계약은 기존 이미지 요청과 같은 `prompt` 필드에 표정 ID를 전달한다. 모델명·임의 추가 필드는 거절한다. 기본값은 512×512·4스텝·Seed 10107이다. GUI·CLI는 `expression` 서비스와 공용 게이트웨이·GPU 작업 실행기를 공유한다. 결과는 `.tmp/test/expression-generator/<한국시간-생성ID>/`, 이력 인덱스는 `.tmp/manager-current/expression/`에 누적한다. 이력 삭제·수동 초기화는 목록만 제거하고 결과·참조·로그는 보존한다. 브라우저 종료는 작업 종료가 아니다.
 
 새 메뉴와 서비스 반영에는 GUI·게이트웨이 코드 갱신이 필요하다. 생성 품질 확인은 참조를 입력한 단일 이미지부터 진행한다. 정식 에셋 등록은 별도 채택 후 수행한다. 이번 추가는 로컬 서비스·UI 확장이며 AWS 배포 구조나 고정 비용 리소스에는 변경이 없다.
+
+### 캐릭터 애니메이션 모션별 프롬프트
+
+`generators/animation/config/character_animation.yaml`의 모션별 `action_prompt`가 동작 지시를 선택한다. 대기는 `standing-action.txt`, 걷기는 `walking-action.txt`, 휴식은 `resting-action.txt`를 사용한다. 공통 `base-prompt.txt`는 외형 보존만 담당한다. 동작 문구와 공통 외형 문구를 결합한 기본 프롬프트에 방향별 고정·사용자 보조 문구를 붙이며, 실제 입력은 100단어 미만으로 검증한다. 모션별 경로 누락·파일 누락·빈 문구는 즉시 거절한다.
+
+카탈로그의 각 모션 `prompts`·`direction_prompts`는 해당 모션의 고정 입력이다. GUI는 모션 선택·이력 불러오기·기본 문구 초기화 시 선택 모션의 원문과 단어 수를 표시한다. CLI와 GUI의 실행 요청은 같은 조합 함수를 사용하고 실제 원문·단어 수·해시는 기존 request.json에 보존한다. 이전 생성 이력의 재개는 저장한 프롬프트를 유지한다. 프롬프트 변경 후에는 1프레임 샘플을 먼저 확인하고 배치 생성으로 확대한다.
