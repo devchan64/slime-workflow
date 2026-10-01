@@ -105,7 +105,7 @@ class FloorGenerationTests(unittest.TestCase):
             self.assertEqual(prepare_floor_request(self.create_floor_request()|{'user_prompt':'돌 바닥'})['floor_separation']['prompt'],'돌 바닥')
             self.assertNotIn('floor_rectify',prepared_request_value)
             self.assertEqual(prepared_request_value['floor_separation']['prompt'],'잔디밭')
-            self.assertIn('floor-three-stage-v9',build_image_memory_identity('run_qwen_2512.py',current_job_root))
+            self.assertIn('floor-three-stage-v10',build_image_memory_identity('run_qwen_2512.py',current_job_root))
             launched_stage_names = []
             def simulate_stage_process(command_argument_values, **process_keyword_values):
                 stage_output_directory = Path(command_argument_values[-1])
@@ -193,7 +193,7 @@ class FloorGenerationTests(unittest.TestCase):
         cropped_image_value,_,crop_record_value=extract_molding_center(source_image_value)
         self.assertEqual(crop_record_value['crop_box'],original_crop_record['crop_box'])
         self.assertEqual(cropped_image_value.shape,original_crop_value.shape)
-        self.assertEqual(crop_record_value['version'],8)
+        self.assertEqual(crop_record_value['version'],9)
         self.assertEqual(len(crop_record_value['detected_cells']),9)
         selected_cell_bounds=next(record_value['bounds'] for record_value in crop_record_value['detected_cells'] if record_value['row']==2 and record_value['column']==2)
         self.assertEqual(crop_record_value['crop_box'],[selected_cell_bounds[0]-2,selected_cell_bounds[1]-2,selected_cell_bounds[2]+2,selected_cell_bounds[3]+2])
@@ -273,3 +273,31 @@ class FloorGenerationTests(unittest.TestCase):
         cv2.rectangle(source_image_value,(685,685),(935,935),(75,75,75),-1)
         with self.assertRaisesRegex(ValueError,'테두리 9개'):
             extract_molding_center(source_image_value)
+
+    def test_narrow_background_sampling_excludes_marble_frame(self):
+        from tools.review.domains.tile.floor_crop import extract_molding_center
+        source_image_value = np.zeros((1024,1024,3),dtype='uint8')
+        for current_row_index in range(3):
+            for current_column_index in range(3):
+                left_pixel_value = 12+current_column_index*336
+                top_pixel_value = 12+current_row_index*336
+                cv2.rectangle(source_image_value,(left_pixel_value,top_pixel_value),(left_pixel_value+320,top_pixel_value+320),(70,70,70),1)
+                cv2.rectangle(source_image_value,(left_pixel_value+20,top_pixel_value+20),(left_pixel_value+300,top_pixel_value+300),(180,190,200),-1)
+        with self.assertRaisesRegex(ValueError,'배경 조건'):
+            extract_molding_center(source_image_value,8)
+        cropped_image_value,_,crop_record_value = extract_molding_center(source_image_value,9)
+        self.assertEqual(len(crop_record_value['detected_cells']),9)
+        self.assertEqual(crop_record_value['parameters']['sample_width'],8)
+        crop_left_value,crop_top_value,crop_right_value,crop_bottom_value = crop_record_value['crop_box']
+        np.testing.assert_array_equal(cropped_image_value,source_image_value[crop_top_value:crop_bottom_value,crop_left_value:crop_right_value])
+        # 한쪽 변이 밝으면 다른 세 변의 검정 배경으로 감추지 않는다.
+        source_image_value[:8,:] = 60
+        with self.assertRaisesRegex(ValueError,'배경 조건'):
+            extract_molding_center(source_image_value,9)
+
+    def test_narrow_background_still_rejects_missing_cell(self):
+        from tools.review.domains.tile.floor_crop import extract_molding_center
+        source_image_value = self.create_molding_fixture()
+        source_image_value[690:996,690:996] = 0
+        with self.assertRaisesRegex(ValueError,'9개'):
+            extract_molding_center(source_image_value,9)
