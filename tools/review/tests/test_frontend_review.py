@@ -36,6 +36,22 @@ class FrontendReviewTests(unittest.TestCase):
         self.assertEqual(len(source_image_paths), 1)
         self.assertEqual(self.animation_metadata_path.read_bytes(), original_metadata_bytes)
 
+    def test_rest_multiple_actions_preserve_hold_policy(self):
+        self.animation_source_data['animationId'] = 'character.default.white-shirt.rest'
+        self.animation_source_data['frames'] = self.animation_source_data['frames'][:1]
+        original_clip_record = self.animation_source_data['clips'][0]
+        self.animation_source_data['clips'] = [dict(original_clip_record, clipId=action_name_value+'.down_left', action=action_name_value, loop=False) for action_name_value in ('rest-entry', 'idle', 'rest-exit')]
+        (self.frontend_asset_root/'source.yaml').write_text('referenceBodyHeight: 353\ngameBodyHeight: 80\n')
+        self.write_source_fixture()
+        review_frame_records, review_source_metadata, _ = load_animation_review(self.frontend_asset_root, self.animation_metadata_path)
+        self.assertEqual(len(review_frame_records), 1)
+        self.assertEqual(review_source_metadata['clips'], self.animation_source_data['clips'])
+        self.assertEqual(review_source_metadata['runtimeScale']['sourceHeight'], 353)
+        self.animation_source_data['clips'].append(self.animation_source_data['clips'][0])
+        self.write_source_fixture()
+        with self.assertRaisesRegex(ValueError, '중복'):
+            load_animation_review(self.frontend_asset_root, self.animation_metadata_path)
+
     def test_missing_image_is_explicit_failure(self):
         (self.frontend_asset_root/'idle.png').unlink()
         with self.assertRaisesRegex(ValueError, '파일 누락'):

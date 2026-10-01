@@ -33,3 +33,5 @@
 - [최신 좌하 걷기 AnyPose 결과](walking-down-left-anypose-20260930-234839/README.md): 기존 4방향 걷기 리포트 대체. 좌하 12프레임·8 FPS GIF, 입력·실행 기록·출처·해시.
 
 - [최신 좌하 대기 AnyPose 8프레임](standing-down-left-anypose-20261001-092412/README.md): 대기 전용 프롬프트, 원본 1~15번·2배속·8 FPS GIF, 입력·실행 기록·출처·해시.
+
+- [최신 좌하 휴식 진입·해제 AnyPose](resting-down-left-anypose-20261001-1327/README.md): 정지 구간 축소, 4배속·8 FPS, 진입 13장·해제 8장 GIF, 실행 기록·출처·해시 및 품질 오류 기록.

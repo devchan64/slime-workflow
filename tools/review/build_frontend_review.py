@@ -198,7 +198,7 @@ def load_animation_review(frontend_asset_root, animation_metadata_path):
         source_sheet_records.append({'direction': current_direction_name, 'image': current_sheet_path.name, 'sha256': actual_sheet_hash})
     animation_frame_records = animation_source_data['frames']
     animation_clip_records = animation_source_data['clips']
-    if not isinstance(animation_frame_records, list) or not animation_frame_records or not isinstance(animation_clip_records, list) or len(animation_clip_records) != len(selected_clip_directions):
+    if not isinstance(animation_frame_records, list) or not animation_frame_records or not isinstance(animation_clip_records, list) or not animation_clip_records:
         raise ValueError('프레임 목록과 방향별 클립이 필요합니다.')
     source_frame_lookup = {}
     for current_frame_record in animation_frame_records:
@@ -217,39 +217,45 @@ def load_animation_review(frontend_asset_root, animation_metadata_path):
             raise ValueError('앵커는 셀 내부의 유한 숫자여야 합니다.')
         source_frame_lookup[current_frame_identifier] = current_frame_record
     review_frame_records = []
-    seen_direction_names = set()
+    seen_direction_actions = set()
+    seen_clip_identifiers = set()
     seen_frame_identifiers = set()
     frame_duration_values = set()
-    direction_frame_counts = set()
     for current_clip_record in animation_clip_records:
         require_record_fields(current_clip_record, ('clipId', 'action', 'direction', 'frames', 'loop', 'nextClipId'), '클립')
         current_direction_name = current_clip_record['direction']
-        if current_direction_name not in REVIEW_DIRECTION_NAMES or current_direction_name in seen_direction_names:
+        if current_direction_name not in REVIEW_DIRECTION_NAMES or (current_direction_name, current_clip_record['action']) in seen_direction_actions:
             raise ValueError('클립 방향이 잘못되었거나 중복되었습니다.')
-        if any(not isinstance(current_clip_record[current_field_name], str) or not current_clip_record[current_field_name] for current_field_name in ('clipId', 'action')) or current_clip_record['loop'] is not True or current_clip_record['nextClipId'] is not None:
-            raise ValueError('현재 검수기는 독립적인 반복 클립만 지원합니다.')
+        if any(not isinstance(current_clip_record[current_field_name], str) or not current_clip_record[current_field_name] for current_field_name in ('clipId', 'action')) or type(current_clip_record['loop']) is not bool or current_clip_record['nextClipId'] is not None:
+            raise ValueError('현재 검수기는 독립적인 반복 또는 종료 고정 클립만 지원합니다.')
         if not isinstance(current_clip_record['frames'], list) or not current_clip_record['frames']:
             raise ValueError('클립 프레임 목록이 필요합니다.')
-        seen_direction_names.add(current_direction_name)
-        direction_frame_counts.add(len(current_clip_record['frames']))
-        for frame_sequence_index, clip_frame_record in enumerate(current_clip_record['frames']):
+        if current_clip_record['clipId'] in seen_clip_identifiers:
+            raise ValueError('중복 클립 ID입니다.')
+        seen_clip_identifiers.add(current_clip_record['clipId'])
+        seen_direction_actions.add((current_direction_name, current_clip_record['action']))
+        for clip_frame_record in current_clip_record['frames']:
             require_record_fields(clip_frame_record, ('frameId', 'durationMs'), '클립 프레임')
             current_frame_identifier = clip_frame_record['frameId']
-            if current_frame_identifier != f'{current_direction_name}.{frame_sequence_index}' or current_frame_identifier not in source_frame_lookup or current_frame_identifier in seen_frame_identifiers:
+            if not current_frame_identifier.startswith(current_direction_name+'.') or current_frame_identifier not in source_frame_lookup:
                 raise ValueError('방향별 순차 프레임 참조가 잘못되었습니다.')
             if type(clip_frame_record['durationMs']) is not int or clip_frame_record['durationMs'] < 1:
                 raise ValueError('프레임 시간은 양의 정수여야 합니다.')
             frame_duration_values.add(clip_frame_record['durationMs'])
+            if current_frame_identifier in seen_frame_identifiers:
+                continue
             seen_frame_identifiers.add(current_frame_identifier)
             current_frame_record = source_frame_lookup[current_frame_identifier]
             review_frame_records.append({**current_frame_record, 'direction': current_direction_name, 'image': direction_sheet_paths[current_direction_name].name, 'contacts': [dict(current_frame_record['anchor']), dict(current_frame_record['anchor'])], 'endpoints': []})
-    if len(direction_frame_counts) != 1 or len(frame_duration_values) != 1 or seen_frame_identifiers != set(source_frame_lookup):
-        raise ValueError('동일한 방향별 프레임 수·시간 및 전체 프레임 참조가 필요합니다.')
+    if len(frame_duration_values) != 1 or seen_frame_identifiers != set(source_frame_lookup):
+        raise ValueError('동일한 프레임 시간 및 전체 프레임 참조가 필요합니다.')
     animation_identifier_text = animation_source_data['animationId']
     if source_game_body_height is not None and (type(source_game_body_height) not in (int, float) or not math.isfinite(source_game_body_height) or source_game_body_height <= 0):
         raise ValueError(f'{animation_metadata_path}: gameBodyHeight는 양의 유한 숫자이어야 합니다.')
     if animation_identifier_text == 'character.default.white-shirt.rest':
-        runtime_scale_metadata = {'actorKind': 'human-rest', 'baseHeight': source_game_body_height or 33, 'sourceHeightMultiplier': 0.75, 'defaultSizeClass': 'medium'}
+        if type(source_reference_body_height) not in (int, float) or not math.isfinite(source_reference_body_height) or source_reference_body_height <= 0:
+            raise ValueError('휴식 에셋의 referenceBodyHeight가 필요합니다.')
+        runtime_scale_metadata = {'actorKind': 'human-rest', 'baseHeight': source_game_body_height or 80, 'sourceHeight': source_reference_body_height, 'defaultSizeClass': 'medium'}
     elif animation_identifier_text.startswith('monster.'):
         default_size_class = {'monster.slime.idle': 'small', 'monster.giant.idle': 'large'}.get(animation_identifier_text, 'medium')
         runtime_scale_metadata = {'actorKind': 'monster', 'baseHeight': 60, 'sourceHeightMultiplier': 0.75, 'defaultSizeClass': default_size_class}
@@ -257,7 +263,7 @@ def load_animation_review(frontend_asset_root, animation_metadata_path):
         if type(source_reference_body_height) not in (int, float) or not math.isfinite(source_reference_body_height) or source_reference_body_height <= 0:
             raise ValueError(f'{animation_metadata_path}: 게임 출력 비율에 필요한 referenceBodyHeight가 없습니다.')
         runtime_scale_metadata = {'actorKind': 'human', 'baseHeight': source_game_body_height or 60, 'sourceHeight': source_reference_body_height, 'defaultSizeClass': 'medium'}
-    review_source_metadata = {'coordinateMode': 'anchor', 'registeredSource': True, 'animationId': animation_identifier_text, 'animationVersion': animation_source_data['version'], 'artifactType': 'character-animation-anchor-review', 'exportFilename': animation_metadata_path.name.removesuffix('.animation.json')+'-anchor-review.json', 'frameDurationMs': next(iter(frame_duration_values)), 'sheets': source_sheet_records, 'runtimeScale': runtime_scale_metadata, 'description': '프론트엔드 등록 메타데이터의 앵커 검수. 원본 소수 좌표를 유지하며 클릭 지정은 정수 픽셀을 사용합니다. 저장 파일은 별도 검수 산출물입니다.'}
+    review_source_metadata = {'coordinateMode': 'anchor', 'registeredSource': True, 'animationId': animation_identifier_text, 'animationVersion': animation_source_data['version'], 'artifactType': 'character-animation-anchor-review', 'exportFilename': animation_metadata_path.name.removesuffix('.animation.json')+'-anchor-review.json', 'clips': animation_clip_records, 'frameDurationMs': next(iter(frame_duration_values)), 'sheets': source_sheet_records, 'runtimeScale': runtime_scale_metadata, 'description': '프론트엔드 등록 메타데이터의 앵커 검수. 원본 소수 좌표를 유지하며 클릭 지정은 정수 픽셀을 사용합니다. 저장 파일은 별도 검수 산출물입니다.'}
     return review_frame_records, review_source_metadata, set(direction_sheet_paths.values())
 
 
