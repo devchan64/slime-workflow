@@ -50,20 +50,35 @@ def create_gateway_request_handler(dispatch_runtime_request):
     return GatewayRequestHandler
 
 
+def create_gateway_trace_logger(gateway_log_path):
+    """파일 로그는 필수로 기록하고 닫힌 콘솔 파이프는 HTTP 응답에 전파하지 않는다."""
+    gateway_trace_lock = threading.Lock()
+    console_output_active = True
+
+    def emit_gateway_trace(trace_stage_name, trace_message_text):
+        nonlocal console_output_active
+        trace_line_text = f'{datetime.now().isoformat()}/management-gateway/{trace_stage_name} {trace_message_text}'
+        with gateway_trace_lock:
+            with gateway_log_path.open('a') as gateway_log_stream:
+                gateway_log_stream.write(trace_line_text + '\n')
+            if console_output_active:
+                try:
+                    print(trace_line_text, flush=True)
+                except BrokenPipeError:
+                    console_output_active = False
+                    with gateway_log_path.open('a') as gateway_log_stream:
+                        gateway_log_stream.write(f'{datetime.now().isoformat()}/management-gateway/console-detached 콘솔 파이프 종료 · 파일 로그 유지\n')
+    return emit_gateway_trace
+
+
 def run_management_gateway(server_port_number, writer_workspace_config=None):
     from tools.review.common.management_runtime import create_management_runtime
     gateway_stop_event = threading.Event()
-    gateway_trace_lock = threading.Lock()
     gateway_log_directory = WORKFLOW_ROOT_DIRECTORY / '.tmp/gateway-server-logs'
     gateway_log_directory.mkdir(parents=True, exist_ok=True)
     gateway_log_path = gateway_log_directory / f'{datetime.now():%Y-%m-%d_%H-%M-%S}-{os.getpid()}.log'
 
-    def emit_gateway_trace(trace_stage_name, trace_message_text):
-        trace_line_text = f'{datetime.now().isoformat()}/management-gateway/{trace_stage_name} {trace_message_text}'
-        with gateway_trace_lock:
-            print(trace_line_text, flush=True)
-            with gateway_log_path.open('a') as gateway_log_stream:
-                gateway_log_stream.write(trace_line_text + '\n')
+    emit_gateway_trace = create_gateway_trace_logger(gateway_log_path)
 
     def emit_gateway_heartbeat():
         while not gateway_stop_event.wait(GATEWAY_HEARTBEAT_SECONDS):
