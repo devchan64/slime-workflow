@@ -10,3 +10,7 @@
 ## 기준 시트 원본
 
 `baseline-source-v2/`는 프론트엔드에서 이관한 승인된 2×2 기준 시트와 셀 좌표·출처 sidecar다. `manifest.yaml`의 `baseline_source.path`는 manifest 디렉터리 기준 상대 경로이며 해시로 원본을 검증한다. `baseline-v2/`의 방향별 참조와 구분한다. 게임 런타임에서 사용하지 않는다.
+
+## 기본 캐릭터 정면 얼굴 기준
+
+`face-front-v1/`는 승인된 정면 얼굴 레퍼런스다. 얼굴 비율·갈색 헤어·눈동자·피부색의 제작 기준으로 사용하며 `manifest.yaml`의 `face_reference`에서 원본과 해시를 확인한다. 전신 애니메이션의 방향·체형 참조는 기존 `baseline-v2/`를 사용한다.
