@@ -1,0 +1,34 @@
+2026-10-01 09:24:17,459/qwen-pose/heartbeat stage=imports step=0/4 elapsed=5s gpu=112 MiB, 0 % log_bytes=0
+2026-10-01 09:24:19,082/qwen-pose/reference vae_size=512x512 output_size=512x512 condition_size=384x384
+2026-10-01 09:24:19,082/qwen-pose/reference order=['character', 'rig'] kind=rig
+2026-10-01 09:24:20,093/qwen-pose/load model_id=Qwen/Qwen-Image-Edit-2511 model_path=/home/cbsim/ws/slime-workflow/.model/qwen-image-edit-2511/6f3ccc0b56e431dc6a0c2b2039706d7d26f22cb9
+2026-10-01 09:24:21,373/qwen-pose/adapter name=anypose_base strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-base-000006250.safetensors
+2026-10-01 09:24:21,915/qwen-pose/adapter name=anypose_helper strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-helper-00006000.safetensors
+2026-10-01 09:24:22,498/qwen-pose/heartbeat stage=adapters step=0/4 elapsed=10s gpu=112 MiB, 0 % log_bytes=936
+2026-10-01 09:24:22,651/qwen-pose/adapter name=lightning strength=1.0 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lightx2v--Qwen-Image-Edit-2511-Lightning/d74eba145674fd7e31b949324e148e21e7118abd/Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors
+2026-10-01 09:24:27,538/qwen-pose/heartbeat stage=adapters step=0/4 elapsed=15s gpu=112 MiB, 0 % log_bytes=1314
+2026-10-01 09:24:28,139/qwen-pose/inference size=512x512 steps=4 seed=10107 device=cuda dtype=bfloat16 offload=sequential
+2026-10-01 09:24:32,557/qwen-pose/heartbeat stage=inference step=0/4 elapsed=20s gpu=351 MiB, 2 % log_bytes=1548
+2026-10-01 09:24:37,577/qwen-pose/heartbeat stage=inference step=0/4 elapsed=25s gpu=647 MiB, 5 % log_bytes=1661
+2026-10-01 09:24:42,596/qwen-pose/heartbeat stage=inference step=0/4 elapsed=30s gpu=723 MiB, 4 % log_bytes=1774
+2026-10-01 09:24:47,622/qwen-pose/heartbeat stage=inference step=0/4 elapsed=35s gpu=423 MiB, 20 % log_bytes=1887
+2026-10-01 09:24:52,666/qwen-pose/heartbeat stage=inference step=0/4 elapsed=40s gpu=455 MiB, 6 % log_bytes=2001
+2026-10-01 09:24:57,688/qwen-pose/heartbeat stage=inference step=0/4 elapsed=45s gpu=699 MiB, 0 % log_bytes=2114
+2026-10-01 09:25:02,708/qwen-pose/heartbeat stage=inference step=0/4 elapsed=50s gpu=475 MiB, 21 % log_bytes=2227
+2026-10-01 09:25:07,727/qwen-pose/heartbeat stage=inference step=0/4 elapsed=55s gpu=643 MiB, 5 % log_bytes=2341
+2026-10-01 09:25:12,771/qwen-pose/heartbeat stage=inference step=0/4 elapsed=60s gpu=461 MiB, 15 % log_bytes=2454
+2026-10-01 09:25:17,800/qwen-pose/heartbeat stage=inference step=0/4 elapsed=65s gpu=481 MiB, 1 % log_bytes=2568
+2026-10-01 09:25:22,824/qwen-pose/heartbeat stage=inference step=0/4 elapsed=70s gpu=791 MiB, 11 % log_bytes=2681
+2026-10-01 09:25:27,844/qwen-pose/heartbeat stage=inference step=0/4 elapsed=75s gpu=639 MiB, 3 % log_bytes=2795
+2026-10-01 09:25:32,866/qwen-pose/heartbeat stage=inference step=0/4 elapsed=80s gpu=683 MiB, 2 % log_bytes=2908
+2026-10-01 09:25:37,887/qwen-pose/heartbeat stage=inference step=0/4 elapsed=85s gpu=727 MiB, 11 % log_bytes=3021
+2026-10-01 09:25:39,724/qwen-pose/denoise step=1/4
+2026-10-01 09:25:42,915/qwen-pose/heartbeat stage=inference step=1/4 elapsed=90s gpu=717 MiB, 21 % log_bytes=3186
+2026-10-01 09:25:47,936/qwen-pose/heartbeat stage=inference step=1/4 elapsed=96s gpu=645 MiB, 44 % log_bytes=3300
+2026-10-01 09:25:51,241/qwen-pose/denoise step=2/4
+2026-10-01 09:25:52,957/qwen-pose/heartbeat stage=inference step=2/4 elapsed=101s gpu=553 MiB, 63 % log_bytes=3465
+2026-10-01 09:25:57,876/qwen-pose/denoise step=3/4
+2026-10-01 09:25:57,987/qwen-pose/heartbeat stage=inference step=3/4 elapsed=106s gpu=767 MiB, 39 % log_bytes=3631
+2026-10-01 09:26:03,009/qwen-pose/heartbeat stage=inference step=3/4 elapsed=111s gpu=463 MiB, 63 % log_bytes=3746
+2026-10-01 09:26:04,532/qwen-pose/denoise step=4/4
+2026-10-01 09:26:05,421/qwen-pose/complete output=/home/cbsim/ws/slime-workflow/.tmp/test/character-animation/2026-10-01_09-24-12/2026-10-01_09-24-12-f1cdb83f/down_left/frame-0001/result.png
