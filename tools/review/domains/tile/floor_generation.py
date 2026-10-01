@@ -11,19 +11,16 @@ FLOOR_CONFIGURATION_PATH = WORKFLOW_ROOT_PATH/'generators/terrain/config/floor_t
 
 def load_floor_configuration():
     configuration_record_value = yaml.load(FLOOR_CONFIGURATION_PATH.read_text(), Loader=UniqueMappingLoader)
-    if not isinstance(configuration_record_value, dict) or set(configuration_record_value) != {'schema_version','base_prompt','style_prompt','default_user_prompt','source_generation_id','separation_size','separation_steps','separation_seed'} or configuration_record_value['schema_version'] != 3:
+    if not isinstance(configuration_record_value, dict) or set(configuration_record_value) != {'schema_version','base_prompt','default_user_prompt'} or configuration_record_value['schema_version'] != 4:
         raise ValueError('바닥 타일 설정 형식 오류')
-    if any(not isinstance(configuration_record_value[current_field_name],str) or not configuration_record_value[current_field_name].strip() for current_field_name in ('base_prompt','style_prompt','default_user_prompt','source_generation_id')):
+    if any(not isinstance(configuration_record_value[current_field_name],str) or not configuration_record_value[current_field_name].strip() for current_field_name in ('base_prompt','default_user_prompt')):
         raise ValueError('바닥 타일 설정 문자열 오류')
-    for current_field_name, expected_field_value in (('separation_size',512),('separation_steps',4),('separation_seed',10107)):
-        if type(configuration_record_value[current_field_name]) is not int or configuration_record_value[current_field_name] != expected_field_value:
-            raise ValueError('분리 단계 고정 설정 오류: '+current_field_name)
     return configuration_record_value
 
 def combine_floor_prompt(user_prompt_value, configuration_record_value):
     if not isinstance(user_prompt_value,str) or not user_prompt_value.strip():
         raise ValueError('바닥 표면 프롬프트를 입력하세요.')
-    return ' '.join([user_prompt_value.strip().rstrip('.')+'.', configuration_record_value['base_prompt'], configuration_record_value['style_prompt']])
+    return ' '.join([user_prompt_value.strip().rstrip('.')+'.', configuration_record_value['base_prompt']])
 
 def prepare_floor_request(request_record_value):
     if request_record_value == {'action':'prepare'}: return request_record_value
@@ -35,8 +32,9 @@ def prepare_floor_request(request_record_value):
     generation_tag_value = request_record_value.get('tag','')
     if not isinstance(generation_tag_value,str) or len(generation_tag_value)>80 or '\n' in generation_tag_value or '\r' in generation_tag_value: raise ValueError('생성 태그는 줄바꿈 없이 80자 이하여야 합니다.')
     validated_request_value = validate_image_request({current_field_name:request_record_value[current_field_name] for current_field_name in ('action','width','height','steps')} | {'seed':request_record_value.get('seed',251204),'prompt':combined_prompt_value})
-    if validated_request_value['action'] != 'generate' or validated_request_value['width'] != validated_request_value['height'] or validated_request_value['width'] != 1024: raise ValueError('바닥 타일은 1024×1024 · 3행 3열 생성만 지원합니다.')
-    return validated_request_value | {'user_prompt':request_record_value['user_prompt'].strip(),'tag':generation_tag_value,'base_prompt':configuration_record_value['base_prompt'],'style_prompt':configuration_record_value['style_prompt'],'prompt_words':len(combined_prompt_value.split()),'prompt_sha256':hashlib.sha256(combined_prompt_value.encode()).hexdigest(),'floor_separation':{'version':10,'prompt':request_record_value['user_prompt'].strip(),'width':configuration_record_value['separation_size'],'height':configuration_record_value['separation_size'],'steps':configuration_record_value['separation_steps'],'seed':configuration_record_value['separation_seed'],'prompt_words':len(request_record_value['user_prompt'].strip().split()),'prompt_sha256':hashlib.sha256(request_record_value['user_prompt'].strip().encode()).hexdigest()}}
+    if validated_request_value['action'] != 'generate' or validated_request_value['width'] != validated_request_value['height'] or validated_request_value['width'] != 512 or validated_request_value['steps'] != 4: raise ValueError('바닥 타일은 512×512 · 4스텝 단일 생성만 지원합니다.')
+    return validated_request_value | {'user_prompt':request_record_value['user_prompt'].strip(),'tag':generation_tag_value,'base_prompt':configuration_record_value['base_prompt'],'prompt_words':len(combined_prompt_value.split()),'prompt_sha256':hashlib.sha256(combined_prompt_value.encode()).hexdigest()}
+
 
 class FloorGenerationManager(TileGenerationManager):
     def __init__(self):

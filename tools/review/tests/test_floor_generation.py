@@ -12,11 +12,16 @@ from tools.review.common import management_gateway
 
 class FloorGenerationTests(unittest.TestCase):
     def create_floor_request(self):
-        return dict(action='generate',user_prompt='잔디밭',width=1024,height=1024,steps=4,seed=251204)
+        return dict(action='generate',user_prompt='잔디밭',width=512,height=512,steps=4,seed=251204)
     def test_fixed_prompt_and_validation(self):
         prepared_request_value = prepare_floor_request(self.create_floor_request())
-        self.assertEqual(prepared_request_value['prompt'],'잔디밭. 분리된 정사각형 9개. 3행 3열. 아주 얇은 검은 테두리. 검은 배경. 탑뷰. 컬러 일러스트.')
-        for invalid_field_values in ({'base_prompt':'override'},{'user_prompt':''},{'width':1008,'height':1008},{'seed':True},{'width':512},{'images':[]}):
+        self.assertEqual(prepared_request_value['prompt'],'잔디밭. Overhead Close-up. Color illustration. Black edge.')
+        for current_legacy_field in ('floor_separation','floor_rectify','border_crop','style_prompt'):
+            self.assertNotIn(current_legacy_field,prepared_request_value)
+        self.assertEqual(prepared_request_value['width'],512)
+        self.assertEqual(prepared_request_value['height'],512)
+        self.assertEqual(prepared_request_value['steps'],4)
+        for invalid_field_values in ({'base_prompt':'override'},{'user_prompt':''},{'width':1008,'height':1008},{'seed':True},{'width':1024,'height':1024},{'steps':30},{'images':[]}):
             with self.subTest(invalid=invalid_field_values),self.assertRaises(ValueError):
                 prepare_floor_request(self.create_floor_request()|invalid_field_values)
     def test_cli_contract(self):
@@ -101,8 +106,10 @@ class FloorGenerationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary_directory_value:
             current_job_root = Path(temporary_directory_value)
             prepared_request_value = prepare_floor_request(self.create_floor_request())
+            prepared_request_value.update(width=1024,height=1024)
+            import hashlib
+            prepared_request_value['floor_separation']={'version':10,'prompt':'잔디밭','width':512,'height':512,'steps':4,'seed':10107,'prompt_words':1,'prompt_sha256':hashlib.sha256('잔디밭'.encode()).hexdigest()}
             (current_job_root/'request.json').write_text(json.dumps(prepared_request_value))
-            self.assertEqual(prepare_floor_request(self.create_floor_request()|{'user_prompt':'돌 바닥'})['floor_separation']['prompt'],'돌 바닥')
             self.assertNotIn('floor_rectify',prepared_request_value)
             self.assertEqual(prepared_request_value['floor_separation']['prompt'],'잔디밭')
             self.assertIn('floor-three-stage-v10',build_image_memory_identity('run_qwen_2512.py',current_job_root))

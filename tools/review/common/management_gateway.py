@@ -149,7 +149,7 @@ class ManagementCommandGateway:
         return True
 
 
-MANAGEMENT_COMMAND_DESCRIPTIONS = {'expression':'Qwen 2511 AU 표정 생성 · 참조 1~3장 · --expression에 표정 ID 지정','floor-tile':'9칸 생성·중앙 기계식 크롭·512 다시 그리기 (관리 서버 필요)','anny':'ANNY 이력 상태·중지·재개 (관리 서버 필요)','tile-map':'건물 지붕·벽·문 표면을 기본·화풍 프롬프트로 생성 (관리 서버 필요)','character-animation':'등록 모션·캐릭터 기반 애니메이션 생성·이력·재생 결과 조회','momask': 'MoMask 생성·상태·로그·이력 조회·취소 (웹과 기록 공유)', 'qwen-2512': 'Qwen 2512 텍스트 이미지 생성 (관리 서버 필요)', 'qwen-2511': 'Qwen 2511 텍스트·1~3장 참조 이미지 생성 (관리 서버 필요)'}
+MANAGEMENT_COMMAND_DESCRIPTIONS = {'expression':'Qwen 2511 AU 표정 생성 · 참조 1~3장 · --expression에 표정 ID 지정','floor-tile':'512×512·4스텝 단일 바닥 타일 생성 (관리 서버 필요)','anny':'ANNY 이력 상태·중지·재개 (관리 서버 필요)','tile-map':'건물 지붕·벽·문 표면을 기본·화풍 프롬프트로 생성 (관리 서버 필요)','character-animation':'등록 모션·캐릭터 기반 애니메이션 생성·이력·재생 결과 조회','momask': 'MoMask 생성·상태·로그·이력 조회·취소 (웹과 기록 공유)', 'qwen-2512': 'Qwen 2512 텍스트 이미지 생성 (관리 서버 필요)', 'qwen-2511': 'Qwen 2511 텍스트·1~3장 참조 이미지 생성 (관리 서버 필요)'}
 
 def execute_management_command(service_command_name, operation_command_name, command_payload_value, server_base_address=None, *, gateway_request_handler=None, service_handler_values=None):
     request_method_value,request_route_value=resolve_management_command(service_command_name,operation_command_name,command_payload_value)
@@ -212,9 +212,9 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
                 else:
                     prompt_argument_group.add_argument('--prompt')
                 prompt_argument_group.add_argument('--prompt-file',type=Path,help='UTF-8 프롬프트 파일')
-                operation_argument_parser.add_argument('--width',type=int,default=512 if service_command_name in ('qwen-2511','expression') else 1024)
-                operation_argument_parser.add_argument('--height',type=int,default=512 if service_command_name in ('qwen-2511','expression') else 1024)
-                operation_argument_parser.add_argument('--steps',type=int,choices=(4,30),default=4)
+                operation_argument_parser.add_argument('--width',type=int,default=512 if service_command_name in ('qwen-2511','expression','floor-tile') else 1024)
+                operation_argument_parser.add_argument('--height',type=int,default=512 if service_command_name in ('qwen-2511','expression','floor-tile') else 1024)
+                operation_argument_parser.add_argument('--steps',type=int,choices=(4,) if service_command_name=='floor-tile' else (4,30),default=4)
                 operation_argument_parser.add_argument('--seed',type=int,default=10107 if service_command_name in ('qwen-2511','tile-map','expression') else 251204)
                 if service_command_name in ('qwen-2511','tile-map','expression'):
                     operation_argument_parser.add_argument('--reference',type=Path,action='append',default=[],help='임의 해상도의 불투명 RGB/RGBA PNG, 장당 3MB 이하, 최대 3장')
