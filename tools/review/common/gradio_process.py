@@ -87,7 +87,6 @@ def ensure_gradio_application(review_server_port, application_name, application_
             'expression':('expression_app.py',114,'/management/frame/expression-generator/'),
             'qwen-2511':('qwen_2511_app.py',104,'/management/frame/three-reference-generator/'),
             'floor-tile':('floor_tile_app.py',113,'/management/frame/floor-tile-generator/'),
-            'tile-map':('tile_map_app.py',105,'/management/frame/tile-map-generator/'),
             'sprite-editor':('sprite_editor_app.py',106,'/management/frame/sprite-editor/'),
             'map-review':('map_review_app.py',107,'/management/frame/map-review/'),
             'anny-attributes':('anny_attributes_app.py',108,'/management/frame/anny-attributes/'),
@@ -154,9 +153,6 @@ def ensure_qwen_2512_server(review_server_port):
 
 def ensure_qwen_2511_server(review_server_port):
     return ensure_gradio_application(review_server_port,'qwen-2511')
-
-def ensure_tile_map_server(review_server_port):
-    return ensure_gradio_application(review_server_port,'tile-map')
 
 def ensure_sprite_editor_server(review_server_port):
     return ensure_gradio_application(review_server_port,'sprite-editor')

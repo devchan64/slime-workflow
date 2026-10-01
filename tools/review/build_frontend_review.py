@@ -25,8 +25,7 @@ REVIEW_DIRECTION_NAMES = ('down_left', 'down_right', 'up_left', 'up_right')
 REVIEW_IMAGE_SUFFIXES = {'.png', '.jpg', '.jpeg', '.webp'}
 REVIEW_HEARTBEAT_SECONDS = 5
 DEFAULT_MANAGEMENT_TOOL_PAGE_RECORDS = (
-    {'id':'floor-tile-generator','label':'바닥 타일 생성기','path':'/floor-tile-generator/','category':'tile-generation','uiMode':'gradio','description':'512×512 · 4스텝 · 단일 이미지 생성'},
-    {'id':'tile-map-generator','label':'건물 타일 생성기','path':'/tile-map-generator/','anchorEditor':False,'category':'tile-generation','uiMode':'gradio','description':'Gradio · 건물 지붕 · 벽 · 문 표면 생성'},
+    {'id':'floor-tile-generator','label':'맵 타일 생성기','path':'/floor-tile-generator/','category':'image-generation','uiMode':'gradio','description':'512×512 · 4스텝 · 단일 이미지 생성'},
     {'id':'writer-agent','label':'작가 AI 에이전트','path':'/writer-agent/','anchorEditor':False,'category':'writer-agent','uiMode':'gradio','description':'Gradio · 문서 학습 · 아이디어 작성 · 실행 기록'},
     {'id':'expression-generator','label':'표정 생성기','path':'/expression-generator/','category':'image-generation','uiMode':'gradio','description':'Qwen 2511 · AU 표정 39종 · 참조 1~3장'},
     {'id':'three-reference-generator','label':'Qwen 2511 3참조 생성','path':'/image-generation-2511/','anchorEditor':False,'category':'image-generation','uiMode':'gradio','description':'Gradio · 참조 이미지 3장 · 프롬프트 · 결과 비교'},
@@ -269,7 +268,7 @@ def load_animation_review(frontend_asset_root, animation_metadata_path):
 
 def clear_generated_review_files(output_review_directory):
     """재생성 가능한 화면만 지우고 사용자의 이미지 생성 이력은 보존한다."""
-    preserved_history_names = {'qwen-2511', 'qwen-2512'}
+    preserved_history_names = {'qwen-2511', 'qwen-2512', 'expression', 'floor-tile', 'tile-map'}
     output_review_directory.mkdir(parents=True, exist_ok=True)
     for current_review_path in output_review_directory.iterdir():
         if current_review_path.name in preserved_history_names:

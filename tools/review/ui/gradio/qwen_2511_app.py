@@ -92,6 +92,7 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
         gr.Markdown('실행 중인 작업은 아래 생성 이력에서 선택한 뒤 **작업 중지**를 사용하세요.')
         identifier_value=gr.Textbox(label='생성 ID',interactive=False,lines=1,max_lines=1)
         preview_value=gr.HTML(result_preview_html(None),elem_classes=['reference-result-preview'])
+        gr.Markdown('표정 생성 이력은 Qwen 2511 참조 생성 이력과 별도로 관리합니다. 조회·삭제·초기화는 현재 생성기에만 적용됩니다.' if expression_mode_enabled else 'Qwen 2511 참조 생성 이력은 표정 생성 이력과 별도로 관리합니다. 조회·삭제·초기화는 현재 생성기에만 적용됩니다.')
         log_value,refresh_log_value,_=build_execution_logs()
         read_history_page,history_output_values=build_generation_history_view(
             execute_reference_gateway,server_base_address,

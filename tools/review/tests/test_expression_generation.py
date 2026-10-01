@@ -87,3 +87,23 @@ class ExpressionGenerationTests(unittest.TestCase):
             self.assertNotIn('images',saved_request_record)
             self.assertEqual(saved_request_record['expression']['id'],'joy')
             self.assertEqual(len(saved_request_record['references']),3)
+
+    def test_history_reset_preserves_other_generator(self):
+        from tools.review.domains.image import image_generation
+        expression_job_service = ExpressionGenerationManager()
+        reference_job_service = image_generation.ImageGenerationManager(three_reference_mode=True)
+        self.assertNotEqual(expression_job_service.job_storage_root, reference_job_service.job_storage_root)
+        self.assertNotEqual(expression_job_service.history_storage_path(), reference_job_service.history_storage_path())
+        with tempfile.TemporaryDirectory() as temporary_directory_name:
+            for current_service_record, other_service_record in ((expression_job_service, reference_job_service), (reference_job_service, expression_job_service)):
+                current_history_path = Path(temporary_directory_name)/'current'
+                other_history_path = Path(temporary_directory_name)/'other'
+                current_history_path.mkdir(exist_ok=True)
+                other_history_path.mkdir(exist_ok=True)
+                (current_history_path/'current.json').write_text(json.dumps({'id':'current','status':{'status':'completed'}}))
+                (other_history_path/'other.json').write_text(json.dumps({'id':'other','status':{'status':'completed'}}))
+                with patch.object(current_service_record,'history_storage_path',return_value=current_history_path), patch.object(other_service_record,'history_storage_path',return_value=other_history_path):
+                    self.assertEqual([record['id'] for record in current_service_record.list_generation_history()], ['current'])
+                    current_service_record.reset_generation_history()
+                    self.assertEqual(current_service_record.list_generation_history(), [])
+                    self.assertEqual([record['id'] for record in other_service_record.list_generation_history()], ['other'])

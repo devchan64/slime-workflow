@@ -68,7 +68,6 @@ def create_management_runtime(writer_workspace_config=None):
     from tools.review.domains.image.expression_generation import ExpressionGenerationManager
     from generators.writer_agent.management import WriterAgentManager
     from generators.writer_agent.documents import DEFAULT_WORKSPACE_CONFIG
-    from tools.review.domains.tile.tile_generation import TileGenerationManager
     from tools.review.domains.tile.floor_generation import FloorGenerationManager
     from tools.review.domains.anny.anny_attributes import AnnyAttributeManager, JOBS as ANNY_RECORD_DIRECTORY
     from tools.review.domains.momask.momask_generation import MoMaskGenerationManager
@@ -81,7 +80,6 @@ def create_management_runtime(writer_workspace_config=None):
         image_generation_service = ImageGenerationManager()
         expression_generation_service = ExpressionGenerationManager()
         three_reference_service = ImageGenerationManager(three_reference_mode=True)
-        tile_generation_service = TileGenerationManager()
         floor_generation_service = FloorGenerationManager()
         anny_attribute_service = AnnyAttributeManager()
         momask_generation_service = MoMaskGenerationManager()
@@ -89,7 +87,6 @@ def create_management_runtime(writer_workspace_config=None):
         service_binding_records = {
             'expression': bind_stored_management_service(expression_generation_service.handle_image_request, expression_generation_service.job_storage_root),
             'floor-tile': bind_stored_management_service(floor_generation_service.handle_image_request, floor_generation_service.job_storage_root),
-            'tile-map': bind_stored_management_service(tile_generation_service.handle_image_request, tile_generation_service.job_storage_root),
             'qwen-2512': bind_stored_management_service(image_generation_service.handle_image_request, image_generation_service.job_storage_root),
             'qwen-2511': bind_stored_management_service(three_reference_service.handle_image_request, three_reference_service.job_storage_root),
             'anny': bind_stored_management_service(anny_attribute_service.handle, ANNY_RECORD_DIRECTORY),

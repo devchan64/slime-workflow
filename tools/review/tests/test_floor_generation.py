@@ -15,7 +15,7 @@ class FloorGenerationTests(unittest.TestCase):
         return dict(action='generate',user_prompt='잔디밭',width=512,height=512,steps=4,seed=251204)
     def test_fixed_prompt_and_validation(self):
         prepared_request_value = prepare_floor_request(self.create_floor_request())
-        self.assertEqual(prepared_request_value['prompt'],'잔디밭. Overhead Close-up. Color illustration. Black edge.')
+        self.assertEqual(prepared_request_value['prompt'],'잔디밭. Overhead Close-up. Color illustration.')
         for current_legacy_field in ('floor_separation','floor_rectify','border_crop','style_prompt'):
             self.assertNotIn(current_legacy_field,prepared_request_value)
         self.assertEqual(prepared_request_value['width'],512)

@@ -191,25 +191,9 @@ python3 tools/manager.py command character-animation history-reset
 보조 프롬프트는 `auxiliary`(전방)와 `auxiliary_rear`(후방)의 로컬 파일로 분리한다. 기본 프롬프트는 공통으로 유지한다. 후방은 뒷머리의 머리카락·등·양쪽 발뒤꿈치가 보이도록 명시한다. 방향 앵커는 `back-left`·`back-right`를 사용하고 머리·몸통·발이 같은 방향을 유지하도록 지시한다. 실제 선택한 보조 문구만 기본 프롬프트와 결합하고 화면 단어 수·실행 해시에 반영한다.
 
 
-## 타일맵 생성기
+## 건물 타일 생성기 폐기
 
-타일 생성 완료 시 같은 실행 폴더에 원본 `result.png`와 보더 크롭 `border-crop.png`를 함께 저장한다. 크롭은 공용 엣지 검출·보더 라이브러리를 사용하며, 중심에 가까운 경계를 기준으로 가로·세로의 1%를 각각 올림해 보더로 남긴다. 원본 픽셀 크기로 크롭하고 자동 리사이즈하지 않는다. `border-crop.json`과 `result.json`의 `border_crop`에 크롭 좌표·크기·검출 설정·원본/결과 해시를 기록한다. 이력의 결과 조회에서 원본과 크롭을 함께 표시하고, GUI·CLI 상태와 이력 응답의 `cropped_image`로 크롭 파일 주소를 제공한다. 검출 실패 시 작업은 실패로 기록하되 원본은 보존하며, 실패 사유는 `border-crop.json`과 로그에 남긴다. 새 타일 요청부터 적용하고, 기존 기록·접수된 요청은 자동 수정하지 않는다.
-
-관리도구 `#tile-map-generator`는 타일 종류 선택 없이 공통 프롬프트로 생성한다. 종류별 설정과 CLI `--tile-type` 옵션은 폐기했다. 기존 이력의 종류 정보는 보존하며 다시 불러올 때는 표면정보와 생성 설정만 사용한다. `generators/terrain/config/tile_map.yaml`의 기본·화풍 프롬프트는 고정이며 표면의 재질·색상·무늬를 설명하는 표면정보 프롬프트만 편집한다. 서버에서 화풍 → 기본 → 표면정보 순서로 문장형 프롬프트를 병합한다. 참조 이미지가 없는 생성은 표면정보 앞에 `표면 재질: ...`를 붙인다. 참조 이미지를 사용하는 편집은 이 접두어 없이 사용자 지시만 전달한다. JSON 키나 값의 따옴표는 추가하지 않는다. GUI의 `첨부 이미지 사용`은 기본 OFF이며 켜면 최대 3장 첨부 영역이 펼쳐진다. 끄면 첨부값은 보관하지만 요청·단어 수 계산에서는 제외하며, 참조가 있는 이력을 불러오면 자동으로 켠다. 참조 이미지가 없을 때만 기본·화풍 프롬프트를 선택할 수 있다. 참조 이미지가 있으면 두 선택은 자동으로 꺼지고 GUI에서 비활성화된다. CLI/API는 옵션 생략 시 두 값을 끄며, 명시적으로 켠 요청은 거절한다. 화풍참조 프롬프트 기능과 `--use-reference-style-prompt` 옵션은 삭제했다. 비활성·빈 항목은 병합에서 제외한다. 표면정보 끝에 마침표가 없으면 추가하고, 안내 문장을 포함한 최종 원문·단어 수·SHA-256을 기록한다. 최종 입력은 100단어 미만이며 정사각형 해상도만 지원한다. 생성 이미지는 검수 후보이고, 무봉제 품질이나 게임 에셋 채택을 자동 보장하지 않는다.
-
-Qwen 2512의 공용 작업자·GPU 잠금·준비·취소·진행 조회를 사용한다. 실행 폴더는 `.tmp/test/qwen-image-2512/tile-map/<생성 ID>/`, 누적 이력은 기존 공용 이력 루트의 `tile-map/`이다. 목록 초기화는 수동이며 결과 파일을 삭제하지 않는다. 같은 스텝·크기의 완료 이력이 있을 때만 예상 시간을 표시한다. 타일 생성의 GUI·CLI 기본 출력 해상도는 1024×1024이며, 명시적으로 선택한 크기와 기존 이력의 크기는 유지한다.
-
-```sh
-python3 tools/manager.py help tile-map
-python3 tools/manager.py command tile-map catalog
-python3 tools/manager.py command tile-map generate --prompt 'Warm stone facade with a wooden window.' --tag '돌온재 외벽 후보' --width 512 --height 512 --steps 4 --detach
-python3 tools/manager.py command tile-map queue --prompt '거친 석재 외벽, 작은 창문 하나.' --tag '공용 석재 외벽 후보' --width 512 --height 512 --steps 4 --seed 274910381
-python3 tools/manager.py command tile-map history
-```
-
-GUI와 CLI는 같은 `tile-map` 게이트웨이 서비스와 기록을 사용한다. CLI도 실행 중인 관리 서버가 필요하다. `queue`는 즉시 생성 완료를 기다리지 않고 작업을 등록해 ID를 반환한다. GPU가 비어 있으면 바로 실행되고, 사용 중이면 기존 순서를 보존해 대기열에 추가된다. `--tag`는 줄바꿈 없이 최대 80자의 선택형 이력 구분 태그이며, GUI의 생성 이력 태그와 같은 `request.tag`에 저장된다. 태그는 모델 프롬프트·시드·생성 파라미터를 바꾸지 않는다. 생성 종류별 별도 추론 실행기는 만들지 않는다.
-
-캐릭터 생성 배속은 `--speed 1|2|4`로 지정한다. 기본은 2이며 `--target-fps 8 --speed 2`는 동일 FPS에서 원본의 절반 길이를 생성한다. 배속은 요청·결과·이력에 `speed`로 기록한다. 원본 모션 검수 재생에는 적용하지 않는다.
+건물 타일 생성기(`tile-map`)의 GUI·CLI·HTTP 등록을 폐기했다. 기존 생성 결과와 이력 파일은 보존하며 맵 타일 생성기는 계속 제공한다.
 
 ## 스프라이트 정규화 편집기
 
@@ -245,14 +229,6 @@ MoMask 화면의 `얼굴 포인트 ON`을 선택하면 모션 생성 완료 과�
 
 CLI는 `momask generate ... --face`를 사용한다. `--no-face`는 얼굴을 제외한다. 정점 수가 공식 회귀 데이터와 다르면 오류로 중단한다. 얼굴 회귀 데이터는 NAVER ANNY의 Apache-2.0 데이터에서 현재 ANNY 토폴로지의 정점 순서로 추출했으며 원본 해시를 함께 보관한다.
 
-### 타일 생성 참조 입력
-
-타일 생성기는 선택한 PNG 최대 3장을 순서대로 전달한다. 기존 3참조 검증·입력 저장·Qwen 2511 실행기를 공유하며 임의 해상도의 RGB/RGBA 불투명 PNG, 장당 3MB 제한을 적용한다. 참조가 없으면 기존 Qwen 2512를 사용한다. 참조가 있으면 기본·화풍 프롬프트를 병합하지 않고 표면정보 지시만 사용한다. 참조와 타일 설정은 같은 실행 이력에 저장한다. 기존 이력 원문은 유지하되 불러와 재생성할 때 현재 참조 프롬프트 제한을 적용한다. CLI는 `tile-map generate ... --reference first.png --reference second.png --reference third.png`로 같은 경로를 사용한다.
-
-타일 생성기의 수동 초기화는 예외적으로 `.tmp/test/qwen-image-2512/tile-map/<실행 ID>/`의 참조·결과·로그 파일과 이력 인덱스를 함께 삭제한다. 확인창에서 삭제 범위를 안내하며 생성 중에는 거절한다. 정식 에셋 사본은 삭제하지 않는다. 다른 생성기의 이력 초기화 정책은 유지한다.
-
-타일의 기본·화풍 프롬프트는 각각 ON/OFF할 수 있으며 기본값은 둘 다 ON이다. 원문은 읽기 전용이며 최종 단어 수와 해시는 활성 항목과 표면정보 프롬프트를 결합한 실제 입력 기준이다. 이력에는 `use_base_prompt`, `use_style_prompt`를 저장한다. CLI에서는 `--no-use-base-prompt`, `--no-use-style-prompt`로 제외한다. 모든 프롬프트가 비면 요청을 거절한다.
-
 캐릭터 애니메이션 출력 해상도는 GUI 또는 CLI의 `--resolution 512|768|1024|1280`으로 선택한다. 기본값은 테스트용 512×512이며 참조 입력은 512px 정규화를 유지한다. 선택 해상도는 요청·결과에 보존하며 재개 시 같은 설정을 사용한다. 생성이력의 입력 내용에서 해상도, FPS, 배속, 스텝, 선택 프레임, 참조 경로·매니페스트 해시와 방향별 실제 프롬프트·단어 수를 확인한다.
 
 ### Gradio MoMask UI
@@ -278,7 +254,7 @@ Gradio 생성이력에서 취소·실패 이력을 선택하고 ‘생성 재개
 - 메모리가 부족하거나 앞선 작업이 실행 중이면 `queued` 상태에 대기 순서·여유/필요 메모리를 저장한다. GPU 조회 실패 또는 전체 메모리 부족은 사유를 기록하고 실패한다. CPU로 우회하지 않는다.
 - 생성 이력에서 대기·실행 작업을 중지하고 취소·실패 작업을 재개한다. 중지는 비동기 요청이며 실제 프로세스 종료 후 `cancelled`가 된다. 이력 새로고침으로 확인할 수 있다.
 - 같은 ID·저장 입력·참조 사본·누적 로그를 사용한다. 캐릭터 애니메이션은 완료된 프레임을 재사용한다. MoMask는 리그 렌더 재개 자료가 모두 있으면 이어서 렌더하고, 그 이전 단계에서 멈췄으면 저장 입력으로 다시 생성한다. 단일 이미지·ANNY는 저장 입력으로 다시 실행한다.
-- 통합 CLI: `tools/manager.py command <서비스> cancel <ID>`, `resume <ID>`, `status <ID>`. 서비스는 `momask`, `character-animation`, `qwen-2511`, `qwen-2512`, `tile-map`; ANNY의 이력 상태·중지·재개는 `anny` 서비스에서 제공한다. ANNY 신규 생성은 기존 속성 화면을 사용한다.
+- 통합 CLI: `tools/manager.py command <서비스> cancel <ID>`, `resume <ID>`, `status <ID>`. 서비스는 `momask`, `character-animation`, `qwen-2511`, `qwen-2512`; ANNY의 이력 상태·중지·재개는 `anny` 서비스에서 제공한다. ANNY 신규 생성은 기존 속성 화면을 사용한다.
 - 대기·실행 중인 타일 작업은 파일 초기화 대상에서 제외한다. 서버 재시작은 별도 실행 중 작업을 중단하지 않으며, 운영체제 종료 뒤에는 자동으로 재실행하지 않는다.
 
 휴식은 서서 시작 → 바닥에 앉아 유지 → 완전히 서서 종료하는 순서다. 다리 교차·손 짚기를 강제하지 않는다. 신규 생성은 `motion-quality.json`과 결과 `quality_warnings`에 직립·낮은 자세 유지 검수를 기록한다. 렌더 완료와 자세 검수 통과를 구분하며, 이 검수는 ANNY 스키닝 적합성을 보장하지 않는다.
@@ -331,13 +307,9 @@ GUI와 CLI는 `character-animation sprite-history <원본 ID>` 명령을 공유�
 
 새 편집 문서는 v3이며 출력 앵커 Y를 셀 높이의 90%로 둔다. 384px 셀에서는 `(192, 346)`으로 하단 38px를 확보한다. 미리보기와 저장 PNG는 같은 위치를 사용한다. v1/v2 저장본은 불러올 때 배치 Y를 보정하여 기존 출력 위치를 유지하고 다음 저장부터 v3로 보존한다. 기존 저장 PNG는 변경하지 않는다. 수동 이동·확대로 셀을 벗어난 프레임은 기존 잘림 경고를 확인한다.
 
-## 건물 타일 생성기 범위
+## 맵 타일 생성기
 
-`tile-map`은 건물의 지붕·벽·문 표면 전용 생성기다. GUI 이름은 건물 타일 생성기이며 지형 타일 실험은 Qwen 이미지 생성기를 사용한다. 호환을 위해 서비스 ID·URL·기록 경로는 유지하며 기존 지형 생성 이력도 조회할 수 있다. 기본 출력은 1024×1024다.
-
-## 바닥 타일 생성기
-
-`floor-tile` GUI와 CLI는 공용 게이트웨이를 통해 Qwen 2512로 **512×512·4스텝 단일 이미지**를 생성한다. 사용자 프롬프트를 맨 앞에 두고 `Overhead Close-up. Color illustration. Black edge.`를 붙인다. 예: `잔디밭. Overhead Close-up. Color illustration. Black edge.` 기본 Seed는 251204이며 무작위 선택과 직접 입력을 지원한다.
+`floor-tile` GUI와 CLI는 공용 게이트웨이를 통해 Qwen 2512로 **512×512·4스텝 단일 이미지**를 생성한다. 사용자 프롬프트를 맨 앞에 두고 `Overhead Close-up. Color illustration.`를 붙인다. 예: `잔디밭. Overhead Close-up. Color illustration.` 기본 Seed는 251204이며 무작위 선택과 직접 입력을 지원한다.
 
 기본 프롬프트는 `generators/terrain/config/floor_tile.yaml`에서 관리한다. 크기·스텝·고정 문구 변경 요청은 서버에서 거절한다. GUI에는 사용자·기본·최종 단어 수와 실제 전달 문구를 표시한다.
 
@@ -350,6 +322,8 @@ python3 tools/manager.py command floor-tile status GENERATION_ID
 
 
 ## 표정 생성기
+
+표정 생성과 Qwen 2511 참조 생성은 이력을 분리 운영한다. 표정 이력은 `.tmp/manager-current/expression/`, 실행 결과는 `.tmp/test/expression-generator/`에 저장한다. Qwen 2511 참조 이력은 `.tmp/manager-current/qwen-2511/`, 실행 결과는 `.tmp/test/qwen-image-2511-three-reference/`에 저장한다. 조회·삭제·초기화는 요청한 서비스의 이력에만 적용하며 다른 생성기의 기록은 변경하지 않는다.
 
 관리 메뉴의 **표정 생성기**(`/?tool=expression-generator`)는 Qwen-Image-Edit-2511 고정 모델로 참조 PNG 1~3장을 받아 한 표정을 생성한다. 첫 이미지를 편집 대상으로, 추가 이미지를 동일 캐릭터의 외형 참고로 사용한다. 불투명 RGB/RGBA PNG·장당 3MB 이하이며 크기·비율은 기존 Qwen 참조 입력 검증을 따른다.
 

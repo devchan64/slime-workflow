@@ -15,13 +15,12 @@ WORKFLOW_ROOT_DIRECTORY=Path(__file__).resolve().parents[4]
 if str(WORKFLOW_ROOT_DIRECTORY) not in sys.path:sys.path.insert(0,str(WORKFLOW_ROOT_DIRECTORY))
 from tools.review.common.gpu_status import read_gpu_status
 
-CATEGORY_LABEL_VALUES={'all':'전체','writer-agent':'작가 AI 에이전트','image-generation':'이미지 생성','animation':'등록 애니메이션','animation-tool':'애니메이션 도구','town-map-review':'마을맵 검수','field-map-review':'필드맵 검수','tile-generation':'타일 생성기','game-ui':'게임 UI · 디자인 시스템'}
+CATEGORY_LABEL_VALUES={'all':'전체','writer-agent':'작가 AI 에이전트','image-generation':'이미지 생성','animation':'등록 애니메이션','animation-tool':'애니메이션 도구','town-map-review':'마을맵 검수','field-map-review':'필드맵 검수','game-ui':'게임 UI · 디자인 시스템'}
 MANAGEMENT_FRAME_PATH_PREFIX='/management/frame/'
 MANAGEMENT_FRAME_IDENTIFIER_VALUES={'anny-attribute-renderer':'anny-attributes'}
 LEGACY_PAGE_IDENTIFIER_VALUES={'map-review':'map-review-iseulon'}
 DEFAULT_PAGE_RECORDS=(
-    {'id':'floor-tile-generator','label':'바닥 타일 생성기','path':'/floor-tile-generator/','category':'tile-generation','uiMode':'gradio','description':'9칸 생성 · 중앙 기계식 크롭 · 512 다시 그리기'},
-    {'id':'tile-map-generator','label':'건물 타일 생성기','path':'/tile-map-generator/','category':'tile-generation','uiMode':'gradio','description':'Gradio · 건물 지붕 · 벽 · 문 표면 생성'},
+    {'id':'floor-tile-generator','label':'맵 타일 생성기','path':'/floor-tile-generator/','category':'image-generation','uiMode':'gradio','description':'512×512 · 4스텝 · 단일 이미지 생성'},
     {'id':'writer-agent','label':'작가 AI 에이전트','path':'/writer-agent/','category':'writer-agent','uiMode':'gradio','description':'Gradio · 문서 학습 · 아이디어 작성 · 실행 기록'},
     {'id':'expression-generator','label':'표정 생성기','path':'/expression-generator/','category':'image-generation','uiMode':'gradio','description':'Qwen 2511 · AU 표정 39종 · 참조 1~3장'},
     {'id':'three-reference-generator','label':'Qwen 2511 3참조 생성','path':'/image-generation-2511/','category':'image-generation','uiMode':'gradio','description':'Gradio · 참조 이미지 3장 · 프롬프트 · 결과 비교'},
@@ -78,14 +77,15 @@ def load_manager_page_records(source_file_path):
     for current_page_record in [*page_record_values,*DEFAULT_PAGE_RECORDS]:
         if not isinstance(current_page_record,dict) or not all(isinstance(current_page_record.get(current_field_name),str) for current_field_name in ('id','label','path','category','description')):raise ValueError('관리 메뉴 페이지 항목 형식 오류')
         if any(current_page_record.get(current_field_name) is not None and not isinstance(current_page_record[current_field_name],str) for current_field_name in ('frameIdentifier','frameQuery')):raise ValueError('관리 메뉴 프레임 항목 형식 오류')
+        if current_page_record['id']=='tile-map-generator':continue
         if current_page_record['id'].startswith('map-review-'):
             from tools.review.common.map_asset_sources import MAP_CITY_REVIEW_IDENTIFIERS
             current_map_identifier=current_page_record['id'].removeprefix('map-review-')
             current_review_category='town-map-review' if current_map_identifier in MAP_CITY_REVIEW_IDENTIFIERS else 'field-map-review'
             current_map_name=current_page_record['label'].split(' · ')[0]
             current_page_record={**current_page_record,'category':current_review_category,'label':current_map_name+' · '+CATEGORY_LABEL_VALUES[current_review_category]}
-        if current_page_record.get('category')=='tile-review':
-            current_page_record={**current_page_record,'category':'tile-generation'}
+        if current_page_record['id']=='floor-tile-generator':
+            current_page_record={**current_page_record,'label':'맵 타일 생성기','category':'image-generation','description':'512×512 · 4스텝 · 단일 이미지 생성'}
         if current_page_record['id'] in page_identifier_values:continue
         if not current_page_record['path'].startswith('/'):current_page_record={**current_page_record,'path':'/'+current_page_record['path']}
         page_identifier_values.add(current_page_record['id'])
