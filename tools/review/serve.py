@@ -25,7 +25,7 @@ import signal
 REVIEW_SERVER_HOST = '127.0.0.1'
 REVIEW_SERVER_PORT = 8770
 DEFAULT_FRONTEND_REPOSITORY = Path(__file__).resolve().parents[3]/'slime-frontend'
-REVIEW_ALLOWED_SUFFIXES = {'.html', '.png', '.jpg', '.jpeg', '.webp', '.gif', '.json', '.js', '.css', '.mp4', '.svg', '.woff', '.woff2'}
+REVIEW_ALLOWED_SUFFIXES = {'.html', '.png', '.jpg', '.jpeg', '.webp', '.gif', '.json', '.js', '.mjs', '.css', '.mp4', '.svg', '.woff', '.woff2'}
 REVIEW_HEARTBEAT_SECONDS = 5
 REVIEW_SERVER_RETRY_SECONDS = 3
 REVIEW_LIVE_RELOAD_PATH = '/__review_live_reload__'
@@ -143,7 +143,7 @@ def snapshot_review_watch_paths(watch_paths):
     for current_root_path in watch_paths:
         current_file_paths = [current_root_path] if current_root_path.is_file() else current_root_path.rglob('*')
         for current_file_path in current_file_paths:
-            if not current_file_path.is_file() or current_file_path.suffix.lower() not in {'.py', '.html', '.css', '.js', '.json', '.yaml', '.yml', '.png', '.jpg', '.jpeg', '.webp'}:
+            if not current_file_path.is_file() or current_file_path.suffix.lower() not in {'.py', '.html', '.css', '.js', '.mjs', '.json', '.yaml', '.yml', '.png', '.jpg', '.jpeg', '.webp'}:
                 continue
             if any(current_path_part.startswith('.') for current_path_part in current_file_path.relative_to(current_root_path if current_root_path.is_dir() else current_root_path.parent).parts):
                 continue

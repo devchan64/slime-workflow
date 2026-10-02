@@ -8,6 +8,30 @@ MAP_BLOCKED_TERRAIN_NAMES = {'water','wall','boulder','tree-base','cactus','shal
 MAP_SOURCE_BLOCK_HEIGHT = 60
 
 
+def normalize_field_surface_data(current_map_record):
+    """원본 고도 문자열·계단 좌표를 게임과 공통인 숫자 격자로 전달한다."""
+    current_height_rows = current_map_record['elevations']
+    if len(current_height_rows) != current_map_record['rows']:
+        raise ValueError('필드 고도 행 수 오류')
+    if any(not isinstance(current_height_row,str) or len(current_height_row)!=current_map_record['columns'] or any(current_height_code not in '0123456789' for current_height_code in current_height_row) for current_height_row in current_height_rows):
+        raise ValueError('필드 고도 행 길이·값 오류')
+    current_map_record['elevations'] = [[int(current_height_code) for current_height_code in current_height_row] for current_height_row in current_height_rows]
+    for current_stair_record in current_map_record.get('elevationTiles',[]):
+        if current_stair_record['kind']!='stairs' or current_stair_record['asset']!='stone-step-tile':
+            raise ValueError('지원하지 않는 필드 계단 종류')
+        for current_position_key in ('cell','lower'):
+            current_position_values = current_stair_record[current_position_key]
+            if not isinstance(current_position_values,list) or len(current_position_values)!=2 or any(type(current_coordinate_value) is not int for current_coordinate_value in current_position_values):
+                raise ValueError('필드 계단 좌표 오류')
+            current_column_value,current_row_value = current_position_values
+            if not 0<=current_column_value<current_map_record['columns'] or not 0<=current_row_value<current_map_record['rows']:
+                raise ValueError('필드 계단 좌표 범위 오류')
+            current_stair_record[current_position_key] = dict(column=current_column_value,row=current_row_value)
+        current_upper_cell,current_lower_cell = current_stair_record['cell'],current_stair_record['lower']
+        if abs(current_upper_cell['column']-current_lower_cell['column'])+abs(current_upper_cell['row']-current_lower_cell['row'])!=1 or current_map_record['elevations'][current_upper_cell['row']][current_upper_cell['column']]-current_map_record['elevations'][current_lower_cell['row']][current_lower_cell['column']]!=1:
+            raise ValueError('필드 계단은 인접한 한 단계 고도 차를 연결해야 합니다.')
+
+
 class UniqueMapSourceLoader(yaml.SafeLoader):
     def construct_mapping(self, node, deep=False):
         result_mapping_value = {}
@@ -68,6 +92,8 @@ def load_registered_map_review(map_identifier_value):
     current_name_record = read_map_source_data('map_names/'+map_identifier_value+'.yaml')
     if map_identifier_value not in current_city_identifiers:
         current_map_record = read_map_source_data('terrain/maps/'+map_identifier_value+'.yaml')
+        normalize_field_surface_data(current_map_record)
+        current_map_record['safeTown'] = False
         current_map_record['terrainRows'] = read_map_source_data('field_tiles/'+map_identifier_value+'.yaml')['rows']
         current_map_record['terrainCodes'] = read_map_source_data('field_tiles/codes.yaml')
         current_map_record.update(read_map_source_data('map_spawns/'+map_identifier_value+'.yaml'))
@@ -75,6 +101,7 @@ def load_registered_map_review(map_identifier_value):
         current_map_record['blocked'] = [dict(column=current_position[0],row=current_position[1]) for current_position in current_map_record['blocked']] + [dict(current_map_record['startPoint'])]
     else:
         current_map_record = read_map_source_data('city_layouts/'+map_identifier_value+'.yaml')
+        current_map_record['safeTown'] = True
         current_map_record['terrainCodes'] = MAP_CITY_TERRAIN_CODES
         current_map_record['blocked'] = []
         for current_building_record in current_map_record['buildings']:

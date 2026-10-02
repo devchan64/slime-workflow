@@ -6,7 +6,7 @@ from tempfile import TemporaryDirectory
 import unittest
 from unittest.mock import patch
 import yaml
-from tools.review.common.map_asset_sources import load_review_map_identifiers
+from tools.review.common.map_asset_sources import load_review_map_identifiers, normalize_field_surface_data
 from tools.review.build_block_map_review import build_block_map_review
 from tools.review.common.map_asset_http import read_map_asset_response
 
@@ -14,6 +14,24 @@ WORKFLOW_REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 
 
 class MapAssetSourceTests(unittest.TestCase):
+    def test_field_height_and_stair_api_contract(self):
+        current_map_bytes,_ = read_map_asset_response('/management/map-assets/maps/meadow')
+        current_map_record = json.loads(current_map_bytes)
+        self.assertFalse(current_map_record['safeTown'])
+        self.assertEqual(set(current_height for current_row in current_map_record['elevations'] for current_height in current_row),{0,1,2})
+        self.assertEqual(len(current_map_record['elevationTiles']),6)
+        for current_stair_record in current_map_record['elevationTiles']:
+            self.assertEqual(set(current_stair_record['cell']),{'column','row'})
+
+    def test_invalid_height_grid_and_stair_are_rejected(self):
+        for current_map_record in (
+            dict(columns=2,rows=1,elevations=['0x']),
+            dict(columns=2,rows=1,elevations=['0']),
+            dict(columns=2,rows=1,elevations=['00'],elevationTiles=[dict(kind='stairs',asset='stone-step-tile',cell=[1,0],lower=[0,0])]),
+        ):
+            with self.assertRaises(ValueError):
+                normalize_field_surface_data(current_map_record)
+
     def test_review_has_no_map_or_tile_copies(self):
         with TemporaryDirectory(dir=WORKFLOW_REPOSITORY_ROOT/'.tmp') as temporary_output_path:
             current_output_path = build_block_map_review(Path(temporary_output_path))

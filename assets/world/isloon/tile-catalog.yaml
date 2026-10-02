@@ -53,7 +53,7 @@ tiles:
   - {id: moss, category: ground, asset: assets/tiles/terrain/non-road/grass-type-a-v1.png, walkable: true, movement_cost: 1}
   - {id: leaf-litter, category: ground, asset: assets/tiles/terrain/non-road/leaf-litter-v1.png, walkable: true, movement_cost: 1}
   - {id: tree-base, category: ground, asset: assets/tiles/terrain/blocked/boulder-type-a-v1.png, walkable: false, movement_cost: 99}
-  - {id: cliff-wall, category: ground, asset: assets/tiles/terrain/blocked/boulder-type-a-v1.png, walkable: false, movement_cost: 99}
+  - {id: cliff-wall, category: ground, asset: assets/tiles/terrain/blocked/cliff-rock-face-v1.png, walkable: false, movement_cost: 99}
 connections:
   - {id: grass-to-paving, from: grass, to: paving, variants: [straight, corner, tee, cross]}
   - {id: paving-to-spring, from: paving, to: spring_water, variants: [bank-straight, bank-corner]}
