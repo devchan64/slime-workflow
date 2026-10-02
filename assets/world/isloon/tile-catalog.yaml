@@ -24,11 +24,11 @@ tiles:
   - {id: stonewarm-stone-door, category: door, asset: assets/tiles/buildings/stone/stone-door-v1.png, walkable: true, movement_cost: 1}
   - {id: spring_water, category: ground, asset: assets/tiles/terrain/blocked/transparent-shallow-water-v1.png, walkable: false, movement_cost: 99}
   - {id: flower_bed, category: decoration, asset: assets/tiles/terrain/non-road/grass-type-a-v1.png, walkable: true, movement_cost: 1}
-  - {id: marble_large_window_wall, category: structure, asset: assets/tiles/buildings/marble/marble-large-window-wall-v1.png, walkable: false, movement_cost: 99}
-  - {id: marble_plain_wall, category: structure, asset: assets/tiles/buildings/marble/marble-plain-wall-v1.png, walkable: false, movement_cost: 99}
-  - {id: marble_small_window_wall, category: structure, asset: assets/tiles/buildings/marble/marble-small-window-wall-v1.png, walkable: false, movement_cost: 99}
-  - {id: marble_roof, category: roof, asset: assets/tiles/buildings/marble/marble-roof-v2.png, walkable: false, movement_cost: 99}
-  - {id: marble_small_door, category: door, asset: assets/tiles/buildings/marble/marble-small-door-v1.png, walkable: true, movement_cost: 1}
+  - {id: marble_large_window_wall, category: structure, asset: assets/tiles/buildings/stone/stone-large-window-wall-v1.png, walkable: false, movement_cost: 99}
+  - {id: marble_plain_wall, category: structure, asset: assets/tiles/buildings/stone/stone-wall-v1.png, walkable: false, movement_cost: 99}
+  - {id: marble_small_window_wall, category: structure, asset: assets/tiles/buildings/stone/stone-small-window-wall-v1.png, walkable: false, movement_cost: 99}
+  - {id: marble_roof, category: roof, asset: assets/tiles/buildings/stone/stone-roof-v1.png, walkable: false, movement_cost: 99}
+  - {id: marble_small_door, category: door, asset: assets/tiles/buildings/stone/stone-door-v1.png, walkable: true, movement_cost: 1}
   - {id: wood_roof, category: roof, asset: assets/tiles/buildings/wood/wood-roof-v4.png, walkable: false, movement_cost: 99}
   - {id: stonewarm-guild-red-stone-roof, category: roof, asset: assets/tiles/buildings/red-stone/red-stone-roof-v2.png, walkable: false, movement_cost: 99}
   - {id: wood_wall, category: structure, asset: assets/tiles/buildings/wood/wood-wall-v2.png, walkable: false, movement_cost: 99}
