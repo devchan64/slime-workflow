@@ -10,7 +10,7 @@ from tools.review.tests import test_image_generation
 
 
 class GenerationHistoryTests(unittest.TestCase):
-    def test_individual_history_delete_keeps_image_result_files(self):
+    def test_individual_history_delete_removes_image_result_files(self):
         with tempfile.TemporaryDirectory() as current_directory_name, patch('tools.review.domains.image.image_generation.MANAGER_HISTORY_ROOT',Path(current_directory_name)/'history'):
             current_manager_value=ImageGenerationManager()
             current_manager_value.job_storage_root=Path(current_directory_name)/'jobs'
@@ -22,9 +22,9 @@ class GenerationHistoryTests(unittest.TestCase):
             current_manager_value.history_storage_path().mkdir(parents=True)
             (current_manager_value.history_storage_path()/(current_job_identifier+'.json')).write_text(json.dumps({'id':current_job_identifier,'request':{'prompt':'테스트'}}))
 
-            self.assertEqual(current_manager_value.delete_generation_history(current_job_identifier),{'deleted':current_job_identifier,'files_preserved':True})
+            self.assertEqual(current_manager_value.delete_generation_history(current_job_identifier),{'deleted':current_job_identifier,'files_preserved':False})
             self.assertEqual(current_manager_value.list_generation_history(),[])
-            self.assertTrue((current_job_directory/'result.png').exists())
+            self.assertFalse(current_job_directory.exists())
 
     def test_individual_history_delete_rejects_active_job(self):
         with tempfile.TemporaryDirectory() as current_directory_name, patch('tools.review.domains.image.image_generation.MANAGER_HISTORY_ROOT',Path(current_directory_name)/'history'):
@@ -60,6 +60,25 @@ class GenerationHistoryTests(unittest.TestCase):
             self.assertEqual(current_http_handler.status,200)
             self.assertEqual(json.loads(current_http_handler.wfile.getvalue())['deleted'],current_job_identifier)
 
+    def test_delete_rejects_unsafe_or_unknown_job_without_removing_files(self):
+        with tempfile.TemporaryDirectory() as temporary_directory_name:
+            current_manager_value = ImageGenerationManager()
+            current_manager_value.job_storage_root = Path(temporary_directory_name) / 'jobs'
+            current_job_identifier = '2026-09-27_12-00-00-1234abcd'
+            current_job_directory = current_manager_value.job_storage_root / current_job_identifier
+            current_job_directory.mkdir(parents=True)
+            (current_job_directory / 'status.json').write_text('{"status":"unknown"}')
+            for selected_job_identifier in ('../outside', current_job_identifier):
+                with self.assertRaises(ValueError):
+                    current_manager_value.delete_generation_history(selected_job_identifier)
+            self.assertTrue(current_job_directory.exists())
+            (current_job_directory / 'status.json').write_text('{"status":"completed"}')
+            linked_job_identifier = '2026-09-27_12-00-00-abcd1234'
+            (current_manager_value.job_storage_root / linked_job_identifier).symlink_to(current_job_directory, target_is_directory=True)
+            with self.assertRaisesRegex(ValueError, '심볼릭 링크'):
+                current_manager_value.delete_generation_history(linked_job_identifier)
+            self.assertTrue(current_job_directory.exists())
+
     def test_progress_from_actual_steps(self):
         self.assertEqual(summarize_generation_progress('denoise step=2/4','running')['percent'],50)
         self.assertEqual(summarize_generation_progress('heartbeat stage=inference step=12/30','running')['percent'],40)
@@ -94,4 +113,4 @@ class GenerationHistoryTests(unittest.TestCase):
             self.assertEqual(current_http_handler.status,200)
             self.assertEqual(current_manager_value.list_generation_history(),[])
             self.assertEqual(len(list(other_manager_value.history_storage_path().glob('*.json'))),1)
-            self.assertTrue((current_job_directory/'result.png').exists())
+            self.assertFalse(current_job_directory.exists())

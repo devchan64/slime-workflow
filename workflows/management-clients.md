@@ -119,7 +119,7 @@ python3 tools/manager.py command qwen-2512 history-reset
 - 2511 결과·로그: `.tmp/test/qwen-image-2511-three-reference/<생성 ID>/`
 - 이력: `.tmp/manager-current/qwen-2512/`, `.tmp/manager-current/qwen-2511/`
 
-실행 결과는 해당 웹 생성기의 이력에서 조회할 수 있다. `history-reset`은 명시적으로 실행할 때만 누적 이력을 초기화한다. Qwen 2512의 전체 초기화는 이전에 목록에서 제거된 작업도 포함하여 `.tmp/test/qwen-image-2512/` 바로 아래의 생성·준비 작업 폴더(입력·결과·로그)를 삭제한다. 실행·대기 중이거나 상태가 불명확한 작업이 있으면 삭제 전에 거절한다. 하위 `tile-map/`, 정식 등록 에셋, 모델 캐시는 제외한다. Qwen 2511 및 개별 이력 삭제의 파일 보존 동작은 유지한다.
+실행 결과는 해당 웹 생성기의 이력에서 조회할 수 있다. `history-reset`은 명시적으로 실행할 때만 누적 이력을 초기화한다. Qwen 2512의 전체 초기화는 이전에 목록에서 제거된 작업도 포함하여 `.tmp/test/qwen-image-2512/` 바로 아래의 생성·준비 작업 폴더(입력·결과·로그)를 삭제한다. 실행·대기 중이거나 상태가 불명확한 작업이 있으면 삭제 전에 거절한다. 하위 `tile-map/`, 정식 등록 에셋, 모델 캐시는 제외한다. Qwen 2511·표정·건물 타일·바닥 타일에도 동일하게 적용한다. 개별 이력 삭제는 선택한 작업 폴더의 입력·결과·로그와 이력 인덱스를 함께 삭제한다. 등록 에셋 원본과 모델 캐시는 삭제하지 않는다.
 
 ## 통합 명령 게이트웨이
 
@@ -342,7 +342,7 @@ python3 tools/manager.py command expression cancel GENERATION_ID
 python3 tools/manager.py command expression resume GENERATION_ID
 ```
 
-`--expression`의 선택 목록은 help에서 확인한다. HTTP 계약은 기존 이미지 요청과 같은 `prompt` 필드에 표정 ID를 전달한다. 모델명·임의 추가 필드는 거절한다. 기본값은 512×512·4스텝·Seed 10107이다. GUI·CLI는 `expression` 서비스와 공용 게이트웨이·GPU 작업 실행기를 공유한다. 결과는 `.tmp/test/expression-generator/<한국시간-생성ID>/`, 이력 인덱스는 `.tmp/manager-current/expression/`에 누적한다. 이력 삭제·수동 초기화는 목록만 제거하고 결과·참조·로그는 보존한다. 브라우저 종료는 작업 종료가 아니다.
+`--expression`의 선택 목록은 help에서 확인한다. HTTP 계약은 기존 이미지 요청과 같은 `prompt` 필드에 표정 ID를 전달한다. 모델명·임의 추가 필드는 거절한다. 기본값은 512×512·4스텝·Seed 10107이다. GUI·CLI는 `expression` 서비스와 공용 게이트웨이·GPU 작업 실행기를 공유한다. 결과는 `.tmp/test/expression-generator/<한국시간-생성ID>/`, 이력 인덱스는 `.tmp/manager-current/expression/`에 누적한다. 이력 삭제·수동 초기화는 해당 작업의 결과·참조·로그 파일도 함께 삭제한다. 브라우저 종료는 작업 종료가 아니다.
 
 새 메뉴와 서비스 반영에는 GUI·게이트웨이 코드 갱신이 필요하다. 생성 품질 확인은 참조를 입력한 단일 이미지부터 진행한다. 정식 에셋 등록은 별도 채택 후 수행한다. 이번 추가는 로컬 서비스·UI 확장이며 AWS 배포 구조나 고정 비용 리소스에는 변경이 없다.
 

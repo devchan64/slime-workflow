@@ -119,7 +119,7 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
         log_value,refresh_log_value,_=build_execution_logs()
         read_history_page,history_output_values=build_generation_history_view(
             execute_reference_gateway,server_base_address,
-            '이력 목록만 초기화합니다. 결과 이미지·참조 입력 사본·로그 파일은 유지됩니다. 생성 중에는 초기화할 수 없습니다.',
+            '이력과 해당 생성기의 임시 작업 폴더(결과·참조 입력 사본·로그)를 함께 삭제합니다. 이전에 목록에서 제거한 작업도 포함합니다. 정식 에셋과 모델 캐시는 유지합니다. 대기·실행 중에는 초기화할 수 없습니다.',
             restore_input_callback=restore_selected_inputs,
             restore_output_components=[prompt_text_value,generation_tag_value,width_value,height_value,step_value,seed_value,*reference_image_controls,status_value],
             record_folder_route='/expression-generator' if expression_mode_enabled else '/image-generation-2511',allow_individual_delete=True)

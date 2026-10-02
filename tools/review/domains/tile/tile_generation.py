@@ -2,8 +2,6 @@
 import hashlib
 import json
 import time
-import re
-import shutil
 from datetime import datetime
 from urllib.parse import urlsplit
 from zoneinfo import ZoneInfo
@@ -99,38 +97,6 @@ class TileGenerationManager(ImageGenerationManager):
             current_history_record['image']=f'{self.route_prefix_value}/jobs/{current_history_record["id"]}/result.png' if (current_job_root/'result.png').is_file() else None
             current_history_record['cropped_image']=f'{self.route_prefix_value}/jobs/{current_history_record["id"]}/border-crop.png' if (current_job_root/'border-crop.png').is_file() else None
         return history_records
-    def reset_generation_history(self):
-        with self.current_request_lock:
-            if self.current_worker_process is not None and self.current_worker_process.poll() is None:
-                raise ValueError('생성 중에는 초기화할 수 없습니다. 완료 또는 취소 후 다시 실행하세요.')
-            deletion_target_paths=[]
-            for current_job_root in self.job_storage_root.iterdir() if self.job_storage_root.is_dir() else []:
-                if not re.fullmatch(r'\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-[a-f0-9]{8}',current_job_root.name):continue
-                if current_job_root.is_symlink():raise ValueError('심볼릭 링크 작업 경로는 삭제할 수 없습니다.')
-                if not current_job_root.is_dir():continue
-                current_status_path=current_job_root/'status.json'
-                if current_status_path.exists() and json.loads(current_status_path.read_text()).get('status') in ('running','queued'):
-                    raise ValueError('실행 중인 타일 기록이 있습니다. 작업 종료 후 초기화하세요.')
-                deletion_target_paths.append(current_job_root)
-            for current_job_root in deletion_target_paths:shutil.rmtree(current_job_root)
-            self.history_storage_path().mkdir(parents=True,exist_ok=True)
-            self.history_reset_marker_path().touch()
-            legacy_marker_directory=self.history_storage_path()/'deleted'
-            if legacy_marker_directory.is_dir():shutil.rmtree(legacy_marker_directory)
-            super().reset_generation_history()
-            self.current_job_identifier=None
-    def delete_generation_history(self,generation_job_identifier):
-        current_job_root=self.job_storage_root/generation_job_identifier
-        if not current_job_root.is_dir():raise ValueError('생성 작업 경로를 찾을 수 없습니다.')
-        current_status_path=current_job_root/'status.json'
-        current_status_record=json.loads(current_status_path.read_text()) if current_status_path.is_file() else {'status':'missing'}
-        if current_status_record.get('status') in ('queued','running'):
-            raise ValueError('대기·실행 중인 작업은 먼저 중지한 뒤 삭제하세요.')
-        current_history_path=self.history_storage_path()/(generation_job_identifier+'.json')
-        current_history_path.unlink(missing_ok=True)
-        deleted_marker_path=self.history_deleted_marker_path(generation_job_identifier)
-        deleted_marker_path.touch()
-        return {'deleted':generation_job_identifier,'files_preserved':True}
     def validate_generation_request(self, request_record_value):return prepare_tile_request(request_record_value)
     def enrich_generation_status(self, current_job_root, current_status_record):
         current_status_record=current_status_record|{'cropped_image':f'{self.route_prefix_value}/jobs/{current_job_root.name}/border-crop.png' if (current_job_root/'border-crop.png').is_file() else None}

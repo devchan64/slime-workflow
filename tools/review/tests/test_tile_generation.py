@@ -84,7 +84,7 @@ class TileGenerationTests(unittest.TestCase):
                 self.assertFalse(job_root_path.exists())
                 self.assertEqual(image_manager_value.current_job_identifier,None)
 
-    def test_individual_history_delete_hides_tile_job_and_preserves_result(self):
+    def test_individual_history_delete_removes_tile_job_and_result(self):
         with tempfile.TemporaryDirectory() as temporary_directory_name:
             temporary_root_path=Path(temporary_directory_name)
             generation_job_identifier='2026-09-26_12-00-00-abcdef12'
@@ -95,9 +95,9 @@ class TileGenerationTests(unittest.TestCase):
             (job_root_path/'result.png').write_bytes(b'image')
             image_manager_value=TileGenerationManager()
             with patch.object(image_manager_value,'job_storage_root',temporary_root_path/'jobs'),patch.object(image_manager_value,'history_storage_path',return_value=temporary_root_path/'history'):
-                self.assertEqual(image_manager_value.delete_generation_history(generation_job_identifier),{'deleted':generation_job_identifier,'files_preserved':True})
+                self.assertEqual(image_manager_value.delete_generation_history(generation_job_identifier),{'deleted':generation_job_identifier,'files_preserved':False})
                 self.assertEqual(image_manager_value.list_generation_history(),[])
-                self.assertTrue((job_root_path/'result.png').exists())
+                self.assertFalse(job_root_path.exists())
             restarted_manager_value=TileGenerationManager()
             with patch.object(restarted_manager_value,'job_storage_root',temporary_root_path/'jobs'),patch.object(restarted_manager_value,'history_storage_path',return_value=temporary_root_path/'new-history'):
                 self.assertEqual(restarted_manager_value.list_generation_history(),[])

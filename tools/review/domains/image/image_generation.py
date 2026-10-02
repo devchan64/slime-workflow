@@ -115,14 +115,10 @@ class ImageGenerationManager:
         return MANAGER_HISTORY_ROOT / ('qwen-2511' if self.three_reference_mode else 'qwen-2512')
 
     def reset_generation_history(self):
-        if self.route_prefix_value == '/image-generation':
-            return self.clear_image_generation_files()
-        with MANAGER_HISTORY_LOCK:
-            for current_record_path in self.history_storage_path().glob('*.json'):
-                current_record_path.unlink()
+        return self.clear_image_generation_files()
 
     def clear_image_generation_files(self):
-        """Qwen 2512의 종료된 작업 폴더와 이력을 함께 삭제한다."""
+        """현재 생성기의 종료된 작업 폴더와 이력을 함께 삭제한다."""
         with self.current_request_lock, MANAGER_HISTORY_LOCK:
             if self.current_worker_process is not None and self.current_worker_process.poll() is None:
                 raise ValueError('생성 중에는 초기화할 수 없습니다. 완료 또는 취소 후 다시 실행하세요.')
@@ -150,20 +146,27 @@ class ImageGenerationManager:
             self.current_job_identifier = None
 
     def delete_generation_history(self, generation_job_identifier):
-        """완료된 이력 레코드만 제거하고 원본 작업 산출물은 보존한다."""
-        current_history_path=self.history_storage_path()/(generation_job_identifier+'.json')
-        current_job_root=self.job_storage_root/generation_job_identifier
-        with MANAGER_HISTORY_LOCK:
-            if not current_history_path.is_file():
-                raise ValueError('삭제할 생성 이력을 찾을 수 없습니다.')
+        """선택한 종료 작업의 입력·결과·로그와 이력을 함께 삭제한다."""
+        if not isinstance(generation_job_identifier, str) or not re.fullmatch(r'\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-[a-f0-9]{8}', generation_job_identifier):
+            raise ValueError('삭제할 생성 ID 형식이 올바르지 않습니다.')
+        current_history_path = self.history_storage_path() / (generation_job_identifier + '.json')
+        current_job_root = self.job_storage_root / generation_job_identifier
+        with self.current_request_lock, MANAGER_HISTORY_LOCK:
+            if self.job_storage_root.is_symlink() or current_job_root.is_symlink():
+                raise ValueError('심볼릭 링크 작업 경로는 삭제할 수 없습니다.')
             if not current_job_root.is_dir():
                 raise ValueError('생성 작업 경로를 찾을 수 없습니다.')
-            current_status_path=current_job_root/'status.json'
-            current_status_record=json.loads(current_status_path.read_text()) if current_status_path.is_file() else {'status':'missing'}
-            if current_status_record.get('status') in ('queued','running'):
-                raise ValueError('대기·실행 중인 작업은 먼저 중지한 뒤 삭제하세요.')
-            current_history_path.unlink()
-        return {'deleted':generation_job_identifier,'files_preserved':True}
+            current_status_path = current_job_root / 'status.json'
+            if not current_status_path.is_file():
+                raise ValueError('작업 상태 파일이 없어 삭제할 수 없습니다.')
+            current_status_record = json.loads(current_status_path.read_text())
+            if current_status_record.get('status') not in ('completed', 'failed', 'cancelled'):
+                raise ValueError('종료되지 않은 작업은 먼저 중지한 뒤 삭제하세요.')
+            shutil.rmtree(current_job_root)
+            current_history_path.unlink(missing_ok=True)
+            if self.current_job_identifier == generation_job_identifier:
+                self.current_job_identifier = None
+        return {'deleted': generation_job_identifier, 'files_preserved': False}
 
     def list_generation_history(self):
         current_history_records = []
