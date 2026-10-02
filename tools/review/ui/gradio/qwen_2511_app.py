@@ -19,6 +19,7 @@ from tools.review.common.gradio_logs import build_execution_logs, LOG_PANEL_STYL
 from tools.review.common.gradio_history import HISTORY_CARD_SELECTION_SCRIPT, build_generation_history_view
 from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_confirmation
 from tools.review.common.gradio_reference_images import build_reference_image_inputs
+from tools.review.common.gradio_seed import generate_random_seed_value
 from tools.review.common.management_client import execute_remote_management_command as execute_management_command
 
 def execute_reference_gateway(command_name_value,payload_value):return execute_management_command('qwen-2511',command_name_value,payload_value)
@@ -109,6 +110,8 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
             height_value=gr.Dropdown([512,768,1024,1280],value=512,label='높이',scale=1,min_width=120)
             step_value=gr.Radio([4,30],value=4,label='생성 스텝',scale=1,min_width=120)
             seed_value=gr.Number(value=10107,precision=0,label='Seed',scale=1,min_width=120)
+            random_seed_button=gr.Button('무작위 생성',size='sm',scale=1,min_width=120)
+        random_seed_button.click(generate_random_seed_value,outputs=seed_value,queue=False)
         gr.Markdown('예상 시간: 실행 이력 기반 추정 자료를 수집 중입니다. 실행 로그에서 진행 단계를 확인하세요.')
         generation_button_value=gr.Button('이미지 생성 시작',variant='primary')
         status_value=gr.Markdown('생성 가능 · 설정을 확인하세요.')

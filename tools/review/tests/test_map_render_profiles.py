@@ -89,7 +89,7 @@ class MapRenderProfileTests(unittest.TestCase):
         map_review_script = (WORKFLOW_ROOT / 'tools/review/ui/map/block-map-review.js').read_text(encoding='utf-8')
 
         self.assertIn('id: reedhaven-dirt-road', tile_catalog_source)
-        self.assertIn('assets/tiles/terrain/road/dirt-road-v1.png', tile_catalog_source)
+        self.assertIn('assets/tiles/terrain/road/stone-road-v1.png', tile_catalog_source)
         self.assertIn("['reedhaven','grainstead'].includes(currentMapRecord.id)?'reedhaven-dirt-road':'paving'", map_review_script)
 
     def test_reedhaven_uses_wood_building_tiles(self):
