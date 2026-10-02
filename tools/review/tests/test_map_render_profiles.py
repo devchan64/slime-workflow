@@ -73,7 +73,7 @@ class MapRenderProfileTests(unittest.TestCase):
         map_review_script = (WORKFLOW_ROOT / 'tools/review/ui/map/block-map-review.js').read_text(encoding='utf-8')
 
         self.assertIn('id: stonewarm-gravel-paving', tile_catalog_source)
-        self.assertIn('assets/tiles/terrain/road/gravel-paving-v1.png', tile_catalog_source)
+        self.assertIn('assets/tiles/terrain/road/stone-road-v1.png', tile_catalog_source)
         self.assertIn("currentMapRecord.id==='stonewarm'?'stonewarm-marble-paving':currentMapRecord.id==='saltford'?'stonewarm-gravel-paving'", map_review_script)
 
     def test_stonewarm_exposed_rock_ground_uses_the_registered_tile(self):

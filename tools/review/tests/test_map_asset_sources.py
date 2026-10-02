@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
+from unittest.mock import patch
 import yaml
 from tools.review.common.map_asset_sources import load_review_map_identifiers
 from tools.review.build_block_map_review import build_block_map_review
@@ -26,6 +27,13 @@ class MapAssetSourceTests(unittest.TestCase):
         current_map_record = json.loads(current_map_bytes)
         self.assertEqual(sum(row.count('k') for row in current_map_record['terrainRows']),10)
         self.assertTrue(all(record['source'].startswith('assets/maps/') for record in current_map_record['provenance']))
+
+    def test_texture_metadata_is_loaded_on_every_request(self):
+        with patch('tools.review.build_block_map_review.load_current_texture_records', side_effect=[{'tile': {'sha256': 'before'}}, {'tile': {'sha256': 'after'}}]):
+            first_response_bytes, _ = read_map_asset_response('/management/map-assets/textures')
+            second_response_bytes, _ = read_map_asset_response('/management/map-assets/textures')
+        self.assertEqual(json.loads(first_response_bytes)['tile']['sha256'], 'before')
+        self.assertEqual(json.loads(second_response_bytes)['tile']['sha256'], 'after')
 
     def test_invalid_source_paths_are_rejected(self):
         for current_request_path in ('/management/map-assets/maps/unknown','/management/map-assets/maps/../../config','/management/map-assets/files/assets/tiles/../../AGENTS.md','/management/map-assets/files/assets/maps/field_tiles/dry-creek.yaml'):

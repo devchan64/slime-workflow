@@ -15,7 +15,7 @@ class FloorGenerationTests(unittest.TestCase):
         return dict(action='generate',user_prompt='잔디밭',width=512,height=512,steps=4,seed=251204)
     def test_fixed_prompt_and_validation(self):
         prepared_request_value = prepare_floor_request(self.create_floor_request())
-        self.assertEqual(prepared_request_value['prompt'],'잔디밭. Overhead Close-up. Color illustration.')
+        self.assertEqual(prepared_request_value['prompt'],'잔디밭. Top down view. Close up. Square. Blank margins. Webtoon style.')
         for current_legacy_field in ('floor_separation','floor_rectify','border_crop','style_prompt'):
             self.assertNotIn(current_legacy_field,prepared_request_value)
         self.assertEqual(prepared_request_value['width'],512)
@@ -61,6 +61,22 @@ class FloorGenerationTests(unittest.TestCase):
                         self.assertIn('재개',json.loads(current_handler_value.wfile.getvalue())['error'])
                         status_record_value = floor_service_value.enrich_generation_status(selected_job_directory,{'status':'cancelled'})
                         self.assertFalse(status_record_value['resume_allowed'])
+
+    def test_margin_toggle_contract(self):
+        import hashlib
+        for margin_enabled_value in (True,False):
+            expected_prompt_text = '잔디밭. Top down view. Close up. Square. ' + ('Blank margins. ' if margin_enabled_value else '') + 'Webtoon style.'
+            prepared_request_value = prepare_floor_request(self.create_floor_request()|{'add_margins':margin_enabled_value})
+            self.assertEqual(prepared_request_value['prompt'],expected_prompt_text)
+            self.assertEqual(prepared_request_value['add_margins'],margin_enabled_value)
+            self.assertEqual(prepared_request_value['prompt_words'],len(expected_prompt_text.split()))
+            self.assertEqual(prepared_request_value['prompt_sha256'],hashlib.sha256(expected_prompt_text.encode()).hexdigest())
+            with patch.object(management_gateway,'execute_management_command',return_value={'id':'queued'}) as command_call_handle:
+                management_gateway.execute_gateway_arguments('floor-tile',['generate','--prompt','잔디밭','--add-margins' if margin_enabled_value else '--no-add-margins','--detach'])
+            self.assertEqual(prepare_floor_request(command_call_handle.call_args.args[2])['prompt'],expected_prompt_text)
+        for invalid_margin_value in ('false',0,1,None,[]):
+            with self.subTest(value=invalid_margin_value),self.assertRaises(ValueError):
+                prepare_floor_request(self.create_floor_request()|{'add_margins':invalid_margin_value})
 
     def test_cli_contract(self):
         with patch.object(management_gateway,'execute_management_command',return_value={'id':'queued'}) as command_call_handle:

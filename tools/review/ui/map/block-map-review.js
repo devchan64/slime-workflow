@@ -25,7 +25,7 @@ document.querySelector('.map-toolbar').setAttribute('aria-label',currentMapRecor
 currentMapCanvas.setAttribute('aria-label',currentReviewTitle+'. 방향키로 이동하고 더하기와 빼기 키로 확대 또는 축소하며 0 키로 전체 보기를 적용합니다.');
 const currentMaterialColors=await fetch('block-materials.json').then(currentResponse=>currentResponse.json());
 const buildingTileRecords=await fetchMapReviewRecord('block-building-tiles.json');
-const currentTextureRecords=await fetchMapReviewRecord('block-textures.json');
+const currentTextureRecords=await fetchMapReviewRecord('/management/map-assets/textures');
 const loadedTextureImages={};
 await Promise.all(Object.entries(currentTextureRecords).map(([currentTextureName,currentTextureRecord])=>new Promise((resolveTextureLoad,rejectTextureLoad)=>{const currentTextureImage=new Image();currentTextureImage.onload=()=>{loadedTextureImages[currentTextureName]=currentTextureImage;resolveTextureLoad()};currentTextureImage.onerror=()=>{document.querySelector('#status').textContent='타일 로드 실패: '+currentTextureName;rejectTextureLoad(Error(currentTextureName))};currentTextureImage.src=new URL(currentTextureRecord.path,import.meta.url).href})));
 const reviewCharacterRecord=await fetchMapReviewRecord('review-character.json');

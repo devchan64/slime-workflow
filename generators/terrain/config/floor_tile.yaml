@@ -1,3 +1,6 @@
-schema_version: 4
-base_prompt: Overhead Close-up. Color illustration.
-default_user_prompt: 잔디밭
+schema_version: 5
+base_prompt: Top down view. Close up. Square.
+margin_prompt: Blank margins.
+style_prompt: Illustration.
+default_add_margins: true
+default_user_prompt: 잔디와 들꽃

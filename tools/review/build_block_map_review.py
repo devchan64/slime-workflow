@@ -106,6 +106,23 @@ def build_current_block_faces(block_record_values, block_height_value):
     return current_face_records
 
 
+def load_current_texture_records():
+    """검수 타일 목록과 해시를 요청 시 원본에서 읽는다."""
+    source_asset_directory=WORKFLOW_ROOT_DIRECTORY/'assets/world/isloon'
+    tile_catalog_record=yaml.safe_load((source_asset_directory/'tile-catalog.yaml').read_text())
+    if tile_catalog_record.get('source_tile_size')!=GAME_TILE_SOURCE_SIZE:
+        raise ValueError(f'게임 타일 원본 크기는 {GAME_TILE_SOURCE_SIZE}px여야 합니다.')
+    exported_texture_records={}
+    asset_repository_path, registered_tile_records = load_registered_tiles()
+    for current_tile_record in tile_catalog_record['tiles']:
+        texture_source_path, tile_provenance_record = resolve_registered_tile(current_tile_record['asset'], asset_repository_path, registered_tile_records)
+        with Image.open(texture_source_path) as source_texture_image:
+            source_image_size=list(source_texture_image.size)
+        normalization_warning_value=None if source_image_size==[GAME_TILE_SOURCE_SIZE,GAME_TILE_SOURCE_SIZE] else f'정규화 필요: 현재 {source_image_size[0]}×{source_image_size[1]}px, 기준 {GAME_TILE_SOURCE_SIZE}×{GAME_TILE_SOURCE_SIZE}px'
+        exported_texture_records[current_tile_record['id']]={**tile_provenance_record,'path':'/management/map-assets/files/'+current_tile_record['asset']+'?v='+tile_provenance_record['sha256'],'source':current_tile_record['asset'],'sha256':hashlib.sha256(texture_source_path.read_bytes()).hexdigest(),'source_size':source_image_size,'expected_source_size':[GAME_TILE_SOURCE_SIZE,GAME_TILE_SOURCE_SIZE],'normalization_warning':normalization_warning_value}
+    return exported_texture_records
+
+
 def build_block_map_review(output_directory_path):
     output_directory_path=Path(output_directory_path).resolve()
     if not output_directory_path.is_relative_to(WORKFLOW_ROOT_DIRECTORY/'.tmp'):
@@ -114,6 +131,8 @@ def build_block_map_review(output_directory_path):
     town_block_height=load_town_block_height()
     current_material_record=yaml.safe_load((WORKFLOW_ROOT_DIRECTORY/'assets/world/isloon/blocks/materials.yaml').read_text())
     output_directory_path.mkdir(parents=True,exist_ok=True)
+    texture_output_directory=output_directory_path/'textures'
+    texture_output_directory.mkdir(exist_ok=True)
     prefab_source_records=yaml.safe_load((source_asset_directory/'building-prefabs.yaml').read_text())['prefabs']
     building_tile_records={current_prefab_record['id']:{'roof':current_prefab_record['roof_tile'],'wall':current_prefab_record['ground_floor_plain_wall_tile'],'window':current_prefab_record['ground_floor_small_window_wall_tile'],'large_window':current_prefab_record['upper_floor_large_window_wall_tile'],'roof_underlay':current_prefab_record.get('roof_underlay_wall_tile',current_prefab_record['ground_floor_plain_wall_tile']),'door':current_prefab_record['door_tile']} for current_prefab_record in prefab_source_records}
     building_tile_records['stonewarm-guild'] = {'roof': 'stonewarm-guild-red-stone-roof'}
@@ -134,23 +153,10 @@ def build_block_map_review(output_directory_path):
     (output_directory_path/'block-render-profile.json').write_text(json.dumps({'blockHeight':town_block_height}))
     (output_directory_path/'block-materials.json').write_text(json.dumps(current_material_record['materials']))
     # 등록 원본을 직접 제공하며 이미지 사본을 만들지 않는다.
-    tile_catalog_record=yaml.safe_load((source_asset_directory/'tile-catalog.yaml').read_text())
-    if tile_catalog_record.get('source_tile_size')!=GAME_TILE_SOURCE_SIZE:
-        raise ValueError(f'게임 타일 원본 크기는 {GAME_TILE_SOURCE_SIZE}px여야 합니다.')
-    texture_source_root=WORKFLOW_ROOT_DIRECTORY.parent/'slime-frontend/assets'
-    texture_output_directory=output_directory_path/'textures'
-    texture_output_directory.mkdir(exist_ok=True)
-    exported_texture_records={}
-    asset_repository_path, registered_tile_records = load_registered_tiles()
-    for current_tile_record in tile_catalog_record['tiles']:
-        texture_source_path, tile_provenance_record = resolve_registered_tile(current_tile_record['asset'], asset_repository_path, registered_tile_records)
-        with Image.open(texture_source_path) as source_texture_image:
-            source_image_size=list(source_texture_image.size)
-        normalization_warning_value=None if source_image_size==[GAME_TILE_SOURCE_SIZE,GAME_TILE_SOURCE_SIZE] else f'정규화 필요: 현재 {source_image_size[0]}×{source_image_size[1]}px, 기준 {GAME_TILE_SOURCE_SIZE}×{GAME_TILE_SOURCE_SIZE}px'
-        exported_texture_records[current_tile_record['id']]={**tile_provenance_record,'path':'/management/map-assets/files/'+current_tile_record['asset']+'?v='+tile_provenance_record['sha256'],'source':current_tile_record['asset'],'sha256':hashlib.sha256(texture_source_path.read_bytes()).hexdigest(),'source_size':source_image_size,'expected_source_size':[GAME_TILE_SOURCE_SIZE,GAME_TILE_SOURCE_SIZE],'normalization_warning':normalization_warning_value}
+    exported_texture_records=load_current_texture_records()
     (output_directory_path/'block-textures.json').write_text(json.dumps(exported_texture_records))
     from tools.review.common.game_render_metrics import load_game_render_metrics
-    game_render_metrics=load_game_render_metrics(texture_source_root.parent)
+    game_render_metrics=load_game_render_metrics(WORKFLOW_ROOT_DIRECTORY.parent/'slime-frontend')
     (output_directory_path/'game-render-metrics.json').write_text(json.dumps(game_render_metrics))
     character_metadata_path,character_metadata_provenance=resolve_registered_sprite('assets/characters/default/animations/idle-v6/down-left-8frames-v1/idle-v6.animation.json')
     character_source_path,character_source_provenance=resolve_registered_sprite('assets/characters/default/animations/idle-v6/down-left-8frames-v1/source.json')

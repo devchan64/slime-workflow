@@ -213,6 +213,8 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
                 operation_argument_parser.add_argument('--height',type=int,default=512 if service_command_name in ('qwen-2511','expression','floor-tile') else 1024)
                 operation_argument_parser.add_argument('--steps',type=int,choices=(4,) if service_command_name=='floor-tile' else (4,30),default=4)
                 operation_argument_parser.add_argument('--seed',type=int,default=10107 if service_command_name in ('qwen-2511','expression') else 251204)
+                if service_command_name=='floor-tile':
+                    operation_argument_parser.add_argument('--add-margins',action=argparse.BooleanOptionalAction,default=None,help='빈 여백 추가 ON/OFF (--no-add-margins로 OFF, 생략 시 서버 기본값)')
                 if service_command_name in ('qwen-2511','expression'):
                     operation_argument_parser.add_argument('--reference',type=Path,action='append',default=[],help='임의 해상도의 불투명 RGB/RGBA PNG, 장당 3MB 이하, 최대 3장')
     command_argument_values=command_argument_parser.parse_args(command_argument_list)
@@ -253,6 +255,8 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
             if command_argument_values.tag:command_payload_value['tag']=command_argument_values.tag
             if service_command_name=='floor-tile':
                 command_payload_value['user_prompt']=command_payload_value.pop('prompt')
+                if command_argument_values.add_margins is not None:
+                    command_payload_value['add_margins']=command_argument_values.add_margins
             if service_command_name in ('qwen-2511','expression'):
                 if len(command_argument_values.reference)>3:raise ValueError('참조 이미지는 최대 3장입니다.')
                 command_payload_value['images']=[]

@@ -7,6 +7,9 @@ from tools.review.common.map_tile_assets import load_registered_tiles, resolve_r
 
 def read_map_asset_response(request_path_value):
     current_request_path = unquote(request_path_value)
+    if current_request_path == '/management/map-assets/textures':
+        from tools.review.build_block_map_review import load_current_texture_records
+        return json.dumps(load_current_texture_records(),ensure_ascii=False).encode(),'application/json; charset=utf-8'
     if current_request_path.startswith('/management/map-assets/maps/'):
         from tools.review.build_block_map_review import build_registered_map_review
         current_map_identifier = current_request_path.removeprefix('/management/map-assets/maps/')

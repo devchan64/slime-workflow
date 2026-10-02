@@ -125,22 +125,13 @@ def parse_review_arguments(command_argument_values=None):
 
 def collect_review_watch_paths(parsed_argument_values):
     workflow_repo_root = Path(__file__).resolve().parents[2]
-    watch_paths = [Path(__file__).resolve(), workflow_repo_root/'tools/review/ui', workflow_repo_root.parent/'slime-assets/assets/maps']
+    watch_paths = [Path(__file__).resolve(), workflow_repo_root/'tools/review/ui']
     watch_paths.extend(current_config_directory for current_config_directory in (workflow_repo_root/'generators').rglob('config') if current_config_directory.is_dir())
     watch_paths.extend(workflow_repo_root/'generators/writer_agent'/current_file_name for current_file_name in ('manager.html','manager.js'))
     watch_paths.extend((workflow_repo_root/'tools/review').glob('build_*.py'))
     watch_paths.extend((workflow_repo_root/'tools/review/common').glob('gradio_*.py'))
     watch_paths.extend(workflow_repo_root/'tools/review/common'/current_file_name for current_file_name in ('management_client.py','management_transport.py','management_environment.py'))
-    if parsed_argument_values.frontend_repo:
-        frontend_repository_path = Path(parsed_argument_values.frontend_repo).resolve()
-        asset_repository_path = frontend_repository_path.parent/'slime-assets'
-        # assets의 타일 사본은 UI 검수 빌드가 매번 다시 만들므로 감시하지
-        # 않는다. 원본 저장소와 잠금 파일을 감시해 실제 에셋 변경만 반영한다.
-        watch_paths.extend([
-            frontend_repository_path/'map-assets.lock.yaml',
-            asset_repository_path/'asset-registry.yaml',
-            asset_repository_path/'assets/tiles',
-        ])
+    # 맵·타일·등록부는 HTTP 요청마다 검증해 읽는다. 에셋 변경으로 GUI를 재시작하지 않는다.
     if parsed_argument_values.root:
         watch_paths.append(Path(parsed_argument_values.root).resolve())
     if parsed_argument_values.walking:

@@ -309,7 +309,9 @@ GUI와 CLI는 `character-animation sprite-history <원본 ID>` 명령을 공유�
 
 ## 맵 타일 생성기
 
-`floor-tile` GUI와 CLI는 공용 게이트웨이를 통해 Qwen-Image-Edit-2511의 참조 없는 텍스트 생성으로 **512×512·4스텝 단일 이미지**를 생성한다. 사용자 프롬프트를 맨 앞에 두고 `Overhead Close-up. Color illustration.`를 붙인다. 예: `잔디밭. Overhead Close-up. Color illustration.` 기본 Seed는 251204이며 무작위 선택과 직접 입력을 지원한다.
+`floor-tile` GUI와 CLI는 공용 게이트웨이를 통해 Qwen-Image-Edit-2511의 참조 없는 텍스트 생성으로 **512×512·4스텝 단일 이미지**를 생성한다. 사용자 프롬프트를 맨 앞에 두고 `Top down view. Close up. Square. Blank margins. Webtoon style.`를 붙인다. 예: `잔디밭. Top down view. Close up. Square. Blank margins. Webtoon style.` 기본 Seed는 251204이며 무작위 선택과 직접 입력을 지원한다.
+
+사용자 프롬프트(한글) → 시점·클로즈업·정사각형(영문) → 선택적 `Blank margins.` → `Webtoon style.` 순서다. GUI의 **여백 추가**는 기본 ON이며 OFF일 때 여백 문구만 제외한다. CLI는 `--add-margins` / `--no-add-margins`로 지정하며 생략하면 서버 기본값을 따른다. 요청·이력에 `add_margins`를 저장하고 입력 재사용 시 복원한다. 옵션이 없는 과거 이력의 입력 재사용은 OFF로 표시한다.
 
 기본 프롬프트는 `generators/terrain/config/floor_tile.yaml`에서 관리한다. 크기·스텝·고정 문구 변경 요청은 서버에서 거절한다. GUI에는 사용자·기본·최종 단어 수와 실제 전달 문구를 표시한다.
 
