@@ -171,11 +171,11 @@ def build_block_map_review(output_directory_path):
     shutil.copy2(source_ui_directory/'block-map-review.js',output_directory_path/'block-map-review.js')
     shutil.copy2(source_ui_directory/'field-map-renderer.js',output_directory_path/'field-map-renderer.js')
     # 버전 고정 라이브러리만 게시한다. 프론트엔드 소스·전체 빌드를 읽지 않는다.
-    shared_library_directory = source_ui_directory/'vendor/field-surface/1.0.3'
+    shared_library_directory = source_ui_directory/'vendor/field-surface/1.0.4'
     shared_library_manifest = yaml.safe_load((shared_library_directory/'manifest.yaml').read_text())
     if hashlib.sha256((shared_library_directory/'field-surface.mjs').read_bytes()).hexdigest()!=shared_library_manifest['sha256']:
         raise ValueError('필드 공통 라이브러리 배포본 해시 불일치')
-    shutil.copytree(shared_library_directory,output_directory_path/'vendor/field-surface/1.0.3',dirs_exist_ok=True)
+    shutil.copytree(shared_library_directory,output_directory_path/'vendor/field-surface/1.0.4',dirs_exist_ok=True)
     return output_directory_path
 
 

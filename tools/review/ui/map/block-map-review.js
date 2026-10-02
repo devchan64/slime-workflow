@@ -1,5 +1,5 @@
 import {createFieldReviewFrame,pickFieldReviewCell,drawFieldReviewFrame} from './field-map-renderer.js';
-import {FIELD_RENDER_METRICS,projectSurfaceCell,CHARACTER_OUTLINE_STYLE} from './vendor/field-surface/1.0.3/field-surface.mjs';
+import {FIELD_RENDER_METRICS,projectSurfaceCell,CHARACTER_OUTLINE_STYLE} from './vendor/field-surface/1.0.4/field-surface.mjs';
 const MIN_MAP_SCALE=0.05,MAX_MAP_SCALE=4,MAP_ZOOM_FACTOR=1.25,MAP_DRAG_THRESHOLD=4,MAP_KEYBOARD_PAN_DISTANCE=48;
 let activeMapPointer=null,suppressMarkerClick=false;
 const currentMapCanvas=document.querySelector('#map'),currentDrawingContext=currentMapCanvas.getContext('2d');
