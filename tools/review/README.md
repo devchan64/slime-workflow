@@ -74,7 +74,7 @@ HTTP URL, 페이지 해시, CLI 명령, `.tmp` 생성 ID·기록 경로와 `asse
 
 게시한 텍스처 메타데이터에 원본 저장소·경로·관리 ID·버전·해시를 보존한다. 브라우저는 게시된 정적 사본을 사용한다. 캐릭터와 렌더링 수치의 기존 전달 경로는 맵 타일 원본과 구분한다. 건물별 타일 선택은 마을 공통 선택보다 우선하며, 돌온재 길드회관은 `stonewarm-guild-red-stone-roof`를 사용한다. 원본 또는 카탈로그 변경 후 검수 패키지를 다시 게시해야 한다.
 
-마른 개울(`dry-creek`) 필드도 에셋 저장소 원본을 직접 검수한다. 선인장(`cactus`)은 진입 불가이며 원본은 에셋 저장소의 `assets/tiles/terrain/blocked/cactus-v1.png`이다. 맵 응답의 `provenance`에 원본 등록 경로·버전·해시를 표시한다.
+마른 개울(`dry-creek`) 필드도 에셋 저장소 원본을 직접 검수한다. 선인장(`cactus`)은 진입 불가이며 원본은 에셋 저장소의 `assets/tiles/terrain/blocked/sand-cactus-type-a-v1.png`이다. 맵 응답의 `provenance`에 원본 등록 경로·버전·해시를 표시한다.
 
 ### 에셋 변경과 GUI 재시작
 
