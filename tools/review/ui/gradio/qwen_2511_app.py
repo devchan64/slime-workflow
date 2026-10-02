@@ -3,6 +3,9 @@ import argparse
 import base64
 import html
 import io
+import hashlib
+import re
+from PIL import Image
 import os
 from pathlib import Path
 import sys
@@ -41,9 +44,27 @@ def prepare_reference_image_bytes(reference_image_values):
     return reference_bytes_values
 
 
-def restore_reference_inputs(current_history_record):
+def restore_reference_inputs(current_history_record, reference_storage_root=None):
     current_request_record=current_history_record.get('request',{})
-    return current_request_record.get('prompt',''),current_request_record.get('tag',''),current_request_record.get('width',512),current_request_record.get('height',512),current_request_record.get('steps',4),current_request_record.get('seed',10107),'선택한 이력의 설정을 불러왔습니다. 참조 이미지는 기록에 보존되지만 의도치 않은 재사용을 막기 위해 다시 업로드하세요.'
+    restored_reference_images=[]
+    reference_snapshot_records=current_request_record.get('reference_snapshots',[])
+    if reference_snapshot_records:
+        generation_identifier_value=current_history_record.get('id','')
+        if not re.fullmatch(r'[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{2}-[0-9]{2}-[0-9]{2}-[a-f0-9]{8}',generation_identifier_value):
+            raise gr.Error('생성 ID 형식 오류')
+        reference_storage_root=Path(reference_storage_root or WORKFLOW_ROOT_DIRECTORY/'.tmp/test/qwen-image-2511-three-reference').resolve()
+        for reference_slot_number,current_snapshot_record in enumerate(reference_snapshot_records,1):
+            if reference_slot_number>3 or current_snapshot_record['path']!=f'reference-{reference_slot_number}.png':
+                raise gr.Error('참조 이미지 순서 또는 경로 오류')
+            reference_source_path=(reference_storage_root/generation_identifier_value/current_snapshot_record['path']).resolve()
+            if not reference_source_path.is_relative_to(reference_storage_root):raise gr.Error('참조 이미지 경로 오류')
+            if not reference_source_path.is_file():raise gr.Error('저장된 참조 이미지가 없습니다: '+current_snapshot_record['path'])
+            reference_source_bytes=reference_source_path.read_bytes()
+            if hashlib.sha256(reference_source_bytes).hexdigest()!=current_snapshot_record['sha256']:raise gr.Error('참조 이미지 해시 불일치')
+            with Image.open(io.BytesIO(reference_source_bytes)) as reference_image_value:
+                restored_reference_images.append(reference_image_value.copy())
+    restored_reference_images.extend([None]*(3-len(restored_reference_images)))
+    return (current_request_record.get('prompt',''),current_request_record.get('tag',''),current_request_record.get('width',512),current_request_record.get('height',512),current_request_record.get('steps',4),current_request_record.get('seed',10107),*restored_reference_images,'선택한 이력의 설정과 참조 이미지 '+str(len(reference_snapshot_records))+'장을 불러왔습니다.')
 
 def result_preview_html(image_url_value):return f'<img class="qwen-result-image" src="{html.escape(image_url_value,quote=True)}" alt="Qwen 생성 결과">' if image_url_value else '<div class="image-result-empty">완료된 결과를 선택하세요.</div>'
 
@@ -53,7 +74,7 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
     def execute_reference_gateway(command_name_value, payload_value):
         return execute_management_command(current_service_name, command_name_value, payload_value)
     def restore_selected_inputs(current_history_record):
-        restored_input_values = list(restore_reference_inputs(current_history_record))
+        restored_input_values = list(restore_reference_inputs(current_history_record, WORKFLOW_ROOT_DIRECTORY/'.tmp/test/expression-generator' if expression_mode_enabled else None))
         if expression_mode_enabled:
             restored_input_values[0] = current_history_record['request']['expression']['id']
         return tuple(restored_input_values)
@@ -69,6 +90,8 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
             else:
                 prompt_text_value=gr.Textbox(label='프롬프트',lines=3,scale=1,min_width=240)
             generation_tag_value=gr.Textbox(label='생성 이력 태그 · 선택 사항',placeholder='예: 돌온재 참조 후보',lines=3,scale=1,min_width=240)
+        if not expression_mode_enabled:
+            prompt_reset_button=gr.ClearButton([prompt_text_value],value='프롬프트 초기화',variant='secondary',size='sm')
         if expression_mode_enabled:
             def describe_expression_prompt(expression_identifier_value):
                 final_prompt_value, expression_source_record = build_expression_prompt(expression_identifier_value)
@@ -98,7 +121,7 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
             execute_reference_gateway,server_base_address,
             '이력 목록만 초기화합니다. 결과 이미지·참조 입력 사본·로그 파일은 유지됩니다. 생성 중에는 초기화할 수 없습니다.',
             restore_input_callback=restore_selected_inputs,
-            restore_output_components=[prompt_text_value,generation_tag_value,width_value,height_value,step_value,seed_value,status_value],
+            restore_output_components=[prompt_text_value,generation_tag_value,width_value,height_value,step_value,seed_value,*reference_image_controls,status_value],
             record_folder_route='/expression-generator' if expression_mode_enabled else '/image-generation-2511',allow_individual_delete=True)
         def start_generation(prompt_text_value,generation_tag_value,first_reference_image,second_reference_image,third_reference_image,width_value,height_value,step_value,seed_value):
             reference_bytes_values=prepare_reference_image_bytes((first_reference_image,second_reference_image,third_reference_image))

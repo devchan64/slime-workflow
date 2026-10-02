@@ -4,6 +4,9 @@ logical_tile_size: 64
 source_tile_size: 256
 # 이슬온 24×24 안전 도시의 정식 지형 구성이다.
 tiles:
+  - {id: boulder-type-a, category: ground, asset: assets/tiles/terrain/blocked/boulder-type-a-v1.png, walkable: false, movement_cost: 99}
+  - {id: boulder-type-b, category: ground, asset: assets/tiles/terrain/blocked/boulder-type-b-v1.png, walkable: false, movement_cost: 99}
+  - {id: boulder-type-c, category: ground, asset: assets/tiles/terrain/blocked/boulder-type-c-v1.png, walkable: false, movement_cost: 99}
   - {id: grass-type-a, category: ground, asset: assets/tiles/terrain/non-road/grass-type-a-v1.png, walkable: true, movement_cost: 1}
   - {id: grass-type-b, category: ground, asset: assets/tiles/terrain/non-road/grass-type-b-v1.png, walkable: true, movement_cost: 1}
   - {id: iseulon-grass-mud-frame, category: ground, asset: assets/tiles/terrain/non-road/grass-type-a-v1.png, walkable: true, movement_cost: 1}
@@ -37,7 +40,7 @@ tiles:
   - {id: cactus, category: ground, asset: assets/tiles/terrain/blocked/cactus-v1.png, walkable: false, movement_cost: 99}
   - {id: gravel, category: ground, asset: assets/tiles/terrain/non-road/gravel-128.webp, walkable: true, movement_cost: 1}
   - {id: mud, category: ground, asset: assets/tiles/terrain/non-road/mud-128.webp, walkable: true, movement_cost: 1}
-  - {id: boulder, category: ground, asset: assets/tiles/terrain/blocked/boulder-128.webp, walkable: false, movement_cost: 99}
+  - {id: boulder, category: ground, asset: assets/tiles/terrain/blocked/boulder-type-a-v1.png, walkable: false, movement_cost: 99}
   - {id: shallow-water, category: ground, asset: assets/tiles/terrain/blocked/transparent-shallow-water-v1.png, walkable: false, movement_cost: 99}
   - {id: reed-bed, category: ground, asset: assets/tiles/terrain/non-road/reed-bed-128.webp, walkable: true, movement_cost: 1}
   - {id: deep-water, category: ground, asset: assets/tiles/terrain/blocked/transparent-deep-water-v1.png, walkable: false, movement_cost: 99}
@@ -47,7 +50,7 @@ tiles:
   - {id: dew, category: ground, asset: assets/tiles/terrain/non-road/dew-v3.webp, walkable: true, movement_cost: 1}
   - {id: ash, category: ground, asset: assets/tiles/terrain/non-road/ash-128.webp, walkable: true, movement_cost: 1}
   - {id: moss, category: ground, asset: assets/tiles/terrain/non-road/moss-128.webp, walkable: true, movement_cost: 1}
-  - {id: leaf-litter, category: ground, asset: assets/tiles/terrain/non-road/leaf-litter-128.webp, walkable: true, movement_cost: 1}
+  - {id: leaf-litter, category: ground, asset: assets/tiles/terrain/non-road/leaf-litter-v1.png, walkable: true, movement_cost: 1}
   - {id: tree-base, category: ground, asset: assets/tiles/terrain/blocked/tree-base-128.webp, walkable: false, movement_cost: 99}
   - {id: cliff-wall, category: ground, asset: assets/tiles/terrain/blocked/dew-meadow-cliff-face-v1.png, walkable: false, movement_cost: 99}
 connections:

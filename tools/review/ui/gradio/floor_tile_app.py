@@ -27,6 +27,7 @@ def build_floor_interface(server_base_address):
         with gr.Row(equal_height=True):
             user_prompt_control = gr.Textbox(value=catalog_record_value['default_user_prompt'],label='사용자 프롬프트 · 바닥 표면',lines=3,scale=1,min_width=240)
             generation_tag_control = gr.Textbox(label='생성 이력 태그 · 선택 사항',lines=3,scale=1,min_width=240)
+        prompt_reset_button = gr.ClearButton([user_prompt_control],value='프롬프트 초기화',variant='secondary',size='sm')
         add_margins_control = gr.Checkbox(value=catalog_record_value['default_add_margins'],label='여백 추가',info='ON: Blank margins. 추가 · OFF: 여백 문구 제외')
         initial_base_prompt = compose_floor_base_prompt(catalog_record_value)
         with gr.Row(equal_height=True):
