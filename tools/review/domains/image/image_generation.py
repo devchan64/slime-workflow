@@ -102,6 +102,15 @@ class ImageGenerationManager:
             return validate_three_reference_request(request_record_value)
         return validate_image_request(request_record_value)
 
+    def validate_generation_resume(self, selected_job_directory):
+        """도메인별 재개 가능 기록을 GPU 명령 실행 전에 검증한다."""
+
+    def select_generation_runner(self, saved_request_record=None):
+        saved_request_record = saved_request_record or {}
+        if self.three_reference_mode or saved_request_record.get('references'):
+            return 'generators/image/run_qwen_2511_three_reference.py'
+        return 'generators/image/run_qwen_2512.py'
+
     def history_storage_path(self):
         return MANAGER_HISTORY_ROOT / ('qwen-2511' if self.three_reference_mode else 'qwen-2512')
 
@@ -201,9 +210,11 @@ class ImageGenerationManager:
                     if current_url_path.endswith('/resume'):
                         validate_image_runtime()
                     selected_job_directory=self.job_storage_root/current_request_record['id']
+                    if current_url_path.endswith('/resume'):
+                        self.validate_generation_resume(selected_job_directory)
                     if current_url_path.endswith('/resume') and not (selected_job_directory/'gpu-command.json').exists():
                         saved_request_record=json.loads((selected_job_directory/'request.json').read_text())
-                        saved_command_values=[str(WORKFLOW_ROOT_PATH/'.venv/bin/python'),str(WORKFLOW_ROOT_PATH/('generators/image/run_qwen_2511_three_reference.py' if self.three_reference_mode or saved_request_record.get('references') else 'generators/image/run_qwen_2512.py')),'--job-dir',str(selected_job_directory)]
+                        saved_command_values=[str(WORKFLOW_ROOT_PATH/'.venv/bin/python'),str(WORKFLOW_ROOT_PATH/self.select_generation_runner(saved_request_record)),'--job-dir',str(selected_job_directory)]
                         (selected_job_directory/'gpu-command.json').write_text(json.dumps({'command':saved_command_values,'service':'image'}))
                     selected_operation_result=(resume_gpu_generation if current_url_path.endswith('/resume') else cancel_gpu_generation)(selected_job_directory)
                     send_response_data(200,selected_operation_result)
@@ -238,7 +249,7 @@ class ImageGenerationManager:
                         self.history_storage_path().mkdir(parents=True,exist_ok=True)
                         (self.history_storage_path()/(current_job_identifier+'.json')).write_text(json.dumps({'id':current_job_identifier,'created_at':datetime.now(ZoneInfo('Asia/Seoul')).isoformat(),'request':current_request_record,'status':{'status':'running'},'job_path':str(current_job_root)},ensure_ascii=False))
                     with (current_job_root/'worker.log').open('w') as current_log_handle:
-                        self.current_worker_process = launch_gpu_process([str(WORKFLOW_ROOT_PATH/'.venv/bin/python'),str(WORKFLOW_ROOT_PATH/('generators/image/run_qwen_2511_three_reference.py' if self.three_reference_mode or current_request_record.get('references') else 'generators/image/run_qwen_2512.py')),'--job-dir',str(current_job_root)],current_job_root,'image',stdout=current_log_handle,stderr=subprocess.STDOUT,start_new_session=True)
+                        self.current_worker_process = launch_gpu_process([str(WORKFLOW_ROOT_PATH/'.venv/bin/python'),str(WORKFLOW_ROOT_PATH/self.select_generation_runner(current_request_record)),'--job-dir',str(current_job_root)],current_job_root,'image',stdout=current_log_handle,stderr=subprocess.STDOUT,start_new_session=True)
                     self.current_job_identifier = current_job_identifier
                     current_worker_process = self.current_worker_process
                     def watch_worker_exit():
@@ -262,7 +273,7 @@ class ImageGenerationManager:
             elif current_url_path == self.route_prefix_value+'/history':
                 send_response_data(200,{'records':self.list_generation_history()})
             elif current_url_path == self.route_prefix_value+'/model-status':
-                if self.three_reference_mode:
+                if self.select_generation_runner().endswith('run_qwen_2511_three_reference.py'):
                     send_response_data(200,{'ready':False,'message':'2511 모델 준비 상태는 생성 시 검증합니다.'})
                 else:
                     import sys

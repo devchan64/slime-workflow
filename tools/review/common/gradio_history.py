@@ -244,8 +244,10 @@ def build_generation_history_view(execute_service_command,server_base_address,de
 
     def refresh_history_controls(current_selected_identifier):
         if not current_selected_identifier:return gr.update(interactive=False),gr.update(interactive=False)
-        current_status_value=execute_service_command('status',{'id':current_selected_identifier}).get('status')
-        return gr.update(interactive=current_status_value in ('running','queued')),gr.update(interactive=current_status_value in ('failed','cancelled'))
+        current_status_record=execute_service_command('status',{'id':current_selected_identifier})
+        current_status_value=current_status_record.get('status')
+        generation_resume_allowed=current_status_record.get('resume_allowed',True)
+        return gr.update(interactive=current_status_value in ('running','queued')),gr.update(interactive=generation_resume_allowed and current_status_value in ('failed','cancelled'),value='생성 재개' if generation_resume_allowed else current_status_record['resume_block_reason'])
     history_selection_value.change(refresh_history_controls,history_selection_value,[history_cancel_button,history_resume_button],queue=False)
     if hasattr(gr,'Timer'):
         gr.Timer(3).tick(refresh_history_controls,history_selection_value,[history_cancel_button,history_resume_button],queue=False)

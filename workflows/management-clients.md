@@ -309,7 +309,7 @@ GUI와 CLI는 `character-animation sprite-history <원본 ID>` 명령을 공유�
 
 ## 맵 타일 생성기
 
-`floor-tile` GUI와 CLI는 공용 게이트웨이를 통해 Qwen 2512로 **512×512·4스텝 단일 이미지**를 생성한다. 사용자 프롬프트를 맨 앞에 두고 `Overhead Close-up. Color illustration.`를 붙인다. 예: `잔디밭. Overhead Close-up. Color illustration.` 기본 Seed는 251204이며 무작위 선택과 직접 입력을 지원한다.
+`floor-tile` GUI와 CLI는 공용 게이트웨이를 통해 Qwen-Image-Edit-2511의 참조 없는 텍스트 생성으로 **512×512·4스텝 단일 이미지**를 생성한다. 사용자 프롬프트를 맨 앞에 두고 `Overhead Close-up. Color illustration.`를 붙인다. 예: `잔디밭. Overhead Close-up. Color illustration.` 기본 Seed는 251204이며 무작위 선택과 직접 입력을 지원한다.
 
 기본 프롬프트는 `generators/terrain/config/floor_tile.yaml`에서 관리한다. 크기·스텝·고정 문구 변경 요청은 서버에서 거절한다. GUI에는 사용자·기본·최종 단어 수와 실제 전달 문구를 표시한다.
 
@@ -318,7 +318,7 @@ python3 tools/manager.py command floor-tile generate --prompt '잔디와 들꽃'
 python3 tools/manager.py command floor-tile status GENERATION_ID
 ```
 
-신규 생성은 격자 생성·중앙 크롭·Qwen 2511 재생성을 실행하지 않는다. 최종 원본은 `result.png`다. 요청·프롬프트 해시·결과·로그와 생성 이력 경로는 `.tmp/test/qwen-image-2512/floor-tile/<생성 ID>/`, `.tmp/manager-current/floor-tile/`를 유지한다. 기존 다단계 요청은 변경하지 않으며 과거 버전 처리 코드는 해당 이력 조회·재개 호환용으로만 유지한다.
+신규 생성은 Qwen 2511을 한 번 실행하며 격자 생성·중앙 크롭·재생성 단계를 실행하지 않는다. 모델은 서버에서 고정하며 요청으로 선택할 수 없다. 모델 준비는 생성 시 검증하므로 별도 `prepare` 명령은 제공하지 않는다. 최종 원본은 `result.png`다. 요청·프롬프트 해시·결과·로그와 생성 이력 경로는 `.tmp/test/qwen-image-2512/floor-tile/<생성 ID>/`, `.tmp/manager-current/floor-tile/`를 유지한다. 새 요청에 모델 ID와 빈 참조 목록을 보존한다. 예상 시간은 같은 모델의 이력만 사용한다. 기존 2512 단일 생성과 다단계 이력은 조회만 가능하다. 이전 기록은 저장된 GPU 명령 유무와 관계없이 서버에서 재개를 거절하며, 현재 설정으로 새로 생성해야 한다.
 
 
 ## 표정 생성기

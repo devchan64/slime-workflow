@@ -23,7 +23,7 @@ def execute_floor_gateway(command_name_value,payload_record_value):
 def build_floor_interface(server_base_address):
     catalog_record_value = execute_floor_gateway('catalog',{})
     with gr.Blocks(title='맵 타일 생성기',js=HISTORY_CARD_SELECTION_SCRIPT,elem_classes=['management-generator-root']) as interface_block_value:
-        gr.Markdown('## 맵 타일 생성기\nQwen 2512로 512×512 맵 타일을 4스텝으로 한 번 생성합니다. 사용자 프롬프트를 고정 기본 프롬프트 앞에 배치합니다.')
+        gr.Markdown('## 맵 타일 생성기\nQwen 2511로 512×512 맵 타일을 4스텝으로 한 번 생성합니다. 사용자 프롬프트를 고정 기본 프롬프트 앞에 배치합니다.')
         with gr.Row(equal_height=True):
             user_prompt_control = gr.Textbox(value=catalog_record_value['default_user_prompt'],label='사용자 프롬프트 · 바닥 표면',lines=3,scale=1,min_width=240)
             generation_tag_control = gr.Textbox(label='생성 이력 태그 · 선택 사항',lines=3,scale=1,min_width=240)
@@ -51,7 +51,7 @@ def build_floor_interface(server_base_address):
         generation_start_button = gr.Button('맵 타일 생성 시작',variant='primary')
         generation_status_control = gr.Markdown('생성 가능 · 100단어 미만의 프롬프트를 입력하세요.')
         with gr.Accordion('생성 과정 · 고정 설정 안내',open=False):
-            gr.Markdown('사용자 프롬프트 → 고정 기본 프롬프트 순서로 Qwen 2512에 전달합니다. 512×512 · 4스텝 단일 생성이며 결과 원본은 result.png입니다. 이전 다단계 이력은 당시 결과와 설정으로 조회·재개합니다.')
+            gr.Markdown('사용자 프롬프트 → 고정 기본 프롬프트 순서로 Qwen 2511에 전달합니다. 512×512 · 4스텝 단일 생성이며 결과 원본은 result.png입니다. 이전 생성 이력은 조회만 가능하며 재개할 수 없습니다. 현재 설정으로 새로 생성하세요.')
         current_identifier_state = gr.State('')
         def start_floor_generation(user_prompt_value,generation_tag_value,output_size_value,inference_step_value,generation_seed_value):
             generation_result_record = execute_floor_gateway('generate',{'action':'generate','user_prompt':user_prompt_value,'tag':generation_tag_value,'width':int(output_size_value),'height':int(output_size_value),'steps':int(inference_step_value),'seed':int(generation_seed_value)})

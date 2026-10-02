@@ -21,9 +21,47 @@ class FloorGenerationTests(unittest.TestCase):
         self.assertEqual(prepared_request_value['width'],512)
         self.assertEqual(prepared_request_value['height'],512)
         self.assertEqual(prepared_request_value['steps'],4)
-        for invalid_field_values in ({'base_prompt':'override'},{'user_prompt':''},{'width':1008,'height':1008},{'seed':True},{'width':1024,'height':1024},{'steps':30},{'images':[]}):
+        for invalid_field_values in ({'base_prompt':'override'},{'user_prompt':''},{'width':1008,'height':1008},{'seed':True},{'width':1024,'height':1024},{'steps':30},{'images':[]},{'generation_model':'Qwen/Qwen-Image-2512'}):
             with self.subTest(invalid=invalid_field_values),self.assertRaises(ValueError):
                 prepare_floor_request(self.create_floor_request()|invalid_field_values)
+    def test_current_model_and_legacy_resume(self):
+        import io
+        from tools.review.tests.test_image_generation import ImageGenerationTests
+        floor_service_value = FloorGenerationManager()
+        prepared_request_value = prepare_floor_request(self.create_floor_request())
+        self.assertEqual(prepared_request_value['references'], [])
+        self.assertEqual(prepared_request_value['reference_snapshots'], [])
+        self.assertTrue(floor_service_value.select_generation_runner(prepared_request_value).endswith('run_qwen_2511_three_reference.py'))
+        with self.assertRaises(ValueError):
+            management_gateway.resolve_management_command('floor-tile','prepare',{})
+        with tempfile.TemporaryDirectory() as temporary_directory_name:
+            temporary_root_path = Path(temporary_directory_name)
+            floor_service_value.job_storage_root = temporary_root_path
+            selected_job_directory = temporary_root_path/'2026-10-02_00-00-00-1234abcd'
+            selected_job_directory.mkdir()
+            (selected_job_directory/'request.json').write_text(json.dumps(prepared_request_value))
+            floor_service_value.validate_generation_resume(selected_job_directory)
+            for legacy_request_record in ({'action':'generate'}, {'action':'generate','floor_separation':{'version':10}}):
+                for saved_command_present in (False,True):
+                    with self.subTest(legacy=legacy_request_record,command=saved_command_present):
+                        (selected_job_directory/'request.json').write_text(json.dumps(legacy_request_record))
+                        saved_command_path = selected_job_directory/'gpu-command.json'
+                        if saved_command_present:
+                            saved_command_path.write_text('{"command":["old-worker"]}')
+                        else:
+                            saved_command_path.unlink(missing_ok=True)
+                        current_handler_value = ImageGenerationTests().make_http_handler('/floor-tile-generator/resume','POST')
+                        current_request_bytes = json.dumps({'id':selected_job_directory.name}).encode()
+                        current_handler_value.rfile = io.BytesIO(current_request_bytes)
+                        current_handler_value.headers['Content-Length'] = str(len(current_request_bytes))
+                        with patch('tools.review.domains.image.image_generation.validate_image_runtime'), patch('tools.review.domains.image.image_generation.resume_gpu_generation') as resume_process_mock:
+                            floor_service_value.handle_image_request(current_handler_value)
+                        self.assertEqual(current_handler_value.status,400)
+                        resume_process_mock.assert_not_called()
+                        self.assertIn('재개',json.loads(current_handler_value.wfile.getvalue())['error'])
+                        status_record_value = floor_service_value.enrich_generation_status(selected_job_directory,{'status':'cancelled'})
+                        self.assertFalse(status_record_value['resume_allowed'])
+
     def test_cli_contract(self):
         with patch.object(management_gateway,'execute_management_command',return_value={'id':'queued'}) as command_call_handle:
             management_gateway.execute_gateway_arguments('floor-tile',['generate','--prompt','잔디밭','--detach'])
