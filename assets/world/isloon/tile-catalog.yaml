@@ -4,6 +4,7 @@ logical_tile_size: 64
 source_tile_size: 256
 # 이슬온 24×24 안전 도시의 정식 지형 구성이다.
 tiles:
+  - {id: meadow-road, category: ground, asset: assets/tiles/terrain/road/dry-soil-pebble-road-v1.png, walkable: true, movement_cost: 1}
   - {id: boulder-type-a, category: ground, asset: assets/tiles/terrain/blocked/boulder-type-a-v1.png, walkable: false, movement_cost: 99}
   - {id: boulder-type-b, category: ground, asset: assets/tiles/terrain/blocked/boulder-type-b-v1.png, walkable: false, movement_cost: 99}
   - {id: boulder-type-c, category: ground, asset: assets/tiles/terrain/blocked/boulder-type-c-v1.png, walkable: false, movement_cost: 99}
