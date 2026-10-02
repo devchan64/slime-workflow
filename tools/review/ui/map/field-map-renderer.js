@@ -1,4 +1,4 @@
-import {FIELD_RENDER_METRICS,projectSurfaceVertex,projectSurfaceCell,buildSurfaceCliffs,buildSurfaceStairs,findSurfaceStair,readSurfaceHeight,containsSurfacePoint,resolveCliffTextureScale} from './vendor/field-surface/1.0.2/field-surface.mjs';
+import {FIELD_RENDER_METRICS,projectSurfaceVertex,projectSurfaceCell,buildSurfaceCliffs,buildSurfaceStairs,findSurfaceStair,readSurfaceHeight,containsSurfacePoint,resolveCliffTextureScale} from './vendor/field-surface/1.0.3/field-surface.mjs';
 
 // Canvas 어댑터는 공통 라이브러리의 면·투영 결과만 그린다.
 export function createFieldReviewFrame(currentMapSurface,currentQuarterTurns){
