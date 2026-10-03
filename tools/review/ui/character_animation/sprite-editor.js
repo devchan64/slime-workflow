@@ -240,6 +240,7 @@ if(typeof document!=='undefined')void (async function initializeSpriteEditorComp
    const loadedProjectDocument=savedProjectRecord.document||{version:3,source:sourceIdentifierValue,output:{cellSize:outputCellPixels,targetHeight:Math.min(outputCellPixels,sourceReferenceHeight*outputCellPixels/sourceCellDimension)},frames:Object.fromEntries(sourceAssetRecord.frames.map(currentFrameRecord=>[currentFrameRecord.frameId,createSpriteDefaultSettings(currentFrameRecord,outputCellPixels,spriteBodyBounds.get(currentFrameRecord.frameId),sourceIdentifierValue.startsWith('asset:'))]))};
    upgradeSpriteProjectDocument(loadedProjectDocument);
    for(const currentFrameRecord of sourceAssetRecord.frames){if(!loadedProjectDocument.frames[currentFrameRecord.frameId])throw Error('원본과 저장된 편집 프레임이 다릅니다.');validateSpriteFrameSettings(loadedProjectDocument.frames[currentFrameRecord.frameId]);}
+   localStorage.setItem('sprite-editor-selected-source',sourceIdentifierValue);
    spriteSourceRecord=sourceAssetRecord;spriteProjectDocument=loadedProjectDocument;spriteSavedSnapshot=JSON.stringify(loadedProjectDocument);spriteFramePosition=0;spriteUndoRecords.length=0;spriteDirtyState=false;restoreSpriteOutputControls();spriteSavedSnapshot=JSON.stringify(spriteProjectDocument);
    const sourceDirectionNames=Object.keys(SPRITE_DIRECTION_LABELS).filter(directionKeyName=>sourceAssetRecord.frames.some(currentFrameRecord=>currentFrameRecord.direction===directionKeyName));
    findSpriteElement('direction').replaceChildren(...sourceDirectionNames.map(directionKeyName=>new Option(SPRITE_DIRECTION_LABELS[directionKeyName],directionKeyName)));
@@ -272,14 +273,21 @@ if(typeof document!=='undefined')void (async function initializeSpriteEditorComp
  }
 
  for(const [currentFieldName,currentFieldLabel] of Object.entries(SPRITE_FRAME_FIELDS)){
-  const currentFieldInput=document.createElement('input'),currentFieldWrapper=document.createElement('label');currentFieldInput.type='number';currentFieldInput.step=currentFieldName==='scale'?'0.01':'1';currentFieldInput.id='sprite-field-'+currentFieldName;currentFieldWrapper.textContent=currentFieldLabel;currentFieldWrapper.append(currentFieldInput);const currentFieldGroup=['center','floor','head'].includes(currentFieldName)?'guide-fields':['anchorX','anchorY'].includes(currentFieldName)?'anchor-fields':'placement-fields';findSpriteElement(currentFieldGroup).append(currentFieldWrapper);
+  const currentFieldInput=document.createElement('input'),currentFieldWrapper=document.createElement('label');currentFieldInput.type='number';currentFieldInput.step=currentFieldName==='scale'?'0.01':'1';currentFieldInput.id='sprite-field-'+currentFieldName;currentFieldWrapper.textContent=currentFieldLabel;currentFieldWrapper.append(currentFieldInput);const currentFieldGroup=['center','floor','head'].includes(currentFieldName)?'guide-fields':['anchorX','anchorY'].includes(currentFieldName)?'anchor-fields':currentFieldName==='scale'?'scale-fields':'placement-fields';findSpriteElement(currentFieldGroup).append(currentFieldWrapper);
   currentFieldInput.onchange=()=>{if(!spriteProjectDocument)return;try{if(!currentFieldInput.value.trim())throw Error('숫자를 입력하세요.');applySpriteBatchChange(currentFrameSettings=>({...currentFrameSettings,[currentFieldName]:currentFieldName==='scale'?Math.round(Number(currentFieldInput.value)*100)/100:Math.round(Number(currentFieldInput.value))}));}catch(currentErrorValue){appendSpriteStatusMessage(currentErrorValue.message);renderSpriteEditorFrame();}};
  }
+ const scaleStepControls=document.createElement('div');scaleStepControls.className='sprite-scale-buttons';
+ for(const currentScaleDelta of [-.01,.01]){
+  const currentScaleButton=document.createElement('button');currentScaleButton.type='button';currentScaleButton.textContent=currentScaleDelta<0?'−0.01':'+0.01';
+  currentScaleButton.onclick=()=>{if(!spriteProjectDocument||spriteBusyState)return;try{applySpriteBatchChange(currentFrameSettings=>({...currentFrameSettings,scale:Math.round((currentFrameSettings.scale+currentScaleDelta)*100)/100}));}catch(currentErrorValue){appendSpriteStatusMessage(currentErrorValue.message);}};
+  scaleStepControls.append(currentScaleButton);
+ }
+ findSpriteElement('scale-fields').append(scaleStepControls);
  const resetScaleButton=document.createElement('button');
  resetScaleButton.id='sprite-scale-reset';resetScaleButton.type='button';resetScaleButton.textContent='1배로 초기화';
  resetScaleButton.setAttribute('aria-describedby','sprite-scale-reset-help');
  const resetScaleDescription=document.createElement('p');resetScaleDescription.id='sprite-scale-reset-help';resetScaleDescription.textContent='편집 범위의 배율만 1로 변경합니다. 좌표·기준점은 유지됩니다.';
- findSpriteElement('placement-fields').append(resetScaleButton,resetScaleDescription);
+ findSpriteElement('scale-fields').append(resetScaleButton,resetScaleDescription);
  resetScaleButton.onclick=()=>{
   if(!spriteProjectDocument||spriteBusyState)return;
   try{applySpriteBatchChange(currentFrameSettings=>({...currentFrameSettings,scale:1}));}catch(currentErrorValue){appendSpriteStatusMessage(currentErrorValue.message);}
@@ -388,5 +396,5 @@ if(typeof document!=='undefined')void (async function initializeSpriteEditorComp
  window.addEventListener('beforeunload',currentUnloadEvent=>{if(spriteDirtyState){currentUnloadEvent.preventDefault();currentUnloadEvent.returnValue='';}});
  for(const currentEventName of ['review-pane-hidden','visibilitychange'])document.addEventListener(currentEventName,()=>{if(currentEventName==='review-pane-hidden'||document.hidden)stopSpritePlayback();});
  updateSpriteControlStates();
- try{const catalogResponseValue=await fetch(resolveSpriteUrl('/sprite-assets.json'),{cache:'no-store'});if(!catalogResponseValue.ok)throw Error('등록 스프라이트 목록을 불러오지 못했습니다. 관리도구 게시 상태를 확인하세요.');const sourceCatalogRecord=await catalogResponseValue.json();findSpriteElement('asset').append(...sourceCatalogRecord.assets.map(currentAssetRecord=>new Option(currentAssetRecord.label,currentAssetRecord.id)));const defaultAssetIdentifier='asset:character.default.white-shirt.idle';if(sourceCatalogRecord.assets.some(currentAssetRecord=>currentAssetRecord.id===defaultAssetIdentifier)){findSpriteElement('asset').value=defaultAssetIdentifier;await openSpriteSourceDocument(defaultAssetIdentifier);}else appendSpriteStatusMessage('검수할 에셋을 선택하세요.');}catch(currentErrorValue){appendSpriteStatusMessage(currentErrorValue.message);}
+ try{const catalogResponseValue=await fetch(resolveSpriteUrl('/sprite-assets.json'),{cache:'no-store'});if(!catalogResponseValue.ok)throw Error('등록 스프라이트 목록을 불러오지 못했습니다. 관리도구 게시 상태를 확인하세요.');const sourceCatalogRecord=await catalogResponseValue.json();findSpriteElement('asset').append(...sourceCatalogRecord.assets.map(currentAssetRecord=>new Option(currentAssetRecord.label,currentAssetRecord.id)));const savedAssetIdentifier=localStorage.getItem('sprite-editor-selected-source');const defaultAssetIdentifier=sourceCatalogRecord.assets.some(currentAssetRecord=>currentAssetRecord.id===savedAssetIdentifier)?savedAssetIdentifier:'asset:character.default.white-shirt.idle';if(sourceCatalogRecord.assets.some(currentAssetRecord=>currentAssetRecord.id===defaultAssetIdentifier)){findSpriteElement('asset').value=defaultAssetIdentifier;await openSpriteSourceDocument(defaultAssetIdentifier);}else appendSpriteStatusMessage('검수할 에셋을 선택하세요.');}catch(currentErrorValue){appendSpriteStatusMessage(currentErrorValue.message);}
 })();
