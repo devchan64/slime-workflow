@@ -64,3 +64,15 @@ class MemoryHistoryTests(unittest.TestCase):
             memory.save_memory_observation('image','small',4500,2,'completed',command_identity_name='run_qwen_2512.py:1024x1024:steps=4:references=0')
             self.assertEqual(len(memory.load_recent_observations('image','run_qwen_2512.py:1280x1280:steps=4:references=0')),20)
             self.assertEqual(len(memory.load_recent_observations('image','run_qwen_2512.py:1024x1024:steps=4:references=0')),1)
+
+    def test_qwen21_legacy_profiles_separate_reference_counts(self):
+        with tempfile.TemporaryDirectory() as temporary_directory_value:
+            temporary_root_path = Path(temporary_directory_value)
+            with patch.object(memory,'MEMORY_HISTORY_DIRECTORY',temporary_root_path/'history'), patch.object(memory,'IMAGE_HISTORY_ROOT_PATHS',(temporary_root_path,)):
+                for current_reference_count,current_peak_value in ((1,7538),(2,6600)):
+                    current_job_directory = temporary_root_path/str(current_reference_count)
+                    current_job_directory.mkdir()
+                    (current_job_directory/'request.json').write_text(json.dumps({'width':1024,'height':1024,'steps':40,'references':['image.png']*current_reference_count}))
+                    memory.save_memory_observation('image',current_job_directory,current_peak_value,3,'completed',command_identity_name='run_qwen_21_reference.py')
+                current_command_identity = memory.identify_execution_command(['python','run_qwen_21_reference.py'],temporary_root_path/'2')
+                self.assertEqual(memory.estimate_required_memory('image',6144,current_command_identity)['required_memory_mib'],6600)

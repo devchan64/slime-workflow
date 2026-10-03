@@ -7,9 +7,9 @@ import subprocess
 import time
 from tools.review.common.generation_records import write_record_atomically
 
-IMAGE_MEMORY_WORKER_NAMES = {'run_qwen_2512.py', 'run_qwen_2511_three_reference.py'}
+IMAGE_MEMORY_WORKER_NAMES = {'run_qwen_2512.py', 'run_qwen_2511_three_reference.py', 'run_qwen_21_reference.py'}
 WORKFLOW_ROOT_DIRECTORY = Path(__file__).resolve().parents[3]
-IMAGE_HISTORY_ROOT_PATHS = tuple(WORKFLOW_ROOT_DIRECTORY/current_relative_path for current_relative_path in ('.tmp/test/qwen-image-2512', '.tmp/test/qwen-image-2512/tile-map', '.tmp/test/qwen-image-2512/floor-tile', '.tmp/test/qwen-image-2511-three-reference'))
+IMAGE_HISTORY_ROOT_PATHS = tuple(WORKFLOW_ROOT_DIRECTORY/current_relative_path for current_relative_path in ('.tmp/test/qwen-image-2512', '.tmp/test/qwen-image-2512/tile-map', '.tmp/test/qwen-image-2512/floor-tile', '.tmp/test/qwen-image-2511-three-reference', '.tmp/test/qwen-image-21', '.tmp/test/seamless-tile-generator'))
 
 MEMORY_HISTORY_DIRECTORY = Path(__file__).resolve().parents[3]/'.tmp/gpu-memory-history'
 
@@ -106,6 +106,8 @@ def build_image_memory_identity(command_identity_name, generation_job_directory)
         if type(saved_request_record.get(request_field_name)) is not int or saved_request_record[request_field_name] <= 0:
             raise ValueError(f'GPU 메모리 예측에 필요한 {request_field_name} 설정이 없습니다: {generation_job_directory}')
     reference_image_count = len(saved_request_record.get('references',saved_request_record.get('images',[])))
+    if 'seamless_tile' in saved_request_record:
+        command_identity_name += f":seamless-v{saved_request_record['seamless_tile']['schema_version']}"
     if 'floor_separation' in saved_request_record:
         command_identity_name += f":floor-three-stage-v{saved_request_record['floor_separation']['version']}" if saved_request_record['floor_separation']['version'] in (2,3,4,5,6,7,8,9,10) else ':floor-two-stage-v1'
     return f"{command_identity_name}:{saved_request_record['width']}x{saved_request_record['height']}:steps={saved_request_record['steps']}:references={reference_image_count}"

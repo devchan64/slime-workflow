@@ -156,9 +156,9 @@ class GpuJobQueueTests(unittest.TestCase):
             queue_module.reload_waiting_executor(ticket_file_path,'same')
             replacement_process_mock.assert_not_called()
 
-    def test_observed_peak_admits_1280_job_with_single_global_margin(self):
+    def test_observed_peak_admits_job_without_extra_margin(self):
         from tools.review.common import gpu_memory_history
-        gpu_memory_history.save_memory_observation('image','previous',6202,3,'completed',command_identity_name='run_qwen_2512.py:1280x1280:steps=4:references=0')
+        gpu_memory_history.save_memory_observation('image','previous',7538,3,'completed',command_identity_name='run_qwen_2512.py:1280x1280:steps=4:references=0')
         (self.current_job_path/'request.json').write_text(json.dumps({'width':1280,'height':1280,'steps':4}))
         (self.current_job_path/'gpu-command.json').write_text(json.dumps({'command':['python','run_qwen_2512.py'],'service':'image'}))
         worker_process_mock = Mock(returncode=0)

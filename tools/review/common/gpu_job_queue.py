@@ -16,7 +16,8 @@ from tools.review.common.gpu_memory_history import read_worker_memory, save_memo
 GPU_QUEUE_DIRECTORY = WORKFLOW_ROOT_DIRECTORY / '.tmp/gpu-queue'
 GPU_MEMORY_REQUIREMENTS = {'momask': 4096, 'character-animation': 6144, 'image': 6144, 'anny': 2048}
 GPU_POLL_INTERVAL = 2
-GPU_MEMORY_MARGIN_MIB = 512
+# 실측 프로세스 최대 사용량과 현재 여유를 직접 비교한다.
+# 고정 여유분 추가 차감은 단독 실행이 가능한 작업도 무기한 차단한다.
 
 
 def read_gpu_memory():
@@ -172,7 +173,7 @@ def execute_queued_generation(generation_job_path):
                             reserved_memory_value += max(0, reservation_record['required_memory_mib']-measured_reservation_mib)
                         # 아직 사용하지 않은 예약분만 차감해 모델 로딩 여유를 확보한다.
                         memory_total_value, memory_free_value = read_gpu_memory()
-                        available_memory_value = max(0, memory_free_value-reserved_memory_value-GPU_MEMORY_MARGIN_MIB)
+                        available_memory_value = max(0, memory_free_value-reserved_memory_value)
                         if select_runnable_ticket(available_memory_value) == queue_ticket_path:
                             write_record_atomically(active_reservation_path, {'pid':os.getpid(), 'path':str(generation_job_path), 'required_memory_mib':required_memory_value})
                             queue_ticket_path.unlink(missing_ok=True)
