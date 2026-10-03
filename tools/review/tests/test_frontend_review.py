@@ -15,14 +15,14 @@ class FrontendReviewTests(unittest.TestCase):
         from tools.review.build_frontend_review import clear_generated_review_files
         with tempfile.TemporaryDirectory() as temporary_directory_name:
             review_output_path = Path(temporary_directory_name)
-            for history_service_name in ('expression','floor-tile','tile-map','qwen-2511','qwen-2512'):
+            for history_service_name in ('qwen-21','seamless-tile','expression','floor-tile','tile-map','qwen-2511','qwen-2512'):
                 history_record_path = review_output_path/history_service_name/'record.json'
                 history_record_path.parent.mkdir()
                 history_record_path.write_text('preserved')
             (review_output_path/'preview.html').write_text('generated')
             clear_generated_review_files(review_output_path)
             self.assertFalse((review_output_path/'preview.html').exists())
-            for history_service_name in ('expression','floor-tile','tile-map','qwen-2511','qwen-2512'):
+            for history_service_name in ('qwen-21','seamless-tile','expression','floor-tile','tile-map','qwen-2511','qwen-2512'):
                 self.assertEqual((review_output_path/history_service_name/'record.json').read_text(),'preserved')
 
     def setUp(self):

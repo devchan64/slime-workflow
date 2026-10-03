@@ -268,10 +268,12 @@ def load_animation_review(frontend_asset_root, animation_metadata_path):
 
 def clear_generated_review_files(output_review_directory):
     """재생성 가능한 화면만 지우고 사용자의 이미지 생성 이력은 보존한다."""
-    preserved_history_names = {'qwen-2511', 'qwen-2512', 'expression', 'floor-tile', 'tile-map'}
+    import re
+    generated_review_names = {'preview.html', 'sprite-assets.json', 'manager-source.json', 'frontend-review.log', 'isloon-map-review'}
     output_review_directory.mkdir(parents=True, exist_ok=True)
     for current_review_path in output_review_directory.iterdir():
-        if current_review_path.name in preserved_history_names:
+        # 소유한 화면 산출물만 삭제한다. 새 생성기·서버 기록은 기본적으로 보존한다.
+        if current_review_path.name not in generated_review_names and not re.fullmatch(r'animation-\d+', current_review_path.name):
             continue
         if current_review_path.is_dir() and not current_review_path.is_symlink():
             shutil.rmtree(current_review_path)

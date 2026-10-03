@@ -13,6 +13,7 @@ import uuid
 import os
 import signal
 import shutil
+from tools.review.common.generation_records import load_generation_history_records, write_record_atomically
 from tools.review.domains.image.image_runtime import validate_image_runtime
 from tools.review.common.gpu_job_queue import launch_gpu_process, cancel_gpu_generation, resume_gpu_generation
 
@@ -174,8 +175,7 @@ class ImageGenerationManager:
     def list_generation_history(self):
         current_history_records = []
         with MANAGER_HISTORY_LOCK:
-            for current_record_path in sorted(self.history_storage_path().glob('*.json'), reverse=True):
-                current_history_record = json.loads(current_record_path.read_text())
+            for current_history_record in load_generation_history_records(self.history_storage_path(), self.job_storage_root):
                 current_job_root = self.job_storage_root / current_history_record['id']
                 current_history_record['path'] = str(current_job_root.resolve())
                 current_history_record['status'] = self.read_generation_status_record(current_job_root,current_history_record.get('status',{'status':'missing'}))
@@ -254,7 +254,7 @@ class ImageGenerationManager:
                     (current_job_root/'status.json').write_text('{"status":"running"}')
                     with MANAGER_HISTORY_LOCK:
                         self.history_storage_path().mkdir(parents=True,exist_ok=True)
-                        (self.history_storage_path()/(current_job_identifier+'.json')).write_text(json.dumps({'id':current_job_identifier,'created_at':datetime.now(ZoneInfo('Asia/Seoul')).isoformat(),'request':current_request_record,'status':{'status':'running'},'job_path':str(current_job_root)},ensure_ascii=False))
+                        write_record_atomically(self.history_storage_path()/(current_job_identifier+'.json'), {'id':current_job_identifier,'created_at':datetime.now(ZoneInfo('Asia/Seoul')).isoformat(),'request':current_request_record,'status':{'status':'running'},'job_path':str(current_job_root)})
                     with (current_job_root/'worker.log').open('w') as current_log_handle:
                         self.current_worker_process = launch_gpu_process([str(WORKFLOW_ROOT_PATH/'.venv/bin/python'),str(WORKFLOW_ROOT_PATH/self.select_generation_runner(current_request_record)),'--job-dir',str(current_job_root)],current_job_root,'image',stdout=current_log_handle,stderr=subprocess.STDOUT,start_new_session=True)
                     self.current_job_identifier = current_job_identifier
@@ -270,7 +270,7 @@ class ImageGenerationManager:
                                 if current_history_path.exists():
                                     current_history_record=json.loads(current_history_path.read_text())
                                     current_history_record['status']=json.loads((current_job_root/'status.json').read_text())
-                                    current_history_path.write_text(json.dumps(current_history_record,ensure_ascii=False))
+                                    write_record_atomically(current_history_path, current_history_record)
                     threading.Thread(target=watch_worker_exit,daemon=True).start()
                 current_status_record=json.loads((current_job_root/'status.json').read_text())
                 send_response_data(202,{'id':current_job_identifier,'status':current_status_record['status']})

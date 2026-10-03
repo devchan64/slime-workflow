@@ -102,7 +102,7 @@ class ExpressionGenerationTests(unittest.TestCase):
                 other_history_path.mkdir(exist_ok=True)
                 (current_history_path/'current.json').write_text(json.dumps({'id':'current','status':{'status':'completed'}}))
                 (other_history_path/'other.json').write_text(json.dumps({'id':'other','status':{'status':'completed'}}))
-                with patch.object(current_service_record,'job_storage_root',Path(temporary_directory_name)/'jobs'), patch.object(current_service_record,'history_storage_path',return_value=current_history_path), patch.object(other_service_record,'history_storage_path',return_value=other_history_path):
+                with patch.object(current_service_record,'job_storage_root',Path(temporary_directory_name)/'jobs'), patch.object(current_service_record,'history_storage_path',return_value=current_history_path), patch.object(other_service_record,'history_storage_path',return_value=other_history_path), patch.object(other_service_record,'job_storage_root',Path(temporary_directory_name)/'other-jobs'):
                     self.assertEqual([record['id'] for record in current_service_record.list_generation_history()], ['current'])
                     current_service_record.reset_generation_history()
                     self.assertEqual(current_service_record.list_generation_history(), [])
