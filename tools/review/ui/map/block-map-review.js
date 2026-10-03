@@ -63,6 +63,15 @@ function renderAppliedTileSourceList(){
   if(normalizationWarning){const currentWarning=document.createElement('span');currentWarning.className='tile-source-warning';currentWarning.textContent='⚠';currentWarning.title=normalizationWarning;const currentDescription=document.createElement('span');currentDescription.className='tile-source-warning-description';currentDescription.textContent=normalizationWarning;currentListItem.append(currentWarning,currentDescription)}
   appliedTileList.append(currentListItem);
  });
+ for(const currentGuardRecord of currentMapRecord.guardCenters??[]){
+  const currentListItem=document.createElement('li');
+  const currentThumbnail=document.createElement('img');currentThumbnail.src=currentGuardRecord.image;currentThumbnail.alt='경비센터 원본';currentThumbnail.loading='lazy';
+  const currentName=document.createElement('strong');currentName.textContent=`경비센터 · ${currentGuardRecord.cityId}`;
+  const currentSource=document.createElement('span');currentSource.textContent=`${currentGuardRecord.provenance.source} · ${currentGuardRecord.provenance.version}`;
+  const currentHashDetail=document.createElement('details');const currentHashSummary=document.createElement('summary');currentHashSummary.textContent='원본 식별자·해시';
+  const currentHashText=document.createElement('p');currentHashText.textContent=`${currentGuardRecord.provenance.managementId} · SHA-256 ${currentGuardRecord.provenance.sha256}`;
+  currentHashDetail.append(currentHashSummary,currentHashText);currentListItem.append(currentThumbnail,currentName,currentSource,currentHashDetail);appliedTileList.append(currentListItem);
+ }
 }
 renderAppliedTileSourceList();
 // 각 면의 실제 좌표에서 UV를 계산해 층 경계에서도 벽 타일이 이어지게 한다.
