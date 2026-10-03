@@ -89,3 +89,7 @@ HTTP URL, 페이지 해시, CLI 명령, `.tmp` 생성 ID·기록 경로와 `asse
 `field-map-renderer.js`는 공통 면 좌표를 사용하는 Canvas 어댑터다. 원본 API의 숫자 고도 격자·계단 좌표로 80×40 필드 타일, 단계당 32px 고도, 16px 외곽 두께를 표현한다. 회전 시 셀 깊이 순서로 지면·암벽·계단·캐릭터를 그리고 역순으로 클릭 판정한다. 절벽 측면 클릭은 뒤쪽 지면 선택으로 통과시키지 않는다. 마을 렌더링과 다른 게임 UI의 기존 빌드 경로는 아직 전환 대상이다.
 
 맵·타일은 요청 시 등록 원본을 읽으므로 배치·고도·이미지 변경에 프론트엔드 빌드가 필요하지 않다. 라이브러리 또는 검수 어댑터 코드 변경은 관리도구 정적 UI 게시 대상이다. 검증은 프론트엔드 `node scripts/run-regression.mjs tests/elevation.test.mjs tests/field-surface.test.mjs`와 워크플로우 `tools.review.tests.test_map_asset_sources`를 사용한다.
+
+### 경비센터 표시 원본
+
+필드맵 검수는 등록된 `assets/ui/guard-centers.yaml`의 도시별 외형과 `assets/sprites/structures/`의 이미지를 해시 검증 후 제공합니다. 도시행 웨이포인트에서 기존 필드 발급 위치를 계산하며, 이미지 URL과 관리 ID·버전·SHA-256을 `guardCenters`에 함께 제공합니다. 게임도 같은 설정을 사용하며 통행 데이터는 변경하지 않습니다.

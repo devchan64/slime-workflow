@@ -2,7 +2,7 @@
 import json
 import mimetypes
 from urllib.parse import unquote
-from tools.review.common.map_tile_assets import load_registered_tiles, resolve_registered_tile
+from tools.review.common.map_tile_assets import load_registered_tiles, resolve_registered_tile, resolve_registered_asset
 
 
 def read_map_asset_response(request_path_value):
@@ -14,6 +14,12 @@ def read_map_asset_response(request_path_value):
         from tools.review.build_block_map_review import build_registered_map_review
         current_map_identifier = current_request_path.removeprefix('/management/map-assets/maps/')
         return json.dumps(build_registered_map_review(current_map_identifier),ensure_ascii=False).encode(),'application/json; charset=utf-8'
+    if current_request_path.startswith('/management/map-assets/structures/'):
+        current_asset_name = current_request_path.removeprefix('/management/map-assets/structures/')
+        current_asset_root,current_asset_records = load_registered_tiles()
+        current_asset_path,_ = resolve_registered_asset('assets/sprites/structures/'+current_asset_name,current_asset_root,current_asset_records,'assets/sprites/structures')
+        if current_asset_path.suffix != '.png': raise ValueError('지원하지 않는 구조물 형식')
+        return current_asset_path.read_bytes(),'image/png'
     if current_request_path.startswith('/management/map-assets/files/'):
         current_asset_relative = current_request_path.removeprefix('/management/map-assets/files/')
         current_asset_root,current_asset_records = load_registered_tiles()

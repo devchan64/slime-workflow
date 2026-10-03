@@ -21,6 +21,18 @@ if(isTownSpecificReviewPage){document.querySelector('#map-select').closest('labe
 document.querySelector('#load-map').onclick=()=>{const selectedMapUrl=new URL(location.href);selectedMapUrl.searchParams.set('map',document.querySelector('#map-select').value);location.assign(selectedMapUrl)};
 const currentMapRecord=await fetchMapReviewRecord(selectedMapRecord.path);
 const isFieldMapReview=currentMapRecord.safeTown===false;
+const loadedGuardImages={};
+await Promise.all((currentMapRecord.guardCenters??[]).map(currentGuardRecord=>new Promise((resolveGuardImage,rejectGuardImage)=>{
+ const currentGuardImage=new Image();currentGuardImage.onload=()=>{loadedGuardImages[currentGuardRecord.path]=currentGuardImage;resolveGuardImage()};currentGuardImage.onerror=()=>rejectGuardImage(Error('경비센터 이미지 로드 실패'));currentGuardImage.src=currentGuardRecord.image;
+})));
+function drawReviewGuardCenters(currentCellPosition,currentCenterPoint){
+ for(const currentGuardRecord of currentMapRecord.guardCenters??[]){
+  if(currentGuardRecord.position.column!==currentCellPosition.column||currentGuardRecord.position.row!==currentCellPosition.row)continue;
+  const currentGuardImage=loadedGuardImages[currentGuardRecord.path];
+  const currentImageHeight=currentGuardImage.height*currentGuardRecord.displayWidth/currentGuardImage.width;
+  currentDrawingContext.drawImage(currentGuardImage,currentCenterPoint.x+currentGuardRecord.offsetX-currentGuardRecord.anchorX*currentGuardRecord.displayWidth,currentCenterPoint.y+currentGuardRecord.offsetY-currentGuardRecord.anchorY*currentImageHeight,currentGuardRecord.displayWidth,currentImageHeight);
+ }
+}
 let currentFieldFrame=null;
 const currentReviewTitle=currentMapRecord.name+' · '+currentMapRecord.reviewLabel;
 document.querySelector('#map-title').textContent=currentReviewTitle;
@@ -152,7 +164,7 @@ currentMapCanvas.width=currentMapCanvas.clientWidth;currentMapCanvas.height=curr
 document.querySelector('#zoom-level').textContent=Math.round(currentScaleValue*100)+'%';
 document.querySelector('#zoom-in').disabled=currentScaleValue>=MAX_MAP_SCALE;document.querySelector('#zoom-out').disabled=currentScaleValue<=MIN_MAP_SCALE;
 currentDrawingContext.setTransform(currentScaleValue,0,0,currentScaleValue,currentOffsetX,currentOffsetY);
-if(isFieldMapReview){drawFieldReviewFrame(currentFieldFrame,currentDrawingContext,currentMapRecord,loadedTextureImages,groundTextureNames,drawSurfacePolygon,drawTexturedSurface,(currentCellPosition,currentCenterPoint)=>{if(currentCellPosition.column===currentCharacterCell.column&&currentCellPosition.row===currentCharacterCell.row)drawReviewCharacter(currentCenterPoint)});}else
+if(isFieldMapReview){drawFieldReviewFrame(currentFieldFrame,currentDrawingContext,currentMapRecord,loadedTextureImages,groundTextureNames,drawSurfacePolygon,drawTexturedSurface,(currentCellPosition,currentCenterPoint)=>{drawReviewGuardCenters(currentCellPosition,currentCenterPoint);if(currentCellPosition.column===currentCharacterCell.column&&currentCellPosition.row===currentCharacterCell.row)drawReviewCharacter(currentCenterPoint)});}else
 for(let currentRowIndex=0;currentRowIndex<currentMapRecord.rows;currentRowIndex++)for(let currentColumnIndex=0;currentColumnIndex<currentMapRecord.columns;currentColumnIndex++){const currentTerrainName=currentMapRecord.terrainCodes[currentMapRecord.terrainRows[currentRowIndex][currentColumnIndex]];drawSurfacePolygon([[-.5,-.5],[.5,-.5],[.5,.5],[-.5,.5]].map(([c,r])=>projectBlockVertex({column:currentColumnIndex+c,row:currentRowIndex+r})),currentMaterialColors[currentTerrainName]);const currentGroundImage=loadedTextureImages[groundTextureNames[currentTerrainName]];if(currentGroundImage){const currentGroundVertices=[[-.5,-.5],[.5,-.5],[.5,.5],[-.5,.5]].map(([currentColumnOffset,currentRowOffset])=>({column:currentColumnIndex+currentColumnOffset,row:currentRowIndex+currentRowOffset,height:0}));drawTexturedSurface({top:true,ground:true,vertices:currentGroundVertices,points:currentGroundVertices.map(projectBlockVertex)},currentGroundImage)}}
 const currentRenderFaces=currentMapRecord.buildings.flatMap(currentBuilding=>currentBuilding.faces.flatMap(splitWallFloors).map(currentFace=>({...currentFace,building:currentBuilding,textureTiles:readBuildingTileSet(currentBuilding),points:currentFace.vertices.map(currentVertex=>projectBlockVertex({column:currentBuilding.origin.column+currentVertex.column,row:currentBuilding.origin.row+currentVertex.row,height:currentVertex.height})),depth:currentFace.vertices.reduce((s,v)=>s+projectBlockVertex({column:currentBuilding.origin.column+v.column,row:currentBuilding.origin.row+v.row}).y,0)/currentFace.vertices.length}))).sort((a,b)=>a.depth-b.depth);
 for(const currentFace of currentRenderFaces){const currentAreaValue=currentFace.points.reduce((s,p,i)=>{const n=currentFace.points[(i+1)%currentFace.points.length];return s+p.x*n.y-n.x*p.y},0);if(currentFace.top||currentAreaValue>0){drawSurfacePolygon(currentFace.points,currentMaterialColors[currentFace.material]);// 지붕 경사 측면은 막힌 벽으로 두고 일반 벽 구간에만 창문을 교차 배치한다.

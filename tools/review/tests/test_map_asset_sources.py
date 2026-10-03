@@ -23,6 +23,23 @@ class MapAssetSourceTests(unittest.TestCase):
         for current_stair_record in current_map_record['elevationTiles']:
             self.assertEqual(set(current_stair_record['cell']),{'column','row'})
 
+    def test_guard_center_images_match_registered_regions(self):
+        current_city_identifiers,current_map_identifiers = load_review_map_identifiers()
+        current_guard_count = 0
+        for current_map_identifier in current_map_identifiers:
+            if current_map_identifier in current_city_identifiers: continue
+            current_response_bytes,_ = read_map_asset_response('/management/map-assets/maps/'+current_map_identifier)
+            current_map_record = json.loads(current_response_bytes)
+            for current_guard_record in current_map_record['guardCenters']:
+                current_guard_count += 1
+                current_image_bytes,current_content_type = read_map_asset_response(current_guard_record['image'])
+                self.assertEqual(current_content_type,'image/png')
+                self.assertEqual(hashlib.sha256(current_image_bytes).hexdigest(),current_guard_record['provenance']['sha256'])
+                self.assertIn(current_guard_record['cityId'],current_city_identifiers)
+                self.assertTrue(0<=current_guard_record['position']['column']<current_map_record['columns'])
+                self.assertTrue(0<=current_guard_record['position']['row']<current_map_record['rows'])
+        self.assertEqual(current_guard_count,9)
+
     def test_invalid_height_grid_and_stair_are_rejected(self):
         for current_map_record in (
             dict(columns=2,rows=1,elevations=['0x']),
