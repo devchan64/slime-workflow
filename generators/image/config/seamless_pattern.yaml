@@ -1,0 +1,15 @@
+schema_version: 4
+grid_size: 768
+tile_size: 256
+repair_size: 512
+vertical_erasure: 16
+horizontal_erasure: 16
+feather_width: 0
+grid_prompt: >-
+  A continuous repeating pattern arranged in three rows and three columns.
+  Equal scale motifs, top-down view, color illustration, filling the entire square.
+repair_prompt: >-
+  Image 2 is the editing mask for image 1.
+  Repaint only the white mask area to connect the surrounding pattern naturally.
+  Preserve the content in the black mask area.
+  Return only the completed image 1.

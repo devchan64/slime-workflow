@@ -36,7 +36,7 @@ class SeamlessGenerationTests(unittest.TestCase):
         return {'action':'generate','prompt':'잔디밭','images':[base64.b64encode(source_image_buffer.getvalue()).decode()], 'width':768,'height':768,'steps':40,'seed':10107}
 
     def test_reject_invalid_inputs(self):
-        for request_record_value in (self.create_tile_request((256,128)), {**self.create_tile_request(),'images':[]}, {**self.create_tile_request(),'width':512}, {**self.create_tile_request(),'prompt':'grass '*100}):
+        for request_record_value in (self.create_tile_request((256,128)), {**self.create_tile_request(),'images':['bad']}, {**self.create_tile_request(),'width':512}, {**self.create_tile_request(),'prompt':'grass '*100}):
             with self.assertRaises(ValueError):
                 validate_seamless_request(request_record_value)
 

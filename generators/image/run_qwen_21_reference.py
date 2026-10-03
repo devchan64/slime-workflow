@@ -30,7 +30,7 @@ def execute_qwen_reference_worker():
         verify_reference_snapshots(current_job_root, current_request_record)
         seamless_generation_enabled = 'seamless_tile' in current_request_record
         if seamless_generation_enabled:
-            if current_request_record['seamless_tile'].get('schema_version') != 2:
+            if current_request_record['seamless_tile'].get('schema_version') not in (2, 3, 4):
                 raise ValueError('Qwen 2.1 심리스 실행 기록 버전 오류')
         else:
             from tools.review.domains.image.qwen_21_generation import verify_qwen_saved_request
@@ -40,11 +40,15 @@ def execute_qwen_reference_worker():
         with current_lock_path.open('a') as current_lock_handle:
             acquire_worker_lock(current_lock_handle, 'waiting-gpu')
             current_reference_paths = [current_job_root / current_reference_name for current_reference_name in current_request_record['references']]
-            if seamless_generation_enabled:
-                current_reference_paths = [prepare_seamless_reference(current_job_root, current_request_record)]
-            execute_qwen_reference_generation(current_job_root, current_request_record, current_reference_paths)
-            if seamless_generation_enabled:
-                finish_seamless_generation(current_job_root, current_request_record)
+            if seamless_generation_enabled and current_request_record['seamless_tile']['schema_version'] in (3,4):
+                from tools.review.domains.image.seamless_pattern import execute_pattern_pipeline
+                execute_pattern_pipeline(current_job_root,current_request_record,execute_qwen_reference_generation)
+            else:
+                if seamless_generation_enabled:
+                    current_reference_paths = [prepare_seamless_reference(current_job_root, current_request_record)]
+                execute_qwen_reference_generation(current_job_root, current_request_record, current_reference_paths)
+                if seamless_generation_enabled:
+                    finish_seamless_generation(current_job_root, current_request_record)
         (current_job_root / 'status.json').write_text('{"status":"completed"}')
     except Exception as current_error_value:
         traceback.print_exc()
