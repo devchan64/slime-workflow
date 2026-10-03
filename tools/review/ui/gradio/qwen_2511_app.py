@@ -18,7 +18,7 @@ WORKFLOW_ROOT_DIRECTORY=Path(__file__).resolve().parents[4]
 if str(WORKFLOW_ROOT_DIRECTORY) not in sys.path:sys.path.insert(0,str(WORKFLOW_ROOT_DIRECTORY))
 from tools.review.common.gradio_identifiers import build_generation_identifier
 from tools.review.common.gradio_logs import build_execution_logs, LOG_PANEL_STYLES
-from tools.review.common.gradio_history import HISTORY_CARD_SELECTION_SCRIPT, build_generation_history_view
+from tools.review.common.gradio_history import HISTORY_CARD_SELECTION_SCRIPT, build_generation_history_view, format_generation_status
 from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_confirmation
 from tools.review.common.gradio_reference_images import build_reference_image_inputs
 from tools.review.common.gradio_seed import build_generation_seed
@@ -161,7 +161,7 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
         bind_gpu_generation_confirmation(generation_button_value,start_reference_generation,[prompt_text_value,generation_tag_value,*reference_image_controls,width_value,height_value,step_value,seed_value],[identifier_value,status_value])
         def refresh_status(identifier_text_value,refresh_log_enabled):
             if not identifier_text_value:return gr.skip(),gr.skip(),gr.skip()
-            status_record_value=execute_reference_gateway('status',{'id':identifier_text_value});return '상태: '+status_record_value['status'],gr.update(value=status_record_value.get('log','')) if refresh_log_enabled else gr.skip(),result_preview_html(status_record_value.get('image')) if status_record_value.get('image') else gr.skip()
+            status_record_value=execute_reference_gateway('status',{'id':identifier_text_value});return '상태: '+format_generation_status(status_record_value),gr.update(value=status_record_value.get('log','')) if refresh_log_enabled else gr.skip(),result_preview_html(status_record_value.get('image')) if status_record_value.get('image') else gr.skip()
         interface_blocks_value.load(lambda:read_history_page(1),outputs=history_output_values);gr.Button('상태 새로고침').click(refresh_status,[identifier_value,refresh_log_value],[status_value,log_value,preview_value],queue=False)
         if hasattr(gr,'Timer'):gr.Timer(2).tick(refresh_status,[identifier_value,refresh_log_value],[status_value,log_value,preview_value],show_progress='hidden')
     return interface_blocks_value

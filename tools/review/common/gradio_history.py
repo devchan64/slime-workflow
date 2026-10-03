@@ -49,13 +49,23 @@ def build_history_input_controls(history_selection_component, read_input_callbac
     return saved_input_display
 
 
+
+def format_generation_status(current_status_record):
+    """저장된 실패 원인으로 OOM을 구분하되 작업 상태 계약은 유지한다."""
+    current_status_name = current_status_record.get('status', 'unknown') if isinstance(current_status_record, dict) else current_status_record
+    if current_status_name == 'failed' and isinstance(current_status_record, dict):
+        current_error_text = str(current_status_record.get('error', '')).lower()
+        if any(current_marker_text in current_error_text for current_marker_text in ('cuda out of memory', 'cuda error: out of memory', 'torch.outofmemoryerror')):
+            return 'OOM 실패 · GPU 메모리 부족'
+    return HISTORY_STATUS_LABELS.get(current_status_name, current_status_name)
+
 def format_history_choice_label(current_history_record):
     current_status_record=current_history_record.get('status',{})
     current_status_label=current_status_record.get('status','unknown') if isinstance(current_status_record,dict) else current_status_record
     current_request_record=current_history_record.get('request',{})
     current_created_text=format_history_created_time(current_history_record)
     current_summary_text=format_history_request_summary(current_request_record)
-    current_status_label=HISTORY_STATUS_LABELS.get(current_status_label,current_status_label)
+    current_status_label=format_generation_status(current_status_record)
     return f"{current_status_label} · {current_created_text}\n{current_summary_text}\nID · {current_history_record['id']}"
 
 
@@ -90,7 +100,7 @@ def format_history_selection_summary(current_history_record):
     current_request_record=current_history_record.get('request',{})
     current_created_text=format_history_created_time(current_history_record)
     current_summary_text=format_history_request_summary(current_request_record)
-    current_status_text=HISTORY_STATUS_LABELS.get(current_status_label,current_status_label)
+    current_status_text=format_generation_status(current_status_record)
     return f"**선택한 생성 이력**\n\n상태: **{current_status_text}** · 생성 시각: {current_created_text}\n\n설정: {current_summary_text}"
 
 
@@ -197,7 +207,7 @@ def render_history_detail_cards(history_record_values, selected_history_identifi
                 progress_label_value += ' · '+progress_record_value['detail']
             progress_bar_html_value=f'<progress style="width:100%" value="{progress_percent_value}" max="100" aria-label="{html.escape(progress_title_value,quote=True)} 진행률"></progress>' if progress_percent_value is not None else ''
             progress_html_value = f'<span class="history-card-progress">{html.escape(progress_label_value)}{progress_bar_html_value}</span>'
-        card_html_values.append(f'<button type="button" class="generation-detail-card" data-job-id="{html.escape(current_job_identifier,quote=True)}" aria-pressed="{str(current_selected_flag).lower()}"><span class="history-card-content">{current_thumbnail_html}<span class="history-card-fields"><span class="history-card-heading"><strong>{html.escape(str(current_card_title))}</strong><span class="history-card-state">{html.escape(HISTORY_STATUS_LABELS.get(current_status_name,current_status_name))}</span></span><time>{html.escape(current_created_text)}</time><dl>{"".join(current_detail_values)}</dl></span></span>{progress_html_value}<span class="history-card-id">ID · {html.escape(current_job_identifier)}</span><span class="history-card-select">{"선택됨" if current_selected_flag else "이 작업 선택"}</span></button>')
+        card_html_values.append(f'<button type="button" class="generation-detail-card" data-job-id="{html.escape(current_job_identifier,quote=True)}" aria-pressed="{str(current_selected_flag).lower()}"><span class="history-card-content">{current_thumbnail_html}<span class="history-card-fields"><span class="history-card-heading"><strong>{html.escape(str(current_card_title))}</strong><span class="history-card-state">{html.escape(format_generation_status(current_status_record))}</span></span><time>{html.escape(current_created_text)}</time><dl>{"".join(current_detail_values)}</dl></span></span>{progress_html_value}<span class="history-card-id">ID · {html.escape(current_job_identifier)}</span><span class="history-card-select">{"선택됨" if current_selected_flag else "이 작업 선택"}</span></button>')
     return '<div class="generation-detail-cards">'+''.join(card_html_values)+'</div>'
 
 
@@ -287,7 +297,7 @@ def build_generation_history_view(execute_service_command,server_base_address,de
         current_history_records=execute_service_command('history',{}).get('records',[])
         current_history_record=next((value for value in current_history_records if value['id']==current_selected_identifier),{})
         current_image_html=result_renderer_callback(current_selected_identifier,current_status_record,server_base_address) if result_renderer_callback is not None else render_generation_images(current_status_record,server_base_address)
-        return current_selected_identifier,current_history_record.get('path','기록 경로가 없습니다.'),'상태: '+str(current_status_record.get('status','unknown'))+' · '+str(current_status_record.get('message',''))+(' · 대기 순서 '+str(current_status_record['queue_position']) if 'queue_position' in current_status_record else ''),gr.update(value=current_image_html,visible=True),current_history_record,gr.update(value=current_status_record.get('log') or '기록된 로그가 없습니다.',label='실행 로그 · '+current_selected_identifier)
+        return current_selected_identifier,current_history_record.get('path','기록 경로가 없습니다.'),'상태: '+format_generation_status(current_status_record)+' · '+str(current_status_record.get('message',''))+(' · 대기 순서 '+str(current_status_record['queue_position']) if 'queue_position' in current_status_record else ''),gr.update(value=current_image_html,visible=True),current_history_record,gr.update(value=current_status_record.get('log') or '기록된 로그가 없습니다.',label='실행 로그 · '+current_selected_identifier)
 
     def describe_selected_history(current_selected_identifier):
         if not current_selected_identifier:

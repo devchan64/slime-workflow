@@ -4,12 +4,18 @@ import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
-from tools.review.common.gradio_history import format_history_progress
+from tools.review.common.gradio_history import format_history_progress, format_generation_status
 from tools.review.domains.image.image_generation import ImageGenerationManager, summarize_generation_progress
 from tools.review.tests import test_image_generation
 
 
 class GenerationHistoryTests(unittest.TestCase):
+    def test_oom_failure_status_preserves_other_states(self):
+        self.assertEqual(format_generation_status({'status':'failed','error':'CUDA out of memory. Tried to allocate 292 MiB.'}), 'OOM 실패 · GPU 메모리 부족')
+        self.assertEqual(format_generation_status({'status':'failed','error':'입력 이미지 오류'}), '실패')
+        self.assertEqual(format_generation_status({'status':'completed','error':'CUDA out of memory'}), '완료')
+        self.assertEqual(format_generation_status('failed'), '실패')
+
     def test_individual_history_delete_removes_image_result_files(self):
         with tempfile.TemporaryDirectory() as current_directory_name, patch('tools.review.domains.image.image_generation.MANAGER_HISTORY_ROOT',Path(current_directory_name)/'history'):
             current_manager_value=ImageGenerationManager()
