@@ -6,10 +6,10 @@ const reviewScriptContent=reviewHtmlContent.split('<script>')[1].split('</script
 const elementLookupTable=new Map();
 const canvasTraceOperations=[];
 const mockCanvasContext=new Proxy({}, {get:(currentCanvasTarget,currentOperationName)=>(...currentOperationArguments)=>{canvasTraceOperations.push([currentOperationName,...currentOperationArguments]);}});
-function selectMockElement(selectorQueryText){if(!elementLookupTable.has(selectorQueryText))elementLookupTable.set(selectorQueryText,{value:selectorQueryText==='#directionChoice'?'down_left':selectorQueryText==='#pointChoice'?'anchor':'0',textContent:'',innerHTML:'',checked:true,getContext:()=>mockCanvasContext});return elementLookupTable.get(selectorQueryText)}
+function selectMockElement(selectorQueryText){if(!elementLookupTable.has(selectorQueryText))elementLookupTable.set(selectorQueryText,{value:selectorQueryText==='#directionChoice'?'down_left':selectorQueryText==='#pointChoice'?'anchor':'0',textContent:'',innerHTML:'',checked:true,options:[],add(){},getContext:()=>mockCanvasContext});return elementLookupTable.get(selectorQueryText)}
 const testDocumentEvents={},testWindowEvents={};
 const fakeDocumentAdapter={body:{dataset:{}},dispatchEvent(){},addEventListener(eventNameValue,eventHandlerValue){testDocumentEvents[eventNameValue]=eventHandlerValue;},querySelector:selectMockElement,querySelectorAll:()=>[],createElement:()=>({click(){}})};
-const testExecutionContext=vm.createContext({document:fakeDocumentAdapter,window:{addEventListener(eventNameValue,eventHandlerValue){testWindowEvents[eventNameValue]=eventHandlerValue;}},CustomEvent:class{constructor(eventNameValue,eventDetailValue){this.type=eventNameValue;this.detail=eventDetailValue.detail;}},Image:class{set src(sourceImageLocation){if(this.onload)this.onload()}},requestAnimationFrame(){},performance:{now:()=>0},canvasTraceOperations,URL,Blob,setTimeout});
+const testExecutionContext=vm.createContext({document:fakeDocumentAdapter,window:{addEventListener(eventNameValue,eventHandlerValue){testWindowEvents[eventNameValue]=eventHandlerValue;}},CustomEvent:class{constructor(eventNameValue,eventDetailValue){this.type=eventNameValue;this.detail=eventDetailValue.detail;}},Image:class{set src(sourceImageLocation){if(this.onload)this.onload()}},requestAnimationFrame(){},performance:{now:()=>0},canvasTraceOperations,URL,URLSearchParams,sessionStorage:{getItem:()=>null,removeItem(){}},Blob,setTimeout});
 vm.runInContext(reviewScriptContent,testExecutionContext);
 vm.runInContext(`
 if(document.body.dataset.coordinateDownloadPending!=='false')throw new Error('초기 상태 변경 감지 오류');
@@ -85,7 +85,7 @@ for(const coordinateModeValue of ['anchor','foot-centers','endpoints']){
  const sampleContactPoints=coordinateModeValue==='anchor'?[{x:10.25,y:20.75}]:[{x:8,y:20},{x:12,y:20}];
  const sampleFrameRecords=['down_left','down_right','up_left','up_right'].map(currentDirectionName=>({frameId:currentDirectionName+'.0',direction:currentDirectionName,image:'test.png',rect:{x:0,y:0,width:100,height:100},anchor:coordinateModeValue==='anchor'?{...sampleContactPoints[0]}:{x:10,y:20},contacts:sampleContactPoints.map(currentPointRecord=>({...currentPointRecord})),endpoints:coordinateModeValue==='endpoints'?[{x:6,y:20},{x:10,y:20},{x:10,y:20},{x:14,y:20}]:[]}));
  elementLookupTable.clear();
- const modeExecutionContext=vm.createContext({document:fakeDocumentAdapter,window:{addEventListener(){}},CustomEvent:class{},Image:class{set src(sourceImageLocation){this.onload();}},requestAnimationFrame(){},performance:{now:()=>0},URL,Blob,setTimeout});
+ const modeExecutionContext=vm.createContext({document:fakeDocumentAdapter,window:{addEventListener(){}},CustomEvent:class{},Image:class{set src(sourceImageLocation){this.onload();}},requestAnimationFrame(){},performance:{now:()=>0},URL,URLSearchParams,sessionStorage:{getItem:()=>null,removeItem(){}},Blob,setTimeout});
  vm.runInContext(anchorTemplateSource.replace('__FRAME_RECORDS__',JSON.stringify(sampleFrameRecords)).replace('__SOURCE_METADATA__',JSON.stringify({coordinateMode:coordinateModeValue,sheets:[],gameRenderMetrics:{tileWidth:64,tileHeight:32,characterHeight:60}})),modeExecutionContext);
  vm.runInContext(`
  const originalExportSnapshot=JSON.stringify(buildCoordinateArtifact());

@@ -1,6 +1,23 @@
-const reviewFrameRecords=__FRAME_RECORDS__;
-const resolveReviewAssetUrl=assetPathValue=>window.resolveStaticReviewAssetUrl?.(assetPathValue)||assetPathValue;
-const reviewSourceMetadata=__SOURCE_METADATA__;
+const initialReviewMetadata=__SOURCE_METADATA__;
+const availableActionReviews=initialReviewMetadata.actionReviews||[];
+const requestedActionIdentifier=new URLSearchParams(window.location?.search).get('action')||initialReviewMetadata.defaultActionId;
+const selectedActionReview=availableActionReviews.find(currentActionRecord=>currentActionRecord.id===requestedActionIdentifier);
+const reviewFrameRecords=selectedActionReview?structuredClone(selectedActionReview.frames):__FRAME_RECORDS__;
+const reviewSourceMetadata=selectedActionReview?.source||initialReviewMetadata;
+const resolveReviewAssetUrl=assetPathValue=>selectedActionReview?selectedActionReview.frames.find(currentFrameRecord=>currentFrameRecord.image===assetPathValue)?.url||assetPathValue:window.resolveStaticReviewAssetUrl?.(assetPathValue)||assetPathValue;
+const actionChoiceElement=document.querySelector('#actionChoice');
+document.querySelector('#actionChoiceField').hidden=!availableActionReviews.length;
+for(const currentActionRecord of availableActionReviews)actionChoiceElement.add(new Option(currentActionRecord.source.displayNameKo,currentActionRecord.id));
+if(selectedActionReview)actionChoiceElement.value=selectedActionReview.id;
+const actionDraftStorageKey='animation-anchor-draft:'+reviewSourceMetadata.animationId+':'+reviewSourceMetadata.animationVersion;
+actionChoiceElement.onchange=()=>{
+ pauseFramePlayback();
+ sessionStorage.setItem(actionDraftStorageKey,JSON.stringify({frames:reviewFrameRecords.map(copyFrameCoordinates),saved:savedCoordinateSnapshotValue,source:reviewSourceMetadata.sheets}));
+ document.body.dataset.coordinateDownloadPending='false';
+ const selectedActionLocation=new URL(window.location.href);
+ selectedActionLocation.searchParams.set('action',actionChoiceElement.value);
+ window.location.replace(selectedActionLocation.href);
+};
 const usesAnchorOnlyMode=reviewSourceMetadata.coordinateMode==='anchor';
 const usesFootCentersOnly=usesAnchorOnlyMode||reviewSourceMetadata.coordinateMode==='foot-centers';
 const reviewAnimationIdentity=reviewSourceMetadata.animationId||'character.default.white-shirt.idle';
@@ -123,6 +140,15 @@ document.addEventListener('keydown',currentKeyboardEvent=>{
 });
 document.addEventListener('review-pane-hidden',pauseFramePlayback);
 window.addEventListener('beforeunload',currentUnloadEvent=>{if(document.body.dataset.coordinateDownloadPending==='true'){currentUnloadEvent.preventDefault();currentUnloadEvent.returnValue='';}});
+const storedActionDraft=sessionStorage.getItem(actionDraftStorageKey);
+if(storedActionDraft){
+ const restoredActionDraft=JSON.parse(storedActionDraft);
+ if(JSON.stringify(restoredActionDraft.source)===JSON.stringify(reviewSourceMetadata.sheets)&&restoredActionDraft.frames.length===reviewFrameRecords.length){
+ restoredActionDraft.frames.forEach((currentCoordinateRecord,currentFrameIndex)=>restoreFrameCoordinates(reviewFrameRecords[currentFrameIndex],currentCoordinateRecord));
+ savedCoordinateSnapshotValue=restoredActionDraft.saved;
+ }
+}
+for(const currentDirectionOption of [...directionChoiceElement.options])if(!reviewFrameRecords.some(currentFrameRecord=>currentFrameRecord.direction===currentDirectionOption.value))currentDirectionOption.remove();
 refreshCoordinateStatus();
 frameChoiceElement.max=String(REVIEW_FRAME_COUNT-1);
 if(usesAnchorOnlyMode){document.querySelector('#coordinateHelp').textContent='초기 좌표는 수동 편집 시작점입니다. 떠 있는 발의 중간점 대신 지면 기준점을 지정하세요.';document.querySelector('h1').textContent='걷기 앵커 편집';document.querySelector('h1+p').textContent='초기 앵커는 셀 하단 중앙의 편집 시작점입니다. 자동 검출 좌표가 아닙니다. 떠 있는 발의 중간점 대신 지면 기준점을 프레임별로 지정하세요. 정수 원본 픽셀 단위로 저장합니다.';}
@@ -222,7 +248,7 @@ async function refreshAnchorHistoryList(){
 const saveAnchorHistoryButton=document.querySelector('#saveAnchorHistory');
 saveAnchorHistoryButton.onclick=async()=>{
  saveAnchorHistoryButton.disabled=true;
- try{const savedCoordinateSnapshot=JSON.stringify(reviewFrameRecords.map(copyFrameCoordinates));const savedHistoryRecord=await requestAnchorHistoryCommand('anchor-save',{document:buildCoordinateArtifact()});savedCoordinateSnapshotValue=savedCoordinateSnapshot;refreshCoordinateStatus();await refreshAnchorHistoryList();document.querySelector('#anchorHistoryStatus').textContent=`저장 완료 · ${savedHistoryRecord.id}`;}
+ try{const savedCoordinateSnapshot=JSON.stringify(reviewFrameRecords.map(copyFrameCoordinates));const savedHistoryRecord=await requestAnchorHistoryCommand('anchor-save',{document:buildCoordinateArtifact()});savedCoordinateSnapshotValue=savedCoordinateSnapshot;sessionStorage.removeItem(actionDraftStorageKey);refreshCoordinateStatus();await refreshAnchorHistoryList();document.querySelector('#anchorHistoryStatus').textContent=`저장 완료 · ${savedHistoryRecord.id}`;}
  catch(errorValue){document.querySelector('#anchorHistoryStatus').textContent=errorValue.message;}
  finally{saveAnchorHistoryButton.disabled=false;}
 };
