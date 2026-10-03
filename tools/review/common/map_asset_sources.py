@@ -114,7 +114,7 @@ def load_registered_map_review(map_identifier_value):
                 raise ValueError('경비센터 관문 좌표 오류')
             current_column_value = current_edge_offset if current_horizontal_edge else (0 if current_connection_record['direction']=='west' else current_map_record['columns']-1)
             current_row_value = (0 if current_connection_record['direction']=='north' else current_map_record['rows']-1) if current_horizontal_edge else current_edge_offset
-            current_map_record['guardCenters'].append(dict(cityId=current_connection_record['target'],position=dict(column=current_column_value,row=current_row_value),**current_guard_catalog['styles'][current_style_name]))
+            current_map_record['guardCenters'].append(dict(cityId=current_connection_record['target'],position=dict(column=current_column_value,row=current_row_value),renderPosition=dict(column=max(1,min(current_map_record['columns']-2,current_column_value)),row=max(1,min(current_map_record['rows']-2,current_row_value))),**current_guard_catalog['styles'][current_style_name]))
         current_map_record['blocked'] = [dict(column=current_position[0],row=current_position[1]) for current_position in current_map_record['blocked']] + [dict(current_map_record['startPoint'])]
     else:
         current_map_record = read_map_source_data('city_layouts/'+map_identifier_value+'.yaml')

@@ -36,6 +36,8 @@ class MapAssetSourceTests(unittest.TestCase):
                 self.assertEqual(current_content_type,'image/png')
                 self.assertEqual(hashlib.sha256(current_image_bytes).hexdigest(),current_guard_record['provenance']['sha256'])
                 self.assertIn(current_guard_record['cityId'],current_city_identifiers)
+                self.assertTrue(0<current_guard_record['renderPosition']['column']<current_map_record['columns']-1)
+                self.assertTrue(0<current_guard_record['renderPosition']['row']<current_map_record['rows']-1)
                 self.assertTrue(0<=current_guard_record['position']['column']<current_map_record['columns'])
                 self.assertTrue(0<=current_guard_record['position']['row']<current_map_record['rows'])
         self.assertEqual(current_guard_count,9)

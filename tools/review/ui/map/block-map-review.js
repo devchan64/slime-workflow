@@ -27,7 +27,7 @@ await Promise.all((currentMapRecord.guardCenters??[]).map(currentGuardRecord=>ne
 })));
 function drawReviewGuardCenters(currentCellPosition,currentCenterPoint){
  for(const currentGuardRecord of currentMapRecord.guardCenters??[]){
-  if(currentGuardRecord.position.column!==currentCellPosition.column||currentGuardRecord.position.row!==currentCellPosition.row)continue;
+  if(currentGuardRecord.renderPosition.column!==currentCellPosition.column||currentGuardRecord.renderPosition.row!==currentCellPosition.row)continue;
   const currentGuardImage=loadedGuardImages[currentGuardRecord.path];
   const currentImageHeight=currentGuardImage.height*currentGuardRecord.displayWidth/currentGuardImage.width;
   currentDrawingContext.drawImage(currentGuardImage,currentCenterPoint.x+currentGuardRecord.offsetX-currentGuardRecord.anchorX*currentGuardRecord.displayWidth,currentCenterPoint.y+currentGuardRecord.offsetY-currentGuardRecord.anchorY*currentImageHeight,currentGuardRecord.displayWidth,currentImageHeight);
