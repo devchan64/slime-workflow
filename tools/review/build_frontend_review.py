@@ -273,7 +273,7 @@ def clear_generated_review_files(output_review_directory):
     output_review_directory.mkdir(parents=True, exist_ok=True)
     for current_review_path in output_review_directory.iterdir():
         # 소유한 화면 산출물만 삭제한다. 새 생성기·서버 기록은 기본적으로 보존한다.
-        if current_review_path.name not in generated_review_names and not re.fullmatch(r'animation-\d+', current_review_path.name):
+        if current_review_path.name not in generated_review_names and not re.fullmatch(r'(?:animation-\d+|ui-[a-f0-9]{16})', current_review_path.name):
             continue
         if current_review_path.is_dir() and not current_review_path.is_symlink():
             shutil.rmtree(current_review_path)

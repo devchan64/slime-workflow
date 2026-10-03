@@ -38,6 +38,25 @@ class UiBundleTests(unittest.TestCase):
             self.assertEqual(copied_page_path.read_text(), '<html><body>review</body></html>')
             self.assertIn('커밋 원본', page_records[0]['description'])
 
+    def test_rebuild_reimports_same_bundle_without_deleting_history(self):
+        from tools.review.build_frontend_review import clear_generated_review_files
+        with tempfile.TemporaryDirectory() as temporary_directory_name:
+            temporary_directory_path = Path(temporary_directory_name)
+            source_bundle_directory = self.make_bundle(temporary_directory_path)
+            review_output_directory = temporary_directory_path/'output'
+            review_output_directory.mkdir()
+            history_directory_path = review_output_directory/'future-generator'
+            history_directory_path.mkdir()
+            (history_directory_path/'record.json').write_text('preserved')
+            unrelated_directory_path = review_output_directory/'ui-user-data'
+            unrelated_directory_path.mkdir()
+            for rebuild_sequence_index in range(3):
+                clear_generated_review_files(review_output_directory)
+                page_record_values = import_ui_bundle(source_bundle_directory, review_output_directory, lambda *unused_trace_arguments: None)
+                self.assertEqual((review_output_directory/page_record_values[0]['path']).read_text(), '<html><body>review</body></html>')
+                self.assertEqual((history_directory_path/'record.json').read_text(), 'preserved')
+                self.assertTrue(unrelated_directory_path.exists())
+
     def test_invalid_cache_triggers_build_instead_of_reuse(self):
         with tempfile.TemporaryDirectory() as temporary_directory_name:
             temporary_directory_path = Path(temporary_directory_name)
