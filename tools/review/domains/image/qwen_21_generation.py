@@ -1,4 +1,5 @@
 """추가 프롬프트 없이 입력 원문을 사용하는 Qwen Image 2.1 서비스."""
+import base64
 import hashlib
 import json
 from pathlib import Path
@@ -6,13 +7,18 @@ from pathlib import Path
 from generators.image.qwen_21_runtime import QWEN_MODEL_IDENTIFIER, QWEN_MODEL_REVISION, validate_qwen_model_assets
 from tools.review.domains.image.image_generation import ImageGenerationManager, MANAGER_HISTORY_ROOT
 from tools.review.domains.image.image_runtime import validate_image_runtime
-from tools.review.domains.image.three_reference_generation import validate_three_reference_request, verify_reference_snapshots
+from tools.review.domains.image.three_reference_generation import decode_reference_image, validate_three_reference_request, verify_reference_snapshots
 
 WORKFLOW_ROOT_PATH = Path(__file__).resolve().parents[4]
 QWEN_GENERATION_ROOT = WORKFLOW_ROOT_PATH / '.tmp/test/qwen-image-21'
 
 
 def validate_qwen_plain_request(current_request_record):
+    if isinstance(current_request_record, dict) and isinstance(current_request_record.get('images'), list):
+        current_request_record = {**current_request_record, 'images': [
+            base64.b64encode(decode_reference_image(current_image_text, composite_transparent_background=True)).decode()
+            for current_image_text in current_request_record['images']
+        ]}
     validated_request_record = validate_three_reference_request(current_request_record, allowed_inference_steps=(40,), maximum_reference_count=10)
     prompt_word_count = len(validated_request_record['prompt'].split())
     if not 0 < prompt_word_count < 100:

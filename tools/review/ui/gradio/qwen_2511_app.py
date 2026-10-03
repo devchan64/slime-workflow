@@ -28,7 +28,7 @@ def build_reference_request(prompt_text_value,generation_tag_value,reference_fil
     reference_bytes_values=[] if not reference_file_values else list(reference_file_values)
     return {'action':'generate','prompt':prompt_text_value.strip(),'tag':generation_tag_value.strip(),'images':[base64.b64encode(current_file_value).decode() for current_file_value in reference_bytes_values],'width':int(width_value),'height':int(height_value),'steps':int(step_value),'seed':int(seed_value)}
 
-def prepare_reference_image_bytes(reference_image_values):
+def prepare_reference_image_bytes(reference_image_values, composite_transparent_background=False):
     from tools.review.domains.image.three_reference_generation import decode_reference_image
     reference_bytes_values=[]
     for reference_slot_number,current_reference_image in enumerate(reference_image_values,1):
@@ -38,7 +38,7 @@ def prepare_reference_image_bytes(reference_image_values):
         current_reference_image.save(reference_image_buffer,format='PNG')
         current_reference_bytes=reference_image_buffer.getvalue()
         try:
-            decode_reference_image(base64.b64encode(current_reference_bytes).decode())
+            current_reference_bytes=decode_reference_image(base64.b64encode(current_reference_bytes).decode(), composite_transparent_background=composite_transparent_background)
         except ValueError as reference_validation_error:
             reference_width_value,reference_height_value=current_reference_image.size
             raise gr.Error(f'참조 이미지 {reference_slot_number}: {reference_width_value}×{reference_height_value}, {current_reference_image.mode}. {reference_validation_error} 불투명 RGB/RGBA PNG로 준비해 다시 첨부하세요.') from reference_validation_error
@@ -141,7 +141,7 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
             restore_output_components=[prompt_text_value,generation_tag_value,width_value,height_value,step_value,seed_value,*reference_image_controls,status_value]+(reference_upload_group.reference_slot_outputs if qwen21_mode_enabled else []),
             record_folder_route='/image-generation-21' if qwen21_mode_enabled else '/expression-generator' if expression_mode_enabled else '/image-generation-2511',allow_individual_delete=True)
         def start_reference_generation(prompt_text_value,generation_tag_value,*generation_input_values):
-            reference_bytes_values=prepare_reference_image_bytes(generation_input_values[:reference_slot_count])
+            reference_bytes_values=prepare_reference_image_bytes(generation_input_values[:reference_slot_count], composite_transparent_background=qwen21_mode_enabled)
             width_value,height_value,step_value,seed_value=generation_input_values[reference_slot_count:]
             from tools.review.domains.image.three_reference_generation import validate_three_reference_request
             try:

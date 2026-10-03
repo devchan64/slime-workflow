@@ -52,7 +52,7 @@ def validate_three_reference_request(current_request_record, allowed_inference_s
     return current_request_record
 
 
-def decode_reference_image(current_image_text):
+def decode_reference_image(current_image_text, composite_transparent_background=False):
     if not isinstance(current_image_text,str) or len(current_image_text)>REFERENCE_IMAGE_LIMIT*4//3+4:
         raise ValueError('참조 이미지 크기 제한 초과')
     try:
@@ -62,7 +62,14 @@ def decode_reference_image(current_image_text):
                 raise ValueError('참조는 RGB/RGBA PNG여야 합니다.')
             current_image_value.load()
             if current_image_value.mode=='RGBA' and current_image_value.getextrema()[3]!=(255,255):
-                raise ValueError('투명 이미지는 배경을 합성한 뒤 입력하세요.')
+                if not composite_transparent_background:
+                    raise ValueError('투명 이미지는 배경을 합성한 뒤 입력하세요.')
+                reference_background_image = Image.new('RGBA', current_image_value.size, (255, 255, 255, 255))
+                reference_output_buffer = io.BytesIO()
+                Image.alpha_composite(reference_background_image, current_image_value).convert('RGB').save(reference_output_buffer, format='PNG')
+                current_image_bytes = reference_output_buffer.getvalue()
+                if len(current_image_bytes) > REFERENCE_IMAGE_LIMIT:
+                    raise ValueError('배경 합성 후 참조 이미지 크기 제한 초과')
     except (binascii.Error,OSError) as current_error_value:
         raise ValueError('참조 PNG를 읽을 수 없습니다.') from current_error_value
     return current_image_bytes

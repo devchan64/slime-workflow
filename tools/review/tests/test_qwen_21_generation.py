@@ -22,6 +22,28 @@ class QwenPlainGenerationTests(unittest.TestCase):
         return {'action':'generate','prompt':'  붉은 사과.\n흰 배경.  ','images':[base64.b64encode(current_image_buffer.getvalue()).decode()]*reference_image_count,
             'width':512,'height':512,'steps':40,'seed':10107}
 
+    def test_transparent_reference_gui_service_and_resume(self):
+        from tools.review.ui.gradio.qwen_2511_app import prepare_reference_image_bytes
+        current_reference_image = Image.new('RGBA', (3, 1), (255, 0, 0, 0))
+        current_reference_image.putpixel((1, 0), (255, 0, 0, 128))
+        current_reference_image.putpixel((2, 0), (255, 0, 0, 255))
+        current_image_buffer = io.BytesIO()
+        current_reference_image.save(current_image_buffer, format='PNG')
+        current_request_record = self.create_reference_request()
+        current_request_record['images'] = [base64.b64encode(current_image_buffer.getvalue()).decode()]
+        validated_request_record = validate_qwen_plain_request(current_request_record)
+        normalized_reference_bytes = base64.b64decode(validated_request_record['images'][0])
+        self.assertEqual(prepare_reference_image_bytes([current_reference_image], composite_transparent_background=True), [normalized_reference_bytes])
+        with Image.open(io.BytesIO(normalized_reference_bytes)) as normalized_reference_image:
+            self.assertEqual(normalized_reference_image.mode, 'RGB')
+            self.assertEqual(list(normalized_reference_image.getdata()), [(255,255,255),(255,127,127),(255,0,0)])
+        self.assertEqual(current_reference_image.getpixel((0,0)), (255,0,0,0))
+        with tempfile.TemporaryDirectory() as temporary_directory_name:
+            current_job_root = Path(temporary_directory_name)
+            saved_request_record = {**validated_request_record, **save_three_reference_inputs(current_job_root, validated_request_record)}
+            saved_request_record.pop('images')
+            verify_qwen_saved_request(current_job_root, saved_request_record)
+
     def test_original_prompt_is_unchanged(self):
         current_request_record = self.create_reference_request()
         validated_request_record = validate_qwen_plain_request(current_request_record)
