@@ -345,17 +345,18 @@ def build_frontend_review(frontend_repository_path, ui_bundle_directory=None):
             discovered_source_records.append({'metadata': relative_metadata_path, 'displayNameKo': review_source_metadata['displayNameKo'], 'sha256': metadata_provenance_record['sha256'], 'sheets': review_source_metadata['sheets'], 'provenance': review_source_metadata['provenance']})
             completed_asset_count[0] += 1
             emit_review_trace('asset', relative_metadata_path)
-        # 기본 캐릭터 동작은 하나의 검수 화면에서 선택하며 저장 출처는 각각 유지한다.
-        character_action_records = [current_asset_record for current_asset_record in sprite_asset_records if current_asset_record['source']['animationId'].startswith('character.default.')]
-        if character_action_records:
-            character_page_identifiers = [current_asset_record['frames'][0]['url'].split('/')[1] for current_asset_record in character_action_records]
-            for current_action_record in character_action_records:
-                current_page_identifier = current_action_record['frames'][0]['url'].split('/')[1]
-                current_source_metadata = {**current_action_record['source'], 'actionReviews': character_action_records, 'defaultActionId': current_action_record['id']}
-                current_rendered_page = anchor_template_text.replace('__FRAME_RECORDS__', json.dumps(current_action_record['frames'], ensure_ascii=False).replace('<', '\\u003c')).replace('__SOURCE_METADATA__', json.dumps(current_source_metadata, ensure_ascii=False).replace('<', '\\u003c'))
-                (output_review_directory/current_page_identifier/'anchors.html').write_text(current_rendered_page)
-            manager_page_records = [current_page_record for current_page_record in manager_page_records if current_page_record['id'] not in character_page_identifiers[1:]]
-            next(current_page_record for current_page_record in manager_page_records if current_page_record['id']==character_page_identifiers[0]).update(label='기본 캐릭터 · 애니메이션 통합 검수', description='Gradio · 대기·휴식·걷기 · 방향 선택 · 동작별 좌표 저장·이력')
+        # 캐릭터별 동작을 통합하되 동작별 저장 출처와 기존 주소를 유지한다.
+        for character_identifier_prefix, character_display_name in (('character.default.', '기본 캐릭터'), ('character.female.', '여성 캐릭터')):
+            character_action_records = [current_asset_record for current_asset_record in sprite_asset_records if current_asset_record['source']['animationId'].startswith(character_identifier_prefix)]
+            if character_action_records:
+                character_page_identifiers = [current_asset_record['frames'][0]['url'].split('/')[1] for current_asset_record in character_action_records]
+                for current_action_record in character_action_records:
+                    current_page_identifier = current_action_record['frames'][0]['url'].split('/')[1]
+                    current_source_metadata = {**current_action_record['source'], 'actionReviews': character_action_records, 'defaultActionId': current_action_record['id']}
+                    current_rendered_page = anchor_template_text.replace('__FRAME_RECORDS__', json.dumps(current_action_record['frames'], ensure_ascii=False).replace('<', '\\u003c')).replace('__SOURCE_METADATA__', json.dumps(current_source_metadata, ensure_ascii=False).replace('<', '\\u003c'))
+                    (output_review_directory/current_page_identifier/'anchors.html').write_text(current_rendered_page)
+                manager_page_records = [current_page_record for current_page_record in manager_page_records if current_page_record['id'] not in character_page_identifiers[1:]]
+                next(current_page_record for current_page_record in manager_page_records if current_page_record['id']==character_page_identifiers[0]).update(label=character_display_name+' · 애니메이션 통합 검수', description='Gradio · 대기·휴식·걷기 · 방향 선택 · 동작별 좌표 저장·이력')
         (output_review_directory/'sprite-assets.json').write_text(json.dumps({'assets':sprite_asset_records},ensure_ascii=False))
         if __package__:
             from .build_map_review import build_map_review
