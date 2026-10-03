@@ -2,14 +2,35 @@
 import json
 import gradio as gr
 from pathlib import Path
+from tools.review.common.gradio_identifiers import build_generation_identifier
 from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_confirmation
 
 
 HISTORY_SUMMARY_FIELD_NAMES=('tag','tile_type','motion','action','start_frame','end_frame','directions','width','height','resolution','target_fps','speed','steps','seed')
 HISTORY_SUMMARY_LABELS={'tag':'태그','tile_type':'타일','motion':'모션','action':'동작','width':'너비','height':'높이','resolution':'해상도','target_fps':'타겟 FPS','speed':'배속','steps':'스텝','seed':'시드'}
-HISTORY_STATUS_LABELS={'queued':'GPU 대기 중','running':'생성 중','completed':'완료','cancelled':'중지됨','failed':'실패','missing':'기록 누락','unknown':'상태 미상'}
-HISTORY_PROGRESS_STAGE_LABELS={'queued':'GPU 대기 중','starting':'생성 준비 중','load':'모델 로딩 중','inference':'추론 중','saving':'결과 저장 중','completed':'완료','failed':'실패'}
+HISTORY_STATUS_LABELS={'paused':'검수 대기', 'queued':'GPU 대기 중','running':'생성 중','completed':'완료','cancelled':'중지됨','failed':'실패','missing':'기록 누락','unknown':'상태 미상'}
+HISTORY_PROGRESS_STAGE_LABELS={'paused':'검수 대기', 'queued':'GPU 대기 중','starting':'생성 준비 중','load':'모델 로딩 중','inference':'추론 중','saving':'결과 저장 중','completed':'완료','failed':'실패'}
 HISTORY_CARD_SELECTION_SCRIPT="""()=>{if(window.__slimeHistoryCardSelectionBound)return;window.__slimeHistoryCardSelectionBound=true;document.addEventListener('click',(clickEvent)=>{const selectedCardElement=clickEvent.target.closest('[data-job-id]');if(!selectedCardElement)return;const selectedJobIdentifier=selectedCardElement.dataset.jobId;const selectionInputElement=[...document.querySelectorAll('#generation-history-selection input')].find((inputElement)=>inputElement.value===selectedJobIdentifier);selectionInputElement?.click();});}"""
+
+
+
+def build_history_selection_panel(allow_restore_inputs=False, allow_history_delete=False):
+    """선택 이력의 ID 복사·상태·명령 버튼을 공용 패널로 구성한다."""
+    with gr.Column(visible=False,elem_classes=['generation-history-selected-actions']) as history_selected_panel:
+        selected_identifier_value=build_generation_identifier('생성 ID')
+        history_selection_summary=gr.Markdown('목록에서 작업을 선택하세요. 결과 조회·입력 재사용·중지·재개를 할 수 있습니다.')
+        with gr.Row(elem_classes=['generation-history-actions']+(['generation-history-actions-five'] if allow_history_delete else [])):
+            result_lookup_button=gr.Button('결과 조회',variant='primary',interactive=False)
+            if allow_restore_inputs:
+                restore_input_button=gr.Button('입력값 불러오기',interactive=False)
+            else:
+                restore_input_button=gr.Button('입력 복원 미지원',interactive=False)
+            history_resume_button=gr.Button('생성 재개',interactive=False)
+            history_cancel_button=gr.Button('작업 중지',interactive=False)
+            history_delete_button=None
+            if allow_history_delete:
+                history_delete_button=gr.Button('선택 이력 삭제',interactive=False)
+    return (history_selected_panel, history_selection_summary, selected_identifier_value, result_lookup_button, restore_input_button, history_resume_button, history_cancel_button, history_delete_button)
 
 
 def build_history_input_controls(history_selection_component, read_input_callback,
@@ -70,7 +91,7 @@ def format_history_selection_summary(current_history_record):
     current_created_text=format_history_created_time(current_history_record)
     current_summary_text=format_history_request_summary(current_request_record)
     current_status_text=HISTORY_STATUS_LABELS.get(current_status_label,current_status_label)
-    return f"**선택한 생성 이력**\n\n상태: **{current_status_text}** · 생성 시각: {current_created_text}\n\nID: `{current_history_record['id']}`\n\n설정: {current_summary_text}"
+    return f"**선택한 생성 이력**\n\n상태: **{current_status_text}** · 생성 시각: {current_created_text}\n\n설정: {current_summary_text}"
 
 
 def format_history_progress(current_progress_record):
@@ -209,20 +230,9 @@ def build_generation_history_view(execute_service_command,server_base_address,de
             history_next_button=gr.Button('다음 →',scale=0,min_width=80,interactive=False)
         history_selection_value=gr.Radio(choices=[],label='이력 선택',interactive=True,elem_id='generation-history-selection',elem_classes=['generation-history-selection-input'])
         history_cards_value=gr.HTML(render_history_detail_cards([]),elem_id='generation-history-cards')
-        with gr.Column(visible=False,elem_classes=['generation-history-selected-actions']) as history_selected_panel:
-            history_selection_summary=gr.Markdown('목록에서 작업을 선택하세요. 결과 조회·입력 재사용·중지·재개를 할 수 있습니다.')
-            with gr.Row(elem_classes=['generation-history-actions']+(['generation-history-actions-five'] if allow_individual_delete else [])):
-                result_lookup_button=gr.Button('결과 조회',variant='primary',interactive=False)
-                if restore_input_callback is not None:
-                    restore_input_button=gr.Button('입력값 불러오기',interactive=False)
-                else:
-                    gr.Button('입력 복원 미지원',interactive=False)
-                history_resume_button=gr.Button('생성 재개',interactive=False)
-                history_cancel_button=gr.Button('작업 중지',interactive=False)
-                if allow_individual_delete:
-                    history_delete_button=gr.Button('선택 이력 삭제',interactive=False)
+        (history_selected_panel, history_selection_summary, selected_identifier_value, result_lookup_button, restore_input_button, history_resume_button, history_cancel_button, history_delete_button)=build_history_selection_panel(restore_input_callback is not None, allow_individual_delete)
         history_remaining_cards=gr.HTML('',elem_id='generation-history-remaining-cards')
-        result_identifier_value=create_copyable_log_textbox(label='조회한 생성 ID',interactive=False,elem_id='generation-history-result-anchor')
+        result_identifier_value=build_generation_identifier('조회한 생성 ID', 'generation-history-result-anchor')
         result_status_value=gr.Markdown('')
         result_image_value=gr.HTML(visible=False)
         with gr.Accordion('기록 위치 · 저장 입력',open=False):
@@ -248,7 +258,7 @@ def build_generation_history_view(execute_service_command,server_base_address,de
         current_status_record=execute_service_command('status',{'id':current_selected_identifier})
         current_status_value=current_status_record.get('status')
         generation_resume_allowed=current_status_record.get('resume_allowed',True)
-        return gr.update(interactive=current_status_value in ('running','queued')),gr.update(interactive=generation_resume_allowed and current_status_value in ('failed','cancelled'),value='생성 재개' if generation_resume_allowed else current_status_record['resume_block_reason'])
+        return gr.update(interactive=current_status_value in ('running','queued','paused')),gr.update(interactive=generation_resume_allowed and current_status_value in ('failed','cancelled','paused'),value=('다음 단계' if current_status_value=='paused' else '생성 재개') if generation_resume_allowed else current_status_record['resume_block_reason'])
     history_selection_value.change(refresh_history_controls,history_selection_value,[history_cancel_button,history_resume_button],queue=False)
     if hasattr(gr,'Timer'):
         gr.Timer(3).tick(refresh_history_controls,history_selection_value,[history_cancel_button,history_resume_button],queue=False)
@@ -299,6 +309,7 @@ def build_generation_history_view(execute_service_command,server_base_address,de
             if current_history_record is None:raise gr.Error('선택한 이력을 찾을 수 없습니다. 목록을 새로고침하세요.')
             return restore_input_callback(current_history_record)
         restore_input_button.click(restore_selected_inputs,history_selection_value,restore_output_components,queue=False)
+    history_selection_value.change(lambda selected_history_identifier: selected_history_identifier or '',history_selection_value,selected_identifier_value,queue=False)
     history_selection_output_values=[history_selection_summary,result_lookup_button]
     if restore_input_callback is not None:history_selection_output_values.append(restore_input_button)
     history_selection_value.change(describe_selected_history,history_selection_value,history_selection_output_values,queue=False)
@@ -321,9 +332,11 @@ def build_generation_history_view(execute_service_command,server_base_address,de
     def reset_view_values():
         reset_output_values=[*read_history_page(1),'','','',gr.update(value='',visible=False),{},gr.update(value='',label='작업을 선택하세요'),'목록에서 작업을 선택하세요. 결과 조회·입력 재사용·중지·재개를 할 수 있습니다.',gr.update(interactive=False)]
         if restore_input_callback is not None:reset_output_values.append(gr.update(interactive=False))
+        reset_output_values.append('')
         return reset_output_values
     reset_output_components=[history_selection_value,history_count_value,history_page_value,history_cards_value,history_previous_button,history_next_button,history_remaining_cards,history_selected_panel,result_identifier_value,result_path_value,result_status_value,result_image_value,result_record_value,log_output_value,history_selection_summary,result_lookup_button]
     if restore_input_callback is not None:reset_output_components.append(restore_input_button)
+    reset_output_components.append(selected_identifier_value)
     if allow_individual_delete:
         history_delete_confirmation=gr.Checkbox(value=False,visible=False)
         history_selection_value.change(lambda identifier:gr.update(interactive=bool(identifier)),history_selection_value,history_delete_button,queue=False)

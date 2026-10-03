@@ -14,10 +14,10 @@ PATTERN_CONFIGURATION_PATH = Path(__file__).resolve().parents[4] / 'generators/i
 
 def build_pattern_request(user_prompt_text):
     pattern_config_record = yaml.load(PATTERN_CONFIGURATION_PATH.read_text(), Loader=UniqueAssetYamlLoader)
-    expected_config_fields = {'schema_version','grid_size','tile_size','repair_size','vertical_erasure','horizontal_erasure','feather_width','grid_prompt','repair_prompt'}
+    expected_config_fields = {'schema_version','grid_size','tile_size','repair_size','grid_prompt','repair_prompt'}
     if set(pattern_config_record) != expected_config_fields:
         raise ValueError('패턴 생성 설정 필드 오류')
-    for config_field_name, expected_field_value in {'schema_version':4,'grid_size':768,'tile_size':256,'repair_size':512,'vertical_erasure':16,'horizontal_erasure':16,'feather_width':0}.items():
+    for config_field_name, expected_field_value in {'schema_version':5,'grid_size':1024,'tile_size':256,'repair_size':1024}.items():
         if type(pattern_config_record[config_field_name]) is not int or pattern_config_record[config_field_name] != expected_field_value:
             raise ValueError('패턴 생성 고정 설정 오류: '+config_field_name)
     if any(not isinstance(pattern_config_record[current_field_name],str) or not pattern_config_record[current_field_name].strip() for current_field_name in ('grid_prompt','repair_prompt')):
@@ -35,6 +35,9 @@ def build_pattern_request(user_prompt_text):
 
 
 def execute_pattern_pipeline(current_job_root, current_request_record, generation_callback_value):
+    if current_request_record['seamless_tile']['schema_version'] == 5:
+        from tools.review.domains.image.seamless_steps import execute_seamless_next_stage
+        return execute_seamless_next_stage(current_job_root, current_request_record, generation_callback_value)
     from tools.review.domains.image.seamless_generation import build_repeated_texture, measure_texture_boundaries
     pattern_config_record = current_request_record['seamless_tile']
     stage_prompt_values = pattern_config_record['stage_prompts']

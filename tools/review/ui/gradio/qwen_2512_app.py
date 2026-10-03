@@ -11,7 +11,8 @@ import gradio as gr
 
 WORKFLOW_ROOT_DIRECTORY=Path(__file__).resolve().parents[4]
 if str(WORKFLOW_ROOT_DIRECTORY) not in sys.path:sys.path.insert(0,str(WORKFLOW_ROOT_DIRECTORY))
-from tools.review.common.gradio_seed import generate_random_seed_value
+from tools.review.common.gradio_identifiers import build_generation_identifier
+from tools.review.common.gradio_seed import build_generation_seed
 from tools.review.common.gradio_logs import build_execution_logs, LOG_PANEL_STYLES
 from tools.review.common.gradio_history import HISTORY_CARD_SELECTION_SCRIPT, build_generation_history_view
 from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_confirmation
@@ -62,12 +63,7 @@ def build_qwen_2512_interface(server_base_address):
                     height_select_value=gr.Dropdown(IMAGE_SIZE_VALUES,value=1024,label='높이')
                 with gr.Row():
                     step_select_value=gr.Radio(IMAGE_STEP_VALUES,value=4,label='생성 스텝')
-                    with gr.Column(min_width=240):
-                        with gr.Row():
-                            seed_number_value=gr.Number(value=DEFAULT_IMAGE_SEED,precision=0,label='Seed',minimum=0,maximum=4294967295,scale=3,min_width=120)
-                            random_seed_button=gr.Button('랜덤 Seed',scale=1,min_width=100)
-                        gr.Markdown('랜덤 Seed는 입력값만 변경합니다. 생성 시 표시된 값을 사용합니다.')
-                random_seed_button.click(generate_random_seed_value,outputs=seed_number_value,queue=False)
+                    seed_number_value=build_generation_seed(DEFAULT_IMAGE_SEED)
                 gr.Markdown('예상 시간: 실행 이력 기반 추정 자료를 수집 중입니다. 실행 로그의 단계와 완료 시각을 확인하세요.')
                 with gr.Row():
                     prepare_button_value=gr.Button('모델 준비 확인')
@@ -76,7 +72,7 @@ def build_qwen_2512_interface(server_base_address):
                 generation_status_value=gr.Markdown('생성 가능 · 프롬프트를 입력하세요.')
                 gr.Markdown('실행 중인 작업은 아래 생성 이력에서 선택한 뒤 **작업 중지**를 사용하세요.')
             with gr.Column(scale=2,min_width=520):
-                generation_identifier_value=gr.Textbox(label='생성 ID',interactive=False)
+                generation_identifier_value=build_generation_identifier()
                 result_preview_value=gr.HTML(create_result_preview_html(None))
         log_output_value,log_refresh_enabled,_=build_execution_logs()
         read_history_page,history_output_values=build_generation_history_view(

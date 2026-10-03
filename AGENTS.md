@@ -42,6 +42,8 @@
 - 공통 UI 동작은 공용 코드에서 관리하고 페이지별 복제를 피한다. 비활성 버튼에는 사유와 해결 방법을 표시하며, 실행 중인 사용자 작업을 UI 검증 목적으로 취소하거나 덮어쓰지 않는다.
 - GUI·CLI 명령 및 기록 저장 구조는 아래 Management Client and Gateway Standard와 [관리도구 클라이언트 가이드](workflows/management-clients.md)를 함께 따른다.
 
+- 시드를 입력받는 생성 UI는 공용 `build_generation_seed()`의 시드 입력·랜덤 시드 버튼을 기본 제공한다. 랜덤 선택은 입력값만 변경하며 생성·재개를 자동 실행하지 않는다.
+
 ## Management UI Framework Standard
 - 관리도구의 Python UI 프레임워크는 **Gradio**를 채택한다. 신규 페이지와 전환 대상 페이지의 설정·진행 상태·로그·생성이력은 **Gradio Blocks**로 구성한다.
 - 이는 전환 기준이며 현재 모든 페이지가 Gradio로 구현된 것은 아니다. **MoMask 생성기**를 첫 전환·검증 페이지로 삼고 검증한 공용 UI를 다른 생성기로 단계적으로 확대한다. 기존 페이지의 일괄 재작성은 별도 작업으로 진행한다.

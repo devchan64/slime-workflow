@@ -59,7 +59,14 @@ def validate_image_request(current_request_record):
 
 
 def summarize_generation_progress(current_log_text, current_job_status):
-    current_step_matches = re.findall(r'(?:denoise |heartbeat[^\n]*?)?step=(\d+)/(\d+)', current_log_text)
+    current_step_matches = [
+        (current_match_value.group(1) or current_match_value.group(3),
+         current_match_value.group(2) or current_match_value.group(4))
+        for current_match_value in re.finditer(
+            r"step=(\d+)/(\d+)|['\"]step['\"]\s*:\s*(\d+)\s*,\s*['\"]total['\"]\s*:\s*(\d+)",
+            current_log_text,
+        )
+    ]
     current_log_text = current_log_text.replace("'stage': '", 'stage=')
     current_stage_matches = re.findall(r'stage[=\": ]+[\"\']?([a-z-]+)', current_log_text)
     current_stage_value = current_stage_matches[-1] if current_stage_matches else 'starting'
@@ -140,7 +147,7 @@ class ImageGenerationManager:
                 if not current_status_path.is_file():
                     raise ValueError(f'작업 상태 파일이 없어 초기화할 수 없습니다: {current_job_root.name}')
                 current_status_value = json.loads(current_status_path.read_text()).get('status')
-                if current_status_value not in ('completed', 'failed', 'cancelled'):
+                if current_status_value not in ('completed', 'failed', 'cancelled', 'paused'):
                     raise ValueError(f'종료되지 않은 작업이 있어 초기화할 수 없습니다: {current_job_root.name} ({current_status_value})')
                 deletion_target_paths.append(current_job_root)
             for current_job_root in deletion_target_paths:
@@ -164,7 +171,7 @@ class ImageGenerationManager:
             if not current_status_path.is_file():
                 raise ValueError('작업 상태 파일이 없어 삭제할 수 없습니다.')
             current_status_record = json.loads(current_status_path.read_text())
-            if current_status_record.get('status') not in ('completed', 'failed', 'cancelled'):
+            if current_status_record.get('status') not in ('completed', 'failed', 'cancelled', 'paused'):
                 raise ValueError('종료되지 않은 작업은 먼저 중지한 뒤 삭제하세요.')
             shutil.rmtree(current_job_root)
             current_history_path.unlink(missing_ok=True)
@@ -204,16 +211,21 @@ class ImageGenerationManager:
                 if current_http_handler.headers.get('Origin') != expected_origin_value:
                     raise ValueError('동일 출처 요청만 허용합니다.')
                 history_delete_match=re.fullmatch(re.escape(self.route_prefix_value)+r'/history/([0-9]{4}-[0-9-]{5}_[0-9-]{8}-[a-f0-9]{8})/delete',current_url_path)
-                if (current_url_path not in (self.route_prefix_value+'/jobs',self.route_prefix_value+'/history/reset',self.route_prefix_value+'/cancel',self.route_prefix_value+'/resume') and history_delete_match is None) or current_http_handler.headers.get('Content-Type','').split(';')[0] != 'application/json':
+                if (current_url_path not in (self.route_prefix_value+'/jobs',self.route_prefix_value+'/history/reset',self.route_prefix_value+'/cancel',self.route_prefix_value+'/resume',self.route_prefix_value+'/pause') and history_delete_match is None) or current_http_handler.headers.get('Content-Type','').split(';')[0] != 'application/json':
                     raise ValueError('요청 경로 또는 형식 오류')
                 current_body_length = int(current_http_handler.headers.get('Content-Length','0'))
                 if not 1 <= current_body_length <= (getattr(self, 'reference_request_limit', 12_100_000) if self.three_reference_mode or getattr(self,'reference_upload_enabled',False) else IMAGE_REQUEST_LIMIT):
                     raise ValueError('요청 크기 오류')
                 current_request_record = json.loads(current_http_handler.rfile.read(current_body_length),object_pairs_hook=parse_unique_request)
-                if current_url_path in (self.route_prefix_value+'/cancel',self.route_prefix_value+'/resume'):
+                if current_url_path in (self.route_prefix_value+'/cancel',self.route_prefix_value+'/resume',self.route_prefix_value+'/pause'):
                     if not isinstance(current_request_record,dict) or set(current_request_record)!={'id'} or not re.fullmatch(r'[0-9a-f_-]+',current_request_record['id']):
                         raise ValueError('작업 ID 형식 오류')
                     selected_job_directory=self.job_storage_root/current_request_record['id']
+                    if current_url_path.endswith('/pause'):
+                        if not hasattr(self, 'pause_generation_stage'):
+                            raise ValueError('일시정지를 지원하지 않는 생성기입니다.')
+                        send_response_data(200,self.pause_generation_stage(selected_job_directory))
+                        return True
                     if current_url_path.endswith('/resume'):
                         saved_request_record=json.loads((selected_job_directory/'request.json').read_text())
                         self.validate_generation_runtime(saved_request_record)
@@ -300,7 +312,7 @@ class ImageGenerationManager:
             elif current_url_path in (self.route_prefix_value,self.route_prefix_value+'/'):
                 send_response_data(410,{'error':'이전 관리 화면은 폐기되었습니다. /management/에서 Gradio 화면을 여세요.'})
             else:
-                current_path_match = re.fullmatch(re.escape(self.route_prefix_value)+r'/jobs/([0-9]{4}-[0-9-]{5}_[0-9-]{8}-[a-f0-9]{8})(/repair-mask.png|/repair-composite.png|/repair-input.png|/grid-input.png|/grid-edited.png|/tiled-preview.png|/result.png|/single-tile.png|/square-crop.png|/center-tile.png|/quadrilateral.png|/border-crop.png|/worker.log|/reference-(?:[1-9]|10)\.png)?',current_url_path)
+                current_path_match = re.fullmatch(re.escape(self.route_prefix_value)+r'/jobs/([0-9]{4}-[0-9-]{5}_[0-9-]{8}-[a-f0-9]{8})(/split-preview.png|/sample-grid.png|/repair-mask.png|/repair-composite.png|/repair-input.png|/grid-input.png|/grid-edited.png|/tiled-preview.png|/result.png|/single-tile.png|/square-crop.png|/center-tile.png|/quadrilateral.png|/border-crop.png|/worker.log|/reference-(?:[1-9]|10)\.png)?',current_url_path)
                 if not current_path_match:
                     send_response_data(404,{'error':'작업 경로 없음'})
                     return True

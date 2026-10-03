@@ -12,7 +12,7 @@ from tools.review.common.management_client import execute_remote_management_comm
 from tools.review.common.gradio_history import HISTORY_CARD_SELECTION_SCRIPT, build_generation_history_view
 from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_confirmation
 MANAGEMENT_SHARED_STYLES = ''.join((Path(__file__).parents[1]/'shared'/style_file_name).read_text() for style_file_name in ('management.css','management-density.css'))
-from tools.review.common.gradio_seed import generate_random_seed_value
+from tools.review.common.gradio_seed import build_generation_seed
 from tools.review.domains.tile.floor_generation import combine_floor_prompt, compose_floor_base_prompt
 
 
@@ -48,10 +48,7 @@ def build_floor_interface(server_base_address):
         gr.Timer(3).tick(refresh_floor_prompts,[user_prompt_control,add_margins_control],prompt_output_controls,queue=False)
         output_size_control = gr.Dropdown([512],value=512,label='생성 크기 · 512 고정',interactive=False)
         inference_step_control = gr.Radio([4],value=4,label='생성 스텝 · 4 고정',interactive=False)
-        with gr.Row():
-            generation_seed_control = gr.Number(value=251204,precision=0,label='Seed')
-            random_seed_button = gr.Button('무작위 생성')
-        random_seed_button.click(generate_random_seed_value,outputs=generation_seed_control,queue=False)
+        generation_seed_control = build_generation_seed(251204)
         generation_start_button = gr.Button('맵 타일 생성 시작',variant='primary')
         generation_status_control = gr.Markdown('생성 가능 · 100단어 미만의 프롬프트를 입력하세요.')
         with gr.Accordion('생성 과정 · 고정 설정 안내',open=False):

@@ -1,15 +1,22 @@
-schema_version: 4
-grid_size: 768
+schema_version: 5
+grid_size: 1024
 tile_size: 256
-repair_size: 512
-vertical_erasure: 16
-horizontal_erasure: 16
-feather_width: 0
+repair_size: 1024
 grid_prompt: >-
-  A continuous repeating pattern arranged in three rows and three columns.
-  Equal scale motifs, top-down view, color illustration, filling the entire square.
+  클로즈업. 상하좌우로 연결되는 동일한 패턴. 3x3 격자 배열. 음영이 있는 일러스트 스타일.
+# 마스크 편집 프롬프트 작성 근거 (Qwen 2.1 공식 예제 비교 실험):
+# 2026-10-03_23-10-26-0d0dbb89 → 2026-10-03_23-15-55-c317d267에서
+# 입력·시드·해상도·스텝·실행 코드를 유지하고 프롬프트만 바꾸자 배경 소실이 해소됐다.
+# 효과를 확인한 지시 구조:
+# 1. <image1>을 편집할 원본, <image2>의 흰 영역을 편집 범위로 명시한다.
+# 2. 보존할 원본 내용을 구체적으로 지정한다. 심리스에서는 주변 무늬·크기·색상·화풍이다.
+# 3. "Return the complete opaque photograph with the cowboy integrated into the original scene."
+#    처럼 편집을 원본에 통합한 완성된 불투명 출력임을 명시한다.
+#    심리스 적용 후보: "Return the complete opaque pattern image with the repaired seams
+#    integrated into the original pattern." 사진이라는 표현은 패턴 편집에 그대로 쓰지 않는다.
+# "Return the edited <image1>."만 사용한 비교군은 투명 레이어처럼 출력됐다.
+# 여러 문구를 함께 변경했으므로 opaque 한 단어만의 효과로 단정하지 않는다.
+# 개선 결과에도 알파 218~255가 남았다. 완전 불투명·마스크 밖 픽셀 보존·심리스 연결은
+# 각각 별도 검증해야 한다. 이 주석은 분석 기록이며 아래 실행 프롬프트를 변경하지 않는다.
 repair_prompt: >-
-  Image 2 is the editing mask for image 1.
-  Repaint only the white mask area to connect the surrounding pattern naturally.
-  Preserve the content in the black mask area.
-  Return only the completed image 1.
+  중앙 블록과 주변 블록 사이에서 끊긴 무늬를 자연스럽게 이어 그린다. 배열, 크기, 색상, 윤곽선을 유지한다.

@@ -16,8 +16,8 @@ from email.message import Message
 from urllib.parse import urlsplit, parse_qs
 
 MANAGEMENT_SERVICE_ROUTES = {'qwen-21':'/image-generation-21','seamless-tile':'/seamless-tile-generator','expression':'/expression-generator','floor-tile':'/floor-tile-generator','anny':'/anny-attributes','character-animation':'/character-animation','momask':'/momask-generator','qwen-2512':'/image-generation','qwen-2511':'/image-generation-2511'}
-MANAGEMENT_COMMAND_ROUTES = {'anchor-history-reset':('POST','/anchor/history/reset'),'anchor-save':('POST','/anchor/save'),'anchor-history':('POST','/anchor/history'),'anchor-load':('POST','/anchor/load'),'history-delete':('POST','/history/{id}/delete'),'resume':('POST','/resume'),'sprite-source':('POST','/sprite/source'),'sprite-save':('POST','/sprite/save'),'sprite-load':('POST','/sprite/load'),'sprite-history':('POST','/sprite/history'),'sprite-history-reset':('POST','/sprite/history/reset'),'sprite-history-delete':('POST','/sprite/history/delete'),'catalog':('GET','/catalog'),'generate':('POST','/jobs'),'queue':('POST','/jobs'),'prepare':('POST','/jobs'),'status':('GET','/jobs/{id}'),'logs':('GET','/jobs/{id}/worker.log'),'history':('GET','/history'),'active':('GET','/active'),'model-status':('GET','/model-status'),'cancel':('POST','/cancel'),'history-reset':('POST','/history/reset')}
-MANAGEMENT_SERVICE_COMMANDS = {'qwen-21':('history-delete','resume','generate','status','logs','history','active','model-status','cancel','history-reset'),'seamless-tile':('history-delete','resume','generate','status','logs','history','active','model-status','cancel','history-reset'),'expression':('history-delete','resume','generate','status','logs','history','active','model-status','cancel','history-reset'),'floor-tile':('history-delete','resume','catalog','generate','status','logs','history','active','model-status','cancel','history-reset'),'anny':('status','history','cancel','resume'),'character-animation':('anchor-save','anchor-history','anchor-load','anchor-history-reset','history-delete','resume','sprite-source','sprite-save','sprite-load','sprite-history','sprite-history-reset','sprite-history-delete','catalog','generate','status','logs','history','active','cancel','history-reset'),'momask':('history-delete','resume','generate','status','logs','history','cancel','history-reset'),'qwen-2512':('history-delete','resume','generate','prepare','status','logs','history','active','model-status','cancel','history-reset'),'qwen-2511':('history-delete','resume','generate','status','logs','history','active','model-status','cancel','history-reset')}
+MANAGEMENT_COMMAND_ROUTES = {'anchor-history-reset':('POST','/anchor/history/reset'),'anchor-save':('POST','/anchor/save'),'anchor-history':('POST','/anchor/history'),'anchor-load':('POST','/anchor/load'),'history-delete':('POST','/history/{id}/delete'),'pause':('POST','/pause'),'resume':('POST','/resume'),'sprite-source':('POST','/sprite/source'),'sprite-save':('POST','/sprite/save'),'sprite-load':('POST','/sprite/load'),'sprite-history':('POST','/sprite/history'),'sprite-history-reset':('POST','/sprite/history/reset'),'sprite-history-delete':('POST','/sprite/history/delete'),'catalog':('GET','/catalog'),'generate':('POST','/jobs'),'queue':('POST','/jobs'),'prepare':('POST','/jobs'),'status':('GET','/jobs/{id}'),'logs':('GET','/jobs/{id}/worker.log'),'history':('GET','/history'),'active':('GET','/active'),'model-status':('GET','/model-status'),'cancel':('POST','/cancel'),'history-reset':('POST','/history/reset')}
+MANAGEMENT_SERVICE_COMMANDS = {'qwen-21':('history-delete','resume','generate','status','logs','history','active','model-status','cancel','history-reset'),'seamless-tile':('pause','history-delete','resume','generate','status','logs','history','active','model-status','cancel','history-reset'),'expression':('history-delete','resume','generate','status','logs','history','active','model-status','cancel','history-reset'),'floor-tile':('history-delete','resume','catalog','generate','status','logs','history','active','model-status','cancel','history-reset'),'anny':('status','history','cancel','resume'),'character-animation':('anchor-save','anchor-history','anchor-load','anchor-history-reset','history-delete','resume','sprite-source','sprite-save','sprite-load','sprite-history','sprite-history-reset','sprite-history-delete','catalog','generate','status','logs','history','active','cancel','history-reset'),'momask':('history-delete','resume','generate','status','logs','history','cancel','history-reset'),'qwen-2512':('history-delete','resume','generate','prepare','status','logs','history','active','model-status','cancel','history-reset'),'qwen-2511':('history-delete','resume','generate','status','logs','history','active','model-status','cancel','history-reset')}
 
 
 def resolve_management_command(service_command_name, operation_command_name, command_payload_value):
@@ -149,7 +149,7 @@ class ManagementCommandGateway:
         return True
 
 
-MANAGEMENT_COMMAND_DESCRIPTIONS = {'qwen-21':'Qwen Image 2.1 · 입력 프롬프트 원문 · 추가 문구 없음 · 참조 0~10장 · 40스텝','seamless-tile':'Qwen Image 2.1 · 40스텝 · 패턴 프롬프트 → 3×3 생성 → 중앙 추출 → 경계 채우기 · 참조 생략 가능','expression':'Qwen 2511 AU 표정 생성 · 참조 1~3장 · --expression에 표정 ID 지정','floor-tile':'512×512·4스텝 단일 바닥 타일 생성 (관리 서버 필요)','anny':'ANNY 이력 상태·중지·재개 (관리 서버 필요)','character-animation':'등록 모션·캐릭터 기반 애니메이션 생성·이력·재생 결과 조회','momask': 'MoMask 생성·상태·로그·이력 조회·취소 (웹과 기록 공유)', 'qwen-2512': 'Qwen 2512 텍스트 이미지 생성 (관리 서버 필요)', 'qwen-2511': 'Qwen 2511 텍스트·1~3장 참조 이미지 생성 (관리 서버 필요)'}
+MANAGEMENT_COMMAND_DESCRIPTIONS = {'qwen-21':'Qwen Image 2.1 · 입력 프롬프트 원문 · 추가 문구 없음 · 참조 0~10장 · 40스텝','seamless-tile':'Qwen Image 2.1 · 40스텝 · 7단계 심리스 패턴 · 단계별 검수 대기 · pause/resume · 참조 생략 가능','expression':'Qwen 2511 AU 표정 생성 · 참조 1~3장 · --expression에 표정 ID 지정','floor-tile':'512×512·4스텝 단일 바닥 타일 생성 (관리 서버 필요)','anny':'ANNY 이력 상태·중지·재개 (관리 서버 필요)','character-animation':'등록 모션·캐릭터 기반 애니메이션 생성·이력·재생 결과 조회','momask': 'MoMask 생성·상태·로그·이력 조회·취소 (웹과 기록 공유)', 'qwen-2512': 'Qwen 2512 텍스트 이미지 생성 (관리 서버 필요)', 'qwen-2511': 'Qwen 2511 텍스트·1~3장 참조 이미지 생성 (관리 서버 필요)'}
 
 def execute_management_command(service_command_name, operation_command_name, command_payload_value, server_base_address=None, *, gateway_request_handler=None, service_handler_values=None):
     request_method_value,request_route_value=resolve_management_command(service_command_name,operation_command_name,command_payload_value)
@@ -181,7 +181,7 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
             operation_argument_parser.add_argument('id')
             if operation_command_name=='sprite-history-delete':operation_argument_parser.add_argument('--revision',required=True)
             if operation_command_name=='sprite-save':operation_argument_parser.add_argument('--document-file',type=Path,required=True)
-        if operation_command_name in ('status','logs','cancel','resume','history-delete'):
+        if operation_command_name in ('status','logs','cancel','resume','pause','history-delete'):
             operation_argument_parser.add_argument('id')
         if operation_command_name=='generate':
             operation_argument_parser.add_argument('--detach',action='store_true',help='작업 ID 출력 후 반환')
@@ -209,8 +209,8 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
                 else:
                     prompt_argument_group.add_argument('--prompt')
                 prompt_argument_group.add_argument('--prompt-file',type=Path,help='UTF-8 프롬프트 파일')
-                operation_argument_parser.add_argument('--width',type=int,default=768 if service_command_name=='seamless-tile' else 512 if service_command_name in ('qwen-2511','expression','floor-tile') else 1024)
-                operation_argument_parser.add_argument('--height',type=int,default=768 if service_command_name=='seamless-tile' else 512 if service_command_name in ('qwen-2511','expression','floor-tile') else 1024)
+                operation_argument_parser.add_argument('--width',type=int,default=None if service_command_name=='seamless-tile' else 512 if service_command_name in ('qwen-2511','expression','floor-tile') else 1024)
+                operation_argument_parser.add_argument('--height',type=int,default=None if service_command_name=='seamless-tile' else 512 if service_command_name in ('qwen-2511','expression','floor-tile') else 1024)
                 operation_argument_parser.add_argument('--steps',type=int,choices=(40,) if service_command_name in ('seamless-tile','qwen-21') else (4,) if service_command_name=='floor-tile' else (4,30),default=40 if service_command_name in ('seamless-tile','qwen-21') else 4)
                 operation_argument_parser.add_argument('--seed',type=int,default=10107 if service_command_name in ('qwen-2511','expression','seamless-tile','qwen-21') else 251204)
                 if service_command_name=='floor-tile':
@@ -252,6 +252,10 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
             if command_argument_values.tag:command_payload_value['tag']=command_argument_values.tag
         else:
             command_payload_value={'action':'generate','prompt':command_argument_values.prompt if command_argument_values.prompt is not None else command_argument_values.prompt_file.read_text(encoding='utf-8'),'width':command_argument_values.width,'height':command_argument_values.height,'steps':command_argument_values.steps,'seed':command_argument_values.seed}
+            if service_command_name=='seamless-tile':
+                for current_size_key in ('width','height'):
+                    if command_payload_value[current_size_key] is None:
+                        command_payload_value[current_size_key]=768 if command_argument_values.reference else 1024
             if command_argument_values.tag:command_payload_value['tag']=command_argument_values.tag
             if service_command_name=='floor-tile':
                 command_payload_value['user_prompt']=command_payload_value.pop('prompt')
@@ -278,7 +282,7 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
                 print(current_status_text,flush=True)
                 previous_status_text=current_status_text
             if generation_status_value['status'] not in ('running','queued'):
-                return 0 if generation_status_value['status']=='completed' else 1
+                return 0 if generation_status_value['status'] in ('completed','paused') else 1
             time.sleep(1)
     except KeyboardInterrupt:
         execute_management_command(service_command_name,'cancel',{'id':generation_job_identifier},server_base_address)

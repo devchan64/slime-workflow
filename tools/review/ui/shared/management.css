@@ -344,3 +344,11 @@ textarea{margin:6px 0 10px}select{margin:4px 8px 8px 0}button{margin:4px 6px 4px
 .reference-upload-panel .source-selection{background:transparent!important;border:0!important}
 
 .reference-upload-panel>.styler{background:transparent!important}
+
+/* 생성 ID는 프롬프트 입력의 공통 최소 높이를 적용하지 않는다. */
+.management-generation-identifier textarea,
+.management-generation-identifier input{
+  min-height:0!important;height:38px!important;max-height:38px!important;
+  margin:0!important;padding:8px 10px!important;resize:none!important;
+  white-space:pre!important;overflow-x:auto!important;box-sizing:border-box;
+}

@@ -43,10 +43,12 @@ def resume_gpu_generation(generation_job_path):
     with (generation_job_path/'resume.lock').open('a') as resume_lock_handle:
         fcntl.flock(resume_lock_handle, fcntl.LOCK_EX)
         generation_status_record = json.loads((generation_job_path/'status.json').read_text())
-        if generation_status_record['status'] not in ('failed', 'cancelled'):
-            raise ValueError('취소·실패 작업만 재개할 수 있습니다.')
+        if generation_status_record['status'] not in ('failed', 'cancelled', 'paused'):
+            raise ValueError('일시정지·취소·실패 작업만 재개할 수 있습니다.')
         generation_command_record = json.loads((generation_job_path/'gpu-command.json').read_text())
         (generation_job_path/'cancel.request').unlink(missing_ok=True)
+        (generation_job_path/'pause.request').unlink(missing_ok=True)
+        (generation_job_path/'stage-pause.json').unlink(missing_ok=True)
         write_record_atomically(generation_job_path/'status.json', {'status':'queued', 'message':'GPU 실행 대기'})
         with (generation_job_path/'worker.log').open('a') as generation_log_handle:
             launch_gpu_process(generation_command_record['command'], generation_job_path, generation_command_record['service'], stdout=generation_log_handle, stderr=subprocess.STDOUT, start_new_session=True)
@@ -55,10 +57,15 @@ def resume_gpu_generation(generation_job_path):
 
 def cancel_gpu_generation(generation_job_path):
     generation_job_path = Path(generation_job_path)
-    generation_status_record = json.loads((generation_job_path/'status.json').read_text())
-    if generation_status_record['status'] not in ('running', 'queued'):
-        raise ValueError('대기·실행 중인 작업만 중지할 수 있습니다.')
-    (generation_job_path/'cancel.request').touch()
+    with (generation_job_path/'resume.lock').open('a') as resume_lock_handle:
+        fcntl.flock(resume_lock_handle, fcntl.LOCK_EX)
+        generation_status_record = json.loads((generation_job_path/'status.json').read_text())
+        if generation_status_record['status'] not in ('running', 'queued', 'paused'):
+            raise ValueError('대기·실행·검수 대기 작업만 중지할 수 있습니다.')
+        (generation_job_path/'cancel.request').touch()
+        if generation_status_record['status'] == 'paused':
+            generation_status_record = {'status':'cancelled','message':'사용자가 중지했습니다. 완료한 단계 결과는 유지됩니다.'}
+            write_record_atomically(generation_job_path/'status.json', generation_status_record)
     return {'status':generation_status_record['status'], 'cancel_requested':True}
 
 
@@ -123,6 +130,9 @@ def execute_queued_generation(generation_job_path):
             while True:
                 if (generation_job_path/'cancel.request').exists():
                     write_record_atomically(generation_job_path/'status.json', {'status':'cancelled'})
+                    return 0
+                if (generation_job_path/'pause.request').exists():
+                    write_record_atomically(generation_job_path/'status.json', {'status':'paused','message':'대기 중 일시정지'})
                     return 0
                 reload_waiting_executor(queue_ticket_path, initial_source_revision)
                 # 죽은 대기 프로세스의 표만 제거한다. 생성 기록은 보존한다.
@@ -207,6 +217,8 @@ def execute_queued_generation(generation_job_path):
             generation_exit_value = generation_worker_process.returncode
             generation_status_record = json.loads((generation_job_path/'status.json').read_text())
             if (generation_job_path/'cancel.request').exists(): generation_status_record = {'status':'cancelled'}
+            elif generation_exit_value == 0 and (generation_job_path/'stage-pause.json').exists():
+                generation_status_record = {'status':'paused','message':'단계 결과를 확인한 뒤 다음 단계로 진행하세요.'}
             elif generation_status_record['status'] in ('running','queued'):
                 generation_status_record = {'status':'completed' if generation_exit_value == 0 else 'failed', 'exit_code':generation_exit_value}
             write_record_atomically(generation_job_path/'status.json', generation_status_record)

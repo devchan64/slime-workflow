@@ -81,6 +81,10 @@ class GenerationHistoryTests(unittest.TestCase):
 
     def test_progress_from_actual_steps(self):
         self.assertEqual(summarize_generation_progress('denoise step=2/4','running')['percent'],50)
+        self.assertEqual(summarize_generation_progress("heartbeat {'stage': 'inference', 'step': 26, 'total': 40}",'running')['percent'],65)
+        self.assertEqual(summarize_generation_progress("step=2/4\nheartbeat {'stage': 'inference', 'step': 26, 'total': 40}",'running')['step'],26)
+        self.assertEqual(summarize_generation_progress("heartbeat {'stage': 'inference', 'step': 26, 'total': 40}\nstep=28/40",'running')['percent'],70)
+        self.assertEqual(summarize_generation_progress("heartbeat {'stage': 'inference', 'step': 40, 'total': 40}",'running')['stage'],'saving')
         self.assertEqual(summarize_generation_progress('heartbeat stage=inference step=12/30','running')['percent'],40)
         self.assertEqual(summarize_generation_progress("heartbeat {'stage': 'download-model'}",'running')['stage'],'download-model')
         self.assertIsNone(summarize_generation_progress('stage=load','running')['percent'])

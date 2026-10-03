@@ -167,9 +167,31 @@ class GpuJobQueueTests(unittest.TestCase):
             self.assertEqual(queue_module.execute_queued_generation(self.current_job_path),0)
             worker_launch_mock.assert_called_once()
 
-    def test_global_margin_still_blocks_insufficient_free_memory(self):
+    def test_observed_peak_blocks_insufficient_free_memory(self):
         from tools.review.common import gpu_memory_history
         gpu_memory_history.save_memory_observation('anny','previous',6202,3,'completed',command_identity_name='test-worker')
-        with patch.object(queue_module,'read_gpu_memory',return_value=(8151,6500)),patch.object(queue_module.time,'sleep',side_effect=lambda _:queue_module.cancel_gpu_generation(self.current_job_path)),patch.object(queue_module.subprocess,'Popen') as worker_launch_mock:
+        with patch.object(queue_module,'read_gpu_memory',return_value=(8151,6100)),patch.object(queue_module.time,'sleep',side_effect=lambda _:queue_module.cancel_gpu_generation(self.current_job_path)),patch.object(queue_module.subprocess,'Popen') as worker_launch_mock:
             self.assertEqual(queue_module.execute_queued_generation(self.current_job_path),0)
             worker_launch_mock.assert_not_called()
+
+    def test_paused_stage_releases_queue_and_resumes_without_losing_result(self):
+        worker_process_mock=Mock(returncode=0)
+        worker_process_mock.poll.return_value=0
+        (self.current_job_path/'stage-pause.json').write_text('{"completed":1}')
+        (self.current_job_path/'grid-input.png').write_bytes(b'preserved')
+        with patch.object(queue_module,'read_gpu_memory',return_value=(24000,24000)),patch.object(queue_module.subprocess,'Popen',return_value=worker_process_mock):
+            self.assertEqual(queue_module.execute_queued_generation(self.current_job_path),0)
+        self.assertEqual(json.loads((self.current_job_path/'status.json').read_text())['status'],'paused')
+        with patch.object(queue_module.subprocess,'Popen'):
+            queue_module.resume_gpu_generation(self.current_job_path)
+            with self.assertRaises(ValueError):
+                queue_module.resume_gpu_generation(self.current_job_path)
+        self.assertFalse((self.current_job_path/'stage-pause.json').exists())
+        self.assertEqual((self.current_job_path/'grid-input.png').read_bytes(),b'preserved')
+
+    def test_pause_waiting_job_does_not_start_gpu_worker(self):
+        (self.current_job_path/'pause.request').touch()
+        with patch.object(queue_module.subprocess,'Popen') as worker_launch_mock:
+            self.assertEqual(queue_module.execute_queued_generation(self.current_job_path),0)
+        worker_launch_mock.assert_not_called()
+        self.assertEqual(json.loads((self.current_job_path/'status.json').read_text())['status'],'paused')

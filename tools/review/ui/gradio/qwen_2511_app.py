@@ -16,11 +16,12 @@ import gradio as gr
 
 WORKFLOW_ROOT_DIRECTORY=Path(__file__).resolve().parents[4]
 if str(WORKFLOW_ROOT_DIRECTORY) not in sys.path:sys.path.insert(0,str(WORKFLOW_ROOT_DIRECTORY))
+from tools.review.common.gradio_identifiers import build_generation_identifier
 from tools.review.common.gradio_logs import build_execution_logs, LOG_PANEL_STYLES
 from tools.review.common.gradio_history import HISTORY_CARD_SELECTION_SCRIPT, build_generation_history_view
 from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_confirmation
 from tools.review.common.gradio_reference_images import build_reference_image_inputs
-from tools.review.common.gradio_seed import generate_random_seed_value
+from tools.review.common.gradio_seed import build_generation_seed
 from tools.review.common.management_client import execute_remote_management_command as execute_management_command
 
 def execute_reference_gateway(command_name_value,payload_value):return execute_management_command('qwen-2511',command_name_value,payload_value)
@@ -118,19 +119,17 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
             prompt_text_value.change(describe_expression_prompt,prompt_text_value,expression_prompt_preview,queue=False)
         with gr.Accordion('참조 이미지 · 선택 · 최대 10장', open=False) if qwen21_mode_enabled else contextlib.nullcontext():
             reference_upload_group,reference_image_controls=build_reference_image_inputs(reference_image_mode=None, reference_slot_count=reference_slot_count)
-        gr.Markdown('생성 출력 최소 크기: 512×512. 참조 이미지의 크기·비율은 자유입니다. RGB/RGBA PNG, 장당 3MB 이하이며 투명 배경은 사용할 수 없습니다.')
+        gr.Markdown('생성 출력 최소 크기: 512×512. 참조 이미지의 크기·비율은 자유입니다. RGB/RGBA PNG, 장당 3MB 이하. ' + ('투명 영역은 흰색 배경에 합성해 전달합니다.' if qwen21_mode_enabled else '투명 배경은 사용할 수 없습니다.'))
         with gr.Row():
             width_value=gr.Dropdown([512,768,1024,1280],value=1024 if qwen21_mode_enabled else 512,label='너비',scale=1,min_width=120)
             height_value=gr.Dropdown([512,768,1024,1280],value=1024 if qwen21_mode_enabled else 512,label='높이',scale=1,min_width=120)
             step_value=gr.Number(value=40,precision=0,label='생성 스텝 · 고정',interactive=False,scale=1,min_width=120) if qwen21_mode_enabled else gr.Radio([4,30],value=4,label='생성 스텝',scale=1,min_width=120)
-            seed_value=gr.Number(value=10107,precision=0,label='Seed',scale=1,min_width=120)
-            random_seed_button=gr.Button('무작위 생성',size='sm',scale=1,min_width=120)
-        random_seed_button.click(generate_random_seed_value,outputs=seed_value,queue=False)
+            seed_value=build_generation_seed(10107)
         gr.Markdown('예상 시간: 실행 이력 기반 추정 자료를 수집 중입니다. 실행 로그에서 진행 단계를 확인하세요.')
         generation_button_value=gr.Button('이미지 생성 시작',variant='primary')
         status_value=gr.Markdown('생성 가능 · 설정을 확인하세요.')
         gr.Markdown('실행 중인 작업은 아래 생성 이력에서 선택한 뒤 **작업 중지**를 사용하세요.')
-        identifier_value=gr.Textbox(label='생성 ID',interactive=False,lines=1,max_lines=1)
+        identifier_value=build_generation_identifier()
         preview_value=gr.HTML(result_preview_html(None),elem_classes=['reference-result-preview'])
         gr.Markdown('Qwen 2.1 전용 생성 이력입니다. 조회·삭제·초기화는 현재 생성기에만 적용됩니다.' if qwen21_mode_enabled else '표정 생성 이력은 Qwen 2511 참조 생성 이력과 별도로 관리합니다. 조회·삭제·초기화는 현재 생성기에만 적용됩니다.' if expression_mode_enabled else 'Qwen 2511 참조 생성 이력은 표정 생성 이력과 별도로 관리합니다. 조회·삭제·초기화는 현재 생성기에만 적용됩니다.')
         log_value,refresh_log_value,_=build_execution_logs()
