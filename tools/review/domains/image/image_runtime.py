@@ -15,7 +15,10 @@ def validate_image_runtime(environment_root_path=None):
         for current_config_line in (environment_root_path / 'pyvenv.cfg').read_text().splitlines()
         if ' = ' in current_config_line
     )
-    expected_python_version = '.'.join(environment_config_values['version'].split('.')[:2])
+    configured_python_version = environment_config_values.get('version') or environment_config_values.get('version_info')
+    if not configured_python_version:
+        raise ValueError(f'가상환경 Python 버전 정보 누락: {environment_root_path}')
+    expected_python_version = '.'.join(configured_python_version.split('.')[:2])
     runtime_probe_result = subprocess.run(
         [str(environment_python_path), '-c',
          'import sys,json,importlib.util; print(json.dumps({"version":"%s.%s"%sys.version_info[:2],"missing":[name for name in ("torch","diffusers","transformers","accelerate","safetensors") if importlib.util.find_spec(name) is None]}))'],

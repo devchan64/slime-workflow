@@ -375,3 +375,44 @@ GUI와 CLI는 `/seamless-tile-generator` 공용 서비스와
 
 AI 편집은 반대편 경계의 주기적 일치를 보장하지 않습니다. 반복 검수본을 확인한 뒤
 채택해야 하며 결과는 자동으로 정식 에셋에 등록하지 않습니다.
+
+### 심리스 생성기 Qwen Image 2.1 실행
+
+새 심리스 작업은 고정 `Qwen/Qwen-Image-2.1` revision
+`d26bb61231c349cf6b7896fa83353113880e1ba3`과 40스텝을 사용한다.
+GUI와 `tools/manager.py command seamless-tile generate`는 같은 공용 게이트웨이와 이력을 사용한다.
+원본은 256×256으로 정규화한 뒤 768×768 반복 참조를 전달하고, 중앙 256 타일 및 반복 미리보기를 저장한다.
+기본 프롬프트는 `generators/image/config/seamless_tile.yaml`에서 추적한다.
+이전 schema 1 기록의 재개는 2511 실행기를 유지하며 새 schema 2 기록은 2.1 실행기로 고정된다.
+기존 URL·서비스 이름·기록 저장 경로는 변경하지 않는다.
+
+2.1 작업자는 `.venv-qwen21` 분리 환경에서 실행한다. 검증 환경은 Python 3.12,
+PyTorch 2.11.0+cu128, diffusers git `8b33bfc04b6b5e8bb58a58e55f68746c1bbee4cd`,
+transformers 5.18.0, accelerate 1.13.0이다. 모델은
+`.model/qwen-image-2.1/<revision>/`에 공식 snapshot 전체를 준비한다.
+환경·모델이 없으면 접수 전에 실패하며 실행 중 자동 설치나 다른 모델 대체는 없다.
+현재 실험 환경은 기존 `.venv` 패키지를 `.pth`로 재사용하고 diffusers·transformers만 분리 설치했다.
+기존 환경 삭제·갱신 시 해당 의존성을 재검증해야 한다.
+GPU 추론에는 sequential CPU offload와 VAE tiling을 사용한다. CPU 단독 추론은 허용하지 않는다.
+2.1 모델 실행 성공과 심리스 품질 승인은 구분하며 반복 검수 후 사용자 채택을 받는다.
+
+### Qwen 2.1 이미지 생성기 — 추가 프롬프트 없음
+
+이미지 생성 분류의 `Qwen 2.1 이미지 생성기`는 입력한 프롬프트 원문을 그대로 전달한다.
+자동 기본·화풍·부정 프롬프트는 추가하지 않으며 공백·줄바꿈도 유지한다. 입력은 1~99단어다.
+고정 모델·환경은 위 2.1 실행 기준과 같고 40스텝, 기본 출력은 1024×1024다.
+512 이상 16의 배수인 출력 해상도를 사용한다. GUI는 512·768·1024·1280을 제공한다.
+참조가 없으면 텍스트 생성, 참조가 있으면 번호 순서대로 이미지 편집을 수행한다.
+모델 카드의 최대 10장까지 지원하며 각 참조는 불투명 RGB/RGBA PNG, 3MB 이하다.
+공용 파일 불러오기·클립보드 붙여넣기를 사용한다. 처음 한 칸에서 `이미지 추가`로 최대 10칸까지 늘린다. 각 칸의 `삭제`는 뒤의 참조를 앞으로 이동하며, 빈 칸은 모델에 전달하지 않는다. 이력 복원은 저장된 참조 수만큼 입력 칸을 펼친다. 실제 GPU 사용량은 참조 수와 해상도에 따라 달라진다.
+
+```bash
+.venv/bin/python tools/manager.py command qwen-21 generate --prompt '붉은 사과 하나. 흰 배경.' --detach
+.venv/bin/python tools/manager.py command qwen-21 generate --prompt-file /tmp/prompt.txt --reference /tmp/one.png --reference /tmp/two.png --width 512 --height 512 --detach
+.venv/bin/python tools/manager.py command qwen-21 history
+```
+
+서비스는 `qwen-21`, 페이지는 `?tool=qwen-21-generator`, API는 `/image-generation-21`이다.
+기록은 `.tmp/test/qwen-image-21/<생성 ID>/`와 공용 이력 저장소의 `qwen-21`에 저장한다.
+참조 순서·해시·원문·단어 수·모델 revision을 보존하고 재개 시 다시 검증한다.
+이 생성기의 초기화·삭제는 심리스 및 기존 2511·2512 이력에 영향을 주지 않는다.

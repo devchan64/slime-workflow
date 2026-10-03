@@ -13,10 +13,27 @@ from tools.review.common.management_gateway import execute_gateway_arguments
 
 
 class SeamlessGenerationTests(unittest.TestCase):
+    def test_boundary_measurement_detects_wrap_jump(self):
+        from tools.review.domains.image.seamless_generation import measure_texture_boundaries
+        current_tile_image = Image.new('RGB', (16, 16), 'black')
+        self.assertEqual(measure_texture_boundaries(current_tile_image)['left_right_rgb_mae'], 0)
+        current_tile_image.paste('white', (15, 0, 16, 16))
+        self.assertEqual(measure_texture_boundaries(current_tile_image)['left_right_rgb_mae'], 255)
+        self.assertEqual(measure_texture_boundaries(current_tile_image)['top_bottom_rgb_mae'], 0)
+
+    def test_model_routing_preserves_history(self):
+        from tools.review.domains.image.seamless_generation import SeamlessGenerationManager
+        current_manager_value = SeamlessGenerationManager()
+        self.assertTrue(current_manager_value.select_generation_runner().endswith('run_qwen_21_reference.py'))
+        self.assertTrue(current_manager_value.select_generation_runner({'seamless_tile': {'schema_version': 1}}).endswith('run_qwen_2511_three_reference.py'))
+        for rejected_step_count in (4, 30, True):
+            with self.assertRaises(ValueError):
+                validate_seamless_request({**self.create_tile_request(), 'steps': rejected_step_count})
+
     def create_tile_request(self, source_image_size=(256,256)):
         source_image_buffer = io.BytesIO()
         Image.new('RGB', source_image_size, 'green').save(source_image_buffer, format='PNG')
-        return {'action':'generate','prompt':'잔디밭','images':[base64.b64encode(source_image_buffer.getvalue()).decode()], 'width':768,'height':768,'steps':4,'seed':10107}
+        return {'action':'generate','prompt':'잔디밭','images':[base64.b64encode(source_image_buffer.getvalue()).decode()], 'width':768,'height':768,'steps':40,'seed':10107}
 
     def test_reject_invalid_inputs(self):
         for request_record_value in (self.create_tile_request((256,128)), {**self.create_tile_request(),'images':[]}, {**self.create_tile_request(),'width':512}, {**self.create_tile_request(),'prompt':'grass '*100}):

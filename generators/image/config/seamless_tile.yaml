@@ -1,4 +1,4 @@
-schema_version: 1
+schema_version: 2
 tile_size: 256
 grid_size: 3
 base_prompt: >-

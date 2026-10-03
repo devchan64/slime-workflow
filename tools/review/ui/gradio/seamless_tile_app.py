@@ -25,16 +25,16 @@ def build_seamless_interface(server_base_address):
         restored_input_values = restore_reference_inputs(current_history_record, WORKFLOW_ROOT_DIRECTORY / '.tmp/test/seamless-tile-generator')
         return (current_history_record['request']['seamless_tile']['user_prompt'], restored_input_values[1], restored_input_values[6], restored_input_values[4], restored_input_values[5])
 
-    with gr.Blocks(title='심리스 타일 생성기') as interface_blocks_value:
-        gr.Markdown('## 심리스 타일 생성기\n원본 한 장 → 3×3 반복 → Qwen 2511 연결 보정 → 중앙 타일 추출')
+    with gr.Blocks(title='Qwen2.1 심리스 타일 생성기') as interface_blocks_value:
+        gr.Markdown('## Qwen2.1 심리스 타일 생성기\n원본 한 장 → 3×3 반복 → Qwen Image 2.1 연결 보정 → 중앙 타일 추출')
         with gr.Row():
             with gr.Column():
                 user_prompt_control = gr.Textbox(label='표면 설명', placeholder='예: 잔디밭', lines=2)
                 generation_tag_control = gr.Textbox(label='생성 이력 태그 · 선택 사항', lines=1)
                 _, reference_image_controls = build_reference_image_inputs(reference_image_mode=None, reference_slot_count=1)
-                gr.Markdown('정사각형·불투명 PNG 한 장, 3MB 이하. 원본을 256×256으로 정규화합니다. Qwen 2511 고정 · 보정 768×768 · 추출 256×256.')
+                gr.Markdown('정사각형·불투명 PNG 한 장, 3MB 이하. 원본을 256×256으로 정규화합니다. Qwen Image 2.1 고정 · 보정 768×768 · 추출 256×256.')
                 with gr.Row():
-                    generation_step_control = gr.Radio([4,30], value=4, label='생성 스텝')
+                    generation_step_control = gr.Number(value=40, label='생성 스텝 · 고정', interactive=False, precision=0)
                     generation_seed_control = gr.Number(value=10107, precision=0, label='Seed')
                 prompt_preview_control = gr.Markdown(describe_seamless_prompt(''))
                 user_prompt_control.change(describe_seamless_prompt, user_prompt_control, prompt_preview_control, queue=False)

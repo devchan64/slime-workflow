@@ -1,5 +1,6 @@
 """Qwen 2511 3참조 생성기의 Gradio 클라이언트."""
 import argparse
+import contextlib
 import base64
 import html
 import io
@@ -45,7 +46,7 @@ def prepare_reference_image_bytes(reference_image_values):
     return reference_bytes_values
 
 
-def restore_reference_inputs(current_history_record, reference_storage_root=None):
+def restore_reference_inputs(current_history_record, reference_storage_root=None, reference_slot_limit=3):
     current_request_record=current_history_record.get('request',{})
     restored_reference_images=[]
     reference_snapshot_records=current_request_record.get('reference_snapshots',[])
@@ -55,7 +56,7 @@ def restore_reference_inputs(current_history_record, reference_storage_root=None
             raise gr.Error('생성 ID 형식 오류')
         reference_storage_root=Path(reference_storage_root or WORKFLOW_ROOT_DIRECTORY/'.tmp/test/qwen-image-2511-three-reference').resolve()
         for reference_slot_number,current_snapshot_record in enumerate(reference_snapshot_records,1):
-            if reference_slot_number>3 or current_snapshot_record['path']!=f'reference-{reference_slot_number}.png':
+            if reference_slot_number>reference_slot_limit or current_snapshot_record['path']!=f'reference-{reference_slot_number}.png':
                 raise gr.Error('참조 이미지 순서 또는 경로 오류')
             reference_source_path=(reference_storage_root/generation_identifier_value/current_snapshot_record['path']).resolve()
             if not reference_source_path.is_relative_to(reference_storage_root):raise gr.Error('참조 이미지 경로 오류')
@@ -64,20 +65,25 @@ def restore_reference_inputs(current_history_record, reference_storage_root=None
             if hashlib.sha256(reference_source_bytes).hexdigest()!=current_snapshot_record['sha256']:raise gr.Error('참조 이미지 해시 불일치')
             with Image.open(io.BytesIO(reference_source_bytes)) as reference_image_value:
                 restored_reference_images.append(reference_image_value.copy())
-    restored_reference_images.extend([None]*(3-len(restored_reference_images)))
+    restored_reference_images.extend([None]*(reference_slot_limit-len(restored_reference_images)))
     return (current_request_record.get('prompt',''),current_request_record.get('tag',''),current_request_record.get('width',512),current_request_record.get('height',512),current_request_record.get('steps',4),current_request_record.get('seed',10107),*restored_reference_images,'선택한 이력의 설정과 참조 이미지 '+str(len(reference_snapshot_records))+'장을 불러왔습니다.')
 
 def result_preview_html(image_url_value):return f'<img class="qwen-result-image" src="{html.escape(image_url_value,quote=True)}" alt="Qwen 생성 결과">' if image_url_value else '<div class="image-result-empty">완료된 결과를 선택하세요.</div>'
 
-def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False):
-    current_service_name = 'expression' if expression_mode_enabled else 'qwen-2511'
-    current_page_title = '표정 생성기' if expression_mode_enabled else 'Qwen 2511 3참조 생성기'
+def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False, qwen21_mode_enabled=False):
+    if expression_mode_enabled and qwen21_mode_enabled:
+        raise ValueError("표정 생성과 Qwen 2.1 일반 생성은 별도 모드입니다.")
+    reference_slot_count = 10 if qwen21_mode_enabled else 3
+    current_service_name = 'qwen-21' if qwen21_mode_enabled else 'expression' if expression_mode_enabled else 'qwen-2511'
+    current_page_title = 'Qwen 2.1 이미지 생성기' if qwen21_mode_enabled else '표정 생성기' if expression_mode_enabled else 'Qwen 2511 3참조 생성기'
     def execute_reference_gateway(command_name_value, payload_value):
         return execute_management_command(current_service_name, command_name_value, payload_value)
     def restore_selected_inputs(current_history_record):
-        restored_input_values = list(restore_reference_inputs(current_history_record, WORKFLOW_ROOT_DIRECTORY/'.tmp/test/expression-generator' if expression_mode_enabled else None))
+        restored_input_values = list(restore_reference_inputs(current_history_record, WORKFLOW_ROOT_DIRECTORY/'.tmp/test/qwen-image-21' if qwen21_mode_enabled else WORKFLOW_ROOT_DIRECTORY/'.tmp/test/expression-generator' if expression_mode_enabled else None, reference_slot_limit=reference_slot_count))
         if expression_mode_enabled:
             restored_input_values[0] = current_history_record['request']['expression']['id']
+        if qwen21_mode_enabled:
+            restored_input_values.extend(reference_upload_group.build_reference_updates(max(1, len(current_history_record["request"].get("references", [])))))
         return tuple(restored_input_values)
     with gr.Blocks(title=current_page_title,js=HISTORY_CARD_SELECTION_SCRIPT) as interface_blocks_value:
         gr.Markdown('## '+current_page_title+'\n참조 이미지는 업로드한 순서대로 모델에 전달됩니다.')
@@ -91,6 +97,13 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
             else:
                 prompt_text_value=gr.Textbox(label='프롬프트',lines=3,scale=1,min_width=240)
             generation_tag_value=gr.Textbox(label='생성 이력 태그 · 선택 사항',placeholder='예: 돌온재 참조 후보',lines=3,scale=1,min_width=240)
+        if qwen21_mode_enabled:
+            gr.Markdown('Qwen Image 2.1 · 추가 프롬프트 없음. 입력 원문을 그대로 전달합니다. 참조 없이 텍스트만으로도 생성할 수 있습니다.')
+            def describe_plain_prompt(current_prompt_text):
+                current_word_count = len(current_prompt_text.split())
+                return f'사용자 {current_word_count}단어 · 추가 0단어 · 최종 {current_word_count}단어 (최대 99단어)'
+            prompt_count_control = gr.Markdown(describe_plain_prompt(''))
+            prompt_text_value.change(describe_plain_prompt, prompt_text_value, prompt_count_control, queue=False)
         if not expression_mode_enabled:
             prompt_reset_button=gr.ClearButton([prompt_text_value],value='프롬프트 초기화',variant='secondary',size='sm')
         if expression_mode_enabled:
@@ -103,12 +116,13 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
                         '\n\n최종 입력 ('+str(expression_source_record['prompt_word_count'])+'단어): '+final_prompt_value)
             expression_prompt_preview = gr.Markdown(describe_expression_prompt(expression_preset_records[0]['id']))
             prompt_text_value.change(describe_expression_prompt,prompt_text_value,expression_prompt_preview,queue=False)
-        reference_upload_group,reference_image_controls=build_reference_image_inputs(reference_image_mode=None)
+        with gr.Accordion('참조 이미지 · 선택 · 최대 10장', open=False) if qwen21_mode_enabled else contextlib.nullcontext():
+            reference_upload_group,reference_image_controls=build_reference_image_inputs(reference_image_mode=None, reference_slot_count=reference_slot_count)
         gr.Markdown('생성 출력 최소 크기: 512×512. 참조 이미지의 크기·비율은 자유입니다. RGB/RGBA PNG, 장당 3MB 이하이며 투명 배경은 사용할 수 없습니다.')
         with gr.Row():
-            width_value=gr.Dropdown([512,768,1024,1280],value=512,label='너비',scale=1,min_width=120)
-            height_value=gr.Dropdown([512,768,1024,1280],value=512,label='높이',scale=1,min_width=120)
-            step_value=gr.Radio([4,30],value=4,label='생성 스텝',scale=1,min_width=120)
+            width_value=gr.Dropdown([512,768,1024,1280],value=1024 if qwen21_mode_enabled else 512,label='너비',scale=1,min_width=120)
+            height_value=gr.Dropdown([512,768,1024,1280],value=1024 if qwen21_mode_enabled else 512,label='높이',scale=1,min_width=120)
+            step_value=gr.Number(value=40,precision=0,label='생성 스텝 · 고정',interactive=False,scale=1,min_width=120) if qwen21_mode_enabled else gr.Radio([4,30],value=4,label='생성 스텝',scale=1,min_width=120)
             seed_value=gr.Number(value=10107,precision=0,label='Seed',scale=1,min_width=120)
             random_seed_button=gr.Button('무작위 생성',size='sm',scale=1,min_width=120)
         random_seed_button.click(generate_random_seed_value,outputs=seed_value,queue=False)
@@ -118,20 +132,25 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
         gr.Markdown('실행 중인 작업은 아래 생성 이력에서 선택한 뒤 **작업 중지**를 사용하세요.')
         identifier_value=gr.Textbox(label='생성 ID',interactive=False,lines=1,max_lines=1)
         preview_value=gr.HTML(result_preview_html(None),elem_classes=['reference-result-preview'])
-        gr.Markdown('표정 생성 이력은 Qwen 2511 참조 생성 이력과 별도로 관리합니다. 조회·삭제·초기화는 현재 생성기에만 적용됩니다.' if expression_mode_enabled else 'Qwen 2511 참조 생성 이력은 표정 생성 이력과 별도로 관리합니다. 조회·삭제·초기화는 현재 생성기에만 적용됩니다.')
+        gr.Markdown('Qwen 2.1 전용 생성 이력입니다. 조회·삭제·초기화는 현재 생성기에만 적용됩니다.' if qwen21_mode_enabled else '표정 생성 이력은 Qwen 2511 참조 생성 이력과 별도로 관리합니다. 조회·삭제·초기화는 현재 생성기에만 적용됩니다.' if expression_mode_enabled else 'Qwen 2511 참조 생성 이력은 표정 생성 이력과 별도로 관리합니다. 조회·삭제·초기화는 현재 생성기에만 적용됩니다.')
         log_value,refresh_log_value,_=build_execution_logs()
         read_history_page,history_output_values=build_generation_history_view(
             execute_reference_gateway,server_base_address,
             '이력과 해당 생성기의 임시 작업 폴더(결과·참조 입력 사본·로그)를 함께 삭제합니다. 이전에 목록에서 제거한 작업도 포함합니다. 정식 에셋과 모델 캐시는 유지합니다. 대기·실행 중에는 초기화할 수 없습니다.',
             restore_input_callback=restore_selected_inputs,
-            restore_output_components=[prompt_text_value,generation_tag_value,width_value,height_value,step_value,seed_value,*reference_image_controls,status_value],
-            record_folder_route='/expression-generator' if expression_mode_enabled else '/image-generation-2511',allow_individual_delete=True)
-        def start_generation(prompt_text_value,generation_tag_value,first_reference_image,second_reference_image,third_reference_image,width_value,height_value,step_value,seed_value):
-            reference_bytes_values=prepare_reference_image_bytes((first_reference_image,second_reference_image,third_reference_image))
+            restore_output_components=[prompt_text_value,generation_tag_value,width_value,height_value,step_value,seed_value,*reference_image_controls,status_value]+(reference_upload_group.reference_slot_outputs if qwen21_mode_enabled else []),
+            record_folder_route='/image-generation-21' if qwen21_mode_enabled else '/expression-generator' if expression_mode_enabled else '/image-generation-2511',allow_individual_delete=True)
+        def start_reference_generation(prompt_text_value,generation_tag_value,*generation_input_values):
+            reference_bytes_values=prepare_reference_image_bytes(generation_input_values[:reference_slot_count])
+            width_value,height_value,step_value,seed_value=generation_input_values[reference_slot_count:]
             from tools.review.domains.image.three_reference_generation import validate_three_reference_request
             try:
                 generation_request_value=build_reference_request(prompt_text_value,generation_tag_value,reference_bytes_values,width_value,height_value,step_value,seed_value)
-                if expression_mode_enabled:
+                if qwen21_mode_enabled:
+                    from tools.review.domains.image.qwen_21_generation import validate_qwen_plain_request
+                    generation_request_value['prompt'] = prompt_text_value
+                    validate_qwen_plain_request(generation_request_value)
+                elif expression_mode_enabled:
                     from tools.review.domains.image.expression_generation import ExpressionGenerationManager
                     ExpressionGenerationManager().validate_generation_request(generation_request_value)
                 else:
@@ -140,7 +159,7 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
             except (ValueError,OSError) as generation_request_error:
                 raise gr.Error(str(generation_request_error)) from generation_request_error
             return generation_record_value['id'],'상태: running'
-        bind_gpu_generation_confirmation(generation_button_value,start_generation,[prompt_text_value,generation_tag_value,*reference_image_controls,width_value,height_value,step_value,seed_value],[identifier_value,status_value])
+        bind_gpu_generation_confirmation(generation_button_value,start_reference_generation,[prompt_text_value,generation_tag_value,*reference_image_controls,width_value,height_value,step_value,seed_value],[identifier_value,status_value])
         def refresh_status(identifier_text_value,refresh_log_enabled):
             if not identifier_text_value:return gr.skip(),gr.skip(),gr.skip()
             status_record_value=execute_reference_gateway('status',{'id':identifier_text_value});return '상태: '+status_record_value['status'],gr.update(value=status_record_value.get('log','')) if refresh_log_enabled else gr.skip(),result_preview_html(status_record_value.get('image')) if status_record_value.get('image') else gr.skip()

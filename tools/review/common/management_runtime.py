@@ -66,6 +66,7 @@ def bind_stored_management_service(request_handler_callback, record_storage_root
 def create_management_runtime(writer_workspace_config=None):
     from tools.review.domains.image.image_generation import ImageGenerationManager
     from tools.review.domains.image.seamless_generation import SeamlessGenerationManager
+    from tools.review.domains.image.qwen_21_generation import QwenPlainGenerationManager
     from tools.review.domains.image.expression_generation import ExpressionGenerationManager
     from generators.writer_agent.management import WriterAgentManager
     from generators.writer_agent.documents import DEFAULT_WORKSPACE_CONFIG
@@ -80,6 +81,7 @@ def create_management_runtime(writer_workspace_config=None):
     try:
         image_generation_service = ImageGenerationManager()
         seamless_generation_service = SeamlessGenerationManager()
+        qwen_plain_service = QwenPlainGenerationManager()
         expression_generation_service = ExpressionGenerationManager()
         three_reference_service = ImageGenerationManager(three_reference_mode=True)
         floor_generation_service = FloorGenerationManager()
@@ -87,6 +89,7 @@ def create_management_runtime(writer_workspace_config=None):
         momask_generation_service = MoMaskGenerationManager()
         character_animation_service = CharacterAnimationManager()
         service_binding_records = {
+            'qwen-21': bind_stored_management_service(qwen_plain_service.handle_image_request, qwen_plain_service.job_storage_root),
             'seamless-tile': bind_stored_management_service(seamless_generation_service.handle_image_request, seamless_generation_service.job_storage_root),
             'expression': bind_stored_management_service(expression_generation_service.handle_image_request, expression_generation_service.job_storage_root),
             'floor-tile': bind_stored_management_service(floor_generation_service.handle_image_request, floor_generation_service.job_storage_root),

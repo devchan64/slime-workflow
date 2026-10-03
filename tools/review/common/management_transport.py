@@ -4,7 +4,7 @@ import json
 from urllib.parse import urlsplit
 
 from tools.review.common.management_environment import validate_gateway_address
-MAXIMUM_GATEWAY_BODY_BYTES = 12_200_000
+MAXIMUM_GATEWAY_BODY_BYTES = 40_200_000
 GATEWAY_REQUEST_TIMEOUT_SECONDS = 30
 GATEWAY_CONTROL_ROUTE_PATHS = (
     '/management/command', '/management/gpu-queue', '/management/gpu-status',

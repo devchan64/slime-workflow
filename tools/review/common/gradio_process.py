@@ -84,6 +84,7 @@ def ensure_gradio_application(review_server_port, application_name, application_
             'momask':('momask_app.py',101,'/management/frame/momask-generator/'),
             'character-animation':('character_animation_app.py',102,'/management/frame/character-animation/'),
             'qwen-2512':('qwen_2512_app.py',103,'/management/frame/image-generator/'),
+            'qwen-21':('qwen_21_app.py',116,'/management/frame/qwen-21-generator/'),
             'seamless-tile':('seamless_tile_app.py',115,'/management/frame/seamless-tile-generator/'),
             'expression':('expression_app.py',114,'/management/frame/expression-generator/'),
             'qwen-2511':('qwen_2511_app.py',104,'/management/frame/three-reference-generator/'),

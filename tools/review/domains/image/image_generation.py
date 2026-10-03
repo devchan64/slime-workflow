@@ -105,6 +105,9 @@ class ImageGenerationManager:
     def validate_generation_resume(self, selected_job_directory):
         """도메인별 재개 가능 기록을 GPU 명령 실행 전에 검증한다."""
 
+    def validate_generation_runtime(self, saved_request_record=None):
+        validate_image_runtime()
+
     def select_generation_runner(self, saved_request_record=None):
         saved_request_record = saved_request_record or {}
         if self.three_reference_mode or saved_request_record.get('references'):
@@ -204,15 +207,16 @@ class ImageGenerationManager:
                 if (current_url_path not in (self.route_prefix_value+'/jobs',self.route_prefix_value+'/history/reset',self.route_prefix_value+'/cancel',self.route_prefix_value+'/resume') and history_delete_match is None) or current_http_handler.headers.get('Content-Type','').split(';')[0] != 'application/json':
                     raise ValueError('요청 경로 또는 형식 오류')
                 current_body_length = int(current_http_handler.headers.get('Content-Length','0'))
-                if not 1 <= current_body_length <= (12_100_000 if self.three_reference_mode or getattr(self,'reference_upload_enabled',False) else IMAGE_REQUEST_LIMIT):
+                if not 1 <= current_body_length <= (getattr(self, 'reference_request_limit', 12_100_000) if self.three_reference_mode or getattr(self,'reference_upload_enabled',False) else IMAGE_REQUEST_LIMIT):
                     raise ValueError('요청 크기 오류')
                 current_request_record = json.loads(current_http_handler.rfile.read(current_body_length),object_pairs_hook=parse_unique_request)
                 if current_url_path in (self.route_prefix_value+'/cancel',self.route_prefix_value+'/resume'):
                     if not isinstance(current_request_record,dict) or set(current_request_record)!={'id'} or not re.fullmatch(r'[0-9a-f_-]+',current_request_record['id']):
                         raise ValueError('작업 ID 형식 오류')
-                    if current_url_path.endswith('/resume'):
-                        validate_image_runtime()
                     selected_job_directory=self.job_storage_root/current_request_record['id']
+                    if current_url_path.endswith('/resume'):
+                        saved_request_record=json.loads((selected_job_directory/'request.json').read_text())
+                        self.validate_generation_runtime(saved_request_record)
                     if current_url_path.endswith('/resume'):
                         self.validate_generation_resume(selected_job_directory)
                     if current_url_path.endswith('/resume') and not (selected_job_directory/'gpu-command.json').exists():
@@ -235,7 +239,7 @@ class ImageGenerationManager:
                     send_response_data(200,self.delete_generation_history(generation_job_identifier))
                     return True
                 current_request_record=self.validate_generation_request(current_request_record)
-                validate_image_runtime()
+                self.validate_generation_runtime(current_request_record)
                 with self.current_request_lock:
                     current_job_identifier = datetime.now(ZoneInfo('Asia/Seoul')).strftime('%Y-%m-%d_%H-%M-%S')+'-'+uuid.uuid4().hex[:8]
                     current_job_root = self.job_storage_root / current_job_identifier
@@ -276,7 +280,13 @@ class ImageGenerationManager:
             elif current_url_path == self.route_prefix_value+'/history':
                 send_response_data(200,{'records':self.list_generation_history()})
             elif current_url_path == self.route_prefix_value+'/model-status':
-                if self.select_generation_runner().endswith('run_qwen_2511_three_reference.py'):
+                if self.select_generation_runner().endswith('run_qwen_21_reference.py'):
+                    try:
+                        self.validate_generation_runtime()
+                        send_response_data(200, {'ready': True, 'message': 'Qwen Image 2.1 로컬 모델·실행 환경 준비됨'})
+                    except (ValueError, OSError) as current_model_error:
+                        send_response_data(200, {'ready': False, 'message': str(current_model_error)})
+                elif self.select_generation_runner().endswith('run_qwen_2511_three_reference.py'):
                     send_response_data(200,{'ready':False,'message':'2511 모델 준비 상태는 생성 시 검증합니다.'})
                 else:
                     import sys
@@ -290,7 +300,7 @@ class ImageGenerationManager:
             elif current_url_path in (self.route_prefix_value,self.route_prefix_value+'/'):
                 send_response_data(410,{'error':'이전 관리 화면은 폐기되었습니다. /management/에서 Gradio 화면을 여세요.'})
             else:
-                current_path_match = re.fullmatch(re.escape(self.route_prefix_value)+r'/jobs/([0-9]{4}-[0-9-]{5}_[0-9-]{8}-[a-f0-9]{8})(/grid-input.png|/grid-edited.png|/tiled-preview.png|/result.png|/single-tile.png|/square-crop.png|/center-tile.png|/quadrilateral.png|/border-crop.png|/worker.log|/reference-[123]\.png)?',current_url_path)
+                current_path_match = re.fullmatch(re.escape(self.route_prefix_value)+r'/jobs/([0-9]{4}-[0-9-]{5}_[0-9-]{8}-[a-f0-9]{8})(/grid-input.png|/grid-edited.png|/tiled-preview.png|/result.png|/single-tile.png|/square-crop.png|/center-tile.png|/quadrilateral.png|/border-crop.png|/worker.log|/reference-(?:[1-9]|10)\.png)?',current_url_path)
                 if not current_path_match:
                     send_response_data(404,{'error':'작업 경로 없음'})
                     return True
