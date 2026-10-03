@@ -1,0 +1,6 @@
+schema_version: 1
+character_id: doyun
+baseline_source:
+  path: baseline-source-v1/character-doyun-four-directions-v1.png
+  metadata: baseline-source-v1/character-doyun-four-directions-v1.yaml
+  sha256: 6ee297c36cdd38aabb5a1e951adf228aa9810d204cd98b1a57afbecace99f359

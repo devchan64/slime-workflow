@@ -1,0 +1,28 @@
+version: 1
+asset_id: character-yuna-four-directions-v1
+image: character-yuna-four-directions-v1.png
+role: baseline_reference_sheet
+status: generated
+runtime_adopted: false
+generator: Codex imagegen
+generation_mode: built-in image_gen, 4방향 2x2 직접 생성
+width: 1254
+height: 1254
+layout: 2x2
+background: transparent
+sha256: 202ad98b8ce36e94806a8124443f7c6211672a8c25271db28482fa5bcccf21a1
+source_run: .tmp/test/character-baseline-generation/2026-10-03_22-04-51
+references:
+  - path: assets/animation-references/character-female/baseline-source-v1/character-female-four-directions-v1.png
+    role: style_and_layout
+    sha256: 7577b893a3796144ce6ab4e1e6ad3cc56c9a6f066407b3889cf8718810b93b20
+cells:
+  up_left: {x: 0, y: 0, width: 627, height: 624}
+  up_right: {x: 627, y: 0, width: 627, height: 624}
+  down_left: {x: 0, y: 624, width: 627, height: 630}
+  down_right: {x: 627, y: 624, width: 627, height: 630}
+review:
+  full_body_four_views: true
+  direction_order_checked: true
+  alpha_channel_verified: true
+  notes: 행 경계는 육안 및 알파 분포로 확인했다. 원본 픽셀은 수정하지 않았다.

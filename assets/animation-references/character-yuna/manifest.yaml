@@ -1,0 +1,6 @@
+schema_version: 1
+character_id: yuna
+baseline_source:
+  path: baseline-source-v1/character-yuna-four-directions-v1.png
+  metadata: baseline-source-v1/character-yuna-four-directions-v1.yaml
+  sha256: 202ad98b8ce36e94806a8124443f7c6211672a8c25271db28482fa5bcccf21a1
