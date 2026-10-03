@@ -184,7 +184,7 @@ def render_generation_images(current_status_record, server_base_address):
     """저장된 원본·보더 크롭을 이름과 함께 공용 결과 영역에 표시한다."""
     import html
     result_image_sections=[]
-    for result_field_name,result_image_label in (('image','생성 원본'),('separated_image','최종 · 단일 타일 생성'),('detected_image','사각형 검출'),('extracted_image','2행 2열 중앙 타일'),('rectified_image','정사각형 보정·크롭'),('cropped_image','보더 크롭 결과')):
+    for result_field_name,result_image_label in (('image','생성 원본'),('repeated_image','추출 타일 반복 검수'),('separated_image','최종 · 단일 타일 생성'),('detected_image','사각형 검출'),('extracted_image','2행 2열 중앙 타일'),('rectified_image','정사각형 보정·크롭'),('cropped_image','보더 크롭 결과')):
         current_image_path=current_status_record.get(result_field_name)
         if not current_image_path:
             continue

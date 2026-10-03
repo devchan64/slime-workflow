@@ -1,0 +1,7 @@
+schema_version: 1
+tile_size: 256
+grid_size: 3
+base_prompt: >-
+  Connect the repeated texture across all internal seams of this 3 by 3 image.
+  Preserve the exact grid scale, material, colors and top-down view.
+  Make the texture continuous across the tile boundaries.

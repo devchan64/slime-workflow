@@ -351,3 +351,27 @@ python3 tools/manager.py command expression resume GENERATION_ID
 `generators/animation/config/character_animation.yaml`의 모션별 `action_prompt`가 동작 지시를 선택한다. 대기는 `standing-action.txt`, 걷기는 `walking-action.txt`, 휴식은 `resting-action.txt`를 사용한다. 공통 `base-prompt.txt`는 외형 보존만 담당한다. 동작 문구와 공통 외형 문구를 결합한 기본 프롬프트에 방향별 고정·사용자 보조 문구를 붙이며, 실제 입력은 100단어 미만으로 검증한다. 모션별 경로 누락·파일 누락·빈 문구는 즉시 거절한다.
 
 카탈로그의 각 모션 `prompts`·`direction_prompts`는 해당 모션의 고정 입력이다. GUI는 모션 선택·이력 불러오기·기본 문구 초기화 시 선택 모션의 원문과 단어 수를 표시한다. CLI와 GUI의 실행 요청은 같은 조합 함수를 사용하고 실제 원문·단어 수·해시는 기존 request.json에 보존한다. 이전 생성 이력의 재개는 저장한 프롬프트를 유지한다. 프롬프트 변경 후에는 1프레임 샘플을 먼저 확인하고 배치 생성으로 확대한다.
+
+## 심리스 타일 연결 보정
+
+이미지 생성 분류의 **심리스 타일 생성기** (`?tool=seamless-tile-generator`)는
+정사각형 불투명 PNG 한 장을 받아 256×256으로 정규화하고 3×3 반복 이미지를 만듭니다.
+고정 Qwen-Image-Edit-2511 모델이 768×768 연결 보정을 수행한 뒤 중앙 좌표
+`(256, 256, 512, 512)`를 기계식으로 추출합니다. 4/30스텝을 지원합니다.
+최종 프롬프트는 사용자 표면 설명과 추적 설정 `generators/image/config/seamless_tile.yaml`을
+합치며 100단어 미만으로 제한합니다.
+
+```bash
+python3 tools/manager.py command seamless-tile generate --prompt '잔디밭' --reference /absolute/path/tile.png --detach
+python3 tools/manager.py command seamless-tile status 생성_ID
+python3 tools/manager.py command seamless-tile resume 생성_ID
+```
+
+GUI와 CLI는 `/seamless-tile-generator` 공용 서비스와
+`.tmp/test/seamless-tile-generator/<생성_ID>/` 기록을 공유합니다.
+원본 `reference-1.png`, 반복 입력 `grid-input.png`, 보정본 `grid-edited.png`,
+중앙 타일 `result.png`, 반복 검수본 `tiled-preview.png`와 프롬프트·해시 기록을 보관합니다.
+재개는 저장된 입력·프롬프트로 보정부터 재실행합니다. 이력 삭제·초기화는 이 생성기의 기록에만 적용됩니다.
+
+AI 편집은 반대편 경계의 주기적 일치를 보장하지 않습니다. 반복 검수본을 확인한 뒤
+채택해야 하며 결과는 자동으로 정식 에셋에 등록하지 않습니다.
