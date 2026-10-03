@@ -1,5 +1,5 @@
 import {createFieldReviewFrame,pickFieldReviewCell,drawFieldReviewFrame} from './field-map-renderer.js';
-import {FIELD_RENDER_METRICS,projectSurfaceCell,CHARACTER_OUTLINE_STYLE} from './vendor/field-surface/1.0.4/field-surface.mjs';
+import {FIELD_RENDER_METRICS,projectSurfaceCell,CHARACTER_OUTLINE_STYLE} from './vendor/field-surface/1.0.5/field-surface.mjs';
 const MIN_MAP_SCALE=0.05,MAX_MAP_SCALE=4,MAP_ZOOM_FACTOR=1.25,MAP_DRAG_THRESHOLD=4,MAP_KEYBOARD_PAN_DISTANCE=48;
 let activeMapPointer=null,suppressMarkerClick=false;
 const currentMapCanvas=document.querySelector('#map'),currentDrawingContext=currentMapCanvas.getContext('2d');
@@ -38,7 +38,7 @@ await new Promise((resolveCharacterLoad,rejectCharacterLoad)=>{reviewCharacterIm
 const groundTextureNames={grass:currentMapRecord.id==='iseulon'?'iseulon-grass-mud-frame':'grass',paving:currentMapRecord.id==='stonewarm'?'stonewarm-marble-paving':currentMapRecord.id==='saltford'?'stonewarm-gravel-paving':['reedhaven','grainstead'].includes(currentMapRecord.id)?'reedhaven-dirt-road':'paving',gravel:currentMapRecord.id==='stonewarm'?'stonewarm-exposed-rock-ground':'gravel',flowers:currentMapRecord.id==='meadow'?'grass-type-b':'flower_bed',dew:'dew',ash:'ash',moss:'moss','leaf-litter':'leaf-litter','tree-base':'tree-base',wall:'cliff-wall',stone:'stone','dry-soil-branches':'dry-soil-branches',mud:'mud',boulder:'boulder',cactus:'cactus',road:currentMapRecord.id==='meadow'?'meadow-road':'packed_dirt_road',water:'spring_water','deep-water':'deep-water','shallow-water':'shallow-water','reed-bed':'reed-bed'};
 function readBuildingTileSet(currentBuildingRecord){return {...buildingTileRecords['iseulon-'+currentBuildingRecord.facilityKind],...(currentMapRecord.buildingTileOverrides||{}),...(buildingTileRecords[currentBuildingRecord.id]||{})}}
 function renderAppliedTileSourceList(){
- const appliedTextureNames=new Set(isFieldMapReview?['cliff-wall']:[]);
+ const appliedTextureNames=new Set(isFieldMapReview?['cliff-wall','ramp-tread']:[]);
  Object.values(currentMapRecord.terrainCodes).forEach(currentTerrainName=>{const currentTextureName=groundTextureNames[currentTerrainName];if(currentTextureName)appliedTextureNames.add(currentTextureName)});
  currentMapRecord.buildings.forEach(currentBuildingRecord=>Object.values(readBuildingTileSet(currentBuildingRecord)).forEach(currentTextureName=>appliedTextureNames.add(currentTextureName)));
  const appliedTileList=document.querySelector('#applied-tile-list');appliedTileList.replaceChildren();

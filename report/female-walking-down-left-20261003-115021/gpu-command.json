@@ -1,0 +1,1 @@
+{"command": ["/home/cbsim/ws/slime-workflow/.venv/bin/python", "/home/cbsim/ws/slime-workflow/generators/animation/run_character_animation.py", "--job-dir", "/home/cbsim/ws/slime-workflow/.tmp/test/character-animation/2026-10-03_11-50-21/2026-10-03_11-50-21-e7ce5f25"], "service": "character-animation"}

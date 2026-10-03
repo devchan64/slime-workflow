@@ -23,3 +23,23 @@ def load_locked_sprite_sources(frontend_repository_path):
             raise ValueError('스프라이트 원본과 잠금 해시 불일치')
         locked_source_records[target_relative_path] = (source_file_path, source_provenance_record)
     return asset_repository_path/'assets', locked_source_records
+
+
+def load_review_sprite_sources(frontend_repository_path):
+    """게임 잠금 원본과 모든 등록 캐릭터 애니메이션을 검수 대상으로 모은다."""
+    registered_asset_root, locked_source_records = load_locked_sprite_sources(frontend_repository_path)
+    review_source_records = dict(locked_source_records)
+    asset_repository_path, registered_asset_records = load_registered_tiles()
+    existing_source_paths = {current_source_path for current_source_path, _ in review_source_records.values()}
+    for current_relative_path in sorted(registered_asset_records):
+        current_path_parts = Path(current_relative_path).parts
+        if len(current_path_parts) < 5 or current_path_parts[:2] != ('assets', 'characters') or current_path_parts[3] != 'animations':
+            continue
+        current_source_path = (asset_repository_path/current_relative_path).resolve()
+        if current_source_path in existing_source_paths:
+            continue
+        if current_relative_path in review_source_records:
+            raise ValueError(f'검수 스프라이트 논리 경로 충돌: {current_relative_path}')
+        review_source_records[current_relative_path] = resolve_registered_asset(current_relative_path, asset_repository_path, registered_asset_records, 'assets/characters')
+        existing_source_paths.add(current_source_path)
+    return registered_asset_root, review_source_records

@@ -4,7 +4,7 @@ from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[2]))
 from tools.review.common.game_render_metrics import load_game_render_metrics
 from tools.review.common.map_asset_sources import MAP_CITY_REVIEW_IDENTIFIERS
-from tools.review.common.sprite_asset_sources import load_locked_sprite_sources
+from tools.review.common.sprite_asset_sources import load_review_sprite_sources
 from tools.review.ui_assets import resolve_review_ui_asset, read_review_shared_styles, read_animation_anchor_template
 from datetime import datetime
 from zoneinfo import ZoneInfo
@@ -251,7 +251,7 @@ def load_animation_review(frontend_asset_root, animation_metadata_path):
     animation_identifier_text = animation_source_data['animationId']
     if source_game_body_height is not None and (type(source_game_body_height) not in (int, float) or not math.isfinite(source_game_body_height) or source_game_body_height <= 0):
         raise ValueError(f'{animation_metadata_path}: gameBodyHeight는 양의 유한 숫자이어야 합니다.')
-    if animation_identifier_text == 'character.default.white-shirt.rest':
+    if animation_identifier_text.startswith('character.') and any(current_clip_record['action']=='rest-entry' for current_clip_record in animation_source_data['clips']):
         if type(source_reference_body_height) not in (int, float) or not math.isfinite(source_reference_body_height) or source_reference_body_height <= 0:
             raise ValueError('휴식 에셋의 referenceBodyHeight가 필요합니다.')
         runtime_scale_metadata = {'actorKind': 'human-rest', 'baseHeight': source_game_body_height or 80, 'sourceHeight': source_reference_body_height, 'defaultSizeClass': 'medium'}
@@ -284,7 +284,7 @@ def build_frontend_review(frontend_repository_path, ui_bundle_directory=None):
     frontend_asset_root = frontend_repository_path.parent/'slime-assets/assets/ui'
     if not (frontend_repository_path/'package.json').is_file() or not frontend_asset_root.is_dir():
         raise ValueError('package.json과 인접 slime-assets/assets/ui가 있는 프론트엔드 저장소를 지정하세요.')
-    registered_sprite_root, locked_sprite_sources = load_locked_sprite_sources(frontend_repository_path)
+    registered_sprite_root, locked_sprite_sources = load_review_sprite_sources(frontend_repository_path)
     animation_metadata_paths = [frontend_repository_path/current_relative_path for current_relative_path in sorted(locked_sprite_sources) if current_relative_path.endswith('.animation.json')]
     if not animation_metadata_paths:
         raise ValueError(f'애니메이션 메타데이터가 없습니다: {frontend_asset_root}')

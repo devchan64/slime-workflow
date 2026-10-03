@@ -66,3 +66,77 @@ test('기존 v2 저장본은 v3 변환 후 원래 배치를 유지한다',()=>{
  upgradeSpriteProjectDocument(currentProjectDocument);
  assert.equal(currentProjectDocument.frames['down_left.0'].y,previousOffsetValue);
 });
+
+test('적용 범위는 선택 프레임·현재 방향·전체를 구분하고 잘못된 범위를 거절한다',()=>{
+ const {selectSpriteScopeFrames}=loadSpriteCoreModule('../ui/character_animation/sprite-editor.js');
+ const currentFrameRecords=[sampleSourceFrame,{...sampleSourceFrame,frameId:'down_left.1'},{...sampleSourceFrame,frameId:'up_left.0',direction:'up_left'}];
+ assert.deepEqual(selectSpriteScopeFrames(currentFrameRecords,'down_left.1','selected').map(currentFrameRecord=>currentFrameRecord.frameId),['down_left.1']);
+ assert.equal(selectSpriteScopeFrames(currentFrameRecords,'down_left.1','direction').length,2);
+ assert.equal(selectSpriteScopeFrames(currentFrameRecords,'down_left.1','clip').length,3);
+ assert.throws(()=>selectSpriteScopeFrames(currentFrameRecords,'down_left.1','unknown'));
+ assert.throws(()=>selectSpriteScopeFrames(currentFrameRecords,'missing','clip'));
+});
+
+test('일괄 변경은 다른 설정을 보존하고 실패하면 원본 전체를 유지한다',()=>{
+ const {buildSpriteBatchSettings}=loadSpriteCoreModule('../ui/character_animation/sprite-editor.js');
+ const currentFrameRecords=[sampleSourceFrame,{...sampleSourceFrame,frameId:'down_left.1'}];
+ const currentDefaultSettings=createSpriteDefaultSettings(sampleSourceFrame,384,{top:1,bottom:375});
+ const currentSettingsLookup={'down_left.0':{...currentDefaultSettings,x:2},'down_left.1':{...currentDefaultSettings,x:8}};
+ const originalSettingsSnapshot=structuredClone(currentSettingsLookup);
+ const nextSettingsLookup=buildSpriteBatchSettings(currentFrameRecords,currentSettingsLookup,currentFrameSettings=>({...currentFrameSettings,y:12}));
+ assert.equal(nextSettingsLookup['down_left.0'].x,2);
+ assert.equal(nextSettingsLookup['down_left.1'].x,8);
+ assert.equal(nextSettingsLookup['down_left.1'].y,12);
+ assert.throws(()=>buildSpriteBatchSettings(currentFrameRecords,currentSettingsLookup,currentFrameSettings=>({...currentFrameSettings,scale:currentFrameSettings.x===8?0:2})));
+ assert.deepEqual(currentSettingsLookup,originalSettingsSnapshot);
+});
+
+test('바닥 정렬은 358px 몸체를 잘라내지 않고 원본 기준점을 유지한다',()=>{
+ const {calculateSpriteFloorSettings}=loadSpriteCoreModule('../ui/character_animation/sprite-editor.js');
+ const currentFrameSettings={center:192,head:17,floor:375,anchorX:192,anchorY:376,x:0,y:0,scale:1};
+ const nextFrameSettings=calculateSpriteFloorSettings(currentFrameSettings,384,376);
+ const nextDrawRectangle=calculateSpriteDrawRectangle(sampleSourceFrame,nextFrameSettings,384);
+ assert.equal(nextDrawRectangle.y+375,376);
+ assert.equal(nextDrawRectangle.y+17,18);
+ assert.equal(nextFrameSettings.anchorY,376);
+ assert.equal(nextFrameSettings.scale,1);
+});
+
+test('높이 맞춤은 중심과 발의 출력 위치를 유지한다',()=>{
+ const {calculateSpriteHeightSettings}=loadSpriteCoreModule('../ui/character_animation/sprite-editor.js');
+ const currentFrameSettings={center:190,head:17,floor:375,anchorX:192,anchorY:346,x:9,y:4,scale:1};
+ const nextFrameSettings=calculateSpriteHeightSettings(currentFrameSettings,320);
+ for(const [currentCoordinateKey,currentAnchorKey,currentOffsetKey] of [['center','anchorX','x'],['floor','anchorY','y']])assert.ok(Math.abs((currentFrameSettings[currentCoordinateKey]-currentFrameSettings[currentAnchorKey])*currentFrameSettings.scale+currentFrameSettings[currentOffsetKey]-(nextFrameSettings[currentCoordinateKey]-nextFrameSettings[currentAnchorKey])*nextFrameSettings.scale-nextFrameSettings[currentOffsetKey])<1e-8);
+ assert.equal((nextFrameSettings.floor-nextFrameSettings.head)*nextFrameSettings.scale,320);
+ assert.equal(nextFrameSettings.anchorY,346);
+});
+
+
+
+
+test('일부 프레임 선택은 방향과 무관하게 지정한 대상만 변경한다',()=>{
+ const {selectSpriteScopeFrames,buildSpriteBatchSettings}=loadSpriteCoreModule('../ui/character_animation/sprite-editor.js');
+ const currentFrameRecords=[sampleSourceFrame,{...sampleSourceFrame,frameId:'down_left.1'},{...sampleSourceFrame,frameId:'up_left.0',direction:'up_left'}];
+ const selectedFrameRecords=selectSpriteScopeFrames(currentFrameRecords,'down_left.1','custom',['down_left.0','up_left.0']);
+ assert.deepEqual(selectedFrameRecords.map(currentFrameRecord=>currentFrameRecord.frameId),['down_left.0','up_left.0']);
+ assert.deepEqual(selectSpriteScopeFrames(currentFrameRecords,'down_left.0','custom',[]),[]);
+ const currentDefaultSettings=createSpriteDefaultSettings(sampleSourceFrame,384,{top:1,bottom:375});
+ const currentSettingsLookup=Object.fromEntries(currentFrameRecords.map(currentFrameRecord=>[currentFrameRecord.frameId,{...currentDefaultSettings}]));
+ const nextSettingsLookup=buildSpriteBatchSettings(selectedFrameRecords,currentSettingsLookup,currentFrameSettings=>({...currentFrameSettings,x:12}));
+ Object.assign(currentSettingsLookup,nextSettingsLookup);
+ assert.equal(currentSettingsLookup['down_left.0'].x,12);
+ assert.equal(currentSettingsLookup['up_left.0'].x,12);
+ assert.equal(currentSettingsLookup['down_left.1'].x,currentDefaultSettings.x);
+});
+
+
+test('X 중심 정렬과 Y 바닥 정렬은 다른 축과 기준점·배율을 유지한다',()=>{
+ const {calculateSpriteCenterSettings,calculateSpriteFloorSettings}=loadSpriteCoreModule('../ui/character_animation/sprite-editor.js');
+ const currentFrameSettings={center:180,head:17,floor:375,anchorX:192,anchorY:346,x:11,y:24,scale:.8};
+ const centerAlignedSettings=calculateSpriteCenterSettings(currentFrameSettings,384);
+ assert.deepEqual({...centerAlignedSettings,x:11},currentFrameSettings);
+ assert.ok(Math.abs(192+(180-192)*.8+centerAlignedSettings.x-192)<1e-8);
+ const floorAlignedSettings=calculateSpriteFloorSettings(currentFrameSettings,384,376);
+ assert.deepEqual({...floorAlignedSettings,y:24},currentFrameSettings);
+ assert.ok(Math.abs(346+(375-346)*.8+floorAlignedSettings.y-376)<1e-8);
+});

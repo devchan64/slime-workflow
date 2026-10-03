@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 import yaml
-from tools.review.common.sprite_asset_sources import load_locked_sprite_sources
+from tools.review.common.sprite_asset_sources import load_locked_sprite_sources, load_review_sprite_sources
 
 
 class SpriteAssetSourceTests(unittest.TestCase):
@@ -40,3 +40,21 @@ class SpriteAssetSourceTests(unittest.TestCase):
                 source_file_path.write_text('{"changed":true}')
                 with self.assertRaisesRegex(ValueError, '원본 해시'):
                     load_locked_sprite_sources(frontend_repository_path)
+
+
+class RegisteredCharacterSourceTests(unittest.TestCase):
+    def test_unlocked_character_included_and_cutins_excluded(self):
+        with tempfile.TemporaryDirectory() as temporary_directory_name:
+            temporary_root_path = Path(temporary_directory_name)
+            registered_source_records = {}
+            for current_relative_path in ('assets/characters/female/animations/idle/v1.animation.json', 'assets/characters/female/emotion-cutins/happy.png'):
+                current_source_path = temporary_root_path/current_relative_path
+                current_source_path.parent.mkdir(parents=True, exist_ok=True)
+                current_source_path.write_text('{}')
+                registered_source_records[current_relative_path] = {'managementId': current_relative_path, 'version': 'v1', 'sha256': hashlib.sha256(b'{}').hexdigest()}
+            with patch('tools.review.common.sprite_asset_sources.load_locked_sprite_sources', return_value=(temporary_root_path/'assets', {})), patch('tools.review.common.sprite_asset_sources.load_registered_tiles', return_value=(temporary_root_path, registered_source_records)):
+                _, review_source_records = load_review_sprite_sources(temporary_root_path)
+                self.assertEqual(list(review_source_records), ['assets/characters/female/animations/idle/v1.animation.json'])
+                (temporary_root_path/next(iter(review_source_records))).write_text('changed')
+                with self.assertRaisesRegex(ValueError, '해시 불일치'):
+                    load_review_sprite_sources(temporary_root_path)
