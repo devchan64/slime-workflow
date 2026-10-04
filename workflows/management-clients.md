@@ -442,7 +442,7 @@ schema 4 기록의 두 번째 단계는 내용이 지워지지 않은 원본(`re
 
 ### 심리스 패턴 v6: 가로 연결 후 세로 연결
 
-새 작업은 5단계를 사용한다. 1단계는 사용자 입력 뒤에 영문 기본 문구 `Close-up of the described subject, viewed from directly above. Softly shaded illustration.`를 줄바꿈으로 구분하여 전달하고 1024×1024로 생성한다.
+새 작업은 5단계를 사용한다. 1단계는 사용자 입력 뒤에 영문 기본 문구 `Overhead view, camera pointing straight down at the surface. Softly shaded illustration.`를 줄바꿈으로 구분하여 전달하고 1024×1024로 생성한다.
 2단계는 좌·중·우 3등분 중 중앙 세로 띠를 추출하여 같은 크기로 3열 배열한다.
 3단계는 배열 중앙 띠를 흰색으로 지운 참조 한 장으로 좌우 연결을 생성한다.
 4단계는 3단계 결과를 상·중·하로 나누어 중앙 가로 띠를 3행 배열한다.

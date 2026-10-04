@@ -45,8 +45,8 @@ class SeamlessPatternTests(unittest.TestCase):
     def test_text_prompt_contract(self):
         current_request_record=self.create_pattern_request()
         self.assertEqual(current_request_record['seamless_tile']['schema_version'],6)
-        self.assertEqual(current_request_record['seamless_tile']['stage_prompts'][0], '낙엽\nClose-up of the described subject, viewed from directly above. Softly shaded illustration.')
-        self.assertEqual(current_request_record['seamless_tile']['grid_prompt'], 'Close-up of the described subject, viewed from directly above. Softly shaded illustration.')
+        self.assertEqual(current_request_record['seamless_tile']['stage_prompts'][0], '낙엽\nOverhead view, camera pointing straight down at the surface. Softly shaded illustration.')
+        self.assertEqual(current_request_record['seamless_tile']['grid_prompt'], 'Overhead view, camera pointing straight down at the surface. Softly shaded illustration.')
         self.assertTrue(current_request_record['seamless_tile']['stage_prompts'][1].startswith('중앙의 흰 세로 띠'))
         self.assertTrue(all(current_word_count<100 for current_word_count in current_request_record['seamless_tile']['stage_prompt_words']))
 

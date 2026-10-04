@@ -3,7 +3,7 @@ grid_size: 1024
 tile_size: 256
 repair_size: 768
 grid_prompt: >-
-  Close-up of the described subject, viewed from directly above. Softly shaded illustration.
+  Overhead view, camera pointing straight down at the surface. Softly shaded illustration.
 # 마스크 편집 프롬프트 작성 근거 (Qwen 2.1 공식 예제 비교 실험):
 # 2026-10-03_23-10-26-0d0dbb89 → 2026-10-03_23-15-55-c317d267에서
 # 입력·시드·해상도·스텝·실행 코드를 유지하고 프롬프트만 바꾸자 배경 소실이 해소됐다.
