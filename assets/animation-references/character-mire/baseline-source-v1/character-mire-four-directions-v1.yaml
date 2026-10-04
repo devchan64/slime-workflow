@@ -1,0 +1,23 @@
+schema_version: 1
+asset_id: character-mire-four-directions
+version: 1
+character_id: mire
+status: user_approved
+role: baseline_reference_sheet
+image: character-mire-four-directions-v1.png
+sha256: b9b4ac84f5a97e72f5d8ef2206c9e9711b0d1a7ff059744e494d3a168d0cb0da
+width: 1176
+height: 1337
+background: transparent
+generator: Codex imagegen
+source_reference:
+  path: ../body-front-v2/character-mire-body-front-v2.png
+  sha256: 3b4eedff6f3139bd0db78e7a2f37cc965be85c75effcec56bca656fc510eb57b
+style_reference:
+  path: ../../character-tesa/baseline-source-v2/character-tesa-four-directions-v2.png
+  sha256: 403d0adf28c1eae3c012a314771494b52bedd8cd3ba49c162aff1e1756ed2958
+layout: 2x2
+direction_order: [up_left, up_right, down_left, down_right]
+rig_geometry_constrained: false
+body_proportion_measurement_verified: false
+runtime_adopted: false

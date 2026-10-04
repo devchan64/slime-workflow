@@ -1,7 +1,10 @@
 schema_version: 1
 character_id: mire
-status: body_approved
-baseline_source: null
+status: user_approved
+baseline_source:
+  path: baseline-source-v1/character-mire-four-directions-v1.png
+  metadata: baseline-source-v1/character-mire-four-directions-v1.yaml
+  sha256: b9b4ac84f5a97e72f5d8ef2206c9e9711b0d1a7ff059744e494d3a168d0cb0da
 face_reference: null
 retired_assets:
 - path: baseline-source-v1/character-mire-four-directions-v1.png
@@ -12,7 +15,7 @@ retired_assets:
   sha256: 715679c282ca2df17ef3f6c85cab313a00cc3e27b78af9d5955d68aace80be6f
   reason: 작업 트리에서 삭제된 기존 얼굴. 파일 삭제 상태를 유지하고 참조 정리.
   retired_at: '2026-10-04'
-replacement_status: body_v2_adopted_face_and_four_directions_pending
+replacement_status: body_v2_four_directions_v1_adopted_face_pending
 retirement_reason: '사용자 검수: 성인 5등신 기준 미준수. 전신 및 파생 얼굴 베이스라인 전량 폐기.'
 body_proportion_reference: anny-neutral-v4
 body_reference:

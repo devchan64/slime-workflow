@@ -1,0 +1,23 @@
+schema_version: 1
+asset_id: character-edran-four-directions
+version: 1
+character_id: edran
+status: user_approved
+role: baseline_reference_sheet
+image: character-edran-four-directions-v1.png
+sha256: 1f65a568742f36dcb901d6188a88295c6a8732887f3d09ff57db8c937052584a
+width: 1176
+height: 1337
+background: transparent
+generator: Codex imagegen
+source_reference:
+  path: ../body-front-v2/character-edran-body-front-v2.png
+  sha256: 0578af024079149092f24d6bb1480d8978612903d4120beb0b8a2f6281157d1a
+style_reference:
+  path: ../../character-tesa/baseline-source-v2/character-tesa-four-directions-v2.png
+  sha256: 403d0adf28c1eae3c012a314771494b52bedd8cd3ba49c162aff1e1756ed2958
+layout: 2x2
+direction_order: [up_left, up_right, down_left, down_right]
+rig_geometry_constrained: false
+body_proportion_measurement_verified: false
+runtime_adopted: false

@@ -1,0 +1,23 @@
+schema_version: 1
+asset_id: character-seon-four-directions
+version: 1
+character_id: seon
+status: user_approved
+role: baseline_reference_sheet
+image: character-seon-four-directions-v1.png
+sha256: d356b960227d99c038d4051a0952a35cf9bfda94877e1707a9ce2176082826ad
+width: 1176
+height: 1337
+background: transparent
+generator: Codex imagegen
+source_reference:
+  path: ../body-front-v2/character-seon-body-front-v2.png
+  sha256: 63f10e5caceb04f609159fd3f03db34774c8074b9290fb6a1ef983c1523bdd70
+style_reference:
+  path: ../../character-tesa/baseline-source-v2/character-tesa-four-directions-v2.png
+  sha256: 403d0adf28c1eae3c012a314771494b52bedd8cd3ba49c162aff1e1756ed2958
+layout: 2x2
+direction_order: [up_left, up_right, down_left, down_right]
+rig_geometry_constrained: false
+body_proportion_measurement_verified: false
+runtime_adopted: false

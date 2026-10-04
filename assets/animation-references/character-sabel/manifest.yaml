@@ -1,14 +1,17 @@
 schema_version: 1
 character_id: sabel
-status: body_approved
-baseline_source: null
+status: user_approved
+baseline_source:
+  path: baseline-source-v1/character-sabel-four-directions-v1.png
+  metadata: baseline-source-v1/character-sabel-four-directions-v1.yaml
+  sha256: 2dde3d6c5b7584b21923b66dda996b8f45272d0469f909779bfa703475fefba1
 face_reference: null
 retired_assets:
 - path: baseline-source-v1/character-sabel-four-directions-v1.png
   sha256: 6aceeca0343cdf8866d3fc8ae659b2877b34358ceb3400bad8c0d39d9b95432a
 - path: face-front-v1/character-sabel-face-front-v1.png
   sha256: bc5e5aa4646f30855fdc613a6704a66441a6bcdc0a0d981b5e55e1b083d33a07
-replacement_status: body_v2_adopted_face_and_four_directions_pending
+replacement_status: body_v2_four_directions_v1_adopted_face_pending
 retirement_reason: '사용자 검수: 성인 5등신 기준 미준수. 전신 및 파생 얼굴 베이스라인 전량 폐기.'
 body_proportion_reference: anny-neutral-v4
 body_reference:

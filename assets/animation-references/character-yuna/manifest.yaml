@@ -1,7 +1,10 @@
 schema_version: 1
 character_id: yuna
-status: body_approved
-baseline_source: null
+status: user_approved
+baseline_source:
+  path: baseline-source-v1/character-yuna-four-directions-v1.png
+  metadata: baseline-source-v1/character-yuna-four-directions-v1.yaml
+  sha256: 0b77d2d849df0206b121129c0c232ee23cbfa081f2ef314280bc9ac2fd4bb79b
 face_reference: null
 retired_assets:
 - path: baseline-source-v1/character-yuna-four-directions-v1.png
@@ -22,7 +25,7 @@ retired_assets:
   sha256: c09c2569ab9deaf402bd825b4dd9dec899c3ea00682ba879ad0249dcced094f1
   reason: 사용자 지시로 등록 베이스라인 폐기
   retired_at: '2026-10-04'
-replacement_status: body_v2_adopted_face_and_four_directions_pending
+replacement_status: body_v2_four_directions_v1_adopted_face_pending
 retirement_reason: 2026-10-04 사용자 지시로 얼굴·전신·4방향 등록 베이스라인 폐기.
 body_reference:
   path: body-front-v2/character-yuna-body-front-v2.png

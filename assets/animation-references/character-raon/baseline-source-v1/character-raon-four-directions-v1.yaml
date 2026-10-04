@@ -1,0 +1,23 @@
+schema_version: 1
+asset_id: character-raon-four-directions
+version: 1
+character_id: raon
+status: user_approved
+role: baseline_reference_sheet
+image: character-raon-four-directions-v1.png
+sha256: cafd8c1e256a4ce72992b466643daa58774c866b29b34e0ec323e93ac17b4ed1
+width: 1176
+height: 1338
+background: transparent
+generator: Codex imagegen
+source_reference:
+  path: ../body-front-v3/character-raon-body-front-v3.png
+  sha256: 9ff18e549a8fafe48cac9b8881ceb5ad649267d13937a38e7a862eae572486f7
+style_reference:
+  path: ../../character-tesa/baseline-source-v2/character-tesa-four-directions-v2.png
+  sha256: 403d0adf28c1eae3c012a314771494b52bedd8cd3ba49c162aff1e1756ed2958
+layout: 2x2
+direction_order: [up_left, up_right, down_left, down_right]
+rig_geometry_constrained: false
+body_proportion_measurement_verified: false
+runtime_adopted: false
