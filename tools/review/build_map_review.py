@@ -407,7 +407,7 @@ def build_map_review(map_path=None, output_root=None):
     # 게임 런타임과 같은 스탠딩 프레임·발 기준점을 검수 패키지에 복사한다.
     from PIL import Image
     from tools.review.common.map_tile_assets import resolve_registered_sprite
-    character_animation_path,character_animation_provenance=resolve_registered_sprite('assets/characters/default/animations/idle-v6/down-left-8frames-v2/idle-v6.animation.json')
+    character_animation_path,character_animation_provenance=resolve_registered_sprite('assets/characters/default/animations/idle-v6/down-left-8frames-v2/idle-v6-anchor-v3.animation.json')
     character_source_path,character_source_provenance=resolve_registered_sprite('assets/characters/default/animations/idle-v6/down-left-8frames-v2/source.json')
     character_sheet_path,character_sheet_provenance=resolve_registered_sprite('assets/characters/default/animations/idle-v6/down-left-8frames-v2/idle-v6.png')
     character_animation_record = json.loads(character_animation_path.read_text())

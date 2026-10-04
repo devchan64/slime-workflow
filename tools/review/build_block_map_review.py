@@ -176,7 +176,7 @@ def build_block_map_review(output_directory_path):
     from tools.review.common.game_render_metrics import load_game_render_metrics
     game_render_metrics=load_game_render_metrics(WORKFLOW_ROOT_DIRECTORY.parent/'slime-frontend')
     (output_directory_path/'game-render-metrics.json').write_text(json.dumps(game_render_metrics))
-    character_metadata_path,character_metadata_provenance=resolve_registered_sprite('assets/characters/default/animations/idle-v6/down-left-8frames-v2/idle-v6.animation.json')
+    character_metadata_path,character_metadata_provenance=resolve_registered_sprite('assets/characters/default/animations/idle-v6/down-left-8frames-v2/idle-v6-anchor-v3.animation.json')
     character_source_path,character_source_provenance=resolve_registered_sprite('assets/characters/default/animations/idle-v6/down-left-8frames-v2/source.json')
     character_metadata_record=json.loads(character_metadata_path.read_text())
     character_source_record=json.loads(character_source_path.read_text())
