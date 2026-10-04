@@ -1,0 +1,15 @@
+schema_version: 1
+asset_id: character-tesa-face-front
+version: 2
+character_id: tesa
+status: user_approved
+role: front_face_identity_reference
+image: character-tesa-face-front-v2.png
+sha256: c6e15af5403aac8f26b981650747659dfc8168003169b5693a492ec19d099b0b
+width: 1145
+height: 1374
+background: transparent
+generator: Codex imagegen
+source_path: .tmp/test/tesa-distinct-face/2026-10-04_17-16-48/character-tesa-face-front-candidate.png
+runtime_adopted: false
+framing: 정면 머리와 목만. 어깨·가슴·의상 제외.

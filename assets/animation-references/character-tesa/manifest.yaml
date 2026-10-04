@@ -1,13 +1,16 @@
 schema_version: 1
 character_id: tesa
-status: rejected
-rejection_reason: '사용자 검수: 성인 5등신 기준 미준수. 전신 및 파생 얼굴 베이스라인 전량 폐기.'
+status: face_approved
 required_body_proportion_heads: 5
 baseline_source: null
-face_reference: null
+face_reference:
+  path: face-front-v2/character-tesa-face-front-v2.png
+  manifest: face-front-v2/manifest.yaml
+  sha256: c6e15af5403aac8f26b981650747659dfc8168003169b5693a492ec19d099b0b
 retired_assets:
 - path: baseline-source-v1/character-tesa-four-directions-v1.png
   sha256: 8ce0e031641773c5b45e36e014a5ce32faec5ece632832a914c20ff116f040e9
 - path: face-front-v1/character-tesa-face-front-v1.png
   sha256: ad4beca6373b598359c4c248a7058a86b229c5f6c668bd43b4495ba4bb480420
-replacement_status: pending_review
+replacement_status: face_v2_adopted_four_directions_pending
+retirement_reason: '사용자 검수: 성인 5등신 기준 미준수. 전신 및 파생 얼굴 베이스라인 전량 폐기.'
