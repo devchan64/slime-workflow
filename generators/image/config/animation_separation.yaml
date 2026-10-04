@@ -6,7 +6,8 @@ prompt: >-
   Preserve the complete person, head, shoes, proportions, pose and exact image position.
   Plain white background.
 outfit_prompt: >-
-  Remove the person, skin, head, hair and shoes. Keep only the original shirt and trousers
-  as empty garments in their original worn pose. Preserve their exact position, scale,
-  silhouette, folds and colors. Fill removed areas with plain white background.
-  Clothing only, no person.
+  Extract only the visible shirt and trouser surfaces from the original image.
+  Preserve their exact position, scale, worn pose, silhouette, folds and colors.
+  Replace the person, skin, head, hair and shoes with plain white background.
+  Keep necklines, cuffs and waist openings white, including areas previously covered by the person.
+  No added back panels, inner lining or hidden fabric.
