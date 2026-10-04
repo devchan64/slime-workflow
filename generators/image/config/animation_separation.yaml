@@ -1,7 +1,8 @@
 schema_version: 2
 prompt: >-
-  Replace the outer clothing with an opaque blue strapless top covering chest and abdomen,
-  and smooth close-fitting knee-length shorts without pockets or loose hems.
+  Replace the outer clothing with an opaque blue strapless crop top fully covering the chest,
+  ending above the original shirt hem, and smooth close-fitting knee-length shorts
+  with a waistband below the original trouser waistband. Keep the original exposed waist visible.
   Preserve the complete person, head, shoes, proportions, pose and exact image position.
   Plain white background.
 outfit_prompt: >-
