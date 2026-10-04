@@ -1,0 +1,26 @@
+schema_version: 1
+asset_id: character-doyun-four-directions
+version: 2
+character_id: doyun
+status: user_approved
+role: baseline_reference_sheet
+image: character-doyun-four-directions-v2.png
+sha256: e3673467234d25ea5e73edd364b2214770be3c54353e5b06a8e84ff20ea771ee
+width: 1176
+height: 1338
+background: transparent
+generator: Codex imagegen
+source_path: .tmp/test/doyun-anny-views/2026-10-04_15-49-05/character-doyun-four-directions-candidate.png
+source_reference:
+  path: ../body-front-v2/character-doyun-body-front-v2.png
+  sha256: d2c709a0e50600fc027c76a749f21fb2aa9103f4abaf3501c19033bb05cb22dc
+rig_origin: anny-neutral-v4
+runtime_adopted: false
+layout: 2x2
+direction_order:
+- up_left
+- up_right
+- down_left
+- down_right
+rig_geometry_constrained: false
+body_proportion_measurement_verified: false

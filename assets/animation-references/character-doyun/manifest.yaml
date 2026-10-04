@@ -1,13 +1,23 @@
 schema_version: 1
 character_id: doyun
-status: rejected
-rejection_reason: '사용자 검수: 성인 5등신 기준 미준수. 전신 및 파생 얼굴 베이스라인 전량 폐기.'
+status: user_approved
 required_body_proportion_heads: 5
-baseline_source: null
-face_reference: null
+baseline_source:
+  path: baseline-source-v2/character-doyun-four-directions-v2.png
+  metadata: baseline-source-v2/character-doyun-four-directions-v2.yaml
+  sha256: e3673467234d25ea5e73edd364b2214770be3c54353e5b06a8e84ff20ea771ee
+face_reference:
+  path: face-front-v2/character-doyun-face-front-v2.png
+  manifest: face-front-v2/manifest.yaml
+  sha256: b90d1f7a18a41d311d33fac0776770d5303182da8c8467feb97cece0fab89dea
 retired_assets:
 - path: baseline-source-v1/character-doyun-four-directions-v1.png
   sha256: 6ee297c36cdd38aabb5a1e951adf228aa9810d204cd98b1a57afbecace99f359
 - path: face-front-v1/character-doyun-face-front-v1.png
   sha256: bf062ce187fa0cc39e022574ce11674bf1359565c536a1c4c2089b5b6973a0de
-replacement_status: pending_review
+replacement_status: adopted_v2
+retirement_reason: '사용자 검수: 성인 5등신 기준 미준수. 전신 및 파생 얼굴 베이스라인 전량 폐기.'
+body_reference:
+  path: body-front-v2/character-doyun-body-front-v2.png
+  manifest: body-front-v2/manifest.yaml
+  sha256: d2c709a0e50600fc027c76a749f21fb2aa9103f4abaf3501c19033bb05cb22dc

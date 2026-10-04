@@ -1,0 +1,19 @@
+schema_version: 1
+asset_id: character-doyun-face-front
+version: 2
+character_id: doyun
+status: user_approved
+role: front_face_identity_reference
+image: character-doyun-face-front-v2.png
+sha256: b90d1f7a18a41d311d33fac0776770d5303182da8c8467feb97cece0fab89dea
+width: 1176
+height: 1338
+background: transparent
+generator: Codex imagegen
+source_path: .tmp/test/doyun-anny-views/2026-10-04_15-49-05/character-doyun-face-neck-front-candidate.png
+source_reference:
+  path: ../body-front-v2/character-doyun-body-front-v2.png
+  sha256: d2c709a0e50600fc027c76a749f21fb2aa9103f4abaf3501c19033bb05cb22dc
+rig_origin: anny-neutral-v4
+runtime_adopted: false
+framing: 정면 머리와 목만. 어깨·가슴·의상 제외.
