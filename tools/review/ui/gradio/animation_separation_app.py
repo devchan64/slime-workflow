@@ -43,12 +43,12 @@ def build_separation_preview(current_server_address, current_job_identifier):
         raise ValueError('생성 ID 형식 오류')
     current_result_base = current_server_address + '/animation-separation/jobs/' + current_job_identifier + '/'
     current_preview_document = (Path(__file__).parents[1] / 'character_animation/separation-preview.html').read_text().replace('__RESULT_BASE__', json.dumps(current_result_base))
-    return '<iframe title="원본과 분리 후보 동기 재생" style="width:100%;height:560px;border:0" srcdoc="' + html.escape(current_preview_document, quote=True) + '"></iframe>'
+    return '<iframe title="원본과 분리 후보 동기 재생" style="width:100%;height:760px;border:0" srcdoc="' + html.escape(current_preview_document, quote=True) + '"></iframe>'
 
 
 def build_separation_interface(current_server_address):
     with gr.Blocks(title='애니메이션 분리 생성기') as interface_blocks_value:
-        gr.Markdown('## 애니메이션 분리 생성기\n등록된 캐릭터 시트를 Qwen 2.1로 머리·신체 후보로 분리합니다. 먼저 한 프레임을 확인한 후 범위 생성을 실행하세요.')
+        gr.Markdown('## 애니메이션 분리 생성기\n등록된 캐릭터 시트를 Qwen 2.1로 분리합니다. 결과 검수에서 머리·신체 또는 신체 베이스·복장을 선택할 수 있습니다. 먼저 한 프레임을 확인한 후 범위 생성을 실행하세요.')
         with gr.Tabs():
             with gr.Tab("생성 설정"):
                 current_source_control = gr.Dropdown([], label='원본 애니메이션', interactive=True)
