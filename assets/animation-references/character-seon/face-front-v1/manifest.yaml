@@ -1,0 +1,18 @@
+schema_version: 1
+asset_id: character-seon-face-front
+version: 1
+character_id: seon
+role: front_face_identity_reference
+status: registered
+image: character-seon-face-front-v1.png
+sha256: aae06ccc1eb360501e874379343527457d88ed1b61578f90621003cdd42874af
+width: 1254
+height: 1254
+background: transparent
+generator: Codex imagegen
+source_run: 2026-10-04_00-15-45
+source_reference:
+  path: ../baseline-source-v1/character-seon-four-directions-v1.png
+  sha256: f9977d8085be319c5d9c580ddd09a8276d137830ebce701e3c6d84f4834b5876
+runtime_adopted: false
+usage: 정면 얼굴·헤어·눈동자·피부색의 제작용 베이스라인. 기존 4방향 외형 원본에서 파생한 참조 이미지.

@@ -1,0 +1,10 @@
+schema_version: 1
+character_id: mire
+baseline_source:
+  path: baseline-source-v1/character-mire-four-directions-v1.png
+  metadata: baseline-source-v1/character-mire-four-directions-v1.yaml
+  sha256: 49aa6d6d5d4ad32f0c815bd646335d2bb06fb0381d82173e59732a819f2a5185
+face_reference:
+  path: face-front-v1/character-mire-face-front-v1.png
+  manifest: face-front-v1/manifest.yaml
+  sha256: 9fd52de9a9100c270a096d6fe6c7eaedc07cf5b9e4accb4daa6fcb6a768f7b09

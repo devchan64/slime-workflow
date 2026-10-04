@@ -1,0 +1,18 @@
+schema_version: 1
+asset_id: character-yuna-face-front
+version: 1
+character_id: yuna
+role: front_face_identity_reference
+status: registered
+image: character-yuna-face-front-v1.png
+sha256: c155cc433ddcf11c9943de0ed577b0085470d846d95ee5ddc0bc66067488f45f
+width: 1254
+height: 1254
+background: transparent
+generator: Codex imagegen
+source_run: 2026-10-04_00-15-45
+source_reference:
+  path: ../baseline-source-v1/character-yuna-four-directions-v1.png
+  sha256: 202ad98b8ce36e94806a8124443f7c6211672a8c25271db28482fa5bcccf21a1
+runtime_adopted: false
+usage: 정면 얼굴·헤어·눈동자·피부색의 제작용 베이스라인. 기존 4방향 외형 원본에서 파생한 참조 이미지.

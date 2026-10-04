@@ -1,0 +1,18 @@
+schema_version: 1
+asset_id: character-sabel-face-front
+version: 1
+character_id: sabel
+role: front_face_identity_reference
+status: registered
+image: character-sabel-face-front-v1.png
+sha256: bc5e5aa4646f30855fdc613a6704a66441a6bcdc0a0d981b5e55e1b083d33a07
+width: 1254
+height: 1254
+background: transparent
+generator: Codex imagegen
+source_run: 2026-10-04_00-15-45
+source_reference:
+  path: ../baseline-source-v1/character-sabel-four-directions-v1.png
+  sha256: 6aceeca0343cdf8866d3fc8ae659b2877b34358ceb3400bad8c0d39d9b95432a
+runtime_adopted: false
+usage: 정면 얼굴·헤어·눈동자·피부색의 제작용 베이스라인. 기존 4방향 외형 원본에서 파생한 참조 이미지.

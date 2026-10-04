@@ -1,0 +1,10 @@
+schema_version: 1
+character_id: serk
+baseline_source:
+  path: baseline-source-v1/character-serk-four-directions-v1.png
+  metadata: baseline-source-v1/character-serk-four-directions-v1.yaml
+  sha256: 947987953c523d5f4dbeb45c04ab5256b63d081a2544d946758f32ac201b120d
+face_reference:
+  path: face-front-v1/character-serk-face-front-v1.png
+  manifest: face-front-v1/manifest.yaml
+  sha256: a07f3a6549ff3de30763332c81fc4bd1501fa63ea1000fbb31606e27968ed5ea

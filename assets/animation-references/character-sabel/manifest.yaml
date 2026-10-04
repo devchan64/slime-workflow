@@ -1,0 +1,10 @@
+schema_version: 1
+character_id: sabel
+baseline_source:
+  path: baseline-source-v1/character-sabel-four-directions-v1.png
+  metadata: baseline-source-v1/character-sabel-four-directions-v1.yaml
+  sha256: 6aceeca0343cdf8866d3fc8ae659b2877b34358ceb3400bad8c0d39d9b95432a
+face_reference:
+  path: face-front-v1/character-sabel-face-front-v1.png
+  manifest: face-front-v1/manifest.yaml
+  sha256: bc5e5aa4646f30855fdc613a6704a66441a6bcdc0a0d981b5e55e1b083d33a07

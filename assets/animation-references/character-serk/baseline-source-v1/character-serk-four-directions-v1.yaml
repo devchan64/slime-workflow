@@ -1,0 +1,41 @@
+version: 1
+asset_id: character-serk-four-directions-v1
+image: character-serk-four-directions-v1.png
+role: baseline_reference_sheet
+status: generated
+runtime_adopted: false
+generator: Codex imagegen
+generation_mode: built-in image_gen, 4방향 2x2 생성 및 방향 수정
+width: 1254
+height: 1254
+layout: 2x2
+background: transparent
+sha256: 947987953c523d5f4dbeb45c04ab5256b63d081a2544d946758f32ac201b120d
+source_run: .tmp/test/character-baseline-generation/2026-10-04_00-06-51
+cells:
+  up_left:
+    x: 0
+    y: 0
+    width: 627
+    height: 627
+  up_right:
+    x: 627
+    y: 0
+    width: 627
+    height: 627
+  down_left:
+    x: 0
+    y: 627
+    width: 627
+    height: 627
+  down_right:
+    x: 627
+    y: 627
+    width: 627
+    height: 627
+review:
+  full_body_four_views: true
+  direction_order_checked: true
+  alpha_channel_verified: true
+  appearance_status: 제작용 외형 초안
+  notes: 원본 픽셀 보존. 영역은 참조 구획이며 방향별 독립 크롭은 미생성. 비대칭 소품의 좌우 고정은 애니메이션 제작 시 별도 검수.

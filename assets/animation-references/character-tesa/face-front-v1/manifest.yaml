@@ -1,0 +1,18 @@
+schema_version: 1
+asset_id: character-tesa-face-front
+version: 1
+character_id: tesa
+role: front_face_identity_reference
+status: registered
+image: character-tesa-face-front-v1.png
+sha256: ad4beca6373b598359c4c248a7058a86b229c5f6c668bd43b4495ba4bb480420
+width: 1254
+height: 1254
+background: transparent
+generator: Codex imagegen
+source_run: 2026-10-04_00-15-45
+source_reference:
+  path: ../baseline-source-v1/character-tesa-four-directions-v1.png
+  sha256: 8ce0e031641773c5b45e36e014a5ce32faec5ece632832a914c20ff116f040e9
+runtime_adopted: false
+usage: 정면 얼굴·헤어·눈동자·피부색의 제작용 베이스라인. 기존 4방향 외형 원본에서 파생한 참조 이미지.

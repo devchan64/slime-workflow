@@ -4,3 +4,7 @@ baseline_source:
   path: baseline-source-v1/character-doyun-four-directions-v1.png
   metadata: baseline-source-v1/character-doyun-four-directions-v1.yaml
   sha256: 6ee297c36cdd38aabb5a1e951adf228aa9810d204cd98b1a57afbecace99f359
+face_reference:
+  path: face-front-v1/character-doyun-face-front-v1.png
+  manifest: face-front-v1/manifest.yaml
+  sha256: bf062ce187fa0cc39e022574ce11674bf1359565c536a1c4c2089b5b6973a0de

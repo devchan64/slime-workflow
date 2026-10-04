@@ -1,0 +1,18 @@
+schema_version: 1
+asset_id: character-serk-face-front
+version: 1
+character_id: serk
+role: front_face_identity_reference
+status: registered
+image: character-serk-face-front-v1.png
+sha256: a07f3a6549ff3de30763332c81fc4bd1501fa63ea1000fbb31606e27968ed5ea
+width: 1254
+height: 1254
+background: transparent
+generator: Codex imagegen
+source_run: 2026-10-04_00-15-45
+source_reference:
+  path: ../baseline-source-v1/character-serk-four-directions-v1.png
+  sha256: 947987953c523d5f4dbeb45c04ab5256b63d081a2544d946758f32ac201b120d
+runtime_adopted: false
+usage: 정면 얼굴·헤어·눈동자·피부색의 제작용 베이스라인. 기존 4방향 외형 원본에서 파생한 참조 이미지.
