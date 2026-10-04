@@ -2,7 +2,8 @@ schema_version: 1
 prompt: >-
   Separate this character into two sprite parts side by side.
   Left: the original face and hair only, ending under the jaw, without neck or shoulders.
-  Right: the original clothed body with its entire neck, without head or hair.
+  Right: the original clothed body with exposed upper chest skin and a short skin-colored neck cylinder above the neckline, without head or hair.
   Preserve identity, body proportions, clothing, hands, shoes and the exact animation pose.
   Keep one shared scale and complete silhouettes inside their respective left and right halves.
-  Plain white background. No text.
+  Plain white background.
+  No text.
