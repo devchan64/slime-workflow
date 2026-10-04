@@ -152,8 +152,8 @@ class SeamlessGenerationManager(ImageGenerationManager):
     def validate_generation_resume(self, selected_job_directory):
         current_request_record = json.loads((selected_job_directory / 'request.json').read_text())
         verify_reference_snapshots(selected_job_directory, current_request_record)
-        if current_request_record.get('seamless_tile', {}).get('schema_version') not in (1, 2, 3, 4, 5):
-            raise ValueError('지원하지 않는 연결 타일 실행 기록입니다.')
+        if current_request_record.get('seamless_tile', {}).get('schema_version') not in (1, 2, 3, 4, 6):
+            raise ValueError('폐기되었거나 지원하지 않는 심리스 실행 버전입니다. 기존 결과를 조회하거나 새 작업을 생성하세요.')
         if hashlib.sha256(current_request_record['prompt'].encode()).hexdigest() != current_request_record['seamless_tile']['prompt_sha256']:
             raise ValueError('저장된 프롬프트 해시가 일치하지 않습니다.')
 
@@ -162,8 +162,8 @@ class SeamlessGenerationManager(ImageGenerationManager):
 
     def pause_generation_stage(self, selected_job_directory):
         current_request_record = json.loads((selected_job_directory/'request.json').read_text())
-        if current_request_record.get('seamless_tile',{}).get('schema_version') != 5:
-            raise ValueError('7단계 패턴 생성 작업만 일시정지할 수 있습니다.')
+        if current_request_record.get('seamless_tile',{}).get('schema_version') != 6:
+            raise ValueError('단계별 패턴 생성 작업만 일시정지할 수 있습니다.')
         current_status_record = json.loads((selected_job_directory/'status.json').read_text())
         if current_status_record['status'] not in ('running','queued','paused'):
             raise ValueError('실행·대기·검수 대기 작업만 일시정지할 수 있습니다.')
@@ -174,9 +174,9 @@ class SeamlessGenerationManager(ImageGenerationManager):
         progress_record_path = current_job_root/'pipeline-progress.json'
         if progress_record_path.exists():
             current_status_record['pipeline'] = json.loads(progress_record_path.read_text())
-        if current_status_record.get('pipeline',{}).get('total') == 7:
+        if current_status_record.get('pipeline',{}).get('total') == 5:
             current_pipeline_record = current_status_record['pipeline']
-            current_status_record['progress'] = {'stage':current_status_record['status'],'label':current_pipeline_record['stage'],'step':current_pipeline_record.get('completed',0),'total':7,'percent':round(current_pipeline_record.get('completed',0)*100/7),'unit':'단계'}
+            current_status_record['progress'] = {'stage':current_status_record['status'],'label':current_pipeline_record['stage'],'step':current_pipeline_record.get('completed',0),'total':current_pipeline_record['total'],'percent':round(current_pipeline_record.get('completed',0)*100/current_pipeline_record['total']),'unit':'단계'}
         current_status_record['previews'] = {current_file_name:f'{self.route_prefix_value}/jobs/{current_job_root.name}/{current_file_name}' for current_file_name in ('grid-input.png','split-preview.png','sample-grid.png','center-tile.png','repair-input.png','repair-mask.png','repair-composite.png','grid-edited.png','result.png','tiled-preview.png') if (current_job_root/current_file_name).is_file()}
         if current_status_record['status'] == 'completed':
             current_status_record['repeated_image'] = f'{self.route_prefix_value}/jobs/{current_job_root.name}/tiled-preview.png'

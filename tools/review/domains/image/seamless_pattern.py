@@ -14,30 +14,37 @@ PATTERN_CONFIGURATION_PATH = Path(__file__).resolve().parents[4] / 'generators/i
 
 def build_pattern_request(user_prompt_text):
     pattern_config_record = yaml.load(PATTERN_CONFIGURATION_PATH.read_text(), Loader=UniqueAssetYamlLoader)
-    expected_config_fields = {'schema_version','grid_size','tile_size','repair_size','grid_prompt','repair_prompt'}
+    expected_config_fields = {'schema_version','grid_size','tile_size','repair_size','grid_prompt','horizontal_prompt','vertical_prompt'}
     if set(pattern_config_record) != expected_config_fields:
         raise ValueError('패턴 생성 설정 필드 오류')
-    for config_field_name, expected_field_value in {'schema_version':5,'grid_size':1024,'tile_size':256,'repair_size':1024}.items():
+    for config_field_name, expected_field_value in {'schema_version':6,'grid_size':1024,'tile_size':256,'repair_size':768}.items():
         if type(pattern_config_record[config_field_name]) is not int or pattern_config_record[config_field_name] != expected_field_value:
             raise ValueError('패턴 생성 고정 설정 오류: '+config_field_name)
-    if any(not isinstance(pattern_config_record[current_field_name],str) or not pattern_config_record[current_field_name].strip() for current_field_name in ('grid_prompt','repair_prompt')):
+    if any(not isinstance(pattern_config_record[current_field_name],str) or not pattern_config_record[current_field_name].strip() for current_field_name in ('horizontal_prompt','vertical_prompt')):
         raise ValueError('단계 프롬프트가 없습니다.')
-    grid_prompt_text = user_prompt_text.strip()+'. '+pattern_config_record['grid_prompt']
-    repair_prompt_text = pattern_config_record['repair_prompt']
-    if any(not 0 < len(current_prompt_text.split()) < 100 for current_prompt_text in (grid_prompt_text,repair_prompt_text)):
+    if not isinstance(pattern_config_record['grid_prompt'], str) or not pattern_config_record['grid_prompt'].strip():
+        raise ValueError('1단계 기본 프롬프트가 없습니다.')
+    if not user_prompt_text.strip():
+        raise ValueError('패턴 소재를 입력하세요.')
+    grid_prompt_text = user_prompt_text.strip()+'\n'+pattern_config_record['grid_prompt']
+    repair_prompt_text = pattern_config_record['horizontal_prompt']
+    vertical_prompt_text = pattern_config_record['vertical_prompt']
+    if any(not 0 < len(current_prompt_text.split()) < 100 for current_prompt_text in (grid_prompt_text,repair_prompt_text,vertical_prompt_text)):
         raise ValueError('각 단계 최종 프롬프트는 100단어 미만이어야 합니다.')
     return grid_prompt_text, {**pattern_config_record,'user_prompt':user_prompt_text.strip(),
-        'stage_prompts':[grid_prompt_text,repair_prompt_text],
-        'stage_prompt_words':[len(current_prompt_text.split()) for current_prompt_text in (grid_prompt_text,repair_prompt_text)],
-        'stage_prompt_hashes':[hashlib.sha256(current_prompt_text.encode()).hexdigest() for current_prompt_text in (grid_prompt_text,repair_prompt_text)],
+        'stage_prompts':[grid_prompt_text,repair_prompt_text,vertical_prompt_text],
+        'stage_prompt_words':[len(current_prompt_text.split()) for current_prompt_text in (grid_prompt_text,repair_prompt_text,vertical_prompt_text)],
+        'stage_prompt_hashes':[hashlib.sha256(current_prompt_text.encode()).hexdigest() for current_prompt_text in (grid_prompt_text,repair_prompt_text,vertical_prompt_text)],
         'prompt_sha256':hashlib.sha256(grid_prompt_text.encode()).hexdigest(),
         'config_sha256':hashlib.sha256(PATTERN_CONFIGURATION_PATH.read_bytes()).hexdigest()}
 
 
 def execute_pattern_pipeline(current_job_root, current_request_record, generation_callback_value):
-    if current_request_record['seamless_tile']['schema_version'] == 5:
-        from tools.review.domains.image.seamless_steps import execute_seamless_next_stage
-        return execute_seamless_next_stage(current_job_root, current_request_record, generation_callback_value)
+    if current_request_record['seamless_tile']['schema_version'] == 6:
+        from tools.review.domains.image.seamless_directional import execute_directional_next_stage
+        return execute_directional_next_stage(current_job_root, current_request_record, generation_callback_value)
+    if current_request_record['seamless_tile']['schema_version'] not in (3,4):
+        raise ValueError('폐기되었거나 지원하지 않는 심리스 실행 버전입니다. 새 작업을 생성하세요.')
     from tools.review.domains.image.seamless_generation import build_repeated_texture, measure_texture_boundaries
     pattern_config_record = current_request_record['seamless_tile']
     stage_prompt_values = pattern_config_record['stage_prompts']

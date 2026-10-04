@@ -22,7 +22,7 @@ LEGACY_PAGE_IDENTIFIER_VALUES={'map-review':'map-review-iseulon','animation-2':'
 DEFAULT_PAGE_RECORDS=(
     {'id':'animation-separation','label':'애니메이션 분리 생성기','path':'/animation-separation/','category':'animation-tool','uiMode':'gradio','description':'Qwen 2.1 · 1프레임 검수 · 머리·신체 후보 시트'},
     {'id':'qwen-21-generator','label':'Qwen 2.1 이미지 생성기','path':'/image-generation-21/','category':'image-generation','uiMode':'gradio','description':'입력 프롬프트 그대로 · 추가 문구 없음 · 참조 선택'},
-    {'id':'seamless-tile-generator','label':'Qwen2.1 심리스 패턴 생성기','path':'/seamless-tile-generator/','category':'image-generation','uiMode':'gradio','description':'7단계 패턴 생성 · 검수 · 일시정지·재개'},
+    {'id':'seamless-tile-generator','label':'Qwen2.1 심리스 패턴 생성기','path':'/seamless-tile-generator/','category':'image-generation','uiMode':'gradio','description':'5단계 가로·세로 연결 · 검수 · 일시정지·재개'},
     {'id':'floor-tile-generator','label':'맵 타일 생성기','path':'/floor-tile-generator/','category':'image-generation','uiMode':'gradio','description':'512×512 · 4스텝 · 단일 이미지 생성'},
     {'id':'writer-agent','label':'작가 AI 에이전트','path':'/writer-agent/','category':'writer-agent','uiMode':'gradio','description':'Gradio · 문서 학습 · 아이디어 작성 · 실행 기록'},
     {'id':'expression-generator','label':'표정 생성기','path':'/expression-generator/','category':'image-generation','uiMode':'gradio','description':'Qwen 2511 · AU 표정 39종 · 참조 1~3장'},
