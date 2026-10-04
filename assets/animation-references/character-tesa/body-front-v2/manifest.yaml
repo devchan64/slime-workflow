@@ -1,0 +1,22 @@
+schema_version: 1
+asset_id: character-tesa-body-front
+version: 2
+character_id: tesa
+status: user_approved
+role: front_body_baseline_reference
+image: character-tesa-body-front-v2.png
+sha256: cb1bc7b70faa007af2b4b659b142e78113d6356fd535ad6a8d9a24546963721c
+width: 1176
+height: 1338
+background: transparent
+generator: Codex imagegen
+source_path: .tmp/test/tesa-large-eyes/2026-10-04_18-02-28/character-tesa-large-eyes-candidate.png
+rig_origin:
+  asset_id: anny-neutral
+  version: 4
+  manifest: assets/animation-models/anny-neutral-v4/manifest.yaml
+  usage: 정면 렌더의 체형·자세를 참조한 생성 후보에서 얼굴·눈 크기 보정
+rig_geometry_constrained: false
+body_proportion_measurement_verified: false
+runtime_adopted: false
+framing: 정면 전신. 머리부터 부츠까지 포함.

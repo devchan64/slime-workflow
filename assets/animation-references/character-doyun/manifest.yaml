@@ -1,15 +1,9 @@
 schema_version: 1
 character_id: doyun
-status: user_approved
+status: retired
 required_body_proportion_heads: 5
-baseline_source:
-  path: baseline-source-v3/character-doyun-four-directions-v3.png
-  metadata: baseline-source-v3/character-doyun-four-directions-v3.yaml
-  sha256: 605bd2abdb80132459038b408aebec94f49894993050b01ea4b2967b21282188
-face_reference:
-  path: face-front-v3/character-doyun-face-front-v3.png
-  manifest: face-front-v3/manifest.yaml
-  sha256: 9cc3c86fb26dcca6bbcde7dcb9b0e36759aae61700aad7aedbb59490a42816d3
+baseline_source: null
+face_reference: null
 retired_assets:
 - path: baseline-source-v1/character-doyun-four-directions-v1.png
   sha256: 6ee297c36cdd38aabb5a1e951adf228aa9810d204cd98b1a57afbecace99f359
@@ -21,9 +15,18 @@ retired_assets:
 - path: baseline-source-v2/character-doyun-four-directions-v2.png
   sha256: e3673467234d25ea5e73edd364b2214770be3c54353e5b06a8e84ff20ea771ee
   reason: 사용자 지시로 얼굴 v3와 새 복장을 적용한 4방향 v3 교체 등록
-replacement_status: adopted_v3
-retirement_reason: '사용자 검수: 성인 5등신 기준 미준수. 전신 및 파생 얼굴 베이스라인 전량 폐기.'
-body_reference:
-  path: body-front-v2/character-doyun-body-front-v2.png
-  manifest: body-front-v2/manifest.yaml
+- path: baseline-source-v3/character-doyun-four-directions-v3.png
+  sha256: 605bd2abdb80132459038b408aebec94f49894993050b01ea4b2967b21282188
+  reason: 사용자 지시로 등록 베이스라인 폐기
+  retired_at: '2026-10-04'
+- path: face-front-v3/character-doyun-face-front-v3.png
+  sha256: 9cc3c86fb26dcca6bbcde7dcb9b0e36759aae61700aad7aedbb59490a42816d3
+  reason: 사용자 지시로 등록 베이스라인 폐기
+  retired_at: '2026-10-04'
+- path: body-front-v2/character-doyun-body-front-v2.png
   sha256: d2c709a0e50600fc027c76a749f21fb2aa9103f4abaf3501c19033bb05cb22dc
+  reason: 사용자 지시로 등록 베이스라인 폐기
+  retired_at: '2026-10-04'
+replacement_status: pending_regeneration
+retirement_reason: 2026-10-04 사용자 지시로 얼굴·전신·4방향 등록 베이스라인 폐기.
+body_reference: null

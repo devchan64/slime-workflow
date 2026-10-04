@@ -1,0 +1,74 @@
+schema_version: 1
+record_id: tesa-baseline-20261004
+version: 1
+purpose: 사용자 요청에 따른 전신 우선 베이스라인 제작 과정 보존
+generator: Codex builtin imagegen
+model_version: not_exposed
+seed: not_exposed
+transparent_background: true
+linked_asset_manifest: assets/animation-references/character-tesa/body-front-v2/manifest.yaml
+path_base: repository_root
+exact_regeneration_guaranteed: false
+steps:
+- step: 01-anny-body
+  source_run: .tmp/test/tesa-anny-proportion-lock/2026-10-04_17-43-30
+  prompt: assets/generation-records/tesa-baseline-20261004/01-anny-body/prompt.txt
+  prompt_sha256: c4f6dd0324f2afa92bed23eef66e581932dde69b11c09979cc61d2a7b5d64221
+  prompt_words: 89
+  output_original_name: character-tesa-anny-body-candidate.png
+  files:
+  - original_name: character-tesa-anny-body-candidate.png
+    path: assets/generation-records/tesa-baseline-20261004/01-anny-body/character-tesa-anny-body-candidate.png
+    sha256: ea468c1e93b30b2322aaf7f7a94a1a26af7e69c44754c3fceb78667070632148
+  - original_name: reference-1.png
+    path: assets/animation-models/anny-neutral-v4/front.png
+    sha256: 5407be11a1a0c61e1094c12f51a4559c500c96725e9e42b199e00128d5be538d
+  - original_name: reference-2.png
+    path: assets/generation-records/tesa-baseline-20261004/01-anny-body/reference-2.png
+    sha256: bd4ec3175a8399f1429e180bbdedcb450e88de104c5238ab97d658febfa2f382
+  - original_name: reference-3.png
+    path: assets/generation-records/tesa-baseline-20261004/01-anny-body/reference-3.png
+    sha256: 584099c6c403a843bc6c58f032349a58664b8dbe32b777e43f4ab19aaa437dca
+  status: intermediate
+- step: 02-large-eyes
+  source_run: .tmp/test/tesa-large-eyes/2026-10-04_18-02-28
+  prompt: assets/generation-records/tesa-baseline-20261004/02-large-eyes/prompt.txt
+  prompt_sha256: 8c1f445cca6e0185b4cf723e952d52c2690103cd092eb7972a203f277f42dedd
+  prompt_words: 108
+  output_original_name: character-tesa-large-eyes-candidate.png
+  files:
+  - original_name: character-tesa-large-eyes-candidate.png
+    path: assets/animation-references/character-tesa/body-front-v2/character-tesa-body-front-v2.png
+    sha256: cb1bc7b70faa007af2b4b659b142e78113d6356fd535ad6a8d9a24546963721c
+  - original_name: input-body.png
+    path: assets/generation-records/tesa-baseline-20261004/01-anny-body/character-tesa-anny-body-candidate.png
+    sha256: ea468c1e93b30b2322aaf7f7a94a1a26af7e69c44754c3fceb78667070632148
+  status: user_adopted_as_body_v2
+- step: 03-face-neck
+  source_run: .tmp/test/tesa-body-derived-face/2026-10-04_18-07-16
+  prompt: assets/generation-records/tesa-baseline-20261004/03-face-neck/prompt.txt
+  prompt_sha256: 0aad106ba73e8a598070402d1a4dd6c2ca64e62cdec975c5f887e1023f714f59
+  prompt_words: 94
+  output_original_name: character-tesa-face-neck-candidate.png
+  files:
+  - original_name: body-reference.png
+    path: assets/animation-references/character-tesa/body-front-v2/character-tesa-body-front-v2.png
+    sha256: cb1bc7b70faa007af2b4b659b142e78113d6356fd535ad6a8d9a24546963721c
+  - original_name: character-tesa-face-neck-candidate.png
+    path: assets/animation-references/character-tesa/face-front-v3/character-tesa-face-front-v3.png
+    sha256: e448f0aa36d6d021baad3d893ff5d9b02d05a50a4c18f74bd5c5374a973f8ae5
+  status: user_adopted_as_face_v3
+- step: 04-four-directions
+  source_run: .tmp/test/tesa-four-directions/2026-10-04_18-10-23
+  prompt: assets/generation-records/tesa-baseline-20261004/04-four-directions/prompt.txt
+  prompt_sha256: 4855ee0a2dcbb9782d1d1d6bbad854a03926b6fe4ccc4cc06c65a634345167bc
+  prompt_words: 163
+  output_original_name: character-tesa-four-directions-candidate.png
+  files:
+  - original_name: body-reference.png
+    path: assets/animation-references/character-tesa/body-front-v2/character-tesa-body-front-v2.png
+    sha256: cb1bc7b70faa007af2b4b659b142e78113d6356fd535ad6a8d9a24546963721c
+  - original_name: character-tesa-four-directions-candidate.png
+    path: assets/animation-references/character-tesa/baseline-source-v2/character-tesa-four-directions-v2.png
+    sha256: 403d0adf28c1eae3c012a314771494b52bedd8cd3ba49c162aff1e1756ed2958
+  status: user_adopted_as_four_directions_v2

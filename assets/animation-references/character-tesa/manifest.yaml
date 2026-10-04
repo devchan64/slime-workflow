@@ -1,16 +1,26 @@
 schema_version: 1
 character_id: tesa
-status: face_approved
-required_body_proportion_heads: 5
-baseline_source: null
+status: user_approved
+baseline_source:
+  path: baseline-source-v2/character-tesa-four-directions-v2.png
+  metadata: baseline-source-v2/character-tesa-four-directions-v2.yaml
+  sha256: 403d0adf28c1eae3c012a314771494b52bedd8cd3ba49c162aff1e1756ed2958
 face_reference:
-  path: face-front-v2/character-tesa-face-front-v2.png
-  manifest: face-front-v2/manifest.yaml
-  sha256: c6e15af5403aac8f26b981650747659dfc8168003169b5693a492ec19d099b0b
+  path: face-front-v3/character-tesa-face-front-v3.png
+  manifest: face-front-v3/manifest.yaml
+  sha256: e448f0aa36d6d021baad3d893ff5d9b02d05a50a4c18f74bd5c5374a973f8ae5
 retired_assets:
 - path: baseline-source-v1/character-tesa-four-directions-v1.png
   sha256: 8ce0e031641773c5b45e36e014a5ce32faec5ece632832a914c20ff116f040e9
 - path: face-front-v1/character-tesa-face-front-v1.png
   sha256: ad4beca6373b598359c4c248a7058a86b229c5f6c668bd43b4495ba4bb480420
-replacement_status: face_v2_adopted_four_directions_pending
+- path: face-front-v2/character-tesa-face-front-v2.png
+  sha256: c6e15af5403aac8f26b981650747659dfc8168003169b5693a492ec19d099b0b
+  reason: 사용자 지시로 얼굴 v2 폐기. 전신 베이스라인 우선 제작으로 전환.
+replacement_status: body_v2_four_directions_v2_face_v3_adopted
 retirement_reason: '사용자 검수: 성인 5등신 기준 미준수. 전신 및 파생 얼굴 베이스라인 전량 폐기.'
+body_proportion_reference: anny-neutral-v4
+body_reference:
+  path: body-front-v2/character-tesa-body-front-v2.png
+  manifest: body-front-v2/manifest.yaml
+  sha256: cb1bc7b70faa007af2b4b659b142e78113d6356fd535ad6a8d9a24546963721c

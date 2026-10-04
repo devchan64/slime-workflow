@@ -1,0 +1,26 @@
+schema_version: 1
+asset_id: character-tesa-four-directions
+version: 2
+character_id: tesa
+status: user_approved
+role: baseline_reference_sheet
+image: character-tesa-four-directions-v2.png
+sha256: 403d0adf28c1eae3c012a314771494b52bedd8cd3ba49c162aff1e1756ed2958
+width: 1176
+height: 1337
+background: transparent
+generator: Codex imagegen
+source_path: .tmp/test/tesa-four-directions/2026-10-04_18-10-23/character-tesa-four-directions-candidate.png
+source_reference:
+  path: ../body-front-v2/character-tesa-body-front-v2.png
+  sha256: cb1bc7b70faa007af2b4b659b142e78113d6356fd535ad6a8d9a24546963721c
+generation_record: assets/generation-records/tesa-baseline-20261004/manifest.yaml
+layout: 2x2
+direction_order:
+- up_left
+- up_right
+- down_left
+- down_right
+rig_geometry_constrained: false
+body_proportion_measurement_verified: false
+runtime_adopted: false
