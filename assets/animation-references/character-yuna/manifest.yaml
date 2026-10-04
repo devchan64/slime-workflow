@@ -1,7 +1,6 @@
 schema_version: 1
 character_id: yuna
-status: retired
-required_body_proportion_heads: 5
+status: body_approved
 baseline_source: null
 face_reference: null
 retired_assets:
@@ -23,6 +22,10 @@ retired_assets:
   sha256: c09c2569ab9deaf402bd825b4dd9dec899c3ea00682ba879ad0249dcced094f1
   reason: 사용자 지시로 등록 베이스라인 폐기
   retired_at: '2026-10-04'
-replacement_status: pending_regeneration
+replacement_status: body_v2_adopted_face_and_four_directions_pending
 retirement_reason: 2026-10-04 사용자 지시로 얼굴·전신·4방향 등록 베이스라인 폐기.
-body_reference: null
+body_reference:
+  path: body-front-v2/character-yuna-body-front-v2.png
+  manifest: body-front-v2/manifest.yaml
+  sha256: 520fcc232a1ff8f37f6bbe80db0550e40bf1ff5dc06cbd0c33fe5cb1ff40ce41
+body_proportion_reference: anny-neutral-v4

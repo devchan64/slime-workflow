@@ -1,0 +1,23 @@
+schema_version: 1
+asset_id: character-orsen-body-front
+version: 2
+character_id: orsen
+status: user_approved
+role: front_body_baseline_reference
+image: character-orsen-body-front-v2.png
+sha256: 982bc737132b1e03abd2f220b525612e822db32b365bd1d2342ab374fbd02332
+width: 1176
+height: 1338
+background: transparent
+generator: Codex imagegen
+source_path: .tmp/test/orsen-anny-front/2026-10-04_18-47-15/character-orsen-body-front-candidate.png
+approved_at: '2026-10-04'
+rig_origin:
+  asset_id: anny-neutral
+  version: 4
+  manifest: assets/animation-models/anny-neutral-v4/manifest.yaml
+  usage: 정면 체형 참조
+rig_geometry_constrained: false
+body_proportion_measurement_verified: false
+runtime_adopted: false
+framing: 정면 전신. 머리부터 부츠까지 포함.

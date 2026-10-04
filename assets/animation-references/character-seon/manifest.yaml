@@ -1,8 +1,6 @@
 schema_version: 1
 character_id: seon
-status: rejected
-rejection_reason: '사용자 검수: 성인 5등신 기준 미준수. 전신 및 파생 얼굴 베이스라인 전량 폐기.'
-required_body_proportion_heads: 5
+status: body_approved
 baseline_source: null
 face_reference: null
 retired_assets:
@@ -10,4 +8,10 @@ retired_assets:
   sha256: f9977d8085be319c5d9c580ddd09a8276d137830ebce701e3c6d84f4834b5876
 - path: face-front-v1/character-seon-face-front-v1.png
   sha256: aae06ccc1eb360501e874379343527457d88ed1b61578f90621003cdd42874af
-replacement_status: pending_review
+replacement_status: body_v2_adopted_face_and_four_directions_pending
+retirement_reason: '사용자 검수: 성인 5등신 기준 미준수. 전신 및 파생 얼굴 베이스라인 전량 폐기.'
+body_proportion_reference: anny-neutral-v4
+body_reference:
+  path: body-front-v2/character-seon-body-front-v2.png
+  manifest: body-front-v2/manifest.yaml
+  sha256: 63f10e5caceb04f609159fd3f03db34774c8074b9290fb6a1ef983c1523bdd70

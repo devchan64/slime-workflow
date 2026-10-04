@@ -1,8 +1,6 @@
 schema_version: 1
 character_id: sabel
-status: rejected
-rejection_reason: '사용자 검수: 성인 5등신 기준 미준수. 전신 및 파생 얼굴 베이스라인 전량 폐기.'
-required_body_proportion_heads: 5
+status: body_approved
 baseline_source: null
 face_reference: null
 retired_assets:
@@ -10,4 +8,10 @@ retired_assets:
   sha256: 6aceeca0343cdf8866d3fc8ae659b2877b34358ceb3400bad8c0d39d9b95432a
 - path: face-front-v1/character-sabel-face-front-v1.png
   sha256: bc5e5aa4646f30855fdc613a6704a66441a6bcdc0a0d981b5e55e1b083d33a07
-replacement_status: pending_review
+replacement_status: body_v2_adopted_face_and_four_directions_pending
+retirement_reason: '사용자 검수: 성인 5등신 기준 미준수. 전신 및 파생 얼굴 베이스라인 전량 폐기.'
+body_proportion_reference: anny-neutral-v4
+body_reference:
+  path: body-front-v2/character-sabel-body-front-v2.png
+  manifest: body-front-v2/manifest.yaml
+  sha256: b48bca2175a7d3146391274b16d33f59434a2636990f412661063ff7d7ce55a8

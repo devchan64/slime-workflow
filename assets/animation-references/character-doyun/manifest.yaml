@@ -1,9 +1,11 @@
 schema_version: 1
 character_id: doyun
-status: retired
-required_body_proportion_heads: 5
+status: body_and_face_approved
 baseline_source: null
-face_reference: null
+face_reference:
+  path: face-front-v4/character-doyun-face-front-v4.png
+  manifest: face-front-v4/manifest.yaml
+  sha256: 779a42ebbe4a2948b5561ee7fbf91081226387352b11fc9d7cc0f5762030cd81
 retired_assets:
 - path: baseline-source-v1/character-doyun-four-directions-v1.png
   sha256: 6ee297c36cdd38aabb5a1e951adf228aa9810d204cd98b1a57afbecace99f359
@@ -27,6 +29,10 @@ retired_assets:
   sha256: d2c709a0e50600fc027c76a749f21fb2aa9103f4abaf3501c19033bb05cb22dc
   reason: 사용자 지시로 등록 베이스라인 폐기
   retired_at: '2026-10-04'
-replacement_status: pending_regeneration
+replacement_status: body_v3_face_v4_adopted_four_directions_pending
 retirement_reason: 2026-10-04 사용자 지시로 얼굴·전신·4방향 등록 베이스라인 폐기.
-body_reference: null
+body_reference:
+  path: body-front-v3/character-doyun-body-front-v3.png
+  manifest: body-front-v3/manifest.yaml
+  sha256: 3ae4aa2cd40698afd30019b0a3c8b29f43e17ab67bc329340d99ed8bcbcef85e
+body_proportion_reference: anny-neutral-v4

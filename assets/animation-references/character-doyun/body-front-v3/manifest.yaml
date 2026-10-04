@@ -1,0 +1,23 @@
+schema_version: 1
+asset_id: character-doyun-body-front
+version: 3
+character_id: doyun
+status: user_approved
+role: front_body_baseline_reference
+image: character-doyun-body-front-v3.png
+sha256: 3ae4aa2cd40698afd30019b0a3c8b29f43e17ab67bc329340d99ed8bcbcef85e
+width: 1176
+height: 1337
+background: transparent
+generator: Codex imagegen
+source_path: .tmp/test/doyun-anny-front/2026-10-04_18-19-16/character-doyun-body-front-candidate.png
+rig_origin:
+  asset_id: anny-neutral
+  version: 4
+  manifest: assets/animation-models/anny-neutral-v4/manifest.yaml
+  usage: 정면 렌더의 체형과 자세 참조
+style_reference: assets/animation-references/character-tesa/body-front-v2/character-tesa-body-front-v2.png
+rig_geometry_constrained: false
+body_proportion_measurement_verified: false
+runtime_adopted: false
+framing: 정면 전신. 머리부터 부츠까지 포함.

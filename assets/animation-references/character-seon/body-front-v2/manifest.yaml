@@ -1,0 +1,23 @@
+schema_version: 1
+asset_id: character-seon-body-front
+version: 2
+character_id: seon
+status: user_approved
+role: front_body_baseline_reference
+image: character-seon-body-front-v2.png
+sha256: 63f10e5caceb04f609159fd3f03db34774c8074b9290fb6a1ef983c1523bdd70
+width: 1176
+height: 1338
+background: transparent
+generator: Codex imagegen
+source_path: .tmp/test/seon-armor-physique/2026-10-04_18-32-43/character-seon-body-front-candidate.png
+approved_at: '2026-10-04'
+rig_origin:
+  asset_id: anny-neutral
+  version: 4
+  manifest: assets/animation-models/anny-neutral-v4/manifest.yaml
+  usage: 정면 참조로 생성한 후보의 체형·방어복 보정
+rig_geometry_constrained: false
+body_proportion_measurement_verified: false
+runtime_adopted: false
+framing: 정면 전신. 머리부터 부츠까지 포함.

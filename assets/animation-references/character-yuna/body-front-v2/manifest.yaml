@@ -1,0 +1,23 @@
+schema_version: 1
+asset_id: character-yuna-body-front
+version: 2
+character_id: yuna
+status: user_approved
+role: front_body_baseline_reference
+image: character-yuna-body-front-v2.png
+sha256: 520fcc232a1ff8f37f6bbe80db0550e40bf1ff5dc06cbd0c33fe5cb1ff40ce41
+width: 1176
+height: 1338
+background: transparent
+source_path: /tmp/codex-clipboard-f505890e-9d19-43e2-8f8d-bf251b7e9536.png
+source_type: user_selected_attachment
+approved_at: '2026-10-04'
+rig_origin:
+  asset_id: anny-neutral
+  version: 4
+  manifest: assets/animation-models/anny-neutral-v4/manifest.yaml
+  usage: ANNY 정면 참조에서 파생한 전신의 얼굴·헤어 보정 후 사용자 첨부본 채택
+rig_geometry_constrained: false
+body_proportion_measurement_verified: false
+runtime_adopted: false
+framing: 정면 전신. 머리부터 부츠까지 포함.

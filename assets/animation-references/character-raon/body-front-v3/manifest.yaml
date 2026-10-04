@@ -1,0 +1,23 @@
+schema_version: 1
+asset_id: character-raon-body-front
+version: 3
+character_id: raon
+status: user_approved
+role: front_body_baseline_reference
+image: character-raon-body-front-v3.png
+sha256: 9ff18e549a8fafe48cac9b8881ceb5ad649267d13937a38e7a862eae572486f7
+width: 1175
+height: 1338
+background: transparent
+generator: Codex imagegen
+source_path: .tmp/test/raon-anny-proportion/2026-10-04_19-06-44/character-raon-body-front-candidate.png
+approved_at: '2026-10-04'
+rig_origin:
+  asset_id: anny-neutral
+  version: 4
+  manifest: assets/animation-models/anny-neutral-v4/manifest.yaml
+  usage: ANNY 정면 비율을 우선 참조하고 몸통·팔다리 폭과 두께 확대
+rig_geometry_constrained: false
+body_proportion_measurement_verified: false
+runtime_adopted: false
+framing: 정면 전신. 머리부터 부츠까지 포함.

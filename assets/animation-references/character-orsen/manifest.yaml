@@ -1,8 +1,6 @@
 schema_version: 1
 character_id: orsen
-status: rejected
-rejection_reason: '사용자 검수: 성인 5등신 기준 미준수. 전신 및 파생 얼굴 베이스라인 전량 폐기.'
-required_body_proportion_heads: 5
+status: body_approved
 baseline_source: null
 face_reference: null
 retired_assets:
@@ -10,4 +8,10 @@ retired_assets:
   sha256: eda32e2c66164085c284f2e6168ce3a191c93e2e47d6d5255d1119fd0ac174a1
 - path: face-front-v1/character-orsen-face-front-v1.png
   sha256: d4575ec79a86fd1fa708c8a83dcc45616f07cb30a53f911f16ee830d97654cfc
-replacement_status: pending_review
+replacement_status: body_v2_adopted_face_and_four_directions_pending
+retirement_reason: '사용자 검수: 성인 5등신 기준 미준수. 전신 및 파생 얼굴 베이스라인 전량 폐기.'
+body_proportion_reference: anny-neutral-v4
+body_reference:
+  path: body-front-v2/character-orsen-body-front-v2.png
+  manifest: body-front-v2/manifest.yaml
+  sha256: 982bc737132b1e03abd2f220b525612e822db32b365bd1d2342ab374fbd02332

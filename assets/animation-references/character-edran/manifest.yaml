@@ -1,8 +1,6 @@
 schema_version: 1
 character_id: edran
-status: rejected
-rejection_reason: '사용자 검수: 성인 5등신 기준 미준수. 전신 및 파생 얼굴 베이스라인 전량 폐기.'
-required_body_proportion_heads: 5
+status: body_approved
 baseline_source: null
 face_reference: null
 retired_assets:
@@ -10,4 +8,10 @@ retired_assets:
   sha256: c92db0dbf79f569a84cc98bfe03b698b42f60fe622bbbf33bda1781524bb739c
 - path: face-front-v1/character-edran-face-front-v1.png
   sha256: 7fc636b635a5f9e6cd5b86216579bce476e263bb2a2422e947f2124c9ce1d8f6
-replacement_status: pending_review
+replacement_status: body_v2_adopted_face_and_four_directions_pending
+retirement_reason: '사용자 검수: 성인 5등신 기준 미준수. 전신 및 파생 얼굴 베이스라인 전량 폐기.'
+body_proportion_reference: anny-neutral-v4
+body_reference:
+  path: body-front-v2/character-edran-body-front-v2.png
+  manifest: body-front-v2/manifest.yaml
+  sha256: 0578af024079149092f24d6bb1480d8978612903d4120beb0b8a2f6281157d1a
