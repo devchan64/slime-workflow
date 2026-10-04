@@ -79,6 +79,6 @@ def select_sprite_source_prefix(asset_relative_path):
         raise ValueError('스프라이트 원본 경로 오류')
     if re.fullmatch(r'assets/characters/[\w-]+/(animations|battle-cutins|emotion-cutins)/[\w./-]+', asset_relative_path):
         return 'assets/characters'
-    if re.fullmatch(r'assets/sprites/(monsters|structures)/[\w./-]+', asset_relative_path):
+    if re.fullmatch(r'assets/sprites/(effects|monsters|structures)/[\w./-]+', asset_relative_path):
         return 'assets/sprites'
     raise ValueError(f'스프라이트 원본 경로 오류: {asset_relative_path}')

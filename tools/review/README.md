@@ -66,7 +66,7 @@ HTTP URL, 페이지 해시, CLI 명령, `.tmp` 생성 ID·기록 경로와 `asse
 
 ## 공용 이미지 처리
 
-게임 UI 검수의 신규·수정 작업은 [공용 렌더링 전환 기준](../../workflows/management-ui.md#게임-ui-검수의-렌더링-기준)을 따른다. 게임과 동일한 렌더링 라이브러리를 재사용하고, 프론트엔드 전체 검수 빌드·복사 의존은 단계적으로 줄인다. 필드맵 고도·투영은 공통 모듈로 전환했으며 마을과 다른 게임 UI의 `build:review` 경로는 아직 전환 전 상태다.
+게임 UI 검수의 신규·수정 작업은 [공용 렌더링 전환 기준](../../workflows/management-ui.md#게임-ui-검수의-렌더링-기준)을 따른다. 게임과 동일한 렌더링 라이브러리를 재사용하고, 프론트엔드 전체 검수 빌드·복사 의존은 단계적으로 줄인다. 필드 지면·고도·결계는 공용 Phaser 렌더러로 전환했으며 마을과 다른 게임 UI의 `build:review` 경로는 아직 전환 전 상태다.
 
 [이미지 엣지 검출·보더 크롭](common/image_borders.md)은 타일 외에도 검은 프레임을 가진 불투명 RGB/RGBA 이미지에서 재사용할 수 있다. 원본 경계 검출과 크롭·보더 계산을 별도 모듈로 관리하며 저장·등록은 호출자가 담당한다.
 
@@ -82,13 +82,13 @@ HTTP URL, 페이지 해시, CLI 명령, `.tmp` 생성 ID·기록 경로와 `asse
 
 맵·타일 원본, 에셋 등록부, 프론트엔드 에셋 잠금 목록은 GUI 재시작 감시에서 제외한다. 맵 검수는 화면을 다시 열거나 새로고침할 때 `/management/map-assets/textures`에서 최신 카탈로그·버전·해시를 읽고 맵·이미지를 원본 API로 조회한다. API는 `no-store`로 제공하며 매 요청에서 등록 여부와 SHA-256을 검증한다. 열린 화면에 자동으로 변경을 주입하지 않는다. 소스·UI·생성기 설정 변경의 재시작은 유지한다. 이 규칙은 맵·타일 직접 조회에 적용하며 정적 캐릭터 검수 패키지의 재게시를 대체하지 않는다.
 
-### 필드 고도 공통 라이브러리
+### 필드 공용 렌더링 라이브러리
 
-필드 검수는 `@slime/field-surface` 1.0.2을 사용한다. 원본은 `slime-frontend/packages/field-surface/`이며 게임의 `terrain/elevation.ts`도 같은 모듈로 지면 중심·절벽·계단 면을 계산한다. 검수의 버전 고정 배포본은 `ui/map/vendor/field-surface/1.0.2/`에 추적하고 `manifest.yaml`의 SHA-256을 게시 전에 검증한다. 프론트엔드 전체 빌드 없이 해당 ES 모듈만 전달한다. 모듈 변경 시 새 버전 디렉터리·manifest·소비 import를 함께 갱신하며 기존 배포 버전을 덮어쓰지 않는다.
+필드 검수는 게임과 같은 `@slime/field-renderer` 1.0.0과 Phaser 3.90.0을 사용한다. 원본은 `slime-frontend/packages/field-renderer/`이며 `field-surface` 1.0.5의 좌표 계약을 포함한다. `ui/map/vendor/field-renderer/1.0.0/`의 ES 모듈과 엔진 배포본은 `manifest.yaml`의 SHA-256을 게시 전에 검증한다. 게임의 `npm run build:field-renderer`로 만든 배포본만 명시적으로 전달하며 관리도구가 게임 소스를 런타임에 읽거나 게임 전체를 빌드하지 않는다. 배포 후 수정은 새 버전으로 전달한다.
 
-`field-map-renderer.js`는 공통 면 좌표를 사용하는 Canvas 어댑터다. 원본 API의 숫자 고도 격자·계단 좌표로 80×40 필드 타일, 단계당 32px 고도, 16px 외곽 두께를 표현한다. 회전 시 셀 깊이 순서로 지면·암벽·계단·캐릭터를 그리고 역순으로 클릭 판정한다. 절벽 측면 클릭은 뒤쪽 지면 선택으로 통과시키지 않는다. 마을 렌더링과 다른 게임 UI의 기존 빌드 경로는 아직 전환 대상이다.
+`field-map-renderer.js`는 공용 면 목록을 이용해 범위·클릭 판정만 수행한다. `field-map-view.js`는 Phaser Scene에 에셋과 표시 설정을 연결한다. 실제 지면·암벽·계단·결계탑·오러는 공용 라이브러리가 그리며 별도 Canvas 필드 그리기는 사용하지 않는다. 80×40 타일, 단계당 32px 고도, 16px 외곽 두께를 유지한다. `결계탑 · 결계 오러`와 `메시 경계`로 높이 25px의 외곽 패널·삼각형 분할을 검사한다. 접촉 셀 내부의 오러와 바닥 음영은 생성하지 않는다. 캐릭터 재생·전투 표시·마을 건물은 아직 별도 소비자 구현이다.
 
-맵·타일은 요청 시 등록 원본을 읽으므로 배치·고도·이미지 변경에 프론트엔드 빌드가 필요하지 않다. 라이브러리 또는 검수 어댑터 코드 변경은 관리도구 정적 UI 게시 대상이다. 검증은 프론트엔드 `node scripts/run-regression.mjs tests/elevation.test.mjs tests/field-surface.test.mjs`와 워크플로우 `tools.review.tests.test_map_asset_sources`를 사용한다.
+맵·타일은 요청 시 등록 원본을 읽으므로 배치·고도·이미지 변경에 프론트엔드 빌드가 필요하지 않다. 결계탑·오러 스프라이트는 등록부 해시를 검증한 검수 사본과 출처를 게시한다. 라이브러리 또는 검수 어댑터 코드 변경은 관리도구 정적 UI 게시 대상이다. 검증은 프론트엔드 `node scripts/run-regression.mjs --with-checks tests/field-renderer.test.mjs tests/elevation.test.mjs tests/field-surface.test.mjs`와 워크플로우 `tools.review.tests.test_map_asset_sources`, `tools.review.tests.test_map_render_profiles`를 사용한다.
 
 ### 경비센터 표시 원본
 

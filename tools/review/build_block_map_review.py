@@ -123,6 +123,23 @@ def load_current_texture_records():
     return exported_texture_records
 
 
+def build_field_safe_visual_records(texture_output_directory):
+    """필드맵 검수에서 게임과 같은 결계탑·외곽 오러를 그릴 수 있게 등록 원본을 게시한다."""
+    safe_tower_source_path, safe_tower_provenance = resolve_registered_sprite('assets/sprites/structures/ward-tower-v1.png')
+    safe_aura_source_path, safe_aura_provenance = resolve_registered_sprite('assets/sprites/effects/safe-barrier/safe-barrier-aura-v1-source.png')
+    safe_tower_output_path = texture_output_directory/'review-safe-tower.png'
+    safe_aura_output_path = texture_output_directory/'review-safe-barrier-aura.png'
+    shutil.copy2(safe_tower_source_path,safe_tower_output_path)
+    shutil.copy2(safe_aura_source_path,safe_aura_output_path)
+    with Image.open(safe_tower_source_path) as safe_tower_image, Image.open(safe_aura_source_path) as safe_aura_image:
+        safe_tower_size=list(safe_tower_image.size)
+        safe_aura_size=list(safe_aura_image.size)
+    return {
+        'tower':{'image':'textures/'+safe_tower_output_path.name+'?v='+safe_tower_provenance['sha256'],'sourceSize':safe_tower_size,'provenance':safe_tower_provenance},
+        'aura':{'image':'textures/'+safe_aura_output_path.name+'?v='+safe_aura_provenance['sha256'],'sourceSize':safe_aura_size,'provenance':safe_aura_provenance},
+    }
+
+
 def build_block_map_review(output_directory_path):
     output_directory_path=Path(output_directory_path).resolve()
     if not output_directory_path.is_relative_to(WORKFLOW_ROOT_DIRECTORY/'.tmp'):
@@ -133,6 +150,7 @@ def build_block_map_review(output_directory_path):
     output_directory_path.mkdir(parents=True,exist_ok=True)
     texture_output_directory=output_directory_path/'textures'
     texture_output_directory.mkdir(exist_ok=True)
+    (output_directory_path/'field-safe-visuals.json').write_text(json.dumps(build_field_safe_visual_records(texture_output_directory),ensure_ascii=False))
     prefab_source_records=yaml.safe_load((source_asset_directory/'building-prefabs.yaml').read_text())['prefabs']
     building_tile_records={current_prefab_record['id']:{'roof':current_prefab_record['roof_tile'],'wall':current_prefab_record['ground_floor_plain_wall_tile'],'window':current_prefab_record['ground_floor_small_window_wall_tile'],'large_window':current_prefab_record['upper_floor_large_window_wall_tile'],'roof_underlay':current_prefab_record.get('roof_underlay_wall_tile',current_prefab_record['ground_floor_plain_wall_tile']),'door':current_prefab_record['door_tile']} for current_prefab_record in prefab_source_records}
     building_tile_records['stonewarm-guild'] = {'roof': 'stonewarm-guild-red-stone-roof'}
@@ -170,6 +188,15 @@ def build_block_map_review(output_directory_path):
     shutil.copy2(source_ui_directory/'block-map-review.html',output_directory_path/'map-review.html')
     shutil.copy2(source_ui_directory/'block-map-review.js',output_directory_path/'block-map-review.js')
     shutil.copy2(source_ui_directory/'field-map-renderer.js',output_directory_path/'field-map-renderer.js')
+    shutil.copy2(source_ui_directory/'field-map-view.js',output_directory_path/'field-map-view.js')
+    field_renderer_directory=source_ui_directory/'vendor/field-renderer/1.0.0'
+    field_renderer_manifest=yaml.safe_load((field_renderer_directory/'manifest.yaml').read_text())
+    if set(field_renderer_manifest['files'])!={'field-renderer.mjs','phaser.mjs','LICENSE.phaser.md'}:
+        raise ValueError('필드 렌더러 배포 파일 목록 오류')
+    for renderer_file_name,renderer_file_hash in field_renderer_manifest['files'].items():
+        if hashlib.sha256((field_renderer_directory/renderer_file_name).read_bytes()).hexdigest()!=renderer_file_hash:
+            raise ValueError('필드 렌더러 배포본 해시 불일치: '+renderer_file_name)
+    shutil.copytree(field_renderer_directory,output_directory_path/'vendor/field-renderer/1.0.0',dirs_exist_ok=True)
     # 버전 고정 라이브러리만 게시한다. 프론트엔드 소스·전체 빌드를 읽지 않는다.
     shared_library_directory = source_ui_directory/'vendor/field-surface/1.0.5'
     shared_library_manifest = yaml.safe_load((shared_library_directory/'manifest.yaml').read_text())
