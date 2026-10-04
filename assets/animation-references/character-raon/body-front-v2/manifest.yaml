@@ -1,0 +1,14 @@
+schema_version: 1
+asset_id: character-raon-body-front
+version: 2
+character_id: raon
+role: approved_body_reference
+status: user_approved
+image: character-raon-body-front-v2.png
+sha256: b30be50493044b1f4f3b25cc3875fdbc7f7e0a2bf85577deb065f07ef975c8f9
+source_path: .tmp/test/raon-anny-baseline/2026-10-04_15-53-50/character-raon-front-candidate.png
+generator: Codex imagegen
+rig_origin: anny-neutral-v4
+rig_geometry_constrained: false
+runtime_adopted: false
+approval_scope: 정면 전신 체형

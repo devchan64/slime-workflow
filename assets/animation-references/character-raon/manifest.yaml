@@ -1,13 +1,20 @@
 schema_version: 1
 character_id: raon
-status: rejected
-rejection_reason: '사용자 검수: 성인 5등신 기준 미준수. 전신 및 파생 얼굴 베이스라인 전량 폐기.'
+status: body_and_face_approved
 required_body_proportion_heads: 5
 baseline_source: null
-face_reference: null
+face_reference:
+  path: face-front-v2/character-raon-face-front-v2.png
+  manifest: face-front-v2/manifest.yaml
+  sha256: 5b88fea49dcac35de42968be0cc576795c6ad220a96ae43794a8b6d05c7650ce
 retired_assets:
 - path: baseline-source-v1/character-raon-four-directions-v1.png
   sha256: d64325d34b62c61a348acdd450605521d61c76b9e8429287a2efd7a2b72bdb97
 - path: face-front-v1/character-raon-face-front-v1.png
   sha256: 2951f29215bb8403381d5d4c9416a10b269e918f0562c779f80101debd711c38
-replacement_status: pending_review
+replacement_status: face_v2_adopted_four_directions_pending
+retirement_reason: '사용자 검수: 성인 5등신 기준 미준수. 전신 및 파생 얼굴 베이스라인 전량 폐기.'
+body_reference:
+  path: body-front-v2/character-raon-body-front-v2.png
+  manifest: body-front-v2/manifest.yaml
+  sha256: b30be50493044b1f4f3b25cc3875fdbc7f7e0a2bf85577deb065f07ef975c8f9
