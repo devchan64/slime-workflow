@@ -464,3 +464,7 @@ python3 tools/manager.py command seamless-tile resume 생성_ID
 ```
 
 기본·보정 문구는 Git 추적 설정 seamless_pattern.yaml에 두고 각 작업에 실제 원문·단어 수·해시를 저장한다. 후보는 자동 등록하지 않는다. 1~4단계 실행 후 검수 대기하므로 검수 전 불필요한 후속 GPU 비용을 피한다.
+
+## 애니메이션 분리 생성기
+
+`animation-separation` 서비스의 GUI·CLI 명령, 샘플 검수 조건과 산출물은 [애니메이션 분리 사용 안내](animation-separation.md)를 따른다. Qwen 2.1로 등록 애니메이션의 머리·신체 후보를 생성하며 공용 GPU 대기열과 이력을 사용한다.

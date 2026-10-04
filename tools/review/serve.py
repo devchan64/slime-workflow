@@ -317,6 +317,7 @@ def run_review_server(parsed_argument_values):
             ('/management/frame/momask-generator/',parsed_argument_values.port+101,lambda:ensure_gradio_server(parsed_argument_values.port)),
             ('/management/frame/character-animation/',parsed_argument_values.port+102,lambda:ensure_character_animation_server(parsed_argument_values.port)),
             ('/management/frame/image-generator/',parsed_argument_values.port+103,lambda:ensure_qwen_2512_server(parsed_argument_values.port)),
+            ('/management/frame/animation-separation/',parsed_argument_values.port+117,lambda:ensure_gradio_application(parsed_argument_values.port,'animation-separation')),
             ('/management/frame/qwen-21-generator/',parsed_argument_values.port+116,lambda:ensure_gradio_application(parsed_argument_values.port,'qwen-21')),
             ('/management/frame/seamless-tile-generator/',parsed_argument_values.port+115,lambda:ensure_gradio_application(parsed_argument_values.port,'seamless-tile')),
             ('/management/frame/expression-generator/',parsed_argument_values.port+114,lambda:ensure_gradio_application(parsed_argument_values.port,'expression')),
