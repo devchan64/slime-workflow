@@ -1,0 +1,8 @@
+schema_version: 1
+character_id: seon
+status: user_approved
+image: character-seon-face-front-v1.png
+sha256: ca3dab43a6ed786948e7715fdf6520af148367d7557289642a8710686db1eff7
+background: transparent
+generator: Codex imagegen
+source_reference: ../body-front-v2/character-seon-body-front-v2.png

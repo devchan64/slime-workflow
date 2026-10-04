@@ -1,0 +1,8 @@
+schema_version: 1
+character_id: raon
+status: user_approved
+image: character-raon-face-front-v1.png
+sha256: d195833c33606562ad6cf3d85235e232a223be5bd9eaded0db761c66b9215e01
+background: transparent
+generator: Codex imagegen
+source_reference: ../body-front-v3/character-raon-body-front-v3.png

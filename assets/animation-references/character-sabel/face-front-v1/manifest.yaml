@@ -1,0 +1,8 @@
+schema_version: 1
+character_id: sabel
+status: user_approved
+image: character-sabel-face-front-v1.png
+sha256: 1a7792c26b12b15a72b80701fc0670464d708a681714f1837944147a27b20339
+background: transparent
+generator: Codex imagegen
+source_reference: ../body-front-v2/character-sabel-body-front-v2.png

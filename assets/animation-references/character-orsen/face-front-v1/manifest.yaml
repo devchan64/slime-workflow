@@ -1,0 +1,8 @@
+schema_version: 1
+character_id: orsen
+status: user_approved
+image: character-orsen-face-front-v1.png
+sha256: 92ca6eb1a9071ade51ea22d0a5d7c8df0587feeb15e1fb0b35a1290cfcd1a53e
+background: transparent
+generator: Codex imagegen
+source_reference: ../body-front-v2/character-orsen-body-front-v2.png

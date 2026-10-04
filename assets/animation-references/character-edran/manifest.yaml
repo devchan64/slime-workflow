@@ -5,7 +5,10 @@ baseline_source:
   path: baseline-source-v1/character-edran-four-directions-v1.png
   metadata: baseline-source-v1/character-edran-four-directions-v1.yaml
   sha256: 1f65a568742f36dcb901d6188a88295c6a8732887f3d09ff57db8c937052584a
-face_reference: null
+face_reference:
+  path: face-front-v1/character-edran-face-front-v1.png
+  manifest: face-front-v1/manifest.yaml
+  sha256: 180e56c846c721b18469fc7116b515fc7978c578f64fec9134acccf655449aaa
 retired_assets:
 - path: baseline-source-v1/character-edran-four-directions-v1.png
   sha256: c92db0dbf79f569a84cc98bfe03b698b42f60fe622bbbf33bda1781524bb739c

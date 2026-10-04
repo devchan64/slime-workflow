@@ -5,7 +5,10 @@ baseline_source:
   path: baseline-source-v1/character-seon-four-directions-v1.png
   metadata: baseline-source-v1/character-seon-four-directions-v1.yaml
   sha256: d356b960227d99c038d4051a0952a35cf9bfda94877e1707a9ce2176082826ad
-face_reference: null
+face_reference:
+  path: face-front-v1/character-seon-face-front-v1.png
+  manifest: face-front-v1/manifest.yaml
+  sha256: ca3dab43a6ed786948e7715fdf6520af148367d7557289642a8710686db1eff7
 retired_assets:
 - path: baseline-source-v1/character-seon-four-directions-v1.png
   sha256: f9977d8085be319c5d9c580ddd09a8276d137830ebce701e3c6d84f4834b5876

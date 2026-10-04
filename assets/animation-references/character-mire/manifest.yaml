@@ -5,7 +5,10 @@ baseline_source:
   path: baseline-source-v1/character-mire-four-directions-v1.png
   metadata: baseline-source-v1/character-mire-four-directions-v1.yaml
   sha256: b9b4ac84f5a97e72f5d8ef2206c9e9711b0d1a7ff059744e494d3a168d0cb0da
-face_reference: null
+face_reference:
+  path: face-front-v1/character-mire-face-front-v1.png
+  manifest: face-front-v1/manifest.yaml
+  sha256: 18b1e16c2e440f80b1a88b46877b207b3c05b8c2c98c5589d51785dac23add41
 retired_assets:
 - path: baseline-source-v1/character-mire-four-directions-v1.png
   sha256: 49aa6d6d5d4ad32f0c815bd646335d2bb06fb0381d82173e59732a819f2a5185

@@ -1,0 +1,8 @@
+schema_version: 1
+character_id: edran
+status: user_approved
+image: character-edran-face-front-v1.png
+sha256: 180e56c846c721b18469fc7116b515fc7978c578f64fec9134acccf655449aaa
+background: transparent
+generator: Codex imagegen
+source_reference: ../body-front-v2/character-edran-body-front-v2.png

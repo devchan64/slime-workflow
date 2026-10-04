@@ -5,7 +5,10 @@ baseline_source:
   path: baseline-source-v1/character-serk-four-directions-v1.png
   metadata: baseline-source-v1/character-serk-four-directions-v1.yaml
   sha256: b8d1c20ab2eccedc4f7adf3c97e8e145404d5616b1af2ddd411bf05b0dfcc125
-face_reference: null
+face_reference:
+  path: face-front-v1/character-serk-face-front-v1.png
+  manifest: face-front-v1/manifest.yaml
+  sha256: 50089b047033c468dbf1ec88c341a03310ab95a2dc56ccc4991d25dd364da3bc
 retired_assets:
 - path: baseline-source-v1/character-serk-four-directions-v1.png
   sha256: 947987953c523d5f4dbeb45c04ab5256b63d081a2544d946758f32ac201b120d

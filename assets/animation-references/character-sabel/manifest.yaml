@@ -5,7 +5,10 @@ baseline_source:
   path: baseline-source-v1/character-sabel-four-directions-v1.png
   metadata: baseline-source-v1/character-sabel-four-directions-v1.yaml
   sha256: 2dde3d6c5b7584b21923b66dda996b8f45272d0469f909779bfa703475fefba1
-face_reference: null
+face_reference:
+  path: face-front-v1/character-sabel-face-front-v1.png
+  manifest: face-front-v1/manifest.yaml
+  sha256: 1a7792c26b12b15a72b80701fc0670464d708a681714f1837944147a27b20339
 retired_assets:
 - path: baseline-source-v1/character-sabel-four-directions-v1.png
   sha256: 6aceeca0343cdf8866d3fc8ae659b2877b34358ceb3400bad8c0d39d9b95432a

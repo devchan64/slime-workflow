@@ -5,7 +5,10 @@ baseline_source:
   path: baseline-source-v1/character-raon-four-directions-v1.png
   metadata: baseline-source-v1/character-raon-four-directions-v1.yaml
   sha256: cafd8c1e256a4ce72992b466643daa58774c866b29b34e0ec323e93ac17b4ed1
-face_reference: null
+face_reference:
+  path: face-front-v1/character-raon-face-front-v1.png
+  manifest: face-front-v1/manifest.yaml
+  sha256: d195833c33606562ad6cf3d85235e232a223be5bd9eaded0db761c66b9215e01
 body_reference:
   path: body-front-v3/character-raon-body-front-v3.png
   manifest: body-front-v3/manifest.yaml
