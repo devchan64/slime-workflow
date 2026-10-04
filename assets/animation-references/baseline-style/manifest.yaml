@@ -1,0 +1,23 @@
+schema_version: 1
+preset_id: character-design-painterly-fantasy-v1
+status: adopted_production_asset
+description_ko: 워크플로우 에셋 베이스라인의 기본 화풍 설명 프롬프트
+usage:
+  mode: standalone_style_description
+  instructions_ko: 공통 화풍 설명에 캐릭터별 특징과 작업별 구도 지시를 추가한다.
+  runtime_integration_ko: 기존 생성기의 자동 로딩·모델 선택·기본 실행값은 변경하지 않는다.
+task_suffixes:
+  face_front: Straight front view, neutral expression, entire hairstyle and head through neck only, transparent
+    background, no shoulders or clothing.
+review_criteria_ko:
+- 큰 눈과 단순화된 작은 코·입, 부드럽게 좁아지는 턱선을 유지한다.
+- 머리카락은 덩어리 단위의 회화적 명암으로 표현한다.
+- 매끄러운 색면과 부드러운 명암을 사용하고 사진 같은 모공·수염 낱가닥 묘사를 피한다.
+- 성인 표현을 이유로 큰 눈과 양식화된 얼굴 비례를 억제하지 않는다.
+- 캐릭터 고유의 눈 색·머리 모양·이목구비를 유지한다.
+- 전신 제작 시 승인된 리그·신체 비율을 유지한다.
+- 얼굴 수정 후 전신·방향별 얼굴의 화풍과 정체성 일치를 확인한다.
+prompt_policy_ko: Qwen에 사용할 경우 방향·변수·개별 특징까지 조합한 실제 입력 전체를 100단어 미만으로 유지한다.
+base_prompt_path: base-prompt.txt
+base_prompt_path_base: manifest_directory
+base_prompt_sha256: 0cac9273c34220033133160c9b4ec71afbb5c0cf32113be193c6ac64cc8d4bbb
