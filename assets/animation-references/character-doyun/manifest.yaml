@@ -3,19 +3,25 @@ character_id: doyun
 status: user_approved
 required_body_proportion_heads: 5
 baseline_source:
-  path: baseline-source-v2/character-doyun-four-directions-v2.png
-  metadata: baseline-source-v2/character-doyun-four-directions-v2.yaml
-  sha256: e3673467234d25ea5e73edd364b2214770be3c54353e5b06a8e84ff20ea771ee
+  path: baseline-source-v3/character-doyun-four-directions-v3.png
+  metadata: baseline-source-v3/character-doyun-four-directions-v3.yaml
+  sha256: 605bd2abdb80132459038b408aebec94f49894993050b01ea4b2967b21282188
 face_reference:
-  path: face-front-v2/character-doyun-face-front-v2.png
-  manifest: face-front-v2/manifest.yaml
-  sha256: b90d1f7a18a41d311d33fac0776770d5303182da8c8467feb97cece0fab89dea
+  path: face-front-v3/character-doyun-face-front-v3.png
+  manifest: face-front-v3/manifest.yaml
+  sha256: 9cc3c86fb26dcca6bbcde7dcb9b0e36759aae61700aad7aedbb59490a42816d3
 retired_assets:
 - path: baseline-source-v1/character-doyun-four-directions-v1.png
   sha256: 6ee297c36cdd38aabb5a1e951adf228aa9810d204cd98b1a57afbecace99f359
 - path: face-front-v1/character-doyun-face-front-v1.png
   sha256: bf062ce187fa0cc39e022574ce11674bf1359565c536a1c4c2089b5b6973a0de
-replacement_status: adopted_v2
+- path: face-front-v2/character-doyun-face-front-v2.png
+  sha256: b90d1f7a18a41d311d33fac0776770d5303182da8c8467feb97cece0fab89dea
+  reason: 사용자 지시로 새 화풍 얼굴 v3 등록 및 기존 얼굴 삭제
+- path: baseline-source-v2/character-doyun-four-directions-v2.png
+  sha256: e3673467234d25ea5e73edd364b2214770be3c54353e5b06a8e84ff20ea771ee
+  reason: 사용자 지시로 얼굴 v3와 새 복장을 적용한 4방향 v3 교체 등록
+replacement_status: adopted_v3
 retirement_reason: '사용자 검수: 성인 5등신 기준 미준수. 전신 및 파생 얼굴 베이스라인 전량 폐기.'
 body_reference:
   path: body-front-v2/character-doyun-body-front-v2.png
