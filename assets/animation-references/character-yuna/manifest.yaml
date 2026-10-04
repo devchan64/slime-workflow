@@ -1,10 +1,19 @@
 schema_version: 1
 character_id: yuna
+status: user_approved
+required_body_proportion_heads: 5
 baseline_source:
-  path: baseline-source-v1/character-yuna-four-directions-v1.png
-  metadata: baseline-source-v1/character-yuna-four-directions-v1.yaml
-  sha256: 202ad98b8ce36e94806a8124443f7c6211672a8c25271db28482fa5bcccf21a1
+  path: baseline-source-v2/character-yuna-four-directions-v2.png
+  metadata: baseline-source-v2/character-yuna-four-directions-v2.yaml
+  sha256: adc820ce9909f66ea0fe82566f440c9e26b789b3197c2a9f96dd6a7dc3cadfe0
 face_reference:
-  path: face-front-v1/character-yuna-face-front-v1.png
-  manifest: face-front-v1/manifest.yaml
+  path: face-front-v2/character-yuna-face-front-v2.png
+  manifest: face-front-v2/manifest.yaml
+  sha256: e52285d29f7e57b70009ac9c68bb4b07d0efc3189f102f19fb8d74fdc13e4383
+retired_assets:
+- path: baseline-source-v1/character-yuna-four-directions-v1.png
+  sha256: 202ad98b8ce36e94806a8124443f7c6211672a8c25271db28482fa5bcccf21a1
+- path: face-front-v1/character-yuna-face-front-v1.png
   sha256: c155cc433ddcf11c9943de0ed577b0085470d846d95ee5ddc0bc66067488f45f
+replacement_status: adopted_v2
+retirement_reason: '사용자 검수: 성인 5등신 기준 미준수. 전신 및 파생 얼굴 베이스라인 전량 폐기.'

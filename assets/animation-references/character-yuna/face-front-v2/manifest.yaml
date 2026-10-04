@@ -1,0 +1,20 @@
+schema_version: 1
+asset_id: character-yuna-face-front
+version: 2
+character_id: yuna
+role: front_face_identity_reference
+status: user_approved
+image: character-yuna-face-front-v2.png
+sha256: e52285d29f7e57b70009ac9c68bb4b07d0efc3189f102f19fb8d74fdc13e4383
+width: 1176
+height: 1337
+background: transparent
+generator: Codex imagegen
+source_path: .tmp/test/yuna-face-neck/2026-10-04_15-41-01/character-yuna-face-neck-front-candidate.png
+rig_origin:
+  asset_id: anny-neutral
+  version: 4
+  manifest: assets/animation-models/anny-neutral-v4/manifest.yaml
+  usage: 정면 렌더를 참조한 외형 후보에서 파생
+runtime_adopted: false
+framing: 정면 머리와 목만. 어깨·가슴·의상 제외.

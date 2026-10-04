@@ -1,10 +1,13 @@
 schema_version: 1
 character_id: edran
-baseline_source:
-  path: baseline-source-v1/character-edran-four-directions-v1.png
-  metadata: baseline-source-v1/character-edran-four-directions-v1.yaml
+status: rejected
+rejection_reason: '사용자 검수: 성인 5등신 기준 미준수. 전신 및 파생 얼굴 베이스라인 전량 폐기.'
+required_body_proportion_heads: 5
+baseline_source: null
+face_reference: null
+retired_assets:
+- path: baseline-source-v1/character-edran-four-directions-v1.png
   sha256: c92db0dbf79f569a84cc98bfe03b698b42f60fe622bbbf33bda1781524bb739c
-face_reference:
-  path: face-front-v1/character-edran-face-front-v1.png
-  manifest: face-front-v1/manifest.yaml
+- path: face-front-v1/character-edran-face-front-v1.png
   sha256: 7fc636b635a5f9e6cd5b86216579bce476e263bb2a2422e947f2124c9ce1d8f6
+replacement_status: pending_review

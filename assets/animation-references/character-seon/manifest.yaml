@@ -1,10 +1,13 @@
 schema_version: 1
 character_id: seon
-baseline_source:
-  path: baseline-source-v1/character-seon-four-directions-v1.png
-  metadata: baseline-source-v1/character-seon-four-directions-v1.yaml
+status: rejected
+rejection_reason: '사용자 검수: 성인 5등신 기준 미준수. 전신 및 파생 얼굴 베이스라인 전량 폐기.'
+required_body_proportion_heads: 5
+baseline_source: null
+face_reference: null
+retired_assets:
+- path: baseline-source-v1/character-seon-four-directions-v1.png
   sha256: f9977d8085be319c5d9c580ddd09a8276d137830ebce701e3c6d84f4834b5876
-face_reference:
-  path: face-front-v1/character-seon-face-front-v1.png
-  manifest: face-front-v1/manifest.yaml
+- path: face-front-v1/character-seon-face-front-v1.png
   sha256: aae06ccc1eb360501e874379343527457d88ed1b61578f90621003cdd42874af
+replacement_status: pending_review
