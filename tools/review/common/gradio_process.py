@@ -68,6 +68,9 @@ def create_gradio_source_fingerprint(application_source_path,application_file_pa
     common_source_directory=WORKFLOW_ROOT_DIRECTORY/'tools/review/common'
     shared_ui_directory=WORKFLOW_ROOT_DIRECTORY/'tools/review/ui/shared'
     tracked_source_paths={application_file_path,application_source_path}
+    if application_file_path.name=='seamless_tile_app.py':
+        image_domain_directory=WORKFLOW_ROOT_DIRECTORY/'tools/review/domains/image'
+        tracked_source_paths.update(image_domain_directory/current_file_name for current_file_name in ('seamless_pattern.py','seamless_generation.py','seamless_directional.py'))
     if application_file_path.name=='animation_separation_app.py':
         tracked_source_paths.add(WORKFLOW_ROOT_DIRECTORY/'tools/review/ui/character_animation/separation-preview.html')
         tracked_source_paths.add(WORKFLOW_ROOT_DIRECTORY/'generators/image/config/animation_separation.yaml')
