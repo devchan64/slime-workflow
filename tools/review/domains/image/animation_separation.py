@@ -61,9 +61,10 @@ def resolve_sprite_image_path(current_source_record, current_frame_record):
 def load_separation_defaults():
     configuration_path_value = WORKFLOW_ROOT_PATH / 'generators/image/config/animation_separation.yaml'
     configuration_record_value = yaml.load(configuration_path_value.read_text(), Loader=UniqueAssetYamlLoader)
-    if not isinstance(configuration_record_value, dict) or set(configuration_record_value) != {'schema_version', 'prompt'} or configuration_record_value['schema_version'] != 1:
+    if not isinstance(configuration_record_value, dict) or set(configuration_record_value) != {'schema_version', 'prompt', 'outfit_prompt'} or configuration_record_value['schema_version'] != 2:
         raise ValueError('분리 기본 설정 형식 오류')
     validate_separation_prompt(configuration_record_value['prompt'])
+    validate_separation_prompt(configuration_record_value['outfit_prompt'])
     return configuration_record_value
 
 
@@ -73,12 +74,15 @@ def validate_separation_prompt(current_prompt_text):
 
 
 def calculate_separation_signature(current_request_record):
-    signature_record_value = {current_field_name: current_request_record[current_field_name] for current_field_name in ('source_id', 'source_digest', 'prompt', 'width', 'height', 'seed', 'steps', 'model_id', 'model_revision')}
+    signature_record_value = {current_field_name: current_request_record[current_field_name] for current_field_name in ('schema_version', 'source_id', 'source_digest', 'prompt', 'outfit_prompt', 'width', 'height', 'seed', 'steps', 'model_id', 'model_revision')}
     return hashlib.sha256(json.dumps(signature_record_value, sort_keys=True).encode()).hexdigest()
 
 
 def verify_separation_request(current_job_directory):
     current_request_record = json.loads((current_job_directory / 'request.json').read_text())
+    if current_request_record.get('schema_version') != 2:
+        raise ValueError('이전 머리·좌우 분리 작업은 재개할 수 없습니다. 두 프롬프트로 새로 생성하세요.')
+    validate_separation_prompt(current_request_record.get('outfit_prompt'))
     if not isinstance(current_request_record.get('reference_snapshots'), list) or not current_request_record['reference_snapshots']:
         raise ValueError('분리 참조 스냅샷 기록 누락')
     verify_reference_snapshots(current_job_directory, current_request_record)
@@ -110,10 +114,11 @@ class AnimationSeparationManager(QwenPlainGenerationManager):
         verify_separation_request(selected_job_directory)
 
     def validate_generation_request(self, current_request_record):
-        required_request_fields = {'action', 'source_id', 'start_frame', 'end_frame', 'width', 'height', 'steps', 'seed', 'prompt'}
+        required_request_fields = {'action', 'source_id', 'start_frame', 'end_frame', 'width', 'height', 'steps', 'seed', 'prompt', 'outfit_prompt'}
         if not isinstance(current_request_record, dict) or set(current_request_record) - required_request_fields - {'tag', 'sample_id'} or not required_request_fields <= set(current_request_record) or current_request_record['action'] != 'generate':
             raise ValueError('애니메이션 분리 요청 필드 오류')
         validate_separation_prompt(current_request_record['prompt'])
+        validate_separation_prompt(current_request_record['outfit_prompt'])
         for current_field_name in ('start_frame', 'end_frame', 'width', 'height', 'steps', 'seed'):
             if type(current_request_record[current_field_name]) is not int:
                 raise ValueError('분리 설정은 정수여야 합니다: ' + current_field_name)
@@ -133,9 +138,11 @@ class AnimationSeparationManager(QwenPlainGenerationManager):
             if str(current_image_path) not in source_hash_records:
                 source_hash_records[str(current_image_path)] = hashlib.sha256(current_image_path.read_bytes()).hexdigest()
         source_digest_value = hashlib.sha256(json.dumps({'source': current_source_record, 'images': source_hash_records}, sort_keys=True).encode()).hexdigest()
-        saved_request_record = {**current_request_record, 'tag': validate_history_tag(current_request_record.get('tag', '')), 'source_digest': source_digest_value, 'model_id': QWEN_MODEL_IDENTIFIER, 'model_revision': QWEN_MODEL_REVISION,
+        saved_request_record = {**current_request_record, 'schema_version': 2, 'tag': validate_history_tag(current_request_record.get('tag', '')), 'source_digest': source_digest_value, 'model_id': QWEN_MODEL_IDENTIFIER, 'model_revision': QWEN_MODEL_REVISION,
             'fps': current_source_record.get('fps', 8), 'frames': current_source_frames[first_frame_number-1:last_frame_number],
             'prompt_word_count': len(current_request_record['prompt'].split()), 'prompt_sha256': hashlib.sha256(current_request_record['prompt'].encode()).hexdigest()}
+        saved_request_record['outfit_prompt_word_count'] = len(current_request_record['outfit_prompt'].split())
+        saved_request_record['outfit_prompt_sha256'] = hashlib.sha256(current_request_record['outfit_prompt'].encode()).hexdigest()
         saved_request_record['signature'] = calculate_separation_signature(saved_request_record)
         if last_frame_number > first_frame_number:
             sample_identifier_value = current_request_record.get('sample_id', '')
@@ -143,9 +150,11 @@ class AnimationSeparationManager(QwenPlainGenerationManager):
                 raise ValueError('전체 생성 전에 완료된 1프레임 샘플 ID를 지정하세요.')
             sample_directory_path = self.job_storage_root / sample_identifier_value
             sample_request_record = verify_separation_request(sample_directory_path)
-            sample_completion_record = json.loads((sample_directory_path / 'frame-001/complete.json').read_text())
-            if sample_completion_record['sha256'] != hashlib.sha256((sample_directory_path / 'frame-001/result.png').read_bytes()).hexdigest():
-                raise ValueError('샘플 결과 해시 불일치')
+            for current_part_name in ('base', 'outfit'):
+                sample_part_directory = sample_directory_path / 'frame-001' / current_part_name
+                sample_completion_record = json.loads((sample_part_directory / 'complete.json').read_text())
+                if sample_completion_record['sha256'] != hashlib.sha256((sample_part_directory / 'result.png').read_bytes()).hexdigest():
+                    raise ValueError('샘플 결과 해시 불일치')
             if len(sample_request_record['frames']) != 1 or sample_request_record['signature'] != saved_request_record['signature'] or json.loads((sample_directory_path / 'status.json').read_text())['status'] != 'completed':
                 raise ValueError('샘플의 원본·프롬프트·크기·시드가 현재 설정과 일치하고 완료되어야 합니다.')
         saved_request_record['images'] = []
@@ -164,6 +173,10 @@ class AnimationSeparationManager(QwenPlainGenerationManager):
         return saved_request_record
 
     def enrich_generation_status(self, current_job_root, current_status_record):
+        request_record_path = current_job_root / 'request.json'
+        if request_record_path.exists() and json.loads(request_record_path.read_text()).get('schema_version') != 2:
+            current_status_record['resume_allowed'] = False
+            current_status_record['resume_block_reason'] = '폐기된 머리·좌우 분리 방식입니다. 새로 생성하세요.'
         progress_record_path = current_job_root / 'separation-progress.json'
         if progress_record_path.exists():
             current_status_record['separation'] = json.loads(progress_record_path.read_text())
@@ -173,7 +186,7 @@ class AnimationSeparationManager(QwenPlainGenerationManager):
 
     def handle_image_request(self, current_http_handler):
         current_route_path = urlsplit(current_http_handler.path).path
-        current_file_match = re.fullmatch(self.route_prefix_value + '/jobs/(' + SEPARATION_JOB_PATTERN + r')/(separation.zip|manifest.json|head-sheet.png|body-sheet.png|source-sheet.png)', current_route_path)
+        current_file_match = re.fullmatch(self.route_prefix_value + '/jobs/(' + SEPARATION_JOB_PATTERN + r')/(separation.zip|manifest.json|base-sheet.png|outfit-sheet.png|source-sheet.png)', current_route_path)
         if current_http_handler.command == 'GET' and (current_route_path == self.route_prefix_value + '/catalog' or current_file_match):
             try:
                 if current_http_handler.headers.get('Host') != f'127.0.0.1:{current_http_handler.server.server_port}':

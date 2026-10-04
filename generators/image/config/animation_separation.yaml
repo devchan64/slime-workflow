@@ -1,9 +1,11 @@
-schema_version: 1
+schema_version: 2
 prompt: >-
-  Separate this character into two sprite parts side by side.
-  Left: the original face and hair only, ending under the jaw, without neck or shoulders.
-  Right: the original clothed body with exposed upper chest skin and a short skin-colored neck cylinder above the neckline, without head or hair.
-  Preserve identity, body proportions, clothing, hands, shoes and the exact animation pose.
-  Keep one shared scale and complete silhouettes inside their respective left and right halves.
+  Replace the outer clothing with an opaque blue strapless top covering chest and abdomen,
+  and smooth close-fitting knee-length shorts without pockets or loose hems.
+  Preserve the complete person, head, shoes, proportions, pose and exact image position.
   Plain white background.
-  No text.
+outfit_prompt: >-
+  Remove the person, skin, head, hair and shoes. Keep only the original shirt and trousers
+  as empty garments in their original worn pose. Preserve their exact position, scale,
+  silhouette, folds and colors. Fill removed areas with plain white background.
+  Clothing only, no person.

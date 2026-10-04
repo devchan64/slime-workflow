@@ -22,47 +22,55 @@ def render_separation_outputs(current_job_directory, current_request_record, gen
     current_frame_count = len(current_request_record['frames'])
     output_column_count = min(8, current_frame_count)
     output_row_count = math.ceil(current_frame_count / output_column_count)
-    result_sheet_image = Image.new('RGB', (output_column_count * output_frame_size, output_row_count * output_frame_size), 'white')
-    source_sheet_image = Image.new('RGB', result_sheet_image.size, 'white')
-    head_sheet_image = Image.new('RGB', (output_column_count * output_frame_size // 2, output_row_count * output_frame_size), 'white')
-    body_sheet_image = head_sheet_image.copy()
+    output_sheet_size = (output_column_count * output_frame_size, output_row_count * output_frame_size)
+    source_sheet_image = Image.new('RGB', output_sheet_size, 'white')
+    output_part_sheets = {current_part_name: Image.new('RGB', output_sheet_size, 'white') for current_part_name in ('base', 'outfit')}
     output_frame_records = []
     for current_frame_index, current_source_frame in enumerate(current_request_record['frames']):
         current_frame_directory = current_job_directory / f'frame-{current_frame_index+1:03d}'
         current_frame_directory.mkdir(exist_ok=True)
-        current_completion_path = current_frame_directory / 'complete.json'
         current_reference_path = current_job_directory / current_request_record['references'][current_frame_index]
-        write_record_atomically(current_job_directory / 'separation-progress.json', {'completed': current_frame_index, 'total': current_frame_count, 'frameId': current_source_frame['frameId'], 'stage': 'generating'})
-        print(f'{datetime.now(ZoneInfo("Asia/Seoul")).isoformat()}/animation-separation/frame {current_frame_index+1}/{current_frame_count} {current_source_frame["frameId"]}', flush=True)
-        if current_completion_path.exists():
-            current_completion_record = json.loads(current_completion_path.read_text())
-            if current_completion_record['signature'] != current_request_record['signature'] or current_completion_record['referenceSha256'] != hashlib.sha256(current_reference_path.read_bytes()).hexdigest() or current_completion_record['sha256'] != hashlib.sha256((current_frame_directory / 'result.png').read_bytes()).hexdigest():
-                raise ValueError('완료 프레임의 입력 또는 출력 무결성 오류')
-        else:
-            generation_callback_value(current_frame_directory, current_request_record, [current_reference_path])
-            write_record_atomically(current_completion_path, {'signature': current_request_record['signature'], 'referenceSha256': hashlib.sha256(current_reference_path.read_bytes()).hexdigest(), 'sha256': hashlib.sha256((current_frame_directory / 'result.png').read_bytes()).hexdigest()})
-        with Image.open(current_frame_directory / 'result.png') as current_frame_image:
-            if current_frame_image.size != (output_frame_size, output_frame_size):
-                raise ValueError('분리 결과 프레임 크기 불일치')
-            current_sheet_position = ((current_frame_index % output_column_count) * output_frame_size, (current_frame_index // output_column_count) * output_frame_size)
-            current_part_position = (current_sheet_position[0] // 2, current_sheet_position[1])
-            result_sheet_image.paste(current_frame_image, current_sheet_position)
-            head_sheet_image.paste(current_frame_image.crop((0, 0, output_frame_size // 2, output_frame_size)), current_part_position)
-            body_sheet_image.paste(current_frame_image.crop((output_frame_size // 2, 0, output_frame_size, output_frame_size)), current_part_position)
+        current_sheet_position = ((current_frame_index % output_column_count) * output_frame_size, (current_frame_index // output_column_count) * output_frame_size)
+        for current_part_name in ('base', 'outfit'):
+            current_part_directory = current_frame_directory / current_part_name
+            current_part_directory.mkdir(exist_ok=True)
+            current_completion_path = current_part_directory / 'complete.json'
+            current_part_prompt = current_request_record['prompt' if current_part_name == 'base' else 'outfit_prompt']
+            write_record_atomically(current_job_directory / 'separation-progress.json', {'completed': current_frame_index, 'total': current_frame_count, 'frameId': current_source_frame['frameId'], 'stage': current_part_name})
+            print(f'{datetime.now(ZoneInfo("Asia/Seoul")).isoformat()}/animation-separation/{current_part_name} {current_frame_index+1}/{current_frame_count}', flush=True)
+            if current_completion_path.exists():
+                current_completion_record = json.loads(current_completion_path.read_text())
+                if current_completion_record['signature'] != current_request_record['signature'] or current_completion_record['referenceSha256'] != hashlib.sha256(current_reference_path.read_bytes()).hexdigest() or current_completion_record['sha256'] != hashlib.sha256((current_part_directory / 'result.png').read_bytes()).hexdigest():
+                    raise ValueError('완료 파츠의 입력 또는 출력 무결성 오류')
+            else:
+                generation_callback_value(current_part_directory, {**current_request_record, 'prompt': current_part_prompt}, [current_reference_path])
+                with Image.open(current_part_directory / 'result.png') as current_check_image:
+                    if current_check_image.size != (output_frame_size, output_frame_size):
+                        raise ValueError('파츠 결과 프레임 크기 불일치')
+                write_record_atomically(current_completion_path, {'signature': current_request_record['signature'], 'referenceSha256': hashlib.sha256(current_reference_path.read_bytes()).hexdigest(), 'sha256': hashlib.sha256((current_part_directory / 'result.png').read_bytes()).hexdigest()})
+            with Image.open(current_part_directory / 'result.png') as current_frame_image:
+                output_part_sheets[current_part_name].paste(current_frame_image, current_sheet_position)
         with Image.open(current_reference_path) as current_source_image:
             current_source_image.thumbnail((output_frame_size, output_frame_size))
             source_sheet_image.paste(current_source_image, (current_sheet_position[0]+(output_frame_size-current_source_image.width)//2, current_sheet_position[1]+(output_frame_size-current_source_image.height)//2))
         output_frame_records.append({'source': current_source_frame, 'column': current_frame_index % output_column_count, 'row': current_frame_index // output_column_count})
-    for output_file_name, output_image_value in [('result.png', result_sheet_image), ('source-sheet.png', source_sheet_image), ('head-sheet.png', head_sheet_image), ('body-sheet.png', body_sheet_image)]:
-        output_image_value.save(current_job_directory / output_file_name)
-    output_manifest_record = {'schema_version': 1, 'source_id': current_request_record['source_id'], 'source_digest': current_request_record['source_digest'], 'signature': current_request_record['signature'],
+    # 이력 썸네일만 베이스 시트를 사용하고, 검수는 두 독립 파일을 읽는다.
+    output_part_sheets['base'].save(current_job_directory / 'result.png')
+    source_sheet_image.save(current_job_directory / 'source-sheet.png')
+    for current_part_name, current_sheet_image in output_part_sheets.items():
+        current_sheet_image.save(current_job_directory / f'{current_part_name}-sheet.png')
+    output_manifest_record = {'schema_version': 2, 'source_id': current_request_record['source_id'], 'source_digest': current_request_record['source_digest'], 'signature': current_request_record['signature'],
         'size': output_frame_size, 'columns': output_column_count, 'rows': output_row_count, 'fps': current_request_record['fps'], 'frames': output_frame_records,
-        'quality_warnings': ['AI 생성 후보: 원본 픽셀·앵커 보존을 보장하지 않음', '좌우 절반을 파츠 후보로 추출함: 경계 침범·목 연결 검수 필요', '흰 배경 RGB: 투명화·실제 조합 정렬은 별도 검수']}
+        'quality_warnings': ['독립 생성: 원본 포즈·위치·비율 일치 검수 필요', '흰 배경 RGB: 투명화는 별도 검수']}
     write_record_atomically(current_job_directory / 'manifest.json', output_manifest_record)
     write_record_atomically(current_job_directory / 'result.json', output_manifest_record)
     with zipfile.ZipFile(current_job_directory / 'separation.zip', 'w', zipfile.ZIP_DEFLATED) as archive_output_handle:
-        for current_file_name in ('manifest.json', 'request.json', 'result.png', 'source-sheet.png', 'head-sheet.png', 'body-sheet.png'):
+        for current_file_name in ('manifest.json', 'request.json', 'result.png', 'source-sheet.png', 'base-sheet.png', 'outfit-sheet.png'):
             archive_output_handle.write(current_job_directory / current_file_name, current_file_name)
+        for current_frame_directory in sorted(current_job_directory.glob('frame-*')):
+            for current_part_file in sorted(current_frame_directory.glob('*/*')):
+                if current_part_file.is_file():
+                    archive_output_handle.write(current_part_file, current_part_file.relative_to(current_job_directory))
         for current_reference_name in current_request_record['references']:
             archive_output_handle.write(current_job_directory / current_reference_name, current_reference_name)
     write_record_atomically(current_job_directory / 'separation-progress.json', {'completed': current_frame_count, 'total': current_frame_count, 'stage': 'completed'})

@@ -455,4 +455,4 @@ schema 4 기록의 두 번째 단계는 내용이 지워지지 않은 원본(`re
 
 ## 애니메이션 분리 생성기
 
-`animation-separation` 서비스의 GUI·CLI 명령, 샘플 검수 조건과 산출물은 [애니메이션 분리 사용 안내](animation-separation.md)를 따른다. Qwen 2.1로 등록 애니메이션의 머리·신체 후보를 생성하며 공용 GPU 대기열과 이력을 사용한다.
+`animation-separation` 서비스의 GUI·CLI 명령, 샘플 검수 조건과 산출물은 [애니메이션 분리 사용 안내](animation-separation.md)를 따른다. Qwen 2.1로 원본별 신체 베이스·복장을 두 프롬프트로 독립 생성하며 공용 GPU 대기열과 이력을 사용한다.

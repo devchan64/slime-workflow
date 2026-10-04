@@ -1,11 +1,11 @@
 <!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <link rel="stylesheet" href="/management/style.css">
-<style>main{padding:12px}.preview-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}canvas{width:100%;height:auto}label{display:block}input[type=range]{width:100%}@media(max-width:600px){.preview-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}</style>
-<main><label>검수 유형<select id="review-mode"><option value="head-body">머리 · 신체</option><option value="base-outfit">신체 베이스 · 복장</option></select></label><p id="mode-description" role="status"></p><p id="status" role="status">결과 로딩 중</p><div class="preview-grid">
-<section>원본<canvas id="source"></canvas></section><section>분리 후보<canvas id="result"></canvas></section><section><span id="left-label">머리 후보</span><canvas id="head"></canvas></section><section><span id="right-label">신체 후보</span><canvas id="body"></canvas></section><section><span id="combined-label">머리·신체 조합</span><canvas id="combined"></canvas></section></div>
-<label><span id="overlay-x-label">머리 가로 이동</span><input id="head-x" type="number" value="0"></label><label><span id="overlay-y-label">머리 세로 이동</span><input id="head-y" type="number" value="0"></label><label><span id="overlay-scale-label">머리 배율</span><input id="head-scale" type="number" min="0.1" max="3" step="0.05" value="1"></label>
-<button id="play" disabled>재생</button><label>프레임<input id="frame" type="range" min="0" value="0" step="1" disabled></label>
-<p>모든 화면은 같은 프레임으로 재생합니다. 겹쳐보기는 위에 올리는 파츠의 흰색(245 이상)을 임시 제거하며 밝은 복장도 투명해질 수 있습니다. 출력에는 반영하지 않습니다. 좌우 절반 추출 후보이며 합성 정렬·투명화는 검수 대상입니다.</p></main>
+<style>main{padding:12px}.preview-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}canvas{width:100%;height:auto}label{display:block}input[type=range]{width:100%}@media(max-width:600px){.preview-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}</style>
+<main><p id="status" role="status">결과 로딩 중</p><div class="preview-grid">
+<section>원본<canvas id="source"></canvas></section><section>신체 베이스<canvas id="base"></canvas><a id="base-download">베이스 시트 다운로드</a></section><section>복장<canvas id="outfit"></canvas><a id="outfit-download">복장 시트 다운로드</a></section><section>복장 겹쳐보기<canvas id="combined"></canvas></section></div>
+<label>복장 가로 이동<input id="outfit-x" type="number" value="0"></label><label>복장 세로 이동<input id="outfit-y" type="number" value="0"></label><label>복장 배율<input id="outfit-scale" type="number" min="0.1" max="3" step="0.05" value="1"></label>
+<button id="play" disabled title="결과 로딩 후 재생할 수 있습니다.">재생</button><label>프레임<input id="frame" type="range" min="0" value="0" step="1" disabled></label>
+<p>각 파일의 전체 프레임을 표시합니다. 베이스와 복장은 독립 생성되므로 위치·포즈·비율과 사람 잔상을 확인하세요. 겹쳐보기의 흰색(245 이상) 제거는 임시 표시이며 밝은 복장도 지워질 수 있습니다. 이동·배율은 저장 결과를 변경하지 않습니다.</p></main>
 <script>
 (async()=>{
  const currentResultBase=__RESULT_BASE__;
@@ -14,45 +14,36 @@
   const currentManifestResponse=await fetch(currentResultBase+'manifest.json');
   if(!currentManifestResponse.ok)throw new Error('결과 메타데이터 조회 실패');
   const currentManifestRecord=await currentManifestResponse.json();
-  const currentSourceNames=['source','result','head','body'];
-  const currentFileNames=['source-sheet.png','result.png','head-sheet.png','body-sheet.png'];
+  if(currentManifestRecord.schema_version!==2)throw new Error('이전 머리·좌우 분리 결과는 검수 지원이 종료되었습니다. 두 프롬프트로 새로 생성하세요.');
+  const currentSourceNames=['source','base','outfit'];
+  for(const currentPartName of ['base','outfit'])document.getElementById(currentPartName+'-download').href=currentResultBase+currentPartName+'-sheet.png';
+  const currentFileNames=['source-sheet.png','base-sheet.png','outfit-sheet.png'];
   const currentImageSources=await Promise.all(currentFileNames.map(currentFileName=>new Promise((resolveCurrentImage,rejectCurrentImage)=>{const currentImageElement=new Image();currentImageElement.onload=()=>resolveCurrentImage(currentImageElement);currentImageElement.onerror=()=>rejectCurrentImage(new Error('시트 로딩 실패'));currentImageElement.src=currentResultBase+currentFileName;})));
   const currentFrameSlider=document.getElementById('frame'),currentPlayButton=document.getElementById('play');
   currentFrameSlider.max=currentManifestRecord.frames.length-1;currentFrameSlider.disabled=false;currentPlayButton.disabled=false;
-  const currentReviewMode=document.getElementById('review-mode');
-  const previewModeSettings={
-   'head-body':{left:'머리 후보',right:'신체 후보',combined:'머리·신체 조합',overlay:'머리',base:'body',layer:'head'},
-   'base-outfit':{left:'신체 베이스 후보',right:'복장 후보',combined:'복장 겹쳐보기',overlay:'복장',base:'head',layer:'body'}
-  };
   let currentPlaybackActive=false,currentFrameNumber=0,lastFrameTimestamp=0;
   function drawCurrentFrame(){
    const currentFrameRecord=currentManifestRecord.frames[currentFrameNumber];
-   const currentModeSettings=previewModeSettings[currentReviewMode.value];
-   document.getElementById('left-label').textContent=currentModeSettings.left;
-   document.getElementById('right-label').textContent=currentModeSettings.right;
-   document.getElementById('combined-label').textContent=currentModeSettings.combined;
-   for(const [currentAxisName,currentAxisLabel] of [['x','가로 이동'],['y','세로 이동'],['scale','배율']])document.getElementById('overlay-'+currentAxisName+'-label').textContent=currentModeSettings.overlay+' '+currentAxisLabel;
-   document.getElementById('mode-description').textContent=currentReviewMode.value==='base-outfit'?'왼쪽 영역은 신체 베이스, 오른쪽 영역은 복장으로 봅니다. 원본 생성 결과에서 두 대상이 실제 분리됐는지 먼저 확인하세요. 유형 변경은 이미지를 분리하거나 다시 생성하지 않습니다.':'왼쪽 영역은 머리, 오른쪽 영역은 신체로 봅니다.';
    currentSourceNames.forEach((currentSourceName,currentSourceIndex)=>{
-    const currentCanvasElement=document.getElementById(currentSourceName),currentFrameWidth=currentSourceIndex<2?currentManifestRecord.size:currentManifestRecord.size/2;
+    const currentCanvasElement=document.getElementById(currentSourceName),currentFrameWidth=currentManifestRecord.size;
     currentCanvasElement.width=currentFrameWidth;currentCanvasElement.height=currentManifestRecord.size;
     currentCanvasElement.getContext('2d').drawImage(currentImageSources[currentSourceIndex],currentFrameRecord.column*currentFrameWidth,currentFrameRecord.row*currentManifestRecord.size,currentFrameWidth,currentManifestRecord.size,0,0,currentFrameWidth,currentManifestRecord.size);
    });
    const currentCombinedCanvas=document.getElementById('combined');
-   currentCombinedCanvas.width=currentManifestRecord.size/2;currentCombinedCanvas.height=currentManifestRecord.size;
+   currentCombinedCanvas.width=currentManifestRecord.size;currentCombinedCanvas.height=currentManifestRecord.size;
    const currentCombinedContext=currentCombinedCanvas.getContext('2d');
-   currentCombinedContext.drawImage(document.getElementById(currentModeSettings.base),0,0);
-   const currentHeadCanvas=document.createElement('canvas');currentHeadCanvas.width=currentCombinedCanvas.width;currentHeadCanvas.height=currentCombinedCanvas.height;
-   const currentHeadContext=currentHeadCanvas.getContext('2d');currentHeadContext.drawImage(document.getElementById(currentModeSettings.layer),0,0);
-   const currentHeadPixels=currentHeadContext.getImageData(0,0,currentHeadCanvas.width,currentHeadCanvas.height);
-   for(let currentPixelIndex=0;currentPixelIndex<currentHeadPixels.data.length;currentPixelIndex+=4){if(currentHeadPixels.data[currentPixelIndex]>=245&&currentHeadPixels.data[currentPixelIndex+1]>=245&&currentHeadPixels.data[currentPixelIndex+2]>=245)currentHeadPixels.data[currentPixelIndex+3]=0;}
-   currentHeadContext.putImageData(currentHeadPixels,0,0);
-   const currentHeadScale=Math.max(.1,Math.min(3,Number(document.getElementById('head-scale').value)||1));
-   currentCombinedContext.drawImage(currentHeadCanvas,Number(document.getElementById('head-x').value)||0,Number(document.getElementById('head-y').value)||0,currentHeadCanvas.width*currentHeadScale,currentHeadCanvas.height*currentHeadScale);
+   currentCombinedContext.drawImage(document.getElementById('base'),0,0);
+   const currentOutfitCanvas=document.createElement('canvas');currentOutfitCanvas.width=currentCombinedCanvas.width;currentOutfitCanvas.height=currentCombinedCanvas.height;
+   const currentOutfitContext=currentOutfitCanvas.getContext('2d');currentOutfitContext.drawImage(document.getElementById('outfit'),0,0);
+   const currentOutfitPixels=currentOutfitContext.getImageData(0,0,currentOutfitCanvas.width,currentOutfitCanvas.height);
+   for(let currentPixelIndex=0;currentPixelIndex<currentOutfitPixels.data.length;currentPixelIndex+=4){if(currentOutfitPixels.data[currentPixelIndex]>=245&&currentOutfitPixels.data[currentPixelIndex+1]>=245&&currentOutfitPixels.data[currentPixelIndex+2]>=245)currentOutfitPixels.data[currentPixelIndex+3]=0;}
+   currentOutfitContext.putImageData(currentOutfitPixels,0,0);
+   const currentOutfitScale=Math.max(.1,Math.min(3,Number(document.getElementById('outfit-scale').value)||1));
+   currentCombinedContext.drawImage(currentOutfitCanvas,Number(document.getElementById('outfit-x').value)||0,Number(document.getElementById('outfit-y').value)||0,currentOutfitCanvas.width*currentOutfitScale,currentOutfitCanvas.height*currentOutfitScale);
    currentFrameSlider.value=currentFrameNumber;currentStatusElement.textContent=`프레임 ${currentFrameNumber+1}/${currentManifestRecord.frames.length} · ${currentFrameRecord.source.frameId}`;
   }
-  for(const currentInputName of ['head-x','head-y','head-scale'])document.getElementById(currentInputName).oninput=drawCurrentFrame;
-  currentReviewMode.onchange=()=>{document.getElementById('head-x').value=0;document.getElementById('head-y').value=0;document.getElementById('head-scale').value=1;drawCurrentFrame();};
+  for(const currentInputName of ['outfit-x','outfit-y','outfit-scale'])document.getElementById(currentInputName).oninput=drawCurrentFrame;
+
   currentFrameSlider.oninput=()=>{currentFrameNumber=Number(currentFrameSlider.value);drawCurrentFrame();};
   currentPlayButton.onclick=()=>{currentPlaybackActive=!currentPlaybackActive;currentPlayButton.textContent=currentPlaybackActive?'일시정지':'재생';lastFrameTimestamp=0;};
   function animatePreviewFrame(currentTimestampValue){

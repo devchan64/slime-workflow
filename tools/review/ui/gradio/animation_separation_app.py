@@ -21,11 +21,11 @@ def execute_separation_gateway(current_command_name, current_payload_record):
     return execute_remote_management_command('animation-separation', current_command_name, current_payload_record)
 
 
-def build_separation_request(current_source_identifier, current_start_frame, current_end_frame, current_output_size, current_seed_value, current_prompt_text, current_sample_identifier):
+def build_separation_request(current_source_identifier, current_start_frame, current_end_frame, current_output_size, current_seed_value, current_prompt_text, current_outfit_prompt, current_sample_identifier):
     for current_number_value in (current_start_frame, current_end_frame, current_output_size, current_seed_value):
         if isinstance(current_number_value, bool) or not isinstance(current_number_value, (int, float)) or int(current_number_value) != current_number_value:
             raise ValueError('프레임·크기·시드는 정수여야 합니다.')
-    return {'action': 'generate', 'source_id': current_source_identifier, 'start_frame': int(current_start_frame), 'end_frame': int(current_end_frame), 'width': int(current_output_size), 'height': int(current_output_size), 'seed': int(current_seed_value), 'steps': 40, 'prompt': current_prompt_text, 'sample_id': current_sample_identifier.strip()}
+    return {'action': 'generate', 'source_id': current_source_identifier, 'start_frame': int(current_start_frame), 'end_frame': int(current_end_frame), 'width': int(current_output_size), 'height': int(current_output_size), 'seed': int(current_seed_value), 'steps': 40, 'prompt': current_prompt_text, 'outfit_prompt': current_outfit_prompt, 'sample_id': current_sample_identifier.strip()}
 
 
 def describe_separation_prompt(current_prompt_text):
@@ -48,7 +48,7 @@ def build_separation_preview(current_server_address, current_job_identifier):
 
 def build_separation_interface(current_server_address):
     with gr.Blocks(title='애니메이션 분리 생성기') as interface_blocks_value:
-        gr.Markdown('## 애니메이션 분리 생성기\n등록된 캐릭터 시트를 Qwen 2.1로 분리합니다. 결과 검수에서 머리·신체 또는 신체 베이스·복장을 선택할 수 있습니다. 먼저 한 프레임을 확인한 후 범위 생성을 실행하세요.')
+        gr.Markdown('## 애니메이션 분리 생성기\n같은 원본에서 신체 베이스와 사람을 제거한 복장을 각각 생성합니다. 두 결과는 별도 파일로 저장합니다. 먼저 한 프레임을 확인한 후 범위 생성을 실행하세요.')
         with gr.Tabs():
             with gr.Tab("생성 설정"):
                 current_source_control = gr.Dropdown([], label='원본 애니메이션', interactive=True)
@@ -60,10 +60,13 @@ def build_separation_interface(current_server_address):
                     current_end_control = gr.Number(value=1, precision=0, minimum=1, label='끝 프레임')
                 current_size_control = gr.Dropdown([512, 768], value=768, label='출력 크기 · 정사각형')
                 current_seed_control = build_generation_seed()
-                gr.Markdown('고정: Qwen Image 2.1 · 40스텝 · 프레임당 참조 1장. 원본은 덮어쓰지 않습니다.')
-                current_prompt_control = gr.Textbox(value=load_separation_defaults()['prompt'], lines=6, label='분리 프롬프트')
+                gr.Markdown('고정: Qwen Image 2.1 · 40스텝 · 프레임당 원본 참조 1장 · 베이스와 복장 각 1회 생성. 원본은 덮어쓰지 않습니다.')
+                current_prompt_control = gr.Textbox(value=load_separation_defaults()['prompt'], lines=6, label='1. 신체 베이스 프롬프트')
                 current_word_summary = gr.Markdown(describe_separation_prompt(load_separation_defaults()['prompt']))
                 current_prompt_control.change(describe_separation_prompt, current_prompt_control, current_word_summary, queue=False)
+                current_outfit_control = gr.Textbox(value=load_separation_defaults()['outfit_prompt'], lines=5, label='2. 사람 제거·복장 프롬프트')
+                current_outfit_summary = gr.Markdown(describe_separation_prompt(load_separation_defaults()['outfit_prompt']))
+                current_outfit_control.change(describe_separation_prompt, current_outfit_control, current_outfit_summary, queue=False)
                 current_sample_button = gr.Button('1프레임 샘플 생성', variant='primary')
                 current_sample_identifier = gr.Textbox(lines=1, max_lines=1, label='검수한 샘플 ID', info='완료된 1프레임 샘플을 확인한 뒤 ID를 입력하세요. 설정 변경 시 새 샘플이 필요합니다.')
                 current_batch_button = gr.Button('검수한 설정으로 범위 생성')
@@ -76,7 +79,7 @@ def build_separation_interface(current_server_address):
                     current_cancel_button = gr.Button('선택 작업 중지')
                     current_resume_button = gr.Button('선택 작업 재개')
                 current_preview_output = gr.HTML(build_separation_preview(current_server_address, ''))
-                current_download_output = gr.Markdown('RGB 후보 결과입니다. 투명화·목 연결·가림·원본 외형 보존은 검수해야 합니다. 마네킹 바탕은 필수 조건이 아닙니다.')
+                current_download_output = gr.Markdown('베이스와 복장은 별도 RGB 후보입니다. 포즈·위치·비율·사람 잔상·투명화를 검수하세요.')
         current_log_output, current_log_refresh, _ = build_execution_logs()
         def load_catalog_controls():
             current_catalog_record = execute_separation_gateway('catalog', {})
@@ -96,17 +99,18 @@ def build_separation_interface(current_server_address):
             except (ValueError, RuntimeError) as current_error_value:
                 raise gr.Error(str(current_error_value)) from current_error_value
             return current_job_record['id'], '공용 GPU 대기열에 등록했습니다. 결과 검수 탭에서 상태·결과 조회로 확인하세요.'
-        def start_sample_job(current_source_identifier, current_start_frame, current_output_size, current_seed_value, current_prompt_text):
-            return start_separation_job(current_source_identifier, current_start_frame, current_start_frame, current_output_size, current_seed_value, current_prompt_text, '')
-        bind_gpu_generation_confirmation(current_sample_button, start_sample_job, [current_source_control, current_start_control, current_size_control, current_seed_control, current_prompt_control], [current_job_control, current_status_output])
-        bind_gpu_generation_confirmation(current_batch_button, start_separation_job, [current_source_control, current_start_control, current_end_control, current_size_control, current_seed_control, current_prompt_control, current_sample_identifier], [current_job_control, current_status_output])
+        def start_sample_job(current_source_identifier, current_start_frame, current_output_size, current_seed_value, current_prompt_text, current_outfit_prompt):
+            return start_separation_job(current_source_identifier, current_start_frame, current_start_frame, current_output_size, current_seed_value, current_prompt_text, current_outfit_prompt, '')
+        bind_gpu_generation_confirmation(current_sample_button, start_sample_job, [current_source_control, current_start_control, current_size_control, current_seed_control, current_prompt_control, current_outfit_control], [current_job_control, current_status_output])
+        bind_gpu_generation_confirmation(current_batch_button, start_separation_job, [current_source_control, current_start_control, current_end_control, current_size_control, current_seed_control, current_prompt_control, current_outfit_control, current_sample_identifier], [current_job_control, current_status_output])
         def read_current_result(current_job_identifier, current_refresh_logs):
             if not current_job_identifier:
                 raise gr.Error('생성 ID를 입력하세요.')
             current_status_record = execute_separation_gateway('status', {'id': current_job_identifier})
             current_frame_progress = current_status_record.get('separation', {})
+            current_stage_label = {'base': '신체 베이스 생성', 'outfit': '복장 생성', 'completed': '완료'}.get(current_frame_progress.get('stage'), '대기')
             current_download_url = current_status_record.get('download')
-            return ('상태: ' + format_generation_status(current_status_record) + f" · 완료 프레임 {current_frame_progress.get('completed', 0)}/{current_frame_progress.get('total', '?')}" + ('' if current_status_record.get('status') == 'completed' else ' · 예상 남은 시간·완료 시각: 추정 자료 수집 중'), current_status_record.get('log', '') if current_refresh_logs else gr.skip(), build_separation_preview(current_server_address, current_job_identifier) if current_download_url else gr.skip(), f'[후보 시트·원본·메타데이터 ZIP 다운로드]({current_server_address}{current_download_url})' if current_download_url else gr.skip())
+            return ('상태: ' + format_generation_status(current_status_record) + f" · 완료 프레임 {current_frame_progress.get('completed', 0)}/{current_frame_progress.get('total', '?')} · 단계 {current_stage_label}" + ('' if current_status_record.get('status') == 'completed' else ' · 예상 남은 시간·완료 시각: 추정 자료 수집 중'), current_status_record.get('log', '') if current_refresh_logs else gr.skip(), build_separation_preview(current_server_address, current_job_identifier) if current_download_url else gr.skip(), f'[후보 시트·원본·메타데이터 ZIP 다운로드]({current_server_address}{current_download_url})' if current_download_url else gr.skip())
         current_refresh_button.click(read_current_result, [current_job_control, current_log_refresh], [current_status_output, current_log_output, current_preview_output, current_download_output], queue=False)
         current_cancel_button.click(lambda current_job_identifier: str(execute_separation_gateway('cancel', {'id': current_job_identifier})), current_job_control, current_status_output)
         bind_gpu_generation_confirmation(current_resume_button, lambda current_job_identifier: str(execute_separation_gateway('resume', {'id': current_job_identifier})), current_job_control, current_status_output)

@@ -149,7 +149,7 @@ class ManagementCommandGateway:
         return True
 
 
-MANAGEMENT_COMMAND_DESCRIPTIONS = {'animation-separation':'Qwen 2.1 애니메이션 머리·신체 분리 · 1프레임 검수 후 범위 생성','qwen-21':'Qwen Image 2.1 · 입력 프롬프트 원문 · 추가 문구 없음 · 참조 0~10장 · 40스텝','seamless-tile':'Qwen Image 2.1 · 40스텝 · 5단계 가로·세로 심리스 패턴 · 단계별 검수 대기 · pause/resume · 참조 생략 가능','expression':'Qwen 2511 AU 표정 생성 · 참조 1~3장 · --expression에 표정 ID 지정','floor-tile':'512×512·4스텝 단일 바닥 타일 생성 (관리 서버 필요)','anny':'ANNY 이력 상태·중지·재개 (관리 서버 필요)','character-animation':'등록 모션·캐릭터 기반 애니메이션 생성·이력·재생 결과 조회','momask': 'MoMask 생성·상태·로그·이력 조회·취소 (웹과 기록 공유)', 'qwen-2512': 'Qwen 2512 텍스트 이미지 생성 (관리 서버 필요)', 'qwen-2511': 'Qwen 2511 텍스트·1~3장 참조 이미지 생성 (관리 서버 필요)'}
+MANAGEMENT_COMMAND_DESCRIPTIONS = {'animation-separation':'Qwen 2.1 신체 베이스·복장 독립 생성 · 1프레임 검수 후 범위 생성','qwen-21':'Qwen Image 2.1 · 입력 프롬프트 원문 · 추가 문구 없음 · 참조 0~10장 · 40스텝','seamless-tile':'Qwen Image 2.1 · 40스텝 · 5단계 가로·세로 심리스 패턴 · 단계별 검수 대기 · pause/resume · 참조 생략 가능','expression':'Qwen 2511 AU 표정 생성 · 참조 1~3장 · --expression에 표정 ID 지정','floor-tile':'512×512·4스텝 단일 바닥 타일 생성 (관리 서버 필요)','anny':'ANNY 이력 상태·중지·재개 (관리 서버 필요)','character-animation':'등록 모션·캐릭터 기반 애니메이션 생성·이력·재생 결과 조회','momask': 'MoMask 생성·상태·로그·이력 조회·취소 (웹과 기록 공유)', 'qwen-2512': 'Qwen 2512 텍스트 이미지 생성 (관리 서버 필요)', 'qwen-2511': 'Qwen 2511 텍스트·1~3장 참조 이미지 생성 (관리 서버 필요)'}
 
 def execute_management_command(service_command_name, operation_command_name, command_payload_value, server_base_address=None, *, gateway_request_handler=None, service_handler_values=None):
     request_method_value,request_route_value=resolve_management_command(service_command_name,operation_command_name,command_payload_value)
@@ -194,7 +194,8 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
                 operation_argument_parser.add_argument('--size',type=int,choices=(512,768),default=768)
                 operation_argument_parser.add_argument('--seed',type=int,default=10107)
                 operation_argument_parser.add_argument('--sample-id',default='')
-                operation_argument_parser.add_argument('--prompt-file',type=Path)
+                operation_argument_parser.add_argument('--prompt-file',type=Path,help='신체 베이스 프롬프트 파일')
+                operation_argument_parser.add_argument('--outfit-prompt-file',type=Path,help='사람 제거·복장 전용 프롬프트 파일')
             elif service_command_name=='character-animation':
                 operation_argument_parser.add_argument('--steps',type=int,choices=(4,30),default=None,help='4: Lightning, 30: 표준 생성 (기본 4)')
                 operation_argument_parser.add_argument('--resolution',type=int,choices=(512,768,1024,1280),default=512)
@@ -248,7 +249,7 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
     if operation_command_name in ('generate','queue'):
         if service_command_name=='animation-separation':
             from tools.review.domains.image.animation_separation import load_separation_defaults
-            command_payload_value={'action':'generate','source_id':command_argument_values.source_id,'start_frame':command_argument_values.start_frame,'end_frame':command_argument_values.end_frame,'width':command_argument_values.size,'height':command_argument_values.size,'steps':40,'seed':command_argument_values.seed,'tag':command_argument_values.tag,'sample_id':command_argument_values.sample_id,'prompt':command_argument_values.prompt_file.read_text() if command_argument_values.prompt_file else load_separation_defaults()['prompt']}
+            command_payload_value={'action':'generate','source_id':command_argument_values.source_id,'start_frame':command_argument_values.start_frame,'end_frame':command_argument_values.end_frame,'width':command_argument_values.size,'height':command_argument_values.size,'steps':40,'seed':command_argument_values.seed,'tag':command_argument_values.tag,'sample_id':command_argument_values.sample_id,'prompt':command_argument_values.prompt_file.read_text() if command_argument_values.prompt_file else load_separation_defaults()['prompt'],'outfit_prompt':command_argument_values.outfit_prompt_file.read_text() if command_argument_values.outfit_prompt_file else load_separation_defaults()['outfit_prompt']}
         elif service_command_name=='character-animation':
             command_payload_value={'motion':command_argument_values.motion,'character':command_argument_values.character,'source':command_argument_values.source,'directions':command_argument_values.directions}
             if command_argument_values.tag:command_payload_value['tag']=command_argument_values.tag
