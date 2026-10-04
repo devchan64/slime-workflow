@@ -1,0 +1,9 @@
+package: '@slime/field-renderer'
+version: '1.0.2'
+engine: 'Phaser 3.90.0'
+source_repository: slime-frontend
+source_path: packages/field-renderer
+files:
+  field-renderer.mjs: 9a26cdf663058baa097f8e60654d55d577a6491fc135fea8b29747ab589a7e5d
+  phaser.mjs: 7162b8e9cd971ce5f53b7822c55d0348385caa08380784e94851a092997ea09d
+  LICENSE.phaser.md: 080f3d5539e766bb556df5b8e86c4f5d581ece35c692b80956ca352b84d29134
