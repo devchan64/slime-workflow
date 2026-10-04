@@ -1,0 +1,15 @@
+schema_version: 1
+asset_id: character-mire-face-front
+version: 2
+character_id: mire
+status: user_approved
+role: front_face_identity_reference
+image: character-mire-face-front-v2.png
+sha256: 715679c282ca2df17ef3f6c85cab313a00cc3e27b78af9d5955d68aace80be6f
+width: 1226
+height: 1283
+background: transparent
+generator: Codex imagegen
+source_path: .tmp/test/mire-distinct-face/2026-10-04_17-12-09/character-mire-face-front-candidate.png
+runtime_adopted: false
+framing: 정면 머리와 목만. 어깨·가슴·의상 제외.
