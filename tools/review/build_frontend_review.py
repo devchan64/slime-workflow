@@ -179,8 +179,11 @@ def load_animation_review(frontend_asset_root, animation_metadata_path):
             direction_sheet_paths[current_direction_name] = resolve_frontend_file(frontend_asset_root, animation_metadata_path.with_name(source_image_name))
             expected_sheet_hashes[current_direction_name] = source_sheet_record['sha256']
     else:
-        # 단일 시트는 <이름>.animation.json ↔ <이름>.png 명명 계약을 사용한다.
-        single_sheet_path = resolve_frontend_file(frontend_asset_root, animation_metadata_path.with_name(animation_metadata_path.name.removesuffix('.animation.json')+'.png'))
+        # 앵커 메타데이터의 버전명과 이미지명이 달라도 명시된 원본을 사용한다.
+        single_sheet_filename = source_manifest_data.get('image', animation_metadata_path.name.removesuffix('.animation.json')+'.png')
+        if not isinstance(single_sheet_filename, str) or not single_sheet_filename or Path(single_sheet_filename).name != single_sheet_filename:
+            raise ValueError('단일 시트 image는 같은 폴더의 파일명이어야 합니다.')
+        single_sheet_path = resolve_frontend_file(frontend_asset_root, animation_metadata_path.with_name(single_sheet_filename))
         direction_sheet_paths = {current_direction_name: single_sheet_path for current_direction_name in selected_clip_directions}
         if 'sha256' in source_manifest_data:
             expected_sheet_hashes = {current_direction_name: source_manifest_data['sha256'] for current_direction_name in selected_clip_directions}

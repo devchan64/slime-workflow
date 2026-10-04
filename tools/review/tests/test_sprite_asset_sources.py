@@ -9,6 +9,27 @@ from tools.review.common.sprite_asset_sources import load_locked_sprite_sources,
 
 
 class SpriteAssetSourceTests(unittest.TestCase):
+    def test_effect_paths_preserve_validation(self):
+        with tempfile.TemporaryDirectory() as temporary_directory_name:
+            temporary_root_path = Path(temporary_directory_name)
+            source_relative_path = 'assets/sprites/effects/rest/recovery.png'
+            source_file_path = temporary_root_path/source_relative_path
+            source_file_path.parent.mkdir(parents=True)
+            source_file_path.write_bytes(b'effect')
+            source_hash_value = hashlib.sha256(b'effect').hexdigest()
+            registry_asset_record = {'managementId':'effect.rest','version':'v1','sha256':source_hash_value}
+            target_relative_path = 'assets/effects/rest/recovery.png'
+            lock_asset_record = {'path':target_relative_path,'source_path':source_relative_path,'sha256':source_hash_value}
+            with patch('tools.review.common.sprite_asset_sources.load_registered_tiles', return_value=(temporary_root_path,{source_relative_path:registry_asset_record})):
+                for target_path_value, expected_error_text in ((target_relative_path,None),('assets/effects/../outside.png','전달 경로'),('assets/unknown/test.png','전달 경로')):
+                    (temporary_root_path/'sprite-assets.lock.yaml').write_text(yaml.safe_dump({'schema_version':1,'repository':'slime-assets','files':[{**lock_asset_record,'path':target_path_value}]}))
+                    if expected_error_text:
+                        with self.assertRaisesRegex(ValueError,expected_error_text):
+                            load_locked_sprite_sources(temporary_root_path)
+                    else:
+                        _, locked_source_records = load_locked_sprite_sources(temporary_root_path)
+                        self.assertEqual(locked_source_records[target_relative_path][0],source_file_path)
+
     def test_locked_source_resolution(self):
         with tempfile.TemporaryDirectory() as temporary_directory_name:
             temporary_root_path = Path(temporary_directory_name)

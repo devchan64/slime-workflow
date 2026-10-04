@@ -41,6 +41,20 @@ class FrontendReviewTests(unittest.TestCase):
     def write_source_fixture(self):
         self.animation_metadata_path.write_text(json.dumps(self.animation_source_data))
 
+    def test_anchor_version_uses_declared_sheet(self):
+        import hashlib
+        self.animation_metadata_path = self.frontend_asset_root/'idle-anchor-v3.animation.json'
+        self.write_source_fixture()
+        source_manifest_path = self.frontend_asset_root/'source.json'
+        source_manifest_record = {'image':'idle.png','sha256':hashlib.sha256((self.frontend_asset_root/'idle.png').read_bytes()).hexdigest()}
+        source_manifest_path.write_text(json.dumps(source_manifest_record))
+        _, _, source_image_paths = load_animation_review(self.frontend_asset_root,self.animation_metadata_path)
+        self.assertEqual(source_image_paths,{self.frontend_asset_root/'idle.png'})
+        for invalid_sheet_name in ('../idle.png','missing.png'):
+            source_manifest_path.write_text(json.dumps({**source_manifest_record,'image':invalid_sheet_name}))
+            with self.assertRaises(ValueError):
+                load_animation_review(self.frontend_asset_root,self.animation_metadata_path)
+
     def test_original_fractional_coordinates_survive(self):
         original_metadata_bytes = self.animation_metadata_path.read_bytes()
         review_frame_records, review_source_metadata, source_image_paths = load_animation_review(self.frontend_asset_root, self.animation_metadata_path)
