@@ -352,3 +352,6 @@ textarea{margin:6px 0 10px}select{margin:4px 8px 8px 0}button{margin:4px 6px 4px
   margin:0!important;padding:8px 10px!important;resize:none!important;
   white-space:pre!important;overflow-x:auto!important;box-sizing:border-box;
 }
+
+/* 단독 검수 화면의 숫자 입력 공용 스타일 */
+.review-number-input{font:inherit;color:var(--text);background:var(--input-background);border:1px solid var(--input-border);border-radius:9px;padding:10px}
