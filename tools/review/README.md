@@ -72,7 +72,7 @@ HTTP URL, 페이지 해시, CLI 명령, `.tmp` 생성 ID·기록 경로와 `asse
 
 ### 맵 타일 원본 참조
 
-맵 검수의 `assets/world/isloon/tile-catalog.yaml`에서 `asset`은 `slime-assets` 기준 등록 경로다. 블록 맵과 기존 맵 게시기는 공용 `common/map_tile_assets.py`를 통해 에셋 저장소의 등록부·버전·SHA-256을 검증하고 원본을 직접 복사한다. 기본 경로는 형제 저장소 `slime-assets`이며 `SLIME_ASSETS_ROOT`로 지정할 수 있다. 누락·미등록·해시 불일치는 즉시 실패한다. 프론트엔드 이미지로 대체하지 않는다.
+맵 검수의 표시용 매핑 `tools/review/ui/map/config/tile-catalog.yaml`에서 `asset`은 `slime-assets` 기준 등록 경로다. 블록 맵과 기존 맵 게시기는 공용 `common/map_tile_assets.py`를 통해 에셋 저장소의 등록부·버전·SHA-256을 검증하고 원본을 직접 복사한다. 기본 경로는 형제 저장소 `slime-assets`이며 `SLIME_ASSETS_ROOT`로 지정할 수 있다. 누락·미등록·해시 불일치는 즉시 실패한다. 프론트엔드 이미지로 대체하지 않는다.
 
 게시한 텍스처 메타데이터에 원본 저장소·경로·관리 ID·버전·해시를 보존한다. 브라우저는 게시된 정적 사본을 사용한다. 캐릭터와 렌더링 수치의 기존 전달 경로는 맵 타일 원본과 구분한다. 건물별 타일 선택은 마을 공통 선택보다 우선하며, 돌온재 길드회관은 `stonewarm-guild-red-stone-roof`를 사용한다. 원본 또는 카탈로그 변경 후 검수 패키지를 다시 게시해야 한다.
 
@@ -93,3 +93,5 @@ HTTP URL, 페이지 해시, CLI 명령, `.tmp` 생성 ID·기록 경로와 `asse
 ### 경비센터 표시 원본
 
 필드맵 검수는 등록된 `assets/ui/guard-centers.yaml`의 도시별 외형과 `assets/sprites/structures/`의 이미지를 해시 검증 후 제공합니다. 도시행 웨이포인트에서 기존 필드 발급 위치를 계산하며, 이미지 URL과 관리 ID·버전·SHA-256을 `guardCenters`에 함께 제공합니다. 게임도 같은 설정을 사용하며 통행 데이터는 변경하지 않습니다.
+
+맵 배치 원본은 `slime-assets/assets/maps/`의 등록 YAML을 직접 검증해 읽습니다. `assets/world`의 과거 맵 사본과 전용 조립기는 폐기했습니다. UI 표시 설정(재질 색상·렌더 크기·타일 별칭)은 `tools/review/ui/map/config/`에서 관리하며 맵 배치 사본을 보관하지 않습니다. `build_map_review.py --map`의 로컬 사본 입력은 명시적으로 거절합니다.

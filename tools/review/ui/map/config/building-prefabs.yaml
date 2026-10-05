@@ -1,74 +1,34 @@
 schema_version: 1
 prefabs:
   - id: iseulon-guild
-    display_name: 길드 회관
-    material: marble
-    size: {columns: 2, rows: 3}
-    anchor: {column: 1, row: 2}
     roof_tile: marble_roof
-    wall_tile: marble_plain_wall
     ground_floor_plain_wall_tile: marble_plain_wall
     ground_floor_small_window_wall_tile: marble_small_window_wall
     upper_floor_large_window_wall_tile: marble_large_window_wall
     door_tile: marble_small_door
-    floor_count: 2
-    roof_rows: 2
-    entrances: [{column: 1, row: 2}]
   - id: iseulon-bookshop
-    display_name: 서점
-    material: wood
-    size: {columns: 2, rows: 2}
-    anchor: {column: 1, row: 1}
     roof_tile: wood_roof
-    wall_tile: wood_wall
     ground_floor_plain_wall_tile: wood_wall
     ground_floor_small_window_wall_tile: wood_window_wall
     upper_floor_large_window_wall_tile: wood_window_wall
     roof_underlay_wall_tile: wood_crossbar_wall
     door_tile: wood_door_wall
-    roof_rows: 2
-    floor_count: 1
-    entrances: [{column: 1, row: 1}]
   - id: iseulon-inn
-    display_name: 여관
-    material: wood
-    size: {columns: 2, rows: 2}
-    anchor: {column: 1, row: 1}
     roof_tile: wood_roof
-    wall_tile: wood_wall
     ground_floor_plain_wall_tile: wood_wall
     ground_floor_small_window_wall_tile: wood_window_wall
     upper_floor_large_window_wall_tile: wood_window_wall
     roof_underlay_wall_tile: wood_crossbar_wall
     door_tile: wood_door_wall
-    roof_rows: 3
-    floor_count: 1
-    entrances: [{column: 1, row: 1}]
   - id: iseulon-workshop
-    display_name: 대장간·공방
-    material: marble
-    size: {columns: 2, rows: 2}
-    anchor: {column: 0, row: 1}
     roof_tile: marble_roof
-    wall_tile: marble_plain_wall
     ground_floor_plain_wall_tile: marble_plain_wall
     ground_floor_small_window_wall_tile: marble_small_window_wall
     upper_floor_large_window_wall_tile: marble_large_window_wall
     door_tile: marble_small_door
-    roof_rows: 2
-    floor_count: 1
-    entrances: [{column: 0, row: 1}]
   - id: iseulon-market
-    display_name: 시장
-    material: marble
-    size: {columns: 2, rows: 2}
-    anchor: {column: 1, row: 0}
     roof_tile: marble_roof
-    wall_tile: marble_plain_wall
     ground_floor_plain_wall_tile: marble_plain_wall
     ground_floor_small_window_wall_tile: marble_small_window_wall
     upper_floor_large_window_wall_tile: marble_large_window_wall
     door_tile: marble_small_door
-    roof_rows: 1
-    floor_count: 1
-    entrances: [{column: 1, row: 0}]

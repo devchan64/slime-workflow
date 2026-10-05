@@ -13,7 +13,6 @@ from tools.review.build_map_review import load_map_render_profiles
 
 
 WORKFLOW_ROOT = Path(__file__).resolve().parents[3]
-GAME_MAP_DIRECTORY = WORKFLOW_ROOT / 'assets/world/isloon/game-data'
 
 
 def load_exported_game_map(city_identifier):
@@ -48,7 +47,7 @@ class MapRenderProfileTests(unittest.TestCase):
             self.assertTrue((current_output_directory/'field-map-view.js').is_file())
 
     def test_all_town_reviews_use_the_game_export_as_the_only_layout_snapshot(self):
-        self.assertFalse(GAME_MAP_DIRECTORY.exists())
+        self.assertFalse((WORKFLOW_ROOT / 'assets' / 'world').exists())
         for current_map_identifier in ('iseulon','reedhaven','stonewarm','dry-creek'):
             current_map_record = load_registered_map_review(current_map_identifier)
             self.assertTrue(current_map_record['provenance'])
@@ -67,9 +66,9 @@ class MapRenderProfileTests(unittest.TestCase):
         self.assertEqual(render_profile_values['wall_height'], 80)
         self.assertEqual(render_profile_values['block_height'], 80)
 
-        map_review_source = (WORKFLOW_ROOT / 'assets/world/isloon/map-review.html').read_text(encoding='utf-8')
-        self.assertNotIn('VOLUME_FLOOR_HEIGHT_PIXELS', map_review_source)
-        self.assertIn('currentVolumeRenderProfile.wall_height', map_review_source)
+        with self.assertRaisesRegex(ValueError, '로컬 맵 사본'):
+            from tools.review.build_map_review import build_map_review
+            build_map_review(map_path='old-map.yaml')
 
     def test_block_map_review_uses_the_shared_eighty_pixel_block_height(self):
         block_review_builder = (WORKFLOW_ROOT / 'tools/review/build_block_map_review.py').read_text(encoding='utf-8')
@@ -82,7 +81,7 @@ class MapRenderProfileTests(unittest.TestCase):
         self.assertIn('마을 블록 높이 설정이 올바르지 않습니다.', block_map_script)
 
     def test_city_roads_match_current_game_paving_sources(self):
-        tile_catalog_source = (WORKFLOW_ROOT / 'assets/world/isloon/tile-catalog.yaml').read_text(encoding='utf-8')
+        tile_catalog_source = (WORKFLOW_ROOT / 'tools/review/ui/map/config/tile-catalog.yaml').read_text(encoding='utf-8')
         map_review_script = (WORKFLOW_ROOT / 'tools/review/ui/map/block-map-review.js').read_text(encoding='utf-8')
 
         self.assertIn('id: stonewarm-gravel-paving', tile_catalog_source)
@@ -90,7 +89,7 @@ class MapRenderProfileTests(unittest.TestCase):
         self.assertIn("currentMapRecord.id==='stonewarm'?'stonewarm-marble-paving':currentMapRecord.id==='saltford'?'stonewarm-gravel-paving'", map_review_script)
 
     def test_stonewarm_exposed_rock_ground_uses_the_registered_tile(self):
-        tile_catalog_source = (WORKFLOW_ROOT / 'assets/world/isloon/tile-catalog.yaml').read_text(encoding='utf-8')
+        tile_catalog_source = (WORKFLOW_ROOT / 'tools/review/ui/map/config/tile-catalog.yaml').read_text(encoding='utf-8')
         map_review_script = (WORKFLOW_ROOT / 'tools/review/ui/map/block-map-review.js').read_text(encoding='utf-8')
 
         self.assertIn('id: stonewarm-exposed-rock-ground', tile_catalog_source)
@@ -98,7 +97,7 @@ class MapRenderProfileTests(unittest.TestCase):
         self.assertIn("gravel:currentMapRecord.id==='stonewarm'?'stonewarm-exposed-rock-ground':'gravel'", map_review_script)
 
     def test_reedhaven_roads_use_the_dirt_road_texture(self):
-        tile_catalog_source = (WORKFLOW_ROOT / 'assets/world/isloon/tile-catalog.yaml').read_text(encoding='utf-8')
+        tile_catalog_source = (WORKFLOW_ROOT / 'tools/review/ui/map/config/tile-catalog.yaml').read_text(encoding='utf-8')
         map_review_script = (WORKFLOW_ROOT / 'tools/review/ui/map/block-map-review.js').read_text(encoding='utf-8')
 
         self.assertIn('id: reedhaven-dirt-road', tile_catalog_source)
@@ -106,8 +105,8 @@ class MapRenderProfileTests(unittest.TestCase):
         self.assertIn("['reedhaven','grainstead'].includes(currentMapRecord.id)?'reedhaven-dirt-road':'paving'", map_review_script)
 
     def test_reedhaven_uses_wood_building_tiles(self):
-        tile_catalog_source = (WORKFLOW_ROOT / 'assets/world/isloon/tile-catalog.yaml').read_text(encoding='utf-8')
-        building_prefab_source = (WORKFLOW_ROOT / 'assets/world/isloon/building-prefabs.yaml').read_text(encoding='utf-8')
+        tile_catalog_source = (WORKFLOW_ROOT / 'tools/review/ui/map/config/tile-catalog.yaml').read_text(encoding='utf-8')
+        building_prefab_source = (WORKFLOW_ROOT / 'tools/review/ui/map/config/building-prefabs.yaml').read_text(encoding='utf-8')
         block_review_builder = (WORKFLOW_ROOT / 'tools/review/build_block_map_review.py').read_text(encoding='utf-8')
         map_review_script = (WORKFLOW_ROOT / 'tools/review/ui/map/block-map-review.js').read_text(encoding='utf-8')
 
@@ -170,7 +169,7 @@ class MapRenderProfileTests(unittest.TestCase):
             self.assertEqual(entrance_distance, 1, building_record['id'])
 
     def test_stonewarm_uses_registered_stone_wall(self):
-        tile_catalog_source = (WORKFLOW_ROOT / 'assets/world/isloon/tile-catalog.yaml').read_text(encoding='utf-8')
+        tile_catalog_source = (WORKFLOW_ROOT / 'tools/review/ui/map/config/tile-catalog.yaml').read_text(encoding='utf-8')
         map_review_script = (WORKFLOW_ROOT / 'tools/review/ui/map/block-map-review.js').read_text(encoding='utf-8')
 
         self.assertIn('id: stonewarm-stone-wall', tile_catalog_source)

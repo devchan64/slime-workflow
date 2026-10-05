@@ -33,7 +33,7 @@ TOWN_BUILDING_TILE_OVERRIDES={
 TOWN_BUILDING_TILE_OVERRIDES.update({current_city_identifier: dict(TOWN_BUILDING_TILE_OVERRIDES['reedhaven']) for current_city_identifier in ('grainstead', 'saltford')})
 
 def load_town_block_height():
-    render_profile_values=yaml.safe_load((WORKFLOW_ROOT_DIRECTORY/'assets/world/isloon/render-profiles.yaml').read_text())
+    render_profile_values=yaml.safe_load((WORKFLOW_ROOT_DIRECTORY/'tools/review/ui/map/config/render-profiles.yaml').read_text())
     if not isinstance(render_profile_values,dict) or render_profile_values.get('block_height')!=TOWN_BLOCK_HEIGHT:
         raise ValueError(f'마을 블록 높이는 {TOWN_BLOCK_HEIGHT}px여야 합니다.')
     return TOWN_BLOCK_HEIGHT
@@ -108,7 +108,7 @@ def build_current_block_faces(block_record_values, block_height_value):
 
 def load_current_texture_records():
     """검수 타일 목록과 해시를 요청 시 원본에서 읽는다."""
-    source_asset_directory=WORKFLOW_ROOT_DIRECTORY/'assets/world/isloon'
+    source_asset_directory=WORKFLOW_ROOT_DIRECTORY/'tools/review/ui/map/config'
     tile_catalog_record=yaml.safe_load((source_asset_directory/'tile-catalog.yaml').read_text())
     if tile_catalog_record.get('source_tile_size')!=GAME_TILE_SOURCE_SIZE:
         raise ValueError(f'게임 타일 원본 크기는 {GAME_TILE_SOURCE_SIZE}px여야 합니다.')
@@ -144,9 +144,9 @@ def build_block_map_review(output_directory_path):
     output_directory_path=Path(output_directory_path).resolve()
     if not output_directory_path.is_relative_to(WORKFLOW_ROOT_DIRECTORY/'.tmp'):
         raise ValueError('검수 출력은 .tmp 하위여야 합니다.')
-    source_asset_directory=WORKFLOW_ROOT_DIRECTORY/'assets/world/isloon'
+    source_asset_directory=WORKFLOW_ROOT_DIRECTORY/'tools/review/ui/map/config'
     town_block_height=load_town_block_height()
-    current_material_record=yaml.safe_load((WORKFLOW_ROOT_DIRECTORY/'assets/world/isloon/blocks/materials.yaml').read_text())
+    current_material_record=yaml.safe_load((WORKFLOW_ROOT_DIRECTORY/'tools/review/ui/map/config/materials.yaml').read_text())
     output_directory_path.mkdir(parents=True,exist_ok=True)
     texture_output_directory=output_directory_path/'textures'
     texture_output_directory.mkdir(exist_ok=True)

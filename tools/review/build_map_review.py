@@ -1,20 +1,15 @@
 #!/usr/bin/env python3
-"""이슬온 YAML 맵을 조립하고 검수 서버용 패키지를 만든다."""
+"""에셋 저장소의 등록 맵으로 검수 서버용 패키지를 만든다."""
 from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 import argparse
-import json
-import shutil
 import sys
 
 WORKFLOW_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_MAP_DIRECTORY = WORKFLOW_ROOT / 'assets/world/isloon/maps'
-REVIEW_TEMPLATE_PATH = WORKFLOW_ROOT / 'assets/world/isloon/map-review.html'
-FRONTEND_ASSET_ROOT = WORKFLOW_ROOT.parent / 'slime-frontend/assets'
 def load_map_render_profiles():
     import yaml
-    profile_record_values = yaml.safe_load((WORKFLOW_ROOT/'assets/world/isloon/render-profiles.yaml').read_text())
+    profile_record_values = yaml.safe_load((WORKFLOW_ROOT/'tools/review/ui/map/config/render-profiles.yaml').read_text())
     if not isinstance(profile_record_values,dict) or set(profile_record_values)!={'schema_version','field','town','wall_height','character_height','block_height'} or profile_record_values['schema_version']!=1:
         raise ValueError('맵 렌더링 프로필 형식 오류')
     for profile_kind_name in ('field','town'):
@@ -37,8 +32,6 @@ ISOMETRIC_MAP_ROTATIONS = (0, 90, 180, 270)
 ISOMETRIC_VISIBLE_BUILDING_SIDES = {'east', 'south'}
 
 sys.path.insert(0, str(WORKFLOW_ROOT))
-sys.path.insert(0, str(WORKFLOW_ROOT / 'generators/worldbuilding'))
-from isloon_tiles import assemble_isloon_map
 
 
 def project_building_point(column_value, row_value, elevation_value, row_count, half_tile_width, half_tile_height, vertical_offset=0):
@@ -332,101 +325,11 @@ def draw_building_volume_preview(preview_image, building_instance, prefab_record
 
 
 def build_map_review(map_path=None, output_root=None):
-    if map_path is None or Path(map_path).stem == 'iseulon':
-        from tools.review.build_block_map_review import build_block_map_review
-        selected_output_directory = output_root or WORKFLOW_ROOT / '.tmp' / datetime.now(ZoneInfo('Asia/Seoul')).strftime('%Y-%m-%d_%H-%M-%S') / 'isloon-map-review'
-        return build_block_map_review(selected_output_directory)
-    map_paths = [Path(map_path).resolve()] if map_path else sorted(DEFAULT_MAP_DIRECTORY.glob('*.yaml'))
-    if not map_paths:
-        raise ValueError(f'등록된 이슬온 맵이 없습니다: {DEFAULT_MAP_DIRECTORY}')
-    if output_root is None:
-        timestamp_text = datetime.now(ZoneInfo('Asia/Seoul')).strftime('%Y-%m-%d_%H-%M-%S')
-        output_root = WORKFLOW_ROOT / '.tmp' / timestamp_text / 'isloon-map-review'
-    output_root = Path(output_root).resolve()
-    if not output_root.is_relative_to((WORKFLOW_ROOT / '.tmp').resolve()):
-        raise ValueError('검수 결과는 저장소 .tmp 하위여야 합니다.')
-    output_root.mkdir(parents=True, exist_ok=False)
-    map_output_directory = output_root / 'maps'
-    map_output_directory.mkdir()
-    if __package__:
-        from .link_review_file import link_or_copy_review_file
-    else:
-        from link_review_file import link_or_copy_review_file
-    from isloon_tiles import load_yaml_document
-    catalog_values = load_yaml_document(WORKFLOW_ROOT / 'assets/world/isloon/tile-catalog.yaml')
-    building_prefab_values = load_yaml_document(WORKFLOW_ROOT / 'assets/world/isloon/building-prefabs.yaml')
-    tile_output_directory = output_root / 'tiles'
-    tile_output_directory.mkdir()
-    tile_asset_records = {}
-    tile_source_paths = {}
-    from tools.review.common.map_tile_assets import load_registered_tiles, resolve_registered_tile
-    asset_repository_path, registered_tile_records = load_registered_tiles()
-    for tile_record in catalog_values['tiles']:
-        source_asset_path, tile_provenance_record = resolve_registered_tile(tile_record['asset'], asset_repository_path, registered_tile_records)
-        output_asset_name = f'{tile_record["id"]}{source_asset_path.suffix.lower()}'
-        link_or_copy_review_file(source_asset_path, tile_output_directory / output_asset_name)
-        tile_asset_records[tile_record['id']] = {**tile_provenance_record, 'file': f'tiles/{output_asset_name}'}
-        tile_source_paths[tile_record['id']] = source_asset_path
-    map_records = []
-    for current_map_path in map_paths:
-        assembled_map_path = map_output_directory / f'{current_map_path.stem}.json'
-        assembled_map_values = assemble_isloon_map(current_map_path, assembled_map_path)
-        from PIL import Image, ImageDraw
-        selected_render_profile = MAP_RENDER_PROFILE_VALUES['town' if assembled_map_values['safe_town'] else 'field']
-        isometric_tile_width = selected_render_profile['tile_width']
-        isometric_tile_height = selected_render_profile['tile_height']
-        half_tile_width = isometric_tile_width // 2
-        half_tile_height = isometric_tile_height // 2
-        isometric_mask = Image.new('L', (isometric_tile_width, isometric_tile_height), 0)
-        ImageDraw.Draw(isometric_mask).polygon(((half_tile_width, 0), (isometric_tile_width - 1, half_tile_height), (half_tile_width, isometric_tile_height - 1), (0, half_tile_height)), fill=255)
-        tile_images = {}
-        for tile_id, tile_path in tile_source_paths.items():
-            # 역투영이 읽는 정사각형 전체를 한 타일로 사용한다.
-            source_tile_image = Image.open(tile_path).convert('RGBA').resize((isometric_tile_width, isometric_tile_width), Image.Resampling.LANCZOS)
-            projected_tile_image = source_tile_image.transform((isometric_tile_width, isometric_tile_height), Image.Transform.AFFINE, (1, 2, -half_tile_width, -1, 2, half_tile_width), Image.Resampling.BILINEAR)
-            projected_tile_image.putalpha(isometric_mask)
-            tile_images[tile_id] = projected_tile_image
-        wall_texture_images = {tile_record['id']: Image.open(tile_source_paths[tile_record['id']]).convert('RGBA')
-                               for tile_record in catalog_values['tiles'] if tile_record['category'] == 'structure'}
-        door_texture_images = {tile_record['id']: Image.open(tile_source_paths[tile_record['id']]).convert('RGBA')
-                               for tile_record in catalog_values['tiles'] if tile_record['category'] == 'door'}
-        prefab_lookup = {prefab_record['id']: prefab_record for prefab_record in building_prefab_values['prefabs']}
-        map_source_values = load_yaml_document(current_map_path)
-        preview_records = {}
-        for rotation_degrees in ISOMETRIC_MAP_ROTATIONS:
-            preview_image = render_isometric_map_preview(assembled_map_values, map_source_values, prefab_lookup,
-                                                         tile_images, isometric_tile_width, isometric_tile_height,
-                                                         rotation_degrees, wall_texture_images, door_texture_images)
-            preview_path = map_output_directory / f'{current_map_path.stem}.rotation-{rotation_degrees}.png'
-            preview_image.save(preview_path)
-            preview_records[str(rotation_degrees)] = f'maps/{preview_path.name}'
-        map_records.append({'id': assembled_map_values['map_id'], 'label': assembled_map_values['display_name'], 'file': f'maps/{assembled_map_path.name}', 'preview': preview_records['0'], 'previews': preview_records, 'source': str(current_map_path.relative_to(WORKFLOW_ROOT)), 'render_profile': {**selected_render_profile, 'wall_height': ISOMETRIC_BUILDING_WALL_HEIGHT, 'character_height': MAP_RENDER_PROFILE_VALUES['character_height']}})
-    (output_root / 'map-index.json').write_text(json.dumps({'schema_version': 1, 'maps': map_records}, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
-    (output_root / 'tile-assets.json').write_text(json.dumps({'schema_version': 1, 'tiles': tile_asset_records}, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
-    (output_root / 'building-prefabs.json').write_text(json.dumps(building_prefab_values, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
-    # 게임 런타임과 같은 스탠딩 프레임·발 기준점을 검수 패키지에 복사한다.
-    from PIL import Image
-    from tools.review.common.map_tile_assets import resolve_registered_sprite
-    character_animation_path,character_animation_provenance=resolve_registered_sprite('assets/characters/default/animations/idle-v6/down-left-8frames-v2/idle-v6-anchor-v3.animation.json')
-    character_source_path,character_source_provenance=resolve_registered_sprite('assets/characters/default/animations/idle-v6/down-left-8frames-v2/source.json')
-    character_sheet_path,character_sheet_provenance=resolve_registered_sprite('assets/characters/default/animations/idle-v6/down-left-8frames-v2/idle-v6.png')
-    character_animation_record = json.loads(character_animation_path.read_text())
-    character_source_record = json.loads(character_source_path.read_text())
-    character_preview_records = {}
-    character_output_directory = output_root/'character'
-    character_output_directory.mkdir()
-    for character_direction_name in ('down_left',):
-        character_frame_record = next(frame_record_value for frame_record_value in character_animation_record['frames'] if frame_record_value['frameId']==character_direction_name+'.0')
-        character_frame_rectangle = character_frame_record['rect']
-        with Image.open(character_sheet_path) as character_sheet_image:
-            character_sheet_image.crop((character_frame_rectangle['x'],character_frame_rectangle['y'],character_frame_rectangle['x']+character_frame_rectangle['width'],character_frame_rectangle['y']+character_frame_rectangle['height'])).save(character_output_directory/(character_direction_name+'.png'))
-        character_preview_records[character_direction_name]={'file':'character/'+character_direction_name+'.png','anchor':character_frame_record['anchor'],'width':character_frame_rectangle['width'],'height':character_frame_rectangle['height']}
-    (output_root/'character-preview.json').write_text(json.dumps({'provenance':{'image':character_sheet_provenance,'animation':character_animation_provenance,'metadata':character_source_provenance},'directions':character_preview_records,'body_height':character_source_record['referenceBodyHeight'],'top_padding':ISOMETRIC_PREVIEW_TOP_PADDING}))
-    shutil.copy2(WORKFLOW_ROOT/'tools/review/ui/map/map-character-preview.js',output_root/'map-character-preview.js')
-    shutil.copy2(WORKFLOW_ROOT/'tools/review/ui/map/map-review-layout.css',output_root/'map-review-layout.css')
-    shutil.copy2(REVIEW_TEMPLATE_PATH, output_root / 'map-review.html')
-    (output_root / 'README.txt').write_text('검수 서버: python3 tools/review/serve.py --root "' + str(output_root) + '" --entry map-review.html\n', encoding='utf-8')
-    return output_root
+    from tools.review.build_block_map_review import build_block_map_review
+    if map_path is not None:
+        raise ValueError('로컬 맵 사본 입력은 폐기되었습니다. 에셋 저장소의 등록 맵을 사용하세요.')
+    selected_output_directory = output_root or WORKFLOW_ROOT / '.tmp/test/map-review' / datetime.now(ZoneInfo('Asia/Seoul')).strftime('%Y-%m-%d_%H-%M-%S')
+    return build_block_map_review(selected_output_directory)
 
 
 def run_map_review_build_command():
