@@ -79,7 +79,7 @@ def build_separation_interface(current_server_address):
                     current_cancel_button = gr.Button('선택 작업 중지')
                     current_resume_button = gr.Button('선택 작업 재개')
                 current_preview_output = gr.HTML(build_separation_preview(current_server_address, ''))
-                current_download_output = gr.Markdown('베이스와 복장은 별도 RGB 후보입니다. 포즈·위치·비율·사람 잔상·투명화를 검수하세요.')
+                current_download_output = gr.Markdown('신규 베이스·복장은 RGBA 후보입니다. 포즈·위치·비율·배경 잔상과 흰 의복 경계를 검수하세요.')
         current_log_output, current_log_refresh, _ = build_execution_logs()
         def load_catalog_controls():
             current_catalog_record = execute_separation_gateway('catalog', {})

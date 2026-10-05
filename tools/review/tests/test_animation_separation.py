@@ -15,6 +15,17 @@ from tools.review.common.management_gateway import execute_gateway_arguments
 
 
 class AnimationSeparationTest(unittest.TestCase):
+    def test_alpha_preserves_enclosed_white_clothing(self):
+        from generators.image.separation_alpha import extract_connected_background
+        from PIL import ImageDraw
+        current_test_image = Image.new('RGB', (20, 20), (249, 249, 253))
+        current_test_draw = ImageDraw.Draw(current_test_image)
+        current_test_draw.rectangle((5, 5, 15, 15), fill='white', outline='gray', width=2)
+        current_alpha_image = extract_connected_background(current_test_image)
+        self.assertEqual(current_alpha_image.getpixel((0, 0))[3], 0)
+        self.assertEqual(current_alpha_image.getpixel((10, 10)), (255, 255, 255, 255))
+        self.assertEqual(current_alpha_image.getpixel((5, 5))[3], 255)
+
     def test_workflow_reference_integrity(self):
         current_source_records = separation_service_module.load_workflow_reference_sources()
         self.assertEqual({current_source_record['id'] for current_source_record in current_source_records}, {'workflow:character-default', 'workflow:character-female'})
@@ -82,8 +93,8 @@ class AnimationSeparationTest(unittest.TestCase):
         self.assertEqual(current_generation_calls[0][2], current_generation_calls[1][2])
         self.assertTrue((current_sample_directory / 'separation.zip').is_file())
         with Image.open(current_sample_directory / 'base-sheet.png') as current_base_image, Image.open(current_sample_directory / 'outfit-sheet.png') as current_outfit_image:
-            self.assertEqual(current_base_image.getpixel((0, 0)), (0, 0, 255))
-            self.assertEqual(current_outfit_image.getpixel((0, 0)), (255, 0, 0))
+            self.assertEqual(current_base_image.getpixel((0, 0)), (0, 0, 255, 255))
+            self.assertEqual(current_outfit_image.getpixel((0, 0)), (255, 0, 0, 255))
         self.assertFalse((current_sample_directory / 'head-sheet.png').exists())
         current_manifest_record = json.loads((current_sample_directory / 'manifest.json').read_text())
         self.assertEqual(current_manifest_record['frames'][0]['source']['anchor'], {'x': 8, 'y': 15})

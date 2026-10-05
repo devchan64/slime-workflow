@@ -1,7 +1,7 @@
 <!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <link rel="stylesheet" href="/management/style.css">
 <style>
-main{padding:12px}.review-toolbar,.download-toolbar,.playback-controls{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:12px 0}.preview-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.preview-grid section{min-width:0}.preview-grid h3{margin:0 0 8px;font-size:14px}canvas{display:block;width:100%;height:auto}.adjustment-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:12px 0}.adjustment-grid label{display:grid;gap:6px}.adjustment-grid input{min-width:0;width:100%;box-sizing:border-box}.playback-controls label{flex:1;min-width:120px}input[type=range]{width:100%}[hidden]{display:none!important}details{margin-top:12px}.download-toolbar a{padding:4px 0;margin-right:12px}@media(max-width:480px){.adjustment-grid{grid-template-columns:1fr}}
+main{padding:12px}.review-toolbar,.download-toolbar,.playback-controls{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:12px 0}.preview-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.preview-grid section{min-width:0}.preview-grid h3{margin:0 0 8px;font-size:14px}canvas{display:block;width:100%;height:auto;background:repeating-conic-gradient(#ddd 0% 25%,#fff 0% 50%) 0/20px 20px}.adjustment-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:12px 0}.adjustment-grid label{display:grid;gap:6px}.adjustment-grid input{min-width:0;width:100%;box-sizing:border-box}.playback-controls label{flex:1;min-width:120px}input[type=range]{width:100%}[hidden]{display:none!important}details{margin-top:12px}.download-toolbar a{padding:4px 0;margin-right:12px}@media(max-width:480px){.adjustment-grid{grid-template-columns:1fr}}
 </style>
 <main>
 <p id="status" role="status">결과 로딩 중</p>
@@ -25,7 +25,7 @@ main{padding:12px}.review-toolbar,.download-toolbar,.playback-controls{display:f
 <label>배율<input class="review-number-input" id="outfit-scale" type="number" min="0.1" max="3" step="0.05" value="1"></label>
 </div><button id="reset-alignment">위치·배율 초기화</button><p>검수 화면에만 적용됩니다. 저장된 이미지는 바뀌지 않습니다.</p></details>
 <div class="download-toolbar" aria-label="결과 다운로드"><a id="base-download" download>신체 베이스 PNG</a><a id="outfit-download" download>복장 PNG</a><a id="archive-download" download>전체 결과 ZIP</a></div>
-<details><summary>검수 기준과 표시 한계</summary><p>독립 생성된 결과의 위치·포즈·비율, 사람 잔상과 경계를 확인하세요. 겹쳐보기는 RGB 값이 모두 245 이상인 흰색을 임시 제거하므로 밝은 복장도 지워질 수 있습니다. 생성 완료는 정합 검수 통과를 의미하지 않습니다.</p></details>
+<details><summary>검수 기준과 표시 한계</summary><p>독립 생성된 결과의 위치·포즈·비율, 사람 잔상과 경계를 확인하세요. PNG의 저장된 알파를 그대로 표시합니다. 체크무늬는 투명 영역입니다. 이전 RGB 결과는 불투명하게 표시됩니다. 배경과 연결된 흰 옷 경계·그림자·닫힌 빈 공간은 추가 검수가 필요합니다. 생성 완료는 정합 검수 통과를 의미하지 않습니다.</p></details>
 </main>
 <script>
 (async()=>{
@@ -68,9 +68,6 @@ main{padding:12px}.review-toolbar,.download-toolbar,.playback-controls{display:f
    currentCombinedContext.drawImage(document.getElementById('base'),0,0);
    const currentOutfitCanvas=document.createElement('canvas');currentOutfitCanvas.width=currentCombinedCanvas.width;currentOutfitCanvas.height=currentCombinedCanvas.height;
    const currentOutfitContext=currentOutfitCanvas.getContext('2d');currentOutfitContext.drawImage(document.getElementById('outfit'),0,0);
-   const currentOutfitPixels=currentOutfitContext.getImageData(0,0,currentOutfitCanvas.width,currentOutfitCanvas.height);
-   for(let currentPixelIndex=0;currentPixelIndex<currentOutfitPixels.data.length;currentPixelIndex+=4){if(currentOutfitPixels.data[currentPixelIndex]>=245&&currentOutfitPixels.data[currentPixelIndex+1]>=245&&currentOutfitPixels.data[currentPixelIndex+2]>=245)currentOutfitPixels.data[currentPixelIndex+3]=0;}
-   currentOutfitContext.putImageData(currentOutfitPixels,0,0);
    const currentOutfitScale=Math.max(.1,Math.min(3,Number(document.getElementById('outfit-scale').value)||1));
    currentCombinedContext.drawImage(currentOutfitCanvas,Number(document.getElementById('outfit-x').value)||0,Number(document.getElementById('outfit-y').value)||0,currentOutfitCanvas.width*currentOutfitScale,currentOutfitCanvas.height*currentOutfitScale);
    currentFrameSlider.value=currentFrameNumber;currentStatusElement.textContent=`프레임 ${currentFrameNumber+1}/${currentManifestRecord.frames.length} · ${currentFrameRecord.source.frameId}`;
