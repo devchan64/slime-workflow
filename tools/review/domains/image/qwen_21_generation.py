@@ -4,7 +4,7 @@ import hashlib
 import json
 from pathlib import Path
 
-from generators.image.qwen_21_runtime import QWEN_MODEL_IDENTIFIER, QWEN_MODEL_REVISION, validate_qwen_model_assets
+from generators.image.qwen_21_runtime import QWEN_ALLOWED_INFERENCE_STEPS, QWEN_MODEL_IDENTIFIER, QWEN_MODEL_REVISION, validate_qwen_model_assets
 from tools.review.domains.image.image_generation import ImageGenerationManager, MANAGER_HISTORY_ROOT
 from tools.review.domains.image.image_runtime import validate_image_runtime
 from tools.review.domains.image.three_reference_generation import decode_reference_image, validate_three_reference_request, verify_reference_snapshots
@@ -19,7 +19,7 @@ def validate_qwen_plain_request(current_request_record):
             base64.b64encode(decode_reference_image(current_image_text, composite_transparent_background=True)).decode()
             for current_image_text in current_request_record['images']
         ]}
-    validated_request_record = validate_three_reference_request(current_request_record, allowed_inference_steps=(40,), maximum_reference_count=10)
+    validated_request_record = validate_three_reference_request(current_request_record, allowed_inference_steps=QWEN_ALLOWED_INFERENCE_STEPS, maximum_reference_count=10)
     prompt_word_count = len(validated_request_record['prompt'].split())
     if not 0 < prompt_word_count < 100:
         raise ValueError('프롬프트는 1~99단어로 입력하세요. 자동 문구 추가·축약은 하지 않습니다.')

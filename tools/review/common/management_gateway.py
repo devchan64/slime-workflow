@@ -149,7 +149,7 @@ class ManagementCommandGateway:
         return True
 
 
-MANAGEMENT_COMMAND_DESCRIPTIONS = {'animation-separation':'Qwen 2.1 신체 베이스·복장 독립 생성 · 1프레임 검수 후 범위 생성','qwen-21':'Qwen Image 2.1 · 입력 프롬프트 원문 · 추가 문구 없음 · 참조 0~10장 · 40스텝','seamless-tile':'Qwen Image 2.1 · 40스텝 · 5단계 가로·세로 심리스 패턴 · 단계별 검수 대기 · pause/resume · 참조 생략 가능','expression':'Qwen 2511 AU 표정 생성 · 참조 1~3장 · --expression에 표정 ID 지정','floor-tile':'512×512·4스텝 단일 바닥 타일 생성 (관리 서버 필요)','anny':'ANNY 이력 상태·중지·재개 (관리 서버 필요)','character-animation':'등록 모션·캐릭터 기반 애니메이션 생성·이력·재생 결과 조회','momask': 'MoMask 생성·상태·로그·이력 조회·취소 (웹과 기록 공유)', 'qwen-2512': 'Qwen 2512 텍스트 이미지 생성 (관리 서버 필요)', 'qwen-2511': 'Qwen 2511 텍스트·1~3장 참조 이미지 생성 (관리 서버 필요)'}
+MANAGEMENT_COMMAND_DESCRIPTIONS = {'animation-separation':'Qwen 2.1 신체 베이스·복장 독립 생성 · 1프레임 검수 후 범위 생성','qwen-21':'Qwen Image 2.1 · 입력 프롬프트 원문 · 추가 문구 없음 · 참조 0~10장 · 30·40·50스텝 (기본 40)','seamless-tile':'Qwen Image 2.1 · 40스텝 · 5단계 가로·세로 심리스 패턴 · 단계별 검수 대기 · pause/resume · 참조 생략 가능','expression':'Qwen 2511 AU 표정 생성 · 참조 1~3장 · --expression에 표정 ID 지정','floor-tile':'512×512·4스텝 단일 바닥 타일 생성 (관리 서버 필요)','anny':'ANNY 이력 상태·중지·재개 (관리 서버 필요)','character-animation':'등록 모션·캐릭터 기반 애니메이션 생성·이력·재생 결과 조회','momask': 'MoMask 생성·상태·로그·이력 조회·취소 (웹과 기록 공유)', 'qwen-2512': 'Qwen 2512 텍스트 이미지 생성 (관리 서버 필요)', 'qwen-2511': 'Qwen 2511 텍스트·1~3장 참조 이미지 생성 (관리 서버 필요)'}
 
 def execute_management_command(service_command_name, operation_command_name, command_payload_value, server_base_address=None, *, gateway_request_handler=None, service_handler_values=None):
     request_method_value,request_route_value=resolve_management_command(service_command_name,operation_command_name,command_payload_value)
@@ -220,7 +220,7 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
                 prompt_argument_group.add_argument('--prompt-file',type=Path,help='UTF-8 프롬프트 파일')
                 operation_argument_parser.add_argument('--width',type=int,default=None if service_command_name=='seamless-tile' else 512 if service_command_name in ('qwen-2511','expression','floor-tile') else 1024)
                 operation_argument_parser.add_argument('--height',type=int,default=None if service_command_name=='seamless-tile' else 512 if service_command_name in ('qwen-2511','expression','floor-tile') else 1024)
-                operation_argument_parser.add_argument('--steps',type=int,choices=(40,) if service_command_name in ('seamless-tile','qwen-21') else (4,) if service_command_name=='floor-tile' else (4,30),default=40 if service_command_name in ('seamless-tile','qwen-21') else 4)
+                operation_argument_parser.add_argument('--steps',type=int,choices=(30,40,50) if service_command_name=='qwen-21' else (40,) if service_command_name=='seamless-tile' else (4,) if service_command_name=='floor-tile' else (4,30),default=40 if service_command_name in ('seamless-tile','qwen-21') else 4)
                 operation_argument_parser.add_argument('--seed',type=int,default=10107 if service_command_name in ('qwen-2511','expression','seamless-tile','qwen-21') else 251204)
                 if service_command_name=='floor-tile':
                     operation_argument_parser.add_argument('--add-margins',action=argparse.BooleanOptionalAction,default=None,help='빈 여백 추가 ON/OFF (--no-add-margins로 OFF, 생략 시 서버 기본값)')

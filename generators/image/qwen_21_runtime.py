@@ -10,6 +10,7 @@ QWEN_MODEL_IDENTIFIER = 'Qwen/Qwen-Image-2.1'
 QWEN_MODEL_REVISION = 'd26bb61231c349cf6b7896fa83353113880e1ba3'
 QWEN_MODEL_DIRECTORY = WORKFLOW_ROOT_PATH / '.model/qwen-image-2.1' / QWEN_MODEL_REVISION
 QWEN_INFERENCE_STEPS = 40
+QWEN_ALLOWED_INFERENCE_STEPS = (30, 40, 50)
 
 
 def validate_qwen_model_assets():
@@ -38,12 +39,13 @@ def execute_qwen_reference_generation(current_job_root, current_request_record, 
 
     if not torch.cuda.is_available():
         raise RuntimeError('Qwen 2.1 추론에 CUDA GPU가 필요합니다.')
-    if current_request_record['steps'] != QWEN_INFERENCE_STEPS:
-        raise ValueError('Qwen 2.1은 40스텝 고정입니다.')
+    selected_inference_steps = current_request_record['steps']
+    if type(selected_inference_steps) is not int or selected_inference_steps not in QWEN_ALLOWED_INFERENCE_STEPS:
+        raise ValueError('Qwen 2.1 스텝은 30·40·50 중 선택해야 합니다.')
     if not 0 < len(current_request_record['prompt'].split()) < 100:
         raise ValueError('Qwen 2.1 프롬프트는 1~99단어여야 합니다.')
     current_model_root = validate_qwen_model_assets()
-    current_progress_record = {'stage': 'loading', 'step': 0, 'total': QWEN_INFERENCE_STEPS}
+    current_progress_record = {'stage': 'loading', 'step': 0, 'total': selected_inference_steps}
     heartbeat_stop_event = threading.Event()
 
     def emit_generation_heartbeat():
@@ -69,7 +71,7 @@ def execute_qwen_reference_generation(current_job_root, current_request_record, 
             generated_output_image = current_pipeline_model(
                 image=reference_image_values or None, prompt=current_request_record['prompt'],
                 width=current_request_record['width'], height=current_request_record['height'],
-                num_inference_steps=QWEN_INFERENCE_STEPS,
+                num_inference_steps=selected_inference_steps,
                 generator=torch.Generator('cuda').manual_seed(current_request_record['seed']),
                 callback_on_step_end=record_inference_progress,
             ).images[0]
@@ -78,7 +80,7 @@ def execute_qwen_reference_generation(current_job_root, current_request_record, 
         generated_output_image.save(current_job_root / 'result.png')
         current_result_record = {
             'model_id': QWEN_MODEL_IDENTIFIER, 'revision': QWEN_MODEL_REVISION,
-            'size': list(generated_output_image.size), 'steps': QWEN_INFERENCE_STEPS,
+            'size': list(generated_output_image.size), 'steps': selected_inference_steps,
             'seed': current_request_record['seed'], 'prompt': current_request_record['prompt'],
             'prompt_word_count': len(current_request_record['prompt'].split()),
             'prompt_sha256': hashlib.sha256(current_request_record['prompt'].encode()).hexdigest(),
