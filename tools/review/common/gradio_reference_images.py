@@ -9,12 +9,12 @@ REFERENCE_IMAGE_CARD_HEIGHT = 230
 REFERENCE_IMAGE_MINIMUM_WIDTH = 180
 
 
-def build_reference_image_inputs(*, reference_panel_visible=True, reference_panel_identifier=None, reference_image_mode='RGB', reference_slot_count=REFERENCE_IMAGE_SLOT_COUNT):
-    if reference_slot_count not in (1, 3, 10):
-        raise ValueError('참조 슬롯은 1개·3개·10개를 지원합니다.')
+def build_reference_image_inputs(*, reference_panel_visible=True, reference_panel_identifier=None, reference_image_mode='RGB', reference_slot_count=REFERENCE_IMAGE_SLOT_COUNT, reference_slot_labels=None):
+    if reference_slot_count not in (1, 2, 3, 10):
+        raise ValueError('참조 슬롯은 1개·2개·3개·10개를 지원합니다.')
     dynamic_slots_enabled = reference_slot_count == 10
     with gr.Group(visible=reference_panel_visible,elem_id=reference_panel_identifier,elem_classes=['reference-upload-panel']) as reference_upload_group:
-        gr.Markdown('### 참조 이미지\n원본 한 장 · 이미지를 끌어놓거나 아래 버튼으로 추가하세요.' if reference_slot_count == 1 else f'### 참조 이미지\n최대 {reference_slot_count}장 · 이미지를 끌어놓거나 아래 버튼으로 추가하세요. 입력된 참조를 번호 순서대로 전달합니다.')
+        gr.Markdown('### 참조 이미지\n원본 한 장 · 이미지를 끌어놓거나 아래 버튼으로 추가하세요.' if reference_slot_count == 1 else '### 참조 이미지\n아이덴티티와 포즈 이미지를 각각 한 장씩 첨부하세요.' if reference_slot_count == 2 else f'### 참조 이미지\n최대 {reference_slot_count}장 · 이미지를 끌어놓거나 아래 버튼으로 추가하세요. 입력된 참조를 번호 순서대로 전달합니다.')
         visible_slot_state = gr.State(1) if dynamic_slots_enabled else None
         reference_slot_groups = []
         reference_delete_buttons = []
@@ -23,7 +23,7 @@ def build_reference_image_inputs(*, reference_panel_visible=True, reference_pane
             for reference_slot_index in range(reference_slot_count):
                 with gr.Column(min_width=REFERENCE_IMAGE_MINIMUM_WIDTH, visible=not dynamic_slots_enabled or reference_slot_index == 0, elem_classes=['reference-upload-slot']) as reference_slot_group:
                     reference_slot_groups.append(reference_slot_group)
-                    reference_image_controls.append(gr.Image(type='pil', image_mode=reference_image_mode, sources=['upload'], label=f'참조 이미지 {reference_slot_index+1}', height=REFERENCE_IMAGE_CARD_HEIGHT, elem_classes=['reference-upload-card'], placeholder='이미지 끌어놓기'))
+                    reference_image_controls.append(gr.Image(type='pil', image_mode=reference_image_mode, sources=['upload'], label=reference_slot_labels[reference_slot_index] if reference_slot_labels else f'참조 이미지 {reference_slot_index+1}', height=REFERENCE_IMAGE_CARD_HEIGHT, elem_classes=['reference-upload-card'], placeholder='이미지 끌어놓기'))
                     gr.HTML('<div class="reference-upload-actions"><button type="button" class="sm secondary" data-reference-action="upload">파일 불러오기</button><button type="button" class="sm secondary" data-reference-action="clipboard">클립보드 붙여넣기</button></div><p role="status" aria-live="polite"></p>', js_on_load=REFERENCE_CLIPBOARD_SCRIPT)
                     if dynamic_slots_enabled:
                         reference_delete_buttons.append(gr.Button('삭제', size='sm', variant='secondary'))

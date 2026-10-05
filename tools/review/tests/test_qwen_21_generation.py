@@ -22,6 +22,17 @@ class QwenPlainGenerationTests(unittest.TestCase):
         return {'action':'generate','prompt':'  붉은 사과.\n흰 배경.  ','images':[base64.b64encode(current_image_buffer.getvalue()).decode()]*reference_image_count,
             'width':512,'height':512,'steps':40,'seed':10107}
 
+    def test_small_output_resolution_boundary(self):
+        from tools.review.domains.image.three_reference_generation import validate_three_reference_request
+        current_request_record = self.create_reference_request()
+        current_request_record.update(width=256,height=256)
+        self.assertEqual(validate_qwen_plain_request(current_request_record)['width'],256)
+        with self.assertRaises(ValueError):
+            validate_three_reference_request({**current_request_record,'steps':4})
+        for invalid_output_size in (240,257):
+            with self.assertRaises(ValueError):
+                validate_qwen_plain_request({**current_request_record,'width':invalid_output_size})
+
     def test_transparent_reference_gui_service_and_resume(self):
         from tools.review.ui.gradio.qwen_2511_app import prepare_reference_image_bytes
         current_reference_image = Image.new('RGBA', (3, 1), (255, 0, 0, 0))

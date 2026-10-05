@@ -11,7 +11,9 @@ from PIL import Image
 REFERENCE_IMAGE_LIMIT = 3_000_000
 WORKFLOW_ROOT_PATH = Path(__file__).resolve().parents[4]
 ALLOWED_REFERENCE_JOB_ROOTS = (
+    WORKFLOW_ROOT_PATH/'.tmp/test/pose-transfer',
     WORKFLOW_ROOT_PATH/'.tmp/test/qwen-image-21',
+    WORKFLOW_ROOT_PATH/'.tmp/test/qwen-image-21-circular',
     WORKFLOW_ROOT_PATH/'.tmp/test/seamless-tile-generator',
     WORKFLOW_ROOT_PATH/'.tmp/test/expression-generator',
     WORKFLOW_ROOT_PATH/'.tmp/test/qwen-image-2511-three-reference',
@@ -27,7 +29,7 @@ def validate_three_reference_job_path(current_job_root):
     return resolved_job_root
 
 
-def validate_three_reference_request(current_request_record, allowed_inference_steps=(4, 30), maximum_reference_count=3):
+def validate_three_reference_request(current_request_record, allowed_inference_steps=(4, 30), maximum_reference_count=3, minimum_output_size=512):
     if isinstance(current_request_record,dict) and current_request_record.get('action')=='generate':
         current_request_record=dict(current_request_record)
         current_request_record.setdefault('seed',10107)
@@ -43,8 +45,8 @@ def validate_three_reference_request(current_request_record, allowed_inference_s
         raise ValueError(f'텍스트 생성은 참조 0장, 참조 생성은 1~{maximum_reference_count}장이 필요합니다.')
     for current_size_key in ('width','height'):
         current_size_value=current_request_record[current_size_key]
-        if type(current_size_value) is not int or not 512 <= current_size_value <= 1664 or current_size_value % 16:
-            raise ValueError('출력 크기는 512~1664 범위의 16 배수여야 합니다.')
+        if type(current_size_value) is not int or not minimum_output_size <= current_size_value <= 1664 or current_size_value % 16:
+            raise ValueError(f'출력 크기는 {minimum_output_size}~1664 범위의 16 배수여야 합니다.')
     if type(current_request_record['steps']) is not int or current_request_record['steps'] not in allowed_inference_steps:
         raise ValueError(f'허용 생성 스텝: {allowed_inference_steps}')
     for current_image_text in current_request_record['images']:

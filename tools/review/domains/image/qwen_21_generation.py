@@ -19,7 +19,7 @@ def validate_qwen_plain_request(current_request_record):
             base64.b64encode(decode_reference_image(current_image_text, composite_transparent_background=True)).decode()
             for current_image_text in current_request_record['images']
         ]}
-    validated_request_record = validate_three_reference_request(current_request_record, allowed_inference_steps=QWEN_ALLOWED_INFERENCE_STEPS, maximum_reference_count=10)
+    validated_request_record = validate_three_reference_request(current_request_record, allowed_inference_steps=QWEN_ALLOWED_INFERENCE_STEPS, maximum_reference_count=10, minimum_output_size=256)
     prompt_word_count = len(validated_request_record['prompt'].split())
     if not 0 < prompt_word_count < 100:
         raise ValueError('프롬프트는 1~99단어로 입력하세요. 자동 문구 추가·축약은 하지 않습니다.')
@@ -32,6 +32,12 @@ def validate_qwen_plain_request(current_request_record):
 
 
 def verify_qwen_saved_request(current_job_root, current_request_record):
+    from generators.image.qwen_21_circular import CIRCULAR_VAE_CONFIGURATION, CIRCULAR_LEGACY_CONFIGURATION
+    circular_storage_enabled = current_job_root.parent.name == 'qwen-image-21-circular'
+    if circular_storage_enabled and current_request_record.get('circular_vae') not in (CIRCULAR_VAE_CONFIGURATION, CIRCULAR_LEGACY_CONFIGURATION):
+        raise ValueError('순환 VAE 실행 기록 설정이 일치하지 않습니다.')
+    if not circular_storage_enabled and 'circular_vae' in current_request_record:
+        raise ValueError('일반 Qwen 기록에 순환 VAE 설정을 사용할 수 없습니다.')
     verify_reference_snapshots(current_job_root, current_request_record)
     # 저장된 메타데이터도 동일한 입력 검증에서 다시 계산한다.
     import base64

@@ -317,6 +317,8 @@ def run_review_server(parsed_argument_values):
             ('/management/frame/momask-generator/',parsed_argument_values.port+101,lambda:ensure_gradio_server(parsed_argument_values.port)),
             ('/management/frame/character-animation/',parsed_argument_values.port+102,lambda:ensure_character_animation_server(parsed_argument_values.port)),
             ('/management/frame/animation-separation/',parsed_argument_values.port+117,lambda:ensure_gradio_application(parsed_argument_values.port,'animation-separation')),
+            ('/management/frame/qwen-21-circular-generator/',parsed_argument_values.port+118,lambda:ensure_gradio_application(parsed_argument_values.port,'qwen-21-circular')),
+            ('/management/frame/pose-transfer-generator/',parsed_argument_values.port+119,lambda:ensure_gradio_application(parsed_argument_values.port,'pose-transfer')),
             ('/management/frame/qwen-21-generator/',parsed_argument_values.port+116,lambda:ensure_gradio_application(parsed_argument_values.port,'qwen-21')),
             ('/management/frame/expression-generator/',parsed_argument_values.port+114,lambda:ensure_gradio_application(parsed_argument_values.port,'expression')),
             ('/management/frame/sprite-editor/',parsed_argument_values.port+106,lambda:ensure_sprite_editor_server(parsed_argument_values.port)),

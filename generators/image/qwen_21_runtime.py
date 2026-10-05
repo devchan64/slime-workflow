@@ -60,8 +60,19 @@ def execute_qwen_reference_generation(current_job_root, current_request_record, 
     try:
         print(f'{datetime.now().isoformat()}/qwen21/load {current_model_root}', flush=True)
         current_pipeline_model = QwenImage21Pipeline.from_pretrained(current_model_root, torch_dtype=torch.bfloat16, local_files_only=True)
+        if 'circular_vae' in current_request_record:
+            from generators.image.qwen_21_circular import apply_circular_decoder, install_circular_halo_decode, CIRCULAR_VAE_CONFIGURATION, CIRCULAR_LEGACY_CONFIGURATION
+            if current_request_record['circular_vae'] == CIRCULAR_VAE_CONFIGURATION:
+                install_circular_halo_decode(current_pipeline_model, current_job_root)
+                print(f'{datetime.now().isoformat()}/qwen21/circular 잠재 여백 8 · 일반/순환 동일 잠재값 비교 · 분할 없음', flush=True)
+            elif current_request_record['circular_vae'] == CIRCULAR_LEGACY_CONFIGURATION:
+                patched_module_count = apply_circular_decoder(current_pipeline_model.vae)
+                print(f'{datetime.now().isoformat()}/qwen21/circular 기존 디코더 {patched_module_count}개 · XY 순환', flush=True)
+            else:
+                raise ValueError('순환 VAE 고정 설정 불일치')
+        else:
+            current_pipeline_model.vae.enable_tiling()
         current_pipeline_model.enable_sequential_cpu_offload()
-        current_pipeline_model.vae.enable_tiling()
         reference_image_values = []
         for reference_image_path in reference_image_paths:
             with Image.open(reference_image_path) as current_reference_image:
@@ -78,12 +89,25 @@ def execute_qwen_reference_generation(current_job_root, current_request_record, 
         if generated_output_image.size != (current_request_record['width'], current_request_record['height']):
             raise ValueError(f'Qwen 2.1 출력 크기 불일치: {generated_output_image.size}')
         generated_output_image.save(current_job_root / 'result.png')
+        if 'circular_vae' in current_request_record:
+            repeated_output_image = Image.new('RGB', (generated_output_image.width * 3, generated_output_image.height * 3))
+            for repeated_row_index in range(3):
+                for repeated_column_index in range(3):
+                    repeated_output_image.paste(generated_output_image, (repeated_column_index * generated_output_image.width, repeated_row_index * generated_output_image.height))
+            repeated_output_image.save(current_job_root / 'tiled-preview.png')
+            if (current_job_root / 'baseline.png').is_file():
+                with Image.open(current_job_root / 'baseline.png') as baseline_output_image:
+                    for repeated_row_index in range(3):
+                        for repeated_column_index in range(3):
+                            repeated_output_image.paste(baseline_output_image, (repeated_column_index * baseline_output_image.width, repeated_row_index * baseline_output_image.height))
+                    repeated_output_image.save(current_job_root / 'baseline-preview.png')
         current_result_record = {
             'model_id': QWEN_MODEL_IDENTIFIER, 'revision': QWEN_MODEL_REVISION,
             'size': list(generated_output_image.size), 'steps': selected_inference_steps,
             'seed': current_request_record['seed'], 'prompt': current_request_record['prompt'],
             'prompt_word_count': len(current_request_record['prompt'].split()),
             'prompt_sha256': hashlib.sha256(current_request_record['prompt'].encode()).hexdigest(),
+            'circular_vae': current_request_record.get('circular_vae'),
             'peak_gpu_bytes': torch.cuda.max_memory_allocated(), 'quality_warnings': [],
         }
         (current_job_root / 'result.json').write_text(json.dumps(current_result_record, ensure_ascii=False, indent=2))

@@ -1,0 +1,1 @@
+Pose the character in image 1 like image 2. Preserve image 1's identity, face, hair, skin tone, clothing, body proportions and art style. Use image 2 only for body orientation, limb positions and joint bends. Show one complete character with clear margins, matching the requested pose precisely. Keep a clean plain background.
