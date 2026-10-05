@@ -318,7 +318,6 @@ def run_review_server(parsed_argument_values):
             ('/management/frame/character-animation/',parsed_argument_values.port+102,lambda:ensure_character_animation_server(parsed_argument_values.port)),
             ('/management/frame/animation-separation/',parsed_argument_values.port+117,lambda:ensure_gradio_application(parsed_argument_values.port,'animation-separation')),
             ('/management/frame/qwen-21-generator/',parsed_argument_values.port+116,lambda:ensure_gradio_application(parsed_argument_values.port,'qwen-21')),
-            ('/management/frame/seamless-tile-generator/',parsed_argument_values.port+115,lambda:ensure_gradio_application(parsed_argument_values.port,'seamless-tile')),
             ('/management/frame/expression-generator/',parsed_argument_values.port+114,lambda:ensure_gradio_application(parsed_argument_values.port,'expression')),
             ('/management/frame/sprite-editor/',parsed_argument_values.port+106,lambda:ensure_sprite_editor_server(parsed_argument_values.port)),
             ('/management/frame/map-review/',parsed_argument_values.port+107,lambda:ensure_map_review_server(parsed_argument_values.port)),
@@ -329,7 +328,6 @@ def run_review_server(parsed_argument_values):
             ('/momask-generator/',parsed_argument_values.port+100,lambda:ensure_management_menu_server(parsed_argument_values.port,manager_source_path)),
             ('/character-animation/',parsed_argument_values.port+100,lambda:ensure_management_menu_server(parsed_argument_values.port,manager_source_path)),
             ('/image-generation-21/',parsed_argument_values.port+100,lambda:ensure_management_menu_server(parsed_argument_values.port,manager_source_path)),
-            ('/seamless-tile-generator/',parsed_argument_values.port+100,lambda:ensure_management_menu_server(parsed_argument_values.port,manager_source_path)),
             ('/expression-generator/',parsed_argument_values.port+100,lambda:ensure_management_menu_server(parsed_argument_values.port,manager_source_path)),
             ('/anny-attributes/',parsed_argument_values.port+100,lambda:ensure_management_menu_server(parsed_argument_values.port,manager_source_path)),
             ('/writer-agent/',parsed_argument_values.port+100,lambda:ensure_management_menu_server(parsed_argument_values.port,manager_source_path)),
@@ -379,7 +377,7 @@ def run_review_server(parsed_argument_values):
         def reject_retired_generator(self):
             current_request_parts = urlsplit(self.path)
             current_tool_values = parse_qs(current_request_parts.query).get('tool', [])
-            if any(value in ('image-generator', 'three-reference-generator', 'floor-tile-generator') for value in current_tool_values) or current_request_parts.path.startswith(('/management/frame/image-generator/', '/management/frame/three-reference-generator/', '/management/frame/floor-tile-generator/')) or current_request_parts.path in ('/image-generation/', '/image-generation-2511/', '/floor-tile-generator/'):
+            if any(value in ('image-generator', 'three-reference-generator', 'floor-tile-generator', 'seamless-tile-generator') for value in current_tool_values) or current_request_parts.path.startswith(('/management/frame/image-generator/', '/management/frame/three-reference-generator/', '/management/frame/floor-tile-generator/', '/management/frame/seamless-tile-generator/')) or current_request_parts.path in ('/image-generation/', '/image-generation-2511/', '/floor-tile-generator/', '/seamless-tile-generator/'):
                 self.send_error(410, 'This generator has been retired. Use Qwen 2.1.')
                 return True
             return False

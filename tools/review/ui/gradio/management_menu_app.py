@@ -22,7 +22,6 @@ LEGACY_PAGE_IDENTIFIER_VALUES={'map-review':'map-review-iseulon','animation-2':'
 DEFAULT_PAGE_RECORDS=(
     {'id':'animation-separation','label':'캐릭터 레퍼런스 복장 분리 생성','path':'/animation-separation/','category':'animation-tool','uiMode':'gradio','description':'Qwen 2.1 · 원본 1프레임 선택 · 신체 베이스·복장 별도 이미지'},
     {'id':'qwen-21-generator','label':'Qwen 2.1 이미지 생성기','path':'/image-generation-21/','category':'image-generation','uiMode':'gradio','description':'입력 프롬프트 그대로 · 추가 문구 없음 · 참조 선택'},
-    {'id':'seamless-tile-generator','label':'Qwen2.1 심리스 패턴 생성기','path':'/seamless-tile-generator/','category':'image-generation','uiMode':'gradio','description':'5단계 가로·세로 연결 · 검수 · 일시정지·재개'},
     {'id':'writer-agent','label':'작가 AI 에이전트','path':'/writer-agent/','category':'writer-agent','uiMode':'gradio','description':'Gradio · 문서 학습 · 아이디어 작성 · 실행 기록'},
     {'id':'expression-generator','label':'표정 생성기','path':'/expression-generator/','category':'image-generation','uiMode':'gradio','description':'Qwen 2511 · AU 표정 39종 · 참조 1~3장'},
 )
@@ -75,7 +74,7 @@ def load_manager_page_records(source_file_path):
     page_identifier_values=set()
     validated_page_records=[]
     for current_page_record in [*page_record_values,*DEFAULT_PAGE_RECORDS]:
-        if current_page_record.get('id') in ('three-reference-generator','image-generator','floor-tile-generator'):continue
+        if current_page_record.get('id') in ('three-reference-generator','image-generator','floor-tile-generator','seamless-tile-generator'):continue
         if not isinstance(current_page_record,dict) or not all(isinstance(current_page_record.get(current_field_name),str) for current_field_name in ('id','label','path','category','description')):raise ValueError('관리 메뉴 페이지 항목 형식 오류')
         if any(current_page_record.get(current_field_name) is not None and not isinstance(current_page_record[current_field_name],str) for current_field_name in ('frameIdentifier','frameQuery')):raise ValueError('관리 메뉴 프레임 항목 형식 오류')
         if current_page_record['id']=='tile-map-generator':continue
