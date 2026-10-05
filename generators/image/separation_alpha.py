@@ -1,4 +1,4 @@
-"""프레임 외곽에 연결된 밝은 배경만 제거하고 내부의 흰 의복은 보존한다."""
+"""복장은 외곽 연결 배경만, 파란 의복 베이스는 닫힌 밝은 배경까지 제거한다."""
 from collections import deque
 from PIL import Image
 
@@ -6,7 +6,7 @@ BACKGROUND_MINIMUM_CHANNEL = 235
 BACKGROUND_MAXIMUM_CHROMA = 24
 
 
-def extract_connected_background(current_source_image):
+def extract_connected_background(current_source_image, *, remove_enclosed_background=False):
     current_output_image = current_source_image.convert('RGBA')
     current_image_width, current_image_height = current_output_image.size
     current_pixel_values = list(current_output_image.getdata())
@@ -21,6 +21,10 @@ def extract_connected_background(current_source_image):
             current_background_mask[current_pixel_index] = 1
             current_pending_pixels.append(current_pixel_index)
 
+    # 파란색 베이스 의복 전용: 팔·몸통 사이의 닫힌 밝은 배경도 제거한다.
+    if remove_enclosed_background:
+        for current_pixel_index in range(len(current_pixel_values)):
+            enqueue_background_pixel(current_pixel_index)
     for current_column_index in range(current_image_width):
         enqueue_background_pixel(current_column_index)
         enqueue_background_pixel((current_image_height-1)*current_image_width+current_column_index)

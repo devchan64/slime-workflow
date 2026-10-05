@@ -26,6 +26,21 @@ class AnimationSeparationTest(unittest.TestCase):
         self.assertEqual(current_alpha_image.getpixel((10, 10)), (255, 255, 255, 255))
         self.assertEqual(current_alpha_image.getpixel((5, 5))[3], 255)
 
+    def test_base_removes_enclosed_arm_gap(self):
+        from generators.image.separation_alpha import extract_connected_background
+        from PIL import ImageDraw
+        current_test_image = Image.new('RGB', (24, 24), 'white')
+        current_test_draw = ImageDraw.Draw(current_test_image)
+        current_test_draw.rectangle((3, 3, 20, 20), fill=(190, 140, 95))
+        current_test_draw.rectangle((8, 6, 12, 17), fill=(249, 249, 252))
+        current_test_draw.rectangle((14, 8, 19, 14), fill=(30, 80, 140))
+        current_base_image = extract_connected_background(current_test_image, remove_enclosed_background=True)
+        current_outfit_image = extract_connected_background(current_test_image)
+        self.assertEqual(current_base_image.getpixel((10, 10))[3], 0)
+        self.assertEqual(current_outfit_image.getpixel((10, 10))[3], 255)
+        self.assertEqual(current_base_image.getpixel((5, 10)), (190, 140, 95, 255))
+        self.assertEqual(current_base_image.getpixel((16, 10)), (30, 80, 140, 255))
+
     def test_workflow_reference_integrity(self):
         current_source_records = separation_service_module.load_workflow_reference_sources()
         self.assertEqual({current_source_record['id'] for current_source_record in current_source_records}, {'workflow:character-default', 'workflow:character-female'})
