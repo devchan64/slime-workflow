@@ -317,9 +317,15 @@ characters:
             with tempfile.TemporaryDirectory() as temporary_root_name:
                 generation_job_path=Path(temporary_root_name)
                 (generation_job_path/'request.json').write_text(json.dumps(generation_request_record))
+                character_source_path=generation_job_path/'body-base.png'
+                Image.new('RGBA',(768,768),(20,40,60,0)).save(character_source_path)
+                generation_request_record['frames'][0]['character_path']=str(character_source_path)
+                generation_request_record['frames'][0]['character_sha256']=assets.hash_asset_file(character_source_path)
+                (generation_job_path/'request.json').write_text(json.dumps(generation_request_record))
                 pose_execute_mock=MagicMock()
                 with patch.dict(sys.modules,{'qwen_pose':SimpleNamespace(execute_pose_generation=pose_execute_mock)}):
-                    generate_character_frame(generation_job_path,0)
+                    with patch('generators.animation.run_character_animation.resolve_asset_path',side_effect=lambda current_asset_path: character_source_path if current_asset_path==str(character_source_path) else assets.resolve_asset_path(current_asset_path)):
+                        generate_character_frame(generation_job_path,0)
                 execution_keyword_values=pose_execute_mock.call_args.kwargs
                 self.assertEqual(execution_keyword_values['selected_base_strength'],0.7)
                 self.assertEqual(execution_keyword_values['selected_helper_strength'],0.7)

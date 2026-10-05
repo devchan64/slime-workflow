@@ -6,6 +6,9 @@ import subprocess
 import sys
 import uuid
 
+MODEL_REFERENCE_PIXEL_SIZE=512
+SUPPORTED_CHARACTER_REFERENCE_SIZES=((512,512),(768,768))
+
 WORKFLOW_ROOT_DIRECTORY=Path(__file__).resolve().parents[2]
 sys.path.insert(0,str(WORKFLOW_ROOT_DIRECTORY))
 from tools.review.domains.character_animation.character_animation_assets import hash_asset_file, resolve_asset_path
@@ -27,10 +30,15 @@ def generate_character_frame(generation_job_path,current_frame_index):
             raise ValueError(f'생성 중 원본 변경: {reference_asset_path}')
         reference_output_path=frame_output_directory/(reference_role_name+'-reference.png')
         with Image.open(reference_asset_path) as reference_image_value:
-            if reference_image_value.size!=(512,512):raise ValueError('레퍼런스는 512×512여야 합니다.')
-            reference_background_image=Image.new('RGBA',(512,512),'white' if reference_role_name=='character' else 'black')
+            allowed_reference_sizes=SUPPORTED_CHARACTER_REFERENCE_SIZES if reference_role_name=='character' else ((MODEL_REFERENCE_PIXEL_SIZE,MODEL_REFERENCE_PIXEL_SIZE),)
+            if reference_image_value.size not in allowed_reference_sizes:
+                raise ValueError(f'{reference_role_name} 레퍼런스 크기 오류: {reference_image_value.size}, 허용: {allowed_reference_sizes}')
+            reference_background_image=Image.new('RGBA',reference_image_value.size,'white' if reference_role_name=='character' else 'black')
             reference_background_image.alpha_composite(reference_image_value.convert('RGBA'))
-            reference_background_image.convert('RGB').save(reference_output_path)
+            normalized_reference_image=reference_background_image.convert('RGB')
+            if normalized_reference_image.size!=(MODEL_REFERENCE_PIXEL_SIZE,MODEL_REFERENCE_PIXEL_SIZE):
+                normalized_reference_image=normalized_reference_image.resize((MODEL_REFERENCE_PIXEL_SIZE,MODEL_REFERENCE_PIXEL_SIZE),Image.Resampling.LANCZOS)
+            normalized_reference_image.save(reference_output_path)
         input_reference_paths[reference_role_name]=reference_output_path
     selected_direction_prompt=generation_request_record.get('direction_prompts',{}).get(source_frame_record['direction'])
     selected_prompt_text=selected_direction_prompt['text'] if selected_direction_prompt else '\n\n'.join(generation_request_record['prompts'].values())
