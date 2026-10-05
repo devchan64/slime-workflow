@@ -1,0 +1,1940 @@
+2026-10-05T17:10:42.956422/character-animation/start id=2026-10-05_17-10-42-b46bce6f root=/home/cbsim/ws/slime-workflow/.tmp/test/character-animation/2026-10-05_17-10-42/2026-10-05_17-10-42-b46bce6f
+2026-10-05T17:10:42.957953/character-animation/heartbeat progress=준비 중
+2026-10-05T17:10:47.962851/character-animation/heartbeat progress={"completed": 0, "total": 12, "direction": "down_left", "frame": 4}
+
+2026-10-05 17:10:48,681/qwen-pose/heartbeat stage=imports step=0/4 elapsed=5s gpu=1488 MiB, 66 % log_bytes=0
+2026-10-05T17:10:52.967847/character-animation/heartbeat progress={"completed": 0, "total": 12, "direction": "down_left", "frame": 4}
+
+2026-10-05 17:10:53,727/qwen-pose/heartbeat stage=imports step=0/4 elapsed=10s gpu=1488 MiB, 65 % log_bytes=109
+2026-10-05 17:10:54,911/qwen-pose/reference vae_size=512x512 output_size=768x768 condition_size=384x384
+2026-10-05 17:10:54,911/qwen-pose/reference order=['character', 'rig'] kind=rig
+2026-10-05 17:10:56,967/qwen-pose/load model_id=Qwen/Qwen-Image-Edit-2511 model_path=/home/cbsim/ws/slime-workflow/.model/qwen-image-edit-2511/6f3ccc0b56e431dc6a0c2b2039706d7d26f22cb9
+Loading pipeline components...:   0%|          | 0/6 [00:00<?, ?it/s]2026-10-05T17:10:57.972820/character-animation/heartbeat progress={"completed": 0, "total": 12, "direction": "down_left", "frame": 4}
+
+Loading pipeline components...:  17%|█▋        | 1/6 [00:01<00:05,  1.10s/it]Loading pipeline components...:  33%|███▎      | 2/6 [00:01<00:02,  1.81it/s]Loading pipeline components...:  50%|█████     | 3/6 [00:01<00:01,  2.34it/s]
+Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s][A
+Loading checkpoint shards:  25%|██▌       | 1/4 [00:00<00:00,  5.39it/s][A2026-10-05 17:10:58,762/qwen-pose/heartbeat stage=load step=0/4 elapsed=15s gpu=1488 MiB, 65 % log_bytes=589
+Loading checkpoint shards: 100%|██████████| 4/4 [00:00<00:00, 16.57it/s]
+Loading pipeline components...:  83%|████████▎ | 5/6 [00:01<00:00,  3.69it/s]
+Loading checkpoint shards:   0%|          | 0/5 [00:00<?, ?it/s][A
+Loading checkpoint shards:  20%|██        | 1/5 [00:00<00:00,  7.46it/s][A
+Loading checkpoint shards:  40%|████      | 2/5 [00:00<00:00,  7.50it/s][A
+Loading checkpoint shards:  60%|██████    | 3/5 [00:00<00:00,  8.11it/s][A
+Loading checkpoint shards:  80%|████████  | 4/5 [00:00<00:00,  6.85it/s][ALoading checkpoint shards: 100%|██████████| 5/5 [00:00<00:00,  8.56it/s]
+Loading pipeline components...: 100%|██████████| 6/6 [00:02<00:00,  2.06it/s]Loading pipeline components...: 100%|██████████| 6/6 [00:02<00:00,  2.09it/s]
+2026-10-05 17:10:59,838/qwen-pose/adapter name=anypose_base strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-base-000006250.safetensors
+2026-10-05 17:11:00,872/qwen-pose/adapter name=anypose_helper strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-helper-00006000.safetensors
+/home/cbsim/ws/slime-workflow/.venv/lib/python3.12/site-packages/peft/tuners/tuners_utils.py:285: UserWarning: Already found a `peft_config` attribute in the model. This will lead to having multiple adapters in the model. Make sure to know what you are doing!
+  warnings.warn(
+2026-10-05 17:11:02,497/qwen-pose/adapter name=lightning strength=1.0 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lightx2v--Qwen-Image-Edit-2511-Lightning/d74eba145674fd7e31b949324e148e21e7118abd/Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors
+2026-10-05T17:11:02.977741/character-animation/heartbeat progress={"completed": 0, "total": 12, "direction": "down_left", "frame": 4}
+
+2026-10-05 17:11:03,844/qwen-pose/heartbeat stage=adapters step=0/4 elapsed=20s gpu=1488 MiB, 68 % log_bytes=1426
+2026-10-05T17:11:07.989767/character-animation/heartbeat progress={"completed": 0, "total": 12, "direction": "down_left", "frame": 4}
+
+2026-10-05 17:11:08,884/qwen-pose/heartbeat stage=adapters step=0/4 elapsed=25s gpu=1488 MiB, 63 % log_bytes=1540
+2026-10-05T17:11:13.009951/character-animation/heartbeat progress={"completed": 0, "total": 12, "direction": "down_left", "frame": 4}
+
+/home/cbsim/ws/slime-workflow/.venv/lib/python3.12/site-packages/peft/tuners/tuners_utils.py:285: UserWarning: Already found a `peft_config` attribute in the model. This will lead to having multiple adapters in the model. Make sure to know what you are doing!
+  warnings.warn(
+2026-10-05 17:11:13,931/qwen-pose/heartbeat stage=adapters step=0/4 elapsed=30s gpu=1488 MiB, 46 % log_bytes=1654
+2026-10-05 17:11:15,610/qwen-pose/inference size=768x768 steps=4 seed=10107 device=cuda dtype=bfloat16 offload=sequential
+ negative_prompt is passed but classifier-free guidance is not enabled since true_cfg_scale <= 1
+2026-10-05T17:11:18.016129/character-animation/heartbeat progress={"completed": 0, "total": 12, "direction": "down_left", "frame": 4}
+
+2026-10-05 17:11:18,967/qwen-pose/heartbeat stage=inference step=0/4 elapsed=35s gpu=1727 MiB, 70 % log_bytes=1890
+2026-10-05T17:11:23.022063/character-animation/heartbeat progress={"completed": 0, "total": 12, "direction": "down_left", "frame": 4}
+
+2026-10-05 17:11:24,004/qwen-pose/heartbeat stage=inference step=0/4 elapsed=40s gpu=2045 MiB, 66 % log_bytes=2005
+2026-10-05T17:11:28.027315/character-animation/heartbeat progress={"completed": 0, "total": 12, "direction": "down_left", "frame": 4}
+
+2026-10-05 17:11:29,040/qwen-pose/heartbeat stage=inference step=0/4 elapsed=45s gpu=2077 MiB, 59 % log_bytes=2120
+2026-10-05T17:11:33.032483/character-animation/heartbeat progress={"completed": 0, "total": 12, "direction": "down_left", "frame": 4}
+
+2026-10-05 17:11:34,074/qwen-pose/heartbeat stage=inference step=0/4 elapsed=50s gpu=414 MiB, 20 % log_bytes=2235
+guidance_scale is passed as 1.0, but ignored since the model is not guidance-distilled.
+  0%|          | 0/4 [00:00<?, ?it/s]2026-10-05T17:11:38.036956/character-animation/heartbeat progress={"completed": 0, "total": 12, "direction": "down_left", "frame": 4}
+
+2026-10-05 17:11:39,112/qwen-pose/heartbeat stage=inference step=0/4 elapsed=55s gpu=566 MiB, 27 % log_bytes=2349
+2026-10-05T17:11:43.041474/character-animation/heartbeat progress={"completed": 0, "total": 12, "direction": "down_left", "frame": 4}
+
+2026-10-05 17:11:44,138/qwen-pose/heartbeat stage=inference step=0/4 elapsed=60s gpu=546 MiB, 20 % log_bytes=2463
+2026-10-05T17:11:48.046149/character-animation/heartbeat progress={"completed": 0, "total": 12, "direction": "down_left", "frame": 4}
+
+2026-10-05 17:11:49,185/qwen-pose/heartbeat stage=inference step=0/4 elapsed=66s gpu=770 MiB, 36 % log_bytes=2577
+2026-10-05T17:11:53.051747/character-animation/heartbeat progress={"completed": 0, "total": 12, "direction": "down_left", "frame": 4}
+
+2026-10-05 17:11:54,211/qwen-pose/heartbeat stage=inference step=0/4 elapsed=71s gpu=1903 MiB, 21 % log_bytes=2691
+2026-10-05T17:11:58.057241/character-animation/heartbeat progress={"completed": 0, "total": 12, "direction": "down_left", "frame": 4}
+
+2026-10-05 17:11:59,238/qwen-pose/heartbeat stage=inference step=0/4 elapsed=76s gpu=2259 MiB, 30 % log_bytes=2806
+2026-10-05T17:12:03.062434/character-animation/heartbeat progress={"completed": 0, "total": 12, "direction": "down_left", "frame": 4}
+
+2026-10-05 17:12:04,266/qwen-pose/heartbeat stage=inference step=0/4 elapsed=81s gpu=1937 MiB, 20 % log_bytes=2921
+2026-10-05T17:12:08.067918/character-animation/heartbeat progress={"completed": 0, "total": 12, "direction": "down_left", "frame": 4}
+
+2026-10-05 17:12:09,294/qwen-pose/heartbeat stage=inference step=0/4 elapsed=86s gpu=2107 MiB, 23 % log_bytes=3036
+2026-10-05T17:12:13.072459/character-animation/heartbeat progress={"completed": 0, "total": 12, "direction": "down_left", "frame": 4}
+
+2026-10-05 17:12:14,322/qwen-pose/heartbeat stage=inference step=0/4 elapsed=91s gpu=3111 MiB, 17 % log_bytes=3151
+2026-10-05T17:12:18.076875/character-animation/heartbeat progress={"completed": 0, "total": 12, "direction": "down_left", "frame": 4}
+
+2026-10-05 17:12:19,350/qwen-pose/heartbeat stage=inference step=0/4 elapsed=96s gpu=2257 MiB, 39 % log_bytes=3266
+2026-10-05T17:12:23.081759/character-animation/heartbeat progress={"completed": 0, "total": 12, "direction": "down_left", "frame": 4}
+
+2026-10-05 17:12:24,380/qwen-pose/heartbeat stage=inference step=0/4 elapsed=101s gpu=2101 MiB, 32 % log_bytes=3381
+2026-10-05T17:12:28.086339/character-animation/heartbeat progress={"completed": 0, "total": 12, "direction": "down_left", "frame": 4}
+
+2026-10-05 17:12:29,414/qwen-pose/heartbeat stage=inference step=0/4 elapsed=106s gpu=1917 MiB, 25 % log_bytes=3497
+2026-10-05T17:12:33.090565/character-animation/heartbeat progress={"completed": 0, "total": 12, "direction": "down_left", "frame": 4}
+
+2026-10-05 17:12:33,422/qwen-pose/denoise step=1/4
+ 25%|██▌       | 1/4 [00:58<02:55, 58.54s/it]2026-10-05 17:12:34,442/qwen-pose/heartbeat stage=inference step=1/4 elapsed=111s gpu=1941 MiB, 51 % log_bytes=3664
+2026-10-05T17:12:38.095152/character-animation/heartbeat progress={"completed": 0, "total": 12, "direction": "down_left", "frame": 4}
+
+2026-10-05 17:12:39,471/qwen-pose/heartbeat stage=inference step=1/4 elapsed=116s gpu=2111 MiB, 69 % log_bytes=3780
+2026-10-05T17:12:43.099499/character-animation/heartbeat progress={"completed": 0, "total": 12, "direction": "down_left", "frame": 4}
+
+2026-10-05 17:12:44,500/qwen-pose/heartbeat stage=inference step=1/4 elapsed=121s gpu=1941 MiB, 60 % log_bytes=3896
+2026-10-05T17:12:48.104037/character-animation/heartbeat progress={"completed": 0, "total": 12, "direction": "down_left", "frame": 4}
+
+2026-10-05 17:12:49,536/qwen-pose/heartbeat stage=inference step=1/4 elapsed=126s gpu=1911 MiB, 79 % log_bytes=4012
+2026-10-05T17:12:53.108939/character-animation/heartbeat progress={"completed": 0, "total": 12, "direction": "down_left", "frame": 4}
+
+2026-10-05 17:12:54,570/qwen-pose/heartbeat stage=inference step=1/4 elapsed=131s gpu=2153 MiB, 45 % log_bytes=4128
+2026-10-05T17:12:58.113824/character-animation/heartbeat progress={"completed": 0, "total": 12, "direction": "down_left", "frame": 4}
+
+2026-10-05 17:12:59,598/qwen-pose/heartbeat stage=inference step=1/4 elapsed=136s gpu=2039 MiB, 50 % log_bytes=4244
+2026-10-05T17:13:03.118340/character-animation/heartbeat progress={"completed": 0, "total": 12, "direction": "down_left", "frame": 4}
+
+2026-10-05 17:13:04,625/qwen-pose/heartbeat stage=inference step=1/4 elapsed=141s gpu=1911 MiB, 41 % log_bytes=4360
+2026-10-05T17:13:08.122967/character-animation/heartbeat progress={"completed": 0, "total": 12, "direction": "down_left", "frame": 4}
+
+2026-10-05 17:13:09,658/qwen-pose/heartbeat stage=inference step=1/4 elapsed=146s gpu=2147 MiB, 48 % log_bytes=4476
+2026-10-05T17:13:13.128212/character-animation/heartbeat progress={"completed": 0, "total": 12, "direction": "down_left", "frame": 4}
+
+2026-10-05 17:13:14,701/qwen-pose/heartbeat stage=inference step=1/4 elapsed=151s gpu=2127 MiB, 63 % log_bytes=4592
+2026-10-05T17:13:18.133359/character-animation/heartbeat progress={"completed": 0, "total": 12, "direction": "down_left", "frame": 4}
+
+2026-10-05 17:13:19,732/qwen-pose/heartbeat stage=inference step=1/4 elapsed=156s gpu=3250 MiB, 40 % log_bytes=4708
+2026-10-05T17:13:23.138286/character-animation/heartbeat progress={"completed": 0, "total": 12, "direction": "down_left", "frame": 4}
+
+2026-10-05 17:13:24,759/qwen-pose/heartbeat stage=inference step=1/4 elapsed=161s gpu=3306 MiB, 56 % log_bytes=4824
+2026-10-05 17:13:25,669/qwen-pose/denoise step=2/4
+ 50%|█████     | 2/4 [01:50<01:49, 54.84s/it]2026-10-05T17:13:28.142770/character-animation/heartbeat progress={"completed": 0, "total": 12, "direction": "down_left", "frame": 4}
+
+2026-10-05 17:13:29,792/qwen-pose/heartbeat stage=inference step=2/4 elapsed=166s gpu=3518 MiB, 45 % log_bytes=4991
+2026-10-05T17:13:33.147390/character-animation/heartbeat progress={"completed": 0, "total": 12, "direction": "down_left", "frame": 4}
+
+2026-10-05 17:13:34,821/qwen-pose/heartbeat stage=inference step=2/4 elapsed=171s gpu=3574 MiB, 61 % log_bytes=5107
+2026-10-05T17:13:38.152161/character-animation/heartbeat progress={"completed": 0, "total": 12, "direction": "down_left", "frame": 4}
+
+2026-10-05 17:13:39,866/qwen-pose/heartbeat stage=inference step=2/4 elapsed=176s gpu=4508 MiB, 29 % log_bytes=5223
+2026-10-05T17:13:43.157571/character-animation/heartbeat progress={"completed": 0, "total": 12, "direction": "down_left", "frame": 4}
+
+2026-10-05 17:13:44,899/qwen-pose/heartbeat stage=inference step=2/4 elapsed=181s gpu=3500 MiB, 52 % log_bytes=5339
+2026-10-05T17:13:48.162304/character-animation/heartbeat progress={"completed": 0, "total": 12, "direction": "down_left", "frame": 4}
+
+2026-10-05 17:13:49,936/qwen-pose/heartbeat stage=inference step=2/4 elapsed=186s gpu=3484 MiB, 80 % log_bytes=5455
+2026-10-05T17:13:53.167247/character-animation/heartbeat progress={"completed": 0, "total": 12, "direction": "down_left", "frame": 4}
+
+2026-10-05 17:13:54,969/qwen-pose/heartbeat stage=inference step=2/4 elapsed=191s gpu=3294 MiB, 63 % log_bytes=5571
+2026-10-05T17:13:58.173152/character-animation/heartbeat progress={"completed": 0, "total": 12, "direction": "down_left", "frame": 4}
+
+2026-10-05 17:14:00,010/qwen-pose/heartbeat stage=inference step=2/4 elapsed=196s gpu=3238 MiB, 80 % log_bytes=5687
+2026-10-05T17:14:03.178306/character-animation/heartbeat progress={"completed": 0, "total": 12, "direction": "down_left", "frame": 4}
+
+2026-10-05 17:14:05,041/qwen-pose/heartbeat stage=inference step=2/4 elapsed=201s gpu=3442 MiB, 60 % log_bytes=5803
+2026-10-05T17:14:08.183483/character-animation/heartbeat progress={"completed": 0, "total": 12, "direction": "down_left", "frame": 4}
+
+2026-10-05 17:14:10,079/qwen-pose/heartbeat stage=inference step=2/4 elapsed=206s gpu=3316 MiB, 52 % log_bytes=5919
+2026-10-05T17:14:13.189029/character-animation/heartbeat progress={"completed": 0, "total": 12, "direction": "down_left", "frame": 4}
+
+2026-10-05 17:14:15,111/qwen-pose/heartbeat stage=inference step=2/4 elapsed=211s gpu=3484 MiB, 75 % log_bytes=6035
+2026-10-05T17:14:18.194744/character-animation/heartbeat progress={"completed": 0, "total": 12, "direction": "down_left", "frame": 4}
+
+2026-10-05 17:14:20,147/qwen-pose/heartbeat stage=inference step=2/4 elapsed=216s gpu=3336 MiB, 45 % log_bytes=6151
+2026-10-05 17:14:20,682/qwen-pose/denoise step=3/4
+ 75%|███████▌  | 3/4 [02:45<00:54, 54.92s/it]2026-10-05T17:14:23.201117/character-animation/heartbeat progress={"completed": 0, "total": 12, "direction": "down_left", "frame": 4}
+
+2026-10-05 17:14:25,173/qwen-pose/heartbeat stage=inference step=3/4 elapsed=222s gpu=3522 MiB, 73 % log_bytes=6318
+2026-10-05T17:14:28.206517/character-animation/heartbeat progress={"completed": 0, "total": 12, "direction": "down_left", "frame": 4}
+
+2026-10-05 17:14:30,203/qwen-pose/heartbeat stage=inference step=3/4 elapsed=227s gpu=3542 MiB, 65 % log_bytes=6434
+2026-10-05T17:14:33.212462/character-animation/heartbeat progress={"completed": 0, "total": 12, "direction": "down_left", "frame": 4}
+
+2026-10-05 17:14:35,271/qwen-pose/heartbeat stage=inference step=3/4 elapsed=232s gpu=3316 MiB, 52 % log_bytes=6550
+2026-10-05T17:14:38.218123/character-animation/heartbeat progress={"completed": 0, "total": 12, "direction": "down_left", "frame": 4}
+
+2026-10-05 17:14:40,317/qwen-pose/heartbeat stage=inference step=3/4 elapsed=237s gpu=3522 MiB, 86 % log_bytes=6666
+2026-10-05T17:14:43.224483/character-animation/heartbeat progress={"completed": 0, "total": 12, "direction": "down_left", "frame": 4}
+
+2026-10-05 17:14:45,348/qwen-pose/heartbeat stage=inference step=3/4 elapsed=242s gpu=3316 MiB, 59 % log_bytes=6782
+2026-10-05T17:14:48.229632/character-animation/heartbeat progress={"completed": 0, "total": 12, "direction": "down_left", "frame": 4}
+
+2026-10-05 17:14:50,386/qwen-pose/heartbeat stage=inference step=3/4 elapsed=247s gpu=3644 MiB, 54 % log_bytes=6898
+2026-10-05T17:14:53.235205/character-animation/heartbeat progress={"completed": 0, "total": 12, "direction": "down_left", "frame": 4}
+
+2026-10-05 17:14:55,415/qwen-pose/heartbeat stage=inference step=3/4 elapsed=252s gpu=3542 MiB, 70 % log_bytes=7014
+2026-10-05T17:14:58.241109/character-animation/heartbeat progress={"completed": 0, "total": 12, "direction": "down_left", "frame": 4}
+
+2026-10-05 17:15:00,445/qwen-pose/heartbeat stage=inference step=3/4 elapsed=257s gpu=3314 MiB, 65 % log_bytes=7130
+2026-10-05T17:15:03.246647/character-animation/heartbeat progress={"completed": 0, "total": 12, "direction": "down_left", "frame": 4}
+
+2026-10-05 17:15:05,483/qwen-pose/heartbeat stage=inference step=3/4 elapsed=262s gpu=2041 MiB, 47 % log_bytes=7246
+2026-10-05T17:15:08.251897/character-animation/heartbeat progress={"completed": 0, "total": 12, "direction": "down_left", "frame": 4}
+
+2026-10-05 17:15:10,522/qwen-pose/heartbeat stage=inference step=3/4 elapsed=267s gpu=1923 MiB, 37 % log_bytes=7362
+2026-10-05T17:15:13.257806/character-animation/heartbeat progress={"completed": 0, "total": 12, "direction": "down_left", "frame": 4}
+
+2026-10-05 17:15:15,546/qwen-pose/heartbeat stage=inference step=3/4 elapsed=272s gpu=1965 MiB, 69 % log_bytes=7478
+2026-10-05 17:15:18,099/qwen-pose/denoise step=4/4
+100%|██████████| 4/4 [03:43<00:00, 55.90s/it]100%|██████████| 4/4 [03:43<00:00, 55.80s/it]
+2026-10-05T17:15:18.262958/character-animation/heartbeat progress={"completed": 0, "total": 12, "direction": "down_left", "frame": 4}
+
+2026-10-05 17:15:20,465/qwen-pose/complete output=/home/cbsim/ws/slime-workflow/.tmp/test/character-animation/2026-10-05_17-10-42/2026-10-05_17-10-42-b46bce6f/down_left/frame-0004/result.png
+2026-10-05T17:15:23.268348/character-animation/heartbeat progress={"completed": 1, "total": 12, "direction": "down_left", "frame": 6}
+
+2026-10-05T17:15:28.273742/character-animation/heartbeat progress={"completed": 1, "total": 12, "direction": "down_left", "frame": 6}
+
+2026-10-05 17:15:28,305/qwen-pose/heartbeat stage=imports step=0/4 elapsed=5s gpu=1488 MiB, 64 % log_bytes=0
+2026-10-05T17:15:33.279273/character-animation/heartbeat progress={"completed": 1, "total": 12, "direction": "down_left", "frame": 6}
+
+2026-10-05 17:15:33,363/qwen-pose/heartbeat stage=imports step=0/4 elapsed=10s gpu=1488 MiB, 53 % log_bytes=109
+2026-10-05 17:15:37,443/qwen-pose/reference vae_size=512x512 output_size=768x768 condition_size=384x384
+2026-10-05 17:15:37,443/qwen-pose/reference order=['character', 'rig'] kind=rig
+2026-10-05T17:15:38.285032/character-animation/heartbeat progress={"completed": 1, "total": 12, "direction": "down_left", "frame": 6}
+
+2026-10-05 17:15:38,404/qwen-pose/heartbeat stage=imports step=0/4 elapsed=15s gpu=1488 MiB, 63 % log_bytes=405
+2026-10-05 17:15:39,711/qwen-pose/load model_id=Qwen/Qwen-Image-Edit-2511 model_path=/home/cbsim/ws/slime-workflow/.model/qwen-image-edit-2511/6f3ccc0b56e431dc6a0c2b2039706d7d26f22cb9
+Loading pipeline components...:   0%|          | 0/6 [00:00<?, ?it/s]Loading pipeline components...:  17%|█▋        | 1/6 [00:00<00:02,  1.95it/s]Loading pipeline components...:  50%|█████     | 3/6 [00:00<00:00,  4.38it/s]
+Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s][A
+Loading checkpoint shards:  25%|██▌       | 1/4 [00:00<00:00,  4.49it/s][A
+Loading checkpoint shards:  75%|███████▌  | 3/4 [00:00<00:00,  7.98it/s][ALoading checkpoint shards: 100%|██████████| 4/4 [00:00<00:00,  9.52it/s]
+Loading pipeline components...:  67%|██████▋   | 4/6 [00:01<00:00,  3.03it/s]
+Loading checkpoint shards:   0%|          | 0/5 [00:00<?, ?it/s][A
+Loading checkpoint shards:  20%|██        | 1/5 [00:00<00:00,  8.09it/s][A
+Loading checkpoint shards:  40%|████      | 2/5 [00:00<00:00,  9.05it/s][A
+Loading checkpoint shards: 100%|██████████| 5/5 [00:00<00:00, 17.85it/s][ALoading checkpoint shards: 100%|██████████| 5/5 [00:00<00:00, 15.22it/s]
+Loading pipeline components...:  83%|████████▎ | 5/6 [00:01<00:00,  2.21it/s]Loading pipeline components...: 100%|██████████| 6/6 [00:02<00:00,  1.72it/s]Loading pipeline components...: 100%|██████████| 6/6 [00:02<00:00,  2.11it/s]
+2026-10-05 17:15:42,560/qwen-pose/adapter name=anypose_base strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-base-000006250.safetensors
+2026-10-05T17:15:43.290476/character-animation/heartbeat progress={"completed": 1, "total": 12, "direction": "down_left", "frame": 6}
+
+2026-10-05 17:15:43,435/qwen-pose/heartbeat stage=adapters step=0/4 elapsed=20s gpu=1488 MiB, 69 % log_bytes=930
+2026-10-05 17:15:43,677/qwen-pose/adapter name=anypose_helper strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-helper-00006000.safetensors
+/home/cbsim/ws/slime-workflow/.venv/lib/python3.12/site-packages/peft/tuners/tuners_utils.py:285: UserWarning: Already found a `peft_config` attribute in the model. This will lead to having multiple adapters in the model. Make sure to know what you are doing!
+  warnings.warn(
+2026-10-05 17:15:45,326/qwen-pose/adapter name=lightning strength=1.0 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lightx2v--Qwen-Image-Edit-2511-Lightning/d74eba145674fd7e31b949324e148e21e7118abd/Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors
+2026-10-05T17:15:48.300750/character-animation/heartbeat progress={"completed": 1, "total": 12, "direction": "down_left", "frame": 6}
+
+2026-10-05 17:15:48,481/qwen-pose/heartbeat stage=adapters step=0/4 elapsed=25s gpu=113 MiB, 5 % log_bytes=1542
+2026-10-05T17:15:53.311127/character-animation/heartbeat progress={"completed": 1, "total": 12, "direction": "down_left", "frame": 6}
+
+2026-10-05 17:15:53,525/qwen-pose/heartbeat stage=adapters step=0/4 elapsed=30s gpu=113 MiB, 3 % log_bytes=1654
+/home/cbsim/ws/slime-workflow/.venv/lib/python3.12/site-packages/peft/tuners/tuners_utils.py:285: UserWarning: Already found a `peft_config` attribute in the model. This will lead to having multiple adapters in the model. Make sure to know what you are doing!
+  warnings.warn(
+2026-10-05 17:15:55,302/qwen-pose/inference size=768x768 steps=4 seed=10107 device=cuda dtype=bfloat16 offload=sequential
+ negative_prompt is passed but classifier-free guidance is not enabled since true_cfg_scale <= 1
+2026-10-05T17:15:58.315542/character-animation/heartbeat progress={"completed": 1, "total": 12, "direction": "down_left", "frame": 6}
+
+2026-10-05 17:15:58,547/qwen-pose/heartbeat stage=inference step=0/4 elapsed=35s gpu=380 MiB, 17 % log_bytes=1888
+2026-10-05T17:16:03.320181/character-animation/heartbeat progress={"completed": 1, "total": 12, "direction": "down_left", "frame": 6}
+
+2026-10-05 17:16:03,585/qwen-pose/heartbeat stage=inference step=0/4 elapsed=40s gpu=436 MiB, 15 % log_bytes=2002
+2026-10-05T17:16:08.326071/character-animation/heartbeat progress={"completed": 1, "total": 12, "direction": "down_left", "frame": 6}
+
+2026-10-05 17:16:08,620/qwen-pose/heartbeat stage=inference step=0/4 elapsed=45s gpu=596 MiB, 19 % log_bytes=2116
+2026-10-05T17:16:13.331614/character-animation/heartbeat progress={"completed": 1, "total": 12, "direction": "down_left", "frame": 6}
+
+2026-10-05 17:16:13,663/qwen-pose/heartbeat stage=inference step=0/4 elapsed=50s gpu=444 MiB, 34 % log_bytes=2230
+guidance_scale is passed as 1.0, but ignored since the model is not guidance-distilled.
+  0%|          | 0/4 [00:00<?, ?it/s]2026-10-05T17:16:18.337211/character-animation/heartbeat progress={"completed": 1, "total": 12, "direction": "down_left", "frame": 6}
+
+2026-10-05 17:16:18,700/qwen-pose/heartbeat stage=inference step=0/4 elapsed=55s gpu=778 MiB, 16 % log_bytes=2344
+2026-10-05T17:16:23.342655/character-animation/heartbeat progress={"completed": 1, "total": 12, "direction": "down_left", "frame": 6}
+
+2026-10-05 17:16:23,723/qwen-pose/heartbeat stage=inference step=0/4 elapsed=60s gpu=552 MiB, 13 % log_bytes=2458
+2026-10-05T17:16:28.348253/character-animation/heartbeat progress={"completed": 1, "total": 12, "direction": "down_left", "frame": 6}
+
+2026-10-05 17:16:28,761/qwen-pose/heartbeat stage=inference step=0/4 elapsed=65s gpu=566 MiB, 27 % log_bytes=2572
+2026-10-05T17:16:33.353711/character-animation/heartbeat progress={"completed": 1, "total": 12, "direction": "down_left", "frame": 6}
+
+2026-10-05 17:16:33,794/qwen-pose/heartbeat stage=inference step=0/4 elapsed=71s gpu=792 MiB, 18 % log_bytes=2686
+2026-10-05T17:16:38.359739/character-animation/heartbeat progress={"completed": 1, "total": 12, "direction": "down_left", "frame": 6}
+
+2026-10-05 17:16:38,823/qwen-pose/heartbeat stage=inference step=0/4 elapsed=76s gpu=770 MiB, 11 % log_bytes=2800
+2026-10-05T17:16:43.365564/character-animation/heartbeat progress={"completed": 1, "total": 12, "direction": "down_left", "frame": 6}
+
+2026-10-05 17:16:43,856/qwen-pose/heartbeat stage=inference step=0/4 elapsed=81s gpu=894 MiB, 18 % log_bytes=2914
+2026-10-05T17:16:48.370971/character-animation/heartbeat progress={"completed": 1, "total": 12, "direction": "down_left", "frame": 6}
+
+2026-10-05 17:16:48,880/qwen-pose/heartbeat stage=inference step=0/4 elapsed=86s gpu=894 MiB, 16 % log_bytes=3028
+2026-10-05T17:16:53.376164/character-animation/heartbeat progress={"completed": 1, "total": 12, "direction": "down_left", "frame": 6}
+
+2026-10-05 17:16:53,912/qwen-pose/heartbeat stage=inference step=0/4 elapsed=91s gpu=822 MiB, 14 % log_bytes=3142
+2026-10-05T17:16:58.381248/character-animation/heartbeat progress={"completed": 1, "total": 12, "direction": "down_left", "frame": 6}
+
+2026-10-05 17:16:58,939/qwen-pose/heartbeat stage=inference step=0/4 elapsed=96s gpu=750 MiB, 30 % log_bytes=3256
+2026-10-05T17:17:03.386034/character-animation/heartbeat progress={"completed": 1, "total": 12, "direction": "down_left", "frame": 6}
+
+2026-10-05 17:17:03,962/qwen-pose/heartbeat stage=inference step=0/4 elapsed=101s gpu=562 MiB, 25 % log_bytes=3370
+2026-10-05 17:17:04,474/qwen-pose/denoise step=1/4
+ 25%|██▌       | 1/4 [00:50<02:30, 50.33s/it]2026-10-05T17:17:08.391808/character-animation/heartbeat progress={"completed": 1, "total": 12, "direction": "down_left", "frame": 6}
+
+2026-10-05 17:17:08,997/qwen-pose/heartbeat stage=inference step=1/4 elapsed=106s gpu=752 MiB, 21 % log_bytes=3536
+2026-10-05T17:17:13.397055/character-animation/heartbeat progress={"completed": 1, "total": 12, "direction": "down_left", "frame": 6}
+
+2026-10-05 17:17:14,034/qwen-pose/heartbeat stage=inference step=1/4 elapsed=111s gpu=772 MiB, 16 % log_bytes=3651
+2026-10-05T17:17:18.402417/character-animation/heartbeat progress={"completed": 1, "total": 12, "direction": "down_left", "frame": 6}
+
+2026-10-05 17:17:19,067/qwen-pose/heartbeat stage=inference step=1/4 elapsed=116s gpu=546 MiB, 8 % log_bytes=3766
+2026-10-05T17:17:23.407699/character-animation/heartbeat progress={"completed": 1, "total": 12, "direction": "down_left", "frame": 6}
+
+2026-10-05 17:17:24,091/qwen-pose/heartbeat stage=inference step=1/4 elapsed=121s gpu=792 MiB, 24 % log_bytes=3880
+2026-10-05T17:17:28.413024/character-animation/heartbeat progress={"completed": 1, "total": 12, "direction": "down_left", "frame": 6}
+
+2026-10-05 17:17:29,126/qwen-pose/heartbeat stage=inference step=1/4 elapsed=126s gpu=536 MiB, 55 % log_bytes=3995
+2026-10-05 17:17:31,041/qwen-pose/denoise step=2/4
+ 50%|█████     | 2/4 [01:16<01:12, 36.35s/it]2026-10-05T17:17:33.418370/character-animation/heartbeat progress={"completed": 1, "total": 12, "direction": "down_left", "frame": 6}
+
+2026-10-05 17:17:34,160/qwen-pose/heartbeat stage=inference step=2/4 elapsed=131s gpu=516 MiB, 70 % log_bytes=4161
+2026-10-05T17:17:38.423789/character-animation/heartbeat progress={"completed": 1, "total": 12, "direction": "down_left", "frame": 6}
+
+2026-10-05 17:17:39,193/qwen-pose/heartbeat stage=inference step=2/4 elapsed=136s gpu=762 MiB, 70 % log_bytes=4276
+2026-10-05T17:17:43.429364/character-animation/heartbeat progress={"completed": 1, "total": 12, "direction": "down_left", "frame": 6}
+
+2026-10-05 17:17:44,225/qwen-pose/heartbeat stage=inference step=2/4 elapsed=141s gpu=762 MiB, 52 % log_bytes=4391
+2026-10-05 17:17:44,343/qwen-pose/denoise step=3/4
+ 75%|███████▌  | 3/4 [01:30<00:25, 25.83s/it]2026-10-05T17:17:48.434953/character-animation/heartbeat progress={"completed": 1, "total": 12, "direction": "down_left", "frame": 6}
+
+2026-10-05 17:17:49,262/qwen-pose/heartbeat stage=inference step=3/4 elapsed=146s gpu=896 MiB, 65 % log_bytes=4557
+2026-10-05T17:17:53.440438/character-animation/heartbeat progress={"completed": 1, "total": 12, "direction": "down_left", "frame": 6}
+
+2026-10-05 17:17:54,294/qwen-pose/heartbeat stage=inference step=3/4 elapsed=151s gpu=518 MiB, 70 % log_bytes=4672
+2026-10-05 17:17:56,177/qwen-pose/denoise step=4/4
+100%|██████████| 4/4 [01:42<00:00, 20.30s/it]100%|██████████| 4/4 [01:42<00:00, 25.51s/it]
+2026-10-05 17:17:58,357/qwen-pose/complete output=/home/cbsim/ws/slime-workflow/.tmp/test/character-animation/2026-10-05_17-10-42/2026-10-05_17-10-42-b46bce6f/down_left/frame-0006/result.png
+2026-10-05T17:17:58.445469/character-animation/heartbeat progress={"completed": 1, "total": 12, "direction": "down_left", "frame": 6}
+
+2026-10-05T17:18:03.450121/character-animation/heartbeat progress={"completed": 2, "total": 12, "direction": "down_left", "frame": 8}
+
+2026-10-05 17:18:07,543/qwen-pose/heartbeat stage=imports step=0/4 elapsed=5s gpu=110 MiB, 34 % log_bytes=0
+2026-10-05T17:18:08.453946/character-animation/heartbeat progress={"completed": 2, "total": 12, "direction": "down_left", "frame": 8}
+
+2026-10-05 17:18:12,340/qwen-pose/reference vae_size=512x512 output_size=768x768 condition_size=384x384
+2026-10-05 17:18:12,340/qwen-pose/reference order=['character', 'rig'] kind=rig
+2026-10-05 17:18:12,565/qwen-pose/heartbeat stage=imports step=0/4 elapsed=10s gpu=113 MiB, 38 % log_bytes=292
+2026-10-05T17:18:13.458110/character-animation/heartbeat progress={"completed": 2, "total": 12, "direction": "down_left", "frame": 8}
+
+2026-10-05 17:18:13,475/qwen-pose/load model_id=Qwen/Qwen-Image-Edit-2511 model_path=/home/cbsim/ws/slime-workflow/.model/qwen-image-edit-2511/6f3ccc0b56e431dc6a0c2b2039706d7d26f22cb9
+Loading pipeline components...:   0%|          | 0/6 [00:00<?, ?it/s]
+Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s][A
+Loading checkpoint shards:  25%|██▌       | 1/4 [00:00<00:00,  6.84it/s][A
+Loading checkpoint shards: 100%|██████████| 4/4 [00:00<00:00, 17.99it/s][ALoading checkpoint shards: 100%|██████████| 4/4 [00:00<00:00, 16.02it/s]
+Loading pipeline components...:  17%|█▋        | 1/6 [00:00<00:01,  2.85it/s]Loading pipeline components...:  33%|███▎      | 2/6 [00:00<00:00,  4.35it/s]Loading pipeline components...:  50%|█████     | 3/6 [00:00<00:00,  4.51it/s]
+Loading checkpoint shards:   0%|          | 0/5 [00:00<?, ?it/s][ALoading checkpoint shards: 100%|██████████| 5/5 [00:00<00:00, 71.15it/s]
+Loading pipeline components...:  67%|██████▋   | 4/6 [00:00<00:00,  4.32it/s]Loading pipeline components...:  83%|████████▎ | 5/6 [00:01<00:00,  2.54it/s]Loading pipeline components...: 100%|██████████| 6/6 [00:01<00:00,  3.66it/s]
+2026-10-05 17:18:15,116/qwen-pose/adapter name=anypose_base strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-base-000006250.safetensors
+2026-10-05 17:18:15,887/qwen-pose/adapter name=anypose_helper strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-helper-00006000.safetensors
+/home/cbsim/ws/slime-workflow/.venv/lib/python3.12/site-packages/peft/tuners/tuners_utils.py:285: UserWarning: Already found a `peft_config` attribute in the model. This will lead to having multiple adapters in the model. Make sure to know what you are doing!
+  warnings.warn(
+2026-10-05 17:18:16,813/qwen-pose/adapter name=lightning strength=1.0 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lightx2v--Qwen-Image-Edit-2511-Lightning/d74eba145674fd7e31b949324e148e21e7118abd/Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors
+2026-10-05 17:18:17,624/qwen-pose/heartbeat stage=adapters step=0/4 elapsed=15s gpu=113 MiB, 9 % log_bytes=1315
+2026-10-05T17:18:18.466740/character-animation/heartbeat progress={"completed": 2, "total": 12, "direction": "down_left", "frame": 8}
+
+2026-10-05 17:18:22,675/qwen-pose/heartbeat stage=adapters step=0/4 elapsed=20s gpu=113 MiB, 42 % log_bytes=1427
+2026-10-05T17:18:23.474730/character-animation/heartbeat progress={"completed": 2, "total": 12, "direction": "down_left", "frame": 8}
+
+/home/cbsim/ws/slime-workflow/.venv/lib/python3.12/site-packages/peft/tuners/tuners_utils.py:285: UserWarning: Already found a `peft_config` attribute in the model. This will lead to having multiple adapters in the model. Make sure to know what you are doing!
+  warnings.warn(
+2026-10-05 17:18:27,110/qwen-pose/inference size=768x768 steps=4 seed=10107 device=cuda dtype=bfloat16 offload=sequential
+ negative_prompt is passed but classifier-free guidance is not enabled since true_cfg_scale <= 1
+2026-10-05 17:18:27,699/qwen-pose/heartbeat stage=inference step=0/4 elapsed=25s gpu=1308 MiB, 14 % log_bytes=1662
+2026-10-05T17:18:28.480560/character-animation/heartbeat progress={"completed": 2, "total": 12, "direction": "down_left", "frame": 8}
+
+2026-10-05 17:18:32,728/qwen-pose/heartbeat stage=inference step=0/4 elapsed=30s gpu=642 MiB, 14 % log_bytes=1777
+2026-10-05T17:18:33.485556/character-animation/heartbeat progress={"completed": 2, "total": 12, "direction": "down_left", "frame": 8}
+
+2026-10-05 17:18:37,766/qwen-pose/heartbeat stage=inference step=0/4 elapsed=35s gpu=676 MiB, 24 % log_bytes=1891
+2026-10-05T17:18:38.491574/character-animation/heartbeat progress={"completed": 2, "total": 12, "direction": "down_left", "frame": 8}
+
+2026-10-05 17:18:42,794/qwen-pose/heartbeat stage=inference step=0/4 elapsed=40s gpu=622 MiB, 18 % log_bytes=2005
+2026-10-05T17:18:43.496618/character-animation/heartbeat progress={"completed": 2, "total": 12, "direction": "down_left", "frame": 8}
+
+guidance_scale is passed as 1.0, but ignored since the model is not guidance-distilled.
+  0%|          | 0/4 [00:00<?, ?it/s]2026-10-05 17:18:47,827/qwen-pose/heartbeat stage=inference step=0/4 elapsed=45s gpu=822 MiB, 15 % log_bytes=2119
+2026-10-05T17:18:48.502964/character-animation/heartbeat progress={"completed": 2, "total": 12, "direction": "down_left", "frame": 8}
+
+2026-10-05 17:18:52,867/qwen-pose/heartbeat stage=inference step=0/4 elapsed=50s gpu=760 MiB, 20 % log_bytes=2233
+2026-10-05T17:18:53.508819/character-animation/heartbeat progress={"completed": 2, "total": 12, "direction": "down_left", "frame": 8}
+
+2026-10-05 17:18:57,900/qwen-pose/heartbeat stage=inference step=0/4 elapsed=55s gpu=822 MiB, 13 % log_bytes=2347
+2026-10-05T17:18:58.514912/character-animation/heartbeat progress={"completed": 2, "total": 12, "direction": "down_left", "frame": 8}
+
+2026-10-05 17:19:02,929/qwen-pose/heartbeat stage=inference step=0/4 elapsed=60s gpu=822 MiB, 17 % log_bytes=2461
+2026-10-05T17:19:03.519911/character-animation/heartbeat progress={"completed": 2, "total": 12, "direction": "down_left", "frame": 8}
+
+2026-10-05 17:19:07,972/qwen-pose/heartbeat stage=inference step=0/4 elapsed=65s gpu=514 MiB, 35 % log_bytes=2575
+2026-10-05T17:19:08.526151/character-animation/heartbeat progress={"completed": 2, "total": 12, "direction": "down_left", "frame": 8}
+
+2026-10-05 17:19:13,003/qwen-pose/heartbeat stage=inference step=0/4 elapsed=70s gpu=778 MiB, 13 % log_bytes=2689
+2026-10-05T17:19:13.531191/character-animation/heartbeat progress={"completed": 2, "total": 12, "direction": "down_left", "frame": 8}
+
+2026-10-05 17:19:18,029/qwen-pose/heartbeat stage=inference step=0/4 elapsed=76s gpu=562 MiB, 25 % log_bytes=2803
+2026-10-05T17:19:18.537265/character-animation/heartbeat progress={"completed": 2, "total": 12, "direction": "down_left", "frame": 8}
+
+2026-10-05 17:19:23,055/qwen-pose/heartbeat stage=inference step=0/4 elapsed=81s gpu=822 MiB, 39 % log_bytes=2917
+2026-10-05T17:19:23.542437/character-animation/heartbeat progress={"completed": 2, "total": 12, "direction": "down_left", "frame": 8}
+
+2026-10-05 17:19:28,087/qwen-pose/heartbeat stage=inference step=0/4 elapsed=86s gpu=770 MiB, 15 % log_bytes=3031
+2026-10-05T17:19:28.547553/character-animation/heartbeat progress={"completed": 2, "total": 12, "direction": "down_left", "frame": 8}
+
+2026-10-05 17:19:33,113/qwen-pose/heartbeat stage=inference step=0/4 elapsed=91s gpu=734 MiB, 37 % log_bytes=3145
+2026-10-05T17:19:33.552899/character-animation/heartbeat progress={"completed": 2, "total": 12, "direction": "down_left", "frame": 8}
+
+2026-10-05 17:19:38,147/qwen-pose/heartbeat stage=inference step=0/4 elapsed=96s gpu=750 MiB, 17 % log_bytes=3259
+2026-10-05T17:19:38.558423/character-animation/heartbeat progress={"completed": 2, "total": 12, "direction": "down_left", "frame": 8}
+
+2026-10-05 17:19:39,528/qwen-pose/denoise step=1/4
+ 25%|██▌       | 1/4 [00:53<02:41, 54.00s/it]2026-10-05 17:19:43,178/qwen-pose/heartbeat stage=inference step=1/4 elapsed=101s gpu=566 MiB, 20 % log_bytes=3424
+2026-10-05T17:19:43.563485/character-animation/heartbeat progress={"completed": 2, "total": 12, "direction": "down_left", "frame": 8}
+
+2026-10-05 17:19:48,215/qwen-pose/heartbeat stage=inference step=1/4 elapsed=106s gpu=736 MiB, 28 % log_bytes=3539
+2026-10-05T17:19:48.568995/character-animation/heartbeat progress={"completed": 2, "total": 12, "direction": "down_left", "frame": 8}
+
+2026-10-05 17:19:53,245/qwen-pose/heartbeat stage=inference step=1/4 elapsed=111s gpu=752 MiB, 21 % log_bytes=3654
+2026-10-05T17:19:53.574628/character-animation/heartbeat progress={"completed": 2, "total": 12, "direction": "down_left", "frame": 8}
+
+2026-10-05 17:19:58,277/qwen-pose/heartbeat stage=inference step=1/4 elapsed=116s gpu=546 MiB, 15 % log_bytes=3769
+2026-10-05T17:19:58.580895/character-animation/heartbeat progress={"completed": 2, "total": 12, "direction": "down_left", "frame": 8}
+
+2026-10-05 17:20:03,309/qwen-pose/heartbeat stage=inference step=1/4 elapsed=121s gpu=792 MiB, 36 % log_bytes=3884
+2026-10-05T17:20:03.586402/character-animation/heartbeat progress={"completed": 2, "total": 12, "direction": "down_left", "frame": 8}
+
+2026-10-05 17:20:08,340/qwen-pose/heartbeat stage=inference step=1/4 elapsed=126s gpu=894 MiB, 17 % log_bytes=3999
+2026-10-05T17:20:08.592348/character-animation/heartbeat progress={"completed": 2, "total": 12, "direction": "down_left", "frame": 8}
+
+2026-10-05 17:20:13,372/qwen-pose/heartbeat stage=inference step=1/4 elapsed=131s gpu=566 MiB, 37 % log_bytes=4114
+2026-10-05T17:20:13.597865/character-animation/heartbeat progress={"completed": 2, "total": 12, "direction": "down_left", "frame": 8}
+
+2026-10-05 17:20:18,403/qwen-pose/heartbeat stage=inference step=1/4 elapsed=136s gpu=546 MiB, 38 % log_bytes=4229
+2026-10-05T17:20:18.602998/character-animation/heartbeat progress={"completed": 2, "total": 12, "direction": "down_left", "frame": 8}
+
+2026-10-05 17:20:23,443/qwen-pose/heartbeat stage=inference step=1/4 elapsed=141s gpu=772 MiB, 23 % log_bytes=4344
+2026-10-05T17:20:23.608252/character-animation/heartbeat progress={"completed": 2, "total": 12, "direction": "down_left", "frame": 8}
+
+2026-10-05 17:20:25,467/qwen-pose/denoise step=2/4
+ 50%|█████     | 2/4 [01:39<01:38, 49.26s/it]2026-10-05 17:20:28,482/qwen-pose/heartbeat stage=inference step=2/4 elapsed=146s gpu=772 MiB, 18 % log_bytes=4510
+2026-10-05T17:20:28.614082/character-animation/heartbeat progress={"completed": 2, "total": 12, "direction": "down_left", "frame": 8}
+
+2026-10-05 17:20:33,510/qwen-pose/heartbeat stage=inference step=2/4 elapsed=151s gpu=792 MiB, 28 % log_bytes=4625
+2026-10-05T17:20:33.618646/character-animation/heartbeat progress={"completed": 2, "total": 12, "direction": "down_left", "frame": 8}
+
+2026-10-05 17:20:38,540/qwen-pose/heartbeat stage=inference step=2/4 elapsed=156s gpu=568 MiB, 18 % log_bytes=4740
+2026-10-05T17:20:38.623286/character-animation/heartbeat progress={"completed": 2, "total": 12, "direction": "down_left", "frame": 8}
+
+2026-10-05 17:20:43,564/qwen-pose/heartbeat stage=inference step=2/4 elapsed=161s gpu=894 MiB, 41 % log_bytes=4855
+2026-10-05T17:20:43.627942/character-animation/heartbeat progress={"completed": 2, "total": 12, "direction": "down_left", "frame": 8}
+
+2026-10-05 17:20:48,596/qwen-pose/heartbeat stage=inference step=2/4 elapsed=166s gpu=546 MiB, 67 % log_bytes=4970
+2026-10-05T17:20:48.632844/character-animation/heartbeat progress={"completed": 2, "total": 12, "direction": "down_left", "frame": 8}
+
+2026-10-05 17:20:49,428/qwen-pose/denoise step=3/4
+ 75%|███████▌  | 3/4 [02:03<00:37, 37.71s/it]2026-10-05 17:20:53,631/qwen-pose/heartbeat stage=inference step=3/4 elapsed=171s gpu=826 MiB, 66 % log_bytes=5136
+2026-10-05T17:20:53.638011/character-animation/heartbeat progress={"completed": 2, "total": 12, "direction": "down_left", "frame": 8}
+
+2026-10-05T17:20:58.642493/character-animation/heartbeat progress={"completed": 2, "total": 12, "direction": "down_left", "frame": 8}
+
+2026-10-05 17:20:58,656/qwen-pose/heartbeat stage=inference step=3/4 elapsed=176s gpu=794 MiB, 70 % log_bytes=5251
+2026-10-05 17:21:01,950/qwen-pose/denoise step=4/4
+100%|██████████| 4/4 [02:16<00:00, 27.76s/it]100%|██████████| 4/4 [02:16<00:00, 34.11s/it]
+2026-10-05T17:21:03.647431/character-animation/heartbeat progress={"completed": 2, "total": 12, "direction": "down_left", "frame": 8}
+
+2026-10-05 17:21:03,687/qwen-pose/heartbeat stage=inference step=4/4 elapsed=181s gpu=388 MiB, 66 % log_bytes=5417
+2026-10-05 17:21:04,171/qwen-pose/complete output=/home/cbsim/ws/slime-workflow/.tmp/test/character-animation/2026-10-05_17-10-42/2026-10-05_17-10-42-b46bce6f/down_left/frame-0008/result.png
+2026-10-05T17:21:08.652119/character-animation/heartbeat progress={"completed": 3, "total": 12, "direction": "down_left", "frame": 10}
+
+2026-10-05 17:21:13,468/qwen-pose/heartbeat stage=imports step=0/4 elapsed=5s gpu=113 MiB, 15 % log_bytes=0
+2026-10-05T17:21:13.655415/character-animation/heartbeat progress={"completed": 3, "total": 12, "direction": "down_left", "frame": 10}
+
+2026-10-05 17:21:17,022/qwen-pose/reference vae_size=512x512 output_size=768x768 condition_size=384x384
+2026-10-05 17:21:17,022/qwen-pose/reference order=['character', 'rig'] kind=rig
+2026-10-05 17:21:18,130/qwen-pose/load model_id=Qwen/Qwen-Image-Edit-2511 model_path=/home/cbsim/ws/slime-workflow/.model/qwen-image-edit-2511/6f3ccc0b56e431dc6a0c2b2039706d7d26f22cb9
+Loading pipeline components...:   0%|          | 0/6 [00:00<?, ?it/s]Loading pipeline components...:  17%|█▋        | 1/6 [00:00<00:01,  3.96it/s]2026-10-05 17:21:18,511/qwen-pose/heartbeat stage=load step=0/4 elapsed=10s gpu=113 MiB, 35 % log_bytes=476
+Loading pipeline components...:  33%|███▎      | 2/6 [00:00<00:00,  5.57it/s]
+Loading checkpoint shards:   0%|          | 0/5 [00:00<?, ?it/s][ALoading checkpoint shards: 100%|██████████| 5/5 [00:00<00:00, 81.70it/s]
+Loading pipeline components...:  67%|██████▋   | 4/6 [00:00<00:00,  8.99it/s]2026-10-05T17:21:18.659671/character-animation/heartbeat progress={"completed": 3, "total": 12, "direction": "down_left", "frame": 10}
+
+Loading pipeline components...:  83%|████████▎ | 5/6 [00:01<00:00,  3.91it/s]
+Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s][A
+Loading checkpoint shards:  25%|██▌       | 1/4 [00:00<00:00,  7.79it/s][ALoading checkpoint shards: 100%|██████████| 4/4 [00:00<00:00, 28.03it/s]
+Loading pipeline components...: 100%|██████████| 6/6 [00:01<00:00,  4.28it/s]Loading pipeline components...: 100%|██████████| 6/6 [00:01<00:00,  4.68it/s]
+2026-10-05 17:21:19,415/qwen-pose/adapter name=anypose_base strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-base-000006250.safetensors
+2026-10-05 17:21:20,054/qwen-pose/adapter name=anypose_helper strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-helper-00006000.safetensors
+/home/cbsim/ws/slime-workflow/.venv/lib/python3.12/site-packages/peft/tuners/tuners_utils.py:285: UserWarning: Already found a `peft_config` attribute in the model. This will lead to having multiple adapters in the model. Make sure to know what you are doing!
+  warnings.warn(
+2026-10-05 17:21:20,861/qwen-pose/adapter name=lightning strength=1.0 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lightx2v--Qwen-Image-Edit-2511-Lightning/d74eba145674fd7e31b949324e148e21e7118abd/Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors
+2026-10-05 17:21:23,560/qwen-pose/heartbeat stage=adapters step=0/4 elapsed=15s gpu=113 MiB, 57 % log_bytes=1312
+2026-10-05T17:21:23.669106/character-animation/heartbeat progress={"completed": 3, "total": 12, "direction": "down_left", "frame": 10}
+
+/home/cbsim/ws/slime-workflow/.venv/lib/python3.12/site-packages/peft/tuners/tuners_utils.py:285: UserWarning: Already found a `peft_config` attribute in the model. This will lead to having multiple adapters in the model. Make sure to know what you are doing!
+  warnings.warn(
+2026-10-05 17:21:28,612/qwen-pose/heartbeat stage=adapters step=0/4 elapsed=20s gpu=113 MiB, 29 % log_bytes=1425
+2026-10-05T17:21:28.678475/character-animation/heartbeat progress={"completed": 3, "total": 12, "direction": "down_left", "frame": 10}
+
+2026-10-05 17:21:29,705/qwen-pose/inference size=768x768 steps=4 seed=10107 device=cuda dtype=bfloat16 offload=sequential
+ negative_prompt is passed but classifier-free guidance is not enabled since true_cfg_scale <= 1
+2026-10-05 17:21:33,634/qwen-pose/heartbeat stage=inference step=0/4 elapsed=25s gpu=618 MiB, 9 % log_bytes=1660
+2026-10-05T17:21:33.682224/character-animation/heartbeat progress={"completed": 3, "total": 12, "direction": "down_left", "frame": 10}
+
+2026-10-05 17:21:38,677/qwen-pose/heartbeat stage=inference step=0/4 elapsed=30s gpu=672 MiB, 13 % log_bytes=1773
+2026-10-05T17:21:38.686439/character-animation/heartbeat progress={"completed": 3, "total": 12, "direction": "down_left", "frame": 10}
+
+2026-10-05T17:21:43.691296/character-animation/heartbeat progress={"completed": 3, "total": 12, "direction": "down_left", "frame": 10}
+
+2026-10-05 17:21:43,700/qwen-pose/heartbeat stage=inference step=0/4 elapsed=35s gpu=728 MiB, 14 % log_bytes=1887
+guidance_scale is passed as 1.0, but ignored since the model is not guidance-distilled.
+  0%|          | 0/4 [00:00<?, ?it/s]2026-10-05T17:21:48.696258/character-animation/heartbeat progress={"completed": 3, "total": 12, "direction": "down_left", "frame": 10}
+
+2026-10-05 17:21:48,724/qwen-pose/heartbeat stage=inference step=0/4 elapsed=40s gpu=792 MiB, 21 % log_bytes=2001
+2026-10-05T17:21:53.700880/character-animation/heartbeat progress={"completed": 3, "total": 12, "direction": "down_left", "frame": 10}
+
+2026-10-05 17:21:53,754/qwen-pose/heartbeat stage=inference step=0/4 elapsed=45s gpu=894 MiB, 25 % log_bytes=2115
+2026-10-05T17:21:58.705922/character-animation/heartbeat progress={"completed": 3, "total": 12, "direction": "down_left", "frame": 10}
+
+2026-10-05 17:21:58,784/qwen-pose/heartbeat stage=inference step=0/4 elapsed=50s gpu=750 MiB, 13 % log_bytes=2229
+2026-10-05T17:22:03.710594/character-animation/heartbeat progress={"completed": 3, "total": 12, "direction": "down_left", "frame": 10}
+
+2026-10-05 17:22:03,855/qwen-pose/heartbeat stage=inference step=0/4 elapsed=55s gpu=516 MiB, 16 % log_bytes=2343
+2026-10-05T17:22:08.715423/character-animation/heartbeat progress={"completed": 3, "total": 12, "direction": "down_left", "frame": 10}
+
+2026-10-05 17:22:08,879/qwen-pose/heartbeat stage=inference step=0/4 elapsed=60s gpu=770 MiB, 24 % log_bytes=2457
+2026-10-05T17:22:13.720416/character-animation/heartbeat progress={"completed": 3, "total": 12, "direction": "down_left", "frame": 10}
+
+2026-10-05 17:22:13,900/qwen-pose/heartbeat stage=inference step=0/4 elapsed=65s gpu=770 MiB, 20 % log_bytes=2571
+2026-10-05T17:22:18.724762/character-animation/heartbeat progress={"completed": 3, "total": 12, "direction": "down_left", "frame": 10}
+
+2026-10-05 17:22:18,929/qwen-pose/heartbeat stage=inference step=0/4 elapsed=70s gpu=552 MiB, 15 % log_bytes=2685
+2026-10-05T17:22:23.729746/character-animation/heartbeat progress={"completed": 3, "total": 12, "direction": "down_left", "frame": 10}
+
+2026-10-05 17:22:23,954/qwen-pose/heartbeat stage=inference step=0/4 elapsed=76s gpu=770 MiB, 28 % log_bytes=2799
+2026-10-05 17:22:28,686/qwen-pose/denoise step=1/4
+ 25%|██▌       | 1/4 [00:41<02:04, 41.38s/it]2026-10-05T17:22:28.734502/character-animation/heartbeat progress={"completed": 3, "total": 12, "direction": "down_left", "frame": 10}
+
+2026-10-05 17:22:28,986/qwen-pose/heartbeat stage=inference step=1/4 elapsed=81s gpu=470 MiB, 11 % log_bytes=2964
+2026-10-05T17:22:33.739220/character-animation/heartbeat progress={"completed": 3, "total": 12, "direction": "down_left", "frame": 10}
+
+2026-10-05 17:22:34,009/qwen-pose/heartbeat stage=inference step=1/4 elapsed=86s gpu=824 MiB, 8 % log_bytes=3078
+2026-10-05T17:22:38.743895/character-animation/heartbeat progress={"completed": 3, "total": 12, "direction": "down_left", "frame": 10}
+
+2026-10-05 17:22:39,031/qwen-pose/heartbeat stage=inference step=1/4 elapsed=91s gpu=792 MiB, 10 % log_bytes=3191
+2026-10-05T17:22:43.749110/character-animation/heartbeat progress={"completed": 3, "total": 12, "direction": "down_left", "frame": 10}
+
+2026-10-05 17:22:44,053/qwen-pose/heartbeat stage=inference step=1/4 elapsed=96s gpu=566 MiB, 23 % log_bytes=3305
+2026-10-05T17:22:48.753839/character-animation/heartbeat progress={"completed": 3, "total": 12, "direction": "down_left", "frame": 10}
+
+2026-10-05 17:22:49,080/qwen-pose/heartbeat stage=inference step=1/4 elapsed=101s gpu=536 MiB, 23 % log_bytes=3419
+2026-10-05T17:22:53.759169/character-animation/heartbeat progress={"completed": 3, "total": 12, "direction": "down_left", "frame": 10}
+
+2026-10-05 17:22:54,110/qwen-pose/heartbeat stage=inference step=1/4 elapsed=106s gpu=736 MiB, 14 % log_bytes=3534
+2026-10-05T17:22:58.763443/character-animation/heartbeat progress={"completed": 3, "total": 12, "direction": "down_left", "frame": 10}
+
+2026-10-05 17:22:59,144/qwen-pose/heartbeat stage=inference step=1/4 elapsed=111s gpu=752 MiB, 21 % log_bytes=3649
+2026-10-05T17:23:03.768425/character-animation/heartbeat progress={"completed": 3, "total": 12, "direction": "down_left", "frame": 10}
+
+2026-10-05 17:23:04,188/qwen-pose/heartbeat stage=inference step=1/4 elapsed=116s gpu=566 MiB, 26 % log_bytes=3764
+2026-10-05T17:23:08.774572/character-animation/heartbeat progress={"completed": 3, "total": 12, "direction": "down_left", "frame": 10}
+
+2026-10-05 17:23:09,228/qwen-pose/heartbeat stage=inference step=1/4 elapsed=121s gpu=772 MiB, 38 % log_bytes=3879
+2026-10-05 17:23:12,160/qwen-pose/denoise step=2/4
+ 50%|█████     | 2/4 [01:24<01:25, 42.61s/it]2026-10-05T17:23:13.779686/character-animation/heartbeat progress={"completed": 3, "total": 12, "direction": "down_left", "frame": 10}
+
+2026-10-05 17:23:14,262/qwen-pose/heartbeat stage=inference step=2/4 elapsed=126s gpu=894 MiB, 25 % log_bytes=4045
+2026-10-05T17:23:18.785197/character-animation/heartbeat progress={"completed": 3, "total": 12, "direction": "down_left", "frame": 10}
+
+2026-10-05 17:23:19,290/qwen-pose/heartbeat stage=inference step=2/4 elapsed=131s gpu=824 MiB, 31 % log_bytes=4160
+2026-10-05T17:23:23.790375/character-animation/heartbeat progress={"completed": 3, "total": 12, "direction": "down_left", "frame": 10}
+
+2026-10-05 17:23:24,318/qwen-pose/heartbeat stage=inference step=2/4 elapsed=136s gpu=772 MiB, 40 % log_bytes=4275
+2026-10-05T17:23:28.795606/character-animation/heartbeat progress={"completed": 3, "total": 12, "direction": "down_left", "frame": 10}
+
+2026-10-05 17:23:29,344/qwen-pose/heartbeat stage=inference step=2/4 elapsed=141s gpu=824 MiB, 20 % log_bytes=4390
+2026-10-05T17:23:33.800179/character-animation/heartbeat progress={"completed": 3, "total": 12, "direction": "down_left", "frame": 10}
+
+2026-10-05 17:23:34,376/qwen-pose/heartbeat stage=inference step=2/4 elapsed=146s gpu=516 MiB, 12 % log_bytes=4505
+2026-10-05 17:23:36,699/qwen-pose/denoise step=3/4
+ 75%|███████▌  | 3/4 [01:49<00:34, 34.36s/it]2026-10-05T17:23:38.805759/character-animation/heartbeat progress={"completed": 3, "total": 12, "direction": "down_left", "frame": 10}
+
+2026-10-05 17:23:39,404/qwen-pose/heartbeat stage=inference step=3/4 elapsed=151s gpu=754 MiB, 41 % log_bytes=4671
+2026-10-05T17:23:43.810460/character-animation/heartbeat progress={"completed": 3, "total": 12, "direction": "down_left", "frame": 10}
+
+2026-10-05 17:23:44,429/qwen-pose/heartbeat stage=inference step=3/4 elapsed=156s gpu=794 MiB, 20 % log_bytes=4786
+2026-10-05T17:23:48.815242/character-animation/heartbeat progress={"completed": 3, "total": 12, "direction": "down_left", "frame": 10}
+
+2026-10-05 17:23:49,462/qwen-pose/heartbeat stage=inference step=3/4 elapsed=161s gpu=826 MiB, 67 % log_bytes=4901
+2026-10-05T17:23:53.820316/character-animation/heartbeat progress={"completed": 3, "total": 12, "direction": "down_left", "frame": 10}
+
+2026-10-05 17:23:54,490/qwen-pose/heartbeat stage=inference step=3/4 elapsed=166s gpu=766 MiB, 73 % log_bytes=5016
+2026-10-05 17:23:55,397/qwen-pose/denoise step=4/4
+100%|██████████| 4/4 [02:08<00:00, 28.18s/it]100%|██████████| 4/4 [02:08<00:00, 32.02s/it]
+2026-10-05 17:23:57,891/qwen-pose/complete output=/home/cbsim/ws/slime-workflow/.tmp/test/character-animation/2026-10-05_17-10-42/2026-10-05_17-10-42-b46bce6f/down_left/frame-0010/result.png
+2026-10-05T17:23:58.825418/character-animation/heartbeat progress={"completed": 3, "total": 12, "direction": "down_left", "frame": 10}
+
+2026-10-05T17:24:03.830559/character-animation/heartbeat progress={"completed": 4, "total": 12, "direction": "down_left", "frame": 12}
+
+2026-10-05T17:24:08.834705/character-animation/heartbeat progress={"completed": 4, "total": 12, "direction": "down_left", "frame": 12}
+
+2026-10-05 17:24:09,077/qwen-pose/heartbeat stage=imports step=0/4 elapsed=5s gpu=110 MiB, 15 % log_bytes=0
+2026-10-05 17:24:13,823/qwen-pose/reference vae_size=512x512 output_size=768x768 condition_size=384x384
+2026-10-05 17:24:13,823/qwen-pose/reference order=['character', 'rig'] kind=rig
+2026-10-05T17:24:13.838680/character-animation/heartbeat progress={"completed": 4, "total": 12, "direction": "down_left", "frame": 12}
+
+2026-10-05 17:24:14,106/qwen-pose/heartbeat stage=imports step=0/4 elapsed=10s gpu=113 MiB, 39 % log_bytes=292
+2026-10-05 17:24:15,124/qwen-pose/load model_id=Qwen/Qwen-Image-Edit-2511 model_path=/home/cbsim/ws/slime-workflow/.model/qwen-image-edit-2511/6f3ccc0b56e431dc6a0c2b2039706d7d26f22cb9
+Loading pipeline components...:   0%|          | 0/6 [00:00<?, ?it/s]Loading pipeline components...:  17%|█▋        | 1/6 [00:00<00:01,  3.66it/s]Loading pipeline components...:  33%|███▎      | 2/6 [00:00<00:00,  4.82it/s]
+Loading checkpoint shards:   0%|          | 0/5 [00:00<?, ?it/s][ALoading checkpoint shards: 100%|██████████| 5/5 [00:00<00:00, 66.50it/s]
+Loading pipeline components...:  67%|██████▋   | 4/6 [00:00<00:00,  5.94it/s]
+Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s][A
+Loading checkpoint shards:  25%|██▌       | 1/4 [00:00<00:00,  5.98it/s][A
+Loading checkpoint shards:  75%|███████▌  | 3/4 [00:00<00:00, 12.41it/s][ALoading checkpoint shards: 100%|██████████| 4/4 [00:00<00:00, 14.53it/s]
+Loading pipeline components...:  83%|████████▎ | 5/6 [00:01<00:00,  4.68it/s]Loading pipeline components...: 100%|██████████| 6/6 [00:01<00:00,  2.95it/s]Loading pipeline components...: 100%|██████████| 6/6 [00:01<00:00,  3.61it/s]
+2026-10-05 17:24:16,790/qwen-pose/adapter name=anypose_base strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-base-000006250.safetensors
+2026-10-05 17:24:17,462/qwen-pose/adapter name=anypose_helper strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-helper-00006000.safetensors
+/home/cbsim/ws/slime-workflow/.venv/lib/python3.12/site-packages/peft/tuners/tuners_utils.py:285: UserWarning: Already found a `peft_config` attribute in the model. This will lead to having multiple adapters in the model. Make sure to know what you are doing!
+  warnings.warn(
+2026-10-05 17:24:18,386/qwen-pose/adapter name=lightning strength=1.0 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lightx2v--Qwen-Image-Edit-2511-Lightning/d74eba145674fd7e31b949324e148e21e7118abd/Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors
+2026-10-05T17:24:18.842937/character-animation/heartbeat progress={"completed": 4, "total": 12, "direction": "down_left", "frame": 12}
+
+2026-10-05 17:24:19,170/qwen-pose/heartbeat stage=adapters step=0/4 elapsed=15s gpu=113 MiB, 18 % log_bytes=1315
+2026-10-05T17:24:23.863742/character-animation/heartbeat progress={"completed": 4, "total": 12, "direction": "down_left", "frame": 12}
+
+2026-10-05 17:24:24,226/qwen-pose/heartbeat stage=adapters step=0/4 elapsed=20s gpu=113 MiB, 30 % log_bytes=1428
+/home/cbsim/ws/slime-workflow/.venv/lib/python3.12/site-packages/peft/tuners/tuners_utils.py:285: UserWarning: Already found a `peft_config` attribute in the model. This will lead to having multiple adapters in the model. Make sure to know what you are doing!
+  warnings.warn(
+2026-10-05T17:24:28.874236/character-animation/heartbeat progress={"completed": 4, "total": 12, "direction": "down_left", "frame": 12}
+
+2026-10-05 17:24:29,258/qwen-pose/heartbeat stage=adapters step=0/4 elapsed=25s gpu=246 MiB, 42 % log_bytes=1541
+2026-10-05 17:24:29,527/qwen-pose/inference size=768x768 steps=4 seed=10107 device=cuda dtype=bfloat16 offload=sequential
+ negative_prompt is passed but classifier-free guidance is not enabled since true_cfg_scale <= 1
+2026-10-05T17:24:33.878542/character-animation/heartbeat progress={"completed": 4, "total": 12, "direction": "down_left", "frame": 12}
+
+2026-10-05 17:24:34,293/qwen-pose/heartbeat stage=inference step=0/4 elapsed=30s gpu=640 MiB, 12 % log_bytes=1776
+2026-10-05T17:24:38.882693/character-animation/heartbeat progress={"completed": 4, "total": 12, "direction": "down_left", "frame": 12}
+
+2026-10-05 17:24:39,318/qwen-pose/heartbeat stage=inference step=0/4 elapsed=35s gpu=458 MiB, 13 % log_bytes=1890
+2026-10-05T17:24:43.887347/character-animation/heartbeat progress={"completed": 4, "total": 12, "direction": "down_left", "frame": 12}
+
+2026-10-05 17:24:44,343/qwen-pose/heartbeat stage=inference step=0/4 elapsed=40s gpu=514 MiB, 14 % log_bytes=2004
+guidance_scale is passed as 1.0, but ignored since the model is not guidance-distilled.
+  0%|          | 0/4 [00:00<?, ?it/s]2026-10-05T17:24:48.892196/character-animation/heartbeat progress={"completed": 4, "total": 12, "direction": "down_left", "frame": 12}
+
+2026-10-05 17:24:49,370/qwen-pose/heartbeat stage=inference step=0/4 elapsed=45s gpu=734 MiB, 25 % log_bytes=2118
+2026-10-05T17:24:53.895988/character-animation/heartbeat progress={"completed": 4, "total": 12, "direction": "down_left", "frame": 12}
+
+2026-10-05 17:24:54,398/qwen-pose/heartbeat stage=inference step=0/4 elapsed=50s gpu=894 MiB, 21 % log_bytes=2232
+2026-10-05T17:24:58.900476/character-animation/heartbeat progress={"completed": 4, "total": 12, "direction": "down_left", "frame": 12}
+
+2026-10-05 17:24:59,428/qwen-pose/heartbeat stage=inference step=0/4 elapsed=55s gpu=546 MiB, 38 % log_bytes=2346
+2026-10-05T17:25:03.905155/character-animation/heartbeat progress={"completed": 4, "total": 12, "direction": "down_left", "frame": 12}
+
+2026-10-05 17:25:04,455/qwen-pose/heartbeat stage=inference step=0/4 elapsed=61s gpu=790 MiB, 16 % log_bytes=2460
+2026-10-05T17:25:08.910407/character-animation/heartbeat progress={"completed": 4, "total": 12, "direction": "down_left", "frame": 12}
+
+2026-10-05 17:25:09,490/qwen-pose/heartbeat stage=inference step=0/4 elapsed=66s gpu=750 MiB, 12 % log_bytes=2574
+2026-10-05T17:25:13.916156/character-animation/heartbeat progress={"completed": 4, "total": 12, "direction": "down_left", "frame": 12}
+
+2026-10-05 17:25:14,524/qwen-pose/heartbeat stage=inference step=0/4 elapsed=71s gpu=822 MiB, 16 % log_bytes=2688
+2026-10-05T17:25:18.920780/character-animation/heartbeat progress={"completed": 4, "total": 12, "direction": "down_left", "frame": 12}
+
+2026-10-05 17:25:19,555/qwen-pose/heartbeat stage=inference step=0/4 elapsed=76s gpu=822 MiB, 12 % log_bytes=2802
+2026-10-05T17:25:23.925817/character-animation/heartbeat progress={"completed": 4, "total": 12, "direction": "down_left", "frame": 12}
+
+2026-10-05 17:25:24,587/qwen-pose/heartbeat stage=inference step=0/4 elapsed=81s gpu=822 MiB, 14 % log_bytes=2916
+2026-10-05T17:25:28.930634/character-animation/heartbeat progress={"completed": 4, "total": 12, "direction": "down_left", "frame": 12}
+
+2026-10-05 17:25:29,614/qwen-pose/heartbeat stage=inference step=0/4 elapsed=86s gpu=770 MiB, 26 % log_bytes=3030
+2026-10-05 17:25:31,213/qwen-pose/denoise step=1/4
+ 25%|██▌       | 1/4 [00:43<02:10, 43.62s/it]2026-10-05T17:25:33.935145/character-animation/heartbeat progress={"completed": 4, "total": 12, "direction": "down_left", "frame": 12}
+
+2026-10-05 17:25:34,650/qwen-pose/heartbeat stage=inference step=1/4 elapsed=91s gpu=778 MiB, 52 % log_bytes=3195
+2026-10-05T17:25:38.939466/character-animation/heartbeat progress={"completed": 4, "total": 12, "direction": "down_left", "frame": 12}
+
+2026-10-05 17:25:39,675/qwen-pose/heartbeat stage=inference step=1/4 elapsed=96s gpu=536 MiB, 15 % log_bytes=3309
+2026-10-05T17:25:43.944111/character-animation/heartbeat progress={"completed": 4, "total": 12, "direction": "down_left", "frame": 12}
+
+2026-10-05 17:25:44,709/qwen-pose/heartbeat stage=inference step=1/4 elapsed=101s gpu=792 MiB, 13 % log_bytes=3423
+2026-10-05T17:25:48.948122/character-animation/heartbeat progress={"completed": 4, "total": 12, "direction": "down_left", "frame": 12}
+
+2026-10-05 17:25:49,735/qwen-pose/heartbeat stage=inference step=1/4 elapsed=106s gpu=894 MiB, 64 % log_bytes=3538
+2026-10-05 17:25:52,210/qwen-pose/denoise step=2/4
+ 50%|█████     | 2/4 [01:04<01:00, 30.31s/it]2026-10-05T17:25:53.951687/character-animation/heartbeat progress={"completed": 4, "total": 12, "direction": "down_left", "frame": 12}
+
+2026-10-05 17:25:54,757/qwen-pose/heartbeat stage=inference step=2/4 elapsed=111s gpu=792 MiB, 39 % log_bytes=3704
+2026-10-05T17:25:58.955318/character-animation/heartbeat progress={"completed": 4, "total": 12, "direction": "down_left", "frame": 12}
+
+2026-10-05 17:25:59,781/qwen-pose/heartbeat stage=inference step=2/4 elapsed=116s gpu=772 MiB, 59 % log_bytes=3819
+2026-10-05T17:26:03.959145/character-animation/heartbeat progress={"completed": 4, "total": 12, "direction": "down_left", "frame": 12}
+
+2026-10-05 17:26:04,803/qwen-pose/heartbeat stage=inference step=2/4 elapsed=121s gpu=792 MiB, 77 % log_bytes=3934
+2026-10-05 17:26:07,098/qwen-pose/denoise step=3/4
+ 75%|███████▌  | 3/4 [01:19<00:23, 23.27s/it]2026-10-05T17:26:08.962553/character-animation/heartbeat progress={"completed": 4, "total": 12, "direction": "down_left", "frame": 12}
+
+2026-10-05 17:26:09,826/qwen-pose/heartbeat stage=inference step=3/4 elapsed=126s gpu=764 MiB, 82 % log_bytes=4100
+2026-10-05T17:26:13.966309/character-animation/heartbeat progress={"completed": 4, "total": 12, "direction": "down_left", "frame": 12}
+
+2026-10-05 17:26:14,850/qwen-pose/heartbeat stage=inference step=3/4 elapsed=131s gpu=538 MiB, 65 % log_bytes=4215
+2026-10-05 17:26:16,427/qwen-pose/denoise step=4/4
+100%|██████████| 4/4 [01:28<00:00, 17.77s/it]100%|██████████| 4/4 [01:28<00:00, 22.21s/it]
+2026-10-05 17:26:18,134/qwen-pose/complete output=/home/cbsim/ws/slime-workflow/.tmp/test/character-animation/2026-10-05_17-10-42/2026-10-05_17-10-42-b46bce6f/down_left/frame-0012/result.png
+2026-10-05T17:26:18.970265/character-animation/heartbeat progress={"completed": 4, "total": 12, "direction": "down_left", "frame": 12}
+
+2026-10-05T17:26:23.973710/character-animation/heartbeat progress={"completed": 5, "total": 12, "direction": "down_left", "frame": 14}
+
+2026-10-05 17:26:26,689/qwen-pose/heartbeat stage=imports step=0/4 elapsed=5s gpu=113 MiB, 4 % log_bytes=0
+2026-10-05T17:26:28.977188/character-animation/heartbeat progress={"completed": 5, "total": 12, "direction": "down_left", "frame": 14}
+
+2026-10-05 17:26:30,807/qwen-pose/reference vae_size=512x512 output_size=768x768 condition_size=384x384
+2026-10-05 17:26:30,807/qwen-pose/reference order=['character', 'rig'] kind=rig
+2026-10-05 17:26:31,710/qwen-pose/heartbeat stage=imports step=0/4 elapsed=10s gpu=113 MiB, 2 % log_bytes=291
+2026-10-05 17:26:31,963/qwen-pose/load model_id=Qwen/Qwen-Image-Edit-2511 model_path=/home/cbsim/ws/slime-workflow/.model/qwen-image-edit-2511/6f3ccc0b56e431dc6a0c2b2039706d7d26f22cb9
+Loading pipeline components...:   0%|          | 0/6 [00:00<?, ?it/s]Loading pipeline components...:  17%|█▋        | 1/6 [00:00<00:01,  3.48it/s]Loading pipeline components...:  33%|███▎      | 2/6 [00:00<00:01,  2.16it/s]
+Loading checkpoint shards:   0%|          | 0/5 [00:00<?, ?it/s][ALoading checkpoint shards: 100%|██████████| 5/5 [00:00<00:00, 72.88it/s]
+Loading pipeline components...:  67%|██████▋   | 4/6 [00:01<00:00,  4.49it/s]Loading pipeline components...:  83%|████████▎ | 5/6 [00:01<00:00,  5.24it/s]
+Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s][A
+Loading checkpoint shards:  25%|██▌       | 1/4 [00:00<00:00,  8.19it/s][ALoading checkpoint shards: 100%|██████████| 4/4 [00:00<00:00, 18.61it/s]
+Loading pipeline components...: 100%|██████████| 6/6 [00:01<00:00,  4.74it/s]Loading pipeline components...: 100%|██████████| 6/6 [00:01<00:00,  4.26it/s]
+2026-10-05 17:26:33,374/qwen-pose/adapter name=anypose_base strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-base-000006250.safetensors
+2026-10-05T17:26:33.980692/character-animation/heartbeat progress={"completed": 5, "total": 12, "direction": "down_left", "frame": 14}
+
+2026-10-05 17:26:34,076/qwen-pose/adapter name=anypose_helper strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-helper-00006000.safetensors
+/home/cbsim/ws/slime-workflow/.venv/lib/python3.12/site-packages/peft/tuners/tuners_utils.py:285: UserWarning: Already found a `peft_config` attribute in the model. This will lead to having multiple adapters in the model. Make sure to know what you are doing!
+  warnings.warn(
+2026-10-05 17:26:35,004/qwen-pose/adapter name=lightning strength=1.0 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lightx2v--Qwen-Image-Edit-2511-Lightning/d74eba145674fd7e31b949324e148e21e7118abd/Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors
+2026-10-05 17:26:36,779/qwen-pose/heartbeat stage=adapters step=0/4 elapsed=15s gpu=113 MiB, 8 % log_bytes=1313
+2026-10-05T17:26:38.989503/character-animation/heartbeat progress={"completed": 5, "total": 12, "direction": "down_left", "frame": 14}
+
+2026-10-05 17:26:41,835/qwen-pose/heartbeat stage=adapters step=0/4 elapsed=20s gpu=113 MiB, 22 % log_bytes=1425
+2026-10-05T17:26:44.001808/character-animation/heartbeat progress={"completed": 5, "total": 12, "direction": "down_left", "frame": 14}
+
+/home/cbsim/ws/slime-workflow/.venv/lib/python3.12/site-packages/peft/tuners/tuners_utils.py:285: UserWarning: Already found a `peft_config` attribute in the model. This will lead to having multiple adapters in the model. Make sure to know what you are doing!
+  warnings.warn(
+2026-10-05 17:26:46,710/qwen-pose/inference size=768x768 steps=4 seed=10107 device=cuda dtype=bfloat16 offload=sequential
+ negative_prompt is passed but classifier-free guidance is not enabled since true_cfg_scale <= 1
+2026-10-05 17:26:46,890/qwen-pose/heartbeat stage=inference step=0/4 elapsed=25s gpu=248 MiB, 18 % log_bytes=1660
+2026-10-05T17:26:49.007933/character-animation/heartbeat progress={"completed": 5, "total": 12, "direction": "down_left", "frame": 14}
+
+2026-10-05 17:26:51,914/qwen-pose/heartbeat stage=inference step=0/4 elapsed=30s gpu=406 MiB, 11 % log_bytes=1774
+2026-10-05T17:26:54.012439/character-animation/heartbeat progress={"completed": 5, "total": 12, "direction": "down_left", "frame": 14}
+
+2026-10-05 17:26:56,942/qwen-pose/heartbeat stage=inference step=0/4 elapsed=35s gpu=694 MiB, 11 % log_bytes=1888
+2026-10-05T17:26:59.017524/character-animation/heartbeat progress={"completed": 5, "total": 12, "direction": "down_left", "frame": 14}
+
+2026-10-05 17:27:01,970/qwen-pose/heartbeat stage=inference step=0/4 elapsed=40s gpu=514 MiB, 15 % log_bytes=2002
+2026-10-05T17:27:04.022229/character-animation/heartbeat progress={"completed": 5, "total": 12, "direction": "down_left", "frame": 14}
+
+guidance_scale is passed as 1.0, but ignored since the model is not guidance-distilled.
+  0%|          | 0/4 [00:00<?, ?it/s]2026-10-05 17:27:06,997/qwen-pose/heartbeat stage=inference step=0/4 elapsed=45s gpu=792 MiB, 28 % log_bytes=2116
+2026-10-05T17:27:09.026726/character-animation/heartbeat progress={"completed": 5, "total": 12, "direction": "down_left", "frame": 14}
+
+2026-10-05 17:27:12,021/qwen-pose/heartbeat stage=inference step=0/4 elapsed=50s gpu=734 MiB, 29 % log_bytes=2230
+2026-10-05T17:27:14.031389/character-animation/heartbeat progress={"completed": 5, "total": 12, "direction": "down_left", "frame": 14}
+
+2026-10-05 17:27:17,044/qwen-pose/heartbeat stage=inference step=0/4 elapsed=55s gpu=770 MiB, 21 % log_bytes=2344
+2026-10-05T17:27:19.036695/character-animation/heartbeat progress={"completed": 5, "total": 12, "direction": "down_left", "frame": 14}
+
+2026-10-05 17:27:22,071/qwen-pose/heartbeat stage=inference step=0/4 elapsed=60s gpu=822 MiB, 7 % log_bytes=2458
+2026-10-05T17:27:24.042098/character-animation/heartbeat progress={"completed": 5, "total": 12, "direction": "down_left", "frame": 14}
+
+2026-10-05 17:27:27,100/qwen-pose/heartbeat stage=inference step=0/4 elapsed=65s gpu=822 MiB, 21 % log_bytes=2571
+2026-10-05T17:27:29.047301/character-animation/heartbeat progress={"completed": 5, "total": 12, "direction": "down_left", "frame": 14}
+
+2026-10-05 17:27:32,126/qwen-pose/heartbeat stage=inference step=0/4 elapsed=70s gpu=822 MiB, 21 % log_bytes=2685
+2026-10-05T17:27:34.051626/character-animation/heartbeat progress={"completed": 5, "total": 12, "direction": "down_left", "frame": 14}
+
+2026-10-05 17:27:37,162/qwen-pose/heartbeat stage=inference step=0/4 elapsed=76s gpu=750 MiB, 13 % log_bytes=2799
+2026-10-05T17:27:39.056977/character-animation/heartbeat progress={"completed": 5, "total": 12, "direction": "down_left", "frame": 14}
+
+2026-10-05 17:27:42,188/qwen-pose/heartbeat stage=inference step=0/4 elapsed=81s gpu=790 MiB, 25 % log_bytes=2913
+2026-10-05T17:27:44.061478/character-animation/heartbeat progress={"completed": 5, "total": 12, "direction": "down_left", "frame": 14}
+
+2026-10-05 17:27:46,933/qwen-pose/denoise step=1/4
+ 25%|██▌       | 1/4 [00:41<02:04, 41.46s/it]2026-10-05 17:27:47,219/qwen-pose/heartbeat stage=inference step=1/4 elapsed=86s gpu=896 MiB, 15 % log_bytes=3078
+2026-10-05T17:27:49.066013/character-animation/heartbeat progress={"completed": 5, "total": 12, "direction": "down_left", "frame": 14}
+
+2026-10-05 17:27:52,244/qwen-pose/heartbeat stage=inference step=1/4 elapsed=91s gpu=566 MiB, 19 % log_bytes=3192
+2026-10-05T17:27:54.070760/character-animation/heartbeat progress={"completed": 5, "total": 12, "direction": "down_left", "frame": 14}
+
+2026-10-05 17:27:57,276/qwen-pose/heartbeat stage=inference step=1/4 elapsed=96s gpu=894 MiB, 50 % log_bytes=3306
+2026-10-05T17:27:59.075638/character-animation/heartbeat progress={"completed": 5, "total": 12, "direction": "down_left", "frame": 14}
+
+2026-10-05 17:28:02,303/qwen-pose/heartbeat stage=inference step=1/4 elapsed=101s gpu=772 MiB, 35 % log_bytes=3420
+2026-10-05T17:28:04.080506/character-animation/heartbeat progress={"completed": 5, "total": 12, "direction": "down_left", "frame": 14}
+
+2026-10-05 17:28:07,328/qwen-pose/heartbeat stage=inference step=1/4 elapsed=106s gpu=762 MiB, 10 % log_bytes=3535
+2026-10-05T17:28:09.085560/character-animation/heartbeat progress={"completed": 5, "total": 12, "direction": "down_left", "frame": 14}
+
+2026-10-05 17:28:12,370/qwen-pose/heartbeat stage=inference step=1/4 elapsed=111s gpu=516 MiB, 50 % log_bytes=3650
+2026-10-05T17:28:14.091067/character-animation/heartbeat progress={"completed": 5, "total": 12, "direction": "down_left", "frame": 14}
+
+2026-10-05 17:28:14,765/qwen-pose/denoise step=2/4
+ 50%|█████     | 2/4 [01:09<01:06, 33.44s/it]2026-10-05 17:28:17,397/qwen-pose/heartbeat stage=inference step=2/4 elapsed=116s gpu=824 MiB, 36 % log_bytes=3816
+2026-10-05T17:28:19.095485/character-animation/heartbeat progress={"completed": 5, "total": 12, "direction": "down_left", "frame": 14}
+
+2026-10-05 17:28:22,430/qwen-pose/heartbeat stage=inference step=2/4 elapsed=121s gpu=536 MiB, 44 % log_bytes=3931
+2026-10-05T17:28:24.100001/character-animation/heartbeat progress={"completed": 5, "total": 12, "direction": "down_left", "frame": 14}
+
+2026-10-05 17:28:27,455/qwen-pose/heartbeat stage=inference step=2/4 elapsed=126s gpu=772 MiB, 80 % log_bytes=4046
+2026-10-05T17:28:29.104899/character-animation/heartbeat progress={"completed": 5, "total": 12, "direction": "down_left", "frame": 14}
+
+2026-10-05 17:28:29,800/qwen-pose/denoise step=3/4
+ 75%|███████▌  | 3/4 [01:24<00:25, 25.04s/it]2026-10-05 17:28:32,483/qwen-pose/heartbeat stage=inference step=3/4 elapsed=131s gpu=564 MiB, 60 % log_bytes=4212
+2026-10-05T17:28:34.111408/character-animation/heartbeat progress={"completed": 5, "total": 12, "direction": "down_left", "frame": 14}
+
+2026-10-05 17:28:37,520/qwen-pose/heartbeat stage=inference step=3/4 elapsed=136s gpu=896 MiB, 43 % log_bytes=4327
+2026-10-05T17:28:39.116762/character-animation/heartbeat progress={"completed": 5, "total": 12, "direction": "down_left", "frame": 14}
+
+2026-10-05 17:28:42,179/qwen-pose/denoise step=4/4
+100%|██████████| 4/4 [01:36<00:00, 20.04s/it]100%|██████████| 4/4 [01:36<00:00, 24.18s/it]
+2026-10-05 17:28:42,545/qwen-pose/heartbeat stage=inference step=4/4 elapsed=141s gpu=582 MiB, 15 % log_bytes=4493
+2026-10-05T17:28:44.122738/character-animation/heartbeat progress={"completed": 5, "total": 12, "direction": "down_left", "frame": 14}
+
+2026-10-05 17:28:44,396/qwen-pose/complete output=/home/cbsim/ws/slime-workflow/.tmp/test/character-animation/2026-10-05_17-10-42/2026-10-05_17-10-42-b46bce6f/down_left/frame-0014/result.png
+2026-10-05T17:28:49.129051/character-animation/heartbeat progress={"completed": 6, "total": 12, "direction": "down_left", "frame": 16}
+
+2026-10-05 17:28:52,312/qwen-pose/heartbeat stage=imports step=0/4 elapsed=5s gpu=113 MiB, 7 % log_bytes=0
+2026-10-05T17:28:54.133655/character-animation/heartbeat progress={"completed": 6, "total": 12, "direction": "down_left", "frame": 16}
+
+2026-10-05 17:28:56,791/qwen-pose/reference vae_size=512x512 output_size=768x768 condition_size=384x384
+2026-10-05 17:28:56,792/qwen-pose/reference order=['character', 'rig'] kind=rig
+2026-10-05 17:28:57,332/qwen-pose/heartbeat stage=imports step=0/4 elapsed=10s gpu=113 MiB, 8 % log_bytes=291
+2026-10-05 17:28:57,933/qwen-pose/load model_id=Qwen/Qwen-Image-Edit-2511 model_path=/home/cbsim/ws/slime-workflow/.model/qwen-image-edit-2511/6f3ccc0b56e431dc6a0c2b2039706d7d26f22cb9
+Loading pipeline components...:   0%|          | 0/6 [00:00<?, ?it/s]
+Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s][A
+Loading checkpoint shards:  25%|██▌       | 1/4 [00:00<00:00,  7.56it/s][ALoading checkpoint shards: 100%|██████████| 4/4 [00:00<00:00, 17.70it/s]
+Loading pipeline components...:  17%|█▋        | 1/6 [00:00<00:01,  3.04it/s]Loading pipeline components...:  33%|███▎      | 2/6 [00:00<00:01,  3.59it/s]
+Loading checkpoint shards:   0%|          | 0/5 [00:00<?, ?it/s][ALoading checkpoint shards: 100%|██████████| 5/5 [00:00<00:00, 73.46it/s]
+Loading pipeline components...:  50%|█████     | 3/6 [00:00<00:00,  3.87it/s]2026-10-05T17:28:59.137594/character-animation/heartbeat progress={"completed": 6, "total": 12, "direction": "down_left", "frame": 16}
+
+Loading pipeline components...:  67%|██████▋   | 4/6 [00:01<00:00,  2.39it/s]Loading pipeline components...: 100%|██████████| 6/6 [00:01<00:00,  4.31it/s]Loading pipeline components...: 100%|██████████| 6/6 [00:01<00:00,  3.74it/s]
+2026-10-05 17:28:59,540/qwen-pose/adapter name=anypose_base strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-base-000006250.safetensors
+2026-10-05 17:29:00,208/qwen-pose/adapter name=anypose_helper strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-helper-00006000.safetensors
+/home/cbsim/ws/slime-workflow/.venv/lib/python3.12/site-packages/peft/tuners/tuners_utils.py:285: UserWarning: Already found a `peft_config` attribute in the model. This will lead to having multiple adapters in the model. Make sure to know what you are doing!
+  warnings.warn(
+2026-10-05 17:29:01,101/qwen-pose/adapter name=lightning strength=1.0 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lightx2v--Qwen-Image-Edit-2511-Lightning/d74eba145674fd7e31b949324e148e21e7118abd/Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors
+2026-10-05 17:29:02,378/qwen-pose/heartbeat stage=adapters step=0/4 elapsed=15s gpu=113 MiB, 30 % log_bytes=1313
+2026-10-05T17:29:04.147755/character-animation/heartbeat progress={"completed": 6, "total": 12, "direction": "down_left", "frame": 16}
+
+2026-10-05 17:29:07,434/qwen-pose/heartbeat stage=adapters step=0/4 elapsed=20s gpu=113 MiB, 3 % log_bytes=1426
+2026-10-05T17:29:09.160797/character-animation/heartbeat progress={"completed": 6, "total": 12, "direction": "down_left", "frame": 16}
+
+/home/cbsim/ws/slime-workflow/.venv/lib/python3.12/site-packages/peft/tuners/tuners_utils.py:285: UserWarning: Already found a `peft_config` attribute in the model. This will lead to having multiple adapters in the model. Make sure to know what you are doing!
+  warnings.warn(
+2026-10-05 17:29:12,096/qwen-pose/inference size=768x768 steps=4 seed=10107 device=cuda dtype=bfloat16 offload=sequential
+ negative_prompt is passed but classifier-free guidance is not enabled since true_cfg_scale <= 1
+2026-10-05 17:29:12,457/qwen-pose/heartbeat stage=inference step=0/4 elapsed=25s gpu=1308 MiB, 10 % log_bytes=1660
+2026-10-05T17:29:14.173557/character-animation/heartbeat progress={"completed": 6, "total": 12, "direction": "down_left", "frame": 16}
+
+2026-10-05 17:29:17,483/qwen-pose/heartbeat stage=inference step=0/4 elapsed=30s gpu=510 MiB, 13 % log_bytes=1775
+2026-10-05T17:29:19.178483/character-animation/heartbeat progress={"completed": 6, "total": 12, "direction": "down_left", "frame": 16}
+
+2026-10-05 17:29:22,515/qwen-pose/heartbeat stage=inference step=0/4 elapsed=35s gpu=464 MiB, 15 % log_bytes=1889
+2026-10-05T17:29:24.182736/character-animation/heartbeat progress={"completed": 6, "total": 12, "direction": "down_left", "frame": 16}
+
+2026-10-05 17:29:27,538/qwen-pose/heartbeat stage=inference step=0/4 elapsed=40s gpu=750 MiB, 12 % log_bytes=2003
+2026-10-05T17:29:29.187868/character-animation/heartbeat progress={"completed": 6, "total": 12, "direction": "down_left", "frame": 16}
+
+guidance_scale is passed as 1.0, but ignored since the model is not guidance-distilled.
+  0%|          | 0/4 [00:00<?, ?it/s]2026-10-05 17:29:32,563/qwen-pose/heartbeat stage=inference step=0/4 elapsed=45s gpu=894 MiB, 28 % log_bytes=2117
+2026-10-05T17:29:34.192626/character-animation/heartbeat progress={"completed": 6, "total": 12, "direction": "down_left", "frame": 16}
+
+2026-10-05 17:29:37,586/qwen-pose/heartbeat stage=inference step=0/4 elapsed=50s gpu=566 MiB, 19 % log_bytes=2231
+2026-10-05T17:29:39.196999/character-animation/heartbeat progress={"completed": 6, "total": 12, "direction": "down_left", "frame": 16}
+
+2026-10-05 17:29:42,613/qwen-pose/heartbeat stage=inference step=0/4 elapsed=55s gpu=734 MiB, 9 % log_bytes=2345
+2026-10-05T17:29:44.201569/character-animation/heartbeat progress={"completed": 6, "total": 12, "direction": "down_left", "frame": 16}
+
+2026-10-05 17:29:47,646/qwen-pose/heartbeat stage=inference step=0/4 elapsed=60s gpu=546 MiB, 15 % log_bytes=2458
+2026-10-05T17:29:49.208231/character-animation/heartbeat progress={"completed": 6, "total": 12, "direction": "down_left", "frame": 16}
+
+2026-10-05 17:29:52,674/qwen-pose/heartbeat stage=inference step=0/4 elapsed=65s gpu=2255 MiB, 29 % log_bytes=2572
+2026-10-05T17:29:54.213294/character-animation/heartbeat progress={"completed": 6, "total": 12, "direction": "down_left", "frame": 16}
+
+2026-10-05 17:29:57,703/qwen-pose/heartbeat stage=inference step=0/4 elapsed=70s gpu=2259 MiB, 13 % log_bytes=2687
+2026-10-05T17:29:59.217616/character-animation/heartbeat progress={"completed": 6, "total": 12, "direction": "down_left", "frame": 16}
+
+2026-10-05 17:30:02,739/qwen-pose/heartbeat stage=inference step=0/4 elapsed=75s gpu=2141 MiB, 29 % log_bytes=2802
+2026-10-05T17:30:04.222379/character-animation/heartbeat progress={"completed": 6, "total": 12, "direction": "down_left", "frame": 16}
+
+2026-10-05 17:30:07,769/qwen-pose/heartbeat stage=inference step=0/4 elapsed=80s gpu=2269 MiB, 22 % log_bytes=2917
+2026-10-05T17:30:09.226986/character-animation/heartbeat progress={"completed": 6, "total": 12, "direction": "down_left", "frame": 16}
+
+2026-10-05 17:30:12,808/qwen-pose/heartbeat stage=inference step=0/4 elapsed=86s gpu=1875 MiB, 14 % log_bytes=3032
+2026-10-05T17:30:14.231949/character-animation/heartbeat progress={"completed": 6, "total": 12, "direction": "down_left", "frame": 16}
+
+2026-10-05 17:30:17,841/qwen-pose/heartbeat stage=inference step=0/4 elapsed=91s gpu=1929 MiB, 35 % log_bytes=3147
+2026-10-05T17:30:19.236680/character-animation/heartbeat progress={"completed": 6, "total": 12, "direction": "down_left", "frame": 16}
+
+2026-10-05 17:30:22,232/qwen-pose/denoise step=1/4
+ 25%|██▌       | 1/4 [00:51<02:33, 51.10s/it]2026-10-05 17:30:22,870/qwen-pose/heartbeat stage=inference step=1/4 elapsed=96s gpu=2141 MiB, 36 % log_bytes=3313
+2026-10-05T17:30:24.242020/character-animation/heartbeat progress={"completed": 6, "total": 12, "direction": "down_left", "frame": 16}
+
+2026-10-05 17:30:27,927/qwen-pose/heartbeat stage=inference step=1/4 elapsed=101s gpu=2121 MiB, 32 % log_bytes=3428
+2026-10-05T17:30:29.251993/character-animation/heartbeat progress={"completed": 6, "total": 12, "direction": "down_left", "frame": 16}
+
+2026-10-05 17:30:32,960/qwen-pose/heartbeat stage=inference step=1/4 elapsed=106s gpu=2109 MiB, 12 % log_bytes=3544
+2026-10-05T17:30:34.256727/character-animation/heartbeat progress={"completed": 6, "total": 12, "direction": "down_left", "frame": 16}
+
+2026-10-05 17:30:37,995/qwen-pose/heartbeat stage=inference step=1/4 elapsed=111s gpu=2199 MiB, 28 % log_bytes=3660
+2026-10-05T17:30:39.262192/character-animation/heartbeat progress={"completed": 6, "total": 12, "direction": "down_left", "frame": 16}
+
+2026-10-05 17:30:43,022/qwen-pose/heartbeat stage=inference step=1/4 elapsed=116s gpu=1929 MiB, 45 % log_bytes=3776
+2026-10-05T17:30:44.266961/character-animation/heartbeat progress={"completed": 6, "total": 12, "direction": "down_left", "frame": 16}
+
+2026-10-05 17:30:48,058/qwen-pose/heartbeat stage=inference step=1/4 elapsed=121s gpu=2039 MiB, 81 % log_bytes=3892
+2026-10-05T17:30:49.272232/character-animation/heartbeat progress={"completed": 6, "total": 12, "direction": "down_left", "frame": 16}
+
+2026-10-05 17:30:53,084/qwen-pose/heartbeat stage=inference step=1/4 elapsed=126s gpu=2269 MiB, 89 % log_bytes=4008
+2026-10-05T17:30:54.276396/character-animation/heartbeat progress={"completed": 6, "total": 12, "direction": "down_left", "frame": 16}
+
+2026-10-05 17:30:58,110/qwen-pose/heartbeat stage=inference step=1/4 elapsed=131s gpu=1937 MiB, 66 % log_bytes=4124
+2026-10-05T17:30:59.280860/character-animation/heartbeat progress={"completed": 6, "total": 12, "direction": "down_left", "frame": 16}
+
+2026-10-05 17:31:03,143/qwen-pose/heartbeat stage=inference step=1/4 elapsed=136s gpu=2111 MiB, 47 % log_bytes=4240
+2026-10-05T17:31:04.285877/character-animation/heartbeat progress={"completed": 6, "total": 12, "direction": "down_left", "frame": 16}
+
+2026-10-05 17:31:08,183/qwen-pose/heartbeat stage=inference step=1/4 elapsed=141s gpu=2269 MiB, 33 % log_bytes=4356
+2026-10-05T17:31:09.290987/character-animation/heartbeat progress={"completed": 6, "total": 12, "direction": "down_left", "frame": 16}
+
+2026-10-05 17:31:13,212/qwen-pose/heartbeat stage=inference step=1/4 elapsed=146s gpu=2147 MiB, 44 % log_bytes=4472
+2026-10-05 17:31:13,957/qwen-pose/denoise step=2/4
+ 50%|█████     | 2/4 [01:42<01:42, 51.47s/it]2026-10-05T17:31:14.296355/character-animation/heartbeat progress={"completed": 6, "total": 12, "direction": "down_left", "frame": 16}
+
+2026-10-05 17:31:18,246/qwen-pose/heartbeat stage=inference step=2/4 elapsed=151s gpu=1941 MiB, 48 % log_bytes=4639
+2026-10-05T17:31:19.301879/character-animation/heartbeat progress={"completed": 6, "total": 12, "direction": "down_left", "frame": 16}
+
+2026-10-05 17:31:23,283/qwen-pose/heartbeat stage=inference step=2/4 elapsed=156s gpu=2147 MiB, 55 % log_bytes=4755
+2026-10-05T17:31:24.307637/character-animation/heartbeat progress={"completed": 6, "total": 12, "direction": "down_left", "frame": 16}
+
+2026-10-05 17:31:28,314/qwen-pose/heartbeat stage=inference step=2/4 elapsed=161s gpu=2127 MiB, 52 % log_bytes=4871
+2026-10-05T17:31:29.313205/character-animation/heartbeat progress={"completed": 6, "total": 12, "direction": "down_left", "frame": 16}
+
+2026-10-05 17:31:33,350/qwen-pose/heartbeat stage=inference step=2/4 elapsed=166s gpu=1911 MiB, 48 % log_bytes=4987
+2026-10-05T17:31:34.318179/character-animation/heartbeat progress={"completed": 6, "total": 12, "direction": "down_left", "frame": 16}
+
+2026-10-05 17:31:38,383/qwen-pose/heartbeat stage=inference step=2/4 elapsed=171s gpu=2199 MiB, 48 % log_bytes=5103
+2026-10-05T17:31:39.323028/character-animation/heartbeat progress={"completed": 6, "total": 12, "direction": "down_left", "frame": 16}
+
+2026-10-05 17:31:43,413/qwen-pose/heartbeat stage=inference step=2/4 elapsed=176s gpu=2199 MiB, 42 % log_bytes=5219
+2026-10-05T17:31:44.328334/character-animation/heartbeat progress={"completed": 6, "total": 12, "direction": "down_left", "frame": 16}
+
+2026-10-05 17:31:48,446/qwen-pose/heartbeat stage=inference step=2/4 elapsed=181s gpu=1941 MiB, 46 % log_bytes=5335
+2026-10-05T17:31:49.334814/character-animation/heartbeat progress={"completed": 6, "total": 12, "direction": "down_left", "frame": 16}
+
+2026-10-05 17:31:53,474/qwen-pose/heartbeat stage=inference step=2/4 elapsed=186s gpu=1929 MiB, 37 % log_bytes=5451
+2026-10-05T17:31:54.339468/character-animation/heartbeat progress={"completed": 6, "total": 12, "direction": "down_left", "frame": 16}
+
+2026-10-05 17:31:58,513/qwen-pose/heartbeat stage=inference step=2/4 elapsed=191s gpu=2269 MiB, 35 % log_bytes=5567
+2026-10-05T17:31:59.344854/character-animation/heartbeat progress={"completed": 6, "total": 12, "direction": "down_left", "frame": 16}
+
+2026-10-05 17:32:03,542/qwen-pose/heartbeat stage=inference step=2/4 elapsed=196s gpu=2039 MiB, 43 % log_bytes=5683
+2026-10-05 17:32:03,568/qwen-pose/denoise step=3/4
+ 75%|███████▌  | 3/4 [02:32<00:50, 50.62s/it]2026-10-05T17:32:04.349797/character-animation/heartbeat progress={"completed": 6, "total": 12, "direction": "down_left", "frame": 16}
+
+2026-10-05 17:32:08,566/qwen-pose/heartbeat stage=inference step=3/4 elapsed=201s gpu=1923 MiB, 44 % log_bytes=5850
+2026-10-05T17:32:09.354963/character-animation/heartbeat progress={"completed": 6, "total": 12, "direction": "down_left", "frame": 16}
+
+2026-10-05 17:32:13,592/qwen-pose/heartbeat stage=inference step=3/4 elapsed=206s gpu=2169 MiB, 60 % log_bytes=5966
+2026-10-05T17:32:14.360222/character-animation/heartbeat progress={"completed": 6, "total": 12, "direction": "down_left", "frame": 16}
+
+2026-10-05 17:32:18,624/qwen-pose/heartbeat stage=inference step=3/4 elapsed=211s gpu=2139 MiB, 46 % log_bytes=6082
+2026-10-05T17:32:19.365404/character-animation/heartbeat progress={"completed": 6, "total": 12, "direction": "down_left", "frame": 16}
+
+2026-10-05 17:32:23,663/qwen-pose/heartbeat stage=inference step=3/4 elapsed=216s gpu=1943 MiB, 36 % log_bytes=6198
+2026-10-05T17:32:24.370063/character-animation/heartbeat progress={"completed": 6, "total": 12, "direction": "down_left", "frame": 16}
+
+2026-10-05 17:32:28,694/qwen-pose/heartbeat stage=inference step=3/4 elapsed=221s gpu=1919 MiB, 33 % log_bytes=6314
+2026-10-05T17:32:29.374726/character-animation/heartbeat progress={"completed": 6, "total": 12, "direction": "down_left", "frame": 16}
+
+2026-10-05 17:32:33,721/qwen-pose/heartbeat stage=inference step=3/4 elapsed=226s gpu=2271 MiB, 67 % log_bytes=6430
+2026-10-05T17:32:34.379621/character-animation/heartbeat progress={"completed": 6, "total": 12, "direction": "down_left", "frame": 16}
+
+2026-10-05 17:32:38,749/qwen-pose/heartbeat stage=inference step=3/4 elapsed=231s gpu=1943 MiB, 47 % log_bytes=6546
+2026-10-05T17:32:39.385364/character-animation/heartbeat progress={"completed": 6, "total": 12, "direction": "down_left", "frame": 16}
+
+2026-10-05 17:32:43,778/qwen-pose/heartbeat stage=inference step=3/4 elapsed=236s gpu=2155 MiB, 44 % log_bytes=6662
+2026-10-05T17:32:44.390933/character-animation/heartbeat progress={"completed": 6, "total": 12, "direction": "down_left", "frame": 16}
+
+2026-10-05 17:32:48,803/qwen-pose/heartbeat stage=inference step=3/4 elapsed=242s gpu=1943 MiB, 51 % log_bytes=6778
+2026-10-05T17:32:49.396190/character-animation/heartbeat progress={"completed": 6, "total": 12, "direction": "down_left", "frame": 16}
+
+2026-10-05 17:32:52,621/qwen-pose/denoise step=4/4
+100%|██████████| 4/4 [03:21<00:00, 50.00s/it]100%|██████████| 4/4 [03:21<00:00, 50.37s/it]
+2026-10-05 17:32:53,850/qwen-pose/heartbeat stage=inference step=4/4 elapsed=247s gpu=1785 MiB, 59 % log_bytes=6945
+2026-10-05T17:32:54.401697/character-animation/heartbeat progress={"completed": 6, "total": 12, "direction": "down_left", "frame": 16}
+
+2026-10-05 17:32:55,207/qwen-pose/complete output=/home/cbsim/ws/slime-workflow/.tmp/test/character-animation/2026-10-05_17-10-42/2026-10-05_17-10-42-b46bce6f/down_left/frame-0016/result.png
+2026-10-05T17:32:59.406804/character-animation/heartbeat progress={"completed": 7, "total": 12, "direction": "down_left", "frame": 18}
+
+2026-10-05 17:33:03,974/qwen-pose/heartbeat stage=imports step=0/4 elapsed=5s gpu=1488 MiB, 63 % log_bytes=0
+2026-10-05T17:33:04.412053/character-animation/heartbeat progress={"completed": 7, "total": 12, "direction": "down_left", "frame": 18}
+
+2026-10-05 17:33:09,003/qwen-pose/heartbeat stage=imports step=0/4 elapsed=10s gpu=1488 MiB, 67 % log_bytes=109
+2026-10-05T17:33:09.416763/character-animation/heartbeat progress={"completed": 7, "total": 12, "direction": "down_left", "frame": 18}
+
+2026-10-05 17:33:11,459/qwen-pose/reference vae_size=512x512 output_size=768x768 condition_size=384x384
+2026-10-05 17:33:11,460/qwen-pose/reference order=['character', 'rig'] kind=rig
+2026-10-05 17:33:13,333/qwen-pose/load model_id=Qwen/Qwen-Image-Edit-2511 model_path=/home/cbsim/ws/slime-workflow/.model/qwen-image-edit-2511/6f3ccc0b56e431dc6a0c2b2039706d7d26f22cb9
+Loading pipeline components...:   0%|          | 0/6 [00:00<?, ?it/s]
+Loading checkpoint shards:   0%|          | 0/5 [00:00<?, ?it/s][A2026-10-05 17:33:14,030/qwen-pose/heartbeat stage=load step=0/4 elapsed=15s gpu=1488 MiB, 58 % log_bytes=589
+
+Loading checkpoint shards:  20%|██        | 1/5 [00:00<00:00,  7.28it/s][A
+Loading checkpoint shards:  40%|████      | 2/5 [00:00<00:00,  7.71it/s][A
+Loading checkpoint shards:  80%|████████  | 4/5 [00:00<00:00, 11.82it/s][ALoading checkpoint shards: 100%|██████████| 5/5 [00:00<00:00, 12.93it/s]
+Loading pipeline components...:  17%|█▋        | 1/6 [00:01<00:05,  1.08s/it]2026-10-05T17:33:14.423150/character-animation/heartbeat progress={"completed": 7, "total": 12, "direction": "down_left", "frame": 18}
+
+Loading pipeline components...:  33%|███▎      | 2/6 [00:02<00:03,  1.01it/s]
+Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s][A
+Loading checkpoint shards:  25%|██▌       | 1/4 [00:00<00:00,  3.83it/s][A
+Loading checkpoint shards:  50%|█████     | 2/4 [00:00<00:00,  5.61it/s][ALoading checkpoint shards: 100%|██████████| 4/4 [00:00<00:00,  8.57it/s]
+Loading pipeline components...:  67%|██████▋   | 4/6 [00:02<00:01,  1.84it/s]Loading pipeline components...:  83%|████████▎ | 5/6 [00:02<00:00,  2.08it/s]Loading pipeline components...: 100%|██████████| 6/6 [00:02<00:00,  2.01it/s]
+2026-10-05 17:33:16,326/qwen-pose/adapter name=anypose_base strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-base-000006250.safetensors
+2026-10-05 17:33:17,459/qwen-pose/adapter name=anypose_helper strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-helper-00006000.safetensors
+/home/cbsim/ws/slime-workflow/.venv/lib/python3.12/site-packages/peft/tuners/tuners_utils.py:285: UserWarning: Already found a `peft_config` attribute in the model. This will lead to having multiple adapters in the model. Make sure to know what you are doing!
+  warnings.warn(
+2026-10-05 17:33:18,593/qwen-pose/adapter name=lightning strength=1.0 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lightx2v--Qwen-Image-Edit-2511-Lightning/d74eba145674fd7e31b949324e148e21e7118abd/Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors
+2026-10-05 17:33:19,093/qwen-pose/heartbeat stage=adapters step=0/4 elapsed=20s gpu=1488 MiB, 62 % log_bytes=1426
+2026-10-05T17:33:19.429003/character-animation/heartbeat progress={"completed": 7, "total": 12, "direction": "down_left", "frame": 18}
+
+2026-10-05 17:33:24,137/qwen-pose/heartbeat stage=adapters step=0/4 elapsed=25s gpu=1488 MiB, 66 % log_bytes=1540
+2026-10-05T17:33:24.442226/character-animation/heartbeat progress={"completed": 7, "total": 12, "direction": "down_left", "frame": 18}
+
+/home/cbsim/ws/slime-workflow/.venv/lib/python3.12/site-packages/peft/tuners/tuners_utils.py:285: UserWarning: Already found a `peft_config` attribute in the model. This will lead to having multiple adapters in the model. Make sure to know what you are doing!
+  warnings.warn(
+2026-10-05 17:33:29,165/qwen-pose/heartbeat stage=adapters step=0/4 elapsed=30s gpu=1488 MiB, 63 % log_bytes=1654
+2026-10-05T17:33:29.456114/character-animation/heartbeat progress={"completed": 7, "total": 12, "direction": "down_left", "frame": 18}
+
+2026-10-05 17:33:30,630/qwen-pose/inference size=768x768 steps=4 seed=10107 device=cuda dtype=bfloat16 offload=sequential
+ negative_prompt is passed but classifier-free guidance is not enabled since true_cfg_scale <= 1
+2026-10-05 17:33:34,200/qwen-pose/heartbeat stage=inference step=0/4 elapsed=35s gpu=1739 MiB, 63 % log_bytes=1890
+2026-10-05T17:33:34.461304/character-animation/heartbeat progress={"completed": 7, "total": 12, "direction": "down_left", "frame": 18}
+
+2026-10-05 17:33:39,238/qwen-pose/heartbeat stage=inference step=0/4 elapsed=40s gpu=1913 MiB, 36 % log_bytes=2005
+2026-10-05T17:33:39.466401/character-animation/heartbeat progress={"completed": 7, "total": 12, "direction": "down_left", "frame": 18}
+
+2026-10-05 17:33:44,263/qwen-pose/heartbeat stage=inference step=0/4 elapsed=45s gpu=7165 MiB, 10 % log_bytes=2120
+2026-10-05T17:33:44.470717/character-animation/heartbeat progress={"completed": 7, "total": 12, "direction": "down_left", "frame": 18}
+
+2026-10-05 17:33:49,289/qwen-pose/heartbeat stage=inference step=0/4 elapsed=50s gpu=340 MiB, 49 % log_bytes=2235
+2026-10-05T17:33:49.475161/character-animation/heartbeat progress={"completed": 7, "total": 12, "direction": "down_left", "frame": 18}
+
+guidance_scale is passed as 1.0, but ignored since the model is not guidance-distilled.
+  0%|          | 0/4 [00:00<?, ?it/s]2026-10-05 17:33:54,321/qwen-pose/heartbeat stage=inference step=0/4 elapsed=55s gpu=770 MiB, 7 % log_bytes=2349
+2026-10-05T17:33:54.480529/character-animation/heartbeat progress={"completed": 7, "total": 12, "direction": "down_left", "frame": 18}
+
+2026-10-05 17:33:59,360/qwen-pose/heartbeat stage=inference step=0/4 elapsed=60s gpu=894 MiB, 25 % log_bytes=2462
+2026-10-05T17:33:59.485407/character-animation/heartbeat progress={"completed": 7, "total": 12, "direction": "down_left", "frame": 18}
+
+2026-10-05 17:34:04,394/qwen-pose/heartbeat stage=inference step=0/4 elapsed=65s gpu=750 MiB, 8 % log_bytes=2576
+2026-10-05T17:34:04.490450/character-animation/heartbeat progress={"completed": 7, "total": 12, "direction": "down_left", "frame": 18}
+
+2026-10-05 17:34:09,422/qwen-pose/heartbeat stage=inference step=0/4 elapsed=70s gpu=734 MiB, 29 % log_bytes=2689
+2026-10-05T17:34:09.495229/character-animation/heartbeat progress={"completed": 7, "total": 12, "direction": "down_left", "frame": 18}
+
+2026-10-05 17:34:14,447/qwen-pose/heartbeat stage=inference step=0/4 elapsed=76s gpu=822 MiB, 23 % log_bytes=2803
+2026-10-05T17:34:14.500819/character-animation/heartbeat progress={"completed": 7, "total": 12, "direction": "down_left", "frame": 18}
+
+2026-10-05 17:34:19,470/qwen-pose/heartbeat stage=inference step=0/4 elapsed=81s gpu=822 MiB, 0 % log_bytes=2917
+2026-10-05T17:34:19.605232/character-animation/heartbeat progress={"completed": 7, "total": 12, "direction": "down_left", "frame": 18}
+
+2026-10-05 17:34:24,497/qwen-pose/heartbeat stage=inference step=0/4 elapsed=86s gpu=822 MiB, 0 % log_bytes=3030
+2026-10-05T17:34:24.610229/character-animation/heartbeat progress={"completed": 7, "total": 12, "direction": "down_left", "frame": 18}
+
+2026-10-05 17:34:29,517/qwen-pose/heartbeat stage=inference step=0/4 elapsed=91s gpu=822 MiB, 0 % log_bytes=3143
+2026-10-05T17:34:29.615475/character-animation/heartbeat progress={"completed": 7, "total": 12, "direction": "down_left", "frame": 18}
+
+2026-10-05 17:34:34,537/qwen-pose/heartbeat stage=inference step=0/4 elapsed=96s gpu=822 MiB, 0 % log_bytes=3256
+2026-10-05T17:34:34.620085/character-animation/heartbeat progress={"completed": 7, "total": 12, "direction": "down_left", "frame": 18}
+
+2026-10-05 17:34:39,560/qwen-pose/heartbeat stage=inference step=0/4 elapsed=101s gpu=534 MiB, 11 % log_bytes=3369
+2026-10-05T17:34:39.624296/character-animation/heartbeat progress={"completed": 7, "total": 12, "direction": "down_left", "frame": 18}
+
+2026-10-05 17:34:44,589/qwen-pose/heartbeat stage=inference step=0/4 elapsed=106s gpu=776 MiB, 17 % log_bytes=3484
+2026-10-05T17:34:44.628200/character-animation/heartbeat progress={"completed": 7, "total": 12, "direction": "down_left", "frame": 18}
+
+2026-10-05 17:34:49,613/qwen-pose/heartbeat stage=inference step=0/4 elapsed=111s gpu=792 MiB, 11 % log_bytes=3599
+2026-10-05T17:34:49.632354/character-animation/heartbeat progress={"completed": 7, "total": 12, "direction": "down_left", "frame": 18}
+
+2026-10-05T17:34:54.636709/character-animation/heartbeat progress={"completed": 7, "total": 12, "direction": "down_left", "frame": 18}
+
+2026-10-05 17:34:54,644/qwen-pose/heartbeat stage=inference step=0/4 elapsed=116s gpu=822 MiB, 14 % log_bytes=3714
+2026-10-05T17:34:59.641935/character-animation/heartbeat progress={"completed": 7, "total": 12, "direction": "down_left", "frame": 18}
+
+2026-10-05 17:34:59,668/qwen-pose/heartbeat stage=inference step=0/4 elapsed=121s gpu=894 MiB, 21 % log_bytes=3829
+2026-10-05 17:35:02,880/qwen-pose/denoise step=1/4
+ 25%|██▌       | 1/4 [01:13<03:39, 73.16s/it]2026-10-05T17:35:04.647504/character-animation/heartbeat progress={"completed": 7, "total": 12, "direction": "down_left", "frame": 18}
+
+2026-10-05 17:35:04,702/qwen-pose/heartbeat stage=inference step=1/4 elapsed=126s gpu=516 MiB, 19 % log_bytes=3995
+2026-10-05T17:35:09.652353/character-animation/heartbeat progress={"completed": 7, "total": 12, "direction": "down_left", "frame": 18}
+
+2026-10-05 17:35:09,734/qwen-pose/heartbeat stage=inference step=1/4 elapsed=131s gpu=772 MiB, 27 % log_bytes=4110
+2026-10-05T17:35:14.657647/character-animation/heartbeat progress={"completed": 7, "total": 12, "direction": "down_left", "frame": 18}
+
+2026-10-05 17:35:14,762/qwen-pose/heartbeat stage=inference step=1/4 elapsed=136s gpu=792 MiB, 23 % log_bytes=4225
+2026-10-05T17:35:19.662873/character-animation/heartbeat progress={"completed": 7, "total": 12, "direction": "down_left", "frame": 18}
+
+2026-10-05 17:35:19,792/qwen-pose/heartbeat stage=inference step=1/4 elapsed=141s gpu=736 MiB, 33 % log_bytes=4340
+2026-10-05T17:35:24.668639/character-animation/heartbeat progress={"completed": 7, "total": 12, "direction": "down_left", "frame": 18}
+
+2026-10-05 17:35:24,828/qwen-pose/heartbeat stage=inference step=1/4 elapsed=146s gpu=772 MiB, 20 % log_bytes=4455
+2026-10-05T17:35:29.673725/character-animation/heartbeat progress={"completed": 7, "total": 12, "direction": "down_left", "frame": 18}
+
+2026-10-05 17:35:29,858/qwen-pose/heartbeat stage=inference step=1/4 elapsed=151s gpu=772 MiB, 23 % log_bytes=4570
+2026-10-05T17:35:34.680160/character-animation/heartbeat progress={"completed": 7, "total": 12, "direction": "down_left", "frame": 18}
+
+2026-10-05 17:35:34,892/qwen-pose/heartbeat stage=inference step=1/4 elapsed=156s gpu=772 MiB, 18 % log_bytes=4685
+2026-10-05T17:35:39.686510/character-animation/heartbeat progress={"completed": 7, "total": 12, "direction": "down_left", "frame": 18}
+
+2026-10-05 17:35:39,923/qwen-pose/heartbeat stage=inference step=1/4 elapsed=161s gpu=546 MiB, 15 % log_bytes=4800
+2026-10-05T17:35:44.691992/character-animation/heartbeat progress={"completed": 7, "total": 12, "direction": "down_left", "frame": 18}
+
+2026-10-05 17:35:44,956/qwen-pose/heartbeat stage=inference step=1/4 elapsed=166s gpu=792 MiB, 25 % log_bytes=4915
+2026-10-05 17:35:48,586/qwen-pose/denoise step=2/4
+ 50%|█████     | 2/4 [01:58<01:54, 57.01s/it]2026-10-05T17:35:49.697109/character-animation/heartbeat progress={"completed": 7, "total": 12, "direction": "down_left", "frame": 18}
+
+2026-10-05 17:35:49,985/qwen-pose/heartbeat stage=inference step=2/4 elapsed=171s gpu=894 MiB, 52 % log_bytes=5081
+2026-10-05T17:35:54.701732/character-animation/heartbeat progress={"completed": 7, "total": 12, "direction": "down_left", "frame": 18}
+
+2026-10-05 17:35:55,015/qwen-pose/heartbeat stage=inference step=2/4 elapsed=176s gpu=516 MiB, 76 % log_bytes=5196
+2026-10-05T17:35:59.707923/character-animation/heartbeat progress={"completed": 7, "total": 12, "direction": "down_left", "frame": 18}
+
+2026-10-05 17:36:00,055/qwen-pose/heartbeat stage=inference step=2/4 elapsed=181s gpu=762 MiB, 56 % log_bytes=5311
+2026-10-05T17:36:00.963808/character-animation/end {'status': 'cancelled', 'exit_code': 241}
+2026-10-05T17:36:25.052979/character-animation/resume id=2026-10-05_17-10-42-b46bce6f
+2026-10-05T17:36:25.149717/character-animation/start id=2026-10-05_17-10-42-b46bce6f root=/home/cbsim/ws/slime-workflow/.tmp/test/character-animation/2026-10-05_17-10-42/2026-10-05_17-10-42-b46bce6f
+2026-10-05T17:36:25.150700/character-animation/heartbeat progress={"completed": 7, "total": 12, "direction": "down_left", "frame": 18}
+
+2026-10-05T17:36:30.154797/character-animation/heartbeat progress={"completed": 7, "total": 12, "direction": "down_left", "frame": 18}
+
+2026-10-05 17:36:30,530/qwen-pose/heartbeat stage=imports step=0/4 elapsed=5s gpu=110 MiB, 35 % log_bytes=0
+2026-10-05T17:36:35.158963/character-animation/heartbeat progress={"completed": 7, "total": 12, "direction": "down_left", "frame": 18}
+
+2026-10-05 17:36:35,538/qwen-pose/reference vae_size=512x512 output_size=768x768 condition_size=384x384
+2026-10-05 17:36:35,538/qwen-pose/reference order=['character', 'rig'] kind=rig
+2026-10-05 17:36:35,556/qwen-pose/heartbeat stage=imports step=0/4 elapsed=10s gpu=113 MiB, 0 % log_bytes=292
+2026-10-05 17:36:36,703/qwen-pose/load model_id=Qwen/Qwen-Image-Edit-2511 model_path=/home/cbsim/ws/slime-workflow/.model/qwen-image-edit-2511/6f3ccc0b56e431dc6a0c2b2039706d7d26f22cb9
+Loading pipeline components...:   0%|          | 0/6 [00:00<?, ?it/s]Loading pipeline components...:  17%|█▋        | 1/6 [00:00<00:01,  3.10it/s]Loading pipeline components...:  33%|███▎      | 2/6 [00:01<00:02,  1.86it/s]
+Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s][A
+Loading checkpoint shards:  25%|██▌       | 1/4 [00:00<00:00,  8.52it/s][ALoading checkpoint shards: 100%|██████████| 4/4 [00:00<00:00, 18.86it/s]
+Loading pipeline components...:  50%|█████     | 3/6 [00:01<00:01,  2.43it/s]
+Loading checkpoint shards:   0%|          | 0/5 [00:00<?, ?it/s][ALoading checkpoint shards: 100%|██████████| 5/5 [00:00<00:00, 62.09it/s]
+Loading pipeline components...:  83%|████████▎ | 5/6 [00:01<00:00,  3.98it/s]Loading pipeline components...: 100%|██████████| 6/6 [00:01<00:00,  4.70it/s]Loading pipeline components...: 100%|██████████| 6/6 [00:01<00:00,  3.64it/s]
+2026-10-05 17:36:38,354/qwen-pose/adapter name=anypose_base strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-base-000006250.safetensors
+2026-10-05 17:36:38,950/qwen-pose/adapter name=anypose_helper strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-helper-00006000.safetensors
+/home/cbsim/ws/slime-workflow/.venv/lib/python3.12/site-packages/peft/tuners/tuners_utils.py:285: UserWarning: Already found a `peft_config` attribute in the model. This will lead to having multiple adapters in the model. Make sure to know what you are doing!
+  warnings.warn(
+2026-10-05 17:36:39,764/qwen-pose/adapter name=lightning strength=1.0 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lightx2v--Qwen-Image-Edit-2511-Lightning/d74eba145674fd7e31b949324e148e21e7118abd/Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors
+2026-10-05T17:36:40.162902/character-animation/heartbeat progress={"completed": 7, "total": 12, "direction": "down_left", "frame": 18}
+
+2026-10-05 17:36:40,618/qwen-pose/heartbeat stage=adapters step=0/4 elapsed=15s gpu=113 MiB, 28 % log_bytes=1314
+2026-10-05T17:36:45.175716/character-animation/heartbeat progress={"completed": 7, "total": 12, "direction": "down_left", "frame": 18}
+
+2026-10-05 17:36:45,674/qwen-pose/heartbeat stage=adapters step=0/4 elapsed=20s gpu=113 MiB, 1 % log_bytes=1427
+/home/cbsim/ws/slime-workflow/.venv/lib/python3.12/site-packages/peft/tuners/tuners_utils.py:285: UserWarning: Already found a `peft_config` attribute in the model. This will lead to having multiple adapters in the model. Make sure to know what you are doing!
+  warnings.warn(
+2026-10-05 17:36:48,319/qwen-pose/inference size=768x768 steps=4 seed=10107 device=cuda dtype=bfloat16 offload=sequential
+ negative_prompt is passed but classifier-free guidance is not enabled since true_cfg_scale <= 1
+2026-10-05T17:36:50.180309/character-animation/heartbeat progress={"completed": 7, "total": 12, "direction": "down_left", "frame": 18}
+
+2026-10-05 17:36:50,700/qwen-pose/heartbeat stage=inference step=0/4 elapsed=25s gpu=408 MiB, 12 % log_bytes=1661
+2026-10-05T17:36:55.184085/character-animation/heartbeat progress={"completed": 7, "total": 12, "direction": "down_left", "frame": 18}
+
+2026-10-05 17:36:55,720/qwen-pose/heartbeat stage=inference step=0/4 elapsed=30s gpu=648 MiB, 12 % log_bytes=1775
+2026-10-05T17:37:00.187554/character-animation/heartbeat progress={"completed": 7, "total": 12, "direction": "down_left", "frame": 18}
+
+2026-10-05 17:37:00,742/qwen-pose/heartbeat stage=inference step=0/4 elapsed=35s gpu=468 MiB, 7 % log_bytes=1889
+2026-10-05T17:37:05.191457/character-animation/heartbeat progress={"completed": 7, "total": 12, "direction": "down_left", "frame": 18}
+
+2026-10-05 17:37:05,764/qwen-pose/heartbeat stage=inference step=0/4 elapsed=40s gpu=336 MiB, 14 % log_bytes=2002
+guidance_scale is passed as 1.0, but ignored since the model is not guidance-distilled.
+  0%|          | 0/4 [00:00<?, ?it/s]2026-10-05T17:37:10.195605/character-animation/heartbeat progress={"completed": 7, "total": 12, "direction": "down_left", "frame": 18}
+
+2026-10-05 17:37:10,785/qwen-pose/heartbeat stage=inference step=0/4 elapsed=45s gpu=458 MiB, 53 % log_bytes=2116
+2026-10-05T17:37:15.199884/character-animation/heartbeat progress={"completed": 7, "total": 12, "direction": "down_left", "frame": 18}
+
+2026-10-05 17:37:15,810/qwen-pose/heartbeat stage=inference step=0/4 elapsed=50s gpu=638 MiB, 32 % log_bytes=2230
+2026-10-05T17:37:20.204090/character-animation/heartbeat progress={"completed": 7, "total": 12, "direction": "down_left", "frame": 18}
+
+2026-10-05 17:37:20,837/qwen-pose/heartbeat stage=inference step=0/4 elapsed=55s gpu=822 MiB, 28 % log_bytes=2344
+2026-10-05T17:37:25.207995/character-animation/heartbeat progress={"completed": 7, "total": 12, "direction": "down_left", "frame": 18}
+
+2026-10-05 17:37:25,861/qwen-pose/heartbeat stage=inference step=0/4 elapsed=60s gpu=560 MiB, 15 % log_bytes=2458
+2026-10-05T17:37:30.211551/character-animation/heartbeat progress={"completed": 7, "total": 12, "direction": "down_left", "frame": 18}
+
+2026-10-05 17:37:30,884/qwen-pose/heartbeat stage=inference step=0/4 elapsed=65s gpu=770 MiB, 12 % log_bytes=2572
+2026-10-05T17:37:35.215794/character-animation/heartbeat progress={"completed": 7, "total": 12, "direction": "down_left", "frame": 18}
+
+2026-10-05 17:37:35,906/qwen-pose/heartbeat stage=inference step=0/4 elapsed=70s gpu=438 MiB, 14 % log_bytes=2686
+2026-10-05T17:37:40.219453/character-animation/heartbeat progress={"completed": 7, "total": 12, "direction": "down_left", "frame": 18}
+
+2026-10-05 17:37:40,929/qwen-pose/heartbeat stage=inference step=0/4 elapsed=75s gpu=734 MiB, 19 % log_bytes=2800
+2026-10-05T17:37:45.223510/character-animation/heartbeat progress={"completed": 7, "total": 12, "direction": "down_left", "frame": 18}
+
+2026-10-05 17:37:45,961/qwen-pose/heartbeat stage=inference step=0/4 elapsed=80s gpu=546 MiB, 15 % log_bytes=2914
+2026-10-05T17:37:50.227816/character-animation/heartbeat progress={"completed": 7, "total": 12, "direction": "down_left", "frame": 18}
+
+2026-10-05 17:37:50,982/qwen-pose/heartbeat stage=inference step=0/4 elapsed=85s gpu=822 MiB, 13 % log_bytes=3028
+2026-10-05 17:37:51,305/qwen-pose/denoise step=1/4
+ 25%|██▌       | 1/4 [00:45<02:15, 45.12s/it]2026-10-05T17:37:55.231681/character-animation/heartbeat progress={"completed": 7, "total": 12, "direction": "down_left", "frame": 18}
+
+2026-10-05 17:37:56,003/qwen-pose/heartbeat stage=inference step=1/4 elapsed=91s gpu=824 MiB, 19 % log_bytes=3193
+2026-10-05T17:38:00.235737/character-animation/heartbeat progress={"completed": 7, "total": 12, "direction": "down_left", "frame": 18}
+
+2026-10-05 17:38:01,025/qwen-pose/heartbeat stage=inference step=1/4 elapsed=96s gpu=824 MiB, 23 % log_bytes=3307
+2026-10-05T17:38:05.239843/character-animation/heartbeat progress={"completed": 7, "total": 12, "direction": "down_left", "frame": 18}
+
+2026-10-05 17:38:06,049/qwen-pose/heartbeat stage=inference step=1/4 elapsed=101s gpu=792 MiB, 28 % log_bytes=3421
+2026-10-05T17:38:10.244258/character-animation/heartbeat progress={"completed": 7, "total": 12, "direction": "down_left", "frame": 18}
+
+2026-10-05 17:38:11,080/qwen-pose/heartbeat stage=inference step=1/4 elapsed=106s gpu=824 MiB, 31 % log_bytes=3536
+2026-10-05T17:38:15.249321/character-animation/heartbeat progress={"completed": 7, "total": 12, "direction": "down_left", "frame": 18}
+
+2026-10-05 17:38:16,116/qwen-pose/heartbeat stage=inference step=1/4 elapsed=111s gpu=772 MiB, 20 % log_bytes=3651
+2026-10-05T17:38:20.255204/character-animation/heartbeat progress={"completed": 7, "total": 12, "direction": "down_left", "frame": 18}
+
+2026-10-05 17:38:21,147/qwen-pose/heartbeat stage=inference step=1/4 elapsed=116s gpu=894 MiB, 16 % log_bytes=3766
+2026-10-05T17:38:25.259701/character-animation/heartbeat progress={"completed": 7, "total": 12, "direction": "down_left", "frame": 18}
+
+2026-10-05 17:38:26,183/qwen-pose/heartbeat stage=inference step=1/4 elapsed=121s gpu=762 MiB, 47 % log_bytes=3881
+2026-10-05T17:38:30.264587/character-animation/heartbeat progress={"completed": 7, "total": 12, "direction": "down_left", "frame": 18}
+
+2026-10-05 17:38:30,533/qwen-pose/denoise step=2/4
+ 50%|█████     | 2/4 [01:24<01:23, 41.66s/it]2026-10-05 17:38:31,214/qwen-pose/heartbeat stage=inference step=2/4 elapsed=126s gpu=738 MiB, 26 % log_bytes=4047
+2026-10-05T17:38:35.270354/character-animation/heartbeat progress={"completed": 7, "total": 12, "direction": "down_left", "frame": 18}
+
+2026-10-05 17:38:36,251/qwen-pose/heartbeat stage=inference step=2/4 elapsed=131s gpu=824 MiB, 27 % log_bytes=4162
+2026-10-05T17:38:40.276266/character-animation/heartbeat progress={"completed": 7, "total": 12, "direction": "down_left", "frame": 18}
+
+2026-10-05 17:38:41,282/qwen-pose/heartbeat stage=inference step=2/4 elapsed=136s gpu=792 MiB, 14 % log_bytes=4277
+2026-10-05T17:38:45.281857/character-animation/heartbeat progress={"completed": 7, "total": 12, "direction": "down_left", "frame": 18}
+
+2026-10-05 17:38:46,322/qwen-pose/heartbeat stage=inference step=2/4 elapsed=141s gpu=546 MiB, 47 % log_bytes=4392
+2026-10-05T17:38:50.287249/character-animation/heartbeat progress={"completed": 7, "total": 12, "direction": "down_left", "frame": 18}
+
+2026-10-05 17:38:51,356/qwen-pose/heartbeat stage=inference step=2/4 elapsed=146s gpu=752 MiB, 61 % log_bytes=4507
+2026-10-05 17:38:52,846/qwen-pose/denoise step=3/4
+ 75%|███████▌  | 3/4 [01:46<00:32, 32.82s/it]2026-10-05T17:38:55.292505/character-animation/heartbeat progress={"completed": 7, "total": 12, "direction": "down_left", "frame": 18}
+
+2026-10-05 17:38:56,382/qwen-pose/heartbeat stage=inference step=3/4 elapsed=151s gpu=774 MiB, 68 % log_bytes=4673
+2026-10-05T17:39:00.297475/character-animation/heartbeat progress={"completed": 7, "total": 12, "direction": "down_left", "frame": 18}
+
+2026-10-05 17:39:01,411/qwen-pose/heartbeat stage=inference step=3/4 elapsed=156s gpu=538 MiB, 68 % log_bytes=4788
+2026-10-05T17:39:05.303602/character-animation/heartbeat progress={"completed": 7, "total": 12, "direction": "down_left", "frame": 18}
+
+2026-10-05 17:39:05,966/qwen-pose/denoise step=4/4
+100%|██████████| 4/4 [01:59<00:00, 25.04s/it]100%|██████████| 4/4 [01:59<00:00, 29.95s/it]
+2026-10-05 17:39:06,443/qwen-pose/heartbeat stage=inference step=4/4 elapsed=161s gpu=388 MiB, 33 % log_bytes=4954
+2026-10-05 17:39:08,509/qwen-pose/complete output=/home/cbsim/ws/slime-workflow/.tmp/test/character-animation/2026-10-05_17-10-42/2026-10-05_17-10-42-b46bce6f/down_left/frame-0018/result.png
+2026-10-05T17:39:10.309079/character-animation/heartbeat progress={"completed": 7, "total": 12, "direction": "down_left", "frame": 18}
+
+2026-10-05T17:39:15.314199/character-animation/heartbeat progress={"completed": 8, "total": 12, "direction": "down_left", "frame": 20}
+
+2026-10-05 17:39:18,009/qwen-pose/heartbeat stage=imports step=0/4 elapsed=5s gpu=110 MiB, 37 % log_bytes=0
+2026-10-05T17:39:20.318503/character-animation/heartbeat progress={"completed": 8, "total": 12, "direction": "down_left", "frame": 20}
+
+2026-10-05 17:39:22,705/qwen-pose/reference vae_size=512x512 output_size=768x768 condition_size=384x384
+2026-10-05 17:39:22,706/qwen-pose/reference order=['character', 'rig'] kind=rig
+2026-10-05 17:39:23,047/qwen-pose/heartbeat stage=imports step=0/4 elapsed=10s gpu=113 MiB, 8 % log_bytes=292
+2026-10-05 17:39:24,083/qwen-pose/load model_id=Qwen/Qwen-Image-Edit-2511 model_path=/home/cbsim/ws/slime-workflow/.model/qwen-image-edit-2511/6f3ccc0b56e431dc6a0c2b2039706d7d26f22cb9
+Loading pipeline components...:   0%|          | 0/6 [00:00<?, ?it/s]Loading pipeline components...:  17%|█▋        | 1/6 [00:00<00:00,  5.14it/s]
+Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s][A
+Loading checkpoint shards:  25%|██▌       | 1/4 [00:00<00:00,  7.62it/s][ALoading checkpoint shards: 100%|██████████| 4/4 [00:00<00:00, 27.62it/s]
+Loading pipeline components...:  33%|███▎      | 2/6 [00:00<00:00,  5.06it/s]
+Loading checkpoint shards:   0%|          | 0/5 [00:00<?, ?it/s][ALoading checkpoint shards: 100%|██████████| 5/5 [00:00<00:00, 66.60it/s]
+Loading pipeline components...:  50%|█████     | 3/6 [00:00<00:00,  3.27it/s]2026-10-05T17:39:25.323318/character-animation/heartbeat progress={"completed": 8, "total": 12, "direction": "down_left", "frame": 20}
+
+Loading pipeline components...:  67%|██████▋   | 4/6 [00:01<00:01,  1.83it/s]Loading pipeline components...: 100%|██████████| 6/6 [00:01<00:00,  3.38it/s]
+2026-10-05 17:39:25,861/qwen-pose/adapter name=anypose_base strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-base-000006250.safetensors
+2026-10-05 17:39:26,616/qwen-pose/adapter name=anypose_helper strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-helper-00006000.safetensors
+/home/cbsim/ws/slime-workflow/.venv/lib/python3.12/site-packages/peft/tuners/tuners_utils.py:285: UserWarning: Already found a `peft_config` attribute in the model. This will lead to having multiple adapters in the model. Make sure to know what you are doing!
+  warnings.warn(
+2026-10-05 17:39:27,952/qwen-pose/adapter name=lightning strength=1.0 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lightx2v--Qwen-Image-Edit-2511-Lightning/d74eba145674fd7e31b949324e148e21e7118abd/Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors
+2026-10-05 17:39:28,096/qwen-pose/heartbeat stage=adapters step=0/4 elapsed=15s gpu=113 MiB, 10 % log_bytes=1314
+2026-10-05T17:39:30.330727/character-animation/heartbeat progress={"completed": 8, "total": 12, "direction": "down_left", "frame": 20}
+
+2026-10-05 17:39:33,142/qwen-pose/heartbeat stage=adapters step=0/4 elapsed=20s gpu=113 MiB, 6 % log_bytes=1427
+2026-10-05T17:39:35.342729/character-animation/heartbeat progress={"completed": 8, "total": 12, "direction": "down_left", "frame": 20}
+
+/home/cbsim/ws/slime-workflow/.venv/lib/python3.12/site-packages/peft/tuners/tuners_utils.py:285: UserWarning: Already found a `peft_config` attribute in the model. This will lead to having multiple adapters in the model. Make sure to know what you are doing!
+  warnings.warn(
+2026-10-05 17:39:38,174/qwen-pose/heartbeat stage=adapters step=0/4 elapsed=25s gpu=113 MiB, 7 % log_bytes=1539
+2026-10-05 17:39:39,007/qwen-pose/inference size=768x768 steps=4 seed=10107 device=cuda dtype=bfloat16 offload=sequential
+ negative_prompt is passed but classifier-free guidance is not enabled since true_cfg_scale <= 1
+2026-10-05T17:39:40.350841/character-animation/heartbeat progress={"completed": 8, "total": 12, "direction": "down_left", "frame": 20}
+
+2026-10-05 17:39:43,206/qwen-pose/heartbeat stage=inference step=0/4 elapsed=30s gpu=596 MiB, 13 % log_bytes=1773
+2026-10-05T17:39:45.356410/character-animation/heartbeat progress={"completed": 8, "total": 12, "direction": "down_left", "frame": 20}
+
+2026-10-05 17:39:48,242/qwen-pose/heartbeat stage=inference step=0/4 elapsed=35s gpu=694 MiB, 12 % log_bytes=1887
+2026-10-05T17:39:50.360915/character-animation/heartbeat progress={"completed": 8, "total": 12, "direction": "down_left", "frame": 20}
+
+2026-10-05 17:39:53,279/qwen-pose/heartbeat stage=inference step=0/4 elapsed=40s gpu=466 MiB, 13 % log_bytes=2001
+2026-10-05T17:39:55.366424/character-animation/heartbeat progress={"completed": 8, "total": 12, "direction": "down_left", "frame": 20}
+
+2026-10-05 17:39:58,316/qwen-pose/heartbeat stage=inference step=0/4 elapsed=45s gpu=404 MiB, 24 % log_bytes=2115
+guidance_scale is passed as 1.0, but ignored since the model is not guidance-distilled.
+  0%|          | 0/4 [00:00<?, ?it/s]2026-10-05T17:40:00.371907/character-animation/heartbeat progress={"completed": 8, "total": 12, "direction": "down_left", "frame": 20}
+
+2026-10-05 17:40:03,352/qwen-pose/heartbeat stage=inference step=0/4 elapsed=50s gpu=894 MiB, 14 % log_bytes=2229
+2026-10-05T17:40:05.377252/character-animation/heartbeat progress={"completed": 8, "total": 12, "direction": "down_left", "frame": 20}
+
+2026-10-05 17:40:08,384/qwen-pose/heartbeat stage=inference step=0/4 elapsed=55s gpu=546 MiB, 30 % log_bytes=2343
+2026-10-05T17:40:10.382477/character-animation/heartbeat progress={"completed": 8, "total": 12, "direction": "down_left", "frame": 20}
+
+2026-10-05 17:40:13,427/qwen-pose/heartbeat stage=inference step=0/4 elapsed=60s gpu=562 MiB, 27 % log_bytes=2457
+2026-10-05T17:40:15.387721/character-animation/heartbeat progress={"completed": 8, "total": 12, "direction": "down_left", "frame": 20}
+
+2026-10-05 17:40:18,456/qwen-pose/heartbeat stage=inference step=0/4 elapsed=65s gpu=770 MiB, 8 % log_bytes=2571
+2026-10-05T17:40:20.392330/character-animation/heartbeat progress={"completed": 8, "total": 12, "direction": "down_left", "frame": 20}
+
+2026-10-05 17:40:23,483/qwen-pose/heartbeat stage=inference step=0/4 elapsed=70s gpu=516 MiB, 30 % log_bytes=2684
+2026-10-05T17:40:25.396914/character-animation/heartbeat progress={"completed": 8, "total": 12, "direction": "down_left", "frame": 20}
+
+2026-10-05 17:40:28,514/qwen-pose/heartbeat stage=inference step=0/4 elapsed=76s gpu=734 MiB, 28 % log_bytes=2798
+2026-10-05T17:40:30.401811/character-animation/heartbeat progress={"completed": 8, "total": 12, "direction": "down_left", "frame": 20}
+
+2026-10-05 17:40:33,544/qwen-pose/heartbeat stage=inference step=0/4 elapsed=81s gpu=534 MiB, 13 % log_bytes=2912
+2026-10-05T17:40:35.406460/character-animation/heartbeat progress={"completed": 8, "total": 12, "direction": "down_left", "frame": 20}
+
+2026-10-05 17:40:38,573/qwen-pose/heartbeat stage=inference step=0/4 elapsed=86s gpu=750 MiB, 22 % log_bytes=3026
+2026-10-05T17:40:40.410919/character-animation/heartbeat progress={"completed": 8, "total": 12, "direction": "down_left", "frame": 20}
+
+2026-10-05 17:40:43,608/qwen-pose/heartbeat stage=inference step=0/4 elapsed=91s gpu=822 MiB, 27 % log_bytes=3140
+2026-10-05 17:40:43,977/qwen-pose/denoise step=1/4
+ 25%|██▌       | 1/4 [00:44<02:14, 44.85s/it]2026-10-05T17:40:45.416014/character-animation/heartbeat progress={"completed": 8, "total": 12, "direction": "down_left", "frame": 20}
+
+2026-10-05 17:40:48,638/qwen-pose/heartbeat stage=inference step=1/4 elapsed=96s gpu=778 MiB, 11 % log_bytes=3305
+2026-10-05T17:40:50.420447/character-animation/heartbeat progress={"completed": 8, "total": 12, "direction": "down_left", "frame": 20}
+
+2026-10-05 17:40:53,666/qwen-pose/heartbeat stage=inference step=1/4 elapsed=101s gpu=490 MiB, 11 % log_bytes=3419
+2026-10-05T17:40:55.425377/character-animation/heartbeat progress={"completed": 8, "total": 12, "direction": "down_left", "frame": 20}
+
+2026-10-05 17:40:58,691/qwen-pose/heartbeat stage=inference step=1/4 elapsed=106s gpu=824 MiB, 19 % log_bytes=3534
+2026-10-05T17:41:00.429738/character-animation/heartbeat progress={"completed": 8, "total": 12, "direction": "down_left", "frame": 20}
+
+2026-10-05 17:41:03,718/qwen-pose/heartbeat stage=inference step=1/4 elapsed=111s gpu=772 MiB, 27 % log_bytes=3649
+2026-10-05T17:41:05.434764/character-animation/heartbeat progress={"completed": 8, "total": 12, "direction": "down_left", "frame": 20}
+
+2026-10-05 17:41:08,751/qwen-pose/heartbeat stage=inference step=1/4 elapsed=116s gpu=536 MiB, 10 % log_bytes=3764
+2026-10-05T17:41:10.439441/character-animation/heartbeat progress={"completed": 8, "total": 12, "direction": "down_left", "frame": 20}
+
+2026-10-05 17:41:13,783/qwen-pose/heartbeat stage=inference step=1/4 elapsed=121s gpu=894 MiB, 16 % log_bytes=3879
+2026-10-05T17:41:15.444052/character-animation/heartbeat progress={"completed": 8, "total": 12, "direction": "down_left", "frame": 20}
+
+2026-10-05 17:41:18,807/qwen-pose/heartbeat stage=inference step=1/4 elapsed=126s gpu=536 MiB, 9 % log_bytes=3994
+2026-10-05T17:41:20.451559/character-animation/heartbeat progress={"completed": 8, "total": 12, "direction": "down_left", "frame": 20}
+
+2026-10-05 17:41:23,830/qwen-pose/heartbeat stage=inference step=1/4 elapsed=131s gpu=562 MiB, 13 % log_bytes=4108
+2026-10-05T17:41:25.455563/character-animation/heartbeat progress={"completed": 8, "total": 12, "direction": "down_left", "frame": 20}
+
+2026-10-05 17:41:28,853/qwen-pose/heartbeat stage=inference step=1/4 elapsed=136s gpu=554 MiB, 14 % log_bytes=4223
+2026-10-05T17:41:30.459960/character-animation/heartbeat progress={"completed": 8, "total": 12, "direction": "down_left", "frame": 20}
+
+2026-10-05 17:41:33,879/qwen-pose/heartbeat stage=inference step=1/4 elapsed=141s gpu=792 MiB, 18 % log_bytes=4338
+2026-10-05T17:41:35.463821/character-animation/heartbeat progress={"completed": 8, "total": 12, "direction": "down_left", "frame": 20}
+
+2026-10-05 17:41:36,782/qwen-pose/denoise step=2/4
+ 50%|█████     | 2/4 [01:37<01:39, 49.53s/it]2026-10-05 17:41:38,915/qwen-pose/heartbeat stage=inference step=2/4 elapsed=146s gpu=566 MiB, 36 % log_bytes=4504
+2026-10-05T17:41:40.468262/character-animation/heartbeat progress={"completed": 8, "total": 12, "direction": "down_left", "frame": 20}
+
+2026-10-05 17:41:43,946/qwen-pose/heartbeat stage=inference step=2/4 elapsed=151s gpu=894 MiB, 11 % log_bytes=4619
+2026-10-05T17:41:45.472841/character-animation/heartbeat progress={"completed": 8, "total": 12, "direction": "down_left", "frame": 20}
+
+2026-10-05 17:41:48,972/qwen-pose/heartbeat stage=inference step=2/4 elapsed=156s gpu=772 MiB, 11 % log_bytes=4734
+2026-10-05T17:41:50.477473/character-animation/heartbeat progress={"completed": 8, "total": 12, "direction": "down_left", "frame": 20}
+
+2026-10-05 17:41:54,001/qwen-pose/heartbeat stage=inference step=2/4 elapsed=161s gpu=566 MiB, 28 % log_bytes=4849
+2026-10-05T17:41:55.482011/character-animation/heartbeat progress={"completed": 8, "total": 12, "direction": "down_left", "frame": 20}
+
+2026-10-05 17:41:59,032/qwen-pose/heartbeat stage=inference step=2/4 elapsed=166s gpu=568 MiB, 23 % log_bytes=4964
+2026-10-05T17:42:00.487510/character-animation/heartbeat progress={"completed": 8, "total": 12, "direction": "down_left", "frame": 20}
+
+2026-10-05 17:42:04,064/qwen-pose/heartbeat stage=inference step=2/4 elapsed=171s gpu=588 MiB, 64 % log_bytes=5079
+2026-10-05 17:42:04,227/qwen-pose/denoise step=3/4
+ 75%|███████▌  | 3/4 [02:05<00:39, 39.44s/it]2026-10-05T17:42:05.492785/character-animation/heartbeat progress={"completed": 8, "total": 12, "direction": "down_left", "frame": 20}
+
+2026-10-05 17:42:09,090/qwen-pose/heartbeat stage=inference step=3/4 elapsed=176s gpu=440 MiB, 53 % log_bytes=5245
+2026-10-05T17:42:10.497904/character-animation/heartbeat progress={"completed": 8, "total": 12, "direction": "down_left", "frame": 20}
+
+2026-10-05 17:42:14,113/qwen-pose/heartbeat stage=inference step=3/4 elapsed=181s gpu=568 MiB, 7 % log_bytes=5360
+2026-10-05T17:42:15.502055/character-animation/heartbeat progress={"completed": 8, "total": 12, "direction": "down_left", "frame": 20}
+
+2026-10-05 17:42:19,137/qwen-pose/heartbeat stage=inference step=3/4 elapsed=186s gpu=896 MiB, 42 % log_bytes=5474
+2026-10-05T17:42:20.506144/character-animation/heartbeat progress={"completed": 8, "total": 12, "direction": "down_left", "frame": 20}
+
+2026-10-05 17:42:24,160/qwen-pose/heartbeat stage=inference step=3/4 elapsed=191s gpu=896 MiB, 34 % log_bytes=5589
+2026-10-05T17:42:25.510323/character-animation/heartbeat progress={"completed": 8, "total": 12, "direction": "down_left", "frame": 20}
+
+2026-10-05 17:42:29,187/qwen-pose/heartbeat stage=inference step=3/4 elapsed=196s gpu=544 MiB, 10 % log_bytes=5704
+2026-10-05T17:42:30.515162/character-animation/heartbeat progress={"completed": 8, "total": 12, "direction": "down_left", "frame": 20}
+
+2026-10-05 17:42:32,013/qwen-pose/denoise step=4/4
+100%|██████████| 4/4 [02:32<00:00, 34.84s/it]100%|██████████| 4/4 [02:32<00:00, 38.22s/it]
+2026-10-05 17:42:34,119/qwen-pose/complete output=/home/cbsim/ws/slime-workflow/.tmp/test/character-animation/2026-10-05_17-10-42/2026-10-05_17-10-42-b46bce6f/down_left/frame-0020/result.png
+2026-10-05T17:42:35.519755/character-animation/heartbeat progress={"completed": 8, "total": 12, "direction": "down_left", "frame": 20}
+
+2026-10-05T17:42:40.523880/character-animation/heartbeat progress={"completed": 9, "total": 12, "direction": "down_left", "frame": 22}
+
+2026-10-05 17:42:42,996/qwen-pose/heartbeat stage=imports step=0/4 elapsed=5s gpu=110 MiB, 22 % log_bytes=0
+2026-10-05T17:42:45.528034/character-animation/heartbeat progress={"completed": 9, "total": 12, "direction": "down_left", "frame": 22}
+
+2026-10-05 17:42:47,809/qwen-pose/reference vae_size=512x512 output_size=768x768 condition_size=384x384
+2026-10-05 17:42:47,809/qwen-pose/reference order=['character', 'rig'] kind=rig
+2026-10-05 17:42:48,021/qwen-pose/heartbeat stage=imports step=0/4 elapsed=10s gpu=113 MiB, 15 % log_bytes=292
+2026-10-05 17:42:48,939/qwen-pose/load model_id=Qwen/Qwen-Image-Edit-2511 model_path=/home/cbsim/ws/slime-workflow/.model/qwen-image-edit-2511/6f3ccc0b56e431dc6a0c2b2039706d7d26f22cb9
+Loading pipeline components...:   0%|          | 0/6 [00:00<?, ?it/s]
+Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s][A
+Loading checkpoint shards:  25%|██▌       | 1/4 [00:00<00:00,  7.54it/s][ALoading checkpoint shards: 100%|██████████| 4/4 [00:00<00:00, 17.81it/s]
+Loading pipeline components...:  17%|█▋        | 1/6 [00:00<00:01,  3.12it/s]Loading pipeline components...:  33%|███▎      | 2/6 [00:00<00:01,  2.04it/s]Loading pipeline components...:  50%|█████     | 3/6 [00:01<00:01,  2.74it/s]
+Loading checkpoint shards:   0%|          | 0/5 [00:00<?, ?it/s][ALoading checkpoint shards: 100%|██████████| 5/5 [00:00<00:00, 66.03it/s]
+Loading pipeline components...:  67%|██████▋   | 4/6 [00:01<00:00,  3.36it/s]Loading pipeline components...: 100%|██████████| 6/6 [00:01<00:00,  5.79it/s]Loading pipeline components...: 100%|██████████| 6/6 [00:01<00:00,  4.10it/s]
+2026-10-05 17:42:50,405/qwen-pose/adapter name=anypose_base strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-base-000006250.safetensors
+2026-10-05T17:42:50.531600/character-animation/heartbeat progress={"completed": 9, "total": 12, "direction": "down_left", "frame": 22}
+
+2026-10-05 17:42:51,048/qwen-pose/adapter name=anypose_helper strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-helper-00006000.safetensors
+/home/cbsim/ws/slime-workflow/.venv/lib/python3.12/site-packages/peft/tuners/tuners_utils.py:285: UserWarning: Already found a `peft_config` attribute in the model. This will lead to having multiple adapters in the model. Make sure to know what you are doing!
+  warnings.warn(
+2026-10-05 17:42:51,920/qwen-pose/adapter name=lightning strength=1.0 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lightx2v--Qwen-Image-Edit-2511-Lightning/d74eba145674fd7e31b949324e148e21e7118abd/Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors
+2026-10-05 17:42:53,074/qwen-pose/heartbeat stage=adapters step=0/4 elapsed=15s gpu=113 MiB, 31 % log_bytes=1315
+2026-10-05T17:42:55.539706/character-animation/heartbeat progress={"completed": 9, "total": 12, "direction": "down_left", "frame": 22}
+
+2026-10-05 17:42:58,135/qwen-pose/heartbeat stage=adapters step=0/4 elapsed=20s gpu=113 MiB, 28 % log_bytes=1428
+/home/cbsim/ws/slime-workflow/.venv/lib/python3.12/site-packages/peft/tuners/tuners_utils.py:285: UserWarning: Already found a `peft_config` attribute in the model. This will lead to having multiple adapters in the model. Make sure to know what you are doing!
+  warnings.warn(
+2026-10-05T17:43:00.545312/character-animation/heartbeat progress={"completed": 9, "total": 12, "direction": "down_left", "frame": 22}
+
+2026-10-05 17:43:01,096/qwen-pose/inference size=768x768 steps=4 seed=10107 device=cuda dtype=bfloat16 offload=sequential
+ negative_prompt is passed but classifier-free guidance is not enabled since true_cfg_scale <= 1
+2026-10-05 17:43:03,161/qwen-pose/heartbeat stage=inference step=0/4 elapsed=25s gpu=352 MiB, 6 % log_bytes=1663
+2026-10-05T17:43:05.549513/character-animation/heartbeat progress={"completed": 9, "total": 12, "direction": "down_left", "frame": 22}
+
+2026-10-05 17:43:08,198/qwen-pose/heartbeat stage=inference step=0/4 elapsed=30s gpu=414 MiB, 12 % log_bytes=1776
+2026-10-05T17:43:10.554647/character-animation/heartbeat progress={"completed": 9, "total": 12, "direction": "down_left", "frame": 22}
+
+2026-10-05 17:43:13,231/qwen-pose/heartbeat stage=inference step=0/4 elapsed=35s gpu=724 MiB, 13 % log_bytes=1890
+2026-10-05T17:43:15.559877/character-animation/heartbeat progress={"completed": 9, "total": 12, "direction": "down_left", "frame": 22}
+
+2026-10-05 17:43:18,270/qwen-pose/heartbeat stage=inference step=0/4 elapsed=40s gpu=386 MiB, 40 % log_bytes=2004
+guidance_scale is passed as 1.0, but ignored since the model is not guidance-distilled.
+  0%|          | 0/4 [00:00<?, ?it/s]2026-10-05T17:43:20.564777/character-animation/heartbeat progress={"completed": 9, "total": 12, "direction": "down_left", "frame": 22}
+
+2026-10-05 17:43:23,293/qwen-pose/heartbeat stage=inference step=0/4 elapsed=45s gpu=750 MiB, 14 % log_bytes=2118
+2026-10-05T17:43:25.570111/character-animation/heartbeat progress={"completed": 9, "total": 12, "direction": "down_left", "frame": 22}
+
+2026-10-05 17:43:28,318/qwen-pose/heartbeat stage=inference step=0/4 elapsed=50s gpu=566 MiB, 15 % log_bytes=2232
+2026-10-05T17:43:30.574565/character-animation/heartbeat progress={"completed": 9, "total": 12, "direction": "down_left", "frame": 22}
+
+2026-10-05 17:43:33,340/qwen-pose/heartbeat stage=inference step=0/4 elapsed=55s gpu=662 MiB, 7 % log_bytes=2346
+2026-10-05T17:43:35.579438/character-animation/heartbeat progress={"completed": 9, "total": 12, "direction": "down_left", "frame": 22}
+
+2026-10-05 17:43:38,369/qwen-pose/heartbeat stage=inference step=0/4 elapsed=60s gpu=536 MiB, 14 % log_bytes=2459
+2026-10-05T17:43:40.584095/character-animation/heartbeat progress={"completed": 9, "total": 12, "direction": "down_left", "frame": 22}
+
+2026-10-05 17:43:43,395/qwen-pose/heartbeat stage=inference step=0/4 elapsed=65s gpu=894 MiB, 17 % log_bytes=2573
+2026-10-05T17:43:45.588794/character-animation/heartbeat progress={"completed": 9, "total": 12, "direction": "down_left", "frame": 22}
+
+2026-10-05 17:43:48,418/qwen-pose/heartbeat stage=inference step=0/4 elapsed=70s gpu=546 MiB, 24 % log_bytes=2687
+2026-10-05T17:43:50.593738/character-animation/heartbeat progress={"completed": 9, "total": 12, "direction": "down_left", "frame": 22}
+
+2026-10-05 17:43:53,458/qwen-pose/heartbeat stage=inference step=0/4 elapsed=76s gpu=792 MiB, 14 % log_bytes=2801
+2026-10-05T17:43:55.598412/character-animation/heartbeat progress={"completed": 9, "total": 12, "direction": "down_left", "frame": 22}
+
+2026-10-05 17:43:58,485/qwen-pose/heartbeat stage=inference step=0/4 elapsed=81s gpu=770 MiB, 19 % log_bytes=2915
+2026-10-05T17:44:00.602893/character-animation/heartbeat progress={"completed": 9, "total": 12, "direction": "down_left", "frame": 22}
+
+2026-10-05 17:44:03,524/qwen-pose/heartbeat stage=inference step=0/4 elapsed=86s gpu=770 MiB, 18 % log_bytes=3029
+2026-10-05T17:44:05.607423/character-animation/heartbeat progress={"completed": 9, "total": 12, "direction": "down_left", "frame": 22}
+
+2026-10-05 17:44:08,542/qwen-pose/denoise step=1/4
+ 25%|██▌       | 1/4 [00:49<02:29, 49.99s/it]2026-10-05 17:44:08,591/qwen-pose/heartbeat stage=inference step=1/4 elapsed=91s gpu=438 MiB, 14 % log_bytes=3194
+2026-10-05T17:44:10.611969/character-animation/heartbeat progress={"completed": 9, "total": 12, "direction": "down_left", "frame": 22}
+
+2026-10-05 17:44:13,633/qwen-pose/heartbeat stage=inference step=1/4 elapsed=96s gpu=566 MiB, 35 % log_bytes=3308
+2026-10-05T17:44:15.616868/character-animation/heartbeat progress={"completed": 9, "total": 12, "direction": "down_left", "frame": 22}
+
+2026-10-05 17:44:18,657/qwen-pose/heartbeat stage=inference step=1/4 elapsed=101s gpu=438 MiB, 23 % log_bytes=3422
+2026-10-05T17:44:20.621638/character-animation/heartbeat progress={"completed": 9, "total": 12, "direction": "down_left", "frame": 22}
+
+2026-10-05 17:44:23,685/qwen-pose/heartbeat stage=inference step=1/4 elapsed=106s gpu=736 MiB, 26 % log_bytes=3537
+2026-10-05T17:44:25.627238/character-animation/heartbeat progress={"completed": 9, "total": 12, "direction": "down_left", "frame": 22}
+
+2026-10-05 17:44:28,723/qwen-pose/heartbeat stage=inference step=1/4 elapsed=111s gpu=772 MiB, 30 % log_bytes=3652
+2026-10-05T17:44:30.632686/character-animation/heartbeat progress={"completed": 9, "total": 12, "direction": "down_left", "frame": 22}
+
+2026-10-05 17:44:33,755/qwen-pose/heartbeat stage=inference step=1/4 elapsed=116s gpu=536 MiB, 20 % log_bytes=3767
+2026-10-05T17:44:35.637958/character-animation/heartbeat progress={"completed": 9, "total": 12, "direction": "down_left", "frame": 22}
+
+2026-10-05 17:44:38,785/qwen-pose/heartbeat stage=inference step=1/4 elapsed=121s gpu=438 MiB, 59 % log_bytes=3882
+2026-10-05 17:44:39,174/qwen-pose/denoise step=2/4
+ 50%|█████     | 2/4 [01:20<01:17, 38.60s/it]2026-10-05T17:44:40.642677/character-animation/heartbeat progress={"completed": 9, "total": 12, "direction": "down_left", "frame": 22}
+
+2026-10-05 17:44:43,823/qwen-pose/heartbeat stage=inference step=2/4 elapsed=126s gpu=536 MiB, 60 % log_bytes=4048
+2026-10-05T17:44:45.648041/character-animation/heartbeat progress={"completed": 9, "total": 12, "direction": "down_left", "frame": 22}
+
+2026-10-05 17:44:48,856/qwen-pose/heartbeat stage=inference step=2/4 elapsed=131s gpu=894 MiB, 72 % log_bytes=4163
+2026-10-05T17:44:50.653201/character-animation/heartbeat progress={"completed": 9, "total": 12, "direction": "down_left", "frame": 22}
+
+2026-10-05 17:44:53,886/qwen-pose/heartbeat stage=inference step=2/4 elapsed=136s gpu=566 MiB, 71 % log_bytes=4278
+2026-10-05 17:44:54,082/qwen-pose/denoise step=3/4
+ 75%|███████▌  | 3/4 [01:35<00:27, 27.78s/it]2026-10-05T17:44:55.658394/character-animation/heartbeat progress={"completed": 9, "total": 12, "direction": "down_left", "frame": 22}
+
+2026-10-05 17:44:58,925/qwen-pose/heartbeat stage=inference step=3/4 elapsed=141s gpu=794 MiB, 43 % log_bytes=4444
+2026-10-05T17:45:00.663716/character-animation/heartbeat progress={"completed": 9, "total": 12, "direction": "down_left", "frame": 22}
+
+2026-10-05 17:45:03,957/qwen-pose/heartbeat stage=inference step=3/4 elapsed=146s gpu=826 MiB, 63 % log_bytes=4559
+2026-10-05T17:45:05.669681/character-animation/heartbeat progress={"completed": 9, "total": 12, "direction": "down_left", "frame": 22}
+
+2026-10-05 17:45:06,423/qwen-pose/denoise step=4/4
+100%|██████████| 4/4 [01:47<00:00, 21.69s/it]100%|██████████| 4/4 [01:47<00:00, 26.97s/it]
+2026-10-05 17:45:08,978/qwen-pose/heartbeat stage=inference step=4/4 elapsed=151s gpu=352 MiB, 61 % log_bytes=4725
+2026-10-05 17:45:09,300/qwen-pose/complete output=/home/cbsim/ws/slime-workflow/.tmp/test/character-animation/2026-10-05_17-10-42/2026-10-05_17-10-42-b46bce6f/down_left/frame-0022/result.png
+2026-10-05T17:45:10.674909/character-animation/heartbeat progress={"completed": 9, "total": 12, "direction": "down_left", "frame": 22}
+
+2026-10-05T17:45:15.681432/character-animation/heartbeat progress={"completed": 10, "total": 12, "direction": "down_left", "frame": 24}
+
+2026-10-05 17:45:18,461/qwen-pose/heartbeat stage=imports step=0/4 elapsed=5s gpu=110 MiB, 25 % log_bytes=0
+2026-10-05T17:45:20.685167/character-animation/heartbeat progress={"completed": 10, "total": 12, "direction": "down_left", "frame": 24}
+
+2026-10-05 17:45:23,519/qwen-pose/heartbeat stage=imports step=0/4 elapsed=10s gpu=113 MiB, 35 % log_bytes=108
+2026-10-05 17:45:23,738/qwen-pose/reference vae_size=512x512 output_size=768x768 condition_size=384x384
+2026-10-05 17:45:23,739/qwen-pose/reference order=['character', 'rig'] kind=rig
+2026-10-05 17:45:25,075/qwen-pose/load model_id=Qwen/Qwen-Image-Edit-2511 model_path=/home/cbsim/ws/slime-workflow/.model/qwen-image-edit-2511/6f3ccc0b56e431dc6a0c2b2039706d7d26f22cb9
+Loading pipeline components...:   0%|          | 0/6 [00:00<?, ?it/s]Loading pipeline components...:  17%|█▋        | 1/6 [00:00<00:01,  2.90it/s]
+Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s][A2026-10-05T17:45:25.689159/character-animation/heartbeat progress={"completed": 10, "total": 12, "direction": "down_left", "frame": 24}
+
+
+Loading checkpoint shards:  25%|██▌       | 1/4 [00:00<00:00,  4.93it/s][A
+Loading checkpoint shards:  75%|███████▌  | 3/4 [00:00<00:00, 10.32it/s][ALoading checkpoint shards: 100%|██████████| 4/4 [00:00<00:00, 11.98it/s]
+Loading pipeline components...:  50%|█████     | 3/6 [00:00<00:00,  3.92it/s]Loading pipeline components...:  67%|██████▋   | 4/6 [00:01<00:00,  2.27it/s]Loading pipeline components...:  83%|████████▎ | 5/6 [00:01<00:00,  2.89it/s]
+Loading checkpoint shards:   0%|          | 0/5 [00:00<?, ?it/s][ALoading checkpoint shards: 100%|██████████| 5/5 [00:00<00:00, 53.75it/s]
+Loading pipeline components...: 100%|██████████| 6/6 [00:02<00:00,  3.07it/s]Loading pipeline components...: 100%|██████████| 6/6 [00:02<00:00,  2.97it/s]
+2026-10-05 17:45:27,097/qwen-pose/adapter name=anypose_base strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-base-000006250.safetensors
+2026-10-05 17:45:27,818/qwen-pose/adapter name=anypose_helper strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-helper-00006000.safetensors
+/home/cbsim/ws/slime-workflow/.venv/lib/python3.12/site-packages/peft/tuners/tuners_utils.py:285: UserWarning: Already found a `peft_config` attribute in the model. This will lead to having multiple adapters in the model. Make sure to know what you are doing!
+  warnings.warn(
+2026-10-05 17:45:28,544/qwen-pose/heartbeat stage=adapters step=0/4 elapsed=15s gpu=113 MiB, 8 % log_bytes=1048
+2026-10-05 17:45:28,749/qwen-pose/adapter name=lightning strength=1.0 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lightx2v--Qwen-Image-Edit-2511-Lightning/d74eba145674fd7e31b949324e148e21e7118abd/Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors
+2026-10-05T17:45:30.695064/character-animation/heartbeat progress={"completed": 10, "total": 12, "direction": "down_left", "frame": 24}
+
+2026-10-05 17:45:33,607/qwen-pose/heartbeat stage=adapters step=0/4 elapsed=20s gpu=113 MiB, 7 % log_bytes=1427
+2026-10-05T17:45:35.702859/character-animation/heartbeat progress={"completed": 10, "total": 12, "direction": "down_left", "frame": 24}
+
+2026-10-05 17:45:38,666/qwen-pose/heartbeat stage=adapters step=0/4 elapsed=25s gpu=113 MiB, 11 % log_bytes=1539
+/home/cbsim/ws/slime-workflow/.venv/lib/python3.12/site-packages/peft/tuners/tuners_utils.py:285: UserWarning: Already found a `peft_config` attribute in the model. This will lead to having multiple adapters in the model. Make sure to know what you are doing!
+  warnings.warn(
+2026-10-05 17:45:40,378/qwen-pose/inference size=768x768 steps=4 seed=10107 device=cuda dtype=bfloat16 offload=sequential
+ negative_prompt is passed but classifier-free guidance is not enabled since true_cfg_scale <= 1
+2026-10-05T17:45:40.713084/character-animation/heartbeat progress={"completed": 10, "total": 12, "direction": "down_left", "frame": 24}
+
+2026-10-05 17:45:43,698/qwen-pose/heartbeat stage=inference step=0/4 elapsed=30s gpu=352 MiB, 15 % log_bytes=1774
+2026-10-05T17:45:45.717729/character-animation/heartbeat progress={"completed": 10, "total": 12, "direction": "down_left", "frame": 24}
+
+2026-10-05 17:45:48,724/qwen-pose/heartbeat stage=inference step=0/4 elapsed=35s gpu=538 MiB, 14 % log_bytes=1888
+2026-10-05T17:45:50.722605/character-animation/heartbeat progress={"completed": 10, "total": 12, "direction": "down_left", "frame": 24}
+
+2026-10-05 17:45:53,760/qwen-pose/heartbeat stage=inference step=0/4 elapsed=40s gpu=486 MiB, 20 % log_bytes=2002
+2026-10-05T17:45:55.727837/character-animation/heartbeat progress={"completed": 10, "total": 12, "direction": "down_left", "frame": 24}
+
+2026-10-05 17:45:58,787/qwen-pose/heartbeat stage=inference step=0/4 elapsed=45s gpu=1532 MiB, 16 % log_bytes=2116
+guidance_scale is passed as 1.0, but ignored since the model is not guidance-distilled.
+  0%|          | 0/4 [00:00<?, ?it/s]2026-10-05T17:46:00.732447/character-animation/heartbeat progress={"completed": 10, "total": 12, "direction": "down_left", "frame": 24}
+
+2026-10-05 17:46:03,819/qwen-pose/heartbeat stage=inference step=0/4 elapsed=50s gpu=894 MiB, 26 % log_bytes=2231
+2026-10-05T17:46:05.737379/character-animation/heartbeat progress={"completed": 10, "total": 12, "direction": "down_left", "frame": 24}
+
+2026-10-05 17:46:08,855/qwen-pose/heartbeat stage=inference step=0/4 elapsed=55s gpu=792 MiB, 17 % log_bytes=2345
+2026-10-05T17:46:10.744304/character-animation/heartbeat progress={"completed": 10, "total": 12, "direction": "down_left", "frame": 24}
+
+2026-10-05 17:46:13,891/qwen-pose/heartbeat stage=inference step=0/4 elapsed=60s gpu=894 MiB, 26 % log_bytes=2459
+2026-10-05T17:46:15.750309/character-animation/heartbeat progress={"completed": 10, "total": 12, "direction": "down_left", "frame": 24}
+
+2026-10-05 17:46:18,921/qwen-pose/heartbeat stage=inference step=0/4 elapsed=65s gpu=734 MiB, 17 % log_bytes=2573
+2026-10-05T17:46:20.755558/character-animation/heartbeat progress={"completed": 10, "total": 12, "direction": "down_left", "frame": 24}
+
+2026-10-05 17:46:23,956/qwen-pose/heartbeat stage=inference step=0/4 elapsed=71s gpu=822 MiB, 15 % log_bytes=2687
+2026-10-05T17:46:25.760466/character-animation/heartbeat progress={"completed": 10, "total": 12, "direction": "down_left", "frame": 24}
+
+2026-10-05 17:46:28,982/qwen-pose/heartbeat stage=inference step=0/4 elapsed=76s gpu=536 MiB, 6 % log_bytes=2801
+2026-10-05T17:46:30.764872/character-animation/heartbeat progress={"completed": 10, "total": 12, "direction": "down_left", "frame": 24}
+
+2026-10-05 17:46:34,013/qwen-pose/heartbeat stage=inference step=0/4 elapsed=81s gpu=458 MiB, 22 % log_bytes=2914
+2026-10-05T17:46:35.769066/character-animation/heartbeat progress={"completed": 10, "total": 12, "direction": "down_left", "frame": 24}
+
+2026-10-05 17:46:39,042/qwen-pose/heartbeat stage=inference step=0/4 elapsed=86s gpu=760 MiB, 11 % log_bytes=3028
+2026-10-05T17:46:40.773216/character-animation/heartbeat progress={"completed": 10, "total": 12, "direction": "down_left", "frame": 24}
+
+2026-10-05 17:46:44,087/qwen-pose/heartbeat stage=inference step=0/4 elapsed=91s gpu=566 MiB, 28 % log_bytes=3142
+2026-10-05T17:46:45.777484/character-animation/heartbeat progress={"completed": 10, "total": 12, "direction": "down_left", "frame": 24}
+
+2026-10-05 17:46:47,878/qwen-pose/denoise step=1/4
+ 25%|██▌       | 1/4 [00:47<02:22, 47.54s/it]2026-10-05 17:46:49,126/qwen-pose/heartbeat stage=inference step=1/4 elapsed=96s gpu=516 MiB, 35 % log_bytes=3307
+2026-10-05T17:46:50.782065/character-animation/heartbeat progress={"completed": 10, "total": 12, "direction": "down_left", "frame": 24}
+
+2026-10-05 17:46:54,162/qwen-pose/heartbeat stage=inference step=1/4 elapsed=101s gpu=792 MiB, 14 % log_bytes=3421
+2026-10-05T17:46:55.788521/character-animation/heartbeat progress={"completed": 10, "total": 12, "direction": "down_left", "frame": 24}
+
+2026-10-05 17:46:59,205/qwen-pose/heartbeat stage=inference step=1/4 elapsed=106s gpu=546 MiB, 14 % log_bytes=3536
+2026-10-05T17:47:00.793681/character-animation/heartbeat progress={"completed": 10, "total": 12, "direction": "down_left", "frame": 24}
+
+2026-10-05 17:47:04,229/qwen-pose/heartbeat stage=inference step=1/4 elapsed=111s gpu=736 MiB, 22 % log_bytes=3651
+2026-10-05T17:47:05.798080/character-animation/heartbeat progress={"completed": 10, "total": 12, "direction": "down_left", "frame": 24}
+
+2026-10-05 17:47:09,254/qwen-pose/heartbeat stage=inference step=1/4 elapsed=116s gpu=772 MiB, 12 % log_bytes=3766
+2026-10-05T17:47:10.802934/character-animation/heartbeat progress={"completed": 10, "total": 12, "direction": "down_left", "frame": 24}
+
+2026-10-05 17:47:14,280/qwen-pose/heartbeat stage=inference step=1/4 elapsed=121s gpu=792 MiB, 23 % log_bytes=3881
+2026-10-05T17:47:15.807747/character-animation/heartbeat progress={"completed": 10, "total": 12, "direction": "down_left", "frame": 24}
+
+2026-10-05 17:47:19,302/qwen-pose/heartbeat stage=inference step=1/4 elapsed=126s gpu=894 MiB, 27 % log_bytes=3996
+2026-10-05T17:47:20.812576/character-animation/heartbeat progress={"completed": 10, "total": 12, "direction": "down_left", "frame": 24}
+
+2026-10-05 17:47:24,337/qwen-pose/heartbeat stage=inference step=1/4 elapsed=131s gpu=546 MiB, 20 % log_bytes=4111
+2026-10-05T17:47:25.817974/character-animation/heartbeat progress={"completed": 10, "total": 12, "direction": "down_left", "frame": 24}
+
+2026-10-05 17:47:29,374/qwen-pose/heartbeat stage=inference step=1/4 elapsed=136s gpu=772 MiB, 37 % log_bytes=4226
+2026-10-05 17:47:30,303/qwen-pose/denoise step=2/4
+ 50%|█████     | 2/4 [01:29<01:29, 44.53s/it]2026-10-05T17:47:30.823074/character-animation/heartbeat progress={"completed": 10, "total": 12, "direction": "down_left", "frame": 24}
+
+2026-10-05 17:47:34,414/qwen-pose/heartbeat stage=inference step=2/4 elapsed=141s gpu=792 MiB, 69 % log_bytes=4392
+2026-10-05T17:47:35.828933/character-animation/heartbeat progress={"completed": 10, "total": 12, "direction": "down_left", "frame": 24}
+
+2026-10-05 17:47:39,445/qwen-pose/heartbeat stage=inference step=2/4 elapsed=146s gpu=792 MiB, 65 % log_bytes=4507
+2026-10-05T17:47:40.834038/character-animation/heartbeat progress={"completed": 10, "total": 12, "direction": "down_left", "frame": 24}
+
+2026-10-05 17:47:43,784/qwen-pose/denoise step=3/4
+ 75%|███████▌  | 3/4 [01:43<00:30, 30.35s/it]2026-10-05 17:47:44,484/qwen-pose/heartbeat stage=inference step=3/4 elapsed=151s gpu=768 MiB, 63 % log_bytes=4673
+2026-10-05T17:47:45.838904/character-animation/heartbeat progress={"completed": 10, "total": 12, "direction": "down_left", "frame": 24}
+
+2026-10-05 17:47:49,514/qwen-pose/heartbeat stage=inference step=3/4 elapsed=156s gpu=826 MiB, 79 % log_bytes=4788
+2026-10-05T17:47:50.844148/character-animation/heartbeat progress={"completed": 10, "total": 12, "direction": "down_left", "frame": 24}
+
+2026-10-05T17:47:51.847236/character-animation/end {'status': 'cancelled', 'exit_code': -15}
+2026-10-05T20:00:10.191305/character-animation/resume id=2026-10-05_17-10-42-b46bce6f
+2026-10-05T20:00:10.258150/character-animation/start id=2026-10-05_17-10-42-b46bce6f root=/home/cbsim/ws/slime-workflow/.tmp/test/character-animation/2026-10-05_17-10-42/2026-10-05_17-10-42-b46bce6f
+2026-10-05T20:00:10.258910/character-animation/heartbeat progress={"completed": 10, "total": 12, "direction": "down_left", "frame": 24}
+
+2026-10-05T20:00:15.262747/character-animation/heartbeat progress={"completed": 10, "total": 12, "direction": "down_left", "frame": 24}
+
+2026-10-05 20:00:15,624/qwen-pose/heartbeat stage=imports step=0/4 elapsed=5s gpu=110 MiB, 18 % log_bytes=0
+2026-10-05T20:00:20.266595/character-animation/heartbeat progress={"completed": 10, "total": 12, "direction": "down_left", "frame": 24}
+
+2026-10-05 20:00:20,451/qwen-pose/reference vae_size=512x512 output_size=768x768 condition_size=384x384
+2026-10-05 20:00:20,451/qwen-pose/reference order=['character', 'rig'] kind=rig
+2026-10-05 20:00:20,647/qwen-pose/heartbeat stage=imports step=0/4 elapsed=10s gpu=113 MiB, 5 % log_bytes=292
+2026-10-05 20:00:22,208/qwen-pose/load model_id=Qwen/Qwen-Image-Edit-2511 model_path=/home/cbsim/ws/slime-workflow/.model/qwen-image-edit-2511/6f3ccc0b56e431dc6a0c2b2039706d7d26f22cb9
+Loading pipeline components...:   0%|          | 0/6 [00:00<?, ?it/s]Loading pipeline components...:  17%|█▋        | 1/6 [00:00<00:00,  5.02it/s]
+Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s][A
+Loading checkpoint shards:  25%|██▌       | 1/4 [00:00<00:00,  6.29it/s][A
+Loading checkpoint shards:  75%|███████▌  | 3/4 [00:00<00:00, 11.33it/s][ALoading checkpoint shards: 100%|██████████| 4/4 [00:00<00:00, 13.64it/s]
+Loading pipeline components...:  33%|███▎      | 2/6 [00:00<00:01,  3.47it/s]Loading pipeline components...:  50%|█████     | 3/6 [00:01<00:01,  2.14it/s]
+Loading checkpoint shards:   0%|          | 0/5 [00:00<?, ?it/s][A
+Loading checkpoint shards:  20%|██        | 1/5 [00:00<00:00,  8.07it/s][A
+Loading checkpoint shards:  40%|████      | 2/5 [00:00<00:00,  8.29it/s][A
+Loading checkpoint shards:  60%|██████    | 3/5 [00:00<00:00,  8.54it/s][A
+Loading checkpoint shards:  80%|████████  | 4/5 [00:00<00:00,  8.66it/s][ALoading checkpoint shards: 100%|██████████| 5/5 [00:00<00:00, 10.31it/s]
+Loading pipeline components...:  67%|██████▋   | 4/6 [00:02<00:01,  1.59it/s]Loading pipeline components...: 100%|██████████| 6/6 [00:02<00:00,  2.78it/s]
+2026-10-05 20:00:24,365/qwen-pose/adapter name=anypose_base strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-base-000006250.safetensors
+2026-10-05 20:00:24,999/qwen-pose/adapter name=anypose_helper strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-helper-00006000.safetensors
+/home/cbsim/ws/slime-workflow/.venv/lib/python3.12/site-packages/peft/tuners/tuners_utils.py:285: UserWarning: Already found a `peft_config` attribute in the model. This will lead to having multiple adapters in the model. Make sure to know what you are doing!
+  warnings.warn(
+2026-10-05T20:00:25.270212/character-animation/heartbeat progress={"completed": 10, "total": 12, "direction": "down_left", "frame": 24}
+
+2026-10-05 20:00:25,671/qwen-pose/heartbeat stage=adapters step=0/4 elapsed=15s gpu=113 MiB, 20 % log_bytes=1047
+2026-10-05 20:00:25,897/qwen-pose/adapter name=lightning strength=1.0 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lightx2v--Qwen-Image-Edit-2511-Lightning/d74eba145674fd7e31b949324e148e21e7118abd/Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors
+2026-10-05T20:00:30.280232/character-animation/heartbeat progress={"completed": 10, "total": 12, "direction": "down_left", "frame": 24}
+
+2026-10-05 20:00:30,730/qwen-pose/heartbeat stage=adapters step=0/4 elapsed=20s gpu=113 MiB, 15 % log_bytes=1427
+/home/cbsim/ws/slime-workflow/.venv/lib/python3.12/site-packages/peft/tuners/tuners_utils.py:285: UserWarning: Already found a `peft_config` attribute in the model. This will lead to having multiple adapters in the model. Make sure to know what you are doing!
+  warnings.warn(
+2026-10-05T20:00:35.291975/character-animation/heartbeat progress={"completed": 10, "total": 12, "direction": "down_left", "frame": 24}
+
+2026-10-05 20:00:35,753/qwen-pose/heartbeat stage=adapters step=0/4 elapsed=25s gpu=248 MiB, 22 % log_bytes=1540
+2026-10-05 20:00:35,877/qwen-pose/inference size=768x768 steps=4 seed=10107 device=cuda dtype=bfloat16 offload=sequential
+ negative_prompt is passed but classifier-free guidance is not enabled since true_cfg_scale <= 1
+2026-10-05T20:00:40.297223/character-animation/heartbeat progress={"completed": 10, "total": 12, "direction": "down_left", "frame": 24}
+
+2026-10-05 20:00:40,778/qwen-pose/heartbeat stage=inference step=0/4 elapsed=30s gpu=360 MiB, 12 % log_bytes=1775
+2026-10-05T20:00:45.301808/character-animation/heartbeat progress={"completed": 10, "total": 12, "direction": "down_left", "frame": 24}
+
+2026-10-05 20:00:45,802/qwen-pose/heartbeat stage=inference step=0/4 elapsed=35s gpu=462 MiB, 17 % log_bytes=1889
+2026-10-05T20:00:50.306207/character-animation/heartbeat progress={"completed": 10, "total": 12, "direction": "down_left", "frame": 24}
+
+2026-10-05 20:00:50,832/qwen-pose/heartbeat stage=inference step=0/4 elapsed=40s gpu=752 MiB, 9 % log_bytes=2003
+guidance_scale is passed as 1.0, but ignored since the model is not guidance-distilled.
+  0%|          | 0/4 [00:00<?, ?it/s]2026-10-05T20:00:55.310779/character-animation/heartbeat progress={"completed": 10, "total": 12, "direction": "down_left", "frame": 24}
+
+2026-10-05 20:00:55,864/qwen-pose/heartbeat stage=inference step=0/4 elapsed=45s gpu=736 MiB, 23 % log_bytes=2116
+2026-10-05T20:01:00.315214/character-animation/heartbeat progress={"completed": 10, "total": 12, "direction": "down_left", "frame": 24}
+
+2026-10-05 20:01:00,891/qwen-pose/heartbeat stage=inference step=0/4 elapsed=50s gpu=770 MiB, 25 % log_bytes=2230
+2026-10-05T20:01:05.319633/character-animation/heartbeat progress={"completed": 10, "total": 12, "direction": "down_left", "frame": 24}
+
+2026-10-05 20:01:05,917/qwen-pose/heartbeat stage=inference step=0/4 elapsed=55s gpu=546 MiB, 24 % log_bytes=2344
+2026-10-05T20:01:10.324675/character-animation/heartbeat progress={"completed": 10, "total": 12, "direction": "down_left", "frame": 24}
+
+2026-10-05 20:01:10,946/qwen-pose/heartbeat stage=inference step=0/4 elapsed=60s gpu=532 MiB, 22 % log_bytes=2458
+2026-10-05T20:01:15.329744/character-animation/heartbeat progress={"completed": 10, "total": 12, "direction": "down_left", "frame": 24}
+
+2026-10-05 20:01:15,976/qwen-pose/heartbeat stage=inference step=0/4 elapsed=65s gpu=532 MiB, 21 % log_bytes=2572
+2026-10-05T20:01:20.334051/character-animation/heartbeat progress={"completed": 10, "total": 12, "direction": "down_left", "frame": 24}
+
+2026-10-05 20:01:21,005/qwen-pose/heartbeat stage=inference step=0/4 elapsed=70s gpu=734 MiB, 19 % log_bytes=2686
+2026-10-05T20:01:25.338921/character-animation/heartbeat progress={"completed": 10, "total": 12, "direction": "down_left", "frame": 24}
+
+2026-10-05 20:01:26,039/qwen-pose/heartbeat stage=inference step=0/4 elapsed=75s gpu=770 MiB, 20 % log_bytes=2800
+2026-10-05T20:01:30.343857/character-animation/heartbeat progress={"completed": 10, "total": 12, "direction": "down_left", "frame": 24}
+
+2026-10-05 20:01:31,068/qwen-pose/heartbeat stage=inference step=0/4 elapsed=81s gpu=790 MiB, 11 % log_bytes=2914
+2026-10-05T20:01:35.348310/character-animation/heartbeat progress={"completed": 10, "total": 12, "direction": "down_left", "frame": 24}
+
+2026-10-05 20:01:36,104/qwen-pose/heartbeat stage=inference step=0/4 elapsed=86s gpu=894 MiB, 26 % log_bytes=3028
+2026-10-05T20:01:40.352679/character-animation/heartbeat progress={"completed": 10, "total": 12, "direction": "down_left", "frame": 24}
+
+2026-10-05 20:01:41,137/qwen-pose/heartbeat stage=inference step=0/4 elapsed=91s gpu=770 MiB, 14 % log_bytes=3142
+2026-10-05 20:01:42,817/qwen-pose/denoise step=1/4
+ 25%|██▌       | 1/4 [00:49<02:28, 49.56s/it]2026-10-05T20:01:45.357516/character-animation/heartbeat progress={"completed": 10, "total": 12, "direction": "down_left", "frame": 24}
+
+2026-10-05 20:01:46,164/qwen-pose/heartbeat stage=inference step=1/4 elapsed=96s gpu=736 MiB, 27 % log_bytes=3307
+2026-10-05T20:01:50.362011/character-animation/heartbeat progress={"completed": 10, "total": 12, "direction": "down_left", "frame": 24}
+
+2026-10-05 20:01:51,192/qwen-pose/heartbeat stage=inference step=1/4 elapsed=101s gpu=542 MiB, 14 % log_bytes=3421
+2026-10-05T20:01:55.366452/character-animation/heartbeat progress={"completed": 10, "total": 12, "direction": "down_left", "frame": 24}
+
+2026-10-05 20:01:56,223/qwen-pose/heartbeat stage=inference step=1/4 elapsed=106s gpu=546 MiB, 23 % log_bytes=3536
+2026-10-05T20:02:00.371827/character-animation/heartbeat progress={"completed": 10, "total": 12, "direction": "down_left", "frame": 24}
+
+2026-10-05 20:02:01,250/qwen-pose/heartbeat stage=inference step=1/4 elapsed=111s gpu=554 MiB, 15 % log_bytes=3651
+2026-10-05T20:02:05.376363/character-animation/heartbeat progress={"completed": 10, "total": 12, "direction": "down_left", "frame": 24}
+
+2026-10-05 20:02:06,281/qwen-pose/heartbeat stage=inference step=1/4 elapsed=116s gpu=736 MiB, 32 % log_bytes=3766
+2026-10-05T20:02:10.381066/character-animation/heartbeat progress={"completed": 10, "total": 12, "direction": "down_left", "frame": 24}
+
+2026-10-05 20:02:11,310/qwen-pose/heartbeat stage=inference step=1/4 elapsed=121s gpu=824 MiB, 13 % log_bytes=3881
+2026-10-05T20:02:15.385576/character-animation/heartbeat progress={"completed": 10, "total": 12, "direction": "down_left", "frame": 24}
+
+2026-10-05 20:02:16,334/qwen-pose/heartbeat stage=inference step=1/4 elapsed=126s gpu=736 MiB, 32 % log_bytes=3996
+2026-10-05 20:02:18,465/qwen-pose/denoise step=2/4
+ 50%|█████     | 2/4 [01:25<01:22, 41.37s/it]2026-10-05T20:02:20.390552/character-animation/heartbeat progress={"completed": 10, "total": 12, "direction": "down_left", "frame": 24}
+
+2026-10-05 20:02:21,358/qwen-pose/heartbeat stage=inference step=2/4 elapsed=131s gpu=588 MiB, 30 % log_bytes=4162
+2026-10-05T20:02:25.395284/character-animation/heartbeat progress={"completed": 10, "total": 12, "direction": "down_left", "frame": 24}
+
+2026-10-05 20:02:26,384/qwen-pose/heartbeat stage=inference step=2/4 elapsed=136s gpu=894 MiB, 33 % log_bytes=4277
+2026-10-05T20:02:30.399701/character-animation/heartbeat progress={"completed": 10, "total": 12, "direction": "down_left", "frame": 24}
+
+2026-10-05 20:02:31,409/qwen-pose/heartbeat stage=inference step=2/4 elapsed=141s gpu=792 MiB, 36 % log_bytes=4392
+2026-10-05T20:02:35.404565/character-animation/heartbeat progress={"completed": 10, "total": 12, "direction": "down_left", "frame": 24}
+
+2026-10-05 20:02:36,439/qwen-pose/heartbeat stage=inference step=2/4 elapsed=146s gpu=792 MiB, 48 % log_bytes=4507
+2026-10-05 20:02:39,251/qwen-pose/denoise step=3/4
+ 75%|███████▌  | 3/4 [01:45<00:31, 31.97s/it]2026-10-05T20:02:40.408958/character-animation/heartbeat progress={"completed": 10, "total": 12, "direction": "down_left", "frame": 24}
+
+2026-10-05 20:02:41,463/qwen-pose/heartbeat stage=inference step=3/4 elapsed=151s gpu=826 MiB, 26 % log_bytes=4673
+2026-10-05T20:02:45.413112/character-animation/heartbeat progress={"completed": 10, "total": 12, "direction": "down_left", "frame": 24}
+
+2026-10-05 20:02:46,491/qwen-pose/heartbeat stage=inference step=3/4 elapsed=156s gpu=538 MiB, 61 % log_bytes=4788
+2026-10-05T20:02:50.417633/character-animation/heartbeat progress={"completed": 10, "total": 12, "direction": "down_left", "frame": 24}
+
+2026-10-05 20:02:51,516/qwen-pose/heartbeat stage=inference step=3/4 elapsed=161s gpu=794 MiB, 74 % log_bytes=4903
+2026-10-05 20:02:54,047/qwen-pose/denoise step=4/4
+100%|██████████| 4/4 [02:00<00:00, 25.19s/it]100%|██████████| 4/4 [02:00<00:00, 30.20s/it]
+2026-10-05T20:02:55.425748/character-animation/heartbeat progress={"completed": 10, "total": 12, "direction": "down_left", "frame": 24}
+
+2026-10-05 20:02:56,373/qwen-pose/complete output=/home/cbsim/ws/slime-workflow/.tmp/test/character-animation/2026-10-05_17-10-42/2026-10-05_17-10-42-b46bce6f/down_left/frame-0024/result.png
+2026-10-05T20:03:00.432828/character-animation/heartbeat progress={"completed": 11, "total": 12, "direction": "down_left", "frame": 26}
+
+2026-10-05 20:03:04,927/qwen-pose/heartbeat stage=imports step=0/4 elapsed=5s gpu=1478 MiB, 13 % log_bytes=0
+2026-10-05T20:03:05.438093/character-animation/heartbeat progress={"completed": 11, "total": 12, "direction": "down_left", "frame": 26}
+
+2026-10-05 20:03:08,010/qwen-pose/reference vae_size=512x512 output_size=768x768 condition_size=384x384
+2026-10-05 20:03:08,011/qwen-pose/reference order=['character', 'rig'] kind=rig
+2026-10-05 20:03:09,951/qwen-pose/heartbeat stage=imports step=0/4 elapsed=10s gpu=1486 MiB, 12 % log_bytes=293
+2026-10-05T20:03:10.443290/character-animation/heartbeat progress={"completed": 11, "total": 12, "direction": "down_left", "frame": 26}
+
+2026-10-05 20:03:10,502/qwen-pose/load model_id=Qwen/Qwen-Image-Edit-2511 model_path=/home/cbsim/ws/slime-workflow/.model/qwen-image-edit-2511/6f3ccc0b56e431dc6a0c2b2039706d7d26f22cb9
+Loading pipeline components...:   0%|          | 0/6 [00:00<?, ?it/s]Loading pipeline components...:  17%|█▋        | 1/6 [00:00<00:00,  5.08it/s]
+Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s][A
+Loading checkpoint shards:  25%|██▌       | 1/4 [00:00<00:00,  5.92it/s][A
+Loading checkpoint shards:  75%|███████▌  | 3/4 [00:00<00:00, 11.61it/s][ALoading checkpoint shards: 100%|██████████| 4/4 [00:00<00:00, 13.76it/s]
+Loading pipeline components...:  33%|███▎      | 2/6 [00:00<00:01,  3.54it/s]Loading pipeline components...:  50%|█████     | 3/6 [00:00<00:00,  3.41it/s]
+Loading checkpoint shards:   0%|          | 0/5 [00:00<?, ?it/s][A
+Loading checkpoint shards:  60%|██████    | 3/5 [00:00<00:00, 22.21it/s][ALoading checkpoint shards: 100%|██████████| 5/5 [00:00<00:00, 20.79it/s]
+Loading pipeline components...:  67%|██████▋   | 4/6 [00:01<00:00,  2.90it/s]Loading pipeline components...: 100%|██████████| 6/6 [00:02<00:00,  2.69it/s]Loading pipeline components...: 100%|██████████| 6/6 [00:02<00:00,  2.91it/s]
+2026-10-05 20:03:12,564/qwen-pose/adapter name=anypose_base strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-base-000006250.safetensors
+2026-10-05 20:03:13,595/qwen-pose/adapter name=anypose_helper strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-helper-00006000.safetensors
+/home/cbsim/ws/slime-workflow/.venv/lib/python3.12/site-packages/peft/tuners/tuners_utils.py:285: UserWarning: Already found a `peft_config` attribute in the model. This will lead to having multiple adapters in the model. Make sure to know what you are doing!
+  warnings.warn(
+2026-10-05 20:03:14,944/qwen-pose/adapter name=lightning strength=1.0 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lightx2v--Qwen-Image-Edit-2511-Lightning/d74eba145674fd7e31b949324e148e21e7118abd/Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors
+2026-10-05 20:03:14,979/qwen-pose/heartbeat stage=adapters step=0/4 elapsed=15s gpu=2678 MiB, 13 % log_bytes=1317
+2026-10-05T20:03:15.447791/character-animation/heartbeat progress={"completed": 11, "total": 12, "direction": "down_left", "frame": 26}
+
+2026-10-05 20:03:20,044/qwen-pose/heartbeat stage=adapters step=0/4 elapsed=20s gpu=1474 MiB, 15 % log_bytes=1431
+2026-10-05T20:03:20.456997/character-animation/heartbeat progress={"completed": 11, "total": 12, "direction": "down_left", "frame": 26}
+
+2026-10-05 20:03:25,110/qwen-pose/heartbeat stage=adapters step=0/4 elapsed=25s gpu=1478 MiB, 13 % log_bytes=1545
+2026-10-05T20:03:25.464659/character-animation/heartbeat progress={"completed": 11, "total": 12, "direction": "down_left", "frame": 26}
+
+/home/cbsim/ws/slime-workflow/.venv/lib/python3.12/site-packages/peft/tuners/tuners_utils.py:285: UserWarning: Already found a `peft_config` attribute in the model. This will lead to having multiple adapters in the model. Make sure to know what you are doing!
+  warnings.warn(
+2026-10-05 20:03:27,518/qwen-pose/inference size=768x768 steps=4 seed=10107 device=cuda dtype=bfloat16 offload=sequential
+ negative_prompt is passed but classifier-free guidance is not enabled since true_cfg_scale <= 1
+2026-10-05 20:03:30,139/qwen-pose/heartbeat stage=inference step=0/4 elapsed=30s gpu=1721 MiB, 17 % log_bytes=1781
+2026-10-05T20:03:30.471401/character-animation/heartbeat progress={"completed": 11, "total": 12, "direction": "down_left", "frame": 26}
+
+2026-10-05 20:03:35,179/qwen-pose/heartbeat stage=inference step=0/4 elapsed=35s gpu=1885 MiB, 11 % log_bytes=1896
+2026-10-05T20:03:35.476939/character-animation/heartbeat progress={"completed": 11, "total": 12, "direction": "down_left", "frame": 26}
+
+2026-10-05 20:03:40,208/qwen-pose/heartbeat stage=inference step=0/4 elapsed=40s gpu=2047 MiB, 33 % log_bytes=2011
+2026-10-05T20:03:40.481085/character-animation/heartbeat progress={"completed": 11, "total": 12, "direction": "down_left", "frame": 26}
+
+2026-10-05 20:03:45,248/qwen-pose/heartbeat stage=inference step=0/4 elapsed=45s gpu=1993 MiB, 60 % log_bytes=2126
+2026-10-05T20:03:45.485866/character-animation/heartbeat progress={"completed": 11, "total": 12, "direction": "down_left", "frame": 26}
+
+guidance_scale is passed as 1.0, but ignored since the model is not guidance-distilled.
+  0%|          | 0/4 [00:00<?, ?it/s]2026-10-05 20:03:50,277/qwen-pose/heartbeat stage=inference step=0/4 elapsed=50s gpu=2271 MiB, 50 % log_bytes=2241
+2026-10-05T20:03:50.494935/character-animation/heartbeat progress={"completed": 11, "total": 12, "direction": "down_left", "frame": 26}
+
+2026-10-05 20:03:55,308/qwen-pose/heartbeat stage=inference step=0/4 elapsed=55s gpu=2125 MiB, 44 % log_bytes=2356
+2026-10-05T20:03:55.499748/character-animation/heartbeat progress={"completed": 11, "total": 12, "direction": "down_left", "frame": 26}
+
+2026-10-05 20:04:00,395/qwen-pose/heartbeat stage=inference step=0/4 elapsed=61s gpu=1921 MiB, 22 % log_bytes=2471
+2026-10-05T20:04:00.505900/character-animation/heartbeat progress={"completed": 11, "total": 12, "direction": "down_left", "frame": 26}
+
+2026-10-05 20:04:05,425/qwen-pose/heartbeat stage=inference step=0/4 elapsed=66s gpu=2197 MiB, 67 % log_bytes=2586
+2026-10-05T20:04:05.514140/character-animation/heartbeat progress={"completed": 11, "total": 12, "direction": "down_left", "frame": 26}
+
+2026-10-05 20:04:10,460/qwen-pose/heartbeat stage=inference step=0/4 elapsed=71s gpu=1889 MiB, 62 % log_bytes=2701
+2026-10-05T20:04:10.518770/character-animation/heartbeat progress={"completed": 11, "total": 12, "direction": "down_left", "frame": 26}
+
+2026-10-05 20:04:15,486/qwen-pose/heartbeat stage=inference step=0/4 elapsed=76s gpu=1941 MiB, 71 % log_bytes=2816
+2026-10-05T20:04:15.523496/character-animation/heartbeat progress={"completed": 11, "total": 12, "direction": "down_left", "frame": 26}
+
+2026-10-05 20:04:20,520/qwen-pose/heartbeat stage=inference step=0/4 elapsed=81s gpu=1941 MiB, 63 % log_bytes=2931
+2026-10-05T20:04:20.527455/character-animation/heartbeat progress={"completed": 11, "total": 12, "direction": "down_left", "frame": 26}
+
+2026-10-05T20:04:25.531401/character-animation/heartbeat progress={"completed": 11, "total": 12, "direction": "down_left", "frame": 26}
+
+2026-10-05 20:04:25,554/qwen-pose/heartbeat stage=inference step=0/4 elapsed=86s gpu=2145 MiB, 47 % log_bytes=3046
+2026-10-05T20:04:30.536466/character-animation/heartbeat progress={"completed": 11, "total": 12, "direction": "down_left", "frame": 26}
+
+2026-10-05 20:04:30,584/qwen-pose/heartbeat stage=inference step=0/4 elapsed=91s gpu=1909 MiB, 58 % log_bytes=3161
+2026-10-05T20:04:35.541705/character-animation/heartbeat progress={"completed": 11, "total": 12, "direction": "down_left", "frame": 26}
+
+2026-10-05 20:04:35,609/qwen-pose/heartbeat stage=inference step=0/4 elapsed=96s gpu=2167 MiB, 30 % log_bytes=3276
+2026-10-05T20:04:40.546631/character-animation/heartbeat progress={"completed": 11, "total": 12, "direction": "down_left", "frame": 26}
+
+2026-10-05 20:04:40,637/qwen-pose/heartbeat stage=inference step=0/4 elapsed=101s gpu=1885 MiB, 63 % log_bytes=3391
+2026-10-05 20:04:41,241/qwen-pose/denoise step=1/4
+ 25%|██▌       | 1/4 [00:51<02:35, 51.85s/it]2026-10-05T20:04:45.551869/character-animation/heartbeat progress={"completed": 11, "total": 12, "direction": "down_left", "frame": 26}
+
+2026-10-05 20:04:45,676/qwen-pose/heartbeat stage=inference step=1/4 elapsed=106s gpu=1929 MiB, 48 % log_bytes=3558
+2026-10-05T20:04:50.556684/character-animation/heartbeat progress={"completed": 11, "total": 12, "direction": "down_left", "frame": 26}
+
+2026-10-05 20:04:50,709/qwen-pose/heartbeat stage=inference step=1/4 elapsed=111s gpu=2199 MiB, 56 % log_bytes=3674
+2026-10-05T20:04:55.561710/character-animation/heartbeat progress={"completed": 11, "total": 12, "direction": "down_left", "frame": 26}
+
+2026-10-05 20:04:55,742/qwen-pose/heartbeat stage=inference step=1/4 elapsed=116s gpu=2269 MiB, 41 % log_bytes=3790
+2026-10-05T20:05:00.566573/character-animation/heartbeat progress={"completed": 11, "total": 12, "direction": "down_left", "frame": 26}
+
+2026-10-05 20:05:00,774/qwen-pose/heartbeat stage=inference step=1/4 elapsed=121s gpu=2147 MiB, 45 % log_bytes=3906
+2026-10-05T20:05:05.571566/character-animation/heartbeat progress={"completed": 11, "total": 12, "direction": "down_left", "frame": 26}
+
+2026-10-05 20:05:05,809/qwen-pose/heartbeat stage=inference step=1/4 elapsed=126s gpu=2147 MiB, 57 % log_bytes=4022
+2026-10-05T20:05:10.576219/character-animation/heartbeat progress={"completed": 11, "total": 12, "direction": "down_left", "frame": 26}
+
+2026-10-05 20:05:10,836/qwen-pose/heartbeat stage=inference step=1/4 elapsed=131s gpu=1943 MiB, 40 % log_bytes=4138
+2026-10-05T20:05:15.580879/character-animation/heartbeat progress={"completed": 11, "total": 12, "direction": "down_left", "frame": 26}
+
+2026-10-05 20:05:15,867/qwen-pose/heartbeat stage=inference step=1/4 elapsed=136s gpu=2147 MiB, 52 % log_bytes=4254
+2026-10-05T20:05:20.585550/character-animation/heartbeat progress={"completed": 11, "total": 12, "direction": "down_left", "frame": 26}
+
+2026-10-05 20:05:20,892/qwen-pose/heartbeat stage=inference step=1/4 elapsed=141s gpu=1937 MiB, 44 % log_bytes=4370
+2026-10-05T20:05:25.590813/character-animation/heartbeat progress={"completed": 11, "total": 12, "direction": "down_left", "frame": 26}
+
+2026-10-05 20:05:25,918/qwen-pose/heartbeat stage=inference step=1/4 elapsed=146s gpu=2199 MiB, 37 % log_bytes=4486
+2026-10-05T20:05:30.595646/character-animation/heartbeat progress={"completed": 11, "total": 12, "direction": "down_left", "frame": 26}
+
+2026-10-05 20:05:30,949/qwen-pose/heartbeat stage=inference step=1/4 elapsed=151s gpu=2111 MiB, 66 % log_bytes=4602
+2026-10-05 20:05:31,034/qwen-pose/denoise step=2/4
+ 50%|█████     | 2/4 [01:41<01:41, 50.64s/it]2026-10-05T20:05:35.600564/character-animation/heartbeat progress={"completed": 11, "total": 12, "direction": "down_left", "frame": 26}
+
+2026-10-05 20:05:35,975/qwen-pose/heartbeat stage=inference step=2/4 elapsed=156s gpu=2167 MiB, 63 % log_bytes=4769
+2026-10-05T20:05:40.604794/character-animation/heartbeat progress={"completed": 11, "total": 12, "direction": "down_left", "frame": 26}
+
+2026-10-05 20:05:41,011/qwen-pose/heartbeat stage=inference step=2/4 elapsed=161s gpu=2147 MiB, 39 % log_bytes=4885
+2026-10-05T20:05:45.610012/character-animation/heartbeat progress={"completed": 11, "total": 12, "direction": "down_left", "frame": 26}
+
+2026-10-05 20:05:46,043/qwen-pose/heartbeat stage=inference step=2/4 elapsed=166s gpu=1891 MiB, 43 % log_bytes=5001
+2026-10-05T20:05:50.614624/character-animation/heartbeat progress={"completed": 11, "total": 12, "direction": "down_left", "frame": 26}
+
+2026-10-05 20:05:51,087/qwen-pose/heartbeat stage=inference step=2/4 elapsed=171s gpu=2147 MiB, 38 % log_bytes=5117
+2026-10-05T20:05:55.619627/character-animation/heartbeat progress={"completed": 11, "total": 12, "direction": "down_left", "frame": 26}
+
+2026-10-05 20:05:56,115/qwen-pose/heartbeat stage=inference step=2/4 elapsed=176s gpu=2167 MiB, 41 % log_bytes=5233
+2026-10-05T20:06:00.624759/character-animation/heartbeat progress={"completed": 11, "total": 12, "direction": "down_left", "frame": 26}
+
+2026-10-05 20:06:01,154/qwen-pose/heartbeat stage=inference step=2/4 elapsed=181s gpu=2111 MiB, 34 % log_bytes=5349
+2026-10-05T20:06:05.629566/character-animation/heartbeat progress={"completed": 11, "total": 12, "direction": "down_left", "frame": 26}
+
+2026-10-05 20:06:06,193/qwen-pose/heartbeat stage=inference step=2/4 elapsed=186s gpu=1911 MiB, 50 % log_bytes=5465
+2026-10-05T20:06:10.635084/character-animation/heartbeat progress={"completed": 11, "total": 12, "direction": "down_left", "frame": 26}
+
+2026-10-05 20:06:11,219/qwen-pose/heartbeat stage=inference step=2/4 elapsed=191s gpu=4607 MiB, 16 % log_bytes=5581
+2026-10-05T20:06:15.640279/character-animation/heartbeat progress={"completed": 11, "total": 12, "direction": "down_left", "frame": 26}
+
+2026-10-05 20:06:16,246/qwen-pose/heartbeat stage=inference step=2/4 elapsed=196s gpu=824 MiB, 10 % log_bytes=5697
+2026-10-05T20:06:20.645495/character-animation/heartbeat progress={"completed": 11, "total": 12, "direction": "down_left", "frame": 26}
+
+2026-10-05 20:06:21,271/qwen-pose/heartbeat stage=inference step=2/4 elapsed=201s gpu=566 MiB, 13 % log_bytes=5812
+2026-10-05 20:06:23,794/qwen-pose/denoise step=3/4
+ 75%|███████▌  | 3/4 [02:34<00:51, 51.61s/it]2026-10-05T20:06:25.651162/character-animation/heartbeat progress={"completed": 11, "total": 12, "direction": "down_left", "frame": 26}
+
+2026-10-05 20:06:26,299/qwen-pose/heartbeat stage=inference step=3/4 elapsed=206s gpu=896 MiB, 18 % log_bytes=5978
+2026-10-05T20:06:30.656166/character-animation/heartbeat progress={"completed": 11, "total": 12, "direction": "down_left", "frame": 26}
+
+2026-10-05 20:06:31,322/qwen-pose/heartbeat stage=inference step=3/4 elapsed=211s gpu=826 MiB, 36 % log_bytes=6093
+2026-10-05T20:06:35.661496/character-animation/heartbeat progress={"completed": 11, "total": 12, "direction": "down_left", "frame": 26}
+
+2026-10-05 20:06:36,353/qwen-pose/heartbeat stage=inference step=3/4 elapsed=216s gpu=794 MiB, 33 % log_bytes=6208
+2026-10-05T20:06:40.667751/character-animation/heartbeat progress={"completed": 11, "total": 12, "direction": "down_left", "frame": 26}
+
+2026-10-05 20:06:41,382/qwen-pose/heartbeat stage=inference step=3/4 elapsed=222s gpu=794 MiB, 29 % log_bytes=6323
+2026-10-05T20:06:45.672457/character-animation/heartbeat progress={"completed": 11, "total": 12, "direction": "down_left", "frame": 26}
+
+2026-10-05 20:06:46,407/qwen-pose/heartbeat stage=inference step=3/4 elapsed=227s gpu=544 MiB, 11 % log_bytes=6438
+2026-10-05T20:06:50.677010/character-animation/heartbeat progress={"completed": 11, "total": 12, "direction": "down_left", "frame": 26}
+
+2026-10-05 20:06:51,434/qwen-pose/heartbeat stage=inference step=3/4 elapsed=232s gpu=896 MiB, 17 % log_bytes=6553
+2026-10-05T20:06:55.682405/character-animation/heartbeat progress={"completed": 11, "total": 12, "direction": "down_left", "frame": 26}
+
+2026-10-05 20:06:56,458/qwen-pose/heartbeat stage=inference step=3/4 elapsed=237s gpu=774 MiB, 21 % log_bytes=6668
+2026-10-05T20:07:00.688137/character-animation/heartbeat progress={"completed": 11, "total": 12, "direction": "down_left", "frame": 26}
+
+2026-10-05 20:07:01,482/qwen-pose/heartbeat stage=inference step=3/4 elapsed=242s gpu=896 MiB, 22 % log_bytes=6783
+2026-10-05T20:07:05.693384/character-animation/heartbeat progress={"completed": 11, "total": 12, "direction": "down_left", "frame": 26}
+
+2026-10-05 20:07:06,510/qwen-pose/heartbeat stage=inference step=3/4 elapsed=247s gpu=548 MiB, 12 % log_bytes=6898
+2026-10-05T20:07:10.698391/character-animation/heartbeat progress={"completed": 11, "total": 12, "direction": "down_left", "frame": 26}
+
+2026-10-05 20:07:11,535/qwen-pose/heartbeat stage=inference step=3/4 elapsed=252s gpu=556 MiB, 11 % log_bytes=7013
+2026-10-05T20:07:15.704839/character-animation/heartbeat progress={"completed": 11, "total": 12, "direction": "down_left", "frame": 26}
+
+2026-10-05 20:07:16,572/qwen-pose/heartbeat stage=inference step=3/4 elapsed=257s gpu=896 MiB, 20 % log_bytes=7128
+2026-10-05 20:07:19,799/qwen-pose/denoise step=4/4
+100%|██████████| 4/4 [03:30<00:00, 53.34s/it]100%|██████████| 4/4 [03:30<00:00, 52.60s/it]
+2026-10-05T20:07:20.710147/character-animation/heartbeat progress={"completed": 11, "total": 12, "direction": "down_left", "frame": 26}
+
+2026-10-05 20:07:21,603/qwen-pose/heartbeat stage=inference step=4/4 elapsed=262s gpu=496 MiB, 54 % log_bytes=7294
+2026-10-05 20:07:21,994/qwen-pose/complete output=/home/cbsim/ws/slime-workflow/.tmp/test/character-animation/2026-10-05_17-10-42/2026-10-05_17-10-42-b46bce6f/down_left/frame-0026/result.png
+2026-10-05T20:07:25.715253/character-animation/heartbeat progress={"completed": 11, "total": 12, "direction": "down_left", "frame": 26}
+
+2026-10-05T20:07:26.216345/character-animation/end {'status': 'completed', 'exit_code': 0}

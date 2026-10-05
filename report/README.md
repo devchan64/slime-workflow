@@ -29,3 +29,5 @@
 - [현재 ANNY 체형 기준 r3](anny-reference-baseline-20260923-r3/README.md): upperleg01 Z 회전벡터 L +8° / R −8°. 손0.5·발0.5·발목둘레−0.75 유지. 사용자 채택 모델·재현 코드·검수 사본.
 
 - [v6 AnyPose 4스텝 32프레임 실험](anypose-v6-32frames-20260923/README.md): 수평 45° 리그, 방향별 보조 프롬프트 적용, 32프레임 시트·GIF·입력·코드·로그 사본과 무결성 검증.
+
+- [여성 캐릭터 A 걷기 12프레임](character-animation-20261005-171042-b46bce6f/README.md): 2026-10-05_17-10-42-b46bce6f, down_left, 768px·4스텝, 입력·결과·재시도 로그와 해시 검증.

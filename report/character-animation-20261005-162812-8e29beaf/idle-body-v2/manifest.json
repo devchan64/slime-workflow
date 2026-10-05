@@ -1,0 +1,17 @@
+{
+  "character": "default",
+  "layer": "body",
+  "animation": "idle",
+  "frame_count": 8,
+  "frame_size": [
+    512,
+    512
+  ],
+  "fps": 4,
+  "generated_size": [
+    1774,
+    887
+  ],
+  "generator": "built-in image_gen",
+  "status": "awaiting_user_review"
+}

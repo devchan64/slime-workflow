@@ -1,0 +1,41 @@
+2026-10-05 17:45:18,461/qwen-pose/heartbeat stage=imports step=0/4 elapsed=5s gpu=110 MiB, 25 % log_bytes=0
+2026-10-05 17:45:23,519/qwen-pose/heartbeat stage=imports step=0/4 elapsed=10s gpu=113 MiB, 35 % log_bytes=108
+2026-10-05 17:45:23,738/qwen-pose/reference vae_size=512x512 output_size=768x768 condition_size=384x384
+2026-10-05 17:45:23,739/qwen-pose/reference order=['character', 'rig'] kind=rig
+2026-10-05 17:45:25,075/qwen-pose/load model_id=Qwen/Qwen-Image-Edit-2511 model_path=/home/cbsim/ws/slime-workflow/.model/qwen-image-edit-2511/6f3ccc0b56e431dc6a0c2b2039706d7d26f22cb9
+2026-10-05 17:45:27,097/qwen-pose/adapter name=anypose_base strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-base-000006250.safetensors
+2026-10-05 17:45:27,818/qwen-pose/adapter name=anypose_helper strength=0.7 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lilylilith--AnyPose/27c4b1f7688940d39767e652fe8d87faf44a0881/2511-AnyPose-helper-00006000.safetensors
+2026-10-05 17:45:28,544/qwen-pose/heartbeat stage=adapters step=0/4 elapsed=15s gpu=113 MiB, 8 % log_bytes=1048
+2026-10-05 17:45:28,749/qwen-pose/adapter name=lightning strength=1.0 path=/home/cbsim/ws/slime-workflow/.model/qwen-anypose/lightx2v--Qwen-Image-Edit-2511-Lightning/d74eba145674fd7e31b949324e148e21e7118abd/Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors
+2026-10-05 17:45:33,607/qwen-pose/heartbeat stage=adapters step=0/4 elapsed=20s gpu=113 MiB, 7 % log_bytes=1427
+2026-10-05 17:45:38,666/qwen-pose/heartbeat stage=adapters step=0/4 elapsed=25s gpu=113 MiB, 11 % log_bytes=1539
+2026-10-05 17:45:40,378/qwen-pose/inference size=768x768 steps=4 seed=10107 device=cuda dtype=bfloat16 offload=sequential
+2026-10-05 17:45:43,698/qwen-pose/heartbeat stage=inference step=0/4 elapsed=30s gpu=352 MiB, 15 % log_bytes=1774
+2026-10-05 17:45:48,724/qwen-pose/heartbeat stage=inference step=0/4 elapsed=35s gpu=538 MiB, 14 % log_bytes=1888
+2026-10-05 17:45:53,760/qwen-pose/heartbeat stage=inference step=0/4 elapsed=40s gpu=486 MiB, 20 % log_bytes=2002
+2026-10-05 17:45:58,787/qwen-pose/heartbeat stage=inference step=0/4 elapsed=45s gpu=1532 MiB, 16 % log_bytes=2116
+2026-10-05 17:46:03,819/qwen-pose/heartbeat stage=inference step=0/4 elapsed=50s gpu=894 MiB, 26 % log_bytes=2231
+2026-10-05 17:46:08,855/qwen-pose/heartbeat stage=inference step=0/4 elapsed=55s gpu=792 MiB, 17 % log_bytes=2345
+2026-10-05 17:46:13,891/qwen-pose/heartbeat stage=inference step=0/4 elapsed=60s gpu=894 MiB, 26 % log_bytes=2459
+2026-10-05 17:46:18,921/qwen-pose/heartbeat stage=inference step=0/4 elapsed=65s gpu=734 MiB, 17 % log_bytes=2573
+2026-10-05 17:46:23,956/qwen-pose/heartbeat stage=inference step=0/4 elapsed=71s gpu=822 MiB, 15 % log_bytes=2687
+2026-10-05 17:46:28,982/qwen-pose/heartbeat stage=inference step=0/4 elapsed=76s gpu=536 MiB, 6 % log_bytes=2801
+2026-10-05 17:46:34,013/qwen-pose/heartbeat stage=inference step=0/4 elapsed=81s gpu=458 MiB, 22 % log_bytes=2914
+2026-10-05 17:46:39,042/qwen-pose/heartbeat stage=inference step=0/4 elapsed=86s gpu=760 MiB, 11 % log_bytes=3028
+2026-10-05 17:46:44,087/qwen-pose/heartbeat stage=inference step=0/4 elapsed=91s gpu=566 MiB, 28 % log_bytes=3142
+2026-10-05 17:46:47,878/qwen-pose/denoise step=1/4
+2026-10-05 17:46:49,126/qwen-pose/heartbeat stage=inference step=1/4 elapsed=96s gpu=516 MiB, 35 % log_bytes=3307
+2026-10-05 17:46:54,162/qwen-pose/heartbeat stage=inference step=1/4 elapsed=101s gpu=792 MiB, 14 % log_bytes=3421
+2026-10-05 17:46:59,205/qwen-pose/heartbeat stage=inference step=1/4 elapsed=106s gpu=546 MiB, 14 % log_bytes=3536
+2026-10-05 17:47:04,229/qwen-pose/heartbeat stage=inference step=1/4 elapsed=111s gpu=736 MiB, 22 % log_bytes=3651
+2026-10-05 17:47:09,254/qwen-pose/heartbeat stage=inference step=1/4 elapsed=116s gpu=772 MiB, 12 % log_bytes=3766
+2026-10-05 17:47:14,280/qwen-pose/heartbeat stage=inference step=1/4 elapsed=121s gpu=792 MiB, 23 % log_bytes=3881
+2026-10-05 17:47:19,302/qwen-pose/heartbeat stage=inference step=1/4 elapsed=126s gpu=894 MiB, 27 % log_bytes=3996
+2026-10-05 17:47:24,337/qwen-pose/heartbeat stage=inference step=1/4 elapsed=131s gpu=546 MiB, 20 % log_bytes=4111
+2026-10-05 17:47:29,374/qwen-pose/heartbeat stage=inference step=1/4 elapsed=136s gpu=772 MiB, 37 % log_bytes=4226
+2026-10-05 17:47:30,303/qwen-pose/denoise step=2/4
+2026-10-05 17:47:34,414/qwen-pose/heartbeat stage=inference step=2/4 elapsed=141s gpu=792 MiB, 69 % log_bytes=4392
+2026-10-05 17:47:39,445/qwen-pose/heartbeat stage=inference step=2/4 elapsed=146s gpu=792 MiB, 65 % log_bytes=4507
+2026-10-05 17:47:43,784/qwen-pose/denoise step=3/4
+2026-10-05 17:47:44,484/qwen-pose/heartbeat stage=inference step=3/4 elapsed=151s gpu=768 MiB, 63 % log_bytes=4673
+2026-10-05 17:47:49,514/qwen-pose/heartbeat stage=inference step=3/4 elapsed=156s gpu=826 MiB, 79 % log_bytes=4788
