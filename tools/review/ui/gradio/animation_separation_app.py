@@ -49,16 +49,16 @@ def build_separation_preview(current_server_address, current_job_identifier):
 
 def build_source_preview(current_server_address, current_source_identifier, current_frame_number):
     if not current_source_identifier:
-        return '<p>원본을 선택하면 샘플 프레임을 표시합니다.</p>'
+        return '<p>원본을 선택하면 선택 프레임을 표시합니다.</p>'
     if isinstance(current_frame_number, bool) or not isinstance(current_frame_number, (int, float)) or int(current_frame_number) != current_frame_number or current_frame_number < 1:
         return '<p>1 이상의 정수 프레임을 입력하세요.</p>'
     current_preview_url = current_server_address + '/animation-separation/source-preview?' + urlencode({'source_id': current_source_identifier, 'frame': int(current_frame_number)})
-    return '<figure style="margin:0"><img src="' + html.escape(current_preview_url, quote=True) + '" alt="선택한 원본 샘플 프레임" style="display:block;width:100%;max-height:360px;object-fit:contain"><figcaption>샘플 프레임 ' + str(int(current_frame_number)) + ' · 생성 전 원본</figcaption></figure>'
+    return '<figure style="margin:0"><img src="' + html.escape(current_preview_url, quote=True) + '" alt="선택한 원본 선택 프레임" style="display:block;width:100%;max-height:360px;object-fit:contain"><figcaption>선택 프레임 ' + str(int(current_frame_number)) + ' · 생성 전 원본</figcaption></figure>'
 
 
 def build_separation_interface(current_server_address):
     with gr.Blocks(title='캐릭터 레퍼런스 복장 분리 생성') as interface_blocks_value:
-        gr.Markdown('## 캐릭터 레퍼런스 복장 분리 생성\n같은 원본에서 신체 베이스와 사람을 제거한 복장을 각각 생성합니다. 두 결과는 별도 파일로 저장합니다. 먼저 한 프레임을 확인한 후 범위 생성을 실행하세요.')
+        gr.Markdown('## 캐릭터 레퍼런스 복장 분리 생성\n같은 원본에서 신체 베이스와 사람을 제거한 복장을 각각 생성합니다. 두 결과는 별도 파일로 저장합니다. 원본에서 한 프레임을 선택해 미리 확인한 뒤 생성하세요.')
         with gr.Tabs():
             with gr.Tab("생성 설정"):
                 with gr.Row():
@@ -67,9 +67,7 @@ def build_separation_interface(current_server_address):
                         current_source_refresh = gr.Button('등록 원본 새로고침')
                         current_source_records = gr.State([])
                         current_source_summary = gr.Markdown('원본을 불러오는 중입니다.')
-                        with gr.Row():
-                            current_start_control = gr.Number(value=1, precision=0, minimum=1, label='시작 프레임 · 샘플 프레임')
-                            current_end_control = gr.Number(value=1, precision=0, minimum=1, label='끝 프레임')
+                        current_frame_control = gr.Dropdown([], label='분리할 프레임', interactive=True, info='원본을 선택한 뒤 한 장을 선택하세요.')
                     with gr.Column():
                         gr.Markdown('### 선택한 원본 미리보기')
                         current_source_preview = gr.HTML(build_source_preview(current_server_address, '', 1))
@@ -82,10 +80,8 @@ def build_separation_interface(current_server_address):
                 current_outfit_control = gr.Textbox(value=load_separation_defaults()['outfit_prompt'], lines=5, label='2. 사람 제거·복장 프롬프트')
                 current_outfit_summary = gr.Markdown(describe_separation_prompt(load_separation_defaults()['outfit_prompt']))
                 current_outfit_control.change(describe_separation_prompt, current_outfit_control, current_outfit_summary, queue=False)
-                current_sample_button = gr.Button('1프레임 샘플 생성', variant='primary')
-                current_sample_identifier = gr.Textbox(lines=1, max_lines=1, label='검수한 샘플 ID', info='완료된 1프레임 샘플을 확인한 뒤 ID를 입력하세요. 설정 변경 시 새 샘플이 필요합니다.')
-                current_batch_button = gr.Button('검수한 설정으로 범위 생성')
-                gr.Markdown('범위 생성 조건: 동일 원본·프롬프트·크기·시드의 완료 샘플. 최대 64프레임.')
+                current_sample_button = gr.Button('선택한 프레임 분리 생성', variant='primary')
+                gr.Markdown('선택한 원본 1장으로 신체 베이스·복장 각 1장을 생성합니다.')
             with gr.Tab("결과 검수"):
                 current_job_control = gr.Textbox(lines=1, max_lines=1, label='조회할 생성 ID')
                 current_status_output = gr.Markdown('예상 남은 시간·완료 시각: 추정 자료 수집 중입니다. 프레임별 진행은 상태에서 표시합니다.')
@@ -99,18 +95,18 @@ def build_separation_interface(current_server_address):
         def load_catalog_controls():
             current_catalog_record = execute_separation_gateway('catalog', {})
             current_sources_list = current_catalog_record['sources']
-            return gr.update(choices=[(current_source_record['label'], current_source_record['id']) for current_source_record in current_sources_list]), current_sources_list, f'등록 원본 {len(current_sources_list)}개 · 선택하면 프레임 범위를 표시합니다.'
-        def select_source_range(current_source_identifier, current_sources_list):
+            return gr.update(choices=[(current_source_record['label'], current_source_record['id']) for current_source_record in current_sources_list]), current_sources_list, f'등록 원본 {len(current_sources_list)}개 · 선택하면 분리할 프레임 목록을 표시합니다.'
+        def select_source_frame(current_source_identifier, current_sources_list):
             if not current_source_identifier:
-                return gr.skip(), gr.skip(), '원본 애니메이션을 선택하세요.'
+                return gr.update(choices=[], value=None), '원본을 선택하세요.'
             current_source_record = next(current_source_record for current_source_record in current_sources_list if current_source_record['id'] == current_source_identifier)
-            return 1, current_source_record['frames'], f"{current_source_record['frames']}프레임 · 원본 앵커는 기록으로 보존하며 AI 결과의 앵커 일치를 보장하지 않습니다."
+            return gr.update(choices=[(f'프레임 {current_frame_number}', current_frame_number) for current_frame_number in range(1, current_source_record['frames']+1)], value=1), f"{current_source_record['frames']}프레임 · 원본 앵커는 기록으로 보존하며 AI 결과의 앵커 일치를 보장하지 않습니다."
         current_source_refresh.click(load_catalog_controls, outputs=[current_source_control, current_source_records, current_source_summary], queue=False)
-        current_source_control.change(select_source_range, [current_source_control, current_source_records], [current_start_control, current_end_control, current_source_summary], queue=False)
+        current_source_control.change(select_source_frame, [current_source_control, current_source_records], [current_frame_control, current_source_summary], queue=False)
         def update_source_preview(current_source_identifier, current_frame_number):
             return build_source_preview(current_server_address, current_source_identifier, current_frame_number)
         current_source_control.change(lambda current_source_identifier: update_source_preview(current_source_identifier, 1), current_source_control, current_source_preview, queue=False)
-        current_start_control.change(update_source_preview, [current_source_control, current_start_control], current_source_preview, queue=False)
+        current_frame_control.change(update_source_preview, [current_source_control, current_frame_control], current_source_preview, queue=False)
         def start_separation_job(*current_argument_values):
             try:
                 current_request_record = build_separation_request(*current_argument_values)
@@ -120,8 +116,7 @@ def build_separation_interface(current_server_address):
             return current_job_record['id'], '공용 GPU 대기열에 등록했습니다. 결과 검수 탭에서 상태·결과 조회로 확인하세요.'
         def start_sample_job(current_source_identifier, current_start_frame, current_output_size, current_seed_value, current_prompt_text, current_outfit_prompt):
             return start_separation_job(current_source_identifier, current_start_frame, current_start_frame, current_output_size, current_seed_value, current_prompt_text, current_outfit_prompt, '')
-        bind_gpu_generation_confirmation(current_sample_button, start_sample_job, [current_source_control, current_start_control, current_size_control, current_seed_control, current_prompt_control, current_outfit_control], [current_job_control, current_status_output])
-        bind_gpu_generation_confirmation(current_batch_button, start_separation_job, [current_source_control, current_start_control, current_end_control, current_size_control, current_seed_control, current_prompt_control, current_outfit_control, current_sample_identifier], [current_job_control, current_status_output])
+        bind_gpu_generation_confirmation(current_sample_button, start_sample_job, [current_source_control, current_frame_control, current_size_control, current_seed_control, current_prompt_control, current_outfit_control], [current_job_control, current_status_output])
         def read_current_result(current_job_identifier, current_refresh_logs):
             if not current_job_identifier:
                 raise gr.Error('생성 ID를 입력하세요.')
