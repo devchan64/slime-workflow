@@ -35,7 +35,7 @@ class AnimationSeparationTest(unittest.TestCase):
 
     def test_workflow_reference_integrity(self):
         current_source_records = separation_service_module.load_workflow_reference_sources()
-        self.assertEqual({current_source_record['id'] for current_source_record in current_source_records}, {'workflow:character-default', 'workflow:character-female-a'})
+        self.assertEqual({current_source_record['id'] for current_source_record in current_source_records}, {'workflow:character-default', 'workflow:character-female-a', 'workflow:character-default-clothed', 'workflow:character-female-a-clothed'})
         for current_source_record in current_source_records:
             self.assertEqual([current_frame_record['direction'] for current_frame_record in current_source_record['frames']], ['down_left', 'down_right', 'up_left', 'up_right'])
         with patch('tools.review.domains.character_animation.character_animation_assets.hash_asset_file', return_value='invalid'), self.assertRaisesRegex(ValueError, '무결성'):

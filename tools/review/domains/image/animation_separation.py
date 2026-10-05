@@ -24,7 +24,13 @@ SEPARATION_JOB_PATTERN = r'[0-9]{4}-[0-9-]{5}_[0-9-]{8}-[a-f0-9]{8}'
 def load_workflow_reference_sources():
     from ..character_animation.character_animation_assets import load_animation_configuration, resolve_asset_path, read_asset_mapping, hash_asset_file, SUPPORTED_DIRECTION_NAMES
     source_catalog_records = []
-    for current_character_identifier, current_character_record in load_animation_configuration()['characters'].items():
+    current_character_records = dict(load_animation_configuration()['characters'])
+    # 복장 분리는 신체 베이스로 교체되기 전의 착의 원본도 선택할 수 있어야 한다.
+    for current_character_identifier, current_character_record in list(current_character_records.items()):
+        current_character_records[current_character_identifier + '-clothed'] = {
+            **current_character_record, 'manifest': 'manifest.yaml',
+            'label': current_character_identifier + ' · 복장 착용 원본'}
+    for current_character_identifier, current_character_record in current_character_records.items():
         current_manifest_path = resolve_asset_path(current_character_record['root'] + '/' + current_character_record['manifest'])
         current_manifest_record = read_asset_mapping(current_manifest_path)
         current_baseline_record = current_manifest_record['baseline_crops']
