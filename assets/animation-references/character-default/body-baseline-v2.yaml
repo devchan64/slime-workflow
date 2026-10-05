@@ -4,7 +4,7 @@ version: 2
 character_id: default
 status: adopted
 baseline_crops:
-  root: body-baseline-v2
+  root: separated-baseline-v2/body-base
   cell_size:
   - 768
   - 768
@@ -23,11 +23,11 @@ provenance:
     seed: 10107
     steps: 40
   unchanged_directions:
-    manifest: body-baseline-v1.yaml
     directions:
     - down_right
     - up_left
     - up_right
+    source_version: character-default-separated-baseline v1 (Git 이력)
 alpha_processing:
   method: qwen-native-rgba-v1
   postprocessing: none

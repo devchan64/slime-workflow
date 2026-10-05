@@ -1,6 +1,6 @@
 schema_version: 1
 asset_id: character-default-separated-baseline
-version: 1
+version: 2
 character_id: default
 status: adopted
 role: body_base_and_outfit_reference
@@ -28,7 +28,15 @@ directions:
       signature: 8e389d0d5906e2c5a44f6e8f24dfe9e3f5c3bd4a0fa440632241cecb6d01a2d9
     body-base:
       path: body-base/down_left.png
-      sha256: 50acc07dbc4469f47cbdead0090735df11efbac9a58003b2cc4eb55356b75fdf
+      sha256: f51fe444ad52d9ae4d4c5a57944cc40eeaf19e29af6423ee5fb92e37b6f77909
+      generation:
+        generation_id: 2026-10-05_15-51-51-a32c9638
+        source_reference: baseline-v2/down_left.png
+        prompt_sha256: f0111d8e6182b9b281038c2c1eef7cdeec24433619dccd127f0fb17b33b83f16
+        model_id: Qwen/Qwen-Image-2.1
+        model_revision: d26bb61231c349cf6b7896fa83353113880e1ba3
+        seed: 10107
+        steps: 40
     outfit:
       path: outfit/down_left.png
       sha256: b9899b714ad89efc2c47469326ba5c61fbd6d37bfbeb3bd0b952b0670c874df7
@@ -95,3 +103,5 @@ directions:
     outfit:
       path: outfit/up_right.png
       sha256: b79ed8a8764d863960dabaf506821c2443d92169c747068ef0e65f18c6b8c6c4
+provenance_note: 방향별 공통 출처는 최초 분리 기록이다. 신체 베이스별 generation이 있으면 해당 레이어의 교체 출처를 우선한다.
+  복장과 나머지 방향은 최초 결과를 유지한다. 이전 버전은 Git 이력에서 확인한다.
