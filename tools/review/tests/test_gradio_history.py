@@ -79,3 +79,30 @@ class GradioHistoryTest(unittest.TestCase):
         rendered_result_html=render_generation_images({'image':'/jobs/sample/result.png'},'http://127.0.0.1:8770')
         self.assertEqual(rendered_result_html.count('<img '),1)
         self.assertNotIn('보더 크롭 결과',rendered_result_html)
+
+    def test_refresh_accepts_stale_radio_value_and_clears_removed_selection(self):
+        import asyncio
+        current_history_records = [{'id': 'current-job', 'status': 'completed'}]
+        with gr.Blocks() as current_history_blocks:
+            read_history_callback, history_output_components = build_generation_history_view(
+                lambda command_name, request_payload: {'records': current_history_records},
+                'http://localhost', '테스트 기록')
+        history_refresh_function = next(
+            current_block_function for current_block_function in current_history_blocks.fns.values()
+            if current_block_function.fn is read_history_callback
+            and not current_block_function.preprocess)
+        # 서버 Radio의 choices가 비어 있어도 오래된 브라우저 ID로 목록 복구가 가능해야 한다.
+        current_refresh_result = asyncio.run(current_history_blocks.process_api(
+            history_refresh_function, [1, 'removed-job']))
+        self.assertIsNone(current_refresh_result['data'][0]['value'])
+        self.assertEqual(current_refresh_result['data'][0]['choices'][0][1], 'current-job')
+        self.assertFalse(current_refresh_result['data'][7]['visible'])
+
+    def test_refresh_explicitly_preserves_existing_selection(self):
+        with gr.Blocks():
+            read_history_callback, history_output_components = build_generation_history_view(
+                lambda command_name, request_payload: {'records': [{'id': 'current-job', 'status': 'completed'}]},
+                'http://localhost', '테스트 기록')
+        current_refresh_values = read_history_callback(1, 'current-job')
+        self.assertEqual(current_refresh_values[0]['value'], 'current-job')
+        self.assertTrue(current_refresh_values[7]['visible'])
