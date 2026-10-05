@@ -68,7 +68,10 @@ def execute_qwen_reference_generation(current_job_root, current_request_record, 
                 patched_block_count = install_toroidal_attention(current_pipeline_model, current_request_record)
                 if current_request_record['circular_vae'] in (*CIRCULAR_SELECTABLE_CONFIGURATIONS, CIRCULAR_VAE_CONFIGURATION, CIRCULAR_CORNER_CONFIGURATION, CIRCULAR_DOUBLE_STRIP_CONFIGURATION, CIRCULAR_SINGLE_STRIP_CONFIGURATION, CIRCULAR_VERTICAL_CONFIGURATION, CIRCULAR_COMPARISON_CONFIGURATION):
                     from generators.image.qwen_21_circular import install_circular_comparison
-                    install_circular_comparison(current_pipeline_model, current_job_root)
+                    if current_request_record['circular_vae']['baseline_decode']:
+                        install_circular_comparison(current_pipeline_model, current_job_root)
+                    else:
+                        apply_circular_decoder(current_pipeline_model.vae)
                 else:
                     current_pipeline_model.vae.enable_tiling()
                 print(f'{datetime.now().isoformat()}/qwen21/toroidal 생성 토큰 경계 K/V · {patched_block_count}개 블록 · VAE 설정 {current_request_record["circular_vae"]["vae"]}', flush=True)

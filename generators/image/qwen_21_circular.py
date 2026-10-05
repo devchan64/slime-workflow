@@ -19,14 +19,16 @@ CIRCULAR_VAE_CONFIGURATION = {**CIRCULAR_SINGLE_STRIP_CONFIGURATION, 'schema_ver
 CIRCULAR_RADIUS_CHOICES = (8, 12, 16)
 
 
-def build_circular_configuration(selected_radius_value=12):
+def build_circular_configuration(selected_radius_value=12, baseline_decode_enabled=True):
     if type(selected_radius_value) is not int or selected_radius_value not in CIRCULAR_RADIUS_CHOICES:
         raise ValueError('순환 참조 반경은 8·12·16토큰 중 선택하세요.')
-    return {**CIRCULAR_VAE_CONFIGURATION, 'boundary_radius': selected_radius_value,
+    if type(baseline_decode_enabled) is not bool:
+        raise ValueError('일반 VAE 비교 옵션은 ON/OFF 값이어야 합니다.')
+    return {**CIRCULAR_VAE_CONFIGURATION, 'baseline_decode': baseline_decode_enabled, 'boundary_radius': selected_radius_value,
             'vertical_boundary_radius': selected_radius_value}
 
 
-CIRCULAR_SELECTABLE_CONFIGURATIONS = tuple(build_circular_configuration(current_radius_value) for current_radius_value in CIRCULAR_RADIUS_CHOICES)
+CIRCULAR_SELECTABLE_CONFIGURATIONS = tuple(build_circular_configuration(current_radius_value, baseline_decode_enabled) for current_radius_value in CIRCULAR_RADIUS_CHOICES for baseline_decode_enabled in (False, True))
 
 
 def forward_circular_convolution(current_conv_module, current_input_tensor, cache_x=None):

@@ -10,7 +10,7 @@ class CircularGenerationTests(unittest.TestCase):
         current_input_record = {'action':'generate','prompt':CIRCULAR_DEFAULT_PROMPT,'images':[], 'tag':'', 'width':768,'height':768,'steps':40,'seed':10107}
         current_service_manager = QwenCircularGenerationManager()
         current_output_record = current_service_manager.validate_generation_request(current_input_record)
-        self.assertEqual(current_output_record['circular_vae'], CIRCULAR_VAE_CONFIGURATION)
+        self.assertEqual(current_output_record['circular_vae'], {**CIRCULAR_VAE_CONFIGURATION, 'baseline_decode': False})
         self.assertEqual(current_output_record['prompt'], CIRCULAR_DEFAULT_PROMPT + ' Top view. Repeat pattern. Close-up')
         self.assertNotIn('circular_vae', validate_qwen_plain_request(current_input_record))
         self.assertEqual(current_service_manager.route_prefix_value, MANAGEMENT_SERVICE_ROUTES['qwen-21-circular'])
@@ -95,3 +95,12 @@ class CircularGenerationTests(unittest.TestCase):
             self.assertEqual(current_output_values['prompt'],expected_prompt_text)
             self.assertEqual(current_output_values['pattern_view'],pattern_view_enabled)
             self.assertEqual(current_output_values['qwen21']['prompt_word_count'],len(expected_prompt_text.split()))
+
+    def test_optional_baseline_decode(self):
+        current_service_manager=QwenCircularGenerationManager()
+        current_request_values=dict(action='generate',prompt='Grass.',images=[],tag='',width=512,height=512,steps=40,seed=10107)
+        for baseline_decode_enabled in (False, True):
+            current_output_values=current_service_manager.validate_generation_request({**current_request_values,'baseline_decode':baseline_decode_enabled})
+            self.assertEqual(current_output_values['circular_vae']['baseline_decode'],baseline_decode_enabled)
+        with self.assertRaises(ValueError):
+            current_service_manager.validate_generation_request({**current_request_values,'baseline_decode':'false'})

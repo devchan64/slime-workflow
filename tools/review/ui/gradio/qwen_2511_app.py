@@ -115,12 +115,12 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
             restored_input_values.extend([False, current_history_record['request']['prompt']])
         if circular_mode_enabled:
             restored_input_values[0] = current_history_record['request'].get('user_prompt', restored_input_values[0])
-            restored_input_values.extend([current_history_record['request'].get('circular_vae', {}).get('boundary_radius', 12), current_history_record['request'].get('soft_shading', False), current_history_record['request'].get('pattern_view', False)])
+            restored_input_values.extend([current_history_record['request'].get('circular_vae', {}).get('boundary_radius', 12), current_history_record['request'].get('soft_shading', False), current_history_record['request'].get('pattern_view', False), current_history_record['request'].get('circular_vae', {}).get('baseline_decode', False)])
         return tuple(restored_input_values)
     with gr.Blocks(title=current_page_title,js=HISTORY_CARD_SELECTION_SCRIPT) as interface_blocks_value:
         gr.Markdown('## '+current_page_title+'\n참조 이미지는 업로드한 순서대로 모델에 전달됩니다.')
         if circular_mode_enabled:
-            gr.Markdown('생성 토큰 순환 Attention · 일반/순환 VAE 동일 잠재값 비교 · 참조 없는 텍스트 생성 실험 · 출력 전체가 타일입니다. 반복 경계의 형태 연결은 결과에서 검수하세요.')
+            gr.Markdown('생성 토큰 순환 Attention · 일반 VAE 비교 선택 · 참조 없는 텍스트 생성 실험 · 출력 전체가 타일입니다. 반복 경계의 형태 연결은 결과에서 검수하세요.')
         if expression_mode_enabled:
             gr.Markdown('Qwen-Image-Edit-2511 고정 · 참조 1~3장. 첫 이미지를 편집하고 추가 이미지는 동일 캐릭터의 외형 참고로 사용합니다. AU는 움직임 설계 참고이며 검출값·감정 판정·강도 측정이 아닙니다.')
         if pose_transfer_enabled:
@@ -183,6 +183,7 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
             step_value=gr.Dropdown([20,30,40,50],value=40,label='생성 스텝',scale=1,min_width=120) if qwen21_mode_enabled else gr.Radio([4,30],value=4,label='생성 스텝',scale=1,min_width=120)
             seed_value=build_generation_seed(10107)
             if circular_mode_enabled:
+                baseline_decode_control=gr.Checkbox(value=False,label='일반 VAE 비교 생성',info='ON이면 동일 잠재값의 일반 VAE 결과와 반복 비교 이미지를 추가로 생성합니다.')
                 circular_radius_control=gr.Dropdown([8,12,16],value=12,label='순환 참조 반경 · 토큰',info='좌우·상하 동일 적용 · 경계 1줄 참조 · 모서리 참조 없음')
         if pose_transfer_enabled:
             width_value.change(lambda selected_resolution_value: selected_resolution_value,width_value,height_value,queue=False)
@@ -199,7 +200,7 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
             '이력과 해당 생성기의 임시 작업 폴더(결과·참조 입력 사본·로그)를 함께 삭제합니다. 이전에 목록에서 제거한 작업도 포함합니다. 정식 에셋과 모델 캐시는 유지합니다. 대기·실행 중에는 초기화할 수 없습니다.',
             result_renderer_callback=render_circular_comparison if circular_mode_enabled else None,
             restore_input_callback=restore_selected_inputs,
-            restore_output_components=[prompt_text_value,generation_tag_value,width_value,height_value,step_value,seed_value,*reference_image_controls,status_value]+(reference_upload_group.reference_slot_outputs if qwen21_mode_enabled and not pose_transfer_enabled else [])+([fixed_prompt_enabled, custom_prompt_memory] if pose_transfer_enabled else [])+([circular_radius_control,soft_shading_control,pattern_view_control] if circular_mode_enabled else []),
+            restore_output_components=[prompt_text_value,generation_tag_value,width_value,height_value,step_value,seed_value,*reference_image_controls,status_value]+(reference_upload_group.reference_slot_outputs if qwen21_mode_enabled and not pose_transfer_enabled else [])+([fixed_prompt_enabled, custom_prompt_memory] if pose_transfer_enabled else [])+([circular_radius_control,soft_shading_control,pattern_view_control,baseline_decode_control] if circular_mode_enabled else []),
             record_folder_route='/pose-transfer' if pose_transfer_enabled else '/image-generation-21-circular' if circular_mode_enabled else '/image-generation-21' if qwen21_mode_enabled else '/expression-generator' if expression_mode_enabled else '/image-generation-2511',allow_individual_delete=True)
         def start_reference_generation(prompt_text_value,generation_tag_value,*generation_input_values):
             if pose_transfer_enabled and any(current_reference_image is None for current_reference_image in generation_input_values[:2]):
@@ -220,14 +221,15 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
                 else:
                     validate_three_reference_request(generation_request_value)
                 if circular_mode_enabled:
-                    generation_request_value['circular_radius']=generation_input_values[-3]
-                    generation_request_value['soft_shading']=generation_input_values[-2]
-                    generation_request_value['pattern_view']=generation_input_values[-1]
+                    generation_request_value['circular_radius']=generation_input_values[-4]
+                    generation_request_value['soft_shading']=generation_input_values[-3]
+                    generation_request_value['pattern_view']=generation_input_values[-2]
+                    generation_request_value['baseline_decode']=generation_input_values[-1]
                 generation_record_value=execute_reference_gateway('generate',generation_request_value)
             except (ValueError,OSError) as generation_request_error:
                 raise gr.Error(str(generation_request_error)) from generation_request_error
             return generation_record_value['id'],'상태: running'
-        bind_gpu_generation_confirmation(generation_button_value,start_reference_generation,[prompt_text_value,generation_tag_value,*reference_image_controls,width_value,height_value,step_value,seed_value]+([circular_radius_control,soft_shading_control,pattern_view_control] if circular_mode_enabled else []),[identifier_value,status_value])
+        bind_gpu_generation_confirmation(generation_button_value,start_reference_generation,[prompt_text_value,generation_tag_value,*reference_image_controls,width_value,height_value,step_value,seed_value]+([circular_radius_control,soft_shading_control,pattern_view_control,baseline_decode_control] if circular_mode_enabled else []),[identifier_value,status_value])
         def refresh_status(identifier_text_value,refresh_log_enabled):
             if not identifier_text_value:return gr.skip(),gr.skip(),gr.skip()
             status_record_value=execute_reference_gateway('status',{'id':identifier_text_value});return '상태: '+format_generation_status(status_record_value),gr.update(value=status_record_value.get('log','')) if refresh_log_enabled else gr.skip(),render_generation_preview(status_record_value.get('image')) if status_record_value.get('image') else gr.skip()

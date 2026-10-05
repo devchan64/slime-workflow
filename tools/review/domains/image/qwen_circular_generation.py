@@ -18,7 +18,7 @@ class QwenCircularGenerationManager(QwenPlainGenerationManager):
         if type(pattern_view_enabled) is not bool:
             raise ValueError('패턴 시점 옵션은 ON/OFF 값이어야 합니다.')
         user_prompt_text = request_record_value.get('prompt', '')
-        prepared_request_record = {current_field_name: current_field_value for current_field_name, current_field_value in request_record_value.items() if current_field_name not in ('circular_radius', 'soft_shading', 'pattern_view')}
+        prepared_request_record = {current_field_name: current_field_value for current_field_name, current_field_value in request_record_value.items() if current_field_name not in ('circular_radius', 'soft_shading', 'pattern_view', 'baseline_decode')}
         prepared_request_record['prompt'] = ' '.join(current_prompt_part for current_prompt_part in (user_prompt_text.strip(), CIRCULAR_PATTERN_VIEW_PROMPT if pattern_view_enabled else '', CIRCULAR_SOFT_SHADING_PROMPT if soft_shading_enabled else '') if current_prompt_part)
         validated_request_record = super().validate_generation_request(prepared_request_record)
         validated_request_record['pattern_view'] = pattern_view_enabled
@@ -26,7 +26,7 @@ class QwenCircularGenerationManager(QwenPlainGenerationManager):
         validated_request_record['user_prompt'] = user_prompt_text
         if validated_request_record.get('images') or validated_request_record.get('references'):
             raise ValueError('순환 Attention 실험은 참조 없이 프롬프트만 입력하세요.')
-        validated_request_record['circular_vae'] = build_circular_configuration(request_record_value.get('circular_radius', 12))
+        validated_request_record['circular_vae'] = build_circular_configuration(request_record_value.get('circular_radius', 12), request_record_value.get('baseline_decode', False))
         return validated_request_record
 
     def enrich_generation_status(self, current_job_root, current_status_record):

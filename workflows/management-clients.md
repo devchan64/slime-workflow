@@ -481,3 +481,5 @@ v10은 기준 v7의 1줄 참조로 돌아가 대각선 참조를 끄고 좌우·
 순환 생성기의 부드러운 음영 옵션은 기본 OFF입니다. ON이면 사용자 입력 뒤에 추적된 기본 문구 Illustration with soft shading.을 추가합니다. CLI는 --soft-shading/--no-soft-shading, 게이트웨이는 soft_shading 불리언을 사용합니다. 원문·선택값·최종 프롬프트 및 최종 단어 수·해시를 기록하고 이력 불러오기에서 원문과 선택값을 복원합니다.
 
 탑뷰·반복 패턴·클로즈업 옵션은 기본 ON이며 Top view. Repeat pattern. Close-up을 사용자 입력 다음에 추가합니다. 기본 입력은 잔디와 꽃을 그린다.로 분리합니다. CLI는 --pattern-view/--no-pattern-view, 게이트웨이는 pattern_view 불리언을 사용합니다. 음영 옵션과 독립적이며 순서는 사용자 입력 → 시점 문구 → 음영 문구입니다. 옵션 도입 전 이력은 프롬프트 원문을 유지하고 옵션 OFF로 불러와 중복 추가를 방지합니다.
+
+일반 VAE 비교 생성은 기본 OFF입니다. GUI 체크박스·CLI --baseline-decode/--no-baseline-decode·게이트웨이 baseline_decode 불리언으로 선택합니다. OFF는 일반 VAE 디코딩·비교 이미지·잠재값 비교용 저장을 생략하고 순환 결과와 3×3 반복만 생성합니다. 기존 이력과 저장된 비교 ON 설정은 유지합니다.
