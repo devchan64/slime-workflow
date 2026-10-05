@@ -17,7 +17,7 @@ def build_pattern_request(user_prompt_text):
     expected_config_fields = {'schema_version','grid_size','tile_size','repair_size','grid_prompt','horizontal_prompt','vertical_prompt'}
     if set(pattern_config_record) != expected_config_fields:
         raise ValueError('패턴 생성 설정 필드 오류')
-    for config_field_name, expected_field_value in {'schema_version':6,'grid_size':1024,'tile_size':256,'repair_size':768}.items():
+    for config_field_name, expected_field_value in {'schema_version':7,'grid_size':768,'tile_size':256,'repair_size':768}.items():
         if type(pattern_config_record[config_field_name]) is not int or pattern_config_record[config_field_name] != expected_field_value:
             raise ValueError('패턴 생성 고정 설정 오류: '+config_field_name)
     if any(not isinstance(pattern_config_record[current_field_name],str) or not pattern_config_record[current_field_name].strip() for current_field_name in ('horizontal_prompt','vertical_prompt')):
@@ -40,7 +40,7 @@ def build_pattern_request(user_prompt_text):
 
 
 def execute_pattern_pipeline(current_job_root, current_request_record, generation_callback_value):
-    if current_request_record['seamless_tile']['schema_version'] == 6:
+    if current_request_record['seamless_tile']['schema_version'] in (6,7):
         from tools.review.domains.image.seamless_directional import execute_directional_next_stage
         return execute_directional_next_stage(current_job_root, current_request_record, generation_callback_value)
     if current_request_record['seamless_tile']['schema_version'] not in (3,4):

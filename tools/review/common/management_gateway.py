@@ -218,8 +218,8 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
                 else:
                     prompt_argument_group.add_argument('--prompt')
                 prompt_argument_group.add_argument('--prompt-file',type=Path,help='UTF-8 프롬프트 파일')
-                operation_argument_parser.add_argument('--width',type=int,default=None if service_command_name=='seamless-tile' else 512 if service_command_name in ('qwen-2511','expression','floor-tile') else 1024)
-                operation_argument_parser.add_argument('--height',type=int,default=None if service_command_name=='seamless-tile' else 512 if service_command_name in ('qwen-2511','expression','floor-tile') else 1024)
+                operation_argument_parser.add_argument('--width',type=int,default=None if service_command_name=='seamless-tile' else 768 if service_command_name=='qwen-21' else 512 if service_command_name in ('qwen-2511','expression','floor-tile') else 1024)
+                operation_argument_parser.add_argument('--height',type=int,default=None if service_command_name=='seamless-tile' else 768 if service_command_name=='qwen-21' else 512 if service_command_name in ('qwen-2511','expression','floor-tile') else 1024)
                 operation_argument_parser.add_argument('--steps',type=int,choices=(20,30,40,50) if service_command_name=='qwen-21' else (40,) if service_command_name=='seamless-tile' else (4,) if service_command_name=='floor-tile' else (4,30),default=40 if service_command_name in ('seamless-tile','qwen-21') else 4)
                 operation_argument_parser.add_argument('--seed',type=int,default=10107 if service_command_name in ('qwen-2511','expression','seamless-tile','qwen-21') else 251204)
                 if service_command_name=='floor-tile':
@@ -267,7 +267,7 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
             if service_command_name=='seamless-tile':
                 for current_size_key in ('width','height'):
                     if command_payload_value[current_size_key] is None:
-                        command_payload_value[current_size_key]=768 if command_argument_values.reference else 1024
+                        command_payload_value[current_size_key]=768
             if command_argument_values.tag:command_payload_value['tag']=command_argument_values.tag
             if service_command_name=='floor-tile':
                 command_payload_value['user_prompt']=command_payload_value.pop('prompt')

@@ -9,7 +9,7 @@ from tools.review.domains.image.seamless_pattern import execute_pattern_pipeline
 
 class SeamlessPatternTests(unittest.TestCase):
     def create_pattern_request(self):
-        return validate_seamless_request({'action':'generate','prompt':'낙엽','images':[],'steps':40,'seed':1,'width':1024,'height':1024})
+        return validate_seamless_request({'action':'generate','prompt':'낙엽','images':[],'steps':40,'seed':1,'width':768,'height':768})
 
     def create_legacy_pattern_request(self):
         current_request_record=self.create_pattern_request()
@@ -44,10 +44,10 @@ class SeamlessPatternTests(unittest.TestCase):
 
     def test_text_prompt_contract(self):
         current_request_record=self.create_pattern_request()
-        self.assertEqual(current_request_record['seamless_tile']['schema_version'],6)
+        self.assertEqual(current_request_record['seamless_tile']['schema_version'],7)
         self.assertEqual(current_request_record['seamless_tile']['stage_prompts'][0], '낙엽\nOverhead view, camera pointing straight down at the surface. Softly shaded illustration.')
         self.assertEqual(current_request_record['seamless_tile']['grid_prompt'], 'Overhead view, camera pointing straight down at the surface. Softly shaded illustration.')
-        self.assertTrue(current_request_record['seamless_tile']['stage_prompts'][1].startswith('중앙의 흰 세로 띠'))
+        self.assertEqual(current_request_record['seamless_tile']['stage_prompts'][1], 'Connect the boundaries naturally.')
         self.assertTrue(all(current_word_count<100 for current_word_count in current_request_record['seamless_tile']['stage_prompt_words']))
 
     def test_cli_text_request_and_partial_preview(self):
@@ -58,7 +58,7 @@ class SeamlessPatternTests(unittest.TestCase):
         from tools.review.domains.image.seamless_generation import SeamlessGenerationManager
         with patch('tools.review.common.management_gateway.call_management_api',return_value={'id':'test'}) as gateway_call_mock, contextlib.redirect_stdout(io.StringIO()):
             execute_gateway_arguments('seamless-tile',['generate','--prompt','낙엽','--detach'])
-        self.assertEqual(validate_seamless_request(gateway_call_mock.call_args.args[2])['seamless_tile']['schema_version'],6)
+        self.assertEqual(validate_seamless_request(gateway_call_mock.call_args.args[2])['seamless_tile']['schema_version'],7)
         with tempfile.TemporaryDirectory() as temporary_directory_name:
             current_job_root=Path(temporary_directory_name)
             (current_job_root/'grid-input.png').touch()
@@ -98,26 +98,22 @@ class SeamlessPatternTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,'폐기'):
                 execute_pattern_pipeline(Path(temporary_directory_name),current_request_record,lambda *unused_callback_arguments:self.fail('폐기된 작업 실행'))
 
-    def test_directional_pipeline_geometry_and_resume(self):
+    def test_directional_pipeline_geometry_and_resume(self, schema_version_number=7):
         from tools.review.domains.image.seamless_directional import DIRECTIONAL_STAGE_OUTPUTS
         from tools.review.domains.image.seamless_steps import read_seamless_stage_checkpoints
         current_request_record = self.create_pattern_request()
+        current_request_record['seamless_tile']['schema_version'] = schema_version_number
         generated_stage_names = []
         def generate_test_stage(current_stage_root, current_stage_request, current_reference_paths):
             generated_stage_names.append(current_stage_root.name)
             if current_reference_paths:
                 self.assertEqual(len(current_reference_paths),1)
-                with Image.open(current_reference_paths[0]) as erased_input_image:
-                    self.assertEqual(erased_input_image.getpixel((erased_input_image.width//2,erased_input_image.height//2)),(255,255,255))
-                    self.assertEqual(erased_input_image.getpixel((0,0)),(0,128,0))
-                    if current_stage_root.name == 'stage-3-horizontal':
-                        self.assertEqual(erased_input_image.size,(1023,1024))
-                        self.assertEqual(erased_input_image.getpixel((511,0)),(255,255,255))
-                        self.assertEqual(erased_input_image.getpixel((0,512)),(0,128,0))
-                    else:
-                        self.assertEqual(erased_input_image.size,(768,768))
-                        self.assertEqual(erased_input_image.getpixel((0,384)),(255,255,255))
-                        self.assertEqual(erased_input_image.getpixel((384,0)),(0,128,0))
+                source_array_name = 'sample-grid.png' if current_stage_root.name == 'stage-3-horizontal' else 'repair-composite.png'
+                with Image.open(current_reference_paths[0]) as repair_reference_image:
+                    self.assertEqual(repair_reference_image.size,(768,768))
+                    with Image.open(current_stage_root.parent/source_array_name) as original_array_image:
+                        self.assertEqual(repair_reference_image.tobytes(),original_array_image.convert('RGB').tobytes())
+                    self.assertEqual(current_stage_request['prompt'],'Connect the boundaries naturally.')
             Image.new('RGB',(current_stage_request['width'],current_stage_request['height']),'green').save(current_stage_root/'result.png')
             (current_stage_root/'result.json').write_text('{}')
         with tempfile.TemporaryDirectory() as temporary_directory_name:
@@ -128,10 +124,13 @@ class SeamlessPatternTests(unittest.TestCase):
                 self.assertEqual(read_seamless_stage_checkpoints(current_job_root,current_request_record,DIRECTIONAL_STAGE_OUTPUTS)[0],stage_index_value)
                 self.assertEqual((current_job_root/'stage-pause.json').exists(),stage_index_value<5)
             self.assertEqual(generated_stage_names,['stage-1-pattern','stage-3-horizontal','stage-5-vertical'])
-            self.assertEqual(Image.open(current_job_root/'center-tile.png').size,(341,1024))
+            self.assertEqual(Image.open(current_job_root/'center-tile.png').size,(256,768))
             self.assertEqual(Image.open(current_job_root/'split-preview.png').size,(768,256))
             self.assertEqual(Image.open(current_job_root/'result.png').size,(768,768))
             execute_pattern_pipeline(current_job_root,current_request_record,lambda *unused_callback_arguments:self.fail('완료 단계 재실행'))
             (current_job_root/'sample-grid.png').write_bytes(b'corrupt')
             with self.assertRaisesRegex(ValueError,'무결성'):
                 execute_pattern_pipeline(current_job_root,current_request_record,generate_test_stage)
+
+    def test_legacy_directional_uses_unmodified_reference(self):
+        self.test_directional_pipeline_geometry_and_resume(schema_version_number=6)

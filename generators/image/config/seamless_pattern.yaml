@@ -1,24 +1,11 @@
-schema_version: 6
-grid_size: 1024
+schema_version: 7
+grid_size: 768
 tile_size: 256
 repair_size: 768
 grid_prompt: >-
   Overhead view, camera pointing straight down at the surface. Softly shaded illustration.
-# 마스크 편집 프롬프트 작성 근거 (Qwen 2.1 공식 예제 비교 실험):
-# 2026-10-03_23-10-26-0d0dbb89 → 2026-10-03_23-15-55-c317d267에서
-# 입력·시드·해상도·스텝·실행 코드를 유지하고 프롬프트만 바꾸자 배경 소실이 해소됐다.
-# 효과를 확인한 지시 구조:
-# 1. <image1>을 편집할 원본, <image2>의 흰 영역을 편집 범위로 명시한다.
-# 2. 보존할 원본 내용을 구체적으로 지정한다. 심리스에서는 주변 무늬·크기·색상·화풍이다.
-# 3. "Return the complete opaque photograph with the cowboy integrated into the original scene."
-#    처럼 편집을 원본에 통합한 완성된 불투명 출력임을 명시한다.
-#    심리스 적용 후보: "Return the complete opaque pattern image with the repaired seams
-#    integrated into the original pattern." 사진이라는 표현은 패턴 편집에 그대로 쓰지 않는다.
-# "Return the edited <image1>."만 사용한 비교군은 투명 레이어처럼 출력됐다.
-# 여러 문구를 함께 변경했으므로 opaque 한 단어만의 효과로 단정하지 않는다.
-# 개선 결과에도 알파 218~255가 남았다. 완전 불투명·마스크 밖 픽셀 보존·심리스 연결은
-# 각각 별도 검증해야 한다. 이 주석은 분석 기록이며 아래 실행 프롬프트를 변경하지 않는다.
+# 마스크 없는 원본 한 장과 짧은 지시를 사용한다. 최종 연결 품질은 반복 검수한다.
 horizontal_prompt: >-
-  중앙의 흰 세로 띠를 채워 왼쪽과 오른쪽 그림을 자연스럽게 연결한다. 양쪽 경계에 닿는 윤곽선과 무늬가 중앙을 거쳐 연속되도록 그린다. 주변 그림의 크기, 색상, 음영을 유지한다.
+  Connect the boundaries naturally.
 vertical_prompt: >-
-  중앙의 흰 가로 띠를 채워 위쪽과 아래쪽 그림을 자연스럽게 연결한다. 위아래 경계에 닿는 윤곽선과 무늬가 중앙을 거쳐 연속되도록 그린다. 주변 그림의 크기, 색상, 음영을 유지한다.
+  Connect the boundaries naturally.

@@ -1,11 +1,11 @@
 """가로 연결 후 세로 연결을 수행하는 다섯 단계 파이프라인."""
 import hashlib
 from datetime import datetime
-from PIL import Image, ImageDraw
+from PIL import Image
 from tools.review.common.generation_records import write_record_atomically
 from tools.review.domains.image.seamless_steps import read_seamless_stage_checkpoints, calculate_stage_file_hash
 
-DIRECTIONAL_STAGE_LABELS = ('패턴 이미지 생성', '가로 3등분 · 중앙 샘플 3열 배열', '중앙 세로 띠 지우기 · 좌우 연결', '세로 3등분 · 중앙 샘플 3행 배열', '중앙 가로 띠 지우기 · 상하 연결')
+DIRECTIONAL_STAGE_LABELS = ('패턴 이미지 생성', '가로 3등분 · 중앙 샘플 3열 배열', '좌우 경계 연결', '세로 3등분 · 중앙 샘플 3행 배열', '상하 경계 연결')
 DIRECTIONAL_STAGE_OUTPUTS = (
     ('grid-input.png','stage-1-pattern/result.png','stage-1-pattern/result.json'),
     ('center-tile.png','sample-grid.png'),
@@ -16,9 +16,9 @@ DIRECTIONAL_STAGE_OUTPUTS = (
 DIRECTIONAL_PREVIEW_LABELS = (
     ('grid-input.png','1단계 · 패턴 원본'),
     ('center-tile.png','2단계 · 가운데 세로 띠 샘플'),('sample-grid.png','2단계 · 가로 3열 배열'),
-    ('repair-input.png','3단계 · 중앙을 흰색으로 지운 입력'),('grid-edited.png','3단계 · 좌우 연결 결과'),
+    ('repair-input.png','3단계 · 연결 보정 참조'),('grid-edited.png','3단계 · 좌우 연결 결과'),
     ('split-preview.png','4단계 · 가운데 가로 띠 샘플'),('repair-composite.png','4단계 · 세로 3행 배열'),
-    ('repair-mask.png','5단계 · 중앙을 흰색으로 지운 입력'),('result.png','5단계 · 상하 연결 결과'),
+    ('repair-mask.png','5단계 · 연결 보정 참조'),('result.png','5단계 · 상하 연결 결과'),
     ('tiled-preview.png','최종 결과 · 3×3 반복 검수'),
 )
 
@@ -64,16 +64,19 @@ def execute_directional_next_stage(current_job_root, current_request_record, gen
         reference_image_paths = []
         if stage_index_value != 1:
             with Image.open(current_job_root/('sample-grid.png' if stage_index_value==3 else 'repair-composite.png')) as repeated_array_image:
-                erased_input_image = repeated_array_image.convert('RGB')
-            source_image_width, source_image_height = erased_input_image.size
-            erased_region_box = (source_image_width//3,0,2*source_image_width//3-1,source_image_height-1) if stage_index_value==3 else (0,source_image_height//3,source_image_width-1,2*source_image_height//3-1)
-            ImageDraw.Draw(erased_input_image).rectangle(erased_region_box,fill='white')
-            # 기존 미리보기 경로를 유지하며 흰색으로 지운 참조 원본을 저장한다.
+                repair_reference_image = repeated_array_image.convert('RGB')
+            # 기존 기록의 게시 경로를 유지하며 원본 배열을 그대로 전달한다.
             reference_image_path = current_job_root/('repair-input.png' if stage_index_value==3 else 'repair-mask.png')
-            erased_input_image.save(reference_image_path)
+            repair_reference_image.save(reference_image_path)
             reference_image_paths.append(reference_image_path)
         output_image_size = pattern_config_record['grid_size' if stage_index_value==1 else 'repair_size']
-        stage_request_record = {'prompt':stage_prompt_values[stage_index_value//2],'width':output_image_size,'height':output_image_size,'steps':40,'seed':current_request_record['seed']}
+        actual_stage_prompt = stage_prompt_values[stage_index_value//2]
+        if stage_index_value != 1 and pattern_config_record['schema_version'] == 6:
+            # 구버전 재개도 중앙 삭제 지시를 사용하지 않는다. 실제 입력은 단계 기록에 보존한다.
+            from tools.review.domains.image.seamless_pattern import build_pattern_request
+            unused_grid_prompt, latest_pattern_config = build_pattern_request(pattern_config_record['user_prompt'])
+            actual_stage_prompt = latest_pattern_config['stage_prompts'][stage_index_value//2]
+        stage_request_record = {'prompt':actual_stage_prompt,'width':output_image_size,'height':output_image_size,'steps':40,'seed':current_request_record['seed']}
         write_record_atomically(stage_output_root/'request.json',stage_request_record)
         generation_callback_value(stage_output_root,stage_request_record,reference_image_paths)
         with Image.open(stage_output_root/'result.png') as generated_image_value:

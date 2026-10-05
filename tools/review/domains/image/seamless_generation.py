@@ -42,8 +42,8 @@ def validate_seamless_request(request_record_value):
     current_request_record = validate_three_reference_request(request_record_value, allowed_inference_steps=(40,))
     if not current_request_record['images']:
         from tools.review.domains.image.seamless_pattern import build_pattern_request
-        if (current_request_record['width'], current_request_record['height']) != (1024,1024):
-            raise ValueError('패턴 생성 출력은 1024×1024 고정입니다.')
+        if (current_request_record['width'], current_request_record['height']) != (768,768):
+            raise ValueError('패턴 생성 출력은 768×768 고정입니다.')
         final_prompt_text, prompt_source_record = build_pattern_request(current_request_record['prompt'])
         return {**current_request_record,'prompt':final_prompt_text,'seamless_tile':prompt_source_record}
     if len(current_request_record['images']) != 1:
@@ -152,7 +152,7 @@ class SeamlessGenerationManager(ImageGenerationManager):
     def validate_generation_resume(self, selected_job_directory):
         current_request_record = json.loads((selected_job_directory / 'request.json').read_text())
         verify_reference_snapshots(selected_job_directory, current_request_record)
-        if current_request_record.get('seamless_tile', {}).get('schema_version') not in (1, 2, 3, 4, 6):
+        if current_request_record.get('seamless_tile', {}).get('schema_version') not in (1, 2, 3, 4, 6, 7):
             raise ValueError('폐기되었거나 지원하지 않는 심리스 실행 버전입니다. 기존 결과를 조회하거나 새 작업을 생성하세요.')
         if hashlib.sha256(current_request_record['prompt'].encode()).hexdigest() != current_request_record['seamless_tile']['prompt_sha256']:
             raise ValueError('저장된 프롬프트 해시가 일치하지 않습니다.')
@@ -162,7 +162,7 @@ class SeamlessGenerationManager(ImageGenerationManager):
 
     def pause_generation_stage(self, selected_job_directory):
         current_request_record = json.loads((selected_job_directory/'request.json').read_text())
-        if current_request_record.get('seamless_tile',{}).get('schema_version') != 6:
+        if current_request_record.get('seamless_tile',{}).get('schema_version') not in (6,7):
             raise ValueError('단계별 패턴 생성 작업만 일시정지할 수 있습니다.')
         current_status_record = json.loads((selected_job_directory/'status.json').read_text())
         if current_status_record['status'] not in ('running','queued','paused'):
