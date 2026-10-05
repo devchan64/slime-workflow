@@ -18,8 +18,8 @@ DIRECTIONAL_PREVIEW_LABELS = (
     ('center-tile.png','2단계 · 가운데 세로 띠 샘플'),('sample-grid.png','2단계 · 가로 3열 배열'),
     ('repair-input.png','3단계 · 연결 보정 참조'),('grid-edited.png','3단계 · 좌우 연결 결과'),
     ('split-preview.png','4단계 · 가운데 가로 띠 샘플'),('repair-composite.png','4단계 · 세로 3행 배열'),
-    ('repair-mask.png','5단계 · 연결 보정 참조'),('result.png','5단계 · 상하 연결 결과'),
-    ('tiled-preview.png','최종 결과 · 3×3 반복 검수'),
+    ('repair-mask.png','5단계 · 연결 보정 참조'),('stage-5-vertical/result.png','5단계 · 상하 연결 원본'),('result.png','최종 산출물 · 중앙 타일'),
+    ('tiled-preview.png','최종 중앙 타일 · 3×3 반복 검수'),
 )
 
 
@@ -85,8 +85,12 @@ def execute_directional_next_stage(current_job_root, current_request_record, gen
             final_result_image = generated_image_value.convert('RGB')
         final_result_image.save(current_job_root/{1:'grid-input.png',3:'grid-edited.png',5:'result.png'}[stage_index_value])
         if stage_index_value==5:
-            build_repeated_texture(final_result_image).save(current_job_root/'tiled-preview.png')
-            write_record_atomically(current_job_root/'result.json',{'size':list(final_result_image.size),'seamless_tile':pattern_config_record,'boundary_metrics':measure_texture_boundaries(final_result_image),'quality_warnings':['전체 보정 결과를 보존합니다. 자동 중앙 크롭·정식 등록은 하지 않습니다. 반복 검수로 연결 품질을 확인하세요.']})
+            final_image_width, final_image_height = final_result_image.size
+            central_preview_box = (final_image_width//3,final_image_height//3,2*final_image_width//3,2*final_image_height//3)
+            central_preview_tile = final_result_image.crop(central_preview_box)
+            central_preview_tile.save(current_job_root/'result.png')
+            build_repeated_texture(central_preview_tile).save(current_job_root/'tiled-preview.png')
+            write_record_atomically(current_job_root/'result.json',{'size':list(central_preview_tile.size),'source_image':'stage-5-vertical/result.png','source_size':list(final_result_image.size),'crop_box':list(central_preview_box),'seamless_tile':pattern_config_record,'preview_crop_box':list(central_preview_box),'preview_tile_size':list(central_preview_tile.size),'boundary_metrics':measure_texture_boundaries(central_preview_tile),'quality_warnings':['중앙 타일이 최종 산출물입니다. 3×3 반복 검수 후 채택하세요. 정식 등록은 하지 않습니다.']})
     write_record_atomically(current_job_root/f'stage-{stage_index_value}.checkpoint.json',{'request_sha256':request_digest_value,'files':{current_file_name:calculate_stage_file_hash(current_job_root/current_file_name) for current_file_name in DIRECTIONAL_STAGE_OUTPUTS[stage_index_value-1]}})
     write_record_atomically(current_job_root/'pipeline-progress.json',{'stage':DIRECTIONAL_STAGE_LABELS[stage_index_value-1]+' 완료','index':stage_index_value,'completed':stage_index_value,'total':5})
     if stage_index_value<5:

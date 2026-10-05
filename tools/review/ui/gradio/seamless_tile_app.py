@@ -54,7 +54,7 @@ def build_seamless_interface(server_base_address):
             user_prompt_control = gr.Textbox(label='패턴 프롬프트', placeholder='예: 잔디와 들꽃', lines=2, scale=2, min_width=240)
             generation_tag_control = gr.Textbox(label='생성 이력 태그 · 선택 사항', lines=2, scale=1, min_width=180)
         with gr.Accordion('생성 설정 · 실제 프롬프트 확인', open=False):
-            gr.Markdown('Qwen Image 2.1 · 1단계 768×768 · 연결 보정 768×768. 마스크 없이 원본 배열의 경계를 연결합니다. 최종 전체 이미지를 보존합니다.')
+            gr.Markdown('Qwen Image 2.1 · 1단계 768×768 · 연결 보정 768×768. 마스크 없이 원본 배열의 경계를 연결합니다. 최종 산출물은 중앙 256×256 타일입니다.')
             with gr.Row():
                 generation_step_control = gr.Number(value=40, label='생성 스텝 · 고정', interactive=False, precision=0)
                 generation_seed_control = build_generation_seed(10107)

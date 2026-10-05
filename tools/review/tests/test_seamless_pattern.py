@@ -28,7 +28,10 @@ class SeamlessPatternTests(unittest.TestCase):
                 self.assertEqual(Image.open(current_reference_paths[1]).getpixel((10,10)),(0,0,0))
                 if len(executed_stage_names)==2:
                     raise RuntimeError('2단계 실패 재현')
-            Image.new('RGB',(current_stage_request['width'],current_stage_request['height']),'green').save(current_stage_root/'result.png')
+            generated_sample_image = Image.new('RGB',(current_stage_request['width'],current_stage_request['height']),'green')
+            if current_stage_root.name == 'stage-5-vertical':
+                generated_sample_image.paste('red',(256,256,512,512))
+            generated_sample_image.save(current_stage_root/'result.png')
             (current_stage_root/'result.json').write_text('{}')
         with tempfile.TemporaryDirectory() as temporary_directory_name:
             current_job_root=Path(temporary_directory_name)
@@ -114,7 +117,10 @@ class SeamlessPatternTests(unittest.TestCase):
                     with Image.open(current_stage_root.parent/source_array_name) as original_array_image:
                         self.assertEqual(repair_reference_image.tobytes(),original_array_image.convert('RGB').tobytes())
                     self.assertEqual(current_stage_request['prompt'],'Connect the boundaries naturally.')
-            Image.new('RGB',(current_stage_request['width'],current_stage_request['height']),'green').save(current_stage_root/'result.png')
+            generated_sample_image = Image.new('RGB',(current_stage_request['width'],current_stage_request['height']),'green')
+            if current_stage_root.name == 'stage-5-vertical':
+                generated_sample_image.paste('red',(256,256,512,512))
+            generated_sample_image.save(current_stage_root/'result.png')
             (current_stage_root/'result.json').write_text('{}')
         with tempfile.TemporaryDirectory() as temporary_directory_name:
             current_job_root = Path(temporary_directory_name)
@@ -126,7 +132,12 @@ class SeamlessPatternTests(unittest.TestCase):
             self.assertEqual(generated_stage_names,['stage-1-pattern','stage-3-horizontal','stage-5-vertical'])
             self.assertEqual(Image.open(current_job_root/'center-tile.png').size,(256,768))
             self.assertEqual(Image.open(current_job_root/'split-preview.png').size,(768,256))
-            self.assertEqual(Image.open(current_job_root/'result.png').size,(768,768))
+            self.assertEqual(Image.open(current_job_root/'result.png').size,(256,256))
+            with Image.open(current_job_root/'tiled-preview.png') as repeated_preview_image:
+                self.assertEqual(repeated_preview_image.size,(768,768))
+                self.assertEqual(repeated_preview_image.getcolors(),[(768*768,(255,0,0))])
+            with Image.open(current_job_root/'stage-5-vertical/result.png') as original_result_image:
+                self.assertEqual(original_result_image.getpixel((0,0)),(0,128,0))
             execute_pattern_pipeline(current_job_root,current_request_record,lambda *unused_callback_arguments:self.fail('완료 단계 재실행'))
             (current_job_root/'sample-grid.png').write_bytes(b'corrupt')
             with self.assertRaisesRegex(ValueError,'무결성'):
