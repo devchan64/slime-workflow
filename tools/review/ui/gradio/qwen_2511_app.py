@@ -96,7 +96,7 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
     default_prompt_text = load_pose_transfer_prompt() if pose_transfer_enabled else ''
     reference_slot_count = 2 if pose_transfer_enabled else 10 if qwen21_mode_enabled else 3
     current_service_name = 'pose-transfer' if pose_transfer_enabled else 'qwen-21-circular' if circular_mode_enabled else 'qwen-21' if qwen21_mode_enabled else 'expression' if expression_mode_enabled else 'qwen-2511'
-    current_page_title = '포즈 변환 생성기' if pose_transfer_enabled else 'Qwen 2.1 순환 VAE 생성기' if circular_mode_enabled else 'Qwen 2.1 이미지 생성기' if qwen21_mode_enabled else '표정 생성기' if expression_mode_enabled else 'Qwen 2511 3참조 생성기'
+    current_page_title = '포즈 변환 생성기 · Alpha Ver.' if pose_transfer_enabled else 'Qwen 2.1 순환 VAE 생성기' if circular_mode_enabled else 'Qwen 2.1 이미지 생성기' if qwen21_mode_enabled else '표정 생성기' if expression_mode_enabled else 'Qwen 2511 3참조 생성기'
     def render_generation_preview(current_image_address):
         original_preview_html = result_preview_html(current_image_address)
         if circular_mode_enabled and current_image_address:
@@ -119,6 +119,8 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
         return tuple(restored_input_values)
     with gr.Blocks(title=current_page_title,js=HISTORY_CARD_SELECTION_SCRIPT) as interface_blocks_value:
         gr.Markdown('## '+current_page_title+'\n참조 이미지는 업로드한 순서대로 모델에 전달됩니다.')
+        if pose_transfer_enabled:
+            gr.Markdown('**Alpha Ver.** · 실험 단계입니다. 포즈 정밀도와 캐릭터 일관성이 보장되지 않으므로 결과별 검수가 필요합니다.')
         if circular_mode_enabled:
             gr.Markdown('생성 토큰 순환 Attention · 일반 VAE 비교 선택 · 참조 없는 텍스트 생성 실험 · 출력 전체가 타일입니다. 반복 경계의 형태 연결은 결과에서 검수하세요.')
         if expression_mode_enabled:

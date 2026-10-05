@@ -1,4 +1,6 @@
-# 포즈 변환 생성기
+# 포즈 변환 생성기 · Alpha Ver.
+
+개발 상태: **Alpha Ver.** 포즈 정밀도와 캐릭터 일관성을 검증 중인 실험 기능이며, 생성 결과마다 검수가 필요하다. 메뉴와 화면 제목에 같은 버전 표기를 사용한다.
 
 애니메이션 도구의 `?tool=pose-transfer-generator&category=animation-tool`에서 Qwen Image 2.1로 단일 장면의 포즈를 변환한다.
 
