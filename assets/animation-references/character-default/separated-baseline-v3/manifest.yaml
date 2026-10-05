@@ -1,6 +1,6 @@
 schema_version: 1
 asset_id: character-default-separated-baseline
-version: 2
+version: 3
 character_id: default
 status: adopted
 role: body_base_and_outfit_reference
@@ -78,7 +78,15 @@ directions:
       signature: 8e389d0d5906e2c5a44f6e8f24dfe9e3f5c3bd4a0fa440632241cecb6d01a2d9
     body-base:
       path: body-base/up_left.png
-      sha256: 5f11d9d4bb132c8964e290d5a197c46306c9eea05318df8f1d420c2215f1f029
+      sha256: 5adcdff51bf4a2e62f0aad13426a5328ae77e21af33b279e02981bbd68a75f8f
+      generation:
+        generation_id: 2026-10-05_15-57-37-2c4fc3a7
+        source_reference: baseline-v2/up_left.png
+        prompt_sha256: f0111d8e6182b9b281038c2c1eef7cdeec24433619dccd127f0fb17b33b83f16
+        model_id: Qwen/Qwen-Image-2.1
+        model_revision: d26bb61231c349cf6b7896fa83353113880e1ba3
+        seed: 10107
+        steps: 40
     outfit:
       path: outfit/up_left.png
       sha256: 2ec1a157a2e7e8db75c05d1d0bd3d7836e7e653121a142e41348297eb0811b9e

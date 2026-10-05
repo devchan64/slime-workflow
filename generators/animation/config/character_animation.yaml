@@ -45,9 +45,9 @@ motions:
     anny: anny/{direction}/anny-{frame:04d}.png
 characters:
   character-default:
-    label: 기본 캐릭터 · 신체 베이스 v2
+    label: 기본 캐릭터 · 신체 베이스 v3
     root: assets/animation-references/character-default
-    manifest: body-baseline-v2.yaml
+    manifest: body-baseline-v3.yaml
   character-female-a:
     label: 여성 캐릭터 A · 신체 베이스 v1
     root: assets/animation-references/character-female-a

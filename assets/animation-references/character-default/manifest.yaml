@@ -26,5 +26,5 @@ face_reference:
   sha256: 3c1b7b35c3dda337c7fca8fbb5a2a017aeef364fc34fdadb2883726abace30b9
 
 separated_baseline:
-  manifest: separated-baseline-v2/manifest.yaml
-  sha256: 88eae2ceae068f42c74315befa859c9ae0763e1c7e72b388934d1a38fb24e10d
+  manifest: separated-baseline-v3/manifest.yaml
+  sha256: 65033fdc348e9b6ab7c6d4a3cf1cdbe9f1aed6b2403620407a0c5feb4c7ce38e
