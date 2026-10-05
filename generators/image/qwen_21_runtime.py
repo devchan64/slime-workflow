@@ -10,7 +10,7 @@ QWEN_MODEL_IDENTIFIER = 'Qwen/Qwen-Image-2.1'
 QWEN_MODEL_REVISION = 'd26bb61231c349cf6b7896fa83353113880e1ba3'
 QWEN_MODEL_DIRECTORY = WORKFLOW_ROOT_PATH / '.model/qwen-image-2.1' / QWEN_MODEL_REVISION
 QWEN_INFERENCE_STEPS = 40
-QWEN_ALLOWED_INFERENCE_STEPS = (30, 40, 50)
+QWEN_ALLOWED_INFERENCE_STEPS = (20, 30, 40, 50)
 
 
 def validate_qwen_model_assets():
@@ -41,7 +41,7 @@ def execute_qwen_reference_generation(current_job_root, current_request_record, 
         raise RuntimeError('Qwen 2.1 추론에 CUDA GPU가 필요합니다.')
     selected_inference_steps = current_request_record['steps']
     if type(selected_inference_steps) is not int or selected_inference_steps not in QWEN_ALLOWED_INFERENCE_STEPS:
-        raise ValueError('Qwen 2.1 스텝은 30·40·50 중 선택해야 합니다.')
+        raise ValueError('Qwen 2.1 스텝은 20·30·40·50 중 선택해야 합니다.')
     if not 0 < len(current_request_record['prompt'].split()) < 100:
         raise ValueError('Qwen 2.1 프롬프트는 1~99단어여야 합니다.')
     current_model_root = validate_qwen_model_assets()

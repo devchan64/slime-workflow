@@ -123,7 +123,7 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
         with gr.Row():
             width_value=gr.Dropdown([512,768,1024,1280],value=1024 if qwen21_mode_enabled else 512,label='너비',scale=1,min_width=120)
             height_value=gr.Dropdown([512,768,1024,1280],value=1024 if qwen21_mode_enabled else 512,label='높이',scale=1,min_width=120)
-            step_value=gr.Dropdown([30,40,50],value=40,label='생성 스텝',scale=1,min_width=120) if qwen21_mode_enabled else gr.Radio([4,30],value=4,label='생성 스텝',scale=1,min_width=120)
+            step_value=gr.Dropdown([20,30,40,50],value=40,label='생성 스텝',scale=1,min_width=120) if qwen21_mode_enabled else gr.Radio([4,30],value=4,label='생성 스텝',scale=1,min_width=120)
             seed_value=build_generation_seed(10107)
         gr.Markdown('예상 시간: 실행 이력 기반 추정 자료를 수집 중입니다. 실행 로그에서 진행 단계를 확인하세요.')
         generation_button_value=gr.Button('이미지 생성 시작',variant='primary')

@@ -45,11 +45,11 @@ class QwenPlainGenerationTests(unittest.TestCase):
             verify_qwen_saved_request(current_job_root, saved_request_record)
 
     def test_selectable_inference_steps(self):
-        for selected_step_count in (30, 40, 50):
+        for selected_step_count in (20, 30, 40, 50):
             current_request_record = self.create_reference_request()
             current_request_record['steps'] = selected_step_count
             self.assertEqual(validate_qwen_plain_request(current_request_record)['steps'], selected_step_count)
-        for selected_step_count in (0, 20, 60):
+        for selected_step_count in (0, 10, 60):
             with self.assertRaises(ValueError):
                 validate_qwen_plain_request({**self.create_reference_request(), 'steps': selected_step_count})
 
