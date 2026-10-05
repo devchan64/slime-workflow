@@ -27,9 +27,9 @@ GPU(CUDA), 해당 모델 및 어댑터 revision, 기록된 PyTorch·Diffusers �
 
 저장소 제작 자산과 런타임 코드의 동일 버전 확보가 추가로 필요하다. 본 리포트는 입력·결과 보존본이며 독립 실행 환경 또는 비트 단위 동일 재현을 보장하지 않는다.
 
-## 이미지젠 바디 정체성 보정
+## 바디 걷기 애니메이션
 
-[보정 기록 v1](identity-body-v1/README.md) · [12프레임 검수 GIF](identity-body-v1/default-body-down-left-review.gif) · [512 셀 스프라이트시트](identity-body-v1/default-body-down-left-12frames.png)
+[걷기 12프레임 v1](walking-body-v1/README.md) · [12프레임 검수 GIF](walking-body-v1/default-body-down-left-review.gif) · [512 셀 스프라이트시트](walking-body-v1/default-body-down-left-12frames.png)
 
 사용자 요청으로 추가한 검수 후보입니다. 원본 생성 결과와 구분하여 보관하며 품질 승인은 아직 완료되지 않았습니다.
 

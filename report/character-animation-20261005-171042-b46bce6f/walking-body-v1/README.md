@@ -1,4 +1,4 @@
-# 여성 A 바디 정체성 보정 v1
+# 여성 A 바디 걷기 12프레임 v1
 
 이미지젠 내장 도구의 검수 후보입니다. identity-reference.png를 캐릭터 정체성 기준, female-a-source.png를 걷기 포즈 순서 기준으로 사용했습니다.
 

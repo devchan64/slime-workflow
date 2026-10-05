@@ -31,8 +31,8 @@ GPU(CUDA), 해당 모델 및 어댑터 revision, 기록된 PyTorch·Diffusers �
 
 사용자의 생성 ID 지정 리포트 등록 요청에 따라 보존했습니다. 연결 대상은 character-female-a의 walking-v13 생성 실행이며 보존본 버전은 v1입니다. 재시도 중간 입력·로그도 원본 그대로 포함하며 최종 완료 프레임은 result.json에 열거된 12장입니다. 사본 87개를 원본 SHA-256과 대조했습니다.
 
-## 이미지젠 바디 정체성 보정
+## 바디 걷기 애니메이션
 
-[보정 기록 v1](identity-body-v1/README.md) · [12프레임 검수 GIF](identity-body-v1/female-a-body-down-left-review.gif) · [512 셀 스프라이트시트](identity-body-v1/female-a-body-down-left-12frames.png)
+[걷기 12프레임 v1](walking-body-v1/README.md) · [12프레임 검수 GIF](walking-body-v1/female-a-body-down-left-review.gif) · [512 셀 스프라이트시트](walking-body-v1/female-a-body-down-left-12frames.png)
 
 사용자 요청으로 추가한 검수 후보입니다. 원본 생성 결과와 구분하여 보관하며 품질 승인은 아직 완료되지 않았습니다.
