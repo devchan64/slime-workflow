@@ -1,0 +1,12 @@
+schema_version: 1
+character_id: default
+baseline_crops:
+  root: separated-baseline-v1/body-base
+  cell_size:
+  - 768
+  - 768
+  files:
+    down_left: 50acc07dbc4469f47cbdead0090735df11efbac9a58003b2cc4eb55356b75fdf
+    down_right: dcd268940d619a2f67ac51c1e1bb18f5c1aa47f505a1760fb74297fdff1100e2
+    up_left: 5f11d9d4bb132c8964e290d5a197c46306c9eea05318df8f1d420c2215f1f029
+    up_right: f6c000daeabf89c8b6c704622f5a05071f318865ae403a454d72e7915996944e

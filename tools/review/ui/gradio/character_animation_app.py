@@ -92,6 +92,19 @@ def create_animation_player(generation_job_identifier,generation_status_record,s
     player_source_text='''<!doctype html><meta charset="utf-8"><style>body{margin:8px;background:#10151f;color:#e5e7eb;font:14px sans-serif}button,select,input{padding:8px;background:#243449;color:inherit;border:1px solid #526078;border-radius:6px}nav{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}img{width:min(100%,720px);min-height:240px;max-height:560px;object-fit:contain;background:#000}#seek{width:min(100%,720px)}</style><nav><select id="direction"></select><button id="previous">이전</button><button id="play">재생</button><button id="stop">중지</button><button id="next">다음</button><select id="fps"><option>4</option><option>8</option><option>12</option><option>16</option></select></nav><img id="frame" alt="생성 결과 프레임"><p id="count">이미지를 불러오는 중입니다.</p><input id="seek" type="range" min="0" value="0"><script>const data=__PAYLOAD__,$=id=>document.getElementById(id),names={down_left:'전방 좌측',down_right:'전방 우측',up_left:'후방 좌측',up_right:'후방 우측'};let i=0,t=null,request=0;for(const d of Object.keys(data.frames))$('direction').add(new Option(names[d]||d,d));function draw(){const f=data.frames[$('direction').value]||[];if(!f.length){$('count').textContent='표시할 결과 프레임이 없습니다.';return}$('seek').max=f.length-1;i=Math.min(i,f.length-1);const current=++request,frame=i,pending=new Image();$('count').textContent=(frame+1)+' / '+f.length+' 프레임 · 이미지를 불러오는 중';pending.onload=()=>{if(current!==request)return;$('frame').src=pending.src;$('count').textContent=(frame+1)+' / '+f.length+' 프레임';$('seek').value=frame};pending.onerror=()=>{if(current===request)$('count').textContent=(frame+1)+' / '+f.length+' 프레임 이미지를 불러오지 못했습니다.'};pending.src=data.base+'/character-animation/files/'+data.id+'/'+f[frame]}function stop(){clearInterval(t);t=null}function step(n){const f=data.frames[$('direction').value]||[];if(!f.length)return;i=(i+n+f.length)%f.length;draw()}$('previous').onclick=()=>{stop();step(-1)};$('next').onclick=()=>{stop();step(1)};$('stop').onclick=stop;$('play').onclick=()=>{stop();t=setInterval(()=>step(1),1000/+$('fps').value)};$('fps').onchange=()=>{if(t)$('play').click()};$('direction').onchange=()=>{i=0;draw()};$('seek').oninput=()=>{stop();i=+$('seek').value;draw()};draw()</script>'''.replace('__PAYLOAD__',json.dumps(player_payload_value).replace('<','\\u003c'))
     return '<iframe title="캐릭터 애니메이션 결과 재생" style="width:100%;height:680px;border:0" sandbox="allow-scripts allow-same-origin" srcdoc="'+html.escape(player_source_text,quote=True)+'"></iframe>'
 
+def build_character_baseline_preview(selected_character_identifier, server_base_address):
+    """생성 입력과 동일한 등록 신체 베이스를 4방향으로 표시한다."""
+    from urllib.parse import urlencode
+    if not selected_character_identifier:
+        return '<p>캐릭터를 선택하세요.</p>'
+    preview_card_values = []
+    for current_frame_number, (current_direction_label, current_direction_name) in enumerate(DIRECTION_LABEL_VALUES, 1):
+        current_query_string = urlencode({'source_id': 'workflow:' + selected_character_identifier, 'frame': current_frame_number})
+        current_image_address = server_base_address + '/animation-separation/source-preview?' + current_query_string
+        preview_card_values.append('<figure style="margin:0;flex:1;min-width:120px"><img style="width:100%;max-height:240px;object-fit:contain" src="' + html.escape(current_image_address, quote=True) + '" alt="' + current_direction_label + ' 신체 베이스"><figcaption>' + current_direction_label + '</figcaption></figure>')
+    return '<section><h3>선택한 신체 베이스라인 · 4방향</h3><div style="display:flex;flex-wrap:wrap;gap:8px">' + ''.join(preview_card_values) + '</div></section>'
+
+
 def build_character_animation_interface(server_base_address):
     catalog_record_value=read_animation_catalog()
     motion_choice_values=[(record['label'],record['id']) for record in catalog_record_value['motions']]
@@ -123,6 +136,8 @@ def build_character_animation_interface(server_base_address):
                 with gr.Row():
                     motion_select_value=gr.Dropdown(motion_choice_values,value=motion_choice_values[0][1],label='모션')
                     character_select_value=gr.Dropdown(character_choice_values,value=character_choice_values[0][1],label='캐릭터')
+                character_preview_value=gr.HTML(build_character_baseline_preview(character_choice_values[0][1],server_base_address))
+                character_select_value.change(lambda selected_character_identifier: build_character_baseline_preview(selected_character_identifier,server_base_address),character_select_value,character_preview_value,queue=False)
                 with gr.Row():
                     source_select_value=gr.Radio([('ANNY','anny'),('OpenPose','openpose')],value='anny',label='포즈 입력')
                     direction_select_value=gr.CheckboxGroup(DIRECTION_LABEL_VALUES,value=[value for _,value in DIRECTION_LABEL_VALUES],label='생성 방향')
