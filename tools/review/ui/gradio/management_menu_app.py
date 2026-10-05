@@ -143,7 +143,7 @@ def create_initial_selection_script(page_record_values):
         let attempts=0;
         const selectByIdentifier=()=>{{
             const selectedInput=[...document.querySelectorAll('#management-tool-list input')].find(input=>input.value===selectedPageRecord.id);
-            if(selectedInput){{selectedInput.click();return;}}
+            if(selectedInput){{if(!selectedInput.checked)selectedInput.click();return;}}
             if(++attempts<40)window.setTimeout(selectByIdentifier,100);
         }};
         selectByIdentifier();
@@ -176,7 +176,7 @@ def build_management_menu_interface(page_record_values, review_server_port):
             filtered_identifier_values=[current_page_record['id'] for current_page_record in filtered_page_records]
             retained_identifier_value=selected_page_identifier if selected_page_identifier in filtered_identifier_values else (filtered_identifier_values[0] if filtered_identifier_values else None)
             selected_position_value=(filtered_identifier_values.index(retained_identifier_value)+1) if retained_identifier_value else 0
-            selected_status_text,selected_preview_html=select_menu_page(retained_identifier_value)
+            selected_status_text,selected_preview_html=(gr.skip(),gr.skip()) if retained_identifier_value==selected_page_identifier else select_menu_page(retained_identifier_value)
             return gr.update(choices=create_tool_choice_values(filtered_page_records),value=retained_identifier_value),f'**{len(filtered_page_records)}개** 도구 · 전체 {len(page_record_values)}개',selected_status_text,selected_preview_html,f'{selected_position_value} / {len(filtered_identifier_values)}'
         def select_menu_page(selected_page_identifier):
             selected_page_record=next((current_page_record for current_page_record in page_record_values if current_page_record['id']==selected_page_identifier),None)
@@ -190,15 +190,15 @@ def build_management_menu_interface(page_record_values, review_server_port):
             next_identifier_value=filtered_identifier_values[next_index_value] if filtered_identifier_values else None
             next_status_text,next_preview_html=select_menu_page(next_identifier_value)
             return next_identifier_value,next_status_text,next_preview_html,f'{next_index_value+1 if next_identifier_value else 0} / {len(filtered_identifier_values)}'
-        for current_filter_component in (search_text_value,category_select_value):current_filter_component.change(update_menu_choices,[search_text_value,category_select_value,page_select_value],[page_select_value,tool_count_value,selected_page_status_value,page_preview_value,navigation_position_value],queue=False)
-        page_select_value.change(select_menu_page,page_select_value,[selected_page_status_value,page_preview_value],queue=False)
+        for current_filter_component in (search_text_value,category_select_value):current_filter_component.input(update_menu_choices,[search_text_value,category_select_value,page_select_value],[page_select_value,tool_count_value,selected_page_status_value,page_preview_value,navigation_position_value],queue=False)
+        page_select_value.input(select_menu_page,page_select_value,[selected_page_status_value,page_preview_value],queue=False)
         filter_navigation_script=create_menu_navigation_script(page_record_values,'replaceState')
         page_navigation_script=create_menu_navigation_script(page_record_values,'pushState')
         for current_filter_component in (search_text_value,category_select_value):
             current_filter_component.input(fn=None,inputs=[search_text_value,category_select_value,page_select_value],js=filter_navigation_script,queue=False)
         page_select_value.input(fn=None,inputs=[search_text_value,category_select_value,page_select_value],js=page_navigation_script,queue=False)
         search_text_value.submit(lambda search_text_value,category_name_value: update_menu_choices(search_text_value,category_name_value,None),[search_text_value,category_select_value],[page_select_value,tool_count_value,selected_page_status_value,page_preview_value,navigation_position_value],queue=False)
-        page_select_value.change(lambda selected_page_identifier,search_text_value,category_name_value: move_menu_page(selected_page_identifier,search_text_value,category_name_value,0)[3],[page_select_value,search_text_value,category_select_value],navigation_position_value,queue=False)
+        page_select_value.input(lambda selected_page_identifier,search_text_value,category_name_value: move_menu_page(selected_page_identifier,search_text_value,category_name_value,0)[3],[page_select_value,search_text_value,category_select_value],navigation_position_value,queue=False)
         previous_page_button_value.click(fn=None,js="()=>{const toolInputValues=[...document.querySelectorAll('#management-tool-list input')];const selectedIndexValue=toolInputValues.findIndex((currentInputValue)=>currentInputValue.checked);toolInputValues[Math.max(0,selectedIndexValue-1)]?.click();}",queue=False)
         next_page_button_value.click(fn=None,js="()=>{const toolInputValues=[...document.querySelectorAll('#management-tool-list input')];const selectedIndexValue=toolInputValues.findIndex((currentInputValue)=>currentInputValue.checked);toolInputValues[Math.min(toolInputValues.length-1,selectedIndexValue+1)]?.click();}",queue=False)
         interface_blocks_value.load(lambda:render_gpu_status_card(read_gpu_status()),outputs=gpu_status_value,queue=False)

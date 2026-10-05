@@ -1,5 +1,9 @@
 """Gradio 관리 메뉴의 목록 필터와 내부 화면 연결을 검증한다."""
 import unittest
+import ast
+import inspect
+
+from tools.review.ui.gradio.management_menu_app import build_management_menu_interface
 
 from tools.review.ui.gradio.management_menu_app import create_initial_selection_script, create_menu_navigation_script, create_page_preview_html, create_tool_choice_values, filter_manager_page_records, format_gpu_status, render_gpu_status_card
 
@@ -78,3 +82,17 @@ class GradioManagementMenuTests(unittest.TestCase):
         self.assertIn('사용 <strong>1,024 MiB</strong>', busy_status_card)
         self.assertIn('여유 <strong>11,264 MiB</strong>', busy_status_card)
         self.assertIn('총 12,288 MiB', busy_status_card)
+
+
+class ManagementMenuRefreshTests(unittest.TestCase):
+    def test_menu_updates_do_not_bind_server_change_events(self):
+        interface_syntax_tree = ast.parse(inspect.getsource(build_management_menu_interface))
+        change_event_calls = [current_syntax_node for current_syntax_node in ast.walk(interface_syntax_tree)
+                              if isinstance(current_syntax_node, ast.Call)
+                              and isinstance(current_syntax_node.func, ast.Attribute)
+                              and current_syntax_node.func.attr == 'change']
+        self.assertEqual(change_event_calls, [])
+
+    def test_initial_selection_does_not_click_selected_tool(self):
+        selection_script_text = create_initial_selection_script([])
+        self.assertIn('if(!selectedInput.checked)selectedInput.click()', selection_script_text)
