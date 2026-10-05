@@ -2,7 +2,7 @@
 
 기록 ID: `tesa-baseline-20261004` · 버전: 1 · 기준: 2026-10-04 사용자 기록 요청.
 
-이 기록은 [테사 정면 전신 v2](../../animation-references/character-tesa/body-front-v2/manifest.yaml)의 제작 경로와 파생 후보를 보존한다. [manifest.yaml](manifest.yaml)의 모든 파일 경로는 저장소 루트 기준이다. 프롬프트 원문·단어 수·SHA-256과 입력·출력의 해시를 포함한다. 이미지 중복은 해시가 같은 기존 자산으로 연결했다.
+이 기록은 [테사 정면 전신 v2](../../character-baselines/character-tesa/body-front-v2/manifest.yaml)의 제작 경로와 파생 후보를 보존한다. [manifest.yaml](manifest.yaml)의 모든 파일 경로는 저장소 루트 기준이다. 프롬프트 원문·단어 수·SHA-256과 입력·출력의 해시를 포함한다. 이미지 중복은 해시가 같은 기존 자산으로 연결했다.
 
 ## 전환 배경
 

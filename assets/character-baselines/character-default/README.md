@@ -28,3 +28,15 @@
 ## 신체 베이스 v3
 
 후방 좌측(`up_left`)을 승인된 생성 `2026-10-05_15-57-37-2c4fc3a7`의 신체 베이스로 교체했다. 전방 좌측은 v2의 승인 결과를 유지하며 나머지 두 방향과 복장은 변경하지 않았다. 현재 통합 폴더는 `separated-baseline-v3/`이며 이전 버전은 Git 이력에 보존한다.
+
+## 모험가 복장 디자인 v1
+
+[착용 시안](adventurer-outfit-v1/default-adventurer-outfit-v1.png) · [출처 및 해시](adventurer-outfit-v1/manifest.yaml) · [프롬프트](adventurer-outfit-v1/prompt.txt)
+
+청록색 튜닉·크림색 속옷 소매·짙은 반바지·갈색 벨트와 발목 부츠 구성입니다. 사용자 요청으로 등록한 복장 디자인 참조이며, 바디와 분리된 outfit 레이어 또는 애니메이션 입력 교체본은 아닙니다.
+
+## 모험가 복장 4방향 베이스라인 v1
+
+[4방향 시트](adventurer-outfit-four-directions-v1/default-outfit-four-directions.png) · [출처·배치·해시](adventurer-outfit-four-directions-v1/manifest.yaml) · [프롬프트](adventurer-outfit-four-directions-v1/prompt.txt)
+
+사용자 요청으로 등록한 착용 상태 복장 기준입니다. 위쪽은 정면좌측·정면우측, 아래쪽은 후면좌측·후면우측입니다. 생성 원본을 크기 변경 없이 보존하며 기존 신체 기준과 분리된 outfit 레이어는 교체하지 않습니다.

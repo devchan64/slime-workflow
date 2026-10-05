@@ -39,4 +39,4 @@ prompt_file: prompt.txt
 prompt_sha256: ed4238089735e3ba3ec0f64707481e29ccc45de32c76d949d52c727cb30d7753
 reference_source: .tmp/test/male-b-four-directions/2026-10-05_17-35-06/male-b-four-directions-v5.png
 reference_sha256: 474250d88313cb30b75d22b26769163884de42d97d9861ae35f432dd5afce343
-style_prompt_source: assets/animation-references/baseline-style/base-prompt.txt
+style_prompt_source: assets/character-baselines/baseline-style/base-prompt.txt

@@ -20,9 +20,9 @@ motions:
 characters:
   character-default:
     label: 기본 캐릭터 · 신체 베이스 v3
-    root: assets/animation-references/character-default
+    root: assets/character-baselines/character-default
     manifest: body-baseline-v3.yaml
   character-female-a:
     label: 여성 캐릭터 A · 신체 베이스 v1
-    root: assets/animation-references/character-female-a
+    root: assets/character-baselines/character-female-a
     manifest: body-baseline-v1.yaml

@@ -6,7 +6,7 @@
 - 생성 원본은 generated.png, 크기 보정 후 시트는 default-body-idle-8frames.png입니다.
 - review.gif는 회색 배경, 4 FPS·2초 반복입니다.
 - approved-baseline.png는 사용자가 생성에 문제가 없다고 확인한 단일 프레임이며, source-body.png는 지정한 원본 바디 기준입니다.
-- 원본 바디 출처: assets/animation-references/character-default/separated-baseline-v3/body-base/down_left.png.
+- 원본 바디 출처: assets/character-baselines/character-default/separated-baseline-v3/body-base/down_left.png.
 - 실행 출처: .tmp/test/imagegen-body-idle/2026-10-05_22-12-11/. 프롬프트·생성 원본·manifest·개별 프레임을 함께 보존하고 사본 해시를 원본과 대조했습니다.
 
 ## 검수 결과

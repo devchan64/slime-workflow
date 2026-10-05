@@ -1,0 +1,22 @@
+schema_version: 1
+asset_id: character-default-adventurer-outfit-four-directions
+version: v1
+character_id: default
+purpose: 모험가 복장 4방향 베이스라인
+representation: dressed-character-sheet
+generator: built-in image_gen
+source: .tmp/test/imagegen-default-outfit-four-directions/2026-10-05_22-33-15
+reference: ../adventurer-outfit-v1/default-adventurer-outfit-v1.png
+image:
+  path: default-outfit-four-directions.png
+  sha256: d655f217c288f79adf526bb25c6088134cfbed212b2606d36abe75e3c854f974
+  size: [1254, 1254]
+  mode: RGBA
+layout:
+  rows: 2
+  columns: 2
+  directions: [down_left, down_right, up_left, up_right]
+prompt:
+  path: prompt.txt
+  sha256: 6c1cee3ca0a891115181813554c71a910ead6fcbd75980cfa1894f5368bb9bf6
+notes: 생성 원본 그대로 보존한 착용 상태 시트. 분리된 outfit 레이어가 아니며 기존 신체 기준과 생성기 입력은 유지한다.

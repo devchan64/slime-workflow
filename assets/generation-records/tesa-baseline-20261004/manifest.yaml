@@ -6,7 +6,7 @@ generator: Codex builtin imagegen
 model_version: not_exposed
 seed: not_exposed
 transparent_background: true
-linked_asset_manifest: assets/animation-references/character-tesa/body-front-v2/manifest.yaml
+linked_asset_manifest: assets/character-baselines/character-tesa/body-front-v2/manifest.yaml
 path_base: repository_root
 exact_regeneration_guaranteed: false
 steps:
@@ -38,7 +38,7 @@ steps:
   output_original_name: character-tesa-large-eyes-candidate.png
   files:
   - original_name: character-tesa-large-eyes-candidate.png
-    path: assets/animation-references/character-tesa/body-front-v2/character-tesa-body-front-v2.png
+    path: assets/character-baselines/character-tesa/body-front-v2/character-tesa-body-front-v2.png
     sha256: cb1bc7b70faa007af2b4b659b142e78113d6356fd535ad6a8d9a24546963721c
   - original_name: input-body.png
     path: assets/generation-records/tesa-baseline-20261004/01-anny-body/character-tesa-anny-body-candidate.png
@@ -52,10 +52,10 @@ steps:
   output_original_name: character-tesa-face-neck-candidate.png
   files:
   - original_name: body-reference.png
-    path: assets/animation-references/character-tesa/body-front-v2/character-tesa-body-front-v2.png
+    path: assets/character-baselines/character-tesa/body-front-v2/character-tesa-body-front-v2.png
     sha256: cb1bc7b70faa007af2b4b659b142e78113d6356fd535ad6a8d9a24546963721c
   - original_name: character-tesa-face-neck-candidate.png
-    path: assets/animation-references/character-tesa/face-front-v3/character-tesa-face-front-v3.png
+    path: assets/character-baselines/character-tesa/face-front-v3/character-tesa-face-front-v3.png
     sha256: e448f0aa36d6d021baad3d893ff5d9b02d05a50a4c18f74bd5c5374a973f8ae5
   status: user_adopted_as_face_v3
 - step: 04-four-directions
@@ -66,9 +66,9 @@ steps:
   output_original_name: character-tesa-four-directions-candidate.png
   files:
   - original_name: body-reference.png
-    path: assets/animation-references/character-tesa/body-front-v2/character-tesa-body-front-v2.png
+    path: assets/character-baselines/character-tesa/body-front-v2/character-tesa-body-front-v2.png
     sha256: cb1bc7b70faa007af2b4b659b142e78113d6356fd535ad6a8d9a24546963721c
   - original_name: character-tesa-four-directions-candidate.png
-    path: assets/animation-references/character-tesa/baseline-source-v2/character-tesa-four-directions-v2.png
+    path: assets/character-baselines/character-tesa/baseline-source-v2/character-tesa-four-directions-v2.png
     sha256: 403d0adf28c1eae3c012a314771494b52bedd8cd3ba49c162aff1e1756ed2958
   status: user_adopted_as_four_directions_v2

@@ -16,7 +16,7 @@ rig_origin:
   version: 4
   manifest: assets/animation-models/anny-neutral-v4/manifest.yaml
   usage: 정면 렌더의 체형과 자세 참조
-style_reference: assets/animation-references/character-tesa/body-front-v2/character-tesa-body-front-v2.png
+style_reference: assets/character-baselines/character-tesa/body-front-v2/character-tesa-body-front-v2.png
 rig_geometry_constrained: false
 body_proportion_measurement_verified: false
 runtime_adopted: false

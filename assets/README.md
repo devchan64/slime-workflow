@@ -6,7 +6,7 @@
 - 현재 기본 걷기: [momask-walking/v13](motion-sheet/momask-walking-v13/README.md). 중성형 v4, 60프레임·4fps·4방향, 방위각 30°·325°·140°·215°. 이전 걷기 버전은 폐기했다.
 - 이전 리그: motion-sheet/mannequin-walk-v1 보존.
 - 다른 외형 이력: motion-sheet/humanlike-walk-v1 및 v2.
-- animation-references/: 외형 참조 이력.
+- character-baselines/: 외형 참조 이력.
 - generation-records/: 사용자 지시로 보존한 리포트·생성기 직접 연결 기록만 관리. 일반 생성 기록은 `.tmp/test/`에 보관.
 
 현재 모션 선택은 generators/animation/config/character_animation.yaml에서 관리한다. 구형 default_walk 설정은 폐기 상태다. 미리보기 HTML은 실행별 .tmp/에서 제공하며 정식 자산에 중복 등록하지 않는다. 모델 다운로드는 .model/, 승인 전 후보·비공개 실험 프롬프트는 .tmp/에 둔다. 공개 자산에 비공개 기획·설계·프롬프트·인증 정보를 포함하지 않는다.
@@ -15,3 +15,5 @@
 - 기본 스트레칭 모션: [momask-stretch/v1](motion-sheet/momask-stretch-v1/README.md). 120프레임·4fps·4방향, 선택 설정 `generators/animation/config/default_stretch_motion.yaml`.
 
 - 게임용 4fps 포즈 시트: [game-motion-4fps/v1](pose-sheets/game-motion-4fps-v1/README.md). 스탠딩 v3·걷기 v8·스트레칭 v1, 4방향·총 24장. 선택 설정 `generators/animation/config/default_game_pose_sheets.yaml`.
+
+외형 베이스라인 경로는 `assets/animation-references/`에서 `assets/character-baselines/`으로 변경했다. 과거 `report/*/run/request.json`의 입력 경로는 실행 당시 기록으로 보존하며, 현재 자산 조회 시 동일한 하위 경로를 새 루트에서 찾는다.
