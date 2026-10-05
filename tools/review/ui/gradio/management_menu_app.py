@@ -26,8 +26,6 @@ DEFAULT_PAGE_RECORDS=(
     {'id':'floor-tile-generator','label':'맵 타일 생성기','path':'/floor-tile-generator/','category':'image-generation','uiMode':'gradio','description':'512×512 · 4스텝 · 단일 이미지 생성'},
     {'id':'writer-agent','label':'작가 AI 에이전트','path':'/writer-agent/','category':'writer-agent','uiMode':'gradio','description':'Gradio · 문서 학습 · 아이디어 작성 · 실행 기록'},
     {'id':'expression-generator','label':'표정 생성기','path':'/expression-generator/','category':'image-generation','uiMode':'gradio','description':'Qwen 2511 · AU 표정 39종 · 참조 1~3장'},
-    {'id':'three-reference-generator','label':'Qwen 2511 3참조 생성','path':'/image-generation-2511/','category':'image-generation','uiMode':'gradio','description':'Gradio · 참조 이미지 3장 · 프롬프트 · 결과 비교'},
-    {'id':'image-generator','label':'Qwen 2512 이미지 생성','path':'/image-generation/','category':'image-generation','uiMode':'gradio','description':'Gradio · 프롬프트 · 실행 상태 · 생성 이력 · 결과 다운로드'},
 )
 
 def format_gpu_status(gpu_status_record):
@@ -78,6 +76,7 @@ def load_manager_page_records(source_file_path):
     page_identifier_values=set()
     validated_page_records=[]
     for current_page_record in [*page_record_values,*DEFAULT_PAGE_RECORDS]:
+        if current_page_record.get('id') in ('three-reference-generator','image-generator'):continue
         if not isinstance(current_page_record,dict) or not all(isinstance(current_page_record.get(current_field_name),str) for current_field_name in ('id','label','path','category','description')):raise ValueError('관리 메뉴 페이지 항목 형식 오류')
         if any(current_page_record.get(current_field_name) is not None and not isinstance(current_page_record[current_field_name],str) for current_field_name in ('frameIdentifier','frameQuery')):raise ValueError('관리 메뉴 프레임 항목 형식 오류')
         if current_page_record['id']=='tile-map-generator':continue

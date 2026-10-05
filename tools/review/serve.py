@@ -6,7 +6,7 @@ from tools.review.ui_assets import resolve_review_ui_asset
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import quote, unquote, urlsplit
+from urllib.parse import quote, unquote, urlsplit, parse_qs
 import argparse
 import os
 from tools.review.common.management_environment import DEFAULT_GATEWAY_ADDRESS, validate_gateway_address
@@ -316,12 +316,10 @@ def run_review_server(parsed_argument_values):
             ('/',parsed_argument_values.port+100,lambda:ensure_management_menu_server(parsed_argument_values.port,manager_source_path)),
             ('/management/frame/momask-generator/',parsed_argument_values.port+101,lambda:ensure_gradio_server(parsed_argument_values.port)),
             ('/management/frame/character-animation/',parsed_argument_values.port+102,lambda:ensure_character_animation_server(parsed_argument_values.port)),
-            ('/management/frame/image-generator/',parsed_argument_values.port+103,lambda:ensure_qwen_2512_server(parsed_argument_values.port)),
             ('/management/frame/animation-separation/',parsed_argument_values.port+117,lambda:ensure_gradio_application(parsed_argument_values.port,'animation-separation')),
             ('/management/frame/qwen-21-generator/',parsed_argument_values.port+116,lambda:ensure_gradio_application(parsed_argument_values.port,'qwen-21')),
             ('/management/frame/seamless-tile-generator/',parsed_argument_values.port+115,lambda:ensure_gradio_application(parsed_argument_values.port,'seamless-tile')),
             ('/management/frame/expression-generator/',parsed_argument_values.port+114,lambda:ensure_gradio_application(parsed_argument_values.port,'expression')),
-            ('/management/frame/three-reference-generator/',parsed_argument_values.port+104,lambda:ensure_qwen_2511_server(parsed_argument_values.port)),
             ('/management/frame/floor-tile-generator/',parsed_argument_values.port+113,lambda:ensure_floor_tile_server(parsed_argument_values.port)),
             ('/management/frame/sprite-editor/',parsed_argument_values.port+106,lambda:ensure_sprite_editor_server(parsed_argument_values.port)),
             ('/management/frame/map-review/',parsed_argument_values.port+107,lambda:ensure_map_review_server(parsed_argument_values.port)),
@@ -331,8 +329,6 @@ def run_review_server(parsed_argument_values):
             ('/management/',parsed_argument_values.port+100,lambda:ensure_management_menu_server(parsed_argument_values.port,manager_source_path)),
             ('/momask-generator/',parsed_argument_values.port+100,lambda:ensure_management_menu_server(parsed_argument_values.port,manager_source_path)),
             ('/character-animation/',parsed_argument_values.port+100,lambda:ensure_management_menu_server(parsed_argument_values.port,manager_source_path)),
-            ('/image-generation/',parsed_argument_values.port+100,lambda:ensure_management_menu_server(parsed_argument_values.port,manager_source_path)),
-            ('/image-generation-2511/',parsed_argument_values.port+100,lambda:ensure_management_menu_server(parsed_argument_values.port,manager_source_path)),
             ('/image-generation-21/',parsed_argument_values.port+100,lambda:ensure_management_menu_server(parsed_argument_values.port,manager_source_path)),
             ('/seamless-tile-generator/',parsed_argument_values.port+100,lambda:ensure_management_menu_server(parsed_argument_values.port,manager_source_path)),
             ('/expression-generator/',parsed_argument_values.port+100,lambda:ensure_management_menu_server(parsed_argument_values.port,manager_source_path)),
@@ -382,7 +378,16 @@ def run_review_server(parsed_argument_values):
                 pass
             finally:proxy_connection_value.close()
             return True
+        def reject_retired_generator(self):
+            current_request_parts = urlsplit(self.path)
+            current_tool_values = parse_qs(current_request_parts.query).get('tool', [])
+            if any(value in ('image-generator', 'three-reference-generator') for value in current_tool_values) or current_request_parts.path.startswith(('/management/frame/image-generator/', '/management/frame/three-reference-generator/')) or current_request_parts.path in ('/image-generation/', '/image-generation-2511/'):
+                self.send_error(410, 'This generator has been retired. Use Qwen 2.1.')
+                return True
+            return False
+
         def do_GET(self):
+            if self.reject_retired_generator():return
             current_asset_request_path = urlsplit(self.path).path
             if current_asset_request_path.startswith('/management/map-assets/'):
                 from tools.review.common.map_asset_http import read_map_asset_response
@@ -425,6 +430,7 @@ def run_review_server(parsed_argument_values):
             if proxy_management_request(self, parsed_argument_values.gateway_url):return
             super().do_GET()
         def do_POST(self):
+            if self.reject_retired_generator():return
             if self.proxy_gradio_request():return
             if proxy_management_request(self, parsed_argument_values.gateway_url):return
             self.send_error(404, '지원하지 않는 작업 경로')
