@@ -377,4 +377,4 @@
 
 ## 폐기된 생성 화면
 
-`three-reference-generator`(Qwen 2511 3참조), `image-generator`(Qwen 2512) 화면은 폐기했다. 도구 목록에서 제외하며 기존 화면 URL은 HTTP 410을 반환한다. Qwen 2.1 생성기를 사용한다. 다른 제작 기능에서 사용하는 공용 실행 코드와 기존 생성 기록은 유지한다.
+`three-reference-generator`(Qwen 2511 3참조), `image-generator`(Qwen 2512), `floor-tile-generator`(맵 타일 생성기) 화면은 폐기했다. 도구 목록에서 제외하며 기존 화면 URL은 HTTP 410을 반환한다. Qwen 2.1 생성기를 사용한다. 다른 제작 기능에서 사용하는 공용 실행 코드와 기존 생성 기록은 유지한다.

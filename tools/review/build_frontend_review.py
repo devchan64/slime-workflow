@@ -25,7 +25,6 @@ REVIEW_DIRECTION_NAMES = ('down_left', 'down_right', 'up_left', 'up_right')
 REVIEW_IMAGE_SUFFIXES = {'.png', '.jpg', '.jpeg', '.webp'}
 REVIEW_HEARTBEAT_SECONDS = 5
 DEFAULT_MANAGEMENT_TOOL_PAGE_RECORDS = (
-    {'id':'floor-tile-generator','label':'맵 타일 생성기','path':'/floor-tile-generator/','category':'image-generation','uiMode':'gradio','description':'512×512 · 4스텝 · 단일 이미지 생성'},
     {'id':'writer-agent','label':'작가 AI 에이전트','path':'/writer-agent/','anchorEditor':False,'category':'writer-agent','uiMode':'gradio','description':'Gradio · 문서 학습 · 아이디어 작성 · 실행 기록'},
     {'id':'expression-generator','label':'표정 생성기','path':'/expression-generator/','category':'image-generation','uiMode':'gradio','description':'Qwen 2511 · AU 표정 39종 · 참조 1~3장'},
 )
