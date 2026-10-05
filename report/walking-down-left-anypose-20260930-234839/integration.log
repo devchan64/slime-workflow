@@ -1,5 +1,0 @@
-2026-10-01T08:11:31.415437+09:00/walking-report/start 리포트 교체; 입력=.tmp/test/character-animation/2026-09-30_23-48-39/2026-09-30_23-48-39-8be64e2e, .tmp/test/character-animation-gif-review/2026-10-01_08-09-00/walking-v13-down-left-8fps.gif; 출력=report/walking-down-left-anypose-20260930-234839
-2026-10-01T08:11:31.444303+09:00/walking-report/verified 원본 대비 78개 파일 SHA-256 일치
-2026-10-01T08:11:31.448507+09:00/walking-report/removed 폐기한 리포트=report/walking-four-directions-anypose-20260928-225616
-2026-10-01T08:11:31.450495+09:00/walking-report/removed 폐기한 리포트=report/walking-four-directions-imagegen-20260928-224548
-2026-10-01T08:11:31.450609+09:00/walking-report/completed 기존 두 리포트 폐기와 새 리포트 연결 완료

@@ -1,5 +1,0 @@
-2026-10-01T10:34:48.750304+09:00/standing-report/start 실행기=대기리포트교체 입력=.tmp/test/character-animation/2026-10-01_09-24-12/2026-10-01_09-24-12-f1cdb83f, .tmp/test/standing-eight-frame-gif-review/2026-10-01_10-32-40 출력=report/standing-down-left-anypose-20261001-092412
-2026-10-01T10:34:48.793340+09:00/standing-report/verified 56개 사본 SHA-256·GIF 8프레임/1000ms 검증 완료
-2026-10-01T10:34:48.794803+09:00/standing-report/removed report/default-character-standing-sample-20260927
-2026-10-01T10:34:48.796077+09:00/standing-report/removed report/default-character-standing-imagegen-20260927
-2026-10-01T10:34:48.796347+09:00/standing-report/completed 기존 대기 리포트 2종 삭제·신규 대기 리포트 연결 완료
