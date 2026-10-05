@@ -181,10 +181,16 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
             width_value=gr.Dropdown([512,768] if pose_transfer_enabled else [256,512,768,1024,1280] if qwen21_mode_enabled else [512,768,1024,1280],value=512 if circular_mode_enabled else 768 if qwen21_mode_enabled else 512,label='해상도' if pose_transfer_enabled else '너비',scale=1,min_width=120)
             height_value=gr.Dropdown([512,768] if pose_transfer_enabled else [256,512,768,1024,1280] if qwen21_mode_enabled else [512,768,1024,1280],value=512 if circular_mode_enabled else 768 if qwen21_mode_enabled else 512,label='높이',visible=not pose_transfer_enabled,scale=1,min_width=120)
             step_value=gr.Dropdown([20,30,40,50],value=40,label='생성 스텝',scale=1,min_width=120) if qwen21_mode_enabled else gr.Radio([4,30],value=4,label='생성 스텝',scale=1,min_width=120)
-            seed_value=build_generation_seed(10107)
             if circular_mode_enabled:
-                baseline_decode_control=gr.Checkbox(value=False,label='일반 VAE 비교 생성',info='ON이면 동일 잠재값의 일반 VAE 결과와 반복 비교 이미지를 추가로 생성합니다.')
-                circular_radius_control=gr.Dropdown([8,12,16],value=12,label='순환 참조 반경 · 토큰',info='좌우·상하 동일 적용 · 경계 1줄 참조 · 모서리 참조 없음')
+                circular_radius_control=gr.Dropdown([8,12,16],value=12,label='순환 반경 · 토큰',scale=1,min_width=120)
+            else:
+                seed_value=build_generation_seed(10107)
+        if circular_mode_enabled:
+            with gr.Row(equal_height=False):
+                seed_value=build_generation_seed(10107)
+                with gr.Column(min_width=220):
+                    baseline_decode_control=gr.Checkbox(value=False,label='일반 VAE 비교 생성',info='동일 잠재값의 일반 VAE 결과를 추가합니다.')
+            gr.Markdown('순환 반경은 좌우·상하에 동일 적용합니다. 경계 1줄 참조 · 모서리 참조 없음.')
         if pose_transfer_enabled:
             width_value.change(lambda selected_resolution_value: selected_resolution_value,width_value,height_value,queue=False)
         gr.Markdown('예상 시간: 실행 이력 기반 추정 자료를 수집 중입니다. 실행 로그에서 진행 단계를 확인하세요.')
