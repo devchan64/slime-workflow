@@ -1,1 +1,1 @@
-Edit image 1, changing only the character's pose. Image 1 is the sole source of identity, face, hair, skin, clothing, anatomy, proportions and art style. Read image 2 only as a joint-angle guide: body orientation, arm and leg bends, and contact relationships. Rebuild that pose using image 1's head size, torso width and limb lengths. Preserve image 1's facial features and rendering. Keep the entire character visible against a clean white background.
+replace the pose of <image 1> with the pose of <image 2>, keep the character and body proportions of <image 1>

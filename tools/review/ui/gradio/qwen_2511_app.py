@@ -110,6 +110,9 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
             restored_input_values[0] = current_history_record['request']['expression']['id']
         if qwen21_mode_enabled and not pose_transfer_enabled:
             restored_input_values.extend(reference_upload_group.build_reference_updates(max(1, len(current_history_record["request"].get("references", [])))))
+        if pose_transfer_enabled:
+            restored_input_values[0] = gr.update(value=restored_input_values[0], interactive=True)
+            restored_input_values.extend([False, current_history_record['request']['prompt']])
         return tuple(restored_input_values)
     with gr.Blocks(title=current_page_title,js=HISTORY_CARD_SELECTION_SCRIPT) as interface_blocks_value:
         gr.Markdown('## '+current_page_title+'\n참조 이미지는 업로드한 순서대로 모델에 전달됩니다.')
@@ -117,6 +120,9 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
             gr.Markdown('생성 토큰 순환 Attention · 일반/순환 VAE 동일 잠재값 비교 · 참조 없는 텍스트 생성 실험 · 출력 전체가 타일입니다. 반복 경계의 형태 연결은 결과에서 검수하세요.')
         if expression_mode_enabled:
             gr.Markdown('Qwen-Image-Edit-2511 고정 · 참조 1~3장. 첫 이미지를 편집하고 추가 이미지는 동일 캐릭터의 외형 참고로 사용합니다. AU는 움직임 설계 참고이며 검출값·감정 판정·강도 측정이 아닙니다.')
+        if pose_transfer_enabled:
+            fixed_prompt_enabled = gr.Checkbox(value=True, label='고정 프롬프트 사용', info='ON: 기본 문구를 사용합니다. OFF: 프롬프트를 직접 편집합니다. 전환만으로 생성하지 않습니다.')
+            custom_prompt_memory = gr.State(default_prompt_text)
         with gr.Row(equal_height=True):
             if expression_mode_enabled:
                 from tools.review.domains.image.expression_generation import load_expression_configuration, build_expression_prompt
@@ -124,7 +130,7 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
                 prompt_text_value=gr.Dropdown([(record['label_ko'],record['id']) for record in expression_preset_records],value=expression_preset_records[0]['id'],label='표정 · AU 프리셋',scale=1,min_width=240)
             else:
                 from generators.image.qwen_21_circular import CIRCULAR_DEFAULT_PROMPT
-                prompt_text_value=gr.Textbox(value=CIRCULAR_DEFAULT_PROMPT if circular_mode_enabled else default_prompt_text,label='프롬프트',lines=3,scale=1,min_width=240)
+                prompt_text_value=gr.Textbox(value=CIRCULAR_DEFAULT_PROMPT if circular_mode_enabled else default_prompt_text,interactive=not pose_transfer_enabled,label='프롬프트',lines=3,scale=1,min_width=240)
             generation_tag_value=gr.Textbox(label='생성 이력 태그 · 선택 사항',placeholder='예: 돌온재 참조 후보',lines=3,scale=1,min_width=240)
         if qwen21_mode_enabled:
             gr.Markdown('아이덴티티 1장: 외형·비율·화풍. 포즈 1장: 자세·관절 배치. 두 장 모두 필수이며 한 장면을 생성합니다.' if pose_transfer_enabled else 'Qwen Image 2.1 · 추가 프롬프트 없음. 입력 원문을 그대로 전달합니다. 참조 없이 텍스트만으로도 생성할 수 있습니다.')
@@ -133,7 +139,16 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
                 return f'사용자 {current_word_count}단어 · 추가 0단어 · 최종 {current_word_count}단어 (최대 99단어)'
             prompt_count_control = gr.Markdown(describe_plain_prompt(CIRCULAR_DEFAULT_PROMPT if circular_mode_enabled else default_prompt_text))
             prompt_text_value.change(describe_plain_prompt, prompt_text_value, prompt_count_control, queue=False)
-        if not expression_mode_enabled:
+        if pose_transfer_enabled:
+            def toggle_fixed_prompt(selected_fixed_enabled, current_prompt_text, saved_custom_prompt):
+                if selected_fixed_enabled:
+                    return gr.update(value=load_pose_transfer_prompt(), interactive=False), current_prompt_text
+                return gr.update(value=saved_custom_prompt, interactive=True), saved_custom_prompt
+            fixed_prompt_enabled.input(toggle_fixed_prompt, [fixed_prompt_enabled, prompt_text_value, custom_prompt_memory], [prompt_text_value, custom_prompt_memory], queue=False)
+            def remember_custom_prompt(current_prompt_text):
+                return current_prompt_text
+            prompt_text_value.input(remember_custom_prompt, prompt_text_value, custom_prompt_memory, queue=False)
+        elif not expression_mode_enabled:
             prompt_reset_button=gr.ClearButton([prompt_text_value],value='프롬프트 초기화',variant='secondary',size='sm')
         if expression_mode_enabled:
             def describe_expression_prompt(expression_identifier_value):
@@ -168,7 +183,7 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
             '이력과 해당 생성기의 임시 작업 폴더(결과·참조 입력 사본·로그)를 함께 삭제합니다. 이전에 목록에서 제거한 작업도 포함합니다. 정식 에셋과 모델 캐시는 유지합니다. 대기·실행 중에는 초기화할 수 없습니다.',
             result_renderer_callback=render_circular_comparison if circular_mode_enabled else None,
             restore_input_callback=restore_selected_inputs,
-            restore_output_components=[prompt_text_value,generation_tag_value,width_value,height_value,step_value,seed_value,*reference_image_controls,status_value]+(reference_upload_group.reference_slot_outputs if qwen21_mode_enabled and not pose_transfer_enabled else []),
+            restore_output_components=[prompt_text_value,generation_tag_value,width_value,height_value,step_value,seed_value,*reference_image_controls,status_value]+(reference_upload_group.reference_slot_outputs if qwen21_mode_enabled and not pose_transfer_enabled else [])+([fixed_prompt_enabled, custom_prompt_memory] if pose_transfer_enabled else []),
             record_folder_route='/pose-transfer' if pose_transfer_enabled else '/image-generation-21-circular' if circular_mode_enabled else '/image-generation-21' if qwen21_mode_enabled else '/expression-generator' if expression_mode_enabled else '/image-generation-2511',allow_individual_delete=True)
         def start_reference_generation(prompt_text_value,generation_tag_value,*generation_input_values):
             if pose_transfer_enabled and any(current_reference_image is None for current_reference_image in generation_input_values[:2]):
