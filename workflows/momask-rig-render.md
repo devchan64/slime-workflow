@@ -35,8 +35,7 @@ GUI와 CLI는 같은 공용 작업 서비스를 사용한다.
 
 ## 등록 모션 재사용
 
-등록 모션은 신규 생성과 구분한다. `default_standing_motion.yaml`,
-`default_stretch_motion.yaml`, `default_walk_rig.yaml` 등 생성기별 선택 설정이 가리키는
+등록 모션은 신규 생성과 구분한다. `default_stretch_motion.yaml`, `default_walk_rig.yaml` 등 생성기별 선택 설정이 가리키는
 버전·해시를 기준으로 사용한다. 보정이 포함된 과거 모션도 승인된 제작 자산이면 유지하며,
 새 프롬프트 추론이나 공통 리타깃 결과로 자동 대체하지 않는다.
 

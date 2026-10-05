@@ -11,10 +11,7 @@
 
 현재 모션 선택은 generators/animation/config/character_animation.yaml에서 관리한다. 구형 default_walk 설정은 폐기 상태다. 미리보기 HTML은 실행별 .tmp/에서 제공하며 정식 자산에 중복 등록하지 않는다. 모델 다운로드는 .model/, 승인 전 후보·비공개 실험 프롬프트는 .tmp/에 둔다. 공개 자산에 비공개 기획·설계·프롬프트·인증 정보를 포함하지 않는다.
 
-- 기본 대기 모션: [momask-standing/v10](motion-sheet/momask-standing-v10/README.md). 120프레임·4fps·4방향, 선택 설정 `generators/animation/config/default_standing_motion.yaml`.
 
 - 기본 스트레칭 모션: [momask-stretch/v1](motion-sheet/momask-stretch-v1/README.md). 120프레임·4fps·4방향, 선택 설정 `generators/animation/config/default_stretch_motion.yaml`.
 
 - 게임용 4fps 포즈 시트: [game-motion-4fps/v1](pose-sheets/game-motion-4fps-v1/README.md). 스탠딩 v3·걷기 v8·스트레칭 v1, 4방향·총 24장. 선택 설정 `generators/animation/config/default_game_pose_sheets.yaml`.
-
-- 휴식 모션: [momask-resting/v3](motion-sheet/momask-resting-v3/README.md). 승인 생성 `2026-09-27_20-49-23-56421d68`, 160프레임·4fps·4방향. 캐릭터 애니메이션에서 `resting-v3`로 선택합니다.

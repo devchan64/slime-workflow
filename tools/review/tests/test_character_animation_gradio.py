@@ -9,7 +9,7 @@ class CharacterAnimationGradioTests(unittest.TestCase):
     def test_selected_motion_prompt_display_matches_generation(self):
         from tools.review.domains.character_animation.character_animation_assets import build_animation_catalog, prepare_animation_request
         catalog_record_value=build_animation_catalog()
-        for selected_motion_name in ('standing-v10','walking-v13','resting-v3'):
+        for selected_motion_name in ('walking-v13',):
             request_record_value=prepare_animation_request({'motion':selected_motion_name,'character':'character-default','source':'anny','directions':['down_left'],'start_frame':1,'end_frame':1,'direction_auxiliary_prompts':{'down_left':'Keep pose.'}})
             self.assertEqual(character_animation_app.select_motion_prompt_values(catalog_record_value,selected_motion_name),request_record_value['prompts'])
             summary_text_value=character_animation_app.describe_motion_prompt_words(catalog_record_value,selected_motion_name,'Keep pose.','','','')
@@ -29,9 +29,9 @@ class CharacterAnimationGradioTests(unittest.TestCase):
         self.assertIn('allow-same-origin',player_html_text)
 
     def test_motion_preview_player_has_pose_asset_and_controls(self):
-        preview_html_text=character_animation_app.create_motion_preview_player('standing-v10','anny','down_left',10,20,4,8,2,'http://127.0.0.1:8770')
-        self.assertIn('character-animation/asset/standing-v10/anny/down_left/10',preview_html_text)
-        self.assertIn('character-animation/asset/standing-v10/anny/down_left/12',preview_html_text)
+        preview_html_text=character_animation_app.create_motion_preview_player('walking-v13','anny','down_left',10,20,4,8,2,'http://127.0.0.1:8770')
+        self.assertIn('character-animation/asset/walking-v13/anny/down_left/10',preview_html_text)
+        self.assertIn('character-animation/asset/walking-v13/anny/down_left/12',preview_html_text)
         self.assertIn('미리보기 불러오기',preview_html_text)
         self.assertIn('id=&quot;play&quot; disabled',preview_html_text)
         self.assertIn('입력 포즈 프레임',preview_html_text)
@@ -51,7 +51,7 @@ class CharacterAnimationGradioTests(unittest.TestCase):
         self.assertEqual(character_animation_app.clamp_selected_frame_range(None,None,60),(1,60))
 
     def test_direction_auxiliary_prompts_round_trip(self):
-        request=character_animation_app.build_animation_request('standing-v10','character-default','anny',['down_left'],1,2,512,4,4,1,'','left detail','','rear detail','')
+        request=character_animation_app.build_animation_request('walking-v13','character-default','anny',['down_left'],1,2,512,4,4,1,'','left detail','','rear detail','')
         self.assertEqual(request['direction_auxiliary_prompts']['down_left'],'left detail')
         restored=character_animation_app.restore_animation_inputs({'request':request})
         self.assertEqual(restored[11:15],('left detail','','rear detail',''))

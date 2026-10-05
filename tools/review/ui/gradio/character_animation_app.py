@@ -113,6 +113,8 @@ def build_character_animation_interface(server_base_address):
     motion_frame_count_values={motion_identifier_value:motion_record_value['frames'] for motion_identifier_value,motion_record_value in motion_catalog_records.items()}
     def restore_registered_animation_inputs(current_history_record):
         restored_input_values=list(restore_animation_inputs(current_history_record))
+        if restored_input_values[0] not in motion_frame_count_values:
+            raise gr.Error('폐기된 모션의 입력은 복원할 수 없습니다. 등록된 모션을 선택하세요.')
         selected_frame_count=motion_frame_count_values[restored_input_values[0]]
         restored_start_frame,restored_end_frame=clamp_selected_frame_range(restored_input_values[4],restored_input_values[5],selected_frame_count)
         restored_input_values[4]=gr.update(value=restored_start_frame,maximum=selected_frame_count)

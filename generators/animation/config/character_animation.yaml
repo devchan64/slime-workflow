@@ -4,19 +4,6 @@ prompts:
   auxiliary: generators/animation/config/prompts/auxiliary-prompt.txt
   auxiliary_rear: generators/animation/config/prompts/auxiliary-rear-prompt.txt
 motions:
-  standing-v10:
-    action_prompt: generators/animation/config/prompts/standing-action.txt
-    direction_auxiliary_prompts:
-      down_left: "The character faces toward the left side of the image, front three-quarter view. Preserve the reference pose."
-      down_right: "The character faces toward the right side of the image, front three-quarter view. Preserve the reference pose."
-      up_left: "Back view, facing away toward the left side of the image. Show the back of the head and torso. Preserve the reference pose."
-      up_right: "Match image 2's head, torso, and feet orientation, facing screen-right."
-    target_fps: 8
-    label: 대기 v10
-    root: assets/motion-sheet/momask-standing-v10
-    manifest: manifest.yaml
-    openpose: openpose/{direction}/openpose-{frame:04d}.png
-    anny: anny/{direction}/anny-{frame:04d}.png
   walking-v13:
     action_prompt: generators/animation/config/prompts/walking-action.txt
     direction_auxiliary_prompts:
@@ -27,19 +14,6 @@ motions:
     target_fps: 8
     label: 걷기 v13
     root: assets/motion-sheet/momask-walking-v13
-    manifest: manifest.yaml
-    openpose: openpose/{direction}/openpose-{frame:04d}.png
-    anny: anny/{direction}/anny-{frame:04d}.png
-  resting-v3:
-    action_prompt: generators/animation/config/prompts/resting-action.txt
-    direction_auxiliary_prompts:
-      down_left: "The character faces toward the left side of the image, front three-quarter view. Preserve the reference pose."
-      down_right: "The character faces toward the right side of the image, front three-quarter view. Preserve the reference pose."
-      up_left: "Back view, facing away toward the left side of the image. Show the back of the head and torso. Preserve the reference pose."
-      up_right: "Back view, facing away toward the right side of the image. Show the back of the head and torso. Preserve the reference pose."
-    target_fps: 8
-    label: 휴식 v3
-    root: assets/motion-sheet/momask-resting-v3
     manifest: manifest.yaml
     openpose: openpose/{direction}/openpose-{frame:04d}.png
     anny: anny/{direction}/anny-{frame:04d}.png

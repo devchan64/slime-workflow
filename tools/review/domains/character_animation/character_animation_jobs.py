@@ -16,7 +16,7 @@ import traceback
 import uuid
 from tools.review.common.gpu_job_queue import launch_gpu_process
 
-from tools.review.domains.character_animation.character_animation_assets import WORKFLOW_ROOT_DIRECTORY, prepare_animation_request, build_animation_catalog
+from tools.review.domains.character_animation.character_animation_assets import WORKFLOW_ROOT_DIRECTORY, prepare_animation_request, build_animation_catalog, load_animation_configuration
 from tools.review.common.generation_records import write_record_atomically
 
 GENERATION_ROOT_DIRECTORY = WORKFLOW_ROOT_DIRECTORY/'.tmp/test/character-animation'
@@ -172,6 +172,9 @@ def resume_animation_generation(command_payload_value):
         except BlockingIOError:raise ValueError('다른 캐릭터 애니메이션 생성이 진행 중입니다.') from None
         generation_status_record=read_generation_status(generation_job_identifier)
         if generation_status_record['status'] not in ('cancelled','failed'):raise ValueError('취소되거나 실패한 작업만 재개할 수 있습니다.')
+        saved_request_record=json.loads((generation_job_path/'request.json').read_text())
+        if saved_request_record['motion'] not in load_animation_configuration()['motions']:
+            raise ValueError('폐기된 모션의 작업은 재개할 수 없습니다. 등록된 모션으로 새로 생성하세요.')
         (generation_job_path/'cancel.request').unlink(missing_ok=True)
         write_record_atomically(generation_job_path/'status.json',{'status':'running'})
         write_record_atomically(GENERATION_ROOT_DIRECTORY/'active.json',{'id':generation_job_identifier})

@@ -18,7 +18,7 @@ from tools.review.domains.character_animation.character_animation import Charact
 class CharacterAnimationTests(unittest.TestCase):
     def test_motion_prompts_match_catalog_and_saved_request(self):
         catalog_record_value=assets.build_animation_catalog()
-        expected_action_texts={'standing-v10':'standing idle','walking-v13':'walking','resting-v3':'resting'}
+        expected_action_texts={'walking-v13':'walking'}
         for motion_record_value in catalog_record_value['motions']:
             request_record_value=assets.prepare_animation_request({'motion':motion_record_value['id'],'character':'character-default','source':'anny','directions':['down_left'],'start_frame':1,'end_frame':15,'speed':2,'target_fps':8})
             self.assertIn(expected_action_texts[motion_record_value['id']],request_record_value['prompts']['base'])
@@ -32,23 +32,41 @@ class CharacterAnimationTests(unittest.TestCase):
                 self.assertEqual(final_prompt_record['words'],len(final_prompt_record['text'].split()))
                 self.assertLess(final_prompt_record['words'],100)
 
+    def test_retired_motions_are_rejected(self):
+        self.assertEqual([record['id'] for record in assets.build_animation_catalog()['motions']], ['walking-v13'])
+        for retired_motion_name in ('standing-v10', 'resting-v3'):
+            with self.assertRaises(ValueError):
+                assets.prepare_animation_request({'motion': retired_motion_name, 'character': 'character-default', 'source': 'anny', 'directions': ['down_left']})
+
+    def test_retired_motion_resume_preserves_saved_state(self):
+        with tempfile.TemporaryDirectory() as temporary_root_name:
+            generation_root_path = Path(temporary_root_name)
+            generation_job_identifier = '2026-10-05_17-00-00-12345678'
+            generation_root_path.joinpath('request.json').write_text(json.dumps({'motion': 'standing-v10'}))
+            generation_root_path.joinpath('cancel.request').touch()
+            with patch.object(jobs, 'resolve_generation_directory', return_value=generation_root_path), patch.object(jobs, 'GENERATION_LOCK_PATH', generation_root_path/'lock'), patch.object(jobs, 'read_generation_status', return_value={'status': 'cancelled'}), patch.object(jobs.subprocess, 'Popen') as launch_process_mock:
+                with self.assertRaisesRegex(ValueError, '폐기된 모션'):
+                    jobs.resume_animation_generation({'id': generation_job_identifier})
+                launch_process_mock.assert_not_called()
+            self.assertTrue(generation_root_path.joinpath('cancel.request').exists())
+
     def test_motion_action_prompt_is_required(self):
         animation_config_record=assets.load_animation_configuration()
-        del animation_config_record['motions']['standing-v10']['action_prompt']
+        del animation_config_record['motions']['walking-v13']['action_prompt']
         with patch.object(assets,'read_asset_mapping',return_value=animation_config_record):
             with self.assertRaisesRegex(ValueError,'모션 등록'):
                 assets.load_animation_configuration()
         animation_config_record=assets.load_animation_configuration()
-        animation_config_record['motions']['standing-v10']['action_prompt']='missing-action.txt'
+        animation_config_record['motions']['walking-v13']['action_prompt']='missing-action.txt'
         with self.assertRaisesRegex(ValueError,'등록 파일'):
-            assets.read_fixed_prompts(animation_config_record,'standing-v10')
+            assets.read_fixed_prompts(animation_config_record,'walking-v13')
 
     def make_selection_record(self,**selection_override_values):
-        return dict(motion='standing-v10',character='character-default',source='anny',directions=['down_left'],**selection_override_values)
+        return dict(motion='walking-v13',character='character-default',source='anny',directions=['down_left'],**selection_override_values)
 
     def test_ui_auxiliary_request_is_accepted_and_composed(self):
         from tools.review.ui.gradio.character_animation_app import build_animation_request
-        payload=build_animation_request('standing-v10','character-default','anny',['down_left'],1,1,512,4,8,2,'','Walk left.','','','')
+        payload=build_animation_request('walking-v13','character-default','anny',['down_left'],1,1,512,4,8,2,'','Walk left.','','','')
         prepared=assets.prepare_animation_request(payload)
         self.assertEqual(prepared['direction_auxiliary_prompts']['down_left'],'Walk left.')
         self.assertIn('Walk left.',prepared['direction_prompts']['down_left']['text'])
@@ -117,7 +135,7 @@ characters:
         prepared_request_value=assets.prepare_animation_request(self.make_selection_record())
         self.assertEqual(prepared_request_value['target_fps'],8)
         self.assertEqual(prepared_request_value['speed'],2)
-        self.assertEqual(prepared_request_value['selected_frame_numbers'],list(range(1,121,2)))
+        self.assertEqual(prepared_request_value['selected_frame_numbers'],list(range(1,61,2)))
         for invalid_frame_rate in (0,1,2,3,4,5,True,'8',8.0):
             with self.assertRaises(ValueError):
                 assets.prepare_animation_request(self.make_selection_record(target_fps=invalid_frame_rate))
@@ -130,7 +148,7 @@ characters:
         self.assertEqual(assets.select_target_fps_frames(5,4,8,2),[1,3,5])
 
     def test_generation_speed_changes_sampling_not_fps(self):
-        for selected_speed_value, expected_frame_numbers in ((1,list(range(1,121))),(2,list(range(1,121,2))),(4,list(range(1,121,4)))):
+        for selected_speed_value, expected_frame_numbers in ((1,list(range(1,61))),(2,list(range(1,61,2))),(4,list(range(1,61,4)))):
             prepared_request_value=assets.prepare_animation_request(self.make_selection_record(target_fps=8,speed=selected_speed_value))
             self.assertEqual(prepared_request_value['selected_frame_numbers'],expected_frame_numbers)
             self.assertEqual(prepared_request_value['fps'],8)
@@ -140,7 +158,7 @@ characters:
                 assets.prepare_animation_request(self.make_selection_record(speed=invalid_speed_value))
 
     def test_registered_sources_all_frames_integrity(self):
-        for motion_identifier_value,expected_frame_count in [('standing-v10',120),('walking-v13',60),('resting-v3',160)]:
+        for motion_identifier_value,expected_frame_count in [('walking-v13',60)]:
             for source_kind_value in ('openpose','anny'):
                 selection_request_record=self.make_selection_record(resolution=512)
                 selection_request_record.update(motion=motion_identifier_value,source=source_kind_value,speed=1,directions=list(assets.SUPPORTED_DIRECTION_NAMES))
@@ -152,8 +170,8 @@ characters:
 
     def test_frame_step_defaults_and_direction_prompts(self):
         request_record_value=assets.prepare_animation_request(self.make_selection_record())
-        self.assertEqual(request_record_value['selected_frame_numbers'],list(range(1,121,2)))
-        self.assertEqual(request_record_value['frames_per_direction'],60)
+        self.assertEqual(request_record_value['selected_frame_numbers'],list(range(1,61,2)))
+        self.assertEqual(request_record_value['frames_per_direction'],30)
         for direction_name_value,prompt_record_value in request_record_value['direction_prompts'].items():
             self.assertIn(assets.DIRECTION_PROMPT_LABELS[direction_name_value],prompt_record_value['text'])
             self.assertLess(prompt_record_value['words'],100)
@@ -180,8 +198,8 @@ characters:
             frame_log_path.write_text('date/qwen-pose/load model=x\ndate/qwen-pose/inference steps=30\ndate/qwen-pose/denoise step=7/30\n')
             status_record_value={'status':'running','progress':{'completed':1,'total':999}}
             result_record_value=jobs.describe_generation_progress(generation_job_path,request_record_value,status_record_value)
-            self.assertEqual((result_record_value['completed'],result_record_value['total']),(1,120))
-            self.assertEqual((result_record_value['direction_index'],result_record_value['direction_total'],result_record_value['frame']),(2,60,3))
+            self.assertEqual((result_record_value['completed'],result_record_value['total']),(1,60))
+            self.assertEqual((result_record_value['direction_index'],result_record_value['direction_total'],result_record_value['frame']),(2,30,3))
             self.assertEqual((result_record_value['inference_completed'],result_record_value['inference_steps']),(7,30))
             for final_status_name in ('cancelled','failed'):
                 result_record_value=jobs.describe_generation_progress(generation_job_path,request_record_value,{**status_record_value,'status':final_status_name})
@@ -198,7 +216,7 @@ characters:
             result_path=job_path/'down_left/frame-0001/result.json';result_path.parent.mkdir(parents=True);result_path.write_text('{"elapsed_seconds":120}')
             state['progress']['completed']=1
             estimate=jobs.estimate_generation_remaining(job_path,request_record_value,state)
-            self.assertEqual(estimate['remaining_seconds'],7080)
+            self.assertEqual(estimate['remaining_seconds'],3480)
             self.assertEqual(estimate['samples'],1)
             state['status']='cancelled'
             self.assertIsNone(jobs.estimate_generation_remaining(job_path,request_record_value,state)['remaining_seconds'])
@@ -217,13 +235,13 @@ characters:
             self.assertEqual(request_record_value['steps'],step_count_value)
             self.assertEqual(request_record_value['lightning'],step_count_value==4)
             with patch.object(gateway,'execute_management_command',return_value={'id':'test'}) as execute_mock,contextlib.redirect_stdout(io.StringIO()):
-                gateway.execute_gateway_cli(['command','character-animation','generate','--motion','standing-v10','--character','character-default','--steps',str(step_count_value),'--detach'])
+                gateway.execute_gateway_cli(['command','character-animation','generate','--motion','walking-v13','--character','character-default','--steps',str(step_count_value),'--detach'])
             self.assertEqual(execute_mock.call_args.args[2]['steps'],step_count_value)
         for step_count_value in (0,10,True,'30'):
             with self.assertRaises(ValueError):assets.prepare_animation_request({**self.make_selection_record(),'steps':step_count_value})
 
     def test_original_asset_preview_bounds_and_sources(self):
-        for motion_identifier_value,frame_count_value in [('standing-v10',120),('walking-v13',60),('resting-v3',160)]:
+        for motion_identifier_value,frame_count_value in [('walking-v13',60)]:
             for source_kind_value in ('openpose','anny'):
                 for direction_name_value in assets.SUPPORTED_DIRECTION_NAMES:
                     self.assertTrue(assets.resolve_motion_preview(motion_identifier_value,source_kind_value,direction_name_value,frame_count_value).is_file())
@@ -243,7 +261,7 @@ characters:
     def test_cli_and_http_envelope_have_same_selection(self):
         selection_request_record=self.make_selection_record(resolution=512)
         with patch.object(gateway,'execute_management_command',return_value={'id':'test'}) as command_execute_mock,contextlib.redirect_stdout(io.StringIO()):
-            gateway.execute_gateway_cli(['command','character-animation','generate','--motion','standing-v10','--character','character-default','--directions','down_left','--detach'])
+            gateway.execute_gateway_cli(['command','character-animation','generate','--motion','walking-v13','--character','character-default','--directions','down_left','--detach'])
         self.assertEqual(command_execute_mock.call_args.args[:3],('character-animation','generate',selection_request_record))
         command_request_bytes=json.dumps({'service':'character-animation','command':'generate','payload':selection_request_record}).encode()
         http_request_handler=SimpleNamespace(command='POST',path='/management/command',headers={'Host':'127.0.0.1:8770','Origin':'http://127.0.0.1:8770','Content-Type':'application/json','Content-Length':str(len(command_request_bytes))},server=SimpleNamespace(server_port=8770),rfile=io.BytesIO(command_request_bytes),wfile=io.BytesIO(),send_response=MagicMock(),send_header=MagicMock(),end_headers=MagicMock())
@@ -267,7 +285,7 @@ characters:
                 self.assertTrue(jobs.execute_animation_command('active',{})['running'])
                 history_record_value=jobs.execute_animation_command('history',{})['records'][0]
                 self.assertEqual(history_record_value['id'],generation_job_identifier)
-                self.assertEqual((history_record_value['request']['start_frame'],history_record_value['request']['end_frame']),(1,120))
+                self.assertEqual((history_record_value['request']['start_frame'],history_record_value['request']['end_frame']),(1,60))
                 jobs.execute_animation_command('cancel',{'id':generation_job_identifier})
                 self.assertTrue((jobs.resolve_generation_directory(generation_job_identifier)/'cancel.request').exists())
                 jobs.execute_animation_command('history-reset',{})
@@ -354,8 +372,8 @@ characters:
             with patch.object(worker,'WORKFLOW_ROOT_DIRECTORY',generation_job_path),patch.object(worker.subprocess,'run',side_effect=complete_mock_frame) as subprocess_run_mock:
                 worker.generate_character_animation(generation_job_path)
             result_record_value=json.loads((generation_job_path/'result.json').read_text())
-            self.assertEqual(subprocess_run_mock.call_count,60)
+            self.assertEqual(subprocess_run_mock.call_count,30)
             self.assertEqual(result_record_value['fps'],8)
-            self.assertEqual(len(result_record_value['frames']['down_left']),60)
+            self.assertEqual(len(result_record_value['frames']['down_left']),30)
 
 if __name__=='__main__':unittest.main()
