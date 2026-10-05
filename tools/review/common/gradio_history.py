@@ -269,7 +269,8 @@ def build_generation_history_view(execute_service_command,server_base_address,de
         current_status_value=current_status_record.get('status')
         generation_resume_allowed=current_status_record.get('resume_allowed',True)
         return gr.update(interactive=current_status_value in ('running','queued','paused')),gr.update(interactive=generation_resume_allowed and current_status_value in ('failed','cancelled','paused'),value=('다음 단계' if current_status_value=='paused' else '생성 재개') if generation_resume_allowed else current_status_record['resume_block_reason'])
-    history_selection_value.change(refresh_history_controls,history_selection_value,[history_cancel_button,history_resume_button],queue=False)
+    # 자동 목록 갱신은 선택 처리 이벤트를 재실행하지 않는다. 사용자 선택만 처리한다.
+    history_selection_value.input(refresh_history_controls,history_selection_value,[history_cancel_button,history_resume_button],queue=False)
     if hasattr(gr,'Timer'):
         gr.Timer(3).tick(refresh_history_controls,history_selection_value,[history_cancel_button,history_resume_button],queue=False,show_progress='hidden')
 
@@ -291,7 +292,7 @@ def build_generation_history_view(execute_service_command,server_base_address,de
         current_page_updates=read_history_page(current_page_number,current_selected_identifier)
         return [current_page_updates[index] for index in (3,6,7)]
 
-    history_selection_value.change(update_selected_card_layout,[history_page_value,history_selection_value],[history_cards_value,history_remaining_cards,history_selected_panel],queue=False)
+    history_selection_value.input(update_selected_card_layout,[history_page_value,history_selection_value],[history_cards_value,history_remaining_cards,history_selected_panel],queue=False)
 
     def read_selected_result(current_selected_identifier):
         if not current_selected_identifier:raise gr.Error('목록에서 작업을 선택하세요. 결과 조회·입력 재사용·중지·재개를 할 수 있습니다.')
@@ -321,10 +322,10 @@ def build_generation_history_view(execute_service_command,server_base_address,de
             if current_history_record is None:raise gr.Error('선택한 이력을 찾을 수 없습니다. 목록을 새로고침하세요.')
             return restore_input_callback(current_history_record)
         restore_input_button.click(restore_selected_inputs,history_selection_value,restore_output_components,queue=False)
-    history_selection_value.change(lambda selected_history_identifier: selected_history_identifier or '',history_selection_value,selected_identifier_value,queue=False)
+    history_selection_value.input(lambda selected_history_identifier: selected_history_identifier or '',history_selection_value,selected_identifier_value,queue=False)
     history_selection_output_values=[history_selection_summary,result_lookup_button]
     if restore_input_callback is not None:history_selection_output_values.append(restore_input_button)
-    history_selection_value.change(describe_selected_history,history_selection_value,history_selection_output_values,queue=False)
+    history_selection_value.input(describe_selected_history,history_selection_value,history_selection_output_values,queue=False)
     if hasattr(gr,'Timer'):
         gr.Timer(3).tick(read_history_page,[history_page_value,history_selection_value],[history_selection_value,history_count_value,history_page_value,history_cards_value,history_previous_button,history_next_button,history_remaining_cards,history_selected_panel],preprocess=False,queue=False,show_progress='hidden')
     history_refresh_button.click(read_history_page,[history_page_value,history_selection_value],[history_selection_value,history_count_value,history_page_value,history_cards_value,history_previous_button,history_next_button,history_remaining_cards,history_selected_panel],preprocess=False,queue=False)
@@ -351,7 +352,7 @@ def build_generation_history_view(execute_service_command,server_base_address,de
     reset_output_components.append(selected_identifier_value)
     if allow_individual_delete:
         history_delete_confirmation=gr.Checkbox(value=False,visible=False)
-        history_selection_value.change(lambda identifier:gr.update(interactive=bool(identifier)),history_selection_value,history_delete_button,queue=False)
+        history_selection_value.input(lambda identifier:gr.update(interactive=bool(identifier)),history_selection_value,history_delete_button,queue=False)
         def delete_selected_history(selected_job_identifier,confirmed_delete_value):
             if confirmed_delete_value is not True:
                 return [gr.skip() for _ in reset_output_components]

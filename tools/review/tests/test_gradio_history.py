@@ -106,3 +106,19 @@ class GradioHistoryTest(unittest.TestCase):
         current_refresh_values = read_history_callback(1, 'current-job')
         self.assertEqual(current_refresh_values[0]['value'], 'current-job')
         self.assertTrue(current_refresh_values[7]['visible'])
+
+    def test_background_refresh_does_not_trigger_selection_handlers(self):
+        with gr.Blocks() as current_history_blocks:
+            build_generation_history_view(
+                lambda command_name, request_payload: {'records': []},
+                'http://localhost', '테스트 기록')
+        current_blocks_config = current_history_blocks.get_config_file()
+        selection_component_identifier = next(
+            component_record_value['id'] for component_record_value in current_blocks_config['components']
+            if component_record_value.get('props', {}).get('elem_id') == 'generation-history-selection')
+        selection_event_names = [
+            target_event_name for dependency_record_value in current_blocks_config['dependencies']
+            for target_component_identifier, target_event_name in dependency_record_value['targets']
+            if target_component_identifier == selection_component_identifier]
+        self.assertIn('input', selection_event_names)
+        self.assertNotIn('change', selection_event_names)
