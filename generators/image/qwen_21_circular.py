@@ -4,11 +4,18 @@ from types import MethodType
 CIRCULAR_DEFAULT_PROMPT = '잔디와 꽃을 그린다. Top view. Repeat pattern. Close-up'
 CIRCULAR_LEGACY_CONFIGURATION = {'schema_version': 1, 'axes': 'xy', 'scope': 'decoder', 'tiled_decode': False}
 
-CIRCULAR_VAE_CONFIGURATION = {'schema_version': 2, 'axes': 'xy', 'scope': 'latent_halo', 'halo_latents': 8, 'tiled_decode': False, 'baseline_decode': True}
+CIRCULAR_HALO_CONFIGURATION = {'schema_version': 2, 'axes': 'xy', 'scope': 'latent_halo', 'halo_latents': 8, 'tiled_decode': False, 'baseline_decode': True}
+
+from generators.image.qwen_21_toroidal import TOROIDAL_ATTENTION_CONFIGURATION
+CIRCULAR_COMPARISON_CONFIGURATION = {**TOROIDAL_ATTENTION_CONFIGURATION, 'schema_version': 5, 'vae': 'circular_decoder_comparison', 'baseline_decode': True}
+CIRCULAR_VERTICAL_CONFIGURATION = {**CIRCULAR_COMPARISON_CONFIGURATION, 'schema_version': 6, 'vertical_boundary_radius': 4}
+CIRCULAR_VAE_CONFIGURATION = {**CIRCULAR_COMPARISON_CONFIGURATION, 'schema_version': 7, 'boundary_radius': 8, 'vertical_boundary_radius': 8}
 
 
 def forward_circular_convolution(current_conv_module, current_input_tensor, cache_x=None):
     import torch.nn.functional as functional_operations
+    if not getattr(current_conv_module, '_circular_decode_enabled', True):
+        return current_conv_module._original_decode_forward(current_input_tensor, cache_x=cache_x)
     if cache_x is not None:
         raise ValueError('Qwen 2.1 순환 디코더는 시간 캐시를 지원하지 않습니다.')
     padded_input_tensor = functional_operations.pad(current_input_tensor.squeeze(2), current_conv_module._padding, mode='circular')
@@ -56,7 +63,7 @@ def install_circular_halo_decode(current_pipeline_model, current_job_root):
     from diffusers.models.autoencoders.vae import DecoderOutput
     current_vae_module = current_pipeline_model.vae
     original_decode_method = current_vae_module.decode
-    halo_latent_width = CIRCULAR_VAE_CONFIGURATION['halo_latents']
+    halo_latent_width = CIRCULAR_HALO_CONFIGURATION['halo_latents']
     current_vae_module.disable_tiling()
 
     def decode_with_circular_halo(current_latent_tensor, return_dict=True):
@@ -77,3 +84,37 @@ def install_circular_halo_decode(current_pipeline_model, current_job_root):
         return DecoderOutput(sample=cropped_output_tensor) if return_dict else (cropped_output_tensor,)
 
     current_vae_module.decode = decode_with_circular_halo
+
+
+def install_circular_comparison(current_pipeline_model, current_job_root):
+    """오프로딩 훅 등록 전에 전환 가능한 디코더를 준비해 같은 잠재값을 비교한다."""
+    import torch
+    from diffusers.models.autoencoders.autoencoder_kl_qwenimage21 import QwenImage21CausalConv3d
+    current_vae_module = current_pipeline_model.vae
+    original_decode_method = current_vae_module.decode
+    custom_conv_layers = []
+    ordinary_conv_layers = []
+    for current_layer_module in current_vae_module.decoder.modules():
+        if isinstance(current_layer_module, QwenImage21CausalConv3d):
+            current_layer_module._original_decode_forward = current_layer_module.forward
+            custom_conv_layers.append(current_layer_module)
+        elif isinstance(current_layer_module, torch.nn.Conv2d):
+            ordinary_conv_layers.append((current_layer_module, current_layer_module.padding_mode))
+    apply_circular_decoder(current_vae_module)
+
+    def decode_with_comparison(current_latent_tensor, return_dict=True):
+        torch.save(current_latent_tensor.detach().cpu(), current_job_root / 'decode-latents.pt')
+        for current_layer_module in custom_conv_layers:
+            current_layer_module._circular_decode_enabled = False
+        for current_layer_module, original_padding_mode in ordinary_conv_layers:
+            current_layer_module.padding_mode = original_padding_mode
+        baseline_output_tensor = original_decode_method(current_latent_tensor, return_dict=False)[0]
+        current_pipeline_model.image_processor.postprocess(baseline_output_tensor[:, :, 0], output_type='pil')[0].save(current_job_root / 'baseline.png')
+        del baseline_output_tensor
+        for current_layer_module in custom_conv_layers:
+            current_layer_module._circular_decode_enabled = True
+        for current_layer_module, original_padding_mode in ordinary_conv_layers:
+            current_layer_module.padding_mode = 'circular'
+        return original_decode_method(current_latent_tensor, return_dict=return_dict)
+
+    current_vae_module.decode = decode_with_comparison

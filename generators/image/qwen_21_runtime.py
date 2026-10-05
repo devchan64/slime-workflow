@@ -61,8 +61,18 @@ def execute_qwen_reference_generation(current_job_root, current_request_record, 
         print(f'{datetime.now().isoformat()}/qwen21/load {current_model_root}', flush=True)
         current_pipeline_model = QwenImage21Pipeline.from_pretrained(current_model_root, torch_dtype=torch.bfloat16, local_files_only=True)
         if 'circular_vae' in current_request_record:
-            from generators.image.qwen_21_circular import apply_circular_decoder, install_circular_halo_decode, CIRCULAR_VAE_CONFIGURATION, CIRCULAR_LEGACY_CONFIGURATION
-            if current_request_record['circular_vae'] == CIRCULAR_VAE_CONFIGURATION:
+            from generators.image.qwen_21_circular import apply_circular_decoder, install_circular_halo_decode, CIRCULAR_VAE_CONFIGURATION, CIRCULAR_VERTICAL_CONFIGURATION, CIRCULAR_COMPARISON_CONFIGURATION, CIRCULAR_LEGACY_CONFIGURATION, CIRCULAR_HALO_CONFIGURATION
+            from generators.image.qwen_21_toroidal import TOROIDAL_LEGACY_CONFIGURATION, TOROIDAL_ATTENTION_CONFIGURATION
+            if current_request_record['circular_vae'] in (CIRCULAR_VAE_CONFIGURATION, CIRCULAR_VERTICAL_CONFIGURATION, CIRCULAR_COMPARISON_CONFIGURATION, TOROIDAL_LEGACY_CONFIGURATION, TOROIDAL_ATTENTION_CONFIGURATION):
+                from generators.image.qwen_21_toroidal import install_toroidal_attention
+                patched_block_count = install_toroidal_attention(current_pipeline_model, current_request_record)
+                if current_request_record['circular_vae'] in (CIRCULAR_VAE_CONFIGURATION, CIRCULAR_VERTICAL_CONFIGURATION, CIRCULAR_COMPARISON_CONFIGURATION):
+                    from generators.image.qwen_21_circular import install_circular_comparison
+                    install_circular_comparison(current_pipeline_model, current_job_root)
+                else:
+                    current_pipeline_model.vae.enable_tiling()
+                print(f'{datetime.now().isoformat()}/qwen21/toroidal 생성 토큰 경계 K/V · {patched_block_count}개 블록 · VAE 설정 {current_request_record["circular_vae"]["vae"]}', flush=True)
+            elif current_request_record['circular_vae'] == CIRCULAR_HALO_CONFIGURATION:
                 install_circular_halo_decode(current_pipeline_model, current_job_root)
                 print(f'{datetime.now().isoformat()}/qwen21/circular 잠재 여백 8 · 일반/순환 동일 잠재값 비교 · 분할 없음', flush=True)
             elif current_request_record['circular_vae'] == CIRCULAR_LEGACY_CONFIGURATION:

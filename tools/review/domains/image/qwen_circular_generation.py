@@ -12,6 +12,8 @@ class QwenCircularGenerationManager(QwenPlainGenerationManager):
 
     def validate_generation_request(self, request_record_value):
         validated_request_record = super().validate_generation_request(request_record_value)
+        if validated_request_record.get('images') or validated_request_record.get('references'):
+            raise ValueError('순환 Attention 실험은 참조 없이 프롬프트만 입력하세요.')
         validated_request_record['circular_vae'] = dict(CIRCULAR_VAE_CONFIGURATION)
         return validated_request_record
 

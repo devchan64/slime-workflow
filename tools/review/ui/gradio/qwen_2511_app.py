@@ -71,6 +71,24 @@ def restore_reference_inputs(current_history_record, reference_storage_root=None
 
 def result_preview_html(image_url_value):return f'<img class="qwen-result-image" src="{html.escape(image_url_value,quote=True)}" alt="Qwen 생성 결과">' if image_url_value else '<div class="image-result-empty">완료된 결과를 선택하세요.</div>'
 
+def render_circular_comparison(current_selected_identifier, current_status_record, current_server_address):
+    """공용 이력의 생성 ID·상태·서버 주소 계약으로 저장된 결과만 표시한다."""
+    result_section_values = []
+    for current_image_field, current_image_label in (
+        ('image', '순환 VAE · 생성 원본'),
+        ('baseline', '일반 VAE · 같은 잠재값'),
+        ('baseline-preview', '일반 VAE · 3×3 반복 비교'),
+    ):
+        current_image_path = current_status_record.get(current_image_field)
+        if not current_image_path:
+            continue
+        current_image_address = current_server_address.rstrip('/') + current_image_path
+        result_section_values.append('<h3>' + current_image_label + '</h3>' + result_preview_html(current_image_address))
+        if current_image_field == 'image':
+            result_section_values.append('<h3>순환 VAE · 3×3 반복 검수</h3>' + result_preview_html(current_image_address.replace('/result.png', '/tiled-preview.png')))
+    return ''.join(result_section_values) if result_section_values else '<p>아직 저장된 결과 이미지가 없습니다.</p>'
+
+
 def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False, qwen21_mode_enabled=False, circular_mode_enabled=False, pose_transfer_enabled=False):
     if expression_mode_enabled and qwen21_mode_enabled:
         raise ValueError("표정 생성과 Qwen 2.1 일반 생성은 별도 모드입니다.")
@@ -84,15 +102,6 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
         if circular_mode_enabled and current_image_address:
             return '<h3>생성 원본</h3>' + original_preview_html + '<h3>전체 이미지 · 3×3 반복 검수</h3>' + result_preview_html(current_image_address.replace('/result.png', '/tiled-preview.png'))
         return original_preview_html
-    def render_circular_comparison(current_status_record, current_server_address):
-        if not current_status_record.get('image'):
-            return result_preview_html(None)
-        current_image_address = current_server_address.rstrip('/') + current_status_record['image']
-        rendered_result_html = render_generation_preview(current_image_address)
-        if current_status_record.get('baseline'):
-            rendered_result_html += '<h3>일반 VAE · 같은 잠재값</h3>' + result_preview_html(current_image_address.replace('/result.png', '/baseline.png'))
-            rendered_result_html += '<h3>일반 VAE · 3×3 반복 비교</h3>' + result_preview_html(current_image_address.replace('/result.png', '/baseline-preview.png'))
-        return rendered_result_html
     def execute_reference_gateway(command_name_value, payload_value):
         return execute_management_command(current_service_name, command_name_value, payload_value)
     def restore_selected_inputs(current_history_record):
@@ -105,7 +114,7 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
     with gr.Blocks(title=current_page_title,js=HISTORY_CARD_SELECTION_SCRIPT) as interface_blocks_value:
         gr.Markdown('## '+current_page_title+'\n참조 이미지는 업로드한 순서대로 모델에 전달됩니다.')
         if circular_mode_enabled:
-            gr.Markdown('XY 순환 잠재 여백 · 일반 VAE 비교 · 분할 디코딩 끔 · 출력 전체가 타일입니다. 반복 경계의 형태 연결은 결과에서 검수하세요.')
+            gr.Markdown('생성 토큰 순환 Attention · 일반/순환 VAE 동일 잠재값 비교 · 참조 없는 텍스트 생성 실험 · 출력 전체가 타일입니다. 반복 경계의 형태 연결은 결과에서 검수하세요.')
         if expression_mode_enabled:
             gr.Markdown('Qwen-Image-Edit-2511 고정 · 참조 1~3장. 첫 이미지를 편집하고 추가 이미지는 동일 캐릭터의 외형 참고로 사용합니다. AU는 움직임 설계 참고이며 검출값·감정 판정·강도 측정이 아닙니다.')
         with gr.Row(equal_height=True):

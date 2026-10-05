@@ -465,3 +465,7 @@ schema 4 기록의 두 번째 단계는 내용이 지워지지 않은 원본(`re
 - 출력 전체가 타일이고 `tiled-preview.png`는 전체 출력의 3×3 반복입니다. 심리스 품질 보장은 아니며 최종 검수가 필요합니다.
 - 기록은 `.tmp/test/qwen-image-21-circular/<생성ID>/`에 누적하고 일반 생성 이력과 분리합니다.
 - CLI: `tools/manager.py command qwen-21-circular generate --prompt-file <파일> --width 512 --height 512 --steps 40 --seed 10107 --detach`.
+
+순환 생성기 신규 v3 실험은 512×512 텍스트 입력에 생성 토큰 경계 K/V와 상대 RoPE를 추가합니다. 일반 VAE를 사용하며 참조 입력은 거절합니다. v1·v2 기록의 재개 방식은 보존합니다. ComfyUI-AdvancedTiling의 사각형 순환 Attention 원리를 참고한 Qwen 2.1 전용 구현이며 호환·품질 보장은 아닙니다.
+
+현재 v7은 좌우·상하 경계 참조 반경을 각각 8토큰으로 적용하고, 동일 잠재값을 일반 VAE와 순환 VAE로 복원하여 비교합니다. v4의 국소 경계 참조, v5의 VAE 비교, v6의 좌우 2·상하 4토큰을 포함한 이전 기록 설정은 재개 시 유지합니다. 기본 출력은 512×512이며 반경은 이미지 삭제 폭이 아닌 Attention 참조 범위입니다.

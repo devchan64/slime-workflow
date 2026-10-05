@@ -16,3 +16,20 @@ class CircularGenerationTests(unittest.TestCase):
         self.assertEqual(current_service_manager.route_prefix_value, MANAGEMENT_SERVICE_ROUTES['qwen-21-circular'])
         self.assertIn('resume', MANAGEMENT_SERVICE_COMMANDS['qwen-21-circular'])
         self.assertEqual(current_service_manager.job_storage_root.name, 'qwen-image-21-circular')
+
+    def test_history_renderer_contract_and_partial_results(self):
+        from tools.review.ui.gradio.qwen_2511_app import render_circular_comparison
+        completed_result_html = render_circular_comparison('example-id', {
+            'image':'/jobs/example-id/result.png',
+            'baseline':'/jobs/example-id/baseline.png',
+            'baseline-preview':'/jobs/example-id/baseline-preview.png',
+        }, 'http://localhost:8770')
+        for expected_image_name in ('result.png','tiled-preview.png','baseline.png','baseline-preview.png'):
+            self.assertIn(expected_image_name, completed_result_html)
+        partial_result_html = render_circular_comparison('example-id', {
+            'status':'failed', 'baseline':'/jobs/example-id/baseline.png',
+        }, 'http://localhost:8770')
+        self.assertIn('/baseline.png', partial_result_html)
+        self.assertNotIn('/baseline-preview.png', partial_result_html)
+        self.assertNotIn('/tiled-preview.png', partial_result_html)
+        self.assertIn('저장된 결과', render_circular_comparison('example-id', {}, 'http://localhost:8770'))
