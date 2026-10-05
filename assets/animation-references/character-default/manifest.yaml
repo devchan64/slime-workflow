@@ -1,7 +1,7 @@
 schema_version: 1
 character_id: default
 baseline_source:
-  path: baseline-source-v2/character-default-white-shirt-four-directions-v2.png
+  path: baseline-v2/character-default-white-shirt-four-directions-v2.png
   sha256: 9a425eaa116c4d99ffe66b2db2196a8432be2701ace86bfd652ad76e364cfe98
 baseline_crops:
   root: baseline-v2
