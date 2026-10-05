@@ -17,7 +17,7 @@
 
 ## 워크플로우 네임스페이스
 
-현재 생성 설정의 캐릭터 ID는 `character-female-a`, 복장 분리 원본 ID는 `workflow:character-female-a`다. 기존 자산 경로와 에셋 관리 ID는 유지한다. 저장된 과거 생성 요청의 `character-female`은 실행 당시의 식별자이며 소급 변경하지 않는다.
+현재 생성 설정의 캐릭터 ID는 `character-female-a`, 복장 분리 원본 ID는 `workflow:character-female-a`다. 자산 루트는 `assets/animation-references/character-female-a/`다. 기존 에셋 관리 ID·파일명·버전·이미지 해시는 유지한다. 저장된 과거 생성 요청의 `character-female`은 실행 당시의 식별자이며 소급 변경하지 않는다. 과거 요청에 기록된 `assets/animation-references/character-female/`는 현재의 `assets/animation-references/character-female-a/`에 해당한다.
 
 ## 여성 캐릭터 A 복장 분리 베이스라인
 

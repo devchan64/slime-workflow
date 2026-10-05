@@ -50,5 +50,5 @@ characters:
     manifest: manifest.yaml
   character-female-a:
     label: 여성 캐릭터 A · 회색 복장 v1
-    root: assets/animation-references/character-female
+    root: assets/animation-references/character-female-a
     manifest: manifest.yaml
