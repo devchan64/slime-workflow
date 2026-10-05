@@ -1,0 +1,31 @@
+schema_version: 1
+asset_id: character-default-light-armor-four-directions
+version: v1
+character_id: default
+status: registered
+purpose: 경량 방어복 착용 4방향 기준 자료
+representation: dressed-character-sheet
+generator: built-in image_gen
+source: .tmp/test/imagegen-default-light-armor/2026-10-05_22-45-37
+anatomy_reference:
+  path: ../baseline-v2/character-default-white-shirt-four-directions-v2.png
+  sha256: 9a425eaa116c4d99ffe66b2db2196a8432be2701ace86bfd652ad76e364cfe98
+image:
+  path: default-light-armor-four-directions.png
+  size: [1254, 1254]
+layout:
+  rows: 2
+  columns: 2
+  directions: [up_left, up_right, down_left, down_right]
+notes: 착용 상태 시트이며 분리된 outfit 레이어가 아니다. 원본 크기와 알파를 유지한다. 기존 신체 기준 및 생성기 입력은 변경하지 않는다.
+files:
+  - path: default-light-armor-four-directions.png
+    sha256: 9b22eecb95ed81256098d1ac84c4f2c082a0649dbdba6d92828ce322b5f0ef48
+  - path: prompt.txt
+    sha256: 0cbb9d138435b6384e9a43bc4587f0427ffeacfd08b97e72625afdbd44c5963f
+  - path: baseline-armor-overlay-50.png
+    sha256: acb98bc77465d7b128da07d9d306d41643f896e2eed758454761488b121fca3b
+  - path: baseline-armor-toggle.gif
+    sha256: a7aaa136f257259fb951ea6fcae834f10fd6eca626e5a5a338cf3afbdf1aec41
+  - path: overlay-notes.txt
+    sha256: e769b76b5274c0f39877f094e177be466328a9a8e839358d30b1acf7c1134f11
