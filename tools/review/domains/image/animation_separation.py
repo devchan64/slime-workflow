@@ -21,6 +21,28 @@ SEPARATION_FRAME_LIMIT = 64
 SEPARATION_JOB_PATTERN = r'[0-9]{4}-[0-9-]{5}_[0-9-]{8}-[a-f0-9]{8}'
 
 
+def load_workflow_reference_sources():
+    from ..character_animation.character_animation_assets import load_animation_configuration, resolve_asset_path, read_asset_mapping, hash_asset_file, SUPPORTED_DIRECTION_NAMES
+    source_catalog_records = []
+    for current_character_identifier, current_character_record in load_animation_configuration()['characters'].items():
+        current_manifest_path = resolve_asset_path(current_character_record['root'] + '/' + current_character_record['manifest'])
+        current_manifest_record = read_asset_mapping(current_manifest_path)
+        current_baseline_record = current_manifest_record['baseline_crops']
+        if set(current_baseline_record) != {'root', 'cell_size', 'files'} or set(current_baseline_record['files']) != set(SUPPORTED_DIRECTION_NAMES):
+            raise ValueError('캐릭터 4방향 레퍼런스 형식 오류')
+        current_frame_records = []
+        for current_direction_name in SUPPORTED_DIRECTION_NAMES:
+            current_image_path = resolve_asset_path(current_character_record['root'] + '/' + current_baseline_record['root'] + '/' + current_direction_name + '.png')
+            if hash_asset_file(current_image_path) != current_baseline_record['files'][current_direction_name]:
+                raise ValueError('캐릭터 레퍼런스 무결성 오류: ' + current_direction_name)
+            with Image.open(current_image_path) as current_reference_image:
+                if list(current_reference_image.size) != current_baseline_record['cell_size']:
+                    raise ValueError('캐릭터 레퍼런스 크기 오류')
+                current_frame_records.append({'frameId': current_direction_name + '.0', 'direction': current_direction_name, 'source_path': str(current_image_path), 'rect': {'x': 0, 'y': 0, 'width': current_reference_image.width, 'height': current_reference_image.height}})
+        source_catalog_records.append({'id': 'workflow:' + current_character_identifier, 'label': current_character_record['label'] + ' · 4방향 레퍼런스', 'fps': 8, 'frames': current_frame_records, 'provenance': {'manifest': str(current_manifest_path), 'sha256': hash_asset_file(current_manifest_path)}})
+    return source_catalog_records
+
+
 def load_separation_sources():
     asset_repository_path, registered_asset_records = load_registered_tiles()
     source_catalog_records = []
@@ -44,7 +66,7 @@ def load_separation_sources():
         source_animation_record = json.loads(metadata_source_path.read_text())
         source_frame_records = [{**current_frame_record, 'direction': current_frame_record['frameId'].split('.')[0], 'source_path': str(image_source_path)} for current_frame_record in source_animation_record['frames']]
         source_catalog_records.append({'id': 'asset:' + current_relative_path, 'label': source_animation_record['animationId'] + ' · ' + source_animation_record['version'], 'fps': 8, 'frames': source_frame_records, 'provenance': [metadata_source_record, image_source_record]})
-    return source_catalog_records
+    return source_catalog_records + load_workflow_reference_sources()
 
 
 def load_sprite_editor_source(current_source_identifier):
@@ -125,8 +147,8 @@ class AnimationSeparationManager(QwenPlainGenerationManager):
         if current_request_record['width'] not in (512, 768) or current_request_record['height'] != current_request_record['width'] or current_request_record['steps'] != 40 or not 0 <= current_request_record['seed'] <= 4294967295:
             raise ValueError('512/768 정사각형·40스텝·uint32 시드만 지원합니다.')
         current_source_identifier = current_request_record['source_id']
-        if not isinstance(current_source_identifier, str) or not current_source_identifier.startswith('asset:'):
-            raise ValueError('등록된 애니메이션 에셋 ID를 선택하세요.')
+        if not isinstance(current_source_identifier, str) or not current_source_identifier.startswith(('asset:', 'workflow:')):
+            raise ValueError('등록된 애니메이션 또는 워크플로우 레퍼런스 ID를 선택하세요.')
         current_source_record = load_sprite_editor_source(current_source_identifier)
         current_source_frames = current_source_record['frames']
         first_frame_number, last_frame_number = current_request_record['start_frame'], current_request_record['end_frame']
