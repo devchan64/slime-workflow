@@ -17,7 +17,7 @@ QWEN_ENVIRONMENT_DIRECTORY = WORKFLOW_ROOT_DIRECTORY / '.venv-qwen21'
 
 def render_separation_outputs(current_job_directory, current_request_record, generation_callback_value):
     from PIL import Image
-    from generators.image.separation_alpha import extract_connected_background, BACKGROUND_MINIMUM_CHANNEL, BACKGROUND_MAXIMUM_CHROMA
+    from generators.image.separation_alpha import preserve_generated_alpha
     from tools.review.common.generation_records import write_record_atomically
     output_frame_size = current_request_record['width']
     current_frame_count = len(current_request_record['frames'])
@@ -50,7 +50,7 @@ def render_separation_outputs(current_job_directory, current_request_record, gen
                         raise ValueError('파츠 결과 프레임 크기 불일치')
                 write_record_atomically(current_completion_path, {'signature': current_request_record['signature'], 'referenceSha256': hashlib.sha256(current_reference_path.read_bytes()).hexdigest(), 'sha256': hashlib.sha256((current_part_directory / 'result.png').read_bytes()).hexdigest()})
             with Image.open(current_part_directory / 'result.png') as current_frame_image:
-                current_alpha_image = extract_connected_background(current_frame_image, remove_enclosed_background=current_part_name == 'base')
+                current_alpha_image = preserve_generated_alpha(current_frame_image)
                 current_alpha_image.save(current_part_directory / 'transparent.png')
                 output_part_sheets[current_part_name].paste(current_alpha_image, current_sheet_position)
         with Image.open(current_reference_path) as current_source_image:
@@ -64,8 +64,8 @@ def render_separation_outputs(current_job_directory, current_request_record, gen
         current_sheet_image.save(current_job_directory / f'{current_part_name}-sheet.png')
     output_manifest_record = {'schema_version': 2, 'source_id': current_request_record['source_id'], 'source_digest': current_request_record['source_digest'], 'signature': current_request_record['signature'],
         'size': output_frame_size, 'columns': output_column_count, 'rows': output_row_count, 'fps': current_request_record['fps'], 'frames': output_frame_records,
-        'alpha_processing': {'method': 'part-aware-bright-background-v2', 'base': 'all-bright-regions', 'outfit': 'edge-connected-only', 'minimum_channel': BACKGROUND_MINIMUM_CHANNEL, 'maximum_chroma': BACKGROUND_MAXIMUM_CHROMA},
-        'quality_warnings': ['독립 생성: 원본 포즈·위치·비율 일치 검수 필요', '외곽 연결 배경 제거: 닫힌 빈 공간·그림자·배경과 연결된 흰 의복 경계 검수 필요']}
+        'alpha_processing': {'method': 'qwen-native-rgba-v1', 'postprocessing': 'none'},
+        'quality_warnings': ['독립 생성: 원본 포즈·위치·비율 일치 검수 필요', '모델 원본 알파 보존: 닫힌 빈 공간·경계·반투명 잔상 검수 필요']}
     write_record_atomically(current_job_directory / 'manifest.json', output_manifest_record)
     write_record_atomically(current_job_directory / 'result.json', output_manifest_record)
     with zipfile.ZipFile(current_job_directory / 'separation.zip', 'w', zipfile.ZIP_DEFLATED) as archive_output_handle:

@@ -6,12 +6,13 @@ prompt: >-
   Replace trousers with opaque blue tight upper-thigh shorts.
   Bare feet. Preserve head, limb lengths, ankle positions, pose, orientation and image position.
   Flat fabric surface, straight edges. No chest mounds, shaped cups or bust shading.
-  Plain white background.
+  The image has alpha channel and the background is transparent.
 outfit_prompt: >-
   Extract only clothing surfaces visible in the reference as a flat overlay.
-  The entire area occupied by the neck stays plain white, down to the original front neckline.
+  The entire area occupied by the neck is transparent, down to the original front neckline.
   Keep the visible shirt, trousers and shoes; preserve only the original visible collar edge.
-  Leave all person-covered areas white rather than completing the garment behind them.
+  Leave all person-covered areas transparent rather than completing the garment behind them.
   Preserve their exact position, scale, worn pose, silhouette, folds and colors.
-  Replace the person, skin, head, hair and exposed feet with plain white background.
+  Replace the person, skin, head, hair and exposed feet with transparency.
   No invented rear collar, back panel or lining inside openings.
+  Output RGBA with a transparent background.

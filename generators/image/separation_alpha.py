@@ -1,46 +1,6 @@
-"""복장은 외곽 연결 배경만, 파란 의복 베이스는 닫힌 밝은 배경까지 제거한다."""
-from collections import deque
-from PIL import Image
+"""Qwen이 생성한 알파를 수정하지 않고 보존한다."""
 
-BACKGROUND_MINIMUM_CHANNEL = 235
-BACKGROUND_MAXIMUM_CHROMA = 24
-
-
-def extract_connected_background(current_source_image, *, remove_enclosed_background=False):
-    current_output_image = current_source_image.convert('RGBA')
-    current_image_width, current_image_height = current_output_image.size
-    current_pixel_values = list(current_output_image.getdata())
-    current_background_mask = bytearray(len(current_pixel_values))
-    current_pending_pixels = deque()
-
-    def enqueue_background_pixel(current_pixel_index):
-        if current_background_mask[current_pixel_index]:
-            return
-        current_pixel_color = current_pixel_values[current_pixel_index]
-        if current_pixel_color[3] == 0 or (min(current_pixel_color[:3]) >= BACKGROUND_MINIMUM_CHANNEL and max(current_pixel_color[:3])-min(current_pixel_color[:3]) <= BACKGROUND_MAXIMUM_CHROMA):
-            current_background_mask[current_pixel_index] = 1
-            current_pending_pixels.append(current_pixel_index)
-
-    # 파란색 베이스 의복 전용: 팔·몸통 사이의 닫힌 밝은 배경도 제거한다.
-    if remove_enclosed_background:
-        for current_pixel_index in range(len(current_pixel_values)):
-            enqueue_background_pixel(current_pixel_index)
-    for current_column_index in range(current_image_width):
-        enqueue_background_pixel(current_column_index)
-        enqueue_background_pixel((current_image_height-1)*current_image_width+current_column_index)
-    for current_row_index in range(current_image_height):
-        enqueue_background_pixel(current_row_index*current_image_width)
-        enqueue_background_pixel(current_row_index*current_image_width+current_image_width-1)
-    while current_pending_pixels:
-        current_pixel_index = current_pending_pixels.popleft()
-        current_column_index = current_pixel_index % current_image_width
-        if current_column_index:
-            enqueue_background_pixel(current_pixel_index-1)
-        if current_column_index+1 < current_image_width:
-            enqueue_background_pixel(current_pixel_index+1)
-        if current_pixel_index >= current_image_width:
-            enqueue_background_pixel(current_pixel_index-current_image_width)
-        if current_pixel_index+current_image_width < len(current_pixel_values):
-            enqueue_background_pixel(current_pixel_index+current_image_width)
-    current_output_image.putdata([(*current_pixel_color[:3], 0 if current_background_mask[current_pixel_index] else current_pixel_color[3]) for current_pixel_index,current_pixel_color in enumerate(current_pixel_values)])
-    return current_output_image
+def preserve_generated_alpha(current_source_image):
+    if current_source_image.mode != 'RGBA':
+        raise ValueError('Qwen 분리 결과에 네이티브 RGBA 출력이 필요합니다. 배경 제거로 대체하지 않습니다.')
+    return current_source_image.copy()
