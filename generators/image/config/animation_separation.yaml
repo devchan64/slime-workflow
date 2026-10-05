@@ -1,12 +1,13 @@
 schema_version: 2
 prompt: >-
-  Flat neutral ribcage, straight torso, smooth chest plane.
-  Replace the original shirt entirely with a SHORT opaque blue rectangular fabric band covering the entire chest ONLY,
-  ending immediately below the ribcage. Shoulders, arms and the whole abdomen remain bare.
-  Replace trousers with opaque blue tight upper-thigh shorts.
-  Bare feet. Preserve head, limb lengths, ankle positions, pose, orientation and image position.
-  Flat fabric surface, straight edges. No chest mounds, shaped cups or bust shading.
-  The image has alpha channel and the background is transparent.
+  Replace both shoes completely with natural bare feet: visible toes, heels and skin from ankles to toes.
+  Preserve ankle positions and foot directions, using natural foot proportions instead of shoe outlines.
+  Flat neutral chest and straight torso.
+  Replace shirt with a short opaque blue rectangular chest band ending below the ribcage; bare shoulders and abdomen.
+  Replace trousers with tight opaque blue upper-thigh shorts.
+  Preserve head, limb lengths, pose, orientation and image position.
+  Smooth flat chest fabric without cups or bust shading.
+  Output RGBA with a transparent background.
 outfit_prompt: >-
   Extract only clothing surfaces visible in the reference as a flat overlay.
   The entire area occupied by the neck is transparent, down to the original front neckline.
