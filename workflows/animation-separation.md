@@ -15,7 +15,7 @@
 
 ## 실행과 검수
 
-워크플로우의 등록 4방향 외형 레퍼런스도 원본 목록에서 선택할 수 있다. ID는 `workflow:character-default`와 `workflow:character-female`이며 프레임 순서는 `down_left`, `down_right`, `up_left`, `up_right`다. 캐릭터 애니메이션 설정의 원본 매핑을 재사용하고 manifest의 이미지 해시·크기를 검증한다. GUI·CLI 모두 같은 ID와 생성·검수 계약을 사용한다.
+워크플로우의 등록 4방향 외형 레퍼런스도 원본 목록에서 선택할 수 있다. ID는 `workflow:character-default`와 `workflow:character-female-a`이며 프레임 순서는 `down_left`, `down_right`, `up_left`, `up_right`다. 캐릭터 애니메이션 설정의 원본 매핑을 재사용하고 manifest의 이미지 해시·크기를 검증한다. GUI·CLI 모두 같은 ID와 생성·검수 계약을 사용한다.
 
 생성 설정에서 원본을 선택하면 오른쪽에 샘플 프레임 미리보기를 표시한다. 분리할 프레임을 바꾸면 해당 원본 크롭으로 갱신되며 생성 작업을 실행하지 않는다.
 

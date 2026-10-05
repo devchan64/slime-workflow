@@ -14,3 +14,7 @@
 ## 정면 얼굴 베이스라인
 
 `face-front-v1/`는 전신 좌하 참조를 기준으로 생성한 정면 얼굴이다. 갈색 단발·청록색 눈동자·피부색과 중립 표정을 유지하며 루트 매니페스트의 `face_reference`로 연결한다.
+
+## 워크플로우 네임스페이스
+
+현재 생성 설정의 캐릭터 ID는 `character-female-a`, 복장 분리 원본 ID는 `workflow:character-female-a`다. 기존 자산 경로와 에셋 관리 ID는 유지한다. 저장된 과거 생성 요청의 `character-female`은 실행 당시의 식별자이며 소급 변경하지 않는다.

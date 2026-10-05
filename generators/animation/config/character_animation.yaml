@@ -48,7 +48,7 @@ characters:
     label: 기본 캐릭터 · 흰 셔츠 v2
     root: assets/animation-references/character-default
     manifest: manifest.yaml
-  character-female:
-    label: 여성 캐릭터 · 회색 복장 v1
+  character-female-a:
+    label: 여성 캐릭터 A · 회색 복장 v1
     root: assets/animation-references/character-female
     manifest: manifest.yaml
