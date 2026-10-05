@@ -30,7 +30,7 @@ GUI는 **분리할 프레임** 한 장을 선택하고 **선택한 프레임 분
 ```bash
 python3 tools/manager.py command animation-separation catalog
 python3 tools/manager.py command animation-separation generate \
-  --source-id 'asset:assets/characters/female/animations/walk-v1/down-left-12frames-v2/walk-v1.animation.json' \
+  --source-id 'asset:assets/characters/female-a/animations/walk-v1/down-left-12frames-v2/walk-v1.animation.json' \
   --start-frame 1 --end-frame 1 --size 768 --seed 10107 --detach
 python3 tools/manager.py command animation-separation status <생성-ID>
 python3 tools/manager.py command animation-separation generate \
