@@ -143,7 +143,7 @@ class PositionChannelRetargetTests(unittest.TestCase):
 
     def test_registered_rig_profiles_bind(self):
         profile_record_values = load_retarget_profile(REPOSITORY_ROOT_PATH / 'generators/momask/config/humanml22-anny-retarget.yaml')
-        for current_rig_version in ('v1', 'v4'):
+        for current_rig_version in ('v4',):
             rig_archive_values = np.load(REPOSITORY_ROOT_PATH / f'assets/animation-models/anny-neutral-{current_rig_version}/anny-rest-rig.npz')
             rest_position_values = {current_bone_name: Vector(current_matrix_values[:3, 3]) for current_bone_name, current_matrix_values in zip(rig_archive_values['bone_names'], rig_archive_values['bone_matrices'])}
             rest_rotation_values = {current_bone_name: Matrix(current_matrix_values.tolist()).to_quaternion() for current_bone_name, current_matrix_values in zip(rig_archive_values['bone_names'], rig_archive_values['bone_matrices'])}
