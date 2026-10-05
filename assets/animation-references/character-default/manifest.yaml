@@ -24,3 +24,7 @@ face_reference:
   path: face-front-v1/character-default-face-front-v1.png
   manifest: face-front-v1/manifest.yaml
   sha256: 3c1b7b35c3dda337c7fca8fbb5a2a017aeef364fc34fdadb2883726abace30b9
+
+separated_baseline:
+  manifest: separated-baseline-v1/manifest.yaml
+  sha256: d4d007fce4ca763cd990057640acddd1616c88fd396fd2ca4b2f893ab97ffab1
