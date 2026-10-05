@@ -18,3 +18,9 @@
 ## 워크플로우 네임스페이스
 
 현재 생성 설정의 캐릭터 ID는 `character-female-a`, 복장 분리 원본 ID는 `workflow:character-female-a`다. 기존 자산 경로와 에셋 관리 ID는 유지한다. 저장된 과거 생성 요청의 `character-female`은 실행 당시의 식별자이며 소급 변경하지 않는다.
+
+## 여성 캐릭터 A 복장 분리 베이스라인
+
+`separated-baseline-v1/`은 채택된 768×768 RGBA 4방향 분리 레퍼런스다. `body-base/`에는 신체 베이스, `outfit/`에는 복장과 신발을 보관한다. 방향은 `down_left`, `down_right`, `up_left`, `up_right`이며 파일을 리사이즈하거나 알파 보정하지 않고 생성 결과 그대로 등록했다.
+
+하위 `manifest.yaml`에서 관리 ID·불변 버전·방향별 생성 ID·원본 참조·이미지 해시·모델 및 프롬프트 해시를 관리한다. 상위 manifest의 `separated_baseline`이 등록부를 연결한다. 두 레이어는 독립 생성 결과이며 합성 시 위치·실루엣 검수가 필요하다. 기존 `baseline_crops`는 복장 착용 참조로 유지하며, 이번 등록은 애니메이션 생성 입력이나 게임 런타임의 자동 교체를 의미하지 않는다.

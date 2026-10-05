@@ -1,0 +1,102 @@
+schema_version: 1
+asset_id: character-female-a-separated-baseline
+version: 1
+character_id: female-a
+workflow_character_id: character-female-a
+status: adopted
+role: body_base_and_outfit_reference
+cell_size:
+- 768
+- 768
+alpha_processing:
+  method: qwen-native-rgba-v1
+  postprocessing: none
+directions:
+  down_left:
+    source_generation_id: 2026-10-05_12-40-44-f3cb0c59
+    source_namespace_at_generation: workflow:character-female
+    source_reference:
+      path: ../baseline-v1/down_left.png
+      sha256: 10c681e06ae6cb41c85fb2bd227c6073e281250285721c5601ccd88d5d5b6898
+    generation:
+      model_id: Qwen/Qwen-Image-2.1
+      model_revision: d26bb61231c349cf6b7896fa83353113880e1ba3
+      seed: 10107
+      steps: 40
+      prompt_word_count: 83
+      prompt_sha256: a9934dde08da9b2dfdea00c3ae347b7b5d83a7a214418e907a205d65e82c66ae
+      outfit_prompt_word_count: 91
+      outfit_prompt_sha256: 4ae54b4df5ebd1526a74e5b1e606d92421f074749249b3112df1a65eb892ecaf
+      signature: e7ffe642e47d2ac50199822d51466e8be26da97cc745ed991f6ec025efa33efd
+    body-base:
+      path: body-base/down_left.png
+      sha256: 9aa0ea67fce07e7f910f3d8e9b8d01e76f13b5d6c6c537165dc8c89772020a97
+    outfit:
+      path: outfit/down_left.png
+      sha256: 5d4d77fbfe888024b538fa6d0cf78e9485f39bc7d7863e6b4b6aaf75335e8875
+  down_right:
+    source_generation_id: 2026-10-05_12-40-48-e6a24920
+    source_namespace_at_generation: workflow:character-female
+    source_reference:
+      path: ../baseline-v1/down_right.png
+      sha256: b3b16c79ae348750ab1260f29c1eaeb424bc943ad75351ec7f3bc2cc9ad8b7ae
+    generation:
+      model_id: Qwen/Qwen-Image-2.1
+      model_revision: d26bb61231c349cf6b7896fa83353113880e1ba3
+      seed: 10107
+      steps: 40
+      prompt_word_count: 83
+      prompt_sha256: a9934dde08da9b2dfdea00c3ae347b7b5d83a7a214418e907a205d65e82c66ae
+      outfit_prompt_word_count: 91
+      outfit_prompt_sha256: 4ae54b4df5ebd1526a74e5b1e606d92421f074749249b3112df1a65eb892ecaf
+      signature: e7ffe642e47d2ac50199822d51466e8be26da97cc745ed991f6ec025efa33efd
+    body-base:
+      path: body-base/down_right.png
+      sha256: 32eb9933a79bf1951add567d993dc9fbb392ca11726130df160aaa941f50ebd0
+    outfit:
+      path: outfit/down_right.png
+      sha256: 39147c57d47560389e1e9c1d0547ab4a51e9eca8a6d687aa0dfa86002f595a34
+  up_left:
+    source_generation_id: 2026-10-05_12-40-52-0b63a2a7
+    source_namespace_at_generation: workflow:character-female
+    source_reference:
+      path: ../baseline-v1/up_left.png
+      sha256: 51db5216274073e96674bab517f56febab44f65f60349667dd6cd2e73e8a21db
+    generation:
+      model_id: Qwen/Qwen-Image-2.1
+      model_revision: d26bb61231c349cf6b7896fa83353113880e1ba3
+      seed: 10107
+      steps: 40
+      prompt_word_count: 83
+      prompt_sha256: a9934dde08da9b2dfdea00c3ae347b7b5d83a7a214418e907a205d65e82c66ae
+      outfit_prompt_word_count: 91
+      outfit_prompt_sha256: 4ae54b4df5ebd1526a74e5b1e606d92421f074749249b3112df1a65eb892ecaf
+      signature: e7ffe642e47d2ac50199822d51466e8be26da97cc745ed991f6ec025efa33efd
+    body-base:
+      path: body-base/up_left.png
+      sha256: 8f59b193a593eab692404d53f66112916d430d5e9022b77df6f20f433c948b48
+    outfit:
+      path: outfit/up_left.png
+      sha256: 6b5582f1e472a1793f2686766909212bfe7ec459a5c67328444a73e9636cf93c
+  up_right:
+    source_generation_id: 2026-10-05_12-40-56-70731b7b
+    source_namespace_at_generation: workflow:character-female
+    source_reference:
+      path: ../baseline-v1/up_right.png
+      sha256: 2b1cc2288e5696f6785ef7057054f0d14e6ee65bd902a67396c314c06bd12c28
+    generation:
+      model_id: Qwen/Qwen-Image-2.1
+      model_revision: d26bb61231c349cf6b7896fa83353113880e1ba3
+      seed: 10107
+      steps: 40
+      prompt_word_count: 83
+      prompt_sha256: a9934dde08da9b2dfdea00c3ae347b7b5d83a7a214418e907a205d65e82c66ae
+      outfit_prompt_word_count: 91
+      outfit_prompt_sha256: 4ae54b4df5ebd1526a74e5b1e606d92421f074749249b3112df1a65eb892ecaf
+      signature: e7ffe642e47d2ac50199822d51466e8be26da97cc745ed991f6ec025efa33efd
+    body-base:
+      path: body-base/up_right.png
+      sha256: 6791cd078f65c53b68a8ad576d0ae682de23c345f6b70d39b5aefc4b64a1abec
+    outfit:
+      path: outfit/up_right.png
+      sha256: bc1a9149d9bf2c41aff0e009c38202e8f90e2cde75a3ad61645916d258b3c000

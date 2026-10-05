@@ -17,3 +17,7 @@ face_reference:
   path: face-front-v1/character-female-face-front-v1.png
   manifest: face-front-v1/manifest.yaml
   sha256: 9298aebb7995715bc8eb508a1a2857db4dcfc51b0b35c8740cf54d05e27497fb
+
+separated_baseline:
+  manifest: separated-baseline-v1/manifest.yaml
+  sha256: fd4b630e78011e6f36fae9d98a7c5e3bf8c5d1cda3ca0359dc3919b60b5861d1
