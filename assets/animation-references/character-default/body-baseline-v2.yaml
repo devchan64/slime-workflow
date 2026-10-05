@@ -1,0 +1,33 @@
+schema_version: 1
+asset_id: character-default-body-baseline
+version: 2
+character_id: default
+status: adopted
+baseline_crops:
+  root: body-baseline-v2
+  cell_size:
+  - 768
+  - 768
+  files:
+    down_left: f51fe444ad52d9ae4d4c5a57944cc40eeaf19e29af6423ee5fb92e37b6f77909
+    down_right: dcd268940d619a2f67ac51c1e1bb18f5c1aa47f505a1760fb74297fdff1100e2
+    up_left: 5f11d9d4bb132c8964e290d5a197c46306c9eea05318df8f1d420c2215f1f029
+    up_right: f6c000daeabf89c8b6c704622f5a05071f318865ae403a454d72e7915996944e
+provenance:
+  down_left:
+    generation_id: 2026-10-05_15-51-51-a32c9638
+    source_reference: baseline-v2/down_left.png
+    prompt_sha256: f0111d8e6182b9b281038c2c1eef7cdeec24433619dccd127f0fb17b33b83f16
+    model_id: Qwen/Qwen-Image-2.1
+    model_revision: d26bb61231c349cf6b7896fa83353113880e1ba3
+    seed: 10107
+    steps: 40
+  unchanged_directions:
+    manifest: body-baseline-v1.yaml
+    directions:
+    - down_right
+    - up_left
+    - up_right
+alpha_processing:
+  method: qwen-native-rgba-v1
+  postprocessing: none
