@@ -1,7 +1,7 @@
 schema_version: 1
 character_id: female
 baseline_source:
-  path: baseline-source-v1/character-female-four-directions-v1.png
+  path: baseline-v1/character-female-four-directions-v1.png
   sha256: 7577b893a3796144ce6ab4e1e6ad3cc56c9a6f066407b3889cf8718810b93b20
 baseline_crops:
   root: baseline-v1
