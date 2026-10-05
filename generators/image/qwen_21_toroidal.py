@@ -4,28 +4,46 @@ TOROIDAL_LEGACY_CONFIGURATION = {'schema_version': 3, 'axes': 'xy', 'scope': 'ta
 TOROIDAL_ATTENTION_CONFIGURATION = {'schema_version': 4, 'axes': 'xy', 'scope': 'target_attention', 'vae': 'standard', 'references': False, 'boundary_radius': 2}
 
 
-def build_toroidal_boundary(current_grid_height, current_grid_width):
+def build_toroidal_boundary(current_grid_height, current_grid_width, boundary_strip_depth=1, corner_reference_enabled=False):
     source_token_indices, height_offset_values, width_offset_values = [], [], []
-    for current_column_index in range(current_grid_width):
-        source_token_indices.extend([(current_grid_height - 1) * current_grid_width + current_column_index, current_column_index])
-        height_offset_values.extend([-current_grid_height, current_grid_height])
-        width_offset_values.extend([0, 0])
-    for current_row_index in range(current_grid_height):
-        source_token_indices.extend([current_row_index * current_grid_width + current_grid_width - 1, current_row_index * current_grid_width])
-        height_offset_values.extend([0, 0])
-        width_offset_values.extend([-current_grid_width, current_grid_width])
+    if not 1 <= boundary_strip_depth <= min(current_grid_height, current_grid_width):
+        raise ValueError('순환 경계 참조 줄 수는 격자 크기 이내의 양수여야 합니다.')
+    for current_depth_index in range(boundary_strip_depth):
+        for current_column_index in range(current_grid_width):
+            source_token_indices.extend([(current_grid_height - 1 - current_depth_index) * current_grid_width + current_column_index, current_depth_index * current_grid_width + current_column_index])
+            height_offset_values.extend([-current_grid_height, current_grid_height])
+            width_offset_values.extend([0, 0])
+        for current_row_index in range(current_grid_height):
+            source_token_indices.extend([current_row_index * current_grid_width + current_grid_width - 1 - current_depth_index, current_row_index * current_grid_width + current_depth_index])
+            height_offset_values.extend([0, 0])
+            width_offset_values.extend([-current_grid_width, current_grid_width])
+    if corner_reference_enabled:
+        # 네 모서리를 대각선 주기 좌표로 옮기며 변의 참조 좌표와 중복하지 않는다.
+        for current_height_depth in range(boundary_strip_depth):
+            for current_width_depth in range(boundary_strip_depth):
+                for source_row_index, current_height_offset in (
+                    (current_grid_height - 1 - current_height_depth, -current_grid_height),
+                    (current_height_depth, current_grid_height),
+                ):
+                    for source_column_index, current_width_offset in (
+                        (current_grid_width - 1 - current_width_depth, -current_grid_width),
+                        (current_width_depth, current_grid_width),
+                    ):
+                        source_token_indices.append(source_row_index * current_grid_width + source_column_index)
+                        height_offset_values.append(current_height_offset)
+                        width_offset_values.append(current_width_offset)
     return source_token_indices, height_offset_values, width_offset_values
 
 
 class ToroidalTargetAttention:
-    def __init__(self, current_position_embedder, current_grid_height, current_grid_width, boundary_radius_value=None, vertical_boundary_radius=None):
+    def __init__(self, current_position_embedder, current_grid_height, current_grid_width, boundary_radius_value=None, vertical_boundary_radius=None, boundary_strip_depth=1, corner_reference_enabled=False):
         self.grid_height_value = current_grid_height
         self.grid_width_value = current_grid_width
         self.boundary_radius_value = boundary_radius_value
         self.vertical_boundary_radius = vertical_boundary_radius
         self.position_embedder_value = current_position_embedder
         self.target_token_count = current_grid_height * current_grid_width
-        self.boundary_mapping_values = build_toroidal_boundary(current_grid_height, current_grid_width)
+        self.boundary_mapping_values = build_toroidal_boundary(current_grid_height, current_grid_width, boundary_strip_depth, corner_reference_enabled)
         self.completed_call_count = 0
 
     def __call__(self, attn, hidden_states, attention_mask=None, rotary_emb=None, layer_cache=None,
@@ -106,5 +124,7 @@ def install_toroidal_attention(current_pipeline_model, current_request_record):
         current_transformer_block.attn.set_processor(ToroidalTargetAttention(
             current_pipeline_model.transformer.pos_embed, current_grid_height, current_grid_width,
             current_request_record['circular_vae'].get('boundary_radius'),
-            current_request_record['circular_vae'].get('vertical_boundary_radius')))
+            current_request_record['circular_vae'].get('vertical_boundary_radius'),
+            current_request_record['circular_vae'].get('boundary_strip_depth', 1),
+            current_request_record['circular_vae'].get('corner_reference_enabled', False)))
     return len(current_pipeline_model.transformer.transformer_blocks)

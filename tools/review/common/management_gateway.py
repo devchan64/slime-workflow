@@ -192,6 +192,10 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
                 operation_argument_parser.add_argument('--start-frame',type=int,default=1)
                 operation_argument_parser.add_argument('--end-frame',type=int,default=1)
                 operation_argument_parser.add_argument('--size',type=int,choices=(512,768),default=768)
+                if service_command_name == 'qwen-21-circular':
+                    operation_argument_parser.add_argument('--pattern-view', action=argparse.BooleanOptionalAction, default=True, help='Top view. Repeat pattern. Close-up 추가')
+                    operation_argument_parser.add_argument('--soft-shading', action=argparse.BooleanOptionalAction, default=False, help='부드러운 음영 일러스트 영문 지시 추가')
+                    operation_argument_parser.add_argument('--circular-radius', type=int, choices=(8,12,16), default=12, help='순환 참조 반경 · 토큰')
                 operation_argument_parser.add_argument('--seed',type=int,default=10107)
                 operation_argument_parser.add_argument('--sample-id',default='')
                 operation_argument_parser.add_argument('--prompt-file',type=Path,help='신체 베이스 프롬프트 파일')
@@ -223,6 +227,10 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
                 operation_argument_parser.add_argument('--width',type=int,default=None if service_command_name=='seamless-tile' else 512 if service_command_name=='qwen-21-circular' else 768 if service_command_name in ('qwen-21','pose-transfer') else 512 if service_command_name in ('qwen-2511','expression','floor-tile') else 1024)
                 operation_argument_parser.add_argument('--height',type=int,default=None if service_command_name=='seamless-tile' else 512 if service_command_name=='qwen-21-circular' else 768 if service_command_name in ('qwen-21','pose-transfer') else 512 if service_command_name in ('qwen-2511','expression','floor-tile') else 1024)
                 operation_argument_parser.add_argument('--steps',type=int,choices=(20,30,40,50) if service_command_name in ('qwen-21','qwen-21-circular','pose-transfer') else (40,) if service_command_name=='seamless-tile' else (4,) if service_command_name=='floor-tile' else (4,30),default=40 if service_command_name in ('seamless-tile','qwen-21','qwen-21-circular','pose-transfer') else 4)
+                if service_command_name == 'qwen-21-circular':
+                    operation_argument_parser.add_argument('--pattern-view', action=argparse.BooleanOptionalAction, default=True, help='Top view. Repeat pattern. Close-up 추가')
+                    operation_argument_parser.add_argument('--soft-shading', action=argparse.BooleanOptionalAction, default=False, help='부드러운 음영 일러스트 영문 지시 추가')
+                    operation_argument_parser.add_argument('--circular-radius', type=int, choices=(8,12,16), default=12, help='순환 참조 반경 · 토큰')
                 operation_argument_parser.add_argument('--seed',type=int,default=10107 if service_command_name in ('qwen-2511','expression','seamless-tile','qwen-21','qwen-21-circular','pose-transfer') else 251204)
                 if service_command_name=='floor-tile':
                     operation_argument_parser.add_argument('--add-margins',action=argparse.BooleanOptionalAction,default=None,help='빈 여백 추가 ON/OFF (--no-add-margins로 OFF, 생략 시 서버 기본값)')
@@ -278,6 +286,10 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
                 command_payload_value['user_prompt']=command_payload_value.pop('prompt')
                 if command_argument_values.add_margins is not None:
                     command_payload_value['add_margins']=command_argument_values.add_margins
+            if service_command_name == 'qwen-21-circular':
+                command_payload_value['circular_radius'] = command_argument_values.circular_radius
+                command_payload_value['soft_shading'] = command_argument_values.soft_shading
+                command_payload_value['pattern_view'] = command_argument_values.pattern_view
             if service_command_name in ('qwen-2511','expression','seamless-tile','qwen-21','qwen-21-circular','pose-transfer'):
                 if service_command_name == 'pose-transfer' and len(command_argument_values.reference) != 2:
                     raise ValueError('아이덴티티 이미지 1장과 포즈 이미지 1장이 필요합니다. --reference를 순서대로 두 번 지정하세요.')

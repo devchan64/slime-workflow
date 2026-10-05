@@ -1,7 +1,9 @@
 """Qwen 2.1 디코더의 공간 경계를 순환 패딩으로 연결한다."""
 from types import MethodType
 
-CIRCULAR_DEFAULT_PROMPT = '잔디와 꽃을 그린다. Top view. Repeat pattern. Close-up'
+CIRCULAR_SOFT_SHADING_PROMPT = 'Illustration with soft shading.'
+CIRCULAR_PATTERN_VIEW_PROMPT = 'Top view. Repeat pattern. Close-up'
+CIRCULAR_DEFAULT_PROMPT = '잔디와 꽃을 그린다.'
 CIRCULAR_LEGACY_CONFIGURATION = {'schema_version': 1, 'axes': 'xy', 'scope': 'decoder', 'tiled_decode': False}
 
 CIRCULAR_HALO_CONFIGURATION = {'schema_version': 2, 'axes': 'xy', 'scope': 'latent_halo', 'halo_latents': 8, 'tiled_decode': False, 'baseline_decode': True}
@@ -9,7 +11,22 @@ CIRCULAR_HALO_CONFIGURATION = {'schema_version': 2, 'axes': 'xy', 'scope': 'late
 from generators.image.qwen_21_toroidal import TOROIDAL_ATTENTION_CONFIGURATION
 CIRCULAR_COMPARISON_CONFIGURATION = {**TOROIDAL_ATTENTION_CONFIGURATION, 'schema_version': 5, 'vae': 'circular_decoder_comparison', 'baseline_decode': True}
 CIRCULAR_VERTICAL_CONFIGURATION = {**CIRCULAR_COMPARISON_CONFIGURATION, 'schema_version': 6, 'vertical_boundary_radius': 4}
-CIRCULAR_VAE_CONFIGURATION = {**CIRCULAR_COMPARISON_CONFIGURATION, 'schema_version': 7, 'boundary_radius': 8, 'vertical_boundary_radius': 8}
+CIRCULAR_SINGLE_STRIP_CONFIGURATION = {**CIRCULAR_COMPARISON_CONFIGURATION, 'schema_version': 7, 'boundary_radius': 8, 'vertical_boundary_radius': 8}
+CIRCULAR_DOUBLE_STRIP_CONFIGURATION = {**CIRCULAR_SINGLE_STRIP_CONFIGURATION, 'schema_version': 8, 'boundary_strip_depth': 2}
+CIRCULAR_CORNER_CONFIGURATION = {**CIRCULAR_SINGLE_STRIP_CONFIGURATION, 'schema_version': 9, 'boundary_strip_depth': 1, 'corner_reference_enabled': True}
+CIRCULAR_VAE_CONFIGURATION = {**CIRCULAR_SINGLE_STRIP_CONFIGURATION, 'schema_version': 10, 'boundary_radius': 12, 'vertical_boundary_radius': 12, 'boundary_strip_depth': 1, 'corner_reference_enabled': False}
+
+CIRCULAR_RADIUS_CHOICES = (8, 12, 16)
+
+
+def build_circular_configuration(selected_radius_value=12):
+    if type(selected_radius_value) is not int or selected_radius_value not in CIRCULAR_RADIUS_CHOICES:
+        raise ValueError('순환 참조 반경은 8·12·16토큰 중 선택하세요.')
+    return {**CIRCULAR_VAE_CONFIGURATION, 'boundary_radius': selected_radius_value,
+            'vertical_boundary_radius': selected_radius_value}
+
+
+CIRCULAR_SELECTABLE_CONFIGURATIONS = tuple(build_circular_configuration(current_radius_value) for current_radius_value in CIRCULAR_RADIUS_CHOICES)
 
 
 def forward_circular_convolution(current_conv_module, current_input_tensor, cache_x=None):
