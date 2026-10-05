@@ -158,62 +158,34 @@ class AnimationSeparationManager(QwenPlainGenerationManager):
         verify_separation_request(selected_job_directory)
 
     def validate_generation_request(self, current_request_record):
-        required_request_fields = {'action', 'source_id', 'start_frame', 'end_frame', 'width', 'height', 'steps', 'seed', 'prompt', 'outfit_prompt'}
-        if not isinstance(current_request_record, dict) or set(current_request_record) - required_request_fields - {'tag', 'sample_id'} or not required_request_fields <= set(current_request_record) or current_request_record['action'] != 'generate':
-            raise ValueError('애니메이션 분리 요청 필드 오류')
+        from .three_reference_generation import decode_reference_image
+        required_request_fields = {'action', 'images', 'width', 'height', 'steps', 'seed', 'prompt', 'outfit_prompt'}
+        if not isinstance(current_request_record, dict) or set(current_request_record) - required_request_fields - {'tag'} or not required_request_fields <= set(current_request_record) or current_request_record['action'] != 'generate':
+            raise ValueError('이미지 분리 요청 필드 오류')
         validate_separation_prompt(current_request_record['prompt'])
         validate_separation_prompt(current_request_record['outfit_prompt'])
-        for current_field_name in ('start_frame', 'end_frame', 'width', 'height', 'steps', 'seed'):
+        for current_field_name in ('width', 'height', 'steps', 'seed'):
             if type(current_request_record[current_field_name]) is not int:
                 raise ValueError('분리 설정은 정수여야 합니다: ' + current_field_name)
         if current_request_record['width'] not in (512, 768) or current_request_record['height'] != current_request_record['width'] or current_request_record['steps'] != 40 or not 0 <= current_request_record['seed'] <= 4294967295:
             raise ValueError('512/768 정사각형·40스텝·uint32 시드만 지원합니다.')
-        current_source_identifier = current_request_record['source_id']
-        if not isinstance(current_source_identifier, str) or not current_source_identifier.startswith(('asset:', 'workflow:')):
-            raise ValueError('등록된 애니메이션 또는 워크플로우 레퍼런스 ID를 선택하세요.')
-        current_source_record = load_sprite_editor_source(current_source_identifier)
-        current_source_frames = current_source_record['frames']
-        first_frame_number, last_frame_number = current_request_record['start_frame'], current_request_record['end_frame']
-        if not 1 <= first_frame_number <= last_frame_number <= len(current_source_frames) or last_frame_number - first_frame_number >= SEPARATION_FRAME_LIMIT:
-            raise ValueError('원본 범위 안에서 최대 64프레임을 선택하세요.')
-        source_hash_records = {}
-        for current_frame_record in current_source_frames:
-            current_image_path = resolve_sprite_image_path(current_source_record, current_frame_record)
-            if str(current_image_path) not in source_hash_records:
-                source_hash_records[str(current_image_path)] = hashlib.sha256(current_image_path.read_bytes()).hexdigest()
-        source_digest_value = hashlib.sha256(json.dumps({'source': current_source_record, 'images': source_hash_records}, sort_keys=True).encode()).hexdigest()
-        saved_request_record = {**current_request_record, 'schema_version': 2, 'tag': validate_history_tag(current_request_record.get('tag', '')), 'source_digest': source_digest_value, 'model_id': QWEN_MODEL_IDENTIFIER, 'model_revision': QWEN_MODEL_REVISION,
-            'fps': current_source_record.get('fps', 8), 'frames': current_source_frames[first_frame_number-1:last_frame_number],
-            'prompt_word_count': len(current_request_record['prompt'].split()), 'prompt_sha256': hashlib.sha256(current_request_record['prompt'].encode()).hexdigest()}
-        saved_request_record['outfit_prompt_word_count'] = len(current_request_record['outfit_prompt'].split())
-        saved_request_record['outfit_prompt_sha256'] = hashlib.sha256(current_request_record['outfit_prompt'].encode()).hexdigest()
+        current_image_records = current_request_record['images']
+        if not isinstance(current_image_records, list) or len(current_image_records) != 1:
+            raise ValueError('참조 이미지는 정확히 1장을 첨부하세요.')
+        current_image_bytes = decode_reference_image(current_image_records[0], composite_transparent_background=True)
+        source_digest_value = hashlib.sha256(current_image_bytes).hexdigest()
+        with Image.open(io.BytesIO(current_image_bytes)) as current_source_image:
+            current_frame_rectangle = {'x': 0, 'y': 0, 'width': current_source_image.width, 'height': current_source_image.height}
+        saved_request_record = {**current_request_record, 'images': [base64.b64encode(current_image_bytes).decode()],
+            'schema_version': 2, 'source_id': 'upload:' + source_digest_value, 'source_digest': source_digest_value,
+            'tag': validate_history_tag(current_request_record.get('tag', '')), 'fps': 8,
+            'frames': [{'frameId': 'reference.0', 'direction': 'reference', 'rect': current_frame_rectangle}],
+            'model_id': QWEN_MODEL_IDENTIFIER, 'model_revision': QWEN_MODEL_REVISION,
+            'prompt_word_count': len(current_request_record['prompt'].split()),
+            'prompt_sha256': hashlib.sha256(current_request_record['prompt'].encode()).hexdigest(),
+            'outfit_prompt_word_count': len(current_request_record['outfit_prompt'].split()),
+            'outfit_prompt_sha256': hashlib.sha256(current_request_record['outfit_prompt'].encode()).hexdigest()}
         saved_request_record['signature'] = calculate_separation_signature(saved_request_record)
-        if last_frame_number > first_frame_number:
-            sample_identifier_value = current_request_record.get('sample_id', '')
-            if not isinstance(sample_identifier_value, str) or not re.fullmatch(SEPARATION_JOB_PATTERN, sample_identifier_value):
-                raise ValueError('전체 생성 전에 완료된 1프레임 샘플 ID를 지정하세요.')
-            sample_directory_path = self.job_storage_root / sample_identifier_value
-            sample_request_record = verify_separation_request(sample_directory_path)
-            for current_part_name in ('base', 'outfit'):
-                sample_part_directory = sample_directory_path / 'frame-001' / current_part_name
-                sample_completion_record = json.loads((sample_part_directory / 'complete.json').read_text())
-                if sample_completion_record['sha256'] != hashlib.sha256((sample_part_directory / 'result.png').read_bytes()).hexdigest():
-                    raise ValueError('샘플 결과 해시 불일치')
-            if len(sample_request_record['frames']) != 1 or sample_request_record['signature'] != saved_request_record['signature'] or json.loads((sample_directory_path / 'status.json').read_text())['status'] != 'completed':
-                raise ValueError('샘플의 원본·프롬프트·크기·시드가 현재 설정과 일치하고 완료되어야 합니다.')
-        saved_request_record['images'] = []
-        for current_frame_record in saved_request_record['frames']:
-            current_frame_rectangle = current_frame_record['rect']
-            with Image.open(resolve_sprite_image_path(current_source_record, current_frame_record)) as source_image_value:
-                current_crop_bounds = (current_frame_rectangle['x'], current_frame_rectangle['y'], current_frame_rectangle['x']+current_frame_rectangle['width'], current_frame_rectangle['y']+current_frame_rectangle['height'])
-                if current_crop_bounds[0] < 0 or current_crop_bounds[1] < 0 or current_crop_bounds[2] > source_image_value.width or current_crop_bounds[3] > source_image_value.height:
-                    raise ValueError('원본 시트 밖의 프레임 영역')
-                source_frame_image = source_image_value.convert('RGBA').crop(current_crop_bounds)
-                opaque_frame_image = Image.new('RGB', source_frame_image.size, 'white')
-                opaque_frame_image.paste(source_frame_image, mask=source_frame_image.getchannel('A'))
-                image_output_buffer = io.BytesIO()
-                opaque_frame_image.save(image_output_buffer, format='PNG')
-            saved_request_record['images'].append(base64.b64encode(image_output_buffer.getvalue()).decode())
         return saved_request_record
 
     def enrich_generation_status(self, current_job_root, current_status_record):

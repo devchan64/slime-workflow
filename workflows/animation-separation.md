@@ -1,6 +1,6 @@
 # 캐릭터 레퍼런스 복장 분리 생성
 
-관리도구의 **애니메이션 도구 → 캐릭터 레퍼런스 복장 분리 생성**는 같은 원본 프레임을 두 프롬프트로 각각 생성한다. 머리 분리·한 이미지의 좌우 절반 추출·검수 유형 전환은 폐기했다.
+관리도구의 **이미지 생성 → 캐릭터 레퍼런스 복장 분리 생성**는 같은 원본 프레임을 두 프롬프트로 각각 생성한다. 머리 분리·한 이미지의 좌우 절반 추출·검수 유형 전환은 폐기했다.
 
 ## 두 프롬프트
 
@@ -15,34 +15,26 @@
 
 ## 실행과 검수
 
-워크플로우의 등록 4방향 외형 레퍼런스도 원본 목록에서 선택할 수 있다. ID는 `workflow:character-default`와 `workflow:character-female-a`이며 프레임 순서는 `down_left`, `down_right`, `up_left`, `up_right`다. 캐릭터 애니메이션 설정의 원본 매핑을 재사용하고 manifest의 이미지 해시·크기를 검증한다. GUI·CLI 모두 같은 ID와 생성·검수 계약을 사용한다.
+참조 PNG 이미지 한 장을 파일 불러오기 또는 클립보드 붙여넣기로 첨부하고 **참조 이미지 분리 생성**을 실행합니다. 이미지 전체를 입력하며 시트의 프레임을 자동 분할하지 않습니다. 원본 레퍼런스·애니메이션 선택 및 프레임 범위 입력은 폐기했습니다. 투명 입력은 흰 배경으로 합성해 모델에 전달합니다.
 
-생성 설정에서 원본을 선택하면 오른쪽에 샘플 프레임 미리보기를 표시한다. 분리할 프레임을 바꾸면 해당 원본 크롭으로 갱신되며 생성 작업을 실행하지 않는다.
-
-GUI는 **분리할 프레임** 한 장을 선택하고 **선택한 프레임 분리 생성**을 실행한다. 시작·끝 범위와 검수 샘플 ID 입력은 GUI에서 제공하지 않는다. CLI의 기존 범위 생성 계약은 호환성을 위해 유지한다. 결과 검수는 원본·합성의 2열 비교로 시작하며, 신체·복장 또는 전체 비교로 전환할 수 있다. 여러 프레임은 같은 프레임으로 동기 재생하고, 단일 프레임에서는 재생 조작 대신 정지 이미지 안내를 표시한다. 위치·배율 조정은 접이식 영역에서 수행하고 초기화 버튼으로 0px·1배로 되돌린다. 신체·복장 PNG와 전체 ZIP 다운로드를 한곳에서 제공한다. 이미지의 좌우 절반이 아닌 각 독립 파일의 전체 프레임을 표시한다. 베이스·복장 시트는 각각 다운로드할 수 있다.
+결과 검수는 원본·합성의 2열 비교로 시작하며, 신체·복장 또는 전체 비교로 전환할 수 있다. 여러 프레임은 같은 프레임으로 동기 재생하고, 단일 프레임에서는 재생 조작 대신 정지 이미지 안내를 표시한다. 위치·배율 조정은 접이식 영역에서 수행하고 초기화 버튼으로 0px·1배로 되돌린다. 신체·복장 PNG와 전체 ZIP 다운로드를 한곳에서 제공한다. 이미지의 좌우 절반이 아닌 각 독립 파일의 전체 프레임을 표시한다. 베이스·복장 시트는 각각 다운로드할 수 있다.
 
 복장 위치·배율은 화면에서만 조절한다. 두 프롬프트는 Qwen Image 2.1의 네이티브 RGBA 출력을 요청한다. 모델 원본의 RGB·알파값을 변경 없이 `transparent.png`와 최종 시트에 보존한다. 색상 임계값·외곽 연결·닫힌 영역 제거 후처리는 폐기했다. RGBA가 아닌 출력은 명확한 오류로 중단하고 투명화를 대신 적용하지 않는다. 알파 채널이 있어도 배경이 완전히 제거됐다는 보장은 없으므로 목·팔 사이·경계의 잔상과 반투명도를 검수한다. 과거 결과와 새 네이티브 알파 결과는 manifest의 `alpha_processing.method`로 구분한다. 기존 결과는 자동 변경하지 않는다. 실행 완료는 품질 통과가 아니다.
 
-샘플 두 결과를 확인한 뒤 ID를 입력해 최대 64프레임 범위를 생성한다. 원본·두 프롬프트·크기·시드·모델이 모두 같은 완료 샘플만 허용한다. 원본·게임 에셋은 자동 변경하지 않는다.
+기존 생성 이력과 저장된 참조를 사용하는 재개 기능은 유지합니다. 원본·게임 에셋은 자동 변경하지 않습니다.
 
 ## CLI와 HTTP
 
 ```bash
-python3 tools/manager.py command animation-separation catalog
-python3 tools/manager.py command animation-separation generate \
-  --source-id 'asset:assets/characters/female-a/animations/walk-v1/down-left-12frames-v2/walk-v1.animation.json' \
-  --start-frame 1 --end-frame 1 --size 768 --seed 10107 --detach
+python3 tools/manager.py command animation-separation generate --reference /path/reference.png --size 768 --seed 10107 --detach
 python3 tools/manager.py command animation-separation status <생성-ID>
-python3 tools/manager.py command animation-separation generate \
-  --source-id '<같은-원본-ID>' --start-frame 1 --end-frame 12 \
-  --sample-id <검수한-샘플-ID> --size 768 --seed 10107 --detach
 python3 tools/manager.py command animation-separation cancel <생성-ID>
 python3 tools/manager.py command animation-separation resume <생성-ID> --detach
 ```
 
 `--prompt-file`은 베이스, `--outfit-prompt-file`은 복장 프롬프트다. 생략하면 추적된 기본값을 사용한다. `python3 tools/manager.py help animation-separation` 또는 `generate --help`로 인자를 확인한다.
 
-GUI와 CLI는 공용 HTTP 게이트웨이 `POST /management/command`의 `{service, command, payload}`를 사용한다. 서비스는 `animation-separation`이다. 생성 필수 필드는 `action`, `source_id`, `start_frame`, `end_frame`, `width`, `height`, `steps`, `seed`, `prompt`, `outfit_prompt`이며 선택 필드는 `sample_id`, `tag`다. 기존 단일 프롬프트 요청은 명시적 오류로 거절한다.
+GUI와 CLI는 공용 HTTP 게이트웨이 `POST /management/command`의 `{service, command, payload}`를 사용한다. 서비스는 `animation-separation`이다. 생성 필수 필드는 `action`, `images`(base64 PNG 정확히 1장), `width`, `height`, `steps`, `seed`, `prompt`, `outfit_prompt`이며 선택 필드는 `tag`다. 기존 단일 프롬프트 요청은 명시적 오류로 거절한다.
 
 ## 기록과 재개
 

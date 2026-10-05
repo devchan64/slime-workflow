@@ -14,7 +14,7 @@ def build_reference_image_inputs(*, reference_panel_visible=True, reference_pane
         raise ValueError('참조 슬롯은 1개·2개·3개·10개를 지원합니다.')
     dynamic_slots_enabled = reference_slot_count == 10
     with gr.Group(visible=reference_panel_visible,elem_id=reference_panel_identifier,elem_classes=['reference-upload-panel']) as reference_upload_group:
-        gr.Markdown('### 참조 이미지\n원본 한 장 · 이미지를 끌어놓거나 아래 버튼으로 추가하세요.' if reference_slot_count == 1 else '### 참조 이미지\n아이덴티티와 포즈 이미지를 각각 한 장씩 첨부하세요.' if reference_slot_count == 2 else f'### 참조 이미지\n최대 {reference_slot_count}장 · 이미지를 끌어놓거나 아래 버튼으로 추가하세요. 입력된 참조를 번호 순서대로 전달합니다.')
+        gr.Markdown('### 참조 이미지\n원본 한 장 · 이미지를 끌어놓거나 아래 버튼으로 추가하세요.' if reference_slot_count == 1 else '### 참조 이미지\n각 슬롯의 용도에 맞는 이미지를 한 장씩 첨부하세요.' if reference_slot_count == 2 else f'### 참조 이미지\n최대 {reference_slot_count}장 · 이미지를 끌어놓거나 아래 버튼으로 추가하세요. 입력된 참조를 번호 순서대로 전달합니다.')
         visible_slot_state = gr.State(1) if dynamic_slots_enabled else None
         reference_slot_groups = []
         reference_delete_buttons = []

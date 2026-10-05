@@ -68,6 +68,7 @@ def create_management_runtime(writer_workspace_config=None):
     from tools.review.domains.image.seamless_generation import SeamlessGenerationManager
     from tools.review.domains.image.qwen_circular_generation import QwenCircularGenerationManager
     from tools.review.domains.image.pose_transfer_generation import PoseTransferGenerationManager
+    from tools.review.domains.image.outfit_transfer_generation import OutfitTransferGenerationManager
     from tools.review.domains.image.qwen_21_generation import QwenPlainGenerationManager
     from tools.review.domains.image.animation_separation import AnimationSeparationManager
     from tools.review.domains.image.expression_generation import ExpressionGenerationManager
@@ -87,6 +88,7 @@ def create_management_runtime(writer_workspace_config=None):
         qwen_circular_service = QwenCircularGenerationManager()
         qwen_plain_service = QwenPlainGenerationManager()
         pose_transfer_service = PoseTransferGenerationManager()
+        outfit_transfer_service = OutfitTransferGenerationManager()
         animation_separation_service = AnimationSeparationManager()
         expression_generation_service = ExpressionGenerationManager()
         three_reference_service = ImageGenerationManager(three_reference_mode=True)
@@ -95,6 +97,7 @@ def create_management_runtime(writer_workspace_config=None):
         momask_generation_service = MoMaskGenerationManager()
         character_animation_service = CharacterAnimationManager()
         service_binding_records = {
+            'outfit-transfer': bind_stored_management_service(outfit_transfer_service.handle_image_request, outfit_transfer_service.job_storage_root),
             'pose-transfer': bind_stored_management_service(pose_transfer_service.handle_image_request, pose_transfer_service.job_storage_root),
             'animation-separation': bind_stored_management_service(animation_separation_service.handle_image_request, animation_separation_service.job_storage_root),
             'qwen-21-circular': bind_stored_management_service(qwen_circular_service.handle_image_request, qwen_circular_service.job_storage_root),

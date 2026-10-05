@@ -1,4 +1,5 @@
 """분리 서비스의 샘플 검수·원본 저장·중단 재개 계약을 검증한다."""
+import base64
 import hashlib
 import io
 import json
@@ -53,7 +54,7 @@ class AnimationSeparationTest(unittest.TestCase):
         self.current_patch_context = patch.object(separation_service_module, 'load_sprite_editor_source', return_value=self.current_source_record)
         self.current_patch_context.start()
         self.addCleanup(self.current_patch_context.stop)
-        self.current_request_record = {'action': 'generate', 'source_id': 'asset:test', 'start_frame': 1, 'end_frame': 1, 'width': 512, 'height': 512, 'steps': 40, 'seed': 1, 'prompt': 'Create opaque fitted base clothing.', 'outfit_prompt': 'Remove person and keep garments.'}
+        self.current_request_record = {'action': 'generate', 'images': [base64.b64encode(self.current_source_path.read_bytes()).decode()], 'width': 512, 'height': 512, 'steps': 40, 'seed': 1, 'prompt': 'Create opaque fitted base clothing.', 'outfit_prompt': 'Remove person and keep garments.'}
 
     def prepare_saved_sample(self):
         current_validated_record = self.current_service_instance.validate_generation_request(self.current_request_record)
@@ -73,19 +74,24 @@ class AnimationSeparationTest(unittest.TestCase):
             with self.subTest(current_overrides=current_overrides), self.assertRaises(ValueError):
                 self.current_service_instance.validate_generation_request({**self.current_request_record, **current_overrides})
 
-    def test_completed_sample_same_settings_required(self):
-        current_sample_directory, current_saved_record = self.prepare_saved_sample()
-        render_separation_outputs(current_sample_directory, current_saved_record, self.generate_test_frame)
-        (current_sample_directory / 'status.json').write_text('{"status":"completed"}')
-        current_batch_request = {**self.current_request_record, 'end_frame': 2, 'sample_id': current_sample_directory.name}
-        self.assertEqual(len(self.current_service_instance.validate_generation_request(current_batch_request)['images']), 2)
+    def test_gui_upload_matches_service_contract(self):
+        from tools.review.ui.gradio.animation_separation_app import build_separation_request
+        with Image.open(self.current_source_path) as current_reference_image:
+            current_gui_request = build_separation_request(current_reference_image, 768, 10107, 'Create base.', 'Keep outfit.')
+        current_saved_record = self.current_service_instance.validate_generation_request(current_gui_request)
+        self.assertEqual(len(current_saved_record['images']), 1)
+        self.assertEqual(current_saved_record['width'], 768)
+        self.assertTrue(current_saved_record['source_id'].startswith('upload:'))
         with self.assertRaises(ValueError):
-            self.current_service_instance.validate_generation_request({**current_batch_request, 'seed': 2})
-        with self.assertRaises(ValueError):
-            self.current_service_instance.validate_generation_request({**current_batch_request, 'outfit_prompt': 'Different outfit prompt.'})
-        Image.new('RGBA', (32,16), 'red').save(self.current_source_path)
-        with self.assertRaises(ValueError):
-            self.current_service_instance.validate_generation_request(current_batch_request)
+            build_separation_request(None, 768, 10107, 'Create base.', 'Keep outfit.')
+
+    def test_single_upload_required(self):
+        for current_images_value in ([], self.current_request_record['images'] * 2, ['invalid']):
+            with self.assertRaises(ValueError):
+                self.current_service_instance.validate_generation_request({**self.current_request_record, 'images': current_images_value})
+        current_saved_record = self.current_service_instance.validate_generation_request(self.current_request_record)
+        self.assertEqual(len(current_saved_record['frames']), 1)
+        self.assertEqual(current_saved_record['frames'][0]['rect'], {'x': 0, 'y': 0, 'width': 32, 'height': 16})
 
     def test_export_resume_and_tamper_detection(self):
         current_sample_directory, current_saved_record = self.prepare_saved_sample()
@@ -104,7 +110,7 @@ class AnimationSeparationTest(unittest.TestCase):
             self.assertEqual(current_outfit_image.getpixel((0, 0)), (255, 0, 0, 255))
         self.assertFalse((current_sample_directory / 'head-sheet.png').exists())
         current_manifest_record = json.loads((current_sample_directory / 'manifest.json').read_text())
-        self.assertEqual(current_manifest_record['frames'][0]['source']['anchor'], {'x': 8, 'y': 15})
+        self.assertEqual(current_manifest_record['frames'][0]['source']['rect'], {'x': 0, 'y': 0, 'width': 32, 'height': 16})
         with Image.open(current_sample_directory / 'base-sheet.png') as current_head_image:
             self.assertEqual(current_head_image.size, (512, 512))
         (current_sample_directory / 'frame-001/base/result.png').write_bytes(b'changed')
@@ -113,12 +119,12 @@ class AnimationSeparationTest(unittest.TestCase):
 
     def test_gateway_cli_payload(self):
         with patch('tools.review.common.management_gateway.call_management_api', return_value={'id': 'sample'}) as current_api_call, contextlib.redirect_stdout(io.StringIO()):
-            execute_gateway_arguments('animation-separation', ['generate', '--source-id', 'asset:test', '--detach'])
+            execute_gateway_arguments('animation-separation', ['generate', '--reference', str(self.current_source_path), '--detach'])
         self.assertEqual(current_api_call.call_args.args[1], '/animation-separation/jobs')
         current_api_payload = current_api_call.call_args.args[2]
         self.assertEqual(current_api_payload['steps'], 40)
         self.assertEqual(current_api_payload['width'], 768)
-        self.assertEqual(current_api_payload['start_frame'], current_api_payload['end_frame'])
+        self.assertEqual(current_api_payload['images'], self.current_request_record['images'])
 
     def test_interrupted_batch_resumes_unfinished_frame(self):
         current_job_directory, current_saved_record = self.prepare_saved_sample()

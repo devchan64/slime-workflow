@@ -455,7 +455,7 @@ schema 4 기록의 두 번째 단계는 내용이 지워지지 않은 원본(`re
 
 ## 캐릭터 레퍼런스 복장 분리 생성
 
-`animation-separation` 서비스의 GUI·CLI 명령, 샘플 검수 조건과 산출물은 [애니메이션 분리 사용 안내](animation-separation.md)를 따른다. Qwen 2.1로 원본별 신체 베이스·복장을 두 프롬프트로 독립 생성하며 공용 GPU 대기열과 이력을 사용한다.
+`animation-separation` 서비스의 GUI·CLI 명령, 참조 이미지 1장 입력과 산출물은 [애니메이션 분리 사용 안내](animation-separation.md)를 따른다. Qwen 2.1로 원본별 신체 베이스·복장을 두 프롬프트로 독립 생성하며 공용 GPU 대기열과 이력을 사용한다.
 
 
 ### Qwen 2.1 순환 VAE 실험
@@ -485,3 +485,13 @@ v10은 기준 v7의 1줄 참조로 돌아가 대각선 참조를 끄고 좌우·
 일반 VAE 비교 생성은 기본 OFF입니다. GUI 체크박스·CLI --baseline-decode/--no-baseline-decode·게이트웨이 baseline_decode 불리언으로 선택합니다. OFF는 일반 VAE 디코딩·비교 이미지·잠재값 비교용 저장을 생략하고 순환 결과와 3×3 반복만 생성합니다. 기존 이력과 저장된 비교 ON 설정은 유지합니다.
 
 순환 생성기의 신규 생성 기본 크기는 UI·CLI 모두 256×256, 순환 참조 반경은 8토큰입니다. 기존 생성 이력을 불러오거나 재개하면 해당 기록의 크기와 반경을 유지합니다.
+
+## 복장 착용 생성기
+
+이미지 생성 분류의 `outfit-transfer-generator`는 Qwen Image 2.1을 사용합니다. 첫 참조는 바디(외형·신체 비율·자세 기준), 두 번째는 아웃핏(의상·신발 디자인)이며 정확히 두 장이 필요합니다. 공용 파일 업로드·클립보드 입력, 랜덤 시드, 이력·취소·재개를 사용합니다. 출력은 512 또는 768 정사각형이며 기본 768·40스텝입니다. 기본 프롬프트는 `generators/image/config/outfit-transfer-prompt.txt`에서 추적하며 UI에서 고정 프롬프트를 해제하면 편집할 수 있습니다. 모델 출력의 신체 비율·착용 정합은 검수가 필요합니다.
+
+```bash
+python3 tools/manager.py command outfit-transfer generate --reference /path/body.png --reference /path/outfit.png --resolution 768 --detach
+```
+
+HTTP 서비스는 `outfit-transfer`, 명령은 `generate`이며 `images`에 바디·아웃핏 순서의 base64 PNG 두 장을 전달합니다. 나머지 프롬프트·크기·스텝·시드 계약은 Qwen 2.1과 같습니다. 기록은 `.tmp/test/outfit-transfer/`에 보존하고 기존 생성기의 이력과 구분합니다.

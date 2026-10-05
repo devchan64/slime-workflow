@@ -89,14 +89,17 @@ def render_circular_comparison(current_selected_identifier, current_status_recor
     return ''.join(result_section_values) if result_section_values else '<p>아직 저장된 결과 이미지가 없습니다.</p>'
 
 
-def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False, qwen21_mode_enabled=False, circular_mode_enabled=False, pose_transfer_enabled=False):
+def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False, qwen21_mode_enabled=False, circular_mode_enabled=False, pose_transfer_enabled=False, outfit_transfer_enabled=False):
+    pose_transfer_enabled = pose_transfer_enabled or outfit_transfer_enabled
     if expression_mode_enabled and qwen21_mode_enabled:
         raise ValueError("표정 생성과 Qwen 2.1 일반 생성은 별도 모드입니다.")
     from tools.review.domains.image.pose_transfer_generation import load_pose_transfer_prompt
+    if outfit_transfer_enabled:
+        from tools.review.domains.image.outfit_transfer_generation import load_outfit_transfer_prompt as load_pose_transfer_prompt
     default_prompt_text = load_pose_transfer_prompt() if pose_transfer_enabled else ''
     reference_slot_count = 2 if pose_transfer_enabled else 10 if qwen21_mode_enabled else 3
-    current_service_name = 'pose-transfer' if pose_transfer_enabled else 'qwen-21-circular' if circular_mode_enabled else 'qwen-21' if qwen21_mode_enabled else 'expression' if expression_mode_enabled else 'qwen-2511'
-    current_page_title = '포즈 변환 생성기 · Alpha Ver.' if pose_transfer_enabled else 'Qwen 2.1 순환 VAE 생성기' if circular_mode_enabled else 'Qwen 2.1 이미지 생성기' if qwen21_mode_enabled else '표정 생성기' if expression_mode_enabled else 'Qwen 2511 3참조 생성기'
+    current_service_name = 'outfit-transfer' if outfit_transfer_enabled else 'pose-transfer' if pose_transfer_enabled else 'qwen-21-circular' if circular_mode_enabled else 'qwen-21' if qwen21_mode_enabled else 'expression' if expression_mode_enabled else 'qwen-2511'
+    current_page_title = '복장 착용 생성기' if outfit_transfer_enabled else '포즈 변환 생성기 · Alpha Ver.' if pose_transfer_enabled else 'Qwen 2.1 순환 VAE 생성기' if circular_mode_enabled else 'Qwen 2.1 이미지 생성기' if qwen21_mode_enabled else '표정 생성기' if expression_mode_enabled else 'Qwen 2511 3참조 생성기'
     def render_generation_preview(current_image_address):
         original_preview_html = result_preview_html(current_image_address)
         if circular_mode_enabled and current_image_address:
@@ -105,7 +108,7 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
     def execute_reference_gateway(command_name_value, payload_value):
         return execute_management_command(current_service_name, command_name_value, payload_value)
     def restore_selected_inputs(current_history_record):
-        restored_input_values = list(restore_reference_inputs(current_history_record, WORKFLOW_ROOT_DIRECTORY/'.tmp/test/pose-transfer' if pose_transfer_enabled else WORKFLOW_ROOT_DIRECTORY/'.tmp/test/qwen-image-21-circular' if circular_mode_enabled else WORKFLOW_ROOT_DIRECTORY/'.tmp/test/qwen-image-21' if qwen21_mode_enabled else WORKFLOW_ROOT_DIRECTORY/'.tmp/test/expression-generator' if expression_mode_enabled else None, reference_slot_limit=reference_slot_count))
+        restored_input_values = list(restore_reference_inputs(current_history_record, WORKFLOW_ROOT_DIRECTORY/'.tmp/test/outfit-transfer' if outfit_transfer_enabled else WORKFLOW_ROOT_DIRECTORY/'.tmp/test/pose-transfer' if pose_transfer_enabled else WORKFLOW_ROOT_DIRECTORY/'.tmp/test/qwen-image-21-circular' if circular_mode_enabled else WORKFLOW_ROOT_DIRECTORY/'.tmp/test/qwen-image-21' if qwen21_mode_enabled else WORKFLOW_ROOT_DIRECTORY/'.tmp/test/expression-generator' if expression_mode_enabled else None, reference_slot_limit=reference_slot_count))
         if expression_mode_enabled:
             restored_input_values[0] = current_history_record['request']['expression']['id']
         if qwen21_mode_enabled and not pose_transfer_enabled:
@@ -119,7 +122,7 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
         return tuple(restored_input_values)
     with gr.Blocks(title=current_page_title,js=HISTORY_CARD_SELECTION_SCRIPT) as interface_blocks_value:
         gr.Markdown('## '+current_page_title+'\n참조 이미지는 업로드한 순서대로 모델에 전달됩니다.')
-        if pose_transfer_enabled:
+        if pose_transfer_enabled and not outfit_transfer_enabled:
             gr.Markdown('**Alpha Ver.** · 실험 단계입니다. 포즈 정밀도와 캐릭터 일관성이 보장되지 않으므로 결과별 검수가 필요합니다.')
         if circular_mode_enabled:
             gr.Markdown('생성 토큰 순환 Attention · 일반 VAE 비교 선택 · 참조 없는 텍스트 생성 실험 · 출력 전체가 타일입니다. 반복 경계의 형태 연결은 결과에서 검수하세요.')
@@ -138,7 +141,7 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
                 prompt_text_value=gr.Textbox(value=CIRCULAR_DEFAULT_PROMPT if circular_mode_enabled else default_prompt_text,interactive=not pose_transfer_enabled,label='프롬프트',lines=3,scale=1,min_width=240)
             generation_tag_value=gr.Textbox(label='생성 이력 태그 · 선택 사항',placeholder='예: 돌온재 참조 후보',lines=3,scale=1,min_width=240)
         if qwen21_mode_enabled:
-            gr.Markdown('아이덴티티 1장: 외형·비율·화풍. 포즈 1장: 자세·관절 배치. 두 장 모두 필수이며 한 장면을 생성합니다.' if pose_transfer_enabled else 'Qwen Image 2.1 · 추가 프롬프트 없음. 입력 원문을 그대로 전달합니다. 참조 없이 텍스트만으로도 생성할 수 있습니다.')
+            gr.Markdown('바디 1장: 신체 비율·자세·외형 기준. 아웃핏 1장: 입힐 의상·신발 기준. 바디를 유지하고 복장을 입힙니다.' if outfit_transfer_enabled else '아이덴티티 1장: 외형·비율·화풍. 포즈 1장: 자세·관절 배치. 두 장 모두 필수이며 한 장면을 생성합니다.' if pose_transfer_enabled else 'Qwen Image 2.1 · 추가 프롬프트 없음. 입력 원문을 그대로 전달합니다. 참조 없이 텍스트만으로도 생성할 수 있습니다.')
             def describe_plain_prompt(current_prompt_text):
                 current_word_count = len(current_prompt_text.split())
                 return f'사용자 {current_word_count}단어 · 추가 0단어 · 최종 {current_word_count}단어 (최대 99단어)'
@@ -177,7 +180,7 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
             expression_prompt_preview = gr.Markdown(describe_expression_prompt(expression_preset_records[0]['id']))
             prompt_text_value.change(describe_expression_prompt,prompt_text_value,expression_prompt_preview,queue=False)
         with gr.Accordion('참조 이미지 · 선택 · 최대 10장', open=False) if qwen21_mode_enabled and not pose_transfer_enabled else contextlib.nullcontext():
-            reference_upload_group,reference_image_controls=build_reference_image_inputs(reference_image_mode=None, reference_slot_count=reference_slot_count, reference_slot_labels=['아이덴티티 이미지 · 필수','포즈 이미지 · 필수'] if pose_transfer_enabled else None)
+            reference_upload_group,reference_image_controls=build_reference_image_inputs(reference_image_mode=None, reference_slot_count=reference_slot_count, reference_slot_labels=['바디 레퍼런스 · 필수','아웃핏 레퍼런스 · 필수'] if outfit_transfer_enabled else ['아이덴티티 이미지 · 필수','포즈 이미지 · 필수'] if pose_transfer_enabled else None)
         gr.Markdown(('생성 출력: 512×512 또는 768×768.' if pose_transfer_enabled else '생성 출력 최소 크기: 256×256.' if qwen21_mode_enabled else '생성 출력 최소 크기: 512×512.') + ' 참조 이미지의 크기·비율은 자유입니다. RGB/RGBA PNG, 장당 3MB 이하. ' + ('투명 영역은 흰색 배경에 합성해 전달합니다.' if qwen21_mode_enabled else '투명 배경은 사용할 수 없습니다.'))
         with gr.Row():
             width_value=gr.Dropdown([512,768] if pose_transfer_enabled else [256,512,768,1024,1280] if qwen21_mode_enabled else [512,768,1024,1280],value=256 if circular_mode_enabled else 768 if qwen21_mode_enabled else 512,label='해상도' if pose_transfer_enabled else '너비',scale=1,min_width=120)
@@ -201,7 +204,7 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
         gr.Markdown('실행 중인 작업은 아래 생성 이력에서 선택한 뒤 **작업 중지**를 사용하세요.')
         identifier_value=build_generation_identifier()
         preview_value=gr.HTML(result_preview_html(None),elem_classes=['reference-result-preview'])
-        gr.Markdown('포즈 변환 전용 생성 이력입니다. 기존 이미지 생성 이력과 별도로 관리합니다.' if pose_transfer_enabled else 'Qwen 2.1 전용 생성 이력입니다. 조회·삭제·초기화는 현재 생성기에만 적용됩니다.' if qwen21_mode_enabled else '표정 생성 이력은 Qwen 2511 참조 생성 이력과 별도로 관리합니다. 조회·삭제·초기화는 현재 생성기에만 적용됩니다.' if expression_mode_enabled else 'Qwen 2511 참조 생성 이력은 표정 생성 이력과 별도로 관리합니다. 조회·삭제·초기화는 현재 생성기에만 적용됩니다.')
+        gr.Markdown('복장 착용 전용 생성 이력입니다.' if outfit_transfer_enabled else '포즈 변환 전용 생성 이력입니다. 기존 이미지 생성 이력과 별도로 관리합니다.' if pose_transfer_enabled else 'Qwen 2.1 전용 생성 이력입니다. 조회·삭제·초기화는 현재 생성기에만 적용됩니다.' if qwen21_mode_enabled else '표정 생성 이력은 Qwen 2511 참조 생성 이력과 별도로 관리합니다. 조회·삭제·초기화는 현재 생성기에만 적용됩니다.' if expression_mode_enabled else 'Qwen 2511 참조 생성 이력은 표정 생성 이력과 별도로 관리합니다. 조회·삭제·초기화는 현재 생성기에만 적용됩니다.')
         log_value,refresh_log_value,_=build_execution_logs()
         read_history_page,history_output_values=build_generation_history_view(
             execute_reference_gateway,server_base_address,
@@ -209,10 +212,10 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
             result_renderer_callback=render_circular_comparison if circular_mode_enabled else None,
             restore_input_callback=restore_selected_inputs,
             restore_output_components=[prompt_text_value,generation_tag_value,width_value,height_value,step_value,seed_value,*reference_image_controls,status_value]+(reference_upload_group.reference_slot_outputs if qwen21_mode_enabled and not pose_transfer_enabled else [])+([fixed_prompt_enabled, custom_prompt_memory] if pose_transfer_enabled else [])+([circular_radius_control,soft_shading_control,pattern_view_control,baseline_decode_control] if circular_mode_enabled else []),
-            record_folder_route='/pose-transfer' if pose_transfer_enabled else '/image-generation-21-circular' if circular_mode_enabled else '/image-generation-21' if qwen21_mode_enabled else '/expression-generator' if expression_mode_enabled else '/image-generation-2511',allow_individual_delete=True)
+            record_folder_route='/outfit-transfer' if outfit_transfer_enabled else '/pose-transfer' if pose_transfer_enabled else '/image-generation-21-circular' if circular_mode_enabled else '/image-generation-21' if qwen21_mode_enabled else '/expression-generator' if expression_mode_enabled else '/image-generation-2511',allow_individual_delete=True)
         def start_reference_generation(prompt_text_value,generation_tag_value,*generation_input_values):
             if pose_transfer_enabled and any(current_reference_image is None for current_reference_image in generation_input_values[:2]):
-                raise gr.Error('아이덴티티 이미지와 포즈 이미지를 각각 한 장 첨부하세요.')
+                raise gr.Error('바디와 아웃핏 이미지를 각각 한 장 첨부하세요.' if outfit_transfer_enabled else '아이덴티티 이미지와 포즈 이미지를 각각 한 장 첨부하세요.')
             reference_bytes_values=prepare_reference_image_bytes(generation_input_values[:reference_slot_count], composite_transparent_background=qwen21_mode_enabled)
             width_value,height_value,step_value,seed_value=generation_input_values[reference_slot_count:reference_slot_count+4]
             if pose_transfer_enabled:height_value=width_value
