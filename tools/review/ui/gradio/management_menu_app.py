@@ -20,7 +20,7 @@ MANAGEMENT_FRAME_PATH_PREFIX='/management/frame/'
 MANAGEMENT_FRAME_IDENTIFIER_VALUES={'anny-attribute-renderer':'anny-attributes'}
 LEGACY_PAGE_IDENTIFIER_VALUES={'map-review':'map-review-iseulon','animation-2':'animation-1','animation-3':'animation-1'}
 DEFAULT_PAGE_RECORDS=(
-    {'id':'animation-separation','label':'캐릭터 복장 분리 생성기','path':'/animation-separation/','category':'animation-tool','uiMode':'gradio','description':'Qwen 2.1 · 1프레임 검수 · 신체 베이스·복장 별도 시트'},
+    {'id':'animation-separation','label':'캐릭터 레퍼런스 복장 분리 생성','path':'/animation-separation/','category':'animation-tool','uiMode':'gradio','description':'Qwen 2.1 · 1프레임 검수 · 신체 베이스·복장 별도 시트'},
     {'id':'qwen-21-generator','label':'Qwen 2.1 이미지 생성기','path':'/image-generation-21/','category':'image-generation','uiMode':'gradio','description':'입력 프롬프트 그대로 · 추가 문구 없음 · 참조 선택'},
     {'id':'seamless-tile-generator','label':'Qwen2.1 심리스 패턴 생성기','path':'/seamless-tile-generator/','category':'image-generation','uiMode':'gradio','description':'5단계 가로·세로 연결 · 검수 · 일시정지·재개'},
     {'id':'floor-tile-generator','label':'맵 타일 생성기','path':'/floor-tile-generator/','category':'image-generation','uiMode':'gradio','description':'512×512 · 4스텝 · 단일 이미지 생성'},

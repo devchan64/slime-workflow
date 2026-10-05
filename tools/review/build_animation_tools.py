@@ -7,5 +7,5 @@ def build_animation_tools(output):
     records.append({'id':'momask-generator','label':'MoMask 모션 생성기','path':'/momask-generator/','anchorEditor':False,'category':'animation-tool','uiMode':'gradio','description':'Gradio · 고정 포즈 스크립트 · 방향 선택 · 생성 로그·취소·결과 재생'})
     records.append({'id':'character-animation','label':'캐릭터 애니메이션 생성기','path':'/character-animation/','anchorEditor':False,'category':'animation-tool','uiMode':'gradio','description':'Gradio · 모션 에셋 · 캐릭터 레퍼런스 · 방향 선택 · 생성 이력과 재생'})
     records.append({'id':'sprite-editor','label':'스프라이트 정규화 편집기','path':'/character-animation/sprite-editor','anchorEditor':False,'category':'animation-tool','uiMode':'gradio','description':'Gradio · 생성 ID · 프레임 정렬 · 중심·바닥·머리 가이드 · 프레임 재생 · 시트 내보내기'})
-    records.append({'id':'animation-separation','label':'캐릭터 복장 분리 생성기','path':'/animation-separation/','anchorEditor':False,'category':'animation-tool','uiMode':'gradio','description':'Qwen 2.1 · 신체 베이스·복장 독립 생성 · 1프레임 검수 후 전체 생성'})
+    records.append({'id':'animation-separation','label':'캐릭터 레퍼런스 복장 분리 생성','path':'/animation-separation/','anchorEditor':False,'category':'animation-tool','uiMode':'gradio','description':'Qwen 2.1 · 신체 베이스·복장 독립 생성 · 1프레임 검수 후 전체 생성'})
     return records

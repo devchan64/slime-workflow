@@ -47,8 +47,8 @@ def build_separation_preview(current_server_address, current_job_identifier):
 
 
 def build_separation_interface(current_server_address):
-    with gr.Blocks(title='캐릭터 복장 분리 생성기') as interface_blocks_value:
-        gr.Markdown('## 캐릭터 복장 분리 생성기\n같은 원본에서 신체 베이스와 사람을 제거한 복장을 각각 생성합니다. 두 결과는 별도 파일로 저장합니다. 먼저 한 프레임을 확인한 후 범위 생성을 실행하세요.')
+    with gr.Blocks(title='캐릭터 레퍼런스 복장 분리 생성') as interface_blocks_value:
+        gr.Markdown('## 캐릭터 레퍼런스 복장 분리 생성\n같은 원본에서 신체 베이스와 사람을 제거한 복장을 각각 생성합니다. 두 결과는 별도 파일로 저장합니다. 먼저 한 프레임을 확인한 후 범위 생성을 실행하세요.')
         with gr.Tabs():
             with gr.Tab("생성 설정"):
                 current_source_control = gr.Dropdown([], label='원본 애니메이션', interactive=True)
