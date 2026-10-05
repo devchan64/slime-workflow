@@ -48,7 +48,7 @@ class GradioHistoryTest(unittest.TestCase):
     def test_history_selection_summary_makes_status_and_identifier_scannable(self):
         summary_text=format_history_selection_summary({'id':'animation-123','created_at':'2026-09-27T09:15:00.123456+09:00','status':{'status':'completed'},'request':{'motion':'standing-v8','action':'generate','start_frame':1,'end_frame':12}})
         self.assertIn('**완료**',summary_text)
-        self.assertIn('ID: `animation-123`',summary_text)
+        self.assertNotIn('ID: `animation-123`',summary_text)  # ID는 별도 복사 입력란에서 표시한다.
         self.assertIn('모션 standing-v8',summary_text)
         self.assertNotIn('동작 generate',summary_text)
         self.assertNotIn('.123456',summary_text)
@@ -122,3 +122,14 @@ class GradioHistoryTest(unittest.TestCase):
             if target_component_identifier == selection_component_identifier]
         self.assertIn('input', selection_event_names)
         self.assertNotIn('change', selection_event_names)
+
+
+    def test_history_list_has_no_periodic_full_render(self):
+        with gr.Blocks() as current_history_blocks:
+            read_history_callback, history_output_components = build_generation_history_view(
+                lambda command_name, request_payload: {'records': []},
+                'http://localhost', '테스트 기록')
+        current_timer_identifiers = {current_component_id for current_component_id, current_component_value in current_history_blocks.blocks.items() if isinstance(current_component_value, gr.Timer)}
+        for current_function_value in current_history_blocks.fns.values():
+            if current_function_value.fn is read_history_callback:
+                self.assertFalse(any(current_target_value[0] in current_timer_identifiers for current_target_value in current_function_value.targets))

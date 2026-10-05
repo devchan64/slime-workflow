@@ -326,8 +326,7 @@ def build_generation_history_view(execute_service_command,server_base_address,de
     history_selection_output_values=[history_selection_summary,result_lookup_button]
     if restore_input_callback is not None:history_selection_output_values.append(restore_input_button)
     history_selection_value.input(describe_selected_history,history_selection_value,history_selection_output_values,queue=False)
-    if hasattr(gr,'Timer'):
-        gr.Timer(3).tick(read_history_page,[history_page_value,history_selection_value],[history_selection_value,history_count_value,history_page_value,history_cards_value,history_previous_button,history_next_button,history_remaining_cards,history_selected_panel],preprocess=False,queue=False,show_progress='hidden')
+    # 전체 목록은 수동 갱신한다. 주기적 재렌더링은 썸네일 로딩과 선택 UI를 흔든다.
     history_refresh_button.click(read_history_page,[history_page_value,history_selection_value],[history_selection_value,history_count_value,history_page_value,history_cards_value,history_previous_button,history_next_button,history_remaining_cards,history_selected_panel],preprocess=False,queue=False)
     history_previous_button.click(lambda current_page_number,current_selected_identifier:read_history_page((current_page_number or 1)-1,current_selected_identifier),[history_page_value,history_selection_value],[history_selection_value,history_count_value,history_page_value,history_cards_value,history_previous_button,history_next_button,history_remaining_cards,history_selected_panel],preprocess=False,queue=False)
     history_next_button.click(lambda current_page_number,current_selected_identifier:read_history_page((current_page_number or 1)+1,current_selected_identifier),[history_page_value,history_selection_value],[history_selection_value,history_count_value,history_page_value,history_cards_value,history_previous_button,history_next_button,history_remaining_cards,history_selected_panel],preprocess=False,queue=False)
