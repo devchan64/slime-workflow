@@ -1,0 +1,7 @@
+schema_version: 1
+character_id: male-b
+status: user_approved
+baseline_source:
+  path: baseline-v1/character-male-b-four-directions-v1.png
+  metadata: baseline-v1/manifest.yaml
+  sha256: 301b3e037a72af7383ffb14dce5957d902a91ed62bf49a3fa72021b7cb5ef6bf

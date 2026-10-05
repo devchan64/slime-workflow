@@ -1,0 +1,42 @@
+schema_version: 1
+asset_id: character-male-b-four-directions
+version: 1
+role: baseline_reference_sheet
+status: user_approved
+runtime_adopted: false
+generator: Codex imagegen
+source_run: 2026-10-05_17-38-11
+source_variant: casual
+image: character-male-b-four-directions-v1.png
+sha256: 301b3e037a72af7383ffb14dce5957d902a91ed62bf49a3fa72021b7cb5ef6bf
+width: 1254
+height: 1254
+layout: 2x2
+cells:
+  up_left:
+    x: 0
+    y: 0
+    width: 627
+    height: 627
+  up_right:
+    x: 627
+    y: 0
+    width: 627
+    height: 627
+  down_left:
+    x: 0
+    y: 627
+    width: 627
+    height: 627
+  down_right:
+    x: 627
+    y: 627
+    width: 627
+    height: 627
+requested_head_ratio: 5.5
+head_ratio_verified: false
+prompt_file: prompt.txt
+prompt_sha256: ed4238089735e3ba3ec0f64707481e29ccc45de32c76d949d52c727cb30d7753
+reference_source: .tmp/test/male-b-four-directions/2026-10-05_17-35-06/male-b-four-directions-v5.png
+reference_sha256: 474250d88313cb30b75d22b26769163884de42d97d9861ae35f432dd5afce343
+style_prompt_source: assets/animation-references/baseline-style/base-prompt.txt
