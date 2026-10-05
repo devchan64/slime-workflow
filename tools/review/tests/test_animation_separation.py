@@ -24,6 +24,15 @@ class AnimationSeparationTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'RGBA'):
             preserve_generated_alpha(current_test_image.convert('RGB'))
 
+    def test_source_preview_crop_and_validation(self):
+        current_preview_bytes = separation_service_module.render_source_preview('asset:test', 2)
+        with Image.open(io.BytesIO(current_preview_bytes)) as current_preview_image:
+            self.assertEqual(current_preview_image.size, (16, 16))
+            self.assertEqual(current_preview_image.getpixel((0, 0)), (20, 40, 60, 200))
+        for current_frame_number in (0, 3, True):
+            with self.assertRaises(ValueError):
+                separation_service_module.render_source_preview('asset:test', current_frame_number)
+
     def test_workflow_reference_integrity(self):
         current_source_records = separation_service_module.load_workflow_reference_sources()
         self.assertEqual({current_source_record['id'] for current_source_record in current_source_records}, {'workflow:character-default', 'workflow:character-female'})

@@ -5,7 +5,7 @@ import io
 import json
 import re
 from pathlib import Path
-from urllib.parse import urlsplit
+from urllib.parse import urlsplit, parse_qs
 
 import yaml
 from PIL import Image
@@ -78,6 +78,22 @@ def load_sprite_editor_source(current_source_identifier):
 
 def resolve_sprite_image_path(current_source_record, current_frame_record):
     return Path(current_frame_record['source_path'])
+
+
+def render_source_preview(current_source_identifier, current_frame_number):
+    current_source_record = load_sprite_editor_source(current_source_identifier)
+    if type(current_frame_number) is not int or not 1 <= current_frame_number <= len(current_source_record['frames']):
+        raise ValueError('원본 프레임 범위를 확인하세요.')
+    current_frame_record = current_source_record['frames'][current_frame_number-1]
+    current_frame_rectangle = current_frame_record['rect']
+    with Image.open(resolve_sprite_image_path(current_source_record, current_frame_record)) as current_source_image:
+        current_crop_bounds = (current_frame_rectangle['x'], current_frame_rectangle['y'], current_frame_rectangle['x']+current_frame_rectangle['width'], current_frame_rectangle['y']+current_frame_rectangle['height'])
+        if current_crop_bounds[0] < 0 or current_crop_bounds[1] < 0 or current_crop_bounds[2] > current_source_image.width or current_crop_bounds[3] > current_source_image.height:
+            raise ValueError('원본 프레임 영역 오류')
+        current_preview_image = current_source_image.convert('RGBA').crop(current_crop_bounds)
+        current_preview_buffer = io.BytesIO()
+        current_preview_image.save(current_preview_buffer, format='PNG')
+    return current_preview_buffer.getvalue()
 
 
 def load_separation_defaults():
@@ -209,11 +225,17 @@ class AnimationSeparationManager(QwenPlainGenerationManager):
     def handle_image_request(self, current_http_handler):
         current_route_path = urlsplit(current_http_handler.path).path
         current_file_match = re.fullmatch(self.route_prefix_value + '/jobs/(' + SEPARATION_JOB_PATTERN + r')/(separation.zip|manifest.json|base-sheet.png|outfit-sheet.png|source-sheet.png)', current_route_path)
-        if current_http_handler.command == 'GET' and (current_route_path == self.route_prefix_value + '/catalog' or current_file_match):
+        if current_http_handler.command == 'GET' and (current_route_path in (self.route_prefix_value + '/catalog', self.route_prefix_value + '/source-preview') or current_file_match):
             try:
                 if current_http_handler.headers.get('Host') != f'127.0.0.1:{current_http_handler.server.server_port}':
                     raise ValueError('허용하지 않는 Host')
-                if current_file_match:
+                if current_route_path == self.route_prefix_value + '/source-preview':
+                    current_query_values = parse_qs(urlsplit(current_http_handler.path).query, keep_blank_values=True)
+                    if set(current_query_values) != {'source_id', 'frame'} or any(len(current_values_list) != 1 for current_values_list in current_query_values.values()):
+                        raise ValueError('원본 미리보기 요청 필드 오류')
+                    response_body_bytes = render_source_preview(current_query_values['source_id'][0], int(current_query_values['frame'][0]))
+                    response_content_type = 'image/png'
+                elif current_file_match:
                     current_file_path = self.job_storage_root / current_file_match[1] / current_file_match[2]
                     response_body_bytes = current_file_path.read_bytes()
                     response_content_type = 'application/zip' if current_file_path.suffix == '.zip' else 'image/png' if current_file_path.suffix == '.png' else 'application/json'

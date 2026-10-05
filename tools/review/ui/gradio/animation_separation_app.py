@@ -4,6 +4,7 @@ import html
 import json
 from pathlib import Path
 import sys
+from urllib.parse import urlencode
 
 WORKFLOW_ROOT_DIRECTORY = Path(__file__).resolve().parents[4]
 if str(WORKFLOW_ROOT_DIRECTORY) not in sys.path:
@@ -46,18 +47,32 @@ def build_separation_preview(current_server_address, current_job_identifier):
     return '<iframe title="원본과 분리 후보 동기 재생" style="width:100%;height:760px;border:0" srcdoc="' + html.escape(current_preview_document, quote=True) + '"></iframe>'
 
 
+def build_source_preview(current_server_address, current_source_identifier, current_frame_number):
+    if not current_source_identifier:
+        return '<p>원본을 선택하면 샘플 프레임을 표시합니다.</p>'
+    if isinstance(current_frame_number, bool) or not isinstance(current_frame_number, (int, float)) or int(current_frame_number) != current_frame_number or current_frame_number < 1:
+        return '<p>1 이상의 정수 프레임을 입력하세요.</p>'
+    current_preview_url = current_server_address + '/animation-separation/source-preview?' + urlencode({'source_id': current_source_identifier, 'frame': int(current_frame_number)})
+    return '<figure style="margin:0"><img src="' + html.escape(current_preview_url, quote=True) + '" alt="선택한 원본 샘플 프레임" style="display:block;width:100%;max-height:360px;object-fit:contain"><figcaption>샘플 프레임 ' + str(int(current_frame_number)) + ' · 생성 전 원본</figcaption></figure>'
+
+
 def build_separation_interface(current_server_address):
     with gr.Blocks(title='캐릭터 레퍼런스 복장 분리 생성') as interface_blocks_value:
         gr.Markdown('## 캐릭터 레퍼런스 복장 분리 생성\n같은 원본에서 신체 베이스와 사람을 제거한 복장을 각각 생성합니다. 두 결과는 별도 파일로 저장합니다. 먼저 한 프레임을 확인한 후 범위 생성을 실행하세요.')
         with gr.Tabs():
             with gr.Tab("생성 설정"):
-                current_source_control = gr.Dropdown([], label='원본 애니메이션', interactive=True)
-                current_source_refresh = gr.Button('등록 원본 새로고침')
-                current_source_records = gr.State([])
-                current_source_summary = gr.Markdown('원본을 불러오는 중입니다.')
                 with gr.Row():
-                    current_start_control = gr.Number(value=1, precision=0, minimum=1, label='시작 프레임 · 샘플 프레임')
-                    current_end_control = gr.Number(value=1, precision=0, minimum=1, label='끝 프레임')
+                    with gr.Column():
+                        current_source_control = gr.Dropdown([], label='원본 레퍼런스 · 애니메이션', interactive=True)
+                        current_source_refresh = gr.Button('등록 원본 새로고침')
+                        current_source_records = gr.State([])
+                        current_source_summary = gr.Markdown('원본을 불러오는 중입니다.')
+                        with gr.Row():
+                            current_start_control = gr.Number(value=1, precision=0, minimum=1, label='시작 프레임 · 샘플 프레임')
+                            current_end_control = gr.Number(value=1, precision=0, minimum=1, label='끝 프레임')
+                    with gr.Column():
+                        gr.Markdown('### 선택한 원본 미리보기')
+                        current_source_preview = gr.HTML(build_source_preview(current_server_address, '', 1))
                 current_size_control = gr.Dropdown([512, 768], value=768, label='출력 크기 · 정사각형')
                 current_seed_control = build_generation_seed()
                 gr.Markdown('고정: Qwen Image 2.1 · 40스텝 · 프레임당 원본 참조 1장 · 베이스와 복장 각 1회 생성. 원본은 덮어쓰지 않습니다.')
@@ -92,6 +107,10 @@ def build_separation_interface(current_server_address):
             return 1, current_source_record['frames'], f"{current_source_record['frames']}프레임 · 원본 앵커는 기록으로 보존하며 AI 결과의 앵커 일치를 보장하지 않습니다."
         current_source_refresh.click(load_catalog_controls, outputs=[current_source_control, current_source_records, current_source_summary], queue=False)
         current_source_control.change(select_source_range, [current_source_control, current_source_records], [current_start_control, current_end_control, current_source_summary], queue=False)
+        def update_source_preview(current_source_identifier, current_frame_number):
+            return build_source_preview(current_server_address, current_source_identifier, current_frame_number)
+        current_source_control.change(lambda current_source_identifier: update_source_preview(current_source_identifier, 1), current_source_control, current_source_preview, queue=False)
+        current_start_control.change(update_source_preview, [current_source_control, current_start_control], current_source_preview, queue=False)
         def start_separation_job(*current_argument_values):
             try:
                 current_request_record = build_separation_request(*current_argument_values)
