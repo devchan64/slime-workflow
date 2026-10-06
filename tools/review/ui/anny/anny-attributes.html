@@ -44,10 +44,19 @@ function restoreAttributeDefaults(){for(const input of attributeFieldPanel.query
 function openDirectAttributeInput(attributeInputElement,attributeLabelText){directAttributeTargetInput=attributeInputElement;document.querySelector('#attribute-direct-input-title').textContent=attributeLabelText+' 직접 입력';document.querySelector('#attribute-direct-input-description').textContent=attributeLabelText+' 값을 수치로 지정합니다.';directAttributeInputValue.min=attributeInputElement.min;directAttributeInputValue.max=attributeInputElement.max;directAttributeInputValue.step=attributeInputElement.step;directAttributeInputValue.value=attributeInputElement.value;document.querySelector('#attribute-direct-input-range').textContent='허용 범위: '+attributeInputElement.min+' ~ '+attributeInputElement.max;directAttributeInputDialog.showModal();directAttributeInputValue.focus();directAttributeInputValue.select()}
 document.querySelector('#attribute-direct-input-cancel').onclick=()=>directAttributeInputDialog.close();
 directAttributeInputForm.onsubmit=event=>{event.preventDefault();if(!directAttributeTargetInput||!directAttributeInputValue.reportValidity())return;directAttributeTargetInput.value=directAttributeInputValue.value;directAttributeTargetInput.dispatchEvent(new Event('input',{bubbles:true}));directAttributeInputDialog.close()};
-document.querySelector('#reset').onclick=restoreAttributeDefaults;
+if(document.querySelector('#reset'))document.querySelector('#reset').onclick=restoreAttributeDefaults;
 baselineProfileSelector.onchange=async()=>{try{const selectedProfileRecord=await fetchRenderRecord('/anny-attributes/base/'+baselineProfileSelector.value);baselineAttributeValues=selectedProfileRecord;restoreAttributeDefaults();renderStatusLabel.textContent='기준 체형 불러옴 · '+selectedProfileRecord.profile.label}catch(error){renderStatusLabel.textContent=error.message}};
-document.querySelector('#generate-preview').onclick=()=>requestAttributeRender(false);
-document.querySelector('#retry').onclick=()=>{if(activeRenderPromise){renderStatusLabel.textContent='진행 중인 생성이 완료된 후 이미지 렌더를 실행하세요.';return}requestAttributeRender(true)};
+if(document.querySelector('#generate-preview'))document.querySelector('#generate-preview').onclick=()=>requestAttributeRender(false);
+if(document.querySelector('#retry'))document.querySelector('#retry').onclick=()=>{if(activeRenderPromise){renderStatusLabel.textContent='진행 중인 생성이 완료된 후 이미지 렌더를 실행하세요.';return}requestAttributeRender(true)};
+window.annyAttributeActions=async(currentActionName)=>{
+ if(!baselineAttributeValues)throw Error('기준 체형을 준비 중입니다. 잠시 후 다시 시도하세요.');
+ if(activeRenderPromise)throw Error('진행 중인 생성이 완료된 뒤 다시 시도하세요.');
+ if(currentActionName==='reset')restoreAttributeDefaults();
+ else if(currentActionName==='preview')await requestAttributeRender(false);
+ else if(currentActionName==='render')await requestAttributeRender(true);
+ else throw Error('지원하지 않는 체형 명령입니다.');
+ return renderStatusLabel.textContent;
+};
 fetchRenderRecord('/anny-attributes/base').then(record=>{
  baselineAttributeValues=record;
  renderStatusLabel.textContent='기본 체형 · '+record.profile.label;

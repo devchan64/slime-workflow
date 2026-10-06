@@ -4,22 +4,29 @@ import json
 import re
 import threading
 import time
+import sys
 from pathlib import Path
 
 import gradio as gr
 
 
 WORKFLOW_ROOT_DIRECTORY=Path(__file__).resolve().parents[4]
+if str(WORKFLOW_ROOT_DIRECTORY) not in sys.path:
+    sys.path.insert(0,str(WORKFLOW_ROOT_DIRECTORY))
+from tools.review.common.gradio_browser_controls import build_browser_action_button
+
 ANNY_ATTRIBUTE_PAGE_PATH=WORKFLOW_ROOT_DIRECTORY/'tools/review/ui/anny/anny-attributes.html'
-ANNY_ATTRIBUTE_STYLE_PATH=WORKFLOW_ROOT_DIRECTORY/'tools/review/ui/anny/anny-attributes.css'
-MANAGEMENT_SHARED_STYLE_PATH=WORKFLOW_ROOT_DIRECTORY/'tools/review/ui/shared/management.css'
 
 
 def read_anny_attribute_markup():
     attribute_page_text=ANNY_ATTRIBUTE_PAGE_PATH.read_text()
     main_markup_match=re.search(r'(<main>.*?</main>\s*<dialog.*?</dialog>)',attribute_page_text,re.DOTALL)
     if main_markup_match is None:raise ValueError('ANNY 속성 편집기 본문을 찾을 수 없습니다.')
-    return '<div id="anny-attribute-root">'+main_markup_match.group(1)+'</div>'
+    current_markup_text=main_markup_match.group(1)
+    for current_button_identifier in ('reset','generate-preview','retry'):
+        current_markup_text=re.sub(r'<button[^>]*id="'+current_button_identifier+r'"[^>]*>.*?</button>','',current_markup_text)
+    current_markup_text=current_markup_text.replace('<canvas id="mesh-preview"','<canvas width="768" height="520" style="width:100%;height:520px;touch-action:none" id="mesh-preview"')
+    return '<div id="anny-attribute-root">'+current_markup_text+'</div>'
 
 
 def read_anny_attribute_script():
@@ -37,13 +44,13 @@ def create_anny_attribute_loader(review_server_port):
 
 def build_anny_attribute_interface(review_server_port):
     with gr.Blocks(title='Anny 속성 렌더러') as interface_blocks_value:
+        current_action_feedback=gr.Textbox(label='작업 안내',value='체형을 설정한 뒤 프리뷰 생성 또는 이미지 렌더를 실행하세요.',interactive=False)
+        with gr.Row():
+            for current_action_name,current_button_label in (('reset','신체 기준값 복원'),('preview','프리뷰 생성'),('render','이미지 렌더')):
+                build_browser_action_button(current_button_label,'annyAttributeActions',current_action_name,current_action_feedback)
         gr.HTML(read_anny_attribute_markup())
     return interface_blocks_value
 
-
-from pathlib import Path as ManagementStylePath
-MANAGEMENT_DENSITY_STYLES=(ManagementStylePath(__file__).parents[1]/'shared/management-density.css').read_text()
-MANAGEMENT_SHARED_STYLES=MANAGEMENT_SHARED_STYLE_PATH.read_text()+MANAGEMENT_DENSITY_STYLES
 
 if __name__=='__main__':
     argument_parser_value = argparse.ArgumentParser()
@@ -55,4 +62,4 @@ if __name__=='__main__':
     threading.Thread(target=lambda: time.sleep(1), daemon=True).start()
     build_anny_attribute_interface(argument_values.review_port).queue().launch(
         server_name='127.0.0.1', server_port=argument_values.port, root_path=argument_values.root_path,
-        css=MANAGEMENT_SHARED_STYLES+ANNY_ATTRIBUTE_STYLE_PATH.read_text(), js=create_anny_attribute_loader(argument_values.review_port), allowed_paths=[])
+        js=create_anny_attribute_loader(argument_values.review_port), allowed_paths=[])

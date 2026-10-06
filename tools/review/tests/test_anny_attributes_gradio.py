@@ -1,6 +1,6 @@
 import unittest
 
-from tools.review.ui.gradio.anny_attributes_app import MANAGEMENT_SHARED_STYLES, build_anny_attribute_interface, create_anny_attribute_loader, read_anny_attribute_markup
+from tools.review.ui.gradio.anny_attributes_app import build_anny_attribute_interface, create_anny_attribute_loader, read_anny_attribute_markup
 from tools.review.ui_assets import resolve_review_ui_asset
 
 
@@ -12,12 +12,16 @@ class AnnyAttributesGradioTest(unittest.TestCase):
         self.assertNotIn('<iframe', str(configuration_value))
         self.assertNotIn('## Anny 속성 렌더러', str(configuration_value))
 
-    def test_uses_shared_management_style_tokens(self):
-        self.assertIn('--page:#10151f', MANAGEMENT_SHARED_STYLES)
-        self.assertIn('button.primary', MANAGEMENT_SHARED_STYLES)
-        markup_text = read_anny_attribute_markup()
-        self.assertIn('class="primary"', markup_text)
-        self.assertIn('aria-live="polite"', markup_text)
+    def test_actions_are_native_browser_commands(self):
+        current_configuration_record=build_anny_attribute_interface(8770).get_config_file()
+        current_action_events=[current_event_record for current_event_record in current_configuration_record['dependencies'] if 'annyAttributeActions' in (current_event_record.get('js') or '')]
+        self.assertEqual(len(current_action_events),3)
+        for current_event_record in current_action_events:
+            self.assertFalse(current_event_record['backend_fn'])
+        current_markup_text=read_anny_attribute_markup()
+        for current_button_identifier in ('reset','generate-preview','retry'):
+            self.assertNotIn('id="'+current_button_identifier+'"',current_markup_text)
+        self.assertIn('aria-live="polite"',current_markup_text)
 
     def test_uses_selected_history_actions(self):
         markup_text = read_anny_attribute_markup()
