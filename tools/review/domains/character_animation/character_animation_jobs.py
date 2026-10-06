@@ -189,6 +189,9 @@ def resume_animation_generation(command_payload_value):
     return {'id':generation_job_identifier,'status':'running','path':str(generation_job_path)}
 
 def execute_animation_command(operation_command_name,command_payload_value):
+    if operation_command_name.startswith('sprite-v2-'):
+        from .sprite_editor_v2 import execute_v2_command
+        return execute_v2_command(operation_command_name,command_payload_value)
     if operation_command_name in ('anchor-save','anchor-history','anchor-load','anchor-history-reset'):
         from .anchor_history import execute_anchor_history_command
         return execute_anchor_history_command(operation_command_name,command_payload_value)

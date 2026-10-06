@@ -322,6 +322,7 @@ def run_review_server(parsed_argument_values):
             ('/management/frame/outfit-transfer-generator/',parsed_argument_values.port+120,lambda:ensure_gradio_application(parsed_argument_values.port,'outfit-transfer')),
             ('/management/frame/qwen-21-generator/',parsed_argument_values.port+116,lambda:ensure_gradio_application(parsed_argument_values.port,'qwen-21')),
             ('/management/frame/expression-generator/',parsed_argument_values.port+114,lambda:ensure_gradio_application(parsed_argument_values.port,'expression')),
+            ('/management/frame/sprite-editor-v2/',parsed_argument_values.port+121,lambda:ensure_gradio_application(parsed_argument_values.port,'sprite-editor-v2')),
             ('/management/frame/sprite-editor/',parsed_argument_values.port+106,lambda:ensure_sprite_editor_server(parsed_argument_values.port)),
             ('/management/frame/map-review/',parsed_argument_values.port+107,lambda:ensure_map_review_server(parsed_argument_values.port)),
             ('/management/frame/anny-attributes/',parsed_argument_values.port+108,lambda:ensure_anny_attributes_server(parsed_argument_values.port)),

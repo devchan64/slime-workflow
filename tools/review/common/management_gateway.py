@@ -20,6 +20,10 @@ MANAGEMENT_COMMAND_ROUTES = {'anchor-history-reset':('POST','/anchor/history/res
 MANAGEMENT_SERVICE_COMMANDS = {'outfit-transfer':('history-delete','resume','generate','status','logs','history','active','model-status','cancel','history-reset'),'pose-transfer':('history-delete','resume','generate','status','logs','history','active','model-status','cancel','history-reset'),'qwen-21-circular':('history-delete','resume','generate','status','logs','history','active','model-status','cancel','history-reset'),'animation-separation':('catalog','history-delete','resume','generate','status','logs','history','active','cancel','history-reset'),'qwen-21':('history-delete','resume','generate','status','logs','history','active','model-status','cancel','history-reset'),'seamless-tile':('pause','history-delete','resume','generate','status','logs','history','active','model-status','cancel','history-reset'),'expression':('history-delete','resume','generate','status','logs','history','active','model-status','cancel','history-reset'),'floor-tile':('history-delete','resume','catalog','generate','status','logs','history','active','model-status','cancel','history-reset'),'anny':('status','history','cancel','resume'),'character-animation':('anchor-save','anchor-history','anchor-load','anchor-history-reset','history-delete','resume','sprite-source','sprite-save','sprite-load','sprite-history','sprite-history-reset','sprite-history-delete','catalog','generate','status','logs','history','active','cancel','history-reset'),'momask':('history-delete','resume','generate','status','logs','history','cancel','history-reset'),'qwen-2512':('history-delete','resume','generate','prepare','status','logs','history','active','model-status','cancel','history-reset'),'qwen-2511':('history-delete','resume','generate','status','logs','history','active','model-status','cancel','history-reset')}
 
 
+SPRITE_V2_COMMAND_NAMES = tuple('sprite-v2-'+current_command_name for current_command_name in ('create','list','upload','save','load','history','export'))
+MANAGEMENT_COMMAND_ROUTES.update({current_command_name:('POST','/sprite-v2/'+current_command_name.removeprefix('sprite-v2-')) for current_command_name in SPRITE_V2_COMMAND_NAMES})
+MANAGEMENT_SERVICE_COMMANDS['character-animation'] += SPRITE_V2_COMMAND_NAMES
+
 def resolve_management_command(service_command_name, operation_command_name, command_payload_value):
     if service_command_name not in MANAGEMENT_SERVICE_COMMANDS or operation_command_name not in MANAGEMENT_SERVICE_COMMANDS[service_command_name]:
         raise ValueError('지원하지 않는 관리 명령')
@@ -172,6 +176,8 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
         operation_argument_parser=command_subparser_group.add_parser(operation_command_name)
         if service_command_name=='momask' and operation_command_name=='generate':
             operation_argument_parser.add_argument('--face',action=argparse.BooleanOptionalAction,default=False,help='ANNY 얼굴 5점 포함')
+        if operation_command_name in SPRITE_V2_COMMAND_NAMES:
+            operation_argument_parser.add_argument('--payload-file',type=Path,required=True,help='GUI와 동일한 명령 JSON 입력 파일')
         if operation_command_name=='anchor-save':operation_argument_parser.add_argument('--document-file',type=Path,required=True)
         if operation_command_name=='anchor-load':operation_argument_parser.add_argument('id')
         if operation_command_name in ('anchor-history','anchor-history-reset'):
@@ -246,6 +252,7 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
         command_payload_value={'id':command_argument_values.id}
         if operation_command_name=='sprite-history-delete':command_payload_value['revision']=command_argument_values.revision
         if operation_command_name=='sprite-save':command_payload_value['document']=json.loads(command_argument_values.document_file.read_text())
+    if operation_command_name in SPRITE_V2_COMMAND_NAMES:command_payload_value=json.loads(command_argument_values.payload_file.read_text())
     if operation_command_name=='anchor-save':command_payload_value={'document':json.loads(command_argument_values.document_file.read_text())}
     if operation_command_name in ('anchor-history','anchor-history-reset'):command_payload_value={'animation_id':command_argument_values.animation_id,'animation_version':command_argument_values.animation_version}
     if operation_command_name=='history-reset':command_payload_value={'action':'reset'}
