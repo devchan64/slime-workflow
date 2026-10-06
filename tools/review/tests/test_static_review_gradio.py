@@ -32,7 +32,7 @@ class StaticReviewGradioTest(unittest.TestCase):
 
         self.assertEqual(static_review_routes,{'/animation/anchors.html':'walk-review'})
 
-    def test_component_uses_allowlisted_page_and_has_no_iframe(self):
+    def test_component_uses_allowlisted_page_and_isolates_game_design(self):
         loader_script_value=create_static_review_loader(8770,{'walk-review':'animation/anchors.html'})
         interface_blocks_value=build_static_review_interface({'walk-review':'animation/anchors.html'})
 
@@ -43,7 +43,11 @@ class StaticReviewGradioTest(unittest.TestCase):
         self.assertIn("rel='modulepreload'",loader_script_value)
         self.assertIn('await import(',loader_script_value)
         self.assertIn("setAttribute('aria-busy','false')",loader_script_value)
-        self.assertNotIn('<iframe',loader_script_value)
+        self.assertIn("if(selectedReviewPath.startsWith('ui-')&&!selectedReviewPath.split('?')[0].endsWith('-manager.html'))",loader_script_value)
+        self.assertIn("document.createElement('iframe')",loader_script_value)
+        self.assertIn('currentReviewFrame.src=staticReviewPageUrl',loader_script_value)
+        self.assertLess(loader_script_value.index("document.createElement('iframe')"),loader_script_value.index('window.fetch='))
+        self.assertFalse(interface_blocks_value.css)
         self.assertIn('static-review-root',str(interface_blocks_value.get_config_file()))
         self.assertIn('aria-busy="true"',str(interface_blocks_value.get_config_file()))
 

@@ -9,7 +9,7 @@ from pathlib import Path
 import gradio as gr
 
 
-STATIC_REVIEW_APPLICATION_STYLES='#static-review-root{width:100%;min-height:640px}.static-review-error{padding:16px;border:1px solid #9c4b4b;border-radius:8px;color:#ffd3d3}'
+STATIC_REVIEW_FRAME_HEIGHT=1000
 
 
 def load_static_review_paths(source_file_path):
@@ -40,6 +40,16 @@ if(!selectedReviewPath){{staticReviewRoot.innerHTML='<p class="static-review-err
 const staticReviewPageLocation=new URL(selectedReviewPath,reviewServerBase);
 staticReviewPageLocation.searchParams.set('embedded','gradio-static');
 const staticReviewPageUrl=staticReviewPageLocation.href;
+// 게임 디자인 검수의 스타일·모듈·상대 경로를 원래 문서 안에 격리한다.
+if(selectedReviewPath.startsWith('ui-')&&!selectedReviewPath.split('?')[0].endsWith('-manager.html')){{
+  const currentReviewFrame=document.createElement('iframe');
+  currentReviewFrame.title='게임 디자인 검수';
+  currentReviewFrame.width='100%';currentReviewFrame.height='{STATIC_REVIEW_FRAME_HEIGHT}';currentReviewFrame.setAttribute('frameborder','0');
+  currentReviewFrame.src=staticReviewPageUrl;
+  currentReviewFrame.addEventListener('load',()=>staticReviewRoot.setAttribute('aria-busy','false'));
+  staticReviewRoot.replaceChildren(currentReviewFrame);
+  return;
+}}
 const staticReviewAssetUrl=new URL('.',staticReviewPageUrl).href;
 window.resolveStaticReviewAssetUrl=assetPathValue=>typeof assetPathValue==='string'&&!/^(?:[a-z]+:|[/])/i.test(assetPathValue)?new URL(assetPathValue,staticReviewAssetUrl).href:assetPathValue;
 const originalFetchRequest=window.fetch.bind(window);
@@ -76,12 +86,13 @@ try{{
 
 def build_static_review_interface(static_review_paths):
     with gr.Blocks(title='정적 검수') as interface_blocks_value:
+        gr.Markdown('## 정적 검수\n게임 디자인과 등록 애니메이션을 검수합니다.')
+        current_reload_button=gr.Button('검수 화면 새로고침')
+        current_reload_button.click(fn=None,js="()=>{window.location.reload();}",queue=False)
         gr.HTML('<section id="static-review-root" aria-label="정적 검수" aria-live="polite" aria-busy="true"><p>검수 화면을 준비하고 있습니다…</p></section>')
     return interface_blocks_value
 
 
-from pathlib import Path as ManagementStylePath
-MANAGEMENT_DENSITY_STYLES=(ManagementStylePath(__file__).parents[1]/'shared/management-density.css').read_text()
 
 if __name__=='__main__':
     parser_value=argparse.ArgumentParser()
@@ -96,4 +107,4 @@ if __name__=='__main__':
         while os.getppid()==arguments_value.owner_pid:time.sleep(1)
         os._exit(0)
     threading.Thread(target=monitor_owner_process,daemon=True).start()
-    build_static_review_interface(static_review_paths).queue().launch(server_name='127.0.0.1',server_port=arguments_value.port,root_path=arguments_value.root_path,css=STATIC_REVIEW_APPLICATION_STYLES+MANAGEMENT_DENSITY_STYLES,js=create_static_review_loader(arguments_value.review_port,static_review_paths),allowed_paths=[])
+    build_static_review_interface(static_review_paths).queue().launch(server_name='127.0.0.1',server_port=arguments_value.port,root_path=arguments_value.root_path,js=create_static_review_loader(arguments_value.review_port,static_review_paths),allowed_paths=[])
