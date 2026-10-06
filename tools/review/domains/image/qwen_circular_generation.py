@@ -24,9 +24,7 @@ class QwenCircularGenerationManager(QwenPlainGenerationManager):
         validated_request_record['pattern_view'] = pattern_view_enabled
         validated_request_record['soft_shading'] = soft_shading_enabled
         validated_request_record['user_prompt'] = user_prompt_text
-        if validated_request_record.get('images') or validated_request_record.get('references'):
-            raise ValueError('순환 Attention 실험은 참조 없이 프롬프트만 입력하세요.')
-        validated_request_record['circular_vae'] = build_circular_configuration(request_record_value.get('circular_radius', 8), request_record_value.get('baseline_decode', False))
+        validated_request_record['circular_vae'] = build_circular_configuration(request_record_value.get('circular_radius', 8), request_record_value.get('baseline_decode', False), bool(validated_request_record.get('images') or validated_request_record.get('references')))
         return validated_request_record
 
     def enrich_generation_status(self, current_job_root, current_status_record):

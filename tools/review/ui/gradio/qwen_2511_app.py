@@ -125,7 +125,7 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
         if pose_transfer_enabled and not outfit_transfer_enabled:
             gr.Markdown('**Alpha Ver.** · 실험 단계입니다. 포즈 정밀도와 캐릭터 일관성이 보장되지 않으므로 결과별 검수가 필요합니다.')
         if circular_mode_enabled:
-            gr.Markdown('생성 토큰 순환 Attention · 일반 VAE 비교 선택 · 참조 없는 텍스트 생성 실험 · 출력 전체가 타일입니다. 반복 경계의 형태 연결은 결과에서 검수하세요.')
+            gr.Markdown('생성 토큰 순환 Attention · 일반 VAE 비교 선택 · 참조 이미지 선택 · 생성 영역만 순환 처리 · 출력 전체가 타일입니다. 반복 경계의 형태 연결은 결과에서 검수하세요.')
         if expression_mode_enabled:
             gr.Markdown('Qwen-Image-Edit-2511 고정 · 참조 1~3장. 첫 이미지를 편집하고 추가 이미지는 동일 캐릭터의 외형 참고로 사용합니다. AU는 움직임 설계 참고이며 검출값·감정 판정·강도 측정이 아닙니다.')
         if pose_transfer_enabled:
@@ -141,7 +141,7 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
                 prompt_text_value=gr.Textbox(value=CIRCULAR_DEFAULT_PROMPT if circular_mode_enabled else default_prompt_text,interactive=not pose_transfer_enabled,label='프롬프트',lines=3,scale=1,min_width=240)
             generation_tag_value=gr.Textbox(label='생성 이력 태그 · 선택 사항',placeholder='예: 돌온재 참조 후보',lines=3,scale=1,min_width=240)
         if qwen21_mode_enabled:
-            gr.Markdown('바디 1장: 신체 비율·자세·외형 기준. 아웃핏 1장: 입힐 의상·신발 기준. 바디를 유지하고 복장을 입힙니다.' if outfit_transfer_enabled else '아이덴티티 1장: 외형·비율·화풍. 포즈 1장: 자세·관절 배치. 두 장 모두 필수이며 한 장면을 생성합니다.' if pose_transfer_enabled else 'Qwen Image 2.1 · 추가 프롬프트 없음. 입력 원문을 그대로 전달합니다. 참조 없이 텍스트만으로도 생성할 수 있습니다.')
+            gr.Markdown('바디 1장: 신체 비율·자세·외형 기준. 아웃핏 1장: 입힐 의상·신발 기준. 바디를 유지하고 복장을 입힙니다.' if outfit_transfer_enabled else '아이덴티티 1장: 외형·비율·화풍. 포즈 1장: 자세·관절 배치. 두 장 모두 필수이며 한 장면을 생성합니다.' if pose_transfer_enabled else 'Qwen Image 2.1 · 참조 최대 10장. 선택한 프롬프트 옵션을 입력 문구에 추가합니다.' if circular_mode_enabled else 'Qwen Image 2.1 · 추가 프롬프트 없음. 입력 원문을 그대로 전달합니다. 참조 없이 텍스트만으로도 생성할 수 있습니다.')
             def describe_plain_prompt(current_prompt_text):
                 current_word_count = len(current_prompt_text.split())
                 return f'사용자 {current_word_count}단어 · 추가 0단어 · 최종 {current_word_count}단어 (최대 99단어)'

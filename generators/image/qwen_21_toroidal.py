@@ -63,6 +63,11 @@ class ToroidalTargetAttention:
             attn, hidden_states, rotary_emb, layer_cache, kv_cache_mode, cache_write_slice)
         if query_sequence_length < self.target_token_count:
             raise ValueError('순환 Attention의 생성 토큰 수가 맞지 않습니다.')
+        # 참조 이미지와 텍스트는 prefix에 유지하고 마지막 생성 격자만 순환 복제한다.
+        if segments is not None and (segments[-1][1] if segments else 0) != query_sequence_length - self.target_token_count:
+            raise ValueError('순환 Attention의 참조 prefix와 생성 영역 경계가 맞지 않습니다.')
+        if segments is None and query_sequence_length != self.target_token_count:
+            raise ValueError('캐시 실행에는 생성 토큰만 입력해야 합니다.')
         source_token_indices, height_offset_values, width_offset_values = self.boundary_mapping_values
         source_index_tensor = torch.tensor(source_token_indices, device=key_tensor_value.device) + key_tensor_value.shape[1] - self.target_token_count
         offset_tensor_values = [
@@ -116,8 +121,8 @@ class ToroidalTargetAttention:
 
 
 def install_toroidal_attention(current_pipeline_model, current_request_record):
-    if current_request_record.get('references'):
-        raise ValueError('순환 Attention 첫 실험은 참조 없는 텍스트 생성만 지원합니다.')
+    if current_request_record.get('references') and not current_request_record['circular_vae'].get('references', False):
+        raise ValueError('이전 순환 Attention 설정은 참조 입력을 지원하지 않습니다.')
     current_grid_height = current_request_record['height'] // current_pipeline_model.vae_scale_factor
     current_grid_width = current_request_record['width'] // current_pipeline_model.vae_scale_factor
     for current_transformer_block in current_pipeline_model.transformer.transformer_blocks:

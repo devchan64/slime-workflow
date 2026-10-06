@@ -495,3 +495,5 @@ python3 tools/manager.py command outfit-transfer generate --reference /path/body
 ```
 
 HTTP 서비스는 `outfit-transfer`, 명령은 `generate`이며 `images`에 바디·아웃핏 순서의 base64 PNG 두 장을 전달합니다. 나머지 프롬프트·크기·스텝·시드 계약은 Qwen 2.1과 같습니다. 기록은 `.tmp/test/outfit-transfer/`에 보존하고 기존 생성기의 이력과 구분합니다.
+
+순환 생성기 v11은 참조 이미지 1~10장을 선택적으로 지원합니다. 공용 업로드·클립보드·추가/삭제 UI와 이력 입력 복원을 사용합니다. CLI는 `--reference <PNG>`를 반복하며, 게이트웨이는 기존 `images` 배열을 사용합니다. 참조 인코더와 참조·텍스트 prefix는 기존 Qwen 처리를 유지하고 생성 이미지 토큰만 순환 확장합니다. 순환 VAE는 디코더에만 적용합니다. 참조 없는 작업은 기존 v10 설정을 유지하며 과거 기록을 변경하지 않습니다. 참조 장수와 크기에 따라 GPU 메모리 사용이 늘어나므로 첫 검증은 작은 해상도와 참조 1장으로 진행합니다.

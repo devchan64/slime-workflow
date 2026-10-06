@@ -17,6 +17,40 @@ class CircularGenerationTests(unittest.TestCase):
         self.assertIn('resume', MANAGEMENT_SERVICE_COMMANDS['qwen-21-circular'])
         self.assertEqual(current_service_manager.job_storage_root.name, 'qwen-image-21-circular')
 
+    def test_reference_configuration_and_limits(self):
+        import base64
+        import io
+        from PIL import Image
+        from generators.image.qwen_21_circular import CIRCULAR_SELECTABLE_CONFIGURATIONS
+        current_image_buffer = io.BytesIO()
+        Image.new('RGB', (32, 32), 'green').save(current_image_buffer, format='PNG')
+        encoded_reference_image = base64.b64encode(current_image_buffer.getvalue()).decode()
+        current_service_manager = QwenCircularGenerationManager()
+        current_request_record = dict(action='generate', prompt='Grass.', images=[], width=256, height=256, steps=40, seed=1)
+        for reference_image_count in (1, 10):
+            validated_request_record = current_service_manager.validate_generation_request({**current_request_record, 'images': [encoded_reference_image] * reference_image_count})
+            self.assertEqual(len(validated_request_record['images']), reference_image_count)
+            self.assertEqual(validated_request_record['circular_vae']['schema_version'], 11)
+            self.assertTrue(validated_request_record['circular_vae']['references'])
+            self.assertIn(validated_request_record['circular_vae'], CIRCULAR_SELECTABLE_CONFIGURATIONS)
+        with self.assertRaises(ValueError):
+            current_service_manager.validate_generation_request({**current_request_record, 'images': [encoded_reference_image] * 11})
+
+    def test_reference_attention_install_contract(self):
+        from types import SimpleNamespace
+        from unittest.mock import Mock
+        from generators.image.qwen_21_circular import build_circular_configuration
+        from generators.image.qwen_21_toroidal import install_toroidal_attention
+        current_attention_mock = Mock()
+        current_pipeline_mock = SimpleNamespace(vae_scale_factor=16, transformer=SimpleNamespace(pos_embed=object(), transformer_blocks=[SimpleNamespace(attn=current_attention_mock)]))
+        current_request_record = dict(width=256, height=256, references=['reference-1.png'], circular_vae=build_circular_configuration(8, False, True))
+        self.assertEqual(install_toroidal_attention(current_pipeline_mock, current_request_record), 1)
+        installed_attention_processor = current_attention_mock.set_processor.call_args.args[0]
+        self.assertEqual(installed_attention_processor.target_token_count, 256)
+        current_request_record['circular_vae'] = build_circular_configuration(8, False)
+        with self.assertRaises(ValueError):
+            install_toroidal_attention(current_pipeline_mock, current_request_record)
+
     def test_history_renderer_contract_and_partial_results(self):
         from tools.review.ui.gradio.qwen_2511_app import render_circular_comparison
         completed_result_html = render_circular_comparison('example-id', {
