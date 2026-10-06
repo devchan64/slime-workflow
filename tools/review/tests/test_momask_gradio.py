@@ -56,10 +56,15 @@ class GradioMoMaskTests(unittest.TestCase):
         self.assertIn('160프레임', summary_text_value)
 
     def test_player_keeps_frame_count_and_directions(self):
-        player_html_value=MODULE_SOURCE_VALUE.create_motion_player('sample',{'frames':32,'directions':['up_left']},'http://127.0.0.1:8770')
-        self.assertIn('allow-scripts',player_html_value)
-        self.assertIn('up_left',player_html_value)
-        self.assertIn('HumanML3D',player_html_value)
+        import json
+        current_payload_record=json.loads(MODULE_SOURCE_VALUE.create_motion_player('sample',{'frames':32,'directions':['up_left'],'anny_frames':True,'openpose_map_frames':True},'http://127.0.0.1:8770'))
+        self.assertEqual(len(current_payload_record['frames']['up_left']),32)
+        self.assertEqual(current_payload_record['panels'],['HumanML3D 22관절','ANNY 리그','OpenPose COCO18'])
+        self.assertEqual(len(current_payload_record['frames']['up_left'][0]),3)
+        self.assertTrue(all(current_frame_path.endswith('0032.png') for current_frame_path in current_payload_record['frames']['up_left'][31]))
+        current_legacy_record=json.loads(MODULE_SOURCE_VALUE.create_motion_player('sample',{'frames':2,'directions':['up_left']},'http://127.0.0.1:8770'))
+        self.assertTrue(current_legacy_record['frames']['up_left'][0][0].endswith('/result/up_left/openpose-0001.png'))
+        self.assertEqual(len(current_legacy_record['panels']),1)
 
     def test_history_uses_gateway_records_without_local_files(self):
         response_history_record = {'records': [{'id': 'completed-id', 'status': {'status': 'completed'}, 'thumbnail': '/momask-generator/jobs/completed-id/result/anny/down_left/frames/anny-0001.png', 'request': {'tag': '돌온재'}}], 'running': False}

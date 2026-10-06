@@ -197,7 +197,7 @@ def render_generation_images(current_status_record, server_base_address):
     return ''.join(f'<section><h3>{html.escape(current_image_label)}</h3><img width="100%" src="{html.escape(current_image_url,quote=True)}" alt="{html.escape(current_image_label)}"></section>' for current_image_url,current_image_label in current_result_items) or '<p>아직 생성된 결과 이미지가 없습니다.</p>'
 
 
-def build_generation_history_view(execute_service_command,server_base_address,deletion_scope_text,restore_input_callback=None,restore_output_components=None,result_renderer_callback=None,record_folder_route=None,allow_individual_delete=False):
+def build_generation_history_view(execute_service_command,server_base_address,deletion_scope_text,restore_input_callback=None,restore_output_components=None,result_renderer_callback=None,record_folder_route=None,allow_individual_delete=False,result_component_factory=None):
     """목록·페이지·명시적 조회·결과·입력·로그·초기화를 묶은 공용 영역."""
     import html
     from tools.review.common.gradio_logs import build_execution_logs,create_copyable_log_textbox
@@ -215,7 +215,7 @@ def build_generation_history_view(execute_service_command,server_base_address,de
         history_remaining_cards=gr.Gallery(value=[],label='현재 페이지의 결과 미리보기',columns=2,object_fit='contain',interactive=False,visible=False,elem_id='generation-history-remaining-cards')
         result_identifier_value=build_generation_identifier('조회한 생성 ID', 'generation-history-result-anchor')
         result_status_value=gr.Markdown('')
-        result_image_value=gr.HTML(visible=False) if result_renderer_callback is not None else build_generation_gallery('조회한 생성 결과')
+        result_image_value=result_component_factory() if result_component_factory is not None else gr.HTML(visible=False) if result_renderer_callback is not None else build_generation_gallery('조회한 생성 결과')
         with gr.Accordion('기록 위치 · 저장 입력',open=False):
             result_path_value=create_copyable_log_textbox(label='기록 폴더 절대 경로',interactive=False)
             folder_open_button_value=gr.Button('기록 폴더 열기',interactive=record_folder_route is not None,size='sm')

@@ -6,6 +6,16 @@ from tools.review.ui.gradio import character_animation_app
 
 
 class CharacterAnimationGradioTests(unittest.TestCase):
+    def test_reference_gallery_supports_registered_direction_counts(self):
+        from pathlib import Path
+        for current_character_identifier,current_expected_count in (('character-default',4),('character-female-a',4),('character-default-light-armor-v1',1)):
+            current_preview_records=character_animation_app.build_character_baseline_preview(current_character_identifier,'http://127.0.0.1:8770')
+            self.assertEqual(len(current_preview_records),current_expected_count)
+            self.assertTrue(all(Path(current_image_path).is_file() for current_image_path,_ in current_preview_records))
+        with patch('tools.review.domains.character_animation.character_animation_assets.hash_asset_file',return_value='invalid'):
+            with self.assertRaisesRegex(ValueError,'무결성'):
+                character_animation_app.build_character_baseline_preview('character-default','http://127.0.0.1:8770')
+
     def test_selected_motion_prompt_display_matches_generation(self):
         from tools.review.domains.character_animation.character_animation_assets import build_animation_catalog, prepare_animation_request
         catalog_record_value=build_animation_catalog()
@@ -20,26 +30,40 @@ class CharacterAnimationGradioTests(unittest.TestCase):
             self.assertEqual(character_animation_app.execute_animation_gateway('generate',{'motion':'standing-v7'}),{'id':'sample'})
             gateway_call_value.assert_called_once_with('character-animation','generate',{'motion':'standing-v7'})
 
-    def test_result_player_has_frame_controls(self):
-        player_html_text=character_animation_app.create_animation_player('sample',{'result':{'frames':{'down_left':['down_left/frame-0001/result.png']},'fps':4}},'http://127.0.0.1:8770')
-        self.assertIn('이전',player_html_text)
-        self.assertIn('character-animation/files',player_html_text)
-        self.assertIn('pending.onload',player_html_text)
-        self.assertIn('생성 결과 프레임',player_html_text)
-        self.assertIn('allow-same-origin',player_html_text)
+    def test_result_player_uses_browser_only_standard_controls(self):
+        import json
+        from tools.review.common.gradio_frame_player import build_browser_frame_player
+        import gradio as gr
+        current_result_payload=json.loads(character_animation_app.create_animation_player('sample',{'result':{'frames':{'down_left':['down_left/frame-0001/result.png']},'fps':8}},'http://127.0.0.1:8770'))
+        self.assertEqual(current_result_payload['frames']['down_left'],['down_left/frame-0001/result.png'])
+        with gr.Blocks() as current_test_interface:
+            build_browser_frame_player()
+        current_configuration_record=current_test_interface.get_config_file()
+        current_player_events=[current_event_record for current_event_record in current_configuration_record['dependencies'] if 'generationFramePlayerCommand' in (current_event_record.get('js') or '')]
+        self.assertEqual(len(current_player_events),7)
+        self.assertTrue(all(not current_event_record['backend_fn'] for current_event_record in current_player_events))
+        self.assertNotIn('<iframe',str(current_configuration_record))
 
-    def test_motion_preview_player_has_pose_asset_and_controls(self):
-        preview_html_text=character_animation_app.create_motion_preview_player('walking-v13','anny','down_left',10,20,4,8,2,'http://127.0.0.1:8770')
-        self.assertIn('character-animation/asset/walking-v13/anny/down_left/10',preview_html_text)
-        self.assertIn('character-animation/asset/walking-v13/anny/down_left/12',preview_html_text)
-        self.assertIn('미리보기 불러오기',preview_html_text)
-        self.assertIn('id=&quot;play&quot; disabled',preview_html_text)
-        self.assertIn('입력 포즈 프레임',preview_html_text)
-        self.assertIn('allow-same-origin',preview_html_text)
-        self.assertNotIn('<select id="fps">',preview_html_text)
-        self.assertIn('loading&lt;4',preview_html_text)
-        self.assertIn('load&#x27;).onclick',preview_html_text)
-        self.assertNotIn('};preloadNext()</script>',preview_html_text)
+    def test_motion_preview_payload_preserves_sampling_and_explicit_loading(self):
+        import json
+        current_preview_payload=json.loads(character_animation_app.create_motion_preview_player('walking-v13','anny','down_left',10,20,4,8,2,'http://127.0.0.1:8770'))
+        self.assertEqual(current_preview_payload['sourceFrames']['down_left'],[10,12,14,16,18,20])
+        self.assertEqual(len(current_preview_payload['frames']['down_left']),6)
+        self.assertTrue(current_preview_payload['frames']['down_left'][0].endswith('/anny/down_left/10'))
+        self.assertTrue(current_preview_payload['deferLoading'])
+        self.assertTrue(current_preview_payload['directUrls'])
+
+    def test_two_players_have_independent_browser_commands(self):
+        from tools.review.common.gradio_frame_player import build_browser_frame_player
+        import gradio as gr
+        with gr.Blocks() as current_test_interface:
+            build_browser_frame_player()
+            build_browser_frame_player('motion-preview-player',defer_image_loading=True)
+        current_configuration_record=current_test_interface.get_config_file()
+        current_player_events=[current_event_record for current_event_record in current_configuration_record['dependencies'] if 'generationFramePlayerCommands' in (current_event_record.get('js') or '')]
+        self.assertEqual(len(current_player_events),14)
+        self.assertEqual(sum('motion-preview-player' in current_event_record['js'] for current_event_record in current_player_events),7)
+        self.assertTrue(all(not current_event_record['backend_fn'] for current_event_record in current_player_events))
 
     def test_motion_preview_uses_generation_sampling(self):
         self.assertEqual(character_animation_app.calculate_preview_frame_numbers(10,20,4,8,2),[10,12,14,16,18,20])

@@ -14,7 +14,7 @@ import yaml
 
 WORKFLOW_ROOT_DIRECTORY = Path(__file__).resolve().parents[4]
 sys.path.insert(0, str(WORKFLOW_ROOT_DIRECTORY))
-from tools.review.common.browser_frame_player import apply_browser_player_layout
+from tools.review.common.gradio_frame_player import build_browser_frame_player
 from tools.review.common.gradio_history import build_generation_history_view
 from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_confirmation
 from tools.review.common.management_client import execute_remote_management_command as execute_management_command
@@ -86,14 +86,29 @@ def restore_motion_history_record(current_history_record):
     return restore_saved_motion_inputs(current_history_record['id'])
 
 def create_motion_player(generation_job_identifier, generation_result_record, server_base_address):
-    player_payload_value={'id':generation_job_identifier,'result':generation_result_record,'base':server_base_address}
-    player_source_text=(Path(__file__).parent/'motion-player.html').read_text().replace('__PLAYER_PAYLOAD__',json.dumps(player_payload_value).replace('<','\\u003c'))
-    player_source_text=apply_browser_player_layout(player_source_text)
-    return '<iframe title="모션 동기 재생" style="width:100%;height:460px;border:0" sandbox="allow-scripts" srcdoc="'+html.escape(player_source_text,quote=True)+'"></iframe>'
+    current_frame_count=generation_result_record.get('frames',0)
+    current_direction_names=generation_result_record.get('directions',[])
+    if type(current_frame_count) is not int or current_frame_count<1 or not current_direction_names:
+        raise ValueError('모션 결과에 프레임 수와 방향이 필요합니다.')
+    current_result_root=server_base_address+'/momask-generator/jobs/'+generation_job_identifier+'/result/'
+    current_panel_labels=['HumanML3D 22관절']
+    if generation_result_record.get('anny_frames'):current_panel_labels.append('ANNY 리그')
+    if generation_result_record.get('openpose_map_frames'):current_panel_labels.append('OpenPose COCO18')
+    current_direction_frames={}
+    for current_direction_name in current_direction_names:
+        current_frame_records=[]
+        for current_frame_number in range(1,current_frame_count+1):
+            current_frame_suffix=f'{current_frame_number:04d}.png'
+            current_frame_paths=[current_result_root+('openpose/' if generation_result_record.get('anny_frames') else '')+current_direction_name+'/openpose-'+current_frame_suffix]
+            if generation_result_record.get('anny_frames'):current_frame_paths.append(current_result_root+'anny/'+current_direction_name+'/frames/anny-'+current_frame_suffix)
+            if generation_result_record.get('openpose_map_frames'):current_frame_paths.append(current_result_root+'openpose-map/'+current_direction_name+'/openpose-map-'+current_frame_suffix)
+            current_frame_records.append(current_frame_paths)
+        current_direction_frames[current_direction_name]=current_frame_records
+    return json.dumps({'frames':current_direction_frames,'directUrls':True,'panels':current_panel_labels},ensure_ascii=False)
 
 def render_motion_history_result(generation_job_identifier,generation_status_record,server_base_address):
     if generation_status_record.get('status')!='completed':
-        return '<p>선택한 이력은 '+html.escape(str(generation_status_record.get('status','unknown')))+' 상태입니다. 실행 로그를 확인하세요.</p>'
+        return json.dumps({'frames':{},'message':'선택한 이력은 '+str(generation_status_record.get('status','unknown'))+' 상태입니다. 실행 로그를 확인하세요.'},ensure_ascii=False)
     return create_motion_player(generation_job_identifier,generation_status_record.get('result',{}),server_base_address)
 
 def build_momask_interface(server_base_address):
@@ -148,6 +163,7 @@ def build_momask_interface(server_base_address):
             restore_input_callback=restore_motion_history_record,
             restore_output_components=[action_select_value,direction_select_value,face_checkbox_value,generation_tag_value,prompt_text_value,settings_text_value,status_text_value],
             result_renderer_callback=render_motion_history_result,
+            result_component_factory=build_browser_frame_player,
             record_folder_route='/momask-generator',
             allow_individual_delete=True,
         )
