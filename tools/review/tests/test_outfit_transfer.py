@@ -12,6 +12,24 @@ from tools.review.common.management_gateway import execute_gateway_arguments
 
 
 class OutfitTransferContractTests(unittest.TestCase):
+    def test_worker_accepts_registered_storage_only(self):
+        from tools.review.domains.image.three_reference_generation import validate_three_reference_job_path
+        current_service_manager = OutfitTransferGenerationManager()
+        current_job_directory = current_service_manager.job_storage_root / '2026-10-05_23-16-36-65f2ed35'
+        self.assertEqual(validate_three_reference_job_path(current_job_directory), current_job_directory.resolve())
+        with self.assertRaises(ValueError):
+            validate_three_reference_job_path(current_service_manager.job_storage_root / '..' / 'unregistered' / 'job')
+        with tempfile.TemporaryDirectory() as current_temp_directory:
+            with self.assertRaises(ValueError):
+                validate_three_reference_job_path(current_temp_directory)
+
+    def test_saved_reference_count_checked(self):
+        from tools.review.domains.image.outfit_transfer_generation import validate_outfit_transfer_contract
+        current_saved_request = {'references': ['reference-1.png', 'reference-2.png'], 'width': 768, 'height': 768}
+        validate_outfit_transfer_contract(current_saved_request, saved_request_enabled=True)
+        with self.assertRaises(ValueError):
+            validate_outfit_transfer_contract({**current_saved_request, 'references': ['reference-1.png']}, saved_request_enabled=True)
+
     def test_reference_order_and_count(self):
         current_image_values = []
         for current_color_name in ('red', 'blue'):
