@@ -1,4 +1,4 @@
-# 기본 캐릭터 걷기 12프레임 리포트
+# 기본 캐릭터 애니메이션 통합 리포트
 
 생성 ID: `2026-10-05_16-28-12-8e29beaf`
 
@@ -44,3 +44,11 @@ GPU(CUDA), 해당 모델 및 어댑터 revision, 기록된 PyTorch·Diffusers �
 [보존 기록](rest-body-v1/README.md) · [시작 GIF](rest-body-v1/rest-start-review.gif) · [종료 GIF](rest-body-v1/rest-end-review.gif)
 
 각각 512×512 8프레임으로 구성한 검수 후보입니다. 생성 원본·프롬프트·참조·개별 프레임을 함께 보존했습니다.
+
+## 경량 보호구 걷기 12프레임 보정 · 통합 기록
+
+[리포트](walking-light-armor-normalized-v1/README.md) · [검수 GIF](walking-light-armor-normalized-v1/review.gif) · [가이드라인 비교](walking-light-armor-normalized-v1/baseline-guides-review.gif)
+
+보호구 베이스라인에 맞춰 내장 이미지젠으로 보정한 검수 후보입니다.
+
+[통합 프레임 목록](report-index.yaml)에 보정 12장의 순서·원천 프레임 번호·512 셀 크기·8fps·참조 생성 ID를 기록했습니다. 메인 [검수 화면](preview.html)에서 GIF·베이스라인 가이드 비교·시트를 바로 확인할 수 있습니다. 기존 바디·대기·휴식 기록은 유지합니다.

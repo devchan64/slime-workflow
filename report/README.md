@@ -10,7 +10,7 @@
 
 ## 리포트 목록
 
-- [기본 캐릭터 걷기 12프레임](character-animation-20261005-162812-8e29beaf/README.md): 2026-10-05_16-28-12-8e29beaf, down_left, 768px·4스텝, 입력·결과·로그와 해시 검증.
+- [기본 캐릭터 애니메이션 통합 리포트](character-animation-20261005-162812-8e29beaf/README.md): 2026-10-05_16-28-12-8e29beaf, down_left, 768px·4스텝, 입력·결과·로그와 해시 검증.
 
 
 - [ANNY 새 파라미터·레퍼런스 자세 기준 결과](anny-reference-baseline-20260923/README.md): 목 높이 0.5, 허벅지·종아리 길이 0.7, 약 5.625등신 모델과 60% 오버레이, 입력·코드·리그 사본 및 재현 검증.
@@ -31,3 +31,5 @@
 - [v6 AnyPose 4스텝 32프레임 실험](anypose-v6-32frames-20260923/README.md): 수평 45° 리그, 방향별 보조 프롬프트 적용, 32프레임 시트·GIF·입력·코드·로그 사본과 무결성 검증.
 
 - [여성 캐릭터 A 걷기 12프레임](character-animation-20261005-171042-b46bce6f/README.md): 2026-10-05_17-10-42-b46bce6f, down_left, 768px·4스텝, 입력·결과·재시도 로그와 해시 검증.
+
+기본 캐릭터에는 [경량 보호구 걷기 보정 12프레임](character-animation-20261005-162812-8e29beaf/preview.html#walking-light-armor-normalized-v1)을 통합했습니다. 512×512·8fps, 베이스라인 가이드 비교와 이미지젠 보정 출처를 포함합니다.

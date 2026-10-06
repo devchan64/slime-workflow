@@ -1,0 +1,80 @@
+schema_version: 1
+status: review-candidate
+method: builtin-imagegen-identity-normalization
+source_generation_id: 2026-10-06_08-57-52-1dba9136
+baseline_generation_id: 2026-10-06_08-45-30-5f6f4fbb
+generated_source: /home/cbsim/.codex/generated_images/01a0e5f3-61d6-71b3-be62-d48436ea51cb/exec-8dfa59e1-4b2c-4291-b863-eaca6a2ab50c.png
+experiment_path: .tmp/test/imagegen-armor-walk-normalize/2026-10-06_10-11-17
+original_size:
+- 1448
+- 1086
+sheet_size:
+- 2048
+- 1536
+cell_size:
+- 512
+- 512
+layout:
+- 4
+- 3
+source_frames:
+- 4
+- 6
+- 8
+- 10
+- 12
+- 14
+- 16
+- 18
+- 20
+- 22
+- 24
+- 26
+fps: 8
+guide_rows:
+  hair: 5
+  eyes: 72
+  chin: 110
+  shoulder: 131
+  waist: 234
+  shorts: 321
+  knee: 366
+  ground: 502
+guide_method: manual_visual_comparison_not_pose_data
+files:
+  README.md: 36c68cf54fcf808c799c915199345700aa0c3b4f24c0b6cbb2fc535ce8d054a4
+  baseline-512.png: 4db0c8ce6ea9910582b38d77be430f280e2db10866764957fe33763ad22bc41b
+  baseline-guides-all.png: 0094b92742c9245422961a80ddbf68612611bc5944191cf1765a9c3d2c8672c8
+  baseline-guides-review.gif: e76fa3805970e040d359e0de243eb8fbe7e706e8f8b4483b67479d71a53a1a3d
+  baseline-original.png: 90461c84ba726c0b8c47fd761b9b0bc512785e787ab0d764ca37e2fd7c1ec85f
+  baseline-overlay-review.gif: befce792fec08728f93b4206cce254ce5d840b51242bbbfac6a27a1e40cbd62b
+  comparison-01.png: 6ce07b6234a0a14f66212a38047501127cac7ea49372d2fe942db7a5216b1226
+  comparison-02.png: fcf87cdff571da99e5f155a56451fff1591967acdb8c78566e2a85b16c55f6ca
+  comparison-03.png: 64a91907d59e48af60e231e1ef43a94f40db754ec9b6a249f1bcaf1d7358c292
+  comparison-04.png: 83b1ca709dfa0bee804a02dcf3abb76bbb0fd38c0fea00c461bc058427210de3
+  comparison-05.png: 6087f4f3085e763373a301b557d42417044c27e9f994f15b8a1c9bd4c7c225a1
+  comparison-06.png: 67f60a1822a62b6e037f6f5d9c9681d637152c30f9bca0d103974ae32ee1e316
+  comparison-07.png: b426dc8305b2576d5b508475374bb0d4a1239d00c1a6962dfba01ff89d27510c
+  comparison-08.png: 191b6180a7249d2fa9a59493e2d48ec09ae21af9cab2a13a3483c5e904e69843
+  comparison-09.png: 6b5fd374bc9cb3d9761ff61b3a66abaa7d49d0cdd59cf66cc53f335b49de11e4
+  comparison-10.png: 416718f747d558cc7d5a816ba6d996e5ac942d937a74f90ad1a59df1a6631e0b
+  comparison-11.png: 6a8e0891e9880d9e5298e65db57c996fa9ad8194c1748983dd1199b345c3d373
+  comparison-12.png: e84ebae940e53ce0b9e6fcb869d70245aaec22744cbcda0c7ca6cda86015ab27
+  frame-01.png: a8239b9e2daa39d7f63b3e3346e8d8ed82ef0df9f760df2ebb241968b2991710
+  frame-02.png: 3d0886f83de57b7d93ddb977e1eca8d8201ed8aaa214dcbd174ab71464d54842
+  frame-03.png: 0572feaf8916d211475f04164a5c07c2f050d32b2da212089ef2ccdbce22c131
+  frame-04.png: 6f76f9f51825ec66ead135db0c62184516487a6da62eb14902079b5168c29d67
+  frame-05.png: 2f61b33c9126cdb66e818844a20fa6f5572ee808234218011d046a81a46d9033
+  frame-06.png: 13993dbb53458dbb8930650fe958446fec8a0169a3fe95d4b2d3a8f5bafce667
+  frame-07.png: 1eb4a7a953f74d7e4f8ecc9c95072c6cf47291f81a3897ea3861d9863c27f374
+  frame-08.png: 45bd98cf649570739b00d52139a81476ca908ff9a4874d425b747860ad29bf73
+  frame-09.png: 2ca6d7f1fd29ef5a2f0fe508a7993fa64e406fef5a20ad9569ea3e6b47c29756
+  frame-10.png: 8d6ee9844c1666826df9852e544e423a5a87c83aba50e3120c495e66fb5fe600
+  frame-11.png: 7faf726f0c4fe94720095e601edca979026e2d1c69250a025513c3b269bb24fa
+  frame-12.png: 18f98d66d60c7f87516ad31f2f89210eaafe443487cc2377547d1f74d98aaeef
+  generated-original.png: 822d42605e0d3fa9328fe43c8c2a8752dc4fc773f8f94d1f2ddbc166d15f7bc3
+  normalized-12frames.png: 300fc86fd56cdfe5296848d98e7aad074d72fa5c591c7c0446ae4868e4785e11
+  preview.html: 590caaeb72f636620bff57f55009e6da1bd4d694f04386717632fd6e284bd8fe
+  prompt.txt: 11f23710f9a77a641dac9606ae1b0c2ae554522070d66af17251520e7562963d
+  review.gif: 5e32510c1840338cae8c100af3ca3a02858e2640e2635137ec22cf40195e52f9
+  source-sheet.png: 22a35585366b3d3f1270b6b6fbc9e807e3dfa8669e6c777f86793668c16f7013
