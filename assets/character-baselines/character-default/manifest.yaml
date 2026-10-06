@@ -28,3 +28,15 @@ face_reference:
 separated_baseline:
   manifest: separated-baseline-v3/manifest.yaml
   sha256: 65033fdc348e9b6ab7c6d4a3cf1cdbe9f1aed6b2403620407a0c5feb4c7ce38e
+
+armor_baselines:
+  medium:
+    version: v7
+    manifest: medium-armor-four-directions-v7/manifest.yaml
+    path: medium-armor-four-directions-v7/default-medium-armor-four-directions.png
+    sha256: 4d73e3ac58fab387e3cac51838d5c9b11685b0eb8ffe1a38929e723123ba69d7
+  heavy:
+    version: v7
+    manifest: heavy-armor-four-directions-v7/manifest.yaml
+    path: heavy-armor-four-directions-v7/default-heavy-armor-four-directions.png
+    sha256: bee38c3ddc90f89f0239586ef07fffe14c3f6b4e828f6c51c2191abad451fe79

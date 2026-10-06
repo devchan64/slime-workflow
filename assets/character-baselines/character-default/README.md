@@ -38,3 +38,12 @@
 ### 가벼운 보호구 분리 이미지
 
 [정면좌측 outfit](light-armor-four-directions-v1/outfit-down-left-v1.png) · [첨부 출처·해시](light-armor-four-directions-v1/outfit-down-left-v1.yaml). 사용자 첨부 원본을 가공 없이 추가 보존했습니다.
+
+## 중간·무거운 보호구 베이스라인 v7
+
+사용자 승인으로 기본 캐릭터의 4방향 보호구 착용 기준을 추가했습니다. 상위 manifest.yaml의 armor_baselines에서 원본·버전·해시를 관리합니다. 흰 셔츠 신체 기준과 기존 생성기 입력은 유지합니다.
+
+- [중간 보호구](medium-armor-four-directions-v7/default-medium-armor-four-directions.png) · [등록 기록](medium-armor-four-directions-v7/manifest.yaml)
+- [무거운 보호구](heavy-armor-four-directions-v7/default-heavy-armor-four-directions.png) · [등록 기록](heavy-armor-four-directions-v7/manifest.yaml)
+
+위쪽은 후면좌측·후면우측, 아래쪽은 정면좌측·정면우측입니다. 흰 셔츠 baseline-v2를 캐릭터 일관성 기준으로 재적용하고 고급 가죽·압인 문양·보호편 연결·관절 여유를 유지했습니다. 금속형 보호구는 사용하지 않으며 체결용 버클은 허용합니다. 생성 원본 PNG와 프롬프트를 함께 보존합니다.

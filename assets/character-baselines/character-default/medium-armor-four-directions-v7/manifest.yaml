@@ -1,0 +1,73 @@
+schema_version: 1
+asset_id: character-default-medium-armor-four-directions
+version: v7
+character_id: default
+status: approved-baseline
+purpose: 중간 보호구 4방향 레퍼런스 · 기본 캐릭터 일관성 재적용
+representation: dressed-character-sheet
+generator: built-in image_gen
+anatomy_reference:
+  path: ../baseline-v2/character-default-white-shirt-four-directions-v2.png
+  sha256: 9a425eaa116c4d99ffe66b2db2196a8432be2701ace86bfd652ad76e364cfe98
+image:
+  path: default-medium-armor-four-directions.png
+  size:
+  - 1254
+  - 1254
+  mode: RGBA
+layout:
+  rows: 2
+  columns: 2
+  directions:
+  - up_left
+  - up_right
+  - down_left
+  - down_right
+materials:
+- 가죽 보호편
+- 누빔 천
+- 가죽 고정 띠
+- 봉제 연결
+- 체결용 버클
+constraints:
+- 금속형 보호구 금지, 체결용 버클 허용
+- 기존 얼굴·헤어·피부색·신체 비율 유지
+- 수납 부속 제외
+- 관절 가동 여유 유지
+notes: 사용자 요청으로 추가한 제작 레퍼런스. 생성 원본과 알파를 보존하며 기존 생성기 입력을 자동 교체하지 않는다.
+files:
+- path: default-medium-armor-four-directions.png
+  sha256: 4d73e3ac58fab387e3cac51838d5c9b11685b0eb8ffe1a38929e723123ba69d7
+- path: prompt.txt
+  sha256: 9c0cac1f1c4c90ad3be722d1fb952674c7fea6a8bc2be2b6b721c88a4e3e900b
+edit_reference:
+  path: ../baseline-v2/character-default-white-shirt-four-directions-v2.png
+  sha256: 9a425eaa116c4d99ffe66b2db2196a8432be2701ace86bfd652ad76e364cfe98
+mobility_changes:
+- 어깨 보호구 소형화
+- 허리와 고관절 분절
+- 팔꿈치·무릎·발목 가동 여유 확보
+protection_changes:
+- 상완·팔꿈치·허벅지·정강이 보호편 보강
+generation_source: /home/cbsim/.codex/generated_images/01a0e5f3-61d6-71b3-be62-d48436ea51cb/exec-2eeb1a04-2ac3-40df-92d9-4c36c7fae453.png
+attachment_changes:
+- 탈착 조립부를 조절용 버클로 변경
+- 몸통 옆면·허리·팔뚝·허벅지·무릎·종아리 체결
+- 영구 연결은 유연한 봉제 탭 유지
+- 긴 매듭 끈 축소
+surface_changes:
+- 고운 가죽 결과 은은한 왁스 광택
+- 짙은 가장자리 마감과 균일한 봉제
+- 동색 계열 식물·기하 압인 문양
+- 버클·고정 띠·관절 여유 유지
+identity_correction:
+- 흰 셔츠 baseline-v2를 최우선 편집 원본으로 적용
+- 얼굴·헤어·피부색·머리와 신체 비율 재적용
+- v6는 복장 디자인만 참조
+registration:
+  reason: 사용자가 v7 결과를 기본 캐릭터 보호구 베이스라인으로 등록 승인
+  date: '2026-10-06'
+outfit_provenance:
+  version: v6
+  sha256: d30c503ac30468e073b8024771c0a89aff112e1bcd0b49d9ff1c2eb43189d1c2
+  role: 제작 당시 복장 참조, 실행 의존성 아님
