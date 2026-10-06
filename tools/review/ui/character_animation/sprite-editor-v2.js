@@ -7,8 +7,11 @@ const SPRITE_V2_GUIDE_RATIOS=[.04,.23,.30,.49,.61,.78,.95];
 const SPRITE_V2_COLOR_REFERENCE='#26cfca',SPRITE_V2_COLOR_FRAME='#e685dc';
 let currentProjectIdentifier=null,currentProjectDocument=null,currentParentRevision=null,currentFrameIndex=0,currentGuideIndex=0,currentUnsavedChanges=false,currentPlayingState=false,currentPlaybackTimestamp=0,currentBusyState=false;
 const currentViewOptions={zoom:'fit',background:'checker',overlay:false,onion:false,guides:true};
-function readEditorViewOption(currentOptionName){const currentOptionElement=findEditorElement(currentOptionName);return currentOptionElement?(currentOptionElement.type==='checkbox'?currentOptionElement.checked:currentOptionElement.value):currentViewOptions[currentOptionName];}
+function readEditorViewOption(currentOptionName){return currentViewOptions[currentOptionName];}
 let currentUploadTarget='reference';
+let currentEditorTarget='frame',currentEditorMode='image';
+const SPRITE_V2_TARGET_LABELS={frame:'현재 프레임',reference:'레퍼런스',selected:'체크한 프레임',all:'전체 프레임'};
+const SPRITE_V2_MODE_LABELS={image:'이미지 배치',face:'얼굴 원',guide:'신체 가이드'};
 let currentProjectChoices=[],currentRevisionChoices=[],currentLoadedRevision=null;
 const currentEditorActions=new Map();
 const currentImageCache=new Map(),currentUndoRecords=[],currentSelectedFrames=new Set();
@@ -16,8 +19,8 @@ const findEditorElement=(elementSuffixValue)=>document.getElementById('sv2-'+ele
 const writeEditorStatus=(currentMessageText)=>{findEditorElement('status').textContent=currentMessageText;};
 function cloneEditorDocument(){return structuredClone(currentProjectDocument);}
 function retainUndoSnapshot(){if(!currentProjectDocument)throw Error('먼저 작업을 생성하거나 불러오세요.');stopEditorPlayback();currentUndoRecords.push(cloneEditorDocument());if(currentUndoRecords.length>SPRITE_V2_UNDO_LIMIT)currentUndoRecords.shift();currentUnsavedChanges=true;}
-function selectedEditorRecord(){return findEditorElement('edit-target').value==='reference'?currentProjectDocument?.reference:currentProjectDocument?.frames[currentFrameIndex];}
-function collectEditorTargets(){if(!currentProjectDocument)return[];const currentTargetMode=findEditorElement('edit-target').value;if(currentTargetMode==='reference')return currentProjectDocument.reference?[currentProjectDocument.reference]:[];if(currentTargetMode==='all')return currentProjectDocument.frames;if(currentTargetMode==='selected')return currentProjectDocument.frames.filter(currentFrameRecord=>currentSelectedFrames.has(currentFrameRecord.id));return currentProjectDocument.frames[currentFrameIndex]?[currentProjectDocument.frames[currentFrameIndex]]:[];}
+function selectedEditorRecord(){return currentEditorTarget==='reference'?currentProjectDocument?.reference:currentProjectDocument?.frames[currentFrameIndex];}
+function collectEditorTargets(){if(!currentProjectDocument)return[];const currentTargetMode=currentEditorTarget;if(currentTargetMode==='reference')return currentProjectDocument.reference?[currentProjectDocument.reference]:[];if(currentTargetMode==='all')return currentProjectDocument.frames;if(currentTargetMode==='selected')return currentProjectDocument.frames.filter(currentFrameRecord=>currentSelectedFrames.has(currentFrameRecord.id));return currentProjectDocument.frames[currentFrameIndex]?[currentProjectDocument.frames[currentFrameIndex]]:[];}
 async function requestEditorCommand(currentCommandName,currentPayloadRecord={}){
  const currentResponseValue=await fetch(window.spriteV2ServerBase+'/management/command',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({service:'character-animation',command:'sprite-v2-'+currentCommandName,payload:currentPayloadRecord})});
  const currentResponseRecord=await currentResponseValue.json();if(!currentResponseValue.ok||currentResponseRecord.error)throw Error(currentResponseRecord.error||'관리 명령 실패');return currentResponseRecord;
@@ -41,23 +44,36 @@ async function refreshEditorHistory(){if(!currentProjectIdentifier)throw Error('
 async function cacheEditorImage(currentAssetHash,currentBase64Value){if(currentImageCache.has(currentAssetHash))return;const currentImageElement=new Image();currentImageElement.src='data:image/png;base64,'+currentBase64Value;await currentImageElement.decode();currentImageCache.set(currentAssetHash,currentImageElement);}
 async function loadEditorProject(currentProjectId,currentRevisionId=null){if(!currentProjectId)throw Error('불러올 작업을 선택하세요.');if(currentUnsavedChanges&&!confirm('저장하지 않은 편집이 있습니다. 불러오면 해당 편집을 버립니다. 계속할까요?'))return;stopEditorPlayback();const currentResponseRecord=await requestEditorCommand('load',{id:currentProjectId,revision:currentRevisionId});for(const [currentAssetHash,currentBase64Value] of Object.entries(currentResponseRecord.images))await cacheEditorImage(currentAssetHash,currentBase64Value);currentProjectIdentifier=currentProjectId;currentProjectDocument=currentResponseRecord.document;currentParentRevision=currentResponseRecord.latest;currentFrameIndex=0;currentUndoRecords.length=0;currentSelectedFrames.clear();currentUnsavedChanges=false;refreshEditorScreen();await refreshEditorHistory();currentLoadedRevision=currentResponseRecord.revision;if(findEditorElement('history'))findEditorElement('history').value=currentLoadedRevision;writeEditorStatus(`작업 ${currentProjectId} · 버전 ${currentResponseRecord.revision} 불러옴`);}
 function createEditorImageRecord(currentAssetHash,currentFileName){const currentCellSize=currentProjectDocument.cellSize;return{id:crypto.randomUUID(),asset:currentAssetHash,name:currentFileName.slice(0,200),x:0,y:0,scale:1,duration:0,face:{x:currentCellSize/2,y:currentCellSize*.15,radius:currentCellSize*.095},guides:[...SPRITE_V2_GUIDE_NAMES.map((currentGuideName,currentGuideIndex)=>({label:currentGuideName,axis:'y',position:Math.round(currentCellSize*SPRITE_V2_GUIDE_RATIOS[currentGuideIndex])})),{label:'중심',axis:'x',position:currentCellSize/2}]};}
-async function registerEditorFiles(currentFileValues){if(!currentProjectIdentifier)throw Error('먼저 작업을 생성하세요.');const currentTargetMode=findEditorElement('upload-target')?.value||currentUploadTarget;if(currentTargetMode!=='append'&&currentFileValues.length!==1)throw Error('참조 등록·교체는 이미지 한 장을 선택하세요.');if(currentTargetMode==='replace'&&!currentProjectDocument.frames[currentFrameIndex])throw Error('교체할 프레임을 선택하세요.');if(currentTargetMode==='append'&&currentProjectDocument.frames.length+currentFileValues.length>128)throw Error('최대 128프레임입니다.');const currentRegisteredRecords=[];for(const currentFileValue of currentFileValues){if(currentFileValue.size>8000000)throw Error('한 장당 최대 8MB입니다.');const currentBase64Value=await new Promise((resolveFileValue,rejectFileValue)=>{const currentFileReader=new FileReader();currentFileReader.onload=()=>resolveFileValue(currentFileReader.result.split(',')[1]);currentFileReader.onerror=rejectFileValue;currentFileReader.readAsDataURL(currentFileValue);});const currentUploadRecord=await requestEditorCommand('upload',{id:currentProjectIdentifier,data:currentBase64Value});await cacheEditorImage(currentUploadRecord.asset,currentUploadRecord.data);currentRegisteredRecords.push(createEditorImageRecord(currentUploadRecord.asset,currentFileValue.name||'클립보드 이미지'));}retainUndoSnapshot();if(currentTargetMode==='reference')currentProjectDocument.reference=currentRegisteredRecords[0];else if(currentTargetMode==='replace'){const previousFrameRecord=currentProjectDocument.frames[currentFrameIndex];currentProjectDocument.frames[currentFrameIndex]={...previousFrameRecord,asset:currentRegisteredRecords[0].asset,name:currentRegisteredRecords[0].name};}else{currentFrameIndex=currentProjectDocument.frames.length;currentProjectDocument.frames.push(...currentRegisteredRecords);}refreshEditorScreen();writeEditorStatus(`${currentRegisteredRecords.length}장 등록 · 수정본 저장이 필요합니다.`);}
+async function registerEditorFiles(currentFileValues){if(!currentProjectIdentifier)throw Error('먼저 작업을 생성하세요.');const currentTargetMode=currentUploadTarget;if(currentTargetMode!=='append'&&currentFileValues.length!==1)throw Error('참조 등록·교체는 이미지 한 장을 선택하세요.');if(currentTargetMode==='replace'&&!currentProjectDocument.frames[currentFrameIndex])throw Error('교체할 프레임을 선택하세요.');if(currentTargetMode==='append'&&currentProjectDocument.frames.length+currentFileValues.length>128)throw Error('최대 128프레임입니다.');const currentRegisteredRecords=[];for(const currentFileValue of currentFileValues){if(currentFileValue.size>8000000)throw Error('한 장당 최대 8MB입니다.');const currentBase64Value=await new Promise((resolveFileValue,rejectFileValue)=>{const currentFileReader=new FileReader();currentFileReader.onload=()=>resolveFileValue(currentFileReader.result.split(',')[1]);currentFileReader.onerror=rejectFileValue;currentFileReader.readAsDataURL(currentFileValue);});const currentUploadRecord=await requestEditorCommand('upload',{id:currentProjectIdentifier,data:currentBase64Value});await cacheEditorImage(currentUploadRecord.asset,currentUploadRecord.data);currentRegisteredRecords.push(createEditorImageRecord(currentUploadRecord.asset,currentFileValue.name||'클립보드 이미지'));}retainUndoSnapshot();if(currentTargetMode==='reference')currentProjectDocument.reference=currentRegisteredRecords[0];else if(currentTargetMode==='replace'){const previousFrameRecord=currentProjectDocument.frames[currentFrameIndex];currentProjectDocument.frames[currentFrameIndex]={...previousFrameRecord,asset:currentRegisteredRecords[0].asset,name:currentRegisteredRecords[0].name};}else{currentFrameIndex=currentProjectDocument.frames.length;currentProjectDocument.frames.push(...currentRegisteredRecords);}refreshEditorScreen();writeEditorStatus(`${currentRegisteredRecords.length}장 등록 · 수정본 저장이 필요합니다.`);}
 function drawEditorImage(currentCanvasContext,currentImageRecord,currentOpacityValue=1){if(!currentImageRecord)return;const currentImageElement=currentImageCache.get(currentImageRecord.asset);if(!currentImageElement)return;const currentCellSize=currentProjectDocument.cellSize;const currentImageScale=currentImageRecord.scale*currentCellSize/Math.max(currentImageElement.width,currentImageElement.height);currentCanvasContext.save();currentCanvasContext.globalAlpha=currentOpacityValue;currentCanvasContext.drawImage(currentImageElement,(currentCellSize-currentImageElement.width*currentImageScale)/2+currentImageRecord.x,(currentCellSize-currentImageElement.height*currentImageScale)/2+currentImageRecord.y,currentImageElement.width*currentImageScale,currentImageElement.height*currentImageScale);currentCanvasContext.restore();}
 function drawEditorGuides(currentCanvasContext,currentImageRecord,currentColorValue,currentDashedState=false){if(!currentImageRecord)return;const currentCellSize=currentProjectDocument.cellSize;currentCanvasContext.save();currentCanvasContext.strokeStyle=currentColorValue;currentCanvasContext.fillStyle=currentColorValue;currentCanvasContext.lineWidth=1;currentCanvasContext.font='10px sans-serif';currentCanvasContext.setLineDash(currentDashedState?[5,4]:[]);for(const currentGuideRecord of currentImageRecord.guides){currentCanvasContext.beginPath();if(currentGuideRecord.axis==='y'){currentCanvasContext.moveTo(0,currentGuideRecord.position);currentCanvasContext.lineTo(currentCellSize,currentGuideRecord.position);currentCanvasContext.fillText(currentGuideRecord.label,3,currentGuideRecord.position-3);}else{currentCanvasContext.moveTo(currentGuideRecord.position,0);currentCanvasContext.lineTo(currentGuideRecord.position,currentCellSize);}currentCanvasContext.stroke();}currentCanvasContext.beginPath();currentCanvasContext.arc(currentImageRecord.face.x,currentImageRecord.face.y,currentImageRecord.face.radius,0,Math.PI*2);currentCanvasContext.stroke();currentCanvasContext.restore();}
 function drawEditorCanvas(currentCanvasElement,currentReferenceMode){const currentCellSize=currentProjectDocument?.cellSize||384;currentCanvasElement.width=currentCellSize;currentCanvasElement.height=currentCellSize;const currentZoomValue=readEditorViewOption('zoom');const currentFitSize=Math.min(...['reference','frame'].map(currentCanvasName=>findEditorElement(currentCanvasName).parentElement.clientWidth||currentCellSize));const currentDisplaySize=currentZoomValue==='fit'?currentFitSize:currentCellSize*Math.min(SPRITE_V2_ZOOM_LIMIT,Number(currentZoomValue));currentCanvasElement.style.width=currentDisplaySize+'px';currentCanvasElement.style.height=currentDisplaySize+'px';const currentCanvasContext=currentCanvasElement.getContext('2d');const currentBackgroundMode=readEditorViewOption('background');currentCanvasContext.fillStyle=currentBackgroundMode==='dark'?'#252525':'#ffffff';currentCanvasContext.fillRect(0,0,currentCellSize,currentCellSize);if(currentBackgroundMode==='checker'){currentCanvasContext.fillStyle='#dedede';for(let currentRowIndex=0;currentRowIndex<currentCellSize;currentRowIndex+=16)for(let currentColumnIndex=0;currentColumnIndex<currentCellSize;currentColumnIndex+=16)if((currentRowIndex/16+currentColumnIndex/16)%2===0)currentCanvasContext.fillRect(currentColumnIndex,currentRowIndex,16,16);}if(!currentProjectDocument)return;const currentImageRecord=currentReferenceMode?currentProjectDocument.reference:currentProjectDocument.frames[currentFrameIndex];if(!currentReferenceMode&&readEditorViewOption('onion'))drawEditorImage(currentCanvasContext,currentProjectDocument.frames[(currentFrameIndex-1+currentProjectDocument.frames.length)%currentProjectDocument.frames.length],.25);drawEditorImage(currentCanvasContext,currentImageRecord);if(!currentReferenceMode&&readEditorViewOption('overlay'))drawEditorImage(currentCanvasContext,currentProjectDocument.reference,.35);if(readEditorViewOption('guides')){drawEditorGuides(currentCanvasContext,currentImageRecord,currentReferenceMode?SPRITE_V2_COLOR_REFERENCE:SPRITE_V2_COLOR_FRAME);if(!currentReferenceMode)drawEditorGuides(currentCanvasContext,currentProjectDocument.reference,SPRITE_V2_COLOR_REFERENCE,true);}}
-function renderEditorCanvases(){drawEditorCanvas(findEditorElement('reference'),true);drawEditorCanvas(findEditorElement('frame'),false);findEditorElement('frame-title').textContent=`선택 프레임 ${currentProjectDocument?.frames.length?currentFrameIndex+1:0} / ${currentProjectDocument?.frames.length||0}`;findEditorElement('timeline').value=currentFrameIndex;}
-function refreshEditorScreen(){findEditorElement('name').value=currentProjectDocument?.name||findEditorElement('name').value;findEditorElement('size').value=currentProjectDocument?.cellSize||384;if(findEditorElement('fps'))findEditorElement('fps').value=currentProjectDocument?.fps||8;findEditorElement('timeline').max=Math.max(0,(currentProjectDocument?.frames.length||0)-1);findEditorElement('frame-list').replaceChildren(...(currentProjectDocument?.frames||[]).map((currentFrameRecord,currentIndexValue)=>{const currentFrameContainer=document.createElement('div');const currentCheckboxElement=document.createElement('input');currentCheckboxElement.type='checkbox';currentCheckboxElement.checked=currentSelectedFrames.has(currentFrameRecord.id);currentCheckboxElement.setAttribute('aria-label',`${currentIndexValue+1}번 프레임 일괄 선택`);currentCheckboxElement.onchange=()=>{if(currentCheckboxElement.checked)currentSelectedFrames.add(currentFrameRecord.id);else currentSelectedFrames.delete(currentFrameRecord.id);};const currentButtonElement=document.createElement('button');currentButtonElement.setAttribute('aria-pressed',String(currentIndexValue===currentFrameIndex));const currentThumbnailElement=document.createElement('img');currentThumbnailElement.src=currentImageCache.get(currentFrameRecord.asset)?.src||'';currentButtonElement.append(currentThumbnailElement,document.createTextNode(`${currentIndexValue+1}. ${currentFrameRecord.name}`));currentButtonElement.onclick=()=>{stopEditorPlayback();currentFrameIndex=currentIndexValue;refreshEditorScreen();};currentFrameContainer.append(currentCheckboxElement,currentButtonElement);return currentFrameContainer;}));refreshEditorFields();renderEditorCanvases();}
-function refreshEditorFields(){const currentImageRecord=selectedEditorRecord();currentGuideIndex=Math.min(currentGuideIndex,Math.max(0,(currentImageRecord?.guides.length||0)-1));for(const currentFieldName of ['x','y','scale'])findEditorElement(currentFieldName).value=currentImageRecord?.[currentFieldName]??'';for(const currentFaceAxis of ['x','y'])findEditorElement('face-'+currentFaceAxis).value=currentImageRecord?.face[currentFaceAxis]??'';findEditorElement('guide-label').value=currentImageRecord?.guides[currentGuideIndex]?.label??'';findEditorElement('guide-axis').value=currentImageRecord?.guides[currentGuideIndex]?.axis||'y';findEditorElement('diameter').value=currentImageRecord?Math.round(currentImageRecord.face.radius*200)/100:'';if(findEditorElement('duration'))findEditorElement('duration').value=currentProjectDocument?.frames[currentFrameIndex]?.duration||0;if(findEditorElement('timing-summary'))findEditorElement('timing-summary').textContent=currentProjectDocument?`현재 FPS ${currentProjectDocument.fps} · 선택 프레임 유지 ${currentProjectDocument.frames[currentFrameIndex]?.duration||0}ms (0은 FPS 기준)`:'작업을 불러와 재생 설정을 확인하세요.';findEditorElement('guide-choice').replaceChildren(...(currentImageRecord?.guides||[]).map((currentGuideRecord,currentIndexValue)=>new Option(`${currentGuideRecord.label} (${currentGuideRecord.axis})`,currentIndexValue)));currentGuideIndex=Math.min(currentGuideIndex,Math.max(0,(currentImageRecord?.guides.length||0)-1));findEditorElement('guide-choice').value=currentGuideIndex;findEditorElement('guide-position').value=currentImageRecord?.guides[currentGuideIndex]?.position??'';const currentReferenceRecord=currentProjectDocument?.reference,currentFrameRecord=currentProjectDocument?.frames[currentFrameIndex];findEditorElement('difference').textContent=currentReferenceRecord&&currentFrameRecord?`얼굴 지름: 참조 ${(currentReferenceRecord.face.radius*2).toFixed(1)}px / 프레임 ${(currentFrameRecord.face.radius*2).toFixed(1)}px (${(currentFrameRecord.face.radius/currentReferenceRecord.face.radius*100).toFixed(1)}%)\n`+currentReferenceRecord.guides.map(currentGuideRecord=>{const matchingGuideRecord=currentFrameRecord.guides.find(candidateGuideRecord=>candidateGuideRecord.label===currentGuideRecord.label&&candidateGuideRecord.axis===currentGuideRecord.axis);return matchingGuideRecord?`${currentGuideRecord.label}: ${(matchingGuideRecord.position-currentGuideRecord.position).toFixed(1)}px`:'';}).filter(Boolean).join(' · '):'레퍼런스와 프레임을 등록해 비교하세요.';}
-function applyEditorMove(currentDeltaX,currentDeltaY,currentRecordOverride=null){const currentTargetRecords=currentRecordOverride?[currentRecordOverride]:collectEditorTargets();if(!currentTargetRecords.length)throw Error('편집할 이미지를 선택하세요.');const currentEditMode=findEditorElement('mode').value;for(const currentImageRecord of currentTargetRecords){if(currentEditMode==='image'){currentImageRecord.x+=currentDeltaX;currentImageRecord.y+=currentDeltaY;}else if(currentEditMode==='face'){currentImageRecord.face.x+=currentDeltaX;currentImageRecord.face.y+=currentDeltaY;}else{const currentGuideRecord=currentImageRecord.guides[currentGuideIndex];if(currentGuideRecord)currentGuideRecord.position+=currentGuideRecord.axis==='x'?currentDeltaX:currentDeltaY;}}refreshEditorFields();renderEditorCanvases();}
+function renderEditorCanvases(){findEditorElement('timeline').value=currentFrameIndex;drawEditorCanvas(findEditorElement('reference'),true);drawEditorCanvas(findEditorElement('frame'),false);findEditorElement('frame-title').textContent=`선택 프레임 ${currentProjectDocument?.frames.length?currentFrameIndex+1:0} / ${currentProjectDocument?.frames.length||0}`;}
+function refreshEditorScreen(){findEditorElement('timeline').max=Math.max(0,(currentProjectDocument?.frames.length||0)-1);if(findEditorElement('project-summary'))findEditorElement('project-summary').textContent=currentProjectDocument?`${currentProjectDocument.name} · ${currentProjectDocument.cellSize} × ${currentProjectDocument.cellSize}`:'작업을 불러오세요.';findEditorElement('frame-list').replaceChildren(...(currentProjectDocument?.frames||[]).map((currentFrameRecord,currentIndexValue)=>{const currentFrameContainer=document.createElement('div');const currentCheckboxElement=document.createElement('input');currentCheckboxElement.type='checkbox';currentCheckboxElement.checked=currentSelectedFrames.has(currentFrameRecord.id);currentCheckboxElement.setAttribute('aria-label',`${currentIndexValue+1}번 프레임 일괄 선택`);currentCheckboxElement.onchange=()=>{if(currentCheckboxElement.checked)currentSelectedFrames.add(currentFrameRecord.id);else currentSelectedFrames.delete(currentFrameRecord.id);};const currentButtonElement=document.createElement('button');currentButtonElement.setAttribute('aria-pressed',String(currentIndexValue===currentFrameIndex));const currentThumbnailElement=document.createElement('img');currentThumbnailElement.src=currentImageCache.get(currentFrameRecord.asset)?.src||'';currentButtonElement.append(currentThumbnailElement,document.createTextNode(`${currentIndexValue===currentFrameIndex?'선택됨 · ':''}${currentIndexValue+1}. ${currentFrameRecord.name}`));currentButtonElement.onclick=()=>{stopEditorPlayback();currentFrameIndex=currentIndexValue;refreshEditorScreen();};currentFrameContainer.append(currentCheckboxElement,currentButtonElement);return currentFrameContainer;}));refreshEditorFields();renderEditorCanvases();}
+function refreshEditorFields(){
+ const currentImageRecord=selectedEditorRecord();
+ currentGuideIndex=Math.min(currentGuideIndex,Math.max(0,(currentImageRecord?.guides.length||0)-1));
+ findEditorElement('target-summary').textContent=`${SPRITE_V2_TARGET_LABELS[currentEditorTarget]} · ${SPRITE_V2_MODE_LABELS[currentEditorMode]}`;
+ const currentDisplayNumber=currentNumberValue=>Number(currentNumberValue.toFixed(2));
+ findEditorElement('numeric-summary').textContent=currentImageRecord?
+  `이미지 X ${currentDisplayNumber(currentImageRecord.x)} · Y ${currentDisplayNumber(currentImageRecord.y)} · 배율 ${currentDisplayNumber(currentImageRecord.scale)} / 얼굴 원 X ${currentDisplayNumber(currentImageRecord.face.x)} · Y ${currentDisplayNumber(currentImageRecord.face.y)} · 지름 ${currentDisplayNumber(currentImageRecord.face.radius*2)} / 가이드 좌표 ${currentImageRecord.guides[currentGuideIndex]?currentDisplayNumber(currentImageRecord.guides[currentGuideIndex].position):'없음'}`:'이미지를 선택해 좌표를 확인하세요.';
+ findEditorElement('timing-summary').textContent=currentProjectDocument?`현재 FPS ${currentProjectDocument.fps} · 선택 프레임 유지 ${currentProjectDocument.frames[currentFrameIndex]?.duration||0}ms (0은 FPS 기준)`:'작업을 불러와 재생 설정을 확인하세요.';
+ const currentReferenceRecord=currentProjectDocument?.reference,currentFrameRecord=currentProjectDocument?.frames[currentFrameIndex];
+ findEditorElement('difference').textContent=currentReferenceRecord&&currentFrameRecord?
+  `얼굴 지름: 참조 ${(currentReferenceRecord.face.radius*2).toFixed(1)}px / 프레임 ${(currentFrameRecord.face.radius*2).toFixed(1)}px (${(currentFrameRecord.face.radius/currentReferenceRecord.face.radius*100).toFixed(1)}%)\n`+
+  currentReferenceRecord.guides.map(currentGuideRecord=>{
+   const matchingGuideRecord=currentFrameRecord.guides.find(candidateGuideRecord=>candidateGuideRecord.label===currentGuideRecord.label&&candidateGuideRecord.axis===currentGuideRecord.axis);
+   return matchingGuideRecord?`${currentGuideRecord.label}: ${(matchingGuideRecord.position-currentGuideRecord.position).toFixed(1)}px`:'';
+  }).filter(Boolean).join(' · '):'레퍼런스와 프레임을 등록해 비교하세요.';
+}
+
+function applyEditorMove(currentDeltaX,currentDeltaY,currentRecordOverride=null){const currentTargetRecords=currentRecordOverride?[currentRecordOverride]:collectEditorTargets();if(!currentTargetRecords.length)throw Error('편집할 이미지를 선택하세요.');const currentEditMode=currentEditorMode;for(const currentImageRecord of currentTargetRecords){if(currentEditMode==='image'){currentImageRecord.x+=currentDeltaX;currentImageRecord.y+=currentDeltaY;}else if(currentEditMode==='face'){currentImageRecord.face.x+=currentDeltaX;currentImageRecord.face.y+=currentDeltaY;}else{const currentGuideRecord=currentImageRecord.guides[currentGuideIndex];if(currentGuideRecord)currentGuideRecord.position+=currentGuideRecord.axis==='x'?currentDeltaX:currentDeltaY;}}refreshEditorFields();renderEditorCanvases();}
 function stopEditorPlayback(){currentPlayingState=false;if(findEditorElement('play'))findEditorElement('play').textContent='재생';}
 function advanceEditorPlayback(currentTimestampValue){if(!currentPlayingState)return;const currentFrameRecord=currentProjectDocument.frames[currentFrameIndex];const currentDurationValue=currentFrameRecord.duration||1000/currentProjectDocument.fps;if(currentTimestampValue-currentPlaybackTimestamp>=currentDurationValue){currentFrameIndex=(currentFrameIndex+1)%currentProjectDocument.frames.length;currentPlaybackTimestamp=currentTimestampValue;renderEditorCanvases();refreshEditorFields();}requestAnimationFrame(advanceEditorPlayback);}
-async function saveEditorProject(){if(!currentProjectIdentifier)throw Error('먼저 작업을 생성하세요.');currentProjectDocument.name=findEditorElement('name').value.trim();const currentSavedRecord=await requestEditorCommand('save',{id:currentProjectIdentifier,parent:currentParentRevision,document:currentProjectDocument});currentParentRevision=currentSavedRecord.revision;currentLoadedRevision=currentSavedRecord.revision;currentUnsavedChanges=false;await refreshEditorHistory();await refreshEditorProjects();writeEditorStatus(`저장 완료 · ${currentParentRevision}`);return currentParentRevision;}
+async function saveEditorProject(){if(!currentProjectIdentifier)throw Error('먼저 작업을 생성하세요.');const currentSavedRecord=await requestEditorCommand('save',{id:currentProjectIdentifier,parent:currentParentRevision,document:currentProjectDocument});currentParentRevision=currentSavedRecord.revision;currentLoadedRevision=currentSavedRecord.revision;currentUnsavedChanges=false;await refreshEditorHistory();await refreshEditorProjects();writeEditorStatus(`저장 완료 · ${currentParentRevision}`);return currentParentRevision;}
 function bindEditorAction(currentElementName,currentActionCallback){currentEditorActions.set(currentElementName,currentActionCallback);const currentActionElement=findEditorElement(currentElementName);if(currentActionElement)currentActionElement.onclick=()=>runEditorAction(currentActionCallback);}
 async function createEditorProject(currentProjectName,currentOutputSize){if(currentUnsavedChanges&&!confirm('저장하지 않은 편집을 버리고 새 작업을 만들까요?'))return;const currentCreatedRecord=await requestEditorCommand('create',{name:currentProjectName.trim(),cellSize:Number(currentOutputSize)});currentUnsavedChanges=false;await loadEditorProject(currentCreatedRecord.id);await refreshEditorProjects();}
-bindEditorAction('create',()=>createEditorProject(findEditorElement('name').value,findEditorElement('size').value));
-bindEditorAction('project-refresh',refreshEditorProjects);bindEditorAction('load',()=>loadEditorProject(findEditorElement('projects').value));bindEditorAction('revision-load',()=>loadEditorProject(currentProjectIdentifier,findEditorElement('history').value));bindEditorAction('save',saveEditorProject);
 async function exportEditorProject(){if(!currentProjectDocument?.frames.length)throw Error('내보낼 프레임을 먼저 등록하세요.');const currentSavedRevision=await saveEditorProject();const currentExportRecord=await requestEditorCommand('export',{id:currentProjectIdentifier,revision:currentSavedRevision});const currentArchiveBytes=Uint8Array.from(atob(currentExportRecord.data),currentCharacterValue=>currentCharacterValue.charCodeAt(0));const currentDownloadUrl=URL.createObjectURL(new Blob([currentArchiveBytes],{type:'application/zip'}));const currentDownloadLink=document.createElement('a');currentDownloadLink.href=currentDownloadUrl;currentDownloadLink.download=currentExportRecord.filename;currentDownloadLink.click();setTimeout(()=>URL.revokeObjectURL(currentDownloadUrl),10000);writeEditorStatus('PNG 프레임·시트·GIF·메타데이터 ZIP 저장 및 다운로드 완료');}
-bindEditorAction('export',exportEditorProject);
 bindEditorAction('upload',()=>{if(!currentProjectIdentifier)throw Error('먼저 작업을 생성하세요.');findEditorElement('file').disabled=false;findEditorElement('file').click();});findEditorElement('file').onchange=()=>runEditorAction(async()=>{try{await registerEditorFiles([...findEditorElement('file').files]);}finally{findEditorElement('file').value='';}});
 bindEditorAction('paste',async()=>{if(!navigator.clipboard?.read)throw Error('브라우저가 클립보드 읽기를 지원하지 않습니다. 입력 대상을 선택하고 Ctrl+V 또는 파일 불러오기를 사용하세요.');let currentClipboardItems;try{currentClipboardItems=await navigator.clipboard.read();}catch(currentClipboardError){throw Error('클립보드 접근이 허용되지 않았습니다. 입력 대상을 선택한 뒤 Ctrl+V 또는 파일 불러오기를 사용하세요.');}const currentClipboardFiles=[];for(const currentClipboardItem of currentClipboardItems){const currentImageType=currentClipboardItem.types.find(currentTypeValue=>currentTypeValue.startsWith('image/'));if(currentImageType)currentClipboardFiles.push(new File([await currentClipboardItem.getType(currentImageType)],'clipboard.png',{type:currentImageType}));}if(!currentClipboardFiles.length)throw Error('클립보드에 이미지가 없습니다.');await registerEditorFiles(currentClipboardFiles);});
 document.getElementById('sprite-v2-root').addEventListener('paste',currentPasteEvent=>{const currentImageFiles=[...currentPasteEvent.clipboardData.items].filter(currentItemValue=>currentItemValue.type.startsWith('image/')).map(currentItemValue=>currentItemValue.getAsFile());if(currentImageFiles.length){currentPasteEvent.preventDefault();runEditorAction(()=>registerEditorFiles(currentImageFiles));}});
@@ -67,18 +83,8 @@ for(const [currentMoveName,currentDeltaX,currentDeltaY] of [['up',0,-1],['left',
 }
 for(const currentButtonElement of document.querySelectorAll('[data-sv2-move]'))currentButtonElement.onclick=()=>runEditorAction(()=>{retainUndoSnapshot();applyEditorMove(...currentButtonElement.dataset.sv2Move.split(',').map(currentNumberText=>Number(currentNumberText)*SPRITE_V2_MOVE_STEP));});
 for(const [currentButtonName,currentScaleDelta] of [['smaller',-SPRITE_V2_SCALE_STEP],['larger',SPRITE_V2_SCALE_STEP]])bindEditorAction(currentButtonName,()=>{const currentTargetRecords=collectEditorTargets();if(!currentTargetRecords.length)throw Error('편집할 이미지를 선택하세요.');if(currentTargetRecords.some(currentImageRecord=>currentImageRecord.scale+currentScaleDelta<.01||currentImageRecord.scale+currentScaleDelta>8))throw Error('배율은 0.01~8입니다.');retainUndoSnapshot();for(const currentImageRecord of currentTargetRecords)currentImageRecord.scale=Math.round((currentImageRecord.scale+currentScaleDelta)*100)/100;refreshEditorFields();renderEditorCanvases();});
-for(const currentFieldName of ['x','y','scale','diameter','face-x','face-y','guide-position'])findEditorElement(currentFieldName).onchange=()=>runEditorAction(()=>{const currentNumberValue=Number(findEditorElement(currentFieldName).value);const currentMinimumValue=currentFieldName==='scale'?.01:currentFieldName==='diameter'?2:-8192;const currentMaximumValue=currentFieldName==='scale'?8:currentFieldName==='diameter'?4096:8192;if(!Number.isFinite(currentNumberValue)||currentNumberValue<currentMinimumValue||currentNumberValue>currentMaximumValue)throw Error('입력값 범위를 확인하세요.');retainUndoSnapshot();for(const currentImageRecord of collectEditorTargets()){if(currentFieldName.startsWith('face-'))currentImageRecord.face[currentFieldName.slice(5)]=currentNumberValue;else if(currentFieldName==='diameter')currentImageRecord.face.radius=currentNumberValue/2;else if(currentFieldName==='guide-position'){if(currentImageRecord.guides[currentGuideIndex])currentImageRecord.guides[currentGuideIndex].position=currentNumberValue;}else currentImageRecord[currentFieldName]=currentNumberValue;}refreshEditorFields();renderEditorCanvases();});
-for(const currentFieldName of ['zoom','overlay','onion','guides','background']){const currentOptionElement=findEditorElement(currentFieldName);if(currentOptionElement)currentOptionElement.onchange=renderEditorCanvases;}
-findEditorElement('edit-target').onchange=()=>{refreshEditorFields();refreshEditorAvailability();};findEditorElement('guide-choice').onchange=()=>{currentGuideIndex=Number(findEditorElement('guide-choice').value);findEditorElement('mode').value='guide';refreshEditorFields();};
 
-for(const currentGuideField of ['label','axis'])findEditorElement('guide-'+currentGuideField).onchange=()=>runEditorAction(()=>{
- const currentTargetRecords=collectEditorTargets(),currentFieldValue=findEditorElement('guide-'+currentGuideField).value.trim();
- if(!currentTargetRecords.length||currentTargetRecords.some(currentImageRecord=>!currentImageRecord.guides[currentGuideIndex]))throw Error('편집 대상마다 해당 가이드가 있어야 합니다. 현재 프레임 또는 레퍼런스를 선택하세요.');
- if(currentGuideField==='label'&&(!currentFieldValue||currentFieldValue.length>40))throw Error('가이드 이름은 1~40자로 입력하세요.');
- if(currentGuideField==='axis'&&!['x','y'].includes(currentFieldValue))throw Error('가이드 방향을 선택하세요.');
- retainUndoSnapshot();for(const currentImageRecord of currentTargetRecords)currentImageRecord.guides[currentGuideIndex][currentGuideField]=currentFieldValue;
- findEditorElement('mode').value='guide';refreshEditorFields();renderEditorCanvases();writeEditorStatus('가이드 수정됨 · 수정본 저장이 필요합니다.');
-});
+
 bindEditorAction('guide-copy',()=>{
  const currentReferenceRecord=currentProjectDocument?.reference,currentTargetRecords=collectEditorTargets().filter(currentImageRecord=>currentImageRecord!==currentReferenceRecord);
  if(!currentReferenceRecord||!currentTargetRecords.length)throw Error('레퍼런스를 등록하고 복사할 프레임을 편집 대상으로 선택하세요.');
@@ -95,11 +101,7 @@ bindEditorAction('remove',()=>{if(!currentProjectDocument?.frames.length)return;
 for(const [currentButtonName,currentFrameDelta] of [['prev',-1],['next',1]])bindEditorAction(currentButtonName,()=>{if(!currentProjectDocument?.frames.length)return;stopEditorPlayback();currentFrameIndex=(currentFrameIndex+currentFrameDelta+currentProjectDocument.frames.length)%currentProjectDocument.frames.length;refreshEditorScreen();});
 bindEditorAction('play',()=>{if(currentPlayingState){stopEditorPlayback();refreshEditorScreen();return;}if(!currentProjectDocument?.frames.length)throw Error('재생할 프레임을 등록하세요.');currentPlayingState=true;currentPlaybackTimestamp=performance.now();if(findEditorElement('play'))findEditorElement('play').textContent='일시정지';requestAnimationFrame(advanceEditorPlayback);});
 findEditorElement('timeline').oninput=()=>{stopEditorPlayback();currentFrameIndex=Number(findEditorElement('timeline').value);refreshEditorScreen();};
-if(findEditorElement('fps'))findEditorElement('fps').onchange=()=>runEditorAction(()=>{const currentFpsValue=Number(findEditorElement('fps').value);if(!Number.isFinite(currentFpsValue)||currentFpsValue<1||currentFpsValue>60)throw Error('FPS는 1~60입니다.');retainUndoSnapshot();currentProjectDocument.fps=currentFpsValue;});
-if(findEditorElement('duration'))findEditorElement('duration').onchange=()=>runEditorAction(()=>{const currentDurationValue=Number(findEditorElement('duration').value);if(!Number.isFinite(currentDurationValue)||currentDurationValue<0||currentDurationValue>10000)throw Error('유지 시간은 0~10000ms입니다.');if(!currentProjectDocument?.frames[currentFrameIndex])throw Error('프레임을 선택하세요.');retainUndoSnapshot();currentProjectDocument.frames[currentFrameIndex].duration=currentDurationValue;});
-findEditorElement('name').oninput=()=>{if(currentProjectDocument){currentProjectDocument.name=findEditorElement('name').value;currentUnsavedChanges=true;}};
-findEditorElement('size').onchange=()=>runEditorAction(()=>{if(!currentProjectDocument)return;retainUndoSnapshot();const nextCellSize=Number(findEditorElement('size').value),currentSizeRatio=nextCellSize/currentProjectDocument.cellSize;for(const currentImageRecord of [...currentProjectDocument.frames,...(currentProjectDocument.reference?[currentProjectDocument.reference]:[])]){currentImageRecord.x*=currentSizeRatio;currentImageRecord.y*=currentSizeRatio;for(const currentFaceField of ['x','y','radius'])currentImageRecord.face[currentFaceField]*=currentSizeRatio;for(const currentGuideRecord of currentImageRecord.guides)currentGuideRecord.position*=currentSizeRatio;}currentProjectDocument.cellSize=nextCellSize;refreshEditorScreen();});
-for(const currentCanvasName of ['reference','frame']){const currentCanvasElement=findEditorElement(currentCanvasName);let currentDragPosition=null;currentCanvasElement.onpointerdown=currentPointerEvent=>{if(currentBusyState)return;const currentImageRecord=currentCanvasName==='reference'?currentProjectDocument?.reference:currentProjectDocument?.frames[currentFrameIndex];if(!currentImageRecord)return;stopEditorPlayback();retainUndoSnapshot();findEditorElement('edit-target').value=currentCanvasName==='reference'?'reference':'frame';currentDragPosition={x:currentPointerEvent.clientX,y:currentPointerEvent.clientY};currentCanvasElement.setPointerCapture(currentPointerEvent.pointerId);};currentCanvasElement.onpointermove=currentPointerEvent=>{if(!currentDragPosition)return;const currentCanvasRatio=currentProjectDocument.cellSize/currentCanvasElement.getBoundingClientRect().width;const currentDeltaX=Math.round((currentPointerEvent.clientX-currentDragPosition.x)*currentCanvasRatio),currentDeltaY=Math.round((currentPointerEvent.clientY-currentDragPosition.y)*currentCanvasRatio);if(currentDeltaX||currentDeltaY){applyEditorMove(currentDeltaX,currentDeltaY);currentDragPosition.x+=currentDeltaX/currentCanvasRatio;currentDragPosition.y+=currentDeltaY/currentCanvasRatio;}};currentCanvasElement.onpointerup=currentCanvasElement.onpointercancel=()=>{currentDragPosition=null;};}
+for(const currentCanvasName of ['reference','frame']){const currentCanvasElement=findEditorElement(currentCanvasName);let currentDragPosition=null;currentCanvasElement.onpointerdown=currentPointerEvent=>{if(currentBusyState)return;const currentImageRecord=currentCanvasName==='reference'?currentProjectDocument?.reference:currentProjectDocument?.frames[currentFrameIndex];if(!currentImageRecord)return;stopEditorPlayback();retainUndoSnapshot();currentEditorTarget=currentCanvasName==='reference'?'reference':'frame';refreshEditorFields();currentDragPosition={x:currentPointerEvent.clientX,y:currentPointerEvent.clientY};currentCanvasElement.setPointerCapture(currentPointerEvent.pointerId);};currentCanvasElement.onpointermove=currentPointerEvent=>{if(!currentDragPosition)return;const currentCanvasRatio=currentProjectDocument.cellSize/currentCanvasElement.getBoundingClientRect().width;const currentDeltaX=Math.round((currentPointerEvent.clientX-currentDragPosition.x)*currentCanvasRatio),currentDeltaY=Math.round((currentPointerEvent.clientY-currentDragPosition.y)*currentCanvasRatio);if(currentDeltaX||currentDeltaY){applyEditorMove(currentDeltaX,currentDeltaY);currentDragPosition.x+=currentDeltaX/currentCanvasRatio;currentDragPosition.y+=currentDeltaY/currentCanvasRatio;}};currentCanvasElement.onpointerup=currentCanvasElement.onpointercancel=()=>{currentDragPosition=null;};}
 window.spriteV2UploadTarget=(currentTargetValue)=>{
  if(!['reference','append','replace'].includes(currentTargetValue))throw Error('지원하지 않는 이미지 입력 대상입니다.');
  currentUploadTarget=currentTargetValue;
@@ -134,11 +136,12 @@ window.spriteV2FrameControls=async(currentActionName)=>{
 };
 // 재생 명령은 기존 애니메이션 루프를 호출하며 서버 상태를 만들지 않는다.
 window.spriteV2PlaybackControls=async(currentActionName)=>{
- if(!['prev','play','next'].includes(currentActionName))throw Error('지원하지 않는 재생 명령입니다.');
+ if(!['prev','play','stop','next'].includes(currentActionName))throw Error('지원하지 않는 재생 명령입니다.');
  if(currentBusyState)throw Error('등록·저장 처리가 끝난 뒤 사용할 수 있습니다.');
  if(!currentProjectDocument?.frames.length)throw Error('작업을 불러오고 재생할 프레임을 등록하세요.');
- await runEditorAction(currentEditorActions.get(currentActionName),true);
- return currentPlayingState?'재생 중 · 다시 누르면 일시정지합니다.':`일시정지 · ${currentFrameIndex+1} / ${currentProjectDocument.frames.length} 프레임`;
+ if(currentActionName==='stop'){stopEditorPlayback();refreshEditorScreen();}
+ else if(currentActionName!=='play'||!currentPlayingState)await runEditorAction(currentEditorActions.get(currentActionName),true);
+ return currentPlayingState?'재생 중입니다.':`일시정지 · ${currentFrameIndex+1} / ${currentProjectDocument.frames.length} 프레임`;
 };
 // 표시 설정은 저장 문서와 분리하며 서버 호출 없이 캔버스에 반영한다.
 window.spriteV2ViewControls=(currentZoomValue,currentBackgroundValue,currentOverlayFlag,currentOnionFlag,currentGuideFlag)=>{
@@ -163,6 +166,138 @@ window.spriteV2ProjectControls=async(currentActionName,currentProjectName,curren
  return [{__type__:'update',choices:currentProjectChoices,value:currentProjectChoices.some(currentChoiceValue=>currentChoiceValue[1]===currentSelectedValue)?currentSelectedValue:null},findEditorElement('status').textContent,{__type__:'update',choices:currentRevisionChoices,value:currentRevisionChoices.some(currentChoiceValue=>currentChoiceValue[1]===currentLoadedRevision)?currentLoadedRevision:null}];
 };
 // 입력하지 않은 항목은 유지하고 저장 전 브라우저 문서만 수정한다.
+window.spriteV2JoypadControls=async(currentActionName,currentInputValues)=>{
+ if(currentBusyState)throw Error('등록·저장 처리가 끝난 뒤 사용할 수 있습니다.');
+ const currentTargetRecords=collectEditorTargets();
+ if(!currentTargetRecords.length)throw Error('편집할 이미지를 선택하세요.');
+ if(currentEditorMode==='guide'&&currentTargetRecords.some(currentRecordValue=>!currentRecordValue.guides[currentGuideIndex]))throw Error('모든 편집 대상에 선택한 가이드가 있어야 합니다.');
+ const currentReadTransform=currentRecordValue=>({
+  x:currentEditorMode==='face'?currentRecordValue.face.x:currentEditorMode==='guide'?(currentRecordValue.guides[currentGuideIndex].axis==='x'?currentRecordValue.guides[currentGuideIndex].position:0):currentRecordValue.x,
+  y:currentEditorMode==='face'?currentRecordValue.face.y:currentEditorMode==='guide'?(currentRecordValue.guides[currentGuideIndex].axis==='y'?currentRecordValue.guides[currentGuideIndex].position:0):currentRecordValue.y,
+  scale:currentRecordValue.scale
+ });
+ if(currentEditorMode==='guide'){
+  const currentAxisName=['left','right','set-x'].includes(currentActionName)?'x':['up','down','set-y'].includes(currentActionName)?'y':null;
+  if(currentAxisName&&currentTargetRecords.some(currentRecordValue=>currentRecordValue.guides[currentGuideIndex].axis!==currentAxisName))throw Error('선택한 가이드의 방향과 이동 축이 다릅니다.');
+ }
+ const currentNextTransforms=window.calculateJoypadTransforms(currentActionName,currentInputValues,currentTargetRecords.map(currentReadTransform));
+ if(currentActionName!=='read')await runEditorAction(()=>{
+  retainUndoSnapshot();
+  currentTargetRecords.forEach((currentRecordValue,currentRecordIndex)=>{
+   const currentNextRecord=currentNextTransforms[currentRecordIndex];
+   if(currentEditorMode==='face'){currentRecordValue.face.x=currentNextRecord.x;currentRecordValue.face.y=currentNextRecord.y;}
+   else if(currentEditorMode==='guide'){const currentGuideRecord=currentRecordValue.guides[currentGuideIndex];currentGuideRecord.position=currentNextRecord[currentGuideRecord.axis];}
+   else{currentRecordValue.x=currentNextRecord.x;currentRecordValue.y=currentNextRecord.y;}
+   currentRecordValue.scale=currentNextRecord.scale;
+  });
+  refreshEditorFields();renderEditorCanvases();
+ },true);
+ return {...currentReadTransform(currentTargetRecords[0]),message:currentActionName==='read'?'첫 번째 편집 대상의 현재 값을 읽었습니다.':'조이패드 적용 완료 · 실행 취소 가능 · 수정본 저장 전입니다.'};
+};
+window.spriteV2TargetControls=(currentTargetValue,currentModeValue)=>{
+ if(currentBusyState)throw Error('등록·저장 처리가 끝난 뒤 사용할 수 있습니다.');
+ if(!currentProjectDocument)throw Error('작업을 먼저 생성하거나 불러오세요.');
+ if(!Object.hasOwn(SPRITE_V2_TARGET_LABELS,currentTargetValue)||!Object.hasOwn(SPRITE_V2_MODE_LABELS,currentModeValue))throw Error('편집 대상과 조절 대상을 확인하세요.');
+ currentEditorTarget=currentTargetValue;currentEditorMode=currentModeValue;
+ refreshEditorFields();refreshEditorAvailability();
+ return `${SPRITE_V2_TARGET_LABELS[currentEditorTarget]} · ${SPRITE_V2_MODE_LABELS[currentEditorMode]} 선택됨`;
+};
+window.spriteV2SeekControls=(currentFrameNumber)=>{
+ if(currentBusyState)throw Error('등록·저장 처리가 끝난 뒤 사용할 수 있습니다.');
+ const currentFrameCount=currentProjectDocument?.frames.length||0;
+ if(!currentFrameCount)throw Error('프레임을 먼저 등록하세요.');
+ if(!Number.isInteger(currentFrameNumber)||currentFrameNumber<1||currentFrameNumber>currentFrameCount)throw Error(`프레임 번호는 1~${currentFrameCount}입니다.`);
+ stopEditorPlayback();currentFrameIndex=currentFrameNumber-1;refreshEditorScreen();
+ return `${currentFrameNumber} / ${currentFrameCount} 프레임으로 이동했습니다.`;
+};
+function selectEditorGuideIndex(currentGuideValue){
+ if(currentBusyState)throw Error('등록·저장 처리가 끝난 뒤 사용할 수 있습니다.');
+ const currentGuideNumber=Number(currentGuideValue);
+ if(currentGuideValue===null||!Number.isInteger(currentGuideNumber)||currentGuideNumber<0||!selectedEditorRecord()?.guides[currentGuideNumber])throw Error('가이드 목록을 읽고 편집할 가이드를 선택하세요.');
+ currentGuideIndex=currentGuideNumber;
+ currentEditorMode='guide';refreshEditorFields();
+ return selectedEditorRecord().guides[currentGuideIndex];
+}
+window.spriteV2GuideControls={
+ list:()=>{
+  const currentImageRecord=selectedEditorRecord();
+  if(!currentImageRecord)throw Error('편집할 이미지를 먼저 선택하세요.');
+  const currentGuideChoices=currentImageRecord.guides.map((currentGuideRecord,currentIndexValue)=>[`${currentIndexValue+1}. ${currentGuideRecord.label} (${currentGuideRecord.axis})`,String(currentIndexValue)]);
+  const currentGuideRecord=currentImageRecord.guides[currentGuideIndex];
+  return [{__type__:'update',choices:currentGuideChoices,value:currentGuideRecord?String(currentGuideIndex):null},currentGuideRecord?.label||'',currentGuideRecord?.axis||'y',currentGuideChoices.length?'가이드 목록을 읽었습니다.':'가로선 또는 세로선을 먼저 추가하세요.'];
+ },
+ select:(currentGuideValue)=>{const currentGuideRecord=selectEditorGuideIndex(currentGuideValue);return [currentGuideRecord.label,currentGuideRecord.axis,'가이드를 선택했습니다.'];},
+ apply:async(currentGuideValue,currentLabelValue,currentAxisValue)=>{
+  const currentLabelText=String(currentLabelValue||'').trim();
+  if(!currentLabelText||currentLabelText.length>40)throw Error('가이드 이름은 1~40자로 입력하세요.');
+  if(!['x','y'].includes(currentAxisValue))throw Error('가이드 방향을 선택하세요.');
+  selectEditorGuideIndex(currentGuideValue);
+  const currentTargetRecords=collectEditorTargets();
+  if(!currentTargetRecords.length||currentTargetRecords.some(currentImageRecord=>!currentImageRecord.guides[currentGuideIndex]))throw Error('모든 편집 대상에 선택한 가이드가 있어야 합니다.');
+  await runEditorAction(()=>{
+   retainUndoSnapshot();
+   for(const currentImageRecord of currentTargetRecords)Object.assign(currentImageRecord.guides[currentGuideIndex],{label:currentLabelText,axis:currentAxisValue});
+   refreshEditorFields();renderEditorCanvases();
+  },true);
+  return '가이드 설정을 적용했습니다. 목록 읽기로 이름을 갱신하세요. 수정본 저장 전에는 저장된 작업이 바뀌지 않습니다.';
+ }
+};
+const SPRITE_V2_NUMERIC_FIELDS=['x','y','scale','diameter','face-x','face-y','guide-position'];
+function readEditorNumericValue(currentFieldName){
+ if(!SPRITE_V2_NUMERIC_FIELDS.includes(currentFieldName))throw Error('지원하지 않는 수치 항목입니다.');
+ const currentImageRecord=selectedEditorRecord();
+ if(!currentImageRecord)throw Error('편집할 이미지를 선택하세요.');
+ if(currentFieldName==='guide-position'){
+  if(!currentImageRecord.guides[currentGuideIndex])throw Error('가이드를 먼저 선택하세요.');
+  return currentImageRecord.guides[currentGuideIndex].position;
+ }
+ if(currentFieldName==='diameter')return currentImageRecord.face.radius*2;
+ if(currentFieldName.startsWith('face-'))return currentImageRecord.face[currentFieldName.slice(5)];
+ return currentImageRecord[currentFieldName];
+}
+window.spriteV2NumericControls={read:readEditorNumericValue,apply:async(currentFieldName,currentNumberValue)=>{
+ if(currentBusyState)throw Error('등록·저장 처리가 끝난 뒤 사용할 수 있습니다.');
+ readEditorNumericValue(currentFieldName);
+ const currentMinimumValue=currentFieldName==='scale'?.01:currentFieldName==='diameter'?2:-8192;
+ const currentMaximumValue=currentFieldName==='scale'?8:currentFieldName==='diameter'?4096:8192;
+ if(typeof currentNumberValue!=='number'||!Number.isFinite(currentNumberValue)||currentNumberValue<currentMinimumValue||currentNumberValue>currentMaximumValue)throw Error(`입력 범위는 ${currentMinimumValue}~${currentMaximumValue}입니다.`);
+ const currentTargetRecords=collectEditorTargets();
+ if(!currentTargetRecords.length)throw Error('편집할 이미지를 선택하세요.');
+ if(currentFieldName==='guide-position'&&currentTargetRecords.some(currentImageRecord=>!currentImageRecord.guides[currentGuideIndex]))throw Error('모든 편집 대상에 선택한 가이드가 있어야 합니다.');
+ await runEditorAction(()=>{
+  retainUndoSnapshot();
+  for(const currentImageRecord of currentTargetRecords){
+   if(currentFieldName.startsWith('face-'))currentImageRecord.face[currentFieldName.slice(5)]=currentNumberValue;
+   else if(currentFieldName==='diameter')currentImageRecord.face.radius=currentNumberValue/2;
+   else if(currentFieldName==='guide-position')currentImageRecord.guides[currentGuideIndex].position=currentNumberValue;
+   else currentImageRecord[currentFieldName]=currentNumberValue;
+  }
+  refreshEditorFields();renderEditorCanvases();
+ },true);
+ return '수치를 적용했습니다. 실행 취소할 수 있으며 수정본 저장 전에는 저장된 작업이 바뀌지 않습니다.';
+}};
+window.spriteV2MetadataControls=async(currentNameValue,currentSizeValue)=>{
+ if(currentBusyState)throw Error('등록·저장 처리가 끝난 뒤 사용할 수 있습니다.');
+ if(!currentProjectDocument)throw Error('작업을 먼저 생성하거나 불러오세요.');
+ const currentNameText=String(currentNameValue||'').trim();
+ if(currentNameText.length>120)throw Error('작업명은 120자 이하여야 합니다.');
+ if(!['keep','256','384'].includes(currentSizeValue))throw Error('출력 크기는 256 또는 384를 선택하세요.');
+ const currentNextSize=currentSizeValue==='keep'?currentProjectDocument.cellSize:Number(currentSizeValue);
+ if((!currentNameText||currentNameText===currentProjectDocument.name)&&currentNextSize===currentProjectDocument.cellSize)return '변경할 작업명 또는 출력 크기를 지정하세요.';
+ await runEditorAction(()=>{
+  retainUndoSnapshot();
+  const currentSizeRatio=currentNextSize/currentProjectDocument.cellSize;
+  for(const currentImageRecord of [...currentProjectDocument.frames,...(currentProjectDocument.reference?[currentProjectDocument.reference]:[])]){
+   currentImageRecord.x*=currentSizeRatio;currentImageRecord.y*=currentSizeRatio;
+   for(const currentFaceField of ['x','y','radius'])currentImageRecord.face[currentFaceField]*=currentSizeRatio;
+   for(const currentGuideRecord of currentImageRecord.guides)currentGuideRecord.position*=currentSizeRatio;
+  }
+  currentProjectDocument.cellSize=currentNextSize;
+  if(currentNameText)currentProjectDocument.name=currentNameText;
+  refreshEditorScreen();
+ },true);
+ return '작업 설정을 적용했습니다. 실행 취소할 수 있으며 수정본 저장 전에는 저장된 작업이 바뀌지 않습니다.';
+};
 window.spriteV2TimingControls=async(currentFpsValue,currentDurationValue)=>{
  if(currentBusyState)throw Error('등록·저장 처리가 끝난 뒤 다시 시도하세요.');
  if(!currentProjectDocument)throw Error('작업을 먼저 생성하거나 불러오세요.');

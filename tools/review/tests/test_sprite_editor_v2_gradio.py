@@ -7,17 +7,47 @@ class SpriteV2GradioTests(unittest.TestCase):
     def test_project_controls_are_native_and_canvas_is_preserved(self):
         current_interface_config=build_sprite_v2_interface().get_config_file()
         current_html_markup=''.join(current_component_record['props'].get('value','') for current_component_record in current_interface_config['components'] if current_component_record['type']=='html')
-        for current_removed_identifier in ('sv2-fps','sv2-duration','sv2-create','sv2-project-refresh','sv2-load','sv2-projects','sv2-save','sv2-export','sv2-history','sv2-revision-load','sv2-zoom','sv2-background','sv2-overlay','sv2-onion','sv2-guides','sv2-prev','sv2-play','sv2-next','sv2-earlier','sv2-later','sv2-duplicate','sv2-remove','sv2-undo','sv2-upload','sv2-paste','sv2-upload-target','sv2-smaller','sv2-larger','sv2-face-match','sv2-guide-add','sv2-guide-vertical','sv2-guide-remove','sv2-guide-copy'):
+        for current_removed_identifier in ('sv2-edit-target','sv2-mode','sv2-guide-choice','sv2-guide-label','sv2-guide-axis','sv2-x','sv2-y','sv2-scale','sv2-face-x','sv2-face-y','sv2-diameter','sv2-guide-position','sv2-name','sv2-size','sv2-fps','sv2-duration','sv2-create','sv2-project-refresh','sv2-load','sv2-projects','sv2-save','sv2-export','sv2-history','sv2-revision-load','sv2-zoom','sv2-background','sv2-overlay','sv2-onion','sv2-guides','sv2-prev','sv2-play','sv2-next','sv2-earlier','sv2-later','sv2-duplicate','sv2-remove','sv2-undo','sv2-upload','sv2-paste','sv2-upload-target','sv2-smaller','sv2-larger','sv2-face-match','sv2-guide-add','sv2-guide-vertical','sv2-guide-remove','sv2-guide-copy'):
             self.assertNotIn('id="'+current_removed_identifier+'"',current_html_markup)
         self.assertNotIn('data-sv2-move',current_html_markup)
         self.assertIn('id="sv2-reference"',current_html_markup)
         self.assertIn('id="sv2-frame"',current_html_markup)
+        self.assertIn('id="sv2-timeline"',current_html_markup)
         current_dropdown_labels=[current_component_record['props'].get('label') for current_component_record in current_interface_config['components'] if current_component_record['type']=='dropdown']
         self.assertIn('새 작업 출력 크기',current_dropdown_labels)
         self.assertIn('저장된 작업',current_dropdown_labels)
         self.assertIn('수정 이력',current_dropdown_labels)
         self.assertIn('화면 확대',current_dropdown_labels)
         self.assertIn('배경',current_dropdown_labels)
+
+    def test_target_and_seek_controls_stay_in_browser(self):
+        current_interface_config=build_sprite_v2_interface().get_config_file()
+        for current_bridge_name in ('spriteV2TargetControls','spriteV2SeekControls'):
+            current_matching_events=[current_event_record for current_event_record in current_interface_config['dependencies'] if current_bridge_name in (current_event_record.get('js') or '')]
+            self.assertEqual(len(current_matching_events),2 if current_bridge_name=='spriteV2SeekControls' else 1)
+            self.assertFalse(current_matching_events[0]['backend_fn'])
+            self.assertFalse(current_matching_events[0]['queue'])
+
+    def test_guide_editor_uses_native_browser_controls(self):
+        current_interface_config=build_sprite_v2_interface().get_config_file()
+        current_guide_events=[current_event_record for current_event_record in current_interface_config['dependencies'] if 'spriteV2GuideControls' in (current_event_record.get('js') or '')]
+        self.assertEqual(len(current_guide_events),3)
+        self.assertTrue(all(not current_event_record['backend_fn'] and not current_event_record['queue'] for current_event_record in current_guide_events))
+
+    def test_numeric_editor_reads_and_applies_without_server_callbacks(self):
+        current_interface_config=build_sprite_v2_interface().get_config_file()
+        current_numeric_events=[current_event_record for current_event_record in current_interface_config['dependencies'] if 'spriteV2NumericControls' in (current_event_record.get('js') or '')]
+        self.assertEqual(len(current_numeric_events),2)
+        self.assertTrue(all(not current_event_record['backend_fn'] and not current_event_record['queue'] for current_event_record in current_numeric_events))
+
+    def test_metadata_edit_is_native_and_browser_only(self):
+        current_interface_config=build_sprite_v2_interface().get_config_file()
+        current_metadata_events=[current_event_record for current_event_record in current_interface_config['dependencies'] if 'spriteV2MetadataControls' in (current_event_record.get('js') or '')]
+        self.assertEqual(len(current_metadata_events),1)
+        self.assertFalse(current_metadata_events[0]['backend_fn'])
+        self.assertFalse(current_metadata_events[0]['queue'])
+        current_size_components=[current_component_record['props'] for current_component_record in current_interface_config['components'] if current_component_record['props'].get('label')=='변경할 출력 크기']
+        self.assertEqual(current_size_components[0]['value'],'keep')
 
     def test_timing_edit_uses_explicit_browser_only_apply(self):
         current_interface_config=build_sprite_v2_interface().get_config_file()

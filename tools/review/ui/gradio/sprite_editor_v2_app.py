@@ -10,6 +10,8 @@ if str(WORKFLOW_ROOT_DIRECTORY) not in sys.path:
     sys.path.insert(0,str(WORKFLOW_ROOT_DIRECTORY))
 from tools.review.ui_assets import resolve_review_ui_asset
 from tools.review.common.gradio_browser_controls import build_browser_action_button
+from tools.review.common.gradio_frame_navigator import build_frame_navigator
+from tools.review.common.gradio_joypad import build_transform_joypad, read_joypad_browser_script
 
 
 def create_sprite_project_script(current_action_name):
@@ -21,6 +23,7 @@ def create_sprite_project_script(current_action_name):
 
 def create_sprite_v2_loader(review_server_port):
     current_loader_script=f"""async()=>{{
+{read_joypad_browser_script()}
 if(document.querySelector('script[data-sprite-v2]'))return;
 if(!document.getElementById('sv2-reference'))await new Promise((resolveEditorReady,rejectEditorReady)=>{{
  const currentMountObserver=new MutationObserver(()=>{{if(document.getElementById('sv2-reference')){{clearTimeout(currentMountTimeout);currentMountObserver.disconnect();resolveEditorReady();}}}});
@@ -38,22 +41,8 @@ document.body.append(currentScriptElement);
 
 def build_sprite_v2_interface():
     current_markup_text=resolve_review_ui_asset('sprite-editor-v2.html').read_text()
-    # 새 작업과 저장 작업 선택은 표준 컴포넌트에서 제공한다.
+    # 이 HTML에는 캔버스·썸네일·드롭 영역·브라우저 타임라인만 둔다.
     current_markup_text=re.sub(r'<style>.*?</style>','',current_markup_text,flags=re.S)
-    for current_control_identifier in ('sv2-create','sv2-project-refresh','sv2-load','sv2-save','sv2-export','sv2-revision-load','sv2-prev','sv2-play','sv2-next','sv2-earlier','sv2-later','sv2-duplicate','sv2-remove','sv2-undo','sv2-upload','sv2-paste','sv2-smaller','sv2-larger','sv2-face-match','sv2-guide-add','sv2-guide-vertical','sv2-guide-remove','sv2-guide-copy'):
-        current_markup_text=re.sub(r'<button id="'+current_control_identifier+r'">.*?</button>','',current_markup_text)
-    current_markup_text=re.sub(r'<button data-sv2-move=.*?</button>','',current_markup_text)
-    current_markup_text=re.sub(r'<div class="sv2-controls">.*?(?=<div class="sv2-fields">)','',current_markup_text,flags=re.S)
-    current_markup_text=re.sub(r'<select id="sv2-projects".*?</select>','',current_markup_text)
-    current_markup_text=re.sub(r'<select id="sv2-history".*?</select>','',current_markup_text)
-    current_markup_text=re.sub(r'<h2>5. 저장 · 출력</h2>.*?</p>','',current_markup_text,flags=re.S)
-    current_markup_text=re.sub(r'<label>입력 대상 <select id="sv2-upload-target".*?</label>','',current_markup_text)
-    current_markup_text=re.sub(r'<h1>.*?</h1>','',current_markup_text)
-    current_markup_text=current_markup_text.replace('<h2>1. 작업</h2>','<h2>현재 작업 편집</h2>')
-    current_markup_text=re.sub(r'<div class="sv2-toolbar"><label>화면 확대 .*?</div>','',current_markup_text,flags=re.S)
-    current_markup_text=re.sub(r'<label>FPS <input id="sv2-fps".*?</label>','',current_markup_text)
-    current_markup_text=re.sub(r'<label>현재 프레임 유지 ms <input id="sv2-duration".*?</label>','',current_markup_text)
-    current_markup_text=current_markup_text.replace('<span>0은 FPS 기준</span>','<p id="sv2-timing-summary" role="status">작업을 불러와 재생 설정을 확인하세요.</p>')
     with gr.Blocks(title='스프라이트 정규화 편집기 v2') as current_interface_blocks:
         gr.Markdown('## 스프라이트 정규화 편집기 v2')
         with gr.Accordion('새 작업 만들기',open=False):
@@ -66,6 +55,13 @@ def build_sprite_v2_interface():
             current_refresh_button=gr.Button('작업 목록 새로고침')
             current_load_button=gr.Button('불러오기')
         current_feedback_text=gr.Textbox(label='작업 안내',value='목록을 새로고침하여 저장된 작업을 선택하거나 새 작업을 만드세요.',interactive=False)
+        with gr.Accordion('현재 작업명·출력 크기 변경',open=False):
+            gr.Markdown('현재 작업 정보는 비교 화면 위에 표시됩니다. 빈 작업명과 크기 유지는 기존 값을 보존합니다. 적용 후 수정본 저장으로 이력에 기록하세요.')
+            with gr.Row():
+                current_rename_input=gr.Textbox(label='변경할 작업명',value='',max_length=120)
+                current_resize_choice=gr.Dropdown(label='변경할 출력 크기',choices=[('유지','keep'),('384 × 384','384'),('256 × 256','256')],value='keep')
+            current_metadata_button=gr.Button('작업명·출력 크기 적용')
+            current_metadata_button.click(fn=None,inputs=[current_rename_input,current_resize_choice],outputs=current_feedback_text,queue=False,js="async(currentNameValue,currentSizeValue)=>{try{if(!window.spriteV2MetadataControls)throw Error('편집기를 준비 중입니다.');return await window.spriteV2MetadataControls(currentNameValue,currentSizeValue);}catch(currentErrorValue){return currentErrorValue.message;}}")
         with gr.Accordion('이미지 등록',open=True):
             current_upload_choice=gr.Dropdown(label='입력 대상',choices=[('레퍼런스','reference'),('프레임 추가','append'),('선택 프레임 교체','replace')],value='reference')
             current_upload_choice.input(fn=None,inputs=current_upload_choice,js="(currentTargetValue)=>{if(!window.spriteV2UploadTarget)throw Error('편집기를 준비 중입니다.');window.spriteV2UploadTarget(currentTargetValue);}",queue=False)
@@ -86,13 +82,33 @@ def build_sprite_v2_interface():
             current_view_control.input(fn=None,inputs=current_view_inputs,js="(...currentViewValues)=>{if(!window.spriteV2ViewControls)throw Error('편집기를 준비 중입니다. 잠시 후 다시 시도하세요.');window.spriteV2ViewControls(...currentViewValues);}",queue=False)
         gr.HTML(current_markup_text)
         with gr.Accordion('이동·배율·가이드 조정',open=True):
-            gr.Markdown('위에서 편집 대상과 조절 대상을 선택하세요. 이동은 1px, 이미지 배율은 0.01씩 조정합니다.')
+            gr.Markdown('실제 편집 대상은 비교 화면 아래에 표시됩니다. 선택 후 적용하세요. 캔버스 드래그는 해당 이미지로, 가이드 선택은 신체 가이드 조절로 전환합니다.')
             with gr.Row():
-                for current_edit_action,current_edit_label in (('move-up','위로 1px'),('move-left','왼쪽으로 1px'),('move-right','오른쪽으로 1px'),('move-down','아래로 1px')):
-                    build_browser_action_button(current_edit_label,'spriteV2EditControls',current_edit_action,current_feedback_text)
+                current_target_choice=gr.Dropdown(label='설정할 편집 대상',choices=[('현재 프레임','frame'),('레퍼런스','reference'),('체크한 프레임','selected'),('전체 프레임','all')],value='frame')
+                current_mode_choice=gr.Dropdown(label='설정할 조절 대상',choices=[('이미지 배치','image'),('얼굴 원','face'),('신체 가이드','guide')],value='image')
+            current_target_button=gr.Button('편집 대상 적용')
+            current_target_button.click(fn=None,inputs=[current_target_choice,current_mode_choice],outputs=current_feedback_text,queue=False,js="(currentTargetValue,currentModeValue)=>{try{return window.spriteV2TargetControls(currentTargetValue,currentModeValue);}catch(currentErrorValue){return currentErrorValue.message;}}")
             with gr.Row():
-                build_browser_action_button('배율 −0.01','spriteV2EditControls','smaller',current_feedback_text)
-                build_browser_action_button('배율 +0.01','spriteV2EditControls','larger',current_feedback_text)
+                current_numeric_choice=gr.Dropdown(label='수치 조절 항목',choices=[('이미지 X','x'),('이미지 Y','y'),('이미지 배율','scale'),('얼굴 원 X','face-x'),('얼굴 원 Y','face-y'),('얼굴 원 지름','diameter'),('선택 가이드 좌표','guide-position')],value='x')
+                current_numeric_input=gr.Number(label='적용할 수치',value=0)
+            with gr.Row():
+                current_numeric_read=gr.Button('현재 수치 읽기')
+                current_numeric_apply=gr.Button('선택 항목 수치 적용')
+            gr.Markdown('현재 값은 비교 화면 아래에서 확인합니다. 읽기는 현재 프레임 또는 레퍼런스를 기준으로 하며, 적용은 위에서 지정한 편집 대상 전체에 같은 값을 설정합니다.')
+            current_numeric_read.click(fn=None,inputs=current_numeric_choice,outputs=[current_numeric_input,current_feedback_text],queue=False,js="(currentFieldName)=>{try{return [window.spriteV2NumericControls.read(currentFieldName),'현재 수치를 읽었습니다.'];}catch(currentErrorValue){return [{__type__:'update'},currentErrorValue.message];}}")
+            current_numeric_apply.click(fn=None,inputs=[current_numeric_choice,current_numeric_input],outputs=current_feedback_text,queue=False,js="async(currentFieldName,currentNumberValue)=>{try{return await window.spriteV2NumericControls.apply(currentFieldName,currentNumberValue);}catch(currentErrorValue){return currentErrorValue.message;}}")
+            build_transform_joypad('spriteV2JoypadControls',current_feedback_text)
+            with gr.Group():
+                gr.Markdown('#### 가이드 설정\n작업·프레임·편집 대상 변경 또는 가이드 추가/삭제 후 목록을 읽으세요. 같은 순서의 가이드를 편집 대상 전체에 적용합니다.')
+                current_guide_refresh=gr.Button('가이드 목록 읽기')
+                current_guide_choice=gr.Dropdown(label='편집할 가이드',choices=[],interactive=True)
+                with gr.Row():
+                    current_guide_name=gr.Textbox(label='가이드 이름',value='',max_length=40)
+                    current_guide_axis=gr.Dropdown(label='가이드 방향',choices=[('가로선 (Y)','y'),('세로선 (X)','x')],value='y')
+                current_guide_apply=gr.Button('가이드 이름·방향 적용')
+                current_guide_refresh.click(fn=None,outputs=[current_guide_choice,current_guide_name,current_guide_axis,current_feedback_text],queue=False,js="()=>{try{return window.spriteV2GuideControls.list();}catch(currentErrorValue){return [{__type__:'update'},{__type__:'update'},{__type__:'update'},currentErrorValue.message];}}")
+                current_guide_choice.input(fn=None,inputs=current_guide_choice,outputs=[current_guide_name,current_guide_axis,current_feedback_text],queue=False,js="(currentGuideValue)=>{try{return window.spriteV2GuideControls.select(currentGuideValue);}catch(currentErrorValue){return [{__type__:'update'},{__type__:'update'},currentErrorValue.message];}}")
+                current_guide_apply.click(fn=None,inputs=[current_guide_choice,current_guide_name,current_guide_axis],outputs=current_feedback_text,queue=False,js="async(currentGuideValue,currentLabelValue,currentAxisValue)=>{try{return await window.spriteV2GuideControls.apply(currentGuideValue,currentLabelValue,currentAxisValue);}catch(currentErrorValue){return currentErrorValue.message;}}")
             with gr.Row():
                 for current_edit_action,current_edit_label in (('guide-add','가로선 추가'),('guide-vertical','세로선 추가'),('guide-remove','선택 가이드 삭제')):
                     build_browser_action_button(current_edit_label,'spriteV2EditControls',current_edit_action,current_feedback_text)
@@ -103,9 +119,7 @@ def build_sprite_v2_interface():
         with gr.Row():
             for current_frame_action,current_frame_label in (('earlier','프레임 앞으로'),('later','프레임 뒤로'),('duplicate','선택 프레임 복제'),('remove','선택 프레임 삭제'),('undo','실행 취소')):
                 build_browser_action_button(current_frame_label,'spriteV2FrameControls',current_frame_action,current_feedback_text)
-        with gr.Row():
-            for current_playback_name,current_playback_label in (('prev','이전 프레임'),('play','재생 / 일시정지'),('next','다음 프레임')):
-                build_browser_action_button(current_playback_label,'spriteV2PlaybackControls',current_playback_name,current_feedback_text)
+        build_frame_navigator('spriteV2PlaybackControls','spriteV2SeekControls',current_feedback_text)
         with gr.Accordion('재생 시간 조정',open=True):
             gr.Markdown('현재 설정은 비교 화면 아래에 표시됩니다. 변경할 항목을 체크하고 값을 입력하세요. 유지 시간은 현재 선택한 프레임에 적용하며 0이면 작업 FPS를 사용합니다.')
             with gr.Row():
