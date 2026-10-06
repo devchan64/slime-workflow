@@ -127,18 +127,39 @@ def create_sidebar_responsive_script():
     return """()=>{
         const currentMediaQuery=window.matchMedia('(max-width: BREAKPOINTpx)');
         const currentMinimumHeight=MINHEIGHT,currentBottomGap=BOTTOMGAP;
+        let currentObservedFrame=null,currentContentObserver=null,currentContentMutations=null,currentResizePending=false;
         const resizeWorkspaceFrame=()=>{
-            const currentFrameElement=document.querySelector('.management-page-frame');
-            if(!currentFrameElement)return;
-            const currentFrameHeight=Math.max(currentMinimumHeight,window.innerHeight-currentFrameElement.getBoundingClientRect().top-currentBottomGap);
-            const currentHeightValue=Math.floor(currentFrameHeight)+'px';
-            if(currentFrameElement.style.height!==currentHeightValue)currentFrameElement.style.height=currentHeightValue;
+            if(currentResizePending)return;
+            currentResizePending=true;
+            requestAnimationFrame(()=>{
+                currentResizePending=false;
+                const currentFrameElement=document.querySelector('.management-page-frame');
+                if(!currentFrameElement)return;
+                if(currentObservedFrame!==currentFrameElement){
+                    currentContentObserver?.disconnect();currentContentMutations?.disconnect();
+                    currentObservedFrame=currentFrameElement;
+                    currentFrameElement.addEventListener('load',()=>{currentObservedFrame=null;resizeWorkspaceFrame();},{once:true});
+                    const currentFrameDocument=currentFrameElement.contentDocument;
+                    if(!currentFrameDocument?.body)return;
+                    const currentContentRoot=currentFrameDocument.querySelector('.gradio-container')||currentFrameDocument.body;
+                    const currentSizingStyle=currentFrameDocument.createElement('style');
+                    currentSizingStyle.textContent='html,body,.gradio-container,.gradio-container>.main,.gradio-container>.main>.wrap,.gradio-container main.contain{min-height:0!important;height:auto!important;flex-grow:0!important}.gallery-container .grid-wrap[style*="max-content"]{overflow-y:visible!important}';
+                    currentFrameDocument.head.append(currentSizingStyle);
+                    currentContentObserver=new ResizeObserver(resizeWorkspaceFrame);
+                    currentContentObserver.observe(currentContentRoot);
+                    currentContentMutations=new MutationObserver(resizeWorkspaceFrame);
+                    currentContentMutations.observe(currentFrameDocument.body,{childList:true,subtree:true,attributes:true});
+                }
+                const currentFrameDocument=currentFrameElement.contentDocument;
+                const currentContentRoot=currentFrameDocument?.querySelector('.gradio-container')||currentFrameDocument?.body;
+                if(!currentContentRoot)return;
+                const currentContentHeight=currentContentRoot.getBoundingClientRect().height;
+                const currentHeightValue=Math.ceil(Math.max(currentMinimumHeight,currentContentHeight+currentBottomGap))+'px';
+                if(currentFrameElement.style.height!==currentHeightValue)currentFrameElement.style.height=currentHeightValue;
+            });
         };
         const currentFrameObserver=new MutationObserver(resizeWorkspaceFrame);
         currentFrameObserver.observe(document.body,{childList:true,subtree:true});
-        const currentHeaderObserver=new ResizeObserver(resizeWorkspaceFrame);
-        const currentHeaderElement=document.getElementById('management-header');
-        if(currentHeaderElement)currentHeaderObserver.observe(currentHeaderElement);
         window.addEventListener('resize',resizeWorkspaceFrame);
         requestAnimationFrame(resizeWorkspaceFrame);
         const synchronizeSidebarState=()=>{

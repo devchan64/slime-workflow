@@ -237,7 +237,7 @@ def build_generation_history_view(execute_service_command,server_base_address,de
                 with gr.Row():
                     current_delete_cancel=gr.Button('취소')
                     current_delete_confirm=gr.Button('이력 삭제',variant='stop')
-        history_remaining_cards=gr.Gallery(value=[],label='현재 페이지의 결과 미리보기',columns=2,object_fit='contain',interactive=False,visible=False,elem_id='generation-history-remaining-cards')
+        history_remaining_cards=gr.Gallery(value=[],label='현재 페이지의 결과 미리보기',columns=2,height='max-content',object_fit='contain',interactive=False,visible=False,elem_id='generation-history-remaining-cards')
         result_identifier_value=build_generation_identifier('조회한 생성 ID', 'generation-history-result-anchor')
         result_status_value=gr.Markdown('')
         result_image_value=result_component_factory() if result_component_factory is not None else gr.HTML(visible=False) if result_renderer_callback is not None else build_generation_gallery('조회한 생성 결과')

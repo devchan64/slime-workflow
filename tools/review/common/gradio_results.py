@@ -4,7 +4,7 @@ import gradio as gr
 
 def build_generation_gallery(current_label_text='생성 결과'):
     """결과 이미지는 기본 갤러리의 확대·다운로드 기능으로 검수한다."""
-    return gr.Gallery(value=[], label=current_label_text, columns=2,
+    return gr.Gallery(value=[], label=current_label_text, columns=2, height='max-content',
                       object_fit='contain', interactive=False, visible=False)
 
 

@@ -393,5 +393,14 @@ window.spriteV2TimingControls=async(currentFpsValue,currentDurationValue)=>{
  return '재생 설정을 적용했습니다. 실행 취소할 수 있으며 수정본 저장 전에는 저장된 작업이 바뀌지 않습니다.';
 };
 
+// 사이드바·Gradio 열 너비가 바뀌어도 맞춤 캔버스를 다시 계산한다.
+let currentComparisonWidth=0;
+const currentComparisonObserver=new ResizeObserver(currentResizeEntries=>{
+ const currentAvailableWidth=currentResizeEntries[0].contentRect.width;
+ if(currentAvailableWidth===currentComparisonWidth)return;
+ currentComparisonWidth=currentAvailableWidth;
+ requestAnimationFrame(renderEditorCanvases);
+});
+currentComparisonObserver.observe(findEditorElement('reference').closest('.sv2-comparison'));
 window.addEventListener('beforeunload',currentUnloadEvent=>{if(currentUnsavedChanges){currentUnloadEvent.preventDefault();currentUnloadEvent.returnValue='';}});window.addEventListener('resize',renderEditorCanvases);renderEditorCanvases();runEditorAction(refreshEditorProjects);
 })();
