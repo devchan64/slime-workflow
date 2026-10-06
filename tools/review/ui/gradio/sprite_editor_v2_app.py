@@ -11,6 +11,7 @@ if str(WORKFLOW_ROOT_DIRECTORY) not in sys.path:
 from tools.review.ui_assets import resolve_review_ui_asset
 from tools.review.common.gradio_browser_controls import build_browser_action_button
 from tools.review.common.gradio_frame_navigator import build_frame_navigator
+from tools.review.common.gradio_identifiers import build_generation_identifier
 from tools.review.common.gradio_joypad import build_transform_joypad, read_joypad_browser_script
 
 
@@ -119,7 +120,7 @@ def build_sprite_v2_interface():
                         current_mode_choice=gr.Dropdown(label='설정할 조절 대상',choices=[('이미지 배치','image'),('얼굴 원','face'),('신체 가이드','guide')],value='image')
                     current_target_button=gr.Button('편집 대상 적용')
                     current_target_event=current_target_button.click(fn=None,inputs=[current_target_choice,current_mode_choice],outputs=current_feedback_text,queue=False,js="(currentTargetValue,currentModeValue)=>{try{return window.spriteV2TargetControls(currentTargetValue,currentModeValue);}catch(currentErrorValue){return currentErrorValue.message;}}")
-                    with gr.Accordion('가이드라인 위치 편집',open=True) as current_guide_panel:
+                    with gr.Accordion('가이드라인 위치 편집',open=False) as current_guide_panel:
                         gr.Markdown('**① 편집 대상 적용 → ② 가이드 선택 → ③ 위치(px) 입력 → ④ 가이드 수정 적용**\n\n좌표는 출력 이미지의 왼쪽 위가 0입니다. 가로선은 위에서부터 Y, 세로선은 왼쪽에서부터 X 거리입니다. 예: 가로선 100은 위에서 100px입니다. 숫자가 커지면 아래·오른쪽으로 이동합니다. 레퍼런스와 현재 프레임의 가이드는 양쪽 비교 화면에 같은 좌표로 표시됩니다. 다른 이미지의 가이드는 점선입니다.')
                         current_guide_refresh=gr.Button('현재 대상의 가이드 불러오기')
                         current_guide_choice=gr.Dropdown(label='② 편집할 가이드',choices=[],interactive=True)
@@ -175,6 +176,8 @@ def build_sprite_v2_interface():
             current_save_button=gr.Button('수정본 저장')
             current_export_button=gr.Button('현재 편집 저장 후 PNG·시트·GIF 내보내기')
         current_revision_choice=gr.Dropdown(label='수정 이력',choices=[],interactive=True)
+        current_revision_identifier=build_generation_identifier('수정 이력 ID')
+        current_revision_choice.change(fn=None,inputs=current_revision_choice,outputs=current_revision_identifier,queue=False,js="(currentRevisionIdentifier)=>currentRevisionIdentifier ?? ''")
         with gr.Row():
             current_history_button=gr.Button('수정 이력 새로고침')
             current_revision_button=gr.Button('선택 버전 불러오기')
