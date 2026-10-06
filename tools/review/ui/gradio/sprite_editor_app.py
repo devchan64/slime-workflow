@@ -26,6 +26,7 @@ def read_sprite_editor_markup():
     editor_markup_match=re.search(r'<main>(.*)</main>',editor_source_text,re.DOTALL)
     if editor_markup_match is None:raise ValueError('스프라이트 편집기 본문을 찾을 수 없습니다.')
     current_markup_text=editor_markup_match.group(1)
+    current_markup_text=re.sub(r'<header><h1>.*?</h1><p>.*?</p>', '<header>',current_markup_text,flags=re.S)
     for current_button_name in ('prev','play','stop','next','undo','reset','frames-all','frames-none','save'):
         current_markup_text=re.sub(r'<button id="sprite-'+current_button_name+r'"[^>]*>.*?</button>','',current_markup_text)
     for current_control_label,current_control_name in (('화면 확대','zoom'),('배경','background'),('재생 속도','speed'),('캔버스 조작','mode')):
@@ -50,6 +51,7 @@ window.spriteEditorServerBase='http://127.0.0.1:{review_server_port}';const curr
 
 def build_sprite_editor_interface(review_server_port):
     with gr.Blocks(title='스프라이트 정규화 편집기') as interface_blocks_value:
+        gr.Markdown('## 스프라이트 정규화 편집기\n편집본을 확대해 조정하고 네 방향을 같은 프레임으로 재생합니다. 저장은 검수 사본에만 적용됩니다.')
         current_playback_feedback=gr.Textbox(label='재생 안내',value='등록 에셋을 불러온 뒤 재생할 수 있습니다.',interactive=False)
         with gr.Group():
             current_asset_choice=gr.Dropdown(label='등록 캐릭터·몬스터 스프라이트',choices=[],interactive=True)

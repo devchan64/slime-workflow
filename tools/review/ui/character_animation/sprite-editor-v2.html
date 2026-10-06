@@ -1,16 +1,17 @@
 <style>
 /* 캔버스 비교·확대·프레임 탐색에 필요한 배치만 유지한다. 일반 입력의 외형은 덮어쓰지 않는다. */
 #sprite-v2-root{container-type:inline-size}
-.sv2-layout{display:grid;grid-template-columns:200px minmax(0,1fr)}
+.sv2-layout{display:flex;flex-wrap:wrap}
+.sv2-layout>aside{flex:1 1 200px}
+.sv2-layout>section{flex:3 1 600px}
 .sv2-comparison{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
 .sv2-comparison>div,.sv2-panel,.sv2-viewport{min-width:0}
 .sv2-viewport{overflow:auto;max-height:650px}
 .sv2-viewport canvas{display:block;touch-action:none}
-#sv2-frame-list{max-height:520px;overflow:auto;display:grid}
+#sv2-frame-list{max-height:150px;overflow:auto;display:flex;flex-wrap:wrap}
 #sv2-frame-list img{width:46px;height:46px;object-fit:contain}
 #sv2-status,#sv2-difference{white-space:pre-wrap}
 .sv2-hidden{display:none!important}
-@container(max-width:680px){.sv2-layout{grid-template-columns:1fr}#sv2-frame-list{display:flex;max-height:150px;overflow:auto}}
 </style>
 <main id="sprite-v2-root">
 
