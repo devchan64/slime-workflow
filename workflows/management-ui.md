@@ -543,3 +543,33 @@
 - 스프라이트 v1·v2 기본 로딩과 표준 설정·공용 탐색기·조이패드 표시를 실제 확인했으며 초기 콘솔 오류는 없었다. v1 제목·소개가 설정 아래 HTML에 남아 있어 최상단 Gradio Markdown으로 이전하고 중복 제목을 제거했다. 실제 제목 1개·상단 표시 확인, 관련 회귀 4건 통과(`/tmp/sprite-v1-native-title.png`). v1/v2의 로드된 작업·가이드 편집·재생과 남은 HTML 영역 정렬은 후속 검수 대상이다. 실제 저장 작업은 수행하지 않았다.
 
 - 스프라이트 v1에서 기본 캐릭터 걷기 12프레임을 불러와 숫자 12 이동·재생·정지를 확인했다. v2에서는 기존 2프레임 검증 작업을 불러와 다음 프레임과 레퍼런스·가이드 표시를 확인했다. Gradio가 컨테이너 쿼리를 전달하지 않아 좁은 편집 영역의 제목이 겹치는 문제는 기능용 flex 줄바꿈으로 수정했다. 실제 680px 영역에서 프레임 목록과 비교 영역이 위아래로 배치됨을 확인했다(`/tmp/sprite-v2-stacked-review.png`). 저장·가이드 수정은 수행하지 않았으며 해당 동작 검증은 남아 있다.
+
+- 캐릭터 애니메이션 생성기의 설정·참조 갤러리·누적 이력 3건과 완료 결과 `2026-10-06_08-57-52-1dba9136`를 조회했다. 결과 플레이어에 남아 있던 별도 탐색 버튼 배치를 `build_frame_navigation_widgets()`로 통합하여 편집기와 같은 이전·다음·재생·정지·숫자 이동 UI를 사용한다. 방향/FPS와 지연 미리보기 로딩 계약은 유지한다. 관련 회귀 16건 통과(`/tmp/frame-navigation-check.log`), 실제 12번 프레임 이동과 재생 후 정지 확인(`/tmp/character-shared-navigator.png`). 변경 전 콘솔 오류 없음. 소스 자동 재시작 중 연결 오류 1건이 기록됐으나 재조회 후 결과와 조작은 정상 동작했다. 좁은 화면 및 다른 플레이어 소비 화면의 후속 검증은 남아 있다. 생성·취소·저장 이력 변경은 수행하지 않았다.
+
+- 공용 탐색기를 사용하는 캐릭터 결과 플레이어를 480px에서 확인했다. iframe 문서/스크롤 너비 362px 일치, 방향·FPS·탐색 버튼·숫자 이동이 세로로 줄바꿈되었다(`/tmp/character-navigator-480.png`). 화면 크기는 복원했다. 입력 포즈의 명시적 불러오기 버튼을 탐색기 앞에 배치했으며 기존 등록 모션을 읽어 `원본 1 · 1/30`에서 다음 프레임 `원본 3 · 2/30` 이동을 확인했다(`/tmp/character-pose-shared-controls.png`). 생성 없이 원본 2배 샘플링과 브라우저 프레임 이동이 유지됨을 확인했고 관련 회귀 12건이 통과했다(`/tmp/frame-player-order-check.log`).
+
+- 등록 애니메이션 순회: 여성 캐릭터 통합 검수(animation-5), 잿빛여우 대기, 덤불송곳니 대기의 실제 이미지·앵커 가이드와 표준 컨트롤 배치를 확인했다. 여성 캐릭터와 잿빛여우는 다음 프레임 후 `2/8 · 정지`를 확인했고 덤불송곳니도 다음 프레임 버튼을 실행했다. 콘솔 오류 없음. 검수 화면 `/tmp/anchor-woman-standard.png`, `/tmp/anchor-ash-fox-standard.png`, `/tmp/anchor-beast-standard.png`. 좌표 변경·저장은 하지 않았다. 나머지 등록 몬스터 화면의 순회를 계속한다.
+
+- 수정날개박쥐·결정도마뱀·불씨고슴도치 등록 검수 화면에서 이미지와 앵커 가이드 렌더, Gradio 표준 탐색기·좌표 조작부의 좌우 배치를 확인했다. 콘솔 오류 없음. `/tmp/anchor-crystal-bat-standard.png`, `/tmp/anchor-crystal-lizard-standard.png`, `/tmp/anchor-ember-hedgehog-standard.png`. 공통 후속 문제: 이미지가 표시된 이후에도 초기 탐색 상태가 ‘애니메이션을 준비 중입니다’로 남아 있어 최초 로딩 완료 상태 동기화가 필요하다. 이번 확인에서는 좌표·저장 상태를 변경하지 않았다.
+
+- 앵커 검수의 준비 중 표시 고착을 수정했다. 읽기 전용 `status` 명령과 브라우저 전용 Timer로 현재 프레임/재생 상태를 표시하고 조작 결과 안내는 별도 필드로 유지한다. Python 왕복·재생 상태 변경 없이 동기화한다. 불씨고슴도치 화면 재로딩 후 별도 조작 없이 `1/8 · 정지` 표시를 실제 확인했다(`/tmp/anchor-live-status.png`). 관련 회귀 9건 통과(`/tmp/anchor-status-check.log`).
+
+- 들토끼·고목 거인·등불나방 등록 검수 화면을 추가 순회했다. 각 이미지와 앵커 가이드 렌더 및 표준 컨트롤 배치를 확인했고, 수정된 프레임 상태는 모두 최초 로딩 후 `1/8 · 정지`로 표시됐다. 콘솔 오류 없음. `/tmp/anchor-field-rabbit-standard.png`, `/tmp/anchor-giant-standard.png`, `/tmp/anchor-lantern-moth-standard.png`. 좌표·저장 이력은 변경하지 않았다.
+
+- 물안개개구리·이끼등거북·갈대등벌레 등록 검수 화면에서 이미지·앵커 가이드와 Gradio 조작부의 배치를 확인했다. 세 화면 모두 `1/8 · 정지`가 자동 표시되며 콘솔 오류 없음. `/tmp/anchor-mist-frog-standard.png`, `/tmp/anchor-moss-turtle-standard.png`, `/tmp/anchor-reed-crawler-standard.png`. 좌표·저장 이력 변경 없음. 등록 애니메이션 목록의 기본 화면 순회는 13/17개까지 확인했으며 남은 4개를 이어서 검수한다.
+
+- 등성이 멧돼지·모래집게전갈·슬라임·돌껍질게의 이미지·앵커 가이드·표준 컨트롤 배치를 확인했다. 모두 `1/8 · 정지` 자동 표시, 콘솔 오류 없음. `/tmp/anchor-ridge-boar-standard.png`, `/tmp/anchor-sand-scorpion-standard.png`, `/tmp/anchor-slime-standard.png`, `/tmp/anchor-stone-crab-standard.png`. 이로써 등록 애니메이션 17개 기본 화면 순회를 마쳤다. 전체 기능·독립 HTML 전환 완료를 의미하지 않는다. 다음 범위는 게임 UI 4개 화면, 편집기의 남은 일반 HTML 설정, 좁은 화면 미검수 소비 도구 및 이력/가이드 조작의 안전한 검증이다.
+
+- 게임 UI 4개(디자인 시스템·탐색 레이아웃·캐릭터 설정·전투 레이아웃)의 실제 로딩을 확인했다. 디자인 토큰·게임 버튼·캐릭터 대화상자는 검수 대상인 게임 표현이므로 Gradio 테마로 치환하지 않는다. 탐색 레이아웃은 관리용 맵/확대 컨트롤이 Gradio로 분리되어 있다. 캐릭터 설정의 내부 탐색 툴바와 전투 레이아웃의 전장 선택·렌더 상태는 기존 HTML 관리 조작부로 남아 있어 후속 전환 대상이다. 전장은 6/6 렌더링 완료, 콘솔 오류 없음. `/tmp/game-design-system-review.png`, `/tmp/game-terrain-review.png`, `/tmp/game-character-settings-review.png`, `/tmp/game-battlefield-review.png`. 생성·게임 상태 변경은 수행하지 않았다.
+
+- 캐릭터 설정 검수의 `terrain-preview.html?settings=1` 경로에도 공용 Gradio 맵 조작부를 적용했다. 기존 내부 관리 툴바는 숨기고 게임 캐릭터 대화상자와 settings 쿼리는 유지한다. 실제 표준 맵 선택·상태·축소 컨트롤, 대화상자 표시 및 배율 2.00→1.88 축소를 확인했다(`/tmp/game-character-settings-standard.png`). 관련 정적 검수 회귀 9건 통과(`/tmp/character-settings-layout-check.log`). 전투 전장 선택·상태의 표준화는 다음 작업이다.
+
+- 전투 검수의 전장 선택·렌더 상태를 Gradio Dropdown/Textbox로 연결했다. 선택 목록은 게시된 원본 DOM에서 읽고 기존 change 이벤트로 전장을 변경한다. 최초 브라우저에서 표준 컨트롤 로딩을 확인했으나 기존 게임 CSS가 헤더 hidden을 덮어써 숨김 wrapper로 보강했다. 관련 회귀 9건 통과(`/tmp/battlefield-standard-check.log`). 보강 후 실제 목록 선택·전장 전환·중복 툴바 제거는 다음 검증 대상이며 완료로 간주하지 않는다.
+
+- 전투 표준화 후 실제 선택 검증에서 기존 onchange의 상대 주소 이동으로 iframe이 비는 현상을 확인했다. 관리 클라이언트가 게시된 전장 URL에 field·embedded 파라미터를 명시하여 전환하도록 수정했다. 재검수에서 ‘이슬 연못’ 선택 후 해당 전장만 표시되고 `전장 1/1 렌더링 완료`를 확인했다. 기존 헤더 툴바는 제거되고 Gradio 선택·상태만 표시된다(`/tmp/battlefield-standard-selected.png`). 전투 행동은 실행하지 않았다.
+
+- 전장 선택 자동 갱신에서 동일 목록·값을 매초 다시 지정하지 않도록 변경 감지를 추가했다. 실제 ‘전체 6종→이슬 연못→전체 6종’ 선택을 검증했고 상태가 1/1 및 6/6 렌더링 완료로 갱신됐다. 콘솔 오류 없음(`/tmp/battlefield-standard-all.png`), 관련 회귀 9건 통과(`/tmp/battlefield-final-check.log`). 선택 이외의 전투 행동은 실행하지 않았다.
+
+- 복장 착용 생성기를 480px에서 검수했다. 필수 바디·아웃핏 참조 슬롯이 세로로 배치되고 프롬프트·설정·공용 이력 12건이 표시됐다. iframe 문서/스크롤 너비는 362px로 일치하며 콘솔 오류 없음(`/tmp/outfit-reference-480.png`). 파일 첨부·생성·이력 변경 없이 화면 크기를 복원했다. 이는 업로드 실제 동작 검증을 의미하지 않는다.
+
+- 표정 생성기를 480px에서 확인했다. AU 프리셋·프롬프트 원문이 정상 줄바꿈되고 참조 슬롯 3개가 세로 배치됐다. iframe 문서/스크롤 너비 362px 일치, 콘솔 오류 없음(`/tmp/expression-reference-480.png`). 첨부·생성 없이 화면 크기를 복원했다.
