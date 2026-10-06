@@ -47,3 +47,9 @@
 - [무거운 보호구](heavy-armor-four-directions-v7/default-heavy-armor-four-directions.png) · [등록 기록](heavy-armor-four-directions-v7/manifest.yaml)
 
 위쪽은 후면좌측·후면우측, 아래쪽은 정면좌측·정면우측입니다. 흰 셔츠 baseline-v2를 캐릭터 일관성 기준으로 재적용하고 고급 가죽·압인 문양·보호편 연결·관절 여유를 유지했습니다. 금속형 보호구는 사용하지 않으며 체결용 버클은 허용합니다. 생성 원본 PNG와 프롬프트를 함께 보존합니다.
+
+## 가벼운 보호구 대기 애니메이션 베이스라인 v1
+
+[시트](idle-light-armor-v1/idle-8frames.png) · [재생 GIF](idle-light-armor-v1/review.gif) · [가이드 비교](idle-light-armor-v1/baseline-guides-review.gif) · [등록 기록](idle-light-armor-v1/manifest.yaml)
+
+기본 캐릭터 리포트의 정면 좌측 대기 결과를 사용자 승인으로 등록했습니다. 512×512 8프레임, 4fps·2초 반복이며 원본 프레임·시트·GIF·프롬프트를 가공 없이 보존합니다. 제작 기준으로 채택한 것이며 스프라이트용 정규화는 미완료입니다. 상위 manifest의 animation_baselines에서 참조합니다.

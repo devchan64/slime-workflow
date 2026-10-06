@@ -40,3 +40,10 @@ armor_baselines:
     manifest: heavy-armor-four-directions-v7/manifest.yaml
     path: heavy-armor-four-directions-v7/default-heavy-armor-four-directions.png
     sha256: bee38c3ddc90f89f0239586ef07fffe14c3f6b4e828f6c51c2191abad451fe79
+
+animation_baselines:
+  idle_light_armor:
+    version: v1
+    direction: down_left
+    manifest: idle-light-armor-v1/manifest.yaml
+    sha256: 03bbdde908aaae253c8758dc03b36ce7c2d4ea8c86eeb7f57dee23057a66a72b
