@@ -1,0 +1,15 @@
+schema_version: 1
+asset_id: character-default-light-armor-animation
+version: 1
+character_id: default
+baseline_crops:
+  root: .
+  cell_size:
+  - 768
+  - 768
+  files:
+    down_left: 90461c84ba726c0b8c47fd761b9b0bc512785e787ab0d764ca37e2fd7c1ec85f
+provenance:
+  generation_id: 2026-10-06_08-45-30-5f6f4fbb
+  source_path: .tmp/test/outfit-transfer/2026-10-06_08-45-30-5f6f4fbb/result.png
+  prompt_sha256: 787183740300dff0ca0ec53069bf3782ab5b0ba352867a4ee1fed046524a7b15

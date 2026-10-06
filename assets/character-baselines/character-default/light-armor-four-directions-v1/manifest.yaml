@@ -29,3 +29,7 @@ files:
     sha256: a7aaa136f257259fb951ea6fcae834f10fd6eca626e5a5a338cf3afbdf1aec41
   - path: overlay-notes.txt
     sha256: e769b76b5274c0f39877f094e177be466328a9a8e839358d30b1acf7c1134f11
+  - path: outfit-down-left-v1.png
+    sha256: b600099a2c4aeb4d32bb7ff070b6f994e20d4b41e8e732115df505b1b47cf21f
+  - path: outfit-down-left-v1.yaml
+    sha256: 3e08d3da85f875f087432c5fe3869ff720e5a1c65fe8331f0643778e741b0a43

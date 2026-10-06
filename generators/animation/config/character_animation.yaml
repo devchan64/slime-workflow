@@ -26,3 +26,7 @@ characters:
     label: 여성 캐릭터 A · 신체 베이스 v1
     root: assets/character-baselines/character-female-a
     manifest: body-baseline-v1.yaml
+  character-default-light-armor-v1:
+    label: 기본 캐릭터 · 경량 보호구 v1 · 정면 좌측
+    root: assets/character-baselines/character-default/light-armor-animation-v1
+    manifest: manifest.yaml

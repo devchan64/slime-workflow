@@ -34,3 +34,7 @@
 [착용 시트](light-armor-four-directions-v1/default-light-armor-four-directions.png) · [등록 기록](light-armor-four-directions-v1/manifest.yaml) · [50% 오버랩](light-armor-four-directions-v1/baseline-armor-overlay-50.png) · [교대 비교 GIF](light-armor-four-directions-v1/baseline-armor-toggle.gif)
 
 흰 셔츠 4방향 시트 `baseline-v2/character-default-white-shirt-four-directions-v2.png`를 신체 비율 기준으로 사용한 경량 가죽 방어복입니다. 위는 후면좌측·후면우측, 아래는 정면좌측·정면우측입니다. 사용자 요청으로 원본·프롬프트·검수 자료를 등록했습니다. 분리된 outfit 레이어는 아니며 기존 신체 기준과 생성기 입력은 유지합니다.
+
+### 경량 방어복 분리 이미지
+
+[정면좌측 outfit](light-armor-four-directions-v1/outfit-down-left-v1.png) · [첨부 출처·해시](light-armor-four-directions-v1/outfit-down-left-v1.yaml). 사용자 첨부 원본을 가공 없이 추가 보존했습니다.

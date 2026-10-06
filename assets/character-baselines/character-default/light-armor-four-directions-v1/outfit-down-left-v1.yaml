@@ -1,0 +1,14 @@
+schema_version: 1
+asset_id: character-default-light-armor-outfit-down-left
+version: v1
+character_id: default
+direction: down_left
+representation: separated-outfit
+source: user-attachment
+source_filename: codex-clipboard-d83077d7-d20a-4b92-a120-b996854244b8.png
+image:
+  path: outfit-down-left-v1.png
+  size: [768, 768]
+  mode: RGBA
+  sha256: b600099a2c4aeb4d32bb7ff070b6f994e20d4b41e8e732115df505b1b47cf21f
+notes: 사용자 지정 첨부 원본을 가공 없이 보존. 생성 모델·프롬프트·생성 ID는 제공되지 않았다.
