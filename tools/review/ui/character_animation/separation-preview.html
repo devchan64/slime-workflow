@@ -1,42 +1,43 @@
 <!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<link rel="stylesheet" href="/management/style.css">
-<style>
-main{padding:12px}.review-toolbar,.download-toolbar,.playback-controls{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:12px 0}.preview-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.preview-grid section{min-width:0}.preview-grid h3{margin:0 0 8px;font-size:14px}canvas{display:block;width:100%;height:auto;background:repeating-conic-gradient(#ddd 0% 25%,#fff 0% 50%) 0/20px 20px}.adjustment-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:12px 0}.adjustment-grid label{display:grid;gap:6px}.adjustment-grid input{min-width:0;width:100%;box-sizing:border-box}.playback-controls label{flex:1;min-width:120px}input[type=range]{width:100%}[hidden]{display:none!important}details{margin-top:12px}.download-toolbar a{padding:4px 0;margin-right:12px}@media(max-width:480px){.adjustment-grid{grid-template-columns:1fr}}
-</style>
+<style>body{margin:0}.preview-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.preview-grid section{min-width:0}canvas{display:block;width:100%;height:auto}[hidden]{display:none!important}</style>
 <main>
-<p id="status" role="status">결과 로딩 중</p>
-<nav class="review-toolbar" aria-label="검수 보기">
+<p hidden id="status" role="status">결과 로딩 중</p>
+<nav hidden class="review-toolbar" aria-label="검수 보기">
 <button data-review-view="compare" aria-pressed="true">원본 · 합성</button>
 <button data-review-view="parts" aria-pressed="false">신체 · 복장</button>
 <button data-review-view="all" aria-pressed="false">전체 비교</button>
 </nav>
 <div class="preview-grid">
-<section data-review-part="source"><h3>원본</h3><canvas id="source" aria-label="원본 프레임"></canvas></section>
-<section data-review-part="base" hidden><h3>신체 베이스</h3><canvas id="base" aria-label="신체 베이스 프레임"></canvas></section>
-<section data-review-part="outfit" hidden><h3>복장</h3><canvas id="outfit" aria-label="복장 프레임"></canvas></section>
-<section data-review-part="combined"><h3>복장 겹쳐보기</h3><canvas id="combined" aria-label="신체와 복장 합성 프레임"></canvas></section>
+<section data-review-part="source"><h3 hidden>원본</h3><canvas id="source" aria-label="원본 프레임"></canvas></section>
+<section data-review-part="base" hidden><h3 hidden>신체 베이스</h3><canvas id="base" aria-label="신체 베이스 프레임"></canvas></section>
+<section data-review-part="outfit" hidden><h3 hidden>복장</h3><canvas id="outfit" aria-label="복장 프레임"></canvas></section>
+<section data-review-part="combined"><h3 hidden>복장 겹쳐보기</h3><canvas id="combined" aria-label="신체와 복장 합성 프레임"></canvas></section>
 </div>
 <div id="playback-controls" class="playback-controls" hidden><button id="play" disabled title="결과 로딩 후 재생할 수 있습니다.">재생</button><label>프레임<input id="frame" type="range" min="0" value="0" step="1" disabled></label></div>
 <p id="single-frame-note" hidden>단일 프레임 결과입니다. 재생 없이 이미지를 비교하세요.</p>
-<details id="alignment-controls"><summary>겹쳐보기 위치·배율 조정</summary>
+<details hidden id="alignment-controls"><summary>겹쳐보기 위치·배율 조정</summary>
 <div class="adjustment-grid">
 <label>가로 이동 (px)<input class="review-number-input" id="outfit-x" type="number" step="1" value="0"></label>
 <label>세로 이동 (px)<input class="review-number-input" id="outfit-y" type="number" step="1" value="0"></label>
 <label>배율<input class="review-number-input" id="outfit-scale" type="number" min="0.1" max="3" step="0.05" value="1"></label>
 </div><button id="reset-alignment">위치·배율 초기화</button><p>검수 화면에만 적용됩니다. 저장된 이미지는 바뀌지 않습니다.</p></details>
-<div class="download-toolbar" aria-label="결과 다운로드"><a id="base-download" download>신체 베이스 PNG</a><a id="outfit-download" download>복장 PNG</a><a id="archive-download" download>전체 결과 ZIP</a></div>
-<details><summary>검수 기준과 표시 한계</summary><p>독립 생성된 결과의 위치·포즈·비율, 사람 잔상과 경계를 확인하세요. PNG의 저장된 알파를 그대로 표시합니다. 체크무늬는 투명 영역입니다. 이전 RGB 결과는 불투명하게 표시됩니다. 네이티브 알파의 경계·그림자·닫힌 빈 공간은 추가 검수가 필요합니다. 생성 완료는 정합 검수 통과를 의미하지 않습니다.</p></details>
+<div hidden class="download-toolbar" aria-label="결과 다운로드"><a id="base-download" download>신체 베이스 PNG</a><a id="outfit-download" download>복장 PNG</a><a id="archive-download" download>전체 결과 ZIP</a></div>
+<details hidden><summary>검수 기준과 표시 한계</summary><p>독립 생성된 결과의 위치·포즈·비율, 사람 잔상과 경계를 확인하세요. PNG의 저장된 알파를 그대로 표시합니다. 체크무늬는 투명 영역입니다. 이전 RGB 결과는 불투명하게 표시됩니다. 네이티브 알파의 경계·그림자·닫힌 빈 공간은 추가 검수가 필요합니다. 생성 완료는 정합 검수 통과를 의미하지 않습니다.</p></details>
 </main>
 <script>
 (async()=>{
  const currentResultBase=__RESULT_BASE__;
  const currentStatusElement=document.getElementById('status');
+ const currentPreviewGrid=document.querySelector('.preview-grid');
+ const currentCanvasObserver=new ResizeObserver(()=>{if(window.frameElement)window.frameElement.style.height=Math.ceil(currentPreviewGrid.getBoundingClientRect().height)+'px';});
+ currentCanvasObserver.observe(currentPreviewGrid);
+ window.addEventListener('pagehide',()=>currentCanvasObserver.disconnect(),{once:true});
  const currentViewPanels={compare:['source','combined'],parts:['base','outfit'],all:['source','base','outfit','combined']};
  for(const currentViewButton of document.querySelectorAll('[data-review-view]'))currentViewButton.onclick=()=>{
   const currentSelectedView=currentViewButton.dataset.reviewView;
   for(const currentPanelElement of document.querySelectorAll('[data-review-part]'))currentPanelElement.hidden=!currentViewPanels[currentSelectedView].includes(currentPanelElement.dataset.reviewPart);
   for(const currentButtonElement of document.querySelectorAll('[data-review-view]'))currentButtonElement.setAttribute('aria-pressed',String(currentButtonElement===currentViewButton));
-  document.getElementById('alignment-controls').hidden=currentSelectedView==='parts';
+  document.getElementById('alignment-controls').hidden=true;
  };
  try{
   const currentManifestResponse=await fetch(currentResultBase+'manifest.json');
@@ -52,8 +53,8 @@ main{padding:12px}.review-toolbar,.download-toolbar,.playback-controls{display:f
   const currentHasAnimation=currentManifestRecord.frames.length>1;
   currentFrameSlider.max=currentManifestRecord.frames.length-1;currentFrameSlider.disabled=!currentHasAnimation;currentPlayButton.disabled=!currentHasAnimation;
   currentPlayButton.title=currentHasAnimation?'모든 미리보기를 같은 프레임으로 재생합니다.':'단일 프레임은 재생할 수 없습니다.';
-  document.getElementById('playback-controls').hidden=!currentHasAnimation;
-  document.getElementById('single-frame-note').hidden=currentHasAnimation;
+  document.getElementById('playback-controls').hidden=true;
+  document.getElementById('single-frame-note').hidden=true;
   let currentPlaybackActive=false,currentFrameNumber=0,lastFrameTimestamp=0;
   function drawCurrentFrame(){
    const currentFrameRecord=currentManifestRecord.frames[currentFrameNumber];
@@ -68,7 +69,7 @@ main{padding:12px}.review-toolbar,.download-toolbar,.playback-controls{display:f
    currentCombinedContext.drawImage(document.getElementById('base'),0,0);
    const currentOutfitCanvas=document.createElement('canvas');currentOutfitCanvas.width=currentCombinedCanvas.width;currentOutfitCanvas.height=currentCombinedCanvas.height;
    const currentOutfitContext=currentOutfitCanvas.getContext('2d');currentOutfitContext.drawImage(document.getElementById('outfit'),0,0);
-   const currentOutfitScale=Math.max(.1,Math.min(3,Number(document.getElementById('outfit-scale').value)||1));
+   const currentOutfitScale=Number(document.getElementById('outfit-scale').value);
    currentCombinedContext.drawImage(currentOutfitCanvas,Number(document.getElementById('outfit-x').value)||0,Number(document.getElementById('outfit-y').value)||0,currentOutfitCanvas.width*currentOutfitScale,currentOutfitCanvas.height*currentOutfitScale);
    currentFrameSlider.value=currentFrameNumber;currentStatusElement.textContent=`프레임 ${currentFrameNumber+1}/${currentManifestRecord.frames.length} · ${currentFrameRecord.source.frameId}`;
   }
@@ -83,6 +84,27 @@ main{padding:12px}.review-toolbar,.download-toolbar,.playback-controls{display:f
    if(currentPlaybackActive&&!document.hidden&&currentTimestampValue-lastFrameTimestamp>=1000/currentManifestRecord.fps){currentFrameNumber=(currentFrameNumber+1)%currentManifestRecord.frames.length;lastFrameTimestamp=currentTimestampValue;drawCurrentFrame();}
    requestAnimationFrame(animatePreviewFrame);
   }
+  window.separationReviewPlayback=currentActionName=>{
+   if(!['prev','next','play','stop'].includes(currentActionName))throw Error('지원하지 않는 재생 명령입니다.');
+   if(currentActionName==='play'&&!currentHasAnimation)throw Error('단일 프레임 결과입니다. 재생 없이 비교하세요.');
+   currentPlaybackActive=currentActionName==='play';lastFrameTimestamp=0;
+   if(currentActionName==='prev'||currentActionName==='next')currentFrameNumber=(currentFrameNumber+(currentActionName==='next'?1:-1)+currentManifestRecord.frames.length)%currentManifestRecord.frames.length;
+   drawCurrentFrame();return currentStatusElement.textContent+(currentPlaybackActive?' · 재생 중':' · 정지');
+  };
+  window.separationReviewSeek=currentFrameValue=>{
+   if(!Number.isInteger(currentFrameValue)||currentFrameValue<1||currentFrameValue>currentManifestRecord.frames.length)throw Error('프레임 번호가 범위를 벗어났습니다.');
+   currentFrameNumber=currentFrameValue-1;currentPlaybackActive=false;drawCurrentFrame();return currentStatusElement.textContent;
+  };
+  window.separationReviewView=currentViewName=>{
+   if(!Object.hasOwn(currentViewPanels,currentViewName))throw Error('지원하지 않는 비교 보기입니다.');
+   document.querySelector('[data-review-view="'+currentViewName+'"]').click();return '비교 보기를 변경했습니다.';
+  };
+  window.separationReviewTransform=(currentActionName,currentInputValues)=>{
+   const currentTargetRecord={x:Number(document.getElementById('outfit-x').value),y:Number(document.getElementById('outfit-y').value),scale:Number(document.getElementById('outfit-scale').value)};
+   const [currentNextRecord]=currentActionName==='reset'?[{x:0,y:0,scale:1}]:window.parent.calculateJoypadTransforms(currentActionName,currentInputValues,[currentTargetRecord]);
+   for(const currentAxisName of ['x','y','scale'])document.getElementById('outfit-'+currentAxisName).value=currentNextRecord[currentAxisName];
+   drawCurrentFrame();return {...currentNextRecord,message:'겹쳐보기만 조정했습니다. 저장된 이미지는 변경하지 않습니다.'};
+  };
   drawCurrentFrame();requestAnimationFrame(animatePreviewFrame);
  }catch(currentErrorValue){currentStatusElement.textContent='결과 오류: '+currentErrorValue.message;}
 })();

@@ -14,6 +14,8 @@ import gradio as gr
 from tools.review.common.gradio_reference_images import build_reference_image_inputs
 from tools.review.common.management_client import execute_remote_management_command
 from tools.review.common.gradio_seed import build_generation_seed
+from tools.review.common.gradio_frame_navigator import build_frame_navigator
+from tools.review.common.gradio_joypad import build_transform_joypad, read_joypad_browser_script
 from tools.review.common.gradio_logs import build_execution_logs
 from tools.review.common.gradio_history import build_generation_history_view, format_generation_status
 from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_confirmation
@@ -55,6 +57,7 @@ def build_separation_preview(current_server_address, current_job_identifier):
 
 def build_separation_interface(current_server_address):
     with gr.Blocks(title='캐릭터 레퍼런스 복장 분리 생성') as interface_blocks_value:
+        interface_blocks_value.load(fn=None,queue=False,js="()=>{"+read_joypad_browser_script()+"for(const currentHandlerName of ['separationReviewPlayback','separationReviewSeek','separationReviewView','separationReviewTransform'])window[currentHandlerName]=(...currentArgumentValues)=>{const currentFrameElement=document.querySelector('#separation-result-preview iframe');const currentHandlerFunction=currentFrameElement?.contentWindow?.[currentHandlerName];if(typeof currentHandlerFunction!=='function')throw Error('완료된 결과를 먼저 조회하세요.');return currentHandlerFunction(...currentArgumentValues);};}")
         gr.Markdown('## 캐릭터 레퍼런스 복장 분리 생성\n같은 원본에서 신체 베이스와 사람을 제거한 복장을 각각 생성합니다. 두 결과는 별도 파일로 저장합니다. 참조 이미지 한 장을 파일 또는 클립보드로 첨부하세요.')
         with gr.Tabs():
             with gr.Tab("생성 설정"):
@@ -77,7 +80,22 @@ def build_separation_interface(current_server_address):
                     current_refresh_button = gr.Button('상태·결과 조회')
                     current_cancel_button = gr.Button('선택 작업 중지')
                     current_resume_button = gr.Button('선택 작업 재개')
-                current_preview_output = gr.HTML(build_separation_preview(current_server_address, ''))
+                current_preview_feedback=gr.Textbox(label='비교·재생 안내',value='완료된 결과를 먼저 조회하세요.',interactive=False)
+                current_view_choice=gr.Radio([('원본 · 합성','compare'),('신체 · 복장','parts'),('전체 비교','all')],value='compare',label='검수 보기')
+                current_view_choice.input(fn=None,inputs=current_view_choice,outputs=current_preview_feedback,queue=False,js="currentViewName=>{try{return window.separationReviewView(currentViewName);}catch(currentErrorValue){return currentErrorValue.message;}}")
+                current_frame_input=build_frame_navigator('separationReviewPlayback','separationReviewSeek',current_preview_feedback)
+                with gr.Accordion('겹쳐보기 위치·배율 조정',open=False):
+                    gr.Markdown('검수 화면에만 적용됩니다. 저장된 이미지는 바뀌지 않습니다.')
+                    current_transform_inputs=build_transform_joypad('separationReviewTransform',current_preview_feedback)
+                    current_reset_button=gr.Button('위치·배율 초기화')
+                    current_reset_button.click(fn=None,outputs=[*current_transform_inputs[:3],current_preview_feedback],queue=False,js="()=>{try{const currentResultRecord=window.separationReviewTransform('reset',{});return [currentResultRecord.x,currentResultRecord.y,currentResultRecord.scale,currentResultRecord.message];}catch(currentErrorValue){return [{__type__:'update'},{__type__:'update'},{__type__:'update'},currentErrorValue.message];}}")
+                current_canvas_status=gr.Textbox(label='프레임 표시 상태',interactive=False,value='완료된 결과를 조회하세요.')
+                current_canvas_legend=gr.Markdown('원본 → 복장 겹쳐보기')
+                current_canvas_timer=gr.Timer(1)
+                current_canvas_timer.tick(fn=None,outputs=[current_canvas_status,current_canvas_legend,current_view_choice,*current_transform_inputs[:3],current_frame_input],queue=False,show_progress='hidden',js="()=>{const currentFrameDocument=document.querySelector('#separation-result-preview iframe')?.contentDocument;const currentUnchangedFields=Array.from({length:5},()=>({__type__:'update'}));if(!currentFrameDocument)return ['완료된 결과를 조회하세요.','',...currentUnchangedFields];const currentStatusText=currentFrameDocument.querySelector('#status')?.textContent||'결과 준비 중';const currentPanelTitles=Array.from(currentFrameDocument.querySelectorAll('[data-review-part]:not([hidden]) h3')).map(currentTitleElement=>currentTitleElement.textContent);const currentResultChanged=window.separationReviewedDocument!==currentFrameDocument;window.separationReviewedDocument=currentFrameDocument;return [currentStatusText,currentPanelTitles.join(' → '),...(currentResultChanged?['compare',0,0,1,1]:currentUnchangedFields)];}")
+                current_preview_output = gr.HTML(build_separation_preview(current_server_address, ''),elem_id='separation-result-preview')
+                with gr.Accordion('검수 기준과 표시 한계',open=False):
+                    gr.Markdown('독립 생성된 결과의 위치·포즈·비율, 사람 잔상과 경계를 확인하세요. PNG의 저장된 알파를 그대로 표시하며 이전 RGB 결과는 불투명합니다. 네이티브 알파의 경계·그림자·닫힌 빈 공간은 추가 검수가 필요합니다. 생성 완료는 정합 검수 통과를 의미하지 않습니다. 단일 프레임은 재생 없이 비교하세요.')
                 current_download_output = gr.Markdown('신규 베이스·복장은 RGBA 후보입니다. 포즈·위치·비율·배경 잔상과 흰 의복 경계를 검수하세요.')
         current_log_output, current_log_refresh, _ = build_execution_logs()
         def start_separation_job(*current_argument_values):
@@ -95,7 +113,7 @@ def build_separation_interface(current_server_address):
             current_frame_progress = current_status_record.get('separation', {})
             current_stage_label = {'base': '신체 베이스 생성', 'outfit': '복장 생성', 'completed': '완료'}.get(current_frame_progress.get('stage'), '대기')
             current_download_url = current_status_record.get('download')
-            return ('상태: ' + format_generation_status(current_status_record) + f" · 완료 프레임 {current_frame_progress.get('completed', 0)}/{current_frame_progress.get('total', '?')} · 단계 {current_stage_label}" + ('' if current_status_record.get('status') == 'completed' else ' · 예상 남은 시간·완료 시각: 추정 자료 수집 중'), current_status_record.get('log', '') if current_refresh_logs else gr.skip(), build_separation_preview(current_server_address, current_job_identifier) if current_download_url else gr.skip(), f'[후보 시트·원본·메타데이터 ZIP 다운로드]({current_server_address}{current_download_url})' if current_download_url else gr.skip())
+            return ('상태: ' + format_generation_status(current_status_record) + f" · 완료 프레임 {current_frame_progress.get('completed', 0)}/{current_frame_progress.get('total', '?')} · 단계 {current_stage_label}" + ('' if current_status_record.get('status') == 'completed' else ' · 예상 남은 시간·완료 시각: 추정 자료 수집 중'), current_status_record.get('log', '') if current_refresh_logs else gr.skip(), build_separation_preview(current_server_address, current_job_identifier) if current_download_url else gr.skip(), f'[신체 베이스 PNG]({current_server_address}/animation-separation/jobs/{current_job_identifier}/base-sheet.png) · [복장 PNG]({current_server_address}/animation-separation/jobs/{current_job_identifier}/outfit-sheet.png) · [전체 결과 ZIP]({current_server_address}{current_download_url})' if current_download_url else gr.skip())
         current_refresh_button.click(read_current_result, [current_job_control, current_log_refresh], [current_status_output, current_log_output, current_preview_output, current_download_output], queue=False)
         current_cancel_button.click(lambda current_job_identifier: str(execute_separation_gateway('cancel', {'id': current_job_identifier})), current_job_control, current_status_output)
         bind_gpu_generation_confirmation(current_resume_button, lambda current_job_identifier: str(execute_separation_gateway('resume', {'id': current_job_identifier})), current_job_control, current_status_output)
