@@ -26,16 +26,6 @@
  .anchor-workspace .preview-ground-controls{grid-template-columns:minmax(0,1fr)}
  .anchor-workspace .editor-save-panel .primary{margin-left:0}
 }
-/* Gradio의 컴포넌트 기본 스타일보다 검수 도구의 공용 토큰을 우선한다. */
-#static-review-root{background:var(--page)!important;color:var(--text-primary)!important;border-radius:10px}
-#static-review-root .anchor-controls{grid-template-columns:minmax(0,1fr)!important}
-#static-review-root .anchor-workspace :is(h2,legend,label,summary,button,select,input){color:var(--text-primary)!important}
-#static-review-root .anchor-workspace :is(select,input[type=number]){background:var(--input-background)!important;border:1px solid var(--input-border)!important}
-#static-review-root .anchor-workspace button{background:var(--surface-control)!important;border:1px solid var(--button-border)!important;padding:6px 10px!important;font-size:13px!important;min-height:36px!important;color:var(--text-primary)!important}
-#static-review-root .anchor-workspace button.primary{background:var(--accent)!important;color:var(--page)!important}
-#static-review-root .anchor-workspace p{color:var(--text-secondary)!important}
-#static-review-root .anchor-workspace .preview-display-settings:not([open])>.preview-ground-controls{display:none!important}
-
 /* 편집 → 미리보기 → 저장 이력 순서로 배치한다. */
 #static-review-root .anchor-workspace,.anchor-workspace{display:grid;grid-template-columns:minmax(200px,220px) minmax(0,1fr);grid-template-rows:auto auto auto;height:auto;gap:12px}
 #static-review-root .anchor-workspace>.editor-save-panel,.anchor-workspace>.editor-save-panel{grid-column:1/-1;grid-row:1;display:flex;flex-wrap:wrap;align-items:center;gap:8px;width:100%;box-sizing:border-box;min-width:0;padding:10px 12px}
@@ -80,14 +70,6 @@
 @media(max-width:520px){
  #static-review-root .anchor-workspace>.anchor-controls,.anchor-workspace>.anchor-controls{grid-template-columns:minmax(0,1fr)!important}
 }
-/* 편집 화면의 바깥 여백을 줄여 캔버스에 너비를 돌려준다. */
-.gradio-container:has(.anchor-workspace){max-width:none!important;padding:8px!important}
-.gradio-container:has(.anchor-workspace) main.contain{padding:0!important}
-#static-review-root:has(.anchor-workspace)>header{padding:8px 10px!important;margin-bottom:4px!important;gap:8px}
-#static-review-root:has(.anchor-workspace)>header h1{margin:0 0 4px;font-size:18px}
-#static-review-root:has(.anchor-workspace)>header p{margin:0;line-height:1.4}
-#static-review-root .anchor-workspace{padding:6px!important;gap:8px}
-#static-review-root .anchor-workspace .panel{padding:8px!important}
 .anchor-workspace .control-row{margin:6px 0}
 .anchor-workspace .coordinate-legend{margin-top:6px;gap:6px;font-size:11px}
 .anchor-workspace #frameStatus{margin:6px 0}

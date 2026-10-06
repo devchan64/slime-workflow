@@ -7,7 +7,7 @@ const reviewSourceMetadata=selectedActionReview?.source||initialReviewMetadata;
 const resolveReviewAssetUrl=assetPathValue=>selectedActionReview?selectedActionReview.frames.find(currentFrameRecord=>currentFrameRecord.image===assetPathValue)?.url||assetPathValue:window.resolveStaticReviewAssetUrl?.(assetPathValue)||assetPathValue;
 const actionChoiceElement=document.querySelector('#actionChoice');
 document.querySelector('#actionChoiceField').hidden=!availableActionReviews.length;
-for(const currentActionRecord of availableActionReviews)actionChoiceElement.add(new Option(currentActionRecord.source.displayNameKo,currentActionRecord.id));
+for(const currentActionRecord of availableActionReviews)actionChoiceElement.add(new Option(`${currentActionRecord.source.displayNameKo} · ${currentActionRecord.source.animationVersion}`,currentActionRecord.id));
 if(selectedActionReview)actionChoiceElement.value=selectedActionReview.id;
 const actionDraftStorageKey='animation-anchor-draft:'+reviewSourceMetadata.animationId+':'+reviewSourceMetadata.animationVersion;
 function selectReviewAnimationAction(){
@@ -303,7 +303,9 @@ window.anchorReviewSeekFrame=currentFrameNumber=>{
  return `${currentFrameNumber} / ${REVIEW_FRAME_COUNT} · 정지`;
 };
 if(window.parent!==window&&new URLSearchParams(window.location?.search).get('embedded')==='gradio-static'){
- const currentLegacyControls=[document.querySelector('.editor-save-panel'),document.querySelector('.anchor-history-panel'),document.querySelector('#actionChoiceField'),document.querySelector('#undoCoordinateChange').parentElement,document.querySelector('#copyPreviousAnchor'),document.querySelector('#resetCurrentFrame'),document.querySelector('#previousAnchorStatus'),document.querySelector('.preview-display-settings'),document.querySelector('.options'),document.querySelector('#tilePreviewToggle').parentElement,document.querySelector('#shadowPreviewToggle').parentElement,document.querySelector('.anchor-coordinate-inputs'),document.querySelector('.anchor-joypad'),directionChoiceElement.parentElement,pointChoiceElement.parentElement];
+ for(const currentStyleElement of document.querySelectorAll('style'))currentStyleElement.disabled=true;
+ const currentCanvasStyles=document.querySelector('#anchor-canvas-layout');currentCanvasStyles.disabled=false;currentCanvasStyles.media='all';
+ const currentLegacyControls=[document.querySelector('.anchor-preview h2'),document.querySelector('.coordinate-legend'),document.querySelector('#frameStatus'),document.querySelector('body>header'),document.querySelector('.anchor-controls'),document.querySelector('.editor-save-panel'),document.querySelector('.anchor-history-panel'),document.querySelector('#actionChoiceField'),document.querySelector('#undoCoordinateChange').parentElement,document.querySelector('#copyPreviousAnchor'),document.querySelector('#resetCurrentFrame'),document.querySelector('#previousAnchorStatus'),document.querySelector('.preview-display-settings'),document.querySelector('.options'),document.querySelector('#tilePreviewToggle').parentElement,document.querySelector('#shadowPreviewToggle').parentElement,document.querySelector('.anchor-coordinate-inputs'),document.querySelector('.anchor-joypad'),directionChoiceElement.parentElement,pointChoiceElement.parentElement];
  for(const currentControlElement of currentLegacyControls){const currentHiddenWrapper=document.createElement('div');currentHiddenWrapper.hidden=true;currentControlElement.before(currentHiddenWrapper);currentHiddenWrapper.append(currentControlElement);}
  for(const currentLabelSelector of ['label[for="directionChoice"]','label[for="pointChoice"]'])document.querySelector(currentLabelSelector).hidden=true;
  const currentPlaybackRow=document.querySelector('#previousFrame').parentElement;
