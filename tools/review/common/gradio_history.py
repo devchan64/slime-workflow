@@ -1,7 +1,5 @@
 """생성이력 수동 초기화의 공용 UI와 명령 연결."""
-import json
 import gradio as gr
-from pathlib import Path
 from tools.review.common.gradio_identifiers import build_generation_identifier
 from tools.review.common.gradio_results import build_generation_gallery
 from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_confirmation
@@ -230,6 +228,15 @@ def build_generation_history_view(execute_service_command,server_base_address,de
         gr.Markdown('첫 번째 열에서 작업을 선택한 뒤 결과 조회·입력값 불러오기·삭제를 사용하세요. 입력값을 불러오면 설정을 확인한 뒤 다시 생성할 수 있습니다.')
         history_cards_value=gr.HTML(value='',elem_id='generation-history-cards',js_on_load="watch('value',()=>{element.querySelectorAll('input[type=radio]').forEach(currentRadioInput=>{currentRadioInput.checked=currentRadioInput.hasAttribute('checked');});});element.addEventListener('change',(currentChangeEvent)=>{const currentRadioInput=currentChangeEvent.target;if(currentRadioInput.matches('input[type=radio]'))trigger('click',{identifier:currentRadioInput.value});});")
         (history_selected_panel, history_selection_summary, selected_identifier_value, result_lookup_button, restore_input_button, history_resume_button, history_cancel_button, history_delete_button)=build_history_selection_panel(restore_input_callback is not None, allow_individual_delete)
+        if allow_individual_delete:
+            current_delete_identifier=gr.State('')
+            with gr.Group(visible=False) as current_delete_panel:
+                gr.Markdown('### 선택한 생성 이력을 삭제할까요?')
+                current_delete_display=build_generation_identifier('삭제할 생성 ID')
+                gr.Markdown('현재 생성기의 정리 정책: '+deletion_scope_text+' 개별 삭제는 위 ID의 작업에만 적용됩니다.')
+                with gr.Row():
+                    current_delete_cancel=gr.Button('취소')
+                    current_delete_confirm=gr.Button('이력 삭제',variant='stop')
         history_remaining_cards=gr.Gallery(value=[],label='현재 페이지의 결과 미리보기',columns=2,object_fit='contain',interactive=False,visible=False,elem_id='generation-history-remaining-cards')
         result_identifier_value=build_generation_identifier('조회한 생성 ID', 'generation-history-result-anchor')
         result_status_value=gr.Markdown('')
@@ -347,14 +354,21 @@ def build_generation_history_view(execute_service_command,server_base_address,de
     if restore_input_callback is not None:reset_output_components.append(restore_input_button)
     reset_output_components.append(selected_identifier_value)
     if allow_individual_delete:
-        history_delete_confirmation=gr.Checkbox(value=False,visible=False)
         history_selection_value.change(lambda identifier:gr.update(interactive=bool(identifier)),history_selection_value,history_delete_button,queue=False)
-        def delete_selected_history(selected_job_identifier,confirmed_delete_value):
-            if confirmed_delete_value is not True:
-                return [gr.skip() for _ in reset_output_components]
-            if not selected_job_identifier:raise gr.Error('삭제할 이력을 선택하세요.')
-            execute_service_command('history-delete',{'id':selected_job_identifier})
-            return reset_view_values()
-        history_delete_button.click(delete_selected_history,[history_selection_value,history_delete_confirmation],reset_output_components,js=(Path(__file__).resolve().parents[1]/'ui/shared/history-delete-confirmation.js').read_text().replace('__DELETION_SCOPE_TEXT__',json.dumps(deletion_scope_text,ensure_ascii=False)),trigger_mode='once')
+        def close_delete_confirmation():
+            return gr.update(visible=False),'',''
+        current_delete_outputs=[current_delete_panel,current_delete_identifier,current_delete_display]
+        def open_delete_confirmation(current_selected_identifier):
+            if not current_selected_identifier:raise gr.Error('삭제할 이력을 선택하세요.')
+            return gr.update(visible=True),current_selected_identifier,current_selected_identifier
+        def delete_selected_history(current_selected_identifier,current_confirmed_identifier):
+            if not current_confirmed_identifier or current_selected_identifier!=current_confirmed_identifier:
+                raise gr.Error('삭제 대상이 변경되었습니다. 이력 삭제를 다시 선택하세요.')
+            execute_service_command('history-delete',{'id':current_confirmed_identifier})
+            return [*reset_view_values(),*close_delete_confirmation()]
+        history_delete_button.click(open_delete_confirmation,history_selection_value,current_delete_outputs,queue=False)
+        current_delete_cancel.click(close_delete_confirmation,outputs=current_delete_outputs,queue=False)
+        history_selection_value.change(close_delete_confirmation,outputs=current_delete_outputs,queue=False)
+        current_delete_confirm.click(delete_selected_history,[history_selection_value,current_delete_identifier],[*reset_output_components,*current_delete_outputs],trigger_mode='once')
     bind_history_reset_action(reset_control_values,execute_service_command,reset_view_values,reset_output_components)
     return read_history_page,[history_selection_value,history_count_value,history_page_value,history_cards_value,history_previous_button,history_next_button,history_remaining_cards,history_selected_panel]

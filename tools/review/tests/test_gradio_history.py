@@ -8,6 +8,21 @@ from tools.review.common.gradio_history import build_generation_history_view, co
 
 
 class GradioHistoryTest(unittest.TestCase):
+    def test_delete_confirmation_pins_identifier_and_cancel_does_not_delete(self):
+        current_service_mock=Mock(return_value={'records':[]})
+        with gr.Blocks() as current_interface_blocks:
+            build_generation_history_view(current_service_mock,'','기록 정책',allow_individual_delete=True)
+        current_callback_values={value.fn.__name__:value.fn for value in current_interface_blocks.fns.values() if value.fn is not None}
+        current_open_values=current_callback_values['open_delete_confirmation']('job-one')
+        self.assertEqual(current_open_values[1:],('job-one','job-one'))
+        self.assertEqual(current_callback_values['close_delete_confirmation']()[1:],('',''))
+        current_service_mock.assert_not_called()
+        with self.assertRaises(gr.Error):
+            current_callback_values['delete_selected_history']('job-two','job-one')
+        current_service_mock.assert_not_called()
+        current_callback_values['delete_selected_history']('job-one','job-one')
+        current_service_mock.assert_any_call('history-delete',{'id':'job-one'})
+
     def test_reset_requires_confirmation_and_sends_cli_contract(self):
         service_command_mock = Mock()
         refresh_history_mock = Mock(return_value=['목록'])
