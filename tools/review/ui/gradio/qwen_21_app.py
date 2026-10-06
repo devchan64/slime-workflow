@@ -1,7 +1,7 @@
 """추가 프롬프트 없는 Qwen Image 2.1 공용 UI 진입점."""
 import argparse
 import gradio as gr
-from qwen_2511_app import build_qwen_2511_interface, LOG_PANEL_STYLES, MANAGEMENT_SHARED_STYLES, HISTORY_CARD_SELECTION_SCRIPT
+from qwen_2511_app import build_qwen_2511_interface
 
 if __name__ == '__main__':
     argument_parser_value = argparse.ArgumentParser()
@@ -12,4 +12,4 @@ if __name__ == '__main__':
     parsed_argument_values = argument_parser_value.parse_args()
     build_qwen_2511_interface(f'http://127.0.0.1:{parsed_argument_values.review_port}', qwen21_mode_enabled=True).queue().launch(
         server_name='127.0.0.1', server_port=parsed_argument_values.port, root_path=parsed_argument_values.root_path,
-        theme=gr.themes.Soft(), js=HISTORY_CARD_SELECTION_SCRIPT, css=LOG_PANEL_STYLES+MANAGEMENT_SHARED_STYLES, allowed_paths=[])
+           allowed_paths=[])

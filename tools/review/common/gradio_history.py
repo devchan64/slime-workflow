@@ -3,6 +3,7 @@ import json
 import gradio as gr
 from pathlib import Path
 from tools.review.common.gradio_identifiers import build_generation_identifier
+from tools.review.common.gradio_results import build_generation_gallery
 from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_confirmation
 
 
@@ -10,16 +11,15 @@ HISTORY_SUMMARY_FIELD_NAMES=('tag','tile_type','motion','action','start_frame','
 HISTORY_SUMMARY_LABELS={'tag':'태그','tile_type':'타일','motion':'모션','action':'동작','width':'너비','height':'높이','resolution':'해상도','target_fps':'타겟 FPS','speed':'배속','steps':'스텝','seed':'시드'}
 HISTORY_STATUS_LABELS={'paused':'검수 대기', 'queued':'GPU 대기 중','running':'생성 중','completed':'완료','cancelled':'중지됨','failed':'실패','missing':'기록 누락','unknown':'상태 미상'}
 HISTORY_PROGRESS_STAGE_LABELS={'paused':'검수 대기', 'queued':'GPU 대기 중','starting':'생성 준비 중','load':'모델 로딩 중','inference':'추론 중','saving':'결과 저장 중','completed':'완료','failed':'실패'}
-HISTORY_CARD_SELECTION_SCRIPT="""()=>{if(window.__slimeHistoryCardSelectionBound)return;window.__slimeHistoryCardSelectionBound=true;document.addEventListener('click',(clickEvent)=>{const selectedCardElement=clickEvent.target.closest('[data-job-id]');if(!selectedCardElement)return;const selectedJobIdentifier=selectedCardElement.dataset.jobId;const selectionInputElement=[...document.querySelectorAll('#generation-history-selection input')].find((inputElement)=>inputElement.value===selectedJobIdentifier);selectionInputElement?.click();});}"""
 
 
 
 def build_history_selection_panel(allow_restore_inputs=False, allow_history_delete=False):
     """선택 이력의 ID 복사·상태·명령 버튼을 공용 패널로 구성한다."""
-    with gr.Column(visible=False,elem_classes=['generation-history-selected-actions']) as history_selected_panel:
+    with gr.Column(visible=False,variant='panel') as history_selected_panel:
         selected_identifier_value=build_generation_identifier('생성 ID')
         history_selection_summary=gr.Markdown('목록에서 작업을 선택하세요. 결과 조회·입력 재사용·중지·재개를 할 수 있습니다.')
-        with gr.Row(elem_classes=['generation-history-actions']+(['generation-history-actions-five'] if allow_history_delete else [])):
+        with gr.Row(equal_height=True):
             result_lookup_button=gr.Button('결과 조회',variant='primary',interactive=False)
             if allow_restore_inputs:
                 restore_input_button=gr.Button('입력값 불러오기',interactive=False)
@@ -114,7 +114,7 @@ def format_history_progress(current_progress_record):
     current_completed_value=current_progress_record.get('completed_frames',current_progress_record.get('step'))
     current_total_value=current_progress_record.get('total_frames',current_progress_record.get('total'))
     if isinstance(current_percent_value,(int,float)) and current_total_value:
-        return f'{current_label_value} {current_percent_value:g}% · {current_completed_value}/{current_total_value}'+current_progress_record.get('unit','스텝')
+        return f'{current_label_value} {current_percent_value:g}% · {current_completed_value}/{current_total_value}'+current_progress_record.get('unit','프레임 저장' if 'completed_frames' in current_progress_record else '스텝')
     current_queue_position=current_progress_record.get('queue_position')
     return current_label_value+(f' · 대기 순서 {current_queue_position}' if current_queue_position else '')
 
@@ -163,88 +163,59 @@ def bind_history_reset_action(control_component_values,execute_service_command,r
     return execute_confirmed_reset
 
 
-def render_history_detail_cards(history_record_values, selected_history_identifier=None, server_base_address=""):
-    """저장값을 이스케이프하여 선택 가능한 상세 카드로 표시한다."""
-    import html
-    card_html_values=[]
-    for current_history_record in history_record_values:
-        current_job_identifier=current_history_record['id']
+def build_history_table_rows(current_history_records):
+    """기본 Dataframe에 전달할 이력·진행 정보를 만든다."""
+    current_table_rows=[]
+    for current_history_record in current_history_records:
         current_status_record=current_history_record.get('status',{})
-        current_status_name=current_status_record.get('status','unknown') if isinstance(current_status_record,dict) else current_status_record
-        current_request_record=current_history_record.get('request',{})
-        current_action_name=current_request_record.get('action')
-        if current_action_name in ('generate','prepare'):
-            current_action_name=None
-        current_task_name=current_request_record.get('motion') or current_action_name or current_request_record.get('tile_type') or ('이미지 생성' if current_request_record.get('prompt') else '생성 작업')
-        current_tag_name=current_request_record.get('tag')
-        current_card_title=(str(current_tag_name)+' · '+str(current_task_name)) if isinstance(current_tag_name,str) and current_tag_name.strip() else current_task_name
-        current_created_text=format_history_created_time(current_history_record).split('.')[0]
-        current_detail_values=[]
-        for current_field_name in HISTORY_SUMMARY_FIELD_NAMES:
-            if current_field_name not in current_request_record or current_field_name in ('motion','action','tile_type','end_frame'):continue
-            current_field_value=current_request_record[current_field_name]
-            if current_field_name=='start_frame':current_field_value=f"{current_field_value}–{current_request_record.get('end_frame',current_field_value)}"
-            if current_field_name=='directions' and isinstance(current_field_value,list):current_field_value=f'{len(current_field_value)}방향'
-            current_field_label={'start_frame':'프레임','directions':'방향'}.get(current_field_name,HISTORY_SUMMARY_LABELS.get(current_field_name,current_field_name))
-            current_detail_values.append(f'<div><dt>{html.escape(current_field_label)}</dt><dd>{html.escape(str(current_field_value))}</dd></div>')
-        current_selected_flag=current_job_identifier==selected_history_identifier
-        current_image_path=current_history_record.get('image')
-        if current_image_path:
-            current_image_url=current_image_path if current_image_path.startswith(('http://','https://')) else server_base_address.rstrip('/')+'/'+current_image_path.lstrip('/')
-            current_thumbnail_html=f'<img class="history-card-thumbnail" src="{html.escape(current_image_url,quote=True)}" alt="생성 결과 미리보기" loading="lazy" decoding="async">'
-        else:
-            current_thumbnail_html='<span class="history-card-thumbnail history-card-placeholder">'+('결과 준비 중' if current_status_name in ('queued','running') else '이미지 없음')+'</span>'
-        progress_html_value = ''
-        progress_record_value=current_history_record.get('progress') or (current_status_record.get('progress') if isinstance(current_status_record,dict) else None)
-        if progress_record_value:
-            progress_percent_raw_value=progress_record_value.get('percent')
-            progress_percent_value=max(0,min(100,float(progress_percent_raw_value))) if isinstance(progress_percent_raw_value,(int,float)) else None
-            progress_title_value=progress_record_value.get('label',HISTORY_PROGRESS_STAGE_LABELS.get(progress_record_value.get('stage','starting'),'진행 상태'))
-            progress_label_value=format_history_progress(progress_record_value)
-            if progress_record_value.get('current_source_frame') is not None:
-                progress_label_value += f" · Fra:{progress_record_value['current_source_frame']}"
-            if progress_record_value.get('detail'):
-                progress_label_value += ' · '+progress_record_value['detail']
-            progress_bar_html_value=f'<progress style="width:100%" value="{progress_percent_value}" max="100" aria-label="{html.escape(progress_title_value,quote=True)} 진행률"></progress>' if progress_percent_value is not None else ''
-            progress_html_value = f'<span class="history-card-progress">{html.escape(progress_label_value)}{progress_bar_html_value}</span>'
-        card_html_values.append(f'<button type="button" class="generation-detail-card" data-job-id="{html.escape(current_job_identifier,quote=True)}" aria-pressed="{str(current_selected_flag).lower()}"><span class="history-card-content">{current_thumbnail_html}<span class="history-card-fields"><span class="history-card-heading"><strong>{html.escape(str(current_card_title))}</strong><span class="history-card-state">{html.escape(format_generation_status(current_status_record))}</span></span><time>{html.escape(current_created_text)}</time><dl>{"".join(current_detail_values)}</dl></span></span>{progress_html_value}<span class="history-card-id">ID · {html.escape(current_job_identifier)}</span><span class="history-card-select">{"선택됨" if current_selected_flag else "이 작업 선택"}</span></button>')
-    return '<div class="generation-detail-cards">'+''.join(card_html_values)+'</div>'
+        current_progress_record=current_history_record.get('progress') or (current_status_record.get('progress',{}) if isinstance(current_status_record,dict) else {})
+        current_progress_text=format_history_progress(current_progress_record) if current_progress_record else ''
+        if current_progress_record.get('current_source_frame') is not None:
+            current_progress_text+=f" · Fra:{current_progress_record['current_source_frame']}"
+        if current_progress_record.get('detail'):
+            current_progress_text+=' · '+str(current_progress_record['detail'])
+        current_table_rows.append([format_generation_status(current_status_record),format_history_created_time(current_history_record),format_history_request_summary(current_history_record.get('request',{})),current_progress_text,current_history_record['id']])
+    return current_table_rows
 
 
-def render_generation_images(current_status_record, server_base_address):
+def collect_history_result_images(current_status_record, server_base_address):
     """저장된 원본·보더 크롭을 이름과 함께 공용 결과 영역에 표시한다."""
-    import html
     result_image_sections=[]
     for result_field_name,result_image_label in (('image','생성 원본'),('repeated_image','추출 타일 반복 검수'),('separated_image','최종 · 단일 타일 생성'),('detected_image','사각형 검출'),('extracted_image','2행 2열 중앙 타일'),('rectified_image','정사각형 보정·크롭'),('cropped_image','보더 크롭 결과')):
         current_image_path=current_status_record.get(result_field_name)
         if not current_image_path:
             continue
         current_image_url=server_base_address.rstrip('/')+current_image_path
-        escaped_image_url=html.escape(current_image_url,quote=True)
-        result_image_sections.append(f'<section><h3>{result_image_label}</h3><a href="{escaped_image_url}" target="_blank" rel="noopener"><img src="{escaped_image_url}" alt="{result_image_label}"></a></section>')
-    return '<div class="generation-result-images">'+''.join(result_image_sections)+'</div>' if result_image_sections else '<p>아직 생성된 결과 이미지가 없습니다.</p>'
+        result_image_sections.append((current_image_url,result_image_label))
+    return result_image_sections
+
+
+def render_generation_images(current_status_record, server_base_address):
+    """기존 기능용 HTML 결과 렌더러의 호환 표현."""
+    import html
+    current_result_items=collect_history_result_images(current_status_record,server_base_address)
+    return ''.join(f'<section><h3>{html.escape(current_image_label)}</h3><img width="100%" src="{html.escape(current_image_url,quote=True)}" alt="{html.escape(current_image_label)}"></section>' for current_image_url,current_image_label in current_result_items) or '<p>아직 생성된 결과 이미지가 없습니다.</p>'
 
 
 def build_generation_history_view(execute_service_command,server_base_address,deletion_scope_text,restore_input_callback=None,restore_output_components=None,result_renderer_callback=None,record_folder_route=None,allow_individual_delete=False):
     """목록·페이지·명시적 조회·결과·입력·로그·초기화를 묶은 공용 영역."""
     import html
     from tools.review.common.gradio_logs import build_execution_logs,create_copyable_log_textbox
-    with gr.Column(elem_classes=['generation-history-workspace']):
+    with gr.Column():
         gr.Markdown('### 생성 이력',elem_classes=['generation-history-heading'])
-        with gr.Row(elem_classes=['generation-history-toolbar']):
-            with gr.Column(scale=3,min_width=0):
-                history_count_value=gr.Markdown('이력을 불러오는 중입니다.')
-            history_refresh_button=gr.Button('새로고침',variant='secondary',scale=0,min_width=90)
-            history_previous_button=gr.Button('← 이전',scale=0,min_width=80,interactive=False)
+        history_count_value=gr.Markdown('이력을 불러오는 중입니다.')
+        with gr.Row(equal_height=True):
+            history_refresh_button=gr.Button('새로고침',variant='secondary',scale=0,min_width=120)
+            history_previous_button=gr.Button('← 이전',scale=0,min_width=120,interactive=False)
             history_page_value=gr.Number(value=1,minimum=1,precision=0,label='페이지 이동',show_label=False,container=False,scale=0,min_width=60,elem_classes=['generation-history-page'])
-            history_next_button=gr.Button('다음 →',scale=0,min_width=80,interactive=False)
-        history_selection_value=gr.Radio(choices=[],label='이력 선택',interactive=True,elem_id='generation-history-selection',elem_classes=['generation-history-selection-input'])
-        history_cards_value=gr.HTML(render_history_detail_cards([]),elem_id='generation-history-cards')
+            history_next_button=gr.Button('다음 →',scale=0,min_width=120,interactive=False)
+        history_selection_value=gr.Dropdown(choices=[],value=None,label='이력 선택',info='작업을 선택한 뒤 결과 조회·입력값 불러오기·중지·재개를 사용하세요.',interactive=True,elem_id='generation-history-selection')
+        history_cards_value=gr.Dataframe(headers=['상태','생성 시각','설정','진행','ID'],value=[],datatype='str',type='array',interactive=False,wrap=True,label='현재 페이지의 생성 이력',elem_id='generation-history-cards')
         (history_selected_panel, history_selection_summary, selected_identifier_value, result_lookup_button, restore_input_button, history_resume_button, history_cancel_button, history_delete_button)=build_history_selection_panel(restore_input_callback is not None, allow_individual_delete)
-        history_remaining_cards=gr.HTML('',elem_id='generation-history-remaining-cards')
+        history_remaining_cards=gr.Gallery(value=[],label='현재 페이지의 결과 미리보기',columns=2,object_fit='contain',interactive=False,visible=False,elem_id='generation-history-remaining-cards')
         result_identifier_value=build_generation_identifier('조회한 생성 ID', 'generation-history-result-anchor')
         result_status_value=gr.Markdown('')
-        result_image_value=gr.HTML(visible=False)
+        result_image_value=gr.HTML(visible=False) if result_renderer_callback is not None else build_generation_gallery('조회한 생성 결과')
         with gr.Accordion('기록 위치 · 저장 입력',open=False):
             result_path_value=create_copyable_log_textbox(label='기록 폴더 절대 경로',interactive=False)
             folder_open_button_value=gr.Button('기록 폴더 열기',interactive=record_folder_route is not None,size='sm')
@@ -283,10 +254,10 @@ def build_generation_history_view(execute_service_command,server_base_address,de
         for current_history_record in current_page_records:
             current_choice_values.append((format_history_choice_label(current_history_record),current_history_record['id']))
         selected_history_identifier=current_selected_identifier if current_selected_identifier in [value for _,value in current_choice_values] else None
-        selected_card_end=next((index+1 for index,record in enumerate(current_page_records) if record['id']==selected_history_identifier),len(current_page_records))
         # 목록과 선택값을 함께 갱신하여 브라우저와 서버의 선택 상태를 맞춘다.
         selection_update_values = {'choices':current_choice_values, 'value':selected_history_identifier}
-        return gr.update(**selection_update_values),f'총 {len(current_history_records)}건 · {current_page_number} / {current_page_count}페이지' if current_history_records else '생성 이력이 없습니다. 위 설정에서 생성을 시작하세요.',gr.update(value=current_page_number,maximum=current_page_count,interactive=current_page_count>1),render_history_detail_cards(current_page_records[:selected_card_end],selected_history_identifier,server_base_address),gr.update(interactive=current_page_number>1),gr.update(interactive=current_page_number<current_page_count),render_history_detail_cards(current_page_records[selected_card_end:],None,server_base_address),gr.update(visible=bool(selected_history_identifier))
+        current_thumbnail_items=collect_image_history_thumbnails(current_page_records,server_base_address)[0]
+        return gr.update(**selection_update_values),f'총 {len(current_history_records)}건 · {current_page_number} / {current_page_count}페이지' if current_history_records else '생성 이력이 없습니다. 위 설정에서 생성을 시작하세요.',gr.update(value=current_page_number,maximum=current_page_count,interactive=current_page_count>1),build_history_table_rows(current_page_records),gr.update(interactive=current_page_number>1),gr.update(interactive=current_page_number<current_page_count),gr.update(value=current_thumbnail_items,visible=bool(current_thumbnail_items)),gr.update(visible=bool(selected_history_identifier))
 
     def update_selected_card_layout(current_page_number,current_selected_identifier):
         current_page_updates=read_history_page(current_page_number,current_selected_identifier)
@@ -299,7 +270,7 @@ def build_generation_history_view(execute_service_command,server_base_address,de
         current_status_record=execute_service_command('status',{'id':current_selected_identifier})
         current_history_records=execute_service_command('history',{}).get('records',[])
         current_history_record=next((value for value in current_history_records if value['id']==current_selected_identifier),{})
-        current_image_html=result_renderer_callback(current_selected_identifier,current_status_record,server_base_address) if result_renderer_callback is not None else render_generation_images(current_status_record,server_base_address)
+        current_image_html=result_renderer_callback(current_selected_identifier,current_status_record,server_base_address) if result_renderer_callback is not None else collect_history_result_images(current_status_record,server_base_address)
         return current_selected_identifier,current_history_record.get('path','기록 경로가 없습니다.'),'상태: '+format_generation_status(current_status_record)+' · '+str(current_status_record.get('message',''))+(' · 대기 순서 '+str(current_status_record['queue_position']) if 'queue_position' in current_status_record else ''),gr.update(value=current_image_html,visible=True),current_history_record,gr.update(value=current_status_record.get('log') or '기록된 로그가 없습니다.',label='실행 로그 · '+current_selected_identifier)
 
     def describe_selected_history(current_selected_identifier):
@@ -342,7 +313,7 @@ def build_generation_history_view(execute_service_command,server_base_address,de
         log_panel_value.expand(refresh_selected_logs,[result_identifier_value,log_refresh_value],log_output_value,queue=False)
     if hasattr(gr,'Timer'):gr.Timer(3).tick(refresh_selected_logs,[result_identifier_value,log_refresh_value],log_output_value,queue=False,show_progress='hidden')
     def reset_view_values():
-        reset_output_values=[*read_history_page(1),'','','',gr.update(value='',visible=False),{},gr.update(value='',label='작업을 선택하세요'),'목록에서 작업을 선택하세요. 결과 조회·입력 재사용·중지·재개를 할 수 있습니다.',gr.update(interactive=False)]
+        reset_output_values=[*read_history_page(1),'','','',gr.update(value='' if result_renderer_callback is not None else [],visible=False),{},gr.update(value='',label='작업을 선택하세요'),'목록에서 작업을 선택하세요. 결과 조회·입력 재사용·중지·재개를 할 수 있습니다.',gr.update(interactive=False)]
         if restore_input_callback is not None:reset_output_values.append(gr.update(interactive=False))
         reset_output_values.append('')
         return reset_output_values

@@ -9,9 +9,8 @@ import gradio as gr
 WORKFLOW_ROOT_DIRECTORY = Path(__file__).resolve().parents[4]
 if str(WORKFLOW_ROOT_DIRECTORY) not in sys.path: sys.path.insert(0,str(WORKFLOW_ROOT_DIRECTORY))
 from tools.review.common.management_client import execute_remote_management_command as execute_management_command
-from tools.review.common.gradio_history import HISTORY_CARD_SELECTION_SCRIPT, build_generation_history_view
+from tools.review.common.gradio_history import build_generation_history_view
 from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_confirmation
-MANAGEMENT_SHARED_STYLES = ''.join((Path(__file__).parents[1]/'shared'/style_file_name).read_text() for style_file_name in ('management.css','management-density.css'))
 from tools.review.common.gradio_seed import build_generation_seed
 from tools.review.domains.tile.floor_generation import combine_floor_prompt, compose_floor_base_prompt
 
@@ -22,7 +21,7 @@ def execute_floor_gateway(command_name_value,payload_record_value):
 
 def build_floor_interface(server_base_address):
     catalog_record_value = execute_floor_gateway('catalog',{})
-    with gr.Blocks(title='맵 타일 생성기',js=HISTORY_CARD_SELECTION_SCRIPT,elem_classes=['management-generator-root']) as interface_block_value:
+    with gr.Blocks(title='맵 타일 생성기',elem_classes=['management-generator-root']) as interface_block_value:
         gr.Markdown('## 맵 타일 생성기\nQwen 2511로 512×512 맵 타일을 4스텝으로 한 번 생성합니다. 사용자 프롬프트를 고정 기본 프롬프트 앞에 배치합니다.')
         with gr.Row(equal_height=True):
             user_prompt_control = gr.Textbox(value=catalog_record_value['default_user_prompt'],label='사용자 프롬프트 · 바닥 표면',lines=3,scale=1,min_width=240)
@@ -87,4 +86,4 @@ if __name__=='__main__':
     argument_parser_value.add_argument('--owner-pid',type=int,required=True)
     argument_parser_value.add_argument('--root-path',default='/management/frame/floor-tile-generator/')
     parsed_argument_values = argument_parser_value.parse_args()
-    build_floor_interface(f'http://127.0.0.1:{parsed_argument_values.review_port}').queue().launch(server_name='127.0.0.1',server_port=parsed_argument_values.port,root_path=parsed_argument_values.root_path,css=MANAGEMENT_SHARED_STYLES)
+    build_floor_interface(f'http://127.0.0.1:{parsed_argument_values.review_port}').queue().launch(server_name='127.0.0.1',server_port=parsed_argument_values.port,root_path=parsed_argument_values.root_path)

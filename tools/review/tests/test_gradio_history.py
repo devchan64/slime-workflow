@@ -4,7 +4,7 @@ from unittest.mock import Mock
 import gradio as gr
 from tools.review.common.gradio_history import bind_history_reset_action
 
-from tools.review.common.gradio_history import build_generation_history_view, collect_image_history_thumbnails, format_history_choice_label, format_history_selection_summary, render_history_detail_cards
+from tools.review.common.gradio_history import build_generation_history_view, collect_image_history_thumbnails, format_history_choice_label, format_history_selection_summary, build_history_table_rows
 
 
 class GradioHistoryTest(unittest.TestCase):
@@ -62,9 +62,9 @@ class GradioHistoryTest(unittest.TestCase):
         self.assertEqual(thumbnail_identifier_values,['completed-image'])
 
     def test_history_card_uses_tag_and_image_type_as_heading(self):
-        rendered_history_html=render_history_detail_cards([{'id':'image-123','created_at':'2026-09-27T09:15:00+09:00','status':{'status':'completed'},'request':{'action':'generate','tag':'돌온재 자갈 지면','prompt':'gravel ground','width':512,'steps':4}}])
-        self.assertIn('돌온재 자갈 지면 · 이미지 생성',rendered_history_html)
-        self.assertNotIn('<strong>생성 작업</strong>',rendered_history_html)
+        rendered_history_html=build_history_table_rows([{'id':'image-123','created_at':'2026-09-27T09:15:00+09:00','status':{'status':'completed'},'request':{'action':'generate','tag':'돌온재 자갈 지면','prompt':'gravel ground','width':512,'steps':4}}])
+        self.assertIn('돌온재 자갈 지면',rendered_history_html[0][2])
+        self.assertEqual(rendered_history_html[0][3],'')
 
     def test_result_view_displays_original_and_crop_with_labels(self):
         from tools.review.common.gradio_history import render_generation_images

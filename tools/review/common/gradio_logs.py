@@ -2,7 +2,6 @@
 import inspect
 import gradio as gr
 
-LOG_PANEL_STYLES = '.management-log-output textarea{font-family:ui-monospace,monospace!important;font-size:13px!important;line-height:1.65!important;background:#0d1420!important;color:#c8d7e9!important;overflow:auto!important;resize:vertical!important}'
 
 def create_copyable_log_textbox(**textbox_keyword_values):
     copy_option_name='show_copy_button' if 'show_copy_button' in inspect.signature(gr.Textbox).parameters else 'buttons'
@@ -11,7 +10,7 @@ def create_copyable_log_textbox(**textbox_keyword_values):
 
 def build_execution_logs():
     with gr.Accordion('실행 로그 · 펼쳐서 확인',open=False) as log_panel_element:
-        with gr.Row():
+        with gr.Row(equal_height=True):
             log_refresh_enabled=gr.Checkbox(value=True,label='자동 갱신 · 끄면 현재 내용을 유지합니다')
             log_follow_enabled=gr.Checkbox(value=True,label='최신 줄 따라가기')
             log_latest_button=gr.Button('마지막 줄로 이동')

@@ -12,9 +12,10 @@ import gradio as gr
 WORKFLOW_ROOT_DIRECTORY=Path(__file__).resolve().parents[4]
 if str(WORKFLOW_ROOT_DIRECTORY) not in sys.path:sys.path.insert(0,str(WORKFLOW_ROOT_DIRECTORY))
 from tools.review.common.gradio_identifiers import build_generation_identifier
+from tools.review.common.gradio_results import build_generation_gallery, collect_generation_gallery
 from tools.review.common.gradio_seed import build_generation_seed
-from tools.review.common.gradio_logs import build_execution_logs, LOG_PANEL_STYLES
-from tools.review.common.gradio_history import HISTORY_CARD_SELECTION_SCRIPT, build_generation_history_view
+from tools.review.common.gradio_logs import build_execution_logs
+from tools.review.common.gradio_history import build_generation_history_view
 from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_confirmation
 from tools.review.common.management_client import execute_remote_management_command as execute_management_command
 
@@ -46,12 +47,8 @@ def format_generation_status(status_record_value):
     detail_text_value=status_record_value.get('error') or status_record_value.get('message') or ''
     return f"상태: {status_record_value.get('status','unknown')}{progress_text_value}"+(f' · {detail_text_value}' if detail_text_value else '')
 
-def create_result_preview_html(image_url_value):
-    if not image_url_value:return '<div class="image-result-empty">완료된 결과 이미지를 선택하면 여기에 표시됩니다.</div>'
-    return f'<img class="qwen-result-image" src="{html.escape(image_url_value,quote=True)}" alt="Qwen 생성 결과">'
-
 def build_qwen_2512_interface(server_base_address):
-    with gr.Blocks(title='Qwen 2512 이미지 생성기',js=HISTORY_CARD_SELECTION_SCRIPT) as interface_blocks_value:
+    with gr.Blocks(title='Qwen 2512 이미지 생성기') as interface_blocks_value:
         gr.Markdown('## Qwen 2512 이미지 생성기\n프롬프트와 고정 생성 설정으로 이미지를 만들고, 실행 이력·로그·결과를 같은 기록에서 확인합니다.')
         with gr.Row():
             with gr.Column(scale=1,min_width=360):
@@ -73,7 +70,7 @@ def build_qwen_2512_interface(server_base_address):
                 gr.Markdown('실행 중인 작업은 아래 생성 이력에서 선택한 뒤 **작업 중지**를 사용하세요.')
             with gr.Column(scale=2,min_width=520):
                 generation_identifier_value=build_generation_identifier()
-                result_preview_value=gr.HTML(create_result_preview_html(None))
+                result_preview_value=build_generation_gallery()
         log_output_value,log_refresh_enabled,_=build_execution_logs()
         read_history_page,history_output_values=build_generation_history_view(
             execute_image_gateway,
@@ -98,16 +95,13 @@ def build_qwen_2512_interface(server_base_address):
             if not generation_identifier_value:return '생성 ID를 선택하세요.',gr.skip(),gr.skip()
             status_record_value=execute_image_gateway('status',{'id':generation_identifier_value})
             log_update_value=gr.update(value=status_record_value.get('log','')) if refresh_log_enabled else gr.skip()
-            result_update_value=create_result_preview_html(status_record_value.get('image')) if status_record_value.get('image') else gr.skip()
+            result_update_value=gr.update(value=collect_generation_gallery(status_record_value.get('image'),server_base_address=server_base_address),visible=True) if status_record_value.get('image') else gr.skip()
             return format_generation_status(status_record_value),log_update_value,result_update_value
         refresh_button_value=gr.Button('상태 새로고침')
         refresh_button_value.click(refresh_generation_status,[generation_identifier_value,log_refresh_enabled],[generation_status_value,log_output_value,result_preview_value],queue=False)
         if hasattr(gr,'Timer'):gr.Timer(2).tick(refresh_generation_status,[generation_identifier_value,log_refresh_enabled],[generation_status_value,log_output_value,result_preview_value],show_progress='hidden')
     return interface_blocks_value
 
-from pathlib import Path as ManagementStylePath
-MANAGEMENT_DENSITY_STYLES=(ManagementStylePath(__file__).parents[1]/'shared/management-density.css').read_text()
-MANAGEMENT_SHARED_STYLES=(ManagementStylePath(__file__).parents[1]/'shared/management.css').read_text()+MANAGEMENT_DENSITY_STYLES
 
 if __name__=='__main__':
     parser_value=argparse.ArgumentParser();parser_value.add_argument('--port',type=int,required=True);parser_value.add_argument('--review-port',type=int,required=True);parser_value.add_argument('--owner-pid',type=int,required=True);parser_value.add_argument('--root-path',default='/management/frame/image-generator/');arguments_value=parser_value.parse_args()
@@ -115,5 +109,4 @@ if __name__=='__main__':
         while os.getppid()==arguments_value.owner_pid:time.sleep(1)
         os._exit(0)
     threading.Thread(target=monitor_parent_process,daemon=True).start()
-    application_css_text=LOG_PANEL_STYLES+'''.qwen-result-image{display:block;max-width:100%;max-height:720px;margin:auto;border:1px solid #314055;border-radius:12px;background:#10151f}.image-result-empty{min-height:420px;display:grid;place-items:center;border:1px dashed #40516a;border-radius:12px;color:#a7b5c8}'''
-    build_qwen_2512_interface(f'http://127.0.0.1:{arguments_value.review_port}').queue().launch(server_name='127.0.0.1',server_port=arguments_value.port,root_path=arguments_value.root_path,theme=gr.themes.Soft(),css=application_css_text+MANAGEMENT_SHARED_STYLES,allowed_paths=[])
+    build_qwen_2512_interface(f'http://127.0.0.1:{arguments_value.review_port}').queue().launch(server_name='127.0.0.1',server_port=arguments_value.port,root_path=arguments_value.root_path,allowed_paths=[])

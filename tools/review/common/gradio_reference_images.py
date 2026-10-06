@@ -1,8 +1,6 @@
 """건물 타일 생성기를 기준으로 한 공용 참조 이미지 입력 UI."""
 import gradio as gr
-from pathlib import Path
 
-REFERENCE_CLIPBOARD_SCRIPT = (Path(__file__).parents[1] / "ui/shared/reference-clipboard.js").read_text()
 
 REFERENCE_IMAGE_SLOT_COUNT = 3
 REFERENCE_IMAGE_CARD_HEIGHT = 230
@@ -23,8 +21,7 @@ def build_reference_image_inputs(*, reference_panel_visible=True, reference_pane
             for reference_slot_index in range(reference_slot_count):
                 with gr.Column(min_width=REFERENCE_IMAGE_MINIMUM_WIDTH, visible=not dynamic_slots_enabled or reference_slot_index == 0, elem_classes=['reference-upload-slot']) as reference_slot_group:
                     reference_slot_groups.append(reference_slot_group)
-                    reference_image_controls.append(gr.Image(type='pil', image_mode=reference_image_mode, sources=['upload'], label=reference_slot_labels[reference_slot_index] if reference_slot_labels else f'참조 이미지 {reference_slot_index+1}', height=REFERENCE_IMAGE_CARD_HEIGHT, elem_classes=['reference-upload-card'], placeholder='이미지 끌어놓기'))
-                    gr.HTML('<div class="reference-upload-actions"><button type="button" class="sm secondary" data-reference-action="upload">파일 불러오기</button><button type="button" class="sm secondary" data-reference-action="clipboard">클립보드 붙여넣기</button></div><p role="status" aria-live="polite"></p>', js_on_load=REFERENCE_CLIPBOARD_SCRIPT)
+                    reference_image_controls.append(gr.Image(type='pil', image_mode=reference_image_mode, sources=['upload', 'clipboard'], label=reference_slot_labels[reference_slot_index] if reference_slot_labels else f'참조 이미지 {reference_slot_index+1}', height=REFERENCE_IMAGE_CARD_HEIGHT, elem_classes=['reference-upload-card'], placeholder='이미지 끌어놓기'))
                     if dynamic_slots_enabled:
                         reference_delete_buttons.append(gr.Button('삭제', size='sm', variant='secondary'))
 

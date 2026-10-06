@@ -14,10 +14,10 @@ import yaml
 
 WORKFLOW_ROOT_DIRECTORY = Path(__file__).resolve().parents[4]
 sys.path.insert(0, str(WORKFLOW_ROOT_DIRECTORY))
-from tools.review.common.gradio_history import HISTORY_CARD_SELECTION_SCRIPT, build_generation_history_view
+from tools.review.common.gradio_history import build_generation_history_view
 from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_confirmation
 from tools.review.common.management_client import execute_remote_management_command as execute_management_command
-from tools.review.common.gradio_logs import build_execution_logs, LOG_PANEL_STYLES
+from tools.review.common.gradio_logs import build_execution_logs
 from tools.review.domains.momask.momask_generation import render_position_retarget_policy
 
 MOTION_ACTION_LABELS = [('대기','standing'),('걷기','walking'),('휴식','resting')]
@@ -95,7 +95,7 @@ def render_motion_history_result(generation_job_identifier,generation_status_rec
     return create_motion_player(generation_job_identifier,generation_status_record.get('result',{}),server_base_address)
 
 def build_momask_interface(server_base_address):
-    with gr.Blocks(title='MoMask 모션 생성기',js=HISTORY_CARD_SELECTION_SCRIPT) as interface_blocks_value:
+    with gr.Blocks(title='MoMask 모션 생성기') as interface_blocks_value:
         gr.Markdown('## MoMask 모션 생성기\n포즈와 방향을 설정해 모션을 생성하고, 아래 이력 카드에서 결과 재생·입력 재사용·중지·재개를 처리합니다.')
         with gr.Column(elem_id='motion-workspace'):
             gr.Markdown('### 새 모션 생성')
@@ -152,9 +152,6 @@ def build_momask_interface(server_base_address):
         interface_blocks_value.load(lambda:read_history_page(1),outputs=history_output_values)
     return interface_blocks_value
 
-from pathlib import Path as ManagementStylePath
-MANAGEMENT_DENSITY_STYLES=(ManagementStylePath(__file__).parents[1]/'shared/management-density.css').read_text()
-MANAGEMENT_SHARED_STYLES=(ManagementStylePath(__file__).parents[1]/'shared/management.css').read_text()+MANAGEMENT_DENSITY_STYLES
 
 if __name__=='__main__':
     argument_parser_value=argparse.ArgumentParser()
@@ -167,4 +164,4 @@ if __name__=='__main__':
         while os.getppid()==parsed_argument_values.owner_pid:time.sleep(1)
         os._exit(0)
     threading.Thread(target=monitor_parent_process,daemon=True).start()
-    build_momask_interface(f'http://127.0.0.1:{parsed_argument_values.review_port}').queue().launch(server_name='127.0.0.1',server_port=parsed_argument_values.port,root_path=parsed_argument_values.root_path,theme=gr.themes.Soft(),css=(Path(__file__).parent/'management-layout.css').read_text()+LOG_PANEL_STYLES+MANAGEMENT_SHARED_STYLES,allowed_paths=[])
+    build_momask_interface(f'http://127.0.0.1:{parsed_argument_values.review_port}').queue().launch(server_name='127.0.0.1',server_port=parsed_argument_values.port,root_path=parsed_argument_values.root_path,allowed_paths=[])

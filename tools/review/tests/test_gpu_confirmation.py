@@ -20,7 +20,7 @@ class GpuConfirmationTests(unittest.TestCase):
 
     def test_confirmation_script_requires_explicit_queue_approval(self):
         self.assertIn("fetch('/management/gpu-queue'", GPU_CONFIRMATION_SCRIPT)
-        self.assertIn("status==='busy'", GPU_CONFIRMATION_SCRIPT)
+        self.assertIn("status === 'busy'", GPU_CONFIRMATION_SCRIPT)
         self.assertIn('대기열에 추가', GPU_CONFIRMATION_SCRIPT)
-        self.assertIn('추가하지 않기', GPU_CONFIRMATION_SCRIPT)
-        self.assertIn("'tile-map':'타일맵 생성'", GPU_CONFIRMATION_SCRIPT)
+        self.assertIn('window.confirm(', GPU_CONFIRMATION_SCRIPT)
+        self.assertNotIn('cssText', GPU_CONFIRMATION_SCRIPT)

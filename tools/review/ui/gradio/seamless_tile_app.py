@@ -3,8 +3,8 @@ import argparse
 import html
 import gradio as gr
 from qwen_2511_app import (
-    WORKFLOW_ROOT_DIRECTORY, LOG_PANEL_STYLES, MANAGEMENT_SHARED_STYLES,
-    HISTORY_CARD_SELECTION_SCRIPT, build_generation_history_view, build_execution_logs,
+    WORKFLOW_ROOT_DIRECTORY,
+    build_generation_history_view, build_execution_logs,
     bind_gpu_generation_confirmation,
     build_reference_request,
     execute_management_command, result_preview_html,
@@ -133,4 +133,4 @@ if __name__ == '__main__':
     argument_parser_value.add_argument('--owner-pid',type=int,required=True)
     argument_parser_value.add_argument('--root-path',default='/management/frame/seamless-tile-generator/')
     parsed_argument_values = argument_parser_value.parse_args()
-    build_seamless_interface(f'http://127.0.0.1:{parsed_argument_values.review_port}').queue().launch(server_name='127.0.0.1',server_port=parsed_argument_values.port,root_path=parsed_argument_values.root_path,theme=gr.themes.Soft(),js=HISTORY_CARD_SELECTION_SCRIPT,css=LOG_PANEL_STYLES+MANAGEMENT_SHARED_STYLES,allowed_paths=[])
+    build_seamless_interface(f'http://127.0.0.1:{parsed_argument_values.review_port}').queue().launch(server_name='127.0.0.1',server_port=parsed_argument_values.port,root_path=parsed_argument_values.root_path,allowed_paths=[])

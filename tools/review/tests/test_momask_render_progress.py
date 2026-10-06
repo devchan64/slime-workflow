@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from tools.review.domains.momask.momask_jobs import read_render_progress
-from tools.review.common.gradio_history import render_history_detail_cards
+from tools.review.common.gradio_history import build_history_table_rows
 
 
 class MotionRenderProgressTests(unittest.TestCase):
@@ -19,7 +19,7 @@ class MotionRenderProgressTests(unittest.TestCase):
             self.assertEqual(progress['percent'], 25)
             self.assertEqual(progress['current_source_frame'], 149)
             self.assertEqual(progress['total_frames'], 4)
-            card = render_history_detail_cards([{'id': 'test', 'status': 'running', 'progress': progress}])
+            card = build_history_table_rows([{'id': 'test', 'status': 'running', 'progress': progress}])[0][3]
             self.assertIn('25%', card)
             self.assertIn('1/4프레임 저장', card)
             self.assertIn('Fra:149', card)

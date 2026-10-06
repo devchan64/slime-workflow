@@ -19,7 +19,7 @@ class Qwen2512GradioTests(unittest.TestCase):
 
     def test_prompt_word_count_and_result_preview(self):
         self.assertEqual(qwen_2512_app.count_prompt_words('  short scene prompt '),3)
-        self.assertIn('/image-generation/jobs/sample/result.png',qwen_2512_app.create_result_preview_html('/image-generation/jobs/sample/result.png'))
+        self.assertEqual(qwen_2512_app.collect_generation_gallery('/image-generation/jobs/sample/result.png',server_base_address='http://localhost:8770'),[('http://localhost:8770/image-generation/jobs/sample/result.png','생성 원본')])
 
     def test_restore_generation_inputs_uses_historical_request(self):
         restored_input_values=qwen_2512_app.restore_generation_inputs({'request':{'prompt':'misty forest','tag':'돌온재','width':768,'height':1024,'steps':30,'seed':42}})

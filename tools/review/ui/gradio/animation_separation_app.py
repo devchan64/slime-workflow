@@ -15,7 +15,7 @@ from tools.review.common.gradio_reference_images import build_reference_image_in
 from tools.review.common.management_client import execute_remote_management_command
 from tools.review.common.gradio_seed import build_generation_seed
 from tools.review.common.gradio_logs import build_execution_logs
-from tools.review.common.gradio_history import build_generation_history_view, HISTORY_CARD_SELECTION_SCRIPT, format_generation_status
+from tools.review.common.gradio_history import build_generation_history_view, format_generation_status
 from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_confirmation
 from tools.review.domains.image.animation_separation import load_separation_defaults
 
@@ -113,6 +113,4 @@ if __name__ == '__main__':
     argument_parser_value.add_argument('--owner-pid', type=int, required=True)
     argument_parser_value.add_argument('--root-path', default='/management/frame/animation-separation/')
     current_arguments_value = argument_parser_value.parse_args()
-    shared_styles_directory = Path(__file__).parents[1] / 'shared'
-    shared_styles_text = (shared_styles_directory / 'management.css').read_text() + (shared_styles_directory / 'management-density.css').read_text()
-    build_separation_interface(f'http://127.0.0.1:{current_arguments_value.review_port}').queue().launch(server_name='127.0.0.1', server_port=current_arguments_value.port, root_path=current_arguments_value.root_path, theme=gr.themes.Soft(), css=shared_styles_text, js=HISTORY_CARD_SELECTION_SCRIPT, allowed_paths=[])
+    build_separation_interface(f'http://127.0.0.1:{current_arguments_value.review_port}').queue().launch(server_name='127.0.0.1', server_port=current_arguments_value.port, root_path=current_arguments_value.root_path, allowed_paths=[])
