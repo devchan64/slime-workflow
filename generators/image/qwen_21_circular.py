@@ -19,7 +19,7 @@ CIRCULAR_VAE_CONFIGURATION = {**CIRCULAR_SINGLE_STRIP_CONFIGURATION, 'schema_ver
 CIRCULAR_RADIUS_CHOICES = (8, 12, 16)
 
 
-def build_circular_configuration(selected_radius_value=8, baseline_decode_enabled=True, reference_input_enabled=False):
+def build_circular_configuration(selected_radius_value=12, baseline_decode_enabled=True, reference_input_enabled=False):
     if type(selected_radius_value) is not int or selected_radius_value not in CIRCULAR_RADIUS_CHOICES:
         raise ValueError('순환 참조 반경은 8·12·16토큰 중 선택하세요.')
     if type(baseline_decode_enabled) is not bool:

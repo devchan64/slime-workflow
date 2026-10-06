@@ -225,14 +225,14 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
                         operation_argument_parser.add_argument('--resolution',type=int,choices=(512,768),default=768,help='정사각형 해상도 (기본 768)')
                     prompt_argument_group.add_argument('--prompt')
                 prompt_argument_group.add_argument('--prompt-file',type=Path,help='UTF-8 프롬프트 파일')
-                operation_argument_parser.add_argument('--width',type=int,default=None if service_command_name=='seamless-tile' else 256 if service_command_name=='qwen-21-circular' else 768 if service_command_name in ('qwen-21','pose-transfer','outfit-transfer') else 512 if service_command_name in ('qwen-2511','expression','floor-tile') else 1024)
-                operation_argument_parser.add_argument('--height',type=int,default=None if service_command_name=='seamless-tile' else 256 if service_command_name=='qwen-21-circular' else 768 if service_command_name in ('qwen-21','pose-transfer','outfit-transfer') else 512 if service_command_name in ('qwen-2511','expression','floor-tile') else 1024)
+                operation_argument_parser.add_argument('--width',type=int,default=None if service_command_name=='seamless-tile' else 512 if service_command_name=='qwen-21-circular' else 768 if service_command_name in ('qwen-21','pose-transfer','outfit-transfer') else 512 if service_command_name in ('qwen-2511','expression','floor-tile') else 1024)
+                operation_argument_parser.add_argument('--height',type=int,default=None if service_command_name=='seamless-tile' else 512 if service_command_name=='qwen-21-circular' else 768 if service_command_name in ('qwen-21','pose-transfer','outfit-transfer') else 512 if service_command_name in ('qwen-2511','expression','floor-tile') else 1024)
                 operation_argument_parser.add_argument('--steps',type=int,choices=(20,30,40,50) if service_command_name in ('qwen-21','qwen-21-circular','pose-transfer','outfit-transfer') else (40,) if service_command_name=='seamless-tile' else (4,) if service_command_name=='floor-tile' else (4,30),default=40 if service_command_name in ('seamless-tile','qwen-21','qwen-21-circular','pose-transfer','outfit-transfer') else 4)
                 if service_command_name == 'qwen-21-circular':
                     operation_argument_parser.add_argument('--baseline-decode', action=argparse.BooleanOptionalAction, default=False, help='일반 VAE 비교 생성 · 기본 OFF')
                     operation_argument_parser.add_argument('--pattern-view', action=argparse.BooleanOptionalAction, default=True, help='Top view. Repeat pattern. Close-up 추가')
                     operation_argument_parser.add_argument('--soft-shading', action=argparse.BooleanOptionalAction, default=False, help='부드러운 음영 일러스트 영문 지시 추가')
-                    operation_argument_parser.add_argument('--circular-radius', type=int, choices=(8,12,16), default=8, help='순환 참조 반경 · 토큰')
+                    operation_argument_parser.add_argument('--circular-radius', type=int, choices=(8,12,16), default=12, help='순환 참조 반경 · 토큰')
                 operation_argument_parser.add_argument('--seed',type=int,default=10107 if service_command_name in ('qwen-2511','expression','seamless-tile','qwen-21','qwen-21-circular','pose-transfer','outfit-transfer') else 251204)
                 if service_command_name=='floor-tile':
                     operation_argument_parser.add_argument('--add-margins',action=argparse.BooleanOptionalAction,default=None,help='빈 여백 추가 ON/OFF (--no-add-margins로 OFF, 생략 시 서버 기본값)')

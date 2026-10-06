@@ -24,7 +24,7 @@ class QwenCircularGenerationManager(QwenPlainGenerationManager):
         validated_request_record['pattern_view'] = pattern_view_enabled
         validated_request_record['soft_shading'] = soft_shading_enabled
         validated_request_record['user_prompt'] = user_prompt_text
-        validated_request_record['circular_vae'] = build_circular_configuration(request_record_value.get('circular_radius', 8), request_record_value.get('baseline_decode', False), bool(validated_request_record.get('images') or validated_request_record.get('references')))
+        validated_request_record['circular_vae'] = build_circular_configuration(request_record_value.get('circular_radius', 12), request_record_value.get('baseline_decode', False), bool(validated_request_record.get('images') or validated_request_record.get('references')))
         return validated_request_record
 
     def enrich_generation_status(self, current_job_root, current_status_record):

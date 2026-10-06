@@ -10,7 +10,7 @@ class CircularGenerationTests(unittest.TestCase):
         current_input_record = {'action':'generate','prompt':CIRCULAR_DEFAULT_PROMPT,'images':[], 'tag':'', 'width':768,'height':768,'steps':40,'seed':10107}
         current_service_manager = QwenCircularGenerationManager()
         current_output_record = current_service_manager.validate_generation_request(current_input_record)
-        self.assertEqual(current_output_record['circular_vae'], {**CIRCULAR_VAE_CONFIGURATION, 'baseline_decode': False, 'boundary_radius': 8, 'vertical_boundary_radius': 8})
+        self.assertEqual(current_output_record['circular_vae'], {**CIRCULAR_VAE_CONFIGURATION, 'baseline_decode': False, 'boundary_radius': 12, 'vertical_boundary_radius': 12})
         self.assertEqual(current_output_record['prompt'], CIRCULAR_DEFAULT_PROMPT + ' Top view. Repeat pattern. Close-up')
         self.assertNotIn('circular_vae', validate_qwen_plain_request(current_input_record))
         self.assertEqual(current_service_manager.route_prefix_value, MANAGEMENT_SERVICE_ROUTES['qwen-21-circular'])
