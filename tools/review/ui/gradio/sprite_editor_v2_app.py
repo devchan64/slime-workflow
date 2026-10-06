@@ -177,8 +177,13 @@ def build_sprite_v2_interface():
         with gr.Accordion('프레임 순서·복제·삭제',open=False):
             gr.Markdown('### 프레임 편집\n선택한 프레임의 순서를 바꾸거나 복제·삭제합니다. 전체 프레임 삭제는 레퍼런스를 유지합니다. 삭제는 실행 취소할 수 있으며 수정본 저장 전에는 저장된 작업을 바꾸지 않습니다.')
             with gr.Row():
-                for current_frame_action,current_frame_label in (('earlier','프레임 앞으로'),('later','프레임 뒤로'),('duplicate','선택 프레임 복제'),('remove','선택 프레임 삭제'),('remove-all','전체 프레임 삭제')):
+                for current_frame_action,current_frame_label in (('earlier','한 칸 앞으로'),('later','한 칸 뒤로'),('duplicate','선택 프레임 복제'),('remove','선택 프레임 삭제'),('remove-all','전체 프레임 삭제')):
                     build_browser_action_button(current_frame_label,'spriteV2FrameControls',current_frame_action,current_feedback_text)
+            with gr.Row():
+                current_order_number=gr.Number(label='선택 프레임을 옮길 순번',value=1,minimum=1,precision=0)
+                current_order_button=gr.Button('지정 순번으로 옮기기')
+            current_order_button.click(fn=None,inputs=current_order_number,outputs=current_feedback_text,queue=False,js="async(currentTargetNumber)=>{try{if(!window.spriteV2ReorderControls)throw Error('편집기를 준비 중입니다.');return await window.spriteV2ReorderControls(currentTargetNumber);}catch(currentErrorValue){return currentErrorValue.message;}}")
+            gr.Markdown('목록에서 옮길 프레임을 선택한 뒤 순번을 입력하세요. 목록·재생·내보내기 순서가 함께 바뀌며, 수정본 저장 전까지 실행 취소할 수 있습니다.')
         with gr.Accordion('재생 시간 조정',open=False):
             gr.Markdown('현재 설정은 비교 화면 아래에 표시됩니다. 변경할 항목을 체크하고 값을 입력하세요. 유지 시간은 현재 선택한 프레임에 적용하며 0이면 작업 FPS를 사용합니다.')
             with gr.Row():
@@ -198,6 +203,12 @@ def build_sprite_v2_interface():
         with gr.Row():
             current_history_button=gr.Button('수정 이력 새로고침')
             current_revision_button=gr.Button('선택 버전 불러오기')
+        with gr.Accordion('선택 수정본 삭제',open=False):
+            gr.Markdown('선택한 수정 이력만 삭제합니다. 최신 수정본이면 직전 저장본이 최신이 됩니다. 마지막 한 개는 유지합니다. 현재 편집 초안·등록 이미지·내보낸 파일은 유지됩니다.')
+            current_revision_confirm=gr.Checkbox(label='선택한 수정본 삭제 확인',value=False)
+            current_revision_delete=gr.Button('선택 수정본 삭제',variant='stop')
+        current_revision_choice.change(fn=None,outputs=current_revision_confirm,js='()=>false',queue=False)
+        current_revision_delete.click(fn=None,inputs=[current_project_choice,current_revision_choice,current_revision_confirm],outputs=[current_revision_choice,current_feedback_text,current_revision_confirm],queue=False,js="async(currentProjectIdentifier,currentRevisionIdentifier,currentConfirmedValue)=>{try{if(!window.spriteV2DeleteRevision)throw Error('편집기를 준비 중입니다.');return await window.spriteV2DeleteRevision(currentProjectIdentifier,currentRevisionIdentifier,currentConfirmedValue);}catch(currentErrorValue){return [{__type__:'update'},currentErrorValue.message,false];}}")
         gr.Markdown('GIF는 흰 배경으로 검수합니다. 내보내기는 현재 편집을 새 수정본으로 저장한 후 다운로드합니다.')
         for current_action_name,current_action_button in (('create',current_create_button),('list',current_refresh_button),('load',current_load_button),('save',current_save_button),('export',current_export_button),('history',current_history_button),('revision',current_revision_button)):
             current_action_button.click(fn=None,inputs=[current_project_name,current_output_size,current_project_choice,current_revision_choice],outputs=[current_project_choice,current_feedback_text,current_revision_choice],js=create_sprite_project_script(current_action_name),queue=False)

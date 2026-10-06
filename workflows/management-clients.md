@@ -514,3 +514,5 @@ HTTP 서비스는 `outfit-transfer`, 명령은 `generate`이며 `images`에 바�
 GUI와 CLI는 `character-animation` 서비스의 `sprite-v2-create/list/upload/save/load/history/export/delete` 명령을 공유한다. 통합 CLI의 각 명령은 `--payload-file <JSON 파일>`을 받는다. 생성 입력은 `{"name":"작업명","cellSize":384}`, 목록은 `{}`, 업로드는 `{"id":"작업 ID","data":"이미지 base64"}`, 불러오기·내보내기는 `{"id":"작업 ID","revision":null}`, 이력은 `{"id":"작업 ID"}`, 저장은 `{"id":"작업 ID","parent":"최신 수정 버전","document":{...}}`이다. 업로드 응답의 asset 해시를 문서의 reference·frames가 참조한다. load는 편집 문서와 등록 이미지, 최신 수정 버전을 반환한다. 개별 프레임은 id·asset·name·x·y·scale·duration·face·guides를 포함하며, duration 0은 문서 fps를 사용한다.
 
 - 정규화 편집기 작업 삭제: `sprite-v2-delete`에 `{"id":"작업 ID","confirm":true}`를 전달한다. 선택 작업의 등록 이미지·수정 이력·출력 파일을 삭제하며 복구할 수 없다. GUI는 대상 ID 확인 후 실행하고, 삭제한 작업이 열려 있으면 브라우저 초안도 비운다.
+
+- 선택 수정본 삭제는 `sprite-v2-revision-delete`와 `{"id":"작업 ID","revision":"수정본 ID","confirm":true}`를 사용한다. 최신 삭제 시 남은 가장 최근 저장본을 최신으로 지정하고 마지막 수정본 삭제는 거절한다. 이미지·내보낸 파일과 과거 출처용 parent 값은 유지한다.

@@ -40,6 +40,33 @@ class SpriteEditorV2Tests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.execute_test_command('load',{'id':self.current_project_identifier,'revision':None})
 
+    def test_revision_delete_validation_and_last_revision_preserved(self):
+        current_delete_payload={'id':self.current_project_identifier,'revision':self.initial_project_record['revision'],'confirm':True}
+        with self.assertRaisesRegex(ValueError,'확인'):
+            self.execute_test_command('revision-delete',{**current_delete_payload,'confirm':False})
+        with self.assertRaisesRegex(ValueError,'마지막'):
+            self.execute_test_command('revision-delete',current_delete_payload)
+        with self.assertRaisesRegex(ValueError,'형식'):
+            self.execute_test_command('revision-delete',{**current_delete_payload,'revision':'../latest'})
+        with self.assertRaisesRegex(ValueError,'없습니다'):
+            self.execute_test_command('revision-delete',{**current_delete_payload,'revision':'20000101T000000-00000000'})
+        self.assertEqual(self.execute_test_command('load',{'id':self.current_project_identifier,'revision':None})['revision'],self.initial_project_record['revision'])
+
+    def test_revision_delete_promotes_latest_and_preserves_images(self):
+        current_document_record=copy.deepcopy(self.initial_project_record['document'])
+        current_document_record['frames']=[self.create_test_frame()]
+        current_first_saved=self.execute_test_command('save',{'id':self.current_project_identifier,'parent':self.initial_project_record['revision'],'document':current_document_record})
+        current_second_saved=self.execute_test_command('save',{'id':self.current_project_identifier,'parent':current_first_saved['revision'],'document':current_document_record})
+        current_delete_result=self.execute_test_command('revision-delete',{'id':self.current_project_identifier,'revision':self.initial_project_record['revision'],'confirm':True})
+        self.assertEqual(current_delete_result['latest'],current_second_saved['revision'])
+        current_delete_result=self.execute_test_command('revision-delete',{'id':self.current_project_identifier,'revision':current_second_saved['revision'],'confirm':True})
+        self.assertEqual(current_delete_result['latest'],current_first_saved['revision'])
+        current_loaded_record=self.execute_test_command('load',{'id':self.current_project_identifier,'revision':None})
+        self.assertEqual(current_loaded_record['document'],current_document_record)
+        self.assertIn(current_document_record['frames'][0]['asset'],current_loaded_record['images'])
+        self.assertEqual([value['revision'] for value in self.execute_test_command('history',{'id':self.current_project_identifier})['items']],[current_first_saved['revision']])
+        self.assertEqual(len(self.execute_test_command('list',{})['items']),1)
+
     def create_test_frame(self):
         current_image_buffer=io.BytesIO()
         current_source_image=Image.new('RGBA',(384,384))
@@ -133,7 +160,7 @@ class SpriteEditorV2Tests(unittest.TestCase):
         with self.assertRaises(ValueError):self.execute_test_command('save',{'id':self.current_project_identifier,'parent':self.initial_project_record['revision'],'document':current_document_record})
 
     def test_gateway_roundtrip_and_256_output(self):
-        for current_command_name in ('create','list','upload','save','load','history','export'):
+        for current_command_name in ('create','list','upload','save','load','history','export','revision-delete'):
             current_method_name,current_route_path=resolve_management_command('character-animation','sprite-v2-'+current_command_name,{})
             self.assertEqual(identify_management_command(current_route_path,current_method_name,{})[:2],('character-animation','sprite-v2-'+current_command_name))
         current_document_record=copy.deepcopy(self.initial_project_record['document'])

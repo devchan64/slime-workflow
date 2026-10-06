@@ -194,6 +194,22 @@ window.spriteV2FrameControls=async(currentActionName)=>{
  }else await runEditorAction(currentEditorActions.get(currentActionName),true);
  return `프레임 ${currentProjectDocument.frames.length?currentFrameIndex+1:0} / ${currentProjectDocument.frames.length} · 편집 내용을 보존하려면 수정본을 저장하세요.`;
 };
+// 선택 프레임을 지정 순번에 삽입하고 나머지 프레임의 상대 순서는 유지한다.
+window.spriteV2ReorderControls=async(currentTargetNumber)=>{
+ if(currentBusyState)throw Error('등록·저장 처리가 끝난 뒤 사용할 수 있습니다.');
+ if(!currentProjectDocument?.frames.length)throw Error('순서를 바꿀 프레임을 먼저 등록하세요.');
+ if(!Number.isInteger(currentTargetNumber)||currentTargetNumber<1||currentTargetNumber>currentProjectDocument.frames.length)throw Error(`이동할 순번은 1~${currentProjectDocument.frames.length} 사이의 정수입니다.`);
+ const currentTargetIndex=currentTargetNumber-1;
+ if(currentTargetIndex===currentFrameIndex)return '이미 해당 순번입니다.';
+ await runEditorAction(()=>{
+  retainUndoSnapshot();
+  const [currentMovedFrame]=currentProjectDocument.frames.splice(currentFrameIndex,1);
+  currentProjectDocument.frames.splice(currentTargetIndex,0,currentMovedFrame);
+  currentFrameIndex=currentTargetIndex;
+  refreshEditorScreen();
+ },true);
+ return `선택 프레임을 ${currentTargetNumber}번으로 이동했습니다. 실행 취소할 수 있으며 수정본 저장으로 반영합니다.`;
+};
 // 재생 명령은 기존 애니메이션 루프를 호출하며 서버 상태를 만들지 않는다.
 window.spriteV2PlaybackControls=async(currentActionName)=>{
  if(!['prev','play','stop','next'].includes(currentActionName))throw Error('지원하지 않는 재생 명령입니다.');
@@ -233,6 +249,19 @@ window.spriteV2ProjectControls=async(currentActionName,currentProjectName,curren
  },true);
  const currentSelectedValue=currentActionName==='list'?currentSelectedId:currentProjectIdentifier;
  return [{__type__:'update',choices:currentProjectChoices,value:currentProjectChoices.some(currentChoiceValue=>currentChoiceValue[1]===currentSelectedValue)?currentSelectedValue:null},findEditorElement('status').textContent,{__type__:'update',choices:currentRevisionChoices,value:currentRevisionChoices.some(currentChoiceValue=>currentChoiceValue[1]===currentLoadedRevision)?currentLoadedRevision:null}];
+};
+window.spriteV2DeleteRevision=async(currentSelectedProject,currentRevisionIdentifier,currentConfirmedValue)=>{
+ if(currentBusyState)throw Error('등록·저장 처리가 끝난 뒤 사용할 수 있습니다.');
+ if(!currentProjectIdentifier||currentSelectedProject!==currentProjectIdentifier)throw Error('수정본을 삭제할 작업을 먼저 불러오세요.');
+ if(!currentRevisionIdentifier)throw Error('삭제할 수정본을 선택하세요.');
+ if(currentConfirmedValue!==true)throw Error('수정본 삭제 확인을 체크하세요.');
+ await runEditorAction(async()=>{
+  const currentDeleteResult=await requestEditorCommand('revision-delete',{id:currentProjectIdentifier,revision:currentRevisionIdentifier,confirm:true});
+  if(currentParentRevision===currentRevisionIdentifier)currentParentRevision=currentDeleteResult.latest;
+  if(currentLoadedRevision===currentRevisionIdentifier){currentLoadedRevision=null;currentUnsavedChanges=true;}
+  await refreshEditorHistory();await refreshEditorProjects();
+ },true);
+ return [{__type__:'update',choices:currentRevisionChoices,value:currentLoadedRevision},'선택 수정본을 삭제했습니다. 현재 편집 초안·등록 이미지·내보낸 파일은 유지됩니다.',false];
 };
 // 입력하지 않은 항목은 유지하고 저장 전 브라우저 문서만 수정한다.
 window.spriteV2JoypadControls=async(currentActionName,currentInputValues)=>{

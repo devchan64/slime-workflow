@@ -170,7 +170,7 @@ def execute_v2_command(operation_command_name, command_payload_value):
             (project_directory_path/'revisions').mkdir()
             write_record_atomically(project_directory_path/'project.json',{'id':project_identifier_value,'created_at':datetime.now(SPRITE_V2_TIME_ZONE).isoformat()})
             return {'id':project_identifier_value,**save_v2_revision(project_directory_path,current_document_record,None)}
-        expected_command_fields = {'sprite-v2-delete':('id','confirm'),'sprite-v2-upload':('id','data'),'sprite-v2-save':('id','parent','document'),'sprite-v2-load':('id','revision'),'sprite-v2-history':('id',),'sprite-v2-export':('id','revision')}
+        expected_command_fields = {'sprite-v2-revision-delete':('id','revision','confirm'),'sprite-v2-delete':('id','confirm'),'sprite-v2-upload':('id','data'),'sprite-v2-save':('id','parent','document'),'sprite-v2-load':('id','revision'),'sprite-v2-history':('id',),'sprite-v2-export':('id','revision')}
         if operation_command_name not in expected_command_fields:
             raise ValueError('지원하지 않는 v2 명령입니다.')
         require_exact_fields(command_payload_value,expected_command_fields[operation_command_name])
@@ -182,6 +182,24 @@ def execute_v2_command(operation_command_name, command_payload_value):
                 raise ValueError('작업 삭제 경로가 올바르지 않습니다.')
             shutil.rmtree(project_directory_path)
             return {'id':command_payload_value['id'],'deleted':True}
+        if operation_command_name == 'sprite-v2-revision-delete':
+            if command_payload_value['confirm'] is not True:
+                raise ValueError('수정본 삭제 확인이 필요합니다.')
+            current_revision_identifier=command_payload_value['revision']
+            if not isinstance(current_revision_identifier,str) or not re.fullmatch(r'\d{8}T\d{6}-[a-f0-9]{8}',current_revision_identifier):
+                raise ValueError('수정 버전 형식 오류')
+            current_revision_path=project_directory_path/'revisions'/f'{current_revision_identifier}.json'
+            if not current_revision_path.is_file():
+                raise ValueError('삭제할 수정본이 없습니다.')
+            current_remaining_records=[json.loads(value.read_text()) for value in (project_directory_path/'revisions').glob('*.json') if value!=current_revision_path]
+            if not current_remaining_records:
+                raise ValueError('마지막 수정본은 삭제할 수 없습니다. 작업 전체 삭제를 사용하세요.')
+            current_latest_record=json.loads((project_directory_path/'latest.json').read_text())
+            if current_latest_record['revision']==current_revision_identifier:
+                current_latest_record=max(current_remaining_records,key=lambda value:(value['saved_at'],value['revision']))
+                write_record_atomically(project_directory_path/'latest.json',current_latest_record)
+            current_revision_path.unlink()
+            return {'deleted':True,'revision':current_revision_identifier,'latest':current_latest_record['revision']}
         if operation_command_name == 'sprite-v2-upload':
             current_encoded_data = command_payload_value['data']
             if not isinstance(current_encoded_data,str) or len(current_encoded_data)>SPRITE_V2_IMAGE_LIMIT*4/3+4:
