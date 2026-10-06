@@ -1,1 +1,0 @@
-Preserve reference 1’s identity, proportions and outfit; no widening. Continue reference 2’s final crouch. Four full-body frames, horizontal row, front-left view. Rest-to-idle 5–8: hips rising, knees extending, torso straightening, original standing idle. Match original idle pose exactly. Consistent camera, scale and ground level. Transparent background.

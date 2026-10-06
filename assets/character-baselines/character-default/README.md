@@ -2,6 +2,10 @@
 
 기본 캐릭터의 얼굴·신체·복장 기준 이미지와 대기 애니메이션 생성 프롬프트를 관리한다. 게임 런타임용 애니메이션 시트와 구분한다.
 
+## 프롬프트 관리
+
+모든 프롬프트 원문과 단어 수는 [generation-prompts.yaml](generation-prompts.yaml) 한 파일에서 관리한다. `prompts`의 용도별 `text`를 선택하며 `base-prompt`를 자동으로 덧붙이지 않는다. 걷기는 `prompts.walking-identity-generation-prompt.text` 뒤에 `walking_pose_auxiliaries.frames`의 해당 `prompt`를 붙인다. 이미지 참조 순서와 원본 프레임 번호도 같은 YAML에 기록한다. 단어 수는 공백 기준이며 원문 변경 시 개별·합산 수치를 함께 갱신한다.
+
 ## 기준 이미지
 
 | 파일 | 용도 |
@@ -24,8 +28,8 @@
 
 아이덴티티와 신체 비율 유지를 우선하며 짧은 프롬프트를 사용한다. 같은 키에서 얼굴 크기, 어깨·허리 폭과 팔다리 두께가 달라지지 않는지 확인한다.
 
-1. [1~4프레임 프롬프트](idle-animation-generation-prompt-01-04.txt): 단일 방향 전신 참조로 기본 자세에서 들숨 정점 직전까지 생성한다.
-2. [5~8프레임 프롬프트](idle-animation-generation-prompt-05-08.txt): 참조 1은 같은 전신 이미지, 참조 2는 첫 번째 생성 시트다. 들숨 정점에서 날숨을 거쳐 기본 자세로 돌아오는 구간을 생성한다.
+1. [1~4프레임 프롬프트](generation-prompts.yaml) (`prompts.idle-animation-generation-prompt-01-04`): 단일 방향 전신 참조로 기본 자세에서 들숨 정점 직전까지 생성한다.
+2. [5~8프레임 프롬프트](generation-prompts.yaml) (`prompts.idle-animation-generation-prompt-05-08`): 참조 1은 같은 전신 이미지, 참조 2는 첫 번째 생성 시트다. 들숨 정점에서 날숨을 거쳐 기본 자세로 돌아오는 구간을 생성한다.
 
 각 시트는 좌측 앞 방향의 가로 4칸이며 왼쪽부터 재생한다. 프롬프트는 공백 기준 각각 50단어와 51단어다. 투명 배경을 요청하지만 실제 결과의 알파는 별도 확인해야 한다. 두 시트 사이 크기·발 기준점·4→5 및 8→1프레임 연결을 검수한 뒤 사용한다.
 
@@ -33,12 +37,18 @@
 
 ## 걷기 샘플 아이덴티티 적용
 
-[걷기 아이덴티티 적용 프롬프트](walking-identity-generation-prompt.txt)는 개별 걷기 프레임에 외형을 적용할 때 사용한다.
+[걷기 아이덴티티 적용 프롬프트](generation-prompts.yaml) (`prompts.walking-identity-generation-prompt`)는 개별 걷기 프레임에 외형을 적용할 때 사용한다.
 
 - 이미지 1: 아이덴티티 베이스라인. 얼굴 크기·머리 대비 키·몸통 폭·팔다리 길이와 둘레·머리카락·복장·렌더링을 따른다.
 - 이미지 2: 해당 프레임의 원본 걷기 포즈. 관절 각도와 발 배치만 참조하며 체격은 가져오지 않는다.
 
-세 번째 걷기 샘플 재생성에 사용한 프롬프트를 그대로 등록했다. 좌측 앞 방향·눈높이 시점이며 양발을 분리하고 화면 왼쪽 발을 높게, 오른쪽 발을 낮게 배치하는 지시가 포함된다. 다른 프레임에 적용할 때는 이 발 배치 문장을 해당 원본 포즈에 맞게 수정한다. 베이스라인 대비 체격·비율과 원본 포즈 대비 발 모양을 함께 검수한다. 투명 배경은 결과 알파를 확인한다.
+좌측 앞 방향·눈높이 시점의 개별 걷기 프레임에 공통으로 사용하는 프롬프트다. 특정 발의 높이·앞뒤 위치·다리 교차 여부를 문장으로 고정하지 않는다. 프롬프트는 동일하게 유지하고 이미지 2만 해당 프레임의 원본 포즈로 교체한다. 베이스라인 대비 체격·비율과 원본 포즈 대비 관절 각도·팔다리 겹침·발 배치·발끝 방향·접지를 함께 검수한다. 투명 배경은 결과 알파를 확인한다.
+
+### 프레임별 포즈 보조 프롬프트
+
+[12프레임 보조 프롬프트](generation-prompts.yaml) (`walking_pose_auxiliaries`)는 생성 기록 `2026-10-06_22-27-24-e7b5c525`의 `down_left` 원본 4·6·8·10·12·14·16·18·20·22·24·26번에 순서대로 대응한다. 공통 프롬프트 뒤에 해당 보조 문장을 붙이고 원본 포즈를 이미지 2로 첨부한다. 좌우는 화면 기준이며, 체격은 항상 이미지 1을 따른다. 개별·합산 단어 수를 YAML에 기록했다.
+
+일반 프롬프트만 사용한 3번 검증에서 양발 높낮이가 반대로 생성되어 보조 프롬프트를 작성했다. 보조 문장은 원본 관찰에 기반하며 아직 생성 검증 전이다. 6번 원본에는 측면 참조 패널이 섞여 있어 중앙 전신만 참조하도록 명시했다. 보조 프롬프트를 사용한 3번 샘플부터 검증한 뒤 전체 생성으로 확대한다.
 
 ## 대기·휴식 전환 시트
 
@@ -46,10 +56,10 @@
 
 | 구간 | 이미지 | 생성 프롬프트 |
 | --- | --- | --- |
-| 대기→휴식 1~4 | [시트](light-armor-idle-to-rest-1-4.png) | [프롬프트](idle-to-rest-generation-prompt-01-04.txt) |
-| 대기→휴식 5~8 | [시트](light-armor-idle-to-rest-5-8.png) | [프롬프트](idle-to-rest-generation-prompt-05-08.txt) |
-| 휴식→대기 1~4 | [시트](light-armor-rest-to-idle-1-4.png) | [프롬프트](rest-to-idle-generation-prompt-01-04.txt) |
-| 휴식→대기 5~8 | [시트](light-armor-rest-to-idle-5-8.png) | [프롬프트](rest-to-idle-generation-prompt-05-08.txt) |
+| 대기→휴식 1~4 | [시트](light-armor-idle-to-rest-1-4.png) | [프롬프트](generation-prompts.yaml) (`prompts.idle-to-rest-generation-prompt-01-04`) |
+| 대기→휴식 5~8 | [시트](light-armor-idle-to-rest-5-8.png) | [프롬프트](generation-prompts.yaml) (`prompts.idle-to-rest-generation-prompt-05-08`) |
+| 휴식→대기 1~4 | [시트](light-armor-rest-to-idle-1-4.png) | [프롬프트](generation-prompts.yaml) (`prompts.rest-to-idle-generation-prompt-01-04`) |
+| 휴식→대기 5~8 | [시트](light-armor-rest-to-idle-5-8.png) | [프롬프트](generation-prompts.yaml) (`prompts.rest-to-idle-generation-prompt-05-08`) |
 
 휴식 자세는 양반다리다. 최초 입력은 사용자 첨부 단일 방향 전신 이미지이며, 이후 구간에는 같은 원본과 직전 시트를 함께 참조했다. 내장 이미지 생성 도구로 제작했으며 실행 출처는 `.tmp/test/light-armor-rest-transitions/2026-10-06_22-40-25/`다. 이 실행 경로는 출처 확인용이며 런타임 의존성이 아니다.
 

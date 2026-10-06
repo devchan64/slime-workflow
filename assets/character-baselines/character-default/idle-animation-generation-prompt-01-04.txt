@@ -1,1 +1,0 @@
-Preserve reference identity, face size, hair, exact body proportions and armored silhouette; no widening. Four full-body idle frames in one equal-cell horizontal row, front-left view. Frames 1–4: rest, slight inhale, gentle shoulder rise, near inhalation peak. Minimal vertical motion, fixed feet and scale. Preserve outfit. Omit screenshot overlay. Transparent background.
