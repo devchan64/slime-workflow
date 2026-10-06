@@ -228,16 +228,27 @@ function selectEditorGuideIndex(currentGuideValue){
  currentEditorMode='guide';refreshEditorFields();
  return selectedEditorRecord().guides[currentGuideIndex];
 }
+function describeGuidePositionInput(currentGuideRecord){
+ const currentGuideAxis=currentGuideRecord?.axis||'y';
+ return {__type__:'update',value:currentGuideRecord?.position??0,label:currentGuideAxis==='y'?'③ 위에서부터 위치 Y · px':'③ 왼쪽에서부터 위치 X · px',info:`출력 크기 ${currentProjectDocument.cellSize} × ${currentProjectDocument.cellSize}px 기준입니다. 숫자가 커지면 ${currentGuideAxis==='y'?'아래':'오른쪽'}로 이동합니다.`};
+}
 window.spriteV2GuideControls={
+ change:async(currentGuideAction,currentGuideValue)=>{
+  if(!['guide-add','guide-vertical','guide-remove'].includes(currentGuideAction))throw Error('지원하지 않는 가이드 명령입니다.');
+  if(currentGuideAction==='guide-remove')selectEditorGuideIndex(currentGuideValue);
+  await window.spriteV2EditControls(currentGuideAction);
+  return window.spriteV2GuideControls.list();
+ },
  list:()=>{
   const currentImageRecord=selectedEditorRecord();
   if(!currentImageRecord)throw Error('편집할 이미지를 먼저 선택하세요.');
   const currentGuideChoices=currentImageRecord.guides.map((currentGuideRecord,currentIndexValue)=>[`${currentIndexValue+1}. ${currentGuideRecord.label} (${currentGuideRecord.axis})`,String(currentIndexValue)]);
   const currentGuideRecord=currentImageRecord.guides[currentGuideIndex];
-  return [{__type__:'update',choices:currentGuideChoices,value:currentGuideRecord?String(currentGuideIndex):null},currentGuideRecord?.label||'',currentGuideRecord?.axis||'y',currentGuideChoices.length?'가이드 목록을 읽었습니다.':'가로선 또는 세로선을 먼저 추가하세요.'];
+  return [{__type__:'update',choices:currentGuideChoices,value:currentGuideRecord?String(currentGuideIndex):null},currentGuideRecord?.label||'',currentGuideRecord?.axis||'y',describeGuidePositionInput(currentGuideRecord),currentGuideChoices.length?'가이드 목록을 읽었습니다.':'가로선 또는 세로선을 먼저 추가하세요.'];
  },
- select:(currentGuideValue)=>{const currentGuideRecord=selectEditorGuideIndex(currentGuideValue);return [currentGuideRecord.label,currentGuideRecord.axis,'가이드를 선택했습니다.'];},
- apply:async(currentGuideValue,currentLabelValue,currentAxisValue)=>{
+ select:(currentGuideValue)=>{const currentGuideRecord=selectEditorGuideIndex(currentGuideValue);return [currentGuideRecord.label,currentGuideRecord.axis,describeGuidePositionInput(currentGuideRecord),'가이드를 선택했습니다.'];},
+ apply:async(currentGuideValue,currentLabelValue,currentAxisValue,currentPositionValue)=>{
+  if(!Number.isFinite(currentPositionValue))throw Error('가이드 좌표는 유한한 숫자여야 합니다.');
   const currentLabelText=String(currentLabelValue||'').trim();
   if(!currentLabelText||currentLabelText.length>40)throw Error('가이드 이름은 1~40자로 입력하세요.');
   if(!['x','y'].includes(currentAxisValue))throw Error('가이드 방향을 선택하세요.');
@@ -246,10 +257,12 @@ window.spriteV2GuideControls={
   if(!currentTargetRecords.length||currentTargetRecords.some(currentImageRecord=>!currentImageRecord.guides[currentGuideIndex]))throw Error('모든 편집 대상에 선택한 가이드가 있어야 합니다.');
   await runEditorAction(()=>{
    retainUndoSnapshot();
-   for(const currentImageRecord of currentTargetRecords)Object.assign(currentImageRecord.guides[currentGuideIndex],{label:currentLabelText,axis:currentAxisValue});
+   for(const currentImageRecord of currentTargetRecords)Object.assign(currentImageRecord.guides[currentGuideIndex],{label:currentLabelText,axis:currentAxisValue,position:currentPositionValue});
    refreshEditorFields();renderEditorCanvases();
   },true);
-  return '가이드 설정을 적용했습니다. 목록 읽기로 이름을 갱신하세요. 수정본 저장 전에는 저장된 작업이 바뀌지 않습니다.';
+  const currentPanelValues=window.spriteV2GuideControls.list();
+  currentPanelValues[4]='가이드 설정을 적용했습니다. 실행 취소 또는 수정본 저장을 사용할 수 있습니다.';
+  return currentPanelValues;
  }
 };
 const SPRITE_V2_NUMERIC_FIELDS=['x','y','scale','diameter','face-x','face-y','guide-position'];

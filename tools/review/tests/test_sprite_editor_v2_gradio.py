@@ -38,7 +38,7 @@ class SpriteV2GradioTests(unittest.TestCase):
     def test_guide_editor_uses_native_browser_controls(self):
         current_interface_config=build_sprite_v2_interface().get_config_file()
         current_guide_events=[current_event_record for current_event_record in current_interface_config['dependencies'] if 'spriteV2GuideControls' in (current_event_record.get('js') or '')]
-        self.assertEqual(len(current_guide_events),3)
+        self.assertEqual(len(current_guide_events),8)
         self.assertTrue(all(not current_event_record['backend_fn'] and not current_event_record['queue'] for current_event_record in current_guide_events))
 
     def test_numeric_editor_reads_and_applies_without_server_callbacks(self):
