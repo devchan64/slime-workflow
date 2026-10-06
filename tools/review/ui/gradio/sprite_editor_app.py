@@ -26,7 +26,7 @@ def read_sprite_editor_markup():
     editor_markup_match=re.search(r'<main>(.*)</main>',editor_source_text,re.DOTALL)
     if editor_markup_match is None:raise ValueError('스프라이트 편집기 본문을 찾을 수 없습니다.')
     current_markup_text=editor_markup_match.group(1)
-    for current_button_name in ('prev','play','stop','next','undo','reset'):
+    for current_button_name in ('prev','play','stop','next','undo','reset','frames-all','frames-none','save'):
         current_markup_text=re.sub(r'<button id="sprite-'+current_button_name+r'"[^>]*>.*?</button>','',current_markup_text)
     for current_control_label,current_control_name in (('화면 확대','zoom'),('배경','background'),('재생 속도','speed'),('캔버스 조작','mode')):
         current_markup_text=re.sub(r'<label>'+current_control_label+r'<select id="sprite-'+current_control_name+r'".*?</label>','',current_markup_text)
@@ -38,6 +38,10 @@ def read_sprite_editor_markup():
     current_markup_text=re.sub(r'<div class="sprite-fine-pads">.*?(?=<div class="sprite-fine-summary">)','',current_markup_text,flags=re.S)
     current_markup_text=current_markup_text.replace('방향키: 위치 이동 · ＋/−: 몸체 높이 조절','공용 조이패드: 위치 이동 · 이미지 배율 조절').replace('편집 범위 · 1px 미세 조절','편집 범위 · 위치·배율 조절').replace('출력 기준 1px · 비율·기준점 유지','기준점 유지')
     current_markup_text=re.sub(r'<fieldset id="sprite-scope">.*?</fieldset>', '<p id="sprite-scope-summary" role="status">원본을 불러오세요.</p>',current_markup_text,flags=re.S)
+    current_markup_text=re.sub(r'<h3>3\. 선택 범위에 작업 적용</h3>.*?</section>','</section>',current_markup_text,flags=re.S)
+    current_markup_text=re.sub(r'<h3>2\. 속성값</h3>.*?</section>','</section>',current_markup_text,flags=re.S)
+    current_markup_text=re.sub(r'<details open><summary>추가 가이드라인</summary>.*?</details>','',current_markup_text,flags=re.S)
+    current_markup_text=re.sub(r'<h2>저장 이력</h2>.*?</section>','</section>',current_markup_text,flags=re.S)
     return '<main id="sprite-editor-root">'+current_markup_text+'</main>'
 
 def create_sprite_editor_loader(review_server_port):
@@ -73,11 +77,56 @@ def build_sprite_editor_interface(review_server_port):
             current_scope_button=gr.Button('편집 범위 적용')
         current_scope_button.click(fn=None,inputs=current_scope_choice,outputs=current_playback_feedback,queue=False,js="(currentScopeName)=>{try{return window.spriteEditorScopeControls(currentScopeName);}catch(currentErrorValue){return currentErrorValue.message;}}")
         gr.Markdown('프레임 체크 선택 시 체크한 프레임 범위로 전환됩니다. 실제 적용 범위는 편집 화면의 적용 대상 표시를 확인하세요.')
+        with gr.Row():
+            for current_action_name,current_button_label in (('all','전체 프레임 선택'),('none','선택 해제')):
+                build_browser_action_button(current_button_label,'spriteEditorSelectionControls',current_action_name,current_playback_feedback)
         build_transform_joypad('spriteEditorJoypadControls',current_playback_feedback)
         with gr.Row():
             for current_action_name,current_action_label in (('undo','실행 취소'),('reset','선택 프레임 원본 복원')):
                 build_browser_action_button(current_action_label,'spriteEditorEditControls',current_action_name,current_playback_feedback)
+        with gr.Accordion('추가 가이드라인',open=False):
+            gr.Markdown('전체 프레임 공통이며 출력 이미지에는 포함되지 않습니다. 작업 불러오기·실행 취소 후 목록을 다시 읽으세요. 수정은 저장 전 실행 취소할 수 있습니다.')
+            current_guide_list=gr.Textbox(label='가이드 목록',interactive=False,lines=4)
+            with gr.Row():
+                current_guide_number=gr.Number(label='가이드 번호',value=1,minimum=1,precision=0)
+                current_guide_position=gr.Number(label='가이드 위치 · px',value=0,minimum=0)
+            with gr.Row():
+                for current_guide_action,current_guide_label in (('read','가이드 목록 읽기'),('horizontal','가로 가이드 추가'),('vertical','세로 가이드 추가'),('apply','가이드 위치 적용'),('remove','가이드 삭제')):
+                    current_guide_button=gr.Button(current_guide_label)
+                    current_guide_button.click(fn=None,inputs=[current_guide_number,current_guide_position],outputs=[current_guide_list,current_playback_feedback],queue=False,js="(currentGuideNumber,currentGuidePosition)=>{try{return [window.spriteEditorGuideControls('"+current_guide_action+"',currentGuideNumber,currentGuidePosition),'가이드 목록을 확인하세요.'];}catch(currentErrorValue){return [{__type__:'update'},currentErrorValue.message];}}")
+        with gr.Accordion('원본 기준선·기준점 수치',open=False):
+            gr.Markdown('현재 프레임의 값을 읽고 선택한 편집 범위에 해당 항목만 적용합니다. 위치·배율은 공용 조이패드에서 조절하세요.')
+            with gr.Row():
+                current_numeric_field=gr.Dropdown(label='기준 수치 항목',choices=[('원본 중심 X','center'),('원본 바닥 Y','floor'),('원본 머리 Y','head'),('기준점 X','anchorX'),('기준점 Y','anchorY')],value='center')
+                current_numeric_value=gr.Number(label='기준 수치 · px',value=0)
+            with gr.Row():
+                for current_numeric_action,current_numeric_label in (('read','기준 수치 읽기'),('apply','기준 수치 적용')):
+                    current_numeric_button=gr.Button(current_numeric_label)
+                    current_numeric_button.click(fn=None,inputs=[current_numeric_field,current_numeric_value],outputs=[current_numeric_value,current_playback_feedback],queue=False,js="(currentFieldName,currentFieldValue)=>{try{return window.spriteEditorNumericControls('"+current_numeric_action+"',currentFieldName,currentFieldValue);}catch(currentErrorValue){return [{__type__:'update'},currentErrorValue.message];}}")
+        with gr.Accordion('선택 범위 정렬',open=False):
+            gr.Markdown('바닥은 Y 위치, 중심은 X 위치만 조정합니다. 몸체 높이는 중심과 발 위치를 유지하며 배율을 변경합니다. 목표값은 출력 셀 내부의 양수로 입력하세요.')
+            with gr.Row():
+                current_alignment_choice=gr.Dropdown(label='정렬 작업',choices=[('바닥 정렬 · Y','floor'),('중심 정렬 · X','center'),('몸체 높이 맞춤','height'),('현재 프레임 설정 복사','copy')],value='floor')
+                current_alignment_target=gr.Number(label='목표 바닥 Y 또는 몸체 높이 · px',value=None)
+            gr.Markdown('중심 정렬과 설정 복사는 목표 수치를 사용하지 않습니다. 설정 복사는 현재 프레임의 모든 속성을 선택 범위에 적용합니다.')
+            current_alignment_button=gr.Button('선택 범위에 정렬 적용')
+            current_alignment_button.click(fn=None,inputs=[current_alignment_choice,current_alignment_target],outputs=current_playback_feedback,queue=False,js="(currentActionName,currentTargetValue)=>{try{return window.spriteEditorAlignmentControls(currentActionName,currentTargetValue);}catch(currentErrorValue){return currentErrorValue.message;}}")
         gr.HTML(read_sprite_editor_markup())
+        build_browser_action_button('프로젝트 저장','spriteEditorSaveControls','save',current_playback_feedback)
+        gr.Markdown('현재 편집을 새 저장 이력으로 보존합니다. 원본 에셋은 변경하지 않습니다.')
+        with gr.Accordion('저장 이력',open=True):
+            current_revision_choice=gr.Dropdown(label='저장 이력 선택',choices=[],interactive=True)
+            current_revision_document=gr.Textbox(label='선택 이력 입력값',interactive=False,lines=8,max_lines=16)
+            with gr.Row():
+                for current_history_action,current_history_label in (('list','저장 이력 새로고침'),('inspect','이력 입력값 조회'),('restore','이력 편집기로 불러오기')):
+                    current_history_button=gr.Button(current_history_label)
+                    current_history_button.click(fn=None,inputs=current_revision_choice,outputs=[current_revision_choice,current_revision_document,current_playback_feedback],queue=False,js="async(currentRevisionId)=>{try{return await window.spriteEditorHistoryControls('"+current_history_action+"',currentRevisionId);}catch(currentErrorValue){return [{__type__:'update'},{__type__:'update'},currentErrorValue.message];}}")
+            with gr.Accordion('이력 수동 초기화',open=False):
+                gr.Markdown('확인 후 목록에서 제외합니다. 원본과 저장 파일, 현재 편집은 유지됩니다.')
+                for current_history_action,current_history_label in (('remove','선택 이력 제외'),('reset','전체 이력 초기화')):
+                    current_history_button=gr.Button(current_history_label)
+                    current_history_button.click(fn=None,inputs=current_revision_choice,outputs=[current_revision_choice,current_revision_document,current_playback_feedback],queue=False,js="async(currentRevisionId)=>{try{return await window.spriteEditorHistoryControls('"+current_history_action+"',currentRevisionId);}catch(currentErrorValue){return [{__type__:'update'},{__type__:'update'},currentErrorValue.message];}}")
+
     return interface_blocks_value
 
 
