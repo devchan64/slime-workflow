@@ -146,12 +146,12 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
         if circular_mode_enabled:
             from generators.image.qwen_21_circular import CIRCULAR_SOFT_SHADING_PROMPT, CIRCULAR_PATTERN_VIEW_PROMPT
             pattern_view_control=gr.Checkbox(value=True,label='탑뷰·반복 패턴·클로즈업 추가',info=CIRCULAR_PATTERN_VIEW_PROMPT)
-            soft_shading_control=gr.Checkbox(value=False,label='부드러운 음영 일러스트 추가',info=CIRCULAR_SOFT_SHADING_PROMPT)
+            soft_shading_control=gr.Checkbox(value=True,label='부드러운 음영 일러스트 추가',info=CIRCULAR_SOFT_SHADING_PROMPT)
             def describe_circular_prompt(current_prompt_text, soft_shading_enabled, pattern_view_enabled):
                 user_word_count=len(current_prompt_text.split())
                 added_word_count=(len(CIRCULAR_SOFT_SHADING_PROMPT.split()) if soft_shading_enabled else 0)+(len(CIRCULAR_PATTERN_VIEW_PROMPT.split()) if pattern_view_enabled else 0)
                 return f'사용자 {user_word_count}단어 · 추가 {added_word_count}단어 · 최종 {user_word_count+added_word_count}단어 (최대 99단어)'
-            prompt_count_control.value=describe_circular_prompt(CIRCULAR_DEFAULT_PROMPT,False,True)
+            prompt_count_control.value=describe_circular_prompt(CIRCULAR_DEFAULT_PROMPT,True,True)
             for current_prompt_control in (prompt_text_value,soft_shading_control,pattern_view_control):
                 current_prompt_control.change(describe_circular_prompt,[prompt_text_value,soft_shading_control,pattern_view_control],prompt_count_control,queue=False)
         if pose_transfer_enabled:
@@ -179,11 +179,11 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
             reference_upload_group,reference_image_controls=build_reference_image_inputs(reference_image_mode=None, reference_slot_count=reference_slot_count, reference_slot_labels=['바디 레퍼런스 · 필수','아웃핏 레퍼런스 · 필수'] if outfit_transfer_enabled else ['아이덴티티 이미지 · 필수','포즈 이미지 · 필수'] if pose_transfer_enabled else None)
         gr.Markdown(('생성 출력: 512×512 또는 768×768.' if pose_transfer_enabled else '생성 출력 최소 크기: 256×256.' if qwen21_mode_enabled else '생성 출력 최소 크기: 512×512.') + ' 참조 이미지의 크기·비율은 자유입니다. RGB/RGBA PNG, 장당 3MB 이하. ' + ('투명 영역은 흰색 배경에 합성해 전달합니다.' if qwen21_mode_enabled else '투명 배경은 사용할 수 없습니다.'))
         with gr.Row():
-            width_value=gr.Dropdown([512,768] if pose_transfer_enabled else [256,384,512,768,1024,1280] if qwen21_mode_enabled else [512,768,1024,1280],value=256 if circular_mode_enabled else 768 if qwen21_mode_enabled else 512,label='해상도' if pose_transfer_enabled else '너비',scale=1,min_width=120)
-            height_value=gr.Dropdown([512,768] if pose_transfer_enabled else [256,384,512,768,1024,1280] if qwen21_mode_enabled else [512,768,1024,1280],value=256 if circular_mode_enabled else 768 if qwen21_mode_enabled else 512,label='높이',visible=not pose_transfer_enabled,scale=1,min_width=120)
+            width_value=gr.Dropdown([512,768] if pose_transfer_enabled else [256,384,512,768,1024,1280] if qwen21_mode_enabled else [512,768,1024,1280],value=512 if circular_mode_enabled else 768 if qwen21_mode_enabled else 512,label='해상도' if pose_transfer_enabled else '너비',scale=1,min_width=120)
+            height_value=gr.Dropdown([512,768] if pose_transfer_enabled else [256,384,512,768,1024,1280] if qwen21_mode_enabled else [512,768,1024,1280],value=512 if circular_mode_enabled else 768 if qwen21_mode_enabled else 512,label='높이',visible=not pose_transfer_enabled,scale=1,min_width=120)
             step_value=gr.Dropdown([20,30,40,50],value=40,label='생성 스텝',scale=1,min_width=120) if qwen21_mode_enabled else gr.Radio([4,30],value=4,label='생성 스텝',scale=1,min_width=120)
             if circular_mode_enabled:
-                circular_radius_control=gr.Dropdown([8,12,16],value=8,label='순환 반경 · 토큰',scale=1,min_width=120)
+                circular_radius_control=gr.Dropdown([8,12,16],value=12,label='순환 반경 · 토큰',scale=1,min_width=120)
             else:
                 seed_value=build_generation_seed(10107)
         if circular_mode_enabled:
