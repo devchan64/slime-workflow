@@ -13,8 +13,27 @@ let directAttributeTargetInput=null;
 let currentMeshPreview;try{currentMeshPreview=new AnnyMeshPreview(document.querySelector('#mesh-preview'))}catch(error){renderStatusLabel.textContent=error.message}
 let historySelectionActive=false,baselineAttributeValues,attributeChangeVersion=0,activeRenderPromise=null;
 const renderRotationControl=document.querySelector('#render-rotation-y');
-renderRotationControl.oninput=()=>{document.querySelector('#render-rotation-value').textContent=renderRotationControl.value;currentMeshPreview?.setPreviewRotation(Number(renderRotationControl.value))};
-const collectAttributeValues=()=>Object.fromEntries([...attributeFieldPanel.querySelectorAll('input')].map(input=>[input.name,Number(input.value)]));
+let currentRenderRotation=0;
+const readRenderRotation=()=>renderRotationControl?Number(renderRotationControl.value):currentRenderRotation;
+function applyRenderRotation(currentRotationValue){
+ if(typeof currentRotationValue!=='number'||!Number.isFinite(currentRotationValue)||currentRotationValue<-180||currentRotationValue>180)throw Error('Y축 회전은 -180~180도 사이의 숫자여야 합니다.');
+ currentRenderRotation=currentRotationValue;
+ if(renderRotationControl)renderRotationControl.value=currentRotationValue;
+ const currentRotationOutput=document.querySelector('#render-rotation-value');if(currentRotationOutput)currentRotationOutput.textContent=`현재 렌더 Y축 회전: ${currentRotationValue}°`;
+ currentMeshPreview?.setPreviewRotation(currentRotationValue);
+}
+if(renderRotationControl)renderRotationControl.oninput=()=>applyRenderRotation(Number(renderRotationControl.value));
+window.annyRotationControls=(currentActionName,currentRotationValue)=>{
+ if(!['read','apply'].includes(currentActionName))throw Error('지원하지 않는 회전 명령입니다.');
+ if(currentActionName==='apply')applyRenderRotation(currentRotationValue);
+ return [readRenderRotation(),`현재 렌더 Y축 회전: ${readRenderRotation()}°. 이미지 생성은 별도로 실행하세요.`];
+};
+const currentAttributeValues={};
+const collectAttributeValues=()=>({...currentAttributeValues});
+function assignAttributeValues(currentInputValues){
+ for(const [currentFieldName] of attributeFieldSpecs)currentAttributeValues[currentFieldName]=['hip-waist-up','torso-muscle-dorsi-incr'].includes(currentFieldName)?0:currentInputValues[currentFieldName]??baselineAttributeValues.phenotype_kwargs[currentFieldName]??baselineAttributeValues.local_changes_kwargs[currentFieldName]??baselineAttributeValues.facial_actions[currentFieldName]??baselineAttributeValues.bone_rotation_defaults[currentFieldName]??0;
+ for(const currentInputElement of attributeFieldPanel.querySelectorAll('input')){currentInputElement.value=currentAttributeValues[currentInputElement.name];currentInputElement.nextElementSibling.textContent=currentInputElement.value;}
+}
 async function fetchRenderRecord(url,options){const response=await fetch(url,options);const record=await response.json();if(!response.ok)throw Error(record.error||'요청 실패');return record}
 function markAttributeChanges(){historySelectionActive=false;attributeChangeVersion++;renderStatusLabel.textContent='설정 적용 대기 · 프리뷰 생성 또는 이미지 렌더를 누르세요.'}
 async function showPreparedPreview(recordId){
@@ -27,9 +46,9 @@ async function requestAttributeRender(renderFinalImages=false){
  try{
  if(!await confirmGpuQueueStart()){renderStatusLabel.textContent='대기열 추가를 취소했습니다.';return;}
  renderStatusLabel.textContent=renderFinalImages?'이미지 렌더 중':'웹 프리뷰 메시 생성 중';
- const record=await fetchRenderRecord('/anny-attributes/'+(renderFinalImages?'render':'preview'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...collectAttributeValues(),rotation_y:Number(renderRotationControl.value)})});
+ const record=await fetchRenderRecord('/anny-attributes/'+(renderFinalImages?'render':'preview'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...collectAttributeValues(),rotation_y:readRenderRotation()})});
  let state,loadedMeshPreview=false;
- do{await new Promise(resolve=>setTimeout(resolve,1000));state=await fetchRenderRecord('/anny-attributes/jobs/'+record.id);if(state.mesh_ready&&!loadedMeshPreview&&requestedChangeVersion===attributeChangeVersion){await currentMeshPreview.loadPreviewRecord(record.id);currentMeshPreview.setPreviewRotation(Number(renderRotationControl.value));loadedMeshPreview=true;}if(state.preview_ready&&requestedChangeVersion===attributeChangeVersion){await showPreparedPreview(record.id);renderStatusLabel.textContent='프리뷰 준비 완료 · 후속 작업 처리 중';}attributeLogViewer.update(state.log||'');}while(['running','queued'].includes(state.status));
+ do{await new Promise(resolve=>setTimeout(resolve,1000));state=await fetchRenderRecord('/anny-attributes/jobs/'+record.id);if(state.mesh_ready&&!loadedMeshPreview&&requestedChangeVersion===attributeChangeVersion){await currentMeshPreview.loadPreviewRecord(record.id);currentMeshPreview.setPreviewRotation(readRenderRotation());loadedMeshPreview=true;}if(state.preview_ready&&requestedChangeVersion===attributeChangeVersion){await showPreparedPreview(record.id);renderStatusLabel.textContent='프리뷰 준비 완료 · 후속 작업 처리 중';}attributeLogViewer.update(state.log||'');}while(['running','queued'].includes(state.status));
  if(requestedChangeVersion!==attributeChangeVersion)return;
  if(state.status!=='completed')throw Error('렌더 실패 · 로그를 확인하세요.');
  if(renderFinalImages)await showPreparedPreview(record.id);
@@ -40,14 +59,46 @@ async function requestAttributeRender(renderFinalImages=false){
  await activeRenderPromise;activeRenderPromise=null;
  if(requestedChangeVersion!==attributeChangeVersion&&!historySelectionActive)renderStatusLabel.textContent='설정이 변경되었습니다. 생성 버튼을 눌러 적용하세요.';
 }
-function restoreAttributeDefaults(){for(const input of attributeFieldPanel.querySelectorAll('input')){input.value=baselineAttributeValues.phenotype_kwargs[input.name]??baselineAttributeValues.local_changes_kwargs[input.name]??baselineAttributeValues.facial_actions[input.name]??baselineAttributeValues.bone_rotation_defaults[input.name]??0;input.nextElementSibling.textContent=input.value}markAttributeChanges()}
+function restoreAttributeDefaults(){assignAttributeValues({});markAttributeChanges()}
 function openDirectAttributeInput(attributeInputElement,attributeLabelText){directAttributeTargetInput=attributeInputElement;document.querySelector('#attribute-direct-input-title').textContent=attributeLabelText+' 직접 입력';document.querySelector('#attribute-direct-input-description').textContent=attributeLabelText+' 값을 수치로 지정합니다.';directAttributeInputValue.min=attributeInputElement.min;directAttributeInputValue.max=attributeInputElement.max;directAttributeInputValue.step=attributeInputElement.step;directAttributeInputValue.value=attributeInputElement.value;document.querySelector('#attribute-direct-input-range').textContent='허용 범위: '+attributeInputElement.min+' ~ '+attributeInputElement.max;directAttributeInputDialog.showModal();directAttributeInputValue.focus();directAttributeInputValue.select()}
 document.querySelector('#attribute-direct-input-cancel').onclick=()=>directAttributeInputDialog.close();
 directAttributeInputForm.onsubmit=event=>{event.preventDefault();if(!directAttributeTargetInput||!directAttributeInputValue.reportValidity())return;directAttributeTargetInput.value=directAttributeInputValue.value;directAttributeTargetInput.dispatchEvent(new Event('input',{bubbles:true}));directAttributeInputDialog.close()};
 if(document.querySelector('#reset'))document.querySelector('#reset').onclick=restoreAttributeDefaults;
-baselineProfileSelector.onchange=async()=>{try{const selectedProfileRecord=await fetchRenderRecord('/anny-attributes/base/'+baselineProfileSelector.value);baselineAttributeValues=selectedProfileRecord;restoreAttributeDefaults();renderStatusLabel.textContent='기준 체형 불러옴 · '+selectedProfileRecord.profile.label}catch(error){renderStatusLabel.textContent=error.message}};
+if(baselineProfileSelector)baselineProfileSelector.onchange=async()=>{try{const selectedProfileRecord=await fetchRenderRecord('/anny-attributes/base/'+baselineProfileSelector.value);baselineAttributeValues=selectedProfileRecord;restoreAttributeDefaults();renderStatusLabel.textContent='기준 체형 불러옴 · '+selectedProfileRecord.profile.label}catch(error){renderStatusLabel.textContent=error.message}};
 if(document.querySelector('#generate-preview'))document.querySelector('#generate-preview').onclick=()=>requestAttributeRender(false);
 if(document.querySelector('#retry'))document.querySelector('#retry').onclick=()=>{if(activeRenderPromise){renderStatusLabel.textContent='진행 중인 생성이 완료된 후 이미지 렌더를 실행하세요.';return}requestAttributeRender(true)};
+window.annyNumericControls=(currentActionName,currentFieldName,currentFieldValue)=>{
+ if(!['read','apply'].includes(currentActionName))throw Error('지원하지 않는 속성 명령입니다.');
+ if(!Object.keys(currentAttributeValues).length)throw Error('기준 체형을 불러오는 중입니다. 잠시 후 다시 읽으세요.');
+ const currentFieldSpec=attributeFieldSpecs.find(currentSpecRecord=>currentSpecRecord[0]===currentFieldName)||(currentActionName==='read'&&!currentFieldName?attributeFieldSpecs[0]:null);
+ if(!currentFieldSpec)throw Error('속성을 선택하세요.');
+ const [currentSelectedName,currentFieldLabel,currentMinimumValue,currentMaximumValue]=currentFieldSpec;
+ const currentLockedState=['hip-waist-up','torso-muscle-dorsi-incr'].includes(currentSelectedName);
+ if(currentActionName==='apply'){
+  if(currentLockedState)throw Error('이 속성은 기준값으로 잠겨 있습니다.');
+  if(typeof currentFieldValue!=='number'||!Number.isFinite(currentFieldValue)||currentFieldValue<currentMinimumValue||currentFieldValue>currentMaximumValue)throw Error(`허용 범위는 ${currentMinimumValue}~${currentMaximumValue}입니다.`);
+  assignAttributeValues({...currentAttributeValues,[currentSelectedName]:currentFieldValue});markAttributeChanges();
+ }
+ return [{__type__:'update',choices:attributeFieldSpecs.map(currentSpecRecord=>[currentSpecRecord[1]+(['hip-waist-up','torso-muscle-dorsi-incr'].includes(currentSpecRecord[0])?' · 잠금':''),currentSpecRecord[0]]),value:currentSelectedName},{__type__:'update',value:currentAttributeValues[currentSelectedName],minimum:currentMinimumValue,maximum:currentMaximumValue,interactive:!currentLockedState},`허용 범위 ${currentMinimumValue}~${currentMaximumValue} · ${currentLockedState?'기준값 잠금':'변경 후 프리뷰 생성으로 확인하세요.'}`];
+};
+window.annyNavigationControls=(currentSectionName)=>{
+ const currentSectionLabels={attributes:'체형 설정',preview:'프리뷰·렌더',history:'이전 결과 찾기'};
+ if(!Object.hasOwn(currentSectionLabels,currentSectionName))throw Error('지원하지 않는 작업 영역입니다.');
+ const currentSectionElement=document.querySelector(`[data-workflow-label="${currentSectionLabels[currentSectionName]}"]`);
+ if(!currentSectionElement)throw Error('작업 영역을 준비 중입니다. 잠시 후 다시 시도하세요.');
+ currentSectionElement.scrollIntoView({block:'start'});currentSectionElement.setAttribute('tabindex','-1');currentSectionElement.focus({preventScroll:true});
+ return currentSectionLabels[currentSectionName]+' 영역으로 이동했습니다.';
+};
+window.annyProfileControls=async(currentActionName,currentProfileId)=>{
+ const currentProfilesPayload=await fetchRenderRecord('/anny-attributes/profiles');
+ if(!['list','apply'].includes(currentActionName))throw Error('지원하지 않는 기준 체형 명령입니다.');
+ if(currentActionName==='apply'){
+  if(!currentProfilesPayload.profiles.some(currentProfileRecord=>currentProfileRecord.id===currentProfileId))throw Error('기준 체형을 선택하세요.');
+  const currentProfileRecord=await fetchRenderRecord('/anny-attributes/base/'+encodeURIComponent(currentProfileId));
+  baselineAttributeValues=currentProfileRecord;restoreAttributeDefaults();renderStatusLabel.textContent='기준 체형 불러옴 · '+currentProfileRecord.profile.label;
+ }
+ return [{__type__:'update',choices:currentProfilesPayload.profiles.map(currentProfileRecord=>[currentProfileRecord.label,currentProfileRecord.id]),value:baselineAttributeValues?.profile?.profile_id||null},currentActionName==='apply'?'기준 체형을 적용했습니다. 생성은 별도로 실행하세요.':'기준 체형 목록을 읽었습니다.'];
+};
 window.annyAttributeActions=async(currentActionName)=>{
  if(!baselineAttributeValues)throw Error('기준 체형을 준비 중입니다. 잠시 후 다시 시도하세요.');
  if(activeRenderPromise)throw Error('진행 중인 생성이 완료된 뒤 다시 시도하세요.');
@@ -60,7 +111,7 @@ window.annyAttributeActions=async(currentActionName)=>{
 fetchRenderRecord('/anny-attributes/base').then(record=>{
  baselineAttributeValues=record;
  renderStatusLabel.textContent='기본 체형 · '+record.profile.label;
- fetchRenderRecord('/anny-attributes/profiles').then(profilePayload=>{for(const profileRecord of profilePayload.profiles){const profileOption=document.createElement('option');profileOption.value=profileRecord.id;profileOption.textContent=profileRecord.label;profileOption.selected=profileRecord.id===record.profile.profile_id;baselineProfileSelector.append(profileOption)}}).catch(error=>renderStatusLabel.textContent=error.message);
+ fetchRenderRecord('/anny-attributes/profiles').then(profilePayload=>{for(const profileRecord of profilePayload.profiles){const profileOption=document.createElement('option');profileOption.value=profileRecord.id;profileOption.textContent=profileRecord.label;profileOption.selected=profileRecord.id===record.profile.profile_id;if(baselineProfileSelector)baselineProfileSelector.append(profileOption)}}).catch(error=>renderStatusLabel.textContent=error.message);
  const attributeKoreanLabels={'torso-muscle-dorsi-incr':'등 근육 형태','gender':'성별','head-scale-vert-incr':'머리 높이','head-age-incr':'머리 나이','head-scale-depth-incr':'머리 깊이','head-scale-horiz-incr':'머리 너비','hip-scale-horiz-incr':'골반 너비','hip-scale-depth-incr':'골반 깊이','hip-waist-up':'골반 허리 높이','measure-neck-circ-incr':'목 둘레','measure-neck-height-incr':'목 길이','neck-scale-depth-incr':'목 깊이','neck-scale-horiz-incr':'목 너비','neck-scale-vert-incr':'목 높이','measure-waisttohip-dist-incr':'허리–골반 거리','measure-waist-circ-incr':'허리 둘레','torso-scale-vert-incr':'몸통 높이','l-hand-scale-incr':'왼손 크기','r-hand-scale-incr':'오른손 크기','l-foot-scale-incr':'왼발 크기','r-foot-scale-incr':'오른발 크기','measure-ankle-circ-incr':'발목 둘레'};
  for(const attributeGroupName of ['phenotype_kwargs','local_changes_kwargs','facial_actions'])for(const attributeFieldName of Object.keys(record[attributeGroupName])){
   if(!attributeFieldSpecs.some(attributeSpecValues=>attributeSpecValues[0]===attributeFieldName))attributeFieldSpecs.push([attributeFieldName,attributeKoreanLabels[attributeFieldName]||attributeFieldName,attributeGroupName==='local_changes_kwargs'?-1:0,1]);
@@ -86,14 +137,16 @@ fetchRenderRecord('/anny-attributes/base').then(record=>{
  const attributePlacementMap=new Map();
  attributeGroupDefinitions.forEach(([groupName,fieldNames],groupIndex)=>fieldNames.forEach((fieldName,fieldIndex)=>attributePlacementMap.set(fieldName,{groupName,order:groupIndex*1000+fieldIndex})));
  attributeFieldSpecs.sort((left,right)=>(attributePlacementMap.get(left[0])?.order??99999)-(attributePlacementMap.get(right[0])?.order??99999)||left[0].localeCompare(right[0]));
+ for(const attributeSpecValues of attributeFieldSpecs){if(['head-scale-horiz-incr','head-scale-vert-incr','head-scale-depth-incr'].includes(attributeSpecValues[0]))attributeSpecValues[3]=3}
+ if(!document.querySelector('#anny-attribute-root')){
  const attributeGroupPanels={};
  for(const [groupDisplayName] of attributeGroupDefinitions){
   if(!attributeFieldSpecs.some(([name])=>(attributePlacementMap.get(name)?.groupName??'기타')===groupDisplayName))continue;
   const groupPanelElement=document.createElement('fieldset');const groupTitleElement=document.createElement('legend');groupTitleElement.textContent=groupDisplayName;groupPanelElement.append(groupTitleElement);attributeFieldPanel.append(groupPanelElement);attributeGroupPanels[groupDisplayName]=groupPanelElement;
  }
- for(const attributeSpecValues of attributeFieldSpecs){if(['head-scale-horiz-incr','head-scale-vert-incr','head-scale-depth-incr'].includes(attributeSpecValues[0]))attributeSpecValues[3]=3}
  for(const [name,label,min,max] of attributeFieldSpecs){const row=document.createElement('div');row.className='attribute-field-row';const attributeLabel=document.createElement('label');attributeLabel.textContent=label;const input=document.createElement('input');input.type='range';input.name=name;input.disabled=['hip-waist-up','torso-muscle-dorsi-incr'].includes(name);input.min=min;input.max=max;input.step=name.includes('_rotation_')?'any':.05;input.setAttribute('aria-label',label);if(input.disabled){const attributeLockBadge=document.createElement('span');attributeLockBadge.className='attribute-lock-badge';attributeLockBadge.textContent='🔒 잠금';attributeLockBadge.title='기준값 0으로 고정되어 수정할 수 없습니다.';attributeLabel.append(attributeLockBadge)}const attributeDirectInputButton=document.createElement('button');attributeDirectInputButton.type='button';attributeDirectInputButton.className='attribute-direct-input-button';attributeDirectInputButton.textContent='직접 입력';attributeDirectInputButton.disabled=input.disabled;attributeDirectInputButton.onclick=()=>openDirectAttributeInput(input,label);row.append(attributeLabel,input,document.createElement('output'),attributeDirectInputButton);if(name in record.phenotype_kwargs||name in record.local_changes_kwargs||name in record.facial_actions){const attributeDefaultHint=document.createElement('small');const officialDefaultValue=name in record.phenotype_kwargs?.5:0;const currentDefaultValue=record.phenotype_kwargs[name]??record.local_changes_kwargs[name]??record.facial_actions[name];attributeDefaultHint.textContent=`${name} · 공식 기본 ${officialDefaultValue} / 현재 설정 ${currentDefaultValue}`;if(input.disabled)attributeDefaultHint.textContent+=' · 0으로 잠금';row.append(attributeDefaultHint)}const attributeGroupName=attributePlacementMap.get(name)?.groupName??'기타';attributeGroupPanels[attributeGroupName].append(row)}
- attributeFieldPanel.oninput=event=>{event.target.nextElementSibling.textContent=event.target.value;markAttributeChanges()};
+ attributeFieldPanel.oninput=event=>{event.target.nextElementSibling.textContent=event.target.value;currentAttributeValues[event.target.name]=Number(event.target.value);markAttributeChanges()};
+ }
  restoreAttributeDefaults();
  // 초기 진입은 현재 기준 프로필을 유지하고, 과거 결과는 이력에서 명시적으로 선택한다.
 }).catch(error=>renderStatusLabel.textContent=error.message);
@@ -107,8 +160,8 @@ window.showGenerationRecordResult=async record=>{
 };
 window.restoreGenerationRecord=async record=>{historySelectionActive=true;
  attributeChangeVersion++;
- renderRotationControl.value=record.request.render_settings?.rotation_y??record.request.attributes.rotation_y??0;renderRotationControl.oninput();
- for(const input of attributeFieldPanel.querySelectorAll('input')){input.value=['hip-waist-up','torso-muscle-dorsi-incr'].includes(input.name)?0:record.request.attributes[input.name]??baselineAttributeValues.phenotype_kwargs[input.name]??baselineAttributeValues.local_changes_kwargs[input.name]??baselineAttributeValues.facial_actions[input.name]??baselineAttributeValues.bone_rotation_defaults[input.name]??0;input.nextElementSibling.textContent=input.value}
+ applyRenderRotation(record.request.render_settings?.rotation_y??record.request.attributes.rotation_y??0);
+ assignAttributeValues(record.request.attributes);
  renderStatusLabel.textContent='저장된 입력값을 불러왔습니다. 수정 후 프리뷰 생성 또는 이미지 렌더를 실행하세요.';
 };
 </script><script src="/anny-attributes/history-ui.js"></script>

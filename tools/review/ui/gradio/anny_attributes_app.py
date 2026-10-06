@@ -1,4 +1,4 @@
-"""ANNY 속성 렌더러를 Gradio 내부 사용자 정의 구성 요소로 제공한다."""
+"""ANNY의 표준 설정과 브라우저 체형 상태·3D 캔버스를 연결한다."""
 import argparse
 import json
 import re
@@ -25,6 +25,9 @@ def read_anny_attribute_markup():
     current_markup_text=main_markup_match.group(1)
     for current_button_identifier in ('reset','generate-preview','retry'):
         current_markup_text=re.sub(r'<button[^>]*id="'+current_button_identifier+r'"[^>]*>.*?</button>','',current_markup_text)
+    current_markup_text=re.sub(r'<label for="baseline-profile">.*?</select>','',current_markup_text,flags=re.S)
+    current_markup_text=re.sub(r'<label for="render-rotation-y">.*?</output>','<p id="render-rotation-value">현재 렌더 Y축 회전: 0°</p>',current_markup_text,flags=re.S)
+    current_markup_text=current_markup_text.replace('<div class="attribute-scroll-region"','<div hidden class="attribute-scroll-region"')
     current_markup_text=current_markup_text.replace('<canvas id="mesh-preview"','<canvas width="768" height="520" style="width:100%;height:520px;touch-action:none" id="mesh-preview"')
     return '<div id="anny-attribute-root">'+current_markup_text+'</div>'
 
@@ -39,15 +42,37 @@ def read_anny_attribute_script():
 def create_anny_attribute_loader(review_server_port):
     inline_script_text=json.dumps(read_anny_attribute_script()).replace('<','\\u003c')
     review_server_base=f'http://127.0.0.1:{review_server_port}'
-    return f"""async()=>{{if(document.querySelector('script[data-anny-attribute-component]'))return;const componentScriptText={inline_script_text};const loadComponentScript=currentPathValue=>new Promise((resolve,reject)=>{{const nextScriptElement=document.createElement('script');nextScriptElement.src='{review_server_base}'+currentPathValue;nextScriptElement.dataset.annyAttributeComponent='true';nextScriptElement.onload=resolve;nextScriptElement.onerror=()=>reject(new Error('ANNY 구성 요소를 불러오지 못했습니다: '+currentPathValue));document.body.append(nextScriptElement);}});await loadComponentScript('/management/gpu-queue-confirmation.js');await loadComponentScript('/anny-attributes/log-viewer.js');await loadComponentScript('/anny-attributes/mesh-viewer.js');const inlineScriptElement=document.createElement('script');inlineScriptElement.dataset.annyAttributeComponent='true';inlineScriptElement.textContent=componentScriptText;document.body.append(inlineScriptElement);await loadComponentScript('/anny-attributes/history-ui.js');await loadComponentScript('/management/workflow-ui.js');}}"""
+    return f"""async()=>{{if(document.querySelector('script[data-anny-attribute-component]'))return;const componentScriptText={inline_script_text};const loadComponentScript=currentPathValue=>new Promise((resolve,reject)=>{{const nextScriptElement=document.createElement('script');nextScriptElement.src='{review_server_base}'+currentPathValue;nextScriptElement.dataset.annyAttributeComponent='true';nextScriptElement.onload=resolve;nextScriptElement.onerror=()=>reject(new Error('ANNY 구성 요소를 불러오지 못했습니다: '+currentPathValue));document.body.append(nextScriptElement);}});await loadComponentScript('/management/gpu-queue-confirmation.js');await loadComponentScript('/anny-attributes/log-viewer.js');await loadComponentScript('/anny-attributes/mesh-viewer.js');const inlineScriptElement=document.createElement('script');inlineScriptElement.dataset.annyAttributeComponent='true';inlineScriptElement.textContent=componentScriptText;document.body.append(inlineScriptElement);await loadComponentScript('/anny-attributes/history-ui.js');if(window.top===window)await loadComponentScript('/management/gpu-status.js');}}"""
 
 
 def build_anny_attribute_interface(review_server_port):
     with gr.Blocks(title='Anny 속성 렌더러') as interface_blocks_value:
         current_action_feedback=gr.Textbox(label='작업 안내',value='체형을 설정한 뒤 프리뷰 생성 또는 이미지 렌더를 실행하세요.',interactive=False)
         with gr.Row():
+            for current_section_name,current_section_label in (('attributes','체형 설정으로 이동'),('preview','프리뷰·렌더로 이동'),('history','이전 결과로 이동')):
+                build_browser_action_button(current_section_label,'annyNavigationControls',current_section_name,current_action_feedback)
+        current_profile_choice=gr.Dropdown(label='기준 체형',choices=[],interactive=True)
+        with gr.Row():
+            for current_profile_action,current_profile_label in (('list','기준 체형 목록 읽기'),('apply','기준 체형 적용')):
+                current_profile_button=gr.Button(current_profile_label)
+                current_profile_button.click(fn=None,inputs=current_profile_choice,outputs=[current_profile_choice,current_action_feedback],queue=False,js="async(currentProfileId)=>{try{return await window.annyProfileControls('"+current_profile_action+"',currentProfileId);}catch(currentErrorValue){return [{__type__:'update'},currentErrorValue.message];}}")
+        with gr.Row():
             for current_action_name,current_button_label in (('reset','신체 기준값 복원'),('preview','프리뷰 생성'),('render','이미지 렌더')):
                 build_browser_action_button(current_button_label,'annyAttributeActions',current_action_name,current_action_feedback)
+        with gr.Accordion('신체 속성 편집',open=True):
+            current_attribute_choice=gr.Dropdown(label='신체 속성',choices=[],interactive=True)
+            current_attribute_value=gr.Number(label='속성값',value=0)
+            with gr.Row():
+                for current_attribute_action,current_attribute_label in (('read','속성 목록·현재 값 읽기'),('apply','속성값 적용')):
+                    current_attribute_button=gr.Button(current_attribute_label)
+                    current_attribute_button.click(fn=None,inputs=[current_attribute_choice,current_attribute_value],outputs=[current_attribute_choice,current_attribute_value,current_action_feedback],queue=False,js="(currentFieldName,currentFieldValue)=>{try{return window.annyNumericControls('"+current_attribute_action+"',currentFieldName,currentFieldValue);}catch(currentErrorValue){return [{__type__:'update'},{__type__:'update'},currentErrorValue.message];}}")
+            current_attribute_choice.input(fn=None,inputs=[current_attribute_choice,current_attribute_value],outputs=[current_attribute_choice,current_attribute_value,current_action_feedback],queue=False,js="(currentFieldName,currentFieldValue)=>{try{return window.annyNumericControls('read',currentFieldName,currentFieldValue);}catch(currentErrorValue){return [{__type__:'update'},{__type__:'update'},currentErrorValue.message];}}")
+        with gr.Group():
+            current_rotation_value=gr.Number(label='렌더 Y축 회전 · °',value=0,minimum=-180,maximum=180)
+            with gr.Row():
+                for current_rotation_action,current_rotation_label in (('read','현재 회전 읽기'),('apply','렌더 회전 적용')):
+                    current_rotation_button=gr.Button(current_rotation_label)
+                    current_rotation_button.click(fn=None,inputs=current_rotation_value,outputs=[current_rotation_value,current_action_feedback],queue=False,js="(currentRotationValue)=>{try{return window.annyRotationControls('"+current_rotation_action+"',currentRotationValue);}catch(currentErrorValue){return [{__type__:'update'},currentErrorValue.message];}}")
         gr.HTML(read_anny_attribute_markup())
     return interface_blocks_value
 

@@ -38,6 +38,9 @@ class AnnyAttributesGradioTest(unittest.TestCase):
         self.assertIn('/anny-attributes/mesh-viewer.js',loader_script_text)
         self.assertIn('/anny-attributes/history-ui.js',loader_script_text)
         self.assertIn('mesh-preview',read_anny_attribute_markup())
+        self.assertNotIn('/management/workflow-ui.js',loader_script_text)
+        self.assertNotIn('id="baseline-profile"',read_anny_attribute_markup())
+        self.assertNotIn('id="render-rotation-y"',read_anny_attribute_markup())
 
 
 if __name__ == '__main__':
