@@ -14,13 +14,22 @@ class MapReviewGradioTest(unittest.TestCase):
         self.assertIn('map-review-root', str(configuration_value))
         self.assertNotIn('<iframe', str(configuration_value))
 
+    def test_camera_actions_use_native_browser_controls(self):
+        current_interface_config=build_map_review_interface(8770).get_config_file()
+        current_camera_events=[current_event_record for current_event_record in current_interface_config['dependencies'] if 'mapReviewCameraControls' in (current_event_record.get('js') or '')]
+        self.assertEqual(len(current_camera_events),5)
+        for current_event_record in current_camera_events:
+            self.assertFalse(current_event_record['backend_fn'])
+            self.assertFalse(current_event_record['queue'])
+
     def test_loader_uses_the_live_review_bundle_for_scripts_and_assets(self):
         loader_script_value = create_map_review_loader(8770)
 
-        self.assertIn('/isloon-map-review/map-review.html?embedded=1', loader_script_value)
-        self.assertIn("['map','townPage']", loader_script_value)
-        self.assertIn('mapReviewAssetUrl', loader_script_value)
-        self.assertIn('sourceScriptElement', loader_script_value)
+        self.assertIn('/isloon-map-review/block-map-review.js', loader_script_value)
+        self.assertIn('mapReviewControlOptions', loader_script_value)
+        self.assertNotIn('window.fetch=', loader_script_value)
+        self.assertNotIn('stylesheet', loader_script_value)
+        self.assertNotIn("createElement('style')", loader_script_value)
         self.assertNotIn('<iframe', loader_script_value)
 
     def test_town_specific_page_reuses_common_map_review_frame(self):

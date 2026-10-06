@@ -3,7 +3,7 @@ import {FIELD_RENDER_METRICS,projectSurfaceCell,CHARACTER_OUTLINE_STYLE} from '.
 const MIN_MAP_SCALE=0.05,MAX_MAP_SCALE=4,MAP_ZOOM_FACTOR=1.25,MAP_DRAG_THRESHOLD=4,MAP_KEYBOARD_PAN_DISTANCE=48;
 let activeMapPointer=null,suppressMarkerClick=false;
 const currentMapCanvas=document.querySelector('#map');
-async function fetchMapReviewRecord(currentFilePath){const currentFetchResponse=await fetch(currentFilePath,{cache:'no-store'});if(!currentFetchResponse.ok)throw Error(`맵 데이터 로드 실패: ${currentFilePath}`);return currentFetchResponse.json()}
+async function fetchMapReviewRecord(currentFilePath){const currentFetchResponse=await fetch(new URL(currentFilePath,import.meta.url),{cache:'no-store'});if(!currentFetchResponse.ok)throw Error(`맵 데이터 로드 실패: ${currentFilePath}`);return currentFetchResponse.json()}
 const gameRenderMetrics=await fetchMapReviewRecord('game-render-metrics.json');
 const blockRenderProfile=await fetchMapReviewRecord('block-render-profile.json');
 const TOWN_BLOCK_HEIGHT=blockRenderProfile.blockHeight;
@@ -15,10 +15,19 @@ const selectedMapIdentifier=new URLSearchParams(location.search).get('map')||ava
 const isTownSpecificReviewPage=new URLSearchParams(location.search).get('townPage')==='1';
 const selectedMapRecord=availableMapRecords.find(currentMapEntry=>currentMapEntry.id===selectedMapIdentifier);
 if(!selectedMapRecord){document.querySelector('#status').textContent='등록되지 않은 맵입니다.';throw Error('등록되지 않은 맵: '+selectedMapIdentifier)}
-for(const currentMapEntry of availableMapRecords){const currentMapOption=document.createElement('option');currentMapOption.value=currentMapEntry.id;currentMapOption.textContent=currentMapEntry.name;document.querySelector('#map-select').append(currentMapOption)}
-document.querySelector('#map-select').value=selectedMapIdentifier;
-if(isTownSpecificReviewPage){document.querySelector('#map-select').closest('label').hidden=true;document.querySelector('#load-map').hidden=true}
-document.querySelector('#load-map').onclick=()=>{const selectedMapUrl=new URL(location.href);selectedMapUrl.searchParams.set('map',document.querySelector('#map-select').value);location.assign(selectedMapUrl)};
+function selectReviewMap(currentMapIdentifier){
+ if(!availableMapRecords.some(currentMapEntry=>currentMapEntry.id===currentMapIdentifier))throw Error('등록된 맵을 선택하세요.');
+ const selectedMapUrl=new URL(location.href);selectedMapUrl.searchParams.set('map',currentMapIdentifier);location.assign(selectedMapUrl);
+}
+const currentMapSelector=document.querySelector('#map-select');
+if(currentMapSelector){
+ for(const currentMapEntry of availableMapRecords)currentMapSelector.append(new Option(currentMapEntry.name,currentMapEntry.id));
+ currentMapSelector.value=selectedMapIdentifier;
+ if(isTownSpecificReviewPage){currentMapSelector.closest('label').hidden=true;document.querySelector('#load-map').hidden=true;}
+ document.querySelector('#load-map').onclick=()=>selectReviewMap(currentMapSelector.value);
+}
+const currentDisplayOptions={'show-character':true,'character-outline':true,'show-safe-boundary':true,edges:false};
+function readReviewOption(currentOptionName){return document.getElementById(currentOptionName)?.checked??currentDisplayOptions[currentOptionName];}
 const currentMapRecord=await fetchMapReviewRecord(selectedMapRecord.path);
 const isFieldMapReview=currentMapRecord.safeTown===false;
 const currentDrawingContext=isFieldMapReview?null:currentMapCanvas.getContext('2d');
@@ -27,8 +36,8 @@ const currentSafeVisualImages={};
 await Promise.all(Object.entries(currentSafeVisualRecords).map(([currentVisualName,currentVisualRecord])=>new Promise((resolveVisualImage,rejectVisualImage)=>{
  const currentVisualImage=new Image();currentVisualImage.onload=()=>{currentSafeVisualImages[currentVisualName]=currentVisualImage;resolveVisualImage()};currentVisualImage.onerror=()=>rejectVisualImage(Error('결계 원본 로드 실패: '+currentVisualName));currentVisualImage.src=new URL(currentVisualRecord.image,import.meta.url).href;
 })));
-document.querySelector('#show-safe-boundary').closest('label').hidden=!isFieldMapReview;
-if(isFieldMapReview)document.querySelector('#character-outline').closest('label').hidden=true;
+if(document.querySelector('#show-safe-boundary'))document.querySelector('#show-safe-boundary').closest('label').hidden=!isFieldMapReview;
+if(isFieldMapReview&&document.querySelector('#character-outline'))document.querySelector('#character-outline').closest('label').hidden=true;
 const loadedGuardImages={};
 await Promise.all((currentMapRecord.guardCenters??[]).map(currentGuardRecord=>new Promise((resolveGuardImage,rejectGuardImage)=>{
  const currentGuardImage=new Image();currentGuardImage.onload=()=>{loadedGuardImages[currentGuardRecord.path]=currentGuardImage;resolveGuardImage()};currentGuardImage.onerror=()=>rejectGuardImage(Error('경비센터 이미지 로드 실패'));currentGuardImage.src=currentGuardRecord.image;
@@ -37,9 +46,9 @@ let currentFieldFrame=null;
 const currentReviewTitle=currentMapRecord.name+' · '+currentMapRecord.reviewLabel;
 document.querySelector('#map-title').textContent=currentReviewTitle;
 document.title=currentReviewTitle;
-document.querySelector('.map-toolbar').setAttribute('aria-label',currentMapRecord.reviewLabel+' 도구');
+document.querySelector('.map-toolbar')?.setAttribute('aria-label',currentMapRecord.reviewLabel+' 도구');
 currentMapCanvas.setAttribute('aria-label',currentReviewTitle+'. 방향키로 이동하고 더하기와 빼기 키로 확대 또는 축소하며 0 키로 전체 보기를 적용합니다.');
-const currentMaterialColors=await fetch('block-materials.json').then(currentResponse=>currentResponse.json());
+const currentMaterialColors=await fetchMapReviewRecord('block-materials.json');
 const buildingTileRecords=await fetchMapReviewRecord('block-building-tiles.json');
 const currentTextureRecords=await fetchMapReviewRecord('/management/map-assets/textures');
 const loadedTextureImages={};
@@ -58,7 +67,7 @@ function renderAppliedTileSourceList(){
  const appliedTileList=document.querySelector('#applied-tile-list');appliedTileList.replaceChildren();
  for(const [currentVisualName,currentVisualRecord] of Object.entries(currentSafeVisualRecords)){
   const currentVisualItem=document.createElement('li'),currentVisualThumbnail=document.createElement('img'),currentVisualLabel=document.createElement('span');
-  currentVisualThumbnail.src=new URL(currentVisualRecord.image,import.meta.url).href;currentVisualThumbnail.alt=currentVisualName==='tower'?'결계탑 원본':'결계 오러 원본';
+  currentVisualThumbnail.width=42;currentVisualThumbnail.height=42;currentVisualThumbnail.src=new URL(currentVisualRecord.image,import.meta.url).href;currentVisualThumbnail.alt=currentVisualName==='tower'?'결계탑 원본':'결계 오러 원본';
   currentVisualLabel.textContent=currentVisualThumbnail.alt+' · '+currentVisualRecord.sourceSize.join('×');
   currentVisualItem.title=`${currentVisualRecord.provenance.managementId} · ${currentVisualRecord.provenance.version} · SHA-256 ${currentVisualRecord.provenance.sha256}`;
   currentVisualItem.append(currentVisualThumbnail,currentVisualLabel);appliedTileList.append(currentVisualItem);
@@ -66,7 +75,7 @@ function renderAppliedTileSourceList(){
  [...appliedTextureNames].sort().forEach(currentTextureName=>{
   const currentTextureRecord=currentTextureRecords[currentTextureName];const currentListItem=document.createElement('li');const currentName=document.createElement('strong');currentName.textContent=currentTextureName;currentListItem.append(currentName);
   if(!currentTextureRecord){const currentWarning=document.createElement('span');currentWarning.className='tile-source-warning';currentWarning.textContent='⚠ 원본 미등록';currentWarning.title='타일 카탈로그에 원본 파일이 등록되지 않았습니다.';currentListItem.append(currentWarning);appliedTileList.append(currentListItem);return}
-  const currentThumbnail=document.createElement('img');currentThumbnail.src=new URL(currentTextureRecord.path,import.meta.url).href;currentThumbnail.alt=`${currentTextureName} 원본 썸네일`;currentThumbnail.loading='lazy';currentListItem.prepend(currentThumbnail);
+  const currentThumbnail=document.createElement('img');currentThumbnail.width=42;currentThumbnail.height=42;currentThumbnail.src=new URL(currentTextureRecord.path,import.meta.url).href;currentThumbnail.alt=`${currentTextureName} 원본 썸네일`;currentThumbnail.loading='lazy';currentListItem.prepend(currentThumbnail);
   const sourceSize=currentTextureRecord.source_size;const expectedSourceSize=currentTextureRecord.expected_source_size;const currentSource=document.createElement('span');currentSource.textContent=`${sourceSize?.join('×')||'?'}px`;currentListItem.append(currentSource);
   const normalizationWarning=currentTextureRecord.normalization_warning||(sourceSize&&expectedSourceSize&&sourceSize.every((currentValue,currentIndex)=>currentValue===expectedSourceSize[currentIndex])?null:`정규화 확인 필요: 기준 ${expectedSourceSize?.join('×')||'256×256'}px`);
   if(normalizationWarning){const currentWarning=document.createElement('span');currentWarning.className='tile-source-warning';currentWarning.textContent='⚠';currentWarning.title=normalizationWarning;const currentDescription=document.createElement('span');currentDescription.className='tile-source-warning-description';currentDescription.textContent=normalizationWarning;currentListItem.append(currentWarning,currentDescription)}
@@ -74,7 +83,7 @@ function renderAppliedTileSourceList(){
  });
  for(const currentGuardRecord of currentMapRecord.guardCenters??[]){
   const currentListItem=document.createElement('li');
-  const currentThumbnail=document.createElement('img');currentThumbnail.src=currentGuardRecord.image;currentThumbnail.alt='경비센터 원본';currentThumbnail.loading='lazy';
+  const currentThumbnail=document.createElement('img');currentThumbnail.width=42;currentThumbnail.height=42;currentThumbnail.src=currentGuardRecord.image;currentThumbnail.alt='경비센터 원본';currentThumbnail.loading='lazy';
   const currentName=document.createElement('strong');currentName.textContent=`경비센터 · ${currentGuardRecord.cityId}`;
   const currentSource=document.createElement('span');currentSource.textContent=`${currentGuardRecord.provenance.source} · ${currentGuardRecord.provenance.version}`;
   const currentHashDetail=document.createElement('details');const currentHashSummary=document.createElement('summary');currentHashSummary.textContent='원본 식별자·해시';
@@ -122,7 +131,7 @@ function drawTexturedSurface(currentFaceRecord,currentTextureImage){
 let currentCameraRotation=0,currentScaleValue=1,currentOffsetX=0,currentOffsetY=0,currentCharacterCell=currentMapRecord.startPoint;
 const currentBlockedCells=new Set(currentMapRecord.blocked.map(currentCell=>`${currentCell.column},${currentCell.row}`));
 function projectBlockVertex(currentVertexPoint){let currentColumnValue=currentVertexPoint.column,currentRowValue=currentVertexPoint.row;for(let currentRotationIndex=0;currentRotationIndex<currentCameraRotation;currentRotationIndex++)[currentColumnValue,currentRowValue]=[-currentRowValue,currentColumnValue];return {x:(currentColumnValue-currentRowValue)*townHalfTileWidth,y:(currentColumnValue+currentRowValue)*townHalfTileHeight-(currentVertexPoint.height??0)}}
-function drawSurfacePolygon(currentSurfacePoints,currentFillColor){currentDrawingContext.beginPath();currentSurfacePoints.forEach((currentPointValue,currentPointIndex)=>currentPointIndex?currentDrawingContext.lineTo(currentPointValue.x,currentPointValue.y):currentDrawingContext.moveTo(currentPointValue.x,currentPointValue.y));currentDrawingContext.closePath();currentDrawingContext.fillStyle=currentFillColor;currentDrawingContext.fill();if(document.querySelector('#edges').checked){currentDrawingContext.strokeStyle=BLOCK_BOUNDARY_COLOR;currentDrawingContext.lineWidth=1/currentScaleValue;currentDrawingContext.stroke()}}
+function drawSurfacePolygon(currentSurfacePoints,currentFillColor){currentDrawingContext.beginPath();currentSurfacePoints.forEach((currentPointValue,currentPointIndex)=>currentPointIndex?currentDrawingContext.lineTo(currentPointValue.x,currentPointValue.y):currentDrawingContext.moveTo(currentPointValue.x,currentPointValue.y));currentDrawingContext.closePath();currentDrawingContext.fillStyle=currentFillColor;currentDrawingContext.fill();if(readReviewOption('edges')){currentDrawingContext.strokeStyle=BLOCK_BOUNDARY_COLOR;currentDrawingContext.lineWidth=1/currentScaleValue;currentDrawingContext.stroke()}}
 // 층 경계를 넘는 블록 면은 공용 블록 높이 단위로 분리한다.
 function splitWallFloors(currentFaceRecord){
  if(currentFaceRecord.top)return [currentFaceRecord];
@@ -167,9 +176,9 @@ characterOutlineContext.fillStyle=CHARACTER_OUTLINE_STYLE.cssColor;
 characterOutlineContext.fillRect(0,0,characterOutlineCanvas.width,characterOutlineCanvas.height);
 const CHARACTER_OUTLINE_OFFSETS=Array.from({length:16},(_,currentOffsetIndex)=>({x:Math.cos(currentOffsetIndex*Math.PI/8),y:Math.sin(currentOffsetIndex*Math.PI/8)}));
 function drawReviewCharacter(currentMarkerPoint){
- if(!document.querySelector('#show-character').checked)return;
+ if(!readReviewOption('show-character'))return;
  const characterScaleValue=reviewCharacterRecord.displayHeight/reviewCharacterRecord.bodyHeight,characterFrameRect=reviewCharacterRecord.frame.rect,characterAnchorPoint=reviewCharacterRecord.frame.anchor;
- if(document.querySelector('#character-outline').checked){
+ if(readReviewOption('character-outline')){
   const currentOutlineRadius=CHARACTER_OUTLINE_STYLE.width/currentScaleValue;
   for(const currentOutlineOffset of CHARACTER_OUTLINE_OFFSETS)currentDrawingContext.drawImage(characterOutlineCanvas,currentMarkerPoint.x-characterAnchorPoint.x*characterScaleValue+currentOutlineOffset.x*currentOutlineRadius,currentMarkerPoint.y-characterAnchorPoint.y*characterScaleValue+currentOutlineOffset.y*currentOutlineRadius,characterFrameRect.width*characterScaleValue,characterFrameRect.height*characterScaleValue);
  }
@@ -180,7 +189,7 @@ function renderBlockMap(currentFitRequested=false){
  if(isFieldMapReview){renderSharedFieldMap(currentFitRequested);return;}
 currentMapCanvas.width=currentMapCanvas.clientWidth;currentMapCanvas.height=currentMapCanvas.clientHeight;const currentAllCorners=isFieldMapReview?currentFieldFrame.points:[{column:0,row:0},{column:currentMapRecord.columns,row:0},{column:0,row:currentMapRecord.rows},{column:currentMapRecord.columns,row:currentMapRecord.rows}].map(projectBlockVertex);if(currentFitRequested){const currentMinX=Math.min(...currentAllCorners.map(p=>p.x)),currentMaxX=Math.max(...currentAllCorners.map(p=>p.x)),currentMinY=Math.min(...currentAllCorners.map(p=>p.y))-TOWN_BLOCK_HEIGHT*2,currentMaxY=Math.max(...currentAllCorners.map(p=>p.y))+40;currentScaleValue=Math.min(currentMapCanvas.width/(currentMaxX-currentMinX+160),currentMapCanvas.height/(currentMaxY-currentMinY+80));currentOffsetX=currentMapCanvas.width/2-(currentMinX+currentMaxX)/2*currentScaleValue;currentOffsetY=currentMapCanvas.height/2-(currentMinY+currentMaxY)/2*currentScaleValue}
 document.querySelector('#zoom-level').textContent=Math.round(currentScaleValue*100)+'%';
-document.querySelector('#zoom-in').disabled=currentScaleValue>=MAX_MAP_SCALE;document.querySelector('#zoom-out').disabled=currentScaleValue<=MIN_MAP_SCALE;
+if(document.querySelector('#zoom-in'))document.querySelector('#zoom-in').disabled=currentScaleValue>=MAX_MAP_SCALE;if(document.querySelector('#zoom-out'))document.querySelector('#zoom-out').disabled=currentScaleValue<=MIN_MAP_SCALE;
 currentDrawingContext.setTransform(currentScaleValue,0,0,currentScaleValue,currentOffsetX,currentOffsetY);
 for(let currentRowIndex=0;currentRowIndex<currentMapRecord.rows;currentRowIndex++)for(let currentColumnIndex=0;currentColumnIndex<currentMapRecord.columns;currentColumnIndex++){const currentTerrainName=currentMapRecord.terrainCodes[currentMapRecord.terrainRows[currentRowIndex][currentColumnIndex]];drawSurfacePolygon([[-.5,-.5],[.5,-.5],[.5,.5],[-.5,.5]].map(([c,r])=>projectBlockVertex({column:currentColumnIndex+c,row:currentRowIndex+r})),currentMaterialColors[currentTerrainName]);const currentGroundImage=loadedTextureImages[groundTextureNames[currentTerrainName]];if(currentGroundImage){const currentGroundVertices=[[-.5,-.5],[.5,-.5],[.5,.5],[-.5,.5]].map(([currentColumnOffset,currentRowOffset])=>({column:currentColumnIndex+currentColumnOffset,row:currentRowIndex+currentRowOffset,height:0}));drawTexturedSurface({top:true,ground:true,vertices:currentGroundVertices,points:currentGroundVertices.map(projectBlockVertex)},currentGroundImage)}}
 const currentRenderFaces=currentMapRecord.buildings.flatMap(currentBuilding=>currentBuilding.faces.flatMap(splitWallFloors).map(currentFace=>({...currentFace,building:currentBuilding,textureTiles:readBuildingTileSet(currentBuilding),points:currentFace.vertices.map(currentVertex=>projectBlockVertex({column:currentBuilding.origin.column+currentVertex.column,row:currentBuilding.origin.row+currentVertex.row,height:currentVertex.height})),depth:currentFace.vertices.reduce((s,v)=>s+projectBlockVertex({column:currentBuilding.origin.column+v.column,row:currentBuilding.origin.row+v.row}).y,0)/currentFace.vertices.length}))).sort((a,b)=>a.depth-b.depth);
@@ -188,7 +197,7 @@ for(const currentFace of currentRenderFaces){const currentAreaValue=currentFace.
 const currentTextureRole=selectWallTexture(currentFace);
 const currentTextureName=currentFace.textureTiles[currentTextureRole];drawTexturedSurface(currentFace,loadedTextureImages[currentTextureName])}}
 // 타일을 입힌 뒤 실제 블록의 노출 경계를 다시 그린다. 층별 텍스처 분할선은 제외한다.
-if(document.querySelector('#edges').checked){
+if(readReviewOption('edges')){
  for(const currentBuildingRecord of currentMapRecord.buildings)for(const currentOriginalFace of currentBuildingRecord.faces){
   const currentOutlinePoints=currentOriginalFace.vertices.map(currentVertexPoint=>projectBlockVertex({column:currentBuildingRecord.origin.column+currentVertexPoint.column,row:currentBuildingRecord.origin.row+currentVertexPoint.row,height:currentVertexPoint.height}));
   const currentOutlineArea=currentOutlinePoints.reduce((currentAreaSum,currentPointValue,currentPointIndex)=>{const nextPointValue=currentOutlinePoints[(currentPointIndex+1)%currentOutlinePoints.length];return currentAreaSum+currentPointValue.x*nextPointValue.y-nextPointValue.x*currentPointValue.y},0);
@@ -206,15 +215,24 @@ function renderSharedFieldMap(currentFitRequested){
   currentOffsetX=currentMapCanvas.clientWidth/2-(currentMinimumX+currentMaximumX)/2*currentScaleValue;currentOffsetY=currentMapCanvas.clientHeight/2-(currentMinimumY+currentMaximumY)/2*currentScaleValue;
  }
  document.querySelector('#zoom-level').textContent=Math.round(currentScaleValue*100)+'%';
- document.querySelector('#zoom-in').disabled=currentScaleValue>=MAX_MAP_SCALE;document.querySelector('#zoom-out').disabled=currentScaleValue<=MIN_MAP_SCALE;
- currentSharedFieldView.render(currentFieldFrame,currentMapRecord,groundTextureNames,{scale:currentScaleValue,offsetX:currentOffsetX,offsetY:currentOffsetY,edges:document.querySelector('#edges').checked,safe:document.querySelector('#show-safe-boundary').checked,character:document.querySelector('#show-character').checked,characterCell:currentCharacterCell});
+ if(document.querySelector('#zoom-in'))document.querySelector('#zoom-in').disabled=currentScaleValue>=MAX_MAP_SCALE;if(document.querySelector('#zoom-out'))document.querySelector('#zoom-out').disabled=currentScaleValue<=MIN_MAP_SCALE;
+ currentSharedFieldView.render(currentFieldFrame,currentMapRecord,groundTextureNames,{scale:currentScaleValue,offsetX:currentOffsetX,offsetY:currentOffsetY,edges:readReviewOption('edges'),safe:readReviewOption('show-safe-boundary'),character:readReviewOption('show-character'),characterCell:currentCharacterCell});
  document.querySelector('#status').textContent=`공용 필드 렌더러 · 높이 단위 ${FIELD_RENDER_METRICS.elevationHeight}px · 타일 ${FIELD_RENDER_METRICS.tileWidth}×${FIELD_RENDER_METRICS.tileHeight} · 결계 높이 25px · 회전 ${currentCameraRotation*90}°`;
 }
-document.querySelector('#show-safe-boundary').onchange=()=>renderBlockMap();
-if(isFieldMapReview){document.querySelector('#building').closest('section').hidden=true;}
-currentMapRecord.buildings.forEach(currentBuilding=>{const currentOption=document.createElement('option');currentOption.value=currentBuilding.id;currentOption.textContent=currentBuilding.name;document.querySelector('#building').append(currentOption)});
-document.querySelector('#building').onchange=currentEvent=>{const currentBuilding=currentMapRecord.buildings.find(b=>b.id===currentEvent.target.value);if(!currentBuilding)return;const currentCenter=projectBlockVertex({column:currentBuilding.origin.column+currentBuilding.width/2-.5,row:currentBuilding.origin.row+currentBuilding.height/2-.5,height:TOWN_BLOCK_HEIGHT});currentScaleValue=1;currentOffsetX=currentMapCanvas.width/2-currentCenter.x;currentOffsetY=currentMapCanvas.height/2-currentCenter.y;renderBlockMap()};
-document.querySelector('#rotate').onclick=()=>{currentCameraRotation=(currentCameraRotation+1)%4;renderBlockMap(true)};document.querySelector('#fit').onclick=()=>renderBlockMap(true);document.querySelector('#edges').onchange=()=>renderBlockMap();window.onresize=()=>renderBlockMap();
+if(document.querySelector('#show-safe-boundary'))document.querySelector('#show-safe-boundary').onchange=()=>renderBlockMap();
+function focusReviewBuilding(currentBuildingIdentifier){
+ const currentBuilding=currentMapRecord.buildings.find(currentBuildingEntry=>currentBuildingEntry.id===currentBuildingIdentifier);
+ if(!currentBuilding)throw Error('검수할 건물을 선택하세요.');
+ const currentCenter=projectBlockVertex({column:currentBuilding.origin.column+currentBuilding.width/2-.5,row:currentBuilding.origin.row+currentBuilding.height/2-.5,height:TOWN_BLOCK_HEIGHT});
+ currentScaleValue=1;currentOffsetX=currentMapCanvas.width/2-currentCenter.x;currentOffsetY=currentMapCanvas.height/2-currentCenter.y;renderBlockMap();
+}
+const currentBuildingSelector=document.querySelector('#building');
+if(currentBuildingSelector){
+ if(isFieldMapReview)currentBuildingSelector.closest('section').hidden=true;
+ currentMapRecord.buildings.forEach(currentBuilding=>currentBuildingSelector.append(new Option(currentBuilding.name,currentBuilding.id)));
+ currentBuildingSelector.onchange=currentEvent=>{if(currentEvent.target.value)focusReviewBuilding(currentEvent.target.value);};
+}
+if(document.querySelector('#edges'))document.querySelector('#edges').onchange=()=>renderBlockMap();window.onresize=()=>renderBlockMap();
 currentMapCanvas.onclick=currentEvent=>{if(suppressMarkerClick){suppressMarkerClick=false;return;}const currentBounds=currentMapCanvas.getBoundingClientRect(),currentWorldX=(currentEvent.clientX-currentBounds.left-currentOffsetX)/currentScaleValue,currentWorldY=(currentEvent.clientY-currentBounds.top-currentOffsetY)/currentScaleValue;if(isFieldMapReview){const currentPickedCell=pickFieldReviewCell({x:currentWorldX,y:currentWorldY},currentFieldFrame);if(currentPickedCell&&!currentBlockedCells.has(`${currentPickedCell.column},${currentPickedCell.row}`)){currentCharacterCell=currentPickedCell;renderBlockMap();}return;}let currentColumnValue=(currentWorldX/townHalfTileWidth+currentWorldY/townHalfTileHeight)/2,currentRowValue=(currentWorldY/townHalfTileHeight-currentWorldX/townHalfTileWidth)/2;for(let i=0;i<currentCameraRotation;i++)[currentColumnValue,currentRowValue]=[currentRowValue,-currentColumnValue];currentColumnValue=Math.round(currentColumnValue);currentRowValue=Math.round(currentRowValue);if(currentColumnValue<0||currentColumnValue>=currentMapRecord.columns||currentRowValue<0||currentRowValue>=currentMapRecord.rows||currentBlockedCells.has(`${currentColumnValue},${currentRowValue}`))return;currentCharacterCell={column:currentColumnValue,row:currentRowValue};renderBlockMap()};centerCharacterView();
 
 // 포인터 아래의 지형 좌표를 유지하면서 배율을 변경한다.
@@ -224,8 +242,7 @@ function changeMapZoom(currentZoomFactor,currentAnchorX=currentMapCanvas.width/2
  currentOffsetY=currentAnchorY-(currentAnchorY-currentOffsetY)*nextScaleValue/currentScaleValue;
  currentScaleValue=nextScaleValue;renderBlockMap();
 }
-document.querySelector('#zoom-in').onclick=()=>changeMapZoom(MAP_ZOOM_FACTOR);
-document.querySelector('#zoom-out').onclick=()=>changeMapZoom(1/MAP_ZOOM_FACTOR);
+
 currentMapCanvas.onkeydown=currentKeyboardEvent=>{
  const mapKeyboardMoveByKey={ArrowLeft:[MAP_KEYBOARD_PAN_DISTANCE,0],ArrowRight:[-MAP_KEYBOARD_PAN_DISTANCE,0],ArrowUp:[0,MAP_KEYBOARD_PAN_DISTANCE],ArrowDown:[0,-MAP_KEYBOARD_PAN_DISTANCE]}[currentKeyboardEvent.key];
  if(mapKeyboardMoveByKey){currentKeyboardEvent.preventDefault();currentOffsetX+=mapKeyboardMoveByKey[0];currentOffsetY+=mapKeyboardMoveByKey[1];renderBlockMap();return}
@@ -239,7 +256,7 @@ currentMapCanvas.onpointermove=currentPointerEvent=>{if(!activeMapPointer||activ
 function finishMapDrag(){activeMapPointer=null;currentMapCanvas.style.cursor='grab'}
 currentMapCanvas.onpointerup=finishMapDrag;currentMapCanvas.onpointercancel=finishMapDrag;currentMapCanvas.onlostpointercapture=finishMapDrag;
 
-document.querySelector('#show-character').onchange=()=>renderBlockMap();
+if(document.querySelector('#show-character'))document.querySelector('#show-character').onchange=()=>renderBlockMap();
 
 function centerCharacterView(){
  currentScaleValue=gameRenderMetrics.defaultZoom;
@@ -248,6 +265,33 @@ function centerCharacterView(){
  currentOffsetY=currentMapCanvas.clientHeight/2-(currentCharacterPoint.y-reviewCharacterRecord.displayHeight/2)*currentScaleValue;
  renderBlockMap();
 }
-document.querySelector('#actual-size').onclick=centerCharacterView;
+// 기본 HTML과 Gradio가 동일한 브라우저 카메라 명령을 사용한다.
+const currentCameraActions={
+ 'rotate':()=>{currentCameraRotation=(currentCameraRotation+1)%4;renderBlockMap(true);},
+ 'fit':()=>renderBlockMap(true),
+ 'zoom-in':()=>changeMapZoom(MAP_ZOOM_FACTOR),
+ 'zoom-out':()=>changeMapZoom(1/MAP_ZOOM_FACTOR),
+ 'actual-size':centerCharacterView,
+};
+window.mapReviewCameraControls=(currentActionName)=>{
+ if(!Object.hasOwn(currentCameraActions,currentActionName))throw Error('지원하지 않는 맵 시점 명령입니다.');
+ currentCameraActions[currentActionName]();
+ return `회전 ${currentCameraRotation*90}° · 확대 ${Math.round(currentScaleValue*100)}%`;
+};
+for(const currentActionName of Object.keys(currentCameraActions)){
+ const currentActionElement=document.getElementById(currentActionName);
+ if(currentActionElement)currentActionElement.onclick=()=>window.mapReviewCameraControls(currentActionName);
+}
 
-document.querySelector('#character-outline').onchange=()=>renderBlockMap();
+if(document.querySelector('#character-outline'))document.querySelector('#character-outline').onchange=()=>renderBlockMap();
+
+// 표준 UI는 상태만 전달하고 모든 렌더링·시점 갱신은 브라우저에서 수행한다.
+window.mapReviewSelectMap=selectReviewMap;
+window.mapReviewFocusBuilding=focusReviewBuilding;
+window.mapReviewDisplayOptions=(currentCharacterVisible,currentOutlineVisible,currentBoundaryVisible,currentEdgesVisible)=>{
+ const currentOptionValues=[currentCharacterVisible,currentOutlineVisible,currentBoundaryVisible,currentEdgesVisible];
+ if(currentOptionValues.some(currentOptionValue=>typeof currentOptionValue!=='boolean'))throw Error('맵 표시 옵션은 참/거짓 값이어야 합니다.');
+ Object.assign(currentDisplayOptions,{'show-character':currentCharacterVisible,'character-outline':currentOutlineVisible,'show-safe-boundary':currentBoundaryVisible,edges:currentEdgesVisible});
+ renderBlockMap();
+};
+window.mapReviewControlOptions=()=>({maps:availableMapRecords.map(currentMapEntry=>[currentMapEntry.name,currentMapEntry.id]),selected:selectedMapIdentifier,townSpecific:isTownSpecificReviewPage,field:isFieldMapReview,buildings:currentMapRecord.buildings.map(currentBuildingEntry=>[currentBuildingEntry.name,currentBuildingEntry.id])});

@@ -1,61 +1,79 @@
-"""맵 검수 정적 구성 요소를 Gradio 작업 영역에서 실행한다."""
+"""표준 Gradio 설정과 브라우저 맵 렌더러를 연결한다."""
 import argparse
 import json
-import threading
-import time
+from pathlib import Path
+import sys
 
 import gradio as gr
 
+WORKFLOW_ROOT_DIRECTORY=Path(__file__).resolve().parents[4]
+if str(WORKFLOW_ROOT_DIRECTORY) not in sys.path:
+    sys.path.insert(0,str(WORKFLOW_ROOT_DIRECTORY))
+from tools.review.common.gradio_browser_controls import build_browser_action_button
 
-MAP_REVIEW_APPLICATION_STYLES='#map-review-root{min-height:0}.gradio-container{max-width:none!important;padding:8px!important}.map-review-error{padding:16px;border:1px solid #9c4b4b;border-radius:8px;color:#ffd3d3}'
+MAP_REVIEW_CANVAS_MARKUP='''<section id="map-review-root" aria-label="맵 검수">
+<h3 id="map-title">맵 검수</h3><p id="status" role="status">맵을 준비하고 있습니다…</p>
+<output id="zoom-level" aria-live="polite"></output>
+<div style="position:relative;aspect-ratio:4/3"><canvas id="map" width="768" height="576" tabindex="0" aria-label="맵. 방향키로 이동, 더하기와 빼기로 확대·축소, 0 키로 전체 보기" style="position:absolute;width:100%;height:100%;touch-action:none"></canvas></div>
+</section>'''
 
 
 def create_map_review_loader(review_server_port):
-    review_page_url=f'http://127.0.0.1:{review_server_port}/isloon-map-review/map-review.html?embedded=1'
-    serialized_page_url=json.dumps(review_page_url)
+    """스타일·HTML·전역 fetch를 주입하지 않고 모듈 준비 후 선택 항목을 반환한다."""
+    current_script_url=json.dumps(f'http://127.0.0.1:{review_server_port}/isloon-map-review/block-map-review.js')
     return f"""async()=>{{
-const mapReviewRoot=document.querySelector('#map-review-root');
-if(!mapReviewRoot||mapReviewRoot.dataset.mapReviewLoaded)return;
-mapReviewRoot.dataset.mapReviewLoaded='true';
-const mapReviewPageUrl=new URL({serialized_page_url});
-for(const currentParameterName of ['map','townPage']){{const currentParameterValue=new URL(window.location.href).searchParams.get(currentParameterName);if(currentParameterValue)mapReviewPageUrl.searchParams.set(currentParameterName,currentParameterValue)}}
-const mapReviewAssetUrl=new URL('.',mapReviewPageUrl).href;
-const originalFetchRequest=window.fetch.bind(window);
-window.fetch=(requestValue,...requestOptionValues)=>{{
-  if(typeof requestValue==='string'&&!/^(?:[a-z]+:|\\/)/i.test(requestValue))return originalFetchRequest(new URL(requestValue,mapReviewAssetUrl),...requestOptionValues);
-  return originalFetchRequest(requestValue,...requestOptionValues);
-}};
 try{{
-  const mapReviewResponse=await originalFetchRequest(mapReviewPageUrl,{{cache:'no-store'}});
-  if(!mapReviewResponse.ok)throw new Error('맵 검수 화면을 불러오지 못했습니다.');
-  const mapReviewDocument=new DOMParser().parseFromString(await mapReviewResponse.text(),'text/html');
-  for(const sourceStyleElement of mapReviewDocument.querySelectorAll('style')){{
-    const nextStyleElement=document.createElement('style');nextStyleElement.dataset.mapReviewComponent='true';nextStyleElement.textContent=sourceStyleElement.textContent;document.head.append(nextStyleElement);
-  }}
-  for(const sourceLinkElement of mapReviewDocument.querySelectorAll('link[rel="stylesheet"]')){{
-    const nextLinkElement=document.createElement('link');nextLinkElement.rel='stylesheet';nextLinkElement.href=new URL(sourceLinkElement.getAttribute('href'),mapReviewPageUrl).href;nextLinkElement.dataset.mapReviewComponent='true';document.head.append(nextLinkElement);
-  }}
-  const mapReviewMarkup=[...mapReviewDocument.body.children].filter(currentElementValue=>currentElementValue.tagName!=='SCRIPT').map(currentElementValue=>currentElementValue.outerHTML).join('');
-  mapReviewRoot.innerHTML=mapReviewMarkup;
-  for(const sourceScriptElement of mapReviewDocument.querySelectorAll('script')){{
-    const nextScriptElement=document.createElement('script');nextScriptElement.dataset.mapReviewComponent='true';
-    if(sourceScriptElement.type)nextScriptElement.type=sourceScriptElement.type;
-    if(sourceScriptElement.src){{nextScriptElement.src=new URL(sourceScriptElement.getAttribute('src'),mapReviewPageUrl).href;await new Promise((resolveValue,rejectValue)=>{{nextScriptElement.onload=resolveValue;nextScriptElement.onerror=()=>rejectValue(new Error('맵 검수 스크립트를 불러오지 못했습니다.'));document.body.append(nextScriptElement);}});}}
-    else{{nextScriptElement.textContent=sourceScriptElement.textContent;document.body.append(nextScriptElement);}}
-  }}
-}}catch(currentErrorValue){{mapReviewRoot.innerHTML='<p class="map-review-error" role="alert">'+currentErrorValue.message+'</p>';}}
+ if(!document.getElementById('map')||!document.getElementById('applied-tile-list'))await new Promise((resolveMapMount,rejectMapMount)=>{{
+  const currentMountObserver=new MutationObserver(()=>{{if(document.getElementById('map')&&document.getElementById('applied-tile-list')){{clearTimeout(currentMountTimeout);currentMountObserver.disconnect();resolveMapMount();}}}});
+  const currentMountTimeout=setTimeout(()=>{{currentMountObserver.disconnect();rejectMapMount(Error('맵 화면을 준비하지 못했습니다. 새로고침하세요.'));}},10000);
+  currentMountObserver.observe(document.body,{{childList:true,subtree:true}});
+ }});
+ await import({current_script_url});
+ if(!window.mapReviewControlOptions)throw Error('맵 초기화 실패. 맵·타일 원본 연결과 브라우저 오류를 확인하세요.');
+ const currentControlOptions=window.mapReviewControlOptions();
+ return [{{__type__:'update',choices:currentControlOptions.maps,value:currentControlOptions.selected,visible:!currentControlOptions.townSpecific}},{{__type__:'update',visible:!currentControlOptions.townSpecific}},{{__type__:'update',choices:currentControlOptions.buildings,value:null,visible:!currentControlOptions.field}},{{__type__:'update',visible:!currentControlOptions.field}},{{__type__:'update',visible:currentControlOptions.field}},'맵을 불러왔습니다. 시점과 표시 옵션을 조정하세요.'];
+}}catch(currentLoadError){{
+ const currentStatusElement=document.getElementById('status');if(currentStatusElement)currentStatusElement.textContent=currentLoadError.message;
+ return [{{__type__:'update'}},{{__type__:'update'}},{{__type__:'update'}},{{__type__:'update'}},{{__type__:'update'}},currentLoadError.message];
+}}
 }}"""
 
 
 def build_map_review_interface(review_server_port):
-    with gr.Blocks(title='맵 검수') as interface_blocks_value:
-        gr.HTML('<section id="map-review-root" aria-label="맵 검수"><p>맵 검수 화면을 준비하고 있습니다…</p></section>')
-    return interface_blocks_value
+    with gr.Blocks(title='맵 검수') as current_interface_blocks:
+        gr.Markdown('## 맵 검수')
+        with gr.Row():
+            current_map_choice=gr.Dropdown(label='맵 선택',choices=[],interactive=True)
+            current_load_button=gr.Button('맵 불러오기')
+        current_camera_feedback=gr.Textbox(label='검수 안내',value='맵을 불러온 뒤 사용할 수 있습니다.',interactive=False)
+        current_load_button.click(fn=None,inputs=current_map_choice,outputs=current_camera_feedback,queue=False,js="(currentMapIdentifier)=>{try{if(!window.mapReviewSelectMap)throw Error('맵을 준비 중입니다.');window.mapReviewSelectMap(currentMapIdentifier);return '맵을 불러옵니다.';}catch(currentLoadError){return currentLoadError.message;}}")
+        with gr.Row():
+            for current_camera_action,current_camera_label in (('rotate','90° 회전'),('zoom-out','지도 축소'),('zoom-in','지도 확대'),('actual-size','사람 중심 · 100%'),('fit','전체 보기')):
+                build_browser_action_button(current_camera_label,'mapReviewCameraControls',current_camera_action,current_camera_feedback)
+        current_building_choice=gr.Dropdown(label='건물 선택',choices=[],interactive=True)
+        current_building_choice.input(fn=None,inputs=current_building_choice,outputs=current_camera_feedback,queue=False,js="(currentBuildingIdentifier)=>{try{if(!window.mapReviewFocusBuilding)throw Error('맵을 준비 중입니다.');window.mapReviewFocusBuilding(currentBuildingIdentifier);return '선택한 건물로 이동했습니다.';}catch(currentFocusError){return currentFocusError.message;}}")
+        with gr.Row():
+            current_character_check=gr.Checkbox(label='기본 캐릭터',value=True)
+            current_outline_check=gr.Checkbox(label='캐릭터 외곽 강조',value=True)
+            current_boundary_check=gr.Checkbox(label='결계탑 · 결계 오러',value=True)
+            current_edges_check=gr.Checkbox(label='메시 경계',value=False)
+        current_display_inputs=[current_character_check,current_outline_check,current_boundary_check,current_edges_check]
+        for current_display_control in current_display_inputs:
+            current_display_control.input(fn=None,inputs=current_display_inputs,outputs=current_camera_feedback,queue=False,js="(...currentDisplayValues)=>{try{if(!window.mapReviewDisplayOptions)throw Error('맵을 준비 중입니다.');window.mapReviewDisplayOptions(...currentDisplayValues);return '표시 옵션을 적용했습니다.';}catch(currentDisplayError){return currentDisplayError.message;}}")
+        gr.HTML(MAP_REVIEW_CANVAS_MARKUP)
+        with gr.Accordion('조작 방법 · 타일 안내',open=False):
+            gr.Markdown('휠 또는 확대·축소 버튼으로 배율을 조절하고 드래그 또는 방향키로 이동합니다. 0 키는 전체 보기입니다. 이동 가능한 바닥을 클릭하면 기본 캐릭터를 배치합니다. 메시 경계는 지면·절벽 면의 꼭짓점을 표시합니다. 미등록 지형은 임시 색상으로 표시됩니다.')
+        with gr.Accordion('적용 타일 원본',open=True):
+            gr.HTML('<ul id="applied-tile-list" aria-live="polite"></ul>')
+        current_interface_blocks.load(fn=None,outputs=[current_map_choice,current_load_button,current_building_choice,current_outline_check,current_boundary_check,current_camera_feedback],js=create_map_review_loader(review_server_port),queue=False)
+    return current_interface_blocks
 
-
-from pathlib import Path as ManagementStylePath
-MANAGEMENT_DENSITY_STYLES=(ManagementStylePath(__file__).parents[1]/'shared/management-density.css').read_text()
 
 if __name__=='__main__':
-    parser_value=argparse.ArgumentParser();parser_value.add_argument('--port',type=int,required=True);parser_value.add_argument('--review-port',type=int,required=True);parser_value.add_argument('--owner-pid',type=int,required=True);parser_value.add_argument('--root-path',default='/management/frame/map-review/');arguments_value=parser_value.parse_args()
-    threading.Thread(target=lambda:time.sleep(1),daemon=True).start();build_map_review_interface(arguments_value.review_port).queue().launch(server_name='127.0.0.1',server_port=arguments_value.port,root_path=arguments_value.root_path,css=MAP_REVIEW_APPLICATION_STYLES+MANAGEMENT_DENSITY_STYLES,js=create_map_review_loader(arguments_value.review_port),allowed_paths=[])
+    current_argument_parser=argparse.ArgumentParser()
+    current_argument_parser.add_argument('--port',type=int,required=True)
+    current_argument_parser.add_argument('--review-port',type=int,required=True)
+    current_argument_parser.add_argument('--owner-pid',type=int,required=True)
+    current_argument_parser.add_argument('--root-path',default='/management/frame/map-review/')
+    current_argument_values=current_argument_parser.parse_args()
+    build_map_review_interface(current_argument_values.review_port).queue().launch(server_name='127.0.0.1',server_port=current_argument_values.port,root_path=current_argument_values.root_path,allowed_paths=[])
