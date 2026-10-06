@@ -68,6 +68,25 @@ class SpriteEditorV2Tests(unittest.TestCase):
                 gif_source_image.seek(1)
                 self.assertEqual(gif_source_image.info['duration'],250)
 
+    def test_export_balanced_sheet_preserves_frame_positions(self):
+        current_source_frame=self.create_test_frame()
+        for current_frame_count,expected_grid_shape in [(3,(3,1)),(7,(7,1)),(8,(4,2)),(9,(3,3)),(12,(4,3)),(16,(4,4))]:
+            with self.subTest(frame_count=current_frame_count):
+                current_document_record=copy.deepcopy(self.initial_project_record['document'])
+                current_document_record['frames']=[{**copy.deepcopy(current_source_frame),'id':f'frame-{current_frame_index}','x':current_frame_index} for current_frame_index in range(current_frame_count)]
+                current_project_path=sprite_editor_v2.resolve_v2_project(self.current_project_identifier)
+                export_result_record=sprite_editor_v2.export_v2_revision(current_project_path,{'revision':f'test-{current_frame_count}','document':current_document_record})
+                with zipfile.ZipFile(io.BytesIO(base64.b64decode(export_result_record['data']))) as archive_source_value:
+                    current_export_metadata=json.loads(archive_source_value.read('metadata.json'))
+                    self.assertEqual(current_export_metadata['columns'],expected_grid_shape[0])
+                    with Image.open(io.BytesIO(archive_source_value.read('sheet.png'))) as sheet_source_image:
+                        self.assertEqual(sheet_source_image.size,tuple(current_grid_count*384 for current_grid_count in expected_grid_shape))
+                        for current_frame_index in range(current_frame_count):
+                            current_pixel_left=(current_frame_index%expected_grid_shape[0])*384+192+current_frame_index
+                            current_pixel_top=(current_frame_index//expected_grid_shape[0])*384+192
+                            self.assertEqual(sheet_source_image.getpixel((current_pixel_left,current_pixel_top)),(255,0,0,255))
+                        self.assertEqual(expected_grid_shape[0]*expected_grid_shape[1],current_frame_count)
+
     def test_invalid_input_and_unregistered_image_rejected(self):
         with self.assertRaises(ValueError):self.execute_test_command('create',{'name':'검수','cellSize':512})
         with self.assertRaises(ValueError):self.execute_test_command('load',{'id':'../x','revision':None})

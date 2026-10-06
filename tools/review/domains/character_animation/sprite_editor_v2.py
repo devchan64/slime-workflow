@@ -117,7 +117,11 @@ def export_v2_revision(project_directory_path, saved_revision_record):
             current_png_buffer = io.BytesIO()
             output_frame_image.save(current_png_buffer,format='PNG')
             output_zip_archive.writestr(f'frame-{current_frame_index+1:03}.png',current_png_buffer.getvalue())
-        output_column_count = min(8,len(output_frame_images))
+        output_frame_count = len(output_frame_images)
+        output_row_count = math.isqrt(output_frame_count)
+        while output_frame_count % output_row_count:
+            output_row_count -= 1
+        output_column_count = output_frame_count // output_row_count
         output_sheet_image = Image.new('RGBA',(output_column_count*output_cell_pixels,math.ceil(len(output_frame_images)/output_column_count)*output_cell_pixels))
         for current_frame_index,current_frame_image in enumerate(output_frame_images):
             output_sheet_image.paste(current_frame_image,((current_frame_index%output_column_count)*output_cell_pixels,(current_frame_index//output_column_count)*output_cell_pixels))
