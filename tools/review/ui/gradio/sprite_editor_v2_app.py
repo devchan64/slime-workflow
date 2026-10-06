@@ -35,6 +35,7 @@ const currentScriptElement=document.createElement('script');currentScriptElement
 currentScriptElement.src=window.spriteV2ServerBase+'/character-animation/sprite-editor-v2.js';
 currentScriptElement.onerror=()=>{{document.getElementById('sv2-status').textContent='편집기 스크립트 연결에 실패했습니다. 관리 서버 연결 후 새로고침하세요.';currentScriptElement.remove();}};
 document.body.append(currentScriptElement);
+const currentSlicerScript=document.createElement('script');currentSlicerScript.src=window.spriteV2ServerBase+'/character-animation/sprite-sheet-slicer.js';document.body.append(currentSlicerScript);
 }}"""
     return current_loader_script
 
@@ -73,6 +74,28 @@ def build_sprite_v2_interface():
             with gr.Row():
                 build_browser_action_button('레퍼런스 이미지 삭제','spriteV2ImageDeleteControls','reference',current_feedback_text)
                 build_browser_action_button('선택 프레임 이미지 삭제','spriteV2FrameControls','remove',current_feedback_text)
+        with gr.Accordion('애니메이션 시트 분할',open=False):
+            gr.Markdown('① 시트 불러오기 → ② 행·열로 분할선 만들기 → ③ 빨간 분할선 드래그 → ④ 프레임 추가. 번호 순서대로 왼쪽에서 오른쪽, 위에서 아래로 입력됩니다. 원본 투명도를 유지합니다.')
+            with gr.Row():
+                build_browser_action_button('시트 파일 불러오기','spriteSheetActionControls','upload',current_feedback_text)
+                build_browser_action_button('시트 클립보드 붙여넣기','spriteSheetActionControls','paste',current_feedback_text)
+            with gr.Row():
+                current_sheet_columns=gr.Number(label='열 수 · 가로 칸',value=4,precision=0,minimum=1,maximum=128)
+                current_sheet_rows=gr.Number(label='행 수 · 세로 칸',value=2,precision=0,minimum=1,maximum=128)
+            current_sheet_grid=gr.Button('균등 분할선 만들기 · 기존 선 초기화')
+            gr.HTML('<p id="sprite-sheet-notice" role="status">시트 이미지를 불러오세요. PNG/JPEG/WebP · 최대 32MB, 3200만 픽셀.</p><canvas id="sprite-sheet-preview" aria-label="시트 분할 미리보기 · 빨간 선 드래그" style="max-width:100%;height:auto;touch-action:none" width="1" height="1"></canvas>')
+            with gr.Accordion('분할선 좌표 직접 입력',open=False):
+                gr.Markdown('첫 좌표와 마지막 좌표는 잘라낼 외곽입니다. 드래그 후 현재 좌표 읽기로 값을 확인하세요. 좌표는 원본 이미지 픽셀 기준입니다.')
+                current_sheet_x=gr.Textbox(label='세로 분할선 X 좌표 · 쉼표 구분')
+                current_sheet_y=gr.Textbox(label='가로 분할선 Y 좌표 · 쉼표 구분')
+                current_sheet_read=gr.Button('현재 분할 좌표 읽기')
+                current_sheet_coordinates=gr.Button('입력 좌표로 미리보기 갱신')
+            current_sheet_outputs=[current_sheet_x,current_sheet_y,current_feedback_text]
+            current_sheet_errors="[{__type__:'update'},{__type__:'update'},currentErrorValue.message]"
+            current_sheet_grid.click(fn=None,inputs=[current_sheet_columns,current_sheet_rows],outputs=current_sheet_outputs,queue=False,js="(currentColumnsValue,currentRowsValue)=>{try{return window.spriteSheetControls.grid(currentColumnsValue,currentRowsValue);}catch(currentErrorValue){return "+current_sheet_errors+";}}")
+            current_sheet_read.click(fn=None,outputs=current_sheet_outputs,queue=False,js="()=>{try{return window.spriteSheetControls.read();}catch(currentErrorValue){return "+current_sheet_errors+";}}")
+            current_sheet_coordinates.click(fn=None,inputs=[current_sheet_x,current_sheet_y],outputs=current_sheet_outputs,queue=False,js="(currentXValues,currentYValues)=>{try{return window.spriteSheetControls.coordinates(currentXValues,currentYValues);}catch(currentErrorValue){return "+current_sheet_errors+";}}")
+            build_browser_action_button('분할 결과를 프레임으로 추가','spriteSheetActionControls','apply',current_feedback_text)
         with gr.Accordion('비교 화면 표시',open=False):
             with gr.Row():
                 current_zoom_choice=gr.Dropdown(label='화면 확대',choices=[('맞춤','fit'),('100%','1'),('200%','2'),('400%','4')],value='fit')
@@ -97,7 +120,7 @@ def build_sprite_v2_interface():
                     current_target_button=gr.Button('편집 대상 적용')
                     current_target_event=current_target_button.click(fn=None,inputs=[current_target_choice,current_mode_choice],outputs=current_feedback_text,queue=False,js="(currentTargetValue,currentModeValue)=>{try{return window.spriteV2TargetControls(currentTargetValue,currentModeValue);}catch(currentErrorValue){return currentErrorValue.message;}}")
                     with gr.Accordion('가이드라인 위치 편집',open=True) as current_guide_panel:
-                        gr.Markdown('**① 편집 대상 적용 → ② 가이드 선택 → ③ 위치(px) 입력 → ④ 가이드 수정 적용**\n\n좌표는 출력 이미지의 왼쪽 위가 0입니다. 가로선은 위에서부터 Y, 세로선은 왼쪽에서부터 X 거리입니다. 예: 가로선 100은 위에서 100px입니다. 숫자가 커지면 아래·오른쪽으로 이동합니다.')
+                        gr.Markdown('**① 편집 대상 적용 → ② 가이드 선택 → ③ 위치(px) 입력 → ④ 가이드 수정 적용**\n\n좌표는 출력 이미지의 왼쪽 위가 0입니다. 가로선은 위에서부터 Y, 세로선은 왼쪽에서부터 X 거리입니다. 예: 가로선 100은 위에서 100px입니다. 숫자가 커지면 아래·오른쪽으로 이동합니다. 레퍼런스와 현재 프레임의 가이드는 양쪽 비교 화면에 같은 좌표로 표시됩니다. 다른 이미지의 가이드는 점선입니다.')
                         current_guide_refresh=gr.Button('현재 대상의 가이드 불러오기')
                         current_guide_choice=gr.Dropdown(label='② 편집할 가이드',choices=[],interactive=True)
                         with gr.Row():
