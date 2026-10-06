@@ -294,7 +294,7 @@ window.anchorReviewPlayback=currentActionName=>{
   animationPlaybackActive=true;
   animationStartedTime=performance.now()-Number(frameChoiceElement.value)*REVIEW_FRAME_DURATION;
   document.querySelector('#playToggle').textContent='일시정지';
- }else throw Error('지원하지 않는 프레임 탐색 명령입니다.');
+ }else if(currentActionName!=='status')throw Error('지원하지 않는 프레임 탐색 명령입니다.');
  return `${Number(frameChoiceElement.value)+1} / ${REVIEW_FRAME_COUNT} · ${animationPlaybackActive?'재생 중':'정지'}`;
 };
 window.anchorReviewSeekFrame=currentFrameNumber=>{

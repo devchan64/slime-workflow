@@ -73,8 +73,9 @@ const staticReviewPageUrl=staticReviewPageLocation.href;
     window.addEventListener('pagehide',()=>currentPreviewObserver?.disconnect(),{{once:true}});
   }}
   currentReviewFrame.width='100%';currentReviewFrame.height='{STATIC_REVIEW_FRAME_HEIGHT}';currentReviewFrame.setAttribute('frameborder','0');
-  const currentTerrainReview=selectedReviewPath.split('?')[0].endsWith('terrain-layout-manager.html');
-  const currentPreviewLocation=currentTerrainReview?new URL('terrain-preview.html',staticReviewPageUrl):new URL(staticReviewPageUrl);
+  const currentTerrainManager=selectedReviewPath.split('?')[0].endsWith('terrain-layout-manager.html');
+  const currentTerrainReview=currentTerrainManager||selectedReviewPath.split('?')[0].endsWith('terrain-preview.html');
+  const currentPreviewLocation=currentTerrainManager?new URL('terrain-preview.html',staticReviewPageUrl):new URL(staticReviewPageUrl);
   currentPreviewLocation.searchParams.set('embedded','gradio-static');
   currentReviewFrame.src=currentPreviewLocation.href;
   if(currentTerrainReview){{
@@ -98,6 +99,22 @@ const staticReviewPageUrl=staticReviewPageLocation.href;
       return currentStatusElement.textContent;
     }};
   }}
+  if(selectedReviewPath.split('?')[0].endsWith('battlefield-preview.html')){{
+    currentReviewFrame.addEventListener('load',()=>{{const currentHeaderElement=currentReviewFrame.contentDocument.querySelector('body>header');if(currentHeaderElement){{const currentHiddenWrapper=currentReviewFrame.contentDocument.createElement('div');currentHiddenWrapper.hidden=true;currentHeaderElement.before(currentHiddenWrapper);currentHiddenWrapper.append(currentHeaderElement);}}}});
+    window.battlefieldReviewControls=currentSelectedField=>{{
+      const currentPreviewDocument=currentReviewFrame.contentDocument;
+      const currentFieldSelector=currentPreviewDocument?.querySelector('#choice');
+      const currentStatusElement=currentPreviewDocument?.querySelector('#status');
+      if(!currentFieldSelector||!currentStatusElement)throw Error('전장 미리보기를 준비 중입니다.');
+      const currentFieldOptions=Array.from(currentFieldSelector.options).map(currentOptionElement=>[currentOptionElement.textContent,currentOptionElement.value]);
+      if(currentSelectedField!==null){{
+        if(!currentFieldOptions.some(currentOptionPair=>currentOptionPair[1]===currentSelectedField))throw Error('지원하지 않는 전장입니다.');
+        const currentFieldLocation=new URL(currentPreviewLocation.href);currentFieldLocation.searchParams.set('field',currentSelectedField);currentReviewFrame.src=currentFieldLocation.href;
+        return [{{__type__:'update',value:currentSelectedField}},'선택한 전장을 불러오는 중입니다.'];
+      }}
+      return [{{__type__:'update',choices:currentFieldOptions,value:currentFieldSelector.value}},currentStatusElement.textContent];
+    }};
+  }}
   currentReviewFrame.addEventListener('load',()=>staticReviewRoot.setAttribute('aria-busy','false'));
   staticReviewRoot.replaceChildren(currentReviewFrame);
   return;
@@ -111,6 +128,14 @@ def build_static_review_interface(static_review_paths):
         gr.Markdown('## 정적 검수\n게임 디자인과 등록 애니메이션을 검수합니다.')
         current_reload_button=gr.Button('검수 화면 새로고침')
         current_reload_button.click(fn=None,js="()=>{window.location.reload();}",queue=False)
+        with gr.Column(visible=False) as current_battlefield_controls:
+            gr.Markdown('### 전장 검수')
+            current_battlefield_choice=gr.Dropdown(label='전장 선택',choices=[],interactive=True)
+            current_battlefield_status=gr.Textbox(label='전장 렌더 상태',interactive=False)
+            current_battlefield_choice.input(fn=None,inputs=current_battlefield_choice,outputs=[current_battlefield_choice,current_battlefield_status],queue=False,js="currentSelectedField=>{try{return window.battlefieldReviewControls(currentSelectedField);}catch(currentErrorValue){return [{__type__:'update'},currentErrorValue.message];}}")
+        current_battlefield_timer=gr.Timer(1)
+        current_battlefield_timer.tick(fn=None,outputs=[current_battlefield_choice,current_battlefield_status],queue=False,show_progress='hidden',js="()=>{if(typeof window.battlefieldReviewControls!=='function')return [{__type__:'update'},{__type__:'update'}];try{const currentResultValues=window.battlefieldReviewControls(null);const currentChoiceSignature=JSON.stringify(currentResultValues[0]);if(window.battlefieldChoiceSignature===currentChoiceSignature)currentResultValues[0]={__type__:'update'};else window.battlefieldChoiceSignature=currentChoiceSignature;return currentResultValues;}catch(currentErrorValue){return [{__type__:'update'},currentErrorValue.message];}}")
+        interface_blocks_value.load(fn=None,outputs=current_battlefield_controls,queue=False,js="()=>{const currentReviewPaths="+json.dumps(static_review_paths,ensure_ascii=False)+";return {__type__:'update',visible:(currentReviewPaths[new URLSearchParams(location.search).get('review')]||'').split('?')[0].endsWith('battlefield-preview.html')};}")
         with gr.Column(visible=False) as current_terrain_controls:
             current_terrain_choice=gr.Dropdown(label='맵 선택',choices=TERRAIN_REVIEW_MAP_CHOICES,value='meadow')
             current_terrain_status=gr.Textbox(label='게임 미리보기 상태',value='미리보기를 준비 중입니다.',interactive=False)
@@ -122,11 +147,14 @@ def build_static_review_interface(static_review_paths):
         current_terrain_timer=gr.Timer(1)
         current_terrain_timer.tick(fn=None,inputs=current_terrain_status,outputs=current_terrain_status,queue=False,show_progress='hidden',js="async(currentDisplayedStatus)=>{if(typeof window.terrainReviewControls!=='function')return {__type__:'update'};try{const currentStatusText=await window.terrainReviewControls('status');return currentStatusText===currentDisplayedStatus?{__type__:'update'}:currentStatusText;}catch(currentErrorValue){return currentErrorValue.message===currentDisplayedStatus?{__type__:'update'}:currentErrorValue.message;}}")
         current_terrain_paths=json.dumps(static_review_paths,ensure_ascii=False)
-        interface_blocks_value.load(fn=None,outputs=current_terrain_controls,queue=False,js="()=>{const currentReviewPaths="+current_terrain_paths+";const currentReviewId=new URLSearchParams(location.search).get('review');return {__type__:'update',visible:(currentReviewPaths[currentReviewId]||'').split('?')[0].endsWith('terrain-layout-manager.html')};}")
+        interface_blocks_value.load(fn=None,outputs=current_terrain_controls,queue=False,js="()=>{const currentReviewPaths="+current_terrain_paths+";const currentReviewId=new URLSearchParams(location.search).get('review');return {__type__:'update',visible:['terrain-layout-manager.html','terrain-preview.html'].some(currentPageName=>(currentReviewPaths[currentReviewId]||'').split('?')[0].endsWith(currentPageName))};}")
         with gr.Row():
             with gr.Column(visible=False,scale=1) as current_anchor_controls:
                 gr.Markdown('프레임별 기준점을 원본 픽셀 단위로 조정합니다. 정지 상태에서 미리보기를 클릭하거나 조이패드를 사용하세요. 원점은 셀 왼쪽 위이며 오른쪽은 +X, 아래는 +Y입니다. 최종 앵커 이동 시 두 발 좌표도 함께 이동합니다.')
-                current_anchor_feedback=gr.Textbox(label='프레임 탐색 상태',value='애니메이션을 준비 중입니다.',interactive=False)
+                current_anchor_status=gr.Textbox(label='프레임 탐색 상태',value='애니메이션을 준비 중입니다.',interactive=False)
+                current_anchor_timer=gr.Timer(1)
+                current_anchor_timer.tick(fn=None,outputs=current_anchor_status,queue=False,show_progress='hidden',js="()=>{if(typeof window.anchorReviewPlayback!=='function')return {__type__:'update'};try{return window.anchorReviewPlayback('status');}catch(currentErrorValue){return currentErrorValue.message;}}")
+                current_anchor_feedback=gr.Textbox(label='조작 안내',value='프레임을 이동하거나 편집할 좌표를 선택하세요.',interactive=False)
                 with gr.Row():
                     current_animation_action=gr.Dropdown(label='애니메이션 동작',choices=[],interactive=True)
                     current_animation_read=gr.Button('동작 목록 읽기')
