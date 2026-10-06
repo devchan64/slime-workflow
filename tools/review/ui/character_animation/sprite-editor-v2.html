@@ -8,8 +8,8 @@
 .sv2-comparison>div,.sv2-panel,.sv2-viewport{min-width:0}
 .sv2-viewport{overflow:auto;max-height:650px}
 .sv2-viewport canvas{display:block;touch-action:none}
-#sv2-frame-list{max-height:150px;overflow:auto;display:flex;flex-wrap:wrap}
-#sv2-frame-list img{width:46px;height:46px;object-fit:contain}
+#sv2-frame-list{max-height:320px;overflow:auto}
+#sv2-frame-list img{width:64px;height:64px;object-fit:contain}
 #sv2-status,#sv2-difference{white-space:pre-wrap}
 .sv2-hidden{display:none!important}
 </style>
@@ -18,7 +18,7 @@
 <p>참조와 프레임을 등록해 얼굴·신체 비율을 비교합니다. 원본을 보존하며 배치·배율을 편집합니다.</p>
 <section class="sv2-panel"><h2>현재 작업 편집</h2><p id="sv2-project-summary" role="status">작업을 불러오세요.</p><p id="sv2-status" role="status" aria-live="polite">작업을 만들거나 불러오세요.</p></section>
 <div class="sv2-layout">
-<aside class="sv2-panel"><h2>프레임 목록 · 이미지 드롭</h2><div class="sv2-toolbar"><input id="sv2-file" class="sv2-hidden" type="file" accept="image/png,image/jpeg,image/webp" multiple></div><p>이미지를 끌어놓거나 Ctrl+V로 추가합니다. 투명도는 유지합니다.</p><div id="sv2-frame-list"></div></aside>
+<aside class="sv2-panel"><h2>프레임 목록 · 이미지 드롭</h2><div class="sv2-toolbar"><input id="sv2-file" class="sv2-hidden" type="file" accept="image/png,image/jpeg,image/webp" multiple></div><p>이미지를 끌어놓거나 Ctrl+V로 추가합니다. 투명도는 유지합니다.</p><div id="sv2-frame-list" role="region" aria-label="등록된 프레임 목록" tabindex="0"></div></aside>
 <section class="sv2-panel"><h2>참조 비교 · 정규화</h2>
 <div class="sv2-comparison"><div><h3>레퍼런스</h3><div class="sv2-viewport"><canvas id="sv2-reference" width="384" height="384"></canvas></div></div><div><h3 id="sv2-frame-title">선택 프레임</h3><div class="sv2-viewport"><canvas id="sv2-frame" width="384" height="384"></canvas></div></div></div>
 <p id="sv2-difference">얼굴 원과 신체 기준선을 맞춰 비교하세요.</p>
