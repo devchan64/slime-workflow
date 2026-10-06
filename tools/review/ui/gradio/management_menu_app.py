@@ -116,24 +116,72 @@ def create_initial_selection_script(page_record_values):
     }}"""
 
 
+MANAGEMENT_NAVIGATION_WIDTH = 320
+MANAGEMENT_MOBILE_BREAKPOINT = 768
+MANAGEMENT_FRAME_MIN_HEIGHT = 240
+MANAGEMENT_FRAME_BOTTOM_GAP = 16
+
+
+def create_sidebar_responsive_script():
+    """Gradio 기본 슬라이딩 동작에 화면 폭 전환과 접근성 이름만 연결한다."""
+    return """()=>{
+        const currentMediaQuery=window.matchMedia('(max-width: BREAKPOINTpx)');
+        const currentMinimumHeight=MINHEIGHT,currentBottomGap=BOTTOMGAP;
+        const resizeWorkspaceFrame=()=>{
+            const currentFrameElement=document.querySelector('.management-page-frame');
+            if(!currentFrameElement)return;
+            const currentFrameHeight=Math.max(currentMinimumHeight,window.innerHeight-currentFrameElement.getBoundingClientRect().top-currentBottomGap);
+            const currentHeightValue=Math.floor(currentFrameHeight)+'px';
+            if(currentFrameElement.style.height!==currentHeightValue)currentFrameElement.style.height=currentHeightValue;
+        };
+        const currentFrameObserver=new MutationObserver(resizeWorkspaceFrame);
+        currentFrameObserver.observe(document.body,{childList:true,subtree:true});
+        const currentHeaderObserver=new ResizeObserver(resizeWorkspaceFrame);
+        const currentHeaderElement=document.getElementById('management-header');
+        if(currentHeaderElement)currentHeaderObserver.observe(currentHeaderElement);
+        window.addEventListener('resize',resizeWorkspaceFrame);
+        requestAnimationFrame(resizeWorkspaceFrame);
+        const synchronizeSidebarState=()=>{
+            const currentSidebarElement=document.getElementById('management-sidebar');
+            const currentToggleButton=currentSidebarElement?.querySelector('.toggle-button');
+            if(!currentToggleButton)return false;
+            currentToggleButton.setAttribute('aria-label','도구 탐색 열기 / 닫기');
+            if(currentSidebarElement.classList.contains('open')===currentMediaQuery.matches)currentToggleButton.click();
+            return true;
+        };
+        const currentMountObserver=new MutationObserver(()=>{if(synchronizeSidebarState())currentMountObserver.disconnect();});
+        currentMountObserver.observe(document.body,{childList:true,subtree:true});
+        requestAnimationFrame(()=>{if(synchronizeSidebarState())currentMountObserver.disconnect();});
+        currentMediaQuery.addEventListener('change',synchronizeSidebarState);
+        document.addEventListener('keydown',currentKeyboardEvent=>{
+            if(currentKeyboardEvent.key!=='Escape'||!currentMediaQuery.matches)return;
+            const currentSidebarElement=document.getElementById('management-sidebar');
+            if(currentSidebarElement?.classList.contains('open')){
+                const currentToggleButton=currentSidebarElement.querySelector('.toggle-button');
+                currentToggleButton.click();currentToggleButton.focus();
+            }
+        });
+    }""".replace('BREAKPOINT',str(MANAGEMENT_MOBILE_BREAKPOINT)).replace('MINHEIGHT',str(MANAGEMENT_FRAME_MIN_HEIGHT)).replace('BOTTOMGAP',str(MANAGEMENT_FRAME_BOTTOM_GAP))
+
+
 def build_management_menu_interface(page_record_values, review_server_port):
     initial_page_identifier=page_record_values[0]['id'] if page_record_values else ''
     initial_selection_script=create_initial_selection_script(page_record_values)
-    with gr.Blocks(title='SLIME 관리도구') as interface_blocks_value:
+    with gr.Blocks(title='SLIME 관리도구',fill_width=True) as interface_blocks_value:
+        with gr.Sidebar(label='도구 탐색',width=MANAGEMENT_NAVIGATION_WIDTH,open=True,elem_id='management-sidebar'):
+            gr.Markdown('### 도구 탐색')
+            search_text_value=gr.Textbox(label='도구 검색',placeholder='이름, ID, 기능',info='검색 결과에서 도구를 선택하면 해당 주소로 이동합니다.',elem_id='management-tool-search')
+            category_select_value=gr.Dropdown(choices=[(current_label_value,current_name_value) for current_name_value,current_label_value in sorted(CATEGORY_LABEL_VALUES.items(),key=lambda category_entry_value:(category_entry_value[0]!='all',category_entry_value[1]))],value='all',label='분류',elem_id='management-category-filter')
+            tool_count_value=gr.Markdown(f'**{len(page_record_values)}개** 도구',elem_id='management-tool-count')
+            page_select_value=gr.Dropdown(choices=create_tool_choice_values(page_record_values),value=initial_page_identifier,label='도구 목록',elem_id='management-tool-list')
+            with gr.Row(elem_classes=['management-pagination']):
+                previous_page_button_value=gr.Button('← 이전',scale=0,min_width=100)
+                navigation_position_value=gr.Markdown(f'1 / {len(page_record_values)}',elem_classes=['management-pagination-position'])
+                next_page_button_value=gr.Button('다음 →',scale=0,min_width=100)
         with gr.Row(elem_id='management-header'):
             gr.Markdown('## SLIME 관리도구',scale=3)
             gpu_status_value=gr.Markdown(render_gpu_status_card({}),elem_id='management-gpu-status',scale=2)
         with gr.Row(elem_id='management-shell'):
-            with gr.Column(scale=1,min_width=240,elem_id='management-sidebar'):
-                gr.Markdown('### 도구 탐색')
-                search_text_value=gr.Textbox(label='도구 검색',placeholder='이름, ID, 기능',info='검색 결과에서 도구를 선택하면 해당 주소로 이동합니다.',elem_id='management-tool-search')
-                category_select_value=gr.Dropdown(choices=[(current_label_value,current_name_value) for current_name_value,current_label_value in sorted(CATEGORY_LABEL_VALUES.items(),key=lambda category_entry_value:(category_entry_value[0]!='all',category_entry_value[1]))],value='all',label='분류',elem_id='management-category-filter')
-                tool_count_value=gr.Markdown(f'**{len(page_record_values)}개** 도구',elem_id='management-tool-count')
-                page_select_value=gr.Dropdown(choices=create_tool_choice_values(page_record_values),value=initial_page_identifier,label='도구 목록',elem_id='management-tool-list')
-                with gr.Row(elem_classes=['management-pagination']):
-                    previous_page_button_value=gr.Button('← 이전',scale=0,min_width=100)
-                    navigation_position_value=gr.Markdown(f'1 / {len(page_record_values)}',elem_classes=['management-pagination-position'])
-                    next_page_button_value=gr.Button('다음 →',scale=0,min_width=100)
             with gr.Column(scale=3,min_width=280,elem_id='management-workspace'):
                 selected_page_status_value=gr.Markdown(f"**{html.escape(page_record_values[0]['label'])}** · {html.escape(page_record_values[0]['description'])}" if page_record_values else '표시할 관리 화면이 없습니다.')
                 page_preview_value=gr.HTML(create_page_preview_html(initial_page_identifier,page_record_values,review_server_port))
@@ -178,6 +226,7 @@ def build_management_menu_interface(page_record_values, review_server_port):
             current_selection_updates[2:4]=select_menu_page(current_selection_updates[0]['value'])
             return [current_search_text,current_category_name,*current_selection_updates]
         interface_blocks_value.load(initialize_menu_selection,current_navigation_inputs,[search_text_value,category_select_value,page_select_value,tool_count_value,selected_page_status_value,page_preview_value,navigation_position_value],js=initial_selection_script,queue=False)
+        interface_blocks_value.load(fn=None,js=create_sidebar_responsive_script())
         interface_blocks_value.load(lambda:render_gpu_status_card(read_gpu_status()),outputs=gpu_status_value,queue=False)
         if hasattr(gr,'Timer'):gr.Timer(3).tick(lambda:render_gpu_status_card(read_gpu_status()),outputs=gpu_status_value,show_progress='hidden')
     return interface_blocks_value,initial_selection_script

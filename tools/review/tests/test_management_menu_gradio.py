@@ -106,3 +106,15 @@ class ManagementNativeNavigationTests(unittest.TestCase):
         self.assertEqual(current_update_values[2]['value'],'second')
         self.assertIn('/second',current_update_values[5])
         self.assertFalse(any(isinstance(current_component_value,gr.Radio) for current_component_value in current_interface_blocks.blocks.values()))
+
+class ManagementResponsiveSidebarTests(unittest.TestCase):
+    def test_navigation_uses_fixed_width_native_sidebar(self):
+        import gradio as gr
+        current_interface_blocks,_=build_management_menu_interface([],8770)
+        current_sidebar_values=[value for value in current_interface_blocks.blocks.values() if isinstance(value,gr.Sidebar)]
+        self.assertEqual(len(current_sidebar_values),1)
+        self.assertEqual(current_sidebar_values[0].width,320)
+        self.assertEqual(current_sidebar_values[0].elem_id,'management-sidebar')
+        self.assertTrue(current_sidebar_values[0].open)
+        self.assertFalse(current_interface_blocks.css)
+        self.assertTrue(current_interface_blocks.fill_width)

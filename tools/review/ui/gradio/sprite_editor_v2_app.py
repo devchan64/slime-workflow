@@ -44,7 +44,7 @@ def build_sprite_v2_interface():
     current_markup_text=resolve_review_ui_asset('sprite-editor-v2.html').read_text()
     # 이 HTML에는 캔버스·썸네일·드롭 영역·브라우저 타임라인만 둔다.
     current_markup_text=re.sub(r'<style>.*?</style>','',current_markup_text,flags=re.S)
-    with gr.Blocks(title='스프라이트 정규화 편집기 v2') as current_interface_blocks:
+    with gr.Blocks(title='스프라이트 정규화 편집기 v2',fill_width=True) as current_interface_blocks:
         gr.Markdown('## 스프라이트 정규화 편집기 v2')
         with gr.Accordion('새 작업 만들기',open=False):
             with gr.Row():
