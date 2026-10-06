@@ -1,0 +1,68 @@
+layout:
+- 2
+- 2
+frame_size:
+- 1024
+- 1536
+sheet_size:
+- 2048
+- 3072
+order: 왼쪽 위, 오른쪽 위, 왼쪽 아래, 오른쪽 아래
+sheets:
+- file: frames-01-04.png
+  sha256: ae774ff1d0880652fda958bfe541004672216b552a5a619d3ee4795d90133fa8
+  frames:
+  - frame: 1
+    source: frame-01/result.png
+    x: 0
+    y: 0
+  - frame: 2
+    source: frame-02/result.png
+    x: 1024
+    y: 0
+  - frame: 3
+    source: frame-03/result.png
+    x: 0
+    y: 1536
+  - frame: 4
+    source: frame-04/result.png
+    x: 1024
+    y: 1536
+- file: frames-05-08.png
+  sha256: d6bda98d971d3ca7bd695c94c626f5abd5dc9d5fb9e2d2d57b06cfb5aad2fe69
+  frames:
+  - frame: 5
+    source: frame-05/result.png
+    x: 0
+    y: 0
+  - frame: 6
+    source: frame-06/result.png
+    x: 1024
+    y: 0
+  - frame: 7
+    source: frame-07/result.png
+    x: 0
+    y: 1536
+  - frame: 8
+    source: frame-08/result.png
+    x: 1024
+    y: 1536
+- file: frames-09-12.png
+  sha256: e7781e3520d7244c7a7bb27a361f242bd0c154dc06616be4e6e3ea14e9f26447
+  frames:
+  - frame: 9
+    source: frame-09/result.png
+    x: 0
+    y: 0
+  - frame: 10
+    source: frame-10/result.png
+    x: 1024
+    y: 0
+  - frame: 11
+    source: frame-11/result.png
+    x: 0
+    y: 1536
+  - frame: 12
+    source: frame-12/result.png
+    x: 1024
+    y: 1536
