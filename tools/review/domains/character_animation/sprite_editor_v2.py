@@ -5,6 +5,7 @@ import io
 import json
 import math
 import re
+import shutil
 import threading
 import zipfile
 from datetime import datetime
@@ -164,11 +165,18 @@ def execute_v2_command(operation_command_name, command_payload_value):
             (project_directory_path/'revisions').mkdir()
             write_record_atomically(project_directory_path/'project.json',{'id':project_identifier_value,'created_at':datetime.now(SPRITE_V2_TIME_ZONE).isoformat()})
             return {'id':project_identifier_value,**save_v2_revision(project_directory_path,current_document_record,None)}
-        expected_command_fields = {'sprite-v2-upload':('id','data'),'sprite-v2-save':('id','parent','document'),'sprite-v2-load':('id','revision'),'sprite-v2-history':('id',),'sprite-v2-export':('id','revision')}
+        expected_command_fields = {'sprite-v2-delete':('id','confirm'),'sprite-v2-upload':('id','data'),'sprite-v2-save':('id','parent','document'),'sprite-v2-load':('id','revision'),'sprite-v2-history':('id',),'sprite-v2-export':('id','revision')}
         if operation_command_name not in expected_command_fields:
             raise ValueError('지원하지 않는 v2 명령입니다.')
         require_exact_fields(command_payload_value,expected_command_fields[operation_command_name])
         project_directory_path = resolve_v2_project(command_payload_value['id'])
+        if operation_command_name == 'sprite-v2-delete':
+            if command_payload_value['confirm'] is not True:
+                raise ValueError('작업 삭제 확인이 필요합니다.')
+            if project_directory_path.is_symlink() or project_directory_path.parent.is_symlink() or not project_directory_path.resolve().is_relative_to(SPRITE_V2_WORKSPACE_ROOT.resolve()):
+                raise ValueError('작업 삭제 경로가 올바르지 않습니다.')
+            shutil.rmtree(project_directory_path)
+            return {'id':command_payload_value['id'],'deleted':True}
         if operation_command_name == 'sprite-v2-upload':
             current_encoded_data = command_payload_value['data']
             if not isinstance(current_encoded_data,str) or len(current_encoded_data)>SPRITE_V2_IMAGE_LIMIT*4/3+4:

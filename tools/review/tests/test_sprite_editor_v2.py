@@ -28,6 +28,18 @@ class SpriteEditorV2Tests(unittest.TestCase):
     def execute_test_command(self,current_command_name,current_payload_record):
         return sprite_editor_v2.execute_v2_command('sprite-v2-'+current_command_name,current_payload_record)
 
+    def test_delete_project_requires_confirmation_and_preserves_other_projects(self):
+        current_other_project=self.execute_test_command('create',{'name':'보존','cellSize':384})
+        current_project_path=sprite_editor_v2.resolve_v2_project(self.current_project_identifier)
+        with self.assertRaises(ValueError):
+            self.execute_test_command('delete',{'id':self.current_project_identifier,'confirm':False})
+        self.assertTrue(current_project_path.exists())
+        self.execute_test_command('delete',{'id':self.current_project_identifier,'confirm':True})
+        self.assertFalse(current_project_path.exists())
+        self.assertEqual([value['id'] for value in self.execute_test_command('list',{})['items']],[current_other_project['id']])
+        with self.assertRaises(ValueError):
+            self.execute_test_command('load',{'id':self.current_project_identifier,'revision':None})
+
     def create_test_frame(self):
         current_image_buffer=io.BytesIO()
         current_source_image=Image.new('RGBA',(384,384))

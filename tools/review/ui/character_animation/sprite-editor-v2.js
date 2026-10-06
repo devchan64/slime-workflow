@@ -149,14 +149,16 @@ window.spriteV2ImageDeleteControls=async(currentImageTarget)=>{
 };
 // 프레임 편집 명령도 레거시 화면과 같은 콜백·실행 취소 스택을 사용한다.
 window.spriteV2FrameControls=async(currentActionName)=>{
- if(!['earlier','later','duplicate','remove','undo'].includes(currentActionName))throw Error('지원하지 않는 프레임 편집 명령입니다.');
+ if(!['earlier','later','duplicate','remove','remove-all','undo'].includes(currentActionName))throw Error('지원하지 않는 프레임 편집 명령입니다.');
  if(currentBusyState)throw Error('등록·저장 처리가 끝난 뒤 사용할 수 있습니다.');
  if(!currentProjectDocument)throw Error('먼저 작업을 생성하거나 불러오세요.');
  if(currentActionName==='undo'&&!currentUndoRecords.length)throw Error('실행 취소할 편집이 없습니다.');
  if(currentActionName!=='undo'&&!currentProjectDocument.frames.length)throw Error('편집할 프레임을 먼저 등록하세요.');
  if(currentActionName==='earlier'&&currentFrameIndex===0)throw Error('이미 첫 번째 프레임입니다.');
  if(currentActionName==='later'&&currentFrameIndex===currentProjectDocument.frames.length-1)throw Error('이미 마지막 프레임입니다.');
- await runEditorAction(currentEditorActions.get(currentActionName),true);
+ if(currentActionName==='remove-all'){
+  await runEditorAction(()=>{retainUndoSnapshot();currentProjectDocument.frames=[];currentFrameIndex=0;currentGuideIndex=0;currentSelectedFrames.clear();refreshEditorScreen();},true);
+ }else await runEditorAction(currentEditorActions.get(currentActionName),true);
  return `프레임 ${currentProjectDocument.frames.length?currentFrameIndex+1:0} / ${currentProjectDocument.frames.length} · 편집 내용을 보존하려면 수정본을 저장하세요.`;
 };
 // 재생 명령은 기존 애니메이션 루프를 호출하며 서버 상태를 만들지 않는다.
@@ -183,6 +185,15 @@ window.spriteV2ProjectControls=async(currentActionName,currentProjectName,curren
   else if(currentActionName==='load')await loadEditorProject(currentSelectedId);
   else if(currentActionName==='history')await refreshEditorHistory();
   else if(currentActionName==='revision'){if(!currentRevisionId)throw Error('불러올 수정 이력을 선택하세요.');await loadEditorProject(currentProjectIdentifier,currentRevisionId);}
+  else if(currentActionName==='delete'){
+   if(!currentSelectedId)throw Error('삭제할 작업을 선택하세요.');
+   await requestEditorCommand('delete',{id:currentSelectedId,confirm:true});
+   if(currentSelectedId===currentProjectIdentifier){
+    stopEditorPlayback();currentProjectIdentifier=null;currentProjectDocument=null;currentParentRevision=null;currentLoadedRevision=null;currentRevisionChoices=[];currentFrameIndex=0;currentGuideIndex=0;currentUnsavedChanges=false;
+    currentImageCache.clear();currentUndoRecords.length=0;currentSelectedFrames.clear();refreshEditorScreen();
+   }
+   await refreshEditorProjects();writeEditorStatus('선택한 작업과 등록 이미지·수정 이력·출력을 삭제했습니다.');
+  }
   else if(currentActionName==='save')await saveEditorProject();
   else if(currentActionName==='export')await exportEditorProject();
   else throw Error('지원하지 않는 작업 명령입니다.');

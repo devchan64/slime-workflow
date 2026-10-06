@@ -17,7 +17,7 @@ from tools.review.common.gradio_joypad import build_transform_joypad, read_joypa
 
 def create_sprite_project_script(current_action_name):
     """Gradio 입력을 기존 브라우저 편집기의 공용 작업 명령으로 전달한다."""
-    if current_action_name not in ('create','list','load','history','revision','save','export'):
+    if current_action_name not in ('create','list','load','history','revision','save','export','delete'):
         raise ValueError('지원하지 않는 스프라이트 작업 명령입니다.')
     return "async(currentProjectName,currentOutputSize,currentSelectedId,currentRevisionId)=>{try{if(!window.spriteV2ProjectControls)throw Error('편집기를 준비 중입니다. 잠시 후 다시 시도하세요.');return await window.spriteV2ProjectControls('"+current_action_name+"',currentProjectName,currentOutputSize,currentSelectedId,currentRevisionId);}catch(currentErrorValue){return [{__type__:'update'},currentErrorValue.message,{__type__:'update'}];}}"
 
@@ -56,6 +56,23 @@ def build_sprite_v2_interface():
         with gr.Row():
             current_refresh_button=gr.Button('작업 목록 새로고침')
             current_load_button=gr.Button('불러오기')
+            current_delete_button=gr.Button('작업 삭제')
+        current_delete_target=gr.Textbox(value='',visible=False)
+        with gr.Group(visible=False) as current_delete_panel:
+            gr.Markdown('### 선택한 작업을 삭제할까요?\n등록 이미지·전체 수정 이력·출력 파일과 열려 있는 해당 작업의 미저장 편집이 삭제됩니다. 되돌릴 수 없습니다.')
+            current_delete_display=build_generation_identifier('삭제할 작업 ID')
+            with gr.Row():
+                current_cancel_button=gr.Button('취소')
+                current_confirm_button=gr.Button('작업 삭제 확인',variant='stop')
+        def close_project_delete():
+            return gr.update(visible=False),'',''
+        def open_project_delete(current_selected_identifier):
+            if not current_selected_identifier:raise gr.Error('삭제할 작업을 선택하세요.')
+            return gr.update(visible=True),current_selected_identifier,current_selected_identifier
+        current_delete_outputs=[current_delete_panel,current_delete_target,current_delete_display]
+        current_delete_button.click(open_project_delete,current_project_choice,current_delete_outputs,queue=False)
+        current_cancel_button.click(close_project_delete,outputs=current_delete_outputs,queue=False)
+        current_project_choice.change(close_project_delete,outputs=current_delete_outputs,queue=False)
         current_feedback_text=gr.Textbox(label='작업 안내',value='목록을 새로고침하여 저장된 작업을 선택하거나 새 작업을 만드세요.',interactive=False)
         with gr.Accordion('현재 작업명·출력 크기 변경',open=False):
             gr.Markdown('현재 작업 정보는 비교 화면 위에 표시됩니다. 빈 작업명과 크기 유지는 기존 값을 보존합니다. 적용 후 수정본 저장으로 이력에 기록하세요.')
@@ -158,9 +175,9 @@ def build_sprite_v2_interface():
                         current_numeric_read.click(fn=None,inputs=current_numeric_choice,outputs=[current_numeric_input,current_feedback_text],queue=False,js="(currentFieldName)=>{try{return [window.spriteV2NumericControls.read(currentFieldName),'현재 수치를 읽었습니다.'];}catch(currentErrorValue){return [{__type__:'update'},currentErrorValue.message];}}")
                         current_numeric_apply.click(fn=None,inputs=[current_numeric_choice,current_numeric_input],outputs=current_feedback_text,queue=False,js="async(currentFieldName,currentNumberValue)=>{try{return await window.spriteV2NumericControls.apply(currentFieldName,currentNumberValue);}catch(currentErrorValue){return currentErrorValue.message;}}")
         with gr.Accordion('프레임 순서·복제·삭제',open=False):
-            gr.Markdown('### 프레임 편집\n선택한 프레임의 순서를 바꾸거나 복제·삭제합니다. 삭제는 실행 취소할 수 있으며 수정본 저장 전에는 저장된 작업을 바꾸지 않습니다.')
+            gr.Markdown('### 프레임 편집\n선택한 프레임의 순서를 바꾸거나 복제·삭제합니다. 전체 프레임 삭제는 레퍼런스를 유지합니다. 삭제는 실행 취소할 수 있으며 수정본 저장 전에는 저장된 작업을 바꾸지 않습니다.')
             with gr.Row():
-                for current_frame_action,current_frame_label in (('earlier','프레임 앞으로'),('later','프레임 뒤로'),('duplicate','선택 프레임 복제'),('remove','선택 프레임 삭제')):
+                for current_frame_action,current_frame_label in (('earlier','프레임 앞으로'),('later','프레임 뒤로'),('duplicate','선택 프레임 복제'),('remove','선택 프레임 삭제'),('remove-all','전체 프레임 삭제')):
                     build_browser_action_button(current_frame_label,'spriteV2FrameControls',current_frame_action,current_feedback_text)
         with gr.Accordion('재생 시간 조정',open=False):
             gr.Markdown('현재 설정은 비교 화면 아래에 표시됩니다. 변경할 항목을 체크하고 값을 입력하세요. 유지 시간은 현재 선택한 프레임에 적용하며 0이면 작업 FPS를 사용합니다.')
@@ -184,6 +201,19 @@ def build_sprite_v2_interface():
         gr.Markdown('GIF는 흰 배경으로 검수합니다. 내보내기는 현재 편집을 새 수정본으로 저장한 후 다운로드합니다.')
         for current_action_name,current_action_button in (('create',current_create_button),('list',current_refresh_button),('load',current_load_button),('save',current_save_button),('export',current_export_button),('history',current_history_button),('revision',current_revision_button)):
             current_action_button.click(fn=None,inputs=[current_project_name,current_output_size,current_project_choice,current_revision_choice],outputs=[current_project_choice,current_feedback_text,current_revision_choice],js=create_sprite_project_script(current_action_name),queue=False)
+
+        current_delete_script="""async(currentProjectName,currentOutputSize,currentSelectedId,currentConfirmedId)=>{
+const currentNoChange={__type__:'update'};
+try{
+ if(!currentSelectedId||currentSelectedId!==currentConfirmedId)throw Error('삭제 대상이 변경되었습니다. 다시 확인하세요.');
+ if(!window.spriteV2ProjectControls)throw Error('편집기를 준비 중입니다. 잠시 후 다시 시도하세요.');
+ const currentResultValues=await window.spriteV2ProjectControls('delete',currentProjectName,currentOutputSize,currentSelectedId,null);
+ return [...currentResultValues,{__type__:'update',visible:false},'',''];
+}catch(currentErrorValue){
+ return [currentNoChange,currentErrorValue.message,currentNoChange,currentNoChange,currentNoChange,currentNoChange];
+}
+}"""
+        current_confirm_button.click(fn=None,inputs=[current_project_name,current_output_size,current_project_choice,current_delete_target],outputs=[current_project_choice,current_feedback_text,current_revision_choice,*current_delete_outputs],js=current_delete_script,queue=False)
 
     return current_interface_blocks
 
