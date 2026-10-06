@@ -21,12 +21,15 @@ class GradioStandardComponentTests(unittest.TestCase):
         self.assertEqual(current_seed_callback.outputs,[current_seed_control])
         self.assertEqual(current_seed_control.value,123)
 
-    def test_history_selection_uses_visible_native_dropdown(self):
+    def test_history_selection_uses_radio_table_and_shared_state(self):
         with gr.Blocks() as current_interface_blocks:
             _,current_history_outputs=build_generation_history_view(lambda *_:{'records':[]},'http://localhost','검수용')
         self.assertIsInstance(current_history_outputs[0],gr.Dropdown)
-        self.assertTrue(current_history_outputs[0].visible)
-        self.assertIsInstance(current_history_outputs[3],gr.Dataframe)
+        self.assertFalse(current_history_outputs[0].visible)
+        self.assertIsInstance(current_history_outputs[3],gr.HTML)
+        self.assertEqual(current_history_outputs[3].css_template,'')
+        self.assertIn("trigger('click'",current_history_outputs[3].js_on_load)
+        self.assertIn("watch('value'",current_history_outputs[3].js_on_load)
         self.assertIsInstance(current_history_outputs[6],gr.Gallery)
         self.assertFalse(any(current_function_value.js and 'selectionInputElement' in current_function_value.js for current_function_value in current_interface_blocks.fns.values()))
 

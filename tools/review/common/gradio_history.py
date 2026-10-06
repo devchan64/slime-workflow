@@ -178,6 +178,23 @@ def build_history_table_rows(current_history_records):
     return current_table_rows
 
 
+def render_history_selection_table(current_history_records,current_selected_identifier=None):
+    """첫 열의 단일 선택 라디오를 공용 이력 작업에 연결한다."""
+    import html
+    current_table_rows=build_history_table_rows(current_history_records)
+    if not current_table_rows:return '<p>생성 이력이 없습니다.</p>'
+    current_header_names=('선택','상태','생성 시각','설정','진행','ID')
+    current_header_markup=''.join('<th scope="col">'+html.escape(current_header_name)+'</th>' for current_header_name in current_header_names)
+    current_row_markup=[]
+    for current_table_row in current_table_rows:
+        current_job_identifier=str(current_table_row[-1])
+        current_checked_markup=' checked' if current_job_identifier==current_selected_identifier else ''
+        current_radio_markup='<input type="radio" name="generation-history-job" value="'+html.escape(current_job_identifier,quote=True)+'" aria-label="'+html.escape(current_job_identifier+' 선택',quote=True)+'"'+current_checked_markup+'>'
+        current_cell_markup=''.join('<td>'+html.escape(str(current_cell_value))+'</td>' for current_cell_value in current_table_row)
+        current_row_markup.append('<tr><td>'+current_radio_markup+'</td>'+current_cell_markup+'</tr>')
+    return '<div style="overflow-x:auto"><table><caption>현재 페이지의 생성 이력</caption><thead><tr>'+current_header_markup+'</tr></thead><tbody>'+''.join(current_row_markup)+'</tbody></table></div>'
+
+
 def collect_history_result_images(current_status_record, server_base_address):
     """저장된 원본·보더 크롭을 이름과 함께 공용 결과 영역에 표시한다."""
     result_image_sections=[]
@@ -209,8 +226,9 @@ def build_generation_history_view(execute_service_command,server_base_address,de
             history_previous_button=gr.Button('← 이전',scale=0,min_width=120,interactive=False)
             history_page_value=gr.Number(value=1,minimum=1,precision=0,label='페이지 이동',show_label=False,container=False,scale=0,min_width=60,elem_classes=['generation-history-page'])
             history_next_button=gr.Button('다음 →',scale=0,min_width=120,interactive=False)
-        history_selection_value=gr.Dropdown(choices=[],value=None,label='이력 선택',info='작업을 선택한 뒤 결과 조회·입력값 불러오기·중지·재개를 사용하세요.',interactive=True,elem_id='generation-history-selection')
-        history_cards_value=gr.Dataframe(headers=['상태','생성 시각','설정','진행','ID'],value=[],datatype='str',type='array',interactive=False,wrap=True,label='현재 페이지의 생성 이력',elem_id='generation-history-cards')
+        history_selection_value=gr.Dropdown(choices=[],value=None,label='이력 선택',info='작업을 선택한 뒤 결과 조회·입력값 불러오기·중지·재개를 사용하세요.',interactive=True,visible=False,elem_id='generation-history-selection')
+        gr.Markdown('첫 번째 열에서 작업을 선택한 뒤 결과 조회·입력값 불러오기·삭제를 사용하세요. 입력값을 불러오면 설정을 확인한 뒤 다시 생성할 수 있습니다.')
+        history_cards_value=gr.HTML(value='',elem_id='generation-history-cards',js_on_load="watch('value',()=>{element.querySelectorAll('input[type=radio]').forEach(currentRadioInput=>{currentRadioInput.checked=currentRadioInput.hasAttribute('checked');});});element.addEventListener('change',(currentChangeEvent)=>{const currentRadioInput=currentChangeEvent.target;if(currentRadioInput.matches('input[type=radio]'))trigger('click',{identifier:currentRadioInput.value});});")
         (history_selected_panel, history_selection_summary, selected_identifier_value, result_lookup_button, restore_input_button, history_resume_button, history_cancel_button, history_delete_button)=build_history_selection_panel(restore_input_callback is not None, allow_individual_delete)
         history_remaining_cards=gr.Gallery(value=[],label='현재 페이지의 결과 미리보기',columns=2,object_fit='contain',interactive=False,visible=False,elem_id='generation-history-remaining-cards')
         result_identifier_value=build_generation_identifier('조회한 생성 ID', 'generation-history-result-anchor')
@@ -240,8 +258,8 @@ def build_generation_history_view(execute_service_command,server_base_address,de
         current_status_value=current_status_record.get('status')
         generation_resume_allowed=current_status_record.get('resume_allowed',True)
         return gr.update(interactive=current_status_value in ('running','queued','paused')),gr.update(interactive=generation_resume_allowed and current_status_value in ('failed','cancelled','paused'),value=('다음 단계' if current_status_value=='paused' else '생성 재개') if generation_resume_allowed else current_status_record['resume_block_reason'])
-    # 자동 목록 갱신은 선택 처리 이벤트를 재실행하지 않는다. 사용자 선택만 처리한다.
-    history_selection_value.input(refresh_history_controls,history_selection_value,[history_cancel_button,history_resume_button],queue=False)
+    # 라디오 선택과 수동 목록 변경을 같은 선택 상태에 반영한다. 전체 목록은 주기적으로 갱신하지 않는다.
+    history_selection_value.change(refresh_history_controls,history_selection_value,[history_cancel_button,history_resume_button],queue=False)
     if hasattr(gr,'Timer'):
         gr.Timer(3).tick(refresh_history_controls,history_selection_value,[history_cancel_button,history_resume_button],queue=False,show_progress='hidden')
 
@@ -257,13 +275,21 @@ def build_generation_history_view(execute_service_command,server_base_address,de
         # 목록과 선택값을 함께 갱신하여 브라우저와 서버의 선택 상태를 맞춘다.
         selection_update_values = {'choices':current_choice_values, 'value':selected_history_identifier}
         current_thumbnail_items=collect_image_history_thumbnails(current_page_records,server_base_address)[0]
-        return gr.update(**selection_update_values),f'총 {len(current_history_records)}건 · {current_page_number} / {current_page_count}페이지' if current_history_records else '생성 이력이 없습니다. 위 설정에서 생성을 시작하세요.',gr.update(value=current_page_number,maximum=current_page_count,interactive=current_page_count>1),build_history_table_rows(current_page_records),gr.update(interactive=current_page_number>1),gr.update(interactive=current_page_number<current_page_count),gr.update(value=current_thumbnail_items,visible=bool(current_thumbnail_items)),gr.update(visible=bool(selected_history_identifier))
+        return gr.update(**selection_update_values),f'총 {len(current_history_records)}건 · {current_page_number} / {current_page_count}페이지' if current_history_records else '생성 이력이 없습니다. 위 설정에서 생성을 시작하세요.',gr.update(value=current_page_number,maximum=current_page_count,interactive=current_page_count>1),render_history_selection_table(current_page_records,selected_history_identifier),gr.update(interactive=current_page_number>1),gr.update(interactive=current_page_number<current_page_count),gr.update(value=current_thumbnail_items,visible=bool(current_thumbnail_items)),gr.update(visible=bool(selected_history_identifier))
 
     def update_selected_card_layout(current_page_number,current_selected_identifier):
         current_page_updates=read_history_page(current_page_number,current_selected_identifier)
         return [current_page_updates[index] for index in (3,6,7)]
 
-    history_selection_value.input(update_selected_card_layout,[history_page_value,history_selection_value],[history_cards_value,history_remaining_cards,history_selected_panel],queue=False)
+    def select_history_table_record(current_selection_event:gr.EventData):
+        current_job_identifier=current_selection_event.identifier
+        current_history_records=execute_service_command('history',{}).get('records',[])
+        if current_job_identifier not in [current_record_value['id'] for current_record_value in current_history_records]:
+            raise gr.Error('선택한 이력이 없습니다. 목록을 새로고침하세요.')
+        return gr.update(value=current_job_identifier)
+    history_cards_value.click(select_history_table_record,outputs=history_selection_value,queue=False)
+
+    history_selection_value.change(update_selected_card_layout,[history_page_value,history_selection_value],[history_cards_value,history_remaining_cards,history_selected_panel],queue=False)
 
     def read_selected_result(current_selected_identifier):
         if not current_selected_identifier:raise gr.Error('목록에서 작업을 선택하세요. 결과 조회·입력 재사용·중지·재개를 할 수 있습니다.')
@@ -293,10 +319,10 @@ def build_generation_history_view(execute_service_command,server_base_address,de
             if current_history_record is None:raise gr.Error('선택한 이력을 찾을 수 없습니다. 목록을 새로고침하세요.')
             return restore_input_callback(current_history_record)
         restore_input_button.click(restore_selected_inputs,history_selection_value,restore_output_components,queue=False)
-    history_selection_value.input(lambda selected_history_identifier: selected_history_identifier or '',history_selection_value,selected_identifier_value,queue=False)
+    history_selection_value.change(lambda selected_history_identifier: selected_history_identifier or '',history_selection_value,selected_identifier_value,queue=False)
     history_selection_output_values=[history_selection_summary,result_lookup_button]
     if restore_input_callback is not None:history_selection_output_values.append(restore_input_button)
-    history_selection_value.input(describe_selected_history,history_selection_value,history_selection_output_values,queue=False)
+    history_selection_value.change(describe_selected_history,history_selection_value,history_selection_output_values,queue=False)
     # 전체 목록은 수동 갱신한다. 주기적 재렌더링은 썸네일 로딩과 선택 UI를 흔든다.
     history_refresh_button.click(read_history_page,[history_page_value,history_selection_value],[history_selection_value,history_count_value,history_page_value,history_cards_value,history_previous_button,history_next_button,history_remaining_cards,history_selected_panel],preprocess=False,queue=False)
     history_previous_button.click(lambda current_page_number,current_selected_identifier:read_history_page((current_page_number or 1)-1,current_selected_identifier),[history_page_value,history_selection_value],[history_selection_value,history_count_value,history_page_value,history_cards_value,history_previous_button,history_next_button,history_remaining_cards,history_selected_panel],preprocess=False,queue=False)
@@ -322,7 +348,7 @@ def build_generation_history_view(execute_service_command,server_base_address,de
     reset_output_components.append(selected_identifier_value)
     if allow_individual_delete:
         history_delete_confirmation=gr.Checkbox(value=False,visible=False)
-        history_selection_value.input(lambda identifier:gr.update(interactive=bool(identifier)),history_selection_value,history_delete_button,queue=False)
+        history_selection_value.change(lambda identifier:gr.update(interactive=bool(identifier)),history_selection_value,history_delete_button,queue=False)
         def delete_selected_history(selected_job_identifier,confirmed_delete_value):
             if confirmed_delete_value is not True:
                 return [gr.skip() for _ in reset_output_components]

@@ -4,6 +4,7 @@ const SPRITE_DIRECTION_LABELS={down_left:'전방 좌측',down_right:'전방 우�
 const SPRITE_FRAME_FIELDS={center:'원본 중심 X',floor:'원본 바닥 Y',head:'원본 머리 Y',anchorX:'기준점 X',anchorY:'기준점 Y',x:'배치 X',y:'배치 Y',scale:'배율'};
 const SPRITE_OUTPUT_FOOT_RATIO=.9;
 const SPRITE_UNDO_RECORD_LIMIT=40;
+const SPRITE_SESSION_LOG_LIMIT=40;
 const SPRITE_EXPORT_FRAME_LIMIT=128;
 const SPRITE_CUSTOM_GUIDE_LIMIT=32;
 const SPRITE_NUDGE_DIRECTION_STEPS={up:{x:0,y:-1},left:{x:-1,y:0},right:{x:1,y:0},down:{x:0,y:1}};
@@ -85,13 +86,14 @@ if(typeof document!=='undefined')void (async function initializeSpriteEditorComp
  const spriteRootElement=document.getElementById('sprite-editor-root')||document.querySelector('main');
  if(spriteRootElement.dataset.initialized==='true')return;
  spriteRootElement.dataset.initialized='true';
- const findSpriteElement=currentElementName=>spriteRootElement.querySelector('#sprite-'+currentElementName);
+ const findSpriteElement=currentElementName=>document.getElementById('sprite-'+currentElementName);
  const spriteServerBase=window.spriteEditorServerBase||window.location.origin;
  const resolveSpriteUrl=currentPathValue=>new URL(currentPathValue,spriteServerBase).toString();
  const spriteCanvasElement=findSpriteElement('canvas');
  const currentSpriteOptions={zoom:'2',background:'checker',speed:'1',guides:true,onion:false,mode:'move'};
  let currentSpriteDirection='down_left';
  let currentSpriteScope='selected';
+ let currentSelectedFrames=new Set();
  const currentScopeLabels={selected:'현재 프레임',direction:'현재 방향',clip:'모든 프레임',custom:'체크한 프레임'};
  const readSpriteScopeName=()=>findSpriteElement('scope')?.querySelector('input:checked')?.value||currentSpriteScope;
  function selectSpriteCustomScope(){currentSpriteScope='custom';const currentScopeInput=findSpriteElement('scope')?.querySelector('input[value="custom"]');if(currentScopeInput)currentScopeInput.checked=true;}
@@ -108,7 +110,15 @@ if(typeof document!=='undefined')void (async function initializeSpriteEditorComp
  const readSpriteDirectionFrames=()=>spriteSourceRecord?.frames.filter(currentFrameRecord=>currentFrameRecord.direction===(findSpriteElement('direction')?.value||currentSpriteDirection))||[];
  const readSpriteCurrentFrame=()=>readSpriteDirectionFrames()[spriteFramePosition];
  const readSpriteCurrentSettings=()=>spriteProjectDocument?.frames[readSpriteCurrentFrame()?.frameId];
- function appendSpriteStatusMessage(currentStatusText){findSpriteElement('status').textContent=currentStatusText;const currentLogElement=findSpriteElement('log');currentLogElement.textContent=(currentLogElement.textContent+'\n'+new Date().toLocaleTimeString()+' / sprite-editor / '+currentStatusText).split('\n').slice(-40).join('\n');}
+ const currentSessionLogs=[];
+ window.spriteEditorReadLog=()=>currentSessionLogs.join('\n');
+ function appendSpriteStatusMessage(currentStatusText){
+  findSpriteElement('status').textContent=currentStatusText;
+  currentSessionLogs.push(new Date().toLocaleTimeString()+' / sprite-editor / '+currentStatusText);
+  if(currentSessionLogs.length>SPRITE_SESSION_LOG_LIMIT)currentSessionLogs.shift();
+  const currentLogElement=findSpriteElement('log');
+  if(currentLogElement)currentLogElement.textContent=window.spriteEditorReadLog();
+ }
  function updateSpriteControlStates(){
   for(const currentButtonElement of spriteRootElement.querySelectorAll('button')){
    const currentButtonName=currentButtonElement.id;
@@ -193,7 +203,11 @@ if(typeof document!=='undefined')void (async function initializeSpriteEditorComp
   for(const currentSheetCell of currentSheetLayout.frames){currentCanvasContext.save();currentCanvasContext.beginPath();currentCanvasContext.rect(currentSheetCell.x,currentSheetCell.y,outputCellPixels,outputCellPixels);currentCanvasContext.clip();currentCanvasContext.translate(currentSheetCell.x,currentSheetCell.y);drawSpriteFrameImage(currentCanvasContext,currentSheetCell.frame,currentProjectSnapshot.frames[currentSheetCell.frame.frameId],outputCellPixels);currentCanvasContext.restore();}
   return currentSheetLayout;
  }
- function refreshSpriteSheetOverview(){if(!spriteSourceRecord||!findSpriteElement('sheet-details').open)return;try{const currentSheetLayout=renderSpriteSheetCanvas(findSpriteElement('sheet'),spriteSourceRecord.frames,spriteProjectDocument);findSpriteElement('sheet-info').textContent=`${currentSheetLayout.columns}열 × ${currentSheetLayout.rows}행 · ${currentSheetLayout.width}×${currentSheetLayout.height}px · 가이드 없는 편집본`;}catch(currentErrorValue){appendSpriteStatusMessage(currentErrorValue.message);}}
+ function rebuildSpriteDirectionCanvases(){if(!spriteSourceRecord)return;findSpriteElement('directions')?.replaceChildren(...Object.keys(SPRITE_DIRECTION_LABELS).filter(currentDirectionName=>spriteSourceRecord.frames.some(currentFrameRecord=>currentFrameRecord.direction===currentDirectionName)).map(directionKeyName=>{const directionFigureElement=document.createElement('figure'),directionCanvasElement=document.createElement('canvas'),directionCaptionElement=document.createElement('figcaption');directionCaptionElement.textContent=SPRITE_DIRECTION_LABELS[directionKeyName];directionCanvasElement.className='sprite-preview';directionCanvasElement.dataset.direction=directionKeyName;directionCanvasElement.setAttribute('aria-label',SPRITE_DIRECTION_LABELS[directionKeyName]+' 동기 재생');directionFigureElement.append(directionCaptionElement,directionCanvasElement);return directionFigureElement;}));}
+ window.spriteEditorDirectionPreview=()=>{requestAnimationFrame(()=>{rebuildSpriteDirectionCanvases();renderSpriteEditorFrame();});};
+ let currentSheetVisible=false;
+ window.spriteEditorSheetVisibility=currentPanelVisible=>{currentSheetVisible=currentPanelVisible;requestAnimationFrame(refreshSpriteSheetOverview);};
+ function refreshSpriteSheetOverview(){if(!spriteSourceRecord||!(findSpriteElement('sheet-details')?.open??currentSheetVisible))return;try{const currentSheetLayout=renderSpriteSheetCanvas(findSpriteElement('sheet'),spriteSourceRecord.frames,spriteProjectDocument);findSpriteElement('sheet-info').textContent=`${currentSheetLayout.columns}열 × ${currentSheetLayout.rows}행 · ${currentSheetLayout.width}×${currentSheetLayout.height}px · 가이드 없는 편집본`;}catch(currentErrorValue){appendSpriteStatusMessage(currentErrorValue.message);}}
  function renderSpriteEditorFrame(){
   updateSpriteDisplayZoom();
   const currentFrameRecord=readSpriteCurrentFrame();if(!currentFrameRecord)return;
@@ -215,7 +229,7 @@ if(typeof document!=='undefined')void (async function initializeSpriteEditorComp
   const currentHeadPosition=currentDrawRect.y+currentFrameSettings.head*currentFrameSettings.scale,currentFloorPosition=currentDrawRect.y+currentFrameSettings.floor*currentFrameSettings.scale;
   findSpriteElement('measurement').textContent=`${currentFrameRecord.frameId} · 몸체 높이 ${currentBodyHeight.toFixed(1)}px · 머리 ${currentHeadPosition.toFixed(1)} / 바닥 ${currentFloorPosition.toFixed(1)}px${currentHeadPosition<0||currentFloorPosition>=outputCellPixels?' · 주의: 몸체가 출력 셀 밖으로 벗어납니다.':''}${spriteDirtyState?' · 저장 전 변경 있음':''}`;
   for(const [currentFrameIndex,currentButtonElement] of [...findSpriteElement('strip').children].entries())currentButtonElement.setAttribute('aria-pressed',String(currentFrameIndex===spriteFramePosition));
-  for(const currentDirectionCanvas of findSpriteElement('directions').querySelectorAll('canvas')){
+  for(const currentDirectionCanvas of findSpriteElement('directions')?.querySelectorAll('canvas')||[]){
    const syncFrameRecords=spriteSourceRecord.frames.filter(currentSourceFrame=>currentSourceFrame.direction===currentDirectionCanvas.dataset.direction),syncFrameRecord=syncFrameRecords[spriteFramePosition%syncFrameRecords.length];
    const syncCanvasContext=prepareSpriteCanvasContext(currentDirectionCanvas,outputCellPixels);drawSpriteFrameImage(syncCanvasContext,syncFrameRecord,spriteProjectDocument.frames[syncFrameRecord.frameId],outputCellPixels);
   }
@@ -258,7 +272,7 @@ if(typeof document!=='undefined')void (async function initializeSpriteEditorComp
    const sourceDirectionNames=Object.keys(SPRITE_DIRECTION_LABELS).filter(directionKeyName=>sourceAssetRecord.frames.some(currentFrameRecord=>currentFrameRecord.direction===directionKeyName));
    currentSpriteDirection=sourceDirectionNames[0];
    if(findSpriteElement('direction'))findSpriteElement('direction').replaceChildren(...sourceDirectionNames.map(directionKeyName=>new Option(SPRITE_DIRECTION_LABELS[directionKeyName],directionKeyName)));
-   findSpriteElement('directions').replaceChildren(...sourceDirectionNames.map(directionKeyName=>{const directionFigureElement=document.createElement('figure'),directionCanvasElement=document.createElement('canvas'),directionCaptionElement=document.createElement('figcaption');directionCaptionElement.textContent=SPRITE_DIRECTION_LABELS[directionKeyName];directionCanvasElement.className='sprite-preview';directionCanvasElement.dataset.direction=directionKeyName;directionCanvasElement.setAttribute('aria-label',SPRITE_DIRECTION_LABELS[directionKeyName]+' 동기 재생');directionFigureElement.append(directionCaptionElement,directionCanvasElement);return directionFigureElement;}));
+   rebuildSpriteDirectionCanvases();
    findSpriteElement('summary').textContent=`${sourceAssetRecord.label} · 원본 셀 ${sourceAssetRecord.frames[0].rect.width}×${sourceAssetRecord.frames[0].rect.height} · ${sourceAssetRecord.frames.length}프레임 / ${sourceDirectionNames.length}방향 · ${sourceAssetRecord.fps} FPS · 검수 사본`;
    spriteHistoryViewState.page=0;spriteHistoryViewState.selected=null;if(findSpriteElement('history-input'))findSpriteElement('history-input').textContent='';await refreshSpriteSavedHistory();
    rebuildSpriteFrameSelection();
@@ -267,7 +281,7 @@ if(typeof document!=='undefined')void (async function initializeSpriteEditorComp
   }catch(currentErrorValue){spriteSourceRecord=null;spriteProjectDocument=null;appendSpriteStatusMessage(currentErrorValue.message);}
   finally{spriteBusyState=false;updateSpriteControlStates();}
  }
- function selectedSpriteScopeFrames(){return selectSpriteScopeFrames(spriteSourceRecord.frames,readSpriteCurrentFrame().frameId,readSpriteScopeName(),Array.from(findSpriteElement('frame-options').querySelectorAll('input:checked'),currentFrameCheckbox=>currentFrameCheckbox.value));}
+ function selectedSpriteScopeFrames(){return selectSpriteScopeFrames(spriteSourceRecord.frames,readSpriteCurrentFrame().frameId,readSpriteScopeName(),Array.from(currentSelectedFrames));}
  function applySpriteBatchChange(transformFrameSettings){
   const currentScopeFrames=selectedSpriteScopeFrames();
   if(!currentScopeFrames.length)throw Error('적용할 프레임을 하나 이상 선택하세요.');
@@ -461,7 +475,7 @@ if(typeof document!=='undefined')void (async function initializeSpriteEditorComp
   if(!Object.hasOwn(currentAllowedOptions,currentOptionName)||!currentAllowedOptions[currentOptionName].includes(currentOptionValue))throw Error('지원하지 않는 화면 설정입니다.');
   currentSpriteOptions[currentOptionName]=currentOptionValue;
   if(currentOptionName==='zoom')updateSpriteDisplayZoom();
-  if(currentOptionName==='background')spriteRootElement.dataset.background=currentOptionValue;
+  if(currentOptionName==='background'){spriteRootElement.dataset.background=currentOptionValue;const currentResultsRoot=document.getElementById('sprite-results-root');if(currentResultsRoot)currentResultsRoot.dataset.background=currentOptionValue;}
   if(currentOptionName==='speed')stopSpritePlayback();
   renderSpriteEditorFrame();
   return currentOptionName==='speed'?'재생 속도를 변경했습니다. 재생 버튼으로 시작하세요.':'비교 화면 표시를 변경했습니다.';
@@ -504,25 +518,37 @@ if(typeof document!=='undefined')void (async function initializeSpriteEditorComp
  if(findSpriteElement('align-center'))findSpriteElement('align-center').onclick=()=>{if(!spriteProjectDocument)return;try{applySpriteBatchChange(currentFrameSettings=>calculateSpriteCenterSettings(currentFrameSettings,readSpriteCellPixels()));}catch(currentErrorValue){appendSpriteStatusMessage(currentErrorValue.message);}};
  if(findSpriteElement('normalize'))findSpriteElement('normalize').onclick=()=>applySpriteAlignmentChange(true);
  function updateSpriteFrameSelection(){
-  const currentSelectedCount=findSpriteElement('frame-options').querySelectorAll('input:checked').length;
-  findSpriteElement('frame-summary').textContent=`체크한 프레임: ${currentSelectedCount} / ${spriteSourceRecord?.frames.length||0}`;
+  const currentSelectedCount=currentSelectedFrames.size;
+  if(findSpriteElement('frame-summary'))findSpriteElement('frame-summary').textContent=`체크한 프레임: ${currentSelectedCount} / ${spriteSourceRecord?.frames.length||0}`;
   updateSpriteScopeSummary();
  }
  function rebuildSpriteFrameSelection(){
-  findSpriteElement('frame-options').replaceChildren();
+  currentSelectedFrames.clear();
+  findSpriteElement('frame-options')?.replaceChildren();
   for(const currentFrameRecord of spriteSourceRecord.frames){
+   if(!findSpriteElement('frame-options'))break;
    const currentFrameLabel=document.createElement('label'),currentFrameCheckbox=document.createElement('input');
    currentFrameCheckbox.type='checkbox';currentFrameCheckbox.value=currentFrameRecord.frameId;
-   currentFrameCheckbox.onchange=()=>{selectSpriteCustomScope();updateSpriteFrameSelection();};
+   currentFrameCheckbox.onchange=()=>{if(currentFrameCheckbox.checked)currentSelectedFrames.add(currentFrameRecord.frameId);else currentSelectedFrames.delete(currentFrameRecord.frameId);selectSpriteCustomScope();updateSpriteFrameSelection();};
    currentFrameLabel.append(currentFrameCheckbox,document.createTextNode(currentFrameRecord.frameId));findSpriteElement('frame-options').append(currentFrameLabel);
   }
   updateSpriteFrameSelection();
  }
+ window.spriteEditorFrameChoices=(currentFrameSelection=null)=>{
+  const currentAvailableFrames=spriteSourceRecord?.frames.map(currentFrameRecord=>currentFrameRecord.frameId)||[];
+  if(currentFrameSelection!==null){
+   if(spriteBusyState||!spriteProjectDocument)throw Error('등록 에셋 로딩 완료 후 프레임을 선택하세요.');
+   if(!Array.isArray(currentFrameSelection)||currentFrameSelection.some(currentFrameId=>!currentAvailableFrames.includes(currentFrameId)))throw Error('원본에 없는 프레임을 선택했습니다. 목록을 다시 확인하세요.');
+   currentSelectedFrames=new Set(currentFrameSelection);selectSpriteCustomScope();updateSpriteFrameSelection();
+  }
+  return {__type__:'update',choices:currentAvailableFrames.map(currentFrameId=>[currentFrameId,currentFrameId]),value:Array.from(currentSelectedFrames)};
+ };
  window.spriteEditorSelectionControls=(currentActionName)=>{
   if(spriteBusyState)throw Error('에셋을 불러오는 중입니다. 완료 후 다시 시도하세요.');
   if(!spriteProjectDocument)throw Error('등록 에셋을 먼저 불러오세요.');
   if(!['all','none'].includes(currentActionName))throw Error('지원하지 않는 프레임 선택 명령입니다.');
-  for(const currentFrameCheckbox of findSpriteElement('frame-options').querySelectorAll('input'))currentFrameCheckbox.checked=currentActionName==='all';
+  currentSelectedFrames=new Set(currentActionName==='all'?spriteSourceRecord.frames.map(currentFrameRecord=>currentFrameRecord.frameId):[]);
+  for(const currentFrameCheckbox of findSpriteElement('frame-options')?.querySelectorAll('input')||[])currentFrameCheckbox.checked=currentActionName==='all';
   selectSpriteCustomScope();updateSpriteFrameSelection();
   return currentActionName==='all'?`${spriteSourceRecord.frames.length}프레임을 선택했습니다.`:'선택을 해제했습니다. 편집하려면 프레임을 체크하거나 편집 범위를 변경하세요.';
  };
@@ -567,7 +593,7 @@ if(typeof document!=='undefined')void (async function initializeSpriteEditorComp
   }finally{spriteBusyState=false;updateSpriteControlStates();}
  };
  if(findSpriteElement('save'))findSpriteElement('save').onclick=async()=>{try{await window.spriteEditorSaveControls('save');}catch(currentErrorValue){appendSpriteStatusMessage(currentErrorValue.message);}};
- findSpriteElement('sheet-details').ontoggle=refreshSpriteSheetOverview;
+ if(findSpriteElement('sheet-details'))findSpriteElement('sheet-details').ontoggle=refreshSpriteSheetOverview;
  spriteCanvasElement.onpointerdown=currentPointerEvent=>{if(!spriteProjectDocument||spriteBusyState)return;const currentFrameSettings=readSpriteCurrentSettings(),currentPointerPosition=calculateSpritePointerPosition({x:currentPointerEvent.clientX,y:currentPointerEvent.clientY},spriteCanvasElement.getBoundingClientRect(),readSpriteCellPixels()),currentOutputAnchor=calculateSpriteOutputAnchor(readSpriteCellPixels()),currentModeValue=readSpriteViewOption('mode');
   rememberSpriteDocumentChange();if(currentModeValue==='move'){spriteDragOrigin={point:currentPointerPosition,x:currentFrameSettings.x,y:currentFrameSettings.y};spriteCanvasElement.setPointerCapture(currentPointerEvent.pointerId);}else{const sourcePointX=(currentPointerPosition.x-currentOutputAnchor.x-currentFrameSettings.x)/currentFrameSettings.scale+currentFrameSettings.anchorX,sourcePointY=(currentPointerPosition.y-currentOutputAnchor.y-currentFrameSettings.y)/currentFrameSettings.scale+currentFrameSettings.anchorY;const nextFrameSettings={...currentFrameSettings};if(currentModeValue==='anchor'){nextFrameSettings.anchorX=Math.round(sourcePointX);nextFrameSettings.anchorY=Math.round(sourcePointY);}else nextFrameSettings[currentModeValue]=Math.round(currentModeValue==='center'?sourcePointX:sourcePointY);try{validateSpriteFrameSettings(nextFrameSettings);Object.assign(currentFrameSettings,nextFrameSettings);}catch(currentErrorValue){appendSpriteStatusMessage(currentErrorValue.message);}refreshSpriteEditedViews();}};
  spriteCanvasElement.onpointermove=currentPointerEvent=>{if(!spriteDragOrigin)return;const currentPointerPosition=calculateSpritePointerPosition({x:currentPointerEvent.clientX,y:currentPointerEvent.clientY},spriteCanvasElement.getBoundingClientRect(),readSpriteCellPixels()),currentFrameSettings=readSpriteCurrentSettings();currentFrameSettings.x=Math.max(-8192,Math.min(8192,Math.round(spriteDragOrigin.x+currentPointerPosition.x-spriteDragOrigin.point.x)));currentFrameSettings.y=Math.max(-8192,Math.min(8192,Math.round(spriteDragOrigin.y+currentPointerPosition.y-spriteDragOrigin.point.y)));renderSpriteEditorFrame();};

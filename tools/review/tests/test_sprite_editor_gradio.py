@@ -33,9 +33,9 @@ class SpriteEditorGradioTests(unittest.TestCase):
                 self.assertEqual(len(current_matching_events),current_event_count)
                 self.assertTrue(all(not current_event_record['backend_fn'] and not current_event_record['queue'] for current_event_record in current_matching_events))
         current_markup_text=read_sprite_editor_markup()
-        for current_removed_id in ('sprite-scope','sprite-fields','sprite-guide-list','sprite-history','sprite-history-input','sprite-align-floor','sprite-align-center','sprite-normalize','sprite-apply'):
+        for current_removed_id in ('sprite-frame-options','sprite-scope','sprite-fields','sprite-guide-list','sprite-history','sprite-history-input','sprite-align-floor','sprite-align-center','sprite-normalize','sprite-apply'):
             self.assertNotIn('id="'+current_removed_id+'"',current_markup_text)
-        for current_retained_id in ('sprite-frame-options','sprite-timeline','sprite-canvas','sprite-directions','sprite-sheet'):
+        for current_retained_id in ('sprite-timeline','sprite-canvas'):
             self.assertIn('id="'+current_retained_id+'"',current_markup_text)
 
     def test_loader_targets_review_server_component_route(self):
@@ -47,7 +47,7 @@ class SpriteEditorGradioTests(unittest.TestCase):
     def test_comparison_and_export_use_shared_styles(self):
         editor_markup_text=read_sprite_editor_markup()
         for required_element_name in ('sprite-canvas','sprite-directions','sprite-sheet'):
-            self.assertIn(required_element_name,editor_markup_text)
+            self.assertIn(required_element_name,str(build_sprite_editor_interface(8770).get_config_file()))
         self.assertNotIn('id="sprite-original"',editor_markup_text)
         for removed_control_name in ('sprite-save','sprite-frames-all','sprite-frames-none','sprite-undo','sprite-reset','sprite-guides','sprite-onion','sprite-mode','sprite-asset','sprite-asset-load','sprite-direction','sprite-zoom','sprite-background','sprite-speed','sprite-prev','sprite-play','sprite-stop','sprite-next','sprite-json','sprite-png','sprite-png-all','sprite-size','sprite-height','sprite-job','sprite-load'):
             self.assertNotIn('id="'+removed_control_name+'"',editor_markup_text)

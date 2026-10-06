@@ -13,6 +13,7 @@ if str(WORKFLOW_ROOT_DIRECTORY) not in sys.path:sys.path.insert(0,str(WORKFLOW_R
 from tools.review.ui_assets import resolve_review_ui_asset
 from tools.review.common.gradio_browser_controls import build_browser_action_button
 from tools.review.common.gradio_frame_navigator import build_frame_navigator
+from tools.review.common.gradio_logs import create_copyable_log_textbox
 from tools.review.common.gradio_joypad import build_transform_joypad, read_joypad_browser_script
 
 def read_sprite_editor_styles():
@@ -39,10 +40,13 @@ def read_sprite_editor_markup():
     current_markup_text=re.sub(r'<div class="sprite-fine-pads">.*?(?=<div class="sprite-fine-summary">)','',current_markup_text,flags=re.S)
     current_markup_text=current_markup_text.replace('방향키: 위치 이동 · ＋/−: 몸체 높이 조절','공용 조이패드: 위치 이동 · 이미지 배율 조절').replace('편집 범위 · 1px 미세 조절','편집 범위 · 위치·배율 조절').replace('출력 기준 1px · 비율·기준점 유지','기준점 유지')
     current_markup_text=re.sub(r'<fieldset id="sprite-scope">.*?</fieldset>', '<p id="sprite-scope-summary" role="status">원본을 불러오세요.</p>',current_markup_text,flags=re.S)
+    current_markup_text=re.sub(r'<fieldset id="sprite-frame-selection">.*?</fieldset>','',current_markup_text,flags=re.S)
     current_markup_text=re.sub(r'<h3>3\. 선택 범위에 작업 적용</h3>.*?</section>','</section>',current_markup_text,flags=re.S)
     current_markup_text=re.sub(r'<h3>2\. 속성값</h3>.*?</section>','</section>',current_markup_text,flags=re.S)
     current_markup_text=re.sub(r'<details open><summary>추가 가이드라인</summary>.*?</details>','',current_markup_text,flags=re.S)
     current_markup_text=re.sub(r'<h2>저장 이력</h2>.*?</section>','</section>',current_markup_text,flags=re.S)
+    current_markup_text=re.sub(r'<details><summary>작업 로그</summary><pre id="sprite-log"></pre></details>','',current_markup_text)
+    current_markup_text=re.sub(r'<section class="studio-panel"><h2>전체 결과 검수</h2>.*?</section>','',current_markup_text,flags=re.S)
     return '<main id="sprite-editor-root">'+current_markup_text+'</main>'
 
 def create_sprite_editor_loader(review_server_port):
@@ -82,6 +86,10 @@ def build_sprite_editor_interface(review_server_port):
         with gr.Row():
             for current_action_name,current_button_label in (('all','전체 프레임 선택'),('none','선택 해제')):
                 build_browser_action_button(current_button_label,'spriteEditorSelectionControls',current_action_name,current_playback_feedback)
+        current_frame_choices=gr.CheckboxGroup(label='적용할 프레임 선택',choices=[],value=[])
+        current_frame_choices.input(fn=None,inputs=current_frame_choices,outputs=[current_frame_choices,current_playback_feedback],queue=False,js="currentFrameSelection=>{try{return [window.spriteEditorFrameChoices(currentFrameSelection),'선택한 프레임 범위로 전환했습니다.'];}catch(currentErrorValue){return [{__type__:'update'},currentErrorValue.message];}}")
+        current_selection_timer=gr.Timer(1)
+        current_selection_timer.tick(fn=None,outputs=current_frame_choices,queue=False,show_progress='hidden',js="()=>{if(typeof window.spriteEditorFrameChoices!=='function')return {__type__:'update'};const currentSelectionRecord=window.spriteEditorFrameChoices();const currentSelectionSignature=JSON.stringify(currentSelectionRecord);if(window.spriteSelectionSignature===currentSelectionSignature)return {__type__:'update'};window.spriteSelectionSignature=currentSelectionSignature;return currentSelectionRecord;}")
         build_transform_joypad('spriteEditorJoypadControls',current_playback_feedback)
         with gr.Row():
             for current_action_name,current_action_label in (('undo','실행 취소'),('reset','선택 프레임 원본 복원')):
@@ -114,6 +122,20 @@ def build_sprite_editor_interface(review_server_port):
             current_alignment_button=gr.Button('선택 범위에 정렬 적용')
             current_alignment_button.click(fn=None,inputs=[current_alignment_choice,current_alignment_target],outputs=current_playback_feedback,queue=False,js="(currentActionName,currentTargetValue)=>{try{return window.spriteEditorAlignmentControls(currentActionName,currentTargetValue);}catch(currentErrorValue){return currentErrorValue.message;}}")
         gr.HTML(read_sprite_editor_markup())
+        with gr.Column(elem_id='sprite-results-root'):
+            gr.Markdown('### 전체 결과 검수')
+            with gr.Accordion('전체 방향 동기 검수',open=False) as current_direction_panel:
+                gr.HTML('<div id="sprite-directions" class="sprite-direction-grid"></div>')
+            current_direction_panel.expand(fn=None,queue=False,js="()=>{window.spriteEditorDirectionPreview?.();}")
+            with gr.Accordion('전체 출력 시트 · 방향별 행 / 시간순 열',open=False) as current_sheet_panel:
+                gr.HTML('<p id="sprite-sheet-info"></p><canvas id="sprite-sheet" class="sprite-preview" aria-label="전체 출력 시트"></canvas>')
+            current_sheet_panel.expand(fn=None,queue=False,js="()=>{window.spriteEditorSheetVisibility?.(true);}")
+            current_sheet_panel.collapse(fn=None,queue=False,js="()=>{window.spriteEditorSheetVisibility?.(false);}")
+        with gr.Accordion('작업 로그',open=False):
+            gr.Markdown('현재 브라우저 편집 세션의 최근 40개 안내를 표시합니다.')
+            current_editor_log=create_copyable_log_textbox(label='편집 작업 로그',interactive=False,lines=6,max_lines=12)
+        current_editor_timer=gr.Timer(1)
+        current_editor_timer.tick(fn=None,inputs=current_editor_log,outputs=current_editor_log,queue=False,show_progress='hidden',js="currentDisplayedLog=>{if(typeof window.spriteEditorReadLog!=='function')return {__type__:'update'};const currentLogText=window.spriteEditorReadLog();return currentLogText===currentDisplayedLog?{__type__:'update'}:currentLogText;}")
         build_browser_action_button('프로젝트 저장','spriteEditorSaveControls','save',current_playback_feedback)
         gr.Markdown('현재 편집을 새 저장 이력으로 보존합니다. 원본 에셋은 변경하지 않습니다.')
         with gr.Accordion('저장 이력',open=True):

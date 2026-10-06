@@ -107,7 +107,7 @@ class GradioHistoryTest(unittest.TestCase):
         self.assertEqual(current_refresh_values[0]['value'], 'current-job')
         self.assertTrue(current_refresh_values[7]['visible'])
 
-    def test_background_refresh_does_not_trigger_selection_handlers(self):
+    def test_radio_selection_updates_shared_action_handlers(self):
         with gr.Blocks() as current_history_blocks:
             build_generation_history_view(
                 lambda command_name, request_payload: {'records': []},
@@ -120,8 +120,8 @@ class GradioHistoryTest(unittest.TestCase):
             target_event_name for dependency_record_value in current_blocks_config['dependencies']
             for target_component_identifier, target_event_name in dependency_record_value['targets']
             if target_component_identifier == selection_component_identifier]
-        self.assertIn('input', selection_event_names)
-        self.assertNotIn('change', selection_event_names)
+        self.assertIn('change', selection_event_names)
+        self.assertNotIn('input', selection_event_names)
 
 
     def test_history_list_has_no_periodic_full_render(self):
@@ -133,3 +133,16 @@ class GradioHistoryTest(unittest.TestCase):
         for current_function_value in current_history_blocks.fns.values():
             if current_function_value.fn is read_history_callback:
                 self.assertFalse(any(current_target_value[0] in current_timer_identifiers for current_target_value in current_function_value.targets))
+
+
+class HistoryRadioTableTest(unittest.TestCase):
+    def test_single_selection_and_escaped_content(self):
+        from tools.review.common.gradio_history import render_history_selection_table
+        current_table_markup=render_history_selection_table([
+            {'id':'first','status':'completed','request':{'tag':'<script>alert(1)</script>'}},
+            {'id':'second','status':'cancelled','request':{}}], 'second')
+        self.assertEqual(current_table_markup.count('type="radio"'),2)
+        self.assertEqual(current_table_markup.count(' checked'),1)
+        self.assertIn('value="second" aria-label="second 선택" checked',current_table_markup)
+        self.assertNotIn('<script>',current_table_markup)
+        self.assertIn('<th scope="col">선택</th>',current_table_markup)

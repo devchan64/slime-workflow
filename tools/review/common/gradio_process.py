@@ -68,6 +68,8 @@ def create_gradio_source_fingerprint(application_source_path,application_file_pa
     common_source_directory=WORKFLOW_ROOT_DIRECTORY/'tools/review/common'
     shared_ui_directory=WORKFLOW_ROOT_DIRECTORY/'tools/review/ui/shared'
     tracked_source_paths={application_file_path,application_source_path}
+    if application_file_path.name=='anny_attributes_app.py':
+        tracked_source_paths.add(WORKFLOW_ROOT_DIRECTORY/'tools/review/ui/anny/anny-attributes.html')
     if application_file_path.name=='seamless_tile_app.py':
         image_domain_directory=WORKFLOW_ROOT_DIRECTORY/'tools/review/domains/image'
         tracked_source_paths.update(image_domain_directory/current_file_name for current_file_name in ('seamless_pattern.py','seamless_generation.py','seamless_directional.py'))
@@ -112,7 +114,7 @@ def ensure_gradio_application(review_server_port, application_name, application_
         application_filename,port_offset_value,application_root_path=application_definitions[application_name]
         application_file_path=WORKFLOW_ROOT_DIRECTORY/'tools/review/ui/gradio'/application_filename
         gradio_server_port=review_server_port+port_offset_value
-        gradio_page_url=f'http://127.0.0.1:{gradio_server_port}{application_root_path}?__theme=dark'
+        gradio_page_url=f'http://127.0.0.1:{gradio_server_port}{application_root_path}'
         gradio_config_url=f'http://127.0.0.1:{gradio_server_port}/config'
         process_key_value=(review_server_port,application_name)
         process_marker_path=create_gradio_process_marker_path(review_server_port,application_name)

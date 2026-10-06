@@ -62,14 +62,14 @@ def build_sprite_v2_interface():
                 current_resize_choice=gr.Dropdown(label='변경할 출력 크기',choices=[('유지','keep'),('384 × 384','384'),('256 × 256','256')],value='keep')
             current_metadata_button=gr.Button('작업명·출력 크기 적용')
             current_metadata_button.click(fn=None,inputs=[current_rename_input,current_resize_choice],outputs=current_feedback_text,queue=False,js="async(currentNameValue,currentSizeValue)=>{try{if(!window.spriteV2MetadataControls)throw Error('편집기를 준비 중입니다.');return await window.spriteV2MetadataControls(currentNameValue,currentSizeValue);}catch(currentErrorValue){return currentErrorValue.message;}}")
-        with gr.Accordion('이미지 등록',open=True):
+        with gr.Accordion('이미지 등록',open=False):
             current_upload_choice=gr.Dropdown(label='입력 대상',choices=[('레퍼런스','reference'),('프레임 추가','append'),('선택 프레임 교체','replace')],value='reference')
             current_upload_choice.input(fn=None,inputs=current_upload_choice,js="(currentTargetValue)=>{if(!window.spriteV2UploadTarget)throw Error('편집기를 준비 중입니다.');window.spriteV2UploadTarget(currentTargetValue);}",queue=False)
             gr.Markdown('작업을 먼저 생성하거나 불러오세요. PNG/JPEG/WebP · 한 장당 8MB · 최대 128프레임. 투명도를 유지하며 흰 배경은 제거하지 않습니다.')
             with gr.Row():
                 build_browser_action_button('파일 불러오기','spriteV2UploadControls','upload',current_feedback_text)
                 build_browser_action_button('클립보드 붙여넣기','spriteV2UploadControls','paste',current_feedback_text)
-        with gr.Accordion('비교 화면 표시',open=True):
+        with gr.Accordion('비교 화면 표시',open=False):
             with gr.Row():
                 current_zoom_choice=gr.Dropdown(label='화면 확대',choices=[('맞춤','fit'),('100%','1'),('200%','2'),('400%','4')],value='fit')
                 current_background_choice=gr.Dropdown(label='배경',choices=[('투명 체크','checker'),('흰색','white'),('어둡게','dark')],value='checker')
@@ -80,47 +80,54 @@ def build_sprite_v2_interface():
         current_view_inputs=[current_zoom_choice,current_background_choice,current_overlay_check,current_onion_check,current_guides_check]
         for current_view_control in current_view_inputs:
             current_view_control.input(fn=None,inputs=current_view_inputs,js="(...currentViewValues)=>{if(!window.spriteV2ViewControls)throw Error('편집기를 준비 중입니다. 잠시 후 다시 시도하세요.');window.spriteV2ViewControls(...currentViewValues);}",queue=False)
-        gr.HTML(current_markup_text)
-        with gr.Accordion('이동·배율·가이드 조정',open=True):
-            gr.Markdown('실제 편집 대상은 비교 화면 아래에 표시됩니다. 선택 후 적용하세요. 캔버스 드래그는 해당 이미지로, 가이드 선택은 신체 가이드 조절로 전환합니다.')
-            with gr.Row():
-                current_target_choice=gr.Dropdown(label='설정할 편집 대상',choices=[('현재 프레임','frame'),('레퍼런스','reference'),('체크한 프레임','selected'),('전체 프레임','all')],value='frame')
-                current_mode_choice=gr.Dropdown(label='설정할 조절 대상',choices=[('이미지 배치','image'),('얼굴 원','face'),('신체 가이드','guide')],value='image')
-            current_target_button=gr.Button('편집 대상 적용')
-            current_target_button.click(fn=None,inputs=[current_target_choice,current_mode_choice],outputs=current_feedback_text,queue=False,js="(currentTargetValue,currentModeValue)=>{try{return window.spriteV2TargetControls(currentTargetValue,currentModeValue);}catch(currentErrorValue){return currentErrorValue.message;}}")
-            with gr.Row():
-                current_numeric_choice=gr.Dropdown(label='수치 조절 항목',choices=[('이미지 X','x'),('이미지 Y','y'),('이미지 배율','scale'),('얼굴 원 X','face-x'),('얼굴 원 Y','face-y'),('얼굴 원 지름','diameter'),('선택 가이드 좌표','guide-position')],value='x')
-                current_numeric_input=gr.Number(label='적용할 수치',value=0)
-            with gr.Row():
-                current_numeric_read=gr.Button('현재 수치 읽기')
-                current_numeric_apply=gr.Button('선택 항목 수치 적용')
-            gr.Markdown('현재 값은 비교 화면 아래에서 확인합니다. 읽기는 현재 프레임 또는 레퍼런스를 기준으로 하며, 적용은 위에서 지정한 편집 대상 전체에 같은 값을 설정합니다.')
-            current_numeric_read.click(fn=None,inputs=current_numeric_choice,outputs=[current_numeric_input,current_feedback_text],queue=False,js="(currentFieldName)=>{try{return [window.spriteV2NumericControls.read(currentFieldName),'현재 수치를 읽었습니다.'];}catch(currentErrorValue){return [{__type__:'update'},currentErrorValue.message];}}")
-            current_numeric_apply.click(fn=None,inputs=[current_numeric_choice,current_numeric_input],outputs=current_feedback_text,queue=False,js="async(currentFieldName,currentNumberValue)=>{try{return await window.spriteV2NumericControls.apply(currentFieldName,currentNumberValue);}catch(currentErrorValue){return currentErrorValue.message;}}")
-            build_transform_joypad('spriteV2JoypadControls',current_feedback_text)
-            with gr.Group():
-                gr.Markdown('#### 가이드 설정\n작업·프레임·편집 대상 변경 또는 가이드 추가/삭제 후 목록을 읽으세요. 같은 순서의 가이드를 편집 대상 전체에 적용합니다.')
-                current_guide_refresh=gr.Button('가이드 목록 읽기')
-                current_guide_choice=gr.Dropdown(label='편집할 가이드',choices=[],interactive=True)
-                with gr.Row():
-                    current_guide_name=gr.Textbox(label='가이드 이름',value='',max_length=40)
-                    current_guide_axis=gr.Dropdown(label='가이드 방향',choices=[('가로선 (Y)','y'),('세로선 (X)','x')],value='y')
-                current_guide_apply=gr.Button('가이드 이름·방향 적용')
-                current_guide_refresh.click(fn=None,outputs=[current_guide_choice,current_guide_name,current_guide_axis,current_feedback_text],queue=False,js="()=>{try{return window.spriteV2GuideControls.list();}catch(currentErrorValue){return [{__type__:'update'},{__type__:'update'},{__type__:'update'},currentErrorValue.message];}}")
-                current_guide_choice.input(fn=None,inputs=current_guide_choice,outputs=[current_guide_name,current_guide_axis,current_feedback_text],queue=False,js="(currentGuideValue)=>{try{return window.spriteV2GuideControls.select(currentGuideValue);}catch(currentErrorValue){return [{__type__:'update'},{__type__:'update'},currentErrorValue.message];}}")
-                current_guide_apply.click(fn=None,inputs=[current_guide_choice,current_guide_name,current_guide_axis],outputs=current_feedback_text,queue=False,js="async(currentGuideValue,currentLabelValue,currentAxisValue)=>{try{return await window.spriteV2GuideControls.apply(currentGuideValue,currentLabelValue,currentAxisValue);}catch(currentErrorValue){return currentErrorValue.message;}}")
-            with gr.Row():
-                for current_edit_action,current_edit_label in (('guide-add','가로선 추가'),('guide-vertical','세로선 추가'),('guide-remove','선택 가이드 삭제')):
-                    build_browser_action_button(current_edit_label,'spriteV2EditControls',current_edit_action,current_feedback_text)
-            with gr.Row():
-                build_browser_action_button('레퍼런스 얼굴 원 크기 복사','spriteV2EditControls','face-match',current_feedback_text)
-                build_browser_action_button('레퍼런스 가이드·얼굴 원 복사','spriteV2EditControls','guide-copy',current_feedback_text)
-        gr.Markdown('### 프레임 편집\n선택한 프레임의 순서를 바꾸거나 복제·삭제합니다. 삭제는 실행 취소할 수 있으며 수정본 저장 전에는 저장된 작업을 바꾸지 않습니다.')
         with gr.Row():
-            for current_frame_action,current_frame_label in (('earlier','프레임 앞으로'),('later','프레임 뒤로'),('duplicate','선택 프레임 복제'),('remove','선택 프레임 삭제'),('undo','실행 취소')):
-                build_browser_action_button(current_frame_label,'spriteV2FrameControls',current_frame_action,current_feedback_text)
-        build_frame_navigator('spriteV2PlaybackControls','spriteV2SeekControls',current_feedback_text)
-        with gr.Accordion('재생 시간 조정',open=True):
+            with gr.Column(scale=3,min_width=360):
+                gr.HTML(current_markup_text)
+                build_frame_navigator('spriteV2PlaybackControls','spriteV2SeekControls',current_feedback_text)
+            with gr.Column(scale=2,min_width=280):
+                with gr.Accordion('이동·배율·가이드 조정',open=True):
+                    gr.Markdown('실제 편집 대상은 비교 화면 아래에 표시됩니다. 선택 후 적용하세요. 캔버스 드래그는 해당 이미지로, 가이드 선택은 신체 가이드 조절로 전환합니다.')
+                    with gr.Row():
+                        current_target_choice=gr.Dropdown(label='설정할 편집 대상',choices=[('현재 프레임','frame'),('레퍼런스','reference'),('체크한 프레임','selected'),('전체 프레임','all')],value='frame')
+                        current_mode_choice=gr.Dropdown(label='설정할 조절 대상',choices=[('이미지 배치','image'),('얼굴 원','face'),('신체 가이드','guide')],value='image')
+                    current_target_button=gr.Button('편집 대상 적용')
+                    current_target_button.click(fn=None,inputs=[current_target_choice,current_mode_choice],outputs=current_feedback_text,queue=False,js="(currentTargetValue,currentModeValue)=>{try{return window.spriteV2TargetControls(currentTargetValue,currentModeValue);}catch(currentErrorValue){return currentErrorValue.message;}}")
+                    build_transform_joypad('spriteV2JoypadControls',current_feedback_text)
+                    build_browser_action_button('실행 취소','spriteV2FrameControls','undo',current_feedback_text)
+                    with gr.Accordion('얼굴 원·가이드 수치',open=False):
+                        with gr.Row():
+                            current_numeric_choice=gr.Dropdown(label='수치 조절 항목',choices=[('얼굴 원 X','face-x'),('얼굴 원 Y','face-y'),('얼굴 원 지름','diameter'),('선택 가이드 좌표','guide-position')],value='diameter')
+                            current_numeric_input=gr.Number(label='적용할 수치',value=0)
+                        with gr.Row():
+                            current_numeric_read=gr.Button('현재 수치 읽기')
+                            current_numeric_apply=gr.Button('선택 항목 수치 적용')
+                        gr.Markdown('현재 값은 비교 화면 아래에서 확인합니다. 읽기는 현재 프레임 또는 레퍼런스를 기준으로 하며, 적용은 위에서 지정한 편집 대상 전체에 같은 값을 설정합니다.')
+                        current_numeric_read.click(fn=None,inputs=current_numeric_choice,outputs=[current_numeric_input,current_feedback_text],queue=False,js="(currentFieldName)=>{try{return [window.spriteV2NumericControls.read(currentFieldName),'현재 수치를 읽었습니다.'];}catch(currentErrorValue){return [{__type__:'update'},currentErrorValue.message];}}")
+                        current_numeric_apply.click(fn=None,inputs=[current_numeric_choice,current_numeric_input],outputs=current_feedback_text,queue=False,js="async(currentFieldName,currentNumberValue)=>{try{return await window.spriteV2NumericControls.apply(currentFieldName,currentNumberValue);}catch(currentErrorValue){return currentErrorValue.message;}}")
+                    with gr.Accordion('가이드 설정·복사',open=False):
+                        with gr.Group():
+                            gr.Markdown('#### 가이드 설정\n작업·프레임·편집 대상 변경 또는 가이드 추가/삭제 후 목록을 읽으세요. 같은 순서의 가이드를 편집 대상 전체에 적용합니다.')
+                            current_guide_refresh=gr.Button('가이드 목록 읽기')
+                            current_guide_choice=gr.Dropdown(label='편집할 가이드',choices=[],interactive=True)
+                            with gr.Row():
+                                current_guide_name=gr.Textbox(label='가이드 이름',value='',max_length=40)
+                                current_guide_axis=gr.Dropdown(label='가이드 방향',choices=[('가로선 (Y)','y'),('세로선 (X)','x')],value='y')
+                            current_guide_apply=gr.Button('가이드 이름·방향 적용')
+                            current_guide_refresh.click(fn=None,outputs=[current_guide_choice,current_guide_name,current_guide_axis,current_feedback_text],queue=False,js="()=>{try{return window.spriteV2GuideControls.list();}catch(currentErrorValue){return [{__type__:'update'},{__type__:'update'},{__type__:'update'},currentErrorValue.message];}}")
+                            current_guide_choice.input(fn=None,inputs=current_guide_choice,outputs=[current_guide_name,current_guide_axis,current_feedback_text],queue=False,js="(currentGuideValue)=>{try{return window.spriteV2GuideControls.select(currentGuideValue);}catch(currentErrorValue){return [{__type__:'update'},{__type__:'update'},currentErrorValue.message];}}")
+                            current_guide_apply.click(fn=None,inputs=[current_guide_choice,current_guide_name,current_guide_axis],outputs=current_feedback_text,queue=False,js="async(currentGuideValue,currentLabelValue,currentAxisValue)=>{try{return await window.spriteV2GuideControls.apply(currentGuideValue,currentLabelValue,currentAxisValue);}catch(currentErrorValue){return currentErrorValue.message;}}")
+                        with gr.Row():
+                            for current_edit_action,current_edit_label in (('guide-add','가로선 추가'),('guide-vertical','세로선 추가'),('guide-remove','선택 가이드 삭제')):
+                                build_browser_action_button(current_edit_label,'spriteV2EditControls',current_edit_action,current_feedback_text)
+                        with gr.Row():
+                            build_browser_action_button('레퍼런스 얼굴 원 크기 복사','spriteV2EditControls','face-match',current_feedback_text)
+                            build_browser_action_button('레퍼런스 가이드·얼굴 원 복사','spriteV2EditControls','guide-copy',current_feedback_text)
+        with gr.Accordion('프레임 순서·복제·삭제',open=False):
+            gr.Markdown('### 프레임 편집\n선택한 프레임의 순서를 바꾸거나 복제·삭제합니다. 삭제는 실행 취소할 수 있으며 수정본 저장 전에는 저장된 작업을 바꾸지 않습니다.')
+            with gr.Row():
+                for current_frame_action,current_frame_label in (('earlier','프레임 앞으로'),('later','프레임 뒤로'),('duplicate','선택 프레임 복제'),('remove','선택 프레임 삭제')):
+                    build_browser_action_button(current_frame_label,'spriteV2FrameControls',current_frame_action,current_feedback_text)
+        with gr.Accordion('재생 시간 조정',open=False):
             gr.Markdown('현재 설정은 비교 화면 아래에 표시됩니다. 변경할 항목을 체크하고 값을 입력하세요. 유지 시간은 현재 선택한 프레임에 적용하며 0이면 작업 FPS를 사용합니다.')
             with gr.Row():
                 current_fps_enabled=gr.Checkbox(label='FPS 변경',value=False)
