@@ -16,7 +16,7 @@ CIRCULAR_DOUBLE_STRIP_CONFIGURATION = {**CIRCULAR_SINGLE_STRIP_CONFIGURATION, 's
 CIRCULAR_CORNER_CONFIGURATION = {**CIRCULAR_SINGLE_STRIP_CONFIGURATION, 'schema_version': 9, 'boundary_strip_depth': 1, 'corner_reference_enabled': True}
 CIRCULAR_VAE_CONFIGURATION = {**CIRCULAR_SINGLE_STRIP_CONFIGURATION, 'schema_version': 10, 'boundary_radius': 12, 'vertical_boundary_radius': 12, 'boundary_strip_depth': 1, 'corner_reference_enabled': False}
 
-CIRCULAR_RADIUS_CHOICES = (8, 12, 16)
+CIRCULAR_RADIUS_CHOICES = (8, 12, 16, 24)
 
 
 def build_circular_configuration(selected_radius_value=12, baseline_decode_enabled=True, reference_input_enabled=False):

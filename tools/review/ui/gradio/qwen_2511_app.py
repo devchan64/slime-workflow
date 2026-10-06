@@ -183,7 +183,7 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
             height_value=gr.Dropdown([512,768] if pose_transfer_enabled else [256,384,512,768,1024,1280] if qwen21_mode_enabled else [512,768,1024,1280],value=512 if circular_mode_enabled else 768 if qwen21_mode_enabled else 512,label='높이',visible=not pose_transfer_enabled,scale=1,min_width=120)
             step_value=gr.Dropdown([20,30,40,50],value=40,label='생성 스텝',scale=1,min_width=120) if qwen21_mode_enabled else gr.Radio([4,30],value=4,label='생성 스텝',scale=1,min_width=120)
             if circular_mode_enabled:
-                circular_radius_control=gr.Dropdown([8,12,16],value=12,label='순환 반경 · 토큰',scale=1,min_width=120)
+                circular_radius_control=gr.Dropdown([8,12,16,24],value=12,label='순환 반경 · 토큰',scale=1,min_width=120)
             else:
                 seed_value=build_generation_seed(10107)
         if circular_mode_enabled:
