@@ -2,6 +2,9 @@
 import sys
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[4]))
+import base64
+import io
+from PIL import Image
 import math
 import hashlib
 import json
@@ -9,6 +12,9 @@ import yaml
 
 WORKFLOW_ROOT_DIRECTORY = Path(__file__).resolve().parents[4]
 ANIMATION_CONFIG_PATH = WORKFLOW_ROOT_DIRECTORY/'generators/animation/config/character_animation.yaml'
+CHARACTER_REFERENCE_MAX_BYTES = 8_000_000
+CHARACTER_REFERENCE_MAX_PIXELS = 4096
+CHARACTER_REFERENCE_MAX_ENCODED = 11_000_000
 CHARACTER_ANYPOSE_BASE_STRENGTH = 0.7
 CHARACTER_ANYPOSE_HELPER_STRENGTH = 0.7
 SUPPORTED_FRAME_STEPS = (1,2,4,8)
@@ -116,9 +122,26 @@ def build_animation_catalog():
     fixed_prompt_values = read_fixed_prompts(animation_config_record, default_motion_name)
     return {'motions':available_motion_records,'characters':available_character_records,'unavailable_assets':unavailable_asset_records,'directions':list(SUPPORTED_DIRECTION_NAMES),'prompts':fixed_prompt_values,'direction_prompts':compose_direction_prompts(fixed_prompt_values)}
 
+def decode_character_reference(current_encoded_image):
+    """첨부 PNG를 검증하고 원본 바이트를 반환한다."""
+    if not isinstance(current_encoded_image,str) or len(current_encoded_image)>CHARACTER_REFERENCE_MAX_ENCODED:
+        raise ValueError('캐릭터 참조는 8MB 이하 PNG의 base64 문자열이어야 합니다.')
+    try:
+        current_image_bytes=base64.b64decode(current_encoded_image,validate=True)
+        with Image.open(io.BytesIO(current_image_bytes)) as current_image_value:
+            if current_image_value.format!='PNG' or current_image_value.mode not in ('RGB','RGBA') or max(current_image_value.size)>CHARACTER_REFERENCE_MAX_PIXELS or len(current_image_bytes)>CHARACTER_REFERENCE_MAX_BYTES:
+                raise ValueError('캐릭터 참조는 최대 4096px, 8MB 이하 RGB/RGBA PNG여야 합니다.')
+            current_image_value.verify()
+    except Exception as current_image_error:
+        raise ValueError('캐릭터 참조 PNG 오류: '+str(current_image_error)) from current_image_error
+    return current_image_bytes
+
 def prepare_animation_request(command_payload_value):
-    if not {'motion','character','source','directions'} <= set(command_payload_value) or set(command_payload_value)-{'motion','character','source','directions','tag','frame_step','target_fps','speed','steps','resolution','start_frame','end_frame','direction_auxiliary_prompts'}:
+    if not {'motion','source','directions'} <= set(command_payload_value) or set(command_payload_value)-{'motion','character','source','directions','tag','frame_step','target_fps','speed','steps','resolution','start_frame','end_frame','direction_auxiliary_prompts','character_image'}:
         raise ValueError('지원하지 않는 생성 요청 필드입니다. 보조 프롬프트는 direction_auxiliary_prompts로 지정하고 고정 프롬프트는 수정할 수 없습니다.')
+    current_image_bytes=decode_character_reference(command_payload_value['character_image']) if 'character_image' in command_payload_value else None
+    if current_image_bytes is not None and 'character' in command_payload_value:
+        raise ValueError('등록 캐릭터와 첨부 참조를 동시에 지정할 수 없습니다.')
     auxiliary_direction_values = command_payload_value.get('direction_auxiliary_prompts', {})
     if not isinstance(auxiliary_direction_values, dict) or set(auxiliary_direction_values)-set(SUPPORTED_DIRECTION_NAMES) or any(not isinstance(value,str) for value in auxiliary_direction_values.values()):
         raise ValueError('방향별 보조 프롬프트는 지원 방향별 문자열이어야 합니다.')
@@ -130,8 +153,8 @@ def prepare_animation_request(command_payload_value):
     if type(selected_inference_steps) is not int or selected_inference_steps not in (4,30):
         raise ValueError('생성 스텝은 4(Lightning) 또는 30이어야 합니다.')
     animation_config_record = load_animation_configuration()
-    for selection_field_name, selection_group_name in (('motion','motions'),('character','characters')):
-        if not isinstance(command_payload_value[selection_field_name],str) or command_payload_value[selection_field_name] not in animation_config_record[selection_group_name]:
+    for selection_field_name, selection_group_name in ([('motion','motions')] if current_image_bytes is not None else [('motion','motions'),('character','characters')]):
+        if not isinstance(command_payload_value.get(selection_field_name),str) or command_payload_value[selection_field_name] not in animation_config_record[selection_group_name]:
             raise ValueError(f'등록되지 않은 {selection_field_name}')
     selected_direction_names = command_payload_value['directions']
     if not isinstance(selected_direction_names,list) or not selected_direction_names or any(not isinstance(direction_name_value,str) or direction_name_value not in SUPPORTED_DIRECTION_NAMES for direction_name_value in selected_direction_names) or len(set(selected_direction_names)) != len(selected_direction_names):
@@ -144,11 +167,11 @@ def prepare_animation_request(command_payload_value):
     selected_frame_step = command_payload_value.get('frame_step',1)
     if type(selected_frame_step) is not int or selected_frame_step not in SUPPORTED_FRAME_STEPS:
         raise ValueError('프레임 간격은 1·2·4·8 중 하나여야 합니다.')
-    animation_character_record = animation_config_record['characters'][command_payload_value['character']]
+    animation_character_record = animation_config_record['characters'][command_payload_value['character']] if current_image_bytes is None else None
     motion_manifest_path = resolve_asset_path(animation_motion_record['root']+'/'+animation_motion_record['manifest'])
-    character_manifest_path = resolve_asset_path(animation_character_record['root']+'/'+animation_character_record['manifest'])
+    character_manifest_path = resolve_asset_path(animation_character_record['root']+'/'+animation_character_record['manifest']) if animation_character_record else None
     motion_manifest_record = read_asset_mapping(motion_manifest_path)
-    character_manifest_record = read_asset_mapping(character_manifest_path)
+    character_manifest_record = read_asset_mapping(character_manifest_path) if character_manifest_path else None
     selected_start_frame = command_payload_value.get('start_frame',1)
     selected_end_frame = command_payload_value.get('end_frame',motion_manifest_record['frames'])
     if type(selected_start_frame) is not int or type(selected_end_frame) is not int or not 1 <= selected_start_frame <= selected_end_frame <= motion_manifest_record['frames']:
@@ -166,10 +189,16 @@ def prepare_animation_request(command_payload_value):
 
     generation_frame_records = []
     for direction_name_value in selected_direction_names:
-        character_file_path = resolve_asset_path(animation_character_record['root']+'/'+character_manifest_record['baseline_crops']['root']+'/'+direction_name_value+'.png')
-        character_file_hash = hash_asset_file(character_file_path)
-        if character_file_hash != character_manifest_record['baseline_crops']['files'][direction_name_value]:
-            raise ValueError('캐릭터 레퍼런스 무결성 오류')
+        if current_image_bytes is not None:
+            if len(selected_direction_names)!=1:
+                raise ValueError('첨부 참조 생성은 한 방향만 선택하세요.')
+            character_file_path=WORKFLOW_ROOT_DIRECTORY/'character-reference.png'
+            character_file_hash=hashlib.sha256(current_image_bytes).hexdigest()
+        else:
+            character_file_path = resolve_asset_path(animation_character_record['root']+'/'+character_manifest_record['baseline_crops']['root']+'/'+direction_name_value+'.png')
+            character_file_hash = hash_asset_file(character_file_path)
+            if character_file_hash != character_manifest_record['baseline_crops']['files'][direction_name_value]:
+                raise ValueError('캐릭터 레퍼런스 무결성 오류')
         for current_frame_number in selected_frame_numbers:
             pose_relative_path = animation_motion_record[command_payload_value['source']].format(direction=direction_name_value,frame=current_frame_number)
             pose_reference_path = resolve_asset_path(animation_motion_record['root']+'/'+pose_relative_path)
@@ -179,7 +208,7 @@ def prepare_animation_request(command_payload_value):
             generation_frame_records.append({'direction':direction_name_value,'frame':current_frame_number,'character_path':str(character_file_path.relative_to(WORKFLOW_ROOT_DIRECTORY)),'character_sha256':character_file_hash,'pose_path':str(pose_reference_path.relative_to(WORKFLOW_ROOT_DIRECTORY)),'pose_sha256':pose_reference_hash})
     fixed_prompt_values = read_fixed_prompts(animation_config_record, command_payload_value['motion'])
     combined_prompt_text = fixed_prompt_values['base']+'\n\n'+fixed_prompt_values['auxiliary']
-    return {**command_payload_value,'anypose_base_strength':CHARACTER_ANYPOSE_BASE_STRENGTH if command_payload_value['source']=='anny' else 0.7,'anypose_helper_strength':CHARACTER_ANYPOSE_HELPER_STRENGTH if command_payload_value['source']=='anny' else 0.7,'resolution':selected_output_resolution,'speed':command_payload_value.get('speed',2),'frame_step':selected_frame_step,'start_frame':selected_start_frame,'end_frame':selected_end_frame,'source_frames_per_direction':motion_manifest_record['frames'],'selected_frame_numbers':selected_frame_numbers,'target_fps':None if legacy_frame_sampling else selected_target_fps,'source_fps':motion_manifest_record['fps'],'direction_prompts':compose_direction_prompts(fixed_prompt_values,command_payload_value.get('direction_auxiliary_prompts')),'direction_auxiliary_prompts':{direction:command_payload_value.get('direction_auxiliary_prompts',{}).get(direction,'') for direction in SUPPORTED_DIRECTION_NAMES},'prompts':fixed_prompt_values,'prompt_sha256':hashlib.sha256(combined_prompt_text.encode()).hexdigest(),'prompt_words':len(combined_prompt_text.split()),'frames_per_direction':len(selected_frame_numbers),'fps':output_frame_rate,'motion_manifest_sha256':hash_asset_file(motion_manifest_path),'character_manifest_sha256':hash_asset_file(character_manifest_path),'frames':generation_frame_records,'sampling':('none' if selected_frame_step==1 else 'frame-step') if legacy_frame_sampling else 'target-fps','model':'Qwen/Qwen-Image-Edit-2511','steps':selected_inference_steps,'lightning':selected_inference_steps==4}
+    return {**command_payload_value,'character':command_payload_value.get('character','uploaded-reference'),'anypose_base_strength':CHARACTER_ANYPOSE_BASE_STRENGTH if command_payload_value['source']=='anny' else 0.7,'anypose_helper_strength':CHARACTER_ANYPOSE_HELPER_STRENGTH if command_payload_value['source']=='anny' else 0.7,'resolution':selected_output_resolution,'speed':command_payload_value.get('speed',2),'frame_step':selected_frame_step,'start_frame':selected_start_frame,'end_frame':selected_end_frame,'source_frames_per_direction':motion_manifest_record['frames'],'selected_frame_numbers':selected_frame_numbers,'target_fps':None if legacy_frame_sampling else selected_target_fps,'source_fps':motion_manifest_record['fps'],'direction_prompts':compose_direction_prompts(fixed_prompt_values,command_payload_value.get('direction_auxiliary_prompts')),'direction_auxiliary_prompts':{direction:command_payload_value.get('direction_auxiliary_prompts',{}).get(direction,'') for direction in SUPPORTED_DIRECTION_NAMES},'prompts':fixed_prompt_values,'prompt_sha256':hashlib.sha256(combined_prompt_text.encode()).hexdigest(),'prompt_words':len(combined_prompt_text.split()),'frames_per_direction':len(selected_frame_numbers),'fps':output_frame_rate,'motion_manifest_sha256':hash_asset_file(motion_manifest_path),'character_manifest_sha256':hash_asset_file(character_manifest_path) if character_manifest_path else None,'frames':generation_frame_records,'sampling':('none' if selected_frame_step==1 else 'frame-step') if legacy_frame_sampling else 'target-fps','model':'Qwen/Qwen-Image-Edit-2511','steps':selected_inference_steps,'lightning':selected_inference_steps==4}
 
 def resolve_motion_preview(selected_motion_name, selected_source_kind, selected_direction_name, selected_frame_number):
     """프롬프트·캐릭터·생성 이력 없이 등록 모션의 단일 프레임을 조회한다."""

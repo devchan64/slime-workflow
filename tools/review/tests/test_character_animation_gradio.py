@@ -1,26 +1,28 @@
 """캐릭터 애니메이션 Gradio 클라이언트 계약을 검증한다."""
 import unittest
+from PIL import Image
 from unittest.mock import patch
 
 from tools.review.ui.gradio import character_animation_app
 
 
 class CharacterAnimationGradioTests(unittest.TestCase):
-    def test_reference_gallery_supports_registered_direction_counts(self):
-        from pathlib import Path
-        for current_character_identifier,current_expected_count in (('character-default',4),('character-female-a',4),('character-default-light-armor-v1',1)):
-            current_preview_records=character_animation_app.build_character_baseline_preview(current_character_identifier,'http://127.0.0.1:8770')
-            self.assertEqual(len(current_preview_records),current_expected_count)
-            self.assertTrue(all(Path(current_image_path).is_file() for current_image_path,_ in current_preview_records))
-        with patch('tools.review.domains.character_animation.character_animation_assets.hash_asset_file',return_value='invalid'):
-            with self.assertRaisesRegex(ValueError,'무결성'):
-                character_animation_app.build_character_baseline_preview('character-default','http://127.0.0.1:8770')
+    def test_uploaded_reference_and_single_direction_round_trip(self):
+        current_reference_image=Image.new('RGBA',(640,400),(70,80,90,128))
+        current_request_record=character_animation_app.build_animation_request('walking-v13',current_reference_image,'anny','up_left',1,2,512,4,8,2,'')
+        self.assertNotIn('character',current_request_record)
+        self.assertEqual(current_request_record['directions'],['up_left'])
+        current_restored_values=character_animation_app.restore_animation_inputs({'request':current_request_record})
+        self.assertEqual(current_restored_values[1].tobytes(),current_reference_image.tobytes())
+        self.assertEqual(current_restored_values[3],'up_left')
+        with self.assertRaises(ValueError):
+            character_animation_app.build_animation_request('walking-v13',None,'anny','down_left',1,2,512,4,8,2,'')
 
     def test_selected_motion_prompt_display_matches_generation(self):
         from tools.review.domains.character_animation.character_animation_assets import build_animation_catalog, prepare_animation_request
         catalog_record_value=build_animation_catalog()
         for selected_motion_name in ('walking-v13',):
-            request_record_value=prepare_animation_request({'motion':selected_motion_name,'character':'character-default','source':'anny','directions':['down_left'],'start_frame':1,'end_frame':1,'direction_auxiliary_prompts':{'down_left':'Keep pose.'}})
+            request_record_value=prepare_animation_request(character_animation_app.build_animation_request(selected_motion_name,Image.new('RGB',(512,512)),'anny','down_left',1,1,512,4,8,2,'','Keep pose.','','',''))
             self.assertEqual(character_animation_app.select_motion_prompt_values(catalog_record_value,selected_motion_name),request_record_value['prompts'])
             summary_text_value=character_animation_app.describe_motion_prompt_words(catalog_record_value,selected_motion_name,'Keep pose.','','','')
             self.assertIn(f"전방 좌측: 추가 보조 2단어 · 최종 {request_record_value['direction_prompts']['down_left']['words']}단어",summary_text_value)
@@ -75,7 +77,7 @@ class CharacterAnimationGradioTests(unittest.TestCase):
         self.assertEqual(character_animation_app.clamp_selected_frame_range(None,None,60),(1,60))
 
     def test_direction_auxiliary_prompts_round_trip(self):
-        request=character_animation_app.build_animation_request('walking-v13','character-default','anny',['down_left'],1,2,512,4,4,1,'','left detail','','rear detail','')
+        request=character_animation_app.build_animation_request('walking-v13',Image.new('RGB',(512,512)),'anny','down_left',1,2,512,4,4,1,'','left detail','','rear detail','')
         self.assertEqual(request['direction_auxiliary_prompts']['down_left'],'left detail')
         restored=character_animation_app.restore_animation_inputs({'request':request})
         self.assertEqual(restored[11:15],('left detail','','rear detail',''))
@@ -88,11 +90,11 @@ class CharacterAnimationGradioTests(unittest.TestCase):
 
     def test_restore_animation_inputs_uses_historical_request(self):
         restored_input_values=character_animation_app.restore_animation_inputs({'request':{'motion':'standing-v7','character':'anny-v1','source':'anny','directions':['down_left'],'start_frame':10,'end_frame':20,'resolution':768,'steps':30,'target_fps':2,'speed':1.5,'tag':'돌온재 걷기'}})
-        self.assertEqual(restored_input_values[:10],('standing-v7','anny-v1','anny',['down_left'],10,20,768,30,8,2))
+        self.assertEqual(restored_input_values[:10],('standing-v7',None,'anny','down_left',10,20,768,30,8,2))
         self.assertEqual(restored_input_values[10],'돌온재 걷기')
 
     def test_animation_request_includes_trimmed_history_tag(self):
-        request_payload_value=character_animation_app.build_animation_request('standing-v7','anny-v1','anny',['down_left'],10,20,512,4,4,1,' 돌온재 걷기 ')
+        request_payload_value=character_animation_app.build_animation_request('standing-v7',Image.new('RGB',(512,512)),'anny','down_left',10,20,512,4,4,1,' 돌온재 걷기 ')
         self.assertEqual(request_payload_value['tag'],'돌온재 걷기')
 
     def test_fixed_eight_fps_and_default_double_speed(self):

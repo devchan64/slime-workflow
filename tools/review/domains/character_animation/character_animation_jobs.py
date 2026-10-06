@@ -143,12 +143,22 @@ def start_animation_generation(command_payload_value):
             existing_status_record=json.loads(existing_status_path.read_text())
             if existing_status_record.get('status') not in ('running','queued'):continue
             existing_request_path=existing_status_path.parent/'request.json'
-            if existing_request_path.is_file() and json.loads(existing_request_path.read_text())==generation_request_record:
+            current_existing_request=json.loads(existing_request_path.read_text()) if existing_request_path.is_file() else None
+            if current_existing_request and 'character_image' in current_existing_request:
+                for current_frame_record in current_existing_request['frames']:
+                    current_frame_record['character_path']='character-reference.png'
+            if current_existing_request==generation_request_record:
                 return {'id':existing_status_path.parent.name,'status':existing_status_record['status'],'path':str(existing_status_path.parent),'reused':True}
         creation_time_value = datetime.now(ZoneInfo('Asia/Seoul'))
         generation_job_identifier = creation_time_value.strftime('%Y-%m-%d_%H-%M-%S')+'-'+uuid.uuid4().hex[:8]
         generation_job_path = resolve_generation_directory(generation_job_identifier)
         generation_job_path.mkdir(parents=True)
+        if 'character_image' in generation_request_record:
+            from tools.review.domains.character_animation.character_animation_assets import decode_character_reference
+            current_reference_path=generation_job_path/'character-reference.png'
+            current_reference_path.write_bytes(decode_character_reference(generation_request_record['character_image']))
+            for current_frame_record in generation_request_record['frames']:
+                current_frame_record['character_path']=str(current_reference_path.relative_to(WORKFLOW_ROOT_DIRECTORY))
         write_record_atomically(generation_job_path/'request.json',generation_request_record)
         write_record_atomically(generation_job_path/'status.json',{'status':'running'})
         write_record_atomically(GENERATION_HISTORY_DIRECTORY/(generation_job_identifier+'.json'),{'id':generation_job_identifier,'created_at':creation_time_value.isoformat()})

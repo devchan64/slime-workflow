@@ -207,7 +207,9 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
                 operation_argument_parser.add_argument('--start-frame',type=int,help='생성할 시작 프레임 (기본 1)')
                 operation_argument_parser.add_argument('--end-frame',type=int,help='생성할 종료 프레임 (기본 모션 마지막)')
                 operation_argument_parser.add_argument('--motion',required=True,help='catalog의 모션 ID')
-                operation_argument_parser.add_argument('--character',required=True,help='catalog의 캐릭터 ID')
+                current_reference_group=operation_argument_parser.add_mutually_exclusive_group(required=True)
+                current_reference_group.add_argument('--character',help='기존 등록 캐릭터 ID · 호환용')
+                current_reference_group.add_argument('--reference',type=Path,help='캐릭터 참조 PNG 한 장 · 단일 방향 생성')
                 operation_argument_parser.add_argument('--source',choices=('openpose','anny'),default='anny')
                 operation_argument_parser.add_argument('--directions',nargs='+',choices=('down_left','down_right','up_left','up_right'),default=['down_left'],help='생성 방향 (기본: 전방 좌측만)')
             elif service_command_name=='momask':
@@ -263,6 +265,10 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
             command_payload_value={'action':'generate','images':[base64.b64encode(command_argument_values.reference.read_bytes()).decode()],'width':command_argument_values.size,'height':command_argument_values.size,'steps':40,'seed':command_argument_values.seed,'tag':command_argument_values.tag,'prompt':command_argument_values.prompt_file.read_text() if command_argument_values.prompt_file else load_separation_defaults()['prompt'],'outfit_prompt':command_argument_values.outfit_prompt_file.read_text() if command_argument_values.outfit_prompt_file else load_separation_defaults()['outfit_prompt']}
         elif service_command_name=='character-animation':
             command_payload_value={'motion':command_argument_values.motion,'character':command_argument_values.character,'source':command_argument_values.source,'directions':command_argument_values.directions}
+            if command_argument_values.reference:
+                if command_argument_values.reference.stat().st_size>8_000_000:raise ValueError('캐릭터 참조는 8MB 이하여야 합니다.')
+                command_payload_value.pop('character')
+                command_payload_value['character_image']=base64.b64encode(command_argument_values.reference.read_bytes()).decode()
             if command_argument_values.tag:command_payload_value['tag']=command_argument_values.tag
             command_payload_value['resolution']=command_argument_values.resolution
             if command_argument_values.steps is not None:command_payload_value['steps']=command_argument_values.steps

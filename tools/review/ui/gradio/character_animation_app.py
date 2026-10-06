@@ -1,5 +1,8 @@
 """공용 게이트웨이를 사용하는 캐릭터 애니메이션 Gradio 클라이언트."""
 import argparse
+import base64
+import io
+from PIL import Image
 import json
 import math
 import os
@@ -12,6 +15,7 @@ import gradio as gr
 
 WORKFLOW_ROOT_DIRECTORY=Path(__file__).resolve().parents[4]
 if str(WORKFLOW_ROOT_DIRECTORY) not in sys.path:sys.path.insert(0,str(WORKFLOW_ROOT_DIRECTORY))
+from tools.review.common.gradio_reference_images import build_reference_image_inputs
 from tools.review.common.gradio_frame_player import build_browser_frame_player
 from tools.review.common.gradio_logs import build_execution_logs
 from tools.review.common.gradio_history import build_generation_history_view
@@ -52,12 +56,23 @@ def describe_motion_prompt_words(catalog_record_value, selected_motion_name, *di
         summary_line_values.append(f"{direction_label_text}: 추가 보조 {extra_prompt_words}단어 · 최종 {final_prompt_records[direction_name_value]['words']}단어")
     return '  \n'.join(summary_line_values)
 
-def build_animation_request(motion_name_value,character_name_value,source_name_value,direction_name_values,start_frame_value,end_frame_value,resolution_value,step_value,target_fps_value,speed_value,generation_tag_value,*direction_prompt_values):
-    return {'motion':motion_name_value,'character':character_name_value,'source':source_name_value,'directions':direction_name_values,'start_frame':start_frame_value,'end_frame':end_frame_value,'resolution':resolution_value,'steps':step_value,'target_fps':target_fps_value,'speed':speed_value,'tag':generation_tag_value.strip(),'direction_auxiliary_prompts':{direction: text for (_,direction),text in zip(DIRECTION_LABEL_VALUES,direction_prompt_values or ['']*4)}}
+def build_animation_request(motion_name_value,current_reference_image,source_name_value,selected_direction_name,start_frame_value,end_frame_value,resolution_value,step_value,target_fps_value,speed_value,generation_tag_value,*direction_prompt_values):
+    if current_reference_image is None:
+        raise ValueError('캐릭터 참조 이미지를 불러오거나 붙여넣으세요.')
+    if selected_direction_name not in dict((value,label) for label,value in DIRECTION_LABEL_VALUES):
+        raise ValueError('생성 방향을 하나 선택하세요.')
+    current_image_buffer=io.BytesIO()
+    current_reference_image.save(current_image_buffer,format='PNG')
+    return {'motion':motion_name_value,'character_image':base64.b64encode(current_image_buffer.getvalue()).decode(),'source':source_name_value,'directions':[selected_direction_name],'start_frame':start_frame_value,'end_frame':end_frame_value,'resolution':resolution_value,'steps':step_value,'target_fps':target_fps_value,'speed':speed_value,'tag':generation_tag_value.strip(),'direction_auxiliary_prompts':{direction: text for (_,direction),text in zip(DIRECTION_LABEL_VALUES,direction_prompt_values or ['']*4)}}
 
 def restore_animation_inputs(current_history_record):
     current_request_record=current_history_record.get('request',{})
-    return current_request_record.get('motion'),current_request_record.get('character'),current_request_record.get('source','anny'),current_request_record.get('directions',[]),current_request_record.get('start_frame',1),current_request_record.get('end_frame'),current_request_record.get('resolution',512),current_request_record.get('steps',4),8,(current_request_record.get('speed',2) if current_request_record.get('target_fps') == 8 and current_request_record.get('speed',2) in (1,2,4) else 2),current_request_record.get('tag',''),*[current_request_record.get('direction_auxiliary_prompts',{}).get(direction,'') for _,direction in DIRECTION_LABEL_VALUES],'선택한 이력의 입력값을 불러왔습니다. 이전 FPS·미지원 배속 이력은 신규 생성 기준 8 FPS·2배로 설정합니다. 생성 전에 내용을 확인하세요.'
+    current_reference_image=None
+    if current_request_record.get('character_image'):
+        from tools.review.domains.character_animation.character_animation_assets import decode_character_reference
+        with Image.open(io.BytesIO(decode_character_reference(current_request_record['character_image']))) as current_image_value:
+            current_reference_image=current_image_value.copy()
+    return current_request_record.get('motion'),current_reference_image,current_request_record.get('source','anny'),(current_request_record.get('directions') or ['down_left'])[0],current_request_record.get('start_frame',1),current_request_record.get('end_frame'),current_request_record.get('resolution',512),current_request_record.get('steps',4),8,(current_request_record.get('speed',2) if current_request_record.get('target_fps') == 8 and current_request_record.get('speed',2) in (1,2,4) else 2),current_request_record.get('tag',''),*[current_request_record.get('direction_auxiliary_prompts',{}).get(direction,'') for _,direction in DIRECTION_LABEL_VALUES],'선택한 이력의 입력값을 불러왔습니다. 이전 FPS·미지원 배속 이력은 신규 생성 기준 8 FPS·2배로 설정합니다. 첫 번째 방향을 선택합니다. 참조 이미지가 비어 있으면 다시 첨부하세요.'
 
 def calculate_preview_frame_numbers(selected_start_frame,selected_end_frame,source_frame_rate,target_frame_rate,generation_speed_ratio):
     if type(target_frame_rate) is not int or target_frame_rate != 8:
@@ -89,39 +104,14 @@ def create_animation_player(generation_job_identifier,generation_status_record,s
     player_payload_value={'id':generation_job_identifier,'frames':frame_values,'fps':result_record_value.get('fps',4),'base':server_base_address}
     return json.dumps(player_payload_value,ensure_ascii=False)
 
-def build_character_baseline_preview(selected_character_identifier, server_base_address):
-    """선택한 등록 참조만 검증하여 Gradio 갤러리에 제공한다."""
-    from tools.review.domains.character_animation.character_animation_assets import load_animation_configuration, resolve_asset_path, read_asset_mapping, hash_asset_file
-    if not selected_character_identifier:
-        return []
-    current_character_records=load_animation_configuration()['characters']
-    if selected_character_identifier not in current_character_records:
-        raise ValueError('등록되지 않은 캐릭터입니다.')
-    current_character_record=current_character_records[selected_character_identifier]
-    current_manifest_record=read_asset_mapping(resolve_asset_path(current_character_record['root']+'/'+current_character_record['manifest']))
-    current_baseline_record=current_manifest_record['baseline_crops']
-    current_direction_files=current_baseline_record['files']
-    if not current_direction_files or set(current_direction_files)-{current_direction_name for _,current_direction_name in DIRECTION_LABEL_VALUES}:
-        raise ValueError('캐릭터 참조 방향 형식 오류')
-    preview_card_values=[]
-    for current_direction_label,current_direction_name in DIRECTION_LABEL_VALUES:
-        if current_direction_name not in current_direction_files:
-            continue
-        current_image_path=resolve_asset_path(current_character_record['root']+'/'+current_baseline_record['root']+'/'+current_direction_name+'.png')
-        if hash_asset_file(current_image_path)!=current_direction_files[current_direction_name]:
-            raise ValueError('캐릭터 참조 무결성 오류: '+current_direction_name)
-        preview_card_values.append((str(current_image_path),current_direction_label+' 참조'))
-    return preview_card_values
-
-
 def build_character_animation_interface(server_base_address):
     catalog_record_value=read_animation_catalog()
     motion_choice_values=[(record['label'],record['id']) for record in catalog_record_value['motions']]
-    character_choice_values=[(record['label'],record['id']) for record in catalog_record_value['characters']]
     motion_catalog_records={record['id']:record for record in catalog_record_value['motions']}
     motion_frame_count_values={motion_identifier_value:motion_record_value['frames'] for motion_identifier_value,motion_record_value in motion_catalog_records.items()}
     def restore_registered_animation_inputs(current_history_record):
-        restored_input_values=list(restore_animation_inputs(current_history_record))
+        current_status_record=execute_animation_gateway('status',{'id':current_history_record['id']})
+        restored_input_values=list(restore_animation_inputs(current_status_record))
         if restored_input_values[0] not in motion_frame_count_values:
             raise gr.Error('폐기된 모션의 입력은 복원할 수 없습니다. 등록된 모션을 선택하세요.')
         selected_frame_count=motion_frame_count_values[restored_input_values[0]]
@@ -131,14 +121,13 @@ def build_character_animation_interface(server_base_address):
         return restored_input_values
 
     with gr.Blocks(title='캐릭터 애니메이션 생성기') as interface_blocks_value:
-        gr.Markdown('## 캐릭터 애니메이션 생성기\n등록된 모션과 캐릭터 레퍼런스로 방향별 프레임을 생성합니다.')
-        unavailable_asset_notice = format_unavailable_asset_notice(catalog_record_value)
+        gr.Markdown('## 캐릭터 애니메이션 생성기\n등록된 모션과 첨부한 캐릭터 참조 한 장으로 선택 방향의 프레임을 생성합니다.')
+        unavailable_asset_notice = format_unavailable_asset_notice({**catalog_record_value,'unavailable_assets':[current_asset_record for current_asset_record in catalog_record_value.get('unavailable_assets',[]) if current_asset_record['kind']=='motion']})
         if unavailable_asset_notice:
             gr.Markdown(unavailable_asset_notice)
-        if not motion_choice_values or not character_choice_values:
+        if not motion_choice_values:
             missing_asset_kind_values = []
             if not motion_choice_values:missing_asset_kind_values.append('모션')
-            if not character_choice_values:missing_asset_kind_values.append('캐릭터')
             gr.Markdown('> ⚠️ 사용할 수 있는 '+ '·'.join(missing_asset_kind_values) +' 자산이 없어 새 생성을 시작할 수 없습니다. 위 안내를 확인한 뒤 자산 또는 등록 설정을 갱신하세요.')
             return interface_blocks_value
         with gr.Column(elem_classes=['character-animation-workspace']):
@@ -146,12 +135,12 @@ def build_character_animation_interface(server_base_address):
                 gr.Markdown('### 생성 설정')
                 with gr.Row():
                     motion_select_value=gr.Dropdown(motion_choice_values,value=motion_choice_values[0][1],label='모션')
-                    character_select_value=gr.Dropdown(character_choice_values,value=character_choice_values[0][1],label='캐릭터')
-                character_preview_value=gr.Gallery(value=build_character_baseline_preview(character_choice_values[0][1],server_base_address),label='선택한 캐릭터 참조 · 등록 방향',columns=4,object_fit='contain',interactive=False)
-                character_select_value.change(lambda selected_character_identifier: build_character_baseline_preview(selected_character_identifier,server_base_address),character_select_value,character_preview_value,queue=False)
+                _,current_reference_controls=build_reference_image_inputs(reference_slot_count=1,reference_image_mode='RGBA',reference_slot_labels=['캐릭터 참조'])
+                character_select_value=current_reference_controls[0]
+                gr.Markdown('선택한 방향의 캐릭터 이미지 한 장을 첨부하세요. PNG · 최대 4096px·8MB. 원본을 보관하고 생성 시 비율을 유지해 512×512 흰 배경에 맞춥니다.')
                 with gr.Row():
                     source_select_value=gr.Radio([('ANNY','anny'),('OpenPose','openpose')],value='anny',label='포즈 입력')
-                    direction_select_value=gr.CheckboxGroup(DIRECTION_LABEL_VALUES,value=['down_left'],label='생성 방향')
+                    direction_select_value=gr.Radio(DIRECTION_LABEL_VALUES,value='down_left',label='생성 방향')
                 initial_motion_frame_count=motion_frame_count_values[motion_choice_values[0][1]]
                 with gr.Row():
                     start_frame_value=gr.Slider(value=1,minimum=1,maximum=initial_motion_frame_count,step=1,label='시작 프레임',elem_classes=['management-frame-slider'])

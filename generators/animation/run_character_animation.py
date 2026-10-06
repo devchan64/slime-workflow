@@ -17,7 +17,7 @@ from generators.image.worker_lock import acquire_worker_lock
 
 
 def generate_character_frame(generation_job_path,current_frame_index):
-    from PIL import Image
+    from PIL import Image, ImageOps
     from qwen_pose import execute_pose_generation
     generation_request_record=json.loads((generation_job_path/'request.json').read_text())
     source_frame_record=generation_request_record['frames'][current_frame_index]
@@ -31,12 +31,15 @@ def generate_character_frame(generation_job_path,current_frame_index):
         reference_output_path=frame_output_directory/(reference_role_name+'-reference.png')
         with Image.open(reference_asset_path) as reference_image_value:
             allowed_reference_sizes=SUPPORTED_CHARACTER_REFERENCE_SIZES if reference_role_name=='character' else ((MODEL_REFERENCE_PIXEL_SIZE,MODEL_REFERENCE_PIXEL_SIZE),)
-            if reference_image_value.size not in allowed_reference_sizes:
+            current_uploaded_reference=reference_role_name=='character' and 'character_image' in generation_request_record
+            if not current_uploaded_reference and reference_image_value.size not in allowed_reference_sizes:
                 raise ValueError(f'{reference_role_name} 레퍼런스 크기 오류: {reference_image_value.size}, 허용: {allowed_reference_sizes}')
             reference_background_image=Image.new('RGBA',reference_image_value.size,'white' if reference_role_name=='character' else 'black')
             reference_background_image.alpha_composite(reference_image_value.convert('RGBA'))
             normalized_reference_image=reference_background_image.convert('RGB')
-            if normalized_reference_image.size!=(MODEL_REFERENCE_PIXEL_SIZE,MODEL_REFERENCE_PIXEL_SIZE):
+            if current_uploaded_reference:
+                normalized_reference_image=ImageOps.pad(normalized_reference_image,(MODEL_REFERENCE_PIXEL_SIZE,MODEL_REFERENCE_PIXEL_SIZE),method=Image.Resampling.LANCZOS,color='white')
+            elif normalized_reference_image.size!=(MODEL_REFERENCE_PIXEL_SIZE,MODEL_REFERENCE_PIXEL_SIZE):
                 normalized_reference_image=normalized_reference_image.resize((MODEL_REFERENCE_PIXEL_SIZE,MODEL_REFERENCE_PIXEL_SIZE),Image.Resampling.LANCZOS)
             normalized_reference_image.save(reference_output_path)
         input_reference_paths[reference_role_name]=reference_output_path

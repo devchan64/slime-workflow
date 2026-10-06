@@ -153,7 +153,8 @@ python3 tools/manager.py command momask --server-url http://127.0.0.1:8771 histo
 
 ## 등록 모션 기반 캐릭터 애니메이션
 
-관리도구의 `#character-animation`은 등록된 대기 v3(16프레임), 걷기 v8(32프레임), 스트레칭 v1(120프레임)에 캐릭터 레퍼런스를 적용한다. 방향은 전체 또는 일부를 선택한다. 현재 등록된 캐릭터는 기본 흰 셔츠 v2이며 등록 설정을 통해 확장한다. 타겟 FPS는 8만 지원하며 생성 배속 기본값은 2다. 생성 배속은 원본 프레임 선택 간격이다. 시작 프레임 + floor(0부터 시작하는 출력 인덱스 × 생성 배속) 위치를 선택하고, 결과의 기본 재생 FPS도 타겟값으로 기록한다. 대기 16프레임·4 FPS 원본을 8 FPS·2배로 생성하면 방향당 8장·1초가 된다. 비정수 장수는 올림하므로 길이 차이는 타겟 한 프레임 미만이다. 보간·중복 프레임 생성은 하지 않는다.
+캐릭터 애니메이션 GUI는 등록 모션과 사용자가 불러오거나 클립보드로 붙여넣은 캐릭터 참조 한 장으로 생성한다. 방향은 라디오 버튼으로 하나만 선택하며 기본값은 전방 좌측이다. 등록 캐릭터 선택·레퍼런스 불러오기 UI는 제공하지 않는다. 참조 원본 PNG는 작업 폴더에 저장하고 해시를 검증하며 생성 시 비율을 유지하여 512×512 흰 배경에 맞춘다. 입력은 RGB/RGBA PNG, 최대 4096px·8MB다. 타겟 FPS는 8, 생성 배속 기본값은 2이며 1·2·4를 선택한다. 이력의 입력 불러오기는 첨부 참조와 첫 번째 방향을 복원하며, 첨부 참조가 없는 과거 이력은 재첨부해야 한다. 기존 이력 조회·재개 및 CLI의 `--character`는 호환을 위해 유지한다. GUI와 CLI의 신규 참조는 `generate` 요청의 `character_image`(PNG base64)로 전달하며 `character`와 동시에 지정할 수 없다.
+
 
 - `openpose`: 등록된 COCO18 맵과 캐릭터 이미지를 Qwen Image Edit 2511에 입력한다.
 - `anny`: 등록된 ANNY 리그 렌더 프레임과 캐릭터 이미지를 Qwen Image Edit 2511 + AnyPose에 입력한다. 원본 리그나 모션을 다시 생성하지 않는다.
@@ -163,8 +164,8 @@ python3 tools/manager.py command momask --server-url http://127.0.0.1:8771 histo
 ```bash
 python3 tools/manager.py help character-animation
 python3 tools/manager.py command character-animation catalog
-python3 tools/manager.py command character-animation generate --motion standing-v3 --character character-default --source openpose --directions down_left down_right --detach
-python3 tools/manager.py command character-animation generate --motion walking-v8 --character character-default --source anny --detach
+python3 tools/manager.py command character-animation generate --motion walking-v13 --reference /path/to/character.png --source openpose --directions down_left --detach
+python3 tools/manager.py command character-animation generate --motion walking-v13 --character character-default --source anny --detach
 python3 tools/manager.py command character-animation history
 python3 tools/manager.py command character-animation status GENERATION_ID
 python3 tools/manager.py command character-animation logs GENERATION_ID
