@@ -25,6 +25,9 @@ def read_anny_attribute_markup():
     main_markup_match=re.search(r'(<main>.*?</main>\s*<dialog.*?</dialog>)',attribute_page_text,re.DOTALL)
     if main_markup_match is None:raise ValueError('ANNY 속성 편집기 본문을 찾을 수 없습니다.')
     current_markup_text=main_markup_match.group(1)
+    current_markup_text=re.sub(r'<header>.*?</header>','<header></header>',current_markup_text,flags=re.S)
+    current_markup_text=current_markup_text.replace('<h2>렌더링 설정</h2>','')
+    current_markup_text=current_markup_text.replace('<aside class="studio-panel"','<aside hidden class="studio-panel"')
     for current_button_identifier in ('reset','generate-preview','retry'):
         current_markup_text=re.sub(r'<button[^>]*id="'+current_button_identifier+r'"[^>]*>.*?</button>','',current_markup_text)
     current_markup_text=re.sub(r'<section[^>]*id="generation-history"[^>]*></section>','',current_markup_text)
@@ -52,6 +55,7 @@ def create_anny_attribute_loader(review_server_port):
 
 def build_anny_attribute_interface(review_server_port):
     with gr.Blocks(title='Anny 속성 렌더러') as interface_blocks_value:
+        gr.Markdown('## Anny 속성 렌더러')
         current_action_feedback=gr.Textbox(label='작업 안내',value='체형을 설정한 뒤 프리뷰 생성 또는 이미지 렌더를 실행하세요.',interactive=False)
         with gr.Row():
             for current_section_name,current_section_label in (('attributes','체형 설정으로 이동'),('preview','프리뷰·렌더로 이동'),('history','이전 결과로 이동')):
