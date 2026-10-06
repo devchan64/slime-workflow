@@ -10,6 +10,7 @@ import gradio as gr
 
 
 STATIC_REVIEW_FRAME_HEIGHT=1000
+TERRAIN_REVIEW_MAP_CHOICES=[('이슬 초원','meadow'),('푸른 숲','grove'),('안개 호수','mist-lake'),('바람 구릉','wind-hills')]
 
 
 def load_static_review_paths(source_file_path):
@@ -40,12 +41,36 @@ if(!selectedReviewPath){{staticReviewRoot.innerHTML='<p class="static-review-err
 const staticReviewPageLocation=new URL(selectedReviewPath,reviewServerBase);
 staticReviewPageLocation.searchParams.set('embedded','gradio-static');
 const staticReviewPageUrl=staticReviewPageLocation.href;
-// 게임 디자인 검수의 스타일·모듈·상대 경로를 원래 문서 안에 격리한다.
-if(selectedReviewPath.startsWith('ui-')&&!selectedReviewPath.split('?')[0].endsWith('-manager.html')){{
+// 게임 디자인 및 지형 검수의 스타일·모듈·중첩 프리뷰 상대 경로를 원래 문서에 격리한다.
+if(selectedReviewPath.startsWith('ui-')){{
   const currentReviewFrame=document.createElement('iframe');
   currentReviewFrame.title='게임 디자인 검수';
   currentReviewFrame.width='100%';currentReviewFrame.height='{STATIC_REVIEW_FRAME_HEIGHT}';currentReviewFrame.setAttribute('frameborder','0');
-  currentReviewFrame.src=staticReviewPageUrl;
+  const currentTerrainReview=selectedReviewPath.split('?')[0].endsWith('terrain-layout-manager.html');
+  const currentPreviewLocation=currentTerrainReview?new URL('terrain-preview.html',staticReviewPageUrl):new URL(staticReviewPageUrl);
+  currentPreviewLocation.searchParams.set('embedded','gradio-static');
+  currentReviewFrame.src=currentPreviewLocation.href;
+  if(currentTerrainReview){{
+    currentReviewFrame.title='필드 탐색 게임 미리보기';
+    currentReviewFrame.addEventListener('load',()=>{{const currentPreviewToolbar=currentReviewFrame.contentDocument?.querySelector('.preview-tools');if(currentPreviewToolbar){{const currentHiddenContainer=currentReviewFrame.contentDocument.createElement('div');currentHiddenContainer.hidden=true;currentPreviewToolbar.before(currentHiddenContainer);currentHiddenContainer.append(currentPreviewToolbar);}}}});
+    window.terrainReviewControls=async(currentActionName,currentMapName)=>{{
+      const currentPreviewDocument=currentReviewFrame.contentDocument;
+      const currentStatusElement=currentPreviewDocument?.querySelector('#result');
+      if(!currentStatusElement||!currentStatusElement.textContent.includes('타일'))throw Error('게임 미리보기를 준비 중입니다. 준비 후 다시 시도하세요.');
+      if(currentActionName==='status')return currentStatusElement.textContent;
+      if(currentActionName==='map'){{
+        const currentMapSelector=currentPreviewDocument.querySelector('#map-choice');
+        if(!Array.from(currentMapSelector.options).some(currentOptionValue=>currentOptionValue.value===currentMapName))throw Error('지원하지 않는 맵입니다.');
+        currentMapSelector.value=currentMapName;currentMapSelector.onchange({{target:currentMapSelector}});
+      }}else if(['zoom-out','zoom-in','preview-focus'].includes(currentActionName)){{
+        const currentActionElement=currentPreviewDocument.getElementById(currentActionName);
+        if(typeof currentActionElement?.onclick!=='function')throw Error('게임 미리보기 조작을 준비 중입니다.');
+        currentActionElement.onclick();
+      }}else if(currentActionName!=='status')throw Error('지원하지 않는 화면 조정입니다.');
+      await new Promise(currentResolveFrame=>currentReviewFrame.contentWindow.requestAnimationFrame(()=>currentReviewFrame.contentWindow.requestAnimationFrame(currentResolveFrame)));
+      return currentStatusElement.textContent;
+    }};
+  }}
   currentReviewFrame.addEventListener('load',()=>staticReviewRoot.setAttribute('aria-busy','false'));
   staticReviewRoot.replaceChildren(currentReviewFrame);
   return;
@@ -89,6 +114,18 @@ def build_static_review_interface(static_review_paths):
         gr.Markdown('## 정적 검수\n게임 디자인과 등록 애니메이션을 검수합니다.')
         current_reload_button=gr.Button('검수 화면 새로고침')
         current_reload_button.click(fn=None,js="()=>{window.location.reload();}",queue=False)
+        with gr.Column(visible=False) as current_terrain_controls:
+            current_terrain_choice=gr.Dropdown(label='맵 선택',choices=TERRAIN_REVIEW_MAP_CHOICES,value='meadow')
+            current_terrain_status=gr.Textbox(label='게임 미리보기 상태',value='미리보기를 준비 중입니다.',interactive=False)
+            with gr.Row():
+                for current_action_name,current_action_label in [('map','선택 맵 적용'),('zoom-out','축소'),('zoom-in','확대'),('preview-focus','기본 시점'),('status','상태 읽기')]:
+                    current_action_button=gr.Button(current_action_label)
+                    current_action_button.click(fn=None,inputs=current_terrain_choice,outputs=current_terrain_status,queue=False,js="async(currentMapName)=>{try{return await window.terrainReviewControls('"+current_action_name+"',currentMapName);}catch(currentErrorValue){return currentErrorValue.message;}}")
+            gr.Markdown('지도를 드래그해 이동하고 휠로 확대합니다. 게임 메뉴와 회전은 미리보기 안에서 사용할 수 있습니다.')
+        current_terrain_timer=gr.Timer(1)
+        current_terrain_timer.tick(fn=None,inputs=current_terrain_status,outputs=current_terrain_status,queue=False,show_progress='hidden',js="async(currentDisplayedStatus)=>{if(typeof window.terrainReviewControls!=='function')return {__type__:'update'};try{const currentStatusText=await window.terrainReviewControls('status');return currentStatusText===currentDisplayedStatus?{__type__:'update'}:currentStatusText;}catch(currentErrorValue){return currentErrorValue.message===currentDisplayedStatus?{__type__:'update'}:currentErrorValue.message;}}")
+        current_terrain_paths=json.dumps(static_review_paths,ensure_ascii=False)
+        interface_blocks_value.load(fn=None,outputs=current_terrain_controls,queue=False,js="()=>{const currentReviewPaths="+current_terrain_paths+";const currentReviewId=new URLSearchParams(location.search).get('review');return {__type__:'update',visible:(currentReviewPaths[currentReviewId]||'').split('?')[0].endsWith('terrain-layout-manager.html')};}")
         gr.HTML('<section id="static-review-root" aria-label="정적 검수" aria-live="polite" aria-busy="true"><p>검수 화면을 준비하고 있습니다…</p></section>')
     return interface_blocks_value
 

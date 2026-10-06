@@ -38,6 +38,19 @@ class UiBundleTests(unittest.TestCase):
             self.assertEqual(copied_page_path.read_text(), '<html><body>review</body></html>')
             self.assertIn('커밋 원본', page_records[0]['description'])
 
+    def test_terrain_preview_uses_static_document_route(self):
+        with tempfile.TemporaryDirectory() as temporary_directory_name:
+            current_bundle_directory=self.make_bundle(Path(temporary_directory_name))
+            current_manifest_path=current_bundle_directory/'manifest.json'
+            current_manifest_record=json.loads(current_manifest_path.read_text())
+            current_manifest_record['pages'][0]['id']='terrain-layout'
+            current_manifest_path.write_text(json.dumps(current_manifest_record))
+            current_output_directory=Path(temporary_directory_name)/'output'
+            current_output_directory.mkdir()
+            current_page_records=import_ui_bundle(current_bundle_directory,current_output_directory,lambda *current_trace_arguments:None)
+            current_manager_markup=(current_output_directory/current_page_records[0]['path']).read_text()
+            self.assertIn('src="terrain-preview.html?embedded=gradio-static"',current_manager_markup)
+
     def test_rebuild_reimports_same_bundle_without_deleting_history(self):
         from tools.review.build_frontend_review import clear_generated_review_files
         with tempfile.TemporaryDirectory() as temporary_directory_name:
