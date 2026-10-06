@@ -51,6 +51,9 @@ def build_sprite_v2_interface():
     current_markup_text=re.sub(r'<h1>.*?</h1>','',current_markup_text)
     current_markup_text=current_markup_text.replace('<h2>1. 작업</h2>','<h2>현재 작업 편집</h2>')
     current_markup_text=re.sub(r'<div class="sv2-toolbar"><label>화면 확대 .*?</div>','',current_markup_text,flags=re.S)
+    current_markup_text=re.sub(r'<label>FPS <input id="sv2-fps".*?</label>','',current_markup_text)
+    current_markup_text=re.sub(r'<label>현재 프레임 유지 ms <input id="sv2-duration".*?</label>','',current_markup_text)
+    current_markup_text=current_markup_text.replace('<span>0은 FPS 기준</span>','<p id="sv2-timing-summary" role="status">작업을 불러와 재생 설정을 확인하세요.</p>')
     with gr.Blocks(title='스프라이트 정규화 편집기 v2') as current_interface_blocks:
         gr.Markdown('## 스프라이트 정규화 편집기 v2')
         with gr.Accordion('새 작업 만들기',open=False):
@@ -103,6 +106,15 @@ def build_sprite_v2_interface():
         with gr.Row():
             for current_playback_name,current_playback_label in (('prev','이전 프레임'),('play','재생 / 일시정지'),('next','다음 프레임')):
                 build_browser_action_button(current_playback_label,'spriteV2PlaybackControls',current_playback_name,current_feedback_text)
+        with gr.Accordion('재생 시간 조정',open=True):
+            gr.Markdown('현재 설정은 비교 화면 아래에 표시됩니다. 변경할 항목을 체크하고 값을 입력하세요. 유지 시간은 현재 선택한 프레임에 적용하며 0이면 작업 FPS를 사용합니다.')
+            with gr.Row():
+                current_fps_enabled=gr.Checkbox(label='FPS 변경',value=False)
+                current_fps_input=gr.Number(label='변경할 FPS',value=8,minimum=1,maximum=60)
+                current_duration_enabled=gr.Checkbox(label='유지 시간 변경',value=False)
+                current_duration_input=gr.Number(label='선택 프레임 유지 시간 · ms',value=0,minimum=0,maximum=10000)
+            current_timing_button=gr.Button('재생 시간 적용')
+            current_timing_button.click(fn=None,inputs=[current_fps_input,current_duration_input,current_fps_enabled,current_duration_enabled],outputs=current_feedback_text,queue=False,js="async(fps,duration,changeFps,changeDuration)=>{try{if(!window.spriteV2TimingControls)throw Error('편집기를 준비 중입니다.');return await window.spriteV2TimingControls(changeFps?fps:null,changeDuration?duration:null);}catch(error){return error.message;}}")
         gr.Markdown('### 저장 · 출력\n현재 작업을 불러온 뒤 사용할 수 있습니다. 이전 버전을 불러와 저장하면 새 수정 이력으로 남습니다. 가이드는 출력 이미지에 포함하지 않습니다.')
         with gr.Row():
             current_save_button=gr.Button('수정본 저장')

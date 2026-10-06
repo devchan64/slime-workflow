@@ -7,7 +7,7 @@ class SpriteV2GradioTests(unittest.TestCase):
     def test_project_controls_are_native_and_canvas_is_preserved(self):
         current_interface_config=build_sprite_v2_interface().get_config_file()
         current_html_markup=''.join(current_component_record['props'].get('value','') for current_component_record in current_interface_config['components'] if current_component_record['type']=='html')
-        for current_removed_identifier in ('sv2-create','sv2-project-refresh','sv2-load','sv2-projects','sv2-save','sv2-export','sv2-history','sv2-revision-load','sv2-zoom','sv2-background','sv2-overlay','sv2-onion','sv2-guides','sv2-prev','sv2-play','sv2-next','sv2-earlier','sv2-later','sv2-duplicate','sv2-remove','sv2-undo','sv2-upload','sv2-paste','sv2-upload-target','sv2-smaller','sv2-larger','sv2-face-match','sv2-guide-add','sv2-guide-vertical','sv2-guide-remove','sv2-guide-copy'):
+        for current_removed_identifier in ('sv2-fps','sv2-duration','sv2-create','sv2-project-refresh','sv2-load','sv2-projects','sv2-save','sv2-export','sv2-history','sv2-revision-load','sv2-zoom','sv2-background','sv2-overlay','sv2-onion','sv2-guides','sv2-prev','sv2-play','sv2-next','sv2-earlier','sv2-later','sv2-duplicate','sv2-remove','sv2-undo','sv2-upload','sv2-paste','sv2-upload-target','sv2-smaller','sv2-larger','sv2-face-match','sv2-guide-add','sv2-guide-vertical','sv2-guide-remove','sv2-guide-copy'):
             self.assertNotIn('id="'+current_removed_identifier+'"',current_html_markup)
         self.assertNotIn('data-sv2-move',current_html_markup)
         self.assertIn('id="sv2-reference"',current_html_markup)
@@ -18,6 +18,18 @@ class SpriteV2GradioTests(unittest.TestCase):
         self.assertIn('수정 이력',current_dropdown_labels)
         self.assertIn('화면 확대',current_dropdown_labels)
         self.assertIn('배경',current_dropdown_labels)
+
+    def test_timing_edit_uses_explicit_browser_only_apply(self):
+        current_interface_config=build_sprite_v2_interface().get_config_file()
+        current_timing_events=[current_event_record for current_event_record in current_interface_config['dependencies'] if 'spriteV2TimingControls' in (current_event_record.get('js') or '')]
+        self.assertEqual(len(current_timing_events),1)
+        self.assertFalse(current_timing_events[0]['backend_fn'])
+        self.assertFalse(current_timing_events[0]['queue'])
+        current_timing_fields=[current_component_record['props'] for current_component_record in current_interface_config['components'] if current_component_record['type']=='number' and current_component_record['props'].get('label') in ('변경할 FPS','선택 프레임 유지 시간 · ms')]
+        self.assertEqual(len(current_timing_fields),2)
+        current_timing_toggles=[current_component_record['props'] for current_component_record in current_interface_config['components'] if current_component_record['type']=='checkbox' and current_component_record['props'].get('label') in ('FPS 변경','유지 시간 변경')]
+        self.assertEqual(len(current_timing_toggles),2)
+        self.assertTrue(all(current_toggle_record.get('value') is False for current_toggle_record in current_timing_toggles))
 
     def test_commands_use_browser_state_and_reject_unknown_actions(self):
         for current_action_name in ('create','list','load','history','revision','save','export'):
