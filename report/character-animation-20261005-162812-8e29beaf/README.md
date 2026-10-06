@@ -48,3 +48,7 @@ GPU(CUDA), 해당 모델 및 어댑터 revision, 기록된 PyTorch·Diffusers �
 ## 가벼운 보호구 휴식 시작·종료
 
 [각 8프레임 기록](rest-light-armor-v1/README.md) · [연결 GIF](rest-light-armor-v1/combined-review.gif). 이미지젠 생성 검수 후보입니다.
+
+## 중간 보호구 대기 8프레임
+
+[기록](idle-medium-armor-v1/README.md) · [GIF](idle-medium-armor-v1/review.gif) · [시트](idle-medium-armor-v1/idle-8frames.png). 대기 베이스라인과 중간 보호구 v7을 참조한 이미지젠 검수 후보이며 개별 프레임 노멀라이즈는 미완료입니다.

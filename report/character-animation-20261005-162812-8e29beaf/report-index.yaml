@@ -142,3 +142,32 @@ entries:
     path: rest-light-armor-v1/end-frame-07.png
   - index: 8
     path: rest-light-armor-v1/end-frame-08.png
+- id: idle-medium-armor-v1
+  label: 중간 보호구 대기 8프레임
+  status: review-candidate
+  direction: down_left
+  frame_count: 8
+  frame_size:
+  - 512
+  - 512
+  fps: 4
+  manifest: idle-medium-armor-v1/manifest.yaml
+  sheet: idle-medium-armor-v1/idle-8frames.png
+  animation: idle-medium-armor-v1/review.gif
+  frames:
+  - index: 1
+    path: idle-medium-armor-v1/frame-01.png
+  - index: 2
+    path: idle-medium-armor-v1/frame-02.png
+  - index: 3
+    path: idle-medium-armor-v1/frame-03.png
+  - index: 4
+    path: idle-medium-armor-v1/frame-04.png
+  - index: 5
+    path: idle-medium-armor-v1/frame-05.png
+  - index: 6
+    path: idle-medium-armor-v1/frame-06.png
+  - index: 7
+    path: idle-medium-armor-v1/frame-07.png
+  - index: 8
+    path: idle-medium-armor-v1/frame-08.png
