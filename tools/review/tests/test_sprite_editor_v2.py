@@ -59,6 +59,26 @@ class SpriteEditorV2Tests(unittest.TestCase):
         self.assertEqual(restored_revision_record['latest'],saved_revision_record['revision'])
         self.assertEqual(len(self.execute_test_command('history',{'id':self.current_project_identifier})['items']),2)
 
+    def test_independent_scale_saved_and_exported(self):
+        current_frame_record=self.create_test_frame()
+        current_image_buffer=io.BytesIO()
+        Image.new('RGBA',(100,100),(255,0,0,255)).save(current_image_buffer,format='PNG')
+        current_upload_record=self.execute_test_command('upload',{'id':self.current_project_identifier,'data':base64.b64encode(current_image_buffer.getvalue()).decode()})
+        current_frame_record.update(asset=current_upload_record['asset'],x=0,y=0,scaleX=.5,scaleY=.25)
+        current_document_record=copy.deepcopy(self.initial_project_record['document'])
+        current_document_record['frames']=[current_frame_record]
+        current_saved_record=self.execute_test_command('save',{'id':self.current_project_identifier,'parent':self.initial_project_record['revision'],'document':current_document_record})
+        current_loaded_record=self.execute_test_command('load',{'id':self.current_project_identifier,'revision':None})
+        self.assertEqual(current_loaded_record['document']['frames'][0]['scaleX'],.5)
+        self.assertEqual(current_loaded_record['document']['frames'][0]['scaleY'],.25)
+        current_export_record=self.execute_test_command('export',{'id':self.current_project_identifier,'revision':current_saved_record['revision']})
+        with zipfile.ZipFile(io.BytesIO(base64.b64decode(current_export_record['data']))) as current_archive_file:
+            with Image.open(io.BytesIO(current_archive_file.read('frame-001.png'))) as current_export_image:
+                self.assertEqual(current_export_image.getbbox(),(96,144,288,240))
+        current_frame_record['scaleY']=0
+        with self.assertRaises(ValueError):
+            sprite_editor_v2.validate_v2_document(current_document_record,sprite_editor_v2.resolve_v2_project(self.current_project_identifier))
+
     def test_export_position_alpha_frame_order_and_duration(self):
         current_document_record=copy.deepcopy(self.initial_project_record['document'])
         current_first_frame=self.create_test_frame()

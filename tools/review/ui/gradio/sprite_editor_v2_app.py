@@ -162,7 +162,7 @@ def build_sprite_v2_interface():
                         with gr.Row():
                             build_browser_action_button('레퍼런스 얼굴 원 크기 복사','spriteV2EditControls','face-match',current_feedback_text)
                             build_browser_action_button('레퍼런스 가이드·얼굴 원 복사','spriteV2EditControls','guide-copy',current_feedback_text)
-                    build_transform_joypad('spriteV2JoypadControls',current_feedback_text)
+                    build_transform_joypad('spriteV2JoypadControls',current_feedback_text,current_separate_axes=True)
                     build_browser_action_button('실행 취소','spriteV2FrameControls','undo',current_feedback_text)
                     with gr.Accordion('얼굴 원 수치',open=False):
                         with gr.Row():

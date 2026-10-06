@@ -59,7 +59,10 @@ def validate_v2_document(current_document_record, project_directory_path):
         current_image_records.append(current_document_record['reference'])
     seen_frame_identifiers = set()
     for current_image_record in current_image_records:
-        require_exact_fields(current_image_record, ('id','asset','name','x','y','scale','duration','face','guides'))
+        current_axis_fields=('scaleX','scaleY') if 'scaleX' in current_image_record or 'scaleY' in current_image_record else ()
+        require_exact_fields(current_image_record, ('id','asset','name','x','y','scale','duration','face','guides',*current_axis_fields))
+        for current_axis_field in current_axis_fields:
+            require_finite_number(current_image_record[current_axis_field],.01,8)
         if not isinstance(current_image_record['id'],str) or not re.fullmatch(r'[a-zA-Z0-9-]{1,80}',current_image_record['id']) or current_image_record['id'] in seen_frame_identifiers:
             raise ValueError('프레임 ID는 고유해야 합니다.')
         seen_frame_identifiers.add(current_image_record['id'])
@@ -109,10 +112,12 @@ def export_v2_revision(project_directory_path, saved_revision_record):
     with zipfile.ZipFile(output_archive_buffer,'w',zipfile.ZIP_DEFLATED) as output_zip_archive:
         for current_frame_index,current_frame_record in enumerate(current_document_record['frames']):
             with Image.open(project_directory_path/'images'/f"{current_frame_record['asset']}.png") as source_image_value:
-                current_image_scale = current_frame_record['scale']*output_cell_pixels/max(source_image_value.size)
-                current_offset_left = (output_cell_pixels-source_image_value.width*current_image_scale)/2+current_frame_record['x']
-                current_offset_top = (output_cell_pixels-source_image_value.height*current_image_scale)/2+current_frame_record['y']
-                output_frame_image = source_image_value.convert('RGBa').transform((output_cell_pixels,output_cell_pixels),Image.Transform.AFFINE,(1/current_image_scale,0,-current_offset_left/current_image_scale,0,1/current_image_scale,-current_offset_top/current_image_scale),resample=Image.Resampling.BICUBIC).convert('RGBA')
+                current_base_scale = output_cell_pixels/max(source_image_value.size)
+                current_horizontal_scale = current_frame_record.get('scaleX',current_frame_record['scale'])*current_base_scale
+                current_vertical_scale = current_frame_record.get('scaleY',current_frame_record['scale'])*current_base_scale
+                current_offset_left = (output_cell_pixels-source_image_value.width*current_horizontal_scale)/2+current_frame_record['x']
+                current_offset_top = (output_cell_pixels-source_image_value.height*current_vertical_scale)/2+current_frame_record['y']
+                output_frame_image = source_image_value.convert('RGBa').transform((output_cell_pixels,output_cell_pixels),Image.Transform.AFFINE,(1/current_horizontal_scale,0,-current_offset_left/current_horizontal_scale,0,1/current_vertical_scale,-current_offset_top/current_vertical_scale),resample=Image.Resampling.BICUBIC).convert('RGBA')
             output_frame_images.append(output_frame_image)
             output_frame_durations.append(max(10,round((current_frame_record['duration'] or 1000/current_document_record['fps'])/10)*10))
             current_png_buffer = io.BytesIO()
