@@ -1,7 +1,6 @@
 import unittest
 
 from tools.review.ui.gradio.anny_attributes_app import build_anny_attribute_interface, create_anny_attribute_loader, read_anny_attribute_markup
-from tools.review.ui_assets import resolve_review_ui_asset
 
 
 class AnnyAttributesGradioTest(unittest.TestCase):
@@ -24,19 +23,19 @@ class AnnyAttributesGradioTest(unittest.TestCase):
         self.assertIn('aria-live="polite"',current_markup_text)
 
     def test_uses_selected_history_actions(self):
-        markup_text = read_anny_attribute_markup()
-        history_script_text = resolve_review_ui_asset('generation-history.js').read_text()
-        self.assertIn('data-selection-actions="true"', markup_text)
-        self.assertIn('data-individual-history-delete="true"', markup_text)
-        self.assertIn('createSelectedHistoryActions', history_script_text)
-        self.assertIn('deleteSelectedHistoryRecord', history_script_text)
-        self.assertIn('이력 수동 초기화', history_script_text)
+        current_configuration_record=build_anny_attribute_interface(8770).get_config_file()
+        current_history_events=[current_event_record for current_event_record in current_configuration_record['dependencies'] if 'annyHistoryControls' in (current_event_record.get('js') or '')]
+        self.assertEqual(len(current_history_events),10)
+        self.assertTrue(all(not current_event_record['backend_fn'] and not current_event_record['queue'] for current_event_record in current_history_events))
+        self.assertNotIn('id="generation-history"',read_anny_attribute_markup())
+        self.assertIn('선택한 생성 ID',str(current_configuration_record))
+        self.assertIn('이력 수동 정리',str(current_configuration_record))
 
     def test_loader_preserves_attribute_component_dependencies(self):
         loader_script_text=create_anny_attribute_loader(8770)
         self.assertIn("http://127.0.0.1:8770'+currentPathValue",loader_script_text)
         self.assertIn('/anny-attributes/mesh-viewer.js',loader_script_text)
-        self.assertIn('/anny-attributes/history-ui.js',loader_script_text)
+        self.assertNotIn('/anny-attributes/history-ui.js',loader_script_text)
         self.assertIn('mesh-preview',read_anny_attribute_markup())
         self.assertNotIn('/management/workflow-ui.js',loader_script_text)
         self.assertNotIn('id="baseline-profile"',read_anny_attribute_markup())
