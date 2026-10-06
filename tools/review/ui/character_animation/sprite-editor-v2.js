@@ -69,9 +69,9 @@ function refreshEditorFields(){
  const currentImageRecord=selectedEditorRecord();
  currentGuideIndex=Math.min(currentGuideIndex,Math.max(0,(currentImageRecord?.guides.length||0)-1));
  findEditorElement('target-summary').textContent=`${SPRITE_V2_TARGET_LABELS[currentEditorTarget]} · ${SPRITE_V2_MODE_LABELS[currentEditorMode]}`;
- const currentDisplayNumber=currentNumberValue=>Number(currentNumberValue.toFixed(2));
+ const currentDisplayNumber=(currentNumberValue,currentDecimalPlaces=2)=>Number(currentNumberValue.toFixed(currentDecimalPlaces));
  findEditorElement('numeric-summary').textContent=currentImageRecord?
-  `이미지 X ${currentDisplayNumber(currentImageRecord.x)} · Y ${currentDisplayNumber(currentImageRecord.y)} · 배율 ${currentDisplayNumber(currentImageRecord.scale)} / 얼굴 원 X ${currentDisplayNumber(currentImageRecord.face.x)} · Y ${currentDisplayNumber(currentImageRecord.face.y)} · 지름 ${currentDisplayNumber(currentImageRecord.face.radius*2)} / 가이드 좌표 ${currentImageRecord.guides[currentGuideIndex]?currentDisplayNumber(currentImageRecord.guides[currentGuideIndex].position):'없음'}`:'이미지를 선택해 좌표를 확인하세요.';
+  `이미지 X ${currentDisplayNumber(currentImageRecord.x)} · Y ${currentDisplayNumber(currentImageRecord.y)} · 배율 ${currentDisplayNumber(currentImageRecord.scale,3)} / 얼굴 원 X ${currentDisplayNumber(currentImageRecord.face.x)} · Y ${currentDisplayNumber(currentImageRecord.face.y)} · 지름 ${currentDisplayNumber(currentImageRecord.face.radius*2)} / 가이드 좌표 ${currentImageRecord.guides[currentGuideIndex]?currentDisplayNumber(currentImageRecord.guides[currentGuideIndex].position):'없음'}`:'이미지를 선택해 좌표를 확인하세요.';
  findEditorElement('timing-summary').textContent=currentProjectDocument?`현재 FPS ${currentProjectDocument.fps} · 선택 프레임 유지 ${currentProjectDocument.frames[currentFrameIndex]?.duration||0}ms (0은 FPS 기준)`:'작업을 불러와 재생 설정을 확인하세요.';
  const currentReferenceRecord=currentProjectDocument?.reference,currentFrameRecord=currentProjectDocument?.frames[currentFrameIndex];
  findEditorElement('difference').textContent=currentReferenceRecord&&currentFrameRecord?

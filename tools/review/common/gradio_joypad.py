@@ -5,7 +5,7 @@ import re
 import gradio as gr
 
 JOY_PAD_POSITION_STEP = 1
-JOY_PAD_SCALE_STEP = 0.01
+JOY_PAD_SCALE_STEP = 0.001
 
 
 def build_transform_joypad(current_handler_name, current_feedback_output, current_scale_enabled=True):
@@ -19,7 +19,7 @@ def build_transform_joypad(current_handler_name, current_feedback_output, curren
         with gr.Row():
             current_position_x=gr.Number(label='X 위치',value=0)
             current_position_y=gr.Number(label='Y 위치',value=0)
-            current_scale_value=gr.Number(label='배율',value=1,minimum=0.01,maximum=8,visible=current_scale_enabled)
+            current_scale_value=gr.Number(label='배율',value=1,step=JOY_PAD_SCALE_STEP,minimum=0.01,maximum=8,visible=current_scale_enabled)
         current_input_fields=[current_position_x,current_position_y,current_scale_value,current_position_step,current_scale_step]
         current_output_fields=[current_position_x,current_position_y,current_scale_value,current_feedback_output]
 
