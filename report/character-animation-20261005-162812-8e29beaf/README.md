@@ -33,22 +33,18 @@ GPU(CUDA), 해당 모델 및 어댑터 revision, 기록된 PyTorch·Diffusers �
 
 사용자 요청으로 추가한 검수 후보입니다. 원본 생성 결과와 구분하여 보관하며 품질 승인은 아직 완료되지 않았습니다.
 
-## 승인 기준에서 확장한 대기 8프레임 v2
-
-[보존 기록](idle-body-v2/README.md) · [검수 GIF](idle-body-v2/review.gif) · [가이드라인 비교 GIF](idle-body-v2/baseline-guides-review.gif)
-
-사용자 요청으로 결과를 보존했습니다. 신체 비율 차이가 확인된 검수 후보이며 품질 승인 또는 정식 채택은 아닙니다.
-
-## 바디 휴식 시작·종료 8프레임
-
-[보존 기록](rest-body-v1/README.md) · [시작 GIF](rest-body-v1/rest-start-review.gif) · [종료 GIF](rest-body-v1/rest-end-review.gif)
-
-각각 512×512 8프레임으로 구성한 검수 후보입니다. 생성 원본·프롬프트·참조·개별 프레임을 함께 보존했습니다.
-
-## 경량 보호구 걷기 12프레임 보정 · 통합 기록
+## 가벼운 보호구 걷기 12프레임 보정 · 통합 기록
 
 [리포트](walking-light-armor-normalized-v1/README.md) · [검수 GIF](walking-light-armor-normalized-v1/review.gif) · [가이드라인 비교](walking-light-armor-normalized-v1/baseline-guides-review.gif)
 
 보호구 베이스라인에 맞춰 내장 이미지젠으로 보정한 검수 후보입니다.
 
-[통합 프레임 목록](report-index.yaml)에 보정 12장의 순서·원천 프레임 번호·512 셀 크기·8fps·참조 생성 ID를 기록했습니다. 메인 [검수 화면](preview.html)에서 GIF·베이스라인 가이드 비교·시트를 바로 확인할 수 있습니다. 기존 바디·대기·휴식 기록은 유지합니다.
+[통합 프레임 목록](report-index.yaml)에 보정 12장의 순서·원천 프레임 번호·512 셀 크기·8fps·참조 생성 ID를 기록했습니다. 메인 [검수 화면](preview.html)에서 GIF·베이스라인 가이드 비교·시트를 바로 확인할 수 있습니다. 기존 바디 걷기 기록은 유지합니다. 대기·휴식 바디 버전은 사용자 요청으로 폐기했습니다.
+
+## 가벼운 보호구 대기 8프레임
+
+[기록](idle-light-armor-v1/README.md) · [GIF](idle-light-armor-v1/review.gif) · [베이스라인 비교](idle-light-armor-v1/baseline-guides-review.gif). 이미지젠 생성 검수 후보입니다.
+
+## 가벼운 보호구 휴식 시작·종료
+
+[각 8프레임 기록](rest-light-armor-v1/README.md) · [연결 GIF](rest-light-armor-v1/combined-review.gif). 이미지젠 생성 검수 후보입니다.

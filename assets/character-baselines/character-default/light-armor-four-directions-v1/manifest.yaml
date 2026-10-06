@@ -3,7 +3,7 @@ asset_id: character-default-light-armor-four-directions
 version: v1
 character_id: default
 status: registered
-purpose: 경량 방어복 착용 4방향 기준 자료
+purpose: 가벼운 보호구 착용 4방향 기준 자료
 representation: dressed-character-sheet
 generator: built-in image_gen
 source: .tmp/test/imagegen-default-light-armor/2026-10-05_22-45-37

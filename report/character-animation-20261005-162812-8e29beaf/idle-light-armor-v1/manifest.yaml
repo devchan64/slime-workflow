@@ -1,0 +1,49 @@
+schema_version: 1
+status: review-candidate
+method: builtin-imagegen
+animation: idle
+frame_count: 8
+frame_size:
+- 512
+- 512
+fps: 4
+original_size:
+- 1774
+- 887
+baseline_generation_id: 2026-10-06_08-45-30-5f6f4fbb
+generated_source: /home/cbsim/.codex/generated_images/01a0e5f3-61d6-71b3-be62-d48436ea51cb/exec-d8b99145-4dda-41b9-844a-70d0efa2a63d.png
+experiment_path: .tmp/test/imagegen-light-armor-idle/2026-10-06_10-26-08
+guide_rows:
+  hair: 5
+  eyes: 72
+  chin: 110
+  shoulder: 131
+  waist: 234
+  shorts: 321
+  knee: 366
+  ground: 502
+files:
+  README.md: b284b11c596b223d3be49d756283a08aa08f87756131ebaa9ec6521f81ccbedf
+  baseline-guides-review.gif: f8397810b3ed0c3ee24c6c7b86670b3c24a71dd9bf11565addb667d31c368c5b
+  baseline-original.png: 90461c84ba726c0b8c47fd761b9b0bc512785e787ab0d764ca37e2fd7c1ec85f
+  comparison-01.png: ac452e3bbd8fd7688f81e432d1bd3d425da60793f7108d68d49b2ac7875ae45c
+  comparison-02.png: 9c33a638e81dd7858d173b7bd180649a5d8056dc6b1dc17ef90abeee7928c2b3
+  comparison-03.png: 4ba5d21df3a3376b2d1c082cf715dd8cbd6e7c6a4d81b5af92c08091cab6e4ef
+  comparison-04.png: 99bbba3f6987ff89e2de4cc4f7b5b766aa58bbdae539d54c3e37f8ca579d5b0b
+  comparison-05.png: 46410ec7b9dda4ed1d7fdeea4132455dec4a429a8e06c2565ad6e81fbf13fa02
+  comparison-06.png: c0319986889631f0a5cd3740c4651266174580bafccb95412b6b080e1a489632
+  comparison-07.png: 29f114acfd497f59b185e8db2a3678f3c3278498548b84583ca64a5d6beb9469
+  comparison-08.png: 40a78e9b0f0eb0109daf45c4718ffdd62cf075ea892404b1e95052e1e200df3d
+  frame-01.png: c6e36b4c1984b61ddf3ac7b727c3d58866a0b0064c931b1e2be747899b6a1b68
+  frame-02.png: 2a2e0ef9cf72444154da6724233cfaf5593474ae0ad0d89dbdb210fc46bf4ccd
+  frame-03.png: b16addeced9b7fad292719c991a433610465e87cf51fa8728874387755464048
+  frame-04.png: 42f82a266c90fcb069e2e105ebef3d14c688678b1ed209ae6e65f70f65921259
+  frame-05.png: 3fb06de17c1e45a8443b117a7b701fbf47598e6261c072d32eeb64df8ef61441
+  frame-06.png: 6136fcda7f41fb077ca45b2608dcdfd573b282b49aa98bfb1c2a037a3127eba8
+  frame-07.png: 8056a6848e32fea6c3ccf95149bd0a19d00ffb279bd2b54a4ab27caf117919e8
+  frame-08.png: a6410c509fc7b25acad5f5eed3f9f19d72b1b42b3e5fd866e5947f062e85a6c3
+  generated-original.png: ed793cf8df3a5bffc314f1b7b6d6f3ae5c857bc22015da7425231b65bd0e6f33
+  idle-8frames.png: fc733243f3d15bada7061df40baf2a42fc6b27be385c5034806713cedfe320ba
+  preview.html: 42790626c14de408d8644d92fee7a275ce51a89ad9b7bf3b83de6bcaed725a0b
+  prompt.txt: 770c2d18aa4ec3159f46da461ef452972949942ff4f6a9771044485faa146398
+  review.gif: 5e3d4b8db66459fc42b3a4f6bfd3d425401efb8dcc6651f0fc0031c540163f98

@@ -32,4 +32,8 @@
 
 - [여성 캐릭터 A 걷기 12프레임](character-animation-20261005-171042-b46bce6f/README.md): 2026-10-05_17-10-42-b46bce6f, down_left, 768px·4스텝, 입력·결과·재시도 로그와 해시 검증.
 
-기본 캐릭터에는 [경량 보호구 걷기 보정 12프레임](character-animation-20261005-162812-8e29beaf/preview.html#walking-light-armor-normalized-v1)을 통합했습니다. 512×512·8fps, 베이스라인 가이드 비교와 이미지젠 보정 출처를 포함합니다.
+기본 캐릭터에는 [가벼운 보호구 걷기 보정 12프레임](character-animation-20261005-162812-8e29beaf/preview.html#walking-light-armor-normalized-v1)을 통합했습니다. 512×512·8fps, 베이스라인 가이드 비교와 이미지젠 보정 출처를 포함합니다.
+
+기본 캐릭터의 [가벼운 보호구 대기 8프레임](character-animation-20261005-162812-8e29beaf/idle-light-armor-v1/README.md)을 추가했습니다. 512×512·4fps·2초 반복이며, 생성 원본·프롬프트·베이스라인 비교를 포함합니다.
+
+기본 캐릭터의 [가벼운 보호구 휴식 시작·종료 각 8프레임](character-animation-20261005-162812-8e29beaf/rest-light-armor-v1/README.md)을 등록했습니다. 512×512·4fps, 연결 GIF와 베이스라인 비교를 포함합니다.

@@ -1,0 +1,278 @@
+schema_version: 1
+status: review-candidate
+method: builtin-imagegen
+baseline_generation_id: 2026-10-06_08-45-30-5f6f4fbb
+frame_size:
+- 512
+- 512
+frames_per_transition: 8
+fps: 4
+packing:
+  start:
+    source: /home/cbsim/.codex/generated_images/01a0e5f3-61d6-71b3-be62-d48436ea51cb/exec-63d9e1e2-4f5b-470f-a93c-27166dc79442.png
+    original_size:
+    - 1774
+    - 887
+    row_split: 497
+    frames:
+    - crop:
+      - 0
+      - 0
+      - 444
+      - 497
+      content:
+      - 178
+      - 3
+      - 328
+      - 462
+      scale: 1.05
+      offset:
+      - 177
+      - 18
+    - crop:
+      - 444
+      - 0
+      - 887
+      - 497
+      content:
+      - 148
+      - 18
+      - 318
+      - 462
+      scale: 1.05
+      offset:
+      - 167
+      - 34
+    - crop:
+      - 887
+      - 0
+      - 1330
+      - 497
+      content:
+      - 116
+      - 64
+      - 304
+      - 462
+      scale: 1.05
+      offset:
+      - 157
+      - 82
+    - crop:
+      - 1330
+      - 0
+      - 1774
+      - 497
+      content:
+      - 118
+      - 112
+      - 306
+      - 462
+      scale: 1.05
+      offset:
+      - 157
+      - 132
+    - crop:
+      - 0
+      - 497
+      - 444
+      - 887
+      content:
+      - 109
+      - 31
+      - 347
+      - 355
+      scale: 1.05
+      offset:
+      - 131
+      - 160
+    - crop:
+      - 444
+      - 497
+      - 887
+      - 887
+      content:
+      - 92
+      - 42
+      - 386
+      - 344
+      scale: 1.05
+      offset:
+      - 101
+      - 183
+    - crop:
+      - 887
+      - 497
+      - 1330
+      - 887
+      content:
+      - 98
+      - 41
+      - 319
+      - 340
+      scale: 1.05
+      offset:
+      - 140
+      - 186
+    - crop:
+      - 1330
+      - 497
+      - 1774
+      - 887
+      content:
+      - 99
+      - 57
+      - 315
+      - 347
+      scale: 1.05
+      offset:
+      - 142
+      - 196
+  end:
+    source: /home/cbsim/.codex/generated_images/01a0e5f3-61d6-71b3-be62-d48436ea51cb/exec-180b1c6f-838c-4496-907b-4f35bcd9062f.png
+    original_size:
+    - 1774
+    - 887
+    row_split: 444
+    frames:
+    - crop:
+      - 0
+      - 0
+      - 444
+      - 444
+      content:
+      - 105
+      - 104
+      - 317
+      - 396
+      scale: 1.05
+      offset:
+      - 144
+      - 193
+    - crop:
+      - 444
+      - 0
+      - 887
+      - 444
+      content:
+      - 63
+      - 120
+      - 312
+      - 401
+      scale: 1.05
+      offset:
+      - 125
+      - 205
+    - crop:
+      - 887
+      - 0
+      - 1330
+      - 444
+      content:
+      - 45
+      - 104
+      - 344
+      - 411
+      scale: 1.05
+      offset:
+      - 99
+      - 178
+    - crop:
+      - 1330
+      - 0
+      - 1774
+      - 444
+      content:
+      - 81
+      - 119
+      - 340
+      - 410
+      scale: 1.05
+      offset:
+      - 120
+      - 194
+    - crop:
+      - 0
+      - 444
+      - 444
+      - 887
+      content:
+      - 123
+      - 31
+      - 337
+      - 398
+      scale: 1.05
+      offset:
+      - 143
+      - 115
+    - crop:
+      - 444
+      - 444
+      - 887
+      - 887
+      content:
+      - 119
+      - 20
+      - 323
+      - 400
+      scale: 1.05
+      offset:
+      - 149
+      - 101
+    - crop:
+      - 887
+      - 444
+      - 1330
+      - 887
+      content:
+      - 140
+      - 6
+      - 306
+      - 410
+      scale: 1.05
+      offset:
+      - 169
+      - 76
+    - crop:
+      - 1330
+      - 444
+      - 1774
+      - 887
+      content:
+      - 148
+      - 0
+      - 288
+      - 411
+      scale: 1.05
+      offset:
+      - 182
+      - 68
+files:
+  start-frame-05.png: f9c0b189f181ee2162cbecf8f03d623be3a7383bca006989503105e32b0f5f6b
+  README.md: 27ca9a423bde73c7cb826c2639d7477293ca568235327d98225a945e2ac8c088
+  end-frame-03.png: 6259db25b88ecd87ebe2434a41dd72a9b423314f30eb403b08abf12609f959b3
+  start-guides.gif: d08337ea4b8c6ab1b386f0e31c7d7e099c981e534a8f9c5a66556ad028cba41a
+  combined-review.gif: 16bf5dc8ed86eccd068fe7b32bea39975e8d53c6afe55da37fb9171531486fe6
+  end-frame-08.png: c1a1ec600906c256f12394ce809b045a8b2631ec5bbeae97010a25151d55939d
+  start-frame-04.png: 6c32389b3b7d1d7e8099c5add818e685c38d4b5a4740de05d16ab0a78574bc71
+  start-original.png: 191430c7c8cd82ede97f6b66bd7b51bbb21ea91a7ac8080aefa8f8a63a43cc2a
+  end-frame-05.png: dda2038980fdea59561f68c3e74ad02053617eeb71549d10c0e23fa5d05e3e9c
+  end-review.gif: 9eb6299453b3a6cd1246c7e6cf636601954b259c0440700154eaa6c0cafd8640
+  end-frame-06.png: 53b6c0c54eea9a4a6c255cc77331ce9f0689eac633fc87ee355c8f6ab7ead6b5
+  start-8frames.png: 718de5dc2236398b6f0ac8751d90fc397a6d433a13d0734c69a75245249543e4
+  start-frame-03.png: cc4bfe2ab51fcc1a15f9a8c6d14aec4982c4cac947be77352e187822a728865c
+  end-original.png: b5095234e9e4f82e0d7b0d4c61be862933a472537a531f52230deddd771160f9
+  start-review.gif: c3d5ecaed883af2433faeb6536e219a0f6d634fdd03aa24512598f0e80f3df16
+  start-frame-08.png: 54244b4ae233a88b42ce2515a55739f04440e343e29852853041f3fd22979bdb
+  end-frame-01.png: fe3fa4246e871e09ac72b02238d46186ec987156e38dc1f328e40040256ff4d7
+  start-frame-01.png: 9eae31644f215e0b3b1df42c8e5a630c7856a24598c71b73e89f1ea9665ff37e
+  end-guides.gif: 0fdd29f7ad78afe216836c67c70c3b2f5e66187d99cd2541af849e7ca9b28443
+  baseline-original.png: 90461c84ba726c0b8c47fd761b9b0bc512785e787ab0d764ca37e2fd7c1ec85f
+  end-frame-02.png: 162385a1d6b7435d4239e6aa802da3b3e3f400a0635587c684443a999fb84857
+  end-prompt.txt: 770c2d18aa4ec3159f46da461ef452972949942ff4f6a9771044485faa146398
+  start-frame-02.png: d87a2b7c29e02dc7dde861101822ce2124ece8de80d78aae603b5876493ecd9b
+  start-frame-06.png: 281f65f0c2f6e86792169ca82bf9e1d3a6d8564141c2b74c81ec52101a620314
+  end-frame-04.png: 0e129041d9fd885bf4cf00475e1c9d0a9f2f66c8a82232a41d5449f0b624ee0c
+  end-frame-07.png: 87cf5e5f2f76821b1a2c1e64e64af30640a4a77705d75e3e3a2513ea101f543b
+  start-frame-07.png: 185c3768f85af19d4b0c01e41a30288f8484b1759ab2f1360f80b76855ffa209
+  start-prompt.txt: 770c2d18aa4ec3159f46da461ef452972949942ff4f6a9771044485faa146398
+  end-8frames.png: 401c6098c7304a418b9e3031b627cf31123812e03a2796d49d2b0294c77f756a

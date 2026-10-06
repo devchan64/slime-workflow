@@ -2,7 +2,7 @@ schema_version: 1
 character_id: default
 entries:
 - id: walking-light-armor-normalized-v1
-  label: 경량 보호구 걷기 · 이미지젠 보정 12프레임
+  label: 가벼운 보호구 걷기 · 이미지젠 보정 12프레임
   status: review-candidate
   direction: down_left
   frame_count: 12
@@ -54,3 +54,91 @@ entries:
   - index: 12
     source_frame: 26
     path: walking-light-armor-normalized-v1/frame-12.png
+- id: idle-light-armor-v1
+  label: 가벼운 보호구 대기 8프레임
+  status: review-candidate
+  direction: down_left
+  frame_count: 8
+  frame_size:
+  - 512
+  - 512
+  fps: 4
+  manifest: idle-light-armor-v1/manifest.yaml
+  sheet: idle-light-armor-v1/idle-8frames.png
+  animation: idle-light-armor-v1/review.gif
+  guide_comparison: idle-light-armor-v1/baseline-guides-review.gif
+  frames:
+  - index: 1
+    path: idle-light-armor-v1/frame-01.png
+  - index: 2
+    path: idle-light-armor-v1/frame-02.png
+  - index: 3
+    path: idle-light-armor-v1/frame-03.png
+  - index: 4
+    path: idle-light-armor-v1/frame-04.png
+  - index: 5
+    path: idle-light-armor-v1/frame-05.png
+  - index: 6
+    path: idle-light-armor-v1/frame-06.png
+  - index: 7
+    path: idle-light-armor-v1/frame-07.png
+  - index: 8
+    path: idle-light-armor-v1/frame-08.png
+- id: rest-light-armor-start-v1
+  label: 가벼운 보호구 휴식 시작 8프레임
+  status: review-candidate
+  direction: down_left
+  frame_count: 8
+  frame_size:
+  - 512
+  - 512
+  fps: 4
+  manifest: rest-light-armor-v1/manifest.yaml
+  sheet: rest-light-armor-v1/start-8frames.png
+  animation: rest-light-armor-v1/start-review.gif
+  frames:
+  - index: 1
+    path: rest-light-armor-v1/start-frame-01.png
+  - index: 2
+    path: rest-light-armor-v1/start-frame-02.png
+  - index: 3
+    path: rest-light-armor-v1/start-frame-03.png
+  - index: 4
+    path: rest-light-armor-v1/start-frame-04.png
+  - index: 5
+    path: rest-light-armor-v1/start-frame-05.png
+  - index: 6
+    path: rest-light-armor-v1/start-frame-06.png
+  - index: 7
+    path: rest-light-armor-v1/start-frame-07.png
+  - index: 8
+    path: rest-light-armor-v1/start-frame-08.png
+- id: rest-light-armor-end-v1
+  label: 가벼운 보호구 휴식 종료 8프레임
+  status: review-candidate
+  direction: down_left
+  frame_count: 8
+  frame_size:
+  - 512
+  - 512
+  fps: 4
+  manifest: rest-light-armor-v1/manifest.yaml
+  sheet: rest-light-armor-v1/end-8frames.png
+  animation: rest-light-armor-v1/end-review.gif
+  frames:
+  - index: 1
+    path: rest-light-armor-v1/end-frame-01.png
+  - index: 2
+    path: rest-light-armor-v1/end-frame-02.png
+  - index: 3
+    path: rest-light-armor-v1/end-frame-03.png
+  - index: 4
+    path: rest-light-armor-v1/end-frame-04.png
+  - index: 5
+    path: rest-light-armor-v1/end-frame-05.png
+  - index: 6
+    path: rest-light-armor-v1/end-frame-06.png
+  - index: 7
+    path: rest-light-armor-v1/end-frame-07.png
+  - index: 8
+    path: rest-light-armor-v1/end-frame-08.png
