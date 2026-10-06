@@ -4,6 +4,7 @@ import json
 import re
 
 import gradio as gr
+from tools.review.common.gradio_frame_navigator import build_frame_navigation_widgets
 
 FRAME_PLAYER_SCRIPT_PATH=Path(__file__).resolve().parents[1]/'ui/shared/frame-player.js'
 FRAME_PLAYER_DIRECTION_CHOICES=[('등록 첫 방향','first'),('전방 좌측','down_left'),('전방 우측','down_right'),('후방 좌측','up_left'),('후방 우측','up_right')]
@@ -19,15 +20,15 @@ def build_browser_frame_player(current_player_identifier='generation-result-play
         with gr.Row():
             current_direction_component=gr.State('first') if defer_image_loading else gr.Dropdown(FRAME_PLAYER_DIRECTION_CHOICES,value='first',label='재생 방향')
             current_framerate_component=gr.Dropdown([4,8,12,16],value=8,label='재생 FPS')
-            current_frame_component=gr.Number(value=1,minimum=1,precision=0,label='이동할 프레임')
         current_feedback_component=gr.Textbox(label='재생 조작 안내',interactive=False,value='결과를 조회한 뒤 재생하거나 프레임을 이동하세요.')
-        current_action_choices=[('previous','이전 프레임'),('play','재생'),('stop','재생 중지'),('next','다음 프레임'),('seek','프레임으로 이동')]
+        current_load_button=gr.Button('미리보기 불러오기') if defer_image_loading else None
+        current_frame_component,current_navigation_buttons,current_seek_button=build_frame_navigation_widgets()
+        current_action_buttons=[('previous' if current_action_name=='prev' else current_action_name,current_action_button) for current_action_name,current_action_button in current_navigation_buttons]
+        current_action_buttons.append(('seek',current_seek_button))
         if defer_image_loading:
-            current_action_choices.insert(0,('load','미리보기 불러오기'))
-        with gr.Row():
-            for current_action_name,current_button_label in current_action_choices:
-                current_button_component=gr.Button(current_button_label)
-                current_button_component.click(fn=None,inputs=[current_direction_component,current_framerate_component,current_frame_component],outputs=current_feedback_component,queue=False,js="(direction, fps, frame)=>{try {return window.generationFramePlayerCommands["+json.dumps(current_player_identifier)+"]('"+current_action_name+"',"+current_direction_argument+",fps,frame);}catch(error){return '재생기를 준비하지 못했습니다. 결과를 다시 조회하세요. '+error.message;}}")
+            current_action_buttons.insert(0,('load',current_load_button))
+        for current_action_name,current_button_component in current_action_buttons:
+            current_button_component.click(fn=None,inputs=[current_direction_component,current_framerate_component,current_frame_component],outputs=current_feedback_component,queue=False,js="(direction, fps, frame)=>{try {return window.generationFramePlayerCommands["+json.dumps(current_player_identifier)+"]('"+current_action_name+"',"+current_direction_argument+",fps,frame);}catch(error){return '재생기를 준비하지 못했습니다. 결과를 다시 조회하세요. '+error.message;}}")
         current_configuration_script="(direction,fps,frame)=>{try{return window.generationFramePlayerCommands["+json.dumps(current_player_identifier)+"]('configure',"+current_direction_argument+",fps,frame);}catch(error){return '재생기를 준비 중입니다.';}}"
         for current_control_component in ([current_framerate_component] if defer_image_loading else [current_direction_component,current_framerate_component]):
             current_control_component.input(fn=None,inputs=[current_direction_component,current_framerate_component,current_frame_component],outputs=current_feedback_component,queue=False,js=current_configuration_script)
