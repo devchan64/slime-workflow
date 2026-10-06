@@ -203,7 +203,7 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
                 operation_argument_parser.add_argument('--motion',required=True,help='catalog의 모션 ID')
                 operation_argument_parser.add_argument('--character',required=True,help='catalog의 캐릭터 ID')
                 operation_argument_parser.add_argument('--source',choices=('openpose','anny'),default='anny')
-                operation_argument_parser.add_argument('--directions',nargs='+',choices=('down_left','down_right','up_left','up_right'),default=['down_left','down_right','up_left','up_right'])
+                operation_argument_parser.add_argument('--directions',nargs='+',choices=('down_left','down_right','up_left','up_right'),default=['down_left'],help='생성 방향 (기본: 전방 좌측만)')
             elif service_command_name=='momask':
                 operation_argument_parser.add_argument('--action',choices=('standing','walking','resting'),required=True)
                 operation_argument_parser.add_argument('--directions',nargs='+',choices=('down_left','down_right','up_left','up_right'),default=['down_left','down_right','up_left','up_right'])

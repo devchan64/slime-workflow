@@ -142,7 +142,7 @@ def build_character_animation_interface(server_base_address):
                 character_select_value.change(lambda selected_character_identifier: build_character_baseline_preview(selected_character_identifier,server_base_address),character_select_value,character_preview_value,queue=False)
                 with gr.Row():
                     source_select_value=gr.Radio([('ANNY','anny'),('OpenPose','openpose')],value='anny',label='포즈 입력')
-                    direction_select_value=gr.CheckboxGroup(DIRECTION_LABEL_VALUES,value=[value for _,value in DIRECTION_LABEL_VALUES],label='생성 방향')
+                    direction_select_value=gr.CheckboxGroup(DIRECTION_LABEL_VALUES,value=['down_left'],label='생성 방향')
                 initial_motion_frame_count=motion_frame_count_values[motion_choice_values[0][1]]
                 with gr.Row():
                     start_frame_value=gr.Slider(value=1,minimum=1,maximum=initial_motion_frame_count,step=1,label='시작 프레임',elem_classes=['management-frame-slider'])
