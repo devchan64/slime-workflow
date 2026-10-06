@@ -1,6 +1,5 @@
 """공용 게이트웨이를 사용하는 MoMask Gradio 클라이언트."""
 import argparse
-import html
 import inspect
 import json
 import os
@@ -36,13 +35,12 @@ def read_motion_settings(selected_action_name):
     action_config_record=json.loads((WORKFLOW_ROOT_DIRECTORY/'generators/momask/config/standing-loops-v1.json').read_text())['actions'][selected_action_name]
     camera_config_record=yaml.safe_load((WORKFLOW_ROOT_DIRECTORY/'generators/momask/config/camera-angles.yaml').read_text())
     prompt_content_value=action_config_record['prompt']
-    summary_items=[('프롬프트',f'{len(prompt_content_value.split())}단어'),('원본 모션',f"{action_config_record['source_frames']}프레임"),('내려다보기','약 17°')]
-    summary_html=''.join(f'<div><dt>{label}</dt><dd>{value}</dd></div>' for label,value in summary_items)
-    camera_html=''.join(f'<div><dt>{html.escape(label)}</dt><dd>{html.escape(str(camera_config_record[selected_action_name][direction]))}°</dd></div>' for label,direction in MOTION_DIRECTION_LABELS)
-    return prompt_content_value, ('<section class="motion-settings-summary" aria-label="모션 생성 설정 요약">'
-        f'<dl class="motion-settings-metrics">{summary_html}</dl>'
-        '<div class="motion-settings-caption">카메라 수평 방위각 <span>정면 0° 기준</span></div>'
-        f'<dl class="motion-camera-angles">{camera_html}</dl></section>')
+    current_summary_rows=[('프롬프트',f'{len(prompt_content_value.split())}단어'),('원본 모션',f"{action_config_record['source_frames']}프레임"),('내려다보기','약 17°')]
+    current_camera_rows=[(current_direction_label,f"{camera_config_record[selected_action_name][current_direction_name]}°") for current_direction_label,current_direction_name in MOTION_DIRECTION_LABELS]
+    current_summary_text='| 설정 | 값 |\n| --- | --- |\n'+'\n'.join(f'| {current_field_label} | {current_field_value} |' for current_field_label,current_field_value in current_summary_rows)
+    current_camera_text='| 방향 | 수평 방위각 · 정면 0° 기준 |\n| --- | --- |\n'+'\n'.join(f'| {current_direction_label} | {current_angle_value} |' for current_direction_label,current_angle_value in current_camera_rows)
+    return prompt_content_value,current_summary_text+'\n\n'+current_camera_text
+
 
 def create_motion_history_records(server_base_address):
     return execute_motion_command('history',{})
@@ -124,9 +122,9 @@ def build_momask_interface(server_base_address):
                 generation_tag_value=gr.Textbox(label='생성 이력 태그 · 선택 사항',placeholder='예: 돌온재 걷기 후보',max_lines=1)
             settings_initial_values=read_motion_settings('standing')
             prompt_text_value=gr.Textbox(value=settings_initial_values[0],label='고정 스크립트',interactive=False,lines=4)
-            settings_text_value=gr.HTML(settings_initial_values[1])
+            settings_text_value=gr.Markdown(settings_initial_values[1])
             with gr.Accordion('위치 채널 기반 공통 리타깃', open=False,elem_id='motion-retarget-policy'):
-                gr.HTML(render_position_retarget_policy())
+                gr.Markdown(render_position_retarget_policy().removeprefix('<p>').removesuffix('</p>'))
             with gr.Row(elem_id='motion-command-actions'):
                 generate_button_value=gr.Button('모션 생성 시작',variant='primary',elem_id='motion-generate-button')
                 cancel_button_value=gr.Button('현재 생성 취소',elem_id='motion-cancel-button',interactive=False)
