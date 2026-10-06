@@ -44,8 +44,9 @@ class GradioManagementMenuTests(unittest.TestCase):
         initial_selection_script=create_initial_selection_script(self.page_record_values)
 
         self.assertIn('record.path===currentUrlValue.pathname',initial_selection_script)
-        self.assertIn("searchParams.set('tool',selectedPageRecord.id)",initial_selection_script)
-        self.assertIn('input.value===selectedPageRecord.id',initial_selection_script)
+        self.assertIn("searchParams.get('tool')",initial_selection_script)
+        self.assertIn('return [',initial_selection_script)
+        self.assertNotIn('querySelector',initial_selection_script)
         self.assertNotIn('selectedPageIndex',initial_selection_script)
 
     def test_navigation_script_persists_filter_values_with_selected_tool_path(self):
@@ -71,16 +72,13 @@ class GradioManagementMenuTests(unittest.TestCase):
         idle_status_card = render_gpu_status_card({'status':'idle','processes':[]})
         busy_status_card = render_gpu_status_card({'status':'busy','processes':[{'command':'MoMask 모션 생성','id':'sample','memory_mib':512}], 'memory_total_mib': 12288, 'memory_used_mib': 1024, 'memory_free_mib': 11264})
 
-        self.assertIn('is-idle', idle_status_card)
-        self.assertIn('GPU 대기', idle_status_card)
+        self.assertNotIn('<', idle_status_card)
         self.assertIn('실행 중인 연산 작업 없음', idle_status_card)
-        self.assertIn('is-busy', busy_status_card)
         self.assertIn('GPU 사용 중', busy_status_card)
-        self.assertIn('management-gpu-process', busy_status_card)
         self.assertIn('MoMask 모션 생성', busy_status_card)
-        self.assertIn('#sample', busy_status_card)
-        self.assertIn('사용 <strong>1,024 MiB</strong>', busy_status_card)
-        self.assertIn('여유 <strong>11,264 MiB</strong>', busy_status_card)
+        self.assertIn('sample', busy_status_card)
+        self.assertIn('사용 1,024 MiB', busy_status_card)
+        self.assertIn('여유 11,264 MiB', busy_status_card)
         self.assertIn('총 12,288 MiB', busy_status_card)
 
 
@@ -95,4 +93,16 @@ class ManagementMenuRefreshTests(unittest.TestCase):
 
     def test_initial_selection_does_not_click_selected_tool(self):
         selection_script_text = create_initial_selection_script([])
-        self.assertIn('if(!selectedInput.checked)selectedInput.click()', selection_script_text)
+        self.assertNotIn('.click()', selection_script_text)
+
+class ManagementNativeNavigationTests(unittest.TestCase):
+    def test_initial_query_keeps_selected_page_and_clears_conflicting_filter(self):
+        import gradio as gr
+        current_page_records=[{'id':'first','label':'첫 도구','path':'/first','category':'animation-tool','description':'첫 도구'}, {'id':'second','label':'둘째 도구','path':'/second','category':'image-generation','description':'둘째 도구'}]
+        current_interface_blocks,_=build_management_menu_interface(current_page_records,8770)
+        current_load_callback=next(current_function_value.fn for current_function_value in current_interface_blocks.fns.values() if current_function_value.fn and current_function_value.fn.__name__=='initialize_menu_selection')
+        current_update_values=current_load_callback('불일치','animation-tool','second')
+        self.assertEqual(current_update_values[:2],['','all'])
+        self.assertEqual(current_update_values[2]['value'],'second')
+        self.assertIn('/second',current_update_values[5])
+        self.assertFalse(any(isinstance(current_component_value,gr.Radio) for current_component_value in current_interface_blocks.blocks.values()))

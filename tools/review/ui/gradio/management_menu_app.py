@@ -42,33 +42,12 @@ def format_gpu_status(gpu_status_record):
 
 
 def render_gpu_status_card(gpu_status_record):
-    memory_total_mib=gpu_status_record.get('memory_total_mib')
-    memory_used_mib=gpu_status_record.get('memory_used_mib')
-    memory_free_mib=gpu_status_record.get('memory_free_mib')
-    memory_summary_text=''
-    if all(isinstance(current_value,int) and current_value >= 0 for current_value in (memory_total_mib,memory_used_mib,memory_free_mib)):
-        memory_summary_text=f'<span class="management-gpu-memory"><span>사용 <strong>{memory_used_mib:,} MiB</strong></span><span>여유 <strong>{memory_free_mib:,} MiB</strong></span><span>총 {memory_total_mib:,} MiB</span></span>'
-    if gpu_status_record.get('status') == 'busy':
-        status_kind_name = 'busy'
-        status_title_text = 'GPU 사용 중'
-        process_card_values=[]
-        for process_record in gpu_status_record.get('processes',[]):
-            process_name_text=html.escape(str(process_record.get('command','이름 없는 작업')))
-            process_identifier_text=str(process_record.get('id',''))
-            process_summary_text=html.escape(process_identifier_text[-8:]) if process_identifier_text else 'ID 없음'
-            process_title_text=html.escape(f'{process_record.get("command","이름 없는 작업")} · {process_identifier_text}')
-            memory_amount_text=html.escape(str(process_record.get('memory_mib','?')))
-            process_card_values.append(f'<span class="management-gpu-process" title="{process_title_text}"><span class="management-gpu-process-name">{process_name_text}</span><span class="management-gpu-process-id">#{process_summary_text}</span><strong>{memory_amount_text} MiB</strong></span>')
-        status_detail_text=f'<span class="management-gpu-process-list">{"".join(process_card_values)}</span>{memory_summary_text}'
-    elif gpu_status_record.get('status') == 'idle':
-        status_kind_name = 'idle'
-        status_title_text = 'GPU 대기'
-        status_detail_text = f'<span class="management-gpu-status-message">실행 중인 연산 작업 없음</span>{memory_summary_text}'
-    else:
-        status_kind_name = 'unavailable'
-        status_title_text = 'GPU 상태 확인 필요'
-        status_detail_text = '<span class="management-gpu-status-message">상태 조회 연결을 확인하세요.</span>'
-    return f'<div class="management-gpu-status-card is-{status_kind_name}" role="status" aria-live="polite"><span class="management-gpu-status-indicator" aria-hidden="true"></span><strong>{html.escape(status_title_text)}</strong><span class="management-gpu-status-detail">{status_detail_text}</span></div>'
+    """기본 Markdown으로 GPU 상태와 메모리를 표시한다."""
+    current_status_text=format_gpu_status(gpu_status_record)
+    current_memory_values=[gpu_status_record.get(current_field_name) for current_field_name in ('memory_used_mib','memory_free_mib','memory_total_mib')]
+    if all(isinstance(current_memory_value,int) and current_memory_value>=0 for current_memory_value in current_memory_values):
+        current_status_text+='\n\n'+ ' · '.join(f'{current_memory_label} {current_memory_value:,} MiB' for current_memory_label,current_memory_value in zip(('사용','여유','총'),current_memory_values))
+    return current_status_text
 
 def load_manager_page_records(source_file_path):
     source_record_values=json.loads(source_file_path.read_text())
@@ -115,7 +94,7 @@ def create_page_preview_html(selected_page_identifier, page_record_values, revie
     elif selected_page_record.get('uiMode')=='gradio-static':
         selected_page_path=f'{MANAGEMENT_FRAME_PATH_PREFIX}static-review/?review={quote(selected_page_record["id"],safe="")}'
     selected_page_path=html.escape(selected_page_path,quote=True)
-    return f'<iframe title="{html.escape(selected_page_record["label"],quote=True)}" class="management-page-frame" allow="clipboard-write http://127.0.0.1:{review_server_port} http://127.0.0.1:{review_server_port+101}; clipboard-read http://127.0.0.1:{review_server_port} http://127.0.0.1:{review_server_port+101}" src="http://127.0.0.1:{review_server_port}{selected_page_path}"></iframe>'
+    return f'<iframe title="{html.escape(selected_page_record["label"],quote=True)}" class="management-page-frame" width="100%" height="1000" frameborder="0" allow="clipboard-write http://127.0.0.1:{review_server_port} http://127.0.0.1:{review_server_port+101}; clipboard-read http://127.0.0.1:{review_server_port} http://127.0.0.1:{review_server_port+101}" src="http://127.0.0.1:{review_server_port}{selected_page_path}"></iframe>'
 
 
 def create_menu_navigation_script(page_record_values, history_method_name):
@@ -125,31 +104,15 @@ def create_menu_navigation_script(page_record_values, history_method_name):
 
 
 def create_initial_selection_script(page_record_values):
+    """Gradio load 입력으로 URL 상태를 전달하고 DOM 클릭을 사용하지 않는다."""
     serialized_page_records=json.dumps(page_record_values,ensure_ascii=False).replace('<','\\u003c')
-    category_name_values=json.dumps(list(CATEGORY_LABEL_VALUES)).replace('<','\\u003c')
     return f"""()=>{{
         const pageRecords={serialized_page_records};
         const currentUrlValue=new URL(window.location.href);
         const requestedPageIdentifier=currentUrlValue.searchParams.get('tool');
         const resolvedPageIdentifier={json.dumps(LEGACY_PAGE_IDENTIFIER_VALUES)}[requestedPageIdentifier]||requestedPageIdentifier;
         const selectedPageRecord=pageRecords.find(record=>record.id===resolvedPageIdentifier)||pageRecords.find(record=>record.path===currentUrlValue.pathname)||pageRecords[0];
-        if(!selectedPageRecord)return;
-        // 초기 선택은 목록 인덱스가 아닌 도구 ID로 확정한다. 충돌 필터는 해제한다.
-        const categoryValue=currentUrlValue.searchParams.get('category');
-        if(currentUrlValue.pathname!=='/'||(categoryValue&&categoryValue!=='all'&&categoryValue!==selectedPageRecord.category)){{
-            currentUrlValue.pathname='/';
-            currentUrlValue.searchParams.set('tool',selectedPageRecord.id);
-            currentUrlValue.searchParams.delete('category');
-            currentUrlValue.searchParams.delete('search');
-            window.location.replace(currentUrlValue.href);return;
-        }}
-        let attempts=0;
-        const selectByIdentifier=()=>{{
-            const selectedInput=[...document.querySelectorAll('#management-tool-list input')].find(input=>input.value===selectedPageRecord.id);
-            if(selectedInput){{if(!selectedInput.checked)selectedInput.click();return;}}
-            if(++attempts<40)window.setTimeout(selectByIdentifier,100);
-        }};
-        selectByIdentifier();
+        return [currentUrlValue.searchParams.get('search')||'',currentUrlValue.searchParams.get('category')||'all',selectedPageRecord?.id||null];
     }}"""
 
 
@@ -159,19 +122,19 @@ def build_management_menu_interface(page_record_values, review_server_port):
     with gr.Blocks(title='SLIME 관리도구') as interface_blocks_value:
         with gr.Row(elem_id='management-header'):
             gr.Markdown('## SLIME 관리도구',scale=3)
-            gpu_status_value=gr.HTML(render_gpu_status_card({}),elem_id='management-gpu-status',scale=2)
+            gpu_status_value=gr.Markdown(render_gpu_status_card({}),elem_id='management-gpu-status',scale=2)
         with gr.Row(elem_id='management-shell'):
             with gr.Column(scale=1,min_width=240,elem_id='management-sidebar'):
                 gr.Markdown('### 도구 탐색')
                 search_text_value=gr.Textbox(label='도구 검색',placeholder='이름, ID, 기능',info='검색 결과에서 도구를 선택하면 해당 주소로 이동합니다.',elem_id='management-tool-search')
                 category_select_value=gr.Dropdown(choices=[(current_label_value,current_name_value) for current_name_value,current_label_value in sorted(CATEGORY_LABEL_VALUES.items(),key=lambda category_entry_value:(category_entry_value[0]!='all',category_entry_value[1]))],value='all',label='분류',elem_id='management-category-filter')
                 tool_count_value=gr.Markdown(f'**{len(page_record_values)}개** 도구',elem_id='management-tool-count')
-                page_select_value=gr.Radio(choices=create_tool_choice_values(page_record_values),value=initial_page_identifier,label='도구 목록',elem_id='management-tool-list')
+                page_select_value=gr.Dropdown(choices=create_tool_choice_values(page_record_values),value=initial_page_identifier,label='도구 목록',elem_id='management-tool-list')
                 with gr.Row(elem_classes=['management-pagination']):
-                    previous_page_button_value=gr.Button('← 이전',scale=0,min_width=0)
+                    previous_page_button_value=gr.Button('← 이전',scale=0,min_width=100)
                     navigation_position_value=gr.Markdown(f'1 / {len(page_record_values)}',elem_classes=['management-pagination-position'])
-                    next_page_button_value=gr.Button('다음 →',scale=0,min_width=0)
-            with gr.Column(scale=3,min_width=520,elem_id='management-workspace'):
+                    next_page_button_value=gr.Button('다음 →',scale=0,min_width=100)
+            with gr.Column(scale=3,min_width=280,elem_id='management-workspace'):
                 selected_page_status_value=gr.Markdown(f"**{html.escape(page_record_values[0]['label'])}** · {html.escape(page_record_values[0]['description'])}" if page_record_values else '표시할 관리 화면이 없습니다.')
                 page_preview_value=gr.HTML(create_page_preview_html(initial_page_identifier,page_record_values,review_server_port))
         def update_menu_choices(search_text_value,category_name_value,selected_page_identifier):
@@ -202,14 +165,22 @@ def build_management_menu_interface(page_record_values, review_server_port):
         page_select_value.input(fn=None,inputs=[search_text_value,category_select_value,page_select_value],js=page_navigation_script,queue=False)
         search_text_value.submit(lambda search_text_value,category_name_value: update_menu_choices(search_text_value,category_name_value,None),[search_text_value,category_select_value],[page_select_value,tool_count_value,selected_page_status_value,page_preview_value,navigation_position_value],queue=False)
         page_select_value.input(lambda selected_page_identifier,search_text_value,category_name_value: move_menu_page(selected_page_identifier,search_text_value,category_name_value,0)[3],[page_select_value,search_text_value,category_select_value],navigation_position_value,queue=False)
-        previous_page_button_value.click(fn=None,js="()=>{const toolInputValues=[...document.querySelectorAll('#management-tool-list input')];const selectedIndexValue=toolInputValues.findIndex((currentInputValue)=>currentInputValue.checked);toolInputValues[Math.max(0,selectedIndexValue-1)]?.click();}",queue=False)
-        next_page_button_value.click(fn=None,js="()=>{const toolInputValues=[...document.querySelectorAll('#management-tool-list input')];const selectedIndexValue=toolInputValues.findIndex((currentInputValue)=>currentInputValue.checked);toolInputValues[Math.min(toolInputValues.length-1,selectedIndexValue+1)]?.click();}",queue=False)
+        current_navigation_inputs=[search_text_value,category_select_value,page_select_value]
+        current_page_outputs=[page_select_value,selected_page_status_value,page_preview_value,navigation_position_value]
+        for current_navigation_button,current_navigation_step in ((previous_page_button_value,-1),(next_page_button_value,1)):
+            current_navigation_button.click(lambda current_page_identifier,current_search_text,current_category_name,current_step_value=current_navigation_step:move_menu_page(current_page_identifier,current_search_text,current_category_name,current_step_value),[page_select_value,search_text_value,category_select_value],current_page_outputs,queue=False).then(fn=None,inputs=current_navigation_inputs,js=page_navigation_script,queue=False)
+        def initialize_menu_selection(current_search_text,current_category_name,current_page_identifier):
+            if current_category_name not in CATEGORY_LABEL_VALUES:current_category_name='all'
+            current_selected_record=next((current_page_record for current_page_record in page_record_values if current_page_record['id']==current_page_identifier),None)
+            if current_selected_record and current_selected_record not in filter_manager_page_records(page_record_values,current_search_text,current_category_name):
+                current_search_text,current_category_name='','all'
+            current_selection_updates=list(update_menu_choices(current_search_text,current_category_name,current_page_identifier))
+            current_selection_updates[2:4]=select_menu_page(current_selection_updates[0]['value'])
+            return [current_search_text,current_category_name,*current_selection_updates]
+        interface_blocks_value.load(initialize_menu_selection,current_navigation_inputs,[search_text_value,category_select_value,page_select_value,tool_count_value,selected_page_status_value,page_preview_value,navigation_position_value],js=initial_selection_script,queue=False)
         interface_blocks_value.load(lambda:render_gpu_status_card(read_gpu_status()),outputs=gpu_status_value,queue=False)
         if hasattr(gr,'Timer'):gr.Timer(3).tick(lambda:render_gpu_status_card(read_gpu_status()),outputs=gpu_status_value,show_progress='hidden')
     return interface_blocks_value,initial_selection_script
-
-from pathlib import Path as ManagementStylePath
-MANAGEMENT_DENSITY_STYLES=(ManagementStylePath(__file__).parents[1]/'shared/management-density.css').read_text()
 
 if __name__=='__main__':
     argument_parser_value=argparse.ArgumentParser()
@@ -223,8 +194,5 @@ if __name__=='__main__':
         while os.getppid()==parsed_argument_values.owner_pid:time.sleep(1)
         os._exit(0)
     threading.Thread(target=monitor_parent_process,daemon=True).start()
-    application_css_text=(Path(__file__).parents[1]/'shared/management.css').read_text()
-    application_css_text+='''.gradio-container{max-width:1560px!important;padding:16px!important}#management-shell{align-items:stretch;min-height:calc(100vh - 132px)}#management-sidebar{position:sticky;top:12px;height:calc(100vh - 30px);overflow:hidden;display:flex;flex-direction:column;padding:12px;background:#192230;border:1px solid #314055;border-radius:12px}#management-sidebar>div{min-height:0}#management-tool-count{margin-top:4px;margin-bottom:2px;color:#b9cae2}#management-tool-list{flex:1;min-height:180px;overflow-y:auto;padding:6px 2px;border-top:1px solid #314055;border-bottom:1px solid #314055}#management-tool-list .wrap{display:flex;flex-direction:column;gap:4px}#management-tool-list label{padding:7px 8px;border-radius:7px;line-height:1.35}#management-tool-list label:hover{background:#26374d}#management-tool-list label:has(input:checked){background:#315482}.management-page-frame{width:100%;height:calc(100vh - 220px);min-height:560px;border:1px solid #314055;border-radius:12px;background:#10151f}.menu-empty-state{min-height:320px;display:grid;place-items:center;border:1px dashed #40516a;border-radius:12px;color:#a7b5c8}@media(max-width:800px){#management-shell{min-height:0}#management-sidebar{position:static;height:auto;max-height:none;overflow:visible}#management-tool-list{max-height:300px;flex:none}.management-page-frame{height:70vh;min-height:460px}}'''
-    application_css_text+=(Path(__file__).parent/'management-layout.css').read_text()
     interface_blocks_value,initial_selection_script=build_management_menu_interface(load_manager_page_records(parsed_argument_values.source_file),parsed_argument_values.review_port)
-    interface_blocks_value.queue().launch(server_name='127.0.0.1',server_port=parsed_argument_values.port,root_path=parsed_argument_values.root_path,theme=gr.themes.Soft(),css=application_css_text+MANAGEMENT_DENSITY_STYLES,js=initial_selection_script,allowed_paths=[])
+    interface_blocks_value.queue().launch(server_name='127.0.0.1',server_port=parsed_argument_values.port,root_path=parsed_argument_values.root_path,allowed_paths=[])
