@@ -1,0 +1,247 @@
+generator: built-in-imagegen
+status: completed
+frames:
+- frame: 1
+  source_frame: 4
+  prompt: Preserve IMAGE 1’s character identity, face size, head-to-body ratio, torso
+    width, limb lengths and circumferences, hair, outfit and rendering. Repose this
+    same body using only IMAGE 2’s joint angles, limb overlap, foot placement, toe
+    directions and ground contact. Keep IMAGE 1’s physique throughout the pose change.
+    Front-left full-body walking frame, eye-level view, single frame. Transparent
+    background. Screen-right leg supports the body. The other knee bends back; its
+    raised boot is mostly hidden behind the supporting calf. Preserve this overlap
+    and the visible rear boot edge.
+  word_count: 85
+  sha256: 11e457b2b5b87dd988954f0c2c05ecd3b8fa6ff4687c13aaea14e68615c70a53
+  directory: frame-01
+  size:
+  - 1024
+  - 1536
+  mode: RGBA
+  output_sha256: cb50c19ddf4f29df9efd34a513261d85f960c4559e22c07f4a0d61a425e964a9
+  status: completed
+- frame: 2
+  source_frame: 6
+  prompt: Preserve IMAGE 1’s character identity, face size, head-to-body ratio, torso
+    width, limb lengths and circumferences, hair, outfit and rendering. Repose this
+    same body using only IMAGE 2’s joint angles, limb overlap, foot placement, toe
+    directions and ground contact. Keep IMAGE 1’s physique throughout the pose change.
+    Front-left full-body walking frame, eye-level view, single frame. Transparent
+    background. Screen-right boot is lower. Screen-left knee bends inward, with its
+    raised boot visible just left of the supporting ankle. Keep the narrow foot spacing.
+  word_count: 80
+  sha256: ce26b0ca7a81537889af1fc1fe06231dae3d8dbcc6e639cc80db2d7a69971d0c
+  directory: frame-02
+  size:
+  - 1024
+  - 1536
+  mode: RGBA
+  output_sha256: b02762122a25ca94479db68df3a8bd70bfc8b93fddd3c5dcfc4923df4f5f053c
+  status: completed
+- frame: 3
+  source_frame: 8
+  prompt: Preserve IMAGE 1’s character identity, face size, head-to-body ratio, torso
+    width, limb lengths and circumferences, hair, outfit and rendering. Repose this
+    same body using only IMAGE 2’s joint angles, limb overlap, foot placement, toe
+    directions and ground contact. Keep IMAGE 1’s physique throughout the pose change.
+    Front-left full-body walking frame, eye-level view, single frame. Transparent
+    background. Keep both feet close beneath the pelvis, matching IMAGE 2’s narrow
+    spacing. Screen-left boot slightly higher; screen-right boot lower. Preserve its
+    asymmetric knee bends, ankle angles and toe directions. Both boots visible, legs
+    uncrossed.
+  word_count: 90
+  sha256: fc6cd54ffc0e301b9e6f4450061e13feb5d3e0808b735b57fb6e2737e20676c3
+  directory: frame-03
+  size:
+  - 1024
+  - 1536
+  mode: RGBA
+  output_sha256: 7eb3ae936607f7fcbe0560f79bfd72d90c8a9b6122e34659ec4dca24be08d9c8
+  status: completed
+  source_run: .tmp/test/walk-frame-three-retry/2026-10-07_00-01-55
+  review: 이전보다 양발 좌우 간격 감소. 화면 왼쪽 발이 높고 오른쪽 발이 낮음. 원본과 관절 각도 완전 일치 미검증. 갈색 배경 유지.
+- frame: 4
+  source_frame: 10
+  prompt: Preserve IMAGE 1’s character identity, face size, head-to-body ratio, torso
+    width, limb lengths and circumferences, hair, outfit and rendering. Repose this
+    same body using only IMAGE 2’s joint angles, limb overlap, foot placement, toe
+    directions and ground contact. Keep IMAGE 1’s physique throughout the pose change.
+    Front-left full-body walking frame, eye-level view, single frame. Transparent
+    background. Screen-left leg extends toward the lower-left boot. Screen-right knee
+    bends slightly with its boot higher and farther right. Keep both boots visible
+    and separated.
+  word_count: 80
+  sha256: 656c6a5bfdf5e4bc6c010dfe7c7f0e2391b8c80ab7553163f67ff5a313f39ece
+  directory: frame-04
+  size:
+  - 1024
+  - 1536
+  mode: RGBA
+  output_sha256: 59b98c3f57c12adfe3d29aaca630465867f19d190f4e0f6f1c8ff2eff9f928fb
+  status: completed
+- frame: 5
+  source_frame: 12
+  prompt: Preserve IMAGE 1’s character identity, face size, head-to-body ratio, torso
+    width, limb lengths and circumferences, hair, outfit and rendering. Repose this
+    same body using only IMAGE 2’s joint angles, limb overlap, foot placement, toe
+    directions and ground contact. Keep IMAGE 1’s physique throughout the pose change.
+    Front-left full-body walking frame, eye-level view, single frame. Transparent
+    background. Screen-left leg reaches forward to the lower-left boot. Screen-right
+    leg trails diagonally backward, its boot higher and farther right. Preserve the
+    wide stance and toe directions.
+  word_count: 82
+  sha256: 56fd625ef05edb7685a83a0f57096c2f1b509b31ee926c5eec193dc742e7230e
+  directory: frame-05
+  size:
+  - 1024
+  - 1536
+  mode: RGBA
+  output_sha256: 8b10e0a33038c07fabe9f981b25b9fe34a0427bd828fe594cacbed5a85175b7c
+  status: completed
+- frame: 6
+  source_frame: 14
+  prompt: 'Preserve IMAGE 1’s character identity, face size, head-to-body ratio, torso
+    width, limb lengths and circumferences, hair, outfit and rendering. Repose this
+    same body using only IMAGE 2’s joint angles, limb overlap, foot placement, toe
+    directions and ground contact. Keep IMAGE 1’s physique throughout the pose change.
+    Front-left full-body walking frame, eye-level view, single frame. Transparent
+    background. Follow only IMAGE 2’s central figure: preserve its pelvis orientation,
+    both visible shorts hems, and screen-right hand in front of the thigh. Screen-left
+    foot forward and lower; screen-right foot behind and higher. Match leg overlap
+    and boot directions.'
+  word_count: 94
+  sha256: 7e955ee0880aecc4eb97ec81e1ddd4a1b3916c30ad8cdfa10cc10ec4dbeb9d96
+  directory: frame-06
+  size:
+  - 1024
+  - 1536
+  mode: RGBA
+  output_sha256: b9ebfbc095230131c84f8f8bfacd7eaa0958ddd41b15b9d1759e3e8b3b73ed39
+  status: completed
+  source_run: .tmp/test/walk-frame-six-retry/2026-10-06_23-59-59
+  review: 양쪽 바짓단 노출과 화면 오른쪽 손의 허벅지 앞 배치 개선. 원본과 포즈 완전 일치 미검증. 갈색 배경 유지.
+- frame: 7
+  source_frame: 16
+  prompt: Preserve IMAGE 1’s character identity, face size, head-to-body ratio, torso
+    width, limb lengths and circumferences, hair, outfit and rendering. Repose this
+    same body using only IMAGE 2’s joint angles, limb overlap, foot placement, toe
+    directions and ground contact. Keep IMAGE 1’s physique throughout the pose change.
+    Front-left full-body walking frame, eye-level view, single frame. Transparent
+    background. Screen-left leg supports the body. Screen-right knee bends backward
+    with the raised boot close behind the body. Match IMAGE 2’s knee angle, ankle
+    position and narrow lateral foot spacing; keep the toe pointing downward.
+  word_count: 90
+  sha256: 17a014abb2c8cde9f35e94387846579abbc73c1b95078c68e0d428e5a15dc78f
+  directory: frame-07
+  size:
+  - 1024
+  - 1536
+  mode: RGBA
+  output_sha256: 4e05a7c5dd1291875752ef58b6588f746bf9d6b729825000d6d5b8e3398a4c47
+  status: completed
+  source_run: .tmp/test/walk-frame-seven-retry/2026-10-06_23-56-53
+  review: 이전보다 발의 바깥쪽 벌어짐은 줄었으나 원본과 무릎 각도·발 위치 차이가 남음. 갈색 배경 유지.
+- frame: 8
+  source_frame: 18
+  prompt: Preserve IMAGE 1’s character identity, face size, head-to-body ratio, torso
+    width, limb lengths and circumferences, hair, outfit and rendering. Repose this
+    same body using only IMAGE 2’s joint angles, limb overlap, foot placement, toe
+    directions and ground contact. Keep IMAGE 1’s physique throughout the pose change.
+    Front-left full-body walking frame, eye-level view, single frame. Transparent
+    background. Screen-left leg supports the body. Screen-right knee bends back, with
+    its raised boot closer to the supporting leg than the preceding pose. Match IMAGE
+    2 directly.
+  word_count: 82
+  sha256: b5834db8d0173ef029d685a8853bdeaa93ebe09b9cab574a7b099fea9ba84ef8
+  directory: frame-08
+  size:
+  - 1024
+  - 1536
+  mode: RGBA
+  output_sha256: 8cc18bdf270a2dd8c8f2ee502d39ff826b8e01cb7b948c3ca92047439ac71833
+  status: completed
+- frame: 9
+  source_frame: 20
+  prompt: Preserve IMAGE 1’s character identity, face size, head-to-body ratio, torso
+    width, limb lengths and circumferences, hair, outfit and rendering. Repose this
+    same body using only IMAGE 2’s joint angles, limb overlap, foot placement, toe
+    directions and ground contact. Keep IMAGE 1’s physique throughout the pose change.
+    Front-left full-body walking frame, eye-level view, single frame. Transparent
+    background. Both boots sit close together beneath the body. Screen-left boot is
+    slightly higher and farther left; screen-right boot is lower. Preserve softly
+    bent knees and visible separate boots.
+  word_count: 84
+  sha256: 16e1c35d5097b3b4ba477f2515bf0bbc48ec1603d7c6e74d89bac42c0902290c
+  directory: frame-09
+  size:
+  - 1024
+  - 1536
+  mode: RGBA
+  output_sha256: eb9b326497def788620c11aa01c626205e04b9ef0c2100208b8adb437a064614
+  status: completed
+- frame: 10
+  source_frame: 22
+  prompt: Preserve IMAGE 1’s character identity, face size, head-to-body ratio, torso
+    width, limb lengths and circumferences, hair, outfit and rendering. Repose this
+    same body using only IMAGE 2’s joint angles, limb overlap, foot placement, toe
+    directions and ground contact. Keep IMAGE 1’s physique throughout the pose change.
+    Front-left full-body walking frame, eye-level view, single frame. Transparent
+    background. The legs overlap in a narrow stride. Screen-right leg reaches forward
+    to the lower boot; the other boot is partially hidden behind and slightly left.
+    Match the ankle overlap.
+  word_count: 85
+  sha256: 4276382d13e9abe7e9c2edeebfecf206a51cbbaafe74e621b45c78c25583706d
+  directory: frame-10
+  size:
+  - 1024
+  - 1536
+  mode: RGBA
+  output_sha256: 2506ef9b034a4e95b28e03e170c1eac80f2a4de2a87c93e47a58ffd2b1d1289a
+  status: completed
+- frame: 11
+  source_frame: 24
+  prompt: Preserve IMAGE 1’s character identity, face size, head-to-body ratio, torso
+    width, limb lengths and circumferences, hair, outfit and rendering. Repose this
+    same body using only IMAGE 2’s joint angles, limb overlap, foot placement, toe
+    directions and ground contact. Keep IMAGE 1’s physique throughout the pose change.
+    Front-left full-body walking frame, eye-level view, single frame. Transparent
+    background. The forward leg descends to the lower boot. The other knee bends back,
+    its raised boot peeking behind the forward calf on screen-right. Preserve the
+    crossed silhouette.
+  word_count: 83
+  sha256: 2e175aaaa8043446ed0e96c75d226824f62e46a3af16b0baac7a2eb4843df967
+  directory: frame-11
+  size:
+  - 1024
+  - 1536
+  mode: RGBA
+  output_sha256: 243b6e09f0fe4e5a3d53dd1b63fd77228288d879903a7b4254076e3f133ae97d
+  status: completed
+- frame: 12
+  source_frame: 26
+  prompt: Preserve IMAGE 1’s character identity, face size, head-to-body ratio, torso
+    width, limb lengths and circumferences, hair, outfit and rendering. Repose this
+    same body using only IMAGE 2’s joint angles, limb overlap, foot placement, toe
+    directions and ground contact. Keep IMAGE 1’s physique throughout the pose change.
+    Front-left full-body walking frame, eye-level view, single frame. Transparent
+    background. The forward leg supports the body on the lower boot. The other knee
+    folds backward, its raised boot partly visible behind the calf on screen-right.
+    Match IMAGE 2’s exact overlap.
+  word_count: 86
+  sha256: 530d6b5a914b10059144388d6207f4ed9c2feb8131340392ae94adad42e928e3
+  directory: frame-12
+  size:
+  - 1024
+  - 1536
+  mode: RGBA
+  output_sha256: 4b1d2191c2e2d51b17d824731f5aee65ce9f6a9f3a1405747200eb8bdac07f2e
+  status: completed
+quality_warnings:
+- 갈색 배경이 남음
+- 7번 뒤로 접힌 발이 원본보다 바깥쪽으로 벌어짐
+- 프레임 간 체격·앵커·연속성 최종 검수 전
+source_run: .tmp/test/walk-identity-twelve-frames/2026-10-06_23-40-29
+report_version: v4
+frame_07_status: 수정 보조 프롬프트 재생성 결과 적용. 이전 결과는 history/frame-07-v1에 보존.
+frame_06_status: 수정 보조 프롬프트 재생성 결과 적용. 이전 결과는 history/frame-06-v1에 보존.
+frame_03_status: 수정 보조 프롬프트 재생성 결과 적용. 이전 결과는 history/frame-03-v1에 보존.

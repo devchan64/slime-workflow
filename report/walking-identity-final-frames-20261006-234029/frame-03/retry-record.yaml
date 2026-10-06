@@ -1,0 +1,7 @@
+frame: 3
+generator: built-in-imagegen
+prompt_sha256: fc6cd54ffc0e301b9e6f4450061e13feb5d3e0808b735b57fb6e2737e20676c3
+review: 이전보다 양발 좌우 간격 감소. 화면 왼쪽 발이 높고 오른쪽 발이 낮음. 원본과 관절 각도 완전 일치 미검증. 갈색 배경 유지.
+source_frame: 8
+status: completed
+word_count: 90

@@ -1,0 +1,7 @@
+frame: 7
+generator: built-in-imagegen
+prompt_sha256: 17a014abb2c8cde9f35e94387846579abbc73c1b95078c68e0d428e5a15dc78f
+review: 이전보다 발의 바깥쪽 벌어짐은 줄었으나 원본과 무릎 각도·발 위치 차이가 남음. 갈색 배경 유지.
+source_frame: 16
+status: completed
+word_count: 90

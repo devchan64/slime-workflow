@@ -37,3 +37,5 @@
 기본 캐릭터의 [가벼운 보호구 대기 8프레임](character-animation-20261005-162812-8e29beaf/idle-light-armor-v1/README.md)을 추가했습니다. 512×512·4fps·2초 반복이며, 생성 원본·프롬프트·베이스라인 비교를 포함합니다.
 
 기본 캐릭터의 [가벼운 보호구 휴식 시작·종료 각 8프레임](character-animation-20261005-162812-8e29beaf/rest-light-armor-v1/README.md)을 등록했습니다. 512×512·4fps, 연결 GIF와 베이스라인 비교를 포함합니다.
+
+- [가벼운 보호구 걷기 최종 12프레임](walking-identity-final-frames-20261006-234029/README.md): 아이덴티티·포즈 참조, 개별 생성 결과와 프롬프트·해시 보존. 3·6·7번 수정 프롬프트 재생성 결과 적용, 이전 결과 이력 보존.
