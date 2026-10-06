@@ -2,11 +2,19 @@
 import argparse
 import json
 import os
+import sys
 import threading
 import time
 from pathlib import Path
 
 import gradio as gr
+WORKFLOW_ROOT_DIRECTORY=Path(__file__).resolve().parents[4]
+if str(WORKFLOW_ROOT_DIRECTORY) not in sys.path:
+    sys.path.insert(0,str(WORKFLOW_ROOT_DIRECTORY))
+from tools.review.common.gradio_frame_navigator import build_frame_navigator
+from tools.review.common.gradio_joypad import build_transform_joypad
+from tools.review.common.gradio_browser_controls import build_browser_action_button
+from tools.review.common.gradio_browser_history import build_browser_history_controls
 
 
 STATIC_REVIEW_FRAME_HEIGHT=1000
@@ -42,9 +50,15 @@ const staticReviewPageLocation=new URL(selectedReviewPath,reviewServerBase);
 staticReviewPageLocation.searchParams.set('embedded','gradio-static');
 const staticReviewPageUrl=staticReviewPageLocation.href;
 // 게임 디자인 및 지형 검수의 스타일·모듈·중첩 프리뷰 상대 경로를 원래 문서에 격리한다.
-if(selectedReviewPath.startsWith('ui-')){{
+{{
   const currentReviewFrame=document.createElement('iframe');
-  currentReviewFrame.title='게임 디자인 검수';
+  const currentAnchorReview=selectedReviewPath.split('?')[0].endsWith('/anchors.html');
+  currentReviewFrame.title=currentAnchorReview?'등록 애니메이션 앵커 검수':'게임 디자인 검수';
+  if(currentAnchorReview){{
+    for(const currentHandlerName of ['anchorReviewSelection','anchorReviewCoordinates','anchorReviewDisplay','anchorReviewOutputSettings','anchorReviewDownloadSettings','anchorReviewActions','anchorReviewCoordinateCommands','anchorReviewHistory','anchorReviewSaveCoordinates'])window[currentHandlerName]=(...currentArgumentValues)=>{{const currentHandlerFunction=currentReviewFrame.contentWindow[currentHandlerName];if(typeof currentHandlerFunction!=='function')throw Error('애니메이션을 준비 중입니다.');return currentHandlerFunction(...currentArgumentValues);}};
+    window.anchorReviewPlayback=currentActionName=>{{const currentPlaybackHandler=currentReviewFrame.contentWindow.anchorReviewPlayback;if(typeof currentPlaybackHandler!=='function')throw Error('애니메이션을 준비 중입니다. 잠시 후 다시 시도하세요.');return currentPlaybackHandler(currentActionName);}};
+    window.anchorReviewSeekFrame=currentFrameNumber=>{{const currentSeekHandler=currentReviewFrame.contentWindow.anchorReviewSeekFrame;if(typeof currentSeekHandler!=='function')throw Error('애니메이션을 준비 중입니다. 잠시 후 다시 시도하세요.');return currentSeekHandler(currentFrameNumber);}};
+  }}
   currentReviewFrame.width='100%';currentReviewFrame.height='{STATIC_REVIEW_FRAME_HEIGHT}';currentReviewFrame.setAttribute('frameborder','0');
   const currentTerrainReview=selectedReviewPath.split('?')[0].endsWith('terrain-layout-manager.html');
   const currentPreviewLocation=currentTerrainReview?new URL('terrain-preview.html',staticReviewPageUrl):new URL(staticReviewPageUrl);
@@ -75,37 +89,7 @@ if(selectedReviewPath.startsWith('ui-')){{
   staticReviewRoot.replaceChildren(currentReviewFrame);
   return;
 }}
-const staticReviewAssetUrl=new URL('.',staticReviewPageUrl).href;
-window.resolveStaticReviewAssetUrl=assetPathValue=>typeof assetPathValue==='string'&&!/^(?:[a-z]+:|[/])/i.test(assetPathValue)?new URL(assetPathValue,staticReviewAssetUrl).href:assetPathValue;
-const originalFetchRequest=window.fetch.bind(window);
-window.fetch=(requestValue,...requestOptionValues)=>{{
-  if(typeof requestValue==='string'&&!/^(?:[a-z]+:|[/])/i.test(requestValue))return originalFetchRequest(new URL(requestValue,staticReviewAssetUrl),...requestOptionValues);
-  return originalFetchRequest(requestValue,...requestOptionValues);
-}};
-try{{
-  const staticReviewResponse=await originalFetchRequest(staticReviewPageUrl,{{cache:'no-store'}});
-  if(!staticReviewResponse.ok)throw new Error('정적 검수 화면을 불러오지 못했습니다.');
-  const staticReviewDocument=new DOMParser().parseFromString(await staticReviewResponse.text(),'text/html');
-  for(const sourceStyleElement of staticReviewDocument.querySelectorAll('style')){{
-    const nextStyleElement=document.createElement('style');nextStyleElement.dataset.staticReviewComponent='true';nextStyleElement.textContent=sourceStyleElement.textContent;document.head.append(nextStyleElement);
-  }}
-  for(const sourceLinkElement of staticReviewDocument.querySelectorAll('link[rel="stylesheet"]')){{
-    const nextLinkElement=document.createElement('link');nextLinkElement.rel='stylesheet';nextLinkElement.href=new URL(sourceLinkElement.getAttribute('href'),staticReviewPageUrl).href;nextLinkElement.dataset.staticReviewComponent='true';document.head.append(nextLinkElement);
-  }}
-  for(const sourcePreloadElement of staticReviewDocument.querySelectorAll('link[rel="modulepreload"]')){{
-    const nextPreloadElement=document.createElement('link');nextPreloadElement.rel='modulepreload';nextPreloadElement.href=new URL(sourcePreloadElement.getAttribute('href'),staticReviewPageUrl).href;nextPreloadElement.crossOrigin='anonymous';nextPreloadElement.dataset.staticReviewComponent='true';document.head.append(nextPreloadElement);
-  }}
-  const staticReviewMarkup=[...staticReviewDocument.body.children].filter(currentElementValue=>currentElementValue.tagName!=='SCRIPT').map(currentElementValue=>currentElementValue.outerHTML).join('');
-  staticReviewRoot.innerHTML=staticReviewMarkup;
-  for(const sourceScriptElement of staticReviewDocument.querySelectorAll('script')){{
-    if(sourceScriptElement.type==='module'&&sourceScriptElement.src){{await import(new URL(sourceScriptElement.getAttribute('src'),staticReviewPageUrl).href);continue;}}
-    const nextScriptElement=document.createElement('script');nextScriptElement.dataset.staticReviewComponent='true';
-    if(sourceScriptElement.type)nextScriptElement.type=sourceScriptElement.type;
-    if(sourceScriptElement.src){{nextScriptElement.src=new URL(sourceScriptElement.getAttribute('src'),staticReviewPageUrl).href;await new Promise((resolveValue,rejectValue)=>{{nextScriptElement.onload=resolveValue;nextScriptElement.onerror=()=>rejectValue(new Error('정적 검수 스크립트를 불러오지 못했습니다.'));document.body.append(nextScriptElement);}});}}
-    else{{nextScriptElement.textContent=sourceScriptElement.textContent;document.body.append(nextScriptElement);}}
-  }}
-  staticReviewRoot.setAttribute('aria-busy','false');
-}}catch(currentErrorValue){{staticReviewRoot.setAttribute('aria-busy','false');staticReviewRoot.innerHTML='<p class="static-review-error" role="alert">'+currentErrorValue.message+'</p>';}}
+
 }}"""
 
 
@@ -126,6 +110,63 @@ def build_static_review_interface(static_review_paths):
         current_terrain_timer.tick(fn=None,inputs=current_terrain_status,outputs=current_terrain_status,queue=False,show_progress='hidden',js="async(currentDisplayedStatus)=>{if(typeof window.terrainReviewControls!=='function')return {__type__:'update'};try{const currentStatusText=await window.terrainReviewControls('status');return currentStatusText===currentDisplayedStatus?{__type__:'update'}:currentStatusText;}catch(currentErrorValue){return currentErrorValue.message===currentDisplayedStatus?{__type__:'update'}:currentErrorValue.message;}}")
         current_terrain_paths=json.dumps(static_review_paths,ensure_ascii=False)
         interface_blocks_value.load(fn=None,outputs=current_terrain_controls,queue=False,js="()=>{const currentReviewPaths="+current_terrain_paths+";const currentReviewId=new URLSearchParams(location.search).get('review');return {__type__:'update',visible:(currentReviewPaths[currentReviewId]||'').split('?')[0].endsWith('terrain-layout-manager.html')};}")
+        with gr.Column(visible=False) as current_anchor_controls:
+            current_anchor_feedback=gr.Textbox(label='프레임 탐색 상태',value='애니메이션을 준비 중입니다.',interactive=False)
+            with gr.Row():
+                current_animation_action=gr.Dropdown(label='애니메이션 동작',choices=[],interactive=True)
+                current_animation_read=gr.Button('동작 목록 읽기')
+                current_animation_apply=gr.Button('선택 동작 불러오기')
+            current_animation_read.click(fn=None,outputs=[current_animation_action,current_anchor_feedback],queue=False,js="()=>{try{return window.anchorReviewActions(null);}catch(currentErrorValue){return [{__type__:'update'},currentErrorValue.message];}}")
+            current_animation_apply.click(fn=None,inputs=current_animation_action,outputs=[current_animation_action,current_anchor_feedback],queue=False,js="currentActionIdentifier=>{try{if(!currentActionIdentifier)throw Error('동작 목록을 읽고 동작을 선택하세요.');return window.anchorReviewActions(currentActionIdentifier);}catch(currentErrorValue){return [{__type__:'update'},currentErrorValue.message];}}")
+            build_frame_navigator('anchorReviewPlayback','anchorReviewSeekFrame',current_anchor_feedback)
+            with gr.Row():
+                current_anchor_direction=gr.Dropdown(label='방향',choices=[],interactive=True)
+                current_anchor_point=gr.Dropdown(label='편집할 좌표',choices=[],interactive=True)
+            with gr.Row():
+                current_anchor_read=gr.Button('선택 목록 읽기')
+                current_anchor_apply=gr.Button('방향·좌표 선택 적용')
+            current_anchor_outputs=[current_anchor_direction,current_anchor_point,current_anchor_feedback]
+            current_anchor_read.click(fn=None,outputs=current_anchor_outputs,queue=False,js="()=>{try{return window.anchorReviewSelection(null,null);}catch(currentErrorValue){return [{__type__:'update'},{__type__:'update'},currentErrorValue.message];}}")
+            current_anchor_apply.click(fn=None,inputs=[current_anchor_direction,current_anchor_point],outputs=current_anchor_outputs,queue=False,js="(currentDirectionName,currentPointName)=>{try{return window.anchorReviewSelection(currentDirectionName,currentPointName);}catch(currentErrorValue){return [{__type__:'update'},{__type__:'update'},currentErrorValue.message];}}")
+            build_transform_joypad('anchorReviewCoordinates',current_anchor_feedback,current_scale_enabled=False)
+            with gr.Row():
+                for current_command_name,current_command_label in [('undo','실행 취소'),('redo','다시 실행'),('previous','이전 프레임 앵커 가져오기'),('reset','현재 프레임 원본 복원'),('status','좌표 변경 상태 읽기')]:
+                    build_browser_action_button(current_command_label,'anchorReviewCoordinateCommands',current_command_name,current_anchor_feedback)
+
+            with gr.Accordion('미리보기 표시',open=False):
+                gr.Markdown('앵커는 타일 중심에 고정됩니다. 표시 설정은 좌표를 변경하지 않습니다.')
+                with gr.Row():
+                    current_display_fields=[gr.Checkbox(label=current_display_label,value=True) for current_display_label in ['가이드','리그 보기','가상 타일','그림자']]
+                with gr.Row():
+                    current_display_read=gr.Button('표시 설정 읽기')
+                    current_display_apply=gr.Button('표시 설정 적용')
+                current_display_outputs=[*current_display_fields,current_anchor_feedback]
+                current_display_read.click(fn=None,outputs=current_display_outputs,queue=False,js="()=>{try{return window.anchorReviewDisplay(null);}catch(currentErrorValue){return [...Array.from({length:4},()=>({__type__:'update'})),currentErrorValue.message];}}")
+                current_display_apply.click(fn=None,inputs=current_display_fields,outputs=current_display_outputs,queue=False,js="(...currentDisplayValues)=>{try{return window.anchorReviewDisplay(currentDisplayValues);}catch(currentErrorValue){return [...Array.from({length:4},()=>({__type__:'update'})),currentErrorValue.message];}}")
+
+
+            with gr.Accordion('게임 출력 크기',open=False):
+                current_output_scale=gr.Checkbox(label='게임 출력 비율',value=True)
+                with gr.Row():
+                    current_output_map=gr.Dropdown(label='맵 기준',choices=[('필드·전투','field'),('마을','town')],value='field')
+                    current_output_size=gr.Dropdown(label='크기 등급',choices=[('소형 · 50%','small'),('중형 · 100%','medium'),('대형 · 150%','large'),('초대형 · 200%','huge')],value='medium')
+                with gr.Row():
+                    current_output_height=gr.Number(label='출력 신체 높이 (px)',value=80,minimum=1,maximum=240,precision=0)
+                    current_output_width=gr.Number(label='검수 타일 너비 (px)',value=240,minimum=32,maximum=600,precision=0)
+                gr.Markdown('타일 높이는 너비의 1/2로 계산합니다. 현재 설정을 읽은 뒤 적용하세요.')
+                current_output_feedback=gr.Textbox(label='출력 크기 상태',interactive=False)
+                current_output_fields=[current_output_scale,current_output_map,current_output_size,current_output_height,current_output_width]
+                with gr.Row():
+                    current_output_read=gr.Button('출력 설정 읽기')
+                    current_output_apply=gr.Button('출력 설정 적용')
+                current_output_read.click(fn=None,outputs=[*current_output_fields,current_output_feedback],queue=False,js="()=>{try{return window.anchorReviewOutputSettings(null);}catch(currentErrorValue){return [...Array.from({length:5},()=>({__type__:'update'})),currentErrorValue.message];}}")
+                current_output_apply.click(fn=None,inputs=current_output_fields,outputs=[*current_output_fields,current_output_feedback],queue=False,js="(...currentOutputValues)=>{try{return window.anchorReviewOutputSettings(currentOutputValues);}catch(currentErrorValue){return [...Array.from({length:5},()=>({__type__:'update'})),currentErrorValue.message];}}")
+                build_browser_action_button('정규화 JSON 다운로드','anchorReviewDownloadSettings','download',current_output_feedback)
+
+            build_browser_action_button('좌표 저장','anchorReviewSaveCoordinates','save',current_anchor_feedback)
+            build_browser_history_controls('anchorReviewHistory','anchor-standard-history',current_supported_actions=('list','result','restore','reset'))
+
+        interface_blocks_value.load(fn=None,outputs=current_anchor_controls,queue=False,js="()=>{const currentReviewPaths="+current_terrain_paths+";const currentReviewId=new URLSearchParams(location.search).get('review');return {__type__:'update',visible:(currentReviewPaths[currentReviewId]||'').split('?')[0].endsWith('/anchors.html')};}")
         gr.HTML('<section id="static-review-root" aria-label="정적 검수" aria-live="polite" aria-busy="true"><p>검수 화면을 준비하고 있습니다…</p></section>')
     return interface_blocks_value
 
