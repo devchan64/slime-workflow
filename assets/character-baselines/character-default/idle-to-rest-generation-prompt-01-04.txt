@@ -1,0 +1,1 @@
+Preserve reference identity, face size, hair, body proportions and outfit; no widening. Four full-body frames, horizontal row, front-left view. Idle-to-rest 1–4: standing idle, slight knee bend, hips lowering, deep crouch with hands reaching toward ground. Consistent camera, character scale and ground level. Transparent background.
