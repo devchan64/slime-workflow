@@ -1,0 +1,41 @@
+schema_version: 1
+asset_id: character-default-light-armor-four-directions
+version: v2
+character_id: default
+status: registered
+purpose: 개별 생성한 가벼운 보호구 4방향 베이스라인
+generator: built-in image_gen
+image:
+  path: default-light-armor-four-directions.png
+  size:
+  - 2508
+  - 2508
+  sha256: 841db0ea9b655b1b985a78d09718d6ab028b555f6f4717152f5967c9a73100db
+layout:
+  rows: 2
+  columns: 2
+  cell_size:
+  - 1254
+  - 1254
+  directions:
+  - up_left
+  - up_right
+  - down_left
+  - down_right
+sources:
+- direction: up_left
+  source: .tmp/test/imagegen-individual-direction-outfit/2026-10-06_20-31-43/up_left-armor.png
+  sha256: 8a282897d0caf28065224e66eef72031ae7849835ec65e346ab0cd93a445daa3
+- direction: up_right
+  source: .tmp/test/imagegen-individual-direction-outfit/2026-10-06_20-31-43/up_right-armor.png
+  sha256: 390a11972b30d2a30fae4238ea80ae15f3c929b79354d92f596032d5a9afa9ca
+- direction: down_left
+  source: .tmp/test/imagegen-individual-direction-outfit/2026-10-06_20-31-43/down_left-armor.png
+  sha256: 8f679af2798c33c2b9d94534927cbc758c936e5612b61035930128c1bf4291cd
+- direction: down_right
+  source: .tmp/test/imagegen-individual-direction-outfit/2026-10-06_20-31-43/down_right-armor.png
+  sha256: de23dd1123d8dddb5b75c20c00b79ac778b7d319bf3156024a882c4f8db5d203
+notes: 사용자 지시로 베이스라인 등록. 개별 생성 원본의 크기·픽셀·알파를 유지해 결합.
+references:
+  anatomy: ../baseline-v2/character-default-white-shirt-four-directions-v2.png
+  outfit: ../light-armor-four-directions-v1/outfit-down-left-v1.png

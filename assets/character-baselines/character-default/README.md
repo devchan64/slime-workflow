@@ -53,3 +53,9 @@
 [시트](idle-light-armor-v1/idle-8frames.png) · [재생 GIF](idle-light-armor-v1/review.gif) · [가이드 비교](idle-light-armor-v1/baseline-guides-review.gif) · [등록 기록](idle-light-armor-v1/manifest.yaml)
 
 기본 캐릭터 리포트의 정면 좌측 대기 결과를 사용자 승인으로 등록했습니다. 512×512 8프레임, 4fps·2초 반복이며 원본 프레임·시트·GIF·프롬프트를 가공 없이 보존합니다. 제작 기준으로 채택한 것이며 스프라이트용 정규화는 미완료입니다. 상위 manifest의 animation_baselines에서 참조합니다.
+
+## 가벼운 보호구 4방향 베이스라인 v2
+
+[통합 시트](light-armor-four-directions-v2/default-light-armor-four-directions.png) · [등록 기록](light-armor-four-directions-v2/manifest.yaml)
+
+방향별로 개별 생성한 결과를 원본 크기와 투명도를 유지하여 결합했습니다. 위는 후면 좌측·후면 우측, 아래는 정면 좌측·정면 우측입니다. 상위 manifest의 `armor_baselines.light`에서 참조합니다.

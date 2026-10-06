@@ -30,6 +30,11 @@ separated_baseline:
   sha256: 65033fdc348e9b6ab7c6d4a3cf1cdbe9f1aed6b2403620407a0c5feb4c7ce38e
 
 armor_baselines:
+  light:
+    version: v2
+    manifest: light-armor-four-directions-v2/manifest.yaml
+    path: light-armor-four-directions-v2/default-light-armor-four-directions.png
+    sha256: 841db0ea9b655b1b985a78d09718d6ab028b555f6f4717152f5967c9a73100db
   medium:
     version: v7
     manifest: medium-armor-four-directions-v7/manifest.yaml
