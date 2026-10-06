@@ -69,6 +69,10 @@ def build_sprite_v2_interface():
             with gr.Row():
                 build_browser_action_button('파일 불러오기','spriteV2UploadControls','upload',current_feedback_text)
                 build_browser_action_button('클립보드 붙여넣기','spriteV2UploadControls','paste',current_feedback_text)
+            gr.Markdown('삭제는 현재 편집본에 적용됩니다. 실행 취소로 복원할 수 있으며, 수정본 저장 전까지 저장된 작업은 유지됩니다.')
+            with gr.Row():
+                build_browser_action_button('레퍼런스 이미지 삭제','spriteV2ImageDeleteControls','reference',current_feedback_text)
+                build_browser_action_button('선택 프레임 이미지 삭제','spriteV2FrameControls','remove',current_feedback_text)
         with gr.Accordion('비교 화면 표시',open=False):
             with gr.Row():
                 current_zoom_choice=gr.Dropdown(label='화면 확대',choices=[('맞춤','fit'),('100%','1'),('200%','2'),('400%','4')],value='fit')

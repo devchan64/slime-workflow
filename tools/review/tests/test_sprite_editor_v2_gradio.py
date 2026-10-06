@@ -4,6 +4,13 @@ from tools.review.ui.gradio.sprite_editor_v2_app import build_sprite_v2_interfac
 
 
 class SpriteV2GradioTests(unittest.TestCase):
+    def test_reference_delete_uses_browser_command(self):
+        current_interface_config=build_sprite_v2_interface().get_config_file()
+        current_delete_events=[current_event_record for current_event_record in current_interface_config['dependencies'] if 'spriteV2ImageDeleteControls' in (current_event_record.get('js') or '')]
+        self.assertEqual(len(current_delete_events),1)
+        self.assertFalse(current_delete_events[0]['backend_fn'])
+        self.assertFalse(current_delete_events[0]['queue'])
+
     def test_project_controls_are_native_and_canvas_is_preserved(self):
         current_interface_config=build_sprite_v2_interface().get_config_file()
         current_html_markup=''.join(current_component_record['props'].get('value','') for current_component_record in current_interface_config['components'] if current_component_record['type']=='html')

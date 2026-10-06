@@ -387,6 +387,9 @@ def run_review_server(parsed_argument_values):
         def reject_retired_generator(self):
             current_request_parts = urlsplit(self.path)
             current_tool_values = parse_qs(current_request_parts.query).get('tool', [])
+            if 'sprite-editor' in current_tool_values or current_request_parts.path.rstrip('/') in ('/character-animation/sprite-editor', '/management/frame/sprite-editor'):
+                self.send_error(410, 'This editor has been retired. Use sprite-editor-v2.')
+                return True
             if any(value in ('image-generator', 'three-reference-generator', 'floor-tile-generator', 'seamless-tile-generator') for value in current_tool_values) or current_request_parts.path.startswith(('/management/frame/image-generator/', '/management/frame/three-reference-generator/', '/management/frame/floor-tile-generator/', '/management/frame/seamless-tile-generator/')) or current_request_parts.path in ('/image-generation/', '/image-generation-2511/', '/floor-tile-generator/', '/seamless-tile-generator/'):
                 self.send_error(410, 'This generator has been retired. Use Qwen 2.1.')
                 return True

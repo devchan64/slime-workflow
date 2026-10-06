@@ -122,6 +122,16 @@ window.spriteV2EditControls=async(currentActionName)=>{
  await runEditorAction(currentEditorActions.get(currentActionName),true);
  return '편집 반영됨 · 저장하려면 수정본 저장을 사용하세요. 실행 취소로 이전 상태를 복원할 수 있습니다.';
 };
+window.spriteV2ImageDeleteControls=async(currentImageTarget)=>{
+ if(currentImageTarget!=='reference')throw Error('지원하지 않는 이미지 삭제 대상입니다.');
+ if(currentBusyState)throw Error('등록·저장 처리가 끝난 뒤 사용할 수 있습니다.');
+ if(!currentProjectDocument?.reference)throw Error('삭제할 레퍼런스 이미지가 없습니다.');
+ retainUndoSnapshot();
+ currentProjectDocument.reference=null;
+ currentGuideIndex=0;
+ refreshEditorScreen();
+ return '레퍼런스 이미지를 삭제했습니다. 실행 취소로 복원하거나 수정본 저장으로 반영하세요.';
+};
 // 프레임 편집 명령도 레거시 화면과 같은 콜백·실행 취소 스택을 사용한다.
 window.spriteV2FrameControls=async(currentActionName)=>{
  if(!['earlier','later','duplicate','remove','undo'].includes(currentActionName))throw Error('지원하지 않는 프레임 편집 명령입니다.');
