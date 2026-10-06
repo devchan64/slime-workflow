@@ -8,18 +8,18 @@ JOY_PAD_POSITION_STEP = 1
 JOY_PAD_SCALE_STEP = 0.01
 
 
-def build_transform_joypad(current_handler_name, current_feedback_output):
+def build_transform_joypad(current_handler_name, current_feedback_output, current_scale_enabled=True):
     """명령 처리기는 action, payload를 받아 x/y/scale/message를 반환한다."""
     if not re.fullmatch(r'[A-Za-z_$][A-Za-z0-9_$]*', current_handler_name):
         raise ValueError('조이패드 명령 함수 이름 형식 오류')
     with gr.Group():
-        gr.Markdown('#### 위치·배율 조이패드\n현재 값 읽기로 선택 대상을 확인하세요. 방향 버튼은 현재 위치에서 이동하고, 수치 적용은 해당 항목만 변경합니다. 여러 대상은 첫 대상의 값을 표시하며, 배율은 이미지 배율입니다.')
+        gr.Markdown('#### 위치·배율 조이패드\n현재 값 읽기로 선택 대상을 확인하세요. 방향 버튼은 현재 위치에서 이동하고, 수치 적용은 해당 항목만 변경합니다. 여러 대상은 첫 대상의 값을 표시하며, 배율은 이미지 배율입니다.' if current_scale_enabled else '#### 위치 조이패드\n현재 값 읽기로 선택 좌표를 확인하세요. 방향 버튼은 1px씩 이동하며 수치 적용은 해당 축만 변경합니다.')
         current_position_step=gr.Number(value=JOY_PAD_POSITION_STEP,visible=False)
         current_scale_step=gr.Number(value=JOY_PAD_SCALE_STEP,visible=False)
         with gr.Row():
             current_position_x=gr.Number(label='X 위치',value=0)
             current_position_y=gr.Number(label='Y 위치',value=0)
-            current_scale_value=gr.Number(label='배율',value=1,minimum=0.01,maximum=8)
+            current_scale_value=gr.Number(label='배율',value=1,minimum=0.01,maximum=8,visible=current_scale_enabled)
         current_input_fields=[current_position_x,current_position_y,current_scale_value,current_position_step,current_scale_step]
         current_output_fields=[current_position_x,current_position_y,current_scale_value,current_feedback_output]
 
@@ -38,16 +38,17 @@ try{
         with gr.Row():
             bind_joypad_button('set-x','X 적용')
             bind_joypad_button('set-y','Y 적용')
-            bind_joypad_button('set-scale','배율 적용')
+            if current_scale_enabled:bind_joypad_button('set-scale','배율 적용')
         for current_button_row in ((None,('up','↑ 위로'),None),(('left','← 왼쪽'),('read','현재 값 읽기'),('right','오른쪽 →')),(None,('down','↓ 아래로'),None)):
             with gr.Row():
                 for current_button_record in current_button_row:
                     with gr.Column(min_width=0):
                         if current_button_record:
                             bind_joypad_button(*current_button_record)
-        with gr.Row():
-            bind_joypad_button('scale-down','배율 줄이기 −')
-            bind_joypad_button('scale-up','배율 늘리기 +')
+        if current_scale_enabled:
+            with gr.Row():
+                bind_joypad_button('scale-down','배율 줄이기 −')
+                bind_joypad_button('scale-up','배율 늘리기 +')
     return current_input_fields
 
 
