@@ -14,6 +14,7 @@ import yaml
 
 WORKFLOW_ROOT_DIRECTORY = Path(__file__).resolve().parents[4]
 sys.path.insert(0, str(WORKFLOW_ROOT_DIRECTORY))
+from tools.review.common.browser_frame_player import apply_browser_player_layout
 from tools.review.common.gradio_history import build_generation_history_view
 from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_confirmation
 from tools.review.common.management_client import execute_remote_management_command as execute_management_command
@@ -87,6 +88,7 @@ def restore_motion_history_record(current_history_record):
 def create_motion_player(generation_job_identifier, generation_result_record, server_base_address):
     player_payload_value={'id':generation_job_identifier,'result':generation_result_record,'base':server_base_address}
     player_source_text=(Path(__file__).parent/'motion-player.html').read_text().replace('__PLAYER_PAYLOAD__',json.dumps(player_payload_value).replace('<','\\u003c'))
+    player_source_text=apply_browser_player_layout(player_source_text)
     return '<iframe title="모션 동기 재생" style="width:100%;height:460px;border:0" sandbox="allow-scripts" srcdoc="'+html.escape(player_source_text,quote=True)+'"></iframe>'
 
 def render_motion_history_result(generation_job_identifier,generation_status_record,server_base_address):
