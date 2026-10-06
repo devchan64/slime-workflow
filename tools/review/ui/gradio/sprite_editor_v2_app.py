@@ -70,7 +70,7 @@ def build_sprite_v2_interface():
             if not current_selected_identifier:raise gr.Error('삭제할 작업을 선택하세요.')
             return gr.update(visible=True),current_selected_identifier,current_selected_identifier
         current_delete_outputs=[current_delete_panel,current_delete_target,current_delete_display]
-        current_delete_button.click(open_project_delete,current_project_choice,current_delete_outputs,queue=False)
+        current_delete_button.click(open_project_delete,current_project_choice,current_delete_outputs,preprocess=False,queue=False)
         current_cancel_button.click(close_project_delete,outputs=current_delete_outputs,queue=False)
         current_project_choice.change(close_project_delete,outputs=current_delete_outputs,queue=False)
         current_feedback_text=gr.Textbox(label='작업 안내',value='목록을 새로고침하여 저장된 작업을 선택하거나 새 작업을 만드세요.',interactive=False)
