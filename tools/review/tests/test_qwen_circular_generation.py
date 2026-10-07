@@ -18,10 +18,11 @@ class CircularGenerationTests(unittest.TestCase):
         self.assertEqual(current_service_manager.job_storage_root.name, 'qwen-image-21-circular')
 
     def test_current_circular_configuration_limits_parallel_edge_mixing(self):
-        from generators.image.qwen_21_circular import CIRCULAR_BOUNDARY_TANGENT_RADIUS, build_circular_configuration
+        from generators.image.qwen_21_circular import CIRCULAR_BOUNDARY_TANGENT_RADIUS, CIRCULAR_PERIODIC_STRIP_DEPTH, build_circular_configuration
         current_configuration = build_circular_configuration(12, False, False)
         self.assertEqual(CIRCULAR_BOUNDARY_TANGENT_RADIUS, 12)
         self.assertEqual(current_configuration['boundary_tangent_radius'], CIRCULAR_BOUNDARY_TANGENT_RADIUS)
+        self.assertEqual(current_configuration['boundary_strip_depth'], CIRCULAR_PERIODIC_STRIP_DEPTH)
 
     def test_reference_configuration_and_limits(self):
         import base64
@@ -36,7 +37,7 @@ class CircularGenerationTests(unittest.TestCase):
         for reference_image_count in (1, 10):
             validated_request_record = current_service_manager.validate_generation_request({**current_request_record, 'images': [encoded_reference_image] * reference_image_count})
             self.assertEqual(len(validated_request_record['images']), reference_image_count)
-            self.assertEqual(validated_request_record['circular_vae']['schema_version'], 15)
+            self.assertEqual(validated_request_record['circular_vae']['schema_version'], 17)
             self.assertTrue(validated_request_record['circular_vae']['references'])
             self.assertIn(validated_request_record['circular_vae'], CIRCULAR_SELECTABLE_CONFIGURATIONS)
         with self.assertRaises(ValueError):

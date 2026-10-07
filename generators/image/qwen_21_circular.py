@@ -17,7 +17,9 @@ CIRCULAR_CORNER_CONFIGURATION = {**CIRCULAR_SINGLE_STRIP_CONFIGURATION, 'schema_
 CIRCULAR_PREVIOUS_VAE_CONFIGURATION = {**CIRCULAR_SINGLE_STRIP_CONFIGURATION, 'schema_version': 10, 'boundary_radius': 12, 'vertical_boundary_radius': 12, 'boundary_strip_depth': 1, 'corner_reference_enabled': False}
 CIRCULAR_TANGENT_ONE_CONFIGURATION = {**CIRCULAR_PREVIOUS_VAE_CONFIGURATION, 'schema_version': 12, 'boundary_tangent_radius': 1}
 CIRCULAR_BOUNDARY_TANGENT_RADIUS = 12
-CIRCULAR_VAE_CONFIGURATION = {**CIRCULAR_TANGENT_ONE_CONFIGURATION, 'schema_version': 14, 'boundary_tangent_radius': CIRCULAR_BOUNDARY_TANGENT_RADIUS}
+CIRCULAR_SQUARE_WINDOW_CONFIGURATION = {**CIRCULAR_TANGENT_ONE_CONFIGURATION, 'schema_version': 14, 'boundary_tangent_radius': CIRCULAR_BOUNDARY_TANGENT_RADIUS}
+CIRCULAR_PERIODIC_STRIP_DEPTH = 2
+CIRCULAR_VAE_CONFIGURATION = {**CIRCULAR_SQUARE_WINDOW_CONFIGURATION, 'schema_version': 16, 'boundary_strip_depth': CIRCULAR_PERIODIC_STRIP_DEPTH}
 
 CIRCULAR_RADIUS_CHOICES = (4, 8, 12, 16, 24)
 
@@ -27,7 +29,7 @@ def build_circular_configuration(selected_radius_value=12, baseline_decode_enabl
         raise ValueError('순환 참조 반경은 4·8·12·16·24토큰 중 선택하세요.')
     if type(baseline_decode_enabled) is not bool:
         raise ValueError('일반 VAE 비교 옵션은 ON/OFF 값이어야 합니다.')
-    return {**CIRCULAR_VAE_CONFIGURATION, **({'schema_version': 15, 'references': True} if reference_input_enabled else {}), 'baseline_decode': baseline_decode_enabled, 'boundary_radius': selected_radius_value,
+    return {**CIRCULAR_VAE_CONFIGURATION, **({'schema_version': 17, 'references': True} if reference_input_enabled else {}), 'baseline_decode': baseline_decode_enabled, 'boundary_radius': selected_radius_value,
             'vertical_boundary_radius': selected_radius_value, 'boundary_tangent_radius': selected_radius_value}
 
 
@@ -42,6 +44,13 @@ CIRCULAR_PREVIOUS_SELECTABLE_CONFIGURATIONS = tuple(
 CIRCULAR_TANGENT_ONE_SELECTABLE_CONFIGURATIONS = tuple(
     {**CIRCULAR_TANGENT_ONE_CONFIGURATION, **({'schema_version': 13, 'references': True} if reference_input_enabled else {}), 'baseline_decode': baseline_decode_enabled,
      'boundary_radius': current_radius_value, 'vertical_boundary_radius': current_radius_value}
+    for current_radius_value in CIRCULAR_RADIUS_CHOICES
+    for baseline_decode_enabled in (False, True)
+    for reference_input_enabled in (False, True)
+)
+CIRCULAR_SQUARE_WINDOW_SELECTABLE_CONFIGURATIONS = tuple(
+    {**CIRCULAR_SQUARE_WINDOW_CONFIGURATION, **({'schema_version': 15, 'references': True} if reference_input_enabled else {}), 'baseline_decode': baseline_decode_enabled,
+     'boundary_radius': current_radius_value, 'vertical_boundary_radius': current_radius_value, 'boundary_tangent_radius': current_radius_value}
     for current_radius_value in CIRCULAR_RADIUS_CHOICES
     for baseline_decode_enabled in (False, True)
     for reference_input_enabled in (False, True)
