@@ -1,5 +1,5 @@
-import * as Phaser from './vendor/field-renderer/1.0.3/phaser.mjs';
-import {drawFieldCellObjects,drawFieldTowerObject,drawFieldAuraPanel,drawFieldMeshBoundary,buildFieldBoundaryPanels,rotateSurfacePosition,prepareFieldConnectedTexture} from './vendor/field-renderer/1.0.3/field-renderer.mjs';
+import * as Phaser from './vendor/field-renderer/1.0.5/phaser.mjs';
+import {drawFieldCellObjects,drawFieldTowerObject,drawFieldAuraPanel,drawFieldMeshBoundary,buildFieldBoundaryPanels,drawFieldActorContactShadow,rotateSurfacePosition,prepareFieldConnectedTexture} from './vendor/field-renderer/1.0.5/field-renderer.mjs';
 
 const FIELD_REVIEW_DEPTH_SCALE=5;
 const FIELD_REVIEW_DEPTH_BASE=100;
@@ -36,7 +36,7 @@ export async function createSharedFieldReview(currentMapCanvas,currentTextureIma
  return {
   render(currentFieldFrame,currentMapRecord,currentTextureNames,currentViewSettings){
    if(currentFieldGame.scale.width!==currentMapCanvas.clientWidth||currentFieldGame.scale.height!==currentMapCanvas.clientHeight)currentFieldGame.scale.resize(currentMapCanvas.clientWidth,currentMapCanvas.clientHeight);
-   const currentNextSignature=JSON.stringify([currentFieldFrame.options.rotation,currentViewSettings.edges,currentViewSettings.safe,currentViewSettings.character,currentViewSettings.characterCell]);
+   const currentNextSignature=JSON.stringify([currentFieldFrame.options.rotation,currentViewSettings.edges,currentViewSettings.safe,currentViewSettings.character,currentViewSettings.characterCell,currentViewSettings.shadowProfile]);
    if(currentNextSignature!==currentRenderSignature){
     for(const currentRenderObject of [...currentFieldScene.children.list])currentRenderObject.destroy();
     const currentSafeCenter=rotateSurfacePosition(currentMapRecord.startPoint,currentFieldFrame.options.rotation);
@@ -61,7 +61,9 @@ export async function createSharedFieldReview(currentMapCanvas,currentTextureIma
      }
      if(currentViewSettings.character&&currentCellRecord.cell.column===currentViewSettings.characterCell.column&&currentCellRecord.cell.row===currentViewSettings.characterCell.row){
       const currentCharacterAnchor=currentCharacterRecord.frame.anchor;
-      currentFieldScene.add.image(currentCellRecord.center.x,currentCellRecord.center.y,'review-character','review-frame').setOrigin(currentCharacterAnchor.x/currentFrameRectangle.width,currentCharacterAnchor.y/currentFrameRectangle.height).setScale(currentCharacterRecord.displayHeight/currentCharacterRecord.bodyHeight).setDepth(currentRenderDepth+FIELD_REVIEW_ACTOR_DEPTH);
+      const currentShadowGraphic=currentFieldScene.add.graphics().setDepth(currentRenderDepth+FIELD_REVIEW_ACTOR_DEPTH);
+      drawFieldActorContactShadow(currentShadowGraphic,currentCellRecord.center,currentViewSettings.shadowProfile);
+      currentFieldScene.add.image(currentCellRecord.center.x,currentCellRecord.center.y,'review-character','review-frame').setOrigin(currentCharacterAnchor.x/currentFrameRectangle.width,currentCharacterAnchor.y/currentFrameRectangle.height).setScale(currentCharacterRecord.displayHeight/currentCharacterRecord.bodyHeight).setDepth(currentRenderDepth+FIELD_REVIEW_ACTOR_DEPTH+.01);
      }
     }
     currentRenderSignature=currentNextSignature;

@@ -84,7 +84,7 @@ HTTP URL, 페이지 해시, CLI 명령, `.tmp` 생성 ID·기록 경로와 `asse
 
 ### 필드 공용 렌더링 라이브러리
 
-필드 검수는 게임과 같은 `@slime/field-renderer` 1.0.3과 Phaser 3.90.0을 사용한다. 원본은 `slime-frontend/packages/field-renderer/`이며 `field-surface` 1.0.5의 좌표 계약을 포함한다. `ui/map/vendor/field-renderer/1.0.3/`의 ES 모듈과 엔진 배포본은 `manifest.yaml`의 SHA-256을 게시 전에 검증한다. 게임의 `npm run build:field-renderer`로 만든 배포본만 명시적으로 전달하며 관리도구가 게임 소스를 런타임에 읽거나 게임 전체를 빌드하지 않는다. 배포 후 수정은 새 버전으로 전달한다.
+필드 검수는 게임과 같은 `@slime/field-renderer` 1.0.5와 Phaser 3.90.0을 사용한다. 원본은 `slime-frontend/packages/field-renderer/`이며 `field-surface` 1.0.5의 좌표 계약을 포함한다. `ui/map/vendor/field-renderer/1.0.5/`의 ES 모듈과 엔진 배포본은 `manifest.yaml`의 SHA-256을 게시 전에 검증한다. 게임의 `npm run build:field-renderer`로 만든 배포본만 명시적으로 전달하며 관리도구가 게임 소스를 런타임에 읽거나 게임 전체를 빌드하지 않는다. 배포 후 수정은 새 버전으로 전달한다.
 
 `field-map-renderer.js`는 공용 면 목록을 이용해 범위·클릭 판정만 수행한다. `field-map-view.js`는 Phaser Scene에 에셋과 표시 설정을 연결한다. 실제 지면·암벽·계단·결계탑·오러는 공용 라이브러리가 그리며 별도 Canvas 필드 그리기는 사용하지 않는다. 80×40 타일, 단계당 32px 고도, 16px 외곽 두께를 유지한다. `결계탑 · 결계 오러`와 `메시 경계`로 높이 25px의 외곽 패널·삼각형 분할을 검사한다. 접촉 셀 내부의 오러와 바닥 음영은 생성하지 않는다. 캐릭터 재생·전투 표시·마을 건물은 아직 별도 소비자 구현이다.
 
@@ -95,3 +95,7 @@ HTTP URL, 페이지 해시, CLI 명령, `.tmp` 생성 ID·기록 경로와 `asse
 필드맵 검수는 등록된 `assets/ui/guard-centers.yaml`의 도시별 외형과 `assets/sprites/structures/`의 이미지를 해시 검증 후 제공합니다. 도시행 웨이포인트에서 기존 필드 발급 위치를 계산하며, 이미지 URL과 관리 ID·버전·SHA-256을 `guardCenters`에 함께 제공합니다. 게임도 같은 설정을 사용하며 통행 데이터는 변경하지 않습니다.
 
 맵 배치 원본은 `slime-assets/assets/maps/`의 등록 YAML을 직접 검증해 읽습니다. `assets/world`의 과거 맵 사본과 전용 조립기는 폐기했습니다. UI 표시 설정(재질 색상·렌더 크기·타일 별칭)은 `tools/review/ui/map/config/`에서 관리하며 맵 배치 사본을 보관하지 않습니다. `build_map_review.py --map`의 로컬 사본 입력은 명시적으로 거절합니다.
+
+### 마을 캐릭터 시인성 검수
+
+마을 Canvas 검수는 바닥 타일만 128×128 파생 텍스처로 줄여 재사용한다. 원본 에셋·캐릭터·건물 해상도와 타일 배치 크기는 유지하며 화면 전체 바닥 흐림은 사용하지 않는다. 캐릭터는 화면 기준 1px 짙은 외곽선과 밝은 윤곽광을 기본 적용한다. 바닥 대비는 원본이 기본이며 65% 비교 옵션을 제공한다. 이 설정은 마을 검수 전용으로 게임 본편·Phaser 필드에 자동 적용되지 않는다. 사람 중심 100% 버튼은 실제 배율 1을 적용한다.

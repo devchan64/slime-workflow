@@ -1,5 +1,6 @@
 import {createFieldReviewFrame,pickFieldReviewCell} from './field-map-renderer.js';
 import {FIELD_RENDER_METRICS,projectSurfaceCell} from './vendor/field-surface/1.0.5/field-surface.mjs';
+import {resolveFieldActorContactShadow} from './vendor/field-renderer/1.0.5/field-renderer.mjs';
 const MIN_MAP_SCALE=0.05,MAX_MAP_SCALE=4,MAP_ZOOM_FACTOR=1.25,MAP_DRAG_THRESHOLD=4,MAP_KEYBOARD_PAN_DISTANCE=48;
 let activeMapPointer=null,suppressMarkerClick=false;
 const currentMapCanvas=document.querySelector('#map');
@@ -26,7 +27,19 @@ if(currentMapSelector){
  if(isTownSpecificReviewPage){currentMapSelector.closest('label').hidden=true;document.querySelector('#load-map').hidden=true;}
  document.querySelector('#load-map').onclick=()=>selectReviewMap(currentMapSelector.value);
 }
-const currentDisplayOptions={'show-character':true,'show-safe-boundary':true,edges:false};
+const GROUND_CONTRAST_PREVIEW_VALUES={original:1,soft:0.65};
+let currentGroundPreviewMode='original';
+const GROUND_TILE_RENDER_RESOLUTION=128;
+const currentGroundTextureCache=new Map();
+let currentOutlinePreviewEnabled=true;
+let currentRimPreviewEnabled=true;
+let currentCharacterRimCanvas=null;
+const CHARACTER_RIM_PREVIEW_COLOR='#fff2cc';
+const CHARACTER_RIM_SCREEN_RADIUS=2;
+let currentCharacterSilhouetteCanvas=null;
+const CHARACTER_OUTLINE_PREVIEW_COLOR='#302a25';
+const CHARACTER_OUTLINE_PIXEL_OFFSETS=[[-1,0],[1,0],[0,-1],[0,1],[-0.707,-0.707],[0.707,-0.707],[-0.707,0.707],[0.707,0.707]];
+const currentDisplayOptions={'show-character':true,'show-safe-boundary':true,edges:false,'shadow-profile':'contrast'};
 function readReviewOption(currentOptionName){return document.getElementById(currentOptionName)?.checked??currentDisplayOptions[currentOptionName];}
 const currentMapRecord=await fetchMapReviewRecord(selectedMapRecord.path);
 const isFieldMapReview=currentMapRecord.safeTown===false;
@@ -92,7 +105,20 @@ function renderAppliedTileSourceList(){
 }
 renderAppliedTileSourceList();
 // 각 면의 실제 좌표에서 UV를 계산해 층 경계에서도 벽 타일이 이어지게 한다.
+// 바닥 전용 파생 텍스처를 한 번 준비하며 원본과 건물 텍스처는 유지한다.
+function resolveGroundRenderTexture(currentSourceImage){
+ if(!currentGroundTextureCache.has(currentSourceImage)){
+  const currentReducedCanvas=document.createElement('canvas');
+  currentReducedCanvas.width=GROUND_TILE_RENDER_RESOLUTION;currentReducedCanvas.height=GROUND_TILE_RENDER_RESOLUTION;
+  const currentReducedContext=currentReducedCanvas.getContext('2d');
+  currentReducedContext.imageSmoothingEnabled=true;currentReducedContext.imageSmoothingQuality='high';
+  currentReducedContext.drawImage(currentSourceImage,0,0,GROUND_TILE_RENDER_RESOLUTION,GROUND_TILE_RENDER_RESOLUTION);
+  currentGroundTextureCache.set(currentSourceImage,currentReducedCanvas);
+ }
+ return currentGroundTextureCache.get(currentSourceImage);
+}
 function drawTexturedSurface(currentFaceRecord,currentTextureImage){
+ if(currentFaceRecord.ground)currentTextureImage=resolveGroundRenderTexture(currentTextureImage);
  const currentFaceVertices=currentFaceRecord.vertices;
  const currentAlongColumn=Math.max(...currentFaceVertices.map(currentVertexPoint=>currentVertexPoint.column))-Math.min(...currentFaceVertices.map(currentVertexPoint=>currentVertexPoint.column))>0.001;
  const isRoofTileSurface=currentFaceRecord.top&&currentFaceRecord.material==='roof';
@@ -166,6 +192,38 @@ function selectWallTexture(currentFaceRecord){
 function drawReviewCharacter(currentMarkerPoint){
  if(!readReviewOption('show-character'))return;
  const characterScaleValue=reviewCharacterRecord.displayHeight/reviewCharacterRecord.bodyHeight,characterFrameRect=reviewCharacterRecord.frame.rect,characterAnchorPoint=reviewCharacterRecord.frame.anchor;
+ const currentShadowMetrics=resolveFieldActorContactShadow(currentDisplayOptions['shadow-profile']);
+ const currentShadowColor='#'+currentShadowMetrics.color.toString(16).padStart(6,'0');
+ currentDrawingContext.fillStyle=currentShadowColor;currentDrawingContext.globalAlpha=currentShadowMetrics.outer.alpha;currentDrawingContext.beginPath();currentDrawingContext.ellipse(currentMarkerPoint.x,currentMarkerPoint.y,currentShadowMetrics.outer.width/2,currentShadowMetrics.outer.height/2,0,0,Math.PI*2);currentDrawingContext.fill();
+ currentDrawingContext.globalAlpha=currentShadowMetrics.core.alpha;currentDrawingContext.beginPath();currentDrawingContext.ellipse(currentMarkerPoint.x,currentMarkerPoint.y,currentShadowMetrics.core.width/2,currentShadowMetrics.core.height/2,0,0,Math.PI*2);currentDrawingContext.fill();currentDrawingContext.globalAlpha=1;
+ if(currentRimPreviewEnabled){
+  if(!currentCharacterRimCanvas){
+   currentCharacterRimCanvas=document.createElement('canvas');
+   currentCharacterRimCanvas.width=characterFrameRect.width;currentCharacterRimCanvas.height=characterFrameRect.height;
+   const currentRimDrawingContext=currentCharacterRimCanvas.getContext('2d');
+   currentRimDrawingContext.drawImage(reviewCharacterImage,characterFrameRect.x,characterFrameRect.y,characterFrameRect.width,characterFrameRect.height,0,0,characterFrameRect.width,characterFrameRect.height);
+   currentRimDrawingContext.globalCompositeOperation='source-in';currentRimDrawingContext.fillStyle=CHARACTER_RIM_PREVIEW_COLOR;
+   currentRimDrawingContext.fillRect(0,0,characterFrameRect.width,characterFrameRect.height);
+  }
+  // 2px 밝은 실루엣 위에 1px 짙은 외곽선을 그려 바깥쪽 밝은 띠만 남긴다.
+  for(const [currentOffsetHorizontal,currentOffsetVertical] of CHARACTER_OUTLINE_PIXEL_OFFSETS){
+   currentDrawingContext.drawImage(currentCharacterRimCanvas,currentMarkerPoint.x-characterAnchorPoint.x*characterScaleValue+currentOffsetHorizontal*CHARACTER_RIM_SCREEN_RADIUS/currentScaleValue,currentMarkerPoint.y-characterAnchorPoint.y*characterScaleValue+currentOffsetVertical*CHARACTER_RIM_SCREEN_RADIUS/currentScaleValue,characterFrameRect.width*characterScaleValue,characterFrameRect.height*characterScaleValue);
+  }
+ }
+ if(currentOutlinePreviewEnabled){
+  if(!currentCharacterSilhouetteCanvas){
+   currentCharacterSilhouetteCanvas=document.createElement('canvas');
+   currentCharacterSilhouetteCanvas.width=characterFrameRect.width;currentCharacterSilhouetteCanvas.height=characterFrameRect.height;
+   const currentSilhouetteContext=currentCharacterSilhouetteCanvas.getContext('2d');
+   currentSilhouetteContext.drawImage(reviewCharacterImage,characterFrameRect.x,characterFrameRect.y,characterFrameRect.width,characterFrameRect.height,0,0,characterFrameRect.width,characterFrameRect.height);
+   currentSilhouetteContext.globalCompositeOperation='source-in';currentSilhouetteContext.fillStyle=CHARACTER_OUTLINE_PREVIEW_COLOR;
+   currentSilhouetteContext.fillRect(0,0,characterFrameRect.width,characterFrameRect.height);
+  }
+  // 지도 확대율과 무관하게 화면에서 1px 폭을 유지한다.
+  for(const [currentOffsetHorizontal,currentOffsetVertical] of CHARACTER_OUTLINE_PIXEL_OFFSETS){
+   currentDrawingContext.drawImage(currentCharacterSilhouetteCanvas,currentMarkerPoint.x-characterAnchorPoint.x*characterScaleValue+currentOffsetHorizontal/currentScaleValue,currentMarkerPoint.y-characterAnchorPoint.y*characterScaleValue+currentOffsetVertical/currentScaleValue,characterFrameRect.width*characterScaleValue,characterFrameRect.height*characterScaleValue);
+  }
+ }
  currentDrawingContext.drawImage(reviewCharacterImage,characterFrameRect.x,characterFrameRect.y,characterFrameRect.width,characterFrameRect.height,currentMarkerPoint.x-characterAnchorPoint.x*characterScaleValue,currentMarkerPoint.y-characterAnchorPoint.y*characterScaleValue,characterFrameRect.width*characterScaleValue,characterFrameRect.height*characterScaleValue);
 }
 function projectReviewCharacter(){return isFieldMapReview?projectSurfaceCell(currentCharacterCell,currentMapRecord,{...FIELD_RENDER_METRICS,rotation:currentCameraRotation}):projectBlockVertex(currentCharacterCell)}
@@ -175,7 +233,9 @@ currentMapCanvas.width=currentMapCanvas.clientWidth;currentMapCanvas.height=curr
 document.querySelector('#zoom-level').textContent=Math.round(currentScaleValue*100)+'%';
 if(document.querySelector('#zoom-in'))document.querySelector('#zoom-in').disabled=currentScaleValue>=MAX_MAP_SCALE;if(document.querySelector('#zoom-out'))document.querySelector('#zoom-out').disabled=currentScaleValue<=MIN_MAP_SCALE;
 currentDrawingContext.setTransform(currentScaleValue,0,0,currentScaleValue,currentOffsetX,currentOffsetY);
+currentDrawingContext.filter=`contrast(${GROUND_CONTRAST_PREVIEW_VALUES[currentGroundPreviewMode]})`;
 for(let currentRowIndex=0;currentRowIndex<currentMapRecord.rows;currentRowIndex++)for(let currentColumnIndex=0;currentColumnIndex<currentMapRecord.columns;currentColumnIndex++){const currentTerrainName=currentMapRecord.terrainCodes[currentMapRecord.terrainRows[currentRowIndex][currentColumnIndex]];drawSurfacePolygon([[-.5,-.5],[.5,-.5],[.5,.5],[-.5,.5]].map(([c,r])=>projectBlockVertex({column:currentColumnIndex+c,row:currentRowIndex+r})),currentMaterialColors[currentTerrainName]);const currentGroundImage=loadedTextureImages[groundTextureNames[currentTerrainName]];if(currentGroundImage){const currentGroundVertices=[[-.5,-.5],[.5,-.5],[.5,.5],[-.5,.5]].map(([currentColumnOffset,currentRowOffset])=>({column:currentColumnIndex+currentColumnOffset,row:currentRowIndex+currentRowOffset,height:0}));drawTexturedSurface({top:true,ground:true,vertices:currentGroundVertices,points:currentGroundVertices.map(projectBlockVertex)},currentGroundImage)}}
+currentDrawingContext.filter='none';
 const currentRenderFaces=currentMapRecord.buildings.flatMap(currentBuilding=>currentBuilding.faces.flatMap(splitWallFloors).map(currentFace=>({...currentFace,building:currentBuilding,textureTiles:readBuildingTileSet(currentBuilding),points:currentFace.vertices.map(currentVertex=>projectBlockVertex({column:currentBuilding.origin.column+currentVertex.column,row:currentBuilding.origin.row+currentVertex.row,height:currentVertex.height})),depth:currentFace.vertices.reduce((s,v)=>s+projectBlockVertex({column:currentBuilding.origin.column+v.column,row:currentBuilding.origin.row+v.row}).y,0)/currentFace.vertices.length}))).sort((a,b)=>a.depth-b.depth);
 for(const currentFace of currentRenderFaces){const currentAreaValue=currentFace.points.reduce((s,p,i)=>{const n=currentFace.points[(i+1)%currentFace.points.length];return s+p.x*n.y-n.x*p.y},0);if(currentFace.top||currentAreaValue>0){drawSurfacePolygon(currentFace.points,currentMaterialColors[currentFace.material]);// 지붕 경사 측면은 막힌 벽으로 두고 일반 벽 구간에만 창문을 교차 배치한다.
 const currentTextureRole=selectWallTexture(currentFace);
@@ -200,8 +260,8 @@ function renderSharedFieldMap(currentFitRequested){
  }
  document.querySelector('#zoom-level').textContent=Math.round(currentScaleValue*100)+'%';
  if(document.querySelector('#zoom-in'))document.querySelector('#zoom-in').disabled=currentScaleValue>=MAX_MAP_SCALE;if(document.querySelector('#zoom-out'))document.querySelector('#zoom-out').disabled=currentScaleValue<=MIN_MAP_SCALE;
- currentSharedFieldView.render(currentFieldFrame,currentMapRecord,groundTextureNames,{scale:currentScaleValue,offsetX:currentOffsetX,offsetY:currentOffsetY,edges:readReviewOption('edges'),safe:readReviewOption('show-safe-boundary'),character:readReviewOption('show-character'),characterCell:currentCharacterCell});
- document.querySelector('#status').textContent=`공용 필드 렌더러 · 높이 단위 ${FIELD_RENDER_METRICS.elevationHeight}px · 타일 ${FIELD_RENDER_METRICS.tileWidth}×${FIELD_RENDER_METRICS.tileHeight} · 결계 높이 25px · 회전 ${currentCameraRotation*90}°`;
+ currentSharedFieldView.render(currentFieldFrame,currentMapRecord,groundTextureNames,{scale:currentScaleValue,offsetX:currentOffsetX,offsetY:currentOffsetY,edges:readReviewOption('edges'),safe:readReviewOption('show-safe-boundary'),character:readReviewOption('show-character'),characterCell:currentCharacterCell,shadowProfile:currentDisplayOptions['shadow-profile']});
+ document.querySelector('#status').textContent=`공용 필드 렌더러 · 그림자 ${currentDisplayOptions['shadow-profile']} · 높이 단위 ${FIELD_RENDER_METRICS.elevationHeight}px · 타일 ${FIELD_RENDER_METRICS.tileWidth}×${FIELD_RENDER_METRICS.tileHeight} · 결계 높이 25px · 회전 ${currentCameraRotation*90}°`;
 }
 if(document.querySelector('#show-safe-boundary'))document.querySelector('#show-safe-boundary').onchange=()=>renderBlockMap();
 function focusReviewBuilding(currentBuildingIdentifier){
@@ -241,6 +301,7 @@ function finishMapDrag(){activeMapPointer=null;currentMapCanvas.style.cursor='gr
 currentMapCanvas.onpointerup=finishMapDrag;currentMapCanvas.onpointercancel=finishMapDrag;currentMapCanvas.onlostpointercapture=finishMapDrag;
 
 if(document.querySelector('#show-character'))document.querySelector('#show-character').onchange=()=>renderBlockMap();
+if(document.querySelector('#actor-shadow-profile'))document.querySelector('#actor-shadow-profile').onchange=currentEvent=>window.mapReviewDisplayOptions(readReviewOption('show-character'),readReviewOption('show-safe-boundary'),readReviewOption('edges'),currentEvent.target.value);
 
 function centerCharacterView(){
  currentScaleValue=gameRenderMetrics.defaultZoom;
@@ -255,7 +316,7 @@ const currentCameraActions={
  'fit':()=>renderBlockMap(true),
  'zoom-in':()=>changeMapZoom(MAP_ZOOM_FACTOR),
  'zoom-out':()=>changeMapZoom(1/MAP_ZOOM_FACTOR),
- 'actual-size':centerCharacterView,
+ 'actual-size':()=>{centerCharacterView();changeMapZoom(1/currentScaleValue);},
 };
 window.mapReviewCameraControls=(currentActionName)=>{
  if(!Object.hasOwn(currentCameraActions,currentActionName))throw Error('지원하지 않는 맵 시점 명령입니다.');
@@ -270,10 +331,33 @@ for(const currentActionName of Object.keys(currentCameraActions)){
 // 표준 UI는 상태만 전달하고 모든 렌더링·시점 갱신은 브라우저에서 수행한다.
 window.mapReviewSelectMap=selectReviewMap;
 window.mapReviewFocusBuilding=focusReviewBuilding;
-window.mapReviewDisplayOptions=(currentCharacterVisible,currentBoundaryVisible,currentEdgesVisible)=>{
+window.mapReviewDisplayOptions=(currentCharacterVisible,currentBoundaryVisible,currentEdgesVisible,currentShadowProfileName='contrast')=>{
  const currentOptionValues=[currentCharacterVisible,currentBoundaryVisible,currentEdgesVisible];
  if(currentOptionValues.some(currentOptionValue=>typeof currentOptionValue!=='boolean'))throw Error('맵 표시 옵션은 참/거짓 값이어야 합니다.');
- Object.assign(currentDisplayOptions,{'show-character':currentCharacterVisible,'show-safe-boundary':currentBoundaryVisible,edges:currentEdgesVisible});
+ if(!['baseline','contrast','broad'].includes(currentShadowProfileName))throw Error('지원하지 않는 캐릭터 그림자 검수안입니다.');
+ Object.assign(currentDisplayOptions,{'show-character':currentCharacterVisible,'show-safe-boundary':currentBoundaryVisible,edges:currentEdgesVisible,'shadow-profile':currentShadowProfileName});
  renderBlockMap();
 };
 window.mapReviewControlOptions=()=>({maps:availableMapRecords.map(currentMapEntry=>[currentMapEntry.name,currentMapEntry.id]),selected:selectedMapIdentifier,townSpecific:isTownSpecificReviewPage,field:isFieldMapReview,buildings:currentMapRecord.buildings.map(currentBuildingEntry=>[currentBuildingEntry.name,currentBuildingEntry.id])});
+
+// 원본 에셋은 유지하고 마을 바닥 렌더링만 비교한다.
+window.mapReviewGroundPreview=(currentPreviewMode)=>{
+ if(isFieldMapReview)throw Error('바닥 대비 실험은 마을 맵에서 사용하세요.');
+ if(!Object.hasOwn(GROUND_CONTRAST_PREVIEW_VALUES,currentPreviewMode))throw Error('지원하지 않는 바닥 대비입니다.');
+ currentGroundPreviewMode=currentPreviewMode;renderBlockMap();
+ return currentPreviewMode==='original'?'원본 바닥 대비':'실험 · 바닥 대비 65% · 캐릭터와 건물은 원본 유지';
+};
+
+window.mapReviewOutlinePreview=(currentOutlineEnabled)=>{
+ if(isFieldMapReview)throw Error('외곽선 실험은 마을 맵에서 사용하세요.');
+ if(typeof currentOutlineEnabled!=='boolean')throw Error('외곽선 옵션은 참/거짓이어야 합니다.');
+ currentOutlinePreviewEnabled=currentOutlineEnabled;renderBlockMap();
+ return currentOutlineEnabled?'실험 · 캐릭터 1px 짙은 외곽선':'캐릭터 원본';
+};
+
+window.mapReviewRimPreview=(currentRimEnabled)=>{
+ if(isFieldMapReview)throw Error('윤곽광 실험은 마을 맵에서 사용하세요.');
+ if(typeof currentRimEnabled!=='boolean')throw Error('윤곽광 옵션은 참/거짓이어야 합니다.');
+ currentRimPreviewEnabled=currentRimEnabled;renderBlockMap();
+ return currentRimEnabled?'실험 · 얇은 밝은 윤곽광 적용':'밝은 윤곽광 해제';
+};
