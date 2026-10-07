@@ -79,6 +79,7 @@ var FIELD_ACTOR_CONTACT_SHADOW_PROFILES = Object.freeze({
 var FIELD_ACTOR_CONTACT_SHADOW_COLOR = 1587502;
 var FIELD_SAFE_TOWER_PROFILE = Object.freeze({ anchorX: 627, anchorY: 1095, bodyTop: 82, displayHeight: 112 });
 var FIELD_SAFE_AURA_PROFILE = Object.freeze({ columns: 4, rows: 2, frames: 8, height: 15, alpha: 0.7, frameDuration: 120, horizontalCrop: 0.02, topCrop: 0.25, bottomCrop: 0.1 });
+var FIELD_EDGE_COORDINATE_EPSILON = 1e-6;
 var FIELD_QUAD_TRIANGLES = [0, 1, 2, 0, 2, 3];
 var FIELD_CELL_CORNERS = [[-0.5, -0.5], [0.5, -0.5], [0.5, 0.5], [-0.5, 0.5]];
 var FIELD_BOUNDARY_NEIGHBORS = [{ column: 1, row: 0, edge: [1, 2] }, { column: 0, row: 1, edge: [2, 3] }, { column: -1, row: 0, edge: [3, 0] }, { column: 0, row: -1, edge: [0, 1] }];
@@ -211,6 +212,34 @@ function drawFieldElevationOutline(currentGameScene, currentEdgeSegments, curren
   currentEdgeGraphic.once("destroy", () => currentGameScene.events.off("postupdate", synchronizeElevationWidth));
   return currentEdgeGraphic;
 }
+function buildFieldCliffEdges(currentCellPosition, currentMapSurface, currentFacePoints, currentRenderOptions = FIELD_RENDER_METRICS) {
+  const currentEdgeSegments = currentFacePoints.map((currentStartPoint, currentPointIndex) => [currentStartPoint, currentFacePoints[(currentPointIndex + 1) % 4]]);
+  if (findSurfaceStair(currentCellPosition, currentMapSurface)) return currentEdgeSegments;
+  const currentTopVector = { x: currentFacePoints[1].x - currentFacePoints[0].x, y: currentFacePoints[1].y - currentFacePoints[0].y };
+  const currentNeighborFaces = FIELD_BOUNDARY_NEIGHBORS.flatMap((currentNeighborOffset) => {
+    const currentNeighborCell = { column: currentCellPosition.column + currentNeighborOffset.column, row: currentCellPosition.row + currentNeighborOffset.row };
+    if (currentNeighborCell.column < 0 || currentNeighborCell.row < 0 || currentNeighborCell.column >= currentMapSurface.columns || currentNeighborCell.row >= currentMapSurface.rows || findSurfaceStair(currentNeighborCell, currentMapSurface)) return [];
+    return buildSurfaceCliffs(currentNeighborCell, currentMapSurface, currentRenderOptions);
+  });
+  return currentEdgeSegments.flatMap(([currentStartPoint, currentEndPoint], currentEdgeIndex) => {
+    if (currentEdgeIndex % 2 === 0) return [[currentStartPoint, currentEndPoint]];
+    let currentVisibleRanges = [[Math.min(currentStartPoint.y, currentEndPoint.y), Math.max(currentStartPoint.y, currentEndPoint.y)]];
+    for (const currentNeighborPoints of currentNeighborFaces) {
+      const currentNeighborVector = { x: currentNeighborPoints[1].x - currentNeighborPoints[0].x, y: currentNeighborPoints[1].y - currentNeighborPoints[0].y };
+      if (Math.abs(currentTopVector.x * currentNeighborVector.y - currentTopVector.y * currentNeighborVector.x) > FIELD_EDGE_COORDINATE_EPSILON) continue;
+      for (const currentNeighborIndex of [1, 3]) {
+        const currentNeighborStart = currentNeighborPoints[currentNeighborIndex], currentNeighborEnd = currentNeighborPoints[(currentNeighborIndex + 1) % 4];
+        if (Math.abs(currentNeighborStart.x - currentStartPoint.x) > FIELD_EDGE_COORDINATE_EPSILON) continue;
+        const currentRangeLower = Math.min(currentNeighborStart.y, currentNeighborEnd.y), currentRangeUpper = Math.max(currentNeighborStart.y, currentNeighborEnd.y);
+        currentVisibleRanges = currentVisibleRanges.flatMap(([currentLowerValue, currentUpperValue]) => {
+          if (currentRangeUpper <= currentLowerValue || currentRangeLower >= currentUpperValue) return [[currentLowerValue, currentUpperValue]];
+          return [[currentLowerValue, Math.min(currentUpperValue, currentRangeLower)], [Math.max(currentLowerValue, currentRangeUpper), currentUpperValue]].filter(([currentFromValue, currentToValue]) => currentToValue - currentFromValue > FIELD_EDGE_COORDINATE_EPSILON);
+        });
+      }
+    }
+    return currentVisibleRanges.map(([currentLowerValue, currentUpperValue]) => [{ x: currentStartPoint.x, y: currentLowerValue }, { x: currentStartPoint.x, y: currentUpperValue }]);
+  });
+}
 function drawFieldCellObjects(currentGameScene, currentCellPosition, currentMapSurface, currentRenderOptions, currentTextureKeys, currentRenderDepth, currentShowMesh = false) {
   const currentCellFaces = buildFieldCellGeometry(currentCellPosition, currentMapSurface, currentRenderOptions);
   const currentTreadCount = currentCellFaces.filter((currentFaceRecord) => currentFaceRecord.kind === "tread").length;
@@ -236,7 +265,7 @@ function drawFieldCellObjects(currentGameScene, currentCellPosition, currentMapS
       currentRenderObjects.push(drawFieldTexturePanel(currentGameScene, currentFaceRecord.points, currentTextureKey, currentFaceDepth + 1e-3, currentUvCorners));
     }
     if (currentFaceRecord.kind === "tread" || currentFaceRecord.kind === "cliff") {
-      const currentFaceSegments = currentFaceRecord.points.map((currentStartPoint, currentPointIndex) => [currentStartPoint, currentFaceRecord.points[(currentPointIndex + 1) % currentFaceRecord.points.length]]);
+      const currentFaceSegments = currentFaceRecord.kind === "cliff" ? buildFieldCliffEdges(currentCellPosition, currentMapSurface, currentFaceRecord.points, currentRenderOptions) : currentFaceRecord.points.map((currentStartPoint, currentPointIndex) => [currentStartPoint, currentFaceRecord.points[(currentPointIndex + 1) % currentFaceRecord.points.length]]);
       currentRenderObjects.push(drawFieldElevationOutline(currentGameScene, currentFaceSegments, currentFaceDepth + 2e-3));
     }
     if (currentShowMesh) currentRenderObjects.push(drawFieldMeshBoundary(currentGameScene, currentFaceRecord.points, currentFaceDepth + 2e-3));
@@ -301,6 +330,7 @@ export {
   FIELD_SAFE_TOWER_PROFILE,
   buildFieldBoundaryPanels,
   buildFieldCellGeometry,
+  buildFieldCliffEdges,
   buildFieldElevationEdges,
   buildFieldPanelVertices,
   buildFieldRoadEdges,
