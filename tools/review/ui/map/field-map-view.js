@@ -27,6 +27,22 @@ function readReviewConnectionMask(currentCellPosition,currentMapRecord,currentTe
  return currentConnectionMask;
 }
 
+const FIELD_GROUND_PREVIEW_SATURATION=.7;
+
+/** 원본 크기를 유지하고 바닥 미리보기의 채도만 조정한다. */
+function prepareGroundPreviewTexture(currentGameScene,currentTextureKey){
+ const currentPreviewKey='ground-preview:'+currentTextureKey;
+ if(currentGameScene.textures.exists(currentPreviewKey))return currentPreviewKey;
+ const currentSourceImage=currentGameScene.textures.get(currentTextureKey).getSourceImage();
+ const currentTileWidth=currentSourceImage.width,currentTileHeight=currentSourceImage.height;
+ const currentPreviewTexture=currentGameScene.textures.createCanvas(currentPreviewKey,currentTileWidth,currentTileHeight);
+ if(!currentPreviewTexture)throw Error('바닥 미리보기 텍스처 생성 실패');
+ const currentPreviewContext=currentPreviewTexture.getContext();
+ currentPreviewContext.filter=`saturate(${FIELD_GROUND_PREVIEW_SATURATION})`;
+ currentPreviewContext.drawImage(currentSourceImage,0,0);currentPreviewContext.filter='none';currentPreviewTexture.refresh();
+ return currentPreviewKey;
+}
+
 /** 화면 컨트롤·에셋 로딩은 어댑터, 면·UV·탑·오러 그리기는 공용 라이브러리가 소유한다. */
 export async function createSharedFieldReview(currentMapCanvas,currentTextureImages,currentCharacterImage,currentCharacterRecord,currentGuardImages,currentSafeImages){
  let currentFieldScene;
@@ -51,10 +67,11 @@ export async function createSharedFieldReview(currentMapCanvas,currentTextureIma
     const currentSafeCenter=rotateSurfacePosition(currentMapRecord.startPoint,currentFieldFrame.options.rotation);
     for(const currentCellRecord of currentFieldFrame.cells){
      const currentTerrainName=currentMapRecord.terrainCodes[currentMapRecord.terrainRows[currentCellRecord.cell.row][currentCellRecord.cell.column]];
-     let currentGroundKey=currentTextureNames[currentTerrainName];
-     if(currentTerrainName==='water'||(currentTerrainName==='road'&&currentMapRecord.id!=='meadow'))currentGroundKey=prepareFieldConnectedTexture(currentFieldScene,currentGroundKey,currentTextureNames.grass,readReviewConnectionMask(currentCellRecord.cell,currentMapRecord,currentTerrainName,currentFieldFrame.options.rotation));
+     let currentGroundKey=prepareGroundPreviewTexture(currentFieldScene,currentTextureNames[currentTerrainName]);
+     const currentGrassKey=prepareGroundPreviewTexture(currentFieldScene,currentTextureNames.grass);
+     if(currentTerrainName==='water'||(currentTerrainName==='road'&&currentMapRecord.id!=='meadow'))currentGroundKey=prepareFieldConnectedTexture(currentFieldScene,currentGroundKey,currentGrassKey,readReviewConnectionMask(currentCellRecord.cell,currentMapRecord,currentTerrainName,currentFieldFrame.options.rotation));
      const currentRenderDepth=FIELD_REVIEW_DEPTH_BASE+currentCellRecord.depth*FIELD_REVIEW_DEPTH_SCALE;
-     drawFieldCellObjects(currentFieldScene,currentCellRecord.cell,currentMapRecord,currentFieldFrame.options,{ground:currentGroundKey,cliff:'cliff-wall',tread:'ramp-tread',roadConnectionMask:currentTerrainName==='road'?readReviewConnectionMask(currentCellRecord.cell,currentMapRecord,'road',currentFieldFrame.options.rotation):undefined,fullTileRoad:currentMapRecord.id==='meadow',underlay:['boulder','tree-base'].includes(currentTerrainName)?currentTextureNames.grass:undefined},currentRenderDepth,currentViewSettings.edges);
+     drawFieldCellObjects(currentFieldScene,currentCellRecord.cell,currentMapRecord,currentFieldFrame.options,{ground:currentGroundKey,cliff:'cliff-wall',tread:'ramp-tread',roadConnectionMask:currentTerrainName==='road'?readReviewConnectionMask(currentCellRecord.cell,currentMapRecord,'road',currentFieldFrame.options.rotation):undefined,fullTileRoad:currentMapRecord.id==='meadow',underlay:['boulder','tree-base'].includes(currentTerrainName)?currentGrassKey:undefined},currentRenderDepth,currentViewSettings.edges);
      if(currentViewSettings.safe){
       const currentViewCell=rotateSurfacePosition(currentCellRecord.cell,currentFieldFrame.options.rotation);
       for(const currentPanelPoints of buildFieldBoundaryPanels(currentViewCell,currentSafeCenter,currentMapRecord.safeRadius,currentCellRecord.center,currentFieldFrame.options)){
