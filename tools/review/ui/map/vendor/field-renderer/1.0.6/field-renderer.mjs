@@ -1,6 +1,6 @@
 // packages/field-surface/field-surface.mjs
 var FIELD_RENDER_METRICS = Object.freeze({ tileWidth: 80, tileHeight: 40, elevationHeight: 32, baseThickness: 16 });
-var TERRAIN_STAIR_COUNT = 6;
+var TERRAIN_STAIR_COUNT = 3;
 function readSurfaceHeight(currentCellPosition, currentMapSurface) {
   if (currentCellPosition.column < 0 || currentCellPosition.row < 0 || currentCellPosition.column >= currentMapSurface.columns || currentCellPosition.row >= currentMapSurface.rows) return 0;
   if (currentMapSurface.heightSource) return readSurfaceHeight(currentMapSurface.heightSource.position(currentCellPosition), currentMapSurface.heightSource.surface);

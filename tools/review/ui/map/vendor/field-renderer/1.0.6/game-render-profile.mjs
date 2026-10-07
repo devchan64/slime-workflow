@@ -41,7 +41,7 @@ var CHARACTER_OUTLINE_STYLE = Object.freeze({ color: 16774084, cssColor: "#fff3c
 // src/game/terrain/renderMetrics.ts
 var MAP_TILE_WIDTH = 80;
 var MAP_TILE_HEIGHT = 40;
-var GAME_TILE_SOURCE_SIZES = Object.freeze([128, 256, 512]);
+var GAME_TILE_SOURCE_SIZES = Object.freeze([64, 128, 256, 512]);
 var TOWN_TILE_WIDTH = 160;
 var TOWN_TILE_HEIGHT = 80;
 var FIELD_TILE_DIMENSIONS = Object.freeze({ width: MAP_TILE_WIDTH, height: MAP_TILE_HEIGHT });
