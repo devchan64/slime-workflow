@@ -31,7 +31,7 @@ def build_transform_joypad(current_handler_name, current_feedback_output, curren
             current_output_fields.insert(3,current_vertical_scale)
 
         def bind_joypad_button(current_action_name,current_button_label,current_scale_override=None):
-            current_button_component=gr.Button(current_button_label)
+            current_button_component=gr.Button(current_button_label,min_width=0) if current_action_name.startswith('scale') else gr.Button(current_button_label)
             current_button_script="""async(currentPositionX,currentPositionY,currentScaleValue,currentPositionStep,currentScaleStep)=>{
 try{
  const currentActionHandler=window[HANDLER];
@@ -61,18 +61,18 @@ try{
                             bind_joypad_button(*current_button_record)
         if current_scale_enabled:
             with gr.Row():
-                bind_joypad_button('scaleX-down' if current_separate_axes else 'scale-down','가로 줄이기 −' if current_separate_axes else '배율 줄이기 −')
-                bind_joypad_button('scaleX-up' if current_separate_axes else 'scale-up','가로 늘리기 +' if current_separate_axes else '배율 늘리기 +')
+                bind_joypad_button('scaleX-down' if current_separate_axes else 'scale-down','가로 −0.1%' if current_separate_axes else '배율 줄이기 −')
+                bind_joypad_button('scaleX-up' if current_separate_axes else 'scale-up','가로 +0.1%' if current_separate_axes else '배율 늘리기 +')
             if current_separate_axes:
                 with gr.Row():
-                    bind_joypad_button('scaleY-down','세로 줄이기 −')
-                    bind_joypad_button('scaleY-up','세로 늘리기 +')
+                    bind_joypad_button('scaleY-down','세로 −0.1%')
+                    bind_joypad_button('scaleY-up','세로 +0.1%')
                 with gr.Row():
-                    bind_joypad_button('scaleX-down','가로 줄이기 −0.5%',JOY_PAD_LARGE_SCALE_STEP)
-                    bind_joypad_button('scaleX-up','가로 늘리기 +0.5%',JOY_PAD_LARGE_SCALE_STEP)
+                    bind_joypad_button('scaleX-down','가로 −0.5%',JOY_PAD_LARGE_SCALE_STEP)
+                    bind_joypad_button('scaleX-up','가로 +0.5%',JOY_PAD_LARGE_SCALE_STEP)
                 with gr.Row():
-                    bind_joypad_button('scaleY-down','세로 줄이기 −0.5%',JOY_PAD_LARGE_SCALE_STEP)
-                    bind_joypad_button('scaleY-up','세로 늘리기 +0.5%',JOY_PAD_LARGE_SCALE_STEP)
+                    bind_joypad_button('scaleY-down','세로 −0.5%',JOY_PAD_LARGE_SCALE_STEP)
+                    bind_joypad_button('scaleY-up','세로 +0.5%',JOY_PAD_LARGE_SCALE_STEP)
     return current_input_fields
 
 
