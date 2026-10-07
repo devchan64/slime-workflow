@@ -19,7 +19,7 @@ tiles:
   - {id: iseulon-grass-mud-frame, category: ground, asset: assets/tiles/terrain/non-road/white-wildflower-grass-v1.png}
   - {id: grass, category: ground, asset: assets/tiles/terrain/non-road/white-wildflower-grass-v1.png}
   # 포장 논리 ID는 어두운 석회석 도로 원본을 사용한다.
-  - {id: paving, category: ground, asset: assets/tiles/terrain/road/limestone-road-v2.png}
+  - {id: paving, category: ground, asset: assets/tiles/terrain/road/limestone-road-v3.png}
   - {id: reedhaven-dirt-road, category: ground, asset: assets/tiles/terrain/road/stone-road-v1.png}
   - {id: stonewarm-gravel-paving, category: ground, asset: assets/tiles/terrain/road/stone-road-v1.png}
   - {id: stonewarm-exposed-rock-ground, category: ground, asset: assets/tiles/terrain/non-road/exposed-rock-ground-v1.png}
