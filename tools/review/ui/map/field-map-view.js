@@ -28,9 +28,11 @@ function readReviewConnectionMask(currentCellPosition,currentMapRecord,currentTe
 }
 
 const FIELD_GROUND_PREVIEW_SATURATION=.7;
+const FIELD_ORIGINAL_SATURATION_TEXTURES=new Set(['cliff-wall','ramp-tread']);
 
 /** 원본 크기를 유지하고 바닥 미리보기의 채도만 조정한다. */
 function prepareGroundPreviewTexture(currentGameScene,currentTextureKey){
+ if(FIELD_ORIGINAL_SATURATION_TEXTURES.has(currentTextureKey))return currentTextureKey;
  const currentPreviewKey='ground-preview:'+currentTextureKey;
  if(currentGameScene.textures.exists(currentPreviewKey))return currentPreviewKey;
  const currentSourceImage=currentGameScene.textures.get(currentTextureKey).getSourceImage();
