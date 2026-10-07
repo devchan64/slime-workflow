@@ -41,11 +41,17 @@ class SpriteV2GradioTests(unittest.TestCase):
         self.assertEqual(len(current_guide_events),8)
         self.assertTrue(all(not current_event_record['backend_fn'] and not current_event_record['queue'] for current_event_record in current_guide_events))
 
-    def test_numeric_editor_reads_and_applies_without_server_callbacks(self):
+    def test_circle_editor_is_part_of_guide_controls(self):
         current_interface_config=build_sprite_v2_interface().get_config_file()
-        current_numeric_events=[current_event_record for current_event_record in current_interface_config['dependencies'] if 'spriteV2NumericControls' in (current_event_record.get('js') or '')]
-        self.assertEqual(len(current_numeric_events),2)
-        self.assertTrue(all(not current_event_record['backend_fn'] and not current_event_record['queue'] for current_event_record in current_numeric_events))
+        current_component_props=[current_component_record['props'] for current_component_record in current_interface_config['components']]
+        self.assertNotIn('얼굴 원 수치',[current_component_record.get('label') for current_component_record in current_component_props])
+        for current_circle_label in ('원 중심 X · px','원 중심 Y · px','원 지름 · px'):
+            self.assertIn(current_circle_label,[current_component_record.get('label') for current_component_record in current_component_props])
+        current_apply_events=[current_event_record for current_event_record in current_interface_config['dependencies'] if 'spriteV2GuideControls.apply(' in (current_event_record.get('js') or '')]
+        self.assertEqual(len(current_apply_events),1)
+        self.assertEqual(len(current_apply_events[0]['inputs']),7)
+        self.assertEqual(len(current_apply_events[0]['outputs']),8)
+        self.assertFalse(current_apply_events[0]['backend_fn'])
 
     def test_metadata_edit_is_native_and_browser_only(self):
         current_interface_config=build_sprite_v2_interface().get_config_file()

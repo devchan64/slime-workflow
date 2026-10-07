@@ -138,42 +138,33 @@ def build_sprite_v2_interface():
                     current_target_button=gr.Button('편집 대상 적용')
                     current_target_event=current_target_button.click(fn=None,inputs=[current_target_choice,current_mode_choice],outputs=current_feedback_text,queue=False,js="(currentTargetValue,currentModeValue)=>{try{return window.spriteV2TargetControls(currentTargetValue,currentModeValue);}catch(currentErrorValue){return currentErrorValue.message;}}")
                     with gr.Accordion('가이드라인 위치 편집',open=False) as current_guide_panel:
-                        gr.Markdown('**① 편집 대상 적용 → ② 가이드 선택 → ③ 위치(px) 입력 → ④ 가이드 수정 적용**\n\n좌표는 출력 이미지의 왼쪽 위가 0입니다. 가로선은 위에서부터 Y, 세로선은 왼쪽에서부터 X 거리입니다. 예: 가로선 100은 위에서 100px입니다. 숫자가 커지면 아래·오른쪽으로 이동합니다. 레퍼런스와 현재 프레임의 가이드는 양쪽 비교 화면에 같은 좌표로 표시됩니다. 다른 이미지의 가이드는 점선입니다.')
+                        gr.Markdown('**① 편집 대상 적용 → ② 가이드 선택 → ③ 위치(px) 입력 → ④ 가이드 수정 적용**\n\n얼굴 원도 가이드 목록에서 선택합니다. 원은 중심 X·Y와 지름을 함께 입력해 적용합니다. 좌표는 출력 이미지의 왼쪽 위가 0입니다. 가로선은 위에서부터 Y, 세로선은 왼쪽에서부터 X 거리입니다. 예: 가로선 100은 위에서 100px입니다. 숫자가 커지면 아래·오른쪽으로 이동합니다. 레퍼런스와 현재 프레임의 가이드는 양쪽 비교 화면에 같은 좌표로 표시됩니다. 녹색 가이드는 레퍼런스의 공통 기준이며 양쪽 화면에서 함께 이동합니다.')
                         current_guide_refresh=gr.Button('현재 대상의 가이드 불러오기')
                         current_guide_choice=gr.Dropdown(label='② 편집할 가이드',choices=[],interactive=True)
                         with gr.Row():
                             current_guide_name=gr.Textbox(label='가이드 이름',value='',max_length=40)
                             current_guide_axis=gr.Dropdown(label='가이드 방향',choices=[('가로선 (Y)','y'),('세로선 (X)','x')],value='y')
                         current_guide_position=gr.Number(label='③ 가이드 위치 · px',value=0,info='가이드를 불러오면 현재 위치가 표시됩니다. 값을 입력한 뒤 아래 적용 버튼을 누르세요.')
-                        current_guide_outputs=[current_guide_choice,current_guide_name,current_guide_axis,current_guide_position,current_feedback_text]
-                        current_guide_error="[{__type__:'update'},{__type__:'update'},{__type__:'update'},{__type__:'update'},currentErrorValue.message]"
+                        with gr.Row():
+                            current_circle_center_x=gr.Number(label='원 중심 X · px',value=0,visible=False)
+                            current_circle_center_y=gr.Number(label='원 중심 Y · px',value=0,visible=False)
+                            current_circle_diameter_value=gr.Number(label='원 지름 · px',value=1,minimum=0.01,visible=False)
+                        current_guide_outputs=[current_guide_choice,current_guide_name,current_guide_axis,current_guide_position,current_feedback_text,current_circle_center_x,current_circle_center_y,current_circle_diameter_value]
+                        current_guide_error="[{__type__:'update'},{__type__:'update'},{__type__:'update'},{__type__:'update'},currentErrorValue.message,{__type__:'update'},{__type__:'update'},{__type__:'update'}]"
                         current_guide_apply=gr.Button('④ 가이드 수정 적용',variant='primary')
-                        gr.Markdown('화면 반영 후 **수정본 저장**을 누르면 보존됩니다. 여러 프레임을 대상으로 선택했다면 같은 순서의 가이드에 적용됩니다.')
+                        gr.Markdown('화면 반영 후 **수정본 저장**을 누르면 보존됩니다. 가이드 편집은 이미지 편집 대상과 무관하게 레퍼런스의 공통 기준에 적용됩니다.')
                         current_guide_refresh.click(fn=None,outputs=current_guide_outputs,queue=False,js="()=>{try{return window.spriteV2GuideControls.list();}catch(currentErrorValue){return "+current_guide_error+";}}")
                         current_target_event.then(fn=None,outputs=current_guide_outputs,queue=False,js="()=>{try{return window.spriteV2GuideControls.list();}catch(currentErrorValue){return "+current_guide_error+";}}")
                         current_guide_axis.input(fn=None,inputs=current_guide_axis,outputs=current_guide_position,queue=False,js="(currentAxisValue)=>({__type__:'update',label:currentAxisValue==='y'?'③ 위에서부터 위치 Y · px':'③ 왼쪽에서부터 위치 X · px',info:currentAxisValue==='y'?'0은 위쪽 끝입니다. 값이 커지면 아래로 이동합니다.':'0은 왼쪽 끝입니다. 값이 커지면 오른쪽으로 이동합니다.'})")
                         current_guide_panel.expand(fn=None,outputs=current_guide_outputs,queue=False,js="()=>{try{return window.spriteV2GuideControls.list();}catch(currentErrorValue){return "+current_guide_error+";}}")
-                        current_guide_choice.input(fn=None,inputs=current_guide_choice,outputs=current_guide_outputs[1:],queue=False,js="(currentGuideValue)=>{try{return window.spriteV2GuideControls.select(currentGuideValue);}catch(currentErrorValue){return [{__type__:'update'},{__type__:'update'},{__type__:'update'},currentErrorValue.message];}}")
-                        current_guide_apply.click(fn=None,inputs=[current_guide_choice,current_guide_name,current_guide_axis,current_guide_position],outputs=current_guide_outputs,queue=False,js="async(currentGuideValue,currentLabelValue,currentAxisValue,currentPositionValue)=>{try{return await window.spriteV2GuideControls.apply(currentGuideValue,currentLabelValue,currentAxisValue,currentPositionValue);}catch(currentErrorValue){return "+current_guide_error+";}}")
+                        current_guide_choice.input(fn=None,inputs=current_guide_choice,outputs=current_guide_outputs[1:],queue=False,js="(currentGuideValue)=>{try{return window.spriteV2GuideControls.select(currentGuideValue);}catch(currentErrorValue){return [{__type__:'update'},{__type__:'update'},{__type__:'update'},currentErrorValue.message,{__type__:'update'},{__type__:'update'},{__type__:'update'}];}}")
+                        current_guide_apply.click(fn=None,inputs=[current_guide_choice,current_guide_name,current_guide_axis,current_guide_position,current_circle_center_x,current_circle_center_y,current_circle_diameter_value],outputs=current_guide_outputs,queue=False,js="async(currentGuideValue,currentLabelValue,currentAxisValue,currentPositionValue,currentCircleCenterX,currentCircleCenterY,currentCircleDiameter)=>{try{return await window.spriteV2GuideControls.apply(currentGuideValue,currentLabelValue,currentAxisValue,currentPositionValue,currentCircleCenterX,currentCircleCenterY,currentCircleDiameter);}catch(currentErrorValue){return "+current_guide_error+";}}")
                         with gr.Row():
                             for current_edit_action,current_edit_label in (('guide-add','가로선 추가'),('guide-vertical','세로선 추가'),('guide-remove','선택 가이드 삭제')):
                                 current_guide_action_button=gr.Button(current_edit_label)
                                 current_guide_action_button.click(fn=None,inputs=current_guide_choice,outputs=current_guide_outputs,queue=False,js="async(currentGuideValue)=>{try{return await window.spriteV2GuideControls.change('"+current_edit_action+"',currentGuideValue);}catch(currentErrorValue){return "+current_guide_error+";}}")
-                        with gr.Row():
-                            build_browser_action_button('레퍼런스 얼굴 원 크기 복사','spriteV2EditControls','face-match',current_feedback_text)
-                            build_browser_action_button('레퍼런스 가이드·얼굴 원 복사','spriteV2EditControls','guide-copy',current_feedback_text)
                     build_transform_joypad('spriteV2JoypadControls',current_feedback_text,current_separate_axes=True)
                     build_browser_action_button('실행 취소','spriteV2FrameControls','undo',current_feedback_text)
-                    with gr.Accordion('얼굴 원 수치',open=False):
-                        with gr.Row():
-                            current_numeric_choice=gr.Dropdown(label='수치 조절 항목',choices=[('얼굴 원 X','face-x'),('얼굴 원 Y','face-y'),('얼굴 원 지름','diameter')],value='diameter')
-                            current_numeric_input=gr.Number(label='적용할 수치',value=0)
-                        with gr.Row():
-                            current_numeric_read=gr.Button('현재 수치 읽기')
-                            current_numeric_apply=gr.Button('선택 항목 수치 적용')
-                        gr.Markdown('현재 값은 비교 화면 아래에서 확인합니다. 읽기는 현재 프레임 또는 레퍼런스를 기준으로 하며, 적용은 위에서 지정한 편집 대상 전체에 같은 값을 설정합니다.')
-                        current_numeric_read.click(fn=None,inputs=current_numeric_choice,outputs=[current_numeric_input,current_feedback_text],queue=False,js="(currentFieldName)=>{try{return [window.spriteV2NumericControls.read(currentFieldName),'현재 수치를 읽었습니다.'];}catch(currentErrorValue){return [{__type__:'update'},currentErrorValue.message];}}")
-                        current_numeric_apply.click(fn=None,inputs=[current_numeric_choice,current_numeric_input],outputs=current_feedback_text,queue=False,js="async(currentFieldName,currentNumberValue)=>{try{return await window.spriteV2NumericControls.apply(currentFieldName,currentNumberValue);}catch(currentErrorValue){return currentErrorValue.message;}}")
         with gr.Accordion('프레임 순서·복제·삭제',open=False):
             gr.Markdown('### 프레임 편집\n선택한 프레임의 순서를 바꾸거나 복제·삭제합니다. 전체 프레임 삭제는 레퍼런스를 유지합니다. 삭제는 실행 취소할 수 있으며 수정본 저장 전에는 저장된 작업을 바꾸지 않습니다.')
             with gr.Row():
