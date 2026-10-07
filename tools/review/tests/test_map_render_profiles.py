@@ -98,7 +98,7 @@ class MapRenderProfileTests(unittest.TestCase):
         map_review_script = (WORKFLOW_ROOT / 'tools/review/ui/map/block-map-review.js').read_text(encoding='utf-8')
 
         self.assertIn('id: stonewarm-gravel-paving', tile_catalog_source)
-        self.assertIn('assets/tiles/terrain/road/stone-road-v1.png', tile_catalog_source)
+        self.assertIn('assets/tiles/terrain/road/limestone-road-v3.png', tile_catalog_source)
         self.assertIn("currentMapRecord.id==='stonewarm'?'stonewarm-marble-paving':currentMapRecord.id==='saltford'?'stonewarm-gravel-paving'", map_review_script)
 
     def test_stonewarm_exposed_rock_ground_uses_the_registered_tile(self):
@@ -106,7 +106,7 @@ class MapRenderProfileTests(unittest.TestCase):
         map_review_script = (WORKFLOW_ROOT / 'tools/review/ui/map/block-map-review.js').read_text(encoding='utf-8')
 
         self.assertIn('id: stonewarm-exposed-rock-ground', tile_catalog_source)
-        self.assertIn('assets/tiles/terrain/non-road/exposed-rock-ground-v1.png', tile_catalog_source)
+        self.assertIn('assets/tiles/terrain/non-road/exposed-rock-ground-v2.png', tile_catalog_source)
         self.assertIn("gravel:currentMapRecord.id==='stonewarm'?'stonewarm-exposed-rock-ground':'gravel'", map_review_script)
 
     def test_reedhaven_roads_use_the_dirt_road_texture(self):
@@ -114,7 +114,7 @@ class MapRenderProfileTests(unittest.TestCase):
         map_review_script = (WORKFLOW_ROOT / 'tools/review/ui/map/block-map-review.js').read_text(encoding='utf-8')
 
         self.assertIn('id: reedhaven-dirt-road', tile_catalog_source)
-        self.assertIn('assets/tiles/terrain/road/stone-road-v1.png', tile_catalog_source)
+        self.assertIn('assets/tiles/terrain/road/limestone-road-v3.png', tile_catalog_source)
         self.assertIn("['reedhaven','grainstead'].includes(currentMapRecord.id)?'reedhaven-dirt-road':'paving'", map_review_script)
 
     def test_reedhaven_uses_wood_building_tiles(self):
