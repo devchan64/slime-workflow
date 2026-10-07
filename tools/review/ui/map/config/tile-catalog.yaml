@@ -6,10 +6,11 @@ source_tile_size: 256
 ground_source_tile_size: 128
 # 검수 화면 논리 타일 ID와 에셋 저장소 원본의 표시용 매핑이다.
 tiles:
-  - {id: meadow-road, category: ground, asset: assets/tiles/terrain/road/dry-soil-pebble-road-v1.png}
+  - {id: meadow-road, category: ground, asset: assets/tiles/terrain/road/ochre-pebble-road-v1.png}
   - {id: broken-stone-slab-road, category: ground, asset: assets/tiles/terrain/road/broken-stone-slab-road-v1.png}
   - {id: mossy-stone-road, category: ground, asset: assets/tiles/terrain/road/mossy-stone-road-v1.png}
-  - {id: soil-pebble-road, category: ground, asset: assets/tiles/terrain/road/soil-pebble-road-v1.png}
+  - {id: ochre-pebble-road, category: ground, asset: assets/tiles/terrain/road/ochre-pebble-road-v1.png}
+  - {id: soil-pebble-road, category: ground, asset: assets/tiles/terrain/road/ochre-pebble-road-v1.png}
   - {id: boulder-type-a, category: ground, asset: assets/tiles/terrain/blocked/boulder-type-a-v1.png}
   - {id: boulder-type-b, category: ground, asset: assets/tiles/terrain/blocked/boulder-type-b-v1.png}
   - {id: boulder-type-c, category: ground, asset: assets/tiles/terrain/blocked/boulder-type-c-v1.png}
