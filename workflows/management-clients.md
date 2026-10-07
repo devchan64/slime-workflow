@@ -544,3 +544,5 @@ python3 tools/manager.py command character-review capture --payload-file /tmp/ch
 포즈에서 `커스텀`을 선택하면 현재 표시된 모션 스크립트를 수정할 수 있다. 스크립트는 실행 코드가 아닌 MoMask 자연어 입력이다. 원본 프리셋은 변경하지 않으며 입력 원문은 작업의 `request.json`에 저장한다. 커스텀은 대기의 원본 프레임 수와 카메라 설정을 사용한다. 이력의 입력 불러오기와 재개는 저장된 커스텀 원문을 사용한다.
 
 CLI에서도 같은 요청을 사용한다: `python tools/manager.py momask generate --action custom --prompt 'A person raises both arms slowly.' --directions down_left`. 빈 스크립트 또는 4000자 초과 입력은 거절하며, 기존 고정 포즈에는 `--prompt`를 지정하지 않는다.
+
+MoMask 생성은 `--frames 120`으로 원본 모션 길이를 지정할 수 있습니다. 8 이상인 4의 배수 정수이며 생략하면 포즈 기본값을 사용합니다. GUI의 프레임 길이와 같은 요청·이력에 저장하고 입력 불러오기에서 복원합니다.

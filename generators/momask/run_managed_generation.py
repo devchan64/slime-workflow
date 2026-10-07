@@ -4,6 +4,7 @@ import argparse, json, shutil, subprocess, sys
 import numpy as np
 import yaml
 ROOT=Path(__file__).resolve().parents[2]
+if str(ROOT) not in sys.path:sys.path.insert(0,str(ROOT))
 ACTIONS={'walking':('walking','걷기'),'standing':('standing','대기'),'resting':('resting','휴식'),'custom':('custom','커스텀')}
 DIRECTIONS={'down_left','down_right','up_left','up_right'}
 def main():
@@ -18,6 +19,8 @@ def main():
   custom_prompt_text=json.loads((a.job_dir/'request.json').read_text()).get('prompt')
   if not isinstance(custom_prompt_text,str) or not custom_prompt_text.strip():raise ValueError('커스텀 스크립트가 없습니다.')
   spec['prompt']=custom_prompt_text
+ from tools.review.domains.momask.momask_jobs import resolve_motion_frame_count
+ spec['source_frames']=resolve_motion_frame_count(a.action,json.loads((a.job_dir/'request.json').read_text()).get('frames'))
  generation_root = a.job_dir / 'motion-run'
  command=[str(ROOT/'.venv/bin/python'),str(ROOT/'generators/momask/generate_motion.py'),'--output-dir',str(generation_root),'--frames',str(spec['source_frames']),'--prompt',spec['prompt']]
  subprocess.run(command,check=True)

@@ -75,7 +75,7 @@ def execute_momask_command(operation_command_name, command_payload_value):
     if operation_command_name=='resume':
         return momask_jobs.resume_generation_job(command_payload_value['id'])
     if operation_command_name=='generate':
-        return momask_jobs.start_generation_job(command_payload_value['action'],command_payload_value['directions'],command_payload_value.get('face',False),command_payload_value.get('tag',''),command_payload_value.get('prompt'))
+        return momask_jobs.start_generation_job(command_payload_value['action'],command_payload_value['directions'],command_payload_value.get('face',False),command_payload_value.get('tag',''),command_payload_value.get('prompt'),command_payload_value.get('frames'))
     if operation_command_name=='history':
         return momask_jobs.list_generation_history()
     if operation_command_name=='status':
@@ -221,6 +221,7 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
             elif service_command_name=='momask':
                 operation_argument_parser.add_argument('--action',choices=('standing','walking','resting','custom'),required=True)
                 operation_argument_parser.add_argument('--prompt',help='커스텀 포즈의 모션 스크립트')
+                operation_argument_parser.add_argument('--frames',type=int,help='원본 모션 프레임 길이 · 8 이상 4의 배수')
                 operation_argument_parser.add_argument('--directions',nargs='+',choices=('down_left','down_right','up_left','up_right'),default=['down_left','down_right','up_left','up_right'])
             else:
                 prompt_argument_group=operation_argument_parser.add_mutually_exclusive_group(required=service_command_name not in ('pose-transfer','outfit-transfer'))
@@ -285,6 +286,7 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
             if command_argument_values.end_frame is not None:command_payload_value['end_frame']=command_argument_values.end_frame
         elif service_command_name=='momask':
             command_payload_value={'action':command_argument_values.action,'directions':command_argument_values.directions,'face':command_argument_values.face}
+            if command_argument_values.frames is not None:command_payload_value['frames']=command_argument_values.frames
             if command_argument_values.prompt is not None:command_payload_value['prompt']=command_argument_values.prompt
             if command_argument_values.tag:command_payload_value['tag']=command_argument_values.tag
         else:

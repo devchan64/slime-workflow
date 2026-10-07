@@ -78,6 +78,6 @@ class MoMaskGenerationManager:
    if path==self.route+'/cancel':
     if set(body)!={'id'}: raise ValueError('취소 요청 오류')
     self.send(h,200,execute_momask_command('cancel',body));return True
-   if path!=self.route+'/jobs' or set(body)-{'action','directions','face','tag','prompt'} or not {'action','directions'}<=set(body) or body['action'] not in (*ACTIONS,'custom') or not isinstance(body['directions'],list) or not body['directions'] or set(body['directions'])-set(DIRECTIONS) or len(set(body['directions']))!=len(body['directions']): raise ValueError('포즈 또는 방향 요청 오류')
+   if path!=self.route+'/jobs' or set(body)-{'action','directions','face','tag','prompt','frames'} or not {'action','directions'}<=set(body) or body['action'] not in (*ACTIONS,'custom') or not isinstance(body['directions'],list) or not body['directions'] or set(body['directions'])-set(DIRECTIONS) or len(set(body['directions']))!=len(body['directions']): raise ValueError('포즈 또는 방향 요청 오류')
    self.send(h,202,execute_momask_command('generate',body));return True
   except (ValueError,FileNotFoundError,json.JSONDecodeError) as e:self.send(h,400,{'error':str(e)});return True

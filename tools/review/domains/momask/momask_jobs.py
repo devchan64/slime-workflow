@@ -42,7 +42,16 @@ def check_generation_running():
     return False
 
 
-def start_generation_job(action_name_value, direction_name_values, include_face_points=False, history_tag_value='', custom_prompt_text=None):
+def resolve_motion_frame_count(action_name_value, requested_frame_count=None):
+    if requested_frame_count is None:
+        current_action_config=json.loads((WORKFLOW_ROOT_DIRECTORY/'generators/momask/config/standing-loops-v1.json').read_text())['actions']
+        requested_frame_count=current_action_config['standing' if action_name_value=='custom' else action_name_value]['source_frames']
+    if type(requested_frame_count) is not int or requested_frame_count<8 or requested_frame_count%4:
+        raise ValueError('프레임 길이는 8 이상인 4의 배수 정수여야 합니다.')
+    return requested_frame_count
+
+
+def start_generation_job(action_name_value, direction_name_values, include_face_points=False, history_tag_value='', custom_prompt_text=None, requested_frame_count=None):
     if type(include_face_points) is not bool:raise ValueError("얼굴 옵션 형식 오류")
     from tools.review.common.generation_records import validate_history_tag
     history_tag_value=validate_history_tag(history_tag_value)
@@ -55,6 +64,7 @@ def start_generation_job(action_name_value, direction_name_values, include_face_
             raise ValueError('커스텀 스크립트는 4000자 이하여야 합니다.')
     elif custom_prompt_text is not None:
         raise ValueError('스크립트 편집은 커스텀 포즈에서만 가능합니다.')
+    requested_frame_count=resolve_motion_frame_count(action_name_value,requested_frame_count)
     GENERATION_JOB_DIRECTORY.mkdir(parents=True, exist_ok=True)
     GENERATION_HISTORY_DIRECTORY.mkdir(parents=True, exist_ok=True)
     generation_lock_handle = GENERATION_LOCK_FILE.open('a')
@@ -68,7 +78,7 @@ def start_generation_job(action_name_value, direction_name_values, include_face_
         generation_job_path = resolve_generation_directory(generation_job_identifier)
         generation_job_path.mkdir()
         generation_record_value = dict(id=generation_job_identifier, created_at=creation_time_value.isoformat(), action=action_name_value, directions=direction_name_values, tag=history_tag_value, status='running')
-        write_record_atomically(generation_job_path/'request.json', dict(action=action_name_value, directions=direction_name_values, face=include_face_points, tag=history_tag_value, **({'prompt':custom_prompt_text} if action_name_value=='custom' else {})))
+        write_record_atomically(generation_job_path/'request.json', dict(action=action_name_value, directions=direction_name_values, face=include_face_points, tag=history_tag_value, frames=requested_frame_count, **({'prompt':custom_prompt_text} if action_name_value=='custom' else {})))
         write_record_atomically(generation_job_path/'status.json', {'status':'running'})
         write_record_atomically(GENERATION_HISTORY_DIRECTORY/(generation_job_identifier+'.json'), generation_record_value)
         try:
