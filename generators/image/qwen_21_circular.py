@@ -19,12 +19,12 @@ CIRCULAR_TANGENT_ONE_CONFIGURATION = {**CIRCULAR_PREVIOUS_VAE_CONFIGURATION, 'sc
 CIRCULAR_BOUNDARY_TANGENT_RADIUS = 12
 CIRCULAR_VAE_CONFIGURATION = {**CIRCULAR_TANGENT_ONE_CONFIGURATION, 'schema_version': 14, 'boundary_tangent_radius': CIRCULAR_BOUNDARY_TANGENT_RADIUS}
 
-CIRCULAR_RADIUS_CHOICES = (8, 12, 16, 24)
+CIRCULAR_RADIUS_CHOICES = (4, 8, 12, 16, 24)
 
 
 def build_circular_configuration(selected_radius_value=12, baseline_decode_enabled=True, reference_input_enabled=False):
     if type(selected_radius_value) is not int or selected_radius_value not in CIRCULAR_RADIUS_CHOICES:
-        raise ValueError('순환 참조 반경은 8·12·16·24토큰 중 선택하세요.')
+        raise ValueError('순환 참조 반경은 4·8·12·16·24토큰 중 선택하세요.')
     if type(baseline_decode_enabled) is not bool:
         raise ValueError('일반 VAE 비교 옵션은 ON/OFF 값이어야 합니다.')
     return {**CIRCULAR_VAE_CONFIGURATION, **({'schema_version': 15, 'references': True} if reference_input_enabled else {}), 'baseline_decode': baseline_decode_enabled, 'boundary_radius': selected_radius_value,

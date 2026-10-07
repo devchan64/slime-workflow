@@ -107,12 +107,12 @@ class CircularGenerationTests(unittest.TestCase):
     def test_selectable_circular_radius(self):
         current_service_manager = QwenCircularGenerationManager()
         current_request_values = dict(action='generate', prompt=CIRCULAR_DEFAULT_PROMPT, images=[], tag='', width=512, height=512, steps=40, seed=10107)
-        for current_radius_value in (8, 12, 16, 24):
+        for current_radius_value in (4, 8, 12, 16, 24):
             current_output_values = current_service_manager.validate_generation_request({**current_request_values, 'circular_radius': current_radius_value})
             self.assertEqual(current_output_values['circular_vae']['boundary_radius'], current_radius_value)
             self.assertEqual(current_output_values['circular_vae']['vertical_boundary_radius'], current_radius_value)
             self.assertEqual(current_output_values['circular_vae']['boundary_tangent_radius'], current_radius_value)
-        for invalid_radius_value in (4, 32, True, '8', 8.0):
+        for invalid_radius_value in (2, 32, True, '8', 8.0):
             with self.assertRaises(ValueError):
                 current_service_manager.validate_generation_request({**current_request_values, 'circular_radius': invalid_radius_value})
 
