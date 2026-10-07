@@ -69,7 +69,7 @@ var CHARACTER_OUTLINE_STYLE = Object.freeze({ color: 16774084, cssColor: "#fff3c
 
 // packages/field-renderer/field-renderer.mjs
 var FIELD_RENDERER_VERSION = "1.0.6";
-var FIELD_ELEVATION_EDGE_STYLE = Object.freeze({ color: 5327677, width: 2, alpha: 0.85 });
+var FIELD_ELEVATION_EDGE_STYLE = Object.freeze({ color: 3158064, width: 4, alpha: 0.85 });
 var FIELD_MESH_BOUNDARY_STYLE = Object.freeze({ color: 14476783, width: 1, alpha: 0.9 });
 var FIELD_ACTOR_CONTACT_SHADOW_PROFILES = Object.freeze({
   baseline: Object.freeze({ width: 0.4, height: 0.32, alpha: 0.3, coreAlpha: 0.24, coreScale: 0.65, scale: 1.3, opacityScale: 1.5 }),
