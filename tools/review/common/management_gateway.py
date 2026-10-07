@@ -20,6 +20,8 @@ MANAGEMENT_COMMAND_ROUTES = {'anchor-history-reset':('POST','/anchor/history/res
 MANAGEMENT_SERVICE_COMMANDS = {'outfit-transfer':('history-delete','resume','generate','status','logs','history','active','model-status','cancel','history-reset'),'pose-transfer':('history-delete','resume','generate','status','logs','history','active','model-status','cancel','history-reset'),'qwen-21-circular':('history-delete','resume','generate','status','logs','history','active','model-status','cancel','history-reset'),'animation-separation':('catalog','history-delete','resume','generate','status','logs','history','active','cancel','history-reset'),'qwen-21':('history-delete','resume','generate','status','logs','history','active','model-status','cancel','history-reset'),'seamless-tile':('pause','history-delete','resume','generate','status','logs','history','active','model-status','cancel','history-reset'),'expression':('history-delete','resume','generate','status','logs','history','active','model-status','cancel','history-reset'),'floor-tile':('history-delete','resume','catalog','generate','status','logs','history','active','model-status','cancel','history-reset'),'anny':('status','history','cancel','resume'),'character-animation':('anchor-save','anchor-history','anchor-load','anchor-history-reset','history-delete','resume','sprite-source','sprite-save','sprite-load','sprite-history','sprite-history-reset','sprite-history-delete','catalog','generate','status','logs','history','active','cancel','history-reset'),'momask':('history-delete','resume','generate','status','logs','history','cancel','history-reset'),'qwen-2512':('history-delete','resume','generate','prepare','status','logs','history','active','model-status','cancel','history-reset'),'qwen-2511':('history-delete','resume','generate','status','logs','history','active','model-status','cancel','history-reset')}
 
 
+MANAGEMENT_SERVICE_ROUTES['hy-motion']='/hy-motion-generator'
+MANAGEMENT_SERVICE_COMMANDS['hy-motion']=('generate','prepare','model-status','status','logs','history','cancel','resume','history-reset')
 MANAGEMENT_SERVICE_ROUTES['character-review']='/character-review'
 MANAGEMENT_SERVICE_COMMANDS['character-review']=('capture',)
 MANAGEMENT_COMMAND_ROUTES['capture']=('POST','/capture')
@@ -96,7 +98,8 @@ class GatewayRequestAdapter:
         self.original_request_handler=original_request_handler
         self.command=request_method_value
         self.path=request_route_value
-        request_body_bytes=json.dumps(request_payload_value,ensure_ascii=False).encode()
+        self.management_command_payload=request_payload_value
+        request_body_bytes=json.dumps(request_payload_value,ensure_ascii=False).encode() if request_method_value=='POST' else b''
         self.rfile=io.BytesIO(request_body_bytes)
         self.headers=Message()
         for request_header_name,request_header_value in original_request_handler.headers.items():
@@ -160,6 +163,7 @@ class ManagementCommandGateway:
 MANAGEMENT_COMMAND_DESCRIPTIONS = {'outfit-transfer':'Qwen 2.1 복장 착용 · 참조 정확히 2장: 바디, 아웃핏 순서','pose-transfer':'Qwen Image 2.1 포즈 변환 · 참조 정확히 2장: 아이덴티티, 포즈 순서','qwen-21-circular':'Qwen 2.1 순환 VAE · XY 디코더 · 3×3 반복 검수','animation-separation':'Qwen 2.1 참조 PNG 1장으로 신체 베이스·복장 독립 생성 · --reference','qwen-21':'Qwen Image 2.1 · 입력 프롬프트 원문 · 추가 문구 없음 · 참조 0~10장 · 20·30·40·50스텝 (기본 40)','seamless-tile':'Qwen Image 2.1 · 40스텝 · 5단계 가로·세로 심리스 패턴 · 단계별 검수 대기 · pause/resume · 참조 생략 가능','expression':'Qwen 2511 AU 표정 생성 · 참조 1~3장 · --expression에 표정 ID 지정','floor-tile':'512×512·4스텝 단일 바닥 타일 생성 (관리 서버 필요)','anny':'ANNY 이력 상태·중지·재개 (관리 서버 필요)','character-animation':'등록 모션·캐릭터 기반 애니메이션 생성·이력·재생 결과 조회','momask': 'MoMask 생성·상태·로그·이력 조회·취소 (웹과 기록 공유)', 'qwen-2512': 'Qwen 2512 텍스트 이미지 생성 (관리 서버 필요)', 'qwen-2511': 'Qwen 2511 텍스트·1~3장 참조 이미지 생성 (관리 서버 필요)'}
 
 MANAGEMENT_COMMAND_DESCRIPTIONS['character-review']='캐릭터 검수 렌더링 PNG 캡처 · --payload-file 설정'
+MANAGEMENT_COMMAND_DESCRIPTIONS['hy-motion']='HY-Motion Lite 원본 모션 · CPU 메모리 오프로드 / CUDA 연산 · 준비·생성·이력·취소·재개'
 
 def execute_management_command(service_command_name, operation_command_name, command_payload_value, server_base_address=None, *, gateway_request_handler=None, service_handler_values=None):
     request_method_value,request_route_value=resolve_management_command(service_command_name,operation_command_name,command_payload_value)
@@ -218,6 +222,15 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
                 current_reference_group.add_argument('--reference',type=Path,help='캐릭터 참조 PNG 한 장 · 단일 방향 생성')
                 operation_argument_parser.add_argument('--source',choices=('openpose','anny'),default='anny')
                 operation_argument_parser.add_argument('--directions',nargs='+',choices=('down_left','down_right','up_left','up_right'),default=['down_left'],help='생성 방향 (기본: 전방 좌측만)')
+            elif service_command_name=='hy-motion':
+                from generators.hy_motion.contracts import load_generation_defaults, SUPPORTED_DIRECTION_NAMES
+                current_default_values=load_generation_defaults()
+                current_prompt_group=operation_argument_parser.add_mutually_exclusive_group(required=True)
+                current_prompt_group.add_argument('--prompt')
+                current_prompt_group.add_argument('--prompt-file',type=Path)
+                operation_argument_parser.add_argument('--duration-seconds',type=float,default=current_default_values['duration_seconds'])
+                operation_argument_parser.add_argument('--seed',type=int,default=current_default_values['seed'])
+                operation_argument_parser.add_argument('--directions',nargs='+',choices=SUPPORTED_DIRECTION_NAMES,default=current_default_values['directions'])
             elif service_command_name=='momask':
                 operation_argument_parser.add_argument('--action',choices=('standing','walking','resting','custom'),required=True)
                 operation_argument_parser.add_argument('--prompt',help='커스텀 포즈의 모션 스크립트')
@@ -284,6 +297,8 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
             if command_argument_values.target_fps is not None:command_payload_value['target_fps']=command_argument_values.target_fps
             if command_argument_values.start_frame is not None:command_payload_value['start_frame']=command_argument_values.start_frame
             if command_argument_values.end_frame is not None:command_payload_value['end_frame']=command_argument_values.end_frame
+        elif service_command_name=='hy-motion':
+            command_payload_value={'prompt':command_argument_values.prompt if command_argument_values.prompt is not None else command_argument_values.prompt_file.read_text(encoding='utf-8'),'duration_seconds':command_argument_values.duration_seconds,'seed':command_argument_values.seed,'directions':command_argument_values.directions,'tag':command_argument_values.tag}
         elif service_command_name=='momask':
             command_payload_value={'action':command_argument_values.action,'directions':command_argument_values.directions,'face':command_argument_values.face}
             if command_argument_values.frames is not None:command_payload_value['frames']=command_argument_values.frames

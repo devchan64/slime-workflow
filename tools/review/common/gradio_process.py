@@ -92,6 +92,7 @@ def ensure_gradio_application(review_server_port, application_name, application_
         application_definitions={
             'management-menu':('management_menu_app.py',100,'/management/'),
             'momask':('momask_app.py',101,'/management/frame/momask-generator/'),
+            'hy-motion':('hy_motion_app.py',123,'/management/frame/hy-motion-generator/'),
             'character-animation':('character_animation_app.py',102,'/management/frame/character-animation/'),
             'qwen-2512':('qwen_2512_app.py',103,'/management/frame/image-generator/'),
             'qwen-21-circular':('qwen_circular_app.py',118,'/management/frame/qwen-21-circular-generator/'),

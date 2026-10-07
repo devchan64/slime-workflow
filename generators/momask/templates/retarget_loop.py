@@ -12,7 +12,7 @@ from position_retarget import PositionRetargetSolver, RETARGET_ALGORITHM_VERSION
 from retarget_audit import write_coordinate_audit
 from skin_surface import inspect_skin_rig
 
-EXPERIMENT_OUTPUT_ROOT = Path(__file__).resolve().parent
+EXPERIMENT_OUTPUT_ROOT = Path(globals().get('retarget_output_directory', Path(__file__).resolve().parent))
 CURRENT_PROGRESS_STATE = {'stage': 'start', 'frame': 0}
 
 
@@ -123,7 +123,7 @@ for current_frame_index, current_joint_points in enumerate(source_joint_frames):
     actual_direction_errors.append(current_direction_errors)
     actual_rotation_errors.append(current_rotation_errors)
     frame_diagnostic_records.append(frame_diagnostic_values)
-rig_object_value.animation_data.action.name = f'MoMask_{len(source_joint_frames)}frames_{scene_render_value.render.fps}fps'
+rig_object_value.animation_data.action.name = f'{source_manifest_record.get("generator", "MoMask")}_{len(source_joint_frames)}frames_{scene_render_value.render.fps}fps'
 scene_render_value.frame_set(1)
 bpy.ops.object.select_all(action='DESELECT')
 body_object_value.select_set(True)

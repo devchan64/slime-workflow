@@ -64,6 +64,8 @@ def bind_stored_management_service(request_handler_callback, record_storage_root
 
 
 def create_management_runtime(writer_workspace_config=None):
+    from tools.review.domains.hy_motion.service import handle_hymotion_request
+    from tools.review.domains.hy_motion.jobs import GENERATION_STORAGE_ROOT as HYMOTION_STORAGE_ROOT, resolve_generation_directory as resolve_hymotion_directory
     from tools.review.domains.image.image_generation import ImageGenerationManager
     from tools.review.domains.image.seamless_generation import SeamlessGenerationManager
     from tools.review.domains.image.qwen_circular_generation import QwenCircularGenerationManager
@@ -99,6 +101,7 @@ def create_management_runtime(writer_workspace_config=None):
         momask_generation_service = MoMaskGenerationManager()
         character_animation_service = CharacterAnimationManager()
         service_binding_records = {
+            'hy-motion': ManagementServiceBinding(handle_hymotion_request, HYMOTION_STORAGE_ROOT, resolve_hymotion_directory),
             'character-review': bind_stored_management_service(handle_character_capture_request,CAPTURE_STORAGE_DIRECTORY),
             'outfit-transfer': bind_stored_management_service(outfit_transfer_service.handle_image_request, outfit_transfer_service.job_storage_root),
             'pose-transfer': bind_stored_management_service(pose_transfer_service.handle_image_request, pose_transfer_service.job_storage_root),

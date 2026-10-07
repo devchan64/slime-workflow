@@ -48,6 +48,15 @@ const loadPlayerPayload=()=>{
  try{currentFramePayload=props.value?JSON.parse(props.value):{};}
  catch(currentParseError){currentFramePayload={};showPlayerMessage('재생 결과 형식 오류');return;}
  currentDirectionName=Object.keys(currentFramePayload.frames||{})[0]||'';
+ let currentDownloadContainer=element.querySelector('[data-player-downloads]');
+ if(!currentDownloadContainer){currentDownloadContainer=document.createElement('p');currentDownloadContainer.dataset.playerDownloads='';element.querySelector('[data-player-status]').after(currentDownloadContainer);}
+ currentDownloadContainer.replaceChildren();
+ for(const currentArtifactRecord of currentFramePayload.downloads||[]){
+  const currentArtifactUrl=new URL(currentArtifactRecord.url,window.location.href);
+  if(currentArtifactUrl.protocol!=='http:'||currentArtifactUrl.hostname!=='127.0.0.1')continue;
+  const currentDownloadAnchor=document.createElement('a');currentDownloadAnchor.href=currentArtifactUrl.href;currentDownloadAnchor.textContent=currentArtifactRecord.label;currentDownloadAnchor.setAttribute('download','');
+  currentDownloadContainer.append(currentDownloadAnchor,document.createTextNode(' '));
+ }
  if(currentFramePayload.deferLoading){element.querySelector('[data-player-images]').replaceChildren();showPlayerMessage('미리보기 불러오기를 눌러 선택한 프레임을 확인하세요.');}
  else drawSelectedFrame();
 };

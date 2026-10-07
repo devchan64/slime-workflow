@@ -1,0 +1,14 @@
+schema_version: 1
+model_id: tencent/HY-Motion-1.0
+model_variant: HY-Motion-1.0-Lite
+source_revision: 4e426f5a1021cbcf7f375458c37b840ee7225229
+duration_seconds: 3
+seed: 10107
+steps: 50
+guidance_scale: 5.0
+prompt: A person stands relaxed with arms resting at their sides.
+directions: [down_left, down_right, up_left, up_right]
+preview_fps: 8
+preview_size: 512
+camera_elevation: 17
+camera_angles: {down_left: 45, down_right: -45, up_left: 135, up_right: -135}
