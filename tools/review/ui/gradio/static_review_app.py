@@ -18,7 +18,6 @@ from tools.review.common.gradio_browser_history import build_browser_history_con
 
 
 STATIC_REVIEW_FRAME_HEIGHT=1000
-TERRAIN_REVIEW_MAP_CHOICES=[('이슬 초원','meadow'),('푸른 숲','grove'),('안개 호수','mist-lake'),('바람 구릉','wind-hills')]
 
 
 def load_static_review_paths(source_file_path):
@@ -73,32 +72,7 @@ const staticReviewPageUrl=staticReviewPageLocation.href;
     window.addEventListener('pagehide',()=>currentPreviewObserver?.disconnect(),{{once:true}});
   }}
   currentReviewFrame.width='100%';currentReviewFrame.height='{STATIC_REVIEW_FRAME_HEIGHT}';currentReviewFrame.setAttribute('frameborder','0');
-  const currentTerrainManager=selectedReviewPath.split('?')[0].endsWith('terrain-layout-manager.html');
-  const currentTerrainReview=currentTerrainManager||selectedReviewPath.split('?')[0].endsWith('terrain-preview.html');
-  const currentPreviewLocation=currentTerrainManager?new URL('terrain-preview.html',staticReviewPageUrl):new URL(staticReviewPageUrl);
-  currentPreviewLocation.searchParams.set('embedded','gradio-static');
-  currentReviewFrame.src=currentPreviewLocation.href;
-  if(currentTerrainReview){{
-    currentReviewFrame.title='필드 탐색 게임 미리보기';
-    currentReviewFrame.addEventListener('load',()=>{{const currentPreviewToolbar=currentReviewFrame.contentDocument?.querySelector('.preview-tools');if(currentPreviewToolbar){{const currentHiddenContainer=currentReviewFrame.contentDocument.createElement('div');currentHiddenContainer.hidden=true;currentPreviewToolbar.before(currentHiddenContainer);currentHiddenContainer.append(currentPreviewToolbar);}}}});
-    window.terrainReviewControls=async(currentActionName,currentMapName)=>{{
-      const currentPreviewDocument=currentReviewFrame.contentDocument;
-      const currentStatusElement=currentPreviewDocument?.querySelector('#result');
-      if(!currentStatusElement||!currentStatusElement.textContent.includes('타일'))throw Error('게임 미리보기를 준비 중입니다. 준비 후 다시 시도하세요.');
-      if(currentActionName==='status')return currentStatusElement.textContent;
-      if(currentActionName==='map'){{
-        const currentMapSelector=currentPreviewDocument.querySelector('#map-choice');
-        if(!Array.from(currentMapSelector.options).some(currentOptionValue=>currentOptionValue.value===currentMapName))throw Error('지원하지 않는 맵입니다.');
-        currentMapSelector.value=currentMapName;currentMapSelector.onchange({{target:currentMapSelector}});
-      }}else if(['zoom-out','zoom-in','preview-focus'].includes(currentActionName)){{
-        const currentActionElement=currentPreviewDocument.getElementById(currentActionName);
-        if(typeof currentActionElement?.onclick!=='function')throw Error('게임 미리보기 조작을 준비 중입니다.');
-        currentActionElement.onclick();
-      }}else if(currentActionName!=='status')throw Error('지원하지 않는 화면 조정입니다.');
-      await new Promise(currentResolveFrame=>currentReviewFrame.contentWindow.requestAnimationFrame(()=>currentReviewFrame.contentWindow.requestAnimationFrame(currentResolveFrame)));
-      return currentStatusElement.textContent;
-    }};
-  }}
+  currentReviewFrame.src=staticReviewPageUrl;
   if(selectedReviewPath.split('?')[0].endsWith('battlefield-preview.html')){{
     currentReviewFrame.addEventListener('load',()=>{{const currentHeaderElement=currentReviewFrame.contentDocument.querySelector('body>header');if(currentHeaderElement){{const currentHiddenWrapper=currentReviewFrame.contentDocument.createElement('div');currentHiddenWrapper.hidden=true;currentHeaderElement.before(currentHiddenWrapper);currentHiddenWrapper.append(currentHeaderElement);}}}});
     window.battlefieldReviewControls=currentSelectedField=>{{
@@ -124,6 +98,7 @@ const staticReviewPageUrl=staticReviewPageLocation.href;
 
 
 def build_static_review_interface(static_review_paths):
+    current_review_paths_json=json.dumps(static_review_paths,ensure_ascii=False).replace('<','\\u003c')
     with gr.Blocks(title='정적 검수') as interface_blocks_value:
         gr.Markdown('## 정적 검수\n게임 디자인과 등록 애니메이션을 검수합니다.')
         current_reload_button=gr.Button('검수 화면 새로고침')
@@ -136,18 +111,6 @@ def build_static_review_interface(static_review_paths):
         current_battlefield_timer=gr.Timer(1)
         current_battlefield_timer.tick(fn=None,outputs=[current_battlefield_choice,current_battlefield_status],queue=False,show_progress='hidden',js="()=>{if(typeof window.battlefieldReviewControls!=='function')return [{__type__:'update'},{__type__:'update'}];try{const currentResultValues=window.battlefieldReviewControls(null);const currentChoiceSignature=JSON.stringify(currentResultValues[0]);if(window.battlefieldChoiceSignature===currentChoiceSignature)currentResultValues[0]={__type__:'update'};else window.battlefieldChoiceSignature=currentChoiceSignature;return currentResultValues;}catch(currentErrorValue){return [{__type__:'update'},currentErrorValue.message];}}")
         interface_blocks_value.load(fn=None,outputs=current_battlefield_controls,queue=False,js="()=>{const currentReviewPaths="+json.dumps(static_review_paths,ensure_ascii=False)+";return {__type__:'update',visible:(currentReviewPaths[new URLSearchParams(location.search).get('review')]||'').split('?')[0].endsWith('battlefield-preview.html')};}")
-        with gr.Column(visible=False) as current_terrain_controls:
-            current_terrain_choice=gr.Dropdown(label='맵 선택',choices=TERRAIN_REVIEW_MAP_CHOICES,value='meadow')
-            current_terrain_status=gr.Textbox(label='게임 미리보기 상태',value='미리보기를 준비 중입니다.',interactive=False)
-            with gr.Row():
-                for current_action_name,current_action_label in [('map','선택 맵 적용'),('zoom-out','축소'),('zoom-in','확대'),('preview-focus','기본 시점'),('status','상태 읽기')]:
-                    current_action_button=gr.Button(current_action_label)
-                    current_action_button.click(fn=None,inputs=current_terrain_choice,outputs=current_terrain_status,queue=False,js="async(currentMapName)=>{try{return await window.terrainReviewControls('"+current_action_name+"',currentMapName);}catch(currentErrorValue){return currentErrorValue.message;}}")
-            gr.Markdown('지도를 드래그해 이동하고 휠로 확대합니다. 게임 메뉴와 회전은 미리보기 안에서 사용할 수 있습니다.')
-        current_terrain_timer=gr.Timer(1)
-        current_terrain_timer.tick(fn=None,inputs=current_terrain_status,outputs=current_terrain_status,queue=False,show_progress='hidden',js="async(currentDisplayedStatus)=>{if(typeof window.terrainReviewControls!=='function')return {__type__:'update'};try{const currentStatusText=await window.terrainReviewControls('status');return currentStatusText===currentDisplayedStatus?{__type__:'update'}:currentStatusText;}catch(currentErrorValue){return currentErrorValue.message===currentDisplayedStatus?{__type__:'update'}:currentErrorValue.message;}}")
-        current_terrain_paths=json.dumps(static_review_paths,ensure_ascii=False)
-        interface_blocks_value.load(fn=None,outputs=current_terrain_controls,queue=False,js="()=>{const currentReviewPaths="+current_terrain_paths+";const currentReviewId=new URLSearchParams(location.search).get('review');return {__type__:'update',visible:['terrain-layout-manager.html','terrain-preview.html'].some(currentPageName=>(currentReviewPaths[currentReviewId]||'').split('?')[0].endsWith(currentPageName))};}")
         with gr.Row():
             with gr.Column(visible=False,scale=1) as current_anchor_controls:
                 gr.Markdown('프레임별 기준점을 원본 픽셀 단위로 조정합니다. 정지 상태에서 미리보기를 클릭하거나 조이패드를 사용하세요. 원점은 셀 왼쪽 위이며 오른쪽은 +X, 아래는 +Y입니다. 최종 앵커 이동 시 두 발 좌표도 함께 이동합니다.')
@@ -215,9 +178,9 @@ def build_static_review_interface(static_review_paths):
         with gr.Column(visible=False) as current_anchor_history:
             build_browser_history_controls('anchorReviewHistory','anchor-standard-history',current_supported_actions=('list','result','restore','reset'))
 
-        interface_blocks_value.load(fn=None,outputs=current_anchor_controls,queue=False,js="()=>{const currentReviewPaths="+current_terrain_paths+";const currentReviewId=new URLSearchParams(location.search).get('review');return {__type__:'update',visible:(currentReviewPaths[currentReviewId]||'').split('?')[0].endsWith('/anchors.html')};}")
-        interface_blocks_value.load(fn=None,outputs=current_anchor_history,queue=False,js="()=>{const currentReviewPaths="+current_terrain_paths+";const currentReviewId=new URLSearchParams(location.search).get('review');return {__type__:'update',visible:(currentReviewPaths[currentReviewId]||'').split('?')[0].endsWith('/anchors.html')};}")
-        interface_blocks_value.load(fn=None,outputs=current_anchor_legend,queue=False,js="()=>{const currentReviewPaths="+current_terrain_paths+";const currentReviewId=new URLSearchParams(location.search).get('review');return {__type__:'update',visible:(currentReviewPaths[currentReviewId]||'').split('?')[0].endsWith('/anchors.html')};}")
+        interface_blocks_value.load(fn=None,outputs=current_anchor_controls,queue=False,js="()=>{const currentReviewPaths="+current_review_paths_json+";const currentReviewId=new URLSearchParams(location.search).get('review');return {__type__:'update',visible:(currentReviewPaths[currentReviewId]||'').split('?')[0].endsWith('/anchors.html')};}")
+        interface_blocks_value.load(fn=None,outputs=current_anchor_history,queue=False,js="()=>{const currentReviewPaths="+current_review_paths_json+";const currentReviewId=new URLSearchParams(location.search).get('review');return {__type__:'update',visible:(currentReviewPaths[currentReviewId]||'').split('?')[0].endsWith('/anchors.html')};}")
+        interface_blocks_value.load(fn=None,outputs=current_anchor_legend,queue=False,js="()=>{const currentReviewPaths="+current_review_paths_json+";const currentReviewId=new URLSearchParams(location.search).get('review');return {__type__:'update',visible:(currentReviewPaths[currentReviewId]||'').split('?')[0].endsWith('/anchors.html')};}")
     return interface_blocks_value
 
 

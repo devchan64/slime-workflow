@@ -31,7 +31,7 @@ try{{
  await import({current_script_url});
  if(!window.mapReviewControlOptions)throw Error('맵 초기화 실패. 맵·타일 원본 연결과 브라우저 오류를 확인하세요.');
  const currentControlOptions=window.mapReviewControlOptions();
- return [{{__type__:'update',choices:currentControlOptions.maps,value:currentControlOptions.selected,visible:!currentControlOptions.townSpecific}},{{__type__:'update',visible:!currentControlOptions.townSpecific}},{{__type__:'update',choices:currentControlOptions.buildings,value:null,visible:!currentControlOptions.field&&!currentControlOptions.characterReview}},{{__type__:'update',visible:currentControlOptions.field}},{{__type__:'update',visible:true}},'맵을 불러왔습니다. 시점과 표시 옵션을 조정하세요.'];
+ return [{{__type__:'update',choices:currentControlOptions.maps,value:currentControlOptions.selected,visible:!currentControlOptions.townSpecific}},{{__type__:'update',visible:!currentControlOptions.townSpecific}},{{__type__:'update',choices:currentControlOptions.buildings,value:null,visible:!currentControlOptions.field&&!currentControlOptions.characterReview}},{{__type__:'update',visible:currentControlOptions.field}},{{__type__:'update',visible:currentControlOptions.characterReview}},'맵을 불러왔습니다. 시점과 표시 옵션을 조정하세요.'];
 }}catch(currentLoadError){{
  const currentStatusElement=document.getElementById('status');if(currentStatusElement)currentStatusElement.textContent=currentLoadError.message;
  return [{{__type__:'update'}},{{__type__:'update'}},{{__type__:'update'}},{{__type__:'update'}},{{__type__:'update'}},currentLoadError.message];
@@ -50,7 +50,7 @@ def build_map_review_interface(review_server_port, character_review_enabled=Fals
     with gr.Blocks(title='캐릭터 표현 검수' if character_review_enabled else '맵 검수') as current_interface_blocks:
         gr.Markdown('## 캐릭터 표현 검수' if character_review_enabled else '## 맵 검수')
         if character_review_enabled:
-            gr.Markdown('7×7 바닥 위에서 기본 캐릭터를 비교합니다. 초기 배율은 실제 게임 크기 100%이며 오른쪽 맵을 클릭하면 양쪽 캐릭터가 함께 이동합니다.')
+            gr.Markdown('3×3 바닥 위에서 기본 캐릭터를 비교합니다. 초기 배율은 실제 게임 크기 100%이며 오른쪽 맵을 클릭하면 양쪽 캐릭터가 함께 이동합니다.')
         with gr.Row():
             current_map_choice=gr.Dropdown(label='맵 선택',choices=[],interactive=True)
             current_load_button=gr.Button('맵 불러오기')
@@ -68,17 +68,18 @@ def build_map_review_interface(review_server_port, character_review_enabled=Fals
                 current_boundary_check=gr.Checkbox(label='결계탑 · 결계 오러',value=True)
             with gr.Column(min_width=200):
                 current_edges_check=gr.Checkbox(label='메시 경계',value=False)
-            with gr.Column(min_width=220) as current_shadow_profile_column:
+            with gr.Column(min_width=220,visible=character_review_enabled) as current_shadow_profile_column:
                 current_shadow_profile=gr.Dropdown(label='캐릭터 시인성 검수',choices=[('이전 기본 그림자','baseline'),('게임 적용 · 접지 대비 강화','contrast'),('넓은 접지 그림자','broad')],value='contrast',interactive=True)
         current_display_inputs=[current_character_check,current_boundary_check,current_edges_check,current_shadow_profile]
         for current_display_control in current_display_inputs:
             current_display_control.input(fn=None,inputs=current_display_inputs,outputs=current_camera_feedback,queue=False,js="(...currentDisplayValues)=>{try{if(!window.mapReviewDisplayOptions)throw Error('맵을 준비 중입니다.');window.mapReviewDisplayOptions(...currentDisplayValues);return '표시 옵션을 적용했습니다.';}catch(currentDisplayError){return currentDisplayError.message;}}")
-        current_ground_preview=gr.Radio(label='바닥 대비 실험',choices=[('원본','original'),('대비 65%','soft')],value='original')
-        current_ground_preview.input(fn=None,inputs=current_ground_preview,outputs=current_camera_feedback,queue=False,js="(currentPreviewMode)=>{try{if(!window.mapReviewGroundPreview)throw Error('맵을 준비 중입니다.');return window.mapReviewGroundPreview(currentPreviewMode);}catch(currentPreviewError){return currentPreviewError.message;}}")
-        current_outline_preview=gr.Checkbox(label='어두운 형태선 · 1px' if character_review_enabled else '마을 캐릭터 1px 외곽선',value=True)
-        current_outline_preview.input(fn=None,inputs=current_outline_preview,outputs=current_camera_feedback,queue=False,js="(currentOutlineEnabled)=>{try{if(!window.mapReviewOutlinePreview)throw Error('맵을 준비 중입니다.');return window.mapReviewOutlinePreview(currentOutlineEnabled);}catch(currentPreviewError){return currentPreviewError.message;}}")
-        current_rim_preview=gr.Checkbox(label='밝은 분리선' if character_review_enabled else '마을 캐릭터 밝은 윤곽광',value=True)
-        current_rim_preview.input(fn=None,inputs=current_rim_preview,outputs=current_camera_feedback,queue=False,js="(currentRimEnabled)=>{try{if(!window.mapReviewRimPreview)throw Error('맵을 준비 중입니다.');return window.mapReviewRimPreview(currentRimEnabled);}catch(currentPreviewError){return currentPreviewError.message;}}")
+        if character_review_enabled:
+            current_ground_preview=gr.Radio(label='바닥 대비 실험',choices=[('원본','original'),('대비 65%','soft')],value='original')
+            current_ground_preview.input(fn=None,inputs=current_ground_preview,outputs=current_camera_feedback,queue=False,js="(currentPreviewMode)=>{try{if(!window.mapReviewGroundPreview)throw Error('맵을 준비 중입니다.');return window.mapReviewGroundPreview(currentPreviewMode);}catch(currentPreviewError){return currentPreviewError.message;}}")
+            current_outline_preview=gr.Checkbox(label='어두운 형태선 · 1px' if character_review_enabled else '마을 캐릭터 1px 외곽선',value=True)
+            current_outline_preview.input(fn=None,inputs=current_outline_preview,outputs=current_camera_feedback,queue=False,js="(currentOutlineEnabled)=>{try{if(!window.mapReviewOutlinePreview)throw Error('맵을 준비 중입니다.');return window.mapReviewOutlinePreview(currentOutlineEnabled);}catch(currentPreviewError){return currentPreviewError.message;}}")
+            current_rim_preview=gr.Checkbox(label='밝은 분리선' if character_review_enabled else '마을 캐릭터 밝은 윤곽광',value=True)
+            current_rim_preview.input(fn=None,inputs=current_rim_preview,outputs=current_camera_feedback,queue=False,js="(currentRimEnabled)=>{try{if(!window.mapReviewRimPreview)throw Error('맵을 준비 중입니다.');return window.mapReviewRimPreview(currentRimEnabled);}catch(currentPreviewError){return currentPreviewError.message;}}")
         if character_review_enabled:
             current_shadow_check=gr.Checkbox(label='접지 그림자',value=True)
             current_shadow_check.input(fn=None,inputs=current_shadow_check,outputs=current_camera_feedback,queue=False,js="(currentShadowEnabled)=>{try{if(!window.characterReviewContactShadow)throw Error('맵을 준비 중입니다.');return window.characterReviewContactShadow(currentShadowEnabled);}catch(currentShadowError){return currentShadowError.message;}}")
@@ -97,7 +98,7 @@ def build_map_review_interface(review_server_port, character_review_enabled=Fals
         else:
             gr.HTML(MAP_REVIEW_CANVAS_MARKUP)
         if character_review_enabled:
-            gr.Markdown('PNG 캡처는 현재 바닥·캐릭터 위치·배율·표현 설정으로 768×576 이미지를 다시 렌더링합니다. 원본·조정본·좌우 비교 3개 파일을 저장합니다.')
+            gr.Markdown('PNG 캡처는 현재 바닥·캐릭터 위치·표현 설정을 배율 200%, 표시 영역 768×576에서 내부 해상도 2배인 1536×1152 PNG로 렌더링합니다. 원본·조정본·좌우 비교 3개 파일을 저장합니다.')
             current_capture_settings=gr.JSON(value={},visible=False)
             current_capture_button=gr.Button('렌더링 PNG 캡처')
             current_capture_files=gr.File(label='캡처 결과 · 원본 / 조정본 / 비교',file_count='multiple',interactive=False)

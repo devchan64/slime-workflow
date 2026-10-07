@@ -219,10 +219,10 @@ def build_block_map_review(output_directory_path, character_review_only=False):
     shutil.copy2(source_ui_directory/'block-map-review.js',output_directory_path/'block-map-review.js')
     shutil.copy2(source_ui_directory/'field-map-renderer.js',output_directory_path/'field-map-renderer.js')
     shutil.copy2(source_ui_directory/'field-map-view.js',output_directory_path/'field-map-view.js')
-    field_renderer_vendor_version='1.0.5'
+    field_renderer_vendor_version='1.0.6'
     field_renderer_directory=source_ui_directory/'vendor/field-renderer'/field_renderer_vendor_version
     field_renderer_manifest=yaml.safe_load((field_renderer_directory/'manifest.yaml').read_text())
-    if set(field_renderer_manifest['files'])!={'field-renderer.mjs','phaser.mjs','LICENSE.phaser.md'}:
+    if set(field_renderer_manifest['files'])!={'field-renderer.mjs','game-render-profile.mjs','phaser.mjs','LICENSE.phaser.md'}:
         raise ValueError('필드 렌더러 배포 파일 목록 오류')
     for renderer_file_name,renderer_file_hash in field_renderer_manifest['files'].items():
         if hashlib.sha256((field_renderer_directory/renderer_file_name).read_bytes()).hexdigest()!=renderer_file_hash:

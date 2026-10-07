@@ -20,7 +20,8 @@ import yaml
 WORKFLOW_ROOT_DIRECTORY=Path(__file__).resolve().parents[4]
 CAPTURE_STORAGE_DIRECTORY=WORKFLOW_ROOT_DIRECTORY/'.tmp/test/character-review-capture'
 CAPTURE_TIMEOUT_SECONDS=120
-CAPTURE_DEFAULT_SETTINGS={'ground':'paving','zoom':1.0,'column':3,'row':3,'rotation':0,'outline':True,'rim':True,'shadow':True,'shadow_profile':'contrast','contrast':'original','width':768,'height':576}
+CAPTURE_INTERNAL_RESOLUTION_SCALE=2
+CAPTURE_DEFAULT_SETTINGS={'ground':'paving','zoom':2.0,'column':1,'row':1,'rotation':0,'outline':True,'outline_width':1,'rim':True,'shadow':True,'shadow_profile':'contrast','contrast':'original','width':768,'height':576}
 
 
 def validate_capture_settings(command_payload_value):
@@ -31,9 +32,10 @@ def validate_capture_settings(command_payload_value):
         if current_setting_values[current_field_name] not in current_allowed_values:raise ValueError('캡처 설정 오류: '+current_field_name)
     for current_field_name in ('outline','rim','shadow'):
         if type(current_setting_values[current_field_name]) is not bool:raise ValueError('참/거짓 설정 필요: '+current_field_name)
-    for current_field_name,current_minimum_value,current_maximum_value in [('column',0,6),('row',0,6),('rotation',0,3),('width',256,1600),('height',256,1200)]:
+    for current_field_name,current_minimum_value,current_maximum_value in [('column',0,2),('row',0,2),('rotation',0,3),('width',256,1600),('height',256,1200)]:
         current_field_value=current_setting_values[current_field_name]
         if type(current_field_value) is not int or not current_minimum_value<=current_field_value<=current_maximum_value:raise ValueError('캡처 범위 오류: '+current_field_name)
+    if type(current_setting_values['outline_width']) not in (int,float) or not 1<=current_setting_values['outline_width']<=4:raise ValueError('외곽선 폭은 1–4px입니다.')
     if type(current_setting_values['zoom']) not in (int,float) or not .05<=current_setting_values['zoom']<=4:raise ValueError('배율 범위는 0.05–4입니다.')
     return current_setting_values
 
@@ -107,11 +109,11 @@ def capture_character_review(command_payload_value):
             if not isinstance(current_image_data,str) or not current_image_data.startswith('data:image/png;base64,'):raise ValueError('PNG 캡처 형식 오류')
             current_image_bytes=base64.b64decode(current_image_data.split(',',1)[1],validate=True)
             current_image_object=Image.open(io.BytesIO(current_image_bytes))
-            if current_image_object.format!='PNG' or current_image_object.size!=(current_setting_values['width'],current_setting_values['height']):raise ValueError('PNG 캡처 크기 오류')
+            if current_image_object.format!='PNG' or current_image_object.size!=(current_setting_values['width']*CAPTURE_INTERNAL_RESOLUTION_SCALE,current_setting_values['height']*CAPTURE_INTERNAL_RESOLUTION_SCALE):raise ValueError('PNG 캡처 크기 오류')
             (current_output_directory/f'{current_image_name}.png').write_bytes(current_image_bytes)
             current_image_records.append(current_image_object.convert('RGBA'))
-        current_comparison_image=Image.new('RGBA',(current_setting_values['width']*2,current_setting_values['height']))
-        for current_image_index,current_image_object in enumerate(current_image_records):current_comparison_image.paste(current_image_object,(current_image_index*current_setting_values['width'],0))
+        current_comparison_image=Image.new('RGBA',(current_setting_values['width']*2*CAPTURE_INTERNAL_RESOLUTION_SCALE,current_setting_values['height']*CAPTURE_INTERNAL_RESOLUTION_SCALE))
+        for current_image_index,current_image_object in enumerate(current_image_records):current_comparison_image.paste(current_image_object,(current_image_index*current_setting_values['width']*CAPTURE_INTERNAL_RESOLUTION_SCALE,0))
         current_comparison_image.save(current_output_directory/'comparison.png')
         current_result_record.update(status='completed',images={current_image_name:str(current_output_directory/f'{current_image_name}.png') for current_image_name in ('baseline','adjusted','comparison')})
         write_capture_trace('completed','원본·조정본·비교 PNG 저장 완료')
