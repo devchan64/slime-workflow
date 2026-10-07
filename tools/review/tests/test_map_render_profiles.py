@@ -40,7 +40,7 @@ class MapRenderProfileTests(unittest.TestCase):
                 current_image_path=current_output_directory/current_safe_record['image'].split('?')[0]
                 self.assertEqual(hashlib.sha256(current_image_path.read_bytes()).hexdigest(),current_safe_record['provenance']['sha256'])
             import yaml
-            current_library_directory=current_output_directory/'vendor/field-renderer/1.0.6'
+            current_library_directory=current_output_directory/'vendor/field-renderer/1.0.9'
             current_library_manifest=yaml.safe_load((current_library_directory/'manifest.yaml').read_text())
             for current_file_name,current_file_hash in current_library_manifest['files'].items():
                 self.assertEqual(hashlib.sha256((current_library_directory/current_file_name).read_bytes()).hexdigest(),current_file_hash)
@@ -241,9 +241,9 @@ class MapRenderProfileTests(unittest.TestCase):
             reviewed_map_record = build_registered_map_review('iseulon')
         reviewed_guild_record = next(building for building in reviewed_map_record['buildings'] if building['id'] == 'iseulon-guild')
         self.assertEqual((reviewed_guild_record['width'], reviewed_guild_record['height'], reviewed_guild_record['floors']), (2, 3, 2))
-        self.assertTrue(all(block['height'] == 80 for block in reviewed_guild_record['blocks']))
+        self.assertTrue(all(block['height'] == 60 for block in reviewed_guild_record['blocks']))
         reviewed_bookshop_record = next(building for building in reviewed_map_record['buildings'] if building['id'] == 'iseulon-bookshop')
-        self.assertEqual({block['height'] for block in reviewed_bookshop_record['blocks'] if block['material'] == 'roof'}, {80})
+        self.assertEqual({block['height'] for block in reviewed_bookshop_record['blocks'] if block['material'] == 'roof'}, {60})
         self.assertTrue(any(not face['top'] for face in reviewed_bookshop_record['faces'] if face['material'] == 'roof'))
         self.assertEqual({vertex['height'] for face in reviewed_bookshop_record['faces'] if face['material'] == 'roof' for vertex in face['vertices']}, {80, 160})
         reviewed_inn_record = next(building for building in reviewed_map_record['buildings'] if building['id'] == 'iseulon-inn')

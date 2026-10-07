@@ -1,6 +1,6 @@
 import {createFieldReviewFrame,pickFieldReviewCell} from './field-map-renderer.js';
 import {FIELD_RENDER_METRICS,projectSurfaceCell} from './vendor/field-surface/1.0.5/field-surface.mjs';
-import {resolveFieldActorContactShadow} from './vendor/field-renderer/1.0.6/field-renderer.mjs';
+import {resolveFieldActorContactShadow} from './vendor/field-renderer/1.0.9/field-renderer.mjs';
 const MIN_MAP_SCALE=0.05,MAX_MAP_SCALE=4,MAP_ZOOM_FACTOR=1.25,MAP_DRAG_THRESHOLD=4,MAP_KEYBOARD_PAN_DISTANCE=48;
 let activeMapPointer=null,suppressMarkerClick=false;
 const currentMapCanvas=document.querySelector('#map');
@@ -57,7 +57,7 @@ const currentMapRecord=isCharacterReviewPage?{
  startPoint:{column:Math.floor(CHARACTER_REVIEW_GRID_SIZE/2),row:Math.floor(CHARACTER_REVIEW_GRID_SIZE/2)},blocked:[],buildings:[],
 }:await fetchMapReviewRecord(selectedMapRecord.path);
 const isFieldMapReview=currentMapRecord.safeTown===false;
-const currentDrawingContext=isFieldMapReview?null:currentMapCanvas.getContext('2d');
+const currentDrawingContext=isCharacterReviewPage?currentMapCanvas.getContext('2d'):null;
 const currentSafeVisualRecords=isFieldMapReview?await fetchMapReviewRecord('field-safe-visuals.json'):{};
 const currentSafeVisualImages={};
 await Promise.all(Object.entries(currentSafeVisualRecords).map(([currentVisualName,currentVisualRecord])=>new Promise((resolveVisualImage,rejectVisualImage)=>{
@@ -82,7 +82,7 @@ await Promise.all(Object.entries(currentTextureRecords).map(([currentTextureName
 const reviewCharacterRecord=await fetchMapReviewRecord('review-character.json');
 const reviewCharacterImage=new Image();
 await new Promise((resolveCharacterLoad,rejectCharacterLoad)=>{reviewCharacterImage.onload=resolveCharacterLoad;reviewCharacterImage.onerror=()=>rejectCharacterLoad(Error('기본 캐릭터 로드 실패'));reviewCharacterImage.src=new URL(reviewCharacterRecord.image,import.meta.url).href});
-const currentSharedFieldView=isFieldMapReview?await (await import('./field-map-view.js')).createSharedFieldReview(currentMapCanvas,loadedTextureImages,reviewCharacterImage,reviewCharacterRecord,loadedGuardImages,currentSafeVisualImages):null;
+const currentSharedFieldView=!isCharacterReviewPage?await (await import('./field-map-view.js')).createSharedFieldReview(currentMapCanvas,loadedTextureImages,reviewCharacterImage,reviewCharacterRecord,loadedGuardImages,currentSafeVisualImages,isFieldMapReview?null:currentTextureRecords):null;
 if(currentSharedFieldView)window.addEventListener('pagehide',()=>currentSharedFieldView.destroy(),{once:true});
 const groundTextureNames={grass:currentMapRecord.id==='iseulon'?'iseulon-grass-mud-frame':'grass',paving:currentMapRecord.id==='stonewarm'?'stonewarm-marble-paving':currentMapRecord.id==='saltford'?'stonewarm-gravel-paving':['reedhaven','grainstead'].includes(currentMapRecord.id)?'reedhaven-dirt-road':'paving',gravel:currentMapRecord.id==='stonewarm'?'stonewarm-exposed-rock-ground':'gravel',flowers:currentMapRecord.id==='meadow'?'grass-type-b':'flower_bed',dew:'dew',ash:'ash',moss:'moss','leaf-litter':'leaf-litter','tree-base':'tree-base',wall:'cliff-wall',stone:'stone','dry-soil-branches':'dry-soil-branches',mud:'mud',boulder:'boulder',cactus:'cactus',road:currentMapRecord.id==='meadow'?'meadow-road':'packed_dirt_road',water:'spring_water','deep-water':'deep-water','shallow-water':'shallow-water','reed-bed':'reed-bed'};
 function readBuildingTileSet(currentBuildingRecord){return {...buildingTileRecords['iseulon-'+currentBuildingRecord.facilityKind],...(currentMapRecord.buildingTileOverrides||{}),...(buildingTileRecords[currentBuildingRecord.id]||{})}}
@@ -253,6 +253,7 @@ function renderBlockMap(currentFitRequested=false){
 }
 function drawCurrentMapScene(currentFitRequested=false){
  if(isFieldMapReview){renderSharedFieldMap(currentFitRequested);return;}
+ if(!isCharacterReviewPage){renderSharedTownMap(currentFitRequested);return;}
 currentMapCanvas.width=currentMapCanvas.clientWidth*CHARACTER_REVIEW_RESOLUTION_SCALE;currentMapCanvas.height=currentMapCanvas.clientHeight*CHARACTER_REVIEW_RESOLUTION_SCALE;const currentAllCorners=isFieldMapReview?currentFieldFrame.points:[{column:0,row:0},{column:currentMapRecord.columns,row:0},{column:0,row:currentMapRecord.rows},{column:currentMapRecord.columns,row:currentMapRecord.rows}].map(projectBlockVertex);if(currentFitRequested){const currentMinX=Math.min(...currentAllCorners.map(p=>p.x)),currentMaxX=Math.max(...currentAllCorners.map(p=>p.x)),currentMinY=Math.min(...currentAllCorners.map(p=>p.y))-TOWN_BLOCK_HEIGHT*2,currentMaxY=Math.max(...currentAllCorners.map(p=>p.y))+40;currentScaleValue=Math.min(currentMapCanvas.clientWidth/(currentMaxX-currentMinX+160),currentMapCanvas.clientHeight/(currentMaxY-currentMinY+80));currentOffsetX=currentMapCanvas.clientWidth/2-(currentMinX+currentMaxX)/2*currentScaleValue;currentOffsetY=currentMapCanvas.clientHeight/2-(currentMinY+currentMaxY)/2*currentScaleValue}
 document.querySelector('#zoom-level').textContent=Math.round(currentScaleValue*100)+'%';
 if(document.querySelector('#zoom-in'))document.querySelector('#zoom-in').disabled=currentScaleValue>=MAX_MAP_SCALE;if(document.querySelector('#zoom-out'))document.querySelector('#zoom-out').disabled=currentScaleValue<=MIN_MAP_SCALE;
@@ -274,6 +275,18 @@ if(readReviewOption('edges')){
  }
 }
 if(!isFieldMapReview)drawReviewCharacter(projectReviewCharacter()); currentDrawingContext.setTransform(1,0,0,1,0,0);const currentBuildingFloorSummary=[...new Set(currentMapRecord.buildings.map(currentBuildingRecord=>currentBuildingRecord.floors))].sort((firstFloorCount,secondFloorCount)=>firstFloorCount-secondFloorCount).map(currentFloorCount=>`${currentFloorCount}층 ${currentMapRecord.buildings.filter(currentBuildingRecord=>currentBuildingRecord.floors===currentFloorCount).length}개`).join(' · '),currentRoofHeightValues=[...new Set(currentMapRecord.buildings.flatMap(currentBuildingRecord=>currentBuildingRecord.blocks).filter(currentBlockRecord=>currentBlockRecord.material==='roof').map(currentBlockRecord=>currentBlockRecord.height))].sort((firstHeightValue,secondHeightValue)=>firstHeightValue-secondHeightValue),currentRoofHeightSummary=currentRoofHeightValues.join('·');document.querySelector('#status').textContent=isFieldMapReview?`필드 고도 ${Math.min(...currentMapRecord.elevations.flat())}–${Math.max(...currentMapRecord.elevations.flat())} · 높이 단위 ${FIELD_RENDER_METRICS.elevationHeight}px · 타일 ${FIELD_RENDER_METRICS.tileWidth}×${FIELD_RENDER_METRICS.tileHeight} · 계단 ${currentMapRecord.elevationTiles.length}개 · 회전 ${currentCameraRotation*90}°`:`회전 ${currentCameraRotation*90}° · 건물 ${currentMapRecord.buildings.length}개 (${currentBuildingFloorSummary}) · 블록 ${currentMapRecord.buildings.reduce((s,b)=>s+b.blocks.length,0)}개 · 일반 블록 ${TOWN_BLOCK_HEIGHT}px · 지붕 경사 ${currentRoofHeightSummary}px · 사람 높이 ${gameRenderMetrics.characterHeight} · 마을 타일 ${gameRenderMetrics.townTileWidth}×${gameRenderMetrics.townTileHeight} · 지붕 보행 불가`}
+function renderSharedTownMap(currentFitRequested){
+ if(currentFitRequested){
+  const currentCornerPoints=[{column:0,row:0},{column:currentMapRecord.columns,row:0},{column:0,row:currentMapRecord.rows},{column:currentMapRecord.columns,row:currentMapRecord.rows}].map(projectBlockVertex);
+  const currentMinimumX=Math.min(...currentCornerPoints.map(currentPointValue=>currentPointValue.x)),currentMaximumX=Math.max(...currentCornerPoints.map(currentPointValue=>currentPointValue.x));
+  const currentMinimumY=Math.min(...currentCornerPoints.map(currentPointValue=>currentPointValue.y))-TOWN_BLOCK_HEIGHT*2,currentMaximumY=Math.max(...currentCornerPoints.map(currentPointValue=>currentPointValue.y))+40;
+  currentScaleValue=Math.min(currentMapCanvas.clientWidth/(currentMaximumX-currentMinimumX+160),currentMapCanvas.clientHeight/(currentMaximumY-currentMinimumY+80));
+  currentOffsetX=currentMapCanvas.clientWidth/2-(currentMinimumX+currentMaximumX)/2*currentScaleValue;currentOffsetY=currentMapCanvas.clientHeight/2-(currentMinimumY+currentMaximumY)/2*currentScaleValue;
+ }
+ currentSharedFieldView.renderTown(currentMapRecord,{edges:readReviewOption('edges'),rotation:currentCameraRotation,scale:currentScaleValue,offsetX:currentOffsetX,offsetY:currentOffsetY,character:readReviewOption('show-character'),characterCell:currentCharacterCell},projectBlockVertex);
+ document.querySelector('#zoom-level').textContent=Math.round(currentScaleValue*100)+'%';
+ document.querySelector('#status').textContent=`게임 공용 마을 렌더러 · 내부 해상도 2배 · 건물 ${currentMapRecord.buildings.length}개 · 회전 ${currentCameraRotation*90}°`;
+}
 function renderSharedFieldMap(currentFitRequested){
  if(!currentFieldFrame||currentFieldFrame.options.rotation!==currentCameraRotation)currentFieldFrame=createFieldReviewFrame(currentMapRecord,currentCameraRotation);
  if(currentFitRequested){

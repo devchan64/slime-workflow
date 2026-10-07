@@ -83,7 +83,7 @@ def build_map_review_interface(review_server_port, character_review_enabled=Fals
         if character_review_enabled:
             current_shadow_check=gr.Checkbox(label='접지 그림자',value=True)
             current_shadow_check.input(fn=None,inputs=current_shadow_check,outputs=current_camera_feedback,queue=False,js="(currentShadowEnabled)=>{try{if(!window.characterReviewContactShadow)throw Error('맵을 준비 중입니다.');return window.characterReviewContactShadow(currentShadowEnabled);}catch(currentShadowError){return currentShadowError.message;}}")
-        gr.Markdown('바닥·측벽·계단 타일 원본: 128×128 · '+('바닥 흐림 없음' if character_review_enabled else '일반 바닥 채도 70% · 측벽·계단 원본 채도 · 바닥 흐림 없음')+' · 캐릭터·건물 해상도 유지')
+        gr.Markdown('바닥·측벽·계단 타일 원본: 128×128 · '+('바닥 흐림 없음' if character_review_enabled else '게임 공용 렌더러 · 원본 채도 · 바닥 흐림 없음')+' · 캐릭터·건물 해상도 유지')
         if character_review_enabled:
             current_ground_choice=gr.Radio(label='검수 바닥',choices=[('석판','paving'),('잔디·들꽃','grass'),('흙·자갈','meadow-road')],value='paving')
             current_ground_choice.input(fn=None,inputs=current_ground_choice,outputs=current_camera_feedback,queue=False,js="(currentTextureIdentifier)=>{try{if(!window.characterReviewGroundTile)throw Error('맵을 준비 중입니다.');return window.characterReviewGroundTile(currentTextureIdentifier);}catch(currentTextureError){return currentTextureError.message;}}")

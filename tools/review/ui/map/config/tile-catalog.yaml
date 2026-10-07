@@ -33,7 +33,7 @@ tiles:
   - {id: marble_large_window_wall, category: structure, asset: assets/tiles/buildings/stone/stone-large-window-wall-v1.png}
   - {id: marble_plain_wall, category: structure, asset: assets/tiles/buildings/stone/stone-wall-v1.png}
   - {id: marble_small_window_wall, category: structure, asset: assets/tiles/buildings/stone/stone-small-window-wall-v1.png}
-  - {id: marble_roof, category: roof, asset: assets/tiles/buildings/stone/stone-roof-v1.png}
+  - {id: marble_roof, category: roof, asset: assets/tiles/buildings/marble/marble-roof-v3.png}
   - {id: marble_small_door, category: door, asset: assets/tiles/buildings/stone/stone-door-v1.png}
   - {id: wood_roof, category: roof, asset: assets/tiles/buildings/wood/wood-roof-v4.png}
   - {id: stonewarm-guild-red-stone-roof, category: roof, asset: assets/tiles/buildings/red-stone/red-stone-roof-v2.png}
@@ -44,6 +44,7 @@ tiles:
   - {id: packed_dirt_road, category: ground, asset: assets/tiles/terrain/road/limestone-road-v3.png}
   - {id: stone_slab_road, category: ground, asset: assets/tiles/terrain/road/limestone-road-v3.png}
   - {id: cactus, category: ground, asset: assets/tiles/terrain/blocked/sand-cactus-type-a-v1.png}
+  - {id: wind-swept-sand, category: ground, asset: assets/tiles/terrain/non-road/wind-swept-sand-ground-v1.png}
   - {id: gravel, category: ground, asset: assets/tiles/terrain/non-road/grass-ground-v2.png}
   - {id: mud, category: ground, asset: assets/tiles/terrain/non-road/grass-ground-v2.png}
   - {id: boulder, category: ground, asset: assets/tiles/terrain/non-road/grass-ground-v2.png}
@@ -61,3 +62,4 @@ tiles:
   - {id: tree-base, category: ground, asset: assets/tiles/terrain/non-road/grass-ground-v2.png}
   - {id: ramp-tread, category: ground, asset: assets/tiles/terrain/blocked/ramp-earth-stone-wall-v1.png}
   - {id: cliff-wall, category: ground, asset: assets/tiles/terrain/blocked/cliff-rock-face-v1.png}
+  - {id: battle-tree-stump, category: ground, asset: assets/tiles/terrain/blocked/dry-ground-tree-stump-v1.png}

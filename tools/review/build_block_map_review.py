@@ -52,22 +52,6 @@ def validate_town_block_heights(map_record_values, block_height_value):
                     raise ValueError(f'블록 면 높이 오류: {map_record_values["id"]}')
 
 
-def normalize_game_block_heights(map_record_values, source_block_height, target_block_height):
-    """게임 블록 높이를 검수 화면의 블록 높이로 정규화한다."""
-    if not isinstance(source_block_height,int) or source_block_height<=0:
-        raise ValueError('게임 블록 높이 메타데이터가 올바르지 않습니다.')
-    for current_building_record in map_record_values['buildings']:
-        for current_block_record in current_building_record['blocks']:
-            current_block_height=current_block_record['height']
-            current_offset_height=current_block_record['offsetHeight']
-            current_normalized_block_height=current_block_height*target_block_height
-            current_normalized_offset_height=current_offset_height*target_block_height
-            if current_normalized_block_height%source_block_height or current_normalized_offset_height%source_block_height:
-                raise ValueError(f'게임 블록 높이 단위 오류: {map_record_values["id"]}/{current_block_record["id"]}')
-            current_block_record['height']=current_normalized_block_height//source_block_height
-            current_block_record['offsetHeight']=current_normalized_offset_height//source_block_height
-
-
 def build_current_block_faces(block_record_values, block_height_value):
     """현재 블록 구성으로 검수 전용 면을 다시 만든다. 경사 블록의 내부 면은 숨긴다."""
     current_face_records=[]
@@ -206,12 +190,12 @@ def build_block_map_review(output_directory_path, character_review_only=False):
     from tools.review.common.game_render_metrics import load_game_render_metrics
     game_render_metrics=load_game_render_metrics(WORKFLOW_ROOT_DIRECTORY.parent/'slime-frontend')
     (output_directory_path/'game-render-metrics.json').write_text(json.dumps(game_render_metrics))
-    character_metadata_path,character_metadata_provenance=resolve_registered_sprite('assets/characters/default/animations/idle-v6/down-left-8frames-v2/idle-v6-anchor-v3.animation.json')
-    character_source_path,character_source_provenance=resolve_registered_sprite('assets/characters/default/animations/idle-v6/down-left-8frames-v2/source.json')
+    character_metadata_path,character_metadata_provenance=resolve_registered_sprite('assets/characters/default/animations/idle-v6/down-left-8frames-v4/idle-v6-anchor-v3.animation.json')
+    character_source_path,character_source_provenance=resolve_registered_sprite('assets/characters/default/animations/idle-v6/down-left-8frames-v4/source.json')
     character_metadata_record=json.loads(character_metadata_path.read_text())
     character_source_record=json.loads(character_source_path.read_text())
     character_frame_record=next(current_frame_record for current_frame_record in character_metadata_record['frames'] if current_frame_record['frameId']=='down_left.0')
-    character_image_path,character_image_provenance=resolve_registered_sprite('assets/characters/default/animations/idle-v6/down-left-8frames-v2/idle-v6.png')
+    character_image_path,character_image_provenance=resolve_registered_sprite('assets/characters/default/animations/idle-v6/down-left-8frames-v4/idle-v6.png')
     shutil.copy2(character_image_path,texture_output_directory/'review-character.png')
     (output_directory_path/'review-character.json').write_text(json.dumps({'image':'textures/review-character.png?v='+hashlib.sha256(character_image_path.read_bytes()).hexdigest(),'frame':character_frame_record,'bodyHeight':character_source_record['referenceBodyHeight'],'displayHeight':game_render_metrics['characterHeight'],'source':'assets/characters/default/animations/idle-v6','provenance':{'image':character_image_provenance,'animation':character_metadata_provenance,'metadata':character_source_provenance}}))
     source_ui_directory=WORKFLOW_ROOT_DIRECTORY/'tools/review/ui/map'
@@ -219,10 +203,10 @@ def build_block_map_review(output_directory_path, character_review_only=False):
     shutil.copy2(source_ui_directory/'block-map-review.js',output_directory_path/'block-map-review.js')
     shutil.copy2(source_ui_directory/'field-map-renderer.js',output_directory_path/'field-map-renderer.js')
     shutil.copy2(source_ui_directory/'field-map-view.js',output_directory_path/'field-map-view.js')
-    field_renderer_vendor_version='1.0.6'
+    field_renderer_vendor_version='1.0.9'
     field_renderer_directory=source_ui_directory/'vendor/field-renderer'/field_renderer_vendor_version
     field_renderer_manifest=yaml.safe_load((field_renderer_directory/'manifest.yaml').read_text())
-    if set(field_renderer_manifest['files'])!={'field-renderer.mjs','game-render-profile.mjs','phaser.mjs','LICENSE.phaser.md'}:
+    if set(field_renderer_manifest['files'])!={'field-renderer.mjs','town-renderer.mjs','game-render-profile.mjs','phaser.mjs','LICENSE.phaser.md'}:
         raise ValueError('필드 렌더러 배포 파일 목록 오류')
     for renderer_file_name,renderer_file_hash in field_renderer_manifest['files'].items():
         if hashlib.sha256((field_renderer_directory/renderer_file_name).read_bytes()).hexdigest()!=renderer_file_hash:
@@ -243,9 +227,10 @@ def build_registered_map_review(map_identifier_value):
     current_city_identifiers, _ = load_review_map_identifiers()
     current_map_record['reviewLabel'] = '마을맵 검수' if map_identifier_value in current_city_identifiers else '필드맵 검수'
     current_block_height = load_town_block_height()
-    normalize_game_block_heights(current_map_record,MAP_SOURCE_BLOCK_HEIGHT,current_block_height)
-    validate_town_block_heights(current_map_record,current_block_height)
+    validate_town_block_heights(current_map_record,MAP_SOURCE_BLOCK_HEIGHT)
     current_map_record['buildingTileOverrides'] = TOWN_BUILDING_TILE_OVERRIDES.get(map_identifier_value,{})
     for current_building_record in current_map_record['buildings']:
-        current_building_record['faces'] = build_current_block_faces(current_building_record['blocks'],current_block_height)
+        current_building_record['faces'] = build_current_block_faces(current_building_record['blocks'],MAP_SOURCE_BLOCK_HEIGHT)
+        for current_face_record in current_building_record['faces']:
+            current_face_record['vertices'] = [{**current_vertex_record, 'height': current_vertex_record['height'] * current_block_height / MAP_SOURCE_BLOCK_HEIGHT} for current_vertex_record in current_face_record['vertices']]
     return current_map_record

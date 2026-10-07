@@ -1,0 +1,11 @@
+package: '@slime/field-renderer'
+version: '1.0.9'
+engine: 'Phaser 3.90.0'
+source_repository: slime-frontend
+source_path: packages/field-renderer
+files:
+  town-renderer.mjs: 0d40c93af7acd43fae5bd12662122e488d3243bbe3b05b94f2a33bc1e459e69b
+  game-render-profile.mjs: d0d85bfcfd58fdb5ad9d37100bf8659fe25a9b7be3937dae79a2154bdb913921
+  field-renderer.mjs: ece57c376a8f72c9994f170ad0a432cc1317cb2d632790e32375888012e0e9c8
+  phaser.mjs: 7162b8e9cd971ce5f53b7822c55d0348385caa08380784e94851a092997ea09d
+  LICENSE.phaser.md: 080f3d5539e766bb556df5b8e86c4f5d581ece35c692b80956ca352b84d29134
