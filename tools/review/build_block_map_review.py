@@ -210,14 +210,15 @@ def build_block_map_review(output_directory_path):
     shutil.copy2(source_ui_directory/'block-map-review.js',output_directory_path/'block-map-review.js')
     shutil.copy2(source_ui_directory/'field-map-renderer.js',output_directory_path/'field-map-renderer.js')
     shutil.copy2(source_ui_directory/'field-map-view.js',output_directory_path/'field-map-view.js')
-    field_renderer_directory=source_ui_directory/'vendor/field-renderer/1.0.2'
+    field_renderer_vendor_version='1.0.3'
+    field_renderer_directory=source_ui_directory/'vendor/field-renderer'/field_renderer_vendor_version
     field_renderer_manifest=yaml.safe_load((field_renderer_directory/'manifest.yaml').read_text())
     if set(field_renderer_manifest['files'])!={'field-renderer.mjs','phaser.mjs','LICENSE.phaser.md'}:
         raise ValueError('필드 렌더러 배포 파일 목록 오류')
     for renderer_file_name,renderer_file_hash in field_renderer_manifest['files'].items():
         if hashlib.sha256((field_renderer_directory/renderer_file_name).read_bytes()).hexdigest()!=renderer_file_hash:
             raise ValueError('필드 렌더러 배포본 해시 불일치: '+renderer_file_name)
-    shutil.copytree(field_renderer_directory,output_directory_path/'vendor/field-renderer/1.0.2',dirs_exist_ok=True)
+    shutil.copytree(field_renderer_directory,output_directory_path/'vendor/field-renderer'/field_renderer_vendor_version,dirs_exist_ok=True)
     # 버전 고정 라이브러리만 게시한다. 프론트엔드 소스·전체 빌드를 읽지 않는다.
     shared_library_directory = source_ui_directory/'vendor/field-surface/1.0.5'
     shared_library_manifest = yaml.safe_load((shared_library_directory/'manifest.yaml').read_text())

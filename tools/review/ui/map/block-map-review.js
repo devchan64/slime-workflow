@@ -1,5 +1,5 @@
 import {createFieldReviewFrame,pickFieldReviewCell} from './field-map-renderer.js';
-import {FIELD_RENDER_METRICS,projectSurfaceCell,CHARACTER_OUTLINE_STYLE} from './vendor/field-surface/1.0.5/field-surface.mjs';
+import {FIELD_RENDER_METRICS,projectSurfaceCell} from './vendor/field-surface/1.0.5/field-surface.mjs';
 const MIN_MAP_SCALE=0.05,MAX_MAP_SCALE=4,MAP_ZOOM_FACTOR=1.25,MAP_DRAG_THRESHOLD=4,MAP_KEYBOARD_PAN_DISTANCE=48;
 let activeMapPointer=null,suppressMarkerClick=false;
 const currentMapCanvas=document.querySelector('#map');
@@ -26,7 +26,7 @@ if(currentMapSelector){
  if(isTownSpecificReviewPage){currentMapSelector.closest('label').hidden=true;document.querySelector('#load-map').hidden=true;}
  document.querySelector('#load-map').onclick=()=>selectReviewMap(currentMapSelector.value);
 }
-const currentDisplayOptions={'show-character':true,'character-outline':true,'show-safe-boundary':true,edges:false};
+const currentDisplayOptions={'show-character':true,'show-safe-boundary':true,edges:false};
 function readReviewOption(currentOptionName){return document.getElementById(currentOptionName)?.checked??currentDisplayOptions[currentOptionName];}
 const currentMapRecord=await fetchMapReviewRecord(selectedMapRecord.path);
 const isFieldMapReview=currentMapRecord.safeTown===false;
@@ -37,7 +37,6 @@ await Promise.all(Object.entries(currentSafeVisualRecords).map(([currentVisualNa
  const currentVisualImage=new Image();currentVisualImage.onload=()=>{currentSafeVisualImages[currentVisualName]=currentVisualImage;resolveVisualImage()};currentVisualImage.onerror=()=>rejectVisualImage(Error('결계 원본 로드 실패: '+currentVisualName));currentVisualImage.src=new URL(currentVisualRecord.image,import.meta.url).href;
 })));
 if(document.querySelector('#show-safe-boundary'))document.querySelector('#show-safe-boundary').closest('label').hidden=!isFieldMapReview;
-if(isFieldMapReview&&document.querySelector('#character-outline'))document.querySelector('#character-outline').closest('label').hidden=true;
 const loadedGuardImages={};
 await Promise.all((currentMapRecord.guardCenters??[]).map(currentGuardRecord=>new Promise((resolveGuardImage,rejectGuardImage)=>{
  const currentGuardImage=new Image();currentGuardImage.onload=()=>{loadedGuardImages[currentGuardRecord.path]=currentGuardImage;resolveGuardImage()};currentGuardImage.onerror=()=>rejectGuardImage(Error('경비센터 이미지 로드 실패'));currentGuardImage.src=currentGuardRecord.image;
@@ -164,24 +163,9 @@ function selectWallTexture(currentFaceRecord){
  if(currentFaceRecord.floorIndex===0)return currentWallIndex%2===0?'window':'wall';
  return currentWallIndex%2===0?'window':'large_window';
 }
-// 프레임의 투명도를 유지한 실루엣을 한 번 준비하고 재생·줌마다 재사용한다.
-const characterOutlineCanvas=document.createElement('canvas');
-characterOutlineCanvas.width=reviewCharacterRecord.frame.rect.width;
-characterOutlineCanvas.height=reviewCharacterRecord.frame.rect.height;
-const characterOutlineContext=characterOutlineCanvas.getContext('2d');
-const characterOutlineFrame=reviewCharacterRecord.frame.rect;
-characterOutlineContext.drawImage(reviewCharacterImage,characterOutlineFrame.x,characterOutlineFrame.y,characterOutlineFrame.width,characterOutlineFrame.height,0,0,characterOutlineFrame.width,characterOutlineFrame.height);
-characterOutlineContext.globalCompositeOperation='source-in';
-characterOutlineContext.fillStyle=CHARACTER_OUTLINE_STYLE.cssColor;
-characterOutlineContext.fillRect(0,0,characterOutlineCanvas.width,characterOutlineCanvas.height);
-const CHARACTER_OUTLINE_OFFSETS=Array.from({length:16},(_,currentOffsetIndex)=>({x:Math.cos(currentOffsetIndex*Math.PI/8),y:Math.sin(currentOffsetIndex*Math.PI/8)}));
 function drawReviewCharacter(currentMarkerPoint){
  if(!readReviewOption('show-character'))return;
  const characterScaleValue=reviewCharacterRecord.displayHeight/reviewCharacterRecord.bodyHeight,characterFrameRect=reviewCharacterRecord.frame.rect,characterAnchorPoint=reviewCharacterRecord.frame.anchor;
- if(readReviewOption('character-outline')){
-  const currentOutlineRadius=CHARACTER_OUTLINE_STYLE.width/currentScaleValue;
-  for(const currentOutlineOffset of CHARACTER_OUTLINE_OFFSETS)currentDrawingContext.drawImage(characterOutlineCanvas,currentMarkerPoint.x-characterAnchorPoint.x*characterScaleValue+currentOutlineOffset.x*currentOutlineRadius,currentMarkerPoint.y-characterAnchorPoint.y*characterScaleValue+currentOutlineOffset.y*currentOutlineRadius,characterFrameRect.width*characterScaleValue,characterFrameRect.height*characterScaleValue);
- }
  currentDrawingContext.drawImage(reviewCharacterImage,characterFrameRect.x,characterFrameRect.y,characterFrameRect.width,characterFrameRect.height,currentMarkerPoint.x-characterAnchorPoint.x*characterScaleValue,currentMarkerPoint.y-characterAnchorPoint.y*characterScaleValue,characterFrameRect.width*characterScaleValue,characterFrameRect.height*characterScaleValue);
 }
 function projectReviewCharacter(){return isFieldMapReview?projectSurfaceCell(currentCharacterCell,currentMapRecord,{...FIELD_RENDER_METRICS,rotation:currentCameraRotation}):projectBlockVertex(currentCharacterCell)}
@@ -283,15 +267,13 @@ for(const currentActionName of Object.keys(currentCameraActions)){
  if(currentActionElement)currentActionElement.onclick=()=>window.mapReviewCameraControls(currentActionName);
 }
 
-if(document.querySelector('#character-outline'))document.querySelector('#character-outline').onchange=()=>renderBlockMap();
-
 // 표준 UI는 상태만 전달하고 모든 렌더링·시점 갱신은 브라우저에서 수행한다.
 window.mapReviewSelectMap=selectReviewMap;
 window.mapReviewFocusBuilding=focusReviewBuilding;
-window.mapReviewDisplayOptions=(currentCharacterVisible,currentOutlineVisible,currentBoundaryVisible,currentEdgesVisible)=>{
- const currentOptionValues=[currentCharacterVisible,currentOutlineVisible,currentBoundaryVisible,currentEdgesVisible];
+window.mapReviewDisplayOptions=(currentCharacterVisible,currentBoundaryVisible,currentEdgesVisible)=>{
+ const currentOptionValues=[currentCharacterVisible,currentBoundaryVisible,currentEdgesVisible];
  if(currentOptionValues.some(currentOptionValue=>typeof currentOptionValue!=='boolean'))throw Error('맵 표시 옵션은 참/거짓 값이어야 합니다.');
- Object.assign(currentDisplayOptions,{'show-character':currentCharacterVisible,'character-outline':currentOutlineVisible,'show-safe-boundary':currentBoundaryVisible,edges:currentEdgesVisible});
+ Object.assign(currentDisplayOptions,{'show-character':currentCharacterVisible,'show-safe-boundary':currentBoundaryVisible,edges:currentEdgesVisible});
  renderBlockMap();
 };
 window.mapReviewControlOptions=()=>({maps:availableMapRecords.map(currentMapEntry=>[currentMapEntry.name,currentMapEntry.id]),selected:selectedMapIdentifier,townSpecific:isTownSpecificReviewPage,field:isFieldMapReview,buildings:currentMapRecord.buildings.map(currentBuildingEntry=>[currentBuildingEntry.name,currentBuildingEntry.id])});

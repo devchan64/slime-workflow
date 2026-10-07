@@ -40,7 +40,7 @@ class MapRenderProfileTests(unittest.TestCase):
                 current_image_path=current_output_directory/current_safe_record['image'].split('?')[0]
                 self.assertEqual(hashlib.sha256(current_image_path.read_bytes()).hexdigest(),current_safe_record['provenance']['sha256'])
             import yaml
-            current_library_directory=current_output_directory/'vendor/field-renderer/1.0.2'
+            current_library_directory=current_output_directory/'vendor/field-renderer/1.0.3'
             current_library_manifest=yaml.safe_load((current_library_directory/'manifest.yaml').read_text())
             for current_file_name,current_file_hash in current_library_manifest['files'].items():
                 self.assertEqual(hashlib.sha256((current_library_directory/current_file_name).read_bytes()).hexdigest(),current_file_hash)
@@ -78,6 +78,13 @@ class MapRenderProfileTests(unittest.TestCase):
         self.assertIn("'block-render-profile.json'", block_review_builder)
         self.assertIn("fetchMapReviewRecord('block-render-profile.json')", block_map_script)
         self.assertIn('const TOWN_BLOCK_HEIGHT=blockRenderProfile.blockHeight', block_map_script)
+
+    def test_map_review_uses_game_character_effect_rules(self):
+        block_map_script=(WORKFLOW_ROOT/'tools/review/ui/map/block-map-review.js').read_text(encoding='utf-8')
+        map_review_application=(WORKFLOW_ROOT/'tools/review/ui/gradio/map_review_app.py').read_text(encoding='utf-8')
+
+        self.assertNotIn('character-outline',block_map_script)
+        self.assertNotIn('캐릭터 외곽 강조',map_review_application)
         self.assertIn('마을 블록 높이 설정이 올바르지 않습니다.', block_map_script)
 
     def test_city_roads_match_current_game_paving_sources(self):

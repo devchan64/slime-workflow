@@ -31,10 +31,10 @@ try{{
  await import({current_script_url});
  if(!window.mapReviewControlOptions)throw Error('맵 초기화 실패. 맵·타일 원본 연결과 브라우저 오류를 확인하세요.');
  const currentControlOptions=window.mapReviewControlOptions();
- return [{{__type__:'update',choices:currentControlOptions.maps,value:currentControlOptions.selected,visible:!currentControlOptions.townSpecific}},{{__type__:'update',visible:!currentControlOptions.townSpecific}},{{__type__:'update',choices:currentControlOptions.buildings,value:null,visible:!currentControlOptions.field}},{{__type__:'update',visible:!currentControlOptions.field}},{{__type__:'update',visible:currentControlOptions.field}},'맵을 불러왔습니다. 시점과 표시 옵션을 조정하세요.'];
+ return [{{__type__:'update',choices:currentControlOptions.maps,value:currentControlOptions.selected,visible:!currentControlOptions.townSpecific}},{{__type__:'update',visible:!currentControlOptions.townSpecific}},{{__type__:'update',choices:currentControlOptions.buildings,value:null,visible:!currentControlOptions.field}},{{__type__:'update',visible:currentControlOptions.field}},'맵을 불러왔습니다. 시점과 표시 옵션을 조정하세요.'];
 }}catch(currentLoadError){{
  const currentStatusElement=document.getElementById('status');if(currentStatusElement)currentStatusElement.textContent=currentLoadError.message;
- return [{{__type__:'update'}},{{__type__:'update'}},{{__type__:'update'}},{{__type__:'update'}},{{__type__:'update'}},currentLoadError.message];
+ return [{{__type__:'update'}},{{__type__:'update'}},{{__type__:'update'}},{{__type__:'update'}},currentLoadError.message];
 }}
 }}"""
 
@@ -55,13 +55,11 @@ def build_map_review_interface(review_server_port):
         with gr.Row():
             with gr.Column(min_width=200):
                 current_character_check=gr.Checkbox(label='기본 캐릭터',value=True)
-            with gr.Column(min_width=200) as current_outline_column:
-                current_outline_check=gr.Checkbox(label='캐릭터 외곽 강조',value=True)
             with gr.Column(min_width=200) as current_boundary_column:
                 current_boundary_check=gr.Checkbox(label='결계탑 · 결계 오러',value=True)
             with gr.Column(min_width=200):
                 current_edges_check=gr.Checkbox(label='메시 경계',value=False)
-        current_display_inputs=[current_character_check,current_outline_check,current_boundary_check,current_edges_check]
+        current_display_inputs=[current_character_check,current_boundary_check,current_edges_check]
         for current_display_control in current_display_inputs:
             current_display_control.input(fn=None,inputs=current_display_inputs,outputs=current_camera_feedback,queue=False,js="(...currentDisplayValues)=>{try{if(!window.mapReviewDisplayOptions)throw Error('맵을 준비 중입니다.');window.mapReviewDisplayOptions(...currentDisplayValues);return '표시 옵션을 적용했습니다.';}catch(currentDisplayError){return currentDisplayError.message;}}")
         gr.HTML(MAP_REVIEW_CANVAS_MARKUP)
@@ -69,7 +67,7 @@ def build_map_review_interface(review_server_port):
             gr.Markdown('휠 또는 확대·축소 버튼으로 배율을 조절하고 드래그 또는 방향키로 이동합니다. 0 키는 전체 보기입니다. 이동 가능한 바닥을 클릭하면 기본 캐릭터를 배치합니다. 메시 경계는 지면·절벽 면의 꼭짓점을 표시합니다. 미등록 지형은 임시 색상으로 표시됩니다.')
         with gr.Accordion('적용 타일 원본',open=True):
             gr.HTML('<ul id="applied-tile-list" aria-live="polite"></ul>')
-        current_interface_blocks.load(fn=None,outputs=[current_map_choice,current_load_button,current_building_choice,current_outline_column,current_boundary_column,current_camera_feedback],js=create_map_review_loader(review_server_port),queue=False)
+        current_interface_blocks.load(fn=None,outputs=[current_map_choice,current_load_button,current_building_choice,current_boundary_column,current_camera_feedback],js=create_map_review_loader(review_server_port),queue=False)
     return current_interface_blocks
 
 
