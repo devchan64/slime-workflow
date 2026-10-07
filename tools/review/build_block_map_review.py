@@ -5,7 +5,7 @@ import json
 import shutil
 import yaml
 from PIL import Image
-from tools.review.common.map_tile_assets import load_registered_tiles, resolve_registered_tile, resolve_registered_sprite
+from tools.review.common.map_tile_assets import load_registered_tiles, resolve_registered_tile, resolve_registered_sprite, validate_registered_tile_inventory
 
 WORKFLOW_ROOT_DIRECTORY=Path(__file__).resolve().parents[2]
 GAME_TILE_SOURCE_SIZE=256
@@ -112,9 +112,16 @@ def load_current_texture_records():
     tile_catalog_record=yaml.safe_load((source_asset_directory/'tile-catalog.yaml').read_text())
     if tile_catalog_record.get('source_tile_size')!=GAME_TILE_SOURCE_SIZE:
         raise ValueError(f'게임 타일 원본 크기는 {GAME_TILE_SOURCE_SIZE}px여야 합니다.')
-    exported_texture_records={}
     asset_repository_path, registered_tile_records = load_registered_tiles()
+    validate_registered_tile_inventory(asset_repository_path, registered_tile_records)
+    if not isinstance(tile_catalog_record.get('tiles'),list):
+        raise ValueError('맵 타일 카탈로그 항목 형식 오류')
+    exported_texture_records={}
     for current_tile_record in tile_catalog_record['tiles']:
+        if not isinstance(current_tile_record,dict) or set(current_tile_record)!={'id','category','asset'} or not all(isinstance(current_tile_record[current_field_name],str) and current_tile_record[current_field_name] for current_field_name in ('id','category','asset')):
+            raise ValueError('맵 타일 카탈로그 항목 오류')
+        if current_tile_record['id'] in exported_texture_records:
+            raise ValueError('맵 타일 카탈로그 ID 중복: '+current_tile_record['id'])
         texture_source_path, tile_provenance_record = resolve_registered_tile(current_tile_record['asset'], asset_repository_path, registered_tile_records)
         with Image.open(texture_source_path) as source_texture_image:
             source_image_size=list(source_texture_image.size)
@@ -145,6 +152,7 @@ def build_block_map_review(output_directory_path):
     if not output_directory_path.is_relative_to(WORKFLOW_ROOT_DIRECTORY/'.tmp'):
         raise ValueError('검수 출력은 .tmp 하위여야 합니다.')
     source_asset_directory=WORKFLOW_ROOT_DIRECTORY/'tools/review/ui/map/config'
+    validate_registered_tile_inventory()
     town_block_height=load_town_block_height()
     current_material_record=yaml.safe_load((WORKFLOW_ROOT_DIRECTORY/'tools/review/ui/map/config/materials.yaml').read_text())
     output_directory_path.mkdir(parents=True,exist_ok=True)

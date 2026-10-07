@@ -48,6 +48,33 @@ def load_registered_tiles():
     return asset_repository_path, registered_tile_records
 
 
+def validate_registered_tile_inventory(asset_repository_path=None, registered_tile_records=None):
+    """타일 원본·등록부·해시가 한 단위로 유지되는지 기동 전에 검증한다."""
+    if asset_repository_path is None or registered_tile_records is None:
+        asset_repository_path, registered_tile_records = load_registered_tiles()
+    tile_root_directory = asset_repository_path / 'assets/tiles'
+    if not tile_root_directory.is_dir():
+        raise ValueError('맵 타일 원본 디렉터리가 없습니다.')
+    source_tile_paths = {
+        current_tile_path.relative_to(asset_repository_path).as_posix()
+        for current_tile_path in tile_root_directory.rglob('*')
+        if current_tile_path.is_file() and current_tile_path.name != '.gitkeep'
+    }
+    registered_tile_paths = {
+        current_asset_path
+        for current_asset_path in registered_tile_records
+        if current_asset_path.startswith('assets/tiles/')
+    }
+    unregistered_tile_paths = sorted(source_tile_paths - registered_tile_paths)
+    if unregistered_tile_paths:
+        raise ValueError('미등록 맵 타일 원본: '+', '.join(unregistered_tile_paths))
+    missing_tile_paths = sorted(registered_tile_paths - source_tile_paths)
+    if missing_tile_paths:
+        raise ValueError('등록된 맵 타일 원본 누락: '+', '.join(missing_tile_paths))
+    for current_asset_path in sorted(registered_tile_paths):
+        resolve_registered_tile(current_asset_path, asset_repository_path, registered_tile_records)
+
+
 def resolve_registered_asset(asset_relative_path, asset_repository_path, registered_tile_records, asset_directory_prefix):
     if not isinstance(asset_relative_path, str) or not asset_relative_path.startswith(asset_directory_prefix+'/') or '..' in Path(asset_relative_path).parts:
         raise ValueError(f'맵 타일 원본 경로 오류: {asset_relative_path}')

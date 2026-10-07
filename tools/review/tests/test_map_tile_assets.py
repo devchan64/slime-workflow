@@ -8,7 +8,7 @@ from unittest.mock import patch
 
 import yaml
 
-from tools.review.common.map_tile_assets import load_registered_tiles, resolve_registered_tile, resolve_registered_sprite
+from tools.review.common.map_tile_assets import load_registered_tiles, resolve_registered_tile, resolve_registered_sprite, validate_registered_tile_inventory
 
 
 class MapTileAssetTests(unittest.TestCase):
@@ -40,6 +40,29 @@ class MapTileAssetTests(unittest.TestCase):
             with patch.dict(os.environ, {'SLIME_ASSETS_ROOT': temporary_asset_directory}):
                 with self.assertRaisesRegex(ValueError, '중복 키'):
                     load_registered_tiles()
+
+    def test_tile_inventory_rejects_unregistered_or_missing_sources(self):
+        with TemporaryDirectory() as temporary_asset_directory:
+            asset_repository_path = Path(temporary_asset_directory)
+            registered_relative_path = 'assets/tiles/terrain/road/registered.png'
+            unregistered_relative_path = 'assets/tiles/terrain/road/unregistered.png'
+            registered_source_path = asset_repository_path / registered_relative_path
+            unregistered_source_path = asset_repository_path / unregistered_relative_path
+            registered_source_path.parent.mkdir(parents=True)
+            registered_source_path.write_bytes(b'registered')
+            unregistered_source_path.write_bytes(b'unregistered')
+            registered_record = {'managementId': 'tile.test.registered', 'version': '1', 'path': registered_relative_path, 'sha256': hashlib.sha256(b'registered').hexdigest(), 'source': {'repository': 'slime-workflow'}}
+            (asset_repository_path / 'asset-registry.yaml').write_text(yaml.safe_dump({'schema_version': 1, 'assets': [registered_record]}))
+            with patch.dict(os.environ, {'SLIME_ASSETS_ROOT': str(asset_repository_path)}):
+                loaded_repository_path, registered_tile_records = load_registered_tiles()
+                with self.assertRaisesRegex(ValueError, '미등록 맵 타일 원본'):
+                    validate_registered_tile_inventory(loaded_repository_path, registered_tile_records)
+            unregistered_source_path.unlink()
+            registered_source_path.unlink()
+            with patch.dict(os.environ, {'SLIME_ASSETS_ROOT': str(asset_repository_path)}):
+                loaded_repository_path, registered_tile_records = load_registered_tiles()
+                with self.assertRaisesRegex(ValueError, '등록된 맵 타일 원본 누락'):
+                    validate_registered_tile_inventory(loaded_repository_path, registered_tile_records)
 
     def test_sprite_metadata_hash_and_tile_scope_rejection(self):
         with TemporaryDirectory() as temporary_asset_directory:
