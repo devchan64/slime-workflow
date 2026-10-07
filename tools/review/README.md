@@ -112,4 +112,4 @@ HTTP URL, 페이지 해시, CLI 명령, `.tmp` 생성 ID·기록 경로와 `asse
 
 캐릭터 표현 검수 캔버스는 표시 크기와 카메라 좌표를 유지하면서 내부 가로·세로 해상도를 각각 2배로 사용합니다. PNG는 내부 픽셀을 보존하므로 표시 영역 768×576의 캡처는 1536×1152입니다.
 
-필드 탐색 검수는 `?tool=map-review-meadow&category=field-map-review`로 통합한다. 폐기한 프론트엔드 `review/terrain-preview.html`은 게시하지 않는다. 게임에서 빌드한 `game-render-profile.mjs`의 내부 해상도·캐릭터 외곽선·접지 그림자를 적용하며, 지형 윗면·계단·측벽·도로 외곽은 화면 1.25px 경계선을 공유한다. 바닥 대비와 캐릭터 시인성 실험 컨트롤은 필드 맵 검수에 제공하지 않는다.
+필드 탐색 검수는 `?tool=map-review-meadow&category=field-map-review`로 통합한다. 폐기한 프론트엔드 `review/terrain-preview.html`은 게시하지 않는다. 게임에서 빌드한 `game-render-profile.mjs`의 내부 해상도·캐릭터 외곽선·접지 그림자를 적용하며, 지형 윗면·계단·측벽·도로 외곽은 화면 2px 경계선을 공유한다. 바닥 대비와 캐릭터 시인성 실험 컨트롤은 필드 맵 검수에 제공하지 않는다.
