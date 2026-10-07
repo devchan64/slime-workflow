@@ -49,7 +49,7 @@ tiles:
   - {id: boulder, category: ground, asset: assets/tiles/terrain/non-road/grass-ground-v2.png}
   - {id: shallow-water, category: ground, asset: assets/tiles/terrain/blocked/transparent-shallow-water-v2.png}
   - {id: reed-bed, category: ground, asset: assets/tiles/terrain/non-road/grass-ground-v2.png}
-  - {id: deep-water, category: ground, asset: assets/tiles/terrain/blocked/transparent-deep-water-v1.png}
+  - {id: deep-water, category: ground, asset: assets/tiles/terrain/blocked/transparent-deep-water-v2.png}
   - {id: stone, category: ground, asset: assets/tiles/terrain/non-road/grass-ground-v2.png}
   - {id: dry-soil-branches, category: ground, asset: assets/tiles/terrain/non-road/grass-ground-v2.png}
   - {id: stonewarm-marble-paving, category: ground, asset: assets/tiles/terrain/road/marble-circular-road-v1.png}
