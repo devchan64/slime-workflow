@@ -45,6 +45,12 @@ def build_sprite_v2_interface():
     current_markup_text=resolve_review_ui_asset('sprite-editor-v2.html').read_text()
     # 이 HTML에는 캔버스·썸네일·드롭 영역·브라우저 타임라인만 둔다.
     current_markup_text=re.sub(r'<style>.*?</style>','',current_markup_text,flags=re.S)
+    current_frame_markup=re.search(r'<aside class="sv2-panel">(.*?)</aside>',current_markup_text,flags=re.S).group(1)
+    current_frame_markup=re.sub(r'<details><summary><h2>.*?</h2></summary>|</details>','',current_frame_markup,flags=re.S)
+    current_file_markup=re.search(r'<input id="sv2-file"[^>]*>',current_frame_markup).group(0)
+    current_frame_markup=current_frame_markup.replace(current_file_markup,'')
+    current_markup_text=current_markup_text.replace('<main id="sprite-v2-root">','<main id="sprite-v2-root">'+current_file_markup)
+    current_markup_text=re.sub(r'<aside class="sv2-panel">.*?</aside>','',current_markup_text,flags=re.S)
     with gr.Blocks(title='스프라이트 정규화 편집기 v2',fill_width=True) as current_interface_blocks:
         gr.Markdown('## 스프라이트 정규화 편집기 v2')
         with gr.Accordion('새 작업 만들기',open=False):
@@ -125,44 +131,51 @@ def build_sprite_v2_interface():
         current_view_inputs=[current_zoom_choice,current_background_choice,current_overlay_check,current_onion_check,current_guides_check]
         for current_view_control in current_view_inputs:
             current_view_control.input(fn=None,inputs=current_view_inputs,js="(...currentViewValues)=>{if(!window.spriteV2ViewControls)throw Error('편집기를 준비 중입니다. 잠시 후 다시 시도하세요.');window.spriteV2ViewControls(...currentViewValues);}",queue=False)
+        with gr.Accordion('프레임 목록 · 이미지 드롭',open=False) as current_frame_list_panel:
+            gr.HTML('<section id="sv2-frame-drop">'+current_frame_markup+'</section>')
+        current_frame_list_panel.expand(fn=None,queue=False,js="()=>{requestAnimationFrame(()=>window.spriteV2RefreshFrameList?.());}")
         with gr.Row():
-            with gr.Column(scale=3,min_width=360):
+            with gr.Column(scale=5,min_width=480):
                 gr.HTML(current_markup_text)
                 build_frame_navigator('spriteV2PlaybackControls','spriteV2SeekControls',current_feedback_text)
             with gr.Column(scale=2,min_width=280):
-                with gr.Accordion('이동·배율·가이드 조정',open=True):
+                with gr.Accordion('이동·배율 조정',open=True):
                     gr.Markdown('편집 대상을 선택하면 즉시 조이패드에 적용됩니다. 캔버스 드래그는 해당 이미지만 움직이며 선택한 편집 대상을 바꾸지 않습니다. 가이드는 별도로 편집합니다.')
                     with gr.Row():
                         current_target_choice=gr.Dropdown(label='설정할 편집 대상',choices=[('현재 프레임','frame'),('레퍼런스','reference'),('체크한 프레임','selected'),('전체 프레임','all')],value='frame')
                     current_target_event=current_target_choice.input(fn=None,inputs=current_target_choice,outputs=current_feedback_text,queue=False,js="(currentTargetValue)=>{try{return window.spriteV2TargetControls(currentTargetValue);}catch(currentErrorValue){return currentErrorValue.message;}}")
-                    with gr.Accordion('가이드라인 위치 편집',open=False) as current_guide_panel:
-                        gr.Markdown('**① 공통 가이드 불러오기 → ② 가이드 선택 → ③ 위치(px) 입력 → ④ 가이드 수정 적용**\n\n얼굴 원도 가이드 목록에서 선택합니다. 원은 중심 X·Y와 지름을 함께 입력해 적용합니다. 좌표는 출력 이미지의 왼쪽 위가 0입니다. 가로선은 위에서부터 Y, 세로선은 왼쪽에서부터 X 거리입니다. 예: 가로선 100은 위에서 100px입니다. 숫자가 커지면 아래·오른쪽으로 이동합니다. 레퍼런스와 현재 프레임의 가이드는 양쪽 비교 화면에 같은 좌표로 표시됩니다. 녹색 가이드는 레퍼런스의 공통 기준이며 양쪽 화면에서 함께 이동합니다.')
-                        current_guide_refresh=gr.Button('현재 대상의 가이드 불러오기')
-                        current_guide_choice=gr.Dropdown(label='② 편집할 가이드',choices=[],interactive=True)
-                        with gr.Row():
-                            current_guide_name=gr.Textbox(label='가이드 이름',value='',max_length=40)
-                            current_guide_axis=gr.Dropdown(label='가이드 방향',choices=[('가로선 (Y)','y'),('세로선 (X)','x')],value='y')
-                        current_guide_position=gr.Number(label='③ 가이드 위치 · px',value=0,info='가이드를 불러오면 현재 위치가 표시됩니다. 값을 입력한 뒤 아래 적용 버튼을 누르세요.')
-                        with gr.Row():
-                            current_circle_center_x=gr.Number(label='원 중심 X · px',value=0,visible=False)
-                            current_circle_center_y=gr.Number(label='원 중심 Y · px',value=0,visible=False)
-                            current_circle_diameter_value=gr.Number(label='원 지름 · px',value=1,minimum=0.01,visible=False)
-                        current_guide_outputs=[current_guide_choice,current_guide_name,current_guide_axis,current_guide_position,current_feedback_text,current_circle_center_x,current_circle_center_y,current_circle_diameter_value]
-                        current_guide_error="[{__type__:'update'},{__type__:'update'},{__type__:'update'},{__type__:'update'},currentErrorValue.message,{__type__:'update'},{__type__:'update'},{__type__:'update'}]"
-                        current_guide_apply=gr.Button('④ 가이드 수정 적용',variant='primary')
-                        gr.Markdown('화면 반영 후 **수정본 저장**을 누르면 보존됩니다. 가이드 편집은 이미지 편집 대상과 무관하게 레퍼런스의 공통 기준에 적용됩니다.')
-                        current_guide_refresh.click(fn=None,outputs=current_guide_outputs,queue=False,js="()=>{try{return window.spriteV2GuideControls.list();}catch(currentErrorValue){return "+current_guide_error+";}}")
-                        current_target_event.then(fn=None,outputs=current_guide_outputs,queue=False,js="()=>{try{return window.spriteV2GuideControls.list();}catch(currentErrorValue){return "+current_guide_error+";}}")
-                        current_guide_axis.input(fn=None,inputs=current_guide_axis,outputs=current_guide_position,queue=False,js="(currentAxisValue)=>({__type__:'update',label:currentAxisValue==='y'?'③ 위에서부터 위치 Y · px':'③ 왼쪽에서부터 위치 X · px',info:currentAxisValue==='y'?'0은 위쪽 끝입니다. 값이 커지면 아래로 이동합니다.':'0은 왼쪽 끝입니다. 값이 커지면 오른쪽으로 이동합니다.'})")
-                        current_guide_panel.expand(fn=None,outputs=current_guide_outputs,queue=False,js="()=>{try{return window.spriteV2GuideControls.list();}catch(currentErrorValue){return "+current_guide_error+";}}")
-                        current_guide_choice.input(fn=None,inputs=current_guide_choice,outputs=current_guide_outputs[1:],queue=False,js="(currentGuideValue)=>{try{return window.spriteV2GuideControls.select(currentGuideValue);}catch(currentErrorValue){return [{__type__:'update'},{__type__:'update'},{__type__:'update'},currentErrorValue.message,{__type__:'update'},{__type__:'update'},{__type__:'update'}];}}")
-                        current_guide_apply.click(fn=None,inputs=[current_guide_choice,current_guide_name,current_guide_axis,current_guide_position,current_circle_center_x,current_circle_center_y,current_circle_diameter_value],outputs=current_guide_outputs,queue=False,js="async(currentGuideValue,currentLabelValue,currentAxisValue,currentPositionValue,currentCircleCenterX,currentCircleCenterY,currentCircleDiameter)=>{try{return await window.spriteV2GuideControls.apply(currentGuideValue,currentLabelValue,currentAxisValue,currentPositionValue,currentCircleCenterX,currentCircleCenterY,currentCircleDiameter);}catch(currentErrorValue){return "+current_guide_error+";}}")
-                        with gr.Row():
-                            for current_edit_action,current_edit_label in (('guide-add','가로선 추가'),('guide-vertical','세로선 추가'),('guide-remove','선택 가이드 삭제')):
-                                current_guide_action_button=gr.Button(current_edit_label)
-                                current_guide_action_button.click(fn=None,inputs=current_guide_choice,outputs=current_guide_outputs,queue=False,js="async(currentGuideValue)=>{try{return await window.spriteV2GuideControls.change('"+current_edit_action+"',currentGuideValue);}catch(currentErrorValue){return "+current_guide_error+";}}")
                     build_transform_joypad('spriteV2JoypadControls',current_feedback_text,current_separate_axes=True)
                     build_browser_action_button('실행 취소','spriteV2FrameControls','undo',current_feedback_text)
+                with gr.Accordion('가이드라인 위치 편집',open=False) as current_guide_panel:
+                    gr.Markdown('**① 공통 가이드 불러오기 → ② 가이드 선택 → ③ 위치(px) 입력 → ④ 가이드 수정 적용**\n\n얼굴 원도 가이드 목록에서 선택합니다. 원은 중심 X·Y와 지름을 함께 입력해 적용합니다. 좌표는 출력 이미지의 왼쪽 위가 0입니다. 가로선은 위에서부터 Y, 세로선은 왼쪽에서부터 X 거리입니다. 예: 가로선 100은 위에서 100px입니다. 숫자가 커지면 아래·오른쪽으로 이동합니다. 레퍼런스와 현재 프레임의 가이드는 양쪽 비교 화면에 같은 좌표로 표시됩니다. 녹색 가이드는 레퍼런스의 공통 기준이며 양쪽 화면에서 함께 이동합니다.')
+                    with gr.Row():
+                        current_guide_refresh=gr.Button('공통 가이드 새로고침')
+                        current_guide_defaults=gr.Button('기본 기준선 불러오기')
+                    gr.Markdown('기본 기준선 불러오기는 선과 얼굴 원을 기본값으로 교체합니다. 실행 취소로 복원할 수 있습니다.')
+                    current_guide_choice=gr.Dropdown(label='② 편집할 가이드',choices=[],interactive=True)
+                    with gr.Row():
+                        current_guide_name=gr.Textbox(label='가이드 이름',value='',max_length=40)
+                        current_guide_axis=gr.Dropdown(label='가이드 방향',choices=[('가로선 (Y)','y'),('세로선 (X)','x')],value='y')
+                    current_guide_position=gr.Number(label='③ 가이드 위치 · px',value=0,info='가이드를 불러오면 현재 위치가 표시됩니다. 값을 입력한 뒤 아래 적용 버튼을 누르세요.')
+                    with gr.Row():
+                        current_circle_center_x=gr.Number(label='원 중심 X · px',value=0,visible=False)
+                        current_circle_center_y=gr.Number(label='원 중심 Y · px',value=0,visible=False)
+                        current_circle_diameter_value=gr.Number(label='원 지름 · px',value=1,minimum=0.01,visible=False)
+                    current_guide_outputs=[current_guide_choice,current_guide_name,current_guide_axis,current_guide_position,current_feedback_text,current_circle_center_x,current_circle_center_y,current_circle_diameter_value]
+                    current_guide_error="[{__type__:'update'},{__type__:'update'},{__type__:'update'},{__type__:'update'},currentErrorValue.message,{__type__:'update'},{__type__:'update'},{__type__:'update'}]"
+                    current_guide_apply=gr.Button('④ 가이드 수정 적용',variant='primary')
+                    gr.Markdown('화면 반영 후 **수정본 저장**을 누르면 보존됩니다. 가이드 편집은 이미지 편집 대상과 무관하게 레퍼런스의 공통 기준에 적용됩니다.')
+                    current_guide_defaults.click(fn=None,outputs=current_guide_outputs,queue=False,js="async()=>{try{return await window.spriteV2GuideControls.reset();}catch(currentErrorValue){return "+current_guide_error+";}}")
+                    current_guide_refresh.click(fn=None,outputs=current_guide_outputs,queue=False,js="()=>{try{return window.spriteV2GuideControls.list();}catch(currentErrorValue){return "+current_guide_error+";}}")
+                    current_target_event.then(fn=None,outputs=current_guide_outputs,queue=False,js="()=>{try{return window.spriteV2GuideControls.list();}catch(currentErrorValue){return "+current_guide_error+";}}")
+                    current_guide_axis.input(fn=None,inputs=current_guide_axis,outputs=current_guide_position,queue=False,js="(currentAxisValue)=>({__type__:'update',label:currentAxisValue==='y'?'③ 위에서부터 위치 Y · px':'③ 왼쪽에서부터 위치 X · px',info:currentAxisValue==='y'?'0은 위쪽 끝입니다. 값이 커지면 아래로 이동합니다.':'0은 왼쪽 끝입니다. 값이 커지면 오른쪽으로 이동합니다.'})")
+                    current_guide_panel.expand(fn=None,outputs=current_guide_outputs,queue=False,js="()=>{try{return window.spriteV2GuideControls.list();}catch(currentErrorValue){return "+current_guide_error+";}}")
+                    current_guide_choice.input(fn=None,inputs=current_guide_choice,outputs=current_guide_outputs[1:],queue=False,js="(currentGuideValue)=>{try{return window.spriteV2GuideControls.select(currentGuideValue);}catch(currentErrorValue){return [{__type__:'update'},{__type__:'update'},{__type__:'update'},currentErrorValue.message,{__type__:'update'},{__type__:'update'},{__type__:'update'}];}}")
+                    current_guide_apply.click(fn=None,inputs=[current_guide_choice,current_guide_name,current_guide_axis,current_guide_position,current_circle_center_x,current_circle_center_y,current_circle_diameter_value],outputs=current_guide_outputs,queue=False,js="async(currentGuideValue,currentLabelValue,currentAxisValue,currentPositionValue,currentCircleCenterX,currentCircleCenterY,currentCircleDiameter)=>{try{return await window.spriteV2GuideControls.apply(currentGuideValue,currentLabelValue,currentAxisValue,currentPositionValue,currentCircleCenterX,currentCircleCenterY,currentCircleDiameter);}catch(currentErrorValue){return "+current_guide_error+";}}")
+                    with gr.Row():
+                        for current_edit_action,current_edit_label in (('guide-add','가로선 추가'),('guide-vertical','세로선 추가'),('guide-remove','선택 가이드 삭제')):
+                            current_guide_action_button=gr.Button(current_edit_label)
+                            current_guide_action_button.click(fn=None,inputs=current_guide_choice,outputs=current_guide_outputs,queue=False,js="async(currentGuideValue)=>{try{return await window.spriteV2GuideControls.change('"+current_edit_action+"',currentGuideValue);}catch(currentErrorValue){return "+current_guide_error+";}}")
         with gr.Accordion('프레임 순서·복제·삭제',open=False):
             gr.Markdown('### 프레임 편집\n선택한 프레임의 순서를 바꾸거나 복제·삭제합니다. 전체 프레임 삭제는 레퍼런스를 유지합니다. 삭제는 실행 취소할 수 있으며 수정본 저장 전에는 저장된 작업을 바꾸지 않습니다.')
             with gr.Row():
