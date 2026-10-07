@@ -9,6 +9,7 @@ from tools.review.common.map_tile_assets import load_registered_tiles, resolve_r
 
 WORKFLOW_ROOT_DIRECTORY=Path(__file__).resolve().parents[2]
 GAME_TILE_SOURCE_SIZE=256
+GROUND_TILE_SOURCE_SIZE=128
 TOWN_BLOCK_HEIGHT=80
 TOWN_BUILDING_TILE_OVERRIDES={
     'reedhaven':{
@@ -112,6 +113,8 @@ def load_current_texture_records():
     tile_catalog_record=yaml.safe_load((source_asset_directory/'tile-catalog.yaml').read_text())
     if tile_catalog_record.get('source_tile_size')!=GAME_TILE_SOURCE_SIZE:
         raise ValueError(f'게임 타일 원본 크기는 {GAME_TILE_SOURCE_SIZE}px여야 합니다.')
+    if tile_catalog_record.get('ground_source_tile_size')!=GROUND_TILE_SOURCE_SIZE:
+        raise ValueError(f'바닥 타일 원본 크기는 {GROUND_TILE_SOURCE_SIZE}px여야 합니다.')
     asset_repository_path, registered_tile_records = load_registered_tiles()
     validate_registered_tile_inventory(asset_repository_path, registered_tile_records)
     if not isinstance(tile_catalog_record.get('tiles'),list):
@@ -125,8 +128,9 @@ def load_current_texture_records():
         texture_source_path, tile_provenance_record = resolve_registered_tile(current_tile_record['asset'], asset_repository_path, registered_tile_records)
         with Image.open(texture_source_path) as source_texture_image:
             source_image_size=list(source_texture_image.size)
-        normalization_warning_value=None if source_image_size==[GAME_TILE_SOURCE_SIZE,GAME_TILE_SOURCE_SIZE] else f'정규화 필요: 현재 {source_image_size[0]}×{source_image_size[1]}px, 기준 {GAME_TILE_SOURCE_SIZE}×{GAME_TILE_SOURCE_SIZE}px'
-        exported_texture_records[current_tile_record['id']]={**tile_provenance_record,'path':'/management/map-assets/files/'+current_tile_record['asset']+'?v='+tile_provenance_record['sha256'],'source':current_tile_record['asset'],'sha256':hashlib.sha256(texture_source_path.read_bytes()).hexdigest(),'source_size':source_image_size,'expected_source_size':[GAME_TILE_SOURCE_SIZE,GAME_TILE_SOURCE_SIZE],'normalization_warning':normalization_warning_value}
+        current_expected_size=GROUND_TILE_SOURCE_SIZE if current_tile_record['asset'].startswith('assets/tiles/terrain/') and Path(current_tile_record['asset']).name not in {'cliff-rock-face-v1.png','ramp-earth-stone-wall-v1.png'} else GAME_TILE_SOURCE_SIZE
+        normalization_warning_value=None if source_image_size==[current_expected_size,current_expected_size] else f'정규화 필요: 현재 {source_image_size[0]}×{source_image_size[1]}px, 기준 {current_expected_size}×{current_expected_size}px'
+        exported_texture_records[current_tile_record['id']]={**tile_provenance_record,'path':'/management/map-assets/files/'+current_tile_record['asset']+'?v='+tile_provenance_record['sha256'],'source':current_tile_record['asset'],'sha256':hashlib.sha256(texture_source_path.read_bytes()).hexdigest(),'source_size':source_image_size,'expected_source_size':[current_expected_size,current_expected_size],'normalization_warning':normalization_warning_value}
     registered_road_tile_paths={
         current_asset_path
         for current_asset_path in registered_tile_records

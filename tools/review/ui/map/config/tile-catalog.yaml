@@ -2,6 +2,8 @@ schema_version: 1
 # 논리 셀과 게임에 등록하는 원본 스프라이트 크기를 분리한다.
 logical_tile_size: 64
 source_tile_size: 256
+# 바닥 원본 기준. 절벽 면·경사벽·건물은 위 기준을 유지한다.
+ground_source_tile_size: 128
 # 검수 화면 논리 타일 ID와 에셋 저장소 원본의 표시용 매핑이다.
 tiles:
   - {id: meadow-road, category: ground, asset: assets/tiles/terrain/road/dry-soil-pebble-road-v1.png}

@@ -70,7 +70,7 @@ def build_map_review_interface(review_server_port):
         current_outline_preview.input(fn=None,inputs=current_outline_preview,outputs=current_camera_feedback,queue=False,js="(currentOutlineEnabled)=>{try{if(!window.mapReviewOutlinePreview)throw Error('맵을 준비 중입니다.');return window.mapReviewOutlinePreview(currentOutlineEnabled);}catch(currentPreviewError){return currentPreviewError.message;}}")
         current_rim_preview=gr.Checkbox(label='마을 캐릭터 밝은 윤곽광',value=True)
         current_rim_preview.input(fn=None,inputs=current_rim_preview,outputs=current_camera_feedback,queue=False,js="(currentRimEnabled)=>{try{if(!window.mapReviewRimPreview)throw Error('맵을 준비 중입니다.');return window.mapReviewRimPreview(currentRimEnabled);}catch(currentPreviewError){return currentPreviewError.message;}}")
-        gr.Markdown('마을 바닥 타일: 128×128 렌더링 · 바닥 흐림 없음 · 캐릭터·건물·원본 에셋 해상도 유지')
+        gr.Markdown('바닥 타일 원본: 128×128 · 바닥 흐림 없음 · 캐릭터·건물 해상도 유지')
         gr.HTML(MAP_REVIEW_CANVAS_MARKUP)
         with gr.Accordion('조작 방법 · 타일 안내',open=False):
             gr.Markdown('휠 또는 확대·축소 버튼으로 배율을 조절하고 드래그 또는 방향키로 이동합니다. 0 키는 전체 보기입니다. 이동 가능한 바닥을 클릭하면 기본 캐릭터를 배치합니다. 메시 경계는 지면·절벽 면의 꼭짓점을 표시합니다. 미등록 지형은 임시 색상으로 표시됩니다.')

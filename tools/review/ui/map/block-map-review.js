@@ -29,8 +29,6 @@ if(currentMapSelector){
 }
 const GROUND_CONTRAST_PREVIEW_VALUES={original:1,soft:0.65};
 let currentGroundPreviewMode='original';
-const GROUND_TILE_RENDER_RESOLUTION=128;
-const currentGroundTextureCache=new Map();
 let currentOutlinePreviewEnabled=true;
 let currentRimPreviewEnabled=true;
 let currentCharacterRimCanvas=null;
@@ -105,20 +103,7 @@ function renderAppliedTileSourceList(){
 }
 renderAppliedTileSourceList();
 // 각 면의 실제 좌표에서 UV를 계산해 층 경계에서도 벽 타일이 이어지게 한다.
-// 바닥 전용 파생 텍스처를 한 번 준비하며 원본과 건물 텍스처는 유지한다.
-function resolveGroundRenderTexture(currentSourceImage){
- if(!currentGroundTextureCache.has(currentSourceImage)){
-  const currentReducedCanvas=document.createElement('canvas');
-  currentReducedCanvas.width=GROUND_TILE_RENDER_RESOLUTION;currentReducedCanvas.height=GROUND_TILE_RENDER_RESOLUTION;
-  const currentReducedContext=currentReducedCanvas.getContext('2d');
-  currentReducedContext.imageSmoothingEnabled=true;currentReducedContext.imageSmoothingQuality='high';
-  currentReducedContext.drawImage(currentSourceImage,0,0,GROUND_TILE_RENDER_RESOLUTION,GROUND_TILE_RENDER_RESOLUTION);
-  currentGroundTextureCache.set(currentSourceImage,currentReducedCanvas);
- }
- return currentGroundTextureCache.get(currentSourceImage);
-}
 function drawTexturedSurface(currentFaceRecord,currentTextureImage){
- if(currentFaceRecord.ground)currentTextureImage=resolveGroundRenderTexture(currentTextureImage);
  const currentFaceVertices=currentFaceRecord.vertices;
  const currentAlongColumn=Math.max(...currentFaceVertices.map(currentVertexPoint=>currentVertexPoint.column))-Math.min(...currentFaceVertices.map(currentVertexPoint=>currentVertexPoint.column))>0.001;
  const isRoofTileSurface=currentFaceRecord.top&&currentFaceRecord.material==='roof';
