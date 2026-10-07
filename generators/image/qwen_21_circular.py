@@ -14,21 +14,38 @@ CIRCULAR_VERTICAL_CONFIGURATION = {**CIRCULAR_COMPARISON_CONFIGURATION, 'schema_
 CIRCULAR_SINGLE_STRIP_CONFIGURATION = {**CIRCULAR_COMPARISON_CONFIGURATION, 'schema_version': 7, 'boundary_radius': 8, 'vertical_boundary_radius': 8}
 CIRCULAR_DOUBLE_STRIP_CONFIGURATION = {**CIRCULAR_SINGLE_STRIP_CONFIGURATION, 'schema_version': 8, 'boundary_strip_depth': 2}
 CIRCULAR_CORNER_CONFIGURATION = {**CIRCULAR_SINGLE_STRIP_CONFIGURATION, 'schema_version': 9, 'boundary_strip_depth': 1, 'corner_reference_enabled': True}
-CIRCULAR_VAE_CONFIGURATION = {**CIRCULAR_SINGLE_STRIP_CONFIGURATION, 'schema_version': 10, 'boundary_radius': 12, 'vertical_boundary_radius': 12, 'boundary_strip_depth': 1, 'corner_reference_enabled': False}
+CIRCULAR_PREVIOUS_VAE_CONFIGURATION = {**CIRCULAR_SINGLE_STRIP_CONFIGURATION, 'schema_version': 10, 'boundary_radius': 12, 'vertical_boundary_radius': 12, 'boundary_strip_depth': 1, 'corner_reference_enabled': False}
+CIRCULAR_TANGENT_ONE_CONFIGURATION = {**CIRCULAR_PREVIOUS_VAE_CONFIGURATION, 'schema_version': 12, 'boundary_tangent_radius': 1}
+CIRCULAR_BOUNDARY_TANGENT_RADIUS = 12
+CIRCULAR_VAE_CONFIGURATION = {**CIRCULAR_TANGENT_ONE_CONFIGURATION, 'schema_version': 14, 'boundary_tangent_radius': CIRCULAR_BOUNDARY_TANGENT_RADIUS}
 
 CIRCULAR_RADIUS_CHOICES = (8, 12, 16, 24)
 
 
 def build_circular_configuration(selected_radius_value=12, baseline_decode_enabled=True, reference_input_enabled=False):
     if type(selected_radius_value) is not int or selected_radius_value not in CIRCULAR_RADIUS_CHOICES:
-        raise ValueError('순환 참조 반경은 8·12·16토큰 중 선택하세요.')
+        raise ValueError('순환 참조 반경은 8·12·16·24토큰 중 선택하세요.')
     if type(baseline_decode_enabled) is not bool:
         raise ValueError('일반 VAE 비교 옵션은 ON/OFF 값이어야 합니다.')
-    return {**CIRCULAR_VAE_CONFIGURATION, **({'schema_version': 11, 'references': True} if reference_input_enabled else {}), 'baseline_decode': baseline_decode_enabled, 'boundary_radius': selected_radius_value,
-            'vertical_boundary_radius': selected_radius_value}
+    return {**CIRCULAR_VAE_CONFIGURATION, **({'schema_version': 15, 'references': True} if reference_input_enabled else {}), 'baseline_decode': baseline_decode_enabled, 'boundary_radius': selected_radius_value,
+            'vertical_boundary_radius': selected_radius_value, 'boundary_tangent_radius': selected_radius_value}
 
 
 CIRCULAR_SELECTABLE_CONFIGURATIONS = tuple(build_circular_configuration(current_radius_value, baseline_decode_enabled, reference_input_enabled) for current_radius_value in CIRCULAR_RADIUS_CHOICES for baseline_decode_enabled in (False, True) for reference_input_enabled in (False, True))
+CIRCULAR_PREVIOUS_SELECTABLE_CONFIGURATIONS = tuple(
+    {**CIRCULAR_PREVIOUS_VAE_CONFIGURATION, **({'schema_version': 11, 'references': True} if reference_input_enabled else {}), 'baseline_decode': baseline_decode_enabled,
+     'boundary_radius': current_radius_value, 'vertical_boundary_radius': current_radius_value}
+    for current_radius_value in CIRCULAR_RADIUS_CHOICES
+    for baseline_decode_enabled in (False, True)
+    for reference_input_enabled in (False, True)
+)
+CIRCULAR_TANGENT_ONE_SELECTABLE_CONFIGURATIONS = tuple(
+    {**CIRCULAR_TANGENT_ONE_CONFIGURATION, **({'schema_version': 13, 'references': True} if reference_input_enabled else {}), 'baseline_decode': baseline_decode_enabled,
+     'boundary_radius': current_radius_value, 'vertical_boundary_radius': current_radius_value}
+    for current_radius_value in CIRCULAR_RADIUS_CHOICES
+    for baseline_decode_enabled in (False, True)
+    for reference_input_enabled in (False, True)
+)
 
 
 def forward_circular_convolution(current_conv_module, current_input_tensor, cache_x=None):

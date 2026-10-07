@@ -17,6 +17,12 @@ class CircularGenerationTests(unittest.TestCase):
         self.assertIn('resume', MANAGEMENT_SERVICE_COMMANDS['qwen-21-circular'])
         self.assertEqual(current_service_manager.job_storage_root.name, 'qwen-image-21-circular')
 
+    def test_current_circular_configuration_limits_parallel_edge_mixing(self):
+        from generators.image.qwen_21_circular import CIRCULAR_BOUNDARY_TANGENT_RADIUS, build_circular_configuration
+        current_configuration = build_circular_configuration(12, False, False)
+        self.assertEqual(CIRCULAR_BOUNDARY_TANGENT_RADIUS, 12)
+        self.assertEqual(current_configuration['boundary_tangent_radius'], CIRCULAR_BOUNDARY_TANGENT_RADIUS)
+
     def test_reference_configuration_and_limits(self):
         import base64
         import io
@@ -30,7 +36,7 @@ class CircularGenerationTests(unittest.TestCase):
         for reference_image_count in (1, 10):
             validated_request_record = current_service_manager.validate_generation_request({**current_request_record, 'images': [encoded_reference_image] * reference_image_count})
             self.assertEqual(len(validated_request_record['images']), reference_image_count)
-            self.assertEqual(validated_request_record['circular_vae']['schema_version'], 11)
+            self.assertEqual(validated_request_record['circular_vae']['schema_version'], 15)
             self.assertTrue(validated_request_record['circular_vae']['references'])
             self.assertIn(validated_request_record['circular_vae'], CIRCULAR_SELECTABLE_CONFIGURATIONS)
         with self.assertRaises(ValueError):
@@ -105,6 +111,7 @@ class CircularGenerationTests(unittest.TestCase):
             current_output_values = current_service_manager.validate_generation_request({**current_request_values, 'circular_radius': current_radius_value})
             self.assertEqual(current_output_values['circular_vae']['boundary_radius'], current_radius_value)
             self.assertEqual(current_output_values['circular_vae']['vertical_boundary_radius'], current_radius_value)
+            self.assertEqual(current_output_values['circular_vae']['boundary_tangent_radius'], current_radius_value)
         for invalid_radius_value in (4, 32, True, '8', 8.0):
             with self.assertRaises(ValueError):
                 current_service_manager.validate_generation_request({**current_request_values, 'circular_radius': invalid_radius_value})

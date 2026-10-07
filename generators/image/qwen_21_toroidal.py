@@ -36,11 +36,12 @@ def build_toroidal_boundary(current_grid_height, current_grid_width, boundary_st
 
 
 class ToroidalTargetAttention:
-    def __init__(self, current_position_embedder, current_grid_height, current_grid_width, boundary_radius_value=None, vertical_boundary_radius=None, boundary_strip_depth=1, corner_reference_enabled=False):
+    def __init__(self, current_position_embedder, current_grid_height, current_grid_width, boundary_radius_value=None, vertical_boundary_radius=None, boundary_tangent_radius_value=None, boundary_strip_depth=1, corner_reference_enabled=False):
         self.grid_height_value = current_grid_height
         self.grid_width_value = current_grid_width
         self.boundary_radius_value = boundary_radius_value
         self.vertical_boundary_radius = vertical_boundary_radius
+        self.boundary_tangent_radius_value = boundary_tangent_radius_value
         self.position_embedder_value = current_position_embedder
         self.target_token_count = current_grid_height * current_grid_width
         self.boundary_mapping_values = build_toroidal_boundary(current_grid_height, current_grid_width, boundary_strip_depth, corner_reference_enabled)
@@ -90,15 +91,31 @@ class ToroidalTargetAttention:
             local_source_tensor = torch.tensor(source_token_indices, device=key_tensor_value.device)
             synthetic_height_tensor = local_source_tensor // self.grid_width_value + offset_tensor_values[1]
             synthetic_width_tensor = local_source_tensor % self.grid_width_value + offset_tensor_values[2]
-            boundary_distance_tensor = (
-                (query_index_tensor[:, None] // self.grid_width_value - synthetic_height_tensor[None, :]).abs()
-                + (query_index_tensor[:, None] % self.grid_width_value - synthetic_width_tensor[None, :]).abs()
-            )
-            # 좌우 연결 범위는 유지하고 상하 경계 복제 토큰에만 별도 반경을 적용한다.
-            boundary_radius_tensor = torch.full_like(offset_tensor_values[1], self.boundary_radius_value)
-            if self.vertical_boundary_radius is not None:
-                boundary_radius_tensor[offset_tensor_values[1] != 0] = self.vertical_boundary_radius
-            extra_allowed_tensor = (boundary_distance_tensor <= boundary_radius_tensor[None, :])[None, None]
+            query_row_tensor = query_index_tensor[:, None] // self.grid_width_value
+            query_column_tensor = query_index_tensor[:, None] % self.grid_width_value
+            source_row_tensor = synthetic_height_tensor[None, :]
+            source_column_tensor = synthetic_width_tensor[None, :]
+            if self.boundary_tangent_radius_value is None:
+                # 저장된 기존 이력은 대각선 거리까지 포함한 이전 범위를 그대로 재현한다.
+                boundary_distance_tensor = (query_row_tensor - source_row_tensor).abs() + (query_column_tensor - source_column_tensor).abs()
+                boundary_radius_tensor = torch.full_like(offset_tensor_values[1], self.boundary_radius_value)
+                if self.vertical_boundary_radius is not None:
+                    boundary_radius_tensor[offset_tensor_values[1] != 0] = self.vertical_boundary_radius
+                extra_allowed_tensor = (boundary_distance_tensor <= boundary_radius_tensor[None, :])[None, None]
+            else:
+                if self.boundary_tangent_radius_value < 0:
+                    raise ValueError('순환 Attention의 경계 평행 반경은 0 이상이어야 합니다.')
+                horizontal_radius_value = self.boundary_radius_value
+                vertical_radius_value = self.vertical_boundary_radius if self.vertical_boundary_radius is not None else self.boundary_radius_value
+                horizontal_wrap_tensor = offset_tensor_values[2] != 0
+                vertical_wrap_tensor = offset_tensor_values[1] != 0
+                horizontal_normal_tensor = (query_column_tensor - source_column_tensor).abs() <= horizontal_radius_value
+                horizontal_tangent_tensor = (query_row_tensor - source_row_tensor).abs() <= self.boundary_tangent_radius_value
+                vertical_normal_tensor = (query_row_tensor - source_row_tensor).abs() <= vertical_radius_value
+                vertical_tangent_tensor = (query_column_tensor - source_column_tensor).abs() <= self.boundary_tangent_radius_value
+                horizontal_allowed_tensor = (~horizontal_wrap_tensor[None, :]) | (horizontal_normal_tensor & horizontal_tangent_tensor)
+                vertical_allowed_tensor = (~vertical_wrap_tensor[None, :]) | (vertical_normal_tensor & vertical_tangent_tensor)
+                extra_allowed_tensor = (horizontal_allowed_tensor & vertical_allowed_tensor)[None, None]
             original_allowed_tensor = torch.ones(
                 (query_tensor_value.shape[0], 1, self.target_token_count, key_tensor_value.shape[1]),
                 dtype=torch.bool, device=key_tensor_value.device)
@@ -130,6 +147,7 @@ def install_toroidal_attention(current_pipeline_model, current_request_record):
             current_pipeline_model.transformer.pos_embed, current_grid_height, current_grid_width,
             current_request_record['circular_vae'].get('boundary_radius'),
             current_request_record['circular_vae'].get('vertical_boundary_radius'),
+            current_request_record['circular_vae'].get('boundary_tangent_radius'),
             current_request_record['circular_vae'].get('boundary_strip_depth', 1),
             current_request_record['circular_vae'].get('corner_reference_enabled', False)))
     return len(current_pipeline_model.transformer.transformer_blocks)
