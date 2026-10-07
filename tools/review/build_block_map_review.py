@@ -127,6 +127,19 @@ def load_current_texture_records():
             source_image_size=list(source_texture_image.size)
         normalization_warning_value=None if source_image_size==[GAME_TILE_SOURCE_SIZE,GAME_TILE_SOURCE_SIZE] else f'정규화 필요: 현재 {source_image_size[0]}×{source_image_size[1]}px, 기준 {GAME_TILE_SOURCE_SIZE}×{GAME_TILE_SOURCE_SIZE}px'
         exported_texture_records[current_tile_record['id']]={**tile_provenance_record,'path':'/management/map-assets/files/'+current_tile_record['asset']+'?v='+tile_provenance_record['sha256'],'source':current_tile_record['asset'],'sha256':hashlib.sha256(texture_source_path.read_bytes()).hexdigest(),'source_size':source_image_size,'expected_source_size':[GAME_TILE_SOURCE_SIZE,GAME_TILE_SOURCE_SIZE],'normalization_warning':normalization_warning_value}
+    registered_road_tile_paths={
+        current_asset_path
+        for current_asset_path in registered_tile_records
+        if current_asset_path.startswith('assets/tiles/terrain/road/') and Path(current_asset_path).suffix.lower() in {'.png','.webp','.jpg','.jpeg'}
+    }
+    catalog_road_tile_paths={
+        current_texture_record['source']
+        for current_texture_record in exported_texture_records.values()
+        if current_texture_record['source'].startswith('assets/tiles/terrain/road/')
+    }
+    missing_catalog_road_tile_paths=sorted(registered_road_tile_paths-catalog_road_tile_paths)
+    if missing_catalog_road_tile_paths:
+        raise ValueError('관리도구 타일 목록에 누락된 등록 도로 타일: '+', '.join(missing_catalog_road_tile_paths))
     return exported_texture_records
 
 

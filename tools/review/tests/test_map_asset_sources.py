@@ -8,6 +8,8 @@ from unittest.mock import patch
 import yaml
 from tools.review.common.map_asset_sources import load_review_map_identifiers, normalize_field_surface_data
 from tools.review.build_block_map_review import build_block_map_review
+from tools.review.build_block_map_review import load_current_texture_records
+from tools.review.common.map_tile_assets import load_registered_tiles
 from tools.review.common.map_asset_http import read_map_asset_response
 
 WORKFLOW_REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
@@ -71,6 +73,22 @@ class MapAssetSourceTests(unittest.TestCase):
             second_response_bytes, _ = read_map_asset_response('/management/map-assets/textures')
         self.assertEqual(json.loads(first_response_bytes)['tile']['sha256'], 'before')
         self.assertEqual(json.loads(second_response_bytes)['tile']['sha256'], 'after')
+
+    def test_registered_road_tiles_are_all_listed_by_management_catalog(self):
+        current_texture_records = load_current_texture_records()
+        current_catalog_road_paths = {
+            current_texture_record['source']
+            for current_texture_record in current_texture_records.values()
+            if current_texture_record['source'].startswith('assets/tiles/terrain/road/')
+        }
+        _, current_registered_records = load_registered_tiles()
+        current_registered_road_paths = {
+            current_asset_path
+            for current_asset_path in current_registered_records
+            if current_asset_path.startswith('assets/tiles/terrain/road/')
+            and Path(current_asset_path).suffix.lower() in {'.png','.webp','.jpg','.jpeg'}
+        }
+        self.assertSetEqual(current_catalog_road_paths, current_registered_road_paths)
 
     def test_invalid_source_paths_are_rejected(self):
         for current_request_path in ('/management/map-assets/maps/unknown','/management/map-assets/maps/../../config','/management/map-assets/files/assets/tiles/../../AGENTS.md','/management/map-assets/files/assets/maps/field_tiles/dry-creek.yaml'):
