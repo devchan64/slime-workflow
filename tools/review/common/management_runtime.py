@@ -81,6 +81,8 @@ def create_management_runtime(writer_workspace_config=None):
     from tools.review.domains.character_animation.character_animation_jobs import GENERATION_ROOT_DIRECTORY, resolve_generation_directory
     from tools.review.domains.momask.momask_jobs import GENERATION_JOB_DIRECTORY as MOMASK_RECORD_DIRECTORY, resolve_generation_directory as resolve_momask_record_directory
 
+    from tools.review.domains.character_review.capture import handle_character_capture_request, CAPTURE_STORAGE_DIRECTORY
+
     writer_agent_service = WriterAgentManager(writer_workspace_config or DEFAULT_WORKSPACE_CONFIG)
     try:
         image_generation_service = ImageGenerationManager()
@@ -97,6 +99,7 @@ def create_management_runtime(writer_workspace_config=None):
         momask_generation_service = MoMaskGenerationManager()
         character_animation_service = CharacterAnimationManager()
         service_binding_records = {
+            'character-review': bind_stored_management_service(handle_character_capture_request,CAPTURE_STORAGE_DIRECTORY),
             'outfit-transfer': bind_stored_management_service(outfit_transfer_service.handle_image_request, outfit_transfer_service.job_storage_root),
             'pose-transfer': bind_stored_management_service(pose_transfer_service.handle_image_request, pose_transfer_service.job_storage_root),
             'animation-separation': bind_stored_management_service(animation_separation_service.handle_image_request, animation_separation_service.job_storage_root),

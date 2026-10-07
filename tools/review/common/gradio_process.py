@@ -105,6 +105,7 @@ def ensure_gradio_application(review_server_port, application_name, application_
             'animation-separation':('animation_separation_app.py',117,'/management/frame/animation-separation/'),
             'sprite-editor-v2':('sprite_editor_v2_app.py',121,'/management/frame/sprite-editor-v2/'),
             'sprite-editor':('sprite_editor_app.py',106,'/management/frame/sprite-editor/'),
+            'character-review':('character_review_app.py',122,'/management/frame/character-review/'),
             'map-review':('map_review_app.py',107,'/management/frame/map-review/'),
             'anny-attributes':('anny_attributes_app.py',108,'/management/frame/anny-attributes/'),
             'writer-agent':('writer_agent_app.py',109,'/management/frame/writer-agent/'),

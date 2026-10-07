@@ -31,7 +31,7 @@ try{{
  await import({current_script_url});
  if(!window.mapReviewControlOptions)throw Error('맵 초기화 실패. 맵·타일 원본 연결과 브라우저 오류를 확인하세요.');
  const currentControlOptions=window.mapReviewControlOptions();
- return [{{__type__:'update',choices:currentControlOptions.maps,value:currentControlOptions.selected,visible:!currentControlOptions.townSpecific}},{{__type__:'update',visible:!currentControlOptions.townSpecific}},{{__type__:'update',choices:currentControlOptions.buildings,value:null,visible:!currentControlOptions.field}},{{__type__:'update',visible:currentControlOptions.field}},{{__type__:'update',visible:true}},'맵을 불러왔습니다. 시점과 표시 옵션을 조정하세요.'];
+ return [{{__type__:'update',choices:currentControlOptions.maps,value:currentControlOptions.selected,visible:!currentControlOptions.townSpecific}},{{__type__:'update',visible:!currentControlOptions.townSpecific}},{{__type__:'update',choices:currentControlOptions.buildings,value:null,visible:!currentControlOptions.field&&!currentControlOptions.characterReview}},{{__type__:'update',visible:currentControlOptions.field}},{{__type__:'update',visible:true}},'맵을 불러왔습니다. 시점과 표시 옵션을 조정하세요.'];
 }}catch(currentLoadError){{
  const currentStatusElement=document.getElementById('status');if(currentStatusElement)currentStatusElement.textContent=currentLoadError.message;
  return [{{__type__:'update'}},{{__type__:'update'}},{{__type__:'update'}},{{__type__:'update'}},{{__type__:'update'}},currentLoadError.message];
@@ -39,9 +39,18 @@ try{{
 }}"""
 
 
-def build_map_review_interface(review_server_port):
-    with gr.Blocks(title='맵 검수') as current_interface_blocks:
-        gr.Markdown('## 맵 검수')
+def capture_character_review_images(current_capture_settings):
+    """GUI 설정도 CLI와 동일한 게이트웨이 명령으로 캡처한다."""
+    from tools.review.common.management_gateway import execute_management_command
+    current_capture_record=execute_management_command('character-review','capture',current_capture_settings)
+    return list(current_capture_record['images'].values())
+
+
+def build_map_review_interface(review_server_port, character_review_enabled=False):
+    with gr.Blocks(title='캐릭터 표현 검수' if character_review_enabled else '맵 검수') as current_interface_blocks:
+        gr.Markdown('## 캐릭터 표현 검수' if character_review_enabled else '## 맵 검수')
+        if character_review_enabled:
+            gr.Markdown('7×7 바닥 위에서 기본 캐릭터를 비교합니다. 초기 배율은 실제 게임 크기 100%이며 오른쪽 맵을 클릭하면 양쪽 캐릭터가 함께 이동합니다.')
         with gr.Row():
             current_map_choice=gr.Dropdown(label='맵 선택',choices=[],interactive=True)
             current_load_button=gr.Button('맵 불러오기')
@@ -64,14 +73,35 @@ def build_map_review_interface(review_server_port):
         current_display_inputs=[current_character_check,current_boundary_check,current_edges_check,current_shadow_profile]
         for current_display_control in current_display_inputs:
             current_display_control.input(fn=None,inputs=current_display_inputs,outputs=current_camera_feedback,queue=False,js="(...currentDisplayValues)=>{try{if(!window.mapReviewDisplayOptions)throw Error('맵을 준비 중입니다.');window.mapReviewDisplayOptions(...currentDisplayValues);return '표시 옵션을 적용했습니다.';}catch(currentDisplayError){return currentDisplayError.message;}}")
-        current_ground_preview=gr.Radio(label='마을 바닥 대비 실험',choices=[('원본','original'),('대비 65%','soft')],value='original')
+        current_ground_preview=gr.Radio(label='바닥 대비 실험',choices=[('원본','original'),('대비 65%','soft')],value='original')
         current_ground_preview.input(fn=None,inputs=current_ground_preview,outputs=current_camera_feedback,queue=False,js="(currentPreviewMode)=>{try{if(!window.mapReviewGroundPreview)throw Error('맵을 준비 중입니다.');return window.mapReviewGroundPreview(currentPreviewMode);}catch(currentPreviewError){return currentPreviewError.message;}}")
-        current_outline_preview=gr.Checkbox(label='마을 캐릭터 1px 외곽선',value=True)
+        current_outline_preview=gr.Checkbox(label='어두운 형태선 · 1px' if character_review_enabled else '마을 캐릭터 1px 외곽선',value=True)
         current_outline_preview.input(fn=None,inputs=current_outline_preview,outputs=current_camera_feedback,queue=False,js="(currentOutlineEnabled)=>{try{if(!window.mapReviewOutlinePreview)throw Error('맵을 준비 중입니다.');return window.mapReviewOutlinePreview(currentOutlineEnabled);}catch(currentPreviewError){return currentPreviewError.message;}}")
-        current_rim_preview=gr.Checkbox(label='마을 캐릭터 밝은 윤곽광',value=True)
+        current_rim_preview=gr.Checkbox(label='밝은 분리선' if character_review_enabled else '마을 캐릭터 밝은 윤곽광',value=True)
         current_rim_preview.input(fn=None,inputs=current_rim_preview,outputs=current_camera_feedback,queue=False,js="(currentRimEnabled)=>{try{if(!window.mapReviewRimPreview)throw Error('맵을 준비 중입니다.');return window.mapReviewRimPreview(currentRimEnabled);}catch(currentPreviewError){return currentPreviewError.message;}}")
+        if character_review_enabled:
+            current_shadow_check=gr.Checkbox(label='접지 그림자',value=True)
+            current_shadow_check.input(fn=None,inputs=current_shadow_check,outputs=current_camera_feedback,queue=False,js="(currentShadowEnabled)=>{try{if(!window.characterReviewContactShadow)throw Error('맵을 준비 중입니다.');return window.characterReviewContactShadow(currentShadowEnabled);}catch(currentShadowError){return currentShadowError.message;}}")
         gr.Markdown('바닥 타일 원본: 128×128 · 바닥 흐림 없음 · 캐릭터·건물 해상도 유지')
-        gr.HTML(MAP_REVIEW_CANVAS_MARKUP)
+        if character_review_enabled:
+            current_ground_choice=gr.Radio(label='검수 바닥',choices=[('석판','paving'),('잔디·들꽃','grass'),('흙·자갈','meadow-road')],value='paving')
+            current_ground_choice.input(fn=None,inputs=current_ground_choice,outputs=current_camera_feedback,queue=False,js="(currentTextureIdentifier)=>{try{if(!window.characterReviewGroundTile)throw Error('맵을 준비 중입니다.');return window.characterReviewGroundTile(currentTextureIdentifier);}catch(currentTextureError){return currentTextureError.message;}}")
+            with gr.Row(equal_height=True):
+                with gr.Column(min_width=280):
+                    gr.Markdown('### 원본 · 외곽선 없음 / 기본 접지 그림자')
+                    gr.HTML('<div style="position:relative;aspect-ratio:4/3"><canvas id="character-baseline-map" width="768" height="576" aria-label="원본 캐릭터 비교 맵" style="position:absolute;width:100%;height:100%"></canvas></div>')
+                with gr.Column(min_width=280):
+                    gr.Markdown('### 조정본 · 선택한 표현 적용')
+                    gr.HTML(MAP_REVIEW_CANVAS_MARKUP.replace('<h3 id="map-title">맵 검수</h3><p id="status" role="status">맵을 준비하고 있습니다…</p>\n<output id="zoom-level" aria-live="polite"></output>','').replace('id="map"','id="map" data-character-review="true"'))
+            gr.HTML('<h3 id="map-title">캐릭터 표현 검수</h3><p id="status" role="status">맵을 준비하고 있습니다…</p><output id="zoom-level" aria-live="polite"></output>')
+        else:
+            gr.HTML(MAP_REVIEW_CANVAS_MARKUP)
+        if character_review_enabled:
+            gr.Markdown('PNG 캡처는 현재 바닥·캐릭터 위치·배율·표현 설정으로 768×576 이미지를 다시 렌더링합니다. 원본·조정본·좌우 비교 3개 파일을 저장합니다.')
+            current_capture_settings=gr.JSON(value={},visible=False)
+            current_capture_button=gr.Button('렌더링 PNG 캡처')
+            current_capture_files=gr.File(label='캡처 결과 · 원본 / 조정본 / 비교',file_count='multiple',interactive=False)
+            current_capture_button.click(fn=None,inputs=None,outputs=current_capture_settings,queue=False,js="()=>{if(!window.characterReviewCaptureSettings)throw Error('맵을 준비 중입니다.');return window.characterReviewCaptureSettings();}").then(fn=capture_character_review_images,inputs=current_capture_settings,outputs=current_capture_files)
         with gr.Accordion('조작 방법 · 타일 안내',open=False):
             gr.Markdown('휠 또는 확대·축소 버튼으로 배율을 조절하고 드래그 또는 방향키로 이동합니다. 0 키는 전체 보기입니다. 이동 가능한 바닥을 클릭하면 기본 캐릭터를 배치합니다. 메시 경계는 지면·절벽 면의 꼭짓점을 표시합니다. 미등록 지형은 임시 색상으로 표시됩니다.')
         with gr.Accordion('적용 타일 원본',open=True):

@@ -20,6 +20,7 @@ MANAGEMENT_FRAME_PATH_PREFIX='/management/frame/'
 MANAGEMENT_FRAME_IDENTIFIER_VALUES={'anny-attribute-renderer':'anny-attributes'}
 LEGACY_PAGE_IDENTIFIER_VALUES={'map-review':'map-review-iseulon','animation-2':'animation-1','animation-3':'animation-1'}
 DEFAULT_PAGE_RECORDS=(
+    {'id':'character-review','label':'캐릭터 표현 검수','path':'/management/frame/character-review/','category':'animation-tool','uiMode':'gradio','description':'7×7 검수 맵 · 바닥 선택 · 형태선·분리선·접지 그림자 비교'},
     {'id':'animation-separation','label':'캐릭터 레퍼런스 복장 분리 생성','path':'/animation-separation/','category':'image-generation','uiMode':'gradio','description':'Qwen 2.1 · 참조 이미지 1장 · 신체 베이스·복장 별도 이미지'},
     {'id':'qwen-21-circular-generator','label':'Qwen 2.1 순환 VAE 생성기','path':'/image-generation-21-circular/','category':'image-generation','uiMode':'gradio','description':'XY 순환 디코더 · 3×3 반복 검수'},
     {'id':'pose-transfer-generator','label':'포즈 변환 생성기 · Alpha Ver.','path':'/pose-transfer/','category':'animation-tool','uiMode':'gradio','description':'Alpha Ver. · Qwen 2.1 · 아이덴티티 1장 + 포즈 1장'},

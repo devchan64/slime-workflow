@@ -516,3 +516,21 @@ GUI와 CLI는 `character-animation` 서비스의 `sprite-v2-create/list/upload/s
 - 정규화 편집기 작업 삭제: `sprite-v2-delete`에 `{"id":"작업 ID","confirm":true}`를 전달한다. 선택 작업의 등록 이미지·수정 이력·출력 파일을 삭제하며 복구할 수 없다. GUI는 대상 ID 확인 후 실행하고, 삭제한 작업이 열려 있으면 브라우저 초안도 비운다.
 
 - 선택 수정본 삭제는 `sprite-v2-revision-delete`와 `{"id":"작업 ID","revision":"수정본 ID","confirm":true}`를 사용한다. 최신 삭제 시 남은 가장 최근 저장본을 최신으로 지정하고 마지막 수정본 삭제는 거절한다. 이미지·내보낸 파일과 과거 출처용 parent 값은 유지한다.
+
+### 캐릭터 표현 검수 PNG 캡처
+
+GUI의 **렌더링 PNG 캡처**와 CLI는 `character-review capture` 명령을 공유합니다. 별도의 Chrome/Chromium 헤드리스 프로세스가 공용 맵 렌더러와 등록 에셋을 읽으며, 열려 있는 브라우저 탭이나 관리 UI 서버에 의존하지 않습니다. 명령 게이트웨이는 실행 중이어야 합니다.
+
+```bash
+python3 tools/manager.py help character-review capture
+python3 tools/manager.py command character-review capture --payload-file /tmp/character-capture.json
+```
+
+입력 JSON 예시:
+```json
+{"ground":"paving","zoom":1,"column":3,"row":3,"outline":true,"rim":true,"shadow":true,"width":768,"height":576}
+```
+
+빈 객체 `{}`도 기본 설정으로 실행합니다. 바닥은 `paving`, `grass`, `meadow-road`, 배율은 0.05–4, 위치는 0–6, 회전 `rotation`은 0–3입니다. `shadow_profile`은 `baseline`·`contrast`·`broad`, 바닥 `contrast`는 `original`·`soft`입니다. 너비는 256–1600, 높이는 256–1200이며, 임의 URL·출력 경로는 허용하지 않습니다.
+
+`.tmp/test/character-review-capture/<한국시간>/`에 `baseline.png`, `adjusted.png`, `comparison.png`, `result.yaml`, 로그와 렌더 입력을 저장합니다. 비교 PNG의 왼쪽은 원본, 오른쪽은 조정본입니다. GUI 캡처는 현재 바닥·위치·배율·표현 설정을 768×576 캔버스 중앙에 재배치하여 저장합니다. 화면의 스크롤·드래그 오프셋과 UI 컨트롤은 캡처에 포함하지 않습니다. 애니메이션 첫 프레임을 사용합니다.

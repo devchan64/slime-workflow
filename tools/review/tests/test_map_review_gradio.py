@@ -14,6 +14,17 @@ class MapReviewGradioTest(unittest.TestCase):
         self.assertIn('map-review-root', str(configuration_value))
         self.assertNotIn('<iframe', str(configuration_value))
 
+    def test_character_review_has_shared_canvas_and_browser_controls(self):
+        current_config_record=build_map_review_interface(8770,character_review_enabled=True).get_config_file()
+        current_config_text=str(current_config_record)
+        self.assertIn('character-baseline-map',current_config_text)
+        self.assertIn('data-character-review',current_config_text)
+        self.assertIn('접지 그림자',current_config_text)
+        for current_event_record in current_config_record['dependencies']:
+            if 'characterReview' in (current_event_record.get('js') or ''):
+                self.assertFalse(current_event_record['backend_fn'])
+                self.assertFalse(current_event_record['queue'])
+
     def test_camera_actions_use_native_browser_controls(self):
         current_interface_config=build_map_review_interface(8770).get_config_file()
         current_camera_events=[current_event_record for current_event_record in current_interface_config['dependencies'] if 'mapReviewCameraControls' in (current_event_record.get('js') or '')]

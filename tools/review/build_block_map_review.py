@@ -107,7 +107,7 @@ def build_current_block_faces(block_record_values, block_height_value):
     return current_face_records
 
 
-def load_current_texture_records():
+def load_current_texture_records(validate_complete_inventory=True):
     """검수 타일 목록과 해시를 요청 시 원본에서 읽는다."""
     source_asset_directory=WORKFLOW_ROOT_DIRECTORY/'tools/review/ui/map/config'
     tile_catalog_record=yaml.safe_load((source_asset_directory/'tile-catalog.yaml').read_text())
@@ -116,7 +116,8 @@ def load_current_texture_records():
     if tile_catalog_record.get('ground_source_tile_size')!=GROUND_TILE_SOURCE_SIZE:
         raise ValueError(f'바닥 타일 원본 크기는 {GROUND_TILE_SOURCE_SIZE}px여야 합니다.')
     asset_repository_path, registered_tile_records = load_registered_tiles()
-    validate_registered_tile_inventory(asset_repository_path, registered_tile_records)
+    if validate_complete_inventory:
+        validate_registered_tile_inventory(asset_repository_path, registered_tile_records)
     if not isinstance(tile_catalog_record.get('tiles'),list):
         raise ValueError('맵 타일 카탈로그 항목 형식 오류')
     exported_texture_records={}
@@ -164,18 +165,20 @@ def build_field_safe_visual_records(texture_output_directory):
     }
 
 
-def build_block_map_review(output_directory_path):
+def build_block_map_review(output_directory_path, character_review_only=False):
     output_directory_path=Path(output_directory_path).resolve()
     if not output_directory_path.is_relative_to(WORKFLOW_ROOT_DIRECTORY/'.tmp'):
         raise ValueError('검수 출력은 .tmp 하위여야 합니다.')
     source_asset_directory=WORKFLOW_ROOT_DIRECTORY/'tools/review/ui/map/config'
-    validate_registered_tile_inventory()
+    # 단독 캐릭터 캡처는 소비하는 등록 원본의 경로·해시를 아래 로더에서 검증한다.
+    if not character_review_only:
+        validate_registered_tile_inventory()
     town_block_height=load_town_block_height()
     current_material_record=yaml.safe_load((WORKFLOW_ROOT_DIRECTORY/'tools/review/ui/map/config/materials.yaml').read_text())
     output_directory_path.mkdir(parents=True,exist_ok=True)
     texture_output_directory=output_directory_path/'textures'
     texture_output_directory.mkdir(exist_ok=True)
-    (output_directory_path/'field-safe-visuals.json').write_text(json.dumps(build_field_safe_visual_records(texture_output_directory),ensure_ascii=False))
+    (output_directory_path/'field-safe-visuals.json').write_text(json.dumps({} if character_review_only else build_field_safe_visual_records(texture_output_directory),ensure_ascii=False))
     prefab_source_records=yaml.safe_load((source_asset_directory/'building-prefabs.yaml').read_text())['prefabs']
     building_tile_records={current_prefab_record['id']:{'roof':current_prefab_record['roof_tile'],'wall':current_prefab_record['ground_floor_plain_wall_tile'],'window':current_prefab_record['ground_floor_small_window_wall_tile'],'large_window':current_prefab_record['upper_floor_large_window_wall_tile'],'roof_underlay':current_prefab_record.get('roof_underlay_wall_tile',current_prefab_record['ground_floor_plain_wall_tile']),'door':current_prefab_record['door_tile']} for current_prefab_record in prefab_source_records}
     building_tile_records['stonewarm-guild'] = {'roof': 'stonewarm-guild-red-stone-roof'}
@@ -184,19 +187,21 @@ def build_block_map_review(output_directory_path):
     # 등록된 맵 원본 인덱스를 따라 검수 목록을 구성한다.
     from tools.review.common.map_asset_sources import load_review_map_identifiers
     _, current_map_identifiers = load_review_map_identifiers()
-    for current_map_identifier in current_map_identifiers:
+    for current_map_identifier in (() if character_review_only else current_map_identifiers):
         current_map_record = build_registered_map_review(current_map_identifier)
         required_material_names=set(current_map_record['terrainCodes'].values())|{'wall','roof'}
         if required_material_names-set(current_material_record['materials']):
             raise ValueError('맵 검수 재질 누락: '+current_map_identifier)
         exported_map_records.append({'id':current_map_identifier,'name':current_map_record['name'],'path':'/management/map-assets/maps/'+current_map_identifier})
+    if character_review_only:
+        exported_map_records=[{'id':'character-review','name':'캐릭터 표현 검수','path':''}]
     if not exported_map_records:
         raise ValueError('검수할 마을 맵이 없습니다.')
     (output_directory_path/'block-map-index.json').write_text(json.dumps(exported_map_records,ensure_ascii=False))
     (output_directory_path/'block-render-profile.json').write_text(json.dumps({'blockHeight':town_block_height}))
     (output_directory_path/'block-materials.json').write_text(json.dumps(current_material_record['materials']))
     # 등록 원본을 직접 제공하며 이미지 사본을 만들지 않는다.
-    exported_texture_records=load_current_texture_records()
+    exported_texture_records=load_current_texture_records(validate_complete_inventory=not character_review_only)
     (output_directory_path/'block-textures.json').write_text(json.dumps(exported_texture_records))
     from tools.review.common.game_render_metrics import load_game_render_metrics
     game_render_metrics=load_game_render_metrics(WORKFLOW_ROOT_DIRECTORY.parent/'slime-frontend')
