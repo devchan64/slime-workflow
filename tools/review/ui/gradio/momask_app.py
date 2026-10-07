@@ -177,6 +177,7 @@ def build_momask_interface(server_base_address):
             result_component_factory=build_browser_frame_player,
             record_folder_route='/momask-generator',
             allow_individual_delete=True,
+            individual_delete_scope_text='선택한 작업의 이력·생성 모션·렌더 프레임·입력·로그를 모두 영구 삭제합니다. 복구할 수 없습니다. 대기·실행 중인 작업은 먼저 중지하세요.',
         )
         interface_blocks_value.load(lambda:read_history_page(1),outputs=history_output_values)
     return interface_blocks_value

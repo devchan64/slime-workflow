@@ -78,14 +78,28 @@ class SharedGenerationJobsTest(unittest.TestCase):
             self.assertEqual(json.loads((self.test_root_directory/'jobs'/identifier/'status.json').read_text())['status'],'completed')
             self.assertEqual(history_path.exists(),not clear_history_first)
 
-    def test_individual_history_delete_keeps_completed_generation_files(self):
+    def test_individual_history_delete_removes_completed_generation_files(self):
         identifier=self.create_test_record()
         generation_job_path=self.test_root_directory/'jobs'/identifier
         (generation_job_path/'status.json').write_text('{"status":"completed"}')
 
-        self.assertEqual(JOB_SERVICE_MODULE.delete_generation_history(identifier),{'deleted':identifier,'files_preserved':True})
+        self.assertEqual(JOB_SERVICE_MODULE.delete_generation_history(identifier),{'deleted':identifier,'files_preserved':False})
         self.assertFalse((self.test_root_directory/'history'/(identifier+'.json')).exists())
-        self.assertTrue(generation_job_path.exists())
+        self.assertFalse(generation_job_path.exists())
+
+    def test_delete_rejects_active_jobs_and_linked_directories(self):
+        current_job_identifier=self.create_test_record()
+        current_job_path=self.test_root_directory/'jobs'/current_job_identifier
+        for current_status_name in ('running','queued'):
+            (current_job_path/'status.json').write_text(json.dumps({'status':current_status_name}))
+            with self.assertRaises(ValueError):
+                JOB_SERVICE_MODULE.delete_generation_history(current_job_identifier)
+            self.assertTrue(current_job_path.exists())
+        current_link_path=self.test_root_directory/'jobs'/'abcdef'
+        current_link_path.symlink_to(current_job_path,target_is_directory=True)
+        with self.assertRaises(ValueError):
+            JOB_SERVICE_MODULE.delete_generation_history('abcdef')
+        self.assertTrue(current_job_path.exists())
 
     def test_cancel_shared_worker(self):
         identifier=self.create_test_record()

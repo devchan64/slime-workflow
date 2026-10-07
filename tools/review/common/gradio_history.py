@@ -212,7 +212,7 @@ def render_generation_images(current_status_record, server_base_address):
     return ''.join(f'<section><h3>{html.escape(current_image_label)}</h3><img width="100%" src="{html.escape(current_image_url,quote=True)}" alt="{html.escape(current_image_label)}"></section>' for current_image_url,current_image_label in current_result_items) or '<p>아직 생성된 결과 이미지가 없습니다.</p>'
 
 
-def build_generation_history_view(execute_service_command,server_base_address,deletion_scope_text,restore_input_callback=None,restore_output_components=None,result_renderer_callback=None,record_folder_route=None,allow_individual_delete=False,result_component_factory=None):
+def build_generation_history_view(execute_service_command,server_base_address,deletion_scope_text,restore_input_callback=None,restore_output_components=None,result_renderer_callback=None,record_folder_route=None,allow_individual_delete=False,result_component_factory=None,individual_delete_scope_text=None):
     """목록·페이지·명시적 조회·결과·입력·로그·초기화를 묶은 공용 영역."""
     import html
     from tools.review.common.gradio_logs import build_execution_logs,create_copyable_log_textbox
@@ -233,7 +233,7 @@ def build_generation_history_view(execute_service_command,server_base_address,de
             with gr.Group(visible=False) as current_delete_panel:
                 gr.Markdown('### 선택한 생성 이력을 삭제할까요?')
                 current_delete_display=build_generation_identifier('삭제할 생성 ID')
-                gr.Markdown('현재 생성기의 정리 정책: '+deletion_scope_text+' 개별 삭제는 위 ID의 작업에만 적용됩니다.')
+                gr.Markdown('선택 이력 삭제: '+(individual_delete_scope_text or deletion_scope_text)+' 개별 삭제는 위 ID의 작업에만 적용됩니다.')
                 with gr.Row():
                     current_delete_cancel=gr.Button('취소')
                     current_delete_confirm=gr.Button('이력 삭제',variant='stop')
@@ -364,7 +364,10 @@ def build_generation_history_view(execute_service_command,server_base_address,de
         def delete_selected_history(current_selected_identifier,current_confirmed_identifier):
             if not current_confirmed_identifier or current_selected_identifier!=current_confirmed_identifier:
                 raise gr.Error('삭제 대상이 변경되었습니다. 이력 삭제를 다시 선택하세요.')
-            execute_service_command('history-delete',{'id':current_confirmed_identifier})
+            try:
+                execute_service_command('history-delete',{'id':current_confirmed_identifier})
+            except (ValueError,RuntimeError) as current_delete_error:
+                raise gr.Error(str(current_delete_error)) from current_delete_error
             return [*reset_view_values(),*close_delete_confirmation()]
         history_delete_button.click(open_delete_confirmation,history_selection_value,current_delete_outputs,queue=False)
         current_delete_cancel.click(close_delete_confirmation,outputs=current_delete_outputs,queue=False)

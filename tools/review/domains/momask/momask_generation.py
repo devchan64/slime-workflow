@@ -69,6 +69,10 @@ class MoMaskGenerationManager:
     self.send(h,200,self.status(match[1]));return True
    if h.command!='POST' or h.headers.get('Origin')!=origin or h.headers.get('Content-Type','').split(';')[0]!='application/json': raise ValueError('요청 형식 오류')
    body=json.loads(h.rfile.read(int(h.headers.get('Content-Length','0'))),object_pairs_hook=unique)
+   current_delete_match=re.fullmatch(self.route+r'/history/([0-9a-f_-]+)/delete',path)
+   if current_delete_match:
+    if body!={'id':current_delete_match[1]}:raise ValueError('이력 삭제 ID가 경로와 일치하지 않습니다.')
+    self.send(h,200,execute_momask_command('history-delete',body));return True
    if path==self.route+'/history/reset':
     if body!={'action':'reset'}: raise ValueError('초기화 요청 오류')
     self.send(h,200,execute_momask_command('history-reset',{}));return True

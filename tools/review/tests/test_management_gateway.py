@@ -42,6 +42,31 @@ class GatewayContractTest(unittest.TestCase):
         gateway.handle(self.create_request_handler('/management/command',{'service':'qwen-2512','command':'generate','payload':payload}))
         self.assertEqual(calls[0],calls[1])
 
+    def test_momask_delete_reaches_service_through_http_gateway(self):
+        import tempfile
+        from unittest.mock import patch
+        from tools.review.domains.momask import momask_jobs
+        from tools.review.domains.momask.momask_generation import MoMaskGenerationManager
+        current_job_identifier='2026-10-08_00-00-00-12345678'
+        with tempfile.TemporaryDirectory() as current_temporary_path:
+            current_root_path=Path(current_temporary_path)
+            current_job_path=current_root_path/'jobs'/current_job_identifier
+            current_job_path.mkdir(parents=True)
+            current_history_path=current_root_path/'history'
+            current_history_path.mkdir()
+            (current_job_path/'request.json').write_text('{}')
+            (current_job_path/'status.json').write_text('{"status":"completed"}')
+            current_history_file=current_history_path/(current_job_identifier+'.json')
+            current_history_file.write_text('{}')
+            with patch.multiple(momask_jobs,GENERATION_JOB_DIRECTORY=current_root_path/'jobs',GENERATION_HISTORY_DIRECTORY=current_history_path):
+                current_gateway_value=ManagementCommandGateway({'momask':MoMaskGenerationManager().handle})
+                current_request_value=self.create_request_handler('/management/command',{'service':'momask','command':'history-delete','payload':{'id':current_job_identifier}})
+                current_gateway_value.handle(current_request_value)
+                self.assertEqual(current_request_value.responses,[200])
+                self.assertFalse(current_history_file.exists())
+                self.assertFalse(current_job_path.exists())
+                self.assertFalse(json.loads(current_request_value.wfile.getvalue())['files_preserved'])
+
     def test_invalid_origin_does_not_dispatch(self):
         gateway=ManagementCommandGateway({})
         handler=self.create_request_handler('/management/command',{'service':'momask','command':'history','payload':{}},'http://evil.example')

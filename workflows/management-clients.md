@@ -546,3 +546,5 @@ python3 tools/manager.py command character-review capture --payload-file /tmp/ch
 CLI에서도 같은 요청을 사용한다: `python tools/manager.py momask generate --action custom --prompt 'A person raises both arms slowly.' --directions down_left`. 빈 스크립트 또는 4000자 초과 입력은 거절하며, 기존 고정 포즈에는 `--prompt`를 지정하지 않는다.
 
 MoMask 생성은 `--frames 120`으로 원본 모션 길이를 지정할 수 있습니다. 8 이상인 4의 배수 정수이며 생략하면 포즈 기본값을 사용합니다. GUI의 프레임 길이와 같은 요청·이력에 저장하고 입력 불러오기에서 복원합니다.
+
+MoMask `history-delete ID`와 GUI 선택 이력 삭제는 해당 작업 디렉터리(모션·렌더·입력·로그)와 이력을 영구 폐기합니다. 대기·실행 중에는 거절합니다. 전체 `history-reset`은 기존대로 목록만 초기화하며 파일 폐기와 구분합니다.

@@ -10,6 +10,7 @@ import json
 import os
 import re
 import signal
+import shutil
 import subprocess
 import time
 import uuid
@@ -179,11 +180,15 @@ def reset_generation_history():
 
 
 def delete_generation_history(generation_job_identifier):
+    generation_job_path=resolve_generation_directory(generation_job_identifier)
+    if generation_job_path.is_symlink() or generation_job_path.resolve().parent!=GENERATION_JOB_DIRECTORY.resolve():
+        raise ValueError('작업 저장소 밖 경로는 삭제할 수 없습니다.')
     generation_status_record=read_generation_status(generation_job_identifier)
     if generation_status_record['status'] in ('queued','running'):
         raise ValueError('대기·실행 중인 작업은 먼저 중지한 뒤 삭제하세요.')
+    shutil.rmtree(generation_job_path)
     (GENERATION_HISTORY_DIRECTORY/(generation_job_identifier+'.json')).unlink(missing_ok=True)
-    return {'deleted':generation_job_identifier,'files_preserved':True}
+    return {'deleted':generation_job_identifier,'files_preserved':False}
 
 
 def cancel_generation_job(generation_job_identifier):
