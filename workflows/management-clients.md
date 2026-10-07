@@ -538,3 +538,9 @@ python3 tools/manager.py command character-review capture --payload-file /tmp/ch
 캡처의 `outline_width`는 어두운 형태선의 100% 기준 픽셀 폭(1–4, 소수 허용, 기본 1)입니다. 밝은 분리선은 형태선 바깥 100% 기준 1px 띠입니다. 두 선 모두 배율에 선형 비례하며 200%에서는 기본 형태선 2px·분리선 2px로 표시됩니다.
 
 캐릭터 검수 캡처의 width·height는 화면 표시 크기이며 PNG의 가로·세로는 각각 2배입니다. 기본 768×576 영역은 1536×1152 PNG로 저장하며 줌과 캐릭터의 화면 크기는 유지합니다.
+
+### MoMask 커스텀 포즈
+
+포즈에서 `커스텀`을 선택하면 현재 표시된 모션 스크립트를 수정할 수 있다. 스크립트는 실행 코드가 아닌 MoMask 자연어 입력이다. 원본 프리셋은 변경하지 않으며 입력 원문은 작업의 `request.json`에 저장한다. 커스텀은 대기의 원본 프레임 수와 카메라 설정을 사용한다. 이력의 입력 불러오기와 재개는 저장된 커스텀 원문을 사용한다.
+
+CLI에서도 같은 요청을 사용한다: `python tools/manager.py momask generate --action custom --prompt 'A person raises both arms slowly.' --directions down_left`. 빈 스크립트 또는 4000자 초과 입력은 거절하며, 기존 고정 포즈에는 `--prompt`를 지정하지 않는다.

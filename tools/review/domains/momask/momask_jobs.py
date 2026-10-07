@@ -19,7 +19,7 @@ WORKFLOW_ROOT_DIRECTORY = Path(__file__).resolve().parents[4]
 GENERATION_JOB_DIRECTORY = WORKFLOW_ROOT_DIRECTORY / '.tmp/momask-generator/jobs'
 GENERATION_HISTORY_DIRECTORY = WORKFLOW_ROOT_DIRECTORY / '.tmp/momask-generator/history'
 GENERATION_LOCK_FILE = GENERATION_JOB_DIRECTORY.parent / 'generation.lock'
-SUPPORTED_ACTION_NAMES = ('standing', 'walking', 'resting')
+SUPPORTED_ACTION_NAMES = ('standing', 'walking', 'resting', 'custom')
 SUPPORTED_DIRECTION_NAMES = ('down_left', 'down_right', 'up_left', 'up_right')
 
 
@@ -42,12 +42,19 @@ def check_generation_running():
     return False
 
 
-def start_generation_job(action_name_value, direction_name_values, include_face_points=False, history_tag_value=''):
+def start_generation_job(action_name_value, direction_name_values, include_face_points=False, history_tag_value='', custom_prompt_text=None):
     if type(include_face_points) is not bool:raise ValueError("얼굴 옵션 형식 오류")
     from tools.review.common.generation_records import validate_history_tag
     history_tag_value=validate_history_tag(history_tag_value)
     if action_name_value not in SUPPORTED_ACTION_NAMES or not direction_name_values or len(set(direction_name_values)) != len(direction_name_values) or set(direction_name_values)-set(SUPPORTED_DIRECTION_NAMES):
         raise ValueError('포즈 또는 방향 요청 오류')
+    if action_name_value == 'custom':
+        if not isinstance(custom_prompt_text, str) or not custom_prompt_text.strip():
+            raise ValueError('커스텀 포즈의 모션 스크립트를 입력하세요.')
+        if len(custom_prompt_text) > 4000:
+            raise ValueError('커스텀 스크립트는 4000자 이하여야 합니다.')
+    elif custom_prompt_text is not None:
+        raise ValueError('스크립트 편집은 커스텀 포즈에서만 가능합니다.')
     GENERATION_JOB_DIRECTORY.mkdir(parents=True, exist_ok=True)
     GENERATION_HISTORY_DIRECTORY.mkdir(parents=True, exist_ok=True)
     generation_lock_handle = GENERATION_LOCK_FILE.open('a')
@@ -61,7 +68,7 @@ def start_generation_job(action_name_value, direction_name_values, include_face_
         generation_job_path = resolve_generation_directory(generation_job_identifier)
         generation_job_path.mkdir()
         generation_record_value = dict(id=generation_job_identifier, created_at=creation_time_value.isoformat(), action=action_name_value, directions=direction_name_values, tag=history_tag_value, status='running')
-        write_record_atomically(generation_job_path/'request.json', dict(action=action_name_value, directions=direction_name_values, face=include_face_points, tag=history_tag_value))
+        write_record_atomically(generation_job_path/'request.json', dict(action=action_name_value, directions=direction_name_values, face=include_face_points, tag=history_tag_value, **({'prompt':custom_prompt_text} if action_name_value=='custom' else {})))
         write_record_atomically(generation_job_path/'status.json', {'status':'running'})
         write_record_atomically(GENERATION_HISTORY_DIRECTORY/(generation_job_identifier+'.json'), generation_record_value)
         try:

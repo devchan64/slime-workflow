@@ -20,7 +20,7 @@ from tools.review.common.management_client import execute_remote_management_comm
 from tools.review.common.gradio_logs import build_execution_logs
 from tools.review.domains.momask.momask_generation import render_position_retarget_policy
 
-MOTION_ACTION_LABELS = [('대기','standing'),('걷기','walking'),('휴식','resting')]
+MOTION_ACTION_LABELS = [('대기','standing'),('걷기','walking'),('휴식','resting'),('커스텀','custom')]
 MOTION_DIRECTION_LABELS = [('전방 좌측','down_left'),('전방 우측','down_right'),('후방 좌측','up_left'),('후방 우측','up_right')]
 
 def create_copyable_textbox(**textbox_keyword_values):
@@ -32,6 +32,7 @@ def execute_motion_command(operation_command_name, command_payload_value):
     return execute_management_command('momask', operation_command_name, command_payload_value)
 
 def read_motion_settings(selected_action_name):
+    selected_action_name='standing' if selected_action_name=='custom' else selected_action_name
     action_config_record=json.loads((WORKFLOW_ROOT_DIRECTORY/'generators/momask/config/standing-loops-v1.json').read_text())['actions'][selected_action_name]
     camera_config_record=yaml.safe_load((WORKFLOW_ROOT_DIRECTORY/'generators/momask/config/camera-angles.yaml').read_text())
     prompt_content_value=action_config_record['prompt']
@@ -51,8 +52,8 @@ def execute_motion_history_command(operation_command_name,command_payload_value,
         return create_motion_history_records(server_base_address)
     return execute_motion_command(operation_command_name,command_payload_value)
 
-def start_motion_generation(selected_action_name, selected_direction_names, selected_face_enabled, generation_tag_value):
-    generation_record_value=execute_motion_command('generate',{'action':selected_action_name,'directions':selected_direction_names,'face':selected_face_enabled,'tag':generation_tag_value.strip()})
+def start_motion_generation(selected_action_name, selected_direction_names, selected_face_enabled, generation_tag_value, custom_prompt_text=None):
+    generation_record_value=execute_motion_command('generate',{'action':selected_action_name,'directions':selected_direction_names,'face':selected_face_enabled,'tag':generation_tag_value.strip(),**({'prompt':custom_prompt_text} if selected_action_name=='custom' else {})})
     return generation_record_value['id']
 
 def read_saved_motion_inputs(selected_history_identifier):
@@ -67,7 +68,7 @@ def read_saved_motion_inputs(selected_history_identifier):
 def restore_saved_motion_inputs(selected_history_identifier):
     saved_input_record = read_saved_motion_inputs(selected_history_identifier)
     saved_request_record = saved_input_record['request']
-    if set(saved_request_record) - {'action', 'directions', 'face', 'tag'} or not {'action', 'directions', 'face'} <= set(saved_request_record):
+    if set(saved_request_record) - {'action', 'directions', 'face', 'tag', 'prompt'} or not {'action', 'directions', 'face'} <= set(saved_request_record):
         raise gr.Error('저장된 입력 필드가 현재 계약과 다릅니다. 입력값 조회로 원문을 확인하세요.')
     selected_action_name = saved_request_record['action']
     selected_direction_names = saved_request_record['directions']
@@ -75,10 +76,12 @@ def restore_saved_motion_inputs(selected_history_identifier):
     if selected_action_name not in [value for _, value in MOTION_ACTION_LABELS] or not isinstance(selected_direction_names, list) or not selected_direction_names or any(not isinstance(current_direction_name, str) for current_direction_name in selected_direction_names) or len(set(selected_direction_names)) != len(selected_direction_names) or set(selected_direction_names) - {value for _, value in MOTION_DIRECTION_LABELS} or type(selected_face_enabled) is not bool:
         raise gr.Error('현재 지원하지 않는 포즈·방향·얼굴 옵션입니다. 입력값 조회로 원문을 확인하세요.')
     current_prompt_text, current_settings_text = read_motion_settings(selected_action_name)
+    if selected_action_name=='custom':
+        current_prompt_text=saved_request_record['prompt']
     restore_status_text = f'{selected_history_identifier}의 포즈·방향·얼굴 옵션을 새 모션 생성 입력란에 불러왔습니다. 생성은 시작하지 않았습니다.'
     if saved_input_record['prompt'] is None or saved_input_record['prompt'].strip() != current_prompt_text.strip():
         restore_status_text += ' 고정 스크립트는 현재 설정을 사용합니다. 과거 원문과 다르거나 기록이 없어 동일 결과 재생성을 보장하지 않습니다.'
-    return selected_action_name, selected_direction_names, selected_face_enabled, saved_request_record.get('tag',''), current_prompt_text, current_settings_text, restore_status_text
+    return selected_action_name, selected_direction_names, selected_face_enabled, saved_request_record.get('tag',''), gr.update(value=current_prompt_text,interactive=selected_action_name=='custom'), current_settings_text, restore_status_text
 
 def restore_motion_history_record(current_history_record):
     return restore_saved_motion_inputs(current_history_record['id'])
@@ -122,6 +125,7 @@ def build_momask_interface(server_base_address):
                 generation_tag_value=gr.Textbox(label='생성 이력 태그 · 선택 사항',placeholder='예: 돌온재 걷기 후보',max_lines=1)
             settings_initial_values=read_motion_settings('standing')
             prompt_text_value=gr.Textbox(value=settings_initial_values[0],label='고정 스크립트',interactive=False,lines=4)
+            gr.Markdown('커스텀을 선택하면 현재 문장을 편집할 수 있습니다. 자연어 모션 지시이며 코드가 아닙니다. 커스텀은 대기 기준 120프레임·카메라 설정을 사용합니다.')
             settings_text_value=gr.Markdown(settings_initial_values[1])
             with gr.Accordion('위치 채널 기반 공통 리타깃', open=False,elem_id='motion-retarget-policy'):
                 gr.Markdown(render_position_retarget_policy().removeprefix('<p>').removesuffix('</p>'))
@@ -132,11 +136,16 @@ def build_momask_interface(server_base_address):
             current_identifier_value=create_copyable_textbox(label='현재 생성 ID',interactive=False)
             status_text_value=gr.Markdown('생성 가능 · 설정을 확인하세요.')
             gr.Markdown('실행 중인 작업은 아래 생성 이력에서 선택한 뒤 **작업 중지**를 사용하세요. 예상 시간은 측정 자료가 없어 계산 중입니다.')
-        action_select_value.change(read_motion_settings,action_select_value,[prompt_text_value,settings_text_value],queue=False)
+        def update_motion_script(selected_action_name,current_prompt_text):
+            configured_prompt_text,current_settings_text=read_motion_settings(selected_action_name)
+            return gr.update(value=current_prompt_text if selected_action_name=='custom' else configured_prompt_text,interactive=selected_action_name=='custom',label='커스텀 스크립트' if selected_action_name=='custom' else '고정 스크립트'),current_settings_text
+        action_select_value.change(update_motion_script,[action_select_value,prompt_text_value],[prompt_text_value,settings_text_value],queue=False)
+        prompt_word_count_view=gr.Markdown(f'모델 입력 · 최종 {len(settings_initial_values[0].split())}단어')
+        prompt_text_value.change(lambda current_prompt_text:f'모델 입력 · 최종 {len(current_prompt_text.split())}단어',[prompt_text_value],prompt_word_count_view,queue=False)
         def start_motion_with_status(*input_values):
             generation_identifier_value=start_motion_generation(*input_values)
             return generation_identifier_value,'작업을 접수했습니다. 아래 생성 이력에서 상태와 로그를 확인하세요.'
-        bind_gpu_generation_confirmation(generate_button_value,start_motion_with_status,[action_select_value,direction_select_value,face_checkbox_value,generation_tag_value],[current_identifier_value,status_text_value])
+        bind_gpu_generation_confirmation(generate_button_value,start_motion_with_status,[action_select_value,direction_select_value,face_checkbox_value,generation_tag_value,prompt_text_value],[current_identifier_value,status_text_value])
         def refresh_motion_status(generation_job_identifier):
             generation_running_value=execute_motion_command('history',{})['running']
             if not generation_job_identifier:

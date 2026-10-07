@@ -51,7 +51,7 @@ def resume_render_frames(generation_job_path):
         saved_retarget_record=json.loads(saved_result_path.read_text())
     else:
         saved_retarget_record={'arm_retarget':'legacy-saved-rig-unversioned','hand_pose':'legacy-saved-rig','skinning':'legacy-saved-rig'}
-    result_record_value={'action':request_record_value['action'],'label':{'standing':'대기','deep_breath':'심호흡','stretch':'스트레칭','walking':'걷기','resting':'휴식'}[request_record_value['action']],'frames':frame_count_value,'anny_frames':frame_count_value,'fps':4,'directions':request_record_value['directions'],'prompt':(generation_job_path/'motion-run/prompt.txt').read_text().strip(),'sampling':'none','hand_pose':saved_retarget_record['hand_pose'],'arm_retarget':saved_retarget_record['arm_retarget'],'skinning':saved_retarget_record['skinning'],'baseline_model':baseline_record_value,'status':'completed','resumed':True}
+    result_record_value={'action':request_record_value['action'],'label':{'standing':'대기','deep_breath':'심호흡','stretch':'스트레칭','walking':'걷기','resting':'휴식','custom':'커스텀'}[request_record_value['action']],'frames':frame_count_value,'anny_frames':frame_count_value,'fps':4,'directions':request_record_value['directions'],'prompt':(generation_job_path/'motion-run/prompt.txt').read_text().strip(),'sampling':'none','hand_pose':saved_retarget_record['hand_pose'],'arm_retarget':saved_retarget_record['arm_retarget'],'skinning':saved_retarget_record['skinning'],'baseline_model':baseline_record_value,'status':'completed','resumed':True}
     resumed_result_record={**saved_retarget_record,**result_record_value}
     # 과거 실행의 출처는 유지하되 신규 기록에 폐기된 설정 필드를 생성하지 않는다.
     historical_correction_path=render_output_path/'arm-corrections.json'

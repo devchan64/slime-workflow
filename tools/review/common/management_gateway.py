@@ -75,7 +75,7 @@ def execute_momask_command(operation_command_name, command_payload_value):
     if operation_command_name=='resume':
         return momask_jobs.resume_generation_job(command_payload_value['id'])
     if operation_command_name=='generate':
-        return momask_jobs.start_generation_job(command_payload_value['action'],command_payload_value['directions'],command_payload_value.get('face',False),command_payload_value.get('tag',''))
+        return momask_jobs.start_generation_job(command_payload_value['action'],command_payload_value['directions'],command_payload_value.get('face',False),command_payload_value.get('tag',''),command_payload_value.get('prompt'))
     if operation_command_name=='history':
         return momask_jobs.list_generation_history()
     if operation_command_name=='status':
@@ -219,7 +219,8 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
                 operation_argument_parser.add_argument('--source',choices=('openpose','anny'),default='anny')
                 operation_argument_parser.add_argument('--directions',nargs='+',choices=('down_left','down_right','up_left','up_right'),default=['down_left'],help='생성 방향 (기본: 전방 좌측만)')
             elif service_command_name=='momask':
-                operation_argument_parser.add_argument('--action',choices=('standing','walking','resting'),required=True)
+                operation_argument_parser.add_argument('--action',choices=('standing','walking','resting','custom'),required=True)
+                operation_argument_parser.add_argument('--prompt',help='커스텀 포즈의 모션 스크립트')
                 operation_argument_parser.add_argument('--directions',nargs='+',choices=('down_left','down_right','up_left','up_right'),default=['down_left','down_right','up_left','up_right'])
             else:
                 prompt_argument_group=operation_argument_parser.add_mutually_exclusive_group(required=service_command_name not in ('pose-transfer','outfit-transfer'))
@@ -284,6 +285,7 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
             if command_argument_values.end_frame is not None:command_payload_value['end_frame']=command_argument_values.end_frame
         elif service_command_name=='momask':
             command_payload_value={'action':command_argument_values.action,'directions':command_argument_values.directions,'face':command_argument_values.face}
+            if command_argument_values.prompt is not None:command_payload_value['prompt']=command_argument_values.prompt
             if command_argument_values.tag:command_payload_value['tag']=command_argument_values.tag
         else:
             command_payload_value={'action':'generate','prompt':command_argument_values.prompt if command_argument_values.prompt is not None else command_argument_values.prompt_file.read_text(encoding='utf-8') if command_argument_values.prompt_file else (__import__('tools.review.domains.image.outfit_transfer_generation',fromlist=['load_outfit_transfer_prompt']).load_outfit_transfer_prompt() if service_command_name=='outfit-transfer' else __import__('tools.review.domains.image.pose_transfer_generation',fromlist=['load_pose_transfer_prompt']).load_pose_transfer_prompt()),'width':command_argument_values.width,'height':command_argument_values.height,'steps':command_argument_values.steps,'seed':command_argument_values.seed}

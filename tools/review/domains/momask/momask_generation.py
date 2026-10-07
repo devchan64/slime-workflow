@@ -11,7 +11,7 @@ ROOT=Path(__file__).resolve().parents[4]
 JOB_ROOT=ROOT/'.tmp/momask-generator/jobs'
 HISTORY_ROOT=ROOT/'.tmp/momask-generator/history'
 ACTIONS={'standing':{'label':'대기','frames':16},'walking':{'label':'걷기','frames':32},'resting':{'label':'휴식','frames':160}}
-HISTORICAL_ACTIONS={**ACTIONS,'stretch':{'label':'스트레칭','frames':120},'deep_breath':{'label':'심호흡','frames':32}}
+HISTORICAL_ACTIONS={**ACTIONS,'custom':{'label':'커스텀','frames':120},'stretch':{'label':'스트레칭','frames':120},'deep_breath':{'label':'심호흡','frames':32}}
 DIRECTIONS=('down_left','down_right','up_left','up_right')
 def render_position_retarget_policy():
  return '<p>모든 동작에 같은 관절 대응과 회전 계산을 적용합니다. 원본 관절 위치를 동작별로 보정하지 않으며 회전 제한·쇄골 상승·손가락 자동 자세·관절 스무딩·접지 보정을 추가하지 않습니다. 위치로 알 수 없는 비틀림은 연속 전달하고 손가락 등 미대응 본은 기준 자세를 유지합니다. 새 생성부터 적용되며 기존 결과는 유지됩니다.</p>'
@@ -78,6 +78,6 @@ class MoMaskGenerationManager:
    if path==self.route+'/cancel':
     if set(body)!={'id'}: raise ValueError('취소 요청 오류')
     self.send(h,200,execute_momask_command('cancel',body));return True
-   if path!=self.route+'/jobs' or set(body)-{'action','directions','face','tag'} or not {'action','directions'}<=set(body) or body['action'] not in ACTIONS or not isinstance(body['directions'],list) or not body['directions'] or set(body['directions'])-set(DIRECTIONS) or len(set(body['directions']))!=len(body['directions']): raise ValueError('포즈 또는 방향 요청 오류')
+   if path!=self.route+'/jobs' or set(body)-{'action','directions','face','tag','prompt'} or not {'action','directions'}<=set(body) or body['action'] not in (*ACTIONS,'custom') or not isinstance(body['directions'],list) or not body['directions'] or set(body['directions'])-set(DIRECTIONS) or len(set(body['directions']))!=len(body['directions']): raise ValueError('포즈 또는 방향 요청 오류')
    self.send(h,202,execute_momask_command('generate',body));return True
   except (ValueError,FileNotFoundError,json.JSONDecodeError) as e:self.send(h,400,{'error':str(e)});return True
