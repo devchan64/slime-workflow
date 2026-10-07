@@ -131,14 +131,12 @@ def build_sprite_v2_interface():
                 build_frame_navigator('spriteV2PlaybackControls','spriteV2SeekControls',current_feedback_text)
             with gr.Column(scale=2,min_width=280):
                 with gr.Accordion('이동·배율·가이드 조정',open=True):
-                    gr.Markdown('실제 편집 대상은 비교 화면 아래에 표시됩니다. 선택 후 적용하세요. 캔버스 드래그는 해당 이미지로, 가이드 선택은 신체 가이드 조절로 전환합니다.')
+                    gr.Markdown('편집 대상을 선택하면 즉시 조이패드에 적용됩니다. 캔버스 드래그는 해당 이미지만 움직이며 선택한 편집 대상을 바꾸지 않습니다. 가이드는 별도로 편집합니다.')
                     with gr.Row():
                         current_target_choice=gr.Dropdown(label='설정할 편집 대상',choices=[('현재 프레임','frame'),('레퍼런스','reference'),('체크한 프레임','selected'),('전체 프레임','all')],value='frame')
-                        current_mode_choice=gr.Dropdown(label='설정할 조절 대상',choices=[('이미지 배치','image'),('얼굴 원','face'),('신체 가이드','guide')],value='image')
-                    current_target_button=gr.Button('편집 대상 적용')
-                    current_target_event=current_target_button.click(fn=None,inputs=[current_target_choice,current_mode_choice],outputs=current_feedback_text,queue=False,js="(currentTargetValue,currentModeValue)=>{try{return window.spriteV2TargetControls(currentTargetValue,currentModeValue);}catch(currentErrorValue){return currentErrorValue.message;}}")
+                    current_target_event=current_target_choice.input(fn=None,inputs=current_target_choice,outputs=current_feedback_text,queue=False,js="(currentTargetValue)=>{try{return window.spriteV2TargetControls(currentTargetValue);}catch(currentErrorValue){return currentErrorValue.message;}}")
                     with gr.Accordion('가이드라인 위치 편집',open=False) as current_guide_panel:
-                        gr.Markdown('**① 편집 대상 적용 → ② 가이드 선택 → ③ 위치(px) 입력 → ④ 가이드 수정 적용**\n\n얼굴 원도 가이드 목록에서 선택합니다. 원은 중심 X·Y와 지름을 함께 입력해 적용합니다. 좌표는 출력 이미지의 왼쪽 위가 0입니다. 가로선은 위에서부터 Y, 세로선은 왼쪽에서부터 X 거리입니다. 예: 가로선 100은 위에서 100px입니다. 숫자가 커지면 아래·오른쪽으로 이동합니다. 레퍼런스와 현재 프레임의 가이드는 양쪽 비교 화면에 같은 좌표로 표시됩니다. 녹색 가이드는 레퍼런스의 공통 기준이며 양쪽 화면에서 함께 이동합니다.')
+                        gr.Markdown('**① 공통 가이드 불러오기 → ② 가이드 선택 → ③ 위치(px) 입력 → ④ 가이드 수정 적용**\n\n얼굴 원도 가이드 목록에서 선택합니다. 원은 중심 X·Y와 지름을 함께 입력해 적용합니다. 좌표는 출력 이미지의 왼쪽 위가 0입니다. 가로선은 위에서부터 Y, 세로선은 왼쪽에서부터 X 거리입니다. 예: 가로선 100은 위에서 100px입니다. 숫자가 커지면 아래·오른쪽으로 이동합니다. 레퍼런스와 현재 프레임의 가이드는 양쪽 비교 화면에 같은 좌표로 표시됩니다. 녹색 가이드는 레퍼런스의 공통 기준이며 양쪽 화면에서 함께 이동합니다.')
                         current_guide_refresh=gr.Button('현재 대상의 가이드 불러오기')
                         current_guide_choice=gr.Dropdown(label='② 편집할 가이드',choices=[],interactive=True)
                         with gr.Row():

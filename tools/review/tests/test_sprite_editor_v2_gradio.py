@@ -24,6 +24,7 @@ class SpriteV2GradioTests(unittest.TestCase):
         self.assertIn('새 작업 출력 크기',current_dropdown_labels)
         self.assertIn('저장된 작업',current_dropdown_labels)
         self.assertIn('수정 이력',current_dropdown_labels)
+        self.assertNotIn('설정할 조절 대상',current_dropdown_labels)
         self.assertIn('화면 확대',current_dropdown_labels)
         self.assertIn('배경',current_dropdown_labels)
 
