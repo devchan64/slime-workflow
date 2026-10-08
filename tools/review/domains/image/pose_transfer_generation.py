@@ -4,6 +4,7 @@ from pathlib import Path
 
 from tools.review.domains.image.qwen_21_generation import QwenPlainGenerationManager, validate_qwen_plain_request, verify_qwen_saved_request
 from tools.review.domains.image.image_generation import MANAGER_HISTORY_ROOT
+from generators.image.vnccs_profile import build_vnccs_profile, validate_vnccs_profile, validate_vnccs_assets
 
 WORKFLOW_ROOT_DIRECTORY = Path(__file__).resolve().parents[4]
 POSE_TRANSFER_STORAGE_ROOT = WORKFLOW_ROOT_DIRECTORY / '.tmp/test/pose-transfer'
@@ -28,6 +29,8 @@ def validate_pose_transfer_contract(current_request_record, saved_request_enable
     selected_height_value = current_request_record.get('height')
     if type(selected_width_value) is not int or selected_width_value not in POSE_TRANSFER_ALLOWED_SIZES or type(selected_height_value) is not int or selected_height_value != selected_width_value:
         raise ValueError('해상도는 512×512 또는 768×768만 지원합니다.')
+    if not saved_request_enabled or 'vnccs' in current_request_record:
+        validate_vnccs_profile(current_request_record if saved_request_enabled else {**current_request_record, 'vnccs': build_vnccs_profile()})
 
 
 class PoseTransferGenerationManager(QwenPlainGenerationManager):
@@ -38,7 +41,12 @@ class PoseTransferGenerationManager(QwenPlainGenerationManager):
 
     def validate_generation_request(self, current_request_record):
         validate_pose_transfer_contract(current_request_record)
-        return validate_qwen_plain_request(current_request_record)
+        return {**validate_qwen_plain_request(current_request_record), 'vnccs': build_vnccs_profile()}
+
+    def validate_generation_runtime(self, saved_request_record=None):
+        super().validate_generation_runtime(saved_request_record)
+        if saved_request_record is None or 'vnccs' in saved_request_record:
+            validate_vnccs_assets()
 
     def validate_generation_resume(self, selected_job_directory):
         saved_request_record = json.loads((selected_job_directory / 'request.json').read_text())

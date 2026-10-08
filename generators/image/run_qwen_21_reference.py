@@ -52,7 +52,13 @@ def execute_qwen_reference_worker():
             else:
                 if seamless_generation_enabled:
                     current_reference_paths = [prepare_seamless_reference(current_job_root, current_request_record)]
-                execute_qwen_reference_generation(current_job_root, current_request_record, current_reference_paths)
+                if 'vnccs' in current_request_record:
+                    if current_job_root.parent.name != 'pose-transfer':
+                        raise ValueError('VNCCS 실행 설정은 포즈 변환 작업에서만 허용합니다.')
+                    from generators.image.vnccs_runtime import execute_vnccs_generation
+                    execute_vnccs_generation(current_job_root, current_request_record)
+                else:
+                    execute_qwen_reference_generation(current_job_root, current_request_record, current_reference_paths)
                 if seamless_generation_enabled:
                     finish_seamless_generation(current_job_root, current_request_record)
         if not (current_job_root/'stage-pause.json').exists():

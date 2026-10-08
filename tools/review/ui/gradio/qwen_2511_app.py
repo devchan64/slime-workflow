@@ -92,6 +92,7 @@ def render_circular_comparison(current_selected_identifier, current_status_recor
 
 def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False, qwen21_mode_enabled=False, circular_mode_enabled=False, pose_transfer_enabled=False, outfit_transfer_enabled=False):
     pose_transfer_enabled = pose_transfer_enabled or outfit_transfer_enabled
+    vnccs_transfer_enabled = pose_transfer_enabled and not outfit_transfer_enabled
     if expression_mode_enabled and qwen21_mode_enabled:
         raise ValueError("표정 생성과 Qwen 2.1 일반 생성은 별도 모드입니다.")
     from tools.review.domains.image.pose_transfer_generation import load_pose_transfer_prompt
@@ -112,14 +113,20 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
         if pose_transfer_enabled:
             restored_input_values[0] = gr.update(value=restored_input_values[0], interactive=True)
             restored_input_values.extend([False, current_history_record['request']['prompt']])
+        if vnccs_transfer_enabled:
+            restored_input_values[2:5] = [512, 512, 40]
+            if 'vnccs' not in current_history_record['request']:
+                restored_input_values[0] = gr.update(value=default_prompt_text, interactive=False)
+                restored_input_values[-2:] = [True, default_prompt_text]
+                restored_input_values[6 + reference_slot_count] = '과거 참조·시드를 불러왔습니다. 새 작업은 VNCCS 512px·40스텝·새 기본 프롬프트를 사용합니다. 과거 원문은 이력에서 조회하며 재개는 과거 방식을 유지합니다.'
         if circular_mode_enabled:
             restored_input_values[0] = current_history_record['request'].get('user_prompt', restored_input_values[0])
             restored_input_values.extend([current_history_record['request'].get('circular_vae', {}).get('boundary_radius', 12), current_history_record['request'].get('soft_shading', False), current_history_record['request'].get('pattern_view', False), current_history_record['request'].get('circular_vae', {}).get('baseline_decode', False)])
         return tuple(restored_input_values)
     with gr.Blocks(title=current_page_title) as interface_blocks_value:
-        gr.Markdown('## '+current_page_title+'\n참조 이미지는 업로드한 순서대로 모델에 전달됩니다.')
+        gr.Markdown('## '+current_page_title+('\n업로드: 아이덴티티 → 포즈. 모델 전달: 포즈 image1 → 아이덴티티 image2.' if vnccs_transfer_enabled else '\n참조 이미지는 업로드한 순서대로 모델에 전달됩니다.'))
         if pose_transfer_enabled and not outfit_transfer_enabled:
-            gr.Markdown('**Alpha Ver.** · 실험 단계입니다. 포즈 정밀도와 캐릭터 일관성이 보장되지 않으므로 결과별 검수가 필요합니다.')
+            gr.Markdown('VNCCS V1.1 · 공식 QwenImage21Pipeline · 전체 BF16·비양자화 · 512px·40스텝 고정. CPU 가중치 보관·CUDA 연산. RAM 여유 12GiB 미만·작업 RSS 42GiB 초과·20분 초과 시 안전 중단합니다. 공식 포즈 일부도 부분 추종하며, 전신 비례와 프레임 일관성은 미승인 상태입니다.')
         if circular_mode_enabled:
             gr.Markdown('생성 토큰 순환 Attention · 일반 VAE 비교 선택 · 참조 이미지 선택 · 생성 영역만 순환 처리 · 출력 전체가 타일입니다. 반복 경계의 형태 연결은 결과에서 검수하세요.')
         if expression_mode_enabled:
@@ -177,11 +184,11 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
             prompt_text_value.change(describe_expression_prompt,prompt_text_value,expression_prompt_preview,queue=False)
         with gr.Accordion('참조 이미지 · 선택 · 최대 10장', open=False) if qwen21_mode_enabled and not pose_transfer_enabled else contextlib.nullcontext():
             reference_upload_group,reference_image_controls=build_reference_image_inputs(reference_image_mode=None, reference_slot_count=reference_slot_count, reference_slot_labels=['바디 레퍼런스 · 필수','아웃핏 레퍼런스 · 필수'] if outfit_transfer_enabled else ['아이덴티티 이미지 · 필수','포즈 이미지 · 필수'] if pose_transfer_enabled else None)
-        gr.Markdown(('생성 출력: 512×512 또는 768×768.' if pose_transfer_enabled else '생성 출력 최소 크기: 256×256.' if qwen21_mode_enabled else '생성 출력 최소 크기: 512×512.') + ' 참조 이미지의 크기·비율은 자유입니다. RGB/RGBA PNG, 장당 3MB 이하. ' + ('투명 영역은 흰색 배경에 합성해 전달합니다.' if qwen21_mode_enabled else '투명 배경은 사용할 수 없습니다.'))
+        gr.Markdown(('생성 출력: 512×512 고정.' if vnccs_transfer_enabled else '생성 출력: 512×512 또는 768×768.' if pose_transfer_enabled else '생성 출력 최소 크기: 256×256.' if qwen21_mode_enabled else '생성 출력 최소 크기: 512×512.') + ' 참조 이미지의 크기·비율은 자유입니다. RGB/RGBA PNG, 장당 3MB 이하. ' + ('투명 영역은 흰색 배경에 합성해 전달합니다.' if qwen21_mode_enabled else '투명 배경은 사용할 수 없습니다.'))
         with gr.Row():
-            width_value=gr.Dropdown([512,768] if pose_transfer_enabled else [256,384,512,768,1024,1280] if qwen21_mode_enabled else [512,768,1024,1280],value=512 if circular_mode_enabled else 768 if qwen21_mode_enabled else 512,label='해상도' if pose_transfer_enabled else '너비',scale=1,min_width=120)
-            height_value=gr.Dropdown([512,768] if pose_transfer_enabled else [256,384,512,768,1024,1280] if qwen21_mode_enabled else [512,768,1024,1280],value=512 if circular_mode_enabled else 768 if qwen21_mode_enabled else 512,label='높이',visible=not pose_transfer_enabled,scale=1,min_width=120)
-            step_value=gr.Dropdown([20,30,40,50],value=40,label='생성 스텝',scale=1,min_width=120) if qwen21_mode_enabled else gr.Radio([4,30],value=4,label='생성 스텝',scale=1,min_width=120)
+            width_value=gr.Dropdown([512] if vnccs_transfer_enabled else [512,768] if pose_transfer_enabled else [256,384,512,768,1024,1280] if qwen21_mode_enabled else [512,768,1024,1280],value=512 if vnccs_transfer_enabled or circular_mode_enabled else 768 if qwen21_mode_enabled else 512,label='해상도 · 검증 기준 고정' if vnccs_transfer_enabled else '해상도' if pose_transfer_enabled else '너비',interactive=not vnccs_transfer_enabled,scale=1,min_width=120)
+            height_value=gr.Dropdown([512,768] if pose_transfer_enabled else [256,384,512,768,1024,1280] if qwen21_mode_enabled else [512,768,1024,1280],value=512 if vnccs_transfer_enabled or circular_mode_enabled else 768 if qwen21_mode_enabled else 512,label='높이',visible=not pose_transfer_enabled,scale=1,min_width=120)
+            step_value=gr.Dropdown([40] if vnccs_transfer_enabled else [20,30,40,50],value=40,label='생성 스텝 · 검증 기준 고정' if vnccs_transfer_enabled else '생성 스텝',interactive=not vnccs_transfer_enabled,scale=1,min_width=120) if qwen21_mode_enabled else gr.Radio([4,30],value=4,label='생성 스텝',scale=1,min_width=120)
             if circular_mode_enabled:
                 circular_radius_control=gr.Dropdown([4,8,12,16,24],value=12,label='순환 반경 · 토큰',scale=1,min_width=120)
             else:
@@ -194,7 +201,7 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
             gr.Markdown('순환 반경은 좌우·상하에 동일 적용합니다. 경계 1줄 참조 · 모서리 참조 없음.')
         if pose_transfer_enabled:
             width_value.change(lambda selected_resolution_value: selected_resolution_value,width_value,height_value,queue=False)
-        gr.Markdown('예상 시간: 실행 이력 기반 추정 자료를 수집 중입니다. 실행 로그에서 진행 단계를 확인하세요.')
+        gr.Markdown('예상 남은 시간: 계산 중 · 예상 완료 시각: 계산 중. 이 구성의 실행 이력 기반 추정 자료를 수집 중입니다. 실행 로그에서 진행 단계를 확인하세요.')
         generation_button_value=gr.Button('이미지 생성 시작',variant='primary')
         status_value=gr.Markdown('생성 가능 · 설정을 확인하세요.')
         gr.Markdown('실행 중인 작업은 아래 생성 이력에서 선택한 뒤 **작업 중지**를 사용하세요.')

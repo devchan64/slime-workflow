@@ -96,6 +96,8 @@ class GenerationHistoryTests(unittest.TestCase):
         self.assertIsNone(summarize_generation_progress('stage=load','running')['percent'])
         self.assertEqual(summarize_generation_progress('denoise step=4/4','running')['stage'],'saving')
         self.assertEqual(summarize_generation_progress('denoise step=2/4','failed')['stage'],'failed')
+        self.assertEqual(summarize_generation_progress('step=26/40', 'completed'),
+                         {'stage': 'completed', 'step': 40, 'total': 40, 'percent': 100})
 
     def test_progress_display_uses_actual_image_steps(self):
         self.assertEqual(format_history_progress({'stage':'inference','step':2,'total':4,'percent':50}),'추론 중 50% · 2/4스텝')

@@ -1,5 +1,21 @@
 # 관리도구 GUI·CLI 클라이언트
 
+## VNCCS 포즈 변환 · BF16 기준 경로
+
+`pose-transfer`의 신규 작업은 VNCCS PoseStudio V1.1 LoRA와 공식 `QwenImage21Pipeline`을 사용한다. 인코더·DiT·VAE는 BF16 비양자화이며 512×512·40스텝으로 고정한다. 모델·LoRA는 코드에서 고정하고 LoRA SHA-256을 검사한다. 기본 프롬프트는 추적 파일 `generators/image/config/pose-transfer-prompt.txt`에서 읽으며 `Draw character from image2` 4단어다. 사용자 편집은 99단어까지 허용하고 최종 원문·단어 수·해시를 저장한다.
+
+GUI 업로드와 CLI 참조 순서는 기존처럼 **아이덴티티 → 포즈**다. 실행기가 모델 입력만 **포즈 image1 → 아이덴티티 image2**로 바꾼다. 참조 파일 저장 순서와 과거 이력은 변경하지 않는다.
+
+```bash
+python3 tools/manager.py command pose-transfer generate --reference /path/identity.png --reference /path/pose.png --resolution 512 --steps 40 --seed 204801 --detach
+```
+
+GUI·CLI → 공용 게이트웨이 → 기존 이미지 작업 서비스·GPU 대기열 구조를 유지한다. 작업은 `.tmp/test/pose-transfer/<생성ID>/`에 저장하고 `request.json`의 `vnccs`에 실행 버전·모델 입력 순서·정밀도·LoRA 해시·안전 한계를 기록한다. 상세 로그는 `vnccs-pipeline.log`, 자원 기록은 `vnccs-resources.json`, 결과·품질 경고는 `result.json`에 둔다. 공용 취소는 같은 프로세스 그룹의 감독 작업자와 추론 자식을 함께 중단한다.
+
+가중치는 CPU RAM에 보관하고 모듈 연산은 CUDA에서 수행한다. 5초마다 시스템 RAM 여유·자식 RSS·진행 로그를 확인하며 RAM 여유 12GiB 미만, RSS 42GiB 초과, 실행 20분 초과 시 실패로 중단한다. CPU 추론 대체는 없다. 기존 `vnccs` 필드가 없는 기록은 과거 Qwen 경로·입력 순서·설정으로 재개한다. 과거 입력을 GUI에 불러와 **새로 생성**하면 새 고정 설정과 기본 프롬프트를 적용한다는 안내를 표시한다.
+
+현재는 실험 단계다. 공식 포즈 일부도 부분 추종하므로 작업 완료가 전신 비례·포즈·프레임 일관성의 품질 승인을 뜻하지 않는다. 모델카드의 BF16·40스텝·공식 추론 경로를 따르지만, 512px 출력·VNCCS LoRA·모듈 단위 오프로드는 프로젝트의 명시적 설정이다. 다른 Qwen 생성기와 배포·AWS 비용에는 변경이 없다.
+
 ANNY 기준점 후보 지정·축 검수는 [해부학 리타기팅 검수](anny-anatomical-retarget.md#anny-기준점-후보-검수-도구)를 따른다. `anny-landmarks` 서비스의 `landmark-source/preview/save/load/history` 명령은 모두 `--payload-file` JSON을 받으며 GUI와 `.tmp/test/anny-landmarks/<KST 시각>/<고유 ID>/` 기록을 공유한다. 승인·리타기팅 적용 명령은 없다.
 
 HY-Motion Lite 생성·모델 준비·8GB 오프로드·기록 계약은 [HY-Motion 생성기](hy-motion.md)를 따른다. 서비스 이름은 `hy-motion`, GUI는 `/management/frame/hy-motion-generator/`이며 공용 게이트웨이와 GPU 실행기를 사용한다.

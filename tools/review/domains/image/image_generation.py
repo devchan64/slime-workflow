@@ -72,6 +72,8 @@ def summarize_generation_progress(current_log_text, current_job_status):
     current_stage_value = current_stage_matches[-1] if current_stage_matches else 'starting'
     if current_step_matches:
         current_step_value, total_step_count = map(int,current_step_matches[-1])
+        if current_job_status == 'completed':
+            return {'stage': 'completed', 'step': total_step_count, 'total': total_step_count, 'percent': 100}
         return {'stage':current_job_status if current_job_status!='running' else ('saving' if current_step_value==total_step_count else 'inference'), 'step':current_step_value,'total':total_step_count,'percent':round(current_step_value*100/total_step_count) if total_step_count else None}
     return {'stage':current_job_status if current_job_status!='running' else current_stage_value,'step':0,'total':None,'percent':100 if current_job_status=='completed' else None}
 

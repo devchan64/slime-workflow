@@ -13,18 +13,20 @@ class PoseTransferContractTests(unittest.TestCase):
         image_output_buffer = io.BytesIO()
         Image.new('RGB', (32,32), 'white').save(image_output_buffer, format='PNG')
         encoded_image_value = base64.b64encode(image_output_buffer.getvalue()).decode()
-        return {'action':'generate','prompt':load_pose_transfer_prompt(),'images':[encoded_image_value,encoded_image_value],'width':768,'height':768,'steps':40,'seed':10107,'tag':''}
+        return {'action':'generate','prompt':load_pose_transfer_prompt(),'images':[encoded_image_value,encoded_image_value],'width':512,'height':512,'steps':40,'seed':10107,'tag':''}
 
     def test_sizes_and_steps(self):
-        for selected_size_value in (512,768):
-            for selected_step_value in (20,30,40,50):
+        for selected_size_value in (512,):
+            for selected_step_value in (40,):
                 current_request_record = self.create_request_record()
                 current_request_record.update(width=selected_size_value,height=selected_size_value,steps=selected_step_value)
                 validated_request_record = PoseTransferGenerationManager().validate_generation_request(current_request_record)
                 self.assertEqual(validated_request_record['steps'],selected_step_value)
+                self.assertEqual(validated_request_record['vnccs']['dtype'],'bfloat16')
+                self.assertEqual(validated_request_record['vnccs']['reference_order'],['pose','identity'])
 
     def test_invalid_inputs_fail(self):
-        for changed_field_values in ({'images':[]},{'images':['one']},{'images':['one','two','three']},{'width':1024,'height':1024},{'width':512,'height':768},{'steps':4}):
+        for changed_field_values in ({'images':[]},{'images':['one']},{'images':['one','two','three']},{'width':1024,'height':1024},{'width':768,'height':768},{'width':512,'height':768},{'steps':4},{'steps':20},{'steps':30},{'steps':50}):
             with self.assertRaises(ValueError):
                 PoseTransferGenerationManager().validate_generation_request({**self.create_request_record(),**changed_field_values})
 

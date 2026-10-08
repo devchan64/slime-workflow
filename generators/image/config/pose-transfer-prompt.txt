@@ -1,1 +1,1 @@
-replace the pose of <image 1> with the pose of <image 2>, keep the character of <image 1>
+Draw character from image2
