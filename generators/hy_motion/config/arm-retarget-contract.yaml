@@ -1,0 +1,21 @@
+schema_version: 1
+status: evidence_collection
+source_revision: 4e426f5a1021cbcf7f375458c37b840ee7225229
+target_asset: assets/animation-models/anny-neutral-v4
+# 기존 HY-Motion → ANNY 실험의 좌표 변환. 해부학 축 보정 행렬과 구분한다.
+source_to_target_basis: [[1, 0, 0], [0, 0, -1], [0, 1, 0]]
+source_joint_chains:
+  left: [L_Collar, L_Shoulder, L_Elbow, L_Wrist]
+  right: [R_Collar, R_Shoulder, R_Elbow, R_Wrist]
+target_bone_chains:
+  left: [clavicle.L, shoulder01.L, upperarm01.L, upperarm02.L, lowerarm01.L, lowerarm02.L, wrist.L]
+  right: [clavicle.R, shoulder01.R, upperarm01.R, upperarm02.R, lowerarm01.R, lowerarm02.R, wrist.R]
+target_segment_endpoints:
+  left: [upperarm01.L, lowerarm01.L, wrist.L]
+  right: [upperarm01.R, lowerarm01.R, wrist.R]
+policy:
+  preserve_target_lengths: true
+  automatic_wrist_offset: false
+  anatomical_limits: null
+  intermediate_bone_twist_distribution: null
+  clinical_axes_verified: false

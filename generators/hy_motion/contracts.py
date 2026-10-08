@@ -11,6 +11,7 @@ MODEL_CACHE_DIRECTORY = WORKFLOW_ROOT_DIRECTORY / '.model/hy-motion'
 SOURCE_BUNDLE_DIRECTORY = MODEL_CACHE_DIRECTORY / 'upstream'
 DEFAULT_CONFIG_PATH = Path(__file__).parent / 'config/defaults.yaml'
 ENCODER_TEMPLATE_PATH = Path(__file__).parent / 'config/encoder-system.txt'
+MOTION_PRESETS_PATH = Path(__file__).parent / 'config/motion-presets.yaml'
 SUPPORTED_DIRECTION_NAMES = ('down_left', 'down_right', 'up_left', 'up_right')
 EXPECTED_CONFIG_FIELDS = {'schema_version', 'model_id', 'model_variant', 'source_revision', 'duration_seconds', 'seed', 'steps', 'guidance_scale', 'prompt', 'directions', 'preview_fps', 'preview_size', 'camera_elevation', 'camera_angles'}
 
@@ -71,6 +72,20 @@ def validate_generation_request(current_request_values):
 
 def build_prompt_provenance(current_prompt_text):
     return {'text': current_prompt_text, 'word_count': len(current_prompt_text.split()), 'sha256': hashlib.sha256(current_prompt_text.encode()).hexdigest()}
+
+
+def load_motion_presets():
+    current_preset_document = yaml.load(MOTION_PRESETS_PATH.read_text(), Loader=UniqueConfigLoader)
+    if not isinstance(current_preset_document, dict) or set(current_preset_document) != {'schema_version', 'presets'} or type(current_preset_document['schema_version']) is not int or current_preset_document['schema_version'] != 1:
+        raise ValueError('모션 프리셋 문서 계약 오류')
+    current_preset_records = current_preset_document['presets']
+    if not isinstance(current_preset_records, dict) or set(current_preset_records) != {'standing', 'walking'}:
+        raise ValueError('대기·걷기 프리셋이 필요합니다.')
+    for current_preset_record in current_preset_records.values():
+        if not isinstance(current_preset_record, dict) or set(current_preset_record) != {'label', 'prompt', 'duration_seconds'} or not isinstance(current_preset_record['label'], str) or not current_preset_record['label'].strip():
+            raise ValueError('모션 프리셋 필드 오류')
+        validate_generation_request({'prompt': current_preset_record['prompt'], 'duration_seconds': current_preset_record['duration_seconds'], 'seed': 10107, 'directions': list(SUPPORTED_DIRECTION_NAMES)})
+    return current_preset_records
 
 
 def read_encoder_system_prompt():

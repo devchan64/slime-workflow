@@ -31,6 +31,34 @@ class AnnyLandmarkContractTest(unittest.TestCase):
         self.assertAlmostEqual(float(current_vertex_values[:, 2].max()), 1.6)
         self.assertEqual(len(self.current_source_record['source']['npz_sha256']), 64)
 
+    def test_rig_reference_matches_original_transform(self):
+        with np.load(landmarks.LANDMARK_ASSET_DIRECTORY / 'anny-rest-rig.npz') as current_rig_archive:
+            current_bone_names = current_rig_archive['bone_names'].tolist()
+            for current_reference_record in self.current_source_record['rig_reference'].values():
+                current_expected_point = current_rig_archive['bone_matrices'][current_bone_names.index(current_reference_record['bone']), :3, 3].astype(float)
+                current_expected_point[2] -= self.current_source_record['source']['floor_offset_native']
+                current_expected_point *= self.current_source_record['source']['scale_to_meters']
+                np.testing.assert_allclose(current_reference_record['position'], current_expected_point)
+                self.assertEqual(current_reference_record['kind'], 'rig_head_not_anatomical_landmark')
+
+    def test_rig_reference_missing_bone_rejected(self):
+        with self.assertRaises(ValueError):
+            landmarks.extract_rig_reference(['wrong'], np.eye(4)[None], 0, 1)
+
+    def test_comparison_does_not_approve_or_modify_candidates(self):
+        current_draft_record = self.create_candidate_draft()
+        current_original_draft = copy.deepcopy(current_draft_record)
+        current_review_record = landmarks.build_landmark_review(current_draft_record['points'], self.current_source_record)
+        self.assertEqual(current_review_record['rig_comparison'], [])
+        self.assertFalse(current_review_record['retarget_ready'])
+        self.assertEqual(current_draft_record, current_original_draft)
+        current_shoulder_position = self.current_source_record['rig_reference']['left_shoulder']['position']
+        current_draft_record['points']['left_shoulder_center'] = {'position': current_shoulder_position, 'method': 'manual_xyz', 'evidence': '합성 검사'}
+        current_review_record = landmarks.build_landmark_review(current_draft_record['points'], self.current_source_record)
+        self.assertEqual(current_review_record['rig_comparison'][0]['offset_m'], 0)
+        self.assertFalse(current_review_record['anatomical_verified'])
+        self.assertFalse(current_review_record['retarget_ready'])
+
     def test_invalid_point_inputs(self):
         for current_bad_value in ([True, 0, 0], [float('nan'), 0, 0], [0, 0], [100, 0, 0], 'xyz'):
             with self.subTest(current_bad_value=current_bad_value), self.assertRaises(ValueError):

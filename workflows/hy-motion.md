@@ -24,6 +24,8 @@ python3 tools/manager.py command hy-motion resume GENERATION_ID
 
 ## 고정 모델과 메모리
 
+GUI의 **동작 프리셋**에서 대기·걷기를 선택할 수 있다. 선택은 프롬프트와 길이만 변경하며 생성은 별도 버튼으로 실행한다. 시드·방향·태그는 유지한다. 원본은 `generators/hy_motion/config/motion-presets.yaml`에서 추적한다. 대기는 양발을 딛고 팔을 내린 채 천천히 깊게 숨을 들이쉬고 내쉬는 동작이며, 모델의 제자리 정지나 무봉제 루프를 보장하지 않는다. 걷기는 MoMask `standing-loops-v1.json` 버전 30의 걷기 프롬프트를 채택했다. GUI·CLI 모두 선택된 실제 프롬프트와 길이를 기존 `generate` 계약으로 전달한다.
+
 - HY-Motion-1.0-Lite, 50스텝, CFG 5, 샘플 1개를 사용한다. 모델은 입력에서 선택할 수 없다.
 - Qwen3-8B는 BF16(미지원 GPU에서는 FP16) 가중치를 CPU RAM에 저장하고 Accelerate 레이어 오프로드로 CUDA에서 연산한다. CLIP 및 모션 모델은 앞 단계 인코더 해제 후 순차 로딩한다. CPU 추론은 사용하지 않는다.
 - 프롬프트 재작성과 길이 자동 추정은 사용하지 않는다. 동작 지시는 1~29단어, 길이는 1~4.9초, 시드는 uint32 범위다. CLIP 77토큰 한도를 넘기면 자르지 않고 실패한다.
@@ -39,6 +41,8 @@ python3 tools/manager.py command hy-motion resume GENERATION_ID
 원본 30 FPS NPZ에는 `rot6d`, `transl`, `root_rotations_mat`, `latent_denorm`, 공식 `keypoints3d`와 루트 평행이동을 적용해 복원한 `world_joints`를 보존한다. `keypoints3d`는 공식 Wooden 리그 52관절이며 원본에서 평행이동이 빠져 있으므로 이를 월드 좌표로 오인하지 않는다. 미리보기는 `world_joints`의 몸체 22관절을 8 FPS로 표본화한다. 재생·프레임 이동은 브라우저에서 처리한다. 원본 NPZ와 출처 JSON은 결과 재생 영역의 링크로 내려받는다.
 
 이 생성기는 후보 모션 검수용이다. ANNY 리타기팅·OpenPose 원천 교체·정식 모션 자산 등록·게임 전달은 수행하지 않는다.
+
+별도 ANNY 리타기팅 작업에는 사용자 검수로 채택된 피부 충돌 후처리 `generators.hy_motion.anny_skin_stage.apply_anny_skin_barrier`를 사용한다. 고정 설정은 `config/anny-skin-barrier.yaml`이며 상완→전완→손목 순서, 인접 연결부 제외, 0.5mm 수치 여유를 유지한다. 함수의 입력은 ANNY 리타기팅이 끝난 Blender 파일이고 원본 HY-Motion NPZ가 아니다. 일반 GUI/CLI 모션 생성에는 이 단계를 자동 추가하지 않는다. 사용법과 저장·보간 충돌의 한계는 [ANNY 리타기팅 기준](anny-anatomical-retarget.md#채택된-피부-제약-후처리)을 따른다.
 
 신규 생성은 PNG 미리보기와 함께 방향별 `<direction>.gif` 및 선택 방향을 동기화한 `overview.gif`를 자동 출력한다. 별도 GPU 추론 없이 검수 PNG를 사용하며 GUI 결과의 다운로드 링크와 CLI 상태 응답의 `result.gifs`에서 확인한다. GIF의 10ms 시간 단위에 맞춰 120/130ms를 교대로 기록해 평균 8 FPS와 전체 재생 시간을 보존한다. 무한 반복 재생하되 끝과 시작의 모션을 연결하거나 이동을 제거하지 않는다. 기존 완료 기록은 자동 변경하지 않는다.
 

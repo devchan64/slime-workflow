@@ -47,6 +47,21 @@ class HyMotionContractTests(unittest.TestCase):
         self.assertEqual(load_generation_defaults()['model_variant'], 'HY-Motion-1.0-Lite')
         self.assertEqual(build_prompt_provenance('one  two\nthree')['word_count'], 3)
 
+    def test_motion_presets_validate_and_only_restore_inputs(self):
+        from generators.hy_motion.contracts import load_motion_presets, MOTION_PRESETS_PATH
+        from tools.review.ui.gradio.hy_motion_app import apply_motion_preset
+        current_preset_records = load_motion_presets()
+        self.assertEqual(set(current_preset_records), {'standing', 'walking'})
+        with patch('tools.review.ui.gradio.hy_motion_app.execute_motion_command') as current_command_mock:
+            self.assertEqual(apply_motion_preset('standing'), (current_preset_records['standing']['prompt'], 4))
+            current_command_mock.assert_not_called()
+        with self.assertRaises(ValueError):
+            apply_motion_preset('unknown')
+        current_invalid_path = self.current_storage_root / 'invalid-presets.yaml'
+        current_invalid_path.write_text(MOTION_PRESETS_PATH.read_text() + '\nunknown_field: true\n')
+        with patch('generators.hy_motion.contracts.MOTION_PRESETS_PATH', current_invalid_path), self.assertRaises(ValueError):
+            load_motion_presets()
+
     def test_shared_record_and_history_reset_preserve_files(self):
         current_job_identifier = self.create_test_generation()
         current_job_directory = jobs.resolve_generation_directory(current_job_identifier)

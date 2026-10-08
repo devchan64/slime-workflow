@@ -1,0 +1,13 @@
+schema_version: 1
+calibration_kind: rig_hand_landmark_frame
+anatomical_joint_limits_verified: false
+landmark_order: [wrist, middle_base, index_base, little_base]
+source_body_rotation_indices: {left: 20, right: 21}
+source_joint_names:
+  left: [L_Wrist, L_Middle1, L_Index1, L_Pinky1]
+  right: [R_Wrist, R_Middle1, R_Index1, R_Pinky1]
+target_bone_names:
+  left: [wrist.L, finger3-1.L, finger2-1.L, finger5-1.L]
+  right: [wrist.R, finger3-1.R, finger2-1.R, finger5-1.R]
+source_contract: HY-Motion Wooden joint_names.json
+target_contract: ANNY 0.6.0 MPFB rig.default.json

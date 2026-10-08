@@ -10,7 +10,7 @@ import time
 WORKFLOW_ROOT_DIRECTORY = Path(__file__).resolve().parents[4]
 sys.path.insert(0, str(WORKFLOW_ROOT_DIRECTORY))
 import gradio as gr
-from generators.hy_motion.contracts import load_generation_defaults, validate_generation_request, read_encoder_system_prompt, build_encoder_input_preview
+from generators.hy_motion.contracts import load_generation_defaults, validate_generation_request, read_encoder_system_prompt, build_encoder_input_preview, load_motion_presets
 from tools.review.common.management_client import execute_remote_management_command as execute_management_command
 from tools.review.common.gradio_frame_player import build_browser_frame_player
 from tools.review.common.gradio_history import build_generation_history_view
@@ -56,8 +56,17 @@ def describe_prompt_words(current_prompt_text):
     return f'동작 프롬프트·CLIP 입력 {current_word_count}단어 / 29단어 이하 · 고정 시스템 {current_system_count}단어 · Qwen 최종 입력 {current_encoder_count}단어(템플릿 포함). 방향은 카메라 설정으로만 사용합니다.'
 
 
+def apply_motion_preset(current_preset_name):
+    current_preset_records = load_motion_presets()
+    if current_preset_name not in current_preset_records:
+        raise ValueError('지원하지 않는 모션 프리셋입니다.')
+    current_preset_record = current_preset_records[current_preset_name]
+    return current_preset_record['prompt'], current_preset_record['duration_seconds']
+
+
 def build_hymotion_interface(server_base_address):
     current_default_values = load_generation_defaults()
+    current_preset_records = load_motion_presets()
     with gr.Blocks(title='HY-Motion 모션 생성기') as current_interface_blocks:
         gr.Markdown('## HY-Motion 모션 생성기\n영문 동작을 입력해 원본 모션을 만들고, 방향별 미리보기를 비교합니다. 제자리·방향 고정·루프 보정은 적용하지 않습니다.')
         with gr.Accordion('고정 설정 · 모델 준비', open=True):
@@ -66,6 +75,7 @@ def build_hymotion_interface(server_base_address):
             with gr.Row():
                 current_prepare_button = gr.Button('모델 준비 · 최초 다운로드')
                 current_refresh_button = gr.Button('준비 상태 새로고침')
+        current_preset_selector = gr.Dropdown(choices=[(current_preset_record['label'], current_preset_name) for current_preset_name, current_preset_record in current_preset_records.items()], value=None, label='동작 프리셋 · 선택하면 프롬프트와 길이만 변경')
         with gr.Row():
             current_prompt_input = gr.Textbox(value=current_default_values['prompt'], label='동작 프롬프트 · 영어', lines=4)
             current_direction_input = gr.CheckboxGroup(MOTION_DIRECTION_LABELS, value=current_default_values['directions'], label='미리보기 방향 · 전체/개별 선택')
@@ -79,6 +89,7 @@ def build_hymotion_interface(server_base_address):
             current_seed_input = build_generation_seed(current_default_values['seed'])
             current_tag_input = gr.Textbox(label='생성 이력 태그 · 선택', max_lines=1)
         current_generate_button = gr.Button('모션 생성 시작', variant='primary', interactive=False)
+        current_preset_selector.input(apply_motion_preset, current_preset_selector, [current_prompt_input, current_duration_input], queue=False)
         current_identifier_view = build_generation_identifier('접수한 생성 ID')
         current_status_view = gr.Markdown('모델 준비 상태를 확인한 뒤 생성할 수 있습니다.')
         current_eta_view = gr.Markdown('예상 남은 시간: 계산 중 · 예상 완료 시각: 계산 중\n\n추정 근거: 동일 조건 완료 표본 없음. GPU 대기·준비·추론 시간을 아직 추정할 수 없습니다.')

@@ -24,13 +24,18 @@ def execute_landmark_request(current_command_name, current_payload_record):
 def format_candidate_response(current_result_record):
     current_draft_record = current_result_record['draft']
     current_summary_text = '\n'.join(current_result_record['review']['warnings'])
+    for current_comparison_record in current_result_record['review']['rig_comparison']:
+        if 'offset_m' in current_comparison_record:
+            current_summary_text += f"\n{current_comparison_record['name']}: 후보 중심 ↔ 리그 중심 {current_comparison_record['offset_m'] * 1000:.2f} mm"
+        else:
+            current_summary_text += f"\n{current_comparison_record['name']}: 후보 길이 {current_comparison_record['candidate_length_m'] * 1000:.2f} / 리그 길이 {current_comparison_record['rig_length_m'] * 1000:.2f} mm"
     current_table_values = [[current_point_name, *current_point_record['position'], current_point_record['method'], current_point_record['evidence']] for current_point_name, current_point_record in current_draft_record['points'].items()]
     return current_draft_record, json.dumps(current_result_record, ensure_ascii=False), current_table_values, current_summary_text
 
 
 def load_candidate_source():
     current_source_record = execute_landmark_request('source', {})
-    return {'source': current_source_record['source'], 'points': {}}, json.dumps(current_source_record), json.dumps(current_source_record['source'], ensure_ascii=False, indent=2)
+    return {'source': current_source_record['source'], 'points': {}}, json.dumps(current_source_record), json.dumps({'source': current_source_record['source'], 'rig_reference': current_source_record['rig_reference']}, ensure_ascii=False, indent=2)
 
 
 def update_candidate_point(current_draft_record, current_point_name, current_x_value, current_y_value, current_z_value, current_method_name, current_evidence_text):
@@ -93,9 +98,9 @@ def build_landmark_interface():
                 gr.HTML(LANDMARK_CANVAS_MARKUP)
                 current_camera_input = gr.Radio([('정면', 0), ('왼쪽', 90), ('후면', 180), ('오른쪽', 270)], value=0, label='검수 방향')
                 gr.Markdown('마커는 가림 없이 표시됩니다. 빨강: 길이축, 초록: 직교화된 가로축, 파랑: 외적. 좌우의 해부학적 부호·관절축을 확정한 표시가 아닙니다.')
-                current_status_output = gr.Textbox(label='검수 상태 · 미지정/퇴화 축은 생성하지 않음', value='기준점 미지정 · 후보를 반영하면 축 완전성과 퇴화 여부를 검사합니다.', lines=5, interactive=False)
+                current_status_output = gr.Textbox(label='검수 상태 · 리그 중심·길이 비교 · 합격 판정 아님', value='기준점 미지정 · 후보를 반영하면 축 완전성과 퇴화 여부를 검사합니다.', lines=10, interactive=False)
         current_points_table = gr.Dataframe(headers=['기준점', 'X', 'Y', 'Z', '방식', '근거'], interactive=False, label='현재 후보 · 미저장 변경 포함')
-        with gr.Accordion('고정 원본·좌표 변환·해시', open=False):
+        with gr.Accordion('고정 원본·좌표 변환·해시·리그 중심 참고값', open=False):
             current_provenance_text = gr.Textbox(interactive=False, lines=8)
         with gr.Group():
             gr.Markdown('## 누적 후보 이력\n각 저장은 새 기록입니다. 기존 기록은 덮어쓰지 않습니다. 재연결 후 저장된 기록을 다시 선택하세요.')

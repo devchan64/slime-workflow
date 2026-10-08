@@ -1,0 +1,10 @@
+schema_version: 1
+presets:
+  standing:
+    label: 대기
+    prompt: A person stands upright with both feet planted, arms relaxed at their sides, slowly inhaling and exhaling deeply while looking forward.
+    duration_seconds: 4
+  walking:
+    label: 걷기
+    prompt: A person takes four relaxed steps on a treadmill, swinging their arms naturally with their gaze slightly lowered.
+    duration_seconds: 4

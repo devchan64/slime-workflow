@@ -30,6 +30,58 @@ LANDMARK_IDENTIFIER_LABELS = {
 }
 LANDMARK_RECORD_PATTERN = r'\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}/[a-f0-9]{32}'
 LANDMARK_AXIS_EPSILON = 1e-8
+RIG_REFERENCE_BONES = {'shoulder': 'upperarm01', 'elbow': 'lowerarm01', 'wrist': 'wrist'}
+
+
+def extract_rig_reference(current_bone_names, current_bone_matrices, current_source_floor, current_scale_value):
+    """메시와 같은 변환을 본 머리에 적용한다. 해부학적 기준점으로 승격하지 않는다."""
+    current_bone_matrices = np.asarray(current_bone_matrices, dtype=float)
+    if len(set(current_bone_names)) != len(current_bone_names) or current_bone_matrices.shape != (len(current_bone_names), 4, 4) or not np.isfinite(current_bone_matrices).all():
+        raise ValueError('ANNY 본 이름·행렬 계약 오류')
+    current_reference_records = {}
+    for current_side_name, current_side_suffix in (('left', 'L'), ('right', 'R')):
+        for current_joint_name, current_bone_prefix in RIG_REFERENCE_BONES.items():
+            current_bone_name = f'{current_bone_prefix}.{current_side_suffix}'
+            if current_bone_name not in current_bone_names:
+                raise ValueError(f'ANNY 검수 기준 본 누락: {current_bone_name}')
+            current_joint_position = current_bone_matrices[current_bone_names.index(current_bone_name), :3, 3].copy()
+            current_joint_position[2] -= current_source_floor
+            current_joint_position *= current_scale_value
+            current_reference_records[f'{current_side_name}_{current_joint_name}'] = {'bone': current_bone_name, 'position': current_joint_position.tolist(), 'kind': 'rig_head_not_anatomical_landmark'}
+    return current_reference_records
+
+
+def compare_candidate_rig(current_point_records, current_reference_records):
+    """거리·길이 차이만 보고한다. 합격 임계값이나 자세 보정을 만들지 않는다."""
+    current_comparison_records = []
+    for current_side_name in ('left', 'right'):
+        current_center_records = {}
+        for current_joint_name, current_landmark_names in (
+            ('shoulder', ('shoulder_center',)), ('elbow', ('elbow_medial', 'elbow_lateral')),
+            ('wrist', ('radial_styloid', 'ulnar_styloid')),
+        ):
+            current_point_names = [f'{current_side_name}_{current_landmark_name}' for current_landmark_name in current_landmark_names]
+            if not all(current_point_name in current_point_records for current_point_name in current_point_names):
+                continue
+            current_center_position = np.mean([current_point_records[current_point_name]['position'] for current_point_name in current_point_names], axis=0)
+            current_reference_position = np.asarray(current_reference_records[f'{current_side_name}_{current_joint_name}']['position'])
+            current_center_records[current_joint_name] = current_center_position
+            current_comparison_records.append({'name': f'{current_side_name}_{current_joint_name}', 'candidate_center': current_center_position.tolist(), 'rig_center': current_reference_position.tolist(), 'offset_m': float(np.linalg.norm(current_center_position - current_reference_position))})
+        for current_segment_name, current_proximal_name, current_distal_name in (('upper_arm', 'shoulder', 'elbow'), ('forearm', 'elbow', 'wrist')):
+            if current_proximal_name not in current_center_records or current_distal_name not in current_center_records:
+                continue
+            current_candidate_length = float(np.linalg.norm(current_center_records[current_proximal_name] - current_center_records[current_distal_name]))
+            current_rig_length = float(np.linalg.norm(np.asarray(current_reference_records[f'{current_side_name}_{current_proximal_name}']['position']) - current_reference_records[f'{current_side_name}_{current_distal_name}']['position']))
+            current_comparison_records.append({'name': f'{current_side_name}_{current_segment_name}', 'candidate_length_m': current_candidate_length, 'rig_length_m': current_rig_length, 'length_difference_m': current_candidate_length - current_rig_length})
+    return current_comparison_records
+
+
+def build_landmark_review(current_point_records, current_source_record):
+    current_review_record = build_candidate_axes(current_point_records)
+    current_review_record['rig_comparison'] = compare_candidate_rig(current_point_records, current_source_record['rig_reference'])
+    current_review_record['retarget_ready'] = False
+    current_review_record['warnings'].append('리그 중심과의 거리·길이 차이는 참고 수치이며 해부학적 정확도의 합격 기준이 아닙니다. 자동 정렬하지 않습니다.')
+    return current_review_record
 
 
 def validate_exact_fields(current_input_record, expected_field_names):
@@ -50,6 +102,8 @@ def load_landmark_source():
     with np.load(LANDMARK_ASSET_DIRECTORY / 'anny-rest-rig.npz', allow_pickle=False) as current_rig_archive:
         current_vertex_values = current_rig_archive['vertices'].astype(float)
         current_triangle_values = current_rig_archive['faces'].astype(int)
+        current_bone_names = current_rig_archive['bone_names'].tolist()
+        current_bone_matrices = current_rig_archive['bone_matrices'].copy()
     if current_vertex_values.ndim != 2 or current_vertex_values.shape[1] != 3 or not np.isfinite(current_vertex_values).all():
         raise ValueError('ANNY 정점 형식 오류')
     if current_triangle_values.ndim != 2 or current_triangle_values.shape[1] != 3 or current_triangle_values.min() < 0 or current_triangle_values.max() >= len(current_vertex_values):
@@ -69,6 +123,7 @@ def load_landmark_source():
                    'floor_offset_native': current_source_floor, 'scale_to_meters': current_scale_value},
         'vertices': current_vertex_values.tolist(), 'faces': current_triangle_values.tolist(),
         'landmarks': LANDMARK_IDENTIFIER_LABELS,
+        'rig_reference': extract_rig_reference(current_bone_names, current_bone_matrices, current_source_floor, current_scale_value),
     }
 
 
@@ -150,11 +205,11 @@ def execute_landmark_command(current_command_name, current_input_record):
         validate_exact_fields(current_input_record, ('id',))
         current_saved_record = json.loads(resolve_landmark_record(current_input_record['id']).read_text())
         validate_landmark_draft(current_saved_record['draft'], current_source_record)
-        return {**current_saved_record, 'review': build_candidate_axes(current_saved_record['draft']['points'])}
+        return {**current_saved_record, 'review': build_landmark_review(current_saved_record['draft']['points'], current_source_record)}
     if current_command_name not in ('landmark-preview', 'landmark-save'):
         raise ValueError('지원하지 않는 기준점 명령')
     current_draft_record = validate_landmark_draft(current_input_record, current_source_record)
-    current_result_record = {'draft': current_draft_record, 'review': build_candidate_axes(current_draft_record['points'])}
+    current_result_record = {'draft': current_draft_record, 'review': build_landmark_review(current_draft_record['points'], current_source_record)}
     if current_command_name == 'landmark-save':
         if not current_draft_record['points']:
             raise ValueError('최소 한 개 기준점을 지정하세요.')
