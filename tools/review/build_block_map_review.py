@@ -10,7 +10,6 @@ from tools.review.common.map_tile_assets import load_registered_tiles, resolve_r
 WORKFLOW_ROOT_DIRECTORY=Path(__file__).resolve().parents[2]
 GAME_TILE_SOURCE_SIZE=256
 GROUND_TILE_SOURCE_SIZE=128
-TOWN_BLOCK_HEIGHT=80
 TOWN_BUILDING_TILE_OVERRIDES={
     'reedhaven':{
         'roof':'wood_roof',
@@ -34,10 +33,12 @@ TOWN_BUILDING_TILE_OVERRIDES={
 TOWN_BUILDING_TILE_OVERRIDES.update({current_city_identifier: dict(TOWN_BUILDING_TILE_OVERRIDES['reedhaven']) for current_city_identifier in ('grainstead', 'saltford')})
 
 def load_town_block_height():
-    render_profile_values=yaml.safe_load((WORKFLOW_ROOT_DIRECTORY/'tools/review/ui/map/config/render-profiles.yaml').read_text())
-    if not isinstance(render_profile_values,dict) or render_profile_values.get('block_height')!=TOWN_BLOCK_HEIGHT:
-        raise ValueError(f'마을 블록 높이는 {TOWN_BLOCK_HEIGHT}px여야 합니다.')
-    return TOWN_BLOCK_HEIGHT
+    from tools.review.common.game_render_metrics import read_numeric_render_constant
+    render_constant_source = WORKFLOW_ROOT_DIRECTORY.parent/'slime-frontend/packages/field-renderer/render-constants.mjs'
+    current_block_height = read_numeric_render_constant(render_constant_source.read_text(), 'BUILDING_RENDER_BLOCK_HEIGHT')
+    if current_block_height <= 0:
+        raise ValueError('마을 블록 렌더 높이는 양수여야 합니다.')
+    return current_block_height
 
 
 def validate_town_block_heights(map_record_values, block_height_value):
@@ -203,7 +204,7 @@ def build_block_map_review(output_directory_path, character_review_only=False):
     shutil.copy2(source_ui_directory/'block-map-review.js',output_directory_path/'block-map-review.js')
     shutil.copy2(source_ui_directory/'field-map-renderer.js',output_directory_path/'field-map-renderer.js')
     shutil.copy2(source_ui_directory/'field-map-view.js',output_directory_path/'field-map-view.js')
-    field_renderer_vendor_version='1.0.10'
+    field_renderer_vendor_version='1.0.11'
     field_renderer_directory=source_ui_directory/'vendor/field-renderer'/field_renderer_vendor_version
     field_renderer_manifest=yaml.safe_load((field_renderer_directory/'manifest.yaml').read_text())
     if set(field_renderer_manifest['files'])!={'field-renderer.mjs','town-renderer.mjs','game-render-profile.mjs','phaser.mjs','LICENSE.phaser.md'}:

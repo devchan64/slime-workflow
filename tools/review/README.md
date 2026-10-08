@@ -84,7 +84,7 @@ HTTP URL, 페이지 해시, CLI 명령, `.tmp` 생성 ID·기록 경로와 `asse
 
 ### 필드 공용 렌더링 라이브러리
 
-마을·필드 검수는 게임과 같은 `@slime/field-renderer` 1.0.10와 Phaser 3.90.0을 사용한다. 원본은 `slime-frontend/packages/field-renderer/`이며 `field-surface` 1.0.5의 좌표 계약을 포함한다. `ui/map/vendor/field-renderer/1.0.10/`의 ES 모듈과 엔진 배포본은 `manifest.yaml`의 SHA-256을 게시 전에 검증한다. 게임의 `npm run build:field-renderer`로 만든 배포본만 명시적으로 전달하며 관리도구가 게임 소스를 런타임에 읽거나 게임 전체를 빌드하지 않는다. 배포 후 수정은 새 버전으로 전달한다.
+마을·필드 검수는 게임과 같은 `@slime/field-renderer` 1.0.11와 Phaser 3.90.0을 사용한다. 원본은 `slime-frontend/packages/field-renderer/`이며 `field-surface` 1.0.5의 좌표 계약을 포함한다. `ui/map/vendor/field-renderer/1.0.11/`의 ES 모듈과 엔진 배포본은 `manifest.yaml`의 SHA-256을 게시 전에 검증한다. 게임의 `npm run build:field-renderer`로 만든 배포본만 명시적으로 전달하며 관리도구가 게임 소스를 런타임에 읽거나 게임 전체를 빌드하지 않는다. 배포 후 수정은 새 버전으로 전달한다.
 
 `field-map-renderer.js`는 공용 면 목록을 이용해 범위·클릭 판정만 수행한다. `field-map-view.js`는 Phaser Scene에 에셋과 표시 설정을 연결한다. 실제 지면·암벽·계단·결계탑·오러는 공용 라이브러리가 그리며 별도 Canvas 필드 그리기는 사용하지 않는다. 80×40 타일, 단계당 32px 고도, 16px 외곽 두께를 유지한다. `결계탑 · 결계 오러`와 `메시 경계`로 높이 25px의 외곽 패널·삼각형 분할을 검사한다. 접촉 셀 내부의 오러와 바닥 음영은 생성하지 않는다. 캐릭터 재생·전투 표시는 별도 소비자 구현이다. 마을 건물은 같은 게임 렌더링 함수를 사용한다.
 
@@ -119,3 +119,5 @@ HTTP URL, 페이지 해시, CLI 명령, `.tmp` 생성 ID·기록 경로와 `asse
 건물은 게임 공용 `buildRenderedBlockFaces`에서 블록당 80px로 표시한다. 원본 맵의 60 단위 블록 데이터는 수정하지 않으며, 게임과 검수의 표시 높이만 동일하게 변환한다.
 
 필드 타일 선택은 게임의 `resolveFieldTileTextures`를 사용합니다. 맵별 도로 변형·연결 마스크·바탕 타일과 사람 접지 그림자(`drawCharacterContactShadow`)를 검수기에서 재구현하지 않습니다. 원본 텍스처는 게임의 등록 경로로 연결하며 깊이는 `cellDepth`를 공유합니다. 캐릭터 표시·위치 변경은 지형을 재생성하지 않습니다.
+
+렌더링 속성의 단일 원본은 프론트엔드 `packages/field-renderer/render-constants.mjs`입니다. 크기·해상도·경계선·그림자·결계·계단·깊이·건물 표시값을 이곳에서 조정하고 공용 번들을 갱신합니다. 검수 빌드의 크기 메타데이터도 같은 원본에서 읽습니다. 이전 버전의 배포 파일은 수정하지 않습니다.

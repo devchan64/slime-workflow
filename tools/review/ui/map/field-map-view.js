@@ -1,10 +1,10 @@
-import {resolveFieldTileTextures,collectTerrainTextureSources,createTerrainAtlas,TERRAIN_ATLAS,drawBlockStructure,cellDepth,TERRAIN_DEPTH,mapAnnotationDepth,resolveMapTileSize,resolveGrassFrameForMap,resolvePavingFrameForMap,selectFieldRoadFrame} from './vendor/field-renderer/1.0.10/town-renderer.mjs';
-import {GAME_INTERNAL_RESOLUTION_SCALE,drawCharacterContactShadow,attachCharacterOutlineLayers,roadConnections,waterConnections} from './vendor/field-renderer/1.0.10/game-render-profile.mjs';
-import * as Phaser from './vendor/field-renderer/1.0.10/phaser.mjs';
-import {drawFieldCellObjects,drawFieldTowerObject,drawFieldAuraPanel,drawFieldMeshBoundary,buildFieldBoundaryPanels,rotateSurfacePosition} from './vendor/field-renderer/1.0.10/field-renderer.mjs';
+import {resolveFieldTileTextures,collectTerrainTextureSources,createTerrainAtlas,TERRAIN_ATLAS,drawBlockStructure,cellDepth,TERRAIN_DEPTH,mapAnnotationDepth,resolveMapTileSize,resolveGrassFrameForMap,resolvePavingFrameForMap,selectFieldRoadFrame} from './vendor/field-renderer/1.0.11/town-renderer.mjs';
+import {GAME_INTERNAL_RESOLUTION_SCALE,drawCharacterContactShadow,attachCharacterOutlineLayers,roadConnections,waterConnections} from './vendor/field-renderer/1.0.11/game-render-profile.mjs';
+import * as Phaser from './vendor/field-renderer/1.0.11/phaser.mjs';
+import {drawFieldCellObjects,drawFieldTowerObject,drawFieldAuraPanel,drawFieldMeshBoundary,buildFieldBoundaryPanels,rotateSurfacePosition} from './vendor/field-renderer/1.0.11/field-renderer.mjs';
 
-const FIELD_REVIEW_ACTOR_DEPTH=20;
-const FIELD_REVIEW_TOWER_DEPTH=10;
+const FIELD_REVIEW_ACTOR_DEPTH=TERRAIN_DEPTH.actor;
+const FIELD_REVIEW_TOWER_DEPTH=TERRAIN_DEPTH.overlay;
 const FIELD_REVIEW_TERRAIN_CACHE=new WeakMap();
 
 function readReviewConnectionMask(currentCellPosition,currentMapRecord,currentTerrainName,currentRotationValue){

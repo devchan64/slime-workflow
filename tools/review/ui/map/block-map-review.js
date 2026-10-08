@@ -1,6 +1,6 @@
 import {createFieldReviewFrame,pickFieldReviewCell} from './field-map-renderer.js';
-import {FIELD_RENDER_METRICS,projectSurfaceCell} from './vendor/field-surface/1.0.5/field-surface.mjs';
-import {resolveFieldActorContactShadow} from './vendor/field-renderer/1.0.10/field-renderer.mjs';
+import {FIELD_RENDER_METRICS,projectSurfaceCell} from './vendor/field-renderer/1.0.11/field-renderer.mjs';
+import {resolveFieldActorContactShadow} from './vendor/field-renderer/1.0.11/field-renderer.mjs';
 const MIN_MAP_SCALE=0.05,MAX_MAP_SCALE=4,MAP_ZOOM_FACTOR=1.25,MAP_DRAG_THRESHOLD=4,MAP_KEYBOARD_PAN_DISTANCE=48;
 let activeMapPointer=null,suppressMarkerClick=false;
 const currentMapCanvas=document.querySelector('#map');

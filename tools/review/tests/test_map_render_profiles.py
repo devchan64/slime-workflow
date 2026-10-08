@@ -40,7 +40,7 @@ class MapRenderProfileTests(unittest.TestCase):
                 current_image_path=current_output_directory/current_safe_record['image'].split('?')[0]
                 self.assertEqual(hashlib.sha256(current_image_path.read_bytes()).hexdigest(),current_safe_record['provenance']['sha256'])
             import yaml
-            current_library_directory=current_output_directory/'vendor/field-renderer/1.0.10'
+            current_library_directory=current_output_directory/'vendor/field-renderer/1.0.11'
             current_library_manifest=yaml.safe_load((current_library_directory/'manifest.yaml').read_text())
             for current_file_name,current_file_hash in current_library_manifest['files'].items():
                 self.assertEqual(hashlib.sha256((current_library_directory/current_file_name).read_bytes()).hexdigest(),current_file_hash)
@@ -74,7 +74,7 @@ class MapRenderProfileTests(unittest.TestCase):
         block_review_builder = (WORKFLOW_ROOT / 'tools/review/build_block_map_review.py').read_text(encoding='utf-8')
         block_map_script = (WORKFLOW_ROOT / 'tools/review/ui/map/block-map-review.js').read_text(encoding='utf-8')
 
-        self.assertIn('TOWN_BLOCK_HEIGHT=80', block_review_builder)
+        self.assertIn("'BUILDING_RENDER_BLOCK_HEIGHT'", block_review_builder)
         self.assertIn("'block-render-profile.json'", block_review_builder)
         self.assertIn("fetchMapReviewRecord('block-render-profile.json')", block_map_script)
         self.assertIn('const TOWN_BLOCK_HEIGHT=blockRenderProfile.blockHeight', block_map_script)
@@ -86,7 +86,7 @@ class MapRenderProfileTests(unittest.TestCase):
 
         self.assertNotIn('character-outline',block_map_script)
         self.assertNotIn('캐릭터 외곽 강조',map_review_application)
-        self.assertIn('resolveFieldActorContactShadow',field_map_view)
+        self.assertIn('drawCharacterContactShadow',field_map_view)
         self.assertIn('game-render-profile.mjs',field_map_view)
         self.assertIn('attachCharacterOutlineLayers(currentCharacterSprite)',field_map_view)
         self.assertIn('visible=character_review_enabled',map_review_application)
