@@ -56,10 +56,22 @@ def render(motion_path, output_dir, directions, sample_indices, camera_azimuth_d
     (output_dir/'render_asset.py').write_text(renderer)
     for script in ('retarget_loop.py','render_asset.py'):
         subprocess.run([str(BLENDER),str(output_dir/'run_stage.py'),str(output_dir/script)],cwd=output_dir,check=True)
+    condition_buffer_record=json.loads((output_dir/'condition-buffers.json').read_text())
+    if condition_buffer_record.get('schema_version')!=1 or condition_buffer_record.get('resolution')!=[512,512] or set(condition_buffer_record.get('frames',{}))!=set(directions):
+        raise ValueError('ANNY 조건 버퍼 기록 형식 오류')
+    for direction_name in directions:
+        current_condition_frames=condition_buffer_record['frames'][direction_name]
+        if len(current_condition_frames)!=len(sample_indices):raise ValueError('ANNY 조건 버퍼 프레임 수 오류')
+        for current_condition_frame in current_condition_frames:
+            if set(current_condition_frame)!={'sample_index','source_frame','rgba','depth','normal','part_id','depth_range_m'} or not isinstance(current_condition_frame['depth_range_m'],list) or len(current_condition_frame['depth_range_m'])!=2:
+                raise ValueError('ANNY 조건 버퍼 프레임 형식 오류')
+            for condition_field_name in ('rgba','depth','normal','part_id'):
+                if not (output_dir/direction_name/current_condition_frame[condition_field_name]).is_file():raise FileNotFoundError(f'ANNY 조건 버퍼 누락: {direction_name}/{current_condition_frame[condition_field_name]}')
     for direction in directions:
         target=output_dir/direction/'frames';target.mkdir()
         for number in range(1,len(sample_indices)+1): shutil.copy2(output_dir/direction/f'preview-{number:04d}.png',target/f'anny-{number:04d}.png')
     retarget_result_record['surface_correction']=json.loads((output_dir/'surface-correction.json').read_text())
+    retarget_result_record['condition_buffers']={'schema_version':condition_buffer_record['schema_version'],'resolution':condition_buffer_record['resolution'],'manifest':'condition-buffers.json','types':['rgba','depth','normal','part_id','skeleton']}
     (output_dir/'result.json').write_text(json.dumps(retarget_result_record,ensure_ascii=False,indent=2)+'\n')
 if __name__=='__main__':
  p=argparse.ArgumentParser(description=__doc__);p.add_argument('--motion',type=Path,required=True);p.add_argument('--output-dir',type=Path,required=True);p.add_argument('--directions',required=True);p.add_argument('--sample-indices',required=True);p.add_argument('--camera-azimuth-degrees',type=float,default=45);p.add_argument('--camera-direction-angles',type=json.loads);a=p.parse_args();render(a.motion,a.output_dir,a.directions.split(','),[int(x) for x in a.sample_indices.split(',')],camera_azimuth_degrees=a.camera_direction_angles if a.camera_direction_angles is not None else a.camera_azimuth_degrees)
