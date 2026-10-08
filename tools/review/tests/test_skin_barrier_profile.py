@@ -7,6 +7,25 @@ from generators.hy_motion.skin_barrier_profile import load_skin_barrier, SKIN_BA
 
 
 class SkinBarrierProfileTests(unittest.TestCase):
+    def test_adjacency_profile_is_explicit_candidate(self):
+        current_candidate_record = load_skin_barrier(SKIN_BARRIER_PROFILE.with_name('anny-adjacency-barrier.yaml'))
+        self.assertEqual(current_candidate_record['adjacent_connections'], 'upperarm_upper_spine_five_hops')
+        self.assertEqual(current_candidate_record['approval_status'], 'candidate')
+        self.assertEqual(load_skin_barrier()['adjacent_connections'], 'excluded')
+
+    def test_temporal_candidate_keeps_default_unchanged(self):
+        current_candidate_record = load_skin_barrier(SKIN_BARRIER_PROFILE.with_name('anny-temporal-barrier.yaml'))
+        self.assertEqual(current_candidate_record['initialization'], 'previous_pose_with_lateral_collision_repair')
+        self.assertEqual(current_candidate_record['approval_status'], 'candidate')
+        self.assertEqual(load_skin_barrier()['profile_id'], 'anny-neutral-v4-skin-barrier-v1')
+
+    def test_candidate_extends_proximal_chain_without_replacing_default(self):
+        current_candidate_record = load_skin_barrier(SKIN_BARRIER_PROFILE.with_name('anny-proximal-barrier.yaml'))
+        self.assertEqual(current_candidate_record['bone_prefixes'][:3], ['clavicle', 'shoulder01', 'upperarm01'])
+        self.assertEqual(current_candidate_record['approval_status'], 'candidate')
+        self.assertEqual(current_candidate_record['initialization'], 'bilateral_rest_to_lateral_first_clear')
+        self.assertEqual(load_skin_barrier()['profile_id'], 'anny-neutral-v4-skin-barrier-v1')
+
     def test_accepted_profile_preserves_reviewed_values(self):
         current_profile_record = load_skin_barrier()
         self.assertEqual(current_profile_record['minimum_surface_clearance_m'], .0005)

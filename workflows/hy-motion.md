@@ -28,7 +28,7 @@ GUI의 **동작 프리셋**에서 대기·걷기를 선택할 수 있다. 선택
 
 - HY-Motion-1.0-Lite, 50스텝, CFG 5, 샘플 1개를 사용한다. 모델은 입력에서 선택할 수 없다.
 - Qwen3-8B는 BF16(미지원 GPU에서는 FP16) 가중치를 CPU RAM에 저장하고 Accelerate 레이어 오프로드로 CUDA에서 연산한다. CLIP 및 모션 모델은 앞 단계 인코더 해제 후 순차 로딩한다. CPU 추론은 사용하지 않는다.
-- 프롬프트 재작성과 길이 자동 추정은 사용하지 않는다. 동작 지시는 1~29단어, 길이는 1~4.9초, 시드는 uint32 범위다. CLIP 77토큰 한도를 넘기면 자르지 않고 실패한다.
+- 프롬프트 재작성과 길이 자동 추정은 사용하지 않는다. 동작 지시는 1~29단어, 시드는 uint32 범위다. 상한은 `MAXIMUM_MOTION_FRAMES = 360`으로 정의하며 고정 30 FPS에서 최대 길이 12초를 계산한다. GUI·CLI 길이 입력은 1~12초를 허용한다. 동작별 전환 시점은 보장하지 않으며 재생 감속으로 길이를 늘리지 않는다. CLIP 77토큰 한도를 넘기면 자르지 않고 실패한다.
 - 8GB 구성의 초기 GPU 예약은 7000MiB다. 이는 보장이 아닌 초기 설정이며, 이후 공용 실행기가 성공 실행의 실측 peak를 사용한다. 첫 실행 전 시스템 RAM·가용 VRAM을 확인한다.
 - 공식 소스와 모델 SHA는 코드·설정에 고정한다. 모델·리그·통계 캐시는 `.model/hy-motion/`에 준비하며, 준비 manifest에 파일별 SHA-256과 모델 snapshot 경로를 보존한다. 실행 중 외부 모델로 자동 대체하지 않는다.
 
@@ -42,7 +42,7 @@ GUI의 **동작 프리셋**에서 대기·걷기를 선택할 수 있다. 선택
 
 이 생성기는 후보 모션 검수용이다. ANNY 리타기팅·OpenPose 원천 교체·정식 모션 자산 등록·게임 전달은 수행하지 않는다.
 
-별도 ANNY 리타기팅 작업에는 사용자 검수로 채택된 피부 충돌 후처리 `generators.hy_motion.anny_skin_stage.apply_anny_skin_barrier`를 사용한다. 고정 설정은 `config/anny-skin-barrier.yaml`이며 상완→전완→손목 순서, 인접 연결부 제외, 0.5mm 수치 여유를 유지한다. 함수의 입력은 ANNY 리타기팅이 끝난 Blender 파일이고 원본 HY-Motion NPZ가 아니다. 일반 GUI/CLI 모션 생성에는 이 단계를 자동 추가하지 않는다. 사용법과 저장·보간 충돌의 한계는 [ANNY 리타기팅 기준](anny-anatomical-retarget.md#채택된-피부-제약-후처리)을 따른다.
+별도 ANNY 리타기팅 작업에는 사용자 검수로 채택된 후처리 `generators.hy_motion.anny_skin_stage.apply_anny_skin_barrier`를 사용한다. 고정 설정은 `config/anny-skin-barrier.yaml`이며 상완→전완→손목 순서, 인접 연결부 제외, 0.5mm 수치 여유를 유지한다. ANNY 리타기팅이 끝난 Blender 파일과 원본 HY-Motion NPZ(`source_motion_path`)를 함께 입력하면 머리 회전 전달도 기본 적용한다. 프레임 수·FPS·원본 FK가 맞지 않으면 실패한다. 일반 GUI/CLI 모션 생성에는 ANNY 렌더를 자동 추가하지 않는다. 사용법과 저장·보간 충돌의 한계는 [ANNY 리타기팅 기준](anny-anatomical-retarget.md#채택된-피부-제약-후처리)을 따른다.
 
 신규 생성은 PNG 미리보기와 함께 방향별 `<direction>.gif` 및 선택 방향을 동기화한 `overview.gif`를 자동 출력한다. 별도 GPU 추론 없이 검수 PNG를 사용하며 GUI 결과의 다운로드 링크와 CLI 상태 응답의 `result.gifs`에서 확인한다. GIF의 10ms 시간 단위에 맞춰 120/130ms를 교대로 기록해 평균 8 FPS와 전체 재생 시간을 보존한다. 무한 반복 재생하되 끝과 시작의 모션을 연결하거나 이동을 제거하지 않는다. 기존 완료 기록은 자동 변경하지 않는다.
 

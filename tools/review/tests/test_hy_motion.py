@@ -36,11 +36,12 @@ class HyMotionContractTests(unittest.TestCase):
             return jobs.start_generation_job(self.current_request_record)['id']
 
     def test_reject_invalid_request_fields(self):
-        for current_field_name, current_invalid_value in [('seed', True), ('seed', -1), ('duration_seconds', float('nan')), ('duration_seconds', 5), ('directions', ['down_left', 'down_left']), ('directions', 'down_left'), ('prompt', ' '), ('prompt', 'word ' * 30), ('model', 'arbitrary')]:
+        for current_field_name, current_invalid_value in [('seed', True), ('seed', -1), ('duration_seconds', float('nan')), ('duration_seconds', 12.01), ('directions', ['down_left', 'down_left']), ('directions', 'down_left'), ('prompt', ' '), ('prompt', 'word ' * 30), ('model', 'arbitrary')]:
             with self.subTest(field=current_field_name), self.assertRaises(ValueError):
                 validate_generation_request({**self.current_request_record, current_field_name: current_invalid_value})
 
     def test_prompt_and_config_validation(self):
+        self.assertEqual(validate_generation_request({**self.current_request_record, 'duration_seconds': 12})['duration_seconds'], 12)
         import yaml
         with self.assertRaisesRegex(ValueError, '중복'):
             yaml.load('seed: 1\nseed: 2', Loader=UniqueConfigLoader)

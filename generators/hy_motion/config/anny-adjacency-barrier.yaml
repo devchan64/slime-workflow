@@ -1,0 +1,14 @@
+# 시간 연속성 검수 후보. 채택 기본 프로필을 교체하지 않는다.
+schema_version: 1
+profile_id: anny-neutral-v4-adjacency-barrier-v4
+target_rig: AnnyAttributesRig
+target_mesh: AnnyAttributesBody
+bone_prefixes: [clavicle, shoulder01, upperarm01, upperarm02, lowerarm01, lowerarm02, wrist]
+angle_step_degrees: 2.0
+boundary_refinements: 10
+minimum_surface_clearance_m: 0.0005
+audit_substeps: 4
+adjacent_connections: upperarm_upper_spine_five_hops
+collision_scope: arm_hand_vs_torso_pelvis_legs
+approval_status: candidate
+initialization: previous_pose_with_lateral_collision_repair

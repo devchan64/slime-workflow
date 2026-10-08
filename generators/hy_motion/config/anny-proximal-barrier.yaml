@@ -1,0 +1,14 @@
+# 검수용 후보: 기존 채택 v1 기본값을 자동 교체하지 않는다.
+schema_version: 1
+profile_id: anny-neutral-v4-proximal-barrier-v2
+target_rig: AnnyAttributesRig
+target_mesh: AnnyAttributesBody
+bone_prefixes: [clavicle, shoulder01, upperarm01, upperarm02, lowerarm01, lowerarm02, wrist]
+angle_step_degrees: 2.0
+boundary_refinements: 10
+minimum_surface_clearance_m: 0.0005
+audit_substeps: 4
+adjacent_connections: excluded
+collision_scope: arm_hand_vs_torso_pelvis_legs
+approval_status: candidate
+initialization: bilateral_rest_to_lateral_first_clear

@@ -11,6 +11,7 @@ WORKFLOW_ROOT_DIRECTORY = Path(__file__).resolve().parents[4]
 sys.path.insert(0, str(WORKFLOW_ROOT_DIRECTORY))
 import gradio as gr
 from generators.hy_motion.contracts import load_generation_defaults, validate_generation_request, read_encoder_system_prompt, build_encoder_input_preview, load_motion_presets
+from generators.hy_motion.contracts import MAXIMUM_DURATION_SECONDS
 from tools.review.common.management_client import execute_remote_management_command as execute_management_command
 from tools.review.common.gradio_frame_player import build_browser_frame_player
 from tools.review.common.gradio_history import build_generation_history_view
@@ -85,7 +86,7 @@ def build_hymotion_interface(server_base_address):
             current_encoder_preview = gr.Textbox(value=build_encoder_input_preview(current_default_values['prompt']), interactive=False, lines=6, label='실제 모델 입력 · 실행 시 tokenizer 결과와 대조')
         current_prompt_input.change(build_encoder_input_preview, current_prompt_input, current_encoder_preview, queue=False)
         with gr.Row():
-            current_duration_input = gr.Number(value=current_default_values['duration_seconds'], minimum=1, maximum=4.9, step=.1, label='모션 길이(초)')
+            current_duration_input = gr.Number(value=current_default_values['duration_seconds'], minimum=1, maximum=MAXIMUM_DURATION_SECONDS, step=.1, label='모션 길이(초)')
             current_seed_input = build_generation_seed(current_default_values['seed'])
             current_tag_input = gr.Textbox(label='생성 이력 태그 · 선택', max_lines=1)
         current_generate_button = gr.Button('모션 생성 시작', variant='primary', interactive=False)

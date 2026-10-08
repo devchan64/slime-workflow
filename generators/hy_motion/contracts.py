@@ -13,6 +13,9 @@ DEFAULT_CONFIG_PATH = Path(__file__).parent / 'config/defaults.yaml'
 ENCODER_TEMPLATE_PATH = Path(__file__).parent / 'config/encoder-system.txt'
 MOTION_PRESETS_PATH = Path(__file__).parent / 'config/motion-presets.yaml'
 SUPPORTED_DIRECTION_NAMES = ('down_left', 'down_right', 'up_left', 'up_right')
+MAXIMUM_MOTION_FRAMES = 360
+MOTION_OUTPUT_FPS = 30
+MAXIMUM_DURATION_SECONDS = MAXIMUM_MOTION_FRAMES / MOTION_OUTPUT_FPS
 EXPECTED_CONFIG_FIELDS = {'schema_version', 'model_id', 'model_variant', 'source_revision', 'duration_seconds', 'seed', 'steps', 'guidance_scale', 'prompt', 'directions', 'preview_fps', 'preview_size', 'camera_elevation', 'camera_angles'}
 
 
@@ -59,8 +62,8 @@ def validate_generation_request(current_request_values):
     if not isinstance(current_prompt_text, str) or not 1 <= len(current_prompt_text.split()) <= 29 or len(current_prompt_text) > 2000:
         raise ValueError('영문 동작 프롬프트를 1~29단어로 입력하세요.')
     current_duration_value = current_request_values['duration_seconds']
-    if type(current_duration_value) not in (int, float) or not math.isfinite(current_duration_value) or not 1 <= current_duration_value <= 4.9:
-        raise ValueError('모션 길이는 1~4.9초여야 합니다.')
+    if type(current_duration_value) not in (int, float) or not math.isfinite(current_duration_value) or not 1 <= current_duration_value <= MAXIMUM_DURATION_SECONDS:
+        raise ValueError(f'모션 길이는 1~{MAXIMUM_DURATION_SECONDS:g}초여야 합니다.')
     current_seed_value = current_request_values['seed']
     if type(current_seed_value) is not int or not 0 <= current_seed_value < 2**32:
         raise ValueError('시드는 0~4294967295 정수여야 합니다.')
