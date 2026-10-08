@@ -10,6 +10,7 @@ import json
 import os
 import re
 import signal
+import shutil
 import subprocess
 import time
 import traceback
@@ -22,6 +23,9 @@ from tools.review.common.generation_records import write_record_atomically
 GENERATION_ROOT_DIRECTORY = WORKFLOW_ROOT_DIRECTORY/'.tmp/test/character-animation'
 GENERATION_HISTORY_DIRECTORY = GENERATION_ROOT_DIRECTORY/'history'
 GENERATION_LOCK_PATH = GENERATION_ROOT_DIRECTORY/'generation.lock'
+VNCCS_ALPHA_SOURCE_DIRECTORY = WORKFLOW_ROOT_DIRECTORY/'.tmp/test/vnccs-posestudio-qi21-4frame-results/2026-10-08_19-48-55'
+VNCCS_ALPHA_SOURCE_FRAME_NUMBERS = (1,16,31,46)
+VNCCS_ALPHA_VERSION_NAME = 'vnccs-posestudio-qi21-alpha-0.1'
 
 def resolve_generation_directory(generation_job_identifier):
     if not isinstance(generation_job_identifier,str) or not re.fullmatch(r'\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-[a-f0-9]{8}',generation_job_identifier):
@@ -198,6 +202,64 @@ def resume_animation_generation(command_payload_value):
             raise
     return {'id':generation_job_identifier,'status':'running','path':str(generation_job_path)}
 
+def record_vnccs_alpha_pilot(command_payload_value):
+    """검증 완료한 VNCCS 파일럿을 재추론 없이 공용 이력으로 가져온다."""
+    if command_payload_value != {}:
+        raise ValueError('VNCCS 알파 기록 명령에는 입력값을 넣을 수 없습니다.')
+    source_assessment_path=VNCCS_ALPHA_SOURCE_DIRECTORY/'pilot-assessment.json'
+    if not source_assessment_path.is_file():
+        raise ValueError('검증 완료된 VNCCS 알파 판정 기록을 찾을 수 없습니다.')
+    source_assessment_record=json.loads(source_assessment_path.read_text(encoding='utf-8'))
+    if source_assessment_record.get('status')!='completed':
+        raise ValueError('완료된 VNCCS 알파 결과만 기록할 수 있습니다.')
+    source_frame_paths=[]
+    for frame_offset_value in range(len(VNCCS_ALPHA_SOURCE_FRAME_NUMBERS)):
+        source_frame_path=VNCCS_ALPHA_SOURCE_DIRECTORY/f'frame-{frame_offset_value+1:02d}'/'result-4step.png'
+        if not source_frame_path.is_file():
+            raise ValueError(f'VNCCS 알파 {frame_offset_value+1}번 프레임 결과를 찾을 수 없습니다.')
+        source_frame_paths.append(source_frame_path)
+    GENERATION_HISTORY_DIRECTORY.mkdir(parents=True,exist_ok=True)
+    existing_record_paths=sorted(GENERATION_HISTORY_DIRECTORY.glob('*.json'),reverse=True)
+    for existing_history_path in existing_record_paths:
+        existing_history_record=json.loads(existing_history_path.read_text(encoding='utf-8'))
+        existing_job_path=resolve_generation_directory(existing_history_record['id'])
+        existing_request_path=existing_job_path/'request.json'
+        if existing_request_path.is_file() and json.loads(existing_request_path.read_text(encoding='utf-8')).get('alpha_version')==VNCCS_ALPHA_VERSION_NAME:
+            return {'id':existing_history_record['id'],'status':'completed','path':str(existing_job_path),'reused':True}
+    creation_time_value=datetime.now(ZoneInfo('Asia/Seoul'))
+    generation_job_identifier=creation_time_value.strftime('%Y-%m-%d_%H-%M-%S')+'-'+uuid.uuid4().hex[:8]
+    generation_job_path=resolve_generation_directory(generation_job_identifier)
+    generation_job_path.mkdir(parents=True)
+    result_frame_paths=[]
+    for frame_offset_value,(source_frame_number,source_frame_path) in enumerate(zip(VNCCS_ALPHA_SOURCE_FRAME_NUMBERS,source_frame_paths),start=1):
+        destination_frame_directory=generation_job_path/'down_left'/f'frame-{source_frame_number:04d}'
+        destination_frame_directory.mkdir(parents=True)
+        destination_frame_path=destination_frame_directory/'result.png'
+        shutil.copy2(source_frame_path,destination_frame_path)
+        write_record_atomically(destination_frame_directory/'result.json',{'status':'completed','source':'vnccs-alpha-import','source_frame':source_frame_number})
+        result_frame_paths.append(str(destination_frame_path.relative_to(generation_job_path)))
+    shutil.copy2(source_assessment_path,generation_job_path/'pilot-assessment.json')
+    source_experiment_path=str(VNCCS_ALPHA_SOURCE_DIRECTORY)
+    if VNCCS_ALPHA_SOURCE_DIRECTORY.is_relative_to(WORKFLOW_ROOT_DIRECTORY):
+        source_experiment_path=str(VNCCS_ALPHA_SOURCE_DIRECTORY.relative_to(WORKFLOW_ROOT_DIRECTORY))
+    alpha_request_record={
+        'record_kind':'alpha-import','alpha_version':VNCCS_ALPHA_VERSION_NAME,
+        'motion':'walking-v13','character':'experimental-reference','source':'vnccs-posestudio-qi21',
+        'directions':['down_left'],'start_frame':VNCCS_ALPHA_SOURCE_FRAME_NUMBERS[0],
+        'end_frame':VNCCS_ALPHA_SOURCE_FRAME_NUMBERS[-1],'resolution':256,'steps':4,
+        'target_fps':4,'speed':1,'tag':'VNCCS PoseStudio QI2.1 알파 · 검증 기준선',
+        'frames':[{'direction':'down_left','frame':source_frame_number} for source_frame_number in VNCCS_ALPHA_SOURCE_FRAME_NUMBERS],
+        'source_experiment':source_experiment_path,
+        'adoption_decision':'production-sprite-output-rejected',
+    }
+    alpha_result_record={'frames':{'down_left':result_frame_paths},'source_frame_numbers':{'down_left':list(VNCCS_ALPHA_SOURCE_FRAME_NUMBERS)},'fps':4,'alpha':True}
+    write_record_atomically(generation_job_path/'request.json',alpha_request_record)
+    write_record_atomically(generation_job_path/'result.json',alpha_result_record)
+    write_record_atomically(generation_job_path/'status.json',{'status':'completed','record_kind':'alpha-import','quality_gate':'rejected-for-production-sprite-output'})
+    (generation_job_path/'worker.log').write_text(f'{creation_time_value.isoformat()}/character-animation/alpha-record imported version={VNCCS_ALPHA_VERSION_NAME} source={alpha_request_record["source_experiment"]}\n',encoding='utf-8')
+    write_record_atomically(GENERATION_HISTORY_DIRECTORY/(generation_job_identifier+'.json'),{'id':generation_job_identifier,'created_at':creation_time_value.isoformat(),'record_kind':'alpha-import'})
+    return {'id':generation_job_identifier,'status':'completed','path':str(generation_job_path),'alpha_version':VNCCS_ALPHA_VERSION_NAME}
+
 def execute_animation_command(operation_command_name,command_payload_value):
     if operation_command_name.startswith('sprite-v2-'):
         from .sprite_editor_v2 import execute_v2_command
@@ -213,6 +275,8 @@ def execute_animation_command(operation_command_name,command_payload_value):
         return build_animation_catalog()
     if operation_command_name=='generate':
         return start_animation_generation(command_payload_value)
+    if operation_command_name=='record-alpha-vnccs':
+        return record_vnccs_alpha_pilot(command_payload_value)
     if operation_command_name=='status':
         return read_generation_status(command_payload_value['id'])
     if operation_command_name=='logs':
@@ -240,7 +304,7 @@ def execute_animation_command(operation_command_name,command_payload_value):
             if measured_progress_record.get('inference_completed') is not None:
                 detail_text_value+=f" · 현재 이미지 추론 {measured_progress_record['inference_completed']}/{measured_progress_record['inference_steps']}스텝"
             history_record_value['progress']={'label':'이미지 생성','unit':'장 완료','completed_frames':completed_image_count,'total_frames':total_image_count,'percent':round(100*completed_image_count/total_image_count,1) if total_image_count else 0,'detail':detail_text_value}
-            history_record_values.append({**history_record_value,'path':generation_status_value['path'],'status':{'status':generation_status_value['status'],'error':generation_status_value.get('error')},'request':{**{key:generation_status_value['request'][key] for key in ('motion','character','source','directions','start_frame','end_frame')},'resolution':generation_status_value['request'].get('resolution',512),'speed':generation_status_value['request'].get('speed',1),'target_fps':generation_status_value['request'].get('target_fps'),'frame_step':generation_status_value['request'].get('frame_step',1),'steps':generation_status_value['request'].get('steps',4)},'playable':bool(generation_status_value.get('result'))})
+            history_record_values.append({**history_record_value,'path':generation_status_value['path'],'status':{'status':generation_status_value['status'],'error':generation_status_value.get('error')},'request':{**{key:generation_status_value['request'][key] for key in ('motion','character','source','directions','start_frame','end_frame')},'tag':generation_status_value['request'].get('tag',''),'resolution':generation_status_value['request'].get('resolution',512),'speed':generation_status_value['request'].get('speed',1),'target_fps':generation_status_value['request'].get('target_fps'),'frame_step':generation_status_value['request'].get('frame_step',1),'steps':generation_status_value['request'].get('steps',4),'alpha_version':generation_status_value['request'].get('alpha_version')},'playable':bool(generation_status_value.get('result'))})
         return {'records':history_record_values}
     if operation_command_name=='history-delete':
         selected_job_identifier=command_payload_value['id']

@@ -180,6 +180,18 @@ def build_character_animation_interface(server_base_address):
             status_text_value=gr.Markdown('생성 가능 · 설정을 확인하세요.')
         logs_text_value,log_refresh_enabled,_=build_execution_logs()
         read_history_page,history_output_values=build_generation_history_view(execute_animation_gateway,server_base_address,'이력 목록만 초기화합니다. 생성 프레임과 로그 파일은 유지됩니다. 생성 중에는 초기화할 수 없습니다.',restore_input_callback=restore_registered_animation_inputs,restore_output_components=[motion_select_value,character_select_value,source_select_value,direction_select_value,start_frame_value,end_frame_value,resolution_select_value,step_select_value,target_fps_select_value,speed_select_value,generation_tag_value,*direction_prompt_components,status_text_value],result_renderer_callback=create_animation_player,result_component_factory=build_browser_frame_player,record_folder_route='/character-animation',allow_individual_delete=True)
+        with gr.Accordion('VNCCS PoseStudio QI2.1 알파 기록',open=False):
+            gr.Markdown('검증 완료된 256px·4프레임 파일럿을 재추론 없이 공용 이력으로 가져옵니다. 결과는 **프로덕션 스프라이트 채택 불가** 판정이며, 저메모리 3D 조건 실행 기준선으로만 보관합니다.')
+            alpha_record_button_value=gr.Button('알파 파일럿을 생성 이력에 기록')
+            alpha_record_status_value=gr.Markdown()
+        def record_alpha_pilot_history():
+            try:
+                alpha_record_value=execute_animation_gateway('record-alpha-vnccs',{})
+                reused_notice='기존 기록을 다시 사용했습니다.' if alpha_record_value.get('reused') else '알파 파일럿을 생성 이력에 기록했습니다.'
+                return [f'{reused_notice} ID: `{alpha_record_value["id"]}`',*read_history_page(1)]
+            except Exception as alpha_record_error:
+                return ['알파 기록 실패: '+str(alpha_record_error),*read_history_page(1)]
+        alpha_record_button_value.click(record_alpha_pilot_history,outputs=[alpha_record_status_value,*history_output_values],queue=False)
         def start_animation(*selection_values):
             yield gr.skip(),'생성 요청을 접수하고 있습니다.',gr.update(interactive=False,value='요청 접수 중…'),True
             try:

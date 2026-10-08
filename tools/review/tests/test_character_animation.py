@@ -293,6 +293,30 @@ characters:
                 self.assertEqual(jobs.execute_animation_command('history',{}),{'records':[]})
                 self.assertTrue((jobs.resolve_generation_directory(generation_job_identifier)/'request.json').exists())
 
+    def test_vnccs_alpha_pilot_is_imported_as_playable_history(self):
+        with tempfile.TemporaryDirectory() as temporary_root_name:
+            temporary_root_path=Path(temporary_root_name)
+            source_root_path=temporary_root_path/'vnccs-source'
+            source_root_path.mkdir()
+            (source_root_path/'pilot-assessment.json').write_text(json.dumps({'status':'completed'}),encoding='utf-8')
+            for frame_offset_value in range(1,5):
+                source_frame_path=source_root_path/f'frame-{frame_offset_value:02d}'
+                source_frame_path.mkdir()
+                source_frame_path.joinpath('result-4step.png').write_bytes(b'png-result')
+            with patch.object(jobs,'GENERATION_ROOT_DIRECTORY',temporary_root_path/'history-root'),patch.object(jobs,'GENERATION_HISTORY_DIRECTORY',temporary_root_path/'history-root/history'),patch.object(jobs,'VNCCS_ALPHA_SOURCE_DIRECTORY',source_root_path):
+                imported_record_value=jobs.execute_animation_command('record-alpha-vnccs',{})
+                repeated_record_value=jobs.execute_animation_command('record-alpha-vnccs',{})
+                self.assertTrue(repeated_record_value['reused'])
+                self.assertEqual(repeated_record_value['id'],imported_record_value['id'])
+                imported_status_value=jobs.read_generation_status(imported_record_value['id'])
+                self.assertEqual(imported_status_value['status'],'completed')
+                self.assertEqual(imported_status_value['result']['source_frame_numbers']['down_left'],[1,16,31,46])
+                self.assertTrue((Path(imported_record_value['path'])/'down_left/frame-0046/result.png').is_file())
+                imported_history_value=jobs.execute_animation_command('history',{})['records'][0]
+                self.assertEqual(imported_history_value['request']['alpha_version'],jobs.VNCCS_ALPHA_VERSION_NAME)
+                with self.assertRaisesRegex(ValueError,'입력값'):
+                    jobs.execute_animation_command('record-alpha-vnccs',{'unexpected':True})
+
     def test_duplicate_active_input_reuses_job(self):
         with tempfile.TemporaryDirectory() as temporary_root_name:
             temporary_root_path=Path(temporary_root_name)
