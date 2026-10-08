@@ -70,6 +70,8 @@ def create_gradio_source_fingerprint(application_source_path,application_file_pa
     tracked_source_paths={application_file_path,application_source_path}
     if application_file_path.name=='anny_attributes_app.py':
         tracked_source_paths.add(WORKFLOW_ROOT_DIRECTORY/'tools/review/ui/anny/anny-attributes.html')
+    if application_file_path.name=='anny_landmarks_app.py':
+        tracked_source_paths.update((WORKFLOW_ROOT_DIRECTORY/'tools/review/ui/anny').glob('*.js'))
     if application_file_path.name=='seamless_tile_app.py':
         image_domain_directory=WORKFLOW_ROOT_DIRECTORY/'tools/review/domains/image'
         tracked_source_paths.update(image_domain_directory/current_file_name for current_file_name in ('seamless_pattern.py','seamless_generation.py','seamless_directional.py'))
@@ -93,6 +95,7 @@ def ensure_gradio_application(review_server_port, application_name, application_
             'management-menu':('management_menu_app.py',100,'/management/'),
             'momask':('momask_app.py',101,'/management/frame/momask-generator/'),
             'hy-motion':('hy_motion_app.py',123,'/management/frame/hy-motion-generator/'),
+            'anny-landmarks':('anny_landmarks_app.py',124,'/management/frame/anny-landmarks/'),
             'character-animation':('character_animation_app.py',102,'/management/frame/character-animation/'),
             'qwen-2512':('qwen_2512_app.py',103,'/management/frame/image-generator/'),
             'qwen-21-circular':('qwen_circular_app.py',118,'/management/frame/qwen-21-circular-generator/'),

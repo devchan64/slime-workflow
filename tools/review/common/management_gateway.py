@@ -25,6 +25,10 @@ MANAGEMENT_SERVICE_COMMANDS['hy-motion']=('generate','prepare','model-status','s
 MANAGEMENT_SERVICE_ROUTES['character-review']='/character-review'
 MANAGEMENT_SERVICE_COMMANDS['character-review']=('capture',)
 MANAGEMENT_COMMAND_ROUTES['capture']=('POST','/capture')
+LANDMARK_COMMAND_NAMES = tuple('landmark-' + current_command_name for current_command_name in ('source', 'preview', 'save', 'load', 'history'))
+MANAGEMENT_SERVICE_ROUTES['anny-landmarks'] = '/anny-landmarks'
+MANAGEMENT_SERVICE_COMMANDS['anny-landmarks'] = LANDMARK_COMMAND_NAMES
+MANAGEMENT_COMMAND_ROUTES.update({current_command_name: ('POST', '/' + current_command_name) for current_command_name in LANDMARK_COMMAND_NAMES})
 
 SPRITE_V2_COMMAND_NAMES = tuple('sprite-v2-'+current_command_name for current_command_name in ('create','list','upload','save','load','history','export','delete','revision-delete'))
 MANAGEMENT_COMMAND_ROUTES.update({current_command_name:('POST','/sprite-v2/'+current_command_name.removeprefix('sprite-v2-')) for current_command_name in SPRITE_V2_COMMAND_NAMES})
@@ -163,6 +167,7 @@ class ManagementCommandGateway:
 MANAGEMENT_COMMAND_DESCRIPTIONS = {'outfit-transfer':'Qwen 2.1 복장 착용 · 참조 정확히 2장: 바디, 아웃핏 순서','pose-transfer':'Qwen Image 2.1 포즈 변환 · 참조 정확히 2장: 아이덴티티, 포즈 순서','qwen-21-circular':'Qwen 2.1 순환 VAE · XY 디코더 · 3×3 반복 검수','animation-separation':'Qwen 2.1 참조 PNG 1장으로 신체 베이스·복장 독립 생성 · --reference','qwen-21':'Qwen Image 2.1 · 입력 프롬프트 원문 · 추가 문구 없음 · 참조 0~10장 · 20·30·40·50스텝 (기본 40)','seamless-tile':'Qwen Image 2.1 · 40스텝 · 5단계 가로·세로 심리스 패턴 · 단계별 검수 대기 · pause/resume · 참조 생략 가능','expression':'Qwen 2511 AU 표정 생성 · 참조 1~3장 · --expression에 표정 ID 지정','floor-tile':'512×512·4스텝 단일 바닥 타일 생성 (관리 서버 필요)','anny':'ANNY 이력 상태·중지·재개 (관리 서버 필요)','character-animation':'등록 모션·캐릭터 기반 애니메이션 생성·이력·재생 결과 조회','momask': 'MoMask 생성·상태·로그·이력 조회·취소 (웹과 기록 공유)', 'qwen-2512': 'Qwen 2512 텍스트 이미지 생성 (관리 서버 필요)', 'qwen-2511': 'Qwen 2511 텍스트·1~3장 참조 이미지 생성 (관리 서버 필요)'}
 
 MANAGEMENT_COMMAND_DESCRIPTIONS['character-review']='캐릭터 검수 렌더링 PNG 캡처 · --payload-file 설정'
+MANAGEMENT_COMMAND_DESCRIPTIONS['anny-landmarks']='ANNY 기준점 후보 지정·축 검수·누적 저장 · --payload-file JSON · 승인·적용 없음'
 MANAGEMENT_COMMAND_DESCRIPTIONS['hy-motion']='HY-Motion Lite 원본 모션 · CPU 메모리 오프로드 / CUDA 연산 · 준비·생성·이력·취소·재개'
 
 def execute_management_command(service_command_name, operation_command_name, command_payload_value, server_base_address=None, *, gateway_request_handler=None, service_handler_values=None):
@@ -186,7 +191,7 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
         operation_argument_parser=command_subparser_group.add_parser(operation_command_name)
         if service_command_name=='momask' and operation_command_name=='generate':
             operation_argument_parser.add_argument('--face',action=argparse.BooleanOptionalAction,default=False,help='ANNY 얼굴 5점 포함')
-        if operation_command_name in SPRITE_V2_COMMAND_NAMES or operation_command_name=='capture':
+        if operation_command_name in SPRITE_V2_COMMAND_NAMES + LANDMARK_COMMAND_NAMES or operation_command_name=='capture':
             operation_argument_parser.add_argument('--payload-file',type=Path,required=True,help='GUI와 동일한 명령 JSON 입력 파일')
         if operation_command_name=='anchor-save':operation_argument_parser.add_argument('--document-file',type=Path,required=True)
         if operation_command_name=='anchor-load':operation_argument_parser.add_argument('id')
@@ -275,7 +280,7 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
         command_payload_value={'id':command_argument_values.id}
         if operation_command_name=='sprite-history-delete':command_payload_value['revision']=command_argument_values.revision
         if operation_command_name=='sprite-save':command_payload_value['document']=json.loads(command_argument_values.document_file.read_text())
-    if operation_command_name in SPRITE_V2_COMMAND_NAMES or operation_command_name=='capture':command_payload_value=json.loads(command_argument_values.payload_file.read_text())
+    if operation_command_name in SPRITE_V2_COMMAND_NAMES + LANDMARK_COMMAND_NAMES or operation_command_name=='capture':command_payload_value=json.loads(command_argument_values.payload_file.read_text())
     if operation_command_name=='anchor-save':command_payload_value={'document':json.loads(command_argument_values.document_file.read_text())}
     if operation_command_name in ('anchor-history','anchor-history-reset'):command_payload_value={'animation_id':command_argument_values.animation_id,'animation_version':command_argument_values.animation_version}
     if operation_command_name=='history-reset':command_payload_value={'action':'reset'}

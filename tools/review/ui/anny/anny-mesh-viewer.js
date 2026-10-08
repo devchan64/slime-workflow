@@ -34,6 +34,9 @@ class AnnyMeshPreview {
  async loadPreviewRecord(generationRecordId){
   const meshFetchResponse=await fetch('/anny-attributes/jobs/'+generationRecordId+'/mesh.json');if(!meshFetchResponse.ok)throw Error('저장된 3D 메시를 불러올 수 없습니다.');
   const meshPayloadValues=await meshFetchResponse.json();
+  this.loadPreviewMeshPayload(meshPayloadValues);
+ }
+ loadPreviewMeshPayload(meshPayloadValues){
   const previewWebglContext=this.previewWebglContext;
   const vertexFlatValues=meshPayloadValues.vertices.flat();
   this.previewCenterValues=[0,1,2].map(axisIndexValue=>{const axisVertexValues=meshPayloadValues.vertices.map(vertexPointValues=>vertexPointValues[axisIndexValue]);return (Math.min(...axisVertexValues)+Math.max(...axisVertexValues))/2});

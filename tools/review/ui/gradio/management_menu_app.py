@@ -20,6 +20,7 @@ MANAGEMENT_FRAME_PATH_PREFIX='/management/frame/'
 MANAGEMENT_FRAME_IDENTIFIER_VALUES={'anny-attribute-renderer':'anny-attributes'}
 LEGACY_PAGE_IDENTIFIER_VALUES={'map-review':'map-review-iseulon','animation-2':'animation-1','animation-3':'animation-1'}
 DEFAULT_PAGE_RECORDS=(
+    {'id':'anny-landmarks','label':'ANNY 해부학 기준점 검수','path':'/management/frame/anny-landmarks/','category':'animation-tool','uiMode':'gradio','description':'neutral_v4 · 기준점 후보 지정 · 기하 축 검수 · 리타기팅 미적용'},
     {'id':'hy-motion-generator','label':'HY-Motion 모션 생성기','path':'/hy-motion-generator/','category':'animation-tool','uiMode':'gradio','description':'Lite · 원본 모션 · 방향별 미리보기 · GPU 연산·CPU 메모리 오프로드'},
     {'id':'character-review','label':'캐릭터 표현 검수','path':'/management/frame/character-review/','category':'character-render-review','uiMode':'gradio','description':'3×3 검수 맵 · 바닥 선택 · 형태선·분리선·접지 그림자 비교'},
     {'id':'animation-separation','label':'캐릭터 레퍼런스 복장 분리 생성','path':'/animation-separation/','category':'image-generation','uiMode':'gradio','description':'Qwen 2.1 · 참조 이미지 1장 · 신체 베이스·복장 별도 이미지'},

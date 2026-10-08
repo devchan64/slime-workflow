@@ -84,6 +84,7 @@ def create_management_runtime(writer_workspace_config=None):
     from tools.review.domains.momask.momask_jobs import GENERATION_JOB_DIRECTORY as MOMASK_RECORD_DIRECTORY, resolve_generation_directory as resolve_momask_record_directory
 
     from tools.review.domains.character_review.capture import handle_character_capture_request, CAPTURE_STORAGE_DIRECTORY
+    from tools.review.domains.anny.landmarks import handle_landmark_request, LANDMARK_STORAGE_DIRECTORY
 
     writer_agent_service = WriterAgentManager(writer_workspace_config or DEFAULT_WORKSPACE_CONFIG)
     try:
@@ -101,6 +102,7 @@ def create_management_runtime(writer_workspace_config=None):
         momask_generation_service = MoMaskGenerationManager()
         character_animation_service = CharacterAnimationManager()
         service_binding_records = {
+            'anny-landmarks': bind_stored_management_service(handle_landmark_request, LANDMARK_STORAGE_DIRECTORY),
             'hy-motion': ManagementServiceBinding(handle_hymotion_request, HYMOTION_STORAGE_ROOT, resolve_hymotion_directory),
             'character-review': bind_stored_management_service(handle_character_capture_request,CAPTURE_STORAGE_DIRECTORY),
             'outfit-transfer': bind_stored_management_service(outfit_transfer_service.handle_image_request, outfit_transfer_service.job_storage_root),

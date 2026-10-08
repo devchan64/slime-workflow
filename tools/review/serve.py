@@ -316,6 +316,7 @@ def run_review_server(parsed_argument_values):
             ('/',parsed_argument_values.port+100,lambda:ensure_management_menu_server(parsed_argument_values.port,manager_source_path)),
             ('/management/frame/momask-generator/',parsed_argument_values.port+101,lambda:ensure_gradio_server(parsed_argument_values.port)),
             ('/management/frame/hy-motion-generator/',parsed_argument_values.port+123,lambda:ensure_gradio_application(parsed_argument_values.port,'hy-motion')),
+            ('/management/frame/anny-landmarks/',parsed_argument_values.port+124,lambda:ensure_gradio_application(parsed_argument_values.port,'anny-landmarks')),
             ('/management/frame/character-animation/',parsed_argument_values.port+102,lambda:ensure_character_animation_server(parsed_argument_values.port)),
             ('/management/frame/animation-separation/',parsed_argument_values.port+117,lambda:ensure_gradio_application(parsed_argument_values.port,'animation-separation')),
             ('/management/frame/qwen-21-circular-generator/',parsed_argument_values.port+118,lambda:ensure_gradio_application(parsed_argument_values.port,'qwen-21-circular')),

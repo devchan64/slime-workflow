@@ -1,5 +1,7 @@
 # 관리도구 GUI·CLI 클라이언트
 
+ANNY 기준점 후보 지정·축 검수는 [해부학 리타기팅 검수](anny-anatomical-retarget.md#anny-기준점-후보-검수-도구)를 따른다. `anny-landmarks` 서비스의 `landmark-source/preview/save/load/history` 명령은 모두 `--payload-file` JSON을 받으며 GUI와 `.tmp/test/anny-landmarks/<KST 시각>/<고유 ID>/` 기록을 공유한다. 승인·리타기팅 적용 명령은 없다.
+
 HY-Motion Lite 생성·모델 준비·8GB 오프로드·기록 계약은 [HY-Motion 생성기](hy-motion.md)를 따른다. 서비스 이름은 `hy-motion`, GUI는 `/management/frame/hy-motion-generator/`이며 공용 게이트웨이와 GPU 실행기를 사용한다.
 
 화면 구성·상태·로그·이력·재생 UX 기준은 [관리도구 UI 가이드](management-ui.md)를 따른다.
