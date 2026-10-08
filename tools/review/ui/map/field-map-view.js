@@ -1,10 +1,8 @@
-import {collectTerrainTextureSources,createTerrainAtlas,TERRAIN_ATLAS,drawBlockStructure,cellDepth,TERRAIN_DEPTH,mapAnnotationDepth,resolveMapTileSize,resolveGrassFrameForMap,resolvePavingFrameForMap,selectFieldRoadFrame} from './vendor/field-renderer/1.0.9/town-renderer.mjs';
-import {GAME_INTERNAL_RESOLUTION_SCALE,CHARACTER_CONTACT_SHADOW_COLOR,CHARACTER_CONTACT_SHADOW_ALPHA_SCALE,attachCharacterOutlineLayers,roadConnections,waterConnections} from './vendor/field-renderer/1.0.9/game-render-profile.mjs';
-import * as Phaser from './vendor/field-renderer/1.0.9/phaser.mjs';
-import {drawFieldCellObjects,drawFieldTowerObject,drawFieldAuraPanel,drawFieldMeshBoundary,buildFieldBoundaryPanels,resolveFieldActorContactShadow,rotateSurfacePosition,prepareFieldConnectedTexture} from './vendor/field-renderer/1.0.9/field-renderer.mjs';
+import {resolveFieldTileTextures,collectTerrainTextureSources,createTerrainAtlas,TERRAIN_ATLAS,drawBlockStructure,cellDepth,TERRAIN_DEPTH,mapAnnotationDepth,resolveMapTileSize,resolveGrassFrameForMap,resolvePavingFrameForMap,selectFieldRoadFrame} from './vendor/field-renderer/1.0.10/town-renderer.mjs';
+import {GAME_INTERNAL_RESOLUTION_SCALE,drawCharacterContactShadow,attachCharacterOutlineLayers,roadConnections,waterConnections} from './vendor/field-renderer/1.0.10/game-render-profile.mjs';
+import * as Phaser from './vendor/field-renderer/1.0.10/phaser.mjs';
+import {drawFieldCellObjects,drawFieldTowerObject,drawFieldAuraPanel,drawFieldMeshBoundary,buildFieldBoundaryPanels,rotateSurfacePosition} from './vendor/field-renderer/1.0.10/field-renderer.mjs';
 
-const FIELD_REVIEW_DEPTH_SCALE=5;
-const FIELD_REVIEW_DEPTH_BASE=100;
 const FIELD_REVIEW_ACTOR_DEPTH=20;
 const FIELD_REVIEW_TOWER_DEPTH=10;
 const FIELD_REVIEW_TERRAIN_CACHE=new WeakMap();
@@ -43,6 +41,8 @@ export async function createSharedFieldReview(currentMapCanvas,currentTextureIma
  const currentFrameRectangle=currentCharacterRecord.frame.rect;
  currentCharacterTexture.add('review-frame',0,currentFrameRectangle.x,currentFrameRectangle.y,currentFrameRectangle.width,currentFrameRectangle.height);
  let currentRenderSignature='';
+ let currentFieldActorSignature='';
+ let currentFieldActorObjects=[];
  let currentTownMapSignature='';
  let currentTownActorSignature='';
  let currentTownActorObjects=[];
@@ -58,8 +58,7 @@ export async function createSharedFieldReview(currentMapCanvas,currentTextureIma
  function drawSharedReviewActor(currentActorPoint,currentActorDepth){
   const currentCharacterAnchor=currentCharacterRecord.frame.anchor;
   const currentShadowGraphic=currentFieldScene.add.graphics().setDepth(currentActorDepth);
-  const currentShadowMetrics=resolveFieldActorContactShadow('contrast');
-  for(const currentShadowLayer of [currentShadowMetrics.outer,currentShadowMetrics.core]){currentShadowGraphic.fillStyle(CHARACTER_CONTACT_SHADOW_COLOR,Math.min(1,currentShadowLayer.alpha*CHARACTER_CONTACT_SHADOW_ALPHA_SCALE));currentShadowGraphic.fillEllipse(currentActorPoint.x,currentActorPoint.y,currentShadowLayer.width,currentShadowLayer.height);}
+  drawCharacterContactShadow(currentShadowGraphic,currentActorPoint);
   const currentCharacterSprite=currentFieldScene.add.image(currentActorPoint.x,currentActorPoint.y,'review-character','review-frame').setOrigin(currentCharacterAnchor.x/currentFrameRectangle.width,currentCharacterAnchor.y/currentFrameRectangle.height).setScale(currentCharacterRecord.displayHeight/currentCharacterRecord.bodyHeight).setDepth(currentActorDepth+.01);
   attachCharacterOutlineLayers(currentCharacterSprite);
  }
@@ -70,19 +69,19 @@ export async function createSharedFieldReview(currentMapCanvas,currentTextureIma
  }
 
  return {
-  render(currentFieldFrame,currentMapRecord,currentTextureNames,currentViewSettings){
+  render(currentFieldFrame,currentMapRecord,currentViewSettings){
    if(currentFieldGame.scale.width!==currentMapCanvas.clientWidth*GAME_INTERNAL_RESOLUTION_SCALE||currentFieldGame.scale.height!==currentMapCanvas.clientHeight*GAME_INTERNAL_RESOLUTION_SCALE)currentFieldGame.scale.resize(currentMapCanvas.clientWidth*GAME_INTERNAL_RESOLUTION_SCALE,currentMapCanvas.clientHeight*GAME_INTERNAL_RESOLUTION_SCALE);
-   const currentNextSignature=JSON.stringify([currentFieldFrame.options.rotation,currentViewSettings.edges,currentViewSettings.safe,currentViewSettings.character,currentViewSettings.characterCell]);
+   const currentNextSignature=JSON.stringify([currentMapRecord.id,currentFieldFrame.options.rotation,currentViewSettings.edges,currentViewSettings.safe]);
    if(currentNextSignature!==currentRenderSignature){
     for(const currentRenderObject of [...currentFieldScene.children.list])if(currentRenderObject.scene)currentRenderObject.destroy();
+    currentFieldActorSignature='';currentFieldActorObjects=[];
     const currentSafeCenter=rotateSurfacePosition(currentMapRecord.startPoint,currentFieldFrame.options.rotation);
     for(const currentCellRecord of currentFieldFrame.cells){
      const currentTerrainName=currentMapRecord.terrainCodes[currentMapRecord.terrainRows[currentCellRecord.cell.row][currentCellRecord.cell.column]];
-     let currentGroundKey=currentTextureNames[currentTerrainName];
-     const currentGrassKey=currentTextureNames.grass;
-     if(currentTerrainName==='water'||(currentTerrainName==='road'&&currentMapRecord.id!=='meadow'))currentGroundKey=prepareFieldConnectedTexture(currentFieldScene,currentGroundKey,currentGrassKey,readReviewConnectionMask(currentCellRecord.cell,currentMapRecord,currentTerrainName,currentFieldFrame.options.rotation));
-     const currentRenderDepth=FIELD_REVIEW_DEPTH_BASE+currentCellRecord.depth*FIELD_REVIEW_DEPTH_SCALE;
-     drawFieldCellObjects(currentFieldScene,currentCellRecord.cell,currentMapRecord,currentFieldFrame.options,{ground:currentGroundKey,resolveGroundMaterial:currentCellPosition=>currentMapRecord.terrainCodes[currentMapRecord.terrainRows[currentCellPosition.row][currentCellPosition.column]],cliff:'cliff-wall',tread:'ramp-tread',roadConnectionMask:currentTerrainName==='road'?readReviewConnectionMask(currentCellRecord.cell,currentMapRecord,'road',currentFieldFrame.options.rotation):undefined,fullTileRoad:currentMapRecord.id==='meadow',underlay:['boulder','tree-base'].includes(currentTerrainName)?currentGrassKey:undefined},currentRenderDepth,currentViewSettings.edges);
+     const currentConnectionMask=['road','water'].includes(currentTerrainName)?readReviewConnectionMask(currentCellRecord.cell,currentMapRecord,currentTerrainName,currentFieldFrame.options.rotation):0;
+     const currentTileTextures=resolveFieldTileTextures(currentFieldScene,currentTerrainName,currentCellRecord.cell,currentMapRecord.id,currentConnectionMask,currentCellPosition=>currentMapRecord.terrainCodes[currentMapRecord.terrainRows[currentCellPosition.row][currentCellPosition.column]]);
+     const currentRenderDepth=cellDepth(rotateSurfacePosition(currentCellRecord.cell,currentFieldFrame.options.rotation));
+     drawFieldCellObjects(currentFieldScene,currentCellRecord.cell,currentMapRecord,currentFieldFrame.options,currentTileTextures,currentRenderDepth,currentViewSettings.edges);
      if(currentViewSettings.safe){
       const currentViewCell=rotateSurfacePosition(currentCellRecord.cell,currentFieldFrame.options.rotation);
       for(const currentPanelPoints of buildFieldBoundaryPanels(currentViewCell,currentSafeCenter,currentMapRecord.safeRadius,currentCellRecord.center,currentFieldFrame.options)){
@@ -96,11 +95,17 @@ export async function createSharedFieldReview(currentMapCanvas,currentTextureIma
       const currentGuardImage=currentFieldScene.add.image(currentCellRecord.center.x+currentGuardRecord.offsetX,currentCellRecord.center.y+currentGuardRecord.offsetY,currentGuardRecord.path).setOrigin(currentGuardRecord.anchorX,currentGuardRecord.anchorY).setDepth(currentRenderDepth+FIELD_REVIEW_ACTOR_DEPTH);
       currentGuardImage.setScale(currentGuardRecord.displayWidth/currentGuardImage.width);
      }
-     if(currentViewSettings.character&&currentCellRecord.cell.column===currentViewSettings.characterCell.column&&currentCellRecord.cell.row===currentViewSettings.characterCell.row){
-      drawSharedReviewActor(currentCellRecord.center,currentRenderDepth+FIELD_REVIEW_ACTOR_DEPTH);
-     }
     }
     currentRenderSignature=currentNextSignature;
+   }
+   const currentActorSignature=JSON.stringify([currentViewSettings.character,currentViewSettings.characterCell]);
+   if(currentActorSignature!==currentFieldActorSignature){
+    for(const currentActorObject of currentFieldActorObjects)if(currentActorObject.scene)currentActorObject.destroy();
+    const previousSceneObjects=new Set(currentFieldScene.children.list);
+    const currentActorCell=currentFieldFrame.cells.find(currentCellRecord=>currentCellRecord.cell.column===currentViewSettings.characterCell.column&&currentCellRecord.cell.row===currentViewSettings.characterCell.row);
+    if(currentViewSettings.character&&currentActorCell)drawSharedReviewActor(currentActorCell.center,cellDepth(rotateSurfacePosition(currentActorCell.cell,currentFieldFrame.options.rotation))+TERRAIN_DEPTH.actor);
+    currentFieldActorObjects=currentFieldScene.children.list.filter(currentSceneObject=>!previousSceneObjects.has(currentSceneObject));
+    currentFieldActorSignature=currentActorSignature;
    }
    currentFieldScene.cameras.main.setOrigin(0,0).setZoom(currentViewSettings.scale*GAME_INTERNAL_RESOLUTION_SCALE).setScroll(-currentViewSettings.offsetX/currentViewSettings.scale,-currentViewSettings.offsetY/currentViewSettings.scale);
   },
