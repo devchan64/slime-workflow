@@ -1,5 +1,5 @@
 # ANNY 리타기팅 실행 템플릿
 
-폐기된 `mannequin-walk-v6`에서 사용 중인 실행 스크립트만 분리했다. `render_anny_frames.py`가 작업 폴더로 복사하고 프레임·카메라·회전 보정 설정을 적용한다. 원본 모션과 기준 모델은 실행기가 별도로 공급하므로 이전 에셋 폴더를 필요로 하지 않는다.
+MoMask 전용 리그 재렌더 기능과 `render_asset.py`는 폐기했다. 남은 `retarget_loop.py`와 `run_stage.py`는 HY-Motion에서도 사용하는 공용 변환·Blender 실행 코드이므로 유지한다.
 
-기존 템플릿의 기본 프레임 값은 실행 시 치환된다. 템플릿 변경 시 렌더러의 치환 계약도 함께 확인한다. ANNY 라이선스를 함께 보존한다.
+HY-Motion 포즈 이미지 출력은 `generators/hy_motion/templates/vnccs_render.py`를 사용한다. ANNY 라이선스와 등록 제작 자산은 보존한다.

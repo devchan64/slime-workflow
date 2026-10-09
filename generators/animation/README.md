@@ -8,7 +8,6 @@
 | AnyPose 단일 프레임 | generate_pose_transfer_any_pose_frame.py, generate_pose_transfer_any_pose_standard_frame.py | 같은 문서 및 표준 스텝 실험 |
 | OpenPose Qwen 배치 | run_pose_transfer_two_reference_qwen_batch.py, generate_pose_transfer_openpose_qwen.py | workflows/character-animation.md |
 | 공통 포즈 편집 | qwen_pose/ | 활성 AnyPose·OpenPose 생성기가 import |
-| MoMask 리그 렌더 | render_momask_rig.py, resolve_default_rig.py | workflows/momask-rig-render.md |
 | 포즈 시트·최종 패킹 | build_walk_pose_sheets.py, pack_walk_sheets.py | README.md 및 캐릭터 애니메이션의 시트 제작·패킹 단계 |
 | 스탠딩 앵커 검수 | review_standing_anchors.py, tools/review/ui/shared/animation-anchor-editor/ | workflows/character-standing-sheet.md 및 tools/review |
 
