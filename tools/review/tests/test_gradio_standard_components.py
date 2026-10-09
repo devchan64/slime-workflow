@@ -16,7 +16,10 @@ class GradioStandardComponentTests(unittest.TestCase):
             _,current_reference_controls=build_reference_image_inputs(reference_slot_count=2)
             current_seed_control=build_generation_seed(123)
         self.assertTrue(all(current_reference_control.sources==['upload','clipboard'] for current_reference_control in current_reference_controls))
-        self.assertFalse(any(isinstance(current_block_value,gr.HTML) for current_block_value in current_interface_blocks.blocks.values()))
+        current_script_controls = [current_block_value for current_block_value in current_interface_blocks.blocks.values() if isinstance(current_block_value,gr.HTML)]
+        self.assertEqual(len(current_script_controls), 1)
+        self.assertEqual(current_script_controls[0].html_template, '<span hidden></span>')
+        self.assertIn('preserveReferenceDropFiles', current_script_controls[0].js_on_load)
         current_seed_callback=next(current_function_value for current_function_value in current_interface_blocks.fns.values() if current_function_value.fn.__name__=='generate_random_seed_value')
         self.assertEqual(current_seed_callback.outputs,[current_seed_control])
         self.assertEqual(current_seed_control.value,123)

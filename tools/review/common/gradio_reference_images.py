@@ -1,10 +1,13 @@
 """건물 타일 생성기를 기준으로 한 공용 참조 이미지 입력 UI."""
+from pathlib import Path
+
 import gradio as gr
 
 
 REFERENCE_IMAGE_SLOT_COUNT = 3
 REFERENCE_IMAGE_CARD_HEIGHT = 230
 REFERENCE_IMAGE_MINIMUM_WIDTH = 180
+REFERENCE_DROP_SCRIPT_PATH = Path(__file__).resolve().parents[1] / 'ui/shared/reference-image-drop.js'
 
 
 def build_reference_image_inputs(*, reference_panel_visible=True, reference_panel_identifier=None, reference_image_mode='RGB', reference_slot_count=REFERENCE_IMAGE_SLOT_COUNT, reference_slot_labels=None):
@@ -12,6 +15,8 @@ def build_reference_image_inputs(*, reference_panel_visible=True, reference_pane
         raise ValueError('참조 슬롯은 1개·2개·3개·10개를 지원합니다.')
     dynamic_slots_enabled = reference_slot_count == 10
     with gr.Group(visible=reference_panel_visible,elem_id=reference_panel_identifier,elem_classes=['reference-upload-panel']) as reference_upload_group:
+        gr.HTML(value='', html_template='<span hidden></span>', container=False,
+                js_on_load=REFERENCE_DROP_SCRIPT_PATH.read_text(encoding='utf-8'))
         gr.Markdown('### 참조 이미지\n원본 한 장 · 이미지를 끌어놓거나 아래 버튼으로 추가하세요.' if reference_slot_count == 1 else '### 참조 이미지\n각 슬롯의 용도에 맞는 이미지를 한 장씩 첨부하세요.' if reference_slot_count == 2 else f'### 참조 이미지\n최대 {reference_slot_count}장 · 이미지를 끌어놓거나 아래 버튼으로 추가하세요. 입력된 참조를 번호 순서대로 전달합니다.')
         visible_slot_state = gr.State(1) if dynamic_slots_enabled else None
         reference_slot_groups = []
