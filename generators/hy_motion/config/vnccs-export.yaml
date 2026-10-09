@@ -2,7 +2,7 @@ schema_version: 1
 rig_backend: anny
 resolution: 512
 samples: 16
-frame_step: 8
+frame_step: 5
 projections: [orthographic, perspective]
 perspective_fov_degrees: 30
 camera_elevation: 17

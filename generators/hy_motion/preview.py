@@ -67,14 +67,6 @@ def render_motion_previews(current_joint_frames, current_request_record, current
                 for current_guide_index, current_guide_color in ((22, (220, 50, 50)), (23, (40, 100, 230))):
                     current_drawing_context.line([tuple(current_pixel_points[current_source_index, 15]), tuple(current_pixel_points[current_source_index, current_guide_index])], fill=current_guide_color, width=PREVIEW_LINE_WIDTH)
                 current_drawing_context.text((8, 8), 'Head: red=forward / blue=up', fill=PREVIEW_BONE_COLOR)
-                if current_wrist_rotations is not None:
-                    for current_side_index, current_side_label in enumerate(('L', 'R')):
-                        current_wrist_pixel = tuple(current_pixel_points[current_source_index, 20 + current_side_index])
-                        for current_axis_index, current_axis_color in enumerate(WRIST_AXIS_COLORS):
-                            current_axis_pixel = tuple(current_pixel_points[current_source_index, 24 + 3 * current_side_index + current_axis_index])
-                            current_drawing_context.line([current_wrist_pixel, current_axis_pixel], fill=current_axis_color, width=PREVIEW_LINE_WIDTH)
-                        current_drawing_context.text(current_wrist_pixel, current_side_label, fill=PREVIEW_BONE_COLOR)
-                    current_drawing_context.text((8, 24), 'Wrist L/R: red=X green=Y blue=Z (source axes)', fill=PREVIEW_BONE_COLOR)
                 if current_palm_points is not None:
                     for current_side_index in range(2):
                         current_wrist_pixel = current_pixel_points[current_source_index, 20 + current_side_index]
@@ -91,4 +83,4 @@ def render_motion_previews(current_joint_frames, current_request_record, current
                     current_drawing_context.text((8, 56), 'Palm delta L/R: %.1f / %.1f deg' % tuple(current_palm_angles[current_source_index]), fill=PREVIEW_BONE_COLOR)
                 current_frame_image.save(current_direction_path / f'frame-{current_frame_index:04d}-rotation.png')
         current_progress_callback('preview', f'{current_direction_name} 미리보기 {len(current_sample_indices)}프레임 저장')
-    return {'frames': len(current_sample_indices), 'source_frames': len(current_joint_frames), 'source_fps': 30, 'preview_fps': current_config_record['preview_fps'], 'source_indices': (current_sample_indices + 1).tolist(), 'directions': current_request_record['directions'], 'wrist_rotation_guide': current_wrist_rotations is not None}
+    return {'frames': len(current_sample_indices), 'source_frames': len(current_joint_frames), 'source_fps': 30, 'preview_fps': current_config_record['preview_fps'], 'source_indices': (current_sample_indices + 1).tolist(), 'directions': current_request_record['directions'], 'wrist_rotation_guide': False}

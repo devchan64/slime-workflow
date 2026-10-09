@@ -14,6 +14,7 @@ from generators.hy_motion.contracts import load_generation_defaults, validate_ge
 from generators.hy_motion.contracts import MAXIMUM_DURATION_SECONDS
 from tools.review.common.management_client import execute_remote_management_command as execute_management_command
 from tools.review.common.gradio_frame_player import build_browser_frame_player
+from tools.review.common.generation_progress_display import render_generation_estimate
 from tools.review.common.gradio_history import build_generation_history_view
 from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_confirmation
 from tools.review.common.gradio_seed import build_generation_seed
@@ -26,7 +27,7 @@ def execute_motion_command(operation_command_name, command_payload_value):
     return execute_management_command('hy-motion', operation_command_name, command_payload_value)
 
 
-def start_motion_generation(current_prompt_text, current_duration_value, current_seed_value, current_direction_names, current_tag_value, current_frame_step=8):
+def start_motion_generation(current_prompt_text, current_duration_value, current_seed_value, current_direction_names, current_tag_value, current_frame_step=5):
     current_request_record = validate_generation_request({'prompt': current_prompt_text, 'duration_seconds': current_duration_value, 'seed': current_seed_value, 'directions': current_direction_names, 'tag': current_tag_value, 'frame_step': current_frame_step})
     current_response_record = execute_motion_command('generate', current_request_record)
     return current_response_record['id'], '작업 접수 완료 · 생성 이력에서 상태·로그·중지·재개를 확인하세요.'
@@ -54,10 +55,11 @@ def render_motion_result(generation_job_identifier, current_status_record, serve
         current_download_records.extend({'label': 'ANNY·OpenPose ' + current_file_name, 'url': current_result_url + 'anny/' + current_file_name} for current_file_name in current_automatic_render['downloads'])
         current_panel_records = [('', '', '원본 관절'), ('anny/', '', 'ANNY 정사영'), ('anny/', '-openpose', 'OpenPose 정사영'), ('anny/perspective/', '', 'ANNY 원근투영 30°'), ('anny/perspective/', '-openpose', 'OpenPose 원근투영 30°')]
         if current_result_record.get('head_rotation_guide'):
-            current_panel_records.insert(1, ('', '-rotation', '원본 손목·손바닥 비교 · 회색 점선: 손목 회전 고정' if current_result_record.get('palm_rotation_guide') else ('원본 머리·손목 회전' if current_result_record.get('wrist_rotation_guide') else '원본 Head 회전 · 빨강 전방 / 파랑 상방')))
+            current_panel_records.insert(1, ('', '-rotation', '원본 머리·손바닥 방향 · 회색 점선: 손목 회전 고정 대조군' if current_result_record.get('palm_rotation_guide') else ('원본 머리·손목 회전' if current_result_record.get('wrist_rotation_guide') else '원본 Head 회전 · 빨강 전방 / 파랑 상방')))
+        current_render_indices = {current_source_frame: current_render_index for current_render_index, current_source_frame in enumerate(current_automatic_render['source_indices'], 1)}
         current_frame_records = {
             current_direction_name: [
-                [current_result_url + current_prefix_path + current_direction_name + f'/frame-{(current_preview_index if not current_prefix_path else current_source_frame):04d}' + current_suffix_text + '.png' for current_prefix_path, current_suffix_text, current_panel_label in current_panel_records]
+                [current_result_url + current_prefix_path + current_direction_name + f'/frame-{(current_preview_index if not current_prefix_path else current_render_indices[current_source_frame]):04d}' + current_suffix_text + '.png' for current_prefix_path, current_suffix_text, current_panel_label in current_panel_records]
                 for current_preview_index, current_source_frame in enumerate(current_result_record['source_indices'], 1)
             ] for current_direction_name in current_result_record['directions']
         }
@@ -118,7 +120,7 @@ def build_hymotion_interface(server_base_address):
         current_prompt_input.change(build_encoder_input_preview, current_prompt_input, current_encoder_preview, queue=False)
         with gr.Row():
             current_duration_input = gr.Number(value=current_default_values['duration_seconds'], minimum=1, maximum=MAXIMUM_DURATION_SECONDS, step=.1, label='모션 길이(초)')
-            current_frame_step_input = gr.Number(value=8, minimum=1, maximum=360, step=1, precision=0, label='렌더 프레임 스텝', info='원본 30FPS에서 N프레임마다 출력합니다. 기본 8: 투영별 3.75FPS. 모션 길이는 유지됩니다.')
+            current_frame_step_input = gr.Number(value=5, minimum=1, maximum=360, step=1, precision=0, label='렌더 프레임 스텝', info='원본 30FPS에서 N프레임마다 출력합니다. 기본 5: 투영별 6FPS. 모션 길이는 유지됩니다.')
         with gr.Row():
             current_seed_input = build_generation_seed(current_default_values['seed'])
             current_tag_input = gr.Textbox(label='생성 이력 태그 · 선택', max_lines=1)
@@ -126,7 +128,7 @@ def build_hymotion_interface(server_base_address):
         current_preset_selector.input(apply_motion_preset, current_preset_selector, [current_prompt_input, current_duration_input], queue=False)
         current_identifier_view = build_generation_identifier('접수한 생성 ID')
         current_status_view = gr.Markdown('모델 준비 상태를 확인한 뒤 생성할 수 있습니다.')
-        current_eta_view = gr.Markdown('예상 남은 시간: 계산 중 · 예상 완료 시각: 계산 중\n\n추정 근거: 동일 조건 완료 표본 없음. GPU 대기·준비·추론 시간을 아직 추정할 수 없습니다.')
+        current_eta_view = gr.Markdown('작업을 시작하면 예상 시간과 추정 근거를 표시합니다.')
         def refresh_generation_readiness(current_prompt_text, current_duration_value, current_seed_value, current_direction_names, current_tag_value, current_frame_step):
             current_model_record = execute_motion_command('model-status', {})
             try:
@@ -159,12 +161,7 @@ def build_hymotion_interface(server_base_address):
             if current_quality_warnings:
                 current_status_text += '\n\n품질 경고: ' + '; '.join(current_quality_warnings)
             current_eta_record = current_status_record['eta']
-            current_remaining_text = '계산 중' if current_eta_record['remaining'] is None else str(current_eta_record['remaining']) + '초'
-            current_eta_text = '작업 종료 · 예상 시간 갱신 종료' if current_status_record['status'] not in ('running', 'queued') else f'예상 남은 시간: {current_remaining_text} · 예상 완료 시각: {current_eta_record["completion"] or "계산 중"}\n\n추정 근거: {current_eta_record["basis"]}'
-            if current_status_record['status'] in ('running', 'queued'):
-                current_eta_text += f'\n\n예상 총 시간: {str(current_eta_record["total_seconds"]) + "초" if current_eta_record.get("total_seconds") is not None else "계산 중"} · 예상 진행률: {str(current_eta_record["estimated_progress"]) + "%" if current_eta_record.get("estimated_progress") is not None else "계산 중"}\n\n추정 범위: {current_eta_record.get("scope", "계산 중")} · 표본 {current_eta_record.get("sample_count", 0)}개 · 갱신: {current_eta_record.get("updated_at", "계산 중")} · 약값이며 GPU 부하에 따라 변동합니다.'
-                if current_eta_record.get('total_units'):
-                    current_eta_text += f'\n\n실측 렌더 진행: {current_eta_record["completed_units"]}/{current_eta_record["total_units"]}장 ({current_eta_record["measured_progress"]}%)'
+            current_eta_text = render_generation_estimate(current_eta_record, current_status_record['status'])
             return current_status_text, current_eta_text
 
         gr.Timer(2).tick(refresh_current_progress, current_identifier_view, [current_status_view, current_eta_view], show_progress='hidden')

@@ -70,7 +70,7 @@ def validate_generation_request(current_request_values):
     current_direction_names = current_request_values['directions']
     if not isinstance(current_direction_names, list) or not current_direction_names or any(not isinstance(current_direction_name, str) or current_direction_name not in SUPPORTED_DIRECTION_NAMES for current_direction_name in current_direction_names) or len(set(current_direction_names)) != len(current_direction_names):
         raise ValueError('중복 없는 미리보기 방향을 선택하세요.')
-    current_frame_step = current_request_values.get('frame_step', 8)
+    current_frame_step = current_request_values.get('frame_step', 5)
     if type(current_frame_step) is not int or not 1 <= current_frame_step <= round(current_duration_value * 30):
         raise ValueError('프레임 스텝은 1~원본 프레임 수 사이의 정수여야 합니다.')
     return {**current_request_values, 'frame_step': current_frame_step, 'prompt': current_prompt_text.strip(), 'tag': validate_history_tag(current_request_values.get('tag', ''))}

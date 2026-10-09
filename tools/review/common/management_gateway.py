@@ -238,7 +238,7 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
                 current_prompt_group.add_argument('--prompt')
                 current_prompt_group.add_argument('--prompt-file',type=Path)
                 operation_argument_parser.add_argument('--duration-seconds',type=float,default=current_default_values['duration_seconds'])
-                operation_argument_parser.add_argument('--frame-step',type=int,default=8,help='렌더 프레임 간격 · 원본 30FPS / 기본 8')
+                operation_argument_parser.add_argument('--frame-step',type=int,default=5,help='렌더 프레임 간격 · 원본 30FPS / 기본 5')
                 operation_argument_parser.add_argument('--seed',type=int,default=current_default_values['seed'])
                 operation_argument_parser.add_argument('--directions',nargs='+',choices=SUPPORTED_DIRECTION_NAMES,default=current_default_values['directions'])
             elif service_command_name=='momask':
