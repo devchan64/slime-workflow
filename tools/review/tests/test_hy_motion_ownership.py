@@ -7,6 +7,17 @@ from generators.hy_motion.shoulder_rotation_ownership import (
 
 
 class ShoulderOwnershipTests(unittest.TestCase):
+    def test_aligned_reference_reconstructs_world_rotation(self):
+        current_source_rotations = np.tile(np.eye(3), (22, 1, 1))
+        current_source_rotations[13] = np.array([[1., 0., 0.], [0., 0., -1.], [0., 1., 0.]])
+        current_bind_delta = np.array([[0., -1., 0.], [1., 0., 0.], [0., 0., 1.]])
+        current_parent_aligned = np.array([[0., 0., 1.], [0., 1., 0.], [-1., 0., 0.]])
+        current_child_aligned = np.eye(3)
+        current_calibration_record = {'profile_id': 'hymotion-anny-arm-aligned-v2', 'owners': [{'source_index': 13, 'owner_bone': 'clavicle.L', 'axis_transform': np.eye(3), 'parent_aligned_inverse': current_parent_aligned.T, 'effective_rest_inverse': current_bind_delta.T, 'aligned_bind_rotation': current_child_aligned}], 'rest_intermediates': ['shoulder01.L']}
+        from generators.hy_motion.shoulder_rotation_ownership import SOURCE_TARGET_BASIS
+        current_local_output = calculate_shoulder_rotations(current_source_rotations, current_calibration_record)['clavicle.L']
+        np.testing.assert_allclose(current_parent_aligned @ current_bind_delta @ current_local_output, SOURCE_TARGET_BASIS @ current_source_rotations[13] @ SOURCE_TARGET_BASIS.T @ current_child_aligned, atol=1e-10)
+
     def test_identity_preserves_rest(self):
         current_calibration_record = {'owners': [{'source_index': 13, 'owner_bone': 'clavicle.L', 'axis_transform': np.eye(3)}], 'rest_intermediates': ['shoulder01.L']}
         current_rotation_values = calculate_shoulder_rotations(np.tile(np.eye(3), (22, 1, 1)), current_calibration_record)

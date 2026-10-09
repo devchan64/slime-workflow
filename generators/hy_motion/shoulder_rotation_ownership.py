@@ -77,7 +77,14 @@ def calculate_shoulder_rotations(current_local_rotations, current_calibration_re
     current_output_rotations = {current_bone_name: np.eye(3) for current_bone_name in current_calibration_record['rest_intermediates']}
     for current_owner_record in current_calibration_record['owners']:
         current_axis_transform = validate_owned_rotation(current_owner_record['axis_transform'])
-        current_output_rotations[current_owner_record['owner_bone']] = current_axis_transform @ current_local_rotations[current_owner_record['source_index']] @ current_axis_transform.T
+        if current_calibration_record.get('profile_id') == 'hymotion-anny-arm-aligned-v2':
+            current_parent_inverse = validate_owned_rotation(current_owner_record['parent_aligned_inverse'])
+            current_rest_inverse = validate_owned_rotation(current_owner_record['effective_rest_inverse'])
+            current_aligned_rotation = validate_owned_rotation(current_owner_record['aligned_bind_rotation'])
+            current_source_rotation = SOURCE_TARGET_BASIS @ current_local_rotations[current_owner_record['source_index']] @ SOURCE_TARGET_BASIS.T
+            current_output_rotations[current_owner_record['owner_bone']] = current_rest_inverse @ current_parent_inverse @ current_source_rotation @ current_aligned_rotation
+        else:
+            current_output_rotations[current_owner_record['owner_bone']] = current_axis_transform @ current_local_rotations[current_owner_record['source_index']] @ current_axis_transform.T
     return current_output_rotations
 
 
@@ -105,6 +112,33 @@ def build_arm_calibration(current_source_names, current_source_points, current_t
         current_axis_transform = current_target_lookup[current_owner_name][:3, :3].T @ current_target_frame @ current_source_frame.T @ SOURCE_TARGET_BASIS
         current_calibration_record['owners'].append({'source_joint': current_source_name, 'source_index': current_source_names.index(current_source_name), 'owner_bone': current_owner_name, 'axis_transform': validate_owned_rotation(current_axis_transform).tolist()})
     current_calibration_record['profile_id'] = 'hymotion-anny-arm-local-v1'
+    return current_calibration_record
+
+
+def build_aligned_arm_calibration(current_source_names, current_source_points, current_target_matrices, current_target_parents):
+    """공통 기준 자세의 고정 오프셋을 로컬 전달에 포함한다. 현재 pose는 읽지 않는다."""
+    current_calibration_record = build_arm_calibration(current_source_names, current_source_points, current_target_matrices, current_target_parents)
+    current_source_lookup = dict(zip(current_source_names, np.asarray(current_source_points) @ SOURCE_TARGET_BASIS.T))
+    current_target_lookup = {current_bone_name: np.asarray(current_bind_matrix, dtype=float) for current_bone_name, current_bind_matrix in current_target_matrices.items()}
+    current_source_frame = build_segment_reference(current_source_lookup['Spine3'] - current_source_lookup['Pelvis'], current_source_lookup['R_Shoulder'] - current_source_lookup['L_Shoulder'])
+    current_target_frame = build_segment_reference(current_target_lookup['neck01'][:3, 3] - current_target_lookup['root'][:3, 3], current_target_lookup['upperarm01.R'][:3, 3] - current_target_lookup['upperarm01.L'][:3, 3])
+    current_torso_alignment = current_source_frame @ current_target_frame.T @ current_target_lookup['spine01'][:3, :3]
+    current_owner_lookup = {current_owner_record['owner_bone']: current_owner_record for current_owner_record in current_calibration_record['owners']}
+    for current_side_suffix in ('L', 'R'):
+        if current_target_parents['clavicle.' + current_side_suffix] != 'spine01':
+            raise ValueError('쇄골 부모는 검증된 spine01이어야 합니다.')
+        current_previous_name = 'spine01'
+        current_previous_alignment = current_torso_alignment
+        for current_bone_prefix in ('clavicle', 'upperarm01', 'lowerarm01', 'wrist'):
+            current_owner_name = current_bone_prefix + '.' + current_side_suffix
+            current_owner_record = current_owner_lookup[current_owner_name]
+            current_aligned_rotation = SOURCE_TARGET_BASIS @ np.asarray(current_owner_record['axis_transform']).T
+            current_rest_inverse = current_target_lookup[current_owner_name][:3, :3].T @ current_target_lookup[current_previous_name][:3, :3]
+            current_owner_record.update(parent_aligned_inverse=validate_owned_rotation(current_previous_alignment.T).tolist(), effective_rest_inverse=validate_owned_rotation(current_rest_inverse).tolist(), aligned_bind_rotation=validate_owned_rotation(current_aligned_rotation).tolist(), effective_parent_bone=current_previous_name)
+            current_previous_alignment = current_aligned_rotation
+            current_previous_name = current_owner_name
+    current_calibration_record['profile_id'] = 'hymotion-anny-arm-aligned-v2'
+    current_calibration_record['reference_policy'] = '원본 항등 회전은 ANNY bind가 아니라 고정 공통 기준 자세로 대응한다. 중간 본은 bind-local 유지. 충돌 후 재계산 없음.'
     return current_calibration_record
 
 
