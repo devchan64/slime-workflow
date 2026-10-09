@@ -35,6 +35,14 @@ class VnccsRuntimeTests(unittest.TestCase):
             validate_vnccs_profile(current_request_record)
         self.assertEqual(build_vnccs_profile()['quantization'],'none')
 
+    def test_selected_steps_contract(self):
+        current_request_record = self.build_current_request()
+        current_request_record.update(steps=25, vnccs=build_vnccs_profile(25))
+        self.assertEqual(build_vnccs_arguments(current_request_record, ['identity','pose'], None, None)['num_inference_steps'], 25)
+        current_request_record['vnccs']['steps'] = 40
+        with self.assertRaises(ValueError):
+            validate_vnccs_profile(current_request_record)
+
     def test_legacy_resume_contract_preserved(self):
         validate_pose_transfer_contract({'width':768,'height':768,'steps':20,'references':['reference-1.png','reference-2.png']},saved_request_enabled=True)
         with self.assertRaises(ValueError):
@@ -49,16 +57,18 @@ class VnccsRuntimeTests(unittest.TestCase):
 
     def test_cli_gui_defaults_and_reference_order(self):
         with tempfile.TemporaryDirectory() as current_temporary_name:
-            current_temporary_root=Path(current_temporary_name)
+            current_temporary_root=Path(current_temporary_name)/'pose-transfer'/'test-job'
+            current_temporary_root.mkdir(parents=True)
             current_reference_paths=[]
             for current_role_name,current_color_name in (('identity','red'),('pose','blue')):
                 current_reference_path=current_temporary_root/(current_role_name+'.png')
                 Image.new('RGB',(32,32),current_color_name).save(current_reference_path)
                 current_reference_paths.append(current_reference_path)
             with patch.object(management_gateway,'call_management_api',return_value={'id':'2026-10-09_00-00-00-12345678'}) as current_api_mock, contextlib.redirect_stdout(io.StringIO()):
-                management_gateway.execute_gateway_arguments('pose-transfer',['generate','--reference',str(current_reference_paths[0]),'--reference',str(current_reference_paths[1]),'--detach'])
+                management_gateway.execute_gateway_arguments('pose-transfer',['generate','--reference',str(current_reference_paths[0]),'--reference',str(current_reference_paths[1]),'--steps','25','--detach'])
             current_payload_record=current_api_mock.call_args.args[2]
-            self.assertEqual((current_payload_record['width'],current_payload_record['height'],current_payload_record['steps']),(512,512,40))
+            self.assertEqual(current_payload_record['seed'],1695791623)
+            self.assertEqual((current_payload_record['width'],current_payload_record['height'],current_payload_record['steps']),(512,512,25))
             self.assertEqual(current_payload_record['prompt'],load_pose_transfer_prompt())
             self.assertEqual(current_payload_record['images'],[base64.b64encode(current_reference_path.read_bytes()).decode() for current_reference_path in current_reference_paths])
             current_manager_value=PoseTransferGenerationManager()

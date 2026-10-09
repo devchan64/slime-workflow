@@ -16,6 +16,7 @@ import gradio as gr
 
 WORKFLOW_ROOT_DIRECTORY=Path(__file__).resolve().parents[4]
 if str(WORKFLOW_ROOT_DIRECTORY) not in sys.path:sys.path.insert(0,str(WORKFLOW_ROOT_DIRECTORY))
+from generators.image.vnccs_profile import VNCCS_DEFAULT_SEED
 from tools.review.common.gradio_identifiers import build_generation_identifier
 from tools.review.common.gradio_results import build_generation_gallery, collect_generation_gallery
 from tools.review.common.gradio_logs import build_execution_logs
@@ -114,7 +115,7 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
             restored_input_values[0] = gr.update(value=restored_input_values[0], interactive=True)
             restored_input_values.extend([False, current_history_record['request']['prompt']])
         if vnccs_transfer_enabled:
-            restored_input_values[2:5] = [512, 512, 40]
+            restored_input_values[2:5] = [512, 512, current_history_record['request']['steps'] if 'vnccs' in current_history_record['request'] else 40]
             if 'vnccs' not in current_history_record['request']:
                 restored_input_values[0] = gr.update(value=default_prompt_text, interactive=False)
                 restored_input_values[-2:] = [True, default_prompt_text]
@@ -126,7 +127,7 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
     with gr.Blocks(title=current_page_title) as interface_blocks_value:
         gr.Markdown('## '+current_page_title+('\n업로드: 아이덴티티 → 포즈. 모델 전달: 포즈 image1 → 아이덴티티 image2.' if vnccs_transfer_enabled else '\n참조 이미지는 업로드한 순서대로 모델에 전달됩니다.'))
         if pose_transfer_enabled and not outfit_transfer_enabled:
-            gr.Markdown('VNCCS V1.1 · 공식 QwenImage21Pipeline · 전체 BF16·비양자화 · 512px·40스텝 고정. CPU 가중치 보관·CUDA 연산. RAM 여유 12GiB 미만·작업 RSS 42GiB 초과·20분 초과 시 안전 중단합니다. 공식 포즈 일부도 부분 추종하며, 전신 비례와 프레임 일관성은 미승인 상태입니다.')
+            gr.Markdown('VNCCS V1.1 · 공식 QwenImage21Pipeline · 전체 BF16·비양자화 · 512px 고정·25/40스텝 선택(기본 40). CPU 가중치 보관·CUDA 연산. RAM 여유 12GiB 미만·작업 RSS 42GiB 초과·20분 초과 시 안전 중단합니다. 공식 포즈 일부도 부분 추종하며, 전신 비례와 프레임 일관성은 미승인 상태입니다.')
         if circular_mode_enabled:
             gr.Markdown('생성 토큰 순환 Attention · 일반 VAE 비교 선택 · 참조 이미지 선택 · 생성 영역만 순환 처리 · 출력 전체가 타일입니다. 반복 경계의 형태 연결은 결과에서 검수하세요.')
         if expression_mode_enabled:
@@ -188,11 +189,11 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
         with gr.Row():
             width_value=gr.Dropdown([512] if vnccs_transfer_enabled else [512,768] if pose_transfer_enabled else [256,384,512,768,1024,1280] if qwen21_mode_enabled else [512,768,1024,1280],value=512 if vnccs_transfer_enabled or circular_mode_enabled else 768 if qwen21_mode_enabled else 512,label='해상도 · 검증 기준 고정' if vnccs_transfer_enabled else '해상도' if pose_transfer_enabled else '너비',interactive=not vnccs_transfer_enabled,scale=1,min_width=120)
             height_value=gr.Dropdown([512,768] if pose_transfer_enabled else [256,384,512,768,1024,1280] if qwen21_mode_enabled else [512,768,1024,1280],value=512 if vnccs_transfer_enabled or circular_mode_enabled else 768 if qwen21_mode_enabled else 512,label='높이',visible=not pose_transfer_enabled,scale=1,min_width=120)
-            step_value=gr.Dropdown([40] if vnccs_transfer_enabled else [20,30,40,50],value=40,label='생성 스텝 · 검증 기준 고정' if vnccs_transfer_enabled else '생성 스텝',interactive=not vnccs_transfer_enabled,scale=1,min_width=120) if qwen21_mode_enabled else gr.Radio([4,30],value=4,label='생성 스텝',scale=1,min_width=120)
+            step_value=gr.Dropdown([25,40] if vnccs_transfer_enabled else [20,30,40,50],value=40,label='생성 스텝 · 기본 40' if vnccs_transfer_enabled else '생성 스텝',interactive=True,scale=1,min_width=120) if qwen21_mode_enabled else gr.Radio([4,30],value=4,label='생성 스텝',scale=1,min_width=120)
             if circular_mode_enabled:
                 circular_radius_control=gr.Dropdown([4,8,12,16,24],value=12,label='순환 반경 · 토큰',scale=1,min_width=120)
             else:
-                seed_value=build_generation_seed(10107)
+                seed_value=build_generation_seed(VNCCS_DEFAULT_SEED if vnccs_transfer_enabled else 10107)
         if circular_mode_enabled:
             with gr.Row(equal_height=False):
                 seed_value=build_generation_seed(10107)
@@ -228,7 +229,7 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
                 if qwen21_mode_enabled:
                     from tools.review.domains.image.qwen_21_generation import validate_qwen_plain_request
                     generation_request_value['prompt'] = prompt_text_value
-                    validate_qwen_plain_request(generation_request_value)
+                    validate_qwen_plain_request(generation_request_value, allowed_inference_steps=(25, 40) if vnccs_transfer_enabled else (20, 30, 40, 50))
                 elif expression_mode_enabled:
                     from tools.review.domains.image.expression_generation import ExpressionGenerationManager
                     ExpressionGenerationManager().validate_generation_request(generation_request_value)

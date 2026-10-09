@@ -3,6 +3,7 @@ import hashlib
 from pathlib import Path
 
 WORKFLOW_ROOT_DIRECTORY = Path(__file__).resolve().parents[2]
+VNCCS_DEFAULT_SEED = 1695791623
 VNCCS_LORA_RELATIVE_PATH = '.model/vnccs-posestudio-qi21/VNCCS_QI2_PoseStudioV1.1-diffusers.safetensors'
 VNCCS_LORA_EXPECTED_DIGEST = '12412b65e5799c15e6e6bc4e42430715ecd6a606f3eb520853dfb874be94cf13'
 VNCCS_EXECUTION_PROFILE = {
@@ -17,15 +18,17 @@ VNCCS_EXECUTION_PROFILE = {
 VNCCS_QUALITY_WARNING_TEXT = '실험 단계: 공식 포즈 일부도 부분 추종합니다. 전신 비례·포즈·프레임 일관성의 품질 승인은 별도 검수가 필요합니다.'
 
 
-def build_vnccs_profile():
-    return {**VNCCS_EXECUTION_PROFILE, 'reference_order': list(VNCCS_EXECUTION_PROFILE['reference_order'])}
+def build_vnccs_profile(selected_inference_steps=40):
+    if type(selected_inference_steps) is not int or selected_inference_steps not in (25, 40):
+        raise ValueError('VNCCS 생성 스텝은 25 또는 40이어야 합니다.')
+    return {**VNCCS_EXECUTION_PROFILE, 'steps': selected_inference_steps, 'reference_order': list(VNCCS_EXECUTION_PROFILE['reference_order'])}
 
 
 def validate_vnccs_profile(current_request_record):
-    if current_request_record.get('vnccs') != VNCCS_EXECUTION_PROFILE:
+    if current_request_record.get('vnccs') != build_vnccs_profile(current_request_record.get('steps')):
         raise ValueError('VNCCS 실행 버전·정밀도·모델·참조 순서 설정이 일치하지 않습니다.')
-    if any(type(current_request_record.get(current_field_name)) is not int or current_request_record[current_field_name] != current_expected_value for current_field_name, current_expected_value in (('width',512),('height',512),('steps',40))):
-        raise ValueError('신규 VNCCS 생성은 512×512·40스텝 고정입니다.')
+    if any(type(current_request_record.get(current_field_name)) is not int or current_request_record[current_field_name] != current_expected_value for current_field_name, current_expected_value in (('width',512),('height',512))):
+        raise ValueError('신규 VNCCS 생성은 512×512 고정입니다.')
 
 
 def validate_vnccs_assets():

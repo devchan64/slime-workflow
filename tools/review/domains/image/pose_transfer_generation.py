@@ -30,7 +30,7 @@ def validate_pose_transfer_contract(current_request_record, saved_request_enable
     if type(selected_width_value) is not int or selected_width_value not in POSE_TRANSFER_ALLOWED_SIZES or type(selected_height_value) is not int or selected_height_value != selected_width_value:
         raise ValueError('해상도는 512×512 또는 768×768만 지원합니다.')
     if not saved_request_enabled or 'vnccs' in current_request_record:
-        validate_vnccs_profile(current_request_record if saved_request_enabled else {**current_request_record, 'vnccs': build_vnccs_profile()})
+        validate_vnccs_profile(current_request_record if saved_request_enabled else {**current_request_record, 'vnccs': build_vnccs_profile(current_request_record.get('steps'))})
 
 
 class PoseTransferGenerationManager(QwenPlainGenerationManager):
@@ -41,7 +41,7 @@ class PoseTransferGenerationManager(QwenPlainGenerationManager):
 
     def validate_generation_request(self, current_request_record):
         validate_pose_transfer_contract(current_request_record)
-        return {**validate_qwen_plain_request(current_request_record), 'vnccs': build_vnccs_profile()}
+        return {**validate_qwen_plain_request(current_request_record, allowed_inference_steps=(25, 40)), 'vnccs': build_vnccs_profile(current_request_record['steps'])}
 
     def validate_generation_runtime(self, saved_request_record=None):
         super().validate_generation_runtime(saved_request_record)

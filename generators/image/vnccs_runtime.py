@@ -20,7 +20,7 @@ def build_vnccs_arguments(current_request_record, current_reference_images, curr
     if len(current_reference_images) != 2:
         raise ValueError('VNCCS에는 아이덴티티·포즈 두 참조가 필요합니다.')
     return {'prompt': current_request_record['prompt'], 'image': [current_reference_images[1], current_reference_images[0]],
-            'width': 512, 'height': 512, 'output_resolution': 512, 'num_inference_steps': 40,
+            'width': 512, 'height': 512, 'output_resolution': 512, 'num_inference_steps': current_request_record['steps'],
             'true_cfg_scale': 1.0, 'use_kv_cache': True, 'generator': current_cuda_generator,
             'callback_on_step_end': current_step_callback}
 
@@ -62,7 +62,7 @@ def execute_vnccs_generation(current_job_root, current_request_record):
                 time.sleep(VNCCS_HEARTBEAT_SECONDS)
         if current_child_process.returncode:
             raise RuntimeError(f'VNCCS 파이프라인 실패: 종료 코드 {current_child_process.returncode}')
-        print(f'{datetime.now().isoformat()}/vnccs/completed step=40/40 {VNCCS_QUALITY_WARNING_TEXT}', flush=True)
+        print(f'{datetime.now().isoformat()}/vnccs/completed step={current_request_record["steps"]}/{current_request_record["steps"]} {VNCCS_QUALITY_WARNING_TEXT}', flush=True)
     except BaseException:
         if current_child_process is not None and current_child_process.poll() is None:
             current_child_process.terminate()
@@ -95,7 +95,7 @@ def run_vnccs_pipeline(current_job_root):
         raise RuntimeError('VNCCS는 CUDA가 필요합니다. CPU 추론 대체 없음')
     current_lora_path = validate_vnccs_assets()
     current_model_root = validate_qwen_model_assets()
-    current_progress_record = {'stage':'load','step':0,'total':40,'cuda_layer_calls':0}
+    current_progress_record = {'stage':'load','step':0,'total':current_request_record['steps'],'cuda_layer_calls':0}
     current_stop_event = threading.Event()
 
     def emit_vnccs_heartbeat():
@@ -137,7 +137,7 @@ def run_vnccs_pipeline(current_job_root):
         if current_output_image.size != (512,512) or current_output_image.mode not in ('RGB','RGBA'):
             raise ValueError('VNCCS 출력 이미지 계약 불일치')
         current_output_image.save(current_job_root / 'result.png')
-        current_result_record = {'model_id':QWEN_MODEL_IDENTIFIER,'revision':QWEN_MODEL_REVISION,'size':[512,512],'steps':40,'seed':current_request_record['seed'],'prompt':current_request_record['prompt'],'prompt_word_count':len(current_request_record['prompt'].split()),'prompt_sha256':hashlib.sha256(current_request_record['prompt'].encode()).hexdigest(),'vnccs':current_request_record['vnccs'],'precision':current_precision_record,'peak_gpu_bytes':torch.cuda.max_memory_allocated(),'cuda_layer_calls':current_progress_record['cuda_layer_calls'],'quality_warnings':[VNCCS_QUALITY_WARNING_TEXT]}
+        current_result_record = {'model_id':QWEN_MODEL_IDENTIFIER,'revision':QWEN_MODEL_REVISION,'size':[512,512],'steps':current_request_record['steps'],'seed':current_request_record['seed'],'prompt':current_request_record['prompt'],'prompt_word_count':len(current_request_record['prompt'].split()),'prompt_sha256':hashlib.sha256(current_request_record['prompt'].encode()).hexdigest(),'vnccs':current_request_record['vnccs'],'precision':current_precision_record,'peak_gpu_bytes':torch.cuda.max_memory_allocated(),'cuda_layer_calls':current_progress_record['cuda_layer_calls'],'quality_warnings':[VNCCS_QUALITY_WARNING_TEXT]}
         (current_job_root / 'result.json').write_text(json.dumps(current_result_record, ensure_ascii=False, indent=2))
         print(f'{datetime.now().isoformat()}/vnccs/completed {VNCCS_QUALITY_WARNING_TEXT}', flush=True)
     finally:

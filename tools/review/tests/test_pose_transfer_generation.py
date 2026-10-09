@@ -1,5 +1,7 @@
 """포즈 변환 입력 수·역할·해상도·CLI 계약 검증."""
 import base64
+import ast
+from pathlib import Path
 import io
 import unittest
 from unittest.mock import patch
@@ -9,6 +11,19 @@ from tools.review.common import management_gateway
 
 
 class PoseTransferContractTests(unittest.TestCase):
+    def test_gui_new_submission_validation(self):
+        from tools.review.domains.image.qwen_21_generation import validate_qwen_plain_request
+        current_source_path = Path(__file__).resolve().parents[1] / 'ui/gradio/qwen_2511_app.py'
+        current_source_tree = ast.parse(current_source_path.read_text())
+        current_validation_call = next(current_ast_node for current_ast_node in ast.walk(current_source_tree) if isinstance(current_ast_node, ast.Call) and isinstance(current_ast_node.func, ast.Name) and current_ast_node.func.id == 'validate_qwen_plain_request')
+        current_call_code = compile(ast.Expression(current_validation_call), str(current_source_path), 'eval')
+        for current_step_value in (25, 40):
+            current_request_record = {**self.create_request_record(), 'steps': current_step_value}
+            current_validated_record = eval(current_call_code, {'validate_qwen_plain_request':validate_qwen_plain_request, 'generation_request_value':current_request_record, 'vnccs_transfer_enabled':True})
+            self.assertEqual(current_validated_record['steps'], current_step_value)
+        with self.assertRaises(ValueError):
+            eval(current_call_code, {'validate_qwen_plain_request':validate_qwen_plain_request, 'generation_request_value':{**self.create_request_record(), 'steps':25}, 'vnccs_transfer_enabled':False})
+
     def create_request_record(self):
         image_output_buffer = io.BytesIO()
         Image.new('RGB', (32,32), 'white').save(image_output_buffer, format='PNG')
@@ -17,7 +32,7 @@ class PoseTransferContractTests(unittest.TestCase):
 
     def test_sizes_and_steps(self):
         for selected_size_value in (512,):
-            for selected_step_value in (40,):
+            for selected_step_value in (25,40):
                 current_request_record = self.create_request_record()
                 current_request_record.update(width=selected_size_value,height=selected_size_value,steps=selected_step_value)
                 validated_request_record = PoseTransferGenerationManager().validate_generation_request(current_request_record)

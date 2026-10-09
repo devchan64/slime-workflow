@@ -13,13 +13,13 @@ WORKFLOW_ROOT_PATH = Path(__file__).resolve().parents[4]
 QWEN_GENERATION_ROOT = WORKFLOW_ROOT_PATH / '.tmp/test/qwen-image-21'
 
 
-def validate_qwen_plain_request(current_request_record):
+def validate_qwen_plain_request(current_request_record, allowed_inference_steps=QWEN_ALLOWED_INFERENCE_STEPS):
     if isinstance(current_request_record, dict) and isinstance(current_request_record.get('images'), list):
         current_request_record = {**current_request_record, 'images': [
             base64.b64encode(decode_reference_image(current_image_text, composite_transparent_background=True)).decode()
             for current_image_text in current_request_record['images']
         ]}
-    validated_request_record = validate_three_reference_request(current_request_record, allowed_inference_steps=QWEN_ALLOWED_INFERENCE_STEPS, maximum_reference_count=10, minimum_output_size=256)
+    validated_request_record = validate_three_reference_request(current_request_record, allowed_inference_steps=allowed_inference_steps, maximum_reference_count=10, minimum_output_size=256)
     prompt_word_count = len(validated_request_record['prompt'].split())
     if not 0 < prompt_word_count < 100:
         raise ValueError('프롬프트는 1~99단어로 입력하세요. 자동 문구 추가·축약은 하지 않습니다.')
@@ -46,7 +46,12 @@ def verify_qwen_saved_request(current_job_root, current_request_record):
         for current_field_name in ('action', 'prompt', 'tag', 'width', 'height', 'steps', 'seed')}
     restored_input_record['images'] = [base64.b64encode((current_job_root / current_reference_name).read_bytes()).decode()
         for current_reference_name in current_request_record['references']]
-    expected_source_record = validate_qwen_plain_request(restored_input_record)['qwen21']
+    if current_job_root.parent.name == 'pose-transfer' and 'vnccs' in current_request_record:
+        from generators.image.vnccs_profile import validate_vnccs_profile
+        validate_vnccs_profile(current_request_record)
+        expected_source_record = validate_qwen_plain_request(restored_input_record, allowed_inference_steps=(25, 40))['qwen21']
+    else:
+        expected_source_record = validate_qwen_plain_request(restored_input_record)['qwen21']
     if current_request_record.get('qwen21') != expected_source_record:
         raise ValueError('Qwen 2.1 실행 기록의 모델·프롬프트 정보가 일치하지 않습니다.')
 
