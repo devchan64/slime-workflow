@@ -1,5 +1,13 @@
 # HY-Motion 모션 생성기
 
+## 정사영·원근투영 포즈 출력
+
+`export-vnccs` 신규 작업은 기존 정사영에 원근투영(FOV 30°, 림 음영 추가 없음)을 함께 출력한다. 정사영은 `<방향>/frame-NNNN.png`, 원근투영은 `perspective/<방향>/frame-NNNN.png`이며 각 경로의 `-rgb.png`가 흰 배경 모델 입력이다. ZIP에 두 투영을 모두 포함하고 생성 이력에서 동일 원본 프레임을 두 패널로 동기 비교한다. 기존 URL·명령·저장소와 과거 단일 패널 이력은 유지한다.
+
+투영별 카메라는 선택 구간 전체에 고정한다. 원근투영은 정사영의 중심·방향을 유지하고 `거리 = ortho_scale / (2 × tan(15°))`로 중심 평면의 크기를 맞춘다. 깊이에 따른 크기 차이는 유지되며 극단적인 깊이·동작의 화면 잘림은 검수해야 한다. 재질·조명·리타기팅은 변경하지 않는다. `vnccs-manifest.json`의 `projection_cameras`와 각 이미지의 `projection`으로 구분한다. 과거 투영 설정이 없는 작업 재개는 정사영만 재현한다.
+
+순차 렌더이므로 동시 GPU 적재량을 늘리지 않지만 PNG 수·렌더 시간·저장량은 대략 두 배다. 일반 모션 생성의 관절 미리보기는 그대로이며, 포즈 이미지 추가 출력은 완료된 모션에 `export-vnccs`를 실행한다. 이는 렌더 출력 기능이며 VNCCS의 모든 포즈 추종·체형 보존 품질을 보증하지 않는다.
+
 관리도구의 **애니메이션 도구 → HY-Motion 모션 생성기**를 사용한다. MoMask와 같은 공용 생성이력·로그·브라우저 재생기를 사용하며, 생성은 독립 게이트웨이와 GPU 대기열에서 수행한다. 브라우저 종료는 작업을 중지하지 않는다.
 
 ## 준비와 실행
@@ -40,13 +48,31 @@ GUI의 **동작 프리셋**에서 대기·걷기를 선택할 수 있다. 선택
 
 원본 30 FPS NPZ에는 `rot6d`, `transl`, `root_rotations_mat`, `latent_denorm`, 공식 `keypoints3d`와 루트 평행이동을 적용해 복원한 `world_joints`를 보존한다. `keypoints3d`는 공식 Wooden 리그 52관절이며 원본에서 평행이동이 빠져 있으므로 이를 월드 좌표로 오인하지 않는다. 미리보기는 `world_joints`의 몸체 22관절을 8 FPS로 표본화한다. 재생·프레임 이동은 브라우저에서 처리한다. 원본 NPZ와 출처 JSON은 결과 재생 영역의 링크로 내려받는다.
 
-이 생성기는 후보 모션 검수용이다. ANNY 리타기팅·OpenPose 원천 교체·정식 모션 자산 등록·게임 전달은 수행하지 않는다.
+일반 생성은 후보 원본 모션 검수용이다. ANNY 변환은 별도 출력 명령으로 실행하며 OpenPose 원천 교체·정식 모션 자산 등록·게임 전달은 수행하지 않는다.
 
 별도 ANNY 리타기팅 작업에는 사용자 검수로 채택된 후처리 `generators.hy_motion.anny_skin_stage.apply_anny_skin_barrier`를 사용한다. 고정 설정은 `config/anny-skin-barrier.yaml`이며 상완→전완→손목 순서, 인접 연결부 제외, 0.5mm 수치 여유를 유지한다. ANNY 리타기팅이 끝난 Blender 파일과 원본 HY-Motion NPZ(`source_motion_path`)를 함께 입력하면 머리 회전 전달도 기본 적용한다. 프레임 수·FPS·원본 FK가 맞지 않으면 실패한다. 일반 GUI/CLI 모션 생성에는 ANNY 렌더를 자동 추가하지 않는다. 사용법과 저장·보간 충돌의 한계는 [ANNY 리타기팅 기준](anny-anatomical-retarget.md#채택된-피부-제약-후처리)을 따른다.
 
 신규 생성은 PNG 미리보기와 함께 방향별 `<direction>.gif` 및 선택 방향을 동기화한 `overview.gif`를 자동 출력한다. 별도 GPU 추론 없이 검수 PNG를 사용하며 GUI 결과의 다운로드 링크와 CLI 상태 응답의 `result.gifs`에서 확인한다. GIF의 10ms 시간 단위에 맞춰 120/130ms를 교대로 기록해 평균 8 FPS와 전체 재생 시간을 보존한다. 무한 반복 재생하되 끝과 시작의 모션을 연결하거나 이동을 제거하지 않는다. 기존 완료 기록은 자동 변경하지 않는다.
 
 ## 기록과 실패
+
+### VNCCS PoseStudio용 MakeHuman 포즈 출력
+
+GUI의 **VNCCS PoseStudio 출력 · MakeHuman 자동 변환**에서 완료된 원본 생성 ID와 프레임 범위·간격·방향을 입력한다. CLI도 같은 게이트웨이 명령을 사용한다.
+
+```bash
+.venv-management/bin/python tools/manager.py command hy-motion export-vnccs --payload-file /absolute/path/export-request.json --detach
+```
+
+요청 JSON은 `{"source_id":"완료된 원본 생성 ID","start_frame":1,"end_frame":300,"frame_step":1,"directions":["down_left","down_right","up_left","up_right"]}` 형태다. 종료 프레임을 생략하면 원본 끝까지 출력하며 프레임은 1부터 시작한다. GUI의 종료 프레임 0 또는 빈 값은 해당 필드를 생략하는 선택이다. 원본 범위를 벗어나거나 중복 방향·알 수 없는 필드는 거절한다. `--detach` 생략 시 공용 CLI가 완료를 기다린다.
+
+신규 출력은 `rig_backend: makehuman`으로 고정한다. `assets/animation-models/vnccs-makehuman-base-v1/`의 공식 VNCCS 기본 메쉬·본·스킨 가중치를 해시 검증하고 사용한다. CC0 라이선스·업스트림 커밋·팩 해시를 자산 manifest에 보존한다. morph를 적용하지 않은 기본 체형이며 PoseStudio의 최종 외형·텍스처·조명과 동일하다고 간주하지 않는다. Y-up→Z-up 좌표 변환 후 HY-Motion body22의 본 방향을 부모 회전 기반 최소 회전으로 전달한다. 본 길이와 부모 오프셋을 유지하며 루트 이동을 보존한다. 손가락·머리·손목 말단은 부모 회전을 상속한다. 축 회전과 자체 충돌은 미검증이다. 선택 프레임은 CUDA Cycles로 렌더한다. 기존 ANNY 기록은 유지한다.
+
+ZIP의 `makehuman-motion.npz`에는 전체 원본 프레임의 전역 본 회전·위치·기준 본 좌표·이름이 들어간다. `retarget-quality.json`은 원본 관절 방향 대비 최대 각도 오차와 검증 한계를 기록한다. 새 manifest의 `conditioning_status`는 `makehuman-base-retarget-candidate`이다. 본 방향 일치는 이미지 생성 모델의 체형·포즈 추종 보장을 의미하지 않는다.
+
+출력은 방향별 512×512 RGBA 원본 PNG와 흰 배경을 알파 합성한 RGB `frame-NNNN-rgb.png`, `vnccs-package.zip`, `vnccs-manifest.json`, `retarget-quality.json`이다. RGB 입력은 ZIP에서 가져오며 manifest의 `images[].model_input_path`·`model_input_sha256`으로 식별·검증한다. image1에는 RGB 포즈, image2에는 단일 전신 캐릭터 참조를 사용한다. 선택 구간·방향에 공통 크기의 고정 카메라를 사용하고 기존 방향 규약을 유지한다. VNCCS 이미지 생성의 포즈 추종·체형 보존은 미검증이다. VNCCS/Qwen 추론은 실행하지 않는다.
+
+별도 생성 ID와 실행 시도를 만들어 기존 결과를 덮어쓰지 않는다. GUI·CLI의 기존 이력·상태·로그·취소·재개 계약을 공유한다. 실패 후 재개도 새 시도에 기록한다. 패키지는 후보 산출물이므로 정식 자산에 자동 등록하지 않는다.
 
 작업 ID는 공용 게이트웨이 형식 `YYYY-MM-DD_HH-mm-ss-xxxxxxxx`이며, 실제 경로는 `.tmp/test/hy-motion/YYYY-MM-DD_HH-mm-ss/xxxxxxxx/`다. 실행 시도별 산출물은 그 아래 `attempts/`에 누적한다. 이력 인덱스는 `.tmp/manager-current/hy-motion/`에 둔다. GUI·CLI가 같은 요청·상태·로그·결과를 읽는다.
 

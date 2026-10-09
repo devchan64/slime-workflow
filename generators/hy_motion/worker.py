@@ -54,6 +54,10 @@ def execute_generation_worker(generation_job_path):
             if current_request_record.get('action') == 'prepare':
                 prepare_model_bundle(record_worker_progress)
                 current_result_record = {'kind': 'prepared', 'model_root': str(MODEL_CACHE_DIRECTORY)}
+            elif current_request_record.get('action') == 'export-vnccs':
+                from generators.hy_motion.vnccs_export import export_vnccs_package
+                current_result_record = export_vnccs_package(generation_job_path, current_attempt_path, current_request_record, current_config_record, record_worker_progress)
+                current_result_record['relative_path'] = current_attempt_path.relative_to(generation_job_path).as_posix()
             else:
                 import numpy as np
                 from generators.hy_motion.preview import validate_motion_output, render_motion_previews
@@ -70,7 +74,7 @@ def execute_generation_worker(generation_job_path):
         current_result_record['elapsed_seconds'] = round(time.monotonic() - current_started_time, 2)
         write_record_atomically(generation_job_path / 'result.json', current_result_record)
         write_record_atomically(current_attempt_path / 'outcome.json', {'status': 'completed', 'result': current_result_record})
-        write_record_atomically(generation_job_path / 'status.json', {'status': 'completed', 'message': '모델 준비 완료' if current_result_record['kind'] == 'prepared' else '원본 모션·방향별 미리보기 생성 완료'})
+        write_record_atomically(generation_job_path / 'status.json', {'status': 'completed', 'message': '모델 준비 완료' if current_result_record['kind'] == 'prepared' else 'VNCCS용 포즈 PNG·출처 패키지 완료 · 품질 경고 확인 필요' if current_result_record['kind'] == 'vnccs' else '원본 모션·방향별 미리보기 생성 완료'})
         print(f'{datetime.now(ZoneInfo("Asia/Seoul")).isoformat()}/hy-motion/completed 출력={current_attempt_path}', flush=True)
         return 0
     except Exception as current_execution_error:

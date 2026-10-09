@@ -21,7 +21,8 @@ MANAGEMENT_SERVICE_COMMANDS = {'outfit-transfer':('history-delete','resume','gen
 
 
 MANAGEMENT_SERVICE_ROUTES['hy-motion']='/hy-motion-generator'
-MANAGEMENT_SERVICE_COMMANDS['hy-motion']=('generate','prepare','model-status','status','logs','history','cancel','resume','history-reset')
+MANAGEMENT_SERVICE_COMMANDS['hy-motion']=('generate','export-vnccs','prepare','model-status','status','logs','history','cancel','resume','history-reset')
+MANAGEMENT_COMMAND_ROUTES['export-vnccs']=('POST','/export/vnccs')
 MANAGEMENT_SERVICE_ROUTES['character-review']='/character-review'
 MANAGEMENT_SERVICE_COMMANDS['character-review']=('capture',)
 MANAGEMENT_COMMAND_ROUTES['capture']=('POST','/capture')
@@ -168,7 +169,7 @@ MANAGEMENT_COMMAND_DESCRIPTIONS = {'outfit-transfer':'Qwen 2.1 복장 착용 · 
 
 MANAGEMENT_COMMAND_DESCRIPTIONS['character-review']='캐릭터 검수 렌더링 PNG 캡처 · --payload-file 설정'
 MANAGEMENT_COMMAND_DESCRIPTIONS['anny-landmarks']='ANNY 기준점 후보 지정·축 검수·누적 저장 · --payload-file JSON · 승인·적용 없음'
-MANAGEMENT_COMMAND_DESCRIPTIONS['hy-motion']='HY-Motion Lite 원본 모션 · CPU 메모리 오프로드 / CUDA 연산 · 준비·생성·이력·취소·재개'
+MANAGEMENT_COMMAND_DESCRIPTIONS['hy-motion']='HY-Motion Lite 원본 모션 · CPU 메모리 오프로드 / CUDA 연산 · 준비·생성·ANNY VNCCS 출력(export-vnccs --payload-file)·이력·취소·재개'
 MANAGEMENT_COMMAND_DESCRIPTIONS['pose-transfer']='VNCCS V1.1 · Qwen 2.1 공식 파이프라인 · BF16 비양자화 · 512px·40스텝 고정 · 업로드 아이덴티티→포즈, 모델 전달 포즈→아이덴티티 · 부분 추종 경고'
 
 def execute_management_command(service_command_name, operation_command_name, command_payload_value, server_base_address=None, *, gateway_request_handler=None, service_handler_values=None):
@@ -192,7 +193,7 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
         operation_argument_parser=command_subparser_group.add_parser(operation_command_name)
         if service_command_name=='momask' and operation_command_name=='generate':
             operation_argument_parser.add_argument('--face',action=argparse.BooleanOptionalAction,default=False,help='ANNY 얼굴 5점 포함')
-        if operation_command_name in SPRITE_V2_COMMAND_NAMES + LANDMARK_COMMAND_NAMES or operation_command_name=='capture':
+        if operation_command_name in SPRITE_V2_COMMAND_NAMES + LANDMARK_COMMAND_NAMES or operation_command_name in ('capture','export-vnccs'):
             operation_argument_parser.add_argument('--payload-file',type=Path,required=True,help='GUI와 동일한 명령 JSON 입력 파일')
         if operation_command_name=='anchor-save':operation_argument_parser.add_argument('--document-file',type=Path,required=True)
         if operation_command_name=='anchor-load':operation_argument_parser.add_argument('id')
@@ -205,7 +206,7 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
             if operation_command_name=='sprite-save':operation_argument_parser.add_argument('--document-file',type=Path,required=True)
         if operation_command_name in ('status','logs','cancel','resume','pause','history-delete'):
             operation_argument_parser.add_argument('id')
-        if operation_command_name=='generate':
+        if operation_command_name in ('generate','export-vnccs'):
             operation_argument_parser.add_argument('--detach',action='store_true',help='작업 ID 출력 후 반환')
         if operation_command_name in ('generate','queue'):
             operation_argument_parser.add_argument('--tag',default='',help='생성 이력 구분 태그, 최대 80자')
@@ -281,7 +282,7 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
         command_payload_value={'id':command_argument_values.id}
         if operation_command_name=='sprite-history-delete':command_payload_value['revision']=command_argument_values.revision
         if operation_command_name=='sprite-save':command_payload_value['document']=json.loads(command_argument_values.document_file.read_text())
-    if operation_command_name in SPRITE_V2_COMMAND_NAMES + LANDMARK_COMMAND_NAMES or operation_command_name=='capture':command_payload_value=json.loads(command_argument_values.payload_file.read_text())
+    if operation_command_name in SPRITE_V2_COMMAND_NAMES + LANDMARK_COMMAND_NAMES or operation_command_name in ('capture','export-vnccs'):command_payload_value=json.loads(command_argument_values.payload_file.read_text())
     if operation_command_name=='anchor-save':command_payload_value={'document':json.loads(command_argument_values.document_file.read_text())}
     if operation_command_name in ('anchor-history','anchor-history-reset'):command_payload_value={'animation_id':command_argument_values.animation_id,'animation_version':command_argument_values.animation_version}
     if operation_command_name=='history-reset':command_payload_value={'action':'reset'}
@@ -341,7 +342,7 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
                     command_payload_value['images'].append(base64.b64encode(reference_image_path.read_bytes()).decode())
     command_response_value=execute_management_command(service_command_name,operation_command_name,command_payload_value,server_base_address)
     print(command_response_value if isinstance(command_response_value,str) else json.dumps(command_response_value,ensure_ascii=False,indent=2),flush=True)
-    if operation_command_name!='generate' or command_argument_values.detach:return 0
+    if operation_command_name not in ('generate','export-vnccs') or command_argument_values.detach:return 0
     generation_job_identifier=command_response_value['id']
     previous_status_text=None
     try:

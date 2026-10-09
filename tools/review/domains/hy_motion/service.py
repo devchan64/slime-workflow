@@ -34,14 +34,14 @@ def handle_hymotion_request(current_http_handler):
         return False
     try:
         current_content_length = validate_management_http_request(current_http_handler)
-        current_asset_match = re.fullmatch(SERVICE_ROUTE_PREFIX + r'/jobs/(' + GENERATION_IDENTIFIER_PATTERN + r')/result/(motion\.npz|provenance\.json|(?:overview|down_left|down_right|up_left|up_right)\.gif|(?:down_left|down_right|up_left|up_right)/frame-\d{4}\.png)', current_route_path)
+        current_asset_match = re.fullmatch(SERVICE_ROUTE_PREFIX + r'/jobs/(' + GENERATION_IDENTIFIER_PATTERN + r')/result/(motion\.npz|provenance\.json|vnccs-package\.zip|vnccs-manifest\.json|retarget-quality\.json|(?:overview|down_left|down_right|up_left|up_right)\.gif|(?:perspective/)?(?:down_left|down_right|up_left|up_right)/frame-\d{4}(?:-rgb)?\.png)', current_route_path)
         if current_http_handler.command == 'GET' and current_asset_match:
             current_job_directory = resolve_generation_directory(current_asset_match[1])
             current_result_record = json.loads((current_job_directory / 'result.json').read_text())
             current_asset_path = current_job_directory / current_result_record['relative_path'] / current_asset_match[2]
             if not current_asset_path.resolve().is_relative_to(current_job_directory.resolve()) or current_asset_path.is_symlink():
                 raise ValueError('결과 파일 경로 오류')
-            current_content_type = {'.png': 'image/png', '.gif': 'image/gif', '.json': 'application/json', '.npz': 'application/octet-stream'}[current_asset_path.suffix]
+            current_content_type = {'.png': 'image/png', '.gif': 'image/gif', '.json': 'application/json', '.npz': 'application/octet-stream', '.zip': 'application/zip'}[current_asset_path.suffix]
             send_hymotion_bytes(current_http_handler, current_asset_path.read_bytes(), current_content_type)
             return True
         current_payload_values = json.loads(current_http_handler.rfile.read(current_content_length), object_pairs_hook=parse_unique_fields) if current_http_handler.command == 'POST' else getattr(current_http_handler, 'management_command_payload', {})

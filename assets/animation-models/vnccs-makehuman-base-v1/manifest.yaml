@@ -1,0 +1,12 @@
+schema_version: 1
+id: vnccs-makehuman-base
+version: 1
+source: https://github.com/AHEKOT/ComfyUI_VNCCS_Utils
+revision: eedaed79a7c42d2570d832cc5d2e0a2da5ab022d
+source_sha256: 76adfddc9a98ecd89e5b4a334911e65469fc77939e3fb0500832ab9e2a1baec9
+sha256: 67cadde42803746de9bdf8e82339ed879fdb440cac27dee86fa897f1390fd65c
+license: CC0-1.0
+units: meter
+coordinate_system: right-handed Z-up
+shape: base vertices, no morph targets applied
+status: retarget-candidate-not-quality-approved

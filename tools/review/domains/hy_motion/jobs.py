@@ -47,6 +47,8 @@ def read_generation_status(generation_job_identifier):
 
 def estimate_generation_completion(generation_job_path, current_request_record, current_status_record):
     current_unknown_estimate = {'remaining': None, 'completion': None, 'basis': '동일 조건 완료 표본 없음 · 계산 중'}
+    if current_request_record.get('action') == 'export-vnccs':
+        return {**current_unknown_estimate, 'basis': '리그 변환·CUDA 렌더 출력 · 소요 시간 표본 수집 전'}
     if current_status_record['status'] == 'queued':
         return {**current_unknown_estimate, 'basis': 'GPU 대기 중 · 시작 시각 미정'}
     if current_status_record['status'] != 'running' or not current_status_record.get('started_at') or current_request_record.get('action') == 'prepare':
@@ -83,14 +85,30 @@ def list_generation_history():
     for current_history_path in sorted(GENERATION_HISTORY_ROOT.glob('*.json'), reverse=True):
         current_history_record = json.loads(current_history_path.read_text())
         current_status_record = read_generation_status(current_history_record['id'])
-        current_history_records.append({**current_history_record, 'status': current_status_record, 'request': current_status_record['request'], 'path': current_status_record['path'], 'playable': current_status_record['status'] == 'completed' and (current_status_record['result'] or {}).get('kind') == 'motion'})
+        current_history_records.append({**current_history_record, 'status': current_status_record, 'request': current_status_record['request'], 'path': current_status_record['path'], 'playable': current_status_record['status'] == 'completed' and (current_status_record['result'] or {}).get('kind') in ('motion', 'vnccs')})
     return {'records': current_history_records, 'running': any(current_history_record['status']['status'] in ('queued', 'running') for current_history_record in current_history_records)}
 
 
 def start_generation_job(current_request_values, generation_operation_name='generate'):
-    if generation_operation_name not in ('generate', 'prepare'):
+    if generation_operation_name not in ('generate', 'prepare', 'export-vnccs'):
         raise ValueError('지원하지 않는 HY-Motion 작업')
-    current_request_values = validate_generation_request(current_request_values) if generation_operation_name == 'generate' else {'action': 'prepare'}
+    current_export_source = None
+    if generation_operation_name == 'export-vnccs':
+        from generators.hy_motion.vnccs_contract import validate_vnccs_request, load_vnccs_config, calculate_file_digest
+        current_source_directory = resolve_generation_directory(current_request_values.get('source_id'))
+        current_source_status = read_generation_status(current_request_values['source_id'])
+        if current_source_status['status'] != 'completed' or (current_source_status['result'] or {}).get('kind') != 'motion':
+            raise ValueError('완료된 HY-Motion 원본 생성 ID만 VNCCS 출력할 수 있습니다.')
+        current_source_frames = current_source_status['result']['source_frames']
+        current_request_values = {**validate_vnccs_request(current_request_values, current_source_frames), 'action': 'export-vnccs'}
+        current_motion_path = current_source_directory / current_source_status['result']['relative_path'] / 'motion.npz'
+        if not current_motion_path.resolve().is_relative_to(current_source_directory.resolve()) or current_motion_path.is_symlink():
+            raise ValueError('원본 모션 경로 오류')
+        current_export_source = {'source_id': current_request_values['source_id'], 'job_directory': str(current_source_directory), 'motion_path': str(current_motion_path), 'motion_sha256': calculate_file_digest(current_motion_path), 'request': current_source_status['request'], 'frames': current_source_frames}
+        current_config_record = load_vnccs_config()
+    else:
+        current_request_values = validate_generation_request(current_request_values) if generation_operation_name == 'generate' else {'action': 'prepare'}
+        current_config_record = load_generation_defaults()
     GENERATION_HISTORY_ROOT.mkdir(parents=True, exist_ok=True)
     with (GENERATION_HISTORY_ROOT / 'service.lock').open('a') as current_service_lock:
         fcntl.flock(current_service_lock, fcntl.LOCK_EX)
@@ -99,7 +117,9 @@ def start_generation_job(current_request_values, generation_operation_name='gene
         generation_job_path = resolve_generation_directory(generation_job_identifier)
         generation_job_path.mkdir(parents=True)
         write_record_atomically(generation_job_path / 'request.json', current_request_values)
-        write_record_atomically(generation_job_path / 'config.json', load_generation_defaults())
+        write_record_atomically(generation_job_path / 'config.json', current_config_record)
+        if current_export_source is not None:
+            write_record_atomically(generation_job_path / 'export-source.json', current_export_source)
         write_record_atomically(generation_job_path / 'prompt.json', build_prompt_provenance(current_request_values.get('prompt', '')))
         write_record_atomically(generation_job_path / 'status.json', {'status': 'queued'})
         write_record_atomically(GENERATION_HISTORY_ROOT / (generation_job_identifier + '.json'), {'id': generation_job_identifier, 'created_at': current_creation_time.isoformat()})
@@ -122,6 +142,8 @@ def execute_hymotion_command(operation_command_name, command_payload_value):
         raise ValueError('명령 입력은 객체여야 합니다.')
     if operation_command_name == 'generate':
         return start_generation_job(command_payload_value)
+    if operation_command_name == 'export-vnccs':
+        return start_generation_job(command_payload_value, 'export-vnccs')
     if operation_command_name == 'prepare':
         if command_payload_value not in ({}, {'action': 'prepare'}):
             raise ValueError('준비 명령 입력 오류')

@@ -1,0 +1,12 @@
+schema_version: 1
+rig_backend: makehuman
+resolution: 512
+samples: 16
+frame_step: 1
+projections: [orthographic, perspective]
+perspective_fov_degrees: 30
+camera_elevation: 17
+camera_angles: {down_left: 45, down_right: -45, up_left: 135, up_right: -135}
+framing_margin: 1.12
+skin_profile: generators/hy_motion/config/anny-adjacency-barrier.yaml
+target_profile: generators/animation/config/anny_profiles/neutral.yaml

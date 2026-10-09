@@ -12,6 +12,7 @@ sys.path.insert(0, str(WORKFLOW_ROOT_DIRECTORY))
 import gradio as gr
 from generators.hy_motion.contracts import load_generation_defaults, validate_generation_request, read_encoder_system_prompt, build_encoder_input_preview, load_motion_presets
 from generators.hy_motion.contracts import MAXIMUM_DURATION_SECONDS
+from generators.hy_motion.vnccs_contract import load_vnccs_config
 from tools.review.common.management_client import execute_remote_management_command as execute_management_command
 from tools.review.common.gradio_frame_player import build_browser_frame_player
 from tools.review.common.gradio_history import build_generation_history_view
@@ -34,20 +35,46 @@ def start_motion_generation(current_prompt_text, current_duration_value, current
 
 def restore_motion_inputs(current_history_record):
     current_request_record = current_history_record['request']
-    if current_request_record.get('action') == 'prepare':
-        raise gr.Error('모델 준비 작업에는 복원할 모션 입력이 없습니다.')
+    if current_request_record.get('action') in ('prepare', 'export-vnccs'):
+        raise gr.Error('모델 준비·VNCCS 출력 작업에는 복원할 모션 생성 입력이 없습니다. 원본 모션 이력을 선택하세요.')
     current_request_record = validate_generation_request(current_request_record)
     return tuple(current_request_record[current_field_name] for current_field_name in ('prompt', 'duration_seconds', 'seed', 'directions', 'tag'))
 
 
 def render_motion_result(generation_job_identifier, current_status_record, server_base_address):
     current_result_record = current_status_record.get('result')
-    if current_status_record['status'] != 'completed' or not current_result_record or current_result_record.get('kind') != 'motion':
+    if current_status_record['status'] != 'completed' or not current_result_record or current_result_record.get('kind') not in ('motion', 'vnccs'):
         return json.dumps({'frames': {}, 'message': '모션 완료 결과를 선택하세요. 준비·실패·실행 상태는 로그에서 확인할 수 있습니다.'}, ensure_ascii=False)
     current_result_url = server_base_address + '/hy-motion-generator/jobs/' + generation_job_identifier + '/result/'
     current_download_records = [{'label': '원본 모션 NPZ', 'url': current_result_url + 'motion.npz'}, {'label': '출처·실행 설정', 'url': current_result_url + 'provenance.json'}]
     current_download_records.extend({'label': current_gif_record['label'], 'url': current_result_url + current_gif_record['path']} for current_gif_record in current_result_record.get('gifs', []))
-    return json.dumps({'frames': {current_direction_name: [[current_result_url + current_direction_name + f'/frame-{current_frame_index:04d}.png'] for current_frame_index in range(1, current_result_record['frames'] + 1)] for current_direction_name in current_result_record['directions']}, 'directUrls': True, 'panels': ['HY-Motion 원본 관절 · 제자리 보정 없음'], 'sourceFrames': {current_direction_name: current_result_record['source_indices'] for current_direction_name in current_result_record['directions']}, 'downloads': current_download_records}, ensure_ascii=False)
+    if current_result_record['kind'] == 'vnccs':
+        current_download_records = [{'label': current_export_file, 'url': current_result_url + current_export_file} for current_export_file in current_result_record['downloads']]
+    current_rig_label = 'MakeHuman' if current_result_record.get('rig_backend') == 'makehuman' else 'ANNY'
+    current_projection_names = current_result_record.get('projections', ['orthographic'])
+    current_frame_records = {
+        current_direction_name: [
+            [
+                current_result_url + ('' if current_projection_name == 'orthographic' else 'perspective/') + current_direction_name + f'/frame-{current_frame_index:04d}.png'
+                for current_projection_name in current_projection_names
+            ]
+            for current_frame_index in range(1, current_result_record['frames'] + 1)
+        ]
+        for current_direction_name in current_result_record['directions']
+    }
+    current_panel_labels = [
+        f'VNCCS용 {current_rig_label} · ' + ('정사영' if current_projection_name == 'orthographic' else '원근투영 30°')
+        for current_projection_name in current_projection_names
+    ] if current_result_record['kind'] == 'vnccs' else ['HY-Motion 원본 관절 · 제자리 보정 없음']
+    return json.dumps({'frames': current_frame_records, 'directUrls': True, 'panels': current_panel_labels, 'sourceFrames': {current_direction_name: current_result_record['source_indices'] for current_direction_name in current_result_record['directions']}, 'downloads': current_download_records}, ensure_ascii=False)
+
+
+def start_vnccs_export(current_source_identifier, current_start_frame, current_end_frame, current_frame_step, current_direction_names):
+    current_payload_record = {'source_id': current_source_identifier.strip(), 'start_frame': current_start_frame, 'frame_step': current_frame_step, 'directions': current_direction_names, 'tag': 'VNCCS 포즈 출력'}
+    if current_end_frame not in (None, 0):
+        current_payload_record['end_frame'] = current_end_frame
+    current_response_record = execute_motion_command('export-vnccs', current_payload_record)
+    return current_response_record['id'], 'VNCCS 출력 접수 완료 · MakeHuman 고정 체형 변환 후 지정 프레임 렌더 · 이력에서 PNG·ZIP·품질 기록을 확인하세요.'
 
 
 def describe_prompt_words(current_prompt_text):
@@ -94,6 +121,19 @@ def build_hymotion_interface(server_base_address):
         current_identifier_view = build_generation_identifier('접수한 생성 ID')
         current_status_view = gr.Markdown('모델 준비 상태를 확인한 뒤 생성할 수 있습니다.')
         current_eta_view = gr.Markdown('예상 남은 시간: 계산 중 · 예상 완료 시각: 계산 중\n\n추정 근거: 동일 조건 완료 표본 없음. GPU 대기·준비·추론 시간을 아직 추정할 수 없습니다.')
+        with gr.Accordion('VNCCS PoseStudio 출력 · MakeHuman 자동 변환', open=False):
+            gr.Markdown('완료된 원본 모션 생성 ID를 입력하세요. 공식 MakeHuman 기본 메쉬·가중치에 HY-Motion 관절 방향을 전달하고 본 길이를 보존합니다. 정사영과 원근투영(FOV 30°)을 각각 512px RGBA·흰 배경 RGB로 출력하며 ZIP과 동기 비교 재생을 제공합니다. 재질·조명은 동일하고 림 음영은 추가하지 않습니다. 출력 수·렌더 시간·저장량은 정사영 단독 대비 약 2배입니다. image1에는 ZIP의 -rgb.png를 사용하세요. 손가락·머리·손목은 부모 회전을 상속하며 축 회전·충돌·VNCCS 생성 품질은 미검증입니다.')
+            current_export_source = gr.Textbox(label='원본 HY-Motion 생성 ID · 생성 이력에서 복사')
+            with gr.Row():
+                current_export_start = gr.Number(value=1, minimum=1, maximum=360, precision=0, label='시작 프레임 · 1부터')
+                current_export_end = gr.Number(value=0, minimum=0, maximum=360, precision=0, label='종료 프레임 · 0 또는 빈 값이면 원본 끝')
+                current_export_step = gr.Number(value=load_vnccs_config()['frame_step'], minimum=1, maximum=360, precision=0, label='출력 프레임 간격 · 원본 30 FPS')
+            current_export_directions = gr.CheckboxGroup(MOTION_DIRECTION_LABELS, value=current_default_values['directions'], label='PNG 출력 방향')
+            current_export_button = gr.Button('MakeHuman 변환 후 VNCCS PNG 출력', interactive=False)
+            current_export_hint = gr.Markdown('원본 생성 ID와 출력 방향을 입력하면 실행할 수 있습니다. 완료 여부·프레임 범위는 접수 시 확인합니다.')
+            current_export_source.change(lambda current_source_text, current_selected_directions: gr.update(interactive=bool(current_source_text.strip() and current_selected_directions)), [current_export_source, current_export_directions], current_export_button, queue=False)
+            current_export_directions.change(lambda current_source_text, current_selected_directions: gr.update(interactive=bool(current_source_text.strip() and current_selected_directions)), [current_export_source, current_export_directions], current_export_button, queue=False)
+            bind_gpu_generation_confirmation(current_export_button, start_vnccs_export, [current_export_source, current_export_start, current_export_end, current_export_step, current_export_directions], [current_identifier_view, current_status_view])
 
         def refresh_generation_readiness(current_prompt_text, current_duration_value, current_seed_value, current_direction_names, current_tag_value):
             current_model_record = execute_motion_command('model-status', {})
@@ -123,6 +163,9 @@ def build_hymotion_interface(server_base_address):
                 return gr.skip(), gr.skip()
             current_status_record = execute_motion_command('status', {'id': generation_job_identifier})
             current_status_text = current_status_record['status'] + ' · ' + current_status_record.get('message', current_status_record.get('error', ''))
+            current_quality_warnings = (current_status_record.get('result') or {}).get('quality_warnings', [])
+            if current_quality_warnings:
+                current_status_text += '\n\n품질 경고: ' + '; '.join(current_quality_warnings)
             current_eta_record = current_status_record['eta']
             current_remaining_text = '계산 중' if current_eta_record['remaining'] is None else str(current_eta_record['remaining']) + '초'
             current_eta_text = '작업 종료 · 예상 시간 갱신 종료' if current_status_record['status'] not in ('running', 'queued') else f'예상 남은 시간: {current_remaining_text} · 예상 완료 시각: {current_eta_record["completion"] or "계산 중"}\n\n추정 근거: {current_eta_record["basis"]}'
