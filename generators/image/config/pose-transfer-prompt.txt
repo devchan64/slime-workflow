@@ -1,1 +1,1 @@
-Replace the pose of <image 2> with the pose of <image 1>. Keep the character of <image 2>.
+Replace the pose of <image 2> with the full-body pose of <image 1>. Interpret left and right from the character’s perspective. Match the relative positions and orientations of the head, torso, pelvis, and each left and right limb. Match shoulder, elbow, wrist, hip, knee, and ankle placement, joint bends, hand positions, palm directions, foot positions, and foot orientations. Preserve the character’s face, hair, clothing, and body proportions from <image 2>. Show the entire body.
