@@ -2,7 +2,7 @@
 import math
 
 
-def initialize_proximal_collision_start(current_rig_object, current_collision_probe, current_angle_step, current_refinement_count):
+def initialize_proximal_collision_start(current_rig_object, current_collision_probe, current_angle_step, current_refinement_count, current_selected_sides=('L', 'R')):
     """몸통은 유지하고 상완을 기준 방향→동측 어깨 바깥 방향으로 최소 회전한다."""
     import bpy
     from mathutils import Matrix, Quaternion
@@ -15,6 +15,8 @@ def initialize_proximal_collision_start(current_rig_object, current_collision_pr
     current_shoulder_axis.normalize()
     current_segment_records = []
     for current_side_name, current_side_sign in (('L', 1), ('R', -1)):
+        if current_side_name not in current_selected_sides:
+            continue
         current_start_bone = current_rig_object.pose.bones['upperarm01.' + current_side_name]
         current_arm_direction = current_rig_object.pose.bones['lowerarm01.' + current_side_name].head - current_start_bone.head
         if current_arm_direction.length < 1e-8:

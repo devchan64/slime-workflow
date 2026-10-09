@@ -22,7 +22,7 @@ def load_skin_barrier(current_profile_path=SKIN_BARRIER_PROFILE):
     if current_temporal_candidate:
         current_fixed_fields.update(profile_id='anny-neutral-v4-temporal-barrier-v3', initialization='previous_pose_with_lateral_collision_repair')
     if current_adjacency_candidate:
-        current_fixed_fields.update(profile_id='anny-neutral-v4-adjacency-barrier-v4', adjacent_connections='upperarm_upper_spine_five_hops')
+        current_fixed_fields.update(profile_id='anny-neutral-v4-adjacency-barrier-v4', adjacent_connections='upperarm_upper_spine_five_hops', initialization='target_pose_with_unilateral_collision_repair')
     if type(current_profile_record['schema_version']) is not int or any(current_profile_record[current_field_name] != current_field_value for current_field_name, current_field_value in current_fixed_fields.items()):
         raise ValueError('ANNY 피부 제약 대상·순서·승인 범위 계약 오류')
     for current_field_name in ('angle_step_degrees', 'minimum_surface_clearance_m'):

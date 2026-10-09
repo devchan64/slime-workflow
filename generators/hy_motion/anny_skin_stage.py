@@ -95,23 +95,38 @@ def apply_anny_skin_barrier(source_blend_path, output_directory_path, *, source_
         current_previous_rotations = {}
         current_previous_target_poses = {}
         current_temporal_enabled = current_profile_record.get('initialization') == 'previous_pose_with_lateral_collision_repair'
+        current_target_repair_enabled = current_profile_record.get('initialization') == 'target_pose_with_unilateral_collision_repair'
         for current_frame_number, (current_saved_poses, current_root_location, current_target_points, current_before_counts) in enumerate(current_saved_frames, 1):
             bpy.context.scene.frame_set(current_frame_number)
             current_rig_object.location = current_root_location
+            # 첫 목표 자세가 안전하면 기본 자세로 되돌리는 우회를 하지 않는다.
+            current_preserve_first_pose = current_target_repair_enabled
+            if current_frame_number == 1:
+                for current_pose_bone in current_rig_object.pose.bones:
+                    current_pose_bone.matrix_basis = current_saved_poses[current_pose_bone.name]
+                bpy.context.view_layer.update()
+                current_preserve_first_pose = current_target_repair_enabled or not detect_surface_collision(current_body_object, current_partition_faces, current_profile_record['minimum_surface_clearance_m'])
             for current_pose_bone in current_rig_object.pose.bones:
-                current_pose_bone.matrix_basis = Matrix.Identity(4) if current_pose_bone.name in current_target_names else current_saved_poses[current_pose_bone.name]
+                current_pose_bone.matrix_basis = Matrix.Identity(4) if current_pose_bone.name in current_target_names and not current_preserve_first_pose else current_saved_poses[current_pose_bone.name]
                 if current_temporal_enabled and current_pose_bone.name in current_previous_target_poses:
                     current_pose_bone.matrix_basis = current_previous_target_poses[current_pose_bone.name]
             bpy.context.view_layer.update()
-            current_initialization_record = {'strategy': 'local_rest'}
-            if current_profile_record.get('initialization') == 'bilateral_rest_to_lateral_first_clear' or current_temporal_enabled:
+            current_initialization_record = {'strategy': 'preserved_collision_free_target' if current_preserve_first_pose else 'local_rest'}
+            if current_target_repair_enabled:
+                from generators.hy_motion.proximal_collision_start import initialize_proximal_collision_start
+                current_side_repairs = {}
+                for current_repair_side in ('L', 'R'):
+                    current_side_batches = [current_batch_record for current_batch_record in current_collision_batches if current_batch_record[0] == current_repair_side]
+                    current_side_repairs[current_repair_side] = initialize_proximal_collision_start(current_rig_object, lambda: evaluate_filtered_collisions(current_body_object, current_side_batches, current_profile_record['minimum_surface_clearance_m'], stop_on_collision=True), current_profile_record['angle_step_degrees'], current_profile_record['boundary_refinements'], (current_repair_side,))
+                current_initialization_record = {'strategy': 'target_pose_with_unilateral_collision_repair', 'sides': current_side_repairs}
+            if not current_preserve_first_pose and (current_profile_record.get('initialization') == 'bilateral_rest_to_lateral_first_clear' or current_temporal_enabled):
                 from generators.hy_motion.proximal_collision_start import initialize_proximal_collision_start
                 current_initialization_record = initialize_proximal_collision_start(current_rig_object, lambda: detect_surface_collision(current_body_object, current_partition_faces, current_profile_record['minimum_surface_clearance_m']), current_profile_record['angle_step_degrees'], current_profile_record['boundary_refinements'])
                 current_initialization_record['strategy'] = 'previous_pose_with_lateral_collision_repair' if current_temporal_enabled and current_previous_target_poses else 'local_rest_with_lateral_collision_repair'
             if any(count_surface_intersections(current_body_object, current_partition_faces).values()):
                 raise ValueError(f'{current_frame_number}프레임의 기준 팔 시작 자세에 비인접 충돌 존재')
             current_bone_records = {}
-            for current_bone_name in current_target_names:
+            for current_bone_name in (() if current_preserve_first_pose else current_target_names):
                 current_progress_state.update(stage='proximal-to-distal', frame=current_frame_number, bone=current_bone_name)
                 current_pose_bone = current_rig_object.pose.bones[current_bone_name]
                 current_pose_bone.rotation_mode = 'QUATERNION'
