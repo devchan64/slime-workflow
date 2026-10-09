@@ -77,7 +77,8 @@ def load_manager_page_records(source_file_path):
         if not current_page_record['path'].startswith('/'):current_page_record={**current_page_record,'path':'/'+current_page_record['path']}
         page_identifier_values.add(current_page_record['id'])
         validated_page_records.append(current_page_record)
-    return validated_page_records
+    # 분류 접두어와 등록 순서 대신 도구 이름 오름차순을 모든 탐색에 공유한다.
+    return sorted(validated_page_records,key=lambda current_page_record:(current_page_record['label'].casefold(),current_page_record['id']))
 
 def filter_manager_page_records(page_record_values, search_text_value, category_name_value):
     search_token_values=search_text_value.casefold().split()
