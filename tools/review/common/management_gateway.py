@@ -80,10 +80,6 @@ def identify_management_command(request_route_value, request_method_value, reque
     return None
 
 
-def execute_momask_command(operation_command_name, command_payload_value):
-    raise ValueError('MoMask 포즈 생성기와 과거 기록은 폐기되었습니다. HY-Motion을 사용하세요.')
-
-
 class GatewayRequestAdapter:
     def __init__(self, original_request_handler, request_method_value, request_route_value, request_payload_value):
         self.original_request_handler=original_request_handler
@@ -140,11 +136,7 @@ class ManagementCommandGateway:
                 service_command_name,operation_command_name,command_payload_value=identify_management_command(current_http_handler.path,current_http_handler.command,request_payload_value)
             request_method_value,request_route_value=resolve_management_command(service_command_name,operation_command_name,command_payload_value)
             # 작업 파일 조회 이외의 임의 URL·프로그램 실행을 허용하지 않는다.
-            if service_command_name=='momask' and operation_command_name=='logs':
-                response_payload_bytes=execute_momask_command('logs',command_payload_value).encode()
-                current_http_handler.send_response(200);current_http_handler.send_header('Content-Type','text/plain; charset=utf-8');current_http_handler.send_header('Content-Length',str(len(response_payload_bytes)));current_http_handler.end_headers();current_http_handler.wfile.write(response_payload_bytes)
-            else:
-                execute_management_command(service_command_name,operation_command_name,command_payload_value,gateway_request_handler=current_http_handler,service_handler_values=self.service_handler_values)
+            execute_management_command(service_command_name,operation_command_name,command_payload_value,gateway_request_handler=current_http_handler,service_handler_values=self.service_handler_values)
         except (ValueError,KeyError,TypeError,OSError) as gateway_error_value:
             response_payload_bytes=json.dumps({'error':str(gateway_error_value)},ensure_ascii=False).encode()
             current_http_handler.send_response(400);current_http_handler.send_header('Content-Type','application/json; charset=utf-8');current_http_handler.send_header('Content-Length',str(len(response_payload_bytes)));current_http_handler.end_headers();current_http_handler.wfile.write(response_payload_bytes)
@@ -169,8 +161,6 @@ def execute_management_command(service_command_name, operation_command_name, com
     if service_command_name=='character-animation' and server_base_address is None:
         from tools.review.domains.character_animation.character_animation_jobs import execute_animation_command
         return execute_animation_command(operation_command_name,command_payload_value)
-    if service_command_name=='momask' and server_base_address is None:
-        return execute_momask_command(operation_command_name,command_payload_value)
     server_base_address=server_base_address or DEFAULT_GATEWAY_ADDRESS
     return call_management_api(server_base_address,request_route_value,command_payload_value if request_method_value=='POST' else None,operation_command_name!='logs')
 

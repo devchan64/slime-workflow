@@ -304,7 +304,7 @@ def run_review_server(parsed_argument_values):
             print(trace_line_text,flush=True)
             with server_log_path.open('a') as trace_file_stream: trace_file_stream.write(trace_line_text+'\n')
     management_menu_url = None
-    from tools.review.common.gradio_process import ensure_gradio_application, ensure_floor_tile_server, ensure_anny_attributes_server, ensure_character_animation_server, ensure_gradio_server, ensure_management_menu_server, ensure_map_review_server, ensure_qwen_2511_server, ensure_qwen_2512_server, ensure_sprite_editor_server, ensure_static_review_server, ensure_writer_agent_server
+    from tools.review.common.gradio_process import ensure_gradio_application, ensure_floor_tile_server, ensure_anny_attributes_server, ensure_management_menu_server, ensure_map_review_server, ensure_qwen_2511_server, ensure_qwen_2512_server, ensure_sprite_editor_server, ensure_static_review_server, ensure_writer_agent_server
     if manager_source_path.is_file():
         try:
             management_menu_url=ensure_management_menu_server(parsed_argument_values.port,manager_source_path)

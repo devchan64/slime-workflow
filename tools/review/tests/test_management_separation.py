@@ -98,8 +98,7 @@ class ManagementSeparationTests(unittest.TestCase):
             self.assertFalse(any(runtime_source_path == watched_root_path or runtime_source_path.is_relative_to(watched_root_path) for watched_root_path in watched_root_paths))
 
     def test_gateway_failure_does_not_run_local_or_retry(self):
-        with patch.dict(os.environ, {'SLIME_MANAGEMENT_GATEWAY_URL': 'http://127.0.0.1:9871'}), patch('tools.review.common.management_gateway.call_management_api', side_effect=ValueError('게이트웨이 종료')) as remote_command_mock, patch('tools.review.common.management_gateway.execute_momask_command') as local_command_mock:
+        with patch.dict(os.environ, {'SLIME_MANAGEMENT_GATEWAY_URL': 'http://127.0.0.1:9871'}), patch('tools.review.common.management_gateway.call_management_api', side_effect=ValueError('게이트웨이 종료')) as remote_command_mock:
             with self.assertRaisesRegex(ValueError, '게이트웨이 종료'):
                 execute_remote_management_command('hy-motion', 'history', {})
             remote_command_mock.assert_called_once()
-            local_command_mock.assert_not_called()

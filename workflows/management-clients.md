@@ -161,7 +161,7 @@ python3 tools/manager.py command qwen-2512 history-reset
 
 ## 통합 명령 게이트웨이
 
-`management_gateway.py`가 `momask`, `qwen-2512`, `qwen-2511`, `character-animation`의 허용 명령과 HTTP 경로를 관리한다. GUI의 기존 API 호출은 서버 진입점에서 이 게이트웨이를 통과한다. Qwen 통합 CLI는 `POST /management/command`에 `{service, command, payload}`를 보내 같은 서비스 어댑터를 호출한다. MoMask의 로컬 CLI와 웹 어댑터는 공용 `execute_momask_command`를 사용한다.
+`management_gateway.py`가 `momask`, `qwen-2512`, `qwen-2511`, `character-animation`의 허용 명령과 HTTP 경로를 관리한다. GUI의 기존 API 호출은 서버 진입점에서 이 게이트웨이를 통과한다. Qwen 통합 CLI는 `POST /management/command`에 `{service, command, payload}`를 보내 같은 서비스 어댑터를 호출한다. MoMask는 폐기되어 모든 명령을 저장소 접근 전에 거절한다. 이전 HTTP 주소에는 410 안내만 제공한다.
 
 ```text
 GUI 기존 API → 명령 경로 변환 ─┐

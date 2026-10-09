@@ -159,14 +159,8 @@ def ensure_gradio_application(review_server_port, application_name, application_
         process_record_value.wait(timeout=5)
         raise ValueError('Gradio 시작 제한 시간 초과')
 
-def ensure_gradio_server(review_server_port):
-    raise ValueError('MoMask 포즈 생성기 화면은 폐기되었습니다.')
-
 def ensure_management_menu_server(review_server_port, manager_source_path):
     return ensure_gradio_application(review_server_port,'management-menu',manager_source_path)
-
-def ensure_character_animation_server(review_server_port):
-    raise ValueError('AnyPose 캐릭터 애니메이션 화면은 폐기되었습니다.')
 
 def ensure_qwen_2512_server(review_server_port):
     return ensure_gradio_application(review_server_port,'qwen-2512')

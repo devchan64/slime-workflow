@@ -35,6 +35,11 @@ class MoMaskRetirementTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, '폐기'):
             reject_retired_record_access('../unused')
 
+    def test_retired_inference_fails_without_runtime_dependencies(self):
+        from generators.momask.generate_motion import execute_motion_attempt
+        with self.assertRaisesRegex(ValueError, '폐기'):
+            execute_motion_attempt()
+
     def test_legacy_http_returns_gone(self):
         for current_request_path in ('/momask-generator/', '/momask-generator/history', '/momask-generator/jobs'):
             current_status_codes = []
