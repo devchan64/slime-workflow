@@ -9,6 +9,7 @@ import numpy as np
 from generators.hy_motion.body_rotation_ownership import build_body_calibration, measure_body_rotation_errors, MAXIMUM_WORLD_MATRIX_ERROR
 from generators.hy_motion.shoulder_rotation_ownership import apply_shoulder_rotations
 from generators.hy_motion.rotation_channels import reconstruct_rotation_channels
+from generators.hy_motion.knee_skin_correction import redistribute_knee_skin_weights
 
 CURRENT_REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 CURRENT_OUTPUT_DIRECTORY = Path(globals()['stage_output_directory'])
@@ -34,6 +35,7 @@ with np.load(current_motion_path, allow_pickle=False) as current_motion_archive:
 current_baseline_path = CURRENT_OUTPUT_DIRECTORY.parent / 'mannequin.blend'
 bpy.ops.wm.open_mainfile(filepath=str(current_baseline_path))
 current_rig_object = bpy.data.objects['AnnyAttributesRig']
+current_knee_correction = redistribute_knee_skin_weights(bpy.data.objects['AnnyAttributesBody'], current_rig_object)
 current_rig_object['hy_motion_rotation_policy'] = 'body_local_ownership_v1'
 current_calibration_record = build_body_calibration(current_source_names, current_rest_points, current_parent_indices, {current_bone_record.name: np.asarray(current_bone_record.matrix_local) for current_bone_record in current_rig_object.data.bones}, {current_bone_record.name: current_bone_record.parent.name if current_bone_record.parent else None for current_bone_record in current_rig_object.data.bones})
 current_root_positions = []
@@ -88,6 +90,8 @@ for current_frame_record in current_frame_records:
 current_hash_paths = [current_motion_path, current_baseline_path, Path(__file__), CURRENT_REPOSITORY_ROOT / 'generators/hy_motion/body_rotation_ownership.py', CURRENT_REPOSITORY_ROOT / 'generators/hy_motion/shoulder_rotation_ownership.py']
 current_result_record = {'status': 'completed', 'profile': current_calibration_record, 'fk_error_m': current_fk_error, 'frames': current_frame_records, 'hashes': {str(current_file_path): hashlib.sha256(current_file_path.read_bytes()).hexdigest() for current_file_path in current_hash_paths}, 'quality_approved': False, 'skin_constraints_applied': False, 'compensation': False}
 current_result_record['saved_animation_audit'] = {'status': 'passed', 'frames': current_saved_checks, 'scope': '정수 프레임의 전체 로컬 본·소유 본 세계 회전·루트 이동. 피부 품질 및 프레임 사이 보간은 미검증'}
+current_result_record['knee_skin_weights'] = current_knee_correction
+current_result_record['hashes'][str(CURRENT_REPOSITORY_ROOT / 'generators/hy_motion/knee_skin_correction.py')] = hashlib.sha256((CURRENT_REPOSITORY_ROOT / 'generators/hy_motion/knee_skin_correction.py').read_bytes()).hexdigest()
 (CURRENT_OUTPUT_DIRECTORY / 'comparison.json').write_text(json.dumps(current_result_record, ensure_ascii=False, indent=2))
 CURRENT_FINISHED_EVENT.set()
 print(f'{time.strftime("%FT%T")}/local-retarget/completed 프레임={len(current_frame_records)} FK오차={current_fk_error}', flush=True)
