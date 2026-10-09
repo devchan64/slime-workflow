@@ -3,7 +3,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
-from tools.review.domains.momask.openpose_maps import generate_openpose_maps
+from tools.review.common.openpose_maps import generate_openpose_maps
 
 class OpenposeFaceOptionTests(unittest.TestCase):
     def test_face_toggle_preserves_visibility(self):

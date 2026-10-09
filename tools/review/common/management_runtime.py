@@ -78,10 +78,9 @@ def create_management_runtime(writer_workspace_config=None):
     from generators.writer_agent.documents import DEFAULT_WORKSPACE_CONFIG
     from tools.review.domains.tile.floor_generation import FloorGenerationManager
     from tools.review.domains.anny.anny_attributes import AnnyAttributeManager, JOBS as ANNY_RECORD_DIRECTORY
-    from tools.review.domains.momask.momask_generation import MoMaskGenerationManager
+    from tools.review.common.retired_momask import RetiredMoMaskHandler, reject_retired_record_access
     from tools.review.domains.character_animation.character_animation import CharacterAnimationManager
     from tools.review.domains.character_animation.character_animation_jobs import GENERATION_ROOT_DIRECTORY, resolve_generation_directory
-    from tools.review.domains.momask.momask_jobs import GENERATION_JOB_DIRECTORY as MOMASK_RECORD_DIRECTORY, resolve_generation_directory as resolve_momask_record_directory
 
     from tools.review.domains.character_review.capture import handle_character_capture_request, CAPTURE_STORAGE_DIRECTORY
     from tools.review.domains.anny.landmarks import handle_landmark_request, LANDMARK_STORAGE_DIRECTORY
@@ -99,7 +98,7 @@ def create_management_runtime(writer_workspace_config=None):
         three_reference_service = ImageGenerationManager(three_reference_mode=True)
         floor_generation_service = FloorGenerationManager()
         anny_attribute_service = AnnyAttributeManager()
-        momask_generation_service = MoMaskGenerationManager()
+        momask_generation_service = RetiredMoMaskHandler()
         character_animation_service = CharacterAnimationManager()
         service_binding_records = {
             'anny-landmarks': bind_stored_management_service(handle_landmark_request, LANDMARK_STORAGE_DIRECTORY),
@@ -116,7 +115,7 @@ def create_management_runtime(writer_workspace_config=None):
             'qwen-2512': bind_stored_management_service(image_generation_service.handle_image_request, image_generation_service.job_storage_root),
             'qwen-2511': bind_stored_management_service(three_reference_service.handle_image_request, three_reference_service.job_storage_root),
             'anny': bind_stored_management_service(anny_attribute_service.handle, ANNY_RECORD_DIRECTORY),
-            'momask': ManagementServiceBinding(momask_generation_service.handle, MOMASK_RECORD_DIRECTORY, resolve_momask_record_directory),
+            'momask': ManagementServiceBinding(momask_generation_service.handle, Path(__file__).resolve().parents[3]/'.tmp/momask-generator/jobs', reject_retired_record_access),
             'character-animation': ManagementServiceBinding(character_animation_service.handle, GENERATION_ROOT_DIRECTORY, resolve_generation_directory),
         }
         return ManagementServiceRuntime(service_binding_records, writer_agent_service.handle_writer_request, writer_agent_service.close_writer_worker)

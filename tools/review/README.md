@@ -125,3 +125,7 @@ HTTP URL, 페이지 해시, CLI 명령, `.tmp` 생성 ID·기록 경로와 `asse
 필드·마을 렌더러의 소스 관리 주체는 `slime-frontend`입니다. `packages/field-renderer/`와 여기서 내보내는 `src/game/terrain/` 구현이 단일 원본이며, 관리도구의 vendor는 수정하지 않는 버전별 배포 산출물입니다. 타일 선택·경계선·건물 그리기 규칙을 변경할 때 관리도구에서 복제하지 않고 프론트엔드 공용 함수로 통합합니다. 관리도구는 데이터 조회·UI·카메라·선택·캡처와 객체 수명 연결을 담당합니다. 현재 검수 어댑터에 남은 타일 선택 분기와 맵 순회는 소비 연결 코드이며, 렌더링 규칙의 별도 소유권을 의미하지 않습니다.
 
 vendor에는 채택한 최신 렌더러 배포본 하나만 보관합니다. 버전은 `vendor/field-renderer/manifest.yaml`의 `version`만 수정 원본으로 사용하며, 게시기가 JavaScript의 `__FIELD_RENDERER_VERSION__`을 치환하고 버전별 URL로 게시합니다. Phaser와 field-surface를 별도로 중복 보관하지 않습니다. field-surface 구현은 프론트엔드 소유 렌더러 번들에 포함됩니다. 이전 배포본은 Git 이력에서 복원합니다.
+
+### MoMask 도메인 폐기
+
+MoMask 작업 서비스와 루트 호환 모듈은 제거했다. 이전 HTTP 주소는 `common/retired_momask.py`에서 410을 반환하고, 게이트웨이는 모든 MoMask 명령을 거절한다. 작업 저장소 접근·실행 감독 코드는 유지하지 않는다. ANNY 투영점의 OpenPose 변환은 `common/openpose_maps.py`에서 관리하며 기존 `openpose_maps.py` import 경로는 공용 모듈로 연결한다. 생성 산출물과 다른 생성기가 사용하는 제작 템플릿은 이 도메인 폐기 범위에 포함하지 않는다.

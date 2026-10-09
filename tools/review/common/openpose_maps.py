@@ -1,7 +1,7 @@
 """ANNY 카메라 투영점을 COCO18 신체 맵으로 변환한다. 얼굴은 ANNY 공식 COCO 회귀점을 선택적으로 투영한다."""
 import sys
 from pathlib import Path
-sys.path.insert(0,str(Path(__file__).resolve().parents[4]))
+sys.path.insert(0,str(Path(__file__).resolve().parents[3]))
 import json, math, subprocess, time
 from PIL import Image, ImageDraw
 
@@ -13,7 +13,7 @@ def generate_openpose_maps(job_directory_path, include_face_points=False):
     result_record_values=json.loads((job_directory_path/'result.json').read_text())
     face_projection_record=None
     if include_face_points:
-        workflow_root_directory=Path(__file__).resolve().parents[4]
+        workflow_root_directory=Path(__file__).resolve().parents[3]
         face_record_path=job_directory_path/'result/anny/face-keypoints.json'
         if not face_record_path.exists():
             subprocess.run([str(workflow_root_directory/'.local/blender-runtime/bin/python'),str(workflow_root_directory/'generators/momask/templates/run_stage.py'),str(workflow_root_directory/'generators/momask/project_face_points.py'),str(job_directory_path)],check=True)

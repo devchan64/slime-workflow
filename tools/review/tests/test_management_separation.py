@@ -93,24 +93,13 @@ class ManagementSeparationTests(unittest.TestCase):
     def test_gui_watch_excludes_runtime_implementation(self):
         parsed_argument_values = serve.parse_review_arguments([])
         watched_root_paths = serve.collect_review_watch_paths(parsed_argument_values)
-        runtime_source_paths = [serve.Path(serve.__file__).parent/'gateway_server.py', serve.Path(serve.__file__).parent/'common/management_runtime.py', serve.Path(serve.__file__).parent/'domains/momask/momask_jobs.py']
+        runtime_source_paths = [serve.Path(serve.__file__).parent/'gateway_server.py', serve.Path(serve.__file__).parent/'common/management_runtime.py']
         for runtime_source_path in runtime_source_paths:
             self.assertFalse(any(runtime_source_path == watched_root_path or runtime_source_path.is_relative_to(watched_root_path) for watched_root_path in watched_root_paths))
 
     def test_gateway_failure_does_not_run_local_or_retry(self):
         with patch.dict(os.environ, {'SLIME_MANAGEMENT_GATEWAY_URL': 'http://127.0.0.1:9871'}), patch('tools.review.common.management_gateway.call_management_api', side_effect=ValueError('게이트웨이 종료')) as remote_command_mock, patch('tools.review.common.management_gateway.execute_momask_command') as local_command_mock:
             with self.assertRaisesRegex(ValueError, '게이트웨이 종료'):
-                execute_remote_management_command('momask', 'generate', {'action': 'walking', 'directions': ['down_left']})
+                execute_remote_management_command('hy-motion', 'history', {})
             remote_command_mock.assert_called_once()
             local_command_mock.assert_not_called()
-
-    def test_momask_http_generation_preserves_history_tag(self):
-        from tools.review.domains.momask.momask_generation import MoMaskGenerationManager
-        request_payload_values = {'action': 'walking', 'directions': ['down_left'], 'face': False, 'tag': '분리 검증'}
-        request_payload_bytes = json.dumps(request_payload_values).encode()
-        response_status_values = []
-        current_http_handler = SimpleNamespace(path='/momask-generator/jobs', command='POST', server=SimpleNamespace(server_port=8771), headers={'Host': '127.0.0.1:8771', 'Origin': 'http://127.0.0.1:8771', 'Content-Type': 'application/json', 'Content-Length': str(len(request_payload_bytes))}, rfile=io.BytesIO(request_payload_bytes), wfile=io.BytesIO(), send_response=response_status_values.append, send_header=lambda *header_argument_values: None, end_headers=lambda: None)
-        with patch('tools.review.domains.momask.momask_generation.execute_momask_command', return_value={'id': 'preserved-job'}) as service_command_mock:
-            self.assertTrue(MoMaskGenerationManager().handle(current_http_handler))
-            service_command_mock.assert_called_once_with('generate', request_payload_values)
-        self.assertEqual(response_status_values, [202])

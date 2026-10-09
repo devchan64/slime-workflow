@@ -81,28 +81,7 @@ def identify_management_command(request_route_value, request_method_value, reque
 
 
 def execute_momask_command(operation_command_name, command_payload_value):
-    if __package__:
-        from tools.review.domains.momask import momask_jobs
-    else:
-        import tools.review.domains.momask.momask_jobs as momask_jobs
-    resolve_management_command('momask',operation_command_name,command_payload_value)
-    if operation_command_name=='resume':
-        return momask_jobs.resume_generation_job(command_payload_value['id'])
-    if operation_command_name=='generate':
-        return momask_jobs.start_generation_job(command_payload_value['action'],command_payload_value['directions'],command_payload_value.get('face',False),command_payload_value.get('tag',''),command_payload_value.get('prompt'),command_payload_value.get('frames'))
-    if operation_command_name=='history':
-        return momask_jobs.list_generation_history()
-    if operation_command_name=='status':
-        return momask_jobs.read_generation_status(command_payload_value['id'])
-    if operation_command_name=='logs':
-        return (momask_jobs.resolve_generation_directory(command_payload_value['id'])/'worker.log').read_text(errors='replace')
-    if operation_command_name=='cancel':
-        return momask_jobs.cancel_generation_job(command_payload_value['id'])
-    if operation_command_name=='history-reset':
-        return momask_jobs.reset_generation_history()
-    if operation_command_name=='history-delete':
-        return momask_jobs.delete_generation_history(command_payload_value['id'])
-    raise ValueError('지원하지 않는 로컬 명령')
+    raise ValueError('MoMask 포즈 생성기와 과거 기록은 폐기되었습니다. HY-Motion을 사용하세요.')
 
 
 class GatewayRequestAdapter:

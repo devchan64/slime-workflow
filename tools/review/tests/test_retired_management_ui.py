@@ -5,7 +5,7 @@ from types import SimpleNamespace
 import unittest
 
 from tools.review.domains.image.image_generation import ImageGenerationManager
-from tools.review.domains.momask.momask_generation import MoMaskGenerationManager
+from tools.review.common.retired_momask import RetiredMoMaskHandler as MoMaskGenerationManager
 from tools.review.domains.tile.tile_generation import TileGenerationManager
 from tools.review.ui_assets import resolve_review_ui_asset
 

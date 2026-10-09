@@ -6,8 +6,7 @@ import tempfile
 from types import SimpleNamespace
 import unittest
 from tools.review.common.management_gateway import resolve_management_command
-from tools.review.domains.momask import momask_jobs
-from tools.review.domains.momask.momask_generation import MoMaskGenerationManager
+from tools.review.common.retired_momask import RetiredMoMaskHandler as MoMaskGenerationManager
 
 
 class MoMaskRetirementTests(unittest.TestCase):
@@ -27,10 +26,14 @@ class MoMaskRetirementTests(unittest.TestCase):
         for current_command_name in ('generate', 'resume', 'history', 'status', 'history-reset'):
             with self.assertRaisesRegex(ValueError, '폐기'):
                 resolve_management_command('momask', current_command_name, {})
+
+    def test_retired_domain_is_removed(self):
+        current_review_root = Path(__file__).resolve().parents[1]
+        self.assertFalse((current_review_root / 'domains/momask').exists())
+        self.assertFalse((current_review_root / 'momask_jobs.py').exists())
+        from tools.review.common.retired_momask import reject_retired_record_access
         with self.assertRaisesRegex(ValueError, '폐기'):
-            momask_jobs.start_generation_job('standing', ['down_left'])
-        with self.assertRaisesRegex(ValueError, '폐기'):
-            momask_jobs.resume_generation_job('unused')
+            reject_retired_record_access('../unused')
 
     def test_legacy_http_returns_gone(self):
         for current_request_path in ('/momask-generator/', '/momask-generator/history', '/momask-generator/jobs'):
