@@ -111,7 +111,7 @@ class GradioHistoryTest(unittest.TestCase):
             history_refresh_function, [1, 'removed-job']))
         self.assertIsNone(current_refresh_result['data'][0]['value'])
         self.assertEqual(current_refresh_result['data'][0]['choices'][0][1], 'current-job')
-        self.assertFalse(current_refresh_result['data'][7]['visible'])
+        self.assertFalse(current_refresh_result['data'][6]['visible'])
 
     def test_refresh_explicitly_preserves_existing_selection(self):
         with gr.Blocks():
@@ -120,7 +120,7 @@ class GradioHistoryTest(unittest.TestCase):
                 'http://localhost', '테스트 기록')
         current_refresh_values = read_history_callback(1, 'current-job')
         self.assertEqual(current_refresh_values[0]['value'], 'current-job')
-        self.assertTrue(current_refresh_values[7]['visible'])
+        self.assertTrue(current_refresh_values[6]['visible'])
 
     def test_radio_selection_updates_shared_action_handlers(self):
         with gr.Blocks() as current_history_blocks:
@@ -161,3 +161,12 @@ class HistoryRadioTableTest(unittest.TestCase):
         self.assertIn('value="second" aria-label="second 선택" checked',current_table_markup)
         self.assertNotIn('<script>',current_table_markup)
         self.assertIn('<th scope="col">선택</th>',current_table_markup)
+        self.assertIn('<th scope="col">썸네일</th>',current_table_markup)
+
+    def test_completed_history_row_includes_result_thumbnail(self):
+        from tools.review.common.gradio_history import render_history_selection_table
+        current_table_markup=render_history_selection_table([
+            {'id':'completed-image','status':{'status':'completed'},'request':{},'image':'/image-generation/jobs/completed-image/result.png'}],
+            server_base_address='http://127.0.0.1:8770')
+        self.assertIn('generation-history-table-thumbnail',current_table_markup)
+        self.assertIn('http://127.0.0.1:8770/image-generation/jobs/completed-image/result.png',current_table_markup)

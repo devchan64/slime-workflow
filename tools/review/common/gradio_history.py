@@ -178,20 +178,26 @@ def build_history_table_rows(current_history_records):
     return current_table_rows
 
 
-def render_history_selection_table(current_history_records,current_selected_identifier=None):
-    """첫 열의 단일 선택 라디오를 공용 이력 작업에 연결한다."""
+def render_history_selection_table(current_history_records,current_selected_identifier=None,server_base_address=''):
+    """첫 열 선택과 결과 썸네일을 한 행에 표시한다."""
     import html
     current_table_rows=build_history_table_rows(current_history_records)
     if not current_table_rows:return '<p>생성 이력이 없습니다.</p>'
-    current_header_names=('선택','상태','생성 시각','설정','진행','ID')
+    current_header_names=('선택','썸네일','상태','생성 시각','설정','진행','ID')
     current_header_markup=''.join('<th scope="col">'+html.escape(current_header_name)+'</th>' for current_header_name in current_header_names)
     current_row_markup=[]
-    for current_table_row in current_table_rows:
+    for current_history_record,current_table_row in zip(current_history_records,current_table_rows):
         current_job_identifier=str(current_table_row[-1])
         current_checked_markup=' checked' if current_job_identifier==current_selected_identifier else ''
         current_radio_markup='<input type="radio" name="generation-history-job" value="'+html.escape(current_job_identifier,quote=True)+'" aria-label="'+html.escape(current_job_identifier+' 선택',quote=True)+'"'+current_checked_markup+'>'
+        current_image_path=current_history_record.get('image')
+        if isinstance(current_image_path,str) and current_image_path:
+            current_image_url=current_image_path if current_image_path.startswith(('http://','https://')) else server_base_address.rstrip('/')+current_image_path
+            current_thumbnail_markup='<img class="generation-history-table-thumbnail" src="'+html.escape(current_image_url,quote=True)+'" alt="'+html.escape(current_job_identifier+' 결과 썸네일',quote=True)+'" loading="lazy" decoding="async">'
+        else:
+            current_thumbnail_markup='<span class="generation-history-table-thumbnail is-empty" aria-label="결과 없음">결과 없음</span>'
         current_cell_markup=''.join('<td>'+html.escape(str(current_cell_value))+'</td>' for current_cell_value in current_table_row)
-        current_row_markup.append('<tr><td>'+current_radio_markup+'</td>'+current_cell_markup+'</tr>')
+        current_row_markup.append('<tr><td>'+current_radio_markup+'</td><td>'+current_thumbnail_markup+'</td>'+current_cell_markup+'</tr>')
     return '<div style="overflow-x:auto"><table><caption>현재 페이지의 생성 이력</caption><thead><tr>'+current_header_markup+'</tr></thead><tbody>'+''.join(current_row_markup)+'</tbody></table></div>'
 
 
@@ -239,7 +245,6 @@ def build_generation_history_view(execute_service_command,server_base_address,de
                 with gr.Row():
                     current_delete_cancel=gr.Button('취소')
                     current_delete_confirm=gr.Button('이력 삭제',variant='stop')
-        history_remaining_cards=gr.Gallery(value=[],label='현재 페이지의 결과 미리보기',columns=2,height='max-content',object_fit='contain',interactive=False,visible=False,elem_id='generation-history-remaining-cards')
         result_identifier_value=build_generation_identifier('조회한 생성 ID', 'generation-history-result-anchor')
         result_status_value=gr.Markdown('')
         result_image_value=result_component_factory() if result_component_factory is not None else gr.HTML(visible=False) if result_renderer_callback is not None else build_generation_gallery('조회한 생성 결과')
@@ -283,12 +288,11 @@ def build_generation_history_view(execute_service_command,server_base_address,de
         selected_history_identifier=current_selected_identifier if current_selected_identifier in [value for _,value in current_choice_values] else None
         # 목록과 선택값을 함께 갱신하여 브라우저와 서버의 선택 상태를 맞춘다.
         selection_update_values = {'choices':current_choice_values, 'value':selected_history_identifier}
-        current_thumbnail_items=collect_image_history_thumbnails(current_page_records,server_base_address)[0]
-        return gr.update(**selection_update_values),f'총 {len(current_history_records)}건 · {current_page_number} / {current_page_count}페이지' if current_history_records else '생성 이력이 없습니다. 위 설정에서 생성을 시작하세요.',gr.update(value=current_page_number,maximum=current_page_count,interactive=current_page_count>1),render_history_selection_table(current_page_records,selected_history_identifier),gr.update(interactive=current_page_number>1),gr.update(interactive=current_page_number<current_page_count),gr.update(value=current_thumbnail_items,visible=bool(current_thumbnail_items)),gr.update(visible=bool(selected_history_identifier))
+        return gr.update(**selection_update_values),f'총 {len(current_history_records)}건 · {current_page_number} / {current_page_count}페이지' if current_history_records else '생성 이력이 없습니다. 위 설정에서 생성을 시작하세요.',gr.update(value=current_page_number,maximum=current_page_count,interactive=current_page_count>1),render_history_selection_table(current_page_records,selected_history_identifier,server_base_address),gr.update(interactive=current_page_number>1),gr.update(interactive=current_page_number<current_page_count),gr.update(visible=bool(selected_history_identifier))
 
     def update_selected_card_layout(current_page_number,current_selected_identifier):
         current_page_updates=read_history_page(current_page_number,current_selected_identifier)
-        return [current_page_updates[index] for index in (3,6,7)]
+        return [current_page_updates[index] for index in (3,6)]
 
     def select_history_table_record(current_selection_event:gr.EventData):
         current_job_identifier=current_selection_event.identifier
@@ -298,7 +302,7 @@ def build_generation_history_view(execute_service_command,server_base_address,de
         return gr.update(value=current_job_identifier)
     history_cards_value.click(select_history_table_record,outputs=history_selection_value,queue=False)
 
-    history_selection_value.change(update_selected_card_layout,[history_page_value,history_selection_value],[history_cards_value,history_remaining_cards,history_selected_panel],queue=False)
+    history_selection_value.change(update_selected_card_layout,[history_page_value,history_selection_value],[history_cards_value,history_selected_panel],queue=False)
 
     def read_selected_result(current_selected_identifier):
         if not current_selected_identifier:raise gr.Error('목록에서 작업을 선택하세요. 결과 조회·입력 재사용·중지·재개를 할 수 있습니다.')
@@ -333,10 +337,10 @@ def build_generation_history_view(execute_service_command,server_base_address,de
     if restore_input_callback is not None:history_selection_output_values.append(restore_input_button)
     history_selection_value.change(describe_selected_history,history_selection_value,history_selection_output_values,queue=False)
     # 전체 목록은 수동 갱신한다. 주기적 재렌더링은 썸네일 로딩과 선택 UI를 흔든다.
-    history_refresh_button.click(read_history_page,[history_page_value,history_selection_value],[history_selection_value,history_count_value,history_page_value,history_cards_value,history_previous_button,history_next_button,history_remaining_cards,history_selected_panel],preprocess=False,queue=False)
-    history_previous_button.click(lambda current_page_number,current_selected_identifier:read_history_page((current_page_number or 1)-1,current_selected_identifier),[history_page_value,history_selection_value],[history_selection_value,history_count_value,history_page_value,history_cards_value,history_previous_button,history_next_button,history_remaining_cards,history_selected_panel],preprocess=False,queue=False)
-    history_next_button.click(lambda current_page_number,current_selected_identifier:read_history_page((current_page_number or 1)+1,current_selected_identifier),[history_page_value,history_selection_value],[history_selection_value,history_count_value,history_page_value,history_cards_value,history_previous_button,history_next_button,history_remaining_cards,history_selected_panel],preprocess=False,queue=False)
-    history_page_value.input(read_history_page,[history_page_value,history_selection_value],[history_selection_value,history_count_value,history_page_value,history_cards_value,history_previous_button,history_next_button,history_remaining_cards,history_selected_panel],preprocess=False,queue=False)
+    history_refresh_button.click(read_history_page,[history_page_value,history_selection_value],[history_selection_value,history_count_value,history_page_value,history_cards_value,history_previous_button,history_next_button,history_selected_panel],preprocess=False,queue=False)
+    history_previous_button.click(lambda current_page_number,current_selected_identifier:read_history_page((current_page_number or 1)-1,current_selected_identifier),[history_page_value,history_selection_value],[history_selection_value,history_count_value,history_page_value,history_cards_value,history_previous_button,history_next_button,history_selected_panel],preprocess=False,queue=False)
+    history_next_button.click(lambda current_page_number,current_selected_identifier:read_history_page((current_page_number or 1)+1,current_selected_identifier),[history_page_value,history_selection_value],[history_selection_value,history_count_value,history_page_value,history_cards_value,history_previous_button,history_next_button,history_selected_panel],preprocess=False,queue=False)
+    history_page_value.input(read_history_page,[history_page_value,history_selection_value],[history_selection_value,history_count_value,history_page_value,history_cards_value,history_previous_button,history_next_button,history_selected_panel],preprocess=False,queue=False)
     result_lookup_button.click(read_selected_result,history_selection_value,[result_identifier_value,result_path_value,result_status_value,result_image_value,result_record_value,log_output_value],queue=False).success(fn=None,js="()=>{requestAnimationFrame(()=>{document.getElementById('generation-history-result-anchor')?.scrollIntoView({behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth',block:'start'});});}")
     if record_folder_route is not None:
         folder_open_script=f"""async(identifierValue)=>{{if(!identifierValue)throw new Error('먼저 생성 이력을 선택하세요.');const responseValue=await fetch('/management/record-folder/open',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify({{route:{record_folder_route!r},id:identifierValue}})}});const payloadValue=await responseValue.json();if(!responseValue.ok)throw new Error(payloadValue.error);return payloadValue.message;}}"""
@@ -347,7 +351,7 @@ def build_generation_history_view(execute_service_command,server_base_address,de
         if restore_input_callback is not None:reset_output_values.append(gr.update(interactive=False))
         reset_output_values.append('')
         return reset_output_values
-    reset_output_components=[history_selection_value,history_count_value,history_page_value,history_cards_value,history_previous_button,history_next_button,history_remaining_cards,history_selected_panel,result_identifier_value,result_path_value,result_status_value,result_image_value,result_record_value,log_output_value,history_selection_summary,result_lookup_button]
+    reset_output_components=[history_selection_value,history_count_value,history_page_value,history_cards_value,history_previous_button,history_next_button,history_selected_panel,result_identifier_value,result_path_value,result_status_value,result_image_value,result_record_value,log_output_value,history_selection_summary,result_lookup_button]
     if restore_input_callback is not None:reset_output_components.append(restore_input_button)
     reset_output_components.append(selected_identifier_value)
     if allow_individual_delete:
@@ -371,4 +375,4 @@ def build_generation_history_view(execute_service_command,server_base_address,de
         history_selection_value.change(close_delete_confirmation,outputs=current_delete_outputs,queue=False)
         current_delete_confirm.click(delete_selected_history,[history_selection_value,current_delete_identifier],[*reset_output_components,*current_delete_outputs],trigger_mode='once')
     bind_history_reset_action(reset_control_values,execute_service_command,reset_view_values,reset_output_components)
-    return read_history_page,[history_selection_value,history_count_value,history_page_value,history_cards_value,history_previous_button,history_next_button,history_remaining_cards,history_selected_panel]
+    return read_history_page,[history_selection_value,history_count_value,history_page_value,history_cards_value,history_previous_button,history_next_button,history_selected_panel]

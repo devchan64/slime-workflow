@@ -113,6 +113,14 @@
 
 .generation-history-toolbar button,.generation-history-toolbar input,.generation-history-toolbar p,.generation-history-toolbar span{font-size:12px!important;line-height:1.4!important;font-weight:400!important}
 
+/* 목록 안에서 결과를 비교할 수 있도록 이력 행을 두 배 높이로 유지한다. */
+#generation-history-cards table{width:100%;border-collapse:collapse}
+#generation-history-cards th,#generation-history-cards td{min-height:96px;height:96px;vertical-align:middle}
+#generation-history-cards td{padding:8px;line-height:1.45}
+.generation-history-table-thumbnail{display:block;width:88px;height:88px;object-fit:cover;border:1px solid var(--border-color-primary);border-radius:8px;background:var(--background-fill-secondary)}
+.generation-history-table-thumbnail.is-empty{display:flex;align-items:center;justify-content:center;color:var(--body-text-color-subdued);font-size:12px;text-align:center}
+@media(max-width:700px){#generation-history-cards th,#generation-history-cards td{min-height:72px;height:72px}.generation-history-table-thumbnail{width:64px;height:64px}}
+
 /* 이력 도구 모음과 카드 사이의 기본 Gradio 여백을 제거한다. */
 .generation-history-workspace{gap:8px!important}
 .generation-history-heading h3{margin:0!important;line-height:1.4!important}
