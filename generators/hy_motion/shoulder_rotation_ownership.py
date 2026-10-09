@@ -138,6 +138,7 @@ def build_aligned_arm_calibration(current_source_names, current_source_points, c
             current_previous_alignment = current_aligned_rotation
             current_previous_name = current_owner_name
     current_calibration_record['profile_id'] = 'hymotion-anny-arm-aligned-v2'
+    current_calibration_record['torso_anchor'] = {'source_joint': 'Spine3', 'source_index': current_source_names.index('Spine3'), 'target_bone': 'spine01', 'aligned_bind_rotation': current_torso_alignment.tolist()}
     current_calibration_record['reference_policy'] = '원본 항등 회전은 ANNY bind가 아니라 고정 공통 기준 자세로 대응한다. 중간 본은 bind-local 유지. 충돌 후 재계산 없음.'
     return current_calibration_record
 
