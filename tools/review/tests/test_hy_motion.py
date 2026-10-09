@@ -29,7 +29,7 @@ class HyMotionContractTests(unittest.TestCase):
             current_patch_value = patch.object(jobs, current_attribute_name, self.current_storage_root / current_directory_name)
             current_patch_value.start()
             self.addCleanup(current_patch_value.stop)
-        self.current_request_record = {'prompt': 'A person walks forward.', 'duration_seconds': 3, 'seed': 10107, 'directions': ['down_left'], 'tag': '검증'}
+        self.current_request_record = {'prompt': 'A person walks forward.', 'duration_seconds': 3, 'seed': 10107, 'directions': ['down_left'], 'tag': '검증', 'frame_step': 5}
 
     def create_test_generation(self):
         with patch.object(jobs, 'launch_gpu_process'):

@@ -21,10 +21,22 @@ from tools.review.common.gradio_seed import build_generation_seed
 from tools.review.common.gradio_identifiers import build_generation_identifier
 
 MOTION_DIRECTION_LABELS = [('전방 좌측', 'down_left'), ('전방 우측', 'down_right'), ('후방 좌측', 'up_left'), ('후방 우측', 'up_right')]
+RESULT_PANEL_COLUMNS = 4
 
 
 def execute_motion_command(operation_command_name, command_payload_value):
     return execute_management_command('hy-motion', operation_command_name, command_payload_value)
+
+
+def load_latest_generation(current_history_reader, current_progress_reader):
+    """페이지 접속 시 최신 이력만 복원하며 생성·재개는 실행하지 않는다."""
+    current_history_records = execute_motion_command('history', {}).get('records', [])
+    current_latest_identifier = current_history_records[0]['id'] if current_history_records else ''
+    current_history_updates = current_history_reader(1, current_latest_identifier or None)
+    if not current_latest_identifier:
+        return [*current_history_updates, '', '생성 이력이 없습니다.', '작업을 시작하면 예상 시간과 추정 근거를 표시합니다.']
+    current_status_text, current_estimate_text = current_progress_reader(current_latest_identifier)
+    return [*current_history_updates, current_latest_identifier, current_status_text, current_estimate_text]
 
 
 def start_motion_generation(current_prompt_text, current_duration_value, current_seed_value, current_direction_names, current_tag_value, current_frame_step=5):
@@ -57,13 +69,15 @@ def render_motion_result(generation_job_identifier, current_status_record, serve
         if current_result_record.get('head_rotation_guide'):
             current_panel_records.insert(1, ('', '-rotation', '원본 머리·손바닥 방향 · 회색 점선: 손목 회전 고정 대조군' if current_result_record.get('palm_rotation_guide') else ('원본 머리·손목 회전' if current_result_record.get('wrist_rotation_guide') else '원본 Head 회전 · 빨강 전방 / 파랑 상방')))
         current_render_indices = {current_source_frame: current_render_index for current_render_index, current_source_frame in enumerate(current_automatic_render['source_indices'], 1)}
+        if current_automatic_render.get('constraint_comparison'):
+            current_panel_records[2:2] = [('anny/unconstrained/', '', 'ANNY 제약 끔 · 정사영'), ('anny/unconstrained/', '-openpose', 'OpenPose 제약 끔 · 정사영')]
         current_frame_records = {
             current_direction_name: [
                 [current_result_url + current_prefix_path + current_direction_name + f'/frame-{(current_preview_index if not current_prefix_path else current_render_indices[current_source_frame]):04d}' + current_suffix_text + '.png' for current_prefix_path, current_suffix_text, current_panel_label in current_panel_records]
                 for current_preview_index, current_source_frame in enumerate(current_result_record['source_indices'], 1)
             ] for current_direction_name in current_result_record['directions']
         }
-        return json.dumps({'frames': current_frame_records, 'directUrls': True, 'columns': 3, 'panels': [current_panel_record[2] for current_panel_record in current_panel_records], 'sourceFrames': {current_direction_name: current_result_record['source_indices'] for current_direction_name in current_result_record['directions']}, 'downloads': current_download_records}, ensure_ascii=False)
+        return json.dumps({'frames': current_frame_records, 'directUrls': True, 'columns': RESULT_PANEL_COLUMNS, 'panels': [current_panel_record[2] for current_panel_record in current_panel_records], 'sourceFrames': {current_direction_name: current_result_record['source_indices'] for current_direction_name in current_result_record['directions']}, 'downloads': current_download_records}, ensure_ascii=False)
     current_rig_label = 'MakeHuman' if current_result_record.get('rig_backend') == 'makehuman' else 'ANNY'
     current_projection_names = current_result_record.get('projections', ['orthographic'])
     current_frame_records = {
@@ -166,7 +180,10 @@ def build_hymotion_interface(server_base_address):
 
         gr.Timer(2).tick(refresh_current_progress, current_identifier_view, [current_status_view, current_eta_view], show_progress='hidden')
         current_read_history, current_history_outputs = build_generation_history_view(execute_motion_command, server_base_address, '목록만 초기화하며 모션·로그 원본은 보존합니다. 실행 중에는 초기화할 수 없습니다.', restore_input_callback=restore_motion_inputs, restore_output_components=current_input_components, result_renderer_callback=render_motion_result, result_component_factory=build_browser_frame_player, record_folder_route='/hy-motion-generator', allow_individual_delete=True, individual_delete_scope_text='선택한 작업만 이력 목록에서 제거합니다. 모션·렌더·로그 파일은 보존하며 실행·대기 중인 작업은 삭제할 수 없습니다.')
-        current_interface_blocks.load(lambda: current_read_history(1), outputs=current_history_outputs)
+        current_interface_blocks.load(
+            lambda: load_latest_generation(current_read_history, refresh_current_progress),
+            outputs=[*current_history_outputs, current_identifier_view, current_status_view, current_eta_view],
+        )
     return current_interface_blocks
 
 

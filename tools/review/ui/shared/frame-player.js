@@ -7,8 +7,9 @@ const readSelectedFrames=()=>currentFramePayload.frames?.[currentDirectionName]|
 const drawSelectedFrame=()=>{
  const currentFramePaths=readSelectedFrames();
  const currentImageContainer=element.querySelector('[data-player-images]');
- currentImageContainer.style.display=currentFramePayload.columns===3?'grid':'flex';
- currentImageContainer.style.gridTemplateColumns=currentFramePayload.columns===3?'repeat(3,minmax(0,1fr))':'';
+ const currentGridColumns=Number.isInteger(currentFramePayload.columns)&&currentFramePayload.columns>0?currentFramePayload.columns:null;
+ currentImageContainer.style.display=currentGridColumns?'grid':'flex';
+ currentImageContainer.style.gridTemplateColumns=currentGridColumns?`repeat(${currentGridColumns},minmax(0,1fr))`:'';
  const currentRequestNumber=++currentRequestSequence;
  if(!currentFramePaths.length){currentImageContainer.replaceChildren();showPlayerMessage(currentFramePayload.message||'표시할 결과 프레임이 없습니다.');return;}
  const currentFrameNumber=currentFrameIndex;

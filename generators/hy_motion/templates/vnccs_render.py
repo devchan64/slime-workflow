@@ -26,7 +26,7 @@ def emit_render_heartbeat():
 
 threading.Thread(target=emit_render_heartbeat, daemon=True).start()
 if 'prepared_body_object' not in globals():
-    bpy.ops.wm.open_mainfile(filepath=str(Path(CURRENT_STAGE_RECORD['output_directory']) / 'final/barrier/mannequin.blend'))
+    bpy.ops.wm.open_mainfile(filepath=str(Path(CURRENT_STAGE_RECORD['output_directory']) / ('rotation/full_rotation/mannequin.blend' if CURRENT_STAGE_RECORD.get('constraint_comparison_disabled') else 'final/barrier/mannequin.blend')))
 current_render_scene = bpy.context.scene
 current_body_object = globals()['prepared_body_object'] if 'prepared_body_object' in globals() else bpy.data.objects['AnnyAttributesBody']
 current_rig_object = bpy.data.objects['AnnyAttributesRig']
@@ -77,6 +77,11 @@ for current_frame_number in CURRENT_SAMPLE_FRAMES:
 current_camera_center = Vector(tuple((min(current_point[current_axis_index] for current_point in current_world_bounds) + max(current_point[current_axis_index] for current_point in current_world_bounds)) / 2 for current_axis_index in range(3)))
 current_projection_extent = max(abs((current_point - current_camera_center).dot(current_projection_axis)) for current_point in current_world_bounds for current_camera_record in current_camera_axes.values() for current_projection_axis in current_camera_record[2:])
 current_camera_scale = 2 * current_projection_extent * CURRENT_CONFIG_RECORD['framing_margin']
+if CURRENT_STAGE_RECORD.get('constraint_comparison_disabled'):
+    current_reference_cameras = json.loads((CURRENT_OUTPUT_DIRECTORY.parent / 'render-manifest.json').read_text())['camera']
+    current_reference_camera = current_reference_cameras[CURRENT_REQUEST_RECORD['directions'][0]]
+    current_camera_center = Vector(current_reference_camera['target'])
+    current_camera_scale = current_reference_camera['ortho_scale']
 if not math.isfinite(current_camera_scale) or current_camera_scale <= 0:
     raise ValueError('VNCCS 카메라 프레이밍 크기 오류')
 current_image_records = []

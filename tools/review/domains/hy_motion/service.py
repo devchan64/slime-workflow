@@ -34,7 +34,7 @@ def handle_hymotion_request(current_http_handler):
         return False
     try:
         current_content_length = validate_management_http_request(current_http_handler)
-        current_asset_match = re.fullmatch(SERVICE_ROUTE_PREFIX + r'/jobs/(' + GENERATION_IDENTIFIER_PATTERN + r')/result/((?:anny/)?(?:motion\.npz|provenance\.json|vnccs-package\.zip|vnccs-manifest\.json|retarget-quality\.json|(?:overview|down_left|down_right|up_left|up_right)\.gif|(?:perspective/)?(?:down_left|down_right|up_left|up_right)/frame-\d{4}(?:-rgb|-openpose|-rotation)?\.(?:png|json)))', current_route_path)
+        current_asset_match = re.fullmatch(SERVICE_ROUTE_PREFIX + r'/jobs/(' + GENERATION_IDENTIFIER_PATTERN + r')/result/((?:anny/)?(?:motion\.npz|provenance\.json|vnccs-package\.zip|vnccs-manifest\.json|retarget-quality\.json|(?:overview|down_left|down_right|up_left|up_right)\.gif|(?:(?:perspective|unconstrained)/)?(?:down_left|down_right|up_left|up_right)/frame-\d{4}(?:-rgb|-openpose|-rotation)?\.(?:png|json)))', current_route_path)
         if current_http_handler.command == 'GET' and current_asset_match:
             current_job_directory = resolve_generation_directory(current_asset_match[1])
             current_result_record = json.loads((current_job_directory / 'result.json').read_text())

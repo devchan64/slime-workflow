@@ -20,9 +20,9 @@ class AutomaticRenderTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as current_directory_name:
             current_output_path = Path(current_directory_name)
             current_result_record = render_motion_previews(current_joint_frames, {'directions': ['down_left']}, load_generation_defaults(), current_output_path, lambda *current_log_values: None, np.eye(3)[None], np.tile(np.eye(3), (1, 2, 1, 1)))
-            self.assertTrue(current_result_record['wrist_rotation_guide'])
+            self.assertFalse(current_result_record['wrist_rotation_guide'])
             with Image.open(current_output_path / 'down_left/frame-0001-rotation.png') as current_guide_image:
-                self.assertIn((40, 170, 70), {current_color_value for _, current_color_value in current_guide_image.getcolors(1000000)})
+                self.assertNotIn((40, 170, 70), {current_color_value for _, current_color_value in current_guide_image.getcolors(1000000)})
 
     def test_fixed_anny_pipeline_and_same_attempt(self):
         current_config_record = load_vnccs_config()
@@ -37,7 +37,7 @@ class AutomaticRenderTests(unittest.TestCase):
             self.assertTrue(current_result_record['automatic'])
             self.assertEqual(current_result_record['relative_path'], 'anny')
             self.assertEqual(current_export_mock.call_args.args[2]['end_frame'], 120)
-            self.assertEqual(current_export_mock.call_args.args[2]['frame_step'], 1)
+            self.assertEqual(current_export_mock.call_args.args[2]['frame_step'], 5)
             self.assertEqual(current_export_mock.call_args.kwargs['current_source_record']['motion_path'], str(current_attempt_path / 'motion.npz'))
 
     def test_openpose_has_explicit_projection_provenance(self):
@@ -61,18 +61,23 @@ class AutomaticRenderTests(unittest.TestCase):
 
     def test_automatic_player_uses_source_frames(self):
         from tools.review.ui.gradio.hy_motion_app import render_motion_result
-        current_result_record = {'kind': 'motion', 'frames': 2, 'directions': ['down_left'], 'source_indices': [1, 4], 'rendering': {'downloads': ['vnccs-package.zip']}}
+        current_result_record = {'kind': 'motion', 'frames': 2, 'directions': ['down_left'], 'source_indices': [1, 4], 'rendering': {'downloads': ['vnccs-package.zip'], 'source_indices': [1, 4]}}
         current_player_record = json.loads(render_motion_result('test-id', {'status': 'completed', 'result': current_result_record}, ''))
         self.assertEqual(len(current_player_record['panels']), 5)
         self.assertFalse(any(current_download_record['url'].endswith('/provenance.json') for current_download_record in current_player_record['downloads']))
         self.assertTrue(any(current_download_record['url'].endswith('/motion.npz') for current_download_record in current_player_record['downloads']))
         self.assertTrue(current_player_record['frames']['down_left'][1][0].endswith('/down_left/frame-0002.png'))
-        self.assertTrue(current_player_record['frames']['down_left'][1][4].endswith('/anny/perspective/down_left/frame-0004-openpose.png'))
+        self.assertTrue(current_player_record['frames']['down_left'][1][4].endswith('/anny/perspective/down_left/frame-0002-openpose.png'))
         current_result_record['head_rotation_guide'] = True
         current_player_record = json.loads(render_motion_result('test-id', {'status': 'completed', 'result': current_result_record}, ''))
         self.assertEqual(len(current_player_record['panels']), 6)
-        self.assertEqual(current_player_record['columns'], 3)
+        self.assertEqual(current_player_record['columns'], 4)
         self.assertTrue(current_player_record['frames']['down_left'][1][1].endswith('/down_left/frame-0002-rotation.png'))
+        current_result_record['rendering']['constraint_comparison'] = True
+        current_player_record = json.loads(render_motion_result('test-id', {'status': 'completed', 'result': current_result_record}, ''))
+        self.assertEqual(len(current_player_record['panels']), 8)
+        self.assertEqual(current_player_record['panels'][2:4], ['ANNY 제약 끔 · 정사영', 'OpenPose 제약 끔 · 정사영'])
+        self.assertTrue(current_player_record['frames']['down_left'][1][2].endswith('/anny/unconstrained/down_left/frame-0002.png'))
 
     def test_makehuman_job_cannot_resume_as_anny(self):
         from generators.hy_motion.vnccs_export import export_vnccs_package
