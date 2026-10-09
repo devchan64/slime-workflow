@@ -23,7 +23,7 @@ def validate_motion_output(current_output_arrays, expected_frame_count):
             raise ValueError(f'HY-Motion 출력 크기·자료형·유한값 오류: {current_field_name}, {current_array_value.shape}')
 
 
-def render_motion_previews(current_joint_frames, current_request_record, current_config_record, current_output_path, current_progress_callback, current_head_rotations=None, current_wrist_rotations=None):
+def render_motion_previews(current_joint_frames, current_request_record, current_config_record, current_output_path, current_progress_callback, current_head_rotations=None, current_wrist_rotations=None, current_palm_points=None, current_palm_angles=None):
     current_has_head_guide = current_head_rotations is not None
     if current_has_head_guide:
         if current_head_rotations.shape != (len(current_joint_frames), 3, 3) or not np.isfinite(current_head_rotations).all():
@@ -36,6 +36,10 @@ def render_motion_previews(current_joint_frames, current_request_record, current
             raise ValueError('손목 가이드는 머리 가이드와 유한한 [프레임,2,3,3] 회전이 필요합니다.')
         current_wrist_points = current_joint_frames[:, 20:22, None, :] + np.einsum('fsij,aj->fsai', current_wrist_rotations, np.eye(3)) * WRIST_GUIDE_LENGTH_METERS
         current_joint_frames = np.concatenate([current_joint_frames, current_wrist_points.reshape(len(current_joint_frames), 6, 3)], axis=1)
+    if current_palm_points is not None:
+        if current_wrist_rotations is None or current_palm_points.shape != (len(current_joint_frames), 12, 3) or current_palm_angles is None or current_palm_angles.shape != (len(current_joint_frames), 2) or not np.isfinite(current_palm_points).all() or not np.isfinite(current_palm_angles).all():
+            raise ValueError('손바닥 비교 가이드 입력 크기·유한값 오류')
+        current_joint_frames = np.concatenate([current_joint_frames, current_palm_points], axis=1)
     current_sample_indices = np.arange(0, len(current_joint_frames), 30 / current_config_record['preview_fps']).astype(int)
     current_preview_size = current_config_record['preview_size']
     current_elevation_angle = math.radians(current_config_record['camera_elevation'])
@@ -71,6 +75,20 @@ def render_motion_previews(current_joint_frames, current_request_record, current
                             current_drawing_context.line([current_wrist_pixel, current_axis_pixel], fill=current_axis_color, width=PREVIEW_LINE_WIDTH)
                         current_drawing_context.text(current_wrist_pixel, current_side_label, fill=PREVIEW_BONE_COLOR)
                     current_drawing_context.text((8, 24), 'Wrist L/R: red=X green=Y blue=Z (source axes)', fill=PREVIEW_BONE_COLOR)
+                if current_palm_points is not None:
+                    for current_side_index in range(2):
+                        current_wrist_pixel = current_pixel_points[current_source_index, 20 + current_side_index]
+                        for current_variant_index in (1, 0):
+                            for current_axis_index, current_axis_color in enumerate(WRIST_AXIS_COLORS):
+                                current_axis_pixel = current_pixel_points[current_source_index, 30 + current_side_index * 6 + current_variant_index * 3 + current_axis_index]
+                                if current_variant_index:
+                                    for current_dash_index in range(0, 10, 2):
+                                        current_drawing_context.line([tuple(current_wrist_pixel + (current_axis_pixel-current_wrist_pixel)*current_dash_index/10), tuple(current_wrist_pixel + (current_axis_pixel-current_wrist_pixel)*(current_dash_index+1)/10)], fill=(130, 130, 130), width=2)
+                                else:
+                                    current_drawing_context.line([tuple(current_wrist_pixel), tuple(current_axis_pixel)], fill=current_axis_color, width=2)
+                                    current_drawing_context.text(tuple(current_axis_pixel), ('W', 'D', 'N')[current_axis_index], fill=current_axis_color)
+                    current_drawing_context.text((8, 40), 'Palm W=width D=fingers N=normal; gray=local identity', fill=PREVIEW_BONE_COLOR)
+                    current_drawing_context.text((8, 56), 'Palm delta L/R: %.1f / %.1f deg' % tuple(current_palm_angles[current_source_index]), fill=PREVIEW_BONE_COLOR)
                 current_frame_image.save(current_direction_path / f'frame-{current_frame_index:04d}-rotation.png')
         current_progress_callback('preview', f'{current_direction_name} 미리보기 {len(current_sample_indices)}프레임 저장')
     return {'frames': len(current_sample_indices), 'source_frames': len(current_joint_frames), 'source_fps': 30, 'preview_fps': current_config_record['preview_fps'], 'source_indices': (current_sample_indices + 1).tolist(), 'directions': current_request_record['directions'], 'wrist_rotation_guide': current_wrist_rotations is not None}

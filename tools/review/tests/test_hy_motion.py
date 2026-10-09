@@ -138,6 +138,18 @@ class HyMotionContractTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, '필드'):
             validate_motion_output({'keypoints3d': np.zeros((30, 22, 3))}, 30)
 
+    def test_variable_gif_frame_timing(self):
+        from generators.hy_motion.gif_export import calculate_frame_durations
+        for current_source_frames in (30, 120):
+            current_source_indices = list(range(1, current_source_frames + 1, 8))
+            current_durations = calculate_frame_durations({'frames': len(current_source_indices), 'preview_fps': 3.75, 'source_indices': current_source_indices, 'source_frames': current_source_frames, 'source_fps': 30})
+            self.assertEqual(sum(current_durations), current_source_frames * 1000 // 30)
+            self.assertTrue(all(current_duration > 0 and current_duration % 10 == 0 for current_duration in current_durations))
+        self.assertEqual(current_durations[-1], 270)
+        for current_bad_rate in (0, -1, float('nan'), float('inf'), True, 31):
+            with self.assertRaises(ValueError):
+                calculate_frame_durations({'frames': 1, 'preview_fps': current_bad_rate})
+
     def test_gif_export_preserves_duration_and_direction_layout(self):
         for current_direction_name in ('down_left', 'up_right'):
             current_direction_path = self.current_storage_root / current_direction_name
@@ -167,7 +179,7 @@ class HyMotionContractTests(unittest.TestCase):
 
     def test_gif_export_rejects_missing_frames_and_bad_rate(self):
         with self.assertRaises(ValueError):
-            export_motion_gifs({'frames': 8, 'preview_fps': 30, 'directions': ['down_left']}, self.current_storage_root, lambda *current_progress_values: None)
+            export_motion_gifs({'frames': 8, 'preview_fps': 0, 'directions': ['down_left']}, self.current_storage_root, lambda *current_progress_values: None)
         with self.assertRaises(FileNotFoundError):
             export_motion_gifs({'frames': 8, 'preview_fps': 8, 'directions': ['down_left']}, self.current_storage_root, lambda *current_progress_values: None)
 

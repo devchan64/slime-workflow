@@ -84,7 +84,7 @@ def prepare_shoulder_filter(current_body_object, current_rig_object, current_par
     return build_filtered_batches(current_partition_faces, current_vertex_labels, current_excluded_pairs), sorted(current_excluded_pairs)
 
 
-def evaluate_filtered_collisions(current_body_object, current_collision_batches, minimum_surface_clearance=0.0, *, stop_on_collision=False):
+def evaluate_filtered_collisions(current_body_object, current_collision_batches, minimum_surface_clearance=0.0, *, stop_on_collision=False, current_contact_records=None):
     """검사 대상 교차 수 또는 여유 포함 bool. 제외 대상 뒤의 근접면도 검사한다."""
     import bpy
     from mathutils.bvhtree import BVHTree
@@ -98,6 +98,15 @@ def evaluate_filtered_collisions(current_body_object, current_collision_batches,
         if len(current_evaluated_mesh.vertices) != len(current_body_object.data.vertices):
             raise ValueError('피부 토폴로지 변경')
         current_vertex_points = [current_vertex_record.co.copy() for current_vertex_record in current_evaluated_mesh.vertices]
+        def record_contact_location(current_side_name, current_arm_vertices, current_body_vertices, current_contact_kind, current_nearest_point=None, current_distance_value=None):
+            if current_contact_records is None:
+                return
+            def collect_dominant_bones(current_vertex_indices):
+                return sorted({current_body_object.vertex_groups[max(current_body_object.data.vertices[current_vertex_index].groups, key=lambda current_weight_record: current_weight_record.weight).group].name for current_vertex_index in current_vertex_indices})
+            def calculate_world_center(current_vertex_indices):
+                current_center_point = sum((current_vertex_points[current_vertex_index] for current_vertex_index in current_vertex_indices), current_vertex_points[0] * 0) / len(current_vertex_indices)
+                return list(current_evaluated_object.matrix_world @ current_center_point)
+            current_contact_records.append({'side': current_side_name, 'kind': current_contact_kind, 'arm_vertex_indices': list(current_arm_vertices), 'body_vertex_indices': list(current_body_vertices), 'arm_dominant_bones': collect_dominant_bones(current_arm_vertices), 'body_dominant_bones': collect_dominant_bones(current_body_vertices), 'arm_world_center': calculate_world_center(current_arm_vertices), 'body_world_center': calculate_world_center(current_body_vertices), 'nearest_body_world_point': list(current_evaluated_object.matrix_world @ current_nearest_point) if current_nearest_point is not None else None, 'distance_mesh_units': current_distance_value, 'minimum_clearance_mesh_units': minimum_surface_clearance, 'location_note': 'world_center는 면·정점 대표 위치이며 정확한 교차점·침범 깊이가 아님', 'sample_scope': '첫 검출 1건이며 전체 접촉 목록이 아님'})
         current_result_counts = {'L': 0, 'R': 0}
         for current_side_name, current_arm_faces, current_body_faces in current_collision_batches:
             current_body_tree = BVHTree.FromPolygons(current_vertex_points, current_body_faces, all_triangles=True)
@@ -105,11 +114,14 @@ def evaluate_filtered_collisions(current_body_object, current_collision_batches,
             for current_arm_index, current_body_index in current_arm_tree.overlap(current_body_tree):
                 if not set(current_arm_faces[current_arm_index]).intersection(current_body_faces[current_body_index]):
                     if stop_on_collision:
+                        record_contact_location(current_side_name, current_arm_faces[current_arm_index], current_body_faces[current_body_index], 'triangle_overlap')
                         return True
                     current_result_counts[current_side_name] += 1
             if minimum_surface_clearance:
                 for current_vertex_index in {current_vertex_index for current_face_record in current_arm_faces for current_vertex_index in current_face_record}:
-                    if current_body_tree.find_nearest(current_vertex_points[current_vertex_index], minimum_surface_clearance)[0] is not None:
+                    current_nearest_result = current_body_tree.find_nearest(current_vertex_points[current_vertex_index], minimum_surface_clearance)
+                    if current_nearest_result[0] is not None:
+                        record_contact_location(current_side_name, [current_vertex_index], current_body_faces[current_nearest_result[2]], 'minimum_clearance', current_nearest_result[0], float(current_nearest_result[3]))
                         return True
         return False if stop_on_collision else current_result_counts
     finally:

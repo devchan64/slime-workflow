@@ -80,9 +80,15 @@ def apply_anny_skin_barrier(source_blend_path, output_directory_path, *, source_
                 return evaluate_filtered_collisions(current_mesh_object, current_collision_batches)
             return count_unfiltered_intersections(current_mesh_object, current_surface_faces)
 
+        current_latest_contacts = []
+
         def detect_surface_collision(current_mesh_object, current_surface_faces, current_clearance_value):
+            current_probe_contacts = []
             if current_collision_batches is not None:
-                return evaluate_filtered_collisions(current_mesh_object, current_collision_batches, current_clearance_value, stop_on_collision=True)
+                current_collision_found = evaluate_filtered_collisions(current_mesh_object, current_collision_batches, current_clearance_value, stop_on_collision=True, current_contact_records=current_probe_contacts)
+                if current_collision_found:
+                    current_latest_contacts[:] = current_probe_contacts
+                return current_collision_found
             return detect_unfiltered_collision(current_mesh_object, current_surface_faces, current_clearance_value)
         current_target_names = tuple(current_bone_prefix + '.' + current_side_name for current_side_name in ('L', 'R') for current_bone_prefix in current_profile_record['bone_prefixes'])
         for current_side_name in ('L', 'R'):
@@ -123,7 +129,7 @@ def apply_anny_skin_barrier(source_blend_path, output_directory_path, *, source_
                 current_initialization_record = {'strategy': 'preserved_collision_free_target' if current_preserve_first_pose else ('local_rest_stop_before_collision' if current_frame_number == 1 else 'previous_safe_pose_stop_before_collision')}
                 if detect_surface_collision(current_body_object, current_partition_faces, current_profile_record['minimum_surface_clearance_m']):
                     current_diagnostic_only = True
-                    current_initialization_record.update(unresolved=True, reason='시작 자세부터 충돌 또는 최소 간격 위반: 안전한 회전 경계를 정의할 수 없음', start_intersections=count_surface_intersections(current_body_object, current_partition_faces))
+                    current_initialization_record.update(unresolved=True, reason='시작 자세부터 충돌 또는 최소 간격 위반: 안전한 회전 경계를 정의할 수 없음', start_intersections=count_surface_intersections(current_body_object, current_partition_faces), contacts=list(current_latest_contacts))
                     for current_pose_bone in current_rig_object.pose.bones:
                         current_pose_bone.matrix_basis = current_saved_poses[current_pose_bone.name]
                     bpy.context.view_layer.update()
@@ -152,7 +158,10 @@ def apply_anny_skin_barrier(source_blend_path, output_directory_path, *, source_
                 def probe_current_collision():
                     return detect_surface_collision(current_body_object, current_partition_faces, current_profile_record['minimum_surface_clearance_m'])
 
+                current_latest_contacts.clear()
                 current_bone_record = advance_collision_free(apply_current_fraction, probe_current_collision, max(1, math.ceil(current_requested_angle / current_profile_record['angle_step_degrees'])), current_profile_record['boundary_refinements'])
+                current_bone_record['contacts'] = list(current_latest_contacts) if current_bone_record['blocked'] else []
+                current_bone_record['contact_capture'] = 'blocked_fraction의 첫 검출 접촉' if current_collision_batches is not None else '미측정: 인접관절 필터 미사용 프로필'
                 current_bone_record['requested_degrees'] = current_requested_angle
                 current_bone_record['applied_degrees'] = current_requested_angle * current_bone_record['fraction']
                 current_bone_records[current_bone_name] = current_bone_record

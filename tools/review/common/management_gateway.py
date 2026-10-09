@@ -238,6 +238,7 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
                 current_prompt_group.add_argument('--prompt')
                 current_prompt_group.add_argument('--prompt-file',type=Path)
                 operation_argument_parser.add_argument('--duration-seconds',type=float,default=current_default_values['duration_seconds'])
+                operation_argument_parser.add_argument('--frame-step',type=int,default=8,help='렌더 프레임 간격 · 원본 30FPS / 기본 8')
                 operation_argument_parser.add_argument('--seed',type=int,default=current_default_values['seed'])
                 operation_argument_parser.add_argument('--directions',nargs='+',choices=SUPPORTED_DIRECTION_NAMES,default=current_default_values['directions'])
             elif service_command_name=='momask':
@@ -307,7 +308,7 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
             if command_argument_values.start_frame is not None:command_payload_value['start_frame']=command_argument_values.start_frame
             if command_argument_values.end_frame is not None:command_payload_value['end_frame']=command_argument_values.end_frame
         elif service_command_name=='hy-motion':
-            command_payload_value={'prompt':command_argument_values.prompt if command_argument_values.prompt is not None else command_argument_values.prompt_file.read_text(encoding='utf-8'),'duration_seconds':command_argument_values.duration_seconds,'seed':command_argument_values.seed,'directions':command_argument_values.directions,'tag':command_argument_values.tag}
+            command_payload_value={'prompt':command_argument_values.prompt if command_argument_values.prompt is not None else command_argument_values.prompt_file.read_text(encoding='utf-8'),'duration_seconds':command_argument_values.duration_seconds,'seed':command_argument_values.seed,'directions':command_argument_values.directions,'tag':command_argument_values.tag,'frame_step':command_argument_values.frame_step}
         elif service_command_name=='momask':
             command_payload_value={'action':command_argument_values.action,'directions':command_argument_values.directions,'face':command_argument_values.face}
             if command_argument_values.frames is not None:command_payload_value['frames']=command_argument_values.frames

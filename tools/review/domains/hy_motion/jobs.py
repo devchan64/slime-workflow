@@ -144,7 +144,7 @@ def start_generation_job(current_request_values, generation_operation_name='gene
         write_record_atomically(generation_job_path / 'config.json', current_config_record)
         if generation_operation_name == 'generate':
             from generators.hy_motion.vnccs_contract import load_vnccs_config
-            write_record_atomically(generation_job_path / 'render-config.json', load_vnccs_config())
+            write_record_atomically(generation_job_path / 'render-config.json', {**load_vnccs_config(), 'frame_step': current_request_values['frame_step']})
         if current_export_source is not None:
             write_record_atomically(generation_job_path / 'export-source.json', current_export_source)
         write_record_atomically(generation_job_path / 'prompt.json', build_prompt_provenance(current_request_values.get('prompt', '')))

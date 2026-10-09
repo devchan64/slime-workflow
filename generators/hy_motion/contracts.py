@@ -56,7 +56,7 @@ def load_generation_defaults():
 
 
 def validate_generation_request(current_request_values):
-    if not isinstance(current_request_values, dict) or set(current_request_values) - {'prompt', 'duration_seconds', 'seed', 'directions', 'tag'} or not {'prompt', 'duration_seconds', 'seed', 'directions'} <= set(current_request_values):
+    if not isinstance(current_request_values, dict) or set(current_request_values) - {'prompt', 'duration_seconds', 'seed', 'directions', 'tag', 'frame_step'} or not {'prompt', 'duration_seconds', 'seed', 'directions'} <= set(current_request_values):
         raise ValueError('프롬프트·길이·시드·방향 입력이 필요하며 알 수 없는 필드는 허용하지 않습니다.')
     current_prompt_text = current_request_values['prompt']
     if not isinstance(current_prompt_text, str) or not 1 <= len(current_prompt_text.split()) <= 29 or len(current_prompt_text) > 2000:
@@ -70,7 +70,10 @@ def validate_generation_request(current_request_values):
     current_direction_names = current_request_values['directions']
     if not isinstance(current_direction_names, list) or not current_direction_names or any(not isinstance(current_direction_name, str) or current_direction_name not in SUPPORTED_DIRECTION_NAMES for current_direction_name in current_direction_names) or len(set(current_direction_names)) != len(current_direction_names):
         raise ValueError('중복 없는 미리보기 방향을 선택하세요.')
-    return {**current_request_values, 'prompt': current_prompt_text.strip(), 'tag': validate_history_tag(current_request_values.get('tag', ''))}
+    current_frame_step = current_request_values.get('frame_step', 8)
+    if type(current_frame_step) is not int or not 1 <= current_frame_step <= round(current_duration_value * 30):
+        raise ValueError('프레임 스텝은 1~원본 프레임 수 사이의 정수여야 합니다.')
+    return {**current_request_values, 'frame_step': current_frame_step, 'prompt': current_prompt_text.strip(), 'tag': validate_history_tag(current_request_values.get('tag', ''))}
 
 
 def build_prompt_provenance(current_prompt_text):

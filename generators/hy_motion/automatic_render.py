@@ -13,7 +13,7 @@ def generate_automatic_renders(current_job_directory, current_attempt_path, curr
     }
     current_export_request = {
         'source_id': current_source_record['source_id'], 'start_frame': 1,
-        'end_frame': current_source_frames, 'frame_step': 1,
+        'end_frame': current_source_frames, 'frame_step': current_request_record.get('frame_step', current_render_config['frame_step']),
         'directions': current_request_record['directions'], 'tag': current_request_record.get('tag', ''),
     }
     current_render_directory = current_attempt_path / 'anny'

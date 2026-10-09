@@ -93,6 +93,12 @@ for current_candidate_name, current_active_segments in CURRENT_CANDIDATE_RECORDS
         current_wrist_error = max(float(np.max(np.abs(np.asarray(current_rig_object.pose.bones[current_bone_name].matrix.to_quaternion().to_matrix()) - current_wrist_rotations[current_bone_name]))) for current_bone_name in ('wrist.L', 'wrist.R'))
         if current_center_error > 1e-5 or current_wrist_error > 1e-5:
             raise ValueError('주요 관절 중심 또는 손목 방향 보존 실패')
+        from generators.hy_motion.shoulder_comparison import measure_shoulder_difference
+        current_shoulder_comparison = {}
+        for current_side_name, current_source_indices in (('L', [9, 13, 16]), ('R', [9, 14, 17])):
+            current_source_points = current_motion_archive['world_joints'][current_frame_number - 1, current_source_indices] @ current_coordinate_matrix.T
+            current_target_points = np.asarray([current_rig_object.pose.bones[current_bone_prefix + '.' + current_side_name].head[:] for current_bone_prefix in ('clavicle', 'shoulder01', 'upperarm01')])
+            current_shoulder_comparison[current_side_name] = measure_shoulder_difference(current_source_points, current_target_points)
         current_intersection_counts = count_surface_intersections(current_body_object, current_surface_faces)
         current_rotation_steps = []
         for current_pose_bone in current_rig_object.pose.bones:
@@ -110,7 +116,7 @@ for current_candidate_name, current_active_segments in CURRENT_CANDIDATE_RECORDS
         if (current_rig_object.location - current_root_location).length > 1e-8:
             raise ValueError('루트 이동 변경')
         current_rig_object.keyframe_insert('location', frame=current_frame_number)
-        current_frame_records.append({'frame': current_frame_number, 'intersections': current_intersection_counts, 'center_error_m': current_center_error, 'wrist_matrix_error': current_wrist_error, 'max_global_rotation_step_degrees': max(current_rotation_steps, default=0), 'segments': current_segment_records})
+        current_frame_records.append({'frame': current_frame_number, 'shoulder_comparison_before_skin': current_shoulder_comparison, 'intersections': current_intersection_counts, 'center_error_m': current_center_error, 'wrist_matrix_error': current_wrist_error, 'max_global_rotation_step_degrees': max(current_rotation_steps, default=0), 'segments': current_segment_records})
     current_candidate_path = CURRENT_OUTPUT_DIRECTORY / current_candidate_name
     current_candidate_path.mkdir()
     bpy.context.scene.frame_set(1)

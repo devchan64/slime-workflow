@@ -26,8 +26,8 @@ def execute_motion_command(operation_command_name, command_payload_value):
     return execute_management_command('hy-motion', operation_command_name, command_payload_value)
 
 
-def start_motion_generation(current_prompt_text, current_duration_value, current_seed_value, current_direction_names, current_tag_value):
-    current_request_record = validate_generation_request({'prompt': current_prompt_text, 'duration_seconds': current_duration_value, 'seed': current_seed_value, 'directions': current_direction_names, 'tag': current_tag_value})
+def start_motion_generation(current_prompt_text, current_duration_value, current_seed_value, current_direction_names, current_tag_value, current_frame_step=8):
+    current_request_record = validate_generation_request({'prompt': current_prompt_text, 'duration_seconds': current_duration_value, 'seed': current_seed_value, 'directions': current_direction_names, 'tag': current_tag_value, 'frame_step': current_frame_step})
     current_response_record = execute_motion_command('generate', current_request_record)
     return current_response_record['id'], '작업 접수 완료 · 생성 이력에서 상태·로그·중지·재개를 확인하세요.'
 
@@ -37,7 +37,7 @@ def restore_motion_inputs(current_history_record):
     if current_request_record.get('action') in ('prepare', 'export-vnccs'):
         raise gr.Error('모델 준비·VNCCS 출력 작업에는 복원할 모션 생성 입력이 없습니다. 원본 모션 이력을 선택하세요.')
     current_request_record = validate_generation_request(current_request_record)
-    return tuple(current_request_record[current_field_name] for current_field_name in ('prompt', 'duration_seconds', 'seed', 'directions', 'tag'))
+    return tuple(current_request_record[current_field_name] for current_field_name in ('prompt', 'duration_seconds', 'seed', 'directions', 'tag', 'frame_step'))
 
 
 def render_motion_result(generation_job_identifier, current_status_record, server_base_address):
@@ -54,7 +54,7 @@ def render_motion_result(generation_job_identifier, current_status_record, serve
         current_download_records.extend({'label': 'ANNY·OpenPose ' + current_file_name, 'url': current_result_url + 'anny/' + current_file_name} for current_file_name in current_automatic_render['downloads'])
         current_panel_records = [('', '', '원본 관절'), ('anny/', '', 'ANNY 정사영'), ('anny/', '-openpose', 'OpenPose 정사영'), ('anny/perspective/', '', 'ANNY 원근투영 30°'), ('anny/perspective/', '-openpose', 'OpenPose 원근투영 30°')]
         if current_result_record.get('head_rotation_guide'):
-            current_panel_records.insert(1, ('', '-rotation', '원본 머리·손목 회전' if current_result_record.get('wrist_rotation_guide') else '원본 Head 회전 · 빨강 전방 / 파랑 상방'))
+            current_panel_records.insert(1, ('', '-rotation', '원본 손목·손바닥 비교 · 회색 점선: 손목 회전 고정' if current_result_record.get('palm_rotation_guide') else ('원본 머리·손목 회전' if current_result_record.get('wrist_rotation_guide') else '원본 Head 회전 · 빨강 전방 / 파랑 상방')))
         current_frame_records = {
             current_direction_name: [
                 [current_result_url + current_prefix_path + current_direction_name + f'/frame-{(current_preview_index if not current_prefix_path else current_source_frame):04d}' + current_suffix_text + '.png' for current_prefix_path, current_suffix_text, current_panel_label in current_panel_records]
@@ -118,6 +118,8 @@ def build_hymotion_interface(server_base_address):
         current_prompt_input.change(build_encoder_input_preview, current_prompt_input, current_encoder_preview, queue=False)
         with gr.Row():
             current_duration_input = gr.Number(value=current_default_values['duration_seconds'], minimum=1, maximum=MAXIMUM_DURATION_SECONDS, step=.1, label='모션 길이(초)')
+            current_frame_step_input = gr.Number(value=8, minimum=1, maximum=360, step=1, precision=0, label='렌더 프레임 스텝', info='원본 30FPS에서 N프레임마다 출력합니다. 기본 8: 투영별 3.75FPS. 모션 길이는 유지됩니다.')
+        with gr.Row():
             current_seed_input = build_generation_seed(current_default_values['seed'])
             current_tag_input = gr.Textbox(label='생성 이력 태그 · 선택', max_lines=1)
         current_generate_button = gr.Button('모션 생성 시작', variant='primary', interactive=False)
@@ -125,10 +127,10 @@ def build_hymotion_interface(server_base_address):
         current_identifier_view = build_generation_identifier('접수한 생성 ID')
         current_status_view = gr.Markdown('모델 준비 상태를 확인한 뒤 생성할 수 있습니다.')
         current_eta_view = gr.Markdown('예상 남은 시간: 계산 중 · 예상 완료 시각: 계산 중\n\n추정 근거: 동일 조건 완료 표본 없음. GPU 대기·준비·추론 시간을 아직 추정할 수 없습니다.')
-        def refresh_generation_readiness(current_prompt_text, current_duration_value, current_seed_value, current_direction_names, current_tag_value):
+        def refresh_generation_readiness(current_prompt_text, current_duration_value, current_seed_value, current_direction_names, current_tag_value, current_frame_step):
             current_model_record = execute_motion_command('model-status', {})
             try:
-                validate_generation_request({'prompt': current_prompt_text, 'duration_seconds': current_duration_value, 'seed': current_seed_value, 'directions': current_direction_names, 'tag': current_tag_value})
+                validate_generation_request({'prompt': current_prompt_text, 'duration_seconds': current_duration_value, 'seed': current_seed_value, 'directions': current_direction_names, 'tag': current_tag_value, 'frame_step': current_frame_step})
                 current_input_message = '입력 확인 완료' if current_model_record['ready'] else '모델 준비 버튼을 실행한 뒤 완료를 기다리세요.'
                 current_can_generate = current_model_record['ready']
             except ValueError as current_input_error:
@@ -140,7 +142,7 @@ def build_hymotion_interface(server_base_address):
             current_prepare_record = execute_motion_command('prepare', {})
             return current_prepare_record['id'], '모델 준비 작업 접수 완료 · 생성 이력에서 로그를 확인하세요.'
 
-        current_input_components = [current_prompt_input, current_duration_input, current_seed_input, current_direction_input, current_tag_input]
+        current_input_components = [current_prompt_input, current_duration_input, current_seed_input, current_direction_input, current_tag_input, current_frame_step_input]
         bind_gpu_generation_confirmation(current_generate_button, start_motion_generation, current_input_components, [current_identifier_view, current_status_view])
         bind_gpu_generation_confirmation(current_prepare_button, start_model_preparation, [], [current_identifier_view, current_status_view])
         current_refresh_button.click(refresh_generation_readiness, current_input_components, [current_model_status, current_generate_button], queue=False)

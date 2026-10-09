@@ -84,8 +84,13 @@ def execute_generation_worker(generation_job_path):
                 current_rest_points = np.fromfile(HEAD_SOURCE_DIRECTORY / 'j_template.bin', dtype='<f4').reshape(52, 3)
                 current_parent_indices = np.fromfile(HEAD_SOURCE_DIRECTORY / 'kintree.bin', dtype='<i4')[:22]
                 _, current_global_rotations, _ = reconstruct_rotation_channels(current_output_arrays['rot6d'], current_rest_points[:22], current_parent_indices, current_output_arrays['transl'], current_output_arrays['world_joints'][:, :22])
-                current_result_record = render_motion_previews(current_output_arrays['world_joints'][:, :22], current_request_record, current_config_record, current_attempt_path, record_worker_progress, current_source_rotations, current_global_rotations[:, 20:22])
+                from generators.hy_motion.palm_rotation_guide import build_palm_comparison
+                current_palm_points, current_palm_angles = build_palm_comparison(current_output_arrays['world_joints'], current_global_rotations, current_rest_points, json.loads((HEAD_SOURCE_DIRECTORY / 'joint_names.json').read_text()))
+                write_record_atomically(current_attempt_path / 'palm-comparison.json', {'comparison': '손목 로컬 회전 항등 대조군, 부모 회전·손목 위치 유지', 'frame_rotation_difference_degrees_lr': current_palm_angles.tolist()})
+                current_preview_config = {**current_config_record, 'preview_fps': 30 / current_request_record.get('frame_step', 1)}
+                current_result_record = render_motion_previews(current_output_arrays['world_joints'][:, :22], current_request_record, current_preview_config, current_attempt_path, record_worker_progress, current_source_rotations, current_global_rotations[:, 20:22], current_palm_points, current_palm_angles)
                 current_result_record['head_rotation_guide'] = True
+                current_result_record['palm_rotation_guide'] = True
                 current_result_record['gifs'] = export_motion_gifs(current_result_record, current_attempt_path, record_worker_progress)
                 current_result_record.update(kind='motion', relative_path=current_attempt_path.relative_to(generation_job_path).as_posix(), provenance=current_provenance_record)
                 from generators.hy_motion.automatic_render import generate_automatic_renders

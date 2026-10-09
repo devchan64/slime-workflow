@@ -1,4 +1,5 @@
 """검수 PNG를 선택 방향이 동기화된 비교 GIF로 내보낸다."""
+import math
 from PIL import Image, ImageDraw
 
 GIF_TIME_UNIT_MILLISECONDS = 10
@@ -10,20 +11,40 @@ GIF_SKELETON_COLOR = (38, 71, 94)
 GIF_LABEL_COLOR = (0, 0, 0)
 
 
+def calculate_frame_durations(current_preview_record):
+    """원본 표본 시각과 마지막 구간을 GIF의 10ms 단위로 양자화한다."""
+    current_frame_count = current_preview_record['frames']
+    current_frame_rate = current_preview_record['preview_fps']
+    if type(current_frame_count) is not int or current_frame_count < 1 or type(current_frame_rate) not in (int, float) or not math.isfinite(current_frame_rate) or not 0 < current_frame_rate <= 30:
+        raise ValueError('GIF 입력은 1프레임 이상, 유한한 0 초과 30 이하 FPS여야 합니다.')
+    current_timing_fields = {'source_indices', 'source_frames', 'source_fps'}
+    if current_timing_fields.intersection(current_preview_record):
+        if not current_timing_fields <= current_preview_record.keys():
+            raise ValueError('GIF 원본 시간 정보가 불완전합니다.')
+        current_source_indices = current_preview_record['source_indices']
+        current_source_frames = current_preview_record['source_frames']
+        current_source_rate = current_preview_record['source_fps']
+        if type(current_source_frames) is not int or current_source_frames < 1 or type(current_source_rate) not in (int, float) or not math.isfinite(current_source_rate) or not 0 < current_source_rate <= 30 or not isinstance(current_source_indices, list) or len(current_source_indices) != current_frame_count or any(type(current_source_index) is not int or not 1 <= current_source_index <= current_source_frames for current_source_index in current_source_indices) or current_source_indices[0] != 1 or any(current_left_index >= current_right_index for current_left_index, current_right_index in zip(current_source_indices, current_source_indices[1:])):
+            raise ValueError('GIF 원본 프레임 시각 계약 오류')
+        current_boundary_times = [(current_source_index - 1) / current_source_rate for current_source_index in current_source_indices] + [current_source_frames / current_source_rate]
+    else:
+        # 원본 시각이 없는 기존 검수 입력의 명시된 FPS 계약.
+        current_boundary_times = [current_frame_index / current_frame_rate for current_frame_index in range(current_frame_count + 1)]
+    current_boundary_ticks = [round(current_boundary_time * GIF_SECOND_MILLISECONDS / GIF_TIME_UNIT_MILLISECONDS) for current_boundary_time in current_boundary_times]
+    return [(current_right_tick - current_left_tick) * GIF_TIME_UNIT_MILLISECONDS for current_left_tick, current_right_tick in zip(current_boundary_ticks, current_boundary_ticks[1:])]
+
+
 def export_motion_gifs(current_preview_record, current_output_path, current_progress_callback, current_palette_mode='skeleton'):
     current_frame_count = current_preview_record['frames']
     current_frame_rate = current_preview_record['preview_fps']
     current_direction_names = current_preview_record['directions']
     if current_palette_mode not in ('skeleton', 'adaptive'):
         raise ValueError('GIF 팔레트 방식 오류')
-    if type(current_frame_count) is not int or current_frame_count < 1 or current_frame_rate != 8:
-        raise ValueError('GIF 입력은 1프레임 이상의 8 FPS 검수 결과여야 합니다.')
+    current_frame_durations = calculate_frame_durations(current_preview_record)
     if not current_direction_names or len(set(current_direction_names)) != len(current_direction_names) or set(current_direction_names) - {'down_left', 'down_right', 'up_left', 'up_right'}:
         raise ValueError('GIF 방향 입력 오류')
     current_palette_image = Image.new('P', (1, 1))
     current_palette_image.putpalette(list(GIF_BACKGROUND_COLOR + GIF_SKELETON_COLOR + GIF_LABEL_COLOR) + [0] * (768 - 9))
-    # GIF의 10ms 단위 제약을 120/130ms 교대로 표현해 총 재생 시간을 보존한다.
-    current_frame_durations = [(int((current_frame_index + 1) * GIF_SECOND_MILLISECONDS / current_frame_rate / GIF_TIME_UNIT_MILLISECONDS) - int(current_frame_index * GIF_SECOND_MILLISECONDS / current_frame_rate / GIF_TIME_UNIT_MILLISECONDS)) * GIF_TIME_UNIT_MILLISECONDS for current_frame_index in range(current_frame_count)]
     current_direction_frames = {}
     current_expected_size = None
     for current_direction_name in current_direction_names:
