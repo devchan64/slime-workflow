@@ -1,5 +1,11 @@
 # 관리도구 GUI·CLI 클라이언트
 
+## MoMask 포즈 생성기 폐기
+
+2026-10-09 MoMask 생성 도구·Gradio 화면·메뉴를 폐기했다. GUI 과거 주소와 API는 HTTP 410으로 종료하며 통합 CLI의 MoMask 명령도 폐기 오류를 반환한다. 직접 생성·작업 재개 진입점도 차단한다. `.tmp/momask-generator/`의 과거 작업·렌더 결과·로그·이력은 사용자 지시로 삭제했다. 앞서 삭제한 모델 가중치를 자동 복원하지 않는다.
+
+HY-Motion이 사용하는 리타기팅·스키닝·Blender 단계 실행 코드는 유지한다. `assets/`의 등록 모션·피팅·리그와 다른 생성기의 결과·기록은 삭제하지 않는다. 아래 MoMask 실행 예시는 폐기 이전 기록이며 더 이상 지원하지 않는다.
+
 ## AnyPose 애니메이션 생성기 폐기
 
 2026-10-09부터 AnyPose 기반 캐릭터 애니메이션 생성기와 기록 화면을 폐기했다. 메뉴에서 제거하며 이전 화면 주소는 HTTP 410을 반환한다. `character-animation`의 `generate`·`resume`·`record-alpha-vnccs`는 폐기 오류로 거절한다. AnyPose 직접 추론·LoRA 준비도 차단한다. 공유 Lightning은 AnyPose 가중치 없이 별도 검증한다.

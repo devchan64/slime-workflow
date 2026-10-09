@@ -42,7 +42,7 @@ class GatewayContractTest(unittest.TestCase):
         gateway.handle(self.create_request_handler('/management/command',{'service':'qwen-2512','command':'generate','payload':payload}))
         self.assertEqual(calls[0],calls[1])
 
-    def test_momask_delete_reaches_service_through_http_gateway(self):
+    def test_retired_momask_command_is_rejected_before_service(self):
         import tempfile
         from unittest.mock import patch
         from tools.review.domains.momask import momask_jobs
@@ -62,10 +62,10 @@ class GatewayContractTest(unittest.TestCase):
                 current_gateway_value=ManagementCommandGateway({'momask':MoMaskGenerationManager().handle})
                 current_request_value=self.create_request_handler('/management/command',{'service':'momask','command':'history-delete','payload':{'id':current_job_identifier}})
                 current_gateway_value.handle(current_request_value)
-                self.assertEqual(current_request_value.responses,[200])
-                self.assertFalse(current_history_file.exists())
-                self.assertFalse(current_job_path.exists())
-                self.assertFalse(json.loads(current_request_value.wfile.getvalue())['files_preserved'])
+                self.assertEqual(current_request_value.responses,[400])
+                self.assertTrue(current_history_file.exists())
+                self.assertTrue(current_job_path.exists())
+                self.assertIn('폐기',json.loads(current_request_value.wfile.getvalue())['error'])
 
     def test_invalid_origin_does_not_dispatch(self):
         gateway=ManagementCommandGateway({})

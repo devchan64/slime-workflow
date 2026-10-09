@@ -63,7 +63,7 @@ def load_manager_page_records(source_file_path):
         if not isinstance(current_page_record,dict) or not all(isinstance(current_page_record.get(current_field_name),str) for current_field_name in ('id','label','path','category','description')):raise ValueError('관리 메뉴 페이지 항목 형식 오류')
         if any(current_page_record.get(current_field_name) is not None and not isinstance(current_page_record[current_field_name],str) for current_field_name in ('frameIdentifier','frameQuery')):raise ValueError('관리 메뉴 프레임 항목 형식 오류')
         if current_page_record['id']=='tile-map-generator':continue
-        if current_page_record['id'] == 'character-animation':continue
+        if current_page_record['id'] in ('character-animation', 'momask-generator'):continue
         if current_page_record['id'] == 'pose-transfer-generator':
             current_release_record = next(current_default_record for current_default_record in DEFAULT_PAGE_RECORDS if current_default_record['id'] == 'pose-transfer-generator')
             current_page_record = {**current_page_record, 'label': current_release_record['label'], 'description': current_release_record['description']}

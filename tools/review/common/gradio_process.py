@@ -92,7 +92,6 @@ def create_gradio_source_fingerprint(application_source_path,application_file_pa
 def ensure_gradio_application(review_server_port, application_name, application_source_path=None):
     with GRADIO_PROCESS_LOCK:
         application_definitions={
-            'momask':('momask_app.py',101,'/management/frame/momask-generator/'),
             'management-menu':('management_menu_app.py',100,'/management/'),
             'hy-motion':('hy_motion_app.py',123,'/management/frame/hy-motion-generator/'),
             'anny-landmarks':('anny_landmarks_app.py',124,'/management/frame/anny-landmarks/'),
@@ -161,7 +160,7 @@ def ensure_gradio_application(review_server_port, application_name, application_
         raise ValueError('Gradio 시작 제한 시간 초과')
 
 def ensure_gradio_server(review_server_port):
-    return ensure_gradio_application(review_server_port,'momask')
+    raise ValueError('MoMask 포즈 생성기 화면은 폐기되었습니다.')
 
 def ensure_management_menu_server(review_server_port, manager_source_path):
     return ensure_gradio_application(review_server_port,'management-menu',manager_source_path)

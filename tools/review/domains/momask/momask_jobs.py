@@ -53,74 +53,11 @@ def resolve_motion_frame_count(action_name_value, requested_frame_count=None):
 
 
 def start_generation_job(action_name_value, direction_name_values, include_face_points=False, history_tag_value='', custom_prompt_text=None, requested_frame_count=None):
-    if type(include_face_points) is not bool:raise ValueError("얼굴 옵션 형식 오류")
-    from tools.review.common.generation_records import validate_history_tag
-    history_tag_value=validate_history_tag(history_tag_value)
-    if action_name_value not in SUPPORTED_ACTION_NAMES or not direction_name_values or len(set(direction_name_values)) != len(direction_name_values) or set(direction_name_values)-set(SUPPORTED_DIRECTION_NAMES):
-        raise ValueError('포즈 또는 방향 요청 오류')
-    if action_name_value == 'custom':
-        if not isinstance(custom_prompt_text, str) or not custom_prompt_text.strip():
-            raise ValueError('커스텀 포즈의 모션 스크립트를 입력하세요.')
-        if len(custom_prompt_text) > 4000:
-            raise ValueError('커스텀 스크립트는 4000자 이하여야 합니다.')
-    elif custom_prompt_text is not None:
-        raise ValueError('스크립트 편집은 커스텀 포즈에서만 가능합니다.')
-    requested_frame_count=resolve_motion_frame_count(action_name_value,requested_frame_count)
-    GENERATION_JOB_DIRECTORY.mkdir(parents=True, exist_ok=True)
-    GENERATION_HISTORY_DIRECTORY.mkdir(parents=True, exist_ok=True)
-    generation_lock_handle = GENERATION_LOCK_FILE.open('a')
-    try:
-        try:
-            fcntl.flock(generation_lock_handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except BlockingIOError:
-            raise ValueError('MoMask 생성 작업이 실행 중입니다.') from None
-        creation_time_value = datetime.now(ZoneInfo('Asia/Seoul'))
-        generation_job_identifier = creation_time_value.strftime('%Y-%m-%d_%H-%M-%S')+'-'+uuid.uuid4().hex[:8]
-        generation_job_path = resolve_generation_directory(generation_job_identifier)
-        generation_job_path.mkdir()
-        generation_record_value = dict(id=generation_job_identifier, created_at=creation_time_value.isoformat(), action=action_name_value, directions=direction_name_values, tag=history_tag_value, status='running')
-        write_record_atomically(generation_job_path/'request.json', dict(action=action_name_value, directions=direction_name_values, face=include_face_points, tag=history_tag_value, frames=requested_frame_count, **({'prompt':custom_prompt_text} if action_name_value=='custom' else {})))
-        write_record_atomically(generation_job_path/'status.json', {'status':'running'})
-        write_record_atomically(GENERATION_HISTORY_DIRECTORY/(generation_job_identifier+'.json'), generation_record_value)
-        try:
-            with (generation_job_path/'worker.log').open('w') as generation_log_handle:
-                subprocess.Popen([sys.executable, str(Path(__file__).resolve()), '--supervise', generation_job_identifier, '--lock-fd', str(generation_lock_handle.fileno())], stdout=generation_log_handle, stderr=subprocess.STDOUT, start_new_session=True, pass_fds=(generation_lock_handle.fileno(),))
-        except Exception:
-            generation_record_value['status']='failed'
-            write_record_atomically(generation_job_path/'status.json', {'status':'failed','error':'작업 실행기 시작 실패'})
-            write_record_atomically(GENERATION_HISTORY_DIRECTORY/(generation_job_identifier+'.json'), generation_record_value)
-            raise
-        return {'id':generation_job_identifier, 'status':'running'}
-    finally:
-        generation_lock_handle.close()
+    raise ValueError('MoMask 포즈 생성기는 폐기되었습니다. HY-Motion을 사용하세요.')
 
 
 def resume_generation_job(generation_job_identifier):
-    generation_job_path=resolve_generation_directory(generation_job_identifier)
-    with GENERATION_LOCK_FILE.open('a') as generation_lock_handle:
-        try:fcntl.flock(generation_lock_handle,fcntl.LOCK_EX|fcntl.LOCK_NB)
-        except BlockingIOError:raise ValueError('MoMask 생성 작업이 실행 중입니다.') from None
-        previous_status_record=json.loads((generation_job_path/'status.json').read_text())
-        if previous_status_record['status'] not in ('cancelled','failed'):raise ValueError('취소·실패 작업만 재개할 수 있습니다.')
-        (generation_job_path/'cancel.request').unlink(missing_ok=True)
-        if all((generation_job_path/required_resume_path).is_file() for required_resume_path in ('result/anny/mannequin.blend','result/anny/render_asset.py','result/anny/run_stage.py','result/anny/baseline-model.json','motion-run/motion/motion.npz','motion-run/prompt.txt')):
-            (generation_job_path/'resume.request').touch()
-        else:
-            (generation_job_path/'resume.request').unlink(missing_ok=True)
-        try:
-            with (generation_job_path/'worker.log').open('a') as generation_log_handle:
-                generation_log_handle.write('\nMoMask 렌더 재개 요청\n');generation_log_handle.flush()
-                write_record_atomically(generation_job_path/'status.json',{'status':'running','resumed':True})
-                subprocess.Popen([sys.executable,str(Path(__file__).resolve()),'--supervise',generation_job_identifier,'--lock-fd',str(generation_lock_handle.fileno())],stdout=generation_log_handle,stderr=subprocess.STDOUT,start_new_session=True,pass_fds=(generation_lock_handle.fileno(),))
-        except Exception:
-            write_record_atomically(generation_job_path/'status.json',previous_status_record)
-            raise
-        generation_history_path=GENERATION_HISTORY_DIRECTORY/(generation_job_identifier+'.json')
-        if generation_history_path.exists():
-            generation_history_record=json.loads(generation_history_path.read_text())
-            generation_history_record.update(status='running',resumed=True)
-            write_record_atomically(generation_history_path,generation_history_record)
-        return {'id':generation_job_identifier,'status':'running','resumed':True}
+    raise ValueError('MoMask 포즈 생성기는 폐기되어 재개할 수 없습니다.')
 
 
 def list_generation_history():

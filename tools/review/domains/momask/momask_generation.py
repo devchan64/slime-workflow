@@ -37,51 +37,5 @@ class MoMaskGenerationManager:
   try:
    origin=f'http://127.0.0.1:{h.server.server_port}'
    if h.headers.get('Host')!=origin.removeprefix('http://'): raise ValueError('허용하지 않는 Host')
-   if h.command=='GET' and path in (self.route,self.route+'/'):
-    self.send(h,410,{'error':'이전 관리 화면은 폐기되었습니다. /management/에서 Gradio 화면을 여세요.'});return True
-   if h.command=='GET' and path==self.route+'/history':
-    records=self.history()
-    for history_record_value in records:
-     history_status_value=history_record_value['status']
-     history_record_value['status']={'status':history_status_value}
-     history_record_value['request']={'action':history_record_value['action'],'directions':history_record_value.get('directions',[]),'frames':HISTORICAL_ACTIONS[history_record_value['action']]['frames'],'tag':history_record_value.get('tag','')}
-     if history_status_value=='running':history_record_value['progress']=self.status(history_record_value['id']).get('progress')
-     history_record_value['playable']=history_status_value=='completed'
-     history_record_value['path']=str(JOB_ROOT/history_record_value['id'])
-     if history_status_value!='completed':continue
-     history_result_root=JOB_ROOT/history_record_value['id']/'result'
-     history_preview_paths=sorted(history_result_root.glob('anny/*/frames/anny-0001.png')) or sorted(history_result_root.glob('openpose/*/openpose-0001.png')) or sorted(history_result_root.glob('*/openpose-0001.png'))
-     if history_preview_paths:history_record_value['thumbnail']=self.route+'/jobs/'+history_record_value['id']+'/result/'+history_preview_paths[0].relative_to(history_result_root).as_posix()
-    self.send(h,200,{'records':records,'running':check_generation_running()});return True
-   match=re.fullmatch(self.route+r'/jobs/([0-9a-f_-]+)',path)
-   frame_match=re.fullmatch(self.route+r'/jobs/([0-9a-f_-]+)/result/(openpose-map|openpose|rig)/(down_left|down_right|up_left|up_right)/((?:openpose-map|openpose|rig)-\d{4}\.png)',path)
-   legacy_frame_match=re.fullmatch(self.route+r'/jobs/([0-9a-f_-]+)/result/(down_left|down_right|up_left|up_right)/(openpose-\d{4}\.png)',path)
-   anny_frame_match=re.fullmatch(self.route+r'/jobs/([0-9a-f_-]+)/result/anny/(down_left|down_right|up_left|up_right)/frames/(anny-\d{4}\.png)',path)
-   if h.command=='GET' and (match or frame_match or legacy_frame_match or anny_frame_match):
-    if frame_match:
-     root=JOB_ROOT/frame_match[1]
-     if not frame_match[4].startswith(frame_match[2]+'-'): raise ValueError('결과 프레임 경로 오류')
-     self.send(h,200,(root/'result'/frame_match[2]/frame_match[3]/frame_match[4]).read_bytes(),'image/png');return True
-    if anny_frame_match:
-     root=JOB_ROOT/anny_frame_match[1];self.send(h,200,(root/'result'/'anny'/anny_frame_match[2]/'frames'/anny_frame_match[3]).read_bytes(),'image/png');return True
-    if legacy_frame_match:
-     root=JOB_ROOT/legacy_frame_match[1];self.send(h,200,(root/'result'/legacy_frame_match[2]/legacy_frame_match[3]).read_bytes(),'image/png');return True
-    self.send(h,200,self.status(match[1]));return True
-   if h.command!='POST' or h.headers.get('Origin')!=origin or h.headers.get('Content-Type','').split(';')[0]!='application/json': raise ValueError('요청 형식 오류')
-   body=json.loads(h.rfile.read(int(h.headers.get('Content-Length','0'))),object_pairs_hook=unique)
-   current_delete_match=re.fullmatch(self.route+r'/history/([0-9a-f_-]+)/delete',path)
-   if current_delete_match:
-    if body!={'id':current_delete_match[1]}:raise ValueError('이력 삭제 ID가 경로와 일치하지 않습니다.')
-    self.send(h,200,execute_momask_command('history-delete',body));return True
-   if path==self.route+'/history/reset':
-    if body!={'action':'reset'}: raise ValueError('초기화 요청 오류')
-    self.send(h,200,execute_momask_command('history-reset',{}));return True
-   if path==self.route+'/resume':
-    if set(body)!={'id'}: raise ValueError('재개 요청 오류')
-    self.send(h,202,execute_momask_command('resume',body));return True
-   if path==self.route+'/cancel':
-    if set(body)!={'id'}: raise ValueError('취소 요청 오류')
-    self.send(h,200,execute_momask_command('cancel',body));return True
-   if path!=self.route+'/jobs' or set(body)-{'action','directions','face','tag','prompt','frames'} or not {'action','directions'}<=set(body) or body['action'] not in (*ACTIONS,'custom') or not isinstance(body['directions'],list) or not body['directions'] or set(body['directions'])-set(DIRECTIONS) or len(set(body['directions']))!=len(body['directions']): raise ValueError('포즈 또는 방향 요청 오류')
-   self.send(h,202,execute_momask_command('generate',body));return True
+   self.send(h,410,{'error':'MoMask 포즈 생성기와 과거 기록은 폐기되었습니다. HY-Motion을 사용하세요.'});return True
   except (ValueError,FileNotFoundError,json.JSONDecodeError) as e:self.send(h,400,{'error':str(e)});return True

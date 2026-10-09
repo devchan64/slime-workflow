@@ -8,6 +8,7 @@ if str(ROOT) not in sys.path:sys.path.insert(0,str(ROOT))
 ACTIONS={'walking':('walking','걷기'),'standing':('standing','대기'),'resting':('resting','휴식'),'custom':('custom','커스텀')}
 DIRECTIONS={'down_left','down_right','up_left','up_right'}
 def main():
+ raise ValueError('MoMask 포즈 생성기는 폐기되었습니다. HY-Motion을 사용하세요.')
  p=argparse.ArgumentParser();p.add_argument('--job-dir',type=Path,required=True);p.add_argument('--action',choices=ACTIONS);p.add_argument('--directions',required=True);a=p.parse_args()
  directions=a.directions.split(',')
  if not directions or set(directions)-DIRECTIONS or len(set(directions))!=len(directions): raise ValueError('방향 선택 오류')

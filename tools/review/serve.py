@@ -313,8 +313,6 @@ def run_review_server(parsed_argument_values):
             emit_server_trace('gradio-menu-failure',str(gradio_error_value))
     def resolve_gradio_proxy_port(request_path_value):
         gradio_route_records=(
-            ('/momask-generator/',parsed_argument_values.port+100,lambda:ensure_management_menu_server(parsed_argument_values.port,manager_source_path)),
-            ('/management/frame/momask-generator/',parsed_argument_values.port+101,lambda:ensure_gradio_server(parsed_argument_values.port)),
             ('/',parsed_argument_values.port+100,lambda:ensure_management_menu_server(parsed_argument_values.port,manager_source_path)),
             ('/management/frame/hy-motion-generator/',parsed_argument_values.port+123,lambda:ensure_gradio_application(parsed_argument_values.port,'hy-motion')),
             ('/management/frame/anny-landmarks/',parsed_argument_values.port+124,lambda:ensure_gradio_application(parsed_argument_values.port,'anny-landmarks')),
@@ -387,6 +385,10 @@ def run_review_server(parsed_argument_values):
             finally:proxy_connection_value.close()
             return True
         def reject_retired_generator(self):
+            current_momask_request = urlsplit(self.path)
+            if current_momask_request.path.rstrip('/') == '/momask-generator' or current_momask_request.path.startswith(('/momask-generator/', '/management/frame/momask-generator')) or 'momask-generator' in parse_qs(current_momask_request.query).get('tool', []):
+                self.send_error(410, 'MoMask has been retired. Use HY-Motion.')
+                return True
             current_retired_request = urlsplit(self.path)
             if current_retired_request.path.rstrip('/') in ('/character-animation', '/management/frame/character-animation') or current_retired_request.path.startswith('/management/frame/character-animation/') or 'character-animation' in parse_qs(current_retired_request.query).get('tool', []):
                 self.send_error(410, 'This animation generator has been retired. Use VNCCS pose transfer.')

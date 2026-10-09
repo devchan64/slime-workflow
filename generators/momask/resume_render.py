@@ -13,6 +13,7 @@ sys.path.insert(0,str(WORKFLOW_ROOT_DIRECTORY))
 from tools.review.common.generation_records import write_record_atomically
 
 def resume_render_frames(generation_job_path):
+    raise ValueError('MoMask 생성기의 과거 작업 렌더 재개는 폐기되었습니다.')
     request_record_value=json.loads((generation_job_path/'request.json').read_text())
     render_output_path=generation_job_path/'result/anny'
     frame_count_value=len(np.load(generation_job_path/'motion-run/motion/motion.npz')['joints'])

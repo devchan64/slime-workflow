@@ -65,6 +65,7 @@ def calculate_file_digest(model_file_path):
 
 def execute_motion_attempt():
     """모델은 고정된 준비 기록으로 검증하고 CUDA에서만 추론한다."""
+    raise ValueError('MoMask 모션 추론은 폐기되었습니다. HY-Motion을 사용하세요.')
     prepared_model_record = json.loads(MODEL_MANIFEST_PATH.read_text())
     for prepared_file_record in prepared_model_record['files']:
         prepared_model_path = WORKFLOW_REPOSITORY_ROOT / prepared_file_record['path']
