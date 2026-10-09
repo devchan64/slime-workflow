@@ -7,6 +7,8 @@ const readSelectedFrames=()=>currentFramePayload.frames?.[currentDirectionName]|
 const drawSelectedFrame=()=>{
  const currentFramePaths=readSelectedFrames();
  const currentImageContainer=element.querySelector('[data-player-images]');
+ currentImageContainer.style.display=currentFramePayload.columns===3?'grid':'flex';
+ currentImageContainer.style.gridTemplateColumns=currentFramePayload.columns===3?'repeat(3,minmax(0,1fr))':'';
  const currentRequestNumber=++currentRequestSequence;
  if(!currentFramePaths.length){currentImageContainer.replaceChildren();showPlayerMessage(currentFramePayload.message||'표시할 결과 프레임이 없습니다.');return;}
  const currentFrameNumber=currentFrameIndex;
@@ -49,14 +51,27 @@ const loadPlayerPayload=()=>{
  catch(currentParseError){currentFramePayload={};showPlayerMessage('재생 결과 형식 오류');return;}
  currentDirectionName=Object.keys(currentFramePayload.frames||{})[0]||'';
  let currentDownloadContainer=element.querySelector('[data-player-downloads]');
- if(!currentDownloadContainer){currentDownloadContainer=document.createElement('p');currentDownloadContainer.dataset.playerDownloads='';element.querySelector('[data-player-status]').after(currentDownloadContainer);}
+ if(!currentDownloadContainer){currentDownloadContainer=document.createElement('div');currentDownloadContainer.dataset.playerDownloads='';element.querySelector('[data-player-status]').after(currentDownloadContainer);}
  currentDownloadContainer.replaceChildren();
+ const currentDownloadTable=document.createElement('table');
+ const currentTableCaption=document.createElement('caption');currentTableCaption.textContent='결과 다운로드';currentDownloadTable.append(currentTableCaption);
+ const currentTableHeader=currentDownloadTable.createTHead().insertRow();
+ for(const currentColumnLabel of ['파일명','다운로드']){
+  const currentHeaderCell=document.createElement('th');currentHeaderCell.scope='col';currentHeaderCell.textContent=currentColumnLabel;currentTableHeader.append(currentHeaderCell);
+ }
+ const currentTableBody=currentDownloadTable.createTBody();
  for(const currentArtifactRecord of currentFramePayload.downloads||[]){
   const currentArtifactUrl=new URL(currentArtifactRecord.url,window.location.href);
   if(currentArtifactUrl.protocol!=='http:'||currentArtifactUrl.hostname!=='127.0.0.1')continue;
-  const currentDownloadAnchor=document.createElement('a');currentDownloadAnchor.href=currentArtifactUrl.href;currentDownloadAnchor.textContent=currentArtifactRecord.label;currentDownloadAnchor.setAttribute('download','');
-  currentDownloadContainer.append(currentDownloadAnchor,document.createTextNode(' '));
+  const currentDownloadAnchor=document.createElement('a');currentDownloadAnchor.href=currentArtifactUrl.href;currentDownloadAnchor.setAttribute('download','');
+  const currentDownloadIcon=document.createElement('span');currentDownloadIcon.textContent='⤓';currentDownloadIcon.setAttribute('aria-hidden','true');
+  currentDownloadAnchor.append(currentDownloadIcon,document.createTextNode(' 다운로드'));
+  currentDownloadAnchor.setAttribute('aria-label',currentArtifactRecord.label+' 다운로드');
+  const currentDownloadRow=currentTableBody.insertRow();
+  currentDownloadRow.insertCell().textContent=currentArtifactRecord.label;
+  currentDownloadRow.insertCell().append(currentDownloadAnchor);
  }
+ if(currentTableBody.rows.length)currentDownloadContainer.append(currentDownloadTable);
  if(currentFramePayload.deferLoading){element.querySelector('[data-player-images]').replaceChildren();showPlayerMessage('미리보기 불러오기를 눌러 선택한 프레임을 확인하세요.');}
  else drawSelectedFrame();
 };
