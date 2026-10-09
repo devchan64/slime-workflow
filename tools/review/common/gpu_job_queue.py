@@ -71,9 +71,42 @@ def cancel_gpu_generation(generation_job_path):
     return {'status':generation_status_record['status'], 'cancel_requested':True}
 
 
+def read_priority_tickets():
+    """티켓 경로는 유지하고 영속 우선순위로 정렬한다."""
+    current_priority_path = GPU_QUEUE_DIRECTORY / 'priority-order'
+    current_priority_values = json.loads(current_priority_path.read_text()) if current_priority_path.exists() else {}
+    return sorted(GPU_QUEUE_DIRECTORY.glob('*.json'), key=lambda current_ticket_path: (current_priority_values.get(current_ticket_path.name, 0), current_ticket_path.name))
+
+
+def prioritize_waiting_generation(current_job_identifier):
+    """실행 예약과 같은 잠금으로 대기 작업만 맨 앞으로 옮긴다."""
+    if not isinstance(current_job_identifier, str) or not current_job_identifier or Path(current_job_identifier).name != current_job_identifier:
+        raise ValueError('생성 ID 형식 오류')
+    GPU_QUEUE_DIRECTORY.mkdir(parents=True, exist_ok=True)
+    with (GPU_QUEUE_DIRECTORY / 'execution.lock').open('a') as current_queue_lock:
+        fcntl.flock(current_queue_lock, fcntl.LOCK_EX)
+        current_matching_tickets = []
+        for current_ticket_path in read_priority_tickets():
+            current_ticket_record = json.loads(current_ticket_path.read_text())
+            current_job_directory = Path(current_ticket_record['path'])
+            if current_job_directory.name != current_job_identifier:
+                continue
+            if json.loads((current_job_directory / 'status.json').read_text())['status'] != 'queued' or (current_job_directory / 'cancel.request').exists() or (current_job_directory / 'pause.request').exists():
+                raise ValueError('중지 요청이 없는 GPU 대기 작업만 우선 실행할 수 있습니다.')
+            os.kill(current_ticket_record['pid'], 0)
+            current_matching_tickets.append(current_ticket_path)
+        if len(current_matching_tickets) != 1:
+            raise ValueError('유일한 대기 티켓을 찾을 수 없습니다. 실행이 시작됐거나 대기 등록 중입니다. 상태를 갱신하세요.')
+        current_priority_path = GPU_QUEUE_DIRECTORY / 'priority-order'
+        current_priority_values = json.loads(current_priority_path.read_text()) if current_priority_path.exists() else {}
+        current_priority_values[current_matching_tickets[0].name] = min([0, *current_priority_values.values()]) - 1
+        write_record_atomically(current_priority_path, current_priority_values)
+        return {'id': current_job_identifier, 'status': 'queued', 'queue_position': 1, 'message': '대기열 맨 앞으로 이동했습니다. 실행 중 작업은 유지하며 GPU 메모리가 확보되면 실행합니다.'}
+
+
 def select_runnable_ticket(available_memory_mib):
     """잠금 안에서 접수 순서대로 확인해 메모리가 맞는 첫 작업을 선택한다."""
-    for waiting_ticket_path in sorted(GPU_QUEUE_DIRECTORY.glob('*.json')):
+    for waiting_ticket_path in read_priority_tickets():
         try:
             waiting_ticket_record = json.loads(waiting_ticket_path.read_text())
             os.kill(waiting_ticket_record['pid'], 0)
@@ -142,7 +175,7 @@ def execute_queued_generation(generation_job_path):
                     try: os.kill(json.loads(previous_ticket_path.read_text())['pid'], 0)
                     except ProcessLookupError: previous_ticket_path.unlink(missing_ok=True)
                     except FileNotFoundError: pass
-                queued_ticket_values = sorted(GPU_QUEUE_DIRECTORY.glob('*.json'))
+                queued_ticket_values = read_priority_tickets()
                 queue_position_value = queued_ticket_values.index(queue_ticket_path)+1
                 memory_total_value, memory_free_value = read_gpu_memory()
                 memory_estimate_record = estimate_required_memory(generation_command_record['service'], GPU_MEMORY_REQUIREMENTS[generation_command_record['service']], identify_execution_command(generation_command_record['command'], generation_job_path))
@@ -250,7 +283,7 @@ if __name__ == '__main__':
 def list_waiting_gpu_jobs():
     """살아 있는 대기 실행기의 작업 목록만 읽는다."""
     waiting_job_records=[]
-    for waiting_ticket_path in sorted(GPU_QUEUE_DIRECTORY.glob('*.json')):
+    for waiting_ticket_path in read_priority_tickets():
         try:
             waiting_ticket_record=json.loads(waiting_ticket_path.read_text())
             os.kill(waiting_ticket_record['pid'],0)

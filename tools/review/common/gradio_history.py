@@ -20,17 +20,18 @@ def build_history_selection_panel(allow_restore_inputs=False, allow_history_dele
         selected_identifier_value=build_generation_identifier('생성 ID')
         history_selection_summary=gr.Markdown('목록에서 작업을 선택하세요. 결과 조회·입력 재사용·중지·재개를 할 수 있습니다.')
         with gr.Row(equal_height=True):
-            result_lookup_button=gr.Button('결과 조회',variant='primary',interactive=False)
+            result_lookup_button=gr.Button('결과 조회',variant='primary',interactive=False,min_width=0)
             if allow_restore_inputs:
-                restore_input_button=gr.Button('입력값 불러오기',interactive=False)
+                restore_input_button=gr.Button('입력값 불러오기',interactive=False,min_width=0)
             else:
-                restore_input_button=gr.Button('입력 복원 미지원',interactive=False)
-            history_resume_button=gr.Button('생성 재개',interactive=False)
-            history_cancel_button=gr.Button('작업 중지',interactive=False)
+                restore_input_button=gr.Button('입력 복원 미지원',interactive=False,min_width=0)
+            history_resume_button=gr.Button('생성 재개',interactive=False,min_width=0)
+            history_priority_button=gr.Button('우선 실행 · 대기 작업 선택',interactive=False,min_width=0)
+            history_cancel_button=gr.Button('작업 중지',interactive=False,min_width=0)
             history_delete_button=None
             if allow_history_delete:
-                history_delete_button=gr.Button('선택 이력 삭제',interactive=False)
-    return (history_selected_panel, history_selection_summary, selected_identifier_value, result_lookup_button, restore_input_button, history_resume_button, history_cancel_button, history_delete_button)
+                history_delete_button=gr.Button('선택 이력 삭제',interactive=False,min_width=0)
+    return (history_selected_panel, history_selection_summary, selected_identifier_value, result_lookup_button, restore_input_button, history_resume_button, history_cancel_button, history_delete_button, history_priority_button)
 
 
 def build_history_input_controls(history_selection_component, read_input_callback,
@@ -235,7 +236,7 @@ def build_generation_history_view(execute_service_command,server_base_address,de
         history_selection_value=gr.Dropdown(choices=[],value=None,label='이력 선택',info='작업을 선택한 뒤 결과 조회·입력값 불러오기·중지·재개를 사용하세요.',interactive=True,visible=False,elem_id='generation-history-selection')
         gr.Markdown('첫 번째 열에서 작업을 선택한 뒤 결과 조회·입력값 불러오기·삭제를 사용하세요. 입력값을 불러오면 설정을 확인한 뒤 다시 생성할 수 있습니다.')
         history_cards_value=gr.HTML(value='',elem_id='generation-history-cards',js_on_load="watch('value',()=>{element.querySelectorAll('input[type=radio]').forEach(currentRadioInput=>{currentRadioInput.checked=currentRadioInput.hasAttribute('checked');});});element.addEventListener('change',(currentChangeEvent)=>{const currentRadioInput=currentChangeEvent.target;if(currentRadioInput.matches('input[type=radio]'))trigger('click',{identifier:currentRadioInput.value});});")
-        (history_selected_panel, history_selection_summary, selected_identifier_value, result_lookup_button, restore_input_button, history_resume_button, history_cancel_button, history_delete_button)=build_history_selection_panel(restore_input_callback is not None, allow_individual_delete)
+        (history_selected_panel, history_selection_summary, selected_identifier_value, result_lookup_button, restore_input_button, history_resume_button, history_cancel_button, history_delete_button, history_priority_button)=build_history_selection_panel(restore_input_callback is not None, allow_individual_delete)
         if allow_individual_delete:
             current_delete_identifier=gr.State('')
             with gr.Group(visible=False) as current_delete_panel:
@@ -262,7 +263,16 @@ def build_generation_history_view(execute_service_command,server_base_address,de
             selected_operation_result=execute_service_command(selected_operation_name,{'id':current_selected_identifier})
         except (ValueError,RuntimeError) as selected_operation_error:
             raise gr.Error(str(selected_operation_error))
+        if selected_operation_name == 'prioritize':
+            return selected_operation_result['message']
         return '중지를 요청했습니다.' if selected_operation_name=='cancel' else '재개 요청을 접수했습니다. GPU 여유가 생기면 실행합니다.'
+    history_priority_button.click(lambda selected_job_identifier:update_selected_generation(selected_job_identifier,'prioritize'),history_selection_value,result_status_value,queue=False)
+    def refresh_priority_control(current_selected_identifier):
+        current_waiting_status = bool(current_selected_identifier) and execute_service_command('status',{'id':current_selected_identifier}).get('status') == 'queued'
+        return gr.update(interactive=current_waiting_status,value='우선 실행' if current_waiting_status else '우선 실행 · 대기 작업 선택')
+    history_selection_value.change(refresh_priority_control,history_selection_value,history_priority_button,queue=False)
+    if hasattr(gr,'Timer'):
+        gr.Timer(3).tick(refresh_priority_control,history_selection_value,history_priority_button,queue=False,show_progress='hidden')
     history_cancel_button.click(lambda selected_job_identifier:update_selected_generation(selected_job_identifier,'cancel'),history_selection_value,result_status_value,queue=False)
     bind_gpu_generation_confirmation(history_resume_button,lambda selected_job_identifier:update_selected_generation(selected_job_identifier,'resume'),history_selection_value,result_status_value)
 

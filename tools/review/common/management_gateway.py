@@ -35,6 +35,11 @@ SPRITE_V2_COMMAND_NAMES = tuple('sprite-v2-'+current_command_name for current_co
 MANAGEMENT_COMMAND_ROUTES.update({current_command_name:('POST','/sprite-v2/'+current_command_name.removeprefix('sprite-v2-')) for current_command_name in SPRITE_V2_COMMAND_NAMES})
 MANAGEMENT_SERVICE_COMMANDS['character-animation'] += SPRITE_V2_COMMAND_NAMES
 
+MANAGEMENT_COMMAND_ROUTES['prioritize'] = ('POST', '/history/{id}/prioritize')
+for current_service_name, current_command_names in tuple(MANAGEMENT_SERVICE_COMMANDS.items()):
+    if 'resume' in current_command_names:
+        MANAGEMENT_SERVICE_COMMANDS[current_service_name] += ('prioritize',)
+
 def resolve_management_command(service_command_name, operation_command_name, command_payload_value):
     if service_command_name == 'momask':
         raise ValueError('MoMask 포즈 생성기와 과거 기록은 폐기되었습니다. HY-Motion을 사용하세요.')
@@ -177,6 +182,10 @@ MANAGEMENT_COMMAND_DESCRIPTIONS['pose-transfer']='VNCCS V1.1 · Qwen 2.1 공식 
 def execute_management_command(service_command_name, operation_command_name, command_payload_value, server_base_address=None, *, gateway_request_handler=None, service_handler_values=None):
     request_method_value,request_route_value=resolve_management_command(service_command_name,operation_command_name,command_payload_value)
     if gateway_request_handler is not None:
+        if operation_command_name == 'prioritize':
+            from tools.review.common.gpu_job_queue import prioritize_waiting_generation
+            from tools.review.common.management_transport import send_management_json_response
+            return send_management_json_response(gateway_request_handler, 200, prioritize_waiting_generation(command_payload_value['id']))
         return service_handler_values[service_command_name](GatewayRequestAdapter(gateway_request_handler,request_method_value,request_route_value,command_payload_value))
     if service_command_name=='character-animation' and server_base_address is None:
         from tools.review.domains.character_animation.character_animation_jobs import execute_animation_command
@@ -206,7 +215,7 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
             operation_argument_parser.add_argument('id')
             if operation_command_name=='sprite-history-delete':operation_argument_parser.add_argument('--revision',required=True)
             if operation_command_name=='sprite-save':operation_argument_parser.add_argument('--document-file',type=Path,required=True)
-        if operation_command_name in ('status','logs','cancel','resume','pause','history-delete'):
+        if operation_command_name in ('status','logs','cancel','resume','pause','history-delete','prioritize'):
             operation_argument_parser.add_argument('id')
         if operation_command_name in ('generate','export-vnccs'):
             operation_argument_parser.add_argument('--detach',action='store_true',help='작업 ID 출력 후 반환')
