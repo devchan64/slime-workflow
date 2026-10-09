@@ -61,6 +61,18 @@ tiles:
   - {id: ash, category: ground, asset: assets/tiles/terrain/non-road/grass-ground-v2.png}
   - {id: moss, category: ground, asset: assets/tiles/terrain/non-road/grass-ground-v2.png}
   - {id: leaf-litter, category: ground, asset: assets/tiles/terrain/non-road/leaf-litter-v2.png}
+  - {id: autumn-leaf-litter, category: ground, asset: assets/tiles/terrain/non-road/autumn-leaf-litter-v1.png}
+  - {id: pebble-shore-ground, category: ground, asset: assets/tiles/terrain/non-road/pebble-shore-ground-v1.png}
+  - {id: mossy-ruin-ground, category: ground, asset: assets/tiles/terrain/non-road/mossy-ruin-ground-v1.png}
+  - {id: dark-humus-ground, category: ground, asset: assets/tiles/terrain/non-road/dark-humus-ground-v1.png}
+  - {id: frost-grass-ground, category: ground, asset: assets/tiles/terrain/non-road/frost-grass-ground-v1.png}
+  - {id: cracked-dry-earth-ground, category: ground, asset: assets/tiles/terrain/non-road/cracked-dry-earth-ground-v1.png}
+  - {id: wildflower-meadow-ground, category: ground, asset: assets/tiles/terrain/non-road/wildflower-meadow-ground-v1.png}
+  - {id: shallow-reed-water-ground, category: ground, asset: assets/tiles/terrain/non-road/shallow-reed-water-ground-v1.png}
+  - {id: volcanic-ash-ground, category: ground, asset: assets/tiles/terrain/non-road/volcanic-ash-ground-v1.png}
+  - {id: round-fieldstone-ground, category: ground, asset: assets/tiles/terrain/non-road/round-fieldstone-ground-v1.png}
+  - {id: frosted-grass-ground, category: ground, asset: assets/tiles/terrain/non-road/frosted-grass-ground-v1.png}
+  - {id: sandy-scrub-ground, category: ground, asset: assets/tiles/terrain/non-road/sandy-scrub-ground-v1.png}
   - {id: tree-base, category: ground, asset: assets/tiles/terrain/non-road/grass-ground-v2.png}
   - {id: ramp-tread, category: ground, asset: assets/tiles/terrain/blocked/ramp-earth-stone-wall-v1.png}
   - {id: cliff-wall, category: ground, asset: assets/tiles/terrain/blocked/cliff-rock-face-v1.png}
