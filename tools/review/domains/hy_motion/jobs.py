@@ -46,12 +46,12 @@ def read_generation_status(generation_job_identifier):
             'result': json.loads(current_result_file.read_text()) if current_result_file.exists() else None}
 
 
-def estimate_generation_completion(generation_job_path, current_request_record, current_status_record):
+def estimate_generation_completion(generation_job_path, current_request_record, current_status_record, *, include_live_render=True):
     current_estimate_scope = '작업 시작부터 모델 로드·모션 추론·ANNY 제약·렌더·OpenPose·패키징까지 · GPU 대기 제외'
     current_unknown_estimate = calculate_generation_estimate(current_status_record, [], '동일 조건 완료 표본 없음 · 첫 완료 실행 후 계산 가능', current_estimate_scope)
     if current_status_record['status'] not in ('running', 'queued'):
         return current_unknown_estimate
-    if current_status_record.get('progress', {}).get('stage') == 'render' and current_status_record.get('attempt_path'):
+    if include_live_render and current_status_record.get('progress', {}).get('stage') == 'render' and current_status_record.get('attempt_path'):
         current_attempt_directory = (generation_job_path / current_status_record['attempt_path']).resolve()
         if not current_attempt_directory.is_relative_to(generation_job_path.resolve()):
             raise ValueError('시간 추정 시도 경로가 작업 경계를 벗어났습니다.')
@@ -68,6 +68,15 @@ def estimate_generation_completion(generation_job_path, current_request_record, 
                 current_remaining_units = current_total_units - len(current_render_times)
                 current_render_estimate = calculate_generation_estimate({'status': 'running', 'started_at': datetime.fromtimestamp(current_render_times[-1], ZoneInfo('Asia/Seoul')).isoformat()}, [statistics.median(current_unit_intervals) * current_remaining_units], f'현재 작업 렌더 {len(current_render_times)}/{current_total_units}장 · 최근 {len(current_unit_intervals)}개 완료 간격 중앙값', '남은 ANNY 렌더 단계만 · 후속 OpenPose·패키징 시간 제외')
                 current_render_estimate.update(sample_count=len(current_unit_intervals), completed_units=len(current_render_times), total_units=current_total_units, measured_progress=round(100 * len(current_render_times) / current_total_units, 1), estimated_progress=None, total_seconds=None)
+                current_full_estimate = estimate_generation_completion(generation_job_path, current_request_record, current_status_record, include_live_render=False)
+                if current_full_estimate.get('total_seconds') is not None:
+                    current_full_estimate.update(completed_units=len(current_render_times), total_units=current_total_units, measured_progress=current_render_estimate['measured_progress'], render_remaining_seconds=current_render_estimate['remaining'])
+                    return current_full_estimate
+                if current_status_record.get('started_at'):
+                    current_observed_elapsed = max(0, current_render_times[-1] - datetime.fromisoformat(current_status_record['started_at']).timestamp())
+                    current_partial_estimate = calculate_generation_estimate(current_status_record, [current_observed_elapsed + statistics.median(current_unit_intervals) * current_remaining_units], current_render_estimate['basis'], '작업 시작부터 렌더 종료까지의 부분 추정 · GPU 대기·후속 OpenPose·패키징 제외')
+                    current_partial_estimate.update(sample_count=len(current_unit_intervals), completed_units=len(current_render_times), total_units=current_total_units, measured_progress=current_render_estimate['measured_progress'])
+                    return current_partial_estimate
                 return current_render_estimate
     if current_request_record.get('action') == 'export-vnccs':
         return {**current_unknown_estimate, 'basis': '리그 변환·CUDA 렌더 출력 · 소요 시간 표본 수집 전'}
