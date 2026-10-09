@@ -9,6 +9,19 @@ from tools.review.ui.gradio.management_menu_app import create_initial_selection_
 
 
 class GradioManagementMenuTests(unittest.TestCase):
+    def test_pose_generator_release_metadata(self):
+        import json
+        import tempfile
+        from pathlib import Path
+        from tools.review.ui.gradio.management_menu_app import load_manager_page_records
+        with tempfile.TemporaryDirectory() as current_temporary_directory:
+            current_source_path = Path(current_temporary_directory) / 'pages.json'
+            current_source_path.write_text(json.dumps({'pages': [{'id': 'pose-transfer-generator', 'label': '포즈 변환 생성기 · Alpha Ver.', 'path': '/pose-transfer/', 'category': 'animation-tool', 'description': 'Alpha Ver.'}]}))
+            current_release_record = next(current_page_record for current_page_record in load_manager_page_records(current_source_path) if current_page_record['id'] == 'pose-transfer-generator')
+            self.assertEqual(current_release_record['label'], '포즈 변환 생성기')
+            self.assertIn('정식', current_release_record['description'])
+            self.assertEqual(current_release_record['path'], '/pose-transfer/')
+
     def setUp(self):
         self.page_record_values=[
             {'id':'momask-generator','label':'MoMask 모션 생성기','path':'/momask-generator/','category':'animation-tool','uiMode':'gradio','description':'고정 포즈 스크립트'},

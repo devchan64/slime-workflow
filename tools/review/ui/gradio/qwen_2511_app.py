@@ -101,7 +101,7 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
     default_prompt_text = load_pose_transfer_prompt() if pose_transfer_enabled else ''
     reference_slot_count = 2 if pose_transfer_enabled else 10 if qwen21_mode_enabled else 3
     current_service_name = 'outfit-transfer' if outfit_transfer_enabled else 'pose-transfer' if pose_transfer_enabled else 'qwen-21-circular' if circular_mode_enabled else 'qwen-21' if qwen21_mode_enabled else 'expression' if expression_mode_enabled else 'qwen-2511'
-    current_page_title = '복장 착용 생성기' if outfit_transfer_enabled else '포즈 변환 생성기 · Alpha Ver.' if pose_transfer_enabled else 'Qwen 2.1 순환 VAE 생성기' if circular_mode_enabled else 'Qwen 2.1 이미지 생성기' if qwen21_mode_enabled else '표정 생성기' if expression_mode_enabled else 'Qwen 2511 3참조 생성기'
+    current_page_title = '복장 착용 생성기' if outfit_transfer_enabled else '포즈 변환 생성기' if pose_transfer_enabled else 'Qwen 2.1 순환 VAE 생성기' if circular_mode_enabled else 'Qwen 2.1 이미지 생성기' if qwen21_mode_enabled else '표정 생성기' if expression_mode_enabled else 'Qwen 2511 3참조 생성기'
     def execute_reference_gateway(command_name_value, payload_value):
         return execute_management_command(current_service_name, command_name_value, payload_value)
     def restore_selected_inputs(current_history_record):
