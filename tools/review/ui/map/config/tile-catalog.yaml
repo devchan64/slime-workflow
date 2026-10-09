@@ -36,7 +36,8 @@ tiles:
   - {id: marble_roof, category: roof, asset: assets/tiles/buildings/marble/marble-roof-v3.png}
   - {id: marble_small_door, category: door, asset: assets/tiles/buildings/stone/stone-door-v1.png}
   - {id: wood_roof, category: roof, asset: assets/tiles/buildings/wood/wood-roof-v4.png}
-  - {id: stonewarm-guild-red-stone-roof, category: roof, asset: assets/tiles/buildings/red-stone/red-stone-roof-v2.png}
+  - {id: stonewarm-guild-red-stone-roof, category: roof, asset: assets/tiles/buildings/red-stone/red-stone-roof-v3.png}
+  - {id: red-stone-brick-gate, category: door, asset: assets/tiles/buildings/red-stone/red-stone-brick-gate-v1.png}
   - {id: wood_wall, category: structure, asset: assets/tiles/buildings/wood/wood-wall-v2.png}
   - {id: wood_window_wall, category: structure, asset: assets/tiles/buildings/wood/wood-window-wall-v1.png}
   - {id: wood_door_wall, category: door, asset: assets/tiles/buildings/wood/wood-door-wall-v1.png}
@@ -51,6 +52,7 @@ tiles:
   - {id: shallow-water, category: ground, asset: assets/tiles/terrain/blocked/transparent-shallow-water-v2.png}
   - {id: reed-bed, category: ground, asset: assets/tiles/terrain/non-road/grass-ground-v2.png}
   - {id: deep-water, category: ground, asset: assets/tiles/terrain/blocked/transparent-deep-water-v2.png}
+  - {id: swamp-water, category: ground, asset: assets/tiles/terrain/blocked/swamp-water-v2.png}
   - {id: stone, category: ground, asset: assets/tiles/terrain/non-road/grass-ground-v2.png}
   - {id: dry-soil-branches, category: ground, asset: assets/tiles/terrain/non-road/grass-ground-v2.png}
   - {id: stonewarm-marble-paving, category: ground, asset: assets/tiles/terrain/road/marble-circular-road-v1.png}
