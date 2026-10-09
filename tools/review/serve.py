@@ -313,11 +313,11 @@ def run_review_server(parsed_argument_values):
             emit_server_trace('gradio-menu-failure',str(gradio_error_value))
     def resolve_gradio_proxy_port(request_path_value):
         gradio_route_records=(
-            ('/',parsed_argument_values.port+100,lambda:ensure_management_menu_server(parsed_argument_values.port,manager_source_path)),
+            ('/momask-generator/',parsed_argument_values.port+100,lambda:ensure_management_menu_server(parsed_argument_values.port,manager_source_path)),
             ('/management/frame/momask-generator/',parsed_argument_values.port+101,lambda:ensure_gradio_server(parsed_argument_values.port)),
+            ('/',parsed_argument_values.port+100,lambda:ensure_management_menu_server(parsed_argument_values.port,manager_source_path)),
             ('/management/frame/hy-motion-generator/',parsed_argument_values.port+123,lambda:ensure_gradio_application(parsed_argument_values.port,'hy-motion')),
             ('/management/frame/anny-landmarks/',parsed_argument_values.port+124,lambda:ensure_gradio_application(parsed_argument_values.port,'anny-landmarks')),
-            ('/management/frame/character-animation/',parsed_argument_values.port+102,lambda:ensure_character_animation_server(parsed_argument_values.port)),
             ('/management/frame/animation-separation/',parsed_argument_values.port+117,lambda:ensure_gradio_application(parsed_argument_values.port,'animation-separation')),
             ('/management/frame/qwen-21-circular-generator/',parsed_argument_values.port+118,lambda:ensure_gradio_application(parsed_argument_values.port,'qwen-21-circular')),
             ('/management/frame/pose-transfer-generator/',parsed_argument_values.port+119,lambda:ensure_gradio_application(parsed_argument_values.port,'pose-transfer')),
@@ -332,9 +332,7 @@ def run_review_server(parsed_argument_values):
             ('/management/frame/writer-agent/',parsed_argument_values.port+109,lambda:ensure_writer_agent_server(parsed_argument_values.port)),
             ('/management/frame/static-review/',parsed_argument_values.port+112,lambda:ensure_static_review_server(parsed_argument_values.port,manager_source_path)),
             ('/management/',parsed_argument_values.port+100,lambda:ensure_management_menu_server(parsed_argument_values.port,manager_source_path)),
-            ('/momask-generator/',parsed_argument_values.port+100,lambda:ensure_management_menu_server(parsed_argument_values.port,manager_source_path)),
             ('/hy-motion-generator/',parsed_argument_values.port+100,lambda:ensure_management_menu_server(parsed_argument_values.port,manager_source_path)),
-            ('/character-animation/',parsed_argument_values.port+100,lambda:ensure_management_menu_server(parsed_argument_values.port,manager_source_path)),
             ('/character-animation/sprite-editor',parsed_argument_values.port+100,lambda:ensure_management_menu_server(parsed_argument_values.port,manager_source_path)),
             ('/character-animation/sprite-editor-v2',parsed_argument_values.port+100,lambda:ensure_management_menu_server(parsed_argument_values.port,manager_source_path)),
             ('/animation-separation/',parsed_argument_values.port+100,lambda:ensure_management_menu_server(parsed_argument_values.port,manager_source_path)),
@@ -389,6 +387,10 @@ def run_review_server(parsed_argument_values):
             finally:proxy_connection_value.close()
             return True
         def reject_retired_generator(self):
+            current_retired_request = urlsplit(self.path)
+            if current_retired_request.path.rstrip('/') in ('/character-animation', '/management/frame/character-animation') or current_retired_request.path.startswith('/management/frame/character-animation/') or 'character-animation' in parse_qs(current_retired_request.query).get('tool', []):
+                self.send_error(410, 'This animation generator has been retired. Use VNCCS pose transfer.')
+                return True
             current_request_parts = urlsplit(self.path)
             current_tool_values = parse_qs(current_request_parts.query).get('tool', [])
             if 'sprite-editor' in current_tool_values or current_request_parts.path.rstrip('/') in ('/character-animation/sprite-editor', '/management/frame/sprite-editor'):

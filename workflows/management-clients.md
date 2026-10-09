@@ -1,5 +1,11 @@
 # 관리도구 GUI·CLI 클라이언트
 
+## AnyPose 애니메이션 생성기 폐기
+
+2026-10-09부터 AnyPose 기반 캐릭터 애니메이션 생성기와 기록 화면을 폐기했다. 메뉴에서 제거하며 이전 화면 주소는 HTTP 410을 반환한다. `character-animation`의 `generate`·`resume`·`record-alpha-vnccs`는 폐기 오류로 거절한다. AnyPose 직접 추론·LoRA 준비도 차단한다. 공유 Lightning은 AnyPose 가중치 없이 별도 검증한다.
+
+기존 `.tmp/test/character-animation/`의 작업·결과·로그·이력을 사용자 지시에 따라 삭제했다. 등록 에셋·스프라이트 편집기 작업·앵커 기록·VNCCS 원본 실험은 보존한다. `character-animation` 서비스의 스프라이트·앵커 편집 명령은 계속 제공하며 HY-Motion과 VNCCS 포즈 변환은 별도 도구로 유지한다. 아래 과거 캐릭터 생성 사용법은 더 이상 실행할 수 없다.
+
 ## VNCCS 포즈 변환 · BF16 기준 경로
 
 `pose-transfer`의 신규 작업은 VNCCS PoseStudio V1.1 LoRA와 공식 `QwenImage21Pipeline`을 사용한다. 인코더·DiT·VAE는 BF16 비양자화이며 512×512·40스텝으로 고정한다. 모델·LoRA는 코드에서 고정하고 LoRA SHA-256을 검사한다. 기본 프롬프트는 추적 파일 `generators/image/config/pose-transfer-prompt.txt`에서 읽으며 `Draw character from image2` 4단어다. 사용자 편집은 99단어까지 허용하고 최종 원문·단어 수·해시를 저장한다.
@@ -14,7 +20,7 @@ GUI·CLI → 공용 게이트웨이 → 기존 이미지 작업 서비스·GPU �
 
 가중치는 CPU RAM에 보관하고 모듈 연산은 CUDA에서 수행한다. 5초마다 시스템 RAM 여유·자식 RSS·진행 로그를 확인하며 RAM 여유 12GiB 미만, RSS 42GiB 초과, 실행 20분 초과 시 실패로 중단한다. CPU 추론 대체는 없다. 기존 `vnccs` 필드가 없는 기록은 과거 Qwen 경로·입력 순서·설정으로 재개한다. 과거 입력을 GUI에 불러와 **새로 생성**하면 새 고정 설정과 기본 프롬프트를 적용한다는 안내를 표시한다.
 
-포즈 변환 생성기를 정식 도구로 전환하여 메뉴·화면의 Alpha Ver. 표시를 제거했다. 과거 알파 파일럿 기록·가져오기 명령은 출처 보존을 위해 유지한다. 공식 포즈 일부도 부분 추종하므로 작업 완료가 전신 비례·포즈·프레임 일관성의 품질 승인을 뜻하지 않는다. 모델카드의 BF16·40스텝·공식 추론 경로를 따르지만, 512px 출력·VNCCS LoRA·모듈 단위 오프로드는 프로젝트의 명시적 설정이다. 다른 Qwen 생성기와 배포·AWS 비용에는 변경이 없다.
+포즈 변환 생성기를 정식 도구로 전환하여 메뉴·화면의 Alpha Ver. 표시를 제거했다. 후속 AnyPose 도구 폐기로 알파 가져오기 사본과 명령은 폐기했으며 VNCCS 원본 실험은 보존한다. 공식 포즈 일부도 부분 추종하므로 작업 완료가 전신 비례·포즈·프레임 일관성의 품질 승인을 뜻하지 않는다. 모델카드의 BF16·40스텝·공식 추론 경로를 따르지만, 512px 출력·VNCCS LoRA·모듈 단위 오프로드는 프로젝트의 명시적 설정이다. 다른 Qwen 생성기와 배포·AWS 비용에는 변경이 없다.
 
 ANNY 기준점 후보 지정·축 검수는 [해부학 리타기팅 검수](anny-anatomical-retarget.md#anny-기준점-후보-검수-도구)를 따른다. `anny-landmarks` 서비스의 `landmark-source/preview/save/load/history` 명령은 모두 `--payload-file` JSON을 받으며 GUI와 `.tmp/test/anny-landmarks/<KST 시각>/<고유 ID>/` 기록을 공유한다. 승인·리타기팅 적용 명령은 없다.
 

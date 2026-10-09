@@ -45,6 +45,8 @@ def execute_pose_generation(*, trial_output_root, prompt_text_value,
                             enable_standalone_lightning_adapter=False,
                             additional_reference_paths=(), selected_output_width=512, selected_output_height=512, enable_text_only_generation=False, selected_generator_seed=FIXED_GENERATOR_SEED):
     """참조 원본으로 이미지를 편집한다. AnyPose는 512px 입력을 사용한다. GPU 실행은 샌드박스 밖에서 호출한다."""
+    if enable_anypose_adapter is True:
+        raise ValueError('AnyPose 애니메이션 생성은 폐기되었습니다. VNCCS 포즈 변환 생성기를 사용하세요.')
     for selected_output_size in (selected_output_width,selected_output_height):
         if type(selected_output_size) is not int or not 256 <= selected_output_size <= 1664 or selected_output_size % 16:
             raise ValueError('출력 크기는 256~1664 범위의 16 배수여야 합니다.')
@@ -145,7 +147,7 @@ def execute_pose_generation(*, trial_output_root, prompt_text_value,
             raise FileNotFoundError(f'모델 준비 필요: model_id=Qwen/Qwen-Image-Edit-2511 model_path={FIXED_MODEL_DIRECTORY}')
         if enable_anypose_adapter or enable_standalone_lightning_adapter:
             from .anypose import validate_adapter_files
-            resolved_adapter_records = validate_adapter_files(include_lightning_adapter=active_lightning_adapter)
+            resolved_adapter_records = validate_adapter_files(include_lightning_adapter=active_lightning_adapter, include_anypose_adapter=False)
             if enable_standalone_lightning_adapter:
                 resolved_adapter_records = [adapter_record_values for adapter_record_values in resolved_adapter_records if adapter_record_values['name'] == 'lightning']
             for adapter_record_values in resolved_adapter_records:

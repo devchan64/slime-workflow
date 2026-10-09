@@ -92,11 +92,10 @@ def create_gradio_source_fingerprint(application_source_path,application_file_pa
 def ensure_gradio_application(review_server_port, application_name, application_source_path=None):
     with GRADIO_PROCESS_LOCK:
         application_definitions={
-            'management-menu':('management_menu_app.py',100,'/management/'),
             'momask':('momask_app.py',101,'/management/frame/momask-generator/'),
+            'management-menu':('management_menu_app.py',100,'/management/'),
             'hy-motion':('hy_motion_app.py',123,'/management/frame/hy-motion-generator/'),
             'anny-landmarks':('anny_landmarks_app.py',124,'/management/frame/anny-landmarks/'),
-            'character-animation':('character_animation_app.py',102,'/management/frame/character-animation/'),
             'qwen-2512':('qwen_2512_app.py',103,'/management/frame/image-generator/'),
             'qwen-21-circular':('qwen_circular_app.py',118,'/management/frame/qwen-21-circular-generator/'),
             'pose-transfer':('pose_transfer_app.py',119,'/management/frame/pose-transfer-generator/'),
@@ -168,7 +167,7 @@ def ensure_management_menu_server(review_server_port, manager_source_path):
     return ensure_gradio_application(review_server_port,'management-menu',manager_source_path)
 
 def ensure_character_animation_server(review_server_port):
-    return ensure_gradio_application(review_server_port,'character-animation')
+    raise ValueError('AnyPose 캐릭터 애니메이션 화면은 폐기되었습니다.')
 
 def ensure_qwen_2512_server(review_server_port):
     return ensure_gradio_application(review_server_port,'qwen-2512')

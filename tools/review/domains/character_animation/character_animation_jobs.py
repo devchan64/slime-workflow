@@ -133,132 +133,17 @@ def read_generation_status(generation_job_identifier):
     if generation_status_record['status']!='completed':
         generation_status_record['result']=collect_partial_result(generation_job_path,generation_status_record['request'])
     generation_status_record['estimate']=estimate_generation_remaining(generation_job_path,generation_status_record['request'],generation_status_record)
+    generation_status_record.update(resume_allowed=False, resume_block_reason='생성기 폐기 · 결과 조회만 지원')
     return generation_status_record
 
 def start_animation_generation(command_payload_value):
-    generation_request_record = prepare_animation_request(command_payload_value)
-    GENERATION_HISTORY_DIRECTORY.mkdir(parents=True,exist_ok=True)
-    generation_lock_handle = GENERATION_LOCK_PATH.open('a')
-    try:
-        try: fcntl.flock(generation_lock_handle,fcntl.LOCK_EX|fcntl.LOCK_NB)
-        except BlockingIOError: raise ValueError('캐릭터 애니메이션 생성이 이미 진행 중입니다.') from None
-        # 동일 입력의 대기·실행 작업은 기존 ID를 반환하여 연속 클릭을 합친다.
-        for existing_status_path in GENERATION_ROOT_DIRECTORY.glob('*/*/status.json'):
-            existing_status_record=json.loads(existing_status_path.read_text())
-            if existing_status_record.get('status') not in ('running','queued'):continue
-            existing_request_path=existing_status_path.parent/'request.json'
-            current_existing_request=json.loads(existing_request_path.read_text()) if existing_request_path.is_file() else None
-            if current_existing_request and 'character_image' in current_existing_request:
-                for current_frame_record in current_existing_request['frames']:
-                    current_frame_record['character_path']='character-reference.png'
-            if current_existing_request==generation_request_record:
-                return {'id':existing_status_path.parent.name,'status':existing_status_record['status'],'path':str(existing_status_path.parent),'reused':True}
-        creation_time_value = datetime.now(ZoneInfo('Asia/Seoul'))
-        generation_job_identifier = creation_time_value.strftime('%Y-%m-%d_%H-%M-%S')+'-'+uuid.uuid4().hex[:8]
-        generation_job_path = resolve_generation_directory(generation_job_identifier)
-        generation_job_path.mkdir(parents=True)
-        if 'character_image' in generation_request_record:
-            from tools.review.domains.character_animation.character_animation_assets import decode_character_reference
-            current_reference_path=generation_job_path/'character-reference.png'
-            current_reference_path.write_bytes(decode_character_reference(generation_request_record['character_image']))
-            for current_frame_record in generation_request_record['frames']:
-                current_frame_record['character_path']=str(current_reference_path.relative_to(WORKFLOW_ROOT_DIRECTORY))
-        write_record_atomically(generation_job_path/'request.json',generation_request_record)
-        write_record_atomically(generation_job_path/'status.json',{'status':'running'})
-        write_record_atomically(GENERATION_HISTORY_DIRECTORY/(generation_job_identifier+'.json'),{'id':generation_job_identifier,'created_at':creation_time_value.isoformat()})
-        write_record_atomically(GENERATION_ROOT_DIRECTORY/'active.json',{'id':generation_job_identifier})
-        try:
-            with (generation_job_path/'worker.log').open('w') as generation_log_handle:
-                subprocess.Popen([sys.executable,str(Path(__file__).resolve()),'--supervise',generation_job_identifier,'--lock-fd',str(generation_lock_handle.fileno())],stdout=generation_log_handle,stderr=subprocess.STDOUT,start_new_session=True,pass_fds=(generation_lock_handle.fileno(),))
-        except Exception as generation_start_error:
-            write_record_atomically(generation_job_path/'status.json',{'status':'failed','error':str(generation_start_error)})
-            raise
-        return {'id':generation_job_identifier,'status':'running','path':str(generation_job_path)}
-    finally:
-        generation_lock_handle.close()
+    raise ValueError('AnyPose 기반 캐릭터 애니메이션 생성기는 폐기되었습니다. VNCCS 포즈 변환 생성기를 사용하세요.')
 
 def resume_animation_generation(command_payload_value):
-    if set(command_payload_value)!={'id'}:raise ValueError('재개에는 작업 ID만 필요합니다.')
-    generation_job_identifier=command_payload_value['id']
-    generation_job_path=resolve_generation_directory(generation_job_identifier)
-    with GENERATION_LOCK_PATH.open('a') as generation_lock_handle:
-        try:fcntl.flock(generation_lock_handle,fcntl.LOCK_EX|fcntl.LOCK_NB)
-        except BlockingIOError:raise ValueError('다른 캐릭터 애니메이션 생성이 진행 중입니다.') from None
-        generation_status_record=read_generation_status(generation_job_identifier)
-        if generation_status_record['status'] not in ('cancelled','failed'):raise ValueError('취소되거나 실패한 작업만 재개할 수 있습니다.')
-        saved_request_record=json.loads((generation_job_path/'request.json').read_text())
-        if saved_request_record['motion'] not in load_animation_configuration()['motions']:
-            raise ValueError('폐기된 모션의 작업은 재개할 수 없습니다. 등록된 모션으로 새로 생성하세요.')
-        (generation_job_path/'cancel.request').unlink(missing_ok=True)
-        write_record_atomically(generation_job_path/'status.json',{'status':'running'})
-        write_record_atomically(GENERATION_ROOT_DIRECTORY/'active.json',{'id':generation_job_identifier})
-        try:
-            with (generation_job_path/'worker.log').open('a') as generation_log_handle:
-                generation_log_handle.write(f'{datetime.now().isoformat()}/character-animation/resume id={generation_job_identifier}\n')
-                generation_log_handle.flush()
-                subprocess.Popen([sys.executable,str(Path(__file__).resolve()),'--supervise',generation_job_identifier,'--lock-fd',str(generation_lock_handle.fileno())],stdout=generation_log_handle,stderr=subprocess.STDOUT,start_new_session=True,pass_fds=(generation_lock_handle.fileno(),))
-        except Exception as generation_start_error:
-            write_record_atomically(generation_job_path/'status.json',{'status':'failed','error':str(generation_start_error)})
-            raise
-    return {'id':generation_job_identifier,'status':'running','path':str(generation_job_path)}
+    raise ValueError('폐기된 AnyPose 애니메이션 작업은 재개할 수 없습니다. 기존 결과·로그 조회만 지원합니다.')
 
 def record_vnccs_alpha_pilot(command_payload_value):
-    """검증 완료한 VNCCS 파일럿을 재추론 없이 공용 이력으로 가져온다."""
-    if command_payload_value != {}:
-        raise ValueError('VNCCS 알파 기록 명령에는 입력값을 넣을 수 없습니다.')
-    source_assessment_path=VNCCS_ALPHA_SOURCE_DIRECTORY/'pilot-assessment.json'
-    if not source_assessment_path.is_file():
-        raise ValueError('검증 완료된 VNCCS 알파 판정 기록을 찾을 수 없습니다.')
-    source_assessment_record=json.loads(source_assessment_path.read_text(encoding='utf-8'))
-    if source_assessment_record.get('status')!='completed':
-        raise ValueError('완료된 VNCCS 알파 결과만 기록할 수 있습니다.')
-    source_frame_paths=[]
-    for frame_offset_value in range(len(VNCCS_ALPHA_SOURCE_FRAME_NUMBERS)):
-        source_frame_path=VNCCS_ALPHA_SOURCE_DIRECTORY/f'frame-{frame_offset_value+1:02d}'/'result-4step.png'
-        if not source_frame_path.is_file():
-            raise ValueError(f'VNCCS 알파 {frame_offset_value+1}번 프레임 결과를 찾을 수 없습니다.')
-        source_frame_paths.append(source_frame_path)
-    GENERATION_HISTORY_DIRECTORY.mkdir(parents=True,exist_ok=True)
-    existing_record_paths=sorted(GENERATION_HISTORY_DIRECTORY.glob('*.json'),reverse=True)
-    for existing_history_path in existing_record_paths:
-        existing_history_record=json.loads(existing_history_path.read_text(encoding='utf-8'))
-        existing_job_path=resolve_generation_directory(existing_history_record['id'])
-        existing_request_path=existing_job_path/'request.json'
-        if existing_request_path.is_file() and json.loads(existing_request_path.read_text(encoding='utf-8')).get('alpha_version')==VNCCS_ALPHA_VERSION_NAME:
-            return {'id':existing_history_record['id'],'status':'completed','path':str(existing_job_path),'reused':True}
-    creation_time_value=datetime.now(ZoneInfo('Asia/Seoul'))
-    generation_job_identifier=creation_time_value.strftime('%Y-%m-%d_%H-%M-%S')+'-'+uuid.uuid4().hex[:8]
-    generation_job_path=resolve_generation_directory(generation_job_identifier)
-    generation_job_path.mkdir(parents=True)
-    result_frame_paths=[]
-    for frame_offset_value,(source_frame_number,source_frame_path) in enumerate(zip(VNCCS_ALPHA_SOURCE_FRAME_NUMBERS,source_frame_paths),start=1):
-        destination_frame_directory=generation_job_path/'down_left'/f'frame-{source_frame_number:04d}'
-        destination_frame_directory.mkdir(parents=True)
-        destination_frame_path=destination_frame_directory/'result.png'
-        shutil.copy2(source_frame_path,destination_frame_path)
-        write_record_atomically(destination_frame_directory/'result.json',{'status':'completed','source':'vnccs-alpha-import','source_frame':source_frame_number})
-        result_frame_paths.append(str(destination_frame_path.relative_to(generation_job_path)))
-    shutil.copy2(source_assessment_path,generation_job_path/'pilot-assessment.json')
-    source_experiment_path=str(VNCCS_ALPHA_SOURCE_DIRECTORY)
-    if VNCCS_ALPHA_SOURCE_DIRECTORY.is_relative_to(WORKFLOW_ROOT_DIRECTORY):
-        source_experiment_path=str(VNCCS_ALPHA_SOURCE_DIRECTORY.relative_to(WORKFLOW_ROOT_DIRECTORY))
-    alpha_request_record={
-        'record_kind':'alpha-import','alpha_version':VNCCS_ALPHA_VERSION_NAME,
-        'motion':'walking-v13','character':'experimental-reference','source':'vnccs-posestudio-qi21',
-        'directions':['down_left'],'start_frame':VNCCS_ALPHA_SOURCE_FRAME_NUMBERS[0],
-        'end_frame':VNCCS_ALPHA_SOURCE_FRAME_NUMBERS[-1],'resolution':256,'steps':4,
-        'target_fps':4,'speed':1,'tag':'VNCCS PoseStudio QI2.1 알파 · 검증 기준선',
-        'frames':[{'direction':'down_left','frame':source_frame_number} for source_frame_number in VNCCS_ALPHA_SOURCE_FRAME_NUMBERS],
-        'source_experiment':source_experiment_path,
-        'adoption_decision':'production-sprite-output-rejected',
-    }
-    alpha_result_record={'frames':{'down_left':result_frame_paths},'source_frame_numbers':{'down_left':list(VNCCS_ALPHA_SOURCE_FRAME_NUMBERS)},'fps':4,'alpha':True}
-    write_record_atomically(generation_job_path/'request.json',alpha_request_record)
-    write_record_atomically(generation_job_path/'result.json',alpha_result_record)
-    write_record_atomically(generation_job_path/'status.json',{'status':'completed','record_kind':'alpha-import','quality_gate':'rejected-for-production-sprite-output'})
-    (generation_job_path/'worker.log').write_text(f'{creation_time_value.isoformat()}/character-animation/alpha-record imported version={VNCCS_ALPHA_VERSION_NAME} source={alpha_request_record["source_experiment"]}\n',encoding='utf-8')
-    write_record_atomically(GENERATION_HISTORY_DIRECTORY/(generation_job_identifier+'.json'),{'id':generation_job_identifier,'created_at':creation_time_value.isoformat(),'record_kind':'alpha-import'})
-    return {'id':generation_job_identifier,'status':'completed','path':str(generation_job_path),'alpha_version':VNCCS_ALPHA_VERSION_NAME}
+    raise ValueError('폐기된 애니메이션 생성기의 과거 기록은 다시 가져올 수 없습니다.')
 
 def execute_animation_command(operation_command_name,command_payload_value):
     if operation_command_name.startswith('sprite-v2-'):
