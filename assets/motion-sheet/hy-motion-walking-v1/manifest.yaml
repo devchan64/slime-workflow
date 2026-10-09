@@ -1,0 +1,208 @@
+schema_version: 1
+asset_id: hy-motion-walking
+version: 1
+status: user_selected
+replaces: hy-motion-walking-v14
+source_generation_id: 2026-10-09_21-13-20-1a356bbd
+frames: 7
+fps: 6
+cycle_seconds: 1.1666666666666667
+directions:
+- down_left
+- down_right
+- up_left
+- up_right
+source_frames:
+- 31
+- 36
+- 41
+- 46
+- 51
+- 56
+- 61
+preview_frames:
+- 7
+- 8
+- 9
+- 10
+- 11
+- 12
+- 13
+source_fps: 30
+projection: perspective
+fov_degrees: 30
+camera_elevation_degrees: 17
+constraint_state: saved_final_barrier
+camera:
+  down_left:
+    projection: perspective
+    location:
+    - 2.614240884780884
+    - -2.561884880065918
+    - 1.9486029148101807
+    rotation_quaternion_wxyz:
+    - 0.7426668405532837
+    - 0.549544632434845
+    - 0.22762884199619293
+    - 0.3076227307319641
+    ortho_scale: 2.043272925615311
+    elevation_degrees: 17
+    azimuth_degrees: 45
+    target:
+    - 0.0359894335269928
+    - 0.016366377472877502
+    - 0.8338484168052673
+    distance: 3.8127991860631223
+    fov_degrees: 30
+    framing: orthographic-center-plane-equivalent
+  down_right:
+    projection: perspective
+    location:
+    - -2.5418972969055176
+    - -2.5371272563934326
+    - 1.950237512588501
+    rotation_quaternion_wxyz:
+    - 0.7426668405532837
+    - 0.549544632434845
+    - -0.22762884199619293
+    - -0.3076227307319641
+    ortho_scale: 2.0470904445648195
+    elevation_degrees: 17
+    azimuth_degrees: -45
+    target:
+    - 0.04117095470428467
+    - 0.045941099524497986
+    - 0.8334002494812012
+    distance: 3.8199227734023333
+    fov_degrees: 30
+    framing: orthographic-center-plane-equivalent
+  up_left:
+    projection: perspective
+    location:
+    - 2.624239444732666
+    - 2.629009485244751
+    - 1.950237512588501
+    rotation_quaternion_wxyz:
+    - 0.3076227307319641
+    - 0.22762882709503174
+    - 0.5495445728302002
+    - 0.7426669001579285
+    ortho_scale: 2.0470904445648195
+    elevation_degrees: 17
+    azimuth_degrees: 135
+    target:
+    - 0.04117095470428467
+    - 0.045941099524497986
+    - 0.8334002494812012
+    distance: 3.8199227734023333
+    fov_degrees: 30
+    framing: orthographic-center-plane-equivalent
+  up_right:
+    projection: perspective
+    location:
+    - -2.5418972969055176
+    - 2.629009485244751
+    - 1.950237512588501
+    rotation_quaternion_wxyz:
+    - 0.3076227307319641
+    - 0.22762882709503174
+    - -0.5495445728302002
+    - -0.7426669001579285
+    ortho_scale: 2.0470904445648195
+    elevation_degrees: 17
+    azimuth_degrees: -135
+    target:
+    - 0.04117095470428467
+    - 0.045941099524497986
+    - 0.8334002494812012
+    distance: 3.8199227734023333
+    fov_degrees: 30
+    framing: orthographic-center-plane-equivalent
+files:
+  source-motion.npz: 2229085f296c7a5d9a786c4e25379bd6db8798e6f2529bfaf60acc51a6239500
+  source-rig.blend: c19aea999108f3eac92bd8fae62e1338ca179f802912cc6639d1b0b76dd0abf2
+  source-render-request.json: 4d887cf902514903aff9110c04236d1fe9127457e259ed52853389e0db4beb84
+  openpose/up_right/openpose-0005.json: 7e85712fe41e029da7b89505f3cc915b14113bc507eecda7887ad7bb23bf7a6d
+  openpose/up_right/openpose-0007.json: 22d289b90b9325f873702e2090a3b5e3842618b14de7dc942bba2fdf2820a689
+  openpose/up_right/openpose-0003.json: 5c92a0cb653571c6af4b8efc4a855b3747e1aa97e2ceb8fea4bc4f3a4aabe712
+  openpose/up_right/openpose-0007.png: 6a0cc79e3bea9e3f7e98be0c285e1a31562081d87f206528f4439becf050da98
+  openpose/up_right/openpose-0002.json: 1be365e4354c2bab54c8dee6bb24b2d3cbdeba2ae920e9a123f015e674d3e4f0
+  openpose/up_right/openpose-0004.json: fdaab86c1c89c449c52008311b4250851098173322d8b8e164eecd63f618e7b3
+  openpose/up_right/openpose-0003.png: f1282fe866f57d23db4cfc1e51aa1b7adbe263eafb873966c4ee7f1582a920a8
+  openpose/up_right/openpose-0001.json: c21c873bcc440194347af59297385ddb9bb3133fe474e1232e799f68fd5b2657
+  openpose/up_right/openpose-0002.png: 0dea2a8389cc040f3fae195ae9e83fe6557820d864d72480d0cb3ef47d98cc45
+  openpose/up_right/openpose-0001.png: 4763c5e604eea87b131373e884d5b32fc1666d486d453672d344478ccbb9e932
+  openpose/up_right/openpose-0006.png: 75a55c5c5ec2dec2ec33d3e024b20cd0cb302f20069bdec504ca4a0b9df659fc
+  openpose/up_right/openpose-0004.png: 378be5f578ea4c0d6f8100da04e903e9348777e628ba68f926322b7f03f2c7b2
+  openpose/up_right/openpose-0005.png: c7e5c1ce6fb7fce5d2fcbb21c9159f8c2eefd83f48554cec636ad49f970c0113
+  openpose/up_right/openpose-0006.json: f8fc31cecf430ae9e6c827af42973fa1aee7fb17446704409451917a28e4bafc
+  openpose/down_left/openpose-0005.json: 63f470ef73ca19211ca9cb5c3fa9f68b54455f3d1ef6431e34f6d0fa21ddc56e
+  openpose/down_left/openpose-0007.json: 4ebec44710abcff33d88d325f82aa9d78a5bdef7c22b6e563988747f11a347e4
+  openpose/down_left/openpose-0003.json: 2e7d819aa0a53087854052aaf2eb47d171ab4ad19df099041d874b427d0e9162
+  openpose/down_left/openpose-0007.png: 629c00cc20d0a764eec5a63670a21f0b7d68d3bc4028d1762f4dcff073d3c877
+  openpose/down_left/openpose-0002.json: 4626e013873429893b1a1af5e7295a706c0694666b0f7c1744258eff38daf2f7
+  openpose/down_left/openpose-0004.json: f720ba189641b23364a3c376a2e3b520b501f3e9e87de7aaf2f327ddf7f6e7a4
+  openpose/down_left/openpose-0003.png: dd1f0a382d704f059e4d1833a43847502c0ce65899a90a916824d4ec085279cc
+  openpose/down_left/openpose-0001.json: d2bf321945bd71a09073a990b3b89bf0cc353f4741d0ed6e2302289adeffba2c
+  openpose/down_left/openpose-0002.png: 33d7ec7a35db507ce02d52ad189b096b1055edec43dc8bb5e9f2fb982b682d4b
+  openpose/down_left/openpose-0001.png: 457e06aba09913b5e2ffc1da7707f9b05f0e3254d423c6ff1779322dbcc78874
+  openpose/down_left/openpose-0006.png: 41c8cd48ae0e141cc71bfbbe2a110eec47650ba96ecb77f6011bf2879ea0c88b
+  openpose/down_left/openpose-0004.png: f3890591cb294a1a5c2276cba4273c44718afdee18cd860689c0feebc2959488
+  openpose/down_left/openpose-0005.png: 7806bfd7f9081b50649aedc5416c4ecf9f90b0397bf1254dcf66485f561fe79e
+  openpose/down_left/openpose-0006.json: 6e990e8f3c74f0379653311f1d4462d034c7c269ada3c7ee8fdcc177c35ec07f
+  openpose/up_left/openpose-0005.json: e657f4bc21c98b7bd45dc49e61096a45446f8fb446a76b597414780412904f8c
+  openpose/up_left/openpose-0007.json: c18c8f16a40d07ded578ab41df22c58f03efc77665fd89bdcd29a640a8e330ab
+  openpose/up_left/openpose-0003.json: 6fd3d6d5a0a3eef37513a17e4212a4fb270367d006a22e80fa4a866c6dfbef6e
+  openpose/up_left/openpose-0007.png: 6206c3442ad57aefea4d06e80af6ffac12ac3535f3c7ab20001108c536d9e7d0
+  openpose/up_left/openpose-0002.json: a6acc5cddc8a46fd957fc5b189f8299575c332c71b9b074d0c1c4c408e9be45b
+  openpose/up_left/openpose-0004.json: 83808a8e033a5016917ddd3af75384fd0c7e75ce4ae9f11c6bc36cde41c058fa
+  openpose/up_left/openpose-0003.png: 6a3fd12242a7e885513f8a7aeda5206b7b687a7dea399bef30e36e348514f99d
+  openpose/up_left/openpose-0001.json: 575c77d5be40531d02d3b9630a9cb882ebc95268b65a4acad4bbcdec879e96ba
+  openpose/up_left/openpose-0002.png: a6e1d3e6db20f8776636fad079d66021fc0c112732d14da39c0257970e918a06
+  openpose/up_left/openpose-0001.png: e681755a7e525e4cb19a27b11515d8af2dc76b4eda9d0737256b0862754909a2
+  openpose/up_left/openpose-0006.png: 6cf6615b6d141d33bbdc287e9970023769204544296e7bfba180d4e5823a7230
+  openpose/up_left/openpose-0004.png: e961be7d95264c6d278a7f4f78c52b2286e5fc0445f752d5f1dddc4fe96ef386
+  openpose/up_left/openpose-0005.png: e410e2e24399580b902fac85b64a64e9580aa12e1ab57f349ab76b6fad588a62
+  openpose/up_left/openpose-0006.json: b5a2b6ed361947ae0f0cf75fc084b1df5c16e3256484d7fee1ae32323b0904db
+  openpose/down_right/openpose-0005.json: 2d4028ffb229ec69062926c81f30356bcd435b395b29ba83b337db3d9952e7a3
+  openpose/down_right/openpose-0007.json: 41fd7f6e2640781abb8ca1065d0123a40416069db0d13d01dd5e81501031d125
+  openpose/down_right/openpose-0003.json: 35e87398af0df1c01b0636e52490d55eec02b0cad357a859c6e852802db67c0c
+  openpose/down_right/openpose-0007.png: 4050b7c91422acfb90acee9dde5791a6bdc9870d1791e459e75390f5a6e865b9
+  openpose/down_right/openpose-0002.json: a01133660ea17221ca498a307cad901011386237b8ff1a6459f671d4aa385bf6
+  openpose/down_right/openpose-0004.json: 08d55de1c5cddba52f1cb888a5b487a322928852d24325c5a72b1a2ebe97e373
+  openpose/down_right/openpose-0003.png: 435277d0cd91de389a9a8c3faef1e1708b9cbb62692624ad2f2f036660585620
+  openpose/down_right/openpose-0001.json: e1820be80b82e50922c3932d51644624f0a1507c36016ae31a32bcb33549bdd5
+  openpose/down_right/openpose-0002.png: 5d3cf5f491417cd0516896f150020087fb88677966728d88700a3ac34248e668
+  openpose/down_right/openpose-0001.png: 4e35f4d562c152ced3e4e4a571d16d0274e0eeebab0ee1f524b9f910464f162e
+  openpose/down_right/openpose-0006.png: 389e499537a870d80d5e3d6aa7bee7ef2c6e134bec7e07488f6ffbd9878851d4
+  openpose/down_right/openpose-0004.png: 5a92312374e9b8ab39edf61e708b8631a40bd553d7705a75f80c1e3837134964
+  openpose/down_right/openpose-0005.png: ddb7a5403eebb2695891adf7bd817b174adbb412baa970745b8da19b4d728495
+  openpose/down_right/openpose-0006.json: 811a882ca23f6cb3ead5b06c4fbd1e2251e39c7f134639fa90ff66e8c207243d
+  anny/up_right/anny-0007.png: a637d6fa583ae6eb68da43be2a4630beacdb3b2dff779f657fdc52f4df7a6a75
+  anny/up_right/anny-0004.png: b755248ced3c11f2121f6f85c10021f55f40adae43eddeed8e1d09dacf82d976
+  anny/up_right/anny-0005.png: 98b780b8a9074deb3a6b3bc83d15677c06c89a25a4991fb4056bb641b6737a23
+  anny/up_right/anny-0001.png: 21e98faa8a083e5169714ee65a52c0f0349ad237ab744547c4e8d020eff5211f
+  anny/up_right/anny-0006.png: 001e6d541f830a0a7b464ed0318991217289deafe98167d183f06f4587c75b22
+  anny/up_right/anny-0002.png: 3ece6068efbbc3b15c69218ffdf01925edaea8c2e3b0ae42bde3357f5ce675f8
+  anny/up_right/anny-0003.png: 24fc74b5172dd8051fb5e6bba3aceb0bb424f129404e4699847c3bd787b63899
+  anny/down_left/anny-0007.png: 208b616cb2fa5a10f04ad4750d94a15a760490324fcef802c4d685dd25c65620
+  anny/down_left/anny-0004.png: 937489aaeb3b0492f6df1dc02924185b6d17bdf70a43690f7a136716b7350762
+  anny/down_left/anny-0005.png: 5ef45cbff4606e5945c7c6172eede929fb0d47234c9aefe35f7b1d49735615f9
+  anny/down_left/anny-0001.png: 088c2f0fa19950d74f7d91fb1b17decf73caca9768a5540b1c45fda622aec9ba
+  anny/down_left/anny-0006.png: ed9bb4c6963079ec1fcc01a8144b1d20d25f011fe0e7e84072fb1fe3263b94f7
+  anny/down_left/anny-0002.png: acf0b7cee1eb5bc0d6983b596e5c89ab6637fa963d4701503b12e4d3ca5bc309
+  anny/down_left/anny-0003.png: 7e23c2a07e4ece63b1debbcad49a7c25b14f5994d59a4430319ad2d4463ac2ba
+  anny/up_left/anny-0007.png: 9d82cbbbf6a68d117d05df238ba8854046dc83e26697dd364222162690958c0b
+  anny/up_left/anny-0004.png: 6e4a1a2d24f83b89b9f6dd86e01be96ae4e3cede3f65384b78b6b55452e6dd84
+  anny/up_left/anny-0005.png: 1dc4899087c12b0902255d3313218dfa477d5fda9174f1c45f1b0290bb80fde7
+  anny/up_left/anny-0001.png: 50f4155c9c73fad9c83f85841ecefc419de6b17ed579d897aac16a0faec69671
+  anny/up_left/anny-0006.png: cfcfd8bdec5e0448a3f1a044a7df9e138b65c7cb7eff3cc47aab1688ce0395cd
+  anny/up_left/anny-0002.png: db30fdc283e5d5ee85a6182aa984c74ba388d7dd7aa5d13e6f8d2ee8bed797f6
+  anny/up_left/anny-0003.png: 1f49c66212fce07513a65e4f4b10ca31c4c6e2b1af48cf0da68f40070ef4868c
+  anny/down_right/anny-0007.png: d8ca6f1d62c5e893ddfe231f90d1437baa4e99ee67857621be30292551f728eb
+  anny/down_right/anny-0004.png: 7c1cbc0687e35b476a80792930f1a13a0618413a78a339e2c05aaa89d9507b9f
+  anny/down_right/anny-0005.png: 67cc17ed58baf0fbffca89b808c4feb5cdc8296afa844e8895e450677cf37495
+  anny/down_right/anny-0001.png: 171a68c3ba8b521daa749df34b59710a0f19887fba15121d5296148fbf7e7102
+  anny/down_right/anny-0006.png: e03c2f8f7c4c8922a6ac3b0b4d62aa1d821ee5ce620b7da938f3b826af1526ae
+  anny/down_right/anny-0002.png: e03913b28d2a41f15d17d0ae25115c2d418eea5419b2b4e83f62516191d3ac4d
+  anny/down_right/anny-0003.png: 1659c07a39438e4702444b8c6558c74cd9b62a337fa97883ad98a0866462cd29
