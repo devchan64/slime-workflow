@@ -14,6 +14,11 @@ BODY_OWNER_MAPPING = (
     ('Head', 'head'), ('L_Shoulder', 'upperarm01.L'), ('R_Shoulder', 'upperarm01.R'),
     ('L_Elbow', 'lowerarm01.L'), ('R_Elbow', 'lowerarm01.R'),
     ('L_Wrist', 'wrist.L'), ('R_Wrist', 'wrist.R'),
+    # 원본 Foot은 발가락 묶음이다. 형제 기저에 한 번씩 전달하고 말단은 고정한다.
+    ('L_Foot', 'toe1-1.L'), ('L_Foot', 'toe2-1.L'),
+    ('L_Foot', 'toe4-1.L'), ('L_Foot', 'toe5-1.L'),
+    ('R_Foot', 'toe1-1.R'), ('R_Foot', 'toe2-1.R'),
+    ('R_Foot', 'toe4-1.R'), ('R_Foot', 'toe5-1.R'),
 )
 BODY_SEGMENT_MAPPING = (
     ('L_Hip', 'L_Knee', 'upperleg01.L', 'lowerleg01.L'),
@@ -60,8 +65,11 @@ def build_body_calibration(current_source_names, current_source_points, current_
         current_aligned_lookup[current_owner_name] = current_source_frame @ current_target_frame.T @ current_target_lookup[current_owner_name][:3, :3]
     for current_side_suffix in ('L', 'R'):
         current_foot_name = 'foot.' + current_side_suffix
-        current_toe_name = 'toe3-1.' + current_side_suffix
-        current_aligned_lookup[current_toe_name] = current_aligned_lookup[current_foot_name] @ current_target_lookup[current_foot_name][:3, :3].T @ current_target_lookup[current_toe_name][:3, :3]
+        for current_toe_number in range(1, 6):
+            current_toe_name = f'toe{current_toe_number}-1.' + current_side_suffix
+            if current_target_parents[current_toe_name] != current_foot_name:
+                raise ValueError('발가락 기저는 발목 소유 본의 직접 자식이어야 합니다.')
+            current_aligned_lookup[current_toe_name] = current_aligned_lookup[current_foot_name] @ current_target_lookup[current_foot_name][:3, :3].T @ current_target_lookup[current_toe_name][:3, :3]
     current_owner_records = []
     current_source_mapping = dict(BODY_OWNER_MAPPING)
     for current_source_name, current_owner_name in BODY_OWNER_MAPPING:
@@ -76,4 +84,4 @@ def build_body_calibration(current_source_names, current_source_points, current_
         current_parent_bind = current_target_lookup[current_parent_name][:3, :3] if current_parent_name else np.eye(3)
         current_parent_aligned = current_aligned_lookup[current_parent_name] if current_parent_name else np.eye(3)
         current_owner_records.append({'source_joint': current_source_name, 'source_index': current_source_index, 'owner_bone': current_owner_name, 'axis_transform': np.eye(3).tolist(), 'parent_aligned_inverse': validate_owned_rotation(current_parent_aligned.T).tolist(), 'effective_rest_inverse': validate_owned_rotation(current_target_lookup[current_owner_name][:3, :3].T @ current_parent_bind).tolist(), 'aligned_bind_rotation': validate_owned_rotation(current_aligned_lookup[current_owner_name]).tolist(), 'effective_parent_bone': current_parent_name})
-    return {'schema_version': 1, 'status': 'experimental', 'profile_id': 'hymotion-anny-arm-aligned-v2', 'body_profile_id': 'hymotion-anny-body-local-v1', 'owners': current_owner_records, 'rest_intermediates': [current_bone_name for current_bone_name in current_target_lookup if current_bone_name not in current_aligned_lookup], 'compensation': False, 'limitations': ['발가락 전체 분기 대신 세 번째 발가락 기저만 대응', '몸통 공통 축 및 목·머리 해부학적 기준 검증 전']}
+    return {'schema_version': 1, 'status': 'experimental', 'profile_id': 'hymotion-anny-arm-aligned-v2', 'body_profile_id': 'hymotion-anny-body-local-v2', 'owners': current_owner_records, 'rest_intermediates': [current_bone_name for current_bone_name in current_target_lookup if current_bone_name not in current_aligned_lookup], 'compensation': False, 'limitations': ['개별 손가락·발가락 말단 회전은 원본에 없어 rest-local 유지', '몸통 공통 축 및 목·머리 해부학적 기준 검증 전']}

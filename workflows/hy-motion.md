@@ -128,6 +128,19 @@ ZIP에는 제약 적용된 `anny-rig.blend`, 정사영·원근투영 RGBA/RGB PN
 
 ### 근거와 입력 계약
 
+| 구분 | HY-Motion 공식 Wooden | 등록 ANNY neutral-v4 | 전달 규칙 |
+|---|---|---|---|
+| 관절 수 | 22개 생성 회전 + 30개 항등 손가락 | 104본 | 이름·부모를 검증하고 회전 소유 본 명시 |
+| 기준 좌표 | Y-up, +Z 전방 | Blender Z-up | 고정 C 변환, 카메라 회전과 분리 |
+| 회전 표현 | 부모 상대 6D, 공식 열 배치 | 생성 local-ref, 내보낸 Blender bind-local | Euler 값 복사 금지, bind 기준 변환 적용 |
+| 팔 계층 | Collar→Shoulder→Elbow→Wrist | clavicle→shoulder01→upperarm01/02→lowerarm01/02→wrist | 회전 소유 본 4개, 중간 본 항등 증분 |
+| 척추 | Spine1/2/3 | spine05/04/03/02/01 | 05·03·01 소유, 04·02 항등 증분 |
+| 손 방향 | Wrist가 손 전체 방향 결정 | wrist와 손가락 체인 | 손 기준계 한 번 정렬, 손목 중복 적용 금지 |
+| 발 끝 | Foot 하나가 발가락 묶음 | toe1…5의 독립 기저 | Foot 회전을 형제 기저 5개에 각각 한 번; 말단 항등 |
+| 스키닝 | 고정 Wooden의 4영향 LBS | 체형별 ANNY 메시·내보낸 가중치 | 회전 수치 일치와 피부 품질을 별도로 검수 |
+
+전신 전달 v2부터 원본 Foot 회전은 좌우의 5개 발가락 기저에 공유한다. 같은 직렬 체인에 회전을 누적하는 것이 아니라 공통 발 부모의 형제 분기에 한 번씩 전달한다. 원본에 없는 개별 발가락 말단 동작은 만들지 않는다. 기존 v1 실행의 세 번째 발가락 전용 결과는 보존한다.
+
 - HY-Motion 공식 `hymotion/pipeline/body_model.py`의 `WoodenMesh`는 `rot6d`의 22개 로컬 회전을 복원하고 30개 손가락 회전을 항등으로 추가한다. FK는 부모 변환 × 현재 로컬 변환 순서다. 관절 위치는 검증용이며 회전의 대체 입력이 아니다.
 - 공식 `hymotion/utils/geometry.py`와 동일하게 6D를 3×2 열 배열로 해석한다. 첫 두 축을 정규직교화하고 외적으로 세 번째 축을 만든다. 다른 라이브러리의 6D 배열 배치를 가정하지 않는다.
 - 공식 `smplh2woodfbx.py`는 제공된 템플릿에 회전을 FBX `LclRotation`으로 기록한다. 임의의 ANNY 본에 같은 Euler 숫자를 복사하는 근거가 아니다.
