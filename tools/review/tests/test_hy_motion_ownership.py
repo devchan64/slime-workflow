@@ -7,6 +7,16 @@ from generators.hy_motion.shoulder_rotation_ownership import (
 
 
 class ShoulderOwnershipTests(unittest.TestCase):
+    def test_world_audit_rejects_parent_rotation_error(self):
+        from generators.hy_motion.body_rotation_ownership import measure_body_rotation_errors
+        current_calibration_record = {'owners': [{'source_joint': 'Pelvis', 'source_index': 0, 'owner_bone': 'root', 'aligned_bind_rotation': np.eye(3)}]}
+        current_global_rotations = np.tile(np.eye(3), (22, 1, 1))
+        current_audit_records = [{'bone': 'root', 'world_rotation': np.eye(3)}]
+        self.assertEqual(measure_body_rotation_errors(current_global_rotations, current_calibration_record, current_audit_records)[0]['world_matrix_error'], 0.)
+        current_audit_records[0]['world_rotation'] = np.array([[0., -1., 0.], [1., 0., 0.], [0., 0., 1.]])
+        with self.assertRaisesRegex(ValueError, 'FK 목표'):
+            measure_body_rotation_errors(current_global_rotations, current_calibration_record, current_audit_records)
+
     def test_aligned_reference_reconstructs_world_rotation(self):
         current_source_rotations = np.tile(np.eye(3), (22, 1, 1))
         current_source_rotations[13] = np.array([[1., 0., 0.], [0., 0., -1.], [0., 1., 0.]])

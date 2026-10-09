@@ -6,7 +6,7 @@ import threading
 import time
 import bpy
 import numpy as np
-from generators.hy_motion.body_rotation_ownership import build_body_calibration
+from generators.hy_motion.body_rotation_ownership import build_body_calibration, measure_body_rotation_errors
 from generators.hy_motion.shoulder_rotation_ownership import apply_shoulder_rotations
 from generators.hy_motion.rotation_channels import reconstruct_rotation_channels
 
@@ -48,6 +48,7 @@ for current_frame_number, current_frame_rotations in enumerate(current_local_rot
     bpy.context.scene.frame_set(current_frame_number)
     current_rig_object.location = current_root_positions[current_frame_number - 1]
     current_audit_records = apply_shoulder_rotations(current_rig_object, current_frame_rotations, current_calibration_record)
+    current_world_errors = measure_body_rotation_errors(current_global_rotations[current_frame_number - 1], current_calibration_record, current_audit_records)
     for current_pose_bone in current_rig_object.pose.bones:
         current_pose_bone.rotation_mode = 'QUATERNION'
         if current_pose_bone.name in current_previous_quaternions and current_previous_quaternions[current_pose_bone.name].dot(current_pose_bone.rotation_quaternion) < 0:
@@ -55,7 +56,7 @@ for current_frame_number, current_frame_rotations in enumerate(current_local_rot
         current_previous_quaternions[current_pose_bone.name] = current_pose_bone.rotation_quaternion.copy()
         current_pose_bone.keyframe_insert('rotation_quaternion', frame=current_frame_number)
     current_rig_object.keyframe_insert('location', frame=current_frame_number)
-    current_frame_records.append({'frame': current_frame_number, 'bones': current_audit_records})
+    current_frame_records.append({'frame': current_frame_number, 'bones': current_audit_records, 'world_rotation_errors': current_world_errors})
 current_candidate_directory = CURRENT_OUTPUT_DIRECTORY / 'full_rotation'
 current_candidate_directory.mkdir(exist_ok=False)
 bpy.context.scene.frame_set(1)

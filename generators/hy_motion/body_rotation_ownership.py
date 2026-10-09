@@ -23,6 +23,25 @@ BODY_SEGMENT_MAPPING = (
     ('L_Ankle', 'L_Foot', 'foot.L', 'toe3-1.L'),
     ('R_Ankle', 'R_Foot', 'foot.R', 'toe3-1.R'),
 )
+MAXIMUM_WORLD_MATRIX_ERROR = 1e-5
+
+
+def measure_body_rotation_errors(current_global_rotations, current_calibration_record, current_audit_records):
+    """부모 체인 적용 후 세계 회전을 독립적인 원본 FK 목표와 비교한다."""
+    current_global_rotations = np.asarray(current_global_rotations, dtype=float)
+    if current_global_rotations.shape != (22, 3, 3):
+        raise ValueError('세계 회전 감사는 원본 22관절이 필요합니다.')
+    current_actual_lookup = {current_audit_record['bone']: current_audit_record for current_audit_record in current_audit_records}
+    current_error_records = []
+    for current_owner_record in current_calibration_record['owners']:
+        current_source_rotation = validate_owned_rotation(current_global_rotations[current_owner_record['source_index']])
+        current_expected_rotation = SOURCE_TARGET_BASIS @ current_source_rotation @ SOURCE_TARGET_BASIS.T @ np.asarray(current_owner_record['aligned_bind_rotation'])
+        current_actual_rotation = validate_owned_rotation(current_actual_lookup[current_owner_record['owner_bone']]['world_rotation'])
+        current_matrix_error = float(np.max(np.abs(current_actual_rotation - current_expected_rotation)))
+        if current_matrix_error > MAXIMUM_WORLD_MATRIX_ERROR:
+            raise ValueError(f"전신 FK 목표 회전 불일치: {current_owner_record['owner_bone']} / {current_matrix_error}")
+        current_error_records.append({'bone': current_owner_record['owner_bone'], 'source_joint': current_owner_record['source_joint'], 'world_matrix_error': current_matrix_error})
+    return current_error_records
 
 
 def build_body_calibration(current_source_names, current_source_points, current_source_parents, current_target_matrices, current_target_parents):
