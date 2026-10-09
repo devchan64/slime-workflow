@@ -143,16 +143,16 @@
 
 ## 5. 로그
 
-접이식 로그의 기준 구현은 [management_log_viewer.py](../tools/review/common/management_log_viewer.py)의 `ManagementLogViewer.attach(details, output)`이다.
+Gradio 접이식 로그의 기준 구현은 [gradio_logs.py](../tools/review/common/gradio_logs.py)의 `build_execution_logs`와 `bind_execution_log_updates`다. 기존 독립 HTML은 `management_log_viewer.py`를 사용한다.
 
-- 펼칠 때 마지막 줄로 이동한다.
-- 펼쳐진 상태에서 로그가 갱신되면 마지막 줄을 따라간다.
+- Gradio의 ‘최신 줄 따라가기’ 옵션은 폐기한다. 자동 갱신과 수동 ‘마지막 줄로 이동’을 제공한다.
+- 자동 갱신을 끄면 현재 표시 내용을 유지한다. 갱신 시 강제로 마지막 줄로 이동하지 않는다.
 - 로그 영역 자체를 스크롤하며 페이지 전체를 강제로 이동시키지 않는다.
 - 페이지의 현재 작업 로그와 이력에서 선택한 작업 로그를 구분한다.
 - 로그는 실행 파일에 누적 보관한다. 화면에서 일부만 표시하더라도 원본 파일을 잘라 저장하지 않는다.
 - 실행 실패 시 실패 상태와 원인을 표시하고 해당 로그에 접근할 수 있게 한다.
 
-이력 공용 UI에는 같은 마지막 줄 따라가기 동작이 구현되어 있다. 새 페이지에서 별도의 로그 스크롤 구현을 복제하지 않는다.
+이력 공용 UI는 공용 로그 컴포넌트의 조회·갱신·수동 스크롤 동작을 사용한다. 새 페이지에서 별도의 구현을 복제하지 않는다.
 
 ## 6. 생성 이력
 

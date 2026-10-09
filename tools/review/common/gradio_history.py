@@ -217,7 +217,7 @@ def render_generation_images(current_status_record, server_base_address):
 def build_generation_history_view(execute_service_command,server_base_address,deletion_scope_text,restore_input_callback=None,restore_output_components=None,result_renderer_callback=None,record_folder_route=None,allow_individual_delete=False,result_component_factory=None,individual_delete_scope_text=None):
     """목록·페이지·명시적 조회·결과·입력·로그·초기화를 묶은 공용 영역."""
     import html
-    from tools.review.common.gradio_logs import build_execution_logs,create_copyable_log_textbox
+    from tools.review.common.gradio_logs import build_execution_logs,create_copyable_log_textbox,bind_execution_log_updates
     with gr.Column():
         gr.Markdown('### 생성 이력',elem_classes=['generation-history-heading'])
         history_count_value=gr.Markdown('이력을 불러오는 중입니다.')
@@ -341,12 +341,7 @@ def build_generation_history_view(execute_service_command,server_base_address,de
     if record_folder_route is not None:
         folder_open_script=f"""async(identifierValue)=>{{if(!identifierValue)throw new Error('먼저 생성 이력을 선택하세요.');const responseValue=await fetch('/management/record-folder/open',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify({{route:{record_folder_route!r},id:identifierValue}})}});const payloadValue=await responseValue.json();if(!responseValue.ok)throw new Error(payloadValue.error);return payloadValue.message;}}"""
         folder_open_button_value.click(fn=None,inputs=result_identifier_value,outputs=folder_open_status_value,js=folder_open_script,queue=False)
-    def refresh_selected_logs(current_selected_identifier,current_refresh_enabled):
-        if not current_selected_identifier or not current_refresh_enabled:return gr.skip()
-        return execute_service_command('status',{'id':current_selected_identifier}).get('log') or '기록된 로그가 없습니다.'
-    if hasattr(log_panel_value,'expand'):
-        log_panel_value.expand(refresh_selected_logs,[result_identifier_value,log_refresh_value],log_output_value,queue=False)
-    if hasattr(gr,'Timer'):gr.Timer(3).tick(refresh_selected_logs,[result_identifier_value,log_refresh_value],log_output_value,queue=False,show_progress='hidden')
+    bind_execution_log_updates(execute_service_command,result_identifier_value,log_refresh_value,log_output_value,log_panel_value)
     def reset_view_values():
         reset_output_values=[*read_history_page(1),'','','',gr.update(value='' if result_renderer_callback is not None else [],visible=False),{},gr.update(value='',label='작업을 선택하세요'),'목록에서 작업을 선택하세요. 결과 조회·입력 재사용·중지·재개를 할 수 있습니다.',gr.update(interactive=False)]
         if restore_input_callback is not None:reset_output_values.append(gr.update(interactive=False))
