@@ -34,6 +34,7 @@ with np.load(current_motion_path, allow_pickle=False) as current_motion_archive:
 current_baseline_path = CURRENT_OUTPUT_DIRECTORY.parent / 'mannequin.blend'
 bpy.ops.wm.open_mainfile(filepath=str(current_baseline_path))
 current_rig_object = bpy.data.objects['AnnyAttributesRig']
+current_rig_object['hy_motion_rotation_policy'] = 'body_local_ownership_v1'
 current_calibration_record = build_body_calibration(current_source_names, current_rest_points, current_parent_indices, {current_bone_record.name: np.asarray(current_bone_record.matrix_local) for current_bone_record in current_rig_object.data.bones}, {current_bone_record.name: current_bone_record.parent.name if current_bone_record.parent else None for current_bone_record in current_rig_object.data.bones})
 current_root_positions = []
 for current_frame_number in range(1, len(current_local_rotations) + 1):

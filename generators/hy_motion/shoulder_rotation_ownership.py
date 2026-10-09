@@ -152,6 +152,9 @@ def apply_shoulder_rotations(current_rig_object, current_local_rotations, curren
     for current_bone_name, current_rotation_matrix in current_output_rotations.items():
         current_pose_bone = current_rig_object.pose.bones[current_bone_name]
         current_pose_bone.matrix_basis = Matrix(current_rotation_matrix).to_4x4()
+        # float32 bind 행렬의 미세 비직교성이 본 스케일로 저장되지 않도록 분리한다.
+        current_pose_bone.location = (0, 0, 0)
+        current_pose_bone.scale = (1, 1, 1)
     bpy.context.view_layer.update()
     current_audit_records = []
     for current_pose_bone in current_rig_object.pose.bones:
