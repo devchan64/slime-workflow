@@ -11,6 +11,19 @@ from generators.hy_motion.vnccs_contract import load_vnccs_config
 
 
 class AutomaticRenderTests(unittest.TestCase):
+    def test_wrist_rotation_guide_image(self):
+        import numpy as np
+        from generators.hy_motion.preview import render_motion_previews
+        from generators.hy_motion.contracts import load_generation_defaults
+        current_joint_frames = np.zeros((1, 22, 3))
+        current_joint_frames[0, :, 1] = np.linspace(0, 1, 22)
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_output_path = Path(current_directory_name)
+            current_result_record = render_motion_previews(current_joint_frames, {'directions': ['down_left']}, load_generation_defaults(), current_output_path, lambda *current_log_values: None, np.eye(3)[None], np.tile(np.eye(3), (1, 2, 1, 1)))
+            self.assertTrue(current_result_record['wrist_rotation_guide'])
+            with Image.open(current_output_path / 'down_left/frame-0001-rotation.png') as current_guide_image:
+                self.assertIn((40, 170, 70), {current_color_value for _, current_color_value in current_guide_image.getcolors(1000000)})
+
     def test_fixed_anny_pipeline_and_same_attempt(self):
         current_config_record = load_vnccs_config()
         self.assertEqual(current_config_record['rig_backend'], 'anny')

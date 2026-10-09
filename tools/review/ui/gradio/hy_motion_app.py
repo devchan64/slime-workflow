@@ -54,7 +54,7 @@ def render_motion_result(generation_job_identifier, current_status_record, serve
         current_download_records.extend({'label': 'ANNY·OpenPose ' + current_file_name, 'url': current_result_url + 'anny/' + current_file_name} for current_file_name in current_automatic_render['downloads'])
         current_panel_records = [('', '', '원본 관절'), ('anny/', '', 'ANNY 정사영'), ('anny/', '-openpose', 'OpenPose 정사영'), ('anny/perspective/', '', 'ANNY 원근투영 30°'), ('anny/perspective/', '-openpose', 'OpenPose 원근투영 30°')]
         if current_result_record.get('head_rotation_guide'):
-            current_panel_records.insert(1, ('', '-rotation', '원본 Head 회전 · 빨강 전방 / 파랑 상방'))
+            current_panel_records.insert(1, ('', '-rotation', '원본 머리·손목 회전' if current_result_record.get('wrist_rotation_guide') else '원본 Head 회전 · 빨강 전방 / 파랑 상방'))
         current_frame_records = {
             current_direction_name: [
                 [current_result_url + current_prefix_path + current_direction_name + f'/frame-{(current_preview_index if not current_prefix_path else current_source_frame):04d}' + current_suffix_text + '.png' for current_prefix_path, current_suffix_text, current_panel_label in current_panel_records]

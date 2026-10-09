@@ -79,7 +79,12 @@ def execute_generation_worker(generation_job_path):
                 current_head_rotations, current_head_source = load_head_motion_rotations(current_attempt_path / 'motion.npz', len(current_output_arrays['world_joints']))
                 current_coordinate_basis = np.asarray(current_head_source['source_to_target_basis'])
                 current_source_rotations = current_coordinate_basis.T @ current_head_rotations @ current_coordinate_basis
-                current_result_record = render_motion_previews(current_output_arrays['world_joints'][:, :22], current_request_record, current_config_record, current_attempt_path, record_worker_progress, current_source_rotations)
+                from generators.hy_motion.head_rotation_transfer import HEAD_SOURCE_DIRECTORY
+                from generators.hy_motion.rotation_channels import reconstruct_rotation_channels
+                current_rest_points = np.fromfile(HEAD_SOURCE_DIRECTORY / 'j_template.bin', dtype='<f4').reshape(52, 3)
+                current_parent_indices = np.fromfile(HEAD_SOURCE_DIRECTORY / 'kintree.bin', dtype='<i4')[:22]
+                _, current_global_rotations, _ = reconstruct_rotation_channels(current_output_arrays['rot6d'], current_rest_points[:22], current_parent_indices, current_output_arrays['transl'], current_output_arrays['world_joints'][:, :22])
+                current_result_record = render_motion_previews(current_output_arrays['world_joints'][:, :22], current_request_record, current_config_record, current_attempt_path, record_worker_progress, current_source_rotations, current_global_rotations[:, 20:22])
                 current_result_record['head_rotation_guide'] = True
                 current_result_record['gifs'] = export_motion_gifs(current_result_record, current_attempt_path, record_worker_progress)
                 current_result_record.update(kind='motion', relative_path=current_attempt_path.relative_to(generation_job_path).as_posix(), provenance=current_provenance_record)
