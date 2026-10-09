@@ -21,7 +21,7 @@ WORKFLOW_ROOT_DIRECTORY=Path(__file__).resolve().parents[4]
 CAPTURE_STORAGE_DIRECTORY=WORKFLOW_ROOT_DIRECTORY/'.tmp/test/character-review-capture'
 CAPTURE_TIMEOUT_SECONDS=120
 CAPTURE_INTERNAL_RESOLUTION_SCALE=2
-CAPTURE_DEFAULT_SETTINGS={'ground':'paving','zoom':2.0,'column':1,'row':1,'rotation':0,'outline':True,'outline_width':1,'rim':True,'shadow':True,'shadow_profile':'contrast','contrast':'original','width':768,'height':576}
+CAPTURE_DEFAULT_SETTINGS={'ground':'paving','zoom':2.0,'column':1,'row':1,'rotation':0,'outline':True,'outline_width':1,'rim':True,'shadow':True,'shadow_profile':'contrast','contrast':'original','saturation_reduced':False,'brightness_reduced':False,'width':768,'height':576}
 
 
 def validate_capture_settings(command_payload_value):
@@ -30,7 +30,7 @@ def validate_capture_settings(command_payload_value):
     current_setting_values=CAPTURE_DEFAULT_SETTINGS|command_payload_value
     for current_field_name,current_allowed_values in {'ground':('paving','grass','meadow-road'),'shadow_profile':('baseline','contrast','broad'),'contrast':('original','soft')}.items():
         if current_setting_values[current_field_name] not in current_allowed_values:raise ValueError('캡처 설정 오류: '+current_field_name)
-    for current_field_name in ('outline','rim','shadow'):
+    for current_field_name in ('outline','rim','shadow','saturation_reduced','brightness_reduced'):
         if type(current_setting_values[current_field_name]) is not bool:raise ValueError('참/거짓 설정 필요: '+current_field_name)
     for current_field_name,current_minimum_value,current_maximum_value in [('column',0,2),('row',0,2),('rotation',0,3),('width',256,1600),('height',256,1200)]:
         current_field_value=current_setting_values[current_field_name]

@@ -1,3 +1,4 @@
+import {CHARACTER_OUTLINE_BASE_WIDTH,CHARACTER_OUTLINE_BASE_COLOR,CHARACTER_SEPARATOR_BASE_WIDTH,CHARACTER_SEPARATOR_BASE_COLOR,CHARACTER_CONTACT_SHADOW_COLOR as GAME_CONTACT_SHADOW_COLOR,CHARACTER_CONTACT_SHADOW_ALPHA_SCALE,ACTOR_CONTACT_SHADOW_CONTRACT} from './vendor/field-renderer/1.0.11/game-render-profile.mjs';
 import {createFieldReviewFrame,pickFieldReviewCell} from './field-map-renderer.js';
 import {FIELD_RENDER_METRICS,projectSurfaceCell} from './vendor/field-renderer/1.0.11/field-renderer.mjs';
 import {resolveFieldActorContactShadow} from './vendor/field-renderer/1.0.11/field-renderer.mjs';
@@ -33,21 +34,24 @@ if(currentMapSelector){
 }
 const GROUND_CONTRAST_PREVIEW_VALUES={original:1,soft:0.65};
 let currentGroundPreviewMode='original';
+const GROUND_REDUCED_SATURATION=0.7;
+let currentGroundSaturationReduced=false;
+const GROUND_REDUCED_BRIGHTNESS=0.7;
+let currentGroundBrightnessReduced=false;
 let currentOutlinePreviewEnabled=true;
 let currentRimPreviewEnabled=true;
 let currentShadowPreviewEnabled=true;
 let currentCharacterRimCanvas=null;
-const CHARACTER_RIM_PREVIEW_COLOR='#fff2cc';
-const CHARACTER_RIM_BAND_WIDTH=1;
-let currentOutlineBaseWidth=1;
+const CHARACTER_RIM_PREVIEW_COLOR='#'+CHARACTER_SEPARATOR_BASE_COLOR.toString(16).padStart(6,'0');
+const CHARACTER_RIM_BAND_WIDTH=CHARACTER_SEPARATOR_BASE_WIDTH;
+let currentOutlineBaseWidth=CHARACTER_OUTLINE_BASE_WIDTH;
 let currentCharacterSilhouetteCanvas=null;
-const CHARACTER_OUTLINE_PREVIEW_COLOR=isCharacterReviewPage?'#655d54':'#302a25';
-const CHARACTER_CONTACT_SHADOW_COLOR='#242424';
+const CHARACTER_OUTLINE_PREVIEW_COLOR='#'+CHARACTER_OUTLINE_BASE_COLOR.toString(16).padStart(6,'0');
+const CHARACTER_CONTACT_SHADOW_COLOR='#'+GAME_CONTACT_SHADOW_COLOR.toString(16).padStart(6,'0');
 const CHARACTER_CONTACT_SHADOW_SIZE_SCALE=1;
-const CHARACTER_CONTACT_SHADOW_ALPHA_SCALE=1.2;
 let currentShadowColorOverride=isCharacterReviewPage?CHARACTER_CONTACT_SHADOW_COLOR:null;
 const CHARACTER_OUTLINE_PIXEL_OFFSETS=[[-1,0],[1,0],[0,-1],[0,1],[-0.707,-0.707],[0.707,-0.707],[-0.707,0.707],[0.707,0.707]];
-const currentDisplayOptions={'show-character':true,'show-safe-boundary':true,edges:false,'shadow-profile':'contrast'};
+const currentDisplayOptions={'show-character':true,'show-safe-boundary':true,edges:false,'shadow-profile':ACTOR_CONTACT_SHADOW_CONTRACT.profile};
 function readReviewOption(currentOptionName){return document.getElementById(currentOptionName)?.checked??currentDisplayOptions[currentOptionName];}
 // 검수용 반복 견본은 게임 맵 원본과 분리하며 등록된 타일·캐릭터만 공유한다.
 const currentMapRecord=isCharacterReviewPage?{
@@ -238,18 +242,19 @@ function renderBlockMap(currentFitRequested=false){
  const currentSavedShadow=currentDisplayOptions['shadow-profile'];
  const currentSavedShadowEnabled=currentShadowPreviewEnabled;
  const currentSavedShadowColor=currentShadowColorOverride;
+ const currentSavedOutlineWidth=currentOutlineBaseWidth;
  const currentComparisonCanvas=document.querySelector('#character-baseline-map');
  try{
-  currentOutlinePreviewEnabled=false;currentRimPreviewEnabled=false;currentShadowPreviewEnabled=true;currentShadowColorOverride=null;currentDisplayOptions['shadow-profile']='baseline';
+  currentOutlinePreviewEnabled=true;currentRimPreviewEnabled=true;currentOutlineBaseWidth=CHARACTER_OUTLINE_BASE_WIDTH;currentShadowPreviewEnabled=true;currentShadowColorOverride=CHARACTER_CONTACT_SHADOW_COLOR;currentDisplayOptions['shadow-profile']=ACTOR_CONTACT_SHADOW_CONTRACT.profile;
   drawCurrentMapScene(currentFitRequested);
   currentComparisonCanvas.width=currentMapCanvas.width;currentComparisonCanvas.height=currentMapCanvas.height;
   currentComparisonCanvas.getContext('2d').drawImage(currentMapCanvas,0,0);
  }finally{
-  currentOutlinePreviewEnabled=currentSavedOutline;currentRimPreviewEnabled=currentSavedRim;
+  currentOutlinePreviewEnabled=currentSavedOutline;currentRimPreviewEnabled=currentSavedRim;currentOutlineBaseWidth=currentSavedOutlineWidth;
   currentDisplayOptions['shadow-profile']=currentSavedShadow;currentShadowPreviewEnabled=currentSavedShadowEnabled;currentShadowColorOverride=currentSavedShadowColor;
  }
  drawCurrentMapScene(false);
- document.querySelector('#status').textContent=`3×3 검수 맵 · 캐릭터 (${currentCharacterCell.column+1}, ${currentCharacterCell.row+1}) · 사람 높이 ${gameRenderMetrics.characterHeight}px · 양쪽 동일 위치·크기 · 원본은 외곽선 없음·기본 접지 그림자`;
+ document.querySelector('#status').textContent=`3×3 검수 맵 · 캐릭터 (${currentCharacterCell.column+1}, ${currentCharacterCell.row+1}) · 사람 높이 ${gameRenderMetrics.characterHeight}px · 양쪽 동일 위치·크기 · 원본은 게임 공용 렌더링 상수 적용`;
 }
 function drawCurrentMapScene(currentFitRequested=false){
  if(isFieldMapReview){renderSharedFieldMap(currentFitRequested);return;}
@@ -258,7 +263,7 @@ currentMapCanvas.width=currentMapCanvas.clientWidth*CHARACTER_REVIEW_RESOLUTION_
 document.querySelector('#zoom-level').textContent=Math.round(currentScaleValue*100)+'%';
 if(document.querySelector('#zoom-in'))document.querySelector('#zoom-in').disabled=currentScaleValue>=MAX_MAP_SCALE;if(document.querySelector('#zoom-out'))document.querySelector('#zoom-out').disabled=currentScaleValue<=MIN_MAP_SCALE;
 currentDrawingContext.setTransform(currentScaleValue*CHARACTER_REVIEW_RESOLUTION_SCALE,0,0,currentScaleValue*CHARACTER_REVIEW_RESOLUTION_SCALE,currentOffsetX*CHARACTER_REVIEW_RESOLUTION_SCALE,currentOffsetY*CHARACTER_REVIEW_RESOLUTION_SCALE);
-currentDrawingContext.filter=`contrast(${GROUND_CONTRAST_PREVIEW_VALUES[currentGroundPreviewMode]})`;
+currentDrawingContext.filter=`contrast(${GROUND_CONTRAST_PREVIEW_VALUES[currentGroundPreviewMode]}) saturate(${currentGroundSaturationReduced?GROUND_REDUCED_SATURATION:1}) brightness(${currentGroundBrightnessReduced?GROUND_REDUCED_BRIGHTNESS:1})`;
 for(let currentRowIndex=0;currentRowIndex<currentMapRecord.rows;currentRowIndex++)for(let currentColumnIndex=0;currentColumnIndex<currentMapRecord.columns;currentColumnIndex++){const currentTerrainName=currentMapRecord.terrainCodes[currentMapRecord.terrainRows[currentRowIndex][currentColumnIndex]];drawSurfacePolygon([[-.5,-.5],[.5,-.5],[.5,.5],[-.5,.5]].map(([c,r])=>projectBlockVertex({column:currentColumnIndex+c,row:currentRowIndex+r})),currentMaterialColors[currentTerrainName]);const currentGroundImage=loadedTextureImages[groundTextureNames[currentTerrainName]];if(currentGroundImage){const currentGroundVertices=[[-.5,-.5],[.5,-.5],[.5,.5],[-.5,.5]].map(([currentColumnOffset,currentRowOffset])=>({column:currentColumnIndex+currentColumnOffset,row:currentRowIndex+currentRowOffset,height:0}));drawTexturedSurface({top:true,ground:true,vertices:currentGroundVertices,points:currentGroundVertices.map(projectBlockVertex)},currentGroundImage)}}
 currentDrawingContext.filter='none';
 const currentRenderFaces=currentMapRecord.buildings.flatMap(currentBuilding=>currentBuilding.faces.flatMap(splitWallFloors).map(currentFace=>({...currentFace,building:currentBuilding,textureTiles:readBuildingTileSet(currentBuilding),points:currentFace.vertices.map(currentVertex=>projectBlockVertex({column:currentBuilding.origin.column+currentVertex.column,row:currentBuilding.origin.row+currentVertex.row,height:currentVertex.height})),depth:currentFace.vertices.reduce((s,v)=>s+projectBlockVertex({column:currentBuilding.origin.column+v.column,row:currentBuilding.origin.row+v.row}).y,0)/currentFace.vertices.length}))).sort((a,b)=>a.depth-b.depth);
@@ -414,7 +419,15 @@ window.characterReviewContactShadow=(currentShadowEnabled)=>{
 };
 
 // GUI와 헤드리스 CLI 캡처가 같은 설정·렌더 함수를 사용한다.
-window.characterReviewCaptureSettings=()=>({ground:groundTextureNames.paving,zoom:2,column:currentCharacterCell.column,row:currentCharacterCell.row,rotation:currentCameraRotation,outline:currentOutlinePreviewEnabled,outline_width:currentOutlineBaseWidth,rim:currentRimPreviewEnabled,shadow:currentShadowPreviewEnabled,shadow_profile:currentDisplayOptions['shadow-profile'],contrast:currentGroundPreviewMode,width:768,height:576});
+window.characterReviewGroundSaturation=(currentSaturationReduced)=>{
+ if(!isCharacterReviewPage||typeof currentSaturationReduced!=='boolean')throw Error('바닥 채도 설정은 참/거짓이어야 합니다.');
+ currentGroundSaturationReduced=currentSaturationReduced;renderBlockMap();return currentSaturationReduced?'바닥 채도 70% 적용':'바닥 원본 채도 적용';
+};
+window.characterReviewGroundBrightness=(currentBrightnessReduced)=>{
+ if(!isCharacterReviewPage||typeof currentBrightnessReduced!=='boolean')throw Error('바닥 명도 설정은 참/거짓이어야 합니다.');
+ currentGroundBrightnessReduced=currentBrightnessReduced;renderBlockMap();return currentBrightnessReduced?'바닥 명도 70% 적용':'바닥 원본 명도 적용';
+};
+window.characterReviewCaptureSettings=()=>({ground:groundTextureNames.paving,zoom:2,column:currentCharacterCell.column,row:currentCharacterCell.row,rotation:currentCameraRotation,outline:currentOutlinePreviewEnabled,outline_width:currentOutlineBaseWidth,rim:currentRimPreviewEnabled,shadow:currentShadowPreviewEnabled,shadow_profile:currentDisplayOptions['shadow-profile'],contrast:currentGroundPreviewMode,saturation_reduced:currentGroundSaturationReduced,brightness_reduced:currentGroundBrightnessReduced,width:768,height:576});
 if(currentMapCanvas.dataset.capture==='true'){
  const currentCaptureSettings=await fetchMapReviewRecord('capture-settings.json');
  currentMapCanvas.style.width=currentCaptureSettings.width+'px';currentMapCanvas.style.height=currentCaptureSettings.height+'px';
@@ -424,6 +437,8 @@ if(currentMapCanvas.dataset.capture==='true'){
  currentOutlineBaseWidth=currentCaptureSettings.outline_width;currentOutlinePreviewEnabled=currentCaptureSettings.outline;currentRimPreviewEnabled=currentCaptureSettings.rim;
  currentShadowPreviewEnabled=currentCaptureSettings.shadow;currentDisplayOptions['shadow-profile']=currentCaptureSettings.shadow_profile;
  currentGroundPreviewMode=currentCaptureSettings.contrast;
+ currentGroundSaturationReduced=currentCaptureSettings.saturation_reduced;
+ currentGroundBrightnessReduced=currentCaptureSettings.brightness_reduced;
  centerCharacterView();changeMapZoom(currentCaptureSettings.zoom/currentScaleValue);
  const currentCaptureResponse=await fetch('/capture-result',{method:'POST',headers:{'Content-Type':'application/json','X-Capture-Token':currentCaptureSettings.token},body:JSON.stringify({baseline:document.querySelector('#character-baseline-map').toDataURL('image/png'),adjusted:currentMapCanvas.toDataURL('image/png')})});
  if(!currentCaptureResponse.ok)throw Error('렌더 캡처 저장 실패');

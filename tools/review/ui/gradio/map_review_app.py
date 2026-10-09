@@ -74,8 +74,12 @@ def build_map_review_interface(review_server_port, character_review_enabled=Fals
         for current_display_control in current_display_inputs:
             current_display_control.input(fn=None,inputs=current_display_inputs,outputs=current_camera_feedback,queue=False,js="(...currentDisplayValues)=>{try{if(!window.mapReviewDisplayOptions)throw Error('맵을 준비 중입니다.');window.mapReviewDisplayOptions(...currentDisplayValues);return '표시 옵션을 적용했습니다.';}catch(currentDisplayError){return currentDisplayError.message;}}")
         if character_review_enabled:
-            current_ground_preview=gr.Radio(label='바닥 대비 실험',choices=[('원본','original'),('대비 65%','soft')],value='original')
-            current_ground_preview.input(fn=None,inputs=current_ground_preview,outputs=current_camera_feedback,queue=False,js="(currentPreviewMode)=>{try{if(!window.mapReviewGroundPreview)throw Error('맵을 준비 중입니다.');return window.mapReviewGroundPreview(currentPreviewMode);}catch(currentPreviewError){return currentPreviewError.message;}}")
+            current_ground_preview=gr.Checkbox(label='바닥 대비 35% 낮추기 · 대비 65%',value=False)
+            current_ground_preview.input(fn=None,inputs=current_ground_preview,outputs=current_camera_feedback,queue=False,js="(currentPreviewMode)=>{try{if(!window.mapReviewGroundPreview)throw Error('맵을 준비 중입니다.');return window.mapReviewGroundPreview(currentPreviewMode?'soft':'original');}catch(currentPreviewError){return currentPreviewError.message;}}")
+            current_saturation_toggle=gr.Checkbox(label='바닥 채도 30% 낮추기 · 채도 70%',value=False)
+            current_saturation_toggle.input(fn=None,inputs=current_saturation_toggle,outputs=current_camera_feedback,queue=False,js="(currentSaturationReduced)=>{try{if(!window.characterReviewGroundSaturation)throw Error('맵을 준비 중입니다.');return window.characterReviewGroundSaturation(currentSaturationReduced);}catch(currentSaturationError){return currentSaturationError.message;}}")
+            current_brightness_toggle=gr.Checkbox(label='바닥 명도 30% 낮추기 · 명도 70%',value=False)
+            current_brightness_toggle.input(fn=None,inputs=current_brightness_toggle,outputs=current_camera_feedback,queue=False,js="(currentBrightnessReduced)=>{try{if(!window.characterReviewGroundBrightness)throw Error('맵을 준비 중입니다.');return window.characterReviewGroundBrightness(currentBrightnessReduced);}catch(currentBrightnessError){return currentBrightnessError.message;}}")
             current_outline_preview=gr.Checkbox(label='어두운 형태선 · 1px' if character_review_enabled else '마을 캐릭터 1px 외곽선',value=True)
             current_outline_preview.input(fn=None,inputs=current_outline_preview,outputs=current_camera_feedback,queue=False,js="(currentOutlineEnabled)=>{try{if(!window.mapReviewOutlinePreview)throw Error('맵을 준비 중입니다.');return window.mapReviewOutlinePreview(currentOutlineEnabled);}catch(currentPreviewError){return currentPreviewError.message;}}")
             current_rim_preview=gr.Checkbox(label='밝은 분리선' if character_review_enabled else '마을 캐릭터 밝은 윤곽광',value=True)
@@ -89,7 +93,7 @@ def build_map_review_interface(review_server_port, character_review_enabled=Fals
             current_ground_choice.input(fn=None,inputs=current_ground_choice,outputs=current_camera_feedback,queue=False,js="(currentTextureIdentifier)=>{try{if(!window.characterReviewGroundTile)throw Error('맵을 준비 중입니다.');return window.characterReviewGroundTile(currentTextureIdentifier);}catch(currentTextureError){return currentTextureError.message;}}")
             with gr.Row(equal_height=True):
                 with gr.Column(min_width=280):
-                    gr.Markdown('### 원본 · 외곽선 없음 / 기본 접지 그림자')
+                    gr.Markdown('### 원본 · 현재 게임 렌더링 설정')
                     gr.HTML('<div style="position:relative;aspect-ratio:4/3"><canvas id="character-baseline-map" width="768" height="576" aria-label="원본 캐릭터 비교 맵" style="position:absolute;width:100%;height:100%"></canvas></div>')
                 with gr.Column(min_width=280):
                     gr.Markdown('### 조정본 · 선택한 표현 적용')
