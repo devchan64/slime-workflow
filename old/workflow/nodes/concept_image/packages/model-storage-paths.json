@@ -1,9 +1,0 @@
-{
-  "schema_version": "1.0",
-  "models_root_default": ".model",
-  "paths": {
-    "base_models": "base",
-    "control_models": "controlnet",
-    "adapter_models": "adapters"
-  }
-}
