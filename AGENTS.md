@@ -67,6 +67,14 @@
 - 입력 검증·동시 실행 제어·취소·완료/실패 상태 기록은 작업 서비스가 책임진다. HTTP 어댑터는 Host·Origin·요청 크기·JSON 형식 검사를 유지하고, 허용된 서비스·명령만 전달한다. GPU 실행 및 모델 경로 정책도 GUI·CLI에서 동일하게 적용한다.
 - 새 명령을 추가하면 게이트웨이 등록·CLI 인자·`help`·GUI 연결·사용 가이드를 함께 갱신한다. 해당 기능의 GUI/CLI 계약 일치, 잘못된 입력 거절, 상태·이력 공유를 검증한다. 구조 변경 시 `test_management_gateway.py`, `test_momask_jobs.py`, `test_qwen_commands.py` 중 영향받는 테스트를 실행하고 필요한 계약 검증을 보강한다.
 
+## Generator Live Progress and ETA Standard
+- 모든 생성기는 실시간 예상 총 소요 시간·남은 시간·완료 시각과 현재 예상 진행률 계산 기능을 반드시 포함한다. 신규 생성기뿐 아니라 기존 생성기에도 적용하는 필수 계약이며, UI 표시만으로 구현 완료로 간주하지 않는다.
+- 계산은 작업 서비스의 공용 추정 코드에서 수행하고 게이트웨이를 통해 GUI·CLI에 동일한 상태를 제공한다. 클라이언트별 추정식을 만들지 않는다. 진행 이벤트와 최대 5초 간격 heartbeat마다 실행 관측치를 반영하여 재계산하고 기록한다.
+- 단계·완료 수/전체 수·실측 진행률과 예상 진행률을 구분한다. 같은 작업의 실측 처리 시간과 조건이 일치하는 과거 이력을 사용하고, 추정 범위·근거·표본 수·갱신 시각을 함께 제공한다. 단계별 진행률을 전체 진행률로 표시하지 않는다.
+- GPU 대기·모델 준비·추론·후처리의 포함 범위를 명시한다. 근거가 부족하면 추정값을 미정으로 제공하고 ‘계산 중’과 이유를 안내한다. 임의의 백분율·음수 남은 시간·완료 전 100%를 만들지 않는다. 지연·단계 전환·재개 시 재계산하고 완료·실패·취소 시 최종 상태를 확정한다.
+- 생성기 변경 검증에는 실측 없음·정상 진행·대기·지연·재개·종료 및 GUI/CLI 추정값 일치를 포함한다. 상세 표시 규칙은 [생성 예상 시간 표시 규칙](workflows/management-ui.md#생성-예상-시간-표시-규칙)을 따른다.
+
+
 ## Language Rules (Current default in this repository)
 - Runtime output/comments/docstrings/markdown should be Korean-first.
 - Keep identifiers (variables/functions/files), standard keywords, and AWS resource names in English.
