@@ -6,7 +6,7 @@ import threading
 import time
 import bpy
 import numpy as np
-from generators.hy_motion.body_rotation_ownership import build_body_calibration, measure_body_rotation_errors
+from generators.hy_motion.body_rotation_ownership import build_body_calibration, measure_body_rotation_errors, MAXIMUM_WORLD_MATRIX_ERROR
 from generators.hy_motion.shoulder_rotation_ownership import apply_shoulder_rotations
 from generators.hy_motion.rotation_channels import reconstruct_rotation_channels
 
@@ -61,8 +61,33 @@ current_candidate_directory = CURRENT_OUTPUT_DIRECTORY / 'full_rotation'
 current_candidate_directory.mkdir(exist_ok=False)
 bpy.context.scene.frame_set(1)
 bpy.ops.wm.save_as_mainfile(filepath=str(current_candidate_directory / 'mannequin.blend'))
+# 기록 직전의 메모리 상태가 아니라 실제 저장된 키프레임을 다시 평가한다.
+bpy.ops.wm.open_mainfile(filepath=str(current_candidate_directory / 'mannequin.blend'))
+current_saved_rig = bpy.data.objects['AnnyAttributesRig']
+current_saved_checks = []
+for current_frame_record in current_frame_records:
+    current_frame_number = current_frame_record['frame']
+    CURRENT_PROGRESS_RECORD.update(stage='saved-animation-audit', frame=current_frame_number)
+    bpy.context.scene.frame_set(current_frame_number)
+    current_saved_bones = []
+    current_local_errors = []
+    for current_bone_record in current_frame_record['bones']:
+        current_pose_bone = current_saved_rig.pose.bones[current_bone_record['bone']]
+        current_expected_basis = np.eye(4)
+        current_expected_basis[:3, :3] = current_bone_record['local_rotation']
+        current_basis_error = float(np.max(np.abs(np.asarray(current_pose_bone.matrix_basis) - current_expected_basis)))
+        if current_basis_error > MAXIMUM_WORLD_MATRIX_ERROR:
+            raise ValueError(f'저장 후 로컬 회전·이동·크기 불일치: {current_frame_number}/{current_pose_bone.name}/{current_basis_error}')
+        current_local_errors.append(current_basis_error)
+        current_saved_bones.append({'bone': current_pose_bone.name, 'world_rotation': np.asarray(current_pose_bone.matrix.to_quaternion().to_matrix()).tolist()})
+    current_world_errors = measure_body_rotation_errors(current_global_rotations[current_frame_number - 1], current_calibration_record, current_saved_bones)
+    current_root_error = float(np.max(np.abs(np.asarray(current_saved_rig.location) - current_root_positions[current_frame_number - 1])))
+    if current_root_error > MAXIMUM_WORLD_MATRIX_ERROR:
+        raise ValueError(f'저장 후 루트 이동 불일치: {current_frame_number}/{current_root_error}')
+    current_saved_checks.append({'frame': current_frame_number, 'local_bones_checked': len(current_local_errors), 'maximum_local_matrix_error': max(current_local_errors), 'world_rotation_errors': current_world_errors, 'root_translation_error_m': current_root_error})
 current_hash_paths = [current_motion_path, current_baseline_path, Path(__file__), CURRENT_REPOSITORY_ROOT / 'generators/hy_motion/body_rotation_ownership.py', CURRENT_REPOSITORY_ROOT / 'generators/hy_motion/shoulder_rotation_ownership.py']
 current_result_record = {'status': 'completed', 'profile': current_calibration_record, 'fk_error_m': current_fk_error, 'frames': current_frame_records, 'hashes': {str(current_file_path): hashlib.sha256(current_file_path.read_bytes()).hexdigest() for current_file_path in current_hash_paths}, 'quality_approved': False, 'skin_constraints_applied': False, 'compensation': False}
+current_result_record['saved_animation_audit'] = {'status': 'passed', 'frames': current_saved_checks, 'scope': '정수 프레임의 전체 로컬 본·소유 본 세계 회전·루트 이동. 피부 품질 및 프레임 사이 보간은 미검증'}
 (CURRENT_OUTPUT_DIRECTORY / 'comparison.json').write_text(json.dumps(current_result_record, ensure_ascii=False, indent=2))
 CURRENT_FINISHED_EVENT.set()
 print(f'{time.strftime("%FT%T")}/local-retarget/completed 프레임={len(current_frame_records)} FK오차={current_fk_error}', flush=True)
