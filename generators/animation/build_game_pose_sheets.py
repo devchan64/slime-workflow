@@ -14,7 +14,7 @@ POSE_SHEET_COLUMNS=4
 POSE_SHEET_MAX_FRAMES=32
 POSE_FRAME_CELL_SIZE=512
 POSE_DIRECTION_NAMES=('down_left','down_right','up_left','up_right')
-POSE_SOURCE_RECORDS=(('walking-v13','momask-walking-v13',60,'openpose','manifest.yaml'),('stretch-v1','momask-stretch-v1',120,'openpose','manifest.yaml'))
+POSE_SOURCE_RECORDS=(('walking-v14','hy-motion-walking-v14',7,'openpose','manifest.yaml'),('stretch-v1','momask-stretch-v1',120,'openpose','manifest.yaml'))
 
 
 def calculate_asset_digest(asset_file_path):
@@ -36,8 +36,9 @@ def build_game_pose_sheets(output_asset_directory):
             source_asset_directory=WORKFLOW_ROOT_DIRECTORY/'assets/motion-sheet'/source_folder_name
             source_manifest_path=source_asset_directory/source_manifest_name
             source_manifest_record=yaml.safe_load(source_manifest_path.read_text())
-            if source_manifest_record['frames']!=motion_frame_count or source_manifest_record['fps']!=4:raise ValueError('등록 모션 프레임·fps 불일치')
-            motion_manifest_record={'source_asset_path':str(source_asset_directory.relative_to(WORKFLOW_ROOT_DIRECTORY)),'source_manifest_sha256':calculate_asset_digest(source_manifest_path),'frames':motion_frame_count,'duration_seconds':motion_frame_count/4,'directions':{}}
+            current_source_framerate=source_manifest_record['fps']
+            if source_manifest_record['frames']!=motion_frame_count or type(current_source_framerate) is not int or current_source_framerate < 1:raise ValueError('등록 모션 프레임·fps 불일치')
+            motion_manifest_record={'source_asset_path':str(source_asset_directory.relative_to(WORKFLOW_ROOT_DIRECTORY)),'source_manifest_sha256':calculate_asset_digest(source_manifest_path),'frames':motion_frame_count,'fps':current_source_framerate,'duration_seconds':motion_frame_count/current_source_framerate,'directions':{}}
             for direction_name_value in POSE_DIRECTION_NAMES:
                 direction_sheet_records=[]
                 for page_start_index in range(0,motion_frame_count,POSE_SHEET_MAX_FRAMES):
@@ -56,7 +57,7 @@ def build_game_pose_sheets(output_asset_directory):
                         source_frame_hashes[relative_source_name]=source_frame_digest
                     relative_sheet_path=Path(motion_asset_name)/direction_name_value/f'page-{page_start_index//POSE_SHEET_MAX_FRAMES+1:02d}.png'
                     output_sheet_path=output_asset_directory/relative_sheet_path;output_sheet_path.parent.mkdir(parents=True,exist_ok=True);output_sheet_image.save(output_sheet_path)
-                    direction_sheet_records.append({'path':str(relative_sheet_path),'frames':page_frame_numbers,'rows':page_row_count,'size':list(output_sheet_image.size),'start_seconds':page_start_index/4,'duration_seconds':len(page_frame_numbers)/4,'source_files':source_frame_hashes})
+                    direction_sheet_records.append({'path':str(relative_sheet_path),'frames':page_frame_numbers,'rows':page_row_count,'size':list(output_sheet_image.size),'start_seconds':page_start_index/current_source_framerate,'duration_seconds':len(page_frame_numbers)/current_source_framerate,'source_files':source_frame_hashes})
                     output_manifest_record['files'][str(relative_sheet_path)]=calculate_asset_digest(output_sheet_path)
                     record_build_progress('sheet',str(relative_sheet_path))
                 motion_manifest_record['directions'][direction_name_value]=direction_sheet_records

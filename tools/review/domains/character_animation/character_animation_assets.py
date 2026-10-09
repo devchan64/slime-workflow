@@ -66,7 +66,7 @@ def load_animation_configuration():
             raise ValueError('모션 등록 형식 오류')
         if not isinstance(animation_motion_record['action_prompt'], str) or not animation_motion_record['action_prompt'].strip():
             raise ValueError('모션별 동작 프롬프트 경로가 필요합니다.')
-        if type(animation_motion_record['target_fps']) is not int or animation_motion_record['target_fps'] != 8:
+        if type(animation_motion_record['target_fps']) is not int or animation_motion_record['target_fps'] not in (6, 8):
             raise ValueError('기본 타겟 FPS 오류')
     for animation_character_record in animation_config_record['characters'].values():
         if set(animation_character_record) != {'label','root','manifest'}:

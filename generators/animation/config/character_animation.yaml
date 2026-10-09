@@ -4,16 +4,16 @@ prompts:
   auxiliary: generators/animation/config/prompts/auxiliary-prompt.txt
   auxiliary_rear: generators/animation/config/prompts/auxiliary-rear-prompt.txt
 motions:
-  walking-v13:
+  walking-v14:
     action_prompt: generators/animation/config/prompts/walking-action.txt
     direction_auxiliary_prompts:
       down_left: ""
       down_right: ""
       up_left: ""
       up_right: ""
-    target_fps: 8
-    label: 걷기 v13
-    root: assets/motion-sheet/momask-walking-v13
+    target_fps: 6
+    label: 걷기 v14 · HY-Motion 승인 구간
+    root: assets/motion-sheet/hy-motion-walking-v14
     manifest: manifest.yaml
     openpose: openpose/{direction}/openpose-{frame:04d}.png
     anny: anny/{direction}/anny-{frame:04d}.png

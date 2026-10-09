@@ -6,6 +6,6 @@ presets:
     duration_seconds: 4
   walking:
     label: 걷기
-    # 사용자 채택 기준: 2026-10-09_16-17-18-51ba9c56 (25단어). 실행 길이·시드는 별도 설정.
-    prompt: A person walks forward with their torso leaning slightly forward from the hips, head upright, gaze level ahead, relaxed shoulders, and natural alternating arm swings.
+    # 트레드밀 제자리 보행과 몸통·어깨·골반 회전을 지시한다. 생성 결과 검수 필요.
+    prompt: A person walks in place on a treadmill, with gentle torso rotation, natural shoulder and hip counter-rotation, relaxed alternating arm swings, and gaze directed ahead.
     duration_seconds: 4
