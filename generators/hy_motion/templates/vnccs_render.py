@@ -7,13 +7,13 @@ import time
 import bpy
 from mathutils import Vector
 from bpy_extras.object_utils import world_to_camera_view
+from generators.hy_motion.official_shading import apply_official_shading
 
 CURRENT_STAGE_RECORD = globals()['export_stage_request']
 CURRENT_OUTPUT_DIRECTORY = Path(CURRENT_STAGE_RECORD['export_directory'])
 CURRENT_CONFIG_RECORD = CURRENT_STAGE_RECORD['config']
 CURRENT_REQUEST_RECORD = CURRENT_STAGE_RECORD['request']
 CURRENT_RENDER_PROGRESS = {'stage': 'prepare'}
-CURRENT_LIGHT_POSITIONS = ((-3, -4, 4), (3, 4, 4))
 CURRENT_SAMPLE_FRAMES = tuple(range(CURRENT_REQUEST_RECORD['start_frame'], CURRENT_REQUEST_RECORD['end_frame'] + 1, CURRENT_REQUEST_RECORD['frame_step']))
 CURRENT_COCO_BONES = ('neck01', 'upperarm01.R', 'lowerarm01.R', 'wrist.R', 'upperarm01.L', 'lowerarm01.L', 'wrist.L', 'upperleg01.R', 'lowerleg01.R', 'foot.R', 'upperleg01.L', 'lowerleg01.L', 'foot.L')
 
@@ -47,20 +47,13 @@ current_render_scene.render.resolution_percentage = 100
 current_render_scene.render.image_settings.file_format = 'PNG'
 current_render_scene.render.image_settings.color_mode = 'RGBA'
 current_render_scene.render.film_transparent = True
-current_render_scene.world.use_nodes = True
-current_render_scene.world.node_tree.nodes['Background'].inputs['Color'].default_value = (.8, .8, .8, 1)
-current_render_scene.world.node_tree.nodes['Background'].inputs['Strength'].default_value = .4
-current_render_scene.view_settings.view_transform = 'AgX'
+current_shading_record = apply_official_shading(current_render_scene, current_body_object)
+print(f'{time.strftime("%FT%T")}/vnccs-render/shading {current_shading_record}', flush=True)
 for current_scene_object in list(bpy.data.objects):
     if current_scene_object.type == 'MESH' and current_scene_object != current_body_object:
         current_scene_object.hide_render = True
     if current_scene_object.type == 'LIGHT':
         bpy.data.objects.remove(current_scene_object, do_unlink=True)
-for current_light_position in CURRENT_LIGHT_POSITIONS:
-    bpy.ops.object.light_add(type='AREA', location=current_light_position)
-    bpy.context.object.data.energy = 400
-    bpy.context.object.data.size = 3
-    bpy.context.object.rotation_euler = (Vector((0, 0, 1)) - bpy.context.object.location).to_track_quat('-Z', 'Y').to_euler()
 current_camera_axes = {}
 for current_direction_name in CURRENT_REQUEST_RECORD['directions']:
     current_angle_radians = math.radians(CURRENT_CONFIG_RECORD['camera_angles'][current_direction_name])
@@ -134,5 +127,5 @@ for current_projection_name in current_projection_names:
                 current_head_projection = world_to_camera_view(current_render_scene, current_render_scene.camera, current_rig_object.matrix_world @ current_head_position)
                 current_head_keypoints.append([float(current_head_projection.x * CURRENT_CONFIG_RECORD['resolution']), float((1 - current_head_projection.y) * CURRENT_CONFIG_RECORD['resolution']), 1.] if current_head_projection.z > 0 and 0 <= current_head_projection.x <= 1 and 0 <= current_head_projection.y <= 1 else [0., 0., 0.])
             current_image_records.append({'path': current_relative_path, 'projection': current_projection_name, 'direction': current_direction_name, 'source_frame': current_frame_number, 'source_time_seconds': (current_frame_number - 1) / 30, 'duration_seconds': (current_next_frame - current_frame_number) / 30, 'pose_keypoints_2d': [current_axis_value for current_joint_point in current_pose_keypoints for current_axis_value in current_joint_point], 'head_bone_keypoints_2d': current_head_keypoints})
-(CURRENT_OUTPUT_DIRECTORY / 'render-manifest.json').write_text(json.dumps({'images': current_image_records, 'camera': current_camera_records, 'projection_cameras': current_projection_cameras, 'projections': current_projection_names}, ensure_ascii=False, indent=2))
+(CURRENT_OUTPUT_DIRECTORY / 'render-manifest.json').write_text(json.dumps({'images': current_image_records, 'camera': current_camera_records, 'projection_cameras': current_projection_cameras, 'projections': current_projection_names, 'shading': current_shading_record}, ensure_ascii=False, indent=2))
 print(f'{time.strftime("%FT%T")}/vnccs-render/completed images={len(current_image_records)}', flush=True)
