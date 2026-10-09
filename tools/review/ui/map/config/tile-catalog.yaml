@@ -93,3 +93,4 @@ tiles:
   - {id: red-stone-brick-wall, category: structure, asset: assets/tiles/buildings/red-stone/red-stone-brick-wall-v1.png}
   - {id: reedhaven-dry-embankment, category: ground, asset: assets/tiles/terrain/non-road/dry-soil-grass-v1.png}
   - {id: marsh-reed-clumps, category: ground, asset: assets/tiles/terrain/non-road/marsh-reed-clumps-v1.png}
+  - {id: stonewarm-granite-paving, category: ground, asset: assets/tiles/terrain/road/granite-slab-road-v1.png}
