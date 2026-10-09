@@ -57,16 +57,8 @@ class VnccsInputContractTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             validate_vnccs_request({'source_id': 'source'}, 361)
 
-    def test_gui_cli_export_contract(self):
-        from tools.review.ui.gradio.hy_motion_app import start_vnccs_export
+    def test_cli_export_contract(self):
         current_payload_record = {'source_id': 'source', 'start_frame': 1, 'end_frame': 300, 'frame_step': 100, 'directions': ['down_left'], 'tag': 'VNCCS 포즈 출력'}
-        with patch('tools.review.ui.gradio.hy_motion_app.execute_motion_command', return_value={'id': 'export'}) as current_gui_mock:
-            self.assertEqual(start_vnccs_export('source', 1, 300, 100, ['down_left'])[0], 'export')
-        self.assertEqual(current_gui_mock.call_args.args, ('export-vnccs', current_payload_record))
-        for current_end_value in (None, 0):
-            with patch('tools.review.ui.gradio.hy_motion_app.execute_motion_command', return_value={'id': 'export'}) as current_gui_mock:
-                start_vnccs_export('source', 1, current_end_value, 1, ['down_left'])
-                self.assertNotIn('end_frame', current_gui_mock.call_args.args[1])
         with tempfile.TemporaryDirectory() as current_temporary_directory:
             current_payload_path = Path(current_temporary_directory) / 'request.json'
             current_payload_path.write_text(json.dumps(current_payload_record))

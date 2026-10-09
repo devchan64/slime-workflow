@@ -40,12 +40,24 @@ class HyMotionContractTests(unittest.TestCase):
             with self.subTest(field=current_field_name), self.assertRaises(ValueError):
                 validate_generation_request({**self.current_request_record, current_field_name: current_invalid_value})
 
+    def test_selected_history_delete_preserves_files(self):
+        current_job_identifier = self.create_test_generation()
+        current_job_directory = jobs.resolve_generation_directory(current_job_identifier)
+        with self.assertRaises(ValueError):
+            jobs.execute_hymotion_command('history-delete', {'id': current_job_identifier})
+        (current_job_directory / 'status.json').write_text(json.dumps({'status': 'failed'}))
+        current_delete_result = jobs.execute_hymotion_command('history-delete', {'id': current_job_identifier})
+        self.assertTrue(current_delete_result['files_preserved'])
+        self.assertTrue((current_job_directory / 'request.json').exists())
+        self.assertFalse((jobs.GENERATION_HISTORY_ROOT / (current_job_identifier + '.json')).exists())
+
     def test_prompt_and_config_validation(self):
         self.assertEqual(validate_generation_request({**self.current_request_record, 'duration_seconds': 12})['duration_seconds'], 12)
         import yaml
         with self.assertRaisesRegex(ValueError, '중복'):
             yaml.load('seed: 1\nseed: 2', Loader=UniqueConfigLoader)
         self.assertEqual(load_generation_defaults()['model_variant'], 'HY-Motion-1.0-Lite')
+        self.assertEqual(load_generation_defaults()['directions'], ['down_left'])
         self.assertEqual(build_prompt_provenance('one  two\nthree')['word_count'], 3)
 
     def test_motion_presets_validate_and_only_restore_inputs(self):
@@ -136,7 +148,9 @@ class HyMotionContractTests(unittest.TestCase):
                 current_image_value.save(current_direction_path / f'frame-{current_frame_index:04d}.png')
         current_preview_record = {'frames': 8, 'preview_fps': 8, 'directions': ['down_left', 'up_right']}
         current_gif_records = export_motion_gifs(current_preview_record, self.current_storage_root, lambda *current_progress_values: None)
-        self.assertEqual(len(current_gif_records), 3)
+        self.assertEqual([current_gif_record['path'] for current_gif_record in current_gif_records], ['overview.gif'])
+        self.assertFalse((self.current_storage_root / 'down_left.gif').exists())
+        self.assertFalse((self.current_storage_root / 'up_right.gif').exists())
         for current_gif_record in current_gif_records:
             with Image.open(self.current_storage_root / current_gif_record['path']) as current_gif_image:
                 self.assertEqual(current_gif_image.n_frames, 8)
@@ -163,7 +177,8 @@ class HyMotionContractTests(unittest.TestCase):
         current_gradient_values = np.broadcast_to(np.arange(32, dtype=np.uint8)[None, :, None] * 8, (32, 32, 3)).copy()
         Image.fromarray(current_gradient_values).save(current_direction_path / 'frame-0001.png')
         export_motion_gifs({'frames': 1, 'preview_fps': 8, 'directions': ['down_left']}, self.current_storage_root, lambda *current_progress_values: None, current_palette_mode='adaptive')
-        with Image.open(self.current_storage_root / 'down_left.gif') as current_gif_image:
+        self.assertFalse((self.current_storage_root / 'down_left.gif').exists())
+        with Image.open(self.current_storage_root / 'overview.gif') as current_gif_image:
             self.assertGreater(len(current_gif_image.convert('RGB').getcolors()), 20)
 
     def test_eta_uses_matching_completed_samples(self):
@@ -177,6 +192,27 @@ class HyMotionContractTests(unittest.TestCase):
         current_estimate_record = jobs.read_generation_status(current_running_identifier)['eta']
         self.assertGreater(current_estimate_record['remaining'], 20)
         self.assertIn('1개 완료', current_estimate_record['basis'])
+
+    def test_eta_prefers_current_render_observations(self):
+        import os
+        import time
+        current_job_identifier = self.create_test_generation()
+        current_job_directory = jobs.resolve_generation_directory(current_job_identifier)
+        current_render_directory = current_job_directory / 'attempts/test/anny'
+        (current_render_directory / 'down_left').mkdir(parents=True)
+        (current_render_directory / 'stage-request.json').write_text(json.dumps({'request': {'start_frame': 1, 'end_frame': 30, 'frame_step': 1, 'directions': ['down_left']}, 'config': {'projections': ['orthographic', 'perspective']}}))
+        current_clock_seconds = time.time()
+        for current_frame_number in (1, 2, 3):
+            current_frame_path = current_render_directory / 'down_left' / f'frame-{current_frame_number:04d}.png'
+            current_frame_path.touch()
+            current_frame_seconds = current_clock_seconds - (3 - current_frame_number) * 2
+            os.utime(current_frame_path, (current_frame_seconds, current_frame_seconds))
+        current_estimate_record = jobs.estimate_generation_completion(current_job_directory, self.current_request_record, {'status': 'running', 'attempt_path': 'attempts/test', 'progress': {'stage': 'render'}})
+        self.assertEqual(current_estimate_record['sample_count'], 2)
+        self.assertEqual(current_estimate_record['total_units'], 60)
+        self.assertEqual(current_estimate_record['measured_progress'], 5)
+        self.assertGreater(current_estimate_record['remaining'], 110)
+        self.assertIn('패키징 시간 제외', current_estimate_record['scope'])
 
     def test_result_files_allow_only_registered_paths(self):
         current_job_identifier = self.create_test_generation()
@@ -202,7 +238,10 @@ class HyMotionContractTests(unittest.TestCase):
         current_player_record = json.loads(render_motion_result('test-id', current_result_record, 'http://127.0.0.1:8770'))
         self.assertEqual(current_player_record['sourceFrames']['down_left'], [1, 5])
         self.assertTrue(current_player_record['downloads'][0]['url'].endswith('/result/motion.npz'))
-        current_result_record['result']['gifs'] = [{'path': 'overview.gif', 'label': '전체 방향 비교 GIF'}]
+        current_result_record['result']['gifs'] = [{'path': 'down_left.gif', 'label': 'down_left GIF'}, {'path': 'overview.gif', 'label': '전체 방향 비교 GIF'}]
         current_player_record = json.loads(render_motion_result('test-id', current_result_record, 'http://127.0.0.1:8770'))
+        self.assertFalse(any(current_download_record['url'].endswith('/down_left.gif') for current_download_record in current_player_record['downloads']))
         self.assertEqual(current_player_record['downloads'][-1]['url'], 'http://127.0.0.1:8770/hy-motion-generator/jobs/test-id/result/overview.gif')
-        self.assertGreater(len(build_hymotion_interface('http://127.0.0.1:8770').blocks), 30)
+        current_interface_blocks = build_hymotion_interface('http://127.0.0.1:8770')
+        self.assertGreater(len(current_interface_blocks.blocks), 30)
+        self.assertFalse(any('기존 모션 ANNY 재출력' in str(getattr(current_component_value, 'label', '')) for current_component_value in current_interface_blocks.blocks.values()))

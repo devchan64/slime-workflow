@@ -1,4 +1,4 @@
-"""검수 PNG를 방향별 GIF와 동기화된 4방향 비교 GIF로 내보낸다."""
+"""검수 PNG를 선택 방향이 동기화된 비교 GIF로 내보낸다."""
 from PIL import Image, ImageDraw
 
 GIF_TIME_UNIT_MILLISECONDS = 10
@@ -54,8 +54,6 @@ def export_motion_gifs(current_preview_record, current_output_path, current_prog
         current_export_records.append({'path': current_relative_name, 'label': current_label_text, 'duration_ms': sum(current_frame_durations), 'loop': 'repeat_without_seam_correction'})
         current_progress_callback('gif', f'{current_relative_name} 저장 · {sum(current_frame_durations)}ms · 루프 연결 보정 없음')
 
-    for current_direction_name, current_loaded_frames in current_direction_frames.items():
-        save_animated_frames(current_loaded_frames, current_direction_name + '.gif', current_direction_name + ' GIF')
     current_column_count = min(GIF_CONTACT_COLUMN_COUNT, len(current_direction_names))
     current_row_count = (len(current_direction_names) + current_column_count - 1) // current_column_count
     current_frame_width, current_frame_height = current_expected_size

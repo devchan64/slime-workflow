@@ -6,6 +6,7 @@ import threading
 import time
 import bpy
 from mathutils import Vector
+from bpy_extras.object_utils import world_to_camera_view
 
 CURRENT_STAGE_RECORD = globals()['export_stage_request']
 CURRENT_OUTPUT_DIRECTORY = Path(CURRENT_STAGE_RECORD['export_directory'])
@@ -14,6 +15,7 @@ CURRENT_REQUEST_RECORD = CURRENT_STAGE_RECORD['request']
 CURRENT_RENDER_PROGRESS = {'stage': 'prepare'}
 CURRENT_LIGHT_POSITIONS = ((-3, -4, 4), (3, 4, 4))
 CURRENT_SAMPLE_FRAMES = tuple(range(CURRENT_REQUEST_RECORD['start_frame'], CURRENT_REQUEST_RECORD['end_frame'] + 1, CURRENT_REQUEST_RECORD['frame_step']))
+CURRENT_COCO_BONES = ('neck01', 'upperarm01.R', 'lowerarm01.R', 'wrist.R', 'upperarm01.L', 'lowerarm01.L', 'wrist.L', 'upperleg01.R', 'lowerleg01.R', 'foot.R', 'upperleg01.L', 'lowerleg01.L', 'foot.L')
 
 
 def emit_render_heartbeat():
@@ -27,6 +29,7 @@ if 'prepared_body_object' not in globals():
     bpy.ops.wm.open_mainfile(filepath=str(Path(CURRENT_STAGE_RECORD['output_directory']) / 'final/barrier/mannequin.blend'))
 current_render_scene = bpy.context.scene
 current_body_object = globals()['prepared_body_object'] if 'prepared_body_object' in globals() else bpy.data.objects['AnnyAttributesBody']
+current_rig_object = bpy.data.objects['AnnyAttributesRig']
 current_render_scene.render.engine = 'CYCLES'
 current_device_preferences = bpy.context.preferences.addons['cycles'].preferences
 current_device_preferences.compute_device_type = 'CUDA'
@@ -114,7 +117,17 @@ for current_projection_name in current_projection_names:
             current_relative_path = current_relative_directory + f'/frame-{current_image_index:04d}.png'
             current_render_scene.render.filepath = str(CURRENT_OUTPUT_DIRECTORY / current_relative_path)
             bpy.ops.render.render(write_still=True)
+            current_pose_keypoints = [[0., 0., 0.] for current_joint_index in range(18)]
+            for current_joint_index, current_bone_name in enumerate(CURRENT_COCO_BONES, 1):
+                current_world_point = current_rig_object.matrix_world @ current_rig_object.pose.bones[current_bone_name].head
+                current_projected_point = world_to_camera_view(current_render_scene, current_render_scene.camera, current_world_point)
+                if current_projected_point.z > 0 and 0 <= current_projected_point.x <= 1 and 0 <= current_projected_point.y <= 1:
+                    current_pose_keypoints[current_joint_index] = [float(current_projected_point.x * CURRENT_CONFIG_RECORD['resolution']), float((1 - current_projected_point.y) * CURRENT_CONFIG_RECORD['resolution']), 1.]
             current_next_frame = CURRENT_SAMPLE_FRAMES[current_image_index] if current_image_index < len(CURRENT_SAMPLE_FRAMES) else CURRENT_REQUEST_RECORD['end_frame'] + 1
-            current_image_records.append({'path': current_relative_path, 'projection': current_projection_name, 'direction': current_direction_name, 'source_frame': current_frame_number, 'source_time_seconds': (current_frame_number - 1) / 30, 'duration_seconds': (current_next_frame - current_frame_number) / 30})
+            current_head_keypoints = []
+            for current_head_position in (current_rig_object.pose.bones['head'].head, current_rig_object.pose.bones['head'].tail):
+                current_head_projection = world_to_camera_view(current_render_scene, current_render_scene.camera, current_rig_object.matrix_world @ current_head_position)
+                current_head_keypoints.append([float(current_head_projection.x * CURRENT_CONFIG_RECORD['resolution']), float((1 - current_head_projection.y) * CURRENT_CONFIG_RECORD['resolution']), 1.] if current_head_projection.z > 0 and 0 <= current_head_projection.x <= 1 and 0 <= current_head_projection.y <= 1 else [0., 0., 0.])
+            current_image_records.append({'path': current_relative_path, 'projection': current_projection_name, 'direction': current_direction_name, 'source_frame': current_frame_number, 'source_time_seconds': (current_frame_number - 1) / 30, 'duration_seconds': (current_next_frame - current_frame_number) / 30, 'pose_keypoints_2d': [current_axis_value for current_joint_point in current_pose_keypoints for current_axis_value in current_joint_point], 'head_bone_keypoints_2d': current_head_keypoints})
 (CURRENT_OUTPUT_DIRECTORY / 'render-manifest.json').write_text(json.dumps({'images': current_image_records, 'camera': current_camera_records, 'projection_cameras': current_projection_cameras, 'projections': current_projection_names}, ensure_ascii=False, indent=2))
 print(f'{time.strftime("%FT%T")}/vnccs-render/completed images={len(current_image_records)}', flush=True)

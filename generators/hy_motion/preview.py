@@ -8,6 +8,7 @@ PREVIEW_MARGIN_PIXELS = 32
 PREVIEW_BACKGROUND_COLOR = (245, 245, 245)
 PREVIEW_BONE_COLOR = (38, 71, 94)
 PREVIEW_LINE_WIDTH = 4
+HEAD_GUIDE_LENGTH_METERS = 0.18
 
 
 def validate_motion_output(current_output_arrays, expected_frame_count):
@@ -20,7 +21,14 @@ def validate_motion_output(current_output_arrays, expected_frame_count):
             raise ValueError(f'HY-Motion 출력 크기·자료형·유한값 오류: {current_field_name}, {current_array_value.shape}')
 
 
-def render_motion_previews(current_joint_frames, current_request_record, current_config_record, current_output_path, current_progress_callback):
+def render_motion_previews(current_joint_frames, current_request_record, current_config_record, current_output_path, current_progress_callback, current_head_rotations=None):
+    current_has_head_guide = current_head_rotations is not None
+    if current_has_head_guide:
+        if current_head_rotations.shape != (len(current_joint_frames), 3, 3) or not np.isfinite(current_head_rotations).all():
+            raise ValueError('머리 회전 가이드 입력 크기·유한값 오류')
+        current_guide_axes = np.array([[0., 0., 1.], [0., 1., 0.]])
+        current_guide_points = current_joint_frames[:, 15:16] + np.einsum('fij,aj->fai', current_head_rotations, current_guide_axes) * HEAD_GUIDE_LENGTH_METERS
+        current_joint_frames = np.concatenate([current_joint_frames, current_guide_points], axis=1)
     current_sample_indices = np.arange(0, len(current_joint_frames), 30 / current_config_record['preview_fps']).astype(int)
     current_preview_size = current_config_record['preview_size']
     current_elevation_angle = math.radians(current_config_record['camera_elevation'])
@@ -44,5 +52,10 @@ def render_motion_previews(current_joint_frames, current_request_record, current
                 if current_parent_index >= 0:
                     current_drawing_context.line([tuple(current_pixel_points[current_source_index, current_parent_index]), tuple(current_pixel_points[current_source_index, current_joint_index])], fill=PREVIEW_BONE_COLOR, width=PREVIEW_LINE_WIDTH)
             current_frame_image.save(current_direction_path / f'frame-{current_frame_index:04d}.png')
+            if current_has_head_guide:
+                for current_guide_index, current_guide_color in ((22, (220, 50, 50)), (23, (40, 100, 230))):
+                    current_drawing_context.line([tuple(current_pixel_points[current_source_index, 15]), tuple(current_pixel_points[current_source_index, current_guide_index])], fill=current_guide_color, width=PREVIEW_LINE_WIDTH)
+                current_drawing_context.text((8, 8), 'Head: red=forward / blue=up', fill=PREVIEW_BONE_COLOR)
+                current_frame_image.save(current_direction_path / f'frame-{current_frame_index:04d}-rotation.png')
         current_progress_callback('preview', f'{current_direction_name} 미리보기 {len(current_sample_indices)}프레임 저장')
     return {'frames': len(current_sample_indices), 'source_frames': len(current_joint_frames), 'source_fps': 30, 'preview_fps': current_config_record['preview_fps'], 'source_indices': (current_sample_indices + 1).tolist(), 'directions': current_request_record['directions']}

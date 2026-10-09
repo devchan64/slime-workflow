@@ -10,6 +10,7 @@ from zoneinfo import ZoneInfo
 
 from generators.hy_motion.contracts import WORKFLOW_ROOT_DIRECTORY, MODEL_CACHE_DIRECTORY, load_generation_defaults, validate_generation_request, build_prompt_provenance
 from tools.review.common.generation_records import write_record_atomically
+from tools.review.common.generation_estimates import calculate_generation_estimate
 from tools.review.common.gpu_job_queue import launch_gpu_process, cancel_gpu_generation, resume_gpu_generation
 
 GENERATION_STORAGE_ROOT = WORKFLOW_ROOT_DIRECTORY / '.tmp/test/hy-motion'
@@ -46,7 +47,28 @@ def read_generation_status(generation_job_identifier):
 
 
 def estimate_generation_completion(generation_job_path, current_request_record, current_status_record):
-    current_unknown_estimate = {'remaining': None, 'completion': None, 'basis': '동일 조건 완료 표본 없음 · 계산 중'}
+    current_estimate_scope = '작업 시작부터 모델 로드·모션 추론·ANNY 제약·렌더·OpenPose·패키징까지 · GPU 대기 제외'
+    current_unknown_estimate = calculate_generation_estimate(current_status_record, [], '동일 조건 완료 표본 없음 · 첫 완료 실행 후 계산 가능', current_estimate_scope)
+    if current_status_record['status'] not in ('running', 'queued'):
+        return current_unknown_estimate
+    if current_status_record.get('progress', {}).get('stage') == 'render' and current_status_record.get('attempt_path'):
+        current_attempt_directory = (generation_job_path / current_status_record['attempt_path']).resolve()
+        if not current_attempt_directory.is_relative_to(generation_job_path.resolve()):
+            raise ValueError('시간 추정 시도 경로가 작업 경계를 벗어났습니다.')
+        current_render_directory = current_attempt_directory if current_request_record.get('action') == 'export-vnccs' else current_attempt_directory / 'anny'
+        current_stage_path = current_render_directory / 'stage-request.json'
+        if current_stage_path.is_file():
+            current_stage_record = json.loads(current_stage_path.read_text())
+            current_render_request = current_stage_record['request']
+            current_total_units = len(range(current_render_request['start_frame'], current_render_request['end_frame'] + 1, current_render_request['frame_step'])) * len(current_render_request['directions']) * len(current_stage_record['config']['projections'])
+            current_render_times = sorted(current_image_path.stat().st_mtime for current_image_path in current_render_directory.glob('**/frame-*.png') if re.fullmatch(r'frame-\d{4}\.png', current_image_path.name))
+            if 2 <= len(current_render_times) < current_total_units:
+                current_recent_times = current_render_times[-6:]
+                current_unit_intervals = [current_right_time - current_left_time for current_left_time, current_right_time in zip(current_recent_times, current_recent_times[1:])]
+                current_remaining_units = current_total_units - len(current_render_times)
+                current_render_estimate = calculate_generation_estimate({'status': 'running', 'started_at': datetime.fromtimestamp(current_render_times[-1], ZoneInfo('Asia/Seoul')).isoformat()}, [statistics.median(current_unit_intervals) * current_remaining_units], f'현재 작업 렌더 {len(current_render_times)}/{current_total_units}장 · 최근 {len(current_unit_intervals)}개 완료 간격 중앙값', '남은 ANNY 렌더 단계만 · 후속 OpenPose·패키징 시간 제외')
+                current_render_estimate.update(sample_count=len(current_unit_intervals), completed_units=len(current_render_times), total_units=current_total_units, measured_progress=round(100 * len(current_render_times) / current_total_units, 1), estimated_progress=None, total_seconds=None)
+                return current_render_estimate
     if current_request_record.get('action') == 'export-vnccs':
         return {**current_unknown_estimate, 'basis': '리그 변환·CUDA 렌더 출력 · 소요 시간 표본 수집 전'}
     if current_status_record['status'] == 'queued':
@@ -67,17 +89,19 @@ def estimate_generation_completion(generation_job_path, current_request_record, 
             continue
         if len(current_sample_request.get('prompt', '').split()) != len(current_request_record['prompt'].split()) or json.loads((current_sample_directory / 'config.json').read_text()) != current_config_record:
             continue
+        current_render_path = generation_job_path / 'render-config.json'
+        current_sample_render_path = current_sample_directory / 'render-config.json'
+        if current_render_path.exists() != current_sample_render_path.exists():
+            continue
+        if current_render_path.exists() and json.loads(current_render_path.read_text()) != json.loads(current_sample_render_path.read_text()):
+            continue
         current_elapsed_samples.append(json.loads(current_result_path.read_text())['elapsed_seconds'])
         if len(current_elapsed_samples) == 5:
             break
     if not current_elapsed_samples:
         return current_unknown_estimate
-    current_estimated_finish = datetime.fromisoformat(current_status_record['started_at']) + timedelta(seconds=statistics.median(current_elapsed_samples))
-    current_remaining_seconds = (current_estimated_finish - datetime.now(ZoneInfo('Asia/Seoul'))).total_seconds()
     current_estimate_basis = f'동일 설정·길이·방향·프롬프트 단어 수의 최근 {len(current_elapsed_samples)}개 완료 실행 중앙값 · 환경 부하에 따라 변동'
-    if current_remaining_seconds <= 0:
-        return {**current_unknown_estimate, 'basis': current_estimate_basis + ' · 표본 시간을 초과하여 계산 중'}
-    return {'remaining': round(current_remaining_seconds), 'completion': current_estimated_finish.isoformat(), 'basis': current_estimate_basis}
+    return calculate_generation_estimate(current_status_record, current_elapsed_samples, current_estimate_basis, current_estimate_scope)
 
 
 def list_generation_history():
@@ -118,6 +142,9 @@ def start_generation_job(current_request_values, generation_operation_name='gene
         generation_job_path.mkdir(parents=True)
         write_record_atomically(generation_job_path / 'request.json', current_request_values)
         write_record_atomically(generation_job_path / 'config.json', current_config_record)
+        if generation_operation_name == 'generate':
+            from generators.hy_motion.vnccs_contract import load_vnccs_config
+            write_record_atomically(generation_job_path / 'render-config.json', load_vnccs_config())
         if current_export_source is not None:
             write_record_atomically(generation_job_path / 'export-source.json', current_export_source)
         write_record_atomically(generation_job_path / 'prompt.json', build_prompt_provenance(current_request_values.get('prompt', '')))
@@ -166,6 +193,18 @@ def execute_hymotion_command(operation_command_name, command_payload_value):
     if set(command_payload_value) != {'id'}:
         raise ValueError('생성 ID만 입력하세요.')
     generation_job_path = resolve_generation_directory(command_payload_value['id'])
+    if operation_command_name == 'history-delete':
+        GENERATION_HISTORY_ROOT.mkdir(parents=True, exist_ok=True)
+        with (GENERATION_HISTORY_ROOT / 'service.lock').open('a') as current_service_lock:
+            fcntl.flock(current_service_lock, fcntl.LOCK_EX)
+            current_selected_status = read_generation_status(command_payload_value['id'])
+            if current_selected_status['status'] in ('running', 'queued'):
+                raise ValueError('실행·대기 중인 이력은 삭제할 수 없습니다. 종료 후 다시 선택하세요.')
+            current_selected_path = GENERATION_HISTORY_ROOT / (command_payload_value['id'] + '.json')
+            if not current_selected_path.is_file() or current_selected_path.is_symlink():
+                raise ValueError('삭제할 생성 이력이 없거나 올바른 파일이 아닙니다.')
+            current_selected_path.unlink()
+        return {'status': 'deleted', 'id': command_payload_value['id'], 'files_preserved': True}
     if operation_command_name == 'status':
         return read_generation_status(command_payload_value['id'])
     if operation_command_name == 'logs':

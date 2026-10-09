@@ -6,5 +6,5 @@ presets:
     duration_seconds: 4
   walking:
     label: 걷기
-    prompt: A person takes four relaxed steps on a treadmill, swinging their arms naturally with their gaze slightly lowered.
+    prompt: A person takes four relaxed steps on a treadmill, swinging their arms naturally, head upright and looking straight ahead.
     duration_seconds: 4

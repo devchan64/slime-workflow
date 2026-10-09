@@ -1,5 +1,5 @@
 schema_version: 1
-rig_backend: makehuman
+rig_backend: anny
 resolution: 512
 samples: 16
 frame_step: 1

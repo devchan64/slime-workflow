@@ -7,7 +7,7 @@ seed: 10107
 steps: 50
 guidance_scale: 5.0
 prompt: A person stands relaxed with arms resting at their sides.
-directions: [down_left, down_right, up_left, up_right]
+directions: [down_left]
 preview_fps: 8
 preview_size: 512
 camera_elevation: 17

@@ -21,7 +21,7 @@ MANAGEMENT_SERVICE_COMMANDS = {'outfit-transfer':('history-delete','resume','gen
 
 
 MANAGEMENT_SERVICE_ROUTES['hy-motion']='/hy-motion-generator'
-MANAGEMENT_SERVICE_COMMANDS['hy-motion']=('generate','export-vnccs','prepare','model-status','status','logs','history','cancel','resume','history-reset')
+MANAGEMENT_SERVICE_COMMANDS['hy-motion']=('generate','export-vnccs','prepare','model-status','status','logs','history','cancel','resume','history-reset','history-delete')
 MANAGEMENT_COMMAND_ROUTES['export-vnccs']=('POST','/export/vnccs')
 MANAGEMENT_SERVICE_ROUTES['character-review']='/character-review'
 MANAGEMENT_SERVICE_COMMANDS['character-review']=('capture',)

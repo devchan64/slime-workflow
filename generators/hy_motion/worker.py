@@ -34,10 +34,14 @@ def execute_generation_worker(generation_job_path):
         current_progress_state.update(stage=current_stage_name, message=current_message_text)
         current_timestamp_text = datetime.now(ZoneInfo('Asia/Seoul')).isoformat()
         print(f'{current_timestamp_text}/hy-motion/{current_stage_name} {current_message_text}', flush=True)
-        write_record_atomically(generation_job_path / 'status.json', {'status': 'running', 'message': current_message_text, 'started_at': current_started_timestamp, 'progress': {'stage': current_stage_name}})
+        write_record_atomically(generation_job_path / 'status.json', {'status': 'running', 'message': current_message_text, 'started_at': current_started_timestamp, 'attempt_path': current_attempt_path.relative_to(generation_job_path).as_posix(), 'progress': {'stage': current_stage_name}})
 
     def emit_worker_heartbeat():
         while not current_shutdown_event.wait(5):
+            from tools.review.domains.hy_motion.jobs import estimate_generation_completion
+            current_live_status = json.loads((generation_job_path / 'status.json').read_text())
+            if current_live_status['status'] == 'running':
+                write_record_atomically(generation_job_path / 'eta.json', estimate_generation_completion(generation_job_path, current_request_record, current_live_status))
             current_output_count = sum(1 for current_artifact_path in current_attempt_path.rglob('*') if current_artifact_path.is_file())
             print(f'{datetime.now(ZoneInfo("Asia/Seoul")).isoformat()}/hy-motion/heartbeat stage={current_progress_state["stage"]} elapsed={time.monotonic()-current_started_time:.1f}s artifacts={current_output_count} recent={current_progress_state["message"]}', flush=True)
 
@@ -64,17 +68,33 @@ def execute_generation_worker(generation_job_path):
                 from generators.hy_motion.gif_export import export_motion_gifs
                 validate_generation_request(current_request_record)
                 current_output_arrays, current_provenance_record = run_motion_inference(current_request_record, current_config_record, current_attempt_path, record_worker_progress)
+                import gc
+                gc.collect()
+                torch.cuda.empty_cache()
                 validate_motion_output(current_output_arrays, round(current_request_record['duration_seconds'] * 30))
                 current_provenance_record.update(request=current_request_record, config=current_config_record, encoder_prompt=json.loads((current_attempt_path / 'encoder-prompt.json').read_text()))
                 np.savez_compressed(current_attempt_path / 'motion.npz', **current_output_arrays, fps=np.array(30))
                 write_record_atomically(current_attempt_path / 'provenance.json', current_provenance_record)
-                current_result_record = render_motion_previews(current_output_arrays['world_joints'][:, :22], current_request_record, current_config_record, current_attempt_path, record_worker_progress)
+                from generators.hy_motion.head_rotation_transfer import load_head_motion_rotations
+                current_head_rotations, current_head_source = load_head_motion_rotations(current_attempt_path / 'motion.npz', len(current_output_arrays['world_joints']))
+                current_coordinate_basis = np.asarray(current_head_source['source_to_target_basis'])
+                current_source_rotations = current_coordinate_basis.T @ current_head_rotations @ current_coordinate_basis
+                current_result_record = render_motion_previews(current_output_arrays['world_joints'][:, :22], current_request_record, current_config_record, current_attempt_path, record_worker_progress, current_source_rotations)
+                current_result_record['head_rotation_guide'] = True
                 current_result_record['gifs'] = export_motion_gifs(current_result_record, current_attempt_path, record_worker_progress)
                 current_result_record.update(kind='motion', relative_path=current_attempt_path.relative_to(generation_job_path).as_posix(), provenance=current_provenance_record)
+                from generators.hy_motion.automatic_render import generate_automatic_renders
+                from generators.hy_motion.vnccs_contract import load_vnccs_config
+                current_render_config_path = generation_job_path / 'render-config.json'
+                # 과거 모션 작업의 재개도 새 기본 출력을 적용하고 해당 시도에 설정을 보존한다.
+                current_render_config = json.loads(current_render_config_path.read_text()) if current_render_config_path.exists() else load_vnccs_config()
+                write_record_atomically(current_attempt_path / 'render-config.json', current_render_config)
+                current_result_record['rendering'] = generate_automatic_renders(generation_job_path, current_attempt_path, current_request_record, current_render_config, record_worker_progress)
+                current_result_record['quality_warnings'] = current_result_record['rendering']['quality_warnings']
         current_result_record['elapsed_seconds'] = round(time.monotonic() - current_started_time, 2)
         write_record_atomically(generation_job_path / 'result.json', current_result_record)
         write_record_atomically(current_attempt_path / 'outcome.json', {'status': 'completed', 'result': current_result_record})
-        write_record_atomically(generation_job_path / 'status.json', {'status': 'completed', 'message': '모델 준비 완료' if current_result_record['kind'] == 'prepared' else 'VNCCS용 포즈 PNG·출처 패키지 완료 · 품질 경고 확인 필요' if current_result_record['kind'] == 'vnccs' else '원본 모션·방향별 미리보기 생성 완료'})
+        write_record_atomically(generation_job_path / 'status.json', {'status': 'completed', 'message': '모델 준비 완료' if current_result_record['kind'] == 'prepared' else 'VNCCS용 포즈 PNG·출처 패키지 완료 · 품질 경고 확인 필요' if current_result_record['kind'] == 'vnccs' else '원본 모션·ANNY 리그·정사영·원근투영·OpenPose 저장 완료'})
         print(f'{datetime.now(ZoneInfo("Asia/Seoul")).isoformat()}/hy-motion/completed 출력={current_attempt_path}', flush=True)
         return 0
     except Exception as current_execution_error:

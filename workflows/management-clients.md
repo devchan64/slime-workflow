@@ -32,7 +32,7 @@ ANNY 기준점 후보 지정·축 검수는 [해부학 리타기팅 검수](anny
 
 HY-Motion Lite 생성·모델 준비·8GB 오프로드·기록 계약은 [HY-Motion 생성기](hy-motion.md)를 따른다. 서비스 이름은 `hy-motion`, GUI는 `/management/frame/hy-motion-generator/`이며 공용 게이트웨이와 GPU 실행기를 사용한다.
 
-`tools/manager.py command hy-motion export-vnccs --payload-file <JSON> [--detach]`는 완료된 원본을 MakeHuman 고정 체형으로 리타기팅하여 VNCCS image1용 정사영·원근투영(30°) PNG·ZIP·출처·품질 기록을 함께 출력한다. GUI 출력 버튼도 같은 명령을 사용한다. `source_id`와 선택 프레임·방향을 입력하며 별도 출력 ID를 기존 HY-Motion 저장소·이력에 보관한다. 이미지 생성 추론이나 자동 자산 등록은 하지 않는다.
+HY-Motion 신규 `generate`는 ANNY 리그 변환·스킨 충돌 기반 회전 제약·정사영·원근투영·OpenPose를 같은 생성 ID에 자동 저장한다. `export-vnccs`는 기존 모션 재출력용 호환 명령이며 MakeHuman은 폐기됐다. AnyPose LoRA 전용 렌더 옵션은 제공하지 않는다. 입력·저장·후보 품질 한계는 [HY-Motion 안내](hy-motion.md)를 따른다.
 
 화면 구성·상태·로그·이력·재생 UX 기준은 [관리도구 UI 가이드](management-ui.md)를 따른다.
 

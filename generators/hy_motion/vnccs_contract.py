@@ -15,7 +15,7 @@ def load_vnccs_config():
     current_expected_fields = {'schema_version', 'rig_backend', 'resolution', 'samples', 'frame_step', 'camera_elevation', 'camera_angles', 'framing_margin', 'skin_profile', 'target_profile', 'projections', 'perspective_fov_degrees'}
     if not isinstance(current_config_record, dict) or set(current_config_record) != current_expected_fields:
         raise ValueError('VNCCS 출력 설정 필드 오류')
-    if current_config_record['rig_backend'] != 'makehuman':
+    if current_config_record['rig_backend'] != 'anny':
         raise ValueError('지원하지 않는 VNCCS 리그 백엔드')
     if current_config_record['projections'] != ['orthographic', 'perspective']:
         raise ValueError('VNCCS 출력은 정사영·원근투영 순서로 고정합니다.')
