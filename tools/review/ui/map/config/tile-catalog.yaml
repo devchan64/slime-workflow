@@ -6,17 +6,21 @@ source_tile_size: 256
 ground_source_tile_size: 128
 # 검수 화면 논리 타일 ID와 에셋 저장소 원본의 표시용 매핑이다.
 tiles:
+  - {id: dark-basalt-paver-road, category: ground, asset: assets/tiles/terrain/road/dark-basalt-paver-road-v1.png}
+  - {id: granite-slab-road, category: ground, asset: assets/tiles/terrain/road/granite-slab-road-v1.png}
+  - {id: limestone-mosaic-road, category: ground, asset: assets/tiles/terrain/road/limestone-mosaic-road-v1.png}
+  - {id: ochre-pebble-road-v2, category: ground, asset: assets/tiles/terrain/road/ochre-pebble-road-v2.png}
   - {id: meadow-road, category: ground, asset: assets/tiles/terrain/road/ochre-pebble-road-v1.png}
   - {id: broken-stone-slab-road, category: ground, asset: assets/tiles/terrain/road/limestone-road-v3.png}
   - {id: ochre-pebble-road, category: ground, asset: assets/tiles/terrain/road/ochre-pebble-road-v1.png}
   - {id: soil-pebble-road, category: ground, asset: assets/tiles/terrain/road/ochre-pebble-road-v1.png}
-  - {id: boulder-type-a, category: ground, asset: assets/tiles/terrain/non-road/grass-ground-v2.png}
-  - {id: boulder-type-b, category: ground, asset: assets/tiles/terrain/non-road/grass-ground-v2.png}
-  - {id: boulder-type-c, category: ground, asset: assets/tiles/terrain/non-road/grass-ground-v2.png}
-  - {id: grass-type-a, category: ground, asset: assets/tiles/terrain/non-road/grass-ground-v2.png}
-  - {id: grass-type-b, category: ground, asset: assets/tiles/terrain/non-road/grass-ground-v2.png}
-  - {id: iseulon-grass-mud-frame, category: ground, asset: assets/tiles/terrain/non-road/grass-ground-v2.png}
-  - {id: grass, category: ground, asset: assets/tiles/terrain/non-road/grass-ground-v2.png}
+  - {id: boulder-type-a, category: ground, asset: assets/tiles/terrain/non-road/wildflower-meadow-ground-v1.png}
+  - {id: boulder-type-b, category: ground, asset: assets/tiles/terrain/non-road/wildflower-meadow-ground-v1.png}
+  - {id: boulder-type-c, category: ground, asset: assets/tiles/terrain/non-road/wildflower-meadow-ground-v1.png}
+  - {id: grass-type-a, category: ground, asset: assets/tiles/terrain/non-road/wildflower-meadow-ground-v1.png}
+  - {id: grass-type-b, category: ground, asset: assets/tiles/terrain/non-road/wildflower-meadow-ground-v1.png}
+  - {id: iseulon-grass-mud-frame, category: ground, asset: assets/tiles/terrain/non-road/wildflower-meadow-ground-v1.png}
+  - {id: grass, category: ground, asset: assets/tiles/terrain/non-road/wildflower-meadow-ground-v1.png}
   # 포장 논리 ID는 어두운 석회석 도로 원본을 사용한다.
   - {id: paving, category: ground, asset: assets/tiles/terrain/road/limestone-road-v3.png}
   - {id: reedhaven-dirt-road, category: ground, asset: assets/tiles/terrain/road/limestone-road-v3.png}
@@ -29,7 +33,7 @@ tiles:
   - {id: stonewarm-stone-wall-crossbar, category: structure, asset: assets/tiles/buildings/stone/stone-wall-crossbar-v1.png}
   - {id: stonewarm-stone-door, category: door, asset: assets/tiles/buildings/stone/stone-door-v1.png}
   - {id: spring_water, category: ground, asset: assets/tiles/terrain/blocked/transparent-shallow-water-v2.png}
-  - {id: flower_bed, category: decoration, asset: assets/tiles/terrain/non-road/grass-ground-v2.png}
+  - {id: flower_bed, category: decoration, asset: assets/tiles/terrain/non-road/wildflower-meadow-ground-v1.png}
   - {id: marble_large_window_wall, category: structure, asset: assets/tiles/buildings/stone/stone-large-window-wall-v1.png}
   - {id: marble_plain_wall, category: structure, asset: assets/tiles/buildings/stone/stone-wall-v1.png}
   - {id: marble_small_window_wall, category: structure, asset: assets/tiles/buildings/stone/stone-small-window-wall-v1.png}
@@ -37,7 +41,13 @@ tiles:
   - {id: marble_small_door, category: door, asset: assets/tiles/buildings/stone/stone-door-v1.png}
   - {id: wood_roof, category: roof, asset: assets/tiles/buildings/wood/wood-roof-v4.png}
   - {id: stonewarm-guild-red-stone-roof, category: roof, asset: assets/tiles/buildings/red-stone/red-stone-roof-v3.png}
-  - {id: red-stone-brick-gate, category: door, asset: assets/tiles/buildings/red-stone/red-stone-brick-gate-v1.png}
+  - {id: red-stone-brick-gate, category: door, asset: assets/tiles/buildings/red-stone/red-stone-brick-gate-v3.png}
+  - {id: red-stone-sky-blue-window-wall, category: structure, asset: assets/tiles/buildings/red-stone/red-stone-sky-blue-window-wall-v1.png}
+  - {id: adobe-mudbrick-wall, category: structure, asset: assets/tiles/buildings/adobe/adobe-mudbrick-wall-v1.png}
+  - {id: mossy-ancient-stone-wall, category: structure, asset: assets/tiles/buildings/stone/mossy-ancient-stone-wall-v1.png}
+  - {id: white-plaster-timber-wall, category: structure, asset: assets/tiles/buildings/wood/white-plaster-timber-wall-v1.png}
+  - {id: dark-basalt-wall, category: structure, asset: assets/tiles/buildings/stone/dark-basalt-wall-v1.png}
+  - {id: limestone-ashlar-wall, category: structure, asset: assets/tiles/buildings/stone/limestone-ashlar-wall-v1.png}
   - {id: wood_wall, category: structure, asset: assets/tiles/buildings/wood/wood-wall-v2.png}
   - {id: wood_window_wall, category: structure, asset: assets/tiles/buildings/wood/wood-window-wall-v1.png}
   - {id: wood_door_wall, category: door, asset: assets/tiles/buildings/wood/wood-door-wall-v1.png}
@@ -46,20 +56,20 @@ tiles:
   - {id: stone_slab_road, category: ground, asset: assets/tiles/terrain/road/limestone-road-v3.png}
   - {id: cactus, category: ground, asset: assets/tiles/terrain/blocked/sand-cactus-type-a-v1.png}
   - {id: wind-swept-sand, category: ground, asset: assets/tiles/terrain/non-road/wind-swept-sand-ground-v1.png}
-  - {id: gravel, category: ground, asset: assets/tiles/terrain/non-road/grass-ground-v2.png}
-  - {id: mud, category: ground, asset: assets/tiles/terrain/non-road/grass-ground-v2.png}
-  - {id: boulder, category: ground, asset: assets/tiles/terrain/non-road/grass-ground-v2.png}
+  - {id: gravel, category: ground, asset: assets/tiles/terrain/non-road/wildflower-meadow-ground-v1.png}
+  - {id: mud, category: ground, asset: assets/tiles/terrain/non-road/wildflower-meadow-ground-v1.png}
+  - {id: boulder, category: ground, asset: assets/tiles/terrain/non-road/wildflower-meadow-ground-v1.png}
   - {id: shallow-water, category: ground, asset: assets/tiles/terrain/blocked/transparent-shallow-water-v2.png}
-  - {id: reed-bed, category: ground, asset: assets/tiles/terrain/non-road/grass-ground-v2.png}
+  - {id: reed-bed, category: ground, asset: assets/tiles/terrain/non-road/wildflower-meadow-ground-v1.png}
   - {id: deep-water, category: ground, asset: assets/tiles/terrain/blocked/transparent-deep-water-v2.png}
   - {id: swamp-water, category: ground, asset: assets/tiles/terrain/blocked/swamp-water-v2.png}
-  - {id: stone, category: ground, asset: assets/tiles/terrain/non-road/grass-ground-v2.png}
-  - {id: dry-soil-branches, category: ground, asset: assets/tiles/terrain/non-road/grass-ground-v2.png}
+  - {id: stone, category: ground, asset: assets/tiles/terrain/non-road/wildflower-meadow-ground-v1.png}
+  - {id: dry-soil-branches, category: ground, asset: assets/tiles/terrain/non-road/wildflower-meadow-ground-v1.png}
   - {id: stonewarm-marble-paving, category: ground, asset: assets/tiles/terrain/road/marble-circular-road-v1.png}
   - {id: marble-circular-road, category: ground, asset: assets/tiles/terrain/road/marble-circular-road-v1.png}
-  - {id: dew, category: ground, asset: assets/tiles/terrain/non-road/grass-ground-v2.png}
-  - {id: ash, category: ground, asset: assets/tiles/terrain/non-road/grass-ground-v2.png}
-  - {id: moss, category: ground, asset: assets/tiles/terrain/non-road/grass-ground-v2.png}
+  - {id: dew, category: ground, asset: assets/tiles/terrain/non-road/wildflower-meadow-ground-v1.png}
+  - {id: ash, category: ground, asset: assets/tiles/terrain/non-road/wildflower-meadow-ground-v1.png}
+  - {id: moss, category: ground, asset: assets/tiles/terrain/non-road/wildflower-meadow-ground-v1.png}
   - {id: leaf-litter, category: ground, asset: assets/tiles/terrain/non-road/leaf-litter-v2.png}
   - {id: autumn-leaf-litter, category: ground, asset: assets/tiles/terrain/non-road/autumn-leaf-litter-v1.png}
   - {id: pebble-shore-ground, category: ground, asset: assets/tiles/terrain/non-road/pebble-shore-ground-v1.png}
@@ -73,7 +83,11 @@ tiles:
   - {id: round-fieldstone-ground, category: ground, asset: assets/tiles/terrain/non-road/round-fieldstone-ground-v1.png}
   - {id: frosted-grass-ground, category: ground, asset: assets/tiles/terrain/non-road/frosted-grass-ground-v1.png}
   - {id: sandy-scrub-ground, category: ground, asset: assets/tiles/terrain/non-road/sandy-scrub-ground-v1.png}
-  - {id: tree-base, category: ground, asset: assets/tiles/terrain/non-road/grass-ground-v2.png}
+  - {id: tree-base, category: ground, asset: assets/tiles/terrain/non-road/wildflower-meadow-ground-v1.png}
   - {id: ramp-tread, category: ground, asset: assets/tiles/terrain/blocked/ramp-earth-stone-wall-v1.png}
   - {id: cliff-wall, category: ground, asset: assets/tiles/terrain/blocked/cliff-rock-face-v1.png}
   - {id: battle-tree-stump, category: ground, asset: assets/tiles/terrain/blocked/dry-ground-tree-stump-v1.png}
+
+  - {id: iseulon-courtyard-paving, category: ground, asset: assets/tiles/terrain/road/ochre-pebble-road-v2.png}
+
+  - {id: red-stone-brick-wall, category: structure, asset: assets/tiles/buildings/red-stone/red-stone-brick-wall-v1.png}
