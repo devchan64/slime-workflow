@@ -70,7 +70,7 @@ def build_anny_attribute_interface(review_server_port):
                 build_browser_action_button(current_button_label,'annyAttributeActions',current_action_name,current_action_feedback)
         with gr.Accordion('신체 속성 편집',open=True,elem_id='anny-standard-attributes'):
             current_attribute_choice=gr.Dropdown(label='신체 속성',choices=[],interactive=True)
-            current_attribute_value=gr.Number(label='속성값',value=0)
+            current_attribute_value=gr.Slider(label='속성값',minimum=0,maximum=1,value=0,step=0.1,precision=None)
             with gr.Row():
                 for current_attribute_action,current_attribute_label in (('read','속성 목록·현재 값 읽기'),('apply','속성값 적용')):
                     current_attribute_button=gr.Button(current_attribute_label)
