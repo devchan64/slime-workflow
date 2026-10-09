@@ -1,6 +1,28 @@
-// packages/field-surface/field-surface.mjs
-var FIELD_RENDER_METRICS = Object.freeze({ tileWidth: 80, tileHeight: 40, elevationHeight: 32, baseThickness: 16 });
+// packages/field-renderer/render-constants.mjs
+var MAP_TILE_WIDTH = 80;
+var MAP_TILE_HEIGHT = 40;
+var GAME_TILE_SOURCE_SIZES = Object.freeze([64, 128, 256, 512]);
+var MAP_ELEVATION_HEIGHT = 32;
+var MAP_BASE_THICKNESS = 16;
+var FIELD_ELEVATION_EDGE_STYLE = Object.freeze({ color: 3158064, width: 4, alpha: 0.85 });
+var FIELD_MESH_BOUNDARY_STYLE = Object.freeze({ color: 14476783, width: 1, alpha: 0.9 });
+var FIELD_ACTOR_CONTACT_SHADOW_PROFILES = Object.freeze({
+  baseline: Object.freeze({ width: 0.4, height: 0.32, alpha: 0.3, coreAlpha: 0.24, coreScale: 0.65, scale: 1.3, opacityScale: 1.5 }),
+  contrast: Object.freeze({ width: 0.4, height: 0.32, alpha: 0.36, coreAlpha: 0.3, coreScale: 0.65, scale: 1.3, opacityScale: 1.5 }),
+  broad: Object.freeze({ width: 0.44, height: 0.34, alpha: 0.32, coreAlpha: 0.26, coreScale: 0.65, scale: 1.3, opacityScale: 1.5 })
+});
+var FIELD_ACTOR_CONTACT_SHADOW_COLOR = 1587502;
+var FIELD_SAFE_TOWER_PROFILE = Object.freeze({ anchorX: 627, anchorY: 1095, bodyTop: 82, displayHeight: 112 });
+var FIELD_SAFE_AURA_PROFILE = Object.freeze({ columns: 4, rows: 2, frames: 8, height: 15, alpha: 0.7, frameDuration: 120, horizontalCrop: 0.02, topCrop: 0.25, bottomCrop: 0.1 });
+var FIELD_CONNECTION_SHAPE = Object.freeze({ inset: 0.08, radius: 0.2, half: 0.5 });
 var TERRAIN_STAIR_COUNT = 3;
+var CHARACTER_OUTLINE_STYLE = Object.freeze({ color: 16774084, cssColor: "#fff3c4", width: 5, outerStrength: 4, quality: 0.1 });
+var ACTOR_CONTACT_SHADOW_CONTRACT = Object.freeze({ profile: "contrast" });
+var FIELD_RENDER_METRICS = Object.freeze({ tileWidth: MAP_TILE_WIDTH, tileHeight: MAP_TILE_HEIGHT, elevationHeight: MAP_ELEVATION_HEIGHT, baseThickness: MAP_BASE_THICKNESS });
+var TERRAIN_MATERIAL_BOUNDARY_ENABLED = true;
+var BUILDING_ROOF_TEXTURE_ROTATION_RADIANS = -Math.PI / 2;
+
+// packages/field-surface/field-surface.mjs
 function readSurfaceHeight(currentCellPosition, currentMapSurface) {
   if (currentCellPosition.column < 0 || currentCellPosition.row < 0 || currentCellPosition.column >= currentMapSurface.columns || currentCellPosition.row >= currentMapSurface.rows) return 0;
   if (currentMapSurface.heightSource) return readSurfaceHeight(currentMapSurface.heightSource.position(currentCellPosition), currentMapSurface.heightSource.surface);
@@ -65,25 +87,13 @@ function resolveCliffTextureScale(currentRenderOptions, currentTextureWidth, cur
   if (!Number.isFinite(currentTextureWidth) || !Number.isFinite(currentTextureHeight) || currentTextureWidth <= 0 || currentTextureHeight <= 0) throw new Error("\uC554\uBCBD \uD14D\uC2A4\uCC98 \uD06C\uAE30\uB294 \uC591\uC218\uC5EC\uC57C \uD569\uB2C8\uB2E4.");
   return { scaleX: currentRenderOptions.tileWidth / (2 * currentTextureWidth), scaleY: currentRenderOptions.elevationHeight / currentTextureHeight };
 }
-var CHARACTER_OUTLINE_STYLE = Object.freeze({ color: 16774084, cssColor: "#fff3c4", width: 5, outerStrength: 4, quality: 0.1 });
 
 // packages/field-renderer/field-renderer.mjs
-var FIELD_RENDERER_VERSION = "1.0.6";
-var FIELD_ELEVATION_EDGE_STYLE = Object.freeze({ color: 3158064, width: 4, alpha: 0.85 });
-var FIELD_MESH_BOUNDARY_STYLE = Object.freeze({ color: 14476783, width: 1, alpha: 0.9 });
-var FIELD_ACTOR_CONTACT_SHADOW_PROFILES = Object.freeze({
-  baseline: Object.freeze({ width: 0.4, height: 0.32, alpha: 0.3, coreAlpha: 0.24, coreScale: 0.65, scale: 1.3, opacityScale: 1.5 }),
-  contrast: Object.freeze({ width: 0.4, height: 0.32, alpha: 0.36, coreAlpha: 0.3, coreScale: 0.65, scale: 1.3, opacityScale: 1.5 }),
-  broad: Object.freeze({ width: 0.44, height: 0.34, alpha: 0.32, coreAlpha: 0.26, coreScale: 0.65, scale: 1.3, opacityScale: 1.5 })
-});
-var FIELD_ACTOR_CONTACT_SHADOW_COLOR = 1587502;
-var FIELD_SAFE_TOWER_PROFILE = Object.freeze({ anchorX: 627, anchorY: 1095, bodyTop: 82, displayHeight: 112 });
-var FIELD_SAFE_AURA_PROFILE = Object.freeze({ columns: 4, rows: 2, frames: 8, height: 15, alpha: 0.7, frameDuration: 120, horizontalCrop: 0.02, topCrop: 0.25, bottomCrop: 0.1 });
+var FIELD_RENDERER_VERSION = "1.0.26";
 var FIELD_EDGE_COORDINATE_EPSILON = 1e-6;
 var FIELD_QUAD_TRIANGLES = [0, 1, 2, 0, 2, 3];
 var FIELD_CELL_CORNERS = [[-0.5, -0.5], [0.5, -0.5], [0.5, 0.5], [-0.5, 0.5]];
 var FIELD_BOUNDARY_NEIGHBORS = [{ column: 1, row: 0, edge: [1, 2] }, { column: 0, row: 1, edge: [2, 3] }, { column: -1, row: 0, edge: [3, 0] }, { column: 0, row: -1, edge: [0, 1] }];
-var FIELD_CONNECTION_SHAPE = Object.freeze({ inset: 0.08, radius: 0.2, half: 0.5 });
 function resolveFieldActorContactShadow(currentShadowProfileName = "contrast") {
   const currentShadowProfile = FIELD_ACTOR_CONTACT_SHADOW_PROFILES[currentShadowProfileName];
   if (!currentShadowProfile) throw Error("\uC9C0\uC6D0\uD558\uC9C0 \uC54A\uB294 \uC811\uC9C0 \uADF8\uB9BC\uC790 \uD504\uB85C\uD544: " + currentShadowProfileName);
@@ -164,6 +174,20 @@ function buildFieldElevationEdges(currentCellPosition, currentMapSurface, curren
   return FIELD_BOUNDARY_NEIGHBORS.flatMap((currentNeighborOffset) => {
     const currentNeighborCell = { column: currentCellPosition.column + currentNeighborOffset.column, row: currentCellPosition.row + currentNeighborOffset.row };
     if (currentNeighborCell.column < 0 || currentNeighborCell.row < 0 || currentNeighborCell.column >= currentMapSurface.columns || currentNeighborCell.row >= currentMapSurface.rows || (readSurfaceHeight(currentNeighborCell, currentMapSurface) > currentCellHeight || readSurfaceHeight(currentNeighborCell, currentMapSurface) === currentCellHeight && !findSurfaceStair(currentNeighborCell, currentMapSurface))) return [];
+    return [currentNeighborOffset.edge.map((currentCornerIndex) => currentCornerPoints[currentCornerIndex])];
+  });
+}
+function buildFieldMaterialEdges(currentCellPosition, currentMapSurface, resolveGroundMaterial, currentRenderOptions = FIELD_RENDER_METRICS) {
+  if (findSurfaceStair(currentCellPosition, currentMapSurface)) return [];
+  const currentMaterialName = resolveGroundMaterial(currentCellPosition);
+  if (currentMaterialName === "road") return [];
+  const currentCellHeight = readSurfaceHeight(currentCellPosition, currentMapSurface);
+  const currentCornerPoints = FIELD_CELL_CORNERS.map(([currentColumnOffset, currentRowOffset]) => projectSurfaceVertex({ column: currentCellPosition.column + currentColumnOffset, row: currentCellPosition.row + currentRowOffset, height: currentCellHeight * currentRenderOptions.elevationHeight }, currentRenderOptions));
+  return FIELD_BOUNDARY_NEIGHBORS.filter((currentNeighborOffset) => currentNeighborOffset.column < 0 || currentNeighborOffset.row < 0).flatMap((currentNeighborOffset) => {
+    const currentNeighborCell = { column: currentCellPosition.column + currentNeighborOffset.column, row: currentCellPosition.row + currentNeighborOffset.row };
+    if (currentNeighborCell.column < 0 || currentNeighborCell.row < 0 || findSurfaceStair(currentNeighborCell, currentMapSurface) || readSurfaceHeight(currentNeighborCell, currentMapSurface) !== currentCellHeight) return [];
+    const currentNeighborMaterial = resolveGroundMaterial(currentNeighborCell);
+    if (currentNeighborMaterial === currentMaterialName || currentNeighborMaterial === "road") return [];
     return [currentNeighborOffset.edge.map((currentCornerIndex) => currentCornerPoints[currentCornerIndex])];
   });
 }
@@ -274,6 +298,10 @@ function drawFieldCellObjects(currentGameScene, currentCellPosition, currentMapS
     const currentRoadEdges = buildFieldRoadEdges(currentCellPosition, currentMapSurface, currentTextureKeys.roadConnectionMask, currentRenderOptions, currentTextureKeys.fullTileRoad);
     if (currentRoadEdges.length) currentRenderObjects.push(drawFieldElevationOutline(currentGameScene, currentRoadEdges, currentRenderDepth + 0.98));
   }
+  if (TERRAIN_MATERIAL_BOUNDARY_ENABLED && currentTextureKeys.resolveGroundMaterial) {
+    const currentMaterialEdges = buildFieldMaterialEdges(currentCellPosition, currentMapSurface, currentTextureKeys.resolveGroundMaterial, currentRenderOptions);
+    if (currentMaterialEdges.length) currentRenderObjects.push(drawFieldElevationOutline(currentGameScene, currentMaterialEdges, currentRenderDepth + 0.99));
+  }
   const currentElevationEdges = buildFieldElevationEdges(currentCellPosition, currentMapSurface, currentRenderOptions);
   if (currentElevationEdges.length) currentRenderObjects.push(drawFieldElevationOutline(currentGameScene, currentElevationEdges, currentRenderDepth + 0.99));
   return currentRenderObjects;
@@ -319,9 +347,23 @@ function drawFieldTowerObject(currentGameScene, currentScreenPosition, currentTe
   const currentTowerImage = currentGameScene.add.image(currentScreenPosition.x, currentScreenPosition.y, currentTextureKey);
   return currentTowerImage.setOrigin(FIELD_SAFE_TOWER_PROFILE.anchorX / currentTowerImage.width, FIELD_SAFE_TOWER_PROFILE.anchorY / currentTowerImage.height).setScale(FIELD_SAFE_TOWER_PROFILE.displayHeight / (FIELD_SAFE_TOWER_PROFILE.anchorY - FIELD_SAFE_TOWER_PROFILE.bodyTop)).setDepth(currentRenderDepth);
 }
+function drawTownMaterialEdges(currentGameScene, currentCellPosition, resolveGroundMaterial, projectGroundPosition, resolveGroundDepth, currentSurfaceDepth) {
+  if (!TERRAIN_MATERIAL_BOUNDARY_ENABLED) return [];
+  const currentMaterialName = resolveGroundMaterial(currentCellPosition);
+  return FIELD_BOUNDARY_NEIGHBORS.filter((currentNeighborOffset) => currentNeighborOffset.column < 0 || currentNeighborOffset.row < 0).flatMap((currentNeighborOffset) => {
+    const currentNeighborCell = { column: currentCellPosition.column + currentNeighborOffset.column, row: currentCellPosition.row + currentNeighborOffset.row };
+    if (currentNeighborCell.column < 0 || currentNeighborCell.row < 0 || resolveGroundMaterial(currentNeighborCell) === currentMaterialName) return [];
+    const currentEdgePoints = currentNeighborOffset.edge.map((currentCornerIndex) => {
+      const [currentColumnOffset, currentRowOffset] = FIELD_CELL_CORNERS[currentCornerIndex];
+      return projectGroundPosition({ column: currentCellPosition.column + currentColumnOffset, row: currentCellPosition.row + currentRowOffset });
+    });
+    return [drawFieldElevationOutline(currentGameScene, [currentEdgePoints], Math.max(resolveGroundDepth(currentCellPosition), resolveGroundDepth(currentNeighborCell)) + currentSurfaceDepth + 0.01)];
+  });
+}
 export {
   FIELD_ACTOR_CONTACT_SHADOW_COLOR,
   FIELD_ACTOR_CONTACT_SHADOW_PROFILES,
+  FIELD_CONNECTION_SHAPE,
   FIELD_ELEVATION_EDGE_STYLE,
   FIELD_MESH_BOUNDARY_STYLE,
   FIELD_RENDERER_VERSION,
@@ -332,6 +374,7 @@ export {
   buildFieldCellGeometry,
   buildFieldCliffEdges,
   buildFieldElevationEdges,
+  buildFieldMaterialEdges,
   buildFieldPanelVertices,
   buildFieldRoadEdges,
   containsSurfacePoint,
@@ -342,6 +385,7 @@ export {
   drawFieldMeshBoundary,
   drawFieldTexturePanel,
   drawFieldTowerObject,
+  drawTownMaterialEdges,
   prepareFieldConnectedTexture,
   projectSurfaceCell,
   projectSurfaceVertex,

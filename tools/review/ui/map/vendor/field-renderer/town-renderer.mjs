@@ -84,6 +84,24 @@ function drawFieldElevationOutline(currentGameScene, currentEdgeSegments, curren
   return currentEdgeGraphic;
 }
 
+// ../slime-assets/assets/tiles/terrain/non-road/pebble-shore-ground-v1.png
+var pebble_shore_ground_v1_default = "assets/tiles/terrain/non-road/pebble-shore-ground-v1.png";
+
+// ../slime-assets/assets/tiles/terrain/non-road/exposed-rock-ground-v2.png
+var exposed_rock_ground_v2_default = "assets/tiles/terrain/non-road/exposed-rock-ground-v2.png";
+
+// ../slime-assets/assets/tiles/terrain/road/granite-slab-road-v1.png
+var granite_slab_road_v1_default = "assets/tiles/terrain/road/granite-slab-road-v1.png";
+
+// ../slime-assets/assets/tiles/buildings/stone/stone-small-window-wall-v1.png
+var stone_small_window_wall_v1_default = "assets/tiles/buildings/stone/stone-small-window-wall-v1.png";
+
+// ../slime-assets/assets/tiles/buildings/stone/stone-door-v1.png
+var stone_door_v1_default = "assets/tiles/buildings/stone/stone-door-v1.png";
+
+// ../slime-assets/assets/tiles/buildings/stone/stone-wall-v1.png
+var stone_wall_v1_default = "assets/tiles/buildings/stone/stone-wall-v1.png";
+
 // ../slime-assets/assets/tiles/terrain/non-road/marsh-reed-clumps-v1.png
 var marsh_reed_clumps_v1_default = "assets/tiles/terrain/non-road/marsh-reed-clumps-v1.png";
 
@@ -259,6 +277,9 @@ var SPECIAL_TERRAIN_SOURCES = [
   { frame: "marsh-reed-clumps", source: marsh_reed_clumps_v1_default },
   { frame: "reedhaven-dry-embankment", source: dry_soil_grass_v1_default },
   { frame: STONEWARM_PAVING_FRAME, source: limestone_road_v3_default },
+  { frame: "stonewarm-exposed-ground", source: exposed_rock_ground_v2_default },
+  { frame: "stonewarm-pebble-ground", source: pebble_shore_ground_v1_default },
+  { frame: "stonewarm-granite-paving", source: granite_slab_road_v1_default },
   { frame: STONEWARM_MARBLE_PAVING_FRAME, source: marble_circular_road_v1_default }
 ];
 var TRANSPARENT_TERRAIN_KINDS = /* @__PURE__ */ new Set(["boulder", "tree-base"]);
@@ -295,6 +316,9 @@ function clipRoad(ctx, mask) {
   ctx.clip();
 }
 function preloadTerrain(scene) {
+  scene.load.image("stone-building-wall", stone_wall_v1_default);
+  scene.load.image("stone-building-door", stone_door_v1_default);
+  scene.load.image("stone-building-window", stone_small_window_wall_v1_default);
   scene.load.image(RED_BRICK_WINDOW_TEXTURE, red_stone_sky_blue_window_wall_v1_default);
   scene.load.image(RED_BRICK_DOOR_TEXTURE, red_stone_brick_gate_v3_default);
   scene.load.image(RED_BRICK_WALL_TEXTURE, red_stone_brick_wall_v1_default);
@@ -317,7 +341,7 @@ function resolveGrassFrameForMap(currentMapIdentifier) {
 }
 function resolvePavingFrameForMap(currentMapIdentifier) {
   if (currentMapIdentifier === "iseulon") return "iseulon-courtyard-paving";
-  if (currentMapIdentifier === "stonewarm") return STONEWARM_MARBLE_PAVING_FRAME;
+  if (currentMapIdentifier === "stonewarm") return "stonewarm-granite-paving";
   if (currentMapIdentifier === "saltford") return STONEWARM_PAVING_FRAME;
   if (currentMapIdentifier === "reedhaven") return "reedhaven-dry-embankment";
   if (currentMapIdentifier === "grainstead") return REEDHAVEN_DIRT_ROAD_FRAME;
@@ -419,6 +443,11 @@ function createTerrainAtlas(scene) {
 }
 function resolveReedFrameForMap(currentMapIdentifier) {
   return currentMapIdentifier === "reedhaven" ? "marsh-reed-clumps" : "reed-bed";
+}
+function resolveTownGroundFrame(currentMapIdentifier, currentTerrainName) {
+  if (currentMapIdentifier === "saltford") return { gravel: "stonewarm-pebble-ground", stone: "stonewarm-exposed-ground", "dry-soil-branches": "reedhaven-dry-embankment" }[currentTerrainName] ?? currentTerrainName;
+  if (currentMapIdentifier !== "stonewarm") return currentTerrainName;
+  return { gravel: "stonewarm-exposed-ground", stone: "stonewarm-pebble-ground", "dry-soil-branches": "reedhaven-dry-embankment" }[currentTerrainName] ?? currentTerrainName;
 }
 
 // src/game/terrain/blockGeometry.ts
@@ -8197,7 +8226,8 @@ function drawBlockStructure(currentMapScene, currentCityBuilding, projectTerrain
   }
   const usesRedBrickExterior = currentCityBuilding.id === "iseulon-guild";
   const usesUnifiedWoodWall = ["iseulon-", "reedhaven-", "grainstead-", "saltford-"].some((currentCityPrefix) => currentCityBuilding.id.startsWith(currentCityPrefix)) || ["iseulon-bookshop", "iseulon-inn"].includes(currentCityBuilding.id);
-  if (usesUnifiedWoodWall) {
+  const currentStoneExterior = currentCityBuilding.id.startsWith("stonewarm-");
+  if (usesUnifiedWoodWall || currentStoneExterior) {
     const woodRoofBaseHeight = Math.min(...currentSurfaceFaces.filter((currentFaceRecord) => currentFaceRecord.material === "roof").flatMap((currentFaceRecord) => currentFaceRecord.vertices.map((currentVertexPoint) => currentVertexPoint.height)));
     for (const currentWallFace of currentVisibleFaces.filter((currentFaceRecord) => !currentFaceRecord.surface.top)) {
       const wallMinimumScreenX = Math.floor(Math.min(...currentWallFace.points.map((currentPointValue) => currentPointValue.x)));
@@ -8223,7 +8253,7 @@ function drawBlockStructure(currentMapScene, currentCityBuilding, projectTerrain
       const entranceAcrossWall = wallColumnVaries ? entranceRowLocal : entranceColumnLocal;
       const wallFixedCoordinate = wallColumnVaries ? wallVertexRecords[0].row : wallVertexRecords[0].column;
       const wallUsesDoorTexture = wallMinimumHeight < WALL_ENTRANCE_POSITION_TOLERANCE && Math.abs(entranceAlongWall - (wallMinimumHorizontal + wallMaximumHorizontal) / 2) < WALL_ENTRANCE_POSITION_TOLERANCE && Math.abs(Math.abs(entranceAcrossWall - wallFixedCoordinate) - CITY_HALF_TILE) < WALL_ENTRANCE_POSITION_TOLERANCE;
-      const wallSelectedTexture = usesRedBrickExterior ? wallUsesDoorTexture ? RED_BRICK_DOOR_TEXTURE : wallUsesWindowTexture ? RED_BRICK_WINDOW_TEXTURE : RED_BRICK_WALL_TEXTURE : wallMinimumHeight >= woodRoofBaseHeight ? WOOD_CROSSBAR_WALL_TEXTURE : wallUsesDoorTexture ? WOOD_DOOR_WALL_TEXTURE : wallUsesWindowTexture ? WOOD_WINDOW_WALL_TEXTURE : UNIFIED_WOOD_WALL_TEXTURE;
+      const wallSelectedTexture = currentStoneExterior ? wallUsesDoorTexture ? "stone-building-door" : wallUsesWindowTexture ? "stone-building-window" : "stone-building-wall" : usesRedBrickExterior ? wallUsesDoorTexture ? RED_BRICK_DOOR_TEXTURE : wallUsesWindowTexture ? RED_BRICK_WINDOW_TEXTURE : RED_BRICK_WALL_TEXTURE : wallMinimumHeight >= woodRoofBaseHeight ? WOOD_CROSSBAR_WALL_TEXTURE : wallUsesDoorTexture ? WOOD_DOOR_WALL_TEXTURE : wallUsesWindowTexture ? WOOD_WINDOW_WALL_TEXTURE : UNIFIED_WOOD_WALL_TEXTURE;
       const wallSourceImage = currentMapScene.textures.get(wallSelectedTexture).getSourceImage();
       const wallOriginPosition = { column: currentCityBuilding.origin.column + (wallColumnVaries ? wallMinimumHorizontal : wallVertexRecords[0].column), row: currentCityBuilding.origin.row + (wallColumnVaries ? wallVertexRecords[0].row : wallMinimumHorizontal) };
       const wallOriginScreenPoint = projectTerrainPosition(wallOriginPosition);
@@ -8458,6 +8488,7 @@ export {
   resolveMapTileSize,
   resolvePavingFrameForMap,
   resolveReedFrameForMap,
+  resolveTownGroundFrame,
   roadConnections,
   selectFieldRoadFrame,
   waterConnections,

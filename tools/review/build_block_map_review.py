@@ -1,4 +1,5 @@
 """에셋 원본을 직접 읽는 맵 검수 UI와 연결 정보를 게시한다."""
+import re
 from pathlib import Path
 import hashlib
 import json
@@ -202,24 +203,23 @@ def build_block_map_review(output_directory_path, character_review_only=False):
     (output_directory_path/'review-character.json').write_text(json.dumps({'image':'textures/review-character.png?v='+hashlib.sha256(character_image_path.read_bytes()).hexdigest(),'frame':character_frame_record,'bodyHeight':character_source_record['referenceBodyHeight'],'displayHeight':game_render_metrics['characterHeight'],'source':'assets/characters/default/animations/idle-v6','provenance':{'image':character_image_provenance,'animation':character_metadata_provenance,'metadata':character_source_provenance}}))
     source_ui_directory=WORKFLOW_ROOT_DIRECTORY/'tools/review/ui/map'
     shutil.copy2(source_ui_directory/'block-map-review.html',output_directory_path/'map-review.html')
-    shutil.copy2(source_ui_directory/'block-map-review.js',output_directory_path/'block-map-review.js')
-    shutil.copy2(source_ui_directory/'field-map-renderer.js',output_directory_path/'field-map-renderer.js')
-    shutil.copy2(source_ui_directory/'field-map-view.js',output_directory_path/'field-map-view.js')
-    field_renderer_vendor_version='1.0.25'
-    field_renderer_directory=source_ui_directory/'vendor/field-renderer'/field_renderer_vendor_version
+    # 배포 manifest가 소비 버전의 유일한 원본이며 게시 URL에는 버전을 유지한다.
+    field_renderer_directory=source_ui_directory/'vendor/field-renderer'
     field_renderer_manifest=yaml.safe_load((field_renderer_directory/'manifest.yaml').read_text())
+    field_renderer_vendor_version=field_renderer_manifest['version']
+    if not isinstance(field_renderer_vendor_version,str) or not re.fullmatch(r'\d+\.\d+\.\d+',field_renderer_vendor_version):
+        raise ValueError('필드 렌더러 배포 버전 오류')
+    if field_renderer_manifest.get('package')!='@slime/field-renderer' or field_renderer_manifest.get('source_repository')!='slime-frontend':
+        raise ValueError('필드 렌더러 원본 소유권 오류')
     if set(field_renderer_manifest['files'])!={'field-renderer.mjs','town-renderer.mjs','game-render-profile.mjs','phaser.mjs','LICENSE.phaser.md'}:
         raise ValueError('필드 렌더러 배포 파일 목록 오류')
     for renderer_file_name,renderer_file_hash in field_renderer_manifest['files'].items():
         if hashlib.sha256((field_renderer_directory/renderer_file_name).read_bytes()).hexdigest()!=renderer_file_hash:
             raise ValueError('필드 렌더러 배포본 해시 불일치: '+renderer_file_name)
+    for current_script_name in ('block-map-review.js','field-map-renderer.js','field-map-view.js'):
+        current_script_source=(source_ui_directory/current_script_name).read_text()
+        (output_directory_path/current_script_name).write_text(current_script_source.replace('__FIELD_RENDERER_VERSION__',field_renderer_vendor_version))
     shutil.copytree(field_renderer_directory,output_directory_path/'vendor/field-renderer'/field_renderer_vendor_version,dirs_exist_ok=True)
-    # 버전 고정 라이브러리만 게시한다. 프론트엔드 소스·전체 빌드를 읽지 않는다.
-    shared_library_directory = source_ui_directory/'vendor/field-surface/1.0.5'
-    shared_library_manifest = yaml.safe_load((shared_library_directory/'manifest.yaml').read_text())
-    if hashlib.sha256((shared_library_directory/'field-surface.mjs').read_bytes()).hexdigest()!=shared_library_manifest['sha256']:
-        raise ValueError('필드 공통 라이브러리 배포본 해시 불일치')
-    shutil.copytree(shared_library_directory,output_directory_path/'vendor/field-surface/1.0.5',dirs_exist_ok=True)
     return output_directory_path
 
 

@@ -1,5 +1,0 @@
-package: '@slime/field-surface'
-version: 1.0.3
-source_repository: slime-frontend
-source_path: packages/field-surface/field-surface.mjs
-sha256: 63ddef874266606614e9c1b372dfe52ba31472cd2ed07b790b2f5d6cbbe83c64
