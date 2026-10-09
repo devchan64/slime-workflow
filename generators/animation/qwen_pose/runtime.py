@@ -15,7 +15,6 @@ FIXED_MODEL_DIRECTORY = WORKFLOW_REPO_ROOT / '.model/qwen-image-edit-2511' / FIX
 FIXED_IMAGE_DIMENSIONS = 512
 FIXED_INFERENCE_STEPS = 10
 FIXED_GENERATOR_SEED = 10107
-ANYPOSE_STANDARD_STEP_OPTIONS = (10, 20, 30, 40)
 
 
 PIPELINE_EXECUTION_LOCK = threading.Lock()
@@ -44,7 +43,7 @@ def execute_pose_generation(*, trial_output_root, prompt_text_value,
                             selected_base_strength=0.7, selected_helper_strength=0.7,
                             enable_standalone_lightning_adapter=False,
                             additional_reference_paths=(), selected_output_width=512, selected_output_height=512, enable_text_only_generation=False, selected_generator_seed=FIXED_GENERATOR_SEED):
-    """참조 원본으로 이미지를 편집한다. AnyPose는 512px 입력을 사용한다. GPU 실행은 샌드박스 밖에서 호출한다."""
+    """참조 원본으로 이미지를 편집한다. GPU 실행은 샌드박스 밖에서 호출한다."""
     if enable_anypose_adapter is True:
         raise ValueError('AnyPose 애니메이션 생성은 폐기되었습니다. VNCCS 포즈 변환 생성기를 사용하세요.')
     for selected_output_size in (selected_output_width,selected_output_height):
@@ -61,17 +60,12 @@ def execute_pose_generation(*, trial_output_root, prompt_text_value,
         raise ValueError('Lightning 활성화는 bool이어야 합니다.')
     if type(enable_standalone_lightning_adapter) is not bool:
         raise ValueError('독립 Lightning 활성화는 bool이어야 합니다.')
-    if enable_standalone_lightning_adapter and enable_anypose_adapter:
-        raise ValueError('독립 Lightning 경로에서는 AnyPose를 함께 활성화할 수 없습니다.')
     for selected_adapter_strength in (selected_base_strength, selected_helper_strength):
         if type(selected_adapter_strength) not in (int, float) or not math.isfinite(selected_adapter_strength) or not 0 <= selected_adapter_strength <= 1.5:
             raise ValueError('AnyPose strength는 0~1.5의 유한 숫자여야 합니다.')
     if not enable_anypose_adapter and (selected_base_strength != 0.7 or selected_helper_strength != 0.7):
         raise ValueError('AnyPose 비활성 상태에서는 strength를 변경할 수 없습니다.')
-    active_lightning_adapter = (enable_anypose_adapter and enable_lightning_adapter) or enable_standalone_lightning_adapter
-    required_anypose_steps = 4 if active_lightning_adapter else ANYPOSE_STANDARD_STEP_OPTIONS
-    if enable_anypose_adapter and (pose_reference_kind != 'rig' or selected_reference_order != 'standing-first' or (selected_inference_steps != required_anypose_steps if active_lightning_adapter else selected_inference_steps not in required_anypose_steps)):
-        raise ValueError('AnyPose는 리그·캐릭터 우선, Lightning=4스텝 또는 표준 10/20/30/40스텝이어야 합니다.')
+    active_lightning_adapter = enable_standalone_lightning_adapter
     selected_true_cfg_scale = 1.0 if active_lightning_adapter else 4.0
     resolved_adapter_records = []
     if type(selected_inference_steps) is not int or selected_inference_steps not in (4, 10, 20, 30, 40):
@@ -86,8 +80,6 @@ def execute_pose_generation(*, trial_output_root, prompt_text_value,
         raise FileExistsError('기존 실행을 덮어쓸 수 없습니다. 새 실행 경로를 사용하세요.')
     input_image_paths = [Path(character_image_path).resolve()] + ([Path(pose_reference_path).resolve()] if pose_reference_path is not None else []) + [Path(reference_path).resolve() for reference_path in additional_reference_paths]
     if enable_text_only_generation:
-        if enable_anypose_adapter:
-            raise ValueError('텍스트 생성에서는 AnyPose를 사용할 수 없습니다.')
         input_image_paths = []
     input_image_roles = ['character'] + ([pose_reference_kind] if pose_reference_path is not None else []) + [f'additional-{reference_index + 1}' for reference_index in range(len(additional_reference_paths))]
     if enable_text_only_generation:
@@ -145,21 +137,14 @@ def execute_pose_generation(*, trial_output_root, prompt_text_value,
         run_output_logger.info('reference order=%s kind=%s', input_image_roles, pose_reference_kind)
         if not (FIXED_MODEL_DIRECTORY/'model_index.json').is_file():
             raise FileNotFoundError(f'모델 준비 필요: model_id=Qwen/Qwen-Image-Edit-2511 model_path={FIXED_MODEL_DIRECTORY}')
-        if enable_anypose_adapter or enable_standalone_lightning_adapter:
-            from .anypose import validate_adapter_files
-            resolved_adapter_records = validate_adapter_files(include_lightning_adapter=active_lightning_adapter, include_anypose_adapter=False)
-            if enable_standalone_lightning_adapter:
-                resolved_adapter_records = [adapter_record_values for adapter_record_values in resolved_adapter_records if adapter_record_values['name'] == 'lightning']
-            for adapter_record_values in resolved_adapter_records:
-                if adapter_record_values['name'] == 'anypose_base':
-                    adapter_record_values['strength'] = selected_base_strength
-                elif adapter_record_values['name'] == 'anypose_helper':
-                    adapter_record_values['strength'] = selected_helper_strength
+        if enable_standalone_lightning_adapter:
+            from .lightning import validate_adapter_files
+            resolved_adapter_records = validate_adapter_files()
         current_stage_state['stage']='load'
         run_output_logger.info('load model_id=Qwen/Qwen-Image-Edit-2511 model_path=%s',FIXED_MODEL_DIRECTORY)
         selected_pipeline_class = QwenImagePipeline if enable_text_only_generation else QwenImageEditPlusPipeline
         image_edit_pipeline = selected_pipeline_class.from_pretrained(str(FIXED_MODEL_DIRECTORY),torch_dtype=torch.bfloat16,local_files_only=True,low_cpu_mem_usage=True)
-        if enable_anypose_adapter or enable_standalone_lightning_adapter:
+        if enable_standalone_lightning_adapter:
             current_stage_state['stage'] = 'adapters'
             for adapter_record_values in resolved_adapter_records:
                 adapter_file_path = Path(adapter_record_values['path'])
@@ -183,7 +168,7 @@ def execute_pose_generation(*, trial_output_root, prompt_text_value,
             raise ValueError(f'출력 크기 불일치: {output_image_value.size}')
         output_image_value.save(trial_output_root/'result.png')
         trial_result_record = {'status':'completed','model_id':'Qwen/Qwen-Image-Edit-2511','revision':FIXED_MODEL_REVISION,'size':[selected_output_width,selected_output_height],'reference_vae_size':[512,512],'reference_condition_size':[384,384],'steps':selected_inference_steps,'seed':selected_generator_seed,'true_cfg_scale':selected_true_cfg_scale,'guidance_scale':1.0,'lightning_lora':active_lightning_adapter,'dtype':'bfloat16','execution_device':'cuda','weight_offload':'sequential_cpu_offload','torch_version':torch.__version__,'diffusers_version':diffusers.__version__,'elapsed_seconds':round(time.monotonic()-run_started_time,2),'prompt_sha256':hashlib.sha256(prompt_text_value.encode()).hexdigest(),'input_order':[input_file_path.name for input_file_path in input_image_paths],'input_sha256':{input_file_path.name:hashlib.sha256(input_file_path.read_bytes()).hexdigest() for input_file_path in input_image_paths},'quality_warnings':['실험 결과의 최종 품질 승인이 필요합니다.'],'output':'result.png'}
-        trial_result_record.update({'pose_reference_kind': pose_reference_kind, 'reference_order': selected_reference_order, 'prompt_source': prompt_source_record, 'adapters': resolved_adapter_records, 'execution_preset': ('anypose-lightning-v1' if enable_anypose_adapter else 'qwen-lightning-multi-reference-v1') if active_lightning_adapter else 'anypose-standard-v1', 'input_references': [{'role': input_image_role, 'path': str(input_file_path), 'sha256': hashlib.sha256(input_file_path.read_bytes()).hexdigest()} for input_image_role, input_file_path in zip(input_image_roles, input_image_paths)]})
+        trial_result_record.update({'pose_reference_kind': pose_reference_kind, 'reference_order': selected_reference_order, 'prompt_source': prompt_source_record, 'adapters': resolved_adapter_records, 'execution_preset': 'qwen-lightning-multi-reference-v1' if active_lightning_adapter else 'qwen-standard-v1', 'input_references': [{'role': input_image_role, 'path': str(input_file_path), 'sha256': hashlib.sha256(input_file_path.read_bytes()).hexdigest()} for input_image_role, input_file_path in zip(input_image_roles, input_image_paths)]})
         (trial_output_root/'result.json').write_text(json.dumps(trial_result_record,ensure_ascii=False,indent=2)+'\n')
         current_stage_state['stage']='complete'
         run_output_logger.info('complete output=%s',trial_output_root/'result.png')

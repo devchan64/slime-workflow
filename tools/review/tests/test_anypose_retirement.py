@@ -37,11 +37,12 @@ class AnyPoseRetirementTests(unittest.TestCase):
     def test_standalone_lightning_does_not_require_anypose(self):
         from pathlib import Path
         import tempfile
+        from generators.animation.qwen_pose import lightning
         with tempfile.TemporaryDirectory() as current_temporary_directory:
             current_adapter_path = Path(current_temporary_directory) / 'lightning.safetensors'
             current_adapter_path.write_bytes(b'weight')
-            current_adapter_records = ({'name': 'anypose_base'}, {'name': 'lightning', 'size': 6, 'sha256': anypose.calculate_file_digest(current_adapter_path)})
-            with patch.object(anypose, 'FIXED_ADAPTER_RECORDS', current_adapter_records), patch.object(anypose, 'resolve_adapter_path', return_value=current_adapter_path) as current_resolve_mock:
-                current_result_records = anypose.validate_adapter_files(include_anypose_adapter=False)
+            current_adapter_records = ({'name': 'anypose_base'}, {'name': 'lightning', 'size': 6, 'sha256': lightning.calculate_file_digest(current_adapter_path)})
+            with patch.object(lightning, 'FIXED_ADAPTER_RECORDS', current_adapter_records), patch.object(lightning, 'resolve_adapter_path', return_value=current_adapter_path) as current_resolve_mock:
+                current_result_records = lightning.validate_adapter_files()
                 self.assertEqual([current_record['name'] for current_record in current_result_records], ['lightning'])
                 self.assertEqual(current_resolve_mock.call_count, 1)
