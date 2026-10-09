@@ -6,5 +6,6 @@ presets:
     duration_seconds: 4
   walking:
     label: 걷기
-    prompt: A person walks naturally on a treadmill, torso balanced vertically over the pelvis, shoulders relaxed, head aligned with the spine, gaze forward, arms swinging gently.
+    # 사용자 채택 기준: 2026-10-09_16-17-18-51ba9c56 (25단어). 실행 길이·시드는 별도 설정.
+    prompt: A person walks forward with their torso leaning slightly forward from the hips, head upright, gaze level ahead, relaxed shoulders, and natural alternating arm swings.
     duration_seconds: 4
