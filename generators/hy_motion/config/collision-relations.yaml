@@ -1,0 +1,11 @@
+schema_version: 1
+profile_id: anny-collision-relations-v1
+default_policy: check
+rules:
+  - id: upperarm-upper-spine
+    arm_bones: [upperarm01.L, upperarm02.L, upperarm01.R, upperarm02.R]
+    body_bones: [spine01, spine02]
+    maximum_hops: 5
+    policy: allow
+    reason: 기존 겨드랑이 접합부 실험 범위를 유지하는 초기값. 침범 깊이 허용 기준은 미검증.
+pair_overrides: []

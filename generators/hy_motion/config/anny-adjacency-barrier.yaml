@@ -11,4 +11,4 @@ audit_substeps: 4
 adjacent_connections: upperarm_upper_spine_five_hops
 collision_scope: arm_hand_vs_torso_pelvis_legs
 approval_status: candidate
-initialization: target_pose_with_unilateral_collision_repair
+initialization: previous_safe_pose_stop_before_collision

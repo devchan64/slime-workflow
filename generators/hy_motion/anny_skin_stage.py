@@ -65,9 +65,15 @@ def apply_anny_skin_barrier(source_blend_path, output_directory_path, *, source_
         current_partition_faces = build_surface_partitions(current_body_object)
         current_collision_batches = None
         current_excluded_pairs = []
+        current_relation_snapshot = None
         if current_profile_record['adjacent_connections'] == 'upperarm_upper_spine_five_hops':
             from generators.hy_motion.shoulder_adjacency_filter import prepare_shoulder_filter, evaluate_filtered_collisions
-            current_collision_batches, current_excluded_pairs = prepare_shoulder_filter(current_body_object, current_rig_object, current_partition_faces)
+            from generators.hy_motion.collision_relations import load_collision_relations
+            current_relation_record, current_relation_hash = load_collision_relations()
+            current_parent_names = {current_bone_record.name: current_bone_record.parent.name if current_bone_record.parent else None for current_bone_record in current_rig_object.data.bones}
+            current_relation_snapshot = {'profile': current_relation_record, 'sha256': current_relation_hash, 'rig_parents': current_parent_names, 'scope': '팔·손 대 몸통·골반·다리 검사. 전체 리그 관계를 보존하되 전신 충돌 검사는 아님'}
+            (output_directory_path / 'collision-relations.json').write_text(json.dumps(current_relation_snapshot, ensure_ascii=False, indent=2))
+            current_collision_batches, current_excluded_pairs = prepare_shoulder_filter(current_body_object, current_rig_object, current_partition_faces, current_relation_record)
 
         def count_surface_intersections(current_mesh_object, current_surface_faces):
             if current_collision_batches is not None:
@@ -95,38 +101,41 @@ def apply_anny_skin_barrier(source_blend_path, output_directory_path, *, source_
         current_previous_rotations = {}
         current_previous_target_poses = {}
         current_temporal_enabled = current_profile_record.get('initialization') == 'previous_pose_with_lateral_collision_repair'
-        current_target_repair_enabled = current_profile_record.get('initialization') == 'target_pose_with_unilateral_collision_repair'
+        current_stop_only_enabled = current_profile_record.get('initialization') == 'previous_safe_pose_stop_before_collision'
         for current_frame_number, (current_saved_poses, current_root_location, current_target_points, current_before_counts) in enumerate(current_saved_frames, 1):
             bpy.context.scene.frame_set(current_frame_number)
             current_rig_object.location = current_root_location
             # 첫 목표 자세가 안전하면 기본 자세로 되돌리는 우회를 하지 않는다.
-            current_preserve_first_pose = current_target_repair_enabled
+            current_preserve_first_pose = False
             if current_frame_number == 1:
                 for current_pose_bone in current_rig_object.pose.bones:
                     current_pose_bone.matrix_basis = current_saved_poses[current_pose_bone.name]
                 bpy.context.view_layer.update()
-                current_preserve_first_pose = current_target_repair_enabled or not detect_surface_collision(current_body_object, current_partition_faces, current_profile_record['minimum_surface_clearance_m'])
+                current_preserve_first_pose = not detect_surface_collision(current_body_object, current_partition_faces, current_profile_record['minimum_surface_clearance_m'])
             for current_pose_bone in current_rig_object.pose.bones:
                 current_pose_bone.matrix_basis = Matrix.Identity(4) if current_pose_bone.name in current_target_names and not current_preserve_first_pose else current_saved_poses[current_pose_bone.name]
-                if current_temporal_enabled and current_pose_bone.name in current_previous_target_poses:
+                if (current_temporal_enabled or current_stop_only_enabled) and current_pose_bone.name in current_previous_target_poses:
                     current_pose_bone.matrix_basis = current_previous_target_poses[current_pose_bone.name]
             bpy.context.view_layer.update()
             current_initialization_record = {'strategy': 'preserved_collision_free_target' if current_preserve_first_pose else 'local_rest'}
-            if current_target_repair_enabled:
-                from generators.hy_motion.proximal_collision_start import initialize_proximal_collision_start
-                current_side_repairs = {}
-                for current_repair_side in ('L', 'R'):
-                    current_side_batches = [current_batch_record for current_batch_record in current_collision_batches if current_batch_record[0] == current_repair_side]
-                    current_side_repairs[current_repair_side] = initialize_proximal_collision_start(current_rig_object, lambda: evaluate_filtered_collisions(current_body_object, current_side_batches, current_profile_record['minimum_surface_clearance_m'], stop_on_collision=True), current_profile_record['angle_step_degrees'], current_profile_record['boundary_refinements'], (current_repair_side,))
-                current_initialization_record = {'strategy': 'target_pose_with_unilateral_collision_repair', 'sides': current_side_repairs}
+            current_diagnostic_only = False
+            if current_stop_only_enabled:
+                current_initialization_record = {'strategy': 'preserved_collision_free_target' if current_preserve_first_pose else ('local_rest_stop_before_collision' if current_frame_number == 1 else 'previous_safe_pose_stop_before_collision')}
+                if detect_surface_collision(current_body_object, current_partition_faces, current_profile_record['minimum_surface_clearance_m']):
+                    current_diagnostic_only = True
+                    current_initialization_record.update(unresolved=True, reason='시작 자세부터 충돌 또는 최소 간격 위반: 안전한 회전 경계를 정의할 수 없음', start_intersections=count_surface_intersections(current_body_object, current_partition_faces))
+                    for current_pose_bone in current_rig_object.pose.bones:
+                        current_pose_bone.matrix_basis = current_saved_poses[current_pose_bone.name]
+                    bpy.context.view_layer.update()
+                    emit_stage_progress('WARN', f'{current_frame_number}프레임: 안전 시작점 없음 · 원본 충돌 자세를 진단용으로 보존 · 역방향 보정 없음')
             if not current_preserve_first_pose and (current_profile_record.get('initialization') == 'bilateral_rest_to_lateral_first_clear' or current_temporal_enabled):
                 from generators.hy_motion.proximal_collision_start import initialize_proximal_collision_start
                 current_initialization_record = initialize_proximal_collision_start(current_rig_object, lambda: detect_surface_collision(current_body_object, current_partition_faces, current_profile_record['minimum_surface_clearance_m']), current_profile_record['angle_step_degrees'], current_profile_record['boundary_refinements'])
                 current_initialization_record['strategy'] = 'previous_pose_with_lateral_collision_repair' if current_temporal_enabled and current_previous_target_poses else 'local_rest_with_lateral_collision_repair'
-            if any(count_surface_intersections(current_body_object, current_partition_faces).values()):
+            if not current_diagnostic_only and any(count_surface_intersections(current_body_object, current_partition_faces).values()):
                 raise ValueError(f'{current_frame_number}프레임의 기준 팔 시작 자세에 비인접 충돌 존재')
             current_bone_records = {}
-            for current_bone_name in (() if current_preserve_first_pose else current_target_names):
+            for current_bone_name in (() if current_preserve_first_pose or current_diagnostic_only else current_target_names):
                 current_progress_state.update(stage='proximal-to-distal', frame=current_frame_number, bone=current_bone_name)
                 current_pose_bone = current_rig_object.pose.bones[current_bone_name]
                 current_pose_bone.rotation_mode = 'QUATERNION'
@@ -145,11 +154,13 @@ def apply_anny_skin_barrier(source_blend_path, output_directory_path, *, source_
 
                 current_bone_record = advance_collision_free(apply_current_fraction, probe_current_collision, max(1, math.ceil(current_requested_angle / current_profile_record['angle_step_degrees'])), current_profile_record['boundary_refinements'])
                 current_bone_record['requested_degrees'] = current_requested_angle
+                current_bone_record['applied_degrees'] = current_requested_angle * current_bone_record['fraction']
                 current_bone_records[current_bone_name] = current_bone_record
             current_head_metrics = apply_head_rotation(current_rig_object, current_head_rotations[current_frame_number - 1])
-            current_previous_target_poses = {current_bone_name: current_rig_object.pose.bones[current_bone_name].matrix_basis.copy() for current_bone_name in current_target_names}
+            if not current_diagnostic_only:
+                current_previous_target_poses = {current_bone_name: current_rig_object.pose.bones[current_bone_name].matrix_basis.copy() for current_bone_name in current_target_names}
             current_after_counts = count_surface_intersections(current_body_object, current_partition_faces)
-            if any(current_after_counts.values()):
+            if not current_diagnostic_only and any(current_after_counts.values()):
                 raise ValueError('제약 적용 후 피부 충돌 잔존')
             current_endpoint_errors = {current_bone_name: float(np.linalg.norm(np.asarray(current_rig_object.pose.bones[current_bone_name].head) - current_target_points[current_bone_name])) for current_bone_name in current_target_names}
             for current_pose_bone in current_rig_object.pose.bones:
@@ -195,6 +206,9 @@ def apply_anny_skin_barrier(source_blend_path, output_directory_path, *, source_
         if current_saved_head_error > HEAD_TRANSFER_TOLERANCE:
             raise ValueError('저장 후 원본 머리 회전 전달 검증 실패')
         current_quality_warnings = ['혼합 경계·완전 내포·연속 시간 전체에 대한 충돌 보장은 없음', '원본 자세와 손목 방향은 충돌 제약으로 달라질 수 있음']
+        current_unresolved_frames = [current_frame_record['frame'] for current_frame_record in current_frame_records if current_frame_record['initialization'].get('unresolved')]
+        if current_unresolved_frames:
+            current_quality_warnings.append(f'안전 시작점 없는 진단 전용 프레임 {current_unresolved_frames}: 원본 충돌 자세 보존, 충돌 직전 정지 성공으로 간주하지 않음')
         if any(any(current_audit_record['intersections'].values()) for current_audit_record in current_audit_records):
             current_quality_warnings.append('저장 후 재생 표본에서 잔존 충돌 검출: 비관통은 보장하지 않음')
         current_summary_record = {'before_mean': {current_side_name: float(np.mean([current_frame_record['before'][current_side_name] for current_frame_record in current_frame_records])) for current_side_name in ('L', 'R')}, 'after_mean': {current_side_name: float(np.mean([current_frame_record['after'][current_side_name] for current_frame_record in current_frame_records])) for current_side_name in ('L', 'R')}, 'audit_colliding_samples': sum(any(current_audit_record['intersections'].values()) for current_audit_record in current_audit_records), 'max_quarter_frame_rotation_step_degrees': max(current_audit_record['max_rotation_step_degrees'] for current_audit_record in current_audit_records), 'max_wrist_target_error_m': max(current_frame_record['endpoint_error_m'][current_bone_name] for current_frame_record in current_frame_records for current_bone_name in ('wrist.L', 'wrist.R'))}
@@ -203,7 +217,9 @@ def apply_anny_skin_barrier(source_blend_path, output_directory_path, *, source_
         current_result_record['head_transfer'] = {'applied': True, 'source': current_head_source_record, 'max_saved_rotation_matrix_error': current_saved_head_error, 'solver_sha256': hashlib.sha256((WORKFLOW_ROOT_DIRECTORY / 'generators/hy_motion/head_rotation_transfer.py').read_bytes()).hexdigest()}
         if current_collision_batches is not None:
             current_result_record['adjacency_filter'] = {'excluded_bone_pairs': current_excluded_pairs, 'maximum_hops': 5, 'solver_sha256': hashlib.sha256((WORKFLOW_ROOT_DIRECTORY / 'generators/hy_motion/shoulder_adjacency_filter.py').read_bytes()).hexdigest()}
-            current_quality_warnings.append('상완–상부 척추 5단계 이웃은 제약에서 제외함. 제외 영역의 관통은 별도 검수 필요')
+            current_result_record['collision_relations'] = current_relation_snapshot
+            current_result_record['adjacency_filter'].pop('maximum_hops', None)
+            current_quality_warnings.append('충돌 관계 설정의 허용 본 쌍은 제약에서 제외함. 제외 영역의 관통은 별도 검수 필요')
             current_summary_record['audit_unfiltered_colliding_samples'] = sum(any(current_audit_record['unfiltered_intersections'].values()) for current_audit_record in current_audit_records)
             current_summary_record['audit_excluded_colliding_samples'] = sum(any(current_audit_record['excluded_intersections'].values()) for current_audit_record in current_audit_records)
         (output_directory_path / 'comparison.json').write_text(json.dumps(current_result_record, ensure_ascii=False, indent=2))

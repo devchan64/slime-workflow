@@ -15,6 +15,27 @@ class ShoulderAdjacencyFilterTests(unittest.TestCase):
         self.assertEqual(len(current_selected_pairs), 8)
         self.assertNotIn(('lowerarm01.R', 'spine01'), current_selected_pairs)
 
+    def test_pair_override_changes_only_selected_pair(self):
+        from generators.hy_motion.collision_relations import load_collision_relations
+        current_relation_record, current_profile_hash = load_collision_relations()
+        current_original_pairs = select_excluded_pairs(self.current_parent_names)
+        current_relation_record['pair_overrides'] = [{'arm_bone': 'upperarm01.L', 'body_bone': 'spine01', 'policy': 'check', 'reason': '검사 복원'}]
+        self.assertEqual(select_excluded_pairs(self.current_parent_names, current_relation_record), current_original_pairs - {('upperarm01.L', 'spine01')})
+        self.assertEqual(len(current_profile_hash), 64)
+
+    def test_relation_file_rejects_unknown_fields(self):
+        import tempfile
+        from pathlib import Path
+        import yaml
+        from generators.hy_motion.collision_relations import load_collision_relations
+        current_relation_record, _ = load_collision_relations()
+        current_relation_record['unknown'] = True
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_profile_path = Path(current_directory_name) / 'relations.yaml'
+            current_profile_path.write_text(yaml.safe_dump(current_relation_record))
+            with self.assertRaises(ValueError):
+                load_collision_relations(current_profile_path)
+
     def test_more_than_five_hops_is_kept(self):
         self.current_parent_names['spine03'] = 'spine02'
         self.current_parent_names['spine01'] = 'spine03'

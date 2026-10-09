@@ -8,9 +8,6 @@ import math
 # 아래 5단계 제외는 이 리그의 실험용 분류일 뿐 해부학적 허용 한도가 아니다.
 # 현재는 제외 쌍의 깊거나 지속적인 관통도 막지 못한다. 최종 허용량은 침범 깊이·
 # 지속 시간·원본 동작 보존 정도를 함께 측정해 정해야 하며, 수치는 아직 미검증이다.
-UPPER_ARM_BONE_NAMES = ('upperarm01.L', 'upperarm02.L', 'upperarm01.R', 'upperarm02.R')
-UPPER_SPINE_BONE_NAMES = ('spine01', 'spine02')
-MAXIMUM_ADJACENCY_HOPS = 5
 
 
 def calculate_bone_distance(current_parent_names, current_first_name, current_second_name):
@@ -31,9 +28,30 @@ def calculate_bone_distance(current_parent_names, current_first_name, current_se
     raise ValueError('공통 조상 없는 인접성 골격')
 
 
-def select_excluded_pairs(current_parent_names):
-    """상완 네 본과 상부 척추 두 본 사이에서만 5단계 이웃을 선택한다."""
-    return frozenset((current_arm_name, current_spine_name) for current_arm_name in UPPER_ARM_BONE_NAMES for current_spine_name in UPPER_SPINE_BONE_NAMES if calculate_bone_distance(current_parent_names, current_arm_name, current_spine_name) <= MAXIMUM_ADJACENCY_HOPS)
+def select_excluded_pairs(current_parent_names, current_relation_record=None):
+    """그룹 규칙 뒤 개별 쌍 예외를 적용한다. 기본은 충돌 검사다."""
+    from generators.hy_motion.collision_relations import load_collision_relations
+    if current_relation_record is None:
+        current_relation_record, _ = load_collision_relations()
+    for current_bone_name in current_parent_names:
+        calculate_bone_distance(current_parent_names, current_bone_name, current_bone_name)
+    current_pair_policies = {}
+    for current_rule_record in current_relation_record['rules']:
+        for current_arm_name in current_rule_record['arm_bones']:
+            for current_body_name in current_rule_record['body_bones']:
+                if current_arm_name == current_body_name:
+                    raise ValueError('동일 본 충돌 관계는 허용하지 않습니다.')
+                current_bone_distance = calculate_bone_distance(current_parent_names, current_arm_name, current_body_name)
+                if current_bone_distance <= current_rule_record['maximum_hops']:
+                    current_pair_names = (current_arm_name, current_body_name)
+                    if current_pair_names in current_pair_policies:
+                        raise ValueError('중첩 그룹 규칙입니다. 개별 쌍 예외로 명시하세요.')
+                    current_pair_policies[current_pair_names] = current_rule_record['policy']
+    for current_override_record in current_relation_record['pair_overrides']:
+        current_pair_names = (current_override_record['arm_bone'], current_override_record['body_bone'])
+        calculate_bone_distance(current_parent_names, *current_pair_names)
+        current_pair_policies[current_pair_names] = current_override_record['policy']
+    return frozenset(current_pair_names for current_pair_names, current_pair_policy in current_pair_policies.items() if current_pair_policy == 'allow')
 
 
 def build_filtered_batches(current_partition_faces, current_vertex_labels, current_excluded_pairs):
@@ -54,9 +72,9 @@ def build_filtered_batches(current_partition_faces, current_vertex_labels, curre
     return current_collision_batches
 
 
-def prepare_shoulder_filter(current_body_object, current_rig_object, current_partition_faces):
+def prepare_shoulder_filter(current_body_object, current_rig_object, current_partition_faces, current_relation_record=None):
     current_parent_names = {current_bone_record.name: current_bone_record.parent.name if current_bone_record.parent else None for current_bone_record in current_rig_object.data.bones}
-    current_excluded_pairs = select_excluded_pairs(current_parent_names)
+    current_excluded_pairs = select_excluded_pairs(current_parent_names, current_relation_record)
     current_group_names = {current_group_record.index: current_group_record.name for current_group_record in current_body_object.vertex_groups}
     current_vertex_labels = []
     for current_vertex_record in current_body_object.data.vertices:
