@@ -36,8 +36,27 @@ def build_frame_navigation_widgets():
     with gr.Group():
         gr.Markdown('#### 프레임 탐색기')
         with gr.Row():
-            current_action_buttons=[(current_action_name,gr.Button(current_button_label)) for current_action_name,current_button_label in (('prev','이전 프레임'),('next','다음 프레임'),('play','재생'),('stop','정지'))]
+            current_action_buttons=[(current_action_name,gr.Button(current_button_label)) for current_action_name,current_button_label in (('play','재생'),('stop','정지'))]
+        with gr.Row():
+            current_action_buttons += [(current_action_name,gr.Button(current_button_label)) for current_action_name,current_button_label in (('prev','이전 프레임'),('next','다음 프레임'))]
         with gr.Row():
             current_frame_number=gr.Number(label='이동할 프레임 번호',value=1,minimum=1,precision=0)
             current_seek_button=gr.Button('프레임으로 이동')
     return current_frame_number,current_action_buttons,current_seek_button
+
+
+def build_frame_playback_controls():
+    """탐색·구간 반복을 동일 너비 두 열로 제공하는 공용 조작부."""
+    with gr.Row(equal_height=True):
+        with gr.Column(scale=1):
+            current_frame_number,current_action_buttons,current_seek_button=build_frame_navigation_widgets()
+        with gr.Column(scale=1):
+            with gr.Group():
+                gr.Markdown('#### 구간 반복 재생')
+                gr.Markdown('미리보기 번호 기준 · 시작과 끝을 모두 포함합니다. 예: 7~13')
+                with gr.Row():
+                    current_loop_start=gr.Number(label='시작 프레임',value=1,minimum=1,precision=0)
+                    current_loop_end=gr.Number(label='끝 프레임',value=1,minimum=1,precision=0)
+                current_loop_button=gr.Button('구간 반복',variant='primary')
+                gr.Markdown('번호 변경 후 구간 반복을 누르세요. 왼쪽 재생은 전체 구간, 정지는 반복 재생도 멈춥니다.')
+    return current_frame_number,current_action_buttons,current_seek_button,current_loop_start,current_loop_end,current_loop_button

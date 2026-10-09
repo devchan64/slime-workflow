@@ -4,7 +4,7 @@ import json
 import re
 
 import gradio as gr
-from tools.review.common.gradio_frame_navigator import build_frame_navigation_widgets
+from tools.review.common.gradio_frame_navigator import build_frame_playback_controls
 
 FRAME_PLAYER_SCRIPT_PATH=Path(__file__).resolve().parents[1]/'ui/shared/frame-player.js'
 FRAME_PLAYER_DIRECTION_CHOICES=[('등록 첫 방향','first'),('전방 좌측','down_left'),('전방 우측','down_right'),('후방 좌측','up_left'),('후방 우측','up_right')]
@@ -19,10 +19,11 @@ def build_browser_frame_player(current_player_identifier='generation-result-play
     with gr.HTML(value=initial_player_payload,visible=current_player_visible,elem_id=current_player_identifier,html_template='<div data-player-images style="display:flex;flex-wrap:wrap"></div><p data-player-status role="status">결과를 조회하세요.</p>@children',js_on_load=current_player_script) as current_player_component:
         with gr.Row():
             current_direction_component=gr.State('first') if defer_image_loading else gr.Dropdown(FRAME_PLAYER_DIRECTION_CHOICES,value='first',label='재생 방향')
-            current_framerate_component=gr.Dropdown([4,8,12,16],value=8,label='재생 FPS')
+            current_framerate_component=gr.Dropdown([4,6,8,12,16],value=6,label='재생 FPS')
         current_feedback_component=gr.Textbox(label='재생 조작 안내',interactive=False,value='결과를 조회한 뒤 재생하거나 프레임을 이동하세요.')
         current_load_button=gr.Button('미리보기 불러오기') if defer_image_loading else None
-        current_frame_component,current_navigation_buttons,current_seek_button=build_frame_navigation_widgets()
+        current_frame_component,current_navigation_buttons,current_seek_button,current_loop_start,current_loop_end,current_loop_button=build_frame_playback_controls()
+        current_loop_button.click(fn=None,inputs=[current_direction_component,current_framerate_component,current_frame_component,current_loop_start,current_loop_end],outputs=current_feedback_component,queue=False,js="(direction,fps,frame,start,end)=>{try{return window.generationFramePlayerCommands["+json.dumps(current_player_identifier)+"]('loop',"+current_direction_argument+",fps,frame,start,end);}catch(error){return error.message;}}")
         current_action_buttons=[('previous' if current_action_name=='prev' else current_action_name,current_action_button) for current_action_name,current_action_button in current_navigation_buttons]
         current_action_buttons.append(('seek',current_seek_button))
         if defer_image_loading:
