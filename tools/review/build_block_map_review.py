@@ -30,7 +30,7 @@ TOWN_BUILDING_TILE_OVERRIDES={
 }
 
 # 두 신규 도시는 같은 등록 목재 원본을 참조한다.
-TOWN_BUILDING_TILE_OVERRIDES.update({current_city_identifier: dict(TOWN_BUILDING_TILE_OVERRIDES['reedhaven']) for current_city_identifier in ('grainstead', 'saltford')})
+TOWN_BUILDING_TILE_OVERRIDES.update({current_city_identifier: dict(TOWN_BUILDING_TILE_OVERRIDES['reedhaven']) for current_city_identifier in ('iseulon', 'grainstead', 'saltford')})
 
 def load_town_block_height():
     from tools.review.common.game_render_metrics import read_numeric_render_constant
@@ -166,6 +166,7 @@ def build_block_map_review(output_directory_path, character_review_only=False):
     (output_directory_path/'field-safe-visuals.json').write_text(json.dumps({} if character_review_only else build_field_safe_visual_records(texture_output_directory),ensure_ascii=False))
     prefab_source_records=yaml.safe_load((source_asset_directory/'building-prefabs.yaml').read_text())['prefabs']
     building_tile_records={current_prefab_record['id']:{'roof':current_prefab_record['roof_tile'],'wall':current_prefab_record['ground_floor_plain_wall_tile'],'window':current_prefab_record['ground_floor_small_window_wall_tile'],'large_window':current_prefab_record['upper_floor_large_window_wall_tile'],'roof_underlay':current_prefab_record.get('roof_underlay_wall_tile',current_prefab_record['ground_floor_plain_wall_tile']),'door':current_prefab_record['door_tile']} for current_prefab_record in prefab_source_records}
+    building_tile_records['iseulon-guild'] = {'roof':'stonewarm-guild-red-stone-roof','wall':'red-stone-brick-wall','window':'red-stone-sky-blue-window-wall','large_window':'red-stone-sky-blue-window-wall','roof_underlay':'red-stone-brick-wall','door':'red-stone-brick-gate'}
     building_tile_records['stonewarm-guild'] = {'roof': 'stonewarm-guild-red-stone-roof'}
     (output_directory_path/'block-building-tiles.json').write_text(json.dumps(building_tile_records))
     exported_map_records=[]
@@ -204,7 +205,7 @@ def build_block_map_review(output_directory_path, character_review_only=False):
     shutil.copy2(source_ui_directory/'block-map-review.js',output_directory_path/'block-map-review.js')
     shutil.copy2(source_ui_directory/'field-map-renderer.js',output_directory_path/'field-map-renderer.js')
     shutil.copy2(source_ui_directory/'field-map-view.js',output_directory_path/'field-map-view.js')
-    field_renderer_vendor_version='1.0.11'
+    field_renderer_vendor_version='1.0.22'
     field_renderer_directory=source_ui_directory/'vendor/field-renderer'/field_renderer_vendor_version
     field_renderer_manifest=yaml.safe_load((field_renderer_directory/'manifest.yaml').read_text())
     if set(field_renderer_manifest['files'])!={'field-renderer.mjs','town-renderer.mjs','game-render-profile.mjs','phaser.mjs','LICENSE.phaser.md'}:

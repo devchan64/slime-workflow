@@ -1,7 +1,7 @@
-import {resolveFieldTileTextures,collectTerrainTextureSources,createTerrainAtlas,TERRAIN_ATLAS,drawBlockStructure,cellDepth,TERRAIN_DEPTH,mapAnnotationDepth,resolveMapTileSize,resolveGrassFrameForMap,resolvePavingFrameForMap,selectFieldRoadFrame} from './vendor/field-renderer/1.0.11/town-renderer.mjs';
-import {GAME_INTERNAL_RESOLUTION_SCALE,drawCharacterContactShadow,attachCharacterOutlineLayers,roadConnections,waterConnections} from './vendor/field-renderer/1.0.11/game-render-profile.mjs';
-import * as Phaser from './vendor/field-renderer/1.0.11/phaser.mjs';
-import {drawFieldCellObjects,drawFieldTowerObject,drawFieldAuraPanel,drawFieldMeshBoundary,buildFieldBoundaryPanels,rotateSurfacePosition} from './vendor/field-renderer/1.0.11/field-renderer.mjs';
+import {resolveReedFrameForMap,drawWaypoint,waypointMarkerScale,resolveFieldTileTextures,collectTerrainTextureSources,createTerrainAtlas,TERRAIN_ATLAS,drawBlockStructure,cellDepth,TERRAIN_DEPTH,mapAnnotationDepth,resolveMapTileSize,resolveGrassFrameForMap,resolvePavingFrameForMap,selectFieldRoadFrame} from './vendor/field-renderer/1.0.22/town-renderer.mjs';
+import {GAME_INTERNAL_RESOLUTION_SCALE,drawCharacterContactShadow,attachCharacterOutlineLayers,roadConnections,waterConnections} from './vendor/field-renderer/1.0.22/game-render-profile.mjs';
+import * as Phaser from './vendor/field-renderer/1.0.22/phaser.mjs';
+import {drawTownMaterialEdges,drawFieldCellObjects,drawFieldTowerObject,drawFieldAuraPanel,drawFieldMeshBoundary,buildFieldBoundaryPanels,rotateSurfacePosition} from './vendor/field-renderer/1.0.22/field-renderer.mjs';
 
 const FIELD_REVIEW_ACTOR_DEPTH=TERRAIN_DEPTH.actor;
 const FIELD_REVIEW_TOWER_DEPTH=TERRAIN_DEPTH.overlay;
@@ -47,6 +47,7 @@ export async function createSharedFieldReview(currentMapCanvas,currentTextureIma
  let currentTownActorSignature='';
  let currentTownActorObjects=[];
  let currentTownMeshObjects=[];
+ let currentTownWaypointObjects=[];
  if(currentTextureRecords){
   for(const [currentGameTexture,currentAssetPath] of Object.entries(collectTerrainTextureSources())){
    const currentCatalogEntry=Object.entries(currentTextureRecords).find(([,currentTileRecord])=>currentTileRecord.source===currentAssetPath);
@@ -114,20 +115,25 @@ export async function createSharedFieldReview(currentMapCanvas,currentTextureIma
    const currentDepthPosition=currentCellPosition=>cellDepth(rotateSurfacePosition(currentCellPosition,currentViewSettings.rotation));
    if(currentMapSignature!==currentTownMapSignature){
     for(const currentRenderObject of [...currentFieldScene.children.list])if(currentRenderObject.scene)currentRenderObject.destroy();
-    currentTownActorObjects=[];currentTownMeshObjects=[];currentTownActorSignature='';
+    currentTownActorObjects=[];currentTownMeshObjects=[];currentTownWaypointObjects=[];currentTownActorSignature='';
     const currentTileDimensions=resolveMapTileSize(currentMapRecord);
     for(let currentRowIndex=0;currentRowIndex<currentMapRecord.rows;currentRowIndex++)for(let currentColumnIndex=0;currentColumnIndex<currentMapRecord.columns;currentColumnIndex++){
      const currentCellPosition={column:currentColumnIndex,row:currentRowIndex};
      const currentTerrainName=currentMapRecord.terrainCodes[currentMapRecord.terrainRows[currentRowIndex][currentColumnIndex]];
      const currentScreenPoint=currentProjectPosition(currentCellPosition),currentCellDepth=currentDepthPosition(currentCellPosition);
      const currentConnectionMask=(currentTerrainName==='road'||currentTerrainName==='water')?readReviewConnectionMask(currentCellPosition,currentMapRecord,currentTerrainName,currentViewSettings.rotation):0;
-     const currentFrameName=currentTerrainName==='water'?`water-${currentConnectionMask}`:currentTerrainName==='road'?selectFieldRoadFrame(currentConnectionMask,currentCellPosition,true,currentMapRecord.id):currentTerrainName==='paving'?resolvePavingFrameForMap(currentMapRecord.id):currentTerrainName==='grass'?resolveGrassFrameForMap(currentMapRecord.id):currentTerrainName;
+     const currentFrameName=currentTerrainName==='water'?`water-${currentConnectionMask}`:currentTerrainName==='road'?selectFieldRoadFrame(currentConnectionMask,currentCellPosition,true,currentMapRecord.id):currentTerrainName==='reed-bed'?resolveReedFrameForMap(currentMapRecord.id):currentTerrainName==='paving'?resolvePavingFrameForMap(currentMapRecord.id):currentTerrainName==='grass'?resolveGrassFrameForMap(currentMapRecord.id):currentTerrainName;
      if(!currentFieldScene.textures.get(TERRAIN_ATLAS).has(currentFrameName))throw Error('게임 타일 프레임 누락: '+currentFrameName);
      currentFieldScene.add.image(currentScreenPoint.x,currentScreenPoint.y,TERRAIN_ATLAS,currentFrameName).setDisplaySize(currentTileDimensions.width,currentTileDimensions.height).setDepth(currentCellDepth+TERRAIN_DEPTH.surface);
+     drawTownMaterialEdges(currentFieldScene,currentCellPosition,currentNeighborCell=>currentMapRecord.terrainCodes[currentMapRecord.terrainRows[currentNeighborCell.row][currentNeighborCell.column]],currentProjectPosition,currentDepthPosition,TERRAIN_DEPTH.surface);
     }
     for(const currentBuildingRecord of currentMapRecord.buildings){
      const currentBuildingRegion=drawBlockStructure(currentFieldScene,currentBuildingRecord,currentProjectPosition,currentDepthPosition,mapAnnotationDepth(currentMapRecord),false);
      for(const currentBuildingPolygon of currentBuildingRegion.polygons)currentTownMeshObjects.push(drawFieldMeshBoundary(currentFieldScene,currentBuildingPolygon.points,currentBuildingRegion.depth+.02));
+    }
+    for(const currentConnectionRecord of currentMapRecord.connections){
+     const currentWaypointPoint=currentProjectPosition(currentConnectionRecord);
+     currentTownWaypointObjects.push(drawWaypoint(currentFieldScene,currentConnectionRecord,currentWaypointPoint.x,currentWaypointPoint.y).setDepth(mapAnnotationDepth(currentMapRecord)));
     }
     currentTownMapSignature=currentMapSignature;
    }
@@ -141,6 +147,7 @@ export async function createSharedFieldReview(currentMapCanvas,currentTextureIma
    }
    for(const currentMeshGraphic of currentTownMeshObjects)currentMeshGraphic.setVisible(currentViewSettings.edges);
    updateSharedReviewCamera(currentViewSettings);
+   for(const currentWaypointObject of currentTownWaypointObjects)currentWaypointObject.setScale(waypointMarkerScale(currentViewSettings.scale));
   },
   destroy(){currentFieldGame.destroy(false);}
  };

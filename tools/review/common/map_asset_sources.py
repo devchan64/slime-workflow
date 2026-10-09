@@ -129,6 +129,8 @@ def load_registered_map_review(map_identifier_value):
             for current_row_index in range(current_building_record['height']):
                 for current_column_index in range(current_building_record['width']):
                     current_map_record['blocked'].append(dict(column=current_building_record['origin']['column']+current_column_index,row=current_building_record['origin']['row']+current_row_index))
+    for current_connection_record in current_map_record.get('connections',[]):
+        current_connection_record['targetName'] = read_map_source_data('map_names/'+current_connection_record['target']+'.yaml')['ko']
     current_map_record.update(id=map_identifier_value,name=current_name_record['ko'],provenance=source_provenance_records)
     for current_row_index,current_terrain_row in enumerate(current_map_record['terrainRows']):
         if len(current_terrain_row)!=current_map_record['columns']: raise ValueError('맵 원본 행 길이 오류')

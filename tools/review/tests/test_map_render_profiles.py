@@ -31,7 +31,7 @@ class MapRenderProfileTests(unittest.TestCase):
             _, current_registered_tiles = load_registered_tiles()
             current_original_record = current_registered_tiles[guild_texture_record['source']]
             self.assertEqual(guild_texture_record['version'], current_original_record['version'])
-            self.assertEqual(guild_texture_record['source'], 'assets/tiles/buildings/red-stone/red-stone-roof-v2.png')
+            self.assertEqual(guild_texture_record['source'], 'assets/tiles/buildings/red-stone/red-stone-roof-v3.png')
             self.assertEqual(guild_texture_record['sha256'], current_original_record['sha256'])
             # 게시된 결계 사본과 공용 렌더러가 실제 manifest의 해시와 일치해야 한다.
             current_safe_records=json.loads((current_output_directory/'field-safe-visuals.json').read_text())
@@ -40,7 +40,7 @@ class MapRenderProfileTests(unittest.TestCase):
                 current_image_path=current_output_directory/current_safe_record['image'].split('?')[0]
                 self.assertEqual(hashlib.sha256(current_image_path.read_bytes()).hexdigest(),current_safe_record['provenance']['sha256'])
             import yaml
-            current_library_directory=current_output_directory/'vendor/field-renderer/1.0.11'
+            current_library_directory=current_output_directory/'vendor/field-renderer/1.0.22'
             current_library_manifest=yaml.safe_load((current_library_directory/'manifest.yaml').read_text())
             for current_file_name,current_file_hash in current_library_manifest['files'].items():
                 self.assertEqual(hashlib.sha256((current_library_directory/current_file_name).read_bytes()).hexdigest(),current_file_hash)
