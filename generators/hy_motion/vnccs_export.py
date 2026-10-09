@@ -16,6 +16,7 @@ BLENDER_RUNTIME_PYTHON = WORKFLOW_ROOT_DIRECTORY / '.local/blender-runtime/bin/p
 BLENDER_STAGE_RUNNER = WORKFLOW_ROOT_DIRECTORY / 'generators/momask/templates/run_stage.py'
 VNCCS_STAGE_TEMPLATE = Path(__file__).parent / 'templates/vnccs_stage.py'
 POSE_REFERENCE_BACKGROUND = (255, 255, 255, 255)
+SOURCE_ALIGNED_SEGMENT_IDS = frozenset(('lower_spine', 'middle_spine', 'upper_spine', 'lower_neck', 'upper_neck', 'collar_l', 'shoulder_l', 'collar_r', 'shoulder_r'))
 
 
 def write_pose_reference(current_source_path, current_target_path, expected_image_resolution):
@@ -56,9 +57,12 @@ def export_vnccs_package(current_job_directory, current_attempt_path, current_re
     current_template_path = WORKFLOW_ROOT_DIRECTORY / '.model/hy-motion/upstream/scripts/gradio/static/assets/dump_wooden/j_template.bin'
     current_reference_joints = np.frombuffer(current_template_path.read_bytes(), dtype=np.float32).reshape(52, 3)[:22]
     current_profile_record = yaml.load((WORKFLOW_ROOT_DIRECTORY / 'generators/momask/config/humanml22-anny-retarget.yaml').read_text(), Loader=UniqueConfigLoader)
-    current_profile_record['profile_id'] = 'hymotion22-anny-vnccs-v2'
+    current_profile_record['profile_id'] = 'hymotion22-anny-vnccs-v3'
+    current_profile_segments = {current_segment_record['segment_id'] for current_segment_record in current_profile_record['segments']}
+    if not SOURCE_ALIGNED_SEGMENT_IDS <= current_profile_segments:
+        raise ValueError('원본 방향 대응에 필요한 척추·쇄골·어깨 세그먼트 누락')
     for current_segment_record in current_profile_record['segments']:
-        if current_segment_record['segment_id'] in ('lower_spine', 'middle_spine', 'upper_spine', 'lower_neck', 'upper_neck'):
+        if current_segment_record['segment_id'] in SOURCE_ALIGNED_SEGMENT_IDS:
             current_segment_record['transfer_mode'] = 'absolute_direction'
     current_profile_record['source_reference'] = {'id': 'HY-Motion Wooden body22', 'source_url': 'https://github.com/Tencent-Hunyuan/HY-Motion-1.0', 'source_sha256': calculate_file_digest(current_template_path), 'joint_positions': current_reference_joints.tolist()}
     (current_retarget_directory / 'retarget-profile.yaml').write_text(yaml.safe_dump(current_profile_record, allow_unicode=True, sort_keys=False))
@@ -75,7 +79,7 @@ def export_vnccs_package(current_job_directory, current_attempt_path, current_re
     current_stage_record = {'output_directory': str(current_retarget_directory), 'source_directory': str(current_source_directory), 'skin_profile_path': str(WORKFLOW_ROOT_DIRECTORY / current_config_record['skin_profile']), 'export_directory': str(current_attempt_path), 'request': current_request_record, 'config': current_config_record}
     current_stage_path = current_attempt_path / 'stage-request.json'
     write_record_atomically(current_stage_path, current_stage_record)
-    for current_stage_name in ('position', 'arms', 'rotation', 'skin', 'render'):
+    for current_stage_name in ('position', 'rotation', 'skin', 'render'):
         current_progress_callback(current_stage_name, 'ANNY→VNCCS 출력 단계: ' + current_stage_name)
         current_log_path = current_attempt_path / (current_stage_name + '.log')
         with current_log_path.open('w') as current_log_stream:
@@ -84,6 +88,20 @@ def export_vnccs_package(current_job_directory, current_attempt_path, current_re
             raise RuntimeError(f'ANNY {current_stage_name} 단계 실패 (exit={current_process_result.returncode}): ' + current_log_path.read_text(errors='replace')[-4000:])
     current_skin_record = json.loads((current_retarget_directory / 'final/comparison.json').read_text())
     current_render_record = json.loads((current_attempt_path / 'render-manifest.json').read_text())
+    current_comparison_directory = current_attempt_path / 'unconstrained'
+    current_comparison_directory.mkdir()
+    current_comparison_stage = {**current_stage_record, 'export_directory': str(current_comparison_directory), 'constraint_comparison_disabled': True, 'config': {**current_config_record, 'projections': ['orthographic']}}
+    current_comparison_path = current_comparison_directory / 'stage-request.json'
+    write_record_atomically(current_comparison_path, current_comparison_stage)
+    current_progress_callback('render-comparison', '제약 끔 정사영 비교 렌더')
+    with (current_comparison_directory / 'render.log').open('w') as current_log_stream:
+        current_process_result = subprocess.run([str(BLENDER_RUNTIME_PYTHON), str(BLENDER_STAGE_RUNNER), str(VNCCS_STAGE_TEMPLATE), str(current_comparison_path), 'render'], stdout=current_log_stream, stderr=subprocess.STDOUT)
+    if current_process_result.returncode:
+        raise RuntimeError('제약 끔 비교 렌더 실패: ' + (current_comparison_directory / 'render.log').read_text(errors='replace')[-4000:])
+    current_comparison_record = json.loads((current_comparison_directory / 'render-manifest.json').read_text())
+    for current_image_record in current_render_record['images']:
+        current_image_record['skin_constraints_enabled'] = True
+    current_render_record['images'].extend({**current_image_record, 'path': 'unconstrained/' + current_image_record['path'], 'skin_constraints_enabled': False} for current_image_record in current_comparison_record['images'])
     current_file_records = []
     for current_image_record in current_render_record['images']:
         current_image_path = current_attempt_path / current_image_record['path']
@@ -109,4 +127,4 @@ def export_vnccs_package(current_job_directory, current_attempt_path, current_re
                 current_archive_file.write(current_attempt_path / current_relative_path, current_relative_path)
         current_archive_file.write(current_retarget_directory / 'final/barrier/mannequin.blend', 'anny-rig.blend')
     current_source_indices = list(range(current_request_record['start_frame'], current_request_record['end_frame'] + 1, current_request_record['frame_step']))
-    return {'kind': 'vnccs', 'rig_backend': 'anny', 'openpose': True, 'projections': current_render_record['projections'], 'frames': len(current_source_indices), 'source_indices': current_source_indices, 'source_frames': current_source_frames, 'source_fps': 30, 'preview_fps': 30 / current_request_record['frame_step'], 'directions': current_request_record['directions'], 'quality_warnings': current_skin_record['quality_warnings'], 'quality_summary': current_skin_record['summary'], 'downloads': ['vnccs-package.zip', 'vnccs-manifest.json', 'retarget-quality.json']}
+    return {'kind': 'vnccs', 'constraint_comparison': True, 'rig_backend': 'anny', 'openpose': True, 'projections': current_render_record['projections'], 'frames': len(current_source_indices), 'source_indices': current_source_indices, 'source_frames': current_source_frames, 'source_fps': 30, 'preview_fps': 30 / current_request_record['frame_step'], 'directions': current_request_record['directions'], 'quality_warnings': current_skin_record['quality_warnings'], 'quality_summary': current_skin_record['summary'], 'downloads': ['vnccs-package.zip', 'vnccs-manifest.json', 'retarget-quality.json']}

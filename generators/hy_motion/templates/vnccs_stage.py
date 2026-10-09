@@ -13,7 +13,7 @@ if current_stage_name == 'position':
     sys.path.insert(0, str(CURRENT_REPOSITORY_ROOT / 'generators/momask'))
     runpy.run_path(str(CURRENT_REPOSITORY_ROOT / 'generators/momask/templates/retarget_loop.py'), init_globals={'retarget_output_directory': current_output_directory}, run_name='__main__')
 elif current_stage_name in ('arms', 'rotation'):
-    current_template_name = 'arm_transfer.py' if current_stage_name == 'arms' else 'rotation_transfer.py'
+    current_template_name = 'arm_transfer.py' if current_stage_name == 'arms' else 'local_rotation_transfer.py'
     current_stage_directory = current_output_directory / current_stage_name
     current_stage_directory.mkdir()
     runpy.run_path(str(Path(__file__).parent / current_template_name), init_globals={'stage_output_directory': current_stage_directory, 'source_job_directory': current_source_directory}, run_name='__main__')
