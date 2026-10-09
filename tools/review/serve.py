@@ -505,6 +505,8 @@ def run_review_server(parsed_argument_values):
 
 if __name__ == '__main__':
     parsed_argument_values = parse_review_arguments()
+    from tools.review.common.review_server_takeover import release_review_server_port
+    release_review_server_port(parsed_argument_values.port, Path(__file__))
     if parsed_argument_values.watch:
         run_review_watch_mode(parsed_argument_values)
     else:
