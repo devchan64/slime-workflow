@@ -118,6 +118,20 @@ def load_current_texture_records(validate_complete_inventory=True):
         current_expected_size=GROUND_TILE_SOURCE_SIZE if current_tile_record['asset'].startswith('assets/tiles/terrain/') else GAME_TILE_SOURCE_SIZE
         normalization_warning_value=None if source_image_size==[current_expected_size,current_expected_size] else f'정규화 필요: 현재 {source_image_size[0]}×{source_image_size[1]}px, 기준 {current_expected_size}×{current_expected_size}px'
         exported_texture_records[current_tile_record['id']]={**tile_provenance_record,'path':'/management/map-assets/files/'+current_tile_record['asset']+'?v='+tile_provenance_record['sha256'],'source':current_tile_record['asset'],'sha256':hashlib.sha256(texture_source_path.read_bytes()).hexdigest(),'source_size':source_image_size,'expected_source_size':[current_expected_size,current_expected_size],'normalization_warning':normalization_warning_value}
+    # 지형지물은 타일 정규화 없이 승인된 투명 원본을 사용한다.
+    for current_asset_path, current_asset_record in registered_tile_records.items():
+        if not current_asset_record.get('managementId', '').startswith('image.scenery.'):
+            continue
+        current_sprite_path, current_sprite_provenance = resolve_registered_sprite(current_asset_path)
+        current_texture_identifier = Path(current_asset_path).stem
+        if current_texture_identifier in exported_texture_records:
+            raise ValueError('지형지물 텍스처 ID 중복: '+current_texture_identifier)
+        with Image.open(current_sprite_path) as current_sprite_image:
+            current_sprite_size = list(current_sprite_image.size)
+        exported_texture_records[current_texture_identifier] = {**current_sprite_provenance,
+            'path':'/management/map-assets/structures/'+current_sprite_path.name+'?v='+current_sprite_provenance['sha256'],
+            'source':current_asset_path, 'source_size':current_sprite_size,
+            'expected_source_size':current_sprite_size, 'normalization_warning':None}
     registered_road_tile_paths={
         current_asset_path
         for current_asset_path in registered_tile_records

@@ -83,10 +83,10 @@ tiles:
   - {id: round-fieldstone-ground, category: ground, asset: assets/tiles/terrain/non-road/round-fieldstone-ground-v1.png}
   - {id: frosted-grass-ground, category: ground, asset: assets/tiles/terrain/non-road/frosted-grass-ground-v1.png}
   - {id: sandy-scrub-ground, category: ground, asset: assets/tiles/terrain/non-road/sandy-scrub-ground-v1.png}
-  - {id: tree-base, category: ground, asset: assets/tiles/terrain/blocked/dry-ground-tree-stump-v1.png}
+  - {id: tree-base, category: ground, asset: assets/tiles/terrain/non-road/leaf-litter-v2.png}
   - {id: ramp-tread, category: ground, asset: assets/tiles/terrain/blocked/ramp-earth-stone-wall-v1.png}
   - {id: cliff-wall, category: ground, asset: assets/tiles/terrain/blocked/cliff-rock-face-v1.png}
-  - {id: battle-tree-stump, category: ground, asset: assets/tiles/terrain/blocked/dry-ground-tree-stump-v1.png}
+  - {id: battle-tree-stump, category: ground, asset: assets/tiles/terrain/non-road/leaf-litter-v2.png}
 
   - {id: iseulon-courtyard-paving, category: ground, asset: assets/tiles/terrain/road/ochre-pebble-road-v2.png}
 
