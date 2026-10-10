@@ -8,7 +8,10 @@ from tools.review.domains.image.pose_transfer_generation import load_pose_transf
 class PoseTransferPromptTests(unittest.TestCase):
     def test_generalized_prompt_delivery(self):
         current_prompt_text = load_pose_transfer_prompt()
-        self.assertEqual(current_prompt_text, 'Replace the pose of <image 2> with the full-body pose of <image 1>. Interpret left and right from the character’s perspective. Match the relative positions and orientations of the head, torso, pelvis, and each left and right limb. Match shoulder, elbow, wrist, hip, knee, and ankle placement, joint bends, hand positions, palm directions, foot positions, and foot orientations. Preserve the character’s face, hair, clothing, and body proportions from <image 2>. Show the entire body.')
+        self.assertEqual(current_prompt_text, 'Replace the pose of <image 2> with the pose of <image 1>. Match relative joint positions and bends, and the orientations of the head, torso, pelvis, palms, and feet.')
+        for current_removed_phrase in ('full-body', 'entire body', 'Preserve', 'anatomical', 'character’s perspective'):
+            self.assertNotIn(current_removed_phrase, current_prompt_text)
+        self.assertLessEqual(len(current_prompt_text.split()), 50)
         self.assertLess(len(current_prompt_text.split()), 100)
         current_request_record = {'width':512, 'height':512, 'steps':40, 'prompt':current_prompt_text, 'vnccs':build_vnccs_profile()}
         current_argument_record = build_vnccs_arguments(current_request_record, ['identity', 'pose'], None, None)
