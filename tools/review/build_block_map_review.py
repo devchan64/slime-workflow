@@ -205,6 +205,8 @@ def build_block_map_review(output_directory_path, character_review_only=False):
     shutil.copy2(source_ui_directory/'block-map-review.html',output_directory_path/'map-review.html')
     # 배포 manifest가 소비 버전의 유일한 원본이며 게시 URL에는 버전을 유지한다.
     field_renderer_directory=source_ui_directory/'vendor/field-renderer'
+    if not (field_renderer_directory/'field-renderer.mjs').is_file():
+        raise FileNotFoundError('렌더러 번들이 없습니다. 프론트엔드에서 build:field-renderer 후 tools/review/install_field_renderer.py --source <배포 경로>로 설치하세요.')
     field_renderer_manifest=yaml.safe_load((field_renderer_directory/'manifest.yaml').read_text())
     field_renderer_vendor_version=field_renderer_manifest['version']
     if not isinstance(field_renderer_vendor_version,str) or not re.fullmatch(r'\d+\.\d+\.\d+',field_renderer_vendor_version):

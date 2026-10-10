@@ -93,7 +93,7 @@ const groundTextureNames={grass:currentMapRecord.id==='iseulon'?'iseulon-grass-m
 function readBuildingTileSet(currentBuildingRecord){return {...buildingTileRecords['iseulon-'+currentBuildingRecord.facilityKind],...(currentMapRecord.buildingTileOverrides||{}),...(buildingTileRecords[currentBuildingRecord.id]||{})}}
 function renderAppliedTileSourceList(){
  const appliedTextureNames=new Set(isFieldMapReview?['cliff-wall','ramp-tread']:[]);
- Object.values(currentMapRecord.terrainCodes).forEach(currentTerrainName=>{const currentSelectedFrame=isFieldMapReview?resolveFieldTerrainFrame(currentTerrainName,currentMapRecord.id):null;const currentTextureName=currentSelectedFrame==='wall'?'cliff-wall':groundTextureNames[currentTerrainName];if(currentTextureName)appliedTextureNames.add(currentTextureName)});
+ Object.values(currentMapRecord.terrainCodes).forEach(currentTerrainName=>{const currentSelectedFrame=isFieldMapReview?resolveFieldTerrainFrame(currentTerrainName,currentMapRecord.id):null;const currentTextureName=currentSelectedFrame==='wall'?'cliff-wall':currentTextureRecords[currentSelectedFrame]?currentSelectedFrame:groundTextureNames[currentTerrainName];if(currentTextureName)appliedTextureNames.add(currentTextureName)});
  currentMapRecord.buildings.forEach(currentBuildingRecord=>Object.values(readBuildingTileSet(currentBuildingRecord)).forEach(currentTextureName=>appliedTextureNames.add(currentTextureName)));
  const appliedTileList=document.querySelector('#applied-tile-list');appliedTileList.replaceChildren();
  for(const [currentVisualName,currentVisualRecord] of Object.entries(currentSafeVisualRecords)){

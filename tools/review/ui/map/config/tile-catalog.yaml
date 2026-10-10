@@ -94,3 +94,9 @@ tiles:
   - {id: reedhaven-dry-embankment, category: ground, asset: assets/tiles/terrain/non-road/dry-soil-grass-v1.png}
   - {id: marsh-reed-clumps, category: ground, asset: assets/tiles/terrain/non-road/marsh-reed-clumps-v1.png}
   - {id: stonewarm-granite-paving, category: ground, asset: assets/tiles/terrain/road/granite-slab-road-v1.png}
+
+  - {id: golden-grain-field-v1, category: ground, asset: assets/tiles/terrain/non-road/golden-grain-field-v1.png}
+
+  - {id: tilled-furrows-v1, category: ground, asset: assets/tiles/terrain/non-road/tilled-furrows-v1.png}
+
+  - {id: farm-embankment-v1, category: ground, asset: assets/tiles/terrain/non-road/farm-embankment-v1.png}
