@@ -143,7 +143,7 @@ class ManagementCommandGateway:
         return True
 
 
-MANAGEMENT_COMMAND_DESCRIPTIONS = {'outfit-transfer':'Qwen 2.1 복장 착용 · 참조 정확히 2장: 바디, 아웃핏 순서','pose-transfer':'Qwen Image 2.1 포즈 변환 · 참조 정확히 2장: 아이덴티티, 포즈 순서','qwen-21-circular':'Qwen 2.1 순환 VAE · XY 디코더 · 3×3 반복 검수','animation-separation':'Qwen 2.1 참조 PNG 1장으로 신체 베이스·복장 독립 생성 · --reference','qwen-21':'Qwen Image 2.1 · 입력 프롬프트 원문 · 추가 문구 없음 · 참조 0~10장 · 20·30·40·50스텝 (기본 40)','seamless-tile':'Qwen Image 2.1 · 40스텝 · 5단계 가로·세로 심리스 패턴 · 단계별 검수 대기 · pause/resume · 참조 생략 가능','expression':'Qwen 2511 AU 표정 생성 · 참조 1~3장 · --expression에 표정 ID 지정','floor-tile':'512×512·4스텝 단일 바닥 타일 생성 (관리 서버 필요)','anny':'ANNY 이력 상태·중지·재개 (관리 서버 필요)','character-animation':'생성기 폐기 · 기존 이력·결과 조회·스프라이트 편집 (generate/resume 거절)','momask': '폐기된 MoMask 도구 · 모든 명령 거절 · HY-Motion 사용', 'qwen-2512': 'Qwen 2512 텍스트 이미지 생성 (관리 서버 필요)', 'qwen-2511': 'Qwen 2511 텍스트·1~3장 참조 이미지 생성 (관리 서버 필요)'}
+MANAGEMENT_COMMAND_DESCRIPTIONS = {'outfit-transfer':'Qwen 2.1 복장 착용 · 참조 정확히 2장: 바디, 아웃핏 순서','pose-transfer':'Qwen Image 2.1 포즈 변환 · 참조 정확히 2장: 아이덴티티, 포즈 순서','qwen-21-circular':'Qwen 2.1 순환 VAE · XY 디코더 · 3×3 반복 검수','animation-separation':'Qwen 2.1 참조 PNG 1장으로 신체 베이스·복장 독립 생성 · --reference','qwen-21':'Qwen Image 2.1 · 공용 화풍·투명 배경 선택 · 참조 0~10장 · 20·30·40·50스텝 (기본 40)','seamless-tile':'Qwen Image 2.1 · 40스텝 · 5단계 가로·세로 심리스 패턴 · 단계별 검수 대기 · pause/resume · 참조 생략 가능','expression':'Qwen 2511 AU 표정 생성 · 참조 1~3장 · --expression에 표정 ID 지정','floor-tile':'512×512·4스텝 단일 바닥 타일 생성 (관리 서버 필요)','anny':'ANNY 이력 상태·중지·재개 (관리 서버 필요)','character-animation':'생성기 폐기 · 기존 이력·결과 조회·스프라이트 편집 (generate/resume 거절)','momask': '폐기된 MoMask 도구 · 모든 명령 거절 · HY-Motion 사용', 'qwen-2512': 'Qwen 2512 텍스트 이미지 생성 (관리 서버 필요)', 'qwen-2511': 'Qwen 2511 텍스트·1~3장 참조 이미지 생성 (관리 서버 필요)'}
 
 MANAGEMENT_COMMAND_DESCRIPTIONS['character-review']='캐릭터 검수 렌더링 PNG 캡처 · --payload-file 설정'
 MANAGEMENT_COMMAND_DESCRIPTIONS['anny-landmarks']='ANNY 기준점 후보 지정·축 검수·누적 저장 · --payload-file JSON · 승인·적용 없음'
@@ -237,6 +237,9 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
                 operation_argument_parser.add_argument('--width',type=int,default=None if service_command_name=='seamless-tile' else 512 if service_command_name=='qwen-21-circular' else 768 if service_command_name in ('qwen-21','pose-transfer','outfit-transfer') else 512 if service_command_name in ('qwen-2511','expression','floor-tile') else 1024)
                 operation_argument_parser.add_argument('--height',type=int,default=None if service_command_name=='seamless-tile' else 512 if service_command_name=='qwen-21-circular' else 768 if service_command_name in ('qwen-21','pose-transfer','outfit-transfer') else 512 if service_command_name in ('qwen-2511','expression','floor-tile') else 1024)
                 operation_argument_parser.add_argument('--steps',type=int,choices=(25,40) if service_command_name=='pose-transfer' else (20,30,40,50) if service_command_name in ('qwen-21','qwen-21-circular','outfit-transfer') else (40,) if service_command_name=='seamless-tile' else (4,) if service_command_name=='floor-tile' else (4,30),default=40 if service_command_name in ('seamless-tile','qwen-21','qwen-21-circular','pose-transfer','outfit-transfer') else 4)
+                if service_command_name == 'qwen-21':
+                    operation_argument_parser.add_argument('--common-style', action=argparse.BooleanOptionalAction, default=False, help='SLIME 공용 화풍 추가')
+                    operation_argument_parser.add_argument('--transparent-background', action=argparse.BooleanOptionalAction, default=False, help='네이티브 RGBA 투명 배경 요청')
                 if service_command_name == 'qwen-21-circular':
                     operation_argument_parser.add_argument('--baseline-decode', action=argparse.BooleanOptionalAction, default=False, help='일반 VAE 비교 생성 · 기본 OFF')
                     operation_argument_parser.add_argument('--pattern-view', action=argparse.BooleanOptionalAction, default=True, help='Top view. Repeat pattern. Close-up 추가')
@@ -307,6 +310,9 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
                 command_payload_value['user_prompt']=command_payload_value.pop('prompt')
                 if command_argument_values.add_margins is not None:
                     command_payload_value['add_margins']=command_argument_values.add_margins
+            if service_command_name == 'qwen-21':
+                command_payload_value['common_style'] = command_argument_values.common_style
+                command_payload_value['transparent_background'] = command_argument_values.transparent_background
             if service_command_name == 'qwen-21-circular':
                 command_payload_value['circular_radius'] = command_argument_values.circular_radius
                 command_payload_value['soft_shading'] = command_argument_values.soft_shading

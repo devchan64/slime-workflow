@@ -1,4 +1,4 @@
-"""추가 프롬프트 없이 입력 원문을 사용하는 Qwen Image 2.1 서비스."""
+"""선택형 화풍·투명 배경 프롬프트를 조합하는 Qwen Image 2.1 서비스."""
 import base64
 import hashlib
 import json
@@ -14,6 +14,14 @@ QWEN_GENERATION_ROOT = WORKFLOW_ROOT_PATH / '.tmp/test/qwen-image-21'
 
 
 def validate_qwen_plain_request(current_request_record, allowed_inference_steps=QWEN_ALLOWED_INFERENCE_STEPS):
+    from generators.image.qwen_21_prompt_options import compose_qwen_option_prompt, QWEN_PROMPT_OPTION_NAMES
+    current_prompt_options = None
+    if isinstance(current_request_record, dict) and any(current_option_name in current_request_record for current_option_name in QWEN_PROMPT_OPTION_NAMES):
+        current_request_record = dict(current_request_record)
+        current_user_prompt = current_request_record.get('prompt')
+        current_prompt_options = {current_option_name: current_request_record.pop(current_option_name, False) for current_option_name in QWEN_PROMPT_OPTION_NAMES}
+        current_final_prompt, current_added_prompt = compose_qwen_option_prompt(current_user_prompt, **{current_option_name+'_enabled':current_option_value for current_option_name,current_option_value in current_prompt_options.items()})
+        current_request_record['prompt'] = current_final_prompt
     if isinstance(current_request_record, dict) and isinstance(current_request_record.get('images'), list):
         current_request_record = {**current_request_record, 'images': [
             base64.b64encode(decode_reference_image(current_image_text, composite_transparent_background=True)).decode()
@@ -22,12 +30,13 @@ def validate_qwen_plain_request(current_request_record, allowed_inference_steps=
     validated_request_record = validate_three_reference_request(current_request_record, allowed_inference_steps=allowed_inference_steps, maximum_reference_count=10, minimum_output_size=256)
     prompt_word_count = len(validated_request_record['prompt'].split())
     if not 0 < prompt_word_count < 100:
-        raise ValueError('프롬프트는 1~99단어로 입력하세요. 자동 문구 추가·축약은 하지 않습니다.')
+        raise ValueError('옵션 포함 최종 프롬프트는 1~99단어여야 합니다.')
     return {**validated_request_record, 'qwen21': {
         'schema_version': 1, 'model_id': QWEN_MODEL_IDENTIFIER, 'revision': QWEN_MODEL_REVISION,
         'prompt_word_count': prompt_word_count,
         'prompt_sha256': hashlib.sha256(validated_request_record['prompt'].encode()).hexdigest(),
-        'additional_prompt': '',
+        'additional_prompt': current_added_prompt if current_prompt_options is not None else '',
+        **({'prompt_options': current_prompt_options, 'user_prompt': current_user_prompt} if current_prompt_options is not None else {}),
     }}
 
 
@@ -46,6 +55,11 @@ def verify_qwen_saved_request(current_job_root, current_request_record):
         for current_field_name in ('action', 'prompt', 'tag', 'width', 'height', 'steps', 'seed')}
     restored_input_record['images'] = [base64.b64encode((current_job_root / current_reference_name).read_bytes()).decode()
         for current_reference_name in current_request_record['references']]
+    if 'prompt_options' in current_request_record.get('qwen21', {}):
+        restored_input_record['prompt'] = current_request_record['qwen21']['user_prompt']
+        restored_input_record.update(current_request_record['qwen21']['prompt_options'])
+        if validate_qwen_plain_request(restored_input_record)['prompt'] != current_request_record['prompt']:
+            raise ValueError('Qwen 최종 프롬프트가 옵션 기록과 일치하지 않습니다.')
     if current_job_root.parent.name == 'pose-transfer' and 'vnccs' in current_request_record:
         from generators.image.vnccs_profile import validate_vnccs_profile
         validate_vnccs_profile(current_request_record)

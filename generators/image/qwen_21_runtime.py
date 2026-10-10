@@ -101,6 +101,8 @@ def execute_qwen_reference_generation(current_job_root, current_request_record, 
             ).images[0]
         if generated_output_image.size != (current_request_record['width'], current_request_record['height']):
             raise ValueError(f'Qwen 2.1 출력 크기 불일치: {generated_output_image.size}')
+        if current_request_record.get('qwen21', {}).get('prompt_options', {}).get('transparent_background') and generated_output_image.mode != 'RGBA':
+            raise ValueError('투명 배경 요청의 네이티브 RGBA 출력이 아닙니다.')
         generated_output_image.save(current_job_root / 'result.png')
         if 'circular_vae' in current_request_record:
             repeated_output_image = Image.new('RGB', (generated_output_image.width * 3, generated_output_image.height * 3))
@@ -123,6 +125,11 @@ def execute_qwen_reference_generation(current_job_root, current_request_record, 
             'circular_vae': current_request_record.get('circular_vae'),
             'peak_gpu_bytes': torch.cuda.max_memory_allocated(), 'quality_warnings': [],
         }
+        if current_request_record.get('qwen21', {}).get('prompt_options', {}).get('transparent_background'):
+            current_alpha_extrema = generated_output_image.getchannel('A').getextrema()
+            current_result_record['alpha_output'] = {'mode': generated_output_image.mode, 'minimum': current_alpha_extrema[0], 'maximum': current_alpha_extrema[1], 'method': 'native-rgba'}
+            if current_alpha_extrema[0] > 0:
+                current_result_record['quality_warnings'].append('투명 배경 요청 결과에 완전히 투명한 픽셀이 없습니다. 알파 품질 검수가 필요합니다.')
         (current_job_root / 'result.json').write_text(json.dumps(current_result_record, ensure_ascii=False, indent=2))
         print(f'{datetime.now().isoformat()}/qwen21/complete 결과 저장', flush=True)
     finally:

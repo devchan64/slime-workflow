@@ -1,4 +1,4 @@
-"""추가 프롬프트 없는 Qwen Image 2.1 공용 UI 진입점."""
+"""선택형 화풍·투명 배경 옵션을 제공하는 Qwen Image 2.1 UI."""
 import argparse
 import gradio as gr
 from qwen_2511_app import build_qwen_2511_interface

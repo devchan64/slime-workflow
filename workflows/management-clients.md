@@ -586,3 +586,14 @@ CLI에서도 같은 요청을 사용한다: `python tools/manager.py momask gene
 MoMask 생성은 `--frames 120`으로 원본 모션 길이를 지정할 수 있습니다. 8 이상인 4의 배수 정수이며 생략하면 포즈 기본값을 사용합니다. GUI의 프레임 길이와 같은 요청·이력에 저장하고 입력 불러오기에서 복원합니다.
 
 MoMask `history-delete ID`와 GUI 선택 이력 삭제는 해당 작업 디렉터리(모션·렌더·입력·로그)와 이력을 영구 폐기합니다. 대기·실행 중에는 거절합니다. 전체 `history-reset`은 기존대로 목록만 초기화하며 파일 폐기와 구분합니다.
+
+### Qwen 2.1 일반 생성기 프롬프트 옵션
+
+`공용 화풍 추가`와 `투명 배경 요청`은 기본 OFF이며 GUI와 CLI에서 동일하게 사용합니다.
+CLI는 `--common-style`과 `--transparent-background`를 지원합니다. 게이트웨이 필드는
+`common_style`, `transparent_background` 불리언입니다. 공용 기준은 `prompts/art-style.yaml`이며
+Qwen 실행용 짧은 영문은 `generators/image/config/qwen_21_prompt_options.yaml`에서 관리합니다.
+현재 화풍은 손그림 질감이 아닌 **부드러운 그림자가 표현된 일러스트레이션**입니다.
+원문·옵션·추가 문구·최종 단어 수와 해시를 보존하며, 옵션 포함 99단어를 초과하면 거절합니다.
+이력 불러오기에서 원문과 옵션을 복원합니다. 투명 배경은 네이티브 RGBA 출력을 요청하며
+출력 알파를 보존합니다. 체크무늬를 그리거나 색상 제거 후처리로 투명화를 대신하지 않습니다.

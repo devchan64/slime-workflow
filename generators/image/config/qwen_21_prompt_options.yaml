@@ -1,0 +1,7 @@
+style_source: prompts/art-style.yaml#slime_painterly_diorama_v1
+common_style: >-
+  Miniature fantasy game illustration with soft shading, rounded dimensional forms,
+  clear silhouettes, broad shading masses, restrained detail, muted natural colors,
+  soft upper-left diffuse lighting, distinct material textures.
+transparent_background: >-
+  Output RGBA with a transparent background. Isolated subject, clean alpha edges.

@@ -113,3 +113,29 @@ class QwenPlainGenerationTests(unittest.TestCase):
         self.assertEqual(current_service_manager.history_storage_path().name,'qwen-21')
         self.assertEqual(current_service_manager.job_storage_root.name,'qwen-image-21')
         self.assertTrue(current_service_manager.select_generation_runner().endswith('run_qwen_21_reference.py'))
+
+    def test_prompt_options_and_saved_replay(self):
+        current_request_record = validate_qwen_plain_request({**self.create_reference_request(), 'common_style': True, 'transparent_background': True})
+        self.assertIn('soft shading', current_request_record['prompt'])
+        self.assertNotIn('hand-painted', current_request_record['prompt'])
+        self.assertIn('Output RGBA', current_request_record['prompt'])
+        self.assertLess(current_request_record['qwen21']['prompt_word_count'], 100)
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_job_root = Path(current_directory_name)
+            current_saved_record = {**current_request_record, **save_three_reference_inputs(current_job_root, current_request_record)}
+            current_saved_record.pop('images')
+            verify_qwen_saved_request(current_job_root, current_saved_record)
+            current_saved_record['qwen21']['prompt_options']['transparent_background'] = False
+            with self.assertRaises(ValueError):
+                verify_qwen_saved_request(current_job_root, current_saved_record)
+        for current_invalid_options in ({'common_style': 'true'}, {'transparent_background': 1}, {'common_style': True, 'prompt': 'word '*90}):
+            with self.assertRaises(ValueError):
+                validate_qwen_plain_request({**self.create_reference_request(), **current_invalid_options})
+
+    def test_cli_prompt_options(self):
+        with patch('tools.review.common.management_gateway.execute_management_command', return_value={'id':'test'}) as current_gateway_mock, contextlib.redirect_stdout(io.StringIO()):
+            execute_gateway_arguments('qwen-21',['generate','--detach','--prompt','One tree.','--common-style','--transparent-background'])
+        current_payload_record = current_gateway_mock.call_args.args[2]
+        self.assertTrue(current_payload_record['common_style'])
+        self.assertTrue(current_payload_record['transparent_background'])
+        self.assertIn('Output RGBA',validate_qwen_plain_request(current_payload_record)['prompt'])
