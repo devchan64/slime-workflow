@@ -1,9 +1,12 @@
 """생성이력 수동 초기화의 공용 UI와 명령 연결."""
+from pathlib import Path
 import gradio as gr
 from tools.review.common.gradio_identifiers import build_generation_identifier
 from tools.review.common.gradio_results import build_generation_gallery
 from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_confirmation
 
+
+HISTORY_SELECTION_SCRIPT_PATH = Path(__file__).resolve().parents[1] / 'ui/shared/generation-history-table.js'
 
 HISTORY_SUMMARY_FIELD_NAMES=('tag','tile_type','motion','action','start_frame','end_frame','directions','width','height','resolution','target_fps','speed','steps','seed')
 HISTORY_SUMMARY_LABELS={'tag':'태그','tile_type':'타일','motion':'모션','action':'동작','width':'너비','height':'높이','resolution':'해상도','target_fps':'타겟 FPS','speed':'배속','steps':'스텝','seed':'시드'}
@@ -197,7 +200,10 @@ def render_history_selection_table(current_history_records,current_selected_iden
             current_thumbnail_markup='<img class="generation-history-table-thumbnail" src="'+html.escape(current_image_url,quote=True)+'" alt="'+html.escape(current_job_identifier+' 결과 썸네일',quote=True)+'" loading="lazy" decoding="async">'
         else:
             current_thumbnail_markup='<span class="generation-history-table-thumbnail is-empty" aria-label="결과 없음">결과 없음</span>'
-        current_cell_markup=''.join('<td>'+html.escape(str(current_cell_value))+'</td>' for current_cell_value in current_table_row)
+        current_cell_markup=''.join('<td>'+html.escape(str(current_cell_value))+'</td>' for current_cell_value in current_table_row[:-1])
+        current_identifier_markup = html.escape(current_job_identifier)
+        current_copy_markup = '<button type="button" data-history-copy-id="'+html.escape(current_job_identifier,quote=True)+'" aria-label="'+html.escape(current_job_identifier+' ID 복사',quote=True)+'">ID 복사</button><span role="status" aria-live="polite" data-history-copy-status></span>'
+        current_cell_markup += '<td>'+current_identifier_markup+'<br>'+current_copy_markup+'</td>'
         current_row_markup.append('<tr><td>'+current_radio_markup+'</td><td>'+current_thumbnail_markup+'</td>'+current_cell_markup+'</tr>')
     return '<div style="overflow-x:auto"><table><caption>현재 페이지의 생성 이력</caption><thead><tr>'+current_header_markup+'</tr></thead><tbody>'+''.join(current_row_markup)+'</tbody></table></div>'
 
@@ -235,7 +241,7 @@ def build_generation_history_view(execute_service_command,server_base_address,de
             history_next_button=gr.Button('다음 →',scale=0,min_width=120,interactive=False)
         history_selection_value=gr.Dropdown(choices=[],value=None,label='이력 선택',info='작업을 선택한 뒤 결과 조회·입력값 불러오기·중지·재개를 사용하세요.',interactive=True,visible=False,elem_id='generation-history-selection')
         gr.Markdown('첫 번째 열에서 작업을 선택한 뒤 결과 조회·입력값 불러오기·삭제를 사용하세요. 입력값을 불러오면 설정을 확인한 뒤 다시 생성할 수 있습니다.')
-        history_cards_value=gr.HTML(value='',elem_id='generation-history-cards',js_on_load="watch('value',()=>{element.querySelectorAll('input[type=radio]').forEach(currentRadioInput=>{currentRadioInput.checked=currentRadioInput.hasAttribute('checked');});});element.addEventListener('change',(currentChangeEvent)=>{const currentRadioInput=currentChangeEvent.target;if(currentRadioInput.matches('input[type=radio]'))trigger('click',{identifier:currentRadioInput.value});});")
+        history_cards_value=gr.HTML(value='',elem_id='generation-history-cards',js_on_load=HISTORY_SELECTION_SCRIPT_PATH.read_text(encoding='utf-8'))
         (history_selected_panel, history_selection_summary, selected_identifier_value, result_lookup_button, restore_input_button, history_resume_button, history_cancel_button, history_delete_button, history_priority_button)=build_history_selection_panel(restore_input_callback is not None, allow_individual_delete)
         if allow_individual_delete:
             current_delete_identifier=gr.State('')
