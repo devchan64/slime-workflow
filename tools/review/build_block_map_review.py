@@ -115,7 +115,7 @@ def load_current_texture_records(validate_complete_inventory=True):
         texture_source_path, tile_provenance_record = resolve_registered_tile(current_tile_record['asset'], asset_repository_path, registered_tile_records)
         with Image.open(texture_source_path) as source_texture_image:
             source_image_size=list(source_texture_image.size)
-        current_expected_size=GROUND_TILE_SOURCE_SIZE if current_tile_record['asset'].startswith('assets/tiles/terrain/') and Path(current_tile_record['asset']).name not in {'cliff-rock-face-v1.png','ramp-earth-stone-wall-v1.png'} else GAME_TILE_SOURCE_SIZE
+        current_expected_size=GROUND_TILE_SOURCE_SIZE if current_tile_record['asset'].startswith('assets/tiles/terrain/') else GAME_TILE_SOURCE_SIZE
         normalization_warning_value=None if source_image_size==[current_expected_size,current_expected_size] else f'정규화 필요: 현재 {source_image_size[0]}×{source_image_size[1]}px, 기준 {current_expected_size}×{current_expected_size}px'
         exported_texture_records[current_tile_record['id']]={**tile_provenance_record,'path':'/management/map-assets/files/'+current_tile_record['asset']+'?v='+tile_provenance_record['sha256'],'source':current_tile_record['asset'],'sha256':hashlib.sha256(texture_source_path.read_bytes()).hexdigest(),'source_size':source_image_size,'expected_source_size':[current_expected_size,current_expected_size],'normalization_warning':normalization_warning_value}
     registered_road_tile_paths={

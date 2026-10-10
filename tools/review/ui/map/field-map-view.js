@@ -1,7 +1,7 @@
 import {resolveTownGroundFrame,resolveReedFrameForMap,drawWaypoint,waypointMarkerScale,resolveFieldTileTextures,collectTerrainTextureSources,createTerrainAtlas,TERRAIN_ATLAS,drawBlockStructure,cellDepth,TERRAIN_DEPTH,mapAnnotationDepth,resolveMapTileSize,resolveGrassFrameForMap,resolvePavingFrameForMap,selectFieldRoadFrame} from './vendor/field-renderer/__FIELD_RENDERER_VERSION__/town-renderer.mjs';
 import {GAME_INTERNAL_RESOLUTION_SCALE,drawCharacterContactShadow,attachCharacterOutlineLayers,roadConnections,waterConnections} from './vendor/field-renderer/__FIELD_RENDERER_VERSION__/game-render-profile.mjs';
 import * as Phaser from './vendor/field-renderer/__FIELD_RENDERER_VERSION__/phaser.mjs';
-import {drawTownMaterialEdges,drawFieldCellObjects,drawFieldTowerObject,drawFieldAuraPanel,drawFieldMeshBoundary,buildFieldBoundaryPanels,rotateSurfacePosition} from './vendor/field-renderer/__FIELD_RENDERER_VERSION__/field-renderer.mjs';
+import {resolveGuardDisplayPlacement,projectGuardDisplayCenter,GUARD_CENTER_FOOTPRINT_SIZE,drawTownMaterialEdges,drawFieldCellObjects,drawFieldTowerObject,drawFieldAuraPanel,drawFieldMeshBoundary,buildFieldBoundaryPanels,rotateSurfacePosition} from './vendor/field-renderer/__FIELD_RENDERER_VERSION__/field-renderer.mjs';
 
 const FIELD_REVIEW_ACTOR_DEPTH=TERRAIN_DEPTH.actor;
 const FIELD_REVIEW_TOWER_DEPTH=TERRAIN_DEPTH.overlay;
@@ -91,11 +91,17 @@ export async function createSharedFieldReview(currentMapCanvas,currentTextureIma
       }
       if(currentCellRecord.cell.column===currentMapRecord.startPoint.column&&currentCellRecord.cell.row===currentMapRecord.startPoint.row)drawFieldTowerObject(currentFieldScene,currentCellRecord.center,'safe-tower',currentRenderDepth+FIELD_REVIEW_TOWER_DEPTH);
      }
-     for(const currentGuardRecord of currentMapRecord.guardCenters??[]){
-      if(currentGuardRecord.renderPosition.column!==currentCellRecord.cell.column||currentGuardRecord.renderPosition.row!==currentCellRecord.cell.row)continue;
-      const currentGuardImage=currentFieldScene.add.image(currentCellRecord.center.x+currentGuardRecord.offsetX,currentCellRecord.center.y+currentGuardRecord.offsetY,currentGuardRecord.path).setOrigin(currentGuardRecord.anchorX,currentGuardRecord.anchorY).setDepth(currentRenderDepth+FIELD_REVIEW_ACTOR_DEPTH);
-      currentGuardImage.setScale(currentGuardRecord.displayWidth/currentGuardImage.width);
-     }
+    }
+    for(const currentGuardRecord of currentMapRecord.guardCenters??[]){
+     const currentGuardPlacement=resolveGuardDisplayPlacement(currentGuardRecord.position,currentMapRecord);
+     const currentGuardCenter=projectGuardDisplayCenter(currentGuardPlacement,currentCell=>{
+      const currentFrameCell=currentFieldFrame.cells.find(currentRecord=>currentRecord.cell.column===currentCell.column&&currentRecord.cell.row===currentCell.row);
+      if(!currentFrameCell)throw Error('경비센터 지면 렌더 셀이 없습니다.');
+      return currentFrameCell.center;
+     });
+     const currentGuardDepth=cellDepth(rotateSurfacePosition(currentGuardPlacement.position,currentFieldFrame.options.rotation));
+     const currentGuardImage=currentFieldScene.add.image(currentGuardCenter.x+currentGuardRecord.offsetX,currentGuardCenter.y+currentGuardRecord.offsetY,currentGuardRecord.path).setOrigin(currentGuardRecord.anchorX,currentGuardRecord.anchorY).setDepth(currentGuardDepth+FIELD_REVIEW_TOWER_DEPTH);
+     currentGuardImage.setScale(currentFieldFrame.options.tileWidth*GUARD_CENTER_FOOTPRINT_SIZE/currentGuardImage.width);
     }
     currentRenderSignature=currentNextSignature;
    }

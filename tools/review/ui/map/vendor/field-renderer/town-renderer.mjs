@@ -141,9 +141,6 @@ var transparent_shallow_water_v2_default = "assets/tiles/terrain/blocked/transpa
 // ../slime-assets/assets/tiles/terrain/blocked/sand-cactus-type-a-v1.png
 var sand_cactus_type_a_v1_default = "assets/tiles/terrain/blocked/sand-cactus-type-a-v1.png";
 
-// ../slime-assets/assets/tiles/terrain/road/limestone-road-v3.png
-var limestone_road_v3_default = "assets/tiles/terrain/road/limestone-road-v3.png";
-
 // ../slime-assets/assets/tiles/buildings/wood/wood-roof-v4.png
 var wood_roof_v4_default = "assets/tiles/buildings/wood/wood-roof-v4.png";
 
@@ -165,11 +162,23 @@ var stone_roof_v1_default = "assets/tiles/buildings/stone/stone-roof-v1.png";
 // ../slime-assets/assets/tiles/buildings/red-stone/red-stone-roof-v3.png
 var red_stone_roof_v3_default = "assets/tiles/buildings/red-stone/red-stone-roof-v3.png";
 
+// ../slime-assets/assets/tiles/terrain/non-road/volcanic-ash-ground-v1.png
+var volcanic_ash_ground_v1_default = "assets/tiles/terrain/non-road/volcanic-ash-ground-v1.png";
+
 // ../slime-assets/assets/tiles/terrain/non-road/leaf-litter-v2.png
 var leaf_litter_v2_default = "assets/tiles/terrain/non-road/leaf-litter-v2.png";
 
+// ../slime-assets/assets/tiles/terrain/non-road/dark-humus-ground-v1.png
+var dark_humus_ground_v1_default = "assets/tiles/terrain/non-road/dark-humus-ground-v1.png";
+
+// ../slime-assets/assets/tiles/terrain/road/limestone-road-v3.png
+var limestone_road_v3_default = "assets/tiles/terrain/road/limestone-road-v3.png";
+
 // ../slime-assets/assets/tiles/terrain/road/marble-circular-road-v1.png
 var marble_circular_road_v1_default = "assets/tiles/terrain/road/marble-circular-road-v1.png";
+
+// ../slime-assets/assets/tiles/terrain/non-road/round-fieldstone-ground-v1.png
+var round_fieldstone_ground_v1_default = "assets/tiles/terrain/non-road/round-fieldstone-ground-v1.png";
 
 // ../slime-assets/assets/tiles/terrain/blocked/cliff-rock-face-v1.png
 var cliff_rock_face_v1_default = "assets/tiles/terrain/blocked/cliff-rock-face-v1.png";
@@ -235,13 +244,16 @@ function roadConnections(cell, map2, road) {
   }
   return mask;
 }
-var DIRT_ROAD_VARIANT_PERIOD = 3;
-var STONE_SLAB_ROAD_MAPS = /* @__PURE__ */ new Set(["broken-quarry", "crystal-cut"]);
-function selectFieldRoadFrame(connectionMaskValue, currentCellPosition, currentMapIsTown, currentMapIdentifier = "") {
-  if (currentMapIdentifier === "meadow") return "meadow-road";
-  if (!currentMapIsTown && STONE_SLAB_ROAD_MAPS.has(currentMapIdentifier)) return `stone-road-${connectionMaskValue}`;
-  const roadVariantIndex = ((currentCellPosition.column + currentCellPosition.row) % DIRT_ROAD_VARIANT_PERIOD + DIRT_ROAD_VARIANT_PERIOD) % DIRT_ROAD_VARIANT_PERIOD;
-  return !currentMapIsTown && roadVariantIndex === 0 ? `dirt-road-${connectionMaskValue}` : roadFrame(connectionMaskValue);
+var FIELD_ROAD_FRAME_GROUPS = [
+  ["dirt-road", ["meadow", "grove", "wind-hills", "mist-lake", "ash-edge", "cinder-path", "clover-bank", "dry-creek", "fallen-canopy", "lantern-wood", "moss-clearing", "old-orchard", "reed-crossing", "root-trail", "silver-marsh", "windrow-road", "granary-flats"]],
+  ["stone-road", ["boar-ridge", "broken-quarry", "crystal-cut", "dawn-overlook", "mill-ridge"]],
+  ["road", ["pebble-shore", "brine-bank", "salt-causeway", "salt-flat"]]
+];
+function selectFieldRoadFrame(connectionMaskValue, _currentCellPosition, currentMapIsTown, currentMapIdentifier = "") {
+  if (currentMapIsTown) return roadFrame(connectionMaskValue);
+  const selectedRoadFrameGroup = FIELD_ROAD_FRAME_GROUPS.find(([, currentMapIdentifiers]) => currentMapIdentifiers.includes(currentMapIdentifier));
+  if (!selectedRoadFrameGroup) throw new Error(`\uC57C\uC678 \uB3C4\uB85C \uC7AC\uC9C8\uC774 \uB4F1\uB85D\uB418\uC9C0 \uC54A\uC558\uC2B5\uB2C8\uB2E4: ${currentMapIdentifier}`);
+  return selectedRoadFrameGroup[0];
 }
 
 // src/game/terrain/textures.ts
@@ -262,7 +274,7 @@ var STONEWARM_PAVING_FRAME = "stonewarm-paving";
 var STONEWARM_MARBLE_PAVING_FRAME = "stonewarm-marble-paving";
 var ISEULON_GRASS_FRAME = "iseulon-grass-mud-frame";
 var REEDHAVEN_DIRT_ROAD_FRAME = "reedhaven-dirt-road";
-var SOURCES = { "dry-soil-branches": wildflower_meadow_ground_v1_default, "deep-water": transparent_deep_water_v2_default, "shallow-water": transparent_shallow_water_v2_default, cactus: sand_cactus_type_a_v1_default, grass: wildflower_meadow_ground_v1_default, dew: wildflower_meadow_ground_v1_default, road: limestone_road_v3_default, flowers: wildflower_meadow_ground_v1_default, water: transparent_shallow_water_v2_default, "ash": wildflower_meadow_ground_v1_default, "boulder": wildflower_meadow_ground_v1_default, "gravel": wildflower_meadow_ground_v1_default, "leaf-litter": leaf_litter_v2_default, "moss": wildflower_meadow_ground_v1_default, "mud": wildflower_meadow_ground_v1_default, "paving": limestone_road_v3_default, "reed-bed": wildflower_meadow_ground_v1_default, "stone": wildflower_meadow_ground_v1_default, "tree-base": wildflower_meadow_ground_v1_default, "wall": cliff_rock_face_v1_default };
+var SOURCES = { "dry-soil-branches": dry_soil_grass_v1_default, "deep-water": transparent_deep_water_v2_default, "shallow-water": transparent_shallow_water_v2_default, cactus: sand_cactus_type_a_v1_default, grass: wildflower_meadow_ground_v1_default, dew: wildflower_meadow_ground_v1_default, road: limestone_road_v3_default, flowers: wildflower_meadow_ground_v1_default, water: transparent_shallow_water_v2_default, "ash": volcanic_ash_ground_v1_default, "boulder": wildflower_meadow_ground_v1_default, "gravel": pebble_shore_ground_v1_default, "leaf-litter": leaf_litter_v2_default, "moss": dark_humus_ground_v1_default, "mud": dark_humus_ground_v1_default, "paving": limestone_road_v3_default, "reed-bed": marsh_reed_clumps_v1_default, "stone": round_fieldstone_ground_v1_default, "tree-base": dry_ground_tree_stump_v1_default, "wall": cliff_rock_face_v1_default };
 var SOURCE_KINDS = FIELD_TERRAIN_KINDS;
 var SPECIAL_TERRAIN_SOURCES = [
   { frame: "iseulon-courtyard-paving", source: ochre_pebble_road_v2_default },
@@ -322,8 +334,8 @@ function preloadTerrain(scene) {
   scene.load.image(RED_BRICK_WINDOW_TEXTURE, red_stone_sky_blue_window_wall_v1_default);
   scene.load.image(RED_BRICK_DOOR_TEXTURE, red_stone_brick_gate_v3_default);
   scene.load.image(RED_BRICK_WALL_TEXTURE, red_stone_brick_wall_v1_default);
-  scene.load.image("terrain-source-dirt-road", limestone_road_v3_default);
-  scene.load.image("terrain-source-stone-road", limestone_road_v3_default);
+  scene.load.image("terrain-source-dirt-road", ochre_pebble_road_v1_default);
+  scene.load.image("terrain-source-stone-road", granite_slab_road_v1_default);
   scene.load.image(UNIFIED_WOOD_WALL_TEXTURE, wood_wall_v2_default);
   scene.load.image(UNIFIED_WOOD_ROOF_TEXTURE, wood_roof_v4_default);
   scene.load.image(WOOD_WINDOW_WALL_TEXTURE, wood_window_wall_v1_default);
@@ -8393,11 +8405,18 @@ function drawBlockStructure(currentMapScene, currentCityBuilding, projectTerrain
 }
 
 // src/game/terrain/fieldTileRendering.ts
+var ROCK_FACE_FIELD_IDENTIFIERS = /* @__PURE__ */ new Set(["boar-ridge", "broken-quarry", "crystal-cut", "cinder-path", "dawn-overlook", "dry-creek", "mill-ridge", "brine-bank", "wind-hills"]);
+function resolveFieldTerrainFrame(currentTerrainName, currentMapIdentifier) {
+  if (currentTerrainName === "road") return selectFieldRoadFrame(0, { column: 0, row: 0 }, false, currentMapIdentifier);
+  if (currentTerrainName === "boulder" && ROCK_FACE_FIELD_IDENTIFIERS.has(currentMapIdentifier)) return "wall";
+  if (currentTerrainName === "flowers" && currentMapIdentifier === "meadow") return "meadow-flowers";
+  return currentTerrainName;
+}
 function resolveFieldTileTextures(currentGameScene, currentTerrainName, currentCellPosition, currentMapIdentifier, currentConnectionMask, resolveGroundMaterial) {
-  const currentSelectedFrame = currentTerrainName === "water" ? `water-${currentConnectionMask}` : currentTerrainName === "road" ? selectFieldRoadFrame(currentConnectionMask, currentCellPosition, false, currentMapIdentifier) : currentTerrainName === "flowers" && currentMapIdentifier === "meadow" ? "meadow-flowers" : currentTerrainName;
-  const currentConnectedFrame = /^(water|road|dirt-road|stone-road)-(\d+)$/.exec(currentSelectedFrame);
+  const currentSelectedFrame = currentTerrainName === "water" ? `water-${currentConnectionMask}` : resolveFieldTerrainFrame(currentTerrainName, currentMapIdentifier);
+  const currentConnectedFrame = /^(water)-(\d+)$/.exec(currentSelectedFrame);
   const currentGroundKey = currentConnectedFrame ? prepareFieldConnectedTexture(currentGameScene, `terrain-source-${currentConnectedFrame[1]}`, "terrain-source-grass", Number(currentConnectedFrame[2])) : `terrain-source-${currentSelectedFrame}`;
-  return { ground: currentGroundKey, resolveGroundMaterial, cliff: CLIFF_WALL_TEXTURE, tread: RAMP_TREAD_TEXTURE, roadConnectionMask: currentTerrainName === "road" ? currentConnectionMask : void 0, fullTileRoad: currentTerrainName === "road" && !currentConnectedFrame, underlay: ["boulder", "tree-base"].includes(currentTerrainName) ? "terrain-source-grass" : void 0 };
+  return { ground: currentGroundKey, resolveGroundMaterial, cliff: CLIFF_WALL_TEXTURE, tread: RAMP_TREAD_TEXTURE, underlay: ["boulder", "tree-base"].includes(currentTerrainName) ? "terrain-source-grass" : void 0 };
 }
 
 // src/game/terrain/waypoint.ts
@@ -8483,6 +8502,7 @@ export {
   drawBlockStructure,
   drawWaypoint,
   mapAnnotationDepth,
+  resolveFieldTerrainFrame,
   resolveFieldTileTextures,
   resolveGrassFrameForMap,
   resolveMapTileSize,

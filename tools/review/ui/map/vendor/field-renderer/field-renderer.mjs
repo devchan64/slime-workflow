@@ -1,3 +1,31 @@
+// packages/field-renderer/guard-placement.mjs
+var GUARD_CENTER_FOOTPRINT_SIZE = 2;
+var GUARD_FORBIDDEN_TERRAIN = /* @__PURE__ */ new Set(["road", "water", "shallow-water", "deep-water", "wall", "boulder", "tree-base"]);
+var GUARD_NEIGHBOR_OFFSETS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+function resolveGuardDisplayPlacement(currentGatePosition, currentMapRecord) {
+  if (!currentMapRecord.terrainRows || !currentMapRecord.terrainCodes) throw Error("\uACBD\uBE44\uC13C\uD130 \uBC30\uCE58\uC5D0 \uC9C0\uD615 \uB370\uC774\uD130\uAC00 \uD544\uC694\uD569\uB2C8\uB2E4.");
+  const currentBlockedCells = new Set((currentMapRecord.blocked ?? []).map((currentCell) => `${currentCell.column},${currentCell.row}`));
+  const currentStairCells = new Set((currentMapRecord.elevationTiles ?? []).map((currentStair) => `${currentStair.cell.column},${currentStair.cell.row}`));
+  const readCurrentTerrain = (currentColumn, currentRow) => currentMapRecord.terrainCodes[currentMapRecord.terrainRows[currentRow]?.[currentColumn]];
+  const currentCandidateRecords = [];
+  for (let currentRow = 0; currentRow < currentMapRecord.rows - 1; currentRow++) for (let currentColumn = 0; currentColumn < currentMapRecord.columns - 1; currentColumn++) {
+    const currentFootprintCells = [{ column: currentColumn, row: currentRow }, { column: currentColumn + 1, row: currentRow }, { column: currentColumn, row: currentRow + 1 }, { column: currentColumn + 1, row: currentRow + 1 }];
+    const currentBaseHeight = currentMapRecord.elevations?.[currentRow]?.[currentColumn] ?? 0;
+    if (currentFootprintCells.some((currentCell) => !readCurrentTerrain(currentCell.column, currentCell.row) || GUARD_FORBIDDEN_TERRAIN.has(readCurrentTerrain(currentCell.column, currentCell.row)) || currentBlockedCells.has(`${currentCell.column},${currentCell.row}`) || currentStairCells.has(`${currentCell.column},${currentCell.row}`) || (currentMapRecord.elevations?.[currentCell.row]?.[currentCell.column] ?? 0) !== currentBaseHeight)) continue;
+    if (!currentFootprintCells.some((currentCell) => GUARD_NEIGHBOR_OFFSETS.some(([currentColumnOffset, currentRowOffset]) => readCurrentTerrain(currentCell.column + currentColumnOffset, currentCell.row + currentRowOffset) === "road" && (currentMapRecord.elevations?.[currentCell.row + currentRowOffset]?.[currentCell.column + currentColumnOffset] ?? 0) === currentBaseHeight))) continue;
+    const currentCenterPosition = { column: currentColumn + 0.5, row: currentRow + 0.5 };
+    const currentGateDistance = Math.abs(currentCenterPosition.column - currentGatePosition.column) + Math.abs(currentCenterPosition.row - currentGatePosition.row);
+    currentCandidateRecords.push({ position: currentCenterPosition, cells: currentFootprintCells, width: GUARD_CENTER_FOOTPRINT_SIZE, height: GUARD_CENTER_FOOTPRINT_SIZE, distance: currentGateDistance });
+  }
+  currentCandidateRecords.sort((currentLeft, currentRight) => currentLeft.distance - currentRight.distance || currentLeft.position.row - currentRight.position.row || currentLeft.position.column - currentRight.position.column);
+  if (!currentCandidateRecords.length) throw Error("\uB3C4\uB85C \uC606\uC5D0 \uACBD\uBE44\uC13C\uD130\uB97C \uB193\uC744 \uD3C9\uD3C9\uD55C 2\xD72 \uC9C0\uBA74\uC774 \uC5C6\uC2B5\uB2C8\uB2E4: " + currentMapRecord.id);
+  return currentCandidateRecords[0];
+}
+function projectGuardDisplayCenter(currentPlacementRecord, projectCurrentCell) {
+  const currentScreenPoints = currentPlacementRecord.cells.map(projectCurrentCell);
+  return { x: currentScreenPoints.reduce((currentTotal, currentPoint) => currentTotal + currentPoint.x, 0) / 4, y: currentScreenPoints.reduce((currentTotal, currentPoint) => currentTotal + currentPoint.y, 0) / 4 };
+}
+
 // packages/field-renderer/render-constants.mjs
 var MAP_TILE_WIDTH = 80;
 var MAP_TILE_HEIGHT = 40;
@@ -89,7 +117,7 @@ function resolveCliffTextureScale(currentRenderOptions, currentTextureWidth, cur
 }
 
 // packages/field-renderer/field-renderer.mjs
-var FIELD_RENDERER_VERSION = "1.0.26";
+var FIELD_RENDERER_VERSION = "1.0.30";
 var FIELD_EDGE_COORDINATE_EPSILON = 1e-6;
 var FIELD_QUAD_TRIANGLES = [0, 1, 2, 0, 2, 3];
 var FIELD_CELL_CORNERS = [[-0.5, -0.5], [0.5, -0.5], [0.5, 0.5], [-0.5, 0.5]];
@@ -180,14 +208,13 @@ function buildFieldElevationEdges(currentCellPosition, currentMapSurface, curren
 function buildFieldMaterialEdges(currentCellPosition, currentMapSurface, resolveGroundMaterial, currentRenderOptions = FIELD_RENDER_METRICS) {
   if (findSurfaceStair(currentCellPosition, currentMapSurface)) return [];
   const currentMaterialName = resolveGroundMaterial(currentCellPosition);
-  if (currentMaterialName === "road") return [];
   const currentCellHeight = readSurfaceHeight(currentCellPosition, currentMapSurface);
   const currentCornerPoints = FIELD_CELL_CORNERS.map(([currentColumnOffset, currentRowOffset]) => projectSurfaceVertex({ column: currentCellPosition.column + currentColumnOffset, row: currentCellPosition.row + currentRowOffset, height: currentCellHeight * currentRenderOptions.elevationHeight }, currentRenderOptions));
   return FIELD_BOUNDARY_NEIGHBORS.filter((currentNeighborOffset) => currentNeighborOffset.column < 0 || currentNeighborOffset.row < 0).flatMap((currentNeighborOffset) => {
     const currentNeighborCell = { column: currentCellPosition.column + currentNeighborOffset.column, row: currentCellPosition.row + currentNeighborOffset.row };
     if (currentNeighborCell.column < 0 || currentNeighborCell.row < 0 || findSurfaceStair(currentNeighborCell, currentMapSurface) || readSurfaceHeight(currentNeighborCell, currentMapSurface) !== currentCellHeight) return [];
     const currentNeighborMaterial = resolveGroundMaterial(currentNeighborCell);
-    if (currentNeighborMaterial === currentMaterialName || currentNeighborMaterial === "road") return [];
+    if (currentNeighborMaterial === currentMaterialName) return [];
     return [currentNeighborOffset.edge.map((currentCornerIndex) => currentCornerPoints[currentCornerIndex])];
   });
 }
@@ -370,6 +397,7 @@ export {
   FIELD_RENDER_METRICS,
   FIELD_SAFE_AURA_PROFILE,
   FIELD_SAFE_TOWER_PROFILE,
+  GUARD_CENTER_FOOTPRINT_SIZE,
   buildFieldBoundaryPanels,
   buildFieldCellGeometry,
   buildFieldCliffEdges,
@@ -387,9 +415,11 @@ export {
   drawFieldTowerObject,
   drawTownMaterialEdges,
   prepareFieldConnectedTexture,
+  projectGuardDisplayCenter,
   projectSurfaceCell,
   projectSurfaceVertex,
   resolveFieldActorContactShadow,
   resolveFieldAuraUvs,
+  resolveGuardDisplayPlacement,
   rotateSurfacePosition
 };
