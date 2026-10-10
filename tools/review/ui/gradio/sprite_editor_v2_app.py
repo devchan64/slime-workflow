@@ -9,6 +9,7 @@ WORKFLOW_ROOT_DIRECTORY=Path(__file__).resolve().parents[4]
 if str(WORKFLOW_ROOT_DIRECTORY) not in sys.path:
     sys.path.insert(0,str(WORKFLOW_ROOT_DIRECTORY))
 from tools.review.ui_assets import resolve_review_ui_asset
+from tools.review.domains.character_animation.sprite_editor_v2 import SPRITE_V2_DEFAULT_FPS
 from tools.review.common.gradio_browser_controls import build_browser_action_button
 from tools.review.common.gradio_frame_navigator import build_frame_navigator
 from tools.review.common.gradio_identifiers import build_generation_identifier
@@ -190,7 +191,7 @@ def build_sprite_v2_interface():
             gr.Markdown('현재 설정은 비교 화면 아래에 표시됩니다. 변경할 항목을 체크하고 값을 입력하세요. 유지 시간은 현재 선택한 프레임에 적용하며 0이면 작업 FPS를 사용합니다.')
             with gr.Row():
                 current_fps_enabled=gr.Checkbox(label='FPS 변경',value=False)
-                current_fps_input=gr.Number(label='변경할 FPS',value=8,minimum=1,maximum=60)
+                current_fps_input=gr.Number(label='변경할 FPS',value=SPRITE_V2_DEFAULT_FPS,minimum=1,maximum=60)
                 current_duration_enabled=gr.Checkbox(label='유지 시간 변경',value=False)
                 current_duration_input=gr.Number(label='선택 프레임 유지 시간 · ms',value=0,minimum=0,maximum=10000)
             current_timing_button=gr.Button('재생 시간 적용')

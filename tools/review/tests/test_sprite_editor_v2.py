@@ -25,6 +25,9 @@ class SpriteEditorV2Tests(unittest.TestCase):
         self.workspace_patch_value.stop()
         self.temporary_directory_value.cleanup()
 
+    def test_new_project_default_fps(self):
+        self.assertEqual(self.initial_project_record['document']['fps'],6)
+
     def execute_test_command(self,current_command_name,current_payload_record):
         return sprite_editor_v2.execute_v2_command('sprite-v2-'+current_command_name,current_payload_record)
 

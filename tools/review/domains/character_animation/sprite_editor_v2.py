@@ -18,6 +18,7 @@ from tools.review.common.generation_records import write_record_atomically
 SPRITE_V2_WORKSPACE_ROOT = Path(__file__).resolve().parents[4]/'.tmp/test/sprite-editor-v2'
 SPRITE_V2_COMMAND_LOCK = threading.RLock()
 SPRITE_V2_FRAME_LIMIT = 128
+SPRITE_V2_DEFAULT_FPS = 6
 SPRITE_V2_IMAGE_LIMIT = 8_000_000
 SPRITE_V2_PIXEL_LIMIT = 16_777_216
 SPRITE_V2_TIME_ZONE = ZoneInfo('Asia/Seoul')
@@ -164,7 +165,7 @@ def execute_v2_command(operation_command_name, command_payload_value):
             current_time_string = datetime.now(SPRITE_V2_TIME_ZONE).strftime('%Y-%m-%d_%H-%M-%S')
             project_identifier_value = current_time_string+'-'+uuid4().hex[:8]
             project_directory_path = SPRITE_V2_WORKSPACE_ROOT/current_time_string/project_identifier_value
-            current_document_record = {'version':2,'name':command_payload_value['name'],'cellSize':command_payload_value['cellSize'],'fps':8,'reference':None,'frames':[]}
+            current_document_record = {'version':2,'name':command_payload_value['name'],'cellSize':command_payload_value['cellSize'],'fps':SPRITE_V2_DEFAULT_FPS,'reference':None,'frames':[]}
             validate_v2_document(current_document_record,project_directory_path)
             (project_directory_path/'images').mkdir(parents=True)
             (project_directory_path/'revisions').mkdir()
