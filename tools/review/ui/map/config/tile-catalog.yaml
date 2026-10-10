@@ -100,3 +100,4 @@ tiles:
   - {id: tilled-furrows-v1, category: ground, asset: assets/tiles/terrain/non-road/tilled-furrows-v1.png}
 
   - {id: farm-embankment-v1, category: ground, asset: assets/tiles/terrain/non-road/farm-embankment-v1.png}
+  - {id: fallen-orchard-fruit-v1, category: ground, asset: assets/tiles/terrain/non-road/fallen-orchard-fruit-v1.png}

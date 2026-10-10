@@ -1,7 +1,7 @@
 import {resolveTownGroundFrame,resolveReedFrameForMap,drawWaypoint,waypointMarkerScale,resolveFieldTileTextures,collectTerrainTextureSources,createTerrainAtlas,TERRAIN_ATLAS,drawBlockStructure,cellDepth,TERRAIN_DEPTH,mapAnnotationDepth,resolveMapTileSize,resolveGrassFrameForMap,resolvePavingFrameForMap,selectFieldRoadFrame} from './vendor/field-renderer/__FIELD_RENDERER_VERSION__/town-renderer.mjs';
 import {GAME_INTERNAL_RESOLUTION_SCALE,drawCharacterContactShadow,attachCharacterOutlineLayers,roadConnections,waterConnections} from './vendor/field-renderer/__FIELD_RENDERER_VERSION__/game-render-profile.mjs';
 import * as Phaser from './vendor/field-renderer/__FIELD_RENDERER_VERSION__/phaser.mjs';
-import {resolveGuardDisplayPlacement,projectGuardDisplayCenter,GUARD_CENTER_FOOTPRINT_SIZE,drawTownMaterialEdges,drawFieldCellObjects,drawFieldTowerObject,drawFieldAuraPanel,drawFieldMeshBoundary,buildFieldBoundaryPanels,rotateSurfacePosition} from './vendor/field-renderer/__FIELD_RENDERER_VERSION__/field-renderer.mjs';
+import {resolveGuardDisplayPlacement,projectGuardDisplayCenter,GUARD_CENTER_FOOTPRINT_SIZE,drawTownMaterialEdges,drawFieldCellObjects,drawFieldSceneryObject,resolveFieldSceneryPlacement,drawFieldAuraPanel,drawFieldMeshBoundary,buildFieldBoundaryPanels,rotateSurfacePosition} from './vendor/field-renderer/__FIELD_RENDERER_VERSION__/field-renderer.mjs';
 
 const FIELD_REVIEW_ACTOR_DEPTH=TERRAIN_DEPTH.actor;
 const FIELD_REVIEW_TOWER_DEPTH=TERRAIN_DEPTH.overlay;
@@ -89,8 +89,16 @@ export async function createSharedFieldReview(currentMapCanvas,currentTextureIma
        drawFieldAuraPanel(currentFieldScene,currentPanelPoints,'safe-aura',currentRenderDepth+FIELD_REVIEW_ACTOR_DEPTH);
        if(currentViewSettings.edges)drawFieldMeshBoundary(currentFieldScene,currentPanelPoints,currentRenderDepth+FIELD_REVIEW_ACTOR_DEPTH+.1);
       }
-      if(currentCellRecord.cell.column===currentMapRecord.startPoint.column&&currentCellRecord.cell.row===currentMapRecord.startPoint.row)drawFieldTowerObject(currentFieldScene,currentCellRecord.center,'safe-tower',currentRenderDepth+FIELD_REVIEW_TOWER_DEPTH);
+
      }
+    }
+    for(const currentObjectRecord of currentMapRecord.objects??[]){
+     if(currentObjectRecord.kind==='ward-tower'&&!currentViewSettings.safe)continue;
+     const currentObjectCell=currentFieldFrame.cells.find(currentCellRecord=>currentCellRecord.cell.column===currentObjectRecord.position.column&&currentCellRecord.cell.row===currentObjectRecord.position.row);
+     if(!currentObjectCell)throw Error('지형지물 배치 좌표가 맵 범위를 벗어났습니다.');
+     const currentObjectPlacement=resolveFieldSceneryPlacement(currentObjectRecord,currentObjectCell.center,currentFieldFrame.options);
+     const currentObjectDepth=cellDepth(rotateSurfacePosition(currentObjectPlacement.position,currentFieldFrame.options.rotation));
+     drawFieldSceneryObject(currentFieldScene,currentObjectRecord,currentObjectPlacement.screen,currentObjectDepth+FIELD_REVIEW_TOWER_DEPTH,'safe-tower');
     }
     for(const currentGuardRecord of currentMapRecord.guardCenters??[]){
      const currentGuardPlacement=resolveGuardDisplayPlacement(currentGuardRecord.position,currentMapRecord);
