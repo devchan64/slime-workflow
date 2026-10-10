@@ -1,18 +1,16 @@
-# 애니메이션 생성기
+# 애니메이션 제작 공용 모듈
 
-현재 워크플로우에 연결된 실행기와 공통 모듈만 유지한다. 과거 실험 코드가 리포트나 승인 에셋에 사본으로 남아 있는 것은 활성 생성기를 유지할 근거가 아니다.
+MoMask + AnyPose 기반 애니메이션 생성기는 폐기했다. 이 디렉터리에 남은 구형 파일·설정이나 과거 리포트의 코드 사본은 활성 생성기를 뜻하지 않는다. AnyPose 추론·LoRA 준비와 `character-animation generate`·`resume`은 거절한다.
 
-| 용도 | 진입점·모듈 | 사용 근거 |
-|---|---|---|
-| AnyPose 배치 | run_pose_transfer_any_pose_batch.py, run_pose_transfer_anypose_baseline_rig_batch.py | workflows/character-animation.md |
-| AnyPose 단일 프레임 | generate_pose_transfer_any_pose_frame.py, generate_pose_transfer_any_pose_standard_frame.py | 같은 문서 및 표준 스텝 실험 |
-| OpenPose Qwen 배치 | run_pose_transfer_two_reference_qwen_batch.py, generate_pose_transfer_openpose_qwen.py | workflows/character-animation.md |
-| 공통 포즈 편집 | qwen_pose/ | 활성 AnyPose·OpenPose 생성기가 import |
-| 포즈 시트·최종 패킹 | build_walk_pose_sheets.py, pack_walk_sheets.py | README.md 및 캐릭터 애니메이션의 시트 제작·패킹 단계 |
-| 스탠딩 앵커 검수 | review_standing_anchors.py, tools/review/ui/shared/animation-anchor-editor/ | workflows/character-standing-sheet.md 및 tools/review |
+현재 모션 생성은 [`generators/hy_motion/`](../hy_motion/), 외형 포즈 변환은 [`generators/image/vnccs_runtime.py`](../image/vnccs_runtime.py)를 사용한다. 사용자는 공용 게이트웨이의 `hy-motion`·`pose-transfer`로 실행한다. [현행 제작·검수 절차](../../workflows/character-animation.md), [HY-Motion](../../workflows/hy-motion.md), [VNCCS](../../workflows/pose-transfer.md)를 참고한다.
 
-2026-09-23에 워크플로우 연결이 없는 구형 Qwen/2512 생성기·입력 준비기·구형 리그 렌더·과거 사람형 리그 검증기를 폐기했다. 사본과 폐기 근거는 `.tmp/test/animation-generator-retirement/`에 보관한다. 재현용 리포트·버전 고정 에셋 사본은 변경하지 않는다. 일반 실험 기록은 `.tmp/test/<실험명>/<한국시간 실행일시>/`에 작성하고 명시적 지시 없이 저장소에 승격하지 않는다.
+| 용도 | 모듈·설정 | 현재 범위 |
+| --- | --- | --- |
+| Qwen 2511 공통 실행 | `qwen_pose/` | 다른 이미지 생성기가 재사용하는 코드. AnyPose 실행은 차단 |
+| 등록 참조 자산 | `config/character_animation.yaml` | HY-Motion 걷기 v2 및 캐릭터 참조 정보. 구형 배치 생성 활성화와 구분 |
+| 기존 포즈 시트·패킹 | `build_walk_pose_sheets.py`, `pack_walk_sheets.py` | 과거 고정 프레임 규격용 도구. 새 모션에 무조건 적용하지 않음 |
+| 스탠딩 앵커 검수 | `review_standing_anchors.py` | 기존 시트 검수 보조 도구 |
 
-## 캐릭터 애니메이션 기본 프롬프트
+구형 AnyPose 배치·단일 프레임 실행과 4방향×8프레임 Qwen 배치는 현행 제작 절차로 안내하지 않는다. 재현용 리포트·버전 고정 에셋의 출처는 보존하며, 일반 실험은 `.tmp/test/<실험명>/<한국시간 실행일시>/`에 기록한다.
 
-기본 프롬프트는 `config/prompts/base-prompt.txt`를 사용하며 Git으로 버전 관리한다. `config/character_animation.yaml`의 `prompts.base`가 이 파일을 참조한다. 사용자 요청에 따라 기존 `.local/production-prompts/character-animation-v1/base-prompt.txt`에서 이동했다. 방향별 보조 프롬프트의 저장 위치는 변경하지 않는다.
+VNCCS 기본 프롬프트의 현행 원본은 `generators/image/config/pose-transfer-prompt.txt`다. 이 디렉터리의 과거 `config/prompts/` 기록을 VNCCS 입력으로 자동 대체하지 않는다.

@@ -10,6 +10,8 @@
 
 ## 리포트 목록
 
+아래 MoMask·AnyPose 및 구형 캐릭터 애니메이션 항목은 당시 실험 목록이다. 생성 구조는 폐기되었으며 재실행 안내나 현행 기본값으로 사용하지 않는다. 원본 기록의 출처는 유지하고, 현행 제작은 [HY-Motion·VNCCS 절차](../workflows/character-animation.md)를 따른다. 과거 목록의 경로는 실제 보존 여부를 확인한 뒤 사용한다.
+
 - [기본 걷기 스프라이트 초안](walking-default/README.md): 사용자 수집 7프레임, v2 시트·GIF·메타데이터 사본, 라인아트 복원·팔레트 정렬 조사와 검수 범위.
 
 - [기본 캐릭터 애니메이션 통합 리포트](character-animation-20261005-162812-8e29beaf/README.md): 2026-10-05_16-28-12-8e29beaf, down_left, 768px·4스텝, 입력·결과·로그와 해시 검증.
@@ -28,7 +30,7 @@
 
 - [이전 ANNY 체형 기준 r2](anny-reference-baseline-20260923-r2/README.md): 손 0.5·발 0.5·발목 둘레 -0.75. 사용자 채택 모델·입력·재현 코드·정면/측면 검수 사본. 이전 기준 리포트는 이력으로 유지한다.
 
-- [현재 ANNY 체형 기준 r3](anny-reference-baseline-20260923-r3/README.md): upperleg01 Z 회전벡터 L +8° / R −8°. 손0.5·발0.5·발목둘레−0.75 유지. 사용자 채택 모델·재현 코드·검수 사본.
+- [당시 ANNY 체형 기준 r3](anny-reference-baseline-20260923-r3/README.md): upperleg01 Z 회전벡터 L +8° / R −8°. 손0.5·발0.5·발목둘레−0.75 유지. 사용자 채택 모델·재현 코드·검수 사본.
 
 - [v6 AnyPose 4스텝 32프레임 실험](anypose-v6-32frames-20260923/README.md): 수평 45° 리그, 방향별 보조 프롬프트 적용, 32프레임 시트·GIF·입력·코드·로그 사본과 무결성 검증.
 

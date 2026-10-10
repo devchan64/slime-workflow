@@ -8,13 +8,13 @@
 
 2026-10-09 MoMask 생성 도구·Gradio 화면·메뉴를 폐기했다. GUI 과거 주소와 API는 HTTP 410으로 종료하며 통합 CLI의 MoMask 명령도 폐기 오류를 반환한다. 직접 생성·작업 재개 진입점도 차단한다. `.tmp/momask-generator/`의 과거 작업·렌더 결과·로그·이력은 사용자 지시로 삭제했다. 앞서 삭제한 모델 가중치를 자동 복원하지 않는다.
 
-HY-Motion이 사용하는 리타기팅·스키닝·Blender 단계 실행 코드는 유지한다. `assets/`의 등록 모션·피팅·리그와 다른 생성기의 결과·기록은 삭제하지 않는다. 아래 MoMask 실행 예시는 폐기 이전 기록이며 더 이상 지원하지 않는다.
+HY-Motion이 사용하는 리타기팅·스키닝·Blender 단계 실행 코드는 유지한다. `assets/`의 등록 모션·피팅·리그와 다른 생성기의 결과·기록은 삭제하지 않는다. 현행 모션 실행은 `hy-motion`을 사용하며 구형 실행 예시는 이 안내에서 제거했다.
 
 ## AnyPose 애니메이션 생성기 폐기
 
 2026-10-09부터 AnyPose 기반 캐릭터 애니메이션 생성기와 기록 화면을 폐기했다. 메뉴에서 제거하며 이전 화면 주소는 HTTP 410을 반환한다. `character-animation`의 `generate`·`resume`·`record-alpha-vnccs`는 폐기 오류로 거절한다. AnyPose 직접 추론·LoRA 준비도 차단한다. 공유 Lightning은 AnyPose 가중치 없이 별도 검증한다.
 
-기존 `.tmp/test/character-animation/`의 작업·결과·로그·이력을 사용자 지시에 따라 삭제했다. 등록 에셋·스프라이트 편집기 작업·앵커 기록·VNCCS 원본 실험은 보존한다. `character-animation` 서비스의 스프라이트·앵커 편집 명령은 계속 제공하며 HY-Motion과 VNCCS 포즈 변환은 별도 도구로 유지한다. 아래 과거 캐릭터 생성 사용법은 더 이상 실행할 수 없다.
+기존 `.tmp/test/character-animation/`의 작업·결과·로그·이력을 사용자 지시에 따라 삭제했다. 등록 에셋·스프라이트 편집기 작업·앵커 기록·VNCCS 원본 실험은 보존한다. `character-animation` 서비스의 스프라이트·앵커 편집 명령은 계속 제공하며 HY-Motion과 VNCCS 포즈 변환은 별도 도구로 유지한다. 구형 생성·재개·배치 사용법은 이 안내에서 제거했다. 새 단일 포즈 변환은 [VNCCS 안내](pose-transfer.md)를 따른다.
 
 ## VNCCS 포즈 변환 · BF16 기준 경로
 
@@ -65,7 +65,7 @@ Gradio Python 콜백 → HTTP 클라이언트 ───┼→ 게이트웨이(87
 ./scripts/run_management_gui.sh --watch
 
 # 터미널 3: 같은 게이트웨이에 작업 접수
-python3 tools/manager.py command momask generate --action walking --detach
+python3 tools/manager.py command hy-motion generate --prompt 'A person walks forward.' --duration-seconds 3 --detach
 ```
 
 - 기본 주소는 GUI `http://127.0.0.1:8770`, 게이트웨이 `http://127.0.0.1:8771`이다. GUI 포트와 게이트웨이 포트를 같게 지정할 수 없다.
@@ -103,33 +103,33 @@ python3 tools/manager.py command momask generate --action walking --detach
 
 ## command와 help
 
-저장소 루트에서 실행한다.
+저장소 루트에서 실행한다. `help`는 명령·옵션을 확인하고 실제 작업은 `command`로 접수한다.
 
 ```bash
 python3 tools/manager.py help
-python3 tools/manager.py help momask
-python3 tools/manager.py help momask generate
-python3 tools/manager.py command momask generate --action walking --directions down_left down_right up_left up_right
-python3 tools/manager.py command momask generate --action standing --directions down_left --detach
-python3 tools/manager.py command momask history
-python3 tools/manager.py command momask status GENERATION_ID
-python3 tools/manager.py command momask logs GENERATION_ID
-python3 tools/manager.py command momask cancel GENERATION_ID
-python3 tools/manager.py command momask history-reset
+python3 tools/manager.py help hy-motion
+python3 tools/manager.py help hy-motion generate
+python3 tools/manager.py help pose-transfer generate
+python3 tools/manager.py command hy-motion generate --prompt 'A person walks forward.' --duration-seconds 3 --directions down_left down_right up_left up_right --detach
+python3 tools/manager.py command hy-motion history
+python3 tools/manager.py command hy-motion status GENERATION_ID
+python3 tools/manager.py command hy-motion logs GENERATION_ID
+python3 tools/manager.py command hy-motion cancel GENERATION_ID
+python3 tools/manager.py command hy-motion resume GENERATION_ID
 ```
 
-MoMask 신규 생성은 대기(`standing`), 걷기(`walking`), 휴식(`resting`)을 지원한다. 폐기된 스트레칭의 기존 생성 이력·결과 조회는 유지하며 새 생성 입력으로 불러올 수 없다.
-
-`generate` 기본 실행은 완료까지 로그를 출력한다. `--detach`는 ID와 기록 경로를 출력하고 반환한다. 대기 중 Ctrl+C는 해당 작업에 취소를 요청한다. 프롬프트·프레임·모델 설정은 웹과 같은 고정 설정을 사용한다. `--directions` 생략 시 네 방향을 생성한다.
+모델 준비·고정 파라미터·입력 제한은 [HY-Motion](hy-motion.md), 외형·포즈 참조 순서는 [VNCCS 포즈 변환](pose-transfer.md)을 따른다. `generate`의 `--detach`를 생략하면 완료까지 진행 로그를 표시하며 Ctrl+C는 해당 작업에 취소를 요청한다. 모션 프리셋 선택과 실제 생성 실행은 구분한다.
 
 ## 공용 기록
 
-- `.tmp/momask-generator/jobs/<생성 ID>/request.json`: 실행 요청
-- 같은 폴더의 `status.json`, `worker.log`: 상태와 누적 로그
-- 같은 폴더의 `motion-run/`, `result/`, `result.json`: 원본·렌더·결과
-- `.tmp/momask-generator/history/<생성 ID>.json`: GUI·CLI 공용 이력
+GUI와 CLI는 서비스별 동일한 작업·이력을 조회하며 서로 다른 저장소를 만들지 않는다.
 
-결과는 웹 생성 이력의 ‘결과 보기’에서 재생한다. `history-reset` 또는 GUI 수동 초기화만 이력 목록을 제거하며 결과 파일은 삭제하지 않는다. 초기화 후 실행 중이던 작업이 끝나도 제거된 이력을 복원하지 않는다.
+| 서비스 | 작업 기록 | 이력 인덱스 |
+| --- | --- | --- |
+| `hy-motion` | `.tmp/test/hy-motion/<한국시간>/<고유 ID>/` | `.tmp/manager-current/hy-motion/` |
+| `pose-transfer` | `.tmp/test/pose-transfer/<생성 ID>/` | `.tmp/manager-current/pose-transfer/` |
+
+입력·상태·로그·결과와 시도별 산출물은 서비스의 기존 구조를 유지한다. HY-Motion 재개는 새 시도로 기록하며 기존 시도 산출물을 보존한다. 선택 이력 삭제·전체 초기화·실제 결과 파일 삭제를 구분하고 해당 서비스 계약을 확인한다. 이미 폐기된 MoMask·AnyPose 작업 경로는 현행 기록 저장소로 다시 사용하지 않는다.
 
 ## Qwen 이미지 생성 두 종류
 
@@ -161,7 +161,7 @@ python3 tools/manager.py command qwen-2512 history-reset
 
 ## 통합 명령 게이트웨이
 
-`management_gateway.py`가 `momask`, `qwen-2512`, `qwen-2511`, `character-animation`의 허용 명령과 HTTP 경로를 관리한다. GUI의 기존 API 호출은 서버 진입점에서 이 게이트웨이를 통과한다. Qwen 통합 CLI는 `POST /management/command`에 `{service, command, payload}`를 보내 같은 서비스 어댑터를 호출한다. MoMask는 폐기되어 모든 명령을 저장소 접근 전에 거절한다. 이전 HTTP 주소에는 410 안내만 제공한다.
+`management_gateway.py`가 `hy-motion`, `pose-transfer`, Qwen 이미지 서비스 및 스프라이트·앵커 편집 명령의 등록과 HTTP 경로를 관리한다. GUI의 기존 API 호출은 서버 진입점에서 이 게이트웨이를 통과한다. Qwen 통합 CLI는 `POST /management/command`에 `{service, command, payload}`를 보내 같은 서비스 어댑터를 호출한다. MoMask는 폐기되어 모든 명령을 저장소 접근 전에 거절한다. 이전 HTTP 주소에는 410 안내만 제공한다.
 
 ```text
 GUI 기존 API → 명령 경로 변환 ─┐
@@ -169,7 +169,7 @@ GUI 기존 API → 명령 경로 변환 ─┐
 CLI command → 명령 봉투 ──────┘
 ```
 
-브라우저 요청마다 CLI 프로세스나 셸을 실행하는 방식이 아니라, 통합 CLI와 명령 계약·디스패처를 공유하는 구조다. 생성 원본·이미지·정적 UI 자산은 기존 파일 조회 경로로 제공한다. `command`와 `help`의 기존 사용법은 유지한다. ANNY·작가 에이전트 등 아직 통합 CLI에 등록되지 않은 관리 기능은 이번 게이트웨이 범위에 포함하지 않는다.
+브라우저 요청마다 CLI 프로세스나 셸을 실행하는 방식이 아니라, 통합 CLI와 명령 계약·디스패처를 공유하는 구조다. 생성 원본·이미지·정적 UI 자산은 기존 파일 조회 경로로 제공한다. `command`와 `help`의 기존 사용법은 유지한다. 서비스의 실제 지원 범위는 게이트웨이 등록과 `help`를 기준으로 확인한다. 등록 이름이나 호환 경로가 남아 있다는 이유만으로 폐기된 생성 기능을 지원한다고 판단하지 않는다.
 
 게이트웨이는 Host·Origin·JSON 형식·최대 요청 크기·중복 필드·허용 서비스/명령·생성 ID를 확인한 뒤 기존 입력 검증기로 전달한다. 작업에 임의 실행 파일이나 셸 문자열을 전달할 수 없다.
 
@@ -183,52 +183,17 @@ CLI command → 명령 봉투 ──────┘
 
 `tools/review/momask_commands.py`와 `qwen_commands.py`는 폐기했다. `execute_gateway_arguments`가 등록된 명령의 인자를 해석하고 `execute_management_command`가 로컬 서비스·HTTP 전송·GUI 서비스 어댑터를 선택한다. CLI는 상태·로그 파일을 직접 읽지 않고 명령 서비스를 통해 조회한다. 생성 완료 대기와 Ctrl+C 취소도 생성기별로 중복 구현하지 않는다.
 
-MoMask도 기본적으로 독립 HTTP 게이트웨이에 연결한다. 서비스 함수의 로컬 호출은 내부 작업 서비스·호환 코드에만 남기며 CLI 기본 경로로 사용하지 않는다.
+HY-Motion과 포즈 변환 CLI는 독립 HTTP 게이트웨이에 연결한다. 서비스 함수의 로컬 호출은 내부 작업 서비스·호환 코드에만 남기며 CLI 기본 경로로 사용하지 않는다.
 
 ```bash
-python3 tools/manager.py command momask --server-url http://127.0.0.1:8771 history
+python3 tools/manager.py command hy-motion --server-url http://127.0.0.1:8771 history
 ```
 
-## 등록 모션 기반 캐릭터 애니메이션
+## 모션·포즈 변환과 기존 편집 기능
 
-캐릭터 애니메이션 GUI는 등록 모션과 사용자가 불러오거나 클립보드로 붙여넣은 캐릭터 참조 한 장으로 생성한다. 방향은 라디오 버튼으로 하나만 선택하며 기본값은 전방 좌측이다. 등록 캐릭터 선택·레퍼런스 불러오기 UI는 제공하지 않는다. 참조 원본 PNG는 작업 폴더에 저장하고 해시를 검증하며 생성 시 비율을 유지하여 512×512 흰 배경에 맞춘다. 입력은 RGB/RGBA PNG, 최대 4096px·8MB다. 타겟 FPS는 8, 생성 배속 기본값은 2이며 1·2·4를 선택한다. 이력의 입력 불러오기는 첨부 참조와 첫 번째 방향을 복원하며, 첨부 참조가 없는 과거 이력은 재첨부해야 한다. 기존 이력 조회·재개 및 CLI의 `--character`는 호환을 위해 유지한다. GUI와 CLI의 신규 참조는 `generate` 요청의 `character_image`(PNG base64)로 전달하며 `character`와 동시에 지정할 수 없다.
+모션·ANNY 렌더·OpenPose 생성은 `hy-motion`, 아이덴티티·포즈 두 참조의 단일 이미지 생성은 `pose-transfer`로 실행한다. 등록된 HY-Motion 걷기 v2는 제작 참조 자산이며, 구형 `character-animation` 배치 생성의 활성화를 뜻하지 않는다. [캐릭터 애니메이션 제작·검수](character-animation.md)에서 방향·원본 프레임·출처를 연결한다.
 
-
-- `openpose`: 등록된 COCO18 맵과 캐릭터 이미지를 Qwen Image Edit 2511에 입력한다.
-- `anny`: 등록된 ANNY 리그 렌더 프레임과 캐릭터 이미지를 Qwen Image Edit 2511 + AnyPose에 입력한다. 원본 리그나 모션을 다시 생성하지 않는다.
-- 모델·시드는 공용 Qwen 포즈 실행기의 고정 설정이다. 생성 방식은 4스텝 Lightning(기본) 또는 30스텝 표준 생성이며, 30스텝에서는 Lightning 어댑터를 비활성화한다. 고정 보조 프롬프트는 선택한 방향과 리그의 관절·발 위치·가림을 따른다. 고정 기본·보조 원문은 화면과 `catalog`에서 조회하며, 별도의 방향별 추가 보조 문구는 실행 입력으로 지정할 수 있다. 현재 공용 기본 프롬프트의 걷기 지시는 대기·휴식 모션에도 적용된다.
-- 기본·보조 프롬프트 파일 위치와 등록 에셋은 `generators/animation/config/character_animation.yaml`에 둔다. 기본·전방 보조·후방 보조 원문은 `generators/animation/config/prompts/`에서 Git으로 관리한다. 보조 문구는 방향을 지정하고 이미지 2의 팔·다리 위치, 관절 굽힘, 발 위치와 자연스러운 가림을 따른다. 양쪽 발뒤꿈치 노출이나 머리·몸통·발의 동일 방향을 강제하지 않는다. 걷기의 모션별 추가 보조 문구는 중복 방지를 위해 비워 둔다. 파일 누락 시 명확한 오류로 중단한다.
-
-```bash
-python3 tools/manager.py help character-animation
-python3 tools/manager.py command character-animation catalog
-python3 tools/manager.py command character-animation generate --motion walking-v13 --reference /path/to/character.png --source openpose --directions down_left --detach
-python3 tools/manager.py command character-animation generate --motion walking-v13 --character character-default --source anny --detach
-python3 tools/manager.py command character-animation history
-python3 tools/manager.py command character-animation status GENERATION_ID
-python3 tools/manager.py command character-animation logs GENERATION_ID
-python3 tools/manager.py command character-animation cancel GENERATION_ID
-python3 tools/manager.py command character-animation history-reset
-```
-
-`--directions` 생략 시 네 방향을 생성한다. `--detach` 생략 시 공용 CLI가 완료까지 상태를 출력한다. GUI와 CLI는 독립 게이트웨이의 같은 작업 서비스를 호출한다. 다른 게이트웨이 주소는 서비스 이름 뒤에 `--server-url http://127.0.0.1:포트`로 지정한다. GPU 실행은 샌드박스 밖에서 수행하고 `.model`에 준비된 모델·어댑터를 사용한다. 이미지 생성기와 공용 GPU 파일 잠금을 사용하므로 기존 작업이 끝날 때까지 대기할 수 있다.
-
-기록은 `.tmp/test/character-animation/<YYYY-MM-DD_HH-mm-ss>/<생성 ID>/`에 저장한다. `request.json`에는 고정 프롬프트 원문·해시·단어 수, 모션·캐릭터 매니페스트 해시, 각 참조 프레임 경로·해시가 기록된다. `worker.log`, `status.json`, `progress.json`, `result.json` 및 방향별 프레임을 보관한다. 프레임별 입력은 불투명 512px PNG로 정규화하며 원본을 변경하지 않는다.
-
-이력 인덱스는 `.tmp/test/character-animation/history/`에서 누적한다. 웹의 공용 페이지네이션·ID 복사·로그 조회·수동 초기화 기능을 사용한다. 완료된 이력의 ‘결과 보기 · 재생’에서 방향별 재생·중지·앞뒤 한 프레임 이동을 사용할 수 있다. 초기화는 이력 인덱스만 제거하며 실행 결과를 삭제하지 않는다. 웹 서버 재시작에도 독립 감독 프로세스가 생성·완료 기록을 이어간다.
-
-프레임별 이미지 편집은 동일 레퍼런스·시드를 사용하지만 시간축 일관성을 보장하는 영상 생성 모델은 아니다. 게임 채택 전 프레임 간 외형 변화는 결과 재생으로 검수한다.
-
-캐릭터 애니메이션 화면의 **원본 모션 에셋 검수**에서 생성 전에 선택한 모션을 확인한다. OpenPose와 ANNY 리그 렌더가 같은 프레임으로 나란히 재생된다. 검수 방향은 생성 방향 선택과 독립적이며 네 방향 모두 조회 가능하다. 4 FPS 반복 재생·중지·이전/다음 프레임·슬라이더를 제공한다. 원본 프레임 조회 시 매니페스트 해시와 프레임 범위를 검증하며 생성 작업이나 이력을 만들지 않는다. 브라우저는 다음 프레임을 미리 읽고 캐시 개수를 제한한다.
-
-원본 에셋과 생성 결과 플레이어는 각각 **재생 속도**에서 4·8·12·16 FPS를 선택할 수 있다. 기본은 4 FPS이며 재생 중에도 변경된다. 이는 검수용 재생 속도로, 원본 프레임 수·생성 설정·결과 메타데이터의 FPS는 바꾸지 않는다.
-
-`character-animation generate --target-fps 8 --speed 2`로 CLI에서도 지정한다. 1배는 원본 전체, 2배는 1·3·5…, 4배는 1·5·9…를 선택한다. 원본 FPS와 무관하게 결과는 8 FPS로 재생한다. 요청에는 `target_fps`, `source_fps`, `selected_frame_numbers`와 프롬프트 출처를 기록한다. 결과에는 타겟 `fps`와 원본 프레임 번호를 기록한다. 기존 간격 방식 이력은 수정하지 않으며 신규 `frame_step` 요청은 거절한다. 두 방식의 동시 지정은 거절한다. 원본 검수 플레이어는 항상 전체 원본 프레임을 사용한다.
-
-캐릭터 애니메이션 CLI의 `--steps 4` / `--steps 30`은 웹의 생성 방식 선택과 같다. 예: `python3 tools/manager.py command character-animation generate --motion standing-v3 --character character-default --source anny --steps 30 --detach`. 실행 요청·결과·이력에 선택 스텝을 보존한다. 기존 이력의 스텝 필드가 없으면 기존 방식인 4스텝으로 표시한다.
-
-보조 프롬프트는 `auxiliary`(전방)와 `auxiliary_rear`(후방)의 로컬 파일로 분리한다. 기본 프롬프트는 공통으로 유지한다. 후방은 뒷머리의 머리카락·등·양쪽 발뒤꿈치가 보이도록 명시한다. 방향 앵커는 `back-left`·`back-right`를 사용하고 머리·몸통·발이 같은 방향을 유지하도록 지시한다. 실제 선택한 보조 문구만 기본 프롬프트와 결합하고 화면 단어 수·실행 해시에 반영한다.
-
+`character-animation` 이름은 기존 스프라이트·앵커 편집 명령의 호환 서비스로 남는다. 아래 편집 명령을 생성·재개 기능과 혼동하지 않는다. 과거 생성 결과 조회용 코드가 남아 있어도 삭제된 작업·이력을 자동 복원하거나 신규 실행하지 않는다.
 
 ## 건물 타일 생성기 폐기
 
@@ -258,55 +223,21 @@ python3 tools/manager.py character-animation sprite-save asset:character.default
 
 `--document-file`에는 내보낸 JSON의 `project` 객체를 전달한다.
 
-### 캐릭터 애니메이션 재개
+### 폐기된 생성 화면과 현행 UI
 
-취소·실패 이력의 `이어서 생성` 또는 `python3 tools/manager.py character-animation resume <ID>`로 같은 작업을 재개한다. 저장된 요청과 프롬프트를 유지하며 완료된 `result.json`·유효한 PNG가 있는 프레임은 재사용한다. 미완료 프레임 디렉터리는 `-incomplete-<고유값>` 이름으로 보존한 후 다시 생성한다. 작업 로그는 이어 쓰며 완료 이력을 새로 만들지 않는다. 다른 캐릭터 애니메이션 작업이 실행 중이면 재개를 거절한다.
+MoMask의 얼굴 포인트·커스텀 포즈·렌더 재개와 AnyPose 애니메이션의 생성 배속·해상도·강도 설정은 폐기된 생성 화면의 기능이다. 현행 명령으로 안내하지 않는다. HY-Motion의 렌더 프레임 스텝·투영·OpenPose 출력과 VNCCS의 단일 이미지 입력은 각 도구 안내를 따른다.
 
-### MoMask 얼굴 포인트
-
-MoMask 화면의 `얼굴 포인트 ON`을 선택하면 모션 생성 완료 과정에서 OpenPose 맵을 자동 생성한다. 기존 신체맵에 ANNY 공식 COCO 회귀점(코·양눈·양귀)을 같은 카메라로 투영하며 표면에 가려진 점은 제외한다. 68점 얼굴 윤곽·표정 검출 기능은 아니다. OFF는 기존 신체 전용 맵을 생성한다. 결과 캡션과 `result.json`의 `openpose_face_enabled`에 실제 적용값을 기록한다.
-
-CLI는 `momask generate ... --face`를 사용한다. `--no-face`는 얼굴을 제외한다. 정점 수가 공식 회귀 데이터와 다르면 오류로 중단한다. 얼굴 회귀 데이터는 NAVER ANNY의 Apache-2.0 데이터에서 현재 ANNY 토폴로지의 정점 순서로 추출했으며 원본 해시를 함께 보관한다.
-
-캐릭터 애니메이션 출력 해상도는 GUI 또는 CLI의 `--resolution 512|768|1024|1280`으로 선택한다. 기본값은 테스트용 512×512이며 참조 입력은 512px 정규화를 유지한다. 선택 해상도는 요청·결과에 보존하며 재개 시 같은 설정을 사용한다. 생성이력의 입력 내용에서 해상도, FPS, 배속, 스텝, 선택 프레임, 참조 경로·매니페스트 해시와 방향별 실제 프롬프트·단어 수를 확인한다.
-
-### Gradio MoMask UI
-
-MoMask 페이지는 Gradio Blocks로 전환한다. `/momask-generator/`는 관리 셸을 거쳐 GUI 서버 포트 + 101의 로컬 Gradio UI로 연결한다(기본 8871). 외부 공개 없이 `127.0.0.1`에 바인딩하고 관리 서버 종료 시 UI 프로세스도 종료한다. 생성 작업은 기존 독립 감독 프로세스에서 계속 실행한다. CLI·HTTP API·기록 경로는 유지한다.
-
-관리 UI 의존성은 모델 환경과 분리한다. 최초 설치와 공통 검수 의존성 갱신은 `scripts/setup_management.sh`로 수행한다. 실행 로그는 `.tmp/manager-current/gradio.log`에 기록한다. 현재 전환 범위는 MoMask이며 다른 생성기는 기존 UI를 유지한다.
-
-설정·보정값·로그·페이지별 이력·수동 초기화는 Gradio에서 구성한다. 결과 ID 또는 이력 라디오 선택 후 ‘결과 보기’로 HumanML3D·ANNY·OpenPose 동기 재생기를 연다. 재생은 브라우저에서 실행하며 Python 프레임별 호출을 하지 않는다. 아직 기존 공용 이력 UI의 썸네일과 파일 관리자 열기 기능은 이 전환 페이지에 이식되지 않았다.
-
-Gradio 이력은 페이지당 8건의 단일 선택 목록으로 표시하며 선택 후 결과 조회 버튼으로 연다. 공용 로그 패널은 `tools/review/common/gradio_logs.py`를 사용한다. 전체 너비의 접이식 패널에 작업 ID·최근 로그·복사·자동 갱신·최신 줄 따라가기·마지막 줄 이동을 제공한다. 자동 갱신을 끄면 표시 내용을 유지하며 작업 실행은 계속된다.
-
-MoMask Gradio 화면은 새 모션 생성과 생성 이력·결과 재생을 한 흐름으로 구성한다. 결과는 이력 카드를 선택한 뒤 `결과 조회`로만 열며, ID 직접 조회 폼은 제공하지 않는다. 실행 로그는 결과·기록 상세 뒤 전체 너비로 배치한다. 화면 폭이 좁으면 한 열로 전환한다. 배치는 `tools/review/ui/gradio/management-layout.css`에서 관리한다.
-
-### MoMask 렌더 재개
-
-Gradio 생성이력에서 취소·실패 이력을 선택하고 ‘생성 재개’을 누르거나 `python3 tools/manager.py command momask resume <ID>`를 실행한다. 현재 재개 범위는 모션 추론과 ANNY 리그 저장이 완료된 이후의 렌더 단계다. 저장된 리그·렌더 스크립트·카메라를 유지하며 정상 PNG를 검증해 재사용하고 미완료 프레임을 렌더한다. 같은 ID·폴더·로그를 유지하며 마지막에 OpenPose 맵을 생성한다. 리그 이전 단계의 중단은 누락 산출물을 안내하고 거절한다. 이력 초기화로 숨겨진 항목은 자동 복원하지 않는다.
+현행 Gradio UI는 `.venv-management`에서 실행하며 설정·이력·로그·브라우저 재생을 공용 컴포넌트로 구성한다. 설치는 `scripts/setup_management.sh`, GUI 로그는 `.tmp/manager-current/gradio.log`를 사용한다. 폐기된 MoMask 화면을 UI 전환·검증 대상으로 다시 실행하지 않는다.
 
 ### 로컬 GPU 대기·중지·재개
 
-- MoMask, 캐릭터 애니메이션, Qwen 2511/2512, 타일, ANNY 작업은 공용 `gpu_job_queue.py` 실행기를 사용한다. 클라이언트 연결과 무관한 별도 프로세스가 `.tmp/gpu-queue/`의 접수 순서와 실행 잠금을 관리한다.
-- GPU 0의 여유 메모리를 2초마다 조회한다. 초기 입장 기준은 MoMask 4096 MiB, 캐릭터·Qwen·타일 6144 MiB, ANNY 2048 MiB이다. 이는 실측 최대치가 아닌 보수적 실행 입장 기준이며 실제 모델의 최대 사용량을 보장하지 않는다. 기준은 공용 `GPU_MEMORY_REQUIREMENTS`에서 조정한다. 유효 실측 이력이 있으면 최근 20회 중 성공한 작업의 최고 사용량을 예약한다. 현재 여유량에서 실행 중 작업의 미사용 예약분을 뺀 값으로 입장을 판단하며, 고정 안전 여유분은 추가 차감하지 않는다. Qwen 2.1도 해상도·스텝·참조 수와 심리스 파이프라인 버전별로 실측 이력을 분리한다. 공용 대기열은 예약량이 들어가는 작업을 허용하고 각 작업자의 실행 잠금도 유지한다.
+- HY-Motion, VNCCS 포즈 변환, Qwen 이미지 및 ANNY 작업은 공용 `gpu_job_queue.py` 실행기를 사용한다. 클라이언트 연결과 무관한 별도 프로세스가 `.tmp/gpu-queue/`의 접수 순서와 실행 잠금을 관리한다.
+- GPU 0의 여유 메모리를 2초마다 조회한다. 초기 입장 기준은 HY-Motion 7000 MiB, 이미지 작업 6144 MiB, ANNY 2048 MiB이다. 실제 예약량은 서비스·실행 프로필과 관측 이력을 함께 확인한다. 이는 실측 최대치가 아닌 보수적 실행 입장 기준이며 실제 모델의 최대 사용량을 보장하지 않는다. 기준은 공용 `GPU_MEMORY_REQUIREMENTS`에서 조정한다. 유효 실측 이력이 있으면 최근 20회 중 성공한 작업의 최고 사용량을 예약한다. 현재 여유량에서 실행 중 작업의 미사용 예약분을 뺀 값으로 입장을 판단하며, 고정 안전 여유분은 추가 차감하지 않는다. Qwen 2.1도 해상도·스텝·참조 수와 심리스 파이프라인 버전별로 실측 이력을 분리한다. 공용 대기열은 예약량이 들어가는 작업을 허용하고 각 작업자의 실행 잠금도 유지한다.
 - 메모리가 부족하거나 앞선 작업이 실행 중이면 `queued` 상태에 대기 순서·여유/필요 메모리를 저장한다. GPU 조회 실패 또는 전체 메모리 부족은 사유를 기록하고 실패한다. CPU로 우회하지 않는다.
 - 생성 이력에서 대기·실행 작업을 중지하고 취소·실패 작업을 재개한다. 중지는 비동기 요청이며 실제 프로세스 종료 후 `cancelled`가 된다. 이력 새로고침으로 확인할 수 있다.
-- 같은 ID·저장 입력·참조 사본·누적 로그를 사용한다. 캐릭터 애니메이션은 완료된 프레임을 재사용한다. MoMask는 리그 렌더 재개 자료가 모두 있으면 이어서 렌더하고, 그 이전 단계에서 멈췄으면 저장 입력으로 다시 생성한다. 단일 이미지·ANNY는 저장 입력으로 다시 실행한다.
-- 통합 CLI: `tools/manager.py command <서비스> cancel <ID>`, `resume <ID>`, `status <ID>`. 서비스는 `momask`, `character-animation`, `qwen-2511`, `qwen-2512`; ANNY의 이력 상태·중지·재개는 `anny` 서비스에서 제공한다. ANNY 신규 생성은 기존 속성 화면을 사용한다.
+- 같은 ID·저장 입력·참조 사본·누적 로그를 사용한다. HY-Motion은 새 시도에서 다시 실행하며 이전 시도 결과를 보존한다. 포즈 변환·단일 이미지·ANNY는 저장 입력과 서비스의 재개 계약에 따라 다시 실행한다. 폐기된 MoMask·AnyPose 작업은 재개하지 않는다.
+- 통합 CLI: `tools/manager.py command <서비스> cancel <ID>`, `resume <ID>`, `status <ID>`. 현행 예시는 `hy-motion`, `pose-transfer`, `qwen-21`; ANNY의 이력 상태·중지·재개는 `anny` 서비스에서 제공한다. ANNY 신규 생성은 기존 속성 화면을 사용한다.
 - 대기·실행 중인 타일 작업은 파일 초기화 대상에서 제외한다. 서버 재시작은 별도 실행 중 작업을 중단하지 않으며, 운영체제 종료 뒤에는 자동으로 재실행하지 않는다.
-
-휴식은 서서 시작 → 바닥에 앉아 유지 → 완전히 서서 종료하는 순서다. 다리 교차·손 짚기를 강제하지 않는다. 신규 생성은 `motion-quality.json`과 결과 `quality_warnings`에 직립·낮은 자세 유지 검수를 기록한다. 렌더 완료와 자세 검수 통과를 구분하며, 이 검수는 ANNY 스키닝 적합성을 보장하지 않는다.
-
-휴식 검수는 시작·종료 각 10% 구간의 직립 유지와 중앙 1/3 구간의 골반 높이 변화(다리길이 12% 이내), 골반 기준 관절 편차(20% 이내)를 확인한다. 수치는 휴식 후보 판별용 휴리스틱이며 스키닝 통과 판정이 아니다. 프롬프트는 양발 접지 직립, 다리를 앞으로 둔 착석, 정지 유지, 재기립을 순서대로 지시한다.
-
-휴식 신규 생성은 원본 **160프레임 전체**를 사용하며 4 FPS 재생 기준 40초다. 고정 프롬프트: `A person stands fully upright with both feet planted for a few seconds, sits with buttocks on the ground and legs forward for a few seconds, then stands fully upright again.` (31단어). 기존 생성 결과의 프레임 수는 변경하지 않는다.
-
-휴식의 착석은 의자 높이의 공중 착석이 아니라 **엉덩이가 바닥에 닿고 다리를 앞으로 뻗은 자세**로 지시한다. 낮은 골반 검수만으로 바닥 접촉을 보장할 수 없으므로 결과에서 엉덩이 접촉을 별도 확인한다.
-
-휴식은 첫 프레임부터 양발을 딛고 완전히 직립한 상태로 시작해 잠시 서 있는 구간을 둔 뒤 착석한다. 시작 직립 검수는 첫 프레임뿐 아니라 시작 10% 구간에 적용한다.
-
-휴식 프롬프트의 시작 직립과 바닥 착석 유지 구간에는 각각 `for a few seconds`를 명시한다. 이는 모델에 유지 구간을 요청하는 표현이며 정확한 초 수를 보장하지 않는다.
 
 ### 앵커 좌표 생성 이력
 
@@ -338,10 +269,6 @@ GUI와 CLI는 `character-animation sprite-history <원본 ID>` 명령을 공유�
 
 출력 크기 선택·목표 높이 입력 UI는 제거했다. 원본 선택은 항상 표시하고, 저장 시 원본과 동일한 정사각형 셀 크기를 사용한다. 과거 출력 크기가 다른 편집은 배치·배율을 비례 환산한다. 현재 지원 범위는 동일한 크기의 정사각형 원본 셀이며, 크기가 다르거나 직사각형이면 명확한 오류로 거절한다.
 
-### 캐릭터 애니메이션 AnyPose 강도
-
-신규 ANNY 요청은 base·helper 강도를 각각 0.7로 고정하며 요청 기록에 저장한다. 프레임 실행은 저장된 강도를 사용하고 실제 어댑터 강도를 프레임 결과에 기록한다. 강도 필드가 없는 이전 요청은 기존 0.7을 유지한다. OpenPose 입력에는 AnyPose를 적용하지 않는다.
-
 ### 스프라이트 출력 앵커 하단 여백
 
 새 편집 문서는 v3이며 출력 앵커 Y를 셀 높이의 90%로 둔다. 384px 셀에서는 `(192, 346)`으로 하단 38px를 확보한다. 미리보기와 저장 PNG는 같은 위치를 사용한다. v1/v2 저장본은 불러올 때 배치 Y를 보정하여 기존 출력 위치를 유지하고 다음 저장부터 v3로 보존한다. 기존 저장 PNG는 변경하지 않는다. 수동 이동·확대로 셀을 벗어난 프레임은 기존 잘림 경고를 확인한다.
@@ -360,7 +287,6 @@ python3 tools/manager.py command floor-tile status GENERATION_ID
 ```
 
 신규 생성은 Qwen 2511을 한 번 실행하며 격자 생성·중앙 크롭·재생성 단계를 실행하지 않는다. 모델은 서버에서 고정하며 요청으로 선택할 수 없다. 모델 준비는 생성 시 검증하므로 별도 `prepare` 명령은 제공하지 않는다. 최종 원본은 `result.png`다. 요청·프롬프트 해시·결과·로그와 생성 이력 경로는 `.tmp/test/qwen-image-2512/floor-tile/<생성 ID>/`, `.tmp/manager-current/floor-tile/`를 유지한다. 새 요청에 모델 ID와 빈 참조 목록을 보존한다. 예상 시간은 같은 모델의 이력만 사용한다. 기존 2512 단일 생성과 다단계 이력은 조회만 가능하다. 이전 기록은 저장된 GPU 명령 유무와 관계없이 서버에서 재개를 거절하며, 현재 설정으로 새로 생성해야 한다.
-
 
 ## 표정 생성기
 
@@ -384,12 +310,6 @@ python3 tools/manager.py command expression resume GENERATION_ID
 `--expression`의 선택 목록은 help에서 확인한다. HTTP 계약은 기존 이미지 요청과 같은 `prompt` 필드에 표정 ID를 전달한다. 모델명·임의 추가 필드는 거절한다. 기본값은 512×512·4스텝·Seed 10107이다. GUI·CLI는 `expression` 서비스와 공용 게이트웨이·GPU 작업 실행기를 공유한다. 결과는 `.tmp/test/expression-generator/<한국시간-생성ID>/`, 이력 인덱스는 `.tmp/manager-current/expression/`에 누적한다. 이력 삭제·수동 초기화는 해당 작업의 결과·참조·로그 파일도 함께 삭제한다. 브라우저 종료는 작업 종료가 아니다.
 
 새 메뉴와 서비스 반영에는 GUI·게이트웨이 코드 갱신이 필요하다. 생성 품질 확인은 참조를 입력한 단일 이미지부터 진행한다. 정식 에셋 등록은 별도 채택 후 수행한다. 이번 추가는 로컬 서비스·UI 확장이며 AWS 배포 구조나 고정 비용 리소스에는 변경이 없다.
-
-### 캐릭터 애니메이션 모션별 프롬프트
-
-`generators/animation/config/character_animation.yaml`의 모션별 `action_prompt`가 동작 지시를 선택한다. 대기는 `standing-action.txt`, 걷기는 `walking-action.txt`, 휴식은 `resting-action.txt`를 사용한다. 공통 `base-prompt.txt`는 외형 보존만 담당한다. 동작 문구와 공통 외형 문구를 결합한 기본 프롬프트에 방향별 고정·사용자 보조 문구를 붙이며, 실제 입력은 100단어 미만으로 검증한다. 모션별 경로 누락·파일 누락·빈 문구는 즉시 거절한다.
-
-카탈로그의 각 모션 `prompts`·`direction_prompts`는 해당 모션의 고정 입력이다. GUI는 모션 선택·이력 불러오기·기본 문구 초기화 시 선택 모션의 원문과 단어 수를 표시한다. CLI와 GUI의 실행 요청은 같은 조합 함수를 사용하고 실제 원문·단어 수·해시는 기존 request.json에 보존한다. 이전 생성 이력의 재개는 저장한 프롬프트를 유지한다. 프롬프트 변경 후에는 1프레임 샘플을 먼저 확인하고 배치 생성으로 확대한다.
 
 ## 이전 심리스 타일 연결 보정 (schema 1·2)
 
@@ -478,7 +398,6 @@ schema 4 기록의 두 번째 단계는 내용이 지워지지 않은 원본(`re
 
 모델 출력 전체를 채택하지 않고 마스크 내부만 원본에 합성한다(`repair-composite.png`). 합성 해상도 512에서 마스크 밖 픽셀을 보존하고 역이동·256 축소 후 반복 검수한다. 최종 축소의 보간까지 원본 픽셀과 같다는 의미는 아니다. 설정·마스크·입력·출력 해시와 단계 체크포인트를 저장한다. 기존 schema 3 작업은 저장된 흰 십자 삭제·페더 합성 방식을 유지하여 재개한다.
 
-
 ### 심리스 패턴 v7: 마스크 없이 가로 연결 후 세로 연결
 
 새 작업은 5단계를 사용한다. 1단계는 사용자 입력 뒤에 영문 기본 문구 `Overhead view, camera pointing straight down at the surface. Softly shaded illustration.`를 줄바꿈으로 구분하여 전달하고 768×768로 생성한다.
@@ -495,7 +414,6 @@ schema 4 기록의 두 번째 단계는 내용이 지워지지 않은 원본(`re
 ## 캐릭터 레퍼런스 복장 분리 생성
 
 `animation-separation` 서비스의 GUI·CLI 명령, 참조 이미지 1장 입력과 산출물은 [애니메이션 분리 사용 안내](animation-separation.md)를 따른다. Qwen 2.1로 원본별 신체 베이스·복장을 두 프롬프트로 독립 생성하며 공용 GPU 대기열과 이력을 사용한다.
-
 
 ### Qwen 2.1 순환 VAE 실험
 - 이미지 생성 분류의 `qwen-21-circular-generator`는 공용 Qwen UI·시드·이력·게이트웨이를 재사용합니다.
@@ -576,16 +494,6 @@ python3 tools/manager.py command character-review capture --payload-file /tmp/ch
 캡처의 `outline_width`는 어두운 형태선의 100% 기준 픽셀 폭(1–4, 소수 허용, 기본 1)입니다. 밝은 분리선은 형태선 바깥 100% 기준 1px 띠입니다. 두 선 모두 배율에 선형 비례하며 200%에서는 기본 형태선 2px·분리선 2px로 표시됩니다.
 
 캐릭터 검수 캡처의 width·height는 화면 표시 크기이며 PNG의 가로·세로는 각각 2배입니다. 기본 768×576 영역은 1536×1152 PNG로 저장하며 줌과 캐릭터의 화면 크기는 유지합니다.
-
-### MoMask 커스텀 포즈
-
-포즈에서 `커스텀`을 선택하면 현재 표시된 모션 스크립트를 수정할 수 있다. 스크립트는 실행 코드가 아닌 MoMask 자연어 입력이다. 원본 프리셋은 변경하지 않으며 입력 원문은 작업의 `request.json`에 저장한다. 커스텀은 대기의 원본 프레임 수와 카메라 설정을 사용한다. 이력의 입력 불러오기와 재개는 저장된 커스텀 원문을 사용한다.
-
-CLI에서도 같은 요청을 사용한다: `python tools/manager.py momask generate --action custom --prompt 'A person raises both arms slowly.' --directions down_left`. 빈 스크립트 또는 4000자 초과 입력은 거절하며, 기존 고정 포즈에는 `--prompt`를 지정하지 않는다.
-
-MoMask 생성은 `--frames 120`으로 원본 모션 길이를 지정할 수 있습니다. 8 이상인 4의 배수 정수이며 생략하면 포즈 기본값을 사용합니다. GUI의 프레임 길이와 같은 요청·이력에 저장하고 입력 불러오기에서 복원합니다.
-
-MoMask `history-delete ID`와 GUI 선택 이력 삭제는 해당 작업 디렉터리(모션·렌더·입력·로그)와 이력을 영구 폐기합니다. 대기·실행 중에는 거절합니다. 전체 `history-reset`은 기존대로 목록만 초기화하며 파일 폐기와 구분합니다.
 
 ### Qwen 2.1 일반 생성기 프롬프트 옵션
 

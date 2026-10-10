@@ -1,11 +1,13 @@
 # slime-workflow
 
-현재 사용하는 MoMask 모션 생성기와 캐릭터 애니메이션 생성기를 관리한다.
+로컬 GPU 기반 모션·이미지 생성, 제작 자산과 검수 도구를 관리한다. 모션·포즈 준비는 HY-Motion, 단일 포즈 변환은 VNCCS를 사용한다. MoMask + AnyPose 생성 구조는 폐기했다.
 
 ## 생성기별 소스
 
-- `generators/momask/`: CUDA MoMask 관절 모션 생성. SMPL 의존성 없음.
-- `generators/animation/`: 기본 리그 검증, 4방향 포즈·Depth 렌더, 참조 준비, Qwen 프레임 생성.
+- `generators/hy_motion/`: HY-Motion 모션 생성·ANNY 변환·방향별 렌더·OpenPose 출력.
+- `generators/image/`: Qwen 이미지 생성·VNCCS 단일 포즈 변환.
+- `generators/animation/`: 참조 자산 설정·공용 Qwen 실행·기존 시트 검수 도구. AnyPose 생성은 폐기.
+- `generators/momask/`: HY-Motion 등이 재사용하는 리타기팅·스키닝·Blender 공용 코드. MoMask 생성·재렌더 경로는 폐기.
 - `generators/terrain/`: 고정 Qwen-Image-Edit-2511 기반 바닥·벽 타일 후보와 높이 변화 미리보기 생성.
 - `workflows/`: 현재 작업의 실행 순서·입출력·검증 절차.
 - `old/`: 이전 노드·음악 파이프라인·실험 생성기와 해당 문서·테스트. 현재 실행 경로에서 사용하지 않는다.
@@ -17,25 +19,23 @@
 
 - `report/`: 외부 공유용 특정 실험의 이력과 결과 사본. 실행 과정, 입력·파라미터·출처, 검증 결과, 재현 코드 및 확인에 필요한 산출물 사본을 실험별로 묶는다. 원본 제작 자산이나 게임 런타임 채택을 대체하지 않는다. [리포트 목록과 보관 기준](report/README.md)을 참고한다.
 - `.model/`: 모델 다운로드·캐시.
-- `assets/`: 기존 승인 리그와 재사용 MoMask 모션. 임시 정리 대상 아님.
-- `.tmp/YYYY-MM-DD_HH-mm-ss/`: 한국 시간 기준 실행별 후보 이미지·포즈·프롬프트·로그·출처. Git 제외.
-- 정식 채택된 이미지의 관리 원본: `slime-frontend` 에셋 경로. 명시적 채택 후 전달·등록한다.
+- `assets/`: 승인 모션·리그·외형 참조와 출처 기록. 임시 정리 대상 아님.
+- `.tmp/test/<실험명>/<YYYY-MM-DD_HH-mm-ss>/`: 한국 시간 기준 실행별 후보 이미지·포즈·프롬프트·로그·출처. Git 제외.
+- 정식 채택된 캐릭터·몬스터 스프라이트의 관리 원본: `slime-assets/assets/sprites/`. 맵 타일은 `slime-assets/assets/tiles/`. 명시적 채택 후 등록·전달하며 프론트엔드 사본을 직접 편집하지 않는다.
 - 기획·설계: 비공개 `slime-backend/docs/design/`.
 - 사용자 지시로 이전한 제작 프롬프트: [prompts/](prompts/README.md). 그 밖의 비공개 프롬프트는 기존 백엔드 경로를 유지한다.
 
 모델 준비·GPU 추론은 샌드박스 밖에서 실행한다. CPU 추론이나 준비 실패 시 대체 실행은 허용하지 않는다. 게임 런타임·AWS 배포 변경은 없다.
 
-## 기본 걷기 참조
+## 모션·포즈 변환과 캐릭터 기준
 
-걷기는 방향당 8프레임·150ms·1.2초 루프다. 개별 animation-loops 자산은 삭제하고 `assets/rigs/mannequin-walk/v1/pose-sheets-v1/`의 방향별 시트 4장을 유지한다. 출처·배치·해시는 `generators/animation/config/default_walk_pose_sheets.yaml`에서 관리한다.
+[HY-Motion](workflows/hy-motion.md)에서 모션·ANNY 렌더·OpenPose를 준비하고 [VNCCS 포즈 변환](workflows/pose-transfer.md)에서 외형·포즈 두 참조로 단일 이미지를 생성한다. 별도의 도구·생성 ID를 사용하며 통합 프레임 배치 생성은 제공하지 않는다.
 
-## 캐릭터 기준 시트
+등록된 기본 제작 모션은 [HY-Motion 걷기 v2](assets/motion-sheet/hy-motion-walking-v2/README.md)다. 원본 9~43번의 35프레임·30FPS 및 4방향 원근투영을 사용한다. 과거 8프레임·150ms 규격을 신규 모션에 일괄 적용하지 않는다. 선택·해시·검수·패킹은 [캐릭터 애니메이션 제작 절차](workflows/character-animation.md)를 따른다.
 
-걷기 이미지젠의 동작 참조 원본은 셰이딩을 보강한 리그 8프레임 시트다. 이미지젠은 [최소 사용 정책](workflows/imagegen-usage-policy.md)에 따라 포즈 검수를 통과한 선택 프레임에만 사용한다. 호출당 최대 4프레임만 생성하며, 1–4번·5–8번 리그를 각각 2×2 참조로 나누어 생성한 뒤 4방향 총 32프레임을 최종 4×4 시트 두 장으로 통합한다. 전체 생성·검수·정규화·시트 패킹 규칙은 [캐릭터 애니메이션 생성 규칙](workflows/character-animation.md)에 따른다. `assets/rigs/mannequin-walk/v1/pose-sheets-v1/`의 포즈 시트는 비교 자료로 유지한다. `generators/animation/build_walk_pose_sheets.py`가 렌더 실행 폴더의 8프레임 포즈를 묶고 출처·파일 해시를 기록한다.
+[스탠딩 시트 제작 절차](workflows/character-standing-sheet.md)는 승인 베이스라인을 사용하는 별도 이미지젠 제작 경로다. 로컬 VNCCS 포즈 변환과 구분하며 [이미지젠 최소 사용 정책](workflows/imagegen-usage-policy.md)을 적용한다.
 
-[캐릭터 애니메이션 생성 규칙](workflows/character-animation.md)은 신규 캐릭터의 2×2 베이스라인과 최종 애니메이션 생성·검수·정규화를 함께 정의한다. 단일 원화 생성 후 시트로 재생성하는 단계를 기본 경로에서 제거했다.
-
-[스탠딩 시트 제작 절차](workflows/character-standing-sheet.md)는 승인된 2×2 베이스라인 시트 전체를 참조하여 방향별 4프레임의 4×1 소스 시트 4장을 생성하고 최종 프론트엔드 전달 시에는 16프레임을 4×4 한 장으로 패킹한다. 호출당 최대 4프레임 기준을 적용하고 입력 베이스라인 셀과 출력 방향의 대응을 명시한다. 정식 에셋 교체는 사용자 채택 후 수행한다.
+폐기된 MoMask·AnyPose 명령과 보존 범위는 [관리도구 클라이언트 가이드](workflows/management-clients.md#momask-포즈-생성기-폐기)에 명시한다. 기존 스프라이트·앵커 편집은 유지한다.
 
 ## 공통 웹 검수
 
@@ -85,7 +85,7 @@
 GUI 없이 게이트웨이만 실행해도 통합 CLI를 사용할 수 있다. 아래 명령은 생성 이력을 조회한다.
 
 ```bash
-python3 tools/manager.py command momask history
+python3 tools/manager.py command hy-motion history
 ```
 
 #### 포트·경로 변경
@@ -100,7 +100,7 @@ python3 tools/manager.py command momask history
 ./scripts/run_management_gui.sh --port 9870 --gateway-url http://127.0.0.1:9871 --watch
 
 # CLI 터미널
-python3 tools/manager.py command momask --server-url http://127.0.0.1:9871 history
+python3 tools/manager.py command hy-motion --server-url http://127.0.0.1:9871 history
 ```
 
 | 환경 변수 | 적용 대상·기본값 |
@@ -204,25 +204,11 @@ Qwen 타일 생성기는 `.tmp/실행폴더/tile-review.json`에 역할별 타�
 
 관리도구는 검색 목록에서 대상을 고르고 미리보기 옆에서 좌표를 편집합니다. 상단 변경 이력에서 실행 취소·다시 실행을 할 수 있고, `현재 프레임 원본 복원`도 실행 취소할 수 있습니다. `좌표 JSON 다운로드`는 브라우저에 파일 다운로드를 요청하며 원본 에셋에 자동 반영하지 않습니다. 변경된 대상은 목록에 표시됩니다. 입력란 밖에서 Ctrl/Cmd+Z는 실행 취소, Ctrl/Cmd+Shift+Z는 다시 실행입니다.
 
-## 걷기 오류 프레임 해결
+## 포즈 오류 프레임과 ANNY 검수
 
-리그 참조에서 다리 연결이 뒤바뀌는 프레임은 [캐릭터 애니메이션 생성 규칙](workflows/character-animation.md)의 오류 프레임 재생성·정규화 절차를 따른다. Qwen에는 캐릭터 방향 크롭과 OpenPose를, 이미지젠에는 검수된 포즈와 2×2 베이스라인 전체를 전달한다.
+[캐릭터 애니메이션 제작·검수](workflows/character-animation.md)에 따라 외형·포즈 참조와 결과를 같은 방향·원본 프레임 번호로 비교한다. 오류 프레임은 VNCCS에서 별도로 검수·재생성하며 AnyPose로 대체하지 않는다. 반복 재생·작업 완료는 루프 품질이나 최종 에셋 채택을 뜻하지 않는다.
 
-[캐릭터 애니메이션 생성 규칙](workflows/character-animation.md)은 리그/OpenPose 독립 참조, 기본 포즈 프롬프트, Qwen 생성, AnyPose 오류 프레임 재생성을 함께 정의한다.
-
-[캐릭터 애니메이션 생성 규칙](workflows/character-animation.md)을 캐릭터 애니메이션의 상위 제작 절차로 사용한다. 포즈 적용부터 외형 복원·시트 통합까지 실행을 연결하고 검수 근거로 다음 버전을 개선한다.
-
-[AnyPose 오류 프레임 재생성](workflows/character-animation.md): 고정 어댑터 해시 검증, 방향별 리그 참조, 4스텝 실행기를 제공한다. Qwen 포즈 전환은 OpenPose 참조 경로를 사용한다.
-
-[Qwen 맵 타일 생성 워크플로우](workflows/map-tile-generation.md): 맵 타일은 Qwen으로 생성하고, 반복 이음새·역할·알파·결정적 패킹을 검수한다. 이미지젠은 타일 기본 경로에 사용하지 않는다.
-
-## ANNY 마네킹 제작
-
-[ANNY 모델 생성·재현 워크플로우](workflows/anny-mannequin-generation.md)를 참고한다. 마네킹 v2·v3·v4는 사용자 요청으로 폐기했으며 기본 참조는 기존 v1로 복원했다. ANNY 기준 모델의 재현 자료는 [기준 모델 리포트](report/anny-reference-baseline-20260923-r3/README.md)에 보관한다.
-
-## 승인된 MoMask 마네킹 v5
-
-[mannequin-walk/v5](assets/motion-sheet/mannequin-walk-v5/README.md)는 ANNY r3 리그와 쉐이딩 강화 4방향 × 8프레임을 고정한 재사용 제작 자산입니다. 최종 이미지 관리 원본은 `slime-frontend/public/assets/characters/mannequin-walk-v5/`에 전달했으며 두 저장소의 manifest에 SHA-256을 기록했습니다. 기본 생성기·게임 런타임 선택은 별도이며 v2·v3·v4는 폐기 상태를 유지합니다.
+현행 ANNY 모션 변환·렌더는 [HY-Motion 안내](workflows/hy-motion.md), 관절·기준점 검수는 [해부학 리타기팅 안내](workflows/anny-anatomical-retarget.md)를 따른다. [과거 ANNY 마네킹 문서](workflows/anny-mannequin-generation.md)는 공용 리타기팅 설명과 과거 제작 기록을 구분한다. 폐기된 mannequin·MoMask 버전을 현재 기본 참조로 안내하지 않는다.
 
 ## 작가 AI 에이전트
 

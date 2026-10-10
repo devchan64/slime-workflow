@@ -1,27 +1,40 @@
-# 포즈 변환 생성기 · Alpha Ver.
+# VNCCS 포즈 변환 생성기
 
-개발 상태: **Alpha Ver.** 포즈 정밀도와 캐릭터 일관성을 검증 중인 실험 기능이며, 생성 결과마다 검수가 필요하다. 메뉴와 화면 제목에 같은 버전 표기를 사용한다.
+현재 포즈 변환은 **VNCCS PoseStudio V1.1 LoRA + 공식 QwenImage21Pipeline**을 사용한다. MoMask + AnyPose 경로는 폐기했으며 이 도구로 우회 복원하지 않는다. 메뉴의 Alpha Ver. 표기는 제거했지만 포즈 정밀도·전신 비례·프레임 일관성은 여전히 결과별 검수가 필요하다.
 
-애니메이션 도구의 `?tool=pose-transfer-generator&category=animation-tool`에서 Qwen Image 2.1로 단일 장면의 포즈를 변환한다.
+애니메이션 도구의 `?tool=pose-transfer-generator&category=animation-tool` 또는 공용 게이트웨이 `pose-transfer`에서 단일 장면을 변환한다. 모션 전체 자동 배치나 영상 생성 기능은 아니다. 모션·ANNY 포즈 준비는 [HY-Motion](hy-motion.md), 전체 검수 절차는 [캐릭터 애니메이션 제작](character-animation.md)을 따른다.
 
-- 아이덴티티 이미지 1장, 포즈 이미지 1장이 필수다. 순서는 외형 → 포즈로 고정한다. 외형 이미지에서 얼굴·헤어·복장·신체 비율·화풍을, 포즈 이미지에서 자세·방향·관절 배치를 가져온다.
-- 해상도는 512×512·768×768 중 선택하며 기본은 768이다. 스텝은 20·30·40·50 중 선택하며 기본은 40이다.
-- 기본 프롬프트는 `generators/image/config/pose-transfer-prompt.txt`에서 관리한다. 입력 프롬프트는 1~99단어이며 원문·단어 수·해시를 기록한다.
-- GUI와 CLI는 공용 게이트웨이의 `pose-transfer` 서비스를 사용한다. 생성·상태·로그·취소·재개·이력 조회·삭제·초기화를 공유한다. 결과는 자동으로 정식 에셋에 등록하지 않는다.
-- 기록은 `.tmp/test/pose-transfer/<생성 ID>/`에 보관한다. 참조 이미지 두 장은 번호 순서로 스냅샷·해시를 저장한다. 기존 Qwen 이미지 생성 이력과 분리한다.
+## 입력과 고정 설정
+
+- 아이덴티티 이미지 1장과 포즈 이미지 1장이 필수다. GUI·CLI 입력과 파일 저장 순서는 **아이덴티티 → 포즈**이며, 실행기가 모델 입력만 **포즈 image1 → 아이덴티티 image2**로 바꾼다.
+- 신규 출력은 512×512 고정, 스텝은 25·40 중 선택(기본 40), 기본 시드는 `1695791623`이다. 모델·LoRA·BF16 비양자화 정밀도는 코드에 고정하며 LoRA SHA-256을 검증한다.
+- 참조는 RGB/RGBA PNG, 장당 3MB 이하이며 투명 영역은 공용 입력 처리로 흰 배경에 합성한다. 입력 참조의 원본 비율과 출력 해상도를 구분한다.
+- 기본 프롬프트는 `generators/image/config/pose-transfer-prompt.txt`에서 Git으로 관리한다. 기본·사용자 보조 지시를 포함한 실제 모델 입력은 1~99단어이며 최종 원문·단어 수·해시를 기록한다. 100단어 미만은 저장소 운영 규칙이다.
 
 ```bash
-python3 tools/manager.py command pose-transfer generate --reference identity.png --reference pose.png --resolution 768 --steps 40 --seed 10107 --detach
+python3 tools/manager.py help pose-transfer generate
+python3 tools/manager.py command pose-transfer generate --reference /path/identity.png --reference /path/pose.png --resolution 512 --steps 40 --seed 1695791623 --detach
 python3 tools/manager.py command pose-transfer history
-python3 tools/manager.py command pose-transfer status --id 생성ID
+python3 tools/manager.py command pose-transfer status GENERATION_ID
+python3 tools/manager.py command pose-transfer logs GENERATION_ID
+python3 tools/manager.py command pose-transfer cancel GENERATION_ID
+python3 tools/manager.py command pose-transfer resume GENERATION_ID
 ```
 
-`--prompt` 또는 `--prompt-file`로 기본 문구를 대체할 수 있다. 이미지 입력은 RGB/RGBA PNG, 장당 3MB 이하이며 투명 영역은 Qwen 공통 입력 처리로 흰 배경에 합성된다. 모델은 코드에 고정하며 사용자가 선택하지 않는다. GPU 실행은 기존 독립 작업자와 대기열을 사용한다.
+CLI는 프롬프트 생략 시 추적된 기본 문구를 사용하고, `--prompt` 또는 `--prompt-file`로 대체한다. 프롬프트 안의 이미지 번호는 사용자 업로드 순서가 아닌 모델 전달 순서에 맞춰 작성한다. 과거의 외형 image1 → 포즈 image2 지시문을 신규 VNCCS 작업에 그대로 사용하지 않는다.
 
-## 기본 프롬프트의 참조 역할
+## 실행과 기록
 
-두 번째 이미지의 자세로 교체하고 첫 이미지의 캐릭터를 유지하도록 짧게 지시한다. 사용자 실험 `2026-10-05_20-54-52-3ffae086`에서 개선을 확인한 문구를 기본값으로 사용한다. 해당 실험과 동일한 `<image 1>`, `<image 2>` 표기를 유지한다. 공식 재작성 지침의 `<image1>` 표기와는 구분하며, 태그 공백의 효과는 검증하지 않았다. 신체 비율 보존 문구를 추가한 실험 `2026-10-05_21-02-33-ab5acca1`에서는 서 있는 자세로 되돌아가 해당 추가 문구를 제거했다. 이는 해당 실험의 검수 결과이며 모든 입력에 대한 품질 보장을 의미하지 않는다. 기존 실행 기록은 변경하지 않는다.
+GUI·CLI → 공용 게이트웨이 → 이미지 작업 서비스 → 독립 GPU 작업자·대기열을 사용한다. 게이트웨이는 GPU 접근이 가능한 샌드박스 밖에서 실행한다. 가중치는 CPU RAM에 대기시키되 모델 연산은 CUDA에서 수행한다. CUDA 부재·필수 파일 누락·해시 오류는 실패하며 CPU 추론으로 대체하지 않는다.
 
-근거: [Qwen Image 2.1 공식 편집 프롬프트 지침](https://github.com/QwenLM/Qwen-Image-2.1/blob/main/prompt_rewrite/prompts/system_prompt_edit.txt). 100단어 미만 제한은 이 저장소의 운영 규칙이며 공식 모델 제한이 아니다.
+작업은 `.tmp/test/pose-transfer/<생성 ID>/`, 이력은 `.tmp/manager-current/pose-transfer/`에 저장한다. `request.json`의 `vnccs`에 실행 버전·모델 입력 순서·정밀도·LoRA 해시·안전 한계를 기록하고, 참조 두 장의 사본·해시를 보존한다. 상세 로그는 `vnccs-pipeline.log`, 자원 기록은 `vnccs-resources.json`, 결과·품질 경고는 `result.json`에서 확인한다.
 
-포즈 변환 화면의 `고정 프롬프트 사용`은 기본 ON이다. ON이면 기본 문구를 표시하고 편집을 잠그며, OFF이면 직접 편집한다. OFF에서 작성한 문구는 ON/OFF 전환 시 보존한다. ON으로 전환할 때 추적된 기본 파일을 다시 읽으며, 화면에 표시된 문구를 그대로 공용 게이트웨이에 전달해 실행 기록에 저장한다. 전환은 생성을 실행하지 않는다. 이력 입력 복원은 OFF로 전환하여 당시 프롬프트를 그대로 복원한다. CLI에서는 프롬프트 생략 시 기본값, `--prompt` 또는 `--prompt-file` 지정 시 직접 입력을 사용한다.
+감독 작업자는 5초마다 자식 상태·진행 로그·자원을 확인한다. 시스템 RAM 여유 12GiB 미만, 작업 RSS 42GiB 초과, 실행 20분 초과 시 실패로 중단한다. 이는 실행 안전 한계이며 생성 품질이나 최대 VRAM의 보장값이 아니다. 브라우저 연결 종료는 작업 종료나 이력 삭제를 의미하지 않는다.
+
+## 과거 기록과 검수
+
+`vnccs` 필드가 없는 과거 포즈 변환 작업의 재개는 당시 Qwen 경로·입력 순서·설정을 유지한다. 과거 입력을 불러와 새로 생성하면 현행 VNCCS 고정 설정을 사용한다. 이는 폐기된 AnyPose 작업의 재개를 허용하는 기능이 아니다.
+
+ANNY 포즈와 결과를 같은 방향·프레임 번호로 비교하고 관절 연결·손발 위치·가림·외형을 확인한다. 공식 포즈도 일부만 따라가는 결과가 있으므로 완료를 품질 승인으로 간주하지 않는다. 프롬프트 변경 후 1프레임을 먼저 검수하며 생성 결과를 정식 에셋에 자동 등록하지 않는다.
+
+세부 게이트웨이 계약은 [관리도구 클라이언트 가이드](management-clients.md#vnccs-포즈-변환--bf16-기준-경로)를 따른다.
