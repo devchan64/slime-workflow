@@ -1,4 +1,4 @@
-import {selectFieldRoadFrame,resolveFieldTerrainFrame} from './vendor/field-renderer/__FIELD_RENDERER_VERSION__/town-renderer.mjs';
+import {selectFieldRoadFrame,resolveFieldTerrainFrame,collectTerrainTextureSources} from './vendor/field-renderer/__FIELD_RENDERER_VERSION__/town-renderer.mjs';
 import {CHARACTER_OUTLINE_BASE_WIDTH,CHARACTER_OUTLINE_BASE_COLOR,CHARACTER_SEPARATOR_BASE_WIDTH,CHARACTER_SEPARATOR_BASE_COLOR,CHARACTER_CONTACT_SHADOW_COLOR as GAME_CONTACT_SHADOW_COLOR,CHARACTER_CONTACT_SHADOW_ALPHA_SCALE,ACTOR_CONTACT_SHADOW_CONTRACT} from './vendor/field-renderer/__FIELD_RENDERER_VERSION__/game-render-profile.mjs';
 import {createFieldReviewFrame,pickFieldReviewCell} from './field-map-renderer.js';
 import {FIELD_RENDER_METRICS,projectSurfaceCell} from './vendor/field-renderer/__FIELD_RENDERER_VERSION__/field-renderer.mjs';
@@ -93,7 +93,19 @@ const groundTextureNames={grass:currentMapRecord.id==='iseulon'?'iseulon-grass-m
 function readBuildingTileSet(currentBuildingRecord){return {...buildingTileRecords['iseulon-'+currentBuildingRecord.facilityKind],...(currentMapRecord.buildingTileOverrides||{}),...(buildingTileRecords[currentBuildingRecord.id]||{})}}
 function renderAppliedTileSourceList(){
  const appliedTextureNames=new Set(isFieldMapReview?['cliff-wall','ramp-tread']:[]);
- Object.values(currentMapRecord.terrainCodes).forEach(currentTerrainName=>{const currentSelectedFrame=isFieldMapReview?resolveFieldTerrainFrame(currentTerrainName,currentMapRecord.id):null;const currentTextureName=currentSelectedFrame==='wall'?'cliff-wall':currentTextureRecords[currentSelectedFrame]?currentSelectedFrame:groundTextureNames[currentTerrainName];if(currentTextureName)appliedTextureNames.add(currentTextureName)});
+ const currentSharedTextureSources=isFieldMapReview?collectTerrainTextureSources():null;
+ Object.values(currentMapRecord.terrainCodes).forEach(currentTerrainName=>{
+  if(isFieldMapReview){
+   const currentSelectedFrame=resolveFieldTerrainFrame(currentTerrainName,currentMapRecord.id);
+   const currentSourcePath=currentSharedTextureSources['terrain-source-'+currentSelectedFrame];
+   const currentTextureEntry=Object.entries(currentTextureRecords).find(([,currentTextureRecord])=>currentTextureRecord.source===currentSourcePath);
+   if(!currentTextureEntry)throw new Error('공용 필드 재질의 검수 원본이 없습니다: '+currentTerrainName+' · '+currentSourcePath);
+   appliedTextureNames.add(currentTextureEntry[0]);
+  }else{
+   const currentTextureName=groundTextureNames[currentTerrainName];
+   if(currentTextureName)appliedTextureNames.add(currentTextureName);
+  }
+ });
  currentMapRecord.buildings.forEach(currentBuildingRecord=>Object.values(readBuildingTileSet(currentBuildingRecord)).forEach(currentTextureName=>appliedTextureNames.add(currentTextureName)));
  const appliedTileList=document.querySelector('#applied-tile-list');appliedTileList.replaceChildren();
  for(const [currentVisualName,currentVisualRecord] of Object.entries(currentSafeVisualRecords)){
