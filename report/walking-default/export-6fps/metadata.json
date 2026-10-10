@@ -1,0 +1,567 @@
+{
+  "revision": "20261010T103600-102ebdeb",
+  "document": {
+    "version": 2,
+    "name": "기본-걷기",
+    "cellSize": 384,
+    "fps": 6,
+    "reference": {
+      "id": "afee0713-417e-4ae8-99e5-e9777870b865",
+      "asset": "06d44ad66b2be5cef6c9bf36549ed6ea853cb7f5f1810f6a4f5ab375686be8b8",
+      "name": "clipboard.png",
+      "x": -6,
+      "y": -2,
+      "scale": 1,
+      "duration": 0,
+      "face": {
+        "x": 188,
+        "y": 55,
+        "radius": 37
+      },
+      "guides": [
+        {
+          "label": "머리끝",
+          "axis": "y",
+          "position": 18
+        },
+        {
+          "label": "턱",
+          "axis": "y",
+          "position": 90
+        },
+        {
+          "label": "어깨",
+          "axis": "y",
+          "position": 100
+        },
+        {
+          "label": "허리",
+          "axis": "y",
+          "position": 153
+        },
+        {
+          "label": "골반",
+          "axis": "y",
+          "position": 204
+        },
+        {
+          "label": "무릎",
+          "axis": "y",
+          "position": 263
+        },
+        {
+          "label": "발바닥",
+          "axis": "y",
+          "position": 327
+        },
+        {
+          "label": "중심",
+          "axis": "x",
+          "position": 192
+        },
+        {
+          "label": "눈아래",
+          "axis": "y",
+          "position": 68
+        },
+        {
+          "label": "눈 위",
+          "axis": "y",
+          "position": 61
+        }
+      ],
+      "scaleX": 0.95,
+      "scaleY": 0.95
+    },
+    "frames": [
+      {
+        "id": "2d8d7d1f-f778-413c-9532-4320cb1f111d",
+        "asset": "3c91ea093f0ce92027614ffdf5f162fc90b1d1f265a97f2c2d9cf9fe7ca26617",
+        "name": "1.png",
+        "x": 4,
+        "y": -5,
+        "scale": 1,
+        "duration": 0,
+        "face": {
+          "x": 188,
+          "y": 55,
+          "radius": 37
+        },
+        "guides": [
+          {
+            "label": "머리끝",
+            "axis": "y",
+            "position": 18
+          },
+          {
+            "label": "턱",
+            "axis": "y",
+            "position": 90
+          },
+          {
+            "label": "어깨",
+            "axis": "y",
+            "position": 100
+          },
+          {
+            "label": "허리",
+            "axis": "y",
+            "position": 153
+          },
+          {
+            "label": "골반",
+            "axis": "y",
+            "position": 204
+          },
+          {
+            "label": "무릎",
+            "axis": "y",
+            "position": 263
+          },
+          {
+            "label": "발바닥",
+            "axis": "y",
+            "position": 327
+          },
+          {
+            "label": "중심",
+            "axis": "x",
+            "position": 192
+          },
+          {
+            "label": "눈아래",
+            "axis": "y",
+            "position": 68
+          },
+          {
+            "label": "눈 위",
+            "axis": "y",
+            "position": 61
+          }
+        ],
+        "scaleX": 0.95,
+        "scaleY": 0.95
+      },
+      {
+        "id": "d7414fb0-35f1-402a-9034-d9e1378fad60",
+        "asset": "2eaeb4997ff5ab18accd8108d484d6a96dcca4183b185072fe5f2119b8c03027",
+        "name": "2.png",
+        "x": 8,
+        "y": -5,
+        "scale": 1,
+        "duration": 0,
+        "face": {
+          "x": 188,
+          "y": 55,
+          "radius": 37
+        },
+        "guides": [
+          {
+            "label": "머리끝",
+            "axis": "y",
+            "position": 18
+          },
+          {
+            "label": "턱",
+            "axis": "y",
+            "position": 90
+          },
+          {
+            "label": "어깨",
+            "axis": "y",
+            "position": 100
+          },
+          {
+            "label": "허리",
+            "axis": "y",
+            "position": 153
+          },
+          {
+            "label": "골반",
+            "axis": "y",
+            "position": 204
+          },
+          {
+            "label": "무릎",
+            "axis": "y",
+            "position": 263
+          },
+          {
+            "label": "발바닥",
+            "axis": "y",
+            "position": 327
+          },
+          {
+            "label": "중심",
+            "axis": "x",
+            "position": 192
+          },
+          {
+            "label": "눈아래",
+            "axis": "y",
+            "position": 68
+          },
+          {
+            "label": "눈 위",
+            "axis": "y",
+            "position": 61
+          }
+        ],
+        "scaleX": 0.95,
+        "scaleY": 0.95
+      },
+      {
+        "id": "9dc1647b-0959-476c-a81a-d467983edaf4",
+        "asset": "179ae31e062b375fcc486eb9ce74115d26bb5c3ddc891feea4408f13191fb00d",
+        "name": "3.png",
+        "x": 7,
+        "y": -6,
+        "scale": 1,
+        "duration": 0,
+        "face": {
+          "x": 188,
+          "y": 55,
+          "radius": 37
+        },
+        "guides": [
+          {
+            "label": "머리끝",
+            "axis": "y",
+            "position": 18
+          },
+          {
+            "label": "턱",
+            "axis": "y",
+            "position": 90
+          },
+          {
+            "label": "어깨",
+            "axis": "y",
+            "position": 100
+          },
+          {
+            "label": "허리",
+            "axis": "y",
+            "position": 153
+          },
+          {
+            "label": "골반",
+            "axis": "y",
+            "position": 204
+          },
+          {
+            "label": "무릎",
+            "axis": "y",
+            "position": 263
+          },
+          {
+            "label": "발바닥",
+            "axis": "y",
+            "position": 327
+          },
+          {
+            "label": "중심",
+            "axis": "x",
+            "position": 192
+          },
+          {
+            "label": "눈아래",
+            "axis": "y",
+            "position": 68
+          },
+          {
+            "label": "눈 위",
+            "axis": "y",
+            "position": 61
+          }
+        ],
+        "scaleX": 0.95,
+        "scaleY": 0.95
+      },
+      {
+        "id": "1d18f185-f13b-40c5-ad19-bfa3a6fcbcfb",
+        "asset": "b8a51a567f2f6311121a08433f53edff546b4cf5268226306905c1dd8ebf68cb",
+        "name": "4.png",
+        "x": 2,
+        "y": -5,
+        "scale": 1,
+        "duration": 0,
+        "face": {
+          "x": 188,
+          "y": 55,
+          "radius": 37
+        },
+        "guides": [
+          {
+            "label": "머리끝",
+            "axis": "y",
+            "position": 18
+          },
+          {
+            "label": "턱",
+            "axis": "y",
+            "position": 90
+          },
+          {
+            "label": "어깨",
+            "axis": "y",
+            "position": 100
+          },
+          {
+            "label": "허리",
+            "axis": "y",
+            "position": 153
+          },
+          {
+            "label": "골반",
+            "axis": "y",
+            "position": 204
+          },
+          {
+            "label": "무릎",
+            "axis": "y",
+            "position": 263
+          },
+          {
+            "label": "발바닥",
+            "axis": "y",
+            "position": 327
+          },
+          {
+            "label": "중심",
+            "axis": "x",
+            "position": 192
+          },
+          {
+            "label": "눈아래",
+            "axis": "y",
+            "position": 68
+          },
+          {
+            "label": "눈 위",
+            "axis": "y",
+            "position": 61
+          }
+        ],
+        "scaleX": 0.95,
+        "scaleY": 0.95
+      },
+      {
+        "id": "fa2ed483-3367-4ca5-bc96-44e7ed13c661",
+        "asset": "5ae3917bee9ec562ea54575522b50d54e9f59e7a53a55645de9ddb0dab9ff892",
+        "name": "5.png",
+        "x": 4,
+        "y": -5,
+        "scale": 1,
+        "duration": 0,
+        "face": {
+          "x": 188,
+          "y": 55,
+          "radius": 37
+        },
+        "guides": [
+          {
+            "label": "머리끝",
+            "axis": "y",
+            "position": 18
+          },
+          {
+            "label": "턱",
+            "axis": "y",
+            "position": 90
+          },
+          {
+            "label": "어깨",
+            "axis": "y",
+            "position": 100
+          },
+          {
+            "label": "허리",
+            "axis": "y",
+            "position": 153
+          },
+          {
+            "label": "골반",
+            "axis": "y",
+            "position": 204
+          },
+          {
+            "label": "무릎",
+            "axis": "y",
+            "position": 263
+          },
+          {
+            "label": "발바닥",
+            "axis": "y",
+            "position": 327
+          },
+          {
+            "label": "중심",
+            "axis": "x",
+            "position": 192
+          },
+          {
+            "label": "눈아래",
+            "axis": "y",
+            "position": 68
+          },
+          {
+            "label": "눈 위",
+            "axis": "y",
+            "position": 61
+          }
+        ],
+        "scaleX": 0.95,
+        "scaleY": 0.95
+      },
+      {
+        "id": "1a592504-76e3-4a59-8383-849cd89a4036",
+        "asset": "3c6713a32050b5c9e1e48c5c28d85415d5f8d834d7b622291e8745083e4ac6ce",
+        "name": "6.png",
+        "x": 4,
+        "y": -5,
+        "scale": 1,
+        "duration": 0,
+        "face": {
+          "x": 188,
+          "y": 55,
+          "radius": 37
+        },
+        "guides": [
+          {
+            "label": "머리끝",
+            "axis": "y",
+            "position": 18
+          },
+          {
+            "label": "턱",
+            "axis": "y",
+            "position": 90
+          },
+          {
+            "label": "어깨",
+            "axis": "y",
+            "position": 100
+          },
+          {
+            "label": "허리",
+            "axis": "y",
+            "position": 153
+          },
+          {
+            "label": "골반",
+            "axis": "y",
+            "position": 204
+          },
+          {
+            "label": "무릎",
+            "axis": "y",
+            "position": 263
+          },
+          {
+            "label": "발바닥",
+            "axis": "y",
+            "position": 327
+          },
+          {
+            "label": "중심",
+            "axis": "x",
+            "position": 192
+          },
+          {
+            "label": "눈아래",
+            "axis": "y",
+            "position": 68
+          },
+          {
+            "label": "눈 위",
+            "axis": "y",
+            "position": 61
+          }
+        ],
+        "scaleX": 0.95,
+        "scaleY": 0.95
+      },
+      {
+        "id": "43d0215b-0d99-481f-84fd-90afc4567699",
+        "asset": "6600672cb78843ba8ea581b9f7d5838f209e0105c20aa06b8f18e35f1ee2df41",
+        "name": "7.png",
+        "x": 4,
+        "y": -5,
+        "scale": 1,
+        "duration": 0,
+        "face": {
+          "x": 188,
+          "y": 55,
+          "radius": 37
+        },
+        "guides": [
+          {
+            "label": "머리끝",
+            "axis": "y",
+            "position": 18
+          },
+          {
+            "label": "턱",
+            "axis": "y",
+            "position": 90
+          },
+          {
+            "label": "어깨",
+            "axis": "y",
+            "position": 100
+          },
+          {
+            "label": "허리",
+            "axis": "y",
+            "position": 153
+          },
+          {
+            "label": "골반",
+            "axis": "y",
+            "position": 204
+          },
+          {
+            "label": "무릎",
+            "axis": "y",
+            "position": 263
+          },
+          {
+            "label": "발바닥",
+            "axis": "y",
+            "position": 327
+          },
+          {
+            "label": "중심",
+            "axis": "x",
+            "position": 192
+          },
+          {
+            "label": "눈아래",
+            "axis": "y",
+            "position": 68
+          },
+          {
+            "label": "눈 위",
+            "axis": "y",
+            "position": 61
+          }
+        ],
+        "scaleX": 0.95,
+        "scaleY": 0.95
+      }
+    ]
+  },
+  "columns": 7,
+  "durations_ms": [
+    170,
+    170,
+    170,
+    170,
+    170,
+    170,
+    170
+  ],
+  "gif_background": "white",
+  "note": "PNG는 입력 알파를 유지하며 배경을 자동 제거하지 않습니다."
+}
