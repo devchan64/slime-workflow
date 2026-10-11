@@ -54,6 +54,12 @@ def run_management_launcher(command_argument_values=None):
             prepare_management_environments(launcher_trace_logger)
         else:
             selected_command_values = build_management_launch_command(launcher_argument_values.mode, launcher_argument_values.arguments)
+            if launcher_argument_values.mode == 'gateway' and not any(current_argument_text in ('-h', '--help') for current_argument_text in launcher_argument_values.arguments):
+                from tools.review.gateway_server import parse_gateway_arguments
+                from tools.review.common.gateway_existing_process import confirm_existing_gateway
+                gateway_launch_options = parse_gateway_arguments(selected_command_values[2:])
+                if not confirm_existing_gateway(gateway_launch_options.port, WORKFLOW_ROOT_DIRECTORY, launcher_trace_logger):
+                    return 0
             run_logged_management_command(selected_command_values, launcher_trace_logger)
         return 0
     except Exception as launcher_error_value:
