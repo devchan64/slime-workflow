@@ -182,8 +182,8 @@ def build_history_table_rows(current_history_records):
     return current_table_rows
 
 
-def render_history_selection_table(current_history_records,current_selected_identifier=None,server_base_address=''):
-    """첫 열 선택과 결과 썸네일을 한 행에 표시한다."""
+def render_history_selection_table(current_history_records,current_selected_identifier=None,server_base_address='',enable_identifier_clipboard=True):
+    """첫 열 선택·썸네일·기본 활성화된 ID 복사를 표시한다."""
     import html
     current_table_rows=build_history_table_rows(current_history_records)
     if not current_table_rows:return '<p>생성 이력이 없습니다.</p>'
@@ -203,7 +203,7 @@ def render_history_selection_table(current_history_records,current_selected_iden
         current_cell_markup=''.join('<td>'+html.escape(str(current_cell_value))+'</td>' for current_cell_value in current_table_row[:-1])
         current_identifier_markup = html.escape(current_job_identifier)
         current_copy_markup = '<button type="button" data-history-copy-id="'+html.escape(current_job_identifier,quote=True)+'" aria-label="'+html.escape(current_job_identifier+' ID 복사',quote=True)+'">ID 복사</button><span role="status" aria-live="polite" data-history-copy-status></span>'
-        current_cell_markup += '<td>'+current_identifier_markup+'<br>'+current_copy_markup+'</td>'
+        current_cell_markup += '<td>'+current_identifier_markup+('<br>'+current_copy_markup if enable_identifier_clipboard else '')+'</td>'
         current_row_markup.append('<tr><td>'+current_radio_markup+'</td><td>'+current_thumbnail_markup+'</td>'+current_cell_markup+'</tr>')
     return '<div style="overflow-x:auto"><table><caption>현재 페이지의 생성 이력</caption><thead><tr>'+current_header_markup+'</tr></thead><tbody>'+''.join(current_row_markup)+'</tbody></table></div>'
 
@@ -379,7 +379,13 @@ def build_generation_history_view(execute_service_command,server_base_address,de
     if restore_input_callback is not None:reset_output_components.append(restore_input_button)
     reset_output_components.append(selected_identifier_value)
     if allow_individual_delete:
-        history_selection_value.change(lambda identifier:gr.update(interactive=bool(identifier)),history_selection_value,history_delete_button,queue=False)
+        def update_history_delete_button(current_selected_identifier):
+            if not current_selected_identifier:
+                return gr.update(interactive=False,value='선택 이력 삭제 · 이력 선택')
+            current_status_record=execute_service_command('status',{'id':current_selected_identifier})
+            current_delete_enabled=current_status_record.get('status') in ('completed','failed','cancelled','paused')
+            return gr.update(interactive=current_delete_enabled,value='선택 이력 삭제' if current_delete_enabled else '선택 이력 삭제 · 완료·중지 후 가능')
+        history_selection_value.change(update_history_delete_button,history_selection_value,history_delete_button,queue=False)
         def close_delete_confirmation():
             return gr.update(visible=False),'',''
         current_delete_outputs=[current_delete_panel,current_delete_identifier,current_delete_display]

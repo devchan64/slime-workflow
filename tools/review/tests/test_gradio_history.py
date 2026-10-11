@@ -151,6 +151,16 @@ class GradioHistoryTest(unittest.TestCase):
 
 
 class HistoryRadioTableTest(unittest.TestCase):
+    def test_identifier_clipboard_enabled_by_default(self):
+        from tools.review.common.gradio_history import render_history_selection_table
+        current_history_records=[{'id':'sample-id','status':'completed','request':{}}]
+        current_table_markup=render_history_selection_table(current_history_records)
+        self.assertIn('data-history-copy-id="sample-id"',current_table_markup)
+        self.assertIn('aria-live="polite"',current_table_markup)
+        current_disabled_markup=render_history_selection_table(current_history_records,enable_identifier_clipboard=False)
+        self.assertNotIn('data-history-copy-id',current_disabled_markup)
+        self.assertIn('sample-id',current_disabled_markup)
+
     def test_single_selection_and_escaped_content(self):
         from tools.review.common.gradio_history import render_history_selection_table
         current_table_markup=render_history_selection_table([
