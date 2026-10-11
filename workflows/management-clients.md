@@ -505,3 +505,22 @@ Qwen 실행용 짧은 영문은 `generators/image/config/qwen_21_prompt_options.
 원문·옵션·추가 문구·최종 단어 수와 해시를 보존하며, 옵션 포함 99단어를 초과하면 거절합니다.
 이력 불러오기에서 원문과 옵션을 복원합니다. 투명 배경은 네이티브 RGBA 출력을 요청하며
 출력 알파를 보존합니다. 체크무늬를 그리거나 색상 제거 후처리로 투명화를 대신하지 않습니다.
+
+## Wan2.1 VACE R2V 영상 생성기
+
+애니메이션 도구의 **Wan2.1 VACE 영상 생성기**(`?tool=wan21-vace-generator&category=animation-tool`)는 로컬 `Wan-AI/Wan2.1-VACE-1.3B-diffusers` 모델을 사용한다. 참조 PNG 한 장과 프롬프트로 생성하며 `video=None`, `mask=None`이다. 첫 프레임 확장과 중간 포즈 제어는 이 도구의 입력이 아니다. 참조는 전체 이미지를 흰 배경에 합성한 뒤 비율을 유지해 선택한 출력 해상도로 흰 패딩한다. 방향 시트를 자동 분할하지 않으므로 단일 방향 이미지를 첨부한다.
+
+```bash
+python3 tools/manager.py command wan21-vace generate --reference /absolute/character.png --prompt-file /absolute/prompt.txt --width 832 --height 480 --frames 81 --steps 50 --flow-shift 5 --guidance-scale 5 --conditioning-scale 1 --seed 42 --detach
+python3 tools/manager.py command wan21-vace status <생성ID>
+```
+
+GUI·CLI는 `wan21-vace` 서비스의 `generate/status/logs/history/active/model-status/cancel/resume/prioritize/history-delete/history-reset`을 공유한다. 생성 payload는 `{action: "generate", images: ["base64 PNG"], prompt: "장면 묘사", frames: 65, seed: 42, tag: "선택 태그"}`이며 알 수 없는 필드는 거절한다. 참조는 RGB/RGBA PNG 한 장, 3MB 이하이다. 기본값은 832×480·81프레임·50스텝·shift 5·CFG 5·conditioning 1이다. 해상도는 832×480, 480×832, 512×512를 지원한다. 프레임 수는 1~161 범위의 `4n+1` 정수만 허용한다(161은 로컬 도구 운영 상한이며 모델 최대치 주장이 아니다). 16fps 고정으로 81프레임은 5.0625초이며 1프레임은 정지 샘플이다. 스텝은 1~100, shift는 0.1~30, CFG는 1~20, conditioning은 0~2 범위에서 조절한다. API 필드는 `width/height/steps/flow_shift/guidance_scale/conditioning_scale`이고 CLI는 `--width/--height/--steps/--flow-shift/--guidance-scale/--conditioning-scale`이다. 범위는 도구 입력 제한이며 모든 조합의 품질·VRAM 적합성을 보장하지 않는다. 기존 512×512·30스텝 이력은 저장 설정으로 복원·재개한다. 난수 생성은 기존 CPU RNG를 유지하며 모델 연산은 CUDA에서 수행한다. 프롬프트는 자동 확장하지 않고 원문·실제 입력 단어 수·SHA-256을 기록한다. 512 토큰을 넘으면 추론 전에 거절한다. 기본 파라미터와 부정 프롬프트는 `generators/vace/config/defaults.yaml`에서 추적한다.
+
+모델은 `.model/vace-1.3b/weights`에 사전 준비해야 한다. CUDA 연산만 허용하고 CPU 가중치 오프로드·VAE 타일링을 사용한다. 모델 다운로드나 API 호출을 자동 수행하지 않는다. 실제 가중치 revision은 검증되지 않았으며 기록에도 그 한계를 표시한다.
+
+공용 생성 ID 계약에 따라 `.tmp/test/wan21-vace/<한국시간>-<ID>/`에 요청·참조·로그·상태를 보존한다. 실행 시도마다 `attempts/<UUID>/`에 입력 계약·영상·PNG 프레임 ZIP·프롬프트·실행기·ETA·장치별 VRAM 기록을 저장한다. 재개는 저장 입력으로 새 시도를 시작하며 이전 시도는 보존한다. 선택 이력 삭제와 초기화는 목록에서만 숨기며 파일을 삭제하지 않는다. 기존 독립 실험은 이동하거나 자동 이력 등록하지 않는다.
+
+5초 heartbeat에서 공용 추정 코드로 전체 소요·남은 시간·완료 시각·예상 진행률을 기록한다. 같은 설정의 완료 표본이 없으면 전체 ETA는 계산 중으로 표시하며, 최근 추론 스텝에 근거한 추론 종료 추정은 별도로 제공한다. GPU 대기 시간은 제외한다. VRAM은 장치별 프로세스·자식 프로세스 사용량과 장치 전체를 구분해 관측하며 순간 피크 누락 가능성이 있다. 실패·중지·재개 시에도 시도별 기록을 보존한다. 결과 검수는 브라우저 영상 재생과 PNG ZIP으로 수행한다. 생성 성공은 보행·일관성 품질 승인을 의미하지 않는다.
+
+VACE 부정 프롬프트는 GUI의 `부정 프롬프트` 또는 CLI `--negative-prompt`로 실행별 전체 대체한다. 생략하면 기존 기본값을 사용하며 빈 문자열은 부정 프롬프트를 비운다. 저장 입력 복원·재개는 해당 실행값을 유지한다. 양성·부정 입력은 각각 512 토큰을 초과하면 실패하며 원문·단어 수·해시를 실행 기록에 보존한다.

@@ -133,3 +133,7 @@ MoMask 작업 서비스와 루트 호환 모듈은 제거했다. 이전 HTTP 주
 ### 렌더러 배포본 준비
 
 새 체크아웃에는 번들 파일이 없습니다. 프론트엔드에서 `npm run build:field-renderer`를 실행한 뒤, 워크플로우에서 `.venv/bin/python tools/review/install_field_renderer.py --source /절대경로/slime-frontend/.tmp/field-renderer/<버전>`으로 설치합니다. 채택할 새 버전은 생성된 `manifest.yaml`을 `tools/review/ui/map/vendor/field-renderer/manifest.yaml`에 먼저 반영합니다. 설치기는 고정 manifest와 전체 파일 해시를 검증한 뒤 로컬 배포본을 복사합니다. 관리 서버는 이 배포본을 사용하며 프론트엔드 소스를 런타임에 import하지 않습니다.
+
+### Wan2.1 VACE 영상 생성
+
+`domains/vace/generation.py`는 R2V 작업 서비스를, `generators/vace/`는 고정 1.3B 로컬 모델 추론과 입력 계약을 관리한다. 애니메이션 도구 메뉴의 Gradio 클라이언트는 공용 `wan21-vace` 게이트웨이를 사용한다. 첫 프레임·비디오·마스크 입력 없이 참조 한 장만 받는다. `common/generation_telemetry.py`는 작업자 heartbeat·ETA·장치별 메모리 관측을 기록하고 기존 GPU 대기열이 실행 수명을 관리한다. 상세 CLI와 보존 정책은 [관리도구 클라이언트 가이드](../../workflows/management-clients.md#wan21-vace-r2v-영상-생성기)를 따른다.
