@@ -18,7 +18,6 @@ materials:
   stone: '#85858a'
   dry-soil-branches: '#866543'
   flowers: '#78915e'
-  tree-base: '#70503b'
   dew: '#7caa6e'
   ash: '#787477'
   moss: '#607954'
@@ -32,3 +31,5 @@ materials:
   fallen-orchard-fruit: '#89704c'
   dirt-road: '#967447'
   stone-road: '#967447'
+  fractured-bedrock: '#85858a'
+  angular-quarry-scree: '#99938b'
