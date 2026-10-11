@@ -5,11 +5,12 @@ import contextlib
 import io
 import json
 import tempfile
+from types import SimpleNamespace
 from pathlib import Path
 from unittest.mock import patch
 from PIL import Image
 from generators.image.vnccs_profile import build_vnccs_profile, validate_vnccs_profile
-from generators.image.vnccs_runtime import build_vnccs_arguments, validate_vnccs_resources
+from generators.image.vnccs_runtime import build_vnccs_arguments, validate_vnccs_resources, collect_vnccs_adapter_state
 from tools.review.domains.image.pose_transfer_generation import validate_pose_transfer_contract
 from tools.review.domains.image.pose_transfer_generation import PoseTransferGenerationManager, load_pose_transfer_prompt
 from tools.review.domains.image.three_reference_generation import save_three_reference_inputs
@@ -17,6 +18,18 @@ from tools.review.common import management_gateway
 
 
 class VnccsRuntimeTests(unittest.TestCase):
+    def test_adapter_state_snapshot(self):
+        current_adapter_layer = SimpleNamespace(lora_A={'default': object()}, active_adapters=['default'],
+            disable_adapters=False, merged_adapters=[], scaling={'default': 1.0})
+        current_transformer_value = SimpleNamespace(named_modules=lambda: iter([('base', object()), ('attention', current_adapter_layer)]))
+        current_adapter_record = collect_vnccs_adapter_state(current_transformer_value)
+        self.assertEqual(current_adapter_record['layer_count'], 1)
+        self.assertEqual(current_adapter_record['layers'][0]['active_adapters'], ['default'])
+        self.assertFalse(current_adapter_record['layers'][0]['disabled'])
+        current_adapter_layer.disable_adapters = True
+        self.assertTrue(collect_vnccs_adapter_state(current_transformer_value)['layers'][0]['disabled'])
+        self.assertEqual(collect_vnccs_adapter_state(SimpleNamespace(named_modules=lambda: iter([])))['layer_count'], 0)
+
     def build_current_request(self):
         return {'width':512,'height':512,'steps':40,'prompt':'Draw character from image2','vnccs':build_vnccs_profile()}
 

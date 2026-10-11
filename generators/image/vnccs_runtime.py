@@ -15,6 +15,25 @@ VNCCS_HEARTBEAT_SECONDS = 5
 VNCCS_STOP_TIMEOUT_SECONDS = 10
 
 
+def collect_vnccs_adapter_state(current_transformer_value):
+    """추론 값을 변경하지 않고 PEFT 레이어의 실제 활성 상태를 기록한다."""
+    current_layer_records = []
+    for current_module_name, current_module_value in current_transformer_value.named_modules():
+        if not hasattr(current_module_value, 'lora_A'):
+            continue
+        current_layer_records.append({
+            'module': current_module_name,
+            'loaded_adapters': list(current_module_value.lora_A.keys()),
+            'active_adapters': list(current_module_value.active_adapters),
+            'disabled': bool(current_module_value.disable_adapters),
+            'merged_adapters': list(current_module_value.merged_adapters),
+            'scaling': {current_adapter_name: float(current_scale_value)
+                        for current_adapter_name, current_scale_value in current_module_value.scaling.items()},
+        })
+    return {'layer_count': len(current_layer_records), 'layers': current_layer_records,
+            'scope': 'PEFT 상태 조회. 포즈 준수 또는 수치 기여도 검증과 구분.'}
+
+
 def build_vnccs_arguments(current_request_record, current_reference_images, current_cuda_generator, current_step_callback):
     validate_vnccs_profile(current_request_record)
     if len(current_reference_images) != 2:
@@ -116,6 +135,9 @@ def run_vnccs_pipeline(current_job_root):
     try:
         current_pipeline_value = QwenImage21Pipeline.from_pretrained(current_model_root, torch_dtype=torch.bfloat16, local_files_only=True, low_cpu_mem_usage=True)
         current_pipeline_value.load_lora_weights(str(current_lora_path))
+        current_adapter_record = collect_vnccs_adapter_state(current_pipeline_value.transformer)
+        (current_job_root / 'vnccs-adapters.json').write_text(json.dumps(current_adapter_record, ensure_ascii=False, indent=2))
+        print(f'{datetime.now().isoformat()}/vnccs/adapters layers={current_adapter_record["layer_count"]} record=vnccs-adapters.json', flush=True)
         current_precision_record = {}
         for current_component_name in ('text_encoder','transformer','vae'):
             current_component_value = getattr(current_pipeline_value, current_component_name)
