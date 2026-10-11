@@ -76,7 +76,6 @@ def create_gradio_source_fingerprint(application_source_path,application_file_pa
         image_domain_directory=WORKFLOW_ROOT_DIRECTORY/'tools/review/domains/image'
         tracked_source_paths.update(image_domain_directory/current_file_name for current_file_name in ('seamless_pattern.py','seamless_generation.py','seamless_directional.py'))
     if application_file_path.name=='animation_separation_app.py':
-        tracked_source_paths.add(WORKFLOW_ROOT_DIRECTORY/'tools/review/ui/character_animation/separation-preview.html')
         tracked_source_paths.add(WORKFLOW_ROOT_DIRECTORY/'generators/image/config/animation_separation.yaml')
     if application_file_path.name=='sprite_editor_v2_app.py':
         tracked_source_paths.update(WORKFLOW_ROOT_DIRECTORY/'tools/review/ui/character_animation'/current_file_name for current_file_name in ('sprite-editor-v2.html','sprite-editor-v2.js'))

@@ -137,3 +137,11 @@ MoMask 작업 서비스와 루트 호환 모듈은 제거했다. 이전 HTTP 주
 ### Wan2.1 VACE 영상 생성
 
 `domains/vace/generation.py`는 R2V 작업 서비스를, `generators/vace/`는 고정 1.3B 로컬 모델 추론과 입력 계약을 관리한다. 애니메이션 도구 메뉴의 Gradio 클라이언트는 공용 `wan21-vace` 게이트웨이를 사용한다. 첫 프레임·비디오·마스크 입력 없이 참조 한 장만 받는다. `common/generation_telemetry.py`는 작업자 heartbeat·ETA·장치별 메모리 관측을 기록하고 기존 GPU 대기열이 실행 수명을 관리한다. 상세 CLI와 보존 정책은 [관리도구 클라이언트 가이드](../../workflows/management-clients.md#wan21-vace-r2v-영상-생성기)를 따른다.
+
+## Gradio iframe 단계별 제거
+
+관리 화면의 내부 미리보기부터 외곽 탐색 순으로 iframe 의존성을 제거한다. 전환 단위는 해당 UI·회귀검사·문서를 함께 검증하고 각각 커밋한다. 기존 화면 URL과 GUI·CLI → 공용 게이트웨이 → 작업 서비스·기록 저장소 계약은 유지한다.
+
+- 복장 분리 결과 탭·공용 생성 이력: `ui/gradio/separation_preview.py`의 Gradio 조작부와 `ui/shared/separation-player.js`의 컴포넌트별 캔버스를 사용한다. `srcdoc` 문서·부모 창 함수 전달·내부 iframe은 제거했다. 결과 조회는 기존 manifest·시트 URL을 읽으며 프레임 조작은 서버를 왕복하지 않는다.
+- 남은 대상: `management_menu_app.py`의 외곽 메뉴, `static_review_app.py`의 정적 검수·앵커·전장 래퍼, `ui/asset_review/frame-manager.html`의 독립 검수 허브. 서로 다른 문서의 스타일·상대 경로·수명을 먼저 분리한 뒤 전환한다.
+- 전체 도구 전환 완료를 의미하지 않는다. 현황과 실제 브라우저 검증 범위는 [UI 가이드의 iframe 전환 기록](../../workflows/management-ui.md#gradio-iframe-전환-기록)을 따른다.

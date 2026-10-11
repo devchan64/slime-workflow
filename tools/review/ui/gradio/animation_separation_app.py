@@ -1,6 +1,5 @@
 """애니메이션 분리 작업의 Gradio 클라이언트. 추론은 공용 게이트웨이가 실행한다."""
 import argparse
-import html
 import json
 from pathlib import Path
 import sys
@@ -14,8 +13,7 @@ import gradio as gr
 from tools.review.common.gradio_reference_images import build_reference_image_inputs
 from tools.review.common.management_client import execute_remote_management_command
 from tools.review.common.gradio_seed import build_generation_seed
-from tools.review.common.gradio_frame_navigator import build_frame_navigator
-from tools.review.common.gradio_joypad import build_transform_joypad, read_joypad_browser_script
+from tools.review.ui.gradio.separation_preview import build_separation_player
 from tools.review.common.gradio_logs import build_execution_logs
 from tools.review.common.gradio_history import build_generation_history_view, format_generation_status
 from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_confirmation
@@ -43,21 +41,19 @@ def describe_separation_prompt(current_prompt_text):
 
 
 def build_separation_preview(current_server_address, current_job_identifier):
-    # 재생·프레임 이동은 iframe 안에서 처리한다. 프레임마다 Python을 호출하지 않는다.
+    # 재생 데이터만 전달하며 프레임 이동은 브라우저에서 처리한다.
     if not current_job_identifier:
-        return '<p>완료된 생성 ID를 조회하면 동기 재생을 표시합니다.</p>'
+        return ''
     import re
     from tools.review.domains.image.animation_separation import SEPARATION_JOB_PATTERN
     if not re.fullmatch(SEPARATION_JOB_PATTERN, current_job_identifier):
         raise ValueError('생성 ID 형식 오류')
     current_result_base = current_server_address + '/animation-separation/jobs/' + current_job_identifier + '/'
-    current_preview_document = (Path(__file__).parents[1] / 'character_animation/separation-preview.html').read_text().replace('__RESULT_BASE__', json.dumps(current_result_base))
-    return '<iframe title="원본과 분리 후보 동기 재생" style="width:100%;height:760px;border:0" srcdoc="' + html.escape(current_preview_document, quote=True) + '"></iframe>'
+    return json.dumps({'base': current_result_base}, ensure_ascii=False)
 
 
 def build_separation_interface(current_server_address):
     with gr.Blocks(title='캐릭터 레퍼런스 복장 분리 생성') as interface_blocks_value:
-        interface_blocks_value.load(fn=None,queue=False,js="()=>{"+read_joypad_browser_script()+"for(const currentHandlerName of ['separationReviewPlayback','separationReviewSeek','separationReviewView','separationReviewTransform'])window[currentHandlerName]=(...currentArgumentValues)=>{const currentFrameElement=document.querySelector('#separation-result-preview iframe');const currentHandlerFunction=currentFrameElement?.contentWindow?.[currentHandlerName];if(typeof currentHandlerFunction!=='function')throw Error('완료된 결과를 먼저 조회하세요.');return currentHandlerFunction(...currentArgumentValues);};}")
         gr.Markdown('## 캐릭터 레퍼런스 복장 분리 생성\n같은 원본에서 신체 베이스와 사람을 제거한 복장을 각각 생성합니다. 두 결과는 별도 파일로 저장합니다. 참조 이미지 한 장을 파일 또는 클립보드로 첨부하세요.')
         with gr.Tabs():
             with gr.Tab("생성 설정"):
@@ -80,20 +76,7 @@ def build_separation_interface(current_server_address):
                     current_refresh_button = gr.Button('상태·결과 조회')
                     current_cancel_button = gr.Button('선택 작업 중지')
                     current_resume_button = gr.Button('선택 작업 재개')
-                current_preview_feedback=gr.Textbox(label='비교·재생 안내',value='완료된 결과를 먼저 조회하세요.',interactive=False)
-                current_view_choice=gr.Radio([('원본 · 합성','compare'),('신체 · 복장','parts'),('전체 비교','all')],value='compare',label='검수 보기')
-                current_view_choice.input(fn=None,inputs=current_view_choice,outputs=current_preview_feedback,queue=False,js="currentViewName=>{try{return window.separationReviewView(currentViewName);}catch(currentErrorValue){return currentErrorValue.message;}}")
-                current_frame_input=build_frame_navigator('separationReviewPlayback','separationReviewSeek',current_preview_feedback)
-                with gr.Accordion('겹쳐보기 위치·배율 조정',open=False):
-                    gr.Markdown('검수 화면에만 적용됩니다. 저장된 이미지는 바뀌지 않습니다.')
-                    current_transform_inputs=build_transform_joypad('separationReviewTransform',current_preview_feedback)
-                    current_reset_button=gr.Button('위치·배율 초기화')
-                    current_reset_button.click(fn=None,outputs=[*current_transform_inputs[:3],current_preview_feedback],queue=False,js="()=>{try{const currentResultRecord=window.separationReviewTransform('reset',{});return [currentResultRecord.x,currentResultRecord.y,currentResultRecord.scale,currentResultRecord.message];}catch(currentErrorValue){return [{__type__:'update'},{__type__:'update'},{__type__:'update'},currentErrorValue.message];}}")
-                current_canvas_status=gr.Textbox(label='프레임 표시 상태',interactive=False,value='완료된 결과를 조회하세요.')
-                current_canvas_legend=gr.Markdown('원본 → 복장 겹쳐보기')
-                current_canvas_timer=gr.Timer(1)
-                current_canvas_timer.tick(fn=None,outputs=[current_canvas_status,current_canvas_legend,current_view_choice,*current_transform_inputs[:3],current_frame_input],queue=False,show_progress='hidden',js="()=>{const currentFrameDocument=document.querySelector('#separation-result-preview iframe')?.contentDocument;const currentUnchangedFields=Array.from({length:5},()=>({__type__:'update'}));if(!currentFrameDocument)return ['완료된 결과를 조회하세요.','',...currentUnchangedFields];const currentStatusText=currentFrameDocument.querySelector('#status')?.textContent||'결과 준비 중';const currentPanelTitles=Array.from(currentFrameDocument.querySelectorAll('[data-review-part]:not([hidden]) h3')).map(currentTitleElement=>currentTitleElement.textContent);const currentResultChanged=window.separationReviewedDocument!==currentFrameDocument;window.separationReviewedDocument=currentFrameDocument;return [currentStatusText,currentPanelTitles.join(' → '),...(currentResultChanged?['compare',0,0,1,1]:currentUnchangedFields)];}")
-                current_preview_output = gr.HTML(build_separation_preview(current_server_address, ''),elem_id='separation-result-preview')
+                current_preview_output = build_separation_player('separationResultPlayer')
                 with gr.Accordion('검수 기준과 표시 한계',open=False):
                     gr.Markdown('독립 생성된 결과의 위치·포즈·비율, 사람 잔상과 경계를 확인하세요. PNG의 저장된 알파를 그대로 표시하며 이전 RGB 결과는 불투명합니다. 네이티브 알파의 경계·그림자·닫힌 빈 공간은 추가 검수가 필요합니다. 생성 완료는 정합 검수 통과를 의미하지 않습니다. 단일 프레임은 재생 없이 비교하세요.')
                 current_download_output = gr.Markdown('신규 베이스·복장은 RGBA 후보입니다. 포즈·위치·비율·배경 잔상과 흰 의복 경계를 검수하세요.')
@@ -118,8 +101,8 @@ def build_separation_interface(current_server_address):
         current_cancel_button.click(lambda current_job_identifier: str(execute_separation_gateway('cancel', {'id': current_job_identifier})), current_job_control, current_status_output)
         bind_gpu_generation_confirmation(current_resume_button, lambda current_job_identifier: str(execute_separation_gateway('resume', {'id': current_job_identifier})), current_job_control, current_status_output)
         def render_history_preview(current_job_identifier, current_status_record, current_server_address):
-            return build_separation_preview(current_server_address, current_job_identifier) if current_status_record.get('download') else '<p>완료 후 분리 결과를 표시합니다.</p>'
-        read_history_page, history_output_values = build_generation_history_view(execute_separation_gateway, current_server_address, '이 생성기의 후보·입력·로그를 삭제합니다. 실행 중에는 초기화할 수 없습니다.', result_renderer_callback=render_history_preview, record_folder_route='/animation-separation', allow_individual_delete=True)
+            return build_separation_preview(current_server_address, current_job_identifier) if current_status_record.get('download') else ''
+        read_history_page, history_output_values = build_generation_history_view(execute_separation_gateway, current_server_address, '이 생성기의 후보·입력·로그를 삭제합니다. 실행 중에는 초기화할 수 없습니다.', result_renderer_callback=render_history_preview, result_component_factory=lambda: build_separation_player('separationHistoryPlayer', False), record_folder_route='/animation-separation', allow_individual_delete=True)
         interface_blocks_value.load(lambda: read_history_page(1), outputs=history_output_values)
     return interface_blocks_value
 
