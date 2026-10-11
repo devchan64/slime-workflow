@@ -1,0 +1,17 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../slime-assets"
+		},
+		{
+			"path": "../slime-backend"
+		},
+		{
+			"path": "../slime-frontend"
+		}
+	],
+	"settings": {}
+}
