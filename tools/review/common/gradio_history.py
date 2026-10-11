@@ -255,11 +255,19 @@ def build_generation_history_view(execute_service_command,server_base_address,de
         result_identifier_value=build_generation_identifier('조회한 생성 ID', 'generation-history-result-anchor')
         result_status_value=gr.Markdown('')
         result_image_value=result_component_factory() if result_component_factory is not None else gr.HTML(visible=False) if result_renderer_callback is not None else build_generation_gallery('조회한 생성 결과')
+        with gr.Accordion('생성 당시 입력값 · 읽기 전용', open=True):
+            gr.Markdown('결과를 만든 입력입니다. 현재 편집 중인 설정은 변경하지 않습니다.')
+            saved_prompt_display = gr.Textbox(label='실제 입력 프롬프트', interactive=False, lines=4)
+            saved_reference_display = gr.Gallery(label='입력 참조 이미지 · 업로드 순서', interactive=False, columns=2, height='auto')
+            saved_reference_notice = gr.Markdown()
+            saved_request_display = gr.JSON(label='저장된 입력 설정')
         with gr.Accordion('기록 위치 · 저장 입력',open=False):
             result_path_value=create_copyable_log_textbox(label='기록 폴더 절대 경로',interactive=False)
             folder_open_button_value=gr.Button('기록 폴더 열기',interactive=record_folder_route is not None,size='sm')
             folder_open_status_value=gr.Markdown()
             result_record_value=gr.JSON(label='저장된 입력 · 생성 기록')
+        from tools.review.common.gradio_history_inputs import collect_saved_input_view
+        result_record_value.change(collect_saved_input_view, result_record_value, [saved_prompt_display, saved_request_display, saved_reference_display, saved_reference_notice], queue=False)
         log_output_value,log_refresh_value,log_panel_value=build_execution_logs()
         reset_control_values=build_history_reset_controls(deletion_scope_text)
 

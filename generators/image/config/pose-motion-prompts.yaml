@@ -1,0 +1,6 @@
+template: 'Show the character from the {direction} view. Follow the walking pose in <image 1>, including knee bends, lifted heels, foot spacing, arm swing and body lean. Preserve the face, hair, clothing and proportions of <image 2>.'
+directions:
+  down_left: front-left
+  down_right: front-right
+  up_left: rear-left
+  up_right: rear-right

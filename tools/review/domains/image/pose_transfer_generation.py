@@ -19,6 +19,16 @@ def load_pose_transfer_prompt():
     return prompt_source_text
 
 
+def combine_pose_prompt(current_base_prompt, current_auxiliary_prompt):
+    if not isinstance(current_base_prompt, str) or not isinstance(current_auxiliary_prompt, str):
+        raise ValueError('기본·보조 프롬프트는 문자열이어야 합니다.')
+    current_final_prompt = ' '.join(current_prompt_part.strip() for current_prompt_part in
+                                    (current_base_prompt, current_auxiliary_prompt) if current_prompt_part.strip())
+    if not 0 < len(current_final_prompt.split()) < 100:
+        raise ValueError('기본·보조를 합친 최종 프롬프트는 1~99단어여야 합니다.')
+    return current_final_prompt
+
+
 def validate_pose_transfer_contract(current_request_record, saved_request_enabled=False):
     if not isinstance(current_request_record, dict):
         raise ValueError('포즈 변환 요청은 객체여야 합니다.')

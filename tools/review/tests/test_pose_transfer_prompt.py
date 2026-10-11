@@ -2,10 +2,21 @@
 import unittest
 from generators.image.vnccs_profile import build_vnccs_profile
 from generators.image.vnccs_runtime import build_vnccs_arguments
-from tools.review.domains.image.pose_transfer_generation import load_pose_transfer_prompt
+from tools.review.domains.image.pose_transfer_generation import load_pose_transfer_prompt, combine_pose_prompt
 
 
 class PoseTransferPromptTests(unittest.TestCase):
+    def test_auxiliary_prompt_combination(self):
+        self.assertEqual(combine_pose_prompt(' Base pose. ', '\nKeep feet visible. '), 'Base pose. Keep feet visible.')
+        self.assertEqual(combine_pose_prompt('Base pose.', ''), 'Base pose.')
+        self.assertEqual(len(combine_pose_prompt('word ' * 98, 'last').split()), 99)
+        with self.assertRaises(ValueError):
+            combine_pose_prompt('word ' * 99, 'last')
+        with self.assertRaises(ValueError):
+            combine_pose_prompt('', '')
+        with self.assertRaises(ValueError):
+            combine_pose_prompt('base', None)
+
     def test_generalized_prompt_delivery(self):
         current_prompt_text = load_pose_transfer_prompt()
         self.assertEqual(current_prompt_text, 'Replace the pose of <image 2> with the pose of <image 1>. Match relative joint positions and bends, and the orientations of the head, torso, pelvis, palms, and feet.')
