@@ -1,0 +1,6 @@
+none:
+  label: 설명 없음
+  prompt: ''
+walking:
+  label: 걷기 자세
+  prompt: Walking pose.
