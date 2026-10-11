@@ -143,6 +143,8 @@ def build_writer_agent_interface(review_server_port):
     return current_interface_blocks
 
 
+from tools.review.ui.gradio.management_menu_app import compose_management_interface
+
 if __name__=='__main__':
     current_argument_parser=argparse.ArgumentParser()
     current_argument_parser.add_argument('--port',type=int,required=True)
@@ -154,4 +156,4 @@ if __name__=='__main__':
         while os.getppid()==current_argument_values.owner_pid:time.sleep(1)
         os._exit(0)
     threading.Thread(target=monitor_owner_process,daemon=True).start()
-    build_writer_agent_interface(current_argument_values.review_port).queue().launch(server_name='127.0.0.1',server_port=current_argument_values.port,root_path=current_argument_values.root_path,allowed_paths=[])
+    compose_management_interface(build_writer_agent_interface(current_argument_values.review_port),current_argument_values.review_port).queue().launch(server_name='127.0.0.1',server_port=current_argument_values.port,root_path=current_argument_values.root_path,allowed_paths=[])

@@ -232,6 +232,8 @@ try{
     return current_interface_blocks
 
 
+from tools.review.ui.gradio.management_menu_app import compose_management_interface
+
 if __name__=='__main__':
     current_argument_parser=argparse.ArgumentParser()
     current_argument_parser.add_argument('--port',type=int,required=True)
@@ -242,4 +244,4 @@ if __name__=='__main__':
     current_markup_text=resolve_review_ui_asset('sprite-editor-v2.html').read_text()
     current_style_text=re.search(r'<style>(.*?)</style>',current_markup_text,re.S).group(1)
     current_loader_script=create_sprite_v2_loader(current_argument_values.review_port)
-    build_sprite_v2_interface().queue().launch(server_name='127.0.0.1',server_port=current_argument_values.port,root_path=current_argument_values.root_path,css=current_style_text,js=current_loader_script,allowed_paths=[])
+    compose_management_interface(build_sprite_v2_interface(),current_argument_values.review_port).queue().launch(server_name='127.0.0.1',server_port=current_argument_values.port,root_path=current_argument_values.root_path,css=current_style_text,js=current_loader_script,allowed_paths=[])

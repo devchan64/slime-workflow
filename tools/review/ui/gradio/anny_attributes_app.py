@@ -50,7 +50,7 @@ def read_anny_attribute_script():
 def create_anny_attribute_loader(review_server_port):
     inline_script_text=json.dumps(read_anny_attribute_script()).replace('<','\\u003c')
     review_server_base=f'http://127.0.0.1:{review_server_port}'
-    return f"""async()=>{{if(document.querySelector('script[data-anny-attribute-component]'))return;const componentScriptText={inline_script_text};const loadComponentScript=currentPathValue=>new Promise((resolve,reject)=>{{const nextScriptElement=document.createElement('script');nextScriptElement.src='{review_server_base}'+currentPathValue;nextScriptElement.dataset.annyAttributeComponent='true';nextScriptElement.onload=resolve;nextScriptElement.onerror=()=>reject(new Error('ANNY 구성 요소를 불러오지 못했습니다: '+currentPathValue));document.body.append(nextScriptElement);}});await loadComponentScript('/management/gpu-queue-confirmation.js');await loadComponentScript('/anny-attributes/log-viewer.js');await loadComponentScript('/anny-attributes/mesh-viewer.js');const inlineScriptElement=document.createElement('script');inlineScriptElement.dataset.annyAttributeComponent='true';inlineScriptElement.textContent=componentScriptText;document.body.append(inlineScriptElement);if(window.top===window)await loadComponentScript('/management/gpu-status.js');}}"""
+    return f"""async()=>{{if(document.querySelector('script[data-anny-attribute-component]'))return;const componentScriptText={inline_script_text};const loadComponentScript=currentPathValue=>new Promise((resolve,reject)=>{{const nextScriptElement=document.createElement('script');nextScriptElement.src='{review_server_base}'+currentPathValue;nextScriptElement.dataset.annyAttributeComponent='true';nextScriptElement.onload=resolve;nextScriptElement.onerror=()=>reject(new Error('ANNY 구성 요소를 불러오지 못했습니다: '+currentPathValue));document.body.append(nextScriptElement);}});await loadComponentScript('/management/gpu-queue-confirmation.js');await loadComponentScript('/anny-attributes/log-viewer.js');await loadComponentScript('/anny-attributes/mesh-viewer.js');const inlineScriptElement=document.createElement('script');inlineScriptElement.dataset.annyAttributeComponent='true';inlineScriptElement.textContent=componentScriptText;document.body.append(inlineScriptElement);if(window.top===window&&!document.querySelector('#management-sidebar'))await loadComponentScript('/management/gpu-status.js');}}"""
 
 
 def build_anny_attribute_interface(review_server_port):
@@ -97,6 +97,8 @@ def build_anny_attribute_interface(review_server_port):
     return interface_blocks_value
 
 
+from tools.review.ui.gradio.management_menu_app import compose_management_interface
+
 if __name__=='__main__':
     argument_parser_value = argparse.ArgumentParser()
     argument_parser_value.add_argument('--port', type=int, required=True)
@@ -105,6 +107,6 @@ if __name__=='__main__':
     argument_parser_value.add_argument('--root-path', default='/management/frame/anny-attributes/')
     argument_values = argument_parser_value.parse_args()
     threading.Thread(target=lambda: time.sleep(1), daemon=True).start()
-    build_anny_attribute_interface(argument_values.review_port).queue().launch(
+    compose_management_interface(build_anny_attribute_interface(argument_values.review_port),argument_values.review_port).queue().launch(
         server_name='127.0.0.1', server_port=argument_values.port, root_path=argument_values.root_path,
         js=create_anny_attribute_loader(argument_values.review_port), allowed_paths=[])

@@ -12,6 +12,7 @@ from tools.review.common.management_environment import DEFAULT_GATEWAY_ADDRESS, 
 WORKFLOW_ROOT_DIRECTORY=Path(__file__).resolve().parents[3]
 GRADIO_PROCESS_LOCK=threading.Lock()
 GRADIO_SERVER_PROCESSES={}
+GRADIO_MANAGER_SOURCE_PATHS={}
 GRADIO_SERVER_SOURCE_FINGERPRINTS={}
 GRADIO_UI_SOURCE_SUFFIXES=('.css','.html','.js','.py')
 
@@ -125,7 +126,8 @@ def ensure_gradio_application(review_server_port, application_name, application_
         process_key_value=(review_server_port,application_name)
         process_marker_path=create_gradio_process_marker_path(review_server_port,application_name)
         process_record_value=GRADIO_SERVER_PROCESSES.get(process_key_value)
-        source_fingerprint_value=create_gradio_source_fingerprint(application_source_path,application_file_path)
+        current_menu_source_path=GRADIO_MANAGER_SOURCE_PATHS.get(review_server_port,WORKFLOW_ROOT_DIRECTORY/'.tmp/manager-current/manager-source.json')
+        source_fingerprint_value=create_gradio_source_fingerprint(application_source_path or current_menu_source_path,application_file_path)
         if process_record_value is not None and process_record_value.poll() is None:
             if GRADIO_SERVER_SOURCE_FINGERPRINTS.get(process_key_value)==source_fingerprint_value:
                 return gradio_page_url
@@ -148,7 +150,7 @@ def ensure_gradio_application(review_server_port, application_name, application_
         with (log_directory_path/'gradio.log').open('a') as log_output_stream:
             application_command_values=[str(resolve_management_environment('MANAGEMENT_VIRTUAL_ENVIRONMENT_PATH','.venv-management')/'bin/python'),str(application_file_path),'--port',str(gradio_server_port),'--review-port',str(review_server_port),'--owner-pid',str(os.getpid()),'--root-path',application_root_path]
             if application_source_path is not None:application_command_values.extend(['--source-file',str(application_source_path)])
-            process_record_value=subprocess.Popen(application_command_values,cwd=WORKFLOW_ROOT_DIRECTORY,stdout=log_output_stream,stderr=subprocess.STDOUT,env={**os.environ,'GRADIO_ANALYTICS_ENABLED':'False'})
+            process_record_value=subprocess.Popen(application_command_values,cwd=WORKFLOW_ROOT_DIRECTORY,stdout=log_output_stream,stderr=subprocess.STDOUT,env={**os.environ,'GRADIO_ANALYTICS_ENABLED':'False','SLIME_MANAGEMENT_MENU_SOURCE':str(current_menu_source_path)})
         GRADIO_SERVER_PROCESSES[process_key_value]=process_record_value
         GRADIO_SERVER_SOURCE_FINGERPRINTS[process_key_value]=source_fingerprint_value
         write_gradio_process_marker(process_marker_path,process_record_value.pid,source_fingerprint_value)
@@ -163,6 +165,7 @@ def ensure_gradio_application(review_server_port, application_name, application_
         raise ValueError('Gradio 시작 제한 시간 초과')
 
 def ensure_management_menu_server(review_server_port, manager_source_path):
+    GRADIO_MANAGER_SOURCE_PATHS[review_server_port]=Path(manager_source_path)
     return ensure_gradio_application(review_server_port,'management-menu',manager_source_path)
 
 def ensure_qwen_2512_server(review_server_port):

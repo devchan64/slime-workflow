@@ -187,6 +187,8 @@ def build_hymotion_interface(server_base_address):
     return current_interface_blocks
 
 
+from tools.review.ui.gradio.management_menu_app import compose_management_interface
+
 if __name__ == '__main__':
     current_argument_parser = argparse.ArgumentParser()
     current_argument_parser.add_argument('--port', type=int, required=True)
@@ -201,4 +203,4 @@ if __name__ == '__main__':
         os._exit(0)
 
     threading.Thread(target=monitor_parent_process, daemon=True).start()
-    build_hymotion_interface(f'http://127.0.0.1:{current_argument_values.review_port}').queue().launch(server_name='127.0.0.1', server_port=current_argument_values.port, root_path=current_argument_values.root_path, allowed_paths=[])
+    compose_management_interface(build_hymotion_interface(f'http://127.0.0.1:{current_argument_values.review_port}'),current_argument_values.review_port).queue().launch(server_name='127.0.0.1', server_port=current_argument_values.port, root_path=current_argument_values.root_path, allowed_paths=[])

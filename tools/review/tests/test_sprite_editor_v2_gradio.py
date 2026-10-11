@@ -76,11 +76,11 @@ class SpriteV2GradioTests(unittest.TestCase):
         self.assertTrue(all(current_toggle_record.get('value') is False for current_toggle_record in current_timing_toggles))
 
     def test_commands_use_browser_state_and_reject_unknown_actions(self):
-        for current_action_name in ('create','list','load','history','revision','save','export'):
+        for current_action_name in ('create','list','load','history','revision','save','export','delete'):
             current_script_text=create_sprite_project_script(current_action_name)
             self.assertIn('window.spriteV2ProjectControls',current_script_text)
             self.assertNotIn('.click()',current_script_text)
-        with self.assertRaises(ValueError):create_sprite_project_script('delete')
+        with self.assertRaises(ValueError):create_sprite_project_script('unsupported')
 
     def test_browser_buttons_do_not_add_server_callbacks(self):
         from tools.review.common.gradio_browser_controls import build_browser_action_button

@@ -107,6 +107,8 @@ def build_separation_interface(current_server_address):
     return interface_blocks_value
 
 
+from tools.review.ui.gradio.management_menu_app import compose_management_interface
+
 if __name__ == '__main__':
     argument_parser_value = argparse.ArgumentParser()
     argument_parser_value.add_argument('--port', type=int, required=True)
@@ -114,4 +116,4 @@ if __name__ == '__main__':
     argument_parser_value.add_argument('--owner-pid', type=int, required=True)
     argument_parser_value.add_argument('--root-path', default='/management/frame/animation-separation/')
     current_arguments_value = argument_parser_value.parse_args()
-    build_separation_interface(f'http://127.0.0.1:{current_arguments_value.review_port}').queue().launch(server_name='127.0.0.1', server_port=current_arguments_value.port, root_path=current_arguments_value.root_path, allowed_paths=[])
+    compose_management_interface(build_separation_interface(f'http://127.0.0.1:{current_arguments_value.review_port}'),current_arguments_value.review_port).queue().launch(server_name='127.0.0.1', server_port=current_arguments_value.port, root_path=current_arguments_value.root_path, allowed_paths=[])

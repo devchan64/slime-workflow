@@ -18,6 +18,8 @@ from tools.review.common.gpu_status import read_gpu_status
 CATEGORY_LABEL_VALUES={'all':'전체','writer-agent':'작가 AI 에이전트','image-generation':'이미지 생성','animation':'등록 애니메이션','animation-tool':'애니메이션 도구','character-render-review':'캐릭터 렌더링 검수','town-map-review':'마을맵 검수','field-map-review':'필드맵 검수','game-ui':'게임 UI · 디자인 시스템'}
 MANAGEMENT_FRAME_PATH_PREFIX='/management/frame/'
 MANAGEMENT_FRAME_IDENTIFIER_VALUES={'anny-attribute-renderer':'anny-attributes'}
+NATIVE_MANAGEMENT_APPLICATIONS=frozenset(('phantom-generator','hy-motion-generator','anny-landmarks','animation-separation','qwen-21-circular-generator','pose-transfer-generator','outfit-transfer-generator','qwen-21-generator','expression-generator','sprite-editor-v2','character-review','map-review','anny-attributes','writer-agent'))
+DEFAULT_MANAGER_SOURCE_PATH=WORKFLOW_ROOT_DIRECTORY/'.tmp/manager-current/manager-source.json'
 LEGACY_PAGE_IDENTIFIER_VALUES={'map-review':'map-review-iseulon','animation-2':'animation-1','animation-3':'animation-1'}
 DEFAULT_PAGE_RECORDS=(
     {'id':'phantom-generator','label':'Phantom R2V 영상 생성기','path':'/management/frame/phantom-generator/','category':'animation-tool','uiMode':'gradio','description':'1.3B · 캐릭터 참조 · 832×480 · 로컬 GPU'},
@@ -92,25 +94,43 @@ def create_tool_choice_values(page_record_values):
         for current_page_record in page_record_values
     ]
 
+def resolve_management_page_path(current_page_record):
+    """공용 메뉴·직접 진입이 같은 도구 주소와 맵 매개변수를 사용한다."""
+    if current_page_record.get('uiMode')=='gradio-static':
+        return f'{MANAGEMENT_FRAME_PATH_PREFIX}static-review/?review={quote(current_page_record["id"],safe="")}'
+    if current_page_record.get('uiMode')=='gradio':
+        current_application_name=current_page_record.get('frameIdentifier') or MANAGEMENT_FRAME_IDENTIFIER_VALUES.get(current_page_record['id'],current_page_record['id'])
+        if current_application_name in NATIVE_MANAGEMENT_APPLICATIONS:
+            current_query_suffix=current_page_record.get('frameQuery')
+            return f'{MANAGEMENT_FRAME_PATH_PREFIX}{current_application_name}/'+(f'?{current_query_suffix}' if current_query_suffix else '')
+    return None
+
+
+def serialize_manager_navigation(page_record_values):
+    return json.dumps([{**current_page_record,'nativePath':resolve_management_page_path(current_page_record)} for current_page_record in page_record_values],ensure_ascii=False).replace('<','\\u003c')
+
+
+def compose_management_interface(current_tool_interface,current_review_port,current_source_path=None):
+    """도구 이벤트와 공용 메뉴를 한 Blocks 문서로 합성한다."""
+    current_manager_source=Path(current_source_path or os.environ.get('SLIME_MANAGEMENT_MENU_SOURCE',str(DEFAULT_MANAGER_SOURCE_PATH)))
+    current_page_records=load_manager_page_records(current_manager_source)
+    current_shell_interface,_=build_management_menu_interface(current_page_records,current_review_port,current_tool_interface)
+    return current_shell_interface
+
+
 def create_page_preview_html(selected_page_identifier, page_record_values, review_server_port):
     selected_page_record=next((current_page_record for current_page_record in page_record_values if current_page_record['id']==selected_page_identifier),None)
     if selected_page_record is None:return '<div class="menu-empty-state">표시할 관리 화면을 선택하세요.</div>'
-    selected_page_path=selected_page_record['path']
-    if selected_page_record.get('uiMode')=='gradio':
-        frame_application_identifier=selected_page_record.get('frameIdentifier') or MANAGEMENT_FRAME_IDENTIFIER_VALUES.get(selected_page_record['id'],selected_page_record['id'])
-        frame_query_value=selected_page_record.get('frameQuery')
-        selected_page_path=f'{MANAGEMENT_FRAME_PATH_PREFIX}{frame_application_identifier}/'+(f'?{frame_query_value}' if frame_query_value else '')
-    elif selected_page_record.get('uiMode')=='gradio-static':
-        selected_page_path=f'{MANAGEMENT_FRAME_PATH_PREFIX}static-review/?review={quote(selected_page_record["id"],safe="")}'
-    if selected_page_record.get('uiMode')=='gradio-static':
-        return '<a href="'+html.escape(selected_page_path,quote=True)+'">'+html.escape(selected_page_record['label'])+' 열기</a>'
-    selected_page_path=html.escape(selected_page_path,quote=True)
-    return f'<iframe title="{html.escape(selected_page_record["label"],quote=True)}" class="management-page-frame" width="100%" height="1000" frameborder="0" allow="clipboard-write http://127.0.0.1:{review_server_port} http://127.0.0.1:{review_server_port+101}; clipboard-read http://127.0.0.1:{review_server_port} http://127.0.0.1:{review_server_port+101}" src="http://127.0.0.1:{review_server_port}{selected_page_path}"></iframe>'
+    current_native_path=resolve_management_page_path(selected_page_record)
+    if current_native_path:
+        return '<a href="'+html.escape(current_native_path,quote=True)+'">'+html.escape(selected_page_record['label'])+' 열기</a>'
+    current_document_path=html.escape(selected_page_record['path'],quote=True)
+    return '<a href="'+current_document_path+'">독립 검수 문서 열기 · '+html.escape(selected_page_record['label'])+'</a>'
 
 
 def create_menu_navigation_script(page_record_values, history_method_name, current_inline_mode=False):
     """선택 도구와 탐색 필터를 하나의 공개 URL 상태로 동기화한다."""
-    serialized_page_records=json.dumps(page_record_values,ensure_ascii=False).replace('<','\\u003c')
+    serialized_page_records=serialize_manager_navigation(page_record_values)
     current_inline_value=json.dumps(current_inline_mode)
     return f"""(searchTextValue,categoryNameValue,selectedPageIdentifier)=>{{
         const pageRecords={serialized_page_records};
@@ -131,12 +151,14 @@ def create_menu_navigation_script(page_record_values, history_method_name, curre
         if(!selectedPageRecord){{window.top.history.replaceState(window.history.state,'',nextUrlValue.href);return;}}
         const currentInlineMode={current_inline_value};
         const currentActiveTool=new URL(window.location.href).searchParams.get('tool')||new URL(window.location.href).searchParams.get('review');
-        if(selectedPageRecord.uiMode==='gradio-static'){{
-            nextUrlValue.pathname='/management/frame/static-review/';nextUrlValue.searchParams.set('review',selectedPageRecord.id);
-        }}else nextUrlValue.searchParams.delete('review');
         if(currentInlineMode&&selectedPageRecord.id===currentActiveTool){{nextUrlValue.pathname=window.location.pathname;}}
-        else if(currentInlineMode||selectedPageRecord.uiMode==='gradio-static'){{
-            nextUrlValue.searchParams.delete('action');
+        else if(currentInlineMode||selectedPageRecord.nativePath){{
+            const currentTargetLocation=new URL(selectedPageRecord.nativePath||'/',window.location.href);
+            for(const currentParameterName of Array.from(nextUrlValue.searchParams.keys())){{
+                if(!['tool','search','category'].includes(currentParameterName))nextUrlValue.searchParams.delete(currentParameterName);
+            }}
+            nextUrlValue.pathname=currentTargetLocation.pathname;
+            for(const [currentParameterName,currentParameterValue] of currentTargetLocation.searchParams)nextUrlValue.searchParams.set(currentParameterName,currentParameterValue);
             window.location.{('replace' if history_method_name=='replaceState' else 'assign')}(nextUrlValue.href);return;
         }}
         window.top.history.{history_method_name}({{managementTool:selectedPageRecord.id,managementFilters:{{search:searchTextValue||'',category:categoryNameValue||'all'}}}},'',nextUrlValue.pathname+nextUrlValue.search+nextUrlValue.hash);
@@ -145,64 +167,33 @@ def create_menu_navigation_script(page_record_values, history_method_name, curre
 
 def create_initial_selection_script(page_record_values):
     """Gradio load 입력으로 URL 상태를 전달하고 DOM 클릭을 사용하지 않는다."""
-    serialized_page_records=json.dumps(page_record_values,ensure_ascii=False).replace('<','\\u003c')
+    serialized_page_records=serialize_manager_navigation(page_record_values)
     return f"""()=>{{
         const pageRecords={serialized_page_records};
         const currentUrlValue=new URL(window.location.href);
         const requestedPageIdentifier=currentUrlValue.searchParams.get('review')||currentUrlValue.searchParams.get('tool');
         const resolvedPageIdentifier={json.dumps(LEGACY_PAGE_IDENTIFIER_VALUES)}[requestedPageIdentifier]||requestedPageIdentifier;
-        const selectedPageRecord=pageRecords.find(record=>record.id===resolvedPageIdentifier)||pageRecords.find(record=>record.path===currentUrlValue.pathname)||pageRecords[0];
-        if(selectedPageRecord?.uiMode==='gradio-static'&&currentUrlValue.pathname!=='/management/frame/static-review/'){{currentUrlValue.pathname='/management/frame/static-review/';currentUrlValue.searchParams.set('review',selectedPageRecord.id);currentUrlValue.searchParams.set('tool',selectedPageRecord.id);window.location.replace(currentUrlValue.href);}}
+        const selectedPageRecord=pageRecords.find(record=>record.id===resolvedPageIdentifier)||pageRecords.find(record=>record.path===currentUrlValue.pathname)||pageRecords.find(record=>{{if(!record.nativePath)return false;const currentTargetUrl=new URL(record.nativePath,currentUrlValue);return currentTargetUrl.pathname===currentUrlValue.pathname&&Array.from(currentTargetUrl.searchParams).every(([currentParameterName,currentParameterValue])=>currentUrlValue.searchParams.get(currentParameterName)===currentParameterValue);}})||pageRecords[0];
+        if(selectedPageRecord?.nativePath){{
+            const currentTargetUrl=new URL(selectedPageRecord.nativePath,currentUrlValue);
+            if(currentUrlValue.pathname!==currentTargetUrl.pathname){{
+                currentUrlValue.pathname=currentTargetUrl.pathname;
+                for(const [currentParameterName,currentParameterValue] of currentTargetUrl.searchParams)currentUrlValue.searchParams.set(currentParameterName,currentParameterValue);
+                currentUrlValue.searchParams.set('tool',selectedPageRecord.id);window.location.replace(currentUrlValue.href);
+            }}else if(!currentUrlValue.searchParams.has('tool')){{currentUrlValue.searchParams.set('tool',selectedPageRecord.id);window.history.replaceState(window.history.state,'',currentUrlValue.href);}}
+        }}
         return [currentUrlValue.searchParams.get('search')||'',currentUrlValue.searchParams.get('category')||'all',selectedPageRecord?.id||null];
     }}"""
 
 
 MANAGEMENT_NAVIGATION_WIDTH = 320
 MANAGEMENT_MOBILE_BREAKPOINT = 768
-MANAGEMENT_FRAME_MIN_HEIGHT = 240
-MANAGEMENT_FRAME_BOTTOM_GAP = 16
 
 
 def create_sidebar_responsive_script(current_inline_mode=False):
     """Gradio 기본 슬라이딩 동작에 화면 폭 전환과 접근성 이름만 연결한다."""
     current_sidebar_script="""()=>{
         const currentMediaQuery=window.matchMedia('(max-width: BREAKPOINTpx)');
-        const currentMinimumHeight=MINHEIGHT,currentBottomGap=BOTTOMGAP;
-        let currentObservedFrame=null,currentContentObserver=null,currentContentMutations=null,currentResizePending=false;
-        const resizeWorkspaceFrame=()=>{
-            if(currentResizePending)return;
-            currentResizePending=true;
-            requestAnimationFrame(()=>{
-                currentResizePending=false;
-                const currentFrameElement=document.querySelector('.management-page-frame');
-                if(!currentFrameElement)return;
-                if(currentObservedFrame!==currentFrameElement){
-                    currentContentObserver?.disconnect();currentContentMutations?.disconnect();
-                    currentObservedFrame=currentFrameElement;
-                    currentFrameElement.addEventListener('load',()=>{currentObservedFrame=null;resizeWorkspaceFrame();},{once:true});
-                    const currentFrameDocument=currentFrameElement.contentDocument;
-                    if(!currentFrameDocument?.body)return;
-                    const currentContentRoot=currentFrameDocument.querySelector('.gradio-container')||currentFrameDocument.body;
-                    const currentSizingStyle=currentFrameDocument.createElement('style');
-                    currentSizingStyle.textContent='html,body,.gradio-container,.gradio-container>.main,.gradio-container>.main>.wrap,.gradio-container main.contain{min-height:0!important;height:auto!important;flex-grow:0!important}.gallery-container .grid-wrap[style*="max-content"]{overflow-y:visible!important}';
-                    currentFrameDocument.head.append(currentSizingStyle);
-                    currentContentObserver=new ResizeObserver(resizeWorkspaceFrame);
-                    currentContentObserver.observe(currentContentRoot);
-                    currentContentMutations=new MutationObserver(resizeWorkspaceFrame);
-                    currentContentMutations.observe(currentFrameDocument.body,{childList:true,subtree:true,attributes:true});
-                }
-                const currentFrameDocument=currentFrameElement.contentDocument;
-                const currentContentRoot=currentFrameDocument?.querySelector('.gradio-container')||currentFrameDocument?.body;
-                if(!currentContentRoot)return;
-                const currentContentHeight=currentContentRoot.getBoundingClientRect().height;
-                const currentHeightValue=Math.ceil(Math.max(currentMinimumHeight,currentContentHeight+currentBottomGap))+'px';
-                if(currentFrameElement.style.height!==currentHeightValue)currentFrameElement.style.height=currentHeightValue;
-            });
-        };
-        const currentFrameObserver=new MutationObserver(resizeWorkspaceFrame);
-        currentFrameObserver.observe(document.body,{childList:true,subtree:true});
-        window.addEventListener('resize',resizeWorkspaceFrame);
-        requestAnimationFrame(resizeWorkspaceFrame);
         const synchronizeSidebarState=()=>{
             const currentSidebarElement=document.getElementById('management-sidebar');
             const currentToggleButton=currentSidebarElement?.querySelector('.toggle-button');
@@ -223,11 +214,7 @@ def create_sidebar_responsive_script(current_inline_mode=False):
                 currentToggleButton.click();currentToggleButton.focus();
             }
         });
-    }""".replace('BREAKPOINT',str(MANAGEMENT_MOBILE_BREAKPOINT)).replace('MINHEIGHT',str(MANAGEMENT_FRAME_MIN_HEIGHT)).replace('BOTTOMGAP',str(MANAGEMENT_FRAME_BOTTOM_GAP))
-    if current_inline_mode:
-        current_start_index=current_sidebar_script.index('        const currentMinimumHeight=')
-        current_end_index=current_sidebar_script.index('        const synchronizeSidebarState=')
-        current_sidebar_script=current_sidebar_script[:current_start_index]+current_sidebar_script[current_end_index:]
+    }""".replace('BREAKPOINT',str(MANAGEMENT_MOBILE_BREAKPOINT))
     return current_sidebar_script
 
 

@@ -143,8 +143,11 @@ MoMask 작업 서비스와 루트 호환 모듈은 제거했다. 이전 HTTP 주
 관리 화면의 내부 미리보기부터 외곽 탐색 순으로 iframe 의존성을 제거한다. 전환 단위는 해당 UI·회귀검사·문서를 함께 검증하고 각각 커밋한다. 기존 화면 URL과 GUI·CLI → 공용 게이트웨이 → 작업 서비스·기록 저장소 계약은 유지한다.
 
 - 복장 분리 결과 탭·공용 생성 이력: `ui/gradio/separation_preview.py`의 Gradio 조작부와 `ui/shared/separation-player.js`의 컴포넌트별 캔버스를 사용한다. `srcdoc` 문서·부모 창 함수 전달·내부 iframe은 제거했다. 결과 조회는 기존 manifest·시트 URL을 읽으며 프레임 조작은 서버를 왕복하지 않는다.
-- 정적 검수의 외곽 메뉴: `build_management_menu_interface(..., current_inline_interface=...)`로 도구 Blocks를 공용 Sidebar와 한 문서에 구성한다. 기존 `/?tool=...` 링크는 정적 검수 주소로 연결하며 검색·분류·도구 선택은 URL에 유지한다. 앵커는 외곽·내부 iframe 모두 제거했고, 게임 디자인·전장은 검수 대상 문서의 내부 iframe만 남는다.
-- 남은 대상: `management_menu_app.py`의 다른 도구 외곽 메뉴, `static_review_app.py`의 게임 정적 검수·전장 래퍼, `ui/asset_review/frame-manager.html`의 독립 검수 허브. 서로 다른 문서의 스타일·상대 경로·수명을 먼저 분리한 뒤 전환한다.
+- 공용 외곽 메뉴: `build_management_menu_interface(..., current_inline_interface=...)`로 도구 Blocks를 공용 Sidebar와 한 문서에 구성한다. 기존 `/?tool=...` 링크는 정적 검수 주소로 연결하며 검색·분류·도구 선택은 URL에 유지한다. 정적 검수와 현행 생성·맵·편집 도구 14개 진입점은 같은 합성 함수를 사용한다. 앵커와 생성 도구의 외곽 iframe은 제거했고, 게임 디자인·전장은 검수 대상 문서의 내부 iframe만 남는다.
+- 남은 대상: `static_review_app.py`의 게임 정적 검수·전장 래퍼, `ui/asset_review/frame-manager.html`의 독립 검수 허브. 서로 다른 문서의 스타일·상대 경로·수명을 먼저 분리한 뒤 전환한다.
 - 전체 도구 전환 완료를 의미하지 않는다. 현황과 실제 브라우저 검증 범위는 [UI 가이드의 iframe 전환 기록](../../workflows/management-ui.md#gradio-iframe-전환-기록)을 따른다.
 
 앵커 검수 전환의 데이터 경계는 `common/animation_review_payload.py`에서 관리한다. 새 게시 문서의 `anchor-review-data` JSON 블록을 명시적인 버전·필드로 읽으며 실행 JavaScript에서 상수를 추출하지 않는다. 기존 편집기도 같은 JSON을 사용한다. `ui/gradio/anchor_native_preview.py`와 `ui/shared/animation-anchor-editor/native-loader.js`는 이 JSON과 Git의 공용 편집 코드를 Gradio 내부 캔버스에 연결한다. 앵커 내부 iframe·부모 창 전달은 제거했다. DOM 조회·요청·재생 수명은 해당 캔버스에 한정하며 동작 전환 때 정리한다. 일반 게임 검수는 아직 별도 문서를 유지한다. 이전 형식의 게시 HTML은 기존 게시기로 다시 생성해야 하며 손상된 데이터는 iframe으로 우회하지 않는다.
+
+
+공용 메뉴의 직접 경로는 `resolve_management_page_path()`가 계산한다. `compose_management_interface()`는 기존 도구 Blocks를 공용 메뉴에 렌더링하며 이벤트·게이트웨이·기록 계약은 도구가 유지한다. 관리 서버는 선택한 게시 목록을 `SLIME_MANAGEMENT_MENU_SOURCE`로 자식 GUI 서버에 전달하고 변경 감지에도 포함한다. 직접 실행의 기본 게시 목록은 `.tmp/manager-current/manager-source.json`이며 파일이 없거나 손상되면 실패한다. 지도별 `map`·`townPage`와 도구 `tool`은 직접 URL에서 보존한다. 외곽 iframe 생성·자식 문서 CSS 주입·높이 동기화는 제거했다.

@@ -127,6 +127,8 @@ def create_landmark_loader():
     return '()=>{' + (current_viewer_directory / 'anny-mesh-viewer.js').read_text() + '\n' + (current_viewer_directory / 'anny-landmarks.js').read_text() + '\n}'
 
 
+from tools.review.ui.gradio.management_menu_app import compose_management_interface
+
 if __name__ == '__main__':
     current_argument_parser = argparse.ArgumentParser()
     current_argument_parser.add_argument('--port', type=int, required=True)
@@ -141,4 +143,4 @@ if __name__ == '__main__':
         os._exit(0)
 
     threading.Thread(target=monitor_landmark_owner, daemon=True).start()
-    build_landmark_interface().queue().launch(server_name='127.0.0.1', server_port=current_argument_values.port, root_path=current_argument_values.root_path, js=create_landmark_loader(), allowed_paths=[])
+    compose_management_interface(build_landmark_interface(),current_argument_values.review_port).queue().launch(server_name='127.0.0.1', server_port=current_argument_values.port, root_path=current_argument_values.root_path, js=create_landmark_loader(), allowed_paths=[])

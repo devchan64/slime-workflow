@@ -32,11 +32,17 @@ class GradioManagementMenuTests(unittest.TestCase):
         self.assertEqual([record['id'] for record in filter_manager_page_records(self.page_record_values,'모션','animation-tool')],['momask-generator'])
         self.assertEqual([record['id'] for record in filter_manager_page_records(self.page_record_values,'캐릭터','all')],['character-animation'])
 
-    def test_preview_uses_review_server_path(self):
-        preview_html_text=create_page_preview_html('momask-generator',self.page_record_values,8770)
-        self.assertIn('http://127.0.0.1:8770/management/frame/momask-generator/',preview_html_text)
-        self.assertIn('MoMask 모션 생성기',preview_html_text)
-        self.assertIn('allow="clipboard-write http://127.0.0.1:8770 http://127.0.0.1:8871; clipboard-read http://127.0.0.1:8770 http://127.0.0.1:8871"',preview_html_text)
+    def test_preview_uses_native_tool_link_without_iframe(self):
+        current_page_records=[{'id':'hy-motion-generator','label':'HY-Motion','path':'/hy-motion-generator/','category':'animation-tool','description':'모션','uiMode':'gradio'}]
+        current_preview_markup=create_page_preview_html('hy-motion-generator',current_page_records,8770)
+        self.assertIn('/management/frame/hy-motion-generator/',current_preview_markup)
+        self.assertIn('HY-Motion',current_preview_markup)
+        self.assertNotIn('iframe',current_preview_markup)
+
+    def test_map_route_preserves_shared_application_and_query(self):
+        from tools.review.ui.gradio.management_menu_app import resolve_management_page_path
+        current_page_record={'id':'map-review-meadow','uiMode':'gradio','frameIdentifier':'map-review','frameQuery':'map=meadow&townPage=1'}
+        self.assertEqual(resolve_management_page_path(current_page_record),'/management/frame/map-review/?map=meadow&townPage=1')
 
     def test_static_review_uses_gradio_component_path(self):
         static_review_records=[{'id':'walk-review','label':'걷기 검수','path':'walk/anchors.html','category':'animation','uiMode':'gradio-static','description':'앵커'}]
