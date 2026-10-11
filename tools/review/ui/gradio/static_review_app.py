@@ -184,4 +184,7 @@ if __name__=='__main__':
         while os.getppid()==arguments_value.owner_pid:time.sleep(1)
         os._exit(0)
     threading.Thread(target=monitor_owner_process,daemon=True).start()
-    build_static_review_interface(static_review_paths).queue().launch(server_name='127.0.0.1',server_port=arguments_value.port,root_path=arguments_value.root_path,js=create_static_review_loader(arguments_value.review_port,static_review_paths),allowed_paths=[])
+    from tools.review.ui.gradio.management_menu_app import build_management_menu_interface, load_manager_page_records
+    current_inline_interface=build_static_review_interface(static_review_paths)
+    current_management_interface,_=build_management_menu_interface(load_manager_page_records(arguments_value.source_file),arguments_value.review_port,current_inline_interface)
+    current_management_interface.queue().launch(server_name='127.0.0.1',server_port=arguments_value.port,root_path=arguments_value.root_path,js=create_static_review_loader(arguments_value.review_port,static_review_paths),allowed_paths=[])

@@ -102,14 +102,45 @@ def create_page_preview_html(selected_page_identifier, page_record_values, revie
         selected_page_path=f'{MANAGEMENT_FRAME_PATH_PREFIX}{frame_application_identifier}/'+(f'?{frame_query_value}' if frame_query_value else '')
     elif selected_page_record.get('uiMode')=='gradio-static':
         selected_page_path=f'{MANAGEMENT_FRAME_PATH_PREFIX}static-review/?review={quote(selected_page_record["id"],safe="")}'
+    if selected_page_record.get('uiMode')=='gradio-static':
+        return '<a href="'+html.escape(selected_page_path,quote=True)+'">'+html.escape(selected_page_record['label'])+' 열기</a>'
     selected_page_path=html.escape(selected_page_path,quote=True)
     return f'<iframe title="{html.escape(selected_page_record["label"],quote=True)}" class="management-page-frame" width="100%" height="1000" frameborder="0" allow="clipboard-write http://127.0.0.1:{review_server_port} http://127.0.0.1:{review_server_port+101}; clipboard-read http://127.0.0.1:{review_server_port} http://127.0.0.1:{review_server_port+101}" src="http://127.0.0.1:{review_server_port}{selected_page_path}"></iframe>'
 
 
-def create_menu_navigation_script(page_record_values, history_method_name):
+def create_menu_navigation_script(page_record_values, history_method_name, current_inline_mode=False):
     """선택 도구와 탐색 필터를 하나의 공개 URL 상태로 동기화한다."""
     serialized_page_records=json.dumps(page_record_values,ensure_ascii=False).replace('<','\\u003c')
-    return f"""(searchTextValue,categoryNameValue,selectedPageIdentifier)=>{{const pageRecords={serialized_page_records};const searchTokenValues=String(searchTextValue||'').toLocaleLowerCase().trim().split(/\\s+/).filter(Boolean);const filteredPageRecords=pageRecords.filter((pageRecord)=>{{const pageTextValue=`${{pageRecord.label}} ${{pageRecord.description}} ${{pageRecord.id}}`.toLocaleLowerCase();return(categoryNameValue==='all'||pageRecord.category===categoryNameValue)&&searchTokenValues.every((searchTokenValue)=>pageTextValue.includes(searchTokenValue));}});const selectedPageRecord=filteredPageRecords.find((pageRecord)=>pageRecord.id===selectedPageIdentifier)||filteredPageRecords[0];const nextUrlValue=new URL(window.top.location.href);if(selectedPageRecord){{nextUrlValue.pathname='/';nextUrlValue.searchParams.set('tool',selectedPageRecord.id);}}for(const [parameterName,parameterValue,defaultValue] of [['search',searchTextValue,''],['category',categoryNameValue,'all']]){{if(parameterValue&&parameterValue!==defaultValue)nextUrlValue.searchParams.set(parameterName,parameterValue);else nextUrlValue.searchParams.delete(parameterName);}}nextUrlValue.searchParams.delete('view');window.top.history.{history_method_name}({{managementTool:selectedPageRecord?.id||null,managementFilters:{{search:searchTextValue||'',category:categoryNameValue||'all'}}}},'',nextUrlValue.pathname+nextUrlValue.search+nextUrlValue.hash);}}"""
+    current_inline_value=json.dumps(current_inline_mode)
+    return f"""(searchTextValue,categoryNameValue,selectedPageIdentifier)=>{{
+        const pageRecords={serialized_page_records};
+        const searchTokenValues=String(searchTextValue||'').toLocaleLowerCase().trim().split(/\\s+/).filter(Boolean);
+        const filteredPageRecords=pageRecords.filter(pageRecord=>{{
+            const pageTextValue=`${{pageRecord.label}} ${{pageRecord.description}} ${{pageRecord.id}}`.toLocaleLowerCase();
+            return(categoryNameValue==='all'||pageRecord.category===categoryNameValue)&&searchTokenValues.every(searchTokenValue=>pageTextValue.includes(searchTokenValue));
+        }});
+        const selectedPageRecord=filteredPageRecords.find(pageRecord=>pageRecord.id===selectedPageIdentifier)||filteredPageRecords[0];
+        const nextUrlValue=new URL(window.top.location.href);
+        if(selectedPageRecord&&{json.dumps(not current_inline_mode or history_method_name!='replaceState')}){{nextUrlValue.pathname='/';nextUrlValue.searchParams.set('tool',selectedPageRecord.id);}}
+        for(const [parameterName,parameterValue,defaultValue] of [['search',searchTextValue,''],['category',categoryNameValue,'all']]){{
+            if(parameterValue&&parameterValue!==defaultValue)nextUrlValue.searchParams.set(parameterName,parameterValue);
+            else nextUrlValue.searchParams.delete(parameterName);
+        }}
+        nextUrlValue.searchParams.delete('view');
+        if({json.dumps(history_method_name=='replaceState')}){{window.top.history.replaceState(window.history.state,'',nextUrlValue.href);return;}}
+        if(!selectedPageRecord){{window.top.history.replaceState(window.history.state,'',nextUrlValue.href);return;}}
+        const currentInlineMode={current_inline_value};
+        const currentActiveTool=new URL(window.location.href).searchParams.get('tool')||new URL(window.location.href).searchParams.get('review');
+        if(selectedPageRecord.uiMode==='gradio-static'){{
+            nextUrlValue.pathname='/management/frame/static-review/';nextUrlValue.searchParams.set('review',selectedPageRecord.id);
+        }}else nextUrlValue.searchParams.delete('review');
+        if(currentInlineMode&&selectedPageRecord.id===currentActiveTool){{nextUrlValue.pathname=window.location.pathname;}}
+        else if(currentInlineMode||selectedPageRecord.uiMode==='gradio-static'){{
+            nextUrlValue.searchParams.delete('action');
+            window.location.{('replace' if history_method_name=='replaceState' else 'assign')}(nextUrlValue.href);return;
+        }}
+        window.top.history.{history_method_name}({{managementTool:selectedPageRecord.id,managementFilters:{{search:searchTextValue||'',category:categoryNameValue||'all'}}}},'',nextUrlValue.pathname+nextUrlValue.search+nextUrlValue.hash);
+    }}"""
 
 
 def create_initial_selection_script(page_record_values):
@@ -118,9 +149,10 @@ def create_initial_selection_script(page_record_values):
     return f"""()=>{{
         const pageRecords={serialized_page_records};
         const currentUrlValue=new URL(window.location.href);
-        const requestedPageIdentifier=currentUrlValue.searchParams.get('tool');
+        const requestedPageIdentifier=currentUrlValue.searchParams.get('review')||currentUrlValue.searchParams.get('tool');
         const resolvedPageIdentifier={json.dumps(LEGACY_PAGE_IDENTIFIER_VALUES)}[requestedPageIdentifier]||requestedPageIdentifier;
         const selectedPageRecord=pageRecords.find(record=>record.id===resolvedPageIdentifier)||pageRecords.find(record=>record.path===currentUrlValue.pathname)||pageRecords[0];
+        if(selectedPageRecord?.uiMode==='gradio-static'&&currentUrlValue.pathname!=='/management/frame/static-review/'){{currentUrlValue.pathname='/management/frame/static-review/';currentUrlValue.searchParams.set('review',selectedPageRecord.id);currentUrlValue.searchParams.set('tool',selectedPageRecord.id);window.location.replace(currentUrlValue.href);}}
         return [currentUrlValue.searchParams.get('search')||'',currentUrlValue.searchParams.get('category')||'all',selectedPageRecord?.id||null];
     }}"""
 
@@ -131,9 +163,9 @@ MANAGEMENT_FRAME_MIN_HEIGHT = 240
 MANAGEMENT_FRAME_BOTTOM_GAP = 16
 
 
-def create_sidebar_responsive_script():
+def create_sidebar_responsive_script(current_inline_mode=False):
     """Gradio 기본 슬라이딩 동작에 화면 폭 전환과 접근성 이름만 연결한다."""
-    return """()=>{
+    current_sidebar_script="""()=>{
         const currentMediaQuery=window.matchMedia('(max-width: BREAKPOINTpx)');
         const currentMinimumHeight=MINHEIGHT,currentBottomGap=BOTTOMGAP;
         let currentObservedFrame=null,currentContentObserver=null,currentContentMutations=null,currentResizePending=false;
@@ -192,9 +224,15 @@ def create_sidebar_responsive_script():
             }
         });
     }""".replace('BREAKPOINT',str(MANAGEMENT_MOBILE_BREAKPOINT)).replace('MINHEIGHT',str(MANAGEMENT_FRAME_MIN_HEIGHT)).replace('BOTTOMGAP',str(MANAGEMENT_FRAME_BOTTOM_GAP))
+    if current_inline_mode:
+        current_start_index=current_sidebar_script.index('        const currentMinimumHeight=')
+        current_end_index=current_sidebar_script.index('        const synchronizeSidebarState=')
+        current_sidebar_script=current_sidebar_script[:current_start_index]+current_sidebar_script[current_end_index:]
+    return current_sidebar_script
 
 
-def build_management_menu_interface(page_record_values, review_server_port):
+def build_management_menu_interface(page_record_values, review_server_port, current_inline_interface=None):
+    current_inline_mode=current_inline_interface is not None
     initial_page_identifier=page_record_values[0]['id'] if page_record_values else ''
     initial_selection_script=create_initial_selection_script(page_record_values)
     with gr.Blocks(title='SLIME 관리도구',fill_width=True) as interface_blocks_value:
@@ -214,18 +252,19 @@ def build_management_menu_interface(page_record_values, review_server_port):
         with gr.Row(elem_id='management-shell'):
             with gr.Column(scale=3,min_width=280,elem_id='management-workspace'):
                 selected_page_status_value=gr.Markdown(f"**{html.escape(page_record_values[0]['label'])}** · {html.escape(page_record_values[0]['description'])}" if page_record_values else '표시할 관리 화면이 없습니다.')
-                page_preview_value=gr.HTML(create_page_preview_html(initial_page_identifier,page_record_values,review_server_port))
+                page_preview_value=gr.HTML('' if current_inline_mode else create_page_preview_html(initial_page_identifier,page_record_values,review_server_port),visible=not current_inline_mode)
+                if current_inline_mode:current_inline_interface.render()
         def update_menu_choices(search_text_value,category_name_value,selected_page_identifier):
             filtered_page_records=filter_manager_page_records(page_record_values,search_text_value or '',category_name_value)
             filtered_identifier_values=[current_page_record['id'] for current_page_record in filtered_page_records]
             retained_identifier_value=selected_page_identifier if selected_page_identifier in filtered_identifier_values else (filtered_identifier_values[0] if filtered_identifier_values else None)
             selected_position_value=(filtered_identifier_values.index(retained_identifier_value)+1) if retained_identifier_value else 0
-            selected_status_text,selected_preview_html=(gr.skip(),gr.skip()) if retained_identifier_value==selected_page_identifier else select_menu_page(retained_identifier_value)
+            selected_status_text,selected_preview_html=(gr.skip(),gr.skip()) if current_inline_mode or retained_identifier_value==selected_page_identifier else select_menu_page(retained_identifier_value)
             return gr.update(choices=create_tool_choice_values(filtered_page_records),value=retained_identifier_value),f'**{len(filtered_page_records)}개** 도구 · 전체 {len(page_record_values)}개',selected_status_text,selected_preview_html,f'{selected_position_value} / {len(filtered_identifier_values)}'
         def select_menu_page(selected_page_identifier):
             selected_page_record=next((current_page_record for current_page_record in page_record_values if current_page_record['id']==selected_page_identifier),None)
             if selected_page_record is None:return '표시할 관리 화면을 선택하세요.','<div class="menu-empty-state">검색 조건을 바꾸거나 메뉴를 선택하세요.</div>'
-            return f"**{html.escape(selected_page_record['label'])}** · {html.escape(selected_page_record['description'])}",create_page_preview_html(selected_page_identifier,page_record_values,review_server_port)
+            return f"**{html.escape(selected_page_record['label'])}** · {html.escape(selected_page_record['description'])}",('' if current_inline_mode else create_page_preview_html(selected_page_identifier,page_record_values,review_server_port))
         def move_menu_page(selected_page_identifier,search_text_value,category_name_value,selection_step_value):
             filtered_page_records=filter_manager_page_records(page_record_values,search_text_value or '',category_name_value)
             filtered_identifier_values=[current_page_record['id'] for current_page_record in filtered_page_records]
@@ -236,12 +275,12 @@ def build_management_menu_interface(page_record_values, review_server_port):
             return next_identifier_value,next_status_text,next_preview_html,f'{next_index_value+1 if next_identifier_value else 0} / {len(filtered_identifier_values)}'
         for current_filter_component in (search_text_value,category_select_value):current_filter_component.input(update_menu_choices,[search_text_value,category_select_value,page_select_value],[page_select_value,tool_count_value,selected_page_status_value,page_preview_value,navigation_position_value],queue=False)
         page_select_value.input(select_menu_page,page_select_value,[selected_page_status_value,page_preview_value],queue=False)
-        filter_navigation_script=create_menu_navigation_script(page_record_values,'replaceState')
-        page_navigation_script=create_menu_navigation_script(page_record_values,'pushState')
+        filter_navigation_script=create_menu_navigation_script(page_record_values,'replaceState',current_inline_mode)
+        page_navigation_script=create_menu_navigation_script(page_record_values,'pushState',current_inline_mode)
         for current_filter_component in (search_text_value,category_select_value):
             current_filter_component.input(fn=None,inputs=[search_text_value,category_select_value,page_select_value],js=filter_navigation_script,queue=False)
         page_select_value.input(fn=None,inputs=[search_text_value,category_select_value,page_select_value],js=page_navigation_script,queue=False)
-        search_text_value.submit(lambda search_text_value,category_name_value: update_menu_choices(search_text_value,category_name_value,None),[search_text_value,category_select_value],[page_select_value,tool_count_value,selected_page_status_value,page_preview_value,navigation_position_value],queue=False)
+        search_text_value.submit(lambda search_text_value,category_name_value: update_menu_choices(search_text_value,category_name_value,None),[search_text_value,category_select_value],[page_select_value,tool_count_value,selected_page_status_value,page_preview_value,navigation_position_value],queue=False).then(fn=None,inputs=[search_text_value,category_select_value,page_select_value],js=page_navigation_script,queue=False)
         page_select_value.input(lambda selected_page_identifier,search_text_value,category_name_value: move_menu_page(selected_page_identifier,search_text_value,category_name_value,0)[3],[page_select_value,search_text_value,category_select_value],navigation_position_value,queue=False)
         current_navigation_inputs=[search_text_value,category_select_value,page_select_value]
         current_page_outputs=[page_select_value,selected_page_status_value,page_preview_value,navigation_position_value]
@@ -256,7 +295,7 @@ def build_management_menu_interface(page_record_values, review_server_port):
             current_selection_updates[2:4]=select_menu_page(current_selection_updates[0]['value'])
             return [current_search_text,current_category_name,*current_selection_updates]
         interface_blocks_value.load(initialize_menu_selection,current_navigation_inputs,[search_text_value,category_select_value,page_select_value,tool_count_value,selected_page_status_value,page_preview_value,navigation_position_value],js=initial_selection_script,queue=False)
-        interface_blocks_value.load(fn=None,js=create_sidebar_responsive_script())
+        interface_blocks_value.load(fn=None,js=create_sidebar_responsive_script(current_inline_mode))
         interface_blocks_value.load(lambda:render_gpu_status_card(read_gpu_status()),outputs=gpu_status_value,queue=False)
         if hasattr(gr,'Timer'):gr.Timer(3).tick(lambda:render_gpu_status_card(read_gpu_status()),outputs=gpu_status_value,show_progress='hidden')
     return interface_blocks_value,initial_selection_script

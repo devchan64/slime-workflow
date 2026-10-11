@@ -44,6 +44,7 @@ class GradioManagementMenuTests(unittest.TestCase):
         preview_html_text=create_page_preview_html('walk-review',static_review_records,8770)
 
         self.assertIn('/management/frame/static-review/?review=walk-review',preview_html_text)
+        self.assertNotIn('<iframe',preview_html_text)
 
     def test_uses_gradio_frame_identifier_when_page_id_is_a_public_alias(self):
         anny_page_records=[{'id':'anny-attribute-renderer','label':'Anny 속성 렌더러','path':'/anny-attributes/','category':'animation-tool','uiMode':'gradio','description':'속성 렌더'}]
@@ -109,6 +110,40 @@ class ManagementMenuRefreshTests(unittest.TestCase):
         self.assertNotIn('.click()', selection_script_text)
 
 class ManagementNativeNavigationTests(unittest.TestCase):
+    def test_inline_blocks_keep_shared_sidebar_and_remove_frame_sizing(self):
+        import gradio as gr
+        from tools.review.ui.gradio.management_menu_app import create_sidebar_responsive_script
+        with gr.Blocks() as current_child_interface:
+            current_child_input=gr.Textbox(label='도구 입력')
+            current_child_button=gr.Button('도구 실행')
+            current_child_button.click(lambda current_input_value:current_input_value,current_child_input,current_child_input)
+        current_interface_blocks,_=build_management_menu_interface([],8770,current_child_interface)
+        self.assertIn(current_child_input._id,current_interface_blocks.blocks)
+        self.assertTrue(any(current_event_record['backend_fn'] for current_event_record in current_interface_blocks.get_config_file()['dependencies']))
+        self.assertNotIn('contentDocument',create_sidebar_responsive_script(True))
+        self.assertNotIn('ResizeObserver',create_sidebar_responsive_script(True))
+
+    def test_native_navigation_preserves_filters_and_does_not_reload_current_tool(self):
+        import subprocess
+        current_page_records=[{'id':'anchor-a','label':'앵커 A','path':'/a/anchors.html','category':'animation','description':'검수','uiMode':'gradio-static'}, {'id':'anchor-b','label':'앵커 B','path':'/b/anchors.html','category':'animation','description':'검수','uiMode':'gradio-static'}, {'id':'image','label':'이미지','path':'/image','category':'image-generation','description':'생성','uiMode':'gradio'}]
+        current_navigation_source=create_menu_navigation_script(current_page_records,'pushState',True)
+        current_filter_source=create_menu_navigation_script(current_page_records,'replaceState',True)
+        current_script_source="""
+const assert=require('node:assert/strict');const currentNavigationCalls=[];
+const currentLocationValue={href:'http://review.test/management/frame/static-review/?review=anchor-a&action=walk',pathname:'/management/frame/static-review/',assign:currentUrlText=>currentNavigationCalls.push(['assign',currentUrlText])};
+global.window={location:currentLocationValue,history:{state:null,pushState:(currentStateValue,currentTitleText,currentUrlText)=>currentNavigationCalls.push(['push',currentUrlText]),replaceState:(currentStateValue,currentTitleText,currentUrlText)=>currentNavigationCalls.push(['replace',currentUrlText])}};window.top=window;
+const currentNavigateTool="""+current_navigation_source+""";
+currentNavigateTool('앵커','animation','anchor-a');assert.equal(currentNavigationCalls.at(-1)[0],'push');assert.match(currentNavigationCalls.at(-1)[1],/action=walk/);
+currentNavigateTool('앵커','animation','anchor-b');assert.equal(currentNavigationCalls.at(-1)[0],'assign');
+const currentTargetLocation=new URL(currentNavigationCalls.at(-1)[1]);assert.equal(currentTargetLocation.searchParams.get('review'),'anchor-b');assert.equal(currentTargetLocation.searchParams.get('category'),'animation');assert.equal(currentTargetLocation.searchParams.get('search'),'앵커');assert.equal(currentTargetLocation.searchParams.has('action'),false);
+currentNavigateTool('','all','image');assert.equal(new URL(currentNavigationCalls.at(-1)[1]).pathname,'/');
+currentNavigateTool('결과 없음','all','anchor-a');assert.equal(currentNavigationCalls.at(-1)[0],'replace');assert.match(currentNavigationCalls.at(-1)[1],/review=anchor-a/);
+const currentFilterCallback="""+current_filter_source+""";
+currentFilterCallback('이미지','all','anchor-a');assert.equal(currentNavigationCalls.at(-1)[0],'replace');assert.match(currentNavigationCalls.at(-1)[1],/review=anchor-a/);assert.match(currentNavigationCalls.at(-1)[1],/action=walk/);
+"""
+        current_command_result=subprocess.run(['node','-e',current_script_source],text=True,capture_output=True)
+        self.assertEqual(current_command_result.returncode,0,current_command_result.stderr)
+
     def test_initial_query_keeps_selected_page_and_clears_conflicting_filter(self):
         import gradio as gr
         current_page_records=[{'id':'first','label':'첫 도구','path':'/first','category':'animation-tool','description':'첫 도구'}, {'id':'second','label':'둘째 도구','path':'/second','category':'image-generation','description':'둘째 도구'}]
