@@ -11,6 +11,7 @@ import gradio as gr
 WORKFLOW_ROOT_DIRECTORY=Path(__file__).resolve().parents[4]
 if str(WORKFLOW_ROOT_DIRECTORY) not in sys.path:
     sys.path.insert(0,str(WORKFLOW_ROOT_DIRECTORY))
+from tools.review.ui.gradio.anchor_native_preview import read_native_anchor_loader
 from tools.review.common.gradio_frame_navigator import build_frame_navigator
 from tools.review.common.gradio_joypad import build_transform_joypad
 from tools.review.common.gradio_browser_controls import build_browser_action_button
@@ -37,6 +38,7 @@ def create_static_review_loader(review_server_port, static_review_paths):
     serialized_paths=json.dumps(static_review_paths,ensure_ascii=False).replace('<','\\u003c')
     review_server_base=json.dumps(f'http://127.0.0.1:{review_server_port}')
     return f"""async()=>{{
+{read_native_anchor_loader()}
 const staticReviewRoot=document.querySelector('#static-review-root');
 if(!staticReviewRoot||staticReviewRoot.dataset.staticReviewLoaded)return;
 staticReviewRoot.dataset.staticReviewLoaded='true';
@@ -47,30 +49,14 @@ const selectedReviewPath=staticReviewPaths[reviewIdentifier];
 if(!selectedReviewPath){{staticReviewRoot.innerHTML='<p class="static-review-error" role="alert">표시할 정적 검수 페이지를 찾을 수 없습니다.</p>';return;}}
 const staticReviewPageLocation=new URL(selectedReviewPath,reviewServerBase);
 staticReviewPageLocation.searchParams.set('embedded','gradio-static');
+const currentSelectedAction=new URLSearchParams(window.location.search).get('action');
+if(currentSelectedAction)staticReviewPageLocation.searchParams.set('action',currentSelectedAction);
 const staticReviewPageUrl=staticReviewPageLocation.href;
+if(selectedReviewPath.split('?')[0].endsWith('/anchors.html')){{await mountNativeAnchorReview(staticReviewRoot,staticReviewPageLocation);return;}}
 // 게임 디자인 및 지형 검수의 스타일·모듈·중첩 프리뷰 상대 경로를 원래 문서에 격리한다.
 {{
   const currentReviewFrame=document.createElement('iframe');
-  const currentAnchorReview=selectedReviewPath.split('?')[0].endsWith('/anchors.html');
-  currentReviewFrame.title=currentAnchorReview?'등록 애니메이션 앵커 검수':'게임 디자인 검수';
-  if(currentAnchorReview){{
-    for(const currentHandlerName of ['anchorReviewSelection','anchorReviewCoordinates','anchorReviewDisplay','anchorReviewOutputSettings','anchorReviewDownloadSettings','anchorReviewActions','anchorReviewCoordinateCommands','anchorReviewHistory','anchorReviewSaveCoordinates'])window[currentHandlerName]=(...currentArgumentValues)=>{{const currentHandlerFunction=currentReviewFrame.contentWindow[currentHandlerName];if(typeof currentHandlerFunction!=='function')throw Error('애니메이션을 준비 중입니다.');return currentHandlerFunction(...currentArgumentValues);}};
-    window.anchorReviewPlayback=currentActionName=>{{const currentPlaybackHandler=currentReviewFrame.contentWindow.anchorReviewPlayback;if(typeof currentPlaybackHandler!=='function')throw Error('애니메이션을 준비 중입니다. 잠시 후 다시 시도하세요.');return currentPlaybackHandler(currentActionName);}};
-    window.anchorReviewSeekFrame=currentFrameNumber=>{{const currentSeekHandler=currentReviewFrame.contentWindow.anchorReviewSeekFrame;if(typeof currentSeekHandler!=='function')throw Error('애니메이션을 준비 중입니다. 잠시 후 다시 시도하세요.');return currentSeekHandler(currentFrameNumber);}};
-  }}
-  if(currentAnchorReview){{
-    let currentPreviewObserver=null;
-    currentReviewFrame.addEventListener('load',()=>{{
-      currentPreviewObserver?.disconnect();
-      const currentPreviewPanel=currentReviewFrame.contentDocument.querySelector('.anchor-workspace');
-      if(!currentPreviewPanel)return;
-      const updatePreviewHeight=()=>{{const currentContentHeight=Math.ceil(currentPreviewPanel.getBoundingClientRect().bottom+currentReviewFrame.contentWindow.scrollY);if(currentContentHeight>0)currentReviewFrame.height=String(currentContentHeight);}};
-      currentPreviewObserver=new ResizeObserver(updatePreviewHeight);
-      currentPreviewObserver.observe(currentPreviewPanel);
-      updatePreviewHeight();
-    }});
-    window.addEventListener('pagehide',()=>currentPreviewObserver?.disconnect(),{{once:true}});
-  }}
+  currentReviewFrame.title='게임 디자인 검수';
   currentReviewFrame.width='100%';currentReviewFrame.height='{STATIC_REVIEW_FRAME_HEIGHT}';currentReviewFrame.setAttribute('frameborder','0');
   currentReviewFrame.src=staticReviewPageUrl;
   if(selectedReviewPath.split('?')[0].endsWith('battlefield-preview.html')){{
@@ -176,7 +162,7 @@ def build_static_review_interface(static_review_paths):
                     gr.Markdown('### 프레임 미리보기\n노랑: 기준선 · 청록: 발 중심 · 빨강: 최종 앵커 · 자주: 권장 신체 높이')
                 gr.HTML('<section id="static-review-root" aria-label="정적 검수" aria-live="polite" aria-busy="true"><p>검수 화면을 준비하고 있습니다…</p></section>')
         with gr.Column(visible=False) as current_anchor_history:
-            build_browser_history_controls('anchorReviewHistory','anchor-standard-history',current_supported_actions=('list','result','restore','reset'))
+            build_browser_history_controls('anchorReviewHistory','anchor-standard-history',current_supported_actions=('list','result','restore','reset'), current_reset_target_handler='anchorReviewResetTarget')
 
         interface_blocks_value.load(fn=None,outputs=current_anchor_controls,queue=False,js="()=>{const currentReviewPaths="+current_review_paths_json+";const currentReviewId=new URLSearchParams(location.search).get('review');return {__type__:'update',visible:(currentReviewPaths[currentReviewId]||'').split('?')[0].endsWith('/anchors.html')};}")
         interface_blocks_value.load(fn=None,outputs=current_anchor_history,queue=False,js="()=>{const currentReviewPaths="+current_review_paths_json+";const currentReviewId=new URLSearchParams(location.search).get('review');return {__type__:'update',visible:(currentReviewPaths[currentReviewId]||'').split('?')[0].endsWith('/anchors.html')};}")

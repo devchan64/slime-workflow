@@ -46,8 +46,9 @@ class StaticReviewGradioTest(unittest.TestCase):
         self.assertIn("document.createElement('iframe')",loader_script_value)
         self.assertIn('currentReviewFrame.src=staticReviewPageUrl',loader_script_value)
         self.assertNotIn('terrain-preview.html',loader_script_value)
-        self.assertIn('contentWindow.anchorReviewPlayback',loader_script_value)
-        self.assertIn('contentWindow.anchorReviewSeekFrame',loader_script_value)
+        self.assertNotIn('contentWindow.anchorReviewPlayback',loader_script_value)
+        self.assertIn('await mountNativeAnchorReview(staticReviewRoot,staticReviewPageLocation)',loader_script_value)
+        self.assertNotIn('contentWindow.anchorReviewSeekFrame',loader_script_value)
         current_terrain_events=[current_event_record for current_event_record in interface_blocks_value.get_config_file()['dependencies'] if 'window.terrainReviewControls' in (current_event_record.get('js') or '')]
         self.assertEqual(len(current_terrain_events),0)
         self.assertTrue(all(not current_event_record['backend_fn'] and not current_event_record['queue'] for current_event_record in current_terrain_events))
@@ -63,6 +64,33 @@ class StaticReviewGradioTest(unittest.TestCase):
             self.assertIn(current_button_label,current_button_labels)
         for current_button_label in ['생성 재개','작업 중지','로그 조회','선택 이력 삭제']:
             self.assertNotIn(current_button_label,current_button_labels)
+
+    def test_confirmed_reset_rejects_duplicate_submission_and_changed_target(self):
+        current_config_record=build_static_review_interface({'walk-review':'animation/anchors.html'}).get_config_file()
+        current_confirm_script=next(current_event_record['js'] for current_event_record in current_config_record['dependencies'] if 'const currentResultValues=await (' in (current_event_record.get('js') or ''))
+        current_editor_source=(Path(__file__).parents[1]/'ui/shared/animation-anchor-editor/editor.js').read_text()
+        current_history_source=current_editor_source.split('window.anchorReviewResetTarget=',1)[1].split('const anchorHistoryViewState=',1)[0]
+        current_script_source="""
+const assert=require('node:assert/strict');global.window={};
+const currentEmbeddedReviewMode=true,reviewAnimationIdentity='walk',reviewAnimationVersion='v1';
+const currentCommandRecords=[];
+async function requestAnchorHistoryCommand(currentCommandName,currentPayloadRecord){currentCommandRecords.push(currentCommandName);return currentCommandName==='anchor-history'?{items:[]}:{cleared:0};}
+window.anchorReviewResetTarget="""+current_history_source+"""
+(async()=>{
+ await assert.rejects(window.anchorReviewHistory('reset',null,'idle · v1'),/확인 대상/);
+ assert.equal(currentCommandRecords.length,0);
+ await window.anchorReviewHistory('reset',null,'walk · v1');assert.deepEqual(currentCommandRecords,['anchor-history-reset','anchor-history']);
+ let currentResolveRequest,currentRequestCount=0;
+ window.anchorReviewHistory=()=>{currentRequestCount++;return new Promise(currentResolveValue=>{currentResolveRequest=currentResolveValue;});};
+ const currentConfirmCallback="""+current_confirm_script+""";
+ const currentFirstRequest=currentConfirmCallback(null,true,'walk · v1');
+ const currentDuplicateResult=await currentConfirmCallback(null,true,'walk · v1');
+ assert.equal(currentRequestCount,1);assert.match(currentDuplicateResult[4],/초기화 중/);
+ currentResolveRequest([null,'',null,'','완료']);assert.equal((await currentFirstRequest)[4],'완료');
+})().catch(currentErrorValue=>{console.error(currentErrorValue);process.exitCode=1;});
+"""
+        current_node_result=subprocess.run(['node','-e',current_script_source],capture_output=True,text=True)
+        self.assertEqual(current_node_result.returncode,0,current_node_result.stderr)
 
     def test_output_settings_reject_invalid_values_without_partial_updates(self):
         current_editor_source=(Path(__file__).parents[1]/'ui/shared/animation-anchor-editor/editor.js').read_text()
@@ -124,7 +152,7 @@ assert.deepEqual(window.anchorReviewDisplay(null).slice(0,4),[false,false,true,f
 
     def test_anchor_navigation_preserves_frames_on_invalid_seek(self):
         current_editor_source=(Path(__file__).parents[1]/'ui/shared/animation-anchor-editor/editor.js').read_text()
-        current_bridge_source=current_editor_source.split('// 공용 Gradio 탐색기',1)[1].split('if(window.parent!==window',1)[0]
+        current_bridge_source=current_editor_source.split('// 공용 Gradio 탐색기',1)[1].split('if(window.anchorReviewNativeMode',1)[0]
         current_bridge_source=current_bridge_source[current_bridge_source.index('window.anchorReviewPlayback='):]
         current_script_source="""
 const assert=require('node:assert/strict');

@@ -68,6 +68,8 @@ def create_gradio_source_fingerprint(application_source_path,application_file_pa
     common_source_directory=WORKFLOW_ROOT_DIRECTORY/'tools/review/common'
     shared_ui_directory=WORKFLOW_ROOT_DIRECTORY/'tools/review/ui/shared'
     tracked_source_paths={application_file_path,application_source_path}
+    if application_file_path.name=='static_review_app.py':
+        tracked_source_paths.update((WORKFLOW_ROOT_DIRECTORY/'tools/review/ui/shared/animation-anchor-editor').glob('*'))
     if application_file_path.name=='anny_attributes_app.py':
         tracked_source_paths.add(WORKFLOW_ROOT_DIRECTORY/'tools/review/ui/anny/anny-attributes.html')
     if application_file_path.name=='anny_landmarks_app.py':

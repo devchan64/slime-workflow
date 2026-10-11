@@ -8,7 +8,7 @@ const requestedActionIdentifier=new URLSearchParams(window.location?.search).get
 const selectedActionReview=availableActionReviews.find(currentActionRecord=>currentActionRecord.id===requestedActionIdentifier);
 const reviewFrameRecords=selectedActionReview?structuredClone(selectedActionReview.frames):structuredClone(currentReviewPayload.frames);
 const reviewSourceMetadata=selectedActionReview?.source||initialReviewMetadata;
-const resolveReviewAssetUrl=assetPathValue=>selectedActionReview?selectedActionReview.frames.find(currentFrameRecord=>currentFrameRecord.image===assetPathValue)?.url||assetPathValue:window.resolveStaticReviewAssetUrl?.(assetPathValue)||assetPathValue;
+const resolveReviewAssetUrl=assetPathValue=>{const currentAssetAddress=selectedActionReview?.frames.find(currentFrameRecord=>currentFrameRecord.image===assetPathValue)?.url||assetPathValue;return window.resolveStaticReviewAssetUrl?.(currentAssetAddress)||currentAssetAddress;};
 const actionChoiceElement=document.querySelector('#actionChoice');
 document.querySelector('#actionChoiceField').hidden=!availableActionReviews.length;
 for(const currentActionRecord of availableActionReviews)actionChoiceElement.add(new Option(`${currentActionRecord.source.displayNameKo} · ${currentActionRecord.source.animationVersion}`,currentActionRecord.id));
@@ -306,9 +306,11 @@ window.anchorReviewSeekFrame=currentFrameNumber=>{
  pauseFramePlayback();frameChoiceElement.value=String(currentFrameNumber-1);
  return `${currentFrameNumber} / ${REVIEW_FRAME_COUNT} · 정지`;
 };
-if(window.parent!==window&&new URLSearchParams(window.location?.search).get('embedded')==='gradio-static'){
+if(window.anchorReviewNativeMode||(window.parent!==window&&new URLSearchParams(window.location?.search).get('embedded')==='gradio-static')){
+ if(!window.anchorReviewNativeMode){
  for(const currentStyleElement of document.querySelectorAll('style'))currentStyleElement.disabled=true;
  const currentCanvasStyles=document.querySelector('#anchor-canvas-layout');currentCanvasStyles.disabled=false;currentCanvasStyles.media='all';
+ }
  const currentLegacyControls=[document.querySelector('.anchor-preview h2'),document.querySelector('.coordinate-legend'),document.querySelector('#frameStatus'),document.querySelector('body>header'),document.querySelector('.anchor-controls'),document.querySelector('.editor-save-panel'),document.querySelector('.anchor-history-panel'),document.querySelector('#actionChoiceField'),document.querySelector('#undoCoordinateChange').parentElement,document.querySelector('#copyPreviousAnchor'),document.querySelector('#resetCurrentFrame'),document.querySelector('#previousAnchorStatus'),document.querySelector('.preview-display-settings'),document.querySelector('.options'),document.querySelector('#tilePreviewToggle').parentElement,document.querySelector('#shadowPreviewToggle').parentElement,document.querySelector('.anchor-coordinate-inputs'),document.querySelector('.anchor-joypad'),directionChoiceElement.parentElement,pointChoiceElement.parentElement];
  for(const currentControlElement of currentLegacyControls){const currentHiddenWrapper=document.createElement('div');currentHiddenWrapper.hidden=true;currentControlElement.before(currentHiddenWrapper);currentHiddenWrapper.append(currentControlElement);}
  for(const currentLabelSelector of ['label[for="directionChoice"]','label[for="pointChoice"]'])document.querySelector(currentLabelSelector).hidden=true;
@@ -339,12 +341,14 @@ async function requestAnchorHistoryCommand(commandNameValue,payloadRecordValue){
  if(!responseRecordValue.ok)throw new Error(responsePayloadValue.error||'좌표 이력 요청 실패');
  return responsePayloadValue;
 }
-const currentEmbeddedReviewMode=window.parent!==window&&new URLSearchParams(window.location?.search).get('embedded')==='gradio-static';
-window.anchorReviewHistory=async(currentActionName,currentSelectedId)=>{
+const currentEmbeddedReviewMode=Boolean(window.anchorReviewNativeMode)||(window.parent!==window&&new URLSearchParams(window.location?.search).get('embedded')==='gradio-static');
+window.anchorReviewResetTarget=()=>reviewAnimationIdentity+' · '+reviewAnimationVersion;
+window.anchorReviewHistory=async(currentActionName,currentSelectedId,currentConfirmedTarget)=>{
  if(!['list','inspect','result','restore','reset'].includes(currentActionName))throw Error('지원하지 않는 좌표 이력 명령입니다.');
  let currentFeedbackText='이력을 선택한 뒤 조회하거나 불러오세요.';
  if(currentActionName==='reset'){
-  if(!window.confirm('현재 애니메이션 버전의 좌표 이력 목록을 초기화할까요? 원본 파일과 편집값은 유지합니다.'))currentFeedbackText='이력 초기화를 취소했습니다.';
+  if(currentEmbeddedReviewMode&&currentConfirmedTarget!==window.anchorReviewResetTarget())throw Error('확인 대상 동작이 변경되었거나 확인하지 않았습니다. 이력 초기화를 다시 요청하세요.');
+  if(!currentEmbeddedReviewMode&&!window.confirm('현재 애니메이션 버전의 좌표 이력 목록을 초기화할까요? 원본 파일과 편집값은 유지합니다.'))currentFeedbackText='이력 초기화를 취소했습니다.';
   else {const currentResetResult=await requestAnchorHistoryCommand('anchor-history-reset',{animation_id:reviewAnimationIdentity,animation_version:reviewAnimationVersion});currentFeedbackText=`${currentResetResult.cleared}건 목록 초기화 · 원본 파일 유지`;}
  }
  const currentHistoryResponse=await requestAnchorHistoryCommand('anchor-history',{animation_id:reviewAnimationIdentity,animation_version:reviewAnimationVersion});
