@@ -1,33 +1,41 @@
-"""생성 전 GPU 대기열 확인 모달을 모든 Gradio 생성 버튼에 연결한다."""
+"""Gradio 기본 컴포넌트로 생성 접수를 명시적으로 확인한다."""
+import contextlib
 import inspect
+import uuid
 import gradio as gr
-GPU_CONFIRMATION_SCRIPT = """
-async function confirmGpuQueueStart() {
- const currentQueueResponse = await fetch('/management/gpu-queue', {cache: 'no-store'});
- if (!currentQueueResponse.ok) throw new Error('GPU 대기열을 확인하지 못했습니다. 잠시 후 다시 시도하세요.');
- const currentQueueRecord = await currentQueueResponse.json();
- const currentPendingJobs = currentQueueRecord.jobs || [];
- const currentActiveProcesses = currentQueueRecord.gpu_status?.status === 'busy' ? (currentQueueRecord.gpu_status.processes || []) : [];
- if (!currentPendingJobs.length && !currentActiveProcesses.length) return true;
- const currentQueueLines = [
-  ...currentActiveProcesses.map(currentProcessRecord => 'GPU 사용 중 · ' + (currentProcessRecord.command || currentProcessRecord.id || '외부 작업')),
-  ...currentPendingJobs.map(currentJobRecord => '대기 중 · ' + (currentJobRecord.service || '') + ' · ' + (currentJobRecord.id || ''))
- ];
- return window.confirm('GPU 작업 대기열에 추가할까요?\\n현재 GPU 메모리로 실행 가능한 작업부터 처리합니다.\\n\\n' + currentQueueLines.join('\\n'));
-}
-"""
 
 
-def bind_gpu_generation_confirmation(generation_button_value, generation_callback_value, generation_input_values, generation_output_values):
-    confirmation_input_value=gr.Checkbox(value=False,visible=False)
-    generation_output_values=generation_output_values if isinstance(generation_output_values,list) else [generation_output_values]
-    generation_input_values=generation_input_values if isinstance(generation_input_values,list) else [generation_input_values]
-    def execute_confirmed_generation(*generation_argument_values):
-        if generation_argument_values[-1] is not True:
-            yield tuple(gr.skip() for _ in generation_output_values) if len(generation_output_values)>1 else gr.skip()
-            return
-        generation_callback_result=generation_callback_value(*generation_argument_values[:-1])
-        if inspect.isgenerator(generation_callback_result):yield from generation_callback_result
-        else:yield generation_callback_result
-    confirmation_script_value='async (...values)=>{'+GPU_CONFIRMATION_SCRIPT+';if(window.__gpuConfirmationPending){values[values.length-1]=false;return values;}window.__gpuConfirmationPending=true;try{values[values.length-1]=await confirmGpuQueueStart();return values;}finally{window.__gpuConfirmationPending=false;}}'
-    return generation_button_value.click(execute_confirmed_generation,[*generation_input_values,confirmation_input_value],generation_output_values,js=confirmation_script_value,trigger_mode='once',concurrency_limit=1)
+def bind_gpu_generation_confirmation(generation_button_value, generation_callback_value, generation_input_values, generation_output_values, generation_confirmation_container=None):
+    generation_output_values = generation_output_values if isinstance(generation_output_values, list) else [generation_output_values]
+    generation_input_values = generation_input_values if isinstance(generation_input_values, list) else [generation_input_values]
+    pending_generation_inputs = gr.State(None)
+    confirmation_element_identifier = 'gpu-confirmation-' + uuid.uuid4().hex
+    with generation_confirmation_container if generation_confirmation_container is not None else contextlib.nullcontext():
+        with gr.Group(visible=False, elem_id=confirmation_element_identifier) as generation_confirmation_group:
+            gr.Markdown('### GPU 작업 대기열에 추가할까요?\n확인한 입력으로 작업을 등록합니다. GPU가 사용 중이면 대기하며, 실행 가능한 작업부터 처리합니다.')
+            with gr.Row():
+                cancel_generation_button = gr.Button('추가하지 않기', variant='secondary')
+                confirm_generation_button = gr.Button('대기열에 추가', variant='primary')
+
+    def prepare_generation_confirmation(*generation_argument_values):
+        return tuple(generation_argument_values), gr.update(visible=True), gr.update(interactive=True)
+
+    def cancel_generation_confirmation():
+        return None, gr.update(visible=False), gr.update(interactive=True)
+
+    def execute_confirmed_generation(saved_generation_inputs):
+        if saved_generation_inputs is None:
+            raise gr.Error('생성 시작 버튼을 눌러 입력을 먼저 확인하세요.')
+        generation_callback_result = generation_callback_value(*saved_generation_inputs)
+        if inspect.isgenerator(generation_callback_result):
+            yield from generation_callback_result
+        else:
+            yield generation_callback_result
+
+    confirmation_output_values = [pending_generation_inputs, generation_confirmation_group, generation_button_value]
+    generation_start_event = generation_button_value.click(prepare_generation_confirmation, generation_input_values, confirmation_output_values, trigger_mode='once')
+    generation_start_event.then(fn=None, js="() => {requestAnimationFrame(() => document.getElementById('" + confirmation_element_identifier + "')?.scrollIntoView({block: 'center', behavior: 'smooth'}));}")
+    cancel_generation_button.click(cancel_generation_confirmation, outputs=confirmation_output_values, queue=False)
+    confirmation_start_event = confirm_generation_button.click(execute_confirmed_generation, pending_generation_inputs, generation_output_values, trigger_mode='once', concurrency_limit=1)
+    confirmation_start_event.then(cancel_generation_confirmation, outputs=confirmation_output_values)
+    return generation_start_event
