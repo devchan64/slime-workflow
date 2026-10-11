@@ -43,8 +43,7 @@ class StaticReviewGradioTest(unittest.TestCase):
         self.assertIn("searchParams.set('embedded','gradio-static')",loader_script_value)
         self.assertNotIn('window.fetch=',loader_script_value)
         self.assertNotIn('document.head.append',loader_script_value)
-        self.assertIn("document.createElement('iframe')",loader_script_value)
-        self.assertIn('currentReviewFrame.src=staticReviewPageUrl',loader_script_value)
+        self.assertNotIn("document.createElement('iframe')",loader_script_value)
         self.assertNotIn('terrain-preview.html',loader_script_value)
         self.assertNotIn('contentWindow.anchorReviewPlayback',loader_script_value)
         self.assertIn('await mountNativeAnchorReview(staticReviewRoot,staticReviewPageLocation)',loader_script_value)
@@ -69,7 +68,8 @@ global.document={body:{},createElement:()=>({setAttribute(){}})};
 global.MutationObserver=class{constructor(callback){currentObserverCallback=callback;}observe(){}disconnect(){currentDisconnectCount++;}};
 const createReviewRoot=()=>({isConnected:true,children:[],attributes:{},replaceChildren(...children){this.children=children;},setAttribute(name,value){this.attributes[name]=value;}});
 (async()=>{
- const currentModuleInstance=new vm.SyntheticModule(['mountReviewPage'],function(){this.setExport('mountReviewPage',()=>{currentMountCount++;return {dispose(){currentDisposeCount++;}};});});
+ let currentModuleController={dispose(){currentDisposeCount++;}};
+ const currentModuleInstance=new vm.SyntheticModule(['mountReviewPage'],function(){this.setExport('mountReviewPage',()=>{currentMountCount++;return currentModuleController;});});
  await currentModuleInstance.link(()=>{});await currentModuleInstance.evaluate();
  const mountNativeGameReview=vm.compileFunction("""+json.dumps(current_loader_source+'\nreturn mountNativeGameReview;')+""",[],{importModuleDynamically:()=>currentModuleInstance})();
  const currentPageLocation=new URL('http://localhost/ui-aaaaaaaaaaaaaaaa/review/design-system.html');
@@ -89,6 +89,15 @@ const createReviewRoot=()=>({isConnected:true,children:[],attributes:{},replaceC
  global.fetch=async()=>({ok:true,json:async()=>({...currentManifestRecord,componentModules:{'design-system':'https://outside.test/native.js'}})});
  const currentInvalidRoot=createReviewRoot();await mountNativeGameReview(currentInvalidRoot,currentPageLocation);
  assert.match(currentInvalidRoot.children[0].textContent,/검증된 검수 컴포넌트/);assert.equal(currentMountCount,1);assert.equal(currentWindowEvents.size,0);
+ let currentBattlefieldChoice='all';const currentBrowserChanges=[];
+ window.location={href:'http://localhost/management/?review=battle'};window.history={replaceState:(_state,_title,url)=>currentBrowserChanges.push(String(url))};
+ currentModuleController={dispose(){currentDisposeCount++;},readState:()=>({choices:[['전체','all'],['전장','field-a']],field:currentBattlefieldChoice,status:'렌더 상태'}),selectField:currentFieldName=>{if(!['all','field-a'].includes(currentFieldName))throw Error('지원하지 않는 전장');currentBattlefieldChoice=currentFieldName;}};
+ global.fetch=async()=>({ok:true,json:async()=>({...currentManifestRecord,pages:[{id:'battle',path:'review/battlefield-preview.html'}],componentModules:{battle:'assets/native.js'}})});
+ await mountNativeGameReview(createReviewRoot(),new URL('http://localhost/ui-aaaaaaaaaaaaaaaa/review/battlefield-preview.html'));
+ assert.equal(window.battlefieldReviewControls(null)[0].value,'all');
+ assert.throws(()=>window.battlefieldReviewControls('unknown'),/지원하지 않는 전장/);assert.equal(currentBattlefieldChoice,'all');assert.equal(currentBrowserChanges.length,0);
+ assert.equal(window.battlefieldReviewControls('field-a')[0].value,'field-a');assert.match(currentBrowserChanges[0],/field=field-a/);
+ currentWindowEvents.get('pagehide')();assert.equal(window.battlefieldReviewControls,undefined);assert.equal(currentDisposeCount,2);
 })().catch(error=>{console.error(error);process.exitCode=1;});
 """
         current_node_result=subprocess.run(['node','--experimental-vm-modules','-e',current_script_source],capture_output=True,text=True)

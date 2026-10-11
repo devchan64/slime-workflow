@@ -2,6 +2,7 @@ async function mountNativeGameReview(currentReviewRoot,currentPageLocation){
   const currentRequestController=new AbortController();
   let currentMountedController=null;
   let currentReviewDisposed=false;
+  let currentBattlefieldBridge=null;
   const currentConnectionObserver=new MutationObserver(()=>{
     if(!currentReviewRoot.isConnected)disposeNativeGameReview();
   });
@@ -12,11 +13,12 @@ async function mountNativeGameReview(currentReviewRoot,currentPageLocation){
     currentConnectionObserver.disconnect();
     window.removeEventListener('pagehide',disposeNativeGameReview);
     currentMountedController?.dispose();
+    if(window.battlefieldReviewControls===currentBattlefieldBridge){delete window.battlefieldReviewControls;delete window.battlefieldChoiceSignature;}
   }
   currentConnectionObserver.observe(document.body,{childList:true,subtree:true});
   window.addEventListener('pagehide',disposeNativeGameReview);
   try{
-    if(!/\/ui-[a-f0-9]{16}\/review\/design-system\.html$/.test(currentPageLocation.pathname))throw Error('등록된 디자인 검수 번들 경로가 아닙니다.');
+    if(!/\/ui-[a-f0-9]{16}\/review\/(design-system|battlefield-preview)\.html$/.test(currentPageLocation.pathname))throw Error('등록된 게임 검수 번들 경로가 아닙니다.');
     const currentBundleLocation=new URL('../',currentPageLocation);
     const currentManifestResponse=await fetch(new URL('manifest.json',currentBundleLocation),{signal:currentRequestController.signal});
     if(!currentManifestResponse.ok)throw Error(`검수 manifest 조회 실패: ${currentManifestResponse.status}`);
@@ -30,10 +32,26 @@ async function mountNativeGameReview(currentReviewRoot,currentPageLocation){
     if(currentReviewDisposed||!currentReviewRoot.isConnected)return;
     if(typeof currentComponentModule.mountReviewPage!=='function')throw Error('검수 컴포넌트 마운트 계약이 없습니다.');
     const currentReviewHost=document.createElement('section');
-    currentReviewHost.setAttribute('aria-label','게임 디자인 시스템');
+    const currentBattlefieldPage=currentPageLocation.pathname.endsWith('/battlefield-preview.html');
+    currentReviewHost.setAttribute('aria-label',currentBattlefieldPage?'게임 전장 검수':'게임 디자인 시스템');
     currentReviewRoot.replaceChildren(currentReviewHost);
-    currentMountedController=currentComponentModule.mountReviewPage(currentReviewHost,{locale:currentPageLocation.searchParams.get('locale')??'ko'});
+    currentMountedController=currentComponentModule.mountReviewPage(currentReviewHost,{locale:currentPageLocation.searchParams.get('locale')??'ko',field:currentPageLocation.searchParams.get('field')??'all',overview:currentPageLocation.searchParams.has('overview')});
     if(typeof currentMountedController?.dispose!=='function')throw Error('검수 컴포넌트 해제 계약이 없습니다.');
+    if(currentBattlefieldPage){
+      if(typeof currentMountedController.readState!=='function'||typeof currentMountedController.selectField!=='function')throw Error('전장 선택·상태 계약이 없습니다.');
+      currentBattlefieldBridge=currentSelectedField=>{
+        if(currentReviewDisposed)throw Error('해제된 전장 검수 화면입니다.');
+        if(currentSelectedField!==null){
+          currentMountedController.selectField(currentSelectedField);
+          const currentBrowserLocation=new URL(window.location.href);currentBrowserLocation.searchParams.set('field',currentSelectedField);
+          window.history.replaceState(null,'',currentBrowserLocation);
+        }
+        const currentBattlefieldState=currentMountedController.readState();
+        return [{__type__:'update',choices:currentBattlefieldState.choices,value:currentBattlefieldState.field},currentBattlefieldState.status];
+      };
+      window.battlefieldReviewControls=currentBattlefieldBridge;
+      delete window.battlefieldChoiceSignature;
+    }
     currentReviewRoot.setAttribute('aria-busy','false');
   }catch(currentReviewError){
     if(currentReviewDisposed)return;

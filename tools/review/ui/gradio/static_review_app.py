@@ -18,9 +18,6 @@ from tools.review.common.gradio_browser_controls import build_browser_action_but
 from tools.review.common.gradio_browser_history import build_browser_history_controls
 
 
-STATIC_REVIEW_FRAME_HEIGHT=1000
-
-
 def load_static_review_paths(source_file_path):
     source_record_values=json.loads(Path(source_file_path).read_text())
     static_review_paths={}
@@ -52,35 +49,14 @@ const staticReviewPageLocation=new URL(selectedReviewPath,reviewServerBase);
 staticReviewPageLocation.searchParams.set('embedded','gradio-static');
 const currentSelectedAction=new URLSearchParams(window.location.search).get('action');
 if(currentSelectedAction)staticReviewPageLocation.searchParams.set('action',currentSelectedAction);
-const staticReviewPageUrl=staticReviewPageLocation.href;
 if(selectedReviewPath.split('?')[0].endsWith('/anchors.html')){{await mountNativeAnchorReview(staticReviewRoot,staticReviewPageLocation);return;}}
-if(selectedReviewPath.split('?')[0].endsWith('/design-system.html')){{await mountNativeGameReview(staticReviewRoot,staticReviewPageLocation);return;}}
-// 미전환 전장 검수는 별도 문서 수명을 유지한다.
-{{
-  const currentReviewFrame=document.createElement('iframe');
-  currentReviewFrame.title='게임 디자인 검수';
-  currentReviewFrame.width='100%';currentReviewFrame.height='{STATIC_REVIEW_FRAME_HEIGHT}';currentReviewFrame.setAttribute('frameborder','0');
-  currentReviewFrame.src=staticReviewPageUrl;
-  if(selectedReviewPath.split('?')[0].endsWith('battlefield-preview.html')){{
-    currentReviewFrame.addEventListener('load',()=>{{const currentHeaderElement=currentReviewFrame.contentDocument.querySelector('body>header');if(currentHeaderElement){{const currentHiddenWrapper=currentReviewFrame.contentDocument.createElement('div');currentHiddenWrapper.hidden=true;currentHeaderElement.before(currentHiddenWrapper);currentHiddenWrapper.append(currentHeaderElement);}}}});
-    window.battlefieldReviewControls=currentSelectedField=>{{
-      const currentPreviewDocument=currentReviewFrame.contentDocument;
-      const currentFieldSelector=currentPreviewDocument?.querySelector('#choice');
-      const currentStatusElement=currentPreviewDocument?.querySelector('#status');
-      if(!currentFieldSelector||!currentStatusElement)throw Error('전장 미리보기를 준비 중입니다.');
-      const currentFieldOptions=Array.from(currentFieldSelector.options).map(currentOptionElement=>[currentOptionElement.textContent,currentOptionElement.value]);
-      if(currentSelectedField!==null){{
-        if(!currentFieldOptions.some(currentOptionPair=>currentOptionPair[1]===currentSelectedField))throw Error('지원하지 않는 전장입니다.');
-        const currentFieldLocation=new URL(currentPreviewLocation.href);currentFieldLocation.searchParams.set('field',currentSelectedField);currentReviewFrame.src=currentFieldLocation.href;
-        return [{{__type__:'update',value:currentSelectedField}},'선택한 전장을 불러오는 중입니다.'];
-      }}
-      return [{{__type__:'update',choices:currentFieldOptions,value:currentFieldSelector.value}},currentStatusElement.textContent];
-    }};
-  }}
-  currentReviewFrame.addEventListener('load',()=>staticReviewRoot.setAttribute('aria-busy','false'));
-  staticReviewRoot.replaceChildren(currentReviewFrame);
-  return;
+if(['/design-system.html','/battlefield-preview.html'].some(currentPageSuffix=>selectedReviewPath.split('?')[0].endsWith(currentPageSuffix))){{
+  const currentBrowserParameters=new URLSearchParams(window.location.search);
+  for(const currentParameterName of ['field','locale','overview'])if(currentBrowserParameters.has(currentParameterName))staticReviewPageLocation.searchParams.set(currentParameterName,currentBrowserParameters.get(currentParameterName));
+  await mountNativeGameReview(staticReviewRoot,staticReviewPageLocation);return;
 }}
+staticReviewRoot.textContent='지원하지 않는 정적 검수 화면입니다. 직접 마운트 모듈로 게시하세요.';
+staticReviewRoot.setAttribute('aria-busy','false');
 
 }}"""
 
