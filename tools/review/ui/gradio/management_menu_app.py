@@ -124,7 +124,7 @@ def create_page_preview_html(selected_page_identifier, page_record_values, revie
     current_native_path=resolve_management_page_path(selected_page_record)
     if current_native_path:
         return '<a href="'+html.escape(current_native_path,quote=True)+'">'+html.escape(selected_page_record['label'])+' 열기</a>'
-    current_document_path=html.escape(selected_page_record['path'],quote=True)
+    current_document_path=html.escape('/'+selected_page_record['path'].lstrip('/'),quote=True)
     return '<a href="'+current_document_path+'">독립 검수 문서 열기 · '+html.escape(selected_page_record['label'])+'</a>'
 
 

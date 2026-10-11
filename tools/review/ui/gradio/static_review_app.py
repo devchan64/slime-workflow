@@ -31,9 +31,19 @@ def load_static_review_paths(source_file_path):
     return static_review_paths
 
 
-def create_static_review_loader(review_server_port, static_review_paths):
+def collect_anchor_review_paths(static_review_paths, current_anchor_paths=None):
+    current_declared_paths={'/'+current_path_value.split('?')[0].lstrip('/'):current_path_value.split('?')[0] for current_path_value in static_review_paths.values()}
+    current_selected_paths={'/'+current_path_value.split('?')[0].lstrip('/') for current_path_value in (current_anchor_paths or [])}
+    if not current_selected_paths.issubset(current_declared_paths):
+        raise ValueError('등록되지 않은 앵커 검수 경로입니다.')
+    current_selected_paths.update(current_path_value for current_path_value in current_declared_paths if current_path_value.endswith('/anchors.html'))
+    return sorted(current_declared_paths[current_path_value] for current_path_value in current_selected_paths)
+
+
+def create_static_review_loader(review_server_port, static_review_paths, current_anchor_paths=None):
     serialized_paths=json.dumps(static_review_paths,ensure_ascii=False).replace('<','\\u003c')
     review_server_base=json.dumps(f'http://127.0.0.1:{review_server_port}')
+    current_anchor_paths_json=json.dumps(collect_anchor_review_paths(static_review_paths,current_anchor_paths),ensure_ascii=False).replace('<','\\u003c')
     return f"""async()=>{{
 {read_native_anchor_loader()}
 {(Path(__file__).with_name("game_native_loader.js")).read_text()}
@@ -49,7 +59,7 @@ const staticReviewPageLocation=new URL(selectedReviewPath,reviewServerBase);
 staticReviewPageLocation.searchParams.set('embedded','gradio-static');
 const currentSelectedAction=new URLSearchParams(window.location.search).get('action');
 if(currentSelectedAction)staticReviewPageLocation.searchParams.set('action',currentSelectedAction);
-if(selectedReviewPath.split('?')[0].endsWith('/anchors.html')){{await mountNativeAnchorReview(staticReviewRoot,staticReviewPageLocation);return;}}
+if({current_anchor_paths_json}.includes(selectedReviewPath.split('?')[0])){{await mountNativeAnchorReview(staticReviewRoot,staticReviewPageLocation);return;}}
 if(['/design-system.html','/battlefield-preview.html'].some(currentPageSuffix=>selectedReviewPath.split('?')[0].endsWith(currentPageSuffix))){{
   const currentBrowserParameters=new URLSearchParams(window.location.search);
   for(const currentParameterName of ['field','locale','overview'])if(currentBrowserParameters.has(currentParameterName))staticReviewPageLocation.searchParams.set(currentParameterName,currentBrowserParameters.get(currentParameterName));
@@ -61,7 +71,8 @@ staticReviewRoot.setAttribute('aria-busy','false');
 }}"""
 
 
-def build_static_review_interface(static_review_paths):
+def build_static_review_interface(static_review_paths, current_anchor_paths=None):
+    current_anchor_paths_json=json.dumps(collect_anchor_review_paths(static_review_paths,current_anchor_paths),ensure_ascii=False).replace('<','\\u003c')
     current_review_paths_json=json.dumps(static_review_paths,ensure_ascii=False).replace('<','\\u003c')
     with gr.Blocks(title='정적 검수') as interface_blocks_value:
         gr.Markdown('## 정적 검수\n게임 디자인과 등록 애니메이션을 검수합니다.')
@@ -142,9 +153,9 @@ def build_static_review_interface(static_review_paths):
         with gr.Column(visible=False) as current_anchor_history:
             build_browser_history_controls('anchorReviewHistory','anchor-standard-history',current_supported_actions=('list','result','restore','reset'), current_reset_target_handler='anchorReviewResetTarget')
 
-        interface_blocks_value.load(fn=None,outputs=current_anchor_controls,queue=False,js="()=>{const currentReviewPaths="+current_review_paths_json+";const currentReviewId=new URLSearchParams(location.search).get('review');return {__type__:'update',visible:(currentReviewPaths[currentReviewId]||'').split('?')[0].endsWith('/anchors.html')};}")
-        interface_blocks_value.load(fn=None,outputs=current_anchor_history,queue=False,js="()=>{const currentReviewPaths="+current_review_paths_json+";const currentReviewId=new URLSearchParams(location.search).get('review');return {__type__:'update',visible:(currentReviewPaths[currentReviewId]||'').split('?')[0].endsWith('/anchors.html')};}")
-        interface_blocks_value.load(fn=None,outputs=current_anchor_legend,queue=False,js="()=>{const currentReviewPaths="+current_review_paths_json+";const currentReviewId=new URLSearchParams(location.search).get('review');return {__type__:'update',visible:(currentReviewPaths[currentReviewId]||'').split('?')[0].endsWith('/anchors.html')};}")
+        interface_blocks_value.load(fn=None,outputs=current_anchor_controls,queue=False,js="()=>{const currentReviewPaths="+current_review_paths_json+";const currentReviewId=new URLSearchParams(location.search).get('review');return {__type__:'update',visible:"+current_anchor_paths_json+".includes((currentReviewPaths[currentReviewId]||'').split('?')[0])};}")
+        interface_blocks_value.load(fn=None,outputs=current_anchor_history,queue=False,js="()=>{const currentReviewPaths="+current_review_paths_json+";const currentReviewId=new URLSearchParams(location.search).get('review');return {__type__:'update',visible:"+current_anchor_paths_json+".includes((currentReviewPaths[currentReviewId]||'').split('?')[0])};}")
+        interface_blocks_value.load(fn=None,outputs=current_anchor_legend,queue=False,js="()=>{const currentReviewPaths="+current_review_paths_json+";const currentReviewId=new URLSearchParams(location.search).get('review');return {__type__:'update',visible:"+current_anchor_paths_json+".includes((currentReviewPaths[currentReviewId]||'').split('?')[0])};}")
     return interface_blocks_value
 
 
@@ -163,6 +174,8 @@ if __name__=='__main__':
         os._exit(0)
     threading.Thread(target=monitor_owner_process,daemon=True).start()
     from tools.review.ui.gradio.management_menu_app import build_management_menu_interface, load_manager_page_records
-    current_inline_interface=build_static_review_interface(static_review_paths)
-    current_management_interface,_=build_management_menu_interface(load_manager_page_records(arguments_value.source_file),arguments_value.review_port,current_inline_interface)
-    current_management_interface.queue().launch(server_name='127.0.0.1',server_port=arguments_value.port,root_path=arguments_value.root_path,js=create_static_review_loader(arguments_value.review_port,static_review_paths),allowed_paths=[])
+    current_page_records=load_manager_page_records(arguments_value.source_file)
+    current_anchor_paths=[current_page_record['path'].split('?')[0] for current_page_record in current_page_records if current_page_record.get('anchorEditor') and current_page_record.get('uiMode')=='gradio-static']
+    current_inline_interface=build_static_review_interface(static_review_paths,current_anchor_paths)
+    current_management_interface,_=build_management_menu_interface(current_page_records,arguments_value.review_port,current_inline_interface)
+    current_management_interface.queue().launch(server_name='127.0.0.1',server_port=arguments_value.port,root_path=arguments_value.root_path,js=create_static_review_loader(arguments_value.review_port,static_review_paths,current_anchor_paths),allowed_paths=[])

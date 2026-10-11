@@ -52,6 +52,12 @@ class GradioManagementMenuTests(unittest.TestCase):
         self.assertIn('/management/frame/static-review/?review=walk-review',preview_html_text)
         self.assertNotIn('<iframe',preview_html_text)
 
+    def test_standalone_document_link_is_root_relative(self):
+        current_page_records=[{'id':'walk-review','label':'걷기 비교','path':'walking/preview.html','category':'animation','uiMode':'html','description':'비교'}]
+        current_preview_markup=create_page_preview_html('walk-review',current_page_records,8770)
+        self.assertIn('href="/walking/preview.html"',current_preview_markup)
+        self.assertNotIn('<iframe',current_preview_markup)
+
     def test_uses_gradio_frame_identifier_when_page_id_is_a_public_alias(self):
         anny_page_records=[{'id':'anny-attribute-renderer','label':'Anny 속성 렌더러','path':'/anny-attributes/','category':'animation-tool','uiMode':'gradio','description':'속성 렌더'}]
 

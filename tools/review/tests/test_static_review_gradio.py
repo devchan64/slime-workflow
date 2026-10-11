@@ -6,7 +6,7 @@ import unittest
 from pathlib import Path
 
 from tools.review.serve import load_static_review_route_identifiers
-from tools.review.ui.gradio.static_review_app import build_static_review_interface, create_static_review_loader, load_static_review_paths
+from tools.review.ui.gradio.static_review_app import build_static_review_interface, create_static_review_loader, load_static_review_paths, collect_anchor_review_paths
 
 
 class StaticReviewGradioTest(unittest.TestCase):
@@ -21,6 +21,20 @@ class StaticReviewGradioTest(unittest.TestCase):
             static_review_paths=load_static_review_paths(source_file_path)
 
         self.assertEqual(static_review_paths,{'walk-review':'animation/anchors.html'})
+
+    def test_declared_anchor_preview_uses_same_editor_and_controls(self):
+        current_static_paths={'standing-anchors':'standing/preview.html','walk-anchors':'walking/anchors.html'}
+        current_anchor_paths=['standing/preview.html']
+        self.assertEqual(collect_anchor_review_paths(current_static_paths,current_anchor_paths),['standing/preview.html','walking/anchors.html'])
+        self.assertEqual(collect_anchor_review_paths(current_static_paths,['/standing/preview.html']),['standing/preview.html','walking/anchors.html'])
+        with self.assertRaisesRegex(ValueError,'등록되지 않은'):
+            collect_anchor_review_paths(current_static_paths,['outside/preview.html'])
+        current_interface_blocks=build_static_review_interface(current_static_paths,current_anchor_paths)
+        current_visibility_scripts=[current_event_record['js'] for current_event_record in current_interface_blocks.get_config_file()['dependencies'] if 'visible:' in (current_event_record.get('js') or '') and 'currentReviewId=' in current_event_record['js']]
+        current_script_source="const assert=require('node:assert/strict');global.location={search:'?review=standing-anchors'};\n"+'\n'.join('assert.equal(('+current_script_value+')().visible,true);' for current_script_value in current_visibility_scripts)
+        self.assertEqual(len(current_visibility_scripts),3)
+        current_node_result=subprocess.run(['node','-e',current_script_source],capture_output=True,text=True)
+        self.assertEqual(current_node_result.returncode,0,current_node_result.stderr)
 
     def test_collects_direct_static_page_routes(self):
         with tempfile.TemporaryDirectory() as temporary_directory_name:

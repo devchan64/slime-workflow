@@ -1,108 +1,35 @@
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 import assert from 'node:assert/strict';
-const sourceTemplateText=readFileSync(new URL('../frame-manager.html',import.meta.url),'utf8');
-const sourcePageRecords=[
- {id:'walk-review',label:'걷기 비교',description:'2026-09-20 preview.html',category:'animation',path:'walking/preview.html'},
- {id:'walk-anchors',label:'걷기 앵커',description:'좌표 편집',category:'animation',path:'walking/anchors.html',anchorEditor:true},
- {id:'standing-anchors',label:'스탠딩 앵커',description:'좌표 편집',category:'animation',path:'standing/preview.html',anchorEditor:true},
- {id:'slime',label:'슬라임 · 대기 · v1',description:'monster.slime.idle',category:'animation',path:'slime/anchors.html',anchorEditor:true}
-];
-const selectedElementLookup=new Map();
-function createTestElement(){return {value:'',hidden:false,style:{},attributes:{},children:[],listeners:{},append(childElementRecord){this.children.push(childElementRecord);},replaceChildren(){this.children=[];},focus(){this.focused=true;},setAttribute(attributeNameValue,attributeTextValue){this.attributes[attributeNameValue]=attributeTextValue;},addEventListener(eventNameValue,eventHandlerValue){this.listeners[eventNameValue]=eventHandlerValue;}};}
-const documentTestAdapter={createElement:createTestElement,querySelector(selectorTextValue){if(!selectedElementLookup.has(selectorTextValue))selectedElementLookup.set(selectorTextValue,createTestElement());return selectedElementLookup.get(selectorTextValue);}};
-documentTestAdapter.querySelector('#reviewCategory').value='all';
-const windowEventHandlers={};
-const testLocationState={hash:''};
-const testHistoryEntries=[];
-let testHistoryPosition=-1;
-const testHistoryAdapter={state:null,pushState(nextHistoryState,unusedTitleText,nextHashValue){testHistoryEntries.splice(testHistoryPosition+1);testHistoryEntries.push({state:nextHistoryState,hash:nextHashValue});testHistoryPosition++;this.state=nextHistoryState;testLocationState.hash=nextHashValue;},replaceState(nextHistoryState,unusedTitleText,nextHashValue){if(testHistoryPosition<0)testHistoryPosition=0;testHistoryEntries[testHistoryPosition]={state:nextHistoryState,hash:nextHashValue};this.state=nextHistoryState;testLocationState.hash=nextHashValue;},back(){if(testHistoryPosition>0){testHistoryPosition--;this.state=testHistoryEntries[testHistoryPosition].state;testLocationState.hash=testHistoryEntries[testHistoryPosition].hash;windowEventHandlers.popstate();}},forward(){if(testHistoryPosition<testHistoryEntries.length-1){testHistoryPosition++;this.state=testHistoryEntries[testHistoryPosition].state;testLocationState.hash=testHistoryEntries[testHistoryPosition].hash;windowEventHandlers.popstate();}}};
-const testExecutionContext=vm.createContext({Event:class{constructor(eventNameValue){this.type=eventNameValue;}},document:documentTestAdapter,window:{addEventListener(eventNameValue,eventHandlerValue){windowEventHandlers[eventNameValue]=eventHandlerValue;}},location:testLocationState,history:testHistoryAdapter});
-vm.runInContext(sourceTemplateText.split('<script>')[1].split('</script>')[0].replace('__MANAGER_PAGES__',JSON.stringify(sourcePageRecords)),testExecutionContext);
-vm.runInContext(`
-if(managerPaneElements.size!==1)throw new Error('선택하지 않은 페이지를 미리 로드함');
-selectManagerPage('walk-anchors');
-const originalAnchorPane=managerPaneElements.get('walk-anchors');
-originalAnchorPane.testEditedCoordinate=123;
-const originalAnchorSource=originalAnchorPane.src;
-selectManagerPage('standing-anchors');
-if(!originalAnchorPane.hidden)throw new Error('기존 화면 숨김 실패');
-selectManagerPage('walk-anchors');
-if(managerPaneElements.get('walk-anchors')!==originalAnchorPane||originalAnchorPane.src!==originalAnchorSource||originalAnchorPane.testEditedCoordinate!==123)throw new Error('메뉴 전환 중 편집 상태 소실');
-if(selectManagerPage('missing')!==false)throw new Error('미지원 메뉴 허용');
-if(filterManagerRecords('슬라임 대기','animation').length!==1)throw new Error('한국어 검색 실패');
-if(filterManagerRecords('MONSTER.SLIME','all').length!==1)throw new Error('대소문자 ID 검색 실패');
-if(filterManagerRecords('2026-09','animation').length!==1)throw new Error('검수 날짜 검색 실패');
-document.querySelector('#assetSearch').value='없는 결과';renderManagerResults();
-if(document.querySelector('#assetSelection').children.length!==0||originalAnchorPane.hidden)throw new Error('빈 검색이 편집 화면에 영향을 줌');
-document.querySelector('#assetSearch').value='슬라임';renderManagerResults();
-if(originalAnchorPane.hidden)throw new Error('검색 도중 자동 이동');
-document.querySelector('#assetSearch').onkeydown({key:'Enter',preventDefault(){}});
-if(selectedPageIdentifier!=='slime')throw new Error('검색 후 Enter 선택 실패');
-document.querySelector('#clearSearch').onclick();
-if(filteredPageRecords.length!==7||selectedPageIdentifier!=='slime')throw new Error('검색 초기화 후 선택 소실');
-`,testExecutionContext);
-assert.equal(selectedElementLookup.get('#standaloneLink').href,'slime/anchors.html');
-vm.runInContext(`
-resetManagerFilters();selectManagerPage('walk-review');
-if(!document.querySelector('#previousReview').disabled||document.querySelector('#nextReview').disabled)throw new Error('목록 경계 버튼 오류');
-document.querySelector('#assetSearch').value='걷기';updateManagerFilters();
-document.querySelector('#nextReview').onclick();
-if(selectedPageIdentifier!=='walk-anchors'||!document.querySelector('#nextReview').disabled)throw new Error('검색 결과 내 다음 이동 실패');
-history.back();
-if(selectedPageIdentifier!=='walk-review'||document.querySelector('#assetSearch').value!=='걷기')throw new Error('뒤로 이동 시 검색 상태 복원 실패');
-history.forward();
-if(selectedPageIdentifier!=='walk-anchors'||managerPaneElements.get('walk-anchors').testEditedCoordinate!==123)throw new Error('앞으로 이동 시 편집 상태 소실');
-document.querySelector('#assetSearch').value='슬라임';updateManagerFilters();
-if(document.querySelector('#revealCurrentReview').hidden||!document.querySelector('#previousReview').disabled||!document.querySelector('#nextReview').disabled)throw new Error('필터 밖 현재 항목 처리 오류');
-document.querySelector('#revealCurrentReview').onclick();
-if(document.querySelector('#revealCurrentReview').hidden===false||selectedPageIdentifier!=='walk-anchors')throw new Error('현재 항목 찾기 실패');
-document.querySelector('#toggleNavigation').onclick();
-if(!document.querySelector('#managerPicker').hidden||document.querySelector('#toggleNavigation').attributes['aria-expanded']!=='false')throw new Error('탐색 영역 접기 실패');
-document.querySelector('#toggleNavigation').onclick();
-if(document.querySelector('#managerPicker').hidden)throw new Error('탐색 영역 펼치기 실패');
-`,testExecutionContext);
-vm.runInContext(`
-const selectedListButton=document.querySelector('#assetSelection').children[1];
-if(selectedListButton.attributes['aria-current']!=='page')throw new Error('현재 대상 강조 누락');
-document.querySelector('#assetSelection').children[3].onclick();
-if(selectedPageIdentifier!=='slime')throw new Error('목록 클릭 이동 실패');
-`,testExecutionContext);
-vm.runInContext(`
-const editedPaneElement=managerPaneElements.get('slime');
-const editedDocumentHandlers={};
-editedPaneElement.contentDocument={body:{dataset:{coordinateDownloadPending:'false'},classList:{add(){}}},addEventListener(eventNameValue,eventHandlerValue){editedDocumentHandlers[eventNameValue]=eventHandlerValue;},dispatchEvent(currentEventRecord){this.lastEventName=currentEventRecord.type;}};
-editedPaneElement.listeners.load();
-if(pendingCoordinatePages.size)throw new Error('불필요한 이탈 경고');
-editedPaneElement.contentDocument.body.dataset.coordinateDownloadPending='true';editedDocumentHandlers['review-coordinate-state']();
-let unloadWarningRaised=false;
-`,testExecutionContext);
-windowEventHandlers.beforeunload({preventDefault(){vm.runInContext('unloadWarningRaised=true',testExecutionContext);}});
-vm.runInContext(`
-if(!unloadWarningRaised||pendingCoordinatePages.size!==1)throw new Error('이탈 경고 누락');
-selectManagerPage('walk-review');
-if(editedPaneElement.contentDocument.lastEventName!=='review-pane-hidden')throw new Error('숨긴 재생 일시정지 신호 누락');
-editedPaneElement.contentDocument.body.dataset.coordinateDownloadPending='false';editedDocumentHandlers['review-coordinate-state']();
-if(pendingCoordinatePages.size)throw new Error('다운로드 후 변경 상태 남음');
-`,testExecutionContext);
-console.log('검색·분류·이전/다음·브라우저 방문 기록·필터 복원·현재 위치·접기·편집 보존 통과');
+import {test} from 'node:test';
 
-vm.runInContext(`
-for(const currentRetiredIdentifier of ['worldbuilding-author','worldbuilding-library','book-20260923-235221-ccd9df44']){
- if(selectManagerPage(currentRetiredIdentifier)!==false)throw new Error('폐기된 문서 메뉴가 열림');
- location.hash='#'+currentRetiredIdentifier;
- restoreManagerLocation();
- if(managerPaneElements.has(currentRetiredIdentifier))throw new Error('폐기된 문서 프레임 생성');
+const currentTemplateSource=readFileSync(new URL('../ui/asset_review/frame-manager.html',import.meta.url),'utf8');
+const currentPageRecords=[{id:'walk-review'},{id:'walk-anchors'},{id:'standing-anchors'},{id:'map-review-iseulon'},{id:'animation-1'}];
+function evaluateManagerRedirect(currentSourceHref,currentHistoryState=null){
+ const currentElementRecords={'#managementLink':{},'#navigationStatus':{}};
+ let currentRedirectTarget=null;
+ const currentExecutionContext=vm.createContext({URL,decodeURIComponent,location:{href:currentSourceHref,replace:currentTargetHref=>{currentRedirectTarget=currentTargetHref;}},history:{state:currentHistoryState},document:{querySelector:currentSelectorText=>currentElementRecords[currentSelectorText]}});
+ vm.runInContext(currentTemplateSource.split('<script>')[1].split('</script>')[0].replace('__MANAGER_PAGES__',JSON.stringify(currentPageRecords)),currentExecutionContext);
+ return {target:currentRedirectTarget,message:currentElementRecords['#navigationStatus'].textContent,link:currentElementRecords['#managementLink'].href};
 }
-if(filterManagerRecords('','document-management').length!==0)throw new Error('폐기된 문서 분류가 남음');
-`,testExecutionContext);
-assert.doesNotMatch(sourceTemplateText,/openWorldbuilding|openBookEditor|\/worldbuilding\//);
-console.log('폐기된 문서 메뉴·이전 주소 진입 제거 확인');
-
-vm.runInContext(`
-if(filterManagerRecords('Qwen','image-generation').length!==2)throw new Error('이미지 생성 검색 실패');
-selectManagerPage('image-generator');
-if(managerPaneElements.get('image-generator').src!=='/image-generation/')throw new Error('이미지 생성 진입점 오류');
-`,testExecutionContext);
-
-vm.runInContext("if(!selectManagerPage('writer-agent')||managerPaneElements.get('writer-agent').src!=='/writer-agent/')throw new Error('작가 에이전트 연결 실패');",testExecutionContext);
+test('이전 해시 주소와 저장 검색·분류를 같은 서버의 공용 메뉴로 연결한다',()=>{
+ const currentResult=evaluateManagerRedirect('http://localhost:8770/preview.html#walk-anchors',{pageIdentifier:'walk-anchors',searchQueryText:'걷기 앵커',selectedCategoryName:'animation'});
+ const currentTargetUrl=new URL(currentResult.target);
+ assert.equal(currentTargetUrl.origin,'http://localhost:8770');assert.equal(currentTargetUrl.pathname,'/management/');
+ assert.equal(currentTargetUrl.searchParams.get('tool'),'walk-anchors');assert.equal(currentTargetUrl.searchParams.get('search'),'걷기 앵커');assert.equal(currentTargetUrl.searchParams.get('category'),'animation');assert.equal(currentTargetUrl.hash,'');assert.equal(currentResult.link,currentResult.target);
+});
+test('명시적 쿼리가 이전 상태보다 우선하며 동작·전장·언어를 유지한다',()=>{
+ const currentTargetUrl=new URL(evaluateManagerRedirect('http://localhost:8770/preview.html?tool=standing-anchors&search=idle&action=walk&field=all&locale=en#walk-anchors',{pageIdentifier:'standing-anchors',searchQueryText:'old'}).target);
+ assert.equal(currentTargetUrl.searchParams.get('tool'),'standing-anchors');assert.equal(currentTargetUrl.searchParams.get('search'),'idle');assert.equal(currentTargetUrl.searchParams.get('action'),'walk');assert.equal(currentTargetUrl.searchParams.get('field'),'all');assert.equal(currentTargetUrl.searchParams.get('locale'),'en');
+ assert.equal(new URL(evaluateManagerRedirect('http://localhost/preview.html#map-reviewdetails').target).searchParams.get('tool'),'map-review');
+ assert.equal(new URL(evaluateManagerRedirect('http://localhost/preview.html#animation-3').target).searchParams.get('tool'),'animation-3');
+});
+test('미등록 대상·깨진 해시·파일 직접 실행은 자동 이동하지 않는다',()=>{
+ for(const currentSourceHref of ['http://localhost/preview.html#missing','http://localhost/preview.html#%ZZ','file:///tmp/preview.html']){
+  const currentResult=evaluateManagerRedirect(currentSourceHref);assert.equal(currentResult.target,null);assert.ok(currentResult.message);
+ }
+ assert.equal(evaluateManagerRedirect('http://localhost/preview.html').target,'http://localhost/management/');
+});
+test('호환 문서는 자식 문서를 만들거나 실행 코드를 재구성하지 않는다',()=>{
+ assert.doesNotMatch(currentTemplateSource,/<iframe|createElement\(['"]iframe|contentDocument|contentWindow|srcdoc/);
+});

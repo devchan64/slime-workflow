@@ -76,6 +76,25 @@ def load_static_review_route_identifiers(manager_source_path):
         static_review_routes[current_request_path]=current_identifier_value
     return static_review_routes
 
+def read_review_document_content(review_root_directory, requested_document_path):
+    """과거 허브 게시본도 원본 파일을 바꾸지 않고 현재 메뉴 연결문으로 제공한다."""
+    manager_source_path = review_root_directory/'manager-source.json'
+    if requested_document_path != review_root_directory/'preview.html' or not manager_source_path.is_file():
+        return requested_document_path.read_bytes()
+    manager_source_record = json.loads(manager_source_path.read_text())
+    current_page_records = manager_source_record.get('pages')
+    if not isinstance(current_page_records, list) or any(
+        not isinstance(current_page_record, dict)
+        or not isinstance(current_page_record.get('id'), str)
+        or not current_page_record['id']
+        for current_page_record in current_page_records
+    ):
+        raise ValueError('관리 메뉴 게시 목록 형식 오류')
+    current_page_payload = json.dumps(current_page_records, ensure_ascii=False).replace('<', '\\u003c')
+    current_document_text = resolve_review_ui_asset('frame-manager.html').read_text()
+    return current_document_text.replace('__MANAGER_PAGES__', current_page_payload).encode()
+
+
 def inject_review_live_reload(html_content):
     if b'id="review-live-reload"' in html_content:
         return html_content
@@ -461,7 +480,11 @@ def run_review_server(parsed_argument_values):
                 return None
             self.path = '/'+validated_request_path.relative_to(review_root_directory).as_posix()
             if validated_request_path.suffix.lower() == '.html':
-                response_content = inject_review_live_reload(validated_request_path.read_bytes())
+                try:
+                    response_content = inject_review_live_reload(read_review_document_content(review_root_directory, validated_request_path))
+                except (ValueError, OSError) as current_document_error:
+                    self.send_error(500, str(current_document_error))
+                    return None
                 self.send_response(200)
                 self.send_header('Content-Type', 'text/html; charset=utf-8')
                 self.send_header('Content-Length', str(len(response_content)))
@@ -477,7 +500,7 @@ def run_review_server(parsed_argument_values):
             self.send_header('Cross-Origin-Resource-Policy','same-origin')
             super().end_headers()
         def log_message(self,request_message_format,*request_message_arguments):
-            # 자동 새로고침 상태 확인은 각 iframe에서 반복되므로 서버 로그·요청 수에서 제외한다.
+            # 자동 새로고침 상태 확인은 각 검수 문서에서 반복되므로 서버 로그·요청 수에서 제외한다.
             if is_review_live_reload_request(self.path):
                 return
             request_counter_value[0]+=1

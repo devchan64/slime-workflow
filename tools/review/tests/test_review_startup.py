@@ -11,6 +11,26 @@ from tools.review import serve
 
 
 class ReviewStartupTests(unittest.TestCase):
+    def test_legacy_hub_serves_current_navigation_without_rewriting_snapshot(self):
+        with tempfile.TemporaryDirectory() as temporary_directory_path:
+            current_review_root = Path(temporary_directory_path)
+            current_entry_path = current_review_root/'preview.html'
+            current_entry_path.write_text('<iframe src="old.html"></iframe>')
+            self.assertIn(b'<iframe', serve.read_review_document_content(current_review_root, current_entry_path))
+            current_source_path = current_review_root/'manager-source.json'
+            current_source_path.write_text('{"pages":[{"id":"walking</script>"}]}')
+            current_response_content = serve.read_review_document_content(current_review_root, current_entry_path)
+            self.assertNotIn(b'<iframe', current_response_content)
+            self.assertIn(b'location.replace', current_response_content)
+            self.assertIn(b'walking\\u003c/script>', current_response_content)
+            self.assertIn('<iframe', current_entry_path.read_text())
+            current_other_path = current_review_root/'anchors.html'
+            current_other_path.write_text('original anchors')
+            self.assertEqual(serve.read_review_document_content(current_review_root, current_other_path), b'original anchors')
+            current_source_path.write_text('{"pages":[{}]}')
+            with self.assertRaisesRegex(ValueError, '게시 목록'):
+                serve.read_review_document_content(current_review_root, current_entry_path)
+
     def test_generator_settings_are_watched(self):
         parsed_argument_values = serve.parse_review_arguments([])
         watched_root_paths = serve.collect_review_watch_paths(parsed_argument_values)

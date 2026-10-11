@@ -18,7 +18,7 @@ if (!document.referenceImageDropCaptureInstalled) {
     document.referenceImageDropCaptureInstalled = true;
 }
 
-// 긴 관리 iframe의 높이가 아니라 실제 화면을 기준으로 참조를 확인한다.
+// 실제 브라우저 화면 높이를 기준으로 참조를 확인한다.
 if (!document.referencePreviewCaptureInstalled) {
     const referencePreviewViewportRatio = 0.8;
     document.addEventListener('click', function openReferenceImagePreview(currentClickEvent) {

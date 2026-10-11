@@ -1,144 +1,25 @@
-<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>SLIME 관리도구</title><style>
-nav button{background:transparent;color:var(--text-secondary)}#context{display:flex;justify-content:space-between;gap:12px;font-size:12px;color:var(--text-secondary)}iframe{border:0;width:100%;height:100%;display:block;background:var(--surface-base)}iframe[hidden]{display:none}#workspace{overflow:auto}#uiReviewControls{padding:8px;gap:12px;align-items:center}#uiReviewControls:not([hidden]){display:flex;flex-wrap:wrap}#uiReviewControls label{display:flex;gap:8px;align-items:center}footer{border-top:1px solid var(--border-subtle);font-size:12px;color:var(--text-secondary)}
-</style><body class="manager-shell"><header><div><h1>SLIME 관리도구</h1><p>작가 AI · 이미지 생성 · 에셋 검수</p></div><div class="manager-header-actions"><span id="managerEditStatus" role="status"></span><span class="badge">로컬 검수</span></div></header><div class="manager-layout"><section id="managerPicker" class="manager-picker" aria-label="검수 대상 검색">
-<div class="search-controls"><label>검색<input id="assetSearch" type="search" placeholder="한국어 이름, ID, 검수 종류, 실행 날짜" aria-label="관리도구 검수 검색" autocomplete="off"></label><label>분류<select id="reviewCategory"><option value="all">전체</option><option value="writer-agent">작가 AI 에이전트</option><option value="image-generation">이미지 생성</option><option value="animation">등록 애니메이션</option><option value="animation-tool">애니메이션 도구</option><option value="tile-review">타일맵 검수</option><option value="game-ui">게임 UI · 디자인 시스템</option></select></label><label>화면 방식<select id="reviewUiMode"><option value="all">전체</option><option value="gradio">Gradio 전환 완료</option><option value="html">기존 화면</option></select></label><button id="clearSearch" type="button">검색 초기화</button></div>
-<p id="searchStatus" role="status" aria-live="polite"></p><nav id="assetSelection" aria-label="검수 대상 목록"></nav>
-</section><div class="manager-content"><nav id="context" aria-label="현재 검수 위치와 이동"><div class="current-review-location"><span id="currentCategoryLabel" class="muted"></span><strong id="currentPageLabel" aria-live="polite"></strong><details><summary>원본 정보</summary><span id="currentLabel"></span></details></div><div class="review-page-navigation"><button id="previousReview" type="button" aria-label="이전 검수 항목">← 이전</button><span id="navigationPosition" role="status"></span><button id="nextReview" type="button" aria-label="다음 검수 항목">다음 →</button><button id="revealCurrentReview" type="button" hidden>현재 항목 찾기</button><a id="standaloneLink" target="_blank" rel="noopener">별도 탭 ↗</a></div></nav><section id="uiReviewControls" hidden aria-label="게임 UI 검수 환경"><label>화면 크기<select id="uiReviewViewport"><option value="1440x900">데스크톱 1440 × 900</option><option value="390x844">모바일 세로 390 × 844</option><option value="844x390">모바일 가로 844 × 390</option></select></label><label>언어<select id="uiReviewLocale"><option value="ko">한국어</option><option value="en">English</option></select></label><button id="resetUiReview">초기 상태 복원</button><span>크기는 CSS 픽셀 기준 · 작은 창에서는 가로 스크롤</span></section><main id="workspace"></main></div></div><footer>메뉴 전환 시 좌표 편집 상태가 유지됩니다. 새로고침·종료 전 변경을 반영하거나 필요한 결과를 저장하세요.</footer><script>
-const managerPageRecords=[...__MANAGER_PAGES__.filter(page=>!['three-reference-generator','image-generator','floor-tile-generator','seamless-tile-generator'].includes(page.id)),{id:'writer-agent',label:'작가 AI 에이전트',path:'/writer-agent/',category:'writer-agent',description:'문서 학습 · 아이디어 작성 · 의존도 기반 중복 정리 · 실행 기록'}];
-const managerPaneElements=new Map();
-const pendingCoordinatePages=new Set();
-let selectedPageIdentifier='';
-let filteredPageRecords=[];
-function formatManagerMenuLabel(currentPageRecord){
- const categoryLabelValues={'writer-agent':'작가 AI','image-generation':'이미지 생성',animation:'애니메이션','animation-tool':'애니메이션 도구','game-ui':'게임 UI'};
- const categoryPrefixValue=currentPageRecord.category==='tile-review'?'':(categoryLabelValues[currentPageRecord.category]||'검수')+' · ';
- const pageDisplayLabel=currentPageRecord.id==='map-review'?'마을 맵 검수':currentPageRecord.label;
- return categoryPrefixValue+pageDisplayLabel+(pendingCoordinatePages.has(currentPageRecord.id)?' · 변경됨':'');
-}
-function filterManagerRecords(searchQueryText,selectedCategoryName,selectedUiModeName){
- const searchTokenValues=searchQueryText.normalize('NFKC').toLocaleLowerCase('ko').trim().split(/\s+/).filter(Boolean);
- return managerPageRecords.filter(currentPageRecord=>{
-  const categoryMatchesValue=selectedCategoryName==='all'||currentPageRecord.category===selectedCategoryName;
-  const uiModeMatchesValue=selectedUiModeName==='all'||(selectedUiModeName==='gradio'?currentPageRecord.uiMode==='gradio':currentPageRecord.uiMode!=='gradio');
-  const searchableRecordText=`${currentPageRecord.label} ${currentPageRecord.description} ${currentPageRecord.id}`.normalize('NFKC').toLocaleLowerCase('ko');
-  return categoryMatchesValue&&uiModeMatchesValue&&searchTokenValues.every(currentSearchToken=>searchableRecordText.includes(currentSearchToken));
- });
-}
-function saveManagerLocation(historyUpdateMode){
- const managerHistoryState={pageIdentifier:selectedPageIdentifier,searchQueryText:document.querySelector('#assetSearch').value,selectedCategoryName:document.querySelector('#reviewCategory').value,selectedUiModeName:document.querySelector('#reviewUiMode').value};
- if(historyUpdateMode==='push'&&location.hash!==`#${selectedPageIdentifier}`)history.pushState(managerHistoryState,'',`#${selectedPageIdentifier}`);
- else if(historyUpdateMode==='replace')history.replaceState(managerHistoryState,'',`#${selectedPageIdentifier}`);
-}
-function renderNavigationPosition(){
- const selectedResultIndex=filteredPageRecords.findIndex(currentPageRecord=>currentPageRecord.id===selectedPageIdentifier);
- document.querySelector('#previousReview').disabled=selectedResultIndex<=0;
- document.querySelector('#nextReview').disabled=selectedResultIndex<0||selectedResultIndex>=filteredPageRecords.length-1;
- document.querySelector('#revealCurrentReview').hidden=selectedResultIndex>=0;
- document.querySelector('#navigationPosition').textContent=selectedResultIndex>=0?`${selectedResultIndex+1} / ${filteredPageRecords.length}`:'현재 항목은 검색 결과 밖에 있습니다';
-}
-function renderManagerResults(){
- filteredPageRecords=filterManagerRecords(document.querySelector('#assetSearch').value,document.querySelector('#reviewCategory').value,document.querySelector('#reviewUiMode').value);
- const assetSelectionElement=document.querySelector('#assetSelection');
- assetSelectionElement.replaceChildren();
- for(const currentPageRecord of filteredPageRecords){
-  const currentOptionElement=document.createElement('button');
-  currentOptionElement.type='button';
-  currentOptionElement.value=currentPageRecord.id;
-  currentOptionElement.setAttribute('aria-current',currentPageRecord.id===selectedPageIdentifier?'page':'false');
-  currentOptionElement.onclick=()=>selectManagerPage(currentPageRecord.id);
-  currentOptionElement.title=currentPageRecord.description;
-  currentOptionElement.textContent=formatManagerMenuLabel(currentPageRecord);
-  assetSelectionElement.append(currentOptionElement);
+<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>SLIME 관리도구 연결</title><style></style><body><main><h1>SLIME 관리도구</h1><p id="navigationStatus" role="status">공용 Gradio 메뉴로 연결합니다.</p><a id="managementLink" href="/management/">관리 메뉴 열기</a><noscript><p>항목 선택을 복원하려면 JavaScript를 켜거나 관리 메뉴에서 직접 선택하세요.</p></noscript></main><script>
+const managerPageRecords=[...__MANAGER_PAGES__];
+try{
+ const currentSourceLocation=new URL(location.href);
+ if(!['http:','https:'].includes(currentSourceLocation.protocol))throw Error('이 검수 폴더를 tools/review/serve.py --root로 실행한 뒤 서버 주소로 접속하세요.');
+ const currentLegacyIdentifier=decodeURIComponent(currentSourceLocation.hash.slice(1));
+ const currentRequestedIdentifier=currentSourceLocation.searchParams.get('tool')||currentLegacyIdentifier;
+ const currentSelectedIdentifier=currentRequestedIdentifier==='map-reviewdetails'?'map-review':currentRequestedIdentifier;
+ const currentRegisteredIdentifier=({'map-review':'map-review-iseulon','animation-2':'animation-1','animation-3':'animation-1'})[currentSelectedIdentifier]||currentSelectedIdentifier;
+ if(currentSelectedIdentifier&&!managerPageRecords.some(currentPageRecord=>[currentSelectedIdentifier,currentRegisteredIdentifier].includes(currentPageRecord.id)))throw Error('게시 목록에 없는 검수 항목입니다. 관리 메뉴에서 항목을 선택하세요.');
+ const currentTargetLocation=new URL('/management/',currentSourceLocation);
+ if(currentSelectedIdentifier)currentTargetLocation.searchParams.set('tool',currentSelectedIdentifier);
+ for(const currentParameterName of ['search','category','action','field','locale','overview']){
+  if(currentSourceLocation.searchParams.has(currentParameterName))currentTargetLocation.searchParams.set(currentParameterName,currentSourceLocation.searchParams.get(currentParameterName));
  }
-
- document.querySelector('#searchStatus').textContent=filteredPageRecords.length?`${filteredPageRecords.length}개 / 전체 ${managerPageRecords.length}개 · 검색 후 Enter로 첫 항목 열기`:'검색 결과가 없습니다. 검색어를 바꾸거나 초기화하세요. 현재 검수 화면은 유지됩니다.';
- renderNavigationPosition();
-}
-function selectManagerPage(nextPageIdentifier,historyUpdateMode='push'){
- const selectedPageRecord=managerPageRecords.find(currentPageRecord=>currentPageRecord.id===nextPageIdentifier);
- if(!selectedPageRecord)return false;
- selectedPageIdentifier=nextPageIdentifier;
- let selectedPaneElement=managerPaneElements.get(nextPageIdentifier);
- if(!selectedPaneElement){
-  selectedPaneElement=document.createElement('iframe');
-  selectedPaneElement.title=selectedPageRecord.label;
-  selectedPaneElement.allow="clipboard-write 'self' http://127.0.0.1:"+(Number(location.port)+100);
-  selectedPaneElement.src=selectedPageRecord.path;
-  selectedPaneElement.addEventListener('load',()=>{
-   if(!selectedPaneElement.contentDocument)return;
-   if(selectedPageRecord.category!=='game-ui')selectedPaneElement.contentDocument.body.classList.add('embedded-review');
-   if(!selectedPageRecord.anchorEditor)return;
-   const selectedPaneDocument=selectedPaneElement.contentDocument;
-   const updatePendingCoordinates=()=>{if(selectedPaneDocument.body.dataset.coordinateDownloadPending==='true')pendingCoordinatePages.add(nextPageIdentifier);else pendingCoordinatePages.delete(nextPageIdentifier);document.querySelector('#managerEditStatus').textContent=pendingCoordinatePages.size?`${pendingCoordinatePages.size}개 대상의 좌표 다운로드 필요`:'';for(const currentOptionElement of document.querySelector('#assetSelection').children){const currentPageRecord=managerPageRecords.find(currentPageRecord=>currentPageRecord.id===currentOptionElement.value);currentOptionElement.textContent=formatManagerMenuLabel(currentPageRecord);}};
-   selectedPaneDocument.addEventListener('review-coordinate-state',updatePendingCoordinates);
-   updatePendingCoordinates();
-  });
-  document.querySelector('#workspace').append(selectedPaneElement);
-  managerPaneElements.set(nextPageIdentifier,selectedPaneElement);
+ const currentSavedNavigation=history.state;
+ if(currentSavedNavigation?.pageIdentifier===currentSelectedIdentifier){
+  for(const [currentParameterName,currentSavedValue] of [['search',currentSavedNavigation.searchQueryText],['category',currentSavedNavigation.selectedCategoryName]]){
+   if(!currentTargetLocation.searchParams.has(currentParameterName)&&typeof currentSavedValue==='string'&&currentSavedValue&&currentSavedValue!=='all')currentTargetLocation.searchParams.set(currentParameterName,currentSavedValue);
+  }
  }
- for(const [currentPageIdentifier,currentPaneElement]of managerPaneElements){if(!currentPaneElement.hidden&&currentPageIdentifier!==nextPageIdentifier&&currentPaneElement.contentDocument)currentPaneElement.contentDocument.dispatchEvent(new Event('review-pane-hidden'));currentPaneElement.hidden=currentPageIdentifier!==nextPageIdentifier;}
- for(const currentOptionElement of document.querySelector('#assetSelection').children)currentOptionElement.setAttribute('aria-current',currentOptionElement.value===nextPageIdentifier?'page':'false');
- document.querySelector('#currentLabel').textContent=selectedPageRecord.description;
- document.querySelector('#currentPageLabel').textContent=selectedPageRecord.label;
- document.querySelector('#currentCategoryLabel').textContent=selectedPageRecord.category==='writer-agent'?'문서 학습 · 작성 · 중복 정리':selectedPageRecord.category==='image-generation'?'이미지 생성':selectedPageRecord.category==='animation'?'등록 애니메이션':selectedPageRecord.category==='tile-review'?'타일맵 검수':selectedPageRecord.category==='game-ui'?'게임 UI · 디자인 시스템':'검수';
- document.title=selectedPageRecord.label+' · SLIME 관리도구';
- document.querySelector('#standaloneLink').href=selectedPageRecord.path;
- document.querySelector('#standaloneLink').hidden=false;
- document.querySelector('#uiReviewControls').hidden=selectedPageRecord.category!=='game-ui';
- applyReviewViewport();
- if(selectedPaneElement.contentDocument)selectedPaneElement.contentDocument.dispatchEvent(new Event('review-pane-visible'));
- renderNavigationPosition();
- saveManagerLocation(historyUpdateMode);
- return true;
-}
-function updateManagerFilters(){renderManagerResults();saveManagerLocation('replace');}
-document.querySelector('#assetSearch').oninput=updateManagerFilters;
-document.querySelector('#reviewCategory').onchange=updateManagerFilters;
-document.querySelector('#reviewUiMode').onchange=updateManagerFilters;
-function resetManagerFilters(){document.querySelector('#assetSearch').value='';document.querySelector('#reviewCategory').value='all';document.querySelector('#reviewUiMode').value='all';updateManagerFilters();}
-document.querySelector('#clearSearch').onclick=()=>{resetManagerFilters();document.querySelector('#assetSearch').focus();};
-document.querySelector('#revealCurrentReview').onclick=resetManagerFilters;
-function moveManagerSelection(selectionStepAmount){const selectedResultIndex=filteredPageRecords.findIndex(currentPageRecord=>currentPageRecord.id===selectedPageIdentifier);const nextResultIndex=selectedResultIndex+selectionStepAmount;if(selectedResultIndex<0||nextResultIndex<0||nextResultIndex>=filteredPageRecords.length)return;selectManagerPage(filteredPageRecords[nextResultIndex].id);}
-document.querySelector('#previousReview').onclick=()=>moveManagerSelection(-1);
-document.querySelector('#nextReview').onclick=()=>moveManagerSelection(1);
-document.querySelector('#assetSearch').onkeydown=currentKeyboardEvent=>{
- if(currentKeyboardEvent.key==='Enter'&&filteredPageRecords.length){currentKeyboardEvent.preventDefault();selectManagerPage(filteredPageRecords[0].id);}
- if(currentKeyboardEvent.key==='Escape'){document.querySelector('#assetSearch').value='';updateManagerFilters();}
-};
-function restoreManagerLocation(){
- const requestedPageIdentifier=location.hash.slice(1)==='map-reviewdetails'?'map-review':location.hash.slice(1);
- const savedNavigationState=history.state;
- if(savedNavigationState&&savedNavigationState.pageIdentifier===requestedPageIdentifier){document.querySelector('#assetSearch').value=savedNavigationState.searchQueryText;document.querySelector('#reviewCategory').value=savedNavigationState.selectedCategoryName;document.querySelector('#reviewUiMode').value=savedNavigationState.selectedUiModeName||'all';}
- else{document.querySelector('#assetSearch').value='';document.querySelector('#reviewCategory').value='all';document.querySelector('#reviewUiMode').value='all';}
- renderManagerResults();
- if(!selectManagerPage(requestedPageIdentifier,'none'))selectManagerPage(managerPageRecords[0].id,'replace');
-}
-
-const reviewViewportDimensions={'1440x900':[1440,900],'390x844':[390,844],'844x390':[844,390]};
-function applyReviewViewport(){
- const selectedReviewRecord=managerPageRecords.find(currentPageRecord=>currentPageRecord.id===selectedPageIdentifier);
- const selectedReviewFrame=managerPaneElements.get(selectedPageIdentifier);
- if(!selectedReviewFrame)return;
- const selectedViewportSize=reviewViewportDimensions[document.querySelector('#uiReviewViewport').value];
- if(selectedReviewRecord.category==='game-ui'){
-  selectedReviewFrame.style.width=selectedViewportSize[0]+'px';selectedReviewFrame.style.height=selectedViewportSize[1]+'px';
- }else{selectedReviewFrame.style.width='';selectedReviewFrame.style.height='';}
-}
-function resetReviewScenario(){
- const selectedReviewRecord=managerPageRecords.find(currentPageRecord=>currentPageRecord.id===selectedPageIdentifier);
- if(selectedReviewRecord.category!=='game-ui')return;
- const selectedReviewLocation=new URL(selectedReviewRecord.path,location.href);
- selectedReviewLocation.searchParams.set('locale',document.querySelector('#uiReviewLocale').value);
- managerPaneElements.get(selectedPageIdentifier).src=selectedReviewLocation.href;
-}
-document.querySelector('#uiReviewViewport').onchange=applyReviewViewport;
-document.querySelector('#uiReviewLocale').onchange=resetReviewScenario;
-document.querySelector('#resetUiReview').onclick=resetReviewScenario;
-
-window.addEventListener('popstate',restoreManagerLocation);
-window.addEventListener('hashchange',restoreManagerLocation);
-window.addEventListener('beforeunload',currentUnloadEvent=>{if(pendingCoordinatePages.size){currentUnloadEvent.preventDefault();currentUnloadEvent.returnValue='';}});
-restoreManagerLocation();
-saveManagerLocation('replace');
+ document.querySelector('#managementLink').href=currentTargetLocation.href;
+ location.replace(currentTargetLocation.href);
+}catch(currentNavigationError){document.querySelector('#navigationStatus').textContent=currentNavigationError.message;}
 </script></body></html>
-<script src="/management/gpu-status.js"></script>
