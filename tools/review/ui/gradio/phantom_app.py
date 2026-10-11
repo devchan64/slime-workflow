@@ -95,8 +95,10 @@ def build_phantom_interface(current_server_address):
             current_shift_control=gr.Number(value=current_defaults_record['flow_shift'],minimum=0.1,maximum=30,label='Flow shift')
             current_guidance_control=gr.Number(value=current_defaults_record['guidance_scale'],minimum=1,maximum=20,label='텍스트 가이던스')
             current_conditioning_control=gr.Number(value=current_defaults_record['conditioning_scale'],minimum=0,maximum=20,label='이미지 가이던스')
-        current_generate_button=gr.Button('영상 생성',variant='primary')
-        gr.Markdown('생성 중에는 버튼이 비활성화됩니다. 완료를 기다리거나 이력에서 선택 작업을 중지하세요.')
+        current_generate_button=gr.Button('영상 생성 · 대기열 등록',variant='primary')
+        with gr.Column() as current_confirmation_container:
+            pass
+        gr.Markdown('생성 중에도 다음 작업을 등록할 수 있습니다. 입력 확인 후 대기열에 추가하며 실행 중인 작업은 계속 진행합니다.')
         gr.Markdown('### 생성 상태 및 결과')
         current_job_control=gr.Textbox(label='생성 ID')
         current_status_display=gr.Markdown('생성 후 상태가 5초마다 갱신됩니다. 이력에서 이전 입력을 불러올 수 있습니다.')
@@ -105,16 +107,16 @@ def build_phantom_interface(current_server_address):
         current_log_output,current_log_refresh,_=build_execution_logs()
         def start_phantom_generation(*current_input_values):
             current_job_record=execute_phantom_command('generate',build_phantom_payload(current_input_values[:4],*current_input_values[4:]))
-            return current_job_record['id'],'GPU 대기열에 등록했습니다.',gr.update(interactive=False)
-        bind_gpu_generation_confirmation(current_generate_button,start_phantom_generation,[*current_reference_controls,current_prompt_control,current_frames_control,current_seed_control,current_negative_control,current_resolution_control,current_steps_control,current_shift_control,current_guidance_control,current_conditioning_control],[current_job_control,current_status_display,current_generate_button])
+            return current_job_record['id'],'GPU 대기열에 등록했습니다.'
+        bind_gpu_generation_confirmation(current_generate_button,start_phantom_generation,[*current_reference_controls,current_prompt_control,current_frames_control,current_seed_control,current_negative_control,current_resolution_control,current_steps_control,current_shift_control,current_guidance_control,current_conditioning_control],[current_job_control,current_status_display],generation_confirmation_container=current_confirmation_container)
         def refresh_phantom_result(current_job_identifier,current_logs_enabled,current_previous_result):
             if not current_job_identifier:
-                return gr.skip(),gr.skip(),gr.skip(),gr.skip(),gr.skip()
+                return gr.skip(),gr.skip(),gr.skip(),gr.skip()
             current_status_record=execute_phantom_command('status',{'id':current_job_identifier})
             current_result_identity_value=current_status_record.get('video','')
-            return describe_phantom_status(current_status_record),render_phantom_result(current_job_identifier,current_status_record,current_server_address) if current_result_identity_value and current_result_identity_value!=current_previous_result else gr.skip(),current_status_record.get('log','') if current_logs_enabled else gr.skip(),current_result_identity_value,gr.update(interactive=current_status_record['status'] not in ('running','queued'))
+            return describe_phantom_status(current_status_record),render_phantom_result(current_job_identifier,current_status_record,current_server_address) if current_result_identity_value and current_result_identity_value!=current_previous_result else gr.skip(),current_status_record.get('log','') if current_logs_enabled else gr.skip(),current_result_identity_value
         current_refresh_timer=gr.Timer(5)
-        current_refresh_timer.tick(refresh_phantom_result,[current_job_control,current_log_refresh,current_result_identity],[current_status_display,current_result_display,current_log_output,current_result_identity,current_generate_button],queue=False,show_progress='hidden')
+        current_refresh_timer.tick(refresh_phantom_result,[current_job_control,current_log_refresh,current_result_identity],[current_status_display,current_result_display,current_log_output,current_result_identity],queue=False,show_progress='hidden')
         def restore_phantom_inputs(current_history_record):
             if current_history_record['request'].get('phantom',{}).get('task') != 's2v':
                 raise gr.Error('이 이력은 비디오·마스크 조건 실험입니다. 현재 R2V 입력 화면으로 복원할 수 없습니다. 기록 위치에서 원본 입력을 확인하세요.')
