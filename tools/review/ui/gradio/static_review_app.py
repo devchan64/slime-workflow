@@ -39,6 +39,7 @@ def create_static_review_loader(review_server_port, static_review_paths):
     review_server_base=json.dumps(f'http://127.0.0.1:{review_server_port}')
     return f"""async()=>{{
 {read_native_anchor_loader()}
+{(Path(__file__).with_name("game_native_loader.js")).read_text()}
 const staticReviewRoot=document.querySelector('#static-review-root');
 if(!staticReviewRoot||staticReviewRoot.dataset.staticReviewLoaded)return;
 staticReviewRoot.dataset.staticReviewLoaded='true';
@@ -53,7 +54,8 @@ const currentSelectedAction=new URLSearchParams(window.location.search).get('act
 if(currentSelectedAction)staticReviewPageLocation.searchParams.set('action',currentSelectedAction);
 const staticReviewPageUrl=staticReviewPageLocation.href;
 if(selectedReviewPath.split('?')[0].endsWith('/anchors.html')){{await mountNativeAnchorReview(staticReviewRoot,staticReviewPageLocation);return;}}
-// 게임 디자인 및 지형 검수의 스타일·모듈·중첩 프리뷰 상대 경로를 원래 문서에 격리한다.
+if(selectedReviewPath.split('?')[0].endsWith('/design-system.html')){{await mountNativeGameReview(staticReviewRoot,staticReviewPageLocation);return;}}
+// 미전환 전장 검수는 별도 문서 수명을 유지한다.
 {{
   const currentReviewFrame=document.createElement('iframe');
   currentReviewFrame.title='게임 디자인 검수';

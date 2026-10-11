@@ -48,6 +48,7 @@ class StaticReviewGradioTest(unittest.TestCase):
         self.assertNotIn('terrain-preview.html',loader_script_value)
         self.assertNotIn('contentWindow.anchorReviewPlayback',loader_script_value)
         self.assertIn('await mountNativeAnchorReview(staticReviewRoot,staticReviewPageLocation)',loader_script_value)
+        self.assertIn('await mountNativeGameReview(staticReviewRoot,staticReviewPageLocation)',loader_script_value)
         self.assertNotIn('contentWindow.anchorReviewSeekFrame',loader_script_value)
         current_terrain_events=[current_event_record for current_event_record in interface_blocks_value.get_config_file()['dependencies'] if 'window.terrainReviewControls' in (current_event_record.get('js') or '')]
         self.assertEqual(len(current_terrain_events),0)
@@ -55,6 +56,43 @@ class StaticReviewGradioTest(unittest.TestCase):
         self.assertFalse(interface_blocks_value.css)
         self.assertIn('static-review-root',str(interface_blocks_value.get_config_file()))
         self.assertIn('aria-busy="true"',str(interface_blocks_value.get_config_file()))
+
+    def test_game_mount_disposes_once_and_ignores_detached_request(self):
+        current_loader_source=(Path(__file__).parents[1]/'ui/gradio/game_native_loader.js').read_text()
+        current_script_source="""
+const assert=require('node:assert/strict'),vm=require('node:vm');
+const currentManifestRecord={schemaVersion:2,kind:'slime-ui-review',pages:[{id:'design-system',path:'review/design-system.html'}],componentModules:{'design-system':'assets/native.js'},files:[{path:'assets/native.js',sha256:'a'.repeat(64)}]};
+let currentMountCount=0,currentDisposeCount=0,currentObserverCallback,currentDisconnectCount=0;
+const currentWindowEvents=new Map();
+global.window={addEventListener:(name,callback)=>currentWindowEvents.set(name,callback),removeEventListener:name=>currentWindowEvents.delete(name)};
+global.document={body:{},createElement:()=>({setAttribute(){}})};
+global.MutationObserver=class{constructor(callback){currentObserverCallback=callback;}observe(){}disconnect(){currentDisconnectCount++;}};
+const createReviewRoot=()=>({isConnected:true,children:[],attributes:{},replaceChildren(...children){this.children=children;},setAttribute(name,value){this.attributes[name]=value;}});
+(async()=>{
+ const currentModuleInstance=new vm.SyntheticModule(['mountReviewPage'],function(){this.setExport('mountReviewPage',()=>{currentMountCount++;return {dispose(){currentDisposeCount++;}};});});
+ await currentModuleInstance.link(()=>{});await currentModuleInstance.evaluate();
+ const mountNativeGameReview=vm.compileFunction("""+json.dumps(current_loader_source+'\nreturn mountNativeGameReview;')+""",[],{importModuleDynamically:()=>currentModuleInstance})();
+ const currentPageLocation=new URL('http://localhost/ui-aaaaaaaaaaaaaaaa/review/design-system.html');
+ global.fetch=async()=>({ok:true,json:async()=>currentManifestRecord});
+ const currentFirstRoot=createReviewRoot();
+ await mountNativeGameReview(currentFirstRoot,currentPageLocation);
+ assert.equal(currentMountCount,1);assert.equal(currentFirstRoot.attributes['aria-busy'],'false');
+ const currentPagehideHandler=currentWindowEvents.get('pagehide');currentPagehideHandler();currentPagehideHandler();
+ assert.equal(currentDisposeCount,1);assert.equal(currentDisconnectCount,1);assert.equal(currentWindowEvents.size,0);
+ let currentResolveRequest,currentRequestSignal;
+ global.fetch=(_url,options)=>{currentRequestSignal=options.signal;return new Promise(resolve=>currentResolveRequest=resolve);};
+ const currentDetachedRoot=createReviewRoot();
+ const currentPendingMount=mountNativeGameReview(currentDetachedRoot,currentPageLocation);
+ currentDetachedRoot.isConnected=false;currentObserverCallback();assert.equal(currentRequestSignal.aborted,true);
+ currentResolveRequest({ok:true,json:async()=>currentManifestRecord});await currentPendingMount;
+ assert.equal(currentMountCount,1);assert.equal(currentDetachedRoot.children.length,0);
+ global.fetch=async()=>({ok:true,json:async()=>({...currentManifestRecord,componentModules:{'design-system':'https://outside.test/native.js'}})});
+ const currentInvalidRoot=createReviewRoot();await mountNativeGameReview(currentInvalidRoot,currentPageLocation);
+ assert.match(currentInvalidRoot.children[0].textContent,/검증된 검수 컴포넌트/);assert.equal(currentMountCount,1);assert.equal(currentWindowEvents.size,0);
+})().catch(error=>{console.error(error);process.exitCode=1;});
+"""
+        current_node_result=subprocess.run(['node','--experimental-vm-modules','-e',current_script_source],capture_output=True,text=True)
+        self.assertEqual(current_node_result.returncode,0,current_node_result.stderr)
 
     def test_anchor_history_omits_unsupported_generation_actions(self):
         current_interface_blocks=build_static_review_interface({'walk-review':'animation/anchors.html'})

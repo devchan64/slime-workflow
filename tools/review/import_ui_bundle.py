@@ -32,7 +32,9 @@ def load_ui_bundle(source_bundle_directory):
     manifest_source_bytes = (source_bundle_directory/'manifest.json').read_bytes()
     bundle_manifest_data = json.loads(manifest_source_bytes, object_pairs_hook=reject_manifest_duplicates)
     expected_manifest_fields = {'schemaVersion', 'kind', 'sourceCommit', 'sourceDirty', 'createdAt', 'pages', 'files'}
-    if not isinstance(bundle_manifest_data, dict) or set(bundle_manifest_data) != expected_manifest_fields or type(bundle_manifest_data['schemaVersion']) is not int or bundle_manifest_data['schemaVersion'] != 1 or bundle_manifest_data['kind'] != 'slime-ui-review':
+    if isinstance(bundle_manifest_data, dict) and bundle_manifest_data.get('schemaVersion') == 2:
+        expected_manifest_fields.add('componentModules')
+    if not isinstance(bundle_manifest_data, dict) or set(bundle_manifest_data) != expected_manifest_fields or type(bundle_manifest_data['schemaVersion']) is not int or bundle_manifest_data['schemaVersion'] not in (1, 2) or bundle_manifest_data['kind'] != 'slime-ui-review':
         raise ValueError('지원하지 않는 UI 검수 manifest')
     if not isinstance(bundle_manifest_data['sourceCommit'], str) or not re.fullmatch('[a-f0-9]{40}', bundle_manifest_data['sourceCommit']) or type(bundle_manifest_data['sourceDirty']) is not bool or not isinstance(bundle_manifest_data['createdAt'], str):
         raise ValueError('검수 출처 형식 오류')
@@ -61,6 +63,16 @@ def load_ui_bundle(source_bundle_directory):
         if parsed_page_location.scheme or parsed_page_location.netloc or parsed_page_location.fragment or parsed_page_location.path not in validated_bundle_files or not parsed_page_location.path.endswith('.html'):
             raise ValueError('검수 진입 HTML 누락 또는 외부 주소')
         registered_page_identifiers.add(current_page_record['id'])
+    if bundle_manifest_data['schemaVersion'] == 2:
+        current_component_modules = bundle_manifest_data['componentModules']
+        if not isinstance(current_component_modules, dict) or not current_component_modules:
+            raise ValueError('검수 컴포넌트 목록 누락 또는 형식 오류')
+        for current_page_identifier, current_module_path in current_component_modules.items():
+            if current_page_identifier not in registered_page_identifiers:
+                raise ValueError('검수 컴포넌트의 페이지가 등록되지 않았습니다.')
+            validate_bundle_path(current_module_path)
+            if not current_module_path.endswith('.js') or current_module_path not in validated_bundle_files:
+                raise ValueError('검수 컴포넌트 모듈 누락 또는 형식 오류')
     return bundle_manifest_data, validated_bundle_files, manifest_source_bytes
 
 

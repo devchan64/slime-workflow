@@ -8,7 +8,7 @@ from unittest.mock import patch
 
 from tools.review import serve
 
-from tools.review.import_ui_bundle import import_ui_bundle
+from tools.review.import_ui_bundle import import_ui_bundle, load_ui_bundle
 
 
 class UiBundleTests(unittest.TestCase):
@@ -94,6 +94,30 @@ class UiBundleTests(unittest.TestCase):
             review_output_directory.mkdir()
             with self.assertRaisesRegex(ValueError, '해시 불일치'):
                 import_ui_bundle(source_bundle_directory, review_output_directory, lambda *unused_trace_arguments: None)
+
+    def test_native_module_requires_registered_page_and_verified_javascript(self):
+        with tempfile.TemporaryDirectory() as current_temporary_directory:
+            current_bundle_directory = self.make_bundle(Path(current_temporary_directory))
+            current_manifest_path = current_bundle_directory/'manifest.json'
+            current_manifest_record = json.loads(current_manifest_path.read_text())
+            current_module_bytes = b'export function mountReviewPage(){}'
+            (current_bundle_directory/'assets').mkdir()
+            (current_bundle_directory/'assets/native.js').write_bytes(current_module_bytes)
+            current_manifest_record.update(schemaVersion=2, componentModules={'sample-ui': 'assets/native.js'})
+            current_manifest_record['files'].append({'path': 'assets/native.js', 'sha256': hashlib.sha256(current_module_bytes).hexdigest()})
+            current_manifest_path.write_text(json.dumps(current_manifest_record))
+            self.assertEqual(load_ui_bundle(current_bundle_directory)[0]['componentModules'], {'sample-ui': 'assets/native.js'})
+            for current_invalid_modules in ({}, [], {'unknown': 'assets/native.js'}, {'sample-ui': 'assets/missing.js'}, {'sample-ui': 'review/sample.html'}, {'sample-ui': '../native.js'}, {'sample-ui': 'https://example.test/native.js'}):
+                with self.subTest(componentModules=current_invalid_modules):
+                    current_manifest_record['componentModules'] = current_invalid_modules
+                    current_manifest_path.write_text(json.dumps(current_manifest_record))
+                    with self.assertRaises(ValueError):
+                        load_ui_bundle(current_bundle_directory)
+            current_manifest_record['componentModules'] = {'sample-ui': 'assets/native.js'}
+            current_manifest_path.write_text(json.dumps(current_manifest_record))
+            (current_bundle_directory/'assets/native.js').write_bytes(b'changed')
+            with self.assertRaisesRegex(ValueError, '해시 불일치'):
+                load_ui_bundle(current_bundle_directory)
 
 
 if __name__ == '__main__':
