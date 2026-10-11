@@ -791,3 +791,13 @@ MoMask와 AnyPose 기반 캐릭터 애니메이션 화면도 폐기했다. 구�
 직접 열린 Gradio 화면의 480×900 검수에서 재생기 폭과 scrollWidth는 모두 401px, 비교 패널은 각각 188.5px였다. 이 결과를 외곽 메뉴의 모바일 검증 완료로 확대하지 않는다. 검수 결과·이미지·실행기는 `.tmp/test/gradio-iframe-removal/2026-10-11_23-50-00/`에 보관한다(`separation-history.png`, `separation-480.png`). 운영 작업 생성·취소·삭제·파일 저장은 수행하지 않았다. AWS 배포·인프라·비용 변경은 없다.
 
 회귀 결과: 브라우저 재생기 Node 검사 5건, Python 검사 30건 중 29건 통과·1건 오류. 오류는 기존 `test_workflow_reference_integrity`가 요구하는 `assets/character-baselines/character-default/body-baseline-v3.yaml` 누락이며 해당 자산과 검사는 수정하지 않았다. 새 Gradio 구성·URL 계약, 기존 GUI/CLI 요청·분리 서비스·공용 이력 검사는 통과했다. 전체 로그는 `.tmp/test/gradio-iframe-removal/2026-10-11_23-59-08/checks.log`에 있다. 최초 샌드박스 실행은 공용 이력 비동기 검사에서 종료하지 않아 검사 프로세스만 종료하고 종료 코드 -15를 보존했으며, 호스트 런타임 실행에서는 3.69초에 위 결과로 종료했다.
+
+### 앵커 검수 데이터 분리 · iframe 제거 준비
+
+앵커 게시 문서는 `script#anchor-review-data[type="application/json"]`에 `schemaVersion: 1`, `sourceMetadata`, `frames`를 제공한다. 편집 실행 코드는 이 JSON을 읽으며 프레임 원본은 복제해 편집한다. 동작별 출처·이미지 URL·미저장 초안 키·게이트웨이 좌표 저장 계약은 유지한다. 새 Gradio 컴포넌트는 실행 스크립트 평가 없이 이 데이터 블록을 읽을 수 있다.
+
+공용 Python 리더는 누락·중복 블록, 닫히지 않은 블록, 실행 스크립트 형식, 중복 JSON 키, 알 수 없는 최상위 필드, 잘못된 버전과 원본·프레임 타입을 거절한다. 기존 독립 프레임 관리자 빌더는 새 JSON을 읽고, 과거 실행 산출물의 명시적인 두 상수 입력 계약도 유지한다. 새 형식이 손상되면 과거 형식으로 복구하지 않는다. 기존 게시본은 자동으로 다시 쓰지 않는다.
+
+이 단계는 데이터 계약 분리이며 앵커 iframe은 아직 제거하지 않았다. 후속 작업은 DOM 조회·재생 수명·동작 전환·이력 확인 UI를 Gradio 컴포넌트에 연결하는 것이다.
+
+Python 계약·기존 Gradio 조작 검사 13건과 Node의 동작별 출처·초안 분리, 32프레임 좌표·실행 취소·출력 크기 검사 스크립트 2개가 통과했다. 실제 Gradio 격리 화면에서 1→2 프레임, X 198→199→실행 취소 198, 재생·정지 후 원본 대비 변경 0개를 확인했으며 브라우저 콘솔 오류가 없었다. 저장·삭제 API는 거절하는 검수 서버를 사용했다. 증거: `.tmp/test/gradio-anchor-payload/2026-10-12_00-06-53/`의 `checks.log`, `controls-registered.log`, `anchor-payload-browser.png`.

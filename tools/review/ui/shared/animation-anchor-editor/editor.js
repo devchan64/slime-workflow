@@ -1,8 +1,12 @@
-const initialReviewMetadata=__SOURCE_METADATA__;
+const currentPayloadElements=document.querySelectorAll('script#anchor-review-data[type="application/json"]');
+if(currentPayloadElements.length!==1)throw Error('앵커 검수 JSON 데이터 블록이 필요합니다. 검수 페이지를 다시 게시하세요.');
+const currentReviewPayload=JSON.parse(currentPayloadElements[0].textContent);
+if(!currentReviewPayload||Array.isArray(currentReviewPayload)||Object.keys(currentReviewPayload).sort().join(',')!=='frames,schemaVersion,sourceMetadata'||currentReviewPayload.schemaVersion!==1||!currentReviewPayload.sourceMetadata||typeof currentReviewPayload.sourceMetadata!=='object'||Array.isArray(currentReviewPayload.sourceMetadata)||!Array.isArray(currentReviewPayload.frames)||!currentReviewPayload.frames.length||currentReviewPayload.frames.some(currentFrameRecord=>!currentFrameRecord||typeof currentFrameRecord!=='object'||Array.isArray(currentFrameRecord)))throw Error('앵커 검수 데이터 버전·필드·원본·프레임 형식 오류');
+const initialReviewMetadata=currentReviewPayload.sourceMetadata;
 const availableActionReviews=initialReviewMetadata.actionReviews||[];
 const requestedActionIdentifier=new URLSearchParams(window.location?.search).get('action')||initialReviewMetadata.defaultActionId;
 const selectedActionReview=availableActionReviews.find(currentActionRecord=>currentActionRecord.id===requestedActionIdentifier);
-const reviewFrameRecords=selectedActionReview?structuredClone(selectedActionReview.frames):__FRAME_RECORDS__;
+const reviewFrameRecords=selectedActionReview?structuredClone(selectedActionReview.frames):structuredClone(currentReviewPayload.frames);
 const reviewSourceMetadata=selectedActionReview?.source||initialReviewMetadata;
 const resolveReviewAssetUrl=assetPathValue=>selectedActionReview?selectedActionReview.frames.find(currentFrameRecord=>currentFrameRecord.image===assetPathValue)?.url||assetPathValue:window.resolveStaticReviewAssetUrl?.(assetPathValue)||assetPathValue;
 const actionChoiceElement=document.querySelector('#actionChoice');

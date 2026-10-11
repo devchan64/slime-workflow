@@ -2,6 +2,7 @@
 import sys
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[2]))
+from tools.review.common.animation_review_payload import read_animation_review_payload
 from tools.review.ui_assets import resolve_review_ui_asset, read_review_shared_styles, read_animation_anchor_template
 from datetime import datetime
 from zoneinfo import ZoneInfo
@@ -42,7 +43,14 @@ def build_frame_manager(parsed_argument_values):
             copied_review_path=output_manager_directory/source_kind_name/page_filename_text
             copied_review_html=copied_review_path.read_text()
             current_template_html=read_animation_anchor_template() if anchor_editor_enabled else resolve_review_ui_asset('walk-sheet.html').read_text()
-            embedded_constant_names=(('reviewFrameRecords','__FRAME_RECORDS__'),('reviewSourceMetadata','__SOURCE_METADATA__')) if anchor_editor_enabled else (('reviewAssetRecords','__ASSET_RECORDS__'),)
+            # 새 계약은 JSON 블록을 사용한다. 기존 실행 산출물의 두 상수 형식은 명시적인 이전 입력 계약이다.
+            if anchor_editor_enabled and 'id="anchor-review-data"' in copied_review_html:
+                current_payload_record=read_animation_review_payload(copied_review_html)
+                for current_marker_text,current_field_name in (('__FRAME_RECORDS__','frames'),('__SOURCE_METADATA__','sourceMetadata')):
+                    current_template_html=current_template_html.replace(current_marker_text,json.dumps(current_payload_record[current_field_name],ensure_ascii=False).replace('<','\\u003c'))
+                embedded_constant_names=()
+            else:
+                embedded_constant_names=(('reviewFrameRecords','__FRAME_RECORDS__'),('reviewSourceMetadata','__SOURCE_METADATA__')) if anchor_editor_enabled else (('reviewAssetRecords','__ASSET_RECORDS__'),)
             for embedded_constant_name,template_marker_text in embedded_constant_names:
                 embedded_marker_text=f'const {embedded_constant_name}='
                 if copied_review_html.count(embedded_marker_text)!=1:

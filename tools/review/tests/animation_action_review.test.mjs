@@ -6,13 +6,13 @@ const actionReviewRecords=['idle','rest','walk'].map((currentActionName,currentA
 const draftStorageRecords=new Map();
 function createActionContext(currentActionName){
  const elementLookupRecords=new Map();
- const documentAdapterValue={body:{dataset:{}},addEventListener(){},dispatchEvent(){},querySelectorAll:()=>[],querySelector(currentSelectorText){
+ const documentAdapterValue={body:{dataset:{}},addEventListener(){},dispatchEvent(){},querySelectorAll:currentSelectorText=>currentSelectorText==='script#anchor-review-data[type="application/json"]'?[{textContent:JSON.stringify({schemaVersion:1,sourceMetadata:{actionReviews:actionReviewRecords},frames:actionReviewRecords[0].frames})}]:[],querySelector(currentSelectorText){
  if(!elementLookupRecords.has(currentSelectorText))elementLookupRecords.set(currentSelectorText,{value:currentSelectorText==='#directionChoice'?'down_left':currentSelectorText==='#pointChoice'?'anchor':'0',checked:true,options:[{value:'down_left',remove(){}}],add(){},getContext:()=>({})});
  return elementLookupRecords.get(currentSelectorText);
  }};
  const actionLocationValue=new URL('file:///review.html?action=asset:'+currentActionName);actionLocationValue.replace=()=>{};
  const actionContextValue=vm.createContext({document:documentAdapterValue,window:{location:actionLocationValue,addEventListener(){}},sessionStorage:{getItem:key=>draftStorageRecords.get(key)||null,setItem:(key,value)=>draftStorageRecords.set(key,value),removeItem:key=>draftStorageRecords.delete(key)},Option:class{},CustomEvent:class{},Image:class{set src(value){this.onload();}},URL,URLSearchParams,structuredClone,requestAnimationFrame(){},performance:{now:()=>0}});
- vm.runInContext(editorSourceText.replace('__FRAME_RECORDS__','[]').replace('__SOURCE_METADATA__',JSON.stringify({actionReviews:actionReviewRecords})),actionContextValue);
+ vm.runInContext(editorSourceText,actionContextValue);
  return actionContextValue;
 }
 for(const currentActionName of ['idle','rest','walk']){
