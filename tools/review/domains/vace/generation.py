@@ -17,13 +17,13 @@ class VaceGenerationManager(ImageGenerationManager):
         self.job_storage_root = VACE_JOB_STORAGE_ROOT
 
     def validate_generation_request(self, current_request_record):
-        return validate_vace_request(current_request_record)
+        raise ValueError('VACE 생성기는 운영 중지되었습니다. Phantom 생성기를 사용하세요.')
 
     def validate_generation_runtime(self, saved_request_record=None):
         validate_vace_assets()
 
     def validate_generation_resume(self, selected_job_directory):
-        verify_vace_request(selected_job_directory)
+        raise ValueError('VACE 생성기는 운영 중지되어 재개할 수 없습니다.')
 
     def select_generation_runner(self, saved_request_record=None):
         return 'generators/vace/worker.py'

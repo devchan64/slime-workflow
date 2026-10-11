@@ -11,9 +11,9 @@ REFERENCE_DROP_SCRIPT_PATH = Path(__file__).resolve().parents[1] / 'ui/shared/re
 
 
 def build_reference_image_inputs(*, reference_panel_visible=True, reference_panel_identifier=None, reference_image_mode='RGB', reference_slot_count=REFERENCE_IMAGE_SLOT_COUNT, reference_slot_labels=None):
-    if reference_slot_count not in (1, 2, 3, 10):
-        raise ValueError('참조 슬롯은 1개·2개·3개·10개를 지원합니다.')
-    dynamic_slots_enabled = reference_slot_count == 10
+    if reference_slot_count not in (1, 2, 3, 4, 10):
+        raise ValueError('참조 슬롯은 1개·2개·3개·4개·10개를 지원합니다.')
+    dynamic_slots_enabled = reference_slot_count in (4, 10)
     with gr.Group(visible=reference_panel_visible,elem_id=reference_panel_identifier,elem_classes=['reference-upload-panel']) as reference_upload_group:
         gr.HTML(value='', html_template='<span hidden></span>', container=False,
                 js_on_load=REFERENCE_DROP_SCRIPT_PATH.read_text(encoding='utf-8'))
@@ -50,6 +50,17 @@ def build_reference_image_inputs(*, reference_panel_visible=True, reference_pane
                 visible_slot_count = update_visible_slots(visible_slot_count, *reference_image_values)
                 return build_slot_updates(min(reference_slot_count, visible_slot_count + 1))
 
+            if reference_slot_count == 4:
+                def create_reference_move_callback(current_selected_index,current_target_index):
+                    def move_reference_image(*current_reference_values):
+                        current_image_values=list(current_reference_values)
+                        current_image_values[current_selected_index],current_image_values[current_target_index]=current_image_values[current_target_index],current_image_values[current_selected_index]
+                        return current_image_values
+                    return move_reference_image
+                with gr.Row():
+                    for current_selected_index in range(1,reference_slot_count):
+                        current_move_button=gr.Button(f'{current_selected_index+1}번 ↔ {current_selected_index}번',size='sm')
+                        current_move_button.click(create_reference_move_callback(current_selected_index,current_selected_index-1),reference_image_controls,reference_image_controls,queue=False)
             def reveal_loaded_slots(visible_slot_count, *reference_image_values):
                 return build_slot_updates(update_visible_slots(visible_slot_count, *reference_image_values))
 

@@ -20,8 +20,8 @@ MANAGEMENT_FRAME_PATH_PREFIX='/management/frame/'
 MANAGEMENT_FRAME_IDENTIFIER_VALUES={'anny-attribute-renderer':'anny-attributes'}
 LEGACY_PAGE_IDENTIFIER_VALUES={'map-review':'map-review-iseulon','animation-2':'animation-1','animation-3':'animation-1'}
 DEFAULT_PAGE_RECORDS=(
+    {'id':'phantom-generator','label':'Phantom R2V 영상 생성기','path':'/management/frame/phantom-generator/','category':'animation-tool','uiMode':'gradio','description':'1.3B · 캐릭터 참조 · 832×480 · 로컬 GPU'},
     {'id':'anny-landmarks','label':'ANNY 해부학 기준점 검수','path':'/management/frame/anny-landmarks/','category':'animation-tool','uiMode':'gradio','description':'neutral_v4 · 기준점 후보 지정 · 기하 축 검수 · 리타기팅 미적용'},
-    {'id':'wan21-vace-generator','label':'Wan2.1 VACE 영상 생성기','path':'/management/frame/wan21-vace-generator/','category':'animation-tool','uiMode':'gradio','description':'1.3B · R2V · 캐릭터 참조 1장 · 로컬 GPU'},
     {'id':'hy-motion-generator','label':'HY-Motion 모션 생성기','path':'/hy-motion-generator/','category':'animation-tool','uiMode':'gradio','description':'Lite · 원본 모션 · 방향별 미리보기 · GPU 연산·CPU 메모리 오프로드'},
     {'id':'character-review','label':'캐릭터 표현 검수','path':'/management/frame/character-review/','category':'character-render-review','uiMode':'gradio','description':'3×3 검수 맵 · 바닥 선택 · 형태선·분리선·접지 그림자 비교'},
     {'id':'animation-separation','label':'캐릭터 레퍼런스 복장 분리 생성','path':'/animation-separation/','category':'image-generation','uiMode':'gradio','description':'Qwen 2.1 · 참조 이미지 1장 · 신체 베이스·복장 별도 이미지'},
@@ -64,7 +64,7 @@ def load_manager_page_records(source_file_path):
         if not isinstance(current_page_record,dict) or not all(isinstance(current_page_record.get(current_field_name),str) for current_field_name in ('id','label','path','category','description')):raise ValueError('관리 메뉴 페이지 항목 형식 오류')
         if any(current_page_record.get(current_field_name) is not None and not isinstance(current_page_record[current_field_name],str) for current_field_name in ('frameIdentifier','frameQuery')):raise ValueError('관리 메뉴 프레임 항목 형식 오류')
         if current_page_record['id']=='tile-map-generator':continue
-        if current_page_record['id'] in ('character-animation', 'momask-generator'):continue
+        if current_page_record['id'] in ('character-animation', 'momask-generator', 'wan21-vace-generator'):continue
         if current_page_record['id'] == 'pose-transfer-generator':
             current_release_record = next(current_default_record for current_default_record in DEFAULT_PAGE_RECORDS if current_default_record['id'] == 'pose-transfer-generator')
             current_page_record = {**current_page_record, 'label': current_release_record['label'], 'description': current_release_record['description']}

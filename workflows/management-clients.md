@@ -524,3 +524,23 @@ GUI·CLI는 `wan21-vace` 서비스의 `generate/status/logs/history/active/model
 5초 heartbeat에서 공용 추정 코드로 전체 소요·남은 시간·완료 시각·예상 진행률을 기록한다. 같은 설정의 완료 표본이 없으면 전체 ETA는 계산 중으로 표시하며, 최근 추론 스텝에 근거한 추론 종료 추정은 별도로 제공한다. GPU 대기 시간은 제외한다. VRAM은 장치별 프로세스·자식 프로세스 사용량과 장치 전체를 구분해 관측하며 순간 피크 누락 가능성이 있다. 실패·중지·재개 시에도 시도별 기록을 보존한다. 결과 검수는 브라우저 영상 재생과 PNG ZIP으로 수행한다. 생성 성공은 보행·일관성 품질 승인을 의미하지 않는다.
 
 VACE 부정 프롬프트는 GUI의 `부정 프롬프트` 또는 CLI `--negative-prompt`로 실행별 전체 대체한다. 생략하면 기존 기본값을 사용하며 빈 문자열은 부정 프롬프트를 비운다. 저장 입력 복원·재개는 해당 실행값을 유지한다. 양성·부정 입력은 각각 512 토큰을 초과하면 실패하며 원문·단어 수·해시를 실행 기록에 보존한다.
+
+## Phantom R2V 참조 영상 생성기
+
+VACE는 운영 중지되었으며 생성·재개를 거절한다. 기존 이력·결과는 보존하고 조회·삭제·취소 명령은 유지한다. 메뉴에서는 Phantom으로 대체한다.
+
+Phantom 1.3B는 참조 PNG 1~4장으로 S2V 영상을 생성한다. 첫 프레임·비디오 입력은 없다. 기본 832×480, 81프레임/16fps, 50스텝, shift 5, 이미지 가이던스 5, 텍스트 가이던스 7.5, seed 42이다. 해상도는 832×480 고정이며 1~161의 4n+1 프레임만 받는다. 프롬프트는 자동 확장하지 않고 원문을 전달한다. 참조는 공식 비율 유지 Lanczos 리사이즈와 흰 패딩을 적용한다. CUDA 난수·CUDA 모델 연산과 CPU 가중치 오프로드를 사용한다. 모델은 사전 준비된 `.model/phantom-1.3b`와 `.model/wan21-phantom-components`만 사용한다. 실행 코드·VAE 설정·기본값은 `generators/phantom/`에서 추적하며 실험 폴더를 런타임 의존성으로 사용하지 않는다.
+
+```bash
+python3 tools/manager.py command phantom generate --reference /absolute/character.png --prompt-file /absolute/prompt.txt --frames 81 --steps 50 --guidance-scale 7.5 --conditioning-scale 5 --detach
+python3 tools/manager.py command phantom history
+python3 tools/manager.py command phantom status <생성ID>
+```
+
+GUI는 `/management/frame/phantom-generator/`이며 기본 입력·영상 길이·접힌 고급 설정·공용 인라인 대기열 확인을 제공한다. 확인 취소는 생성하지 않는다. API `phantom`의 생성 payload는 VACE와 동일한 필드명을 사용하지만 `guidance_scale`은 텍스트, `conditioning_scale`은 이미지 가이던스이다. 저장 경로는 `.tmp/test/phantom/<생성ID>/`이고 시도별 결과·프롬프트·ETA·VRAM은 `attempts/<UUID>/`에 기록한다. 이력 조회·복원·재개·우선 실행·중지·선택 이력 삭제는 공용 게이트웨이를 사용한다. 과거 독립 Phantom 실험은 자동 등록하지 않는다.
+
+Phantom 다중 참조는 공식 README의 최대 4장 규칙을 따른다. GUI에서 이미지 추가·삭제·인접 순서 교환을 제공하며 빈 슬롯은 제외한다. CLI는 `--reference a.png --reference b.png`처럼 반복 지정하고 API는 `images` 배열 순서를 사용한다. 모든 참조의 스냅샷·해시·순서를 저장·복원·재개에서 유지한다. 다중 대상과 같은 대상의 여러 참조를 자동 분류하지 않으므로 프롬프트에서 대상과 행동을 설명한다. 최대 4장은 입력 규칙이며 8GB GPU에서 모든 길이·참조 조합의 메모리 적합성을 검증한 것은 아니다.
+
+사용자 화면·메뉴의 명칭은 **Phantom R2V 영상 생성기**다. R2V는 참조 이미지 기반 영상 생성 방식을 뜻하며, Phantom 원본의 내부 작업 식별자 `s2v-1.3B` 및 저장 계약 `task: s2v`는 그대로 유지한다.
+
+Phantom R2V는 참조 → 장면·부정 프롬프트 → 영상 설정 → 생성 → 상태·결과 순으로 세로 배치한다. 두 프롬프트의 기본값은 없음(빈 문자열)이며 `장면 프롬프트 초기화`와 `부정 프롬프트 초기화`는 각각 해당 입력만 비운다. 장면 프롬프트는 생성 전에 직접 입력해야 한다. 부정 프롬프트를 생략하면 추가 문구 없이 빈 값으로 전달한다. 걷기 예시는 품질 승인 후 별도 샘플로 제공하며 현재 기본값으로 채우지 않는다.

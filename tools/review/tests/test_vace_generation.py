@@ -115,7 +115,8 @@ class VaceGenerationContractTests(unittest.TestCase):
                 with self.assertRaises(ValueError):current_manager_value.delete_generation_history(current_job_identifier)
 
     def test_gateway_routes_and_cli_payload(self):
-        self.assertEqual(resolve_management_command('wan21-vace','generate',self.create_vace_payload())[1],'/wan21-vace/jobs')
+        with self.assertRaisesRegex(ValueError,'운영 중지'):
+            resolve_management_command('wan21-vace','generate',self.create_vace_payload())
         with tempfile.TemporaryDirectory() as current_temporary_path:
             current_reference_path=Path(current_temporary_path)/'reference.png'
             current_reference_path.write_bytes(base64.b64decode(self.create_vace_payload()['images'][0]))
