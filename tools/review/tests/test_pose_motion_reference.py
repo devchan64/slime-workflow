@@ -17,7 +17,13 @@ class PoseMotionReferenceTests(unittest.TestCase):
         for selected_direction_value in ('down_left','down_right','up_left','up_right'):
             for selected_frame_number in (*range(2,11),35):
                 self.assertEqual(load_motion_reference(selected_direction_value,selected_frame_number)[1], '')
-            self.assertTrue(load_motion_reference(selected_direction_value,1)[1])
+            if selected_direction_value == 'down_left':
+                for selected_frame_number in (*range(1,13), *range(18,23)):
+                    self.assertEqual(load_motion_reference(selected_direction_value,selected_frame_number)[1], '')
+                for selected_frame_number in range(13,18):
+                    self.assertEqual(load_motion_reference(selected_direction_value,selected_frame_number)[1], 'Bend the screen-right knee outward, its foot lower than the other.')
+            else:
+                self.assertTrue(load_motion_reference(selected_direction_value,1)[1])
 
     def test_invalid_selection_rejected(self):
         for selected_frame_number in (0,36,1.5,True,None):

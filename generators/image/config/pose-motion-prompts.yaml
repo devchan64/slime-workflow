@@ -5,3 +5,9 @@ directions:
   up_left: rear-left
   up_right: rear-right
 empty_prompt_frames: [2, 3, 4, 5, 6, 7, 8, 9, 10, 35]
+required_prompt_frames:
+  down_left: [13, 14, 15, 16, 17]
+empty_prompt_frames_by_direction:
+  down_left: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 18, 19, 20, 21, 22]
+required_frame_prompts:
+  down_left: Bend the screen-right knee outward, its foot lower than the other.

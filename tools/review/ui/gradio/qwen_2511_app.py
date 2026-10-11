@@ -251,9 +251,11 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
                 from tools.review.domains.image.pose_motion_reference import load_motion_reference, find_matching_auxiliary, MOTION_REFERENCE_ROOT
                 selected_pose_image, selected_auxiliary_text, selected_source_label = load_motion_reference(selected_direction_value, selected_frame_number)
                 selected_pose_digest = hashlib.sha256((MOTION_REFERENCE_ROOT / f'anny/{selected_direction_value}/anny-{int(selected_frame_number):04d}.png').read_bytes()).hexdigest()
-                matched_history_prompt = find_matching_auxiliary(execute_reference_gateway('history', {}).get('records', []), selected_pose_digest, load_pose_transfer_prompt()) if selected_auxiliary_text else None
+                matched_history_prompt = find_matching_auxiliary(execute_reference_gateway('history', {}).get('records', []), selected_pose_digest, load_pose_transfer_prompt()) if selected_auxiliary_text and '등록 보조 문구 적용: 사용자 지정' not in selected_source_label else None
                 if not selected_auxiliary_text:
                     selected_source_label += ' · 보조 프롬프트 미사용 프레임: 적용하면 보조 입력을 비웁니다.'
+                elif '등록 보조 문구 적용: 사용자 지정' in selected_source_label:
+                    pass
                 elif matched_history_prompt:
                     selected_auxiliary_text, selected_history_identifier = matched_history_prompt
                     selected_source_label += ' · 같은 포즈의 완료 이력 보조 문구: ' + selected_history_identifier + ' (품질 승인 여부는 별도 확인)'
