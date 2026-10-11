@@ -13,6 +13,12 @@ class PoseMotionReferenceTests(unittest.TestCase):
                 self.assertIn(f'{selected_frame_number}/35',selected_source_text)
                 combine_pose_prompt(load_pose_transfer_prompt(),selected_prompt_text)
 
+    def test_frames_without_auxiliary_prompt(self):
+        for selected_direction_value in ('down_left','down_right','up_left','up_right'):
+            for selected_frame_number in (*range(2,11),35):
+                self.assertEqual(load_motion_reference(selected_direction_value,selected_frame_number)[1], '')
+            self.assertTrue(load_motion_reference(selected_direction_value,1)[1])
+
     def test_invalid_selection_rejected(self):
         for selected_frame_number in (0,36,1.5,True,None):
             with self.assertRaises(ValueError):

@@ -23,9 +23,14 @@ def load_motion_reference(selected_direction_value, selected_frame_number):
     if hashlib.sha256(selected_image_bytes).hexdigest() != current_manifest_record['files'][selected_relative_path]:
         raise ValueError('걷기 ANNY 참조의 등록 해시가 일치하지 않습니다.')
     current_prompt_record = yaml.load(MOTION_PROMPT_CONFIG.read_text(), Loader=UniqueAssetYamlLoader)
-    if set(current_prompt_record) != {'template', 'directions'} or not isinstance(current_prompt_record['template'], str) or set(current_prompt_record['directions']) != set(current_manifest_record['directions']) or not all(isinstance(current_direction_text, str) for current_direction_text in current_prompt_record['directions'].values()):
+    if set(current_prompt_record) != {'template', 'directions', 'empty_prompt_frames'} or not isinstance(current_prompt_record['template'], str) or set(current_prompt_record['directions']) != set(current_manifest_record['directions']) or not all(isinstance(current_direction_text, str) for current_direction_text in current_prompt_record['directions'].values()):
         raise ValueError('걷기 프리셋 보조 프롬프트 설정이 올바르지 않습니다.')
+    empty_prompt_frames = current_prompt_record['empty_prompt_frames']
+    if not isinstance(empty_prompt_frames, list) or any(type(current_frame_number) is not int or not 1 <= current_frame_number <= current_manifest_record['frames'] for current_frame_number in empty_prompt_frames):
+        raise ValueError('보조 프롬프트 제외 프레임은 1~35 정수 목록이어야 합니다.')
     selected_prompt_text = current_prompt_record['template'].format(direction=current_prompt_record['directions'][selected_direction_value])
+    if selected_frame_number in empty_prompt_frames:
+        selected_prompt_text = ''
     with Image.open(MOTION_REFERENCE_ROOT / selected_relative_path) as selected_image_value:
         loaded_image_value = selected_image_value.copy()
     source_frame_number = current_manifest_record['source_frames'][selected_frame_number-1]

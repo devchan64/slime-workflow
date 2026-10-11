@@ -19,7 +19,7 @@ class PoseTransferPromptTests(unittest.TestCase):
 
     def test_generalized_prompt_delivery(self):
         current_prompt_text = load_pose_transfer_prompt()
-        self.assertEqual(current_prompt_text, 'Replace the pose of <image 2> with the pose of <image 1>. Match relative joint positions and bends, and the orientations of the head, torso, pelvis, palms, and feet.')
+        self.assertEqual(current_prompt_text, 'Replace the pose of <image 2> with the pose of <image 1>. Match relative joint positions and bends, and the orientations of the head, torso, pelvis, palms, and feet. Match heel elevation in <image 1>.')
         for current_removed_phrase in ('full-body', 'entire body', 'Preserve', 'anatomical', 'character’s perspective'):
             self.assertNotIn(current_removed_phrase, current_prompt_text)
         self.assertLessEqual(len(current_prompt_text.split()), 50)
