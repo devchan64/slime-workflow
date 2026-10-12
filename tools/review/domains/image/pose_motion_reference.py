@@ -23,7 +23,7 @@ def load_motion_reference(selected_direction_value, selected_frame_number):
     if hashlib.sha256(selected_image_bytes).hexdigest() != current_manifest_record['files'][selected_relative_path]:
         raise ValueError('걷기 ANNY 참조의 등록 해시가 일치하지 않습니다.')
     current_prompt_record = yaml.load(MOTION_PROMPT_CONFIG.read_text(), Loader=UniqueAssetYamlLoader)
-    if set(current_prompt_record) != {'template', 'directions', 'empty_prompt_frames', 'required_prompt_frames', 'empty_prompt_frames_by_direction', 'required_frame_prompts'} or not isinstance(current_prompt_record['template'], str) or set(current_prompt_record['directions']) != set(current_manifest_record['directions']) or not all(isinstance(current_direction_text, str) for current_direction_text in current_prompt_record['directions'].values()):
+    if set(current_prompt_record) != {'template', 'directions', 'empty_prompt_frames', 'required_prompt_frames', 'empty_prompt_frames_by_direction', 'required_frame_prompts', 'frame_prompt_overrides'} or not isinstance(current_prompt_record['template'], str) or set(current_prompt_record['directions']) != set(current_manifest_record['directions']) or not all(isinstance(current_direction_text, str) for current_direction_text in current_prompt_record['directions'].values()):
         raise ValueError('걷기 프리셋 보조 프롬프트 설정이 올바르지 않습니다.')
     empty_prompt_frames = current_prompt_record['empty_prompt_frames']
     if not isinstance(empty_prompt_frames, list) or any(type(current_frame_number) is not int or not 1 <= current_frame_number <= current_manifest_record['frames'] for current_frame_number in empty_prompt_frames):
@@ -47,15 +47,31 @@ def load_motion_reference(selected_direction_value, selected_frame_number):
     required_frame_prompts = current_prompt_record['required_frame_prompts']
     if not isinstance(required_frame_prompts, dict) or set(required_frame_prompts) != set(required_prompt_frames) or any(not isinstance(current_prompt_text, str) or not current_prompt_text.strip() for current_prompt_text in required_frame_prompts.values()):
         raise ValueError('필수 프레임 보조 문구는 등록된 방향마다 비어 있지 않은 문자열이어야 합니다.')
+    frame_prompt_overrides = current_prompt_record['frame_prompt_overrides']
+    if not isinstance(frame_prompt_overrides, dict) or any(
+        current_direction_name not in current_manifest_record['directions']
+        or not isinstance(current_frame_prompts, dict)
+        or any(type(current_frame_number) is not int
+               or not 1 <= current_frame_number <= current_manifest_record['frames']
+               or current_frame_number in empty_prompt_frames
+               or current_frame_number in direction_empty_frames.get(current_direction_name, [])
+               or not isinstance(current_prompt_text, str) or not current_prompt_text.strip()
+               for current_frame_number, current_prompt_text in current_frame_prompts.items())
+        for current_direction_name, current_frame_prompts in frame_prompt_overrides.items()
+    ):
+        raise ValueError('프레임별 보조 문구는 유효한 방향·프레임의 문자열이며 제외 프레임과 겹치지 않아야 합니다.')
     selected_prompt_text = current_prompt_record['template'].format(direction=current_prompt_record['directions'][selected_direction_value])
     if selected_frame_number in empty_prompt_frames or selected_frame_number in direction_empty_frames.get(selected_direction_value, []):
         selected_prompt_text = ''
     if selected_frame_number in required_prompt_frames.get(selected_direction_value, []):
         selected_prompt_text = required_frame_prompts[selected_direction_value]
+    selected_override_prompt = frame_prompt_overrides.get(selected_direction_value, {}).get(selected_frame_number)
+    if selected_override_prompt is not None:
+        selected_prompt_text = selected_override_prompt
     with Image.open(MOTION_REFERENCE_ROOT / selected_relative_path) as selected_image_value:
         loaded_image_value = selected_image_value.copy()
     source_frame_number = current_manifest_record['source_frames'][selected_frame_number-1]
-    required_prompt_notice = ' · 등록 보조 문구 적용: 사용자 지정' if selected_frame_number in required_prompt_frames.get(selected_direction_value, []) else ''
+    required_prompt_notice = ' · 등록 보조 문구 적용: 사용자 지정' if selected_override_prompt is not None or selected_frame_number in required_prompt_frames.get(selected_direction_value, []) else ''
     return loaded_image_value, selected_prompt_text, f'걷기 v2 · {selected_direction_value} · {selected_frame_number}/35 · 원본 {source_frame_number}번 · ANNY 참조 적용' + required_prompt_notice
 
 

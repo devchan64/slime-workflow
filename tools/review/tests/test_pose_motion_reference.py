@@ -5,6 +5,13 @@ from tools.review.domains.image.pose_transfer_generation import combine_pose_pro
 
 
 class PoseMotionReferenceTests(unittest.TestCase):
+    def test_adopted_supporting_knee_prompt(self):
+        selected_pose_image, selected_prompt_text, selected_source_text = load_motion_reference('down_left', 30)
+        self.assertEqual(selected_prompt_text, 'Plant the screen-right foot flat on the ground with its knee bent. Lift the screen-left foot as in <image 1>.')
+        self.assertIn('등록 보조 문구 적용: 사용자 지정', selected_source_text)
+        self.assertNotEqual(load_motion_reference('down_left', 29)[1], selected_prompt_text)
+        self.assertNotEqual(load_motion_reference('down_right', 30)[1], selected_prompt_text)
+
     def test_registered_frames_and_word_limit(self):
         for selected_direction_value in ('down_left','down_right','up_left','up_right'):
             for selected_frame_number in range(1,36):
