@@ -31,7 +31,7 @@ def load_timeline_images(current_file_paths):
     return current_sorted_paths,current_table_rows,current_preview_images,((current_last_frame-1+3)//4)*4+1
 
 
-def build_timeline_payload(current_file_paths,current_table_rows,current_prompt_text,current_negative_text,current_frame_count,current_seed_value,current_resolution_text,current_steps_value,current_shift_value,current_guidance_value,current_conditioning_value):
+def build_timeline_payload(current_file_paths,current_table_rows,current_prompt_text,current_negative_text,current_frame_count,current_seed_value,current_resolution_text,current_steps_value,current_shift_value,current_guidance_value,current_conditioning_value,current_identity_path=None):
     if len(current_file_paths or [])!=len(current_table_rows or []):
         raise ValueError('이미지 목록과 배치표가 일치하지 않습니다. 이미지를 다시 불러오세요.')
     current_encoded_images=[]
@@ -45,8 +45,14 @@ def build_timeline_payload(current_file_paths,current_table_rows,current_prompt_
             current_source_image.save(current_image_buffer,format='PNG')
         current_encoded_images.append(base64.b64encode(current_image_buffer.getvalue()).decode())
         current_frame_entries.append({'frame':int(current_frame_number)-1,'editable':current_table_row[1]})
+    if current_identity_path:
+        with Image.open(current_identity_path) as current_identity_image:
+            current_identity_buffer=io.BytesIO()
+            current_identity_image.save(current_identity_buffer,format='PNG')
+        current_encoded_images.append(base64.b64encode(current_identity_buffer.getvalue()).decode())
     current_image_width,current_image_height=map(int,current_resolution_text.split('×'))
     current_payload_record=dict(action='generate',images=current_encoded_images,frame_entries=current_frame_entries,prompt=current_prompt_text,negative_prompt=current_negative_text,frames=current_frame_count,seed=current_seed_value,width=current_image_width,height=current_image_height,steps=current_steps_value,flow_shift=current_shift_value,guidance_scale=current_guidance_value,conditioning_scale=current_conditioning_value)
+    current_payload_record['identity_reference_count']=int(bool(current_identity_path))
     validate_timeline_request(current_payload_record)
     return current_payload_record
 
@@ -59,6 +65,8 @@ def build_timeline_interface(current_server_address):
         current_frame_table=gr.Dataframe(headers=['프레임 번호 · 1부터','수정 가능 · 흰 마스크'],datatype=['number','bool'],type='array',col_count=(2,'fixed'),interactive=True,label='이미지 순서대로 배치 · 체크 해제 시 검은 마스크로 보존')
         gr.Markdown('빠진 프레임은 회색(127) 영상과 흰 마스크로 생성합니다. 수정 가능한 이미지도 다시 그려지므로 포즈·신체 비율 유지가 보장되지는 않습니다. 현재 마스크는 프레임 전체에 적용합니다.')
         current_input_gallery=gr.Gallery(label='배치 이미지',allow_preview=False,columns=4)
+        current_identity_control=gr.Image(type='filepath',label='외형 참조 이미지 · 선택 1장',sources=['upload'],height=240)
+        gr.Markdown('얼굴·색상·그림체의 기준입니다. 영상 프레임에 배치하거나 첫 프레임을 고정하지 않습니다.')
         current_prompt_control=gr.Textbox(label='장면 프롬프트',value='',lines=4)
         current_prompt_summary=gr.Markdown('원문 0단어 · 최종 0단어')
         current_prompt_control.change(lambda current_prompt_text:f'원문 {len(current_prompt_text.split())}단어 · 최종 {len(current_prompt_text.split())}단어 · 추가 문구 없음',current_prompt_control,current_prompt_summary,queue=False)
@@ -89,7 +97,7 @@ def build_timeline_interface(current_server_address):
         current_result_display=gr.HTML('')
         current_result_identity=gr.State('')
         current_log_output,current_log_refresh,_=build_execution_logs()
-        current_input_controls=[current_sorted_files,current_frame_table,current_prompt_control,current_negative_control,current_frames_control,current_seed_control,current_resolution_control,current_steps_control,current_shift_control,current_guidance_control,current_conditioning_control]
+        current_input_controls=[current_sorted_files,current_frame_table,current_prompt_control,current_negative_control,current_frames_control,current_seed_control,current_resolution_control,current_steps_control,current_shift_control,current_guidance_control,current_conditioning_control,current_identity_control]
         def start_timeline_generation(*current_input_values):
             current_job_record=execute_timeline_command('generate',build_timeline_payload(*current_input_values))
             return current_job_record['id'],'GPU 대기열에 등록했습니다.'
@@ -105,10 +113,10 @@ def build_timeline_interface(current_server_address):
             current_job_root=VACE_TIMELINE_STORAGE_ROOT/current_history_record['id']
             from generators.vace.timeline import verify_timeline_request
             verify_timeline_request(current_job_root)
-            current_file_paths=[str(current_job_root/current_file_name) for current_file_name in current_request_record['references']]
+            current_file_paths=[str(current_job_root/current_file_name) for current_file_name in current_request_record['references'][:len(current_request_record['frame_entries'])]]
             current_table_rows=[[current_frame_entry['frame']+1,current_frame_entry['editable']] for current_frame_entry in current_request_record['frame_entries']]
             current_model_config=current_request_record['vace']
-            return current_file_paths,current_table_rows,current_request_record['prompt'],current_model_config['negative_prompt'],current_request_record['frames'],current_request_record['seed'],f"{current_request_record['width']}×{current_request_record['height']}",current_request_record['steps'],current_model_config['flow_shift'],current_model_config['guidance_scale'],current_model_config['conditioning_scale'],current_file_paths,current_history_record['id']
+            return current_file_paths,current_table_rows,current_request_record['prompt'],current_model_config['negative_prompt'],current_request_record['frames'],current_request_record['seed'],f"{current_request_record['width']}×{current_request_record['height']}",current_request_record['steps'],current_model_config['flow_shift'],current_model_config['guidance_scale'],current_model_config['conditioning_scale'],str(current_job_root/current_request_record['references'][-1]) if current_request_record.get('identity_reference_count') else None,current_file_paths,current_history_record['id']
         current_read_history,current_history_outputs=build_generation_history_view(execute_timeline_command,current_server_address,'입력·결과 파일은 보존합니다.',restore_input_callback=restore_timeline_inputs,restore_output_components=[*current_input_controls,current_input_gallery,current_job_control],result_renderer_callback=render_video_generation_result,record_folder_route='/wan21-vace-v2v',allow_individual_delete=True,individual_delete_scope_text='목록에서만 제거합니다. 파일은 보존합니다.')
         current_interface_blocks.load(lambda:current_read_history(1),outputs=current_history_outputs)
         current_interface_blocks.load(lambda:execute_timeline_command('active',{}).get('id') or '',outputs=current_job_control)

@@ -36,8 +36,9 @@ def execute_vace_inference(current_job_root, current_attempt_root, current_reque
     current_mask_frames = None
     current_reference_images = None
     if current_request_record['vace']['task'] == 'v2v':
-        from generators.vace.timeline import assemble_timeline_inputs
+        from generators.vace.timeline import assemble_timeline_inputs, load_identity_references
         current_video_frames,current_mask_frames = assemble_timeline_inputs(current_job_root,current_request_record)
+        current_reference_images = load_identity_references(current_job_root,current_request_record)
         for current_frame_index,(current_video_image,current_mask_image) in enumerate(zip(current_video_frames,current_mask_frames)):
             current_video_image.save(current_attempt_root/f'input-{current_frame_index:03d}.png')
             current_mask_image.save(current_attempt_root/f'mask-{current_frame_index:03d}.png')

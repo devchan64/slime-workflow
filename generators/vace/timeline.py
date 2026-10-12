@@ -15,11 +15,14 @@ def validate_timeline_request(current_request_record):
         raise ValueError('요청은 객체여야 합니다.')
     current_frame_entries = current_request_record.get('frame_entries')
     current_image_values = current_request_record.get('images')
+    current_identity_count = current_request_record.get('identity_reference_count', 0)
+    if type(current_identity_count) is not int or current_identity_count not in (0, 1):
+        raise ValueError('외형 참조는 0장 또는 1장이어야 합니다.')
     if not isinstance(current_frame_entries,list) or not 1 <= len(current_frame_entries) <= VACE_TIMELINE_SLOT_LIMIT:
         raise ValueError('배치 이미지는 1~161장이어야 합니다.')
-    if not isinstance(current_image_values,list) or len(current_image_values)!=len(current_frame_entries):
+    if not isinstance(current_image_values,list) or len(current_image_values)!=len(current_frame_entries)+current_identity_count:
         raise ValueError('이미지와 프레임 배치 개수가 다릅니다.')
-    current_base_request = {current_field_name:current_field_value for current_field_name,current_field_value in current_request_record.items() if current_field_name!='frame_entries'}
+    current_base_request = {current_field_name:current_field_value for current_field_name,current_field_value in current_request_record.items() if current_field_name not in ('frame_entries', 'identity_reference_count')}
     current_base_request['images'] = current_image_values[:1]
     current_base_request.setdefault('negative_prompt','')
     current_validated_record = validate_vace_request(current_base_request)
@@ -36,6 +39,10 @@ def validate_timeline_request(current_request_record):
         current_seen_frames.add(current_frame_number)
         current_base_request['images']=[current_image_value]
         current_normalized_images.extend(validate_vace_request(current_base_request)['images'])
+    if current_identity_count:
+        current_base_request['images'] = current_image_values[-1:]
+        current_normalized_images.extend(validate_vace_request(current_base_request)['images'])
+        current_validated_record['identity_reference_count'] = current_identity_count
     current_validated_record['images']=current_normalized_images
     current_validated_record['frame_entries']=current_frame_entries
     current_validated_record['vace'].update(task='v2v',video='assembled-frames',mask='editable-white-preserved-black')
@@ -64,3 +71,12 @@ def assemble_timeline_inputs(current_job_root,current_request_record):
             current_video_frames[current_frame_entry['frame']]=ImageOps.pad(current_source_image.convert('RGB'),current_target_size,color='white')
         current_mask_frames[current_frame_entry['frame']]=Image.new('RGB',current_target_size,'white' if current_frame_entry['editable'] else 'black')
     return current_video_frames,current_mask_frames
+
+
+def load_identity_references(current_job_root, current_request_record):
+    """포즈 입력 뒤의 외형 참조만 별도 모델 입력으로 읽는다."""
+    if not current_request_record.get('identity_reference_count', 0):
+        return None
+    current_reference_path = current_job_root / current_request_record['references'][-1]
+    with Image.open(current_reference_path) as current_reference_image:
+        return [current_reference_image.convert('RGB')]
