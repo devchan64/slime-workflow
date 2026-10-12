@@ -94,6 +94,7 @@ def create_gradio_source_fingerprint(application_source_path,application_file_pa
 def ensure_gradio_application(review_server_port, application_name, application_source_path=None):
     with GRADIO_PROCESS_LOCK:
         application_definitions={
+            'vace-v2v':('vace_timeline_app.py',127,'/management/frame/vace-v2v-generator/'),
             'phantom':('phantom_app.py',126,'/management/frame/phantom-generator/'),
             'wan21-vace':('vace_app.py',125,'/management/frame/wan21-vace-generator/'),
             'management-menu':('management_menu_app.py',100,'/management/'),

@@ -1,4 +1,4 @@
-"""Wan2.1 VACE 고정 R2V 작업자. 추론은 CUDA에서만 실행한다."""
+"""Wan2.1 VACE 고정 R2V/V2V 작업자. 추론은 CUDA에서만 실행한다."""
 import argparse
 import hashlib
 import json
@@ -32,12 +32,23 @@ def execute_vace_inference(current_job_root, current_attempt_root, current_reque
         raise RuntimeError('CUDA를 사용할 수 없습니다. CPU 추론으로 대체하지 않습니다.')
     current_model_root = validate_vace_assets()
     current_model_config = current_request_record['vace']
-    current_reference_image = Image.open(current_job_root/'reference-1.png').convert('RGB')
-    current_reference_image = ImageOps.pad(current_reference_image,(current_model_config['width'],current_model_config['height']),method=Image.Resampling.BICUBIC,color='white')
-    current_reference_image.save(current_attempt_root/'reference-input.png')
+    current_video_frames = None
+    current_mask_frames = None
+    current_reference_images = None
+    if current_request_record['vace']['task'] == 'v2v':
+        from generators.vace.timeline import assemble_timeline_inputs
+        current_video_frames,current_mask_frames = assemble_timeline_inputs(current_job_root,current_request_record)
+        for current_frame_index,(current_video_image,current_mask_image) in enumerate(zip(current_video_frames,current_mask_frames)):
+            current_video_image.save(current_attempt_root/f'input-{current_frame_index:03d}.png')
+            current_mask_image.save(current_attempt_root/f'mask-{current_frame_index:03d}.png')
+    else:
+        current_reference_image = Image.open(current_job_root/'reference-1.png').convert('RGB')
+        current_reference_image = ImageOps.pad(current_reference_image,(current_model_config['width'],current_model_config['height']),method=Image.Resampling.BICUBIC,color='white')
+        current_reference_image.save(current_attempt_root/'reference-input.png')
+        current_reference_images = [current_reference_image]
     (current_attempt_root/'prompt.txt').write_text(current_request_record['prompt'])
     (current_attempt_root/'negative-prompt.txt').write_text(current_model_config['negative_prompt'])
-    write_record_atomically(current_attempt_root/'input-contract.json',{'task':'r2v','video':None,'mask':None,'reference_count':1,'first_frame_fixed':False})
+    write_record_atomically(current_attempt_root/'input-contract.json',{'task':current_request_record['vace']['task'],'video':current_request_record['vace']['video'],'mask':current_request_record['vace']['mask'],'reference_count':len(current_reference_images or []),'first_frame_fixed':False})
     current_metrics_recorder.update_generation_stage('load')
     torch.cuda.reset_peak_memory_stats()
     current_vae_model = AutoencoderKLWan.from_pretrained(current_model_root,subfolder='vae',torch_dtype=torch.float32,local_files_only=True)
@@ -62,7 +73,7 @@ def execute_vace_inference(current_job_root, current_attempt_root, current_reque
     if len(current_pipeline_model.tokenizer(current_model_config['negative_prompt']).input_ids)>512:
         raise ValueError('VACE 부정 프롬프트가 512 토큰 한도를 초과합니다.')
     current_metrics_recorder.update_generation_stage('inference')
-    current_output_frames = current_pipeline_model(prompt=current_request_record['prompt'],negative_prompt=current_model_config['negative_prompt'],video=None,mask=None,reference_images=[current_reference_image],height=current_model_config['height'],width=current_model_config['width'],num_frames=current_request_record['frames'],num_inference_steps=current_model_config['steps'],guidance_scale=current_model_config['guidance_scale'],conditioning_scale=current_model_config['conditioning_scale'],generator=torch.Generator(device='cpu').manual_seed(current_request_record['seed']),output_type='pil',callback_on_step_end=record_inference_step).frames[0]
+    current_output_frames = current_pipeline_model(prompt=current_request_record['prompt'],negative_prompt=current_model_config['negative_prompt'],video=current_video_frames,mask=current_mask_frames,reference_images=current_reference_images,height=current_model_config['height'],width=current_model_config['width'],num_frames=current_request_record['frames'],num_inference_steps=current_model_config['steps'],guidance_scale=current_model_config['guidance_scale'],conditioning_scale=current_model_config['conditioning_scale'],generator=torch.Generator(device='cpu').manual_seed(current_request_record['seed']),output_type='pil',callback_on_step_end=record_inference_step).frames[0]
     if len(current_output_frames)!=current_request_record['frames'] or any(current_frame_image.size!=(current_model_config['width'],current_model_config['height']) for current_frame_image in current_output_frames):
         raise ValueError('VACE 출력 프레임 수·크기 불일치')
     current_metrics_recorder.update_generation_stage('saving')
@@ -105,7 +116,7 @@ def execute_vace_worker():
                 current_previous_metrics = json.loads((current_previous_path.parent/'metrics.json').read_text())
                 if current_previous_metrics['status']=='completed':
                     current_duration_samples.append(current_previous_metrics['elapsed_seconds'])
-        print(f"{current_metrics_recorder.current_run_state['started_at']}/vace/start R2V 입력={current_job_root/'reference-1.png'} 출력={current_attempt_root}",flush=True)
+        print(f"{current_metrics_recorder.current_run_state['started_at']}/vace/start {current_request_record['vace']['task']} 입력={current_job_root/'reference-1.png'} 출력={current_attempt_root}",flush=True)
         current_result_record = execute_vace_inference(current_job_root,current_attempt_root,current_request_record,current_metrics_recorder)
         write_record_atomically(current_attempt_root/'result.json',current_result_record)
         write_record_atomically(current_job_root/'result.json',current_result_record)

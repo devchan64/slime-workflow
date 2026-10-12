@@ -86,10 +86,12 @@ def create_management_runtime(writer_workspace_config=None):
     from tools.review.domains.anny.landmarks import handle_landmark_request, LANDMARK_STORAGE_DIRECTORY
 
     from tools.review.domains.vace.generation import VaceGenerationManager
+    from tools.review.domains.vace.timeline_generation import VaceTimelineGenerationManager
     from tools.review.domains.phantom.generation import PhantomGenerationManager
     writer_agent_service = WriterAgentManager(writer_workspace_config or DEFAULT_WORKSPACE_CONFIG)
     try:
         vace_generation_service = VaceGenerationManager()
+        vace_timeline_service = VaceTimelineGenerationManager()
         phantom_generation_service = PhantomGenerationManager()
         image_generation_service = ImageGenerationManager()
         seamless_generation_service = SeamlessGenerationManager()
@@ -106,6 +108,7 @@ def create_management_runtime(writer_workspace_config=None):
         character_animation_service = CharacterAnimationManager()
         service_binding_records = {
             'phantom': bind_stored_management_service(phantom_generation_service.handle_image_request,phantom_generation_service.job_storage_root),
+            'wan21-vace-v2v': bind_stored_management_service(vace_timeline_service.handle_image_request,vace_timeline_service.job_storage_root),
             'wan21-vace': bind_stored_management_service(vace_generation_service.handle_image_request,vace_generation_service.job_storage_root),
             'anny-landmarks': bind_stored_management_service(handle_landmark_request, LANDMARK_STORAGE_DIRECTORY),
             'hy-motion': ManagementServiceBinding(handle_hymotion_request, HYMOTION_STORAGE_ROOT, resolve_hymotion_directory),
