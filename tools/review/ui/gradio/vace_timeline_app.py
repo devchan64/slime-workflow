@@ -80,7 +80,8 @@ def build_timeline_interface(current_server_address):
             current_shift_control=gr.Number(value=5.0,label='Flow shift')
             current_guidance_control=gr.Number(value=5.0,label='텍스트 가이던스')
             current_conditioning_control=gr.Number(value=1.0,label='비디오 조건 강도')
-        current_generate_button=gr.Button('영상 생성 · 대기열 등록',variant='primary')
+        current_generate_button=gr.Button('영상 생성 설정 확인',variant='primary')
+        gr.Markdown('설정 확인 후 아래 확인 영역의 **대기열에 추가**를 눌러 등록하세요. **추가하지 않기**를 누르면 등록하지 않습니다.')
         with gr.Column() as current_confirmation_container:
             pass
         current_job_control=gr.Textbox(label='생성 ID')

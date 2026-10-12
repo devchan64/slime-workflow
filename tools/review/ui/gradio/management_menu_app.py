@@ -230,10 +230,6 @@ def build_management_menu_interface(page_record_values, review_server_port, curr
             category_select_value=gr.Dropdown(choices=[(current_label_value,current_name_value) for current_name_value,current_label_value in sorted(CATEGORY_LABEL_VALUES.items(),key=lambda category_entry_value:(category_entry_value[0]!='all',category_entry_value[1]))],value='all',label='분류',elem_id='management-category-filter')
             tool_count_value=gr.Markdown(f'**{len(page_record_values)}개** 도구',elem_id='management-tool-count')
             page_select_value=gr.Dropdown(choices=create_tool_choice_values(page_record_values),value=initial_page_identifier,label='도구 목록',elem_id='management-tool-list')
-            with gr.Row(elem_classes=['management-pagination']):
-                previous_page_button_value=gr.Button('← 이전',scale=0,min_width=100)
-                navigation_position_value=gr.Markdown(f'1 / {len(page_record_values)}',elem_classes=['management-pagination-position'])
-                next_page_button_value=gr.Button('다음 →',scale=0,min_width=100)
         with gr.Row(elem_id='management-header'):
             gr.Markdown('## SLIME 관리도구',scale=3)
             gpu_status_value=gr.Markdown(render_gpu_status_card({}),elem_id='management-gpu-status',scale=2)
@@ -246,34 +242,21 @@ def build_management_menu_interface(page_record_values, review_server_port, curr
             filtered_page_records=filter_manager_page_records(page_record_values,search_text_value or '',category_name_value)
             filtered_identifier_values=[current_page_record['id'] for current_page_record in filtered_page_records]
             retained_identifier_value=selected_page_identifier if selected_page_identifier in filtered_identifier_values else (filtered_identifier_values[0] if filtered_identifier_values else None)
-            selected_position_value=(filtered_identifier_values.index(retained_identifier_value)+1) if retained_identifier_value else 0
             selected_status_text,selected_preview_html=(gr.skip(),gr.skip()) if current_inline_mode or retained_identifier_value==selected_page_identifier else select_menu_page(retained_identifier_value)
-            return gr.update(choices=create_tool_choice_values(filtered_page_records),value=retained_identifier_value),f'**{len(filtered_page_records)}개** 도구 · 전체 {len(page_record_values)}개',selected_status_text,selected_preview_html,f'{selected_position_value} / {len(filtered_identifier_values)}'
+            return gr.update(choices=create_tool_choice_values(filtered_page_records),value=retained_identifier_value),f'**{len(filtered_page_records)}개** 도구 · 전체 {len(page_record_values)}개',selected_status_text,selected_preview_html
         def select_menu_page(selected_page_identifier):
             selected_page_record=next((current_page_record for current_page_record in page_record_values if current_page_record['id']==selected_page_identifier),None)
             if selected_page_record is None:return '표시할 관리 화면을 선택하세요.','<div class="menu-empty-state">검색 조건을 바꾸거나 메뉴를 선택하세요.</div>'
             return f"**{html.escape(selected_page_record['label'])}** · {html.escape(selected_page_record['description'])}",('' if current_inline_mode else create_page_preview_html(selected_page_identifier,page_record_values,review_server_port))
-        def move_menu_page(selected_page_identifier,search_text_value,category_name_value,selection_step_value):
-            filtered_page_records=filter_manager_page_records(page_record_values,search_text_value or '',category_name_value)
-            filtered_identifier_values=[current_page_record['id'] for current_page_record in filtered_page_records]
-            current_index_value=filtered_identifier_values.index(selected_page_identifier) if selected_page_identifier in filtered_identifier_values else 0
-            next_index_value=max(0,min(len(filtered_identifier_values)-1,current_index_value+selection_step_value)) if filtered_identifier_values else 0
-            next_identifier_value=filtered_identifier_values[next_index_value] if filtered_identifier_values else None
-            next_status_text,next_preview_html=select_menu_page(next_identifier_value)
-            return next_identifier_value,next_status_text,next_preview_html,f'{next_index_value+1 if next_identifier_value else 0} / {len(filtered_identifier_values)}'
-        for current_filter_component in (search_text_value,category_select_value):current_filter_component.input(update_menu_choices,[search_text_value,category_select_value,page_select_value],[page_select_value,tool_count_value,selected_page_status_value,page_preview_value,navigation_position_value],queue=False)
+        for current_filter_component in (search_text_value,category_select_value):current_filter_component.input(update_menu_choices,[search_text_value,category_select_value,page_select_value],[page_select_value,tool_count_value,selected_page_status_value,page_preview_value],queue=False)
         page_select_value.input(select_menu_page,page_select_value,[selected_page_status_value,page_preview_value],queue=False)
         filter_navigation_script=create_menu_navigation_script(page_record_values,'replaceState',current_inline_mode)
         page_navigation_script=create_menu_navigation_script(page_record_values,'pushState',current_inline_mode)
         for current_filter_component in (search_text_value,category_select_value):
             current_filter_component.input(fn=None,inputs=[search_text_value,category_select_value,page_select_value],js=filter_navigation_script,queue=False)
         page_select_value.input(fn=None,inputs=[search_text_value,category_select_value,page_select_value],js=page_navigation_script,queue=False)
-        search_text_value.submit(lambda search_text_value,category_name_value: update_menu_choices(search_text_value,category_name_value,None),[search_text_value,category_select_value],[page_select_value,tool_count_value,selected_page_status_value,page_preview_value,navigation_position_value],queue=False).then(fn=None,inputs=[search_text_value,category_select_value,page_select_value],js=page_navigation_script,queue=False)
-        page_select_value.input(lambda selected_page_identifier,search_text_value,category_name_value: move_menu_page(selected_page_identifier,search_text_value,category_name_value,0)[3],[page_select_value,search_text_value,category_select_value],navigation_position_value,queue=False)
+        search_text_value.submit(lambda search_text_value,category_name_value: update_menu_choices(search_text_value,category_name_value,None),[search_text_value,category_select_value],[page_select_value,tool_count_value,selected_page_status_value,page_preview_value],queue=False).then(fn=None,inputs=[search_text_value,category_select_value,page_select_value],js=page_navigation_script,queue=False)
         current_navigation_inputs=[search_text_value,category_select_value,page_select_value]
-        current_page_outputs=[page_select_value,selected_page_status_value,page_preview_value,navigation_position_value]
-        for current_navigation_button,current_navigation_step in ((previous_page_button_value,-1),(next_page_button_value,1)):
-            current_navigation_button.click(lambda current_page_identifier,current_search_text,current_category_name,current_step_value=current_navigation_step:move_menu_page(current_page_identifier,current_search_text,current_category_name,current_step_value),[page_select_value,search_text_value,category_select_value],current_page_outputs,queue=False).then(fn=None,inputs=current_navigation_inputs,js=page_navigation_script,queue=False)
         def initialize_menu_selection(current_search_text,current_category_name,current_page_identifier):
             if current_category_name not in CATEGORY_LABEL_VALUES:current_category_name='all'
             current_selected_record=next((current_page_record for current_page_record in page_record_values if current_page_record['id']==current_page_identifier),None)
@@ -282,7 +265,7 @@ def build_management_menu_interface(page_record_values, review_server_port, curr
             current_selection_updates=list(update_menu_choices(current_search_text,current_category_name,current_page_identifier))
             current_selection_updates[2:4]=select_menu_page(current_selection_updates[0]['value'])
             return [current_search_text,current_category_name,*current_selection_updates]
-        interface_blocks_value.load(initialize_menu_selection,current_navigation_inputs,[search_text_value,category_select_value,page_select_value,tool_count_value,selected_page_status_value,page_preview_value,navigation_position_value],js=initial_selection_script,queue=False)
+        interface_blocks_value.load(initialize_menu_selection,current_navigation_inputs,[search_text_value,category_select_value,page_select_value,tool_count_value,selected_page_status_value,page_preview_value],js=initial_selection_script,queue=False)
         interface_blocks_value.load(fn=None,js=create_sidebar_responsive_script(current_inline_mode))
         interface_blocks_value.load(lambda:render_gpu_status_card(read_gpu_status()),outputs=gpu_status_value,queue=False)
         if hasattr(gr,'Timer'):gr.Timer(3).tick(lambda:render_gpu_status_card(read_gpu_status()),outputs=gpu_status_value,show_progress='hidden')

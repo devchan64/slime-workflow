@@ -13,4 +13,5 @@ required_frame_prompts:
   down_left: Bend the screen-right knee outward, its foot lower than the other.
 frame_prompt_overrides:
   down_left:
+    25: Bend the supporting knee forward as in <image 1>, keeping the foot flat on the ground.
     30: Plant the screen-right foot flat on the ground with its knee bent. Lift the screen-left foot as in <image 1>.
