@@ -1,12 +1,14 @@
 """생성 결과와 함께 표시할 읽기 전용 입력 스냅샷."""
 import hashlib
+import html
+from urllib.parse import quote
 from pathlib import Path
 from PIL import Image
 
 GENERATION_INPUT_ROOT = Path(__file__).resolve().parents[3] / '.tmp/test'
 
 
-def collect_saved_input_view(current_history_record):
+def collect_saved_input_view(current_history_record, server_base_address='', record_folder_route=None):
     """현재 편집값을 변경하지 않고 저장된 요청과 검증된 참조를 반환한다."""
     if not current_history_record:
         return '', {}, [], ''
@@ -34,4 +36,10 @@ def collect_saved_input_view(current_history_record):
                 continue
             with Image.open(selected_reference_path) as current_reference_image:
                 current_reference_images.append((current_reference_image.copy(), f'입력 참조 {current_reference_index}'))
-    return current_prompt_text, current_request_record, current_reference_images, '\n'.join(current_reference_notices)
+            if record_folder_route and server_base_address:
+                current_reference_address = (server_base_address.rstrip('/') + record_folder_route + '/jobs/'
+                    + quote(current_job_directory.name, safe='') + '/'
+                    + quote(selected_reference_path.relative_to(current_job_directory).as_posix(), safe='/'))
+                current_reference_notices.append(
+                    f'<a href="{html.escape(current_reference_address, quote=True)}" target="_blank" rel="noopener noreferrer">입력 참조 {current_reference_index} · 원본 열기 ↗</a>')
+    return current_prompt_text, current_request_record, current_reference_images, '\n\n'.join(current_reference_notices)

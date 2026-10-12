@@ -21,10 +21,15 @@ class HistoryInputViewTests(unittest.TestCase):
                 self.assertEqual(current_view_values[0],'Pose instruction.')
                 self.assertEqual(current_view_values[1]['seed'],7)
                 self.assertEqual(len(current_view_values[2]),1)
+                current_link_view = collect_saved_input_view(current_history_record, 'http://127.0.0.1:8770', '/phantom')
+                self.assertIn('/phantom/jobs/' + current_job_directory.name + '/reference-1.png', current_link_view[3])
+                self.assertIn('target="_blank"', current_link_view[3])
+                self.assertIn('noopener noreferrer', current_link_view[3])
                 current_request_record['reference_snapshots'][0]['sha256']='wrong'
                 current_view_values=collect_saved_input_view(current_history_record)
                 self.assertEqual(current_view_values[2],[])
                 self.assertIn('해시 불일치',current_view_values[3])
+                self.assertNotIn('원본 열기', collect_saved_input_view(current_history_record, 'http://127.0.0.1:8770', '/phantom')[3])
 
     def test_reset_and_no_reference(self):
         self.assertEqual(collect_saved_input_view({}),('',{},[],''))

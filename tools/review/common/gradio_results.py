@@ -3,9 +3,9 @@ import gradio as gr
 
 
 def build_generation_gallery(current_label_text='생성 결과'):
-    """결과 이미지는 기본 갤러리의 확대·다운로드 기능으로 검수한다."""
+    """결과 이미지는 별도 미리보기 없이 기본 갤러리에서 검수한다."""
     return gr.Gallery(value=[], label=current_label_text, columns=2, height='max-content',
-                      object_fit='contain', interactive=False, visible=False)
+                      object_fit='contain', allow_preview=False, interactive=False, visible=False)
 
 
 def collect_generation_gallery(current_image_address, include_repeat_preview=False, server_base_address=''):
