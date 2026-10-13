@@ -1,1 +1,1 @@
-Replace the pose of <image 2> with the pose of <image 1>. Match relative joint positions and bends, and the orientations of the head, torso, pelvis, palms, and feet. Match heel elevation in <image 1>.
+Replace the pose of <image 2> with the pose of <image 1>. Match relative joint positions and bends, and the orientations of the head, torso, pelvis, palms, and feet.

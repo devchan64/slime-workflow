@@ -1,4 +1,4 @@
-template: 'Show the character from the {direction} view. Follow the walking pose in <image 1>, including knee bends, lifted heels, foot spacing, arm swing and body lean. Preserve the face, hair, clothing and proportions of <image 2>.'
+template: 'Show the character from the {direction} view. Match each foot''s position, sole angle, and heel and toe contact in <image 1>.'
 directions:
   down_left: front-left
   down_right: front-right
@@ -10,8 +10,12 @@ required_prompt_frames:
 empty_prompt_frames_by_direction:
   down_left: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 18, 19, 20, 21, 22]
 required_frame_prompts:
-  down_left: Bend the screen-right knee outward, its foot lower than the other.
+  down_left: Match the supporting and non-contact legs in <image 1>. Keep the supporting foot grounded and the other foot off the ground, preserving the leg overlap.
 frame_prompt_overrides:
   down_left:
-    25: Bend the supporting knee forward as in <image 1>, keeping the foot flat on the ground.
-    30: Plant the screen-right foot flat on the ground with its knee bent. Lift the screen-left foot as in <image 1>.
+    15: Keep the right foot grounded. Raise the left knee and keep the left foot lifted.
+    25: Keep the supporting foot grounded as in <image 1>. Keep the non-contact foot off the ground at the reference height.
+    30: Keep the supporting foot grounded as in <image 1>. Keep the non-contact foot off the ground, matching its position in the reference.
+    32: Keep the left foot grounded. Raise the right knee and keep the right foot lifted.
+walking_prompt_excluded_frames:
+  down_left: [15, 32]

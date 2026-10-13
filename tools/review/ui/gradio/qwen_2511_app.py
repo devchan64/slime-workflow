@@ -131,14 +131,7 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
                 saved_auxiliary_prompt = saved_final_prompt[len(default_prompt_text):].strip()
                 restored_input_values[0] = gr.update(value=default_prompt_text, interactive=False)
                 restored_input_values[-2:] = [True, default_prompt_text]
-            selected_description_identifier = 'none'
-            for current_description_identifier, current_description_record in load_pose_descriptions().items():
-                current_description_text = current_description_record['prompt']
-                if current_description_text and (saved_auxiliary_prompt == current_description_text or saved_auxiliary_prompt.endswith(' ' + current_description_text)):
-                    saved_auxiliary_prompt = saved_auxiliary_prompt[:-len(current_description_text)].strip()
-                    selected_description_identifier = current_description_identifier
-                    break
-            restored_input_values.extend([saved_auxiliary_prompt, selected_description_identifier])
+            restored_input_values.append(saved_auxiliary_prompt)
         if plain_options_enabled:
             current_prompt_metadata = current_history_record['request'].get('qwen21', {})
             restored_input_values[0] = current_prompt_metadata.get('user_prompt', restored_input_values[0])
@@ -153,15 +146,12 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
         if expression_mode_enabled:
             gr.Markdown('Qwen-Image-Edit-2511 고정 · 참조 1~3장. 첫 이미지를 편집하고 추가 이미지는 동일 캐릭터의 외형 참고로 사용합니다. AU는 움직임 설계 참고이며 검출값·감정 판정·강도 측정이 아닙니다.')
         if vnccs_transfer_enabled:
-            from tools.review.domains.image.pose_description_prompt import load_pose_descriptions, compose_description_prompt
+            from tools.review.domains.image.pose_description_prompt import load_pose_descriptions
             current_description_records = load_pose_descriptions()
             gr.Markdown('### 프롬프트 설정')
             with gr.Group():
-                description_prompt_control = gr.Radio(
-                    [(current_record_value['label'] + (' · ' + current_record_value['prompt'] if current_record_value['prompt'] else ''), current_choice_identifier)
-                     for current_choice_identifier, current_record_value in current_description_records.items()],
-                    value='none', label='포즈 설명', info='선택한 문구를 최종 프롬프트에 추가합니다.')
-                auxiliary_prompt_control = gr.Textbox(value='', label='보조 프롬프트 · 선택', lines=2,
+                gr.Markdown('걷기 포즈 프리셋은 등록된 보조 문구를 적용합니다. Walking pose. 포함 여부는 프레임 설정을 따릅니다.')
+                auxiliary_prompt_control = gr.Textbox(value=current_description_records['walking']['prompt'], label='보조 프롬프트', lines=2,
                     placeholder='필요한 포즈 지시만 영문으로 입력하세요. 필요 없으면 비워두세요.')
                 reset_auxiliary_prompt_button = gr.Button('보조 문구 비우기', size='sm')
             with gr.Accordion('기본 프롬프트 · 확인 및 편집', open=False):
@@ -196,14 +186,14 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
             if not circular_mode_enabled and not vnccs_transfer_enabled and not plain_options_enabled: prompt_text_value.change(describe_plain_prompt, prompt_text_value, prompt_count_control, queue=False)
         if vnccs_transfer_enabled:
             with gr.Accordion('최종 모델 입력 · 펼쳐서 확인', open=False):
-                final_prompt_preview = gr.Textbox(value=default_prompt_text, show_label=False, interactive=False, lines=5)
-            def describe_auxiliary_prompt(current_base_prompt, current_auxiliary_prompt, selected_description_identifier):
-                current_final_prompt = ' '.join(current_prompt_part.strip() for current_prompt_part in (current_base_prompt, current_auxiliary_prompt, current_description_records[selected_description_identifier]['prompt']) if current_prompt_part.strip())
+                final_prompt_preview = gr.Textbox(value=default_prompt_text + ' ' + current_description_records['walking']['prompt'], show_label=False, interactive=False, lines=5)
+            def describe_auxiliary_prompt(current_base_prompt, current_auxiliary_prompt):
+                current_final_prompt = ' '.join(current_prompt_part.strip() for current_prompt_part in (current_base_prompt, current_auxiliary_prompt) if current_prompt_part.strip())
                 current_final_count = len(current_final_prompt.split())
-                return (f'기본 {len(current_base_prompt.split())}단어 · 보조 {len(current_auxiliary_prompt.split())}단어 · 설명 {len(current_description_records[selected_description_identifier]['prompt'].split())}단어 · 최종 {current_final_count}단어 / 최대 99단어' + (' · 제한 초과: 문구를 줄이세요.' if current_final_count > 99 else ''), current_final_prompt)
-            for current_prompt_control in (prompt_text_value, auxiliary_prompt_control, description_prompt_control):
-                current_prompt_control.change(describe_auxiliary_prompt, [prompt_text_value, auxiliary_prompt_control, description_prompt_control], [prompt_count_control, final_prompt_preview], queue=False)
-            prompt_count_control.value = describe_auxiliary_prompt(default_prompt_text, '', 'none')[0]
+                return (f'기본 {len(current_base_prompt.split())}단어 · 보조 {len(current_auxiliary_prompt.split())}단어 · 최종 {current_final_count}단어 / 최대 99단어' + (' · 제한 초과: 문구를 줄이세요.' if current_final_count > 99 else ''), current_final_prompt)
+            for current_prompt_control in (prompt_text_value, auxiliary_prompt_control):
+                current_prompt_control.change(describe_auxiliary_prompt, [prompt_text_value, auxiliary_prompt_control], [prompt_count_control, final_prompt_preview], queue=False)
+            prompt_count_control.value = describe_auxiliary_prompt(default_prompt_text, current_description_records['walking']['prompt'])[0]
         if vnccs_transfer_enabled:
             def reset_base_prompt_values():
                 return gr.update(value=load_pose_transfer_prompt(), interactive=False), True, load_pose_transfer_prompt()
@@ -270,19 +260,9 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
             reference_upload_group,reference_image_controls=build_reference_image_inputs(reference_image_mode=None, reference_slot_count=reference_slot_count, reference_slot_labels=['바디 레퍼런스 · 필수','아웃핏 레퍼런스 · 필수'] if outfit_transfer_enabled else ['아이덴티티 이미지 · 필수','포즈 이미지 · 필수'] if pose_transfer_enabled else None)
         if vnccs_transfer_enabled:
             def preview_motion_reference(selected_direction_value, selected_frame_number):
-                from tools.review.domains.image.pose_motion_reference import load_motion_reference, find_matching_auxiliary, MOTION_REFERENCE_ROOT
+                from tools.review.domains.image.pose_motion_reference import load_motion_reference
                 selected_pose_image, selected_auxiliary_text, selected_source_label = load_motion_reference(selected_direction_value, selected_frame_number)
-                selected_pose_digest = hashlib.sha256((MOTION_REFERENCE_ROOT / f'anny/{selected_direction_value}/anny-{int(selected_frame_number):04d}.png').read_bytes()).hexdigest()
-                matched_history_prompt = find_matching_auxiliary(execute_reference_gateway('history', {}).get('records', []), selected_pose_digest, load_pose_transfer_prompt()) if selected_auxiliary_text and '등록 보조 문구 적용: 사용자 지정' not in selected_source_label else None
-                if not selected_auxiliary_text:
-                    selected_source_label += ' · 보조 프롬프트 미사용 프레임: 적용하면 보조 입력을 비웁니다.'
-                elif '등록 보조 문구 적용: 사용자 지정' in selected_source_label:
-                    pass
-                elif matched_history_prompt:
-                    selected_auxiliary_text, selected_history_identifier = matched_history_prompt
-                    selected_source_label += ' · 같은 포즈의 완료 이력 보조 문구: ' + selected_history_identifier + ' (품질 승인 여부는 별도 확인)'
-                else:
-                    selected_source_label += ' · 방향별 기본 보조 문구. 프레임별 보강 문구는 아직 등록되지 않았습니다.'
+                selected_source_label += ' · 등록 보조 문구 사용'
                 return selected_pose_image, selected_auxiliary_text, selected_source_label, gr.update(interactive=True)
             for selected_preset_control in (motion_direction_control, motion_frame_control):
                 selected_preset_control.change(preview_motion_reference, [motion_direction_control, motion_frame_control], [motion_pose_preview, motion_prompt_preview, motion_reference_status, load_motion_frame_button], queue=False)
@@ -326,13 +306,13 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
             '이력과 해당 생성기의 임시 작업 폴더(결과·참조 입력 사본·로그)를 함께 삭제합니다. 이전에 목록에서 제거한 작업도 포함합니다. 정식 에셋과 모델 캐시는 유지합니다. 대기·실행 중에는 초기화할 수 없습니다.',
             result_renderer_callback=render_circular_comparison if circular_mode_enabled else None,
             restore_input_callback=restore_selected_inputs,
-            restore_output_components=[prompt_text_value,generation_tag_value,width_value,height_value,step_value,seed_value,*reference_image_controls,status_value]+(reference_upload_group.reference_slot_outputs if qwen21_mode_enabled and not pose_transfer_enabled else [])+([fixed_prompt_enabled, custom_prompt_memory] if pose_transfer_enabled else [])+([circular_radius_control,soft_shading_control,pattern_view_control,baseline_decode_control] if circular_mode_enabled else [])+([auxiliary_prompt_control, description_prompt_control] if vnccs_transfer_enabled else [])+([common_style_control,transparent_background_control] if plain_options_enabled else []),
+            restore_output_components=[prompt_text_value,generation_tag_value,width_value,height_value,step_value,seed_value,*reference_image_controls,status_value]+(reference_upload_group.reference_slot_outputs if qwen21_mode_enabled and not pose_transfer_enabled else [])+([fixed_prompt_enabled, custom_prompt_memory] if pose_transfer_enabled else [])+([circular_radius_control,soft_shading_control,pattern_view_control,baseline_decode_control] if circular_mode_enabled else [])+([auxiliary_prompt_control] if vnccs_transfer_enabled else [])+([common_style_control,transparent_background_control] if plain_options_enabled else []),
             record_folder_route='/outfit-transfer' if outfit_transfer_enabled else '/pose-transfer' if pose_transfer_enabled else '/image-generation-21-circular' if circular_mode_enabled else '/image-generation-21' if qwen21_mode_enabled else '/expression-generator' if expression_mode_enabled else '/image-generation-2511',allow_individual_delete=True)
         def start_reference_generation(prompt_text_value,generation_tag_value,*generation_input_values):
             if vnccs_transfer_enabled:
                 from tools.review.domains.image.pose_transfer_generation import combine_pose_prompt
                 try:
-                    prompt_text_value = compose_description_prompt(prompt_text_value, generation_input_values[-2], generation_input_values[-1])
+                    prompt_text_value = combine_pose_prompt(prompt_text_value, generation_input_values[-1])
                 except ValueError as current_prompt_error:
                     raise gr.Error(str(current_prompt_error)) from current_prompt_error
             if pose_transfer_enabled and any(current_reference_image is None for current_reference_image in generation_input_values[:2]):
@@ -364,7 +344,7 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
             except (ValueError,OSError) as generation_request_error:
                 raise gr.Error(str(generation_request_error)) from generation_request_error
             return generation_record_value['id'],'상태: running'
-        bind_gpu_generation_confirmation(generation_button_value,start_reference_generation,[prompt_text_value,generation_tag_value,*reference_image_controls,width_value,height_value,step_value,seed_value]+([circular_radius_control,soft_shading_control,pattern_view_control,baseline_decode_control] if circular_mode_enabled else [])+([auxiliary_prompt_control, description_prompt_control] if vnccs_transfer_enabled else [])+([common_style_control,transparent_background_control] if plain_options_enabled else []),[identifier_value,status_value], generation_confirmation_container=generation_confirmation_container)
+        bind_gpu_generation_confirmation(generation_button_value,start_reference_generation,[prompt_text_value,generation_tag_value,*reference_image_controls,width_value,height_value,step_value,seed_value]+([circular_radius_control,soft_shading_control,pattern_view_control,baseline_decode_control] if circular_mode_enabled else [])+([auxiliary_prompt_control] if vnccs_transfer_enabled else [])+([common_style_control,transparent_background_control] if plain_options_enabled else []),[identifier_value,status_value], generation_confirmation_container=generation_confirmation_container)
         def refresh_status(identifier_text_value,refresh_log_enabled):
             if not identifier_text_value:return gr.skip(),gr.skip(),gr.skip()
             status_record_value=execute_reference_gateway('status',{'id':identifier_text_value});return '상태: '+format_generation_status(status_record_value),gr.update(value=status_record_value.get('log','')) if refresh_log_enabled else gr.skip(),gr.update(value=collect_generation_gallery(status_record_value.get('image'),circular_mode_enabled,server_base_address),visible=True) if status_record_value.get('image') else gr.skip()
