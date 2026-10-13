@@ -13,12 +13,13 @@ required_frame_prompts:
   down_left: Match the supporting and non-contact legs in <image 1>. Keep the supporting foot grounded and the other foot off the ground, preserving the leg overlap.
 frame_prompt_overrides:
   down_left:
-    14: Keep the right foot grounded and the left foot lifted.
+    13: Keep the right foot grounded and the left foot slightly above the ground beneath the pelvis, matching <image 1>.
+    14: Keep the right foot grounded and the left foot slightly above the ground beneath the pelvis, matching <image 1>.
     15: Keep the right foot grounded and the left foot slightly above the ground beneath the pelvis, matching <image 1>.
-    16: Keep the right foot grounded and the left foot lifted.
+    16: Keep the right foot grounded and the left foot slightly above the ground beneath the pelvis, matching <image 1>.
     17: Keep the right foot grounded and the left foot lifted.
     25: Keep the supporting foot grounded as in <image 1>. Keep the non-contact foot off the ground at the reference height.
     30: Keep the supporting foot grounded as in <image 1>. Keep the non-contact foot off the ground, matching its position in the reference.
     32: Keep the left foot grounded. Raise the right knee and keep the right foot lifted.
 walking_prompt_excluded_frames:
-  down_left: [14, 15, 16, 17, 32]
+  down_left: [13, 14, 15, 16, 17, 32]
