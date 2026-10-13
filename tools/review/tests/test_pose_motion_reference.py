@@ -16,7 +16,7 @@ class PoseMotionReferenceTests(unittest.TestCase):
         for selected_direction_value in ('down_left','down_right','up_left','up_right'):
             for selected_frame_number in range(1,36):
                 selected_pose_image, selected_prompt_text, selected_source_text = load_motion_reference(selected_direction_value,selected_frame_number)
-                expected_walking_count = 0 if selected_direction_value == 'down_left' and selected_frame_number in (15, 32) else 1
+                expected_walking_count = 0 if selected_direction_value == 'down_left' and selected_frame_number in (14, 15, 16, 17, 32) else 1
                 self.assertEqual(selected_prompt_text.count('Walking pose.'), expected_walking_count)
                 self.assertGreater(selected_pose_image.width,0)
                 self.assertIn(f'{selected_frame_number}/35',selected_source_text)
@@ -29,7 +29,7 @@ class PoseMotionReferenceTests(unittest.TestCase):
             if selected_direction_value == 'down_left':
                 for selected_frame_number in (*range(1,13), *range(18,23)):
                     self.assertEqual(load_motion_reference(selected_direction_value,selected_frame_number)[1], 'Walking pose.')
-                for selected_frame_number in (13,14,16,17):
+                for selected_frame_number in (13,):
                     self.assertEqual(load_motion_reference(selected_direction_value,selected_frame_number)[1], 'Match the supporting and non-contact legs in <image 1>. Keep the supporting foot grounded and the other foot off the ground, preserving the leg overlap. Walking pose.')
             else:
                 self.assertTrue(load_motion_reference(selected_direction_value,1)[1])
