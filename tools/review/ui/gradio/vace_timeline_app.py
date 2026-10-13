@@ -7,7 +7,7 @@ from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[4]))
 import gradio as gr
 from PIL import Image
-from generators.vace.timeline import validate_timeline_request,VACE_TIMELINE_STORAGE_ROOT
+from generators.vace.timeline import validate_timeline_request,VACE_TIMELINE_STORAGE_ROOT,VACE_TIMELINE_FLOW_SHIFT,VACE_PADDING_COLOR_DEFAULT
 from tools.review.common.management_client import execute_remote_management_command
 from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_confirmation
 from tools.review.common.gradio_seed import build_generation_seed
@@ -21,9 +21,19 @@ def execute_timeline_command(current_command_name,current_payload_record):
     return execute_remote_management_command('wan21-vace-v2v',current_command_name,current_payload_record)
 
 
+def warn_image_resolution(current_file_paths):
+    current_mismatch_count=0
+    for current_file_path in current_file_paths or []:
+        with Image.open(current_file_path) as current_source_image:
+            current_mismatch_count += current_source_image.size != (832,480)
+    if current_mismatch_count:
+        gr.Warning(f'{current_mismatch_count}장 이미지가 832×480이 아닙니다. 생성 등록 시 비율을 유지해 리사이즈하고 선택한 여백 색상으로 채웁니다. 원본 파일은 보존합니다.')
+
+
 def load_timeline_images(current_file_paths):
     if not current_file_paths or any(not Path(current_file_path).stem.isdigit() or not 1 <= int(Path(current_file_path).stem) <= 161 for current_file_path in current_file_paths):
         raise gr.Error('1.png처럼 1부터 시작하는 원래 프레임 번호의 PNG를 첨부하세요.')
+    warn_image_resolution(current_file_paths)
     current_sorted_paths=sorted(current_file_paths,key=lambda current_file_path:int(Path(current_file_path).stem))
     current_table_rows=[[int(Path(current_file_path).stem),True] for current_file_path in current_sorted_paths]
     current_preview_images=[(current_file_path,Path(current_file_path).name) for current_file_path in current_sorted_paths]
@@ -31,7 +41,7 @@ def load_timeline_images(current_file_paths):
     return current_sorted_paths,current_table_rows,current_preview_images,((current_last_frame-1+3)//4)*4+1
 
 
-def build_timeline_payload(current_file_paths,current_table_rows,current_prompt_text,current_negative_text,current_frame_count,current_seed_value,current_resolution_text,current_steps_value,current_shift_value,current_guidance_value,current_conditioning_value,current_identity_path=None):
+def build_timeline_payload(current_file_paths,current_table_rows,current_prompt_text,current_negative_text,current_frame_count,current_seed_value,current_resolution_text,current_steps_value,current_shift_value,current_guidance_value,current_conditioning_value,current_identity_path=None,current_padding_color=VACE_PADDING_COLOR_DEFAULT):
     if len(current_file_paths or [])!=len(current_table_rows or []):
         raise ValueError('이미지 목록과 배치표가 일치하지 않습니다. 이미지를 다시 불러오세요.')
     current_encoded_images=[]
@@ -52,6 +62,7 @@ def build_timeline_payload(current_file_paths,current_table_rows,current_prompt_
         current_encoded_images.append(base64.b64encode(current_identity_buffer.getvalue()).decode())
     current_image_width,current_image_height=map(int,current_resolution_text.split('×'))
     current_payload_record=dict(action='generate',images=current_encoded_images,frame_entries=current_frame_entries,prompt=current_prompt_text,negative_prompt=current_negative_text,frames=current_frame_count,seed=current_seed_value,width=current_image_width,height=current_image_height,steps=current_steps_value,flow_shift=current_shift_value,guidance_scale=current_guidance_value,conditioning_scale=current_conditioning_value)
+    current_payload_record['padding_color']=current_padding_color
     current_payload_record['identity_reference_count']=int(bool(current_identity_path))
     validate_timeline_request(current_payload_record)
     return current_payload_record
@@ -66,6 +77,7 @@ def build_timeline_interface(current_server_address):
         gr.Markdown('빠진 프레임은 회색(127) 영상과 흰 마스크로 생성합니다. 수정 가능한 이미지도 다시 그려지므로 포즈·신체 비율 유지가 보장되지는 않습니다. 현재 마스크는 프레임 전체에 적용합니다.')
         current_input_gallery=gr.Gallery(label='배치 이미지',allow_preview=False,columns=4)
         current_identity_control=gr.Image(type='filepath',label='외형 참조 이미지 · 선택 1장',sources=['upload'],height=240)
+        current_identity_control.change(lambda current_image_path:warn_image_resolution([current_image_path] if current_image_path else []),current_identity_control,queue=False)
         gr.Markdown('얼굴·색상·그림체의 기준입니다. 영상 프레임에 배치하거나 첫 프레임을 고정하지 않습니다.')
         current_prompt_control=gr.Textbox(label='장면 프롬프트',value='',lines=4)
         current_prompt_summary=gr.Markdown('원문 0단어 · 최종 0단어')
@@ -76,7 +88,9 @@ def build_timeline_interface(current_server_address):
             current_negative_summary=gr.Markdown('원문 0단어 · 최종 0단어')
             current_negative_control.change(lambda current_prompt_text:f'원문 {len(current_prompt_text.split())}단어 · 최종 {len(current_prompt_text.split())}단어',current_negative_control,current_negative_summary,queue=False)
             gr.Button('부정 프롬프트 초기화').click(lambda:'',outputs=current_negative_control,queue=False)
-        current_resolution_control=gr.Dropdown(['512×512','832×480','480×832'],value='512×512',label='출력 해상도')
+        current_resolution_control=gr.Textbox(value='832×480',label='출력 해상도 · 480P 고정',interactive=False)
+        gr.Markdown('출력은 832×480으로 고정됩니다. 이전 이력을 불러와도 새 생성은 이 해상도를 사용하며, 내용을 자르지 않고 비율을 유지해 맞춘 뒤 남는 공간을 선택한 색상으로 채웁니다.')
+        current_padding_control=gr.ColorPicker(value=VACE_PADDING_COLOR_DEFAULT,label="여백 색상 · 기본 흰색")
         current_frames_control=gr.Number(value=37,precision=0,minimum=1,maximum=161,step=4,label='프레임 수 · 4n+1 · 16fps')
         current_duration_text=gr.Markdown('37프레임 · 약 2.31초 · 16fps')
         current_frames_control.change(lambda current_frame_count:f'{current_frame_count}프레임 · 약 {current_frame_count/16:.2f}초 · 16fps',current_frames_control,current_duration_text,queue=False)
@@ -85,7 +99,7 @@ def build_timeline_interface(current_server_address):
         gr.Markdown('고정 모델: Wan2.1 VACE 1.3B · CUDA 연산 · CPU 가중치 오프로드 · UniPC · 16fps')
         with gr.Accordion('고급 설정',open=False):
             current_steps_control=gr.Number(value=50,precision=0,label='추론 스텝')
-            current_shift_control=gr.Number(value=5.0,label='Flow shift')
+            current_shift_control=gr.Number(value=VACE_TIMELINE_FLOW_SHIFT,label='Flow shift')
             current_guidance_control=gr.Number(value=5.0,label='텍스트 가이던스')
             current_conditioning_control=gr.Number(value=1.0,label='비디오 조건 강도')
         current_generate_button=gr.Button('영상 생성 설정 확인',variant='primary')
@@ -97,7 +111,7 @@ def build_timeline_interface(current_server_address):
         current_result_display=gr.HTML('')
         current_result_identity=gr.State('')
         current_log_output,current_log_refresh,_=build_execution_logs()
-        current_input_controls=[current_sorted_files,current_frame_table,current_prompt_control,current_negative_control,current_frames_control,current_seed_control,current_resolution_control,current_steps_control,current_shift_control,current_guidance_control,current_conditioning_control,current_identity_control]
+        current_input_controls=[current_sorted_files,current_frame_table,current_prompt_control,current_negative_control,current_frames_control,current_seed_control,current_resolution_control,current_steps_control,current_shift_control,current_guidance_control,current_conditioning_control,current_identity_control,current_padding_control]
         def start_timeline_generation(*current_input_values):
             current_job_record=execute_timeline_command('generate',build_timeline_payload(*current_input_values))
             return current_job_record['id'],'GPU 대기열에 등록했습니다.'
@@ -116,7 +130,7 @@ def build_timeline_interface(current_server_address):
             current_file_paths=[str(current_job_root/current_file_name) for current_file_name in current_request_record['references'][:len(current_request_record['frame_entries'])]]
             current_table_rows=[[current_frame_entry['frame']+1,current_frame_entry['editable']] for current_frame_entry in current_request_record['frame_entries']]
             current_model_config=current_request_record['vace']
-            return current_file_paths,current_table_rows,current_request_record['prompt'],current_model_config['negative_prompt'],current_request_record['frames'],current_request_record['seed'],f"{current_request_record['width']}×{current_request_record['height']}",current_request_record['steps'],current_model_config['flow_shift'],current_model_config['guidance_scale'],current_model_config['conditioning_scale'],str(current_job_root/current_request_record['references'][-1]) if current_request_record.get('identity_reference_count') else None,current_file_paths,current_history_record['id']
+            return current_file_paths,current_table_rows,current_request_record['prompt'],current_model_config['negative_prompt'],current_request_record['frames'],current_request_record['seed'],'832×480',current_request_record['steps'],current_model_config['flow_shift'],current_model_config['guidance_scale'],current_model_config['conditioning_scale'],str(current_job_root/current_request_record['references'][-1]) if current_request_record.get('identity_reference_count') else None,current_request_record.get('padding_color',VACE_PADDING_COLOR_DEFAULT),current_file_paths,current_history_record['id']
         current_read_history,current_history_outputs=build_generation_history_view(execute_timeline_command,current_server_address,'입력·결과 파일은 보존합니다.',restore_input_callback=restore_timeline_inputs,restore_output_components=[*current_input_controls,current_input_gallery,current_job_control],result_renderer_callback=render_video_generation_result,record_folder_route='/wan21-vace-v2v',allow_individual_delete=True,individual_delete_scope_text='목록에서만 제거합니다. 파일은 보존합니다.')
         current_interface_blocks.load(lambda:current_read_history(1),outputs=current_history_outputs)
         current_interface_blocks.load(lambda:execute_timeline_command('active',{}).get('id') or '',outputs=current_job_control)

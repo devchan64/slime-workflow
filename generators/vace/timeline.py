@@ -1,6 +1,8 @@
 """VACE V2V의 희소 프레임 입력과 수정 마스크 계약."""
 import base64
 import json
+import io
+import re
 from pathlib import Path
 from PIL import Image, ImageOps
 from generators.vace.contracts import validate_vace_request
@@ -8,11 +10,21 @@ from tools.review.domains.image.three_reference_generation import verify_referen
 
 VACE_TIMELINE_STORAGE_ROOT = Path(__file__).resolve().parents[2]/'.tmp/test/wan21-vace-v2v'
 VACE_TIMELINE_SLOT_LIMIT = 161
+VACE_TIMELINE_FLOW_SHIFT = 3.0
+VACE_TIMELINE_IMAGE_WIDTH = 832
+VACE_TIMELINE_IMAGE_HEIGHT = 480
+VACE_PADDING_COLOR_DEFAULT = "#FFFFFF"
 
 
-def validate_timeline_request(current_request_record):
+def validate_timeline_request(current_request_record, allow_historical_resolution=False):
     if not isinstance(current_request_record, dict):
         raise ValueError('요청은 객체여야 합니다.')
+    if not allow_historical_resolution:
+        if (current_request_record.get('width', VACE_TIMELINE_IMAGE_WIDTH), current_request_record.get('height', VACE_TIMELINE_IMAGE_HEIGHT)) != (VACE_TIMELINE_IMAGE_WIDTH, VACE_TIMELINE_IMAGE_HEIGHT):
+            raise ValueError('VACE V2V 출력 해상도는 832×480으로 고정됩니다.')
+    current_padding_color = current_request_record.get('padding_color', VACE_PADDING_COLOR_DEFAULT)
+    if not isinstance(current_padding_color, str) or not re.fullmatch(r'#[0-9a-fA-F]{6}', current_padding_color):
+        raise ValueError('여백 색상은 #RRGGBB 형식이어야 합니다.')
     current_frame_entries = current_request_record.get('frame_entries')
     current_image_values = current_request_record.get('images')
     current_identity_count = current_request_record.get('identity_reference_count', 0)
@@ -22,9 +34,10 @@ def validate_timeline_request(current_request_record):
         raise ValueError('배치 이미지는 1~161장이어야 합니다.')
     if not isinstance(current_image_values,list) or len(current_image_values)!=len(current_frame_entries)+current_identity_count:
         raise ValueError('이미지와 프레임 배치 개수가 다릅니다.')
-    current_base_request = {current_field_name:current_field_value for current_field_name,current_field_value in current_request_record.items() if current_field_name not in ('frame_entries', 'identity_reference_count')}
+    current_base_request = {current_field_name:current_field_value for current_field_name,current_field_value in current_request_record.items() if current_field_name not in ('frame_entries', 'identity_reference_count', 'padding_color')}
     current_base_request['images'] = current_image_values[:1]
     current_base_request.setdefault('negative_prompt','')
+    current_base_request.setdefault('flow_shift',VACE_TIMELINE_FLOW_SHIFT)
     current_validated_record = validate_vace_request(current_base_request)
     current_normalized_images = []
     current_seen_frames = set()
@@ -43,6 +56,16 @@ def validate_timeline_request(current_request_record):
         current_base_request['images'] = current_image_values[-1:]
         current_normalized_images.extend(validate_vace_request(current_base_request)['images'])
         current_validated_record['identity_reference_count'] = current_identity_count
+    if not allow_historical_resolution:
+        current_resized_images=[]
+        for current_encoded_image in current_normalized_images:
+            with Image.open(io.BytesIO(base64.b64decode(current_encoded_image))) as current_source_image:
+                current_resized_image=ImageOps.pad(current_source_image.convert('RGB'),(VACE_TIMELINE_IMAGE_WIDTH,VACE_TIMELINE_IMAGE_HEIGHT),method=Image.Resampling.LANCZOS,color=current_padding_color)
+                current_image_buffer=io.BytesIO()
+                current_resized_image.save(current_image_buffer,format='PNG')
+                current_resized_images.append(base64.b64encode(current_image_buffer.getvalue()).decode())
+        current_normalized_images=current_resized_images
+    current_validated_record['padding_color']=current_padding_color.upper()
     current_validated_record['images']=current_normalized_images
     current_validated_record['frame_entries']=current_frame_entries
     current_validated_record['vace'].update(task='v2v',video='assembled-frames',mask='editable-white-preserved-black')
@@ -56,7 +79,7 @@ def verify_timeline_request(current_job_root):
     verify_reference_snapshots(current_job_root,current_saved_record)
     current_restored_record={current_field_name:current_field_value for current_field_name,current_field_value in current_saved_record.items() if current_field_name not in ('vace','references','reference_snapshots')}
     current_restored_record['images']=[base64.b64encode((current_job_root/current_reference_name).read_bytes()).decode() for current_reference_name in current_saved_record['references']]
-    current_validated_record=validate_timeline_request(current_restored_record)
+    current_validated_record=validate_timeline_request(current_restored_record, allow_historical_resolution=True)
     if current_validated_record['vace']!=current_saved_record['vace']:
         raise ValueError('저장된 설정 또는 프롬프트 해시가 일치하지 않습니다.')
     return current_saved_record
@@ -68,7 +91,7 @@ def assemble_timeline_inputs(current_job_root,current_request_record):
     current_mask_frames=[Image.new('RGB',current_target_size,'white') for _ in range(current_request_record['frames'])]
     for current_frame_entry,current_reference_name in zip(current_request_record['frame_entries'],current_request_record['references']):
         with Image.open(current_job_root/current_reference_name) as current_source_image:
-            current_video_frames[current_frame_entry['frame']]=ImageOps.pad(current_source_image.convert('RGB'),current_target_size,color='white')
+            current_video_frames[current_frame_entry['frame']]=ImageOps.pad(current_source_image.convert('RGB'),current_target_size,color=current_request_record.get('padding_color', VACE_PADDING_COLOR_DEFAULT))
         current_mask_frames[current_frame_entry['frame']]=Image.new('RGB',current_target_size,'white' if current_frame_entry['editable'] else 'black')
     return current_video_frames,current_mask_frames
 

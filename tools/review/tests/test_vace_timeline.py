@@ -12,7 +12,7 @@ class VaceTimelineContractTests(unittest.TestCase):
     def build_valid_payload(self):
         current_image_buffer=io.BytesIO()
         Image.new('RGB',(16,16),'red').save(current_image_buffer,format='PNG')
-        return dict(action='generate',prompt='전신 걷기',images=[base64.b64encode(current_image_buffer.getvalue()).decode()],frame_entries=[{'frame':2,'editable':True}],frames=5,width=512,height=512,seed=42)
+        return dict(action='generate',prompt='전신 걷기',images=[base64.b64encode(current_image_buffer.getvalue()).decode()],frame_entries=[{'frame':2,'editable':True}],frames=5,width=832,height=480,seed=42)
 
     def test_sparse_editable_frame(self):
         current_request_record=validate_timeline_request(self.build_valid_payload())
@@ -54,7 +54,7 @@ class VaceTimelineContractTests(unittest.TestCase):
             current_saved_record={**{k:v for k,v in current_validated_record.items() if k!='images'},**save_three_reference_inputs(current_job_root,current_validated_record)}
             (current_job_root/'request.json').write_text(json.dumps(current_saved_record))
             verify_timeline_request(current_job_root)
-            self.assertEqual(load_identity_references(current_job_root,current_saved_record)[0].getpixel((0,0)),(0,0,255))
+            self.assertEqual(load_identity_references(current_job_root,current_saved_record)[0].getpixel((416,240)),(0,0,255))
             self.assertEqual(assemble_timeline_inputs(current_job_root,current_saved_record)[0][2].getpixel((256,256)),(255,0,0))
             (current_job_root/current_saved_record['references'][-1]).write_bytes(b'changed')
             with self.assertRaises(ValueError):verify_timeline_request(current_job_root)
@@ -67,3 +67,33 @@ class VaceTimelineContractTests(unittest.TestCase):
         current_payload_record=self.build_valid_payload()
         current_payload_record['identity_reference_count']=1
         with self.assertRaises(ValueError):validate_timeline_request(current_payload_record)
+
+    def test_fixed_output_resolution(self):
+        current_payload_record=self.build_valid_payload()
+        current_payload_record.pop('width')
+        current_payload_record.pop('height')
+        current_validated_record=validate_timeline_request(current_payload_record)
+        self.assertEqual((current_validated_record['width'],current_validated_record['height']),(832,480))
+        for current_width_value,current_height_value in [(512,512),(480,832)]:
+            current_payload_record.update(width=current_width_value,height=current_height_value)
+            with self.assertRaisesRegex(ValueError,'832×480'):validate_timeline_request(current_payload_record)
+
+    def test_input_canvas_normalized(self):
+        current_validated_record=validate_timeline_request(self.build_valid_payload())
+        with Image.open(io.BytesIO(base64.b64decode(current_validated_record['images'][0]))) as current_input_image:
+            self.assertEqual(current_input_image.size,(832,480))
+            self.assertEqual(current_input_image.getpixel((0,0)),(255,255,255))
+            self.assertEqual(current_input_image.getpixel((416,240)),(255,0,0))
+
+    def test_custom_padding_color(self):
+        current_payload_record=self.build_valid_payload()
+        current_payload_record['padding_color']='#12ab34'
+        current_validated_record=validate_timeline_request(current_payload_record)
+        self.assertEqual(current_validated_record['padding_color'],'#12AB34')
+        with Image.open(io.BytesIO(base64.b64decode(current_validated_record['images'][0]))) as current_input_image:
+            self.assertEqual(current_input_image.getpixel((0,0)),(18,171,52))
+            self.assertEqual(current_input_image.getpixel((416,240)),(255,0,0))
+        for current_invalid_color in ('white','#FFF','#12345678',None,123):
+            current_payload_record['padding_color']=current_invalid_color
+            with self.assertRaisesRegex(ValueError,'#RRGGBB'):
+                validate_timeline_request(current_payload_record)

@@ -15,7 +15,9 @@ class VaceTimelineGenerationManager(VaceGenerationManager):
         return validate_timeline_request(current_request_record)
 
     def validate_generation_resume(self,selected_job_directory):
-        verify_timeline_request(selected_job_directory)
+        current_saved_record=verify_timeline_request(selected_job_directory)
+        if (current_saved_record['width'],current_saved_record['height']) != (832,480):
+            raise ValueError('이전 해상도 작업은 재개할 수 없습니다. 입력값을 불러와 832×480으로 새로 생성하세요.')
 
     def select_generation_runner(self,saved_request_record=None):
         return 'generators/vace/timeline_worker.py'
