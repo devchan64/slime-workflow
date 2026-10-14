@@ -589,3 +589,9 @@ VACE V2V 출력은 832×480(480P)으로 고정한다. GUI 선택은 제거하며
 포즈·외형 참조 입력이 832×480이 아니면 GUI 업로드 시 경고한다. 생성 등록 시 공용 입력 검증에서 비율을 유지해 리사이즈하고 선택한 색상으로 여백을 추가한 PNG를 저장하므로 CLI/API에도 동일하게 적용된다. 사용자 원본 파일은 수정하지 않으며 과거 이력 검증은 저장 당시 입력을 유지한다.
 
 VACE V2V의 `padding_color`는 `#RRGGBB` 형식의 여백 색상이며 기본값은 `#FFFFFF`입니다. GUI 색상 선택과 CLI `--payload-file` 요청에 동일하게 적용하고 이력에 보존합니다. 포즈·외형 참조 이미지의 비율을 유지해 832×480 안에 맞춘 뒤 남는 공간만 채웁니다. 누락 프레임의 회색 입력과 수정 마스크 색상은 변경하지 않습니다.
+
+## 음악생성
+
+`music-stable-audio`, `music-ace-step`, `music-minimax`를 공용 게이트웨이에 등록한다. GUI는 **음악생성** 분류의 세 Gradio 화면이며, 모두 `generate/prepare/model-status/status/logs/history/active/cancel/resume/prioritize/history-delete/history-reset` 명령을 공유한다. `generate` 입력은 `prompt`, `duration_seconds`, `seed`, `loop_request`, `tag`다. 모델·파일 경로를 클라이언트가 지정하지 않는다.
+
+각 서비스는 `/music-…/jobs`, `/music-…/history` 호환 경로를 유지한다. 최종 WAV 조회는 `/music-…/jobs/<id>/attempts/<attempt>/music.wav`다. 모델 준비·실행 환경·저장소·재개·라이선스·8GB 검증 범위는 [음악생성 사용법](../generators/music/README.md)을 따른다. 외부 클라우드 API나 배포 리소스는 추가하지 않는다.

@@ -332,6 +332,9 @@ def run_review_server(parsed_argument_values):
             emit_server_trace('gradio-menu-failure',str(gradio_error_value))
     def resolve_gradio_proxy_port(request_path_value):
         gradio_route_records=(
+            ('/management/frame/music-stable-audio/',parsed_argument_values.port+128,lambda:ensure_gradio_application(parsed_argument_values.port,'music-stable-audio')),
+            ('/management/frame/music-ace-step/',parsed_argument_values.port+129,lambda:ensure_gradio_application(parsed_argument_values.port,'music-ace-step')),
+            ('/management/frame/music-minimax/',parsed_argument_values.port+130,lambda:ensure_gradio_application(parsed_argument_values.port,'music-minimax')),
             ('/management/frame/vace-v2v-generator/',parsed_argument_values.port+127,lambda:ensure_gradio_application(parsed_argument_values.port,'vace-v2v')),
             ('/management/frame/phantom-generator/',parsed_argument_values.port+126,lambda:ensure_gradio_application(parsed_argument_values.port,'phantom')),
             ('/management/frame/wan21-vace-generator/',parsed_argument_values.port+125,lambda:ensure_gradio_application(parsed_argument_values.port,'wan21-vace')),

@@ -33,6 +33,7 @@ class GenerationTelemetryRecorder:
             self.current_run_state['stage'] = current_stage_name
             if current_stage_name=='inference':
                 self.current_step_clock = time.monotonic()
+        self.capture_generation_memory()
         self.save_generation_metrics()
 
     def record_generation_step(self, current_step_number):
@@ -66,7 +67,7 @@ class GenerationTelemetryRecorder:
         with self.current_state_lock:
             for current_device_line in current_device_text.splitlines():
                 current_uuid_value,current_usage_text = map(str.strip,current_device_line.split(','))
-                current_device_record = self.current_run_state['gpu_observations'].setdefault(current_uuid_value,{'process_peak_mib':None,'device_peak_mib':None,'sample_count':0,'method':'nvidia-smi','interval_seconds':5,'scope':'작업자 및 자식 프로세스; 장치 전체 값은 다른 작업 포함; 샘플 사이 순간 피크 누락 가능'})
+                current_device_record = self.current_run_state['gpu_observations'].setdefault(current_uuid_value,{'process_peak_mib':None,'device_peak_mib':None,'sample_count':0,'method':'nvidia-smi','unit':'MiB','interval_seconds':5,'scope':'작업자 및 자식 프로세스; 장치 전체 값은 다른 작업 포함; 샘플 사이 순간 피크 누락 가능'})
                 current_process_usage = current_usage_records.get(current_uuid_value)
                 current_device_record.update(process_current_mib=current_process_usage,device_current_mib=int(current_usage_text),updated_at=datetime.now(ZoneInfo('Asia/Seoul')).isoformat())
                 current_device_record['device_peak_mib'] = max(current_device_record['device_peak_mib'] or 0,int(current_usage_text))
@@ -87,19 +88,23 @@ class GenerationTelemetryRecorder:
             write_record_atomically(self.current_attempt_root/'metrics.json',self.current_run_state)
             print(f"{self.current_run_state['updated_at']}/generation/{self.current_run_state['stage']} step={self.current_run_state['step']}/{self.current_step_total} elapsed={current_elapsed_seconds:.1f}s",flush=True)
 
+    def capture_generation_memory(self):
+        try:
+            self.sample_generation_memory()
+        except (OSError,ValueError,subprocess.SubprocessError) as current_measurement_error:
+            with self.current_state_lock:
+                self.current_run_state['measurement_gaps'].append({'at':datetime.now(ZoneInfo('Asia/Seoul')).isoformat(),'error':str(current_measurement_error)})
+
     def run_telemetry_heartbeat(self):
         while not self.current_stop_event.is_set():
             current_heartbeat_clock = time.monotonic()
-            try:
-                self.sample_generation_memory()
-            except (OSError,ValueError,subprocess.SubprocessError) as current_measurement_error:
-                with self.current_state_lock:
-                    self.current_run_state['measurement_gaps'].append({'at':datetime.now(ZoneInfo('Asia/Seoul')).isoformat(),'error':str(current_measurement_error)})
+            self.capture_generation_memory()
             self.save_generation_metrics()
             self.current_stop_event.wait(max(0,GENERATION_SAMPLE_INTERVAL-(time.monotonic()-current_heartbeat_clock)))
 
     def finish_generation_telemetry(self, current_status_name):
         self.current_stop_event.set()
         self.current_worker_thread.join(timeout=6)
+        self.capture_generation_memory()
         self.current_run_state.update(status=current_status_name,stage=current_status_name)
         self.save_generation_metrics()

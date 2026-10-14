@@ -1,0 +1,36 @@
+# 음악생성 고정 실행 설정. 사용자 요청으로 모델·경로를 바꾸지 않는다.
+version: 1
+prompt: ""
+duration_seconds: 30
+seed: 42
+loop_request: false
+instrumental_suffix: "Instrumental game background music."
+loop_suffix: "Repeating musical motif, steady rhythm, consistent arrangement suitable for repeated playback."
+profiles:
+  music-stable-audio:
+    label: Stable Audio 3 Medium
+    model_id: stabilityai/stable-audio-3-medium
+    runtime_directory: .venv-music-stable
+    max_duration_seconds: 120
+    sample_rate: 44100
+    steps: 8
+    license_url: https://huggingface.co/stabilityai/stable-audio-3-medium
+    license_notice: "Stability Community License · 상업 이용은 등록·매출 조건 확인 필요"
+  music-ace-step:
+    label: ACE-Step 1.5 Turbo
+    model_id: ACE-Step/Ace-Step1.5
+    runtime_directory: .venv-music-ace
+    max_duration_seconds: 120
+    sample_rate: 48000
+    steps: 8
+    license_url: https://huggingface.co/ACE-Step/Ace-Step1.5
+    license_notice: "MIT · 모델과 생성 음악의 상업 이용 허용 안내"
+  music-minimax:
+    label: MiniMax-Music3
+    model_id: MiniMaxAI/MiniMax-Music3
+    runtime_directory: .venv-music-minimax
+    max_duration_seconds: 60
+    sample_rate: 44100
+    steps: 1
+    license_url: https://huggingface.co/MiniMaxAI/MiniMax-Music3/blob/main/LICENSE
+    license_notice: "MiniMax-Music3 Community License · 표시 의무·매출 조건 확인 필요"

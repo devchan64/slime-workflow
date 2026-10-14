@@ -1,0 +1,4 @@
+# CUDA용 torch와 Flash Attention 2는 해당 장치에 맞추어 먼저 설치한다.
+stable-audio-3 @ git+https://github.com/Stability-AI/stable-audio-3@77e0398c26f7d22d801ec1bb036307e8b231f741
+PyYAML>=6,<7
+soundfile>=0.13,<0.14

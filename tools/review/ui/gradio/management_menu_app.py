@@ -15,13 +15,16 @@ WORKFLOW_ROOT_DIRECTORY=Path(__file__).resolve().parents[4]
 if str(WORKFLOW_ROOT_DIRECTORY) not in sys.path:sys.path.insert(0,str(WORKFLOW_ROOT_DIRECTORY))
 from tools.review.common.gpu_status import read_gpu_status
 
-CATEGORY_LABEL_VALUES={'all':'전체','writer-agent':'작가 AI 에이전트','image-generation':'이미지 생성','animation':'등록 애니메이션','animation-tool':'애니메이션 도구','character-render-review':'캐릭터 렌더링 검수','town-map-review':'마을맵 검수','field-map-review':'필드맵 검수','game-ui':'게임 UI · 디자인 시스템'}
+CATEGORY_LABEL_VALUES={'all':'전체','music-generation':'음악생성','writer-agent':'작가 AI 에이전트','image-generation':'이미지 생성','animation':'등록 애니메이션','animation-tool':'애니메이션 도구','character-render-review':'캐릭터 렌더링 검수','town-map-review':'마을맵 검수','field-map-review':'필드맵 검수','game-ui':'게임 UI · 디자인 시스템'}
 MANAGEMENT_FRAME_PATH_PREFIX='/management/frame/'
 MANAGEMENT_FRAME_IDENTIFIER_VALUES={'anny-attribute-renderer':'anny-attributes'}
-NATIVE_MANAGEMENT_APPLICATIONS=frozenset(('vace-v2v-generator','phantom-generator','hy-motion-generator','anny-landmarks','animation-separation','qwen-21-circular-generator','pose-transfer-generator','outfit-transfer-generator','qwen-21-generator','expression-generator','sprite-editor-v2','character-review','map-review','anny-attributes','writer-agent'))
+NATIVE_MANAGEMENT_APPLICATIONS=frozenset(('music-stable-audio','music-ace-step','music-minimax','vace-v2v-generator','phantom-generator','hy-motion-generator','anny-landmarks','animation-separation','qwen-21-circular-generator','pose-transfer-generator','outfit-transfer-generator','qwen-21-generator','expression-generator','sprite-editor-v2','character-review','map-review','anny-attributes','writer-agent'))
 DEFAULT_MANAGER_SOURCE_PATH=WORKFLOW_ROOT_DIRECTORY/'.tmp/manager-current/manager-source.json'
 LEGACY_PAGE_IDENTIFIER_VALUES={'map-review':'map-review-iseulon','animation-2':'animation-1','animation-3':'animation-1'}
 DEFAULT_PAGE_RECORDS=(
+    {'id': 'music-stable-audio', 'label': 'Stable Audio 3 Medium', 'path': '/management/frame/music-stable-audio/', 'category': 'music-generation', 'uiMode': 'gradio', 'description': '로컬 CUDA · WAV · 반복 구조 요청 선택 · 8GB 실측 필요'},
+    {'id': 'music-ace-step', 'label': 'ACE-Step 1.5 Turbo', 'path': '/management/frame/music-ace-step/', 'category': 'music-generation', 'uiMode': 'gradio', 'description': '로컬 CUDA · WAV · 반복 구조 요청 선택 · 8GB 실측 필요'},
+    {'id': 'music-minimax', 'label': 'MiniMax-Music3', 'path': '/management/frame/music-minimax/', 'category': 'music-generation', 'uiMode': 'gradio', 'description': '로컬 CUDA · WAV · 반복 구조 요청 선택 · 8GB 실측 필요'},
     {'id':'vace-v2v-generator','label':'Wan2.1 VACE V2V 영상 생성기','path':'/management/frame/vace-v2v-generator/','category':'animation-tool','uiMode':'gradio','description':'1.3B · 포즈 프레임 배치 · 수정 마스크 · 로컬 GPU'},
     {'id':'phantom-generator','label':'Phantom R2V 영상 생성기','path':'/management/frame/phantom-generator/','category':'animation-tool','uiMode':'gradio','description':'1.3B · 캐릭터 참조 · 832×480 · 로컬 GPU'},
     {'id':'anny-landmarks','label':'ANNY 해부학 기준점 검수','path':'/management/frame/anny-landmarks/','category':'animation-tool','uiMode':'gradio','description':'neutral_v4 · 기준점 후보 지정 · 기하 축 검수 · 리타기팅 미적용'},

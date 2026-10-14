@@ -1,0 +1,87 @@
+"""음악 모델 준비·생성을 공용 GPU 실행기 아래에서 수행한다."""
+import argparse
+from pathlib import Path
+import signal
+import sys
+import traceback
+import uuid
+
+WORKFLOW_ROOT_DIRECTORY = Path(__file__).resolve().parents[2]
+sys.path.insert(0,str(WORKFLOW_ROOT_DIRECTORY))
+from generators.music.contracts import MUSIC_SERVICE_NAMES, read_music_record, resolve_music_paths, resolve_music_profile, verify_music_request, validate_music_identifier
+from generators.music.runtime import prepare_music_model, execute_music_inference, calculate_music_checksum
+from tools.review.common.generation_records import write_record_atomically
+from tools.review.common.generation_telemetry import GenerationTelemetryRecorder
+
+
+def handle_music_signal(current_signal_number,current_stack_frame):
+    raise InterruptedError(f'음악 작업 종료 신호 {current_signal_number}')
+
+
+def collect_music_durations(current_storage_root,current_request_record,current_device_name):
+    current_duration_samples = []
+    current_condition_fields = ('action','model_id','duration_seconds','defaults_sha256')
+    for current_result_path in current_storage_root.glob('*/attempts/*/result.json'):
+        current_previous_request = read_music_record(current_result_path.parent/'request.json')
+        current_previous_metrics = read_music_record(current_result_path.parent/'metrics.json')
+        current_previous_result = read_music_record(current_result_path)
+        if current_previous_result.get('included_download') or current_previous_result.get('runtime_sha256') != calculate_music_checksum(Path(__file__).with_name('runtime.py')):
+            continue
+        if current_previous_metrics['status'] == 'completed' and current_previous_metrics.get('gpu_name') == current_device_name and all(current_previous_request.get(current_field_name)==current_request_record.get(current_field_name) for current_field_name in current_condition_fields):
+            current_duration_samples.append(current_previous_metrics['elapsed_seconds'])
+    return current_duration_samples[-20:]
+
+
+def execute_music_worker(current_service_name,current_job_root):
+    current_storage_root,_,_ = resolve_music_paths(current_service_name)
+    if current_job_root.parent.resolve() != current_storage_root.resolve() or current_job_root.is_symlink():
+        raise ValueError('음악 작업 경로 오류')
+    validate_music_identifier(current_job_root.name)
+    current_attempt_root = current_job_root/'attempts'/uuid.uuid4().hex
+    current_attempt_root.mkdir(parents=True)
+    write_record_atomically(current_job_root/'current-attempt.json',{'id':current_attempt_root.name})
+    current_metrics_recorder = GenerationTelemetryRecorder(current_attempt_root,1,[])
+    current_metrics_recorder.current_run_state.update(attempt=current_attempt_root.name,generation_id=current_job_root.name,service=current_service_name)
+    current_metrics_recorder.start_generation_telemetry()
+    current_final_status = 'failed'
+    signal.signal(signal.SIGTERM,handle_music_signal)
+    signal.signal(signal.SIGINT,handle_music_signal)
+    try:
+        current_request_record = verify_music_request(current_service_name,read_music_record(current_job_root/'request.json'))
+        write_record_atomically(current_attempt_root/'request.json',current_request_record)
+        from generators.music.runtime import require_music_cuda
+        current_torch_module = require_music_cuda()
+        current_device_name = current_torch_module.cuda.get_device_name()
+        current_metrics_recorder.current_run_state['gpu_name'] = current_device_name
+        # 준비 다운로드 시간은 조건이 일정하지 않으므로 추정 표본으로 쓰지 않는다.
+        current_model_ready = (resolve_music_paths(current_service_name)[1]/'prepared.json').exists()
+        if current_model_ready and current_request_record['action']=='generate':
+            current_metrics_recorder.historical_duration_values = collect_music_durations(current_storage_root,current_request_record,current_device_name)
+        current_prepared_record = prepare_music_model(current_service_name,current_metrics_recorder,current_request_record['action']=='prepare')
+        write_record_atomically(current_attempt_root/'model-manifest.json',current_prepared_record)
+        if current_request_record['action']=='prepare':
+            current_result_record = {'attempt':current_attempt_root.name,'prepared':True,'model_id':current_request_record['model_id']}
+        else:
+            current_result_record = execute_music_inference(current_service_name,current_request_record,current_attempt_root,current_metrics_recorder)
+        current_result_record['included_download'] = not current_model_ready
+        write_record_atomically(current_attempt_root/'result.json',current_result_record)
+        write_record_atomically(current_job_root/'result.json',current_result_record)
+        current_final_status = 'completed'
+    except BaseException as current_worker_error:
+        current_final_status = 'cancelled' if isinstance(current_worker_error,(InterruptedError,KeyboardInterrupt)) else 'failed'
+        _,current_model_root,current_python_path = resolve_music_paths(current_service_name)
+        print(f"model_id={resolve_music_profile(current_service_name)['model_id']} model_root={current_model_root} model_path={current_model_root} binary_path={current_python_path}",flush=True)
+        write_record_atomically(current_attempt_root/'error.json',{'error':str(current_worker_error),'traceback':traceback.format_exc()})
+        traceback.print_exc()
+        raise
+    finally:
+        current_metrics_recorder.finish_generation_telemetry(current_final_status)
+        write_record_atomically(current_job_root/'status.json',{'status':current_final_status,'attempt':current_attempt_root.name})
+
+
+if __name__ == '__main__':
+    current_argument_parser = argparse.ArgumentParser(description=__doc__)
+    current_argument_parser.add_argument('--service',choices=MUSIC_SERVICE_NAMES,required=True)
+    current_argument_parser.add_argument('--job-dir',type=Path,required=True)
+    current_argument_values = current_argument_parser.parse_args()
+    execute_music_worker(current_argument_values.service,current_argument_values.job_dir)
