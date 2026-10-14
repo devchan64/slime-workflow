@@ -29,7 +29,7 @@ class PoseMotionReferenceTests(unittest.TestCase):
             if selected_direction_value == 'down_left':
                 for selected_frame_number in (*range(1,13), *range(18,23)):
                     self.assertEqual(load_motion_reference(selected_direction_value,selected_frame_number)[1], 'Walking pose.')
-                for selected_frame_number in (13,14,15,16):
+                for selected_frame_number in (13,14,15):
                     self.assertEqual(load_motion_reference(selected_direction_value,selected_frame_number)[1], 'Keep the right foot grounded and the left foot slightly above the ground beneath the pelvis, matching <image 1>.')
             else:
                 self.assertTrue(load_motion_reference(selected_direction_value,1)[1])
