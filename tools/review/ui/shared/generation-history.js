@@ -3,7 +3,7 @@ const generationHistoryContainer=document.querySelector('#generation-history');
 const usesSelectionActions=generationHistoryContainer.dataset.selectionActions==='true';
 const allowsIndividualHistoryDelete=generationHistoryContainer.dataset.individualHistoryDelete==='true';
 generationHistoryContainer.classList.toggle('uses-selection-actions',usesSelectionActions);
-generationHistoryContainer.innerHTML='<div class="history-heading"><div><h2>생성 이력</h2><p>결과는 누적 보관됩니다. 목록 초기화는 수동으로 실행하며 원본 파일은 유지됩니다.</p></div></div><div class="history-filters"><label>이력 검색<input id="history-search" type="search" placeholder="ID·모션·프롬프트 검색"></label><label>작업 상태<select id="history-state-filter"><option value="">전체 상태</option><option value="completed">완료</option><option value="queued">GPU 대기 중</option><option value="running">생성 중</option><option value="failed">실패</option><option value="cancelled">취소됨</option></select></label></div><div class="history-management-actions history-navigation-actions"><p id="history-status" role="status"></p><button type="button" id="history-refresh">이력 새로고침</button><button id="history-prev" type="button">← 이전</button><span id="history-page"></span><button id="history-next" type="button">다음 →</button></div><ul id="history-list"></ul><p id="history-result-reference" hidden aria-live="polite"></p><details id="history-log-details"><summary>선택한 작업 로그</summary><pre id="history-log">이력에서 로그 보기를 선택하세요.</pre></details><details id="history-reset-details"><summary>이력 수동 초기화</summary><p>이력 목록만 초기화하며 결과·입력·로그 파일은 유지합니다.</p><button type="button" id="history-reset" class="danger">이력 목록 초기화</button></details>';
+generationHistoryContainer.innerHTML='<div class="history-heading"><div><h2>생성 이력</h2><p>결과는 누적 보관됩니다. 초기화하면 작업 입력 사본·결과·로그를 함께 삭제합니다. 외부 원본·등록 에셋·모델은 유지됩니다.</p></div></div><div class="history-filters"><label>이력 검색<input id="history-search" type="search" placeholder="ID·모션·프롬프트 검색"></label><label>작업 상태<select id="history-state-filter"><option value="">전체 상태</option><option value="completed">완료</option><option value="queued">GPU 대기 중</option><option value="running">생성 중</option><option value="failed">실패</option><option value="cancelled">취소됨</option></select></label></div><div class="history-management-actions history-navigation-actions"><p id="history-status" role="status"></p><button type="button" id="history-refresh">이력 새로고침</button><button id="history-prev" type="button">← 이전</button><span id="history-page"></span><button id="history-next" type="button">다음 →</button></div><ul id="history-list"></ul><p id="history-result-reference" hidden aria-live="polite"></p><details id="history-log-details"><summary>선택한 작업 로그</summary><pre id="history-log">이력에서 로그 보기를 선택하세요.</pre></details><details id="history-reset-details"><summary>이력 수동 초기화</summary><p>작업 입력 사본·중간 산출물·결과·모든 실행 로그를 함께 삭제합니다. 복구할 수 없습니다.</p><button type="button" id="history-reset" class="danger">생성 이력 초기화</button></details>';
 if(generationHistoryContainer.dataset.resetDeletesFiles==='true')generationHistoryContainer.querySelector('.history-heading p').textContent='수동 초기화하면 이력과 참조·결과·로그 파일이 함께 삭제됩니다. 정식 등록 에셋은 유지됩니다.';
 let currentHistoryPage=1,selectedHistoryIdentifier=null,historyLogPollTimer=null;
 const historyPageSize=8;
@@ -31,10 +31,10 @@ async function requestSelectedHistoryOperation(historyRecordValue,operationNameV
  await refreshGenerationHistory();
 }
 async function deleteSelectedHistoryRecord(historyRecordValue){
- if(!confirm('선택 이력 '+historyRecordValue.id+'을 목록에서 삭제할까요? 결과·입력·로그 파일은 유지됩니다.'))return;
+ if(!confirm('선택 이력 '+historyRecordValue.id+'의 입력 사본·결과·로그를 삭제할까요? 복구할 수 없습니다. 외부 원본은 유지됩니다.'))return;
  const deleteResponse=await fetch(historyRoutePrefix+'/history/'+encodeURIComponent(historyRecordValue.id)+'/delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:historyRecordValue.id})});
  const deletePayload=await deleteResponse.json();if(!deleteResponse.ok)throw Error(deletePayload.error);
- selectedHistoryIdentifier=null;historyStatusElement.textContent='선택 이력을 목록에서 삭제했습니다. 결과·입력·로그 파일은 유지됩니다.';
+ selectedHistoryIdentifier=null;historyStatusElement.textContent='선택 작업 파일 삭제 완료 · '+(deletePayload.deleted_bytes??'미측정')+'바이트';
  await refreshGenerationHistory();
 }
 function createSelectedHistoryActions(historyRecordValue){
@@ -156,7 +156,7 @@ document.querySelector('#history-search').oninput=()=>{clearTimeout(historySearc
 document.querySelector('#history-state-filter').onchange=()=>{currentHistoryPage=1;refreshGenerationHistory();};
 document.querySelector('#history-refresh').onclick=refreshGenerationHistory;
 document.querySelector('#history-reset').onclick=async()=>{
- if(!confirm(generationHistoryContainer.dataset.resetDeletesFiles==='true'?'이 생성기의 전체 이력과 참조 이미지·결과·로그 파일을 삭제할까요? 정식 등록 에셋은 유지됩니다.':'이 생성기의 프롬프트·이력 목록을 초기화할까요? 실험 폴더의 입력과 결과 파일은 유지됩니다.'))return;
+ if(!confirm('이 생성기의 작업 입력 사본·중간 산출물·결과·로그와 이력을 모두 삭제할까요? 복구할 수 없습니다. 외부 원본·등록 에셋·모델은 유지됩니다.'))return;
  try{const currentResetResponse=await fetch(historyRoutePrefix+'/history/reset',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'reset'})});const currentResetPayload=await currentResetResponse.json();if(!currentResetResponse.ok)throw Error(currentResetPayload.error);document.dispatchEvent(new CustomEvent('generation-history-reset',{detail:{route:historyRoutePrefix}}));document.querySelector('#history-image-dialog')?.close();currentHistoryPage=1;selectedHistoryIdentifier=null;clearTimeout(historyLogPollTimer);document.querySelector('#history-log').textContent='이력에서 로그 보기를 선택하세요.';document.querySelector('#history-log-details').open=false;await refreshGenerationHistory();}catch(currentResetError){historyStatusElement.textContent=currentResetError.message;}
 };
 refreshGenerationHistory();

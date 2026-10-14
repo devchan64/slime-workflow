@@ -12,6 +12,7 @@ sys.path.insert(0, str(WORKFLOW_ROOT_DIRECTORY))
 import gradio as gr
 from generators.hy_motion.contracts import load_generation_defaults, validate_generation_request, read_encoder_system_prompt, build_encoder_input_preview, load_motion_presets
 from generators.hy_motion.contracts import MAXIMUM_DURATION_SECONDS
+from tools.review.common.generation_cleanup import GENERATION_CLEANUP_SCOPE_TEXT
 from tools.review.common.management_client import execute_remote_management_command as execute_management_command
 from tools.review.common.gradio_frame_player import build_browser_frame_player
 from tools.review.common.generation_progress_display import render_generation_estimate
@@ -179,7 +180,7 @@ def build_hymotion_interface(server_base_address):
             return current_status_text, current_eta_text
 
         gr.Timer(2).tick(refresh_current_progress, current_identifier_view, [current_status_view, current_eta_view], show_progress='hidden')
-        current_read_history, current_history_outputs = build_generation_history_view(execute_motion_command, server_base_address, '목록만 초기화하며 모션·로그 원본은 보존합니다. 실행 중에는 초기화할 수 없습니다.', restore_input_callback=restore_motion_inputs, restore_output_components=current_input_components, result_renderer_callback=render_motion_result, result_component_factory=build_browser_frame_player, record_folder_route='/hy-motion-generator', allow_individual_delete=True, individual_delete_scope_text='선택한 작업만 이력 목록에서 제거합니다. 모션·렌더·로그 파일은 보존하며 실행·대기 중인 작업은 삭제할 수 없습니다.')
+        current_read_history, current_history_outputs = build_generation_history_view(execute_motion_command, server_base_address, GENERATION_CLEANUP_SCOPE_TEXT, restore_input_callback=restore_motion_inputs, restore_output_components=current_input_components, result_renderer_callback=render_motion_result, result_component_factory=build_browser_frame_player, record_folder_route='/hy-motion-generator', allow_individual_delete=True, individual_delete_scope_text=GENERATION_CLEANUP_SCOPE_TEXT)
         current_interface_blocks.load(
             lambda: load_latest_generation(current_read_history, refresh_current_progress),
             outputs=[*current_history_outputs, current_identifier_view, current_status_view, current_eta_view],

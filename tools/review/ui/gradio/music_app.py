@@ -7,6 +7,7 @@ WORKFLOW_ROOT_DIRECTORY = Path(__file__).resolve().parents[4]
 sys.path.insert(0,str(WORKFLOW_ROOT_DIRECTORY))
 import gradio as gr
 from generators.music.contracts import build_music_request, load_music_defaults, resolve_music_profile
+from tools.review.common.generation_cleanup import GENERATION_CLEANUP_SCOPE_TEXT
 from tools.review.common.management_client import execute_remote_management_command
 from tools.review.common.gradio_seed import build_generation_seed
 from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_confirmation
@@ -87,9 +88,9 @@ def build_music_interface(current_service_name,current_server_address):
             if current_request_record['action']!='generate':
                 raise gr.Error('모델 준비 이력에는 음악 입력이 없습니다.')
             return current_request_record['prompt'],current_request_record['duration_seconds'],current_request_record['seed'],current_request_record['loop_request'],current_request_record['tag'],current_history_record['id']
-        current_read_history,current_history_outputs = build_generation_history_view(execute_music_command,current_server_address,'목록에서만 제거하며 음악·입력·로그를 보존합니다.',
+        current_read_history,current_history_outputs = build_generation_history_view(execute_music_command,current_server_address,GENERATION_CLEANUP_SCOPE_TEXT,
             restore_input_callback=restore_music_inputs,restore_output_components=[current_prompt_control,current_duration_control,current_seed_control,current_loop_control,current_tag_control,current_job_control],
-            result_renderer_callback=render_audio_generation_result,record_folder_route='/'+current_service_name,allow_individual_delete=True,individual_delete_scope_text='선택한 목록 항목만 삭제합니다. WAV·입력·로그는 보존합니다.')
+            result_renderer_callback=render_audio_generation_result,record_folder_route='/'+current_service_name,allow_individual_delete=True,individual_delete_scope_text=GENERATION_CLEANUP_SCOPE_TEXT)
         current_interface_blocks.load(lambda:current_read_history(1),outputs=current_history_outputs)
         current_interface_blocks.load(lambda:execute_music_command('active',{}).get('id') or '',outputs=current_job_control)
         current_interface_blocks.load(lambda:execute_music_command('model-status',{})['message'],outputs=current_model_status)

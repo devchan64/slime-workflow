@@ -11,6 +11,7 @@ sys.path.insert(0,str(WORKFLOW_ROOT_DIRECTORY))
 import gradio as gr
 from PIL import Image
 from generators.phantom.contracts import PHANTOM_JOB_STORAGE_ROOT, validate_phantom_request, load_phantom_defaults
+from tools.review.common.generation_cleanup import GENERATION_CLEANUP_SCOPE_TEXT
 from tools.review.common.management_client import execute_remote_management_command
 from tools.review.common.gradio_reference_images import build_reference_image_inputs
 from tools.review.common.gradio_seed import build_generation_seed
@@ -108,7 +109,7 @@ def build_phantom_interface(current_server_address):
             current_request_record=current_history_record['request']
             current_reference_images=[Image.open(PHANTOM_JOB_STORAGE_ROOT/current_history_record['id']/current_reference_name).copy() for current_reference_name in current_request_record['references']]
             return *current_reference_images,*([None]*(4-len(current_reference_images))),current_request_record['prompt'],current_request_record['frames'],current_request_record['seed'],current_request_record['phantom']['negative_prompt'],f"{current_request_record['width']}×{current_request_record['height']}",current_request_record['steps'],current_request_record['phantom']['flow_shift'],current_request_record['phantom']['guidance_scale'],current_request_record['phantom']['conditioning_scale'],current_history_record['id']
-        current_read_history,current_history_outputs=build_generation_history_view(execute_phantom_command,current_server_address,'목록에서만 제거하며 입력·결과·로그는 보존합니다.',restore_input_callback=restore_phantom_inputs,restore_output_components=[*current_reference_controls,current_prompt_control,current_frames_control,current_seed_control,current_negative_control,current_resolution_control,current_steps_control,current_shift_control,current_guidance_control,current_conditioning_control,current_job_control],result_renderer_callback=render_phantom_result,record_folder_route='/phantom',allow_individual_delete=True,individual_delete_scope_text='목록에서만 제거합니다. 파일은 보존합니다.')
+        current_read_history,current_history_outputs=build_generation_history_view(execute_phantom_command,current_server_address,GENERATION_CLEANUP_SCOPE_TEXT,restore_input_callback=restore_phantom_inputs,restore_output_components=[*current_reference_controls,current_prompt_control,current_frames_control,current_seed_control,current_negative_control,current_resolution_control,current_steps_control,current_shift_control,current_guidance_control,current_conditioning_control,current_job_control],result_renderer_callback=render_phantom_result,record_folder_route='/phantom',allow_individual_delete=True,individual_delete_scope_text=GENERATION_CLEANUP_SCOPE_TEXT)
         current_interface_blocks.load(lambda:current_read_history(1),outputs=current_history_outputs)
         current_interface_blocks.load(lambda:execute_phantom_command('active',{}).get('id') or '',outputs=current_job_control)
     return current_interface_blocks

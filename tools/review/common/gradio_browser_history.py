@@ -1,6 +1,7 @@
 """브라우저가 기존 이력 API를 호출하는 도구의 표준 이력 컨트롤."""
 import json
 import gradio as gr
+from tools.review.common.generation_cleanup import GENERATION_CLEANUP_SCOPE_TEXT
 from tools.review.common.gradio_identifiers import build_generation_identifier
 from tools.review.common.gradio_logs import create_copyable_log_textbox
 
@@ -23,10 +24,19 @@ def build_browser_history_controls(history_bridge_name, history_element_identifi
         with gr.Accordion('선택한 작업 로그',open=False,visible='logs' in current_enabled_actions):
             current_history_log=create_copyable_log_textbox(label='저장된 로그 · 최근 12,000자',lines=12,interactive=False)
         with gr.Accordion('이력 수동 정리',open=False,visible=bool(current_enabled_actions&{'delete','reset'})):
-            gr.Markdown('목록에서만 제외합니다. 결과·입력·로그 파일은 유지됩니다. 실행 또는 대기 중인 작업은 정리할 수 없습니다.')
+            gr.Markdown('현재 동작·버전의 편집 이력 목록만 초기화합니다.' if current_reset_target_handler else GENERATION_CLEANUP_SCOPE_TEXT)
             with gr.Row():
-                for current_action_name,current_action_label in [('delete','선택 이력 삭제'),('reset','이력 목록 초기화')]:
+                for current_action_name,current_action_label in [('delete','선택 이력 삭제'),('reset','생성 이력 초기화' if not current_reset_target_handler else '이력 목록 초기화')]:
                     if current_action_name in current_enabled_actions:current_history_buttons.append((gr.Button(current_action_label),current_action_name))
+        if not current_reset_target_handler:
+            current_file_action=gr.State('')
+            current_file_target=gr.State('')
+            with gr.Group(visible=False) as current_file_panel:
+                gr.Markdown('### 생성 작업 파일 삭제 확인\n'+GENERATION_CLEANUP_SCOPE_TEXT)
+                current_file_display=gr.Textbox(label='삭제 대상',interactive=False)
+                with gr.Row():
+                    current_file_confirm=gr.Button('확인 · 파일과 이력 삭제',variant='stop')
+                    current_file_cancel=gr.Button('취소')
         if current_reset_target_handler:
             with gr.Group(visible=False) as current_reset_confirmation:
                 gr.Markdown('### 이력 목록 초기화 확인\n현재 동작·버전의 이력 목록만 비웁니다. 원본 파일과 편집 중 좌표는 유지됩니다. 모달 대신 인라인 확인 영역을 사용합니다.')
@@ -45,7 +55,7 @@ def build_browser_history_controls(history_bridge_name, history_element_identifi
                 if(currentAutomaticMode&&(!currentRefreshEnabled||typeof currentBridgeFunction!=='function'))return currentNoChanges();
                 const currentRefreshState=window["""+current_state_key+"""]??={revision:0,pending:0};
                 if(currentRefreshState.pending&&currentAutomaticMode)return currentNoChanges();
-                const currentConfirmedReset="""+json.dumps(current_action_name=='reset' and bool(current_reset_target_handler))+""";
+                const currentConfirmedReset="""+json.dumps(current_action_name in ('delete','reset'))+""";
                 if(currentConfirmedReset&&currentRefreshState.resetPending)return [...currentNoChanges().slice(0,4),'이력 초기화 중입니다. 완료 후 다시 확인하세요.'];
                 if(currentConfirmedReset)currentRefreshState.resetPending=true;
                 if(!currentAutomaticMode)currentRefreshState.revision++;
@@ -65,8 +75,19 @@ def build_browser_history_controls(history_bridge_name, history_element_identifi
                 current_action_button.click(fn=None,outputs=[current_reset_confirmation,current_reset_target,current_history_feedback],queue=False,js="()=>{try{const currentTargetValue=window["+json.dumps(current_reset_target_handler)+"]();return [{__type__:'update',visible:true},currentTargetValue,'대상 동작·버전과 목록 초기화 범위를 확인하세요.'];}catch(currentErrorValue){return [{__type__:'update',visible:false},'',currentErrorValue.message];}}")
                 current_reset_confirm.click(fn=None,inputs=[*current_history_inputs,current_reset_target],outputs=[*current_history_outputs,current_reset_confirmation,current_reset_target],queue=False,js="async(currentSelectedId,currentRefreshEnabled,currentConfirmedTarget)=>{const currentResultValues=await ("+create_history_script('reset')+")(currentSelectedId,currentRefreshEnabled,currentConfirmedTarget);return [...currentResultValues,{__type__:'update',visible:false},''];}")
                 current_reset_cancel.click(lambda:(gr.update(visible=False),'','이력 초기화를 취소했습니다.'),outputs=[current_reset_confirmation,current_reset_target,current_history_feedback],queue=False)
+            elif current_action_name in ('delete','reset'):
+                def open_file_confirmation(current_selected_identifier,current_requested_action=current_action_name):
+                    if current_requested_action=='delete' and not current_selected_identifier:
+                        raise gr.Error('삭제할 작업을 선택하세요.')
+                    current_target_value=current_selected_identifier or ''
+                    return gr.update(visible=True),current_requested_action,current_target_value,current_target_value if current_requested_action=='delete' else '이 생성기의 전체 작업 파일'
+                current_action_button.click(open_file_confirmation,current_history_choice,[current_file_panel,current_file_action,current_file_target,current_file_display],queue=False)
             else:
                 current_action_button.click(fn=None,inputs=current_history_inputs,outputs=current_history_outputs,queue=False,js=create_history_script(current_action_name))
+        if not current_reset_target_handler:
+            current_file_confirm.click(fn=None,inputs=[*current_history_inputs,current_file_action,current_file_target],outputs=[*current_history_outputs,current_file_panel],queue=False,js="async(currentSelectedId,currentRefreshEnabled,currentAction,currentTarget)=>{if(!['delete','reset'].includes(currentAction))return [{__type__:'update'},{__type__:'update'},{__type__:'update'},{__type__:'update'},'삭제 확인이 만료되었습니다.',{__type__:'update',visible:false}];if(currentAction==='delete'&&currentSelectedId!==currentTarget)return [{__type__:'update'},{__type__:'update'},{__type__:'update'},{__type__:'update'},'삭제 대상이 변경되었습니다.',{__type__:'update',visible:false}];const currentResult=await (currentAction==='delete'?("+create_history_script('delete')+"):("+create_history_script('reset')+"))(currentSelectedId,currentRefreshEnabled,{confirmed:true,id:currentTarget});return [...currentResult,{__type__:'update',visible:false}];}")
+            current_file_cancel.click(lambda:(gr.update(visible=False),''),outputs=[current_file_panel,current_file_action],queue=False)
+            current_history_choice.change(lambda:(gr.update(visible=False),''),outputs=[current_file_panel,current_file_action],queue=False)
         current_history_choice.input(fn=None,inputs=current_history_inputs,outputs=current_history_outputs,queue=False,js=create_history_script('inspect'))
         current_history_timer=gr.Timer(5)
         current_history_timer.tick(fn=None,inputs=current_history_inputs,outputs=current_history_outputs,queue=False,js=create_history_script('list',True),show_progress='hidden')

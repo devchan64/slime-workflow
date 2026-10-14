@@ -40,15 +40,15 @@ class HyMotionContractTests(unittest.TestCase):
             with self.subTest(field=current_field_name), self.assertRaises(ValueError):
                 validate_generation_request({**self.current_request_record, current_field_name: current_invalid_value})
 
-    def test_selected_history_delete_preserves_files(self):
+    def test_selected_history_delete_removes_files(self):
         current_job_identifier = self.create_test_generation()
         current_job_directory = jobs.resolve_generation_directory(current_job_identifier)
         with self.assertRaises(ValueError):
             jobs.execute_hymotion_command('history-delete', {'id': current_job_identifier})
         (current_job_directory / 'status.json').write_text(json.dumps({'status': 'failed'}))
         current_delete_result = jobs.execute_hymotion_command('history-delete', {'id': current_job_identifier})
-        self.assertTrue(current_delete_result['files_preserved'])
-        self.assertTrue((current_job_directory / 'request.json').exists())
+        self.assertFalse(current_delete_result['files_preserved'])
+        self.assertFalse(current_job_directory.exists())
         self.assertFalse((jobs.GENERATION_HISTORY_ROOT / (current_job_identifier + '.json')).exists())
 
     def test_prompt_and_config_validation(self):
@@ -75,7 +75,7 @@ class HyMotionContractTests(unittest.TestCase):
         with patch('generators.hy_motion.contracts.MOTION_PRESETS_PATH', current_invalid_path), self.assertRaises(ValueError):
             load_motion_presets()
 
-    def test_shared_record_and_history_reset_preserve_files(self):
+    def test_shared_record_and_history_reset_remove_files(self):
         current_job_identifier = self.create_test_generation()
         current_job_directory = jobs.resolve_generation_directory(current_job_identifier)
         self.assertEqual(json.loads((current_job_directory / 'request.json').read_text()), self.current_request_record)
@@ -85,8 +85,7 @@ class HyMotionContractTests(unittest.TestCase):
         (current_job_directory / 'status.json').write_text(json.dumps({'status': 'completed'}))
         jobs.execute_hymotion_command('history-reset', {})
         self.assertEqual(jobs.list_generation_history()['records'], [])
-        self.assertTrue((current_job_directory / 'request.json').exists())
-        self.assertEqual(jobs.read_generation_status(current_job_identifier)['request'], self.current_request_record)
+        self.assertFalse(current_job_directory.exists())
 
     def test_cancel_and_resume_use_shared_gpu_queue(self):
         current_job_identifier = self.create_test_generation()

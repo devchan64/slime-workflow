@@ -89,7 +89,7 @@ window.annyNumericControls=(currentActionName,currentFieldName,currentFieldValue
  }
  return [{__type__:'update',choices:attributeFieldSpecs.map(currentSpecRecord=>[currentSpecRecord[1]+(['hip-waist-up','torso-muscle-dorsi-incr'].includes(currentSpecRecord[0])?' · 잠금':''),currentSpecRecord[0]]),value:currentSelectedName},{__type__:'update',value:currentAttributeValues[currentSelectedName],minimum:currentMinimumValue,maximum:currentMaximumValue,interactive:!currentLockedState},`허용 범위 ${currentMinimumValue}~${currentMaximumValue} · ${currentLockedState?'기준값 잠금':'변경 후 프리뷰 생성으로 확인하세요.'}`];
 };
-window.annyHistoryControls=async(currentActionName,currentSelectedId)=>{
+window.annyHistoryControls=async(currentActionName,currentSelectedId,currentConfirmedTarget)=>{
  if(!['list','inspect','result','restore','logs','resume','cancel','delete','reset'].includes(currentActionName))throw Error('지원하지 않는 이력 명령입니다.');
  const currentHistoryPayload=await fetchRenderRecord('/anny-attributes/history');
  const currentHistoryRecords=currentHistoryPayload.records;
@@ -114,11 +114,11 @@ window.annyHistoryControls=async(currentActionName,currentSelectedId)=>{
   if(currentActionName==='resume'&&!['failed','cancelled'].includes(currentStateName))throw Error('실패 또는 중지된 작업만 재개할 수 있습니다.');
   if(currentActionName==='delete'&&['running','queued'].includes(currentStateName))throw Error('실행 또는 대기 중인 작업은 먼저 중지하세요.');
   if(currentActionName==='reset'&&currentHistoryRecords.some(currentHistoryRecord=>['running','queued'].includes(currentHistoryRecord.status.status)))throw Error('실행 또는 대기 중인 작업이 있습니다. 완료 후 정리하세요.');
-  const currentConfirmedValue=currentActionName==='resume'?await confirmGpuQueueStart():!['delete','reset'].includes(currentActionName)||confirm(currentActionName==='reset'?'전체 이력 목록을 초기화할까요? 결과·입력·로그 파일은 유지됩니다.':'선택 이력을 목록에서 삭제할까요? 결과·입력·로그 파일은 유지됩니다.');
+  const currentConfirmedValue=currentActionName==='resume'?await confirmGpuQueueStart():!['delete','reset'].includes(currentActionName)||(currentConfirmedTarget?.confirmed===true&&(currentActionName==='reset'||currentConfirmedTarget.id===currentSelectedId));
   if(currentConfirmedValue){
    const currentRouteSuffix=currentActionName==='reset'?'history/reset':currentActionName==='delete'?'history/'+encodeURIComponent(currentSelectedId)+'/delete':currentActionName;
-   await fetchRenderRecord('/anny-attributes/'+currentRouteSuffix,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(currentActionName==='reset'?{action:'reset'}:{id:currentSelectedId})});
-   const currentUpdatedValues=await window.annyHistoryControls('list',['delete','reset'].includes(currentActionName)?null:currentSelectedId);currentUpdatedValues[4]='이력 명령을 반영했습니다.';return currentUpdatedValues;
+   const currentCommandResult=await fetchRenderRecord('/anny-attributes/'+currentRouteSuffix,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(currentActionName==='reset'?{action:'reset'}:{id:currentSelectedId})});
+   const currentUpdatedValues=await window.annyHistoryControls('list',['delete','reset'].includes(currentActionName)?null:currentSelectedId);currentUpdatedValues[4]=currentCommandResult.deleted_bytes!==undefined?'작업 '+currentCommandResult.deleted_jobs+'건 · '+currentCommandResult.deleted_bytes+'바이트 삭제 완료':'이력 명령을 반영했습니다.';return currentUpdatedValues;
   }
   currentFeedbackText='명령을 취소했습니다.';
  }

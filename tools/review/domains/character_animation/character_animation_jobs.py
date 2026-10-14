@@ -16,6 +16,7 @@ import time
 import traceback
 import uuid
 from tools.review.common.gpu_job_queue import launch_gpu_process
+from tools.review.common.generation_cleanup import delete_generation_job_files
 
 from tools.review.domains.character_animation.character_animation_assets import WORKFLOW_ROOT_DIRECTORY, prepare_animation_request, build_animation_catalog, load_animation_configuration
 from tools.review.common.generation_records import write_record_atomically
@@ -191,17 +192,15 @@ def execute_animation_command(operation_command_name,command_payload_value):
             history_record_value['progress']={'label':'이미지 생성','unit':'장 완료','completed_frames':completed_image_count,'total_frames':total_image_count,'percent':round(100*completed_image_count/total_image_count,1) if total_image_count else 0,'detail':detail_text_value}
             history_record_values.append({**history_record_value,'path':generation_status_value['path'],'status':{'status':generation_status_value['status'],'error':generation_status_value.get('error')},'request':{**{key:generation_status_value['request'][key] for key in ('motion','character','source','directions','start_frame','end_frame')},'tag':generation_status_value['request'].get('tag',''),'resolution':generation_status_value['request'].get('resolution',512),'speed':generation_status_value['request'].get('speed',1),'target_fps':generation_status_value['request'].get('target_fps'),'frame_step':generation_status_value['request'].get('frame_step',1),'steps':generation_status_value['request'].get('steps',4),'alpha_version':generation_status_value['request'].get('alpha_version')},'playable':bool(generation_status_value.get('result'))})
         return {'records':history_record_values}
-    if operation_command_name=='history-delete':
-        selected_job_identifier=command_payload_value['id']
-        selected_job_status=read_generation_status(selected_job_identifier)
-        if selected_job_status['status'] in ('queued','running'):
-            raise ValueError('대기·실행 중인 작업은 먼저 중지한 뒤 삭제하세요.')
-        selected_history_path=GENERATION_HISTORY_DIRECTORY/(selected_job_identifier+'.json')
-        selected_history_path.unlink(missing_ok=True)
-        return {'deleted':selected_job_identifier,'files_preserved':True}
-    if operation_command_name=='history-reset':
-        for history_record_path in GENERATION_HISTORY_DIRECTORY.glob('*.json'):history_record_path.unlink(missing_ok=True)
-        return {'status':'cleared'}
+    if operation_command_name in ('history-delete','history-reset'):
+        GENERATION_ROOT_DIRECTORY.mkdir(parents=True,exist_ok=True)
+        with GENERATION_LOCK_PATH.open('a') as current_service_lock:
+            fcntl.flock(current_service_lock,fcntl.LOCK_EX)
+            if operation_command_name=='history-delete':
+                current_identifier_value=command_payload_value['id']
+                return delete_generation_job_files(GENERATION_ROOT_DIRECTORY,[resolve_generation_directory(current_identifier_value)],[GENERATION_HISTORY_DIRECTORY/(current_identifier_value+'.json')])
+            current_job_targets=[current_job_path for current_job_path in GENERATION_ROOT_DIRECTORY.glob('*/*') if re.fullmatch(r'\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-[a-f0-9]{8}',current_job_path.name) and current_job_path.parent.name==current_job_path.name[:19]]
+            return delete_generation_job_files(GENERATION_ROOT_DIRECTORY,current_job_targets,GENERATION_HISTORY_DIRECTORY.glob('*.json'))
     if operation_command_name=='cancel':
         generation_job_path = resolve_generation_directory(command_payload_value['id'])
         if read_generation_status(command_payload_value['id'])['status'] not in ('running','queued'):raise ValueError('실행 중인 작업이 아닙니다.')

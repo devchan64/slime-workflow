@@ -8,6 +8,7 @@ sys.path.insert(0,str(Path(__file__).resolve().parents[4]))
 import gradio as gr
 from PIL import Image
 from generators.vace.timeline import validate_timeline_request,VACE_TIMELINE_STORAGE_ROOT,VACE_TIMELINE_FLOW_SHIFT,VACE_PADDING_COLOR_DEFAULT
+from tools.review.common.generation_cleanup import GENERATION_CLEANUP_SCOPE_TEXT
 from tools.review.common.management_client import execute_remote_management_command
 from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_confirmation
 from tools.review.common.gradio_seed import build_generation_seed
@@ -131,7 +132,7 @@ def build_timeline_interface(current_server_address):
             current_table_rows=[[current_frame_entry['frame']+1,current_frame_entry['editable']] for current_frame_entry in current_request_record['frame_entries']]
             current_model_config=current_request_record['vace']
             return current_file_paths,current_table_rows,current_request_record['prompt'],current_model_config['negative_prompt'],current_request_record['frames'],current_request_record['seed'],'832×480',current_request_record['steps'],current_model_config['flow_shift'],current_model_config['guidance_scale'],current_model_config['conditioning_scale'],str(current_job_root/current_request_record['references'][-1]) if current_request_record.get('identity_reference_count') else None,current_request_record.get('padding_color',VACE_PADDING_COLOR_DEFAULT),current_file_paths,current_history_record['id']
-        current_read_history,current_history_outputs=build_generation_history_view(execute_timeline_command,current_server_address,'입력·결과 파일은 보존합니다.',restore_input_callback=restore_timeline_inputs,restore_output_components=[*current_input_controls,current_input_gallery,current_job_control],result_renderer_callback=render_video_generation_result,record_folder_route='/wan21-vace-v2v',allow_individual_delete=True,individual_delete_scope_text='목록에서만 제거합니다. 파일은 보존합니다.')
+        current_read_history,current_history_outputs=build_generation_history_view(execute_timeline_command,current_server_address,GENERATION_CLEANUP_SCOPE_TEXT,restore_input_callback=restore_timeline_inputs,restore_output_components=[*current_input_controls,current_input_gallery,current_job_control],result_renderer_callback=render_video_generation_result,record_folder_route='/wan21-vace-v2v',allow_individual_delete=True,individual_delete_scope_text=GENERATION_CLEANUP_SCOPE_TEXT)
         current_interface_blocks.load(lambda:current_read_history(1),outputs=current_history_outputs)
         current_interface_blocks.load(lambda:execute_timeline_command('active',{}).get('id') or '',outputs=current_job_control)
     return current_interface_blocks

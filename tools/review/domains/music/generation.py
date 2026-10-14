@@ -1,5 +1,6 @@
 """음악생성 공용 작업 서비스: GUI·CLI는 같은 이력과 GPU 대기열을 사용한다."""
 from contextlib import contextmanager
+from tools.review.common.generation_cleanup import delete_generation_job_files
 from datetime import datetime
 import fcntl
 import json
@@ -100,13 +101,9 @@ class MusicGenerationManager:
 
     def delete_music_history(self,current_identifier_value):
         current_job_root = self.resolve_music_job(current_identifier_value)
-        with self.hold_music_lock(),(current_job_root/'resume.lock').open('a') as current_resume_lock:
-            fcntl.flock(current_resume_lock,fcntl.LOCK_EX)
-            if read_music_record(current_job_root/'status.json')['status'] not in ('completed','failed','cancelled'):
-                raise ValueError('실행·대기 중인 음악 이력은 삭제할 수 없습니다.')
-            (current_job_root/'.history-deleted').touch()
-            (self.history_storage_root/(current_identifier_value+'.json')).unlink(missing_ok=True)
-        return {'deleted':current_identifier_value,'files_preserved':True}
+        with self.hold_music_lock():
+            current_cleanup_result = delete_generation_job_files(self.job_storage_root,[current_job_root],[self.history_storage_root/(current_identifier_value+'.json')])
+        return {**current_cleanup_result,'deleted':current_identifier_value}
 
     def execute_music_command(self,current_command_name,current_payload_record):
         current_allowed_fields = {'generate':{'action','prompt','duration_seconds','seed','loop_request','tag'},'prepare':{'action'},'status':{'id'},'logs':{'id'},'history':{'page'},'active':set(),'model-status':set(),'cancel':{'id'},'resume':{'id'},'history-delete':{'id'},'history-reset':{'action'}}
@@ -131,15 +128,8 @@ class MusicGenerationManager:
             if current_payload_record != {'action':'reset'}:
                 raise ValueError('이력 초기화 입력 오류')
             with self.hold_music_lock():
-                current_history_records = self.list_music_history()
-                if any(current_history_record['status']['status'] not in ('completed','failed','cancelled') for current_history_record in current_history_records):
-                    raise ValueError('실행·대기 작업이 있으면 초기화할 수 없습니다.')
-                # 서비스 잠금 안에서 목록만 숨긴다. 재개도 같은 잠금을 사용한다.
-                for current_history_record in current_history_records:
-                    current_job_root = self.resolve_music_job(current_history_record['id'])
-                    (current_job_root/'.history-deleted').touch()
-                    (self.history_storage_root/(current_job_root.name+'.json')).unlink(missing_ok=True)
-            return {'reset':True,'files_preserved':True}
+                current_job_targets = [current_job_path for current_job_path in self.job_storage_root.iterdir() if re.fullmatch(MUSIC_IDENTIFIER_PATTERN,current_job_path.name)] if self.job_storage_root.exists() else []
+                return delete_generation_job_files(self.job_storage_root,current_job_targets,self.history_storage_root.glob('*.json'))
         current_job_root = self.resolve_music_job(current_payload_record['id'])
         if current_command_name=='status':
             return self.read_music_status(current_job_root)

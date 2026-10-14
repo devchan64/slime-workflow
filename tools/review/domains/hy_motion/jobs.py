@@ -1,6 +1,7 @@
 """HY-Motion 작업 서비스. 실행 수명과 GPU 동시성은 공용 대기열을 사용한다."""
 from datetime import datetime, timedelta
 import fcntl
+from tools.review.common.generation_cleanup import delete_generation_job_files
 import json
 from pathlib import Path
 import re
@@ -194,11 +195,8 @@ def execute_hymotion_command(operation_command_name, command_payload_value):
         GENERATION_HISTORY_ROOT.mkdir(parents=True, exist_ok=True)
         with (GENERATION_HISTORY_ROOT / 'service.lock').open('a') as current_service_lock:
             fcntl.flock(current_service_lock, fcntl.LOCK_EX)
-            if list_generation_history()['running']:
-                raise ValueError('실행·대기 중에는 이력을 초기화할 수 없습니다.')
-            for current_history_path in GENERATION_HISTORY_ROOT.glob('*.json'):
-                current_history_path.unlink()
-        return {'status': 'cleared', 'files_preserved': True}
+            current_job_targets = [current_job_path for current_job_path in GENERATION_STORAGE_ROOT.glob('*/*') if re.fullmatch(r'\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}',current_job_path.parent.name) and re.fullmatch('[a-f0-9]{8}',current_job_path.name)]
+            return delete_generation_job_files(GENERATION_STORAGE_ROOT,current_job_targets,GENERATION_HISTORY_ROOT.glob('*.json'))
     if set(command_payload_value) != {'id'}:
         raise ValueError('생성 ID만 입력하세요.')
     generation_job_path = resolve_generation_directory(command_payload_value['id'])
@@ -206,14 +204,8 @@ def execute_hymotion_command(operation_command_name, command_payload_value):
         GENERATION_HISTORY_ROOT.mkdir(parents=True, exist_ok=True)
         with (GENERATION_HISTORY_ROOT / 'service.lock').open('a') as current_service_lock:
             fcntl.flock(current_service_lock, fcntl.LOCK_EX)
-            current_selected_status = read_generation_status(command_payload_value['id'])
-            if current_selected_status['status'] in ('running', 'queued'):
-                raise ValueError('실행·대기 중인 이력은 삭제할 수 없습니다. 종료 후 다시 선택하세요.')
-            current_selected_path = GENERATION_HISTORY_ROOT / (command_payload_value['id'] + '.json')
-            if not current_selected_path.is_file() or current_selected_path.is_symlink():
-                raise ValueError('삭제할 생성 이력이 없거나 올바른 파일이 아닙니다.')
-            current_selected_path.unlink()
-        return {'status': 'deleted', 'id': command_payload_value['id'], 'files_preserved': True}
+            current_cleanup_result = delete_generation_job_files(GENERATION_STORAGE_ROOT,[generation_job_path],[GENERATION_HISTORY_ROOT/(command_payload_value['id']+'.json')])
+            return {**current_cleanup_result,'id':command_payload_value['id'],'deleted':command_payload_value['id']}
     if operation_command_name == 'status':
         return read_generation_status(command_payload_value['id'])
     if operation_command_name == 'logs':

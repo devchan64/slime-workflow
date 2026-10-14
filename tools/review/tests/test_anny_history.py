@@ -16,26 +16,26 @@ class AnnyHistoryTest(unittest.TestCase):
         (job_directory_path/'result.png').write_bytes(b'image')
         return job_directory_path
 
-    def test_delete_history_preserves_completed_job_files(self):
+    def test_delete_history_removes_completed_job_files(self):
         with tempfile.TemporaryDirectory() as temporary_directory_name, patch.object(anny_attributes,'JOBS',Path(temporary_directory_name)):
             job_directory_path=self.create_history_job(Path(temporary_directory_name),'1234abcd','completed')
 
-            self.assertEqual(anny_attributes.delete_anny_history_record('1234abcd'),{'deleted':'1234abcd','files_preserved':True})
+            self.assertFalse(anny_attributes.delete_anny_history_record('1234abcd')['files_preserved'])
             self.assertFalse((job_directory_path/'history.json').exists())
-            self.assertTrue((job_directory_path/'result.png').exists())
+            self.assertFalse(job_directory_path.exists())
 
     def test_clear_history_rejects_active_job(self):
         with tempfile.TemporaryDirectory() as temporary_directory_name, patch.object(anny_attributes,'JOBS',Path(temporary_directory_name)):
             job_directory_path=self.create_history_job(Path(temporary_directory_name),'1234abcd','running')
 
-            with self.assertRaisesRegex(ValueError,'먼저 중지'):
+            with self.assertRaises(ValueError):
                 anny_attributes.clear_anny_history_records()
             self.assertTrue((job_directory_path/'history.json').exists())
 
-    def test_clear_history_preserves_completed_job_files(self):
+    def test_clear_history_removes_completed_job_files(self):
         with tempfile.TemporaryDirectory() as temporary_directory_name, patch.object(anny_attributes,'JOBS',Path(temporary_directory_name)):
             job_directory_path=self.create_history_job(Path(temporary_directory_name),'1234abcd','completed')
 
-            self.assertEqual(anny_attributes.clear_anny_history_records(),{'cleared':1,'files_preserved':True})
+            self.assertEqual(anny_attributes.clear_anny_history_records()['deleted_jobs'],1)
             self.assertFalse((job_directory_path/'history.json').exists())
-            self.assertTrue((job_directory_path/'result.png').exists())
+            self.assertFalse(job_directory_path.exists())

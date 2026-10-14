@@ -156,13 +156,13 @@ def bind_history_reset_action(control_component_values,execute_service_command,r
             raise gr.Error('초기화 범위를 확인해 주세요.')
         # 삭제 정책과 실행 중 작업 보호는 기존 서비스가 담당한다.
         try:
-            execute_service_command('history-reset',{'action':'reset'})
+            current_cleanup_result = execute_service_command('history-reset',{'action':'reset'})
         except (ValueError, OSError) as history_reset_error:
             raise gr.Error(str(history_reset_error)) from history_reset_error
         history_update_values=refresh_history_callback()
         if not isinstance(history_update_values,(list,tuple)):
             history_update_values=[history_update_values]
-        return [*history_update_values,False,gr.update(interactive=False),'생성 이력을 초기화했습니다.']
+        return [*history_update_values,False,gr.update(interactive=False),format_cleanup_result(current_cleanup_result)]
     reset_button_value.click(execute_confirmed_reset,confirmation_checkbox_value,[*history_output_components,confirmation_checkbox_value,reset_button_value,reset_status_value])
     return execute_confirmed_reset
 
@@ -402,8 +402,9 @@ def build_generation_history_view(execute_service_command,server_base_address,de
             if not current_confirmed_identifier or current_selected_identifier!=current_confirmed_identifier:
                 raise gr.Error('삭제 대상이 변경되었습니다. 이력 삭제를 다시 선택하세요.')
             try:
-                execute_service_command('history-delete',{'id':current_confirmed_identifier})
-            except (ValueError,RuntimeError) as current_delete_error:
+                current_cleanup_result = execute_service_command('history-delete',{'id':current_confirmed_identifier})
+                gr.Info(format_cleanup_result(current_cleanup_result))
+            except (ValueError,RuntimeError,OSError) as current_delete_error:
                 raise gr.Error(str(current_delete_error)) from current_delete_error
             return [*reset_view_values(),*close_delete_confirmation()]
         history_delete_button.click(open_delete_confirmation,history_selection_value,current_delete_outputs,queue=False)
@@ -412,3 +413,10 @@ def build_generation_history_view(execute_service_command,server_base_address,de
         current_delete_confirm.click(delete_selected_history,[history_selection_value,current_delete_identifier],[*reset_output_components,*current_delete_outputs],trigger_mode='once')
     bind_history_reset_action(reset_control_values,execute_service_command,reset_view_values,reset_output_components)
     return read_history_page,[history_selection_value,history_count_value,history_page_value,history_cards_value,history_previous_button,history_next_button,history_selected_panel]
+
+
+def format_cleanup_result(current_cleanup_result):
+    """실제 서비스가 반환한 삭제량만 표시한다."""
+    if isinstance(current_cleanup_result,dict) and 'deleted_bytes' in current_cleanup_result:
+        return f"작업 {current_cleanup_result['deleted_jobs']}건 삭제 · 파일 {current_cleanup_result['deleted_bytes']:,}바이트 ({current_cleanup_result['deleted_bytes']/2**20:.2f} MiB) 정리 완료"
+    return '삭제 명령을 처리했습니다. 삭제 용량은 서비스에서 제공하지 않았습니다.'

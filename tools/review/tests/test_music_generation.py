@@ -56,16 +56,15 @@ class MusicGenerationTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             validate_music_request('music-minimax',{'prompt':'x','duration_seconds':61})
 
-    def test_shared_history_and_delete_preserves_files(self):
+    def test_shared_history_and_delete_removes_files(self):
         current_first_root = self.create_test_job()
         current_second_root = self.create_test_job()
         (current_first_root/'music.wav').write_bytes(b'preserved')
         self.assertEqual(len(self.current_music_service.list_music_history()),2)
         self.current_music_service.delete_music_history(current_first_root.name)
         self.assertEqual([current_record['id'] for current_record in self.current_music_service.list_music_history()],[current_second_root.name])
-        self.assertEqual((current_first_root/'music.wav').read_bytes(),b'preserved')
-        self.assertTrue((current_first_root/'request.json').exists())
-        with self.assertRaisesRegex(ValueError,'삭제한 이력'):
+        self.assertFalse(current_first_root.exists())
+        with self.assertRaises(ValueError):
             self.current_music_service.execute_music_command('resume',{'id':current_first_root.name})
 
     def test_delete_and_reset_reject_live_jobs(self):

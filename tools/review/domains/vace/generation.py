@@ -31,28 +31,6 @@ class VaceGenerationManager(ImageGenerationManager):
     def history_storage_path(self):
         return MANAGER_HISTORY_ROOT / 'wan21-vace'
 
-    def delete_generation_history(self, generation_job_identifier):
-        if not isinstance(generation_job_identifier, str) or not re.fullmatch(VACE_JOB_IDENTIFIER_PATTERN, generation_job_identifier):
-            raise ValueError('생성 ID 형식 오류')
-        current_job_root = self.job_storage_root/generation_job_identifier
-        if current_job_root.is_symlink() or not current_job_root.is_dir() or self.job_storage_root.is_symlink():
-            raise ValueError('작업 경로 오류')
-        with self.current_request_lock, MANAGER_HISTORY_LOCK, (current_job_root/'resume.lock').open('a') as current_resume_lock:
-            fcntl.flock(current_resume_lock, fcntl.LOCK_EX)
-            if json.loads((current_job_root/'status.json').read_text())['status'] not in ('completed','failed','cancelled'):
-                raise ValueError('실행·대기 중에는 이력을 삭제할 수 없습니다.')
-            (current_job_root/'.history-deleted').touch()
-            (self.history_storage_path()/(generation_job_identifier+'.json')).unlink(missing_ok=True)
-        return {'deleted':generation_job_identifier,'files_preserved':True}
-
-    def reset_generation_history(self):
-        # 원본은 보존하고 개별 삭제와 같은 작업 잠금·상태 검증을 적용한다.
-        current_history_records = self.list_generation_history()
-        if any(current_record_value['status']['status'] in ('running','queued') for current_record_value in current_history_records):
-            raise ValueError('실행·대기 작업이 있으면 이력을 초기화할 수 없습니다.')
-        for current_record_value in current_history_records:
-            self.delete_generation_history(current_record_value['id'])
-
     def read_generation_status_record(self, current_job_root, fallback_status_record=None, include_log_value=False):
         current_status_record = super().read_generation_status_record(current_job_root, fallback_status_record, include_log_value)
         current_attempt_path = current_job_root/'current-attempt.json'

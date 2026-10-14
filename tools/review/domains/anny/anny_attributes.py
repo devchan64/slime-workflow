@@ -1,6 +1,7 @@
 import sys
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[4]))
+from tools.review.common.generation_cleanup import delete_generation_job_files
 from tools.review.common.gpu_job_queue import launch_gpu_process, cancel_gpu_generation, resume_gpu_generation
 from tools.review.ui_assets import resolve_review_ui_asset
 from urllib.parse import urlsplit
@@ -17,6 +18,7 @@ PROFILE_DIRECTORY_PATH=ROOT/'generators/animation/config/anny_profiles'
 HEAD_SCALE_ATTRIBUTE_NAMES={'head-scale-horiz-incr','head-scale-vert-incr','head-scale-depth-incr'}
 PROFILE_REQUIRED_FIELDS={'schema_version','profile_id','label','source_asset_id','asset_path','manifest_path','attributes_path','attributes_sha256','blend_path','glb_path','rig_path','status','attribute_overrides'}
 ANNY_ACTIVE_HISTORY_STATES={'running','queued'}
+ANNY_HISTORY_SERVICE_LOCK=threading.RLock()
 
 def read_anny_history_status(job_directory_path):
  status_file_path=job_directory_path/'status.json'
@@ -27,19 +29,14 @@ def read_anny_history_status(job_directory_path):
 
 def delete_anny_history_record(generation_job_identifier):
  if not isinstance(generation_job_identifier,str) or not re.fullmatch(r'[0-9a-f]{8}',generation_job_identifier):raise ValueError('작업 ID 오류')
- generation_job_directory=JOBS/generation_job_identifier
- history_record_path=generation_job_directory/'history.json'
- if not history_record_path.is_file():raise ValueError('삭제할 생성 이력을 찾을 수 없습니다.')
- if read_anny_history_status(generation_job_directory) in ANNY_ACTIVE_HISTORY_STATES:raise ValueError('실행 또는 대기 중인 작업은 먼저 중지하세요.')
- history_record_path.unlink()
- return {'deleted':generation_job_identifier,'files_preserved':True}
+ with ANNY_HISTORY_SERVICE_LOCK:
+  current_cleanup_result=delete_generation_job_files(JOBS,[JOBS/generation_job_identifier])
+  return {**current_cleanup_result,'deleted':generation_job_identifier}
 
 def clear_anny_history_records():
- history_record_paths=list(JOBS.glob('*/history.json'))
- for history_record_path in history_record_paths:
-  if read_anny_history_status(history_record_path.parent) in ANNY_ACTIVE_HISTORY_STATES:raise ValueError('실행 또는 대기 중인 작업이 있습니다. 먼저 중지한 뒤 이력 목록을 초기화하세요.')
- for history_record_path in history_record_paths:history_record_path.unlink()
- return {'cleared':len(history_record_paths),'files_preserved':True}
+ with ANNY_HISTORY_SERVICE_LOCK:
+  current_job_targets=[current_job_path for current_job_path in JOBS.iterdir() if re.fullmatch('[a-f0-9]{8}',current_job_path.name)] if JOBS.exists() else []
+  return delete_generation_job_files(JOBS,current_job_targets)
 
 def load_profile_record(profile_path):
  profile_path=Path(profile_path).resolve()
@@ -91,6 +88,9 @@ class AnnyAttributeManager:
  def send(self,h,status,payload,ctype='application/json; charset=utf-8'):
   data=payload if isinstance(payload,bytes) else json.dumps(payload,ensure_ascii=False).encode();h.send_response(status);h.send_header('Content-Type',ctype);h.send_header('Content-Length',str(len(data)));h.end_headers();h.wfile.write(data)
  def handle(self,h):
+  with ANNY_HISTORY_SERVICE_LOCK:
+   return self.handle_locked_request(h)
+ def handle_locked_request(self,h):
   path=urlsplit(h.path).path
   if not path.startswith('/anny-attributes'): return False
   try:

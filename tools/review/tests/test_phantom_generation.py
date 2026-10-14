@@ -106,7 +106,7 @@ class PhantomGenerationContractTests(unittest.TestCase):
             (current_job_root/'reference-1.png').write_bytes(b'bad')
             with self.assertRaises(ValueError):verify_phantom_request(current_job_root)
 
-    def test_history_delete_preserves_files_and_stays_hidden(self):
+    def test_history_delete_removes_files_and_stays_hidden(self):
         with tempfile.TemporaryDirectory() as current_temporary_path:
             current_manager_value=PhantomGenerationManager()
             current_manager_value.job_storage_root=Path(current_temporary_path)/'jobs'
@@ -118,8 +118,8 @@ class PhantomGenerationContractTests(unittest.TestCase):
             (current_job_root/'status.json').write_text('{"status":"completed"}')
             with patch.object(current_manager_value,'history_storage_path',return_value=current_history_root):
                 self.assertEqual(len(current_manager_value.list_generation_history()),1)
-                self.assertTrue(current_manager_value.delete_generation_history(current_job_identifier)['files_preserved'])
-                self.assertTrue((current_job_root/'reference-1.png').exists())
+                self.assertFalse(current_manager_value.delete_generation_history(current_job_identifier)['files_preserved'])
+                self.assertFalse(current_job_root.exists())
                 self.assertEqual(current_manager_value.list_generation_history(),[])
 
     def test_active_history_delete_rejected(self):
