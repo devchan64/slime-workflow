@@ -22,10 +22,20 @@ def handle_worker_signal(current_signal_number, current_stack_frame):
 
 
 def execute_vace_inference(current_job_root, current_attempt_root, current_request_record, current_metrics_recorder):
+    # CUDA 초기화 전에 적용한다. 다른 allocator 옵션은 보존한다.
+    current_allocator_config = os.environ.get('PYTORCH_ALLOC_CONF', os.environ.get('PYTORCH_CUDA_ALLOC_CONF', ''))
+    current_allocator_options = [current_option_value for current_option_value in current_allocator_config.split(',') if current_option_value and not current_option_value.strip().startswith('expandable_segments:')]
+    current_allocator_options.append('expandable_segments:True')
+    current_allocator_config = ','.join(current_allocator_options)
+    os.environ['PYTORCH_ALLOC_CONF'] = current_allocator_config
+    os.environ['PYTORCH_CUDA_ALLOC_CONF'] = current_allocator_config
+    write_record_atomically(current_attempt_root/'memory-policy.json', {'allocator':current_allocator_config,'vae_offload':'after_all_condition_encodes_before_denoising','vae_compute_device':'cuda'})
+    (current_attempt_root/'memory-source.py').write_bytes((Path(__file__).parent/'memory.py').read_bytes())
     import torch
     import diffusers
     from PIL import Image, ImageOps
-    from diffusers import WanVACEPipeline, AutoencoderKLWan, UniPCMultistepScheduler
+    from diffusers import UniPCMultistepScheduler
+    from generators.vace.memory import StageOffloadedVacePipeline, StageOffloadedWanAutoencoder
     from diffusers.hooks import apply_group_offloading
     from diffusers.utils import export_to_video
     if not torch.cuda.is_available():
@@ -52,8 +62,8 @@ def execute_vace_inference(current_job_root, current_attempt_root, current_reque
     write_record_atomically(current_attempt_root/'input-contract.json',{'task':current_request_record['vace']['task'],'video':current_request_record['vace']['video'],'mask':current_request_record['vace']['mask'],'reference_count':len(current_reference_images or []),'first_frame_fixed':False})
     current_metrics_recorder.update_generation_stage('load')
     torch.cuda.reset_peak_memory_stats()
-    current_vae_model = AutoencoderKLWan.from_pretrained(current_model_root,subfolder='vae',torch_dtype=torch.float32,local_files_only=True)
-    current_pipeline_model = WanVACEPipeline.from_pretrained(current_model_root,vae=current_vae_model,torch_dtype=torch.bfloat16,local_files_only=True)
+    current_vae_model = StageOffloadedWanAutoencoder.from_pretrained(current_model_root,subfolder='vae',torch_dtype=torch.float32,local_files_only=True)
+    current_pipeline_model = StageOffloadedVacePipeline.from_pretrained(current_model_root,vae=current_vae_model,torch_dtype=torch.bfloat16,local_files_only=True)
     apply_group_offloading(current_pipeline_model.text_encoder,onload_device=torch.device('cuda'),offload_type='leaf_level')
     current_pipeline_model.transformer.enable_group_offload(onload_device=torch.device('cuda'),offload_type='block_level',num_blocks_per_group=1)
     current_pipeline_model.vae.enable_tiling()
