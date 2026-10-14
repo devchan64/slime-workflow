@@ -129,7 +129,7 @@ GUI와 CLI는 서비스별 동일한 작업·이력을 조회하며 서로 다�
 | `hy-motion` | `.tmp/test/hy-motion/<한국시간>/<고유 ID>/` | `.tmp/manager-current/hy-motion/` |
 | `pose-transfer` | `.tmp/test/pose-transfer/<생성 ID>/` | `.tmp/manager-current/pose-transfer/` |
 
-입력·상태·로그·결과와 시도별 산출물은 서비스의 기존 구조를 유지한다. HY-Motion 재개는 새 시도로 기록하며 기존 시도 산출물을 보존한다. 선택 이력 삭제·전체 초기화·실제 결과 파일 삭제를 구분하고 해당 서비스 계약을 확인한다. 이미 폐기된 MoMask·AnyPose 작업 경로는 현행 기록 저장소로 다시 사용하지 않는다.
+입력·상태·로그·결과와 시도별 산출물은 서비스의 기존 구조를 유지한다. HY-Motion 재개는 새 시도로 기록하며 기존 시도 산출물을 보존한다. 생성기의 전체 `history-reset`은 작업 폴더의 입력 사본·중간 산출물·결과·모든 시도의 로그와 기록 및 이력 인덱스를 함께 삭제하는 디스크 정리 계약이다. 외부 원본·등록 에셋·모델은 보호한다. 생성기의 선택 `history-delete`도 선택한 작업 ID의 동일 범위 파일과 이력 인덱스를 함께 삭제하고 삭제 용량을 보고한다. 앵커·좌표 편집 이력은 별도 계약을 확인한다. 기존 목록 전용 구현의 전환 여부를 구분하며 상세 기준은 AGENTS.md의 Generator History Reset Disk Cleanup Standard를 따른다. 이미 폐기된 MoMask·AnyPose 작업 경로는 현행 기록 저장소로 다시 사용하지 않는다.
 
 ## Qwen 이미지 생성 두 종류
 
@@ -595,3 +595,7 @@ VACE V2V의 `padding_color`는 `#RRGGBB` 형식의 여백 색상이며 기본값
 `music-stable-audio`, `music-ace-step`, `music-minimax`를 공용 게이트웨이에 등록한다. GUI는 **음악생성** 분류의 세 Gradio 화면이며, 모두 `generate/prepare/model-status/status/logs/history/active/cancel/resume/prioritize/history-delete/history-reset` 명령을 공유한다. `generate` 입력은 `prompt`, `duration_seconds`, `seed`, `loop_request`, `tag`다. 모델·파일 경로를 클라이언트가 지정하지 않는다.
 
 각 서비스는 `/music-…/jobs`, `/music-…/history` 호환 경로를 유지한다. 최종 WAV 조회는 `/music-…/jobs/<id>/attempts/<attempt>/music.wav`다. 모델 준비·실행 환경·저장소·재개·라이선스·8GB 검증 범위는 [음악생성 사용법](../generators/music/README.md)을 따른다. 외부 클라우드 API나 배포 리소스는 추가하지 않는다.
+
+### 생성 이력 파일 정리 적용 범위
+
+공용 이미지 서비스(Qwen·포즈 변환 등), VACE R2V/V2V, Phantom, HY-Motion, 음악 생성기, ANNY 렌더 및 과거 캐릭터 생성 기록의 `history-delete`·`history-reset`은 작업 폴더와 색인을 실제 삭제한다. ANNY도 공용 게이트웨이에서 두 명령을 지원한다. 삭제 응답의 `deleted_jobs`·`deleted_bytes`는 삭제한 작업 수와 파일 크기 합계이며 파일시스템의 실제 여유 공간 증가량과는 다를 수 있다. 전체 초기화는 이전에 목록에서 숨겼던 작업 폴더도 포함한다. 작업 폴더 밖의 원본은 삭제 대상에 포함하지 않으며 심볼릭 링크·상태 미확인·실행 중 작업이 있으면 사전 검증에서 거절한다. 앵커·스프라이트 편집 이력은 이 생성 파일 정리 계약과 구분한다.
