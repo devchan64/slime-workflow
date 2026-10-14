@@ -42,6 +42,57 @@ def load_timeline_images(current_file_paths):
     return current_sorted_paths,current_table_rows,current_preview_images,((current_last_frame-1+3)//4)*4+1
 
 
+
+def describe_timeline_images(current_file_paths,current_table_rows):
+    if len(current_file_paths or []) != len(current_table_rows or []):
+        raise gr.Error('이미지와 배치 설정의 개수가 다릅니다. 입력을 다시 불러오세요.')
+    return [(current_file_path,f'{current_table_row[0]}번 · '+('수정 가능' if current_table_row[1] else '보존')) for current_file_path,current_table_row in zip(current_file_paths or [],current_table_rows or [])]
+
+
+def remove_timeline_image(current_file_paths,current_table_rows,current_selected_item):
+    if not current_selected_item:
+        raise gr.Error('삭제할 이미지나 배치표의 행을 먼저 선택하세요.')
+    current_selected_indices=set()
+    for current_selected_index,current_selected_path in current_selected_item:
+        if len(current_file_paths or [])!=len(current_table_rows or []) or not 0<=current_selected_index<len(current_file_paths) or current_file_paths[current_selected_index]!=current_selected_path:
+            raise gr.Error('입력 목록이 변경되었습니다. 삭제할 항목을 다시 선택하세요.')
+        current_selected_indices.add(current_selected_index)
+    current_remaining_paths=[value for index,value in enumerate(current_file_paths) if index not in current_selected_indices]
+    current_remaining_rows=[value for index,value in enumerate(current_table_rows) if index not in current_selected_indices]
+    return current_remaining_paths,current_remaining_rows,current_remaining_paths or None
+
+
+
+def synchronize_timeline_files(current_uploaded_paths,current_file_paths,current_table_rows):
+    current_retained_paths=set(current_uploaded_paths or [])
+    current_retained_pairs=[(current_file_path,current_table_row) for current_file_path,current_table_row in zip(current_file_paths or [],current_table_rows or []) if current_file_path in current_retained_paths]
+    return [current_pair_value[0] for current_pair_value in current_retained_pairs],[current_pair_value[1] for current_pair_value in current_retained_pairs]
+
+
+def describe_timeline_selection(current_selected_items):
+    current_selected_items=current_selected_items or []
+    current_selected_numbers=', '.join(str(current_item_value[0]+1) for current_item_value in current_selected_items)
+    return current_selected_items,(f'선택 {len(current_selected_items)}개 · 이미지 순서: {current_selected_numbers}' if current_selected_items else '삭제할 이미지나 배치표의 행을 선택하세요.'),gr.update(interactive=bool(current_selected_items))
+
+
+def select_timeline_image(current_file_paths,current_selected_items,current_selection_event:gr.SelectData):
+    current_selected_index=current_selection_event.index
+    if isinstance(current_selected_index,(list,tuple)):
+        current_selected_index=current_selected_index[0]
+    if not 0<=current_selected_index<len(current_file_paths or []):
+        return describe_timeline_selection([])
+    current_selected_mapping=dict(current_selected_items or [])
+    if current_selected_index in current_selected_mapping:
+        del current_selected_mapping[current_selected_index]
+    else:
+        current_selected_mapping[current_selected_index]=current_file_paths[current_selected_index]
+    return describe_timeline_selection(sorted(current_selected_mapping.items()))
+
+
+def select_all_timeline_images(current_file_paths):
+    return describe_timeline_selection(list(enumerate(current_file_paths or [])))
+
+
 def build_timeline_payload(current_file_paths,current_table_rows,current_prompt_text,current_negative_text,current_frame_count,current_seed_value,current_resolution_text,current_steps_value,current_shift_value,current_guidance_value,current_conditioning_value,current_identity_path=None,current_padding_color=VACE_PADDING_COLOR_DEFAULT):
     if len(current_file_paths or [])!=len(current_table_rows or []):
         raise ValueError('이미지 목록과 배치표가 일치하지 않습니다. 이미지를 다시 불러오세요.')
@@ -74,9 +125,57 @@ def build_timeline_interface(current_server_address):
         gr.Markdown('## Wan2.1 VACE 1.3B V2V 생성기\n중간 포즈 이미지를 원래 프레임 번호에 배치해 영상을 다시 생성합니다. 입력 원본은 보존합니다.')
         current_input_files=gr.File(file_count='multiple',file_types=['.png'],label='번호가 있는 포즈 PNG · 예: 1.png, 18.png, 35.png')
         current_sorted_files=gr.State([])
-        current_frame_table=gr.Dataframe(headers=['프레임 번호 · 1부터','수정 가능 · 흰 마스크'],datatype=['number','bool'],type='array',col_count=(2,'fixed'),interactive=True,label='이미지 순서대로 배치 · 체크 해제 시 검은 마스크로 보존')
-        gr.Markdown('빠진 프레임은 회색(127) 영상과 흰 마스크로 생성합니다. 수정 가능한 이미지도 다시 그려지므로 포즈·신체 비율 유지가 보장되지는 않습니다. 현재 마스크는 프레임 전체에 적용합니다.')
-        current_input_gallery=gr.Gallery(label='배치 이미지',allow_preview=False,columns=4)
+        current_selected_item=gr.State(None)
+        current_frame_table=gr.State([])
+        current_input_gallery=gr.State([])
+        gr.Markdown('### 프레임 배치\n각 행에서 이미지를 확인하고 프레임 번호와 처리 방식을 설정하세요. 선택 체크는 삭제 대상에만 적용됩니다.')
+        current_selection_notice=gr.Markdown('이미지를 첨부하세요.')
+        with gr.Row():
+            current_select_all=gr.Button('전체 선택')
+            current_clear_selection=gr.Button('선택 해제')
+            current_remove_button=gr.Button('선택 삭제',interactive=False)
+        current_selection_outputs=[current_selected_item,current_selection_notice,current_remove_button]
+        current_select_all.click(select_all_timeline_images,current_sorted_files,current_selection_outputs,queue=False)
+        current_clear_selection.click(lambda:describe_timeline_selection([]),outputs=current_selection_outputs,queue=False)
+        current_remove_button.click(remove_timeline_image,[current_sorted_files,current_frame_table,current_selected_item],[current_sorted_files,current_frame_table,current_input_files],queue=False)
+        current_sorted_files.change(lambda:([], '삭제할 행의 선택 체크박스를 켜세요. 원본 파일은 보존됩니다.',gr.update(interactive=False)),outputs=current_selection_outputs,queue=False)
+
+        @gr.render(inputs=[current_sorted_files,current_frame_table,current_selected_item],queue=False)
+        def render_timeline_rows(current_file_paths,current_table_rows,current_selected_items):
+            if not current_file_paths:
+                gr.Markdown('포즈 PNG를 첨부하면 이미지와 배치 설정이 여기에 표시됩니다.')
+                return
+            if len(current_file_paths)!=len(current_table_rows):
+                raise gr.Error('이미지와 배치 설정이 일치하지 않습니다.')
+            current_selected_mapping=dict(current_selected_items or [])
+            for current_row_index,(current_file_path,current_table_row) in enumerate(zip(current_file_paths,current_table_rows)):
+                with gr.Row(key=('frame-row',current_file_path)):
+                    current_select_control=gr.Checkbox(value=current_row_index in current_selected_mapping,label='선택',scale=0,min_width=70,key=('select',current_file_path),preserved_by_key=[])
+                    gr.Image(value=current_file_path,label=f'{current_row_index+1}번째 이미지',interactive=False,height=140,scale=1,min_width=160,buttons=[],key=('image',current_file_path))
+                    current_number_control=gr.Number(value=current_table_row[0],precision=0,minimum=1,maximum=161,label='프레임 번호',scale=1,min_width=120,key=('number',current_file_path),preserved_by_key=[])
+                    current_mask_control=gr.Checkbox(value=current_table_row[1],label='수정 가능',info='해제하면 원본 프레임 보존',scale=1,min_width=160,key=('mask',current_file_path),preserved_by_key=[])
+                def update_row_selection(current_checked_value,current_saved_selection,current_live_paths,current_target_index=current_row_index,current_target_path=current_file_path):
+                    if current_target_index>=len(current_live_paths) or current_live_paths[current_target_index]!=current_target_path:
+                        raise gr.Error('입력이 변경되었습니다. 다시 선택하세요.')
+                    current_updated_mapping=dict(current_saved_selection or [])
+                    if current_checked_value:
+                        current_updated_mapping[current_target_index]=current_target_path
+                    else:
+                        current_updated_mapping.pop(current_target_index,None)
+                    return describe_timeline_selection(sorted(current_updated_mapping.items()))
+                def update_row_settings(current_number_value,current_mask_value,current_saved_rows,current_live_paths,current_target_index=current_row_index,current_target_path=current_file_path):
+                    if current_target_index>=len(current_live_paths) or current_live_paths[current_target_index]!=current_target_path:
+                        raise gr.Error('입력이 변경되었습니다. 다시 편집하세요.')
+                    if current_number_value is None or int(current_number_value)!=current_number_value or not 1<=current_number_value<=161:
+                        raise gr.Error('프레임 번호는 1~161 정수여야 합니다.')
+                    current_updated_rows=[list(current_row_value) for current_row_value in current_saved_rows]
+                    current_updated_rows[current_target_index]=[int(current_number_value),current_mask_value]
+                    return current_updated_rows
+                current_select_control.input(update_row_selection,[current_select_control,current_selected_item,current_sorted_files],current_selection_outputs,queue=False)
+                current_number_control.input(update_row_settings,[current_number_control,current_mask_control,current_frame_table,current_sorted_files],current_frame_table,queue=False)
+                current_mask_control.input(update_row_settings,[current_number_control,current_mask_control,current_frame_table,current_sorted_files],current_frame_table,queue=False)
+        with gr.Accordion('프레임·마스크 안내',open=False):
+            gr.Markdown('수정 가능은 흰 마스크로 재생성하며 해제하면 검은 마스크로 보존합니다. 빠진 프레임은 회색(127) 영상과 흰 마스크로 생성합니다. 삭제는 입력 목록에서만 제외하며 원본 파일은 보존합니다.')
         current_identity_control=gr.Image(type='filepath',label='외형 참조 이미지 · 선택 1장',sources=['upload'],height=240)
         current_identity_control.change(lambda current_image_path:warn_image_resolution([current_image_path] if current_image_path else []),current_identity_control,queue=False)
         gr.Markdown('얼굴·색상·그림체의 기준입니다. 영상 프레임에 배치하거나 첫 프레임을 고정하지 않습니다.')
@@ -95,7 +194,9 @@ def build_timeline_interface(current_server_address):
         current_frames_control=gr.Number(value=37,precision=0,minimum=1,maximum=161,step=4,label='프레임 수 · 4n+1 · 16fps')
         current_duration_text=gr.Markdown('37프레임 · 약 2.31초 · 16fps')
         current_frames_control.change(lambda current_frame_count:f'{current_frame_count}프레임 · 약 {current_frame_count/16:.2f}초 · 16fps',current_frames_control,current_duration_text,queue=False)
-        current_input_files.change(load_timeline_images,current_input_files,[current_sorted_files,current_frame_table,current_input_gallery,current_frames_control])
+        current_input_files.upload(load_timeline_images,current_input_files,[current_sorted_files,current_frame_table,current_input_gallery,current_frames_control])
+        current_input_files.delete(synchronize_timeline_files,[current_input_files,current_sorted_files,current_frame_table],[current_sorted_files,current_frame_table],queue=False)
+        current_input_files.clear(lambda:([],[],[],None),outputs=[current_sorted_files,current_frame_table,current_input_gallery,current_selected_item],queue=False)
         current_seed_control=build_generation_seed(default_seed_value=42)
         gr.Markdown('고정 모델: Wan2.1 VACE 1.3B · CUDA 연산 · CPU 가중치 오프로드 · UniPC · 16fps')
         with gr.Accordion('고급 설정',open=False):
