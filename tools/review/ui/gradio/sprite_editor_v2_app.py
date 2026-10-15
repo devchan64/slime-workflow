@@ -90,7 +90,8 @@ def build_sprite_v2_interface():
             with gr.Row():
                 current_rename_input=gr.Textbox(label='변경할 작업명',value='',max_length=120)
                 current_resize_choice=gr.Dropdown(label='변경할 출력 크기',choices=[('유지','keep'),('384 × 384','384'),('256 × 256','256')],value='keep')
-            current_metadata_button=gr.Button('작업명·출력 크기 적용')
+            current_metadata_button=gr.Button('작업명·출력 크기 적용',interactive=False)
+            gr.Markdown('작업을 생성하거나 불러오면 적용할 수 있습니다. 다른 작업 처리 중에는 완료를 기다리세요.')
             current_metadata_button.click(fn=None,inputs=[current_rename_input,current_resize_choice],outputs=current_feedback_text,queue=False,js="async(currentNameValue,currentSizeValue)=>{try{if(!window.spriteV2MetadataControls)throw Error('편집기를 준비 중입니다.');return await window.spriteV2MetadataControls(currentNameValue,currentSizeValue);}catch(currentErrorValue){return currentErrorValue.message;}}")
         with gr.Accordion('이미지 등록',open=False):
             current_upload_choice=gr.Dropdown(label='입력 대상',choices=[('레퍼런스','reference'),('프레임 추가','append'),('선택 프레임 교체','replace')],value='reference')
@@ -150,8 +151,11 @@ def build_sprite_v2_interface():
                     with gr.Row():
                         current_target_choice=gr.Dropdown(label='설정할 편집 대상',choices=[('현재 프레임','frame'),('레퍼런스','reference'),('체크한 프레임','selected'),('전체 프레임','all')],value='frame')
                     current_target_event=current_target_choice.input(fn=None,inputs=current_target_choice,outputs=current_feedback_text,queue=False,js="(currentTargetValue)=>{try{return window.spriteV2TargetControls(currentTargetValue);}catch(currentErrorValue){return currentErrorValue.message;}}")
-                    build_transform_joypad('spriteV2JoypadControls',current_feedback_text,current_separate_axes=True)
-                    build_browser_action_button('실행 취소','spriteV2FrameControls','undo',current_feedback_text)
+                    current_joypad_controls=[]
+                    build_transform_joypad('spriteV2JoypadControls',current_feedback_text,current_separate_axes=True,current_readiness_controls=current_joypad_controls)
+                    current_target_notice=gr.Markdown('작업과 편집할 이미지를 선택하세요.')
+                    current_undo_button=build_browser_action_button('실행 취소','spriteV2FrameControls','undo',current_feedback_text,current_button_enabled=False)
+                    current_undo_notice=gr.Markdown('편집한 뒤 실행 취소할 수 있습니다.')
                 with gr.Accordion('가이드라인 위치 편집',open=False) as current_guide_panel:
                     gr.Markdown('**① 공통 가이드 불러오기 → ② 가이드 선택 → ③ 위치(px) 입력 → ④ 가이드 수정 적용**\n\n얼굴 원도 가이드 목록에서 선택합니다. 원은 중심 X·Y와 지름을 함께 입력해 적용합니다. 좌표는 출력 이미지의 왼쪽 위가 0입니다. 가로선은 위에서부터 Y, 세로선은 왼쪽에서부터 X 거리입니다. 예: 가로선 100은 위에서 100px입니다. 숫자가 커지면 아래·오른쪽으로 이동합니다. 레퍼런스와 현재 프레임의 가이드는 양쪽 비교 화면에 같은 좌표로 표시됩니다. 녹색 가이드는 레퍼런스의 공통 기준이며 양쪽 화면에서 함께 이동합니다.')
                     with gr.Row():
@@ -182,14 +186,17 @@ def build_sprite_v2_interface():
                         for current_edit_action,current_edit_label in (('guide-add','가로선 추가'),('guide-vertical','세로선 추가'),('guide-remove','선택 가이드 삭제')):
                             current_guide_action_button=gr.Button(current_edit_label)
                             current_guide_action_button.click(fn=None,inputs=current_guide_choice,outputs=current_guide_outputs,queue=False,js="async(currentGuideValue)=>{try{return await window.spriteV2GuideControls.change('"+current_edit_action+"',currentGuideValue);}catch(currentErrorValue){return "+current_guide_error+";}}")
+        current_frame_edit_controls=[]
         with gr.Accordion('프레임 순서·복제·삭제',open=False):
             gr.Markdown('### 프레임 편집\n선택한 프레임의 순서를 바꾸거나 복제·삭제합니다. 전체 프레임 삭제는 레퍼런스를 유지합니다. 삭제는 실행 취소할 수 있으며 수정본 저장 전에는 저장된 작업을 바꾸지 않습니다.')
             with gr.Row():
                 for current_frame_action,current_frame_label in (('earlier','한 칸 앞으로'),('later','한 칸 뒤로'),('duplicate','선택 프레임 복제'),('remove','선택 프레임 삭제'),('remove-all','전체 프레임 삭제')):
-                    build_browser_action_button(current_frame_label,'spriteV2FrameControls',current_frame_action,current_feedback_text)
+                    current_frame_edit_controls.append(build_browser_action_button(current_frame_label,'spriteV2FrameControls',current_frame_action,current_feedback_text,current_button_enabled=False))
             with gr.Row():
                 current_order_number=gr.Number(label='선택 프레임을 옮길 순번',value=1,minimum=1,precision=0)
-                current_order_button=gr.Button('지정 순번으로 옮기기')
+                current_order_button=gr.Button('지정 순번으로 옮기기',interactive=False)
+            current_frame_edit_controls.append(current_order_button)
+            gr.Markdown('작업에 프레임을 등록하면 순서·복제·삭제를 사용할 수 있습니다. 다른 작업 처리 중에는 완료를 기다리세요.')
             current_order_button.click(fn=None,inputs=current_order_number,outputs=current_feedback_text,queue=False,js="async(currentTargetNumber)=>{try{if(!window.spriteV2ReorderControls)throw Error('편집기를 준비 중입니다.');return await window.spriteV2ReorderControls(currentTargetNumber);}catch(currentErrorValue){return currentErrorValue.message;}}")
             gr.Markdown('목록에서 옮길 프레임을 선택한 뒤 순번을 입력하세요. 목록·재생·내보내기 순서가 함께 바뀌며, 수정본 저장 전까지 실행 취소할 수 있습니다.')
         with gr.Accordion('재생 시간 조정',open=False):
@@ -209,11 +216,13 @@ def build_sprite_v2_interface():
         current_readiness_timer=gr.Timer(1)
         current_readiness_script="""()=>{
  const currentReadyRecord=window.spriteV2ReadinessControls?.() ?? {projectReady:false,framesReady:false,reason:'편집기를 준비 중입니다. 연결에 실패하면 관리 서버를 확인하고 새로고침하세요.'};
- return [{__type__:'update',interactive:currentReadyRecord.projectReady},
- ...Array(FRAME_CONTROL_COUNT).fill(null).map(()=>({__type__:'update',interactive:currentReadyRecord.framesReady})),currentReadyRecord.reason];
+ return [...Array(PROJECT_CONTROL_COUNT).fill(null).map(()=>({__type__:'update',interactive:currentReadyRecord.projectReady})),
+ ...Array(FRAME_CONTROL_COUNT).fill(null).map(()=>({__type__:'update',interactive:currentReadyRecord.framesReady})),
+ ...Array(JOYPAD_CONTROL_COUNT).fill(null).map(()=>({__type__:'update',interactive:Boolean(currentReadyRecord.targetReady)})),
+ {__type__:'update',interactive:Boolean(currentReadyRecord.undoReady)},currentReadyRecord.targetReason??'편집기를 준비 중입니다.',currentReadyRecord.undoReason??'편집기를 준비 중입니다.',currentReadyRecord.reason];
 }"""
-        current_readiness_script=current_readiness_script.replace('FRAME_CONTROL_COUNT',str(1+len(current_navigation_controls)))
-        current_readiness_timer.tick(fn=None,outputs=[current_save_button,current_export_button,*current_navigation_controls,current_readiness_notice],js=current_readiness_script,queue=False)
+        current_readiness_script=current_readiness_script.replace('PROJECT_CONTROL_COUNT','2').replace('FRAME_CONTROL_COUNT',str(1+len(current_navigation_controls)+len(current_frame_edit_controls))).replace('JOYPAD_CONTROL_COUNT',str(len(current_joypad_controls)))
+        current_readiness_timer.tick(fn=None,outputs=[current_save_button,current_metadata_button,current_export_button,*current_navigation_controls,*current_frame_edit_controls,*current_joypad_controls,current_undo_button,current_target_notice,current_undo_notice,current_readiness_notice],js=current_readiness_script,queue=False)
         current_revision_choice=gr.Dropdown(label='수정 이력',choices=[],interactive=True)
         current_revision_identifier=build_generation_identifier('수정 이력 ID')
         current_revision_choice.change(fn=None,inputs=current_revision_choice,outputs=current_revision_identifier,queue=False,js="(currentRevisionIdentifier)=>currentRevisionIdentifier ?? ''")

@@ -100,6 +100,7 @@ export async function createSharedFieldReview(currentMapCanvas,currentTextureIma
 
  return {
   render(currentFieldFrame,currentMapRecord,currentViewSettings){
+   if(currentReviewDisposed)throw Error('맵 검수 화면이 닫혔습니다.');
    resizeReviewViewport(currentFieldGame,currentMapCanvas);
    const currentNextSignature=JSON.stringify([currentMapRecord.id,currentFieldFrame.options.rotation,currentViewSettings.edges,currentViewSettings.safe]);
    if(currentNextSignature!==currentRenderSignature){
@@ -154,6 +155,7 @@ export async function createSharedFieldReview(currentMapCanvas,currentTextureIma
    currentFieldScene.cameras.main.setOrigin(0,0).setZoom(currentViewSettings.scale*GAME_INTERNAL_RESOLUTION_SCALE).setScroll(-currentViewSettings.offsetX/currentViewSettings.scale,-currentViewSettings.offsetY/currentViewSettings.scale);
   },
   renderTown(currentMapRecord,currentViewSettings,currentProjectPosition){
+   if(currentReviewDisposed)throw Error('맵 검수 화면이 닫혔습니다.');
    const currentMapSignature=JSON.stringify([currentMapRecord.id,currentViewSettings.rotation]);
    const currentDepthPosition=currentCellPosition=>cellDepth(rotateSurfacePosition(currentCellPosition,currentViewSettings.rotation));
    if(currentMapSignature!==currentTownMapSignature){

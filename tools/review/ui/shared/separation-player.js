@@ -65,7 +65,8 @@ const currentPlaybackHandler=currentActionName=>{
 const currentSeekHandler=currentFrameValue=>{requirePreviewReady();if(!Number.isInteger(currentFrameValue)||currentFrameValue<1||currentFrameValue>currentManifestRecord.frames.length)throw Error('프레임 번호가 범위를 벗어났습니다.');stopPreviewPlayback();currentFrameNumber=currentFrameValue-1;return drawPreviewFrame();};
 const currentViewHandler=currentSelectedView=>{requirePreviewReady();if(!Object.hasOwn(currentViewPanels,currentSelectedView))throw Error('지원하지 않는 비교 보기입니다.');currentViewName=currentSelectedView;updatePreviewPanels();return '비교 보기를 변경했습니다.';};
 const currentTransformHandler=(currentActionName,currentInputValues)=>{requirePreviewReady();[currentTransformRecord]=currentActionName==='reset'?[{x:0,y:0,scale:1}]:window.calculateJoypadTransforms(currentActionName,currentInputValues,[currentTransformRecord]);drawPreviewFrame();return {...currentTransformRecord,message:'겹쳐보기만 조정했습니다. 저장된 이미지는 변경하지 않습니다.'};};
-const currentHandlerRecords={Playback:currentPlaybackHandler,Seek:currentSeekHandler,View:currentViewHandler,Transform:currentTransformHandler};
+const currentReadinessHandler=()=>({ready:Boolean(currentManifestRecord)&&currentImageSources.length===3,frameCount:currentManifestRecord?.frames.length??0,playing:Boolean(currentPlaybackTimer),message:element.querySelector('[data-player-status]').textContent});
+const currentHandlerRecords={Readiness:currentReadinessHandler,Playback:currentPlaybackHandler,Seek:currentSeekHandler,View:currentViewHandler,Transform:currentTransformHandler};
 for(const [currentHandlerSuffix,currentHandlerFunction] of Object.entries(currentHandlerRecords))window[currentPlayerIdentifier+currentHandlerSuffix]=currentHandlerFunction;
 const currentRemovalObserver=new MutationObserver(()=>{
  if(element.isConnected)return;

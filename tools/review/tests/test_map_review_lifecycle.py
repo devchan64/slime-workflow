@@ -39,6 +39,8 @@ const createTestReview=()=>createSharedFieldReview(currentCanvasElement,{}, {},c
  currentPendingReview=createTestReview();currentBootCallback();
  const currentReadyReview=await currentPendingReview;
  currentReadyReview.destroy();currentReadyReview.destroy();
+ assert.throws(()=>currentReadyReview.render({}, {}, {}),/맵 검수 화면이 닫혔습니다/);
+ assert.throws(()=>currentReadyReview.renderTown({}, {}, ()=>({})),/맵 검수 화면이 닫혔습니다/);
  assert.equal(currentDestroyCount,3);assert.equal(currentEventHandlers.size,0);
 })().catch(error=>{console.error(error);process.exitCode=1;});
 """.replace('ADAPTER_SOURCE',current_adapter_source)

@@ -22,7 +22,7 @@ const writeEditorStatus=(currentMessageText)=>{findEditorElement('status').textC
 function cloneEditorDocument(){return structuredClone(currentProjectDocument);}
 function retainUndoSnapshot(){if(!currentProjectDocument)throw Error('먼저 작업을 생성하거나 불러오세요.');stopEditorPlayback();currentUndoRecords.push(cloneEditorDocument());if(currentUndoRecords.length>SPRITE_V2_UNDO_LIMIT)currentUndoRecords.shift();currentUnsavedChanges=true;}
 function selectedEditorRecord(){if(currentEditorMode!=='image')return currentProjectDocument?.reference;return currentEditorTarget==='reference'?currentProjectDocument?.reference:currentProjectDocument?.frames[currentFrameIndex];}
-function collectEditorTargets(){if(!currentProjectDocument)return[];if(currentEditorMode!=='image')return currentProjectDocument.reference?[currentProjectDocument.reference]:[];const currentTargetMode=currentEditorTarget;if(currentTargetMode==='reference')return currentProjectDocument.reference?[currentProjectDocument.reference]:[];if(currentTargetMode==='all')return currentProjectDocument.frames;if(currentTargetMode==='selected')return currentProjectDocument.frames.filter(currentFrameRecord=>currentSelectedFrames.has(currentFrameRecord.id));return currentProjectDocument.frames[currentFrameIndex]?[currentProjectDocument.frames[currentFrameIndex]]:[];}
+function collectEditorTargets(currentEditMode=currentEditorMode){if(!currentProjectDocument)return[];if(currentEditMode!=='image')return currentProjectDocument.reference?[currentProjectDocument.reference]:[];const currentTargetMode=currentEditorTarget;if(currentTargetMode==='reference')return currentProjectDocument.reference?[currentProjectDocument.reference]:[];if(currentTargetMode==='all')return currentProjectDocument.frames;if(currentTargetMode==='selected')return currentProjectDocument.frames.filter(currentFrameRecord=>currentSelectedFrames.has(currentFrameRecord.id));return currentProjectDocument.frames[currentFrameIndex]?[currentProjectDocument.frames[currentFrameIndex]]:[];}
 async function requestEditorCommand(currentCommandName,currentPayloadRecord={}){
  const currentResponseValue=await fetch(window.spriteV2ServerBase+'/management/command',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({service:'character-animation',command:'sprite-v2-'+currentCommandName,payload:currentPayloadRecord})});
  const currentResponseRecord=await currentResponseValue.json();if(!currentResponseValue.ok||currentResponseRecord.error)throw Error(currentResponseRecord.error||'관리 명령 실패');return currentResponseRecord;
@@ -48,6 +48,10 @@ async function confirmEditorReplacement(currentTargetDescription){
 }
 window.spriteV2ReadinessControls=()=>({
  projectReady:Boolean(currentProjectDocument)&&!currentBusyState,
+ targetReady:collectEditorTargets('image').length>0&&!currentBusyState,
+ undoReady:currentUndoRecords.length>0&&!currentBusyState,
+ targetReason:currentBusyState?'처리가 끝날 때까지 기다리세요.':!currentProjectDocument?'작업을 먼저 생성하거나 불러오세요.':collectEditorTargets('image').length?'선택한 이미지의 위치·배율을 조절할 수 있습니다.':currentEditorTarget==='reference'?'레퍼런스 이미지를 등록하세요.':currentEditorTarget==='selected'?'프레임 목록에서 일괄 편집할 프레임을 체크하세요.':'편집할 프레임을 등록하세요.',
+ undoReason:currentBusyState?'처리가 끝날 때까지 기다리세요.':currentUndoRecords.length?'마지막 편집을 되돌릴 수 있습니다.':'편집한 뒤 실행 취소할 수 있습니다.',
  framesReady:Boolean(currentProjectDocument?.frames.length)&&!currentBusyState,
  reason:currentBusyState?'등록·저장 처리가 끝나면 다시 사용할 수 있습니다.':!currentProjectDocument?'작업을 생성하거나 불러오면 저장할 수 있습니다. 프레임을 등록하면 재생·이동·내보내기를 사용할 수 있습니다.':!currentProjectDocument.frames.length?'프레임을 등록하면 재생·이동·내보내기를 사용할 수 있습니다.':'저장·재생·이동·내보내기를 사용할 수 있습니다.'
 });

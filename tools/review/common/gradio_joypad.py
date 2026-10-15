@@ -9,7 +9,7 @@ JOY_PAD_SCALE_STEP = 0.001
 JOY_PAD_LARGE_SCALE_STEP = 0.005
 
 
-def build_transform_joypad(current_handler_name, current_feedback_output, current_scale_enabled=True, current_separate_axes=False):
+def build_transform_joypad(current_handler_name, current_feedback_output, current_scale_enabled=True, current_separate_axes=False, current_readiness_controls=None):
     """명령 처리기는 action, payload를 받아 x/y/scale/message를 반환한다."""
     if not re.fullmatch(r'[A-Za-z_$][A-Za-z0-9_$]*', current_handler_name):
         raise ValueError('조이패드 명령 함수 이름 형식 오류')
@@ -31,7 +31,8 @@ def build_transform_joypad(current_handler_name, current_feedback_output, curren
             current_output_fields.insert(3,current_vertical_scale)
 
         def bind_joypad_button(current_action_name,current_button_label,current_scale_override=None):
-            current_button_component=gr.Button(current_button_label,min_width=0) if current_action_name.startswith('scale') else gr.Button(current_button_label)
+            current_button_component=gr.Button(current_button_label,min_width=0,interactive=current_readiness_controls is None) if current_action_name.startswith('scale') else gr.Button(current_button_label,interactive=current_readiness_controls is None)
+            if current_readiness_controls is not None:current_readiness_controls.append(current_button_component)
             current_button_script="""async(currentPositionX,currentPositionY,currentScaleValue,currentPositionStep,currentScaleStep)=>{
 try{
  const currentActionHandler=window[HANDLER];

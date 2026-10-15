@@ -5,6 +5,30 @@ from tools.review.ui.gradio.animation_separation_app import build_separation_int
 
 
 class SeparationPreviewGradioTests(unittest.TestCase):
+    def test_player_readiness_gates_single_frame_playback(self):
+        import subprocess
+        import gradio as gr
+        from tools.review.ui.gradio.separation_preview import build_separation_player
+        with gr.Blocks() as current_test_blocks:
+            build_separation_player('readinessTestPlayer')
+        current_interface_config=current_test_blocks.get_config_file()
+        current_ready_event=next(current_event_record for current_event_record in current_interface_config['dependencies'] if 'readinessTestPlayerReadiness' in (current_event_record.get('js') or ''))
+        self.assertFalse(current_ready_event['backend_fn'])
+        self.assertFalse(current_ready_event['queue'])
+        current_component_lookup={current_component_record['id']:current_component_record for current_component_record in current_interface_config['components']}
+        current_labels_list=[current_component_lookup[current_control_id]['props'].get('value') for current_control_id in current_ready_event['outputs'][:-1]]
+        for current_control_id in current_ready_event['outputs'][:-1]:self.assertFalse(current_component_lookup[current_control_id]['props']['interactive'])
+        current_browser_script="global.window={};const currentUpdateFunction=("+current_ready_event['js']+");const currentOutputRecords=[];for(const currentReadyRecord of [{ready:false,frameCount:0,message:'로딩 실패'},{ready:true,frameCount:1,playing:false},{ready:true,frameCount:2,playing:false},{ready:true,frameCount:2,playing:true}]){window.readinessTestPlayerReadiness=()=>currentReadyRecord;currentOutputRecords.push(currentUpdateFunction());}console.log(JSON.stringify(currentOutputRecords));"
+        current_result_values=json.loads(subprocess.run(['node','-e',current_browser_script],check=True,capture_output=True,text=True).stdout)
+        self.assertTrue(all(not current_control_record['interactive'] for current_control_record in current_result_values[0][:-1]))
+        self.assertEqual(current_result_values[0][-1],'로딩 실패')
+        current_play_index=current_labels_list.index('재생');current_stop_index=current_labels_list.index('정지')
+        self.assertFalse(current_result_values[1][current_play_index]['interactive'])
+        self.assertIn('단일 프레임',current_result_values[1][-1])
+        self.assertTrue(current_result_values[2][current_play_index]['interactive'])
+        self.assertFalse(current_result_values[2][current_stop_index]['interactive'])
+        self.assertTrue(current_result_values[3][current_stop_index]['interactive'])
+
     def test_result_payload_preserves_existing_job_files(self):
         current_job_identifier = '2026-10-11_12-00-00-1234abcd'
         current_result_payload = json.loads(build_separation_preview('http://127.0.0.1:8765', current_job_identifier))

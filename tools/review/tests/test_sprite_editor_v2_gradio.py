@@ -1,4 +1,7 @@
 """v2의 일반 작업 컨트롤과 브라우저 편집기 연결을 검증한다."""
+import json
+import subprocess
+from pathlib import Path
 import unittest
 from tools.review.ui.gradio.sprite_editor_v2_app import build_sprite_v2_interface, create_sprite_project_script
 
@@ -12,10 +15,66 @@ class SpriteV2GradioTests(unittest.TestCase):
         self.assertFalse(current_ready_event['backend_fn'])
         self.assertFalse(current_ready_event['queue'])
         current_component_lookup={current_component_record['id']:current_component_record for current_component_record in current_interface_config['components']}
-        self.assertEqual(len(current_ready_event['outputs']),9)
-        for current_control_id in current_ready_event['outputs'][:-1]:
+        self.assertEqual(len(current_ready_event['outputs']),36)
+        for current_control_id in current_ready_event['outputs'][:-3]:
             self.assertFalse(current_component_lookup[current_control_id]['props']['interactive'])
         self.assertIn('작업을 생성하거나 불러오세요',current_component_lookup[current_ready_event['outputs'][-1]]['props']['value'])
+
+    def test_edit_readiness_distinguishes_empty_and_populated_projects(self):
+        current_interface_config=build_sprite_v2_interface().get_config_file()
+        current_ready_event=next(current_event_record for current_event_record in current_interface_config['dependencies'] if 'spriteV2ReadinessControls' in (current_event_record.get('js') or ''))
+        current_browser_script="const currentUpdateFunction=("+current_ready_event['js']+"); global.window={}; const currentResults=[]; for(const currentReadyRecord of [{projectReady:false,framesReady:false,reason:'없음'},{projectReady:true,framesReady:false,reason:'빈 작업'},{projectReady:true,framesReady:true,reason:'프레임 있음'},{projectReady:false,framesReady:false,reason:'처리 중'}]) {window.spriteV2ReadinessControls=()=>currentReadyRecord; currentResults.push(currentUpdateFunction());} console.log(JSON.stringify(currentResults));"
+        current_command_result=subprocess.run(['node','-e',current_browser_script],check=True,capture_output=True,text=True)
+        current_update_results=json.loads(current_command_result.stdout)
+        for current_result_index,current_expected_flags in enumerate(((False,False),(True,False),(True,True),(False,False))):
+            current_output_values=current_update_results[current_result_index]
+            self.assertEqual(len(current_output_values),len(current_ready_event['outputs']))
+            self.assertEqual([current_output_value['interactive'] for current_output_value in current_output_values[:2]],[current_expected_flags[0]]*2)
+            self.assertEqual([current_output_value['interactive'] for current_output_value in current_output_values[2:15]],[current_expected_flags[1]]*13)
+            self.assertTrue(all(not current_output_value['interactive'] for current_output_value in current_output_values[15:33]))
+
+    def test_target_readiness_matches_image_selection_and_undo(self):
+        current_source_text=(Path(__file__).parents[1]/'ui/character_animation/sprite-editor-v2.js').read_text()
+        current_collect_source=next(current_source_line for current_source_line in current_source_text.splitlines() if current_source_line.startswith('function collectEditorTargets('))
+        current_ready_source=current_source_text.split('window.spriteV2ReadinessControls=',1)[1].split('function refreshEditorAvailability',1)[0]
+        current_browser_script="""
+const assert=require('node:assert/strict');
+let currentProjectDocument=null,currentBusyState=false,currentEditorMode='guide',currentEditorTarget='frame',currentFrameIndex=0;
+const currentSelectedFrames=new Set(),currentUndoRecords=[];
+COLLECT
+const readCurrentReadiness=READY
+assert.equal(readCurrentReadiness().targetReady,false);
+currentProjectDocument={reference:null,frames:[{id:'one'}]};
+assert.equal(readCurrentReadiness().targetReady,true);
+currentEditorTarget='reference';assert.equal(readCurrentReadiness().targetReady,false);
+currentEditorTarget='selected';assert.equal(readCurrentReadiness().targetReady,false);
+currentSelectedFrames.add('one');assert.equal(readCurrentReadiness().targetReady,true);
+assert.equal(readCurrentReadiness().undoReady,false);
+currentUndoRecords.push({});assert.equal(readCurrentReadiness().undoReady,true);
+currentBusyState=true;assert.equal(readCurrentReadiness().targetReady,false);assert.equal(readCurrentReadiness().undoReady,false);
+""".replace('COLLECT',current_collect_source).replace('READY',current_ready_source)
+        current_command_result=subprocess.run(['node','-e',current_browser_script],capture_output=True,text=True)
+        self.assertEqual(current_command_result.returncode,0,current_command_result.stderr)
+
+    def test_shared_joypad_preserves_existing_consumer_contract(self):
+        import gradio as gr
+        from tools.review.common.gradio_joypad import build_transform_joypad
+        for current_scale_enabled,current_axes_separate,current_expected_buttons in ((False,False,7),(True,False,10),(True,True,17)):
+            for current_readiness_requested in (False,True):
+                with self.subTest(scale=current_scale_enabled,separate=current_axes_separate,readiness=current_readiness_requested):
+                    current_readiness_controls=[] if current_readiness_requested else None
+                    with gr.Blocks() as current_test_blocks:
+                        current_feedback_output=gr.Textbox()
+                        current_input_controls=build_transform_joypad('testJoypadControls',current_feedback_output,current_scale_enabled,current_axes_separate,current_readiness_controls)
+                    current_interface_config=current_test_blocks.get_config_file()
+                    current_buttons_records=[current_component_record for current_component_record in current_interface_config['components'] if current_component_record['type']=='button']
+                    self.assertEqual(len(current_buttons_records),current_expected_buttons)
+                    self.assertEqual(len(current_input_controls),6 if current_axes_separate else 5)
+                    self.assertTrue(all(current_button_record['props']['interactive']==(not current_readiness_requested) for current_button_record in current_buttons_records))
+                    if current_readiness_requested:self.assertEqual(len(current_readiness_controls),current_expected_buttons)
+                    for current_event_record in current_interface_config['dependencies']:
+                        self.assertFalse(current_event_record['backend_fn'])
+                        self.assertEqual(len(current_event_record['outputs']),5 if current_axes_separate else 4)
 
     def test_reference_delete_uses_browser_command(self):
         current_interface_config=build_sprite_v2_interface().get_config_file()
