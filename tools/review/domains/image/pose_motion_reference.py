@@ -1,5 +1,6 @@
 """등록된 걷기 모션의 ANNY 참조와 보조 문구를 읽는다."""
 import hashlib
+import re
 from pathlib import Path
 
 import yaml
@@ -10,9 +11,34 @@ MOTION_REFERENCE_ROOT = Path(__file__).resolve().parents[4] / 'assets/motion-she
 MOTION_PROMPT_CONFIG = Path(__file__).resolve().parents[4] / 'generators/image/config/pose-motion-prompts.yaml'
 
 
+MOTION_REFERENCE_FRAME_COUNT = 35
+MOTION_REFERENCE_DIRECTIONS = ('down_left', 'down_right', 'up_left', 'up_right')
+
+
+def validate_motion_reference_manifest(current_manifest_record):
+    """프리셋이 소비하는 방향·프레임·파일 계약을 검증한다."""
+    if not isinstance(current_manifest_record, dict):
+        raise ValueError('걷기 참조 매니페스트는 객체여야 합니다.')
+    if type(current_manifest_record.get('frames')) is not int or current_manifest_record['frames'] != MOTION_REFERENCE_FRAME_COUNT:
+        raise ValueError('걷기 참조 frames는 정수 35여야 합니다.')
+    current_direction_values = current_manifest_record.get('directions')
+    if not isinstance(current_direction_values, list) or any(not isinstance(current_direction_name, str) for current_direction_name in current_direction_values) or len(current_direction_values) != len(MOTION_REFERENCE_DIRECTIONS) or set(current_direction_values) != set(MOTION_REFERENCE_DIRECTIONS):
+        raise ValueError('걷기 참조 directions는 중복 없는 등록 4방향이어야 합니다.')
+    current_file_records = current_manifest_record.get('files')
+    if not isinstance(current_file_records, dict):
+        raise ValueError('걷기 참조 files는 경로와 SHA-256 객체여야 합니다.')
+    for current_direction_name in MOTION_REFERENCE_DIRECTIONS:
+        for current_frame_number in range(1, MOTION_REFERENCE_FRAME_COUNT + 1):
+            current_relative_path = f'anny/{current_direction_name}/anny-{current_frame_number:04d}.png'
+            current_expected_hash = current_file_records.get(current_relative_path)
+            if not isinstance(current_expected_hash, str) or not re.fullmatch(r'[a-f0-9]{64}', current_expected_hash):
+                raise ValueError(f'걷기 참조 파일 해시 누락 또는 형식 오류: {current_relative_path}')
+
+
 def load_motion_reference(selected_direction_value, selected_frame_number):
     """1부터 시작하는 프레임 번호를 검증하고 해시가 일치하는 이미지를 반환한다."""
-    current_manifest_record = yaml.safe_load((MOTION_REFERENCE_ROOT / 'manifest.yaml').read_text())
+    current_manifest_record = yaml.load((MOTION_REFERENCE_ROOT / 'manifest.yaml').read_text(), Loader=UniqueAssetYamlLoader)
+    validate_motion_reference_manifest(current_manifest_record)
     if selected_direction_value not in current_manifest_record['directions']:
         raise ValueError('등록된 걷기 방향을 선택하세요.')
     if isinstance(selected_frame_number, bool) or not isinstance(selected_frame_number, (int, float)) or not float(selected_frame_number).is_integer() or not 1 <= selected_frame_number <= current_manifest_record['frames']:

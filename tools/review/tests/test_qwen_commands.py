@@ -18,6 +18,17 @@ COMMAND_MODULE_SPEC.loader.exec_module(COMMAND_MODULE_VALUE)
 
 
 class QwenCommandsTest(unittest.TestCase):
+    def test_prompt_options_reject_duplicate_configuration_keys(self):
+        from generators.image.qwen_21_prompt_options import load_qwen_prompt_options, compose_qwen_option_prompt
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_config_path = Path(current_directory_name)/'options.yaml'
+            current_config_path.write_text('style_source: source\ncommon_style: first\ncommon_style: second\ntransparent_background: alpha\n')
+            with patch('generators.image.qwen_21_prompt_options.QWEN_PROMPT_OPTIONS_PATH',current_config_path):
+                with self.assertRaisesRegex(ValueError,'중복 키: common_style'):
+                    load_qwen_prompt_options()
+        current_final_text,current_added_text = compose_qwen_option_prompt('figure',True,True)
+        self.assertEqual(current_final_text,'figure '+current_added_text)
+
     def test_both_generation_routes(self):
         for service_name_value,route_prefix_value,default_seed_value in [('qwen-2512','/image-generation',251204),('qwen-2511','/image-generation-2511',10107)]:
             with patch.object(COMMAND_MODULE_VALUE,'call_management_api',return_value={'id':'2026-09-25_00-00-00-12345678','status':'running'}) as api_call_handle, contextlib.redirect_stdout(io.StringIO()):

@@ -13,7 +13,7 @@ def collect_saved_input_view(current_history_record, server_base_address='', rec
     if not current_history_record:
         return '', {}, [], ''
     current_request_record = current_history_record.get('request', {})
-    current_prompt_text = current_request_record.get('prompt', current_request_record.get('user_prompt', ''))
+    current_prompt_text = current_request_record.get('final_prompt', current_request_record.get('prompt', current_request_record.get('user_prompt', '')))
     current_reference_images = []
     current_reference_notices = []
     current_snapshot_records = current_request_record.get('reference_snapshots', [])
@@ -43,3 +43,36 @@ def collect_saved_input_view(current_history_record, server_base_address='', rec
                 current_reference_notices.append(
                     f'<a href="{html.escape(current_reference_address, quote=True)}" target="_blank" rel="noopener noreferrer">입력 참조 {current_reference_index} · 원본 열기 ↗</a>')
     return current_prompt_text, current_request_record, current_reference_images, '\n\n'.join(current_reference_notices)
+
+
+def describe_saved_prompt_counts(current_history_record):
+    """현재 기본값을 사용하지 않고 저장된 원문만 센다."""
+    if not current_history_record:
+        return ''
+    current_request_record = current_history_record.get('request', {})
+    current_original_text = current_request_record.get('prompt', current_request_record.get('user_prompt'))
+    current_final_text = current_request_record.get('final_prompt')
+    current_qwen_record = current_request_record.get('qwen21')
+    current_added_text = None
+    if isinstance(current_qwen_record, dict) and isinstance(current_qwen_record.get('user_prompt'), str):
+        current_original_text = current_qwen_record['user_prompt']
+        current_final_text = current_request_record.get('prompt')
+        current_added_text = current_qwen_record.get('additional_prompt')
+    current_count_parts = []
+    if isinstance(current_original_text, str):
+        current_count_parts.append(f'저장 원문 {len(current_original_text.split())}단어')
+    if isinstance(current_added_text, str):
+        current_count_parts.append(f'저장 추가 문구 {len(current_added_text.split())}단어')
+    if isinstance(current_final_text, str):
+        current_count_parts.append(f'저장 최종 입력 {len(current_final_text.split())}단어')
+    else:
+        current_count_parts.append('별도 최종 문구 기록 없음 · 현재 기본값으로 재구성하지 않습니다.')
+    for current_model_name in ('vace', 'phantom'):
+        current_model_record = current_request_record.get(current_model_name)
+        if isinstance(current_model_record, dict) and isinstance(current_model_record.get('negative_prompt'), str):
+            current_count_parts.append(f"저장 부정 입력 {len(current_model_record['negative_prompt'].split())}단어")
+            break
+    else:
+        if isinstance(current_request_record.get('negative_prompt'), str):
+            current_count_parts.append(f"저장 부정 입력 {len(current_request_record['negative_prompt'].split())}단어")
+    return ' · '.join(current_count_parts)

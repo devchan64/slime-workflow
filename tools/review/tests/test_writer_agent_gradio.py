@@ -108,6 +108,8 @@ class WriterAgentGradioTest(unittest.TestCase):
     def test_new_selection_clears_previous_proposal_and_confirmation(self):
         current_interface_blocks=build_writer_agent_interface(8770)
         current_clear_callback=next(current_function_value.fn for current_function_value in current_interface_blocks.fns.values() if current_function_value.fn and current_function_value.fn.__name__=='clear_writer_selection_detail')
+        current_clear_function=next(current_function_value for current_function_value in current_interface_blocks.fns.values() if current_function_value.fn is current_clear_callback)
+        self.assertEqual([current_target_value[1] for current_target_value in current_clear_function.targets],['change'])
         current_output_values=current_clear_callback()
         self.assertEqual(len(current_output_values),16)
         for current_output_index in (1,2,5,8,9,11):self.assertEqual(current_output_values[current_output_index],'')

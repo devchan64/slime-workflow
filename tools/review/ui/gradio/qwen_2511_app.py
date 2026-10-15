@@ -30,6 +30,19 @@ from tools.review.common.gradio_reference_restore import restore_reference_input
 from tools.review.common.gradio_seed import build_generation_seed
 from tools.review.common.management_client import execute_remote_management_command as execute_management_command
 
+
+def check_circular_prompt_readiness(current_prompt_text, current_shading_enabled, current_pattern_enabled):
+    from generators.image.qwen_21_circular import CIRCULAR_SOFT_SHADING_PROMPT, CIRCULAR_PATTERN_VIEW_PROMPT
+    current_word_count = len(current_prompt_text.split()) + (len(CIRCULAR_SOFT_SHADING_PROMPT.split()) if current_shading_enabled else 0) + (len(CIRCULAR_PATTERN_VIEW_PROMPT.split()) if current_pattern_enabled else 0)
+    return 0 < current_word_count < 100
+
+
+def check_plain_prompt_readiness(current_prompt_text, current_style_enabled, current_transparency_enabled):
+    from generators.image.qwen_21_prompt_options import compose_qwen_option_prompt
+    current_final_prompt, current_added_prompt = compose_qwen_option_prompt(current_prompt_text, current_style_enabled, current_transparency_enabled)
+    return 0 < len(current_final_prompt.split()) < 100
+
+
 def execute_reference_gateway(command_name_value,payload_value):return execute_management_command('qwen-2511',command_name_value,payload_value)
 def build_reference_request(prompt_text_value,generation_tag_value,reference_file_values,width_value,height_value,step_value,seed_value):
     reference_bytes_values=[] if not reference_file_values else list(reference_file_values)
@@ -184,8 +197,8 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
         if plain_options_enabled:
             from generators.image.qwen_21_prompt_options import compose_qwen_option_prompt, load_qwen_prompt_options
             current_option_prompts = load_qwen_prompt_options()
-            common_style_control = gr.Checkbox(value=False, label='공용 화풍 추가', info=current_option_prompts['common_style'])
-            transparent_background_control = gr.Checkbox(value=False, label='투명 배경 요청 · 네이티브 RGBA', info=current_option_prompts['transparent_background'])
+            common_style_control = gr.Checkbox(value=False, label='공용 화풍 추가', info=str(len(current_option_prompts['common_style'].split()))+'단어 · '+current_option_prompts['common_style'])
+            transparent_background_control = gr.Checkbox(value=False, label='투명 배경 요청 · 네이티브 RGBA', info=str(len(current_option_prompts['transparent_background'].split()))+'단어 · '+current_option_prompts['transparent_background'])
             with gr.Accordion('최종 모델 입력', open=False):
                 plain_final_preview = gr.Textbox(value=default_prompt_text, label='옵션 포함 최종 프롬프트', interactive=False)
             def describe_plain_options(current_prompt_text, common_style_enabled, transparent_background_enabled):
@@ -195,8 +208,8 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
                 current_option_control.change(describe_plain_options, [prompt_text_value, common_style_control, transparent_background_control], [prompt_count_control, plain_final_preview], queue=False)
         if circular_mode_enabled:
             from generators.image.qwen_21_circular import CIRCULAR_SOFT_SHADING_PROMPT, CIRCULAR_PATTERN_VIEW_PROMPT
-            pattern_view_control=gr.Checkbox(value=True,label='탑뷰·반복 패턴·클로즈업 추가',info=CIRCULAR_PATTERN_VIEW_PROMPT)
-            soft_shading_control=gr.Checkbox(value=True,label='부드러운 음영 일러스트 추가',info=CIRCULAR_SOFT_SHADING_PROMPT)
+            pattern_view_control=gr.Checkbox(value=True,label='탑뷰·반복 패턴·클로즈업 추가',info=str(len(CIRCULAR_PATTERN_VIEW_PROMPT.split()))+'단어 · '+CIRCULAR_PATTERN_VIEW_PROMPT)
+            soft_shading_control=gr.Checkbox(value=True,label='부드러운 음영 일러스트 추가',info=str(len(CIRCULAR_SOFT_SHADING_PROMPT.split()))+'단어 · '+CIRCULAR_SOFT_SHADING_PROMPT)
             def describe_circular_prompt(current_prompt_text, soft_shading_enabled, pattern_view_enabled):
                 user_word_count=len(current_prompt_text.split())
                 added_word_count=(len(CIRCULAR_SOFT_SHADING_PROMPT.split()) if soft_shading_enabled else 0)+(len(CIRCULAR_PATTERN_VIEW_PROMPT.split()) if pattern_view_enabled else 0)
@@ -273,12 +286,14 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
             gr.Markdown('순환 반경은 좌우·상하에 동일 적용합니다. 경계 1줄 참조 · 모서리 참조 없음.')
         if pose_transfer_enabled:
             width_value.change(lambda selected_resolution_value: selected_resolution_value,width_value,height_value,queue=False)
-        generation_button_value=gr.Button('이미지 생성 시작',variant='primary',interactive=not pose_transfer_enabled)
+        generation_button_value=gr.Button('이미지 생성 시작',variant='primary',interactive=not pose_transfer_enabled and not plain_options_enabled)
         if pose_transfer_enabled:
             build_button_guidance(generation_button_value, '두 필수 참조 이미지를 모두 첨부하면 생성 시작을 사용할 수 있습니다. 확인 중에는 추가 접수를 할 수 없습니다.')
+        if plain_options_enabled or circular_mode_enabled:
+            build_button_guidance(generation_button_value, '프롬프트를 입력하거나 추가 문구 옵션을 선택하세요. 옵션을 포함한 최종 입력은 1~99단어여야 하며, 확인 중에는 추가 접수할 수 없습니다.')
         with gr.Column() as generation_confirmation_container:
             pass
-        status_value=gr.Markdown('참조 이미지와 설정을 확인하세요.' if pose_transfer_enabled else '생성 가능 · 설정을 확인하세요.')
+        status_value=gr.Markdown('참조 이미지와 설정을 확인하세요.' if pose_transfer_enabled else '프롬프트와 옵션을 확인하세요.' if plain_options_enabled else '생성 가능 · 설정을 확인하세요.')
         gr.Markdown('실행 중인 작업은 아래 생성 이력에서 선택한 뒤 **작업 중지**를 사용하세요.')
         identifier_value=build_generation_identifier()
         preview_value=build_generation_gallery()
@@ -306,7 +321,11 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
             from tools.review.domains.image.three_reference_generation import validate_three_reference_request
             try:
                 generation_request_value=build_reference_request(prompt_text_value,generation_tag_value,reference_bytes_values,width_value,height_value,step_value,seed_value)
-                if qwen21_mode_enabled:
+                if circular_mode_enabled:
+                    from tools.review.domains.image.qwen_circular_generation import QwenCircularGenerationManager
+                    generation_request_value.update(circular_radius=generation_input_values[-4],soft_shading=generation_input_values[-3],pattern_view=generation_input_values[-2],baseline_decode=generation_input_values[-1])
+                    QwenCircularGenerationManager().validate_generation_request(generation_request_value)
+                elif qwen21_mode_enabled:
                     from tools.review.domains.image.qwen_21_generation import validate_qwen_plain_request
                     generation_request_value['prompt'] = prompt_text_value
                     if plain_options_enabled:
@@ -318,16 +337,11 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
                     ExpressionGenerationManager().validate_generation_request(generation_request_value)
                 else:
                     validate_three_reference_request(generation_request_value)
-                if circular_mode_enabled:
-                    generation_request_value['circular_radius']=generation_input_values[-4]
-                    generation_request_value['soft_shading']=generation_input_values[-3]
-                    generation_request_value['pattern_view']=generation_input_values[-2]
-                    generation_request_value['baseline_decode']=generation_input_values[-1]
                 generation_record_value=execute_reference_gateway('generate',generation_request_value)
             except (ValueError,OSError) as generation_request_error:
                 raise gr.Error(str(generation_request_error)) from generation_request_error
             return generation_record_value['id'],'상태: '+format_generation_status(generation_record_value)
-        bind_gpu_generation_confirmation(generation_button_value,start_reference_generation,[prompt_text_value,generation_tag_value,*reference_image_controls,width_value,height_value,step_value,seed_value]+([circular_radius_control,soft_shading_control,pattern_view_control,baseline_decode_control] if circular_mode_enabled else [])+([auxiliary_prompt_control] if vnccs_transfer_enabled else [])+([common_style_control,transparent_background_control] if plain_options_enabled else []),[identifier_value,status_value], generation_confirmation_container=generation_confirmation_container, generation_readiness_callback=(lambda *current_reference_values: all(current_reference_value is not None for current_reference_value in current_reference_values)) if pose_transfer_enabled else None, generation_readiness_inputs=reference_image_controls if pose_transfer_enabled else None)
+        bind_gpu_generation_confirmation(generation_button_value,start_reference_generation,[prompt_text_value,generation_tag_value,*reference_image_controls,width_value,height_value,step_value,seed_value]+([circular_radius_control,soft_shading_control,pattern_view_control,baseline_decode_control] if circular_mode_enabled else [])+([auxiliary_prompt_control] if vnccs_transfer_enabled else [])+([common_style_control,transparent_background_control] if plain_options_enabled else []),[identifier_value,status_value], generation_confirmation_container=generation_confirmation_container, generation_readiness_callback=(lambda *current_reference_values: all(current_reference_value is not None for current_reference_value in current_reference_values)) if pose_transfer_enabled else check_plain_prompt_readiness if plain_options_enabled else check_circular_prompt_readiness if circular_mode_enabled else None, generation_readiness_inputs=reference_image_controls if pose_transfer_enabled else [prompt_text_value,common_style_control,transparent_background_control] if plain_options_enabled else [prompt_text_value,soft_shading_control,pattern_view_control] if circular_mode_enabled else None)
         def refresh_status(identifier_text_value,refresh_log_enabled):
             if not identifier_text_value:return (gr.skip(),)*4
             status_record_value=read_existing_generation_status(execute_reference_gateway,identifier_text_value)

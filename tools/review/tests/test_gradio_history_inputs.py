@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 from PIL import Image
-from tools.review.common.gradio_history_inputs import collect_saved_input_view
+from tools.review.common.gradio_history_inputs import collect_saved_input_view, describe_saved_prompt_counts
 
 
 class HistoryInputViewTests(unittest.TestCase):
@@ -38,3 +38,27 @@ class HistoryInputViewTests(unittest.TestCase):
     def test_outside_path_not_read(self):
         current_history_record={'job_path':'/etc','request':{'reference_snapshots':[{'path':'passwd','sha256':'x'}]}}
         self.assertIn('허용된',collect_saved_input_view(current_history_record)[3])
+
+    def test_saved_final_prompt_precedes_original_without_rebuilding(self):
+        current_history_record = {'request': {'prompt': 'flute', 'final_prompt': 'flute old saved suffix', 'final_prompt_words': 999}}
+        self.assertEqual(collect_saved_input_view(current_history_record)[0], 'flute old saved suffix')
+        self.assertEqual(describe_saved_prompt_counts(current_history_record), '저장 원문 1단어 · 저장 최종 입력 4단어')
+        self.assertIn('별도 최종 문구 기록 없음', describe_saved_prompt_counts({'request': {'prompt': '  flute\n calm  '}}))
+        self.assertIn('원문 2단어', describe_saved_prompt_counts({'request': {'prompt': '  flute\n calm  '}}))
+        self.assertEqual(describe_saved_prompt_counts({}), '')
+        self.assertIn('최종 입력 0단어', describe_saved_prompt_counts({'request': {'final_prompt': ''}}))
+
+    def test_negative_prompt_counts_use_saved_runtime_configuration(self):
+        for current_model_name in ('vace', 'phantom'):
+            current_history_record = {'request': {'prompt': 'moving figure', 'negative_prompt': 'stale outer value', current_model_name: {'negative_prompt': 'blurred details'}}}
+            self.assertIn('저장 부정 입력 2단어', describe_saved_prompt_counts(current_history_record))
+        self.assertIn('저장 부정 입력 0단어', describe_saved_prompt_counts({'request': {'negative_prompt': ''}}))
+        self.assertNotIn('저장 부정 입력', describe_saved_prompt_counts({'request': {'prompt': 'figure'}}))
+
+    def test_qwen_option_history_counts_original_and_saved_addition(self):
+        current_history_record = {'request': {'prompt': 'figure historical style', 'qwen21': {'user_prompt': 'figure', 'additional_prompt': 'historical style'}}}
+        self.assertEqual(collect_saved_input_view(current_history_record)[0], 'figure historical style')
+        self.assertEqual(describe_saved_prompt_counts(current_history_record), '저장 원문 1단어 · 저장 추가 문구 2단어 · 저장 최종 입력 3단어')
+        current_history_record['request']['qwen21'] = {'user_prompt': 'figure', 'additional_prompt': ''}
+        current_history_record['request']['prompt'] = 'figure'
+        self.assertIn('저장 추가 문구 0단어', describe_saved_prompt_counts(current_history_record))

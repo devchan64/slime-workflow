@@ -282,7 +282,8 @@ def build_generation_history_view(execute_service_command,server_base_address,de
         result_return_button.click(fn=None,js="()=>{document.getElementById('generation-history-cards')?.scrollIntoView({behavior:'instant',block:'start'});}",queue=False)
         with gr.Accordion('생성 당시 입력값 · 읽기 전용', open=False):
             gr.Markdown('결과를 만든 입력입니다. 현재 편집 중인 설정은 변경하지 않습니다.')
-            saved_prompt_display = gr.Textbox(label='실제 입력 프롬프트', interactive=False, lines=4)
+            saved_prompt_display = gr.Textbox(label='저장 프롬프트 · 최종 문구 우선', interactive=False, lines=4)
+            saved_prompt_counts = gr.Markdown()
             saved_reference_display = gr.Gallery(label='입력 참조 이미지 · 업로드 순서', interactive=False, columns=2, height='auto', allow_preview=False, buttons=[])
             saved_reference_notice = gr.Markdown()
             with gr.Accordion('상세 입력 설정', open=False):
@@ -292,7 +293,8 @@ def build_generation_history_view(execute_service_command,server_base_address,de
             folder_open_button_value=gr.Button('기록 폴더 열기',interactive=record_folder_route is not None,size='sm')
             folder_open_status_value=gr.Markdown()
             result_record_value=gr.JSON(label='저장된 입력 · 생성 기록')
-        from tools.review.common.gradio_history_inputs import collect_saved_input_view
+        from tools.review.common.gradio_history_inputs import collect_saved_input_view, describe_saved_prompt_counts
+        result_record_value.change(describe_saved_prompt_counts, result_record_value, saved_prompt_counts, queue=False)
         result_record_value.change(lambda current_history_record: collect_saved_input_view(current_history_record, server_base_address, record_folder_route), result_record_value, [saved_prompt_display, saved_request_display, saved_reference_display, saved_reference_notice], queue=False)
         log_output_value,log_refresh_value,log_panel_value=build_execution_logs()
         reset_control_values=build_history_reset_controls(deletion_scope_text)

@@ -22,7 +22,7 @@ def describe_music_prompt(current_service_name,current_prompt_text,current_loop_
     current_final_prompt = current_prompt_text.strip()+' '+current_default_record['instrumental_suffix']
     if current_loop_value:
         current_final_prompt += ' '+current_default_record['loop_suffix']
-    return f'원문 {len(current_prompt_text.split())}단어 · 최종 {len(current_final_prompt.split())}단어',current_final_prompt.strip()
+    return f'원문 {len(current_prompt_text.split())}단어 · 추가 {len(current_final_prompt.split())-len(current_prompt_text.split())}단어 · 최종 {len(current_final_prompt.split())}단어',current_final_prompt.strip()
 
 
 def build_music_interface(current_service_name,current_server_address):

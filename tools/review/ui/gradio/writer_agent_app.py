@@ -118,7 +118,7 @@ def build_writer_agent_interface(review_server_port):
         current_detail_button.click(read_writer_selection,current_history_choice,current_detail_outputs)
         def clear_writer_selection_detail():
             return ({},'','','결과 조회가 필요합니다.',{},'',{},[],'','',{},'',gr.update(interactive=False),False,'결과 조회로 선택한 제안의 최신 내용을 확인하세요.',{})
-        current_history_choice.input(clear_writer_selection_detail,outputs=current_detail_outputs,queue=False)
+        current_history_choice.change(clear_writer_selection_detail,outputs=current_detail_outputs,queue=False)
         def submit_writer_action(current_action_mode,current_prompt_value):
             current_prompt_text='' if current_action_mode in ('prepare','learn') else current_prompt_value.strip()
             if current_action_mode=='write' and not current_prompt_text:raise gr.Error('아이디어나 작성 지시를 입력하세요.')

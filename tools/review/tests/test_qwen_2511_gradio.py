@@ -1,5 +1,6 @@
 """Qwen 2511 Gradio 입력·이력 복원 계약을 검증한다."""
 import unittest
+import inspect
 import io
 import hashlib
 from pathlib import Path
@@ -11,6 +12,35 @@ from tools.review.ui.gradio import qwen_2511_app
 
 
 class Qwen2511GradioTests(unittest.TestCase):
+    def test_circular_gui_validates_options_before_dispatch(self):
+        from unittest.mock import patch
+        current_interface_blocks=qwen_2511_app.build_qwen_2511_interface('http://127.0.0.1:8770',qwen21_mode_enabled=True,circular_mode_enabled=True)
+        current_start_callback=next(current_function_value.fn for current_function_value in current_interface_blocks.fns.values() if current_function_value.fn and current_function_value.fn.__name__=='execute_confirmed_generation' and inspect.getclosurevars(current_function_value.fn).nonlocals['generation_callback_value'].__name__=='start_reference_generation')
+        current_input_values=[None]*10+[512,512,40,42,12,True,True,False]
+        with patch.object(qwen_2511_app,'execute_management_command',return_value={'id':'mock-id','status':'queued'}) as current_gateway_mock:
+            list(current_start_callback({'inputs':('','',*current_input_values),'consumed':False}))
+            current_request_record=current_gateway_mock.call_args.args[2]
+            self.assertEqual(current_request_record['prompt'],'')
+            self.assertTrue(current_request_record['pattern_view'])
+            current_gateway_mock.reset_mock()
+            with self.assertRaises(gr.Error):
+                list(current_start_callback({'inputs':('word '*95,'',*current_input_values),'consumed':False}))
+            current_gateway_mock.assert_not_called()
+        self.assertFalse(qwen_2511_app.check_circular_prompt_readiness('',False,False))
+        self.assertTrue(qwen_2511_app.check_circular_prompt_readiness('',True,True))
+        self.assertFalse(qwen_2511_app.check_circular_prompt_readiness('word '*95,True,True))
+
+    def test_plain_prompt_readiness_matches_final_word_limit(self):
+        self.assertFalse(qwen_2511_app.check_plain_prompt_readiness('  ',False,False))
+        self.assertTrue(qwen_2511_app.check_plain_prompt_readiness('figure',False,False))
+        self.assertTrue(qwen_2511_app.check_plain_prompt_readiness('',True,False))
+        self.assertTrue(qwen_2511_app.check_plain_prompt_readiness('word '*99,False,False))
+        self.assertFalse(qwen_2511_app.check_plain_prompt_readiness('word '*100,False,False))
+        self.assertFalse(qwen_2511_app.check_plain_prompt_readiness('word '*99,False,True))
+        current_interface_blocks=qwen_2511_app.build_qwen_2511_interface('http://127.0.0.1:8770',qwen21_mode_enabled=True)
+        current_generate_button=next(current_component for current_component in current_interface_blocks.blocks.values() if isinstance(current_component,gr.Button) and current_component.value=='이미지 생성 시작')
+        self.assertFalse(current_generate_button.interactive)
+
     def test_restore_rejects_cross_job_reference_links(self):
         with tempfile.TemporaryDirectory() as current_temporary_directory:
             current_storage_directory = Path(current_temporary_directory)

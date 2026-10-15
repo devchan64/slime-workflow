@@ -6,8 +6,25 @@ QWEN_PROMPT_OPTIONS_PATH = Path(__file__).parent / 'config/qwen_21_prompt_option
 QWEN_PROMPT_OPTION_NAMES = ('common_style', 'transparent_background')
 
 
+class UniquePromptOptionsLoader(yaml.SafeLoader):
+    """중복 옵션 키를 거절하는 안전한 설정 로더."""
+
+
+def construct_prompt_options_mapping(current_yaml_loader, current_mapping_node):
+    current_mapping_values = {}
+    for current_key_node, current_value_node in current_mapping_node.value:
+        current_field_name = current_yaml_loader.construct_object(current_key_node)
+        if current_field_name in current_mapping_values:
+            raise ValueError(f'Qwen 프롬프트 옵션 중복 키: {current_field_name}')
+        current_mapping_values[current_field_name] = current_yaml_loader.construct_object(current_value_node)
+    return current_mapping_values
+
+
+UniquePromptOptionsLoader.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, construct_prompt_options_mapping)
+
+
 def load_qwen_prompt_options():
-    current_option_record = yaml.safe_load(QWEN_PROMPT_OPTIONS_PATH.read_text())
+    current_option_record = yaml.load(QWEN_PROMPT_OPTIONS_PATH.read_text(), Loader=UniquePromptOptionsLoader)
     if not isinstance(current_option_record, dict) or set(current_option_record) != {'style_source', *QWEN_PROMPT_OPTION_NAMES}:
         raise ValueError('Qwen 프롬프트 옵션 설정 필드 오류')
     if any(not isinstance(current_option_record[current_option_name], str) or not current_option_record[current_option_name].strip() for current_option_name in current_option_record):
