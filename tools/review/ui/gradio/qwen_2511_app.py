@@ -185,7 +185,7 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
             if not circular_mode_enabled and not vnccs_transfer_enabled and not plain_options_enabled: prompt_text_value.change(describe_plain_prompt, prompt_text_value, prompt_count_control, queue=False)
         if vnccs_transfer_enabled:
             with gr.Accordion('최종 모델 입력 · 펼쳐서 확인', open=False):
-                final_prompt_preview = gr.Textbox(value=default_prompt_text + ' ' + current_description_records['walking']['prompt'], show_label=False, interactive=False, lines=5)
+                final_prompt_preview = gr.Textbox(label='모델에 전달할 문구', value=default_prompt_text + ' ' + current_description_records['walking']['prompt'], interactive=False, lines=5)
             def describe_auxiliary_prompt(current_base_prompt, current_auxiliary_prompt):
                 current_final_prompt = ' '.join(current_prompt_part.strip() for current_prompt_part in (current_base_prompt, current_auxiliary_prompt) if current_prompt_part.strip())
                 current_final_count = len(current_final_prompt.split())

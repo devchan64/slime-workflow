@@ -33,7 +33,7 @@ DEFAULT_PAGE_RECORDS=(
     {'id':'qwen-21-circular-generator','label':'Qwen 2.1 순환 VAE 생성기','path':'/image-generation-21-circular/','category':'image-generation','uiMode':'gradio','description':'XY 순환 디코더 · 3×3 반복 검수'},
     {'id':'pose-transfer-generator','label':'포즈 변환 생성기','path':'/pose-transfer/','category':'animation-tool','uiMode':'gradio','description':'정식 · VNCCS QI2.1 · 아이덴티티 1장 + 포즈 1장'},
     {'id':'outfit-transfer-generator','label':'복장 착용 생성기','path':'/outfit-transfer/','category':'image-generation','uiMode':'gradio','description':'Qwen 2.1 · 바디 1장 + 아웃핏 1장 · 신체 비율 유지'},
-    {'id':'qwen-21-generator','label':'Qwen 2.1 이미지 생성기','path':'/image-generation-21/','category':'image-generation','uiMode':'gradio','description':'입력 프롬프트 그대로 · 추가 문구 없음 · 참조 선택'},
+    {'id':'qwen-21-generator','label':'Qwen 2.1 이미지 생성기','path':'/image-generation-21/','category':'image-generation','uiMode':'gradio','description':'공용 화풍·투명 배경 문구 선택 · 참조 이미지 선택'},
     {'id':'writer-agent','label':'작가 AI 에이전트','path':'/writer-agent/','category':'writer-agent','uiMode':'gradio','description':'Gradio · 문서 학습 · 아이디어 작성 · 실행 기록'},
     {'id':'expression-generator','label':'표정 생성기','path':'/expression-generator/','category':'image-generation','uiMode':'gradio','description':'Qwen 2511 · AU 표정 39종 · 참조 1~3장'},
 )
@@ -76,8 +76,8 @@ def load_manager_page_records(source_file_path):
         if any(current_page_record.get(current_field_name) is not None and not isinstance(current_page_record[current_field_name],str) for current_field_name in ('frameIdentifier','frameQuery')):raise ValueError('관리 메뉴 프레임 항목 형식 오류')
         if current_page_record['id']=='tile-map-generator':continue
         if current_page_record['id'] in ('character-animation', 'momask-generator', 'wan21-vace-generator', 'music-stable-audio'):continue
-        if current_page_record['id'] == 'pose-transfer-generator':
-            current_release_record = next(current_default_record for current_default_record in DEFAULT_PAGE_RECORDS if current_default_record['id'] == 'pose-transfer-generator')
+        if current_page_record['id'] in ('pose-transfer-generator', 'qwen-21-generator'):
+            current_release_record = next(current_default_record for current_default_record in DEFAULT_PAGE_RECORDS if current_default_record['id'] == current_page_record['id'])
             current_page_record = {**current_page_record, 'label': current_release_record['label'], 'description': current_release_record['description']}
         if current_page_record['id'].startswith('map-review-'):
             from tools.review.common.map_asset_sources import MAP_CITY_REVIEW_IDENTIFIERS

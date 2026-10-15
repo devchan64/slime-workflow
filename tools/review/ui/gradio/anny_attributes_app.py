@@ -90,8 +90,11 @@ def build_anny_attribute_interface(review_server_port):
         current_profile_choice=gr.Dropdown(label='기준 체형',choices=[],interactive=True)
         with gr.Row():
             for current_profile_action,current_profile_label in (('list','기준 체형 목록 읽기'),('apply','기준 체형 적용')):
-                current_profile_button=gr.Button(current_profile_label)
+                current_profile_button=gr.Button(current_profile_label,interactive=current_profile_action=='list')
+                if current_profile_action=='apply':
+                    current_profile_choice.change(fn=None,inputs=current_profile_choice,outputs=current_profile_button,queue=False,js="currentProfileId=>({__type__:'update',interactive:typeof currentProfileId==='string'&&currentProfileId.length>0})")
                 current_profile_button.click(fn=None,inputs=current_profile_choice,outputs=[current_profile_choice,current_action_feedback],queue=False,js="async(currentProfileId)=>{try{return await window.annyProfileControls('"+current_profile_action+"',currentProfileId);}catch(currentErrorValue){return [{__type__:'update'},currentErrorValue.message];}}")
+        gr.Markdown('기준 체형 목록을 읽고 사용할 체형을 선택하면 적용할 수 있습니다.')
         current_generation_bindings=[]
         with gr.Row():
             for current_action_name,current_button_label in (('reset','신체 기준값 복원'),('preview','프리뷰 생성'),('render','이미지 렌더')):

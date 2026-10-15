@@ -23,7 +23,7 @@ def build_browser_history_controls(history_bridge_name, history_element_identifi
         with gr.Row():
             for current_action_name,current_action_label in [('list','이력 새로고침'),('logs','로그 조회')]:
                 if current_action_name in current_enabled_actions:
-                    current_history_buttons.append((gr.Button(current_action_label),current_action_name))
+                    current_history_buttons.append((gr.Button(current_action_label,interactive=current_action_name!='logs'),current_action_name))
         with gr.Row(equal_height=True):
             for current_action_name,current_action_label in [('result','결과 조회'),('restore','입력값 불러오기'),('resume','생성 재개'),('prioritize','우선 실행'),('cancel','작업 중지'),('delete','선택 이력 삭제')]:
                 if current_action_name in current_enabled_actions:
@@ -36,7 +36,7 @@ def build_browser_history_controls(history_bridge_name, history_element_identifi
             gr.Markdown('현재 동작·버전의 편집 이력 목록만 초기화합니다.' if current_reset_target_handler else GENERATION_CLEANUP_SCOPE_TEXT)
             with gr.Row():
                 for current_action_name,current_action_label in [('reset','생성 이력 초기화' if not current_reset_target_handler else '이력 목록 초기화')]:
-                    if current_action_name in current_enabled_actions:current_history_buttons.append((gr.Button(current_action_label),current_action_name))
+                    if current_action_name in current_enabled_actions:current_history_buttons.append((gr.Button(current_action_label,interactive=current_action_name!='logs'),current_action_name))
         if not current_reset_target_handler:
             current_file_action=gr.Textbox(value='',visible=False)
             current_file_target=gr.JSON(value=None,visible=False)
@@ -53,14 +53,14 @@ def build_browser_history_controls(history_bridge_name, history_element_identifi
                 with gr.Row():
                     current_reset_confirm=gr.Button('확인 · 이력 목록 초기화',variant='stop')
                     current_reset_cancel=gr.Button('취소 · 이력 유지')
-        current_selection_buttons=[(current_action_button,current_action_name) for current_action_button,current_action_name in current_history_buttons if current_action_name in ('result','restore','resume','prioritize','cancel','delete')]
+        current_selection_buttons=[(current_action_button,current_action_name) for current_action_button,current_action_name in current_history_buttons if current_action_name in ('logs','result','restore','resume','prioritize','cancel','delete')]
         def update_browser_history_actions(current_selected_record):
             current_status_record=(current_selected_record or {}).get('status') or {}
             current_status_name=current_status_record.get('status') if isinstance(current_status_record,dict) else current_status_record
             current_result_available=bool(current_selected_record) and (bool(current_reset_target_handler) or current_status_name=='completed' or bool(current_selected_record.get('preview_ready')))
-            current_enabled_states={'result':current_result_available,'restore':bool(current_selected_record),'resume':current_status_name in ('failed','cancelled'),'prioritize':current_status_name=='queued','cancel':current_status_name in ('running','queued'),'delete':current_status_name in ('completed','failed','cancelled','paused')}
-            current_disabled_labels={'result':'결과 조회 · 결과 생성 후 선택','restore':'입력값 불러오기 · 이력 선택','resume':'생성 재개 · 실패·중지 작업 선택','prioritize':'우선 실행 · 대기 작업 선택','cancel':'작업 중지 · 실행·대기 작업 선택','delete':'선택 이력 삭제 · 완료·중지 후 가능'}
-            current_action_labels={'result':'결과 조회','restore':'입력값 불러오기','resume':'생성 재개','prioritize':'우선 실행','cancel':'작업 중지','delete':'선택 이력 삭제'}
+            current_enabled_states={'logs':bool(current_selected_record),'result':current_result_available,'restore':bool(current_selected_record),'resume':current_status_name in ('failed','cancelled'),'prioritize':current_status_name=='queued','cancel':current_status_name in ('running','queued'),'delete':current_status_name in ('completed','failed','cancelled','paused')}
+            current_disabled_labels={'logs':'로그 조회 · 이력 선택','result':'결과 조회 · 결과 생성 후 선택','restore':'입력값 불러오기 · 이력 선택','resume':'생성 재개 · 실패·중지 작업 선택','prioritize':'우선 실행 · 대기 작업 선택','cancel':'작업 중지 · 실행·대기 작업 선택','delete':'선택 이력 삭제 · 완료·중지 후 가능'}
+            current_action_labels={'logs':'로그 조회','result':'결과 조회','restore':'입력값 불러오기','resume':'생성 재개','prioritize':'우선 실행','cancel':'작업 중지','delete':'선택 이력 삭제'}
             return [gr.update(interactive=current_enabled_states[current_action_name],value=current_action_labels[current_action_name] if current_enabled_states[current_action_name] else current_disabled_labels[current_action_name]) for _,current_action_name in current_selection_buttons]
         current_history_record.change(update_browser_history_actions,current_history_record,[current_action_button for current_action_button,_ in current_selection_buttons],queue=False)
         current_history_outputs=[current_history_choice,current_history_identifier,current_history_record,current_history_log,current_history_feedback]
@@ -70,6 +70,7 @@ def build_browser_history_controls(history_bridge_name, history_element_identifi
             return """async(currentSelectedId,currentRefreshEnabled,currentConfirmedTarget)=>{
                 const currentNoChanges=()=>Array.from({length:5},()=>({__type__:'update'}));
                 const currentAutomaticMode="""+json.dumps(current_automatic_mode)+""";
+                const currentInspectMode="""+json.dumps(current_action_name=='inspect')+""";
                 const currentBridgeFunction=window["""+current_bridge_key+"""];
                 if(currentAutomaticMode&&(!currentRefreshEnabled||typeof currentBridgeFunction!=='function'))return currentNoChanges();
                 const currentRefreshState=window["""+current_state_key+"""]??={revision:0,pending:0};
@@ -85,7 +86,7 @@ def build_browser_history_controls(history_bridge_name, history_element_identifi
                     if(currentRequestRevision!==currentRefreshState.revision)return currentNoChanges();
                     if(currentAutomaticMode)currentResultValues[4]={__type__:'update'};
                     return currentResultValues;
-                }catch(currentErrorValue){return [{__type__:'update'},{__type__:'update'},{__type__:'update'},{__type__:'update'},currentErrorValue.message];}
+                }catch(currentErrorValue){if(currentRequestRevision!==currentRefreshState.revision)return currentNoChanges();if(currentInspectMode)return [{__type__:'update'},currentSelectedId||'',null,'',currentErrorValue.message];return [{__type__:'update'},{__type__:'update'},{__type__:'update'},{__type__:'update'},currentErrorValue.message];}
                 finally{currentRefreshState.pending--;if(currentConfirmedReset)currentRefreshState.resetPending=false;}
             }"""
         current_history_inputs=[current_history_choice,current_history_refresh]

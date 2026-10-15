@@ -4,6 +4,30 @@ from tools.review.ui.gradio.anny_attributes_app import build_anny_attribute_inte
 
 
 class AnnyAttributesGradioTest(unittest.TestCase):
+    def test_history_stale_failure_preserves_new_selection(self):
+        import subprocess
+        current_configuration_record=build_anny_attribute_interface(8770).get_config_file()
+        current_history_script=next(current_event['js'] for current_event in current_configuration_record['dependencies'] if 'currentRefreshState' in (current_event.get('js') or '') and '"inspect"' in current_event['js'])
+        current_browser_script="""
+const assert=require('node:assert/strict');
+const currentPendingRequests=[];
+const window={annyHistoryControls:(currentActionName,currentSelectedId)=>new Promise((resolve,reject)=>currentPendingRequests.push({id:currentSelectedId,resolve,reject}))};
+const inspectCurrentHistory=SOURCE;
+(async()=>{
+ const currentOlderRequest=inspectCurrentHistory('old',true);
+ const currentNewerRequest=inspectCurrentHistory('new',true);
+ currentPendingRequests[1].resolve(['new','new',{id:'new'},'new log','new selected']);
+ assert.equal((await currentNewerRequest)[1],'new');
+ currentPendingRequests[0].reject(Error('old failed'));
+ assert.deepEqual(await currentOlderRequest,Array.from({length:5},()=>({__type__:'update'})));
+ const currentLatestRequest=inspectCurrentHistory('latest',true);
+ currentPendingRequests[2].reject(Error('latest failed'));
+ assert.deepEqual(await currentLatestRequest,[{__type__:'update'},'latest',null,'','latest failed']);
+})().catch(currentError=>{console.error(currentError);process.exitCode=1;});
+""".replace('SOURCE',current_history_script)
+        current_process_result=subprocess.run(['node','-e',current_browser_script],capture_output=True,text=True,timeout=10)
+        self.assertEqual(current_process_result.returncode,0,current_process_result.stderr)
+
     def test_loader_reports_dependency_failure_without_starting_inline_script(self):
         import subprocess
         current_loader_source=create_anny_attribute_loader(8798)
@@ -153,8 +177,8 @@ assert.match(readCurrentReadiness('hip-waist-up').reason,/잠긴 속성/);
         for current_status_name,current_expected_values in [('queued',[False,True,False,True,True,False]),('running',[False,True,False,False,True,False]),('completed',[True,True,False,False,False,True]),('failed',[False,True,True,False,False,True]),('paused',[False,True,False,False,False,True])]:
             with self.subTest(status=current_status_name):
                 current_button_updates=current_callback_value({'status':{'status':current_status_name}})
-                self.assertEqual([current_update_record['interactive'] for current_update_record in current_button_updates],current_expected_values)
-        self.assertTrue(current_callback_value({'status':{'status':'running'},'preview_ready':True})[0]['interactive'])
+                self.assertEqual([current_update_record['interactive'] for current_update_record in current_button_updates],[True,*current_expected_values])
+        self.assertTrue(current_callback_value({'status':{'status':'running'},'preview_ready':True})[1]['interactive'])
         self.assertTrue(all(not current_update_record['interactive'] for current_update_record in current_callback_value(None)))
 
     def test_loader_preserves_attribute_component_dependencies(self):

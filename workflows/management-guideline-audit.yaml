@@ -1,3 +1,11 @@
+readonly_labels_mobile_followup: "2026-10-15 실제 ANNY 랜드마크 모바일390×844에서 문서375/375px·캔버스287×560px, 오른쪽 검수 방향 선택 및 원본 메타데이터 표시·콘솔 오류 없음 확인. 저장/후보 반영 없음. 새로고침은 운영 연결 거부로 완료되지 않아 재연결 검증 미완료. 원본 정보가 Textbox라는 일반명으로 노출되어 고정 원본 및 리그 참고 정보 라벨 추가. ui/gradio의 Textbox/Number/Dropdown/Slider/Radio 직접 호출 AST 검사에서 숨김 제외 라벨 누락은 이 항목과 VNCCS 최종 프롬프트 두 곳으로 확인, 후자에도 모델에 전달할 문구 라벨 추가. 격리 실제 각 Blocks+공용 메뉴에서 두 이름의 textbox 노출 확인. 이 검사는 래퍼 생성·사용자 정의 HTML·다른 위젯의 접근성까지 보증하지 않음. 임시 서버/탭 종료·viewport reset, 원본 수정 및 생성 없음."
+browser_history_inspect_failure_followup: "2026-10-15 공용 이력 inspect 최신 요청 실패 시 이전 ID/기록/로그를 유지하는 문제를 계약 검사로 재현(13통과/1실패). inspect 실패에서 선택한 ID 유지·기록null·로그빈값·명시 오류 반환으로 수정하여 이전 상태 기반 행동을 비활성화. 이전 요청의 늦은 오류는 무변경 유지. 관련29건 통과(.tmp/test/history-inspect-failure-fixed/2026-10-15_21-49-25). 실제 공용 Blocks+메뉴 모의 브리지에서 정상 선택 후 실패 선택, 실패ID·오류 표시/결과·복원·로그 비활성/입력 기록 Empty value·로그 공백·콘솔 오류 없음 확인. 실제 서비스 요청/기록 변경 없음, 임시 탭·서버 종료. 이 변경 이후 전체 회귀는 아직 재실행하지 않았으며 최신 전체 회귀 기록과 구분."
+browser_history_stale_failure_followup: "2026-10-15 공용 브라우저 이력 create_history_script의 실패 응답에 revision 검사가 없어 이전 요청 오류가 새 선택 안내를 덮는 문제를 Node 지연 Promise 계약으로 재현(13통과/1실패). catch에도 현재 revision 검사를 적용. 최신 요청 실패는 계속 표시하며 이전 실패만 무변경 반환. 수정 후14건 통과(.tmp/test/history-stale-failure-fixed/2026-10-15_21-46-26). 공용 Blocks+메뉴 격리 브라우저에서 old 요청2.5초 후 실패·new 즉시 성공을 순서 실행, 새 선택 완료 안내 유지·콘솔 오류 없음 확인. 실제 서비스 대신 모의 브리지와 검증용 버튼을 사용했고 운영 작업 변경 없음."
+browser_history_logs_readiness_followup: "2026-10-15 공용 gradio_browser_history의 로그 조회가 이력 미선택에도 활성인 문제 확인. ANNY 브리지에서 미선택 로그 조회를 거절함을 소스 확인하여 공용 선택 상태 계산에 logs 포함·초기 비활성·해제 후 이력 선택 안내 적용. 기존 결과/복원/재개/우선/중지/삭제 6열 순서 유지. 관련28건 통과(.tmp/test/browser-history-logs-readiness/2026-10-15_21-43-09). 실제 공용 Blocks+메뉴 격리 화면에서 미선택 비활성→임시 완료 기록 선택 활성→해제 비활성 및 이력 선택 안내, 콘솔 오류 없음 확인. 상태 주입 검증으로 실제 서비스 로그 조회와 구분, 운영 변경 없음·임시 탭/서버 종료."
+anny_live_mobile_readiness_followup: "2026-10-15 실제8770 ANNY 합성 화면이 수정 코드를 표시함을 확인. viewport390×844에서 문서375/375px·캔버스287×520px. 체형 적용 초기 비활성→실제 목록 읽기 후 중성형v4 선택 및 적용 활성, 속성 목록 읽기 후 성별0.5·속성 적용 활성·인접 안내 확인. 콘솔 경고/오류 없음. 새로고침 후 체형/속성 적용 비활성·문서375/375px 유지. 렌더/적용/저장 명령 실행 없음, 검증 탭 종료·viewport 복원. 이전 격리 실패의 직접 원인은 임시 launch에서 create_anny_attribute_loader js 인수를 빠뜨린 것이며 제품 스크립트 경로 오류로 확정하지 않음. 실제 GPU 렌더·결과 탐색·완료 이력 재연결 검증과 구분."
+anny_profile_selection_followup: "2026-10-15 운영 ANNY 속성 화면에서 체형 미선택에도 적용 활성 발견. 운영 기준 체형 목록 읽기 후 중성형v4와 목록 읽음 안내 확인. 코드에서 적용 초기 비활성·선택 change 상태 연결·선택 방법 안내 추가. 기존13건 통과(.tmp/test/anny-profile-readiness/2026-10-15_21-36-17). 격리 실제 Blocks+공용 메뉴에서 상태 주입으로 미선택 비활성→선택 활성→해제 비활성 확인. 격리 서버는 ANNY 브라우저 스크립트 경로 미연결로 실제 목록 조회가 불가하여 운영 읽기 검증과 구분. 렌더/적용 실행 없음, 임시 서버 종료. 모바일 검증 미실시. 검증 도중 .tmp/manager-current/manager-source.json 부재로 임시 메뉴 원본을 사용했으며 원본 재생성이나 운영 서버 재시작은 수행하지 않음."
+qwen_live_description_followup: "2026-10-15 운영 Qwen 2.1 실제 합성 문서에서 빈 입력 생성 비활성, 사용자4단어+공용화풍27단어=최종31단어 및 실제 최종 원문 일치 확인. 프롬프트 초기화는 텍스트만 비우며 선택한 화풍 옵션은 유지되어 생성 활성 유지, 콘솔 오류 없음. 상단 추가 문구 없음 안내가 옵션과 모순되어 공용 메뉴 기본 설명을 수정하고 이전 메뉴 원본에도 현행 메타데이터를 적용. 별도8798 실제 Qwen Blocks+공용 메뉴에서 수정 안내 표시·콘솔 오류 없음 확인. GPU 상태 헤더만 대역, 생성·삭제 실행 없음. 메뉴 기존20건 통과(.tmp/test/menu-description/2026-10-15_21-33-34/summary.json). 임시 서버·탭 종료. 운영 서버 재시작 없음, 모바일·전체 실행 계약 검증은 남음."
+writer_live_readiness_followup: "2026-10-15 실제 writer-agent 공용 메뉴 합성 문서에서 기존 실행 기록 7행 확인. 빈 지시의 작성 제안 비활성→텍스트 입력 후 활성→비운 뒤 비활성 확인. 문서 새로고침 후 기존 7행 유지·작성 제안 및 미선택 결과 조회 비활성·콘솔 경고/오류 없음 확인. 작성·학습·중복 검토·원본 적용 명령 실행 없음, 임시 탭 종료. 모바일·실제 결과 조회·원본 적용 검증은 남음. 메뉴 66개와 점검표 ID·분류·uiMode·해석 URL 모두 일치."
 static_selection_readiness_followup: "2026-10-15 animation-17 운영 390×844 화면에서 문서375/375px·재생 후3/8 재생 중·선택 목록 읽기로 전방 좌측/최종 앵커 표시 확인. 빈 동작/좌표에도 적용 버튼이 활성인 점 발견해 공용 static_review_app에서 두 적용 버튼 초기 비활성·선택 조건·인접 안내 추가. 동작은 JS change, 방향/좌표는 gr.on 표준 콜백으로 두 입력을 검사하며 프레임 재생은 브라우저 유지. 격리 실제 Blocks·공용 메뉴에서 초기 비활성→선택 준비 후 활성→해제 후 두 버튼 비활성·콘솔 오류 없음 확인. 초기 해제 실패 관측은 임시 fixture의 동일 gr.update 객체 3회 재사용 오류였고 제품 결함으로 확정하지 않음. 수정 fixture는 입력별 객체 생성. 최종 계약15건 통과(.tmp/test/static-selection-readiness-final/2026-10-15_21-22-35/summary.json). 운영 좌표 저장/적용 없음·탭/서버 종료·viewport 복원. 모바일 정지 직후 상태 타이머 갱신은 후속 관측 timeout으로 미확인, 재연결/실제 동작 불러오기/다른 페이지 개별 검증은 남음."
 timeline_selection_readiness_followup: "2026-10-15 VACE V2V 프레임 배치의 전체 선택·선택 해제가 빈 입력에서도 활성인 문제 수정. 파일과 선택 경로 일치 조건으로 버튼 준비 상태 연결, 입력이 모두 비면 이미지를 첨부하세요 안내 복원. 상태 변경은 Gradio 이벤트 큐 유지. 빈/준비/선택/오래된 선택 및 기존 삭제 경합 계약 포함 9건 통과(.tmp/test/timeline-selection-readiness/2026-10-15_21-11-07/summary.json). 실제 Blocks·공용 메뉴 격리 화면에서 임시 32px PNG 상태 준비→전체 선택 활성/해제 비활성→전체 선택 후 해제 활성→해제 후 비활성→입력 비우기 후 두 버튼 비활성·첨부 안내 확인. 콘솔 오류 없음. 테스트 버튼으로 상태 공급했으므로 실제 파일 업로드 흐름 증거와 구분. 생성 명령 차단, 임시 탭·서버 종료."
 orchard_display_options_browser_followup: "2026-10-15 운영 공용 map-review/?map=old-orchard&townPage=1 별도 탭에서 92/100 타일 로딩 중 옵션 비활성 확인 후 완료 시 옵션 활성 확인. 메시 경계 체크·전체 보기·캔버스 0키에서 32% 지도와 실제 격자 렌더 확인. 메시/기본 캐릭터/결계탑 오러를 끄고 같은 전체 보기에서 격자 및 중앙 캐릭터/결계 표시 소실을 스크린샷으로 비교. 안내 표시 옵션을 적용했습니다 확인. 기본 캐릭터·결계 체크를 복원하고 콘솔 오류/경고 없음 확인, 탭 종료. 캔버스 표시859×644.25px. 운영 데이터 저장/생성/캡처 명령 없음. 개별 토글별 픽셀 계측·모바일·재연결·전 타일 품질 검증과 구분."
@@ -104,7 +112,7 @@ negative_prompt_followup: "2026-10-15 generators/vace 및 phantom의 contracts·
 history_prompt_followup: "2026-10-15 공용 결과 입력 화면이 final_prompt 대신 prompt를 실제 입력으로 표시하고 단어 수를 누락한 문제 수정. 저장 최종 문구 우선 표시, 저장 원문·최종 단어 수를 원문에서 계산하며 최종 문구 미기록 시 현재 기본값으로 재구성하지 않음을 명시. 과거 suffix 보존·잘못된 저장 숫자에 의존하지 않음·빈 문구·줄바꿈 계산 회귀 포함 25건 통과(.tmp/test/history-prompt-counts/2026-10-15_14-44-19/summary.json). 실제 공용 메뉴+음악 Blocks 격리 브라우저의 결과 조회에서 flute old saved suffix 및 저장 원문 1단어·저장 최종 입력 4단어 표시 확인. 현재 생성 입력은 빈 상태 유지, 콘솔 오류 없음. 생성·입력 복원·삭제 요청 없음. 다른 기록 형식의 브라우저 검증은 남음."
 writer_selection_followup: "2026-10-15 이력 선택의 제안·확인 초기화를 input에서 change로 변경. 수동 선택뿐 아니라 작업 접수·새로고침의 프로그램 선택 변경에도 이전 제안과 확인을 초기화한다. 이벤트가 change에 연결되는지 회귀 검증을 보강. 서버 ID 일치 검증은 유지. 공용 메뉴와 실제 Writer Blocks 격리 브라우저에서 모의 제안 조회·동의 체크 후 적용 버튼 활성 확인. 모의 state 목록에서 해당 ID 제외 후 새로고침으로 프로그램 선택 해제 시 ID·차이·근거가 비워지고 동의 해제·적용 버튼 및 조회 버튼 비활성 확인. 콘솔 오류 없음. 실제 적용 명령 차단, 운영 문서·작업 변경 없음. 회귀 10건 통과: .tmp/test/writer-selection-change/2026-10-15_14-40-04/summary.json."
 prompt_count_followup: "2026-10-15 Phantom·VACE 타임라인은 양성·부정 원문과 최종 단어 수를 각각 표시함을 소스에서 확인. 공용 음악 화면은 자동 추가 문구의 개별 단어 수가 누락되어 원문·추가·최종 표시로 수정. MiniMax·ACE-Step 각각 반복 OFF/ON 4가지 조건에서 공백·줄바꿈 입력을 build_music_request 최종 원문 및 단어 수와 대조하여 일치 확인(2+4=6, 2+15=17). 생성 요청 없음. 추가 브라우저 검증: 실제 MiniMax Blocks와 공용 메뉴를 합성한 격리 문서에서 입력 flute calm → 2+4=6, 반복 ON → 2+15=17 및 최종 원문 일치 확인. 초기화 → 0+15=15, 생성 버튼 비활성 복귀 확인. 콘솔 오류 없음. 모의 게이트웨이에서 생성 명령을 차단했으며 운영 작업 변경 없음. ACE-Step 후속 브라우저 확인은 ace_status_prompt_followup 참조."
-latest_regression: .tmp/test/management-audit/2026-10-15_21-24-45/summary.json · 54개 모듈 461건 통과, 실패·오류·건너뜀 0건. 종료 코드 0. 정적 검수 선택 준비 상태 포함. 전체 페이지 검증 완료를 뜻하지 않음.
+latest_regression: .tmp/test/management-audit/2026-10-15_21-54-55/summary.json · 54개 모듈 462건 통과, 실패·오류·건너뜀 0건. 종료 코드 0. 공용 이력 응답 순서·선택 실패 상태·읽기 전용 라벨 수정 포함. 전체 페이지 검증 완료를 뜻하지 않음.
 inventory_revalidation_note: 2026-10-15 재확인 시 운영 .tmp/manager-current/manager-source.json 존재. 실제 load_manager_page_records·resolve_management_page_path 결과 66개와 점검표 66개의 ID·해석 URL 일치, 누락·폐기 차이 없음. 원본 SHA-256 92859b253bd09419c0f8414dd10ec69e0408e1edc23751c63912235ef0550fc8. 이전 원본 부재 관측 이후 현재 상태로 갱신했으며 각 페이지의 기능 완료를 뜻하지 않음.
 criteria:
 - Gradio 합성·공용 컴포넌트·테마
@@ -146,7 +154,7 @@ pages:
   url: /management/frame/anny-attributes/
   source_review: in_progress
   contract_tests: partial_verified
-  browser_review: partial_mock_verified
+  browser_review: partial_live_verified
   findings:
   - anny-native-attribute-input
   - browser-history-standard-actions
@@ -155,6 +163,7 @@ pages:
   - anny-telemetry-display
   implementation: tools/review/ui/gradio/anny_attributes_app.py
   applicability: generation
+  live_mobile_evidence: anny_live_mobile_readiness_followup 참조. 초기 화면·목록 읽기·새로고침 검증.
 - id: anny-landmarks
   pick_readiness_evidence: landmark_pick_readiness_followup 참조. 격리 선택 상태와 실제 표면 피킹 검증을 구분.
   latest_followup: landmark_save_followup 및 landmark_action_followup 참조. 원본 실패·복구와 메모리 후보 추가·제거에 따른 버튼 활성 상태를 격리 합성 화면에서 확인. 실제 메시 편집·저장 및 모바일 검증은 미완료.
@@ -165,7 +174,7 @@ pages:
   url: /management/frame/anny-landmarks/
   source_review: in_progress
   contract_tests: partial_verified
-  browser_review: partial_mock_verified
+  browser_review: partial_live_verified
   findings:
   - landmark-selection-confirmation
   implementation: tools/review/ui/gradio/anny_landmarks_app.py
@@ -173,6 +182,7 @@ pages:
   review_note: GPU 생성기가 아닌 기준점 후보 편집·누적 이력 도구. 생성 ETA·VRAM·생성 이력 파일 삭제 규칙은 비적용; 미저장
     교체 확인·게이트웨이 저장·재연결을 검증할 대상.
   browser_note: 운영 화면 neutral_v4 메시 표시 확인. 격리 합성 화면에서 미선택 비활성·확인 활성·선택 변경 해제·모의 불러오기 완료 후 재비활성 확인. 운영 저장 및 모바일·재연결은 미검증.
+  live_mobile_evidence: readonly_labels_mobile_followup 참조. 실제 모바일 표시·방향 선택 검증, 저장과 재연결은 미완료.
 - id: hy-motion-generator
   gpu_observation_followup: gpu_sample_failure_recovery_followup 및 gpu_partial_device_sample_followup 참조. 공용 코드·격리 관측 계약 검증이며 해당 생성기의 실제 GPU 장애 검증과 구분.
   mobile_review: initial_layout_verified_flows_pending
@@ -279,7 +289,7 @@ pages:
   url: /management/frame/qwen-21-generator/
   source_review: in_progress
   contract_tests: partial_verified
-  browser_review: partial_mock_verified
+  browser_review: partial_live_verified
   findings:
   - saved-history-prompt-display
   - qwen-options-duplicate-keys
@@ -289,6 +299,7 @@ pages:
   implementation: tools/review/ui/gradio/qwen_2511_app.py
   applicability: generation
   browser_note: 2026-10-15 공용 메뉴와 Qwen 2.1을 합성한 격리 화면에서 자동 갱신의 남은 시간 12초·VRAM 현재 120/관측 피크 7123 MiB·측정 범위 및 샘플링 한계를 확인. 모의 이력 삭제 후 삭제 안내·빈 생성 ID·콘솔 오류 없음 확인. 실제 생성·삭제·GPU 실행은 차단했으며 모바일·전체 실행 계약 검증은 미완료.
+  live_description_evidence: qwen_live_description_followup 참조.
 - id: vace-v2v-generator
   result_reconnection_evidence: vace_mobile_reconnection_followup 참조. 실제 완료 영상 모바일 조회·재생·목록 복귀·재연결 재조회 확인, 생성 입력/실행 중 재연결과 구분.
   mobile_review: initial_width_verified_flows_pending
@@ -1073,7 +1084,7 @@ pages:
   url: /management/frame/writer-agent/
   source_review: in_progress
   contract_tests: partial_verified
-  browser_review: partial_mock_verified
+  browser_review: partial_live_verified
   findings:
   - writer-empty-input-readiness
   - writer-apply-confirmation-readiness
@@ -1082,6 +1093,7 @@ pages:
   implementation: tools/review/ui/gradio/writer_agent_app.py
   applicability: writer
   remaining_review: 원본 적용 명령의 실서비스 검증은 실행하지 않음. 모바일 작성·제안 확인 흐름 및 외부 상태 변경 후 갱신은 미완료. 기존 확인·해시·토큰 계약 검사는 통과했으나 전체 페이지 완료를 뜻하지 않음.
+  live_readiness_evidence: writer_live_readiness_followup 참조. 실제 초기 입력 및 재연결 검증이며 전체 실행 검증과 구분.
 - id: map-review-ash-edge
   readiness_followup: map_all_controls_followup · 공용 구현 적용, 모의 성공·실패 브라우저 검증. 개별 맵 렌더링 검증과 구분.
   label: 잿빛 숲가 · 필드맵 검수

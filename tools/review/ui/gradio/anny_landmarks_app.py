@@ -140,7 +140,7 @@ def build_landmark_interface():
                 current_status_output = gr.Textbox(label='검수 상태 · 리그 중심·길이 비교 · 합격 판정 아님', value='기준점 미지정 · 후보를 반영하면 축 완전성과 퇴화 여부를 검사합니다.', lines=10, interactive=False)
         current_points_table = gr.Dataframe(headers=['기준점', 'X', 'Y', 'Z', '방식', '근거'], interactive=False, label='현재 후보 · 미저장 변경 포함')
         with gr.Accordion('고정 원본·좌표 변환·해시·리그 중심 참고값', open=False):
-            current_provenance_text = gr.Textbox(interactive=False, lines=8)
+            current_provenance_text = gr.Textbox(label='고정 원본 및 리그 참고 정보', interactive=False, lines=8)
         with gr.Group():
             gr.Markdown('## 누적 후보 이력\n각 저장은 새 기록입니다. 기존 기록은 덮어쓰지 않습니다. 재연결 후 저장된 기록을 다시 선택하세요.')
             current_history_input = gr.Dropdown(choices=[], label='저장 기록')
