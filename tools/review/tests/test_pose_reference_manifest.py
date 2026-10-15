@@ -17,6 +17,57 @@ class PoseReferenceManifestTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError,'중복 키: frames'):
                     load_motion_reference('down_left',1)
 
+    def test_metadata_and_camera_fields_rejected(self):
+        current_valid_record = yaml.safe_load((MOTION_REFERENCE_ROOT/'manifest.yaml').read_text())
+        current_invalid_values = (
+            ('asset_id', ''), ('status', None), ('version', True), ('version', 0),
+            ('fps', 0), ('source_fps', float('nan')), ('cycle_seconds', float('inf')),
+            ('preview_frames', [True]*35), ('projection', 'invalid'),
+            ('fov_degrees', 180), ('camera_elevation_degrees', 91), ('camera', {}),
+        )
+        for current_field_name, current_invalid_value in current_invalid_values:
+            current_invalid_record = copy.deepcopy(current_valid_record)
+            current_invalid_record[current_field_name] = current_invalid_value
+            with self.subTest(field=current_field_name), self.assertRaisesRegex(ValueError, current_field_name):
+                validate_motion_reference_manifest(current_invalid_record)
+        for current_field_name, current_invalid_value in (
+            ('unknown', 1), ('location', [0, 0]), ('target', [0, True, 0]),
+            ('rotation_quaternion_wxyz', [0, 0, 0, 0]), ('distance', -1),
+            ('ortho_scale', 0), ('fov_degrees', float('nan')), ('framing', []),
+            ('projection', 'orthographic'), ('azimuth_degrees', '45'),
+        ):
+            current_invalid_record = copy.deepcopy(current_valid_record)
+            current_invalid_record['camera']['down_left'][current_field_name] = current_invalid_value
+            with self.subTest(camera_field=current_field_name), self.assertRaisesRegex(ValueError, 'camera.down_left'):
+                validate_motion_reference_manifest(current_invalid_record)
+        for current_invalid_path in ('../source.png', '/source.png', 'a//b.png', 'a/./b.png', 1):
+            current_invalid_record = copy.deepcopy(current_valid_record)
+            current_invalid_record['files'][current_invalid_path] = 'a'*64
+            with self.subTest(path=current_invalid_path), self.assertRaisesRegex(ValueError, '경로'):
+                validate_motion_reference_manifest(current_invalid_record)
+        current_invalid_record = copy.deepcopy(current_valid_record)
+        current_invalid_record['files']['source-motion.npz'] = 'invalid'
+        with self.assertRaisesRegex(ValueError, '해시'):
+            validate_motion_reference_manifest(current_invalid_record)
+
+    def test_manifest_schema_and_unknown_fields_rejected(self):
+        current_valid_record = yaml.safe_load((MOTION_REFERENCE_ROOT/'manifest.yaml').read_text())
+        for current_invalid_version in (True, 1.0, '1', None, 0, 2):
+            current_invalid_record = copy.deepcopy(current_valid_record)
+            current_invalid_record['schema_version'] = current_invalid_version
+            with self.subTest(version=current_invalid_version), self.assertRaisesRegex(ValueError, 'schema_version'):
+                validate_motion_reference_manifest(current_invalid_record)
+        for current_unknown_key in ('frame', 99):
+            current_invalid_record = copy.deepcopy(current_valid_record)
+            current_invalid_record[current_unknown_key] = 35
+            with self.subTest(key=current_unknown_key), self.assertRaisesRegex(ValueError, '알 수 없음'):
+                validate_motion_reference_manifest(current_invalid_record)
+        for current_missing_key in current_valid_record:
+            current_invalid_record = copy.deepcopy(current_valid_record)
+            del current_invalid_record[current_missing_key]
+            with self.subTest(missing=current_missing_key), self.assertRaisesRegex(ValueError, current_missing_key):
+                validate_motion_reference_manifest(current_invalid_record)
+
     def test_consumed_manifest_fields_fail_with_explicit_errors(self):
         current_valid_record = yaml.safe_load((MOTION_REFERENCE_ROOT/'manifest.yaml').read_text())
         validate_motion_reference_manifest(current_valid_record)

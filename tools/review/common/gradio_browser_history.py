@@ -38,8 +38,8 @@ def build_browser_history_controls(history_bridge_name, history_element_identifi
                 for current_action_name,current_action_label in [('reset','생성 이력 초기화' if not current_reset_target_handler else '이력 목록 초기화')]:
                     if current_action_name in current_enabled_actions:current_history_buttons.append((gr.Button(current_action_label),current_action_name))
         if not current_reset_target_handler:
-            current_file_action=gr.State('')
-            current_file_target=gr.State('')
+            current_file_action=gr.Textbox(value='',visible=False)
+            current_file_target=gr.JSON(value=None,visible=False)
             with gr.Group(visible=False) as current_file_panel:
                 gr.Markdown('### 생성 작업 파일 삭제 확인\n'+GENERATION_CLEANUP_SCOPE_TEXT)
                 current_file_display=gr.Textbox(label='삭제 대상',interactive=False)
@@ -96,7 +96,7 @@ def build_browser_history_controls(history_bridge_name, history_element_identifi
                 current_reset_cancel.click(lambda:(gr.update(visible=False),'','이력 초기화를 취소했습니다.'),outputs=[current_reset_confirmation,current_reset_target,current_history_feedback],queue=False)
             elif current_action_name in ('delete','reset'):
                 def open_file_confirmation(current_selected_identifier,current_requested_action=current_action_name):
-                    if current_requested_action=='delete' and not current_selected_identifier:
+                    if current_requested_action=='delete' and (not isinstance(current_selected_identifier,str) or not current_selected_identifier.strip()):
                         raise gr.Error('삭제할 작업을 선택하세요.')
                     current_target_value=current_selected_identifier or ''
                     if current_requested_action=='reset':
@@ -104,8 +104,8 @@ def build_browser_history_controls(history_bridge_name, history_element_identifi
                         current_preview_record=execute_remote_management_command(current_service_name,'history-reset-preview',{})
                         if not current_preview_record['can_reset']:raise gr.Error('실행·대기 또는 상태 미확인 작업이 있습니다. 작업 종료 후 다시 확인하세요.')
                         return gr.update(visible=True),current_requested_action,current_preview_record,f"{current_service_name} · {current_preview_record['job_count']}개 작업 · {current_preview_record['notice']}"
-                    return gr.update(visible=True),current_requested_action,current_target_value,current_target_value if current_requested_action=='delete' else '이 생성기의 전체 작업 파일'
-                current_action_button.click(open_file_confirmation,current_history_choice,[current_file_panel,current_file_action,current_file_target,current_file_display],queue=False)
+                    return gr.update(visible=True),current_requested_action,{'id':current_target_value},current_target_value if current_requested_action=='delete' else '이 생성기의 전체 작업 파일'
+                current_action_button.click(open_file_confirmation,current_history_choice,[current_file_panel,current_file_action,current_file_target,current_file_display],queue=False,preprocess=False)
             elif current_action_name=='resume':
                 current_prepare_resume="currentSelectedId=>{if(!currentSelectedId)throw Error('재개할 작업을 선택하세요.');return {id:currentSelectedId};}"
                 current_execute_resume="currentSnapshotValue=>("+create_history_script('resume')+")(currentSnapshotValue.id,false,{confirmed:true})"
@@ -113,7 +113,7 @@ def build_browser_history_controls(history_bridge_name, history_element_identifi
             else:
                 current_action_button.click(fn=None,inputs=current_history_inputs,outputs=current_history_outputs,queue=False,js=create_history_script(current_action_name))
         if not current_reset_target_handler:
-            current_file_confirm.click(fn=None,inputs=[*current_history_inputs,current_file_action,current_file_target],outputs=[*current_history_outputs,current_file_panel],queue=False,js="async(currentSelectedId,currentRefreshEnabled,currentAction,currentTarget)=>{if(!['delete','reset'].includes(currentAction))return [{__type__:'update'},{__type__:'update'},{__type__:'update'},{__type__:'update'},'삭제 확인이 만료되었습니다.',{__type__:'update',visible:false}];if(currentAction==='delete'&&currentSelectedId!==currentTarget)return [{__type__:'update'},{__type__:'update'},{__type__:'update'},{__type__:'update'},'삭제 대상이 변경되었습니다.',{__type__:'update',visible:false}];const currentResult=await (currentAction==='delete'?("+create_history_script('delete')+"):("+create_history_script('reset')+"))(currentSelectedId,currentRefreshEnabled,{confirmed:true,id:currentTarget,preview:currentAction==='reset'?currentTarget:null});return [...currentResult,{__type__:'update',visible:false}];}")
+            current_file_confirm.click(fn=None,inputs=[*current_history_inputs,current_file_action,current_file_target],outputs=[*current_history_outputs,current_file_panel],queue=False,js="async(currentSelectedId,currentRefreshEnabled,currentAction,currentTarget)=>{if(!['delete','reset'].includes(currentAction))return [{__type__:'update'},{__type__:'update'},{__type__:'update'},{__type__:'update'},'삭제 확인이 만료되었습니다.',{__type__:'update',visible:false}];if(currentAction==='delete'&&currentSelectedId!==currentTarget?.id)return [{__type__:'update'},{__type__:'update'},{__type__:'update'},{__type__:'update'},'삭제 대상이 변경되었습니다.',{__type__:'update',visible:false}];const currentResult=await (currentAction==='delete'?("+create_history_script('delete')+"):("+create_history_script('reset')+"))(currentSelectedId,currentRefreshEnabled,{confirmed:true,id:currentAction==='delete'?currentTarget.id:currentTarget,preview:currentAction==='reset'?currentTarget:null});return [...currentResult,{__type__:'update',visible:false}];}")
             current_file_cancel.click(lambda:(gr.update(visible=False),''),outputs=[current_file_panel,current_file_action],queue=False)
             current_history_choice.input(lambda:(gr.update(visible=False),''),outputs=[current_file_panel,current_file_action],queue=False)
         current_history_choice.input(fn=None,inputs=current_history_inputs,outputs=current_history_outputs,queue=False,js=create_history_script('inspect'))

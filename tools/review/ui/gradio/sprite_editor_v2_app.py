@@ -11,6 +11,7 @@ if str(WORKFLOW_ROOT_DIRECTORY) not in sys.path:
 from tools.review.ui_assets import resolve_review_ui_asset
 from tools.review.domains.character_animation.sprite_editor_v2 import SPRITE_V2_DEFAULT_FPS
 from tools.review.common.gradio_browser_controls import build_browser_action_button
+from tools.review.common.gradio_browser_confirmation import build_browser_confirmation
 from tools.review.common.gradio_frame_navigator import build_frame_navigator
 from tools.review.common.gradio_identifiers import build_generation_identifier
 from tools.review.common.gradio_joypad import build_transform_joypad, read_joypad_browser_script
@@ -54,6 +55,7 @@ def build_sprite_v2_interface():
     current_markup_text=re.sub(r'<aside class="sv2-panel">.*?</aside>','',current_markup_text,flags=re.S)
     with gr.Blocks(title='스프라이트 정규화 편집기 v2',fill_width=True) as current_interface_blocks:
         gr.Markdown('## 스프라이트 정규화 편집기 v2')
+        build_browser_confirmation('spriteV2ConfirmationState','spriteV2ResolveConfirmation')
         with gr.Accordion('새 작업 만들기',open=False):
             with gr.Row():
                 current_project_name=gr.Textbox(label='새 작업명',value='새 스프라이트 작업',max_length=120)
@@ -140,7 +142,8 @@ def build_sprite_v2_interface():
         with gr.Row():
             with gr.Column(scale=5,min_width=480):
                 gr.HTML(current_markup_text)
-                build_frame_navigator('spriteV2PlaybackControls','spriteV2SeekControls',current_feedback_text)
+                current_navigation_controls=[]
+                build_frame_navigator('spriteV2PlaybackControls','spriteV2SeekControls',current_feedback_text,current_navigation_controls)
             with gr.Column(scale=2,min_width=280):
                 with gr.Accordion('이동·배율 조정',open=True):
                     gr.Markdown('편집 대상을 선택하면 즉시 조이패드에 적용됩니다. 캔버스 드래그는 해당 이미지만 움직이며 선택한 편집 대상을 바꾸지 않습니다. 가이드는 별도로 편집합니다.')
@@ -200,8 +203,17 @@ def build_sprite_v2_interface():
             current_timing_button.click(fn=None,inputs=[current_fps_input,current_duration_input,current_fps_enabled,current_duration_enabled],outputs=current_feedback_text,queue=False,js="async(fps,duration,changeFps,changeDuration)=>{try{if(!window.spriteV2TimingControls)throw Error('편집기를 준비 중입니다.');return await window.spriteV2TimingControls(changeFps?fps:null,changeDuration?duration:null);}catch(error){return error.message;}}")
         gr.Markdown('### 저장 · 출력\n현재 작업을 불러온 뒤 사용할 수 있습니다. 이전 버전을 불러와 저장하면 새 수정 이력으로 남습니다. 가이드는 출력 이미지에 포함하지 않습니다.')
         with gr.Row():
-            current_save_button=gr.Button('수정본 저장')
-            current_export_button=gr.Button('현재 편집 저장 후 PNG·시트·GIF 내보내기')
+            current_save_button=gr.Button('수정본 저장',interactive=False)
+            current_export_button=gr.Button('현재 편집 저장 후 PNG·시트·GIF 내보내기',interactive=False)
+        current_readiness_notice=gr.Markdown('편집기를 준비 중입니다. 준비 후 작업을 생성하거나 불러오세요.')
+        current_readiness_timer=gr.Timer(1)
+        current_readiness_script="""()=>{
+ const currentReadyRecord=window.spriteV2ReadinessControls?.() ?? {projectReady:false,framesReady:false,reason:'편집기를 준비 중입니다. 연결에 실패하면 관리 서버를 확인하고 새로고침하세요.'};
+ return [{__type__:'update',interactive:currentReadyRecord.projectReady},
+ ...Array(FRAME_CONTROL_COUNT).fill(null).map(()=>({__type__:'update',interactive:currentReadyRecord.framesReady})),currentReadyRecord.reason];
+}"""
+        current_readiness_script=current_readiness_script.replace('FRAME_CONTROL_COUNT',str(1+len(current_navigation_controls)))
+        current_readiness_timer.tick(fn=None,outputs=[current_save_button,current_export_button,*current_navigation_controls,current_readiness_notice],js=current_readiness_script,queue=False)
         current_revision_choice=gr.Dropdown(label='수정 이력',choices=[],interactive=True)
         current_revision_identifier=build_generation_identifier('수정 이력 ID')
         current_revision_choice.change(fn=None,inputs=current_revision_choice,outputs=current_revision_identifier,queue=False,js="(currentRevisionIdentifier)=>currentRevisionIdentifier ?? ''")

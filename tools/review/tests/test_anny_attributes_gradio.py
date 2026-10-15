@@ -4,6 +4,22 @@ from tools.review.ui.gradio.anny_attributes_app import build_anny_attribute_inte
 
 
 class AnnyAttributesGradioTest(unittest.TestCase):
+    def test_delete_confirmation_accepts_browser_choices_and_serializes_target(self):
+        import gradio as gr
+        current_interface_value=build_anny_attribute_interface(8770)
+        current_open_functions=[current_function for current_function in current_interface_value.fns.values() if current_function.fn and current_function.fn.__name__=='open_file_confirmation']
+        current_delete_function=next(current_function for current_function in current_open_functions if current_function.fn.__defaults__==('delete',))
+        self.assertFalse(current_delete_function.preprocess)
+        current_confirmation_result=current_delete_function.fn('isolated-history')
+        self.assertEqual(current_confirmation_result[1],'delete')
+        self.assertEqual(current_confirmation_result[2],{'id':'isolated-history'})
+        self.assertIsInstance(current_delete_function.outputs[1],gr.Textbox)
+        self.assertIsInstance(current_delete_function.outputs[2],gr.JSON)
+        self.assertEqual(current_delete_function.outputs[2].postprocess(current_confirmation_result[2]).root,{'id':'isolated-history'})
+        for current_invalid_identifier in (None, '', ' ', [], {}):
+            with self.subTest(identifier=current_invalid_identifier),self.assertRaises(gr.Error):
+                current_delete_function.fn(current_invalid_identifier)
+
     def test_status_view_uses_shared_service_values(self):
         current_interface_value=build_anny_attribute_interface(8770)
         current_status_function=next(current_function for current_function in current_interface_value.fns.values() if current_function.fn and current_function.fn.__name__=='render_anny_generation_status')
@@ -75,3 +91,40 @@ class AnnyAttributesGradioTest(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+    def test_reset_confirmation_preserves_preview_and_rejects_busy(self):
+        from unittest.mock import patch
+        import gradio as gr
+        current_interface_value=build_anny_attribute_interface(8770)
+        current_reset_function=next(current_function for current_function in current_interface_value.fns.values() if current_function.fn and current_function.fn.__name__=='open_file_confirmation' and current_function.fn.__defaults__==('reset',))
+        current_preview_record={'can_reset':True,'job_count':2,'notice':'격리 작업 파일 삭제','jobs':[{'id':'a'},{'id':'b'}]}
+        with patch('tools.review.common.gradio_browser_history.execute_remote_management_command',return_value=current_preview_record) as current_gateway_mock:
+            current_confirmation_result=current_reset_function.fn(None)
+        current_gateway_mock.assert_called_once_with('anny','history-reset-preview',{})
+        self.assertEqual(current_confirmation_result[2],current_preview_record)
+        self.assertEqual(current_reset_function.outputs[2].postprocess(current_confirmation_result[2]).root,current_preview_record)
+        self.assertIn('2개 작업',current_confirmation_result[3])
+        with patch('tools.review.common.gradio_browser_history.execute_remote_management_command',return_value={**current_preview_record,'can_reset':False}):
+            with self.assertRaisesRegex(gr.Error,'실행·대기'):
+                current_reset_function.fn(None)
+
+    def test_browser_confirmation_passes_snapshot_and_rejects_changed_selection(self):
+        import subprocess
+        current_interface_value=build_anny_attribute_interface(8770)
+        current_confirmation_script=next(current_event_record['js'] for current_event_record in current_interface_value.get_config_file()['dependencies'] if '삭제 확인이 만료되었습니다.' in (current_event_record.get('js') or ''))
+        current_test_script="""
+const assert=require('node:assert/strict');const currentCalls=[];
+global.window={annyHistoryControls:async(...currentArguments)=>{currentCalls.push(currentArguments);return [null,'',null,'','모의 완료'];}};
+const currentConfirmAction=SCRIPT;
+(async()=>{
+ await currentConfirmAction('b',false,'delete',{id:'a'});assert.equal(currentCalls.length,0);
+ await currentConfirmAction('a',false,'',{id:'a'});assert.equal(currentCalls.length,0);
+ await currentConfirmAction('a',false,'delete',{id:'a'});
+ assert.equal(currentCalls[0][0],'delete');assert.deepEqual(currentCalls[0][2],{confirmed:true,id:'a',preview:null});
+ const currentPreviewRecord={can_reset:true,job_count:2,jobs:[{id:'a'},{id:'b'}]};
+ await currentConfirmAction(null,false,'reset',currentPreviewRecord);
+ assert.equal(currentCalls[1][0],'reset');assert.deepEqual(currentCalls[1][2].preview,currentPreviewRecord);
+})().catch(currentTestError=>{console.error(currentTestError);process.exitCode=1;});
+""".replace('SCRIPT',current_confirmation_script)
+        current_test_result=subprocess.run(['node','-e',current_test_script],capture_output=True,text=True,timeout=10)
+        self.assertEqual(current_test_result.returncode,0,current_test_result.stderr)

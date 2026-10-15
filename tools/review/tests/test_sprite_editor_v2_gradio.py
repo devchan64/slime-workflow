@@ -4,6 +4,19 @@ from tools.review.ui.gradio.sprite_editor_v2_app import build_sprite_v2_interfac
 
 
 class SpriteV2GradioTests(unittest.TestCase):
+    def test_readiness_updates_stay_in_browser(self):
+        current_interface_config=build_sprite_v2_interface().get_config_file()
+        current_ready_events=[current_event_record for current_event_record in current_interface_config['dependencies'] if 'spriteV2ReadinessControls' in (current_event_record.get('js') or '')]
+        self.assertEqual(len(current_ready_events),1)
+        current_ready_event=current_ready_events[0]
+        self.assertFalse(current_ready_event['backend_fn'])
+        self.assertFalse(current_ready_event['queue'])
+        current_component_lookup={current_component_record['id']:current_component_record for current_component_record in current_interface_config['components']}
+        self.assertEqual(len(current_ready_event['outputs']),9)
+        for current_control_id in current_ready_event['outputs'][:-1]:
+            self.assertFalse(current_component_lookup[current_control_id]['props']['interactive'])
+        self.assertIn('작업을 생성하거나 불러오세요',current_component_lookup[current_ready_event['outputs'][-1]]['props']['value'])
+
     def test_reference_delete_uses_browser_command(self):
         current_interface_config=build_sprite_v2_interface().get_config_file()
         current_delete_events=[current_event_record for current_event_record in current_interface_config['dependencies'] if 'spriteV2ImageDeleteControls' in (current_event_record.get('js') or '')]
