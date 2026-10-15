@@ -13,6 +13,7 @@ import sys
 import threading
 import time
 import gradio as gr
+from tools.review.common.generation_status_lookup import read_existing_generation_status
 
 WORKFLOW_ROOT_DIRECTORY=Path(__file__).resolve().parents[4]
 if str(WORKFLOW_ROOT_DIRECTORY) not in sys.path:sys.path.insert(0,str(WORKFLOW_ROOT_DIRECTORY))
@@ -346,10 +347,13 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
             return generation_record_value['id'],'상태: '+format_generation_status(generation_record_value)
         bind_gpu_generation_confirmation(generation_button_value,start_reference_generation,[prompt_text_value,generation_tag_value,*reference_image_controls,width_value,height_value,step_value,seed_value]+([circular_radius_control,soft_shading_control,pattern_view_control,baseline_decode_control] if circular_mode_enabled else [])+([auxiliary_prompt_control] if vnccs_transfer_enabled else [])+([common_style_control,transparent_background_control] if plain_options_enabled else []),[identifier_value,status_value], generation_confirmation_container=generation_confirmation_container)
         def refresh_status(identifier_text_value,refresh_log_enabled):
-            if not identifier_text_value:return gr.skip(),gr.skip(),gr.skip()
-            status_record_value=execute_reference_gateway('status',{'id':identifier_text_value});return describe_generation_status(status_record_value),gr.update(value=status_record_value.get('log','')) if refresh_log_enabled else gr.skip(),gr.update(value=collect_generation_gallery(status_record_value.get('image'),circular_mode_enabled,server_base_address),visible=True) if status_record_value.get('image') else gr.skip()
-        interface_blocks_value.load(lambda:read_history_page(1),outputs=history_output_values);gr.Button('상태 새로고침').click(refresh_status,[identifier_value,refresh_log_value],[status_value,log_value,preview_value],queue=False)
-        if hasattr(gr,'Timer'):gr.Timer(2).tick(refresh_status,[identifier_value,refresh_log_value],[status_value,log_value,preview_value],queue=False,show_progress='hidden')
+            if not identifier_text_value:return (gr.skip(),)*4
+            status_record_value=read_existing_generation_status(execute_reference_gateway,identifier_text_value)
+            if status_record_value is None:
+                return '선택한 작업 이력이 삭제되었습니다.','',gr.update(value=[],visible=False),''
+            return describe_generation_status(status_record_value),gr.update(value=status_record_value.get('log','')) if refresh_log_enabled else gr.skip(),gr.update(value=collect_generation_gallery(status_record_value.get('image'),circular_mode_enabled,server_base_address),visible=True) if status_record_value.get('image') else gr.skip(),gr.skip()
+        interface_blocks_value.load(lambda:read_history_page(1),outputs=history_output_values);gr.Button('상태 새로고침').click(refresh_status,[identifier_value,refresh_log_value],[status_value,log_value,preview_value,identifier_value],queue=False)
+        if hasattr(gr,'Timer'):gr.Timer(2).tick(refresh_status,[identifier_value,refresh_log_value],[status_value,log_value,preview_value,identifier_value],queue=False,show_progress='hidden')
     return interface_blocks_value
 
 

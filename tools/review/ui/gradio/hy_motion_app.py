@@ -21,6 +21,7 @@ from tools.review.common.gradio_history import build_generation_history_view
 from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_confirmation
 from tools.review.common.gradio_seed import build_generation_seed
 from tools.review.common.gradio_identifiers import build_generation_identifier
+from tools.review.common.generation_status_lookup import read_existing_generation_status
 
 MOTION_DIRECTION_LABELS = [('전방 좌측', 'down_left'), ('전방 우측', 'down_right'), ('후방 좌측', 'up_left'), ('후방 우측', 'up_right')]
 RESULT_PANEL_COLUMNS = 4
@@ -37,7 +38,9 @@ def load_latest_generation(current_history_reader, current_progress_reader):
     current_history_updates = current_history_reader(1, current_latest_identifier or None)
     if not current_latest_identifier:
         return [*current_history_updates, '', '생성 이력이 없습니다.', '작업을 시작하면 예상 시간과 추정 근거를 표시합니다.']
-    current_status_text, current_estimate_text = current_progress_reader(current_latest_identifier)
+    current_status_text, current_estimate_text, current_identifier_update = current_progress_reader(current_latest_identifier)
+    if current_identifier_update == "":
+        current_latest_identifier = ""
     return [*current_history_updates, current_latest_identifier, current_status_text, current_estimate_text]
 
 
@@ -117,15 +120,17 @@ def apply_motion_preset(current_preset_name):
 
 def refresh_current_progress(generation_job_identifier):
     if not generation_job_identifier:
-        return gr.skip(), gr.skip()
-    current_status_record = execute_motion_command('status', {'id': generation_job_identifier})
+        return gr.skip(), gr.skip(), gr.skip()
+    current_status_record = read_existing_generation_status(execute_motion_command, generation_job_identifier)
+    if current_status_record is None:
+        return '선택한 작업 이력이 삭제되었습니다.', '생성 이력에서 다른 작업을 선택하세요.', ''
     current_status_text = describe_generation_status(current_status_record, include_generation_estimate=False)
     current_quality_warnings = (current_status_record.get('result') or {}).get('quality_warnings', [])
     if current_quality_warnings:
         current_status_text += '\n\n품질 경고: ' + '; '.join(current_quality_warnings)
     current_eta_record = current_status_record['eta']
     current_eta_text = render_generation_estimate(current_eta_record, current_status_record['status'])
-    return current_status_text, current_eta_text
+    return current_status_text, current_eta_text, gr.skip()
 
 
 def build_hymotion_interface(server_base_address):
@@ -183,7 +188,7 @@ def build_hymotion_interface(server_base_address):
         current_interface_blocks.load(refresh_generation_readiness, current_input_components, [current_model_status, current_generate_button])
 
 
-        gr.Timer(2).tick(refresh_current_progress, current_identifier_view, [current_status_view, current_eta_view], show_progress='hidden')
+        gr.Timer(2).tick(refresh_current_progress, current_identifier_view, [current_status_view, current_eta_view, current_identifier_view], show_progress='hidden')
         current_read_history, current_history_outputs = build_generation_history_view(execute_motion_command, server_base_address, GENERATION_CLEANUP_SCOPE_TEXT, restore_input_callback=restore_motion_inputs, restore_output_components=current_input_components, result_renderer_callback=render_motion_result, result_component_factory=build_browser_frame_player, record_folder_route='/hy-motion-generator', allow_individual_delete=True, individual_delete_scope_text=GENERATION_CLEANUP_SCOPE_TEXT)
         current_interface_blocks.load(
             lambda: load_latest_generation(current_read_history, refresh_current_progress),

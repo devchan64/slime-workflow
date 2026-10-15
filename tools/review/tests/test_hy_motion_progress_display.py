@@ -11,7 +11,7 @@ class HyMotionProgressDisplayTests(unittest.TestCase):
                 'process_peak_mib': 7123, 'scope': '작업과 자식 프로세스'}}},
             'result': {'quality_warnings': ['포즈 검수 필요']}}
         with patch('tools.review.ui.gradio.hy_motion_app.execute_motion_command', return_value=current_status_record) as current_command_mock:
-            current_status_text, current_eta_text = refresh_current_progress('test-generation')
+            current_status_text, current_eta_text, current_identifier_update = refresh_current_progress('test-generation')
         current_command_mock.assert_called_once_with('status', {'id': 'test-generation'})
         self.assertIn('관측 피크 7123 MiB', current_status_text)
         self.assertIn('작업과 자식 프로세스', current_status_text)
@@ -21,7 +21,7 @@ class HyMotionProgressDisplayTests(unittest.TestCase):
 
     def test_missing_memory_is_not_reported_as_zero(self):
         with patch('tools.review.ui.gradio.hy_motion_app.execute_motion_command', return_value={'status':'running','eta':{'remaining':12,'basis':'실측'}}):
-            current_status_text,current_eta_text=refresh_current_progress('test-generation')
+            current_status_text,current_eta_text,current_identifier_update=refresh_current_progress('test-generation')
         self.assertIn('측정 자료 없음',current_status_text)
         self.assertNotIn('0 MiB',current_status_text)
         self.assertIn('약 12초',current_eta_text)
@@ -43,3 +43,15 @@ class HyMotionProgressDisplayTests(unittest.TestCase):
                 (current_job_directory/'status.json').write_text('{"status":"queued"}')
                 self.assertNotIn('metrics',read_generation_status('test-generation'))
                 current_metrics_reader.assert_not_called()
+
+    def test_deleted_job_stops_polling_without_hiding_existing_failure(self):
+        with patch('tools.review.ui.gradio.hy_motion_app.execute_motion_command',side_effect=[ValueError('missing'),{'records':[]}]):
+            current_status_text,current_eta_text,current_identifier_update=refresh_current_progress('removed')
+        self.assertIn('삭제',current_status_text)
+        self.assertEqual(current_identifier_update,'')
+        with patch('tools.review.ui.gradio.hy_motion_app.execute_motion_command') as current_command_mock:
+            self.assertEqual(len(refresh_current_progress('')),3)
+            current_command_mock.assert_not_called()
+        with patch('tools.review.ui.gradio.hy_motion_app.execute_motion_command',side_effect=[ValueError('corrupt'),{'records':[{'id':'existing'}]}]):
+            with self.assertRaisesRegex(ValueError,'corrupt'):
+                refresh_current_progress('existing')

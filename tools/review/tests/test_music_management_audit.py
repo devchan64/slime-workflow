@@ -90,3 +90,101 @@ class MusicManagementAuditTests(unittest.TestCase):
             with patch('tools.review.ui.gradio.music_app.execute_remote_management_command',side_effect=[ValueError('손상된 기록'),{'records':[{'id':'existing'}]}]):
                 with self.assertRaisesRegex(ValueError,'손상된 기록'):
                     current_refresh_callback('existing',True,'')
+
+    def test_both_services_keep_attempt_telemetry_across_terminal_and_resume_states(self):
+        from tools.review.common.gradio_audio_results import describe_audio_generation_status
+        for current_service_name in MUSIC_SERVICE_NAMES:
+            with self.subTest(service=current_service_name), tempfile.TemporaryDirectory() as current_temp_directory:
+                current_music_service = MusicGenerationManager(current_service_name)
+                current_music_service.job_storage_root = Path(current_temp_directory)/'jobs'
+                current_job_root = current_music_service.job_storage_root/'2026-10-15_00-00-00-12345678'
+                current_job_root.mkdir(parents=True)
+                current_attempt_names = ('a'*32, 'b'*32)
+                for current_attempt_name, current_peak_value in zip(current_attempt_names, (7123, 6210)):
+                    current_attempt_root = current_job_root/'attempts'/current_attempt_name
+                    current_attempt_root.mkdir(parents=True)
+                    write_record_atomically(current_attempt_root/'metrics.json', {
+                        'stage':'inference', 'estimate':{'remaining':12, 'basis':'검증 표본'},
+                        'gpu_observations':{'GPU-test':{'process_current_mib':0,
+                            'process_peak_mib':current_peak_value,'scope':'작업자 및 자식 프로세스'}},
+                    })
+                current_first_metrics_path = current_job_root/'attempts'/current_attempt_names[0]/'metrics.json'
+                current_first_metrics_bytes = current_first_metrics_path.read_bytes()
+                write_record_atomically(current_job_root/'current-attempt.json',{'id':current_attempt_names[0]})
+                for current_status_name in ('running','completed','failed','cancelled'):
+                    write_record_atomically(current_job_root/'status.json',{'status':current_status_name})
+                    current_status_record = current_music_service.execute_music_command('status',{'id':current_job_root.name})
+                    self.assertEqual(current_status_record['metrics']['gpu_observations']['GPU-test']['process_peak_mib'],7123)
+                    current_status_text = describe_audio_generation_status(current_status_record)
+                    self.assertIn('현재 0 MiB', current_status_text)
+                    self.assertIn('관측 피크 7123 MiB', current_status_text)
+                    self.assertIn('작업자 및 자식 프로세스', current_status_text)
+                    if current_status_name != 'running':
+                        self.assertIsNone(current_status_record['estimate']['remaining'])
+                write_record_atomically(current_job_root/'status.json',{'status':'queued'})
+                current_status_record = current_music_service.execute_music_command('status',{'id':current_job_root.name})
+                self.assertNotIn('metrics',current_status_record)
+                self.assertNotIn('7123',describe_audio_generation_status(current_status_record))
+                write_record_atomically(current_job_root/'current-attempt.json',{'id':current_attempt_names[1]})
+                write_record_atomically(current_job_root/'status.json',{'status':'running'})
+                current_status_record = current_music_service.execute_music_command('status',{'id':current_job_root.name})
+                self.assertEqual(current_status_record['metrics']['gpu_observations']['GPU-test']['process_peak_mib'],6210)
+                self.assertEqual(current_first_metrics_path.read_bytes(),current_first_metrics_bytes)
+
+    def test_gui_and_cli_share_music_status_over_http(self):
+        import contextlib
+        from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+        import io
+        import os
+        import threading
+        from tools.review.common.management_client import execute_remote_management_command
+        from tools.review.common.management_gateway import ManagementCommandGateway, execute_gateway_arguments
+        with tempfile.TemporaryDirectory() as current_temp_directory:
+            current_service_records = {}
+            current_job_identifier = '2026-10-15_00-00-00-12345678'
+            current_attempt_identifier = 'a'*32
+            current_expected_metrics = {
+                'stage':'inference','estimate':{'remaining':12,'basis':'격리 HTTP 검증'},
+                'gpu_observations':{'GPU-test':{'process_current_mib':120,'process_peak_mib':7123,
+                    'scope':'작업자 및 자식 프로세스','unit':'MiB','interval_seconds':5}},
+            }
+            for current_service_name in MUSIC_SERVICE_NAMES:
+                current_music_service = MusicGenerationManager(current_service_name)
+                current_music_service.job_storage_root = Path(current_temp_directory)/current_service_name
+                current_job_root = current_music_service.job_storage_root/current_job_identifier
+                current_attempt_root = current_job_root/'attempts'/current_attempt_identifier
+                current_attempt_root.mkdir(parents=True)
+                write_record_atomically(current_job_root/'status.json',{'status':'running'})
+                write_record_atomically(current_job_root/'current-attempt.json',{'id':current_attempt_identifier})
+                write_record_atomically(current_attempt_root/'metrics.json',current_expected_metrics)
+                current_service_records[current_service_name] = current_music_service
+            current_command_gateway = ManagementCommandGateway({current_service_name:current_music_service.handle_music_request for current_service_name,current_music_service in current_service_records.items()})
+            class MusicAuditHttpHandler(BaseHTTPRequestHandler):
+                def do_POST(self):
+                    if not current_command_gateway.handle(self):
+                        self.send_error(404)
+
+                def log_message(self, current_format_text, *current_argument_values):
+                    pass
+
+            current_http_server = ThreadingHTTPServer(('127.0.0.1',0),MusicAuditHttpHandler)
+            current_server_thread = threading.Thread(target=current_http_server.serve_forever,daemon=True)
+            current_server_thread.start()
+            current_server_address = f'http://127.0.0.1:{current_http_server.server_port}'
+            try:
+                with patch.dict(os.environ,{'SLIME_MANAGEMENT_GATEWAY_URL':current_server_address}):
+                    for current_service_name in MUSIC_SERVICE_NAMES:
+                        with self.subTest(service=current_service_name):
+                            current_gui_status = execute_remote_management_command(current_service_name,'status',{'id':current_job_identifier})
+                            current_cli_output = io.StringIO()
+                            with contextlib.redirect_stdout(current_cli_output):
+                                execute_gateway_arguments(current_service_name,['--server-url',current_server_address,'status',current_job_identifier])
+                            current_cli_status = json.loads(current_cli_output.getvalue())
+                            self.assertEqual(current_gui_status,current_cli_status)
+                            self.assertEqual(current_gui_status['metrics'],current_expected_metrics)
+                            self.assertEqual(current_gui_status['estimate'],current_expected_metrics['estimate'])
+            finally:
+                current_http_server.shutdown()
+                current_http_server.server_close()
+                current_server_thread.join(timeout=5)
+                self.assertFalse(current_server_thread.is_alive())

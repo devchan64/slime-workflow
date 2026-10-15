@@ -13,6 +13,7 @@ from tools.review.common.gradio_seed import build_generation_seed
 from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_confirmation
 from tools.review.common.gradio_history import build_generation_history_view
 from tools.review.common.gradio_logs import build_execution_logs
+from tools.review.common.generation_status_lookup import read_existing_generation_status
 from tools.review.common.gradio_audio_results import render_audio_generation_result, describe_audio_generation_status
 
 
@@ -79,12 +80,8 @@ def build_music_interface(current_service_name,current_server_address):
         def refresh_music_result(current_job_identifier,current_logs_enabled,current_previous_result):
             if not current_job_identifier:
                 return (gr.skip(),)*6
-            try:
-                current_status_record = execute_music_command('status',{'id':current_job_identifier})
-            except (RuntimeError,ValueError) as current_status_error:
-                current_history_records = execute_music_command('history',{})['records']
-                if any(current_history_record['id']==current_job_identifier for current_history_record in current_history_records):
-                    raise current_status_error
+            current_status_record = read_existing_generation_status(execute_music_command,current_job_identifier)
+            if current_status_record is None:
                 return '선택한 작업 이력이 삭제되었습니다.','<p>생성 이력에서 다른 작업을 선택하세요.</p>','','',gr.skip(),''
             current_audio_identity = current_status_record.get('audio') or (current_job_identifier+':prepared' if current_status_record.get('result',{}).get('prepared') else '')
             current_model_message = execute_music_command('model-status',{})['message'] if current_audio_identity and current_audio_identity!=current_previous_result else gr.skip()

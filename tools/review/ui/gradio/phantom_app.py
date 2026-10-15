@@ -18,6 +18,7 @@ from tools.review.common.gradio_seed import build_generation_seed
 from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_confirmation
 from tools.review.common.gradio_history import build_generation_history_view, format_generation_status
 from tools.review.common.gradio_logs import build_execution_logs
+from tools.review.common.generation_status_lookup import read_existing_generation_status
 from tools.review.common.generation_progress_display import render_generation_estimate
 
 
@@ -94,12 +95,14 @@ def build_phantom_interface(current_server_address):
         bind_gpu_generation_confirmation(current_generate_button,start_phantom_generation,[*current_reference_controls,current_prompt_control,current_frames_control,current_seed_control,current_negative_control,current_resolution_control,current_steps_control,current_shift_control,current_guidance_control,current_conditioning_control],[current_job_control,current_status_display],generation_confirmation_container=current_confirmation_container)
         def refresh_phantom_result(current_job_identifier,current_logs_enabled,current_previous_result):
             if not current_job_identifier:
-                return gr.skip(),gr.skip(),gr.skip(),gr.skip()
-            current_status_record=execute_phantom_command('status',{'id':current_job_identifier})
+                return (gr.skip(),)*5
+            current_status_record=read_existing_generation_status(execute_phantom_command,current_job_identifier)
+            if current_status_record is None:
+                return '선택한 작업 이력이 삭제되었습니다.','<p>생성 이력에서 다른 작업을 선택하세요.</p>','','',''
             current_result_identity_value=current_status_record.get('video','')
-            return describe_phantom_status(current_status_record),render_phantom_result(current_job_identifier,current_status_record,current_server_address) if current_result_identity_value and current_result_identity_value!=current_previous_result else gr.skip(),current_status_record.get('log','') if current_logs_enabled else gr.skip(),current_result_identity_value
+            return describe_phantom_status(current_status_record),render_phantom_result(current_job_identifier,current_status_record,current_server_address) if current_result_identity_value and current_result_identity_value!=current_previous_result else gr.skip(),current_status_record.get('log','') if current_logs_enabled else gr.skip(),current_result_identity_value,gr.skip()
         current_refresh_timer=gr.Timer(5)
-        current_refresh_timer.tick(refresh_phantom_result,[current_job_control,current_log_refresh,current_result_identity],[current_status_display,current_result_display,current_log_output,current_result_identity],queue=False,show_progress='hidden')
+        current_refresh_timer.tick(refresh_phantom_result,[current_job_control,current_log_refresh,current_result_identity],[current_status_display,current_result_display,current_log_output,current_result_identity,current_job_control],queue=False,show_progress='hidden')
         def restore_phantom_inputs(current_history_record):
             if current_history_record['request'].get('phantom',{}).get('task') != 's2v':
                 raise gr.Error('이 이력은 비디오·마스크 조건 실험입니다. 현재 R2V 입력 화면으로 복원할 수 없습니다. 기록 위치에서 원본 입력을 확인하세요.')

@@ -10,7 +10,7 @@ class HyMotionReloadTests(unittest.TestCase):
         for current_job_status in ('running', 'completed', 'failed'):
             with self.subTest(status=current_job_status):
                 current_history_reader = Mock(return_value=list(range(8)))
-                current_progress_reader = Mock(return_value=(current_job_status, '예상 시간'))
+                current_progress_reader = Mock(return_value=(current_job_status, '예상 시간', {'__type__':'update'}))
                 with patch('tools.review.ui.gradio.hy_motion_app.execute_motion_command', return_value={'records': [{'id': 'latest'}, {'id': 'older'}]}) as current_command_mock:
                     current_output_values = load_latest_generation(current_history_reader, current_progress_reader)
                 current_command_mock.assert_called_once_with('history', {})
@@ -27,3 +27,9 @@ class HyMotionReloadTests(unittest.TestCase):
         current_progress_reader.assert_not_called()
         self.assertEqual(current_output_values[-3], '')
         self.assertIn('이력이 없습니다', current_output_values[-2])
+
+    def test_job_removed_during_restore_clears_identifier(self):
+        current_history_reader=Mock(return_value=[])
+        current_progress_reader=Mock(return_value=('삭제됨','다른 작업 선택',''))
+        with patch('tools.review.ui.gradio.hy_motion_app.execute_motion_command',return_value={'records':[{'id':'removed'}]}):
+            self.assertEqual(load_latest_generation(current_history_reader,current_progress_reader),['','삭제됨','다른 작업 선택'])

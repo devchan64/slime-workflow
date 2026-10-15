@@ -14,6 +14,7 @@ from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_conf
 from tools.review.common.gradio_seed import build_generation_seed
 from tools.review.common.gradio_history import build_generation_history_view
 from tools.review.common.gradio_logs import build_execution_logs
+from tools.review.common.generation_status_lookup import read_existing_generation_status
 from tools.review.common.gradio_video_results import render_video_generation_result,describe_video_generation_status
 from tools.review.ui.gradio.management_menu_app import compose_management_interface
 
@@ -219,11 +220,13 @@ def build_timeline_interface(current_server_address):
             return current_job_record['id'],'GPU 대기열에 등록했습니다.'
         bind_gpu_generation_confirmation(current_generate_button,start_timeline_generation,current_input_controls,[current_job_control,current_status_display],generation_confirmation_container=current_confirmation_container)
         def refresh_timeline_result(current_job_identifier,current_logs_enabled,current_previous_result):
-            if not current_job_identifier:return gr.skip(),gr.skip(),gr.skip(),gr.skip()
-            current_status_record=execute_timeline_command('status',{'id':current_job_identifier})
+            if not current_job_identifier:return (gr.skip(),)*5
+            current_status_record=read_existing_generation_status(execute_timeline_command,current_job_identifier)
+            if current_status_record is None:
+                return '선택한 작업 이력이 삭제되었습니다.','<p>생성 이력에서 다른 작업을 선택하세요.</p>','','',''
             current_result_url=current_status_record.get('video','')
-            return describe_video_generation_status(current_status_record),render_video_generation_result(current_job_identifier,current_status_record,current_server_address) if current_result_url and current_result_url!=current_previous_result else gr.skip(),current_status_record.get('log','') if current_logs_enabled else gr.skip(),current_result_url
-        gr.Timer(5).tick(refresh_timeline_result,[current_job_control,current_log_refresh,current_result_identity],[current_status_display,current_result_display,current_log_output,current_result_identity],queue=False,show_progress='hidden')
+            return describe_video_generation_status(current_status_record),render_video_generation_result(current_job_identifier,current_status_record,current_server_address) if current_result_url and current_result_url!=current_previous_result else gr.skip(),current_status_record.get('log','') if current_logs_enabled else gr.skip(),current_result_url,gr.skip()
+        gr.Timer(5).tick(refresh_timeline_result,[current_job_control,current_log_refresh,current_result_identity],[current_status_display,current_result_display,current_log_output,current_result_identity,current_job_control],queue=False,show_progress='hidden')
         def restore_timeline_inputs(current_history_record):
             current_request_record=current_history_record['request']
             current_job_root=VACE_TIMELINE_STORAGE_ROOT/current_history_record['id']

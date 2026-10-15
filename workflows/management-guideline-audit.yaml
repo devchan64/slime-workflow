@@ -17,11 +17,13 @@ pages:
   url: /management/frame/music-ace-step/
   source_review: shared_ui_reviewed_runtime_pending
   contract_tests: partial_verified
-  browser_review: pending
+  browser_review: partial_live_verified
   findings:
+  - deleted-generation-status-refresh
   - media-status-unification
   implementation: tools/review/ui/gradio/music_app.py
   applicability: generation
+  browser_note: 실제 합성 화면에서 모델 준비 필요 안내·빈 이력·프롬프트 입력 후 생성 활성·원문 4단어와 최종 8단어 및 실제 최종 문구 일치·랜덤 시드 변경·초기화 후 생성 비활성 복귀 확인. 실제 생성·모델 준비는 실행하지 않음. 추가 격리 합성 화면에서 Gradio 인라인 확인 표시·취소 후 모의 명령 0건·확정 후 입력 프롬프트와 시드 42를 보존한 모의 명령 1건 및 버튼 복귀 확인. 완료 오디오·모바일·재연결 검증은 남음.
 - id: anny-attribute-renderer
   label: Anny 속성 렌더러
   category: animation-tool
@@ -61,6 +63,7 @@ pages:
   contract_tests: partial_verified
   browser_review: partial_live_verified
   findings:
+  - deleted-generation-status-refresh
   - hy-motion-memory-status
   implementation: tools/review/ui/gradio/hy_motion_app.py
   applicability: generation
@@ -73,11 +76,14 @@ pages:
   url: /management/frame/music-minimax/
   source_review: shared_ui_reviewed_runtime_pending
   contract_tests: partial_verified
-  browser_review: pending
+  browser_review: partial_mock_verified
   findings:
+  - deleted-generation-status-refresh
   - media-status-unification
   implementation: tools/review/ui/gradio/music_app.py
   applicability: generation
+  browser_note: 2026-10-15 관리 메뉴 합성 격리 화면에서 ETA 12초·총시간 30초·예상 진행률 60%·완료 시각·표본 3개·범위·갱신 시각, VRAM 현재 120 MiB·관측 피크 7123 MiB·측정 범위·샘플링 한계·누락 구간 및 로그 표시 확인. 새로고침 후 동일 활성 ID와 수치 복원, 콘솔 오류 없음. 고정 모의 기록 검증이며 실제 GPU 측정·완료 오디오·모바일·생성 확인은 미검증.
+
 - id: phantom-generator
   label: Phantom R2V 영상 생성기
   category: animation-tool
@@ -87,6 +93,7 @@ pages:
   contract_tests: partial_verified
   browser_review: pending
   findings:
+  - deleted-generation-status-refresh
   - media-status-unification
   implementation: tools/review/ui/gradio/phantom_app.py
   applicability: generation
@@ -119,11 +126,14 @@ pages:
   url: /management/frame/vace-v2v-generator/
   source_review: shared_ui_reviewed_runtime_pending
   contract_tests: partial_verified
-  browser_review: pending
+  browser_review: partial_live_verified
   findings:
+  - deleted-generation-status-refresh
   - media-status-unification
   implementation: tools/review/ui/gradio/vace_timeline_app.py
   applicability: generation
+  browser_note: 2026-10-15 실제 합성 화면에서 활성 작업 48f99874의 ETA·추론 전용 추정 구분·진행 87→88/100·VRAM 현재 및 관측 피크 6404 MiB·5초 갱신 확인. 완료 c98472ef 선택 시 결과/입력/삭제 활성 및 재개/우선실행/중지 비활성, 결과 조회 MP4·PNG ZIP 링크 및 영상 832×480·7.5625초·readyState 4·오류 없음 확인. 생성·재개·중지·삭제 미실행. 동영상 재생·모바일·확인 취소는 미검증.
+
 - id: map-review-reed-crossing
   label: 갈대 여울 · 필드맵 검수
   category: field-map-review
@@ -250,12 +260,14 @@ pages:
   url: /management/frame/map-review/?map=granary-flats&townPage=1
   source_review: shared_ui_reviewed_runtime_pending
   contract_tests: shared_component_verified
-  browser_review: pending
+  browser_review: partial_live_verified
   findings: []
   implementation: tools/review/ui/gradio/map_review_app.py
   applicability: render_review
   review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+  browser_note: 2026-10-15 운영 합성 화면에서 타일 로딩 완료·90도 회전·실제 캔버스 렌더링 확인. 사이드바 접기 후 내부 2354×1766 및 복원 후 1718×1289 크기 갱신 확인, 콘솔 오류 없음. 모바일·재연결·개별 에셋 시각 품질 검증은 미완료.
+
 - id: animation-1
   label: 기본 캐릭터 · 애니메이션 통합 검수
   category: animation
@@ -353,12 +365,14 @@ pages:
   url: /management/frame/map-review/?map=lantern-wood&townPage=1
   source_review: shared_ui_reviewed_runtime_pending
   contract_tests: shared_component_verified
-  browser_review: pending
+  browser_review: partial_live_verified
   findings: []
   implementation: tools/review/ui/gradio/map_review_app.py
   applicability: render_review
   review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+  browser_note: 2026-10-15 운영 합성 화면에서 타일 로딩 완료·90도 회전·실제 캔버스 렌더링 확인. 사이드바 접기 후 내부 2354×1766 및 복원 후 1718×1289 크기 갱신 확인, 콘솔 오류 없음. 모바일·재연결·개별 에셋 시각 품질 검증은 미완료.
+
 - id: animation-14
   label: 등불나방 · 대기 · v2.imagegen-eight-frames
   category: animation
@@ -424,12 +438,14 @@ pages:
   url: /management/frame/map-review/?map=mill-ridge&townPage=1
   source_review: shared_ui_reviewed_runtime_pending
   contract_tests: shared_component_verified
-  browser_review: pending
+  browser_review: partial_live_verified
   findings: []
   implementation: tools/review/ui/gradio/map_review_app.py
   applicability: render_review
   review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+  browser_note: 2026-10-15 운영 합성 화면에서 타일 로딩 완료·90도 회전·실제 캔버스 렌더링 확인. 사이드바 접기 후 내부 2354×1766 및 복원 후 1718×1289 크기 갱신 확인, 콘솔 오류 없음. 모바일·재연결·개별 에셋 시각 품질 검증은 미완료.
+
 - id: animation-19
   label: 모래집게전갈 · 대기 · v1.imagegen-eight-frames
   category: animation
@@ -1046,7 +1062,7 @@ shared_findings:
   source: tools/review/common/gradio_video_results.py; tools/review/common/gradio_audio_results.py
   description: 영상·음악 상태 표시를 공용 구현에 연결. 미측정 VRAM과 0 구분, 관측 피크 샘플링 한계, 실패 원인 표시. 영상
     추론 전용 ETA 유지.
-  evidence: 음악·Phantom·VACE·공용 상태 회귀 47건 통과. 개별 수정 화면 브라우저 검증 대기.
+  evidence: 음악·Phantom·VACE·공용 상태 회귀 47건 통과. 추가 음악 회귀 26건에서 두 서비스의 종료 후 피크 유지·대기 중 이전 시도 숨김·새 시도 분리·이전 기록 보존 확인. 두 음악 서비스의 running 상태는 임시 HTTP 게이트웨이에서 GUI 클라이언트와 CLI의 전체 응답·ETA·VRAM 값 일치 검증. 개별 수치 표시 브라우저 검증 대기.
 - id: writer-selection-apply
   status: verified_contract_mock_browser
   source: tools/review/ui/gradio/writer_agent_app.py
@@ -1060,7 +1076,37 @@ shared_findings:
     경로·세션 토큰·적용 해시 검사 유지.
   evidence: 공용 게이트웨이·런타임·작가 HTTP·GUI 콜백 회귀 26건 통과. CLI 파일 입력·HTTP 토큰 전달 추가 검증. 수정
     화면 브라우저 검증 대기.
+- id: deleted-generation-status-refresh
+  status: verified_contract_partial_browser
+  source: tools/review/common/generation_status_lookup.py
+  description: Phantom·VACE V2V·HY-Motion의 삭제된 작업 ID 반복 조회를 해제하고 이전 결과·로그를 비움. 음악의 기존 처리를 공통화하며 이력이 존재하는 오류·게이트웨이 오류는 보존.
+  evidence: 회귀 33건 통과. Phantom 격리 화면에서 삭제 안내·ID 비움·상태 요청 1회 후 반복 중단 확인. VACE V2V 격리 화면에서도 삭제 안내·빈 ID·콘솔 오류 없음 확인; 두 탭을 연 서버의 합산 상태 요청은 2건으로 개별 횟수는 분리하지 않음. HY-Motion은 복원 도중 이력 삭제 경합의 빈 ID·안내 표시와 반복 조회 중단을 격리 합성 화면에서 확인. 실제 이력 삭제는 실행하지 않음.
 regression_runs:
+- path: .tmp/test/management-hy-deleted-status/2026-10-15_11-28-05/summary.json
+  passed: 26
+  failed: 0
+  errors: 0
+  note: HY-Motion 삭제된 이력 추적 해제·복원 경합·기존 상태 및 서비스 계약 회귀.
+- path: .tmp/test/management-deleted-status/2026-10-15_11-24-48/summary.json
+  passed: 33
+  failed: 0
+  errors: 0
+  note: 삭제된 작업 추적 해제 및 정상 오류 보존, 영상·음악 기존 계약 회귀.
+- path: .tmp/test/management-audit/2026-10-15_11-22-19/summary.json
+  passed: 213
+  failed: 0
+  errors: 0
+  note: 음악 HTTP 계약·종료 및 재시도 관측 검증을 통합한 공용 관리도구 회귀. 페이지별 브라우저 완료와 구분.
+- path: .tmp/test/management-music-http/2026-10-15_11-18-00/summary.json
+  passed: 5
+  failed: 0
+  errors: 0
+  note: 두 음악 서비스의 임시 HTTP 게이트웨이 상태 조회에서 GUI 클라이언트·CLI 전체 응답과 기록된 ETA·VRAM 일치 검증. 실제 모델 실행은 제외.
+- path: .tmp/test/management-music-telemetry/2026-10-15_11-13-29/summary.json
+  passed: 26
+  failed: 0
+  errors: 0
+  note: 음악 서비스 상태·실행 시도 보존·공용 표시 회귀. 실제 GPU 측정과 HTTP 왕복 검증을 의미하지 않음.
 - path: .tmp/test/management-audit/2026-10-15_09-30-57/summary.json
   passed: 165
   failed: 3
@@ -1192,6 +1238,5 @@ inventory_observation:
   undefined_findings: []
   note: 원본 목록에 DEFAULT_PAGE_RECORDS를 합성하는 실제 메뉴 로더 기준으로 대조. 원본 JSON 단독 비교에서 기본 생성기를 폐기된 페이지로 오판하지 않음.
 runtime_observation:
-  url: http://127.0.0.1:8770/management/frame/map-review/?map=wind-hills&townPage=1&tool=map-review-wind-hills
-  note: 기존 실행 화면 메뉴 63개, 감사 대상 소스 메뉴 67개. 기존 화면 로딩 성공은 수정 소스 검증과 구분하며 사용자 서버를 임의 재시작하지
-    않음.
+  url: http://127.0.0.1:8770/management/frame/music-ace-step/
+  note: 2026-10-15 실제 합성 화면 메뉴 66개 확인. ACE-Step 입력·초기화·단어 수 검증 및 별도 8798 격리 화면 확인·취소 검증 완료. 사용자 GPU 작업과 운영 서버는 중단하지 않음.

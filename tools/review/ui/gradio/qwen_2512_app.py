@@ -8,6 +8,7 @@ import threading
 import time
 
 import gradio as gr
+from tools.review.common.generation_status_lookup import read_existing_generation_status
 
 WORKFLOW_ROOT_DIRECTORY=Path(__file__).resolve().parents[4]
 if str(WORKFLOW_ROOT_DIRECTORY) not in sys.path:sys.path.insert(0,str(WORKFLOW_ROOT_DIRECTORY))
@@ -85,14 +86,16 @@ def build_qwen_2512_interface(server_base_address):
         bind_gpu_generation_confirmation(generation_button_value,start_generation,[prompt_text_value,generation_tag_value,width_select_value,height_select_value,step_select_value,seed_number_value],[generation_identifier_value,generation_status_value])
         interface_blocks_value.load(lambda:read_history_page(1),outputs=history_output_values)
         def refresh_generation_status(generation_identifier_value,refresh_log_enabled):
-            if not generation_identifier_value:return '생성 ID를 선택하세요.',gr.skip(),gr.skip()
-            status_record_value=execute_image_gateway('status',{'id':generation_identifier_value})
+            if not generation_identifier_value:return (gr.skip(),)*4
+            status_record_value=read_existing_generation_status(execute_image_gateway,generation_identifier_value)
+            if status_record_value is None:
+                return '선택한 작업 이력이 삭제되었습니다.','',gr.update(value=[],visible=False),''
             log_update_value=gr.update(value=status_record_value.get('log','')) if refresh_log_enabled else gr.skip()
             result_update_value=gr.update(value=collect_generation_gallery(status_record_value.get('image'),server_base_address=server_base_address),visible=True) if status_record_value.get('image') else gr.skip()
-            return format_generation_status(status_record_value),log_update_value,result_update_value
+            return describe_generation_status(status_record_value),log_update_value,result_update_value,gr.skip()
         refresh_button_value=gr.Button('상태 새로고침')
-        refresh_button_value.click(refresh_generation_status,[generation_identifier_value,log_refresh_enabled],[generation_status_value,log_output_value,result_preview_value],queue=False)
-        if hasattr(gr,'Timer'):gr.Timer(2).tick(refresh_generation_status,[generation_identifier_value,log_refresh_enabled],[generation_status_value,log_output_value,result_preview_value],show_progress='hidden')
+        refresh_button_value.click(refresh_generation_status,[generation_identifier_value,log_refresh_enabled],[generation_status_value,log_output_value,result_preview_value,generation_identifier_value],queue=False)
+        if hasattr(gr,'Timer'):gr.Timer(2).tick(refresh_generation_status,[generation_identifier_value,log_refresh_enabled],[generation_status_value,log_output_value,result_preview_value,generation_identifier_value],show_progress='hidden')
     return interface_blocks_value
 
 
