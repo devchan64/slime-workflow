@@ -387,7 +387,7 @@ def build_generation_history_view(execute_service_command,server_base_address,de
             except (gr.Error, ValueError, OSError) as current_restore_error:
                 return *([gr.skip()] * len(restore_output_components)), '입력값을 불러오지 못했습니다: ' + str(current_restore_error)
             return *current_restored_values, '선택한 이력의 입력값을 불러왔습니다. 생성 전 설정을 확인하세요.'
-        restore_input_button.click(restore_selected_inputs,history_selection_value,[*restore_output_components, result_status_value],queue=False)
+        restore_input_button.click(restore_selected_inputs,history_selection_value,[*restore_output_components, result_status_value],queue=any(current_output_component.stateful for current_output_component in restore_output_components))
     history_selection_value.change(lambda selected_history_identifier: selected_history_identifier or '',history_selection_value,selected_identifier_value,queue=False)
     history_selection_output_values=[history_selection_summary,result_lookup_button]
     if restore_input_callback is not None:history_selection_output_values.append(restore_input_button)

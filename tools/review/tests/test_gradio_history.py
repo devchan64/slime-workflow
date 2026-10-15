@@ -202,6 +202,14 @@ class HistoryRadioTableTest(unittest.TestCase):
 
 
 class HistoryRestoreFailureTests(unittest.TestCase):
+    def test_state_restore_delivers_change_events_through_queue(self):
+        for current_state_enabled in (False, True):
+            with self.subTest(state=current_state_enabled), gr.Blocks() as current_interface_blocks:
+                current_output_control = gr.State([]) if current_state_enabled else gr.Textbox()
+                build_generation_history_view(lambda *_: {'records': []}, 'http://localhost', '격리 검증', restore_input_callback=lambda _: ([],), restore_output_components=[current_output_control])
+            current_restore_function = next(current_function for current_function in current_interface_blocks.fns.values() if current_function.name == 'restore_selected_inputs')
+            self.assertEqual(current_restore_function.queue, current_state_enabled)
+
     def test_expected_restore_failure_preserves_inputs_and_reports_reason(self):
         with gr.Blocks() as current_interface_blocks:
             current_prompt_control = gr.Textbox(value='보존할 입력')

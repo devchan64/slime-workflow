@@ -3,6 +3,7 @@ import hashlib
 from datetime import datetime
 import json
 from pathlib import Path
+import re
 import time
 from tools.review.common.generation_records import write_record_atomically
 from tools.review.common.generation_telemetry import GenerationTelemetryRecorder
@@ -39,7 +40,29 @@ class QueueGenerationTelemetry(GenerationTelemetryRecorder):
                 if current_status_path.is_file():
                     current_worker_status=json.loads(current_status_path.read_text())
                     self.current_run_state['stage']=current_worker_status.get('stage') or 'worker'
+                current_worker_metrics = read_current_worker_metrics(self.current_job_root)
+                if current_worker_metrics and matches_current_queue_attempt(self.current_run_state, current_worker_metrics):
+                    self.current_run_state['stage'] = current_worker_metrics['stage']
+                    self.current_run_state['worker_progress'] = {
+                        'stage': current_worker_metrics['stage'],
+                        'step': current_worker_metrics['step'],
+                        'total': current_worker_metrics['step_total'],
+                        'updated_at': current_worker_metrics['updated_at'],
+                        'scope': '작업자 추론 단계; 전체 작업 진행률과 구분',
+                    }
             super().save_generation_metrics()
+
+
+def read_current_worker_metrics(current_job_root):
+    """작업자 시도 포인터가 제공되는 생성기의 현재 관측을 읽는다."""
+    current_pointer_path = Path(current_job_root)/'current-attempt.json'
+    if not current_pointer_path.is_file():
+        return None
+    current_attempt_identifier = json.loads(current_pointer_path.read_text())['id']
+    if not isinstance(current_attempt_identifier, str) or not re.fullmatch(r'[a-f0-9]{32}', current_attempt_identifier):
+        raise ValueError('작업자 관측 실행 시도 ID 형식 오류')
+    current_metrics_path = Path(current_job_root)/'attempts'/current_attempt_identifier/'metrics.json'
+    return json.loads(current_metrics_path.read_text()) if current_metrics_path.is_file() else None
 
 
 def read_queue_generation_metrics(current_job_root):

@@ -11,6 +11,8 @@ criteria:
 - 브라우저 표시·반응형·재연결
 pages:
 - id: music-ace-step
+  mobile_review: initial_layout_verified_flows_pending
+  mobile_evidence: "2026-10-15 실제 합성 문서 viewport 390×844, 문서 clientWidth·scrollWidth 모두 375px. 초기 입력 화면의 주요 입력·버튼에서 문서 폭을 넘는 요소 없음. 생성·삭제 요청 없이 확인했으며 전체 모바일 동작 완료를 의미하지 않음. 검증 후 viewport reset."
   label: ACE-Step 1.5 Turbo
   category: music-generation
   ui_mode: gradio
@@ -26,6 +28,8 @@ pages:
   applicability: generation
   browser_note: 실제 합성 화면에서 모델 준비 필요 안내·빈 이력·프롬프트 입력 후 생성 활성·원문 4단어와 최종 8단어 및 실제 최종 문구 일치·랜덤 시드 변경·초기화 후 생성 비활성 복귀 확인. 실제 생성·모델 준비는 실행하지 않음. 추가 격리 합성 화면에서 Gradio 인라인 확인 표시·취소 후 모의 명령 0건·확정 후 입력 프롬프트와 시드 42를 보존한 모의 명령 1건 및 버튼 복귀 확인. 완료 오디오·모바일·재연결 검증은 남음.
 - id: anny-attribute-renderer
+  mobile_review: initial_layout_verified_flows_pending
+  mobile_evidence: "2026-10-15 실제 합성 문서 viewport 390×844, 문서 clientWidth·scrollWidth 모두 375px. 초기 속성 화면의 주요 입력·버튼에서 문서 폭을 넘는 요소 없음. 속성 적용·렌더는 미실행. 생성·삭제 요청 없이 확인했으며 전체 모바일 동작 완료를 의미하지 않음. 검증 후 viewport reset."
   label: Anny 속성 렌더러
   category: animation-tool
   ui_mode: gradio
@@ -57,6 +61,8 @@ pages:
     교체 확인·게이트웨이 저장·재연결을 검증할 대상.
   browser_note: 운영 화면 neutral_v4 메시 표시 확인. 격리 합성 화면에서 미선택 비활성·확인 활성·선택 변경 해제·모의 불러오기 완료 후 재비활성 확인. 운영 저장 및 모바일·재연결은 미검증.
 - id: hy-motion-generator
+  mobile_review: initial_layout_verified_flows_pending
+  mobile_evidence: "2026-10-15 실제 합성 문서 viewport 390×844, 문서 clientWidth·scrollWidth 모두 375px. 이력 표 455px은 폭 287px·overflow-x auto 컨테이너에 배치됨. 도구 탐색을 열어 검색·분류·목록 표시를 스크린샷으로 확인. 콘솔 오류 없음. 생성·삭제 요청 없이 확인했으며 전체 모바일 동작 완료를 의미하지 않음. 검증 후 viewport reset."
   label: HY-Motion 모션 생성기
   category: animation-tool
   ui_mode: gradio
@@ -89,6 +95,8 @@ pages:
   browser_note: 2026-10-15 관리 메뉴 합성 격리 화면에서 ETA 12초·총시간 30초·예상 진행률 60%·완료 시각·표본 3개·범위·갱신 시각, VRAM 현재 120 MiB·관측 피크 7123 MiB·측정 범위·샘플링 한계·누락 구간 및 로그 표시 확인. 새로고침 후 동일 활성 ID와 수치 복원, 콘솔 오류 없음. 고정 모의 기록 검증이며 실제 GPU 측정·완료 오디오·모바일·생성 확인은 미검증.
 
 - id: phantom-generator
+  mobile_review: initial_layout_verified_flows_pending
+  mobile_evidence: "2026-10-15 실제 합성 문서 viewport 390×844, 문서 clientWidth·scrollWidth 모두 375px. 초기 입력 화면의 주요 입력·버튼에서 문서 폭을 넘는 요소 없음. 생성·삭제 요청 없이 확인했으며 전체 모바일 동작 완료를 의미하지 않음. 검증 후 viewport reset."
   label: Phantom R2V 영상 생성기
   category: animation-tool
   ui_mode: gradio
@@ -97,6 +105,8 @@ pages:
   contract_tests: partial_verified
   browser_review: partial_live_verified
   findings:
+  - phantom-reference-restore-verification
+  - reference-restore-job-boundary
   - worker-step-denominator-record
   - resumed-worker-metrics-freshness
   - running-metrics-publication-order
@@ -126,6 +136,8 @@ pages:
   applicability: generation
   browser_note: 2026-10-15 실제 합성 화면에서 27건 누적 이력·순환 반경·일반 VAE 비교 옵션 확인. 탑뷰 옵션 해제 시 사용자 3/추가 4/최종 7단어, 수동 프롬프트 초기화 시 사용자 0/추가 4/최종 4단어 갱신 및 콘솔 오류 없음 확인. 생성·삭제 미실행; 결과 비교·모바일 미검증.
 - id: qwen-21-generator
+  mobile_review: initial_layout_verified_flows_pending
+  mobile_evidence: "2026-10-15 실제 합성 문서 viewport 390×844, 문서 clientWidth·scrollWidth 모두 375px. 초기 입력 화면의 주요 입력·버튼에서 문서 폭을 넘는 요소 없음. 생성·삭제 요청 없이 확인했으며 전체 모바일 동작 완료를 의미하지 않음. 검증 후 viewport reset."
   label: Qwen 2.1 이미지 생성기
   category: image-generation
   ui_mode: gradio
@@ -148,6 +160,8 @@ pages:
   contract_tests: partial_verified
   browser_review: partial_live_verified
   findings:
+  - vace-restored-frame-rows
+  - vace-verified-request-restore
   - worker-step-denominator-record
   - resumed-worker-metrics-freshness
   - running-metrics-publication-order
@@ -205,6 +219,8 @@ pages:
   browser_note: 2026-10-15 운영 8770 합성 문서에서 개별 캔버스 로딩과 다음 프레임 조작 후 2 / 8 정지 표시 확인. 저장·삭제 미실행. 개별 시각 품질·반응형·재연결·저장 계약 검증은 미완료.
 
 - id: map-review-boar-ridge
+  mobile_review: partial_live_verified
+  mobile_evidence: "2026-10-15 viewport 390×844·문서 clientWidth/scrollWidth 375/375px. 캐릭터 포함 렌더 완료·90도 회전·캔버스 내부 574×431 및 표시 폭 287px·스크린샷으로 캔버스 확인. 콘솔 오류 없음."
   label: 강모 능선 · 필드맵 검수
   category: field-map-review
   ui_mode: gradio
@@ -220,6 +236,8 @@ pages:
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
   browser_evidence: 2026-10-15 재검증에서 타일·기본 캐릭터 로딩과 렌더 완료, 회전 90°·32% 변경 및 콘솔 오류 없음 확인. 이전 로딩 오류는 재현되지 않음. 화면 크기·재연결 검증은 미완료.
 - id: map-review-crystal-cut
+  mobile_review: partial_live_verified
+  mobile_evidence: "2026-10-15 viewport 390×844·문서 clientWidth/scrollWidth 375/375px. 타일 원본 100개 로딩 후 공용 필드 렌더러 완료 표시 확인. 초기 locator 시간 초과 때 타일 74/100으로 진행 중이었으며 같은 탭에서 완료 확인. 재로드 후 공용 필드 렌더러 완료 복원·콘솔 오류 없음. viewport reset 및 임시 탭 정리 완료."
   label: 결정 절개지 · 필드맵 검수
   category: field-map-review
   ui_mode: gradio
@@ -654,6 +672,8 @@ pages:
   browser_note: 2026-10-15 운영 8770 합성 문서에서 개별 캔버스 로딩과 다음 프레임 조작 후 2 / 8 정지 표시 확인. 저장·삭제 미실행. 개별 시각 품질·반응형·재연결·저장 계약 검증은 미완료.
 
 - id: sprite-editor-v2
+  mobile_review: initial_layout_verified_flows_pending
+  mobile_evidence: "2026-10-15 실제 합성 문서 viewport 390×844, 문서 clientWidth·scrollWidth 모두 375px. 프로젝트 미선택 초기 화면에서 가로 넘침 없음. 프로젝트를 불러온 캔버스 편집·재생 검증은 제외. 생성·삭제 요청 없이 확인했으며 전체 모바일 동작 완료를 의미하지 않음. 검증 후 viewport reset."
   label: 스프라이트 정규화 편집기 v2
   category: animation-tool
   ui_mode: gradio
@@ -828,6 +848,8 @@ pages:
   browser_note: 2026-10-15 운영 8770 합성 문서에서 게임 공용 마을 렌더러 로딩 완료 확인. 갈대나루·돌온재는 90도 회전 상태 확인. 반응형·재연결 및 저장 없는 전체 조작 검증은 미완료.
 
 - id: writer-agent
+  mobile_review: initial_layout_verified_flows_pending
+  mobile_evidence: "2026-10-15 실제 합성 문서 viewport 390×844, 문서 clientWidth·scrollWidth 모두 375px. 표 723px은 폭 309px·overflow-x auto 컨테이너에 배치됨. 상단 제목 줄바꿈과 단일 열 입력 배치를 스크린샷으로 확인. 생성·삭제 요청 없이 확인했으며 전체 모바일 동작 완료를 의미하지 않음. 검증 후 viewport reset."
   label: 작가 AI 에이전트
   category: writer-agent
   ui_mode: gradio
@@ -913,6 +935,8 @@ pages:
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
   browser_evidence: 2026-10-15 실제 공용 메뉴 합성 화면에서 해당 맵 제목·타일과 기본 캐릭터 로딩 완료·공용 필드 렌더러 표시 확인. 전체 보기 후 200%에서 32%로 변경 및 콘솔 오류 없음 확인. 타일별 시각 품질·재연결·화면 크기 검증은 미완료.
 - id: animation-separation
+  mobile_review: initial_layout_verified_flows_pending
+  mobile_evidence: "2026-10-15 실제 합성 문서 viewport 390×844, 문서 clientWidth·scrollWidth 모두 375px. 초기 입력 화면의 주요 입력·버튼에서 문서 폭을 넘는 요소 없음. 생성·삭제 요청 없이 확인했으며 전체 모바일 동작 완료를 의미하지 않음. 검증 후 viewport reset."
   label: 캐릭터 레퍼런스 복장 분리 생성
   category: image-generation
   ui_mode: gradio
@@ -1007,6 +1031,66 @@ pages:
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
   browser_evidence: 2026-10-15 실제 공용 메뉴 합성 화면에서 해당 맵 제목·타일과 기본 캐릭터 로딩 완료·공용 필드 렌더러 표시 확인. 전체 보기 후 200%에서 32%로 변경 및 콘솔 오류 없음 확인. 타일별 시각 품질·재연결·화면 크기 검증은 미완료.
 shared_findings:
+- id: worker-progress-common-display
+  status: verified_contract_mock_browser
+  source: tools/review/common/generation_status_display.py
+  finding: 실행기의 worker_progress 기록이 별도 서비스 progress 없는 공용 상태 화면에서 표시되지 않음.
+  change: 작업자 마지막 관측 단계·완료 스텝/전체 스텝·갱신 시각을 표시하고 전체 예상 진행률과 구분. 서비스 progress가 있으면 중복 표시하지 않으며 종료 단계는 유지.
+  evidence: 실패 종료 단계와 inference 12/40 구분·30%로 환산하지 않음·서비스 progress 우선 검사. Phantom 실제 Blocks 합성 격리 화면에서 12/40·전체 관측 피크 900 MiB·갱신 시각 및 재연결 후 자동 갱신 복원·콘솔 오류 0개 확인. 재연결 직후 첫 locator는 자동 갱신 전 시간 초과 후 동일 탭에서 정상 표시 확인. 모의 생성 횟수 0.
+  regression_result: .tmp/test/management-worker-progress-display/2026-10-15_13-38-35/summary.json
+  regression_summary: 관련 16건 통과.
+  remaining: 다른 소비 화면 및 실제 GPU 생성 단계 검증은 별도.
+- id: queue-worker-stage-observation
+  status: verified_contract_browser_pending
+  source: tools/review/common/queue_generation_telemetry.py
+  finding: 공용 실행기가 status.json의 stage만 읽어 별도 metrics.json에 기록되는 작업자 추론 단계를 전체 실행 기록에 반영하지 못함.
+  change: UUID 시도 포인터 검증 후 현재 실행 시작 이후의 작업자 관측 단계만 반영. 추론 스텝·분모·갱신 시각은 worker_progress에 별도 보존하고 전체 ETA·VRAM 관측을 대체하지 않음.
+  evidence: 임시 오래된 작업자 관측 제외·현재 시도 12/40 단계 기록·전체 분모 0 유지·실패 종료 상태 보존 검증. 실제 GPU 사용 없음.
+  regression_result: .tmp/test/management-worker-stage/2026-10-15_13-37-32/summary.json
+  remaining: 작업자 시도 포인터가 없는 생성기의 단계 통합 및 실제 GPU 측정·브라우저 표시는 별도.
+- id: vace-restored-frame-rows
+  status: verified_contract_mock_browser
+  source: tools/review/ui/gradio/vace_timeline_app.py
+  finding: 이력 입력 복원 후 일반 입력은 갱신되지만 gr.State 기반 동적 프레임 배치 행이 나타나지 않아 복원된 이미지와 번호를 확인·편집할 수 없음.
+  evidence: 실제 Blocks·공용 메뉴 격리 화면에서 13번 프레임·보존 마스크가 있는 요청 복원. 프롬프트·시드·전체 프레임은 갱신되나 프레임 번호 컨트롤 없음·초기 PNG 첨부 안내 유지. Gradio queue 활성 상태에서도 재현했고 생성 명령은 미실행.
+  change: 공용 이력 복원에서 State 출력이 있을 때만 Gradio UI 이벤트 큐 사용. 직접 응답에서 누락되던 상태 변경 이벤트 전달 복구. GPU 실행 대기열 계약은 유지.
+  browser_fix_evidence: 동일 격리 화면에서 복원 후 프레임 번호 13 행 표시·수정 가능 false 보존·콘솔 오류 0개 확인. 임시 서버 종료.
+  regression_directory: .tmp/test/management-state-restore/2026-10-15_13-30-14
+  followup_change: VACE 선택·선택 해제·입력 목록 삭제·행 편집의 State 반환 이벤트도 UI 큐로 전달. 동적 프레임 Number는 interactive=True로 편집 가능 명시.
+  followup_browser: 임시 이력 복원 후 전체 선택 체크·해제 확인. 13→14 프레임 편집과 수정 가능 체크가 재렌더링 후에도 유지됨. 선택 삭제로 화면 목록이 비워짐 확인. 파일 삭제·GPU 생성 없음.
+  regression_note: 13-30-14 실행은 25통과·1시간초과(샌드박스 Gradio process_api). 외부 환경 재검사 실행.
+  regression_result: .tmp/test/management-state-restore/2026-10-15_13-33-04/summary.json · 34건 통과
+  prevention_evidence: UI·공용 모듈 AST에서 명시적 State.change 구독은 VACE의 current_sorted_files, gr.render 사용도 VACE 한 곳으로 확인. 실제 메뉴 합성 구성의 관찰 대상 State를 반환하는 모든 정적 이벤트가 queue를 사용하는지 검사하며 복원·전체 선택·삭제 포함을 확인. 동적 행 이벤트는 앞선 브라우저 검증으로 확인.
+  prevention_regression: .tmp/test/management-state-event-contract/2026-10-15_13-34-11/summary.json · 27건 통과
+  prevention_change: 전체 관리도구 회귀 실행기에 VACE 타임라인 계약·편집기 검사 2개 모듈 추가.
+  remaining: 변수 별칭을 통한 동적 구독까지 AST 결과로 보장하지 않음. 확대된 전체 회귀 255건 통과(13-35-10).
+- id: vace-verified-request-restore
+  status: verified_contract_mock_browser
+  source: tools/review/ui/gradio/vace_timeline_app.py
+  finding: 디스크 요청을 verify_timeline_request로 검증한 뒤 반환값을 버리고 이력 목록의 별도 요청 사본에서 입력을 복원함.
+  change: 검증 함수가 반환한 디스크 요청으로 프롬프트·시드·프레임 배치·참조 경로를 복원.
+  evidence: 실제 임시 요청·이미지 저장 후 이력 사본의 프롬프트·시드·참조 경로를 다르게 제공해도 검증된 디스크 값으로 복원됨을 확인.
+  regression_result: .tmp/test/management-vace-restore/2026-10-15_13-24-39/summary.json
+  browser_evidence: 실제 VACE Blocks·메뉴 격리 화면에서 프롬프트·시드 123·전체 65프레임 복원과 사본 변조 시 무결성 오류 안내·기존 문구 보존 확인. 단, 이미지별 배치 행은 초기 빈 안내로 남음. queue 활성 재검증에서도 재현.
+  resolution: 동적 배치 행 누락은 vace-restored-frame-rows에서 수정. 동일 격리 브라우저에서 13번 행 표시·마스크 false 복원, 14번 편집·마스크 true의 재렌더링 유지 확인.
+  remaining: 모바일 복원 및 입력 파일 추가 조합은 별도.
+- id: phantom-reference-restore-verification
+  status: verified_contract_mock_browser
+  source: tools/review/ui/gradio/phantom_app.py
+  finding: 복원 시 reference-1.png 경로만 검사하고 실제 references 목록의 이미지들을 해시 검증 없이 열었음.
+  change: 공용 참조 복원 함수로 1~4장 사본의 슬롯 순서·작업 경계·파일 존재·SHA-256을 검증. 기존 비디오·마스크 이력 거절 유지.
+  evidence: 임시 실제 저장 요청의 이미지·빈 슬롯·프롬프트 복원 및 사본 변조 거절 확인. 운영 파일 변경 없음.
+  regression_result: .tmp/test/management-phantom-restore/2026-10-15_13-22-05/summary.json
+  browser_evidence: 실제 Phantom Blocks·공용 메뉴 합성 격리 화면에서 임시 이력 선택 후 프롬프트 복원·생성 버튼 활성 확인. 사본 변조 후 해시 불일치 안내와 이전 프롬프트 유지·오류 오버레이 0개·콘솔 오류 0개 확인. 생성 명령은 차단했고 요청하지 않음.
+  remaining: 모바일 복원 흐름과 여러 장의 실제 화면 검증은 별도.
+- id: reference-restore-job-boundary
+  status: verified_contract_browser_pending
+  source: tools/review/common/gradio_reference_restore.py
+  finding: 참조 경로가 생성기 저장 루트 내부인지로만 검사하여 다른 작업으로 연결된 파일·작업 폴더 심볼릭 링크를 허용함.
+  change: 선택한 생성 ID의 작업 폴더를 경계로 검사하며 작업 폴더 자체의 심볼릭 링크는 거절.
+  evidence: 임시 다른 작업의 정상 PNG와 일치하는 SHA-256을 사용해 파일 링크 및 작업 폴더 링크 모두 거절하고 다른 작업 파일 보존 확인. 정상 분리 입력 복원 회귀 포함.
+  regression_result: .tmp/test/management-reference-boundary/2026-10-15_13-20-34/summary.json
+  remaining: 이번 경로 오류의 소비 화면별 브라우저 검증은 남음. 공용 복원 실패 안내는 기존 해시 오류 격리 화면에서 검증됨.
 - id: history-restore-error-feedback
   status: verified_contract_mock_browser
   source: tools/review/common/gradio_history.py
@@ -1073,7 +1157,7 @@ shared_findings:
   change: step_total을 실행 관측 기록에 추가하여 단계 변경과 실패 종료 후에도 실제 완료 스텝과 함께 보존.
   evidence: 40스텝 설정에서 20스텝 관측 후 saving 단계와 failed 종료를 거쳐도 20/40 기록 유지. 기존 실행기 종료·시도 분리 계약 포함 6건 통과.
   regression_result: .tmp/test/management-step-telemetry/2026-10-15_12-52-44/summary.json
-  remaining: 공용 실행기는 status.json의 stage만 읽으므로 작업자 자체 metrics의 단계와 통합되지 않는 경로 추가 점검 필요. 전체 생성기 단계별 ETA·GUI 표시는 미완료.
+  remaining: 시도 포인터를 제공하는 작업자 단계는 queue-worker-stage-observation에서 통합. 포인터가 없는 생성기와 전체 단계별 ETA·GUI 검증은 남음.
 - id: reference-preview-native-component
   status: verified_unit_mock_browser
   source: tools/review/ui/shared/reference-image-drop.js
@@ -1308,6 +1392,12 @@ shared_findings:
   description: 생성 또는 명시적 조회로 확인된 ID만 5초마다 공용 상태·ETA·로그를 갱신하며 재생기는 재로드하지 않음. 삭제된 ID는 결과·로그와 함께 해제.
   evidence: 빈 ID 및 입력 중 ID 무조회·진행/종료 상태·재생기 보존·삭제·재개 불가 작업 포함 3건 회귀 통과. 격리 합성 화면에서 조회 전/후/삭제 후 버튼 정책·ID 해제·ETA/VRAM 표시·콘솔 오류 없음을 확인.
 regression_runs:
+- path: .tmp/test/management-audit/2026-10-15_13-35-10/summary.json
+  passed: 255
+  failed: 0
+  errors: 0
+  scope: 공용 참조 복원 작업 경계·Phantom 사본 검증·VACE 디스크 요청 복원·State 이벤트 전달 및 타임라인 계약·편집기 추가를 포함한 전체 관리도구 회귀.
+  limitation: 실제 GPU 측정·모든 페이지의 모바일 및 재연결 완료를 뜻하지 않음.
 - path: .tmp/test/management-audit/2026-10-15_13-13-12/summary.json
   passed: 238
   failed: 0

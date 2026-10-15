@@ -4,6 +4,16 @@ from tools.review.common.generation_status_display import describe_generation_st
 
 
 class GenerationStatusDisplayTests(unittest.TestCase):
+    def test_queue_worker_progress_preserves_terminal_stage(self):
+        current_worker_progress = {'stage': 'inference', 'step': 12, 'total': 40, 'updated_at': '2026-10-15T13:00:00+09:00'}
+        current_status_record = {'status': 'failed', 'metrics': {'stage': 'failed', 'worker_progress': current_worker_progress}}
+        current_status_text = describe_generation_status(current_status_record)
+        for current_expected_text in ('단계: failed', '작업자 마지막 관측: inference', '12/40', '전체 예상 진행률과 별개', current_worker_progress['updated_at']):
+            self.assertIn(current_expected_text, current_status_text)
+        self.assertNotIn('30%', current_status_text)
+        current_status_record['progress'] = {'stage': 'saving', 'step': 1, 'total': 2}
+        self.assertNotIn('작업자 마지막 관측', describe_generation_status(current_status_record))
+
     def test_audio_and_video_share_missing_memory_and_failure_display(self):
         from tools.review.common.gradio_audio_results import describe_audio_generation_status
         from tools.review.common.gradio_video_results import describe_video_generation_status

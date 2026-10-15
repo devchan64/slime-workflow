@@ -15,6 +15,10 @@ def describe_generation_status(current_status_record, include_generation_estimat
         current_status_text += '\n\n단계: ' + str(current_stage_label)
     if current_progress_record.get('total'):
         current_status_text += f" · 단계 진행 {current_progress_record.get('step', current_metrics_record.get('step', 0))}/{current_progress_record['total']} (전체 예상 진행률과 별개)"
+    elif current_metrics_record.get('worker_progress'):
+        current_worker_progress = current_metrics_record['worker_progress']
+        current_status_text += f"\n\n작업자 마지막 관측: {current_worker_progress['stage']} · 단계 진행 {current_worker_progress['step']}/{current_worker_progress['total']} (전체 예상 진행률과 별개)"
+        current_status_text += f" · 갱신 시각: {current_worker_progress['updated_at']}"
     current_gpu_records = current_metrics_record.get('gpu_observations') or {}
     if not current_gpu_records:
         current_status_text += '\n\nVRAM: 측정 자료 없음 · 서비스 실행 기록을 확인하세요.'

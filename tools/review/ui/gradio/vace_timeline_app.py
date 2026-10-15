@@ -19,6 +19,15 @@ from tools.review.common.gradio_video_results import render_video_generation_res
 from tools.review.ui.gradio.management_menu_app import compose_management_interface
 
 
+def restore_timeline_inputs(current_history_record):
+    current_job_root=VACE_TIMELINE_STORAGE_ROOT/current_history_record['id']
+    from generators.vace.timeline import verify_timeline_request
+    current_request_record=verify_timeline_request(current_job_root)
+    current_file_paths=[str(current_job_root/current_file_name) for current_file_name in current_request_record['references'][:len(current_request_record['frame_entries'])]]
+    current_table_rows=[[current_frame_entry['frame']+1,current_frame_entry['editable']] for current_frame_entry in current_request_record['frame_entries']]
+    current_model_config=current_request_record['vace']
+    return current_file_paths,current_table_rows,current_request_record['prompt'],current_model_config['negative_prompt'],current_request_record['frames'],current_request_record['seed'],'832×480',current_request_record['steps'],current_model_config['flow_shift'],current_model_config['guidance_scale'],current_model_config['conditioning_scale'],str(current_job_root/current_request_record['references'][-1]) if current_request_record.get('identity_reference_count') else None,current_request_record.get('padding_color',VACE_PADDING_COLOR_DEFAULT),current_file_paths,current_history_record['id']
+
 def execute_timeline_command(current_command_name,current_payload_record):
     return execute_remote_management_command('wan21-vace-v2v',current_command_name,current_payload_record)
 
@@ -136,10 +145,10 @@ def build_timeline_interface(current_server_address):
             current_clear_selection=gr.Button('선택 해제')
             current_remove_button=gr.Button('선택 삭제',interactive=False)
         current_selection_outputs=[current_selected_item,current_selection_notice,current_remove_button]
-        current_select_all.click(select_all_timeline_images,current_sorted_files,current_selection_outputs,queue=False)
-        current_clear_selection.click(lambda:describe_timeline_selection([]),outputs=current_selection_outputs,queue=False)
-        current_remove_button.click(remove_timeline_image,[current_sorted_files,current_frame_table,current_selected_item],[current_sorted_files,current_frame_table,current_input_files],queue=False)
-        current_sorted_files.change(lambda:([], '삭제할 행의 선택 체크박스를 켜세요. 원본 파일은 보존됩니다.',gr.update(interactive=False)),outputs=current_selection_outputs,queue=False)
+        current_select_all.click(select_all_timeline_images,current_sorted_files,current_selection_outputs,queue=True)
+        current_clear_selection.click(lambda:describe_timeline_selection([]),outputs=current_selection_outputs,queue=True)
+        current_remove_button.click(remove_timeline_image,[current_sorted_files,current_frame_table,current_selected_item],[current_sorted_files,current_frame_table,current_input_files],queue=True)
+        current_sorted_files.change(lambda:([], '삭제할 행의 선택 체크박스를 켜세요. 원본 파일은 보존됩니다.',gr.update(interactive=False)),outputs=current_selection_outputs,queue=True)
 
         @gr.render(inputs=[current_sorted_files,current_frame_table,current_selected_item],queue=False)
         def render_timeline_rows(current_file_paths,current_table_rows,current_selected_items):
@@ -153,7 +162,7 @@ def build_timeline_interface(current_server_address):
                 with gr.Row(key=('frame-row',current_file_path)):
                     current_select_control=gr.Checkbox(value=current_row_index in current_selected_mapping,label='선택',scale=0,min_width=70,key=('select',current_file_path),preserved_by_key=[])
                     gr.Image(value=current_file_path,label=f'{current_row_index+1}번째 이미지',interactive=False,height=140,scale=1,min_width=160,buttons=[],key=('image',current_file_path))
-                    current_number_control=gr.Number(value=current_table_row[0],precision=0,minimum=1,maximum=161,label='프레임 번호',scale=1,min_width=120,key=('number',current_file_path),preserved_by_key=[])
+                    current_number_control=gr.Number(value=current_table_row[0],interactive=True,precision=0,minimum=1,maximum=161,label='프레임 번호',scale=1,min_width=120,key=('number',current_file_path),preserved_by_key=[])
                     current_mask_control=gr.Checkbox(value=current_table_row[1],label='수정 가능',info='해제하면 원본 프레임 보존',scale=1,min_width=160,key=('mask',current_file_path),preserved_by_key=[])
                 def update_row_selection(current_checked_value,current_saved_selection,current_live_paths,current_target_index=current_row_index,current_target_path=current_file_path):
                     if current_target_index>=len(current_live_paths) or current_live_paths[current_target_index]!=current_target_path:
@@ -172,9 +181,9 @@ def build_timeline_interface(current_server_address):
                     current_updated_rows=[list(current_row_value) for current_row_value in current_saved_rows]
                     current_updated_rows[current_target_index]=[int(current_number_value),current_mask_value]
                     return current_updated_rows
-                current_select_control.input(update_row_selection,[current_select_control,current_selected_item,current_sorted_files],current_selection_outputs,queue=False)
-                current_number_control.input(update_row_settings,[current_number_control,current_mask_control,current_frame_table,current_sorted_files],current_frame_table,queue=False)
-                current_mask_control.input(update_row_settings,[current_number_control,current_mask_control,current_frame_table,current_sorted_files],current_frame_table,queue=False)
+                current_select_control.input(update_row_selection,[current_select_control,current_selected_item,current_sorted_files],current_selection_outputs,queue=True)
+                current_number_control.input(update_row_settings,[current_number_control,current_mask_control,current_frame_table,current_sorted_files],current_frame_table,queue=True)
+                current_mask_control.input(update_row_settings,[current_number_control,current_mask_control,current_frame_table,current_sorted_files],current_frame_table,queue=True)
         with gr.Accordion('프레임·마스크 안내',open=False):
             gr.Markdown('수정 가능은 흰 마스크로 재생성하며 해제하면 검은 마스크로 보존합니다. 빠진 프레임은 회색(127) 영상과 흰 마스크로 생성합니다. 삭제는 입력 목록에서만 제외하며 원본 파일은 보존합니다.')
         current_identity_control=gr.Image(type='filepath',label='외형 참조 이미지 · 선택 1장',sources=['upload'],height=240)
@@ -196,8 +205,8 @@ def build_timeline_interface(current_server_address):
         current_duration_text=gr.Markdown('37프레임 · 약 2.31초 · 16fps')
         current_frames_control.change(lambda current_frame_count:f'{current_frame_count}프레임 · 약 {current_frame_count/16:.2f}초 · 16fps',current_frames_control,current_duration_text,queue=False)
         current_input_files.upload(load_timeline_images,current_input_files,[current_sorted_files,current_frame_table,current_input_gallery,current_frames_control])
-        current_input_files.delete(synchronize_timeline_files,[current_input_files,current_sorted_files,current_frame_table],[current_sorted_files,current_frame_table],queue=False)
-        current_input_files.clear(lambda:([],[],[],None),outputs=[current_sorted_files,current_frame_table,current_input_gallery,current_selected_item],queue=False)
+        current_input_files.delete(synchronize_timeline_files,[current_input_files,current_sorted_files,current_frame_table],[current_sorted_files,current_frame_table],queue=True)
+        current_input_files.clear(lambda:([],[],[],None),outputs=[current_sorted_files,current_frame_table,current_input_gallery,current_selected_item],queue=True)
         current_seed_control=build_generation_seed(default_seed_value=42)
         gr.Markdown('고정 모델: Wan2.1 VACE 1.3B · CUDA 연산 · CPU 가중치 오프로드 · UniPC · 16fps')
         with gr.Accordion('고급 설정',open=False):
@@ -227,15 +236,6 @@ def build_timeline_interface(current_server_address):
             current_result_url=current_status_record.get('video','')
             return describe_video_generation_status(current_status_record),render_video_generation_result(current_job_identifier,current_status_record,current_server_address) if current_result_url and current_result_url!=current_previous_result else gr.skip(),current_status_record.get('log','') if current_logs_enabled else gr.skip(),current_result_url,gr.skip()
         gr.Timer(5).tick(refresh_timeline_result,[current_job_control,current_log_refresh,current_result_identity],[current_status_display,current_result_display,current_log_output,current_result_identity,current_job_control],queue=False,show_progress='hidden')
-        def restore_timeline_inputs(current_history_record):
-            current_request_record=current_history_record['request']
-            current_job_root=VACE_TIMELINE_STORAGE_ROOT/current_history_record['id']
-            from generators.vace.timeline import verify_timeline_request
-            verify_timeline_request(current_job_root)
-            current_file_paths=[str(current_job_root/current_file_name) for current_file_name in current_request_record['references'][:len(current_request_record['frame_entries'])]]
-            current_table_rows=[[current_frame_entry['frame']+1,current_frame_entry['editable']] for current_frame_entry in current_request_record['frame_entries']]
-            current_model_config=current_request_record['vace']
-            return current_file_paths,current_table_rows,current_request_record['prompt'],current_model_config['negative_prompt'],current_request_record['frames'],current_request_record['seed'],'832×480',current_request_record['steps'],current_model_config['flow_shift'],current_model_config['guidance_scale'],current_model_config['conditioning_scale'],str(current_job_root/current_request_record['references'][-1]) if current_request_record.get('identity_reference_count') else None,current_request_record.get('padding_color',VACE_PADDING_COLOR_DEFAULT),current_file_paths,current_history_record['id']
         current_read_history,current_history_outputs=build_generation_history_view(execute_timeline_command,current_server_address,GENERATION_CLEANUP_SCOPE_TEXT,restore_input_callback=restore_timeline_inputs,restore_output_components=[*current_input_controls,current_input_gallery,current_job_control],result_renderer_callback=render_video_generation_result,record_folder_route='/wan21-vace-v2v',allow_individual_delete=True,individual_delete_scope_text=GENERATION_CLEANUP_SCOPE_TEXT)
         current_interface_blocks.load(lambda:current_read_history(1),outputs=current_history_outputs)
         current_interface_blocks.load(lambda:execute_timeline_command('active',{}).get('id') or '',outputs=current_job_control)

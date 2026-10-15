@@ -10,6 +10,31 @@ from tools.review.domains.anny.anny_attributes import read_anny_generation_statu
 
 
 class QueueGenerationTelemetryTests(unittest.TestCase):
+    def test_worker_stage_tracks_only_current_attempt(self):
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_job_root = Path(current_directory_name)
+            current_recorder_value = QueueGenerationTelemetry(current_job_root, 'test')
+            current_attempt_root = current_job_root/'attempts'/('a'*32)
+            current_attempt_root.mkdir(parents=True)
+            (current_job_root/'current-attempt.json').write_text(json.dumps({'id': 'a'*32}))
+            current_worker_record = {'started_at': '2000-01-01T00:00:00+00:00', 'stage': 'inference', 'step': 12, 'step_total': 40, 'updated_at': '2000-01-01T00:01:00+00:00'}
+            current_metrics_path = current_attempt_root/'metrics.json'
+            current_metrics_path.write_text(json.dumps(current_worker_record))
+            current_recorder_value.save_generation_metrics()
+            self.assertNotIn('worker_progress', read_queue_generation_metrics(current_job_root))
+            current_worker_record['started_at'] = current_recorder_value.current_run_state['started_at']
+            current_worker_record['updated_at'] = current_worker_record['started_at']
+            current_metrics_path.write_text(json.dumps(current_worker_record))
+            current_recorder_value.save_generation_metrics()
+            current_queue_record = read_queue_generation_metrics(current_job_root)
+            self.assertEqual(current_queue_record['stage'], 'inference')
+            self.assertEqual(current_queue_record['worker_progress']['step'], 12)
+            self.assertEqual(current_queue_record['worker_progress']['total'], 40)
+            self.assertEqual(current_queue_record['step_total'], 0)
+            with patch.object(current_recorder_value, 'capture_generation_memory'):
+                current_recorder_value.finish_generation_telemetry('failed')
+            self.assertEqual(read_queue_generation_metrics(current_job_root)['stage'], 'failed')
+
     def test_different_worker_options_do_not_share_duration_samples(self):
         with tempfile.TemporaryDirectory() as current_directory_name:
             current_job_root=Path(current_directory_name)/'job';current_job_root.mkdir()

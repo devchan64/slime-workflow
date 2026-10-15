@@ -17,6 +17,25 @@ from tools.review.common.generation_telemetry import GenerationTelemetryRecorder
 
 
 class PhantomGenerationContractTests(unittest.TestCase):
+    def test_restore_phantom_inputs_verifies_every_snapshot(self):
+        import gradio as gr
+        from tools.review.ui.gradio import phantom_app
+        with tempfile.TemporaryDirectory() as current_temporary_directory:
+            current_storage_directory = Path(current_temporary_directory)
+            current_generation_identifier = '2026-10-15_13-00-00-1234abcd'
+            current_job_directory = current_storage_directory/current_generation_identifier
+            current_job_directory.mkdir()
+            current_saved_record = self.create_saved_request(current_job_directory)
+            current_history_record = {'id': current_generation_identifier, 'request': current_saved_record}
+            with patch.object(phantom_app, 'PHANTOM_JOB_STORAGE_ROOT', current_storage_directory):
+                current_restored_values = phantom_app.restore_phantom_inputs(current_history_record)
+                self.assertEqual(current_restored_values[0].size, (64, 64))
+                self.assertEqual(current_restored_values[1:4], (None, None, None))
+                self.assertEqual(current_restored_values[4], current_saved_record['prompt'])
+                (current_job_directory/'reference-1.png').write_bytes(b'changed')
+                with self.assertRaisesRegex(gr.Error, '해시 불일치'):
+                    phantom_app.restore_phantom_inputs(current_history_record)
+
     def create_phantom_payload(self):
         current_image_buffer=io.BytesIO()
         Image.new('RGBA',(64,64),(20,40,60,100)).save(current_image_buffer,format='PNG')

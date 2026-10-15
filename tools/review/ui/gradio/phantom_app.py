@@ -50,6 +50,16 @@ def build_phantom_payload(current_reference_images,current_prompt_text,current_f
 from tools.review.common.gradio_video_results import render_video_generation_result as render_phantom_result, describe_video_generation_status as describe_phantom_status
 
 
+def restore_phantom_inputs(current_history_record):
+    if current_history_record['request'].get('phantom',{}).get('task') != 's2v':
+        raise gr.Error('이 이력은 비디오·마스크 조건 실험입니다. 현재 R2V 입력 화면으로 복원할 수 없습니다. 기록 위치에서 원본 입력을 확인하세요.')
+    from tools.review.common.gradio_reference_restore import restore_reference_inputs
+    current_request_record=current_history_record['request']
+    if not 1 <= len(current_request_record.get('reference_snapshots', [])) <= 4:
+        raise gr.Error('저장된 참조 이미지 사본 1~4장이 필요합니다.')
+    current_reference_images=restore_reference_inputs(current_history_record, PHANTOM_JOB_STORAGE_ROOT, reference_slot_limit=4)[6:10]
+    return *current_reference_images,*([None]*(4-len(current_reference_images))),current_request_record['prompt'],current_request_record['frames'],current_request_record['seed'],current_request_record['phantom']['negative_prompt'],f"{current_request_record['width']}×{current_request_record['height']}",current_request_record['steps'],current_request_record['phantom']['flow_shift'],current_request_record['phantom']['guidance_scale'],current_request_record['phantom']['conditioning_scale'],current_history_record['id']
+
 def build_phantom_interface(current_server_address):
     current_defaults_record=load_phantom_defaults()
     with gr.Blocks(title='Phantom R2V 영상 생성기') as current_interface_blocks:
@@ -105,15 +115,6 @@ def build_phantom_interface(current_server_address):
             return describe_phantom_status(current_status_record),render_phantom_result(current_job_identifier,current_status_record,current_server_address) if current_result_identity_value and current_result_identity_value!=current_previous_result else gr.skip(),current_status_record.get('log','') if current_logs_enabled else gr.skip(),current_result_identity_value,gr.skip()
         current_refresh_timer=gr.Timer(5)
         current_refresh_timer.tick(refresh_phantom_result,[current_job_control,current_log_refresh,current_result_identity],[current_status_display,current_result_display,current_log_output,current_result_identity,current_job_control],queue=False,show_progress='hidden')
-        def restore_phantom_inputs(current_history_record):
-            if current_history_record['request'].get('phantom',{}).get('task') != 's2v':
-                raise gr.Error('이 이력은 비디오·마스크 조건 실험입니다. 현재 R2V 입력 화면으로 복원할 수 없습니다. 기록 위치에서 원본 입력을 확인하세요.')
-            current_reference_path=PHANTOM_JOB_STORAGE_ROOT/current_history_record['id']/'reference-1.png'
-            if not current_reference_path.resolve().is_relative_to(PHANTOM_JOB_STORAGE_ROOT.resolve()):
-                raise ValueError('참조 경로 오류')
-            current_request_record=current_history_record['request']
-            current_reference_images=[Image.open(PHANTOM_JOB_STORAGE_ROOT/current_history_record['id']/current_reference_name).copy() for current_reference_name in current_request_record['references']]
-            return *current_reference_images,*([None]*(4-len(current_reference_images))),current_request_record['prompt'],current_request_record['frames'],current_request_record['seed'],current_request_record['phantom']['negative_prompt'],f"{current_request_record['width']}×{current_request_record['height']}",current_request_record['steps'],current_request_record['phantom']['flow_shift'],current_request_record['phantom']['guidance_scale'],current_request_record['phantom']['conditioning_scale'],current_history_record['id']
         current_read_history,current_history_outputs=build_generation_history_view(execute_phantom_command,current_server_address,GENERATION_CLEANUP_SCOPE_TEXT,restore_input_callback=restore_phantom_inputs,restore_output_components=[*current_reference_controls,current_prompt_control,current_frames_control,current_seed_control,current_negative_control,current_resolution_control,current_steps_control,current_shift_control,current_guidance_control,current_conditioning_control,current_job_control],result_renderer_callback=render_phantom_result,record_folder_route='/phantom',allow_individual_delete=True,individual_delete_scope_text=GENERATION_CLEANUP_SCOPE_TEXT)
         current_interface_blocks.load(lambda:current_read_history(1),outputs=current_history_outputs)
         current_interface_blocks.load(lambda:execute_phantom_command('active',{}).get('id') or '',outputs=current_job_control)
