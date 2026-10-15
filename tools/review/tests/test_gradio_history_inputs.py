@@ -99,3 +99,36 @@ class HistoryInputViewTests(unittest.TestCase):
         current_request_record['user_prompt'] = ''
         current_request_record['prompt'] = 'historical saved pattern'
         self.assertEqual(describe_saved_prompt_counts(current_history_record), '저장 원문 0단어 · 저장 최종 입력 3단어')
+
+class HistoryStageInputTests(unittest.TestCase):
+    def test_stage_view_uses_execution_request_instead_of_original_plan(self):
+        import json
+        from tools.review.common.gradio_history_inputs import collect_saved_stage_prompts
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_job_directory = Path(current_directory_name)
+            current_stage_directory = current_job_directory/'stage-3-horizontal'
+            current_stage_directory.mkdir()
+            (current_stage_directory/'request.json').write_text(json.dumps({'prompt':'actual saved correction'}))
+            current_history_record = {'job_path':str(current_job_directory), 'request':{'seamless_tile':{'schema_version':6,'stage_prompts':['old','retired plan','old']}}}
+            with patch('tools.review.common.gradio_history_inputs.GENERATION_INPUT_ROOT',current_job_directory):
+                current_stage_text = collect_saved_stage_prompts(current_history_record)
+                self.assertIn('3단계 · 저장 실행 입력 3단어\nactual saved correction',current_stage_text)
+                self.assertIn('1단계 · 실행 요청 기록 없음',current_stage_text)
+                self.assertNotIn('retired plan',current_stage_text)
+                (current_stage_directory/'request.json').write_text('{}')
+                self.assertIn('prompt 문자열 누락',collect_saved_stage_prompts(current_history_record))
+                (current_stage_directory/'request.json').unlink()
+                (current_stage_directory/'request.json').symlink_to(current_job_directory/'outside.json')
+                self.assertIn('심볼릭 링크',collect_saved_stage_prompts(current_history_record))
+        self.assertEqual(collect_saved_stage_prompts({}), '')
+        self.assertIn('허용된 작업 폴더',collect_saved_stage_prompts({'job_path':'/etc','request':{'seamless_tile':{'schema_version':7}}}))
+
+    def test_separation_preserves_both_saved_requests_and_counts(self):
+        from tools.review.common.gradio_history_inputs import collect_saved_stage_prompts
+        current_history_record = {'request':{'schema_version':2,'prompt':'saved base instruction','outfit_prompt':'saved garment instruction','outfit_prompt_word_count':999}}
+        current_stage_text = collect_saved_stage_prompts(current_history_record)
+        self.assertEqual(current_stage_text, '신체 베이스 · 저장 요청 3단어\nsaved base instruction\n\n복장 · 저장 요청 3단어\nsaved garment instruction')
+        current_history_record['request']['outfit_prompt'] = ''
+        self.assertIn('복장 · 저장 요청 0단어', collect_saved_stage_prompts(current_history_record))
+        current_history_record['request']['outfit_prompt'] = None
+        self.assertIn('복장 · 저장 요청 문구 없음', collect_saved_stage_prompts(current_history_record))

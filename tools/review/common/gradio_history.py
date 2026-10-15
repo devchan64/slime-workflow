@@ -284,6 +284,7 @@ def build_generation_history_view(execute_service_command,server_base_address,de
             gr.Markdown('결과를 만든 입력입니다. 현재 편집 중인 설정은 변경하지 않습니다.')
             saved_prompt_display = gr.Textbox(label='저장 프롬프트 · 최종 문구 우선', interactive=False, lines=4)
             saved_prompt_counts = gr.Markdown()
+            saved_stage_display = gr.Textbox(label='저장 단계별 프롬프트', interactive=False, lines=8, visible=False)
             saved_negative_display = gr.Textbox(label='저장 부정 프롬프트', interactive=False, lines=2, visible=False)
             saved_reference_display = gr.Gallery(label='입력 참조 이미지 · 업로드 순서', interactive=False, columns=2, height='auto', allow_preview=False, buttons=[])
             saved_reference_notice = gr.Markdown()
@@ -294,7 +295,11 @@ def build_generation_history_view(execute_service_command,server_base_address,de
             folder_open_button_value=gr.Button('기록 폴더 열기',interactive=record_folder_route is not None,size='sm')
             folder_open_status_value=gr.Markdown()
             result_record_value=gr.JSON(label='저장된 입력 · 생성 기록')
-        from tools.review.common.gradio_history_inputs import collect_saved_input_view, describe_saved_prompt_counts, collect_saved_negative_prompt
+        from tools.review.common.gradio_history_inputs import collect_saved_input_view, describe_saved_prompt_counts, collect_saved_negative_prompt, collect_saved_stage_prompts
+        def update_saved_stage_display(current_history_record):
+            current_stage_text = collect_saved_stage_prompts(current_history_record)
+            return gr.update(value=current_stage_text, visible=bool(current_stage_text))
+        result_record_value.change(update_saved_stage_display, result_record_value, saved_stage_display, queue=False)
         def update_saved_negative_display(current_history_record):
             current_negative_text = collect_saved_negative_prompt(current_history_record)
             return gr.update(value=current_negative_text or '', visible=current_negative_text is not None)

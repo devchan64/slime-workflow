@@ -23,6 +23,22 @@ class SeparationPreviewGradioTests(unittest.TestCase):
         self.assertNotIn('<iframe', str(current_configuration_record))
         self.assertNotIn('contentWindow', str(current_configuration_record))
 
+    def test_resume_cancel_rechecks_current_identifier_before_readiness_event(self):
+        current_interface_blocks = build_separation_interface('http://127.0.0.1:8765')
+        current_cancel_binding = next(
+            current_binding for current_binding in current_interface_blocks.fns.values()
+            if current_binding.fn and current_binding.fn.__name__ == 'cancel_generation_confirmation'
+            and len(current_binding.inputs) == 4
+            and getattr(current_binding.inputs[2], 'label', None) == '조회할 생성 ID'
+        )
+        current_pending_record = {'inputs': ('original',), 'consumed': False}
+        current_cancel_result = current_cancel_binding.fn(current_pending_record, True, 'different', 'original')
+        self.assertTrue(current_pending_record['consumed'])
+        self.assertFalse(current_cancel_result[2]['interactive'])
+        self.assertTrue(current_cancel_binding.fn(None, True, 'original', 'original')[2]['interactive'])
+        self.assertFalse(current_cancel_binding.fn(None, False, 'original', 'original')[2]['interactive'])
+        self.assertFalse(current_cancel_binding.fn(None, True, '', '')[2]['interactive'])
+
     def test_live_progress_preserves_player_and_clears_deleted_job(self):
         from unittest.mock import patch
         from tools.review.ui.gradio import animation_separation_app

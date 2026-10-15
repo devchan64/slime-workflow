@@ -15,12 +15,26 @@ MOTION_REFERENCE_FRAME_COUNT = 35
 MOTION_REFERENCE_DIRECTIONS = ('down_left', 'down_right', 'up_left', 'up_right')
 
 
+def read_motion_reference_yaml(current_source_path):
+    """구문 오류를 파일 이름이 포함된 설정 오류로 전달한다."""
+    try:
+        return yaml.load(current_source_path.read_text(), Loader=UniqueAssetYamlLoader)
+    except yaml.YAMLError as current_yaml_error:
+        raise ValueError(f'걷기 프리셋 YAML 구문 오류 ({current_source_path.name}): {current_yaml_error}') from current_yaml_error
+
+
 def validate_motion_reference_manifest(current_manifest_record):
     """프리셋이 소비하는 방향·프레임·파일 계약을 검증한다."""
     if not isinstance(current_manifest_record, dict):
         raise ValueError('걷기 참조 매니페스트는 객체여야 합니다.')
     if type(current_manifest_record.get('frames')) is not int or current_manifest_record['frames'] != MOTION_REFERENCE_FRAME_COUNT:
         raise ValueError('걷기 참조 frames는 정수 35여야 합니다.')
+    current_source_frames = current_manifest_record.get('source_frames')
+    if (not isinstance(current_source_frames, list)
+            or len(current_source_frames) != MOTION_REFERENCE_FRAME_COUNT
+            or any(type(current_frame_number) is not int or current_frame_number < 1
+                   for current_frame_number in current_source_frames)):
+        raise ValueError('걷기 참조 source_frames는 원본 프레임 번호를 담은 양의 정수 35개 목록이어야 합니다.')
     current_direction_values = current_manifest_record.get('directions')
     if not isinstance(current_direction_values, list) or any(not isinstance(current_direction_name, str) for current_direction_name in current_direction_values) or len(current_direction_values) != len(MOTION_REFERENCE_DIRECTIONS) or set(current_direction_values) != set(MOTION_REFERENCE_DIRECTIONS):
         raise ValueError('걷기 참조 directions는 중복 없는 등록 4방향이어야 합니다.')
@@ -37,7 +51,7 @@ def validate_motion_reference_manifest(current_manifest_record):
 
 def load_motion_reference(selected_direction_value, selected_frame_number):
     """1부터 시작하는 프레임 번호를 검증하고 해시가 일치하는 이미지를 반환한다."""
-    current_manifest_record = yaml.load((MOTION_REFERENCE_ROOT / 'manifest.yaml').read_text(), Loader=UniqueAssetYamlLoader)
+    current_manifest_record = read_motion_reference_yaml(MOTION_REFERENCE_ROOT / 'manifest.yaml')
     validate_motion_reference_manifest(current_manifest_record)
     if selected_direction_value not in current_manifest_record['directions']:
         raise ValueError('등록된 걷기 방향을 선택하세요.')
@@ -48,8 +62,8 @@ def load_motion_reference(selected_direction_value, selected_frame_number):
     selected_image_bytes = (MOTION_REFERENCE_ROOT / selected_relative_path).read_bytes()
     if hashlib.sha256(selected_image_bytes).hexdigest() != current_manifest_record['files'][selected_relative_path]:
         raise ValueError('걷기 ANNY 참조의 등록 해시가 일치하지 않습니다.')
-    current_prompt_record = yaml.load(MOTION_PROMPT_CONFIG.read_text(), Loader=UniqueAssetYamlLoader)
-    if set(current_prompt_record) != {'template', 'directions', 'empty_prompt_frames', 'required_prompt_frames', 'empty_prompt_frames_by_direction', 'required_frame_prompts', 'frame_prompt_overrides', 'walking_prompt_excluded_frames'} or not isinstance(current_prompt_record['template'], str) or set(current_prompt_record['directions']) != set(current_manifest_record['directions']) or not all(isinstance(current_direction_text, str) for current_direction_text in current_prompt_record['directions'].values()):
+    current_prompt_record = read_motion_reference_yaml(MOTION_PROMPT_CONFIG)
+    if not isinstance(current_prompt_record, dict) or set(current_prompt_record) != {'template', 'directions', 'empty_prompt_frames', 'required_prompt_frames', 'empty_prompt_frames_by_direction', 'required_frame_prompts', 'frame_prompt_overrides', 'walking_prompt_excluded_frames'} or not isinstance(current_prompt_record['template'], str) or not isinstance(current_prompt_record['directions'], dict) or set(current_prompt_record['directions']) != set(current_manifest_record['directions']) or not all(isinstance(current_direction_text, str) for current_direction_text in current_prompt_record['directions'].values()):
         raise ValueError('걷기 프리셋 보조 프롬프트 설정이 올바르지 않습니다.')
     empty_prompt_frames = current_prompt_record['empty_prompt_frames']
     if not isinstance(empty_prompt_frames, list) or any(type(current_frame_number) is not int or not 1 <= current_frame_number <= current_manifest_record['frames'] for current_frame_number in empty_prompt_frames):
@@ -86,7 +100,10 @@ def load_motion_reference(selected_direction_value, selected_frame_number):
         for current_direction_name, current_frame_prompts in frame_prompt_overrides.items()
     ):
         raise ValueError('프레임별 보조 문구는 유효한 방향·프레임의 문자열이며 제외 프레임과 겹치지 않아야 합니다.')
-    selected_prompt_text = current_prompt_record['template'].format(direction=current_prompt_record['directions'][selected_direction_value])
+    try:
+        selected_prompt_text = current_prompt_record['template'].format(direction=current_prompt_record['directions'][selected_direction_value])
+    except (KeyError, IndexError, ValueError, AttributeError) as current_template_error:
+        raise ValueError(f'걷기 보조 프롬프트 template 치환 오류: {current_template_error}') from current_template_error
     if selected_frame_number in empty_prompt_frames or selected_frame_number in direction_empty_frames.get(selected_direction_value, []):
         selected_prompt_text = ''
     if selected_frame_number in required_prompt_frames.get(selected_direction_value, []):

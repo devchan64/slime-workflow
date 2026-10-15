@@ -41,8 +41,8 @@ try{{
 
 def capture_character_review_images(current_capture_settings):
     """GUI 설정도 CLI와 동일한 게이트웨이 명령으로 캡처한다."""
-    from tools.review.common.management_gateway import execute_management_command
-    current_capture_record=execute_management_command('character-review','capture',current_capture_settings)
+    from tools.review.common.management_client import execute_remote_management_command
+    current_capture_record=execute_remote_management_command('character-review','capture',current_capture_settings)
     return list(current_capture_record['images'].values())
 
 

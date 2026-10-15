@@ -32,3 +32,29 @@ class RetiredManagementUiTests(unittest.TestCase):
         for current_asset_name in ('image-generation.html','three-reference-generation.html','tile-generation.js','character-animation.html','character-animation.js','character-animation-assets.js','momask-studio.css'):
             with self.subTest(asset=current_asset_name),self.assertRaises(ValueError):
                 resolve_review_ui_asset(current_asset_name)
+
+    def test_hidden_generator_ui_rejected_but_record_routes_preserved(self):
+        import ast
+        from pathlib import Path
+        from unittest.mock import Mock
+        from urllib.parse import urlsplit, parse_qs
+        from tools.review import serve
+        current_source_tree = ast.parse(Path(serve.__file__).read_text())
+        current_reject_method = next(current_node for current_node in ast.walk(current_source_tree)
+                                     if isinstance(current_node, ast.FunctionDef) and current_node.name == 'reject_retired_generator')
+        current_compiled_module = ast.fix_missing_locations(ast.Module(body=[current_reject_method], type_ignores=[]))
+        current_runtime_scope = {'urlsplit':urlsplit, 'parse_qs':parse_qs}
+        exec(compile(current_compiled_module, serve.__file__, 'exec'), current_runtime_scope)
+        for current_tool_name, current_service_path in (
+                ('image-generator','/image-generation'), ('three-reference-generator','/image-generation-2511'),
+                ('floor-tile-generator','/floor-tile-generator'), ('seamless-tile-generator','/seamless-tile-generator')):
+            for current_ui_path in ('/?tool='+current_tool_name, '/management/frame/'+current_tool_name+'/', current_service_path+'/'):
+                current_http_handler = SimpleNamespace(path=current_ui_path, send_error=Mock())
+                with self.subTest(path=current_ui_path):
+                    self.assertTrue(current_runtime_scope['reject_retired_generator'](current_http_handler))
+                    self.assertEqual(current_http_handler.send_error.call_args.args[0],410)
+            for current_record_suffix in ('/history','/jobs/example/result.png'):
+                current_http_handler = SimpleNamespace(path=current_service_path+current_record_suffix, send_error=Mock())
+                with self.subTest(path=current_http_handler.path):
+                    self.assertFalse(current_runtime_scope['reject_retired_generator'](current_http_handler))
+                    current_http_handler.send_error.assert_not_called()

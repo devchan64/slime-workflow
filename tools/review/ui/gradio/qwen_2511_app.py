@@ -256,7 +256,10 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
         if vnccs_transfer_enabled:
             def preview_motion_reference(selected_direction_value, selected_frame_number):
                 from tools.review.domains.image.pose_motion_reference import load_motion_reference
-                selected_pose_image, selected_auxiliary_text, selected_source_label = load_motion_reference(selected_direction_value, selected_frame_number)
+                try:
+                    selected_pose_image, selected_auxiliary_text, selected_source_label = load_motion_reference(selected_direction_value, selected_frame_number)
+                except (ValueError, OSError) as current_reference_error:
+                    return None, '', f'걷기 프리셋을 불러오지 못했습니다: {current_reference_error}\n\n등록 참조와 설정 파일을 확인한 뒤 방향 또는 프레임을 다시 선택하세요. 현재 생성 입력은 변경되지 않았습니다.', gr.update(interactive=False)
                 selected_source_label += ' · 등록 보조 문구 사용'
                 return selected_pose_image, selected_auxiliary_text, selected_source_label, gr.update(interactive=True)
             for selected_preset_control in (motion_direction_control, motion_frame_control):

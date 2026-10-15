@@ -1,6 +1,7 @@
 """생성 결과와 함께 표시할 읽기 전용 입력 스냅샷."""
 import hashlib
 import html
+import json
 from urllib.parse import quote
 from pathlib import Path
 from PIL import Image
@@ -88,3 +89,46 @@ def describe_saved_prompt_counts(current_history_record):
     if current_negative_text is not None:
         current_count_parts.append(f"저장 부정 입력 {len(current_negative_text.split())}단어")
     return ' · '.join(current_count_parts)
+
+
+def collect_saved_stage_prompts(current_history_record):
+    """접수 문구와 단계별 실행 요청을 구분하여 현재 설정 없이 표시한다."""
+    current_request_record = (current_history_record or {}).get('request', {})
+    if current_request_record.get('schema_version') == 2 and 'outfit_prompt' in current_request_record:
+        current_part_sections = []
+        for current_prompt_key, current_part_label in (('prompt', '신체 베이스'), ('outfit_prompt', '복장')):
+            current_part_prompt = current_request_record.get(current_prompt_key)
+            if not isinstance(current_part_prompt, str):
+                current_part_sections.append(f'{current_part_label} · 저장 요청 문구 없음')
+            else:
+                current_part_sections.append(f'{current_part_label} · 저장 요청 {len(current_part_prompt.split())}단어\n{current_part_prompt}')
+        return '\n\n'.join(current_part_sections)
+    current_pattern_record = current_request_record.get('seamless_tile', {})
+    if not isinstance(current_pattern_record, dict) or current_pattern_record.get('schema_version') not in (6, 7):
+        return ''
+    current_directory_value = current_history_record.get('job_path') or current_history_record.get('path')
+    if not current_directory_value:
+        return '단계별 실행 입력: 저장 경로가 기록되어 있지 않습니다.'
+    current_job_directory = Path(current_directory_value)
+    if current_job_directory.is_symlink() or not current_job_directory.resolve().is_relative_to(GENERATION_INPUT_ROOT.resolve()):
+        return '단계별 실행 입력: 허용된 작업 폴더가 아니므로 표시하지 않습니다.'
+    current_job_directory = current_job_directory.resolve()
+    current_stage_sections = []
+    for current_stage_number, current_stage_folder in ((1, 'stage-1-pattern'), (3, 'stage-3-horizontal'), (5, 'stage-5-vertical')):
+        current_stage_path = current_job_directory / current_stage_folder / 'request.json'
+        if current_stage_path.parent.is_symlink() or current_stage_path.is_symlink():
+            current_stage_sections.append(f'{current_stage_number}단계 · 실행 요청이 심볼릭 링크이므로 표시하지 않습니다.')
+            continue
+        if not current_stage_path.exists():
+            current_stage_sections.append(f'{current_stage_number}단계 · 실행 요청 기록 없음 · 접수 문구로 재구성하지 않습니다.')
+            continue
+        try:
+            current_stage_record = json.loads(current_stage_path.read_text())
+            if not isinstance(current_stage_record, dict) or not isinstance(current_stage_record.get('prompt'), str):
+                raise ValueError('prompt 문자열 누락')
+        except (OSError, ValueError) as current_stage_error:
+            current_stage_sections.append(f'{current_stage_number}단계 · 실행 요청 읽기 실패: {current_stage_error}')
+            continue
+        current_stage_prompt = current_stage_record['prompt']
+        current_stage_sections.append(f'{current_stage_number}단계 · 저장 실행 입력 {len(current_stage_prompt.split())}단어\n{current_stage_prompt}')
+    return '\n\n'.join(current_stage_sections)
