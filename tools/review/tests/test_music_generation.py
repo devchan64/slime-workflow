@@ -170,12 +170,16 @@ class MusicGenerationTests(unittest.TestCase):
         current_tensor_mock.ndim = 2
         current_tensor_mock.shape = (2,100)
         current_tensor_mock.T.float.return_value.cpu.return_value.numpy.return_value = current_audio_array
-        current_pipeline_mock = Mock(sampling_rate=44100,return_value=[current_tensor_mock])
+        # 공식 디코더는 output_type 생략 시 NumPy를 반환한다.
+        def build_minimax_output(*current_argument_values,**current_keyword_values):
+            return [current_tensor_mock] if current_keyword_values.get('output_type')=='pt' else [current_audio_array.T]
+        current_pipeline_mock = Mock(sampling_rate=44100,side_effect=build_minimax_output)
         with patch.dict('sys.modules',{'torch':Mock()}),patch('generators.music.runtime.load_minimax_music',return_value=current_pipeline_mock):
             current_output_array,current_sample_rate = generate_minimax_music(current_request_record,self.current_test_root,self.current_test_root,Mock())
         self.assertEqual(current_sample_rate,44100)
         self.assertEqual(current_pipeline_mock.call_args.kwargs['lyrics'],'[Instrumental]')
         self.assertEqual(current_pipeline_mock.call_args.kwargs['audio_duration'],30)
+        self.assertEqual(current_pipeline_mock.call_args.kwargs['output_type'],'pt')
 
     def test_worker_failure_and_cancellation_preserve_attempts(self):
         from generators.music.worker import execute_music_worker

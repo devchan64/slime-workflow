@@ -182,7 +182,7 @@ def generate_minimax_music(current_request_record,current_model_root,current_att
     current_music_pipeline = load_minimax_music(current_model_root)
     current_metrics_recorder.update_generation_stage('inference')
     current_audio_outputs = current_music_pipeline(prompt=current_request_record['final_prompt'],lyrics='[Instrumental]',
-        audio_duration=current_request_record['duration_seconds'],generator=torch.Generator('cuda').manual_seed(current_request_record['seed']),output='audios')
+        audio_duration=current_request_record['duration_seconds'],generator=torch.Generator('cuda').manual_seed(current_request_record['seed']),output='audios',output_type='pt')
     if len(current_audio_outputs) != 1 or current_audio_outputs[0].ndim != 2 or current_audio_outputs[0].shape[0] != 2:
         raise ValueError('MiniMax 출력은 1개 stereo 오디오여야 합니다.')
     return current_audio_outputs[0].T.float().cpu().numpy(),current_music_pipeline.sampling_rate
