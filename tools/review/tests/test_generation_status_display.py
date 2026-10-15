@@ -52,3 +52,17 @@ class GenerationStatusDisplayTests(unittest.TestCase):
             self.assertIsNone(current_status_record['estimate']['remaining'])
             self.assertIsNone(current_status_record['estimate']['completion'])
             self.assertIn('실행 시작 시각', current_status_record['estimate']['basis'])
+
+    def test_worker_stage_does_not_replace_full_job_memory_and_eta(self):
+        from tools.review.common.queue_generation_telemetry import merge_generation_worker_metrics
+        current_queue_metrics = {'started_at':'2026-10-15T12:00:00+09:00', 'stage':'worker', 'gpu_observations':{'gpu':{'process_current_mib':300,'process_peak_mib':900,'scope':'실행기와 모든 자식'}}, 'estimate':{'remaining':23,'basis':'전체 작업'}}
+        current_worker_metrics = {'started_at':'2026-10-15T12:00:01+09:00', 'stage':'inference','step':2,'step_total':40,'gpu_observations':{'gpu':{'process_peak_mib':400}},'estimate':{'remaining':12}}
+        current_status_record = {'status':'running','metrics':current_queue_metrics,'estimate':current_queue_metrics['estimate'],'progress':{'stage':'inference','step':2,'total':40}}
+        self.assertTrue(merge_generation_worker_metrics(current_status_record, current_worker_metrics))
+        self.assertIs(current_status_record['metrics'], current_queue_metrics)
+        self.assertIs(current_status_record['worker_metrics'], current_worker_metrics)
+        current_status_text = describe_generation_status(current_status_record)
+        for current_expected_text in ('단계: inference','2/40','관측 피크 900 MiB','23초','실행기와 모든 자식'):
+            self.assertIn(current_expected_text,current_status_text)
+        self.assertNotIn('400 MiB',current_status_text)
+        self.assertNotIn('단계: worker',current_status_text)

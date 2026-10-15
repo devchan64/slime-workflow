@@ -7,7 +7,8 @@ from tools.review.common.gradio_history import build_generation_history_view, bu
 from tools.review.common.gradio_reference_images import build_reference_image_inputs
 from tools.review.common.gradio_seed import build_generation_seed
 
-STANDARD_APPLICATION_NAMES=('hy_motion','qwen_2511','qwen_2512','qwen_21','qwen_circular','expression','pose_transfer','outfit_transfer','seamless_tile','floor_tile','animation_separation')
+# 브라우저 캔버스·프레임 표시용 CSS만 허용하는 기존 사용자 정의 컴포넌트.
+CANVAS_STYLE_APPLICATIONS = frozenset(('sprite_editor_app.py', 'sprite_editor_v2_app.py'))
 
 
 class GradioStandardComponentTests(unittest.TestCase):
@@ -46,9 +47,12 @@ class GradioStandardComponentTests(unittest.TestCase):
 
     def test_consumers_do_not_inject_theme_or_css(self):
         current_application_root=Path(__file__).parents[1]/'ui/gradio'
-        for current_application_name in STANDARD_APPLICATION_NAMES:
-            with self.subTest(application=current_application_name):
-                current_source_tree=ast.parse((current_application_root/(current_application_name+'_app.py')).read_text())
+        for current_application_path in sorted(current_application_root.glob('*_app.py')):
+            with self.subTest(application=current_application_path.name):
+                current_source_tree=ast.parse(current_application_path.read_text())
                 for current_call_node in ast.walk(current_source_tree):
                     if isinstance(current_call_node,ast.Call) and isinstance(current_call_node.func,ast.Attribute) and current_call_node.func.attr in ('launch','Blocks'):
-                        self.assertFalse({'css','theme'} & {current_keyword_node.arg for current_keyword_node in current_call_node.keywords})
+                        current_keyword_names = {current_keyword_node.arg for current_keyword_node in current_call_node.keywords}
+                        self.assertNotIn('theme', current_keyword_names)
+                        if current_application_path.name not in CANVAS_STYLE_APPLICATIONS:
+                            self.assertNotIn('css', current_keyword_names)

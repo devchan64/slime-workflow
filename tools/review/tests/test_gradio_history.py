@@ -199,3 +199,15 @@ class HistoryRadioTableTest(unittest.TestCase):
             server_base_address='http://127.0.0.1:8770')
         self.assertIn('generation-history-table-thumbnail',current_table_markup)
         self.assertIn('http://127.0.0.1:8770/image-generation/jobs/completed-image/result.png',current_table_markup)
+
+
+class HistoryRestoreFailureTests(unittest.TestCase):
+    def test_expected_restore_failure_preserves_inputs_and_reports_reason(self):
+        with gr.Blocks() as current_interface_blocks:
+            current_prompt_control = gr.Textbox(value='보존할 입력')
+            build_generation_history_view(lambda *_:{'records':[{'id':'saved-job','request':{},'status':{'status':'completed'}}]}, 'http://localhost', '격리 검증', restore_input_callback=lambda _: (_ for _ in ()).throw(ValueError('참조 이미지 해시 불일치')), restore_output_components=[current_prompt_control])
+        current_restore_callback = next(current_function.fn for current_function in current_interface_blocks.fns.values() if current_function.fn and current_function.fn.__name__=='restore_selected_inputs')
+        current_restore_result = current_restore_callback('saved-job')
+        self.assertEqual(current_restore_result[0], gr.skip())
+        self.assertIn('해시 불일치', current_restore_result[1])
+        self.assertEqual(current_prompt_control.value, '보존할 입력')

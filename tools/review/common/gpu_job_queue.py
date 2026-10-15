@@ -234,10 +234,10 @@ def execute_queued_generation(generation_job_path):
                 print(f'{time.strftime("%Y-%m-%dT%H:%M:%S")}/gpu-queue/wait {queue_status_record}', flush=True)
                 time.sleep(GPU_POLL_INTERVAL)
             queue_ticket_path.unlink(missing_ok=True)
-            write_record_atomically(generation_job_path/'status.json', {'status':'running', 'memory_estimate':memory_estimate_record})
             current_telemetry_recorder = QueueGenerationTelemetry(generation_job_path, identify_execution_command(generation_command_record['command'], generation_job_path))
             current_telemetry_recorder.capture_generation_memory()
             current_telemetry_recorder.save_generation_metrics()
+            write_record_atomically(generation_job_path/'status.json', {'status':'running', 'memory_estimate':memory_estimate_record})
             current_telemetry_recorder.start_generation_telemetry()
             generation_worker_process = subprocess.Popen(generation_command_record['command'], start_new_session=True, env=dict(os.environ, SLIME_GPU_RESERVATION_PATH=str(active_reservation_path.resolve())))
             while generation_worker_process.poll() is None:

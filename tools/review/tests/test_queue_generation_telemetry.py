@@ -80,6 +80,14 @@ class QueueExecutionTelemetryTests(unittest.TestCase):
                     if current_status_name=='cancelled':(current_job_root/'cancel.request').touch()
                     if current_status_name=='paused':(current_job_root/'stage-pause.json').write_text('{}')
                     return SimpleNamespace(pid=999999,returncode=current_exit_code,poll=lambda:current_exit_code)
+                current_record_writer = gpu_job_queue.write_record_atomically
+                def verify_running_publication(current_record_path, current_record_value):
+                    if current_record_path == current_job_root / 'status.json' and current_record_value['status'] == 'running':
+                        current_metrics_record = read_queue_generation_metrics(current_job_root)
+                        self.assertIsNotNone(current_metrics_record)
+                        self.assertEqual(current_metrics_record['status'], 'running')
+                    current_record_writer(current_record_path, current_record_value)
+                current_patch_stack.enter_context(patch.object(gpu_job_queue, 'write_record_atomically', side_effect=verify_running_publication))
                 current_patch_stack.enter_context(patch.object(gpu_job_queue,'GPU_QUEUE_DIRECTORY',current_queue_root))
                 current_patch_stack.enter_context(patch.object(gpu_job_queue,'read_gpu_memory',return_value=(8192,8192)))
                 current_patch_stack.enter_context(patch.object(gpu_job_queue,'estimate_required_memory',return_value={'required_memory_mib':1,'samples':0}))
@@ -128,3 +136,51 @@ class GenerationMemoryScopeTests(unittest.TestCase):
             current_recorder_value.save_generation_metrics()
             current_saved_record = json.loads((Path(current_directory_name) / 'metrics.json').read_text())
             self.assertEqual(current_saved_record['gpu_observations'], current_gpu_observations)
+
+
+class WorkerStepTelemetryTests(unittest.TestCase):
+    def test_step_denominator_survives_stage_and_terminal_changes(self):
+        from tools.review.common.generation_telemetry import GenerationTelemetryRecorder
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_attempt_root = Path(current_directory_name)
+            current_recorder_value = GenerationTelemetryRecorder(current_attempt_root, 40, [])
+            with patch.object(current_recorder_value, 'capture_generation_memory'):
+                current_recorder_value.update_generation_stage('inference')
+                current_recorder_value.record_generation_step(20)
+                current_metrics_record = json.loads((current_attempt_root / 'metrics.json').read_text())
+                self.assertEqual((current_metrics_record['step'], current_metrics_record['step_total']), (20, 40))
+                self.assertEqual(current_metrics_record['stage'], 'inference')
+                current_recorder_value.update_generation_stage('saving')
+                current_recorder_value.finish_generation_telemetry('failed')
+            current_metrics_record = json.loads((current_attempt_root / 'metrics.json').read_text())
+            self.assertEqual((current_metrics_record['step'], current_metrics_record['step_total']), (20, 40))
+            self.assertEqual(current_metrics_record['status'], 'failed')
+
+
+class WorkerAttemptStatusTests(unittest.TestCase):
+    def test_resumed_service_ignores_previous_worker_metrics(self):
+        from tools.review.domains.vace.generation import VaceGenerationManager
+        from tools.review.domains.phantom.generation import PhantomGenerationManager
+        for current_manager_type in (VaceGenerationManager, PhantomGenerationManager):
+            with self.subTest(service=current_manager_type.__name__), tempfile.TemporaryDirectory() as current_directory_name:
+                current_job_root = Path(current_directory_name)
+                current_attempt_root = current_job_root / 'attempts' / ('a' * 32)
+                current_attempt_root.mkdir(parents=True)
+                (current_job_root / 'status.json').write_text('{"status":"running"}')
+                (current_job_root / 'request.json').write_text('{"steps":40}')
+                (current_job_root / 'current-attempt.json').write_text(json.dumps({'id': 'a' * 32}))
+                current_queue_metrics = {'started_at': '2026-10-15T12:00:00+09:00', 'stage': 'worker', 'estimate': {'remaining': None}}
+                current_worker_metrics = {'started_at': '2026-10-15T11:00:00+09:00', 'stage': 'completed', 'step': 40, 'estimate': {'remaining': 0}}
+                with patch('tools.review.common.queue_generation_telemetry.read_queue_generation_metrics', return_value=current_queue_metrics):
+                    for current_started_value in (None, '2026-10-15T11:00:00+09:00', '2026-10-15T03:00:01+00:00'):
+                        current_worker_metrics['started_at'] = current_started_value
+                        (current_attempt_root / 'metrics.json').write_text(json.dumps(current_worker_metrics))
+                        current_status_record = current_manager_type().read_generation_status_record(current_job_root)
+                        if current_started_value == '2026-10-15T03:00:01+00:00':
+                            self.assertEqual(current_status_record['worker_metrics'], current_worker_metrics)
+                            self.assertEqual(current_status_record['metrics'], current_queue_metrics)
+                            self.assertEqual(current_status_record['estimate'], current_queue_metrics['estimate'])
+                        else:
+                            self.assertEqual(current_status_record['metrics'], current_queue_metrics)
+                            self.assertIsNone(current_status_record['estimate']['remaining'])
+                self.assertTrue((current_attempt_root / 'metrics.json').exists())

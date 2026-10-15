@@ -53,3 +53,37 @@ class SeparationPreviewGradioTests(unittest.TestCase):
         self.assertEqual(current_output_values[4],'existing')
         self.assertFalse(current_output_values[5]['interactive'])
         self.assertFalse(current_output_values[6]['interactive'])
+
+
+class SeparationInputRestoreTests(unittest.TestCase):
+    def test_restores_saved_reference_and_rejects_modified_or_legacy_input(self):
+        import base64
+        import io
+        import tempfile
+        from pathlib import Path
+        from unittest.mock import patch
+        from PIL import Image
+        import gradio as gr
+        from tools.review.domains.image.three_reference_generation import save_three_reference_inputs
+        from tools.review.ui.gradio import animation_separation_app
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_storage_root = Path(current_directory_name)
+            current_job_identifier = '2026-10-15_13-00-00-1234abcd'
+            current_job_root = current_storage_root / current_job_identifier
+            current_job_root.mkdir()
+            current_image_buffer = io.BytesIO()
+            Image.new('RGB', (32, 32), 'red').save(current_image_buffer, format='PNG')
+            current_request_record = {'action':'generate','images':[base64.b64encode(current_image_buffer.getvalue()).decode()],'prompt':'Body reference.','width':512,'height':512,'seed':12,'steps':40}
+            current_saved_request = save_three_reference_inputs(current_job_root, current_request_record)
+            current_saved_request.update(schema_version=2, outfit_prompt='Clothes reference.')
+            current_history_record = {'id':current_job_identifier,'request':current_saved_request}
+            with patch.object(animation_separation_app,'SEPARATION_STORAGE_ROOT',current_storage_root):
+                current_restored_values = animation_separation_app.restore_separation_inputs(current_history_record)
+                self.assertEqual(current_restored_values[0].getpixel((0,0)), (255,0,0))
+                self.assertEqual(current_restored_values[1:], (512,12,'Body reference.','Clothes reference.'))
+                (current_job_root/'reference-1.png').write_bytes(b'changed')
+                with self.assertRaisesRegex(gr.Error,'해시'):
+                    animation_separation_app.restore_separation_inputs(current_history_record)
+                current_saved_request['schema_version']=1
+                with self.assertRaisesRegex(gr.Error,'이전 프레임'):
+                    animation_separation_app.restore_separation_inputs(current_history_record)

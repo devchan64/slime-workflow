@@ -1,5 +1,6 @@
 """공용 GPU 실행기의 시도별 전체 작업 관측 기록."""
 import hashlib
+from datetime import datetime
 import json
 from pathlib import Path
 import time
@@ -50,3 +51,24 @@ def read_queue_generation_metrics(current_job_root):
         raise ValueError('GPU 관측 실행 시도 ID 형식 오류')
     current_metrics_path=current_job_root/'queue-telemetry'/current_attempt_identifier/'metrics.json'
     return json.loads(current_metrics_path.read_text()) if current_metrics_path.is_file() else None
+
+
+def matches_current_queue_attempt(current_queue_metrics, current_worker_metrics):
+    """이전 작업자 기록을 새 실행기의 현재 상태로 합치지 않는다."""
+    if not current_queue_metrics:
+        return True
+    current_queue_started = current_queue_metrics.get('started_at')
+    current_worker_started = current_worker_metrics.get('started_at')
+    if not current_queue_started or not current_worker_started:
+        return False
+    return datetime.fromisoformat(current_worker_started) >= datetime.fromisoformat(current_queue_started)
+
+
+def merge_generation_worker_metrics(current_status_record, current_worker_metrics):
+    """전체 작업 관측을 유지하고 작업자 관측은 별도 범위로 보존한다."""
+    if not matches_current_queue_attempt(current_status_record.get('metrics'), current_worker_metrics):
+        return False
+    current_status_record['worker_metrics'] = current_worker_metrics
+    current_status_record.setdefault('metrics', current_worker_metrics)
+    current_status_record.setdefault('estimate', current_worker_metrics['estimate'])
+    return True

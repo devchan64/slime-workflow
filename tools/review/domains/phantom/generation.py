@@ -6,6 +6,7 @@ from urllib.parse import urlsplit
 from generators.phantom.contracts import PHANTOM_JOB_STORAGE_ROOT, validate_phantom_request, validate_phantom_assets, verify_phantom_request
 from tools.review.domains.image.image_generation import ImageGenerationManager, MANAGER_HISTORY_ROOT, MANAGER_HISTORY_LOCK
 from tools.review.common.generation_estimates import calculate_generation_estimate
+from tools.review.common.queue_generation_telemetry import merge_generation_worker_metrics
 
 PHANTOM_JOB_IDENTIFIER_PATTERN = r'\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-[a-f0-9]{8}'
 
@@ -39,7 +40,8 @@ class PhantomGenerationManager(ImageGenerationManager):
             current_metrics_path = current_job_root/'attempts'/current_attempt_record['id']/'metrics.json'
             if current_metrics_path.exists():
                 current_metrics_record = json.loads(current_metrics_path.read_text())
-                current_status_record.update(metrics=current_metrics_record, estimate=current_metrics_record['estimate'])
+                if not merge_generation_worker_metrics(current_status_record, current_metrics_record):
+                    return self.enrich_generation_status(current_job_root, current_status_record)
                 current_status_record['progress'] = {'stage':current_metrics_record['stage'],'step':current_metrics_record['step'],'total':json.loads((current_job_root/'request.json').read_text())['steps'] if (current_job_root/'request.json').exists() else None,'percent':100 if current_status_record['status']=='completed' else None,'detail':'스텝은 추론 단계만; 전체 예상값은 ETA 참조'}
         if 'estimate' not in current_status_record:
             current_status_record['estimate'] = calculate_generation_estimate(current_status_record, [], '실행 관측 수집 중', 'GPU 대기 제외; 모델 준비·추론·저장')

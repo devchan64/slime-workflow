@@ -10,7 +10,7 @@ def describe_generation_status(current_status_record, include_generation_estimat
         current_status_text += '\n\n' + render_generation_estimate(current_status_record.get('estimate') or {}, current_status_name)
     current_metrics_record = current_status_record.get('metrics') or {}
     current_progress_record = current_status_record.get('progress') or {}
-    current_stage_label = current_metrics_record.get('stage') or current_progress_record.get('stage') or current_status_record.get('stage')
+    current_stage_label = current_progress_record.get('stage') or current_metrics_record.get('stage') or current_status_record.get('stage')
     if current_stage_label:
         current_status_text += '\n\n단계: ' + str(current_stage_label)
     if current_progress_record.get('total'):

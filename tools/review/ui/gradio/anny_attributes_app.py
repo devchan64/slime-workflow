@@ -24,7 +24,7 @@ ANNY_ATTRIBUTE_PAGE_PATH=WORKFLOW_ROOT_DIRECTORY/'tools/review/ui/anny/anny-attr
 
 def read_anny_attribute_markup():
     attribute_page_text=ANNY_ATTRIBUTE_PAGE_PATH.read_text()
-    main_markup_match=re.search(r'(<main>.*?</main>\s*<dialog.*?</dialog>)',attribute_page_text,re.DOTALL)
+    main_markup_match=re.search(r'(<main>.*?</main>)',attribute_page_text,re.DOTALL)
     if main_markup_match is None:raise ValueError('ANNY 속성 편집기 본문을 찾을 수 없습니다.')
     current_markup_text=main_markup_match.group(1)
     current_markup_text=re.sub(r'<header>.*?</header>','<header></header>',current_markup_text,flags=re.S)

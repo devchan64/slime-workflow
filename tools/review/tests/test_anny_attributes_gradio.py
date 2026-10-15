@@ -17,6 +17,9 @@ class AnnyAttributesGradioTest(unittest.TestCase):
         configuration_value = interface_blocks_value.get_config_file()
         self.assertIn('anny-attribute-root', str(configuration_value))
         self.assertNotIn('<iframe', str(configuration_value))
+        self.assertNotIn('<dialog', read_anny_attribute_markup())
+        self.assertNotIn('attribute-direct-input-form', read_anny_attribute_markup())
+        self.assertIn('속성값 적용', str(configuration_value))
         self.assertIn('## Anny 속성 렌더러', str(configuration_value))
         self.assertNotIn('<h1>', read_anny_attribute_markup())
 

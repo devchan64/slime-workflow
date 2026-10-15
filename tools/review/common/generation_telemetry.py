@@ -22,7 +22,7 @@ class GenerationTelemetryRecorder:
         self.current_start_clock = time.monotonic()
         self.current_step_clock = None
         self.current_step_samples = []
-        self.current_run_state = {'status':'running','stage':'prepare','step':0,'started_at':datetime.now(ZoneInfo('Asia/Seoul')).isoformat(),'gpu_observations':{},'measurement_gaps':[]}
+        self.current_run_state = {'status':'running','stage':'prepare','step':0,'step_total':current_step_total,'started_at':datetime.now(ZoneInfo('Asia/Seoul')).isoformat(),'gpu_observations':{},'measurement_gaps':[]}
         self.current_worker_thread = threading.Thread(target=self.run_telemetry_heartbeat,daemon=True)
 
     def start_generation_telemetry(self):

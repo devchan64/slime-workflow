@@ -20,7 +20,7 @@ from tools.review.ui.gradio.separation_preview import build_separation_player
 from tools.review.common.gradio_logs import build_execution_logs
 from tools.review.common.gradio_history import build_generation_history_view
 from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_confirmation
-from tools.review.domains.image.animation_separation import load_separation_defaults, validate_separation_prompt
+from tools.review.domains.image.animation_separation import load_separation_defaults, validate_separation_prompt, SEPARATION_STORAGE_ROOT
 
 
 def execute_separation_gateway(current_command_name, current_payload_record):
@@ -36,6 +36,18 @@ def build_separation_request(current_reference_image, current_output_size, curre
     current_image_buffer = io.BytesIO()
     current_reference_image.save(current_image_buffer, format='PNG')
     return {'action': 'generate', 'images': [base64.b64encode(current_image_buffer.getvalue()).decode()], 'width': int(current_output_size), 'height': int(current_output_size), 'seed': int(current_seed_value), 'steps': 40, 'prompt': current_prompt_text, 'outfit_prompt': current_outfit_prompt}
+
+
+def restore_separation_inputs(current_history_record):
+    """단일 참조 이력의 입력 사본을 해시 검증 후 복원한다."""
+    from tools.review.common.gradio_reference_restore import restore_reference_inputs
+    current_request_record = current_history_record['request']
+    if current_request_record.get('schema_version') != 2:
+        raise gr.Error('이전 프레임 분리 이력은 현재 단일 참조 입력으로 복원할 수 없습니다.')
+    if len(current_request_record.get('reference_snapshots', [])) != 1:
+        raise gr.Error('저장된 참조 이미지 사본 1장이 필요합니다.')
+    current_restored_values = restore_reference_inputs(current_history_record, SEPARATION_STORAGE_ROOT, reference_slot_limit=1)
+    return current_restored_values[6], current_request_record['width'], current_request_record['seed'], current_request_record['prompt'], current_request_record['outfit_prompt']
 
 
 def check_separation_input_readiness(current_reference_image, current_base_prompt, current_outfit_prompt):
@@ -131,7 +143,7 @@ def build_separation_interface(current_server_address):
         bind_gpu_generation_confirmation(current_resume_button, lambda current_job_identifier: str(execute_separation_gateway('resume', {'id': current_job_identifier})), current_job_control, current_status_output)
         def render_history_preview(current_job_identifier, current_status_record, current_server_address):
             return build_separation_preview(current_server_address, current_job_identifier) if current_status_record.get('download') else ''
-        read_history_page, history_output_values = build_generation_history_view(execute_separation_gateway, current_server_address, '이 생성기의 후보·입력·로그를 삭제합니다. 실행 중에는 초기화할 수 없습니다.', result_renderer_callback=render_history_preview, result_component_factory=lambda: build_separation_player('separationHistoryPlayer', False), record_folder_route='/animation-separation', allow_individual_delete=True)
+        read_history_page, history_output_values = build_generation_history_view(execute_separation_gateway, current_server_address, '이 생성기의 후보·입력·로그를 삭제합니다. 실행 중에는 초기화할 수 없습니다.', restore_input_callback=restore_separation_inputs, restore_output_components=[*reference_image_controls, current_size_control, current_seed_control, current_prompt_control, current_outfit_control], result_renderer_callback=render_history_preview, result_component_factory=lambda: build_separation_player('separationHistoryPlayer', False), record_folder_route='/animation-separation', allow_individual_delete=True)
         interface_blocks_value.load(lambda: read_history_page(1), outputs=history_output_values)
     return interface_blocks_value
 
