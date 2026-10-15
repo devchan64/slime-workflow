@@ -5,6 +5,25 @@ import gradio as gr
 from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_confirmation
 
 class GpuConfirmationTests(unittest.TestCase):
+    def test_external_readiness_success_respects_pending_confirmation(self):
+        current_generation_mock = Mock()
+        with gr.Blocks() as current_interface_blocks:
+            current_ready_state = gr.State(False)
+            current_refresh_event = gr.Button('조회').click(lambda: True, outputs=current_ready_state)
+            current_generate_button = gr.Button('생성', interactive=False)
+            bind_gpu_generation_confirmation(current_generate_button, current_generation_mock, gr.Textbox(), gr.Textbox(),
+                generation_readiness_callback=lambda current_ready_value: current_ready_value,
+                generation_readiness_inputs=[current_ready_state], generation_readiness_events=[current_refresh_event])
+        current_dependencies = current_interface_blocks.get_config_file()['dependencies']
+        current_success_events = [current_dependency for current_dependency in current_dependencies if current_dependency.get('trigger_after') == current_refresh_event['id']]
+        self.assertEqual(len(current_success_events), 1)
+        self.assertTrue(current_success_events[0]['trigger_only_on_success'])
+        current_readiness_callback = current_interface_blocks.fns[current_success_events[0]['id']].fn
+        self.assertTrue(current_readiness_callback(None, True)['interactive'])
+        self.assertFalse(current_readiness_callback(None, False)['interactive'])
+        self.assertFalse(current_readiness_callback({'inputs': ('saved',), 'consumed': False}, True)['interactive'])
+        current_generation_mock.assert_not_called()
+
     def test_confirmation_and_cancel_preserve_generation_boundary(self):
         generation_callback_mock = Mock(return_value='accepted')
         with gr.Blocks() as interface_blocks_value:

@@ -117,9 +117,10 @@ def build_separation_interface(current_server_address):
                 raise gr.Error(str(current_error_value)) from current_error_value
             return current_job_record['id'], '공용 GPU 대기열에 등록했습니다. 결과 검수 탭에서 상태·결과 조회로 확인하세요.', current_job_record['id']
         bind_gpu_generation_confirmation(current_sample_button, start_separation_job, [*reference_image_controls, current_size_control, current_seed_control, current_prompt_control, current_outfit_control], [current_job_control, current_status_output, current_tracked_identifier], generation_readiness_callback=check_separation_input_readiness, generation_readiness_inputs=[*reference_image_controls, current_prompt_control, current_outfit_control])
+        current_resume_ready = gr.State(False)
         def describe_separation_actions(current_status_record):
             return (gr.update(interactive=current_status_record['status'] in ('queued', 'running')),
-                    gr.update(interactive=current_status_record['status'] in ('failed', 'cancelled', 'paused') and current_status_record.get('resume_allowed', True)))
+                    current_status_record['status'] in ('failed', 'cancelled', 'paused') and current_status_record.get('resume_allowed', True))
         def read_current_result(current_job_identifier, current_refresh_logs):
             if not current_job_identifier:
                 raise gr.Error('생성 ID를 입력하세요.')
@@ -130,17 +131,17 @@ def build_separation_interface(current_server_address):
             return (describe_generation_status(current_status_record) + f" · 완료 프레임 {current_frame_progress.get('completed', 0)}/{current_frame_progress.get('total', '?')} · 단계 {current_stage_label}", current_status_record.get('log', '') if current_refresh_logs else gr.skip(), build_separation_preview(current_server_address, current_job_identifier) if current_download_url else gr.skip(), f'[신체 베이스 PNG]({current_server_address}/animation-separation/jobs/{current_job_identifier}/base-sheet.png) · [복장 PNG]({current_server_address}/animation-separation/jobs/{current_job_identifier}/outfit-sheet.png) · [전체 결과 ZIP]({current_server_address}{current_download_url})' if current_download_url else gr.skip(), current_job_identifier, *describe_separation_actions(current_status_record))
         def refresh_separation_progress(current_job_identifier, current_refresh_logs, current_tracked_value):
             if not current_job_identifier or current_job_identifier != current_tracked_value:
-                return (gr.skip(),) * 6 + (gr.update(interactive=False), gr.update(interactive=False))
+                return (gr.skip(),) * 6 + (gr.update(interactive=False), False)
             current_status_record = read_existing_generation_status(execute_separation_gateway, current_job_identifier)
             if current_status_record is None:
-                return '선택한 작업 이력이 삭제되었습니다.', '', '', '', '', '', gr.update(interactive=False), gr.update(interactive=False)
+                return '선택한 작업 이력이 삭제되었습니다.', '', '', '', '', '', gr.update(interactive=False), False
             return describe_generation_status(current_status_record), current_status_record.get('log', '') if current_refresh_logs else gr.skip(), gr.skip(), gr.skip(), gr.skip(), gr.skip(), *describe_separation_actions(current_status_record)
         gr.Markdown('조회한 작업의 상태·예상 시간은 5초마다 갱신됩니다. ID를 바꾸면 상태·결과 조회를 누르세요. 중지는 대기·실행 중, 재개는 재개 가능한 실패·중지·검수 대기 작업에 사용할 수 있습니다.')
-        gr.Timer(5).tick(refresh_separation_progress, [current_job_control, current_log_refresh, current_tracked_identifier], [current_status_output, current_log_output, current_preview_output, current_download_output, current_job_control, current_tracked_identifier, current_cancel_button, current_resume_button], show_progress='hidden', queue=False)
-        current_job_control.input(lambda: (gr.update(interactive=False), gr.update(interactive=False)), outputs=[current_cancel_button, current_resume_button], queue=False)
-        current_refresh_button.click(read_current_result, [current_job_control, current_log_refresh], [current_status_output, current_log_output, current_preview_output, current_download_output, current_tracked_identifier, current_cancel_button, current_resume_button], queue=False)
+        current_progress_event = gr.Timer(5).tick(refresh_separation_progress, [current_job_control, current_log_refresh, current_tracked_identifier], [current_status_output, current_log_output, current_preview_output, current_download_output, current_job_control, current_tracked_identifier, current_cancel_button, current_resume_ready], show_progress='hidden', queue=False)
+        current_identifier_event = current_job_control.input(lambda: (gr.update(interactive=False), False), outputs=[current_cancel_button, current_resume_ready], queue=False)
+        current_refresh_event = current_refresh_button.click(read_current_result, [current_job_control, current_log_refresh], [current_status_output, current_log_output, current_preview_output, current_download_output, current_tracked_identifier, current_cancel_button, current_resume_ready], queue=False)
         current_cancel_button.click(lambda current_job_identifier: str(execute_separation_gateway('cancel', {'id': current_job_identifier})), current_job_control, current_status_output)
-        bind_gpu_generation_confirmation(current_resume_button, lambda current_job_identifier: str(execute_separation_gateway('resume', {'id': current_job_identifier})), current_job_control, current_status_output)
+        bind_gpu_generation_confirmation(current_resume_button, lambda current_job_identifier: str(execute_separation_gateway('resume', {'id': current_job_identifier})), current_job_control, current_status_output, generation_readiness_callback=lambda current_ready_value,current_identifier_value,current_tracked_value: bool(current_ready_value and current_identifier_value and current_identifier_value == current_tracked_value), generation_readiness_inputs=[current_resume_ready,current_job_control,current_tracked_identifier], generation_readiness_events=[current_progress_event,current_identifier_event,current_refresh_event])
         def render_history_preview(current_job_identifier, current_status_record, current_server_address):
             return build_separation_preview(current_server_address, current_job_identifier) if current_status_record.get('download') else ''
         read_history_page, history_output_values = build_generation_history_view(execute_separation_gateway, current_server_address, '이 생성기의 후보·입력·로그를 삭제합니다. 실행 중에는 초기화할 수 없습니다.', restore_input_callback=restore_separation_inputs, restore_output_components=[*reference_image_controls, current_size_control, current_seed_control, current_prompt_control, current_outfit_control], result_renderer_callback=render_history_preview, result_component_factory=lambda: build_separation_player('separationHistoryPlayer', False), record_folder_route='/animation-separation', allow_individual_delete=True)

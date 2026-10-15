@@ -11,6 +11,16 @@ from tools.review.domains.tile.floor_results import detect_floor_quadrilateral, 
 from tools.review.common import management_gateway
 
 class FloorGenerationTests(unittest.TestCase):
+    def test_prompt_readiness_includes_fixed_words_and_margin_option(self):
+        from tools.review.ui.gradio.floor_tile_app import check_floor_prompt_readiness
+        from tools.review.domains.tile.floor_generation import combine_floor_prompt
+        current_catalog_record = load_floor_configuration()
+        self.assertFalse(check_floor_prompt_readiness('', current_catalog_record, True))
+        for current_margins_enabled in (True, False):
+            current_fixed_count = len(combine_floor_prompt('grass', current_catalog_record, current_margins_enabled).split()) - 1
+            self.assertTrue(check_floor_prompt_readiness(' '.join(['grass'] * (99-current_fixed_count)), current_catalog_record, current_margins_enabled))
+            self.assertFalse(check_floor_prompt_readiness(' '.join(['grass'] * (100-current_fixed_count)), current_catalog_record, current_margins_enabled))
+
     def create_floor_request(self):
         return dict(action='generate',user_prompt='잔디밭',width=512,height=512,steps=4,seed=251204)
     def test_fixed_prompt_and_validation(self):

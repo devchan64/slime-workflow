@@ -160,6 +160,7 @@ def build_hymotion_interface(server_base_address):
             current_seed_input = build_generation_seed(current_default_values['seed'])
             current_tag_input = gr.Textbox(label='생성 이력 태그 · 선택', max_lines=1)
         current_generate_button = gr.Button('모션 생성 시작', variant='primary', interactive=False)
+        current_generation_ready = gr.State(False)
         current_preset_selector.input(apply_motion_preset, current_preset_selector, [current_prompt_input, current_duration_input], queue=False)
         current_identifier_view = build_generation_identifier('접수한 생성 ID')
         current_status_view = gr.Markdown('모델 준비 상태를 확인한 뒤 생성할 수 있습니다.')
@@ -173,19 +174,19 @@ def build_hymotion_interface(server_base_address):
             except ValueError as current_input_error:
                 current_input_message = str(current_input_error)
                 current_can_generate = False
-            return current_model_record['message'] + '\n\n' + current_input_message, gr.update(interactive=current_can_generate)
+            return current_model_record['message'] + '\n\n' + current_input_message, current_can_generate
 
         def start_model_preparation():
             current_prepare_record = execute_motion_command('prepare', {})
             return current_prepare_record['id'], '모델 준비 작업 접수 완료 · 생성 이력에서 로그를 확인하세요.'
 
         current_input_components = [current_prompt_input, current_duration_input, current_seed_input, current_direction_input, current_tag_input, current_frame_step_input]
-        bind_gpu_generation_confirmation(current_generate_button, start_motion_generation, current_input_components, [current_identifier_view, current_status_view])
+        bind_gpu_generation_confirmation(current_generate_button, start_motion_generation, current_input_components, [current_identifier_view, current_status_view], generation_readiness_callback=lambda current_ready_value: current_ready_value, generation_readiness_inputs=[current_generation_ready])
         bind_gpu_generation_confirmation(current_prepare_button, start_model_preparation, [], [current_identifier_view, current_status_view])
-        current_refresh_button.click(refresh_generation_readiness, current_input_components, [current_model_status, current_generate_button], queue=False)
+        current_refresh_button.click(refresh_generation_readiness, current_input_components, [current_model_status, current_generation_ready], queue=False)
         for current_input_component in current_input_components:
-            current_input_component.change(refresh_generation_readiness, current_input_components, [current_model_status, current_generate_button], queue=False)
-        current_interface_blocks.load(refresh_generation_readiness, current_input_components, [current_model_status, current_generate_button])
+            current_input_component.change(refresh_generation_readiness, current_input_components, [current_model_status, current_generation_ready], queue=False)
+        current_interface_blocks.load(refresh_generation_readiness, current_input_components, [current_model_status, current_generation_ready])
 
 
         gr.Timer(2).tick(refresh_current_progress, current_identifier_view, [current_status_view, current_eta_view, current_identifier_view], show_progress='hidden')

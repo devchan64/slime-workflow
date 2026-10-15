@@ -6,7 +6,7 @@ import threading
 import gradio as gr
 
 
-def bind_gpu_generation_confirmation(generation_button_value, generation_callback_value, generation_input_values, generation_output_values, generation_confirmation_container=None, generation_readiness_callback=None, generation_readiness_inputs=None):
+def bind_gpu_generation_confirmation(generation_button_value, generation_callback_value, generation_input_values, generation_output_values, generation_confirmation_container=None, generation_readiness_callback=None, generation_readiness_inputs=None, generation_readiness_events=None):
     generation_output_values = generation_output_values if isinstance(generation_output_values, list) else [generation_output_values]
     generation_input_values = generation_input_values if isinstance(generation_input_values, list) else [generation_input_values]
     current_readiness_controls = list(generation_readiness_inputs or [])
@@ -29,6 +29,9 @@ def bind_gpu_generation_confirmation(generation_button_value, generation_callbac
 
     for current_readiness_control in current_readiness_controls:
         current_readiness_control.change(refresh_generation_readiness, [pending_generation_inputs, *current_readiness_controls], generation_button_value, queue=False)
+
+    for current_readiness_event in generation_readiness_events or []:
+        current_readiness_event.success(refresh_generation_readiness, [pending_generation_inputs, *current_readiness_controls], generation_button_value, queue=False)
 
     def cancel_generation_confirmation(saved_generation_inputs, *current_readiness_values):
         with generation_confirmation_lock:

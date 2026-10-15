@@ -17,9 +17,18 @@ from tools.review.ui.gradio.qwen_2511_app import (
 from tools.review.common.generation_status_display import describe_generation_status
 from tools.review.common.generation_status_lookup import read_existing_generation_status
 from tools.review.common.gradio_seed import build_generation_seed
+from tools.review.common.gradio_button_guidance import build_button_guidance
 from tools.review.common.gradio_identifiers import build_generation_identifier
 from tools.review.domains.image.seamless_generation import validate_seamless_request
 from tools.review.domains.image.seamless_pattern import build_pattern_request
+
+
+def check_seamless_prompt_readiness(current_prompt_text):
+    try:
+        build_pattern_request(current_prompt_text)
+    except ValueError:
+        return False
+    return True
 
 
 def describe_seamless_prompt(user_prompt_text):
@@ -67,7 +76,8 @@ def build_seamless_interface(server_base_address):
                 generation_seed_control = build_generation_seed(10107)
             prompt_preview_control = gr.Markdown(describe_seamless_prompt(''))
         user_prompt_control.change(describe_seamless_prompt, user_prompt_control, prompt_preview_control, queue=False)
-        generation_start_button = gr.Button('새 패턴 · 1단계 실행', variant='primary')
+        generation_start_button = gr.Button('새 패턴 · 1단계 실행', variant='primary', interactive=False)
+        build_button_guidance(generation_start_button, '패턴 소재를 입력하고 각 단계 최종 프롬프트를 100단어 미만으로 맞추세요. 생성 설정에서 원문과 오류를 확인할 수 있습니다.')
         with gr.Accordion('이전 작업 이어서 진행', open=False):
             gr.Markdown('생성 이력의 ID를 복사해 입력하세요. 완료한 단계를 유지하고 이어갑니다.')
             with gr.Row():
@@ -78,6 +88,7 @@ def build_seamless_interface(server_base_address):
         generation_status_control = gr.Markdown('패턴을 새로 생성하거나 이전 작업을 불러오세요.')
         generation_preview_control = gr.HTML('<p>단계가 완료되면 이곳에 결과가 표시됩니다.</p>')
         gr.Markdown('### 3. 확인 후 다음 단계\n각 단계 완료 후 검수 대기하며, 한 단계씩 진행합니다. 실행 중 일시정지는 현재 단계를 저장한 뒤 적용됩니다. 반복 검수 후 채택하며 정식 에셋에는 자동 등록하지 않습니다.')
+        current_stage_ready = gr.State(False)
         with gr.Row():
             next_stage_button = gr.Button('결과 확인 · 다음 단계 / 재개', variant='primary', interactive=False)
             pause_stage_button = gr.Button('현재 단계 후 일시정지', interactive=False)
@@ -101,16 +112,16 @@ def build_seamless_interface(server_base_address):
                 raise gr.Error(str(generation_request_error)) from generation_request_error
             return generation_record_value['id'], '작업을 대기열에 등록했습니다.'
 
-        bind_gpu_generation_confirmation(generation_start_button,start_seamless_generation,[user_prompt_control,generation_tag_control,generation_step_control,generation_seed_control],[generation_identifier_control,generation_status_control])
+        bind_gpu_generation_confirmation(generation_start_button,start_seamless_generation,[user_prompt_control,generation_tag_control,generation_step_control,generation_seed_control],[generation_identifier_control,generation_status_control], generation_readiness_callback=check_seamless_prompt_readiness, generation_readiness_inputs=[user_prompt_control])
 
         def refresh_seamless_status(generation_identifier_text, refresh_log_enabled):
             if not generation_identifier_text:
-                return gr.skip(), gr.skip(), gr.skip(), gr.update(interactive=False), gr.update(interactive=False), gr.skip()
+                return gr.skip(), gr.skip(), gr.skip(), False, gr.update(interactive=False), gr.skip()
             generation_status_record = read_existing_generation_status(execute_seamless_command,generation_identifier_text)
             if generation_status_record is None:
-                return '선택한 작업 이력이 삭제되었습니다.', '', '<p>다른 작업을 선택하세요.</p>', gr.update(interactive=False), gr.update(interactive=False), ''
+                return '선택한 작업 이력이 삭제되었습니다.', '', '<p>다른 작업을 선택하세요.</p>', False, gr.update(interactive=False), ''
             preview_html_value = render_seamless_previews(generation_status_record)
-            return describe_generation_status(generation_status_record)+'\n\n패턴 단계: '+generation_status_record.get('pipeline',{}).get('stage','대기 중'), generation_status_record.get('log','') if refresh_log_enabled else gr.skip(), preview_html_value, gr.update(interactive=generation_status_record['status'] in ('paused','failed','cancelled')), gr.update(interactive=generation_status_record['status'] in ('running','queued')), gr.skip()
+            return describe_generation_status(generation_status_record)+'\n\n패턴 단계: '+generation_status_record.get('pipeline',{}).get('stage','대기 중'), generation_status_record.get('log','') if refresh_log_enabled else gr.skip(), preview_html_value, generation_status_record['status'] in ('paused','failed','cancelled'), gr.update(interactive=generation_status_record['status'] in ('running','queued')), gr.skip()
 
         def continue_seamless_stage(generation_identifier_text):
             execute_seamless_command('resume', {'id':generation_identifier_text})
@@ -123,14 +134,14 @@ def build_seamless_interface(server_base_address):
             execute_seamless_command('status', {'id':generation_identifier_text.strip()})
             return generation_identifier_text.strip()
 
-        bind_gpu_generation_confirmation(next_stage_button,continue_seamless_stage,generation_identifier_control,generation_status_control)
         pause_stage_button.click(pause_seamless_stage,generation_identifier_control,generation_status_control,queue=False)
         load_stage_button.click(load_seamless_stage,saved_identifier_input,generation_identifier_control,queue=False)
         history_output_controls[0].change(lambda selected_job_identifier: selected_job_identifier or gr.skip(),history_output_controls[0],generation_identifier_control,queue=False)
-        generation_identifier_control.change(refresh_seamless_status,[generation_identifier_control,refresh_log_control],[generation_status_control,execution_log_control,generation_preview_control,next_stage_button,pause_stage_button,generation_identifier_control],queue=False)
+        current_identifier_event = generation_identifier_control.change(refresh_seamless_status,[generation_identifier_control,refresh_log_control],[generation_status_control,execution_log_control,generation_preview_control,current_stage_ready,pause_stage_button,generation_identifier_control],queue=False)
         interface_blocks_value.load(lambda:history_page_callback(1), outputs=history_output_controls)
-        refresh_stage_button.click(refresh_seamless_status,[generation_identifier_control,refresh_log_control],[generation_status_control,execution_log_control,generation_preview_control,next_stage_button,pause_stage_button,generation_identifier_control],queue=False)
-        gr.Timer(2).tick(refresh_seamless_status,[generation_identifier_control,refresh_log_control],[generation_status_control,execution_log_control,generation_preview_control,next_stage_button,pause_stage_button,generation_identifier_control],show_progress='hidden')
+        current_refresh_event = refresh_stage_button.click(refresh_seamless_status,[generation_identifier_control,refresh_log_control],[generation_status_control,execution_log_control,generation_preview_control,current_stage_ready,pause_stage_button,generation_identifier_control],queue=False)
+        current_timer_event = gr.Timer(2).tick(refresh_seamless_status,[generation_identifier_control,refresh_log_control],[generation_status_control,execution_log_control,generation_preview_control,current_stage_ready,pause_stage_button,generation_identifier_control],show_progress='hidden')
+        bind_gpu_generation_confirmation(next_stage_button,continue_seamless_stage,generation_identifier_control,generation_status_control, generation_readiness_callback=lambda current_ready_value: current_ready_value, generation_readiness_inputs=[current_stage_ready], generation_readiness_events=[current_identifier_event,current_refresh_event,current_timer_event])
     return interface_blocks_value
 
 

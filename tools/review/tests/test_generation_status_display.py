@@ -76,3 +76,21 @@ class GenerationStatusDisplayTests(unittest.TestCase):
             self.assertIn(current_expected_text,current_status_text)
         self.assertNotIn('400 MiB',current_status_text)
         self.assertNotIn('단계: worker',current_status_text)
+
+    def test_video_current_worker_inference_keeps_overall_estimate(self):
+        from tools.review.common.gradio_video_results import describe_video_generation_status
+        from tools.review.common.queue_generation_telemetry import merge_generation_worker_metrics
+        current_queue_metrics = {'started_at':'2026-10-15T12:00:00+09:00', 'estimate':{'remaining':23,'scope':'전체 작업'}, 'inference_estimate':{'remaining':None}}
+        current_worker_metrics = {'started_at':'2026-10-15T12:00:01+09:00', 'estimate':{}, 'inference_estimate':{'remaining':7,'scope':'추론 종료까지', 'sample_count':5}}
+        current_status_record = {'status':'running','metrics':current_queue_metrics,'estimate':current_queue_metrics['estimate']}
+        self.assertTrue(merge_generation_worker_metrics(current_status_record, current_worker_metrics))
+        current_status_text = describe_video_generation_status(current_status_record)
+        for current_expected_text in ('23초','7초','추론 종료까지의 참고 추정','5개'):
+            self.assertIn(current_expected_text, current_status_text)
+        current_status_record['status'] = 'completed'
+        self.assertNotIn('7초', describe_video_generation_status(current_status_record))
+        current_status_record.pop('worker_metrics')
+        current_status_record['status'] = 'running'
+        current_worker_metrics['started_at'] = '2026-10-15T11:00:00+09:00'
+        self.assertFalse(merge_generation_worker_metrics(current_status_record, current_worker_metrics))
+        self.assertNotIn('7초', describe_video_generation_status(current_status_record))

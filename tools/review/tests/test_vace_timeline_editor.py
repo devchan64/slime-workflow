@@ -8,6 +8,16 @@ from tools.review.ui.gradio.vace_timeline_app import remove_timeline_image
 
 
 class VaceTimelineEditorTests(unittest.TestCase):
+    def test_required_input_readiness_tracks_loading_and_deletion(self):
+        from tools.review.ui.gradio.vace_timeline_app import check_timeline_input_readiness
+        for current_file_paths, current_table_rows, current_prompt_text in (
+            ([], [], 'walk'), (['1.png'], [], 'walk'),
+            (['1.png'], [[1, True]], '  '), (['1.png'], [[1, True]], None),
+            ([], [[1, True]], 'walk'),
+        ):
+            self.assertFalse(check_timeline_input_readiness(current_file_paths, current_table_rows, current_prompt_text))
+        self.assertTrue(check_timeline_input_readiness(['1.png'], [[1, True]], 'walk'))
+
     def test_restore_rejects_job_path_escape_before_reading(self):
         from tools.review.ui.gradio import vace_timeline_app
         with tempfile.TemporaryDirectory() as current_temporary_directory:

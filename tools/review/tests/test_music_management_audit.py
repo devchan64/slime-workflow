@@ -74,6 +74,20 @@ class MusicManagementAuditTests(unittest.TestCase):
                 self.assertEqual(current_protected_path.read_bytes(),b'protected')
                 self.assertEqual(current_music_service.execute_music_command('history',{})['records'],[])
 
+    def test_music_confirmation_preserves_prompt_readiness(self):
+        from tools.review.ui.gradio.music_app import build_music_interface
+        for current_service_name in MUSIC_SERVICE_NAMES:
+            current_interface_blocks = build_music_interface(current_service_name, 'http://127.0.0.1:9988')
+            current_callback_records = [current_callback.fn for current_callback in current_interface_blocks.fns.values() if current_callback.fn]
+            current_readiness_callback = next(current_callback for current_callback in current_callback_records if current_callback.__name__ == 'refresh_generation_readiness')
+            current_cancel_callback = next(current_callback for current_callback in current_callback_records if current_callback.__name__ == 'cancel_generation_confirmation')
+            self.assertFalse(current_readiness_callback(None, '')['interactive'])
+            self.assertTrue(current_readiness_callback(None, 'flute')['interactive'])
+            current_pending_record = {'inputs': ('flute',), 'consumed': False}
+            self.assertFalse(current_readiness_callback(current_pending_record, 'changed')['interactive'])
+            self.assertFalse(current_cancel_callback(current_pending_record, '  ')[2]['interactive'])
+            self.assertTrue(current_cancel_callback(None, 'flute')[2]['interactive'])
+
     def test_deleted_active_record_clears_preview_without_hiding_existing_errors(self):
         from tools.review.ui.gradio.music_app import build_music_interface
         for current_service_name in MUSIC_SERVICE_NAMES:

@@ -88,11 +88,11 @@ class GenerationStatusLookupTests(unittest.TestCase):
                 current_output_values=current_refresh_binding.fn('removed',True)
             self.assertEqual(current_output_values[-1],'')
             self.assertEqual(current_output_values[1],'')
-            self.assertFalse(current_output_values[3]['interactive'])
+            self.assertFalse(current_output_values[3])
             self.assertFalse(current_output_values[4]['interactive'])
             with patch.object(seamless_tile_app,'execute_management_command',return_value={'status':'paused'}):
                 current_output_values=current_refresh_binding.fn('existing',False)
-            self.assertTrue(current_output_values[3]['interactive'])
+            self.assertTrue(current_output_values[3])
             self.assertFalse(current_output_values[4]['interactive'])
 
     def test_direct_qwen_entrypoints_initialize_repository_imports(self):

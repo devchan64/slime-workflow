@@ -8,6 +8,15 @@ from tools.review.domains.image.seamless_generation import validate_seamless_req
 from tools.review.domains.image.seamless_pattern import execute_pattern_pipeline
 
 class SeamlessPatternTests(unittest.TestCase):
+    def test_initial_prompt_readiness_matches_stage_limits(self):
+        from tools.review.ui.gradio.seamless_tile_app import check_seamless_prompt_readiness
+        from tools.review.domains.image.seamless_pattern import build_pattern_request
+        self.assertFalse(check_seamless_prompt_readiness(' '))
+        current_final_prompt, _ = build_pattern_request('grass')
+        current_fixed_count = len(current_final_prompt.split()) - 1
+        self.assertTrue(check_seamless_prompt_readiness(' '.join(['grass'] * (99-current_fixed_count))))
+        self.assertFalse(check_seamless_prompt_readiness(' '.join(['grass'] * (100-current_fixed_count))))
+
     def create_pattern_request(self):
         return validate_seamless_request({'action':'generate','prompt':'낙엽','images':[],'steps':40,'seed':1,'width':768,'height':768})
 

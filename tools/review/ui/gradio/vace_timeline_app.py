@@ -12,6 +12,7 @@ from generators.vace.timeline import validate_timeline_request,VACE_TIMELINE_STO
 from tools.review.common.generation_cleanup import GENERATION_CLEANUP_SCOPE_TEXT
 from tools.review.common.management_client import execute_remote_management_command
 from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_confirmation
+from tools.review.common.gradio_button_guidance import build_button_guidance
 from tools.review.common.gradio_seed import build_generation_seed
 from tools.review.common.gradio_history import build_generation_history_view
 from tools.review.common.gradio_logs import build_execution_logs
@@ -107,6 +108,11 @@ def select_timeline_image(current_file_paths,current_selected_items,current_sele
 
 def select_all_timeline_images(current_file_paths):
     return describe_timeline_selection(list(enumerate(current_file_paths or [])))
+
+
+def check_timeline_input_readiness(current_file_paths, current_table_rows, current_prompt_text):
+    """파일 로딩·삭제가 끝나고 필수 입력이 준비된 경우만 확인을 허용한다."""
+    return bool(current_file_paths and current_table_rows and isinstance(current_prompt_text, str) and current_prompt_text.strip()) and len(current_file_paths) == len(current_table_rows)
 
 
 def build_timeline_payload(current_file_paths,current_table_rows,current_prompt_text,current_negative_text,current_frame_count,current_seed_value,current_resolution_text,current_steps_value,current_shift_value,current_guidance_value,current_conditioning_value,current_identity_path=None,current_padding_color=VACE_PADDING_COLOR_DEFAULT):
@@ -220,7 +226,8 @@ def build_timeline_interface(current_server_address):
             current_shift_control=gr.Number(value=VACE_TIMELINE_FLOW_SHIFT,minimum=0.1,maximum=30,label='Flow shift · 0.1~30',info='기본값 3. 추론 스텝을 어느 노이즈 구간에 배분할지 조절합니다. 높이면 노이즈가 많은 구간에 더 배분합니다. 움직임의 크기나 원본 보존율을 직접 정하는 값은 아닙니다.')
             current_guidance_control=gr.Number(value=5.0,minimum=1,maximum=20,label='텍스트 가이던스 (CFG) · 1~20',info='기본값 5. 텍스트 프롬프트의 유도 강도입니다. 높이면 문구의 영향이 강해지지만 왜곡이나 과한 표현이 생길 수 있습니다. 낮추면 시선·구도 등 지시가 약해질 수 있습니다.')
             current_conditioning_control=gr.Number(value=1.0,minimum=0,maximum=2,label='조건 강도 · 0~2',info='기본값 1.0. 입력 영상·마스크·외형 참조로 만든 조건의 영향력입니다. 높이면 입력 조건의 영향이 커지고, 낮추면 자유롭게 생성할 여지가 커집니다. 포즈와 외형 참조에 함께 적용되며 참조만의 독립 강도는 없습니다. 높다고 외형 유사도가 반드시 좋아지지는 않습니다.')
-        current_generate_button=gr.Button('영상 생성 설정 확인',variant='primary')
+        current_generate_button=gr.Button('영상 생성 설정 확인',variant='primary',interactive=False)
+        build_button_guidance(current_generate_button, '포즈 PNG를 첨부하고 배치표가 준비된 뒤 장면 프롬프트를 입력하세요.')
         gr.Markdown('설정 확인 후 아래 확인 영역의 **대기열에 추가**를 눌러 등록하세요. **추가하지 않기**를 누르면 등록하지 않습니다.')
         with gr.Column() as current_confirmation_container:
             pass
@@ -233,7 +240,7 @@ def build_timeline_interface(current_server_address):
         def start_timeline_generation(*current_input_values):
             current_job_record=execute_timeline_command('generate',build_timeline_payload(*current_input_values))
             return current_job_record['id'],'GPU 대기열에 등록했습니다.'
-        bind_gpu_generation_confirmation(current_generate_button,start_timeline_generation,current_input_controls,[current_job_control,current_status_display],generation_confirmation_container=current_confirmation_container)
+        bind_gpu_generation_confirmation(current_generate_button,start_timeline_generation,current_input_controls,[current_job_control,current_status_display],generation_confirmation_container=current_confirmation_container, generation_readiness_callback=check_timeline_input_readiness, generation_readiness_inputs=[current_sorted_files,current_frame_table,current_prompt_control])
         def refresh_timeline_result(current_job_identifier,current_logs_enabled,current_previous_result):
             if not current_job_identifier:return (gr.skip(),)*5
             current_status_record=read_existing_generation_status(execute_timeline_command,current_job_identifier)

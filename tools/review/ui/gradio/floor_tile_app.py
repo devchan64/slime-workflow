@@ -12,11 +12,18 @@ from tools.review.common.management_client import execute_remote_management_comm
 from tools.review.common.gradio_history import build_generation_history_view
 from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_confirmation
 from tools.review.common.gradio_seed import build_generation_seed
+from tools.review.common.gradio_button_guidance import build_button_guidance
 from tools.review.domains.tile.floor_generation import combine_floor_prompt, compose_floor_base_prompt
 
 
 def execute_floor_gateway(command_name_value,payload_record_value):
     return execute_management_command('floor-tile',command_name_value,payload_record_value)
+
+
+def check_floor_prompt_readiness(current_prompt_text, current_catalog_record, current_margins_enabled):
+    if not isinstance(current_prompt_text, str) or not current_prompt_text.strip():
+        return False
+    return len(combine_floor_prompt(current_prompt_text, current_catalog_record, current_margins_enabled).split()) < 100
 
 
 def build_floor_interface(server_base_address):
@@ -36,11 +43,12 @@ def build_floor_interface(server_base_address):
             combined_prompt_value = combine_floor_prompt(user_prompt_value,current_catalog_record,add_margins_value)
             return f'**사용자 {len(user_prompt_value.split())}단어 · 최종 {len(combined_prompt_value.split())}단어**\n\n{combined_prompt_value}'
         prompt_preview_control = gr.Markdown(format_floor_preview(catalog_record_value['default_user_prompt'],catalog_record_value))
+        current_prompt_ready = gr.State(False)
         def refresh_floor_prompts(user_prompt_value,add_margins_value):
             current_catalog_record = execute_floor_gateway('catalog',{})
             current_base_prompt = compose_floor_base_prompt(current_catalog_record,add_margins_value)
-            return gr.update(value=current_base_prompt,label=f'기본 프롬프트 · 고정 · {len(current_base_prompt.split())}단어'), format_floor_preview(user_prompt_value,current_catalog_record,add_margins_value)
-        prompt_output_controls = [base_prompt_control,prompt_preview_control]
+            return gr.update(value=current_base_prompt,label=f'기본 프롬프트 · 고정 · {len(current_base_prompt.split())}단어'), format_floor_preview(user_prompt_value,current_catalog_record,add_margins_value), check_floor_prompt_readiness(user_prompt_value,current_catalog_record,add_margins_value)
+        prompt_output_controls = [base_prompt_control,prompt_preview_control,current_prompt_ready]
         user_prompt_control.change(refresh_floor_prompts,[user_prompt_control,add_margins_control],prompt_output_controls,queue=False)
         add_margins_control.change(refresh_floor_prompts,[user_prompt_control,add_margins_control],prompt_output_controls,queue=False)
         interface_block_value.load(refresh_floor_prompts,[user_prompt_control,add_margins_control],prompt_output_controls)
@@ -48,19 +56,20 @@ def build_floor_interface(server_base_address):
         output_size_control = gr.Dropdown([512],value=512,label='생성 크기 · 512 고정',interactive=False)
         inference_step_control = gr.Radio([4],value=4,label='생성 스텝 · 4 고정',interactive=False)
         generation_seed_control = build_generation_seed(251204)
-        generation_start_button = gr.Button('맵 타일 생성 시작',variant='primary')
-        generation_status_control = gr.Markdown('생성 가능 · 100단어 미만의 프롬프트를 입력하세요.')
+        generation_start_button = gr.Button('맵 타일 생성 시작',variant='primary',interactive=False)
+        build_button_guidance(generation_start_button, '바닥 표면을 입력하고 기본 문구를 포함한 최종 프롬프트를 100단어 미만으로 맞추세요.')
+        generation_status_control = gr.Markdown('바닥 표면과 최종 프롬프트를 확인하세요.')
         with gr.Accordion('생성 과정 · 고정 설정 안내',open=False):
             gr.Markdown('사용자 프롬프트 → 고정 기본 프롬프트 순서로 Qwen 2511에 전달합니다. 512×512 · 4스텝 단일 생성이며 결과 원본은 result.png입니다. 이전 생성 이력은 조회만 가능하며 재개할 수 없습니다. 현재 설정으로 새로 생성하세요.')
         current_identifier_state = gr.State('')
         def start_floor_generation(user_prompt_value,generation_tag_value,output_size_value,inference_step_value,generation_seed_value,add_margins_value):
             generation_result_record = execute_floor_gateway('generate',{'action':'generate','user_prompt':user_prompt_value,'tag':generation_tag_value,'width':int(output_size_value),'height':int(output_size_value),'steps':int(inference_step_value),'seed':int(generation_seed_value),'add_margins':add_margins_value})
             return generation_result_record['id'], '생성 요청: '+generation_result_record['id']+' · '+generation_result_record['status']
-        bind_gpu_generation_confirmation(generation_start_button,start_floor_generation,[user_prompt_control,generation_tag_control,output_size_control,inference_step_control,generation_seed_control,add_margins_control],[current_identifier_state,generation_status_control])
+        bind_gpu_generation_confirmation(generation_start_button,start_floor_generation,[user_prompt_control,generation_tag_control,output_size_control,inference_step_control,generation_seed_control,add_margins_control],[current_identifier_state,generation_status_control], generation_readiness_callback=lambda current_ready_value: current_ready_value, generation_readiness_inputs=[current_prompt_ready])
         def refresh_floor_progress(current_generation_identifier):
             active_job_record = execute_floor_gateway('active',{})
             selected_job_identifier = active_job_record.get('id') or current_generation_identifier
-            if not selected_job_identifier: return '', '생성 가능 · 작업이 없습니다.'
+            if not selected_job_identifier: return '', '작업이 없습니다. 바닥 표면과 최종 프롬프트를 확인하세요.'
             current_status_record = read_existing_generation_status(execute_floor_gateway,selected_job_identifier)
             if current_status_record is None:
                 return '', '선택한 작업 이력이 삭제되었습니다.'

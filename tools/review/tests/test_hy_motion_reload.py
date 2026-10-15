@@ -6,6 +6,22 @@ from tools.review.ui.gradio.hy_motion_app import load_latest_generation
 
 
 class HyMotionReloadTests(unittest.TestCase):
+    def test_model_readiness_does_not_unlock_pending_confirmation(self):
+        import inspect
+        from tools.review.ui.gradio.hy_motion_app import build_hymotion_interface
+        current_interface_blocks = build_hymotion_interface('http://127.0.0.1:9988')
+        current_callbacks = [current_record.fn for current_record in current_interface_blocks.fns.values() if current_record.fn]
+        current_model_callback = next(current_callback for current_callback in current_callbacks if current_callback.__name__ == 'refresh_generation_readiness' and len(inspect.signature(current_callback).parameters) == 6)
+        current_button_callback = next(current_callback for current_callback in current_callbacks if current_callback.__name__ == 'refresh_generation_readiness' and len(inspect.signature(current_callback).parameters) == 2)
+        current_cancel_callback = next(current_callback for current_callback in current_callbacks if current_callback.__name__ == 'cancel_generation_confirmation')
+        with patch('tools.review.ui.gradio.hy_motion_app.execute_motion_command', return_value={'ready':True,'message':'준비 완료'}), patch('tools.review.ui.gradio.hy_motion_app.validate_generation_request'):
+            self.assertTrue(current_model_callback('walk', 2, 42, ['front'], '', 5)[1])
+        self.assertTrue(current_button_callback(None, True)['interactive'])
+        current_pending_record = {'inputs': (), 'consumed':False}
+        self.assertFalse(current_button_callback(current_pending_record, True)['interactive'])
+        self.assertFalse(current_cancel_callback(current_pending_record, False)[2]['interactive'])
+        self.assertTrue(current_cancel_callback(None, True)[2]['interactive'])
+
     def test_latest_history_restores_progress(self):
         for current_job_status in ('running', 'completed', 'failed'):
             with self.subTest(status=current_job_status):

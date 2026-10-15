@@ -14,6 +14,10 @@ def render_video_generation_result(current_job_identifier,current_status_record,
 def describe_video_generation_status(current_status_record):
     current_status_text=describe_generation_status(current_status_record)
     current_metrics_record=current_status_record.get('metrics') or {}
+    # 서비스에서 현재 실행 시도와 대조한 작업자 추정을 별도 범위로 표시한다.
+    current_worker_metrics = current_status_record.get('worker_metrics')
+    if current_worker_metrics is not None:
+        current_metrics_record = current_worker_metrics
     if current_metrics_record.get('inference_estimate'):
         current_status_text+='\n\n추론 종료까지의 참고 추정\n\n'+render_generation_estimate(current_metrics_record['inference_estimate'],current_status_record['status'])
     return current_status_text

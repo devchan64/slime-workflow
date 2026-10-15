@@ -45,14 +45,14 @@ class SeparationPreviewGradioTests(unittest.TestCase):
         self.assertEqual(current_output_values[1:6],('','','','',''))
 
         self.assertFalse(current_output_values[6]['interactive'])
-        self.assertFalse(current_output_values[7]['interactive'])
+        self.assertFalse(current_output_values[7])
         current_result_binding=next(current_binding for current_binding in current_interface_blocks.fns.values() if current_binding.fn and current_binding.fn.__name__=='read_current_result')
         self.assertEqual(len(current_result_binding.outputs),7)
         with patch.object(animation_separation_app,'execute_separation_gateway',return_value={'status':'failed','resume_allowed':False}):
             current_output_values=current_result_binding.fn('existing',False)
         self.assertEqual(current_output_values[4],'existing')
         self.assertFalse(current_output_values[5]['interactive'])
-        self.assertFalse(current_output_values[6]['interactive'])
+        self.assertFalse(current_output_values[6])
 
 
 class SeparationInputRestoreTests(unittest.TestCase):

@@ -56,7 +56,7 @@ def build_music_interface(current_service_name,current_server_address):
         current_generate_notice = gr.Markdown('장르·악기·분위기 프롬프트를 입력하면 생성할 수 있습니다.')
         for current_prompt_source in (current_prompt_control,current_loop_control):
             current_prompt_source.change(update_music_prompt,[current_prompt_control,current_loop_control],[current_prompt_summary,current_final_control],queue=False)
-        current_prompt_control.change(lambda current_prompt_text:(gr.update(interactive=bool(current_prompt_text.strip())),'입력한 설정으로 생성 대기열에 등록합니다.' if current_prompt_text.strip() else '장르·악기·분위기 프롬프트를 입력하면 생성할 수 있습니다.'),current_prompt_control,[current_generate_button,current_generate_notice],queue=False)
+        current_prompt_control.change(lambda current_prompt_text:'입력한 설정으로 생성 대기열에 등록합니다.' if current_prompt_text.strip() else '장르·악기·분위기 프롬프트를 입력하면 생성할 수 있습니다.',current_prompt_control,current_generate_notice,queue=False)
         with gr.Column() as current_generation_container:
             pass
         gr.Markdown('모델 준비가 없으면 생성 작업에서 먼저 준비합니다. 다운로드 권한·실행 환경 오류는 로그에 기록하며 다른 모델로 대체하지 않습니다.')
@@ -72,7 +72,7 @@ def build_music_interface(current_service_name,current_server_address):
             build_music_request(current_service_name,current_payload_record)
             current_job_record = execute_music_command('generate',current_payload_record)
             return current_job_record['id'],'음악 생성 대기열에 등록했습니다.', '<p>새 작업의 결과를 기다립니다.</p>',''
-        bind_gpu_generation_confirmation(current_generate_button,start_music_generation,[current_prompt_control,current_duration_control,current_seed_control,current_loop_control,current_tag_control],[current_job_control,current_status_display,current_result_display,current_result_identity],generation_confirmation_container=current_generation_container)
+        bind_gpu_generation_confirmation(current_generate_button,start_music_generation,[current_prompt_control,current_duration_control,current_seed_control,current_loop_control,current_tag_control],[current_job_control,current_status_display,current_result_display,current_result_identity],generation_confirmation_container=current_generation_container, generation_readiness_callback=lambda current_prompt_text: bool(current_prompt_text and current_prompt_text.strip()), generation_readiness_inputs=[current_prompt_control])
         def prepare_music_assets():
             current_job_record = execute_music_command('prepare',{'action':'prepare'})
             return current_job_record['id'],'모델 준비 대기열에 등록했습니다.','<p>모델 준비 작업입니다.</p>',''
