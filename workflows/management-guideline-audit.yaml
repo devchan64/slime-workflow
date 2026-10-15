@@ -1,0 +1,998 @@
+schema_version: 1
+scope: 관리 메뉴 실제 등록 페이지
+status: in_progress
+criteria:
+- Gradio 합성·공용 컴포넌트·테마
+- GUI/CLI 공용 게이트웨이
+- 확인·취소·중복 접수 방지
+- 실시간 ETA·VRAM·로그
+- 이력 조회·재개·우선 실행·삭제·초기화
+- 프롬프트 단어 수·시드·기본 데이터 추적
+- 브라우저 표시·반응형·재연결
+pages:
+- id: music-ace-step
+  label: ACE-Step 1.5 Turbo
+  category: music-generation
+  ui_mode: gradio
+  url: /management/frame/music-ace-step/
+  source_review: shared_ui_reviewed_runtime_pending
+  contract_tests: partial_verified
+  browser_review: pending
+  findings:
+  - media-status-unification
+  implementation: tools/review/ui/gradio/music_app.py
+  applicability: generation
+- id: anny-attribute-renderer
+  label: Anny 속성 렌더러
+  category: animation-tool
+  ui_mode: gradio
+  url: /management/frame/anny-attributes/
+  source_review: in_progress
+  contract_tests: partial_verified
+  browser_review: partial_mock_verified
+  findings:
+  - browser-history-standard-actions
+  - anny-legacy-confirmation
+  - anny-generation-gateway
+  - anny-telemetry-display
+  implementation: tools/review/ui/gradio/anny_attributes_app.py
+  applicability: generation
+- id: anny-landmarks
+  label: ANNY 해부학 기준점 검수
+  category: animation-tool
+  ui_mode: gradio
+  url: /management/frame/anny-landmarks/
+  source_review: in_progress
+  contract_tests: pending
+  browser_review: pending
+  findings: []
+  implementation: tools/review/ui/gradio/anny_landmarks_app.py
+  applicability: landmark_candidate_editor
+  review_note: GPU 생성기가 아닌 기준점 후보 편집·누적 이력 도구. 생성 ETA·VRAM·생성 이력 파일 삭제 규칙은 비적용; 미저장
+    교체 확인·게이트웨이 저장·재연결을 검증할 대상.
+- id: hy-motion-generator
+  label: HY-Motion 모션 생성기
+  category: animation-tool
+  ui_mode: gradio
+  url: /management/frame/hy-motion-generator/
+  source_review: in_progress
+  contract_tests: pending
+  browser_review: pending
+  findings: []
+  implementation: tools/review/ui/gradio/hy_motion_app.py
+  applicability: generation
+- id: music-minimax
+  label: MiniMax-Music3
+  category: music-generation
+  ui_mode: gradio
+  url: /management/frame/music-minimax/
+  source_review: shared_ui_reviewed_runtime_pending
+  contract_tests: partial_verified
+  browser_review: pending
+  findings:
+  - media-status-unification
+  implementation: tools/review/ui/gradio/music_app.py
+  applicability: generation
+- id: phantom-generator
+  label: Phantom R2V 영상 생성기
+  category: animation-tool
+  ui_mode: gradio
+  url: /management/frame/phantom-generator/
+  source_review: shared_ui_reviewed_runtime_pending
+  contract_tests: partial_verified
+  browser_review: pending
+  findings:
+  - media-status-unification
+  implementation: tools/review/ui/gradio/phantom_app.py
+  applicability: generation
+- id: qwen-21-circular-generator
+  label: Qwen 2.1 순환 VAE 생성기
+  category: image-generation
+  ui_mode: gradio
+  url: /management/frame/qwen-21-circular-generator/
+  source_review: in_progress
+  contract_tests: pending
+  browser_review: pending
+  findings: []
+  implementation: tools/review/ui/gradio/qwen_2511_app.py
+  applicability: generation
+- id: qwen-21-generator
+  label: Qwen 2.1 이미지 생성기
+  category: image-generation
+  ui_mode: gradio
+  url: /management/frame/qwen-21-generator/
+  source_review: in_progress
+  contract_tests: pending
+  browser_review: pending
+  findings: []
+  implementation: tools/review/ui/gradio/qwen_2511_app.py
+  applicability: generation
+- id: vace-v2v-generator
+  label: Wan2.1 VACE V2V 영상 생성기
+  category: animation-tool
+  ui_mode: gradio
+  url: /management/frame/vace-v2v-generator/
+  source_review: shared_ui_reviewed_runtime_pending
+  contract_tests: partial_verified
+  browser_review: pending
+  findings:
+  - media-status-unification
+  implementation: tools/review/ui/gradio/vace_timeline_app.py
+  applicability: generation
+- id: map-review-reed-crossing
+  label: 갈대 여울 · 필드맵 검수
+  category: field-map-review
+  ui_mode: gradio
+  url: /management/frame/map-review/?map=reed-crossing&townPage=1
+  source_review: shared_ui_reviewed_runtime_pending
+  contract_tests: shared_component_verified
+  browser_review: pending
+  findings: []
+  implementation: tools/review/ui/gradio/map_review_app.py
+  applicability: render_review
+  review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
+    공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+- id: map-review-reedhaven
+  label: 갈대나루 · 마을맵 검수
+  category: town-map-review
+  ui_mode: gradio
+  url: /management/frame/map-review/?map=reedhaven&townPage=1
+  source_review: shared_ui_reviewed_runtime_pending
+  contract_tests: shared_component_verified
+  browser_review: pending
+  findings: []
+  implementation: tools/review/ui/gradio/map_review_app.py
+  applicability: render_review
+  review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
+    공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+- id: animation-17
+  label: 갈대등벌레 · 대기 · v2.imagegen-eight-frames
+  category: animation
+  ui_mode: gradio-static
+  url: /management/frame/static-review/?review=animation-17
+  source_review: shared_ui_reviewed_runtime_pending
+  contract_tests: shared_component_verified
+  browser_review: pending
+  findings: []
+  implementation: tools/review/ui/gradio/static_review_app.py
+  applicability: render_review
+  review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
+    공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+- id: map-review-boar-ridge
+  label: 강모 능선 · 필드맵 검수
+  category: field-map-review
+  ui_mode: gradio
+  url: /management/frame/map-review/?map=boar-ridge&townPage=1
+  source_review: shared_ui_reviewed_runtime_pending
+  contract_tests: shared_component_verified
+  browser_review: pending
+  findings: []
+  implementation: tools/review/ui/gradio/map_review_app.py
+  applicability: render_review
+  review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
+    공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+- id: map-review-crystal-cut
+  label: 결정 절개지 · 필드맵 검수
+  category: field-map-review
+  ui_mode: gradio
+  url: /management/frame/map-review/?map=crystal-cut&townPage=1
+  source_review: shared_ui_reviewed_runtime_pending
+  contract_tests: shared_component_verified
+  browser_review: pending
+  findings: []
+  implementation: tools/review/ui/gradio/map_review_app.py
+  applicability: render_review
+  review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
+    공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+- id: animation-10
+  label: 결정도마뱀 · 대기 · v2.imagegen-eight-frames
+  category: animation
+  ui_mode: gradio-static
+  url: /management/frame/static-review/?review=animation-10
+  source_review: shared_ui_reviewed_runtime_pending
+  contract_tests: shared_component_verified
+  browser_review: pending
+  findings: []
+  implementation: tools/review/ui/gradio/static_review_app.py
+  applicability: render_review
+  review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
+    공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+- id: animation-13
+  label: 고목 거인 · 대기 · v2.imagegen-eight-frames
+  category: animation
+  ui_mode: gradio-static
+  url: /management/frame/static-review/?review=animation-13
+  source_review: shared_ui_reviewed_runtime_pending
+  contract_tests: shared_component_verified
+  browser_review: pending
+  findings: []
+  implementation: tools/review/ui/gradio/static_review_app.py
+  applicability: render_review
+  review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
+    공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+- id: map-review-grainstead
+  label: 곡온벌 · 마을맵 검수
+  category: town-map-review
+  ui_mode: gradio
+  url: /management/frame/map-review/?map=grainstead&townPage=1
+  source_review: shared_ui_reviewed_runtime_pending
+  contract_tests: shared_component_verified
+  browser_review: pending
+  findings: []
+  implementation: tools/review/ui/gradio/map_review_app.py
+  applicability: render_review
+  review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
+    공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+- id: map-review-granary-flats
+  label: 곡창들 · 필드맵 검수
+  category: field-map-review
+  ui_mode: gradio
+  url: /management/frame/map-review/?map=granary-flats&townPage=1
+  source_review: shared_ui_reviewed_runtime_pending
+  contract_tests: shared_component_verified
+  browser_review: pending
+  findings: []
+  implementation: tools/review/ui/gradio/map_review_app.py
+  applicability: render_review
+  review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
+    공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+- id: animation-1
+  label: 기본 캐릭터 · 애니메이션 통합 검수
+  category: animation
+  ui_mode: gradio-static
+  url: /management/frame/static-review/?review=animation-1
+  source_review: shared_ui_reviewed_runtime_pending
+  contract_tests: shared_component_verified
+  browser_review: pending
+  findings: []
+  implementation: tools/review/ui/gradio/static_review_app.py
+  applicability: render_review
+  review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
+    공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+- id: map-review-broken-quarry
+  label: 깨진 채석장 · 필드맵 검수
+  category: field-map-review
+  ui_mode: gradio
+  url: /management/frame/map-review/?map=broken-quarry&townPage=1
+  source_review: shared_ui_reviewed_runtime_pending
+  contract_tests: shared_component_verified
+  browser_review: pending
+  findings: []
+  implementation: tools/review/ui/gradio/map_review_app.py
+  applicability: render_review
+  review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
+    공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+- id: animation-8
+  label: 덤불송곳니 · 대기 · v2.imagegen-eight-frames
+  category: animation
+  ui_mode: gradio-static
+  url: /management/frame/static-review/?review=animation-8
+  source_review: shared_ui_reviewed_runtime_pending
+  contract_tests: shared_component_verified
+  browser_review: pending
+  findings: []
+  implementation: tools/review/ui/gradio/static_review_app.py
+  applicability: render_review
+  review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
+    공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+- id: animation-21
+  label: 돌껍질게 · 대기 · v2.imagegen-eight-frames
+  category: animation
+  ui_mode: gradio-static
+  url: /management/frame/static-review/?review=animation-21
+  source_review: shared_ui_reviewed_runtime_pending
+  contract_tests: shared_component_verified
+  browser_review: pending
+  findings: []
+  implementation: tools/review/ui/gradio/static_review_app.py
+  applicability: render_review
+  review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
+    공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+- id: map-review-stonewarm
+  label: 돌온재 · 마을맵 검수
+  category: town-map-review
+  ui_mode: gradio
+  url: /management/frame/map-review/?map=stonewarm&townPage=1
+  source_review: shared_ui_reviewed_runtime_pending
+  contract_tests: shared_component_verified
+  browser_review: pending
+  findings: []
+  implementation: tools/review/ui/gradio/map_review_app.py
+  applicability: render_review
+  review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
+    공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+- id: animation-12
+  label: 들토끼 · 대기 · v2.imagegen-eight-frames
+  category: animation
+  ui_mode: gradio-static
+  url: /management/frame/static-review/?review=animation-12
+  source_review: shared_ui_reviewed_runtime_pending
+  contract_tests: shared_component_verified
+  browser_review: pending
+  findings: []
+  implementation: tools/review/ui/gradio/static_review_app.py
+  applicability: render_review
+  review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
+    공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+- id: map-review-lantern-wood
+  label: 등불 숲 · 필드맵 검수
+  category: field-map-review
+  ui_mode: gradio
+  url: /management/frame/map-review/?map=lantern-wood&townPage=1
+  source_review: shared_ui_reviewed_runtime_pending
+  contract_tests: shared_component_verified
+  browser_review: pending
+  findings: []
+  implementation: tools/review/ui/gradio/map_review_app.py
+  applicability: render_review
+  review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
+    공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+- id: animation-14
+  label: 등불나방 · 대기 · v2.imagegen-eight-frames
+  category: animation
+  ui_mode: gradio-static
+  url: /management/frame/static-review/?review=animation-14
+  source_review: shared_ui_reviewed_runtime_pending
+  contract_tests: shared_component_verified
+  browser_review: pending
+  findings: []
+  implementation: tools/review/ui/gradio/static_review_app.py
+  applicability: render_review
+  review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
+    공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+- id: animation-18
+  label: 등성이 멧돼지 · 대기 · v2.imagegen-eight-frames
+  category: animation
+  ui_mode: gradio-static
+  url: /management/frame/static-review/?review=animation-18
+  source_review: shared_ui_reviewed_runtime_pending
+  contract_tests: shared_component_verified
+  browser_review: pending
+  findings: []
+  implementation: tools/review/ui/gradio/static_review_app.py
+  applicability: render_review
+  review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
+    공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+- id: ui-643120e666a183ee-design-system
+  label: 디자인 시스템 · 토큰과 기본 컴포넌트
+  category: game-ui
+  ui_mode: gradio-static
+  url: /management/frame/static-review/?review=ui-643120e666a183ee-design-system
+  source_review: shared_ui_reviewed_runtime_pending
+  contract_tests: shared_component_verified
+  browser_review: pending
+  findings: []
+  implementation: tools/review/ui/gradio/static_review_app.py
+  applicability: render_review
+  review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
+    공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+- id: map-review-dry-creek
+  label: 마른 개울 · 필드맵 검수
+  category: field-map-review
+  ui_mode: gradio
+  url: /management/frame/map-review/?map=dry-creek&townPage=1
+  source_review: shared_ui_reviewed_runtime_pending
+  contract_tests: shared_component_verified
+  browser_review: pending
+  findings: []
+  implementation: tools/review/ui/gradio/map_review_app.py
+  applicability: render_review
+  review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
+    공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+- id: map-review-mill-ridge
+  label: 맷돌등성이 · 필드맵 검수
+  category: field-map-review
+  ui_mode: gradio
+  url: /management/frame/map-review/?map=mill-ridge&townPage=1
+  source_review: shared_ui_reviewed_runtime_pending
+  contract_tests: shared_component_verified
+  browser_review: pending
+  findings: []
+  implementation: tools/review/ui/gradio/map_review_app.py
+  applicability: render_review
+  review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
+    공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+- id: animation-19
+  label: 모래집게전갈 · 대기 · v1.imagegen-eight-frames
+  category: animation
+  ui_mode: gradio-static
+  url: /management/frame/static-review/?review=animation-19
+  source_review: shared_ui_reviewed_runtime_pending
+  contract_tests: shared_component_verified
+  browser_review: pending
+  findings: []
+  implementation: tools/review/ui/gradio/static_review_app.py
+  applicability: render_review
+  review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
+    공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+- id: map-review-old-orchard
+  label: 묵은 과수원 · 필드맵 검수
+  category: field-map-review
+  ui_mode: gradio
+  url: /management/frame/map-review/?map=old-orchard&townPage=1
+  source_review: shared_ui_reviewed_runtime_pending
+  contract_tests: shared_component_verified
+  browser_review: pending
+  findings: []
+  implementation: tools/review/ui/gradio/map_review_app.py
+  applicability: render_review
+  review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
+    공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+- id: animation-15
+  label: 물안개개구리 · 대기 · v1.imagegen-eight-frames
+  category: animation
+  ui_mode: gradio-static
+  url: /management/frame/static-review/?review=animation-15
+  source_review: shared_ui_reviewed_runtime_pending
+  contract_tests: shared_component_verified
+  browser_review: pending
+  findings: []
+  implementation: tools/review/ui/gradio/static_review_app.py
+  applicability: render_review
+  review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
+    공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+- id: map-review-wind-hills
+  label: 바람 구릉 · 필드맵 검수
+  category: field-map-review
+  ui_mode: gradio
+  url: /management/frame/map-review/?map=wind-hills&townPage=1
+  source_review: shared_ui_reviewed_runtime_pending
+  contract_tests: shared_component_verified
+  browser_review: loaded_existing_runtime_issue_found
+  findings:
+  - map-texture-alias-collision
+  implementation: tools/review/ui/gradio/map_review_app.py
+  applicability: render_review
+  review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
+    공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+- id: outfit-transfer-generator
+  label: 복장 착용 생성기
+  category: image-generation
+  ui_mode: gradio
+  url: /management/frame/outfit-transfer-generator/
+  source_review: in_progress
+  contract_tests: pending
+  browser_review: pending
+  findings: []
+  implementation: tools/review/ui/gradio/qwen_2511_app.py
+  applicability: generation
+- id: animation-11
+  label: 불씨고슴도치 · 대기 · v1.imagegen-eight-frames
+  category: animation
+  ui_mode: gradio-static
+  url: /management/frame/static-review/?review=animation-11
+  source_review: shared_ui_reviewed_runtime_pending
+  contract_tests: shared_component_verified
+  browser_review: pending
+  findings: []
+  implementation: tools/review/ui/gradio/static_review_app.py
+  applicability: render_review
+  review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
+    공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+- id: map-review-root-trail
+  label: 뿌리 오솔길 · 필드맵 검수
+  category: field-map-review
+  ui_mode: gradio
+  url: /management/frame/map-review/?map=root-trail&townPage=1
+  source_review: shared_ui_reviewed_runtime_pending
+  contract_tests: shared_component_verified
+  browser_review: pending
+  findings: []
+  implementation: tools/review/ui/gradio/map_review_app.py
+  applicability: render_review
+  review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
+    공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+- id: map-review-dawn-overlook
+  label: 새벽 전망대 · 필드맵 검수
+  category: field-map-review
+  ui_mode: gradio
+  url: /management/frame/map-review/?map=dawn-overlook&townPage=1
+  source_review: shared_ui_reviewed_runtime_pending
+  contract_tests: shared_component_verified
+  browser_review: pending
+  findings: []
+  implementation: tools/review/ui/gradio/map_review_app.py
+  applicability: render_review
+  review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
+    공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+- id: map-review-clover-bank
+  label: 세잎 둔덕 · 필드맵 검수
+  category: field-map-review
+  ui_mode: gradio
+  url: /management/frame/map-review/?map=clover-bank&townPage=1
+  source_review: shared_ui_reviewed_runtime_pending
+  contract_tests: shared_component_verified
+  browser_review: pending
+  findings: []
+  implementation: tools/review/ui/gradio/map_review_app.py
+  applicability: render_review
+  review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
+    공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+- id: map-review-salt-causeway
+  label: 소금둑길 · 필드맵 검수
+  category: field-map-review
+  ui_mode: gradio
+  url: /management/frame/map-review/?map=salt-causeway&townPage=1
+  source_review: shared_ui_reviewed_runtime_pending
+  contract_tests: shared_component_verified
+  browser_review: pending
+  findings: []
+  implementation: tools/review/ui/gradio/map_review_app.py
+  applicability: render_review
+  review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
+    공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+- id: map-review-saltford
+  label: 소금여울 · 마을맵 검수
+  category: town-map-review
+  ui_mode: gradio
+  url: /management/frame/map-review/?map=saltford&townPage=1
+  source_review: shared_ui_reviewed_runtime_pending
+  contract_tests: shared_component_verified
+  browser_review: pending
+  findings: []
+  implementation: tools/review/ui/gradio/map_review_app.py
+  applicability: render_review
+  review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
+    공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+- id: animation-9
+  label: 수정날개박쥐 · 대기 · v1.imagegen-eight-frames
+  category: animation
+  ui_mode: gradio-static
+  url: /management/frame/static-review/?review=animation-9
+  source_review: shared_ui_reviewed_runtime_pending
+  contract_tests: shared_component_verified
+  browser_review: pending
+  findings: []
+  implementation: tools/review/ui/gradio/static_review_app.py
+  applicability: render_review
+  review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
+    공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+- id: sprite-editor-v2
+  label: 스프라이트 정규화 편집기 v2
+  category: animation-tool
+  ui_mode: gradio
+  url: /management/frame/sprite-editor-v2/
+  source_review: in_progress
+  contract_tests: pending
+  browser_review: pending
+  findings: []
+  implementation: tools/review/ui/gradio/sprite_editor_v2_app.py
+  applicability: render_review
+- id: animation-20
+  label: 슬라임 · 대기 · v2
+  category: animation
+  ui_mode: gradio-static
+  url: /management/frame/static-review/?review=animation-20
+  source_review: shared_ui_reviewed_runtime_pending
+  contract_tests: shared_component_verified
+  browser_review: pending
+  findings: []
+  implementation: tools/review/ui/gradio/static_review_app.py
+  applicability: render_review
+  review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
+    공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+- id: map-review-cinder-path
+  label: 식은 잿길 · 필드맵 검수
+  category: field-map-review
+  ui_mode: gradio
+  url: /management/frame/map-review/?map=cinder-path&townPage=1
+  source_review: shared_ui_reviewed_runtime_pending
+  contract_tests: shared_component_verified
+  browser_review: pending
+  findings: []
+  implementation: tools/review/ui/gradio/map_review_app.py
+  applicability: render_review
+  review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
+    공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+- id: map-review-fallen-canopy
+  label: 쓰러진 수관 · 필드맵 검수
+  category: field-map-review
+  ui_mode: gradio
+  url: /management/frame/map-review/?map=fallen-canopy&townPage=1
+  source_review: shared_ui_reviewed_runtime_pending
+  contract_tests: shared_component_verified
+  browser_review: pending
+  findings: []
+  implementation: tools/review/ui/gradio/map_review_app.py
+  applicability: render_review
+  review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
+    공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+- id: map-review-mist-lake
+  label: 안개 호수 · 필드맵 검수
+  category: field-map-review
+  ui_mode: gradio
+  url: /management/frame/map-review/?map=mist-lake&townPage=1
+  source_review: shared_ui_reviewed_runtime_pending
+  contract_tests: shared_component_verified
+  browser_review: pending
+  findings: []
+  implementation: tools/review/ui/gradio/map_review_app.py
+  applicability: render_review
+  review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
+    공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+- id: animation-4
+  label: 여성 캐릭터 · 애니메이션 통합 검수
+  category: animation
+  ui_mode: gradio-static
+  url: /management/frame/static-review/?review=animation-4
+  source_review: shared_ui_reviewed_runtime_pending
+  contract_tests: shared_component_verified
+  browser_review: pending
+  findings: []
+  implementation: tools/review/ui/gradio/static_review_app.py
+  applicability: render_review
+  review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
+    공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+- id: map-review-silver-marsh
+  label: 은빛 습지 · 필드맵 검수
+  category: field-map-review
+  ui_mode: gradio
+  url: /management/frame/map-review/?map=silver-marsh&townPage=1
+  source_review: shared_ui_reviewed_runtime_pending
+  contract_tests: shared_component_verified
+  browser_review: pending
+  findings: []
+  implementation: tools/review/ui/gradio/map_review_app.py
+  applicability: render_review
+  review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
+    공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+- id: map-review-moss-clearing
+  label: 이끼 공터 · 필드맵 검수
+  category: field-map-review
+  ui_mode: gradio
+  url: /management/frame/map-review/?map=moss-clearing&townPage=1
+  source_review: shared_ui_reviewed_runtime_pending
+  contract_tests: shared_component_verified
+  browser_review: pending
+  findings: []
+  implementation: tools/review/ui/gradio/map_review_app.py
+  applicability: render_review
+  review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
+    공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+- id: animation-16
+  label: 이끼등거북 · 대기 · v1.imagegen-eight-frames
+  category: animation
+  ui_mode: gradio-static
+  url: /management/frame/static-review/?review=animation-16
+  source_review: shared_ui_reviewed_runtime_pending
+  contract_tests: shared_component_verified
+  browser_review: pending
+  findings: []
+  implementation: tools/review/ui/gradio/static_review_app.py
+  applicability: render_review
+  review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
+    공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+- id: map-review-windrow-road
+  label: 이삭바람길 · 필드맵 검수
+  category: field-map-review
+  ui_mode: gradio
+  url: /management/frame/map-review/?map=windrow-road&townPage=1
+  source_review: shared_ui_reviewed_runtime_pending
+  contract_tests: shared_component_verified
+  browser_review: pending
+  findings: []
+  implementation: tools/review/ui/gradio/map_review_app.py
+  applicability: render_review
+  review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
+    공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+- id: map-review-meadow
+  label: 이슬 초원 · 필드맵 검수
+  category: field-map-review
+  ui_mode: gradio
+  url: /management/frame/map-review/?map=meadow&townPage=1
+  source_review: shared_ui_reviewed_runtime_pending
+  contract_tests: shared_component_verified
+  browser_review: pending
+  findings: []
+  implementation: tools/review/ui/gradio/map_review_app.py
+  applicability: render_review
+  review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
+    공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+- id: map-review-iseulon
+  label: 이슬온 · 마을맵 검수
+  category: town-map-review
+  ui_mode: gradio
+  url: /management/frame/map-review/?map=iseulon&townPage=1
+  source_review: shared_ui_reviewed_runtime_pending
+  contract_tests: shared_component_verified
+  browser_review: pending
+  findings: []
+  implementation: tools/review/ui/gradio/map_review_app.py
+  applicability: render_review
+  review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
+    공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+- id: writer-agent
+  label: 작가 AI 에이전트
+  category: writer-agent
+  ui_mode: gradio
+  url: /management/frame/writer-agent/
+  source_review: in_progress
+  contract_tests: pending
+  browser_review: pending
+  findings: []
+  implementation: tools/review/ui/gradio/writer_agent_app.py
+  applicability: writer
+- id: map-review-ash-edge
+  label: 잿빛 숲가 · 필드맵 검수
+  category: field-map-review
+  ui_mode: gradio
+  url: /management/frame/map-review/?map=ash-edge&townPage=1
+  source_review: shared_ui_reviewed_runtime_pending
+  contract_tests: shared_component_verified
+  browser_review: pending
+  findings: []
+  implementation: tools/review/ui/gradio/map_review_app.py
+  applicability: render_review
+  review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
+    공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+- id: animation-7
+  label: 잿빛여우 · 대기 · v2.imagegen-eight-frames
+  category: animation
+  ui_mode: gradio-static
+  url: /management/frame/static-review/?review=animation-7
+  source_review: shared_ui_reviewed_runtime_pending
+  contract_tests: shared_component_verified
+  browser_review: pending
+  findings: []
+  implementation: tools/review/ui/gradio/static_review_app.py
+  applicability: render_review
+  review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
+    공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+- id: ui-643120e666a183ee-battlefield-layout
+  label: 전투 레이아웃 · 전체 전장
+  category: game-ui
+  ui_mode: gradio-static
+  url: /management/frame/static-review/?review=ui-643120e666a183ee-battlefield-layout
+  source_review: shared_ui_reviewed_runtime_pending
+  contract_tests: shared_component_verified
+  browser_review: pending
+  findings: []
+  implementation: tools/review/ui/gradio/static_review_app.py
+  applicability: render_review
+  review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
+    공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+- id: map-review-pebble-shore
+  label: 조약돌 물가 · 필드맵 검수
+  category: field-map-review
+  ui_mode: gradio
+  url: /management/frame/map-review/?map=pebble-shore&townPage=1
+  source_review: shared_ui_reviewed_runtime_pending
+  contract_tests: shared_component_verified
+  browser_review: pending
+  findings: []
+  implementation: tools/review/ui/gradio/map_review_app.py
+  applicability: render_review
+  review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
+    공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+- id: map-review-brine-bank
+  label: 짠물둔덕 · 필드맵 검수
+  category: field-map-review
+  ui_mode: gradio
+  url: /management/frame/map-review/?map=brine-bank&townPage=1
+  source_review: shared_ui_reviewed_runtime_pending
+  contract_tests: shared_component_verified
+  browser_review: pending
+  findings: []
+  implementation: tools/review/ui/gradio/map_review_app.py
+  applicability: render_review
+  review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
+    공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+- id: animation-separation
+  label: 캐릭터 레퍼런스 복장 분리 생성
+  category: image-generation
+  ui_mode: gradio
+  url: /management/frame/animation-separation/
+  source_review: in_progress
+  contract_tests: pending
+  browser_review: pending
+  findings: []
+  implementation: tools/review/ui/gradio/animation_separation_app.py
+  applicability: generation
+- id: character-review
+  label: 캐릭터 표현 검수
+  category: character-render-review
+  ui_mode: gradio
+  url: /management/frame/character-review/
+  source_review: shared_ui_reviewed_runtime_pending
+  contract_tests: shared_component_verified
+  browser_review: pending
+  findings: []
+  implementation: tools/review/ui/gradio/map_review_app.py
+  applicability: render_review
+  review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
+    공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+- id: pose-transfer-generator
+  label: 포즈 변환 생성기
+  category: animation-tool
+  ui_mode: gradio
+  url: /management/frame/pose-transfer-generator/
+  source_review: in_progress
+  contract_tests: pending
+  browser_review: pending
+  findings: []
+  implementation: tools/review/ui/gradio/qwen_2511_app.py
+  applicability: generation
+- id: expression-generator
+  label: 표정 생성기
+  category: image-generation
+  ui_mode: gradio
+  url: /management/frame/expression-generator/
+  source_review: in_progress
+  contract_tests: pending
+  browser_review: pending
+  findings: []
+  implementation: tools/review/ui/gradio/qwen_2511_app.py
+  applicability: generation
+- id: map-review-grove
+  label: 푸른 숲 · 필드맵 검수
+  category: field-map-review
+  ui_mode: gradio
+  url: /management/frame/map-review/?map=grove&townPage=1
+  source_review: shared_ui_reviewed_runtime_pending
+  contract_tests: shared_component_verified
+  browser_review: pending
+  findings: []
+  implementation: tools/review/ui/gradio/map_review_app.py
+  applicability: render_review
+  review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
+    공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+- id: map-review-salt-flat
+  label: 흰소금벌 · 필드맵 검수
+  category: field-map-review
+  ui_mode: gradio
+  url: /management/frame/map-review/?map=salt-flat&townPage=1
+  source_review: shared_ui_reviewed_runtime_pending
+  contract_tests: shared_component_verified
+  browser_review: pending
+  findings: []
+  implementation: tools/review/ui/gradio/map_review_app.py
+  applicability: render_review
+  review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
+    공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+shared_findings:
+- id: queue-confirmation-reuse
+  status: verified_unit_and_browser
+  source: tools/review/common/gradio_gpu_confirmation.py
+  description: 확인 입력 중복 소비와 취소 후 실행 방지 검증 부재; 잠금 아래 일회 소비하도록 보강
+  evidence: test_gpu_confirmation 통과; 격리 Qwen 2.1 합성 화면 취소 0건·확인 1건·확인 중 시작 비활성·종료
+    후 복원 확인
+- id: history-reset-preview
+  status: partial_verified
+  source: tools/review/common/gradio_history.py
+  description: 전체 초기화 확인에 서비스 소유 작업 수·숨긴 이력 수·명시적 취소 표시 필요
+  evidence: 공용 Gradio 이력과 이미지·영상·음악·HY-Motion 서비스에 읽기 전용 미리보기 연결. 브라우저 작업 2건 표시·취소
+    0회·모의 확인 1회·완료 후 비활성 확인. ANNY 사전 조회 연결 및 격리 브라우저 2건 표시·자동 갱신 후 확인 유지·취소 검증 완료.
+- id: image-telemetry
+  status: partial_verified
+  source: tools/review/domains/image/image_generation.py
+  description: 이미지 서비스 공통 ETA·VRAM 전체 단계 측정 계약 미구현 범위 확인 필요
+  evidence: '공용 GPU 실행기에 queue-telemetry/<시도>/metrics.json 및 현재 시도 포인터 연결. 이미지 상태가
+    해당 기록의 ETA·장치별 관측값을 반환. 모의 기록 회귀 21건 통과(재개 시도 분리·완료/실패·측정 오류·대기 중 이전 관측 제외). 실제
+    실행기 통합 모의 검증, 단계별 진행·브라우저 전수 연결은 남음. 공용 실행기 통합 모의 검사: 완료·실패·취소·일시정지의 최종 기록 보존
+    및 예약 해제 확인(5건 통과).'
+- id: browser-history-standard-actions
+  status: partial_verified
+  source: tools/review/common/gradio_browser_history.py
+  description: ANNY 브라우저 이력의 우선 실행 및 공통 6열 상태별 비활성 규칙 적용 필요; 편집 이력에는 생성기 규칙을 오적용하지
+    않음
+  evidence: ANNY 공통 6열·상태별 활성화·우선 실행 게이트웨이 연결. 회귀 33건 및 자동 갱신 회귀 18건 통과. 격리 브라우저 대기
+    상태 우선 실행 활성·삭제 비활성, 초기화 2건 표시·자동 갱신 중 확인 유지·취소 확인. 실제 생성·삭제 미실행. 8806 수정 화면에서
+    실패·대기 상태별 결과·재개·우선 실행·중지·삭제 활성 조건 확인.
+- id: anny-legacy-confirmation
+  status: partial_verified
+  source: tools/review/ui/gradio/anny_attributes_app.py
+  description: Gradio ANNY 생성·재개를 공용 Gradio 인라인 확인으로 연결. GPU 사용·대기 조건과 입력 스냅샷 유지.
+    독립 HTML 호환 화면은 별도 범위.
+  evidence: 모의 JS 회귀(유휴·사용 중·취소·중복·조회 오류) 및 ANNY 합성 브라우저 취소 무접수·확인 1건·버튼 복원 검증. 재개
+    브라우저 검증은 남음. 8806 합성 모의 화면에서 실패 작업 재개 확인 영역 열림·취소 후 버튼 복원·확인 후 모의 명령 완료와 영역 닫힘
+    확인.
+- id: anny-generation-gateway
+  status: verified_contract_browser_pending
+  source: tools/review/ui/anny/anny-attributes.html
+  description: ANNY 프리뷰·렌더를 anny-preview·anny-render 명령으로 등록하고 GUI를 공용 HTTP 명령에 연결.
+    CLI --payload-file·help·기존 호환 경로 유지.
+  evidence: 게이트웨이/런타임/ANNY 회귀 20건 통과. GUI·CLI payload 및 호환 URL 동일 서비스 전달, 알 수 없는 필드·범위
+    초과·bool 입력의 생성 전 거절 확인. 실제 GPU 실행 없음.
+- id: map-texture-alias-collision
+  status: verified_unit_browser_pending
+  source: tools/review/ui/map/field-map-view.js
+  evidence: 실제 바람 구릉 화면에서 stonewarm-stone-roof 중복 등록 오류 확인. 동일 이미지 별칭 재사용 및 다른 이미지
+    충돌 거절 회귀 통과. 수정본 브라우저 검증 대기.
+- id: anny-telemetry-display
+  status: verified_contract_mock_browser
+  source: tools/review/domains/anny/anny_attributes.py
+  description: ANNY 상태·이력에 공용 실행 시도별 ETA·VRAM 제공, Gradio 5초 상태 표시 연결. 대기 중 이전 시도 측정값
+    미표시.
+  evidence: 공용 메뉴와 합성한 8806 격리 화면에서 실패 작업 선택 후 현재 120 MiB·관측 피크 480 MiB·측정 범위·샘플링
+    한계 표시 확인. API 값 계약은 회귀 검사로 검증. 실 GPU 생성은 실행하지 않음.
+- id: media-status-unification
+  status: verified_contract_browser_pending
+  source: tools/review/common/gradio_video_results.py; tools/review/common/gradio_audio_results.py
+  description: 영상·음악 상태 표시를 공용 구현에 연결. 미측정 VRAM과 0 구분, 관측 피크 샘플링 한계, 실패 원인 표시. 영상
+    추론 전용 ETA 유지.
+  evidence: 음악·Phantom·VACE·공용 상태 회귀 47건 통과. 개별 수정 화면 브라우저 검증 대기.
+regression_runs:
+- path: .tmp/test/management-audit/2026-10-15_09-30-57/summary.json
+  passed: 165
+  failed: 3
+  errors: 1
+  note: 구형 테스트 3개 수정 후 재검증 필요; Gradio process_api 시간초과 원인 미확인
+- path: .tmp/test/management-audit-fixes/2026-10-15_09-34-14/summary.json
+  passed: 18
+  failed: 0
+  errors: 0
+  note: 확인 일회 소비·취소, 삭제 응답 계약, ANNY 동작 계약 및 Qwen 2512 검증
+- path: .tmp/test/management-cleanup-preview-external/2026-10-15_09-39-02/summary.json
+  passed: 74
+  failed: 0
+  errors: 0
+  note: 초기화 미리보기·변경 대상 거절·취소·삭제 계약·게이트웨이·HY-Motion·음악. Gradio 비동기 포함 샌드박스 밖 검증
+- path: .tmp/test/management-async-isolated/2026-10-15_09-38-32/summary.json
+  passed: 1
+  failed: 0
+  errors: 0
+  note: 동일 Gradio process_api 테스트는 샌드박스 밖에서 1.02초에 통과. 테스트를 생략하지 않음
+- path: .tmp/test/management-anny-audit/2026-10-15_09-44-29/summary.json
+  passed: 33
+  failed: 0
+  errors: 0
+  note: ANNY 상태별 이력 버튼, 숨긴 작업 미리보기·대기 중 거절 및 게이트웨이·앵커 화면 호환
+- path: .tmp/test/management-anny-confirmation/2026-10-15_09-47-53/summary.json
+  passed: 18
+  failed: 0
+  errors: 0
+  note: 자동 갱신이 삭제 확인을 무효화하지 않는 이벤트 계약과 앵커 화면 호환
+- path: .tmp/test/management-browser-confirmation/2026-10-15_09-51-09/summary.json
+  passed: 19
+  failed: 0
+  errors: 0
+  note: 브라우저 소유 입력의 조건부 Gradio 확인·취소·중복·입력 보존, ANNY·앵커 구성
+- path: .tmp/test/management-anny-gateway/2026-10-15_09-53-57/summary.json
+  passed: 20
+  failed: 0
+  errors: 0
+  note: ANNY 생성 명령·CLI 파일 입력·help·호환 경로·잘못된 속성 거절·GPU 미실행
+- path: .tmp/test/management-queue-telemetry/2026-10-15_09-56-00/summary.json
+  passed: 21
+  failed: 0
+  errors: 0
+  note: 시도별 GPU 관측·동일 입력 ETA 표본·측정 오류·이미지 상태 연결 및 기존 VACE/대기열 계약
+- path: .tmp/test/management-queue-integration/2026-10-15_09-57-08/summary.json
+  passed: 5
+  failed: 0
+  errors: 0
+  note: GPU 없는 모의 실행기 완료·실패·취소·일시정지 및 예약 해제
+- path: .tmp/test/management-review-pages/2026-10-15_09-57-46/summary.json
+  passed: 18
+  failed: 0
+  errors: 0
+  note: 맵 및 정적 검수 공용 Gradio 구성·브라우저 이벤트 계약; 개별 맵·애니메이션 에셋 렌더 검증 아님
+- path: .tmp/test/management-history-availability/2026-10-15_10-02-49/summary.json
+  passed: 18
+  failed: 0
+  errors: 0
+  note: 결과 없는 작업 비활성·준비된 중간 결과 허용·지원 재개 상태·앵커 호환
+- path: .tmp/test/management-anny-telemetry/2026-10-15_10-03-57/summary.json
+  passed: 19
+  failed: 0
+  errors: 0
+  note: ANNY 상태·공용 Gradio 표시·게이트웨이 및 대기 중 이전 측정 제외
+- path: .tmp/test/management-telemetry-conditions/2026-10-15_10-04-51/summary.json
+  passed: 5
+  failed: 0
+  errors: 0
+  note: 프리뷰/렌더 실행 옵션별 ETA 표본 분리, 관측 스레드 시작 전 종료 및 기존 실행 상태 회귀
+- path: .tmp/test/management-texture-alias/2026-10-15_10-01-52/summary.json
+  passed: 1
+  failed: 0
+  errors: 0
+  note: 동일 이미지 텍스처 재사용·다른 원본 충돌 거절
+- path: .tmp/test/management-media-status/2026-10-15_10-08-05/summary.json
+  passed: 47
+  failed: 0
+  errors: 0
+  note: 미측정 GPU·실패 원인·단계 스텝 표시 및 기존 음악/Phantom/VACE 계약
+runtime_observation:
+  url: http://127.0.0.1:8770/management/frame/map-review/?map=wind-hills&townPage=1&tool=map-review-wind-hills
+  note: 기존 실행 화면 메뉴 63개, 감사 대상 소스 메뉴 67개. 기존 화면 로딩 성공은 수정 소스 검증과 구분하며 사용자 서버를 임의 재시작하지
+    않음.

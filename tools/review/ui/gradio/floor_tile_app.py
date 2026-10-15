@@ -1,13 +1,12 @@
 """바닥 타일 단일 이미지 생성의 Gradio 클라이언트."""
 import argparse
-from datetime import datetime, timedelta
-from zoneinfo import ZoneInfo
 from pathlib import Path
 import sys
 import gradio as gr
 
 WORKFLOW_ROOT_DIRECTORY = Path(__file__).resolve().parents[4]
 if str(WORKFLOW_ROOT_DIRECTORY) not in sys.path: sys.path.insert(0,str(WORKFLOW_ROOT_DIRECTORY))
+from tools.review.common.generation_status_display import describe_generation_status
 from tools.review.common.management_client import execute_remote_management_command as execute_management_command
 from tools.review.common.gradio_history import build_generation_history_view
 from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_confirmation
@@ -62,14 +61,7 @@ def build_floor_interface(server_base_address):
             selected_job_identifier = active_job_record.get('id') or current_generation_identifier
             if not selected_job_identifier: return '', '생성 가능 · 작업이 없습니다.'
             current_status_record = execute_floor_gateway('status',{'id':selected_job_identifier})
-            current_status_name = current_status_record['status']
-            if current_status_name == 'queued': return selected_job_identifier, 'GPU 대기열 대기 · 예상 남은 시간·완료 시각 계산 중 (실행 시작 후 추정)'
-            if current_status_name != 'running': return selected_job_identifier, '상태: '+current_status_name+' · '+current_status_record.get('error','결과는 생성 이력에서 확인하세요.')
-            estimate_record_value = current_status_record.get('estimate',{})
-            remaining_seconds_value = estimate_record_value.get('remaining_seconds')
-            if remaining_seconds_value is None: return selected_job_identifier, current_status_record.get('stage','생성 중')+' · 예상 남은 시간·완료 시각 계산 중 (동일 설정 완료 이력 부족)'
-            expected_finish_value = datetime.now(ZoneInfo('Asia/Seoul'))+timedelta(seconds=remaining_seconds_value)
-            return selected_job_identifier, f"{current_status_record.get('stage','생성 중')} · 예상 {remaining_seconds_value:.0f}초 남음 · 완료 {expected_finish_value:%H:%M:%S} KST · 근거: 동일 설정 완료 {estimate_record_value['samples']}건 평균"
+            return selected_job_identifier, describe_generation_status(current_status_record)
         interface_block_value.load(refresh_floor_progress,current_identifier_state,[current_identifier_state,generation_status_control])
         gr.Timer(3).tick(refresh_floor_progress,current_identifier_state,[current_identifier_state,generation_status_control],queue=False)
         def restore_floor_inputs(history_record_value):

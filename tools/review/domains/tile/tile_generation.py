@@ -1,14 +1,12 @@
 """고정 타일 프롬프트를 서버에서 결합하고 공용 Qwen 작업자로 실행한다."""
 import hashlib
 import json
-import time
-from datetime import datetime
 from urllib.parse import urlsplit
-from zoneinfo import ZoneInfo
 import yaml
 from tools.review.domains.image.image_generation import ImageGenerationManager, IMAGE_JOB_ROOT, MANAGER_HISTORY_ROOT, WORKFLOW_ROOT_PATH, validate_image_request
 
 from tools.review.domains.tile.tile_results import TILE_BORDER_CROP_RATIO
+from tools.review.common.generation_estimates import calculate_generation_estimate
 
 SURFACE_PROMPT_PREFIX = '표면 재질: '
 TILE_CONFIGURATION_PATH = WORKFLOW_ROOT_PATH/'generators/terrain/config/tile_map.yaml'
@@ -94,10 +92,13 @@ class TileGenerationManager(ImageGenerationManager):
                 elapsed_seconds_value=json.loads(result_record_path.read_text()).get('elapsed_seconds')
                 if isinstance(elapsed_seconds_value,(int,float)) and elapsed_seconds_value>0:completed_duration_values.append(elapsed_seconds_value)
             if len(completed_duration_values)==5:break
-        remaining_seconds_value=None
-        if completed_duration_values:
-            remaining_seconds_value=max(0,sum(completed_duration_values)/len(completed_duration_values)-(time.time()-(current_job_root/'request.json').stat().st_mtime))
-        return current_status_record|{'estimate':{'remaining_seconds':remaining_seconds_value,'samples':len(completed_duration_values)}}
+        current_estimate_record = calculate_generation_estimate(
+            current_status_record, completed_duration_values,
+            '동일 타일 설정의 완료 이력; 실행 시작 시각이나 표본이 없으면 계산 중',
+            'GPU 대기 제외; 타일 생성 전체',
+        )
+        return current_status_record | {'estimate': current_estimate_record}
+
     def handle_image_request(self,current_http_handler):
         route_path_value=urlsplit(current_http_handler.path).path
         if current_http_handler.command=='GET' and route_path_value=='/tile-map-generator/catalog':

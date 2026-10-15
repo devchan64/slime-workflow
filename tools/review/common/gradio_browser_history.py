@@ -4,10 +4,12 @@ import gradio as gr
 from tools.review.common.generation_cleanup import GENERATION_CLEANUP_SCOPE_TEXT
 from tools.review.common.gradio_identifiers import build_generation_identifier
 from tools.review.common.gradio_logs import create_copyable_log_textbox
+from tools.review.common.management_client import execute_remote_management_command
+from tools.review.common.gradio_browser_confirmation import bind_browser_gpu_confirmation
 
 
-def build_browser_history_controls(history_bridge_name, history_element_identifier, current_supported_actions=None, current_reset_target_handler=None):
-    current_allowed_actions={"list","result","restore","logs","resume","cancel","delete","reset"}
+def build_browser_history_controls(history_bridge_name, history_element_identifier, current_supported_actions=None, current_reset_target_handler=None, current_service_name=None):
+    current_allowed_actions={"list","result","restore","logs","resume","cancel","delete","reset","prioritize"}
     current_enabled_actions=current_allowed_actions if current_supported_actions is None else set(current_supported_actions)
     if not current_enabled_actions<=current_allowed_actions or "list" not in current_enabled_actions:
         raise ValueError("이력 컨트롤의 지원 명령이 올바르지 않습니다.")
@@ -17,8 +19,15 @@ def build_browser_history_controls(history_bridge_name, history_element_identifi
         current_history_choice=gr.Dropdown(label='이력 선택 · ID·상태 검색',choices=[],interactive=True)
         current_history_identifier=build_generation_identifier('선택한 생성 ID')
         current_history_feedback=gr.Textbox(label='이력 안내',value='목록을 읽고 작업을 선택하세요.',interactive=False)
+        current_history_buttons=[]
         with gr.Row():
-            current_history_buttons=[(gr.Button(current_action_label),current_action_name) for current_action_name,current_action_label in [('list','이력 새로고침'),('result','결과 조회'),('restore','입력값 불러오기'),('logs','로그 조회'),('resume','생성 재개'),('cancel','작업 중지')] if current_action_name in current_enabled_actions]
+            for current_action_name,current_action_label in [('list','이력 새로고침'),('logs','로그 조회')]:
+                if current_action_name in current_enabled_actions:
+                    current_history_buttons.append((gr.Button(current_action_label),current_action_name))
+        with gr.Row(equal_height=True):
+            for current_action_name,current_action_label in [('result','결과 조회'),('restore','입력값 불러오기'),('resume','생성 재개'),('prioritize','우선 실행'),('cancel','작업 중지'),('delete','선택 이력 삭제')]:
+                if current_action_name in current_enabled_actions:
+                    current_history_buttons.append((gr.Button(current_action_label,interactive=False,min_width=0),current_action_name))
         with gr.Accordion('저장된 입력·기록',open=False):
             current_history_record=gr.JSON(label='선택한 생성 기록')
         with gr.Accordion('선택한 작업 로그',open=False,visible='logs' in current_enabled_actions):
@@ -26,7 +35,7 @@ def build_browser_history_controls(history_bridge_name, history_element_identifi
         with gr.Accordion('이력 수동 정리',open=False,visible=bool(current_enabled_actions&{'delete','reset'})):
             gr.Markdown('현재 동작·버전의 편집 이력 목록만 초기화합니다.' if current_reset_target_handler else GENERATION_CLEANUP_SCOPE_TEXT)
             with gr.Row():
-                for current_action_name,current_action_label in [('delete','선택 이력 삭제'),('reset','생성 이력 초기화' if not current_reset_target_handler else '이력 목록 초기화')]:
+                for current_action_name,current_action_label in [('reset','생성 이력 초기화' if not current_reset_target_handler else '이력 목록 초기화')]:
                     if current_action_name in current_enabled_actions:current_history_buttons.append((gr.Button(current_action_label),current_action_name))
         if not current_reset_target_handler:
             current_file_action=gr.State('')
@@ -44,6 +53,16 @@ def build_browser_history_controls(history_bridge_name, history_element_identifi
                 with gr.Row():
                     current_reset_confirm=gr.Button('확인 · 이력 목록 초기화',variant='stop')
                     current_reset_cancel=gr.Button('취소 · 이력 유지')
+        current_selection_buttons=[(current_action_button,current_action_name) for current_action_button,current_action_name in current_history_buttons if current_action_name in ('result','restore','resume','prioritize','cancel','delete')]
+        def update_browser_history_actions(current_selected_record):
+            current_status_record=(current_selected_record or {}).get('status') or {}
+            current_status_name=current_status_record.get('status') if isinstance(current_status_record,dict) else current_status_record
+            current_result_available=bool(current_selected_record) and (bool(current_reset_target_handler) or current_status_name=='completed' or bool(current_selected_record.get('preview_ready')))
+            current_enabled_states={'result':current_result_available,'restore':bool(current_selected_record),'resume':current_status_name in ('failed','cancelled'),'prioritize':current_status_name=='queued','cancel':current_status_name in ('running','queued'),'delete':current_status_name in ('completed','failed','cancelled','paused')}
+            current_disabled_labels={'result':'결과 조회 · 결과 생성 후 선택','restore':'입력값 불러오기 · 이력 선택','resume':'생성 재개 · 실패·중지 작업 선택','prioritize':'우선 실행 · 대기 작업 선택','cancel':'작업 중지 · 실행·대기 작업 선택','delete':'선택 이력 삭제 · 완료·중지 후 가능'}
+            current_action_labels={'result':'결과 조회','restore':'입력값 불러오기','resume':'생성 재개','prioritize':'우선 실행','cancel':'작업 중지','delete':'선택 이력 삭제'}
+            return [gr.update(interactive=current_enabled_states[current_action_name],value=current_action_labels[current_action_name] if current_enabled_states[current_action_name] else current_disabled_labels[current_action_name]) for _,current_action_name in current_selection_buttons]
+        current_history_record.change(update_browser_history_actions,current_history_record,[current_action_button for current_action_button,_ in current_selection_buttons],queue=False)
         current_history_outputs=[current_history_choice,current_history_identifier,current_history_record,current_history_log,current_history_feedback]
         def create_history_script(current_action_name, current_automatic_mode=False):
             current_bridge_key=json.dumps(history_bridge_name)
@@ -80,14 +99,23 @@ def build_browser_history_controls(history_bridge_name, history_element_identifi
                     if current_requested_action=='delete' and not current_selected_identifier:
                         raise gr.Error('삭제할 작업을 선택하세요.')
                     current_target_value=current_selected_identifier or ''
+                    if current_requested_action=='reset':
+                        if not current_service_name:raise gr.Error('초기화 대상 조회 서비스가 연결되지 않았습니다.')
+                        current_preview_record=execute_remote_management_command(current_service_name,'history-reset-preview',{})
+                        if not current_preview_record['can_reset']:raise gr.Error('실행·대기 또는 상태 미확인 작업이 있습니다. 작업 종료 후 다시 확인하세요.')
+                        return gr.update(visible=True),current_requested_action,current_preview_record,f"{current_service_name} · {current_preview_record['job_count']}개 작업 · {current_preview_record['notice']}"
                     return gr.update(visible=True),current_requested_action,current_target_value,current_target_value if current_requested_action=='delete' else '이 생성기의 전체 작업 파일'
                 current_action_button.click(open_file_confirmation,current_history_choice,[current_file_panel,current_file_action,current_file_target,current_file_display],queue=False)
+            elif current_action_name=='resume':
+                current_prepare_resume="currentSelectedId=>{if(!currentSelectedId)throw Error('재개할 작업을 선택하세요.');return {id:currentSelectedId};}"
+                current_execute_resume="currentSnapshotValue=>("+create_history_script('resume')+")(currentSnapshotValue.id,false,{confirmed:true})"
+                bind_browser_gpu_confirmation(current_action_button,current_prepare_resume,current_execute_resume,[current_history_choice],current_history_outputs)
             else:
                 current_action_button.click(fn=None,inputs=current_history_inputs,outputs=current_history_outputs,queue=False,js=create_history_script(current_action_name))
         if not current_reset_target_handler:
-            current_file_confirm.click(fn=None,inputs=[*current_history_inputs,current_file_action,current_file_target],outputs=[*current_history_outputs,current_file_panel],queue=False,js="async(currentSelectedId,currentRefreshEnabled,currentAction,currentTarget)=>{if(!['delete','reset'].includes(currentAction))return [{__type__:'update'},{__type__:'update'},{__type__:'update'},{__type__:'update'},'삭제 확인이 만료되었습니다.',{__type__:'update',visible:false}];if(currentAction==='delete'&&currentSelectedId!==currentTarget)return [{__type__:'update'},{__type__:'update'},{__type__:'update'},{__type__:'update'},'삭제 대상이 변경되었습니다.',{__type__:'update',visible:false}];const currentResult=await (currentAction==='delete'?("+create_history_script('delete')+"):("+create_history_script('reset')+"))(currentSelectedId,currentRefreshEnabled,{confirmed:true,id:currentTarget});return [...currentResult,{__type__:'update',visible:false}];}")
+            current_file_confirm.click(fn=None,inputs=[*current_history_inputs,current_file_action,current_file_target],outputs=[*current_history_outputs,current_file_panel],queue=False,js="async(currentSelectedId,currentRefreshEnabled,currentAction,currentTarget)=>{if(!['delete','reset'].includes(currentAction))return [{__type__:'update'},{__type__:'update'},{__type__:'update'},{__type__:'update'},'삭제 확인이 만료되었습니다.',{__type__:'update',visible:false}];if(currentAction==='delete'&&currentSelectedId!==currentTarget)return [{__type__:'update'},{__type__:'update'},{__type__:'update'},{__type__:'update'},'삭제 대상이 변경되었습니다.',{__type__:'update',visible:false}];const currentResult=await (currentAction==='delete'?("+create_history_script('delete')+"):("+create_history_script('reset')+"))(currentSelectedId,currentRefreshEnabled,{confirmed:true,id:currentTarget,preview:currentAction==='reset'?currentTarget:null});return [...currentResult,{__type__:'update',visible:false}];}")
             current_file_cancel.click(lambda:(gr.update(visible=False),''),outputs=[current_file_panel,current_file_action],queue=False)
-            current_history_choice.change(lambda:(gr.update(visible=False),''),outputs=[current_file_panel,current_file_action],queue=False)
+            current_history_choice.input(lambda:(gr.update(visible=False),''),outputs=[current_file_panel,current_file_action],queue=False)
         current_history_choice.input(fn=None,inputs=current_history_inputs,outputs=current_history_outputs,queue=False,js=create_history_script('inspect'))
         current_history_timer=gr.Timer(5)
         current_history_timer.tick(fn=None,inputs=current_history_inputs,outputs=current_history_outputs,queue=False,js=create_history_script('list',True),show_progress='hidden')

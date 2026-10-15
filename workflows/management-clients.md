@@ -599,3 +599,26 @@ VACE V2V의 `padding_color`는 `#RRGGBB` 형식의 여백 색상이며 기본값
 ### 생성 이력 파일 정리 적용 범위
 
 공용 이미지 서비스(Qwen·포즈 변환 등), VACE R2V/V2V, Phantom, HY-Motion, 음악 생성기, ANNY 렌더 및 과거 캐릭터 생성 기록의 `history-delete`·`history-reset`은 작업 폴더와 색인을 실제 삭제한다. ANNY도 공용 게이트웨이에서 두 명령을 지원한다. 삭제 응답의 `deleted_jobs`·`deleted_bytes`는 삭제한 작업 수와 파일 크기 합계이며 파일시스템의 실제 여유 공간 증가량과는 다를 수 있다. 전체 초기화는 이전에 목록에서 숨겼던 작업 폴더도 포함한다. 작업 폴더 밖의 원본은 삭제 대상에 포함하지 않으며 심볼릭 링크·상태 미확인·실행 중 작업이 있으면 사전 검증에서 거절한다. 앵커·스프라이트 편집 이력은 이 생성 파일 정리 계약과 구분한다.
+
+### 초기화 대상 사전 조회
+
+`history-reset-preview`는 삭제하지 않고 서비스 소유 작업 폴더의 작업 수·상태·삭제 범위를 반환한다. 목록에서 숨긴 작업도 포함하며 `can_reset=false`이면 `blocked_jobs`의 작업 종료 또는 상태 오류 해결이 필요하다. 조회 후 실제 초기화에서도 잠금 아래 상태를 다시 검증한다.
+
+```bash
+python3 tools/manager.py command pose-transfer history-reset-preview
+python3 tools/manager.py command hy-motion history-reset-preview
+```
+
+이미지 공통 서비스, VACE·Phantom, 음악, HY-Motion 및 ANNY에 적용한다. ANNY의 별도 브라우저 이력도 작업 수를 사전 조회한다. 공용 Gradio 이력은 `삭제 대상 확인 → 작업 수·복구 불가 확인 → 전체 삭제` 순서이며, 확인 뒤 목록·상태가 변경되면 다시 확인하도록 거절한다. 취소는 파일을 삭제하지 않는다.
+
+### ANNY 프리뷰·렌더 접수
+
+Gradio와 통합 CLI는 `anny` 서비스의 `anny-preview`(메시 프리뷰)와 `anny-render`(이미지 렌더)를 사용한다. 기존 `/anny-attributes/preview`·`/render`는 같은 작업 서비스의 호환 경로다. 속성 JSON에는 기본 체형의 허용 속성과 선택적인 `rotation_y`를 전달하며, 알 수 없는 속성·범위 밖 값은 생성 전에 거절한다.
+
+```bash
+python3 tools/manager.py command anny anny-preview --payload-file /absolute/path/attributes.json
+python3 tools/manager.py command anny anny-render --payload-file /absolute/path/attributes.json
+python3 tools/manager.py command anny status 12345678
+```
+
+접수는 생성 ID를 반환한다. 기존 ANNY 작업 폴더·입력·상태·이력·로그 경로를 유지하며 클라이언트별 사본 저장소를 만들지 않는다.

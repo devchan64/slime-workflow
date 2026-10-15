@@ -52,6 +52,10 @@ export async function createSharedFieldReview(currentMapCanvas,currentTextureIma
   for(const [currentGameTexture,currentAssetPath] of Object.entries(collectTerrainTextureSources())){
    const currentCatalogEntry=Object.entries(currentTextureRecords).find(([,currentTileRecord])=>currentTileRecord.source===currentAssetPath);
    if(!currentCatalogEntry)throw Error('게임 타일 원본이 검수 카탈로그에 없습니다: '+currentAssetPath);
+   if(currentFieldScene.textures.exists(currentGameTexture)){
+    if(currentFieldScene.textures.get(currentGameTexture).getSourceImage()!==currentTextureImages[currentCatalogEntry[0]])throw Error('게임 타일 키가 다른 검수 원본과 충돌합니다: '+currentGameTexture);
+    continue;
+   }
    currentFieldScene.textures.addImage(currentGameTexture,currentTextureImages[currentCatalogEntry[0]]);
   }
   createTerrainAtlas(currentFieldScene);

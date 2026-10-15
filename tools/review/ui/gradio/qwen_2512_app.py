@@ -11,6 +11,7 @@ import gradio as gr
 
 WORKFLOW_ROOT_DIRECTORY=Path(__file__).resolve().parents[4]
 if str(WORKFLOW_ROOT_DIRECTORY) not in sys.path:sys.path.insert(0,str(WORKFLOW_ROOT_DIRECTORY))
+from tools.review.common.generation_status_display import describe_generation_status
 from tools.review.common.gradio_identifiers import build_generation_identifier
 from tools.review.common.gradio_results import build_generation_gallery, collect_generation_gallery
 from tools.review.common.gradio_seed import build_generation_seed
@@ -38,14 +39,7 @@ def restore_generation_inputs(current_history_record):
     return restored_prompt_text,current_request_record.get('tag',''),current_request_record.get('width',1024),current_request_record.get('height',1024),current_request_record.get('steps',4),current_request_record.get('seed',DEFAULT_IMAGE_SEED),f'최종 프롬프트: **{count_prompt_words(restored_prompt_text)}단어**','선택한 이력의 입력값을 불러왔습니다. 생성 전에 내용을 확인하세요.'
 
 def format_generation_status(status_record_value):
-    progress_record_value=status_record_value.get('progress') or {}
-    progress_text_value=''
-    if progress_record_value.get('total'):
-        progress_text_value=f" · {progress_record_value.get('step',0)} / {progress_record_value['total']} 단계"
-    elif progress_record_value.get('percent') is not None:
-        progress_text_value=f" · {progress_record_value['percent']}%"
-    detail_text_value=status_record_value.get('error') or status_record_value.get('message') or ''
-    return f"상태: {status_record_value.get('status','unknown')}{progress_text_value}"+(f' · {detail_text_value}' if detail_text_value else '')
+    return describe_generation_status(status_record_value)
 
 def build_qwen_2512_interface(server_base_address):
     with gr.Blocks(title='Qwen 2512 이미지 생성기') as interface_blocks_value:
@@ -61,7 +55,6 @@ def build_qwen_2512_interface(server_base_address):
                 with gr.Row():
                     step_select_value=gr.Radio(IMAGE_STEP_VALUES,value=4,label='생성 스텝')
                     seed_number_value=build_generation_seed(DEFAULT_IMAGE_SEED)
-                gr.Markdown('예상 시간: 실행 이력 기반 추정 자료를 수집 중입니다. 실행 로그의 단계와 완료 시각을 확인하세요.')
                 with gr.Row():
                     prepare_button_value=gr.Button('모델 준비 확인')
                     generation_button_value=gr.Button('이미지 생성 시작',variant='primary')
@@ -88,7 +81,7 @@ def build_qwen_2512_interface(server_base_address):
         prepare_button_value.click(check_model_ready,outputs=model_status_value,queue=False)
         def start_generation(prompt_text_value,generation_tag_value,width_value,height_value,step_value,seed_value):
             generation_record_value=execute_image_gateway('generate',build_generation_request(prompt_text_value,generation_tag_value,width_value,height_value,step_value,seed_value))
-            return generation_record_value['id'],'상태: running · 생성 작업을 시작했습니다.'
+            return generation_record_value['id'],describe_generation_status(generation_record_value)
         bind_gpu_generation_confirmation(generation_button_value,start_generation,[prompt_text_value,generation_tag_value,width_select_value,height_select_value,step_select_value,seed_number_value],[generation_identifier_value,generation_status_value])
         interface_blocks_value.load(lambda:read_history_page(1),outputs=history_output_values)
         def refresh_generation_status(generation_identifier_value,refresh_log_enabled):

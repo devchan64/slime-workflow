@@ -13,7 +13,7 @@ import uuid
 import os
 import signal
 import shutil
-from tools.review.common.generation_cleanup import delete_generation_job_files
+from tools.review.common.generation_cleanup import delete_generation_job_files, describe_generation_cleanup
 from tools.review.common.generation_records import load_generation_history_records, write_record_atomically
 from tools.review.domains.image.image_runtime import validate_image_runtime
 from tools.review.common.gpu_job_queue import launch_gpu_process, cancel_gpu_generation, resume_gpu_generation
@@ -105,6 +105,10 @@ class ImageGenerationManager:
             current_progress_record['queue_position']=current_status_record['queue_position']
         current_status_record['progress']=current_progress_record
         current_status_record['log_updated_at']=current_log_path.stat().st_mtime if current_log_path.exists() else None
+        from tools.review.common.queue_generation_telemetry import read_queue_generation_metrics
+        current_queue_metrics=read_queue_generation_metrics(current_job_root)
+        if current_queue_metrics and current_status_record['status']!='queued':
+            current_status_record.update(metrics=current_queue_metrics,estimate=current_queue_metrics['estimate'])
         return current_status_record
 
     def validate_generation_request(self, request_record_value):
@@ -131,14 +135,21 @@ class ImageGenerationManager:
     def reset_generation_history(self):
         return self.clear_image_generation_files()
 
+    def list_cleanup_targets(self):
+        if self.job_storage_root.resolve() != self.job_storage_root.absolute():
+            raise ValueError('심볼릭 링크 작업 저장소는 초기화할 수 없습니다.')
+        return [current_job_path for current_job_path in self.job_storage_root.iterdir() if re.fullmatch(r'\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-(?:[a-f0-9]{8}|prepare)', current_job_path.name)] if self.job_storage_root.exists() else []
+
+    def preview_generation_cleanup(self):
+        with self.current_request_lock, MANAGER_HISTORY_LOCK:
+            return describe_generation_cleanup(self.job_storage_root, self.list_cleanup_targets())
+
     def clear_image_generation_files(self):
         """목록에서 제외한 작업도 포함해 생성기 실제 파일을 정리한다."""
         with self.current_request_lock, MANAGER_HISTORY_LOCK:
             if self.current_worker_process is not None and self.current_worker_process.poll() is None:
                 raise ValueError('생성 중에는 초기화할 수 없습니다.')
-            if self.job_storage_root.resolve() != self.job_storage_root.absolute():
-                raise ValueError('심볼릭 링크 작업 저장소는 초기화할 수 없습니다.')
-            current_job_targets = [current_job_path for current_job_path in self.job_storage_root.iterdir() if re.fullmatch(r'\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-(?:[a-f0-9]{8}|prepare)',current_job_path.name)] if self.job_storage_root.exists() else []
+            current_job_targets = self.list_cleanup_targets()
             current_cleanup_result = delete_generation_job_files(self.job_storage_root,current_job_targets,self.history_storage_path().glob('*.json'))
             self.current_job_identifier = None
             return current_cleanup_result
@@ -263,6 +274,8 @@ class ImageGenerationManager:
             elif current_url_path == self.route_prefix_value+'/active':
                 active_history_records=[record_value for record_value in self.list_generation_history() if record_value.get('status',{}).get('status') in ('queued','running')]
                 send_response_data(200,{'running':bool(active_history_records),'id':active_history_records[0]['id'] if active_history_records else None})
+            elif current_url_path == self.route_prefix_value+'/history/reset-preview':
+                send_response_data(200,self.preview_generation_cleanup())
             elif current_url_path == self.route_prefix_value+'/history':
                 send_response_data(200,{'records':self.list_generation_history()})
             elif current_url_path == self.route_prefix_value+'/model-status':

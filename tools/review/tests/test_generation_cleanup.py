@@ -86,3 +86,64 @@ class GenerationCleanupTests(unittest.TestCase):
                 with self.assertRaisesRegex(OSError,'일부 실패'):
                     delete_generation_job_files(Path(current_temp_root),[current_job_path])
             self.assertTrue((current_job_path/'status.json').exists())
+
+
+class CleanupPreviewTests(unittest.TestCase):
+    def test_preview_counts_hidden_jobs_without_writes(self):
+        from tools.review.common.generation_cleanup import describe_generation_cleanup
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_storage_root=Path(current_directory_name)
+            current_job_targets=[]
+            for current_job_name,current_status_name in [('visible','completed'),('hidden','queued')]:
+                current_job_root=current_storage_root/current_job_name
+                current_job_root.mkdir()
+                (current_job_root/'status.json').write_text(json.dumps({'status':current_status_name}))
+                current_job_targets.append(current_job_root)
+            current_before_files=sorted(str(current_file_path) for current_file_path in current_storage_root.rglob('*'))
+            current_preview_record=describe_generation_cleanup(current_storage_root,current_job_targets)
+            self.assertEqual(current_preview_record['job_count'],2)
+            self.assertFalse(current_preview_record['can_reset'])
+            self.assertEqual(current_preview_record['blocked_jobs'],[{'path':'hidden','status':'queued'}])
+            self.assertEqual(current_before_files,sorted(str(current_file_path) for current_file_path in current_storage_root.rglob('*')))
+
+    def test_preview_rejects_symlinks_and_missing_status(self):
+        from tools.review.common.generation_cleanup import describe_generation_cleanup
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_storage_root=Path(current_directory_name)
+            current_job_root=current_storage_root/'job'
+            current_job_root.mkdir()
+            with self.assertRaises(ValueError):describe_generation_cleanup(current_storage_root,[current_job_root])
+            (current_job_root/'status.json').write_text('{"status":"completed"}')
+            (current_job_root/'outside').symlink_to('/tmp')
+            with self.assertRaises(ValueError):describe_generation_cleanup(current_storage_root,[current_job_root])
+
+    def test_image_service_preview_uses_same_hidden_targets_as_reset(self):
+        from tools.review.domains.image.image_generation import ImageGenerationManager
+        from tools.review.common.management_gateway import resolve_management_command
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_service_instance=ImageGenerationManager()
+            current_service_instance.job_storage_root=Path(current_directory_name)
+            current_job_root=current_service_instance.job_storage_root/'2026-10-15_00-00-00-12345678'
+            current_job_root.mkdir()
+            (current_job_root/'status.json').write_text('{"status":"completed"}')
+            self.assertEqual(current_service_instance.preview_generation_cleanup()['job_count'],1)
+            self.assertTrue(current_job_root.exists())
+        self.assertEqual(resolve_management_command('pose-transfer','history-reset-preview',{}),('GET','/pose-transfer/history/reset-preview'))
+        with self.assertRaises(ValueError):resolve_management_command('pose-transfer','history-reset-preview',{'action':'reset'})
+
+
+class AnnyCleanupPreviewTests(unittest.TestCase):
+    def test_preview_reports_hidden_jobs_and_blocks_running_without_deletion(self):
+        from tools.review.domains.anny import anny_attributes as current_anny_module
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_storage_root=Path(current_directory_name)
+            for current_identifier_value,current_status_name in [('12345678','completed'),('abcdef12','queued')]:
+                current_job_path=current_storage_root/current_identifier_value
+                current_job_path.mkdir()
+                (current_job_path/'status.json').write_text(json.dumps({'status':current_status_name}))
+                (current_job_path/'.history-deleted').touch()
+            with patch.object(current_anny_module,'JOBS',current_storage_root):
+                current_preview_record=current_anny_module.preview_anny_history_cleanup()
+            self.assertEqual(current_preview_record['job_count'],2)
+            self.assertFalse(current_preview_record['can_reset'])
+            self.assertTrue((current_storage_root/'12345678'/'status.json').exists())

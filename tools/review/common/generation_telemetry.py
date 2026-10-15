@@ -104,7 +104,9 @@ class GenerationTelemetryRecorder:
 
     def finish_generation_telemetry(self, current_status_name):
         self.current_stop_event.set()
-        self.current_worker_thread.join(timeout=6)
+        # 시작 단계에서 실패해도 확보한 관측 기록을 종료 상태로 저장한다.
+        if self.current_worker_thread.ident is not None:
+            self.current_worker_thread.join(timeout=6)
         self.capture_generation_memory()
         self.current_run_state.update(status=current_status_name,stage=current_status_name)
         self.save_generation_metrics()

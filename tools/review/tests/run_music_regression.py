@@ -41,8 +41,8 @@ class MusicRegressionResult(unittest.TextTestResult):
         raise TimeoutError('회귀 테스트 30초 제한 초과')
 
 
-def execute_music_regression():
-    current_result_root = WORKFLOW_ROOT_DIRECTORY/'.tmp/test/music-regression'/datetime.now(ZoneInfo('Asia/Seoul')).strftime('%Y-%m-%d_%H-%M-%S')
+def execute_music_regression(current_test_modules=MUSIC_REGRESSION_MODULES, current_report_area="music-regression"):
+    current_result_root = WORKFLOW_ROOT_DIRECTORY/'.tmp/test'/current_report_area/datetime.now(ZoneInfo('Asia/Seoul')).strftime('%Y-%m-%d_%H-%M-%S')
     current_result_root.mkdir(parents=True)
     current_start_clock = time.monotonic()
     current_stop_event = threading.Event()
@@ -53,13 +53,13 @@ def execute_music_regression():
         sys.stdout = sys.stderr = current_log_handle
         def record_test_heartbeat():
             while not current_stop_event.wait(5):
-                current_log_handle.write(f'{datetime.now().isoformat()}/music-regression/heartbeat elapsed={time.monotonic()-current_start_clock:.1f}s log_bytes={current_log_handle.tell()}\n')
+                current_log_handle.write(f'{datetime.now().isoformat()}/{current_report_area}/heartbeat elapsed={time.monotonic()-current_start_clock:.1f}s log_bytes={current_log_handle.tell()}\n')
                 current_log_handle.flush()
         current_heartbeat_thread = threading.Thread(target=record_test_heartbeat,daemon=True)
         current_heartbeat_thread.start()
         try:
-            print(f'{datetime.now().isoformat()}/music-regression/start',flush=True)
-            current_test_suite = unittest.defaultTestLoader.loadTestsFromNames(MUSIC_REGRESSION_MODULES)
+            print(f'{datetime.now().isoformat()}/{current_report_area}/start',flush=True)
+            current_test_suite = unittest.defaultTestLoader.loadTestsFromNames(current_test_modules)
             current_test_result = unittest.TextTestRunner(stream=current_log_handle,verbosity=2,resultclass=MusicRegressionResult).run(current_test_suite)
             current_exit_code = 0 if current_test_result.wasSuccessful() else 1
             current_summary_record = {'passed':current_test_result.testsRun-len(current_test_result.failures)-len(current_test_result.errors)-len(current_test_result.skipped),

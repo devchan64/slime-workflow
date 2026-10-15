@@ -12,13 +12,14 @@ import time
 WORKFLOW_ROOT_DIRECTORY = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(WORKFLOW_ROOT_DIRECTORY))
 from tools.review.common.generation_records import write_record_atomically
+from tools.review.common.queue_generation_telemetry import QueueGenerationTelemetry
 from tools.review.common.gpu_memory_history import read_worker_memory, save_memory_observation, estimate_required_memory, identify_execution_command
 GPU_QUEUE_DIRECTORY = WORKFLOW_ROOT_DIRECTORY / '.tmp/gpu-queue'
 GPU_MEMORY_REQUIREMENTS = {'momask': 4096, 'character-animation': 6144, 'image': 6144, 'anny': 2048}
 # HY-Motion의 초기 예약은 실측 전 보수적 값이며 완료 후 공용 이력의 peak로 갱신한다.
 GPU_MEMORY_REQUIREMENTS['hy-motion'] = 7000
 # 음악 모델의 초기 예약값. 실제 관측 피크는 공용 메모리 이력이 갱신한다.
-GPU_MEMORY_REQUIREMENTS.update({'music-stable-audio':7000,'music-ace-step':7000,'music-minimax':7000})
+GPU_MEMORY_REQUIREMENTS.update({'music-ace-step':7000,'music-minimax':7000})
 GPU_POLL_INTERVAL = 2
 # 실측 프로세스 최대 사용량과 현재 여유를 직접 비교한다.
 # 고정 여유분 추가 차감은 단독 실행이 가능한 작업도 무기한 차단한다.
@@ -160,6 +161,7 @@ def execute_queued_generation(generation_job_path):
     memory_measurement_error = None
     last_memory_sample_time = 0
     generation_worker_process = None
+    current_telemetry_recorder = None
     import signal
     signal.signal(signal.SIGTERM, lambda *_: (generation_job_path/"cancel.request").touch())
     try:
@@ -233,6 +235,10 @@ def execute_queued_generation(generation_job_path):
                 time.sleep(GPU_POLL_INTERVAL)
             queue_ticket_path.unlink(missing_ok=True)
             write_record_atomically(generation_job_path/'status.json', {'status':'running', 'memory_estimate':memory_estimate_record})
+            current_telemetry_recorder = QueueGenerationTelemetry(generation_job_path, identify_execution_command(generation_command_record['command'], generation_job_path))
+            current_telemetry_recorder.capture_generation_memory()
+            current_telemetry_recorder.save_generation_metrics()
+            current_telemetry_recorder.start_generation_telemetry()
             generation_worker_process = subprocess.Popen(generation_command_record['command'], start_new_session=True, env=dict(os.environ, SLIME_GPU_RESERVATION_PATH=str(active_reservation_path.resolve())))
             while generation_worker_process.poll() is None:
                 if (generation_job_path/'cancel.request').exists():
@@ -271,10 +277,16 @@ def execute_queued_generation(generation_job_path):
             os.killpg(generation_worker_process.pid, signal.SIGKILL)
             generation_worker_process.wait()
         active_reservation_path.unlink(missing_ok=True)
-        if generation_worker_process is not None:
-            final_status = json.loads((generation_job_path/'status.json').read_text())['status']
-            observation_record = save_memory_observation(generation_command_record['service'], generation_job_path, peak_memory_mib, memory_sample_count, final_status, memory_measurement_error, identify_execution_command(generation_command_record['command'], generation_job_path))
-            write_record_atomically(generation_job_path/'gpu-memory.json', observation_record)
+        try:
+            if generation_worker_process is not None:
+                final_status = json.loads((generation_job_path/'status.json').read_text())['status']
+                observation_record = save_memory_observation(generation_command_record['service'], generation_job_path, peak_memory_mib, memory_sample_count, final_status, memory_measurement_error, identify_execution_command(generation_command_record['command'], generation_job_path))
+                write_record_atomically(generation_job_path/'gpu-memory.json', observation_record)
+        finally:
+            if current_telemetry_recorder is not None:
+                current_final_status = json.loads((generation_job_path/'status.json').read_text())['status']
+                current_telemetry_recorder.finish_generation_telemetry(current_final_status)
+
 
 if __name__ == '__main__':
     queue_argument_parser = argparse.ArgumentParser()

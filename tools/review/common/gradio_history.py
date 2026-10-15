@@ -142,28 +142,48 @@ def collect_image_history_thumbnails(history_record_values, server_base_address)
 def build_history_reset_controls(deletion_scope_text):
     with gr.Accordion('생성 이력 초기화',open=False):
         gr.Markdown(deletion_scope_text)
-        confirmation_checkbox_value=gr.Checkbox(value=False,label='초기화 범위를 확인했습니다.')
-        reset_button_value=gr.Button('생성 이력 초기화',interactive=False)
+        reset_preview_button=gr.Button('삭제 대상 확인')
+        reset_preview_summary=gr.Markdown('삭제 대상 확인을 눌러 이 생성기의 작업 수와 삭제 범위를 먼저 확인하세요.')
+        reset_preview_record=gr.State(None)
+        confirmation_checkbox_value=gr.Checkbox(value=False,label='작업 수와 복구 불가를 확인했습니다.',interactive=False)
+        with gr.Row():
+            reset_button_value=gr.Button('확인 · 전체 파일과 이력 삭제',interactive=False,variant='stop')
+            reset_cancel_button=gr.Button('취소 · 이력 유지')
         reset_status_value=gr.Markdown()
-    confirmation_checkbox_value.change(lambda current_confirm_value:gr.update(interactive=bool(current_confirm_value)),confirmation_checkbox_value,reset_button_value,queue=False)
-    return confirmation_checkbox_value,reset_button_value,reset_status_value
+    confirmation_checkbox_value.change(lambda current_confirm_value,current_preview_record:gr.update(interactive=bool(current_confirm_value and current_preview_record and current_preview_record['can_reset'])),[confirmation_checkbox_value,reset_preview_record],reset_button_value,queue=False)
+    return confirmation_checkbox_value,reset_button_value,reset_status_value,reset_preview_button,reset_cancel_button,reset_preview_record,reset_preview_summary
 
 
 def bind_history_reset_action(control_component_values,execute_service_command,refresh_history_callback,history_output_components):
-    confirmation_checkbox_value,reset_button_value,reset_status_value=control_component_values
-    def execute_confirmed_reset(current_confirm_value):
-        if current_confirm_value is not True:
-            raise gr.Error('초기화 범위를 확인해 주세요.')
-        # 삭제 정책과 실행 중 작업 보호는 기존 서비스가 담당한다.
+    confirmation_checkbox_value,reset_button_value,reset_status_value,reset_preview_button,reset_cancel_button,reset_preview_record,reset_preview_summary=control_component_values
+    def preview_history_reset():
+        current_preview_record=execute_service_command('history-reset-preview',{})
+        current_summary_text=f"삭제 대상: **{current_preview_record['job_count']}개 작업**\n\n{current_preview_record['scope']}\n\n{current_preview_record['notice']}"
+        if current_preview_record['blocked_jobs']:
+            current_summary_text+='\n\n삭제 불가: '+', '.join(current_job_record['path']+' ('+current_job_record['status']+')' for current_job_record in current_preview_record['blocked_jobs'])+' · 작업 종료 후 다시 확인하세요.'
+        return current_preview_record,current_summary_text,gr.update(value=False,interactive=current_preview_record['can_reset']),gr.update(interactive=False)
+    def cancel_history_reset(current_preview_record):
+        if current_preview_record is not None:current_preview_record['can_reset']=False
+        return None,'초기화를 취소했습니다. 다시 삭제하려면 대상을 확인하세요.',gr.update(value=False,interactive=False),gr.update(interactive=False)
+    current_preview_outputs=[reset_preview_record,reset_preview_summary,confirmation_checkbox_value,reset_button_value]
+    reset_preview_button.click(preview_history_reset,outputs=current_preview_outputs,queue=False)
+    reset_cancel_button.click(cancel_history_reset,reset_preview_record,current_preview_outputs,queue=False)
+    def execute_confirmed_reset(current_confirm_value,current_preview_record):
+        if current_confirm_value is not True or not current_preview_record or not current_preview_record['can_reset']:
+            raise gr.Error('삭제 대상을 확인하고 복구 불가 확인을 선택하세요.')
+        current_preview_record['can_reset']=False
         try:
+            current_latest_preview=execute_service_command('history-reset-preview',{})
+            if not current_latest_preview['can_reset'] or current_latest_preview['jobs']!=current_preview_record['jobs']:
+                raise ValueError('삭제 대상 또는 상태가 변경되었습니다. 삭제 대상을 다시 확인하세요.')
             current_cleanup_result = execute_service_command('history-reset',{'action':'reset'})
-        except (ValueError, OSError) as history_reset_error:
+        except (ValueError,RuntimeError,OSError) as history_reset_error:
             raise gr.Error(str(history_reset_error)) from history_reset_error
         history_update_values=refresh_history_callback()
         if not isinstance(history_update_values,(list,tuple)):
             history_update_values=[history_update_values]
-        return [*history_update_values,False,gr.update(interactive=False),format_cleanup_result(current_cleanup_result)]
-    reset_button_value.click(execute_confirmed_reset,confirmation_checkbox_value,[*history_output_components,confirmation_checkbox_value,reset_button_value,reset_status_value])
+        return [*history_update_values,gr.update(value=False,interactive=False),gr.update(interactive=False),format_cleanup_result(current_cleanup_result),None,'삭제가 완료됐습니다.']
+    reset_button_value.click(execute_confirmed_reset,[confirmation_checkbox_value,reset_preview_record],[*history_output_components,confirmation_checkbox_value,reset_button_value,reset_status_value,reset_preview_record,reset_preview_summary],trigger_mode='once')
     return execute_confirmed_reset
 
 

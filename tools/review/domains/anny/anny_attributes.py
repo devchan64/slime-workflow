@@ -1,8 +1,9 @@
 import sys
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[4]))
-from tools.review.common.generation_cleanup import delete_generation_job_files
+from tools.review.common.generation_cleanup import delete_generation_job_files, describe_generation_cleanup
 from tools.review.common.gpu_job_queue import launch_gpu_process, cancel_gpu_generation, resume_gpu_generation
+from tools.review.common.queue_generation_telemetry import read_queue_generation_metrics
 from tools.review.ui_assets import resolve_review_ui_asset
 from urllib.parse import urlsplit
 import json, subprocess, threading, uuid, re, math, yaml
@@ -20,6 +21,16 @@ PROFILE_REQUIRED_FIELDS={'schema_version','profile_id','label','source_asset_id'
 ANNY_ACTIVE_HISTORY_STATES={'running','queued'}
 ANNY_HISTORY_SERVICE_LOCK=threading.RLock()
 
+def read_anny_generation_status(current_job_directory):
+ current_status_record=json.loads((current_job_directory/'status.json').read_text())
+ if current_status_record.get('status')!='queued':
+  current_metrics_record=read_queue_generation_metrics(current_job_directory)
+  if current_metrics_record:
+   current_status_record['metrics']=current_metrics_record
+   current_status_record['estimate']=current_metrics_record.get('estimate') or {}
+ return current_status_record
+
+
 def read_anny_history_status(job_directory_path):
  status_file_path=job_directory_path/'status.json'
  if not status_file_path.is_file():raise ValueError('작업 상태 기록이 없습니다.')
@@ -32,6 +43,11 @@ def delete_anny_history_record(generation_job_identifier):
  with ANNY_HISTORY_SERVICE_LOCK:
   current_cleanup_result=delete_generation_job_files(JOBS,[JOBS/generation_job_identifier])
   return {**current_cleanup_result,'deleted':generation_job_identifier}
+
+def preview_anny_history_cleanup():
+ with ANNY_HISTORY_SERVICE_LOCK:
+  current_job_targets=[current_job_path for current_job_path in JOBS.iterdir() if re.fullmatch('[a-f0-9]{8}',current_job_path.name)] if JOBS.exists() else []
+  return describe_generation_cleanup(JOBS,current_job_targets)
 
 def clear_anny_history_records():
  with ANNY_HISTORY_SERVICE_LOCK:
@@ -106,7 +122,7 @@ class AnnyAttributeManager:
    if h.command=='GET' and path=='/anny-attributes/history':
     stored_history_records=[]
     for history_record_path in sorted(JOBS.glob('*/history.json'),key=lambda item:item.stat().st_mtime,reverse=True):
-     current_history_record=json.loads(history_record_path.read_text());current_history_record['path']=str(history_record_path.parent.resolve());current_history_record['status']=json.loads((history_record_path.parent/'status.json').read_text());
+     current_history_record=json.loads(history_record_path.read_text());current_history_record['path']=str(history_record_path.parent.resolve());current_history_record['status']=read_anny_generation_status(history_record_path.parent);
      current_history_record['preview_ready']=all((history_record_path.parent/name).is_file() or (history_record_path.parent/'render'/name).is_file() for name in ('front.png','side.png'));stored_history_records.append(current_history_record)
     self.send(h,200,{'records':stored_history_records});return True
    if h.command=='POST' and path in ('/anny-attributes/cancel','/anny-attributes/resume'):
@@ -125,6 +141,8 @@ class AnnyAttributeManager:
     selected_request_record=json.loads(h.rfile.read(int(h.headers['Content-Length'])))
     if selected_request_record!={'id':history_delete_match.group(1)}:raise ValueError('삭제 대상 작업 ID 오류')
     self.send(h,200,delete_anny_history_record(history_delete_match.group(1)));return True
+   if h.command=='GET' and path=='/anny-attributes/history/reset-preview':
+    self.send(h,200,preview_anny_history_cleanup());return True
    if h.command=='POST' and path=='/anny-attributes/history/reset':
     if h.headers.get('Origin')!=f'http://127.0.0.1:{h.server.server_port}':raise ValueError('허용하지 않는 요청 출처')
     if json.loads(h.rfile.read(int(h.headers['Content-Length'])))!={'action':'reset'}:raise ValueError('초기화 요청 오류')
@@ -139,7 +157,7 @@ class AnnyAttributeManager:
     if len(parts)==5 and parts[4] not in {'front.png','side.png','mesh.json'}:raise ValueError('허용하지 않는 결과 파일')
     root=JOBS/parts[3]
     if len(parts)==4:
-     state=json.loads((root/'status.json').read_text());state['preview_ready']=all((root/name).is_file() or (root/'render'/name).is_file() for name in ('front.png','side.png'));state['mesh_ready']=(root/'render'/'mesh.json').is_file();
+     state=read_anny_generation_status(root);state['preview_ready']=all((root/name).is_file() or (root/'render'/name).is_file() for name in ('front.png','side.png'));state['mesh_ready']=(root/'render'/'mesh.json').is_file();
      state['log']=(root/'worker.log').read_text(errors='replace')[-2000:] if (root/'worker.log').exists() else '';self.send(h,200,state);return True
     preview_image_path=root/parts[4]
     if not preview_image_path.is_file():preview_image_path=root/'render'/parts[4]

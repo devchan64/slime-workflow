@@ -15,7 +15,7 @@ class FloorGenerationTests(unittest.TestCase):
         return dict(action='generate',user_prompt='잔디밭',width=512,height=512,steps=4,seed=251204)
     def test_fixed_prompt_and_validation(self):
         prepared_request_value = prepare_floor_request(self.create_floor_request())
-        self.assertEqual(prepared_request_value['prompt'],'잔디밭. Top down view. Close up. Square. Blank margins. Webtoon style.')
+        self.assertEqual(prepared_request_value['prompt'],'잔디밭. Top down view. Close up. Square. Blank margins. Illustration.')
         for current_legacy_field in ('floor_separation','floor_rectify','border_crop','style_prompt'):
             self.assertNotIn(current_legacy_field,prepared_request_value)
         self.assertEqual(prepared_request_value['width'],512)
@@ -65,7 +65,7 @@ class FloorGenerationTests(unittest.TestCase):
     def test_margin_toggle_contract(self):
         import hashlib
         for margin_enabled_value in (True,False):
-            expected_prompt_text = '잔디밭. Top down view. Close up. Square. ' + ('Blank margins. ' if margin_enabled_value else '') + 'Webtoon style.'
+            expected_prompt_text = '잔디밭. Top down view. Close up. Square. ' + ('Blank margins. ' if margin_enabled_value else '') + 'Illustration.'
             prepared_request_value = prepare_floor_request(self.create_floor_request()|{'add_margins':margin_enabled_value})
             self.assertEqual(prepared_request_value['prompt'],expected_prompt_text)
             self.assertEqual(prepared_request_value['add_margins'],margin_enabled_value)
@@ -127,7 +127,7 @@ class FloorGenerationTests(unittest.TestCase):
                 self.assertTrue(floor_service_value.enrich_generation_status(selected_job_path,{'status':'completed'})['rectified_image'].endswith('/square-crop.png'))
                 floor_service_value.delete_generation_history(generation_job_identifier)
                 self.assertEqual(floor_service_value.list_generation_history(),[])
-                self.assertTrue((selected_job_path/'square-crop.png').exists())
+                self.assertFalse(selected_job_path.exists())
 
     def test_center_tile_preserves_pixels_and_rejects_incomplete_grid(self):
         from tools.review.domains.tile.floor_results import extract_center_tile

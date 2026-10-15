@@ -28,7 +28,11 @@ class GenerationHistoryTests(unittest.TestCase):
             current_manager_value.history_storage_path().mkdir(parents=True)
             (current_manager_value.history_storage_path()/(current_job_identifier+'.json')).write_text(json.dumps({'id':current_job_identifier,'request':{'prompt':'테스트'}}))
 
-            self.assertEqual(current_manager_value.delete_generation_history(current_job_identifier),{'deleted':current_job_identifier,'files_preserved':False})
+            current_cleanup_record = current_manager_value.delete_generation_history(current_job_identifier)
+            self.assertEqual(current_cleanup_record['deleted'], current_job_identifier)
+            self.assertFalse(current_cleanup_record['files_preserved'])
+            self.assertEqual(current_cleanup_record['deleted_jobs'], 1)
+            self.assertGreater(current_cleanup_record['deleted_bytes'], 0)
             self.assertEqual(current_manager_value.list_generation_history(),[])
             self.assertFalse(current_job_directory.exists())
 
@@ -43,7 +47,7 @@ class GenerationHistoryTests(unittest.TestCase):
             current_manager_value.history_storage_path().mkdir(parents=True)
             (current_manager_value.history_storage_path()/(current_job_identifier+'.json')).write_text(json.dumps({'id':current_job_identifier}))
 
-            with self.assertRaisesRegex(ValueError,'먼저 중지'):
+            with self.assertRaisesRegex(ValueError,'실행·대기'):
                 current_manager_value.delete_generation_history(current_job_identifier)
 
     def test_history_delete_endpoint_uses_selected_identifier_only(self):

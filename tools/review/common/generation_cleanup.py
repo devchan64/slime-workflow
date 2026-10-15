@@ -64,3 +64,29 @@ def delete_generation_job_files(current_storage_root, current_job_targets, curre
         except OSError as current_delete_error:
             raise OSError(f'파일 삭제 일부 실패: 완료 {current_deleted_count}건, {current_deleted_bytes}바이트; {current_delete_error}') from current_delete_error
     return {'status':'cleared','deleted_jobs':current_deleted_count,'deleted_bytes':current_deleted_bytes,'files_preserved':False}
+
+
+def describe_generation_cleanup(current_storage_root, current_job_targets):
+    """삭제 예정 작업을 읽기 전용으로 확인한다. 실행 시 재검증을 대체하지 않는다."""
+    current_target_records = []
+    current_blocked_records = []
+    for current_target_path in sorted(set(map(Path, current_job_targets))):
+        current_target_path = validate_cleanup_path(current_target_path, current_storage_root)
+        if not current_target_path.is_dir():
+            raise ValueError(f'작업 폴더가 아닙니다: {current_target_path}')
+        current_status_path = current_target_path / 'status.json'
+        if current_status_path.is_symlink() or not current_status_path.is_file():
+            raise ValueError(f'작업 상태 파일 오류: {current_status_path}')
+        current_status_record = json.loads(current_status_path.read_text())
+        if not isinstance(current_status_record, dict) or not isinstance(current_status_record.get('status'), str):
+            raise ValueError(f'작업 상태 형식 오류: {current_status_path}')
+        if any(current_child_path.is_symlink() for current_child_path in current_target_path.rglob('*')):
+            raise ValueError(f'심볼릭 링크가 포함된 작업: {current_target_path}')
+        current_target_record = {'path': str(current_target_path.relative_to(current_storage_root)), 'status': current_status_record['status']}
+        current_target_records.append(current_target_record)
+        if current_status_record['status'] not in GENERATION_CLEANUP_TERMINAL_STATES:
+            current_blocked_records.append(current_target_record)
+    return {'job_count': len(current_target_records), 'jobs': current_target_records,
+            'blocked_jobs': current_blocked_records, 'can_reset': not current_blocked_records,
+            'scope': GENERATION_CLEANUP_SCOPE_TEXT,
+            'notice': '목록에서 숨긴 작업도 포함합니다. 삭제 시 상태를 다시 검증합니다.'}

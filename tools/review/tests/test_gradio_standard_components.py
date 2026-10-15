@@ -7,7 +7,7 @@ from tools.review.common.gradio_history import build_generation_history_view, bu
 from tools.review.common.gradio_reference_images import build_reference_image_inputs
 from tools.review.common.gradio_seed import build_generation_seed
 
-STANDARD_APPLICATION_NAMES=('momask','qwen_2511','qwen_2512','qwen_21','qwen_circular','expression','pose_transfer','outfit_transfer','seamless_tile','floor_tile','character_animation','animation_separation')
+STANDARD_APPLICATION_NAMES=('hy_motion','qwen_2511','qwen_2512','qwen_21','qwen_circular','expression','pose_transfer','outfit_transfer','seamless_tile','floor_tile','animation_separation')
 
 
 class GradioStandardComponentTests(unittest.TestCase):
@@ -33,7 +33,8 @@ class GradioStandardComponentTests(unittest.TestCase):
         self.assertEqual(current_history_outputs[3].css_template,'')
         self.assertIn("trigger('click'",current_history_outputs[3].js_on_load)
         self.assertIn("watch('value'",current_history_outputs[3].js_on_load)
-        self.assertIsInstance(current_history_outputs[6],gr.Gallery)
+        self.assertIsInstance(current_history_outputs[6],gr.Column)
+        self.assertTrue(any(isinstance(current_block_value,gr.Gallery) for current_block_value in current_interface_blocks.blocks.values()))
         self.assertFalse(any(current_function_value.js and 'selectionInputElement' in current_function_value.js for current_function_value in current_interface_blocks.fns.values()))
 
     def test_progress_and_failed_reason_survive_native_table(self):

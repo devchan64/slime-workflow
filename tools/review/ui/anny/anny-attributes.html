@@ -47,16 +47,16 @@ async function showPreparedPreview(recordId){
  await Promise.all(['front','side'].map(async view=>{const target=document.querySelector('#'+view);const url='/anny-attributes/jobs/'+recordId+'/'+view+'.png';if(target.getAttribute('src')===url)return;const image=new Image();image.src=url;await image.decode();target.src=url;target.hidden=false}));
  update_render_result_visibility(true,'');
 }
-async function requestAttributeRender(renderFinalImages=false){
+async function requestAttributeRender(renderFinalImages=false,currentConfirmedSnapshot=null){
  if(activeRenderPromise)return;
- const requestedChangeVersion=attributeChangeVersion;
+ const requestedChangeVersion=currentConfirmedSnapshot?.version??attributeChangeVersion;
  activeRenderPromise=(async()=>{
  try{
- if(!await confirmGpuQueueStart()){renderStatusLabel.textContent='대기열 추가를 취소했습니다.';return;}
+ if(!currentConfirmedSnapshot&&!await confirmGpuQueueStart()){renderStatusLabel.textContent='대기열 추가를 취소했습니다.';return;}
  renderStatusLabel.textContent=renderFinalImages?'이미지 렌더 중':'웹 프리뷰 메시 생성 중';
- const record=await fetchRenderRecord('/anny-attributes/'+(renderFinalImages?'render':'preview'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...collectAttributeValues(),rotation_y:readRenderRotation()})});
+ const record=await fetchRenderRecord('/management/command',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({service:'anny',command:renderFinalImages?'anny-render':'anny-preview',payload:currentConfirmedSnapshot?.payload??{...collectAttributeValues(),rotation_y:readRenderRotation()}})});
  let state,loadedMeshPreview=false;
- do{await new Promise(resolve=>setTimeout(resolve,1000));state=await fetchRenderRecord('/anny-attributes/jobs/'+record.id);if(state.mesh_ready&&!loadedMeshPreview&&requestedChangeVersion===attributeChangeVersion){await currentMeshPreview.loadPreviewRecord(record.id);currentMeshPreview.setPreviewRotation(readRenderRotation());loadedMeshPreview=true;}if(state.preview_ready&&requestedChangeVersion===attributeChangeVersion){await showPreparedPreview(record.id);renderStatusLabel.textContent='프리뷰 준비 완료 · 후속 작업 처리 중';}attributeLogViewer.update(state.log||'');}while(['running','queued'].includes(state.status));
+ do{await new Promise(resolve=>setTimeout(resolve,1000));state=await fetchRenderRecord('/anny-attributes/jobs/'+record.id);window.annyGenerationStatus=state;if(state.mesh_ready&&!loadedMeshPreview&&requestedChangeVersion===attributeChangeVersion){await currentMeshPreview.loadPreviewRecord(record.id);currentMeshPreview.setPreviewRotation(readRenderRotation());loadedMeshPreview=true;}if(state.preview_ready&&requestedChangeVersion===attributeChangeVersion){await showPreparedPreview(record.id);renderStatusLabel.textContent='프리뷰 준비 완료 · 후속 작업 처리 중';}attributeLogViewer.update(state.log||'');}while(['running','queued'].includes(state.status));
  if(requestedChangeVersion!==attributeChangeVersion)return;
  if(state.status!=='completed')throw Error('렌더 실패 · 로그를 확인하세요.');
  if(renderFinalImages)await showPreparedPreview(record.id);
@@ -90,10 +90,11 @@ window.annyNumericControls=(currentActionName,currentFieldName,currentFieldValue
  return [{__type__:'update',choices:attributeFieldSpecs.map(currentSpecRecord=>[currentSpecRecord[1]+(['hip-waist-up','torso-muscle-dorsi-incr'].includes(currentSpecRecord[0])?' · 잠금':''),currentSpecRecord[0]]),value:currentSelectedName},{__type__:'update',value:currentAttributeValues[currentSelectedName],minimum:currentMinimumValue,maximum:currentMaximumValue,interactive:!currentLockedState},`허용 범위 ${currentMinimumValue}~${currentMaximumValue} · ${currentLockedState?'기준값 잠금':'변경 후 프리뷰 생성으로 확인하세요.'}`];
 };
 window.annyHistoryControls=async(currentActionName,currentSelectedId,currentConfirmedTarget)=>{
- if(!['list','inspect','result','restore','logs','resume','cancel','delete','reset'].includes(currentActionName))throw Error('지원하지 않는 이력 명령입니다.');
+ if(!['list','inspect','result','restore','logs','resume','cancel','delete','reset','prioritize'].includes(currentActionName))throw Error('지원하지 않는 이력 명령입니다.');
  const currentHistoryPayload=await fetchRenderRecord('/anny-attributes/history');
  const currentHistoryRecords=currentHistoryPayload.records;
  const currentSelectedRecord=currentHistoryRecords.find(currentHistoryRecord=>currentHistoryRecord.id===currentSelectedId);
+ if(currentSelectedRecord)window.annyGenerationStatus=currentSelectedRecord.status;
  if(!['list','reset'].includes(currentActionName)&&!currentSelectedRecord)throw Error('목록을 새로 읽고 작업을 선택하세요.');
  let currentFeedbackText=`총 ${currentHistoryRecords.length}건 · 작업을 선택해 결과나 입력을 조회하세요.`;
  let currentLogText=currentSelectedRecord&&currentActionName!=='inspect'?{__type__:'update'}:'';
@@ -108,16 +109,21 @@ window.annyHistoryControls=async(currentActionName,currentSelectedId,currentConf
  if(currentActionName==='logs'){
   const currentStatusRecord=await fetchRenderRecord('/anny-attributes/jobs/'+encodeURIComponent(currentSelectedId));currentLogText=(currentStatusRecord.log||'기록된 로그가 없습니다.').slice(-12000);currentFeedbackText='선택한 작업 로그를 조회했습니다.';
  }
- if(['cancel','resume','delete','reset'].includes(currentActionName)){
+ if(['cancel','resume','delete','reset','prioritize'].includes(currentActionName)){
   const currentStateName=currentSelectedRecord?.status.status;
+  if(currentActionName==='prioritize'&&currentStateName!=='queued')throw Error('GPU 대기 작업만 우선 실행할 수 있습니다.');
   if(currentActionName==='cancel'&&!['running','queued'].includes(currentStateName))throw Error('실행 또는 대기 중인 작업만 중지할 수 있습니다.');
   if(currentActionName==='resume'&&!['failed','cancelled'].includes(currentStateName))throw Error('실패 또는 중지된 작업만 재개할 수 있습니다.');
   if(currentActionName==='delete'&&['running','queued'].includes(currentStateName))throw Error('실행 또는 대기 중인 작업은 먼저 중지하세요.');
   if(currentActionName==='reset'&&currentHistoryRecords.some(currentHistoryRecord=>['running','queued'].includes(currentHistoryRecord.status.status)))throw Error('실행 또는 대기 중인 작업이 있습니다. 완료 후 정리하세요.');
-  const currentConfirmedValue=currentActionName==='resume'?await confirmGpuQueueStart():!['delete','reset'].includes(currentActionName)||(currentConfirmedTarget?.confirmed===true&&(currentActionName==='reset'||currentConfirmedTarget.id===currentSelectedId));
+  const currentConfirmedValue=currentActionName==='resume'?(currentConfirmedTarget?.confirmed===true||await confirmGpuQueueStart()):!['delete','reset'].includes(currentActionName)||(currentConfirmedTarget?.confirmed===true&&(currentActionName==='reset'||currentConfirmedTarget.id===currentSelectedId));
   if(currentConfirmedValue){
-   const currentRouteSuffix=currentActionName==='reset'?'history/reset':currentActionName==='delete'?'history/'+encodeURIComponent(currentSelectedId)+'/delete':currentActionName;
-   const currentCommandResult=await fetchRenderRecord('/anny-attributes/'+currentRouteSuffix,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(currentActionName==='reset'?{action:'reset'}:{id:currentSelectedId})});
+   if(currentActionName==='reset'){
+    const currentPreviewRecord=await fetchRenderRecord('/management/command',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({service:'anny',command:'history-reset-preview',payload:{}})});
+    if(!currentPreviewRecord.can_reset||!currentConfirmedTarget?.preview||JSON.stringify(currentPreviewRecord.jobs)!==JSON.stringify(currentConfirmedTarget.preview.jobs))throw Error('삭제 대상 또는 상태가 변경되었습니다. 다시 확인하세요.');
+   }
+   const currentCommandName=currentActionName==='reset'?'history-reset':currentActionName==='delete'?'history-delete':currentActionName;
+   const currentCommandResult=await fetchRenderRecord('/management/command',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({service:'anny',command:currentCommandName,payload:currentActionName==='reset'?{action:'reset'}:{id:currentSelectedId}})});
    const currentUpdatedValues=await window.annyHistoryControls('list',['delete','reset'].includes(currentActionName)?null:currentSelectedId);currentUpdatedValues[4]=currentCommandResult.deleted_bytes!==undefined?'작업 '+currentCommandResult.deleted_jobs+'건 · '+currentCommandResult.deleted_bytes+'바이트 삭제 완료':'이력 명령을 반영했습니다.';return currentUpdatedValues;
   }
   currentFeedbackText='명령을 취소했습니다.';
@@ -150,6 +156,17 @@ window.annyProfileControls=async(currentActionName,currentProfileId)=>{
   baselineAttributeValues=currentProfileRecord;restoreAttributeDefaults();renderStatusLabel.textContent='기준 체형 불러옴 · '+currentProfileRecord.profile.label;
  }
  return [{__type__:'update',choices:currentProfilesPayload.profiles.map(currentProfileRecord=>[currentProfileRecord.label,currentProfileRecord.id]),value:baselineAttributeValues?.profile?.profile_id||null},currentActionName==='apply'?'기준 체형을 적용했습니다. 생성은 별도로 실행하세요.':'기준 체형 목록을 읽었습니다.'];
+};
+window.prepareAnnyGenerationInput=currentActionName=>{
+ if(!baselineAttributeValues)throw Error('기준 체형을 준비 중입니다. 잠시 후 다시 시도하세요.');
+ if(activeRenderPromise)throw Error('진행 중인 생성이 완료된 뒤 다시 시도하세요.');
+ if(!['preview','render'].includes(currentActionName))throw Error('지원하지 않는 체형 생성 명령입니다.');
+ return {action:currentActionName,version:attributeChangeVersion,payload:structuredClone({...collectAttributeValues(),rotation_y:readRenderRotation()})};
+};
+window.executeAnnyGenerationInput=async currentSnapshotValue=>{
+ if(activeRenderPromise)throw Error('진행 중인 생성이 완료된 뒤 다시 시도하세요.');
+ await requestAttributeRender(currentSnapshotValue.action==='render',currentSnapshotValue);
+ return [renderStatusLabel.textContent];
 };
 window.annyAttributeActions=async(currentActionName)=>{
  if(!baselineAttributeValues)throw Error('기준 체형을 준비 중입니다. 잠시 후 다시 시도하세요.');

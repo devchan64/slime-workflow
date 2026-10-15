@@ -9,6 +9,7 @@ from qwen_2511_app import (
     build_reference_request,
     execute_management_command, result_preview_html,
 )
+from tools.review.common.generation_status_display import describe_generation_status
 from tools.review.common.gradio_seed import build_generation_seed
 from tools.review.common.gradio_identifiers import build_generation_identifier
 from tools.review.domains.image.seamless_generation import validate_seamless_request
@@ -69,7 +70,6 @@ def build_seamless_interface(server_base_address):
         gr.Markdown('### 2. 현재 단계 검수')
         generation_identifier_control = build_generation_identifier()
         generation_status_control = gr.Markdown('패턴을 새로 생성하거나 이전 작업을 불러오세요.')
-        gr.Markdown('예상 남은 시간·완료 시각: 계산 중. 단계별 추정 근거를 수집하고 있습니다.')
         generation_preview_control = gr.HTML('<p>단계가 완료되면 이곳에 결과가 표시됩니다.</p>')
         gr.Markdown('### 3. 확인 후 다음 단계\n각 단계 완료 후 검수 대기하며, 한 단계씩 진행합니다. 실행 중 일시정지는 현재 단계를 저장한 뒤 적용됩니다. 반복 검수 후 채택하며 정식 에셋에는 자동 등록하지 않습니다.')
         with gr.Row():
@@ -102,7 +102,7 @@ def build_seamless_interface(server_base_address):
                 return gr.skip(), gr.skip(), gr.skip(), gr.update(interactive=False), gr.update(interactive=False)
             generation_status_record = execute_seamless_command('status', {'id':generation_identifier_text})
             preview_html_value = render_seamless_previews(generation_status_record)
-            return '상태: '+generation_status_record['status']+' · '+generation_status_record.get('pipeline',{}).get('stage','대기 중'), generation_status_record.get('log','') if refresh_log_enabled else gr.skip(), preview_html_value, gr.update(interactive=generation_status_record['status'] in ('paused','failed','cancelled')), gr.update(interactive=generation_status_record['status'] in ('running','queued'))
+            return describe_generation_status(generation_status_record)+'\n\n패턴 단계: '+generation_status_record.get('pipeline',{}).get('stage','대기 중'), generation_status_record.get('log','') if refresh_log_enabled else gr.skip(), preview_html_value, gr.update(interactive=generation_status_record['status'] in ('paused','failed','cancelled')), gr.update(interactive=generation_status_record['status'] in ('running','queued'))
 
         def continue_seamless_stage(generation_identifier_text):
             execute_seamless_command('resume', {'id':generation_identifier_text})

@@ -1,6 +1,7 @@
 """맵 검수가 렌더링 프로필을 사용하는지 검증한다."""
 import json
 import hashlib
+import subprocess
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
@@ -20,6 +21,34 @@ def load_exported_game_map(city_identifier):
 
 
 class MapRenderProfileTests(unittest.TestCase):
+    def test_texture_alias_reuses_identical_source_and_rejects_conflict(self):
+        current_adapter_source = (WORKFLOW_ROOT / 'tools/review/ui/map/field-map-view.js').read_text()
+        current_alias_source = current_adapter_source.split(' if(currentTextureRecords){', 1)[1].split('  createTerrainAtlas(currentFieldScene);', 1)[0]
+        current_script_source = r"""
+const assert = require('node:assert/strict');
+const currentOriginalImage = {}, currentOtherImage = {};
+const currentTextureImages = {catalog: currentOriginalImage};
+const currentTextureRecords = {catalog: {source: 'tile.png'}};
+const currentTextureStore = new Map([['existing', currentOriginalImage]]);
+const currentFieldScene = {textures: {
+ exists: currentTextureName => currentTextureStore.has(currentTextureName),
+ get: currentTextureName => ({getSourceImage: () => currentTextureStore.get(currentTextureName)}),
+ addImage: (currentTextureName, currentImageValue) => {
+  assert.equal(currentTextureStore.has(currentTextureName), false);
+  currentTextureStore.set(currentTextureName, currentImageValue);
+ }
+}};
+const collectTerrainTextureSources = () => ({existing: 'tile.png', alias: 'tile.png'});
+const registerTextureAliases = () => {ALIAS_SOURCE};
+registerTextureAliases();
+assert.equal(currentTextureStore.get('alias'), currentOriginalImage);
+registerTextureAliases();
+currentTextureStore.set('existing', currentOtherImage);
+assert.throws(registerTextureAliases, /다른 검수 원본과 충돌/);
+""".replace('ALIAS_SOURCE', current_alias_source)
+        current_test_result = subprocess.run(['node', '-e', current_script_source], capture_output=True, text=True, timeout=10)
+        self.assertEqual(current_test_result.returncode, 0, current_test_result.stderr)
+
     def test_guild_roof_uses_asset_repository_original(self):
         with TemporaryDirectory(dir=WORKFLOW_ROOT / '.tmp') as current_temporary_directory:
             current_output_directory = build_block_map_review(Path(current_temporary_directory))

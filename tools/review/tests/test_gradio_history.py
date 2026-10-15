@@ -2,7 +2,7 @@ import inspect
 import unittest
 from unittest.mock import Mock
 import gradio as gr
-from tools.review.common.gradio_history import bind_history_reset_action
+from tools.review.common.gradio_history import bind_history_reset_action, build_history_reset_controls
 
 from tools.review.common.gradio_history import build_generation_history_view, collect_image_history_thumbnails, format_history_choice_label, format_history_selection_summary, build_history_table_rows
 
@@ -24,27 +24,46 @@ class GradioHistoryTest(unittest.TestCase):
         current_service_mock.assert_any_call('history-delete',{'id':'job-one'})
 
     def test_reset_requires_confirmation_and_sends_cli_contract(self):
-        service_command_mock = Mock()
+        current_preview_record={'job_count':1,'jobs':[{'path':'job','status':'completed'}],'blocked_jobs':[],'can_reset':True,'scope':'복구 불가','notice':'숨긴 작업 포함'}
+        service_command_mock = Mock(side_effect=[dict(current_preview_record),{'deleted_jobs':1,'deleted_bytes':12}])
         refresh_history_mock = Mock(return_value=['목록'])
-        reset_button_mock = Mock()
-        reset_callback_value = bind_history_reset_action((Mock(),reset_button_mock,Mock()),service_command_mock,refresh_history_mock,[Mock()])
+        with gr.Blocks():
+            reset_callback_value = bind_history_reset_action(build_history_reset_controls('테스트'),service_command_mock,refresh_history_mock,[])
         with self.assertRaises(gr.Error):
-            reset_callback_value(False)
+            reset_callback_value(False,None)
         service_command_mock.assert_not_called()
-        refresh_history_mock.assert_not_called()
-        reset_result_values = reset_callback_value(True)
-        service_command_mock.assert_called_once_with('history-reset',{'action':'reset'})
-        refresh_history_mock.assert_called_once_with()
+        reset_result_values = reset_callback_value(True,current_preview_record)
+        self.assertEqual(service_command_mock.call_args_list[0].args,('history-reset-preview',{}))
+        self.assertEqual(service_command_mock.call_args_list[1].args,('history-reset',{'action':'reset'}))
         self.assertEqual(reset_result_values[0],'목록')
-        self.assertFalse(reset_result_values[1])
+        self.assertFalse(reset_result_values[1]['value'])
+        with self.assertRaises(gr.Error):reset_callback_value(True,current_preview_record)
+        self.assertEqual(service_command_mock.call_count,2)
 
     def test_reset_failure_does_not_clear_history_view(self):
         service_command_mock = Mock(side_effect=ValueError('실행 중에는 초기화할 수 없습니다.'))
         refresh_history_mock = Mock()
-        reset_callback_value = bind_history_reset_action((Mock(),Mock(),Mock()),service_command_mock,refresh_history_mock,[])
+        with gr.Blocks():
+            reset_callback_value = bind_history_reset_action(build_history_reset_controls('테스트'),service_command_mock,refresh_history_mock,[])
         with self.assertRaisesRegex(gr.Error,'실행 중'):
-            reset_callback_value(True)
+            reset_callback_value(True,{'can_reset':True,'jobs':[]})
         refresh_history_mock.assert_not_called()
+
+    def test_reset_preview_cancel_and_changed_target_preserve_files(self):
+        current_preview_record={'job_count':0,'jobs':[],'blocked_jobs':[],'can_reset':True,'scope':'복구 불가','notice':'숨긴 작업 포함'}
+        current_service_mock=Mock(return_value=current_preview_record)
+        with gr.Blocks() as current_interface_blocks:
+            build_generation_history_view(current_service_mock,'','테스트')
+        current_callbacks={value.fn.__name__:value.fn for value in current_interface_blocks.fns.values() if value.fn}
+        current_result_values=current_callbacks['preview_history_reset']()
+        self.assertIn('0개 작업',current_result_values[1])
+        current_callbacks['cancel_history_reset'](current_preview_record)
+        with self.assertRaises(gr.Error):current_callbacks['execute_confirmed_reset'](True,current_preview_record)
+        current_service_mock.assert_called_once_with('history-reset-preview',{})
+        current_service_mock.return_value={**current_preview_record,'can_reset':True,'jobs':[{'path':'new','status':'completed'}]}
+        with self.assertRaisesRegex(gr.Error,'변경'):
+            current_callbacks['execute_confirmed_reset'](True,{'can_reset':True,'jobs':[]})
+        self.assertTrue(all(current_call.args[0]!='history-reset' for current_call in current_service_mock.call_args_list))
 
     def test_history_view_uses_selected_card_as_the_only_result_lookup_entry(self):
         history_view_parameter_names=inspect.signature(build_generation_history_view).parameters

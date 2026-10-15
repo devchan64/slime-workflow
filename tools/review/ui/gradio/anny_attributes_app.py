@@ -14,8 +14,10 @@ WORKFLOW_ROOT_DIRECTORY=Path(__file__).resolve().parents[4]
 if str(WORKFLOW_ROOT_DIRECTORY) not in sys.path:
     sys.path.insert(0,str(WORKFLOW_ROOT_DIRECTORY))
 from tools.review.common.gradio_browser_controls import build_browser_action_button
+from tools.review.common.gradio_browser_confirmation import bind_browser_gpu_confirmation
 from tools.review.common.gradio_logs import create_copyable_log_textbox
 from tools.review.common.gradio_browser_history import build_browser_history_controls
+from tools.review.common.generation_status_display import describe_generation_status
 
 ANNY_ATTRIBUTE_PAGE_PATH=WORKFLOW_ROOT_DIRECTORY/'tools/review/ui/anny/anny-attributes.html'
 
@@ -50,7 +52,7 @@ def read_anny_attribute_script():
 def create_anny_attribute_loader(review_server_port):
     inline_script_text=json.dumps(read_anny_attribute_script()).replace('<','\\u003c')
     review_server_base=f'http://127.0.0.1:{review_server_port}'
-    return f"""async()=>{{if(document.querySelector('script[data-anny-attribute-component]'))return;const componentScriptText={inline_script_text};const loadComponentScript=currentPathValue=>new Promise((resolve,reject)=>{{const nextScriptElement=document.createElement('script');nextScriptElement.src='{review_server_base}'+currentPathValue;nextScriptElement.dataset.annyAttributeComponent='true';nextScriptElement.onload=resolve;nextScriptElement.onerror=()=>reject(new Error('ANNY 구성 요소를 불러오지 못했습니다: '+currentPathValue));document.body.append(nextScriptElement);}});await loadComponentScript('/management/gpu-queue-confirmation.js');await loadComponentScript('/anny-attributes/log-viewer.js');await loadComponentScript('/anny-attributes/mesh-viewer.js');const inlineScriptElement=document.createElement('script');inlineScriptElement.dataset.annyAttributeComponent='true';inlineScriptElement.textContent=componentScriptText;document.body.append(inlineScriptElement);if(window.top===window&&!document.querySelector('#management-sidebar'))await loadComponentScript('/management/gpu-status.js');}}"""
+    return f"""async()=>{{if(document.querySelector('script[data-anny-attribute-component]'))return;const componentScriptText={inline_script_text};const loadComponentScript=currentPathValue=>new Promise((resolve,reject)=>{{const nextScriptElement=document.createElement('script');nextScriptElement.src='{review_server_base}'+currentPathValue;nextScriptElement.dataset.annyAttributeComponent='true';nextScriptElement.onload=resolve;nextScriptElement.onerror=()=>reject(new Error('ANNY 구성 요소를 불러오지 못했습니다: '+currentPathValue));document.body.append(nextScriptElement);}});await loadComponentScript('/anny-attributes/log-viewer.js');await loadComponentScript('/anny-attributes/mesh-viewer.js');const inlineScriptElement=document.createElement('script');inlineScriptElement.dataset.annyAttributeComponent='true';inlineScriptElement.textContent=componentScriptText;document.body.append(inlineScriptElement);if(window.top===window&&!document.querySelector('#management-sidebar'))await loadComponentScript('/management/gpu-status.js');}}"""
 
 
 def build_anny_attribute_interface(review_server_port):
@@ -65,9 +67,16 @@ def build_anny_attribute_interface(review_server_port):
             for current_profile_action,current_profile_label in (('list','기준 체형 목록 읽기'),('apply','기준 체형 적용')):
                 current_profile_button=gr.Button(current_profile_label)
                 current_profile_button.click(fn=None,inputs=current_profile_choice,outputs=[current_profile_choice,current_action_feedback],queue=False,js="async(currentProfileId)=>{try{return await window.annyProfileControls('"+current_profile_action+"',currentProfileId);}catch(currentErrorValue){return [{__type__:'update'},currentErrorValue.message];}}")
+        current_generation_bindings=[]
         with gr.Row():
             for current_action_name,current_button_label in (('reset','신체 기준값 복원'),('preview','프리뷰 생성'),('render','이미지 렌더')):
-                build_browser_action_button(current_button_label,'annyAttributeActions',current_action_name,current_action_feedback)
+                if current_action_name=='reset':
+                    build_browser_action_button(current_button_label,'annyAttributeActions',current_action_name,current_action_feedback)
+                else:
+                    current_generation_button=gr.Button(current_button_label)
+                    current_generation_bindings.append((current_generation_button,current_action_name))
+        for current_generation_button,current_action_name in current_generation_bindings:
+            bind_browser_gpu_confirmation(current_generation_button,"()=>window.prepareAnnyGenerationInput("+json.dumps(current_action_name)+")","currentSnapshotValue=>window.executeAnnyGenerationInput(currentSnapshotValue)",[],[current_action_feedback])
         with gr.Accordion('신체 속성 편집',open=True,elem_id='anny-standard-attributes'):
             current_attribute_choice=gr.Dropdown(label='신체 속성',choices=[],interactive=True)
             current_attribute_value=gr.Slider(label='속성값',minimum=0,maximum=1,value=0,step=0.1,precision=None)
@@ -87,8 +96,14 @@ def build_anny_attribute_interface(review_server_port):
                 for current_rotation_action,current_rotation_label in (('read','현재 회전 읽기'),('apply','렌더 회전 적용')):
                     current_rotation_button=gr.Button(current_rotation_label)
                     current_rotation_button.click(fn=None,inputs=current_rotation_value,outputs=[current_rotation_value,current_action_feedback],queue=False,js="(currentRotationValue)=>{try{return window.annyRotationControls('"+current_rotation_action+"',currentRotationValue);}catch(currentErrorValue){return [{__type__:'update'},currentErrorValue.message];}}")
+        current_status_record=gr.JSON(visible=False)
+        current_status_display=gr.Markdown('작업을 실행하거나 이력을 선택하면 예상 시간과 GPU 관측 기록을 표시합니다.')
+        current_status_timer=gr.Timer(5)
+        def render_anny_generation_status(current_generation_record):
+            return describe_generation_status(current_generation_record) if current_generation_record else gr.skip()
+        current_status_timer.tick(render_anny_generation_status,inputs=current_status_record,outputs=current_status_display,queue=False,js='()=>[window.annyGenerationStatus||null]',show_progress='hidden')
         gr.HTML(read_anny_attribute_markup())
-        build_browser_history_controls('annyHistoryControls','anny-standard-history')
+        build_browser_history_controls('annyHistoryControls','anny-standard-history',current_service_name='anny')
         with gr.Accordion('렌더 로그',open=False):
             current_log_refresh=gr.Checkbox(label='자동 갱신',value=True)
             current_log_output=create_copyable_log_textbox(label='현재 실행 로그 · 최근 12,000자',lines=12,interactive=False,autoscroll=False)

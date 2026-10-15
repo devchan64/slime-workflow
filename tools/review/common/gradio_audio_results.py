@@ -1,7 +1,6 @@
 """음악 결과의 청취·WAV 다운로드와 공용 실행 지표 표시."""
 import html
-from tools.review.common.gradio_history import format_generation_status
-from tools.review.common.generation_progress_display import render_generation_estimate
+from tools.review.common.generation_status_display import describe_generation_status
 
 
 def render_audio_generation_result(current_job_identifier,current_status_record,current_server_address):
@@ -14,13 +13,4 @@ def render_audio_generation_result(current_job_identifier,current_status_record,
 
 
 def describe_audio_generation_status(current_status_record):
-    current_metrics_record = current_status_record.get('metrics',{})
-    current_status_text = '상태: '+format_generation_status(current_status_record)+'\n\n'+render_generation_estimate(current_status_record.get('estimate',{}),current_status_record['status'])
-    current_status_text += '\n\n단계: '+current_metrics_record.get('stage',current_status_record['status'])+' · 단계 진행률과 전체 예상 진행률은 별개입니다.'
-    for current_gpu_identifier,current_gpu_record in current_metrics_record.get('gpu_observations',{}).items():
-        current_status_text += f"\n\nGPU {current_gpu_identifier}: 현재 {current_gpu_record.get('process_current_mib')} MiB · 관측 피크 {current_gpu_record.get('process_peak_mib')} MiB · {current_gpu_record['scope']}"
-    if current_metrics_record.get('measurement_gaps'):
-        current_status_text += '\n\nVRAM 미측정 구간: 실행 기록에서 원인을 확인하세요.'
-    if current_status_record.get('error'):
-        current_status_text += '\n\n실패 원인: '+current_status_record['error']
-    return current_status_text
+    return describe_generation_status(current_status_record)

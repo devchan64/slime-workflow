@@ -10,12 +10,13 @@ WORKFLOW_ROOT_DIRECTORY = Path(__file__).resolve().parents[4]
 if str(WORKFLOW_ROOT_DIRECTORY) not in sys.path:
     sys.path.insert(0, str(WORKFLOW_ROOT_DIRECTORY))
 import gradio as gr
+from tools.review.common.generation_status_display import describe_generation_status
 from tools.review.common.gradio_reference_images import build_reference_image_inputs
 from tools.review.common.management_client import execute_remote_management_command
 from tools.review.common.gradio_seed import build_generation_seed
 from tools.review.ui.gradio.separation_preview import build_separation_player
 from tools.review.common.gradio_logs import build_execution_logs
-from tools.review.common.gradio_history import build_generation_history_view, format_generation_status
+from tools.review.common.gradio_history import build_generation_history_view
 from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_confirmation
 from tools.review.domains.image.animation_separation import load_separation_defaults
 
@@ -96,7 +97,7 @@ def build_separation_interface(current_server_address):
             current_frame_progress = current_status_record.get('separation', {})
             current_stage_label = {'base': '신체 베이스 생성', 'outfit': '복장 생성', 'completed': '완료'}.get(current_frame_progress.get('stage'), '대기')
             current_download_url = current_status_record.get('download')
-            return ('상태: ' + format_generation_status(current_status_record) + f" · 완료 프레임 {current_frame_progress.get('completed', 0)}/{current_frame_progress.get('total', '?')} · 단계 {current_stage_label}" + ('' if current_status_record.get('status') == 'completed' else ' · 예상 남은 시간·완료 시각: 추정 자료 수집 중'), current_status_record.get('log', '') if current_refresh_logs else gr.skip(), build_separation_preview(current_server_address, current_job_identifier) if current_download_url else gr.skip(), f'[신체 베이스 PNG]({current_server_address}/animation-separation/jobs/{current_job_identifier}/base-sheet.png) · [복장 PNG]({current_server_address}/animation-separation/jobs/{current_job_identifier}/outfit-sheet.png) · [전체 결과 ZIP]({current_server_address}{current_download_url})' if current_download_url else gr.skip())
+            return (describe_generation_status(current_status_record) + f" · 완료 프레임 {current_frame_progress.get('completed', 0)}/{current_frame_progress.get('total', '?')} · 단계 {current_stage_label}", current_status_record.get('log', '') if current_refresh_logs else gr.skip(), build_separation_preview(current_server_address, current_job_identifier) if current_download_url else gr.skip(), f'[신체 베이스 PNG]({current_server_address}/animation-separation/jobs/{current_job_identifier}/base-sheet.png) · [복장 PNG]({current_server_address}/animation-separation/jobs/{current_job_identifier}/outfit-sheet.png) · [전체 결과 ZIP]({current_server_address}{current_download_url})' if current_download_url else gr.skip())
         current_refresh_button.click(read_current_result, [current_job_control, current_log_refresh], [current_status_output, current_log_output, current_preview_output, current_download_output], queue=False)
         current_cancel_button.click(lambda current_job_identifier: str(execute_separation_gateway('cancel', {'id': current_job_identifier})), current_job_control, current_status_output)
         bind_gpu_generation_confirmation(current_resume_button, lambda current_job_identifier: str(execute_separation_gateway('resume', {'id': current_job_identifier})), current_job_control, current_status_output)

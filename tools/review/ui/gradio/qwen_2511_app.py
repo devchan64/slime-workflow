@@ -17,6 +17,7 @@ import gradio as gr
 WORKFLOW_ROOT_DIRECTORY=Path(__file__).resolve().parents[4]
 if str(WORKFLOW_ROOT_DIRECTORY) not in sys.path:sys.path.insert(0,str(WORKFLOW_ROOT_DIRECTORY))
 from generators.image.vnccs_profile import VNCCS_DEFAULT_SEED
+from tools.review.common.generation_status_display import describe_generation_status
 from tools.review.common.gradio_identifiers import build_generation_identifier
 from tools.review.common.gradio_results import build_generation_gallery, collect_generation_gallery
 from tools.review.common.gradio_logs import build_execution_logs
@@ -291,7 +292,6 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
             gr.Markdown('순환 반경은 좌우·상하에 동일 적용합니다. 경계 1줄 참조 · 모서리 참조 없음.')
         if pose_transfer_enabled:
             width_value.change(lambda selected_resolution_value: selected_resolution_value,width_value,height_value,queue=False)
-        gr.Markdown('예상 남은 시간: 계산 중 · 예상 완료 시각: 계산 중. 이 구성의 실행 이력 기반 추정 자료를 수집 중입니다. 실행 로그에서 진행 단계를 확인하세요.')
         generation_button_value=gr.Button('이미지 생성 시작',variant='primary')
         with gr.Column() as generation_confirmation_container:
             pass
@@ -343,11 +343,11 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
                 generation_record_value=execute_reference_gateway('generate',generation_request_value)
             except (ValueError,OSError) as generation_request_error:
                 raise gr.Error(str(generation_request_error)) from generation_request_error
-            return generation_record_value['id'],'상태: running'
+            return generation_record_value['id'],'상태: '+format_generation_status(generation_record_value)
         bind_gpu_generation_confirmation(generation_button_value,start_reference_generation,[prompt_text_value,generation_tag_value,*reference_image_controls,width_value,height_value,step_value,seed_value]+([circular_radius_control,soft_shading_control,pattern_view_control,baseline_decode_control] if circular_mode_enabled else [])+([auxiliary_prompt_control] if vnccs_transfer_enabled else [])+([common_style_control,transparent_background_control] if plain_options_enabled else []),[identifier_value,status_value], generation_confirmation_container=generation_confirmation_container)
         def refresh_status(identifier_text_value,refresh_log_enabled):
             if not identifier_text_value:return gr.skip(),gr.skip(),gr.skip()
-            status_record_value=execute_reference_gateway('status',{'id':identifier_text_value});return '상태: '+format_generation_status(status_record_value),gr.update(value=status_record_value.get('log','')) if refresh_log_enabled else gr.skip(),gr.update(value=collect_generation_gallery(status_record_value.get('image'),circular_mode_enabled,server_base_address),visible=True) if status_record_value.get('image') else gr.skip()
+            status_record_value=execute_reference_gateway('status',{'id':identifier_text_value});return describe_generation_status(status_record_value),gr.update(value=status_record_value.get('log','')) if refresh_log_enabled else gr.skip(),gr.update(value=collect_generation_gallery(status_record_value.get('image'),circular_mode_enabled,server_base_address),visible=True) if status_record_value.get('image') else gr.skip()
         interface_blocks_value.load(lambda:read_history_page(1),outputs=history_output_values);gr.Button('상태 새로고침').click(refresh_status,[identifier_value,refresh_log_value],[status_value,log_value,preview_value],queue=False)
         if hasattr(gr,'Timer'):gr.Timer(2).tick(refresh_status,[identifier_value,refresh_log_value],[status_value,log_value,preview_value],queue=False,show_progress='hidden')
     return interface_blocks_value

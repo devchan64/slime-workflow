@@ -12,9 +12,14 @@ class GpuConfirmationTests(unittest.TestCase):
         callback_function_values = {record.fn.__name__: record.fn for record in interface_blocks_value.fns.values() if record.fn}
         pending_input_values = callback_function_values['prepare_generation_confirmation']('original')[0]
         generation_callback_mock.assert_not_called()
-        self.assertIsNone(callback_function_values['cancel_generation_confirmation']()[0])
+        self.assertIsNone(callback_function_values['cancel_generation_confirmation'](pending_input_values)[0])
         generation_callback_mock.assert_not_called()
+        with self.assertRaises(gr.Error):
+            list(callback_function_values['execute_confirmed_generation'](pending_input_values))
+        pending_input_values = callback_function_values['prepare_generation_confirmation']('original')[0]
         self.assertEqual(list(callback_function_values['execute_confirmed_generation'](pending_input_values)), ['accepted'])
+        with self.assertRaises(gr.Error):
+            list(callback_function_values['execute_confirmed_generation'](pending_input_values))
         generation_callback_mock.assert_called_once_with('original')
 
     def test_missing_confirmation_rejected(self):
