@@ -12,6 +12,18 @@ from tools.review.ui.gradio import qwen_2511_app
 
 
 class Qwen2511GradioTests(unittest.TestCase):
+    def test_expression_requires_at_least_one_reference(self):
+        self.assertFalse(qwen_2511_app.check_expression_reference_readiness(None,None,None))
+        for current_slot_number in range(3):
+            current_reference_values=[None]*3
+            current_reference_values[current_slot_number]=Image.new('RGB',(8,8))
+            self.assertTrue(qwen_2511_app.check_expression_reference_readiness(*current_reference_values))
+        current_interface_blocks=qwen_2511_app.build_qwen_2511_interface('http://127.0.0.1:8770',expression_mode_enabled=True)
+        current_generate_button=next(current_component for current_component in current_interface_blocks.blocks.values() if isinstance(current_component,gr.Button) and current_component.value=='이미지 생성 시작')
+        self.assertFalse(current_generate_button.interactive)
+        current_readiness_callback=next(current_function_value.fn for current_function_value in current_interface_blocks.fns.values() if current_function_value.fn and current_function_value.fn.__name__=='refresh_generation_readiness')
+        self.assertIs(inspect.getclosurevars(current_readiness_callback).nonlocals['generation_readiness_callback'],qwen_2511_app.check_expression_reference_readiness)
+
     def test_circular_gui_validates_options_before_dispatch(self):
         from unittest.mock import patch
         current_interface_blocks=qwen_2511_app.build_qwen_2511_interface('http://127.0.0.1:8770',qwen21_mode_enabled=True,circular_mode_enabled=True)

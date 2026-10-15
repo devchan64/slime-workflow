@@ -65,7 +65,10 @@ class GenerationTelemetryRecorder:
         for current_process_line in current_process_text.splitlines():
             current_uuid_value,current_pid_text,current_usage_text = map(str.strip,current_process_line.split(','))
             if int(current_pid_text) in current_process_ids:
-                current_usage_records[current_uuid_value] = current_usage_records.get(current_uuid_value,0)+int(current_usage_text)
+                current_process_usage = int(current_usage_text)
+                if not current_uuid_value or current_process_usage < 0:
+                    raise ValueError('GPU 작업 프로세스 표본의 장치 식별자가 없거나 사용량이 음수입니다.')
+                current_usage_records[current_uuid_value] = current_usage_records.get(current_uuid_value,0)+current_process_usage
         current_device_samples = {}
         for current_device_line in current_device_text.splitlines():
             current_uuid_value,current_usage_text = map(str.strip,current_device_line.split(','))

@@ -49,7 +49,7 @@ class WriterAgentGradioTest(unittest.TestCase):
     def test_apply_readiness_requires_confirmation_and_current_review(self):
         current_interface_blocks=build_writer_agent_interface(8770)
         current_readiness_callback=next(current_function_value.fn for current_function_value in current_interface_blocks.fns.values() if current_function_value.fn and current_function_value.fn.__name__=='update_writer_apply_readiness')
-        current_detail_record={'id':'job-a','status':{'stage':'review'},'proposal':{'changes':[{'path':'a.md','diff':'+문장'}]}}
+        current_detail_record={'id':'job-a','status':{'stage':'review','proposal_hash':'hash-a'},'proposal':{'changes':[{'path':'a.md','diff':'+문장'}]}}
         self.assertFalse(current_readiness_callback(current_detail_record,False,'job-a')[0]['interactive'])
         self.assertTrue(current_readiness_callback(current_detail_record,True,'job-a')[0]['interactive'])
         self.assertFalse(current_readiness_callback(current_detail_record,True,'job-b')[0]['interactive'])
@@ -62,7 +62,7 @@ class WriterAgentGradioTest(unittest.TestCase):
         current_apply_callback=next(current_function_value.fn for current_function_value in current_interface_blocks.fns.values() if current_function_value.fn and current_function_value.fn.__name__=='apply_writer_proposal')
         current_detail_record={'id':'job-a','status':{'stage':'applied','proposal_hash':'hash-a'},'job_path':'/records/job-a','request':{},'application':{'status':'applied'}}
         with patch('tools.review.ui.gradio.writer_agent_app.request_writer_service',side_effect=[{},current_detail_record]) as current_service_mock:
-            current_output_values=current_apply_callback({**current_detail_record,'status':{'stage':'review','proposal_hash':'hash-a'},'application':None},True,'job-a')
+            current_output_values=current_apply_callback({**current_detail_record,'status':{'stage':'review','proposal_hash':'hash-a'},'application':None,'proposal':{'changes':[{'path':'a.md','diff':'+문장'}]}},True,'job-a')
             self.assertEqual(current_service_mock.call_args_list[0].args,(8770,'apply',{'id':'job-a','proposal_hash':'hash-a'}))
             self.assertFalse(current_output_values[12]['interactive'])
 
@@ -116,3 +116,19 @@ class WriterAgentGradioTest(unittest.TestCase):
         self.assertEqual(current_output_values[0],{})
         self.assertFalse(current_output_values[12]['interactive'])
         self.assertFalse(current_output_values[13])
+
+    def test_missing_changes_or_hash_never_dispatches_apply(self):
+        current_interface_blocks=build_writer_agent_interface(8770)
+        current_apply_callback=next(current_function_value.fn for current_function_value in current_interface_blocks.fns.values() if current_function_value.fn and current_function_value.fn.__name__=='apply_writer_proposal')
+        current_readiness_callback=next(current_function_value.fn for current_function_value in current_interface_blocks.fns.values() if current_function_value.fn and current_function_value.fn.__name__=='update_writer_apply_readiness')
+        for current_detail_record in (
+            {'id':'job-a','status':{'stage':'review','proposal_hash':'hash-a'},'proposal':{'changes':[]}},
+            {'id':'job-a','status':{'stage':'review'},'proposal':{'changes':[{'path':'a.md','diff':'+문장'}]}},
+        ):
+            with self.subTest(record=current_detail_record),patch('tools.review.ui.gradio.writer_agent_app.request_writer_service') as current_service_mock:
+                self.assertFalse(current_readiness_callback(current_detail_record,True,'job-a')[0]['interactive'])
+                if not current_detail_record['status'].get('proposal_hash'):
+                    self.assertIn('제안 해시가 없어',current_readiness_callback(current_detail_record,True,'job-a')[1])
+                with self.assertRaisesRegex(gr.Error,'변경이나 제안 해시'):
+                    current_apply_callback(current_detail_record,True,'job-a')
+                current_service_mock.assert_not_called()

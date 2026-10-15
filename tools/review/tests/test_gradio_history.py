@@ -8,6 +8,22 @@ from tools.review.common.gradio_history import build_generation_history_view, co
 
 
 class GradioHistoryTest(unittest.TestCase):
+    def test_missing_image_result_uses_terminal_guidance(self):
+        current_service_mock=Mock()
+        with gr.Blocks() as current_interface_blocks:
+            build_generation_history_view(current_service_mock,'','기록 정책')
+        current_result_callback=next(value.fn for value in current_interface_blocks.fns.values() if value.fn and value.fn.__name__=='read_selected_result')
+        for current_status_name in ('completed','failed','cancelled','queued'):
+            with self.subTest(status=current_status_name):
+                current_service_mock.side_effect=[{'status':current_status_name},{'records':[]}]
+                current_result_values=current_result_callback('job-one')
+                self.assertFalse(current_result_values[3]['visible'])
+                if current_status_name=='queued':
+                    self.assertIn('생성 완료 후',current_result_values[2])
+                else:
+                    self.assertIn('실행 로그를 확인',current_result_values[2])
+                    self.assertNotIn('생성 완료 후',current_result_values[2])
+
     def test_delete_confirmation_pins_identifier_and_cancel_does_not_delete(self):
         current_service_mock=Mock(return_value={'records':[]})
         with gr.Blocks() as current_interface_blocks:

@@ -1,5 +1,6 @@
 """생성이력 수동 초기화의 공용 UI와 명령 연결."""
 from pathlib import Path
+from tools.review.common.generation_result_guidance import describe_missing_generation_result
 import gradio as gr
 from tools.review.common.gradio_identifiers import build_generation_identifier
 from tools.review.common.gradio_results import build_generation_gallery
@@ -372,7 +373,7 @@ def build_generation_history_view(execute_service_command,server_base_address,de
         current_history_records=execute_service_command('history',{}).get('records',[])
         current_history_record=next((value for value in current_history_records if value['id']==current_selected_identifier),{})
         current_image_html=result_renderer_callback(current_selected_identifier,current_status_record,server_base_address) if result_renderer_callback is not None else collect_history_result_images(current_status_record,server_base_address)
-        current_result_notice = '\n\n아직 생성된 결과 이미지가 없습니다. 실행 상태와 로그를 확인하세요.' if not current_image_html and result_renderer_callback is None else ''
+        current_result_notice = '\n\n'+describe_missing_generation_result(current_status_record,'이미지') if not current_image_html and result_renderer_callback is None else ''
         return current_selected_identifier,current_history_record.get('path','기록 경로가 없습니다.'),'상태: '+format_generation_status(current_status_record)+' · '+str(current_status_record.get('message',''))+(' · 대기 순서 '+str(current_status_record['queue_position']) if 'queue_position' in current_status_record else '')+current_result_notice,gr.update(value=current_image_html,visible=bool(current_image_html)),current_history_record,gr.update(value=current_status_record.get('log') or '기록된 로그가 없습니다.',label='실행 로그 · '+current_selected_identifier)
 
     def describe_selected_history(current_selected_identifier):

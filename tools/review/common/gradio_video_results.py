@@ -1,11 +1,12 @@
 """영상 생성기의 공용 결과·상태 표시."""
 import html
 from tools.review.common.generation_status_display import describe_generation_status
+from tools.review.common.generation_result_guidance import describe_missing_generation_result
 from tools.review.common.generation_progress_display import render_generation_estimate
 
 def render_video_generation_result(current_job_identifier,current_status_record,current_server_address):
     if not current_status_record.get('video'):
-        return '<p>완료 후 영상과 프레임 다운로드를 표시합니다.</p>'
+        return '<p>'+html.escape(describe_missing_generation_result(current_status_record,'영상'))+'</p>'
     current_video_url=html.escape(current_server_address+current_status_record['video'],quote=True)
     current_download_url=html.escape(current_server_address+current_status_record['download'],quote=True)
     return f'<video controls loop playsinline width="512" src="{current_video_url}"></video><p><a href="{current_video_url}" target="_blank">MP4 열기</a> · <a href="{current_download_url}">PNG 프레임 ZIP</a></p>'

@@ -45,12 +45,12 @@ def format_writer_detail(current_detail_record):
     current_changes_text='\n\n'.join(current_change_record['path']+'\n'+current_change_record['diff'] for current_change_record in current_proposal_record.get('changes',[]))
     current_warning_text='\n'.join(current_proposal_record.get('warnings',[]))
     current_warning_text+='\n'+'\n'.join('보존: '+current_retained_record['path']+' · '+current_retained_record['reason'] for current_retained_record in current_proposal_record.get('retained',[]))
-    current_apply_allowed=current_status_record['stage']=='review' and bool(current_changes_text) and not current_application_record
+    current_apply_allowed=current_status_record['stage']=='review' and bool(current_status_record.get('proposal_hash')) and bool(current_changes_text) and not current_application_record
     return (current_detail_record,current_detail_record['id'],current_detail_record['job_path'],
             WRITER_STAGE_LABELS.get(current_status_record['stage'],current_status_record['stage'])+' · '+str(current_status_record.get('error') or current_status_record.get('summary') or current_status_record.get('progress') or ''),
             current_detail_record['request'],current_proposal_record.get('reason',''),current_proposal_record.get('coverage',{}),current_proposal_record.get('evidence',[]),current_changes_text,current_warning_text.strip(),current_detail_record.get('search',{}),current_detail_record.get('log',''),
             gr.update(interactive=False),False,
-            '제안과 차이를 검토하고 적용 확인을 선택하세요.' if current_apply_allowed else '변경 검토 대기 상태의 미적용 제안만 적용할 수 있습니다.',current_application_record or {})
+            '제안과 차이를 검토하고 적용 확인을 선택하세요.' if current_apply_allowed else '제안 해시가 없어 적용할 수 없습니다. 결과를 다시 조회하세요.' if current_status_record['stage']=='review' and not current_status_record.get('proposal_hash') else '변경 검토 대기 상태의 미적용 제안만 적용할 수 있습니다.',current_application_record or {})
 
 
 def build_writer_agent_interface(review_server_port):
@@ -132,14 +132,16 @@ def build_writer_agent_interface(review_server_port):
                 raise gr.Error('선택한 작업이 변경되었습니다. 결과를 다시 조회하고 확인하세요.')
             if current_detail_record.get('status',{}).get('stage')!='review' or current_detail_record.get('application'):
                 raise gr.Error('변경 검토 대기 상태의 미적용 제안만 적용할 수 있습니다.')
+            if not (current_detail_record.get('proposal') or {}).get('changes') or not current_detail_record['status'].get('proposal_hash'):
+                raise gr.Error('적용할 변경이나 제안 해시가 없습니다. 결과를 다시 조회하세요.')
             request_writer_service(review_server_port,'apply',{'id':current_detail_record['id'],'proposal_hash':current_detail_record['status']['proposal_hash']})
             return read_writer_selection(current_detail_record['id'])
         current_apply_button.click(apply_writer_proposal,[current_detail_state,current_apply_confirm,current_history_choice],current_detail_outputs,trigger_mode='once')
         def update_writer_apply_readiness(current_detail_record,current_confirm_value,current_selected_identifier):
             current_matches_selection = bool(current_detail_record) and current_detail_record.get('id') == current_selected_identifier
-            current_review_available = current_matches_selection and current_detail_record.get('status',{}).get('stage') == 'review' and not current_detail_record.get('application') and bool((current_detail_record.get('proposal') or {}).get('changes'))
+            current_review_available = current_matches_selection and current_detail_record.get('status',{}).get('stage') == 'review' and bool(current_detail_record.get('status',{}).get('proposal_hash')) and not current_detail_record.get('application') and bool((current_detail_record.get('proposal') or {}).get('changes'))
             current_apply_enabled = bool(current_confirm_value and current_review_available)
-            current_apply_message = '확인한 변경을 원본에 적용할 수 있습니다.' if current_apply_enabled else '제안과 차이를 검토하고 적용 확인을 선택하세요.' if current_review_available else '변경 검토 대기 상태의 미적용 제안을 먼저 조회하세요.'
+            current_apply_message = '확인한 변경을 원본에 적용할 수 있습니다.' if current_apply_enabled else '제안과 차이를 검토하고 적용 확인을 선택하세요.' if current_review_available else '제안 해시가 없어 적용할 수 없습니다. 결과를 다시 조회하세요.' if current_matches_selection and current_detail_record.get('status',{}).get('stage')=='review' and not current_detail_record.get('status',{}).get('proposal_hash') else '변경 검토 대기 상태의 미적용 제안을 먼저 조회하세요.'
             return gr.update(interactive=current_apply_enabled),current_apply_message
         current_apply_confirm.change(update_writer_apply_readiness,[current_detail_state,current_apply_confirm,current_history_choice],[current_apply_button,current_apply_notice],queue=False)
         def refresh_writer_progress(current_selected_identifier,current_prompt_text):

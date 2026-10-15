@@ -59,3 +59,15 @@ class LandmarkConfirmationTests(unittest.TestCase):
                 current_landmark_module.update_candidate_point(current_draft_record, 'left_shoulder_center', 0, 0, 0, 'manual_xyz', '')
             current_gateway_mock.assert_called_once()
         self.assertEqual(current_draft_record, current_original_draft)
+
+    def test_surface_pick_requires_finite_selected_coordinates(self):
+        import subprocess
+        current_script_text="const assert=require('node:assert/strict');global.window={};const checkReady="+current_landmark_module.LANDMARK_PICK_READINESS_SCRIPT+";"
+        current_script_text+="assert.equal(checkReady()[0].interactive,false);for(const point of [null,[],[1,2],[1,2,NaN],[1,2,Infinity],['1',2,3]]){window.currentAnnyLandmarkViewer={currentPickedPoint:point};assert.equal(checkReady()[0].interactive,false);}window.currentAnnyLandmarkViewer={currentPickedPoint:[0,-1,2]};assert.equal(checkReady()[0].interactive,true);"
+        subprocess.run(['node','-e',current_script_text],check=True,capture_output=True,text=True)
+        current_interface_blocks=current_landmark_module.build_landmark_interface()
+        current_pick_button=next(current_component for current_component in current_interface_blocks.blocks.values() if isinstance(current_component,gr.Button) and current_component.value=='선택 좌표 읽기')
+        self.assertFalse(current_pick_button.interactive)
+        current_timer_event=next(current_event for current_event in current_interface_blocks.config['dependencies'] if current_event.get('js')==current_landmark_module.LANDMARK_PICK_READINESS_SCRIPT)
+        self.assertFalse(current_timer_event['queue'])
+        self.assertFalse(current_timer_event['backend_fn'])
