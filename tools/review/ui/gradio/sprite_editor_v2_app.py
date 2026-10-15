@@ -62,8 +62,10 @@ def build_sprite_v2_interface():
         current_project_choice=gr.Dropdown(label='저장된 작업',choices=[],interactive=True)
         with gr.Row():
             current_refresh_button=gr.Button('작업 목록 새로고침')
-            current_load_button=gr.Button('불러오기')
-            current_delete_button=gr.Button('작업 삭제')
+            current_load_button=gr.Button('불러오기',interactive=False)
+            current_delete_button=gr.Button('작업 삭제',interactive=False)
+        gr.Markdown('불러오기·작업 삭제는 저장된 작업을 선택하면 사용할 수 있습니다. 목록이 비어 있으면 작업 목록 새로고침을 누르세요.')
+        current_project_choice.change(fn=None,inputs=current_project_choice,outputs=[current_load_button,current_delete_button],queue=False,js="(currentSelectedIdentifier)=>[{__type__:'update',interactive:Boolean(currentSelectedIdentifier)},{__type__:'update',interactive:Boolean(currentSelectedIdentifier)}]")
         current_delete_target=gr.Textbox(value='',visible=False)
         with gr.Group(visible=False) as current_delete_panel:
             gr.Markdown('### 선택한 작업을 삭제할까요?\n등록 이미지·전체 수정 이력·출력 파일과 열려 있는 해당 작업의 미저장 편집이 삭제됩니다. 되돌릴 수 없습니다.')

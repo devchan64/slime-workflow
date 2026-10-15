@@ -5,6 +5,8 @@ import statistics
 from zoneinfo import ZoneInfo
 
 
+RUNNING_PROGRESS_DISPLAY_LIMIT = 99.9
+
 def calculate_generation_estimate(current_status_record, current_elapsed_samples, current_basis_text, current_scope_text):
     current_clock_value = datetime.now(ZoneInfo('Asia/Seoul'))
     current_estimate_record = {'remaining': None, 'completion': None, 'total_seconds': None, 'estimated_progress': None, 'sample_count': len(current_elapsed_samples), 'updated_at': current_clock_value.isoformat(), 'scope': current_scope_text, 'basis': current_basis_text}
@@ -21,4 +23,4 @@ def calculate_generation_estimate(current_status_record, current_elapsed_samples
     current_remaining_seconds = current_total_seconds - current_elapsed_seconds
     if current_remaining_seconds <= 0:
         return {**current_estimate_record, 'basis': current_basis_text + ' · 지연: 표본 시간을 초과하여 계산 중, 새 완료 표본 필요'}
-    return {**current_estimate_record, 'total_seconds': round(current_total_seconds, 1), 'remaining': math.ceil(current_remaining_seconds), 'completion': (current_clock_value + timedelta(seconds=current_remaining_seconds)).isoformat(), 'estimated_progress': round(100 * current_elapsed_seconds / current_total_seconds, 1)}
+    return {**current_estimate_record, 'total_seconds': round(current_total_seconds, 1), 'remaining': math.ceil(current_remaining_seconds), 'completion': (current_clock_value + timedelta(seconds=current_remaining_seconds)).isoformat(), 'estimated_progress': min(RUNNING_PROGRESS_DISPLAY_LIMIT, round(100 * current_elapsed_seconds / current_total_seconds, 1))}

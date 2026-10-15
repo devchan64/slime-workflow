@@ -293,10 +293,12 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
             gr.Markdown('순환 반경은 좌우·상하에 동일 적용합니다. 경계 1줄 참조 · 모서리 참조 없음.')
         if pose_transfer_enabled:
             width_value.change(lambda selected_resolution_value: selected_resolution_value,width_value,height_value,queue=False)
-        generation_button_value=gr.Button('이미지 생성 시작',variant='primary')
+        generation_button_value=gr.Button('이미지 생성 시작',variant='primary',interactive=not pose_transfer_enabled)
+        if pose_transfer_enabled:
+            gr.Markdown('두 필수 참조 이미지를 모두 첨부하면 생성 시작을 사용할 수 있습니다. 확인 중에는 추가 접수를 할 수 없습니다.')
         with gr.Column() as generation_confirmation_container:
             pass
-        status_value=gr.Markdown('생성 가능 · 설정을 확인하세요.')
+        status_value=gr.Markdown('참조 이미지와 설정을 확인하세요.' if pose_transfer_enabled else '생성 가능 · 설정을 확인하세요.')
         gr.Markdown('실행 중인 작업은 아래 생성 이력에서 선택한 뒤 **작업 중지**를 사용하세요.')
         identifier_value=build_generation_identifier()
         preview_value=build_generation_gallery()
@@ -345,7 +347,7 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
             except (ValueError,OSError) as generation_request_error:
                 raise gr.Error(str(generation_request_error)) from generation_request_error
             return generation_record_value['id'],'상태: '+format_generation_status(generation_record_value)
-        bind_gpu_generation_confirmation(generation_button_value,start_reference_generation,[prompt_text_value,generation_tag_value,*reference_image_controls,width_value,height_value,step_value,seed_value]+([circular_radius_control,soft_shading_control,pattern_view_control,baseline_decode_control] if circular_mode_enabled else [])+([auxiliary_prompt_control] if vnccs_transfer_enabled else [])+([common_style_control,transparent_background_control] if plain_options_enabled else []),[identifier_value,status_value], generation_confirmation_container=generation_confirmation_container)
+        bind_gpu_generation_confirmation(generation_button_value,start_reference_generation,[prompt_text_value,generation_tag_value,*reference_image_controls,width_value,height_value,step_value,seed_value]+([circular_radius_control,soft_shading_control,pattern_view_control,baseline_decode_control] if circular_mode_enabled else [])+([auxiliary_prompt_control] if vnccs_transfer_enabled else [])+([common_style_control,transparent_background_control] if plain_options_enabled else []),[identifier_value,status_value], generation_confirmation_container=generation_confirmation_container, generation_readiness_callback=(lambda *current_reference_values: all(current_reference_value is not None for current_reference_value in current_reference_values)) if pose_transfer_enabled else None, generation_readiness_inputs=reference_image_controls if pose_transfer_enabled else None)
         def refresh_status(identifier_text_value,refresh_log_enabled):
             if not identifier_text_value:return (gr.skip(),)*4
             status_record_value=read_existing_generation_status(execute_reference_gateway,identifier_text_value)

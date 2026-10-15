@@ -92,3 +92,39 @@ class QueueExecutionTelemetryTests(unittest.TestCase):
                 self.assertEqual(gpu_job_queue.execute_queued_generation(current_job_root),current_exit_code)
                 self.assertEqual(read_queue_generation_metrics(current_job_root)['status'],current_status_name)
                 self.assertEqual(list((current_queue_root/'active').glob('*.json')),[])
+
+
+class GenerationMemoryScopeTests(unittest.TestCase):
+    def test_descendants_and_devices_keep_separate_observed_peaks(self):
+        """별도 렌더 자손은 포함하고 타 작업과 장치 피크 합산은 제외한다."""
+        from types import SimpleNamespace
+        from tools.review.common.generation_telemetry import GenerationTelemetryRecorder
+        current_process_records = [
+            SimpleNamespace(parent=SimpleNamespace(name=str(current_process_number)),
+                            read_text=lambda current_parent_number=current_parent_number: f'0 (render worker) S {current_parent_number} 0')
+            for current_process_number, current_parent_number in ((101, 100), (102, 101), (200, 1))
+        ]
+        current_gpu_samples = [
+            'GPU-A, 900\nGPU-B, 700',
+            'GPU-A, 100, 10\nGPU-A, 101, 20\nGPU-A, 102, 30\nGPU-A, 200, 800\nGPU-B, 102, 40',
+            'GPU-A, 850\nGPU-B, 950',
+            'GPU-A, 100, 5\nGPU-A, 101, 10\nGPU-B, 102, 80\nGPU-B, 200, 870',
+        ]
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_recorder_value = GenerationTelemetryRecorder(Path(current_directory_name), 0, [])
+            with patch('tools.review.common.generation_telemetry.os.getpid', return_value=100), \
+                 patch('tools.review.common.generation_telemetry.Path.glob', return_value=current_process_records), \
+                 patch('tools.review.common.generation_telemetry.subprocess.check_output', side_effect=current_gpu_samples):
+                current_recorder_value.sample_generation_memory()
+                current_recorder_value.sample_generation_memory()
+            current_gpu_observations = current_recorder_value.current_run_state['gpu_observations']
+            self.assertEqual(current_gpu_observations['GPU-A']['process_current_mib'], 15)
+            self.assertEqual(current_gpu_observations['GPU-A']['process_peak_mib'], 60)
+            self.assertEqual(current_gpu_observations['GPU-A']['device_peak_mib'], 900)
+            self.assertEqual(current_gpu_observations['GPU-B']['process_current_mib'], 80)
+            self.assertEqual(current_gpu_observations['GPU-B']['process_peak_mib'], 80)
+            self.assertEqual(current_gpu_observations['GPU-B']['device_peak_mib'], 950)
+            self.assertTrue(all(current_gpu_record['sample_count'] == 2 for current_gpu_record in current_gpu_observations.values()))
+            current_recorder_value.save_generation_metrics()
+            current_saved_record = json.loads((Path(current_directory_name) / 'metrics.json').read_text())
+            self.assertEqual(current_saved_record['gpu_observations'], current_gpu_observations)

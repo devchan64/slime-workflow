@@ -67,7 +67,7 @@ pages:
   - hy-motion-memory-status
   implementation: tools/review/ui/gradio/hy_motion_app.py
   applicability: generation
-  browser_note: 실제 합성 화면에서 최신 이력 4건·완료 상태·VRAM 측정 자료 없음·품질 경고·결과 조회 8개 패널 및 다운로드 목록 확인. 측정값 존재 작업의 표시·모바일·재생 동기화 검증은 남음.
+  browser_note: 실제 합성 화면에서 최신 이력 4건·완료 상태·VRAM 측정 자료 없음·품질 경고·결과 조회 8개 패널 및 다운로드 목록 확인. 추가 격리 합성 화면에서 측정값 존재 상태와 완료 전환 후 피크·품질 경고 유지 확인. 모바일·재생 동기화 검증은 남음.
 
 - id: music-minimax
   label: MiniMax-Music3
@@ -190,13 +190,14 @@ pages:
   url: /management/frame/map-review/?map=boar-ridge&townPage=1
   source_review: shared_ui_reviewed_runtime_pending
   contract_tests: shared_component_verified
-  browser_review: load_failed
+  browser_review: partial_live_verified
   findings:
   - boar-ridge-character-request-failure
   implementation: tools/review/ui/gradio/map_review_app.py
   applicability: render_review
   review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+  browser_evidence: 2026-10-15 재검증에서 타일·기본 캐릭터 로딩과 렌더 완료, 회전 90°·32% 변경 및 콘솔 오류 없음 확인. 이전 로딩 오류는 재현되지 않음. 화면 크기·재연결 검증은 미완료.
 - id: map-review-crystal-cut
   label: 결정 절개지 · 필드맵 검수
   category: field-map-review
@@ -414,12 +415,13 @@ pages:
   url: /management/frame/static-review/?review=ui-643120e666a183ee-design-system
   source_review: shared_ui_reviewed_runtime_pending
   contract_tests: shared_component_verified
-  browser_review: pending
+  browser_review: partial_live_verified
   findings: []
   implementation: tools/review/ui/gradio/static_review_app.py
   applicability: render_review
   review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+  browser_evidence: 2026-10-15 실제 합성 화면에서 66개 메뉴와 등록 디자인 토큰·입력·버튼 표시 확인. 기본 버튼 선택 상태 변경, 공통 패널 열기 및 닫기 후 dialog 0개 확인. 게임 검수 대상의 패널이며 관리도구 명령 확인 UI와 구분함. 콘솔 오류 없음. 반응형·키보드 포커스 검증은 미완료.
 - id: map-review-dry-creek
   label: 마른 개울 · 필드맵 검수
   category: field-map-review
@@ -472,12 +474,13 @@ pages:
   url: /management/frame/map-review/?map=old-orchard&townPage=1
   source_review: shared_ui_reviewed_runtime_pending
   contract_tests: shared_component_verified
-  browser_review: pending
+  browser_review: partial_live_verified
   findings: []
   implementation: tools/review/ui/gradio/map_review_app.py
   applicability: render_review
   review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+  browser_evidence: 2026-10-15 실제 공용 메뉴 합성 화면에서 해당 맵 제목·타일 원본 로딩 완료·공용 필드 렌더러 상태 표시와 90도 회전 후 회전 90°·32% 표시 확인. 콘솔 오류 없음. 타일별 시각 품질·재연결·화면 크기 검증은 미완료.
 - id: animation-15
   label: 물안개개구리 · 대기 · v1.imagegen-eight-frames
   category: animation
@@ -500,13 +503,14 @@ pages:
   url: /management/frame/map-review/?map=wind-hills&townPage=1
   source_review: shared_ui_reviewed_runtime_pending
   contract_tests: shared_component_verified
-  browser_review: loaded_existing_runtime_issue_found
+  browser_review: partial_live_verified
   findings:
   - map-texture-alias-collision
   implementation: tools/review/ui/gradio/map_review_app.py
   applicability: render_review
   review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+  browser_evidence: 2026-10-15 재검증에서 타일·기본 캐릭터 로딩과 렌더 완료, 회전 90°·32% 변경 및 콘솔 오류 없음 확인. 이전 로딩 오류는 재현되지 않음. 화면 크기·재연결 검증은 미완료.
 - id: outfit-transfer-generator
   label: 복장 착용 생성기
   category: image-generation
@@ -541,12 +545,13 @@ pages:
   url: /management/frame/map-review/?map=root-trail&townPage=1
   source_review: shared_ui_reviewed_runtime_pending
   contract_tests: shared_component_verified
-  browser_review: pending
+  browser_review: partial_live_verified
   findings: []
   implementation: tools/review/ui/gradio/map_review_app.py
   applicability: render_review
   review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+  browser_evidence: 2026-10-15 실제 공용 메뉴 합성 화면에서 해당 맵 제목·타일 원본 로딩 완료·공용 필드 렌더러 상태 표시와 전체 보기 후 32% 표시 확인. 콘솔 오류 없음. 타일별 시각 품질·재연결·화면 크기 검증은 미완료.
 - id: map-review-dawn-overlook
   label: 새벽 전망대 · 필드맵 검수
   category: field-map-review
@@ -584,12 +589,13 @@ pages:
   url: /management/frame/map-review/?map=salt-causeway&townPage=1
   source_review: shared_ui_reviewed_runtime_pending
   contract_tests: shared_component_verified
-  browser_review: pending
+  browser_review: partial_live_verified
   findings: []
   implementation: tools/review/ui/gradio/map_review_app.py
   applicability: render_review
   review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+  browser_evidence: 2026-10-15 실제 공용 메뉴 합성 화면에서 해당 맵 제목·타일 원본 로딩 완료·공용 필드 렌더러 상태 표시와 전체 보기 후 32% 표시 확인. 콘솔 오류 없음. 타일별 시각 품질·재연결·화면 크기 검증은 미완료.
 - id: map-review-saltford
   label: 소금여울 · 마을맵 검수
   category: town-map-review
@@ -627,10 +633,13 @@ pages:
   url: /management/frame/sprite-editor-v2/
   source_review: in_progress
   contract_tests: pending
-  browser_review: pending
+  browser_review: partial_live_verified
   findings: []
   implementation: tools/review/ui/gradio/sprite_editor_v2_app.py
   applicability: render_review
+  browser_evidence: 2026-10-15 실제 합성 화면에서 공용 메뉴 66개와 작업 목록 조회 확인. 기본-걷기 작업 2026-10-10_09-55-52-87b83a74의 버전 20261011T095247-9edcbc81을 불러와 9프레임과 수정 이력 표시, 다음 프레임으로 1/9에서 2/9 이동 및 콘솔 오류 없음을 확인. 저장·삭제·내보내기는 실행하지 않았으며 재생·재연결·화면 크기 검증은 미완료.
+  selection_control_review: 작업 미선택 시 불러오기·작업 삭제 비활성 및 선택 방법 안내 추가. 실제 공용 메뉴 합성 화면에서 미선택 두 버튼 비활성, 기존 작업 선택 후 두 버튼 활성과 콘솔 오류 없음을 확인. 삭제는 실행하지 않음. 저장·편집 버튼의 작업 상태 연동은 추가 점검 필요.
+  selection_regression_result: .tmp/test/management-sprite-selection/2026-10-15_12-00-26/summary.json
 - id: animation-20
   label: 슬라임 · 대기 · v2
   category: animation
@@ -683,12 +692,13 @@ pages:
   url: /management/frame/map-review/?map=mist-lake&townPage=1
   source_review: shared_ui_reviewed_runtime_pending
   contract_tests: shared_component_verified
-  browser_review: pending
+  browser_review: partial_live_verified
   findings: []
   implementation: tools/review/ui/gradio/map_review_app.py
   applicability: render_review
   review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+  browser_evidence: 2026-10-15 실제 공용 메뉴 합성 화면에서 안개 호수 제목·타일 원본 로딩 완료·공용 필드 렌더러 표시 확인. 전체 보기 후 200%에서 32%로 변경 및 콘솔 오류 없음 확인. 타일별 시각 품질·재연결·화면 크기 검증은 미완료.
 - id: animation-4
   label: 여성 캐릭터 · 애니메이션 통합 검수
   category: animation
@@ -711,12 +721,13 @@ pages:
   url: /management/frame/map-review/?map=silver-marsh&townPage=1
   source_review: shared_ui_reviewed_runtime_pending
   contract_tests: shared_component_verified
-  browser_review: pending
+  browser_review: partial_live_verified
   findings: []
   implementation: tools/review/ui/gradio/map_review_app.py
   applicability: render_review
   review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+  browser_evidence: 2026-10-15 실제 공용 메뉴 합성 화면에서 해당 맵 제목·타일과 기본 캐릭터 로딩 완료·공용 필드 렌더러 표시 확인. 전체 보기 후 200%에서 32%로 변경 및 콘솔 오류 없음 확인. 타일별 시각 품질·재연결·화면 크기 검증은 미완료.
 - id: map-review-moss-clearing
   label: 이끼 공터 · 필드맵 검수
   category: field-map-review
@@ -724,12 +735,13 @@ pages:
   url: /management/frame/map-review/?map=moss-clearing&townPage=1
   source_review: shared_ui_reviewed_runtime_pending
   contract_tests: shared_component_verified
-  browser_review: pending
+  browser_review: partial_live_verified
   findings: []
   implementation: tools/review/ui/gradio/map_review_app.py
   applicability: render_review
   review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+  browser_evidence: 2026-10-15 실제 공용 메뉴 합성 화면에서 해당 맵 제목·타일과 기본 캐릭터 로딩 완료·공용 필드 렌더러 표시 확인. 전체 보기 후 200%에서 32%로 변경 및 콘솔 오류 없음 확인. 타일별 시각 품질·재연결·화면 크기 검증은 미완료.
 - id: animation-16
   label: 이끼등거북 · 대기 · v1.imagegen-eight-frames
   category: animation
@@ -752,12 +764,13 @@ pages:
   url: /management/frame/map-review/?map=windrow-road&townPage=1
   source_review: shared_ui_reviewed_runtime_pending
   contract_tests: shared_component_verified
-  browser_review: pending
+  browser_review: partial_live_verified
   findings: []
   implementation: tools/review/ui/gradio/map_review_app.py
   applicability: render_review
   review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+  browser_evidence: 2026-10-15 실제 공용 메뉴 합성 화면에서 해당 맵 제목·타일과 기본 캐릭터 로딩 완료·공용 필드 렌더러 표시 확인. 전체 보기 후 200%에서 32%로 변경 및 콘솔 오류 없음 확인. 타일별 시각 품질·재연결·화면 크기 검증은 미완료.
 - id: map-review-meadow
   label: 이슬 초원 · 필드맵 검수
   category: field-map-review
@@ -765,12 +778,13 @@ pages:
   url: /management/frame/map-review/?map=meadow&townPage=1
   source_review: shared_ui_reviewed_runtime_pending
   contract_tests: shared_component_verified
-  browser_review: pending
+  browser_review: partial_live_verified
   findings: []
   implementation: tools/review/ui/gradio/map_review_app.py
   applicability: render_review
   review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+  browser_evidence: 2026-10-15 실제 합성 화면에서 이슬 초원 타일·캐릭터 로딩 완료 및 전체 보기 200%에서 32% 변경 확인. 콘솔 오류 없음. 시각 품질·재연결·화면 크기 검증은 미완료.
 - id: map-review-iseulon
   label: 이슬온 · 마을맵 검수
   category: town-map-review
@@ -836,12 +850,13 @@ pages:
   url: /management/frame/static-review/?review=ui-643120e666a183ee-battlefield-layout
   source_review: shared_ui_reviewed_runtime_pending
   contract_tests: shared_component_verified
-  browser_review: pending
+  browser_review: partial_live_verified
   findings: []
   implementation: tools/review/ui/gradio/static_review_app.py
   applicability: render_review
   review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+  browser_evidence: 2026-10-15 실제 합성 화면에서 전체 전장 6/6 렌더 완료와 바위 협로 선택 후 1/1 렌더 완료 확인. 단일 전장의 전투 컨트롤·도움말·참가 유닛 표시 확인. 초기 콘솔 오류 없음. 전투 실행·재연결·화면 크기 검증은 미완료.
 - id: map-review-pebble-shore
   label: 조약돌 물가 · 필드맵 검수
   category: field-map-review
@@ -849,12 +864,13 @@ pages:
   url: /management/frame/map-review/?map=pebble-shore&townPage=1
   source_review: shared_ui_reviewed_runtime_pending
   contract_tests: shared_component_verified
-  browser_review: pending
+  browser_review: partial_live_verified
   findings: []
   implementation: tools/review/ui/gradio/map_review_app.py
   applicability: render_review
   review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+  browser_evidence: 2026-10-15 실제 공용 메뉴 합성 화면에서 해당 맵 제목·타일과 기본 캐릭터 로딩 완료·공용 필드 렌더러 표시 확인. 전체 보기 후 200%에서 32%로 변경 및 콘솔 오류 없음 확인. 타일별 시각 품질·재연결·화면 크기 검증은 미완료.
 - id: map-review-brine-bank
   label: 짠물둔덕 · 필드맵 검수
   category: field-map-review
@@ -862,12 +878,13 @@ pages:
   url: /management/frame/map-review/?map=brine-bank&townPage=1
   source_review: shared_ui_reviewed_runtime_pending
   contract_tests: shared_component_verified
-  browser_review: pending
+  browser_review: partial_live_verified
   findings: []
   implementation: tools/review/ui/gradio/map_review_app.py
   applicability: render_review
   review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+  browser_evidence: 2026-10-15 실제 공용 메뉴 합성 화면에서 해당 맵 제목·타일과 기본 캐릭터 로딩 완료·공용 필드 렌더러 표시 확인. 전체 보기 후 200%에서 32%로 변경 및 콘솔 오류 없음 확인. 타일별 시각 품질·재연결·화면 크기 검증은 미완료.
 - id: animation-separation
   label: 캐릭터 레퍼런스 복장 분리 생성
   category: image-generation
@@ -887,12 +904,13 @@ pages:
   url: /management/frame/character-review/
   source_review: shared_ui_reviewed_runtime_pending
   contract_tests: shared_component_verified
-  browser_review: pending
+  browser_review: partial_live_verified
   findings: []
   implementation: tools/review/ui/gradio/map_review_app.py
   applicability: render_review
   review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+  browser_evidence: 2026-10-15 실제 합성 화면에서 양쪽 캐릭터 캔버스와 잔디·들꽃 3×3 맵 로딩, 90도 회전 및 동일 위치·크기 표시를 확인. 콘솔 오류 없음. 캡처 저장·재연결·화면 크기 검증은 미완료.
 - id: pose-transfer-generator
   label: 포즈 변환 생성기
   category: animation-tool
@@ -901,10 +919,12 @@ pages:
   source_review: in_progress
   contract_tests: pending
   browser_review: partial_live_verified
-  findings: []
+  findings:
+  - required-reference-generation-readiness
   implementation: tools/review/ui/gradio/qwen_2511_app.py
   applicability: generation
   browser_note: 2026-10-15 직접 실행 import 순서 오류로 404 발생한 원인을 수정하고 실제 합성 화면 복구 확인. 걷기 프리셋 15번 선택·적용 시 512×512 미리보기/참조 이미지 로딩, 보조 19단어·기본 29단어·최종 48단어 연동 및 콘솔 오류 없음 확인. 이력은 현재 빈 목록. 생성·삭제·GPU 실행 미실행; 모바일·확인 취소 미검증.
+  responsive_evidence: 2026-10-15 viewport 390×844 실제 적용 확인. DOM clientWidth·scrollWidth 모두 375px로 가로 넘침 없음. 프롬프트와 공용 메뉴 열기·닫기 표시 확인. 검증 후 viewport reset. 모든 입력·이력 동작의 모바일 완료를 뜻하지 않음.
 - id: expression-generator
   label: 표정 생성기
   category: image-generation
@@ -924,12 +944,13 @@ pages:
   url: /management/frame/map-review/?map=grove&townPage=1
   source_review: shared_ui_reviewed_runtime_pending
   contract_tests: shared_component_verified
-  browser_review: pending
+  browser_review: partial_live_verified
   findings: []
   implementation: tools/review/ui/gradio/map_review_app.py
   applicability: render_review
   review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+  browser_evidence: 2026-10-15 실제 공용 메뉴 합성 화면에서 해당 맵 제목·타일과 기본 캐릭터 로딩 완료·공용 필드 렌더러 표시 확인. 전체 보기 후 200%에서 32%로 변경 및 콘솔 오류 없음 확인. 타일별 시각 품질·재연결·화면 크기 검증은 미완료.
 - id: map-review-salt-flat
   label: 흰소금벌 · 필드맵 검수
   category: field-map-review
@@ -937,21 +958,36 @@ pages:
   url: /management/frame/map-review/?map=salt-flat&townPage=1
   source_review: shared_ui_reviewed_runtime_pending
   contract_tests: shared_component_verified
-  browser_review: pending
+  browser_review: partial_live_verified
   findings: []
   implementation: tools/review/ui/gradio/map_review_app.py
   applicability: render_review
   review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+  browser_evidence: 2026-10-15 실제 공용 메뉴 합성 화면에서 해당 맵 제목·타일과 기본 캐릭터 로딩 완료·공용 필드 렌더러 표시 확인. 전체 보기 후 200%에서 32%로 변경 및 콘솔 오류 없음 확인. 타일별 시각 품질·재연결·화면 크기 검증은 미완료.
 shared_findings:
+- id: required-reference-generation-readiness
+  status: confirmed_fix_pending
+  source: tools/review/ui/gradio/qwen_2511_app.py
+  finding: 실제 포즈 생성기에서 필수 참조 2장이 비어 있는데 생성 버튼 활성 및 생성 가능 안내 표시. 입력 부족 시 비활성 규칙 위반.
+  evidence: 초기 generation_button_value와 status_value가 무조건 활성·생성 가능으로 구성됨. 참조 검증은 start_reference_generation에서만 수행되어 확인 단계 이전 준비 상태와 불일치.
+  required_change: 공용 확인 UI의 대기·취소·입력 스냅샷 정책을 유지하면서 필수 참조 준비 조건을 연결. 확인 중 이미지 변경과 취소 후 활성 복귀 경합도 함께 검증해야 함.
+- id: running-estimate-rounding-boundary
+  status: verified_contract
+  source: tools/review/common/generation_estimates.py
+  finding: 실행 중 예상 진행률 99.95% 이상에서 소수 첫째 자리 반올림으로 완료 전 100% 표시 가능.
+  change: 실행 중 표시 상한 99.9% 적용. 표본 시간 초과 시 기존 계산 중·지연 안내 유지.
+  evidence: 고정 시각에서 99.94·99.96·99.999·100·101초 경계와 공용 상태·시도 기록 회귀 13건 통과. 실제 작업 상태는 변경하지 않음.
 - id: history-missing-thumbnail-label
-  status: verified_contract_browser_pending
+  status: verified_contract_mock_browser
+  browser_evidence: 2026-10-15 격리 HY-Motion 이력에서 이미지 없는 칸이 썸네일 없음으로 표시됨을 확인. 결과 없음으로 단정하지 않음.
   evidence: .tmp/test/management-history-label/2026-10-15_11-05-05/summary.json
   validation: 공용 이력 검사 27개 통과. 샌드박스 내부 직접 실행은 비동기 대기에서 중단하고 제한·로그 실행기로 재검증.
   finding: HY-Motion 완료 이력에 실제 결과가 있지만 썸네일이 없어서 결과 없음으로 표시됨.
   change: 공용 이력의 이미지 없는 칸은 썸네일 없음으로 표시. 결과 존재 여부를 이미지 유무로 단정하지 않음.
 - id: hy-motion-memory-status
-  status: verified_contract_browser_pending
+  status: verified_contract_mock_browser
+  browser_evidence: 2026-10-15 생성 명령 차단 격리 HY-Motion 합성 화면에서 현재 120 MiB·관측 피크 7123 MiB·자식 프로세스 측정 범위·순간 피크 누락 한계·품질 경고·12초 ETA 확인. 5초 자동 갱신으로 완료 전환 후 피크·경고 유지와 ETA 갱신 종료 및 콘솔 오류 없음 확인. 실제 GPU 실측 전체 계약은 별도.
   finding: HY-Motion 서비스 상태 응답에 공용 대기열 VRAM 기록이 없고 GUI는 상태·ETA만 표시.
   change: 시작·종료 작업 상태에 공용 실행 시도 측정값 연결, GUI 공용 VRAM·단계 표시 적용. 기존 ETA 별도 영역과 품질 경고 유지. queued에서는 이전 측정값 미조회.
   evidence: .tmp/test/management-hy-telemetry/2026-10-15_11-01-56/summary.json
@@ -997,8 +1033,9 @@ shared_findings:
   evidence: .tmp/test/management-map-load-progress/2026-10-15_10-35-25/summary.json
   browser_note: 운영 깨진 채석장 43/100, 클로버 둑 81/100, 잿불길 캐릭터 로딩 단계 표시 확인. 완전 로딩 검증과 구분.
 - id: boar-ridge-character-request-failure
-  status: investigation_pending
+  status: not_reproduced_live_recheck
   finding: 2026-10-15 강모 능선 브라우저에서 기본 캐릭터 로드 실패.
+  recheck: 실제 합성 화면 재검증에서 캐릭터 포함 로딩 및 회전 완료와 콘솔 오류 없음을 확인. 이전 실패 원인은 미확정이며 재현되지 않은 사실만 기록.
   evidence: 디스크 review-character.png 존재·582499바이트·1536x768 PNG 검증 통과. 브라우저 요청 실패 원인은 아직 미확정.
 - id: map-renderer-initialization-cleanup
   status: verified_contract_browser_pending
@@ -1024,6 +1061,7 @@ shared_findings:
     0회·모의 확인 1회·완료 후 비활성 확인. ANNY 사전 조회 연결 및 격리 브라우저 2건 표시·자동 갱신 후 확인 유지·취소 검증 완료.
 - id: image-telemetry
   status: partial_verified
+  memory_scope_evidence: 2026-10-15 모의 프로세스 부모 관계와 두 GPU의 연속 표본으로 작업자·자식·손자 포함, 다른 작업 제외, 장치별 현재값·관측 피크 분리 및 영구 기록 일치 확인. 실제 GPU 측정 및 생성기별 단계 연결 검증을 대체하지 않음.
   source: tools/review/domains/image/image_generation.py
   description: 이미지 서비스 공통 ETA·VRAM 전체 단계 측정 계약 미구현 범위 확인 필요
   evidence: '공용 GPU 실행기에 queue-telemetry/<시도>/metrics.json 및 현재 시도 포인터 연결. 이미지 상태가
@@ -1054,7 +1092,8 @@ shared_findings:
   evidence: 게이트웨이/런타임/ANNY 회귀 20건 통과. GUI·CLI payload 및 호환 URL 동일 서비스 전달, 알 수 없는 필드·범위
     초과·bool 입력의 생성 전 거절 확인. 실제 GPU 실행 없음.
 - id: map-texture-alias-collision
-  status: verified_unit_browser_pending
+  status: verified_unit_live_browser
+  recheck: 2026-10-15 실제 바람 구릉 합성 화면 타일·캐릭터 로딩 완료, 90도 회전 반영 및 중복 텍스처 등록 오류 없는 콘솔 확인.
   source: tools/review/ui/map/field-map-view.js
   evidence: 실제 바람 구릉 화면에서 stonewarm-stone-roof 중복 등록 오류 확인. 동일 이미지 별칭 재사용 및 다른 이미지
     충돌 거절 회귀 통과. 수정본 브라우저 검증 대기.
@@ -1100,6 +1139,26 @@ shared_findings:
   description: 생성 또는 명시적 조회로 확인된 ID만 5초마다 공용 상태·ETA·로그를 갱신하며 재생기는 재로드하지 않음. 삭제된 ID는 결과·로그와 함께 해제.
   evidence: 빈 ID 및 입력 중 ID 무조회·진행/종료 상태·재생기 보존·삭제·재개 불가 작업 포함 3건 회귀 통과. 격리 합성 화면에서 조회 전/후/삭제 후 버튼 정책·ID 해제·ETA/VRAM 표시·콘솔 오류 없음을 확인.
 regression_runs:
+- path: .tmp/test/management-progress-boundary/2026-10-15_12-15-08/summary.json
+  passed: 13
+  failed: 0
+  errors: 0
+  note: 실행 중 100% 반올림 방지·지연 경계·공용 상태 및 관측 기록 회귀.
+- path: .tmp/test/management-memory-scope/2026-10-15_12-14-02/summary.json
+  passed: 5
+  failed: 0
+  errors: 0
+  note: 공용 실행기 시도·종료 기록과 자손 프로세스 VRAM 범위·다중 장치 피크 분리 검증. GPU 호출은 모의 표본으로 대체.
+- path: .tmp/test/management-audit/2026-10-15_12-12-07/summary.json
+  passed: 224
+  failed: 0
+  errors: 0
+  note: 공용 확인·이력·게이트웨이·상태·정리·메뉴 및 활성 UI 구성 회귀. 임시 작업과 모의 실행기로 검증하며 운영 생성·삭제는 실행하지 않음. 모든 생성기의 단계별 GPU 실측·모바일·재연결 완료 근거로 사용하지 않음.
+- path: .tmp/test/management-sprite-selection/2026-10-15_12-00-26/summary.json
+  passed: 9
+  failed: 0
+  errors: 0
+  note: 스프라이트 v2 기존 브라우저 명령·Gradio 구성 회귀. 선택 전후 버튼 활성은 실제 합성 브라우저에서 별도 확인.
 - path: .tmp/test/management-separation-tracked-status/2026-10-15_11-52-29/summary.json
   passed: 3
   failed: 0
