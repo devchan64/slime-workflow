@@ -21,7 +21,10 @@ def collect_saved_input_view(current_history_record, server_base_address='', rec
         current_directory_value = current_history_record.get('job_path') or current_history_record.get('path')
         if not current_directory_value:
             return current_prompt_text, current_request_record, [], '참조 저장 경로가 기록되어 있지 않습니다.'
-        current_job_directory = Path(current_directory_value).resolve()
+        current_job_directory = Path(current_directory_value)
+        if current_job_directory.is_symlink():
+            return current_prompt_text, current_request_record, [], '참조 이미지 작업 폴더가 심볼릭 링크이므로 표시하지 않습니다.'
+        current_job_directory = current_job_directory.resolve()
         if not current_job_directory.is_relative_to(GENERATION_INPUT_ROOT.resolve()):
             return current_prompt_text, current_request_record, [], '허용된 생성 기록 경로가 아니므로 참조를 표시하지 않습니다.'
         for current_reference_index, current_snapshot_record in enumerate(current_snapshot_records, 1):
@@ -43,6 +46,17 @@ def collect_saved_input_view(current_history_record, server_base_address='', rec
                 current_reference_notices.append(
                     f'<a href="{html.escape(current_reference_address, quote=True)}" target="_blank" rel="noopener noreferrer">입력 참조 {current_reference_index} · 원본 열기 ↗</a>')
     return current_prompt_text, current_request_record, current_reference_images, '\n\n'.join(current_reference_notices)
+
+
+def collect_saved_negative_prompt(current_history_record):
+    """실행 당시 모델 설정의 부정 문구를 우선하며 빈 문구도 보존한다."""
+    current_request_record = (current_history_record or {}).get('request', {})
+    for current_model_name in ('vace', 'phantom'):
+        current_model_record = current_request_record.get(current_model_name)
+        if isinstance(current_model_record, dict) and isinstance(current_model_record.get('negative_prompt'), str):
+            return current_model_record['negative_prompt']
+    current_negative_text = current_request_record.get('negative_prompt')
+    return current_negative_text if isinstance(current_negative_text, str) else None
 
 
 def describe_saved_prompt_counts(current_history_record):
@@ -70,12 +84,7 @@ def describe_saved_prompt_counts(current_history_record):
         current_count_parts.append(f'저장 최종 입력 {len(current_final_text.split())}단어')
     else:
         current_count_parts.append('별도 최종 문구 기록 없음 · 현재 기본값으로 재구성하지 않습니다.')
-    for current_model_name in ('vace', 'phantom'):
-        current_model_record = current_request_record.get(current_model_name)
-        if isinstance(current_model_record, dict) and isinstance(current_model_record.get('negative_prompt'), str):
-            current_count_parts.append(f"저장 부정 입력 {len(current_model_record['negative_prompt'].split())}단어")
-            break
-    else:
-        if isinstance(current_request_record.get('negative_prompt'), str):
-            current_count_parts.append(f"저장 부정 입력 {len(current_request_record['negative_prompt'].split())}단어")
+    current_negative_text = collect_saved_negative_prompt(current_history_record)
+    if current_negative_text is not None:
+        current_count_parts.append(f"저장 부정 입력 {len(current_negative_text.split())}단어")
     return ' · '.join(current_count_parts)

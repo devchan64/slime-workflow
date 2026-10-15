@@ -5,13 +5,13 @@ import re
 import gradio as gr
 
 
-def build_browser_action_button(current_button_label, current_handler_name, current_action_name, current_feedback_output):
+def build_browser_action_button(current_button_label, current_handler_name, current_action_name, current_feedback_output, current_button_enabled=True):
     """고정된 공개 JS 명령에 연결하며 서버 이벤트·숨긴 버튼 클릭을 만들지 않는다."""
     if not re.fullmatch(r'[A-Za-z_$][A-Za-z0-9_$]*', current_handler_name):
         raise ValueError('브라우저 명령 함수 이름 형식 오류')
     current_handler_json=json.dumps(current_handler_name)
     current_action_json=json.dumps(current_action_name)
-    current_button_component=gr.Button(current_button_label)
+    current_button_component=gr.Button(current_button_label, interactive=current_button_enabled)
     current_button_component.click(fn=None,outputs=current_feedback_output,queue=False,js=f"""async()=>{{
 try{{
  const currentActionHandler=window[{current_handler_json}];

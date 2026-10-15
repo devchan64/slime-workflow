@@ -1,3 +1,10 @@
+map_all_controls_followup: "2026-10-15 맵 선택·불러오기·건물 선택과 기본 표시 옵션, 캐릭터 검수의 바닥·그림자·외곽선·PNG 캡처에도 로더 성공 전 비활성·실패 시 유지 연결. 카메라만 수정한 이전 범위를 확장. 구성 회귀는 두 모드의 입력 초기 상태 및 15/23개 로더 출력 연결 확인, 7건 통과(.tmp/test/map-all-control-readiness/2026-10-15_16-26-09/summary.json). 캐릭터 실제 Blocks·공용 메뉴에 모의 모듈을 연결한 브라우저에서 실패 시 맵·건물·표시·바닥·PNG 캡처 비활성 및 원인 안내 확인. 성공 문서 전환 후 표시·바닥·캡처 활성 확인, 콘솔 오류 없음. 캡처 서비스는 차단하고 버튼을 실행하지 않음. 실제 렌더링 품질 검증과 구분."
+map_camera_readiness_followup: "2026-10-15 초기 맵 로딩 중 5개 시점 버튼 활성 상태를 운영 화면과 소스에서 확인. 공용 브라우저 버튼에 초기 활성 인자를 추가하고 맵 로더 성공 후 활성·실패 시 비활성 유지 및 해결 안내 연결. 기존 브라우저 카메라 명령·서버 무왕복 유지. .tmp/test/map-camera-readiness/2026-10-15_16-22-57/summary.json 구성 회귀 6건 통과. 실제 맵 Blocks·공용 메뉴에 검증용 JS 모듈을 연결한 브라우저에서 실패 시 5개 버튼 비활성·원인·새로고침 안내 확인. 성공 문서로 전환 시 모두 활성, 회전 클릭의 모의 명령 완료 표시 확인. 콘솔 오류 없음, 임시 서버·탭 종료. 모의 모듈 검증이며 변경 후 운영 렌더러 재검증과 구분. 맵 선택·표시 옵션 전체 준비 상태를 수정한 것으로 주장하지 않음."
+inventory_snapshot_followup: ".tmp/test/management-inventory-2026-10-15.json · 실제 메뉴 로더와 URL 해석기로 66개 전수 재대조. 누락·폐기·URL 불일치 0건. 페이지별 동작 검증 범위는 개별 기록을 따름."
+history_view_boundary_followup: "2026-10-15 결과 조회 collect_saved_input_view는 작업 폴더 링크를 resolve한 뒤 읽어 다른 작업 참조를 표시함을 격리 테스트로 재현(8통과·1실패). 입력 복원과 동일하게 작업 폴더 자체의 심볼릭 링크를 거절하고 참조·다운로드 링크 없이 사유 표시하도록 수정. 일치하는 해시의 다른 작업 PNG와 폴더 링크를 사용, 대상 원본 바이트 보존 검증. .tmp/test/history-view-boundary/2026-10-15_16-15-51/summary.json 9건 통과. 격리 실제 Blocks·공용 메뉴의 결과 조회에서 빈 참조 갤러리·심볼릭 링크 제외 사유·원본 링크 없음 확인. 저장 프롬프트는 정상 표시, 콘솔 오류 없음. 임시 작업 파일만 사용하고 서버·탭 종료."
+phantom_status_browser_followup: "2026-10-15 Phantom 실제 Blocks·공용 메뉴 격리 화면에서 전체 ETA 12초와 추론 참고 ETA 7초 및 각각의 범위 구분 확인. 모의 상태를 running에서 failed로 변경한 후 5초 자동 갱신에서 실패 원인 표시·관측 피크 7123 MiB 유지·두 ETA 갱신 종료 확인. 콘솔 오류 없음. 생성 명령 차단·운영 GPU 무접촉·임시 탭과 서버 종료. 실제 OOM 실행 검증 및 다른 영상 소비 화면 전체 검증을 대신하지 않음."
+ace_status_prompt_followup: "2026-10-15 ACE-Step 실제 Blocks·공용 메뉴 격리 브라우저 검증. ETA 12초/30초/60% 표시, GPU 현재값·피크 None을 미측정으로 표시하고 누락 구간 안내 확인. Calm flute 입력의 반복 ON은 원문 2·추가 15·최종 17단어, OFF는 2·4·6단어로 최종 원문과 일치. 콘솔 오류 없음, 생성 명령 차단·임시 서버 종료. 실제 GPU 및 영상 화면 검증과 구분."
+saved_negative_display_followup: "2026-10-15 저장 부정 프롬프트 원문을 공용 결과 조회 읽기 전용 Textbox에 추가. VACE·Phantom 실행 설정 우선, 빈 문구 보존, 미기록 시 숨김. 단어 수와 동일 추출 함수 사용. .tmp/test/history-negative-display/2026-10-15_16-05-00/summary.json 8건 통과. 공용 메뉴와 실제 Qwen Blocks를 합성한 격리 브라우저에서 Phantom 저장 설정 blurred details가 읽기 전용으로 표시되고 부정 입력 2단어와 일치함을 확인. 외부 stale 문구는 표시되지 않음. 콘솔 오류 없음. 생성 명령 차단, 운영 작업 무접촉. 추가 격리 이력 3건으로 결과 조회 전환 검증: 빈 저장 문구는 빈 읽기 전용 입력과 0단어로 표시, 미기록 이력은 부정 문구 입력과 단어 수를 숨김. 이전 문구 잔존 없음, 콘솔 오류 없음. 전체 검증 완료 아님."
 schema_version: 1
 scope: 관리 메뉴 실제 등록 페이지
 status: in_progress
@@ -21,8 +28,8 @@ default_tracking_followup: "2026-10-15 소비 코드의 상수에서 음악 defa
 negative_prompt_followup: "2026-10-15 generators/vace 및 phantom의 contracts·worker·runtime을 대조하여 실제 부정 입력이 저장된 모델 설정 negative_prompt에서 전달됨을 확인. 공용 이력 단어 수는 해당 중첩 설정을 최상위 필드보다 우선하며 미기록 값을 기본값으로 채우지 않음. 충돌하는 최상위 값·빈 부정 입력·미기록 조건 포함 5건 통과: .tmp/test/history-negative-prompt-counts/2026-10-15_14-47-25/summary.json. 해당 형식의 브라우저 표시 검증은 남음."
 history_prompt_followup: "2026-10-15 공용 결과 입력 화면이 final_prompt 대신 prompt를 실제 입력으로 표시하고 단어 수를 누락한 문제 수정. 저장 최종 문구 우선 표시, 저장 원문·최종 단어 수를 원문에서 계산하며 최종 문구 미기록 시 현재 기본값으로 재구성하지 않음을 명시. 과거 suffix 보존·잘못된 저장 숫자에 의존하지 않음·빈 문구·줄바꿈 계산 회귀 포함 25건 통과(.tmp/test/history-prompt-counts/2026-10-15_14-44-19/summary.json). 실제 공용 메뉴+음악 Blocks 격리 브라우저의 결과 조회에서 flute old saved suffix 및 저장 원문 1단어·저장 최종 입력 4단어 표시 확인. 현재 생성 입력은 빈 상태 유지, 콘솔 오류 없음. 생성·입력 복원·삭제 요청 없음. 다른 기록 형식의 브라우저 검증은 남음."
 writer_selection_followup: "2026-10-15 이력 선택의 제안·확인 초기화를 input에서 change로 변경. 수동 선택뿐 아니라 작업 접수·새로고침의 프로그램 선택 변경에도 이전 제안과 확인을 초기화한다. 이벤트가 change에 연결되는지 회귀 검증을 보강. 서버 ID 일치 검증은 유지. 공용 메뉴와 실제 Writer Blocks 격리 브라우저에서 모의 제안 조회·동의 체크 후 적용 버튼 활성 확인. 모의 state 목록에서 해당 ID 제외 후 새로고침으로 프로그램 선택 해제 시 ID·차이·근거가 비워지고 동의 해제·적용 버튼 및 조회 버튼 비활성 확인. 콘솔 오류 없음. 실제 적용 명령 차단, 운영 문서·작업 변경 없음. 회귀 10건 통과: .tmp/test/writer-selection-change/2026-10-15_14-40-04/summary.json."
-prompt_count_followup: "2026-10-15 Phantom·VACE 타임라인은 양성·부정 원문과 최종 단어 수를 각각 표시함을 소스에서 확인. 공용 음악 화면은 자동 추가 문구의 개별 단어 수가 누락되어 원문·추가·최종 표시로 수정. MiniMax·ACE-Step 각각 반복 OFF/ON 4가지 조건에서 공백·줄바꿈 입력을 build_music_request 최종 원문 및 단어 수와 대조하여 일치 확인(2+4=6, 2+15=17). 생성 요청 없음. 추가 브라우저 검증: 실제 MiniMax Blocks와 공용 메뉴를 합성한 격리 문서에서 입력 flute calm → 2+4=6, 반복 ON → 2+15=17 및 최종 원문 일치 확인. 초기화 → 0+15=15, 생성 버튼 비활성 복귀 확인. 콘솔 오류 없음. 모의 게이트웨이에서 생성 명령을 차단했으며 운영 작업 변경 없음. ACE-Step 개별 브라우저 확인은 남음."
-latest_regression: .tmp/test/management-audit/2026-10-15_16-00-18/summary.json · 46개 모듈 355건 통과, 실패·오류·건너뜀 0건. 순환 이력 표시·입력 오류·게이트웨이 응답, 기준점 저장·조작·오류 안내 및 정적 검수 공용 경로 검증 포함. 페이지별 브라우저·실제 GPU 전체 검증을 대신하지 않음.
+prompt_count_followup: "2026-10-15 Phantom·VACE 타임라인은 양성·부정 원문과 최종 단어 수를 각각 표시함을 소스에서 확인. 공용 음악 화면은 자동 추가 문구의 개별 단어 수가 누락되어 원문·추가·최종 표시로 수정. MiniMax·ACE-Step 각각 반복 OFF/ON 4가지 조건에서 공백·줄바꿈 입력을 build_music_request 최종 원문 및 단어 수와 대조하여 일치 확인(2+4=6, 2+15=17). 생성 요청 없음. 추가 브라우저 검증: 실제 MiniMax Blocks와 공용 메뉴를 합성한 격리 문서에서 입력 flute calm → 2+4=6, 반복 ON → 2+15=17 및 최종 원문 일치 확인. 초기화 → 0+15=15, 생성 버튼 비활성 복귀 확인. 콘솔 오류 없음. 모의 게이트웨이에서 생성 명령을 차단했으며 운영 작업 변경 없음. ACE-Step 후속 브라우저 확인은 ace_status_prompt_followup 참조."
+latest_regression: .tmp/test/management-audit/2026-10-15_16-28-24/summary.json · 46개 모듈 358건 통과, 실패·오류·건너뜀 0건. 순환 이력 표시·입력 오류·게이트웨이 응답, 기준점 저장·조작·오류 안내 및 정적 검수 공용 경로 검증 포함. 페이지별 브라우저·실제 GPU 전체 검증을 대신하지 않음.
 inventory_revalidation_note: 2026-10-15 재확인 시 운영 .tmp/manager-current/manager-source.json 존재. 실제 load_manager_page_records·resolve_management_page_path 결과 66개와 점검표 66개의 ID·해석 URL 일치, 누락·폐기 차이 없음. 원본 SHA-256 92859b253bd09419c0f8414dd10ec69e0408e1edc23751c63912235ef0550fc8. 이전 원본 부재 관측 이후 현재 상태로 갱신했으며 각 페이지의 기능 완료를 뜻하지 않음.
 criteria:
 - Gradio 합성·공용 컴포넌트·테마
@@ -34,6 +41,7 @@ criteria:
 - 브라우저 표시·반응형·재연결
 pages:
 - id: music-ace-step
+  telemetry_prompt_followup: ace_status_prompt_followup · 격리 응답 브라우저 검증, 실제 GPU 실행과 구분.
   mobile_review: initial_layout_verified_flows_pending
   mobile_evidence: "2026-10-15 실제 합성 문서 viewport 390×844, 문서 clientWidth·scrollWidth 모두 375px. 초기 입력 화면의 주요 입력·버튼에서 문서 폭을 넘는 요소 없음. 생성·삭제 요청 없이 확인했으며 전체 모바일 동작 완료를 의미하지 않음. 검증 후 viewport reset."
   label: ACE-Step 1.5 Turbo
@@ -129,6 +137,7 @@ pages:
   browser_note: 2026-10-15 관리 메뉴 합성 격리 화면에서 ETA 12초·총시간 30초·예상 진행률 60%·완료 시각·표본 3개·범위·갱신 시각, VRAM 현재 120 MiB·관측 피크 7123 MiB·측정 범위·샘플링 한계·누락 구간 및 로그 표시 확인. 새로고침 후 동일 활성 ID와 수치 복원, 콘솔 오류 없음. 고정 모의 기록의 실행 수치 검증. 이후 완료 오디오·모바일 플레이어·운영 초기 상태 검증은 별도 followup 필드에 기록. 실제 GPU 측정·생성 확인·영구 완료 이력 조회는 미검증.
 
 - id: phantom-generator
+  telemetry_prompt_followup: phantom_status_browser_followup · 격리 응답 브라우저 검증, 실제 GPU 실행과 구분.
   mobile_review: initial_layout_verified_flows_pending
   mobile_evidence: "2026-10-15 실제 합성 문서 viewport 390×844, 문서 clientWidth·scrollWidth 모두 375px. 초기 입력 화면의 주요 입력·버튼에서 문서 폭을 넘는 요소 없음. 생성·삭제 요청 없이 확인했으며 전체 모바일 동작 완료를 의미하지 않음. 검증 후 viewport reset."
   label: Phantom R2V 영상 생성기
@@ -217,6 +226,7 @@ pages:
   browser_note: 2026-10-15 실제 합성 화면에서 활성 작업 48f99874의 ETA·추론 전용 추정 구분·진행 87→88/100·VRAM 현재 및 관측 피크 6404 MiB·5초 갱신 확인. 완료 c98472ef 선택 시 결과/입력/삭제 활성 및 재개/우선실행/중지 비활성, 결과 조회 MP4·PNG ZIP 링크 및 영상 832×480·7.5625초·readyState 4·오류 없음 확인. 생성·재개·중지·삭제 미실행. 동영상 재생·모바일·확인 취소는 미검증.
 
 - id: map-review-reed-crossing
+  readiness_followup: map_all_controls_followup · 공용 구현 적용, 모의 성공·실패 브라우저 검증. 개별 맵 렌더링 검증과 구분.
   label: 갈대 여울 · 필드맵 검수
   category: field-map-review
   ui_mode: gradio
@@ -232,6 +242,7 @@ pages:
   browser_note: 2026-10-15 실제 합성 화면 로딩·90도 회전·캔버스 표시 확인. 모바일·재연결 검증은 남음.
 
 - id: map-review-reedhaven
+  readiness_followup: map_all_controls_followup · 공용 구현 적용, 모의 성공·실패 브라우저 검증. 개별 맵 렌더링 검증과 구분.
   label: 갈대나루 · 마을맵 검수
   category: town-map-review
   ui_mode: gradio
@@ -263,6 +274,7 @@ pages:
   browser_note: 2026-10-15 운영 8770 합성 문서에서 개별 캔버스 로딩과 다음 프레임 조작 후 2 / 8 정지 표시 확인. 저장·삭제 미실행. 개별 시각 품질·반응형·재연결·저장 계약 검증은 미완료.
 
 - id: map-review-boar-ridge
+  readiness_followup: map_all_controls_followup · 공용 구현 적용, 모의 성공·실패 브라우저 검증. 개별 맵 렌더링 검증과 구분.
   mobile_review: partial_live_verified
   mobile_evidence: "2026-10-15 viewport 390×844·문서 clientWidth/scrollWidth 375/375px. 캐릭터 포함 렌더 완료·90도 회전·캔버스 내부 574×431 및 표시 폭 287px·스크린샷으로 캔버스 확인. 콘솔 오류 없음."
   label: 강모 능선 · 필드맵 검수
@@ -280,6 +292,8 @@ pages:
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
   browser_evidence: 2026-10-15 재검증에서 타일·기본 캐릭터 로딩과 렌더 완료, 회전 90°·32% 변경 및 콘솔 오류 없음 확인. 이전 로딩 오류는 재현되지 않음. 화면 크기·재연결 검증은 미완료.
 - id: map-review-crystal-cut
+  live_readiness_render_followup: "2026-10-15 운영 합성 문서에서 타일 로딩 중 시점 버튼 비활성·준비 안내 확인. 로딩 완료 후 활성화와 공용 필드 렌더러 상태 확인, 회전 버튼으로 90도 상태·검수 안내 일치. 콘솔 오류 없음. 변경 후 실제 렌더러 준비 연결 검증이며 저장·생성 요청 없음, 임시 탭 종료. 모바일·재연결·시각 품질 검증과 구분."
+  readiness_followup: map_all_controls_followup · 공용 구현 적용, 모의 성공·실패 브라우저 검증. 개별 맵 렌더링 검증과 구분.
   mobile_review: partial_live_verified
   mobile_evidence: "2026-10-15 viewport 390×844·문서 clientWidth/scrollWidth 375/375px. 타일 원본 100개 로딩 후 공용 필드 렌더러 완료 표시 확인. 초기 locator 시간 초과 때 타일 74/100으로 진행 중이었으며 같은 탭에서 완료 확인. 재로드 후 공용 필드 렌더러 완료 복원·콘솔 오류 없음. viewport reset 및 임시 탭 정리 완료."
   label: 결정 절개지 · 필드맵 검수
@@ -329,6 +343,7 @@ pages:
   browser_note: 2026-10-15 운영 8770 합성 문서에서 개별 캔버스 로딩과 다음 프레임 조작 후 2 / 8 정지 표시 확인. 저장·삭제 미실행. 개별 시각 품질·반응형·재연결·저장 계약 검증은 미완료.
 
 - id: map-review-grainstead
+  readiness_followup: map_all_controls_followup · 공용 구현 적용, 모의 성공·실패 브라우저 검증. 개별 맵 렌더링 검증과 구분.
   label: 곡온벌 · 마을맵 검수
   category: town-map-review
   ui_mode: gradio
@@ -344,6 +359,7 @@ pages:
   browser_note: 2026-10-15 운영 8770 합성 문서에서 로딩 완료 및 90도 회전 표시 확인. 준비 상태 지연 후 정상 완료 확인했으며 오류로 간주하지 않음. 반응형·재연결 검증은 미완료.
 
 - id: map-review-granary-flats
+  readiness_followup: map_all_controls_followup · 공용 구현 적용, 모의 성공·실패 브라우저 검증. 개별 맵 렌더링 검증과 구분.
   label: 곡창들 · 필드맵 검수
   category: field-map-review
   ui_mode: gradio
@@ -375,6 +391,8 @@ pages:
   browser_note: 2026-10-15 운영 8770 합성 문서에서 개별 캔버스 로딩과 다음 프레임 조작 후 2 / 8 정지 표시 확인. 저장·삭제 미실행. 개별 시각 품질·반응형·재연결·저장 계약 검증은 미완료.
 
 - id: map-review-broken-quarry
+  live_readiness_render_followup: "2026-10-15 운영 합성 문서에서 타일 로딩 중 시점 버튼 비활성·준비 안내 확인. 로딩 완료 후 활성화와 공용 필드 렌더러 상태 확인, 회전 버튼으로 90도 상태·검수 안내 일치. 콘솔 오류 없음. 변경 후 실제 렌더러 준비 연결 검증이며 저장·생성 요청 없음, 임시 탭 종료. 모바일·재연결·시각 품질 검증과 구분."
+  readiness_followup: map_all_controls_followup · 공용 구현 적용, 모의 성공·실패 브라우저 검증. 개별 맵 렌더링 검증과 구분.
   label: 깨진 채석장 · 필드맵 검수
   category: field-map-review
   ui_mode: gradio
@@ -422,6 +440,7 @@ pages:
   browser_note: 2026-10-15 운영 8770 합성 문서에서 개별 캔버스 로딩과 다음 프레임 조작 후 2 / 8 정지 표시 확인. 저장·삭제 미실행. 개별 시각 품질·반응형·재연결·저장 계약 검증은 미완료.
 
 - id: map-review-stonewarm
+  readiness_followup: map_all_controls_followup · 공용 구현 적용, 모의 성공·실패 브라우저 검증. 개별 맵 렌더링 검증과 구분.
   label: 돌온재 · 마을맵 검수
   category: town-map-review
   ui_mode: gradio
@@ -453,6 +472,7 @@ pages:
   browser_note: 2026-10-15 운영 8770 합성 문서에서 개별 캔버스 로딩과 다음 프레임 조작 후 2 / 8 정지 표시 확인. 저장·삭제 미실행. 개별 시각 품질·반응형·재연결·저장 계약 검증은 미완료.
 
 - id: map-review-lantern-wood
+  readiness_followup: map_all_controls_followup · 공용 구현 적용, 모의 성공·실패 브라우저 검증. 개별 맵 렌더링 검증과 구분.
   label: 등불 숲 · 필드맵 검수
   category: field-map-review
   ui_mode: gradio
@@ -500,6 +520,7 @@ pages:
   browser_note: 2026-10-15 운영 8770 합성 문서에서 개별 캔버스 로딩과 다음 프레임 조작 후 2 / 8 정지 표시 확인. 저장·삭제 미실행. 개별 시각 품질·반응형·재연결·저장 계약 검증은 미완료.
 
 - id: ui-643120e666a183ee-design-system
+  interaction_reload_followup: "2026-10-15 운영 합성 정적 문서에서 디자인 시스템 로딩·버튼 클릭 후 상태 변경·게임 공통 패널 열기/닫기·캐릭터 이름 입력 확인. 검수 화면 새로고침 후 상태가 아직 동작 없음·빈 이름으로 복원, 콘솔 오류 없음. 게임 UI 검수 대상의 dialog이며 관리 명령 확인 UI로 사용한 것이 아님. 임시 탭만 조작, 저장·생성 미실행. 반응형과 키보드 포커스 검증은 별도."
   label: 디자인 시스템 · 토큰과 기본 컴포넌트
   category: game-ui
   ui_mode: gradio-static
@@ -515,6 +536,7 @@ pages:
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
   browser_evidence: 2026-10-15 실제 합성 화면에서 66개 메뉴와 등록 디자인 토큰·입력·버튼 표시 확인. 기본 버튼 선택 상태 변경, 공통 패널 열기 및 닫기 후 dialog 0개 확인. 게임 검수 대상의 패널이며 관리도구 명령 확인 UI와 구분함. 콘솔 오류 없음. 반응형·키보드 포커스 검증은 미완료.
 - id: map-review-dry-creek
+  readiness_followup: map_all_controls_followup · 공용 구현 적용, 모의 성공·실패 브라우저 검증. 개별 맵 렌더링 검증과 구분.
   label: 마른 개울 · 필드맵 검수
   category: field-map-review
   ui_mode: gradio
@@ -530,6 +552,7 @@ pages:
   browser_note: 실제 합성 화면 로딩·90도 회전·캔버스 표시 확인. 모바일·재연결 검증은 남음.
 
 - id: map-review-mill-ridge
+  readiness_followup: map_all_controls_followup · 공용 구현 적용, 모의 성공·실패 브라우저 검증. 개별 맵 렌더링 검증과 구분.
   label: 맷돌등성이 · 필드맵 검수
   category: field-map-review
   ui_mode: gradio
@@ -561,6 +584,7 @@ pages:
   browser_note: 2026-10-15 운영 8770 합성 문서에서 개별 캔버스 로딩과 다음 프레임 조작 후 2 / 8 정지 표시 확인. 저장·삭제 미실행. 개별 시각 품질·반응형·재연결·저장 계약 검증은 미완료.
 
 - id: map-review-old-orchard
+  readiness_followup: map_all_controls_followup · 공용 구현 적용, 모의 성공·실패 브라우저 검증. 개별 맵 렌더링 검증과 구분.
   label: 묵은 과수원 · 필드맵 검수
   category: field-map-review
   ui_mode: gradio
@@ -591,6 +615,9 @@ pages:
   browser_note: 2026-10-15 운영 8770 합성 문서에서 개별 캔버스 로딩과 다음 프레임 조작 후 2 / 8 정지 표시 확인. 저장·삭제 미실행. 개별 시각 품질·반응형·재연결·저장 계약 검증은 미완료.
 
 - id: map-review-wind-hills
+  mobile_render_followup: "2026-10-15 운영 실제 문서에서 viewport 390x844 적용 및 innerWidth 390 확인. 문서 clientWidth/scrollWidth 375/375, 캔버스 287x215.25px 유지. 타일 로딩 중 회전 비활성·준비 완료 후 활성, 90도 회전 반영과 동일 크기·가로 넘침 없음 확인. 콘솔 오류 없음. viewport reset·임시 탭 종료. 과거 모바일 크기 미적용 관측과 별개로 이번 바람 구릉 검증은 실제 적용됨. 다른 맵·전체 모바일 흐름 완료를 뜻하지 않음."
+  readiness_followup: map_all_controls_followup · 공용 구현 적용, 모의 성공·실패 브라우저 검증. 개별 맵 렌더링 검증과 구분.
+  render_reload_followup: "2026-10-15 운영 8770 직접 합성 문서에서 타일 76/100 로딩 안내 후 공용 필드 렌더러 준비 확인. 90도 회전 버튼으로 렌더러 회전 90도 및 검수 안내 일치. 새로고침 후 회전 0도 렌더러 재초기화 완료, 콘솔 오류 없음. 생성·게시·작업 취소 없이 임시 탭 종료. 모바일·메모리 누수·다른 맵 완료를 뜻하지 않음."
   label: 바람 구릉 · 필드맵 검수
   category: field-map-review
   ui_mode: gradio
@@ -646,6 +673,7 @@ pages:
   browser_note: 2026-10-15 운영 8770 합성 문서에서 개별 캔버스 로딩과 다음 프레임 조작 후 2 / 8 정지 표시 확인. 저장·삭제 미실행. 개별 시각 품질·반응형·재연결·저장 계약 검증은 미완료.
 
 - id: map-review-root-trail
+  readiness_followup: map_all_controls_followup · 공용 구현 적용, 모의 성공·실패 브라우저 검증. 개별 맵 렌더링 검증과 구분.
   label: 뿌리 오솔길 · 필드맵 검수
   category: field-map-review
   ui_mode: gradio
@@ -660,6 +688,7 @@ pages:
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
   browser_evidence: 2026-10-15 실제 공용 메뉴 합성 화면에서 해당 맵 제목·타일 원본 로딩 완료·공용 필드 렌더러 상태 표시와 전체 보기 후 32% 표시 확인. 콘솔 오류 없음. 타일별 시각 품질·재연결·화면 크기 검증은 미완료.
 - id: map-review-dawn-overlook
+  readiness_followup: map_all_controls_followup · 공용 구현 적용, 모의 성공·실패 브라우저 검증. 개별 맵 렌더링 검증과 구분.
   label: 새벽 전망대 · 필드맵 검수
   category: field-map-review
   ui_mode: gradio
@@ -675,6 +704,7 @@ pages:
   browser_note: 실제 합성 화면 로딩·90도 회전·캔버스 표시 확인. 모바일·재연결 검증은 남음.
 
 - id: map-review-clover-bank
+  readiness_followup: map_all_controls_followup · 공용 구현 적용, 모의 성공·실패 브라우저 검증. 개별 맵 렌더링 검증과 구분.
   label: 세잎 둔덕 · 필드맵 검수
   category: field-map-review
   ui_mode: gradio
@@ -690,6 +720,7 @@ pages:
   browser_note: 2026-10-15 운영 8770에서 필드 렌더러 로딩 및 90도 회전 확인. 반응형·재연결은 미검증.
 
 - id: map-review-salt-causeway
+  readiness_followup: map_all_controls_followup · 공용 구현 적용, 모의 성공·실패 브라우저 검증. 개별 맵 렌더링 검증과 구분.
   label: 소금둑길 · 필드맵 검수
   category: field-map-review
   ui_mode: gradio
@@ -704,6 +735,7 @@ pages:
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
   browser_evidence: 2026-10-15 실제 공용 메뉴 합성 화면에서 해당 맵 제목·타일 원본 로딩 완료·공용 필드 렌더러 상태 표시와 전체 보기 후 32% 표시 확인. 콘솔 오류 없음. 타일별 시각 품질·재연결·화면 크기 검증은 미완료.
 - id: map-review-saltford
+  readiness_followup: map_all_controls_followup · 공용 구현 적용, 모의 성공·실패 브라우저 검증. 개별 맵 렌더링 검증과 구분.
   label: 소금여울 · 마을맵 검수
   category: town-map-review
   ui_mode: gradio
@@ -768,6 +800,7 @@ pages:
   browser_note: 2026-10-15 운영 8770 합성 문서에서 개별 캔버스 로딩과 다음 프레임 조작 후 2 / 8 정지 표시 확인. 저장·삭제 미실행. 개별 시각 품질·반응형·재연결·저장 계약 검증은 미완료.
 
 - id: map-review-cinder-path
+  readiness_followup: map_all_controls_followup · 공용 구현 적용, 모의 성공·실패 브라우저 검증. 개별 맵 렌더링 검증과 구분.
   label: 식은 잿길 · 필드맵 검수
   category: field-map-review
   ui_mode: gradio
@@ -783,6 +816,7 @@ pages:
   browser_note: 2026-10-15 운영 8770에서 필드 렌더러 로딩 및 90도 회전 확인. 반응형·재연결은 미검증.
 
 - id: map-review-fallen-canopy
+  readiness_followup: map_all_controls_followup · 공용 구현 적용, 모의 성공·실패 브라우저 검증. 개별 맵 렌더링 검증과 구분.
   label: 쓰러진 수관 · 필드맵 검수
   category: field-map-review
   ui_mode: gradio
@@ -798,6 +832,7 @@ pages:
   browser_note: 수정 후 실제 합성 화면에서 캔버스 표시·90/180/270도 회전·사이드바 접기/펼치기 후 회전·새로고침 로딩 확인. 오류 콘솔 없음. 내부 1718x1289 및 확장 후 2354x1766으로 정상 크기 관측. 모바일·재연결 검증은 남음.
 
 - id: map-review-mist-lake
+  readiness_followup: map_all_controls_followup · 공용 구현 적용, 모의 성공·실패 브라우저 검증. 개별 맵 렌더링 검증과 구분.
   label: 안개 호수 · 필드맵 검수
   category: field-map-review
   ui_mode: gradio
@@ -828,6 +863,7 @@ pages:
   browser_note: 2026-10-15 운영 8770 합성 문서에서 개별 캔버스 로딩과 다음 프레임 조작 후 2 / 8 정지 표시 확인. 저장·삭제 미실행. 개별 시각 품질·반응형·재연결·저장 계약 검증은 미완료.
 
 - id: map-review-silver-marsh
+  readiness_followup: map_all_controls_followup · 공용 구현 적용, 모의 성공·실패 브라우저 검증. 개별 맵 렌더링 검증과 구분.
   label: 은빛 습지 · 필드맵 검수
   category: field-map-review
   ui_mode: gradio
@@ -842,6 +878,7 @@ pages:
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
   browser_evidence: 2026-10-15 실제 공용 메뉴 합성 화면에서 해당 맵 제목·타일과 기본 캐릭터 로딩 완료·공용 필드 렌더러 표시 확인. 전체 보기 후 200%에서 32%로 변경 및 콘솔 오류 없음 확인. 타일별 시각 품질·재연결·화면 크기 검증은 미완료.
 - id: map-review-moss-clearing
+  readiness_followup: map_all_controls_followup · 공용 구현 적용, 모의 성공·실패 브라우저 검증. 개별 맵 렌더링 검증과 구분.
   label: 이끼 공터 · 필드맵 검수
   category: field-map-review
   ui_mode: gradio
@@ -872,6 +909,7 @@ pages:
   browser_note: 2026-10-15 운영 8770 합성 문서에서 개별 캔버스 로딩과 다음 프레임 조작 후 2 / 8 정지 표시 확인. 저장·삭제 미실행. 개별 시각 품질·반응형·재연결·저장 계약 검증은 미완료.
 
 - id: map-review-windrow-road
+  readiness_followup: map_all_controls_followup · 공용 구현 적용, 모의 성공·실패 브라우저 검증. 개별 맵 렌더링 검증과 구분.
   label: 이삭바람길 · 필드맵 검수
   category: field-map-review
   ui_mode: gradio
@@ -886,6 +924,7 @@ pages:
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
   browser_evidence: 2026-10-15 실제 공용 메뉴 합성 화면에서 해당 맵 제목·타일과 기본 캐릭터 로딩 완료·공용 필드 렌더러 표시 확인. 전체 보기 후 200%에서 32%로 변경 및 콘솔 오류 없음 확인. 타일별 시각 품질·재연결·화면 크기 검증은 미완료.
 - id: map-review-meadow
+  readiness_followup: map_all_controls_followup · 공용 구현 적용, 모의 성공·실패 브라우저 검증. 개별 맵 렌더링 검증과 구분.
   label: 이슬 초원 · 필드맵 검수
   category: field-map-review
   ui_mode: gradio
@@ -900,6 +939,7 @@ pages:
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
   browser_evidence: 2026-10-15 실제 합성 화면에서 이슬 초원 타일·캐릭터 로딩 완료 및 전체 보기 200%에서 32% 변경 확인. 콘솔 오류 없음. 시각 품질·재연결·화면 크기 검증은 미완료.
 - id: map-review-iseulon
+  readiness_followup: map_all_controls_followup · 공용 구현 적용, 모의 성공·실패 브라우저 검증. 개별 맵 렌더링 검증과 구분.
   label: 이슬온 · 마을맵 검수
   category: town-map-review
   ui_mode: gradio
@@ -934,6 +974,7 @@ pages:
   applicability: writer
   remaining_review: 원본 적용 명령의 실서비스 검증은 실행하지 않음. 모바일 작성·제안 확인 흐름 및 외부 상태 변경 후 갱신은 미완료. 기존 확인·해시·토큰 계약 검사는 통과했으나 전체 페이지 완료를 뜻하지 않음.
 - id: map-review-ash-edge
+  readiness_followup: map_all_controls_followup · 공용 구현 적용, 모의 성공·실패 브라우저 검증. 개별 맵 렌더링 검증과 구분.
   label: 잿빛 숲가 · 필드맵 검수
   category: field-map-review
   ui_mode: gradio
@@ -965,6 +1006,7 @@ pages:
   browser_note: 2026-10-15 운영 8770 합성 문서에서 개별 캔버스 로딩과 다음 프레임 조작 후 2 / 8 정지 표시 확인. 저장·삭제 미실행. 개별 시각 품질·반응형·재연결·저장 계약 검증은 미완료.
 
 - id: ui-643120e666a183ee-battlefield-layout
+  field_selection_followup: "2026-10-15 운영 합성 문서에서 전체 6종 제목과 6/6 렌더 완료 확인. 전장 선택을 이슬 연못으로 바꾸면 단일 제목·1/1 렌더 완료로 전환. 검수 화면 새로고침 후에도 이슬 연못 선택·1/1 완료 유지, 콘솔 오류 없음. 읽기 전용 검수 선택만 변경하고 임시 탭 종료. 각 전장 개별 회전·반응형·픽셀 품질 검증과 구분."
   label: 전투 레이아웃 · 전체 전장
   category: game-ui
   ui_mode: gradio-static
@@ -980,6 +1022,7 @@ pages:
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
   browser_evidence: 2026-10-15 실제 합성 화면에서 전체 전장 6/6 렌더 완료와 바위 협로 선택 후 1/1 렌더 완료 확인. 단일 전장의 전투 컨트롤·도움말·참가 유닛 표시 확인. 초기 콘솔 오류 없음. 전투 실행·재연결·화면 크기 검증은 미완료.
 - id: map-review-pebble-shore
+  readiness_followup: map_all_controls_followup · 공용 구현 적용, 모의 성공·실패 브라우저 검증. 개별 맵 렌더링 검증과 구분.
   label: 조약돌 물가 · 필드맵 검수
   category: field-map-review
   ui_mode: gradio
@@ -994,6 +1037,7 @@ pages:
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
   browser_evidence: 2026-10-15 실제 공용 메뉴 합성 화면에서 해당 맵 제목·타일과 기본 캐릭터 로딩 완료·공용 필드 렌더러 표시 확인. 전체 보기 후 200%에서 32%로 변경 및 콘솔 오류 없음 확인. 타일별 시각 품질·재연결·화면 크기 검증은 미완료.
 - id: map-review-brine-bank
+  readiness_followup: map_all_controls_followup · 공용 구현 적용, 모의 성공·실패 브라우저 검증. 개별 맵 렌더링 검증과 구분.
   label: 짠물둔덕 · 필드맵 검수
   category: field-map-review
   ui_mode: gradio
@@ -1034,6 +1078,7 @@ pages:
   browser_note: 2026-10-15 실제 합성 화면에서 기본/복장 프롬프트 87/91단어·참조 1장·고정 설정·공용 시드·빈 이력 확인. 수동 상태 조회만 제공하던 것을 확인하여 5초 자동 상태 갱신 추가. 변경 후 격리 합성 화면에서 조회 전 중지/재개 비활성, 실행 상태 조회 후 중지만 활성, 자동 ETA·VRAM 표시 및 삭제 상태 전환 후 ID 비움·두 버튼 비활성·콘솔 오류 없음 확인.
   contract_evidence: 업로드 입력·스냅샷 무결성·출력·중단 재개·CLI 및 폐기 API 거절 계약 포함 전체 회귀 330건 통과. 실제 GPU 생성 완료를 뜻하지 않음.
 - id: character-review
+  readiness_followup: map_all_controls_followup · 공용 구현 적용, 모의 성공·실패 브라우저 검증. 개별 맵 렌더링 검증과 구분.
   label: 캐릭터 표현 검수
   category: character-render-review
   ui_mode: gradio
@@ -1087,6 +1132,7 @@ pages:
   browser_note: 2026-10-15 실제 합성 화면에서 AU 프리셋 39종 목록, 엄격함에서 기쁨 변경 시 AU6/12/25 및 움직임 14·외형 유지 29·최종 43단어 갱신 확인. 참조 1~3장·시드·빈 이력 안내 및 콘솔 오류 없음 확인. 생성·삭제 미실행; 결과 조회·모바일 미검증.
   contract_evidence: 39개 프리셋 단어 수·참조 사본·게이트웨이 요청 저장·생성기별 이력 분리 검증. 전체 UI 동작·GPU 생성 검증과 구분.
 - id: map-review-grove
+  readiness_followup: map_all_controls_followup · 공용 구현 적용, 모의 성공·실패 브라우저 검증. 개별 맵 렌더링 검증과 구분.
   label: 푸른 숲 · 필드맵 검수
   category: field-map-review
   ui_mode: gradio
@@ -1101,6 +1147,7 @@ pages:
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
   browser_evidence: 2026-10-15 실제 공용 메뉴 합성 화면에서 해당 맵 제목·타일과 기본 캐릭터 로딩 완료·공용 필드 렌더러 표시 확인. 전체 보기 후 200%에서 32%로 변경 및 콘솔 오류 없음 확인. 타일별 시각 품질·재연결·화면 크기 검증은 미완료.
 - id: map-review-salt-flat
+  readiness_followup: map_all_controls_followup · 공용 구현 적용, 모의 성공·실패 브라우저 검증. 개별 맵 렌더링 검증과 구분.
   label: 흰소금벌 · 필드맵 검수
   category: field-map-review
   ui_mode: gradio
@@ -1126,7 +1173,7 @@ shared_findings:
   source: tools/review/ui/gradio/music_app.py
   evidence: 원문·자동 추가·최종 단어 수 분리. 음악 2서비스 반복 ON/OFF 서비스 원문 대조 4조건 일치. MiniMax 합성 브라우저
     입력·반복·초기화 검증.
-  remaining: ACE-Step 개별 브라우저 표시 확인.
+  remaining: 두 음악 서비스의 기본 입력·반복 ON/OFF 표시 확인 완료. 실제 음악 생성 품질 검증과 구분.
 - id: qwen-options-duplicate-keys
   status: verified_contract
   source: generators/image/qwen_21_prompt_options.py
@@ -1530,11 +1577,13 @@ shared_findings:
   evidence: 공용 메뉴와 합성한 8806 격리 화면에서 실패 작업 선택 후 현재 120 MiB·관측 피크 480 MiB·측정 범위·샘플링
     한계 표시 확인. API 값 계약은 회귀 검사로 검증. 실 GPU 생성은 실행하지 않음.
 - id: media-status-unification
-  status: verified_contract_browser_pending
+  status: verified_contract_partial_browser
   source: tools/review/common/gradio_video_results.py; tools/review/common/gradio_audio_results.py
   description: 영상·음악 상태 표시를 공용 구현에 연결. 미측정 VRAM과 0 구분, 관측 피크 샘플링 한계, 실패 원인 표시. 영상
     추론 전용 ETA 유지.
   evidence: 음악·Phantom·VACE·공용 상태 회귀 47건 통과. 추가 음악 회귀 26건에서 두 서비스의 종료 후 피크 유지·대기 중 이전 시도 숨김·새 시도 분리·이전 기록 보존 확인. 두 음악 서비스의 running 상태는 임시 HTTP 게이트웨이에서 GUI 클라이언트와 CLI의 전체 응답·ETA·VRAM 값 일치 검증. 개별 수치 표시 브라우저 검증 대기.
+  browser_followup: "2026-10-15 MiniMax 실제 Blocks와 공용 메뉴의 격리 상태 응답 검증: 남은 12초·총 30초·예상 60%·표본 3개·갱신 시각·측정 범위 표시가 입력과 일치. GPU 현재 120 MiB·관측 피크 7123 MiB·샘플링 한계·미측정 구간 안내 확인. 콘솔 오류 없음. 생성 명령 차단, 임시 탭·서버 종료. ACE-Step·영상별 수치 표시와 실제 GPU 측정은 미검증. 기존 개별 수치 표시 대기는 이 후속 범위만 해소."
+
 - id: writer-selection-apply
   status: verified_contract_mock_browser
   source: tools/review/ui/gradio/writer_agent_app.py

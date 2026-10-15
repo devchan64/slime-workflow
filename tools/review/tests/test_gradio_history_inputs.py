@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 from PIL import Image
-from tools.review.common.gradio_history_inputs import collect_saved_input_view, describe_saved_prompt_counts
+from tools.review.common.gradio_history_inputs import collect_saved_input_view, describe_saved_prompt_counts, collect_saved_negative_prompt
 
 
 class HistoryInputViewTests(unittest.TestCase):
@@ -31,6 +31,24 @@ class HistoryInputViewTests(unittest.TestCase):
                 self.assertIn('해시 불일치',current_view_values[3])
                 self.assertNotIn('원본 열기', collect_saved_input_view(current_history_record, 'http://127.0.0.1:8770', '/phantom')[3])
 
+    def test_job_directory_link_cannot_display_other_job_reference(self):
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_storage_root = Path(current_directory_name)
+            current_other_directory = current_storage_root / 'other-job'
+            current_other_directory.mkdir()
+            current_reference_path = current_other_directory / 'reference-1.png'
+            Image.new('RGB', (2, 2)).save(current_reference_path)
+            current_reference_bytes = current_reference_path.read_bytes()
+            current_selected_directory = current_storage_root / 'selected-job'
+            current_selected_directory.symlink_to(current_other_directory, target_is_directory=True)
+            current_history_record = {'job_path': str(current_selected_directory), 'request': {'reference_snapshots': [{'path': 'reference-1.png', 'sha256': hashlib.sha256(current_reference_bytes).hexdigest()}]}}
+            with patch('tools.review.common.gradio_history_inputs.GENERATION_INPUT_ROOT', current_storage_root):
+                current_view_values = collect_saved_input_view(current_history_record, 'http://127.0.0.1:8770', '/phantom')
+            self.assertEqual(current_view_values[2], [])
+            self.assertIn('심볼릭 링크', current_view_values[3])
+            self.assertNotIn('원본 열기', current_view_values[3])
+            self.assertEqual(current_reference_path.read_bytes(), current_reference_bytes)
+
     def test_reset_and_no_reference(self):
         self.assertEqual(collect_saved_input_view({}),('',{},[],''))
         self.assertEqual(collect_saved_input_view({'request':{'steps':40}}),('',{'steps':40},[],''))
@@ -47,6 +65,15 @@ class HistoryInputViewTests(unittest.TestCase):
         self.assertIn('원문 2단어', describe_saved_prompt_counts({'request': {'prompt': '  flute\n calm  '}}))
         self.assertEqual(describe_saved_prompt_counts({}), '')
         self.assertIn('최종 입력 0단어', describe_saved_prompt_counts({'request': {'final_prompt': ''}}))
+
+    def test_saved_negative_prompt_preserves_empty_runtime_value(self):
+        for current_model_name in ('vace', 'phantom'):
+            current_history_record = {'request': {'negative_prompt': 'outer stale text', current_model_name: {'negative_prompt': ''}}}
+            self.assertEqual(collect_saved_negative_prompt(current_history_record), '')
+            current_history_record['request'][current_model_name]['negative_prompt'] = 'blurred details'
+            self.assertEqual(collect_saved_negative_prompt(current_history_record), 'blurred details')
+        self.assertIsNone(collect_saved_negative_prompt({}))
+        self.assertEqual(collect_saved_negative_prompt({'request': {'negative_prompt': 'saved text'}}), 'saved text')
 
     def test_negative_prompt_counts_use_saved_runtime_configuration(self):
         for current_model_name in ('vace', 'phantom'):
