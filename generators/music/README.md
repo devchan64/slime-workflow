@@ -10,6 +10,10 @@
 
 MIDI 출력은 없다. 기본 30초이며 요청 범위는 Stable/ACE 5~120초, MiniMax 5~60초로 제한했다. MiniMax Diffusers의 네이티브 출력은 44.1kHz다. 공식 서버의 32kHz 리샘플링 출력과 구분한다. 이 설정의 **실제 8GB 성공·속도·품질은 아직 검증하지 않았다**. MiniMax는 CPU RAM에 큰 가중치를 대기시키므로 VRAM 8GB와 시스템 RAM 요구량은 다르다.
 
+2026-10-15 RTX 5070 Laptop GPU(8,151MiB), 시스템 RAM 61GiB에서 ACE-Step과 MiniMax의 로컬 로더 초기화 및 구성요소별 순차 CUDA 적재를 검증했다. MiniMax의 8.6B 언어모델은 전체 GPU 적재 대신 leaf-level 오프로드로 단일 토큰 forward를 수행하고 CUDA 출력을 확인했다. `nvidia-smi` 프로세스 VRAM 관측 피크는 ACE-Step 4,744MiB, MiniMax 5,182MiB였다. 이는 로딩 검증의 표본 최대값이며 전체 음악 생성의 메모리·성공을 보장하지 않는다. Stable Audio는 가중치 접근 403으로 검증하지 못했다. 로딩 검증만으로 `prepared.json`을 생성하지 않는다.
+
+MiniMax의 고정 Diffusers 버전은 Hugging Face Hub 1.x를 요구하므로 Transformers 5.x를 사용한다. 구성요소는 다운로드된 로컬 `model/` 경로를 명시해 오프라인 로딩하고, 필수 구성요소가 누락되면 오프로드 설정 전에 실패한다.
+
 `loop_request`는 추적된 반복 구조 문구를 추가하는 선택 입력이다. 심리스 루프를 생성·보장하거나 WAV 끝과 시작을 자동 접합하지 않는다. 기본 반주 문구, 최종 프롬프트 원문·단어 수·SHA-256을 GUI와 실행 기록에서 확인할 수 있다. 보컬 미포함도 모델 출력의 청취 검수가 필요하다.
 
 ## 실행 환경

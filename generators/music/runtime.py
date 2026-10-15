@@ -111,7 +111,9 @@ def load_minimax_music(current_model_root):
     current_component_manager = ComponentsManager()
     current_component_manager.enable_auto_cpu_offload(device='cuda')
     current_music_pipeline = ModularPipeline.from_pretrained(str(current_model_root/'model'),components_manager=current_component_manager)
-    current_music_pipeline.load_components(dtype=torch.bfloat16)
+    current_music_pipeline.load_components(dtype=torch.bfloat16,pretrained_model_name_or_path=str(current_model_root/'model'),local_files_only=True)
+    if current_music_pipeline.null_component_names:
+        raise RuntimeError(f'MiniMax 구성요소 로딩 실패: {current_music_pipeline.null_component_names}')
     apply_group_offloading(current_music_pipeline.language_model,onload_device=torch.device('cuda'),offload_type='leaf_level',use_stream=True)
     # Diffusers의 offload hook가 forward 안에서 이동하므로 외부 pre-hook로 간섭하지 않는다.
     return current_music_pipeline
