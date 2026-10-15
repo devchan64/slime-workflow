@@ -1,4 +1,4 @@
-"""공식 Python API를 사용하는 세 음악 모델의 CUDA 전용 어댑터."""
+"""공식 Python API를 사용하는 두 음악 모델의 CUDA 전용 어댑터."""
 import fcntl
 import hashlib
 import os
@@ -7,7 +7,7 @@ import sys
 from generators.music.contracts import read_music_record, resolve_music_paths, resolve_music_profile
 from tools.review.common.generation_records import write_record_atomically
 
-MUSIC_RUNTIME_MODULES = {'music-stable-audio':'stable_audio_3','music-ace-step':'acestep','music-minimax':'diffusers'}
+MUSIC_RUNTIME_MODULES = {'music-ace-step':'acestep','music-minimax':'diffusers'}
 
 
 def configure_music_cache(current_model_root):
@@ -69,18 +69,6 @@ def reject_ace_cpu_decode(*current_argument_values,**current_keyword_values):
     raise RuntimeError('ACE-Step CPU VAE 디코딩 전환 차단: GPU 메모리 부족 원인을 확인하세요.')
 
 
-def load_stable_audio(current_model_root):
-    from stable_audio_3 import StableAudioModel
-    from stable_audio_3.loading_utils import load_diffusion_cond
-    current_model_config = read_music_record(current_model_root/'model/model_config.json')
-    current_diffusion_model = load_diffusion_cond(current_model_config,str(current_model_root/'model/model.safetensors'),device='cuda',model_half=True)
-    current_diffusion_model.use_lora = False
-    current_diffusion_model.lora_names = []
-    current_music_model = StableAudioModel(current_diffusion_model,current_model_config,'cuda',True)
-    attach_cuda_guards(current_music_model.model)
-    return current_music_model
-
-
 def load_ace_step(current_model_root):
     from acestep.handler import AceStepHandler
     from acestep.llm_inference import LLMHandler
@@ -119,7 +107,7 @@ def load_minimax_music(current_model_root):
     return current_music_pipeline
 
 
-MUSIC_MODEL_LOADERS = {'music-stable-audio':load_stable_audio,'music-ace-step':load_ace_step,'music-minimax':load_minimax_music}
+MUSIC_MODEL_LOADERS = {'music-ace-step':load_ace_step,'music-minimax':load_minimax_music}
 
 
 def prepare_music_model(current_service_name,current_metrics_recorder,current_refresh_assets=False):
@@ -171,16 +159,6 @@ def prepare_music_model(current_service_name,current_metrics_recorder,current_re
         return current_manifest_record
 
 
-def generate_stable_audio(current_request_record,current_model_root,current_attempt_root,current_metrics_recorder):
-    current_music_model = load_stable_audio(current_model_root)
-    current_metrics_recorder.update_generation_stage('inference')
-    current_audio_tensor = current_music_model.generate(prompt=current_request_record['final_prompt'],duration=current_request_record['duration_seconds'],
-        steps=8,seed=current_request_record['seed'],batch_size=1,chunked_decode=True)
-    if current_audio_tensor.ndim != 3 or current_audio_tensor.shape[:2] != (1,2):
-        raise ValueError('Stable Audio 출력은 [1,2,samples]여야 합니다.')
-    return current_audio_tensor[0].T.float().cpu().numpy(),current_music_model.model_config['sample_rate']
-
-
 def generate_ace_step(current_request_record,current_model_root,current_attempt_root,current_metrics_recorder):
     import soundfile
     from acestep.inference import GenerationParams, GenerationConfig, generate_music
@@ -210,7 +188,7 @@ def generate_minimax_music(current_request_record,current_model_root,current_att
     return current_audio_outputs[0].T.float().cpu().numpy(),current_music_pipeline.sampling_rate
 
 
-MUSIC_GENERATION_ADAPTERS = {'music-stable-audio':generate_stable_audio,'music-ace-step':generate_ace_step,'music-minimax':generate_minimax_music}
+MUSIC_GENERATION_ADAPTERS = {'music-ace-step':generate_ace_step,'music-minimax':generate_minimax_music}
 
 
 def execute_music_inference(current_service_name,current_request_record,current_attempt_root,current_metrics_recorder):

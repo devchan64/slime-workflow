@@ -31,7 +31,7 @@ def build_music_interface(current_service_name,current_server_address):
         return execute_remote_management_command(current_service_name,current_command_name,current_payload_record)
     with gr.Blocks(title=current_profile_record['label']+' 음악생성') as current_interface_blocks:
         gr.Markdown('## '+current_profile_record['label']+' · 음악생성\n게임 BGM 후보를 로컬 CUDA에서 생성합니다. 출력은 stereo WAV이며 MIDI는 생성하지 않습니다.')
-        gr.Markdown(f"고정 모델: `{current_profile_record['model_id']}` · 기본 {current_default_record['duration_seconds']}초 · batch 1 · 8GB용 설정, 실제 피크 미검증\n\n[{current_profile_record['license_notice']}]({current_profile_record['license_url']})")
+        gr.Markdown(f"고정 모델: `{current_profile_record['model_id']}` · 기본 {current_default_record['duration_seconds']}초 · batch 1 · 8GB GPU 로딩 검증 완료, 음악 생성 피크는 별도 확인 필요\n\n[{current_profile_record['license_notice']}]({current_profile_record['license_url']})")
         current_model_status = gr.Markdown('모델 준비 상태 확인 중')
         current_prepare_button = gr.Button('모델 다운로드·준비')
         with gr.Column() as current_prepare_container:
@@ -50,10 +50,12 @@ def build_music_interface(current_service_name,current_server_address):
             current_final_control = gr.Textbox(value=current_final_prompt,interactive=False,label='최종 프롬프트',lines=4)
         def update_music_prompt(current_prompt_text,current_loop_value):
             return describe_music_prompt(current_service_name,current_prompt_text,current_loop_value)
+        current_tag_control = gr.Textbox(label='이력 태그',max_lines=1)
+        current_generate_button = gr.Button('음악 생성 · 대기열 등록',variant='primary',interactive=bool(current_default_record['prompt'].strip()))
+        current_generate_notice = gr.Markdown('장르·악기·분위기 프롬프트를 입력하면 생성할 수 있습니다.')
         for current_prompt_source in (current_prompt_control,current_loop_control):
             current_prompt_source.change(update_music_prompt,[current_prompt_control,current_loop_control],[current_prompt_summary,current_final_control],queue=False)
-        current_tag_control = gr.Textbox(label='이력 태그',max_lines=1)
-        current_generate_button = gr.Button('음악 생성 · 대기열 등록',variant='primary')
+        current_prompt_control.change(lambda current_prompt_text:(gr.update(interactive=bool(current_prompt_text.strip())),'입력한 설정으로 생성 대기열에 등록합니다.' if current_prompt_text.strip() else '장르·악기·분위기 프롬프트를 입력하면 생성할 수 있습니다.'),current_prompt_control,[current_generate_button,current_generate_notice],queue=False)
         with gr.Column() as current_generation_container:
             pass
         gr.Markdown('모델 준비가 없으면 생성 작업에서 먼저 준비합니다. 다운로드 권한·실행 환경 오류는 로그에 기록하며 다른 모델로 대체하지 않습니다.')
@@ -76,22 +78,30 @@ def build_music_interface(current_service_name,current_server_address):
         bind_gpu_generation_confirmation(current_prepare_button,prepare_music_assets,[],[current_job_control,current_status_display,current_result_display,current_result_identity],generation_confirmation_container=current_prepare_container)
         def refresh_music_result(current_job_identifier,current_logs_enabled,current_previous_result):
             if not current_job_identifier:
-                return gr.skip(),gr.skip(),gr.skip(),gr.skip(),gr.skip()
-            current_status_record = execute_music_command('status',{'id':current_job_identifier})
+                return (gr.skip(),)*6
+            try:
+                current_status_record = execute_music_command('status',{'id':current_job_identifier})
+            except (RuntimeError,ValueError) as current_status_error:
+                current_history_records = execute_music_command('history',{})['records']
+                if any(current_history_record['id']==current_job_identifier for current_history_record in current_history_records):
+                    raise current_status_error
+                return '선택한 작업 이력이 삭제되었습니다.','<p>생성 이력에서 다른 작업을 선택하세요.</p>','','',gr.skip(),''
             current_audio_identity = current_status_record.get('audio') or (current_job_identifier+':prepared' if current_status_record.get('result',{}).get('prepared') else '')
             current_model_message = execute_music_command('model-status',{})['message'] if current_audio_identity and current_audio_identity!=current_previous_result else gr.skip()
-            return describe_audio_generation_status(current_status_record),render_audio_generation_result(current_job_identifier,current_status_record,current_server_address) if current_audio_identity and current_audio_identity!=current_previous_result else gr.skip(),current_status_record.get('log','') if current_logs_enabled else gr.skip(),current_audio_identity,current_model_message
+            return describe_audio_generation_status(current_status_record),render_audio_generation_result(current_job_identifier,current_status_record,current_server_address) if current_audio_identity and current_audio_identity!=current_previous_result else gr.skip(),current_status_record.get('log','') if current_logs_enabled else gr.skip(),current_audio_identity,current_model_message,gr.skip()
         current_refresh_timer = gr.Timer(5)
-        current_refresh_timer.tick(refresh_music_result,[current_job_control,current_log_refresh,current_result_identity],[current_status_display,current_result_display,current_log_output,current_result_identity,current_model_status],queue=False,show_progress='hidden')
+        current_refresh_timer.tick(refresh_music_result,[current_job_control,current_log_refresh,current_result_identity],[current_status_display,current_result_display,current_log_output,current_result_identity,current_model_status,current_job_control],queue=False,show_progress='hidden')
         def restore_music_inputs(current_history_record):
             current_request_record = current_history_record['request']
             if current_request_record['action']!='generate':
                 raise gr.Error('모델 준비 이력에는 음악 입력이 없습니다.')
             return current_request_record['prompt'],current_request_record['duration_seconds'],current_request_record['seed'],current_request_record['loop_request'],current_request_record['tag'],current_history_record['id']
-        current_read_history,current_history_outputs = build_generation_history_view(execute_music_command,current_server_address,GENERATION_CLEANUP_SCOPE_TEXT,
+        current_cleanup_scope = current_profile_record['label']+' · '+GENERATION_CLEANUP_SCOPE_TEXT
+        current_read_history,current_history_outputs = build_generation_history_view(execute_music_command,current_server_address,current_cleanup_scope,
             restore_input_callback=restore_music_inputs,restore_output_components=[current_prompt_control,current_duration_control,current_seed_control,current_loop_control,current_tag_control,current_job_control],
-            result_renderer_callback=render_audio_generation_result,record_folder_route='/'+current_service_name,allow_individual_delete=True,individual_delete_scope_text=GENERATION_CLEANUP_SCOPE_TEXT)
+            result_renderer_callback=render_audio_generation_result,record_folder_route='/'+current_service_name,allow_individual_delete=True,individual_delete_scope_text=current_cleanup_scope)
         current_interface_blocks.load(lambda:current_read_history(1),outputs=current_history_outputs)
+        current_job_control.change(lambda:current_read_history(1),outputs=current_history_outputs,queue=False)
         current_interface_blocks.load(lambda:execute_music_command('active',{}).get('id') or '',outputs=current_job_control)
         current_interface_blocks.load(lambda:execute_music_command('model-status',{})['message'],outputs=current_model_status)
     return current_interface_blocks

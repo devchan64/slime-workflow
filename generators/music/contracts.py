@@ -9,7 +9,7 @@ from tools.review.common.generation_records import validate_history_tag
 
 WORKFLOW_ROOT_DIRECTORY = Path(__file__).resolve().parents[2]
 MUSIC_DEFAULTS_FILE = Path(__file__).with_name('defaults.yaml')
-MUSIC_SERVICE_NAMES = ('music-stable-audio', 'music-ace-step', 'music-minimax')
+MUSIC_SERVICE_NAMES = ('music-ace-step', 'music-minimax')
 MUSIC_IDENTIFIER_PATTERN = r'\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-[a-f0-9]{8}'
 MUSIC_PROFILE_FIELDS = {'label','model_id','runtime_directory','max_duration_seconds','sample_rate','steps','license_url','license_notice'}
 MUSIC_REQUEST_FIELDS = {'action','prompt','duration_seconds','seed','loop_request','tag'}

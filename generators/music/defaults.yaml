@@ -7,15 +7,6 @@ loop_request: false
 instrumental_suffix: "Instrumental game background music."
 loop_suffix: "Repeating musical motif, steady rhythm, consistent arrangement suitable for repeated playback."
 profiles:
-  music-stable-audio:
-    label: Stable Audio 3 Medium
-    model_id: stabilityai/stable-audio-3-medium
-    runtime_directory: .venv-music-stable
-    max_duration_seconds: 120
-    sample_rate: 44100
-    steps: 8
-    license_url: https://huggingface.co/stabilityai/stable-audio-3-medium
-    license_notice: "Stability Community License · 상업 이용은 등록·매출 조건 확인 필요"
   music-ace-step:
     label: ACE-Step 1.5 Turbo
     model_id: ACE-Step/Ace-Step1.5

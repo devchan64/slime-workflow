@@ -97,7 +97,6 @@ def create_gradio_source_fingerprint(application_source_path,application_file_pa
 def ensure_gradio_application(review_server_port, application_name, application_source_path=None):
     with GRADIO_PROCESS_LOCK:
         application_definitions={
-            'music-stable-audio':('music_stable_app.py',128,'/management/frame/music-stable-audio/'),
             'music-ace-step':('music_ace_app.py',129,'/management/frame/music-ace-step/'),
             'music-minimax':('music_minimax_app.py',130,'/management/frame/music-minimax/'),
             'vace-v2v':('vace_timeline_app.py',127,'/management/frame/vace-v2v-generator/'),

@@ -14,6 +14,9 @@ WORKFLOW_ROOT_DIRECTORY = Path(__file__).resolve().parents[3]
 sys.path.insert(0,str(WORKFLOW_ROOT_DIRECTORY))
 MUSIC_REGRESSION_MODULES = (
     'tools.review.tests.test_music_generation',
+    'tools.review.tests.test_music_runtime_loading',
+    'tools.review.tests.test_music_management_audit',
+    'tools.review.tests.test_generation_cleanup',
     'tools.review.tests.test_gradio_history',
     'tools.review.tests.test_generation_estimates',
     'tools.review.tests.test_gpu_queue_priority',

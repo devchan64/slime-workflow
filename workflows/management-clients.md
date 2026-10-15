@@ -592,7 +592,7 @@ VACE V2V의 `padding_color`는 `#RRGGBB` 형식의 여백 색상이며 기본값
 
 ## 음악생성
 
-`music-stable-audio`, `music-ace-step`, `music-minimax`를 공용 게이트웨이에 등록한다. GUI는 **음악생성** 분류의 세 Gradio 화면이며, 모두 `generate/prepare/model-status/status/logs/history/active/cancel/resume/prioritize/history-delete/history-reset` 명령을 공유한다. `generate` 입력은 `prompt`, `duration_seconds`, `seed`, `loop_request`, `tag`다. 모델·파일 경로를 클라이언트가 지정하지 않는다.
+`music-ace-step`, `music-minimax`를 공용 게이트웨이에 등록한다. GUI는 **음악생성** 분류의 두 Gradio 화면이며, 모두 `generate/prepare/model-status/status/logs/history/active/cancel/resume/prioritize/history-delete/history-reset` 명령을 공유한다. `generate` 입력은 `prompt`, `duration_seconds`, `seed`, `loop_request`, `tag`다. 모델·파일 경로를 클라이언트가 지정하지 않는다.
 
 각 서비스는 `/music-…/jobs`, `/music-…/history` 호환 경로를 유지한다. 최종 WAV 조회는 `/music-…/jobs/<id>/attempts/<attempt>/music.wav`다. 모델 준비·실행 환경·저장소·재개·라이선스·8GB 검증 범위는 [음악생성 사용법](../generators/music/README.md)을 따른다. 외부 클라우드 API나 배포 리소스는 추가하지 않는다.
 

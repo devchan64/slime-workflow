@@ -151,21 +151,13 @@ class MusicGenerationTests(unittest.TestCase):
 
     def test_official_adapter_input_output_contracts(self):
         import numpy
-        from generators.music.runtime import generate_stable_audio, generate_ace_step, generate_minimax_music
+        from generators.music.runtime import generate_ace_step, generate_minimax_music
         current_audio_array = numpy.zeros((100,2),dtype='float32')
         current_tensor_mock = MagicMock()
         current_tensor_mock.ndim = 3
         current_tensor_mock.shape = (1,2,100)
         current_tensor_mock.__getitem__.return_value.T.float.return_value.cpu.return_value.numpy.return_value = current_audio_array
-        current_model_mock = Mock(model_config={'sample_rate':44100})
-        current_model_mock.generate.return_value = current_tensor_mock
-        current_request_record = build_music_request('music-stable-audio',{'prompt':'flute','seed':123})
-        with patch('generators.music.runtime.load_stable_audio',return_value=current_model_mock):
-            current_output_array,current_sample_rate = generate_stable_audio(current_request_record,self.current_test_root,self.current_test_root,Mock())
-        self.assertEqual(current_sample_rate,44100)
-        self.assertEqual(current_output_array.shape,(100,2))
-        self.assertTrue(current_model_mock.generate.call_args.kwargs['chunked_decode'])
-        self.assertEqual(current_model_mock.generate.call_args.kwargs['seed'],123)
+        current_request_record = build_music_request('music-ace-step',{'prompt':'flute','seed':123})
         current_audio_path = self.current_test_root/'raw/music.wav'
         current_audio_path.parent.mkdir()
         current_audio_path.touch()
@@ -226,7 +218,7 @@ class MusicGenerationTests(unittest.TestCase):
             self.assertGreaterEqual(current_memory_sample.call_count,3)
         self.assertEqual(json.loads((current_metrics_root/'metrics.json').read_text())['status'],'failed')
 
-    def test_gui_three_models_have_shared_actions(self):
+    def test_gui_two_models_have_shared_actions(self):
         from tools.review.ui.gradio.music_app import build_music_interface
         from tools.review.ui.gradio.management_menu_app import DEFAULT_PAGE_RECORDS, NATIVE_MANAGEMENT_APPLICATIONS
         for current_service_name in MUSIC_SERVICE_NAMES:

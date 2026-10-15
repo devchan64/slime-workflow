@@ -18,11 +18,10 @@ from tools.review.common.gpu_status import read_gpu_status
 CATEGORY_LABEL_VALUES={'all':'전체','music-generation':'음악생성','writer-agent':'작가 AI 에이전트','image-generation':'이미지 생성','animation':'등록 애니메이션','animation-tool':'애니메이션 도구','character-render-review':'캐릭터 렌더링 검수','town-map-review':'마을맵 검수','field-map-review':'필드맵 검수','game-ui':'게임 UI · 디자인 시스템'}
 MANAGEMENT_FRAME_PATH_PREFIX='/management/frame/'
 MANAGEMENT_FRAME_IDENTIFIER_VALUES={'anny-attribute-renderer':'anny-attributes'}
-NATIVE_MANAGEMENT_APPLICATIONS=frozenset(('music-stable-audio','music-ace-step','music-minimax','vace-v2v-generator','phantom-generator','hy-motion-generator','anny-landmarks','animation-separation','qwen-21-circular-generator','pose-transfer-generator','outfit-transfer-generator','qwen-21-generator','expression-generator','sprite-editor-v2','character-review','map-review','anny-attributes','writer-agent'))
+NATIVE_MANAGEMENT_APPLICATIONS=frozenset(('music-ace-step','music-minimax','vace-v2v-generator','phantom-generator','hy-motion-generator','anny-landmarks','animation-separation','qwen-21-circular-generator','pose-transfer-generator','outfit-transfer-generator','qwen-21-generator','expression-generator','sprite-editor-v2','character-review','map-review','anny-attributes','writer-agent'))
 DEFAULT_MANAGER_SOURCE_PATH=WORKFLOW_ROOT_DIRECTORY/'.tmp/manager-current/manager-source.json'
 LEGACY_PAGE_IDENTIFIER_VALUES={'map-review':'map-review-iseulon','animation-2':'animation-1','animation-3':'animation-1'}
 DEFAULT_PAGE_RECORDS=(
-    {'id': 'music-stable-audio', 'label': 'Stable Audio 3 Medium', 'path': '/management/frame/music-stable-audio/', 'category': 'music-generation', 'uiMode': 'gradio', 'description': '로컬 CUDA · WAV · 반복 구조 요청 선택 · 8GB 실측 필요'},
     {'id': 'music-ace-step', 'label': 'ACE-Step 1.5 Turbo', 'path': '/management/frame/music-ace-step/', 'category': 'music-generation', 'uiMode': 'gradio', 'description': '로컬 CUDA · WAV · 반복 구조 요청 선택 · 8GB 실측 필요'},
     {'id': 'music-minimax', 'label': 'MiniMax-Music3', 'path': '/management/frame/music-minimax/', 'category': 'music-generation', 'uiMode': 'gradio', 'description': '로컬 CUDA · WAV · 반복 구조 요청 선택 · 8GB 실측 필요'},
     {'id':'vace-v2v-generator','label':'Wan2.1 VACE V2V 영상 생성기','path':'/management/frame/vace-v2v-generator/','category':'animation-tool','uiMode':'gradio','description':'1.3B · 포즈 프레임 배치 · 수정 마스크 · 로컬 GPU'},
@@ -70,7 +69,7 @@ def load_manager_page_records(source_file_path):
         if not isinstance(current_page_record,dict) or not all(isinstance(current_page_record.get(current_field_name),str) for current_field_name in ('id','label','path','category','description')):raise ValueError('관리 메뉴 페이지 항목 형식 오류')
         if any(current_page_record.get(current_field_name) is not None and not isinstance(current_page_record[current_field_name],str) for current_field_name in ('frameIdentifier','frameQuery')):raise ValueError('관리 메뉴 프레임 항목 형식 오류')
         if current_page_record['id']=='tile-map-generator':continue
-        if current_page_record['id'] in ('character-animation', 'momask-generator', 'wan21-vace-generator'):continue
+        if current_page_record['id'] in ('character-animation', 'momask-generator', 'wan21-vace-generator', 'music-stable-audio'):continue
         if current_page_record['id'] == 'pose-transfer-generator':
             current_release_record = next(current_default_record for current_default_record in DEFAULT_PAGE_RECORDS if current_default_record['id'] == 'pose-transfer-generator')
             current_page_record = {**current_page_record, 'label': current_release_record['label'], 'description': current_release_record['description']}

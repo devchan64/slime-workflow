@@ -152,7 +152,7 @@ MoMask 작업 서비스와 루트 호환 모듈은 제거했다. 이전 HTTP 주
 
 공용 메뉴의 직접 경로는 `resolve_management_page_path()`가 계산한다. `compose_management_interface()`는 기존 도구 Blocks를 공용 메뉴에 렌더링하며 이벤트·게이트웨이·기록 계약은 도구가 유지한다. 관리 서버는 선택한 게시 목록을 `SLIME_MANAGEMENT_MENU_SOURCE`로 자식 GUI 서버에 전달하고 변경 감지에도 포함한다. 직접 실행의 기본 게시 목록은 `.tmp/manager-current/manager-source.json`이며 파일이 없거나 손상되면 실패한다. 지도별 `map`·`townPage`와 도구 `tool`은 직접 URL에서 보존한다. 외곽 iframe 생성·자식 문서 CSS 주입·높이 동기화는 제거했다.
 
-음악생성의 작업 서비스는 `domains/music/generation.py`, 고정 모델 어댑터·준비·기본값은 `generators/music/`, 공용 Gradio 화면은 `ui/gradio/music_app.py`에서 관리한다. 공용 메뉴에는 `music-generation` 분류로 Stable Audio 3 Medium·ACE-Step 1.5 Turbo·MiniMax-Music3를 연결한다. [음악생성 사용법](../../generators/music/README.md)을 참고한다.
+음악생성의 작업 서비스는 `domains/music/generation.py`, 고정 모델 어댑터·준비·기본값은 `generators/music/`, 공용 Gradio 화면은 `ui/gradio/music_app.py`에서 관리한다. 공용 메뉴에는 `music-generation` 분류로 ACE-Step 1.5 Turbo·MiniMax-Music3를 연결한다. [음악생성 사용법](../../generators/music/README.md)을 참고한다.
 
 ### VACE 메모리 운용
 
