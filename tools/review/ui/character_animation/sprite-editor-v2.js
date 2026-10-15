@@ -271,14 +271,22 @@ window.spriteV2ViewControls=(currentZoomValue,currentBackgroundValue,currentOver
  renderEditorCanvases();
 };
 // Gradio 일반 작업 컨트롤은 공개 브라우저 명령으로 연결한다. 캔버스 상태를 서버에 복제하지 않는다.
+window.spriteV2RevisionReadiness=(currentSelectedProject,currentSelectedRevision)=>{
+ const currentProjectReady=Boolean(currentProjectIdentifier)&&currentSelectedProject===currentProjectIdentifier&&!currentBusyState;
+ const currentRevisionReady=currentProjectReady&&currentRevisionChoices.some(currentChoiceRecord=>currentChoiceRecord[1]===currentSelectedRevision);
+ return {projectReady:currentProjectReady,revisionReady:currentRevisionReady,deleteReady:currentRevisionReady&&currentRevisionChoices.length>1,
+ reason:currentBusyState?'등록·저장 처리가 끝날 때까지 기다리세요.':!currentProjectReady?'선택한 작업을 먼저 불러오세요.':!currentRevisionReady?'수정 이력을 선택하세요.':currentRevisionChoices.length<=1?'마지막 수정본은 삭제할 수 없습니다.':'선택한 수정본을 불러오거나 확인 후 삭제할 수 있습니다.'};
+};
 window.spriteV2ProjectControls=async(currentActionName,currentProjectName,currentOutputSize,currentSelectedId,currentRevisionId)=>{
  if(currentBusyState)throw Error('등록·저장 처리가 끝난 뒤 다시 시도하세요.');
+ if(currentActionName==='history'&&!window.spriteV2RevisionReadiness(currentSelectedId,null).projectReady)throw Error('선택한 작업을 먼저 불러오세요.');
+ if(currentActionName==='revision'&&!window.spriteV2RevisionReadiness(currentSelectedId,currentRevisionId).revisionReady)throw Error('선택한 작업을 불러온 뒤 수정 이력을 선택하세요.');
  await runEditorAction(async()=>{
   if(currentActionName==='list')await refreshEditorProjects();
   else if(currentActionName==='create')await createEditorProject(currentProjectName,currentOutputSize);
   else if(currentActionName==='load')await loadEditorProject(currentSelectedId);
   else if(currentActionName==='history')await refreshEditorHistory();
-  else if(currentActionName==='revision'){if(!currentRevisionId)throw Error('불러올 수정 이력을 선택하세요.');await loadEditorProject(currentProjectIdentifier,currentRevisionId);}
+  else if(currentActionName==='revision')await loadEditorProject(currentProjectIdentifier,currentRevisionId);
   else if(currentActionName==='delete'){
    if(!currentSelectedId)throw Error('삭제할 작업을 선택하세요.');
    await requestEditorCommand('delete',{id:currentSelectedId,confirm:true});
@@ -298,7 +306,7 @@ window.spriteV2ProjectControls=async(currentActionName,currentProjectName,curren
 window.spriteV2DeleteRevision=async(currentSelectedProject,currentRevisionIdentifier,currentConfirmedValue)=>{
  if(currentBusyState)throw Error('등록·저장 처리가 끝난 뒤 사용할 수 있습니다.');
  if(!currentProjectIdentifier||currentSelectedProject!==currentProjectIdentifier)throw Error('수정본을 삭제할 작업을 먼저 불러오세요.');
- if(!currentRevisionIdentifier)throw Error('삭제할 수정본을 선택하세요.');
+ if(!window.spriteV2RevisionReadiness(currentSelectedProject,currentRevisionIdentifier).deleteReady)throw Error('삭제 가능한 수정본을 선택하세요. 마지막 수정본은 유지합니다.');
  if(currentConfirmedValue!==true)throw Error('수정본 삭제 확인을 체크하세요.');
  await runEditorAction(async()=>{
   const currentDeleteResult=await requestEditorCommand('revision-delete',{id:currentProjectIdentifier,revision:currentRevisionIdentifier,confirm:true});

@@ -4,6 +4,85 @@ from tools.review.ui.gradio.anny_attributes_app import build_anny_attribute_inte
 
 
 class AnnyAttributesGradioTest(unittest.TestCase):
+    def test_loader_reports_dependency_failure_without_starting_inline_script(self):
+        import subprocess
+        current_loader_source=create_anny_attribute_loader(8798)
+        current_browser_script="""
+const assert=require('node:assert/strict');
+const window={};const currentStatusElement={textContent:''};let currentAppendedCount=0,currentFailurePath='log-viewer.js';
+const document={querySelector:currentSelector=>currentSelector==='#anny-attribute-root #status'?currentStatusElement:null,createElement:()=>({dataset:{}}),body:{append:currentElement=>{currentAppendedCount++;if(currentElement.src?.endsWith(currentFailurePath))currentElement.onerror();else currentElement.onload?.();}}};
+const runCurrentLoader=SOURCE;
+(async()=>{
+ await runCurrentLoader();assert.equal(currentAppendedCount,1);assert.match(window.annyComponentLoadError,/log-viewer.js.*새로고침/);assert.equal(currentStatusElement.textContent,window.annyComponentLoadError);
+ currentFailurePath='mesh-viewer.js';currentAppendedCount=0;await runCurrentLoader();assert.equal(currentAppendedCount,2);assert.match(currentStatusElement.textContent,/mesh-viewer.js.*새로고침/);
+ currentFailurePath='none';await runCurrentLoader();assert.match(currentStatusElement.textContent,/초기화에 실패.*새로고침/);
+})().catch(currentError=>{console.error(currentError);process.exitCode=1;});
+""".replace('SOURCE',current_loader_source)
+        current_process_result=subprocess.run(['node','-e',current_browser_script],capture_output=True,text=True,timeout=10)
+        self.assertEqual(current_process_result.returncode,0,current_process_result.stderr)
+
+    def test_profile_latest_selection_survives_out_of_order_responses(self):
+        import subprocess
+        from tools.review.ui.gradio.anny_attributes_app import read_anny_attribute_script
+        current_source_text=read_anny_attribute_script()
+        current_profile_source='let currentProfileRequestSequence='+current_source_text.split('let currentProfileRequestSequence=',1)[1].split('window.prepareAnnyGenerationInput=',1)[0]
+        current_browser_script="""
+const assert=require('node:assert/strict');const window={};
+let baselineAttributeValues={profile:{profile_id:'initial'}},currentRestoreCount=0;
+const renderStatusLabel={textContent:''},currentPendingRequests=[];
+function restoreAttributeDefaults(){currentRestoreCount++;}
+function fetchRenderRecord(currentPathValue){return new Promise((resolve,reject)=>currentPendingRequests.push({path:currentPathValue,resolve,reject}));}
+const currentProfilesRecord={profiles:[{id:'A',label:'A'},{id:'B',label:'B'}]};
+const makeCurrentProfile=currentProfileId=>({profile:{profile_id:currentProfileId,label:currentProfileId}});
+SOURCE
+(async()=>{
+ const currentFirstRequest=window.annyProfileControls('apply','A');currentPendingRequests.shift().resolve(currentProfilesRecord);await Promise.resolve();
+ const currentOldRequest=currentPendingRequests.shift();assert.match(currentOldRequest.path,/base\/A$/);
+ const currentSecondRequest=window.annyProfileControls('apply','B');currentPendingRequests.shift().resolve(currentProfilesRecord);await Promise.resolve();
+ currentPendingRequests.shift().resolve(makeCurrentProfile('B'));await currentSecondRequest;
+ currentOldRequest.resolve(makeCurrentProfile('A'));assert.deepEqual(await currentFirstRequest,[{__type__:'update'},{__type__:'update'}]);
+ assert.equal(baselineAttributeValues.profile.profile_id,'B');assert.equal(currentRestoreCount,1);
+ const currentFailedRequest=window.annyProfileControls('apply','A');currentPendingRequests.shift().resolve(currentProfilesRecord);await Promise.resolve();
+ currentPendingRequests.shift().reject(Error('연결 실패'));await assert.rejects(currentFailedRequest,/연결 실패/);
+ assert.equal(baselineAttributeValues.profile.profile_id,'B');assert.equal(currentRestoreCount,1);
+ const currentListingRequest=window.annyProfileControls('list',null);const currentOldList=currentPendingRequests.shift();
+ const currentThirdRequest=window.annyProfileControls('apply','A');currentPendingRequests.shift().resolve(currentProfilesRecord);await Promise.resolve();currentPendingRequests.shift().resolve(makeCurrentProfile('A'));await currentThirdRequest;
+ currentOldList.reject(Error('오래된 목록 실패'));assert.deepEqual(await currentListingRequest,[{__type__:'update'},{__type__:'update'}]);assert.equal(baselineAttributeValues.profile.profile_id,'A');
+ baselineAttributeValues=null;await assert.rejects(window.annyProfileControls('apply','A'),/준비가 끝난 뒤/);assert.equal(currentPendingRequests.length,0);
+})().catch(currentError=>{console.error(currentError);process.exitCode=1;});
+""".replace('SOURCE',current_profile_source)
+        current_process_result=subprocess.run(['node','-e',current_browser_script],capture_output=True,text=True,timeout=10)
+        self.assertEqual(current_process_result.returncode,0,current_process_result.stderr)
+
+    def test_numeric_readiness_rejects_unprepared_unknown_and_locked_fields(self):
+        import subprocess
+        from tools.review.ui.gradio.anny_attributes_app import read_anny_attribute_script
+        current_source_text=read_anny_attribute_script()
+        current_readiness_source=current_source_text.split('window.annyNumericReadiness=',1)[1].split('window.annyNumericControls=',1)[0]
+        current_browser_script="""
+const assert=require('node:assert/strict');
+let baselineAttributeValues=null;const currentAttributeValues={};
+const attributeFieldSpecs=[['age'],['hip-waist-up']];
+const readCurrentReadiness=SOURCE
+assert.equal(readCurrentReadiness('age').readReady,false);
+baselineAttributeValues={};currentAttributeValues.age=0.5;
+assert.equal(readCurrentReadiness(null).readReady,true);
+assert.equal(readCurrentReadiness(null).applyReady,false);
+assert.equal(readCurrentReadiness('unknown').applyReady,false);
+assert.equal(readCurrentReadiness('age').applyReady,true);
+assert.equal(readCurrentReadiness('hip-waist-up').applyReady,false);
+assert.match(readCurrentReadiness('hip-waist-up').reason,/잠긴 속성/);
+""".replace('SOURCE',current_readiness_source)
+        current_process_result=subprocess.run(['node','-e',current_browser_script],capture_output=True,text=True,timeout=10)
+        self.assertEqual(current_process_result.returncode,0,current_process_result.stderr)
+        current_interface_config=build_anny_attribute_interface(8770).get_config_file()
+        current_ready_event=next(current_event_record for current_event_record in current_interface_config['dependencies'] if 'window.annyNumericReadiness' in (current_event_record.get('js') or ''))
+        self.assertFalse(current_ready_event['backend_fn'])
+        self.assertFalse(current_ready_event['queue'])
+        current_component_lookup={current_component_record['id']:current_component_record for current_component_record in current_interface_config['components']}
+        for current_button_identifier in current_ready_event['outputs'][:2]:
+            self.assertFalse(current_component_lookup[current_button_identifier]['props']['interactive'])
+
     def test_delete_confirmation_accepts_browser_choices_and_serializes_target(self):
         import gradio as gr
         current_interface_value=build_anny_attribute_interface(8770)
@@ -88,10 +167,6 @@ class AnnyAttributesGradioTest(unittest.TestCase):
         self.assertNotIn('id="baseline-profile"',read_anny_attribute_markup())
         self.assertNotIn('id="render-rotation-y"',read_anny_attribute_markup())
 
-
-if __name__ == '__main__':
-    unittest.main()
-
     def test_reset_confirmation_preserves_preview_and_rejects_busy(self):
         from unittest.mock import patch
         import gradio as gr
@@ -128,3 +203,7 @@ const currentConfirmAction=SCRIPT;
 """.replace('SCRIPT',current_confirmation_script)
         current_test_result=subprocess.run(['node','-e',current_test_script],capture_output=True,text=True,timeout=10)
         self.assertEqual(current_test_result.returncode,0,current_test_result.stderr)
+
+
+if __name__ == '__main__':
+    unittest.main()

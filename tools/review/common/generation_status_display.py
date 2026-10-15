@@ -28,6 +28,8 @@ def describe_generation_status(current_status_record, include_generation_estimat
         current_memory_text = '미측정' if current_memory_value is None else f'{current_memory_value} MiB'
         current_peak_text = '미측정' if current_peak_value is None else f'{current_peak_value} MiB'
         current_status_text += f"\n\nGPU {current_gpu_identifier}: 현재 {current_memory_text} · 관측 피크 {current_peak_text} · 측정 범위: {current_gpu_record.get('scope') or '확인되지 않음'}"
+        if current_gpu_record.get('measurement_reason'):
+            current_status_text += '\n\n측정 안내: ' + str(current_gpu_record['measurement_reason'])
     if current_gpu_records:
         current_status_text += '\n\n관측 피크는 샘플링 값이며 순간 피크를 놓칠 수 있습니다.'
     if current_metrics_record.get('measurement_gaps'):

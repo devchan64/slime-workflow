@@ -58,19 +58,36 @@ class GenerationTelemetryRecorder:
                 break
             current_process_ids.update(current_child_ids)
         current_device_text = subprocess.check_output(['nvidia-smi','--query-gpu=uuid,memory.used','--format=csv,noheader,nounits'],text=True,timeout=2)
+        if not current_device_text.strip():
+            raise ValueError('GPU 장치 표본이 비어 있습니다. 사용량을 0으로 간주하지 않습니다.')
         current_process_text = subprocess.check_output(['nvidia-smi','--query-compute-apps=gpu_uuid,pid,used_memory','--format=csv,noheader,nounits'],text=True,timeout=2)
         current_usage_records = {}
         for current_process_line in current_process_text.splitlines():
             current_uuid_value,current_pid_text,current_usage_text = map(str.strip,current_process_line.split(','))
             if int(current_pid_text) in current_process_ids:
                 current_usage_records[current_uuid_value] = current_usage_records.get(current_uuid_value,0)+int(current_usage_text)
+        current_device_samples = {}
+        for current_device_line in current_device_text.splitlines():
+            current_uuid_value,current_usage_text = map(str.strip,current_device_line.split(','))
+            if not current_uuid_value or current_uuid_value in current_device_samples:
+                raise ValueError('GPU 장치 표본의 식별자가 없거나 중복되었습니다.')
+            current_usage_value = int(current_usage_text)
+            if current_usage_value < 0:
+                raise ValueError('GPU 장치 사용량은 음수일 수 없습니다.')
+            current_device_samples[current_uuid_value] = current_usage_value
         with self.current_state_lock:
-            for current_device_line in current_device_text.splitlines():
-                current_uuid_value,current_usage_text = map(str.strip,current_device_line.split(','))
+            current_sample_timestamp = datetime.now(ZoneInfo('Asia/Seoul')).isoformat()
+            for current_uuid_value,current_device_record in self.current_run_state['gpu_observations'].items():
+                if current_uuid_value not in current_device_samples:
+                    current_missing_reason = '현재 GPU 장치 표본에서 식별자가 누락되었습니다: '+current_uuid_value
+                    current_device_record.update(process_current_mib=None,device_current_mib=None,
+                        measurement_reason=current_missing_reason,updated_at=current_sample_timestamp)
+                    self.current_run_state['measurement_gaps'].append({'at':current_sample_timestamp,'error':current_missing_reason})
+            for current_uuid_value,current_usage_value in current_device_samples.items():
                 current_device_record = self.current_run_state['gpu_observations'].setdefault(current_uuid_value,{'process_peak_mib':None,'device_peak_mib':None,'sample_count':0,'method':'nvidia-smi','unit':'MiB','interval_seconds':5,'scope':'작업자 및 자식 프로세스; 장치 전체 값은 다른 작업 포함; 샘플 사이 순간 피크 누락 가능'})
                 current_process_usage = current_usage_records.get(current_uuid_value)
-                current_device_record.update(process_current_mib=current_process_usage,device_current_mib=int(current_usage_text),updated_at=datetime.now(ZoneInfo('Asia/Seoul')).isoformat())
-                current_device_record['device_peak_mib'] = max(current_device_record['device_peak_mib'] or 0,int(current_usage_text))
+                current_device_record.update(process_current_mib=current_process_usage,device_current_mib=current_usage_value,updated_at=current_sample_timestamp)
+                current_device_record['device_peak_mib'] = max(current_device_record['device_peak_mib'] or 0,current_usage_value)
                 if current_process_usage is not None:
                     current_device_record['process_peak_mib'] = max(current_device_record['process_peak_mib'] or 0,current_process_usage)
                 current_device_record['measurement_reason'] = None if current_process_usage is not None else 'GPU 프로세스 표본 없음; 0으로 간주하지 않음'
@@ -93,7 +110,14 @@ class GenerationTelemetryRecorder:
             self.sample_generation_memory()
         except (OSError,ValueError,subprocess.SubprocessError) as current_measurement_error:
             with self.current_state_lock:
-                self.current_run_state['measurement_gaps'].append({'at':datetime.now(ZoneInfo('Asia/Seoul')).isoformat(),'error':str(current_measurement_error)})
+                current_failure_timestamp = datetime.now(ZoneInfo('Asia/Seoul')).isoformat()
+                self.current_run_state['measurement_gaps'].append({'at':current_failure_timestamp,'error':str(current_measurement_error)})
+                for current_device_record in self.current_run_state['gpu_observations'].values():
+                    current_device_record.update(
+                        process_current_mib=None, device_current_mib=None,
+                        measurement_reason='현재 GPU 측정 실패: '+str(current_measurement_error),
+                        updated_at=current_failure_timestamp,
+                    )
 
     def run_telemetry_heartbeat(self):
         while not self.current_stop_event.is_set():

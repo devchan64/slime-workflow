@@ -239,13 +239,17 @@ def build_sprite_v2_interface():
         current_revision_identifier=build_generation_identifier('수정 이력 ID')
         current_revision_choice.change(fn=None,inputs=current_revision_choice,outputs=current_revision_identifier,queue=False,js="(currentRevisionIdentifier)=>currentRevisionIdentifier ?? ''")
         with gr.Row():
-            current_history_button=gr.Button('수정 이력 새로고침')
-            current_revision_button=gr.Button('선택 버전 불러오기')
+            current_history_button=gr.Button('수정 이력 새로고침',interactive=False)
+            current_revision_button=gr.Button('선택 버전 불러오기',interactive=False)
         with gr.Accordion('선택 수정본 삭제',open=False):
             gr.Markdown('선택한 수정 이력만 삭제합니다. 최신 수정본이면 직전 저장본이 최신이 됩니다. 마지막 한 개는 유지합니다. 현재 편집 초안·등록 이미지·내보낸 파일은 유지됩니다.')
             current_revision_confirm=gr.Checkbox(label='선택한 수정본 삭제 확인',value=False)
-            current_revision_delete=gr.Button('선택 수정본 삭제',variant='stop')
+            current_revision_delete=gr.Button('선택 수정본 삭제',variant='stop',interactive=False)
         current_revision_choice.change(fn=None,outputs=current_revision_confirm,js='()=>false',queue=False)
+        current_project_choice.change(fn=None,outputs=current_revision_confirm,js='()=>false',queue=False)
+        current_revision_notice=gr.Markdown('선택한 작업을 먼저 불러온 뒤 수정 이력을 선택하세요.')
+        gr.Timer(1).tick(fn=None,queue=False,inputs=[current_project_choice,current_revision_choice,current_revision_confirm],outputs=[current_history_button,current_revision_button,current_revision_delete,current_revision_notice],js="(currentProjectValue,currentRevisionValue,currentConfirmedValue)=>{const currentReadyState=window.spriteV2RevisionReadiness?.(currentProjectValue,currentRevisionValue)??{reason:'편집기를 준비 중입니다.'};return [{__type__:'update',interactive:Boolean(currentReadyState.projectReady)},{__type__:'update',interactive:Boolean(currentReadyState.revisionReady)},{__type__:'update',interactive:Boolean(currentReadyState.deleteReady)&&currentConfirmedValue===true},currentReadyState.deleteReady&&!currentConfirmedValue?'삭제하려면 선택한 수정본 삭제 확인을 체크하세요.':currentReadyState.reason];}")
+
         current_revision_delete.click(fn=None,inputs=[current_project_choice,current_revision_choice,current_revision_confirm],outputs=[current_revision_choice,current_feedback_text,current_revision_confirm],queue=False,js="async(currentProjectIdentifier,currentRevisionIdentifier,currentConfirmedValue)=>{try{if(!window.spriteV2DeleteRevision)throw Error('편집기를 준비 중입니다.');return await window.spriteV2DeleteRevision(currentProjectIdentifier,currentRevisionIdentifier,currentConfirmedValue);}catch(currentErrorValue){return [{__type__:'update'},currentErrorValue.message,false];}}")
         gr.Markdown('GIF는 흰 배경으로 검수합니다. 내보내기는 현재 편집을 새 수정본으로 저장한 후 다운로드합니다.')
         for current_action_name,current_action_button in (('create',current_create_button),('list',current_refresh_button),('load',current_load_button),('save',current_save_button),('export',current_export_button),('history',current_history_button),('revision',current_revision_button)):

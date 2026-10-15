@@ -52,7 +52,32 @@ def read_anny_attribute_script():
 def create_anny_attribute_loader(review_server_port):
     inline_script_text=json.dumps(read_anny_attribute_script()).replace('<','\\u003c')
     review_server_base=f'http://127.0.0.1:{review_server_port}'
-    return f"""async()=>{{if(document.querySelector('script[data-anny-attribute-component]'))return;const componentScriptText={inline_script_text};const loadComponentScript=currentPathValue=>new Promise((resolve,reject)=>{{const nextScriptElement=document.createElement('script');nextScriptElement.src='{review_server_base}'+currentPathValue;nextScriptElement.dataset.annyAttributeComponent='true';nextScriptElement.onload=resolve;nextScriptElement.onerror=()=>reject(new Error('ANNY 구성 요소를 불러오지 못했습니다: '+currentPathValue));document.body.append(nextScriptElement);}});await loadComponentScript('/anny-attributes/log-viewer.js');await loadComponentScript('/anny-attributes/mesh-viewer.js');const inlineScriptElement=document.createElement('script');inlineScriptElement.dataset.annyAttributeComponent='true';inlineScriptElement.textContent=componentScriptText;document.body.append(inlineScriptElement);if(window.top===window&&!document.querySelector('#management-sidebar'))await loadComponentScript('/management/gpu-status.js');}}"""
+    return f"""async()=>{{
+if(document.querySelector('script[data-anny-attribute-component]'))return;
+window.annyComponentLoadError='';
+const componentScriptText={inline_script_text};
+const loadComponentScript=currentPathValue=>new Promise((resolveScriptLoad,rejectScriptLoad)=>{{
+ const nextScriptElement=document.createElement('script');
+ nextScriptElement.src='{review_server_base}'+currentPathValue;
+ nextScriptElement.dataset.annyAttributeComponent='true';
+ nextScriptElement.onload=resolveScriptLoad;
+ nextScriptElement.onerror=()=>rejectScriptLoad(new Error('ANNY 구성 요소를 불러오지 못했습니다: '+currentPathValue));
+ document.body.append(nextScriptElement);
+}});
+try{{
+ await loadComponentScript('/anny-attributes/log-viewer.js');
+ await loadComponentScript('/anny-attributes/mesh-viewer.js');
+ const inlineScriptElement=document.createElement('script');
+ inlineScriptElement.dataset.annyAttributeComponent='true';inlineScriptElement.textContent=componentScriptText;
+ document.body.append(inlineScriptElement);
+ if(typeof window.annyNumericReadiness!=='function')throw Error('ANNY 속성 편집기 초기화에 실패했습니다.');
+ if(window.top===window&&!document.querySelector('#management-sidebar'))await loadComponentScript('/management/gpu-status.js');
+}}catch(currentComponentError){{
+ window.annyComponentLoadError=currentComponentError.message+' 관리 서버 연결과 로그를 확인한 뒤 새로고침하세요.';
+ const currentStatusElement=document.querySelector('#anny-attribute-root #status');
+ if(currentStatusElement)currentStatusElement.textContent=window.annyComponentLoadError;
+}}
+}}"""
 
 
 def build_anny_attribute_interface(review_server_port):
@@ -80,11 +105,15 @@ def build_anny_attribute_interface(review_server_port):
         with gr.Accordion('신체 속성 편집',open=True,elem_id='anny-standard-attributes'):
             current_attribute_choice=gr.Dropdown(label='신체 속성',choices=[],interactive=True)
             current_attribute_value=gr.Slider(label='속성값',minimum=0,maximum=1,value=0,step=0.1,precision=None)
+            current_attribute_buttons=[]
             with gr.Row():
                 for current_attribute_action,current_attribute_label in (('read','속성 목록·현재 값 읽기'),('apply','속성값 적용')):
-                    current_attribute_button=gr.Button(current_attribute_label)
+                    current_attribute_button=gr.Button(current_attribute_label,interactive=False)
+                    current_attribute_buttons.append(current_attribute_button)
                     current_attribute_button.click(fn=None,inputs=[current_attribute_choice,current_attribute_value],outputs=[current_attribute_choice,current_attribute_value,current_action_feedback],queue=False,js="(currentFieldName,currentFieldValue)=>{try{return window.annyNumericControls('"+current_attribute_action+"',currentFieldName,currentFieldValue);}catch(currentErrorValue){return [{__type__:'update'},{__type__:'update'},currentErrorValue.message];}}")
             current_attribute_choice.input(fn=None,inputs=[current_attribute_choice,current_attribute_value],outputs=[current_attribute_choice,current_attribute_value,current_action_feedback],queue=False,js="(currentFieldName,currentFieldValue)=>{try{return window.annyNumericControls('read',currentFieldName,currentFieldValue);}catch(currentErrorValue){return [{__type__:'update'},{__type__:'update'},currentErrorValue.message];}}")
+            current_attribute_notice=gr.Markdown('기준 체형 준비 후 속성 목록·현재 값 읽기를 누르세요.')
+            gr.Timer(1).tick(fn=None,queue=False,inputs=current_attribute_choice,outputs=[*current_attribute_buttons,current_attribute_notice],js="currentFieldName=>{const currentReadyState=window.annyNumericReadiness?.(currentFieldName)??{readReady:false,applyReady:false,reason:window.annyComponentLoadError||'속성 편집기를 준비 중입니다. 연결 실패 시 관리 서버 로그를 확인하고 새로고침하세요.'};return [{__type__:'update',interactive:currentReadyState.readReady},{__type__:'update',interactive:currentReadyState.applyReady},currentReadyState.reason];}")
         with gr.Accordion('기준 자세 상세',open=False):
             gr.Markdown('현재 적용한 기준 체형의 본 설정입니다. 체형을 변경한 뒤 다시 읽으세요.')
             current_pose_details=gr.Textbox(label='기준 자세 설정',lines=8,interactive=False)

@@ -10,6 +10,43 @@ from tools.review.domains.anny.anny_attributes import read_anny_generation_statu
 
 
 class QueueGenerationTelemetryTests(unittest.TestCase):
+    def test_failed_sample_invalidates_current_values_but_preserves_peak(self):
+        from tools.review.common.generation_status_display import describe_generation_status
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_recorder_value=QueueGenerationTelemetry(Path(current_directory_name),'test')
+            current_recorder_value.current_run_state['gpu_observations']={'GPU-A':{'process_current_mib':120,'device_current_mib':400,'process_peak_mib':200,'device_peak_mib':500,'sample_count':2}}
+            with patch.object(current_recorder_value,'sample_generation_memory',side_effect=OSError('GPU 조회 권한 오류')):
+                current_recorder_value.capture_generation_memory()
+            current_recorder_value.save_generation_metrics()
+            current_metrics_record=read_queue_generation_metrics(Path(current_directory_name))
+            current_device_record=current_metrics_record['gpu_observations']['GPU-A']
+            self.assertIsNone(current_device_record['process_current_mib'])
+            self.assertIsNone(current_device_record['device_current_mib'])
+            self.assertEqual(current_device_record['process_peak_mib'],200)
+            self.assertEqual(current_device_record['device_peak_mib'],500)
+            self.assertEqual(current_device_record['sample_count'],2)
+            current_display_text=describe_generation_status({'status':'running','metrics':current_metrics_record})
+            self.assertIn('현재 미측정 · 관측 피크 200 MiB',current_display_text)
+            self.assertIn('GPU 조회 권한 오류',current_display_text)
+            import os
+            with patch('tools.review.common.generation_telemetry.subprocess.check_output',side_effect=['GPU-A, 300',f'GPU-A, {os.getpid()}, 80']):
+                current_recorder_value.sample_generation_memory()
+            current_device_record=current_recorder_value.current_run_state['gpu_observations']['GPU-A']
+            self.assertEqual(current_device_record['process_current_mib'],80)
+            self.assertEqual(current_device_record['process_peak_mib'],200)
+            self.assertIsNone(current_device_record['measurement_reason'])
+            self.assertEqual(current_device_record['sample_count'],3)
+            self.assertEqual(len(current_recorder_value.current_run_state['measurement_gaps']),1)
+
+
+    def test_empty_device_sample_records_measurement_gap(self):
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_recorder_value=QueueGenerationTelemetry(Path(current_directory_name),'test')
+            with patch('tools.review.common.generation_telemetry.subprocess.check_output',return_value=''):
+                current_recorder_value.capture_generation_memory()
+            self.assertEqual(current_recorder_value.current_run_state['gpu_observations'],{})
+            self.assertIn('장치 표본이 비어',current_recorder_value.current_run_state['measurement_gaps'][0]['error'])
+
     def test_nested_worker_stage_requires_current_execution(self):
         with tempfile.TemporaryDirectory() as current_directory_name:
             current_job_root = Path(current_directory_name)
@@ -149,6 +186,42 @@ class QueueExecutionTelemetryTests(unittest.TestCase):
 
 
 class GenerationMemoryScopeTests(unittest.TestCase):
+    def test_missing_device_preserves_peak_and_recovers_independently(self):
+        import os
+        from tools.review.common.generation_telemetry import GenerationTelemetryRecorder
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_recorder_value=GenerationTelemetryRecorder(Path(current_directory_name),0,[])
+            current_process_number=os.getpid()
+            current_mock_samples=['GPU-A, 900\nGPU-B, 700',f'GPU-A, {current_process_number}, 100\nGPU-B, {current_process_number}, 200',
+                'GPU-A, 800',f'GPU-A, {current_process_number}, 90',
+                'GPU-A, 850\nGPU-B, 650',f'GPU-A, {current_process_number}, 95\nGPU-B, {current_process_number}, 180']
+            with patch('tools.review.common.generation_telemetry.subprocess.check_output',side_effect=current_mock_samples):
+                current_recorder_value.sample_generation_memory()
+                current_recorder_value.sample_generation_memory()
+                current_device_records=current_recorder_value.current_run_state['gpu_observations']
+                self.assertEqual(current_device_records['GPU-A']['process_current_mib'],90)
+                self.assertIsNone(current_device_records['GPU-B']['process_current_mib'])
+                self.assertIsNone(current_device_records['GPU-B']['device_current_mib'])
+                self.assertEqual(current_device_records['GPU-B']['process_peak_mib'],200)
+                self.assertEqual(current_device_records['GPU-B']['sample_count'],1)
+                self.assertIn('GPU-B',current_recorder_value.current_run_state['measurement_gaps'][0]['error'])
+                current_recorder_value.sample_generation_memory()
+                self.assertEqual(current_device_records['GPU-B']['process_current_mib'],180)
+                self.assertEqual(current_device_records['GPU-B']['process_peak_mib'],200)
+                self.assertEqual(current_device_records['GPU-B']['sample_count'],2)
+                self.assertIsNone(current_device_records['GPU-B']['measurement_reason'])
+
+    def test_invalid_device_snapshot_does_not_commit_partial_peaks(self):
+        from tools.review.common.generation_telemetry import GenerationTelemetryRecorder
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            for current_invalid_snapshot in ('GPU-A, 100\nGPU-B, N/A','GPU-A, 100\nGPU-A, 200','GPU-A, -1',', 100'):
+                with self.subTest(snapshot=current_invalid_snapshot):
+                    current_recorder_value=GenerationTelemetryRecorder(Path(current_directory_name),0,[])
+                    with patch('tools.review.common.generation_telemetry.subprocess.check_output',side_effect=[current_invalid_snapshot,'']):
+                        current_recorder_value.capture_generation_memory()
+                    self.assertEqual(current_recorder_value.current_run_state['gpu_observations'],{})
+                    self.assertEqual(len(current_recorder_value.current_run_state['measurement_gaps']),1)
+
     def test_descendants_and_devices_keep_separate_observed_peaks(self):
         """별도 렌더 자손은 포함하고 타 작업과 장치 피크 합산은 제외한다."""
         from types import SimpleNamespace

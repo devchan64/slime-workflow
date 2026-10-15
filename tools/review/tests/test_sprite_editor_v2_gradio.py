@@ -7,6 +7,41 @@ from tools.review.ui.gradio.sprite_editor_v2_app import build_sprite_v2_interfac
 
 
 class SpriteV2GradioTests(unittest.TestCase):
+    def test_revision_commands_require_matching_loaded_project(self):
+        current_source_text=(Path(__file__).parents[1]/'ui/character_animation/sprite-editor-v2.js').read_text()
+        current_revision_source=current_source_text.split('window.spriteV2RevisionReadiness=',1)[1].split('// 입력하지 않은 항목',1)[0]
+        current_browser_script="""
+const assert=require('node:assert/strict');
+const window={};let currentBusyState=false,currentProjectIdentifier='A',currentLoadedRevision='r1';
+const currentRevisionChoices=[['one','r1'],['two','r2']],currentProjectChoices=[['A','A'],['B','B']];
+let currentHistoryCalls=0;const currentLoadedCalls=[];
+async function refreshEditorHistory(){currentHistoryCalls++;}
+async function loadEditorProject(...currentArguments){currentLoadedCalls.push(currentArguments);}
+async function runEditorAction(currentCallback){currentBusyState=true;try{await currentCallback();}finally{currentBusyState=false;}}
+function findEditorElement(){return {textContent:'완료'};}
+window.spriteV2RevisionReadiness=SOURCE
+(async()=>{
+ assert.equal(window.spriteV2RevisionReadiness('B','r1').revisionReady,false);
+ await assert.rejects(window.spriteV2ProjectControls('history','',512,'B',null),/먼저 불러오세요/);
+ await assert.rejects(window.spriteV2ProjectControls('revision','',512,'B','r1'),/작업을 불러온 뒤/);
+ await assert.rejects(window.spriteV2ProjectControls('revision','',512,'A','missing'),/수정 이력/);
+ assert.equal(currentHistoryCalls,0);assert.deepEqual(currentLoadedCalls,[]);
+ await window.spriteV2ProjectControls('history','',512,'A',null);
+ await window.spriteV2ProjectControls('revision','',512,'A','r2');
+ assert.equal(currentHistoryCalls,1);assert.deepEqual(currentLoadedCalls,[['A','r2']]);
+ currentBusyState=true;assert.equal(window.spriteV2RevisionReadiness('A','r1').deleteReady,false);currentBusyState=false;
+ currentRevisionChoices.pop();assert.equal(window.spriteV2RevisionReadiness('A','r1').deleteReady,false);
+ await assert.rejects(window.spriteV2DeleteRevision('A','r1',true),/마지막 수정본/);
+})().catch(currentError=>{console.error(currentError);process.exitCode=1;});
+""".replace('SOURCE',current_revision_source)
+        current_process_result=subprocess.run(['node','-e',current_browser_script],capture_output=True,text=True,timeout=10)
+        self.assertEqual(current_process_result.returncode,0,current_process_result.stderr)
+        current_interface_config=build_sprite_v2_interface().get_config_file()
+        current_ready_event=next(current_event_record for current_event_record in current_interface_config['dependencies'] if 'window.spriteV2RevisionReadiness' in (current_event_record.get('js') or ''))
+        self.assertFalse(current_ready_event['backend_fn'])
+        self.assertFalse(current_ready_event['queue'])
+        self.assertEqual(len(current_ready_event['outputs']),4)
+
     def test_loader_versions_both_browser_scripts(self):
         import hashlib
         from tools.review.ui.gradio.sprite_editor_v2_app import create_sprite_v2_loader

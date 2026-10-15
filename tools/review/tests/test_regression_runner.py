@@ -12,6 +12,20 @@ from tools.review.tests.run_music_regression import execute_music_regression
 
 
 class RegressionRunnerContractTests(unittest.TestCase):
+    def test_main_blocks_do_not_hide_test_definitions(self):
+        import ast
+        current_hidden_tests=[]
+        for current_source_path in Path(__file__).parent.glob('test_*.py'):
+            current_syntax_tree=ast.parse(current_source_path.read_text())
+            for current_top_level in current_syntax_tree.body:
+                if isinstance(current_top_level,ast.If) and '__name__' in ast.unparse(current_top_level.test):
+                    current_hidden_tests.extend(
+                        f'{current_source_path.name}:{current_definition.lineno}:{current_definition.name}'
+                        for current_definition in ast.walk(current_top_level)
+                        if isinstance(current_definition,(ast.FunctionDef,ast.AsyncFunctionDef)) and current_definition.name.startswith('test_')
+                    )
+        self.assertEqual(current_hidden_tests,[], '직접 실행 조건 안의 테스트는 unittest 수집에서 제외됩니다.')
+
     def test_preserves_shutdown_output_and_failure_exit(self):
         with tempfile.TemporaryDirectory() as current_directory_name:
             current_fixture_root = Path(current_directory_name)
