@@ -8,6 +8,20 @@ from tools.review.common.gradio_history import build_generation_history_view, co
 
 
 class GradioHistoryTest(unittest.TestCase):
+    def test_service_lookup_errors_keep_actionable_message(self):
+        current_service_mock=Mock()
+        with gr.Blocks() as current_interface_blocks:
+            build_generation_history_view(current_service_mock,'','기록 정책')
+        current_result_callback=next(value.fn for value in current_interface_blocks.fns.values() if value.fn and value.fn.__name__=='read_selected_result')
+        for current_error_class in (ValueError,RuntimeError,OSError):
+            current_service_mock.side_effect=current_error_class('완료 기록의 영상 결과 파일이 없습니다: preview.mp4')
+            current_result_values=current_result_callback('job-one')
+            self.assertIn('결과 조회 실패:',current_result_values[2])
+            self.assertIn('preview.mp4',current_result_values[2])
+            self.assertFalse(current_result_values[3]['visible'])
+            self.assertEqual(current_result_values[4],{})
+            self.assertEqual(current_result_values[5]['value'],current_result_values[2])
+
     def test_missing_image_result_uses_terminal_guidance(self):
         current_service_mock=Mock()
         with gr.Blocks() as current_interface_blocks:

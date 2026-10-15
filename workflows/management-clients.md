@@ -122,6 +122,8 @@ python3 tools/manager.py command hy-motion resume GENERATION_ID
 
 ## 공용 기록
 
+Phantom·VACE 영상 기록의 `status`는 생성 작업의 종료 상태를 보존한다. 완료 후 결과 파일이 누락되거나 결과 경로 검증이 실패하면 `result_error`에 원인을 제공하고 `video`·`download`·`image` URL은 제공하지 않는다. 이 상태에서도 이력과 작업 상태를 조회할 수 있다. 결과 오류를 생성 작업의 실패나 정상 다운로드 가능 상태로 해석하지 않는다. GUI는 결과 조회 영역에 원인을 표시하며, CLI는 같은 상태 응답의 `result_error`를 확인한다. 파일 복구 후 상태를 다시 조회하면 결과 경로를 재검증한다.
+
 GUI와 CLI는 서비스별 동일한 작업·이력을 조회하며 서로 다른 저장소를 만들지 않는다.
 
 | 서비스 | 작업 기록 | 이력 인덱스 |

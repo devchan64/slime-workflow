@@ -8,6 +8,17 @@ from tools.review.ui.gradio.vace_timeline_app import remove_timeline_image
 
 
 class VaceTimelineEditorTests(unittest.TestCase):
+    def test_selection_readiness_rejects_empty_and_stale_items(self):
+        from tools.review.ui.gradio.vace_timeline_app import update_timeline_selection_readiness
+        for current_file_paths,current_selected_items,current_expected_values in (
+            ([],[],(False,False)),(['1.png'],[],(True,False)),
+            (['1.png'],[(0,'1.png')],(True,True)),
+            ([],[(0,'1.png')],(False,False)),
+            (['2.png'],[(0,'1.png')],(True,False)),
+        ):
+            self.assertEqual(tuple(current_update_value['interactive'] for current_update_value in update_timeline_selection_readiness(current_file_paths,current_selected_items)),current_expected_values)
+
+
     def test_required_input_readiness_tracks_loading_and_deletion(self):
         from tools.review.ui.gradio.vace_timeline_app import check_timeline_input_readiness
         for current_file_paths, current_table_rows, current_prompt_text in (

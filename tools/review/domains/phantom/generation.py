@@ -1,5 +1,6 @@
 """Wan2.1 PHANTOM R2V 작업 서비스. 수명 관리는 공용 GPU 대기열을 사용한다."""
 import fcntl
+from tools.review.common.video_result_files import enrich_video_result_status
 import json
 import re
 from urllib.parse import urlsplit
@@ -48,12 +49,7 @@ class PhantomGenerationManager(ImageGenerationManager):
         return self.enrich_generation_status(current_job_root,current_status_record)
 
     def enrich_generation_status(self, current_job_root, current_status_record):
-        current_result_path = current_job_root/'result.json'
-        if current_result_path.exists() and current_status_record['status']=='completed':
-            current_result_record = json.loads(current_result_path.read_text())
-            current_result_base = f'{self.route_prefix_value}/jobs/{current_job_root.name}/attempts/{current_result_record["attempt"]}/'
-            current_status_record.update(video=current_result_base+'preview.mp4',download=current_result_base+'frames.zip',image=current_result_base+'output-000.png')
-        return current_status_record
+        return enrich_video_result_status(current_job_root, current_status_record, self.route_prefix_value)
 
     def list_generation_history(self):
         current_history_records = super().list_generation_history()

@@ -5,6 +5,8 @@ from tools.review.common.generation_result_guidance import describe_missing_gene
 from tools.review.common.generation_progress_display import render_generation_estimate
 
 def render_video_generation_result(current_job_identifier,current_status_record,current_server_address):
+    if current_status_record.get('result_error'):
+        return '<p>결과 조회 불가: '+html.escape(current_status_record['result_error'])+'</p>'
     if not current_status_record.get('video'):
         return '<p>'+html.escape(describe_missing_generation_result(current_status_record,'영상'))+'</p>'
     current_video_url=html.escape(current_server_address+current_status_record['video'],quote=True)

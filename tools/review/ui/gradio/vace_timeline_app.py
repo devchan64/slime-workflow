@@ -142,6 +142,14 @@ def build_timeline_payload(current_file_paths,current_table_rows,current_prompt_
     return current_payload_record
 
 
+def update_timeline_selection_readiness(current_file_paths,current_selected_items):
+    current_file_paths=current_file_paths or []
+    current_selection_valid=bool(current_selected_items) and all(
+        0 <= current_selected_index < len(current_file_paths) and current_file_paths[current_selected_index] == current_selected_path
+        for current_selected_index,current_selected_path in current_selected_items)
+    return gr.update(interactive=bool(current_file_paths)),gr.update(interactive=current_selection_valid)
+
+
 def build_timeline_interface(current_server_address):
     with gr.Blocks(title='Wan2.1 VACE V2V 생성기') as current_interface_blocks:
         gr.Markdown('## Wan2.1 VACE 1.3B V2V 생성기\n중간 포즈 이미지를 원래 프레임 번호에 배치해 영상을 다시 생성합니다. 입력 원본은 보존합니다.')
@@ -153,14 +161,18 @@ def build_timeline_interface(current_server_address):
         gr.Markdown('### 프레임 배치\n각 행에서 이미지를 확인하고 프레임 번호와 처리 방식을 설정하세요. 선택 체크는 삭제 대상에만 적용됩니다.')
         current_selection_notice=gr.Markdown('이미지를 첨부하세요.')
         with gr.Row():
-            current_select_all=gr.Button('전체 선택')
-            current_clear_selection=gr.Button('선택 해제')
+            current_select_all=gr.Button('전체 선택',interactive=False)
+            current_clear_selection=gr.Button('선택 해제',interactive=False)
             current_remove_button=gr.Button('선택 삭제',interactive=False)
         current_selection_outputs=[current_selected_item,current_selection_notice,current_remove_button]
         current_select_all.click(select_all_timeline_images,current_sorted_files,current_selection_outputs,queue=True)
         current_clear_selection.click(lambda:describe_timeline_selection([]),outputs=current_selection_outputs,queue=True)
         current_remove_button.click(remove_timeline_image,[current_sorted_files,current_frame_table,current_selected_item],[current_sorted_files,current_frame_table,current_input_files],queue=True)
-        current_sorted_files.change(lambda:([], '삭제할 행의 선택 체크박스를 켜세요. 원본 파일은 보존됩니다.',gr.update(interactive=False)),outputs=current_selection_outputs,queue=True)
+        current_sorted_files.change(lambda current_file_paths:([], '삭제할 행의 선택 체크박스를 켜세요. 원본 파일은 보존됩니다.' if current_file_paths else '이미지를 첨부하세요.',gr.update(interactive=False)),inputs=current_sorted_files,outputs=current_selection_outputs,queue=True)
+        gr.Markdown('전체 선택은 이미지 첨부 후, 선택 해제는 행을 선택한 뒤 사용할 수 있습니다.')
+        for current_selection_state in (current_sorted_files,current_selected_item):
+            current_selection_state.change(update_timeline_selection_readiness,[current_sorted_files,current_selected_item],[current_select_all,current_clear_selection],queue=True)
+
 
         @gr.render(inputs=[current_sorted_files,current_frame_table,current_selected_item],queue=False)
         def render_timeline_rows(current_file_paths,current_table_rows,current_selected_items):

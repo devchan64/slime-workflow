@@ -10,6 +10,22 @@ from tools.review.ui.gradio.static_review_app import build_static_review_interfa
 
 
 class StaticReviewGradioTest(unittest.TestCase):
+    def test_empty_review_selection_disables_apply(self):
+        current_interface_blocks=build_static_review_interface({'walk-review':'animation/anchors.html'})
+        current_config_record=current_interface_blocks.get_config_file()
+        for current_button_label in ('선택 동작 불러오기','방향·좌표 선택 적용'):
+            current_button_record=next(current_component for current_component in current_config_record['components'] if current_component['type']=='button' and current_component['props']['value']==current_button_label)
+            self.assertFalse(current_button_record['props']['interactive'])
+        current_selection_callback=next(current_event.fn for current_event in current_interface_blocks.fns.values() if current_event.fn and len(current_event.outputs)==1 and getattr(current_event.outputs[0],'value',None)=='방향·좌표 선택 적용')
+        for current_direction_name,current_point_name,current_expected_value in ((None,None,False),('down_left',None,False),(None,'anchor',False),('down_left','anchor',True)):
+            self.assertEqual(current_selection_callback(current_direction_name,current_point_name)['interactive'],current_expected_value)
+        current_scripts=[current_event['js'] for current_event in current_config_record['dependencies'] if 'interactive:' in (current_event.get('js') or '') and ('currentActionIdentifier.length' in current_event['js'] or 'currentDirectionName.length' in current_event['js'])]
+        self.assertEqual(len(current_scripts),1)
+        current_node_script="const assert=require('node:assert/strict');const scripts="+json.dumps(current_scripts)+";for(const source of scripts){const callback=eval('('+source+')');assert.equal(callback(null,null).interactive,false);assert.equal(callback('', '').interactive,false);assert.equal(callback('walk','anchor').interactive,true);}"
+        current_node_result=subprocess.run(['node','-e',current_node_script],capture_output=True,text=True)
+        self.assertEqual(current_node_result.returncode,0,current_node_result.stderr)
+
+
     def test_invalid_static_manifest_fails_before_mapping(self):
         current_page_record={'id':'walk-review','path':'animation/anchors.html','uiMode':'gradio-static'}
         for current_source_record in ([], {'pages':{}}, {'pages':[None]}, {'pages':[current_page_record,current_page_record]}, {'pages':[{**current_page_record,'path':'animation/image.png'}]}):

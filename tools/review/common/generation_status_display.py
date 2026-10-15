@@ -36,6 +36,8 @@ def describe_generation_status(current_status_record, include_generation_estimat
         current_status_text += '\n\nVRAM 미측정 구간 존재: 실행 기록에서 원인을 확인하세요.'
     if current_status_record.get('message'):
         current_status_text += '\n\n' + str(current_status_record['message'])
+    if current_status_record.get('result_error'):
+        current_status_text += '\n\n결과 조회 불가: ' + str(current_status_record['result_error'])
     if current_status_record.get('error'):
         current_status_text += '\n\n실패 원인: ' + str(current_status_record['error'])
     return current_status_text

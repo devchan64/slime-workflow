@@ -86,7 +86,9 @@ def build_static_review_interface(static_review_paths, current_anchor_paths=None
                 with gr.Row():
                     current_animation_action=gr.Dropdown(label='애니메이션 동작',choices=[],interactive=True)
                     current_animation_read=gr.Button('동작 목록 읽기')
-                    current_animation_apply=gr.Button('선택 동작 불러오기')
+                    current_animation_apply=gr.Button('선택 동작 불러오기',interactive=False)
+                gr.Markdown('동작 목록을 읽고 사용할 동작을 선택하면 불러올 수 있습니다.')
+                current_animation_action.change(fn=None,inputs=current_animation_action,outputs=current_animation_apply,queue=False,js="currentActionIdentifier=>({__type__:'update',interactive:typeof currentActionIdentifier==='string'&&currentActionIdentifier.length>0})")
                 current_animation_read.click(fn=None,outputs=[current_animation_action,current_anchor_feedback],queue=False,js="()=>{try{return window.anchorReviewActions(null);}catch(currentErrorValue){return [{__type__:'update'},currentErrorValue.message];}}")
                 current_animation_apply.click(fn=None,inputs=current_animation_action,outputs=[current_animation_action,current_anchor_feedback],queue=False,js="currentActionIdentifier=>{try{if(!currentActionIdentifier)throw Error('동작 목록을 읽고 동작을 선택하세요.');return window.anchorReviewActions(currentActionIdentifier);}catch(currentErrorValue){return [{__type__:'update'},currentErrorValue.message];}}")
                 build_frame_navigator('anchorReviewPlayback','anchorReviewSeekFrame',current_anchor_feedback)
@@ -95,7 +97,9 @@ def build_static_review_interface(static_review_paths, current_anchor_paths=None
                     current_anchor_point=gr.Dropdown(label='편집할 좌표',choices=[],interactive=True)
                 with gr.Row():
                     current_anchor_read=gr.Button('선택 목록 읽기')
-                    current_anchor_apply=gr.Button('방향·좌표 선택 적용')
+                    current_anchor_apply=gr.Button('방향·좌표 선택 적용',interactive=False)
+                gr.Markdown('선택 목록을 읽고 방향과 편집할 좌표를 모두 선택하세요.')
+                gr.on(triggers=[current_anchor_direction.change,current_anchor_point.change],inputs=[current_anchor_direction,current_anchor_point],outputs=current_anchor_apply,queue=False,fn=lambda current_direction_name,current_point_name:gr.update(interactive=bool(current_direction_name and current_point_name)))
                 current_anchor_outputs=[current_anchor_direction,current_anchor_point,current_anchor_feedback]
                 current_anchor_read.click(fn=None,outputs=current_anchor_outputs,queue=False,js="()=>{try{return window.anchorReviewSelection(null,null);}catch(currentErrorValue){return [{__type__:'update'},{__type__:'update'},currentErrorValue.message];}}")
                 current_anchor_apply.click(fn=None,inputs=[current_anchor_direction,current_anchor_point],outputs=current_anchor_outputs,queue=False,js="(currentDirectionName,currentPointName)=>{try{return window.anchorReviewSelection(currentDirectionName,currentPointName);}catch(currentErrorValue){return [{__type__:'update'},{__type__:'update'},currentErrorValue.message];}}")

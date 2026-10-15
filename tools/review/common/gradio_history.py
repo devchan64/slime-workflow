@@ -252,6 +252,7 @@ def render_generation_images(current_status_record, server_base_address):
 
 
 def build_generation_history_view(execute_service_command,server_base_address,deletion_scope_text,restore_input_callback=None,restore_output_components=None,result_renderer_callback=None,record_folder_route=None,allow_individual_delete=False,result_component_factory=None,individual_delete_scope_text=None):
+
     """목록·페이지·명시적 조회·결과·입력·로그·초기화를 묶은 공용 영역."""
     import html
     from tools.review.common.gradio_logs import build_execution_logs,create_copyable_log_textbox,bind_execution_log_updates
@@ -369,8 +370,12 @@ def build_generation_history_view(execute_service_command,server_base_address,de
 
     def read_selected_result(current_selected_identifier):
         if not current_selected_identifier:raise gr.Error('목록에서 작업을 선택하세요. 결과 조회·입력 재사용·중지·재개를 할 수 있습니다.')
-        current_status_record=execute_service_command('status',{'id':current_selected_identifier})
-        current_history_records=execute_service_command('history',{}).get('records',[])
+        try:
+            current_status_record=execute_service_command('status',{'id':current_selected_identifier})
+            current_history_records=execute_service_command('history',{}).get('records',[])
+        except (ValueError, RuntimeError, OSError) as current_lookup_error:
+            current_error_message = '결과 조회 실패: '+str(current_lookup_error)
+            return current_selected_identifier,'',current_error_message,gr.update(visible=False),{},gr.update(value=current_error_message,label='실행 로그 · '+current_selected_identifier)
         current_history_record=next((value for value in current_history_records if value['id']==current_selected_identifier),{})
         current_image_html=result_renderer_callback(current_selected_identifier,current_status_record,server_base_address) if result_renderer_callback is not None else collect_history_result_images(current_status_record,server_base_address)
         current_result_notice = '\n\n'+describe_missing_generation_result(current_status_record,'이미지') if not current_image_html and result_renderer_callback is None else ''

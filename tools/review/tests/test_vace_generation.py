@@ -17,6 +17,119 @@ from tools.review.common.generation_telemetry import GenerationTelemetryRecorder
 
 
 class VaceGenerationContractTests(unittest.TestCase):
+    def test_completed_video_files_are_verified_before_publication(self):
+        from tools.review.domains.phantom.generation import PhantomGenerationManager
+        for current_manager_class in (VaceGenerationManager, PhantomGenerationManager):
+            with self.subTest(service=current_manager_class.__name__), tempfile.TemporaryDirectory() as current_temporary_directory:
+                current_job_root = Path(current_temporary_directory) / 'job'
+                current_attempt_root = current_job_root / 'attempts' / ('a' * 32)
+                current_attempt_root.mkdir(parents=True)
+                current_result_path = current_job_root / 'result.json'
+                current_result_path.write_text(json.dumps({'attempt': 'a' * 32}))
+                current_service_instance = object.__new__(current_manager_class)
+                current_service_instance.route_prefix_value = '/isolated'
+                for current_file_name in ('preview.mp4', 'frames.zip', 'output-000.png'):
+                    current_missing_status = current_service_instance.enrich_generation_status(current_job_root, {'status': 'completed', 'video': '/stale'})
+                    self.assertIn(current_file_name, current_missing_status['result_error'])
+                    self.assertEqual(current_missing_status['status'], 'completed')
+                    self.assertNotIn('video', current_missing_status)
+                    (current_attempt_root / current_file_name).write_bytes(b'fixture')
+                current_status_record = current_service_instance.enrich_generation_status(current_job_root, {'status': 'completed'})
+                self.assertTrue(current_status_record['video'].endswith('/preview.mp4'))
+                self.assertTrue(current_status_record['download'].endswith('/frames.zip'))
+                self.assertTrue(current_status_record['image'].endswith('/output-000.png'))
+                (current_attempt_root / 'preview.mp4').unlink()
+                current_external_path = Path(current_temporary_directory) / 'external.mp4'
+                current_external_path.write_bytes(b'preserve')
+                (current_attempt_root / 'preview.mp4').symlink_to(current_external_path)
+                self.assertIn('벗어났습니다', current_service_instance.enrich_generation_status(current_job_root, {'status': 'completed'})['result_error'])
+                self.assertEqual(current_external_path.read_bytes(), b'preserve')
+                current_result_path.write_text(json.dumps({'attempt': '../outside'}))
+                self.assertIn('시도 ID', current_service_instance.enrich_generation_status(current_job_root, {'status': 'completed'})['result_error'])
+                self.assertEqual(current_service_instance.enrich_generation_status(current_job_root, {'status': 'queued'}), {'status': 'queued'})
+
+    def test_missing_result_keeps_history_and_status_available(self):
+        from tools.review.domains.phantom.generation import PhantomGenerationManager
+        from tools.review.common.gradio_video_results import render_video_generation_result
+        for current_manager_class in (VaceGenerationManager, PhantomGenerationManager):
+            with self.subTest(service=current_manager_class.__name__), tempfile.TemporaryDirectory() as current_temporary_directory:
+                current_service_instance=object.__new__(current_manager_class)
+                current_service_instance.route_prefix_value='/isolated'
+                current_service_instance.job_storage_root=Path(current_temporary_directory)
+                current_history_records=[]
+                for current_job_identifier in ('missing-result','intact-result'):
+                    current_job_root=Path(current_temporary_directory)/current_job_identifier
+                    current_attempt_root=current_job_root/'attempts'/('a'*32)
+                    current_attempt_root.mkdir(parents=True)
+                    (current_job_root/'status.json').write_text('{"status":"completed"}')
+                    (current_job_root/'result.json').write_text(json.dumps({'attempt':'a'*32}))
+                    if current_job_identifier=='intact-result':
+                        for current_file_name in ('preview.mp4','frames.zip','output-000.png'):
+                            (current_attempt_root/current_file_name).write_bytes(b'fixture')
+                    current_history_records.append({'id':current_job_identifier})
+                with patch('tools.review.domains.image.image_generation.load_generation_history_records',return_value=current_history_records):
+                    current_history_output=current_service_instance.list_generation_history()
+                self.assertEqual(len(current_history_output),2)
+                current_missing_status=current_history_output[0]['status']
+                self.assertEqual(current_missing_status['status'],'completed')
+                self.assertIn('preview.mp4',current_missing_status['result_error'])
+                self.assertIsNone(current_history_output[0]['image'])
+                self.assertTrue(current_history_output[1]['image'].endswith('output-000.png'))
+                current_result_markup=render_video_generation_result('missing-result',current_missing_status,'')
+                self.assertIn('결과 조회 불가',current_result_markup)
+                self.assertNotIn('<video',current_result_markup)
+                self.assertEqual(json.loads((Path(current_temporary_directory)/'missing-result/status.json').read_text()),{'status':'completed'})
+
+    def test_video_result_error_matches_gui_cli_http_and_recovers(self):
+        import threading
+        from http.server import ThreadingHTTPServer
+        from tools.review.gateway_server import create_gateway_request_handler
+        from tools.review.common.management_client import execute_remote_management_command
+        from tools.review.domains.phantom.generation import PhantomGenerationManager
+        for current_service_name,current_manager_class,current_route_prefix in (('wan21-vace',VaceGenerationManager,'/wan21-vace'),('phantom',PhantomGenerationManager,'/phantom')):
+            with self.subTest(service=current_service_name), tempfile.TemporaryDirectory() as current_temporary_directory:
+                current_job_identifier='2026-10-15_00-00-00-12345678'
+                current_job_root=Path(current_temporary_directory)/current_job_identifier
+                current_attempt_root=current_job_root/'attempts'/('a'*32)
+                current_attempt_root.mkdir(parents=True)
+                (current_job_root/'status.json').write_text('{"status":"completed"}')
+                (current_job_root/'result.json').write_text(json.dumps({'attempt':'a'*32}))
+                current_service_instance=object.__new__(current_manager_class)
+                current_service_instance.job_storage_root=Path(current_temporary_directory)
+                current_service_instance.route_prefix_value=current_route_prefix
+                current_gateway_instance=ManagementCommandGateway({current_service_name:current_service_instance.handle_image_request})
+                with ThreadingHTTPServer(('127.0.0.1',0),create_gateway_request_handler(current_gateway_instance.handle)) as current_http_server:
+                    current_http_server.emit_gateway_trace=lambda *current_trace_values:None
+                    current_server_thread=threading.Thread(target=current_http_server.serve_forever,daemon=True)
+                    current_server_thread.start()
+                    current_server_address=f'http://127.0.0.1:{current_http_server.server_port}'
+                    try:
+                        for current_result_ready in (False,True):
+                            if current_result_ready:
+                                for current_file_name in ('preview.mp4','frames.zip','output-000.png'):
+                                    (current_attempt_root/current_file_name).write_bytes(b'fixture')
+                            with patch.dict('os.environ',{'SLIME_MANAGEMENT_GATEWAY_URL':current_server_address}):
+                                current_gui_response=execute_remote_management_command(current_service_name,'status',{'id':current_job_identifier})
+                            current_cli_output=io.StringIO()
+                            with contextlib.redirect_stdout(current_cli_output):
+                                self.assertEqual(execute_gateway_cli(['command',current_service_name,'--server-url',current_server_address,'status',current_job_identifier]),0)
+                            current_cli_response=json.loads(current_cli_output.getvalue())
+                            # 각 HTTP 조회에서 갱신되는 ETA 시각은 결과 계약 비교 대상이 아니다.
+                            for current_field_name in ('status','result_error','video','download','image','log_url'):
+                                self.assertEqual(current_cli_response.get(current_field_name),current_gui_response.get(current_field_name))
+                                self.assertEqual(current_field_name in current_cli_response,current_field_name in current_gui_response)
+                            self.assertEqual(current_gui_response['status'],'completed')
+                            if current_result_ready:
+                                self.assertNotIn('result_error',current_gui_response)
+                                self.assertTrue(current_gui_response['video'].endswith('/preview.mp4'))
+                            else:
+                                self.assertIn('preview.mp4',current_gui_response['result_error'])
+                                for current_field_name in ('video','download','image'):
+                                    self.assertNotIn(current_field_name,current_gui_response)
+                    finally:
+                        current_http_server.shutdown()
+                        current_server_thread.join(timeout=5)
+
     def create_vace_payload(self):
         current_image_buffer=io.BytesIO()
         Image.new('RGBA',(64,64),(20,40,60,100)).save(current_image_buffer,format='PNG')
