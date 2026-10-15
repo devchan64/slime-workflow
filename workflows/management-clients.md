@@ -622,3 +622,15 @@ python3 tools/manager.py command anny status 12345678
 ```
 
 접수는 생성 ID를 반환한다. 기존 ANNY 작업 폴더·입력·상태·이력·로그 경로를 유지하며 클라이언트별 사본 저장소를 만들지 않는다.
+
+### 작가 문서 작업 공용 명령
+
+작가 Gradio 화면과 CLI는 `writer-agent` 서비스의 `writer-state`, `writer-detail`, `writer-submit`, `writer-apply`를 사용한다. 기존 `/writer-agent/api/` 호환 경로와 문서·색인·작업 기록 경로는 유지한다. 공용 클라이언트가 같은 게이트웨이에서 작가 세션 토큰을 조회해 전달하며 Host·Origin·JSON 크기·세션 토큰 검사를 유지한다.
+
+```bash
+python3 tools/manager.py command writer-agent writer-state
+python3 tools/manager.py command writer-agent writer-submit --payload-file /absolute/path/request.json
+python3 tools/manager.py command writer-agent writer-detail --payload-file /absolute/path/job.json
+```
+
+접수 입력은 기존 `{mode, prompt}` 계약이며 mode는 `prepare`, `learn`, `write`, `deduplicate`다. 상세 조회는 `{id}`, 원본 적용은 `{id, proposal_hash}`를 전달한다. `writer-apply`는 조회한 제안 해시와 현재 제안·검토 상태를 다시 검사한다. 적용은 문서 변경 명령이므로 제안 차이를 검토한 후 명시적으로 실행한다. 공용 명령 등록은 GPU 생성기 이력 삭제·재개 기능 구현을 의미하지 않는다.

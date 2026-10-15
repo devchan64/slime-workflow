@@ -17,12 +17,13 @@ def validate_cleanup_path(current_target_path, current_storage_root):
     return current_target_path
 
 
-def delete_generation_job_files(current_storage_root, current_job_targets, current_index_paths=()):
+def delete_generation_job_files(current_storage_root, current_job_targets, current_index_paths=(), current_expected_jobs=None):
     """호출 서비스는 생성과 동일한 잠금을 유지해야 한다. 전체 사전 검증 후 삭제한다."""
     current_deleted_bytes = 0
     current_deleted_count = 0
     with ExitStack() as current_lock_stack:
         current_validated_targets = []
+        current_observed_jobs = []
         for current_target_path in sorted(set(map(Path, current_job_targets))):
             current_target_path = validate_cleanup_path(current_target_path, current_storage_root)
             if not current_target_path.is_dir():
@@ -38,6 +39,7 @@ def delete_generation_job_files(current_storage_root, current_job_targets, curre
             current_status_value = json.loads(current_status_path.read_text()).get('status')
             if current_status_value not in GENERATION_CLEANUP_TERMINAL_STATES:
                 raise ValueError(f'실행·대기 또는 상태 미확인 작업은 삭제할 수 없습니다: {current_target_path.name} ({current_status_value})')
+            current_observed_jobs.append({'path':str(current_target_path.relative_to(current_storage_root)),'status':current_status_value})
             current_target_bytes = 0
             for current_child_path in current_target_path.rglob('*'):
                 if current_child_path.is_symlink():
@@ -45,6 +47,8 @@ def delete_generation_job_files(current_storage_root, current_job_targets, curre
                 if current_child_path.is_file():
                     current_target_bytes += current_child_path.stat().st_size
             current_validated_targets.append((current_target_path,current_target_bytes))
+        if current_expected_jobs is not None and current_observed_jobs != current_expected_jobs:
+            raise ValueError('삭제 대상 또는 상태가 변경되었습니다. 삭제 대상을 다시 확인하세요.')
         current_index_targets = list(map(Path,current_index_paths))
         for current_index_path in current_index_targets:
             if current_index_path.is_symlink() or current_index_path.parent.resolve()!=current_index_path.parent.absolute():
@@ -90,3 +94,15 @@ def describe_generation_cleanup(current_storage_root, current_job_targets):
             'blocked_jobs': current_blocked_records, 'can_reset': not current_blocked_records,
             'scope': GENERATION_CLEANUP_SCOPE_TEXT,
             'notice': '목록에서 숨긴 작업도 포함합니다. 삭제 시 상태를 다시 검증합니다.'}
+
+
+def read_cleanup_confirmation(current_request_record, current_allow_empty=False):
+    """기존 CLI 초기화와 GUI의 확인한 대상 목록을 엄격히 구분한다."""
+    if current_allow_empty and current_request_record=={}:return None
+    if not isinstance(current_request_record,dict) or current_request_record.get('action')!='reset' or set(current_request_record)-{'action','expected_jobs'}:
+        raise ValueError('초기화 요청 필드 오류')
+    if 'expected_jobs' not in current_request_record:return None
+    current_expected_jobs=current_request_record['expected_jobs']
+    if not isinstance(current_expected_jobs,list) or any(not isinstance(current_job_record,dict) or set(current_job_record)!={'path','status'} or not all(isinstance(current_job_record[current_field_name],str) for current_field_name in ('path','status')) for current_job_record in current_expected_jobs):
+        raise ValueError('확인한 삭제 대상 목록 형식 오류')
+    return current_expected_jobs

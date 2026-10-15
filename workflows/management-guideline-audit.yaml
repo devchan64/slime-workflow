@@ -706,10 +706,12 @@ pages:
   category: writer-agent
   ui_mode: gradio
   url: /management/frame/writer-agent/
-  source_review: in_progress
-  contract_tests: pending
-  browser_review: pending
-  findings: []
+  source_review: noncompliant
+  contract_tests: partial_verified
+  browser_review: partial_mock_verified
+  findings:
+  - writer-selection-apply
+  - writer-command-gateway
   implementation: tools/review/ui/gradio/writer_agent_app.py
   applicability: writer
 - id: map-review-ash-edge
@@ -911,6 +913,19 @@ shared_findings:
   description: 영상·음악 상태 표시를 공용 구현에 연결. 미측정 VRAM과 0 구분, 관측 피크 샘플링 한계, 실패 원인 표시. 영상
     추론 전용 ETA 유지.
   evidence: 음악·Phantom·VACE·공용 상태 회귀 47건 통과. 개별 수정 화면 브라우저 검증 대기.
+- id: writer-selection-apply
+  status: verified_contract_mock_browser
+  source: tools/review/ui/gradio/writer_agent_app.py
+  description: 적용 직전 선택 ID와 조회한 제안 ID 일치 및 미적용 review 상태 검사. 선택 변경·기적용 상태의 원본 수정 거절.
+  evidence: 8807 관리 메뉴 합성 격리 화면에서 제안 A 조회·확인 체크 후 B 선택 시 이전 ID·차이·근거 제거, 확인 해제 및 적용
+    버튼 비활성 확인. 실행·원본 적용은 차단한 모의 서비스 사용.
+- id: writer-command-gateway
+  status: verified_contract_browser_pending
+  source: tools/review/ui/gradio/writer_agent_app.py
+  description: 작가 GUI·CLI를 writer-state/detail/submit/apply 공용 명령으로 연결. 기존 API·기록
+    경로·세션 토큰·적용 해시 검사 유지.
+  evidence: 공용 게이트웨이·런타임·작가 HTTP·GUI 콜백 회귀 26건 통과. CLI 파일 입력·HTTP 토큰 전달 추가 검증. 수정
+    화면 브라우저 검증 대기.
 regression_runs:
 - path: .tmp/test/management-audit/2026-10-15_09-30-57/summary.json
   passed: 165
@@ -992,6 +1007,21 @@ regression_runs:
   failed: 0
   errors: 0
   note: 미측정 GPU·실패 원인·단계 스텝 표시 및 기존 음악/Phantom/VACE 계약
+- path: .tmp/test/management-writer-gateway/2026-10-15_10-13-02/summary.json
+  passed: 26
+  failed: 0
+  errors: 0
+  note: 작가 명령 등록·서비스 조립·GUI·기존 HTTP 토큰 거절·기록 조회 계약
+- path: .tmp/test/management-writer-selection-clear/2026-10-15_10-14-55/summary.json
+  passed: 8
+  failed: 0
+  errors: 0
+  note: 작가 조회 상세 초기화·선택 변경 적용 거절·CLI 및 HTTP 토큰 전달
+- path: .tmp/test/management-precommit/2026-10-15_10-19-18/summary.json
+  passed: 112
+  failed: 0
+  errors: 0
+  note: 작가 게이트웨이·선택 상태 및 확인 후 삭제 대상 변경 거절 회귀; 운영 파일 삭제 없음
 runtime_observation:
   url: http://127.0.0.1:8770/management/frame/map-review/?map=wind-hills&townPage=1&tool=map-review-wind-hills
   note: 기존 실행 화면 메뉴 63개, 감사 대상 소스 메뉴 67개. 기존 화면 로딩 성공은 수정 소스 검증과 구분하며 사용자 서버를 임의 재시작하지

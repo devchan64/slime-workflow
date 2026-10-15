@@ -1,7 +1,7 @@
 """HY-Motion 작업 서비스. 실행 수명과 GPU 동시성은 공용 대기열을 사용한다."""
 from datetime import datetime, timedelta
 import fcntl
-from tools.review.common.generation_cleanup import delete_generation_job_files, describe_generation_cleanup
+from tools.review.common.generation_cleanup import delete_generation_job_files, describe_generation_cleanup, read_cleanup_confirmation
 import json
 from pathlib import Path
 import re
@@ -186,7 +186,8 @@ def execute_hymotion_command(operation_command_name, command_payload_value):
             raise ValueError('준비 명령 입력 오류')
         return start_generation_job({}, 'prepare')
     if operation_command_name in ('history', 'model-status', 'history-reset', 'history-reset-preview'):
-        if command_payload_value not in ({}, {'action': 'reset'} if operation_command_name == 'history-reset' else {}):
+        current_expected_jobs=read_cleanup_confirmation(command_payload_value,True) if operation_command_name=='history-reset' else None
+        if operation_command_name!='history-reset' and command_payload_value!={}:
             raise ValueError('명령 입력 필드 오류')
         if operation_command_name == 'model-status':
             return read_model_readiness()
@@ -198,7 +199,7 @@ def execute_hymotion_command(operation_command_name, command_payload_value):
             current_job_targets = [current_job_path for current_job_path in GENERATION_STORAGE_ROOT.glob('*/*') if re.fullmatch(r'\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}',current_job_path.parent.name) and re.fullmatch('[a-f0-9]{8}',current_job_path.name)]
             if operation_command_name == 'history-reset-preview':
                 return describe_generation_cleanup(GENERATION_STORAGE_ROOT,current_job_targets)
-            return delete_generation_job_files(GENERATION_STORAGE_ROOT,current_job_targets,GENERATION_HISTORY_ROOT.glob('*.json'))
+            return delete_generation_job_files(GENERATION_STORAGE_ROOT,current_job_targets,GENERATION_HISTORY_ROOT.glob('*.json'),current_expected_jobs)
     if set(command_payload_value) != {'id'}:
         raise ValueError('생성 ID만 입력하세요.')
     generation_job_path = resolve_generation_directory(command_payload_value['id'])

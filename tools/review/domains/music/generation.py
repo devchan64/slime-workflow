@@ -1,6 +1,6 @@
 """음악생성 공용 작업 서비스: GUI·CLI는 같은 이력과 GPU 대기열을 사용한다."""
 from contextlib import contextmanager
-from tools.review.common.generation_cleanup import delete_generation_job_files, describe_generation_cleanup
+from tools.review.common.generation_cleanup import delete_generation_job_files, describe_generation_cleanup, read_cleanup_confirmation
 from datetime import datetime
 import fcntl
 import json
@@ -106,7 +106,7 @@ class MusicGenerationManager:
         return {**current_cleanup_result,'deleted':current_identifier_value}
 
     def execute_music_command(self,current_command_name,current_payload_record):
-        current_allowed_fields = {'generate':{'action','prompt','duration_seconds','seed','loop_request','tag'},'prepare':{'action'},'status':{'id'},'logs':{'id'},'history':{'page'},'active':set(),'model-status':set(),'cancel':{'id'},'resume':{'id'},'history-delete':{'id'},'history-reset':{'action'},'history-reset-preview':set()}
+        current_allowed_fields = {'generate':{'action','prompt','duration_seconds','seed','loop_request','tag'},'prepare':{'action'},'status':{'id'},'logs':{'id'},'history':{'page'},'active':set(),'model-status':set(),'cancel':{'id'},'resume':{'id'},'history-delete':{'id'},'history-reset':{'action','expected_jobs'},'history-reset-preview':set()}
         if current_command_name not in current_allowed_fields or not isinstance(current_payload_record,dict) or set(current_payload_record)-current_allowed_fields[current_command_name]:
             raise ValueError('음악 명령·필드 오류')
         if current_command_name in ('generate','prepare'):
@@ -125,13 +125,14 @@ class MusicGenerationManager:
             current_active_record = next((current_history_record for current_history_record in current_history_records if current_history_record['status']['status'] in ('running','queued')),None)
             return {'id':current_active_record['id'] if current_active_record else None}
         if current_command_name in ('history-reset','history-reset-preview'):
-            if current_payload_record != ({'action':'reset'} if current_command_name=='history-reset' else {}):
-                raise ValueError('이력 초기화 입력 오류')
+            current_expected_jobs=read_cleanup_confirmation(current_payload_record) if current_command_name=='history-reset' else None
             with self.hold_music_lock():
                 current_job_targets = [current_job_path for current_job_path in self.job_storage_root.iterdir() if re.fullmatch(MUSIC_IDENTIFIER_PATTERN,current_job_path.name)] if self.job_storage_root.exists() else []
                 if current_command_name=='history-reset-preview':
-                    return describe_generation_cleanup(self.job_storage_root,current_job_targets)
-                return delete_generation_job_files(self.job_storage_root,current_job_targets,self.history_storage_root.glob('*.json'))
+                    current_preview_record = describe_generation_cleanup(self.job_storage_root,current_job_targets)
+                    current_preview_record['scope'] = self.current_profile_record['label']+' · '+current_preview_record['scope']
+                    return current_preview_record
+                return delete_generation_job_files(self.job_storage_root,current_job_targets,self.history_storage_root.glob('*.json'),current_expected_jobs)
         current_job_root = self.resolve_music_job(current_payload_record['id'])
         if current_command_name=='status':
             return self.read_music_status(current_job_root)

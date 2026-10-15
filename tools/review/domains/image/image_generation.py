@@ -13,7 +13,7 @@ import uuid
 import os
 import signal
 import shutil
-from tools.review.common.generation_cleanup import delete_generation_job_files, describe_generation_cleanup
+from tools.review.common.generation_cleanup import delete_generation_job_files, describe_generation_cleanup, read_cleanup_confirmation
 from tools.review.common.generation_records import load_generation_history_records, write_record_atomically
 from tools.review.domains.image.image_runtime import validate_image_runtime
 from tools.review.common.gpu_job_queue import launch_gpu_process, cancel_gpu_generation, resume_gpu_generation
@@ -132,8 +132,8 @@ class ImageGenerationManager:
     def history_storage_path(self):
         return MANAGER_HISTORY_ROOT / ('qwen-2511' if self.three_reference_mode else 'qwen-2512')
 
-    def reset_generation_history(self):
-        return self.clear_image_generation_files()
+    def reset_generation_history(self,current_expected_jobs=None):
+        return self.clear_image_generation_files(current_expected_jobs)
 
     def list_cleanup_targets(self):
         if self.job_storage_root.resolve() != self.job_storage_root.absolute():
@@ -144,13 +144,13 @@ class ImageGenerationManager:
         with self.current_request_lock, MANAGER_HISTORY_LOCK:
             return describe_generation_cleanup(self.job_storage_root, self.list_cleanup_targets())
 
-    def clear_image_generation_files(self):
+    def clear_image_generation_files(self,current_expected_jobs=None):
         """목록에서 제외한 작업도 포함해 생성기 실제 파일을 정리한다."""
         with self.current_request_lock, MANAGER_HISTORY_LOCK:
             if self.current_worker_process is not None and self.current_worker_process.poll() is None:
                 raise ValueError('생성 중에는 초기화할 수 없습니다.')
             current_job_targets = self.list_cleanup_targets()
-            current_cleanup_result = delete_generation_job_files(self.job_storage_root,current_job_targets,self.history_storage_path().glob('*.json'))
+            current_cleanup_result = delete_generation_job_files(self.job_storage_root,current_job_targets,self.history_storage_path().glob('*.json'),current_expected_jobs)
             self.current_job_identifier = None
             return current_cleanup_result
 
@@ -224,9 +224,8 @@ class ImageGenerationManager:
                     send_response_data(200,selected_operation_result)
                     return True
                 if current_url_path == self.route_prefix_value+'/history/reset':
-                    if current_request_record != {'action':'reset'}:
-                        raise ValueError('초기화 요청 필드 오류')
-                    current_cleanup_result = self.reset_generation_history()
+                    current_expected_jobs=read_cleanup_confirmation(current_request_record)
+                    current_cleanup_result = self.reset_generation_history(current_expected_jobs)
                     send_response_data(200,current_cleanup_result)
                     return True
                 if history_delete_match is not None:

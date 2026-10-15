@@ -47,13 +47,15 @@ class ManagementRuntimeTests(unittest.TestCase):
             self.assertEqual(record_storage_root, service_binding_records[service_command_name].record_storage_root)
             self.assertEqual(record_path_resolver('same-id'), record_storage_root/'same-id')
 
-    def test_legacy_writer_handler_and_close_are_explicit(self):
+    def test_registered_writer_handler_and_close_are_explicit(self):
         legacy_request_handler = Mock(return_value=True)
         runtime_cleanup_callback = Mock()
-        runtime_service_manager = ManagementServiceRuntime(self.create_service_bindings(), legacy_request_handler, runtime_cleanup_callback)
-        current_http_handler = SimpleNamespace(command='GET', path='/writer-agent/api/state')
+        current_service_bindings=self.create_service_bindings()
+        runtime_service_manager = ManagementServiceRuntime(current_service_bindings, legacy_request_handler, runtime_cleanup_callback)
+        current_http_handler = SimpleNamespace(command='GET', path='/writer-agent/api/state',server=SimpleNamespace(server_port=8770),headers={'Host':'127.0.0.1:8770'})
         self.assertTrue(runtime_service_manager.dispatch_runtime_request(current_http_handler))
-        legacy_request_handler.assert_called_once_with(current_http_handler)
+        legacy_request_handler.assert_not_called()
+        current_service_bindings['writer-agent'].request_handler_callback.assert_called_once()
         runtime_service_manager.close_runtime_services()
         runtime_service_manager.close_runtime_services()
         runtime_cleanup_callback.assert_called_once_with()

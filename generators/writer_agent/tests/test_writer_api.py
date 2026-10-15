@@ -56,4 +56,23 @@ class WriterApiContracts(TestCase):
         self.assertEqual(current_http_handler.status_code,404)
         self.assertFalse(self.writer_manager_service.handle_writer_request(self.build_request_handler('/worldbuilding/api/state')))
 
+    def test_gateway_preserves_writer_token_and_payload(self):
+        from tools.review.common.management_gateway import ManagementCommandGateway
+        current_gateway_value=ManagementCommandGateway({'writer-agent':self.writer_manager_service.handle_writer_request})
+        for current_token_value,current_expected_status in [('wrong',400),(self.writer_manager_service.csrf_token_value,202)]:
+            current_request_handler=self.build_request_handler('/management/command','POST',{'service':'writer-agent','command':'writer-submit','payload':{'mode':'learn','prompt':''}},**{'X-Writer-Token':current_token_value})
+            with patch.object(self.writer_manager_service,'launch_writer_process',return_value={'id':'mock-job'}) as current_launch_mock:
+                current_gateway_value.handle(current_request_handler)
+                self.assertEqual(current_launch_mock.call_count,int(current_expected_status==202))
+            self.assertEqual(current_request_handler.status_code,current_expected_status)
+
+    def test_gateway_detail_uses_existing_record_reader(self):
+        from tools.review.common.management_gateway import ManagementCommandGateway
+        current_gateway_value=ManagementCommandGateway({'writer-agent':self.writer_manager_service.handle_writer_request})
+        current_request_handler=self.build_request_handler('/management/command','POST',{'service':'writer-agent','command':'writer-detail','payload':{'id':'mock-job'}})
+        with patch.object(self.writer_manager_service,'read_writer_detail',return_value={'id':'mock-job'}) as current_read_mock:
+            current_gateway_value.handle(current_request_handler)
+            current_read_mock.assert_called_once_with('mock-job')
+        self.assertEqual(current_request_handler.status_code,200)
+
 if __name__=='__main__':main()

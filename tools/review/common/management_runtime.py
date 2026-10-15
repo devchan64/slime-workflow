@@ -108,7 +108,10 @@ def create_management_runtime(writer_workspace_config=None):
         anny_attribute_service = AnnyAttributeManager()
         momask_generation_service = RetiredMoMaskHandler()
         character_animation_service = CharacterAnimationManager()
+        def reject_writer_folder_access(current_record_identifier):
+            raise ValueError('작가 기록은 writer-detail 명령으로 조회하세요.')
         service_binding_records = {
+            'writer-agent': ManagementServiceBinding(writer_agent_service.handle_writer_request,writer_agent_service.workspace_config_path.parent,reject_writer_folder_access),
             'phantom': bind_stored_management_service(phantom_generation_service.handle_image_request,phantom_generation_service.job_storage_root),
             'wan21-vace-v2v': bind_stored_management_service(vace_timeline_service.handle_image_request,vace_timeline_service.job_storage_root),
             'wan21-vace': bind_stored_management_service(vace_generation_service.handle_image_request,vace_generation_service.job_storage_root),

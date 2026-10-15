@@ -147,3 +147,24 @@ class AnnyCleanupPreviewTests(unittest.TestCase):
             self.assertEqual(current_preview_record['job_count'],2)
             self.assertFalse(current_preview_record['can_reset'])
             self.assertTrue((current_storage_root/'12345678'/'status.json').exists())
+
+class CleanupConfirmationTests(unittest.TestCase):
+    def test_snapshot_rejects_new_jobs_and_changed_terminal_status(self):
+        for current_expected_jobs in ([], [{'path':'job','status':'failed'}]):
+            with self.subTest(snapshot=current_expected_jobs), tempfile.TemporaryDirectory() as current_directory_name:
+                current_storage_root=Path(current_directory_name)
+                current_job_path=current_storage_root/'job'
+                current_job_path.mkdir()
+                (current_job_path/'status.json').write_text('{"status":"completed"}')
+                with self.assertRaisesRegex(ValueError,'변경'):
+                    delete_generation_job_files(current_storage_root,[current_job_path],current_expected_jobs=current_expected_jobs)
+                self.assertTrue(current_job_path.exists())
+                current_delete_result=delete_generation_job_files(current_storage_root,[current_job_path],current_expected_jobs=[{'path':'job','status':'completed'}])
+                self.assertEqual(current_delete_result['deleted_jobs'],1)
+
+    def test_confirmation_requires_valid_snapshot_shape(self):
+        from tools.review.common.generation_cleanup import read_cleanup_confirmation
+        for current_invalid_value in (None, {}, [{'path':'job'}], [{'path':1,'status':'completed'}]):
+            with self.subTest(snapshot=current_invalid_value), self.assertRaises(ValueError):
+                read_cleanup_confirmation({'action':'reset','expected_jobs':current_invalid_value})
+        self.assertEqual(read_cleanup_confirmation({'action':'reset','expected_jobs':[]}),[])

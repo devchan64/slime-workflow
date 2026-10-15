@@ -134,7 +134,10 @@ class WriterAgentManager:
             current_body_length=int(current_http_handler.headers.get('Content-Length','0'))
             if not 1<=current_body_length<=MAXIMUM_REQUEST_BYTES:raise ValueError('요청 크기 오류')
             current_request_values=parse_unique_json(current_http_handler.rfile.read(current_body_length).decode())
-            if current_route_path==WRITER_ROUTE_PREFIX+'/api/jobs':send_writer_response(202,self.launch_writer_process(current_request_values))
+            if current_route_path==WRITER_ROUTE_PREFIX+'/api/detail':
+                if not isinstance(current_request_values,dict) or set(current_request_values)!={'id'}:raise ValueError('작업 조회 필드 오류')
+                send_writer_response(200,self.read_writer_detail(current_request_values['id']))
+            elif current_route_path==WRITER_ROUTE_PREFIX+'/api/jobs':send_writer_response(202,self.launch_writer_process(current_request_values))
             elif current_route_path==WRITER_ROUTE_PREFIX+'/api/apply':
                 if not isinstance(current_request_values,dict) or set(current_request_values)!={'id','proposal_hash'}:raise ValueError('변경 적용 요청 필드 오류')
                 current_config_values=load_workspace_config(self.workspace_config_path)

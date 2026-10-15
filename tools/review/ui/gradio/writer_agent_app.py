@@ -6,9 +6,7 @@ from pathlib import Path
 import sys
 import threading
 import time
-from urllib.parse import urlencode
-from urllib.request import Request, urlopen
-from urllib.error import HTTPError
+from urllib.parse import urlencode,parse_qs
 
 import gradio as gr
 
@@ -16,6 +14,7 @@ WORKFLOW_ROOT_DIRECTORY=Path(__file__).resolve().parents[4]
 if str(WORKFLOW_ROOT_DIRECTORY) not in sys.path:
     sys.path.insert(0,str(WORKFLOW_ROOT_DIRECTORY))
 from tools.review.common.gradio_identifiers import build_generation_identifier
+from tools.review.common.management_client import execute_remote_management_command
 from tools.review.common.gradio_logs import create_copyable_log_textbox
 
 WRITER_REQUEST_TIMEOUT=15
@@ -24,20 +23,18 @@ WRITER_STAGE_LABELS={'queued':'대기','preparing':'환경 준비','indexing':'�
 
 
 def request_writer_service(review_server_port,current_route_path,current_request_values=None):
-    """기존 HTTP 어댑터의 Host·Origin·CSRF 및 작업 서비스 계약을 유지한다."""
-    current_server_address=f'http://127.0.0.1:{review_server_port}'
-    current_request_headers={}
-    current_request_body=None
-    if current_request_values is not None:
-        current_workspace_state=request_writer_service(review_server_port,'state')
-        current_request_headers={'Origin':current_server_address,'X-Writer-Token':current_workspace_state['csrf_token'],'Content-Type':'application/json'}
-        current_request_body=json.dumps(current_request_values).encode()
-    current_http_request=Request(current_server_address+'/writer-agent/api/'+current_route_path,data=current_request_body,headers=current_request_headers)
-    try:
-        with urlopen(current_http_request,timeout=WRITER_REQUEST_TIMEOUT) as current_http_response:
-            return json.load(current_http_response)
-    except HTTPError as current_http_error:
-        raise gr.Error(json.load(current_http_error).get('error','작가 서비스 요청 실패')) from current_http_error
+    """공용 게이트웨이가 작가 세션 토큰과 기존 작업 경로를 유지한다."""
+    if current_route_path=='state':
+        return execute_remote_management_command('writer-agent','writer-state',{})
+    if current_route_path.startswith('job?'):
+        current_query_values=parse_qs(current_route_path.split('?',1)[1],strict_parsing=True)
+        if set(current_query_values)!={'id'} or len(current_query_values['id'])!=1:
+            raise gr.Error('작업 조회 인자 오류')
+        return execute_remote_management_command('writer-agent','writer-detail',{'id':current_query_values['id'][0]})
+    current_command_names={'jobs':'writer-submit','apply':'writer-apply'}
+    if current_route_path not in current_command_names:
+        raise gr.Error('지원하지 않는 작가 명령')
+    return execute_remote_management_command('writer-agent',current_command_names[current_route_path],current_request_values)
 
 
 def format_writer_detail(current_detail_record):
@@ -117,7 +114,9 @@ def build_writer_agent_interface(review_server_port):
             if not current_selected_identifier:raise gr.Error('실행 기록을 선택하세요.')
             return format_writer_detail(request_writer_service(review_server_port,'job?'+urlencode({'id':current_selected_identifier})))
         current_detail_button.click(read_writer_selection,current_history_choice,current_detail_outputs)
-        current_history_choice.input(lambda: ({},False,gr.update(interactive=False),'결과 조회로 선택한 제안의 최신 내용을 확인하세요.'),outputs=[current_detail_state,current_apply_confirm,current_apply_button,current_apply_notice],queue=False)
+        def clear_writer_selection_detail():
+            return ({},'','','결과 조회가 필요합니다.',{},'',{},[],'','',{},'',gr.update(interactive=False),False,'결과 조회로 선택한 제안의 최신 내용을 확인하세요.',{})
+        current_history_choice.input(clear_writer_selection_detail,outputs=current_detail_outputs,queue=False)
         def submit_writer_action(current_action_mode,current_prompt_value):
             current_prompt_text='' if current_action_mode in ('prepare','learn') else current_prompt_value.strip()
             if current_action_mode=='write' and not current_prompt_text:raise gr.Error('아이디어나 작성 지시를 입력하세요.')
@@ -125,11 +124,15 @@ def build_writer_agent_interface(review_server_port):
             return '작업을 접수했습니다. 실행 기록에서 조회하세요.',*refresh_writer_workspace(current_job_record['id'])
         for current_action_mode,current_action_button in (('prepare',current_prepare_button),('learn',current_learn_button),('write',current_write_button),('deduplicate',current_deduplicate_button)):
             current_action_button.click(lambda current_prompt_value,current_mode_value=current_action_mode:submit_writer_action(current_mode_value,current_prompt_value),current_prompt_input,[current_feedback_text,*current_workspace_outputs],trigger_mode='once')
-        def apply_writer_proposal(current_detail_record,current_confirm_value):
+        def apply_writer_proposal(current_detail_record,current_confirm_value,current_selected_identifier):
             if not current_confirm_value or not current_detail_record:raise gr.Error('결과를 조회하고 변경 검토 확인을 선택하세요.')
+            if current_detail_record.get('id')!=current_selected_identifier:
+                raise gr.Error('선택한 작업이 변경되었습니다. 결과를 다시 조회하고 확인하세요.')
+            if current_detail_record.get('status',{}).get('stage')!='review' or current_detail_record.get('application'):
+                raise gr.Error('변경 검토 대기 상태의 미적용 제안만 적용할 수 있습니다.')
             request_writer_service(review_server_port,'apply',{'id':current_detail_record['id'],'proposal_hash':current_detail_record['status']['proposal_hash']})
             return read_writer_selection(current_detail_record['id'])
-        current_apply_button.click(apply_writer_proposal,[current_detail_state,current_apply_confirm],current_detail_outputs,trigger_mode='once')
+        current_apply_button.click(apply_writer_proposal,[current_detail_state,current_apply_confirm,current_history_choice],current_detail_outputs,trigger_mode='once')
         def refresh_writer_progress(current_selected_identifier):
             current_workspace_updates=list(refresh_writer_workspace(current_selected_identifier))
             current_workspace_updates[2:4]=[gr.skip(),gr.skip()]

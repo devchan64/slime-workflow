@@ -176,7 +176,7 @@ def bind_history_reset_action(control_component_values,execute_service_command,r
             current_latest_preview=execute_service_command('history-reset-preview',{})
             if not current_latest_preview['can_reset'] or current_latest_preview['jobs']!=current_preview_record['jobs']:
                 raise ValueError('삭제 대상 또는 상태가 변경되었습니다. 삭제 대상을 다시 확인하세요.')
-            current_cleanup_result = execute_service_command('history-reset',{'action':'reset'})
+            current_cleanup_result = execute_service_command('history-reset',{'action':'reset','expected_jobs':current_preview_record['jobs']})
         except (ValueError,RuntimeError,OSError) as history_reset_error:
             raise gr.Error(str(history_reset_error)) from history_reset_error
         history_update_values=refresh_history_callback()

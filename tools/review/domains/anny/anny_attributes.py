@@ -1,7 +1,7 @@
 import sys
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[4]))
-from tools.review.common.generation_cleanup import delete_generation_job_files, describe_generation_cleanup
+from tools.review.common.generation_cleanup import delete_generation_job_files, describe_generation_cleanup, read_cleanup_confirmation
 from tools.review.common.gpu_job_queue import launch_gpu_process, cancel_gpu_generation, resume_gpu_generation
 from tools.review.common.queue_generation_telemetry import read_queue_generation_metrics
 from tools.review.ui_assets import resolve_review_ui_asset
@@ -49,10 +49,10 @@ def preview_anny_history_cleanup():
   current_job_targets=[current_job_path for current_job_path in JOBS.iterdir() if re.fullmatch('[a-f0-9]{8}',current_job_path.name)] if JOBS.exists() else []
   return describe_generation_cleanup(JOBS,current_job_targets)
 
-def clear_anny_history_records():
+def clear_anny_history_records(current_expected_jobs=None):
  with ANNY_HISTORY_SERVICE_LOCK:
   current_job_targets=[current_job_path for current_job_path in JOBS.iterdir() if re.fullmatch('[a-f0-9]{8}',current_job_path.name)] if JOBS.exists() else []
-  return delete_generation_job_files(JOBS,current_job_targets)
+  return delete_generation_job_files(JOBS,current_job_targets,current_expected_jobs=current_expected_jobs)
 
 def load_profile_record(profile_path):
  profile_path=Path(profile_path).resolve()
@@ -145,8 +145,8 @@ class AnnyAttributeManager:
     self.send(h,200,preview_anny_history_cleanup());return True
    if h.command=='POST' and path=='/anny-attributes/history/reset':
     if h.headers.get('Origin')!=f'http://127.0.0.1:{h.server.server_port}':raise ValueError('허용하지 않는 요청 출처')
-    if json.loads(h.rfile.read(int(h.headers['Content-Length'])))!={'action':'reset'}:raise ValueError('초기화 요청 오류')
-    self.send(h,200,clear_anny_history_records());return True
+    current_expected_jobs=read_cleanup_confirmation(json.loads(h.rfile.read(int(h.headers['Content-Length']))))
+    self.send(h,200,clear_anny_history_records(current_expected_jobs));return True
    if h.command=='GET' and path=='/anny-attributes/profiles':
     profile_records=[load_profile_record(profile_file_path) for profile_file_path in sorted(PROFILE_DIRECTORY_PATH.glob('*.yaml'))];self.send(h,200,{'profiles':[{'id':profile_record['profile_id'],'label':profile_record['label']} for profile_record in profile_records]});return True
    if h.command=='GET' and (path=='/anny-attributes/base' or path.startswith('/anny-attributes/base/')):

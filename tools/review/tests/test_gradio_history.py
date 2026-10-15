@@ -34,7 +34,7 @@ class GradioHistoryTest(unittest.TestCase):
         service_command_mock.assert_not_called()
         reset_result_values = reset_callback_value(True,current_preview_record)
         self.assertEqual(service_command_mock.call_args_list[0].args,('history-reset-preview',{}))
-        self.assertEqual(service_command_mock.call_args_list[1].args,('history-reset',{'action':'reset'}))
+        self.assertEqual(service_command_mock.call_args_list[1].args,('history-reset',{'action':'reset','expected_jobs':current_preview_record['jobs']}))
         self.assertEqual(reset_result_values[0],'목록')
         self.assertFalse(reset_result_values[1]['value'])
         with self.assertRaises(gr.Error):reset_callback_value(True,current_preview_record)
