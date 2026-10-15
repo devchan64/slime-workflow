@@ -60,17 +60,24 @@ def validate_image_request(current_request_record):
 
 
 def summarize_generation_progress(current_log_text, current_job_status):
+    current_step_events = list(re.finditer(
+        r"step=(\d+)/(\d+)|['\"]step['\"]\s*:\s*(\d+)\s*,\s*['\"]total['\"]\s*:\s*(\d+)",
+        current_log_text,
+    ))
     current_step_matches = [
         (current_match_value.group(1) or current_match_value.group(3),
          current_match_value.group(2) or current_match_value.group(4))
-        for current_match_value in re.finditer(
-            r"step=(\d+)/(\d+)|['\"]step['\"]\s*:\s*(\d+)\s*,\s*['\"]total['\"]\s*:\s*(\d+)",
-            current_log_text,
-        )
+        for current_match_value in current_step_events
     ]
-    current_log_text = current_log_text.replace("'stage': '", 'stage=')
-    current_stage_matches = re.findall(r'stage[=\": ]+[\"\']?([a-z-]+)', current_log_text)
-    current_stage_value = current_stage_matches[-1] if current_stage_matches else 'starting'
+    current_stage_events = list(re.finditer(r'''["']?stage["']?\s*[:=]\s*["']?([a-z-]+)''', current_log_text))
+    current_stage_value = current_stage_events[-1].group(1) if current_stage_events else 'starting'
+    if current_job_status == 'running' and current_step_events and current_stage_events and current_stage_events[-1].start() > current_step_events[-1].start():
+        current_step_matches = []
+    if current_job_status == 'running' and current_step_events and current_stage_events and current_stage_value in ('load', 'loading', 'download-model'):
+        current_stage_position = current_stage_events[-1].start()
+        current_step_position = current_step_events[-1].start()
+        if '\n' not in current_log_text[current_stage_position:current_step_position]:
+            current_step_matches = []
     if current_step_matches:
         current_step_value, total_step_count = map(int,current_step_matches[-1])
         if current_job_status == 'completed':

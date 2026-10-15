@@ -10,6 +10,27 @@ from tools.review.domains.anny.anny_attributes import read_anny_generation_statu
 
 
 class QueueGenerationTelemetryTests(unittest.TestCase):
+    def test_nested_worker_stage_requires_current_execution(self):
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_job_root = Path(current_directory_name)
+            current_recorder_value = QueueGenerationTelemetry(current_job_root, 'hy-motion')
+            current_worker_status = {'status': 'running', 'started_at': '2000-01-01T00:00:00+00:00', 'progress': {'stage': 'render'}}
+            current_status_path = current_job_root/'status.json'
+            current_status_path.write_text(json.dumps(current_worker_status))
+            current_recorder_value.save_generation_metrics()
+            self.assertEqual(read_queue_generation_metrics(current_job_root)['stage'], 'worker')
+            current_worker_status['started_at'] = current_recorder_value.current_run_state['started_at']
+            for current_stage_name in ('inference', 'render', 'export'):
+                current_worker_status['progress']['stage'] = current_stage_name
+                current_status_path.write_text(json.dumps(current_worker_status))
+                current_recorder_value.save_generation_metrics()
+                current_metrics_record = read_queue_generation_metrics(current_job_root)
+                self.assertEqual(current_metrics_record['stage'], current_stage_name)
+                self.assertEqual(current_metrics_record['step_total'], 0)
+            with patch.object(current_recorder_value, 'capture_generation_memory'):
+                current_recorder_value.finish_generation_telemetry('cancelled')
+            self.assertEqual(read_queue_generation_metrics(current_job_root)['stage'], 'cancelled')
+
     def test_worker_stage_tracks_only_current_attempt(self):
         with tempfile.TemporaryDirectory() as current_directory_name:
             current_job_root = Path(current_directory_name)

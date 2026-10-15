@@ -40,6 +40,10 @@ class QueueGenerationTelemetry(GenerationTelemetryRecorder):
                 if current_status_path.is_file():
                     current_worker_status=json.loads(current_status_path.read_text())
                     self.current_run_state['stage']=current_worker_status.get('stage') or 'worker'
+                    if matches_current_queue_attempt(self.current_run_state, current_worker_status):
+                        current_progress_stage = current_worker_status.get('progress', {}).get('stage')
+                        if current_progress_stage:
+                            self.current_run_state['stage'] = current_progress_stage
                 current_worker_metrics = read_current_worker_metrics(self.current_job_root)
                 if current_worker_metrics and matches_current_queue_attempt(self.current_run_state, current_worker_metrics):
                     self.current_run_state['stage'] = current_worker_metrics['stage']

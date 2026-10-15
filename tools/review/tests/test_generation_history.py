@@ -107,6 +107,20 @@ class GenerationHistoryTests(unittest.TestCase):
         self.assertEqual(format_history_progress({'stage':'inference','step':2,'total':4,'percent':50}),'추론 중 50% · 2/4스텝')
         self.assertEqual(format_history_progress({'stage':'queued','queue_position':3}),'GPU 대기 중 · 대기 순서 3')
 
+    def test_stage_transition_does_not_reuse_previous_steps(self):
+        current_loading_progress = summarize_generation_progress("heartbeat {'stage': 'loading', 'step': 0, 'total': 40}", 'running')
+        self.assertEqual(current_loading_progress['stage'], 'loading')
+        self.assertIsNone(current_loading_progress['percent'])
+        for current_stage_log in ('stage=loading', "{'stage': 'saving'}", '{"stage": "postprocess"}'):
+            with self.subTest(stage=current_stage_log):
+                current_progress_record = summarize_generation_progress('step=40/40\n'+current_stage_log, 'running')
+                self.assertIsNone(current_progress_record['percent'])
+                self.assertIsNone(current_progress_record['total'])
+                self.assertNotEqual(current_progress_record['stage'], 'inference')
+        current_progress_record = summarize_generation_progress('step=40/40\nstage=loading\nheartbeat stage=inference step=1/20', 'running')
+        self.assertEqual(current_progress_record, {'stage':'inference','step':1,'total':20,'percent':5})
+        self.assertEqual(summarize_generation_progress('step=40/40\nstage=saving', 'failed')['stage'], 'failed')
+
     def test_history_reset_scope(self):
         with tempfile.TemporaryDirectory() as current_directory_name, patch('tools.review.domains.image.image_generation.MANAGER_HISTORY_ROOT',Path(current_directory_name)/'history'):
             current_manager_value=ImageGenerationManager(three_reference_mode=True)

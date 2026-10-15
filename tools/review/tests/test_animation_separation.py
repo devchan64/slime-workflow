@@ -25,22 +25,20 @@ class AnimationSeparationTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'RGBA'):
             preserve_generated_alpha(current_test_image.convert('RGB'))
 
-    def test_source_preview_crop_and_validation(self):
-        current_preview_bytes = separation_service_module.render_source_preview('asset:test', 2)
-        with Image.open(io.BytesIO(current_preview_bytes)) as current_preview_image:
-            self.assertEqual(current_preview_image.size, (16, 16))
-            self.assertEqual(current_preview_image.getpixel((0, 0)), (20, 40, 60, 200))
-        for current_frame_number in (0, 3, True):
-            with self.assertRaises(ValueError):
-                separation_service_module.render_source_preview('asset:test', current_frame_number)
-
-    def test_workflow_reference_integrity(self):
-        current_source_records = separation_service_module.load_workflow_reference_sources()
-        self.assertEqual({current_source_record['id'] for current_source_record in current_source_records}, {'workflow:character-default', 'workflow:character-female-a', 'workflow:character-default-clothed', 'workflow:character-female-a-clothed'})
-        for current_source_record in current_source_records:
-            self.assertEqual([current_frame_record['direction'] for current_frame_record in current_source_record['frames']], ['down_left', 'down_right', 'up_left', 'up_right'])
-        with patch('tools.review.domains.character_animation.character_animation_assets.hash_asset_file', return_value='invalid'), self.assertRaisesRegex(ValueError, '무결성'):
-            separation_service_module.load_workflow_reference_sources()
+    def test_retired_source_routes_explain_upload_without_reading_assets(self):
+        from types import SimpleNamespace
+        for current_route_suffix in ('/catalog', '/source-preview?source_id=workflow:character-default&frame=1'):
+            for current_host_value, current_expected_status in (('127.0.0.1:8771', 410), ('invalid.example', 400)):
+                with self.subTest(route=current_route_suffix, host=current_host_value):
+                    current_response_codes = []
+                    current_handler_value = SimpleNamespace(path='/animation-separation'+current_route_suffix, command='GET', headers={'Host':current_host_value}, server=SimpleNamespace(server_port=8771), wfile=io.BytesIO(), send_response=current_response_codes.append, send_header=lambda *current_header_values:None, end_headers=lambda:None)
+                    with patch.object(Path, 'read_bytes', side_effect=AssertionError('폐기 경로에서 파일 읽기 금지')), patch.object(Path, 'read_text', side_effect=AssertionError('폐기 경로에서 설정 읽기 금지')):
+                        self.assertTrue(self.current_service_instance.handle_image_request(current_handler_value))
+                    self.assertEqual(current_response_codes, [current_expected_status])
+                    current_response_record = json.loads(current_handler_value.wfile.getvalue())
+                    if current_expected_status == 410:
+                        self.assertEqual(current_response_record['code'], 'source_selection_retired')
+                        self.assertIn('참조 PNG 1장', current_response_record['error'])
 
     def setUp(self):
         self.current_temp_directory = tempfile.TemporaryDirectory()
@@ -48,13 +46,18 @@ class AnimationSeparationTest(unittest.TestCase):
         self.current_root_path = Path(self.current_temp_directory.name)
         self.current_source_path = self.current_root_path / 'sheet.png'
         Image.new('RGBA', (32, 16), (20, 40, 60, 200)).save(self.current_source_path)
-        self.current_source_record = {'id': 'asset:test', 'label': '테스트', 'fps': 8, 'frames': [{'frameId': f'down_left.{current_frame_index}', 'rect': {'x': current_frame_index*16, 'y': 0, 'width': 16, 'height': 16}, 'anchor': {'x': 8, 'y': 15}, 'source_path': str(self.current_source_path)} for current_frame_index in range(2)]}
         self.current_service_instance = separation_service_module.AnimationSeparationManager()
         self.current_service_instance.job_storage_root = self.current_root_path
-        self.current_patch_context = patch.object(separation_service_module, 'load_sprite_editor_source', return_value=self.current_source_record)
-        self.current_patch_context.start()
-        self.addCleanup(self.current_patch_context.stop)
         self.current_request_record = {'action': 'generate', 'images': [base64.b64encode(self.current_source_path.read_bytes()).decode()], 'width': 512, 'height': 512, 'steps': 40, 'seed': 1, 'prompt': 'Create opaque fitted base clothing.', 'outfit_prompt': 'Remove person and keep garments.'}
+
+    def test_gateway_catalog_preserves_retirement_response(self):
+        from tools.review.tests.test_management_gateway import GatewayContractTest
+        from tools.review.common.management_gateway import ManagementCommandGateway
+        current_handler_value = GatewayContractTest().create_request_handler('/management/command', {'service':'animation-separation', 'command':'catalog', 'payload':{}})
+        current_gateway_value = ManagementCommandGateway({'animation-separation':self.current_service_instance.handle_image_request})
+        self.assertTrue(current_gateway_value.handle(current_handler_value))
+        self.assertEqual(current_handler_value.responses, [410])
+        self.assertEqual(json.loads(current_handler_value.wfile.getvalue())['code'], 'source_selection_retired')
 
     def prepare_saved_sample(self):
         current_validated_record = self.current_service_instance.validate_generation_request(self.current_request_record)

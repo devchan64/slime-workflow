@@ -2,6 +2,7 @@
 import argparse
 import base64
 import io
+import re
 import sys
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[4]))
@@ -20,7 +21,12 @@ from tools.review.ui.gradio.management_menu_app import compose_management_interf
 
 
 def restore_timeline_inputs(current_history_record):
-    current_job_root=VACE_TIMELINE_STORAGE_ROOT/current_history_record['id']
+    current_job_identifier = current_history_record['id']
+    if not isinstance(current_job_identifier, str) or not re.fullmatch(r'[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{2}-[0-9]{2}-[0-9]{2}-[a-f0-9]{8}', current_job_identifier):
+        raise gr.Error('생성 ID 형식 오류')
+    current_job_root=VACE_TIMELINE_STORAGE_ROOT/current_job_identifier
+    if current_job_root.is_symlink():
+        raise gr.Error('복원할 작업 폴더는 심볼릭 링크일 수 없습니다.')
     from generators.vace.timeline import verify_timeline_request
     current_request_record=verify_timeline_request(current_job_root)
     current_file_paths=[str(current_job_root/current_file_name) for current_file_name in current_request_record['references'][:len(current_request_record['frame_entries'])]]

@@ -8,11 +8,29 @@ from tools.review.ui.gradio.vace_timeline_app import remove_timeline_image
 
 
 class VaceTimelineEditorTests(unittest.TestCase):
+    def test_restore_rejects_job_path_escape_before_reading(self):
+        from tools.review.ui.gradio import vace_timeline_app
+        with tempfile.TemporaryDirectory() as current_temporary_directory:
+            current_storage_directory = Path(current_temporary_directory)/'jobs'
+            current_storage_directory.mkdir()
+            current_external_directory = Path(current_temporary_directory)/'outside'
+            current_external_directory.mkdir()
+            current_job_identifier = '2026-10-15_13-00-00-1234abcd'
+            (current_storage_directory/current_job_identifier).symlink_to(current_external_directory, target_is_directory=True)
+            with patch.object(vace_timeline_app, 'VACE_TIMELINE_STORAGE_ROOT', current_storage_directory), patch('generators.vace.timeline.verify_timeline_request') as current_verify_mock:
+                for current_invalid_identifier in ('../outside', str(current_external_directory), None, current_job_identifier):
+                    with self.subTest(identifier=current_invalid_identifier), self.assertRaisesRegex(vace_timeline_app.gr.Error, 'ID 형식|심볼릭 링크'):
+                        vace_timeline_app.restore_timeline_inputs({'id': current_invalid_identifier})
+                current_verify_mock.assert_not_called()
+
     def test_observed_state_updates_use_event_queue(self):
         from tools.review.ui.gradio.vace_timeline_app import build_timeline_interface
         from tools.review.ui.gradio.management_menu_app import compose_management_interface
         current_tool_interface = build_timeline_interface('http://127.0.0.1:8798')
-        current_menu_interface = compose_management_interface(current_tool_interface, 8798)
+        with tempfile.TemporaryDirectory() as current_temporary_directory:
+            current_menu_source = Path(current_temporary_directory)/'manager-source.json'
+            current_menu_source.write_text(json.dumps({'pages': []}))
+            current_menu_interface = compose_management_interface(current_tool_interface, 8798, current_menu_source)
         current_observed_identifiers = {
             current_target_identifier
             for current_event_function in current_menu_interface.fns.values()

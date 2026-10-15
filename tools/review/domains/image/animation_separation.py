@@ -5,11 +5,11 @@ import io
 import json
 import re
 from pathlib import Path
-from urllib.parse import urlsplit, parse_qs
+from urllib.parse import urlsplit
 
 import yaml
 from PIL import Image
-from tools.review.common.map_tile_assets import UniqueAssetYamlLoader, load_registered_tiles, resolve_registered_asset
+from tools.review.common.map_tile_assets import UniqueAssetYamlLoader
 from tools.review.common.generation_records import validate_history_tag
 from .qwen_21_generation import QwenPlainGenerationManager, WORKFLOW_ROOT_PATH
 from generators.image.qwen_21_runtime import QWEN_MODEL_IDENTIFIER, QWEN_MODEL_REVISION
@@ -19,87 +19,6 @@ from .three_reference_generation import verify_reference_snapshots
 SEPARATION_STORAGE_ROOT = WORKFLOW_ROOT_PATH / '.tmp/test/animation-separation'
 SEPARATION_FRAME_LIMIT = 64
 SEPARATION_JOB_PATTERN = r'[0-9]{4}-[0-9-]{5}_[0-9-]{8}-[a-f0-9]{8}'
-
-
-def load_workflow_reference_sources():
-    from ..character_animation.character_animation_assets import load_animation_configuration, resolve_asset_path, read_asset_mapping, hash_asset_file, SUPPORTED_DIRECTION_NAMES
-    source_catalog_records = []
-    current_character_records = dict(load_animation_configuration()['characters'])
-    # 복장 분리는 신체 베이스로 교체되기 전의 착의 원본도 선택할 수 있어야 한다.
-    for current_character_identifier, current_character_record in list(current_character_records.items()):
-        current_character_records[current_character_identifier + '-clothed'] = {
-            **current_character_record, 'manifest': 'manifest.yaml',
-            'label': current_character_identifier + ' · 복장 착용 원본'}
-    for current_character_identifier, current_character_record in current_character_records.items():
-        current_manifest_path = resolve_asset_path(current_character_record['root'] + '/' + current_character_record['manifest'])
-        current_manifest_record = read_asset_mapping(current_manifest_path)
-        current_baseline_record = current_manifest_record['baseline_crops']
-        if set(current_baseline_record) != {'root', 'cell_size', 'files'} or set(current_baseline_record['files']) != set(SUPPORTED_DIRECTION_NAMES):
-            raise ValueError('캐릭터 4방향 레퍼런스 형식 오류')
-        current_frame_records = []
-        for current_direction_name in SUPPORTED_DIRECTION_NAMES:
-            current_image_path = resolve_asset_path(current_character_record['root'] + '/' + current_baseline_record['root'] + '/' + current_direction_name + '.png')
-            if hash_asset_file(current_image_path) != current_baseline_record['files'][current_direction_name]:
-                raise ValueError('캐릭터 레퍼런스 무결성 오류: ' + current_direction_name)
-            with Image.open(current_image_path) as current_reference_image:
-                if list(current_reference_image.size) != current_baseline_record['cell_size']:
-                    raise ValueError('캐릭터 레퍼런스 크기 오류')
-                current_frame_records.append({'frameId': current_direction_name + '.0', 'direction': current_direction_name, 'source_path': str(current_image_path), 'rect': {'x': 0, 'y': 0, 'width': current_reference_image.width, 'height': current_reference_image.height}})
-        source_catalog_records.append({'id': 'workflow:' + current_character_identifier, 'label': current_character_record['label'] + ' · 4방향 레퍼런스', 'fps': 8, 'frames': current_frame_records, 'provenance': {'manifest': str(current_manifest_path), 'sha256': hash_asset_file(current_manifest_path)}})
-    return source_catalog_records
-
-
-def load_separation_sources():
-    asset_repository_path, registered_asset_records = load_registered_tiles()
-    source_catalog_records = []
-    for current_relative_path in sorted(registered_asset_records):
-        if not current_relative_path.startswith('assets/characters/') or '/animations/' not in current_relative_path or not current_relative_path.endswith('.animation.json'):
-            continue
-        metadata_source_path, metadata_source_record = resolve_registered_asset(current_relative_path, asset_repository_path, registered_asset_records, 'assets/characters')
-        current_image_relative = current_relative_path.removesuffix('.animation.json') + '.png'
-        source_manifest_paths = [metadata_source_path.parent / current_file_name for current_file_name in ('source.json', 'source.yaml') if (metadata_source_path.parent / current_file_name).is_file()]
-        if len(source_manifest_paths) > 1:
-            raise ValueError('출처 메타데이터 중복')
-        if source_manifest_paths:
-            source_manifest_path = source_manifest_paths[0]
-            source_manifest_record = json.loads(source_manifest_path.read_text()) if source_manifest_path.suffix == '.json' else yaml.load(source_manifest_path.read_text(), Loader=UniqueAssetYamlLoader)
-            if 'image' in source_manifest_record:
-                source_image_name = source_manifest_record['image']
-                if not isinstance(source_image_name, str) or Path(source_image_name).name != source_image_name:
-                    raise ValueError('출처 이미지 파일명 오류')
-                current_image_relative = str(Path(current_relative_path).parent / source_image_name)
-        image_source_path, image_source_record = resolve_registered_asset(current_image_relative, asset_repository_path, registered_asset_records, 'assets/characters')
-        source_animation_record = json.loads(metadata_source_path.read_text())
-        source_frame_records = [{**current_frame_record, 'direction': current_frame_record['frameId'].split('.')[0], 'source_path': str(image_source_path)} for current_frame_record in source_animation_record['frames']]
-        source_catalog_records.append({'id': 'asset:' + current_relative_path, 'label': source_animation_record['animationId'] + ' · ' + source_animation_record['version'], 'fps': 8, 'frames': source_frame_records, 'provenance': [metadata_source_record, image_source_record]})
-    return source_catalog_records + load_workflow_reference_sources()
-
-
-def load_sprite_editor_source(current_source_identifier):
-    for current_source_record in load_separation_sources():
-        if current_source_record['id'] == current_source_identifier:
-            return current_source_record
-    raise ValueError('등록되지 않은 캐릭터 애니메이션입니다.')
-
-
-def resolve_sprite_image_path(current_source_record, current_frame_record):
-    return Path(current_frame_record['source_path'])
-
-
-def render_source_preview(current_source_identifier, current_frame_number):
-    current_source_record = load_sprite_editor_source(current_source_identifier)
-    if type(current_frame_number) is not int or not 1 <= current_frame_number <= len(current_source_record['frames']):
-        raise ValueError('원본 프레임 범위를 확인하세요.')
-    current_frame_record = current_source_record['frames'][current_frame_number-1]
-    current_frame_rectangle = current_frame_record['rect']
-    with Image.open(resolve_sprite_image_path(current_source_record, current_frame_record)) as current_source_image:
-        current_crop_bounds = (current_frame_rectangle['x'], current_frame_rectangle['y'], current_frame_rectangle['x']+current_frame_rectangle['width'], current_frame_rectangle['y']+current_frame_rectangle['height'])
-        if current_crop_bounds[0] < 0 or current_crop_bounds[1] < 0 or current_crop_bounds[2] > current_source_image.width or current_crop_bounds[3] > current_source_image.height:
-            raise ValueError('원본 프레임 영역 오류')
-        current_preview_image = current_source_image.convert('RGBA').crop(current_crop_bounds)
-        current_preview_buffer = io.BytesIO()
-        current_preview_image.save(current_preview_buffer, format='PNG')
-    return current_preview_buffer.getvalue()
 
 
 def load_separation_defaults():
@@ -207,21 +126,15 @@ class AnimationSeparationManager(QwenPlainGenerationManager):
             try:
                 if current_http_handler.headers.get('Host') != f'127.0.0.1:{current_http_handler.server.server_port}':
                     raise ValueError('허용하지 않는 Host')
-                if current_route_path == self.route_prefix_value + '/source-preview':
-                    current_query_values = parse_qs(urlsplit(current_http_handler.path).query, keep_blank_values=True)
-                    if set(current_query_values) != {'source_id', 'frame'} or any(len(current_values_list) != 1 for current_values_list in current_query_values.values()):
-                        raise ValueError('원본 미리보기 요청 필드 오류')
-                    response_body_bytes = render_source_preview(current_query_values['source_id'][0], int(current_query_values['frame'][0]))
-                    response_content_type = 'image/png'
-                elif current_file_match:
+                if current_file_match:
                     current_file_path = self.job_storage_root / current_file_match[1] / current_file_match[2]
                     response_body_bytes = current_file_path.read_bytes()
                     response_content_type = 'application/zip' if current_file_path.suffix == '.zip' else 'image/png' if current_file_path.suffix == '.png' else 'application/json'
+                    current_http_handler.send_response(200)
                 else:
-                    catalog_source_record = {'assets': load_separation_sources()}
-                    response_body_bytes = json.dumps({'sources': [{'id': current_source_record['id'], 'label': current_source_record['label'], 'frames': len(current_source_record['frames'])} for current_source_record in catalog_source_record['assets']], 'defaults': load_separation_defaults()}, ensure_ascii=False).encode()
+                    response_body_bytes = json.dumps({'error': '원본 목록 선택과 프레임 미리보기는 폐기되었습니다. 참조 PNG 1장을 첨부해 생성하세요.', 'code': 'source_selection_retired'}, ensure_ascii=False).encode()
                     response_content_type = 'application/json'
-                current_http_handler.send_response(200)
+                    current_http_handler.send_response(410)
             except (ValueError, FileNotFoundError) as current_error_value:
                 response_body_bytes = json.dumps({'error': str(current_error_value)}, ensure_ascii=False).encode()
                 response_content_type = 'application/json'
