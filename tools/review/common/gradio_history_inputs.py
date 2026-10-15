@@ -54,7 +54,10 @@ def describe_saved_prompt_counts(current_history_record):
     current_final_text = current_request_record.get('final_prompt')
     current_qwen_record = current_request_record.get('qwen21')
     current_added_text = None
-    if isinstance(current_qwen_record, dict) and isinstance(current_qwen_record.get('user_prompt'), str):
+    if isinstance(current_request_record.get('circular_vae'), dict) and isinstance(current_request_record.get('user_prompt'), str):
+        current_original_text = current_request_record['user_prompt']
+        current_final_text = current_request_record.get('prompt')
+    elif isinstance(current_qwen_record, dict) and isinstance(current_qwen_record.get('user_prompt'), str):
         current_original_text = current_qwen_record['user_prompt']
         current_final_text = current_request_record.get('prompt')
         current_added_text = current_qwen_record.get('additional_prompt')

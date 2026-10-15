@@ -63,16 +63,10 @@ def write_proxy_response_body(response_output_stream, response_body_bytes):
 def load_static_review_route_identifiers(manager_source_path):
     """직접 접속을 Gradio로 보낼 정적 검수 HTML 경로와 식별자를 읽는다."""
     if not manager_source_path.is_file():return {}
-    manager_source_record=json.loads(manager_source_path.read_text())
+    from tools.review.common.static_review_registry import load_static_review_paths
     static_review_routes={}
-    for current_page_record in manager_source_record.get('pages',[]):
-        if not isinstance(current_page_record,dict) or current_page_record.get('uiMode')!='gradio-static':continue
-        current_identifier_value=current_page_record.get('id')
-        current_page_path=current_page_record.get('path')
-        if not isinstance(current_identifier_value,str) or not current_identifier_value or not isinstance(current_page_path,str):
-            raise ValueError('정적 검수 경로 항목 형식 오류')
+    for current_identifier_value,current_page_path in load_static_review_paths(manager_source_path).items():
         current_request_path='/'+urlsplit(current_page_path).path.lstrip('/')
-        if not current_request_path.endswith('.html'):raise ValueError('정적 검수 페이지는 HTML 경로여야 합니다.')
         static_review_routes[current_request_path]=current_identifier_value
     return static_review_routes
 

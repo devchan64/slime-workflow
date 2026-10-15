@@ -18,7 +18,10 @@ LANDMARK_CANVAS_MARKUP = '<div style="position:relative;width:100%;height:560px"
 
 
 def execute_landmark_request(current_command_name, current_payload_record):
-    return execute_remote_management_command('anny-landmarks', 'landmark-' + current_command_name, current_payload_record)
+    try:
+        return execute_remote_management_command('anny-landmarks', 'landmark-' + current_command_name, current_payload_record)
+    except (ValueError, OSError) as current_command_error:
+        raise gr.Error(str(current_command_error)) from current_command_error
 
 
 def format_candidate_response(current_result_record):
@@ -61,7 +64,23 @@ def read_candidate_point(current_draft_record, current_point_name):
     return (*current_point_record['position'], current_point_record['method'], current_point_record['evidence'])
 
 
+def update_candidate_save_readiness(current_draft_record):
+    return gr.update(interactive=current_draft_record is not None and bool(current_draft_record['points']))
+
+
+def update_candidate_action_readiness(current_draft_record, current_point_name):
+    current_source_loaded = current_draft_record is not None
+    current_point_exists = current_source_loaded and current_point_name in current_draft_record['points']
+    return (gr.update(interactive=current_source_loaded),
+            gr.update(interactive=current_point_exists),
+            gr.update(interactive=current_point_exists))
+
+
 def save_candidate_record(current_draft_record):
+    if current_draft_record is None:
+        raise gr.Error('원본을 불러온 뒤 후보를 저장하세요.')
+    if not current_draft_record['points']:
+        raise gr.Error('최소 한 개 기준점을 후보에 반영한 뒤 저장하세요.')
     current_result_record = execute_landmark_request('save', current_draft_record)
     return '후보 저장 완료 · 리타기팅 미적용 · ' + current_result_record['id']
 
@@ -99,11 +118,13 @@ def build_landmark_interface():
                     current_z_input = gr.Number(label='Z · m', value=0)
                 current_method_input = gr.Dropdown(['manual_xyz', 'surface_pick'], value='manual_xyz', label='지정 방식 · 좌표를 편집하면 manual_xyz 선택')
                 current_pick_button = gr.Button('선택 좌표 읽기')
-                current_read_button = gr.Button('현재 후보 좌표·근거 읽기')
+                current_read_button = gr.Button('현재 후보 좌표·근거 읽기', interactive=False)
                 current_evidence_input = gr.Textbox(label='지정 근거 · 해부학 자료/관찰 방법/불확실성', lines=3)
-                current_apply_button = gr.Button('후보에 반영 · 선택 기준점 갱신')
-                current_remove_button = gr.Button('선택 기준점 후보 삭제')
-                current_save_button = gr.Button('새 후보 기록 저장')
+                current_apply_button = gr.Button('후보에 반영 · 선택 기준점 갱신', interactive=False)
+                current_remove_button = gr.Button('선택 기준점 후보 삭제', interactive=False)
+                gr.Markdown('후보 반영은 원본 로딩 후 가능합니다. 좌표·근거 읽기와 삭제는 먼저 선택 기준점을 후보에 반영하거나 저장 이력을 불러오세요.')
+                current_save_button = gr.Button('새 후보 기록 저장', interactive=False)
+                gr.Markdown('원본을 불러오고 기준점 1개 이상을 후보에 반영하면 저장할 수 있습니다. 로딩 오류가 있으면 연결과 원본 상태를 확인하고 다시 여세요.')
                 current_save_feedback = gr.Textbox(label='저장·조작 결과', interactive=False)
             with gr.Column():
                 gr.HTML(LANDMARK_CANVAS_MARKUP)
@@ -125,6 +146,10 @@ def build_landmark_interface():
         current_apply_button.click(update_candidate_point, [current_draft_state, current_point_input, current_x_input, current_y_input, current_z_input, current_method_input, current_evidence_input], current_review_outputs)
         current_read_button.click(read_candidate_point, [current_draft_state, current_point_input], [current_x_input, current_y_input, current_z_input, current_method_input, current_evidence_input])
         current_remove_button.click(remove_candidate_point, [current_draft_state, current_point_input], current_review_outputs)
+        current_action_outputs = [current_apply_button, current_read_button, current_remove_button]
+        current_draft_state.change(update_candidate_action_readiness, [current_draft_state, current_point_input], current_action_outputs, queue=False)
+        current_point_input.change(update_candidate_action_readiness, [current_draft_state, current_point_input], current_action_outputs, queue=False)
+        current_draft_state.change(update_candidate_save_readiness, current_draft_state, current_save_button, queue=False)
         current_save_button.click(save_candidate_record, current_draft_state, current_save_feedback)
         current_history_button.click(lambda: gr.update(choices=execute_landmark_request('history', {})['records']), outputs=current_history_input)
         current_confirmation_outputs = [current_replace_input, current_confirmed_state, current_load_button, current_load_guidance]

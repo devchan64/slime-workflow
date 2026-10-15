@@ -11,6 +11,8 @@ class QwenCircularGenerationManager(QwenPlainGenerationManager):
         self.job_storage_root = WORKFLOW_ROOT_PATH / '.tmp/test/qwen-image-21-circular'
 
     def validate_generation_request(self, request_record_value):
+        if not isinstance(request_record_value, dict):
+            raise ValueError('순환 생성 요청은 객체여야 합니다.')
         soft_shading_enabled = request_record_value.get('soft_shading', False)
         if type(soft_shading_enabled) is not bool:
             raise ValueError('부드러운 음영 옵션은 ON/OFF 값이어야 합니다.')
@@ -18,6 +20,8 @@ class QwenCircularGenerationManager(QwenPlainGenerationManager):
         if type(pattern_view_enabled) is not bool:
             raise ValueError('패턴 시점 옵션은 ON/OFF 값이어야 합니다.')
         user_prompt_text = request_record_value.get('prompt', '')
+        if not isinstance(user_prompt_text, str):
+            raise ValueError('순환 생성 프롬프트는 문자열이어야 합니다.')
         prepared_request_record = {current_field_name: current_field_value for current_field_name, current_field_value in request_record_value.items() if current_field_name not in ('circular_radius', 'soft_shading', 'pattern_view', 'baseline_decode')}
         prepared_request_record['prompt'] = ' '.join(current_prompt_part for current_prompt_part in (user_prompt_text.strip(), CIRCULAR_PATTERN_VIEW_PROMPT if pattern_view_enabled else '', CIRCULAR_SOFT_SHADING_PROMPT if soft_shading_enabled else '') if current_prompt_part)
         validated_request_record = super().validate_generation_request(prepared_request_record)

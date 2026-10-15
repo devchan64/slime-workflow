@@ -10,6 +10,17 @@ from tools.review.ui.gradio.static_review_app import build_static_review_interfa
 
 
 class StaticReviewGradioTest(unittest.TestCase):
+    def test_invalid_static_manifest_fails_before_mapping(self):
+        current_page_record={'id':'walk-review','path':'animation/anchors.html','uiMode':'gradio-static'}
+        for current_source_record in ([], {'pages':{}}, {'pages':[None]}, {'pages':[current_page_record,current_page_record]}, {'pages':[{**current_page_record,'path':'animation/image.png'}]}):
+            with self.subTest(source=current_source_record), tempfile.TemporaryDirectory() as current_directory_name:
+                current_source_path=Path(current_directory_name)/'manager-source.json'
+                current_source_path.write_text(json.dumps(current_source_record))
+                with self.assertRaises(ValueError):
+                    load_static_review_paths(current_source_path)
+                with self.assertRaises(ValueError):
+                    load_static_review_route_identifiers(current_source_path)
+
     def test_loads_only_declared_static_review_paths(self):
         with tempfile.TemporaryDirectory() as temporary_directory_name:
             source_file_path=Path(temporary_directory_name)/'manager-source.json'
@@ -47,6 +58,23 @@ class StaticReviewGradioTest(unittest.TestCase):
             static_review_routes=load_static_review_route_identifiers(source_file_path)
 
         self.assertEqual(static_review_routes,{'/animation/anchors.html':'walk-review'})
+
+    def test_unknown_static_identifier_finishes_loading(self):
+        current_loader_text=create_static_review_loader(8770,{'walk-review':'animation/anchors.html'})
+        current_interface_blocks=build_static_review_interface({'walk-review':'animation/anchors.html'})
+        current_visibility_scripts=[current_event_record['js'] for current_event_record in current_interface_blocks.get_config_file()['dependencies'] if 'const currentReviewPaths=' in (current_event_record.get('js') or '')]
+        for current_visibility_script in current_visibility_scripts:
+            current_visibility_result=subprocess.run(['node','-e',"global.location={search:'?review=toString'};const assert=require('node:assert/strict');assert.equal(("+current_visibility_script+")().visible,false);"],capture_output=True,text=True)
+            self.assertEqual(current_visibility_result.returncode,0,current_visibility_result.stderr)
+        current_script_text="""
+const assert=require('node:assert/strict');
+const currentRootRecord={dataset:{},attributes:{'aria-busy':'true'},setAttribute(name,value){this.attributes[name]=value;},innerHTML:''};
+global.document={querySelector:()=>currentRootRecord};
+global.window={location:{search:'?review=toString'}};
+(async()=>{await ("""+current_loader_text+""")();assert.equal(currentRootRecord.attributes['aria-busy'],'false');assert.match(currentRootRecord.innerHTML,/표시할 정적 검수 페이지/);})().catch(error=>{console.error(error);process.exitCode=1;});
+"""
+        current_node_result=subprocess.run(['node','-e',current_script_text],capture_output=True,text=True)
+        self.assertEqual(current_node_result.returncode,0,current_node_result.stderr)
 
     def test_component_uses_allowlisted_page_and_isolates_game_design(self):
         loader_script_value=create_static_review_loader(8770,{'walk-review':'animation/anchors.html'})

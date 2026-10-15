@@ -62,3 +62,13 @@ class HistoryInputViewTests(unittest.TestCase):
         current_history_record['request']['qwen21'] = {'user_prompt': 'figure', 'additional_prompt': ''}
         current_history_record['request']['prompt'] = 'figure'
         self.assertIn('저장 추가 문구 0단어', describe_saved_prompt_counts(current_history_record))
+
+    def test_circular_history_preserves_original_and_final_counts(self):
+        from tools.review.domains.image.qwen_circular_generation import QwenCircularGenerationManager
+        current_request_record = QwenCircularGenerationManager().validate_generation_request({'action': 'generate', 'images': [], 'prompt': 'grass', 'width': 512, 'height': 512, 'steps': 40, 'seed': 42, 'soft_shading': True, 'pattern_view': True})
+        current_history_record = {'request': current_request_record}
+        self.assertEqual(describe_saved_prompt_counts(current_history_record), '저장 원문 1단어 · 저장 최종 입력 10단어')
+        self.assertEqual(collect_saved_input_view(current_history_record)[0], current_request_record['prompt'])
+        current_request_record['user_prompt'] = ''
+        current_request_record['prompt'] = 'historical saved pattern'
+        self.assertEqual(describe_saved_prompt_counts(current_history_record), '저장 원문 0단어 · 저장 최종 입력 3단어')

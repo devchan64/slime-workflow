@@ -18,17 +18,7 @@ from tools.review.common.gradio_browser_controls import build_browser_action_but
 from tools.review.common.gradio_browser_history import build_browser_history_controls
 
 
-def load_static_review_paths(source_file_path):
-    source_record_values=json.loads(Path(source_file_path).read_text())
-    static_review_paths={}
-    for current_page_record in source_record_values.get('pages',[]):
-        if current_page_record.get('uiMode')!='gradio-static':continue
-        current_identifier_value=current_page_record.get('id')
-        current_path_value=current_page_record.get('path')
-        if not isinstance(current_identifier_value,str) or not current_identifier_value or not isinstance(current_path_value,str) or not current_path_value:
-            raise ValueError('정적 검수 페이지 항목 형식 오류')
-        static_review_paths[current_identifier_value]=current_path_value
-    return static_review_paths
+from tools.review.common.static_review_registry import load_static_review_paths
 
 
 def collect_anchor_review_paths(static_review_paths, current_anchor_paths=None):
@@ -53,8 +43,8 @@ staticReviewRoot.dataset.staticReviewLoaded='true';
 const staticReviewPaths={serialized_paths};
 const reviewServerBase={review_server_base};
 const reviewIdentifier=new URLSearchParams(window.location.search).get('review');
-const selectedReviewPath=staticReviewPaths[reviewIdentifier];
-if(!selectedReviewPath){{staticReviewRoot.innerHTML='<p class="static-review-error" role="alert">표시할 정적 검수 페이지를 찾을 수 없습니다.</p>';return;}}
+const selectedReviewPath=Object.hasOwn(staticReviewPaths,reviewIdentifier)?staticReviewPaths[reviewIdentifier]:null;
+if(!selectedReviewPath){{staticReviewRoot.innerHTML='<p class="static-review-error" role="alert">표시할 정적 검수 페이지를 찾을 수 없습니다.</p>';staticReviewRoot.setAttribute('aria-busy','false');return;}}
 const staticReviewPageLocation=new URL(selectedReviewPath,reviewServerBase);
 staticReviewPageLocation.searchParams.set('embedded','gradio-static');
 const currentSelectedAction=new URLSearchParams(window.location.search).get('action');
@@ -85,7 +75,7 @@ def build_static_review_interface(static_review_paths, current_anchor_paths=None
             current_battlefield_choice.input(fn=None,inputs=current_battlefield_choice,outputs=[current_battlefield_choice,current_battlefield_status],queue=False,js="currentSelectedField=>{try{return window.battlefieldReviewControls(currentSelectedField);}catch(currentErrorValue){return [{__type__:'update'},currentErrorValue.message];}}")
         current_battlefield_timer=gr.Timer(1)
         current_battlefield_timer.tick(fn=None,outputs=[current_battlefield_choice,current_battlefield_status],queue=False,show_progress='hidden',js="()=>{if(typeof window.battlefieldReviewControls!=='function')return [{__type__:'update'},{__type__:'update'}];try{const currentResultValues=window.battlefieldReviewControls(null);const currentChoiceSignature=JSON.stringify(currentResultValues[0]);if(window.battlefieldChoiceSignature===currentChoiceSignature)currentResultValues[0]={__type__:'update'};else window.battlefieldChoiceSignature=currentChoiceSignature;return currentResultValues;}catch(currentErrorValue){return [{__type__:'update'},currentErrorValue.message];}}")
-        interface_blocks_value.load(fn=None,outputs=current_battlefield_controls,queue=False,js="()=>{const currentReviewPaths="+json.dumps(static_review_paths,ensure_ascii=False)+";return {__type__:'update',visible:(currentReviewPaths[new URLSearchParams(location.search).get('review')]||'').split('?')[0].endsWith('battlefield-preview.html')};}")
+        interface_blocks_value.load(fn=None,outputs=current_battlefield_controls,queue=False,js="()=>{const currentReviewPaths="+json.dumps(static_review_paths,ensure_ascii=False)+";return {__type__:'update',visible:(Object.hasOwn(currentReviewPaths,new URLSearchParams(location.search).get('review'))?currentReviewPaths[new URLSearchParams(location.search).get('review')]:'').split('?')[0].endsWith('battlefield-preview.html')};}")
         with gr.Row():
             with gr.Column(visible=False,scale=1) as current_anchor_controls:
                 gr.Markdown('프레임별 기준점을 원본 픽셀 단위로 조정합니다. 정지 상태에서 미리보기를 클릭하거나 조이패드를 사용하세요. 원점은 셀 왼쪽 위이며 오른쪽은 +X, 아래는 +Y입니다. 최종 앵커 이동 시 두 발 좌표도 함께 이동합니다.')
@@ -153,9 +143,9 @@ def build_static_review_interface(static_review_paths, current_anchor_paths=None
         with gr.Column(visible=False) as current_anchor_history:
             build_browser_history_controls('anchorReviewHistory','anchor-standard-history',current_supported_actions=('list','result','restore','reset'), current_reset_target_handler='anchorReviewResetTarget')
 
-        interface_blocks_value.load(fn=None,outputs=current_anchor_controls,queue=False,js="()=>{const currentReviewPaths="+current_review_paths_json+";const currentReviewId=new URLSearchParams(location.search).get('review');return {__type__:'update',visible:"+current_anchor_paths_json+".includes((currentReviewPaths[currentReviewId]||'').split('?')[0])};}")
-        interface_blocks_value.load(fn=None,outputs=current_anchor_history,queue=False,js="()=>{const currentReviewPaths="+current_review_paths_json+";const currentReviewId=new URLSearchParams(location.search).get('review');return {__type__:'update',visible:"+current_anchor_paths_json+".includes((currentReviewPaths[currentReviewId]||'').split('?')[0])};}")
-        interface_blocks_value.load(fn=None,outputs=current_anchor_legend,queue=False,js="()=>{const currentReviewPaths="+current_review_paths_json+";const currentReviewId=new URLSearchParams(location.search).get('review');return {__type__:'update',visible:"+current_anchor_paths_json+".includes((currentReviewPaths[currentReviewId]||'').split('?')[0])};}")
+        interface_blocks_value.load(fn=None,outputs=current_anchor_controls,queue=False,js="()=>{const currentReviewPaths="+current_review_paths_json+";const currentReviewId=new URLSearchParams(location.search).get('review');return {__type__:'update',visible:"+current_anchor_paths_json+".includes((Object.hasOwn(currentReviewPaths,currentReviewId)?currentReviewPaths[currentReviewId]:'').split('?')[0])};}")
+        interface_blocks_value.load(fn=None,outputs=current_anchor_history,queue=False,js="()=>{const currentReviewPaths="+current_review_paths_json+";const currentReviewId=new URLSearchParams(location.search).get('review');return {__type__:'update',visible:"+current_anchor_paths_json+".includes((Object.hasOwn(currentReviewPaths,currentReviewId)?currentReviewPaths[currentReviewId]:'').split('?')[0])};}")
+        interface_blocks_value.load(fn=None,outputs=current_anchor_legend,queue=False,js="()=>{const currentReviewPaths="+current_review_paths_json+";const currentReviewId=new URLSearchParams(location.search).get('review');return {__type__:'update',visible:"+current_anchor_paths_json+".includes((Object.hasOwn(currentReviewPaths,currentReviewId)?currentReviewPaths[currentReviewId]:'').split('?')[0])};}")
     return interface_blocks_value
 
 

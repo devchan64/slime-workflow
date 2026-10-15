@@ -293,7 +293,7 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
             build_button_guidance(generation_button_value, '프롬프트를 입력하거나 추가 문구 옵션을 선택하세요. 옵션을 포함한 최종 입력은 1~99단어여야 하며, 확인 중에는 추가 접수할 수 없습니다.')
         with gr.Column() as generation_confirmation_container:
             pass
-        status_value=gr.Markdown('참조 이미지와 설정을 확인하세요.' if pose_transfer_enabled else '프롬프트와 옵션을 확인하세요.' if plain_options_enabled else '생성 가능 · 설정을 확인하세요.')
+        status_value=gr.Markdown('참조 이미지와 설정을 확인하세요.' if pose_transfer_enabled else '프롬프트와 옵션을 확인하세요.' if plain_options_enabled or circular_mode_enabled else '생성 가능 · 설정을 확인하세요.')
         gr.Markdown('실행 중인 작업은 아래 생성 이력에서 선택한 뒤 **작업 중지**를 사용하세요.')
         identifier_value=build_generation_identifier()
         preview_value=build_generation_gallery()

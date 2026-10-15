@@ -146,3 +146,14 @@ class CircularGenerationTests(unittest.TestCase):
             self.assertEqual(current_output_values['circular_vae']['baseline_decode'],baseline_decode_enabled)
         with self.assertRaises(ValueError):
             current_service_manager.validate_generation_request({**current_request_values,'baseline_decode':'false'})
+
+    def test_invalid_request_types_fail_explicitly(self):
+        current_service_manager = QwenCircularGenerationManager()
+        for current_invalid_request in (None, [], 'request', 1):
+            with self.subTest(request=current_invalid_request):
+                with self.assertRaisesRegex(ValueError, '요청은 객체'):
+                    current_service_manager.validate_generation_request(current_invalid_request)
+        for current_invalid_prompt in (None, [], {}, 1, True):
+            with self.subTest(prompt=current_invalid_prompt):
+                with self.assertRaisesRegex(ValueError, '프롬프트는 문자열'):
+                    current_service_manager.validate_generation_request({'prompt': current_invalid_prompt})

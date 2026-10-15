@@ -97,6 +97,22 @@ class GatewayContractTest(unittest.TestCase):
             self.assertTrue(current_job_path.exists())
             self.assertIn('폐기',json.loads(current_request_value.wfile.getvalue())['error'])
 
+    def test_circular_invalid_prompt_returns_client_error_without_launch(self):
+        from unittest.mock import patch
+        from tools.review.domains.image.qwen_circular_generation import QwenCircularGenerationManager
+        current_service_manager = QwenCircularGenerationManager()
+        current_gateway_value = ManagementCommandGateway({'qwen-21-circular': current_service_manager.handle_image_request})
+        with patch.object(current_service_manager, 'validate_generation_runtime', side_effect=AssertionError('잘못된 입력이 실행 단계에 도달함')) as current_runtime_mock:
+            for current_invalid_prompt in (None, 1, [], {}):
+                for current_request_path in ('/management/command', '/image-generation-21-circular/jobs'):
+                    current_payload_record = {'action': 'generate', 'prompt': current_invalid_prompt, 'images': [], 'steps': 40, 'width': 512, 'height': 512, 'seed': 42}
+                    current_request_body = {'service': 'qwen-21-circular', 'command': 'generate', 'payload': current_payload_record} if current_request_path == '/management/command' else current_payload_record
+                    current_request_handler = self.create_request_handler(current_request_path, current_request_body)
+                    current_gateway_value.handle(current_request_handler)
+                    self.assertEqual(current_request_handler.responses, [400])
+                    self.assertIn('프롬프트는 문자열', json.loads(current_request_handler.wfile.getvalue())['error'])
+            current_runtime_mock.assert_not_called()
+
     def test_invalid_origin_does_not_dispatch(self):
         gateway=ManagementCommandGateway({})
         handler=self.create_request_handler('/management/command',{'service':'momask','command':'history','payload':{}},'http://evil.example')
