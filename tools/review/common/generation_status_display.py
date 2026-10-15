@@ -3,10 +3,11 @@ from tools.review.common.gradio_history import format_generation_status
 from tools.review.common.generation_progress_display import render_generation_estimate
 
 
-def describe_generation_status(current_status_record):
+def describe_generation_status(current_status_record, include_generation_estimate=True):
     current_status_name = current_status_record['status']
     current_status_text = '상태: ' + format_generation_status(current_status_record)
-    current_status_text += '\n\n' + render_generation_estimate(current_status_record.get('estimate') or {}, current_status_name)
+    if include_generation_estimate:
+        current_status_text += '\n\n' + render_generation_estimate(current_status_record.get('estimate') or {}, current_status_name)
     current_metrics_record = current_status_record.get('metrics') or {}
     current_progress_record = current_status_record.get('progress') or {}
     current_stage_label = current_metrics_record.get('stage') or current_progress_record.get('stage') or current_status_record.get('stage')

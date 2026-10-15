@@ -221,7 +221,7 @@ def render_history_selection_table(current_history_records,current_selected_iden
         elif isinstance(current_history_record.get('status'),dict) and current_history_record['status'].get('audio'):
             current_thumbnail_markup='<span class="generation-history-table-thumbnail" aria-label="WAV 오디오 결과">WAV</span>'
         else:
-            current_thumbnail_markup='<span class="generation-history-table-thumbnail is-empty" aria-label="결과 없음">결과 없음</span>'
+            current_thumbnail_markup='<span class="generation-history-table-thumbnail is-empty" aria-label="썸네일 없음">썸네일 없음</span>'
         current_cell_markup=''.join('<td>'+html.escape(str(current_cell_value))+'</td>' for current_cell_value in current_table_row[:-1])
         current_identifier_markup = html.escape(current_job_identifier)
         current_copy_markup = '<button type="button" data-history-copy-id="'+html.escape(current_job_identifier,quote=True)+'" aria-label="'+html.escape(current_job_identifier+' ID 복사',quote=True)+'">ID 복사</button><span role="status" aria-live="polite" data-history-copy-status></span>'

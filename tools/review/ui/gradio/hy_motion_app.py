@@ -1,4 +1,4 @@
-"""MoMask 구성과 공용 이력·재생기를 사용하는 HY-Motion GUI 클라이언트."""
+"""공용 이력·재생기를 사용하는 HY-Motion GUI 클라이언트."""
 import argparse
 import json
 import os
@@ -16,6 +16,7 @@ from tools.review.common.generation_cleanup import GENERATION_CLEANUP_SCOPE_TEXT
 from tools.review.common.management_client import execute_remote_management_command as execute_management_command
 from tools.review.common.gradio_frame_player import build_browser_frame_player
 from tools.review.common.generation_progress_display import render_generation_estimate
+from tools.review.common.generation_status_display import describe_generation_status
 from tools.review.common.gradio_history import build_generation_history_view
 from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_confirmation
 from tools.review.common.gradio_seed import build_generation_seed
@@ -113,6 +114,20 @@ def apply_motion_preset(current_preset_name):
     return current_preset_record['prompt'], current_preset_record['duration_seconds']
 
 
+
+def refresh_current_progress(generation_job_identifier):
+    if not generation_job_identifier:
+        return gr.skip(), gr.skip()
+    current_status_record = execute_motion_command('status', {'id': generation_job_identifier})
+    current_status_text = describe_generation_status(current_status_record, include_generation_estimate=False)
+    current_quality_warnings = (current_status_record.get('result') or {}).get('quality_warnings', [])
+    if current_quality_warnings:
+        current_status_text += '\n\n품질 경고: ' + '; '.join(current_quality_warnings)
+    current_eta_record = current_status_record['eta']
+    current_eta_text = render_generation_estimate(current_eta_record, current_status_record['status'])
+    return current_status_text, current_eta_text
+
+
 def build_hymotion_interface(server_base_address):
     current_default_values = load_generation_defaults()
     current_preset_records = load_motion_presets()
@@ -167,17 +182,6 @@ def build_hymotion_interface(server_base_address):
             current_input_component.change(refresh_generation_readiness, current_input_components, [current_model_status, current_generate_button], queue=False)
         current_interface_blocks.load(refresh_generation_readiness, current_input_components, [current_model_status, current_generate_button])
 
-        def refresh_current_progress(generation_job_identifier):
-            if not generation_job_identifier:
-                return gr.skip(), gr.skip()
-            current_status_record = execute_motion_command('status', {'id': generation_job_identifier})
-            current_status_text = current_status_record['status'] + ' · ' + current_status_record.get('message', current_status_record.get('error', ''))
-            current_quality_warnings = (current_status_record.get('result') or {}).get('quality_warnings', [])
-            if current_quality_warnings:
-                current_status_text += '\n\n품질 경고: ' + '; '.join(current_quality_warnings)
-            current_eta_record = current_status_record['eta']
-            current_eta_text = render_generation_estimate(current_eta_record, current_status_record['status'])
-            return current_status_text, current_eta_text
 
         gr.Timer(2).tick(refresh_current_progress, current_identifier_view, [current_status_view, current_eta_view], show_progress='hidden')
         current_read_history, current_history_outputs = build_generation_history_view(execute_motion_command, server_base_address, GENERATION_CLEANUP_SCOPE_TEXT, restore_input_callback=restore_motion_inputs, restore_output_components=current_input_components, result_renderer_callback=render_motion_result, result_component_factory=build_browser_frame_player, record_folder_route='/hy-motion-generator', allow_individual_delete=True, individual_delete_scope_text=GENERATION_CLEANUP_SCOPE_TEXT)

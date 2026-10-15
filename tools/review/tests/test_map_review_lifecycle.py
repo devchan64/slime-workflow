@@ -23,7 +23,7 @@ const Phaser={WEBGL:1,Scale:{NONE:0},Game:class{
 const collectTerrainTextureSources=()=>({});
 const createTerrainAtlas=()=>{if(currentFailAtlas)throw Error('atlas failure');};
 ADAPTER_SOURCE
-const currentCanvasElement={clientWidth:100,clientHeight:100,style:{}};
+const currentCanvasElement={clientWidth:100,clientHeight:100,parentElement:{getBoundingClientRect:()=>({width:100,height:100})},style:{}};
 const currentCharacterRecord={frame:{rect:{x:0,y:0,width:1,height:1}}};
 const createTestReview=()=>createSharedFieldReview(currentCanvasElement,{}, {},currentCharacterRecord,{}, {},{});
 (async()=>{
@@ -71,5 +71,59 @@ async function verifyTextureProgress(currentFailRequested){
 }
 (async()=>{await verifyTextureProgress(false);await verifyTextureProgress(true);})().catch(error=>{console.error(error);process.exitCode=1;});
 """.replace('SOURCE',json.dumps(current_loader_source))
+        current_test_result=subprocess.run(['node','-e',current_script_source],capture_output=True,text=True,timeout=10)
+        self.assertEqual(current_test_result.returncode,0,current_test_result.stderr)
+
+    def test_resize_uses_parent_bounds_and_rejects_zero_area(self):
+        current_adapter_source=(Path(__file__).parents[1]/'ui/map/field-map-view.js').read_text()
+        current_resize_source=current_adapter_source.split('function readReviewViewportSize',1)[1].split('/** 화면 컨트롤',1)[0]
+        current_script_source=r"""
+const assert=require('node:assert/strict');
+const GAME_INTERNAL_RESOLUTION_SCALE=2;
+SOURCE
+let currentParentBounds={width:859,height:644.25};
+const currentCanvasElement={clientWidth:287,clientHeight:0,style:{},parentElement:{getBoundingClientRect:()=>currentParentBounds}};
+let currentResizeCalls=0;
+const currentFieldGame={scale:{width:574,height:0,resize(width,height){currentResizeCalls++;this.width=width;this.height=height;currentCanvasElement.style.height='0px';}}};
+resizeReviewViewport(currentFieldGame,currentCanvasElement);
+assert.equal(currentFieldGame.scale.width,1718);
+assert.equal(currentFieldGame.scale.height,1289);
+assert.equal(currentCanvasElement.style.height,'100%');
+resizeReviewViewport(currentFieldGame,currentCanvasElement);
+assert.equal(currentResizeCalls,1);
+currentParentBounds={width:390,height:292.5};
+resizeReviewViewport(currentFieldGame,currentCanvasElement);
+assert.equal(currentFieldGame.scale.height,585);
+currentParentBounds={width:390,height:0};
+assert.throws(()=>resizeReviewViewport(currentFieldGame,currentCanvasElement),/크기가 유효하지/);
+assert.equal(currentResizeCalls,2);
+""".replace('SOURCE','function readReviewViewportSize'+current_resize_source)
+        current_test_result=subprocess.run(['node','-e',current_script_source],capture_output=True,text=True,timeout=10)
+        self.assertEqual(current_test_result.returncode,0,current_test_result.stderr)
+
+    def test_container_resize_batches_frames_and_cleans_up(self):
+        current_adapter_source=(Path(__file__).parents[1]/'ui/map/block-map-review.js').read_text()
+        current_observer_source=current_adapter_source.split('let currentResizeFrameRequest=',1)[1].split('currentMapCanvas.onclick=',1)[0]
+        current_script_source=r"""
+const assert=require('node:assert/strict');
+let currentResizeCallback,currentFrameCallback,currentExitCallback,currentRenderCount=0,currentCancelCount=0,currentDisconnectCount=0;
+let currentViewportBounds={width:800,height:600},currentRenderFailure=false;
+const currentStatusElement={textContent:''};
+const currentMapCanvas={parentElement:{getBoundingClientRect:()=>currentViewportBounds}};
+const document={querySelector:()=>currentStatusElement};
+const window={addEventListener:(name,callback)=>{assert.equal(name,'pagehide');currentExitCallback=callback;}};
+const requestAnimationFrame=callback=>{currentFrameCallback=callback;return 1;};
+const cancelAnimationFrame=()=>currentCancelCount++;
+class ResizeObserver{constructor(callback){currentResizeCallback=callback;}observe(element){assert.equal(element,currentMapCanvas.parentElement);}disconnect(){currentDisconnectCount++;}}
+function renderBlockMap(){if(currentRenderFailure)throw Error('GPU failure');currentRenderCount++;}
+SOURCE
+currentResizeCallback();const currentFirstCallback=currentFrameCallback;currentResizeCallback();
+assert.equal(currentFrameCallback,currentFirstCallback);currentFrameCallback();assert.equal(currentRenderCount,1);
+currentViewportBounds={width:0,height:0};currentResizeCallback();currentFrameCallback();assert.equal(currentRenderCount,1);
+currentViewportBounds={width:400,height:300};currentResizeCallback();currentFrameCallback();assert.equal(currentRenderCount,2);
+currentRenderFailure=true;currentResizeCallback();currentFrameCallback();assert.match(currentStatusElement.textContent,/맵 크기 변경 실패: GPU failure/);
+currentResizeCallback();currentExitCallback();assert.equal(currentCancelCount,1);assert.equal(currentDisconnectCount,1);
+currentFrameCallback=null;currentResizeCallback();assert.equal(currentFrameCallback,null);
+""".replace('SOURCE','let currentResizeFrameRequest='+current_observer_source)
         current_test_result=subprocess.run(['node','-e',current_script_source],capture_output=True,text=True,timeout=10)
         self.assertEqual(current_test_result.returncode,0,current_test_result.stderr)

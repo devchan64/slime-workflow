@@ -26,6 +26,19 @@ function readReviewConnectionMask(currentCellPosition,currentMapRecord,currentTe
  return currentConnectionMask;
 }
 
+function readReviewViewportSize(currentMapCanvas){
+ const currentViewportBounds=currentMapCanvas.parentElement.getBoundingClientRect();
+ const currentPixelWidth=Math.round(currentViewportBounds.width*GAME_INTERNAL_RESOLUTION_SCALE);
+ const currentPixelHeight=Math.round(currentViewportBounds.height*GAME_INTERNAL_RESOLUTION_SCALE);
+ if(!Number.isFinite(currentPixelWidth)||!Number.isFinite(currentPixelHeight)||currentPixelWidth<=0||currentPixelHeight<=0)throw Error('맵 표시 영역 크기가 유효하지 않습니다. 화면을 펼친 뒤 새로고침하세요.');
+ return {width:currentPixelWidth,height:currentPixelHeight};
+}
+function resizeReviewViewport(currentFieldGame,currentMapCanvas){
+ const currentViewportSize=readReviewViewportSize(currentMapCanvas);
+ if(currentFieldGame.scale.width!==currentViewportSize.width||currentFieldGame.scale.height!==currentViewportSize.height)currentFieldGame.scale.resize(currentViewportSize.width,currentViewportSize.height);
+ currentMapCanvas.style.width='100%';currentMapCanvas.style.height='100%';
+}
+
 /** 화면 컨트롤·에셋 로딩은 어댑터, 면·UV·탑·오러 그리기는 공용 라이브러리가 소유한다. */
 export async function createSharedFieldReview(currentMapCanvas,currentTextureImages,currentCharacterImage,currentCharacterRecord,currentGuardImages,currentSafeImages,currentTextureRecords=null){
  let currentFieldScene;
@@ -33,7 +46,8 @@ export async function createSharedFieldReview(currentMapCanvas,currentTextureIma
  let currentRejectReady;
  let currentReviewDisposed=false;
  const currentReadyPromise=new Promise((currentResolveValue,currentRejectValue)=>{currentResolveReady=currentResolveValue;currentRejectReady=currentRejectValue;});
- const currentFieldGame=new Phaser.Game({type:Phaser.WEBGL,canvas:currentMapCanvas,width:currentMapCanvas.clientWidth*GAME_INTERNAL_RESOLUTION_SCALE,height:currentMapCanvas.clientHeight*GAME_INTERNAL_RESOLUTION_SCALE,scale:{mode:Phaser.Scale.NONE,zoom:1/GAME_INTERNAL_RESOLUTION_SCALE},render:{antialias:true,pixelArt:false,roundPixels:false},transparent:true,banner:false,audio:{noAudio:true},input:{mouse:false,touch:false,keyboard:false},scene:{create(){currentFieldScene=this;currentResolveReady();}}});
+ const currentInitialSize=readReviewViewportSize(currentMapCanvas);
+ const currentFieldGame=new Phaser.Game({type:Phaser.WEBGL,canvas:currentMapCanvas,width:currentInitialSize.width,height:currentInitialSize.height,scale:{mode:Phaser.Scale.NONE,zoom:1/GAME_INTERNAL_RESOLUTION_SCALE},render:{antialias:true,pixelArt:false,roundPixels:false},transparent:true,banner:false,audio:{noAudio:true},input:{mouse:false,touch:false,keyboard:false},scene:{create(){currentFieldScene=this;currentResolveReady();}}});
  function disposeSharedFieldReview(){
   if(currentReviewDisposed)return;
   currentReviewDisposed=true;
@@ -45,7 +59,7 @@ export async function createSharedFieldReview(currentMapCanvas,currentTextureIma
  try{
  await currentReadyPromise;
  if(currentReviewDisposed)throw Error('맵 검수 화면이 닫혔습니다.');
- currentMapCanvas.style.width='100%';currentMapCanvas.style.height='';
+ currentMapCanvas.style.width='100%';currentMapCanvas.style.height='100%';
  for(const [currentTextureName,currentTextureImage] of Object.entries(currentTextureImages))currentFieldScene.textures.addImage(currentTextureName,currentTextureImage);
  for(const [currentGuardPath,currentGuardImage] of Object.entries(currentGuardImages))currentFieldScene.textures.addImage(currentGuardPath,currentGuardImage);
  for(const [currentSafeName,currentSafeImage] of Object.entries(currentSafeImages))currentFieldScene.textures.addImage('safe-'+currentSafeName,currentSafeImage);
@@ -80,14 +94,13 @@ export async function createSharedFieldReview(currentMapCanvas,currentTextureIma
   attachCharacterOutlineLayers(currentCharacterSprite);
  }
  function updateSharedReviewCamera(currentViewSettings){
-  const currentPixelWidth=currentMapCanvas.clientWidth*GAME_INTERNAL_RESOLUTION_SCALE,currentPixelHeight=currentMapCanvas.clientHeight*GAME_INTERNAL_RESOLUTION_SCALE;
-  if(currentFieldGame.scale.width!==currentPixelWidth||currentFieldGame.scale.height!==currentPixelHeight)currentFieldGame.scale.resize(currentPixelWidth,currentPixelHeight);
+  resizeReviewViewport(currentFieldGame,currentMapCanvas);
   currentFieldScene.cameras.main.setOrigin(0,0).setZoom(currentViewSettings.scale*GAME_INTERNAL_RESOLUTION_SCALE).setScroll(-currentViewSettings.offsetX/currentViewSettings.scale,-currentViewSettings.offsetY/currentViewSettings.scale);
  }
 
  return {
   render(currentFieldFrame,currentMapRecord,currentViewSettings){
-   if(currentFieldGame.scale.width!==currentMapCanvas.clientWidth*GAME_INTERNAL_RESOLUTION_SCALE||currentFieldGame.scale.height!==currentMapCanvas.clientHeight*GAME_INTERNAL_RESOLUTION_SCALE)currentFieldGame.scale.resize(currentMapCanvas.clientWidth*GAME_INTERNAL_RESOLUTION_SCALE,currentMapCanvas.clientHeight*GAME_INTERNAL_RESOLUTION_SCALE);
+   resizeReviewViewport(currentFieldGame,currentMapCanvas);
    const currentNextSignature=JSON.stringify([currentMapRecord.id,currentFieldFrame.options.rotation,currentViewSettings.edges,currentViewSettings.safe]);
    if(currentNextSignature!==currentRenderSignature){
     for(const currentRenderObject of [...currentFieldScene.children.list])if(currentRenderObject.scene)currentRenderObject.destroy();

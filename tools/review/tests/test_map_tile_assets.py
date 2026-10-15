@@ -88,3 +88,21 @@ class MapTileAssetTests(unittest.TestCase):
                 sprite_source_path.write_bytes(b'changed')
                 with self.assertRaisesRegex(ValueError,'해시 불일치'):
                     resolve_registered_sprite(sprite_relative_path)
+
+    def test_shared_sprite_catalog_preserves_file_validation(self):
+        with TemporaryDirectory() as current_temporary_directory:
+            current_repository_path = Path(current_temporary_directory)
+            current_relative_path = 'assets/sprites/structures/test.png'
+            current_sprite_path = current_repository_path / current_relative_path
+            current_sprite_path.parent.mkdir(parents=True)
+            current_sprite_path.write_bytes(b'original')
+            current_registry_record = {'managementId': 'sprite.test.structure', 'version': '1',
+                'path': current_relative_path, 'sha256': hashlib.sha256(b'original').hexdigest()}
+            current_source_catalog = (current_repository_path, {current_relative_path: current_registry_record})
+            with patch('tools.review.common.map_tile_assets.load_registered_tiles', side_effect=AssertionError('등록부 재조회')):
+                self.assertEqual(resolve_registered_sprite(current_relative_path, current_source_catalog)[0], current_sprite_path)
+                current_sprite_path.write_bytes(b'changed')
+                with self.assertRaisesRegex(ValueError, '해시 불일치'):
+                    resolve_registered_sprite(current_relative_path, current_source_catalog)
+                with self.assertRaisesRegex(ValueError, '경로 오류'):
+                    resolve_registered_sprite('assets/sprites/../../outside.png', current_source_catalog)

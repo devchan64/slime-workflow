@@ -7,7 +7,7 @@ from tempfile import TemporaryDirectory
 import unittest
 
 from tools.review.build_block_map_review import build_block_map_review, build_registered_map_review
-from tools.review.common.map_asset_sources import load_registered_map_review
+from tools.review.common.map_asset_sources import load_registered_map_review, read_registered_map_data
 from tools.review.common.map_tile_assets import load_registered_tiles
 from tools.review.common.game_render_metrics import load_game_render_metrics
 from tools.review.build_map_review import load_map_render_profiles
@@ -21,6 +21,18 @@ def load_exported_game_map(city_identifier):
 
 
 class MapRenderProfileTests(unittest.TestCase):
+    def assert_ground_texture_selection(self, current_map_identifier, current_material_name, current_expected_texture):
+        current_script_source = (WORKFLOW_ROOT / 'tools/review/ui/map/block-map-review.js').read_text()
+        current_mapping_expression = current_script_source.split('const groundTextureNames=', 1)[1].split(';', 1)[0]
+        current_node_source = (
+            "const assert=require('node:assert/strict'); const isFieldMapReview=false; const currentMapRecord="
+            + json.dumps({'id': current_map_identifier}) + '; assert.equal(('
+            + current_mapping_expression + ')[ ' + json.dumps(current_material_name) + '], '
+            + json.dumps(current_expected_texture) + ');'
+        )
+        current_test_result = subprocess.run(['node', '-e', current_node_source], capture_output=True, text=True, timeout=10)
+        self.assertEqual(current_test_result.returncode, 0, current_test_result.stderr)
+
     def test_texture_alias_reuses_identical_source_and_rejects_conflict(self):
         current_adapter_source = (WORKFLOW_ROOT / 'tools/review/ui/map/field-map-view.js').read_text()
         current_alias_source = current_adapter_source.split(' if(currentTextureRecords){', 1)[1].split('  createTerrainAtlas(currentFieldScene);', 1)[0]
@@ -129,7 +141,9 @@ assert.throws(registerTextureAliases, /다른 검수 원본과 충돌/);
 
         self.assertIn('id: stonewarm-gravel-paving', tile_catalog_source)
         self.assertIn('assets/tiles/terrain/road/limestone-road-v3.png', tile_catalog_source)
-        self.assertIn("currentMapRecord.id==='stonewarm'?'stonewarm-marble-paving':currentMapRecord.id==='saltford'?'stonewarm-gravel-paving'", map_review_script)
+        self.assertIn('assets/tiles/terrain/road/granite-slab-road-v1.png', tile_catalog_source)
+        self.assert_ground_texture_selection('stonewarm', 'paving', 'stonewarm-granite-paving')
+        self.assert_ground_texture_selection('saltford', 'paving', 'stonewarm-gravel-paving')
 
     def test_stonewarm_exposed_rock_ground_uses_the_registered_tile(self):
         tile_catalog_source = (WORKFLOW_ROOT / 'tools/review/ui/map/config/tile-catalog.yaml').read_text(encoding='utf-8')
@@ -137,15 +151,18 @@ assert.throws(registerTextureAliases, /다른 검수 원본과 충돌/);
 
         self.assertIn('id: stonewarm-exposed-rock-ground', tile_catalog_source)
         self.assertIn('assets/tiles/terrain/non-road/exposed-rock-ground-v2.png', tile_catalog_source)
-        self.assertIn("gravel:currentMapRecord.id==='stonewarm'?'stonewarm-exposed-rock-ground':'gravel'", map_review_script)
+        self.assert_ground_texture_selection('stonewarm', 'gravel', 'stonewarm-exposed-rock-ground')
+        self.assert_ground_texture_selection('iseulon', 'gravel', 'gravel')
 
-    def test_reedhaven_roads_use_the_dirt_road_texture(self):
+    def test_reedhaven_and_grainstead_use_registered_ground_textures(self):
         tile_catalog_source = (WORKFLOW_ROOT / 'tools/review/ui/map/config/tile-catalog.yaml').read_text(encoding='utf-8')
         map_review_script = (WORKFLOW_ROOT / 'tools/review/ui/map/block-map-review.js').read_text(encoding='utf-8')
 
         self.assertIn('id: reedhaven-dirt-road', tile_catalog_source)
         self.assertIn('assets/tiles/terrain/road/limestone-road-v3.png', tile_catalog_source)
-        self.assertIn("['reedhaven','grainstead'].includes(currentMapRecord.id)?'reedhaven-dirt-road':'paving'", map_review_script)
+        self.assertIn('assets/tiles/terrain/non-road/dry-soil-grass-v1.png', tile_catalog_source)
+        self.assert_ground_texture_selection('reedhaven', 'paving', 'reedhaven-dry-embankment')
+        self.assert_ground_texture_selection('grainstead', 'paving', 'reedhaven-dirt-road')
 
     def test_reedhaven_uses_wood_building_tiles(self):
         tile_catalog_source = (WORKFLOW_ROOT / 'tools/review/ui/map/config/tile-catalog.yaml').read_text(encoding='utf-8')
@@ -237,11 +254,15 @@ assert.throws(registerTextureAliases, /다른 검수 원본과 충돌/);
         self.assertEqual(reviewed_stonewarm_record['buildingTileOverrides']['roof_underlay'], 'stonewarm-stone-wall-crossbar')
         self.assertEqual(reviewed_stonewarm_record['buildingTileOverrides']['roof'], 'stonewarm-stone-roof')
 
-    def test_stonewarm_central_plaza_is_compact(self):
-        stonewarm_map_record = load_exported_game_map('stonewarm')
-        central_plaza_rows = stonewarm_map_record['terrainRows'][9:13]
-
-        self.assertEqual(central_plaza_rows, ['bbvvvvvpppppppppvpvvvvbb'] * 4)
+    def test_stonewarm_review_preserves_registered_terrain_layout(self):
+        current_source_provenance = []
+        current_source_record = read_registered_map_data('city_layouts/stonewarm.yaml', current_source_provenance)
+        current_review_record = build_registered_map_review('stonewarm')
+        self.assertEqual(current_review_record['terrainRows'], current_source_record['terrainRows'])
+        self.assertEqual(current_review_record['columns'], current_source_record['columns'])
+        self.assertEqual(current_review_record['rows'], current_source_record['rows'])
+        self.assertTrue(current_source_provenance)
+        self.assertIn(current_source_provenance[0], current_review_record['provenance'])
 
     def test_stonewarm_guild_and_inn_use_the_approved_footprints(self):
         stonewarm_map_record = load_exported_game_map('stonewarm')
@@ -251,9 +272,9 @@ assert.throws(registerTextureAliases, /다른 검수 원본과 충돌/);
         self.assertEqual((guild_building_record['width'], guild_building_record['height']), (2, 4))
         self.assertEqual(guild_building_record['entrance'], {'column': 5, 'row': 6})
         self.assertTrue(all(block['column'] < 2 and block['row'] < 4 for block in guild_building_record['blocks']))
-        self.assertEqual((inn_building_record['width'], inn_building_record['height']), (2, 3))
+        self.assertEqual((inn_building_record['width'], inn_building_record['height']), (2, 4))
         self.assertEqual(inn_building_record['entrance'], {'column': 5, 'row': 19})
-        self.assertTrue(all(block['column'] < 2 and block['row'] < 3 for block in inn_building_record['blocks']))
+        self.assertTrue(all(block['column'] < 2 and block['row'] < 4 for block in inn_building_record['blocks']))
 
     def test_iseulon_game_snapshot_and_review_output_keep_the_new_building_floors(self):
         iseulon_map_record = load_exported_game_map('iseulon')

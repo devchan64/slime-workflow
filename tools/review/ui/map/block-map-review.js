@@ -350,7 +350,27 @@ if(currentBuildingSelector){
  currentMapRecord.buildings.forEach(currentBuilding=>currentBuildingSelector.append(new Option(currentBuilding.name,currentBuilding.id)));
  currentBuildingSelector.onchange=currentEvent=>{if(currentEvent.target.value)focusReviewBuilding(currentEvent.target.value);};
 }
-if(document.querySelector('#edges'))document.querySelector('#edges').onchange=()=>renderBlockMap();window.onresize=()=>renderBlockMap();
+if(document.querySelector('#edges'))document.querySelector('#edges').onchange=()=>renderBlockMap();
+// 사이드바 애니메이션도 창 크기 변경 없이 표시 영역을 바꾼다.
+let currentResizeFrameRequest=null;
+let currentResizeObserverClosed=false;
+const currentMapResizeObserver=new ResizeObserver(()=>{
+ if(currentResizeObserverClosed||currentResizeFrameRequest!==null)return;
+ currentResizeFrameRequest=requestAnimationFrame(()=>{
+  currentResizeFrameRequest=null;
+  const currentViewportBounds=currentMapCanvas.parentElement.getBoundingClientRect();
+  // 숨겨진 영역은 다시 표시될 때 관찰 이벤트로 렌더링한다.
+  if(currentViewportBounds.width<=0||currentViewportBounds.height<=0)return;
+  try{renderBlockMap();}catch(currentResizeError){document.querySelector('#status').textContent='맵 크기 변경 실패: '+currentResizeError.message;}
+ });
+});
+currentMapResizeObserver.observe(currentMapCanvas.parentElement);
+window.addEventListener('pagehide',()=>{
+ currentResizeObserverClosed=true;
+ currentMapResizeObserver.disconnect();
+ if(currentResizeFrameRequest!==null)cancelAnimationFrame(currentResizeFrameRequest);
+ currentResizeFrameRequest=null;
+},{once:true});
 currentMapCanvas.onclick=currentEvent=>{if(suppressMarkerClick){suppressMarkerClick=false;return;}const currentBounds=currentMapCanvas.getBoundingClientRect(),currentWorldX=(currentEvent.clientX-currentBounds.left-currentOffsetX)/currentScaleValue,currentWorldY=(currentEvent.clientY-currentBounds.top-currentOffsetY)/currentScaleValue;if(isFieldMapReview){const currentPickedCell=pickFieldReviewCell({x:currentWorldX,y:currentWorldY},currentFieldFrame);if(currentPickedCell&&!currentBlockedCells.has(`${currentPickedCell.column},${currentPickedCell.row}`)){currentCharacterCell=currentPickedCell;renderBlockMap();}return;}let currentColumnValue=(currentWorldX/townHalfTileWidth+currentWorldY/townHalfTileHeight)/2,currentRowValue=(currentWorldY/townHalfTileHeight-currentWorldX/townHalfTileWidth)/2;for(let i=0;i<currentCameraRotation;i++)[currentColumnValue,currentRowValue]=[currentRowValue,-currentColumnValue];currentColumnValue=Math.round(currentColumnValue);currentRowValue=Math.round(currentRowValue);if(currentColumnValue<0||currentColumnValue>=currentMapRecord.columns||currentRowValue<0||currentRowValue>=currentMapRecord.rows||currentBlockedCells.has(`${currentColumnValue},${currentRowValue}`))return;currentCharacterCell={column:currentColumnValue,row:currentRowValue};renderBlockMap()};centerCharacterView();
 
 // 포인터 아래의 지형 좌표를 유지하면서 배율을 변경한다.

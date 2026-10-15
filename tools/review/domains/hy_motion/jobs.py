@@ -11,6 +11,7 @@ from zoneinfo import ZoneInfo
 
 from generators.hy_motion.contracts import WORKFLOW_ROOT_DIRECTORY, MODEL_CACHE_DIRECTORY, load_generation_defaults, validate_generation_request, build_prompt_provenance
 from tools.review.common.generation_records import write_record_atomically
+from tools.review.common.queue_generation_telemetry import read_queue_generation_metrics
 from tools.review.common.generation_estimates import calculate_generation_estimate
 from tools.review.common.gpu_job_queue import launch_gpu_process, cancel_gpu_generation, resume_gpu_generation
 
@@ -33,6 +34,10 @@ def resolve_generation_directory(generation_job_identifier):
 def read_generation_status(generation_job_identifier):
     generation_job_path = resolve_generation_directory(generation_job_identifier)
     current_status_record = json.loads((generation_job_path / 'status.json').read_text())
+    if current_status_record['status'] != 'queued':
+        current_metrics_record = read_queue_generation_metrics(generation_job_path)
+        if current_metrics_record is not None:
+            current_status_record['metrics'] = current_metrics_record
     current_request_record = json.loads((generation_job_path / 'request.json').read_text())
     current_log_file = generation_job_path / 'worker.log'
     current_result_file = generation_job_path / 'result.json'

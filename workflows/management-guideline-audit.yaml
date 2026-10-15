@@ -58,11 +58,14 @@ pages:
   ui_mode: gradio
   url: /management/frame/hy-motion-generator/
   source_review: in_progress
-  contract_tests: pending
-  browser_review: pending
-  findings: []
+  contract_tests: partial_verified
+  browser_review: partial_live_verified
+  findings:
+  - hy-motion-memory-status
   implementation: tools/review/ui/gradio/hy_motion_app.py
   applicability: generation
+  browser_note: 실제 합성 화면에서 최신 이력 4건·완료 상태·VRAM 측정 자료 없음·품질 경고·결과 조회 8개 패널 및 다운로드 목록 확인. 측정값 존재 작업의 표시·모바일·재생 동기화 검증은 남음.
+
 - id: music-minimax
   label: MiniMax-Music3
   category: music-generation
@@ -128,12 +131,14 @@ pages:
   url: /management/frame/map-review/?map=reed-crossing&townPage=1
   source_review: shared_ui_reviewed_runtime_pending
   contract_tests: shared_component_verified
-  browser_review: pending
+  browser_review: partial_live_verified
   findings: []
   implementation: tools/review/ui/gradio/map_review_app.py
   applicability: render_review
   review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+  browser_note: 2026-10-15 실제 합성 화면 로딩·90도 회전·캔버스 표시 확인. 모바일·재연결 검증은 남음.
+
 - id: map-review-reedhaven
   label: 갈대나루 · 마을맵 검수
   category: town-map-review
@@ -185,12 +190,14 @@ pages:
   url: /management/frame/map-review/?map=crystal-cut&townPage=1
   source_review: shared_ui_reviewed_runtime_pending
   contract_tests: shared_component_verified
-  browser_review: pending
+  browser_review: partial_live_verified
   findings: []
   implementation: tools/review/ui/gradio/map_review_app.py
   applicability: render_review
   review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+  browser_note: 2026-10-15 실제 합성 화면 로딩·90도 회전·캔버스 표시 확인. 모바일·재연결 검증은 남음.
+
 - id: animation-10
   label: 결정도마뱀 · 대기 · v2.imagegen-eight-frames
   category: animation
@@ -402,12 +409,14 @@ pages:
   url: /management/frame/map-review/?map=dry-creek&townPage=1
   source_review: shared_ui_reviewed_runtime_pending
   contract_tests: shared_component_verified
-  browser_review: pending
+  browser_review: partial_live_verified
   findings: []
   implementation: tools/review/ui/gradio/map_review_app.py
   applicability: render_review
   review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+  browser_note: 실제 합성 화면 로딩·90도 회전·캔버스 표시 확인. 모바일·재연결 검증은 남음.
+
 - id: map-review-mill-ridge
   label: 맷돌등성이 · 필드맵 검수
   category: field-map-review
@@ -524,12 +533,14 @@ pages:
   url: /management/frame/map-review/?map=dawn-overlook&townPage=1
   source_review: shared_ui_reviewed_runtime_pending
   contract_tests: shared_component_verified
-  browser_review: pending
+  browser_review: partial_live_verified
   findings: []
   implementation: tools/review/ui/gradio/map_review_app.py
   applicability: render_review
   review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+  browser_note: 실제 합성 화면 로딩·90도 회전·캔버스 표시 확인. 모바일·재연결 검증은 남음.
+
 - id: map-review-clover-bank
   label: 세잎 둔덕 · 필드맵 검수
   category: field-map-review
@@ -636,12 +647,14 @@ pages:
   url: /management/frame/map-review/?map=fallen-canopy&townPage=1
   source_review: shared_ui_reviewed_runtime_pending
   contract_tests: shared_component_verified
-  browser_review: pending
+  browser_review: partial_live_verified
   findings: []
   implementation: tools/review/ui/gradio/map_review_app.py
   applicability: render_review
   review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+  browser_note: 수정 후 실제 합성 화면에서 캔버스 표시·90/180/270도 회전·사이드바 접기/펼치기 후 회전·새로고침 로딩 확인. 오류 콘솔 없음. 내부 1718x1289 및 확장 후 2354x1766으로 정상 크기 관측. 모바일·재연결 검증은 남음.
+
 - id: map-review-mist-lake
   label: 안개 호수 · 필드맵 검수
   category: field-map-review
@@ -907,9 +920,48 @@ pages:
   review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
 shared_findings:
+- id: history-missing-thumbnail-label
+  status: verified_contract_browser_pending
+  evidence: .tmp/test/management-history-label/2026-10-15_11-05-05/summary.json
+  validation: 공용 이력 검사 27개 통과. 샌드박스 내부 직접 실행은 비동기 대기에서 중단하고 제한·로그 실행기로 재검증.
+  finding: HY-Motion 완료 이력에 실제 결과가 있지만 썸네일이 없어서 결과 없음으로 표시됨.
+  change: 공용 이력의 이미지 없는 칸은 썸네일 없음으로 표시. 결과 존재 여부를 이미지 유무로 단정하지 않음.
+- id: hy-motion-memory-status
+  status: verified_contract_browser_pending
+  finding: HY-Motion 서비스 상태 응답에 공용 대기열 VRAM 기록이 없고 GUI는 상태·ETA만 표시.
+  change: 시작·종료 작업 상태에 공용 실행 시도 측정값 연결, GUI 공용 VRAM·단계 표시 적용. 기존 ETA 별도 영역과 품질 경고 유지. queued에서는 이전 측정값 미조회.
+  evidence: .tmp/test/management-hy-telemetry/2026-10-15_11-01-56/summary.json
+  validation: HY-Motion·재접속 복원·상태 표시 30개 통과. 실제 브라우저 표시 및 GPU 실측 전체 계약은 별도 검증 필요.
+- id: map-container-resize-observation
+  status: verified_unit_live_browser
+  change: 부모 영역 ResizeObserver와 animation frame 병합 적용. 숨김 영역은 표시 이벤트까지 렌더링 유보, pagehide에서 관찰·예약 정리, 실패 상태 안내.
+  validation: 크기 이벤트 병합·숨김/재표시·실패 안내·이탈 정리 포함 수명 검사 4개 통과. 실제 사이드바 접기 후 내부 2354x1766, 펼치기 후 1718x1289로 추가 조작 없이 갱신 및 오류 콘솔 없음 확인.
+  finding: 사이드바 접기/펼치기는 window resize 없이 컨테이너 폭을 바꿈. 내부 해상도 갱신은 다음 회전 조작에서 확인됨.
+  evidence: 실제 합성 화면에서 사이드바 펼치기 직후 clientWidth 959 대비 내부 width 2354 관측. 현재 코드는 window.onresize만 등록.
+  note: 실제 합성 쓰러진 수관 화면에서 검증. 다른 페이지의 개별 반응형 검증을 대체하지 않음.
+- id: map-resize-framebuffer-failure
+  status: verified_unit_partial_browser
+  diagnosis: 오류 화면 DOM에서 부모 859x644.25 대비 캔버스 287x0 및 내부 높이 0 확인. Phaser가 바꾼 캔버스 표시 크기를 다음 resize 입력으로 재사용함.
+  change: 초기화와 resize 모두 부모 표시 영역 기준으로 계산하고 캔버스 CSS 크기를 100%로 유지. 0·비정상 크기는 WebGL 호출 전 명시적으로 거절.
+  validation: 축소·재확대 기반 크기 계산, 0높이 캔버스 회복, 중복 resize 생략, 0영역 거절 포함 공용 맵 검사 9개 통과. Gradio 구성 검사에서 unclosed event loop 경고 관측. 실제 합성 브라우저에서 렌더링·폭 변경 후 회전·새로고침 성공 및 오류 콘솔 없음 확인. 모바일 크기 검증은 남음.
+  finding: 쓰러진 수관 실제 합성 문서에서 Phaser resize 중 Framebuffer status Incomplete Attachment 오류. 상태는 준비 완료로 남고 회전 미반영.
+  evidence: 2026-10-15 브라우저 탭 30 콘솔 phaser.mjs createFramebuffer/resize 오류 및 회전 후 상태 0도 유지.
+  note: viewport 390x844 요청 후 DOM은 1265x720으로 관측되어 모바일 검증은 성립하지 않음. override는 reset 완료. 오류와 크기 변경의 인과 및 복구 검증 필요.
+- id: map-sprite-registry-reparse
+  status: verified_unit_build_browser_pending
+  finding: 지형지물마다 전체 등록부를 다시 파싱하여 맵 빌드 검사가 30초 제한을 초과함.
+  change: 텍스처 목록 조회에서 읽은 등록부를 지형지물 조회에도 전달. 전역 캐시는 추가하지 않으며 파일별 경로와 SHA-256 검증 유지.
+  validation: 에셋·원자 게시 단위 검사 7개 통과. 이전 시간 초과 빌드 검사 1개가 21.45초에 통과. 나머지 시간 초과 2개도 재검증 통과(합계 39.07초). 브라우저 검증은 남음.
+  evidence: .tmp/test/management-map-build-recheck/2026-10-15_10-44-03/summary.json
+  remaining_evidence: .tmp/test/management-map-build-remaining/2026-10-15_10-44-54/summary.json
+- id: map-profile-expectation-drift
+  status: verified_regression
+  evidence: .tmp/test/management-map-contracts/2026-10-15_10-46-34/summary.json
+  finding: 확장 검사 실패 5개 중 3개는 JS 소스 문자열 기대 불일치, 2개는 등록 맵 광장·여관 크기 기대 불일치.
+  note: 타일 3건은 개편 커밋 d54724ea·91a9f571과 등록 경로를 대조하고 Node에서 실제 선택 결과를 검증하도록 수정하여 통과. 노출 바위 항목은 saltford 분기 추가로 부분 문자열 검사만 실패했음. 광장·여관 2건도 slime-assets 374cc73의 지면 개편·여관 높이 4칸 변경과 대조 완료. 광장은 등록 원본 보존 계약으로 검사하며 여관 크기는 개편값으로 검사. 맵·에셋·원자 게시 회귀 31개 통과.
 - id: review-image-publication-race
   status: verified_unit_integration_pending
-  validation: 게시·렌더러 수명·확인 UI·정리 관련 단위 검사 19개 통과. 확장 맵 검사 18개 통과, 5개 실패, 3개 시간 초과로 통합 검증 미완료.
+  validation: 게시·렌더러 수명·확인 UI·정리 관련 단위 검사 19개 통과. 초기 확장 검사 실패 5개·시간 초과 3개는 후속 map-profile-expectation-drift 및 map-sprite-registry-reparse에서 해결. 후속 맵·에셋·원자 게시 31개 통과. 브라우저 게시 확인은 남음.
   evidence: .tmp/test/management-map-publication/2026-10-15_10-38-28/summary.json
   finding: 캐릭터 검수 PNG를 고정 경로에 직접 덮어써 게시 중 불완전한 이미지가 읽힐 가능성.
   change: SHA-256 파일명으로 이미지를 원자적으로 게시하고 메타데이터를 원자적으로 교체. 이전 해시 이미지 유지.

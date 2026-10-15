@@ -94,8 +94,8 @@ def resolve_registered_tile(asset_relative_path, asset_repository_path, register
     return resolve_registered_asset(asset_relative_path, asset_repository_path, registered_tile_records, 'assets/tiles')
 
 
-def resolve_registered_sprite(asset_relative_path):
-    asset_repository_path, registered_asset_records = load_registered_tiles()
+def resolve_registered_sprite(asset_relative_path, current_source_catalog=None):
+    asset_repository_path, registered_asset_records = load_registered_tiles() if current_source_catalog is None else current_source_catalog
     sprite_directory_prefix = select_sprite_source_prefix(asset_relative_path)
     return resolve_registered_asset(asset_relative_path, asset_repository_path, registered_asset_records, sprite_directory_prefix)
 
