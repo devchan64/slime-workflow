@@ -66,3 +66,45 @@ class GenerationStatusLookupTests(unittest.TestCase):
                 self.assertIn('약 12초',current_output_values[0])
                 self.assertIn('관측 피크 7123 MiB',current_output_values[0])
                 self.assertEqual(current_output_values[-1],{'__type__':'update'})
+
+    def test_tile_refresh_clears_deleted_selection_and_stage_actions(self):
+        from tools.review.ui.gradio import floor_tile_app, seamless_tile_app
+        from tools.review.domains.tile.floor_generation import load_floor_configuration
+        with patch.object(floor_tile_app,'execute_floor_gateway',return_value=load_floor_configuration()):
+            current_floor_interface=floor_tile_app.build_floor_interface('http://127.0.0.1:9988')
+        current_floor_callback=next(current_binding.fn for current_binding in current_floor_interface.fns.values() if current_binding.fn and current_binding.fn.__name__=='refresh_floor_progress')
+        with patch.object(floor_tile_app,'execute_floor_gateway',side_effect=[{},ValueError('missing'),{'records':[]}]):
+            current_output_values=current_floor_callback('removed')
+        self.assertEqual(current_output_values[0],'')
+        self.assertIn('삭제',current_output_values[1])
+        with patch.object(floor_tile_app,'execute_floor_gateway',side_effect=[{'id':'new-active'},{'status':'running'}]):
+            self.assertEqual(current_floor_callback('removed')[0],'new-active')
+        current_seamless_interface=seamless_tile_app.build_seamless_interface('http://127.0.0.1:9988')
+        current_refresh_bindings=[current_binding for current_binding in current_seamless_interface.fns.values() if current_binding.fn and current_binding.fn.__name__=='refresh_seamless_status']
+        self.assertEqual(len(current_refresh_bindings),3)
+        for current_refresh_binding in current_refresh_bindings:
+            self.assertEqual(len(current_refresh_binding.outputs),6)
+            with patch.object(seamless_tile_app,'execute_management_command',side_effect=[ValueError('missing'),{'records':[]}]):
+                current_output_values=current_refresh_binding.fn('removed',True)
+            self.assertEqual(current_output_values[-1],'')
+            self.assertEqual(current_output_values[1],'')
+            self.assertFalse(current_output_values[3]['interactive'])
+            self.assertFalse(current_output_values[4]['interactive'])
+            with patch.object(seamless_tile_app,'execute_management_command',return_value={'status':'paused'}):
+                current_output_values=current_refresh_binding.fn('existing',False)
+            self.assertTrue(current_output_values[3]['interactive'])
+            self.assertFalse(current_output_values[4]['interactive'])
+
+    def test_direct_qwen_entrypoints_initialize_repository_imports(self):
+        import os
+        from pathlib import Path
+        import subprocess
+        import sys
+        current_repository_root=Path(__file__).resolve().parents[3]
+        current_process_environment=dict(os.environ)
+        current_process_environment.pop('PYTHONPATH',None)
+        for current_script_name in ('pose_transfer_app.py','qwen_2512_app.py'):
+            with self.subTest(script=current_script_name):
+                current_process_result=subprocess.run([sys.executable,str(current_repository_root/'tools/review/ui/gradio'/current_script_name),'--help'],cwd='/tmp',env=current_process_environment,capture_output=True,text=True,timeout=15)
+                self.assertEqual(current_process_result.returncode,0,current_process_result.stderr)
+                self.assertIn('--review-port',current_process_result.stdout)

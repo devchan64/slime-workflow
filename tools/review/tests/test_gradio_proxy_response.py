@@ -29,6 +29,31 @@ class GradioProxyResponseTest(unittest.TestCase):
     def test_ignores_closed_browser_connection(self):
         self.assertFalse(write_proxy_response_body(ClosedBrowserOutput(), b'payload'))
 
+class GradioStartupFailureTests(unittest.TestCase):
+    def test_startup_failure_is_handled_without_static_asset_fallback(self):
+        import ast
+        from pathlib import Path
+        from types import SimpleNamespace
+        from unittest.mock import Mock
+        from urllib.parse import urlsplit
+        from tools.review import serve
+        current_source_tree=ast.parse(Path(serve.__file__).read_text())
+        current_proxy_method=next(current_node for current_node in ast.walk(current_source_tree) if isinstance(current_node,ast.FunctionDef) and current_node.name=='proxy_gradio_request')
+        current_compiled_module=ast.fix_missing_locations(ast.Module(body=[current_proxy_method],type_ignores=[]))
+        current_route_resolver=Mock(side_effect=ValueError('Gradio 시작 실패: gradio.log 확인'))
+        current_trace_callback=Mock()
+        current_runtime_scope={'urlsplit':urlsplit,'resolve_gradio_proxy_port':current_route_resolver,'emit_server_trace':current_trace_callback}
+        exec(compile(current_compiled_module,serve.__file__,'exec'),current_runtime_scope)
+        current_http_handler=SimpleNamespace(path='/management/frame/pose-transfer-generator/',send_error=Mock())
+        self.assertTrue(current_runtime_scope['proxy_gradio_request'](current_http_handler))
+        current_http_handler.send_error.assert_called_once_with(503,'Management UI unavailable',explain='관리 화면을 시작하지 못했습니다. Gradio 시작 실패: gradio.log 확인')
+        self.assertIn('gradio.log',current_trace_callback.call_args.args[1])
+        current_route_resolver.side_effect=None
+        current_route_resolver.return_value=None
+        current_http_handler.send_error.reset_mock()
+        self.assertFalse(current_runtime_scope['proxy_gradio_request'](current_http_handler))
+        current_http_handler.send_error.assert_not_called()
+
 
 if __name__ == '__main__':
     unittest.main()

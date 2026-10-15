@@ -91,12 +91,13 @@ pages:
   url: /management/frame/phantom-generator/
   source_review: shared_ui_reviewed_runtime_pending
   contract_tests: partial_verified
-  browser_review: pending
+  browser_review: partial_live_verified
   findings:
   - deleted-generation-status-refresh
   - media-status-unification
   implementation: tools/review/ui/gradio/phantom_app.py
   applicability: generation
+  browser_note: 2026-10-15 실제 합성 화면에서 참조 슬롯·프롬프트 단어 수·81프레임 5.06초·시드·3건 이력 확인. 완료 32848efd 결과 조회로 영상 832×480·5.0625초·readyState 4·미디어 및 콘솔 오류 없음 확인. 재생·생성·삭제·모바일 미검증.
 - id: qwen-21-circular-generator
   label: Qwen 2.1 순환 VAE 생성기
   category: image-generation
@@ -104,21 +105,24 @@ pages:
   url: /management/frame/qwen-21-circular-generator/
   source_review: in_progress
   contract_tests: pending
-  browser_review: pending
+  browser_review: partial_live_verified
   findings: []
   implementation: tools/review/ui/gradio/qwen_2511_app.py
   applicability: generation
+  browser_note: 2026-10-15 실제 합성 화면에서 27건 누적 이력·순환 반경·일반 VAE 비교 옵션 확인. 탑뷰 옵션 해제 시 사용자 3/추가 4/최종 7단어, 수동 프롬프트 초기화 시 사용자 0/추가 4/최종 4단어 갱신 및 콘솔 오류 없음 확인. 생성·삭제 미실행; 결과 비교·모바일 미검증.
 - id: qwen-21-generator
   label: Qwen 2.1 이미지 생성기
   category: image-generation
   ui_mode: gradio
   url: /management/frame/qwen-21-generator/
   source_review: in_progress
-  contract_tests: pending
-  browser_review: pending
-  findings: []
+  contract_tests: partial_verified
+  browser_review: partial_mock_verified
+  findings:
+  - deleted-generation-status-refresh
   implementation: tools/review/ui/gradio/qwen_2511_app.py
   applicability: generation
+  browser_note: 2026-10-15 공용 메뉴와 Qwen 2.1을 합성한 격리 화면에서 자동 갱신의 남은 시간 12초·VRAM 현재 120/관측 피크 7123 MiB·측정 범위 및 샘플링 한계를 확인. 모의 이력 삭제 후 삭제 안내·빈 생성 ID·콘솔 오류 없음 확인. 실제 생성·삭제·GPU 실행은 차단했으며 모바일·전체 실행 계약 검증은 미완료.
 - id: vace-v2v-generator
   label: Wan2.1 VACE V2V 영상 생성기
   category: animation-tool
@@ -510,10 +514,11 @@ pages:
   url: /management/frame/outfit-transfer-generator/
   source_review: in_progress
   contract_tests: pending
-  browser_review: pending
+  browser_review: partial_live_verified
   findings: []
   implementation: tools/review/ui/gradio/qwen_2511_app.py
   applicability: generation
+  browser_note: 2026-10-15 실제 합성 화면에서 고정 프롬프트 39단어·필수 참조 2장·시드 입력·12건 누적 이력 로딩 확인. 완료 5f6f4fbb 선택 시 공용 6개 행동과 상태별 활성/비활성, 결과 조회 시 단일 이미지 갤러리 확인. 생성·삭제·재개 미실행; 입력 복원·모바일 미검증.
 - id: animation-11
   label: 불씨고슴도치 · 대기 · v1.imagegen-eight-frames
   category: animation
@@ -870,10 +875,11 @@ pages:
   url: /management/frame/animation-separation/
   source_review: in_progress
   contract_tests: pending
-  browser_review: pending
+  browser_review: partial_live_verified
   findings: []
   implementation: tools/review/ui/gradio/animation_separation_app.py
   applicability: generation
+  browser_note: 2026-10-15 실제 합성 화면에서 기본/복장 프롬프트 87/91단어·참조 1장·고정 설정·공용 시드·빈 이력 확인. 수동 상태 조회만 제공하던 것을 확인하여 5초 자동 상태 갱신 추가. 변경 후 격리 합성 화면에서 조회 전 중지/재개 비활성, 실행 상태 조회 후 중지만 활성, 자동 ETA·VRAM 표시 및 삭제 상태 전환 후 ID 비움·두 버튼 비활성·콘솔 오류 없음 확인.
 - id: character-review
   label: 캐릭터 표현 검수
   category: character-render-review
@@ -894,10 +900,11 @@ pages:
   url: /management/frame/pose-transfer-generator/
   source_review: in_progress
   contract_tests: pending
-  browser_review: pending
+  browser_review: partial_live_verified
   findings: []
   implementation: tools/review/ui/gradio/qwen_2511_app.py
   applicability: generation
+  browser_note: 2026-10-15 직접 실행 import 순서 오류로 404 발생한 원인을 수정하고 실제 합성 화면 복구 확인. 걷기 프리셋 15번 선택·적용 시 512×512 미리보기/참조 이미지 로딩, 보조 19단어·기본 29단어·최종 48단어 연동 및 콘솔 오류 없음 확인. 이력은 현재 빈 목록. 생성·삭제·GPU 실행 미실행; 모바일·확인 취소 미검증.
 - id: expression-generator
   label: 표정 생성기
   category: image-generation
@@ -905,10 +912,11 @@ pages:
   url: /management/frame/expression-generator/
   source_review: in_progress
   contract_tests: pending
-  browser_review: pending
+  browser_review: partial_live_verified
   findings: []
   implementation: tools/review/ui/gradio/qwen_2511_app.py
   applicability: generation
+  browser_note: 2026-10-15 실제 합성 화면에서 AU 프리셋 39종 목록, 엄격함에서 기쁨 변경 시 AU6/12/25 및 움직임 14·외형 유지 29·최종 43단어 갱신 확인. 참조 1~3장·시드·빈 이력 안내 및 콘솔 오류 없음 확인. 생성·삭제 미실행; 결과 조회·모바일 미검증.
 - id: map-review-grove
   label: 푸른 숲 · 필드맵 검수
   category: field-map-review
@@ -1079,9 +1087,49 @@ shared_findings:
 - id: deleted-generation-status-refresh
   status: verified_contract_partial_browser
   source: tools/review/common/generation_status_lookup.py
-  description: Phantom·VACE V2V·HY-Motion의 삭제된 작업 ID 반복 조회를 해제하고 이전 결과·로그를 비움. 음악의 기존 처리를 공통화하며 이력이 존재하는 오류·게이트웨이 오류는 보존.
-  evidence: 회귀 33건 통과. Phantom 격리 화면에서 삭제 안내·ID 비움·상태 요청 1회 후 반복 중단 확인. VACE V2V 격리 화면에서도 삭제 안내·빈 ID·콘솔 오류 없음 확인; 두 탭을 연 서버의 합산 상태 요청은 2건으로 개별 횟수는 분리하지 않음. HY-Motion은 복원 도중 이력 삭제 경합의 빈 ID·안내 표시와 반복 조회 중단을 격리 합성 화면에서 확인. 실제 이력 삭제는 실행하지 않음.
+  description: 바닥·심리스 타일도 삭제된 ID 추적을 해제하며 심리스 결과·로그·단계 버튼을 초기화. 타일 변경은 콜백 및 격리 브라우저 상태 전환 검증 완료. Phantom·VACE V2V·HY-Motion의 삭제된 작업 ID 반복 조회를 해제하고 이전 결과·로그를 비움. Qwen 계열에도 삭제 추적 해제를 적용하고 음악의 기존 처리를 공통화하며 이력이 존재하는 오류·게이트웨이 오류는 보존.
+  evidence: 회귀 33건 통과. Phantom 격리 화면에서 삭제 안내·ID 비움·상태 요청 1회 후 반복 중단 확인. VACE V2V 격리 화면에서도 삭제 안내·빈 ID·콘솔 오류 없음 확인; 두 탭을 연 서버의 합산 상태 요청은 2건으로 개별 횟수는 분리하지 않음. HY-Motion은 복원 도중 이력 삭제 경합의 빈 ID·안내 표시와 반복 조회 중단을 격리 합성 화면에서 확인. 실제 이력 삭제는 실행하지 않음. Qwen 2.1 및 2512 격리 UI에서 ETA·VRAM 자동 갱신과 삭제 후 빈 ID·안내·콘솔 오류 없음을 확인. 2512는 현행 메뉴 페이지가 아닌 공용 레거시 빌더 검증이며 메뉴 선택 검증에 포함하지 않음.
+- id: gradio-startup-error-visibility
+  status: verified_contract_isolated_browser
+  source: tools/review/serve.py
+  description: Gradio 시작 ValueError를 정적 에셋 404로 숨기지 않고 503 및 원인 안내로 응답하며 서버 로그에 요청 경로와 실패 원인을 남김.
+  evidence: 실제 포즈 import 오류가 404로 가려진 사례에서 확인. 공용 프록시 메서드의 시작 실패·비대상 경로 분기 및 기존 헤더/연결 종료 회귀 3건 통과. 실제 프록시 메서드를 격리 HTTP 서버에 연결해 브라우저에서 503·한국어 누락 의존성 안내 확인. 요청 경로와 원인의 로그 기록 확인. 운영 서버에 실패를 주입하지 않음.
+- id: separation-live-status-refresh
+  status: verified_contract_isolated_browser
+  source: tools/review/ui/gradio/animation_separation_app.py
+  description: 생성 또는 명시적 조회로 확인된 ID만 5초마다 공용 상태·ETA·로그를 갱신하며 재생기는 재로드하지 않음. 삭제된 ID는 결과·로그와 함께 해제.
+  evidence: 빈 ID 및 입력 중 ID 무조회·진행/종료 상태·재생기 보존·삭제·재개 불가 작업 포함 3건 회귀 통과. 격리 합성 화면에서 조회 전/후/삭제 후 버튼 정책·ID 해제·ETA/VRAM 표시·콘솔 오류 없음을 확인.
 regression_runs:
+- path: .tmp/test/management-separation-tracked-status/2026-10-15_11-52-29/summary.json
+  passed: 3
+  failed: 0
+  errors: 0
+  note: 입력 중 ID 무조회·명시적 조회 추적·작업 상태별 명령 버튼 계약.
+- path: .tmp/test/management-separation-live-status/2026-10-15_11-50-27/summary.json
+  passed: 3
+  failed: 0
+  errors: 0
+  note: 복장 분리 자동 상태 갱신·기존 재생기/결과 URL 계약.
+- path: .tmp/test/management-startup-error/2026-10-15_11-46-23/summary.json
+  passed: 3
+  failed: 0
+  errors: 0
+  note: 앱 시작 실패 503 및 진단 로그, 프록시 헤더와 브라우저 연결 종료 계약.
+- path: .tmp/test/management-entrypoint-status/2026-10-15_11-42-46/summary.json
+  passed: 6
+  failed: 0
+  errors: 0
+  note: Qwen 공용 상태 import를 저장소 경로 초기화 뒤로 이동. PYTHONPATH 없는 외부 작업 디렉터리에서 포즈·2512 직접 진입점 --help 검증. 서버 재연결 후 실제 포즈 화면 및 프리셋 적용 복구 확인.
+- path: .tmp/test/management-tile-status/2026-10-15_11-38-32/summary.json
+  passed: 24
+  failed: 0
+  errors: 0
+  note: 바닥·심리스 타일 삭제 상태 해제 및 활성 작업 추적·재개 버튼 계약 검증. 격리 브라우저 검증에서 심리스 삭제 안내·ID 비움·이전 결과 제거·다음 단계/일시정지 비활성, 바닥 타일 검수 대기에서 작업 없음 전환·콘솔 오류 없음. 두 도구는 메뉴에서 제외된 레거시 빌더이며 활성 66페이지 검증 수에 포함하지 않음.
+- path: .tmp/test/management-status-commit/2026-10-15_11-34-09/summary.json
+  passed: 16
+  failed: 0
+  errors: 0
+  note: 삭제 상태 공용 조회·Qwen 변형·HY 복원·음악 상태 및 HTTP 계약 회귀.
 - path: .tmp/test/management-hy-deleted-status/2026-10-15_11-28-05/summary.json
   passed: 26
   failed: 0

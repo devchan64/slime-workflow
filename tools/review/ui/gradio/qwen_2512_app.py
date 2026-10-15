@@ -8,10 +8,10 @@ import threading
 import time
 
 import gradio as gr
-from tools.review.common.generation_status_lookup import read_existing_generation_status
 
 WORKFLOW_ROOT_DIRECTORY=Path(__file__).resolve().parents[4]
 if str(WORKFLOW_ROOT_DIRECTORY) not in sys.path:sys.path.insert(0,str(WORKFLOW_ROOT_DIRECTORY))
+from tools.review.common.generation_status_lookup import read_existing_generation_status
 from tools.review.common.generation_status_display import describe_generation_status
 from tools.review.common.gradio_identifiers import build_generation_identifier
 from tools.review.common.gradio_results import build_generation_gallery, collect_generation_gallery

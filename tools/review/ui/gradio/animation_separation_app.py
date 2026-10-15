@@ -11,6 +11,7 @@ if str(WORKFLOW_ROOT_DIRECTORY) not in sys.path:
     sys.path.insert(0, str(WORKFLOW_ROOT_DIRECTORY))
 import gradio as gr
 from tools.review.common.generation_status_display import describe_generation_status
+from tools.review.common.generation_status_lookup import read_existing_generation_status
 from tools.review.common.gradio_reference_images import build_reference_image_inputs
 from tools.review.common.management_client import execute_remote_management_command
 from tools.review.common.gradio_seed import build_generation_seed
@@ -75,12 +76,13 @@ def build_separation_interface(current_server_address):
                 current_status_output = gr.Markdown('예상 남은 시간·완료 시각: 추정 자료 수집 중입니다. 프레임별 진행은 상태에서 표시합니다.')
                 with gr.Row():
                     current_refresh_button = gr.Button('상태·결과 조회')
-                    current_cancel_button = gr.Button('선택 작업 중지')
-                    current_resume_button = gr.Button('선택 작업 재개')
+                    current_cancel_button = gr.Button('선택 작업 중지', interactive=False)
+                    current_resume_button = gr.Button('선택 작업 재개', interactive=False)
                 current_preview_output = build_separation_player('separationResultPlayer')
                 with gr.Accordion('검수 기준과 표시 한계',open=False):
                     gr.Markdown('독립 생성된 결과의 위치·포즈·비율, 사람 잔상과 경계를 확인하세요. PNG의 저장된 알파를 그대로 표시하며 이전 RGB 결과는 불투명합니다. 네이티브 알파의 경계·그림자·닫힌 빈 공간은 추가 검수가 필요합니다. 생성 완료는 정합 검수 통과를 의미하지 않습니다. 단일 프레임은 재생 없이 비교하세요.')
                 current_download_output = gr.Markdown('신규 베이스·복장은 RGBA 후보입니다. 포즈·위치·비율·배경 잔상과 흰 의복 경계를 검수하세요.')
+        current_tracked_identifier = gr.State('')
         current_log_output, current_log_refresh, _ = build_execution_logs()
         def start_separation_job(*current_argument_values):
             try:
@@ -88,8 +90,11 @@ def build_separation_interface(current_server_address):
                 current_job_record = execute_separation_gateway('generate', current_request_record)
             except (ValueError, RuntimeError) as current_error_value:
                 raise gr.Error(str(current_error_value)) from current_error_value
-            return current_job_record['id'], '공용 GPU 대기열에 등록했습니다. 결과 검수 탭에서 상태·결과 조회로 확인하세요.'
-        bind_gpu_generation_confirmation(current_sample_button, start_separation_job, [*reference_image_controls, current_size_control, current_seed_control, current_prompt_control, current_outfit_control], [current_job_control, current_status_output])
+            return current_job_record['id'], '공용 GPU 대기열에 등록했습니다. 결과 검수 탭에서 상태·결과 조회로 확인하세요.', current_job_record['id']
+        bind_gpu_generation_confirmation(current_sample_button, start_separation_job, [*reference_image_controls, current_size_control, current_seed_control, current_prompt_control, current_outfit_control], [current_job_control, current_status_output, current_tracked_identifier])
+        def describe_separation_actions(current_status_record):
+            return (gr.update(interactive=current_status_record['status'] in ('queued', 'running')),
+                    gr.update(interactive=current_status_record['status'] in ('failed', 'cancelled', 'paused') and current_status_record.get('resume_allowed', True)))
         def read_current_result(current_job_identifier, current_refresh_logs):
             if not current_job_identifier:
                 raise gr.Error('생성 ID를 입력하세요.')
@@ -97,8 +102,18 @@ def build_separation_interface(current_server_address):
             current_frame_progress = current_status_record.get('separation', {})
             current_stage_label = {'base': '신체 베이스 생성', 'outfit': '복장 생성', 'completed': '완료'}.get(current_frame_progress.get('stage'), '대기')
             current_download_url = current_status_record.get('download')
-            return (describe_generation_status(current_status_record) + f" · 완료 프레임 {current_frame_progress.get('completed', 0)}/{current_frame_progress.get('total', '?')} · 단계 {current_stage_label}", current_status_record.get('log', '') if current_refresh_logs else gr.skip(), build_separation_preview(current_server_address, current_job_identifier) if current_download_url else gr.skip(), f'[신체 베이스 PNG]({current_server_address}/animation-separation/jobs/{current_job_identifier}/base-sheet.png) · [복장 PNG]({current_server_address}/animation-separation/jobs/{current_job_identifier}/outfit-sheet.png) · [전체 결과 ZIP]({current_server_address}{current_download_url})' if current_download_url else gr.skip())
-        current_refresh_button.click(read_current_result, [current_job_control, current_log_refresh], [current_status_output, current_log_output, current_preview_output, current_download_output], queue=False)
+            return (describe_generation_status(current_status_record) + f" · 완료 프레임 {current_frame_progress.get('completed', 0)}/{current_frame_progress.get('total', '?')} · 단계 {current_stage_label}", current_status_record.get('log', '') if current_refresh_logs else gr.skip(), build_separation_preview(current_server_address, current_job_identifier) if current_download_url else gr.skip(), f'[신체 베이스 PNG]({current_server_address}/animation-separation/jobs/{current_job_identifier}/base-sheet.png) · [복장 PNG]({current_server_address}/animation-separation/jobs/{current_job_identifier}/outfit-sheet.png) · [전체 결과 ZIP]({current_server_address}{current_download_url})' if current_download_url else gr.skip(), current_job_identifier, *describe_separation_actions(current_status_record))
+        def refresh_separation_progress(current_job_identifier, current_refresh_logs, current_tracked_value):
+            if not current_job_identifier or current_job_identifier != current_tracked_value:
+                return (gr.skip(),) * 6 + (gr.update(interactive=False), gr.update(interactive=False))
+            current_status_record = read_existing_generation_status(execute_separation_gateway, current_job_identifier)
+            if current_status_record is None:
+                return '선택한 작업 이력이 삭제되었습니다.', '', '', '', '', '', gr.update(interactive=False), gr.update(interactive=False)
+            return describe_generation_status(current_status_record), current_status_record.get('log', '') if current_refresh_logs else gr.skip(), gr.skip(), gr.skip(), gr.skip(), gr.skip(), *describe_separation_actions(current_status_record)
+        gr.Markdown('조회한 작업의 상태·예상 시간은 5초마다 갱신됩니다. ID를 바꾸면 상태·결과 조회를 누르세요. 중지는 대기·실행 중, 재개는 재개 가능한 실패·중지·검수 대기 작업에 사용할 수 있습니다.')
+        gr.Timer(5).tick(refresh_separation_progress, [current_job_control, current_log_refresh, current_tracked_identifier], [current_status_output, current_log_output, current_preview_output, current_download_output, current_job_control, current_tracked_identifier, current_cancel_button, current_resume_button], show_progress='hidden', queue=False)
+        current_job_control.input(lambda: (gr.update(interactive=False), gr.update(interactive=False)), outputs=[current_cancel_button, current_resume_button], queue=False)
+        current_refresh_button.click(read_current_result, [current_job_control, current_log_refresh], [current_status_output, current_log_output, current_preview_output, current_download_output, current_tracked_identifier, current_cancel_button, current_resume_button], queue=False)
         current_cancel_button.click(lambda current_job_identifier: str(execute_separation_gateway('cancel', {'id': current_job_identifier})), current_job_control, current_status_output)
         bind_gpu_generation_confirmation(current_resume_button, lambda current_job_identifier: str(execute_separation_gateway('resume', {'id': current_job_identifier})), current_job_control, current_status_output)
         def render_history_preview(current_job_identifier, current_status_record, current_server_address):

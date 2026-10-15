@@ -7,6 +7,7 @@ import gradio as gr
 WORKFLOW_ROOT_DIRECTORY = Path(__file__).resolve().parents[4]
 if str(WORKFLOW_ROOT_DIRECTORY) not in sys.path: sys.path.insert(0,str(WORKFLOW_ROOT_DIRECTORY))
 from tools.review.common.generation_status_display import describe_generation_status
+from tools.review.common.generation_status_lookup import read_existing_generation_status
 from tools.review.common.management_client import execute_remote_management_command as execute_management_command
 from tools.review.common.gradio_history import build_generation_history_view
 from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_confirmation
@@ -60,7 +61,9 @@ def build_floor_interface(server_base_address):
             active_job_record = execute_floor_gateway('active',{})
             selected_job_identifier = active_job_record.get('id') or current_generation_identifier
             if not selected_job_identifier: return '', '생성 가능 · 작업이 없습니다.'
-            current_status_record = execute_floor_gateway('status',{'id':selected_job_identifier})
+            current_status_record = read_existing_generation_status(execute_floor_gateway,selected_job_identifier)
+            if current_status_record is None:
+                return '', '선택한 작업 이력이 삭제되었습니다.'
             return selected_job_identifier, describe_generation_status(current_status_record)
         interface_block_value.load(refresh_floor_progress,current_identifier_state,[current_identifier_state,generation_status_control])
         gr.Timer(3).tick(refresh_floor_progress,current_identifier_state,[current_identifier_state,generation_status_control],queue=False)

@@ -384,7 +384,10 @@ def run_review_server(parsed_argument_values):
                 return False
             if 'embedded=gradio-static' in urlsplit(self.path).query.split('&'):return False
             try:gradio_proxy_target=resolve_gradio_proxy_port(request_path_value)
-            except ValueError:return False
+            except ValueError as current_startup_error:
+                emit_server_trace('gradio-startup-failure', f'{request_path_value}: {current_startup_error}')
+                self.send_error(503, 'Management UI unavailable', explain=f'관리 화면을 시작하지 못했습니다. {current_startup_error}')
+                return True
             if gradio_proxy_target is None:return False
             gradio_server_port,route_prefix_value=gradio_proxy_target
             proxied_request_path='/'+self.path[len(route_prefix_value):]

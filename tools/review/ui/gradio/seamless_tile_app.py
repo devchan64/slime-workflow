@@ -1,15 +1,21 @@
 """3×3 연결 보정 생성기의 공용 게이트웨이 GUI."""
 import argparse
 import html
+from pathlib import Path
+import sys
 import gradio as gr
-from qwen_2511_app import (
-    WORKFLOW_ROOT_DIRECTORY,
+
+WORKFLOW_ROOT_DIRECTORY = Path(__file__).resolve().parents[4]
+if str(WORKFLOW_ROOT_DIRECTORY) not in sys.path:
+    sys.path.insert(0, str(WORKFLOW_ROOT_DIRECTORY))
+from tools.review.ui.gradio.qwen_2511_app import (
     build_generation_history_view, build_execution_logs,
     bind_gpu_generation_confirmation,
     build_reference_request,
     execute_management_command, result_preview_html,
 )
 from tools.review.common.generation_status_display import describe_generation_status
+from tools.review.common.generation_status_lookup import read_existing_generation_status
 from tools.review.common.gradio_seed import build_generation_seed
 from tools.review.common.gradio_identifiers import build_generation_identifier
 from tools.review.domains.image.seamless_generation import validate_seamless_request
@@ -99,10 +105,12 @@ def build_seamless_interface(server_base_address):
 
         def refresh_seamless_status(generation_identifier_text, refresh_log_enabled):
             if not generation_identifier_text:
-                return gr.skip(), gr.skip(), gr.skip(), gr.update(interactive=False), gr.update(interactive=False)
-            generation_status_record = execute_seamless_command('status', {'id':generation_identifier_text})
+                return gr.skip(), gr.skip(), gr.skip(), gr.update(interactive=False), gr.update(interactive=False), gr.skip()
+            generation_status_record = read_existing_generation_status(execute_seamless_command,generation_identifier_text)
+            if generation_status_record is None:
+                return '선택한 작업 이력이 삭제되었습니다.', '', '<p>다른 작업을 선택하세요.</p>', gr.update(interactive=False), gr.update(interactive=False), ''
             preview_html_value = render_seamless_previews(generation_status_record)
-            return describe_generation_status(generation_status_record)+'\n\n패턴 단계: '+generation_status_record.get('pipeline',{}).get('stage','대기 중'), generation_status_record.get('log','') if refresh_log_enabled else gr.skip(), preview_html_value, gr.update(interactive=generation_status_record['status'] in ('paused','failed','cancelled')), gr.update(interactive=generation_status_record['status'] in ('running','queued'))
+            return describe_generation_status(generation_status_record)+'\n\n패턴 단계: '+generation_status_record.get('pipeline',{}).get('stage','대기 중'), generation_status_record.get('log','') if refresh_log_enabled else gr.skip(), preview_html_value, gr.update(interactive=generation_status_record['status'] in ('paused','failed','cancelled')), gr.update(interactive=generation_status_record['status'] in ('running','queued')), gr.skip()
 
         def continue_seamless_stage(generation_identifier_text):
             execute_seamless_command('resume', {'id':generation_identifier_text})
@@ -119,10 +127,10 @@ def build_seamless_interface(server_base_address):
         pause_stage_button.click(pause_seamless_stage,generation_identifier_control,generation_status_control,queue=False)
         load_stage_button.click(load_seamless_stage,saved_identifier_input,generation_identifier_control,queue=False)
         history_output_controls[0].change(lambda selected_job_identifier: selected_job_identifier or gr.skip(),history_output_controls[0],generation_identifier_control,queue=False)
-        generation_identifier_control.change(refresh_seamless_status,[generation_identifier_control,refresh_log_control],[generation_status_control,execution_log_control,generation_preview_control,next_stage_button,pause_stage_button],queue=False)
+        generation_identifier_control.change(refresh_seamless_status,[generation_identifier_control,refresh_log_control],[generation_status_control,execution_log_control,generation_preview_control,next_stage_button,pause_stage_button,generation_identifier_control],queue=False)
         interface_blocks_value.load(lambda:history_page_callback(1), outputs=history_output_controls)
-        refresh_stage_button.click(refresh_seamless_status,[generation_identifier_control,refresh_log_control],[generation_status_control,execution_log_control,generation_preview_control,next_stage_button,pause_stage_button],queue=False)
-        gr.Timer(2).tick(refresh_seamless_status,[generation_identifier_control,refresh_log_control],[generation_status_control,execution_log_control,generation_preview_control,next_stage_button,pause_stage_button],show_progress='hidden')
+        refresh_stage_button.click(refresh_seamless_status,[generation_identifier_control,refresh_log_control],[generation_status_control,execution_log_control,generation_preview_control,next_stage_button,pause_stage_button,generation_identifier_control],queue=False)
+        gr.Timer(2).tick(refresh_seamless_status,[generation_identifier_control,refresh_log_control],[generation_status_control,execution_log_control,generation_preview_control,next_stage_button,pause_stage_button,generation_identifier_control],show_progress='hidden')
     return interface_blocks_value
 
 
