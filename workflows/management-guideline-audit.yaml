@@ -93,6 +93,11 @@ pages:
   contract_tests: partial_verified
   browser_review: partial_live_verified
   findings:
+  - phantom-separation-required-input-readiness
+  - required-input-accessible-guidance
+  - reference-preview-native-component
+  - confirmation-error-readiness-recovery
+  - image-family-cleanup-contract-matrix
   - deleted-generation-status-refresh
   - media-status-unification
   implementation: tools/review/ui/gradio/phantom_app.py
@@ -519,7 +524,12 @@ pages:
   source_review: in_progress
   contract_tests: pending
   browser_review: partial_live_verified
-  findings: []
+  findings:
+  - required-reference-generation-readiness
+  - required-input-accessible-guidance
+  - reference-preview-native-component
+  - confirmation-error-readiness-recovery
+  - image-family-cleanup-contract-matrix
   implementation: tools/review/ui/gradio/qwen_2511_app.py
   applicability: generation
   browser_note: 2026-10-15 실제 합성 화면에서 고정 프롬프트 39단어·필수 참조 2장·시드 입력·12건 누적 이력 로딩 확인. 완료 5f6f4fbb 선택 시 공용 6개 행동과 상태별 활성/비활성, 결과 조회 시 단일 이미지 갤러리 확인. 생성·삭제·재개 미실행; 입력 복원·모바일 미검증.
@@ -893,7 +903,13 @@ pages:
   source_review: in_progress
   contract_tests: pending
   browser_review: partial_live_verified
-  findings: []
+  findings:
+  - phantom-separation-required-input-readiness
+  - separation-prompt-readiness-contract
+  - required-input-accessible-guidance
+  - reference-preview-native-component
+  - confirmation-error-readiness-recovery
+  - image-family-cleanup-contract-matrix
   implementation: tools/review/ui/gradio/animation_separation_app.py
   applicability: generation
   browser_note: 2026-10-15 실제 합성 화면에서 기본/복장 프롬프트 87/91단어·참조 1장·고정 설정·공용 시드·빈 이력 확인. 수동 상태 조회만 제공하던 것을 확인하여 5초 자동 상태 갱신 추가. 변경 후 격리 합성 화면에서 조회 전 중지/재개 비활성, 실행 상태 조회 후 중지만 활성, 자동 ETA·VRAM 표시 및 삭제 상태 전환 후 ID 비움·두 버튼 비활성·콘솔 오류 없음 확인.
@@ -920,6 +936,10 @@ pages:
   contract_tests: pending
   browser_review: partial_live_verified
   findings:
+  - required-input-accessible-guidance
+  - reference-preview-native-component
+  - confirmation-error-readiness-recovery
+  - image-family-cleanup-contract-matrix
   - required-reference-generation-readiness
   implementation: tools/review/ui/gradio/qwen_2511_app.py
   applicability: generation
@@ -966,12 +986,73 @@ pages:
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
   browser_evidence: 2026-10-15 실제 공용 메뉴 합성 화면에서 해당 맵 제목·타일과 기본 캐릭터 로딩 완료·공용 필드 렌더러 표시 확인. 전체 보기 후 200%에서 32%로 변경 및 콘솔 오류 없음 확인. 타일별 시각 품질·재연결·화면 크기 검증은 미완료.
 shared_findings:
+- id: reference-preview-native-component
+  status: verified_unit_mock_browser
+  source: tools/review/ui/shared/reference-image-drop.js
+  finding: 공용 참조 이미지 확대 버튼을 가로채 부모 문서에 직접 dialog와 크기 스타일을 삽입하는 이전 구현 잔존.
+  change: 참조 미리보기 클릭 가로채기·부모 문서 삽입·별도 크기 스타일 제거. 기본 Gradio Image 전체 화면과 종료 동작 사용. 드롭 교체 파일 보존 처리는 유지.
+  evidence: 실제 Phantom Blocks와 공용 메뉴를 합성한 격리 브라우저에서 참조 입력 후 Fullscreen이 Exit fullscreen mode로 전환되고 닫기 후 Fullscreen으로 복귀. dialog 0개·콘솔 오류 없음. 사용자 생성 접수 없음.
+  regression_summary: node --test tools/review/tests/test_reference_image_drop.cjs 3건 통과. 재마운트 시 drop 리스너 하나만 등록하고 클릭 가로채기 없음 확인.
+  remaining: 다른 참조 소비 화면과 모바일 크기에서 확대·닫기 검증 필요. 생성 결과 갤러리와 별도 범위.
+- id: cleanup-resume-lock-order
+  status: verified_concurrent_contract
+  source: tools/review/tests/test_generation_cleanup.py
+  evidence: 실제 resume_gpu_generation과 delete_generation_job_files를 두 스레드에서 실행하고 Event로 잠금 보유·대기 시점을 동기화. 재개 우선이면 삭제가 resume.lock에서 기다린 뒤 queued 상태를 재검증해 거절. 삭제 우선이면 재개가 잠금 대기 후 없는 상태 파일로 실패하며 실행기 호출·작업 폴더 복원 없음.
+  isolation: 임시 작업 폴더·모의 launch_gpu_process만 사용. 실제 파일 잠금과 삭제 함수를 실행하며 GPU·운영 작업은 사용하지 않음.
+  regression_result: .tmp/test/management-cleanup-resume-race/2026-10-15_12-45-06/summary.json
+  regression_summary: 삭제 계약 14건 통과. 경합 테스트는 재개 우선과 삭제 우선 양방향 포함.
+  remaining: 신규 생성과 전체 초기화의 서비스별 잠금 및 실행 예약자·GUI 선택 변경 경합은 별도 검증 범위.
+- id: image-family-cleanup-contract-matrix
+  status: verified_service_contract
+  source: tools/review/tests/test_generation_cleanup.py
+  coverage: ImageGenerationManager, QwenPlainGenerationManager, ExpressionGenerationManager, PoseTransferGenerationManager, OutfitTransferGenerationManager, QwenCircularGenerationManager, AnimationSeparationManager, SeamlessGenerationManager, VaceGenerationManager, VaceTimelineGenerationManager, PhantomGenerationManager
+  evidence: 각 실제 서비스 클래스의 저장 루트와 인덱스 경로만 임시 디렉터리로 변경하여 선택 삭제·전체 초기화 실행. 대기 작업 거절·전체 사전 검증으로 다른 완료 작업 보존·입력 사본·결과·시도 로그·인덱스 삭제·숨긴 작업 초기화 포함·삭제 바이트 일치·외부 원본 및 별도 에셋 폴더 보존 확인.
+  regression_result: .tmp/test/management-cleanup-family/2026-10-15_12-43-49/summary.json
+  regression_summary: 공용 삭제 검사 13건 통과. 신규 매트릭스는 11개 실제 서비스 클래스를 각각 실행. 운영 파일 삭제 없음.
+  remaining: 이 검사는 GUI 확인 취소·동시 실행 경합·모든 개별 서비스 게이트웨이 라우팅까지 증명하지 않음. HY-Motion·ANNY·음악은 별도 검사 범위.
+- id: separation-prompt-readiness-contract
+  status: verified_contract_mock_browser
+  source: tools/review/ui/gradio/animation_separation_app.py
+  finding: 이미지 입력 후 두 필수 프롬프트를 비우거나 100단어로 바꿔도 생성 버튼이 활성화되어 서비스 거절 전까지 입력 오류를 알 수 없음.
+  change: 서비스 validate_separation_prompt를 재사용해 두 프롬프트 모두 유효할 때만 제출 활성. 안내를 이미지 1장·두 프롬프트 각각 1~99단어 조건으로 변경.
+  evidence: 격리 합성 브라우저에서 참조 입력 후 활성, 첫 프롬프트 빈 값·100단어 비활성, 99단어 복구 활성, 두 번째 프롬프트 공백 비활성 확인. aria-describedby 연결 유지, 콘솔 오류 없음. 생성 접수 없음.
+- id: required-input-accessible-guidance
+  status: implemented_partial_browser
+  source: tools/review/common/gradio_button_guidance.py
+  finding: 필수 입력 안내는 표시되지만 생성 버튼의 aria-describedby와 연결되지 않음.
+  change: 기본 Gradio 버튼과 Markdown을 공용 HTML 자식 컴포넌트에 유지하고 해당 컴포넌트 내부에서 설명 속성만 연결. CSS·테마·부모 문서 삽입 없음. 포즈·의상 변환, Phantom, 이미지 분리에 적용.
+  evidence: 격리 Phantom 합성 화면에서 버튼이 안내 ID를 참조하고 확인·취소 후 동일 연결 유지 및 버튼 활성 복구 확인. 콘솔 오류 없음. active 조회 모의 응답을 보완한 검증 화면 사용.
+  regression_result: .tmp/test/management-button-guidance/2026-10-15_12-39-32/summary.json
+  regression_summary: 공용 확인·Qwen·분리·기본 컴포넌트 회귀 17건 통과.
+  remaining: 다른 소비 화면의 실제 접근성 트리와 스크린리더 안내 검증. 전체 비활성 버튼 적용은 아직 완료하지 않음.
+- id: phantom-separation-required-input-readiness
+  regression_result: .tmp/test/management-reference-consumers/2026-10-15_12-32-38/summary.json
+  regression_summary: 필수 입력 누락·공백·허용 슬롯·확인 중 잠금과 기존 생성·결과 계약 21건 통과.
+  status: verified_contract_partial_browser
+  source: tools/review/ui/gradio/phantom_app.py, tools/review/ui/gradio/animation_separation_app.py
+  finding: Phantom 참조·장면 프롬프트와 이미지 분리 참조가 비어 있어도 생성 버튼이 활성화됨.
+  change: 공용 확인 UI의 입력 준비 조건에 Phantom은 이미지 1장 이상과 공백 아닌 프롬프트, 이미지 분리는 참조 1장을 연결. 초기 비활성 및 해결 안내 추가.
+  remaining: 두 페이지의 오류 복구·접수 성공 브라우저 검증과 aria-describedby 연결 확인 필요.
+  browser_evidence: 공용 메뉴와 실제 도구 Blocks를 합성한 격리 화면에서 초기 비활성, Phantom 이미지 단독 비활성·프롬프트 추가 후 활성, 이미지 분리 참조 추가 후 활성 확인. 두 화면 모두 확인 영역 표시·이미지 제거·취소 후 비활성 유지. 모의 생성 호출 각각 0회.
+  fixture_limitation: Phantom 초기 active 조회는 모의 게이트웨이 허용 목록 누락으로 오류 표시됨. 생성 준비 콜백 검증과 구분하며 화면 전체 무오류로 판정하지 않음.
+- id: confirmation-error-readiness-recovery
+  status: verified_contract_mock_browser
+  source: tools/review/common/gradio_gpu_confirmation.py
+  finding: 격리 포즈 UI에서 접수 콜백이 gr.Error로 종료되면 기존 then 후속 정리가 실행되지 않아 확인 영역과 생성 버튼 잠금이 유지됨.
+  change: 성공과 실패 후속 이벤트를 분리하고 실패 정리는 queue=False로 연결. 오류 자체는 유지하며 현재 참조 준비 상태에 따라 새 접수를 허용.
+  evidence: 첫 모의 접수에 입력 검증 오류를 주입한 실제 Gradio·공용 메뉴 합성 화면에서 실패 후 버튼 활성·확인 영역 숨김 확인. 새 확인 후 두 번째 접수 완료 및 모의 호출 합계 2회 확인. 사용자 GPU 접수 없음.
+  regression_result: .tmp/test/management-confirmation-failure/2026-10-15_12-30-53/summary.json
+  regression_summary: 오류 전파·소비된 확인 재사용 거절·새 입력 재접수와 Qwen 연결 9건 통과.
 - id: required-reference-generation-readiness
-  status: confirmed_fix_pending
+  status: verified_contract_mock_browser
   source: tools/review/ui/gradio/qwen_2511_app.py
   finding: 실제 포즈 생성기에서 필수 참조 2장이 비어 있는데 생성 버튼 활성 및 생성 가능 안내 표시. 입력 부족 시 비활성 규칙 위반.
   evidence: 초기 generation_button_value와 status_value가 무조건 활성·생성 가능으로 구성됨. 참조 검증은 start_reference_generation에서만 수행되어 확인 단계 이전 준비 상태와 불일치.
   required_change: 공용 확인 UI의 대기·취소·입력 스냅샷 정책을 유지하면서 필수 참조 준비 조건을 연결. 확인 중 이미지 변경과 취소 후 활성 복귀 경합도 함께 검증해야 함.
+  change: 포즈·의상 변환의 필수 참조 준비 조건을 공용 확인 UI에 연결하고 확인 중 잠금과 취소·완료 후 현재 입력 기준 활성 상태 복구.
+  validation: 격리된 실제 Gradio 포즈 UI와 공용 메뉴에서 빈 참조 비활성·두 장 입력 활성·확인 중 잠금·참조 제거 후 취소 비활성 확인. 추가 검증에서 모의 등록 1회만 실행, 완료 표시·확인 영역 닫힘·생성 버튼 활성 복구 및 콘솔 오류 없음 확인. 사용자 GPU 작업 접수 없음.
+  regression_result: .tmp/test/management-reference-readiness/2026-10-15_12-20-32/summary.json
+  remaining: 의상 변환 화면의 별도 브라우저 검증과 접근성 안내 연결은 미검증.
 - id: running-estimate-rounding-boundary
   status: verified_contract
   source: tools/review/common/generation_estimates.py
@@ -1139,6 +1220,12 @@ shared_findings:
   description: 생성 또는 명시적 조회로 확인된 ID만 5초마다 공용 상태·ETA·로그를 갱신하며 재생기는 재로드하지 않음. 삭제된 ID는 결과·로그와 함께 해제.
   evidence: 빈 ID 및 입력 중 ID 무조회·진행/종료 상태·재생기 보존·삭제·재개 불가 작업 포함 3건 회귀 통과. 격리 합성 화면에서 조회 전/후/삭제 후 버튼 정책·ID 해제·ETA/VRAM 표시·콘솔 오류 없음을 확인.
 regression_runs:
+- path: .tmp/test/management-audit/2026-10-15_12-48-04/summary.json
+  passed: 233
+  failed: 0
+  errors: 0
+  scope: 공용 확인 실패 복구·참조 준비·접근성 설명·삭제 서비스 매트릭스 및 잠금 경합을 포함한 관리도구 회귀. 공용 안내는 늦은 자식 렌더링·기존 설명 보존·중복 토큰 방지·기본 버튼 이벤트 유지 검사 포함.
+  limitation: 페이지별 모바일·재연결·실제 GPU 단계 측정 완료를 뜻하지 않음.
 - path: .tmp/test/management-progress-boundary/2026-10-15_12-15-08/summary.json
   passed: 13
   failed: 0

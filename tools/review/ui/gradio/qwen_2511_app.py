@@ -25,6 +25,7 @@ from tools.review.common.gradio_logs import build_execution_logs
 from tools.review.common.gradio_history import build_generation_history_view, format_generation_status
 from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_confirmation
 from tools.review.common.gradio_reference_images import build_reference_image_inputs, REFERENCE_IMAGE_CARD_HEIGHT
+from tools.review.common.gradio_button_guidance import build_button_guidance
 from tools.review.common.gradio_seed import build_generation_seed
 from tools.review.common.management_client import execute_remote_management_command as execute_management_command
 
@@ -295,7 +296,7 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
             width_value.change(lambda selected_resolution_value: selected_resolution_value,width_value,height_value,queue=False)
         generation_button_value=gr.Button('이미지 생성 시작',variant='primary',interactive=not pose_transfer_enabled)
         if pose_transfer_enabled:
-            gr.Markdown('두 필수 참조 이미지를 모두 첨부하면 생성 시작을 사용할 수 있습니다. 확인 중에는 추가 접수를 할 수 없습니다.')
+            build_button_guidance(generation_button_value, '두 필수 참조 이미지를 모두 첨부하면 생성 시작을 사용할 수 있습니다. 확인 중에는 추가 접수를 할 수 없습니다.')
         with gr.Column() as generation_confirmation_container:
             pass
         status_value=gr.Markdown('참조 이미지와 설정을 확인하세요.' if pose_transfer_enabled else '생성 가능 · 설정을 확인하세요.')

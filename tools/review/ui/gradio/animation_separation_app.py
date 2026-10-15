@@ -14,12 +14,13 @@ from tools.review.common.generation_status_display import describe_generation_st
 from tools.review.common.generation_status_lookup import read_existing_generation_status
 from tools.review.common.gradio_reference_images import build_reference_image_inputs
 from tools.review.common.management_client import execute_remote_management_command
+from tools.review.common.gradio_button_guidance import build_button_guidance
 from tools.review.common.gradio_seed import build_generation_seed
 from tools.review.ui.gradio.separation_preview import build_separation_player
 from tools.review.common.gradio_logs import build_execution_logs
 from tools.review.common.gradio_history import build_generation_history_view
 from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_confirmation
-from tools.review.domains.image.animation_separation import load_separation_defaults
+from tools.review.domains.image.animation_separation import load_separation_defaults, validate_separation_prompt
 
 
 def execute_separation_gateway(current_command_name, current_payload_record):
@@ -35,6 +36,18 @@ def build_separation_request(current_reference_image, current_output_size, curre
     current_image_buffer = io.BytesIO()
     current_reference_image.save(current_image_buffer, format='PNG')
     return {'action': 'generate', 'images': [base64.b64encode(current_image_buffer.getvalue()).decode()], 'width': int(current_output_size), 'height': int(current_output_size), 'seed': int(current_seed_value), 'steps': 40, 'prompt': current_prompt_text, 'outfit_prompt': current_outfit_prompt}
+
+
+def check_separation_input_readiness(current_reference_image, current_base_prompt, current_outfit_prompt):
+    """서비스와 같은 프롬프트 규칙으로 제출 가능 여부를 표시한다."""
+    if current_reference_image is None:
+        return False
+    try:
+        validate_separation_prompt(current_base_prompt)
+        validate_separation_prompt(current_outfit_prompt)
+    except ValueError:
+        return False
+    return True
 
 
 def describe_separation_prompt(current_prompt_text):
@@ -69,8 +82,8 @@ def build_separation_interface(current_server_address):
                 current_outfit_control = gr.Textbox(value=load_separation_defaults()['outfit_prompt'], lines=5, label='2. 사람 제거·복장 프롬프트')
                 current_outfit_summary = gr.Markdown(describe_separation_prompt(load_separation_defaults()['outfit_prompt']))
                 current_outfit_control.change(describe_separation_prompt, current_outfit_control, current_outfit_summary, queue=False)
-                current_sample_button = gr.Button('참조 이미지 분리 생성', variant='primary')
-                gr.Markdown('첨부한 참조 이미지 1장으로 신체 베이스·복장 각 1장을 생성합니다.')
+                current_sample_button = gr.Button('참조 이미지 분리 생성', variant='primary', interactive=False)
+                build_button_guidance(current_sample_button, '참조 이미지 1장과 각각 1~99단어인 두 프롬프트가 필요합니다. 신체 베이스·복장 각 1장을 생성합니다.')
             with gr.Tab("결과 검수"):
                 current_job_control = gr.Textbox(lines=1, max_lines=1, label='조회할 생성 ID')
                 current_status_output = gr.Markdown('예상 남은 시간·완료 시각: 추정 자료 수집 중입니다. 프레임별 진행은 상태에서 표시합니다.')
@@ -91,7 +104,7 @@ def build_separation_interface(current_server_address):
             except (ValueError, RuntimeError) as current_error_value:
                 raise gr.Error(str(current_error_value)) from current_error_value
             return current_job_record['id'], '공용 GPU 대기열에 등록했습니다. 결과 검수 탭에서 상태·결과 조회로 확인하세요.', current_job_record['id']
-        bind_gpu_generation_confirmation(current_sample_button, start_separation_job, [*reference_image_controls, current_size_control, current_seed_control, current_prompt_control, current_outfit_control], [current_job_control, current_status_output, current_tracked_identifier])
+        bind_gpu_generation_confirmation(current_sample_button, start_separation_job, [*reference_image_controls, current_size_control, current_seed_control, current_prompt_control, current_outfit_control], [current_job_control, current_status_output, current_tracked_identifier], generation_readiness_callback=check_separation_input_readiness, generation_readiness_inputs=[*reference_image_controls, current_prompt_control, current_outfit_control])
         def describe_separation_actions(current_status_record):
             return (gr.update(interactive=current_status_record['status'] in ('queued', 'running')),
                     gr.update(interactive=current_status_record['status'] in ('failed', 'cancelled', 'paused') and current_status_record.get('resume_allowed', True)))

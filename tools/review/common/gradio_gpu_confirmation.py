@@ -53,5 +53,6 @@ def bind_gpu_generation_confirmation(generation_button_value, generation_callbac
     generation_start_event.then(fn=None, js="() => {requestAnimationFrame(() => document.getElementById('" + confirmation_element_identifier + "')?.scrollIntoView({block: 'center', behavior: 'smooth'}));}")
     cancel_generation_button.click(cancel_generation_confirmation, inputs=[pending_generation_inputs, *current_readiness_controls], outputs=confirmation_output_values, queue=False)
     confirmation_start_event = confirm_generation_button.click(execute_confirmed_generation, pending_generation_inputs, generation_output_values, trigger_mode='once', concurrency_limit=1)
-    confirmation_start_event.then(cancel_generation_confirmation, inputs=[pending_generation_inputs, *current_readiness_controls], outputs=confirmation_output_values)
+    confirmation_start_event.success(cancel_generation_confirmation, inputs=[pending_generation_inputs, *current_readiness_controls], outputs=confirmation_output_values)
+    confirmation_start_event.failure(cancel_generation_confirmation, inputs=[pending_generation_inputs, *current_readiness_controls], outputs=confirmation_output_values, queue=False)
     return generation_start_event

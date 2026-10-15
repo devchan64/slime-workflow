@@ -57,5 +57,5 @@ test('다른 입력·빈 드롭은 변경하지 않고 재마운트 시 중복 �
         assert.equal(currentDropEvent.dataTransfer, originalDropTransfer);
     }
     vm.runInContext(currentScriptSource, currentBrowserContext);
-    assert.equal(registeredDropHandlers.length, 1);
+    assert.deepEqual(registeredDropHandlers.map(currentListenerRecord => currentListenerRecord[0]), ['drop']);
 });

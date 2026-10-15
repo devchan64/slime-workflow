@@ -14,6 +14,7 @@ from generators.phantom.contracts import PHANTOM_JOB_STORAGE_ROOT, validate_phan
 from tools.review.common.generation_cleanup import GENERATION_CLEANUP_SCOPE_TEXT
 from tools.review.common.management_client import execute_remote_management_command
 from tools.review.common.gradio_reference_images import build_reference_image_inputs
+from tools.review.common.gradio_button_guidance import build_button_guidance
 from tools.review.common.gradio_seed import build_generation_seed
 from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_confirmation
 from tools.review.common.gradio_history import build_generation_history_view, format_generation_status
@@ -79,7 +80,8 @@ def build_phantom_interface(current_server_address):
             current_shift_control=gr.Number(value=current_defaults_record['flow_shift'],minimum=0.1,maximum=30,label='Flow shift')
             current_guidance_control=gr.Number(value=current_defaults_record['guidance_scale'],minimum=1,maximum=20,label='텍스트 가이던스')
             current_conditioning_control=gr.Number(value=current_defaults_record['conditioning_scale'],minimum=0,maximum=20,label='이미지 가이던스')
-        current_generate_button=gr.Button('영상 생성 · 대기열 등록',variant='primary')
+        current_generate_button=gr.Button('영상 생성 · 대기열 등록',variant='primary',interactive=False)
+        build_button_guidance(current_generate_button, '참조 이미지 1장 이상과 장면·동작 프롬프트를 입력하면 생성할 수 있습니다.')
         with gr.Column() as current_confirmation_container:
             pass
         gr.Markdown('생성 중에도 다음 작업을 등록할 수 있습니다. 입력 확인 후 대기열에 추가하며 실행 중인 작업은 계속 진행합니다.')
@@ -92,7 +94,7 @@ def build_phantom_interface(current_server_address):
         def start_phantom_generation(*current_input_values):
             current_job_record=execute_phantom_command('generate',build_phantom_payload(current_input_values[:4],*current_input_values[4:]))
             return current_job_record['id'],'GPU 대기열에 등록했습니다.'
-        bind_gpu_generation_confirmation(current_generate_button,start_phantom_generation,[*current_reference_controls,current_prompt_control,current_frames_control,current_seed_control,current_negative_control,current_resolution_control,current_steps_control,current_shift_control,current_guidance_control,current_conditioning_control],[current_job_control,current_status_display],generation_confirmation_container=current_confirmation_container)
+        bind_gpu_generation_confirmation(current_generate_button,start_phantom_generation,[*current_reference_controls,current_prompt_control,current_frames_control,current_seed_control,current_negative_control,current_resolution_control,current_steps_control,current_shift_control,current_guidance_control,current_conditioning_control],[current_job_control,current_status_display],generation_confirmation_container=current_confirmation_container, generation_readiness_callback=lambda current_prompt_text,*current_reference_images: bool(current_prompt_text and current_prompt_text.strip()) and any(current_reference_image is not None for current_reference_image in current_reference_images), generation_readiness_inputs=[current_prompt_control,*current_reference_controls])
         def refresh_phantom_result(current_job_identifier,current_logs_enabled,current_previous_result):
             if not current_job_identifier:
                 return (gr.skip(),)*5

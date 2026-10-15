@@ -7,7 +7,7 @@ sys.path.insert(0, str(WORKFLOW_ROOT_DIRECTORY))
 from tools.review.tests.run_music_regression import execute_music_regression
 
 MANAGEMENT_AUDIT_MODULES = tuple('tools.review.tests.' + current_module_name for current_module_name in (
-    'test_gpu_confirmation', 'test_browser_gpu_confirmation', 'test_gradio_history', 'test_gradio_history_inputs',
+    'test_gpu_confirmation', 'test_gradio_button_guidance', 'test_browser_gpu_confirmation', 'test_gradio_history', 'test_gradio_history_inputs',
     'test_gradio_proxy_response', 'test_gradio_standard_components', 'test_generation_status_display', 'test_generation_status_lookup', 'test_hy_motion_progress_display', 'test_generation_estimates',
     'test_generation_cleanup', 'test_queue_generation_telemetry', 'test_generation_history', 'test_gpu_queue_priority',
     'test_management_gateway', 'test_management_runtime', 'test_management_menu_gradio',

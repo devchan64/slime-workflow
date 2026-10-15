@@ -212,3 +212,129 @@ class CleanupServiceSnapshotTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError,'변경'):
                     current_reset_callback()
                 self.assertEqual((current_job_path/'result.bin').read_bytes(),b'keep')
+
+
+class ImageFamilyCleanupContractTests(unittest.TestCase):
+    def test_each_manager_removes_copies_and_indexes_but_rejects_live_jobs(self):
+        from importlib import import_module
+        current_manager_definitions = (
+            ('image.image_generation', 'ImageGenerationManager'),
+            ('image.qwen_21_generation', 'QwenPlainGenerationManager'),
+            ('image.expression_generation', 'ExpressionGenerationManager'),
+            ('image.pose_transfer_generation', 'PoseTransferGenerationManager'),
+            ('image.outfit_transfer_generation', 'OutfitTransferGenerationManager'),
+            ('image.qwen_circular_generation', 'QwenCircularGenerationManager'),
+            ('image.animation_separation', 'AnimationSeparationManager'),
+            ('image.seamless_generation', 'SeamlessGenerationManager'),
+            ('vace.generation', 'VaceGenerationManager'),
+            ('vace.timeline_generation', 'VaceTimelineGenerationManager'),
+            ('phantom.generation', 'PhantomGenerationManager'),
+        )
+        for current_module_name, current_class_name in current_manager_definitions:
+            with self.subTest(service=current_class_name), tempfile.TemporaryDirectory() as current_directory_name:
+                current_service_instance = getattr(import_module('tools.review.domains.' + current_module_name), current_class_name)()
+                current_storage_root = Path(current_directory_name) / 'jobs'
+                current_history_root = Path(current_directory_name) / 'history'
+                current_history_root.mkdir()
+                current_service_instance.job_storage_root = current_storage_root
+                current_job_identifiers = ['2026-10-15_00-00-00-' + current_suffix_value for current_suffix_value in ('12345678', '87654321')]
+                for current_job_identifier in current_job_identifiers:
+                    current_job_root = current_storage_root / current_job_identifier
+                    (current_job_root / 'attempts' / 'one').mkdir(parents=True)
+                    (current_job_root / 'status.json').write_text('{"status":"completed"}')
+                    (current_job_root / 'input.png').write_bytes(b'input copy')
+                    (current_job_root / 'attempts' / 'one' / 'worker.log').write_text('실행 기록')
+                    (current_job_root / 'result.png').write_bytes(b'result')
+                    (current_history_root / (current_job_identifier + '.json')).write_text('{}')
+                current_selected_root = current_storage_root / current_job_identifiers[0]
+                current_hidden_root = current_storage_root / current_job_identifiers[1]
+                (current_hidden_root / '.history-deleted').touch()
+                current_external_original = Path(current_directory_name) / 'original.png'
+                current_external_original.write_bytes(b'preserve')
+                current_registered_root = current_storage_root / 'registered-assets'
+                current_registered_root.mkdir()
+                with patch.object(current_service_instance, 'history_storage_path', return_value=current_history_root):
+                    (current_hidden_root / 'status.json').write_text('{"status":"queued"}')
+                    with self.assertRaises(ValueError):
+                        current_service_instance.reset_generation_history()
+                    self.assertTrue((current_selected_root / 'input.png').exists())
+                    with self.assertRaises(ValueError):
+                        current_service_instance.delete_generation_history(current_job_identifiers[1])
+                    (current_hidden_root / 'status.json').write_text('{"status":"completed"}')
+                    current_expected_bytes = sum(current_file_path.stat().st_size for current_file_path in current_selected_root.rglob('*') if current_file_path.is_file()) + 2
+                    current_delete_result = current_service_instance.delete_generation_history(current_job_identifiers[0])
+                    self.assertEqual(current_delete_result['deleted_bytes'], current_expected_bytes)
+                    self.assertFalse(current_selected_root.exists())
+                    self.assertFalse((current_history_root / (current_job_identifiers[0] + '.json')).exists())
+                    self.assertTrue(current_hidden_root.exists())
+                    current_reset_result = current_service_instance.reset_generation_history()
+                    self.assertEqual(current_reset_result['deleted_jobs'], 1)
+                    self.assertFalse(current_hidden_root.exists())
+                    self.assertEqual(list(current_history_root.glob('*.json')), [])
+                    self.assertTrue(current_registered_root.is_dir())
+                    self.assertEqual(current_external_original.read_bytes(), b'preserve')
+
+
+class CleanupResumeConcurrencyTests(unittest.TestCase):
+    def test_resume_and_delete_share_lock_in_both_orders(self):
+        from concurrent.futures import ThreadPoolExecutor
+        import fcntl
+        import shutil
+        import threading
+        from tools.review.common.gpu_job_queue import resume_gpu_generation
+        current_original_flock = fcntl.flock
+        current_original_rmtree = shutil.rmtree
+        for current_first_operation in ('resume', 'delete'):
+            with self.subTest(first=current_first_operation), tempfile.TemporaryDirectory() as current_directory_name:
+                current_storage_root = Path(current_directory_name)
+                current_job_root = current_storage_root / 'job'
+                current_job_root.mkdir()
+                (current_job_root / 'status.json').write_text('{"status":"failed"}')
+                (current_job_root / 'gpu-command.json').write_text('{"command":["mock-worker"],"service":"image"}')
+                (current_job_root / 'result.png').write_bytes(b'preserve until deleted')
+                current_first_entered = threading.Event()
+                current_second_waiting = threading.Event()
+                current_release_first = threading.Event()
+
+                def observe_cleanup_lock(current_lock_handle, current_lock_operation):
+                    if threading.current_thread().name.startswith('second-operation'):
+                        current_second_waiting.set()
+                    return current_original_flock(current_lock_handle, current_lock_operation)
+
+                def simulate_generation_launch(*current_command_values, **current_process_options):
+                    current_first_entered.set()
+                    if not current_release_first.wait(5):
+                        raise TimeoutError('재개 경합 검증 해제 지연')
+
+                def delay_cleanup_removal(current_target_path):
+                    current_first_entered.set()
+                    if not current_release_first.wait(5):
+                        raise TimeoutError('삭제 경합 검증 해제 지연')
+                    return current_original_rmtree(current_target_path)
+
+                def execute_cleanup_action():
+                    return delete_generation_job_files(current_storage_root, [current_job_root])
+
+                with patch('fcntl.flock', side_effect=observe_cleanup_lock), patch('tools.review.common.gpu_job_queue.launch_gpu_process', side_effect=simulate_generation_launch) as current_launch_mock, patch('tools.review.common.generation_cleanup.shutil.rmtree', side_effect=delay_cleanup_removal), ThreadPoolExecutor(max_workers=1, thread_name_prefix='first-operation') as current_first_pool, ThreadPoolExecutor(max_workers=1, thread_name_prefix='second-operation') as current_second_pool:
+                    current_first_callback = (lambda: resume_gpu_generation(current_job_root)) if current_first_operation == 'resume' else execute_cleanup_action
+                    current_second_callback = execute_cleanup_action if current_first_operation == 'resume' else (lambda: resume_gpu_generation(current_job_root))
+                    current_first_future = current_first_pool.submit(current_first_callback)
+                    try:
+                        self.assertTrue(current_first_entered.wait(5))
+                        current_second_future = current_second_pool.submit(current_second_callback)
+                        self.assertTrue(current_second_waiting.wait(5))
+                        self.assertFalse(current_second_future.done())
+                    finally:
+                        current_release_first.set()
+                    current_first_future.result(timeout=5)
+                    if current_first_operation == 'resume':
+                        with self.assertRaises(ValueError):
+                            current_second_future.result(timeout=5)
+                        self.assertTrue((current_job_root / 'result.png').is_file())
+                        self.assertEqual(json.loads((current_job_root / 'status.json').read_text())['status'], 'queued')
+                        current_launch_mock.assert_called_once()
+                    else:
+                        with self.assertRaises(FileNotFoundError):
+                            current_second_future.result(timeout=5)
+                        self.assertFalse(current_job_root.exists())
+                        current_launch_mock.assert_not_called()
