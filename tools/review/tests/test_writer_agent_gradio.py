@@ -6,6 +6,26 @@ from tools.review.ui.gradio.writer_agent_app import build_writer_agent_interface
 
 
 class WriterAgentGradioTest(unittest.TestCase):
+    def test_readiness_requires_prompt_and_existing_selection(self):
+        current_interface_blocks=build_writer_agent_interface(8770)
+        current_refresh_callback=next(current_function_value.fn for current_function_value in current_interface_blocks.fns.values() if current_function_value.fn and current_function_value.fn.__name__=='refresh_writer_workspace')
+        current_workspace_record={'configured':True,'ready':True,'trained':True,'jobs':[{'id':'job-a','mode':'write','stage':'completed'}]}
+        with patch('tools.review.ui.gradio.writer_agent_app.request_writer_service',return_value=current_workspace_record):
+            current_empty_values=current_refresh_callback(None,'  ')
+            self.assertFalse(current_empty_values[6]['interactive'])
+            self.assertTrue(current_empty_values[7]['interactive'])
+            self.assertIn('작성 지시를 입력',current_empty_values[8])
+            self.assertFalse(current_empty_values[9]['interactive'])
+            current_ready_values=current_refresh_callback('job-a','작성 지시')
+            self.assertTrue(current_ready_values[6]['interactive'])
+            self.assertTrue(current_ready_values[9]['interactive'])
+            self.assertFalse(current_refresh_callback('missing','작성 지시')[9]['interactive'])
+            current_workspace_record['active_job']='job-running'
+            current_busy_values=current_refresh_callback('job-a','작성 지시')
+            self.assertFalse(current_busy_values[6]['interactive'])
+            self.assertFalse(current_busy_values[7]['interactive'])
+            self.assertIn('완료 후',current_busy_values[8])
+
     def test_uses_native_components_without_html(self):
         current_interface_blocks=build_writer_agent_interface(8770)
         self.assertFalse(any(isinstance(current_component_value,gr.HTML) for current_component_value in current_interface_blocks.blocks.values()))
@@ -16,7 +36,7 @@ class WriterAgentGradioTest(unittest.TestCase):
         current_output_values=format_writer_detail(current_detail_record)
         self.assertEqual(current_output_values[0]['status']['proposal_hash'],'hash-a')
         self.assertEqual(current_output_values[8],'a.md\n+문장')
-        self.assertTrue(current_output_values[12]['interactive'])
+        self.assertFalse(current_output_values[12]['interactive'])
         self.assertFalse(current_output_values[13])
 
     def test_unconfirmed_apply_never_calls_service(self):
@@ -25,6 +45,17 @@ class WriterAgentGradioTest(unittest.TestCase):
         with patch('tools.review.ui.gradio.writer_agent_app.request_writer_service') as current_service_mock:
             with self.assertRaises(gr.Error):current_apply_callback({'id':'job-a'},False,'job-a')
             current_service_mock.assert_not_called()
+
+    def test_apply_readiness_requires_confirmation_and_current_review(self):
+        current_interface_blocks=build_writer_agent_interface(8770)
+        current_readiness_callback=next(current_function_value.fn for current_function_value in current_interface_blocks.fns.values() if current_function_value.fn and current_function_value.fn.__name__=='update_writer_apply_readiness')
+        current_detail_record={'id':'job-a','status':{'stage':'review'},'proposal':{'changes':[{'path':'a.md','diff':'+문장'}]}}
+        self.assertFalse(current_readiness_callback(current_detail_record,False,'job-a')[0]['interactive'])
+        self.assertTrue(current_readiness_callback(current_detail_record,True,'job-a')[0]['interactive'])
+        self.assertFalse(current_readiness_callback(current_detail_record,True,'job-b')[0]['interactive'])
+        for current_invalid_detail in ({}, {**current_detail_record,'application':{'status':'applied'}}, {**current_detail_record,'status':{'stage':'completed'}}, {**current_detail_record,'proposal':{'changes':[]}}):
+            with self.subTest(record=current_invalid_detail):
+                self.assertFalse(current_readiness_callback(current_invalid_detail,True,'job-a')[0]['interactive'])
 
     def test_apply_uses_loaded_identifier_and_hash(self):
         current_interface_blocks=build_writer_agent_interface(8770)

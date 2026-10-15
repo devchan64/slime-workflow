@@ -10,6 +10,18 @@ from tools.review.tests import test_image_generation
 
 
 class GenerationHistoryTests(unittest.TestCase):
+    def test_requeued_history_preserves_order_without_previous_progress(self):
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_job_directory = Path(current_directory_name)
+            current_saved_log = 'heartbeat stage=inference step=28/40\n사용자가 중지했습니다.'
+            (current_job_directory/'worker.log').write_text(current_saved_log)
+            (current_job_directory/'status.json').write_text(json.dumps({'status':'queued','queue_position':3}))
+            current_status_record = ImageGenerationManager().read_generation_status_record(current_job_directory)
+            self.assertEqual(current_status_record['progress'], {'stage':'queued','step':0,'total':None,'percent':None,'queue_position':3})
+            self.assertEqual(format_history_progress(current_status_record['progress']), 'GPU 대기 중 · 대기 순서 3')
+            self.assertEqual(current_status_record['log'], current_saved_log)
+            self.assertEqual((current_job_directory/'worker.log').read_text(), current_saved_log)
+
     def test_oom_failure_status_preserves_other_states(self):
         self.assertEqual(format_generation_status({'status':'failed','error':'CUDA out of memory. Tried to allocate 292 MiB.'}), 'OOM 실패 · GPU 메모리 부족')
         self.assertEqual(format_generation_status({'status':'failed','error':'입력 이미지 오류'}), '실패')
@@ -107,10 +119,24 @@ class GenerationHistoryTests(unittest.TestCase):
         self.assertEqual(format_history_progress({'stage':'inference','step':2,'total':4,'percent':50}),'추론 중 50% · 2/4스텝')
         self.assertEqual(format_history_progress({'stage':'queued','queue_position':3}),'GPU 대기 중 · 대기 순서 3')
 
+    def test_finished_inference_does_not_claim_saved_completion(self):
+        current_worker_log = 'heartbeat stage=inference step=40/40'
+        current_running_progress = summarize_generation_progress(current_worker_log, 'running')
+        self.assertEqual(current_running_progress, {'stage':'saving','step':0,'total':None,'percent':None})
+        self.assertEqual(format_history_progress(current_running_progress), '결과 저장 중')
+        current_completed_progress = summarize_generation_progress(current_worker_log, 'completed')
+        self.assertEqual(current_completed_progress['percent'], 100)
+        self.assertEqual(current_completed_progress['stage'], 'completed')
+
     def test_stage_transition_does_not_reuse_previous_steps(self):
         current_loading_progress = summarize_generation_progress("heartbeat {'stage': 'loading', 'step': 0, 'total': 40}", 'running')
         self.assertEqual(current_loading_progress['stage'], 'loading')
         self.assertIsNone(current_loading_progress['percent'])
+        self.assertEqual(format_history_progress(current_loading_progress), '모델 로딩 중')
+        for current_stage_value, current_expected_label in (('loading', '모델 로딩 중'), ('download-model', '모델 다운로드 중'), ('postprocess', '후처리 중')):
+            with self.subTest(stage=current_stage_value):
+                current_stage_progress = summarize_generation_progress('step=40/40\nstage='+current_stage_value, 'running')
+                self.assertEqual(format_history_progress(current_stage_progress), current_expected_label)
         for current_stage_log in ('stage=loading', "{'stage': 'saving'}", '{"stage": "postprocess"}'):
             with self.subTest(stage=current_stage_log):
                 current_progress_record = summarize_generation_progress('step=40/40\n'+current_stage_log, 'running')

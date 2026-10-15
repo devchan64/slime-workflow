@@ -14,6 +14,7 @@ HISTORY_SUMMARY_FIELD_NAMES += ('duration_seconds',)
 HISTORY_SUMMARY_LABELS['duration_seconds'] = '길이(초)'
 HISTORY_STATUS_LABELS={'paused':'검수 대기', 'queued':'GPU 대기 중','running':'생성 중','completed':'완료','cancelled':'중지됨','failed':'실패','missing':'기록 누락','unknown':'상태 미상'}
 HISTORY_PROGRESS_STAGE_LABELS={'paused':'검수 대기', 'queued':'GPU 대기 중','starting':'생성 준비 중','load':'모델 로딩 중','inference':'추론 중','saving':'결과 저장 중','completed':'완료','failed':'실패'}
+HISTORY_PROGRESS_STAGE_LABELS.update({'loading':'모델 로딩 중','download-model':'모델 다운로드 중','postprocess':'후처리 중','cancelled':'중지됨'})
 
 
 

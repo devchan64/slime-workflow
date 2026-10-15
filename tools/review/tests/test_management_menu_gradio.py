@@ -9,6 +9,38 @@ from tools.review.ui.gradio.management_menu_app import create_initial_selection_
 
 
 class GradioManagementMenuTests(unittest.TestCase):
+    def test_menu_source_validation_explains_root_and_fields(self):
+        import json
+        import tempfile
+        from pathlib import Path
+        from tools.review.ui.gradio.management_menu_app import load_manager_page_records
+        current_valid_page = {'id':'audit-page','label':'검증','path':'/audit/','category':'animation-tool','description':'검증 페이지'}
+        current_invalid_sources = [(None, '원본은 객체'), ([], '원본은 객체'), ('pages', '원본은 객체'), (12, '원본은 객체'), ({'pages':{}}, '목록 형식')]
+        current_invalid_sources += [({'pages':[{**current_valid_page,current_field_name:None}]}, current_field_name) for current_field_name in current_valid_page]
+        current_invalid_sources += [({'pages':[{current_field_name:current_field_value for current_field_name,current_field_value in current_valid_page.items() if current_field_name!='path'}]}, 'path')]
+        with tempfile.TemporaryDirectory() as current_temporary_directory:
+            current_source_path = Path(current_temporary_directory)/'pages.json'
+            for current_source_record,current_error_message in current_invalid_sources:
+                with self.subTest(source=current_source_record):
+                    current_source_path.write_text(json.dumps(current_source_record))
+                    with self.assertRaisesRegex(ValueError,current_error_message):
+                        load_manager_page_records(current_source_path)
+            current_source_path.write_text(json.dumps({'pages':[current_valid_page]}))
+            self.assertIn('audit-page',[current_page_record['id'] for current_page_record in load_manager_page_records(current_source_path)])
+
+    def test_invalid_page_record_reports_explicit_type_error(self):
+        import json
+        import tempfile
+        from pathlib import Path
+        from tools.review.ui.gradio.management_menu_app import load_manager_page_records
+        with tempfile.TemporaryDirectory() as current_temporary_directory:
+            current_source_path = Path(current_temporary_directory)/'pages.json'
+            for current_invalid_record in (None, 12, 'page', []):
+                with self.subTest(record=current_invalid_record):
+                    current_source_path.write_text(json.dumps({'pages':[current_invalid_record]}))
+                    with self.assertRaisesRegex(ValueError, '페이지 항목은 객체'):
+                        load_manager_page_records(current_source_path)
+
     def test_pose_generator_release_metadata(self):
         import json
         import tempfile

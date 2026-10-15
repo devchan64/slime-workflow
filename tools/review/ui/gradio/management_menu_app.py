@@ -60,13 +60,19 @@ def render_gpu_status_card(gpu_status_record):
 
 def load_manager_page_records(source_file_path):
     source_record_values=json.loads(source_file_path.read_text())
+    if not isinstance(source_record_values,dict):
+        raise ValueError('관리 메뉴 원본은 객체여야 합니다.')
     page_record_values=source_record_values.get('pages',[])
     if not isinstance(page_record_values,list):raise ValueError('관리 메뉴 페이지 목록 형식 오류')
     page_identifier_values=set()
     validated_page_records=[]
     for current_page_record in [*page_record_values,*DEFAULT_PAGE_RECORDS]:
+        if not isinstance(current_page_record,dict):
+            raise ValueError('관리 메뉴 페이지 항목은 객체여야 합니다.')
         if current_page_record.get('id') in ('three-reference-generator','image-generator','floor-tile-generator','seamless-tile-generator'):continue
-        if not isinstance(current_page_record,dict) or not all(isinstance(current_page_record.get(current_field_name),str) for current_field_name in ('id','label','path','category','description')):raise ValueError('관리 메뉴 페이지 항목 형식 오류')
+        current_invalid_fields = [current_field_name for current_field_name in ('id','label','path','category','description') if not isinstance(current_page_record.get(current_field_name),str)]
+        if current_invalid_fields:
+            raise ValueError('관리 메뉴 페이지 필드는 문자열이어야 합니다: '+', '.join(current_invalid_fields))
         if any(current_page_record.get(current_field_name) is not None and not isinstance(current_page_record[current_field_name],str) for current_field_name in ('frameIdentifier','frameQuery')):raise ValueError('관리 메뉴 프레임 항목 형식 오류')
         if current_page_record['id']=='tile-map-generator':continue
         if current_page_record['id'] in ('character-animation', 'momask-generator', 'wan21-vace-generator', 'music-stable-audio'):continue
