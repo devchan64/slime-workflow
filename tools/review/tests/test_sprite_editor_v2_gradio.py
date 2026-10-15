@@ -7,6 +7,39 @@ from tools.review.ui.gradio.sprite_editor_v2_app import build_sprite_v2_interfac
 
 
 class SpriteV2GradioTests(unittest.TestCase):
+    def test_loader_versions_both_browser_scripts(self):
+        import hashlib
+        from tools.review.ui.gradio.sprite_editor_v2_app import create_sprite_v2_loader
+        current_loader_script=create_sprite_v2_loader(8798)
+        for current_asset_name in ('sprite-editor-v2.js','sprite-sheet-slicer.js'):
+            current_asset_path=Path(__file__).parents[1]/'ui/character_animation'/current_asset_name
+            current_asset_hash=hashlib.sha256(current_asset_path.read_bytes()).hexdigest()
+            self.assertIn(current_asset_name+'?v='+current_asset_hash,current_loader_script)
+
+    def test_sheet_script_failure_exposes_recovery_guidance(self):
+        from tools.review.ui.gradio.sprite_editor_v2_app import create_sprite_v2_loader
+        current_interface_config=build_sprite_v2_interface().get_config_file()
+        current_ready_event=next(current_event_record for current_event_record in current_interface_config['dependencies'] if 'window.spriteSheetReadiness' in (current_event_record.get('js') or ''))
+        current_loader_source=create_sprite_v2_loader(8798)
+        current_browser_script="""
+const assert=require('node:assert/strict');
+const window={},currentScriptElements=[];
+const document={querySelector:()=>null,getElementById:()=>({}),createElement:()=>({dataset:{}}),body:{append:currentElement=>currentScriptElements.push(currentElement)}};
+const runCurrentLoader=LOADER;
+const readCurrentControls=READINESS;
+(async()=>{
+ await runCurrentLoader();
+ const currentSlicerElement=currentScriptElements.find(currentElement=>currentElement.src.includes('sprite-sheet-slicer'));
+ currentSlicerElement.onerror();let currentOutputValues=readCurrentControls();
+ assert.ok(currentOutputValues.slice(0,-1).every(currentValue=>!currentValue.interactive));assert.match(currentOutputValues.at(-1),/연결에 실패.*새로고침/);
+ currentSlicerElement.onload();assert.match(readCurrentControls().at(-1),/초기화에 실패/);
+ window.spriteSheetReadiness=()=>({loadReady:true,editReady:false,applyReady:false,reason:'시트 이미지를 불러오세요.'});
+ currentSlicerElement.onload();assert.equal(readCurrentControls()[0].interactive,true);
+})().catch(currentError=>{console.error(currentError);process.exitCode=1;});
+""".replace('LOADER',current_loader_source).replace('READINESS',current_ready_event['js'])
+        current_command_result=subprocess.run(['node','-e',current_browser_script],capture_output=True,text=True,timeout=10)
+        self.assertEqual(current_command_result.returncode,0,current_command_result.stderr)
+
     def test_readiness_updates_stay_in_browser(self):
         current_interface_config=build_sprite_v2_interface().get_config_file()
         current_ready_events=[current_event_record for current_event_record in current_interface_config['dependencies'] if 'spriteV2ReadinessControls' in (current_event_record.get('js') or '')]
@@ -15,8 +48,8 @@ class SpriteV2GradioTests(unittest.TestCase):
         self.assertFalse(current_ready_event['backend_fn'])
         self.assertFalse(current_ready_event['queue'])
         current_component_lookup={current_component_record['id']:current_component_record for current_component_record in current_interface_config['components']}
-        self.assertEqual(len(current_ready_event['outputs']),36)
-        for current_control_id in current_ready_event['outputs'][:-3]:
+        self.assertEqual(len(current_ready_event['outputs']),41)
+        for current_control_id in current_ready_event['outputs'][:-4]:
             self.assertFalse(current_component_lookup[current_control_id]['props']['interactive'])
         self.assertIn('작업을 생성하거나 불러오세요',current_component_lookup[current_ready_event['outputs'][-1]]['props']['value'])
 
@@ -39,22 +72,54 @@ class SpriteV2GradioTests(unittest.TestCase):
         current_ready_source=current_source_text.split('window.spriteV2ReadinessControls=',1)[1].split('function refreshEditorAvailability',1)[0]
         current_browser_script="""
 const assert=require('node:assert/strict');
+let currentUploadTarget='reference';
 let currentProjectDocument=null,currentBusyState=false,currentEditorMode='guide',currentEditorTarget='frame',currentFrameIndex=0;
 const currentSelectedFrames=new Set(),currentUndoRecords=[];
 COLLECT
+UPLOAD_REASON
 const readCurrentReadiness=READY
 assert.equal(readCurrentReadiness().targetReady,false);
+assert.equal(readCurrentReadiness().uploadReady,false);
 currentProjectDocument={reference:null,frames:[{id:'one'}]};
 assert.equal(readCurrentReadiness().targetReady,true);
+assert.equal(readCurrentReadiness().uploadReady,true);
+currentUploadTarget='replace';currentFrameIndex=1;assert.equal(readCurrentReadiness().uploadReady,false);currentFrameIndex=0;assert.equal(readCurrentReadiness().uploadReady,true);
+currentUploadTarget='append';currentProjectDocument.frames=Array.from({length:128},()=>({id:'one'}));assert.equal(readCurrentReadiness().uploadReady,false);currentProjectDocument.frames=[{id:'one'}];assert.equal(readCurrentReadiness().uploadReady,true);
+assert.equal(readCurrentReadiness().referenceReady,false);currentProjectDocument.reference={};assert.equal(readCurrentReadiness().referenceReady,true);currentProjectDocument.reference=null;
 currentEditorTarget='reference';assert.equal(readCurrentReadiness().targetReady,false);
 currentEditorTarget='selected';assert.equal(readCurrentReadiness().targetReady,false);
 currentSelectedFrames.add('one');assert.equal(readCurrentReadiness().targetReady,true);
 assert.equal(readCurrentReadiness().undoReady,false);
 currentUndoRecords.push({});assert.equal(readCurrentReadiness().undoReady,true);
 currentBusyState=true;assert.equal(readCurrentReadiness().targetReady,false);assert.equal(readCurrentReadiness().undoReady,false);
-""".replace('COLLECT',current_collect_source).replace('READY',current_ready_source)
+""".replace('COLLECT',current_collect_source).replace('READY',current_ready_source).replace('UPLOAD_REASON','function readUploadUnavailableReason()'+current_source_text.split('function readUploadUnavailableReason()',1)[1].split('window.spriteV2ReadinessControls=',1)[0])
         current_command_result=subprocess.run(['node','-e',current_browser_script],capture_output=True,text=True)
         self.assertEqual(current_command_result.returncode,0,current_command_result.stderr)
+
+    def test_sheet_readiness_rechecks_project_capacity_and_busy(self):
+        current_source_text=(Path(__file__).parents[1]/'ui/character_animation/sprite-sheet-slicer.js').read_text()
+        current_readiness_source=current_source_text.split('window.spriteSheetReadiness=',1)[1].split('window.spriteSheetControls=',1)[0]
+        current_browser_script="""
+const assert=require('node:assert/strict');
+let currentSheetLoading=false;
+let currentSheetImage=null,currentSheetBusy=false,currentProjectPresent=false,currentFrameCount=0;
+const currentHorizontalCuts=[0,16],currentVerticalCuts=[0,16];
+const collectSheetRectangles=()=>[{}];
+const window={spriteV2ValidateSheet:()=>{if(!currentProjectPresent)throw Error('작업을 선택하세요.');if(currentFrameCount>=128)throw Error('128프레임 한도');}};
+const readSheetState=READINESS
+assert.equal(readSheetState().loadReady,true);assert.equal(readSheetState().editReady,false);assert.equal(readSheetState().applyReady,false);
+currentSheetImage={};assert.equal(readSheetState().editReady,true);assert.equal(readSheetState().applyReady,false);assert.match(readSheetState().reason,/작업/);
+currentProjectPresent=true;assert.equal(readSheetState().applyReady,true);
+currentFrameCount=128;assert.equal(readSheetState().applyReady,false);assert.match(readSheetState().reason,/128/);
+currentFrameCount=0;currentSheetBusy=true;assert.equal(readSheetState().loadReady,false);assert.equal(readSheetState().editReady,false);assert.equal(readSheetState().applyReady,false);
+""".replace('READINESS',current_readiness_source)
+        current_command_result=subprocess.run(['node','-e',current_browser_script],capture_output=True,text=True)
+        self.assertEqual(current_command_result.returncode,0,current_command_result.stderr)
+        current_interface_config=build_sprite_v2_interface().get_config_file()
+        current_ready_event=next(current_event_record for current_event_record in current_interface_config['dependencies'] if 'window.spriteSheetReadiness' in (current_event_record.get('js') or ''))
+        self.assertFalse(current_ready_event['backend_fn'])
+        self.assertFalse(current_ready_event['queue'])
+        self.assertEqual(len(current_ready_event['outputs']),7)
 
     def test_shared_joypad_preserves_existing_consumer_contract(self):
         import gradio as gr

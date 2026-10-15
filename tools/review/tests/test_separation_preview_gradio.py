@@ -5,6 +5,12 @@ from tools.review.ui.gradio.animation_separation_app import build_separation_int
 
 
 class SeparationPreviewGradioTests(unittest.TestCase):
+    def test_browser_player_lifecycle_contracts(self):
+        import subprocess
+        from pathlib import Path
+        current_test_result = subprocess.run(['node', str(Path(__file__).with_name('separation_preview_controls.test.mjs'))], capture_output=True, text=True, timeout=20)
+        self.assertEqual(current_test_result.returncode, 0, current_test_result.stdout + current_test_result.stderr)
+
     def test_player_readiness_gates_single_frame_playback(self):
         import subprocess
         import gradio as gr
@@ -44,6 +50,12 @@ class SeparationPreviewGradioTests(unittest.TestCase):
         for current_component_record in current_player_components:
             self.assertIn('data-player-images', current_component_record['props']['html_template'])
             self.assertIn("watch('value',loadPreviewResult)", current_component_record['props']['js_on_load'])
+        current_readiness_events = [current_event_record for current_event_record in current_configuration_record['dependencies'] if any(current_player_name + 'Readiness' in (current_event_record.get('js') or '') for current_player_name in ('separationResultPlayer', 'separationHistoryPlayer'))]
+        self.assertEqual(len(current_readiness_events), 2)
+        self.assertTrue(set(current_readiness_events[0]['outputs']).isdisjoint(current_readiness_events[1]['outputs']))
+        for current_event_record in current_readiness_events:
+            self.assertFalse(current_event_record['backend_fn'])
+            self.assertFalse(current_event_record['queue'])
         self.assertNotIn('<iframe', str(current_configuration_record))
         self.assertNotIn('contentWindow', str(current_configuration_record))
 

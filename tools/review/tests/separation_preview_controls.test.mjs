@@ -74,3 +74,18 @@ test('빈 결과 및 잘못된 프레임 메타데이터는 명시적으로 거�
  currentHarnessRecord.currentPropsRecord.value='';await currentHarnessRecord.reloadPreviewValue();
  assert.match(currentHarnessRecord.currentStatusElement.textContent,/완료된 결과를 조회/);
 });
+
+ test('제거된 재생기의 보관된 명령도 거절하며 새 인스턴스 핸들러는 보존한다',async()=>{
+ const currentSharedWindow={};
+ const currentOldPlayer=await createSeparationHarness(2,currentSharedWindow,'fixturePlayer');
+ const currentOldSeekHandler=currentSharedWindow.fixturePlayerSeek;
+ const currentOldReadinessHandler=currentSharedWindow.fixturePlayerReadiness;
+ const currentNewPlayer=await createSeparationHarness(2,currentSharedWindow,'fixturePlayer');
+ currentOldPlayer.currentRootElement.isConnected=false;
+ currentOldPlayer.currentObserverCallbacks[0]();
+ assert.throws(()=>currentOldSeekHandler(1),/먼저 조회|닫혔습니다/);
+ assert.equal(currentOldReadinessHandler().ready,false);
+ assert.equal(currentSharedWindow.fixturePlayerReadiness().ready,true);
+ assert.match(currentSharedWindow.fixturePlayerSeek(2),/2\/2/);
+ assert.match(currentNewPlayer.currentStatusElement.textContent,/2\/2/);
+});

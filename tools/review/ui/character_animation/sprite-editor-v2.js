@@ -46,7 +46,18 @@ async function confirmEditorReplacement(currentTargetDescription){
  if(!currentAcceptedValue)writeEditorStatus('취소했습니다. 현재 편집을 유지합니다.');
  return currentAcceptedValue;
 }
+function readUploadUnavailableReason(){
+ if(currentBusyState)return '등록·저장 처리가 끝날 때까지 기다리세요.';
+ if(!currentProjectDocument)return '작업을 생성하거나 불러오세요.';
+ if(currentUploadTarget==='replace'&&!currentProjectDocument.frames[currentFrameIndex])return '교체할 프레임을 먼저 등록하고 선택하세요.';
+ if(currentUploadTarget==='append'&&currentProjectDocument.frames.length>=128)return '최대 128프레임입니다. 프레임을 삭제한 뒤 추가하세요.';
+ return '';
+}
 window.spriteV2ReadinessControls=()=>({
+ uploadReady:!readUploadUnavailableReason(),
+ uploadReason:readUploadUnavailableReason()||'선택한 입력 대상에 이미지를 등록할 수 있습니다.',
+ referenceReady:Boolean(currentProjectDocument?.reference)&&!currentBusyState,
+
  projectReady:Boolean(currentProjectDocument)&&!currentBusyState,
  targetReady:collectEditorTargets('image').length>0&&!currentBusyState,
  undoReady:currentUndoRecords.length>0&&!currentBusyState,
@@ -190,7 +201,8 @@ window.spriteV2UploadTarget=(currentTargetValue)=>{
 window.spriteV2UploadControls=async(currentActionName)=>{
  if(!['upload','paste'].includes(currentActionName))throw Error('지원하지 않는 이미지 입력 명령입니다.');
  if(!currentProjectIdentifier)throw Error('먼저 작업을 생성하거나 불러오세요.');
- if(currentBusyState)throw Error('등록·저장 처리가 끝난 뒤 사용할 수 있습니다.');
+ const currentUnavailableReason=readUploadUnavailableReason();
+ if(currentUnavailableReason)throw Error(currentUnavailableReason);
  await runEditorAction(currentEditorActions.get(currentActionName),true);
  return currentActionName==='upload'?'파일을 선택하면 지정한 입력 대상에 등록합니다.':findEditorElement('status').textContent;
 };

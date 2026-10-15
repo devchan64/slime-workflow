@@ -21,10 +21,11 @@ function collectAppendNumbers(currentExistingCount,currentAddedCount){
 }
 if(typeof module!=='undefined')module.exports={createUniformBoundaries,validateSheetBoundaries,collectSheetRectangles,collectAppendNumbers};
 if(typeof window==='undefined')return;
+let currentSheetLoadSequence=0,currentSheetLoading=false;
 let currentSheetImage=null,currentSheetName='',currentHorizontalCuts=[],currentVerticalCuts=[],currentSheetBusy=false,currentDraggedLine=null;
 const getSheetCanvas=()=>document.getElementById('sprite-sheet-preview');
 const writeSheetNotice=currentNoticeText=>{document.getElementById('sprite-sheet-notice').textContent=currentNoticeText;};
-function requireSheetImage(){if(!currentSheetImage)throw Error('시트 이미지를 먼저 불러오세요.');if(currentSheetBusy)throw Error('프레임 등록이 끝난 뒤 사용하세요.');}
+function requireSheetImage(){if(currentSheetLoading)throw Error('시트 로딩이 끝날 때까지 기다리세요.');if(!currentSheetImage)throw Error('시트 이미지를 먼저 불러오세요.');if(currentSheetBusy)throw Error('프레임 등록이 끝난 뒤 사용하세요.');}
 function drawSheetPreview(){
  const currentPreviewCanvas=getSheetCanvas();if(!currentPreviewCanvas||!currentSheetImage)return;
  const currentPreviewScale=Math.min(1,SHEET_PREVIEW_WIDTH/currentSheetImage.naturalWidth);
@@ -58,16 +59,31 @@ function drawSheetPreview(){
 }
 async function loadSheetFile(currentImageFile){
  if(currentSheetBusy)throw Error('프레임 등록이 끝난 뒤 사용하세요.');
+ const currentLoadSequence=++currentSheetLoadSequence;
+ currentSheetLoading=false;
  if(!['image/png','image/jpeg','image/webp'].includes(currentImageFile.type)||currentImageFile.size>SHEET_MAX_BYTES)throw Error('PNG/JPEG/WebP, 최대 32MB 시트를 사용하세요.');
  const currentObjectUrl=URL.createObjectURL(currentImageFile),currentLoadedImage=new Image();
- try{currentLoadedImage.src=currentObjectUrl;await currentLoadedImage.decode();if(currentLoadedImage.naturalWidth*currentLoadedImage.naturalHeight>SHEET_MAX_PIXELS)throw Error('시트는 최대 3200만 픽셀입니다.');}catch(currentLoadError){URL.revokeObjectURL(currentObjectUrl);throw currentLoadError;}
- if(currentSheetImage)URL.revokeObjectURL(currentSheetImage.src);
- currentSheetImage=currentLoadedImage;currentSheetName=currentImageFile.name||'클립보드 시트';currentHorizontalCuts=[0,currentLoadedImage.naturalWidth];currentVerticalCuts=[0,currentLoadedImage.naturalHeight];drawSheetPreview();
+ currentSheetLoading=true;
+ try{
+  currentLoadedImage.src=currentObjectUrl;await currentLoadedImage.decode();
+  if(currentLoadSequence!==currentSheetLoadSequence){URL.revokeObjectURL(currentObjectUrl);return false;}
+  if(currentLoadedImage.naturalWidth*currentLoadedImage.naturalHeight>SHEET_MAX_PIXELS)throw Error('시트는 최대 3200만 픽셀입니다.');
+  if(currentSheetImage)URL.revokeObjectURL(currentSheetImage.src);
+  currentSheetImage=currentLoadedImage;currentSheetName=currentImageFile.name||'클립보드 시트';currentHorizontalCuts=[0,currentLoadedImage.naturalWidth];currentVerticalCuts=[0,currentLoadedImage.naturalHeight];drawSheetPreview();
+  return true;
+ }catch(currentLoadError){URL.revokeObjectURL(currentObjectUrl);if(currentLoadSequence===currentSheetLoadSequence)throw currentLoadError;return false;}
+ finally{if(currentLoadSequence===currentSheetLoadSequence)currentSheetLoading=false;}
 }
+window.spriteSheetReadiness=()=>{
+ const currentEditReady=Boolean(currentSheetImage)&&!currentSheetBusy&&!currentSheetLoading;
+ let currentApplyReason=currentSheetLoading?'시트 로딩이 끝날 때까지 기다리세요.':currentSheetBusy?'프레임 등록이 끝날 때까지 기다리세요.':!currentSheetImage?'시트 이미지를 먼저 불러오세요.':'';
+ if(!currentApplyReason){try{window.spriteV2ValidateSheet(collectSheetRectangles(currentHorizontalCuts,currentVerticalCuts).length);}catch(currentValidationError){currentApplyReason=currentValidationError.message;}}
+ return {loadReady:!currentSheetBusy,editReady:currentEditReady,applyReady:currentEditReady&&!currentApplyReason,reason:currentApplyReason||'분할선을 확인한 뒤 프레임으로 추가하세요.'};
+};
 window.spriteSheetControls={
  refresh:drawSheetPreview,
  upload:()=>{const currentFileInput=document.createElement('input');currentFileInput.type='file';currentFileInput.accept='image/png,image/jpeg,image/webp';currentFileInput.hidden=true;document.body.append(currentFileInput);currentFileInput.onchange=()=>{if(currentFileInput.files[0])loadSheetFile(currentFileInput.files[0]).catch(currentLoadError=>writeSheetNotice(currentLoadError.message));currentFileInput.remove();};currentFileInput.oncancel=()=>currentFileInput.remove();currentFileInput.click();return '시트 파일을 선택하세요. 미리보기를 확인한 뒤 행·열을 지정하세요.';},
- paste:async()=>{const currentClipboardItems=await navigator.clipboard.read();for(const currentClipboardItem of currentClipboardItems){const currentImageType=currentClipboardItem.types.find(currentMimeType=>['image/png','image/jpeg','image/webp'].includes(currentMimeType));if(currentImageType){await loadSheetFile(new File([await currentClipboardItem.getType(currentImageType)],'클립보드 시트',{type:currentImageType}));return '시트 이미지를 불러왔습니다.';}}throw Error('클립보드에 지원하는 이미지가 없습니다.');},
+ paste:async()=>{const currentClipboardItems=await navigator.clipboard.read();for(const currentClipboardItem of currentClipboardItems){const currentImageType=currentClipboardItem.types.find(currentMimeType=>['image/png','image/jpeg','image/webp'].includes(currentMimeType));if(currentImageType){const currentLoadApplied=await loadSheetFile(new File([await currentClipboardItem.getType(currentImageType)],'클립보드 시트',{type:currentImageType}));return currentLoadApplied?'시트 이미지를 불러왔습니다.':'더 최근에 선택한 시트를 유지합니다.';}}throw Error('클립보드에 지원하는 이미지가 없습니다.');},
  grid:(currentColumnCount,currentRowCount)=>{requireSheetImage();if(currentColumnCount*currentRowCount>SHEET_MAX_FRAMES)throw Error('한 번에 최대 128프레임입니다.');const currentNextHorizontal=createUniformBoundaries(currentSheetImage.naturalWidth,currentColumnCount),currentNextVertical=createUniformBoundaries(currentSheetImage.naturalHeight,currentRowCount);currentHorizontalCuts=currentNextHorizontal;currentVerticalCuts=currentNextVertical;drawSheetPreview();return window.spriteSheetControls.read();},
  read:()=>{requireSheetImage();return [currentHorizontalCuts.join(', '),currentVerticalCuts.join(', '),'현재 분할 좌표를 읽었습니다. 외곽 좌표를 좁히면 여백을 제외할 수 있습니다.'];},
  coordinates:(currentHorizontalText,currentVerticalText)=>{requireSheetImage();const parseBoundaryText=currentInputText=>{if(!/^\s*\d+(\s*,\s*\d+)+\s*$/.test(currentInputText))throw Error('좌표를 쉼표로 구분한 정수로 입력하세요.');return currentInputText.split(',').map(Number);};const currentNextHorizontal=validateSheetBoundaries(parseBoundaryText(currentHorizontalText),currentSheetImage.naturalWidth),currentNextVertical=validateSheetBoundaries(parseBoundaryText(currentVerticalText),currentSheetImage.naturalHeight);collectSheetRectangles(currentNextHorizontal,currentNextVertical);currentHorizontalCuts=currentNextHorizontal;currentVerticalCuts=currentNextVertical;drawSheetPreview();return window.spriteSheetControls.read();},
@@ -77,5 +93,5 @@ window.spriteSheetControls={
   try{const currentFrameFiles=[];for(const [currentFrameNumber,currentCropRectangle] of currentCropRectangles.entries()){const currentCropCanvas=document.createElement('canvas');currentCropCanvas.width=currentCropRectangle.width;currentCropCanvas.height=currentCropRectangle.height;currentCropCanvas.getContext('2d').drawImage(currentSheetImage,currentCropRectangle.x,currentCropRectangle.y,currentCropRectangle.width,currentCropRectangle.height,0,0,currentCropRectangle.width,currentCropRectangle.height);const currentFrameBlob=await new Promise(currentResolveBlob=>currentCropCanvas.toBlob(currentResolveBlob,'image/png'));if(!currentFrameBlob||currentFrameBlob.size>8000000)throw Error('분할 프레임은 한 장당 8MB 이하여야 합니다.');currentFrameFiles.push(new File([currentFrameBlob],`${currentSheetName.replace(/\.[^.]+$/,'')}-${String(currentAppendNumbers[currentFrameNumber]).padStart(3,'0')}.png`,{type:'image/png'}));}await window.spriteV2AppendSheet(currentFrameFiles,currentExpectedProject);return `${currentFrameFiles.length}프레임을 추가했습니다. 실행 취소로 되돌리거나 수정본 저장으로 보존하세요.`;}finally{currentSheetBusy=false;}
  }
 };
-window.spriteSheetActionControls=async(currentActionName)=>{if(!['upload','paste','apply'].includes(currentActionName))throw Error('지원하지 않는 시트 명령입니다.');return await window.spriteSheetControls[currentActionName]();};
+window.spriteSheetActionControls=async(currentActionName)=>{if(!['upload','paste','apply'].includes(currentActionName))throw Error('지원하지 않는 시트 명령입니다.');if(currentSheetBusy)throw Error('프레임 등록이 끝날 때까지 기다리세요.');return await window.spriteSheetControls[currentActionName]();};
 })();

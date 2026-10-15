@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 import sys
 import signal
+import subprocess
 import threading
 import time
 import unittest
@@ -44,9 +45,8 @@ class MusicRegressionResult(unittest.TextTestResult):
         raise TimeoutError('회귀 테스트 30초 제한 초과')
 
 
-def execute_music_regression(current_test_modules=MUSIC_REGRESSION_MODULES, current_report_area="music-regression"):
-    current_result_root = WORKFLOW_ROOT_DIRECTORY/'.tmp/test'/current_report_area/datetime.now(ZoneInfo('Asia/Seoul')).strftime('%Y-%m-%d_%H-%M-%S')
-    current_result_root.mkdir(parents=True)
+def execute_regression_worker(current_test_modules, current_report_area, current_result_root):
+    current_result_root = Path(current_result_root)
     current_start_clock = time.monotonic()
     current_stop_event = threading.Event()
     current_original_stdout,current_original_stderr = sys.stdout,sys.stderr
@@ -89,5 +89,30 @@ def execute_music_regression(current_test_modules=MUSIC_REGRESSION_MODULES, curr
     return current_exit_code
 
 
+def execute_music_regression(current_test_modules=MUSIC_REGRESSION_MODULES, current_report_area="music-regression"):
+    """별도 프로세스의 종료 정리 출력까지 파일에 보존한다."""
+    current_result_root = WORKFLOW_ROOT_DIRECTORY/'.tmp/test'/current_report_area/datetime.now(ZoneInfo('Asia/Seoul')).strftime('%Y-%m-%d_%H-%M-%S')
+    current_result_root.mkdir(parents=True)
+    current_start_clock = time.monotonic()
+    with (current_result_root/'runner.log').open('w') as current_runner_log:
+        current_process_result = subprocess.run(
+            [sys.executable, str(Path(__file__).resolve()), '--worker', json.dumps(current_test_modules), current_report_area, str(current_result_root)],
+            stdout=current_runner_log, stderr=subprocess.STDOUT,
+        )
+    try:
+        current_summary_record = json.loads((current_result_root/'summary.json').read_text())
+        if not isinstance(current_summary_record, dict) or current_summary_record.get('exit_code') != current_process_result.returncode:
+            raise ValueError('작업자 종료 코드와 요약이 일치하지 않습니다.')
+    except (OSError, ValueError) as current_report_error:
+        current_summary_record = {'status':'집계 불가', 'reason':str(current_report_error),
+            'exit_code':current_process_result.returncode, 'elapsed_seconds':round(time.monotonic()-current_start_clock,2), 'result_path':str(current_result_root)}
+        (current_result_root/'summary.json').write_text(json.dumps(current_summary_record,ensure_ascii=False,indent=2))
+    (current_result_root/'exit-code').write_text(str(current_process_result.returncode))
+    print(json.dumps(current_summary_record,ensure_ascii=False))
+    return current_process_result.returncode
+
+
 if __name__=='__main__':
+    if len(sys.argv) == 5 and sys.argv[1] == '--worker':
+        sys.exit(execute_regression_worker(json.loads(sys.argv[2]), sys.argv[3], sys.argv[4]))
     sys.exit(execute_music_regression())

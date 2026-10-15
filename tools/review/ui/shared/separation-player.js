@@ -5,7 +5,7 @@ let currentManifestRecord=null,currentImageSources=[],currentFrameNumber=0,curre
 let currentRequestSequence=0,currentFetchController=null,currentViewName='compare',currentTransformRecord={x:0,y:0,scale:1};
 const showPreviewMessage=currentMessageText=>{element.querySelector('[data-player-status]').textContent=currentMessageText;return currentMessageText;};
 const stopPreviewPlayback=()=>{clearInterval(currentPlaybackTimer);currentPlaybackTimer=null;};
-const requirePreviewReady=()=>{if(!currentManifestRecord)throw Error('완료된 결과를 먼저 조회하세요.');};
+const requirePreviewReady=()=>{if(!element.isConnected)throw Error('재생기 화면이 닫혔습니다.');if(!currentManifestRecord)throw Error('완료된 결과를 먼저 조회하세요.');};
 const updatePreviewPanels=()=>{
  for(const currentPanelElement of element.querySelectorAll('[data-review-part]'))currentPanelElement.hidden=!currentViewPanels[currentViewName].includes(currentPanelElement.dataset.reviewPart);
 };
@@ -65,12 +65,12 @@ const currentPlaybackHandler=currentActionName=>{
 const currentSeekHandler=currentFrameValue=>{requirePreviewReady();if(!Number.isInteger(currentFrameValue)||currentFrameValue<1||currentFrameValue>currentManifestRecord.frames.length)throw Error('프레임 번호가 범위를 벗어났습니다.');stopPreviewPlayback();currentFrameNumber=currentFrameValue-1;return drawPreviewFrame();};
 const currentViewHandler=currentSelectedView=>{requirePreviewReady();if(!Object.hasOwn(currentViewPanels,currentSelectedView))throw Error('지원하지 않는 비교 보기입니다.');currentViewName=currentSelectedView;updatePreviewPanels();return '비교 보기를 변경했습니다.';};
 const currentTransformHandler=(currentActionName,currentInputValues)=>{requirePreviewReady();[currentTransformRecord]=currentActionName==='reset'?[{x:0,y:0,scale:1}]:window.calculateJoypadTransforms(currentActionName,currentInputValues,[currentTransformRecord]);drawPreviewFrame();return {...currentTransformRecord,message:'겹쳐보기만 조정했습니다. 저장된 이미지는 변경하지 않습니다.'};};
-const currentReadinessHandler=()=>({ready:Boolean(currentManifestRecord)&&currentImageSources.length===3,frameCount:currentManifestRecord?.frames.length??0,playing:Boolean(currentPlaybackTimer),message:element.querySelector('[data-player-status]').textContent});
+const currentReadinessHandler=()=>({ready:element.isConnected&&Boolean(currentManifestRecord)&&currentImageSources.length===3,frameCount:currentManifestRecord?.frames.length??0,playing:Boolean(currentPlaybackTimer),message:element.querySelector('[data-player-status]').textContent});
 const currentHandlerRecords={Readiness:currentReadinessHandler,Playback:currentPlaybackHandler,Seek:currentSeekHandler,View:currentViewHandler,Transform:currentTransformHandler};
 for(const [currentHandlerSuffix,currentHandlerFunction] of Object.entries(currentHandlerRecords))window[currentPlayerIdentifier+currentHandlerSuffix]=currentHandlerFunction;
 const currentRemovalObserver=new MutationObserver(()=>{
  if(element.isConnected)return;
- stopPreviewPlayback();++currentRequestSequence;currentFetchController?.abort();currentRemovalObserver.disconnect();
+ stopPreviewPlayback();++currentRequestSequence;currentFetchController?.abort();currentManifestRecord=null;currentImageSources=[];currentRemovalObserver.disconnect();
  for(const [currentHandlerSuffix,currentHandlerFunction] of Object.entries(currentHandlerRecords))if(window[currentPlayerIdentifier+currentHandlerSuffix]===currentHandlerFunction)delete window[currentPlayerIdentifier+currentHandlerSuffix];
 });
 currentRemovalObserver.observe(document.body,{childList:true,subtree:true});

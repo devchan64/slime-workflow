@@ -1,5 +1,6 @@
 """Gradio 안에서 브라우저 기반 v2 편집기를 제공한다."""
 import argparse
+import hashlib
 import re
 import sys
 from pathlib import Path
@@ -25,6 +26,8 @@ def create_sprite_project_script(current_action_name):
 
 
 def create_sprite_v2_loader(review_server_port):
+    current_editor_script_hash=hashlib.sha256(resolve_review_ui_asset('sprite-editor-v2.js').read_bytes()).hexdigest()
+    current_slicer_script_hash=hashlib.sha256(resolve_review_ui_asset('sprite-sheet-slicer.js').read_bytes()).hexdigest()
     current_loader_script=f"""async()=>{{
 {read_joypad_browser_script()}
 if(document.querySelector('script[data-sprite-v2]'))return;
@@ -35,10 +38,14 @@ if(!document.getElementById('sv2-reference'))await new Promise((resolveEditorRea
 }});
 window.spriteV2ServerBase='http://127.0.0.1:{review_server_port}';
 const currentScriptElement=document.createElement('script');currentScriptElement.dataset.spriteV2='true';
-currentScriptElement.src=window.spriteV2ServerBase+'/character-animation/sprite-editor-v2.js';
+currentScriptElement.src=window.spriteV2ServerBase+'/character-animation/sprite-editor-v2.js?v={current_editor_script_hash}';
 currentScriptElement.onerror=()=>{{document.getElementById('sv2-status').textContent='편집기 스크립트 연결에 실패했습니다. 관리 서버 연결 후 새로고침하세요.';currentScriptElement.remove();}};
 document.body.append(currentScriptElement);
-const currentSlicerScript=document.createElement('script');currentSlicerScript.src=window.spriteV2ServerBase+'/character-animation/sprite-sheet-slicer.js';document.body.append(currentSlicerScript);
+window.spriteSheetLoadError='';
+const currentSlicerScript=document.createElement('script');currentSlicerScript.src=window.spriteV2ServerBase+'/character-animation/sprite-sheet-slicer.js?v={current_slicer_script_hash}';
+currentSlicerScript.onerror=()=>{{window.spriteSheetLoadError='시트 도구 스크립트 연결에 실패했습니다. 관리 서버 연결을 확인한 뒤 새로고침하세요.';}};
+currentSlicerScript.onload=()=>{{if(typeof window.spriteSheetReadiness!=='function')window.spriteSheetLoadError='시트 도구 초기화에 실패했습니다. 관리 서버 로그를 확인한 뒤 새로고침하세요.';}};
+document.body.append(currentSlicerScript);
 }}"""
     return current_loader_script
 
@@ -98,34 +105,37 @@ def build_sprite_v2_interface():
             current_upload_choice.input(fn=None,inputs=current_upload_choice,js="(currentTargetValue)=>{if(!window.spriteV2UploadTarget)throw Error('편집기를 준비 중입니다.');window.spriteV2UploadTarget(currentTargetValue);}",queue=False)
             gr.Markdown('작업을 먼저 생성하거나 불러오세요. PNG/JPEG/WebP · 한 장당 8MB · 최대 128프레임. 투명도를 유지하며 흰 배경은 제거하지 않습니다.')
             with gr.Row():
-                build_browser_action_button('파일 불러오기','spriteV2UploadControls','upload',current_feedback_text)
-                build_browser_action_button('클립보드 붙여넣기','spriteV2UploadControls','paste',current_feedback_text)
+                current_file_upload_button=build_browser_action_button('파일 불러오기','spriteV2UploadControls','upload',current_feedback_text,current_button_enabled=False)
+                current_clipboard_upload_button=build_browser_action_button('클립보드 붙여넣기','spriteV2UploadControls','paste',current_feedback_text,current_button_enabled=False)
+            current_upload_notice=gr.Markdown('작업을 생성하거나 불러오세요. 교체하려면 프레임을 선택하세요.')
             gr.Markdown('삭제는 현재 편집본에 적용됩니다. 실행 취소로 복원할 수 있으며, 수정본 저장 전까지 저장된 작업은 유지됩니다.')
             with gr.Row():
-                build_browser_action_button('레퍼런스 이미지 삭제','spriteV2ImageDeleteControls','reference',current_feedback_text)
-                build_browser_action_button('선택 프레임 이미지 삭제','spriteV2FrameControls','remove',current_feedback_text)
+                current_reference_delete_button=build_browser_action_button('레퍼런스 이미지 삭제','spriteV2ImageDeleteControls','reference',current_feedback_text,current_button_enabled=False)
+                current_frame_delete_button=build_browser_action_button('선택 프레임 이미지 삭제','spriteV2FrameControls','remove',current_feedback_text,current_button_enabled=False)
         with gr.Accordion('애니메이션 시트 분할',open=False):
             gr.Markdown('① 시트 불러오기 → ② 행·열로 분할선 만들기 → ③ 빨간 분할선 드래그 → ④ 프레임 추가. 번호 순서대로 왼쪽에서 오른쪽, 위에서 아래로 입력됩니다. 원본 투명도를 유지합니다.')
             with gr.Row():
-                build_browser_action_button('시트 파일 불러오기','spriteSheetActionControls','upload',current_feedback_text)
-                build_browser_action_button('시트 클립보드 붙여넣기','spriteSheetActionControls','paste',current_feedback_text)
+                current_sheet_upload_button=build_browser_action_button('시트 파일 불러오기','spriteSheetActionControls','upload',current_feedback_text,current_button_enabled=False)
+                current_sheet_paste_button=build_browser_action_button('시트 클립보드 붙여넣기','spriteSheetActionControls','paste',current_feedback_text,current_button_enabled=False)
             with gr.Row():
                 current_sheet_columns=gr.Number(label='열 수 · 가로 칸',value=4,precision=0,minimum=1,maximum=128)
                 current_sheet_rows=gr.Number(label='행 수 · 세로 칸',value=2,precision=0,minimum=1,maximum=128)
-            current_sheet_grid=gr.Button('균등 분할선 만들기 · 기존 선 초기화')
+            current_sheet_grid=gr.Button('균등 분할선 만들기 · 기존 선 초기화',interactive=False)
             gr.HTML('<p id="sprite-sheet-notice" role="status">시트 이미지를 불러오세요. PNG/JPEG/WebP · 최대 32MB, 3200만 픽셀.</p><canvas id="sprite-sheet-preview" aria-label="시트 분할 미리보기 · 빨간 선 드래그" style="max-width:100%;height:auto;touch-action:none" width="1" height="1"></canvas>')
             with gr.Accordion('분할선 좌표 직접 입력',open=False):
                 gr.Markdown('첫 좌표와 마지막 좌표는 잘라낼 외곽입니다. 드래그 후 현재 좌표 읽기로 값을 확인하세요. 좌표는 원본 이미지 픽셀 기준입니다.')
                 current_sheet_x=gr.Textbox(label='세로 분할선 X 좌표 · 쉼표 구분')
                 current_sheet_y=gr.Textbox(label='가로 분할선 Y 좌표 · 쉼표 구분')
-                current_sheet_read=gr.Button('현재 분할 좌표 읽기')
-                current_sheet_coordinates=gr.Button('입력 좌표로 미리보기 갱신')
+                current_sheet_read=gr.Button('현재 분할 좌표 읽기',interactive=False)
+                current_sheet_coordinates=gr.Button('입력 좌표로 미리보기 갱신',interactive=False)
             current_sheet_outputs=[current_sheet_x,current_sheet_y,current_feedback_text]
             current_sheet_errors="[{__type__:'update'},{__type__:'update'},currentErrorValue.message]"
             current_sheet_grid.click(fn=None,inputs=[current_sheet_columns,current_sheet_rows],outputs=current_sheet_outputs,queue=False,js="(currentColumnsValue,currentRowsValue)=>{try{return window.spriteSheetControls.grid(currentColumnsValue,currentRowsValue);}catch(currentErrorValue){return "+current_sheet_errors+";}}")
             current_sheet_read.click(fn=None,outputs=current_sheet_outputs,queue=False,js="()=>{try{return window.spriteSheetControls.read();}catch(currentErrorValue){return "+current_sheet_errors+";}}")
             current_sheet_coordinates.click(fn=None,inputs=[current_sheet_x,current_sheet_y],outputs=current_sheet_outputs,queue=False,js="(currentXValues,currentYValues)=>{try{return window.spriteSheetControls.coordinates(currentXValues,currentYValues);}catch(currentErrorValue){return "+current_sheet_errors+";}}")
-            build_browser_action_button('분할 결과를 프레임으로 추가','spriteSheetActionControls','apply',current_feedback_text)
+            current_sheet_apply_button=build_browser_action_button('분할 결과를 프레임으로 추가','spriteSheetActionControls','apply',current_feedback_text,current_button_enabled=False)
+            current_sheet_ready_notice=gr.Markdown('시트 이미지를 먼저 불러오세요. 작업을 선택하면 분할 결과를 추가할 수 있습니다.')
+            gr.Timer(1).tick(fn=None,queue=False,outputs=[current_sheet_upload_button,current_sheet_paste_button,current_sheet_grid,current_sheet_read,current_sheet_coordinates,current_sheet_apply_button,current_sheet_ready_notice],js="()=>{const currentSheetState=window.spriteSheetReadiness?.()??{loadReady:false,editReady:false,applyReady:false,reason:window.spriteSheetLoadError||'시트 도구를 준비 중입니다.'};return [...['loadReady','loadReady','editReady','editReady','editReady','applyReady'].map(currentReadyKey=>({__type__:'update',interactive:currentSheetState[currentReadyKey]})),currentSheetState.reason];}")
         with gr.Accordion('비교 화면 표시',open=False):
             with gr.Row():
                 current_zoom_choice=gr.Dropdown(label='화면 확대',choices=[('맞춤','fit'),('100%','1'),('200%','2'),('400%','4')],value='fit')
@@ -219,10 +229,12 @@ def build_sprite_v2_interface():
  return [...Array(PROJECT_CONTROL_COUNT).fill(null).map(()=>({__type__:'update',interactive:currentReadyRecord.projectReady})),
  ...Array(FRAME_CONTROL_COUNT).fill(null).map(()=>({__type__:'update',interactive:currentReadyRecord.framesReady})),
  ...Array(JOYPAD_CONTROL_COUNT).fill(null).map(()=>({__type__:'update',interactive:Boolean(currentReadyRecord.targetReady)})),
- {__type__:'update',interactive:Boolean(currentReadyRecord.undoReady)},currentReadyRecord.targetReason??'편집기를 준비 중입니다.',currentReadyRecord.undoReason??'편집기를 준비 중입니다.',currentReadyRecord.reason];
+ {__type__:'update',interactive:Boolean(currentReadyRecord.undoReady)},
+ ...Array(2).fill(null).map(()=>({__type__:'update',interactive:Boolean(currentReadyRecord.uploadReady)})),
+ {__type__:'update',interactive:Boolean(currentReadyRecord.referenceReady)},{__type__:'update',interactive:Boolean(currentReadyRecord.framesReady)},currentReadyRecord.uploadReason??'편집기를 준비 중입니다.',currentReadyRecord.targetReason??'편집기를 준비 중입니다.',currentReadyRecord.undoReason??'편집기를 준비 중입니다.',currentReadyRecord.reason];
 }"""
         current_readiness_script=current_readiness_script.replace('PROJECT_CONTROL_COUNT','2').replace('FRAME_CONTROL_COUNT',str(1+len(current_navigation_controls)+len(current_frame_edit_controls))).replace('JOYPAD_CONTROL_COUNT',str(len(current_joypad_controls)))
-        current_readiness_timer.tick(fn=None,outputs=[current_save_button,current_metadata_button,current_export_button,*current_navigation_controls,*current_frame_edit_controls,*current_joypad_controls,current_undo_button,current_target_notice,current_undo_notice,current_readiness_notice],js=current_readiness_script,queue=False)
+        current_readiness_timer.tick(fn=None,outputs=[current_save_button,current_metadata_button,current_export_button,*current_navigation_controls,*current_frame_edit_controls,*current_joypad_controls,current_undo_button,current_file_upload_button,current_clipboard_upload_button,current_reference_delete_button,current_frame_delete_button,current_upload_notice,current_target_notice,current_undo_notice,current_readiness_notice],js=current_readiness_script,queue=False)
         current_revision_choice=gr.Dropdown(label='수정 이력',choices=[],interactive=True)
         current_revision_identifier=build_generation_identifier('수정 이력 ID')
         current_revision_choice.change(fn=None,inputs=current_revision_choice,outputs=current_revision_identifier,queue=False,js="(currentRevisionIdentifier)=>currentRevisionIdentifier ?? ''")

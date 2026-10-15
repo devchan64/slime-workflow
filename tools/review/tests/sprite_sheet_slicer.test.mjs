@@ -26,3 +26,34 @@ test('여러 시트를 추가해도 기존 프레임 다음 번호부터 이어�
  assert.deepEqual(collectAppendNumbers(4,4),[5,6,7,8]);
  assert.deepEqual(collectAppendNumbers(8,8),[9,10,11,12,13,14,15,16]);
 });
+
+test('늦게 완료된 이전 시트는 최신 선택을 덮어쓰지 않고 로딩 중 적용을 막는다',async()=>{
+ const {readFileSync}=await import('node:fs');
+ const currentSourceText=readFileSync(new URL('../ui/character_animation/sprite-sheet-slicer.js',import.meta.url),'utf8');
+ const currentLoadSource=currentSourceText.slice(currentSourceText.indexOf('async function loadSheetFile('),currentSourceText.indexOf('window.spriteSheetControls='));
+ const currentPendingImages=[],currentRevokedUrls=[];
+ class FixtureSheetImage{
+  naturalWidth=64;naturalHeight=32;
+  decode(){return new Promise((currentResolveLoad,currentRejectLoad)=>currentPendingImages.push({resolve:currentResolveLoad,reject:currentRejectLoad}));}
+ }
+ const currentWindowObject={spriteV2ValidateSheet:()=>({})};
+ const currentHarnessFactory=new Function('Image','URL','window','collectSheetRectangles',`
+ const SHEET_MAX_BYTES=32000000,SHEET_MAX_PIXELS=32000000;
+ let currentSheetLoadSequence=0,currentSheetLoading=false,currentSheetImage=null,currentSheetName='',currentSheetBusy=false,currentHorizontalCuts=[],currentVerticalCuts=[];
+ const drawSheetPreview=()=>{};
+ ${currentLoadSource}
+ return {load:loadSheetFile,name:()=>currentSheetName,readiness:window.spriteSheetReadiness};`);
+ const currentHarnessRecord=currentHarnessFactory(FixtureSheetImage,{createObjectURL:currentFile=>currentFile.name,revokeObjectURL:currentUrl=>currentRevokedUrls.push(currentUrl)},currentWindowObject,collectSheetRectangles);
+ const currentFirstLoad=currentHarnessRecord.load({name:'old',type:'image/png',size:1});
+ const currentSecondLoad=currentHarnessRecord.load({name:'new',type:'image/png',size:1});
+ assert.equal(currentHarnessRecord.readiness().applyReady,false);
+ assert.match(currentHarnessRecord.readiness().reason,/로딩/);
+ currentPendingImages[1].resolve();assert.equal(await currentSecondLoad,true);
+ assert.equal(currentHarnessRecord.name(),'new');assert.equal(currentHarnessRecord.readiness().applyReady,true);
+ currentPendingImages[0].resolve();assert.equal(await currentFirstLoad,false);
+ assert.equal(currentHarnessRecord.name(),'new');assert.deepEqual(currentRevokedUrls,['old']);
+ const currentFailedLoad=currentHarnessRecord.load({name:'broken',type:'image/png',size:1});
+ currentPendingImages[2].reject(Error('decode failed'));await assert.rejects(currentFailedLoad,/decode failed/);
+ assert.equal(currentHarnessRecord.name(),'new');assert.equal(currentHarnessRecord.readiness().applyReady,true);
+ assert.deepEqual(currentRevokedUrls,['old','broken']);
+});
