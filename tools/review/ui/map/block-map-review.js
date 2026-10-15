@@ -83,12 +83,31 @@ const currentMaterialColors=await fetchMapReviewRecord('block-materials.json');
 const buildingTileRecords=await fetchMapReviewRecord('block-building-tiles.json');
 const currentTextureRecords=await fetchMapReviewRecord('/management/map-assets/textures');
 const loadedTextureImages={};
-await Promise.all(Object.entries(currentTextureRecords).map(([currentTextureName,currentTextureRecord])=>new Promise((resolveTextureLoad,rejectTextureLoad)=>{const currentTextureImage=new Image();currentTextureImage.onload=()=>{loadedTextureImages[currentTextureName]=currentTextureImage;resolveTextureLoad()};currentTextureImage.onerror=()=>{document.querySelector('#status').textContent='타일 로드 실패: '+currentTextureName;rejectTextureLoad(Error(currentTextureName))};currentTextureImage.src=new URL(currentTextureRecord.path,import.meta.url).href})));
+const currentTextureEntries=Object.entries(currentTextureRecords);
+let currentTextureLoadedCount=0;
+let currentTextureLoadFailed=false;
+document.querySelector('#status').textContent='타일 원본 불러오는 중 · 0 / '+currentTextureEntries.length;
+await Promise.all(currentTextureEntries.map(([currentTextureName,currentTextureRecord])=>new Promise((resolveTextureLoad,rejectTextureLoad)=>{
+ const currentTextureImage=new Image();
+ currentTextureImage.onload=()=>{
+  loadedTextureImages[currentTextureName]=currentTextureImage;
+  currentTextureLoadedCount++;
+  if(!currentTextureLoadFailed)document.querySelector('#status').textContent='타일 원본 불러오는 중 · '+currentTextureLoadedCount+' / '+currentTextureEntries.length;
+  resolveTextureLoad();
+ };
+ currentTextureImage.onerror=()=>{
+  currentTextureLoadFailed=true;
+  document.querySelector('#status').textContent='타일 로드 실패: '+currentTextureName;
+  rejectTextureLoad(Error('타일 로드 실패: '+currentTextureName));
+ };
+ currentTextureImage.src=new URL(currentTextureRecord.path,import.meta.url).href;
+})));
+document.querySelector('#status').textContent='기본 캐릭터 원본 불러오는 중';
 const reviewCharacterRecord=await fetchMapReviewRecord('review-character.json');
 const reviewCharacterImage=new Image();
 await new Promise((resolveCharacterLoad,rejectCharacterLoad)=>{reviewCharacterImage.onload=resolveCharacterLoad;reviewCharacterImage.onerror=()=>rejectCharacterLoad(Error('기본 캐릭터 로드 실패'));reviewCharacterImage.src=new URL(reviewCharacterRecord.image,import.meta.url).href});
+document.querySelector('#status').textContent='맵 렌더러 초기화 중';
 const currentSharedFieldView=!isCharacterReviewPage?await (await import('./field-map-view.js')).createSharedFieldReview(currentMapCanvas,loadedTextureImages,reviewCharacterImage,reviewCharacterRecord,loadedGuardImages,currentSafeVisualImages,currentTextureRecords):null;
-if(currentSharedFieldView)window.addEventListener('pagehide',()=>currentSharedFieldView.destroy(),{once:true});
 const groundTextureNames={grass:currentMapRecord.id==='iseulon'?'iseulon-grass-mud-frame':'grass',paving:currentMapRecord.id==='iseulon'?'iseulon-courtyard-paving':currentMapRecord.id==='stonewarm'?'stonewarm-granite-paving':currentMapRecord.id==='saltford'?'stonewarm-gravel-paving':currentMapRecord.id==='reedhaven'?'reedhaven-dry-embankment':currentMapRecord.id==='grainstead'?'reedhaven-dirt-road':'paving',gravel:currentMapRecord.id==='saltford'?'pebble-shore-ground':currentMapRecord.id==='stonewarm'?'stonewarm-exposed-rock-ground':'gravel',flowers:currentMapRecord.id==='meadow'?'grass-type-b':'flower_bed',dew:'dew',ash:'ash',moss:'moss','leaf-litter':'leaf-litter',wall:'cliff-wall',stone:currentMapRecord.id==='saltford'?'stonewarm-exposed-rock-ground':currentMapRecord.id==='stonewarm'?'pebble-shore-ground':'stone','dry-soil-branches':['stonewarm','saltford'].includes(currentMapRecord.id)?'reedhaven-dry-embankment':'dry-soil-branches',mud:'mud',boulder:'boulder',cactus:'cactus',road:isFieldMapReview?({road:'paving','dirt-road':'packed_dirt_road','stone-road':'stone_slab_road'}[selectFieldRoadFrame(0,{column:0,row:0},false,currentMapRecord.id)]):'paving',water:'spring_water','deep-water':'deep-water','shallow-water':'shallow-water','reed-bed':currentMapRecord.id==='reedhaven'?'marsh-reed-clumps':'reed-bed'};
 function readBuildingTileSet(currentBuildingRecord){return {...buildingTileRecords['iseulon-'+currentBuildingRecord.facilityKind],...(currentMapRecord.buildingTileOverrides||{}),...(buildingTileRecords[currentBuildingRecord.id]||{})}}
 function renderAppliedTileSourceList(){

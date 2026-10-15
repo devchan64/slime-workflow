@@ -43,13 +43,15 @@ pages:
   ui_mode: gradio
   url: /management/frame/anny-landmarks/
   source_review: in_progress
-  contract_tests: pending
-  browser_review: pending
-  findings: []
+  contract_tests: partial_verified
+  browser_review: partial_mock_verified
+  findings:
+  - landmark-selection-confirmation
   implementation: tools/review/ui/gradio/anny_landmarks_app.py
   applicability: landmark_candidate_editor
   review_note: GPU 생성기가 아닌 기준점 후보 편집·누적 이력 도구. 생성 ETA·VRAM·생성 이력 파일 삭제 규칙은 비적용; 미저장
     교체 확인·게이트웨이 저장·재연결을 검증할 대상.
+  browser_note: 운영 화면 neutral_v4 메시 표시 확인. 격리 합성 화면에서 미선택 비활성·확인 활성·선택 변경 해제·모의 불러오기 완료 후 재비활성 확인. 운영 저장 및 모바일·재연결은 미검증.
 - id: hy-motion-generator
   label: HY-Motion 모션 생성기
   category: animation-tool
@@ -139,12 +141,14 @@ pages:
   url: /management/frame/map-review/?map=reedhaven&townPage=1
   source_review: shared_ui_reviewed_runtime_pending
   contract_tests: shared_component_verified
-  browser_review: pending
+  browser_review: partial_live_verified
   findings: []
   implementation: tools/review/ui/gradio/map_review_app.py
   applicability: render_review
   review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+  browser_note: 2026-10-15 운영 8770 합성 문서에서 게임 공용 마을 렌더러 로딩 완료 확인. 갈대나루·돌온재는 90도 회전 상태 확인. 반응형·재연결 및 저장 없는 전체 조작 검증은 미완료.
+
 - id: animation-17
   label: 갈대등벌레 · 대기 · v2.imagegen-eight-frames
   category: animation
@@ -152,12 +156,14 @@ pages:
   url: /management/frame/static-review/?review=animation-17
   source_review: shared_ui_reviewed_runtime_pending
   contract_tests: shared_component_verified
-  browser_review: pending
+  browser_review: partial_live_verified
   findings: []
   implementation: tools/review/ui/gradio/static_review_app.py
   applicability: render_review
   review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+  browser_note: 2026-10-15 운영 8770 합성 문서에서 개별 캔버스 로딩과 다음 프레임 조작 후 2 / 8 정지 표시 확인. 저장·삭제 미실행. 개별 시각 품질·반응형·재연결·저장 계약 검증은 미완료.
+
 - id: map-review-boar-ridge
   label: 강모 능선 · 필드맵 검수
   category: field-map-review
@@ -165,8 +171,9 @@ pages:
   url: /management/frame/map-review/?map=boar-ridge&townPage=1
   source_review: shared_ui_reviewed_runtime_pending
   contract_tests: shared_component_verified
-  browser_review: pending
-  findings: []
+  browser_review: load_failed
+  findings:
+  - boar-ridge-character-request-failure
   implementation: tools/review/ui/gradio/map_review_app.py
   applicability: render_review
   review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
@@ -191,12 +198,14 @@ pages:
   url: /management/frame/static-review/?review=animation-10
   source_review: shared_ui_reviewed_runtime_pending
   contract_tests: shared_component_verified
-  browser_review: pending
+  browser_review: partial_live_verified
   findings: []
   implementation: tools/review/ui/gradio/static_review_app.py
   applicability: render_review
   review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+  browser_note: 2026-10-15 운영 8770 합성 문서에서 개별 캔버스 로딩과 다음 프레임 조작 후 2 / 8 정지 표시 확인. 저장·삭제 미실행. 개별 시각 품질·반응형·재연결·저장 계약 검증은 미완료.
+
 - id: animation-13
   label: 고목 거인 · 대기 · v2.imagegen-eight-frames
   category: animation
@@ -204,12 +213,14 @@ pages:
   url: /management/frame/static-review/?review=animation-13
   source_review: shared_ui_reviewed_runtime_pending
   contract_tests: shared_component_verified
-  browser_review: pending
+  browser_review: partial_live_verified
   findings: []
   implementation: tools/review/ui/gradio/static_review_app.py
   applicability: render_review
   review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+  browser_note: 2026-10-15 운영 8770 합성 문서에서 개별 캔버스 로딩과 다음 프레임 조작 후 2 / 8 정지 표시 확인. 저장·삭제 미실행. 개별 시각 품질·반응형·재연결·저장 계약 검증은 미완료.
+
 - id: map-review-grainstead
   label: 곡온벌 · 마을맵 검수
   category: town-map-review
@@ -217,12 +228,14 @@ pages:
   url: /management/frame/map-review/?map=grainstead&townPage=1
   source_review: shared_ui_reviewed_runtime_pending
   contract_tests: shared_component_verified
-  browser_review: pending
+  browser_review: partial_live_verified
   findings: []
   implementation: tools/review/ui/gradio/map_review_app.py
   applicability: render_review
   review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+  browser_note: 2026-10-15 운영 8770 합성 문서에서 로딩 완료 및 90도 회전 표시 확인. 준비 상태 지연 후 정상 완료 확인했으며 오류로 간주하지 않음. 반응형·재연결 검증은 미완료.
+
 - id: map-review-granary-flats
   label: 곡창들 · 필드맵 검수
   category: field-map-review
@@ -243,12 +256,14 @@ pages:
   url: /management/frame/static-review/?review=animation-1
   source_review: shared_ui_reviewed_runtime_pending
   contract_tests: shared_component_verified
-  browser_review: pending
+  browser_review: partial_live_verified
   findings: []
   implementation: tools/review/ui/gradio/static_review_app.py
   applicability: render_review
   review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+  browser_note: 2026-10-15 운영 8770 합성 문서에서 개별 캔버스 로딩과 다음 프레임 조작 후 2 / 8 정지 표시 확인. 저장·삭제 미실행. 개별 시각 품질·반응형·재연결·저장 계약 검증은 미완료.
+
 - id: map-review-broken-quarry
   label: 깨진 채석장 · 필드맵 검수
   category: field-map-review
@@ -256,12 +271,14 @@ pages:
   url: /management/frame/map-review/?map=broken-quarry&townPage=1
   source_review: shared_ui_reviewed_runtime_pending
   contract_tests: shared_component_verified
-  browser_review: pending
+  browser_review: partial_live_verified
   findings: []
   implementation: tools/review/ui/gradio/map_review_app.py
   applicability: render_review
   review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+  browser_note: 2026-10-15 운영 8770에서 필드 렌더러 로딩 및 90도 회전 확인. 반응형·재연결은 미검증.
+
 - id: animation-8
   label: 덤불송곳니 · 대기 · v2.imagegen-eight-frames
   category: animation
@@ -269,12 +286,14 @@ pages:
   url: /management/frame/static-review/?review=animation-8
   source_review: shared_ui_reviewed_runtime_pending
   contract_tests: shared_component_verified
-  browser_review: pending
+  browser_review: partial_live_verified
   findings: []
   implementation: tools/review/ui/gradio/static_review_app.py
   applicability: render_review
   review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+  browser_note: 2026-10-15 운영 8770 합성 문서에서 개별 캔버스 로딩과 다음 프레임 조작 후 2 / 8 정지 표시 확인. 저장·삭제 미실행. 개별 시각 품질·반응형·재연결·저장 계약 검증은 미완료.
+
 - id: animation-21
   label: 돌껍질게 · 대기 · v2.imagegen-eight-frames
   category: animation
@@ -282,12 +301,14 @@ pages:
   url: /management/frame/static-review/?review=animation-21
   source_review: shared_ui_reviewed_runtime_pending
   contract_tests: shared_component_verified
-  browser_review: pending
+  browser_review: partial_live_verified
   findings: []
   implementation: tools/review/ui/gradio/static_review_app.py
   applicability: render_review
   review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+  browser_note: 2026-10-15 운영 8770 합성 문서에서 개별 캔버스 로딩과 다음 프레임 조작 후 2 / 8 정지 표시 확인. 저장·삭제 미실행. 개별 시각 품질·반응형·재연결·저장 계약 검증은 미완료.
+
 - id: map-review-stonewarm
   label: 돌온재 · 마을맵 검수
   category: town-map-review
@@ -295,12 +316,14 @@ pages:
   url: /management/frame/map-review/?map=stonewarm&townPage=1
   source_review: shared_ui_reviewed_runtime_pending
   contract_tests: shared_component_verified
-  browser_review: pending
+  browser_review: partial_live_verified
   findings: []
   implementation: tools/review/ui/gradio/map_review_app.py
   applicability: render_review
   review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+  browser_note: 2026-10-15 운영 8770 합성 문서에서 게임 공용 마을 렌더러 로딩 완료 확인. 갈대나루·돌온재는 90도 회전 상태 확인. 반응형·재연결 및 저장 없는 전체 조작 검증은 미완료.
+
 - id: animation-12
   label: 들토끼 · 대기 · v2.imagegen-eight-frames
   category: animation
@@ -308,12 +331,14 @@ pages:
   url: /management/frame/static-review/?review=animation-12
   source_review: shared_ui_reviewed_runtime_pending
   contract_tests: shared_component_verified
-  browser_review: pending
+  browser_review: partial_live_verified
   findings: []
   implementation: tools/review/ui/gradio/static_review_app.py
   applicability: render_review
   review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+  browser_note: 2026-10-15 운영 8770 합성 문서에서 개별 캔버스 로딩과 다음 프레임 조작 후 2 / 8 정지 표시 확인. 저장·삭제 미실행. 개별 시각 품질·반응형·재연결·저장 계약 검증은 미완료.
+
 - id: map-review-lantern-wood
   label: 등불 숲 · 필드맵 검수
   category: field-map-review
@@ -334,12 +359,14 @@ pages:
   url: /management/frame/static-review/?review=animation-14
   source_review: shared_ui_reviewed_runtime_pending
   contract_tests: shared_component_verified
-  browser_review: pending
+  browser_review: partial_live_verified
   findings: []
   implementation: tools/review/ui/gradio/static_review_app.py
   applicability: render_review
   review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+  browser_note: 2026-10-15 운영 8770 합성 문서에서 개별 캔버스 로딩과 다음 프레임 조작 후 2 / 8 정지 표시 확인. 저장·삭제 미실행. 개별 시각 품질·반응형·재연결·저장 계약 검증은 미완료.
+
 - id: animation-18
   label: 등성이 멧돼지 · 대기 · v2.imagegen-eight-frames
   category: animation
@@ -347,12 +374,14 @@ pages:
   url: /management/frame/static-review/?review=animation-18
   source_review: shared_ui_reviewed_runtime_pending
   contract_tests: shared_component_verified
-  browser_review: pending
+  browser_review: partial_live_verified
   findings: []
   implementation: tools/review/ui/gradio/static_review_app.py
   applicability: render_review
   review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+  browser_note: 2026-10-15 운영 8770 합성 문서에서 개별 캔버스 로딩과 다음 프레임 조작 후 2 / 8 정지 표시 확인. 저장·삭제 미실행. 개별 시각 품질·반응형·재연결·저장 계약 검증은 미완료.
+
 - id: ui-643120e666a183ee-design-system
   label: 디자인 시스템 · 토큰과 기본 컴포넌트
   category: game-ui
@@ -399,12 +428,14 @@ pages:
   url: /management/frame/static-review/?review=animation-19
   source_review: shared_ui_reviewed_runtime_pending
   contract_tests: shared_component_verified
-  browser_review: pending
+  browser_review: partial_live_verified
   findings: []
   implementation: tools/review/ui/gradio/static_review_app.py
   applicability: render_review
   review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+  browser_note: 2026-10-15 운영 8770 합성 문서에서 개별 캔버스 로딩과 다음 프레임 조작 후 2 / 8 정지 표시 확인. 저장·삭제 미실행. 개별 시각 품질·반응형·재연결·저장 계약 검증은 미완료.
+
 - id: map-review-old-orchard
   label: 묵은 과수원 · 필드맵 검수
   category: field-map-review
@@ -425,12 +456,14 @@ pages:
   url: /management/frame/static-review/?review=animation-15
   source_review: shared_ui_reviewed_runtime_pending
   contract_tests: shared_component_verified
-  browser_review: pending
+  browser_review: partial_live_verified
   findings: []
   implementation: tools/review/ui/gradio/static_review_app.py
   applicability: render_review
   review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+  browser_note: 2026-10-15 운영 8770 합성 문서에서 개별 캔버스 로딩과 다음 프레임 조작 후 2 / 8 정지 표시 확인. 저장·삭제 미실행. 개별 시각 품질·반응형·재연결·저장 계약 검증은 미완료.
+
 - id: map-review-wind-hills
   label: 바람 구릉 · 필드맵 검수
   category: field-map-review
@@ -463,12 +496,14 @@ pages:
   url: /management/frame/static-review/?review=animation-11
   source_review: shared_ui_reviewed_runtime_pending
   contract_tests: shared_component_verified
-  browser_review: pending
+  browser_review: partial_live_verified
   findings: []
   implementation: tools/review/ui/gradio/static_review_app.py
   applicability: render_review
   review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+  browser_note: 2026-10-15 운영 8770 합성 문서에서 개별 캔버스 로딩과 다음 프레임 조작 후 2 / 8 정지 표시 확인. 저장·삭제 미실행. 개별 시각 품질·반응형·재연결·저장 계약 검증은 미완료.
+
 - id: map-review-root-trail
   label: 뿌리 오솔길 · 필드맵 검수
   category: field-map-review
@@ -502,12 +537,14 @@ pages:
   url: /management/frame/map-review/?map=clover-bank&townPage=1
   source_review: shared_ui_reviewed_runtime_pending
   contract_tests: shared_component_verified
-  browser_review: pending
+  browser_review: partial_live_verified
   findings: []
   implementation: tools/review/ui/gradio/map_review_app.py
   applicability: render_review
   review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+  browser_note: 2026-10-15 운영 8770에서 필드 렌더러 로딩 및 90도 회전 확인. 반응형·재연결은 미검증.
+
 - id: map-review-salt-causeway
   label: 소금둑길 · 필드맵 검수
   category: field-map-review
@@ -528,12 +565,14 @@ pages:
   url: /management/frame/map-review/?map=saltford&townPage=1
   source_review: shared_ui_reviewed_runtime_pending
   contract_tests: shared_component_verified
-  browser_review: pending
+  browser_review: partial_live_verified
   findings: []
   implementation: tools/review/ui/gradio/map_review_app.py
   applicability: render_review
   review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+  browser_note: 2026-10-15 운영 8770 합성 문서에서 로딩 완료 및 90도 회전 표시 확인. 준비 상태 지연 후 정상 완료 확인했으며 오류로 간주하지 않음. 반응형·재연결 검증은 미완료.
+
 - id: animation-9
   label: 수정날개박쥐 · 대기 · v1.imagegen-eight-frames
   category: animation
@@ -541,12 +580,14 @@ pages:
   url: /management/frame/static-review/?review=animation-9
   source_review: shared_ui_reviewed_runtime_pending
   contract_tests: shared_component_verified
-  browser_review: pending
+  browser_review: partial_live_verified
   findings: []
   implementation: tools/review/ui/gradio/static_review_app.py
   applicability: render_review
   review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+  browser_note: 2026-10-15 운영 8770 합성 문서에서 개별 캔버스 로딩과 다음 프레임 조작 후 2 / 8 정지 표시 확인. 저장·삭제 미실행. 개별 시각 품질·반응형·재연결·저장 계약 검증은 미완료.
+
 - id: sprite-editor-v2
   label: 스프라이트 정규화 편집기 v2
   category: animation-tool
@@ -565,12 +606,14 @@ pages:
   url: /management/frame/static-review/?review=animation-20
   source_review: shared_ui_reviewed_runtime_pending
   contract_tests: shared_component_verified
-  browser_review: pending
+  browser_review: partial_live_verified
   findings: []
   implementation: tools/review/ui/gradio/static_review_app.py
   applicability: render_review
   review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+  browser_note: 2026-10-15 운영 8770 합성 문서에서 개별 캔버스 로딩과 다음 프레임 조작 후 2 / 8 정지 표시 확인. 저장·삭제 미실행. 개별 시각 품질·반응형·재연결·저장 계약 검증은 미완료.
+
 - id: map-review-cinder-path
   label: 식은 잿길 · 필드맵 검수
   category: field-map-review
@@ -578,12 +621,14 @@ pages:
   url: /management/frame/map-review/?map=cinder-path&townPage=1
   source_review: shared_ui_reviewed_runtime_pending
   contract_tests: shared_component_verified
-  browser_review: pending
+  browser_review: partial_live_verified
   findings: []
   implementation: tools/review/ui/gradio/map_review_app.py
   applicability: render_review
   review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+  browser_note: 2026-10-15 운영 8770에서 필드 렌더러 로딩 및 90도 회전 확인. 반응형·재연결은 미검증.
+
 - id: map-review-fallen-canopy
   label: 쓰러진 수관 · 필드맵 검수
   category: field-map-review
@@ -617,12 +662,14 @@ pages:
   url: /management/frame/static-review/?review=animation-4
   source_review: shared_ui_reviewed_runtime_pending
   contract_tests: shared_component_verified
-  browser_review: pending
+  browser_review: partial_live_verified
   findings: []
   implementation: tools/review/ui/gradio/static_review_app.py
   applicability: render_review
   review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+  browser_note: 2026-10-15 운영 8770 합성 문서에서 개별 캔버스 로딩과 다음 프레임 조작 후 2 / 8 정지 표시 확인. 저장·삭제 미실행. 개별 시각 품질·반응형·재연결·저장 계약 검증은 미완료.
+
 - id: map-review-silver-marsh
   label: 은빛 습지 · 필드맵 검수
   category: field-map-review
@@ -656,12 +703,14 @@ pages:
   url: /management/frame/static-review/?review=animation-16
   source_review: shared_ui_reviewed_runtime_pending
   contract_tests: shared_component_verified
-  browser_review: pending
+  browser_review: partial_live_verified
   findings: []
   implementation: tools/review/ui/gradio/static_review_app.py
   applicability: render_review
   review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+  browser_note: 2026-10-15 운영 8770 합성 문서에서 개별 캔버스 로딩과 다음 프레임 조작 후 2 / 8 정지 표시 확인. 저장·삭제 미실행. 개별 시각 품질·반응형·재연결·저장 계약 검증은 미완료.
+
 - id: map-review-windrow-road
   label: 이삭바람길 · 필드맵 검수
   category: field-map-review
@@ -695,12 +744,14 @@ pages:
   url: /management/frame/map-review/?map=iseulon&townPage=1
   source_review: shared_ui_reviewed_runtime_pending
   contract_tests: shared_component_verified
-  browser_review: pending
+  browser_review: partial_live_verified
   findings: []
   implementation: tools/review/ui/gradio/map_review_app.py
   applicability: render_review
   review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+  browser_note: 2026-10-15 운영 8770 합성 문서에서 게임 공용 마을 렌더러 로딩 완료 확인. 갈대나루·돌온재는 90도 회전 상태 확인. 반응형·재연결 및 저장 없는 전체 조작 검증은 미완료.
+
 - id: writer-agent
   label: 작가 AI 에이전트
   category: writer-agent
@@ -721,12 +772,14 @@ pages:
   url: /management/frame/map-review/?map=ash-edge&townPage=1
   source_review: shared_ui_reviewed_runtime_pending
   contract_tests: shared_component_verified
-  browser_review: pending
+  browser_review: partial_live_verified
   findings: []
   implementation: tools/review/ui/gradio/map_review_app.py
   applicability: render_review
   review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+  browser_note: 2026-10-15 운영 8770에서 필드 렌더러 로딩 완료 확인. 회전 조작 중 서버 연결 끊김 안내가 발생하여 회전 검증 미완료. 서버 재시작·작업 중단 미실행.
+
 - id: animation-7
   label: 잿빛여우 · 대기 · v2.imagegen-eight-frames
   category: animation
@@ -734,12 +787,14 @@ pages:
   url: /management/frame/static-review/?review=animation-7
   source_review: shared_ui_reviewed_runtime_pending
   contract_tests: shared_component_verified
-  browser_review: pending
+  browser_review: partial_live_verified
   findings: []
   implementation: tools/review/ui/gradio/static_review_app.py
   applicability: render_review
   review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
+  browser_note: 2026-10-15 운영 8770 합성 문서에서 개별 캔버스 로딩과 다음 프레임 조작 후 2 / 8 정지 표시 확인. 저장·삭제 미실행. 개별 시각 품질·반응형·재연결·저장 계약 검증은 미완료.
+
 - id: ui-643120e666a183ee-battlefield-layout
   label: 전투 레이아웃 · 전체 전장
   category: game-ui
@@ -852,6 +907,33 @@ pages:
   review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
 shared_findings:
+- id: review-image-publication-race
+  status: verified_unit_integration_pending
+  validation: 게시·렌더러 수명·확인 UI·정리 관련 단위 검사 19개 통과. 확장 맵 검사 18개 통과, 5개 실패, 3개 시간 초과로 통합 검증 미완료.
+  evidence: .tmp/test/management-map-publication/2026-10-15_10-38-28/summary.json
+  finding: 캐릭터 검수 PNG를 고정 경로에 직접 덮어써 게시 중 불완전한 이미지가 읽힐 가능성.
+  change: SHA-256 파일명으로 이미지를 원자적으로 게시하고 메타데이터를 원자적으로 교체. 이전 해시 이미지 유지.
+  note: 관측한 브라우저 실패의 확정 원인으로 간주하지 않음. watch 재시작에 의한 연결 단절도 별도 관측.
+- id: map-loading-stage-feedback
+  status: verified_contract_partial_browser
+  finding: 맵 준비 안내만 지속되어 타일·캐릭터·렌더러 중 지연 단계를 알 수 없음.
+  change: 타일 실제 완료 개수와 캐릭터·렌더러 로딩 단계를 표시. 실패 후 다른 타일 완료로 오류를 덮지 않음.
+  evidence: .tmp/test/management-map-load-progress/2026-10-15_10-35-25/summary.json
+  browser_note: 운영 깨진 채석장 43/100, 클로버 둑 81/100, 잿불길 캐릭터 로딩 단계 표시 확인. 완전 로딩 검증과 구분.
+- id: boar-ridge-character-request-failure
+  status: investigation_pending
+  finding: 2026-10-15 강모 능선 브라우저에서 기본 캐릭터 로드 실패.
+  evidence: 디스크 review-character.png 존재·582499바이트·1536x768 PNG 검증 통과. 브라우저 요청 실패 원인은 아직 미확정.
+- id: map-renderer-initialization-cleanup
+  status: verified_contract_browser_pending
+  finding: Phaser 생성 후 타일 등록 실패 시 정리하지 않으며 초기화 중 화면 이탈 처리도 누락.
+  change: 초기화부터 pagehide 정리를 등록하고 실패·중복 종료에서 렌더러를 한 번만 정리.
+  evidence: .tmp/test/management-map-lifecycle/2026-10-15_10-31-45/summary.json
+- id: landmark-selection-confirmation
+  status: verified_contract_mock_browser
+  finding: 후보 이력 선택 변경 후 기존 교체 확인이 남고 미선택 불러오기 버튼 활성.
+  change: 대상 ID 확인과 선택 변경 시 확인 초기화 및 비활성 안내.
+  evidence: .tmp/test/management-landmark-confirmation/2026-10-15_10-22-17/summary.json
 - id: queue-confirmation-reuse
   status: verified_unit_and_browser
   source: tools/review/common/gradio_gpu_confirmation.py
@@ -1022,6 +1104,41 @@ regression_runs:
   failed: 0
   errors: 0
   note: 작가 게이트웨이·선택 상태 및 확인 후 삭제 대상 변경 거절 회귀; 운영 파일 삭제 없음
+- path: .tmp/test/management-cleanup-service-snapshots/2026-10-15_10-20-37/summary.json
+  passed: 12
+  failed: 0
+  errors: 0
+  note: 이미지·HY-Motion·ANNY·음악 실제 서비스별 빈 미리보기 후 새 완료 작업 추가 시 초기화 거절 및 결과 파일 보존; 브라우저 검증과 구분
+- path: .tmp/test/management-landmark-confirmation/2026-10-15_10-22-17/summary.json
+  passed: 17
+  failed: 0
+  errors: 0
+  note: 기준점 서비스 기존 계약과 선택 대상 일치 확인; 모의 브라우저 교체 동작 별도 확인
+- path: .tmp/test/management-map-lifecycle/2026-10-15_10-31-45/summary.json
+  passed: 7
+  failed: 0
+  errors: 0
+  note: 초기화 실패·초기화 중 화면 이탈·중복 종료 시 렌더러 정리 및 Gradio 맵 구성 회귀. 실제 브라우저 수정 소스 검증은 미완료.
+- path: .tmp/test/management-audit/2026-10-15_10-33-05/summary.json
+  passed: 200
+  failed: 0
+  errors: 0
+  note: 최신 공용 UI·게이트웨이·이력·관측·맵 수명·기준점 확인 통합 회귀. 실제 브라우저 페이지별 완료를 의미하지 않음.
+- path: .tmp/test/management-map-load-progress/2026-10-15_10-35-25/summary.json
+  passed: 2
+  failed: 0
+  errors: 0
+  note: 렌더러 수명과 타일 개수 진행·실패 후 성공 이벤트의 오류 보존 검증
+inventory_observation:
+  source: .tmp/manager-current/manager-source.json
+  resolver: tools.review.ui.gradio.management_menu_app.load_manager_page_records
+  raw_page_count: 57
+  resolved_page_count: 66
+  audit_page_count: 66
+  missing_pages: []
+  removed_pages: []
+  undefined_findings: []
+  note: 원본 목록에 DEFAULT_PAGE_RECORDS를 합성하는 실제 메뉴 로더 기준으로 대조. 원본 JSON 단독 비교에서 기본 생성기를 폐기된 페이지로 오판하지 않음.
 runtime_observation:
   url: http://127.0.0.1:8770/management/frame/map-review/?map=wind-hills&townPage=1&tool=map-review-wind-hills
   note: 기존 실행 화면 메뉴 63개, 감사 대상 소스 메뉴 67개. 기존 화면 로딩 성공은 수정 소스 검증과 구분하며 사용자 서버를 임의 재시작하지

@@ -1,4 +1,9 @@
 """관리도구 공용 계약과 활성 페이지를 기존 회귀 실행기로 검사한다."""
+from pathlib import Path
+import sys
+
+WORKFLOW_ROOT_DIRECTORY = Path(__file__).resolve().parents[3]
+sys.path.insert(0, str(WORKFLOW_ROOT_DIRECTORY))
 from tools.review.tests.run_music_regression import execute_music_regression
 
 MANAGEMENT_AUDIT_MODULES = tuple('tools.review.tests.' + current_module_name for current_module_name in (
@@ -7,9 +12,9 @@ MANAGEMENT_AUDIT_MODULES = tuple('tools.review.tests.' + current_module_name for
     'test_generation_cleanup', 'test_queue_generation_telemetry', 'test_generation_history', 'test_gpu_queue_priority',
     'test_management_gateway', 'test_management_runtime', 'test_management_menu_gradio',
     'test_retired_management_ui', 'test_qwen_commands', 'test_qwen_2511_gradio',
-    'test_qwen_2512_gradio', 'test_separation_preview_gradio', 'test_map_review_gradio',
+    'test_qwen_2512_gradio', 'test_separation_preview_gradio', 'test_map_review_gradio', 'test_map_review_lifecycle', 'test_review_asset_publication',
     'test_static_review_gradio', 'test_anny_attributes_gradio', 'test_sprite_editor_v2_gradio',
-    'test_music_generation', 'test_vace_generation', 'test_phantom_generation', 'test_writer_agent_gradio',
+    'test_music_generation', 'test_vace_generation', 'test_phantom_generation', 'test_writer_agent_gradio', 'test_landmark_confirmation_gradio',
 ))
 
 if __name__ == '__main__':

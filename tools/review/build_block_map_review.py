@@ -6,6 +6,8 @@ import json
 import shutil
 import yaml
 from PIL import Image
+from tools.review.common.review_asset_publication import publish_review_image_asset
+from tools.review.common.generation_records import write_record_atomically
 from tools.review.common.map_tile_assets import load_registered_tiles, resolve_registered_tile, resolve_registered_sprite, validate_registered_tile_inventory
 
 WORKFLOW_ROOT_DIRECTORY=Path(__file__).resolve().parents[2]
@@ -213,8 +215,8 @@ def build_block_map_review(output_directory_path, character_review_only=False):
     character_source_record=json.loads(character_source_path.read_text())
     character_frame_record=next(current_frame_record for current_frame_record in character_metadata_record['frames'] if current_frame_record['frameId']=='down_left.0')
     character_image_path,character_image_provenance=resolve_registered_sprite('assets/characters/default/animations/idle-v6/down-left-8frames-v4/idle-v6.png')
-    shutil.copy2(character_image_path,texture_output_directory/'review-character.png')
-    (output_directory_path/'review-character.json').write_text(json.dumps({'image':'textures/review-character.png?v='+hashlib.sha256(character_image_path.read_bytes()).hexdigest(),'frame':character_frame_record,'bodyHeight':character_source_record['referenceBodyHeight'],'displayHeight':game_render_metrics['characterHeight'],'source':'assets/characters/default/animations/idle-v6','provenance':{'image':character_image_provenance,'animation':character_metadata_provenance,'metadata':character_source_provenance}}))
+    current_character_image_path=publish_review_image_asset(character_image_path,texture_output_directory,'review-character')
+    write_record_atomically(output_directory_path/'review-character.json',{'image':'textures/'+current_character_image_path.name,'frame':character_frame_record,'bodyHeight':character_source_record['referenceBodyHeight'],'displayHeight':game_render_metrics['characterHeight'],'source':'assets/characters/default/animations/idle-v6','provenance':{'image':character_image_provenance,'animation':character_metadata_provenance,'metadata':character_source_provenance}})
     source_ui_directory=WORKFLOW_ROOT_DIRECTORY/'tools/review/ui/map'
     shutil.copy2(source_ui_directory/'block-map-review.html',output_directory_path/'map-review.html')
     # 배포 manifest가 소비 버전의 유일한 원본이며 게시 URL에는 버전을 유지한다.

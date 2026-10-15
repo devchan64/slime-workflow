@@ -66,10 +66,21 @@ def save_candidate_record(current_draft_record):
     return '후보 저장 완료 · 리타기팅 미적용 · ' + current_result_record['id']
 
 
-def load_candidate_record(current_record_identifier, current_replace_confirmed):
-    if not current_replace_confirmed:
+def load_candidate_record(current_record_identifier, current_replace_confirmed, current_confirmed_identifier):
+    if not current_record_identifier or not current_replace_confirmed or current_record_identifier != current_confirmed_identifier:
         raise gr.Error('현재 미저장 입력을 교체할지 확인하세요.')
     return (*format_candidate_response(execute_landmark_request('load', {'id': current_record_identifier})), False)
+
+
+def update_candidate_confirmation(current_record_identifier, current_replace_confirmed):
+    current_confirmation_valid = bool(current_record_identifier and current_replace_confirmed)
+    return (current_record_identifier if current_confirmation_valid else '',
+            gr.update(interactive=current_confirmation_valid),
+            '선택한 기록으로 미저장 후보를 교체합니다.' if current_confirmation_valid else '저장 기록을 선택하고 미저장 후보 교체를 확인하세요.')
+
+
+def reset_candidate_confirmation():
+    return False, '', gr.update(interactive=False), '저장 기록을 선택하고 미저장 후보 교체를 확인하세요.'
 
 
 def build_landmark_interface():
@@ -107,14 +118,19 @@ def build_landmark_interface():
             current_history_input = gr.Dropdown(choices=[], label='저장 기록')
             current_history_button = gr.Button('이력 새로 고침')
             current_replace_input = gr.Checkbox(label='현재 미저장 후보를 선택 이력으로 교체', value=False)
-            current_load_button = gr.Button('선택 후보 불러오기')
+            current_confirmed_state = gr.State('')
+            current_load_button = gr.Button('선택 후보 불러오기', interactive=False)
+            current_load_guidance = gr.Markdown('저장 기록을 선택하고 미저장 후보 교체를 확인하세요.')
         current_review_outputs = [current_draft_state, current_review_text, current_points_table, current_status_output]
         current_apply_button.click(update_candidate_point, [current_draft_state, current_point_input, current_x_input, current_y_input, current_z_input, current_method_input, current_evidence_input], current_review_outputs)
         current_read_button.click(read_candidate_point, [current_draft_state, current_point_input], [current_x_input, current_y_input, current_z_input, current_method_input, current_evidence_input])
         current_remove_button.click(remove_candidate_point, [current_draft_state, current_point_input], current_review_outputs)
         current_save_button.click(save_candidate_record, current_draft_state, current_save_feedback)
         current_history_button.click(lambda: gr.update(choices=execute_landmark_request('history', {})['records']), outputs=current_history_input)
-        current_load_button.click(load_candidate_record, [current_history_input, current_replace_input], [*current_review_outputs, current_replace_input])
+        current_confirmation_outputs = [current_replace_input, current_confirmed_state, current_load_button, current_load_guidance]
+        current_history_input.change(reset_candidate_confirmation, outputs=current_confirmation_outputs, queue=False)
+        current_replace_input.change(update_candidate_confirmation, [current_history_input, current_replace_input], [current_confirmed_state, current_load_button, current_load_guidance], queue=False)
+        current_load_button.click(load_candidate_record, [current_history_input, current_replace_input, current_confirmed_state], [*current_review_outputs, current_replace_input]).then(reset_candidate_confirmation, outputs=current_confirmation_outputs, queue=False)
         current_review_text.change(fn=None, inputs=current_review_text, js='(currentReviewText)=>window.updateLandmarkViewer(currentReviewText)')
         current_pick_button.click(fn=None, inputs=[current_x_input, current_y_input, current_z_input, current_method_input], outputs=[current_x_input, current_y_input, current_z_input, current_method_input, current_save_feedback], js='(...currentInputValues)=>{const currentPickedPoint=window.currentAnnyLandmarkViewer?.currentPickedPoint;return currentPickedPoint?[...currentPickedPoint,"surface_pick","좌표를 읽었습니다. 근거 입력 후 후보에 반영하세요."]:[...currentInputValues,"먼저 메시 표면을 클릭하세요."]}', queue=False)
         current_camera_input.change(fn=None, inputs=current_camera_input, js='(currentAngleValue)=>window.currentAnnyLandmarkViewer?.setPreviewRotation(currentAngleValue)', queue=False)

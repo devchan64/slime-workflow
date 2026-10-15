@@ -30,9 +30,21 @@ function readReviewConnectionMask(currentCellPosition,currentMapRecord,currentTe
 export async function createSharedFieldReview(currentMapCanvas,currentTextureImages,currentCharacterImage,currentCharacterRecord,currentGuardImages,currentSafeImages,currentTextureRecords=null){
  let currentFieldScene;
  let currentResolveReady;
- const currentReadyPromise=new Promise(currentResolveValue=>{currentResolveReady=currentResolveValue;});
+ let currentRejectReady;
+ let currentReviewDisposed=false;
+ const currentReadyPromise=new Promise((currentResolveValue,currentRejectValue)=>{currentResolveReady=currentResolveValue;currentRejectReady=currentRejectValue;});
  const currentFieldGame=new Phaser.Game({type:Phaser.WEBGL,canvas:currentMapCanvas,width:currentMapCanvas.clientWidth*GAME_INTERNAL_RESOLUTION_SCALE,height:currentMapCanvas.clientHeight*GAME_INTERNAL_RESOLUTION_SCALE,scale:{mode:Phaser.Scale.NONE,zoom:1/GAME_INTERNAL_RESOLUTION_SCALE},render:{antialias:true,pixelArt:false,roundPixels:false},transparent:true,banner:false,audio:{noAudio:true},input:{mouse:false,touch:false,keyboard:false},scene:{create(){currentFieldScene=this;currentResolveReady();}}});
+ function disposeSharedFieldReview(){
+  if(currentReviewDisposed)return;
+  currentReviewDisposed=true;
+  window.removeEventListener('pagehide',disposeSharedFieldReview);
+  currentFieldGame.destroy(false);
+  currentRejectReady(Error('맵 검수 화면이 닫혔습니다.'));
+ }
+ window.addEventListener('pagehide',disposeSharedFieldReview,{once:true});
+ try{
  await currentReadyPromise;
+ if(currentReviewDisposed)throw Error('맵 검수 화면이 닫혔습니다.');
  currentMapCanvas.style.width='100%';currentMapCanvas.style.height='';
  for(const [currentTextureName,currentTextureImage] of Object.entries(currentTextureImages))currentFieldScene.textures.addImage(currentTextureName,currentTextureImage);
  for(const [currentGuardPath,currentGuardImage] of Object.entries(currentGuardImages))currentFieldScene.textures.addImage(currentGuardPath,currentGuardImage);
@@ -167,6 +179,10 @@ export async function createSharedFieldReview(currentMapCanvas,currentTextureIma
    updateSharedReviewCamera(currentViewSettings);
    for(const currentWaypointObject of currentTownWaypointObjects)currentWaypointObject.setScale(waypointMarkerScale(currentViewSettings.scale));
   },
-  destroy(){currentFieldGame.destroy(false);}
+  destroy:disposeSharedFieldReview
  };
+ }catch(currentInitializationError){
+  disposeSharedFieldReview();
+  throw currentInitializationError;
+ }
 }

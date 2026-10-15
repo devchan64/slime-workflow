@@ -168,3 +168,47 @@ class CleanupConfirmationTests(unittest.TestCase):
             with self.subTest(snapshot=current_invalid_value), self.assertRaises(ValueError):
                 read_cleanup_confirmation({'action':'reset','expected_jobs':current_invalid_value})
         self.assertEqual(read_cleanup_confirmation({'action':'reset','expected_jobs':[]}),[])
+
+class CleanupServiceSnapshotTests(unittest.TestCase):
+    def test_service_reset_rejects_jobs_created_after_empty_preview(self):
+        from contextlib import ExitStack
+        from tools.review.domains.image.image_generation import ImageGenerationManager
+        from tools.review.domains.hy_motion import jobs as current_hymotion_module
+        from tools.review.domains.anny import anny_attributes as current_anny_module
+        from tools.review.domains.music.generation import MusicGenerationManager
+        for current_service_name in ('image','hy-motion','anny','music'):
+            with self.subTest(service=current_service_name), tempfile.TemporaryDirectory() as current_directory_name, ExitStack() as current_patch_stack:
+                current_storage_root=Path(current_directory_name)/'jobs'
+                current_history_root=Path(current_directory_name)/'history'
+                current_job_relative='2026-10-15_00-00-00-12345678'
+                current_reset_payload={'action':'reset','expected_jobs':[]}
+                if current_service_name=='image':
+                    current_service_instance=ImageGenerationManager()
+                    current_service_instance.job_storage_root=current_storage_root
+                    current_patch_stack.enter_context(patch.object(current_service_instance,'history_storage_path',return_value=current_history_root))
+                    current_reset_callback=lambda:current_service_instance.reset_generation_history([])
+                    self.assertEqual(current_service_instance.preview_generation_cleanup()['jobs'],[])
+                elif current_service_name=='hy-motion':
+                    current_job_relative='2026-10-15_00-00-00/12345678'
+                    current_patch_stack.enter_context(patch.object(current_hymotion_module,'GENERATION_STORAGE_ROOT',current_storage_root))
+                    current_patch_stack.enter_context(patch.object(current_hymotion_module,'GENERATION_HISTORY_ROOT',current_history_root))
+                    current_reset_callback=lambda:current_hymotion_module.execute_hymotion_command('history-reset',current_reset_payload)
+                    self.assertEqual(current_hymotion_module.execute_hymotion_command('history-reset-preview',{})['jobs'],[])
+                elif current_service_name=='anny':
+                    current_job_relative='12345678'
+                    current_patch_stack.enter_context(patch.object(current_anny_module,'JOBS',current_storage_root))
+                    current_reset_callback=lambda:current_anny_module.clear_anny_history_records([])
+                    self.assertEqual(current_anny_module.preview_anny_history_cleanup()['jobs'],[])
+                else:
+                    current_service_instance=MusicGenerationManager('music-ace-step')
+                    current_service_instance.job_storage_root=current_storage_root
+                    current_service_instance.history_storage_root=current_history_root
+                    current_reset_callback=lambda:current_service_instance.execute_music_command('history-reset',current_reset_payload)
+                    self.assertEqual(current_service_instance.execute_music_command('history-reset-preview',{})['jobs'],[])
+                current_job_path=current_storage_root/current_job_relative
+                current_job_path.mkdir(parents=True)
+                (current_job_path/'status.json').write_text('{"status":"completed"}')
+                (current_job_path/'result.bin').write_bytes(b'keep')
+                with self.assertRaisesRegex(ValueError,'변경'):
+                    current_reset_callback()
+                self.assertEqual((current_job_path/'result.bin').read_bytes(),b'keep')
