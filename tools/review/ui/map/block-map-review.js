@@ -3,6 +3,7 @@ import {CHARACTER_OUTLINE_BASE_WIDTH,CHARACTER_OUTLINE_BASE_COLOR,CHARACTER_SEPA
 import {createFieldReviewFrame,pickFieldReviewCell} from './field-map-renderer.js';
 import {FIELD_RENDER_METRICS,projectSurfaceCell} from './vendor/field-renderer/__FIELD_RENDERER_VERSION__/field-renderer.mjs';
 import {resolveFieldActorContactShadow} from './vendor/field-renderer/__FIELD_RENDERER_VERSION__/field-renderer.mjs';
+const MAP_FIT_HORIZONTAL_PADDING=160,MAP_FIT_VERTICAL_PADDING=80,MAP_FIT_BOTTOM_MARGIN=40,FIELD_FIT_TOP_MARGIN=160;
 const MIN_MAP_SCALE=0.05,MAX_MAP_SCALE=4,MAP_ZOOM_FACTOR=1.25,MAP_DRAG_THRESHOLD=4,MAP_KEYBOARD_PAN_DISTANCE=48;
 let activeMapPointer=null,suppressMarkerClick=false;
 const currentMapCanvas=document.querySelector('#map');
@@ -80,7 +81,6 @@ document.title=currentReviewTitle;
 document.querySelector('.map-toolbar')?.setAttribute('aria-label',currentMapRecord.reviewLabel+' 도구');
 currentMapCanvas.setAttribute('aria-label',currentReviewTitle+'. 방향키로 이동하고 더하기와 빼기 키로 확대 또는 축소하며 0 키로 전체 보기를 적용합니다.');
 const currentMaterialColors=await fetchMapReviewRecord('block-materials.json');
-const buildingTileRecords=await fetchMapReviewRecord('block-building-tiles.json');
 const currentTextureRecords=await fetchMapReviewRecord('/management/map-assets/textures');
 const loadedTextureImages={};
 const currentTextureEntries=Object.entries(currentTextureRecords);
@@ -96,8 +96,8 @@ await Promise.all(currentTextureEntries.map(([currentTextureName,currentTextureR
   resolveTextureLoad();
  };
  currentTextureImage.onerror=()=>{
+  if(!currentTextureLoadFailed)document.querySelector('#status').textContent='타일 로드 실패: '+currentTextureName;
   currentTextureLoadFailed=true;
-  document.querySelector('#status').textContent='타일 로드 실패: '+currentTextureName;
   rejectTextureLoad(Error('타일 로드 실패: '+currentTextureName));
  };
  currentTextureImage.src=new URL(currentTextureRecord.path,import.meta.url).href;
@@ -107,12 +107,14 @@ const reviewCharacterRecord=await fetchMapReviewRecord('review-character.json');
 const reviewCharacterImage=new Image();
 await new Promise((resolveCharacterLoad,rejectCharacterLoad)=>{reviewCharacterImage.onload=resolveCharacterLoad;reviewCharacterImage.onerror=()=>rejectCharacterLoad(Error('기본 캐릭터 로드 실패'));reviewCharacterImage.src=new URL(reviewCharacterRecord.image,import.meta.url).href});
 document.querySelector('#status').textContent='맵 렌더러 초기화 중';
-const currentSharedFieldView=!isCharacterReviewPage?await (await import('./field-map-view.js')).createSharedFieldReview(currentMapCanvas,loadedTextureImages,reviewCharacterImage,reviewCharacterRecord,loadedGuardImages,currentSafeVisualImages,currentTextureRecords):null;
-const groundTextureNames={grass:currentMapRecord.id==='iseulon'?'iseulon-grass-mud-frame':'grass',paving:currentMapRecord.id==='iseulon'?'iseulon-courtyard-paving':currentMapRecord.id==='stonewarm'?'stonewarm-granite-paving':currentMapRecord.id==='saltford'?'stonewarm-gravel-paving':currentMapRecord.id==='reedhaven'?'reedhaven-dry-embankment':currentMapRecord.id==='grainstead'?'reedhaven-dirt-road':'paving',gravel:currentMapRecord.id==='saltford'?'pebble-shore-ground':currentMapRecord.id==='stonewarm'?'stonewarm-exposed-rock-ground':'gravel',flowers:currentMapRecord.id==='meadow'?'grass-type-b':'flower_bed',dew:'dew',ash:'ash',moss:'moss','leaf-litter':'leaf-litter',wall:'cliff-wall',stone:currentMapRecord.id==='saltford'?'stonewarm-exposed-rock-ground':currentMapRecord.id==='stonewarm'?'pebble-shore-ground':'stone','dry-soil-branches':['stonewarm','saltford'].includes(currentMapRecord.id)?'reedhaven-dry-embankment':'dry-soil-branches',mud:'mud',boulder:'boulder',cactus:'cactus',road:isFieldMapReview?({road:'paving','dirt-road':'packed_dirt_road','stone-road':'stone_slab_road'}[selectFieldRoadFrame(0,{column:0,row:0},false,currentMapRecord.id)]):'paving',water:'spring_water','deep-water':'deep-water','shallow-water':'shallow-water','reed-bed':currentMapRecord.id==='reedhaven'?'marsh-reed-clumps':'reed-bed'};
-function readBuildingTileSet(currentBuildingRecord){return {...buildingTileRecords['iseulon-'+currentBuildingRecord.facilityKind],...(currentMapRecord.buildingTileOverrides||{}),...(buildingTileRecords[currentBuildingRecord.id]||{})}}
+const currentSharedFieldModule=!isCharacterReviewPage?await import('./field-map-view.js'):null;
+const currentSharedFieldView=!isCharacterReviewPage?await currentSharedFieldModule.createSharedFieldReview(currentMapCanvas,loadedTextureImages,reviewCharacterImage,reviewCharacterRecord,loadedGuardImages,currentSafeVisualImages,currentTextureRecords):null;
+// 캐릭터 검수의 단일 바닥만 별도로 선택한다. 마을·필드는 공용 렌더러 원본을 사용한다.
+const groundTextureNames={paving:'paving'};
+let currentAppliedSourceSignature=null;
 function renderAppliedTileSourceList(){
  const appliedTextureNames=new Set(isFieldMapReview?['cliff-wall','ramp-tread']:[]);
- const currentSharedTextureSources=isFieldMapReview?collectTerrainTextureSources():null;
+ const currentSharedTextureSources=!isCharacterReviewPage?collectTerrainTextureSources():null;
  Object.values(currentMapRecord.terrainCodes).forEach(currentTerrainName=>{
   if(isFieldMapReview){
    const currentSelectedFrame=resolveFieldTerrainFrame(currentTerrainName,currentMapRecord.id);
@@ -120,12 +122,30 @@ function renderAppliedTileSourceList(){
    const currentTextureEntry=Object.entries(currentTextureRecords).find(([,currentTextureRecord])=>currentTextureRecord.source===currentSourcePath);
    if(!currentTextureEntry)throw new Error('공용 필드 재질의 검수 원본이 없습니다: '+currentTerrainName+' · '+currentSourcePath);
    appliedTextureNames.add(currentTextureEntry[0]);
+  }else if(!isCharacterReviewPage){
+   const currentSelectedFrame=currentSharedFieldModule.resolveReviewTownFrame(currentMapRecord,currentTerrainName,{column:0,row:0},0);
+   const currentSourceFrame=currentSelectedFrame.replace(/^(water|road|dirt-road|stone-road)-\d+$/,'$1');
+   const currentSourcePath=currentSharedTextureSources['terrain-source-'+currentSourceFrame];
+   const currentTextureEntry=Object.entries(currentTextureRecords).find(([,currentTextureRecord])=>currentTextureRecord.source===currentSourcePath);
+   if(!currentTextureEntry)throw new Error('공용 마을 재질의 검수 원본이 없습니다: '+currentTerrainName+' · '+currentSourcePath);
+   appliedTextureNames.add(currentTextureEntry[0]);
   }else{
    const currentTextureName=groundTextureNames[currentTerrainName];
    if(currentTextureName)appliedTextureNames.add(currentTextureName);
   }
  });
- currentMapRecord.buildings.forEach(currentBuildingRecord=>Object.values(readBuildingTileSet(currentBuildingRecord)).forEach(currentTextureName=>appliedTextureNames.add(currentTextureName)));
+ if(!isCharacterReviewPage){
+  for(const currentTextureIdentifier of currentSharedFieldView.readAppliedBuildingTextures()){
+   const currentSourcePath=currentSharedTextureSources[currentTextureIdentifier];
+   const currentTextureEntry=Object.entries(currentTextureRecords).find(([,currentTextureRecord])=>currentTextureRecord.source===currentSourcePath);
+   if(!currentTextureEntry)throw Error('공용 건물 원본이 검수 카탈로그에 없습니다: '+currentTextureIdentifier);
+   appliedTextureNames.add(currentTextureEntry[0]);
+  }
+ }
+ const currentSortedTextureNames=[...appliedTextureNames].sort();
+ const currentNextSourceSignature=JSON.stringify([currentSortedTextureNames.map(currentTextureName=>[currentTextureName,currentTextureRecords[currentTextureName]]),currentSafeVisualRecords,currentMapRecord.guardCenters??[]]);
+ // 카메라만 바뀐 경우 펼친 원본 정보와 키보드 초점을 유지한다.
+ if(currentAppliedSourceSignature===currentNextSourceSignature)return;
  const appliedTileList=document.querySelector('#applied-tile-list');appliedTileList.replaceChildren();
  for(const [currentVisualName,currentVisualRecord] of Object.entries(currentSafeVisualRecords)){
   const currentVisualItem=document.createElement('li'),currentVisualThumbnail=document.createElement('img'),currentVisualLabel=document.createElement('span');
@@ -134,7 +154,7 @@ function renderAppliedTileSourceList(){
   currentVisualItem.title=`${currentVisualRecord.provenance.managementId} · ${currentVisualRecord.provenance.version} · SHA-256 ${currentVisualRecord.provenance.sha256}`;
   currentVisualItem.append(currentVisualThumbnail,currentVisualLabel);appliedTileList.append(currentVisualItem);
  }
- [...appliedTextureNames].sort().forEach(currentTextureName=>{
+ currentSortedTextureNames.forEach(currentTextureName=>{
   const currentTextureRecord=currentTextureRecords[currentTextureName];const currentListItem=document.createElement('li');const currentName=document.createElement('strong');currentName.textContent=currentTextureName;currentListItem.append(currentName);
   if(!currentTextureRecord){const currentWarning=document.createElement('span');currentWarning.className='tile-source-warning';currentWarning.textContent='⚠ 원본 미등록';currentWarning.title='타일 카탈로그에 원본 파일이 등록되지 않았습니다.';currentListItem.append(currentWarning);appliedTileList.append(currentListItem);return}
   const currentThumbnail=document.createElement('img');currentThumbnail.width=42;currentThumbnail.height=42;currentThumbnail.src=new URL(currentTextureRecord.path,import.meta.url).href;currentThumbnail.alt=`${currentTextureName} 원본 썸네일`;currentThumbnail.loading='lazy';currentListItem.prepend(currentThumbnail);
@@ -152,6 +172,7 @@ function renderAppliedTileSourceList(){
   const currentHashText=document.createElement('p');currentHashText.textContent=`${currentGuardRecord.provenance.managementId} · SHA-256 ${currentGuardRecord.provenance.sha256}`;
   currentHashDetail.append(currentHashSummary,currentHashText);currentListItem.append(currentThumbnail,currentName,currentSource,currentHashDetail);appliedTileList.append(currentListItem);
  }
+ currentAppliedSourceSignature=currentNextSourceSignature;
 }
 renderAppliedTileSourceList();
 // 각 면의 실제 좌표에서 UV를 계산해 층 경계에서도 벽 타일이 이어지게 한다.
@@ -194,38 +215,6 @@ let currentCameraRotation=0,currentScaleValue=1,currentOffsetX=0,currentOffsetY=
 const currentBlockedCells=new Set(currentMapRecord.blocked.map(currentCell=>`${currentCell.column},${currentCell.row}`));
 function projectBlockVertex(currentVertexPoint){let currentColumnValue=currentVertexPoint.column,currentRowValue=currentVertexPoint.row;for(let currentRotationIndex=0;currentRotationIndex<currentCameraRotation;currentRotationIndex++)[currentColumnValue,currentRowValue]=[-currentRowValue,currentColumnValue];return {x:(currentColumnValue-currentRowValue)*townHalfTileWidth,y:(currentColumnValue+currentRowValue)*townHalfTileHeight-(currentVertexPoint.height??0)}}
 function drawSurfacePolygon(currentSurfacePoints,currentFillColor){currentDrawingContext.beginPath();currentSurfacePoints.forEach((currentPointValue,currentPointIndex)=>currentPointIndex?currentDrawingContext.lineTo(currentPointValue.x,currentPointValue.y):currentDrawingContext.moveTo(currentPointValue.x,currentPointValue.y));currentDrawingContext.closePath();currentDrawingContext.fillStyle=currentFillColor;currentDrawingContext.fill();if(readReviewOption('edges')){currentDrawingContext.strokeStyle=BLOCK_BOUNDARY_COLOR;currentDrawingContext.lineWidth=1/currentScaleValue;currentDrawingContext.stroke()}}
-// 층 경계를 넘는 블록 면은 공용 블록 높이 단위로 분리한다.
-function splitWallFloors(currentFaceRecord){
- if(currentFaceRecord.top)return [currentFaceRecord];
- const minimumFaceHeight=Math.min(...currentFaceRecord.vertices.map(currentVertexPoint=>currentVertexPoint.height)),maximumFaceHeight=Math.max(...currentFaceRecord.vertices.map(currentVertexPoint=>currentVertexPoint.height));
- const splitFaceRecords=[];
- for(let currentFloorIndex=Math.floor(minimumFaceHeight/TOWN_BLOCK_HEIGHT);currentFloorIndex<Math.ceil(maximumFaceHeight/TOWN_BLOCK_HEIGHT);currentFloorIndex++){
-  let clippedFaceVertices=currentFaceRecord.vertices;
-  for(const [currentClipHeight,currentKeepAbove] of [[currentFloorIndex*TOWN_BLOCK_HEIGHT,true],[(currentFloorIndex+1)*TOWN_BLOCK_HEIGHT,false]]){
-   const previousFaceVertices=clippedFaceVertices;clippedFaceVertices=[];
-   previousFaceVertices.forEach((currentVertexPoint,currentVertexIndex)=>{const nextVertexPoint=previousFaceVertices[(currentVertexIndex+1)%previousFaceVertices.length];const currentInsidePlane=currentKeepAbove?currentVertexPoint.height>=currentClipHeight:currentVertexPoint.height<=currentClipHeight,nextInsidePlane=currentKeepAbove?nextVertexPoint.height>=currentClipHeight:nextVertexPoint.height<=currentClipHeight;if(currentInsidePlane)clippedFaceVertices.push(currentVertexPoint);if(currentInsidePlane!==nextInsidePlane){const currentEdgeFraction=(currentClipHeight-currentVertexPoint.height)/(nextVertexPoint.height-currentVertexPoint.height);clippedFaceVertices.push({column:currentVertexPoint.column+(nextVertexPoint.column-currentVertexPoint.column)*currentEdgeFraction,row:currentVertexPoint.row+(nextVertexPoint.row-currentVertexPoint.row)*currentEdgeFraction,height:currentClipHeight})}});
-  }
-  if(clippedFaceVertices.length>=3)splitFaceRecords.push({...currentFaceRecord,vertices:clippedFaceVertices,floorIndex:currentFloorIndex});
- }
- return splitFaceRecords;
-}
-function selectWallTexture(currentFaceRecord){
- if(currentFaceRecord.top)return 'roof';
- const currentBuildingRecord=currentFaceRecord.building;
- const currentColumnMinimum=Math.min(...currentFaceRecord.vertices.map(currentVertexPoint=>currentVertexPoint.column)),currentColumnMaximum=Math.max(...currentFaceRecord.vertices.map(currentVertexPoint=>currentVertexPoint.column)),currentRowMinimum=Math.min(...currentFaceRecord.vertices.map(currentVertexPoint=>currentVertexPoint.row)),currentRowMaximum=Math.max(...currentFaceRecord.vertices.map(currentVertexPoint=>currentVertexPoint.row));
- const wallAlongColumn=currentColumnMaximum-currentColumnMinimum>0.001;
- const currentWallIndex=Math.floor((wallAlongColumn?currentColumnMinimum:currentRowMinimum)+0.5);
- const entranceColumnLocal=currentBuildingRecord.entrance.column-currentBuildingRecord.origin.column,entranceRowLocal=currentBuildingRecord.entrance.row-currentBuildingRecord.origin.row;
- const isEntranceFace=wallAlongColumn?Math.abs(entranceColumnLocal-(currentColumnMinimum+currentColumnMaximum)/2)<0.01&&Math.abs(entranceRowLocal-currentRowMinimum- Math.sign(entranceRowLocal-currentRowMinimum)*0.5)<0.01:Math.abs(entranceRowLocal-(currentRowMinimum+currentRowMaximum)/2)<0.01&&Math.abs(entranceColumnLocal-currentColumnMinimum-Math.sign(entranceColumnLocal-currentColumnMinimum)*0.5)<0.01;
- if(currentFaceRecord.floorIndex===0&&isEntranceFace)return 'door';
- // 처마보다 높은 박공 벽에는 창문을 배치하지 않는다.
- const roofBaseHeight=Math.min(...currentBuildingRecord.blocks.filter(currentBlockRecord=>currentBlockRecord.material==='roof').map(currentBlockRecord=>currentBlockRecord.layer*TOWN_BLOCK_HEIGHT+(currentBlockRecord.offsetHeight||0)));
- if(Math.min(...currentFaceRecord.vertices.map(currentVertexPoint=>currentVertexPoint.height))>=roofBaseHeight)return 'roof_underlay';
- const wallEntranceDistance=Math.abs(currentWallIndex-Math.round(wallAlongColumn?entranceColumnLocal:entranceRowLocal));
- if(currentFaceRecord.textureTiles.wall==='wood_wall')return wallEntranceDistance%2===0?'wall':'window';
- if(currentFaceRecord.floorIndex===0)return currentWallIndex%2===0?'window':'wall';
- return currentWallIndex%2===0?'window':'large_window';
-}
 function drawReviewCharacter(currentMarkerPoint){
  if(!readReviewOption('show-character'))return;
  const characterScaleValue=reviewCharacterRecord.displayHeight/reviewCharacterRecord.bodyHeight,characterFrameRect=reviewCharacterRecord.frame.rect,characterAnchorPoint=reviewCharacterRecord.frame.anchor;
@@ -289,53 +278,43 @@ function renderBlockMap(currentFitRequested=false){
  document.querySelector('#status').textContent=`3×3 검수 맵 · 캐릭터 (${currentCharacterCell.column+1}, ${currentCharacterCell.row+1}) · 사람 높이 ${gameRenderMetrics.characterHeight}px · 양쪽 동일 위치·크기 · 원본은 게임 공용 렌더링 상수 적용`;
 }
 function drawCurrentMapScene(currentFitRequested=false){
- if(isFieldMapReview){renderSharedFieldMap(currentFitRequested);return;}
- if(!isCharacterReviewPage){renderSharedTownMap(currentFitRequested);return;}
+ if(!isCharacterReviewPage){renderSharedReviewMap(currentFitRequested);return;}
 currentMapCanvas.width=currentMapCanvas.clientWidth*CHARACTER_REVIEW_RESOLUTION_SCALE;currentMapCanvas.height=currentMapCanvas.clientHeight*CHARACTER_REVIEW_RESOLUTION_SCALE;const currentAllCorners=isFieldMapReview?currentFieldFrame.points:[{column:0,row:0},{column:currentMapRecord.columns,row:0},{column:0,row:currentMapRecord.rows},{column:currentMapRecord.columns,row:currentMapRecord.rows}].map(projectBlockVertex);if(currentFitRequested){const currentMinX=Math.min(...currentAllCorners.map(p=>p.x)),currentMaxX=Math.max(...currentAllCorners.map(p=>p.x)),currentMinY=Math.min(...currentAllCorners.map(p=>p.y))-TOWN_BLOCK_HEIGHT*2,currentMaxY=Math.max(...currentAllCorners.map(p=>p.y))+40;currentScaleValue=Math.min(currentMapCanvas.clientWidth/(currentMaxX-currentMinX+160),currentMapCanvas.clientHeight/(currentMaxY-currentMinY+80));currentOffsetX=currentMapCanvas.clientWidth/2-(currentMinX+currentMaxX)/2*currentScaleValue;currentOffsetY=currentMapCanvas.clientHeight/2-(currentMinY+currentMaxY)/2*currentScaleValue}
-document.querySelector('#zoom-level').textContent=Math.round(currentScaleValue*100)+'%';
-if(document.querySelector('#zoom-in'))document.querySelector('#zoom-in').disabled=currentScaleValue>=MAX_MAP_SCALE;if(document.querySelector('#zoom-out'))document.querySelector('#zoom-out').disabled=currentScaleValue<=MIN_MAP_SCALE;
+updateReviewZoomControls();
 currentDrawingContext.setTransform(currentScaleValue*CHARACTER_REVIEW_RESOLUTION_SCALE,0,0,currentScaleValue*CHARACTER_REVIEW_RESOLUTION_SCALE,currentOffsetX*CHARACTER_REVIEW_RESOLUTION_SCALE,currentOffsetY*CHARACTER_REVIEW_RESOLUTION_SCALE);
 currentDrawingContext.filter=`contrast(${GROUND_CONTRAST_PREVIEW_VALUES[currentGroundPreviewMode]}) saturate(${currentGroundSaturationReduced?GROUND_REDUCED_SATURATION:1}) brightness(${currentGroundBrightnessReduced?GROUND_REDUCED_BRIGHTNESS:1})`;
 for(let currentRowIndex=0;currentRowIndex<currentMapRecord.rows;currentRowIndex++)for(let currentColumnIndex=0;currentColumnIndex<currentMapRecord.columns;currentColumnIndex++){const currentTerrainName=currentMapRecord.terrainCodes[currentMapRecord.terrainRows[currentRowIndex][currentColumnIndex]];drawSurfacePolygon([[-.5,-.5],[.5,-.5],[.5,.5],[-.5,.5]].map(([c,r])=>projectBlockVertex({column:currentColumnIndex+c,row:currentRowIndex+r})),currentMaterialColors[currentTerrainName]);const currentGroundImage=loadedTextureImages[groundTextureNames[currentTerrainName]];if(currentGroundImage){const currentGroundVertices=[[-.5,-.5],[.5,-.5],[.5,.5],[-.5,.5]].map(([currentColumnOffset,currentRowOffset])=>({column:currentColumnIndex+currentColumnOffset,row:currentRowIndex+currentRowOffset,height:0}));drawTexturedSurface({top:true,ground:true,vertices:currentGroundVertices,points:currentGroundVertices.map(projectBlockVertex)},currentGroundImage)}}
 currentDrawingContext.filter='none';
-const currentRenderFaces=currentMapRecord.buildings.flatMap(currentBuilding=>currentBuilding.faces.flatMap(splitWallFloors).map(currentFace=>({...currentFace,building:currentBuilding,textureTiles:readBuildingTileSet(currentBuilding),points:currentFace.vertices.map(currentVertex=>projectBlockVertex({column:currentBuilding.origin.column+currentVertex.column,row:currentBuilding.origin.row+currentVertex.row,height:currentVertex.height})),depth:currentFace.vertices.reduce((s,v)=>s+projectBlockVertex({column:currentBuilding.origin.column+v.column,row:currentBuilding.origin.row+v.row}).y,0)/currentFace.vertices.length}))).sort((a,b)=>a.depth-b.depth);
-for(const currentFace of currentRenderFaces){const currentAreaValue=currentFace.points.reduce((s,p,i)=>{const n=currentFace.points[(i+1)%currentFace.points.length];return s+p.x*n.y-n.x*p.y},0);if(currentFace.top||currentAreaValue>0){drawSurfacePolygon(currentFace.points,currentMaterialColors[currentFace.material]);// 지붕 경사 측면은 막힌 벽으로 두고 일반 벽 구간에만 창문을 교차 배치한다.
-const currentTextureRole=selectWallTexture(currentFace);
-const currentTextureName=currentFace.textureTiles[currentTextureRole];drawTexturedSurface(currentFace,loadedTextureImages[currentTextureName])}}
-// 타일을 입힌 뒤 실제 블록의 노출 경계를 다시 그린다. 층별 텍스처 분할선은 제외한다.
-if(readReviewOption('edges')){
- for(const currentBuildingRecord of currentMapRecord.buildings)for(const currentOriginalFace of currentBuildingRecord.faces){
-  const currentOutlinePoints=currentOriginalFace.vertices.map(currentVertexPoint=>projectBlockVertex({column:currentBuildingRecord.origin.column+currentVertexPoint.column,row:currentBuildingRecord.origin.row+currentVertexPoint.row,height:currentVertexPoint.height}));
-  const currentOutlineArea=currentOutlinePoints.reduce((currentAreaSum,currentPointValue,currentPointIndex)=>{const nextPointValue=currentOutlinePoints[(currentPointIndex+1)%currentOutlinePoints.length];return currentAreaSum+currentPointValue.x*nextPointValue.y-nextPointValue.x*currentPointValue.y},0);
-  if(!currentOriginalFace.top&&currentOutlineArea<=0)continue;
-  currentDrawingContext.beginPath();currentOutlinePoints.forEach((currentPointValue,currentPointIndex)=>currentPointIndex?currentDrawingContext.lineTo(currentPointValue.x,currentPointValue.y):currentDrawingContext.moveTo(currentPointValue.x,currentPointValue.y));currentDrawingContext.closePath();currentDrawingContext.strokeStyle=BLOCK_BOUNDARY_COLOR;currentDrawingContext.lineWidth=1/currentScaleValue;currentDrawingContext.stroke();
- }
-}
 if(!isFieldMapReview)drawReviewCharacter(projectReviewCharacter()); currentDrawingContext.setTransform(1,0,0,1,0,0);const currentBuildingFloorSummary=[...new Set(currentMapRecord.buildings.map(currentBuildingRecord=>currentBuildingRecord.floors))].sort((firstFloorCount,secondFloorCount)=>firstFloorCount-secondFloorCount).map(currentFloorCount=>`${currentFloorCount}층 ${currentMapRecord.buildings.filter(currentBuildingRecord=>currentBuildingRecord.floors===currentFloorCount).length}개`).join(' · '),currentRoofHeightValues=[...new Set(currentMapRecord.buildings.flatMap(currentBuildingRecord=>currentBuildingRecord.blocks).filter(currentBlockRecord=>currentBlockRecord.material==='roof').map(currentBlockRecord=>currentBlockRecord.height))].sort((firstHeightValue,secondHeightValue)=>firstHeightValue-secondHeightValue),currentRoofHeightSummary=currentRoofHeightValues.join('·');document.querySelector('#status').textContent=isFieldMapReview?`필드 고도 ${Math.min(...currentMapRecord.elevations.flat())}–${Math.max(...currentMapRecord.elevations.flat())} · 높이 단위 ${FIELD_RENDER_METRICS.elevationHeight}px · 타일 ${FIELD_RENDER_METRICS.tileWidth}×${FIELD_RENDER_METRICS.tileHeight} · 계단 ${currentMapRecord.elevationTiles.length}개 · 회전 ${currentCameraRotation*90}°`:`회전 ${currentCameraRotation*90}° · 건물 ${currentMapRecord.buildings.length}개 (${currentBuildingFloorSummary}) · 블록 ${currentMapRecord.buildings.reduce((s,b)=>s+b.blocks.length,0)}개 · 일반 블록 ${TOWN_BLOCK_HEIGHT}px · 지붕 경사 ${currentRoofHeightSummary}px · 사람 높이 ${gameRenderMetrics.characterHeight} · 마을 타일 ${gameRenderMetrics.townTileWidth}×${gameRenderMetrics.townTileHeight} · 지붕 보행 불가`}
-function renderSharedTownMap(currentFitRequested){
- if(currentFitRequested){
-  const currentCornerPoints=[{column:0,row:0},{column:currentMapRecord.columns,row:0},{column:0,row:currentMapRecord.rows},{column:currentMapRecord.columns,row:currentMapRecord.rows}].map(projectBlockVertex);
-  const currentMinimumX=Math.min(...currentCornerPoints.map(currentPointValue=>currentPointValue.x)),currentMaximumX=Math.max(...currentCornerPoints.map(currentPointValue=>currentPointValue.x));
-  const currentMinimumY=Math.min(...currentCornerPoints.map(currentPointValue=>currentPointValue.y))-TOWN_BLOCK_HEIGHT*2,currentMaximumY=Math.max(...currentCornerPoints.map(currentPointValue=>currentPointValue.y))+40;
-  currentScaleValue=Math.min(currentMapCanvas.clientWidth/(currentMaximumX-currentMinimumX+160),currentMapCanvas.clientHeight/(currentMaximumY-currentMinimumY+80));
-  currentOffsetX=currentMapCanvas.clientWidth/2-(currentMinimumX+currentMaximumX)/2*currentScaleValue;currentOffsetY=currentMapCanvas.clientHeight/2-(currentMinimumY+currentMaximumY)/2*currentScaleValue;
- }
- currentSharedFieldView.renderTown(currentMapRecord,{edges:readReviewOption('edges'),rotation:currentCameraRotation,scale:currentScaleValue,offsetX:currentOffsetX,offsetY:currentOffsetY,character:readReviewOption('show-character'),characterCell:currentCharacterCell},projectBlockVertex);
- document.querySelector('#zoom-level').textContent=Math.round(currentScaleValue*100)+'%';
- document.querySelector('#status').textContent=`게임 공용 마을 렌더러 · 내부 해상도 2배 · 건물 ${currentMapRecord.buildings.length}개 · 회전 ${currentCameraRotation*90}°`;
+function fitReviewMapCamera(currentCornerPoints,currentTopMargin){
+ const currentMinimumX=Math.min(...currentCornerPoints.map(currentPointValue=>currentPointValue.x)),currentMaximumX=Math.max(...currentCornerPoints.map(currentPointValue=>currentPointValue.x));
+ const currentMinimumY=Math.min(...currentCornerPoints.map(currentPointValue=>currentPointValue.y))-currentTopMargin,currentMaximumY=Math.max(...currentCornerPoints.map(currentPointValue=>currentPointValue.y))+MAP_FIT_BOTTOM_MARGIN;
+ currentScaleValue=Math.min(currentMapCanvas.clientWidth/(currentMaximumX-currentMinimumX+MAP_FIT_HORIZONTAL_PADDING),currentMapCanvas.clientHeight/(currentMaximumY-currentMinimumY+MAP_FIT_VERTICAL_PADDING));
+ currentOffsetX=currentMapCanvas.clientWidth/2-(currentMinimumX+currentMaximumX)/2*currentScaleValue;
+ currentOffsetY=currentMapCanvas.clientHeight/2-(currentMinimumY+currentMaximumY)/2*currentScaleValue;
 }
-function renderSharedFieldMap(currentFitRequested){
- if(!currentFieldFrame||currentFieldFrame.options.rotation!==currentCameraRotation)currentFieldFrame=createFieldReviewFrame(currentMapRecord,currentCameraRotation);
- if(currentFitRequested){
-  const currentMinimumX=Math.min(...currentFieldFrame.points.map(currentPointValue=>currentPointValue.x)),currentMaximumX=Math.max(...currentFieldFrame.points.map(currentPointValue=>currentPointValue.x));
-  const currentMinimumY=Math.min(...currentFieldFrame.points.map(currentPointValue=>currentPointValue.y))-160,currentMaximumY=Math.max(...currentFieldFrame.points.map(currentPointValue=>currentPointValue.y))+40;
-  currentScaleValue=Math.min(currentMapCanvas.clientWidth/(currentMaximumX-currentMinimumX+160),currentMapCanvas.clientHeight/(currentMaximumY-currentMinimumY+80));
-  currentOffsetX=currentMapCanvas.clientWidth/2-(currentMinimumX+currentMaximumX)/2*currentScaleValue;currentOffsetY=currentMapCanvas.clientHeight/2-(currentMinimumY+currentMaximumY)/2*currentScaleValue;
- }
+function updateReviewZoomControls(){
  document.querySelector('#zoom-level').textContent=Math.round(currentScaleValue*100)+'%';
- if(document.querySelector('#zoom-in'))document.querySelector('#zoom-in').disabled=currentScaleValue>=MAX_MAP_SCALE;if(document.querySelector('#zoom-out'))document.querySelector('#zoom-out').disabled=currentScaleValue<=MIN_MAP_SCALE;
- currentSharedFieldView.render(currentFieldFrame,currentMapRecord,{scale:currentScaleValue,offsetX:currentOffsetX,offsetY:currentOffsetY,edges:readReviewOption('edges'),safe:readReviewOption('show-safe-boundary'),character:readReviewOption('show-character'),characterCell:currentCharacterCell,shadowProfile:currentDisplayOptions['shadow-profile']});
- document.querySelector('#status').textContent=`게임 공용 필드 렌더러 · 내부 해상도 2배 · 높이 단위 ${FIELD_RENDER_METRICS.elevationHeight}px · 타일 ${FIELD_RENDER_METRICS.tileWidth}×${FIELD_RENDER_METRICS.tileHeight} · 결계 높이 15px · 회전 ${currentCameraRotation*90}°`;
+ if(document.querySelector('#zoom-in'))document.querySelector('#zoom-in').disabled=currentScaleValue>=MAX_MAP_SCALE;
+ if(document.querySelector('#zoom-out'))document.querySelector('#zoom-out').disabled=currentScaleValue<=MIN_MAP_SCALE;
+}
+function renderSharedReviewMap(currentFitRequested){
+ if(isFieldMapReview&&(!currentFieldFrame||currentFieldFrame.options.rotation!==currentCameraRotation))currentFieldFrame=createFieldReviewFrame(currentMapRecord,currentCameraRotation);
+ if(currentFitRequested){
+  const currentCornerPoints=isFieldMapReview?currentFieldFrame.points:[{column:0,row:0},{column:currentMapRecord.columns,row:0},{column:0,row:currentMapRecord.rows},{column:currentMapRecord.columns,row:currentMapRecord.rows}].map(projectBlockVertex);
+  fitReviewMapCamera(currentCornerPoints,isFieldMapReview?FIELD_FIT_TOP_MARGIN:TOWN_BLOCK_HEIGHT*2);
+ }
+ const currentRenderOptions={edges:readReviewOption('edges'),scale:currentScaleValue,offsetX:currentOffsetX,offsetY:currentOffsetY,character:readReviewOption('show-character'),characterCell:currentCharacterCell};
+ if(isFieldMapReview){
+  currentSharedFieldView.render(currentFieldFrame,currentMapRecord,{...currentRenderOptions,safe:readReviewOption('show-safe-boundary'),shadowProfile:currentDisplayOptions['shadow-profile']});
+ }else{
+  currentSharedFieldView.renderTown(currentMapRecord,{...currentRenderOptions,rotation:currentCameraRotation},projectBlockVertex);
+  renderAppliedTileSourceList();
+ }
+ updateReviewZoomControls();
+ document.querySelector('#status').textContent=isFieldMapReview
+  ?`게임 공용 필드 렌더러 · 내부 해상도 2배 · 높이 단위 ${FIELD_RENDER_METRICS.elevationHeight}px · 타일 ${FIELD_RENDER_METRICS.tileWidth}×${FIELD_RENDER_METRICS.tileHeight} · 결계 높이 15px · 회전 ${currentCameraRotation*90}°`
+  :`게임 공용 마을 렌더러 · 내부 해상도 2배 · 건물 ${currentMapRecord.buildings.length}개 · 회전 ${currentCameraRotation*90}°`;
 }
 if(document.querySelector('#show-safe-boundary'))document.querySelector('#show-safe-boundary').onchange=()=>renderBlockMap();
 function focusReviewBuilding(currentBuildingIdentifier){

@@ -6,10 +6,44 @@ import unittest
 
 
 class MapReviewLifecycleTests(unittest.TestCase):
+    def test_source_list_preserves_nodes_until_sources_change(self):
+        current_source_path=Path(__file__).parents[1]/'ui/map/block-map-review.js'
+        current_render_source=current_source_path.read_text().split('let currentAppliedSourceSignature=',1)[1].split('\nrenderAppliedTileSourceList();',1)[0]
+        current_render_source=('let currentAppliedSourceSignature='+current_render_source).replace('import.meta.url',json.dumps('http://localhost/'))
+        current_script_source=r"""
+const assert=require('node:assert/strict');
+const isFieldMapReview=false,isCharacterReviewPage=true;
+const groundTextureNames={paving:'first'};
+const currentMapRecord={terrainCodes:{p:'paving'},guardCenters:[]};
+const currentSafeVisualRecords={};
+const currentTextureRecords={first:{path:'first.png',source_size:[128,128],expected_source_size:[128,128]},second:{path:'second.png',source_size:[128,128],expected_source_size:[128,128]}};
+let currentReplacementCount=0;
+function createTestElement(){return {children:[],append(...currentChildNodes){this.children.push(...currentChildNodes);},prepend(...currentChildNodes){this.children.unshift(...currentChildNodes);}};}
+const currentSourceList=createTestElement();
+currentSourceList.replaceChildren=()=>{currentReplacementCount++;currentSourceList.children=[];};
+const document={querySelector:()=>currentSourceList,createElement:createTestElement};
+SOURCE
+renderAppliedTileSourceList();
+const currentOriginalNode=currentSourceList.children[0];
+currentOriginalNode.expanded=true;
+renderAppliedTileSourceList();
+assert.equal(currentReplacementCount,1);
+assert.equal(currentSourceList.children[0],currentOriginalNode);
+assert.equal(currentSourceList.children[0].expanded,true);
+groundTextureNames.paving='second';renderAppliedTileSourceList();
+assert.equal(currentReplacementCount,2);
+assert.notEqual(currentSourceList.children[0],currentOriginalNode);
+currentTextureRecords.second.path='updated.png';renderAppliedTileSourceList();
+assert.equal(currentReplacementCount,3);
+assert.equal(currentSourceList.children[0].children[0].src,'http://localhost/updated.png');
+""".replace('SOURCE',current_render_source)
+        current_test_result=subprocess.run(['node','-e',current_script_source],capture_output=True,text=True,timeout=10)
+        self.assertEqual(current_test_result.returncode,0,current_test_result.stderr)
+
     def test_initialization_failure_and_early_exit_destroy_renderer_once(self):
         current_adapter_path=Path(__file__).parents[1]/'ui/map/field-map-view.js'
         current_adapter_source='\n'.join(current_source_line for current_source_line in current_adapter_path.read_text().splitlines() if not current_source_line.startswith('import '))
-        current_adapter_source=current_adapter_source.replace('export async function','async function')
+        current_adapter_source=current_adapter_source.replace('export async function','async function').replace('export function','function')
         current_script_source=r"""
 const assert=require('node:assert/strict');
 const TERRAIN_DEPTH={actor:1,overlay:2},GAME_INTERNAL_RESOLUTION_SCALE=2;
@@ -63,6 +97,8 @@ async function verifyTextureProgress(currentFailRequested){
   const currentRejectedLoad=assert.rejects(currentPendingLoad,/타일 로드 실패: a/);
   currentImageElements[0].onerror();currentImageElements[1].onload();
   await currentRejectedLoad;
+  assert.equal(currentStatusElement.textContent,'타일 로드 실패: a');
+  currentImageElements[1].onerror();
   assert.equal(currentStatusElement.textContent,'타일 로드 실패: a');
  }else{
   currentImageElements[0].onload();

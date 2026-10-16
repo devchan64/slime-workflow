@@ -26,6 +26,10 @@ function readReviewConnectionMask(currentCellPosition,currentMapRecord,currentTe
  return currentConnectionMask;
 }
 
+export function resolveReviewTownFrame(currentMapRecord,currentTerrainName,currentCellPosition,currentConnectionMask){
+ return currentTerrainName==='water'?`water-${currentConnectionMask}`:currentTerrainName==='road'?selectFieldRoadFrame(currentConnectionMask,currentCellPosition,true,currentMapRecord.id):currentTerrainName==='reed-bed'?resolveReedFrameForMap(currentMapRecord.id):currentTerrainName==='paving'?resolvePavingFrameForMap(currentMapRecord.id):currentTerrainName==='grass'?resolveGrassFrameForMap(currentMapRecord.id):resolveTownGroundFrame(currentMapRecord.id,currentTerrainName);
+}
+
 function readReviewViewportSize(currentMapCanvas){
  const currentViewportBounds=currentMapCanvas.parentElement.getBoundingClientRect();
  const currentPixelWidth=Math.round(currentViewportBounds.width*GAME_INTERNAL_RESOLUTION_SCALE);
@@ -70,6 +74,7 @@ export async function createSharedFieldReview(currentMapCanvas,currentTextureIma
  let currentFieldActorSignature='';
  let currentFieldActorObjects=[];
  let currentTownMapSignature='';
+ let currentAppliedBuildingTextures=new Set();
  let currentTownActorSignature='';
  let currentTownActorObjects=[];
  let currentTownMeshObjects=[];
@@ -101,7 +106,7 @@ export async function createSharedFieldReview(currentMapCanvas,currentTextureIma
  return {
   render(currentFieldFrame,currentMapRecord,currentViewSettings){
    if(currentReviewDisposed)throw Error('맵 검수 화면이 닫혔습니다.');
-   resizeReviewViewport(currentFieldGame,currentMapCanvas);
+   updateSharedReviewCamera(currentViewSettings);
    const currentNextSignature=JSON.stringify([currentMapRecord.id,currentFieldFrame.options.rotation,currentViewSettings.edges,currentViewSettings.safe]);
    if(currentNextSignature!==currentRenderSignature){
     for(const currentRenderObject of [...currentFieldScene.children.list])if(currentRenderObject.scene)currentRenderObject.destroy();
@@ -152,14 +157,15 @@ export async function createSharedFieldReview(currentMapCanvas,currentTextureIma
     currentFieldActorObjects=currentFieldScene.children.list.filter(currentSceneObject=>!previousSceneObjects.has(currentSceneObject));
     currentFieldActorSignature=currentActorSignature;
    }
-   currentFieldScene.cameras.main.setOrigin(0,0).setZoom(currentViewSettings.scale*GAME_INTERNAL_RESOLUTION_SCALE).setScroll(-currentViewSettings.offsetX/currentViewSettings.scale,-currentViewSettings.offsetY/currentViewSettings.scale);
   },
+  readAppliedBuildingTextures(){return [...currentAppliedBuildingTextures].sort();},
   renderTown(currentMapRecord,currentViewSettings,currentProjectPosition){
    if(currentReviewDisposed)throw Error('맵 검수 화면이 닫혔습니다.');
    const currentMapSignature=JSON.stringify([currentMapRecord.id,currentViewSettings.rotation]);
    const currentDepthPosition=currentCellPosition=>cellDepth(rotateSurfacePosition(currentCellPosition,currentViewSettings.rotation));
    if(currentMapSignature!==currentTownMapSignature){
     for(const currentRenderObject of [...currentFieldScene.children.list])if(currentRenderObject.scene)currentRenderObject.destroy();
+    currentAppliedBuildingTextures=new Set();
     currentTownActorObjects=[];currentTownMeshObjects=[];currentTownWaypointObjects=[];currentTownActorSignature='';
     const currentTileDimensions=resolveMapTileSize(currentMapRecord);
     for(let currentRowIndex=0;currentRowIndex<currentMapRecord.rows;currentRowIndex++)for(let currentColumnIndex=0;currentColumnIndex<currentMapRecord.columns;currentColumnIndex++){
@@ -167,13 +173,15 @@ export async function createSharedFieldReview(currentMapCanvas,currentTextureIma
      const currentTerrainName=currentMapRecord.terrainCodes[currentMapRecord.terrainRows[currentRowIndex][currentColumnIndex]];
      const currentScreenPoint=currentProjectPosition(currentCellPosition),currentCellDepth=currentDepthPosition(currentCellPosition);
      const currentConnectionMask=(currentTerrainName==='road'||currentTerrainName==='water')?readReviewConnectionMask(currentCellPosition,currentMapRecord,currentTerrainName,currentViewSettings.rotation):0;
-     const currentFrameName=currentTerrainName==='water'?`water-${currentConnectionMask}`:currentTerrainName==='road'?selectFieldRoadFrame(currentConnectionMask,currentCellPosition,true,currentMapRecord.id):currentTerrainName==='reed-bed'?resolveReedFrameForMap(currentMapRecord.id):currentTerrainName==='paving'?resolvePavingFrameForMap(currentMapRecord.id):currentTerrainName==='grass'?resolveGrassFrameForMap(currentMapRecord.id):resolveTownGroundFrame(currentMapRecord.id,currentTerrainName);
+     const currentFrameName=resolveReviewTownFrame(currentMapRecord,currentTerrainName,currentCellPosition,currentConnectionMask);
      if(!currentFieldScene.textures.get(TERRAIN_ATLAS).has(currentFrameName))throw Error('게임 타일 프레임 누락: '+currentFrameName);
      currentFieldScene.add.image(currentScreenPoint.x,currentScreenPoint.y,TERRAIN_ATLAS,currentFrameName).setDisplaySize(currentTileDimensions.width,currentTileDimensions.height).setDepth(currentCellDepth+TERRAIN_DEPTH.surface);
      drawTownMaterialEdges(currentFieldScene,currentCellPosition,currentNeighborCell=>currentMapRecord.terrainCodes[currentMapRecord.terrainRows[currentNeighborCell.row][currentNeighborCell.column]],currentProjectPosition,currentDepthPosition,TERRAIN_DEPTH.surface);
     }
     for(const currentBuildingRecord of currentMapRecord.buildings){
      const currentBuildingRegion=drawBlockStructure(currentFieldScene,currentBuildingRecord,currentProjectPosition,currentDepthPosition,mapAnnotationDepth(currentMapRecord),false);
+     if(!Array.isArray(currentBuildingRegion.appliedTextureIdentifiers))throw Error('공용 렌더러의 건물 원본 정보가 없습니다. 배포 버전을 확인하세요.');
+     for(const currentTextureIdentifier of currentBuildingRegion.appliedTextureIdentifiers)currentAppliedBuildingTextures.add(currentTextureIdentifier);
      for(const currentBuildingPolygon of currentBuildingRegion.polygons)currentTownMeshObjects.push(drawFieldMeshBoundary(currentFieldScene,currentBuildingPolygon.points,currentBuildingRegion.depth+.02));
     }
     for(const currentConnectionRecord of currentMapRecord.connections){
