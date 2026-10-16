@@ -5769,5 +5769,93 @@ phantom_restore_settings_validation_fix:
   date: 2026-10-16
   finding: 참조 복원을 모의 처리한 격리 콜백에서 frames999·목록형 negative_prompt·NaN flow_shift가 폼 출력으로 반환됨을 확인했다.
   correction: 공용 자료형·참조 해시 검증 후 기존 verify_phantom_request로 저장 요청 전체를 검증하고 선택 이력과 현재 저장 요청의 불일치를 거절한다. 중첩 설정·참조 목록 자료형도 명확히 거절한다.
-  validation: 최종 수정본 test_phantom_generation 14건 통과·실패/오류/건너뜀0건. .tmp/test/management-audit/2026-10-16_15-24-34/summary.json. 손상 프레임·선택 이력 불일치 회귀 포함. 이번 Phantom 수정의 격리 브라우저 확인은 미완료.
+  validation: 최종 수정본 test_phantom_generation 14건 통과·실패/오류/건너뜀0건. .tmp/test/management-audit/2026-10-16_15-24-34/summary.json. 손상 프레임·선택 이력 불일치 회귀 포함. 격리 브라우저 정상 복원·손상 요청 거절·현재 입력 보존은 phantom_restore_contract_browser_followup 참조.
   safety: 운영 기록·GPU 실행 없음.
+
+phantom_restore_contract_browser_followup:
+  date: 2026-10-16
+  fixture: /tmp/phantom-current-restore.py · 8799 · 실제 Phantom Blocks와 공용 메뉴 합성 · 임시 저장 요청과 참조 사본
+  normal: 참조 1장과 A character waves. 3단어, 65프레임, 시드123이 복원되고 생성 버튼이 활성화됨을 확인했다. 생성은 실행하지 않았다.
+  rejection: 임시 request.json의 frames를999로 바꾼 후 복원을 시도하자 1~161 범위의4n+1 정수 규칙을 안내하며 거절했다.
+  preservation: 거절 후 현재 문구 Keep current scene., 시드777, 기존65프레임이 유지됐다.
+  safety: history/status/active만 모의 제공하고 생성·삭제 명령은 차단했다. 운영 기록과 GPU 작업은 변경하지 않았으며 검증 탭과 서버를 종료했다.
+  scope: 이번 입력 복원 변경의 브라우저 검증 근거이며 Phantom 전체 기능이나 전체 페이지의 검수 완료를 뜻하지 않는다.
+
+qwen2512_restore_range_validation_followup:
+  date: 2026-10-16
+  finding: 입력 복원은 자료형만 검증하여 잘못된 해상도·스텝·음수/초과 시드와 빈 프롬프트를 반환할 수 있었다.
+  correction: 기존 validate_image_request에 복원 대상 필드를 전달하여 생성 서비스와 같은 범위 검증을 사용한다. 기존 누락 필드 기본값은 유지한다.
+  tests: test_qwen_2512_gradio 7건 통과·실패/오류/건너뜀0건. .tmp/test/management-audit/2026-10-16_15-28-59/summary.json. 정상 복원과 손상 설정 거절 포함.
+  browser: /tmp/qwen-settings-restore-audit.py · 8799 · 공용 메뉴와 실제 Qwen2512 화면. 음수 시드 이력 복원을 거절하며 uint32 범위를 안내했고 현재 Keep current scene. 문구와 시드777이 유지됐다.
+  safety: 모의 history/active 외 명령 차단. GPU 생성 및 운영 기록 변경 없음. 검증 탭과 서버 종료.
+  remaining: 서비스와 화면의 해상도 차이는 qwen2512_resolution_contract_followup에서 수정·검증했다.
+
+qwen2512_resolution_contract_followup:
+  date: 2026-10-16
+  finding: 서비스가 허용하는640 해상도를 기존 Dropdown에 반환하면 선택지에 없는 값이라는 Gradio 경고가 발생했다.
+  correction: 서비스의 해상도 최소256·최대1664·16단위 상수를 UI와 공유하고 표준 Number 입력으로 전환했다. 정상 CLI 이력의 해상도를 그대로 표시하고 편집한다.
+  regression: test_qwen_2512_gradio 7건 통과·실패/오류/건너뜀0건. .tmp/test/management-audit/2026-10-16_15-31-27/summary.json.
+  browser: /tmp/qwen-resolution-restore-audit.py · 공용 메뉴와 실제 Qwen2512 Blocks. 임시 이력 복원 후 너비640·높이960·시드123·Saved scene. 표시 및 성공 안내 확인.
+  safety: 생성 명령 차단·운영 데이터 무변경. 검증 탭과8799서버 종료.
+
+qwen2512_request_coercion_followup:
+  date: 2026-10-16
+  finding: GUI 요청 작성의 int 변환으로 소수·문자열·불리언 숫자 입력이 서비스의 엄격한 자료형 검증 전에 변환될 수 있었다.
+  correction: build_generation_request는 원래 값을 validate_image_request에 전달한 뒤 유효한 프롬프트만 공백 정리한다. 해상도·스텝·시드의 임의 형변환을 제거했다.
+  validation: 요청 작성 함수의 각 숫자 필드에 불리언·문자열·소수·None을 전달하는 회귀를 추가했다. 첫 검사에서는 확인 UI 래퍼 내부 콜백을 직접 찾는 테스트가 실패하여 실제 요청 작성 함수를 검증하도록 수정했다. 최종 test_qwen_2512_gradio 8건 통과·실패/오류/건너뜀0건. .tmp/test/management-audit/2026-10-16_15-34-00/summary.json.
+  scope: 요청 검증 로직 변경이며 신규 브라우저 검증은 수행하지 않았다. 운영 생성 명령 없음.
+
+qwen2512_request_browser_followup:
+  date: 2026-10-16
+  fixture: /tmp/qwen-submit-audit.py · 8799 · 실제 공용 메뉴와 Qwen2512 화면. generate는 임시 JSON 기록과 모의 queued 응답만 반환.
+  verified: Forest scene.·640×960·4스텝·시드251204 입력으로 생성 시작 후 공용 확인 영역이 표시됐다. 확인 후 동일 값이 /tmp/qwen-submit-audit-request.json에 전달되고 모의 생성 ID와 GPU 대기 상태가 표시됐으며 시작 버튼이 다시 활성화됐다.
+  limitation: 잘못된 숫자의 거절은 요청 작성 함수 회귀 검사 근거다. 이번 브라우저 검증은 정상 정수 입력 전달과 확인 후 복구를 확인했다.
+  fixture_failure: 첫 모의 실행은 검증 스크립트의 Path import 누락으로 실패했다. 해당 스크립트만 수정한 뒤 정상 전달을 확인했다.
+  safety: 실제 게이트웨이·GPU 실행 없음. 운영 이력 무변경. 검증 탭과 서버 종료.
+
+music_restore_validation_followup:
+  date: 2026-10-16
+  consumers: [music-ace-step, music-minimax]
+  finding: 공용 음악 입력 복원 콜백이 저장 길이·시드·반복 옵션·문구를 서비스 검증 없이 반환했다.
+  correction: 공용 이력 자료형 검증과 필수 입력 존재 검사를 수행하고 기존 validate_music_request로 선택 서비스의 길이 제한·uint32 시드·bool 반복 옵션·프롬프트·태그를 검증한다. 과거 최종 프롬프트 해시를 현재 기본 문구로 다시 생성하지 않고 사용자가 복원할 입력만 검증한다.
+  regression: test_music_generation 18건 통과·실패/오류/건너뜀0건. .tmp/test/management-audit/2026-10-16_15-39-24/summary.json. 두 서비스 각각 정상 복원·잘못된 입력 거절·현재 입력 skip·history 외 명령 미호출 확인.
+  remaining: 음악 두 소비 화면의 오류 안내·입력 보존은 music_restore_browser_followup으로 확인했다.
+  safety: 임시 서비스와 모의 실행만 사용. 운영 이력·GPU 작업 무변경.
+
+music_restore_browser_followup:
+  date: 2026-10-16
+  fixture: /tmp/music-invalid-restore-audit.py · 8799 · 공용 메뉴와 각 서비스의 실제 음악 Blocks를 순차 실행
+  ace_step: 길이-1 임시 이력 복원을 거절하고5~120초 제한 안내. 현재 Keep current music.·20초·시드42 유지.
+  minimax: 길이-1 임시 이력 복원을 거절하고5~60초 제한 안내. 현재 Keep current music.·20초·시드42 유지.
+  safety: history/active/model-status만 모의 제공하며 생성·삭제 등은 차단. 두 검증 탭과 서버 종료. 운영 데이터·GPU 작업 무변경.
+
+seamless_restore_validation_followup:
+  date: 2026-10-16
+  finding: 저장된 user_prompt·seed를 검증 없이 반환하여 손상 문구와 음수 시드를 입력으로 복원할 수 있었다.
+  correction: 공용 이력 자료형 검사 후 새 패턴 입력을 기존 validate_seamless_request로 검증한다. 기존 복원 의미인 사용자 소재·태그·시드 및 현재 고정40스텝을 유지하며 과거 단계별 프롬프트나 참조를 새 패턴 입력으로 오인하지 않는다.
+  regression: test_seamless_generation 6건 통과·실패/오류/건너뜀0건. .tmp/test/management-audit/2026-10-16_15-44-59/summary.json. 정상 입력 복원·손상 설정 거절·출력 skip·history 외 호출 없음 확인.
+  runner: 해당 기존 테스트 모듈이 관리도구 검사 실행기의 허용 목록에서 빠져 있어 등록했다. 최초 요청은 argparse에서 거절됐고 등록 후 해당 모듈만 실행했다.
+  remaining: 이번 수정의 브라우저 검증은 seamless_restore_browser_followup 참조.
+  safety: 모의 서비스와 임시 작업만 사용. 운영 데이터·GPU 실행 무변경.
+
+seamless_restore_browser_followup:
+  date: 2026-10-16
+  fixture: /tmp/seamless-restore-audit.py · 8799 · 공용 메뉴와 실제 심리스 Blocks. 메뉴의 임시 테스트 라벨은 Qwen2512로 남아 있으나 검증 대상 화면·콜백은 seamless_tile_app이다.
+  result: 음수 시드 이력의 입력 복원 시 uint32 정수 제한을 명시한 오류 안내가 표시됐다. 현재 Keep grass. 문구·시드777·해당 문구의 최종 프롬프트 미리보기가 유지됐다.
+  safety: history/active만 모의 제공하고 생성·삭제 차단. 운영 기록·GPU 작업 무변경. 임시 탭과 서버 종료.
+  limitation: 임시 서비스에서 status 조회를 차단하여 백그라운드 상태 조회 오류가 발생했다. 입력 복원 거절과 폼 보존 관측만 근거로 사용하며 상태 폴링 정상 동작의 증거로 사용하지 않는다.
+
+seamless_status_failure_followup:
+  date: 2026-10-16
+  finding: refresh_seamless_status가 조회 예외를 처리하지 않아 통신 실패가 Gradio 이벤트 오류로만 표시됐다.
+  correction: ValueError/RuntimeError/OSError 원인과 재조회 안내를 상태 영역에 표시한다. 기존 로그·결과·작업ID는 skip으로 보존하고 다음단계 준비 상태와 일시정지 버튼은 비활성화한다. 후속 정상 응답으로 준비 상태와 로그가 복구된다.
+  regression: test_seamless_generation 7건 통과·실패/오류/건너뜀0건. .tmp/test/management-audit/2026-10-16_15-48-52/summary.json. 세 예외 유형·출력 보존·동작 비활성·정상 조회 복구 확인.
+  remaining: 브라우저 실패→복구 안내와 버튼 상태는 seamless_status_recovery_browser_followup 참조.
+  safety: 모의 조회만 사용하며 사용자 작업 취소·변경 없음.
+
+seamless_status_recovery_browser_followup:
+  date: 2026-10-16
+  fixture: /tmp/seamless-status-recovery.py · 8799 · 공용 메뉴와 실제 심리스 Blocks·모의 상태 서비스
+  failure: 선택한 임시 작업의 상태 조회를 OSError로 실패시켜 명시적 통신 오류·재조회 안내·작업ID 보존·다음단계 및 일시정지 비활성을 확인했다.
+  recovery: 상태 응답을 paused로 바꾸고 상태 새로고침 후 검수 대기·패턴 단계 표시와 다음단계 버튼 활성화를 확인했다. 일시정지는 비활성을 유지했다.
+  safety: 상태 조회만 실행하고 resume/pause/generate 명령은 차단. 운영 데이터·GPU 작업 무변경. 검증 탭·서버 종료.
