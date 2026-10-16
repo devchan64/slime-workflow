@@ -21,6 +21,9 @@ from tools.review.common.gpu_job_queue import launch_gpu_process, cancel_gpu_gen
 WORKFLOW_ROOT_PATH = Path(__file__).resolve().parents[4]
 IMAGE_JOB_ROOT = WORKFLOW_ROOT_PATH / '.tmp/test/qwen-image-2512'
 IMAGE_REQUEST_LIMIT = 32768
+IMAGE_RESOLUTION_MINIMUM = 256
+IMAGE_RESOLUTION_MAXIMUM = 1664
+IMAGE_RESOLUTION_INCREMENT = 16
 MANAGER_HISTORY_ROOT = WORKFLOW_ROOT_PATH / ".tmp/manager-current"
 MANAGER_HISTORY_LOCK = threading.Lock()
 
@@ -54,7 +57,7 @@ def validate_image_request(current_request_record):
         raise ValueError('생성 스텝은 4 또는 30이어야 합니다.')
     for current_size_key in ('width','height'):
         current_size_value = current_request_record[current_size_key]
-        if type(current_size_value) is not int or not 256 <= current_size_value <= 1664 or current_size_value % 16 != 0:
+        if type(current_size_value) is not int or not IMAGE_RESOLUTION_MINIMUM <= current_size_value <= IMAGE_RESOLUTION_MAXIMUM or current_size_value % IMAGE_RESOLUTION_INCREMENT != 0:
             raise ValueError('지원하지 않는 해상도입니다.')
     return current_request_record
 

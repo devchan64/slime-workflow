@@ -22,7 +22,7 @@ from tools.review.common.gradio_reference_restore import validate_history_input_
 from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_confirmation
 from tools.review.common.management_client import execute_remote_management_command as execute_management_command
 
-IMAGE_SIZE_VALUES=(512,768,1024,1280)
+from tools.review.domains.image.image_generation import IMAGE_RESOLUTION_MINIMUM, IMAGE_RESOLUTION_MAXIMUM, IMAGE_RESOLUTION_INCREMENT, validate_image_request
 IMAGE_STEP_VALUES=(4,30)
 DEFAULT_IMAGE_SEED=251204
 
@@ -33,11 +33,23 @@ def count_prompt_words(prompt_text_value):
     return len((prompt_text_value or '').split())
 
 def build_generation_request(prompt_text_value,generation_tag_value,width_value,height_value,step_value,seed_value):
-    return {'action':'generate','prompt':prompt_text_value.strip(),'tag':generation_tag_value.strip(),'width':int(width_value),'height':int(height_value),'steps':int(step_value),'seed':int(seed_value)}
+    current_request_record = validate_image_request({'action': 'generate', 'prompt': prompt_text_value, 'tag': generation_tag_value, 'width': width_value, 'height': height_value, 'steps': step_value, 'seed': seed_value})
+    current_request_record['prompt'] = current_request_record['prompt'].strip()
+    return current_request_record
 
 def restore_generation_inputs(current_history_record):
     current_request_record=validate_history_input_settings(current_history_record)
-    restored_prompt_text=current_request_record.get('prompt','')
+    try:
+        current_request_record = validate_image_request({
+            'action': 'generate',
+            **{current_field_name: current_request_record.get(current_field_name, current_default_value)
+               for current_field_name, current_default_value in (
+                   ('prompt', ''), ('tag', ''), ('width', 1024), ('height', 1024),
+                   ('steps', 4), ('seed', DEFAULT_IMAGE_SEED))},
+        })
+    except ValueError as current_restore_error:
+        raise gr.Error(f'저장된 이미지 생성 입력을 복원할 수 없습니다: {current_restore_error}') from current_restore_error
+    restored_prompt_text=current_request_record['prompt']
     return restored_prompt_text,current_request_record.get('tag',''),current_request_record.get('width',1024),current_request_record.get('height',1024),current_request_record.get('steps',4),current_request_record.get('seed',DEFAULT_IMAGE_SEED),f'최종 프롬프트: **{count_prompt_words(restored_prompt_text)}단어**','선택한 이력의 입력값을 불러왔습니다. 생성 전에 내용을 확인하세요.'
 
 def format_generation_status(status_record_value):
@@ -52,8 +64,8 @@ def build_qwen_2512_interface(server_base_address):
                 generation_tag_value=gr.Textbox(label='생성 이력 태그 · 선택 사항',placeholder='예: 돌온재 배경 후보',max_lines=1)
                 prompt_word_count_value=gr.Markdown('최종 프롬프트: **0단어**')
                 with gr.Row():
-                    width_select_value=gr.Dropdown(IMAGE_SIZE_VALUES,value=1024,label='너비')
-                    height_select_value=gr.Dropdown(IMAGE_SIZE_VALUES,value=1024,label='높이')
+                    width_select_value=gr.Number(value=1024,label='너비',minimum=IMAGE_RESOLUTION_MINIMUM,maximum=IMAGE_RESOLUTION_MAXIMUM,step=IMAGE_RESOLUTION_INCREMENT,precision=0)
+                    height_select_value=gr.Number(value=1024,label='높이',minimum=IMAGE_RESOLUTION_MINIMUM,maximum=IMAGE_RESOLUTION_MAXIMUM,step=IMAGE_RESOLUTION_INCREMENT,precision=0)
                 with gr.Row():
                     step_select_value=gr.Radio(IMAGE_STEP_VALUES,value=4,label='생성 스텝')
                     seed_number_value=build_generation_seed(DEFAULT_IMAGE_SEED)

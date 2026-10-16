@@ -12,6 +12,17 @@ class Qwen2512GradioTests(unittest.TestCase):
             {'action':'generate','prompt':'misty forest','tag':'돌온재','width':1024,'height':768,'steps':4,'seed':251204},
         )
 
+    def test_generation_rejects_invalid_numbers_without_coercion(self):
+        for current_parameter_index in (2, 3, 4, 5):
+            for current_invalid_value in (True, '512', 512.5, None):
+                current_input_values = ['forest', '', 512, 512, 4, 42]
+                current_input_values[current_parameter_index] = current_invalid_value
+                with self.subTest(index=current_parameter_index, value=current_invalid_value):
+                    with patch.object(qwen_2512_app, 'execute_image_gateway') as current_gateway_mock:
+                        with self.assertRaises(ValueError):
+                            qwen_2512_app.build_generation_request(*current_input_values)
+                        current_gateway_mock.assert_not_called()
+
     def test_gateway_targets_qwen_2512_service(self):
         with patch.object(qwen_2512_app,'execute_management_command',return_value={'id':'sample'}) as gateway_call_value:
             self.assertEqual(qwen_2512_app.execute_image_gateway('generate',{'prompt':'test'}),{'id':'sample'})
@@ -22,8 +33,8 @@ class Qwen2512GradioTests(unittest.TestCase):
         self.assertEqual(qwen_2512_app.collect_generation_gallery('/image-generation/jobs/sample/result.png',server_base_address='http://localhost:8770'),[('http://localhost:8770/image-generation/jobs/sample/result.png','생성 원본')])
 
     def test_restore_generation_inputs_uses_historical_request(self):
-        restored_input_values=qwen_2512_app.restore_generation_inputs({'request':{'prompt':'misty forest','tag':'돌온재','width':768,'height':1024,'steps':30,'seed':42}})
-        self.assertEqual(restored_input_values[:6],('misty forest','돌온재',768,1024,30,42))
+        restored_input_values=qwen_2512_app.restore_generation_inputs({'request':{'prompt':'misty forest','tag':'돌온재','width':640,'height':960,'steps':30,'seed':42}})
+        self.assertEqual(restored_input_values[:6],('misty forest','돌온재',640,960,30,42))
         self.assertEqual(restored_input_values[6],'최종 프롬프트: **2단어**')
 
     def test_restore_rejects_malformed_history_before_component_updates(self):
@@ -35,6 +46,13 @@ class Qwen2512GradioTests(unittest.TestCase):
             with self.subTest(record=current_history_record):
                 with self.assertRaises(qwen_2512_app.gr.Error):
                     qwen_2512_app.restore_generation_inputs(current_history_record)
+
+    def test_restore_rejects_settings_outside_service_contract(self):
+        current_valid_request = {'prompt': 'misty forest', 'width': 768, 'height': 1024, 'steps': 30, 'seed': 42}
+        for current_invalid_fields in ({'prompt': ''}, {'width': 255}, {'height': 513}, {'steps': 99}, {'seed': -1}, {'seed': 4294967296}):
+            with self.subTest(fields=current_invalid_fields):
+                with self.assertRaises(qwen_2512_app.gr.Error):
+                    qwen_2512_app.restore_generation_inputs({'request': {**current_valid_request, **current_invalid_fields}})
 
     def test_status_lookup_failure_preserves_outputs_and_recovers(self):
         current_interface_blocks = qwen_2512_app.build_qwen_2512_interface('http://localhost')
