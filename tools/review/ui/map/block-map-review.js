@@ -286,7 +286,7 @@ currentDrawingContext.setTransform(currentScaleValue*CHARACTER_REVIEW_RESOLUTION
 currentDrawingContext.filter=`contrast(${GROUND_CONTRAST_PREVIEW_VALUES[currentGroundPreviewMode]}) saturate(${currentGroundSaturationReduced?GROUND_REDUCED_SATURATION:1}) brightness(${currentGroundBrightnessReduced?GROUND_REDUCED_BRIGHTNESS:1})`;
 for(let currentRowIndex=0;currentRowIndex<currentMapRecord.rows;currentRowIndex++)for(let currentColumnIndex=0;currentColumnIndex<currentMapRecord.columns;currentColumnIndex++){const currentTerrainName=currentMapRecord.terrainCodes[currentMapRecord.terrainRows[currentRowIndex][currentColumnIndex]];drawSurfacePolygon([[-.5,-.5],[.5,-.5],[.5,.5],[-.5,.5]].map(([c,r])=>projectBlockVertex({column:currentColumnIndex+c,row:currentRowIndex+r})),currentMaterialColors[currentTerrainName]);const currentGroundImage=loadedTextureImages[groundTextureNames[currentTerrainName]];if(currentGroundImage){const currentGroundVertices=[[-.5,-.5],[.5,-.5],[.5,.5],[-.5,.5]].map(([currentColumnOffset,currentRowOffset])=>({column:currentColumnIndex+currentColumnOffset,row:currentRowIndex+currentRowOffset,height:0}));drawTexturedSurface({top:true,ground:true,vertices:currentGroundVertices,points:currentGroundVertices.map(projectBlockVertex)},currentGroundImage)}}
 currentDrawingContext.filter='none';
-if(!isFieldMapReview)drawReviewCharacter(projectReviewCharacter()); currentDrawingContext.setTransform(1,0,0,1,0,0);const currentBuildingFloorSummary=[...new Set(currentMapRecord.buildings.map(currentBuildingRecord=>currentBuildingRecord.floors))].sort((firstFloorCount,secondFloorCount)=>firstFloorCount-secondFloorCount).map(currentFloorCount=>`${currentFloorCount}층 ${currentMapRecord.buildings.filter(currentBuildingRecord=>currentBuildingRecord.floors===currentFloorCount).length}개`).join(' · '),currentRoofHeightValues=[...new Set(currentMapRecord.buildings.flatMap(currentBuildingRecord=>currentBuildingRecord.blocks).filter(currentBlockRecord=>currentBlockRecord.material==='roof').map(currentBlockRecord=>currentBlockRecord.height))].sort((firstHeightValue,secondHeightValue)=>firstHeightValue-secondHeightValue),currentRoofHeightSummary=currentRoofHeightValues.join('·');document.querySelector('#status').textContent=isFieldMapReview?`필드 고도 ${Math.min(...currentMapRecord.elevations.flat())}–${Math.max(...currentMapRecord.elevations.flat())} · 높이 단위 ${FIELD_RENDER_METRICS.elevationHeight}px · 타일 ${FIELD_RENDER_METRICS.tileWidth}×${FIELD_RENDER_METRICS.tileHeight} · 계단 ${currentMapRecord.elevationTiles.length}개 · 회전 ${currentCameraRotation*90}°`:`회전 ${currentCameraRotation*90}° · 건물 ${currentMapRecord.buildings.length}개 (${currentBuildingFloorSummary}) · 블록 ${currentMapRecord.buildings.reduce((s,b)=>s+b.blocks.length,0)}개 · 일반 블록 ${TOWN_BLOCK_HEIGHT}px · 지붕 경사 ${currentRoofHeightSummary}px · 사람 높이 ${gameRenderMetrics.characterHeight} · 마을 타일 ${gameRenderMetrics.townTileWidth}×${gameRenderMetrics.townTileHeight} · 지붕 보행 불가`}
+if(!isFieldMapReview)drawReviewCharacter(projectReviewCharacter()); currentDrawingContext.setTransform(1,0,0,1,0,0);const currentBuildingFloorSummary=[...new Set(currentMapRecord.buildings.map(currentBuildingRecord=>currentBuildingRecord.floors))].sort((firstFloorCount,secondFloorCount)=>firstFloorCount-secondFloorCount).map(currentFloorCount=>`${currentFloorCount}층 ${currentMapRecord.buildings.filter(currentBuildingRecord=>currentBuildingRecord.floors===currentFloorCount).length}개`).join(' · '),currentRoofHeightValues=[...new Set(currentMapRecord.buildings.flatMap(currentBuildingRecord=>currentBuildingRecord.blocks).filter(currentBlockRecord=>currentBlockRecord.material==='roof').map(currentBlockRecord=>currentBlockRecord.height))].sort((firstHeightValue,secondHeightValue)=>firstHeightValue-secondHeightValue),currentRoofHeightSummary=currentRoofHeightValues.join('·');document.querySelector('#status').textContent=isFieldMapReview?`필드 고도 ${Math.min(...currentMapRecord.elevations.flat())}–${Math.max(...currentMapRecord.elevations.flat())} · 높이 단위 ${FIELD_RENDER_METRICS.elevationHeight}px · 타일 ${FIELD_RENDER_METRICS.tileWidth}×${FIELD_RENDER_METRICS.tileHeight} · 계단 ${currentMapRecord.elevationTiles.length}개 · 고정 시점`:`고정 시점 · 건물 ${currentMapRecord.buildings.length}개 (${currentBuildingFloorSummary}) · 블록 ${currentMapRecord.buildings.reduce((s,b)=>s+b.blocks.length,0)}개 · 일반 블록 ${TOWN_BLOCK_HEIGHT}px · 지붕 경사 ${currentRoofHeightSummary}px · 사람 높이 ${gameRenderMetrics.characterHeight} · 마을 타일 ${gameRenderMetrics.townTileWidth}×${gameRenderMetrics.townTileHeight} · 지붕 보행 불가`}
 function fitReviewMapCamera(currentCornerPoints,currentTopMargin){
  const currentMinimumX=Math.min(...currentCornerPoints.map(currentPointValue=>currentPointValue.x)),currentMaximumX=Math.max(...currentCornerPoints.map(currentPointValue=>currentPointValue.x));
  const currentMinimumY=Math.min(...currentCornerPoints.map(currentPointValue=>currentPointValue.y))-currentTopMargin,currentMaximumY=Math.max(...currentCornerPoints.map(currentPointValue=>currentPointValue.y))+MAP_FIT_BOTTOM_MARGIN;
@@ -314,8 +314,8 @@ function renderSharedReviewMap(currentFitRequested){
  }
  updateReviewZoomControls();
  document.querySelector('#status').textContent=isFieldMapReview
-  ?`게임 공용 필드 렌더러 · 내부 해상도 2배 · 높이 단위 ${FIELD_RENDER_METRICS.elevationHeight}px · 타일 ${FIELD_RENDER_METRICS.tileWidth}×${FIELD_RENDER_METRICS.tileHeight} · 결계 높이 15px · 회전 ${currentCameraRotation*90}°`
-  :`게임 공용 마을 렌더러 · 내부 해상도 2배 · 건물 ${currentMapRecord.buildings.length}개 · 회전 ${currentCameraRotation*90}°`;
+  ?`게임 공용 필드 렌더러 · 내부 해상도 2배 · 높이 단위 ${FIELD_RENDER_METRICS.elevationHeight}px · 타일 ${FIELD_RENDER_METRICS.tileWidth}×${FIELD_RENDER_METRICS.tileHeight} · 결계 높이 15px · 고정 시점`
+  :`게임 공용 마을 렌더러 · 내부 해상도 2배 · 건물 ${currentMapRecord.buildings.length}개 · 고정 시점`;
 }
 if(document.querySelector('#show-safe-boundary'))document.querySelector('#show-safe-boundary').onchange=()=>renderBlockMap();
 function focusReviewBuilding(currentBuildingIdentifier){
@@ -398,7 +398,6 @@ function centerCharacterView(){
 }
 // 기본 HTML과 Gradio가 동일한 브라우저 카메라 명령을 사용한다.
 const currentCameraActions={
- 'rotate':()=>{currentCameraRotation=(currentCameraRotation+1)%4;renderBlockMap(true);},
  'fit':()=>renderBlockMap(true),
  'zoom-in':()=>changeMapZoom(MAP_ZOOM_FACTOR),
  'zoom-out':()=>changeMapZoom(1/MAP_ZOOM_FACTOR),
@@ -407,7 +406,7 @@ const currentCameraActions={
 window.mapReviewCameraControls=(currentActionName)=>{
  if(!Object.hasOwn(currentCameraActions,currentActionName))throw Error('지원하지 않는 맵 시점 명령입니다.');
  currentCameraActions[currentActionName]();
- return `회전 ${currentCameraRotation*90}° · 확대 ${Math.round(currentScaleValue*100)}%`;
+ return `고정 시점 · 확대 ${Math.round(currentScaleValue*100)}%`;
 };
 for(const currentActionName of Object.keys(currentCameraActions)){
  const currentActionElement=document.getElementById(currentActionName);
@@ -477,7 +476,7 @@ if(currentMapCanvas.dataset.capture==='true'){
  currentMapCanvas.style.width=currentCaptureSettings.width+'px';currentMapCanvas.style.height=currentCaptureSettings.height+'px';
  groundTextureNames.paving=currentCaptureSettings.ground;
  currentCharacterCell={column:currentCaptureSettings.column,row:currentCaptureSettings.row};
- currentCameraRotation=currentCaptureSettings.rotation;
+ currentCameraRotation=0;
  currentOutlineBaseWidth=currentCaptureSettings.outline_width;currentOutlinePreviewEnabled=currentCaptureSettings.outline;currentRimPreviewEnabled=currentCaptureSettings.rim;
  currentShadowPreviewEnabled=currentCaptureSettings.shadow;currentDisplayOptions['shadow-profile']=currentCaptureSettings.shadow_profile;
  currentGroundPreviewMode=currentCaptureSettings.contrast;
