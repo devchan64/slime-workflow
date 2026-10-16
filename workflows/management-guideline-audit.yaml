@@ -208,8 +208,8 @@ pages:
   ui_mode: gradio
   url: /management/frame/anny-landmarks/
   source_review: reviewed_applicable_contracts
-  contract_tests: partial_verified
-  browser_review: partial_live_verified
+  contract_tests: applicable_contracts_verified
+  browser_review: applicable_ui_flows_verified
   findings:
   - landmark-selection-confirmation
   implementation: tools/review/ui/gradio/anny_landmarks_app.py
@@ -226,6 +226,8 @@ pages:
     interaction: '선택·회전·후면·좁은 화면·수동 키보드 편집 저장·확대는 landmark_requirement_evidence_matrix와 landmark_keyboard_zoom_followup 참조.'
     applicability: '후보 편집기는 GPU 생성·ETA·VRAM·생성 프롬프트·시드·생성 이력 삭제 비적용. 해부학 품질 승인은 사용자 검수 범위.'
     limit: '소스 계약 검토 완료를 전체 도구 또는 모든 보조기술의 브라우저 완료로 확대하지 않음. 기존 partial_live_verified는 유지.'
+
+  completion_requirement_matrix: landmark_candidate_requirement_verdict
 
 - id: hy-motion-generator
   readiness_browser_evidence: hy_motion_readiness_cancel_browser_followup 참조. 수정 소스의 모바일 빈 입력·프리셋·확인 취소 검증.
@@ -391,15 +393,19 @@ pages:
   category: field-map-review
   ui_mode: gradio
   url: /management/frame/map-review/?map=reed-crossing&townPage=1
-  source_review: shared_ui_reviewed_runtime_pending
+  source_review: reviewed_applicable_contracts
   contract_tests: shared_component_verified
-  browser_review: partial_live_verified
+  browser_review: applicable_ui_flows_verified
   findings: []
   implementation: tools/review/ui/gradio/map_review_app.py
   applicability: render_review
   review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
   browser_note: 2026-10-15 실제 합성 화면 로딩·90도 회전·캔버스 표시 확인. 모바일·재연결 검증은 남음.
+
+  reconnect_completion_evidence: field_first_batch_reconnect_followup
+
+  completion_requirement_matrix: field_first_batch_requirement_verdict
 
 - id: map-review-reedhaven
   actual_source_browser_evidence: reedhaven_shared_controls_followup
@@ -411,15 +417,21 @@ pages:
   category: town-map-review
   ui_mode: gradio
   url: /management/frame/map-review/?map=reedhaven&townPage=1
-  source_review: shared_ui_reviewed_runtime_pending
+  source_review: reviewed_applicable_contracts
   contract_tests: shared_component_verified
-  browser_review: partial_live_verified
+  browser_review: applicable_ui_flows_verified
   findings: []
   implementation: tools/review/ui/gradio/map_review_app.py
   applicability: render_review
   review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
   browser_note: 2026-10-15 운영 8770 합성 문서에서 게임 공용 마을 렌더러 로딩 완료 확인. 갈대나루·돌온재는 90도 회전 상태 확인. 반응형·재연결 및 저장 없는 전체 조작 검증은 미완료.
+
+  mobile_display_evidence: remaining_town_mobile_display_followup
+
+  reconnect_completion_evidence: remaining_town_reconnect_followup
+
+  completion_requirement_matrix: town_readonly_requirement_verdict
 
 - id: animation-17
   current_verification_summary: 기본 원본 해시·프레임 범위 및 개별 초기 표시 확인. 모바일 탐색·재연결의 실제 관측과 제한은 페이지별 evidence 참조. 공용 편집·저장·복원 검증은 격리 증거 범위로 한정.
@@ -458,9 +470,9 @@ pages:
   category: field-map-review
   ui_mode: gradio
   url: /management/frame/map-review/?map=boar-ridge&townPage=1
-  source_review: shared_ui_reviewed_runtime_pending
+  source_review: reviewed_applicable_contracts
   contract_tests: shared_component_verified
-  browser_review: partial_live_verified
+  browser_review: applicable_ui_flows_verified
   findings:
   - boar-ridge-character-request-failure
   implementation: tools/review/ui/gradio/map_review_app.py
@@ -468,6 +480,10 @@ pages:
   review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
   browser_evidence: 2026-10-15 재검증에서 타일·기본 캐릭터 로딩과 렌더 완료, 회전 90°·32% 변경 및 콘솔 오류 없음 확인. 이전 로딩 오류는 재현되지 않음. 화면 크기·재연결 검증은 미완료.
+  reconnect_completion_evidence: field_first_batch_reconnect_followup
+
+  completion_requirement_matrix: field_first_batch_requirement_verdict
+
 - id: map-review-crystal-cut
   source_inventory_evidence: map_registered_inventory_followup
   live_readiness_render_followup: "2026-10-15 운영 합성 문서에서 타일 로딩 중 시점 버튼 비활성·준비 안내 확인. 로딩 완료 후 활성화와 공용 필드 렌더러 상태 확인, 회전 버튼으로 90도 상태·검수 안내 일치. 콘솔 오류 없음. 변경 후 실제 렌더러 준비 연결 검증이며 저장·생성 요청 없음, 임시 탭 종료. 모바일·재연결·시각 품질 검증과 구분."
@@ -478,15 +494,19 @@ pages:
   category: field-map-review
   ui_mode: gradio
   url: /management/frame/map-review/?map=crystal-cut&townPage=1
-  source_review: shared_ui_reviewed_runtime_pending
+  source_review: reviewed_applicable_contracts
   contract_tests: shared_component_verified
-  browser_review: partial_live_verified
+  browser_review: applicable_ui_flows_verified
   findings: []
   implementation: tools/review/ui/gradio/map_review_app.py
   applicability: render_review
   review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
   browser_note: 2026-10-15 실제 합성 화면 로딩·90도 회전·캔버스 표시 확인. 모바일·재연결 검증은 남음.
+
+  reconnect_completion_evidence: field_first_batch_reconnect_followup
+
+  completion_requirement_matrix: field_first_batch_requirement_verdict
 
 - id: animation-10
   current_verification_summary: 기본 원본 해시·프레임 범위 및 개별 초기 표시 확인. 모바일 탐색·재연결의 실제 관측과 제한은 페이지별 evidence 참조. 공용 편집·저장·복원 검증은 격리 증거 범위로 한정.
@@ -552,15 +572,19 @@ pages:
   category: town-map-review
   ui_mode: gradio
   url: /management/frame/map-review/?map=grainstead&townPage=1
-  source_review: shared_ui_reviewed_runtime_pending
+  source_review: reviewed_applicable_contracts
   contract_tests: shared_component_verified
-  browser_review: partial_live_verified
+  browser_review: applicable_ui_flows_verified
   findings: []
   implementation: tools/review/ui/gradio/map_review_app.py
   applicability: render_review
   review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
   browser_note: 2026-10-15 운영 8770 합성 문서에서 로딩 완료 및 90도 회전 표시 확인. 준비 상태 지연 후 정상 완료 확인했으며 오류로 간주하지 않음. 반응형·재연결 검증은 미완료.
+
+  mobile_reconnect_evidence: grainstead_mobile_reconnect_followup
+
+  completion_requirement_matrix: town_readonly_requirement_verdict
 
 - id: map-review-granary-flats
   source_inventory_evidence: map_registered_inventory_followup
@@ -569,15 +593,19 @@ pages:
   category: field-map-review
   ui_mode: gradio
   url: /management/frame/map-review/?map=granary-flats&townPage=1
-  source_review: shared_ui_reviewed_runtime_pending
+  source_review: reviewed_applicable_contracts
   contract_tests: shared_component_verified
-  browser_review: partial_live_verified
+  browser_review: applicable_ui_flows_verified
   findings: []
   implementation: tools/review/ui/gradio/map_review_app.py
   applicability: render_review
   review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
   browser_note: 2026-10-15 운영 합성 화면에서 타일 로딩 완료·90도 회전·실제 캔버스 렌더링 확인. 사이드바 접기 후 내부 2354×1766 및 복원 후 1718×1289 크기 갱신 확인, 콘솔 오류 없음. 모바일·재연결·개별 에셋 시각 품질 검증은 미완료.
+
+  reconnect_completion_evidence: field_first_batch_reconnect_followup
+
+  completion_requirement_matrix: field_first_batch_requirement_verdict
 
 - id: animation-1
   registered_action_navigation_evidence: anchor_registered_actions_navigation_followup
@@ -615,15 +643,17 @@ pages:
   category: field-map-review
   ui_mode: gradio
   url: /management/frame/map-review/?map=broken-quarry&townPage=1
-  source_review: shared_ui_reviewed_runtime_pending
+  source_review: reviewed_applicable_contracts
   contract_tests: shared_component_verified
-  browser_review: partial_live_verified
+  browser_review: applicable_ui_flows_verified
   findings: []
   implementation: tools/review/ui/gradio/map_review_app.py
   applicability: render_review
   review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
   browser_note: 2026-10-15 운영 8770에서 필드 렌더러 로딩 및 90도 회전 확인. 반응형·재연결은 미검증.
+
+  completion_requirement_matrix: field_second_batch_requirement_verdict
 
 - id: animation-8
   current_verification_summary: 기본 원본 해시·프레임 범위 및 개별 초기 표시 확인. 모바일 탐색·재연결의 실제 관측과 제한은 페이지별 evidence 참조. 공용 편집·저장·복원 검증은 격리 증거 범위로 한정.
@@ -688,15 +718,21 @@ pages:
   category: town-map-review
   ui_mode: gradio
   url: /management/frame/map-review/?map=stonewarm&townPage=1
-  source_review: shared_ui_reviewed_runtime_pending
+  source_review: reviewed_applicable_contracts
   contract_tests: shared_component_verified
-  browser_review: partial_live_verified
+  browser_review: applicable_ui_flows_verified
   findings: []
   implementation: tools/review/ui/gradio/map_review_app.py
   applicability: render_review
   review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
   browser_note: 2026-10-15 운영 8770 합성 문서에서 게임 공용 마을 렌더러 로딩 완료 확인. 갈대나루·돌온재는 90도 회전 상태 확인. 반응형·재연결 및 저장 없는 전체 조작 검증은 미완료.
+
+  mobile_display_evidence: remaining_town_mobile_display_followup
+
+  reconnect_completion_evidence: remaining_town_reconnect_followup
+
+  completion_requirement_matrix: town_readonly_requirement_verdict
 
 - id: animation-12
   current_verification_summary: 기본 원본 해시·프레임 범위 및 개별 초기 표시 확인. 모바일 탐색·재연결의 실제 관측과 제한은 페이지별 evidence 참조. 공용 편집·저장·복원 검증은 격리 증거 범위로 한정.
@@ -732,15 +768,17 @@ pages:
   category: field-map-review
   ui_mode: gradio
   url: /management/frame/map-review/?map=lantern-wood&townPage=1
-  source_review: shared_ui_reviewed_runtime_pending
+  source_review: reviewed_applicable_contracts
   contract_tests: shared_component_verified
-  browser_review: partial_live_verified
+  browser_review: applicable_ui_flows_verified
   findings: []
   implementation: tools/review/ui/gradio/map_review_app.py
   applicability: render_review
   review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
   browser_note: 2026-10-15 운영 합성 화면에서 타일 로딩 완료·90도 회전·실제 캔버스 렌더링 확인. 사이드바 접기 후 내부 2354×1766 및 복원 후 1718×1289 크기 갱신 확인, 콘솔 오류 없음. 모바일·재연결·개별 에셋 시각 품질 검증은 미완료.
+
+  completion_requirement_matrix: field_second_batch_requirement_verdict
 
 - id: animation-14
   current_verification_summary: 기본 원본 해시·프레임 범위 및 개별 초기 표시 확인. 모바일 탐색·재연결의 실제 관측과 제한은 페이지별 evidence 참조. 공용 편집·저장·복원 검증은 격리 증거 범위로 한정.
@@ -835,15 +873,17 @@ pages:
   category: field-map-review
   ui_mode: gradio
   url: /management/frame/map-review/?map=dry-creek&townPage=1
-  source_review: shared_ui_reviewed_runtime_pending
+  source_review: reviewed_applicable_contracts
   contract_tests: shared_component_verified
-  browser_review: partial_live_verified
+  browser_review: applicable_ui_flows_verified
   findings: []
   implementation: tools/review/ui/gradio/map_review_app.py
   applicability: render_review
   review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
   browser_note: 실제 합성 화면 로딩·90도 회전·캔버스 표시 확인. 모바일·재연결 검증은 남음.
+
+  completion_requirement_matrix: field_second_batch_requirement_verdict
 
 - id: map-review-mill-ridge
   source_inventory_evidence: map_registered_inventory_followup
@@ -852,15 +892,17 @@ pages:
   category: field-map-review
   ui_mode: gradio
   url: /management/frame/map-review/?map=mill-ridge&townPage=1
-  source_review: shared_ui_reviewed_runtime_pending
+  source_review: reviewed_applicable_contracts
   contract_tests: shared_component_verified
-  browser_review: partial_live_verified
+  browser_review: applicable_ui_flows_verified
   findings: []
   implementation: tools/review/ui/gradio/map_review_app.py
   applicability: render_review
   review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
   browser_note: 2026-10-15 운영 합성 화면에서 타일 로딩 완료·90도 회전·실제 캔버스 렌더링 확인. 사이드바 접기 후 내부 2354×1766 및 복원 후 1718×1289 크기 갱신 확인, 콘솔 오류 없음. 모바일·재연결·개별 에셋 시각 품질 검증은 미완료.
+
+  completion_requirement_matrix: field_second_batch_requirement_verdict
 
 - id: animation-19
   current_verification_summary: 기본 원본 해시·프레임 범위 및 개별 초기 표시 확인. 모바일 탐색·재연결의 실제 관측과 제한은 페이지별 evidence 참조. 공용 편집·저장·복원 검증은 격리 증거 범위로 한정.
@@ -1084,15 +1126,21 @@ pages:
   category: town-map-review
   ui_mode: gradio
   url: /management/frame/map-review/?map=saltford&townPage=1
-  source_review: shared_ui_reviewed_runtime_pending
+  source_review: reviewed_applicable_contracts
   contract_tests: shared_component_verified
-  browser_review: partial_live_verified
+  browser_review: applicable_ui_flows_verified
   findings: []
   implementation: tools/review/ui/gradio/map_review_app.py
   applicability: render_review
   review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
   browser_note: 2026-10-15 운영 8770 합성 문서에서 로딩 완료 및 90도 회전 표시 확인. 준비 상태 지연 후 정상 완료 확인했으며 오류로 간주하지 않음. 반응형·재연결 검증은 미완료.
+
+  mobile_display_evidence: remaining_town_mobile_display_followup
+
+  reconnect_completion_evidence: remaining_town_reconnect_followup
+
+  completion_requirement_matrix: town_readonly_requirement_verdict
 
 - id: animation-9
   current_verification_summary: 기본 원본 해시·프레임 범위 및 개별 초기 표시 확인. 모바일 탐색·재연결의 실제 관측과 제한은 페이지별 evidence 참조. 공용 편집·저장·복원 검증은 격리 증거 범위로 한정.
@@ -1370,15 +1418,21 @@ pages:
   category: town-map-review
   ui_mode: gradio
   url: /management/frame/map-review/?map=iseulon&townPage=1
-  source_review: shared_ui_reviewed_runtime_pending
+  source_review: reviewed_applicable_contracts
   contract_tests: shared_component_verified
-  browser_review: partial_live_verified
+  browser_review: applicable_ui_flows_verified
   findings: []
   implementation: tools/review/ui/gradio/map_review_app.py
   applicability: render_review
   review_note: Gradio 표준 설정과 브라우저 캔버스/동기 재생 연결 검토. 개별 맵·에셋 로딩과 재연결·화면 크기 검증은 미완료.
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
   browser_note: 2026-10-15 운영 8770 합성 문서에서 게임 공용 마을 렌더러 로딩 완료 확인. 갈대나루·돌온재는 90도 회전 상태 확인. 반응형·재연결 및 저장 없는 전체 조작 검증은 미완료.
+
+  mobile_display_evidence: remaining_town_mobile_display_followup
+
+  reconnect_completion_evidence: remaining_town_reconnect_followup
+
+  completion_requirement_matrix: town_readonly_requirement_verdict
 
 - id: writer-agent
   shared_log_evidence: writer_shared_log_browser_followup · writer_shared_log_mobile_followup · history_async_timeout_environment_followup
@@ -2030,11 +2084,12 @@ shared_findings:
   evidence: test_gpu_confirmation 통과; 격리 Qwen 2.1 합성 화면 취소 0건·확인 1건·확인 중 시작 비활성·종료
     후 복원 확인
 - id: history-reset-preview
-  status: partial_verified
+  status: verified_shared_ui_contract
   source: tools/review/common/gradio_history.py
   description: 전체 초기화 확인에 서비스 소유 작업 수·숨긴 이력 수·명시적 취소 표시 필요
   evidence: 공용 Gradio 이력과 이미지·영상·음악·HY-Motion 서비스에 읽기 전용 미리보기 연결. 브라우저 작업 2건 표시·취소
     0회·모의 확인 1회·완료 후 비활성 확인. ANNY 사전 조회 연결 및 격리 브라우저 2건 표시·자동 갱신 후 확인 유지·취소 검증 완료.
+  scope_verdict: 공용 초기화 미리보기의 대상 수·취소·확인 유지 요구는 위 브라우저 증거와 browser_history_reset_snapshot_followup으로 검증됨. 서비스 파일 삭제 안전성은 별도 계약이며 이 UI 항목의 미완료 사유로 중복 집계하지 않음.
 - id: image-telemetry
   status: partial_verified
   memory_scope_evidence: 2026-10-15 모의 프로세스 부모 관계와 두 GPU의 연속 표본으로 작업자·자식·손자 포함, 다른 작업 제외, 장치별 현재값·관측 피크 분리 및 영구 기록 일치 확인. 실제 GPU 측정 및 생성기별 단계 연결 검증을 대체하지 않음.
@@ -2046,22 +2101,23 @@ shared_findings:
     및 예약 해제 확인(5건 통과).'
 - id: browser-history-standard-actions
   followup_evidence: browser_history_confirmation_data_followup 및 browser_history_reset_snapshot_followup에서 Dropdown 전처리·State 전달 문제 수정과 모의 확인·취소 검증.
-  remaining: 실제 생성기별 디스크 삭제·동시 실행 경합 및 운영 작업 실행 검증은 공용 UI 전달 검증과 구분.
-  status: partial_verified
+  separate_contract: 실제 생성기별 디스크 삭제·동시 실행 경합은 공용 UI 전달 검증과 구분하며 격리 서비스 검사로 판단.
+  status: verified_shared_ui_contract
   source: tools/review/common/gradio_browser_history.py
   description: ANNY 브라우저 이력의 우선 실행 및 공통 6열 상태별 비활성 규칙 적용 필요; 편집 이력에는 생성기 규칙을 오적용하지
     않음
   evidence: ANNY 공통 6열·상태별 활성화·우선 실행 게이트웨이 연결. 회귀 33건 및 자동 갱신 회귀 18건 통과. 격리 브라우저 대기
     상태 우선 실행 활성·삭제 비활성, 초기화 2건 표시·자동 갱신 중 확인 유지·취소 확인. 실제 생성·삭제 미실행. 8806 수정 화면에서
     실패·대기 상태별 결과·재개·우선 실행·중지·삭제 활성 조건 확인.
+  scope_verdict: 공용 6열·상태별 활성·대기 우선 실행 연결·확인 전달 요구를 검증. 실제 운영 작업의 실행·삭제는 UI 검증 요건이 아니며 시행하지 않음. 서비스 삭제 안전성은 격리 계약 검사 범위로 유지.
 - id: anny-legacy-confirmation
-  status: partial_verified
+  status: verified_shared_ui_contract
   source: tools/review/ui/gradio/anny_attributes_app.py
   description: Gradio ANNY 생성·재개를 공용 Gradio 인라인 확인으로 연결. GPU 사용·대기 조건과 입력 스냅샷 유지.
     독립 HTML 호환 화면은 별도 범위.
-  evidence: 모의 JS 회귀(유휴·사용 중·취소·중복·조회 오류) 및 ANNY 합성 브라우저 취소 무접수·확인 1건·버튼 복원 검증. 재개
-    브라우저 검증은 남음. 8806 합성 모의 화면에서 실패 작업 재개 확인 영역 열림·취소 후 버튼 복원·확인 후 모의 명령 완료와 영역 닫힘
+  evidence: 모의 JS 회귀(유휴·사용 중·취소·중복·조회 오류) 및 ANNY 합성 브라우저 취소 무접수·확인 1건·버튼 복원 검증. 후속 8806 합성 모의 화면에서 실패 작업 재개 확인 영역 열림·취소 후 버튼 복원·확인 후 모의 명령 완료와 영역 닫힘
     확인.
+  scope_verdict: 활성 Gradio 생성·재개 확인의 조건·스냅샷·취소 무실행·확인 완료 요구는 현행 바인딩과 격리 브라우저 증거로 검증됨. 미사용 독립 HTML 및 GPU 결과 품질까지 완료로 확대하지 않음.
 - id: anny-generation-gateway
   status: verified_contract_browser_pending
   source: tools/review/ui/anny/anny-attributes.html
@@ -5098,3 +5154,114 @@ audit_visual_requirement_scope_review:
   authority: 'workflows/management-ui.md §9 접근성과 검증 1~7: 변경 범위별 입력·결과·이력 가독성, 조작·재진입·오류·저장 계약. 실제 GPU 생성 품질은 UI 모의 검증과 구분.'
   clarification: '앵커·맵 표시의 시각적 정합성은 선택한 원본·방향과 화면의 일치 및 잘림·비율 오류 점검을 뜻한다. 이미지 미술 품질·해부학 정확도·게임 콘텐츠 승인을 전수 UI 검사의 추가 완료 조건으로 만들지 않는다.'
   preserved_gaps: '원본 표시·선택 동작·좁은 화면·재연결, 스프라이트 터치/클립보드/다운로드 등 실제 UI 미검증 항목은 유지. 이 범위 명확화만으로 페이지 상태를 완료로 승격하지 않음.'
+
+anchor_action_image_recovery_browser_followup:
+  date: '2026-10-16'
+  fixture: '/tmp/anchor-registered-actions-browser.py · 8798 격리 서버 · 실제 게시 원본 읽기 전용'
+  discovery: 'animation-1의 휴식 동작은 animation-2/rest-v2.png를 참조한다. 기존 격리 서버가 animation-1·4만 연결하여 404 발생. 제품 원본 누락이 아닌 검증 서버 경로 누락으로 확인하고 animation-1~17 정적 경로를 연결했다.'
+  failure_verification: '이미지 로드 실패 원인과 새로고침/원본 확인 안내 표시. 재생·프레임 이동·좌표 편집·저장 버튼이 비활성화되어 불완전한 원본을 편집하지 못함.'
+  recovery_verification: '동일 action URL에서 재연결 후 1/21 정지, 흰 셔츠 휴식 원본 표시와 편집 버튼 활성 복구. 10번 프레임 이동 후 10/21과 앉은 자세가 함께 표시되어 선택 프레임과 캔버스의 전환 확인. 캐릭터 전체가 캔버스 안에 표시됨.'
+  input_verification: '110 입력은 1~21 정수 안내로 거절하고 10으로 수정 후 정상 이동. 좌표 수정·저장·GPU 생성은 실행하지 않음.'
+  limitation: '이번 시각 검증은 animation-1 대기 및 휴식 1·10번 프레임에 한정. 나머지 선택 동작의 실제 표시 검증은 남아 있으며 과거 프레임 수 검증만으로 시각 검증을 대체하지 않음.'
+
+pose_saved_result_mobile_followup:
+  date: '2026-10-16'
+  fixture: '/tmp/pose-saved-result-browser.py · 실제 포즈 Blocks 및 공용 메뉴 · 임시 완료 이력·64×64 합성 이미지 · 생성 명령 차단'
+  verification: '완료 이력 선택 후 결과 조회로 생성 원본 갤러리 표시. 모바일 390×844에서 문서 clientWidth/scrollWidth 모두375px. 입력값 불러오기로 참조2장 복원, 각 naturalWidth/Height64·complete=true 확인. 시드12345·태그 복원, 보조 빈값·최종12단어 및 저장 프롬프트 원문 일치 확인. 결과 이미지도 complete=true.'
+  limitation: '합성 이력은 다른 도구 fixture에서 가져온 steps30을 포함하여 포즈의 허용25/40과 다름. 스텝 선택 복원은 이번 통과 범위에서 제외하며 운영 기록의 유효 입력 계약 증거로 사용하지 않음. 서버 재시작 영속성·GPU 생성 품질은 미검증. 현재 관측은 완료 결과 조회·참조/문구 복원·모바일 가로 넘침에 한정.'
+  safety: '운영 기록·작업 변경 없음. 임시 서버·탭 종료 및 viewport 복원.'
+
+vnccs_saved_steps_validation_followup:
+  date: '2026-10-16'
+  finding: 'VNCCS 이력의 잘못된 steps30을 입력 복원 시 그대로 Dropdown에 전달하여 선택값이 비워짐. 격리 합성 이력으로 재현.'
+  change: '참조 파일 로드·입력 갱신 전에 VNCCS 이력의 steps가 정확한 int25/40인지 검증하고 명확한 ValueError로 거절. VNCCS 이전 이력의 기존 변환 정책은 유지.'
+  contract_evidence: '30·누락·bool·float·문자열 거절 및 참조 로더 미호출 검사 포함 Qwen UI15건 통과. .tmp/test/management-audit/2026-10-16_12-52-27'
+  browser_evidence: '실제 포즈 Blocks+공용 메뉴의 임시 완료 이력에서 입력값 불러오기 후 VNCCS 스텝25/40 안내 표시. 기존 스텝40·보조 Walking pose.·시드와 빈 참조 유지. 잘못된 값으로 부분 갱신되지 않음. 실제 생성·기록 수정 없음.'
+
+grainstead_mobile_reconnect_followup:
+  date: '2026-10-16'
+  scope: '실제8770 합성 마을 검수 문서 · 별도 읽기 전용 탭 · viewport390×844'
+  verification:
+    - '44/100→79/100 타일 로딩 중 조작 비활성, 완료 후 회전·확대·전체 보기 활성 전환 확인.'
+    - '전체 보기로200%→7% 전환. 캔버스287×215.25px와 문서 clientWidth/scrollWidth375/375px. 다섯 건물·지형 전체와 원본 목록이 화면 폭 안에 표시됨.'
+    - '재접속 후 곡온벌 제목·건물5개·원본 목록과 조작 활성 복원. 회전 버튼으로90° 상태 전환 확인. 콘솔 오류0건.'
+  boundary: '곡온벌의 좁은 화면·재연결 요구에 대한 개별 증거. 다른30개 맵 또는 타일 미술 품질 승인으로 확대하지 않음. GPU 작업·저장 데이터 무변경. 검증 탭 종료 및 viewport복원.'
+
+remaining_town_mobile_display_followup:
+  date: '2026-10-16'
+  scope: '실제8770 공용 합성 문서 · 390×844 · 갈대나루·돌온재·소금여울·이슬온'
+  verification: '각 페이지 로딩 완료 후 전체 보기 버튼으로 다섯 건물과 지형 전체 표시 확인. 원본 썸네일·이름 목록이 화면 안에 표시됨. 네 페이지 모두 문서 clientWidth/scrollWidth375/375px. 순회 종료 시 수집된 콘솔 오류0건.'
+  observations: '갈대나루·돌온재에서 로딩 중 버튼 비활성 확인 후 완료를 기다려 조작. 갈대나루 재접속은 완료 확인 전에 다음 페이지로 이동하여 재접속 통과로 기록하지 않음.'
+  remaining: '네 페이지 개별 재접속 완료 검증은 남음. 곡온벌의 해당 검증은 grainstead_mobile_reconnect_followup에 별도로 기록됨. 전체 건물 충돌/콘텐츠 품질을 검증했다는 의미가 아님.'
+  safety: '사용자 탭·GPU 작업·에셋 무변경. 검증 탭 종료와 화면 크기 복원.'
+
+remaining_town_reconnect_followup:
+  date: '2026-10-16'
+  pages: [map-review-reedhaven, map-review-stonewarm, map-review-saltford, map-review-iseulon]
+  verification: '각 실제8770 합성 페이지에서 최초 타일/캐릭터 로딩 완료·회전90° 확인 후 새로고침. 재접속 로딩 완료를 모두 기다려 건물5개·회전0°·200% 상태와 버튼 활성 확인. 회전 재실행 후90°·21% 표시. 네 탭 모두 콘솔 오류0건.'
+  observation: '동시4탭에서 타일 로딩과 기본 캐릭터 로딩이 수십 초 걸렸으나 진행 상태 갱신 후 모두 완료됨. 로딩 중 비활성을 실패로 오판하거나 서버를 재시작하지 않음.'
+  resolves: 'remaining_town_mobile_display_followup의 네 마을 재접속 미검증 항목. 모바일 표시 증거와 이번 데스크톱 재접속 증거의 화면 조건은 구분.'
+  safety: '사용자 탭·작업·저장 데이터 무변경. 검증용4탭 종료.'
+
+town_readonly_requirement_verdict:
+  date: '2026-10-16'
+  pages: [map-review-reedhaven, map-review-stonewarm, map-review-saltford, map-review-iseulon, map-review-grainstead]
+  authority: 'workflows/management-ui.md §9 및 AGENTS.md 공용 UI 규칙. 다섯 마을은 동일 map_review_app.py의 읽기 전용 데이터 페이지.'
+  requirement_evidence:
+    framework: '현행 map_review_app.py의 표준 Gradio 버튼·Dropdown·Checkbox·Accordion. 기능용 캔버스의 접근성 이름·tabindex·role=status 확인. 공용 카메라 경로는 map_shared_camera_consolidation 참조.'
+    source: 'map_registered_inventory_followup의5개 마을 ID/분류/격자 검증, town_all_terrain_sources_followup의 마을별22개 지형 원본 연결. 개별 기본 렌더 결과는 각 페이지 browser_note와 연결.'
+    desktop_and_narrow: '각 페이지 기존 데스크톱 렌더와 grainstead_mobile_reconnect_followup·remaining_town_mobile_display_followup의5개 모바일 맵/원본 목록·가로 넘침 검증.'
+    disabled_and_error: 'map_all_controls_followup의 공용 비활성/활성 계약, map_data_failure_reload_followup과 map_tile_failure_consistency_followup의 실제 데이터/타일 실패 안내·비활성·복구. 동일 공용 오류 처리이며 의도적인 실패를5번 복제하지 않음.'
+    reentry: '곡온벌은 grainstead_mobile_reconnect_followup, 나머지4개는 remaining_town_reconnect_followup. 각각 로딩 완료·초기 시점·회전 재작동 확인.'
+    interaction: 'map_shared_camera_browser_validation 회전·확대·전체 보기, town_keyboard_camera_browser_followup 방향키 이동·복원. 페이지별 회전은 각 브라우저 기록에 포함. 공용 옵션은 map_all_controls_followup과 workflows/management-ui.md의 마을 옵션 검수 기록 참조.'
+    lifecycle: 'map_renderer_failure_real_browser_followup·map_renderer_early_exit_browser_followup·map_renderer_success_disposal_browser_followup의 공용 생성 실패/초기 이탈/정상 종료 정리 계약.'
+  not_applicable: '생성·취소·ETA·VRAM 작업 기록·생성이력 삭제·로그·FPS/프레임 편집은 읽기 전용 마을 UI에 없음. 캐릭터 PNG 캡처는 별도 character-review 페이지로 관리.'
+  verdict: '다섯 마을의 적용 가능한 관리 UI 요구 검증 완료. 게임 건물 충돌·동선·타일 미술 품질 또는 다른 페이지의 완료를 의미하지 않음. 과거 browser_note의 미완료 문구는 후속 증거가 해소한 시점 이전 기록으로 보존.'
+
+field_first_batch_reconnect_followup:
+  date: '2026-10-16'
+  pages: [map-review-reed-crossing, map-review-boar-ridge, map-review-crystal-cut, map-review-granary-flats]
+  reentry: '실제8770 합성 화면에서 네 페이지 원본 로딩 완료 후 새로고침. 재접속 로딩 완료·초기0도/200%·버튼 활성 확인 후 회전90도 반영. 각 탭 콘솔 오류0건. 로딩 진행 중에는 실패로 판정하거나 서버를 재시작하지 않음.'
+  mobile_verified: '갈대 여울·곡창들 실제390px viewport, 문서375/375px와 전체 보기11% 확인. 맵 전체·안내·원본 목록이 화면 폭 안에 표시됨.'
+  remaining_mobile: '강모 능선·결정 절개지는 viewport설정이 적용되지 않고 실제1280px로 남아 모바일 완료에서 제외. 두 페이지 재접속은 데스크톱 증거로 유효.'
+  safety: '검증용4탭만 사용, 운영 데이터·GPU 작업 무변경. 탭 종료·viewport복원.'
+
+field_first_batch_mobile_completion:
+  date: '2026-10-16'
+  pages: [map-review-boar-ridge, map-review-crystal-cut]
+  verification: '한 탭에서 순차 로딩 후 실제 viewport390px 및 문서375/375px 확인. 두 페이지 모두 전체 보기11%에서 맵 전체·조작 안내·원본 목록 표시, 콘솔 오류0건. 이전 데스크톱 관측을 모바일로 오인한 범위를 보완.'
+  resolves: field_first_batch_reconnect_followup.remaining_mobile
+  safety: '운영 작업·데이터 무변경. 검증 탭 종료·viewport복원.'
+
+field_first_batch_requirement_verdict:
+  date: '2026-10-16'
+  pages: [map-review-reed-crossing, map-review-boar-ridge, map-review-crystal-cut, map-review-granary-flats]
+  authority: '관리 UI 가이드 §9 및 AGENTS.md. 읽기 전용 필드 검수 페이지의 적용 요구.'
+  evidence:
+    source_and_desktop: '각 페이지 기존 browser_evidence 및 map_registered_inventory_followup의 ID·격자·등록 지형/타일 원본 대조.'
+    mobile_and_reentry: 'field_first_batch_reconnect_followup 및 field_first_batch_mobile_completion. 네 페이지 각각 로딩 완료·재접속 회전·모바일 전체 표시 확인.'
+    shared_controls: 'map_all_controls_followup·map_shared_camera_browser_validation·field_keyboard_camera_browser_followup. 현행 공용 Gradio 설정/옵션·회전·확대·전체 보기·키보드 이동 경로.'
+    errors_and_lifetime: 'map_data_failure_reload_followup·map_tile_failure_consistency_followup·map_renderer_failure_real_browser_followup·map_renderer_early_exit_browser_followup·map_renderer_success_disposal_browser_followup. 공용 오류 안내·조작 차단·재로딩·자원 정리.'
+  not_applicable: '이 페이지에는 작업 생성/취소·이력 삭제·로그·ETA·VRAM 기록·프레임 편집이 없음. 표시 옵션은 메모리상의 검수 설정이며 에셋·지형 원본을 저장하지 않음.'
+  verdict: '네 필드의 적용 관리 UI 검증 완료. 게임 밸런스·충돌·타일 미술 품질이나 나머지 필드의 개별 검증을 포함하지 않음.'
+
+landmark_candidate_requirement_verdict:
+  date: '2026-10-16'
+  page: anny-landmarks
+  evidence: 'current_requirement_review와 landmark_requirement_evidence_matrix를 가이드§9에 대조. 표준 UI·원본/기록 경계·게이트웨이 실제 HTTP·선택 변경 시 교체 확인 무효화·후보 저장/이력/재연결·정면/후면 피킹·모바일 표시/복원·수동 좌표 키보드 저장 모두 기존 개별 증거 존재.'
+  final_gap: '휠 전용 확대의 키보드 조작 누락은 landmark_keyboard_zoom_followup에서 Slider 추가 후 방향키/Home/End 및 휠 동기화를 실제 브라우저로 검증하여 해소.'
+  verdict: '후보 편집기에 적용되는 관리 UI 계약 검증 완료. 생성기 ETA/VRAM/작업 삭제 및 후보 해부학 품질 승인은 비적용. 이전 partial 문구는 후속 증거 이전 기록이며 이번 요구별 판정으로 갱신.'
+
+writer_copy_clipboard_boundary_followup:
+  date: '2026-10-16'
+  fixture: '/tmp/writer-history-copy-browser.py · 격리8798'
+  verification: '완료 이력 선택·명시 결과 조회 후 조회한 작업 ID mobile-progress 표시. 해당 Copy 버튼 클릭 후 입력란 Ctrl+V 시 브라우저 도구가 virtual clipboard has no data 오류 반환. 페이지 콘솔 오류/경고는 없음.'
+  verdict: '클립보드 관측 환경 제한으로 실제 복사 성공 여부 미확정. 제품 복사 결함 또는 통과로 단정하지 않으며 writer_history_copy_audit_followup 미검증 유지. 실제 작성/원본 적용 없음.'
+
+field_second_batch_requirement_verdict:
+  date: '2026-10-16'
+  pages: [map-review-broken-quarry, map-review-lantern-wood, map-review-dry-creek, map-review-mill-ridge]
+  individual_browser: '실제8770 합성 문서를 한 탭에서 순차 검증. 각 페이지 viewport390px, 문서 clientWidth/scrollWidth375/375px. 전체 보기11%에서 지도 전체·조작 안내·원본 목록 표시 확인. 각각 새로고침 후 로딩 완료를 기다려 회전90°/11% 응답 확인. 각 페이지 콘솔 오류0건.'
+  requirement_mapping: '현행 공용 구현·키보드·준비/실패/복구·수명 계약은 field_first_batch_requirement_verdict.evidence.shared_controls 및 errors_and_lifetime에 연결된 증거를 공유한다. 개별 ID/원본은 map_registered_inventory_followup, 데스크톱 표시는 각 페이지 기존 browser_evidence와 대조했다.'
+  verdict: '네 페이지의 적용 관리 UI 요구 검증 완료. 생성·삭제·작업 기록은 읽기 전용 필드 비적용. 게임 콘텐츠/미술 품질 검수는 포함하지 않음.'
+  safety: '운영 작업·에셋 무변경. 검증 탭 종료·viewport복원.'
