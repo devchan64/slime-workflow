@@ -40,6 +40,16 @@ def validate_capture_settings(command_payload_value):
     return current_setting_values
 
 
+def validate_capture_image(current_image_bytes,current_setting_values):
+    """크기·형식과 함께 완전히 투명한 빈 캡처를 거절한다."""
+    current_image_object=Image.open(io.BytesIO(current_image_bytes))
+    if current_image_object.format!='PNG' or current_image_object.size!=(current_setting_values['width']*CAPTURE_INTERNAL_RESOLUTION_SCALE,current_setting_values['height']*CAPTURE_INTERNAL_RESOLUTION_SCALE):
+        raise ValueError('PNG 캡처 크기 또는 형식 오류')
+    if current_image_object.convert('RGBA').getchannel('A').getbbox() is None:
+        raise ValueError('PNG 캡처가 비어 있습니다. 브라우저 렌더링을 확인하세요.')
+    return current_image_object
+
+
 def capture_character_review(command_payload_value):
     current_setting_values=validate_capture_settings(command_payload_value)
     current_browser_path=shutil.which('google-chrome') or shutil.which('chromium')
@@ -66,10 +76,11 @@ def capture_character_review(command_payload_value):
         current_bundle_directory=build_block_map_review(current_output_directory/'web',character_review_only=True)
         current_setting_document=current_setting_values|{'token':current_capture_token}
         (current_bundle_directory/'capture-settings.json').write_text(json.dumps(current_setting_document))
+        # 내부 해상도 변경이 CSS 표시 크기까지 키우는 ResizeObserver 재진입을 막는다.
         (current_bundle_directory/'capture.html').write_text('''<!doctype html><meta charset="utf-8"><title>캐릭터 렌더 캡처</title>
 <div id="map-title"></div><div id="status"></div><output id="zoom-level"></output><ul id="applied-tile-list"></ul>
-<canvas id="character-baseline-map"></canvas><canvas id="map" data-character-review="true" data-capture="true"></canvas>
-<script type="module">try{await import('./block-map-review.js')}catch(error){const settings=await(await fetch('./capture-settings.json')).json();await fetch('/capture-result',{method:'POST',headers:{'Content-Type':'application/json','X-Capture-Token':settings.token},body:JSON.stringify({error:String(error.stack||error)})})}</script>''')
+<canvas id="character-baseline-map" style="width:__CAPTURE_WIDTH__px;height:__CAPTURE_HEIGHT__px"></canvas><canvas id="map" style="width:__CAPTURE_WIDTH__px;height:__CAPTURE_HEIGHT__px" data-character-review="true" data-capture="true"></canvas>
+<script type="module">try{await import('./block-map-review.js')}catch(error){const settings=await(await fetch('./capture-settings.json')).json();await fetch('/capture-result',{method:'POST',headers:{'Content-Type':'application/json','X-Capture-Token':settings.token},body:JSON.stringify({error:String(error.stack||error)})})}</script>'''.replace('__CAPTURE_WIDTH__',str(current_setting_values['width'])).replace('__CAPTURE_HEIGHT__',str(current_setting_values['height'])))
         class CaptureAssetHandler(SimpleHTTPRequestHandler):
             def do_GET(self):
                 from tools.review.common.map_asset_http import read_map_asset_response
@@ -108,8 +119,7 @@ def capture_character_review(command_payload_value):
             current_image_data=current_capture_payload[current_image_name]
             if not isinstance(current_image_data,str) or not current_image_data.startswith('data:image/png;base64,'):raise ValueError('PNG 캡처 형식 오류')
             current_image_bytes=base64.b64decode(current_image_data.split(',',1)[1],validate=True)
-            current_image_object=Image.open(io.BytesIO(current_image_bytes))
-            if current_image_object.format!='PNG' or current_image_object.size!=(current_setting_values['width']*CAPTURE_INTERNAL_RESOLUTION_SCALE,current_setting_values['height']*CAPTURE_INTERNAL_RESOLUTION_SCALE):raise ValueError('PNG 캡처 크기 오류')
+            current_image_object=validate_capture_image(current_image_bytes,current_setting_values)
             (current_output_directory/f'{current_image_name}.png').write_bytes(current_image_bytes)
             current_image_records.append(current_image_object.convert('RGBA'))
         current_comparison_image=Image.new('RGBA',(current_setting_values['width']*2*CAPTURE_INTERNAL_RESOLUTION_SCALE,current_setting_values['height']*CAPTURE_INTERNAL_RESOLUTION_SCALE))

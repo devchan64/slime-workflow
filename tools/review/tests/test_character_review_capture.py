@@ -35,3 +35,19 @@ class CharacterReviewCaptureTest(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, '게이트웨이'):
                 capture_character_review_images(current_settings_record)
             current_transport_mock.assert_not_called()
+
+    def test_rejects_transparent_capture_but_preserves_visible_pixels(self):
+        import io
+        from PIL import Image
+        from tools.review.domains.character_review.capture import validate_capture_image
+        current_settings_record={'width':256,'height':256}
+        current_image_object=Image.new('RGBA',(512,512))
+        for current_visible_pixel in (False,True):
+            if current_visible_pixel:current_image_object.putpixel((256,256),(1,2,3,255))
+            current_image_stream=io.BytesIO()
+            current_image_object.save(current_image_stream,format='PNG')
+            if current_visible_pixel:
+                self.assertEqual(validate_capture_image(current_image_stream.getvalue(),current_settings_record).size,(512,512))
+            else:
+                with self.assertRaisesRegex(ValueError,'비어'):
+                    validate_capture_image(current_image_stream.getvalue(),current_settings_record)
