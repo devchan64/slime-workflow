@@ -49,3 +49,15 @@ class RegressionRunnerContractTests(unittest.TestCase):
                     self.assertIn('종료 진단 보존', (current_result_root / 'runner.log').read_text())
                     self.assertNotIn('종료 진단 보존', current_console_buffer.getvalue())
                     self.assertEqual((current_result_root / 'exit-code').read_text(), str(current_exit_code))
+
+    def test_management_help_does_not_start_regression(self):
+        import subprocess
+        import sys
+        current_runner_path = Path(__file__).with_name('run_management_audit.py')
+        current_help_result = subprocess.run([sys.executable, str(current_runner_path), '--help'], capture_output=True, text=True, timeout=10)
+        self.assertEqual(current_help_result.returncode, 0)
+        self.assertIn('usage:', current_help_result.stdout)
+        self.assertNotIn('result_path', current_help_result.stdout)
+        current_invalid_result = subprocess.run([sys.executable, str(current_runner_path), '--all', '--unsupported'], capture_output=True, text=True, timeout=10)
+        self.assertEqual(current_invalid_result.returncode, 2)
+        self.assertIn('unrecognized arguments', current_invalid_result.stderr)
