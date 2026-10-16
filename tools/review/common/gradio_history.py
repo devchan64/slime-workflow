@@ -1,6 +1,8 @@
 """생성이력 수동 초기화의 공용 UI와 명령 연결."""
 from pathlib import Path
+from tools.review.common.generation_cleanup import describe_cleanup_blocked_jobs
 from tools.review.common.generation_result_guidance import describe_missing_generation_result
+from tools.review.common.generation_status_lookup import read_existing_generation_status
 import gradio as gr
 from tools.review.common.gradio_identifiers import build_generation_identifier
 from tools.review.common.gradio_results import build_generation_gallery
@@ -162,7 +164,7 @@ def bind_history_reset_action(control_component_values,execute_service_command,r
         current_preview_record=execute_service_command('history-reset-preview',{})
         current_summary_text=f"삭제 대상: **{current_preview_record['job_count']}개 작업**\n\n{current_preview_record['scope']}\n\n{current_preview_record['notice']}"
         if current_preview_record['blocked_jobs']:
-            current_summary_text+='\n\n삭제 불가: '+', '.join(current_job_record['path']+' ('+current_job_record['status']+')' for current_job_record in current_preview_record['blocked_jobs'])+' · 작업 종료 후 다시 확인하세요.'
+            current_summary_text+='\n\n삭제 불가: '+describe_cleanup_blocked_jobs(current_preview_record['blocked_jobs'])+' · 작업 종료 후 다시 확인하세요.'
         return current_preview_record,current_summary_text,gr.update(value=False,interactive=current_preview_record['can_reset']),gr.update(interactive=False)
     def cancel_history_reset(current_preview_record):
         if current_preview_record is not None:current_preview_record['can_reset']=False
@@ -322,7 +324,11 @@ def build_generation_history_view(execute_service_command,server_base_address,de
         return '중지를 요청했습니다.' if selected_operation_name=='cancel' else '재개 요청을 접수했습니다. GPU 여유가 생기면 실행합니다.'
     history_priority_button.click(lambda selected_job_identifier:update_selected_generation(selected_job_identifier,'prioritize'),history_selection_value,result_status_value,queue=False)
     def refresh_priority_control(current_selected_identifier):
-        current_waiting_status = bool(current_selected_identifier) and execute_service_command('status',{'id':current_selected_identifier}).get('status') == 'queued'
+        try:
+            current_status_record = read_existing_generation_status(execute_service_command, current_selected_identifier) if current_selected_identifier else None
+        except (ValueError, RuntimeError, OSError) as current_lookup_error:
+            return gr.update(interactive=False,value='우선 실행 · 상태 확인 실패: '+str(current_lookup_error))
+        current_waiting_status = bool(current_status_record) and current_status_record.get('status') == 'queued'
         return gr.update(interactive=current_waiting_status,value='우선 실행' if current_waiting_status else '우선 실행 · 대기 작업 선택')
     history_selection_value.change(refresh_priority_control,history_selection_value,history_priority_button,queue=False)
     if hasattr(gr,'Timer'):
@@ -332,10 +338,15 @@ def build_generation_history_view(execute_service_command,server_base_address,de
 
     def refresh_history_controls(current_selected_identifier):
         if not current_selected_identifier:return gr.update(interactive=False),gr.update(interactive=False)
-        current_status_record=execute_service_command('status',{'id':current_selected_identifier})
+        try:
+            current_status_record=read_existing_generation_status(execute_service_command,current_selected_identifier)
+        except (ValueError, RuntimeError, OSError) as current_lookup_error:
+            return gr.update(interactive=False,value='작업 중지 · 상태 확인 실패'),gr.update(interactive=False,value='생성 재개 · 상태 확인 실패: '+str(current_lookup_error))
+        if current_status_record is None:
+            return gr.update(interactive=False),gr.update(interactive=False)
         current_status_value=current_status_record.get('status')
         generation_resume_allowed=current_status_record.get('resume_allowed',True)
-        return gr.update(interactive=current_status_value in ('running','queued','paused')),gr.update(interactive=generation_resume_allowed and current_status_value in ('failed','cancelled','paused'),value=('다음 단계' if current_status_value=='paused' else '생성 재개') if generation_resume_allowed else current_status_record['resume_block_reason'])
+        return gr.update(interactive=current_status_value in ('running','queued','paused'),value='작업 중지'),gr.update(interactive=generation_resume_allowed and current_status_value in ('failed','cancelled','paused'),value=('다음 단계' if current_status_value=='paused' else '생성 재개') if generation_resume_allowed else current_status_record['resume_block_reason'])
     # 라디오 선택과 수동 목록 변경을 같은 선택 상태에 반영한다. 전체 목록은 주기적으로 갱신하지 않는다.
     history_selection_value.change(refresh_history_controls,history_selection_value,[history_cancel_button,history_resume_button],queue=False)
     if hasattr(gr,'Timer'):
@@ -369,6 +380,7 @@ def build_generation_history_view(execute_service_command,server_base_address,de
     history_selection_value.change(update_selected_card_layout,[history_page_value,history_selection_value],[history_cards_value,history_selected_panel],queue=False)
 
     def read_selected_result(current_selected_identifier):
+        from tools.review.common.generation_status_display import describe_generation_status
         if not current_selected_identifier:raise gr.Error('목록에서 작업을 선택하세요. 결과 조회·입력 재사용·중지·재개를 할 수 있습니다.')
         try:
             current_status_record=execute_service_command('status',{'id':current_selected_identifier})
@@ -379,7 +391,7 @@ def build_generation_history_view(execute_service_command,server_base_address,de
         current_history_record=next((value for value in current_history_records if value['id']==current_selected_identifier),{})
         current_image_html=result_renderer_callback(current_selected_identifier,current_status_record,server_base_address) if result_renderer_callback is not None else collect_history_result_images(current_status_record,server_base_address)
         current_result_notice = '\n\n'+describe_missing_generation_result(current_status_record,'이미지') if not current_image_html and result_renderer_callback is None else ''
-        return current_selected_identifier,current_history_record.get('path','기록 경로가 없습니다.'),'상태: '+format_generation_status(current_status_record)+' · '+str(current_status_record.get('message',''))+(' · 대기 순서 '+str(current_status_record['queue_position']) if 'queue_position' in current_status_record else '')+current_result_notice,gr.update(value=current_image_html,visible=bool(current_image_html)),current_history_record,gr.update(value=current_status_record.get('log') or '기록된 로그가 없습니다.',label='실행 로그 · '+current_selected_identifier)
+        return current_selected_identifier,current_history_record.get('path','기록 경로가 없습니다.'),describe_generation_status(current_status_record)+(' · 대기 순서 '+str(current_status_record['queue_position']) if 'queue_position' in current_status_record else '')+current_result_notice,gr.update(value=current_image_html,visible=bool(current_image_html)),current_history_record,gr.update(value=current_status_record.get('log') or '기록된 로그가 없습니다.',label='실행 로그 · '+current_selected_identifier)
 
     def describe_selected_history(current_selected_identifier):
         if not current_selected_identifier:
@@ -417,6 +429,25 @@ def build_generation_history_view(execute_service_command,server_base_address,de
     history_next_button.click(lambda current_page_number,current_selected_identifier:read_history_page((current_page_number or 1)+1,current_selected_identifier),[history_page_value,history_selection_value],[history_selection_value,history_count_value,history_page_value,history_cards_value,history_previous_button,history_next_button,history_selected_panel],preprocess=False,queue=False)
     history_page_value.input(read_history_page,[history_page_value,history_selection_value],[history_selection_value,history_count_value,history_page_value,history_cards_value,history_previous_button,history_next_button,history_selected_panel],preprocess=False,queue=False)
     result_lookup_button.click(read_selected_result,history_selection_value,[result_identifier_value,result_path_value,result_status_value,result_image_value,result_record_value,log_output_value],queue=False).success(fn=None,js="()=>{requestAnimationFrame(()=>{document.getElementById('generation-history-result-anchor')?.scrollIntoView({behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth',block:'start'});});}")
+    def refresh_result_observation(current_result_identifier):
+        from tools.review.common.generation_status_display import describe_generation_status
+        from tools.review.common.generation_status_lookup import read_existing_generation_status
+        if not current_result_identifier:
+            return (gr.skip(),) * 4
+        try:
+            current_status_record = read_existing_generation_status(execute_service_command, current_result_identifier)
+        except (ValueError, RuntimeError, OSError) as current_lookup_error:
+            return '상태 갱신 실패: '+str(current_lookup_error), gr.skip(), gr.skip(), gr.skip()
+        if current_status_record is None:
+            return '조회한 이력이 삭제되었습니다. 목록을 새로고침하세요.', '', gr.update(visible=False), {}
+        current_status_text = describe_generation_status(current_status_record)
+        if 'queue_position' in current_status_record:
+            current_status_text += ' · 대기 순서 '+str(current_status_record['queue_position'])
+        if current_status_record['status'] == 'completed':
+            current_status_text += '\n\n최신 결과는 결과 조회를 눌러 확인하세요.'
+        return current_status_text, gr.skip(), gr.skip(), gr.skip()
+    if hasattr(gr, 'Timer'):
+        gr.Timer(5).tick(refresh_result_observation, result_identifier_value, [result_status_value, result_identifier_value, result_image_value, result_record_value], queue=False, show_progress='hidden')
     if record_folder_route is not None:
         folder_open_script=f"""async(identifierValue)=>{{if(!identifierValue)throw new Error('먼저 생성 이력을 선택하세요.');const responseValue=await fetch('/management/record-folder/open',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify({{route:{record_folder_route!r},id:identifierValue}})}});const payloadValue=await responseValue.json();if(!responseValue.ok)throw new Error(payloadValue.error);return payloadValue.message;}}"""
         folder_open_button_value.click(fn=None,inputs=result_identifier_value,outputs=folder_open_status_value,js=folder_open_script,queue=False)
@@ -433,10 +464,17 @@ def build_generation_history_view(execute_service_command,server_base_address,de
         def update_history_delete_button(current_selected_identifier):
             if not current_selected_identifier:
                 return gr.update(interactive=False,value='선택 이력 삭제 · 이력 선택')
-            current_status_record=execute_service_command('status',{'id':current_selected_identifier})
+            try:
+                current_status_record=read_existing_generation_status(execute_service_command,current_selected_identifier)
+            except (ValueError,RuntimeError,OSError) as current_lookup_error:
+                return gr.update(interactive=False,value='선택 이력 삭제 · 상태 확인 실패: '+str(current_lookup_error)+' · 자동 재확인 중')
+            if current_status_record is None:
+                return gr.update(interactive=False,value='선택 이력 삭제 · 삭제된 작업, 목록 새로고침 필요')
             current_delete_enabled=current_status_record.get('status') in ('completed','failed','cancelled','paused')
             return gr.update(interactive=current_delete_enabled,value='선택 이력 삭제' if current_delete_enabled else '선택 이력 삭제 · 완료·중지 후 가능')
         history_selection_value.change(update_history_delete_button,history_selection_value,history_delete_button,queue=False)
+        if hasattr(gr,'Timer'):
+            gr.Timer(3).tick(update_history_delete_button,history_selection_value,history_delete_button,queue=False,show_progress='hidden')
         def close_delete_confirmation():
             return gr.update(visible=False),'',''
         current_delete_outputs=[current_delete_panel,current_delete_identifier,current_delete_display]

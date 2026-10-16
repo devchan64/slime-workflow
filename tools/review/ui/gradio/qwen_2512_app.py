@@ -18,6 +18,7 @@ from tools.review.common.gradio_results import build_generation_gallery, collect
 from tools.review.common.gradio_seed import build_generation_seed
 from tools.review.common.gradio_logs import build_execution_logs
 from tools.review.common.gradio_history import build_generation_history_view
+from tools.review.common.gradio_reference_restore import validate_history_input_settings
 from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_confirmation
 from tools.review.common.management_client import execute_remote_management_command as execute_management_command
 
@@ -35,7 +36,7 @@ def build_generation_request(prompt_text_value,generation_tag_value,width_value,
     return {'action':'generate','prompt':prompt_text_value.strip(),'tag':generation_tag_value.strip(),'width':int(width_value),'height':int(height_value),'steps':int(step_value),'seed':int(seed_value)}
 
 def restore_generation_inputs(current_history_record):
-    current_request_record=current_history_record.get('request',{})
+    current_request_record=validate_history_input_settings(current_history_record)
     restored_prompt_text=current_request_record.get('prompt','')
     return restored_prompt_text,current_request_record.get('tag',''),current_request_record.get('width',1024),current_request_record.get('height',1024),current_request_record.get('steps',4),current_request_record.get('seed',DEFAULT_IMAGE_SEED),f'최종 프롬프트: **{count_prompt_words(restored_prompt_text)}단어**','선택한 이력의 입력값을 불러왔습니다. 생성 전에 내용을 확인하세요.'
 

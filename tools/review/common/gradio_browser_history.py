@@ -1,7 +1,7 @@
 """브라우저가 기존 이력 API를 호출하는 도구의 표준 이력 컨트롤."""
 import json
 import gradio as gr
-from tools.review.common.generation_cleanup import GENERATION_CLEANUP_SCOPE_TEXT
+from tools.review.common.generation_cleanup import GENERATION_CLEANUP_SCOPE_TEXT, describe_cleanup_blocked_jobs
 from tools.review.common.gradio_identifiers import build_generation_identifier
 from tools.review.common.gradio_logs import create_copyable_log_textbox
 from tools.review.common.management_client import execute_remote_management_command
@@ -84,9 +84,10 @@ def build_browser_history_controls(history_bridge_name, history_element_identifi
                 try{
                     const currentResultValues=await currentBridgeFunction("""+json.dumps(current_action_name)+""",currentSelectedId,currentConfirmedTarget);
                     if(currentRequestRevision!==currentRefreshState.revision)return currentNoChanges();
-                    if(currentAutomaticMode)currentResultValues[4]={__type__:'update'};
+                    if(currentAutomaticMode&&!currentRefreshState.lookupFailed)currentResultValues[4]={__type__:'update'};
+                    currentRefreshState.lookupFailed=false;
                     return currentResultValues;
-                }catch(currentErrorValue){if(currentRequestRevision!==currentRefreshState.revision)return currentNoChanges();if(currentInspectMode)return [{__type__:'update'},currentSelectedId||'',null,'',currentErrorValue.message];return [{__type__:'update'},{__type__:'update'},{__type__:'update'},{__type__:'update'},currentErrorValue.message];}
+                }catch(currentErrorValue){if(currentRequestRevision!==currentRefreshState.revision)return currentNoChanges();if(currentAutomaticMode){currentRefreshState.lookupFailed=true;return [{__type__:'update'},currentSelectedId||'',null,{__type__:'update'},'이력 상태 확인 실패: '+currentErrorValue.message+' · 자동 재확인 중'];}if(currentInspectMode)return [{__type__:'update'},currentSelectedId||'',null,'',currentErrorValue.message];return [{__type__:'update'},{__type__:'update'},{__type__:'update'},{__type__:'update'},currentErrorValue.message];}
                 finally{currentRefreshState.pending--;if(currentConfirmedReset)currentRefreshState.resetPending=false;}
             }"""
         current_history_inputs=[current_history_choice,current_history_refresh]
@@ -103,10 +104,13 @@ def build_browser_history_controls(history_bridge_name, history_element_identifi
                     if current_requested_action=='reset':
                         if not current_service_name:raise gr.Error('초기화 대상 조회 서비스가 연결되지 않았습니다.')
                         current_preview_record=execute_remote_management_command(current_service_name,'history-reset-preview',{})
-                        if not current_preview_record['can_reset']:raise gr.Error('실행·대기 또는 상태 미확인 작업이 있습니다. 작업 종료 후 다시 확인하세요.')
-                        return gr.update(visible=True),current_requested_action,current_preview_record,f"{current_service_name} · {current_preview_record['job_count']}개 작업 · {current_preview_record['notice']}"
-                    return gr.update(visible=True),current_requested_action,{'id':current_target_value},current_target_value if current_requested_action=='delete' else '이 생성기의 전체 작업 파일'
-                current_action_button.click(open_file_confirmation,current_history_choice,[current_file_panel,current_file_action,current_file_target,current_file_display],queue=False,preprocess=False)
+                        if not current_preview_record['can_reset']:
+                            current_blocked_summary = describe_cleanup_blocked_jobs(current_preview_record['blocked_jobs'])
+                            current_blocked_message = '실행·대기 또는 최종 기록 저장 중인 작업은 삭제할 수 없습니다. '+current_blocked_summary+' · 작업 종료 후 다시 확인하세요.'
+                            return gr.update(visible=False),'',{},'',current_blocked_message
+                        return gr.update(visible=True),current_requested_action,current_preview_record,f"{current_service_name} · {current_preview_record['job_count']}개 작업 · {current_preview_record['notice']}",'삭제 범위를 확인한 뒤 확인 또는 취소를 선택하세요.'
+                    return gr.update(visible=True),current_requested_action,{'id':current_target_value},current_target_value if current_requested_action=='delete' else '이 생성기의 전체 작업 파일','삭제 범위를 확인한 뒤 확인 또는 취소를 선택하세요.'
+                current_action_button.click(open_file_confirmation,current_history_choice,[current_file_panel,current_file_action,current_file_target,current_file_display,current_history_feedback],queue=False,preprocess=False)
             elif current_action_name=='resume':
                 current_prepare_resume="currentSelectedId=>{if(!currentSelectedId)throw Error('재개할 작업을 선택하세요.');return {id:currentSelectedId};}"
                 current_execute_resume="currentSnapshotValue=>("+create_history_script('resume')+")(currentSnapshotValue.id,false,{confirmed:true})"

@@ -70,7 +70,7 @@ def prepare_reference_image_bytes(reference_image_values, composite_transparent_
     return reference_bytes_values
 
 
-def result_preview_html(image_url_value):return f'<img width="100%" class="qwen-result-image" src="{html.escape(image_url_value,quote=True)}" alt="Qwen 생성 결과">' if image_url_value else '<div class="image-result-empty">완료된 결과를 선택하세요.</div>'
+def result_preview_html(image_url_value, current_image_label='Qwen 생성 결과'):return f'<img width="100%" class="qwen-result-image" src="{html.escape(image_url_value,quote=True)}" alt="{html.escape(current_image_label,quote=True)}">' if image_url_value else '<div class="image-result-empty">완료된 결과를 선택하세요.</div>'
 
 def render_circular_comparison(current_selected_identifier, current_status_record, current_server_address):
     """공용 이력의 생성 ID·상태·서버 주소 계약으로 저장된 결과만 표시한다."""
@@ -84,9 +84,9 @@ def render_circular_comparison(current_selected_identifier, current_status_recor
         if not current_image_path:
             continue
         current_image_address = current_server_address.rstrip('/') + current_image_path
-        result_section_values.append('<h3>' + current_image_label + '</h3>' + result_preview_html(current_image_address))
+        result_section_values.append('<h3>' + current_image_label + '</h3>' + result_preview_html(current_image_address,current_image_label))
         if current_image_field == 'image':
-            result_section_values.append('<h3>순환 VAE · 3×3 반복 검수</h3>' + result_preview_html(current_image_address.replace('/result.png', '/tiled-preview.png')))
+            result_section_values.append('<h3>순환 VAE · 3×3 반복 검수</h3>' + result_preview_html(current_image_address.replace('/result.png', '/tiled-preview.png'),'순환 VAE · 3×3 반복 검수'))
     return ''.join(result_section_values) if result_section_values else '<p>아직 저장된 결과 이미지가 없습니다.</p>'
 
 
@@ -108,7 +108,13 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
     def restore_selected_inputs(current_history_record):
         restored_input_values = list(restore_reference_inputs(current_history_record, WORKFLOW_ROOT_DIRECTORY/'.tmp/test/outfit-transfer' if outfit_transfer_enabled else WORKFLOW_ROOT_DIRECTORY/'.tmp/test/pose-transfer' if pose_transfer_enabled else WORKFLOW_ROOT_DIRECTORY/'.tmp/test/qwen-image-21-circular' if circular_mode_enabled else WORKFLOW_ROOT_DIRECTORY/'.tmp/test/qwen-image-21' if qwen21_mode_enabled else WORKFLOW_ROOT_DIRECTORY/'.tmp/test/expression-generator' if expression_mode_enabled else None, reference_slot_limit=reference_slot_count))
         if expression_mode_enabled:
-            restored_input_values[0] = current_history_record['request']['expression']['id']
+            current_expression_record = current_history_record['request'].get('expression')
+            if not isinstance(current_expression_record, dict):
+                raise ValueError('저장 이력에 표정 프리셋 정보가 없거나 형식이 잘못되었습니다.')
+            current_expression_identifier = current_expression_record.get('id')
+            if not isinstance(current_expression_identifier, str) or current_expression_identifier not in {current_preset_record['id'] for current_preset_record in expression_preset_records}:
+                raise ValueError('저장 이력의 표정 ID가 현재 프리셋에 없습니다. 이력 원문을 확인하세요.')
+            restored_input_values[0] = current_expression_identifier
         if qwen21_mode_enabled and not pose_transfer_enabled:
             restored_input_values.extend(reference_upload_group.build_reference_updates(max(1, len(current_history_record["request"].get("references", [])))))
         if pose_transfer_enabled:

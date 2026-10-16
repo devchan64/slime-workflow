@@ -1,12 +1,34 @@
 """생성 결과와 함께 표시할 읽기 전용 입력 스냅샷."""
 import hashlib
 import html
+import io
 import json
 from urllib.parse import quote
 from pathlib import Path
 from PIL import Image
 
 GENERATION_INPUT_ROOT = Path(__file__).resolve().parents[3] / '.tmp/test'
+
+
+def reject_duplicate_request_fields(current_field_pairs):
+    """저장 요청의 중복 필드를 임의의 마지막 값으로 표시하지 않는다."""
+    current_unique_fields = {}
+    for current_field_name, current_field_value in current_field_pairs:
+        if current_field_name in current_unique_fields:
+            raise ValueError(f'저장 요청의 중복 필드: {current_field_name}')
+        current_unique_fields[current_field_name] = current_field_value
+    return current_unique_fields
+
+
+def reject_nonfinite_request_constant(current_constant_name):
+    """표준 JSON이 아닌 숫자 상수를 명시적으로 거절한다."""
+    raise ValueError(f'저장 요청의 비정상 숫자: {current_constant_name}')
+
+
+def matches_saved_job_identity(current_history_record, current_job_directory):
+    """ID가 남아 있는 이력은 같은 작업 폴더에서만 입력을 읽는다."""
+    current_generation_identifier = current_history_record.get('id')
+    return current_generation_identifier is None or current_job_directory.name == current_generation_identifier
 
 
 def collect_saved_input_view(current_history_record, server_base_address='', record_folder_route=None):
@@ -23,6 +45,8 @@ def collect_saved_input_view(current_history_record, server_base_address='', rec
         if not current_directory_value:
             return current_prompt_text, current_request_record, [], '참조 저장 경로가 기록되어 있지 않습니다.'
         current_job_directory = Path(current_directory_value)
+        if not matches_saved_job_identity(current_history_record, current_job_directory):
+            return current_prompt_text, current_request_record, [], '선택한 생성 ID와 참조 작업 폴더가 일치하지 않아 표시하지 않습니다.'
         if current_job_directory.is_symlink():
             return current_prompt_text, current_request_record, [], '참조 이미지 작업 폴더가 심볼릭 링크이므로 표시하지 않습니다.'
         current_job_directory = current_job_directory.resolve()
@@ -35,10 +59,11 @@ def collect_saved_input_view(current_history_record, server_base_address='', rec
             if not selected_reference_path.is_file():
                 current_reference_notices.append(f'참조 {current_reference_index}: 원본 파일 없음')
                 continue
-            if hashlib.sha256(selected_reference_path.read_bytes()).hexdigest() != current_snapshot_record['sha256']:
+            current_reference_bytes = selected_reference_path.read_bytes()
+            if hashlib.sha256(current_reference_bytes).hexdigest() != current_snapshot_record['sha256']:
                 current_reference_notices.append(f'참조 {current_reference_index}: 해시 불일치로 표시 제외')
                 continue
-            with Image.open(selected_reference_path) as current_reference_image:
+            with Image.open(io.BytesIO(current_reference_bytes)) as current_reference_image:
                 current_reference_images.append((current_reference_image.copy(), f'입력 참조 {current_reference_index}'))
             if record_folder_route and server_base_address:
                 current_reference_address = (server_base_address.rstrip('/') + record_folder_route + '/jobs/'
@@ -110,6 +135,8 @@ def collect_saved_stage_prompts(current_history_record):
     if not current_directory_value:
         return '단계별 실행 입력: 저장 경로가 기록되어 있지 않습니다.'
     current_job_directory = Path(current_directory_value)
+    if not matches_saved_job_identity(current_history_record, current_job_directory):
+        return '단계별 실행 입력: 선택한 생성 ID와 작업 폴더가 일치하지 않아 표시하지 않습니다.'
     if current_job_directory.is_symlink() or not current_job_directory.resolve().is_relative_to(GENERATION_INPUT_ROOT.resolve()):
         return '단계별 실행 입력: 허용된 작업 폴더가 아니므로 표시하지 않습니다.'
     current_job_directory = current_job_directory.resolve()
@@ -123,7 +150,11 @@ def collect_saved_stage_prompts(current_history_record):
             current_stage_sections.append(f'{current_stage_number}단계 · 실행 요청 기록 없음 · 접수 문구로 재구성하지 않습니다.')
             continue
         try:
-            current_stage_record = json.loads(current_stage_path.read_text())
+            current_stage_record = json.loads(
+                current_stage_path.read_text(),
+                object_pairs_hook=reject_duplicate_request_fields,
+                parse_constant=reject_nonfinite_request_constant,
+            )
             if not isinstance(current_stage_record, dict) or not isinstance(current_stage_record.get('prompt'), str):
                 raise ValueError('prompt 문자열 누락')
         except (OSError, ValueError) as current_stage_error:

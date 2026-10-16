@@ -9,13 +9,47 @@ from PIL import Image
 WORKFLOW_ROOT_DIRECTORY = Path(__file__).resolve().parents[3]
 
 
-def restore_reference_inputs(current_history_record, reference_storage_root=None, reference_slot_limit=3):
+def validate_history_input_settings(current_history_record):
+    if not isinstance(current_history_record, dict):
+        raise gr.Error('저장 이력은 객체여야 합니다.')
     current_request_record=current_history_record.get('request',{})
+    if not isinstance(current_request_record, dict):
+        raise gr.Error('저장된 입력 요청은 객체여야 합니다.')
+    for current_setting_name in ('prompt', 'tag'):
+        if current_setting_name in current_request_record and not isinstance(current_request_record[current_setting_name], str):
+            raise gr.Error(f'저장된 {current_setting_name} 값은 문자열이어야 합니다.')
+    for current_setting_name in ('width', 'height', 'steps', 'seed'):
+        if current_setting_name in current_request_record and type(current_request_record[current_setting_name]) is not int:
+            raise gr.Error(f'저장된 {current_setting_name} 값은 정수여야 합니다.')
+    return current_request_record
+
+
+def restore_reference_inputs(current_history_record, reference_storage_root=None, reference_slot_limit=3):
+    current_request_record = validate_history_input_settings(current_history_record)
     restored_reference_images=[]
     reference_snapshot_records=current_request_record.get('reference_snapshots',[])
+    current_reference_names = current_request_record.get('references', [])
+    if not isinstance(current_reference_names, list) or any(not isinstance(current_reference_name, str) for current_reference_name in current_reference_names):
+        raise gr.Error('저장된 참조 목록은 파일명 문자열 목록이어야 합니다.')
+    if not isinstance(reference_snapshot_records, list):
+        raise gr.Error('저장된 참조 사본 정보는 목록이어야 합니다.')
+    for current_snapshot_record in reference_snapshot_records:
+        if not isinstance(current_snapshot_record, dict) or not isinstance(current_snapshot_record.get('path'), str):
+            raise gr.Error('저장된 참조 사본에 유효한 경로가 없습니다.')
+        current_snapshot_digest = current_snapshot_record.get('sha256')
+        if not isinstance(current_snapshot_digest, str) or not re.fullmatch(r'[a-f0-9]{64}', current_snapshot_digest):
+            raise gr.Error('저장된 참조 사본의 SHA-256 형식이 잘못되었습니다.')
+    if current_reference_names and not reference_snapshot_records:
+        raise gr.Error('저장된 참조 목록에 사본 검증 정보가 없어 입력을 복원할 수 없습니다. 참조 이미지를 직접 첨부하세요.')
+    if current_reference_names and (
+        not isinstance(reference_snapshot_records, list)
+        or any(not isinstance(current_snapshot_record, dict) for current_snapshot_record in reference_snapshot_records)
+        or [current_snapshot_record.get('path') for current_snapshot_record in reference_snapshot_records] != current_reference_names
+    ):
+        raise gr.Error('저장된 참조 목록과 사본 정보의 개수 또는 순서가 다릅니다.')
     if reference_snapshot_records:
         generation_identifier_value=current_history_record.get('id','')
-        if not re.fullmatch(r'[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{2}-[0-9]{2}-[0-9]{2}-[a-f0-9]{8}',generation_identifier_value):
+        if not isinstance(generation_identifier_value, str) or not re.fullmatch(r'[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{2}-[0-9]{2}-[0-9]{2}-[a-f0-9]{8}',generation_identifier_value):
             raise gr.Error('생성 ID 형식 오류')
         reference_storage_root=Path(reference_storage_root or WORKFLOW_ROOT_DIRECTORY/'.tmp/test/qwen-image-2511-three-reference').resolve()
         reference_job_directory = reference_storage_root/generation_identifier_value

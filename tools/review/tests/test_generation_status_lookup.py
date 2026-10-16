@@ -5,6 +5,15 @@ from tools.review.common.generation_status_lookup import read_existing_generatio
 
 
 class GenerationStatusLookupTests(unittest.TestCase):
+    def test_malformed_history_never_marks_job_deleted(self):
+        for current_history_response in (None, {}, {'records':{}}, {'records':''}, {'records':None}, {'records':[None]}, {'records':[{}]}, {'records':[{'id':42}]}, {'records':[{'id':' '}]}, {'records':[{'id':'existing'},{}]}):
+            with self.subTest(response=current_history_response):
+                current_status_error = ValueError('상태 조회 실패')
+                current_command_mock = Mock(side_effect=[current_status_error,current_history_response])
+                with self.assertRaisesRegex(ValueError,'이력 조회 응답') as current_raised_error:
+                    read_existing_generation_status(current_command_mock,'existing')
+                self.assertIs(current_raised_error.exception.__cause__,current_status_error)
+
     def test_success_does_not_read_history(self):
         current_status_record = {'status':'running'}
         current_command_mock = Mock(return_value=current_status_record)

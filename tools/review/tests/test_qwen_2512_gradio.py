@@ -25,3 +25,13 @@ class Qwen2512GradioTests(unittest.TestCase):
         restored_input_values=qwen_2512_app.restore_generation_inputs({'request':{'prompt':'misty forest','tag':'돌온재','width':768,'height':1024,'steps':30,'seed':42}})
         self.assertEqual(restored_input_values[:6],('misty forest','돌온재',768,1024,30,42))
         self.assertEqual(restored_input_values[6],'최종 프롬프트: **2단어**')
+
+    def test_restore_rejects_malformed_history_before_component_updates(self):
+        malformed_history_records = [None, {'request': None}, {'request': {'prompt': 42}}, {'request': {'tag': []}}]
+        malformed_history_records.extend({'request': {current_setting_name: current_invalid_value}}
+            for current_setting_name in ('width', 'height', 'steps', 'seed')
+            for current_invalid_value in (True, '42', None))
+        for current_history_record in malformed_history_records:
+            with self.subTest(record=current_history_record):
+                with self.assertRaises(qwen_2512_app.gr.Error):
+                    qwen_2512_app.restore_generation_inputs(current_history_record)

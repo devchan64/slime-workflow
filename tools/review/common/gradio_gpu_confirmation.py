@@ -15,7 +15,7 @@ def bind_gpu_generation_confirmation(generation_button_value, generation_callbac
     confirmation_element_identifier = 'gpu-confirmation-' + uuid.uuid4().hex
     with generation_confirmation_container if generation_confirmation_container is not None else contextlib.nullcontext():
         with gr.Group(visible=False, elem_id=confirmation_element_identifier) as generation_confirmation_group:
-            gr.Markdown('### GPU 작업 대기열에 추가할까요?\n확인한 입력으로 작업을 등록합니다. GPU가 사용 중이면 대기하며, 실행 가능한 작업부터 처리합니다.')
+            gr.Markdown('### GPU 작업 대기열에 추가할까요?\n생성 시작 버튼을 누른 시점의 입력으로 등록합니다. 이후 입력을 수정했다면 추가하지 않기를 누른 뒤 다시 시작하세요. GPU가 사용 중이면 대기하며, 실행 가능한 작업부터 처리합니다.')
             with gr.Row():
                 cancel_generation_button = gr.Button('추가하지 않기', variant='secondary')
                 confirm_generation_button = gr.Button('대기열에 추가', variant='primary')

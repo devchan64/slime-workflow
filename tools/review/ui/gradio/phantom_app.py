@@ -9,6 +9,7 @@ import sys
 WORKFLOW_ROOT_DIRECTORY = Path(__file__).resolve().parents[4]
 sys.path.insert(0,str(WORKFLOW_ROOT_DIRECTORY))
 import gradio as gr
+from tools.review.common.gradio_video_results import describe_video_frame_duration
 from PIL import Image
 from generators.phantom.contracts import PHANTOM_JOB_STORAGE_ROOT, validate_phantom_request, load_phantom_defaults
 from tools.review.common.generation_cleanup import GENERATION_CLEANUP_SCOPE_TEXT
@@ -81,8 +82,8 @@ def build_phantom_interface(current_server_address):
         gr.Markdown('### 영상 설정')
         current_resolution_control=gr.Dropdown(['832×480'],value='832×480',label='해상도 · 가로×세로',interactive=False)
         current_frames_control=gr.Number(value=current_defaults_record['frames'],precision=0,minimum=1,maximum=161,step=4,label='프레임 수 · 4n+1 (1~161) · 16fps')
-        current_duration_summary=gr.Markdown('81프레임 · 약 5.06초 · 16fps')
-        current_frames_control.change(lambda current_frame_value:f'{int(current_frame_value)}프레임 · 약 {current_frame_value/16:.2f}초 · 16fps',current_frames_control,current_duration_summary,queue=False)
+        current_duration_summary=gr.Markdown(describe_video_frame_duration(current_defaults_record['frames']))
+        current_frames_control.change(describe_video_frame_duration,current_frames_control,current_duration_summary,queue=False)
         current_seed_control=build_generation_seed(default_seed_value=42)
         gr.Markdown('고정: Phantom 1.3B · R2V · 16fps · UniPC · CUDA 연산 / CPU 메모리 오프로드. 1프레임은 정지 샘플입니다.')
         with gr.Accordion('고급 설정 · 추론 파라미터',open=False):

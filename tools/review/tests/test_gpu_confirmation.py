@@ -5,6 +5,20 @@ import gradio as gr
 from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_confirmation
 
 class GpuConfirmationTests(unittest.TestCase):
+    def test_hymotion_validation_events_update_generation_button(self):
+        from tools.review.ui.gradio.hy_motion_app import build_hymotion_interface
+        current_interface_blocks = build_hymotion_interface('http://127.0.0.1:8770')
+        current_dependencies = current_interface_blocks.get_config_file()['dependencies']
+        current_validation_events = [current_event for current_event in current_dependencies if len(current_event['outputs']) == 2 and current_interface_blocks.fns[current_event['id']].fn and current_interface_blocks.fns[current_event['id']].fn.__name__ == 'refresh_generation_readiness']
+        self.assertEqual(len(current_validation_events), 8)
+        for current_validation_event in current_validation_events:
+            current_success_events = [current_event for current_event in current_dependencies if current_event.get('trigger_after') == current_validation_event['id'] and current_event.get('trigger_only_on_success')]
+            self.assertEqual(len(current_success_events), 1)
+            current_readiness_callback = current_interface_blocks.fns[current_success_events[0]['id']].fn
+            self.assertFalse(current_readiness_callback(None, False)['interactive'])
+            self.assertTrue(current_readiness_callback(None, True)['interactive'])
+            self.assertFalse(current_readiness_callback({'inputs': (), 'consumed': False}, True)['interactive'])
+
     def test_external_readiness_success_respects_pending_confirmation(self):
         current_generation_mock = Mock()
         with gr.Blocks() as current_interface_blocks:

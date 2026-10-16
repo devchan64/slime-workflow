@@ -22,6 +22,20 @@ class HyMotionReloadTests(unittest.TestCase):
         self.assertFalse(current_cancel_callback(current_pending_record, False)[2]['interactive'])
         self.assertTrue(current_cancel_callback(None, True)[2]['interactive'])
 
+    def test_failed_model_status_disables_generation_until_retry(self):
+        import inspect
+        from tools.review.ui.gradio.hy_motion_app import build_hymotion_interface
+        current_interface_blocks = build_hymotion_interface('http://127.0.0.1:9988')
+        current_model_callback = next(current_record.fn for current_record in current_interface_blocks.fns.values() if current_record.fn and current_record.fn.__name__ == 'refresh_generation_readiness' and len(inspect.signature(current_record.fn).parameters) == 6)
+        for current_status_error in (ValueError('잘못된 응답'), RuntimeError('게이트웨이 연결 실패'), OSError('연결 종료')):
+            with self.subTest(error=type(current_status_error).__name__), patch('tools.review.ui.gradio.hy_motion_app.execute_motion_command', side_effect=current_status_error):
+                current_message_text, current_ready_value = current_model_callback('A person walks.', 3, 42, ['down_left'], '', 5)
+                self.assertFalse(current_ready_value)
+                self.assertIn(str(current_status_error), current_message_text)
+                self.assertIn('준비 상태 새로고침', current_message_text)
+        with patch('tools.review.ui.gradio.hy_motion_app.execute_motion_command', return_value={'ready': True, 'message': '준비 완료'}):
+            self.assertTrue(current_model_callback('A person walks.', 3, 42, ['down_left'], '', 5)[1])
+
     def test_latest_history_restores_progress(self):
         for current_job_status in ('running', 'completed', 'failed'):
             with self.subTest(status=current_job_status):

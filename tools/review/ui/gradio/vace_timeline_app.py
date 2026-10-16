@@ -7,6 +7,7 @@ import sys
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[4]))
 import gradio as gr
+from tools.review.common.gradio_video_results import describe_video_frame_duration
 from PIL import Image
 from generators.vace.timeline import validate_timeline_request,VACE_TIMELINE_STORAGE_ROOT,VACE_TIMELINE_FLOW_SHIFT,VACE_PADDING_COLOR_DEFAULT
 from tools.review.common.generation_cleanup import GENERATION_CLEANUP_SCOPE_TEXT
@@ -187,7 +188,7 @@ def build_timeline_interface(current_server_address):
                     current_select_control=gr.Checkbox(value=current_row_index in current_selected_mapping,label='선택',scale=0,min_width=70,key=('select',current_file_path),preserved_by_key=[])
                     gr.Image(value=current_file_path,label=f'{current_row_index+1}번째 이미지',interactive=False,height=140,scale=1,min_width=160,buttons=[],key=('image',current_file_path))
                     current_number_control=gr.Number(value=current_table_row[0],interactive=True,precision=0,minimum=1,maximum=161,label='프레임 번호',scale=1,min_width=120,key=('number',current_file_path),preserved_by_key=[])
-                    current_mask_control=gr.Checkbox(value=current_table_row[1],label='수정 가능',info='해제하면 원본 프레임 보존',scale=1,min_width=160,key=('mask',current_file_path),preserved_by_key=[])
+                    current_mask_control=gr.Checkbox(value=current_table_row[1],label='수정 가능',interactive=True,info='해제하면 원본 프레임 보존',scale=1,min_width=160,key=('mask',current_file_path),preserved_by_key=[])
                 def update_row_selection(current_checked_value,current_saved_selection,current_live_paths,current_target_index=current_row_index,current_target_path=current_file_path):
                     if current_target_index>=len(current_live_paths) or current_live_paths[current_target_index]!=current_target_path:
                         raise gr.Error('입력이 변경되었습니다. 다시 선택하세요.')
@@ -226,8 +227,8 @@ def build_timeline_interface(current_server_address):
         gr.Markdown('출력은 832×480으로 고정됩니다. 이전 이력을 불러와도 새 생성은 이 해상도를 사용하며, 내용을 자르지 않고 비율을 유지해 맞춘 뒤 남는 공간을 선택한 색상으로 채웁니다.')
         current_padding_control=gr.ColorPicker(value=VACE_PADDING_COLOR_DEFAULT,label="여백 색상 · 기본 흰색")
         current_frames_control=gr.Number(value=37,precision=0,minimum=1,maximum=161,step=4,label='프레임 수 · 4n+1 · 16fps')
-        current_duration_text=gr.Markdown('37프레임 · 약 2.31초 · 16fps')
-        current_frames_control.change(lambda current_frame_count:f'{current_frame_count}프레임 · 약 {current_frame_count/16:.2f}초 · 16fps',current_frames_control,current_duration_text,queue=False)
+        current_duration_text=gr.Markdown(describe_video_frame_duration(37))
+        current_frames_control.change(describe_video_frame_duration,current_frames_control,current_duration_text,queue=False)
         current_input_files.upload(load_timeline_images,current_input_files,[current_sorted_files,current_frame_table,current_input_gallery,current_frames_control])
         current_input_files.delete(synchronize_timeline_files,[current_input_files,current_sorted_files,current_frame_table],[current_sorted_files,current_frame_table],queue=True)
         current_input_files.clear(lambda:([],[],[],None),outputs=[current_sorted_files,current_frame_table,current_input_gallery,current_selected_item],queue=True)

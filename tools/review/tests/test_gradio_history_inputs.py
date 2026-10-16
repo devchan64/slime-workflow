@@ -31,6 +31,26 @@ class HistoryInputViewTests(unittest.TestCase):
                 self.assertIn('해시 불일치',current_view_values[3])
                 self.assertNotIn('원본 열기', collect_saved_input_view(current_history_record, 'http://127.0.0.1:8770', '/phantom')[3])
 
+    def test_display_uses_verified_bytes_when_file_changes(self):
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_job_directory = Path(current_directory_name)
+            current_reference_path = current_job_directory / 'reference-1.png'
+            Image.new('RGB', (2, 2), 'red').save(current_reference_path)
+            current_reference_bytes = current_reference_path.read_bytes()
+            current_history_record = {'job_path': str(current_job_directory), 'request': {
+                'reference_snapshots': [{'path': 'reference-1.png', 'sha256': hashlib.sha256(current_reference_bytes).hexdigest()}]}}
+
+            def read_then_replace_reference(current_source_path):
+                self.assertEqual(current_source_path, current_reference_path)
+                Image.new('RGB', (2, 2), 'blue').save(current_reference_path)
+                return current_reference_bytes
+
+            with patch('tools.review.common.gradio_history_inputs.GENERATION_INPUT_ROOT', current_job_directory), patch.object(Path, 'read_bytes', read_then_replace_reference):
+                current_view_values = collect_saved_input_view(current_history_record)
+            self.assertEqual(current_view_values[2][0][0].getpixel((0, 0)), (255, 0, 0))
+            with Image.open(current_reference_path) as current_changed_image:
+                self.assertEqual(current_changed_image.getpixel((0, 0)), (0, 0, 255))
+
     def test_job_directory_link_cannot_display_other_job_reference(self):
         with tempfile.TemporaryDirectory() as current_directory_name:
             current_storage_root = Path(current_directory_name)
@@ -48,6 +68,23 @@ class HistoryInputViewTests(unittest.TestCase):
             self.assertIn('심볼릭 링크', current_view_values[3])
             self.assertNotIn('원본 열기', current_view_values[3])
             self.assertEqual(current_reference_path.read_bytes(), current_reference_bytes)
+
+    def test_selected_identifier_must_match_reference_directory(self):
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_storage_root = Path(current_directory_name)
+            current_other_directory = current_storage_root / 'other-job'
+            current_other_directory.mkdir()
+            current_reference_path = current_other_directory / 'reference-1.png'
+            Image.new('RGB', (2, 2)).save(current_reference_path)
+            current_history_record = {'id': 'selected-job', 'job_path': str(current_other_directory), 'request': {
+                'reference_snapshots': [{'path': 'reference-1.png', 'sha256': hashlib.sha256(current_reference_path.read_bytes()).hexdigest()}]}}
+            with patch('tools.review.common.gradio_history_inputs.GENERATION_INPUT_ROOT', current_storage_root):
+                current_view_values = collect_saved_input_view(current_history_record, 'http://127.0.0.1:8770', '/phantom')
+                self.assertEqual(current_view_values[2], [])
+                self.assertIn('생성 ID', current_view_values[3])
+                self.assertNotIn('<a ', current_view_values[3])
+                current_history_record['id'] = 'other-job'
+                self.assertEqual(len(collect_saved_input_view(current_history_record)[2]), 1)
 
     def test_reset_and_no_reference(self):
         self.assertEqual(collect_saved_input_view({}),('',{},[],''))
@@ -101,6 +138,27 @@ class HistoryInputViewTests(unittest.TestCase):
         self.assertEqual(describe_saved_prompt_counts(current_history_record), '저장 원문 0단어 · 저장 최종 입력 3단어')
 
 class HistoryStageInputTests(unittest.TestCase):
+    def test_corrupt_stage_request_is_not_presented_as_saved_prompt(self):
+        from tools.review.common.gradio_history_inputs import collect_saved_stage_prompts
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_job_directory = Path(current_directory_name)
+            current_stage_directory = current_job_directory / 'stage-3-horizontal'
+            current_stage_directory.mkdir()
+            current_history_record = {'job_path': str(current_job_directory), 'request': {'seamless_tile': {'schema_version': 7}}}
+            with patch('tools.review.common.gradio_history_inputs.GENERATION_INPUT_ROOT', current_job_directory):
+                for current_request_text in (
+                    '{"prompt":"first","prompt":"misleading prompt"}',
+                    '{"prompt":"misleading prompt","settings":{"seed":1,"seed":2}}',
+                    '{"prompt":"misleading prompt","seed":NaN}',
+                    '{"prompt":"misleading prompt","seed":Infinity}',
+                    '{"prompt":"misleading prompt","seed":-Infinity}',
+                ):
+                    with self.subTest(request=current_request_text):
+                        (current_stage_directory / 'request.json').write_text(current_request_text)
+                        current_display_text = collect_saved_stage_prompts(current_history_record)
+                        self.assertIn('3단계 · 실행 요청 읽기 실패:', current_display_text)
+                        self.assertNotIn('misleading prompt', current_display_text)
+
     def test_stage_view_uses_execution_request_instead_of_original_plan(self):
         import json
         from tools.review.common.gradio_history_inputs import collect_saved_stage_prompts
@@ -113,6 +171,12 @@ class HistoryStageInputTests(unittest.TestCase):
             with patch('tools.review.common.gradio_history_inputs.GENERATION_INPUT_ROOT',current_job_directory):
                 current_stage_text = collect_saved_stage_prompts(current_history_record)
                 self.assertIn('3단계 · 저장 실행 입력 3단어\nactual saved correction',current_stage_text)
+                current_history_record['id'] = 'different-job'
+                current_rejected_text = collect_saved_stage_prompts(current_history_record)
+                self.assertIn('생성 ID', current_rejected_text)
+                self.assertNotIn('actual saved correction', current_rejected_text)
+                current_history_record['id'] = current_job_directory.name
+                self.assertEqual(collect_saved_stage_prompts(current_history_record), current_stage_text)
                 self.assertIn('1단계 · 실행 요청 기록 없음',current_stage_text)
                 self.assertNotIn('retired plan',current_stage_text)
                 (current_stage_directory/'request.json').write_text('{}')

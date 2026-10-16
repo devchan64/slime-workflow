@@ -166,7 +166,10 @@ def build_hymotion_interface(server_base_address):
         current_status_view = gr.Markdown('모델 준비 상태를 확인한 뒤 생성할 수 있습니다.')
         current_eta_view = gr.Markdown('작업을 시작하면 예상 시간과 추정 근거를 표시합니다.')
         def refresh_generation_readiness(current_prompt_text, current_duration_value, current_seed_value, current_direction_names, current_tag_value, current_frame_step):
-            current_model_record = execute_motion_command('model-status', {})
+            try:
+                current_model_record = execute_motion_command('model-status', {})
+            except (ValueError, RuntimeError, OSError) as current_status_error:
+                return f'모델 준비 상태 조회 실패: {current_status_error}\n\n연결 상태를 확인하고 준비 상태 새로고침을 누르세요.', False
             try:
                 validate_generation_request({'prompt': current_prompt_text, 'duration_seconds': current_duration_value, 'seed': current_seed_value, 'directions': current_direction_names, 'tag': current_tag_value, 'frame_step': current_frame_step})
                 current_input_message = '입력 확인 완료' if current_model_record['ready'] else '모델 준비 버튼을 실행한 뒤 완료를 기다리세요.'
@@ -181,12 +184,12 @@ def build_hymotion_interface(server_base_address):
             return current_prepare_record['id'], '모델 준비 작업 접수 완료 · 생성 이력에서 로그를 확인하세요.'
 
         current_input_components = [current_prompt_input, current_duration_input, current_seed_input, current_direction_input, current_tag_input, current_frame_step_input]
-        bind_gpu_generation_confirmation(current_generate_button, start_motion_generation, current_input_components, [current_identifier_view, current_status_view], generation_readiness_callback=lambda current_ready_value: current_ready_value, generation_readiness_inputs=[current_generation_ready])
-        bind_gpu_generation_confirmation(current_prepare_button, start_model_preparation, [], [current_identifier_view, current_status_view])
-        current_refresh_button.click(refresh_generation_readiness, current_input_components, [current_model_status, current_generation_ready], queue=False)
+        current_readiness_events = [current_refresh_button.click(refresh_generation_readiness, current_input_components, [current_model_status, current_generation_ready], queue=False)]
         for current_input_component in current_input_components:
-            current_input_component.change(refresh_generation_readiness, current_input_components, [current_model_status, current_generation_ready], queue=False)
-        current_interface_blocks.load(refresh_generation_readiness, current_input_components, [current_model_status, current_generation_ready])
+            current_readiness_events.append(current_input_component.change(refresh_generation_readiness, current_input_components, [current_model_status, current_generation_ready], queue=False))
+        current_readiness_events.append(current_interface_blocks.load(refresh_generation_readiness, current_input_components, [current_model_status, current_generation_ready]))
+        bind_gpu_generation_confirmation(current_generate_button, start_motion_generation, current_input_components, [current_identifier_view, current_status_view], generation_readiness_callback=lambda current_ready_value: current_ready_value, generation_readiness_inputs=[current_generation_ready], generation_readiness_events=current_readiness_events)
+        bind_gpu_generation_confirmation(current_prepare_button, start_model_preparation, [], [current_identifier_view, current_status_view])
 
 
         gr.Timer(2).tick(refresh_current_progress, current_identifier_view, [current_status_view, current_eta_view, current_identifier_view], show_progress='hidden')

@@ -182,6 +182,9 @@ def create_initial_selection_script(page_record_values):
         const currentUrlValue=new URL(window.location.href);
         const requestedPageIdentifier=currentUrlValue.searchParams.get('review')||currentUrlValue.searchParams.get('tool');
         const resolvedPageIdentifier={json.dumps(LEGACY_PAGE_IDENTIFIER_VALUES)}[requestedPageIdentifier]||requestedPageIdentifier;
+        if(resolvedPageIdentifier&&!pageRecords.some(record=>record.id===resolvedPageIdentifier)){{
+            return [currentUrlValue.searchParams.get('search')||'',currentUrlValue.searchParams.get('category')||'all',resolvedPageIdentifier];
+        }}
         const selectedPageRecord=pageRecords.find(record=>record.id===resolvedPageIdentifier)||pageRecords.find(record=>record.path===currentUrlValue.pathname)||pageRecords.find(record=>{{if(!record.nativePath)return false;const currentTargetUrl=new URL(record.nativePath,currentUrlValue);return currentTargetUrl.pathname===currentUrlValue.pathname&&Array.from(currentTargetUrl.searchParams).every(([currentParameterName,currentParameterValue])=>currentUrlValue.searchParams.get(currentParameterName)===currentParameterValue);}})||pageRecords[0];
         if(selectedPageRecord?.nativePath){{
             const currentTargetUrl=new URL(selectedPageRecord.nativePath,currentUrlValue);
@@ -271,9 +274,14 @@ def build_management_menu_interface(page_record_values, review_server_port, curr
             if current_selected_record and current_selected_record not in filter_manager_page_records(page_record_values,current_search_text,current_category_name):
                 current_search_text,current_category_name='','all'
             current_selection_updates=list(update_menu_choices(current_search_text,current_category_name,current_page_identifier))
-            current_selection_updates[2:4]=select_menu_page(current_selection_updates[0]['value'])
+            if current_page_identifier and current_selected_record is None:
+                current_selection_updates[0]['value']=None
+                current_selection_updates[2]='등록되지 않은 관리도구 주소입니다. 도구 목록에서 다시 선택하세요.'
+                current_selection_updates[3]='' if not current_inline_mode else gr.skip()
+            else:
+                current_selection_updates[2:4]=select_menu_page(current_selection_updates[0]['value'])
             return [current_search_text,current_category_name,*current_selection_updates]
-        interface_blocks_value.load(initialize_menu_selection,current_navigation_inputs,[search_text_value,category_select_value,page_select_value,tool_count_value,selected_page_status_value,page_preview_value],js=initial_selection_script,queue=False)
+        interface_blocks_value.load(initialize_menu_selection,current_navigation_inputs,[search_text_value,category_select_value,page_select_value,tool_count_value,selected_page_status_value,page_preview_value],js=initial_selection_script,queue=False,preprocess=False)
         interface_blocks_value.load(fn=None,js=create_sidebar_responsive_script(current_inline_mode))
         interface_blocks_value.load(lambda:render_gpu_status_card(read_gpu_status()),outputs=gpu_status_value,queue=False)
         if hasattr(gr,'Timer'):gr.Timer(3).tick(lambda:render_gpu_status_card(read_gpu_status()),outputs=gpu_status_value,show_progress='hidden')

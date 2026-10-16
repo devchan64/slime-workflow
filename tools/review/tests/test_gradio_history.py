@@ -8,6 +8,49 @@ from tools.review.common.gradio_history import build_generation_history_view, co
 
 
 class GradioHistoryTest(unittest.TestCase):
+    def test_delete_readiness_tracks_completion_missing_and_recovery(self):
+        current_fixture_state={'status':'running','failure':False,'exists':True}
+        current_command_calls=[]
+        def execute_fixture_command(current_command_name,current_payload_record):
+            current_command_calls.append(current_command_name)
+            if current_command_name=='history':
+                return {'records':[{'id':'existing-job'}] if current_fixture_state['exists'] else []}
+            if current_fixture_state['failure'] or not current_fixture_state['exists']:
+                raise RuntimeError('상태 조회 연결 오류')
+            return {'status':current_fixture_state['status']}
+        with gr.Blocks() as current_interface_blocks:
+            build_generation_history_view(execute_fixture_command,'http://localhost','격리 검증',allow_individual_delete=True)
+        current_delete_functions=[current_function for current_function in current_interface_blocks.fns.values() if current_function.name=='update_history_delete_button']
+        self.assertEqual(len(current_delete_functions),2)
+        current_delete_callback=current_delete_functions[0].fn
+        self.assertFalse(current_delete_callback('')['interactive'])
+        self.assertEqual(current_command_calls,[])
+        self.assertFalse(current_delete_callback('existing-job')['interactive'])
+        current_fixture_state['status']='completed'
+        self.assertTrue(current_delete_callback('existing-job')['interactive'])
+        current_fixture_state['failure']=True
+        current_failure_update=current_delete_callback('existing-job')
+        self.assertFalse(current_failure_update['interactive'])
+        self.assertIn('자동 재확인',current_failure_update['value'])
+        current_fixture_state['failure']=False
+        self.assertTrue(current_delete_callback('existing-job')['interactive'])
+        current_fixture_state['exists']=False
+        current_missing_update=current_delete_callback('existing-job')
+        self.assertFalse(current_missing_update['interactive'])
+        self.assertIn('목록 새로고침',current_missing_update['value'])
+        self.assertNotIn('history-delete',current_command_calls)
+
+    def test_reset_preview_explains_executor_finalization(self):
+        current_preview_record = {'job_count':1,'jobs':[{'path':'job','status':'completed'}],'blocked_jobs':[{'path':'job','status':'completed','reason':'실행 또는 최종 기록 저장 중'}],'can_reset':False,'scope':'복구 불가','notice':'상태 재확인'}
+        with gr.Blocks() as current_interface_blocks:
+            current_control_values = build_history_reset_controls('삭제 범위')
+            bind_history_reset_action(current_control_values, Mock(return_value=current_preview_record), lambda: [], [])
+        current_preview_callback = next(value.fn for value in current_interface_blocks.fns.values() if value.fn and value.fn.__name__ == 'preview_history_reset')
+        current_preview_values = current_preview_callback()
+        self.assertIn('최종 기록 저장 중', current_preview_values[1])
+        self.assertFalse(current_preview_values[2]['interactive'])
+        self.assertFalse(current_preview_values[3]['interactive'])
+
     def test_service_lookup_errors_keep_actionable_message(self):
         current_service_mock=Mock()
         with gr.Blocks() as current_interface_blocks:
@@ -249,3 +292,91 @@ class HistoryRestoreFailureTests(unittest.TestCase):
         self.assertEqual(current_restore_result[0], gr.skip())
         self.assertIn('해시 불일치', current_restore_result[1])
         self.assertEqual(current_prompt_control.value, '보존할 입력')
+
+
+class HistoryProgressDetailTests(unittest.TestCase):
+    def test_selected_result_displays_worker_observation_and_unknown_estimate(self):
+        current_status_record = {'status':'running', 'metrics':{'stage':'denoise', 'worker_progress':{'stage':'denoise','step':12,'total':40,'updated_at':'2026-10-15T14:00:00Z'}}}
+        def execute_fixture_command(current_command_name, current_payload_record):
+            if current_command_name == 'status':
+                return current_status_record
+            return {'records':[{'id':'sample-job','status':current_status_record,'request':{}}]}
+        with gr.Blocks() as current_interface_blocks:
+            build_generation_history_view(execute_fixture_command, 'http://localhost', '격리 검증')
+        current_result_callback = next(current_function.fn for current_function in current_interface_blocks.fns.values() if current_function.name == 'read_selected_result')
+        current_result_text = current_result_callback('sample-job')[2]
+        for current_expected_text in ('작업자 마지막 관측: denoise', '12/40', '전체 예상 진행률과 별개', '2026-10-15T14:00:00Z', '계산 중', 'VRAM: 측정 자료 없음'):
+            self.assertIn(current_expected_text, current_result_text)
+        self.assertNotIn('30%', current_result_text)
+
+    def test_result_observation_refresh_preserves_media_and_clears_missing_history(self):
+        current_status_record = {'status':'running','progress':{'stage':'inference','step':7,'total':40}}
+        current_command_calls = []
+        current_history_records = [{'id':'sample-job'}]
+        def execute_fixture_command(current_command_name, current_payload_record):
+            current_command_calls.append(current_command_name)
+            if current_command_name == 'history':
+                return {'records':current_history_records}
+            if not current_history_records:
+                raise ValueError('작업 없음')
+            return current_status_record
+        with gr.Blocks() as current_interface_blocks:
+            build_generation_history_view(execute_fixture_command, 'http://localhost', '격리 검증')
+        current_refresh_callback = next(current_function.fn for current_function in current_interface_blocks.fns.values() if current_function.name == 'refresh_result_observation')
+        current_command_calls.clear()
+        self.assertEqual(current_refresh_callback(''), (gr.skip(),)*4)
+        self.assertEqual(current_command_calls, [])
+        current_refresh_values = current_refresh_callback('sample-job')
+        self.assertIn('7/40', current_refresh_values[0])
+        self.assertEqual(current_refresh_values[1:], (gr.skip(),)*3)
+        current_status_record.update(status='completed')
+        self.assertIn('최신 결과는 결과 조회', current_refresh_callback('sample-job')[0])
+        current_history_records.clear()
+        current_refresh_values = current_refresh_callback('sample-job')
+        self.assertIn('삭제되었습니다', current_refresh_values[0])
+        self.assertEqual(current_refresh_values[1], '')
+        self.assertFalse(current_refresh_values[2]['visible'])
+        self.assertEqual(current_refresh_values[3], {})
+
+    def test_deleted_selection_disables_priority_resume_and_cancel_without_exception(self):
+        def execute_fixture_command(current_command_name, current_payload_record):
+            if current_command_name == 'history':
+                return {'records':[]}
+            raise ValueError('삭제된 작업')
+        with gr.Blocks() as current_interface_blocks:
+            build_generation_history_view(execute_fixture_command, 'http://localhost', '격리 검증')
+        current_callbacks = {current_function.name:current_function.fn for current_function in current_interface_blocks.fns.values()}
+        self.assertIn('삭제되었습니다',current_callbacks['refresh_selected_logs']('deleted-job',True))
+        self.assertEqual(current_callbacks['refresh_selected_logs']('deleted-job',False),gr.skip())
+        self.assertFalse(current_callbacks['refresh_priority_control']('deleted-job')['interactive'])
+        current_button_updates = current_callbacks['refresh_history_controls']('deleted-job')
+        self.assertTrue(all(not current_update['interactive'] for current_update in current_button_updates))
+
+    def test_transient_lookup_failure_preserves_result_and_recovers_controls(self):
+        current_fixture_state = {'failure':True}
+        current_command_calls = []
+        def execute_fixture_command(current_command_name, current_payload_record):
+            current_command_calls.append(current_command_name)
+            if current_command_name == 'history':
+                return {'records':[{'id':'existing-job'}]}
+            if current_fixture_state['failure']:
+                raise RuntimeError('연결 재시도 필요')
+            return {'status':'queued','log':'복구된 로그'}
+        with gr.Blocks() as current_interface_blocks:
+            build_generation_history_view(execute_fixture_command, 'http://localhost', '격리 검증')
+        current_callbacks = {current_function.name:current_function.fn for current_function in current_interface_blocks.fns.values()}
+        current_result_values=current_callbacks['refresh_result_observation']('existing-job')
+        self.assertIn('연결 재시도 필요',current_result_values[0])
+        self.assertEqual(current_result_values[1:],(gr.skip(),)*3)
+        self.assertIn('로그 조회 실패',current_callbacks['refresh_selected_logs']('existing-job',True))
+        self.assertFalse(current_callbacks['refresh_priority_control']('existing-job')['interactive'])
+        self.assertTrue(all(not current_update['interactive'] for current_update in current_callbacks['refresh_history_controls']('existing-job')))
+        current_command_calls.clear()
+        self.assertEqual(current_callbacks['refresh_selected_logs']('existing-job',False),gr.skip())
+        self.assertEqual(current_command_calls,[])
+        current_fixture_state['failure']=False
+        self.assertTrue(current_callbacks['refresh_priority_control']('existing-job')['interactive'])
+        current_cancel_update,current_resume_update=current_callbacks['refresh_history_controls']('existing-job')
+        self.assertTrue(current_cancel_update['interactive'])
+        self.assertEqual(current_cancel_update['value'],'작업 중지')
+        self.assertEqual(current_callbacks['refresh_selected_logs']('existing-job',True),'복구된 로그')

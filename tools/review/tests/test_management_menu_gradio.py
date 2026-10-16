@@ -188,6 +188,34 @@ currentFilterCallback('이미지','all','anchor-a');assert.equal(currentNavigati
         current_command_result=subprocess.run(['node','-e',current_script_source],text=True,capture_output=True)
         self.assertEqual(current_command_result.returncode,0,current_command_result.stderr)
 
+    def test_unknown_initial_url_does_not_redirect_or_select_first_tool(self):
+        import subprocess
+        current_page_records=[{'id':'first','label':'첫 도구','path':'/first','category':'animation-tool','description':'첫 도구'}]
+        current_selection_source=create_initial_selection_script(current_page_records)
+        current_script_source="""
+const assert=require('node:assert/strict');
+let currentNavigationCount=0;
+global.window={location:{href:'http://review.test/management/frame/static-review/?review=removed'},history:{state:null,replaceState:()=>currentNavigationCount++}};
+window.location.replace=()=>currentNavigationCount++;
+const currentSelectInitial="""+current_selection_source+""";
+assert.equal(currentSelectInitial()[2],'removed');
+assert.equal(currentNavigationCount,0);
+window.location.href='http://review.test/?tool=first';
+assert.equal(currentSelectInitial()[2],'first');
+window.location.href='http://review.test/';
+assert.equal(currentSelectInitial()[2],'first');
+"""
+        current_command_result=subprocess.run(['node','-e',current_script_source],text=True,capture_output=True)
+        self.assertEqual(current_command_result.returncode,0,current_command_result.stderr)
+        current_interface_blocks,_=build_management_menu_interface(current_page_records,8770)
+        current_load_callback=next(current_function_value.fn for current_function_value in current_interface_blocks.fns.values() if current_function_value.fn and current_function_value.fn.__name__=='initialize_menu_selection')
+        current_load_function=next(current_function_value for current_function_value in current_interface_blocks.fns.values() if current_function_value.fn is current_load_callback)
+        self.assertFalse(current_load_function.preprocess)
+        current_update_values=current_load_callback('','all','removed')
+        self.assertIsNone(current_update_values[2]['value'])
+        self.assertIn('등록되지 않은',current_update_values[4])
+        self.assertEqual(current_update_values[5],'')
+
     def test_initial_query_keeps_selected_page_and_clears_conflicting_filter(self):
         import gradio as gr
         current_page_records=[{'id':'first','label':'첫 도구','path':'/first','category':'animation-tool','description':'첫 도구'}, {'id':'second','label':'둘째 도구','path':'/second','category':'image-generation','description':'둘째 도구'}]
