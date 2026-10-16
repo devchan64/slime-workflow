@@ -36,6 +36,15 @@ def validate_separation_prompt(current_prompt_text):
         raise ValueError('분리 프롬프트는 1~99단어여야 합니다.')
 
 
+def validate_separation_settings(current_request_record):
+    """생성과 저장 입력 복원에 동일한 실행 규격을 적용한다."""
+    for current_field_name in ('width', 'height', 'steps', 'seed'):
+        if type(current_request_record.get(current_field_name)) is not int:
+            raise ValueError('분리 설정은 정수여야 합니다: ' + current_field_name)
+    if current_request_record['width'] not in (512, 768) or current_request_record['height'] != current_request_record['width'] or current_request_record['steps'] != 40 or not 0 <= current_request_record['seed'] <= 4294967295:
+        raise ValueError('512/768 정사각형·40스텝·uint32 시드만 지원합니다.')
+
+
 def calculate_separation_signature(current_request_record):
     signature_record_value = {current_field_name: current_request_record[current_field_name] for current_field_name in ('schema_version', 'source_id', 'source_digest', 'prompt', 'outfit_prompt', 'width', 'height', 'seed', 'steps', 'model_id', 'model_revision')}
     return hashlib.sha256(json.dumps(signature_record_value, sort_keys=True).encode()).hexdigest()
@@ -83,11 +92,7 @@ class AnimationSeparationManager(QwenPlainGenerationManager):
             raise ValueError('이미지 분리 요청 필드 오류')
         validate_separation_prompt(current_request_record['prompt'])
         validate_separation_prompt(current_request_record['outfit_prompt'])
-        for current_field_name in ('width', 'height', 'steps', 'seed'):
-            if type(current_request_record[current_field_name]) is not int:
-                raise ValueError('분리 설정은 정수여야 합니다: ' + current_field_name)
-        if current_request_record['width'] not in (512, 768) or current_request_record['height'] != current_request_record['width'] or current_request_record['steps'] != 40 or not 0 <= current_request_record['seed'] <= 4294967295:
-            raise ValueError('512/768 정사각형·40스텝·uint32 시드만 지원합니다.')
+        validate_separation_settings(current_request_record)
         current_image_records = current_request_record['images']
         if not isinstance(current_image_records, list) or len(current_image_records) != 1:
             raise ValueError('참조 이미지는 정확히 1장을 첨부하세요.')

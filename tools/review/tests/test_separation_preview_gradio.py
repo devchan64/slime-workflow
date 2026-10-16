@@ -5,6 +5,33 @@ from tools.review.ui.gradio.animation_separation_app import build_separation_int
 
 
 class SeparationPreviewGradioTests(unittest.TestCase):
+    def test_restore_rejects_invalid_settings_before_reference_read(self):
+        import gradio as gr
+        from unittest.mock import patch
+        from tools.review.ui.gradio.animation_separation_app import restore_separation_inputs
+        current_invalid_overrides = ({'width': 1024}, {'height': 768}, {'steps': 4}, {'seed': -1}, {'seed': 4294967296}, {'seed': True}, {'seed': None}, {'reference_snapshots': None}, {'reference_snapshots': 1})
+        for current_override_record in current_invalid_overrides:
+            with self.subTest(overrides=current_override_record):
+                current_request_record = {'schema_version': 2, 'prompt': 'Body.', 'outfit_prompt': 'Clothes.', 'width': 512, 'height': 512, 'steps': 40, 'seed': 0, 'reference_snapshots': [{}], **current_override_record}
+                with patch('tools.review.common.gradio_reference_restore.restore_reference_inputs') as current_restore_mock:
+                    with self.assertRaises(gr.Error):
+                        restore_separation_inputs({'request': current_request_record})
+                    current_restore_mock.assert_not_called()
+
+    def test_restore_rejects_invalid_prompts_before_reading_reference(self):
+        import gradio as gr
+        from unittest.mock import patch
+        from tools.review.ui.gradio.animation_separation_app import restore_separation_inputs
+        for current_prompt_field in ('prompt', 'outfit_prompt'):
+            for current_invalid_value in (None, [], 123, '', 'word ' * 100):
+                with self.subTest(field=current_prompt_field, value=current_invalid_value):
+                    current_request_record = {'schema_version': 2, 'prompt': 'Body reference.', 'outfit_prompt': 'Clothes reference.'}
+                    current_request_record[current_prompt_field] = current_invalid_value
+                    with patch('tools.review.common.gradio_reference_restore.restore_reference_inputs') as current_restore_mock:
+                        with self.assertRaises(gr.Error):
+                            restore_separation_inputs({'request': current_request_record})
+                        current_restore_mock.assert_not_called()
+
     def test_browser_player_lifecycle_contracts(self):
         import subprocess
         from pathlib import Path

@@ -20,7 +20,7 @@ from tools.review.ui.gradio.separation_preview import build_separation_player
 from tools.review.common.gradio_logs import build_execution_logs
 from tools.review.common.gradio_history import build_generation_history_view
 from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_confirmation
-from tools.review.domains.image.animation_separation import load_separation_defaults, validate_separation_prompt, SEPARATION_STORAGE_ROOT
+from tools.review.domains.image.animation_separation import load_separation_defaults, validate_separation_prompt, validate_separation_settings, SEPARATION_STORAGE_ROOT
 
 
 def execute_separation_gateway(current_command_name, current_payload_record):
@@ -40,11 +40,21 @@ def build_separation_request(current_reference_image, current_output_size, curre
 
 def restore_separation_inputs(current_history_record):
     """단일 참조 이력의 입력 사본을 해시 검증 후 복원한다."""
-    from tools.review.common.gradio_reference_restore import restore_reference_inputs
-    current_request_record = current_history_record['request']
+    from tools.review.common.gradio_reference_restore import restore_reference_inputs, validate_history_input_settings
+    current_request_record = validate_history_input_settings(current_history_record)
     if current_request_record.get('schema_version') != 2:
         raise gr.Error('이전 프레임 분리 이력은 현재 단일 참조 입력으로 복원할 수 없습니다.')
-    if len(current_request_record.get('reference_snapshots', [])) != 1:
+    for current_prompt_field in ('prompt', 'outfit_prompt'):
+        try:
+            validate_separation_prompt(current_request_record.get(current_prompt_field))
+        except ValueError as current_prompt_error:
+            raise gr.Error(f'저장된 {current_prompt_field}: {current_prompt_error}') from current_prompt_error
+    try:
+        validate_separation_settings(current_request_record)
+    except ValueError as current_settings_error:
+        raise gr.Error(f'저장된 분리 설정: {current_settings_error}') from current_settings_error
+    current_snapshot_records = current_request_record.get('reference_snapshots')
+    if not isinstance(current_snapshot_records, list) or len(current_snapshot_records) != 1:
         raise gr.Error('저장된 참조 이미지 사본 1장이 필요합니다.')
     current_restored_values = restore_reference_inputs(current_history_record, SEPARATION_STORAGE_ROOT, reference_slot_limit=1)
     return current_restored_values[6], current_request_record['width'], current_request_record['seed'], current_request_record['prompt'], current_request_record['outfit_prompt']
