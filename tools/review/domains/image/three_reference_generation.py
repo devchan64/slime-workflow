@@ -99,7 +99,18 @@ def resolve_reference_settings(selected_inference_steps):
 
 
 def verify_reference_snapshots(current_job_root, current_request_record):
-    # 이전 이력은 기존 참조 계약을 유지하며 신규 이력은 생성 전에 사본을 검증한다.
+    if not isinstance(current_request_record, dict):
+        raise ValueError('참조 실행 기록은 객체여야 합니다.')
+    current_reference_names = current_request_record.get('references')
+    if not isinstance(current_reference_names, list):
+        raise ValueError('참조 실행 기록의 references는 목록이어야 합니다.')
+    for current_reference_index, current_reference_name in enumerate(current_reference_names, 1):
+        if current_reference_name != f'reference-{current_reference_index}.png':
+            raise ValueError('참조 사본 경로 또는 순서 오류')
+        current_reference_path = Path(current_job_root) / current_reference_name
+        if current_reference_path.is_symlink():
+            raise ValueError('참조 사본 심볼릭 링크는 허용하지 않습니다.')
+    # 구형 이력도 경로를 검사하며, 사본 메타데이터가 있으면 무결성을 추가 검사한다.
     if 'reference_snapshots' not in current_request_record:
         return
     reference_snapshot_records=current_request_record['reference_snapshots']

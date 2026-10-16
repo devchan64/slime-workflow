@@ -9,6 +9,7 @@ import base64
 import time
 import io
 import json
+import math
 import re
 import urllib.error
 import urllib.request
@@ -109,7 +110,7 @@ class GatewayRequestAdapter:
         self.command=request_method_value
         self.path=request_route_value
         self.management_command_payload=request_payload_value
-        request_body_bytes=json.dumps(request_payload_value,ensure_ascii=False).encode() if request_method_value=='POST' else b''
+        request_body_bytes=json.dumps(request_payload_value,ensure_ascii=False,allow_nan=False).encode() if request_method_value=='POST' else b''
         self.rfile=io.BytesIO(request_body_bytes)
         self.headers=Message()
         for request_header_name,request_header_value in original_request_handler.headers.items():
@@ -120,6 +121,26 @@ class GatewayRequestAdapter:
 
     def __getattr__(self, attribute_name_value):
         return getattr(self.original_request_handler,attribute_name_value)
+
+
+def parse_management_request_json(current_request_text):
+    """중복 필드와 비유한 숫자를 GUI·CLI 입력 경계에서 거절한다."""
+    def collect_unique_request_fields(current_field_pairs):
+        current_field_values={}
+        for current_field_name,current_field_value in current_field_pairs:
+            if current_field_name in current_field_values:
+                raise ValueError('중복 요청 필드')
+            current_field_values[current_field_name]=current_field_value
+        return current_field_values
+    def reject_nonfinite_request_constant(current_constant_text):
+        raise ValueError('유한한 JSON 숫자만 허용합니다: '+current_constant_text)
+    def parse_finite_request_float(current_number_text):
+        current_number_value=float(current_number_text)
+        if not math.isfinite(current_number_value):
+            raise ValueError('유한한 JSON 숫자만 허용합니다: '+current_number_text)
+        return current_number_value
+    return json.loads(current_request_text,object_pairs_hook=collect_unique_request_fields,
+                      parse_constant=reject_nonfinite_request_constant,parse_float=parse_finite_request_float)
 
 
 class ManagementCommandGateway:
@@ -143,13 +164,7 @@ class ManagementCommandGateway:
                 request_body_length=int(current_http_handler.headers.get('Content-Length','0'))
                 if not 1<=request_body_length<=40_200_000:
                     raise ValueError('요청 크기 오류')
-                def parse_unique_fields(request_field_pairs):
-                    request_field_values={}
-                    for request_field_name,request_field_value in request_field_pairs:
-                        if request_field_name in request_field_values:raise ValueError('중복 요청 필드')
-                        request_field_values[request_field_name]=request_field_value
-                    return request_field_values
-                request_payload_value=json.loads(current_http_handler.rfile.read(request_body_length),object_pairs_hook=parse_unique_fields)
+                request_payload_value=parse_management_request_json(current_http_handler.rfile.read(request_body_length))
             if gateway_envelope_request:
                 if current_http_handler.command!='POST' or not isinstance(request_payload_value,dict) or set(request_payload_value)!={'service','command','payload'}:
                     raise ValueError('service·command·payload 명령 형식이 필요합니다.')
@@ -317,9 +332,9 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
     if operation_command_name in ('sprite-source','sprite-save','sprite-load','sprite-history','sprite-history-reset','sprite-history-delete'):
         command_payload_value={'id':command_argument_values.id}
         if operation_command_name=='sprite-history-delete':command_payload_value['revision']=command_argument_values.revision
-        if operation_command_name=='sprite-save':command_payload_value['document']=json.loads(command_argument_values.document_file.read_text())
-    if operation_command_name in SPRITE_V2_COMMAND_NAMES + LANDMARK_COMMAND_NAMES + ANNY_GENERATION_COMMAND_NAMES + WRITER_PAYLOAD_COMMAND_NAMES or operation_command_name in ('capture','export-vnccs'):command_payload_value=json.loads(command_argument_values.payload_file.read_text())
-    if operation_command_name=='anchor-save':command_payload_value={'document':json.loads(command_argument_values.document_file.read_text())}
+        if operation_command_name=='sprite-save':command_payload_value['document']=parse_management_request_json(command_argument_values.document_file.read_text())
+    if operation_command_name in SPRITE_V2_COMMAND_NAMES + LANDMARK_COMMAND_NAMES + ANNY_GENERATION_COMMAND_NAMES + WRITER_PAYLOAD_COMMAND_NAMES or operation_command_name in ('capture','export-vnccs'):command_payload_value=parse_management_request_json(command_argument_values.payload_file.read_text())
+    if operation_command_name=='anchor-save':command_payload_value={'document':parse_management_request_json(command_argument_values.document_file.read_text())}
     if operation_command_name in ('anchor-history','anchor-history-reset'):command_payload_value={'animation_id':command_argument_values.animation_id,'animation_version':command_argument_values.animation_version}
     if operation_command_name=='history-reset':command_payload_value={'action':'reset'}
     if operation_command_name=='prepare':command_payload_value={'action':'prepare'}
@@ -328,7 +343,7 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
             command_payload_value = {'action':'generate','prompt':command_argument_values.prompt if command_argument_values.prompt is not None else command_argument_values.prompt_file.read_text(),
                 'duration_seconds':command_argument_values.duration_seconds,'seed':command_argument_values.seed,'loop_request':command_argument_values.loop_request,'tag':command_argument_values.tag}
         elif service_command_name == 'wan21-vace-v2v':
-            command_payload_value=json.loads(command_argument_values.payload_file.read_text())
+            command_payload_value=parse_management_request_json(command_argument_values.payload_file.read_text())
         elif service_command_name in ('wan21-vace','phantom'):
             current_reference_paths=command_argument_values.reference if service_command_name=='phantom' else [command_argument_values.reference]
             if any(current_reference_path.stat().st_size>3_000_000 for current_reference_path in current_reference_paths):
@@ -429,7 +444,7 @@ def execute_gateway_cli(command_argument_list=None):
             management_argument_parser.print_help()
             for service_command_name, service_description_text in MANAGEMENT_COMMAND_DESCRIPTIONS.items():
                 print(f'  {service_command_name}: {service_description_text}')
-            print('\n예: python tools/manager.py help momask generate')
+            print('\n예: python3 tools/manager.py help hy-motion generate')
             return 0
         return execute_gateway_arguments(management_argument_values.service,management_argument_values.arguments+['--help'])
     return execute_gateway_arguments(management_argument_values.service,management_argument_values.arguments)
@@ -439,7 +454,7 @@ def call_management_api(server_base_address, request_route_path, request_body_va
     request_header_values = {'Origin':server_base_address}
     request_body_bytes = None
     if request_body_value is not None:
-        request_body_bytes = json.dumps(request_body_value,ensure_ascii=False).encode()
+        request_body_bytes = json.dumps(request_body_value,ensure_ascii=False,allow_nan=False).encode()
         request_header_values['Content-Type']='application/json'
     command_envelope_parts=identify_management_command(request_route_path,'POST' if request_body_value is not None else 'GET',request_body_value)
     if command_envelope_parts is None:raise ValueError('지원하지 않는 관리 명령 경로')
@@ -448,7 +463,7 @@ def call_management_api(server_base_address, request_route_path, request_body_va
         current_writer_state=execute_management_command('writer-agent','writer-state',{},server_base_address)
         request_header_values['X-Writer-Token']=current_writer_state['csrf_token']
     request_route_path='/management/command'
-    request_body_bytes=json.dumps({'service':service_command_name,'command':operation_command_name,'payload':command_payload_value},ensure_ascii=False).encode()
+    request_body_bytes=json.dumps({'service':service_command_name,'command':operation_command_name,'payload':command_payload_value},ensure_ascii=False,allow_nan=False).encode()
     request_header_values['Content-Type']='application/json'
     management_request_value = urllib.request.Request(server_base_address+request_route_path, data=request_body_bytes, headers=request_header_values)
     try:

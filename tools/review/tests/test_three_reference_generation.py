@@ -15,6 +15,22 @@ class ThreeReferenceGenerationTests(unittest.TestCase):
         Image.new('RGBA',selected_image_size,selected_image_color).save(current_image_buffer,format=selected_image_format)
         return base64.b64encode(current_image_buffer.getvalue()).decode()
 
+    def test_legacy_reference_paths_reject_escape_and_symlinks(self):
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_job_root = Path(current_directory_name)
+            verify_reference_snapshots(current_job_root, {'references': []})
+            verify_reference_snapshots(current_job_root, {'references': ['reference-1.png']})
+            for current_reference_names in (None, '../outside.png', ['../outside.png'], ['/tmp/outside.png'], ['reference-2.png'], [None]):
+                with self.subTest(references=current_reference_names):
+                    with self.assertRaises(ValueError):
+                        verify_reference_snapshots(current_job_root, {'references': current_reference_names})
+            current_outside_path = current_job_root / 'outside.png'
+            current_outside_path.write_bytes(b'protected')
+            (current_job_root / 'reference-1.png').symlink_to(current_outside_path)
+            with self.assertRaisesRegex(ValueError, '심볼릭'):
+                verify_reference_snapshots(current_job_root, {'references': ['reference-1.png']})
+            self.assertEqual(current_outside_path.read_bytes(), b'protected')
+
     def test_snapshot_detects_changed_reference_before_generation(self):
         request={'action':'generate','steps':4,'width':512,'height':512,'prompt':'wall','images':[self.encode_reference_fixture('red')]}
         with tempfile.TemporaryDirectory() as directory:

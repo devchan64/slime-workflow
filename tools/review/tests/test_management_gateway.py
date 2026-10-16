@@ -24,6 +24,45 @@ class GatewayContractTest(unittest.TestCase):
         handler.end_headers=lambda:None
         return handler
 
+    def test_nonfinite_json_is_rejected_before_service(self):
+        from tools.review.common.management_gateway import parse_management_request_json
+        current_service_calls=[]
+        current_gateway_value=ManagementCommandGateway({'qwen-2512':lambda current_request_handler:current_service_calls.append(current_request_handler)})
+        for current_invalid_value in (float('nan'),float('inf'),float('-inf')):
+            for current_request_path in ('/management/command','/image-generation/jobs'):
+                current_payload_record={'seed':current_invalid_value}
+                current_request_record={'service':'qwen-2512','command':'generate','payload':current_payload_record} if current_request_path=='/management/command' else current_payload_record
+                current_request_handler=self.create_request_handler(current_request_path,current_request_record)
+                current_gateway_value.handle(current_request_handler)
+                self.assertEqual(current_request_handler.responses,[400])
+                self.assertIn('유한한',json.loads(current_request_handler.wfile.getvalue())['error'])
+        self.assertEqual(current_service_calls,[])
+        for current_invalid_text in ('{"nested":{"seed":1,"seed":2}}','{"nested":[NaN]}','{"seed":1e999}','{"seed":-1e999}'):
+            with self.assertRaises(ValueError):
+                parse_management_request_json(current_invalid_text)
+        self.assertEqual(parse_management_request_json('{"nested":[0.25,12]}'),{'nested':[0.25,12]})
+
+    def test_http_client_rejects_nonfinite_payload_before_network(self):
+        from unittest.mock import patch
+        from tools.review.common.management_gateway import call_management_api
+        for current_invalid_number in (float('nan'),float('inf'),float('-inf')):
+            with patch('tools.review.common.management_gateway.urllib.request.urlopen') as current_transport_mock:
+                with self.assertRaises(ValueError):
+                    call_management_api('http://127.0.0.1:8771','/image-generation/jobs',{'nested':[current_invalid_number]})
+                current_transport_mock.assert_not_called()
+
+    def test_cli_rejects_invalid_json_before_dispatch(self):
+        import tempfile
+        from unittest.mock import patch
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_input_path=Path(current_directory_name)/'input.json'
+            for current_invalid_text in ('{"rotation_y":NaN}','{"rotation_y":1e999}','{"rotation_y":1,"rotation_y":2}'):
+                current_input_path.write_text(current_invalid_text)
+                with patch('tools.review.common.management_gateway.execute_management_command') as current_dispatch_mock:
+                    with self.assertRaises(ValueError):
+                        execute_gateway_cli(['command','anny','anny-preview','--payload-file',str(current_input_path)])
+                    current_dispatch_mock.assert_not_called()
+
     def test_cli_help_matches_gateway_commands(self):
         for service_name_value,command_name_values in MANAGEMENT_SERVICE_COMMANDS.items():
             for command_name_value in command_name_values:
