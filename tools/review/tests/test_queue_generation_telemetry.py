@@ -343,3 +343,21 @@ class WorkerAttemptStatusTests(unittest.TestCase):
                             self.assertEqual(current_status_record['metrics'], current_queue_metrics)
                             self.assertIsNone(current_status_record['estimate']['remaining'])
                 self.assertTrue((current_attempt_root / 'metrics.json').exists())
+
+
+class TelemetryHeartbeatCadenceTests(unittest.TestCase):
+    def test_sampling_duration_is_subtracted_from_heartbeat_wait(self):
+        from unittest.mock import Mock, call
+        from tools.review.common.generation_telemetry import GenerationTelemetryRecorder
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_recorder_value = GenerationTelemetryRecorder(Path(current_directory_name), 0, [])
+            current_stop_event = Mock()
+            current_stop_event.is_set.side_effect = [False, False, False, True]
+            current_recorder_value.current_stop_event = current_stop_event
+            with patch.object(current_recorder_value, 'capture_generation_memory') as current_capture_mock, \
+                 patch.object(current_recorder_value, 'save_generation_metrics') as current_save_mock, \
+                 patch('tools.review.common.generation_telemetry.time.monotonic', side_effect=[0, 2, 5, 9, 10, 16]):
+                current_recorder_value.run_telemetry_heartbeat()
+            self.assertEqual(current_stop_event.wait.call_args_list, [call(3), call(1), call(0)])
+            self.assertEqual(current_capture_mock.call_count, 3)
+            self.assertEqual(current_save_mock.call_count, 3)
