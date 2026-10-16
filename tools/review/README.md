@@ -148,6 +148,12 @@ vendor에는 채택한 최신 렌더러 배포본 하나만 보관합니다. 버
 MoMask 작업 서비스와 루트 호환 모듈은 제거했다. 이전 HTTP 주소는 `common/retired_momask.py`에서 410을 반환하고, 게이트웨이는 모든 MoMask 명령을 거절한다. 작업 저장소 접근·실행 감독 코드는 유지하지 않는다. ANNY 투영점의 OpenPose 변환은 `common/openpose_maps.py`에서 관리하며 기존 `openpose_maps.py` import 경로는 공용 모듈로 연결한다. 생성 산출물과 다른 생성기가 사용하는 제작 템플릿은 이 도메인 폐기 범위에 포함하지 않는다.
 
 
+### 지형 이동 버전 2와 빌보드 시험
+
+공용 렌더러 1.0.50은 높이 단계 20과 앞·중앙·뒤 배치를 사용한다. 필드 조회 어댑터는 보관 원본의 경사로 기록을 삭제하지 않고 현재 응답에서 제외하며 `terrainMovementVersion: 2`를 전달한다. 게임의 신규 이동은 상·하행 모두 한 단계까지만 허용한다. 기존 저장 전투의 이동 버전은 서버에서 보존한다.
+
+`kind: billboard` 지형물은 동일한 크기의 뒤·앞 2프레임 시트를 공유 원점에 그려 중앙 캐릭터와 깊이를 나눈다. `groundOverrides`는 원본 셀의 지형 코드·통행 비용을 보존한 표시 전용 매핑이다. 과수원 0기준 열 19~21·행 15의 세 칸만 시험 적용하며 바닥과 각 수풀 프레임은 128×128이다. 다른 맵의 수풀을 일괄 교체한 상태는 아니다.
+
 ### 렌더러 배포본 준비
 
 새 체크아웃에는 번들 파일이 없습니다. 프론트엔드에서 `npm run build:field-renderer`를 실행한 뒤, 워크플로우에서 `.venv/bin/python tools/review/install_field_renderer.py --source /절대경로/slime-frontend/.tmp/field-renderer/<버전>`으로 설치합니다. 채택할 새 버전은 생성된 `manifest.yaml`을 `tools/review/ui/map/vendor/field-renderer/manifest.yaml`에 먼저 반영합니다. 설치기는 고정 manifest와 전체 파일 해시를 검증한 뒤 로컬 배포본을 복사합니다. 관리 서버는 이 배포본을 사용하며 프론트엔드 소스를 런타임에 import하지 않습니다.

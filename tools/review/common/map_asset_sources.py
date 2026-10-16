@@ -93,10 +93,13 @@ def load_registered_map_review(map_identifier_value):
     if map_identifier_value not in current_city_identifiers:
         current_map_record = read_map_source_data('terrain/maps/'+map_identifier_value+'.yaml')
         normalize_field_surface_data(current_map_record)
+        # 보관 원본의 연결 기록을 삭제하지 않고 현재 표시 계약에서 제외한다.
+        current_map_record.update(terrainMovementVersion=2, ramps=[], elevationTiles=[])
         current_map_record['safeTown'] = False
         current_field_tile_data = read_map_source_data('field_tiles/'+map_identifier_value+'.yaml')
         current_map_record['terrainRows'] = current_field_tile_data['rows']
         current_map_record['objects'] = current_field_tile_data.get('objects', [])
+        current_map_record['groundOverrides'] = current_field_tile_data.get('groundOverrides', [])
         current_map_record['terrainCodes'] = read_map_source_data('field_tiles/codes.yaml')
         current_map_record.update(read_map_source_data('map_spawns/'+map_identifier_value+'.yaml'))
         current_map_record['buildings'] = []

@@ -112,3 +112,4 @@ tiles:
   - {id: fractured-bedrock-v1, category: ground, asset: assets/tiles/terrain/non-road/fractured-bedrock-v1.png}
 
   - {id: angular-quarry-scree-v1, category: ground, asset: assets/tiles/terrain/non-road/angular-quarry-scree-v1.png}
+  - {id: bush-ground-v1, category: ground, asset: assets/tiles/terrain/non-road/bush-ground-v1.png}

@@ -21,9 +21,25 @@ class MapAssetSourceTests(unittest.TestCase):
         current_map_record = json.loads(current_map_bytes)
         self.assertFalse(current_map_record['safeTown'])
         self.assertEqual(set(current_height for current_row in current_map_record['elevations'] for current_height in current_row),{0,1,2})
-        self.assertEqual(len(current_map_record['elevationTiles']),6)
+        self.assertEqual(current_map_record['terrainMovementVersion'],2)
+        self.assertEqual(current_map_record['elevationTiles'],[])
+        self.assertEqual(current_map_record['ramps'],[])
         for current_stair_record in current_map_record['elevationTiles']:
             self.assertEqual(set(current_stair_record['cell']),{'column','row'})
+
+    def test_orchard_billboards_preserve_ground_codes_and_layer_contract(self):
+        current_response_bytes, _ = read_map_asset_response('/management/map-assets/maps/old-orchard')
+        current_map_record = json.loads(current_response_bytes)
+        current_bush_records = [current_object_record for current_object_record in current_map_record['objects'] if current_object_record['kind'] == 'billboard']
+        self.assertEqual(len(current_bush_records), 3)
+        self.assertEqual(len(current_map_record['groundOverrides']), 3)
+        for current_bush_record in current_bush_records:
+            current_cell_position = current_bush_record['position']
+            self.assertEqual(current_map_record['terrainRows'][current_cell_position['row']][current_cell_position['column']], 'g')
+            self.assertEqual(current_bush_record['frameSize'], 128)
+            self.assertEqual(current_bush_record['tileAnchor'], 'center')
+            self.assertEqual(current_bush_record['anchorY'], 0.9)
+        self.assertEqual(current_map_record['terrainMovementVersion'], 2)
 
     def test_guard_center_images_match_registered_regions(self):
         current_city_identifiers,current_map_identifiers = load_review_map_identifiers()
