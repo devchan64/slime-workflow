@@ -113,3 +113,6 @@ tiles:
 
   - {id: angular-quarry-scree-v1, category: ground, asset: assets/tiles/terrain/non-road/angular-quarry-scree-v1.png}
   - {id: bush-ground-v1, category: ground, asset: assets/tiles/terrain/non-road/bush-ground-v1.png}
+  - {id: orchard-soil-v1, category: ground, asset: assets/tiles/terrain/non-road/orchard-soil-v1.png}
+  - {id: orchard-grass-v1, category: ground, asset: assets/tiles/terrain/non-road/orchard-grass-v1.png}
+  - {id: orchard-grass-soil-v1, category: ground, asset: assets/tiles/terrain/non-road/orchard-grass-soil-v1.png}
