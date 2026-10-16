@@ -88,7 +88,10 @@ def build_qwen_2512_interface(server_base_address):
         interface_blocks_value.load(lambda:read_history_page(1),outputs=history_output_values)
         def refresh_generation_status(generation_identifier_value,refresh_log_enabled):
             if not generation_identifier_value:return (gr.skip(),)*4
-            status_record_value=read_existing_generation_status(execute_image_gateway,generation_identifier_value)
+            try:
+                status_record_value=read_existing_generation_status(execute_image_gateway,generation_identifier_value)
+            except (ValueError, RuntimeError, OSError) as current_lookup_error:
+                return '상태 조회 실패: '+str(current_lookup_error)+' · 다음 조회에서 다시 확인합니다.',gr.skip(),gr.skip(),gr.skip()
             if status_record_value is None:
                 return '선택한 작업 이력이 삭제되었습니다.','',gr.update(value=[],visible=False),''
             log_update_value=gr.update(value=status_record_value.get('log','')) if refresh_log_enabled else gr.skip()

@@ -35,3 +35,22 @@ class Qwen2512GradioTests(unittest.TestCase):
             with self.subTest(record=current_history_record):
                 with self.assertRaises(qwen_2512_app.gr.Error):
                     qwen_2512_app.restore_generation_inputs(current_history_record)
+
+    def test_status_lookup_failure_preserves_outputs_and_recovers(self):
+        current_interface_blocks = qwen_2512_app.build_qwen_2512_interface('http://localhost')
+        current_refresh_callback = next(current_function.fn for current_function in current_interface_blocks.fns.values()
+            if current_function.fn and current_function.fn.__name__ == 'refresh_generation_status')
+        for current_error_type in (ValueError, RuntimeError, OSError):
+            with self.subTest(error=current_error_type):
+                with patch.object(qwen_2512_app, 'read_existing_generation_status', side_effect=current_error_type('격리 연결 오류')):
+                    current_output_values = current_refresh_callback('saved-job', True)
+                self.assertIn('상태 조회 실패', current_output_values[0])
+                self.assertEqual(current_output_values[1:], (qwen_2512_app.gr.skip(),)*3)
+        with patch.object(qwen_2512_app, 'read_existing_generation_status', return_value={'status':'completed','log':'복구 로그'}):
+            current_output_values = current_refresh_callback('saved-job', True)
+            self.assertIn('완료', current_output_values[0])
+            self.assertEqual(current_output_values[1]['value'], '복구 로그')
+        with patch.object(qwen_2512_app, 'read_existing_generation_status', return_value=None):
+            current_output_values = current_refresh_callback('saved-job', True)
+            self.assertIn('삭제되었습니다', current_output_values[0])
+            self.assertEqual(current_output_values[3], '')
