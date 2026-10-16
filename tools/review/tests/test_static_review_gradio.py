@@ -436,7 +436,8 @@ assert.deepEqual(window.anchorReviewDisplay(null).slice(0,4),[false,false,true,f
         current_script_source="""
 const assert=require('node:assert/strict');
 global.window={};global.document={querySelector:()=>({textContent:''})};
-const frameChoiceElement={value:'0'},REVIEW_FRAME_COUNT=8,REVIEW_FRAME_DURATION=125;
+const frameChoiceElement={value:'0'},REVIEW_FRAME_COUNT=8,ANCHOR_PREVIEW_FRAME_RATES=[4,8,12,16];
+let currentPreviewFrameDurationMs=250;
 let animationPlaybackActive=false,animationStartedTime=0;
 const currentImageLoadFailure=null,currentImageLoadComplete=true;
 function pauseFramePlayback(){animationPlaybackActive=false;}
@@ -448,7 +449,15 @@ assert.equal(window.anchorReviewPlayback('next'),'1 / 8 · 정지');
 assert.equal(window.anchorReviewPlayback('play'),'1 / 8 · 재생 중');
 assert.throws(()=>window.anchorReviewSeekFrame(9));
 assert.equal(animationPlaybackActive,true);assert.equal(frameChoiceElement.value,'0');
-assert.equal(window.anchorReviewPlayback('stop'),'1 / 8 · 정지');
+assert.equal(window.anchorReviewFrameRate(null),4);
+frameChoiceElement.value='3';
+assert.match(window.anchorReviewFrameRate(16),/16 FPS/);
+assert.equal(animationPlaybackActive,true);
+assert.equal(frameChoiceElement.value,'3');
+assert.equal(currentPreviewFrameDurationMs,62.5);
+assert.throws(()=>window.anchorReviewFrameRate(7));
+assert.equal(currentPreviewFrameDurationMs,62.5);
+assert.equal(window.anchorReviewPlayback('stop'),'4 / 8 · 정지');
 """
         current_node_result=subprocess.run(['node','-e',current_script_source],capture_output=True,text=True)
         self.assertEqual(current_node_result.returncode,0,current_node_result.stderr)

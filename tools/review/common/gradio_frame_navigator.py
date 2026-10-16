@@ -62,3 +62,13 @@ def build_frame_playback_controls():
                 current_loop_button=gr.Button('구간 반복',variant='primary')
                 gr.Markdown('번호 변경 후 구간 반복을 누르세요. 왼쪽 재생은 전체 구간, 정지는 반복 재생도 멈춥니다.')
     return current_frame_number,current_action_buttons,current_seek_button,current_loop_start,current_loop_end,current_loop_button
+
+
+def build_browser_playback_speed(current_speed_handler, current_feedback_output, current_controls_enabled=True):
+    """원본 시간축을 바꾸지 않는 브라우저 검수 속도를 선택한다."""
+    if not re.fullmatch(r'[A-Za-z_$][A-Za-z0-9_$]*', current_speed_handler):
+        raise ValueError('재생 속도 함수 이름 형식 오류')
+    current_speed_control = gr.Dropdown(choices=[4, 8, 12, 16], value=4, label='검수 재생 속도 (FPS)', interactive=current_controls_enabled)
+    current_speed_control.input(fn=None, inputs=current_speed_control, outputs=current_feedback_output, queue=False,
+        js="currentFrameRateValue=>{try{return window["+json.dumps(current_speed_handler)+"](currentFrameRateValue);}catch(currentErrorValue){return currentErrorValue.message;}}")
+    return current_speed_control

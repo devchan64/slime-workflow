@@ -32,7 +32,9 @@ const reviewCanvasElement=document.querySelector('#reviewCanvas'),reviewCanvasCo
 const directionChoiceElement=document.querySelector('#directionChoice'),frameChoiceElement=document.querySelector('#frameChoice'),pointChoiceElement=document.querySelector('#pointChoice');
 const anchorToggleElement=document.querySelector('#anchorToggle'),guideToggleElement=document.querySelector('#guideToggle'),rigMiniMapToggleElement=document.querySelector('#rigMiniMapToggle');
 rigMiniMapToggleElement.onchange=()=>{document.querySelector('.rig-mini-map').hidden=!rigMiniMapToggleElement.checked};
-const REVIEW_CANVAS_WIDTH=650,REVIEW_CANVAS_HEIGHT=reviewSourceMetadata.runtimeScale?.actorKind==='monster'?750:400,REVIEW_FRAME_DURATION=reviewSourceMetadata.frameDurationMs||400,REVIEW_FRAME_COUNT=reviewFrameRecords.filter(currentFrameValue=>currentFrameValue.direction==='down_left').length,REVIEW_ANCHOR_POSITION={x:325,y:reviewSourceMetadata.runtimeScale?.actorKind==='monster'?600:350};
+const ANCHOR_PREVIEW_FRAME_RATES=[4,8,12,16];
+let currentPreviewFrameDurationMs=1000/(window.anchorReviewInitialFrameRate||4);
+const REVIEW_CANVAS_WIDTH=650,REVIEW_CANVAS_HEIGHT=reviewSourceMetadata.runtimeScale?.actorKind==='monster'?750:400,REVIEW_FRAME_COUNT=reviewFrameRecords.filter(currentFrameValue=>currentFrameValue.direction==='down_left').length,REVIEW_ANCHOR_POSITION={x:325,y:reviewSourceMetadata.runtimeScale?.actorKind==='monster'?600:350};
 reviewCanvasElement.width=REVIEW_CANVAS_WIDTH;reviewCanvasElement.height=REVIEW_CANVAS_HEIGHT;
 const PREVIEW_TILE_DEFAULT_WIDTH=240,PREVIEW_TILE_DEFAULT_HEIGHT=120,PREVIEW_TILE_MINIMUM_WIDTH=32,PREVIEW_TILE_MAXIMUM_WIDTH=600,PREVIEW_TILE_MINIMUM_HEIGHT=16,PREVIEW_TILE_MAXIMUM_HEIGHT=300,PREVIEW_TILE_ASPECT_RATIO=2,PREVIEW_GROUND_BOTTOM_MARGIN=10;
 const gameRenderMetrics=reviewSourceMetadata.gameRenderMetrics;
@@ -223,7 +225,7 @@ function drawRigMiniMap(currentFrameValue){
  rigMiniMapContext.clearRect(0,0,rigMiniMapElement.width,rigMiniMapElement.height);rigMiniMapContext.drawImage(rigImageElement,(rigFrameIndex%rigColumnCount)*sourceCellWidth,Math.floor(rigFrameIndex/rigColumnCount)*sourceCellHeight,sourceCellWidth,sourceCellHeight,(rigMiniMapElement.width-miniMapDrawWidth)/2,(rigMiniMapElement.height-miniMapDrawHeight)/2,miniMapDrawWidth,miniMapDrawHeight);
 }
 function drawReviewFrame(currentAnimationTime){
- if(animationPlaybackActive)frameChoiceElement.value=String(Math.floor((currentAnimationTime-animationStartedTime)/REVIEW_FRAME_DURATION)%REVIEW_FRAME_COUNT);
+ if(animationPlaybackActive)frameChoiceElement.value=String(Math.floor((currentAnimationTime-animationStartedTime)/currentPreviewFrameDurationMs)%REVIEW_FRAME_COUNT);
  const currentFrameValue=selectCurrentFrame(),currentFrameBounds=currentFrameValue.rect;
  currentSpriteScale=calculateCurrentSpriteScale(currentFrameBounds);
  currentSpriteOffsetX=REVIEW_ANCHOR_POSITION.x-currentFrameValue.anchor.x*currentSpriteScale;
@@ -247,7 +249,7 @@ function drawReviewFrame(currentAnimationTime){
  if(coordinateInputIdentity!==currentInputIdentity){document.querySelector('#coordinateInputX').value=String(selectedPointValue.x);document.querySelector('#coordinateInputY').value=String(selectedPointValue.y);coordinateInputIdentity=currentInputIdentity;}
  document.querySelector('#pointStatus').textContent=`X ${selectedPointValue.x} / Y ${selectedPointValue.y}`;
  document.querySelector('#frameNumber').textContent=`${Number(frameChoiceElement.value)+1} / ${REVIEW_FRAME_COUNT}`;
- document.querySelector('#frameStatus').textContent=`${currentFrameValue.frameId} | 앵커 (${currentFrameValue.anchor.x}, ${currentFrameValue.anchor.y}) | ${REVIEW_FRAME_DURATION}ms · ${REVIEW_FRAME_COUNT*REVIEW_FRAME_DURATION/1000}초 반복`;
+ document.querySelector('#frameStatus').textContent=`${currentFrameValue.frameId} | 앵커 (${currentFrameValue.anchor.x}, ${currentFrameValue.anchor.y}) | ${currentPreviewFrameDurationMs}ms · ${REVIEW_FRAME_COUNT*currentPreviewFrameDurationMs/1000}초 반복`;
  requestAnimationFrame(drawReviewFrame);
 }
 window.anchorReviewActions=currentActionIdentifier=>{
@@ -340,7 +342,7 @@ window.anchorReviewPlayback=currentActionName=>{
  else if(currentActionName==='stop')pauseFramePlayback();
  else if(currentActionName==='play'){
   animationPlaybackActive=true;
-  animationStartedTime=performance.now()-Number(frameChoiceElement.value)*REVIEW_FRAME_DURATION;
+  animationStartedTime=performance.now()-Number(frameChoiceElement.value)*currentPreviewFrameDurationMs;
   document.querySelector('#playToggle').textContent='일시정지';
  }else if(currentActionName!=='status')throw Error('지원하지 않는 프레임 탐색 명령입니다.');
  return `${Number(frameChoiceElement.value)+1} / ${REVIEW_FRAME_COUNT} · ${animationPlaybackActive?'재생 중':'정지'}`;
@@ -349,6 +351,13 @@ window.anchorReviewSeekFrame=currentFrameNumber=>{
  if(!Number.isInteger(currentFrameNumber)||currentFrameNumber<1||currentFrameNumber>REVIEW_FRAME_COUNT)throw Error(`프레임 번호는 1~${REVIEW_FRAME_COUNT} 정수로 입력하세요.`);
  pauseFramePlayback();frameChoiceElement.value=String(currentFrameNumber-1);
  return `${currentFrameNumber} / ${REVIEW_FRAME_COUNT} · 정지`;
+};
+window.anchorReviewFrameRate=currentFrameRateValue=>{
+ if(currentFrameRateValue===null)return 1000/currentPreviewFrameDurationMs;
+ if(!ANCHOR_PREVIEW_FRAME_RATES.includes(currentFrameRateValue))throw Error('재생 속도는 4·8·12·16 FPS 중 선택하세요.');
+ currentPreviewFrameDurationMs=1000/currentFrameRateValue;
+ animationStartedTime=performance.now()-Number(frameChoiceElement.value)*currentPreviewFrameDurationMs;
+ return `${currentFrameRateValue} FPS · 검수 속도만 변경됨`;
 };
 if(window.anchorReviewNativeMode||(window.parent!==window&&new URLSearchParams(window.location?.search).get('embedded')==='gradio-static')){
  if(!window.anchorReviewNativeMode){
@@ -368,7 +377,7 @@ document.querySelector('#previousFrame').onclick=()=>moveFrameSelection(-1);
 document.querySelector('#nextFrame').onclick=()=>moveFrameSelection(1);
 frameChoiceElement.oninput=pauseFramePlayback;
 directionChoiceElement.onchange=pauseFramePlayback;
-document.querySelector('#playToggle').onclick=()=>{animationPlaybackActive=!animationPlaybackActive;animationStartedTime=performance.now()-Number(frameChoiceElement.value)*REVIEW_FRAME_DURATION;document.querySelector('#playToggle').textContent=animationPlaybackActive?'일시정지':'재생'};
+document.querySelector('#playToggle').onclick=()=>{animationPlaybackActive=!animationPlaybackActive;animationStartedTime=performance.now()-Number(frameChoiceElement.value)*currentPreviewFrameDurationMs;document.querySelector('#playToggle').textContent=animationPlaybackActive?'일시정지':'재생'};
 document.querySelectorAll('[data-move-x]').forEach(currentButtonElement=>currentButtonElement.onclick=()=>moveSelectedPoint(Number(currentButtonElement.dataset.moveX),Number(currentButtonElement.dataset.moveY)));
 reviewCanvasElement.onclick=(pointerClickEvent)=>{if(!verifyAnchorImageReadiness()||animationPlaybackActive)return;const currentFrameValue=selectCurrentFrame(),canvasClientBounds=reviewCanvasElement.getBoundingClientRect();const clickedPointPosition={x:Math.round(((pointerClickEvent.clientX-canvasClientBounds.left)*REVIEW_CANVAS_WIDTH/canvasClientBounds.width-currentSpriteOffsetX)/currentSpriteScale),y:Math.round(((pointerClickEvent.clientY-canvasClientBounds.top)*REVIEW_CANVAS_HEIGHT/canvasClientBounds.height-currentSpriteOffsetY)/currentSpriteScale)};const selectedPointValue=pointChoiceElement.value==='anchor'?currentFrameValue.anchor:(usesFootCentersOnly?currentFrameValue.contacts:currentFrameValue.endpoints)[Number(pointChoiceElement.value)];moveSelectedPoint(clickedPointPosition.x-selectedPointValue.x,clickedPointPosition.y-selectedPointValue.y)};
 function buildCoordinateArtifact(){return {schemaVersion:1,artifactType:reviewSourceMetadata.artifactType||'character-standing-anchor-review',description:reviewSourceMetadata.description||'스탠딩 정수 앵커 검수 좌표. 셀 왼쪽 위 원점, x 오른쪽·y 아래. points는 화면 왼쪽 발부터 두 발 중심 또는 각 발 앞뒤 네 점이며 anchor는 발 중심 평균을 반올림한다.',coordinateMode:reviewSourceMetadata.coordinateMode,source:{animationId:reviewAnimationIdentity,animationVersion:reviewAnimationVersion,sheets:reviewSourceMetadata.sheets},frames:reviewFrameRecords.map(currentFrameValue=>({frameId:currentFrameValue.frameId,direction:currentFrameValue.direction,image:currentFrameValue.image,rect:currentFrameValue.rect,points:usesAnchorOnlyMode?[currentFrameValue.anchor]:usesFootCentersOnly?currentFrameValue.contacts:currentFrameValue.endpoints,anchor:currentFrameValue.anchor}))}}

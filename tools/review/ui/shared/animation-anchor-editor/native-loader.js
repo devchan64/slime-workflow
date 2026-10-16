@@ -1,7 +1,8 @@
 // 게시 HTML의 실행 코드·스타일을 가져오지 않는다. 공용 편집 구현과 JSON만 연결한다.
 let currentAnchorDisposer=null;
-const currentAnchorHandlerNames=['anchorRestoreConfirmationState','resolveAnchorRestoreConfirmation','anchorReviewSelection','anchorReviewCoordinates','anchorReviewDisplay','anchorReviewOutputSettings','anchorReviewDownloadSettings','anchorReviewActions','anchorReviewCoordinateCommands','anchorReviewHistory','anchorReviewSaveCoordinates','anchorReviewPlayback','anchorReviewSeekFrame','anchorReviewResetTarget'];
+const currentAnchorHandlerNames=['anchorRestoreConfirmationState','resolveAnchorRestoreConfirmation','anchorReviewSelection','anchorReviewCoordinates','anchorReviewDisplay','anchorReviewOutputSettings','anchorReviewDownloadSettings','anchorReviewActions','anchorReviewCoordinateCommands','anchorReviewHistory','anchorReviewSaveCoordinates','anchorReviewPlayback','anchorReviewFrameRate','anchorReviewSeekFrame','anchorReviewResetTarget'];
 async function mountNativeAnchorReview(currentContainerElement,currentPageLocation){
+ const currentPreviousFrameRate=window.anchorReviewFrameRate?.(null)||4;
  currentAnchorDisposer?.();
  const currentLifecycleController=new AbortController();
  const currentScheduledFrames=new Set();
@@ -43,7 +44,7 @@ async function mountNativeAnchorReview(currentContainerElement,currentPageLocati
    window.history.replaceState(window.history.state,'',currentPublicLocation.href);
    void mountNativeAnchorReview(currentContainerElement,currentNextLocation);
   }};
-  currentRuntimeWindow={anchorReviewNativeMode:true,location:currentLocationAdapter,resolveStaticReviewAssetUrl:currentAssetPath=>new URL(currentAssetPath,currentPageLocation).href,addEventListener:(currentEventName,currentEventHandler)=>window.addEventListener(currentEventName,currentEventHandler,{signal:currentLifecycleController.signal})};
+  currentRuntimeWindow={anchorReviewNativeMode:true,anchorReviewInitialFrameRate:currentPreviousFrameRate,location:currentLocationAdapter,resolveStaticReviewAssetUrl:currentAssetPath=>new URL(currentAssetPath,currentPageLocation).href,addEventListener:(currentEventName,currentEventHandler)=>window.addEventListener(currentEventName,currentEventHandler,{signal:currentLifecycleController.signal})};
   const scheduleAnchorFrame=currentFrameCallback=>{
    if(currentRuntimeDisposed||!currentEditorRoot.isConnected)return 0;
    const currentFrameHandle=requestAnimationFrame(currentFrameTime=>{currentScheduledFrames.delete(currentFrameHandle);if(!currentRuntimeDisposed&&currentEditorRoot.isConnected)currentFrameCallback(currentFrameTime);});currentScheduledFrames.add(currentFrameHandle);return currentFrameHandle;

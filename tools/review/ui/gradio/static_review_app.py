@@ -12,7 +12,7 @@ WORKFLOW_ROOT_DIRECTORY=Path(__file__).resolve().parents[4]
 if str(WORKFLOW_ROOT_DIRECTORY) not in sys.path:
     sys.path.insert(0,str(WORKFLOW_ROOT_DIRECTORY))
 from tools.review.ui.gradio.anchor_native_preview import read_native_anchor_loader
-from tools.review.common.gradio_frame_navigator import build_frame_navigator
+from tools.review.common.gradio_frame_navigator import build_frame_navigator, build_browser_playback_speed
 from tools.review.common.gradio_joypad import build_transform_joypad
 from tools.review.common.gradio_browser_controls import build_browser_action_button
 from tools.review.common.gradio_browser_history import build_browser_history_controls
@@ -111,6 +111,7 @@ def build_static_review_interface(static_review_paths, current_anchor_paths=None
                 current_animation_read.click(fn=None,outputs=[current_animation_action,current_anchor_feedback],queue=False,js="()=>{try{return window.anchorReviewActions(null);}catch(currentErrorValue){return [{__type__:'update'},currentErrorValue.message];}}")
                 current_animation_apply.click(fn=None,inputs=current_animation_action,outputs=[current_animation_action,current_anchor_feedback,current_anchor_status],queue=False,js="currentActionIdentifier=>{try{if(!currentActionIdentifier)throw Error('동작 목록을 읽고 동작을 선택하세요.');const currentActionResult=window.anchorReviewActions(currentActionIdentifier);return [...currentActionResult,typeof window.anchorReviewPlayback==='function'?window.anchorReviewPlayback('status'):'선택한 동작을 불러오는 중입니다.'];}catch(currentErrorValue){return [{__type__:'update'},currentErrorValue.message,{__type__:'update'}];}}")
                 build_frame_navigator('anchorReviewPlayback','anchorReviewSeekFrame',current_anchor_status,current_navigation_controls)
+                current_navigation_controls.append(build_browser_playback_speed('anchorReviewFrameRate',current_anchor_feedback,current_controls_enabled=False))
                 with gr.Row():
                     current_anchor_direction=gr.Dropdown(label='방향',choices=[],interactive=True)
                     current_anchor_point=gr.Dropdown(label='편집할 좌표',choices=[],interactive=True)
