@@ -254,6 +254,19 @@ class ImageFamilyCleanupContractTests(unittest.TestCase):
                 current_registered_root = current_storage_root / 'registered-assets'
                 current_registered_root.mkdir()
                 with patch.object(current_service_instance, 'history_storage_path', return_value=current_history_root):
+                    import fcntl
+                    with (current_selected_root / 'execution.lock').open('a') as current_execution_handle:
+                        fcntl.flock(current_execution_handle, fcntl.LOCK_EX)
+                        current_preview_record = current_service_instance.preview_generation_cleanup()
+                        self.assertFalse(current_preview_record['can_reset'])
+                        self.assertIn('최종 기록 저장', current_preview_record['blocked_jobs'][0]['reason'])
+                        with self.assertRaisesRegex(ValueError, '최종 기록 저장'):
+                            current_service_instance.reset_generation_history()
+                        with self.assertRaisesRegex(ValueError, '최종 기록 저장'):
+                            current_service_instance.delete_generation_history(current_job_identifiers[0])
+                        self.assertTrue((current_selected_root / 'input.png').exists())
+                        self.assertTrue((current_history_root / (current_job_identifiers[0] + '.json')).exists())
+                    self.assertTrue(current_service_instance.preview_generation_cleanup()['can_reset'])
                     (current_hidden_root / 'status.json').write_text('{"status":"queued"}')
                     with self.assertRaises(ValueError):
                         current_service_instance.reset_generation_history()
@@ -338,3 +351,150 @@ class CleanupResumeConcurrencyTests(unittest.TestCase):
                             current_second_future.result(timeout=5)
                         self.assertFalse(current_job_root.exists())
                         current_launch_mock.assert_not_called()
+
+    def test_new_generation_blocks_reset_until_queue_registration(self):
+        """실제 생성 핸들러의 예약 구간과 전체 초기화 경합을 격리한다."""
+        from concurrent.futures import ThreadPoolExecutor
+        from types import SimpleNamespace
+        import io
+        import threading
+        from tools.review.domains.image.image_generation import ImageGenerationManager
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_storage_root = Path(current_directory_name)
+            current_service_manager = ImageGenerationManager()
+            current_service_manager.job_storage_root = current_storage_root / 'jobs'
+            current_launch_entered = threading.Event()
+            current_reset_waiting = threading.Event()
+            current_release_launch = threading.Event()
+            current_worker_finished = threading.Event()
+            current_watcher_finished = threading.Event()
+            current_original_lock = current_service_manager.current_request_lock
+
+            class ObservedRequestLock:
+                def __enter__(self):
+                    if threading.current_thread().name.startswith('reset-operation'):
+                        current_reset_waiting.set()
+                    current_original_lock.acquire()
+                    return self
+
+                def __exit__(self, *current_exception_values):
+                    current_original_lock.release()
+                    if current_worker_finished.is_set():
+                        current_watcher_finished.set()
+
+            current_service_manager.current_request_lock = ObservedRequestLock()
+
+            def finish_fake_worker():
+                if not current_worker_finished.wait(5):
+                    raise TimeoutError('격리 작업자 종료 신호 누락')
+                return 0
+
+            def register_fake_generation(current_command_values, current_job_path, *current_arguments, **current_options):
+                (current_job_path / 'status.json').write_text('{"status":"queued"}')
+                current_launch_entered.set()
+                if not current_release_launch.wait(5):
+                    raise TimeoutError('격리 생성 예약 해제 지연')
+                return SimpleNamespace(poll=lambda: None, wait=finish_fake_worker)
+
+            current_request_body = json.dumps(dict(action='generate', prompt='Field.', width=512, height=512, steps=4, seed=1)).encode()
+            current_handler_value = SimpleNamespace(path='/image-generation/jobs', command='POST', headers={'Host':'127.0.0.1:8770','Origin':'http://127.0.0.1:8770','Content-Type':'application/json','Content-Length':str(len(current_request_body))}, server=SimpleNamespace(server_port=8770), rfile=io.BytesIO(current_request_body), wfile=io.BytesIO(), responses=[])
+            current_handler_value.send_response = current_handler_value.responses.append
+            current_handler_value.send_header = lambda *current_arguments: None
+            current_handler_value.end_headers = lambda: None
+            with patch.object(current_service_manager, 'validate_generation_runtime'), patch.object(current_service_manager, 'history_storage_path', return_value=current_storage_root / 'history'), patch('tools.review.domains.image.image_generation.launch_gpu_process', side_effect=register_fake_generation), ThreadPoolExecutor(max_workers=1) as current_generate_pool, ThreadPoolExecutor(max_workers=1, thread_name_prefix='reset-operation') as current_reset_pool:
+                try:
+                    current_generate_future = current_generate_pool.submit(current_service_manager.handle_image_request, current_handler_value)
+                    self.assertTrue(current_launch_entered.wait(5))
+                    current_reset_future = current_reset_pool.submit(current_service_manager.reset_generation_history)
+                    self.assertTrue(current_reset_waiting.wait(5))
+                    self.assertFalse(current_reset_future.done())
+                    current_release_launch.set()
+                    current_generate_future.result(timeout=5)
+                    self.assertEqual(current_handler_value.responses, [202])
+                    with self.assertRaisesRegex(ValueError, '생성 중'):
+                        current_reset_future.result(timeout=5)
+                    current_job_path = current_service_manager.job_storage_root / current_service_manager.current_job_identifier
+                    self.assertTrue((current_job_path / 'request.json').is_file())
+                    self.assertEqual(json.loads((current_job_path / 'status.json').read_text())['status'], 'queued')
+                    (current_job_path / 'status.json').write_text('{"status":"completed"}')
+                finally:
+                    current_release_launch.set()
+                    current_worker_finished.set()
+                self.assertTrue(current_watcher_finished.wait(5))
+
+    def test_deleted_completion_is_not_read_or_restored_by_exit_watcher(self):
+        """삭제가 먼저 완료된 순서로 실제 종료 콜백을 실행한다."""
+        from types import SimpleNamespace
+        import io
+        from tools.review.domains.image.image_generation import ImageGenerationManager
+        for current_delete_mode in ('selected', 'reset', 'missing-status'):
+            with self.subTest(mode=current_delete_mode), tempfile.TemporaryDirectory() as current_directory_name:
+                current_storage_root = Path(current_directory_name)
+                current_service_manager = ImageGenerationManager()
+                current_service_manager.job_storage_root = current_storage_root / 'jobs'
+                current_request_body = json.dumps(dict(action='generate', prompt='Field.', width=512, height=512, steps=4, seed=1)).encode()
+                current_handler_value = SimpleNamespace(path='/image-generation/jobs', command='POST', headers={'Host':'127.0.0.1:8770','Origin':'http://127.0.0.1:8770','Content-Type':'application/json','Content-Length':str(len(current_request_body))}, server=SimpleNamespace(server_port=8770), rfile=io.BytesIO(current_request_body), wfile=io.BytesIO(), responses=[])
+                current_handler_value.send_response = current_handler_value.responses.append
+                current_handler_value.send_header = lambda *current_arguments: None
+                current_handler_value.end_headers = lambda: None
+                current_worker_process = SimpleNamespace(poll=lambda: 0, wait=lambda: 0)
+                with patch.object(current_service_manager, 'validate_generation_runtime'), patch.object(current_service_manager, 'history_storage_path', return_value=current_storage_root / 'history'), patch('tools.review.domains.image.image_generation.launch_gpu_process', return_value=current_worker_process), patch('tools.review.domains.image.image_generation.threading.Thread') as current_thread_factory:
+                    current_service_manager.handle_image_request(current_handler_value)
+                    self.assertEqual(current_handler_value.responses, [202])
+                    current_exit_callback = current_thread_factory.call_args.kwargs['target']
+                    current_job_identifier = current_service_manager.current_job_identifier
+                    current_job_path = current_service_manager.job_storage_root / current_job_identifier
+                    (current_job_path / 'status.json').write_text('{"status":"completed"}')
+                    if current_delete_mode == 'missing-status':
+                        (current_job_path / 'status.json').unlink()
+                        with self.assertRaises(FileNotFoundError):
+                            current_exit_callback()
+                        continue
+                    if current_delete_mode == 'selected':
+                        current_service_manager.delete_generation_history(current_job_identifier)
+                    else:
+                        current_service_manager.reset_generation_history()
+                    current_exit_callback()
+                    self.assertFalse(current_job_path.exists())
+                    self.assertEqual(list((current_storage_root / 'history').glob('*.json')), [])
+
+    def test_terminal_status_is_protected_until_executor_finishes(self):
+        from tools.review.common import gpu_job_queue
+        for current_final_status in ('completed', 'failed', 'cancelled'):
+            with self.subTest(status=current_final_status), tempfile.TemporaryDirectory() as current_directory_name:
+                current_storage_root = Path(current_directory_name)
+                current_job_path = current_storage_root / 'job'
+                current_job_path.mkdir()
+                (current_job_path / 'status.json').write_text(json.dumps({'status':current_final_status}))
+                (current_job_path / 'result.png').write_bytes(b'keep until final metrics')
+
+                def finish_isolated_executor(current_executor_path):
+                    with self.assertRaisesRegex(ValueError, '최종 기록 저장'):
+                        delete_generation_job_files(current_storage_root, [current_executor_path])
+                    self.assertTrue((current_executor_path / 'result.png').exists())
+                    (current_executor_path / 'metrics.json').write_text('{"final":true}')
+                    return 0
+
+                with patch.object(gpu_job_queue, 'execute_locked_generation', side_effect=finish_isolated_executor):
+                    self.assertEqual(gpu_job_queue.execute_queued_generation(current_job_path), 0)
+                current_deleted_record = delete_generation_job_files(current_storage_root, [current_job_path])
+                self.assertEqual(current_deleted_record['deleted_jobs'], 1)
+                self.assertFalse(current_job_path.exists())
+
+    def test_cleanup_preview_reports_finalization_without_writing(self):
+        import fcntl
+        from tools.review.common.generation_cleanup import describe_generation_cleanup
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_storage_root = Path(current_directory_name)
+            current_job_path = current_storage_root / 'job'
+            current_job_path.mkdir()
+            (current_job_path / 'status.json').write_text('{"status":"completed"}')
+            self.assertTrue(describe_generation_cleanup(current_storage_root, [current_job_path])['can_reset'])
+            self.assertFalse((current_job_path / 'execution.lock').exists())
+            with (current_job_path / 'execution.lock').open('a') as current_execution_handle:
+                fcntl.flock(current_execution_handle, fcntl.LOCK_EX)
+                current_preview_record = describe_generation_cleanup(current_storage_root, [current_job_path])
+                self.assertFalse(current_preview_record['can_reset'])
+                self.assertEqual(current_preview_record['jobs'], [{'path':'job','status':'completed'}])
+                self.assertEqual(current_preview_record['blocked_jobs'][0]['reason'], '실행 또는 최종 기록 저장 중')
+            self.assertTrue(describe_generation_cleanup(current_storage_root, [current_job_path])['can_reset'])

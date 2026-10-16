@@ -43,14 +43,34 @@ def launch_gpu_process(command_argument_values, generation_job_path, generation_
         raise
 
 
-def resume_gpu_generation(generation_job_path):
+def resume_gpu_generation(generation_job_path, legacy_command_record=None):
     generation_job_path = Path(generation_job_path)
     with (generation_job_path/'resume.lock').open('a') as resume_lock_handle:
         fcntl.flock(resume_lock_handle, fcntl.LOCK_EX)
         generation_status_record = json.loads((generation_job_path/'status.json').read_text())
         if generation_status_record['status'] not in ('failed', 'cancelled', 'paused'):
             raise ValueError('일시정지·취소·실패 작업만 재개할 수 있습니다.')
-        generation_command_record = json.loads((generation_job_path/'gpu-command.json').read_text())
+        current_execution_path = generation_job_path / 'execution.lock'
+        if current_execution_path.is_symlink():
+            raise ValueError('작업 실행 잠금 경로가 심볼릭 링크입니다.')
+        with current_execution_path.open('a') as current_execution_handle:
+            try:
+                fcntl.flock(current_execution_handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError as current_execution_error:
+                raise ValueError('이전 실행의 최종 기록 저장 중입니다. 종료 후 다시 재개하세요.') from current_execution_error
+        # 새 실행기가 같은 잠금을 획득할 수 있도록 접수 전에 확인 잠금을 해제한다.
+        current_command_path = generation_job_path / 'gpu-command.json'
+        generation_command_record = json.loads(current_command_path.read_text()) if current_command_path.exists() else legacy_command_record
+        if generation_command_record is None:
+            raise ValueError('재개할 작업의 실행 명령 기록이 없습니다.')
+        if not isinstance(generation_command_record, dict) or set(generation_command_record) != {'command', 'service'}:
+            raise ValueError('재개 실행 명령 기록의 필드가 올바르지 않습니다.')
+        current_command_arguments = generation_command_record['command']
+        current_service_name = generation_command_record['service']
+        if not isinstance(current_command_arguments, list) or not current_command_arguments or any(not isinstance(current_argument_value, str) or '\x00' in current_argument_value for current_argument_value in current_command_arguments) or not current_command_arguments[0].strip():
+            raise ValueError('재개 실행 명령은 실행 파일을 포함한 문자열 목록이어야 합니다.')
+        if not isinstance(current_service_name, str) or not current_service_name.strip():
+            raise ValueError('재개 실행 명령의 서비스 이름이 올바르지 않습니다.')
         (generation_job_path/'cancel.request').unlink(missing_ok=True)
         (generation_job_path/'pause.request').unlink(missing_ok=True)
         (generation_job_path/'stage-pause.json').unlink(missing_ok=True)
@@ -142,6 +162,16 @@ def reload_waiting_executor(queue_ticket_path, initial_source_revision):
 
 
 def execute_queued_generation(generation_job_path):
+    """최종 관측 기록까지 삭제와 겹치지 않도록 실행 수명 잠금을 유지한다."""
+    current_execution_lock = Path(generation_job_path) / 'execution.lock'
+    if current_execution_lock.is_symlink():
+        raise ValueError('작업 실행 잠금 경로가 심볼릭 링크입니다.')
+    with current_execution_lock.open('a') as current_execution_handle:
+        fcntl.flock(current_execution_handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        return execute_locked_generation(generation_job_path)
+
+
+def execute_locked_generation(generation_job_path):
     generation_job_path = Path(generation_job_path)
     generation_command_record = json.loads((generation_job_path/'gpu-command.json').read_text())
     GPU_QUEUE_DIRECTORY.mkdir(parents=True, exist_ok=True)

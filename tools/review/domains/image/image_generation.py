@@ -227,11 +227,12 @@ class ImageGenerationManager:
                         self.validate_generation_runtime(saved_request_record)
                     if current_url_path.endswith('/resume'):
                         self.validate_generation_resume(selected_job_directory)
+                    legacy_command_record = None
                     if current_url_path.endswith('/resume') and not (selected_job_directory/'gpu-command.json').exists():
                         saved_request_record=json.loads((selected_job_directory/'request.json').read_text())
                         saved_command_values=[str(WORKFLOW_ROOT_PATH/'.venv/bin/python'),str(WORKFLOW_ROOT_PATH/self.select_generation_runner(saved_request_record)),'--job-dir',str(selected_job_directory)]
-                        (selected_job_directory/'gpu-command.json').write_text(json.dumps({'command':saved_command_values,'service':'image'}))
-                    selected_operation_result=(resume_gpu_generation if current_url_path.endswith('/resume') else cancel_gpu_generation)(selected_job_directory)
+                        legacy_command_record = {'command':saved_command_values,'service':'image'}
+                    selected_operation_result = resume_gpu_generation(selected_job_directory, legacy_command_record=legacy_command_record) if current_url_path.endswith('/resume') else cancel_gpu_generation(selected_job_directory)
                     send_response_data(200,selected_operation_result)
                     return True
                 if current_url_path == self.route_prefix_value+'/history/reset':
@@ -269,6 +270,10 @@ class ImageGenerationManager:
                     def watch_worker_exit():
                         current_exit_code = current_worker_process.wait()
                         with self.current_request_lock:
+                            # 수동 삭제가 종료 감시보다 먼저 완료되면 기록을 다시 만들지 않는다.
+                            current_history_path = self.history_storage_path() / (current_job_identifier + '.json')
+                            if not current_job_root.exists() and not current_history_path.exists():
+                                return
                             current_status_record = json.loads((current_job_root/'status.json').read_text())
                             if current_status_record['status'] in ('running','queued'):
                                 (current_job_root/'status.json').write_text(json.dumps({'status':'failed','error':f'작업자 종료 코드 {current_exit_code}. 로그를 확인하세요.'},ensure_ascii=False))

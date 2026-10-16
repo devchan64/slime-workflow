@@ -27,6 +27,10 @@ class GpuJobQueueTests(unittest.TestCase):
         self.signal_handler_patch = patch('signal.signal')
         self.signal_handler_patch.start()
         self.addCleanup(self.signal_handler_patch.stop)
+        # 작업 프로세스 대역과 메모리 조회 subprocess가 서로 간섭하지 않게 한다.
+        current_memory_query_patch = patch('tools.review.common.generation_telemetry.subprocess.check_output',return_value='')
+        current_memory_query_patch.start()
+        self.addCleanup(current_memory_query_patch.stop)
 
     def test_memory_wait_can_be_cancelled_without_launch(self):
         def cancel_waiting_job(_):
@@ -82,6 +86,69 @@ class GpuJobQueueTests(unittest.TestCase):
             self.assertEqual(queue_module.resume_gpu_generation(self.current_job_path)['status'],'queued')
             with self.assertRaises(ValueError):queue_module.resume_gpu_generation(self.current_job_path)
         self.assertEqual((self.current_job_path/'result.png').read_bytes(),b'preserved')
+
+    def test_legacy_resume_prepares_command_only_after_acceptance(self):
+        import fcntl
+        current_command_path = self.current_job_path / 'gpu-command.json'
+        current_command_path.unlink()
+        legacy_command_record = {'command': ['legacy-worker'], 'service': 'image'}
+        with patch.object(queue_module.subprocess, 'Popen') as current_launch_mock:
+            with self.assertRaises(ValueError):
+                queue_module.resume_gpu_generation(self.current_job_path, legacy_command_record)
+            self.assertFalse(current_command_path.exists())
+            (self.current_job_path / 'status.json').write_text('{"status":"failed"}')
+            (self.current_job_path / 'cancel.request').touch()
+            with (self.current_job_path / 'execution.lock').open('a') as current_execution_handle:
+                fcntl.flock(current_execution_handle, fcntl.LOCK_EX)
+                with self.assertRaisesRegex(ValueError, '최종 기록 저장'):
+                    queue_module.resume_gpu_generation(self.current_job_path, legacy_command_record)
+                self.assertFalse(current_command_path.exists())
+                self.assertTrue((self.current_job_path / 'cancel.request').exists())
+                current_launch_mock.assert_not_called()
+            self.assertEqual(queue_module.resume_gpu_generation(self.current_job_path, legacy_command_record)['status'], 'queued')
+            self.assertEqual(json.loads(current_command_path.read_text()), legacy_command_record)
+            current_launch_mock.assert_called_once()
+
+    def test_invalid_resume_command_preserves_status_and_markers(self):
+        current_invalid_records = [[], {}, {'command': ['worker']},
+            {'command': ['worker'], 'service': 'image', 'extra': True},
+            {'command': 'worker', 'service': 'image'}, {'command': [], 'service': 'image'},
+            {'command': [''], 'service': 'image'}, {'command': ['worker', 3], 'service': 'image'},
+            {'command': ['worker\x00'], 'service': 'image'}, {'command': ['worker'], 'service': None}]
+        for current_invalid_record in current_invalid_records:
+            with self.subTest(record=current_invalid_record), patch.object(queue_module, 'launch_gpu_process') as current_launch_mock:
+                (self.current_job_path / 'status.json').write_text('{"status":"paused"}')
+                for current_marker_name in ('cancel.request', 'pause.request', 'stage-pause.json'):
+                    (self.current_job_path / current_marker_name).write_text('preserve')
+                (self.current_job_path / 'gpu-command.json').write_text(json.dumps(current_invalid_record))
+                with self.assertRaisesRegex(ValueError, '재개 실행 명령'):
+                    queue_module.resume_gpu_generation(self.current_job_path)
+                current_launch_mock.assert_not_called()
+                self.assertEqual(json.loads((self.current_job_path / 'status.json').read_text()), {'status': 'paused'})
+                for current_marker_name in ('cancel.request', 'pause.request', 'stage-pause.json'):
+                    self.assertEqual((self.current_job_path / current_marker_name).read_text(), 'preserve')
+                self.assertFalse((self.current_job_path / 'worker.log').exists())
+
+    def test_resume_waits_for_previous_executor_finalization(self):
+        import fcntl
+        for current_status_name in ('failed', 'cancelled', 'paused'):
+            with self.subTest(status=current_status_name):
+                (self.current_job_path / 'status.json').write_text(json.dumps({'status':current_status_name}))
+                (self.current_job_path / 'cancel.request').touch()
+                with (self.current_job_path / 'execution.lock').open('a') as current_execution_handle, patch.object(queue_module, 'launch_gpu_process') as current_launch_mock:
+                    fcntl.flock(current_execution_handle, fcntl.LOCK_EX)
+                    with self.assertRaisesRegex(ValueError, '최종 기록 저장'):
+                        queue_module.resume_gpu_generation(self.current_job_path)
+                    current_launch_mock.assert_not_called()
+                    self.assertEqual(json.loads((self.current_job_path / 'status.json').read_text())['status'], current_status_name)
+                    self.assertTrue((self.current_job_path / 'cancel.request').exists())
+                def verify_released_execution_lock(*current_arguments, **current_options):
+                    with (self.current_job_path / 'execution.lock').open('a') as current_new_handle:
+                        fcntl.flock(current_new_handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                with patch.object(queue_module, 'launch_gpu_process', side_effect=verify_released_execution_lock) as current_launch_mock:
+                    self.assertEqual(queue_module.resume_gpu_generation(self.current_job_path)['status'], 'queued')
+                    current_launch_mock.assert_called_once()
+                self.assertFalse((self.current_job_path / 'cancel.request').exists())
 
     def test_launch_failure_is_terminal(self):
         with patch.object(queue_module.subprocess,'Popen',side_effect=OSError('spawn failed')):

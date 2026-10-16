@@ -33,6 +33,14 @@ def delete_generation_job_files(current_storage_root, current_job_targets, curre
                 raise ValueError(f'작업 잠금 경로 오류: {current_resume_path}')
             current_resume_handle = current_lock_stack.enter_context(current_resume_path.open('a'))
             fcntl.flock(current_resume_handle, fcntl.LOCK_EX)
+            current_execution_path = current_target_path / 'execution.lock'
+            if current_execution_path.is_symlink():
+                raise ValueError(f'작업 실행 잠금 경로 오류: {current_execution_path}')
+            current_execution_handle = current_lock_stack.enter_context(current_execution_path.open('a'))
+            try:
+                fcntl.flock(current_execution_handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError as current_execution_error:
+                raise ValueError(f'실행 또는 최종 기록 저장 중인 작업은 삭제할 수 없습니다: {current_target_path.name}') from current_execution_error
             current_status_path = current_target_path/'status.json'
             if current_status_path.is_symlink() or not current_status_path.is_file():
                 raise ValueError(f'작업 상태 파일 오류: {current_status_path}')
@@ -90,6 +98,14 @@ def describe_generation_cleanup(current_storage_root, current_job_targets):
         current_target_records.append(current_target_record)
         if current_status_record['status'] not in GENERATION_CLEANUP_TERMINAL_STATES:
             current_blocked_records.append(current_target_record)
+        else:
+            current_execution_path = current_target_path / 'execution.lock'
+            if current_execution_path.exists():
+                with current_execution_path.open('r') as current_execution_handle:
+                    try:
+                        fcntl.flock(current_execution_handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    except BlockingIOError:
+                        current_blocked_records.append({**current_target_record, 'reason': '실행 또는 최종 기록 저장 중'})
     return {'job_count': len(current_target_records), 'jobs': current_target_records,
             'blocked_jobs': current_blocked_records, 'can_reset': not current_blocked_records,
             'scope': GENERATION_CLEANUP_SCOPE_TEXT,
@@ -106,3 +122,8 @@ def read_cleanup_confirmation(current_request_record, current_allow_empty=False)
     if not isinstance(current_expected_jobs,list) or any(not isinstance(current_job_record,dict) or set(current_job_record)!={'path','status'} or not all(isinstance(current_job_record[current_field_name],str) for current_field_name in ('path','status')) for current_job_record in current_expected_jobs):
         raise ValueError('확인한 삭제 대상 목록 형식 오류')
     return current_expected_jobs
+
+
+def describe_cleanup_blocked_jobs(current_blocked_jobs):
+    """Python 및 브라우저 이력 UI의 삭제 차단 사유를 동일하게 표시한다."""
+    return ', '.join(current_job_record['path'] + ' (' + current_job_record.get('reason', current_job_record['status']) + ')' for current_job_record in current_blocked_jobs)
