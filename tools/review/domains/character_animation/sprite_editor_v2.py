@@ -34,10 +34,19 @@ def require_finite_number(current_number_value, minimum_number_value, maximum_nu
         raise ValueError(f'숫자는 {minimum_number_value}~{maximum_number_value} 범위여야 합니다.')
 
 
+def validate_project_directory_boundary(project_directory_path):
+    if project_directory_path.is_symlink() or project_directory_path.parent.is_symlink() or not project_directory_path.resolve().is_relative_to(SPRITE_V2_WORKSPACE_ROOT.resolve()):
+        raise ValueError('편집 작업 경로가 올바르지 않습니다. 심볼릭 링크 작업은 지원하지 않습니다.')
+
+
 def resolve_v2_project(project_identifier_value):
     if not isinstance(project_identifier_value, str) or not re.fullmatch(r'\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-[a-f0-9]{8}', project_identifier_value):
         raise ValueError('작업 ID 형식 오류')
     project_directory_path = SPRITE_V2_WORKSPACE_ROOT/project_identifier_value[:19]/project_identifier_value
+    validate_project_directory_boundary(project_directory_path)
+    for current_project_entry in project_directory_path.rglob('*'):
+        if current_project_entry.is_symlink():
+            raise ValueError('편집 작업 내부에 심볼릭 링크가 있습니다: ' + current_project_entry.relative_to(project_directory_path).as_posix())
     if not (project_directory_path/'project.json').is_file():
         raise ValueError('등록되지 않은 편집 작업입니다.')
     return project_directory_path
@@ -157,6 +166,9 @@ def execute_v2_command(operation_command_name, command_payload_value):
             require_exact_fields(command_payload_value,())
             current_project_records = []
             for latest_record_path in sorted(SPRITE_V2_WORKSPACE_ROOT.glob('*/*/latest.json'),reverse=True):
+                current_project_path = resolve_v2_project(latest_record_path.parent.name)
+                if latest_record_path.parent != current_project_path:
+                    raise ValueError("편집 작업 날짜 경로와 작업 ID가 일치하지 않습니다.")
                 current_latest_record = json.loads(latest_record_path.read_text())
                 current_project_records.append({'id':latest_record_path.parent.name,'name':current_latest_record['document']['name'],'frames':len(current_latest_record['document']['frames']),'saved_at':current_latest_record['saved_at']})
             return {'items':current_project_records}
@@ -165,6 +177,7 @@ def execute_v2_command(operation_command_name, command_payload_value):
             current_time_string = datetime.now(SPRITE_V2_TIME_ZONE).strftime('%Y-%m-%d_%H-%M-%S')
             project_identifier_value = current_time_string+'-'+uuid4().hex[:8]
             project_directory_path = SPRITE_V2_WORKSPACE_ROOT/current_time_string/project_identifier_value
+            validate_project_directory_boundary(project_directory_path)
             current_document_record = {'version':2,'name':command_payload_value['name'],'cellSize':command_payload_value['cellSize'],'fps':SPRITE_V2_DEFAULT_FPS,'reference':None,'frames':[]}
             validate_v2_document(current_document_record,project_directory_path)
             (project_directory_path/'images').mkdir(parents=True)
@@ -179,8 +192,6 @@ def execute_v2_command(operation_command_name, command_payload_value):
         if operation_command_name == 'sprite-v2-delete':
             if command_payload_value['confirm'] is not True:
                 raise ValueError('작업 삭제 확인이 필요합니다.')
-            if project_directory_path.is_symlink() or project_directory_path.parent.is_symlink() or not project_directory_path.resolve().is_relative_to(SPRITE_V2_WORKSPACE_ROOT.resolve()):
-                raise ValueError('작업 삭제 경로가 올바르지 않습니다.')
             shutil.rmtree(project_directory_path)
             return {'id':command_payload_value['id'],'deleted':True}
         if operation_command_name == 'sprite-v2-revision-delete':

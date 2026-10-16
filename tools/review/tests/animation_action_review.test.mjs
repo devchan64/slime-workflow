@@ -17,6 +17,7 @@ function createActionContext(currentActionName){
 }
 for(const currentActionName of ['idle','rest','walk']){
  const currentActionContext=createActionContext(currentActionName);
+ await new Promise(currentResolveCallback=>setTimeout(currentResolveCallback,0));
  const exportedActionRecord=JSON.parse(vm.runInContext('JSON.stringify(buildCoordinateArtifact())',currentActionContext));
  assert.equal(exportedActionRecord.source.animationId,currentActionName);
  assert.equal(exportedActionRecord.frames[0].image,currentActionName+'.png');

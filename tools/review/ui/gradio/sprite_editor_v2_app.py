@@ -103,7 +103,7 @@ def build_sprite_v2_interface():
         with gr.Accordion('이미지 등록',open=False):
             current_upload_choice=gr.Dropdown(label='입력 대상',choices=[('레퍼런스','reference'),('프레임 추가','append'),('선택 프레임 교체','replace')],value='reference')
             current_upload_choice.input(fn=None,inputs=current_upload_choice,js="(currentTargetValue)=>{if(!window.spriteV2UploadTarget)throw Error('편집기를 준비 중입니다.');window.spriteV2UploadTarget(currentTargetValue);}",queue=False)
-            gr.Markdown('작업을 먼저 생성하거나 불러오세요. PNG/JPEG/WebP · 한 장당 8MB · 최대 128프레임. 투명도를 유지하며 흰 배경은 제거하지 않습니다.')
+            gr.Markdown('PNG/JPEG/WebP · 한 장당 8MB · 최대 128프레임. 투명도를 유지하며 흰 배경은 제거하지 않습니다.')
             with gr.Row():
                 current_file_upload_button=build_browser_action_button('파일 불러오기','spriteV2UploadControls','upload',current_feedback_text,current_button_enabled=False)
                 current_clipboard_upload_button=build_browser_action_button('클립보드 붙여넣기','spriteV2UploadControls','paste',current_feedback_text,current_button_enabled=False)

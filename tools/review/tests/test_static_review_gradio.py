@@ -10,20 +10,194 @@ from tools.review.ui.gradio.static_review_app import build_static_review_interfa
 
 
 class StaticReviewGradioTest(unittest.TestCase):
+    def test_anchor_edit_commands_wait_for_runtime(self):
+        current_interface_blocks=build_static_review_interface({'audit':'/fixture/anchors.html'})
+        current_expected_labels={'X 적용','Y 적용','↑ 위로','← 왼쪽','현재 값 읽기','오른쪽 →','↓ 아래로','실행 취소','다시 실행','이전 프레임 앵커 가져오기','현재 프레임 원본 복원','좌표 변경 상태 읽기','정규화 JSON 다운로드','좌표 저장','동작 목록 읽기','선택 목록 읽기','표시 설정 읽기','표시 설정 적용','출력 설정 읽기','출력 설정 적용'}
+        current_matched_controls=[]
+        for current_component in current_interface_blocks.blocks.values():
+            current_component_value=getattr(current_component,'value',None)
+            if isinstance(current_component_value,str) and current_component_value in current_expected_labels:
+                current_matched_controls.append(current_component)
+        self.assertEqual(len(current_matched_controls),len(current_expected_labels))
+        self.assertTrue(all(current_component.interactive is False for current_component in current_matched_controls))
+        current_timer_records=[current_record for current_record in current_interface_blocks.get_config_file()['dependencies'] if 'currentReadyState' in (current_record.get('js') or '')]
+        self.assertEqual(len(current_timer_records),1)
+        self.assertTrue({current_component._id for current_component in current_matched_controls}.issubset(current_timer_records[0]['outputs']))
+
+    def test_anchor_navigation_readiness_recovers_after_failure(self):
+        from tools.review.ui.gradio.static_review_app import create_anchor_navigation_status_script
+        current_script_source="""const assert=require('node:assert/strict');global.window={};
+const currentReadStatus="""+create_anchor_navigation_status_script(6)+""";
+let currentStatusValues=currentReadStatus();
+assert.equal(currentStatusValues.length,7);
+assert.ok(currentStatusValues.slice(1).every(currentValue=>currentValue.interactive===false));
+window.anchorReviewPlayback=()=>{throw Error('손상 초안');};
+currentStatusValues=currentReadStatus();
+assert.match(currentStatusValues[0],/손상 초안/);
+assert.ok(currentStatusValues.slice(1).every(currentValue=>currentValue.interactive===false));
+window.anchorReviewPlayback=()=> '프레임 1 / 8';
+currentStatusValues=currentReadStatus();
+assert.equal(currentStatusValues[0],'프레임 1 / 8');
+assert.ok(currentStatusValues.slice(1).every(currentValue=>currentValue.interactive===true));
+"""
+        current_script_source+="\nconst currentReadSelection="+create_anchor_navigation_status_script(6,True)+""";
+assert.equal(currentReadSelection(null,null,null).slice(-2).every(currentValue=>!currentValue.interactive),true);
+assert.equal(currentReadSelection('walk','down_left','anchor').slice(-2).every(currentValue=>currentValue.interactive),true);
+window.anchorReviewPlayback=()=>{throw Error('실패');};
+assert.equal(currentReadSelection('walk','down_left','anchor').slice(-2).every(currentValue=>!currentValue.interactive),true);
+"""
+        current_command_result=subprocess.run(['node','-e',current_script_source],capture_output=True,text=True)
+        self.assertEqual(current_command_result.returncode,0,current_command_result.stderr)
+
+    def test_anchor_disposal_cancels_pending_restore_once(self):
+        current_loader_source = Path('tools/review/ui/shared/animation-anchor-editor/native-loader.js').read_text()
+        current_disposal_source = current_loader_source.split('const disposeAnchorRuntime=()=>{', 1)[1].split('\n };', 1)[0]
+        current_node_script = """
+const assert=require('node:assert/strict');
+let currentRuntimeDisposed=false,currentAbortCount=0,currentResolveCount=0,currentDisconnectCount=0;
+const currentLifecycleController={abort(){currentAbortCount++;}};
+const currentScheduledFrames=new Set([11]);const currentCancelledFrames=[];
+const cancelAnimationFrame=currentFrameHandle=>currentCancelledFrames.push(currentFrameHandle);
+const currentRemovalObserver={disconnect(){currentDisconnectCount++;}};
+const currentAnchorHandlerNames=['anchorRestoreConfirmationState','resolveAnchorRestoreConfirmation'];
+let currentPendingRecord={id:'pending-one'};
+const currentRuntimeWindow={anchorRestoreConfirmationState:()=>currentPendingRecord,resolveAnchorRestoreConfirmation(currentIdentifierValue,currentAcceptedValue){assert.equal(currentIdentifierValue,'pending-one');assert.equal(currentAcceptedValue,false);currentResolveCount++;currentPendingRecord=null;}};
+const window={...currentRuntimeWindow};
+const disposeAnchorRuntime=()=>{DISPOSAL};
+disposeAnchorRuntime();disposeAnchorRuntime();
+assert.equal(currentResolveCount,1);assert.equal(currentAbortCount,1);assert.equal(currentDisconnectCount,1);
+assert.deepEqual(currentCancelledFrames,[11]);assert.equal(currentScheduledFrames.size,0);
+assert.deepEqual(window,{});assert.equal(currentPendingRecord,null);
+""".replace('DISPOSAL', current_disposal_source)
+        subprocess.run(['node', '-e', current_node_script], check=True, capture_output=True, text=True)
+
+    def test_anchor_restore_confirmation_preserves_changed_edits(self):
+        current_editor_source = Path('tools/review/ui/shared/animation-anchor-editor/editor.js').read_text()
+        current_restore_source = current_editor_source.split('let pendingAnchorRestoreConfirmation=null;', 1)[1].split('async function refreshAnchorHistoryList()', 1)[0]
+        current_node_script = """
+const assert=require('node:assert/strict');
+global.window={};global.document={body:{dataset:{coordinateDownloadPending:'true'}},querySelector:()=>currentStatusRecord};
+const currentStatusRecord={textContent:''};const currentEmbeddedReviewMode=true;
+const anchorHistoryViewState={selected:null};let currentRequestCount=0;let currentEditVersion=1;
+const buildCoordinateArtifact=()=>({version:currentEditVersion});
+const requestAnchorHistoryCommand=async()=>{currentRequestCount++;throw Error('격리 읽기 실패');};
+let pendingAnchorRestoreConfirmation=null;
+""" + current_restore_source + """
+(async()=>{
+ let currentRestorePromise=restoreAnchorHistoryRecord({id:'first'});
+ window.resolveAnchorRestoreConfirmation(window.anchorRestoreConfirmationState().id,false);
+ await currentRestorePromise;assert.equal(currentRequestCount,0);assert.match(currentStatusRecord.textContent,/취소/);
+ currentRestorePromise=restoreAnchorHistoryRecord({id:'first'});
+ currentEditVersion++;
+ window.resolveAnchorRestoreConfirmation(window.anchorRestoreConfirmationState().id,true);
+ await currentRestorePromise;assert.equal(currentRequestCount,0);assert.match(currentStatusRecord.textContent,/편집 내용이 변경/);
+ currentRestorePromise=restoreAnchorHistoryRecord({id:'first'});
+ anchorHistoryViewState.selected='second';
+ window.resolveAnchorRestoreConfirmation(window.anchorRestoreConfirmationState().id,true);
+ await currentRestorePromise;assert.equal(currentRequestCount,0);assert.match(currentStatusRecord.textContent,/대상이 변경/);
+ currentRestorePromise=restoreAnchorHistoryRecord({id:'first'});
+ window.resolveAnchorRestoreConfirmation(window.anchorRestoreConfirmationState().id,true);
+ await currentRestorePromise;assert.equal(currentRequestCount,1);assert.match(currentStatusRecord.textContent,/격리 읽기 실패/);
+ assert.equal(currentEditVersion,2);assert.equal(window.anchorRestoreConfirmationState(),null);
+})().catch(currentErrorValue=>{console.error(currentErrorValue);process.exitCode=1;});
+"""
+        current_node_result = subprocess.run(['node', '-e', current_node_script], capture_output=True, text=True)
+        self.assertEqual(current_node_result.returncode, 0, current_node_result.stderr)
+
+    def test_anchor_restore_success_and_inflight_edit_protection(self):
+        current_editor_source = Path('tools/review/ui/shared/animation-anchor-editor/editor.js').read_text()
+        current_restore_source = current_editor_source.split('let pendingAnchorRestoreConfirmation=null;', 1)[1].split('async function refreshAnchorHistoryList()', 1)[0]
+        current_node_script = """
+const assert=require('node:assert/strict');
+global.window={};global.document={body:{dataset:{coordinateDownloadPending:'true'}},querySelector:()=>currentStatusRecord};
+const currentStatusRecord={textContent:''};const currentEmbeddedReviewMode=true;
+const anchorHistoryViewState={selected:null};
+const reviewFrameRecords=[{frameId:'one',direction:'down_left',image:'sheet',rect:{x:0,y:0,width:100,height:100},anchor:{x:10,y:20},contacts:[]}];
+const usesAnchorOnlyMode=true,usesFootCentersOnly=false;let currentChangeCount=0,currentPauseCount=0,currentRequestCount=0;
+const buildCoordinateArtifact=()=>structuredClone({source:{id:'sample'},coordinateMode:'anchor',frames:reviewFrameRecords});
+const copyFrameCoordinates=currentFrameRecord=>structuredClone(currentFrameRecord);
+const recordCoordinateChange=()=>{currentChangeCount++;};const pauseFramePlayback=()=>{currentPauseCount++;};
+const currentSavedDocument=buildCoordinateArtifact();currentSavedDocument.frames[0].anchor={x:30,y:40};
+let currentDuringLoadCallback=()=>{};
+const requestAnchorHistoryCommand=async()=>{currentRequestCount++;currentDuringLoadCallback();return {document:structuredClone(currentSavedDocument)};};
+let pendingAnchorRestoreConfirmation=null;
+""" + current_restore_source + """
+(async()=>{
+ let currentRestorePromise=restoreAnchorHistoryRecord({id:'accepted'});
+ assert.equal(currentRequestCount,0);
+ window.resolveAnchorRestoreConfirmation(window.anchorRestoreConfirmationState().id,true);
+ await currentRestorePromise;
+ assert.deepEqual(reviewFrameRecords[0].anchor,{x:30,y:40});
+ assert.deepEqual(reviewFrameRecords[0].contacts,[{x:30,y:40},{x:30,y:40}]);
+ assert.equal(currentChangeCount,1);assert.equal(currentPauseCount,1);
+ assert.equal(currentStatusRecord.textContent,'불러옴 · accepted');
+ document.body.dataset.coordinateDownloadPending='false';
+ await restoreAnchorHistoryRecord({id:'clean'});
+ assert.equal(window.anchorRestoreConfirmationState(),null);assert.equal(currentRequestCount,2);
+ currentDuringLoadCallback=()=>{reviewFrameRecords[0].anchor.x=77;};
+ await restoreAnchorHistoryRecord({id:'inflight'});
+ assert.equal(reviewFrameRecords[0].anchor.x,77);assert.equal(currentChangeCount,2);
+ assert.match(currentStatusRecord.textContent,/불러오는 동안 편집 내용이 변경/);
+})().catch(currentErrorValue=>{console.error(currentErrorValue);process.exitCode=1;});
+"""
+        current_node_result = subprocess.run(['node', '-e', current_node_script], capture_output=True, text=True)
+        self.assertEqual(current_node_result.returncode, 0, current_node_result.stderr)
+
+    def test_browser_choices_skip_stale_server_choice_validation(self):
+        from tools.review.ui.gradio.sprite_editor_v2_app import build_sprite_v2_interface
+        from tools.review.ui.gradio.anny_attributes_app import build_anny_attribute_interface
+        current_interface_records = (
+            ('static', build_static_review_interface({'test': '/test/anchors.html'})),
+            ('sprite', build_sprite_v2_interface()),
+            ('anny', build_anny_attribute_interface(8770)),
+        )
+        for current_page_name, current_interface_blocks in current_interface_records:
+            current_browser_identifiers = {
+                current_component._id
+                for current_event_record in current_interface_blocks.fns.values()
+                if current_event_record.fn is None and current_event_record.js
+                for current_component in current_event_record.outputs
+                if type(current_component).__name__ == 'Dropdown' and not current_component.choices
+            }
+            current_backend_events = [
+                current_event_record for current_event_record in current_interface_blocks.fns.values()
+                if current_event_record.fn and any(current_component._id in current_browser_identifiers for current_component in current_event_record.inputs)
+            ]
+            if current_page_name!='static':self.assertTrue(current_backend_events, current_page_name)
+            for current_event_record in current_backend_events:
+                with self.subTest(page=current_page_name, callback=current_event_record.name):
+                    self.assertFalse(current_event_record.preprocess)
+
+    def test_read_selection_updates_apply_button_without_change_event(self):
+        current_interface_blocks = build_static_review_interface({'walk-review': 'animation/anchors.html'})
+        current_config_record = current_interface_blocks.get_config_file()
+        current_read_script = next(current_event['js'] for current_event in current_config_record['dependencies'] if 'currentSelectionValues=window.anchorReviewSelection' in (current_event.get('js') or ''))
+        current_node_script = "const assert=require('node:assert/strict');global.window={};const readSelection=(" + current_read_script + ");" + """
+window.anchorReviewSelection=()=>[{value:'down_left'},{value:'anchor'},'선택 완료'];
+assert.equal(readSelection()[3].interactive,true);
+window.anchorReviewSelection=()=>[{value:'down_left'},{value:''},'좌표 없음'];
+assert.equal(readSelection()[3].interactive,false);
+window.anchorReviewSelection=()=>{throw Error('원본 준비 실패');};
+const failedValues=readSelection();
+assert.equal(failedValues[3].interactive,false);
+assert.equal(failedValues[2],'원본 준비 실패');
+assert.deepEqual(failedValues[0],{__type__:'update'});
+"""
+        current_node_result = subprocess.run(['node', '-e', current_node_script], capture_output=True, text=True)
+        self.assertEqual(current_node_result.returncode, 0, current_node_result.stderr)
+
     def test_empty_review_selection_disables_apply(self):
         current_interface_blocks=build_static_review_interface({'walk-review':'animation/anchors.html'})
         current_config_record=current_interface_blocks.get_config_file()
         for current_button_label in ('선택 동작 불러오기','방향·좌표 선택 적용'):
             current_button_record=next(current_component for current_component in current_config_record['components'] if current_component['type']=='button' and current_component['props']['value']==current_button_label)
             self.assertFalse(current_button_record['props']['interactive'])
-        current_selection_callback=next(current_event.fn for current_event in current_interface_blocks.fns.values() if current_event.fn and len(current_event.outputs)==1 and getattr(current_event.outputs[0],'value',None)=='방향·좌표 선택 적용')
-        for current_direction_name,current_point_name,current_expected_value in ((None,None,False),('down_left',None,False),(None,'anchor',False),('down_left','anchor',True)):
-            self.assertEqual(current_selection_callback(current_direction_name,current_point_name)['interactive'],current_expected_value)
-        current_scripts=[current_event['js'] for current_event in current_config_record['dependencies'] if 'interactive:' in (current_event.get('js') or '') and ('currentActionIdentifier.length' in current_event['js'] or 'currentDirectionName.length' in current_event['js'])]
-        self.assertEqual(len(current_scripts),1)
-        current_node_script="const assert=require('node:assert/strict');const scripts="+json.dumps(current_scripts)+";for(const source of scripts){const callback=eval('('+source+')');assert.equal(callback(null,null).interactive,false);assert.equal(callback('', '').interactive,false);assert.equal(callback('walk','anchor').interactive,true);}"
+        current_scripts=[current_event.js for current_event in current_interface_blocks.fns.values() if current_event.js and len(current_event.outputs)==1 and getattr(current_event.outputs[0],'value',None) in ('선택 동작 불러오기','방향·좌표 선택 적용')]
+        self.assertEqual(len(current_scripts),2)
+        current_node_script="const assert=require('node:assert/strict');global.window={anchorReviewPlayback:()=> 'ready'};const scripts="+json.dumps(current_scripts)+""";for(const source of scripts){const callback=eval('('+source+')');assert.equal(callback(null,null).interactive,false);assert.equal(callback('', '').interactive,false);assert.equal(callback('walk','anchor').interactive,true);window.anchorReviewPlayback=()=>{throw Error('로드 실패');};assert.equal(callback('walk','anchor').interactive,false);window.anchorReviewPlayback=()=> 'ready';}"""
         current_node_result=subprocess.run(['node','-e',current_node_script],capture_output=True,text=True)
         self.assertEqual(current_node_result.returncode,0,current_node_result.stderr)
+
 
 
     def test_invalid_static_manifest_fails_before_mapping(self):
@@ -58,8 +232,8 @@ class StaticReviewGradioTest(unittest.TestCase):
             collect_anchor_review_paths(current_static_paths,['outside/preview.html'])
         current_interface_blocks=build_static_review_interface(current_static_paths,current_anchor_paths)
         current_visibility_scripts=[current_event_record['js'] for current_event_record in current_interface_blocks.get_config_file()['dependencies'] if 'visible:' in (current_event_record.get('js') or '') and 'currentReviewId=' in current_event_record['js']]
-        current_script_source="const assert=require('node:assert/strict');global.location={search:'?review=standing-anchors'};\n"+'\n'.join('assert.equal(('+current_script_value+')().visible,true);' for current_script_value in current_visibility_scripts)
-        self.assertEqual(len(current_visibility_scripts),3)
+        current_script_source="const assert=require('node:assert/strict');global.location={search:'?review=standing-anchors'};\n"+'\n'.join('assert.deepEqual(('+current_script_value+')().map(value=>value.visible),[true,true,true,true]);' for current_script_value in current_visibility_scripts)
+        self.assertEqual(len(current_visibility_scripts),1)
         current_node_result=subprocess.run(['node','-e',current_script_source],capture_output=True,text=True)
         self.assertEqual(current_node_result.returncode,0,current_node_result.stderr)
 
@@ -80,7 +254,7 @@ class StaticReviewGradioTest(unittest.TestCase):
         current_interface_blocks=build_static_review_interface({'walk-review':'animation/anchors.html'})
         current_visibility_scripts=[current_event_record['js'] for current_event_record in current_interface_blocks.get_config_file()['dependencies'] if 'const currentReviewPaths=' in (current_event_record.get('js') or '')]
         for current_visibility_script in current_visibility_scripts:
-            current_visibility_result=subprocess.run(['node','-e',"global.location={search:'?review=toString'};const assert=require('node:assert/strict');assert.equal(("+current_visibility_script+")().visible,false);"],capture_output=True,text=True)
+            current_visibility_result=subprocess.run(['node','-e',"global.location={search:'?review=toString'};const assert=require('node:assert/strict');const currentUpdates=("+current_visibility_script+")();for(const currentUpdate of (Array.isArray(currentUpdates)?currentUpdates:[currentUpdates]))assert.equal(currentUpdate.visible,false);"],capture_output=True,text=True)
             self.assertEqual(current_visibility_result.returncode,0,current_visibility_result.stderr)
         current_script_text="""
 const assert=require('node:assert/strict');
@@ -264,6 +438,7 @@ const assert=require('node:assert/strict');
 global.window={};global.document={querySelector:()=>({textContent:''})};
 const frameChoiceElement={value:'0'},REVIEW_FRAME_COUNT=8,REVIEW_FRAME_DURATION=125;
 let animationPlaybackActive=false,animationStartedTime=0;
+const currentImageLoadFailure=null,currentImageLoadComplete=true;
 function pauseFramePlayback(){animationPlaybackActive=false;}
 function moveFrameSelection(delta){pauseFramePlayback();frameChoiceElement.value=String((Number(frameChoiceElement.value)+delta+REVIEW_FRAME_COUNT)%REVIEW_FRAME_COUNT);}
 """+current_bridge_source+"""

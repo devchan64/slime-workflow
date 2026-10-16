@@ -6,6 +6,7 @@ const initialReviewMetadata=currentReviewPayload.sourceMetadata;
 const availableActionReviews=initialReviewMetadata.actionReviews||[];
 const requestedActionIdentifier=new URLSearchParams(window.location?.search).get('action')||initialReviewMetadata.defaultActionId;
 const selectedActionReview=availableActionReviews.find(currentActionRecord=>currentActionRecord.id===requestedActionIdentifier);
+if(requestedActionIdentifier&&!selectedActionReview)throw Error('등록되지 않은 앵커 동작입니다. 주소의 action 값을 제거한 뒤 동작 목록에서 다시 선택하세요.');
 const reviewFrameRecords=selectedActionReview?structuredClone(selectedActionReview.frames):structuredClone(currentReviewPayload.frames);
 const reviewSourceMetadata=selectedActionReview?.source||initialReviewMetadata;
 const resolveReviewAssetUrl=assetPathValue=>{const currentAssetAddress=selectedActionReview?.frames.find(currentFrameRecord=>currentFrameRecord.image===assetPathValue)?.url||assetPathValue;return window.resolveStaticReviewAssetUrl?.(currentAssetAddress)||currentAssetAddress;};
@@ -70,6 +71,7 @@ function drawPreviewGroundPlane(){
  if(document.querySelector('#shadowPreviewToggle').checked){const shadowScaleRatio=reviewSourceMetadata.runtimeScale?.actorKind==='monster'?0.54:PREVIEW_SHADOW_SCALE_RATIO;reviewCanvasContext.fillStyle=PREVIEW_SHADOW_FILL_COLOR;reviewCanvasContext.beginPath();reviewCanvasContext.ellipse(groundCenterPositionX,groundCenterPositionY,previewTileWidthValue*currentSizePreset.tiles*shadowScaleRatio/2,previewTileHeightValue*currentSizePreset.tiles*shadowScaleRatio/2,0,0,Math.PI*2);reviewCanvasContext.fill();}
  reviewCanvasContext.restore();
 }
+let currentImageLoadComplete=false,currentImageLoadFailure=null;
 const reviewImageElements={},reviewRigImageElements={};let animationPlaybackActive=false,animationStartedTime=0,currentSpriteOffsetX=0,currentSpriteOffsetY=0,currentSpriteScale=1;
 const initialCoordinateRecords=reviewFrameRecords.map(copyFrameCoordinates);
 const coordinateUndoHistory=[],coordinateRedoHistory=[];
@@ -93,7 +95,13 @@ function recordCoordinateChange(currentFrameRecord,previousCoordinateRecord){
  refreshCoordinateStatus();
 }
 function restoreFrameCoordinates(currentFrameRecord,nextCoordinateRecord){Object.assign(currentFrameRecord,copyFrameCoordinates(nextCoordinateRecord));}
+function verifyAnchorImageReadiness(){
+ if(currentImageLoadComplete&&!currentImageLoadFailure)return true;
+ document.querySelector('#reviewError').textContent=currentImageLoadFailure||'앵커 이미지를 불러오는 중입니다.';
+ return false;
+}
 function replayCoordinateChange(undoRequestedValue){
+ if(!verifyAnchorImageReadiness())return;
  const sourceHistoryRecords=undoRequestedValue?coordinateUndoHistory:coordinateRedoHistory;
  const targetHistoryRecords=undoRequestedValue?coordinateRedoHistory:coordinateUndoHistory;
  const selectedHistoryRecord=sourceHistoryRecords.pop();
@@ -119,6 +127,7 @@ document.querySelector('#applyCoordinateInputs').onclick=()=>{
  coordinateInputIdentity='';
 };
 function copyPreviousFrameAnchor(){
+ if(!verifyAnchorImageReadiness())return;
  pauseFramePlayback();
  const currentFrameRecord=selectCurrentFrame();
  const previousFrameRecord=reviewFrameRecords.find(frameRecordValue=>frameRecordValue.frameId===`${directionChoiceElement.value}.${Number(frameChoiceElement.value)-1}`);
@@ -134,6 +143,7 @@ function copyPreviousFrameAnchor(){
 }
 document.querySelector('#copyPreviousAnchor').onclick=copyPreviousFrameAnchor;
 function restoreOriginalFrameCoordinates(){
+ if(!verifyAnchorImageReadiness())return;
  pauseFramePlayback();
  const currentFrameRecord=selectCurrentFrame(),previousCoordinateRecord=copyFrameCoordinates(currentFrameRecord);
  restoreFrameCoordinates(currentFrameRecord,initialCoordinateRecords[reviewFrameRecords.indexOf(currentFrameRecord)]);
@@ -148,12 +158,43 @@ document.addEventListener('keydown',currentKeyboardEvent=>{
 document.addEventListener('review-pane-hidden',pauseFramePlayback);
 window.addEventListener('beforeunload',currentUnloadEvent=>{if(document.body.dataset.coordinateDownloadPending==='true'){currentUnloadEvent.preventDefault();currentUnloadEvent.returnValue='';}});
 const storedActionDraft=sessionStorage.getItem(actionDraftStorageKey);
+function validateDraftCoordinates(currentCoordinateRecords){
+ if(!Array.isArray(currentCoordinateRecords)||currentCoordinateRecords.length!==reviewFrameRecords.length)throw Error('앵커 초안의 프레임 수가 원본과 다릅니다.');
+ currentCoordinateRecords.forEach((currentCoordinateRecord,currentFrameIndex)=>{
+  const currentFrameRecord=reviewFrameRecords[currentFrameIndex];
+  if(!currentCoordinateRecord||!Array.isArray(currentCoordinateRecord.contacts)||!Array.isArray(currentCoordinateRecord.endpoints)||currentCoordinateRecord.contacts.length!==currentFrameRecord.contacts.length||currentCoordinateRecord.endpoints.length!==currentFrameRecord.endpoints.length)throw Error('앵커 초안의 좌표 구성이 원본과 다릅니다.');
+  for(const currentPointRecord of [currentCoordinateRecord.anchor,...currentCoordinateRecord.contacts,...currentCoordinateRecord.endpoints]){
+   if(!currentPointRecord||!Number.isFinite(currentPointRecord.x)||!Number.isFinite(currentPointRecord.y))throw Error('앵커 초안에 유효하지 않은 좌표가 있습니다.');
+  }
+ });
+}
+function parseStoredDraftJson(currentDraftText){
+ try{return JSON.parse(currentDraftText);}
+ catch(currentParseError){throw Error('앵커 초안의 JSON 형식이 손상되었습니다. 기존 초안은 보존되며 복원을 중단합니다.');}
+}
+try{
 if(storedActionDraft){
- const restoredActionDraft=JSON.parse(storedActionDraft);
- if(JSON.stringify(restoredActionDraft.source)===JSON.stringify(reviewSourceMetadata.sheets)&&restoredActionDraft.frames.length===reviewFrameRecords.length){
+ const restoredActionDraft=parseStoredDraftJson(storedActionDraft);
+ if(!restoredActionDraft||typeof restoredActionDraft!=='object'||Array.isArray(restoredActionDraft))throw Error('앵커 초안은 객체여야 합니다.');
+ if(JSON.stringify(restoredActionDraft.source)!==JSON.stringify(reviewSourceMetadata.sheets))throw Error('앵커 초안의 원본 시트가 현재 원본과 다릅니다. 복원을 중단합니다.');
+ validateDraftCoordinates(restoredActionDraft.frames);
+ if(typeof restoredActionDraft.saved!=='string')throw Error('앵커 초안의 저장 기준이 유효하지 않습니다.');
+ validateDraftCoordinates(parseStoredDraftJson(restoredActionDraft.saved));
  restoredActionDraft.frames.forEach((currentCoordinateRecord,currentFrameIndex)=>restoreFrameCoordinates(reviewFrameRecords[currentFrameIndex],currentCoordinateRecord));
  savedCoordinateSnapshotValue=restoredActionDraft.saved;
- }
+}
+}catch(currentDraftError){
+ window.anchorRecoverStoredDraft=currentConfirmedValue=>{
+  if(currentConfirmedValue!==true)throw Error('초안 보관 후 원본 열기를 확인하세요.');
+  if(sessionStorage.getItem(actionDraftStorageKey)!==storedActionDraft)throw Error('초안이 변경되었습니다. 새로고침 후 다시 확인하세요.');
+  const currentBackupKey=actionDraftStorageKey+':backup:'+Date.now();
+  if(sessionStorage.getItem(currentBackupKey)!==null)throw Error('초안 보관 키가 중복됩니다. 다시 시도하세요.');
+  sessionStorage.setItem(currentBackupKey,storedActionDraft);
+  sessionStorage.removeItem(actionDraftStorageKey);
+  window.location.replace(window.location.href);
+  return '초안을 이 브라우저 세션에 보관했습니다: '+currentBackupKey;
+ };
+ throw currentDraftError;
 }
 for(const currentDirectionOption of [...directionChoiceElement.options])if(!reviewFrameRecords.some(currentFrameRecord=>currentFrameRecord.direction===currentDirectionOption.value))currentDirectionOption.remove();
 refreshCoordinateStatus();
@@ -168,6 +209,7 @@ function updateFrameCoordinates(currentFrameValue){if(usesAnchorOnlyMode){curren
 function pauseFramePlayback(){animationPlaybackActive=false;document.querySelector('#playToggle').textContent='재생'}
 function moveFrameSelection(frameStepAmount){pauseFramePlayback();frameChoiceElement.value=String((Number(frameChoiceElement.value)+frameStepAmount+REVIEW_FRAME_COUNT)%REVIEW_FRAME_COUNT)}
 function moveSelectedPoint(pointDeltaX,pointDeltaY){
+ if(!verifyAnchorImageReadiness())return;
  pauseFramePlayback();if(pointDeltaX===0&&pointDeltaY===0)return;const currentFrameValue=selectCurrentFrame(),previousCoordinateRecord=copyFrameCoordinates(currentFrameValue),editablePointValues=usesFootCentersOnly?currentFrameValue.contacts:currentFrameValue.endpoints;
  const affectedPointValues=pointChoiceElement.value==='anchor'?editablePointValues:[editablePointValues[Number(pointChoiceElement.value)]];
  if(affectedPointValues.some(currentPointValue=>currentPointValue.x+pointDeltaX<0||currentPointValue.y+pointDeltaY<0||currentPointValue.x+pointDeltaX>=currentFrameValue.rect.width||currentPointValue.y+pointDeltaY>=currentFrameValue.rect.height)){document.querySelector('#reviewError').textContent='좌표가 셀을 벗어나 이동하지 않았습니다.';return}
@@ -291,6 +333,8 @@ window.anchorReviewCoordinates=(currentActionName,currentInputValues)=>{
 };
 // 공용 Gradio 탐색기와 독립 검수 화면이 같은 브라우저 재생 상태를 사용한다.
 window.anchorReviewPlayback=currentActionName=>{
+ if(currentImageLoadFailure)throw Error(currentImageLoadFailure);
+ if(!currentImageLoadComplete)throw Error('앵커 이미지를 불러오는 중입니다.');
  if(currentActionName==='prev')moveFrameSelection(-1);
  else if(currentActionName==='next')moveFrameSelection(1);
  else if(currentActionName==='stop')pauseFramePlayback();
@@ -326,13 +370,13 @@ frameChoiceElement.oninput=pauseFramePlayback;
 directionChoiceElement.onchange=pauseFramePlayback;
 document.querySelector('#playToggle').onclick=()=>{animationPlaybackActive=!animationPlaybackActive;animationStartedTime=performance.now()-Number(frameChoiceElement.value)*REVIEW_FRAME_DURATION;document.querySelector('#playToggle').textContent=animationPlaybackActive?'일시정지':'재생'};
 document.querySelectorAll('[data-move-x]').forEach(currentButtonElement=>currentButtonElement.onclick=()=>moveSelectedPoint(Number(currentButtonElement.dataset.moveX),Number(currentButtonElement.dataset.moveY)));
-reviewCanvasElement.onclick=(pointerClickEvent)=>{if(animationPlaybackActive)return;const currentFrameValue=selectCurrentFrame(),canvasClientBounds=reviewCanvasElement.getBoundingClientRect();const clickedPointPosition={x:Math.round(((pointerClickEvent.clientX-canvasClientBounds.left)*REVIEW_CANVAS_WIDTH/canvasClientBounds.width-currentSpriteOffsetX)/currentSpriteScale),y:Math.round(((pointerClickEvent.clientY-canvasClientBounds.top)*REVIEW_CANVAS_HEIGHT/canvasClientBounds.height-currentSpriteOffsetY)/currentSpriteScale)};const selectedPointValue=pointChoiceElement.value==='anchor'?currentFrameValue.anchor:(usesFootCentersOnly?currentFrameValue.contacts:currentFrameValue.endpoints)[Number(pointChoiceElement.value)];moveSelectedPoint(clickedPointPosition.x-selectedPointValue.x,clickedPointPosition.y-selectedPointValue.y)};
+reviewCanvasElement.onclick=(pointerClickEvent)=>{if(!verifyAnchorImageReadiness()||animationPlaybackActive)return;const currentFrameValue=selectCurrentFrame(),canvasClientBounds=reviewCanvasElement.getBoundingClientRect();const clickedPointPosition={x:Math.round(((pointerClickEvent.clientX-canvasClientBounds.left)*REVIEW_CANVAS_WIDTH/canvasClientBounds.width-currentSpriteOffsetX)/currentSpriteScale),y:Math.round(((pointerClickEvent.clientY-canvasClientBounds.top)*REVIEW_CANVAS_HEIGHT/canvasClientBounds.height-currentSpriteOffsetY)/currentSpriteScale)};const selectedPointValue=pointChoiceElement.value==='anchor'?currentFrameValue.anchor:(usesFootCentersOnly?currentFrameValue.contacts:currentFrameValue.endpoints)[Number(pointChoiceElement.value)];moveSelectedPoint(clickedPointPosition.x-selectedPointValue.x,clickedPointPosition.y-selectedPointValue.y)};
 function buildCoordinateArtifact(){return {schemaVersion:1,artifactType:reviewSourceMetadata.artifactType||'character-standing-anchor-review',description:reviewSourceMetadata.description||'스탠딩 정수 앵커 검수 좌표. 셀 왼쪽 위 원점, x 오른쪽·y 아래. points는 화면 왼쪽 발부터 두 발 중심 또는 각 발 앞뒤 네 점이며 anchor는 발 중심 평균을 반올림한다.',coordinateMode:reviewSourceMetadata.coordinateMode,source:{animationId:reviewAnimationIdentity,animationVersion:reviewAnimationVersion,sheets:reviewSourceMetadata.sheets},frames:reviewFrameRecords.map(currentFrameValue=>({frameId:currentFrameValue.frameId,direction:currentFrameValue.direction,image:currentFrameValue.image,rect:currentFrameValue.rect,points:usesAnchorOnlyMode?[currentFrameValue.anchor]:usesFootCentersOnly?currentFrameValue.contacts:currentFrameValue.endpoints,anchor:currentFrameValue.anchor}))}}
 function buildNormalizationArtifact(){return {schemaVersion:1,artifactType:'animation-scale-normalization-review',source:{animationId:reviewAnimationIdentity,animationVersion:reviewAnimationVersion,sheets:reviewSourceMetadata.sheets},gameRenderMetrics,mapKind:document.querySelector('#mapScaleChoice').value,normalization:{unit:'px',tileWidth:GAME_OUTPUT_TILE_WIDTH,tileHeight:GAME_OUTPUT_TILE_HEIGHT,gameBodyHeight:Number(bodyHeightInputElement.value),sizeClass:actorSizeChoiceElement.value,sourceHeight:reviewSourceMetadata.runtimeScale?.sourceHeight||null,sourceHeightMultiplier:reviewSourceMetadata.runtimeScale?.sourceHeightMultiplier||null}}}
 function downloadNormalizationArtifact(){if(!updatePreviewGroundSize())return;const downloadAnchorElement=document.createElement('a');downloadAnchorElement.href=URL.createObjectURL(new Blob([JSON.stringify(buildNormalizationArtifact(),null,2)+'\n'],{type:'application/json'}));downloadAnchorElement.download=reviewAnimationIdentity+'-normalization-review.json';downloadAnchorElement.click();document.querySelector('#normalizationDownloadStatus').textContent='정규화 검수 JSON 다운로드 요청됨 · 적용 전 검토하세요.';setTimeout(()=>URL.revokeObjectURL(downloadAnchorElement.href),1000)}
 document.querySelector('#saveNormalization').onclick=downloadNormalizationArtifact;
 window.anchorReviewDownloadSettings=()=>{downloadNormalizationArtifact();return document.querySelector('#normalizationDownloadStatus').textContent;};
-Promise.all([...new Set(reviewFrameRecords.map(currentFrameValue=>currentFrameValue.image))].map(currentImageFilename=>new Promise((resolveImageLoad,rejectImageLoad)=>{const currentImageElement=new Image();currentImageElement.onload=()=>{reviewImageElements[currentImageFilename]=currentImageElement;resolveImageLoad()};currentImageElement.onerror=()=>rejectImageLoad(new Error(`이미지 로드 실패: ${currentImageFilename}`));currentImageElement.src=resolveReviewAssetUrl(currentImageFilename)}))).then(()=>Promise.all((reviewSourceMetadata.rigSheets||[]).map(currentRigSheetRecord=>new Promise((resolveRigLoad,rejectRigLoad)=>{const currentRigImageElement=new Image();currentRigImageElement.onload=()=>{reviewRigImageElements[currentRigSheetRecord.image]=currentRigImageElement;resolveRigLoad()};currentRigImageElement.onerror=()=>rejectRigLoad(new Error(`리그 이미지 로드 실패: ${currentRigSheetRecord.image}`));currentRigImageElement.src=resolveReviewAssetUrl(currentRigSheetRecord.image)}))).then(()=>requestAnimationFrame(drawReviewFrame))).catch(currentLoadError=>document.querySelector('#reviewError').textContent=currentLoadError.message);
+Promise.all([...new Set(reviewFrameRecords.map(currentFrameValue=>currentFrameValue.image))].map(currentImageFilename=>new Promise((resolveImageLoad,rejectImageLoad)=>{const currentImageElement=new Image();currentImageElement.onload=()=>{reviewImageElements[currentImageFilename]=currentImageElement;resolveImageLoad()};currentImageElement.onerror=()=>rejectImageLoad(new Error(`이미지 로드 실패: ${currentImageFilename}`));currentImageElement.src=resolveReviewAssetUrl(currentImageFilename)}))).then(()=>Promise.all((reviewSourceMetadata.rigSheets||[]).map(currentRigSheetRecord=>new Promise((resolveRigLoad,rejectRigLoad)=>{const currentRigImageElement=new Image();currentRigImageElement.onload=()=>{reviewRigImageElements[currentRigSheetRecord.image]=currentRigImageElement;resolveRigLoad()};currentRigImageElement.onerror=()=>rejectRigLoad(new Error(`리그 이미지 로드 실패: ${currentRigSheetRecord.image}`));currentRigImageElement.src=resolveReviewAssetUrl(currentRigSheetRecord.image)}))).then(()=>{currentImageLoadComplete=true;requestAnimationFrame(drawReviewFrame);})).catch(currentLoadError=>{currentImageLoadFailure=currentLoadError.message;pauseFramePlayback();document.querySelector('#reviewError').textContent=currentLoadError.message;});
 
 // 브라우저 저장과 CLI는 같은 명령 게이트웨이·실행별 기록을 사용한다.
 async function requestAnchorHistoryCommand(commandNameValue,payloadRecordValue){
@@ -345,6 +389,7 @@ const currentEmbeddedReviewMode=Boolean(window.anchorReviewNativeMode)||(window.
 window.anchorReviewResetTarget=()=>reviewAnimationIdentity+' · '+reviewAnimationVersion;
 window.anchorReviewHistory=async(currentActionName,currentSelectedId,currentConfirmedTarget)=>{
  if(!['list','inspect','result','restore','reset'].includes(currentActionName))throw Error('지원하지 않는 좌표 이력 명령입니다.');
+ if(currentActionName==='inspect'||currentActionName==='restore')anchorHistoryViewState.selected=currentSelectedId;
  let currentFeedbackText='이력을 선택한 뒤 조회하거나 불러오세요.';
  if(currentActionName==='reset'){
   if(currentEmbeddedReviewMode&&currentConfirmedTarget!==window.anchorReviewResetTarget())throw Error('확인 대상 동작이 변경되었거나 확인하지 않았습니다. 이력 초기화를 다시 요청하세요.');
@@ -360,11 +405,33 @@ window.anchorReviewHistory=async(currentActionName,currentSelectedId,currentConf
  return [{__type__:'update',choices:currentHistoryResponse.items.map(currentHistoryRecord=>[`${currentHistoryRecord.created_at||currentHistoryRecord.id} · ${currentHistoryRecord.id}`,currentHistoryRecord.id]),value:currentSelectedRecord?.id||null},currentSelectedRecord?.id||'',currentActionName==='list'&&currentSelectedRecord?{__type__:'update'}:currentDetailRecord,'',currentFeedbackText];
 };
 const anchorHistoryViewState={page:0,selected:null};
+let pendingAnchorRestoreConfirmation=null;
+window.anchorRestoreConfirmationState=()=>pendingAnchorRestoreConfirmation?{id:pendingAnchorRestoreConfirmation.id,message:pendingAnchorRestoreConfirmation.message}:null;
+window.resolveAnchorRestoreConfirmation=(currentConfirmationIdentifier,currentAcceptedValue)=>{
+ if(!pendingAnchorRestoreConfirmation||pendingAnchorRestoreConfirmation.id!==currentConfirmationIdentifier)throw Error('복원 확인이 만료되었습니다. 다시 요청하세요.');
+ const currentPendingRecord=pendingAnchorRestoreConfirmation;
+ pendingAnchorRestoreConfirmation=null;
+ currentPendingRecord.resolve(Boolean(currentAcceptedValue));
+};
+async function confirmAnchorHistoryRestore(currentHistoryIdentifier){
+ if(pendingAnchorRestoreConfirmation)throw Error('복원 확인 대기 중입니다. 확인 또는 취소를 선택하세요.');
+ if(document.body.dataset.coordinateDownloadPending!=='true')return true;
+ const currentConfirmationMessage=`${currentHistoryIdentifier} 좌표로 미저장 편집을 교체할까요?`;
+ if(!currentEmbeddedReviewMode)return window.confirm(currentConfirmationMessage);
+ return new Promise(currentResolveCallback=>{pendingAnchorRestoreConfirmation={id:crypto.randomUUID(),message:currentConfirmationMessage,resolve:currentResolveCallback};});
+}
 async function restoreAnchorHistoryRecord(historyRecordValue){
  const historyStatusElement=document.querySelector('#anchorHistoryStatus');
  try{
+   anchorHistoryViewState.selected=historyRecordValue.id;
+   const currentBeforeRestoreSnapshot=JSON.stringify(buildCoordinateArtifact());
+   if(!await confirmAnchorHistoryRestore(historyRecordValue.id)){historyStatusElement.textContent='좌표 복원을 취소했습니다. 현재 편집을 유지합니다.';return;}
+   if(anchorHistoryViewState.selected!==historyRecordValue.id)throw Error('복원 대상이 변경되었습니다. 다시 요청하세요.');
+   if(JSON.stringify(buildCoordinateArtifact())!==currentBeforeRestoreSnapshot)throw Error('확인 중 편집 내용이 변경되었습니다. 복원을 다시 요청하세요.');
    const {document:coordinateDocumentValue}=await requestAnchorHistoryCommand('anchor-load',{id:historyRecordValue.id});
+   if(anchorHistoryViewState.selected!==historyRecordValue.id)throw Error('불러오는 동안 복원 대상이 변경되었습니다. 다시 요청하세요.');
    const currentDocumentValue=buildCoordinateArtifact();
+   if(JSON.stringify(currentDocumentValue)!==currentBeforeRestoreSnapshot)throw Error('불러오는 동안 편집 내용이 변경되었습니다. 복원을 다시 요청하세요.');
    if(JSON.stringify(coordinateDocumentValue.source)!==JSON.stringify(currentDocumentValue.source)||coordinateDocumentValue.coordinateMode!==currentDocumentValue.coordinateMode||coordinateDocumentValue.frames.length!==currentDocumentValue.frames.length)throw new Error('현재 애니메이션 출처·시트·좌표 모드와 다른 이력입니다.');
    coordinateDocumentValue.frames.forEach((frameValue,indexValue)=>{const currentFrameValue=currentDocumentValue.frames[indexValue];for(const fieldNameValue of ['frameId','direction','image','rect'])if(JSON.stringify(frameValue[fieldNameValue])!==JSON.stringify(currentFrameValue[fieldNameValue]))throw new Error('프레임 구성이 다른 이력입니다.');});
    pauseFramePlayback();
@@ -390,7 +457,7 @@ async function saveCurrentAnchorCoordinates(){
  if(saveAnchorHistoryButton.disabled)throw Error('좌표 저장 중입니다. 완료 후 다시 시도하세요.');
  saveAnchorHistoryButton.disabled=true;
  try{const savedCoordinateSnapshot=JSON.stringify(reviewFrameRecords.map(copyFrameCoordinates));const savedHistoryRecord=await requestAnchorHistoryCommand('anchor-save',{document:buildCoordinateArtifact()});savedCoordinateSnapshotValue=savedCoordinateSnapshot;sessionStorage.removeItem(actionDraftStorageKey);refreshCoordinateStatus();await refreshAnchorHistoryList();document.querySelector('#anchorHistoryStatus').textContent=`저장 완료 · ${savedHistoryRecord.id}`;}
- catch(errorValue){document.querySelector('#anchorHistoryStatus').textContent=errorValue.message;}
+ catch(currentSaveError){document.querySelector('#anchorHistoryStatus').textContent=currentSaveError.name==='AbortError'?'동작 전환으로 저장 응답 확인을 중단했습니다. 이전 동작의 이력에서 저장 결과를 확인하세요.':currentSaveError.message;}
  finally{saveAnchorHistoryButton.disabled=false;}
  return document.querySelector('#anchorHistoryStatus').textContent;
 }

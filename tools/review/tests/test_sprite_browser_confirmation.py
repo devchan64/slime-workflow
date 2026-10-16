@@ -9,6 +9,106 @@ from tools.review.common.gradio_browser_confirmation import build_browser_confir
 
 
 class SpriteBrowserConfirmationTests(unittest.TestCase):
+    def test_upload_picker_and_clipboard_pause_before_waiting(self):
+        current_source_path=Path(__file__).resolve().parents[1]/'ui/character_animation/sprite-editor-v2.js'
+        current_action_source='\n'.join(current_source_line for current_source_line in current_source_path.read_text().splitlines() if current_source_line.startswith(("bindEditorAction('upload',", "bindEditorAction('paste',")))
+        current_test_script=r"""
+const assert=require('node:assert/strict');
+const currentActionCallbacks=new Map();let currentProjectIdentifier='fixture',currentPlayingState=true;
+let currentPickerCalls=0,currentClipboardCalls=0;
+const currentFileInput={disabled:true,click(){assert.equal(currentPlayingState,false);currentPickerCalls++;}};
+function findEditorElement(){return currentFileInput;}
+function bindEditorAction(currentActionName,currentActionCallback){currentActionCallbacks.set(currentActionName,currentActionCallback);}
+function stopEditorPlayback(){currentPlayingState=false;}
+const navigator={clipboard:{async read(){assert.equal(currentPlayingState,false);currentClipboardCalls++;throw Error('denied');}}};
+SOURCE
+(async()=>{
+ currentActionCallbacks.get('upload')();assert.equal(currentPickerCalls,1);
+ currentPlayingState=true;
+ await assert.rejects(currentActionCallbacks.get('paste')(),/클립보드 접근/);
+ assert.equal(currentClipboardCalls,1);assert.equal(currentPlayingState,false);
+ currentProjectIdentifier=null;
+ assert.throws(()=>currentActionCallbacks.get('upload')(),/작업을 생성/);
+ assert.equal(currentPickerCalls,1);
+})().catch(currentTestError=>{console.error(currentTestError);process.exitCode=1;});
+""".replace('SOURCE',current_action_source)
+        current_test_result=subprocess.run(['node','-e',current_test_script],capture_output=True,text=True,timeout=10)
+        self.assertEqual(current_test_result.returncode,0,current_test_result.stderr)
+
+    def test_image_batch_failure_preserves_document_and_retry_commits_once(self):
+        current_source_path=Path(__file__).resolve().parents[1]/'ui/character_animation/sprite-editor-v2.js'
+        current_register_source=next(current_source_line for current_source_line in current_source_path.read_text().splitlines() if current_source_line.startswith('async function registerEditorFiles('))
+        current_test_script=r"""
+const assert=require('node:assert/strict');
+let currentProjectIdentifier='fixture',currentUploadTarget='append',currentFrameIndex=0;
+const currentProjectDocument={frames:[{id:'original',asset:'original'}],reference:{asset:'reference'}};
+let currentUndoCount=0,currentRefreshCount=0,currentUploadCount=0,currentFailureMode='upload';
+class FileReader{readAsDataURL(currentFileValue){this.result='data:image/png;base64,'+currentFileValue.name;this.onload();}}
+async function requestEditorCommand(currentCommandName,currentPayloadRecord){currentUploadCount++;if(currentFailureMode==='upload'&&currentPayloadRecord.data==='second')throw Error('upload failure');return {asset:currentPayloadRecord.data,data:'image'};}
+async function cacheEditorImage(currentAssetName){if(currentFailureMode==='decode'&&currentAssetName==='second')throw Error('decode failure');}
+function stopEditorPlayback(){}
+function createEditorImageRecord(currentAssetName,currentFileName){return {asset:currentAssetName,name:currentFileName};}
+function retainUndoSnapshot(){currentUndoCount++;}
+function refreshEditorScreen(){currentRefreshCount++;}
+function writeEditorStatus(){}
+SOURCE
+(async()=>{
+ const currentOriginalDocument=JSON.stringify(currentProjectDocument);
+ for(const currentTargetValue of ['append','reference','replace']){
+  currentUploadTarget=currentTargetValue;
+  await registerEditorFiles([]);
+  assert.equal(JSON.stringify(currentProjectDocument),currentOriginalDocument);
+  assert.equal(currentFrameIndex,0);assert.equal(currentUndoCount,0);assert.equal(currentRefreshCount,0);assert.equal(currentUploadCount,0);
+ }
+ currentUploadTarget='append';
+ const currentBatchFiles=[{name:'first',size:1},{name:'second',size:1}];
+ for(const currentFailureValue of ['upload','decode']){
+  currentFailureMode=currentFailureValue;
+  await assert.rejects(registerEditorFiles(currentBatchFiles),/failure/);
+  assert.equal(JSON.stringify(currentProjectDocument),currentOriginalDocument);
+  assert.equal(currentFrameIndex,0);assert.equal(currentUndoCount,0);assert.equal(currentRefreshCount,0);
+ }
+ currentFailureMode='none';await registerEditorFiles(currentBatchFiles);
+ assert.deepEqual(currentProjectDocument.frames.map(currentFrameRecord=>currentFrameRecord.asset),['original','first','second']);
+ assert.equal(currentFrameIndex,1);assert.equal(currentUndoCount,1);assert.equal(currentRefreshCount,1);
+ assert.deepEqual(currentProjectDocument.reference,{asset:'reference'});
+ currentUploadTarget='replace';currentFrameIndex=0;
+ const currentNormalRequest=requestEditorCommand;
+ requestEditorCommand=async(...currentRequestArguments)=>{const currentResponseValue=await currentNormalRequest(...currentRequestArguments);currentFrameIndex=1;return currentResponseValue;};
+ await registerEditorFiles([{name:'replacement',size:1}]);
+ assert.equal(currentProjectDocument.frames[0].asset,'replacement');
+ assert.equal(currentProjectDocument.frames[0].id,'original');
+ assert.equal(currentProjectDocument.frames[1].asset,'first');
+})().catch(currentTestError=>{console.error(currentTestError);process.exitCode=1;});
+""".replace('SOURCE',current_register_source)
+        current_test_result=subprocess.run(['node','-e',current_test_script],capture_output=True,text=True,timeout=10)
+        self.assertEqual(current_test_result.returncode,0,current_test_result.stderr)
+
+    def test_project_delete_rejects_changed_confirmation_target(self):
+        import ast
+        current_source_path = Path(__file__).resolve().parents[1] / 'ui/gradio/sprite_editor_v2_app.py'
+        current_source_tree = ast.parse(current_source_path.read_text())
+        current_delete_script = next(ast.literal_eval(current_source_node.value) for current_source_node in ast.walk(current_source_tree) if isinstance(current_source_node, ast.Assign) and any(isinstance(current_target_node, ast.Name) and current_target_node.id == 'current_delete_script' for current_target_node in current_source_node.targets))
+        current_test_source = """
+const assert=require('node:assert/strict');
+const currentCommandRecords=[];
+const window={spriteV2ProjectControls:async(...currentArguments)=>{currentCommandRecords.push(currentArguments);return ['list','deleted','revisions'];}};
+const currentDeleteCallback=""" + current_delete_script + """;
+(async()=>{
+ for(const currentSelectedIdentifier of ['', 'other']){
+  const currentResultValues=await currentDeleteCallback('name',384,currentSelectedIdentifier,'original');
+  assert.match(currentResultValues[1],/삭제 대상이 변경/);
+  assert.deepEqual(currentResultValues[0],{__type__:'update'});
+ }
+ assert.equal(currentCommandRecords.length,0);
+ const currentResultValues=await currentDeleteCallback('name',384,'original','original');
+ assert.deepEqual(currentCommandRecords,[['delete','name',384,'original',null]]);
+ assert.deepEqual(currentResultValues.slice(3),[{__type__:'update',visible:false},'','']);
+})().catch(currentTestError=>{console.error(currentTestError);process.exitCode=1;});
+"""
+        current_test_result = subprocess.run(['node', '-e', current_test_source], capture_output=True, text=True, timeout=20)
+        self.assertEqual(current_test_result.returncode, 0, current_test_result.stderr)
+
     def test_native_confirmation_has_no_python_callback(self):
         with gr.Blocks() as current_test_blocks:
             build_browser_confirmation('spriteV2ConfirmationState','spriteV2ResolveConfirmation')

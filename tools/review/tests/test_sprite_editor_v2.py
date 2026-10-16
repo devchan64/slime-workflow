@@ -25,8 +25,77 @@ class SpriteEditorV2Tests(unittest.TestCase):
         self.workspace_patch_value.stop()
         self.temporary_directory_value.cleanup()
 
+    def test_create_rejects_linked_date_directory(self):
+        from datetime import datetime
+        current_fixed_time = datetime(2026, 1, 2, 3, 4, 5, tzinfo=sprite_editor_v2.SPRITE_V2_TIME_ZONE)
+        with tempfile.TemporaryDirectory() as current_external_directory:
+            current_external_path = Path(current_external_directory)
+            current_date_path = sprite_editor_v2.SPRITE_V2_WORKSPACE_ROOT / '2026-01-02_03-04-05'
+            current_date_path.symlink_to(current_external_path, target_is_directory=True)
+            try:
+                with patch.object(sprite_editor_v2, 'datetime') as current_datetime_mock:
+                    current_datetime_mock.now.return_value = current_fixed_time
+                    with self.assertRaisesRegex(ValueError, '작업 경로'):
+                        self.execute_test_command('create', {'name': '차단 작업', 'cellSize': 256})
+                self.assertEqual(list(current_external_path.iterdir()), [])
+            finally:
+                current_date_path.unlink()
+
     def test_new_project_default_fps(self):
         self.assertEqual(self.initial_project_record['document']['fps'],6)
+
+    def test_list_rejects_mismatched_project_directory(self):
+        current_project_path = sprite_editor_v2.resolve_v2_project(self.current_project_identifier)
+        current_duplicate_path = sprite_editor_v2.SPRITE_V2_WORKSPACE_ROOT / 'wrong-date' / self.current_project_identifier
+        current_duplicate_path.mkdir(parents=True)
+        (current_duplicate_path / 'latest.json').write_bytes((current_project_path / 'latest.json').read_bytes())
+        with self.assertRaisesRegex(ValueError, '날짜 경로'):
+            self.execute_test_command('list', {})
+
+    def test_all_project_commands_reject_linked_project_root(self):
+        current_project_path = sprite_editor_v2.resolve_v2_project(self.current_project_identifier)
+        with tempfile.TemporaryDirectory() as current_external_directory:
+            current_external_path = Path(current_external_directory) / 'preserved-project'
+            current_project_path.rename(current_external_path)
+            current_project_path.symlink_to(current_external_path, target_is_directory=True)
+            current_original_files = {str(current_file_path.relative_to(current_external_path)): current_file_path.read_bytes() for current_file_path in current_external_path.rglob('*') if current_file_path.is_file()}
+            with self.assertRaisesRegex(ValueError, '작업 경로'):
+                self.execute_test_command('list', {})
+            current_command_payloads = {
+                'load': {'revision': None}, 'history': {}, 'export': {'revision': None},
+                'save': {'parent': self.initial_project_record['revision'], 'document': self.initial_project_record['document']},
+                'upload': {'data': ''}, 'delete': {'confirm': True},
+                'revision-delete': {'revision': self.initial_project_record['revision'], 'confirm': True}}
+            for current_command_name, current_command_payload in current_command_payloads.items():
+                with self.subTest(command=current_command_name), self.assertRaisesRegex(ValueError, '작업 경로'):
+                    self.execute_test_command(current_command_name, {'id': self.current_project_identifier, **current_command_payload})
+            self.assertEqual({str(current_file_path.relative_to(current_external_path)): current_file_path.read_bytes() for current_file_path in current_external_path.rglob('*') if current_file_path.is_file()}, current_original_files)
+            current_project_path.unlink()
+
+    def test_internal_links_cannot_read_or_modify_external_files(self):
+        current_project_path = sprite_editor_v2.resolve_v2_project(self.current_project_identifier)
+        with tempfile.TemporaryDirectory() as current_external_directory:
+            current_external_path = Path(current_external_directory) / 'preserved.txt'
+            current_external_path.write_bytes(b'external original')
+            for current_relative_path in ('project.json', 'latest.json', 'images/linked.png', 'revisions/linked.json', 'exports'):
+                with self.subTest(path=current_relative_path):
+                    current_link_path = current_project_path / current_relative_path
+                    current_original_bytes = current_link_path.read_bytes() if current_link_path.is_file() else None
+                    current_link_path.parent.mkdir(parents=True, exist_ok=True)
+                    current_link_path.unlink(missing_ok=True)
+                    current_link_path.symlink_to(current_external_path)
+                    try:
+                        for current_command_name, current_payload_record in (
+                            ('list', {}), ('load', {'id': self.current_project_identifier, 'revision': None}),
+                            ('save', {'id': self.current_project_identifier, 'parent': self.initial_project_record['revision'], 'document': self.initial_project_record['document']}),
+                            ('delete', {'id': self.current_project_identifier, 'confirm': True})):
+                            with self.assertRaisesRegex(ValueError, '심볼릭 링크'):
+                                self.execute_test_command(current_command_name, current_payload_record)
+                        self.assertEqual(current_external_path.read_bytes(), b'external original')
+                    finally:
+                        current_link_path.unlink()
+                        if current_original_bytes is not None:
+                            current_link_path.write_bytes(current_original_bytes)
 
     def execute_test_command(self,current_command_name,current_payload_record):
         return sprite_editor_v2.execute_v2_command('sprite-v2-'+current_command_name,current_payload_record)
@@ -88,6 +157,32 @@ class SpriteEditorV2Tests(unittest.TestCase):
         self.assertEqual(restored_revision_record['document']['frames'],[])
         self.assertEqual(restored_revision_record['latest'],saved_revision_record['revision'])
         self.assertEqual(len(self.execute_test_command('history',{'id':self.current_project_identifier})['items']),2)
+
+    def test_simultaneous_saves_accept_only_one_parent_revision(self):
+        import threading
+        from concurrent.futures import ThreadPoolExecutor
+        current_start_barrier = threading.Barrier(2)
+        def save_competing_document(current_document_name):
+            current_document_record = copy.deepcopy(self.initial_project_record['document'])
+            current_document_record['name'] = current_document_name
+            current_start_barrier.wait(timeout=5)
+            return self.execute_test_command('save', {'id': self.current_project_identifier,
+                'parent': self.initial_project_record['revision'], 'document': current_document_record})
+        current_saved_records = []
+        current_rejected_messages = []
+        with ThreadPoolExecutor(max_workers=2) as current_worker_pool:
+            current_save_futures = [current_worker_pool.submit(save_competing_document, current_document_name) for current_document_name in ('첫 화면', '둘째 화면')]
+            for current_save_future in current_save_futures:
+                try:
+                    current_saved_records.append(current_save_future.result(timeout=5))
+                except ValueError as current_conflict_error:
+                    current_rejected_messages.append(str(current_conflict_error))
+        self.assertEqual(len(current_saved_records), 1)
+        self.assertEqual(len(current_rejected_messages), 1)
+        self.assertIn('다른 화면에서 수정', current_rejected_messages[0])
+        current_latest_record = self.execute_test_command('load', {'id': self.current_project_identifier, 'revision': None})
+        self.assertEqual(current_latest_record['document'], current_saved_records[0]['document'])
+        self.assertEqual(len(self.execute_test_command('history', {'id': self.current_project_identifier})['items']), 2)
 
     def test_independent_scale_saved_and_exported(self):
         current_frame_record=self.create_test_frame()

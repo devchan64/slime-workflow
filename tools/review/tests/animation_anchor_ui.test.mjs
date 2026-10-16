@@ -12,6 +12,7 @@ const testDocumentEvents={},testWindowEvents={};
 const fakeDocumentAdapter={body:{dataset:{}},dispatchEvent(){},addEventListener(eventNameValue,eventHandlerValue){testDocumentEvents[eventNameValue]=eventHandlerValue;},querySelector:selectMockElement,querySelectorAll:currentSelectorText=>currentSelectorText==='script#anchor-review-data[type="application/json"]'?[{textContent:currentReviewPayloadText}]:[],createElement:()=>({click(){}})};
 const testExecutionContext=vm.createContext({document:fakeDocumentAdapter,window:{addEventListener(eventNameValue,eventHandlerValue){testWindowEvents[eventNameValue]=eventHandlerValue;}},CustomEvent:class{constructor(eventNameValue,eventDetailValue){this.type=eventNameValue;this.detail=eventDetailValue.detail;}},Image:class{set src(sourceImageLocation){if(this.onload)this.onload()}},requestAnimationFrame(){},performance:{now:()=>0},canvasTraceOperations,URL,URLSearchParams,structuredClone,sessionStorage:{getItem:()=>null,removeItem(){}},Blob,setTimeout});
 vm.runInContext(reviewScriptContent,testExecutionContext);
+await new Promise(currentResolveCallback=>setTimeout(currentResolveCallback,0));
 vm.runInContext(`
 if(document.body.dataset.coordinateDownloadPending!=='false')throw new Error('초기 상태 변경 감지 오류');
 const originalFirstFrameCopy=JSON.stringify(reviewFrameRecords[0]);
@@ -79,6 +80,45 @@ for(const frameRecordValue of exportedArtifactValue.frames)for(const pointRecord
 `,testExecutionContext);
 assert.equal(vm.runInContext('buildCoordinateArtifact().artifactType',testExecutionContext),'character-animation-anchor-review');
 console.log('프레임 전환·1px 이동·다른 프레임 보존·정수 JSON 내보내기·가상 타일·그림자 검사 통과');
+// 저장 응답 전 추가 편집은 저장 완료로 오인하지 않으며 중복 요청을 차단한다.
+await vm.runInContext(`
+(async()=>{
+ let releasePendingSaveResponse;
+ let observedSaveRequestCount=0;
+ let submittedCoordinateRecord;
+ requestAnchorHistoryCommand=async(currentCommandName,currentPayloadValue)=>{
+  if(currentCommandName==='anchor-save'){
+   observedSaveRequestCount++;
+   submittedCoordinateRecord=structuredClone(currentPayloadValue.document);
+   return await new Promise(currentResolveCallback=>{releasePendingSaveResponse=currentResolveCallback;});
+  }
+  return {items:[]};
+ };
+ refreshAnchorHistoryList=async()=>{};
+ moveSelectedPoint(1,0);
+ const firstSavePromise=saveCurrentAnchorCoordinates();
+ if(!saveAnchorHistoryButton.disabled)throw Error('저장 중 중복 접수 차단 없음');
+ let duplicateRequestRejected=false;
+ try{await saveCurrentAnchorCoordinates();}catch(currentSaveError){duplicateRequestRejected=true;}
+ if(!duplicateRequestRejected||observedSaveRequestCount!==1)throw Error('중복 저장 요청 허용');
+ const submittedCoordinateSnapshot=JSON.stringify(submittedCoordinateRecord.frames.map(currentFrameRecord=>currentFrameRecord.anchor));
+ moveSelectedPoint(1,0);
+ releasePendingSaveResponse({id:'isolated-delayed-save'});
+ await firstSavePromise;
+ if(saveAnchorHistoryButton.disabled)throw Error('완료 후 저장 버튼 잠김');
+ if(document.body.dataset.coordinateDownloadPending!=='true')throw Error('저장 중 추가 편집이 저장 완료로 표시됨');
+ if(JSON.stringify(buildCoordinateArtifact().frames.map(currentFrameRecord=>currentFrameRecord.anchor))===submittedCoordinateSnapshot)throw Error('추가 편집 소실');
+ requestAnchorHistoryCommand=async()=>{throw Error('격리 저장 실패');};
+ await saveCurrentAnchorCoordinates();
+ if(saveAnchorHistoryButton.disabled||document.body.dataset.coordinateDownloadPending!=='true')throw Error('실패 후 재시도 또는 편집 상태 소실');
+ requestAnchorHistoryCommand=async()=>{const currentAbortError=new Error('signal is aborted without reason');currentAbortError.name='AbortError';throw currentAbortError;};
+ await saveCurrentAnchorCoordinates();
+ if(!document.querySelector('#anchorHistoryStatus').textContent.includes('이전 동작의 이력'))throw Error('응답 중단 시 저장 결과 확인 안내 누락');
+
+})()
+`,testExecutionContext);
+console.log('지연 저장·중복 요청 차단·추가 편집 보존·저장 실패 후 재시도 검사 통과');
+
 // 등록 소수 앵커와 두 발 중심·앞뒤 네 점 모드도 원본을 정확하게 복원한다.
 const anchorTemplateSource=readFileSync(new URL('../ui/shared/animation-anchor-editor/editor.js',import.meta.url),'utf8');
 assert.match(anchorTemplateSource,/resolveReviewAssetUrl\(currentImageFilename\)/);
@@ -89,6 +129,7 @@ for(const coordinateModeValue of ['anchor','foot-centers','endpoints']){
  const modeExecutionContext=vm.createContext({document:fakeDocumentAdapter,window:{addEventListener(){}},CustomEvent:class{},Image:class{set src(sourceImageLocation){this.onload();}},requestAnimationFrame(){},performance:{now:()=>0},URL,URLSearchParams,structuredClone,sessionStorage:{getItem:()=>null,removeItem(){}},Blob,setTimeout});
  currentReviewPayloadText=JSON.stringify({schemaVersion:1,frames:sampleFrameRecords,sourceMetadata:{coordinateMode:coordinateModeValue,sheets:[],gameRenderMetrics:{tileWidth:64,tileHeight:32,characterHeight:60}}});
  vm.runInContext(anchorTemplateSource,modeExecutionContext);
+ await new Promise(currentResolveCallback=>setTimeout(currentResolveCallback,0));
  vm.runInContext(`
  const originalExportSnapshot=JSON.stringify(buildCoordinateArtifact());
  moveSelectedPoint(1,0);moveFrameSelection(1);directionChoiceElement.value='up_right';directionChoiceElement.onchange();
@@ -99,3 +140,73 @@ for(const coordinateModeValue of ['anchor','foot-centers','endpoints']){
  `,modeExecutionContext);
 }
 console.log('실행 취소·다시 실행·저장 변경 상태·소수 앵커·양발 좌표 복원 검사 통과');
+
+// 없는 동작을 기본 프레임으로 바꾸면 다른 원본을 편집할 수 있으므로 거절한다.
+const actionSelectionSource=anchorTemplateSource.split('const reviewFrameRecords=')[0];
+function evaluateActionSelection(currentSearchQuery,currentDefaultIdentifier){
+ const currentPayloadRecord={schemaVersion:1,frames:[{}],sourceMetadata:{defaultActionId:currentDefaultIdentifier,actionReviews:[{id:'walk'}]}};
+ return vm.runInNewContext(actionSelectionSource+';selectedActionReview?.id',{document:{querySelectorAll:()=>[{textContent:JSON.stringify(currentPayloadRecord)}]},window:{location:{search:currentSearchQuery}},URLSearchParams});
+}
+assert.equal(evaluateActionSelection('?action=walk','walk'),'walk');
+assert.equal(evaluateActionSelection('','walk'),'walk');
+assert.equal(evaluateActionSelection('',undefined),undefined);
+assert.throws(()=>evaluateActionSelection('?action=missing','walk'),/등록되지 않은 앵커 동작/);
+assert.throws(()=>evaluateActionSelection('','missing'),/등록되지 않은 앵커 동작/);
+console.log('앵커 동작 선택·미등록 ID 거절 검사 통과');
+
+// 뒤쪽 프레임의 손상도 앞쪽 프레임을 적용하기 전에 거절한다.
+const draftRestoreSource=anchorTemplateSource.split('const storedActionDraft=')[1].split('for(const currentDirectionOption')[0];
+const draftFrameRecords=[0,1].map(()=>({anchor:{x:10,y:20},contacts:[{x:10,y:20}],endpoints:[]}));
+for(const currentFailureMode of ['valid','point','shape','saved','source','missing','json','null','saved-json']){
+ const currentDraftFrames=structuredClone(draftFrameRecords);currentDraftFrames[0].anchor.x=30;
+ const currentDraftRecord={source:[],frames:currentDraftFrames,saved:JSON.stringify(draftFrameRecords)};
+ if(currentFailureMode==='point')currentDraftFrames[1].anchor.x='invalid';
+ if(currentFailureMode==='shape')currentDraftFrames[1].contacts=[];
+ if(currentFailureMode==='saved')currentDraftRecord.saved='{}';
+ if(currentFailureMode==='source')currentDraftRecord.source=['other.png'];
+ if(currentFailureMode==='missing')delete currentDraftRecord.frames;
+ if(currentFailureMode==='saved-json')currentDraftRecord.saved='{';
+ const currentStoredDraft=currentFailureMode==='json'?'{':currentFailureMode==='null'?'null':JSON.stringify(currentDraftRecord);
+ const currentRestoreTargets=structuredClone(draftFrameRecords);
+ const currentDraftStorage=new Map([['test',currentStoredDraft]]);
+ let currentRecoveryNavigation=0;
+ const currentRestoreContext={window:{location:{href:'http://audit.test/',replace:()=>currentRecoveryNavigation++}},sessionStorage:{getItem:currentKey=>currentDraftStorage.get(currentKey)??null,setItem:(currentKey,currentValue)=>currentDraftStorage.set(currentKey,currentValue),removeItem:currentKey=>currentDraftStorage.delete(currentKey)},actionDraftStorageKey:'test',reviewSourceMetadata:{sheets:[]},reviewFrameRecords:currentRestoreTargets,savedCoordinateSnapshotValue:'',restoreFrameCoordinates:(currentTargetFrame,currentNextCoordinates)=>Object.assign(currentTargetFrame,structuredClone(currentNextCoordinates))};
+ const restoreCurrentDraft=()=>vm.runInNewContext('const storedActionDraft='+draftRestoreSource,currentRestoreContext);
+ if(currentFailureMode==='valid'){restoreCurrentDraft();assert.equal(currentRestoreTargets[0].anchor.x,30);}
+ else{assert.throws(restoreCurrentDraft,/앵커 초안/);assert.deepEqual(currentRestoreTargets,draftFrameRecords);}
+ if(currentFailureMode==='json'){
+  assert.throws(()=>currentRestoreContext.window.anchorRecoverStoredDraft(false),/확인/);
+  assert.equal(currentDraftStorage.get('test'),currentStoredDraft);
+  currentRestoreContext.window.anchorRecoverStoredDraft(true);
+  assert.equal(currentDraftStorage.has('test'),false);
+  assert.equal([...currentDraftStorage.values()][0],currentStoredDraft);
+  assert.equal(currentRecoveryNavigation,1);
+ }
+
+}
+console.log('손상 초안의 부분 적용 방지 검사 통과');
+
+
+// 이미지 로딩 실패를 정상 프레임 상태로 보고하지 않는다.
+vm.runInContext(`
+currentImageLoadComplete=false;
+try{window.anchorReviewPlayback('status');throw Error('준비 상태 허용');}catch(currentErrorValue){if(!currentErrorValue.message.includes('불러오는 중'))throw currentErrorValue;}
+currentImageLoadFailure='이미지 로드 실패: sheet.png';
+try{window.anchorReviewPlayback('status');throw Error('실패 상태 허용');}catch(currentErrorValue){if(!currentErrorValue.message.includes('sheet.png'))throw currentErrorValue;}
+currentImageLoadFailure=null;currentImageLoadComplete=true;
+if(!window.anchorReviewPlayback('status').includes(' / '))throw Error('정상 복원 실패');
+`,testExecutionContext);
+
+vm.runInContext(`
+const currentCoordinatesBeforeFailure=JSON.stringify(reviewFrameRecords);
+const currentUndoCountBeforeFailure=coordinateUndoHistory.length;
+for(const currentFailureText of [null,'이미지 로드 실패: sheet.png']){
+ currentImageLoadComplete=false;currentImageLoadFailure=currentFailureText;
+ moveSelectedPoint(3,4);copyPreviousFrameAnchor();restoreOriginalFrameCoordinates();replayCoordinateChange(true);
+ reviewCanvasElement.onclick({});
+ if(JSON.stringify(reviewFrameRecords)!==currentCoordinatesBeforeFailure)throw Error('로드 실패 중 좌표 변경');
+ if(coordinateUndoHistory.length!==currentUndoCountBeforeFailure)throw Error('로드 실패 중 실행 취소 기록 변경');
+ if(!document.querySelector('#reviewError').textContent)throw Error('로드 안내 누락');
+}
+currentImageLoadComplete=true;currentImageLoadFailure=null;
+`,testExecutionContext);

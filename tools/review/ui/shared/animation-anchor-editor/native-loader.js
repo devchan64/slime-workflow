@@ -1,6 +1,6 @@
 // 게시 HTML의 실행 코드·스타일을 가져오지 않는다. 공용 편집 구현과 JSON만 연결한다.
 let currentAnchorDisposer=null;
-const currentAnchorHandlerNames=['anchorReviewSelection','anchorReviewCoordinates','anchorReviewDisplay','anchorReviewOutputSettings','anchorReviewDownloadSettings','anchorReviewActions','anchorReviewCoordinateCommands','anchorReviewHistory','anchorReviewSaveCoordinates','anchorReviewPlayback','anchorReviewSeekFrame','anchorReviewResetTarget'];
+const currentAnchorHandlerNames=['anchorRestoreConfirmationState','resolveAnchorRestoreConfirmation','anchorReviewSelection','anchorReviewCoordinates','anchorReviewDisplay','anchorReviewOutputSettings','anchorReviewDownloadSettings','anchorReviewActions','anchorReviewCoordinateCommands','anchorReviewHistory','anchorReviewSaveCoordinates','anchorReviewPlayback','anchorReviewSeekFrame','anchorReviewResetTarget'];
 async function mountNativeAnchorReview(currentContainerElement,currentPageLocation){
  currentAnchorDisposer?.();
  const currentLifecycleController=new AbortController();
@@ -11,6 +11,8 @@ async function mountNativeAnchorReview(currentContainerElement,currentPageLocati
  const disposeAnchorRuntime=()=>{
   if(currentRuntimeDisposed)return;
   currentRuntimeDisposed=true;currentLifecycleController.abort();
+  const currentPendingRestore=currentRuntimeWindow?.anchorRestoreConfirmationState?.();
+  if(currentPendingRestore)currentRuntimeWindow.resolveAnchorRestoreConfirmation(currentPendingRestore.id,false);
   for(const currentFrameHandle of currentScheduledFrames)cancelAnimationFrame(currentFrameHandle);
   currentScheduledFrames.clear();currentRemovalObserver?.disconnect();
   for(const currentHandlerName of currentAnchorHandlerNames)if(window[currentHandlerName]===currentRuntimeWindow?.[currentHandlerName])delete window[currentHandlerName];
@@ -35,7 +37,9 @@ async function mountNativeAnchorReview(currentContainerElement,currentPageLocati
   const currentScopedDocument={body:currentEditorRoot,querySelector:currentSelectorText=>currentEditorRoot.querySelector(currentSelectorText==='body>header'?'header':currentSelectorText),querySelectorAll:currentSelectorText=>currentEditorRoot.querySelectorAll(currentSelectorText),createElement:currentTagName=>document.createElement(currentTagName),dispatchEvent:currentEventObject=>currentEditorRoot.dispatchEvent(currentEventObject),addEventListener:(currentEventName,currentEventHandler)=>currentEditorRoot.addEventListener(currentEventName,currentEventHandler,{signal:currentLifecycleController.signal})};
   const currentLocationAdapter={href:currentPageLocation.href,search:currentPageLocation.search,protocol:currentPageLocation.protocol,replace:currentNextAddress=>{
    const currentNextLocation=new URL(currentNextAddress,currentPageLocation);
-   const currentPublicLocation=new URL(window.location.href);currentPublicLocation.searchParams.set('action',currentNextLocation.searchParams.get('action'));
+   const currentPublicLocation=new URL(window.location.href);
+   if(currentNextLocation.searchParams.has('action'))currentPublicLocation.searchParams.set('action',currentNextLocation.searchParams.get('action'));
+   else currentPublicLocation.searchParams.delete('action');
    window.history.replaceState(window.history.state,'',currentPublicLocation.href);
    void mountNativeAnchorReview(currentContainerElement,currentNextLocation);
   }};
@@ -53,6 +57,17 @@ async function mountNativeAnchorReview(currentContainerElement,currentPageLocati
   currentContainerElement.setAttribute('aria-busy','false');
  }catch(currentLoadError){
   if(currentRuntimeDisposed)return;
-  disposeAnchorRuntime();currentEditorRoot.replaceChildren();const currentErrorElement=document.createElement('p');currentErrorElement.setAttribute('role','alert');currentErrorElement.textContent=currentLoadError.message;currentEditorRoot.append(currentErrorElement);currentContainerElement.setAttribute('aria-busy','false');
+  disposeAnchorRuntime();
+  // 실패한 런타임을 준비 중으로 안내하지 않는다. 다음 마운트에서 소유 핸들러를 정리한다.
+  const currentFailureHandler=()=>{throw Error(currentLoadError.message);};
+  const currentDraftRecoveryHandler=currentRuntimeWindow?.anchorRecoverStoredDraft;
+  if(currentDraftRecoveryHandler)window.anchorRecoverStoredDraft=currentDraftRecoveryHandler;
+  window.anchorReviewPlayback=currentFailureHandler;window.anchorReviewSeekFrame=currentFailureHandler;
+  currentAnchorDisposer=()=>{
+   if(window.anchorRecoverStoredDraft===currentDraftRecoveryHandler)delete window.anchorRecoverStoredDraft;
+   if(window.anchorReviewPlayback===currentFailureHandler)delete window.anchorReviewPlayback;
+   if(window.anchorReviewSeekFrame===currentFailureHandler)delete window.anchorReviewSeekFrame;
+  };
+  currentEditorRoot.replaceChildren();const currentErrorElement=document.createElement('p');currentErrorElement.setAttribute('role','alert');currentErrorElement.textContent=currentLoadError.message;currentEditorRoot.append(currentErrorElement);currentContainerElement.setAttribute('aria-busy','false');
  }
 }
