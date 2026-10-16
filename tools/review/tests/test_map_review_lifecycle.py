@@ -165,3 +165,29 @@ currentFrameCallback=null;currentResizeCallback();assert.equal(currentFrameCallb
 """.replace('SOURCE','let currentResizeFrameRequest='+current_observer_source)
         current_test_result=subprocess.run(['node','-e',current_script_source],capture_output=True,text=True,timeout=10)
         self.assertEqual(current_test_result.returncode,0,current_test_result.stderr)
+
+    def test_character_keyboard_movement_preserves_camera_and_rejects_blocked_cells(self):
+        current_source_text=(Path(__file__).parents[1]/'ui/map/block-map-review.js').read_text()
+        current_move_source='function placeReviewCharacterCell'+current_source_text.split('function placeReviewCharacterCell',1)[1].split('currentMapCanvas.onclick=',1)[0]
+        current_key_source='currentMapCanvas.onkeydown='+current_source_text.split('currentMapCanvas.onkeydown=',1)[1].split("currentMapCanvas.addEventListener('wheel'",1)[0]
+        current_offsets_source='const CHARACTER_CELL_KEY_OFFSETS='+current_source_text.split('const CHARACTER_CELL_KEY_OFFSETS=',1)[1].split(';',1)[0]+';'
+        current_script_source=r"""
+const assert=require('node:assert/strict');
+const isCharacterReviewPage=false;
+const currentMapRecord={columns:3,rows:3},currentBlockedCells=new Set(['2,1']),currentMapCanvas={};
+let currentCharacterCell={column:1,row:1},currentOffsetX=0,currentOffsetY=0,currentRenderCount=0;
+const MAP_KEYBOARD_PAN_DISTANCE=48,MAP_ZOOM_FACTOR=1.25,currentStatusElement={textContent:''};
+global.document={querySelector:()=>currentStatusElement};
+function renderBlockMap(){currentRenderCount++;} function changeMapZoom(){}
+SOURCE
+function pressReviewKey(currentKeyName,currentShiftEnabled){currentMapCanvas.onkeydown({key:currentKeyName,shiftKey:currentShiftEnabled,preventDefault(){}});}
+pressReviewKey('ArrowRight',true);assert.deepEqual(currentCharacterCell,{column:1,row:1});assert.match(currentStatusElement.textContent,/이동할 수 없는/);
+pressReviewKey('ArrowLeft',true);assert.deepEqual(currentCharacterCell,{column:0,row:1});assert.equal(currentOffsetX,0);
+pressReviewKey('ArrowLeft',true);assert.deepEqual(currentCharacterCell,{column:0,row:1});
+pressReviewKey('ArrowUp',true);assert.deepEqual(currentCharacterCell,{column:0,row:0});
+pressReviewKey('ArrowRight',false);assert.equal(currentOffsetX,-48);assert.deepEqual(currentCharacterCell,{column:0,row:0});
+assert.equal(placeReviewCharacterCell(1.5,0),false);assert.equal(placeReviewCharacterCell(1,2),true);
+assert.equal(currentRenderCount,4);
+""".replace('SOURCE',current_offsets_source+current_move_source+current_key_source)
+        current_test_result=subprocess.run(['node','-e',current_script_source],capture_output=True,text=True,timeout=10)
+        self.assertEqual(current_test_result.returncode,0,current_test_result.stderr)

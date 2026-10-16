@@ -115,7 +115,7 @@ def build_map_review_interface(review_server_port, character_review_enabled=Fals
             current_capture_files=gr.File(label='캡처 결과 · 원본 / 조정본 / 비교',file_count='multiple',interactive=False)
             current_capture_button.click(fn=None,inputs=None,outputs=current_capture_settings,queue=False,js="()=>{if(!window.characterReviewCaptureSettings)throw Error('맵을 준비 중입니다.');return window.characterReviewCaptureSettings();}").then(fn=capture_character_review_images,inputs=current_capture_settings,outputs=current_capture_files)
         with gr.Accordion('조작 방법 · 타일 안내',open=False):
-            gr.Markdown('휠 또는 확대·축소 버튼으로 배율을 조절하고 드래그 또는 방향키로 이동합니다. 0 키는 전체 보기입니다. 이동 가능한 바닥을 클릭하면 기본 캐릭터를 배치합니다. 메시 경계는 지면·절벽 면의 꼭짓점을 표시합니다. 미등록 지형은 임시 색상으로 표시됩니다.')
+            gr.Markdown('휠 또는 확대·축소 버튼으로 배율을 조절하고 드래그 또는 방향키로 이동합니다. 0 키는 전체 보기입니다. 이동 가능한 바닥을 클릭하면 기본 캐릭터를 배치합니다. 맵에 포커스를 둔 뒤 Shift+좌우로 캐릭터 열, Shift+상하로 행을 이동합니다. 메시 경계는 지면·절벽 면의 꼭짓점을 표시합니다. 미등록 지형은 임시 색상으로 표시됩니다.')
         with gr.Accordion('적용 타일 원본',open=True):
             gr.HTML('<ul id="applied-tile-list" aria-live="polite"></ul>')
         current_interface_blocks.load(fn=None,outputs=[current_map_choice,current_load_button,current_building_choice,current_boundary_column,current_shadow_profile_column,current_camera_feedback,*current_ready_controls],js=create_map_review_loader(review_server_port,len(current_ready_controls)),queue=False)

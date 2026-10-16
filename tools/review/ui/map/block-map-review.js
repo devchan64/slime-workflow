@@ -5,6 +5,7 @@ import {FIELD_RENDER_METRICS,projectSurfaceCell} from './vendor/field-renderer/_
 import {resolveFieldActorContactShadow} from './vendor/field-renderer/__FIELD_RENDERER_VERSION__/field-renderer.mjs';
 const MAP_FIT_HORIZONTAL_PADDING=160,MAP_FIT_VERTICAL_PADDING=80,MAP_FIT_BOTTOM_MARGIN=40,FIELD_FIT_TOP_MARGIN=160;
 const MIN_MAP_SCALE=0.05,MAX_MAP_SCALE=4,MAP_ZOOM_FACTOR=1.25,MAP_DRAG_THRESHOLD=4,MAP_KEYBOARD_PAN_DISTANCE=48;
+const CHARACTER_CELL_KEY_OFFSETS={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]};
 let activeMapPointer=null,suppressMarkerClick=false;
 const currentMapCanvas=document.querySelector('#map');
 async function fetchMapReviewRecord(currentFilePath){const currentFetchResponse=await fetch(new URL(currentFilePath,import.meta.url),{cache:'no-store'});if(!currentFetchResponse.ok)throw Error(`맵 데이터 로드 실패: ${currentFilePath}`);return currentFetchResponse.json()}
@@ -79,7 +80,7 @@ const currentReviewTitle=currentMapRecord.name+' · '+currentMapRecord.reviewLab
 document.querySelector('#map-title').textContent=currentReviewTitle;
 document.title=currentReviewTitle;
 document.querySelector('.map-toolbar')?.setAttribute('aria-label',currentMapRecord.reviewLabel+' 도구');
-currentMapCanvas.setAttribute('aria-label',currentReviewTitle+'. 방향키로 이동하고 더하기와 빼기 키로 확대 또는 축소하며 0 키로 전체 보기를 적용합니다.');
+currentMapCanvas.setAttribute('aria-label',currentReviewTitle+'. 방향키로 화면 이동, Shift+좌우로 캐릭터 열 이동, Shift+상하로 행 이동. 더하기와 빼기 키로 확대 또는 축소하며 0 키로 전체 보기를 적용합니다.');
 const currentMaterialColors=await fetchMapReviewRecord('block-materials.json');
 const currentTextureRecords=await fetchMapReviewRecord('/management/map-assets/textures');
 const loadedTextureImages={};
@@ -350,7 +351,16 @@ window.addEventListener('pagehide',()=>{
  if(currentResizeFrameRequest!==null)cancelAnimationFrame(currentResizeFrameRequest);
  currentResizeFrameRequest=null;
 },{once:true});
-currentMapCanvas.onclick=currentEvent=>{if(suppressMarkerClick){suppressMarkerClick=false;return;}const currentBounds=currentMapCanvas.getBoundingClientRect(),currentWorldX=(currentEvent.clientX-currentBounds.left-currentOffsetX)/currentScaleValue,currentWorldY=(currentEvent.clientY-currentBounds.top-currentOffsetY)/currentScaleValue;if(isFieldMapReview){const currentPickedCell=pickFieldReviewCell({x:currentWorldX,y:currentWorldY},currentFieldFrame);if(currentPickedCell&&!currentBlockedCells.has(`${currentPickedCell.column},${currentPickedCell.row}`)){currentCharacterCell=currentPickedCell;renderBlockMap();}return;}let currentColumnValue=(currentWorldX/townHalfTileWidth+currentWorldY/townHalfTileHeight)/2,currentRowValue=(currentWorldY/townHalfTileHeight-currentWorldX/townHalfTileWidth)/2;for(let i=0;i<currentCameraRotation;i++)[currentColumnValue,currentRowValue]=[currentRowValue,-currentColumnValue];currentColumnValue=Math.round(currentColumnValue);currentRowValue=Math.round(currentRowValue);if(currentColumnValue<0||currentColumnValue>=currentMapRecord.columns||currentRowValue<0||currentRowValue>=currentMapRecord.rows||currentBlockedCells.has(`${currentColumnValue},${currentRowValue}`))return;currentCharacterCell={column:currentColumnValue,row:currentRowValue};renderBlockMap()};centerCharacterView();
+function placeReviewCharacterCell(currentColumnValue,currentRowValue){
+ if(!Number.isInteger(currentColumnValue)||!Number.isInteger(currentRowValue)||currentColumnValue<0||currentColumnValue>=currentMapRecord.columns||currentRowValue<0||currentRowValue>=currentMapRecord.rows||currentBlockedCells.has(`${currentColumnValue},${currentRowValue}`)){
+  document.querySelector('#status').textContent='이동할 수 없는 위치입니다. 맵 안의 이동 가능한 타일을 선택하세요.';
+  return false;
+ }
+ currentCharacterCell={column:currentColumnValue,row:currentRowValue};renderBlockMap();
+ if(!isCharacterReviewPage)document.querySelector('#status').textContent+=` · 캐릭터 (${currentColumnValue+1}, ${currentRowValue+1})`;
+ return true;
+}
+currentMapCanvas.onclick=currentEvent=>{if(suppressMarkerClick){suppressMarkerClick=false;return;}const currentBounds=currentMapCanvas.getBoundingClientRect(),currentWorldX=(currentEvent.clientX-currentBounds.left-currentOffsetX)/currentScaleValue,currentWorldY=(currentEvent.clientY-currentBounds.top-currentOffsetY)/currentScaleValue;if(isFieldMapReview){const currentPickedCell=pickFieldReviewCell({x:currentWorldX,y:currentWorldY},currentFieldFrame);if(currentPickedCell)placeReviewCharacterCell(currentPickedCell.column,currentPickedCell.row);return;}let currentColumnValue=(currentWorldX/townHalfTileWidth+currentWorldY/townHalfTileHeight)/2,currentRowValue=(currentWorldY/townHalfTileHeight-currentWorldX/townHalfTileWidth)/2;for(let i=0;i<currentCameraRotation;i++)[currentColumnValue,currentRowValue]=[currentRowValue,-currentColumnValue];currentColumnValue=Math.round(currentColumnValue);currentRowValue=Math.round(currentRowValue);placeReviewCharacterCell(currentColumnValue,currentRowValue)};centerCharacterView();
 
 // 포인터 아래의 지형 좌표를 유지하면서 배율을 변경한다.
 function changeMapZoom(currentZoomFactor,currentAnchorX=currentMapCanvas.clientWidth/2,currentAnchorY=currentMapCanvas.clientHeight/2){
@@ -361,6 +371,9 @@ function changeMapZoom(currentZoomFactor,currentAnchorX=currentMapCanvas.clientW
 }
 
 currentMapCanvas.onkeydown=currentKeyboardEvent=>{
+ const currentCharacterOffset=CHARACTER_CELL_KEY_OFFSETS[currentKeyboardEvent.key];
+ if(currentKeyboardEvent.shiftKey&&currentCharacterOffset){currentKeyboardEvent.preventDefault();placeReviewCharacterCell(currentCharacterCell.column+currentCharacterOffset[0],currentCharacterCell.row+currentCharacterOffset[1]);return;}
+
  const mapKeyboardMoveByKey={ArrowLeft:[MAP_KEYBOARD_PAN_DISTANCE,0],ArrowRight:[-MAP_KEYBOARD_PAN_DISTANCE,0],ArrowUp:[0,MAP_KEYBOARD_PAN_DISTANCE],ArrowDown:[0,-MAP_KEYBOARD_PAN_DISTANCE]}[currentKeyboardEvent.key];
  if(mapKeyboardMoveByKey){currentKeyboardEvent.preventDefault();currentOffsetX+=mapKeyboardMoveByKey[0];currentOffsetY+=mapKeyboardMoveByKey[1];renderBlockMap();return}
  if(currentKeyboardEvent.key==='+'||currentKeyboardEvent.key==='='){currentKeyboardEvent.preventDefault();changeMapZoom(MAP_ZOOM_FACTOR);return}
