@@ -117,7 +117,7 @@ def parse_review_arguments(command_argument_values=None):
     source_argument_group.add_argument('--walking',type=Path,help='관리도구에 묶을 걷기 검수 폴더')
     argument_value_parser.add_argument('--standing',type=Path,help='관리도구에 묶을 스탠딩 검수 폴더 (--walking과 함께 사용)')
     argument_value_parser.add_argument('--entry',default='preview.html',help='--root 폴더 기준 HTML 진입 페이지')
-    argument_value_parser.add_argument('--port',type=int,default=REVIEW_SERVER_PORT,help='로컬 서버 포트 (기본: 8770)')
+    argument_value_parser.add_argument('--port',type=int,default=REVIEW_SERVER_PORT,help='관리도구 고정 포트 (8770만 허용)')
     argument_value_parser.add_argument('--ui-bundle',type=Path,help='프론트엔드에서 전달한 UI 검수 빌드 폴더')
     argument_value_parser.add_argument('--gateway-url',default=os.environ.get('SLIME_MANAGEMENT_GATEWAY_URL',DEFAULT_GATEWAY_ADDRESS),type=validate_gateway_address,help='독립 명령 게이트웨이 주소 (기본: 127.0.0.1:8771)')
     argument_value_parser.add_argument('--watch',action='store_true',help='소스 변경 시 GUI만 재시작 (독립 게이트웨이·GPU 작업 유지)')
@@ -130,8 +130,8 @@ def parse_review_arguments(command_argument_values=None):
         argument_value_parser.error('--walking과 --standing을 함께 지정하세요.')
     if (parsed_argument_values.walking or parsed_argument_values.frontend_repo) and parsed_argument_values.entry != 'preview.html':
         argument_value_parser.error('관리도구 생성 모드에서는 --entry를 변경할 수 없습니다.')
-    if not 1024 <= parsed_argument_values.port <= 65535:
-        argument_value_parser.error('포트는 1024~65535여야 합니다.')
+    if parsed_argument_values.port != REVIEW_SERVER_PORT:
+        argument_value_parser.error('검수 GUI는 8770 관리도구로 통일합니다. 별도 포트는 지원하지 않습니다.')
     if parsed_argument_values.port == urlsplit(parsed_argument_values.gateway_url).port:
         argument_value_parser.error('GUI 포트와 게이트웨이 포트는 달라야 합니다.')
     return parsed_argument_values
@@ -427,6 +427,8 @@ def run_review_server(parsed_argument_values):
             return False
 
         def do_GET(self):
+            from tools.review.domains.character_review.capture import handle_capture_asset_request
+            if handle_capture_asset_request(self):return
             if self.reject_retired_generator():return
             current_asset_request_path = urlsplit(self.path).path
             if current_asset_request_path.startswith('/management/map-assets/'):
@@ -470,6 +472,8 @@ def run_review_server(parsed_argument_values):
             if proxy_management_request(self, parsed_argument_values.gateway_url):return
             super().do_GET()
         def do_POST(self):
+            from tools.review.domains.character_review.capture import handle_capture_asset_request
+            if handle_capture_asset_request(self):return
             if self.reject_retired_generator():return
             if self.proxy_gradio_request():return
             if proxy_management_request(self, parsed_argument_values.gateway_url):return

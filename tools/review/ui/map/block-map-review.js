@@ -484,6 +484,6 @@ if(currentMapCanvas.dataset.capture==='true'){
  currentGroundSaturationReduced=currentCaptureSettings.saturation_reduced;
  currentGroundBrightnessReduced=currentCaptureSettings.brightness_reduced;
  centerCharacterView();changeMapZoom(currentCaptureSettings.zoom/currentScaleValue);
- const currentCaptureResponse=await fetch('/capture-result',{method:'POST',headers:{'Content-Type':'application/json','X-Capture-Token':currentCaptureSettings.token},body:JSON.stringify({baseline:document.querySelector('#character-baseline-map').toDataURL('image/png'),adjusted:currentMapCanvas.toDataURL('image/png')})});
+ const currentCaptureResponse=await fetch('./capture-result',{method:'POST',headers:{'Content-Type':'application/json','X-Capture-Token':currentCaptureSettings.token},body:JSON.stringify({baseline:document.querySelector('#character-baseline-map').toDataURL('image/png'),adjusted:currentMapCanvas.toDataURL('image/png')})});
  if(!currentCaptureResponse.ok)throw Error('렌더 캡처 저장 실패');
 }

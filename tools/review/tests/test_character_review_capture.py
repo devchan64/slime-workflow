@@ -51,3 +51,42 @@ class CharacterReviewCaptureTest(unittest.TestCase):
             else:
                 with self.assertRaisesRegex(ValueError,'비어'):
                     validate_capture_image(current_image_stream.getvalue(),current_settings_record)
+
+    def test_shared_capture_routes_and_expired_session(self):
+        import io
+        import json
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+        from unittest.mock import Mock, patch
+        from tools.review.domains.character_review.capture import handle_capture_asset_request
+        with TemporaryDirectory() as current_temporary_directory:
+            current_storage_directory=Path(current_temporary_directory)
+            current_job_directory=current_storage_directory/'sample'
+            (current_job_directory/'web').mkdir(parents=True)
+            (current_job_directory/'web/capture.html').write_text('capture')
+            (current_job_directory/'active-token').write_text('secret')
+            with patch('tools.review.domains.character_review.capture.CAPTURE_STORAGE_DIRECTORY',current_storage_directory):
+                for current_request_path,current_expected_success in (
+                    ('/management/capture/sample/secret/capture.html',True),
+                    ('/management/capture/sample/wrong/capture.html',False),
+                    ('/management/capture/sample/secret/%2e%2e/active-token',False),
+                ):
+                    current_http_handler=Mock(command='GET',path=current_request_path,wfile=io.BytesIO())
+                    self.assertTrue(handle_capture_asset_request(current_http_handler))
+                    self.assertEqual(current_http_handler.send_response.called,current_expected_success)
+                current_response_bytes=json.dumps({'error':'render failed'}).encode()
+                current_http_handler=Mock(command='POST',path='/management/capture/sample/secret/capture-result',headers={'X-Capture-Token':'secret','Content-Length':str(len(current_response_bytes))},rfile=io.BytesIO(current_response_bytes),wfile=io.BytesIO())
+                handle_capture_asset_request(current_http_handler)
+                self.assertEqual(json.loads((current_job_directory/'capture-response.json').read_text()),{'error':'render failed'})
+                (current_job_directory/'active-token').unlink()
+                current_http_handler=Mock(command='GET',path='/management/capture/sample/secret/capture.html',wfile=io.BytesIO())
+                handle_capture_asset_request(current_http_handler)
+                current_http_handler.send_error.assert_called_once()
+
+    def test_review_rejects_separate_ports(self):
+        import contextlib
+        import io
+        from tools.review.serve import parse_review_arguments
+        self.assertEqual(parse_review_arguments(['--port','8770']).port,8770)
+        with contextlib.redirect_stderr(io.StringIO()),self.assertRaises(SystemExit):
+            parse_review_arguments(['--port','8788'])

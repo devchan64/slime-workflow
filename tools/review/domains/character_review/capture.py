@@ -1,8 +1,6 @@
 """공용 브라우저 렌더러로 캐릭터 검수 PNG와 설정을 기록한다."""
 import base64
 from datetime import datetime
-from functools import partial
-from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 import io
 import json
 from pathlib import Path
@@ -59,11 +57,11 @@ def capture_character_review(command_payload_value):
     current_result_record={'status':'running','settings':current_setting_values,'directory':str(current_output_directory)}
     current_record_path=current_output_directory/'result.yaml'
     current_stop_event=threading.Event()
-    current_capture_event=threading.Event()
     current_capture_payload={}
     current_capture_token=secrets.token_urlsafe(24)
-    current_server_instance=None
     current_browser_process=None
+    current_active_path=current_output_directory/'active-token'
+    current_response_path=current_output_directory/'capture-response.json'
     def write_capture_trace(current_stage_name,current_message_text):
         with (current_output_directory/'worker.log').open('a') as current_log_stream:
             current_log_stream.write(f'{datetime.now().isoformat()}/character-review/{current_stage_name} {current_message_text}\n')
@@ -74,45 +72,30 @@ def capture_character_review(command_payload_value):
         write_capture_trace('start',f'output={current_output_directory} settings={current_setting_values}')
         from tools.review.build_block_map_review import build_block_map_review
         current_bundle_directory=build_block_map_review(current_output_directory/'web',character_review_only=True)
+        current_active_path.write_text(current_capture_token)
+        current_capture_address=f'http://127.0.0.1:8770/management/capture/{current_output_directory.name}/{current_capture_token}/'
         current_setting_document=current_setting_values|{'token':current_capture_token}
         (current_bundle_directory/'capture-settings.json').write_text(json.dumps(current_setting_document))
         # 내부 해상도 변경이 CSS 표시 크기까지 키우는 ResizeObserver 재진입을 막는다.
         (current_bundle_directory/'capture.html').write_text('''<!doctype html><meta charset="utf-8"><title>캐릭터 렌더 캡처</title>
 <div id="map-title"></div><div id="status"></div><output id="zoom-level"></output><ul id="applied-tile-list"></ul>
 <canvas id="character-baseline-map" style="width:__CAPTURE_WIDTH__px;height:__CAPTURE_HEIGHT__px"></canvas><canvas id="map" style="width:__CAPTURE_WIDTH__px;height:__CAPTURE_HEIGHT__px" data-character-review="true" data-capture="true"></canvas>
-<script type="module">try{await import('./block-map-review.js')}catch(error){const settings=await(await fetch('./capture-settings.json')).json();await fetch('/capture-result',{method:'POST',headers:{'Content-Type':'application/json','X-Capture-Token':settings.token},body:JSON.stringify({error:String(error.stack||error)})})}</script>'''.replace('__CAPTURE_WIDTH__',str(current_setting_values['width'])).replace('__CAPTURE_HEIGHT__',str(current_setting_values['height'])))
-        class CaptureAssetHandler(SimpleHTTPRequestHandler):
-            def do_GET(self):
-                from tools.review.common.map_asset_http import read_map_asset_response
-                current_request_path=urlsplit(self.path).path
-                if current_request_path=='/management/map-assets/textures':
-                    self.path='/block-textures.json';super().do_GET();return
-                if current_request_path.startswith('/management/map-assets/'):
-                    try:current_content_bytes,current_content_type=read_map_asset_response(current_request_path)
-                    except (ValueError,OSError,KeyError) as current_asset_error:self.send_error(404,str(current_asset_error));return
-                    self.send_response(200);self.send_header('Content-Type',current_content_type);self.end_headers();self.wfile.write(current_content_bytes);return
-                super().do_GET()
-            def do_POST(self):
-                if self.path!='/capture-result' or self.headers.get('X-Capture-Token')!=current_capture_token:self.send_error(403);return
-                current_body_length=int(self.headers.get('Content-Length','0'))
-                if not 0<current_body_length<30_000_000:self.send_error(400);return
-                try:
-                    current_response_record=json.loads(self.rfile.read(current_body_length))
-                    if not isinstance(current_response_record,dict) or set(current_response_record) not in ({'baseline','adjusted'},{'error'}):raise ValueError('캡처 응답 형식 오류')
-                    current_capture_payload.update(current_response_record)
-                    self.send_response(200);self.end_headers();current_capture_event.set()
-                except (ValueError,TypeError):self.send_error(400)
-            def log_message(self,current_message_format,*current_message_arguments):
-                write_capture_trace('http',current_message_format%current_message_arguments)
-        current_server_instance=ThreadingHTTPServer(('127.0.0.1',0),partial(CaptureAssetHandler,directory=str(current_bundle_directory)))
-        threading.Thread(target=current_server_instance.serve_forever,daemon=True).start()
-        current_browser_arguments=[current_browser_path,'--headless=new','--disable-dev-shm-usage','--no-first-run','--no-default-browser-check',f'--user-data-dir={current_output_directory}/browser-profile',f'http://127.0.0.1:{current_server_instance.server_port}/capture.html']
+<script type="module">try{await import('./block-map-review.js')}catch(error){const settings=await(await fetch('./capture-settings.json')).json();await fetch('./capture-result',{method:'POST',headers:{'Content-Type':'application/json','X-Capture-Token':settings.token},body:JSON.stringify({error:String(error.stack||error)})})}</script>'''.replace('__CAPTURE_WIDTH__',str(current_setting_values['width'])).replace('__CAPTURE_HEIGHT__',str(current_setting_values['height'])))
+        from urllib.request import urlopen
+        try:
+            with urlopen(current_capture_address+'capture-settings.json',timeout=5) as current_probe_response:
+                if json.load(current_probe_response).get('token')!=current_capture_token:raise ValueError('캡처 경로 응답 불일치')
+        except OSError as current_connection_error:
+            raise ValueError('8770 관리도구를 실행한 뒤 캡처하세요.') from current_connection_error
+        current_browser_arguments=[current_browser_path,'--headless=new','--disable-dev-shm-usage','--no-first-run','--no-default-browser-check',f'--user-data-dir={current_output_directory}/browser-profile',current_capture_address+'capture.html']
         with (current_output_directory/'browser.log').open('w') as current_browser_log:
             current_browser_process=subprocess.Popen(current_browser_arguments,stdout=current_browser_log,stderr=current_browser_log)
             current_deadline_time=time.monotonic()+CAPTURE_TIMEOUT_SECONDS
-            while not current_capture_event.wait(1):
+            while not current_response_path.exists():
+                time.sleep(1)
                 if current_browser_process.poll() is not None:raise ValueError('캡처 브라우저 종료: browser.log를 확인하세요.')
                 if time.monotonic()>current_deadline_time:raise ValueError('렌더링 완료 대기 시간 초과: worker.log·browser.log를 확인하세요.')
+        current_capture_payload=json.loads(current_response_path.read_text())
         if 'error' in current_capture_payload:raise ValueError('브라우저 렌더 오류: '+str(current_capture_payload['error']))
         current_image_records=[]
         for current_image_name in ('baseline','adjusted'):
@@ -135,7 +118,7 @@ def capture_character_review(command_payload_value):
             current_browser_process.terminate()
             try:current_browser_process.wait(timeout=5)
             except subprocess.TimeoutExpired:current_browser_process.kill();current_browser_process.wait()
-        if current_server_instance:current_server_instance.shutdown();current_server_instance.server_close()
+        current_active_path.unlink(missing_ok=True)
         current_stop_event.set()
         current_record_path.write_text(yaml.safe_dump(current_result_record,allow_unicode=True,sort_keys=False))
         shutil.rmtree(current_output_directory/'browser-profile',ignore_errors=True)
@@ -149,4 +132,50 @@ def handle_character_capture_request(current_http_handler):
         send_management_json_response(current_http_handler,200,capture_character_review(current_request_payload))
     except Exception as current_capture_error:
         send_management_json_response(current_http_handler,400,{'error':str(current_capture_error)})
+    return True
+
+
+def handle_capture_asset_request(current_http_handler):
+    """캡처 전용 서버 대신 8770에서 활성 작업의 파일과 결과만 제공한다."""
+    from urllib.parse import unquote
+    import mimetypes
+    current_request_path=unquote(urlsplit(current_http_handler.path).path)
+    current_route_prefix='/management/capture/'
+    if not current_request_path.startswith(current_route_prefix):return False
+    try:
+        current_path_parts=current_request_path[len(current_route_prefix):].split('/')
+        if len(current_path_parts)<3 or any(not current_path_part or current_path_part.startswith('.') or '\\' in current_path_part for current_path_part in current_path_parts):
+            raise ValueError('잘못된 캡처 경로')
+        current_output_directory=(CAPTURE_STORAGE_DIRECTORY/current_path_parts[0]).resolve()
+        if current_output_directory.parent!=CAPTURE_STORAGE_DIRECTORY.resolve():raise ValueError('캡처 경로 이탈')
+        current_capture_token=(current_output_directory/'active-token').read_text()
+        if not secrets.compare_digest(current_path_parts[1],current_capture_token):raise ValueError('캡처 토큰 오류')
+        current_relative_path='/'.join(current_path_parts[2:])
+        if current_http_handler.command=='POST':
+            if current_relative_path!='capture-result' or current_http_handler.headers.get('X-Capture-Token')!=current_capture_token:raise ValueError('캡처 응답 인증 오류')
+            current_body_length=int(current_http_handler.headers.get('Content-Length','0'))
+            if not 0<current_body_length<30_000_000:raise ValueError('캡처 응답 크기 오류')
+            current_response_record=json.loads(current_http_handler.rfile.read(current_body_length))
+            if not isinstance(current_response_record,dict) or set(current_response_record) not in ({'baseline','adjusted'},{'error'}):raise ValueError('캡처 응답 형식 오류')
+            # 완성된 파일만 작업 프로세스에 보인다. 중복 제출은 거절한다.
+            current_pending_path=current_output_directory/'capture-response.pending'
+            with current_pending_path.open('x') as current_output_stream:json.dump(current_response_record,current_output_stream)
+            current_response_path=current_output_directory/'capture-response.json'
+            if current_response_path.exists():raise ValueError('이미 접수한 캡처 응답')
+            current_pending_path.rename(current_response_path)
+            current_content_bytes=b'{}';current_content_type='application/json'
+        elif current_http_handler.command=='GET':
+            current_bundle_directory=(current_output_directory/'web').resolve()
+            current_asset_path=(current_bundle_directory/current_relative_path).resolve()
+            if not current_asset_path.is_relative_to(current_bundle_directory) or not current_asset_path.is_file():raise ValueError('허용되지 않은 캡처 파일')
+            current_content_bytes=current_asset_path.read_bytes()
+            current_content_type=mimetypes.guess_type(current_asset_path.name)[0] or 'application/octet-stream'
+        else:raise ValueError('지원하지 않는 캡처 요청')
+        current_http_handler.send_response(200)
+        current_http_handler.send_header('Content-Type',current_content_type)
+        current_http_handler.send_header('Cache-Control','no-store')
+        current_http_handler.send_header('Content-Length',str(len(current_content_bytes)))
+        current_http_handler.end_headers();current_http_handler.wfile.write(current_content_bytes)
+    except (ValueError,OSError,TypeError) as current_request_error:
+        current_http_handler.send_error(400,'Invalid capture request')
     return True
