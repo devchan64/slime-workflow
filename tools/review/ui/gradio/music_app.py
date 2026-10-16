@@ -10,6 +10,7 @@ from generators.music.contracts import build_music_request, load_music_defaults,
 from tools.review.common.generation_cleanup import GENERATION_CLEANUP_SCOPE_TEXT
 from tools.review.common.management_client import execute_remote_management_command
 from tools.review.common.gradio_seed import build_generation_seed
+from tools.review.common.gradio_button_guidance import build_button_guidance
 from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_confirmation
 from tools.review.common.gradio_history import build_generation_history_view
 from tools.review.common.gradio_logs import build_execution_logs
@@ -53,7 +54,7 @@ def build_music_interface(current_service_name,current_server_address):
             return describe_music_prompt(current_service_name,current_prompt_text,current_loop_value)
         current_tag_control = gr.Textbox(label='이력 태그',max_lines=1)
         current_generate_button = gr.Button('음악 생성 · 대기열 등록',variant='primary',interactive=bool(current_default_record['prompt'].strip()))
-        current_generate_notice = gr.Markdown('장르·악기·분위기 프롬프트를 입력하면 생성할 수 있습니다.')
+        current_generate_notice = build_button_guidance(current_generate_button, '장르·악기·분위기 프롬프트를 입력하면 생성할 수 있습니다.')
         for current_prompt_source in (current_prompt_control,current_loop_control):
             current_prompt_source.change(update_music_prompt,[current_prompt_control,current_loop_control],[current_prompt_summary,current_final_control],queue=False)
         current_prompt_control.change(lambda current_prompt_text:'입력한 설정으로 생성 대기열에 등록합니다.' if current_prompt_text.strip() else '장르·악기·분위기 프롬프트를 입력하면 생성할 수 있습니다.',current_prompt_control,current_generate_notice,queue=False)

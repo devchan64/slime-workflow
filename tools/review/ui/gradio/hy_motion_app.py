@@ -10,6 +10,7 @@ import time
 WORKFLOW_ROOT_DIRECTORY = Path(__file__).resolve().parents[4]
 sys.path.insert(0, str(WORKFLOW_ROOT_DIRECTORY))
 import gradio as gr
+from tools.review.common.gradio_button_guidance import build_button_guidance
 from generators.hy_motion.contracts import load_generation_defaults, validate_generation_request, read_encoder_system_prompt, build_encoder_input_preview, load_motion_presets
 from generators.hy_motion.contracts import MAXIMUM_DURATION_SECONDS
 from tools.review.common.generation_cleanup import GENERATION_CLEANUP_SCOPE_TEXT
@@ -160,6 +161,7 @@ def build_hymotion_interface(server_base_address):
             current_seed_input = build_generation_seed(current_default_values['seed'])
             current_tag_input = gr.Textbox(label='생성 이력 태그 · 선택', max_lines=1)
         current_generate_button = gr.Button('모션 생성 시작', variant='primary', interactive=False)
+        build_button_guidance(current_generate_button, '모델 준비와 입력 검증이 완료되면 생성할 수 있습니다. 고정 설정 · 모델 준비 영역에서 원인을 확인하고 입력을 수정하거나 준비 상태 새로고침을 누르세요.')
         current_generation_ready = gr.State(False)
         current_preset_selector.input(apply_motion_preset, current_preset_selector, [current_prompt_input, current_duration_input], queue=False)
         current_identifier_view = build_generation_identifier('접수한 생성 ID')
