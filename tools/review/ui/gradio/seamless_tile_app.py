@@ -60,8 +60,20 @@ def build_seamless_interface(server_base_address):
         return execute_management_command('seamless-tile', command_name_value, command_payload_value)
 
     def restore_seamless_inputs(current_history_record):
-        current_request_record = current_history_record['request']
-        return (current_request_record['seamless_tile']['user_prompt'],current_request_record.get('tag',''),40,current_request_record['seed'])
+        from tools.review.common.gradio_reference_restore import validate_history_input_settings
+        current_request_record = validate_history_input_settings(current_history_record)
+        current_seamless_settings = current_request_record.get('seamless_tile')
+        if not isinstance(current_seamless_settings, dict):
+            raise gr.Error('저장된 심리스 패턴 설정이 없습니다.')
+        try:
+            current_validated_request = validate_seamless_request({
+                'action': 'generate', 'prompt': current_seamless_settings.get('user_prompt'),
+                'tag': current_request_record.get('tag', ''), 'seed': current_request_record.get('seed'),
+                'steps': 40, 'width': 768, 'height': 768, 'images': [],
+            })
+        except ValueError as current_restore_error:
+            raise gr.Error(f'저장된 패턴 입력을 복원할 수 없습니다: {current_restore_error}') from current_restore_error
+        return (current_validated_request['seamless_tile']['user_prompt'],current_validated_request['tag'],40,current_validated_request['seed'])
 
     with gr.Blocks(title='Qwen2.1 심리스 패턴 생성기') as interface_blocks_value:
         gr.Markdown('## Qwen2.1 심리스 패턴 생성기\n패턴 생성 → 가로 3등분·3열 배열 → 좌우 연결 → 세로 3등분·3행 배열 → 상하 연결')
@@ -117,7 +129,10 @@ def build_seamless_interface(server_base_address):
         def refresh_seamless_status(generation_identifier_text, refresh_log_enabled):
             if not generation_identifier_text:
                 return gr.skip(), gr.skip(), gr.skip(), False, gr.update(interactive=False), gr.skip()
-            generation_status_record = read_existing_generation_status(execute_seamless_command,generation_identifier_text)
+            try:
+                generation_status_record = read_existing_generation_status(execute_seamless_command,generation_identifier_text)
+            except (ValueError, RuntimeError, OSError) as current_lookup_error:
+                return '상태 조회 실패: '+str(current_lookup_error)+' · 다음 조회에서 다시 확인합니다.', gr.skip(), gr.skip(), False, gr.update(interactive=False), gr.skip()
             if generation_status_record is None:
                 return '선택한 작업 이력이 삭제되었습니다.', '', '<p>다른 작업을 선택하세요.</p>', False, gr.update(interactive=False), ''
             preview_html_value = render_seamless_previews(generation_status_record)

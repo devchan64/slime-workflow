@@ -13,6 +13,41 @@ from tools.review.common.management_gateway import execute_gateway_arguments
 
 
 class SeamlessGenerationTests(unittest.TestCase):
+    def test_saved_pattern_restore_validates_before_updates(self):
+        from tools.review.ui.gradio import seamless_tile_app
+        current_valid_request = {'seamless_tile': {'user_prompt': 'Grass field'}, 'seed': 42, 'tag': '검증'}
+        current_history_record = {'id': 'isolated', 'request': current_valid_request}
+        with patch.object(seamless_tile_app, 'execute_management_command', return_value={'records': [current_history_record]}) as current_gateway_mock:
+            current_interface_blocks = seamless_tile_app.build_seamless_interface('http://localhost')
+            current_restore_callback = next(current_function.fn for current_function in current_interface_blocks.fns.values()
+                if current_function.fn and current_function.fn.__name__ == 'restore_selected_inputs')
+            self.assertEqual(tuple(current_restore_callback('isolated')[:4]), ('Grass field', '검증', 40, 42))
+            for current_invalid_fields in ({'seed': -1}, {'seed': True}, {'seamless_tile': None}, {'seamless_tile': {'user_prompt': []}}, {'seamless_tile': {'user_prompt': ''}}):
+                current_history_record['request'] = {**current_valid_request, **current_invalid_fields}
+                current_restored_values = current_restore_callback('isolated')
+                self.assertTrue(all(current_value == {'__type__': 'update'} for current_value in current_restored_values[:4]))
+                self.assertIn('입력값을 불러오지 못했습니다', current_restored_values[-1])
+            self.assertTrue(all(current_call.args[1] == 'history' for current_call in current_gateway_mock.call_args_list))
+
+    def test_status_failure_preserves_result_and_disables_stage_actions(self):
+        import gradio as gr
+        from tools.review.ui.gradio import seamless_tile_app
+        current_interface_blocks = seamless_tile_app.build_seamless_interface('http://localhost')
+        current_refresh_callback = next(current_function.fn for current_function in current_interface_blocks.fns.values()
+            if current_function.fn and current_function.fn.__name__ == 'refresh_seamless_status')
+        for current_error_type in (ValueError, RuntimeError, OSError):
+            with patch.object(seamless_tile_app, 'read_existing_generation_status', side_effect=current_error_type('격리 조회 오류')):
+                current_output_values = current_refresh_callback('saved-job', True)
+            self.assertIn('상태 조회 실패', current_output_values[0])
+            self.assertEqual(current_output_values[1:3], (gr.skip(), gr.skip()))
+            self.assertFalse(current_output_values[3])
+            self.assertFalse(current_output_values[4]['interactive'])
+            self.assertEqual(current_output_values[5], gr.skip())
+        with patch.object(seamless_tile_app, 'read_existing_generation_status', return_value={'status': 'paused', 'pipeline': {'stage': '검수'}, 'log': '복구 로그'}):
+            current_output_values = current_refresh_callback('saved-job', True)
+        self.assertEqual(current_output_values[1], '복구 로그')
+        self.assertTrue(current_output_values[3])
+
     def test_boundary_measurement_detects_wrap_jump(self):
         from tools.review.domains.image.seamless_generation import measure_texture_boundaries
         current_tile_image = Image.new('RGB', (16, 16), 'black')
