@@ -39,11 +39,23 @@ class QueueGenerationTelemetry(GenerationTelemetryRecorder):
                 current_status_path=self.current_job_root/'status.json'
                 if current_status_path.is_file():
                     current_worker_status=json.loads(current_status_path.read_text())
-                    self.current_run_state['stage']=current_worker_status.get('stage') or 'worker'
                     if matches_current_queue_attempt(self.current_run_state, current_worker_status):
+                        self.current_run_state['stage'] = current_worker_status.get('stage') or 'worker'
                         current_progress_stage = current_worker_status.get('progress', {}).get('stage')
                         if current_progress_stage:
                             self.current_run_state['stage'] = current_progress_stage
+                current_progress_path = self.current_job_root / 'worker-progress.json'
+                if current_progress_path.is_file():
+                    current_progress_record = json.loads(current_progress_path.read_text())
+                    if matches_current_queue_attempt(self.current_run_state, current_progress_record):
+                        self.current_run_state['stage'] = current_progress_record['stage']
+                        self.current_run_state['worker_progress'] = {
+                            'stage': current_progress_record['stage'],
+                            'step': current_progress_record['step'],
+                            'total': current_progress_record['step_total'],
+                            'updated_at': current_progress_record['updated_at'],
+                            'scope': current_progress_record['scope'],
+                        }
                 current_worker_metrics = read_current_worker_metrics(self.current_job_root)
                 if current_worker_metrics and matches_current_queue_attempt(self.current_run_state, current_worker_metrics):
                     self.current_run_state['stage'] = current_worker_metrics['stage']

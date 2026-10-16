@@ -18,6 +18,8 @@ def describe_generation_status(current_status_record, include_generation_estimat
     elif current_metrics_record.get('worker_progress'):
         current_worker_progress = current_metrics_record['worker_progress']
         current_status_text += f"\n\n작업자 마지막 관측: {current_worker_progress['stage']} · 단계 진행 {current_worker_progress['step']}/{current_worker_progress['total']} (전체 예상 진행률과 별개)"
+        if current_worker_progress.get('scope'):
+            current_status_text += " · 관측 범위: " + current_worker_progress['scope']
         current_status_text += f" · 갱신 시각: {current_worker_progress['updated_at']}"
     current_gpu_records = current_metrics_record.get('gpu_observations') or {}
     if not current_gpu_records:

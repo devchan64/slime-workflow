@@ -16,6 +16,23 @@ from tools.review.common.generation_records import write_record_atomically
 
 
 class MusicGenerationTests(unittest.TestCase):
+    def test_saved_music_inputs_restore_without_execution(self):
+        from tools.review.ui.gradio import music_app
+        for current_service_name in MUSIC_SERVICE_NAMES:
+            with self.subTest(service=current_service_name):
+                current_request_record=build_music_request(current_service_name,{'prompt':'soft flute','duration_seconds':15,'seed':77,'loop_request':True,'tag':'복원 검증'})
+                current_history_record={'id':'isolated-music','request':current_request_record,'status':'completed'}
+                with patch.object(music_app,'execute_remote_management_command',return_value={'records':[current_history_record]}) as current_command_mock:
+                    current_interface_blocks=music_app.build_music_interface(current_service_name,'http://127.0.0.1:8798')
+                    current_restore_callback=next(current_event.fn for current_event in current_interface_blocks.fns.values() if current_event.fn and current_event.fn.__name__=='restore_selected_inputs')
+                    current_restored_values=current_restore_callback('isolated-music')
+                    self.assertEqual(tuple(current_restored_values[:6]),('soft flute',15,77,True,'복원 검증','isolated-music'))
+                    current_history_record['request']={'action':'prepare'}
+                    current_rejected_values=current_restore_callback('isolated-music')
+                    self.assertTrue(all(current_value=={'__type__':'update'} for current_value in current_rejected_values[:6]))
+                    self.assertIn('모델 준비 이력에는 음악 입력이 없습니다',current_rejected_values[-1])
+                    self.assertTrue(all(current_call.args[1]=='history' for current_call in current_command_mock.call_args_list))
+
     def setUp(self):
         self.current_temp_handle = tempfile.TemporaryDirectory()
         self.current_test_root = Path(self.current_temp_handle.name)
@@ -174,12 +191,50 @@ class MusicGenerationTests(unittest.TestCase):
         def build_minimax_output(*current_argument_values,**current_keyword_values):
             return [current_tensor_mock] if current_keyword_values.get('output_type')=='pt' else [current_audio_array.T]
         current_pipeline_mock = Mock(sampling_rate=44100,side_effect=build_minimax_output)
-        with patch.dict('sys.modules',{'torch':Mock()}),patch('generators.music.runtime.load_minimax_music',return_value=current_pipeline_mock):
+        with patch.dict('sys.modules',{'torch':Mock(),'diffusers.modular_pipelines.minimax_music3':SimpleNamespace(encoders=Mock())}),patch('generators.music.runtime.record_minimax_termination',return_value=contextlib.nullcontext()),patch('generators.music.runtime.load_minimax_music',return_value=current_pipeline_mock):
             current_output_array,current_sample_rate = generate_minimax_music(current_request_record,self.current_test_root,self.current_test_root,Mock())
         self.assertEqual(current_sample_rate,44100)
         self.assertEqual(current_pipeline_mock.call_args.kwargs['lyrics'],'[Instrumental]')
         self.assertEqual(current_pipeline_mock.call_args.kwargs['audio_duration'],30)
         self.assertEqual(current_pipeline_mock.call_args.kwargs['output_type'],'pt')
+
+    def test_minimax_termination_observation(self):
+        from generators.music.runtime import record_minimax_termination
+        current_pipeline_stub = SimpleNamespace(frame_rate=25,language_model=SimpleNamespace(config=SimpleNamespace(vocab_size=160000)))
+        for current_case_name,current_token_values,current_expected_reason in (
+            ('early',[10,11,151670],'audio_end_token'),
+            ('limit',[10,11,12],'max_frames'),
+            ('empty',[151670],'audio_end_token'),
+            ('failure',[10],'not_observed')):
+            with self.subTest(case=current_case_name):
+                current_sampler_mock = Mock(side_effect=[SimpleNamespace(item=lambda current_token_value=current_token_value:current_token_value) for current_token_value in current_token_values])
+                current_encoder_stub = SimpleNamespace(_sample_top_k=current_sampler_mock,_AUDIO_END_TOKEN_ID=151670,_MAX_AUDIO_FRAMES=9000)
+                current_output_capture = io.StringIO()
+                with contextlib.redirect_stdout(current_output_capture):
+                    try:
+                        with record_minimax_termination(current_encoder_stub,current_pipeline_stub,0.08,self.current_test_root):
+                            for current_token_value in current_token_values:
+                                current_returned_token = current_encoder_stub._sample_top_k(SimpleNamespace(shape=(1,160000)),None)
+                                self.assertEqual(current_returned_token.item(),current_token_value)
+                            if current_case_name == 'failure':
+                                raise RuntimeError('검증용 디코더 실패')
+                    except RuntimeError:
+                        if current_case_name != 'failure':
+                            raise
+                current_trace_record = json.loads((self.current_test_root/'minimax-termination.json').read_text())
+                self.assertEqual(current_trace_record['termination_reason'],current_expected_reason)
+                self.assertEqual(current_trace_record['end_token_detected'],current_expected_reason=='audio_end_token')
+                self.assertEqual(current_trace_record['sampled_audio_frames'],{'early':1,'limit':2,'empty':0,'failure':0}[current_case_name])
+                self.assertEqual(current_trace_record['pipeline_status'],'failed' if current_case_name=='failure' else 'completed')
+                self.assertIs(current_encoder_stub._sample_top_k,current_sampler_mock)
+                self.assertEqual(current_sampler_mock.call_count,len(current_token_values))
+                self.assertIn(current_expected_reason,current_output_capture.getvalue())
+        current_sampler_mock = Mock(return_value=SimpleNamespace(item=lambda:151670))
+        current_encoder_stub._sample_top_k = current_sampler_mock
+        with contextlib.redirect_stdout(io.StringIO()),record_minimax_termination(current_encoder_stub,current_pipeline_stub,30,self.current_test_root) as current_trace_record:
+            current_encoder_stub._sample_top_k(SimpleNamespace(shape=(1,1024)),None)
+        self.assertFalse(current_trace_record['end_token_detected'])
+        self.assertEqual(current_trace_record['semantic_samples'],0)
 
     def test_worker_failure_and_cancellation_preserve_attempts(self):
         from generators.music.worker import execute_music_worker

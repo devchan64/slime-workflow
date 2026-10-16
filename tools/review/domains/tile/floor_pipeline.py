@@ -8,7 +8,9 @@ import shutil
 import subprocess
 import sys
 import time
+import threading
 from PIL import Image
+from tools.review.common.worker_generation_progress import WorkerGenerationProgress
 from tools.review.domains.image.three_reference_generation import save_three_reference_inputs
 
 WORKFLOW_ROOT_DIRECTORY = Path(__file__).resolve().parents[4]
@@ -31,12 +33,21 @@ def execute_floor_stage(current_job_root, stage_directory_name, worker_file_name
     if stage_request_path.exists() and json.loads(stage_request_path.read_text()) != stage_request_record:
         raise ValueError('재개 단계 요청이 기존 기록과 다릅니다: '+stage_directory_name)
     write_pipeline_record(stage_request_path,stage_request_record)
+    current_progress_writer = WorkerGenerationProgress(current_job_root)
+    current_stage_progress = {'stage':stage_directory_name+' · 준비','step':0,'total':stage_request_record['steps']}
+    def publish_child_progress():
+        current_progress_path = stage_output_directory/'worker-progress.json'
+        if current_progress_path.is_file():
+            current_child_record = json.loads(current_progress_path.read_text())
+            current_stage_progress.update(stage=stage_directory_name+' · '+current_child_record['stage'],step=current_child_record['step'],total=current_child_record['step_total'])
+        current_progress_writer.record_worker_progress(current_stage_progress)
     stage_checkpoint_path = stage_output_directory/'checkpoint.json'
     if stage_checkpoint_path.exists():
         stage_checkpoint_record = json.loads(stage_checkpoint_path.read_text())
         for current_file_name in ('result.png','result.json'):
             if calculate_file_digest(stage_output_directory/current_file_name) != stage_checkpoint_record[current_file_name]:
                 raise ValueError('완료 단계 산출물 무결성 오류: '+stage_directory_name)
+        current_progress_writer.record_worker_progress({'stage':stage_directory_name+' · 완료 단계 재사용','step':stage_request_record['steps'],'total':stage_request_record['steps']})
         logging.info('resume 완료 단계 재사용: %s',stage_directory_name)
         return stage_output_directory
     previous_output_paths = [current_output_path for current_output_path in stage_output_directory.iterdir() if current_output_path.name not in ('request.json','reference-1.png') and not current_output_path.name.startswith('attempt-')]
@@ -45,14 +56,17 @@ def execute_floor_stage(current_job_root, stage_directory_name, worker_file_name
         previous_attempt_directory.mkdir()
         for current_output_path in previous_output_paths:
             current_output_path.rename(previous_attempt_directory/current_output_path.name)
+    current_progress_writer.record_worker_progress(current_stage_progress)
     # 하위 작업은 같은 프로세스 그룹을 상속하여 공용 취소 명령이 함께 종료한다.
     with (stage_output_directory/'worker.log').open('a') as stage_log_stream:
         stage_worker_process = subprocess.Popen([sys.executable,str(WORKFLOW_ROOT_DIRECTORY/'generators/image'/worker_file_name),'--job-dir',str(stage_output_directory)],stdout=stage_log_stream,stderr=subprocess.STDOUT)
         while True:
             try:
                 stage_exit_code = stage_worker_process.wait(timeout=5)
+                publish_child_progress()
                 break
             except subprocess.TimeoutExpired:
+                publish_child_progress()
                 logging.info('heartbeat stage=%s log_bytes=%s',stage_directory_name,(stage_output_directory/'worker.log').stat().st_size)
         if stage_exit_code != 0:
             stage_log_tail = (stage_output_directory/'worker.log').read_text(errors='replace')[-4000:]
@@ -69,11 +83,15 @@ def execute_floor_pipeline(current_job_root, current_request_record):
     mechanical_crop_enabled = current_request_record['floor_separation']['version'] in (2,3,4,5,6,7,8,9,10)
     pipeline_stage_count = 3 if mechanical_crop_enabled else 2
     current_stage_name = f'1/{pipeline_stage_count} · 9칸 생성'
+    current_pipeline_writer = WorkerGenerationProgress(current_job_root)
+    def publish_pipeline_stage(current_completed_count):
+        current_pipeline_writer.record_worker_progress({'stage':current_stage_name,'step':current_completed_count,'total':pipeline_stage_count,'scope':'완료한 파이프라인 단계 수; 추론 스텝 및 시간 기반 전체 예상 진행률과 구분'})
     try:
         separation_request_record = current_request_record['floor_separation']
         if separation_request_record['version'] not in (1,2,3,4,5,6,7,8,9,10):
             raise ValueError('지원하지 않는 바닥 분리 단계 버전')
         write_pipeline_record(current_job_root/'status.json',{'status':'running','stage':current_stage_name})
+        publish_pipeline_stage(0)
         grid_request_record = {current_field_name:current_request_record[current_field_name] for current_field_name in ('action','prompt','width','height','steps','seed')}
         grid_output_directory = execute_floor_stage(current_job_root,'stage-1-grid','run_qwen_2512.py',grid_request_record)
         shutil.copyfile(grid_output_directory/'result.png',current_job_root/'result.png')
@@ -82,11 +100,24 @@ def execute_floor_pipeline(current_job_root, current_request_record):
         if mechanical_crop_enabled:
             current_stage_name = '2/3 · 중앙 몰딩 기계식 크롭'
             write_pipeline_record(current_job_root/'status.json',{'status':'running','stage':current_stage_name})
-            crop_output_directory = execute_mechanical_crop(current_job_root,separation_request_record['version']-1)
+            publish_pipeline_stage(1)
+            current_crop_stop_event = threading.Event()
+            def record_crop_heartbeat():
+                while not current_crop_stop_event.wait(5):
+                    publish_pipeline_stage(1)
+                    logging.info('heartbeat stage=%s',current_stage_name)
+            current_crop_thread = threading.Thread(target=record_crop_heartbeat,daemon=True)
+            current_crop_thread.start()
+            try:
+                crop_output_directory = execute_mechanical_crop(current_job_root,separation_request_record['version']-1)
+            finally:
+                current_crop_stop_event.set()
+                current_crop_thread.join()
             reference_source_path = crop_output_directory/'result.png'
         current_stage_name = f'{pipeline_stage_count}/{pipeline_stage_count} · 사용자 설명으로 다시 그리기'
         reference_stage_directory = 'stage-3-redraw' if mechanical_crop_enabled else 'stage-2-separation'
         write_pipeline_record(current_job_root/'status.json',{'status':'running','stage':current_stage_name})
+        publish_pipeline_stage(pipeline_stage_count-1)
         reference_output_directory = current_job_root/reference_stage_directory
         reference_output_directory.mkdir(exist_ok=True)
         reference_image_path = reference_output_directory/'reference-1.png'
@@ -112,7 +143,9 @@ def execute_floor_pipeline(current_job_root, current_request_record):
         shutil.copyfile(separated_output_directory/'result.png',current_job_root/'single-tile.png')
         completed_stage_directories = (grid_output_directory,crop_output_directory,separated_output_directory) if mechanical_crop_enabled else (grid_output_directory,separated_output_directory)
         write_pipeline_record(current_job_root/'result.json',{'elapsed_seconds':sum(json.loads((current_stage_directory/'result.json').read_text())['elapsed_seconds'] for current_stage_directory in completed_stage_directories),'last_attempt_seconds':time.monotonic()-pipeline_start_seconds,'pipeline_version':separation_request_record['version'],'stages':[{'path':str(current_stage_directory.relative_to(current_job_root)),'request':json.loads((current_stage_directory/'request.json').read_text()),'result':json.loads((current_stage_directory/'result.json').read_text())} for current_stage_directory in completed_stage_directories],'original_sha256':calculate_file_digest(current_job_root/'result.png'),'separated_sha256':calculate_file_digest(current_job_root/'single-tile.png')})
-        write_pipeline_record(current_job_root/'status.json',{'status':'completed','stage':f'{pipeline_stage_count}/{pipeline_stage_count} · 완료'})
+        current_stage_name = f'{pipeline_stage_count}/{pipeline_stage_count} · 완료'
+        publish_pipeline_stage(pipeline_stage_count)
+        write_pipeline_record(current_job_root/'status.json',{'status':'completed','stage':current_stage_name})
         logging.info('complete output=%s',current_job_root/'single-tile.png')
     except Exception as current_error_value:
         write_pipeline_record(current_job_root/'status.json',{'status':'failed','stage':current_stage_name,'error':str(current_error_value)})

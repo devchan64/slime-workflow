@@ -22,6 +22,67 @@ class QwenPlainGenerationTests(unittest.TestCase):
         return {'action':'generate','prompt':'  붉은 사과.\n흰 배경.  ','images':[base64.b64encode(current_image_buffer.getvalue()).decode()]*reference_image_count,
             'width':512,'height':512,'steps':40,'seed':10107}
 
+    def test_runtime_publishes_progress_without_gpu_execution(self):
+        from types import SimpleNamespace
+        from unittest.mock import MagicMock
+        from generators.image import qwen_21_runtime
+        current_torch_module = MagicMock()
+        current_torch_module.cuda.is_available.return_value = True
+        current_torch_module.cuda.max_memory_allocated.return_value = 0
+        current_pipeline_mock = MagicMock()
+        current_observed_steps = []
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_job_root = Path(current_directory_name)
+            def execute_mock_pipeline(**current_pipeline_arguments):
+                for current_step_index in (0, 39):
+                    current_pipeline_arguments['callback_on_step_end'](None, current_step_index, None, {})
+                    current_observed_steps.append(json.loads((current_job_root/'worker-progress.json').read_text())['step'])
+                return SimpleNamespace(images=[Image.new('RGB', (512,512))])
+            current_pipeline_mock.side_effect = execute_mock_pipeline
+            current_diffusers_module = SimpleNamespace(QwenImage21Pipeline=SimpleNamespace(from_pretrained=MagicMock(return_value=current_pipeline_mock)))
+            with patch.dict('sys.modules', {'torch': current_torch_module, 'diffusers': current_diffusers_module}), patch.object(qwen_21_runtime, 'validate_qwen_model_assets', return_value=current_job_root), patch.object(qwen_21_runtime.threading, 'Thread'):
+                qwen_21_runtime.execute_qwen_reference_generation(current_job_root, {'prompt':'A tree.', 'steps':40,'width':512,'height':512,'seed':1}, [])
+            current_progress_record = json.loads((current_job_root/'worker-progress.json').read_text())
+            self.assertEqual(current_observed_steps, [1,40])
+            self.assertEqual(current_progress_record['stage'], 'postprocess')
+            self.assertEqual(current_progress_record['step_total'], 40)
+            self.assertTrue((current_job_root/'result.png').is_file())
+
+    def test_idle_inference_heartbeat_updates_persisted_timestamp(self):
+        from datetime import datetime
+        from types import SimpleNamespace
+        from unittest.mock import MagicMock
+        import threading
+        from generators.image import qwen_21_runtime
+        from tools.review.common.worker_generation_progress import WorkerGenerationProgress
+        current_heartbeat_observed = threading.Event()
+        current_inference_records = []
+        current_original_writer = WorkerGenerationProgress.record_worker_progress
+        current_torch_module = MagicMock()
+        current_torch_module.cuda.is_available.return_value = True
+        current_torch_module.cuda.max_memory_allocated.return_value = 0
+        current_pipeline_mock = MagicMock()
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_job_root = Path(current_directory_name)
+            def record_observed_progress(current_writer_instance, current_progress_record):
+                current_original_writer(current_writer_instance, current_progress_record)
+                if current_progress_record['stage'] == 'inference':
+                    current_inference_records.append(json.loads((current_job_root/'worker-progress.json').read_text()))
+                    if len(current_inference_records) >= 2:
+                        current_heartbeat_observed.set()
+            def execute_waiting_pipeline(**current_pipeline_arguments):
+                self.assertTrue(current_heartbeat_observed.wait(8), '실제 heartbeat가 추론 대기 중 기록을 갱신해야 함')
+                return SimpleNamespace(images=[Image.new('RGB', (512,512))])
+            current_pipeline_mock.side_effect = execute_waiting_pipeline
+            current_diffusers_module = SimpleNamespace(QwenImage21Pipeline=SimpleNamespace(from_pretrained=MagicMock(return_value=current_pipeline_mock)))
+            with patch.dict('sys.modules', {'torch':current_torch_module,'diffusers':current_diffusers_module}), patch.object(qwen_21_runtime,'validate_qwen_model_assets',return_value=current_job_root), patch.object(WorkerGenerationProgress,'record_worker_progress',record_observed_progress):
+                qwen_21_runtime.execute_qwen_reference_generation(current_job_root, {'prompt':'A tree.','steps':40,'width':512,'height':512,'seed':1}, [])
+            self.assertEqual([current_record['step'] for current_record in current_inference_records], [0,0])
+            current_elapsed_seconds = (datetime.fromisoformat(current_inference_records[1]['updated_at'])-datetime.fromisoformat(current_inference_records[0]['updated_at'])).total_seconds()
+            self.assertGreater(current_elapsed_seconds, 4)
+            self.assertLess(current_elapsed_seconds, 7)
+            self.assertEqual(json.loads((current_job_root/'worker-progress.json').read_text())['stage'], 'postprocess')
+
     def test_small_output_resolution_boundary(self):
         from tools.review.domains.image.three_reference_generation import validate_three_reference_request
         current_request_record = self.create_reference_request()

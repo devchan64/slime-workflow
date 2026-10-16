@@ -7,9 +7,9 @@ import sys
 import traceback
 
 WORKFLOW_ROOT_PATH=Path(__file__).resolve().parents[2]
+sys.path.insert(0,str(WORKFLOW_ROOT_PATH))
 sys.path.insert(0,str(WORKFLOW_ROOT_PATH/'generators/animation'))
 from qwen_pose import execute_pose_generation
-sys.path.insert(0,str(WORKFLOW_ROOT_PATH))
 from tools.review.domains.tile.tile_results import save_tile_border_result
 from tools.review.domains.image.three_reference_generation import resolve_reference_settings, validate_three_reference_job_path, verify_reference_snapshots
 

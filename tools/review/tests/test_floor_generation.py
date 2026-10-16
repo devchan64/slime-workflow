@@ -165,7 +165,7 @@ class FloorGenerationTests(unittest.TestCase):
 
     def test_three_stage_failure_resume_and_integrity(self):
         from PIL import Image
-        from tools.review.domains.tile.floor_pipeline import execute_floor_pipeline
+        from tools.review.domains.tile.floor_pipeline import execute_floor_pipeline, execute_mechanical_crop
         from tools.review.common.gpu_memory_history import build_image_memory_identity
         with tempfile.TemporaryDirectory() as temporary_directory_value:
             current_job_root = Path(temporary_directory_value)
@@ -195,7 +195,27 @@ class FloorGenerationTests(unittest.TestCase):
                 (stage_output_directory/'status.json').write_text('{"status":"completed"}')
                 from unittest.mock import Mock
                 return Mock(wait=lambda timeout:0)
-            with patch('tools.review.domains.tile.floor_pipeline.subprocess.Popen',side_effect=simulate_stage_process):
+            import threading
+            from tools.review.common.worker_generation_progress import WorkerGenerationProgress
+            current_crop_heartbeat = threading.Event()
+            current_crop_records = []
+            current_original_writer = WorkerGenerationProgress.record_worker_progress
+            def observe_crop_heartbeat(current_writer_instance,current_progress_record):
+                current_original_writer(current_writer_instance,current_progress_record)
+                if '크롭' in current_progress_record['stage']:
+                    current_crop_records.append(json.loads((current_job_root/'worker-progress.json').read_text()))
+                    if len(current_crop_records)>=2:
+                        current_crop_heartbeat.set()
+            def verify_crop_stage_record(current_crop_root,current_crop_version):
+                current_progress_record = json.loads((current_crop_root/'worker-progress.json').read_text())
+                self.assertEqual(current_progress_record['step'],1)
+                self.assertEqual(current_progress_record['step_total'],3)
+                self.assertIn('크롭',current_progress_record['stage'])
+                self.assertIn('파이프라인 단계 수',current_progress_record['scope'])
+                self.assertTrue(current_crop_heartbeat.wait(8),'크롭 heartbeat 미수신')
+                self.assertNotEqual(current_crop_records[0]['updated_at'],current_crop_records[1]['updated_at'])
+                return execute_mechanical_crop(current_crop_root,current_crop_version)
+            with patch('tools.review.domains.tile.floor_pipeline.subprocess.Popen',side_effect=simulate_stage_process), patch('tools.review.domains.tile.floor_pipeline.execute_mechanical_crop',side_effect=verify_crop_stage_record), patch.object(WorkerGenerationProgress,'record_worker_progress',observe_crop_heartbeat):
                 with self.assertRaisesRegex(RuntimeError,'3단계 추론 실패'):
                     execute_floor_pipeline(current_job_root,prepared_request_value)
                 self.assertTrue((current_job_root/'result.png').exists())
@@ -209,11 +229,78 @@ class FloorGenerationTests(unittest.TestCase):
                 with Image.open(current_job_root/'reference-1.png') as reference_image_value:
                     self.assertEqual(reference_image_value.size,(512,512))
                 self.assertEqual(json.loads((current_job_root/'status.json').read_text())['status'],'completed')
+                current_completed_progress = json.loads((current_job_root/'worker-progress.json').read_text())
+                self.assertEqual(current_completed_progress['step'],3)
+                self.assertIn('파이프라인 단계 수',current_completed_progress['scope'])
                 execute_floor_pipeline(current_job_root,prepared_request_value)
                 self.assertEqual(len(launched_stage_names),3)
                 (current_job_root/'stage-1-grid/result.png').write_bytes(b'changed')
                 with self.assertRaisesRegex(ValueError,'무결성'):
                     execute_floor_pipeline(current_job_root,prepared_request_value)
+
+    def test_child_progress_reaches_parent_without_old_attempt(self):
+        import subprocess
+        from unittest.mock import Mock
+        from tools.review.domains.tile.floor_pipeline import execute_floor_stage
+        from tools.review.common.worker_generation_progress import WorkerGenerationProgress
+        with tempfile.TemporaryDirectory() as current_root_name:
+            current_job_path = Path(current_root_name)
+            current_stage_path = current_job_path/'stage-1-grid'
+            current_stage_path.mkdir()
+            WorkerGenerationProgress(current_stage_path).record_worker_progress({'stage':'old','step':4,'total':4})
+            current_wait_count = []
+            def simulate_stage_wait(timeout):
+                current_wait_count.append(timeout)
+                if len(current_wait_count)==1:
+                    self.assertFalse((current_stage_path/'worker-progress.json').exists())
+                    WorkerGenerationProgress(current_stage_path).record_worker_progress({'stage':'inference','step':2,'total':4})
+                    raise subprocess.TimeoutExpired('isolated',timeout)
+                current_parent_record = json.loads((current_job_path/'worker-progress.json').read_text())
+                self.assertEqual(current_parent_record['stage'],'stage-1-grid · inference')
+                self.assertEqual(current_parent_record['step'],2)
+                for current_file_name in ('result.png','result.json'):
+                    (current_stage_path/current_file_name).write_text('isolated')
+                (current_stage_path/'status.json').write_text('{"status":"completed"}')
+                WorkerGenerationProgress(current_stage_path).record_worker_progress({'stage':'complete','step':4,'total':4})
+                return 0
+            with patch('tools.review.domains.tile.floor_pipeline.subprocess.Popen',return_value=Mock(wait=simulate_stage_wait)):
+                execute_floor_stage(current_job_path,'stage-1-grid','run_qwen_2512.py',{'steps':4})
+            self.assertEqual(current_wait_count,[5,5])
+            self.assertEqual(json.loads((current_job_path/'worker-progress.json').read_text())['step'],4)
+            self.assertEqual(len(list(current_stage_path.glob('attempt-*/worker-progress.json'))),1)
+
+    def test_real_child_process_progress_forwarding(self):
+        from tools.review.domains.tile import floor_pipeline
+        from tools.review.common.worker_generation_progress import WorkerGenerationProgress
+        with tempfile.TemporaryDirectory() as current_root_name:
+            current_root_path = Path(current_root_name)
+            current_worker_path = current_root_path/'generators/image/isolated_worker.py'
+            current_worker_path.parent.mkdir(parents=True)
+            current_worker_path.write_text("""import json, sys, time
+from pathlib import Path
+sys.path.insert(0, REPOSITORY_PATH)
+from tools.review.common.worker_generation_progress import WorkerGenerationProgress
+current_job_path = Path(sys.argv[-1])
+current_progress_writer = WorkerGenerationProgress(current_job_path)
+current_progress_writer.record_worker_progress({'stage':'inference','step':2,'total':4})
+time.sleep(5.5)
+current_progress_writer.record_worker_progress({'stage':'complete','step':4,'total':4})
+for current_file_name in ('result.png','result.json'):
+    (current_job_path/current_file_name).write_text('isolated')
+(current_job_path/'status.json').write_text(json.dumps({'status':'completed'}))
+""".replace('REPOSITORY_PATH',repr(str(Path(__file__).resolve().parents[3]))))
+            current_job_path = current_root_path/'job'
+            current_job_path.mkdir()
+            current_observed_steps = []
+            current_original_writer = WorkerGenerationProgress.record_worker_progress
+            def record_parent_observation(current_writer_instance,current_progress_record):
+                current_original_writer(current_writer_instance,current_progress_record)
+                current_observed_steps.append((current_progress_record['stage'],current_progress_record['step']))
+            with patch.object(floor_pipeline,'WORKFLOW_ROOT_DIRECTORY',current_root_path), patch.object(WorkerGenerationProgress,'record_worker_progress',record_parent_observation):
+                floor_pipeline.execute_floor_stage(current_job_path,'stage-1-grid','isolated_worker.py',{'steps':4})
+            self.assertIn(('stage-1-grid · inference',2),current_observed_steps)
+            self.assertEqual(current_observed_steps[-1],('stage-1-grid · complete',4))
+            self.assertTrue((current_job_path/'stage-1-grid/checkpoint.json').is_file())
 
     def create_molding_fixture(self):
         source_image_value = np.zeros((1024,1024,3),dtype='uint8')

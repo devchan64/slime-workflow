@@ -7,6 +7,7 @@ import threading
 import time
 from datetime import datetime
 from pathlib import Path
+from tools.review.common.worker_generation_progress import WorkerGenerationProgress
 
 from generators.image.vnccs_profile import validate_vnccs_profile, validate_vnccs_assets, VNCCS_QUALITY_WARNING_TEXT
 from generators.image.qwen_21_runtime import validate_qwen_model_assets, QWEN_MODEL_IDENTIFIER, QWEN_MODEL_REVISION
@@ -115,14 +116,18 @@ def run_vnccs_pipeline(current_job_root):
     current_lora_path = validate_vnccs_assets()
     current_model_root = validate_qwen_model_assets()
     current_progress_record = {'stage':'load','step':0,'total':current_request_record['steps'],'cuda_layer_calls':0}
+    current_progress_writer = WorkerGenerationProgress(current_job_root)
+    current_progress_writer.record_worker_progress(current_progress_record)
     current_stop_event = threading.Event()
 
     def emit_vnccs_heartbeat():
         while not current_stop_event.wait(VNCCS_HEARTBEAT_SECONDS):
+            current_progress_writer.record_worker_progress(current_progress_record)
             print(f'{datetime.now().isoformat()}/vnccs/heartbeat {current_progress_record} cuda_bytes={torch.cuda.memory_allocated()}', flush=True)
 
     def record_vnccs_step(current_pipeline_value, current_step_index, current_timestep_value, current_callback_values):
         current_progress_record.update(stage='denoise', step=current_step_index+1)
+        current_progress_writer.record_worker_progress(current_progress_record)
         return current_callback_values
 
     def verify_vnccs_cuda(current_module_value, current_argument_values, current_output_value):
@@ -154,10 +159,13 @@ def run_vnccs_pipeline(current_job_root):
             with Image.open(current_job_root / current_reference_name) as current_reference_image:
                 current_reference_images.append(current_reference_image.convert('RGB'))
         current_progress_record['stage'] = 'inference'
+        current_progress_writer.record_worker_progress(current_progress_record)
         with torch.inference_mode():
             current_output_image = current_pipeline_value(**build_vnccs_arguments(current_request_record, current_reference_images, torch.Generator('cuda').manual_seed(current_request_record['seed']), record_vnccs_step)).images[0]
         if current_output_image.size != (512,512) or current_output_image.mode not in ('RGB','RGBA'):
             raise ValueError('VNCCS 출력 이미지 계약 불일치')
+        current_progress_record['stage'] = 'postprocess'
+        current_progress_writer.record_worker_progress(current_progress_record)
         current_output_image.save(current_job_root / 'result.png')
         current_result_record = {'model_id':QWEN_MODEL_IDENTIFIER,'revision':QWEN_MODEL_REVISION,'size':[512,512],'steps':current_request_record['steps'],'seed':current_request_record['seed'],'prompt':current_request_record['prompt'],'prompt_word_count':len(current_request_record['prompt'].split()),'prompt_sha256':hashlib.sha256(current_request_record['prompt'].encode()).hexdigest(),'vnccs':current_request_record['vnccs'],'precision':current_precision_record,'peak_gpu_bytes':torch.cuda.max_memory_allocated(),'cuda_layer_calls':current_progress_record['cuda_layer_calls'],'quality_warnings':[VNCCS_QUALITY_WARNING_TEXT]}
         (current_job_root / 'result.json').write_text(json.dumps(current_result_record, ensure_ascii=False, indent=2))

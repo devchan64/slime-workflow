@@ -2,8 +2,6 @@
 import tempfile
 from pathlib import Path
 import unittest
-from unittest.mock import patch
-import hashlib
 import yaml
 from generators.animation.qwen_pose import load_pose_prompt, execute_pose_generation
 
@@ -44,33 +42,26 @@ class QwenPoseContractTests(unittest.TestCase):
                     execute_pose_generation(trial_output_root='/tmp/unused', prompt_text_value='test', character_image_path='/missing.png', pose_reference_path='/missing.png', pose_reference_kind='rig', selected_reference_order=reference_order_value, selected_inference_steps=inference_steps_value, enable_anypose_adapter=True)
 
     def test_anypose_without_lightning_contract(self):
-        with self.assertRaisesRegex(ValueError, '.tmp'):
+        with self.assertRaisesRegex(ValueError, '폐기'):
             execute_pose_generation(trial_output_root='/tmp/unused', prompt_text_value='test', character_image_path='/missing.png', pose_reference_path='/missing.png', pose_reference_kind='rig', selected_inference_steps=10, enable_anypose_adapter=True, enable_lightning_adapter=False)
         with self.assertRaisesRegex(ValueError, 'AnyPose'):
             execute_pose_generation(trial_output_root='/tmp/unused', prompt_text_value='test', character_image_path='/missing.png', pose_reference_path='/missing.png', pose_reference_kind='rig', selected_inference_steps=4, enable_anypose_adapter=True, enable_lightning_adapter=False)
 
-    def test_adapter_filter_and_integrity(self):
+    def test_retired_adapter_entrypoints_reject(self):
         from generators.animation.qwen_pose import anypose
-        with tempfile.TemporaryDirectory() as temporary_root_path:
-            test_adapter_records = tuple({'name': adapter_role_name, 'repository': 'fixture/repo', 'revision': 'fixed', 'filename': adapter_role_name+'.safetensors', 'size': 3, 'sha256': hashlib.sha256(b'abc').hexdigest()} for adapter_role_name in ('anypose_base', 'anypose_helper', 'lightning'))
-            with patch.object(anypose, 'WORKFLOW_REPO_ROOT', Path(temporary_root_path)), patch.object(anypose, 'FIXED_ADAPTER_RECORDS', test_adapter_records):
-                for adapter_record_values in test_adapter_records:
-                    adapter_file_path = anypose.resolve_adapter_path(adapter_record_values)
-                    adapter_file_path.parent.mkdir(parents=True, exist_ok=True)
-                    adapter_file_path.write_bytes(b'abc')
-                self.assertEqual(len(anypose.validate_adapter_files()), 3)
-                anypose.resolve_adapter_path(test_adapter_records[2]).unlink()
-                self.assertEqual([adapter_record_values['name'] for adapter_record_values in anypose.validate_adapter_files(include_lightning_adapter=False)], ['anypose_base', 'anypose_helper'])
-                anypose.resolve_adapter_path(test_adapter_records[0]).write_bytes(b'bad')
-                with self.assertRaisesRegex(ValueError, 'SHA-256'):
-                    anypose.validate_adapter_files(include_lightning_adapter=False)
+        with self.assertRaisesRegex(ValueError, '폐기'):
+            anypose.validate_adapter_files()
+        with self.assertRaisesRegex(ValueError, '폐기'):
+            anypose.validate_adapter_files(include_lightning_adapter=False)
+        with self.assertRaisesRegex(ValueError, '폐기'):
+            anypose.prepare_anypose_models()
 
     def test_anypose_strength_validation(self):
         for invalid_strength_value in (-0.1, 1.6, float('nan'), float('inf'), True, '1'):
             for strength_field_name in ('selected_base_strength', 'selected_helper_strength'):
                 with self.subTest(value=invalid_strength_value, field=strength_field_name):
                     with self.assertRaisesRegex(ValueError, 'strength'):
-                        execute_pose_generation(trial_output_root='/tmp/unused', prompt_text_value='test', character_image_path='/missing.png', pose_reference_path='/missing.png', pose_reference_kind='rig', selected_inference_steps=10, enable_anypose_adapter=True, enable_lightning_adapter=False, **{strength_field_name: invalid_strength_value})
+                        execute_pose_generation(trial_output_root='/tmp/unused', prompt_text_value='test', character_image_path='/missing.png', pose_reference_path='/missing.png', pose_reference_kind='rig', selected_inference_steps=10, enable_anypose_adapter=False, enable_lightning_adapter=False, **{strength_field_name: invalid_strength_value})
 
     def test_invalid_kind_before_gpu(self):
         with self.assertRaisesRegex(ValueError, 'pose kind'):

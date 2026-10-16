@@ -4,6 +4,7 @@ import json
 import threading
 from datetime import datetime
 from pathlib import Path
+from tools.review.common.worker_generation_progress import WorkerGenerationProgress
 
 WORKFLOW_ROOT_PATH = Path(__file__).resolve().parents[2]
 QWEN_MODEL_IDENTIFIER = 'Qwen/Qwen-Image-2.1'
@@ -46,14 +47,18 @@ def execute_qwen_reference_generation(current_job_root, current_request_record, 
         raise ValueError('Qwen 2.1 프롬프트는 1~99단어여야 합니다.')
     current_model_root = validate_qwen_model_assets()
     current_progress_record = {'stage': 'loading', 'step': 0, 'total': selected_inference_steps}
+    current_progress_writer = WorkerGenerationProgress(current_job_root)
+    current_progress_writer.record_worker_progress(current_progress_record)
     heartbeat_stop_event = threading.Event()
 
     def emit_generation_heartbeat():
         while not heartbeat_stop_event.wait(5):
+            current_progress_writer.record_worker_progress(current_progress_record)
             print(f'{datetime.now().isoformat()}/qwen21/heartbeat {current_progress_record}', flush=True)
 
     def record_inference_progress(current_pipeline_value, current_step_index, current_timestep_value, current_callback_values):
         current_progress_record['step'] = current_step_index + 1
+        current_progress_writer.record_worker_progress(current_progress_record)
         return current_callback_values
 
     threading.Thread(target=emit_generation_heartbeat, daemon=True).start()
@@ -91,6 +96,7 @@ def execute_qwen_reference_generation(current_job_root, current_request_record, 
             with Image.open(reference_image_path) as current_reference_image:
                 reference_image_values.append(current_reference_image.convert('RGB'))
         current_progress_record['stage'] = 'inference'
+        current_progress_writer.record_worker_progress(current_progress_record)
         with torch.inference_mode():
             generated_output_image = current_pipeline_model(
                 image=reference_image_values or None, prompt=current_request_record['prompt'],
@@ -103,6 +109,8 @@ def execute_qwen_reference_generation(current_job_root, current_request_record, 
             raise ValueError(f'Qwen 2.1 출력 크기 불일치: {generated_output_image.size}')
         if current_request_record.get('qwen21', {}).get('prompt_options', {}).get('transparent_background') and generated_output_image.mode != 'RGBA':
             raise ValueError('투명 배경 요청의 네이티브 RGBA 출력이 아닙니다.')
+        current_progress_record['stage'] = 'postprocess'
+        current_progress_writer.record_worker_progress(current_progress_record)
         generated_output_image.save(current_job_root / 'result.png')
         if 'circular_vae' in current_request_record:
             repeated_output_image = Image.new('RGB', (generated_output_image.width * 3, generated_output_image.height * 3))

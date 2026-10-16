@@ -4,6 +4,34 @@ from tools.review.common.generation_status_display import describe_generation_st
 
 
 class GenerationStatusDisplayTests(unittest.TestCase):
+    def test_video_duration_rejects_empty_and_invalid_frame_counts(self):
+        from tools.review.common.gradio_video_results import describe_video_frame_duration
+        for current_frame_count in (None, '', True, 0, 2, 162, 5.5, float('nan'), float('inf')):
+            with self.subTest(frames=current_frame_count):
+                self.assertIn('입력하세요', describe_video_frame_duration(current_frame_count))
+        self.assertEqual(describe_video_frame_duration(81), '81프레임 · 약 5.06초 · 16fps')
+        self.assertEqual(describe_video_frame_duration(37.0), '37프레임 · 약 2.31초 · 16fps')
+
+    def test_measurement_failure_persists_and_displays_previous_peak(self):
+        import json
+        import tempfile
+        from pathlib import Path
+        from unittest.mock import patch
+        from tools.review.common.generation_telemetry import GenerationTelemetryRecorder
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_attempt_root=Path(current_directory_name)
+            current_recorder_value=GenerationTelemetryRecorder(current_attempt_root,0,[])
+            with patch('tools.review.common.generation_telemetry.os.getpid',return_value=100), patch('tools.review.common.generation_telemetry.Path.glob',return_value=[]), patch('tools.review.common.generation_telemetry.subprocess.check_output',side_effect=['GPU-A, 500','GPU-A, 100, 200','GPU-A, 600','GPU-A, 100, 300\nGPU-A, 100, 300']):
+                current_recorder_value.capture_generation_memory()
+                current_recorder_value.finish_generation_telemetry('failed')
+            current_saved_metrics=json.loads((current_attempt_root/'metrics.json').read_text())
+            self.assertEqual(current_saved_metrics['status'],'failed')
+            current_display_text=describe_generation_status({'status':'failed','metrics':current_saved_metrics})
+            for current_expected_text in ('현재 미측정','관측 피크 200 MiB','장치·PID가 중복','미측정 구간','순간 피크'):
+                self.assertIn(current_expected_text,current_display_text)
+            self.assertNotIn('600 MiB',current_display_text)
+            self.assertNotIn('현재 0 MiB',current_display_text)
+
     def test_missing_media_result_matches_terminal_status(self):
         from tools.review.common.gradio_audio_results import render_audio_generation_result
         from tools.review.common.gradio_video_results import render_video_generation_result
@@ -25,6 +53,8 @@ class GenerationStatusDisplayTests(unittest.TestCase):
         for current_expected_text in ('단계: failed', '작업자 마지막 관측: inference', '12/40', '전체 예상 진행률과 별개', current_worker_progress['updated_at']):
             self.assertIn(current_expected_text, current_status_text)
         self.assertNotIn('30%', current_status_text)
+        current_worker_progress['scope'] = '완료한 파이프라인 단계 수'
+        self.assertIn('관측 범위: 완료한 파이프라인 단계 수', describe_generation_status(current_status_record))
         current_status_record['progress'] = {'stage': 'saving', 'step': 1, 'total': 2}
         self.assertNotIn('작업자 마지막 관측', describe_generation_status(current_status_record))
 

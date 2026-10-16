@@ -10,6 +10,30 @@ from tools.review.domains.anny.anny_attributes import read_anny_generation_statu
 
 
 class QueueGenerationTelemetryTests(unittest.TestCase):
+    def test_structured_worker_progress_persists_without_attempt_pointer(self):
+        from tools.review.common.worker_generation_progress import WorkerGenerationProgress
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_job_root = Path(current_directory_name)
+            current_queue_recorder = QueueGenerationTelemetry(current_job_root, 'qwen')
+            current_progress_writer = WorkerGenerationProgress(current_job_root)
+            for current_stage_name, current_step_number in (('loading', 0), ('inference', 7), ('postprocess', 40)):
+                current_progress_writer.record_worker_progress({'stage': current_stage_name, 'step': current_step_number, 'total': 40})
+                current_queue_recorder.save_generation_metrics()
+                current_saved_metrics = read_queue_generation_metrics(current_job_root)
+                self.assertEqual(current_saved_metrics['stage'], current_stage_name)
+                self.assertEqual(current_saved_metrics['worker_progress']['step'], current_step_number)
+                self.assertEqual(current_saved_metrics['worker_progress']['total'], 40)
+                self.assertEqual(current_saved_metrics['step_total'], 0)
+            current_next_recorder = QueueGenerationTelemetry(current_job_root, 'qwen')
+            current_next_recorder.save_generation_metrics()
+            self.assertNotIn('worker_progress', read_queue_generation_metrics(current_job_root))
+            self.assertEqual(read_queue_generation_metrics(current_job_root)['stage'], 'worker')
+            current_previous_bytes = (current_job_root/'worker-progress.json').read_bytes()
+            for current_invalid_record in ({'stage':'', 'step':0,'total':40}, {'stage':'inference','step':True,'total':40}, {'stage':'inference','step':41,'total':40}):
+                with self.assertRaises(ValueError):
+                    current_progress_writer.record_worker_progress(current_invalid_record)
+                self.assertEqual((current_job_root/'worker-progress.json').read_bytes(), current_previous_bytes)
+
     def test_failed_sample_invalidates_current_values_but_preserves_peak(self):
         from tools.review.common.generation_status_display import describe_generation_status
         with tempfile.TemporaryDirectory() as current_directory_name:
@@ -51,7 +75,7 @@ class QueueGenerationTelemetryTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as current_directory_name:
             current_job_root = Path(current_directory_name)
             current_recorder_value = QueueGenerationTelemetry(current_job_root, 'hy-motion')
-            current_worker_status = {'status': 'running', 'started_at': '2000-01-01T00:00:00+00:00', 'progress': {'stage': 'render'}}
+            current_worker_status = {'status': 'running', 'started_at': '2000-01-01T00:00:00+00:00', 'stage': 'old-export', 'progress': {'stage': 'render'}}
             current_status_path = current_job_root/'status.json'
             current_status_path.write_text(json.dumps(current_worker_status))
             current_recorder_value.save_generation_metrics()
@@ -225,7 +249,7 @@ class GenerationMemoryScopeTests(unittest.TestCase):
     def test_invalid_process_usage_preserves_previous_peak(self):
         from tools.review.common.generation_telemetry import GenerationTelemetryRecorder
         with tempfile.TemporaryDirectory() as current_directory_name:
-            for current_process_snapshot in ('GPU-A, 100, -1', ', 100, 20', 'GPU-A, 100, N/A'):
+            for current_process_snapshot in ('GPU-A, 100, -1', ', 100, 20', 'GPU-A, 100, N/A', 'GPU-A, 100, 300\nGPU-A, 100, 300', 'GPU-B, 100, 300'):
                 with self.subTest(snapshot=current_process_snapshot):
                     current_recorder_value=GenerationTelemetryRecorder(Path(current_directory_name),0,[])
                     with patch('tools.review.common.generation_telemetry.os.getpid',return_value=100), patch('tools.review.common.generation_telemetry.Path.glob',return_value=[]), patch('tools.review.common.generation_telemetry.subprocess.check_output',side_effect=['GPU-A, 500','GPU-A, 100, 200','GPU-A, 600',current_process_snapshot]):

@@ -47,7 +47,7 @@ def validate_qwen_2512_assets(*, enable_lightning_adapter=True, verify_adapter_h
         raise ValueError(f'Lightning 파일 크기/SHA-256 불일치: {lightning_file_path}')
     return model_index_path, lightning_file_path
 
-def generate_qwen_2512_lightning_image(*, output_directory: Path, prompt_text: str, width: int = 1024, height: int = 1024, selected_inference_steps: int = 4, selected_generator_seed: int = FIXED_GENERATOR_SEED) -> dict:
+def generate_qwen_2512_lightning_image(*, output_directory: Path, prompt_text: str, width: int = 1024, height: int = 1024, selected_inference_steps: int = 4, selected_generator_seed: int = FIXED_GENERATOR_SEED, worker_progress_callback=None) -> dict:
     if type(selected_generator_seed) is not int or not 0 <= selected_generator_seed <= 4294967295:
         raise ValueError('seed는 0~4294967295 범위의 정수여야 합니다.')
     if not prompt_text.strip():
@@ -72,16 +72,23 @@ def generate_qwen_2512_lightning_image(*, output_directory: Path, prompt_text: s
     from diffusers import QwenImagePipeline
     if not torch.cuda.is_available():
         raise RuntimeError('CUDA를 사용할 수 없어 중단합니다. CPU 추론은 지원하지 않습니다.')
+    def publish_inference_progress(current_stage_name, current_step_number):
+        if worker_progress_callback is not None:
+            worker_progress_callback({'stage':current_stage_name,'step':current_step_number,'total':selected_inference_steps})
+    publish_inference_progress('load', 0)
     logging.info('stage=load')
     pipeline = QwenImagePipeline.from_pretrained(str(FIXED_MODEL_DIRECTORY), torch_dtype=torch.bfloat16, local_files_only=True)
     if enable_lightning_adapter:
         pipeline.load_lora_weights(str(lightning_file_path.parent), weight_name=lightning_file_path.name, local_files_only=True)
     pipeline.enable_sequential_cpu_offload()
     def record_denoise_progress(current_pipeline_value,current_step_index,current_timestep_value,current_callback_values):
+        publish_inference_progress('inference', current_step_index+1)
         logging.info('denoise step=%s/%s',current_step_index+1,selected_inference_steps)
         return current_callback_values
+    publish_inference_progress('inference', 0)
     logging.info('stage=inference')
     result_image = pipeline(callback_on_step_end=record_denoise_progress,prompt=prompt_text.strip(), width=width, height=height, negative_prompt=" ", num_inference_steps=selected_inference_steps, true_cfg_scale=selected_guidance_scale, guidance_scale=1.0, generator=torch.Generator(device='cuda').manual_seed(selected_generator_seed)).images[0]
+    publish_inference_progress('postprocess', selected_inference_steps)
     result_image.save(output_image_path)
     result_record = {'status': 'completed', 'model_id': FIXED_MODEL_IDENTIFIER, 'model_revision': FIXED_MODEL_REVISION, 'lightning_repository': FIXED_LIGHTNING_REPOSITORY if enable_lightning_adapter else None, 'lightning_revision': FIXED_LIGHTNING_REVISION if enable_lightning_adapter else None, 'lightning_file': FIXED_LIGHTNING_FILENAME if enable_lightning_adapter else None, 'steps': selected_inference_steps, 'lightning_lora': enable_lightning_adapter, 'true_cfg_scale': selected_guidance_scale, 'seed': selected_generator_seed, 'size': [width, height], 'prompt_sha256': hashlib.sha256(prompt_text.strip().encode()).hexdigest(), 'elapsed_seconds': round(time.monotonic() - started_at, 2), 'output': 'result.png'}
     (output_directory / 'result.json').write_text(json.dumps(result_record, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')

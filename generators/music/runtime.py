@@ -1,5 +1,8 @@
 """공식 Python API를 사용하는 두 음악 모델의 CUDA 전용 어댑터."""
 import fcntl
+from contextlib import contextmanager
+from datetime import datetime
+import json
 import hashlib
 import os
 from pathlib import Path
@@ -177,12 +180,65 @@ def generate_ace_step(current_request_record,current_model_root,current_attempt_
     return soundfile.read(current_audio_path,always_2d=True,dtype='float32')
 
 
+@contextmanager
+def record_minimax_termination(current_encoder_module,current_music_pipeline,current_duration_seconds,current_attempt_root):
+    """작업 전용 프로세스에서 샘플러 반환값만 관측하고 종료 시 복구한다."""
+    current_original_sampler = current_encoder_module._sample_top_k
+    current_vocabulary_size = current_music_pipeline.language_model.config.vocab_size
+    current_frame_rate = current_music_pipeline.frame_rate
+    current_maximum_frames = min(int(current_duration_seconds*current_frame_rate),current_encoder_module._MAX_AUDIO_FRAMES)
+    current_trace_record = {'requested_duration_seconds':current_duration_seconds,'max_frames':current_maximum_frames,
+        'frame_rate':current_frame_rate,'end_token_id':current_encoder_module._AUDIO_END_TOKEN_ID,
+        'end_token_detected':False,'semantic_samples':0,'sampled_audio_frames':0,
+        'last_token_id':None,'termination_reason':'not_observed'}
+
+    def persist_minimax_trace():
+        current_trace_record['updated_at'] = datetime.now().astimezone().isoformat()
+        write_record_atomically(current_attempt_root/'minimax-termination.json',current_trace_record)
+        print(f"{current_trace_record['updated_at']}/music-minimax/termination "+json.dumps(current_trace_record,ensure_ascii=False),flush=True)
+
+    def observe_minimax_sample(current_logits_tensor,current_random_generator):
+        current_sampled_token = current_original_sampler(current_logits_tensor,current_random_generator)
+        # RVQ 잔여 코드 샘플링은 언어 모델 어휘와 분리한다.
+        if current_logits_tensor.shape[-1] == current_vocabulary_size:
+            current_token_value = int(current_sampled_token.item())
+            current_trace_record['last_token_id'] = current_token_value
+            if current_token_value == current_trace_record['end_token_id']:
+                current_trace_record['end_token_detected'] = True
+                current_trace_record['termination_reason'] = 'audio_end_token'
+                persist_minimax_trace()
+            else:
+                current_trace_record['semantic_samples'] += 1
+                # 첫 샘플은 audio_start를 진행시키며 출력 프레임이 아니다.
+                current_trace_record['sampled_audio_frames'] = max(0,current_trace_record['semantic_samples']-1)
+                if current_trace_record['sampled_audio_frames'] == current_maximum_frames:
+                    current_trace_record['termination_reason'] = 'max_frames'
+                    persist_minimax_trace()
+        return current_sampled_token
+
+    persist_minimax_trace()
+    current_encoder_module._sample_top_k = observe_minimax_sample
+    try:
+        yield current_trace_record
+    except BaseException as current_execution_error:
+        current_trace_record['pipeline_status'] = 'failed'
+        current_trace_record['error_type'] = type(current_execution_error).__name__
+        raise
+    else:
+        current_trace_record['pipeline_status'] = 'completed'
+    finally:
+        current_encoder_module._sample_top_k = current_original_sampler
+        persist_minimax_trace()
+
+
 def generate_minimax_music(current_request_record,current_model_root,current_attempt_root,current_metrics_recorder):
     import torch
     current_music_pipeline = load_minimax_music(current_model_root)
     current_metrics_recorder.update_generation_stage('inference')
-    current_audio_outputs = current_music_pipeline(prompt=current_request_record['final_prompt'],lyrics='[Instrumental]',
-        audio_duration=current_request_record['duration_seconds'],generator=torch.Generator('cuda').manual_seed(current_request_record['seed']),output='audios',output_type='pt')
+    from diffusers.modular_pipelines.minimax_music3 import encoders as current_encoder_module
+    with record_minimax_termination(current_encoder_module,current_music_pipeline,current_request_record['duration_seconds'],current_attempt_root):
+        current_audio_outputs = current_music_pipeline(prompt=current_request_record['final_prompt'],lyrics='[Instrumental]',
+            audio_duration=current_request_record['duration_seconds'],generator=torch.Generator('cuda').manual_seed(current_request_record['seed']),output='audios',output_type='pt')
     if len(current_audio_outputs) != 1 or current_audio_outputs[0].ndim != 2 or current_audio_outputs[0].shape[0] != 2:
         raise ValueError('MiniMax 출력은 1개 stereo 오디오여야 합니다.')
     return current_audio_outputs[0].T.float().cpu().numpy(),current_music_pipeline.sampling_rate

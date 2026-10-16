@@ -8,6 +8,7 @@ import logging
 import subprocess
 import threading
 import time
+from tools.review.common.worker_generation_progress import WorkerGenerationProgress
 
 WORKFLOW_REPO_ROOT = Path(__file__).resolve().parents[3]
 FIXED_MODEL_REVISION = '6f3ccc0b56e431dc6a0c2b2039706d7d26f22cb9'
@@ -101,7 +102,8 @@ def execute_pose_generation(*, trial_output_root, prompt_text_value,
     except Exception:
         PIPELINE_EXECUTION_LOCK.release()
         raise
-    current_stage_state = {'stage':'imports', 'step':0}
+    current_stage_state = {'stage':'imports', 'step':0, 'total':selected_inference_steps}
+    current_progress_writer = WorkerGenerationProgress(trial_output_root)
     heartbeat_stop_event = threading.Event()
     qwen_pipeline_module = None
     original_reference_area = None
@@ -109,6 +111,7 @@ def execute_pose_generation(*, trial_output_root, prompt_text_value,
 
     def emit_progress_heartbeat():
         while not heartbeat_stop_event.wait(5):
+            current_progress_writer.record_worker_progress(current_stage_state)
             try:
                 gpu_status_result = subprocess.run(['nvidia-smi','--query-gpu=memory.used,utilization.gpu','--format=csv,noheader'], capture_output=True,text=True,timeout=3,check=True)
             except (OSError, subprocess.SubprocessError):
@@ -119,6 +122,7 @@ def execute_pose_generation(*, trial_output_root, prompt_text_value,
     heartbeat_worker_thread = threading.Thread(target=emit_progress_heartbeat,daemon=True)
     heartbeat_worker_thread.start()
     try:
+        current_progress_writer.record_worker_progress(current_stage_state)
         import torch
         import diffusers
         from PIL import Image
@@ -141,11 +145,13 @@ def execute_pose_generation(*, trial_output_root, prompt_text_value,
             from .lightning import validate_adapter_files
             resolved_adapter_records = validate_adapter_files()
         current_stage_state['stage']='load'
+        current_progress_writer.record_worker_progress(current_stage_state)
         run_output_logger.info('load model_id=Qwen/Qwen-Image-Edit-2511 model_path=%s',FIXED_MODEL_DIRECTORY)
         selected_pipeline_class = QwenImagePipeline if enable_text_only_generation else QwenImageEditPlusPipeline
         image_edit_pipeline = selected_pipeline_class.from_pretrained(str(FIXED_MODEL_DIRECTORY),torch_dtype=torch.bfloat16,local_files_only=True,low_cpu_mem_usage=True)
         if enable_standalone_lightning_adapter:
             current_stage_state['stage'] = 'adapters'
+            current_progress_writer.record_worker_progress(current_stage_state)
             for adapter_record_values in resolved_adapter_records:
                 adapter_file_path = Path(adapter_record_values['path'])
                 run_output_logger.info('adapter name=%s strength=%s path=%s', adapter_record_values['name'], adapter_record_values['strength'], adapter_file_path)
@@ -155,10 +161,12 @@ def execute_pose_generation(*, trial_output_root, prompt_text_value,
         image_edit_pipeline.vae.enable_slicing()
         image_edit_pipeline.vae.enable_tiling()
         current_stage_state['stage']='inference'
+        current_progress_writer.record_worker_progress(current_stage_state)
         run_output_logger.info('inference size=%sx%s steps=%s seed=%s device=cuda dtype=bfloat16 offload=sequential',selected_output_width,selected_output_height,selected_inference_steps,selected_generator_seed)
 
         def record_denoise_progress(pipeline_instance_value, step_index_value, timestep_value, callback_value_dictionary):
             current_stage_state['step']=step_index_value+1
+            current_progress_writer.record_worker_progress(current_stage_state)
             run_output_logger.info('denoise step=%s/%s',step_index_value+1,selected_inference_steps)
             return callback_value_dictionary
 
@@ -166,11 +174,14 @@ def execute_pose_generation(*, trial_output_root, prompt_text_value,
             output_image_value = image_edit_pipeline(**({} if enable_text_only_generation else {"image":input_image_values}),prompt=prompt_text_value,negative_prompt=' ',width=selected_output_width,height=selected_output_height,num_inference_steps=selected_inference_steps,true_cfg_scale=selected_true_cfg_scale,guidance_scale=1.0,generator=torch.Generator(device='cuda').manual_seed(selected_generator_seed),num_images_per_prompt=1,callback_on_step_end=record_denoise_progress).images[0]
         if output_image_value.size != (selected_output_width,selected_output_height):
             raise ValueError(f'출력 크기 불일치: {output_image_value.size}')
+        current_stage_state['stage']='postprocess'
+        current_progress_writer.record_worker_progress(current_stage_state)
         output_image_value.save(trial_output_root/'result.png')
         trial_result_record = {'status':'completed','model_id':'Qwen/Qwen-Image-Edit-2511','revision':FIXED_MODEL_REVISION,'size':[selected_output_width,selected_output_height],'reference_vae_size':[512,512],'reference_condition_size':[384,384],'steps':selected_inference_steps,'seed':selected_generator_seed,'true_cfg_scale':selected_true_cfg_scale,'guidance_scale':1.0,'lightning_lora':active_lightning_adapter,'dtype':'bfloat16','execution_device':'cuda','weight_offload':'sequential_cpu_offload','torch_version':torch.__version__,'diffusers_version':diffusers.__version__,'elapsed_seconds':round(time.monotonic()-run_started_time,2),'prompt_sha256':hashlib.sha256(prompt_text_value.encode()).hexdigest(),'input_order':[input_file_path.name for input_file_path in input_image_paths],'input_sha256':{input_file_path.name:hashlib.sha256(input_file_path.read_bytes()).hexdigest() for input_file_path in input_image_paths},'quality_warnings':['실험 결과의 최종 품질 승인이 필요합니다.'],'output':'result.png'}
         trial_result_record.update({'pose_reference_kind': pose_reference_kind, 'reference_order': selected_reference_order, 'prompt_source': prompt_source_record, 'adapters': resolved_adapter_records, 'execution_preset': 'qwen-lightning-multi-reference-v1' if active_lightning_adapter else 'qwen-standard-v1', 'input_references': [{'role': input_image_role, 'path': str(input_file_path), 'sha256': hashlib.sha256(input_file_path.read_bytes()).hexdigest()} for input_image_role, input_file_path in zip(input_image_roles, input_image_paths)]})
         (trial_output_root/'result.json').write_text(json.dumps(trial_result_record,ensure_ascii=False,indent=2)+'\n')
         current_stage_state['stage']='complete'
+        current_progress_writer.record_worker_progress(current_stage_state)
         run_output_logger.info('complete output=%s',trial_output_root/'result.png')
         return trial_result_record
     except Exception:

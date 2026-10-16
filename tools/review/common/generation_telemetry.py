@@ -62,9 +62,14 @@ class GenerationTelemetryRecorder:
             raise ValueError('GPU 장치 표본이 비어 있습니다. 사용량을 0으로 간주하지 않습니다.')
         current_process_text = subprocess.check_output(['nvidia-smi','--query-compute-apps=gpu_uuid,pid,used_memory','--format=csv,noheader,nounits'],text=True,timeout=2)
         current_usage_records = {}
+        current_process_keys = set()
         for current_process_line in current_process_text.splitlines():
             current_uuid_value,current_pid_text,current_usage_text = map(str.strip,current_process_line.split(','))
             if int(current_pid_text) in current_process_ids:
+                current_process_key = (current_uuid_value,int(current_pid_text))
+                if current_process_key in current_process_keys:
+                    raise ValueError('GPU 작업 프로세스 표본의 장치·PID가 중복되었습니다.')
+                current_process_keys.add(current_process_key)
                 current_process_usage = int(current_usage_text)
                 if not current_uuid_value or current_process_usage < 0:
                     raise ValueError('GPU 작업 프로세스 표본의 장치 식별자가 없거나 사용량이 음수입니다.')
@@ -78,6 +83,8 @@ class GenerationTelemetryRecorder:
             if current_usage_value < 0:
                 raise ValueError('GPU 장치 사용량은 음수일 수 없습니다.')
             current_device_samples[current_uuid_value] = current_usage_value
+        if set(current_usage_records)-set(current_device_samples):
+            raise ValueError('GPU 작업 프로세스의 장치가 현재 장치 표본에 없습니다.')
         with self.current_state_lock:
             current_sample_timestamp = datetime.now(ZoneInfo('Asia/Seoul')).isoformat()
             for current_uuid_value,current_device_record in self.current_run_state['gpu_observations'].items():
