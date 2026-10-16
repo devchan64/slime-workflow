@@ -5,6 +5,8 @@ from tools.review.common.generation_cleanup import delete_generation_job_files, 
 from tools.review.common.gpu_job_queue import launch_gpu_process, cancel_gpu_generation, resume_gpu_generation
 from tools.review.common.queue_generation_telemetry import read_queue_generation_metrics
 from tools.review.ui_assets import resolve_review_ui_asset
+from generators.hy_motion.contracts import UniqueConfigLoader
+from generators.animation.anny_attribute_contract import validate_anny_attribute_structure
 from urllib.parse import urlsplit
 import json, subprocess, threading, uuid, re, math, yaml
 from datetime import datetime
@@ -54,16 +56,16 @@ def clear_anny_history_records(current_expected_jobs=None):
   current_job_targets=[current_job_path for current_job_path in JOBS.iterdir() if re.fullmatch('[a-f0-9]{8}',current_job_path.name)] if JOBS.exists() else []
   return delete_generation_job_files(JOBS,current_job_targets,current_expected_jobs=current_expected_jobs)
 
-def load_profile_record(profile_path):
- profile_path=Path(profile_path).resolve()
- if not profile_path.is_relative_to(PROFILE_DIRECTORY_PATH.resolve()) or not profile_path.is_file():raise ValueError('ANNY 프로필 경로 오류')
- profile_record=yaml.safe_load(profile_path.read_text())
- if not isinstance(profile_record,dict) or set(profile_record)!=PROFILE_REQUIRED_FIELDS or profile_record['schema_version']!=1 or not all(isinstance(profile_record[field_name],str) and profile_record[field_name] for field_name in PROFILE_REQUIRED_FIELDS-{'schema_version','attribute_overrides'}):raise ValueError('ANNY 프로필 형식 오류')
- if not isinstance(profile_record['attribute_overrides'],dict) or any(not isinstance(attribute_name,str) or type(attribute_value) not in (int,float) or not -1<=attribute_value<=(3 if attribute_name in HEAD_SCALE_ATTRIBUTE_NAMES else 1) for attribute_name,attribute_value in profile_record['attribute_overrides'].items()):raise ValueError('ANNY 프로필 속성 형식 오류')
- return profile_record
+def load_profile_record(current_profile_path):
+ current_profile_path=Path(current_profile_path).resolve()
+ if not current_profile_path.is_relative_to(PROFILE_DIRECTORY_PATH.resolve()) or not current_profile_path.is_file():raise ValueError('ANNY 프로필 경로 오류')
+ current_profile_record=yaml.load(current_profile_path.read_text(),Loader=UniqueConfigLoader)
+ if not isinstance(current_profile_record,dict) or set(current_profile_record)!=PROFILE_REQUIRED_FIELDS or type(current_profile_record['schema_version']) is not int or current_profile_record['schema_version']!=1 or not all(isinstance(current_profile_record[current_field_name],str) and current_profile_record[current_field_name] for current_field_name in PROFILE_REQUIRED_FIELDS-{'schema_version','attribute_overrides'}):raise ValueError('ANNY 프로필 형식 오류')
+ if not isinstance(current_profile_record['attribute_overrides'],dict) or any(not isinstance(current_attribute_name,str) or type(current_attribute_value) not in (int,float) or not -1<=current_attribute_value<=(3 if current_attribute_name in HEAD_SCALE_ATTRIBUTE_NAMES else 1) for current_attribute_name,current_attribute_value in current_profile_record['attribute_overrides'].items()):raise ValueError('ANNY 프로필 속성 형식 오류')
+ return current_profile_record
 def load_active_profile():
- baseline_selection_record=yaml.safe_load(BASELINE_SELECTION_PATH.read_text())
- if not isinstance(baseline_selection_record,dict) or set(baseline_selection_record)!={'schema_version','active_profile_path'} or baseline_selection_record['schema_version']!=1:raise ValueError('ANNY 기본 프로필 선택 형식 오류')
+ baseline_selection_record=yaml.load(BASELINE_SELECTION_PATH.read_text(),Loader=UniqueConfigLoader)
+ if not isinstance(baseline_selection_record,dict) or set(baseline_selection_record)!={'schema_version','active_profile_path'} or type(baseline_selection_record['schema_version']) is not int or baseline_selection_record['schema_version']!=1 or not isinstance(baseline_selection_record['active_profile_path'],str) or not baseline_selection_record['active_profile_path'].strip():raise ValueError('ANNY 기본 프로필 선택 형식 오류')
  return load_profile_record(ROOT/baseline_selection_record['active_profile_path'])
 def load_profile_by_identifier(profile_identifier):
  if not isinstance(profile_identifier,str) or not re.fullmatch(r'[a-z]+(?:_[a-z0-9]+)*_v[0-9]+',profile_identifier):raise ValueError('ANNY 프로필 식별자 오류')
@@ -73,12 +75,24 @@ def load_profile_by_identifier(profile_identifier):
  raise ValueError('등록되지 않은 ANNY 프로필')
 def load_attribute_defaults():
  return load_profile_attribute_defaults(load_active_profile())
-def load_profile_attribute_defaults(profile_record):
- baseline_attribute_values=json.loads((ROOT/profile_record['attributes_path']).read_text())
- for attribute_name,attribute_value in profile_record['attribute_overrides'].items():
-  if attribute_name not in baseline_attribute_values['phenotype_kwargs'] and attribute_name not in baseline_attribute_values['local_changes_kwargs'] and attribute_name not in baseline_attribute_values['facial_actions']:raise ValueError('ANNY 프로필 속성 대상 오류')
+def parse_unique_attribute_fields(current_field_pairs):
+ current_attribute_record={}
+ for current_field_name,current_field_value in current_field_pairs:
+  if current_field_name in current_attribute_record:raise ValueError(f'ANNY 기본 속성 중복 필드: {current_field_name}')
+  current_attribute_record[current_field_name]=current_field_value
+ return current_attribute_record
+
+def reject_attribute_nonfinite_constant(current_constant_name):
+ raise ValueError(f'ANNY 기본 속성의 비유한 숫자: {current_constant_name}')
+
+def load_profile_attribute_defaults(current_profile_record):
+ baseline_attribute_values=json.loads((ROOT/current_profile_record['attributes_path']).read_text(),object_pairs_hook=parse_unique_attribute_fields,parse_constant=reject_attribute_nonfinite_constant)
+ validate_anny_attribute_structure(baseline_attribute_values)
+ for current_attribute_name,current_attribute_value in current_profile_record['attribute_overrides'].items():
+  if current_attribute_name not in baseline_attribute_values['phenotype_kwargs'] and current_attribute_name not in baseline_attribute_values['local_changes_kwargs'] and current_attribute_name not in baseline_attribute_values['facial_actions']:raise ValueError('ANNY 프로필 속성 대상 오류')
   for attribute_group_name in ('phenotype_kwargs','local_changes_kwargs','facial_actions'):
-   if attribute_name in baseline_attribute_values[attribute_group_name]:baseline_attribute_values[attribute_group_name][attribute_name]=attribute_value
+   if current_attribute_name in baseline_attribute_values[attribute_group_name]:baseline_attribute_values[attribute_group_name][current_attribute_name]=current_attribute_value
+ validate_anny_attribute_structure(baseline_attribute_values)
  baseline_attribute_values['local_changes_kwargs']['hip-waist-up']=0.0
  baseline_attribute_values['local_changes_kwargs']['torso-muscle-dorsi-incr']=0.0
  return baseline_attribute_values

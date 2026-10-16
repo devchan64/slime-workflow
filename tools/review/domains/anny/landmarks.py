@@ -89,13 +89,30 @@ def validate_exact_fields(current_input_record, expected_field_names):
         raise ValueError(f'필드 불일치: 필요한 필드 {sorted(expected_field_names)}')
 
 
+def parse_landmark_fields(current_field_pairs):
+    current_parsed_record={}
+    for current_field_name,current_field_value in current_field_pairs:
+        if current_field_name in current_parsed_record:
+            raise ValueError(f'기준점 JSON 중복 필드: {current_field_name}')
+        current_parsed_record[current_field_name]=current_field_value
+    return current_parsed_record
+
+
+def reject_landmark_constant(current_constant_name):
+    raise ValueError(f'기준점 JSON 비유한 숫자: {current_constant_name}')
+
+
+def parse_landmark_json(current_json_content):
+    return json.loads(current_json_content,object_pairs_hook=parse_landmark_fields,parse_constant=reject_landmark_constant)
+
+
 def load_landmark_source():
     current_manifest_record = yaml.load((LANDMARK_ASSET_DIRECTORY / 'manifest.yaml').read_text(), Loader=UniqueConfigLoader)
     for current_file_name in ('anny-rest-rig.npz', 'validation.json'):
         current_file_hash = sha256((LANDMARK_ASSET_DIRECTORY / current_file_name).read_bytes()).hexdigest()
         if current_file_hash != current_manifest_record['files'][current_file_name]['sha256']:
             raise ValueError(f'ANNY 원본 해시 불일치: {current_file_name}')
-    current_validation_record = json.loads((LANDMARK_ASSET_DIRECTORY / 'validation.json').read_text())
+    current_validation_record = parse_landmark_json((LANDMARK_ASSET_DIRECTORY / 'validation.json').read_text())
     current_target_height = current_validation_record['height']
     if type(current_target_height) not in (int, float) or not np.isfinite(current_target_height) or current_target_height <= 0:
         raise ValueError('ANNY 검증 높이 오류')
@@ -188,6 +205,8 @@ def resolve_landmark_record(current_record_identifier):
     if not isinstance(current_record_identifier, str) or re.fullmatch(LANDMARK_RECORD_PATTERN, current_record_identifier) is None:
         raise ValueError('기준점 기록 ID 형식 오류')
     current_record_path = LANDMARK_STORAGE_DIRECTORY / current_record_identifier / 'candidate.json'
+    if any(current_path_value.is_symlink() for current_path_value in (current_record_path,current_record_path.parent,current_record_path.parent.parent)):
+        raise ValueError('기준점 기록의 심볼릭 링크는 허용하지 않습니다.')
     if not current_record_path.resolve().is_relative_to(LANDMARK_STORAGE_DIRECTORY.resolve()):
         raise ValueError('기록 경로 이탈')
     return current_record_path
@@ -196,14 +215,23 @@ def resolve_landmark_record(current_record_identifier):
 def execute_landmark_command(current_command_name, current_input_record):
     if current_command_name == 'landmark-history':
         validate_exact_fields(current_input_record, ())
-        return {'records': sorted([str(current_record_path.parent.relative_to(LANDMARK_STORAGE_DIRECTORY)) for current_record_path in LANDMARK_STORAGE_DIRECTORY.glob('*/*/candidate.json')], reverse=True)}
+        current_record_identifiers=[]
+        for current_record_path in LANDMARK_STORAGE_DIRECTORY.glob('*/*/candidate.json'):
+            current_record_identifier=str(current_record_path.parent.relative_to(LANDMARK_STORAGE_DIRECTORY))
+            if resolve_landmark_record(current_record_identifier)!=current_record_path:
+                raise ValueError('기준점 기록 경로 불일치')
+            current_record_identifiers.append(current_record_identifier)
+        return {'records': sorted(current_record_identifiers, reverse=True)}
     current_source_record = load_landmark_source()
     if current_command_name == 'landmark-source':
         validate_exact_fields(current_input_record, ())
         return current_source_record
     if current_command_name == 'landmark-load':
         validate_exact_fields(current_input_record, ('id',))
-        current_saved_record = json.loads(resolve_landmark_record(current_input_record['id']).read_text())
+        current_saved_record = parse_landmark_json(resolve_landmark_record(current_input_record['id']).read_text())
+        validate_exact_fields(current_saved_record, ('id','created_at','status','draft','review'))
+        if current_saved_record['id']!=current_input_record['id'] or current_saved_record['status']!='candidate':
+            raise ValueError('기준점 기록 ID 또는 후보 상태 불일치')
         validate_landmark_draft(current_saved_record['draft'], current_source_record)
         return {**current_saved_record, 'review': build_landmark_review(current_saved_record['draft']['points'], current_source_record)}
     if current_command_name not in ('landmark-preview', 'landmark-save'):
@@ -231,7 +259,7 @@ def handle_landmark_request(current_http_handler):
     if current_http_handler.command != 'POST' or not current_http_handler.path.startswith(current_route_prefix):
         return False
     try:
-        current_request_record = json.loads(current_http_handler.rfile.read(int(current_http_handler.headers['Content-Length'])))
+        current_request_record = parse_landmark_json(current_http_handler.rfile.read(int(current_http_handler.headers['Content-Length'])))
         current_result_record = execute_landmark_command(current_http_handler.path.removeprefix(current_route_prefix), current_request_record)
         send_management_json_response(current_http_handler, 200, current_result_record)
     except (ValueError, TypeError, KeyError, OSError) as current_request_error:

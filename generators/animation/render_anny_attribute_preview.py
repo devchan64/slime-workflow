@@ -3,6 +3,7 @@ import sys,os,json,threading,time,datetime,hashlib,shutil,subprocess
 import numpy as np
 import gc
 from anny_render_process import run_blender_render
+from anny_attribute_contract import validate_anny_attribute_structure
 EXPERIMENT_OUTPUT_ROOT=Path(__file__).resolve().parent
 WORKFLOW_SOURCE_ROOT=Path(__file__).resolve().parents[2]
 sys.path.insert(0,str(WORKFLOW_SOURCE_ROOT/'.local/anny-runtime'))
@@ -24,9 +25,7 @@ import argparse
 argument_parser=argparse.ArgumentParser();argument_parser.add_argument('--attributes',type=Path,required=True);argument_parser.add_argument('--output-dir',type=Path,required=True);argument_parser.add_argument('--mesh-only',action='store_true');argument_parser.add_argument('--rotation-y',type=float,default=0);args=argument_parser.parse_args();EXPERIMENT_OUTPUT_ROOT=args.output_dir.resolve();EXPERIMENT_OUTPUT_ROOT.mkdir(parents=True,exist_ok=False);input_source_path=args.attributes.resolve()
 (EXPERIMENT_OUTPUT_ROOT/'view.json').write_text(json.dumps({'rotation_y':args.rotation_y}))
 input_attribute_values=json.loads(input_source_path.read_text(),object_pairs_hook=reject_duplicate_fields)
-required_field_names={'phenotype_kwargs','local_changes_kwargs','facial_actions','pose_parameterization','pose_parameters'}
-if set(input_attribute_values)!=required_field_names:raise ValueError('입력 최상위 필드 불일치')
-if input_attribute_values['pose_parameterization']!='local-ref':raise ValueError('지원 pose_parameterization은 local-ref')
+validate_anny_attribute_structure(input_attribute_values)
 import torch,anny
 if not torch.cuda.is_available():raise RuntimeError('CUDA unavailable')
 model_source_value=anny.Anny(rig='anny',topology='anny',local_changes='default',facial_actions='all',skinning_method='lbs').to(device='cuda',dtype=torch.float32)

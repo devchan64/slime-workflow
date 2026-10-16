@@ -4,6 +4,32 @@ from tools.review.ui.gradio.anny_attributes_app import build_anny_attribute_inte
 
 
 class AnnyAttributesGradioTest(unittest.TestCase):
+    def test_automatic_history_failure_disables_stale_actions_and_recovers(self):
+        import subprocess
+        current_interface_blocks=build_anny_attribute_interface(8770)
+        current_configuration_record=current_interface_blocks.get_config_file()
+        current_history_script=next(current_event['js'] for current_event in current_configuration_record['dependencies'] if 'const currentAutomaticMode=true;' in (current_event.get('js') or ''))
+        current_node_script="""
+const assert=require('node:assert/strict');let currentFailureEnabled=true,currentRequestCount=0;
+const window={annyHistoryControls:async()=>{currentRequestCount++;if(currentFailureEnabled)throw Error('연결 오류');return [{choices:['sample']},'sample',{id:'sample',status:{status:'completed'}},'기존 로그','이력 갱신 완료'];}};
+const refreshCurrentHistory=SOURCE;
+(async()=>{
+ const currentFailureResult=await refreshCurrentHistory('sample',true);
+ assert.equal(currentFailureResult[1],'sample');assert.equal(currentFailureResult[2],null);
+ assert.deepEqual(currentFailureResult[3],{__type__:'update'});assert.match(currentFailureResult[4],/자동 재확인/);
+ currentFailureEnabled=false;
+ const currentRecoveryResult=await refreshCurrentHistory('sample',true);
+ assert.equal(currentRecoveryResult[2].status.status,'completed');assert.equal(currentRecoveryResult[4],'이력 갱신 완료');
+ assert.deepEqual((await refreshCurrentHistory('sample',true))[4],{__type__:'update'});
+ await refreshCurrentHistory('sample',false);assert.equal(currentRequestCount,3);
+})().catch(currentErrorValue=>{console.error(currentErrorValue);process.exitCode=1;});
+""".replace('SOURCE',current_history_script)
+        current_process_result=subprocess.run(['node','-e',current_node_script],capture_output=True,text=True,timeout=10)
+        self.assertEqual(current_process_result.returncode,0,current_process_result.stderr)
+        current_action_callback=next(current_function.fn for current_function in current_interface_blocks.fns.values() if current_function.name=='update_browser_history_actions')
+        self.assertTrue(all(not current_update['interactive'] for current_update in current_action_callback(None)))
+        self.assertTrue(any(current_update['interactive'] for current_update in current_action_callback({'id':'sample','status':{'status':'completed'}})))
+
     def test_history_stale_failure_preserves_new_selection(self):
         import subprocess
         current_configuration_record=build_anny_attribute_interface(8770).get_config_file()
@@ -196,7 +222,7 @@ assert.match(readCurrentReadiness('hip-waist-up').reason,/잠긴 속성/);
         import gradio as gr
         current_interface_value=build_anny_attribute_interface(8770)
         current_reset_function=next(current_function for current_function in current_interface_value.fns.values() if current_function.fn and current_function.fn.__name__=='open_file_confirmation' and current_function.fn.__defaults__==('reset',))
-        current_preview_record={'can_reset':True,'job_count':2,'notice':'격리 작업 파일 삭제','jobs':[{'id':'a'},{'id':'b'}]}
+        current_preview_record={'can_reset':True,'job_count':2,'notice':'격리 작업 파일 삭제','jobs':[{'id':'a'},{'id':'b'}],'blocked_jobs':[]}
         with patch('tools.review.common.gradio_browser_history.execute_remote_management_command',return_value=current_preview_record) as current_gateway_mock:
             current_confirmation_result=current_reset_function.fn(None)
         current_gateway_mock.assert_called_once_with('anny','history-reset-preview',{})
@@ -204,8 +230,13 @@ assert.match(readCurrentReadiness('hip-waist-up').reason,/잠긴 속성/);
         self.assertEqual(current_reset_function.outputs[2].postprocess(current_confirmation_result[2]).root,current_preview_record)
         self.assertIn('2개 작업',current_confirmation_result[3])
         with patch('tools.review.common.gradio_browser_history.execute_remote_management_command',return_value={**current_preview_record,'can_reset':False}):
-            with self.assertRaisesRegex(gr.Error,'실행·대기'):
-                current_reset_function.fn(None)
+            current_blocked_values=current_reset_function.fn(None)
+            self.assertFalse(current_blocked_values[0]['visible'])
+            self.assertEqual(current_blocked_values[1:3],('',{}))
+            self.assertIn('실행·대기',current_blocked_values[4])
+        with patch('tools.review.common.gradio_browser_history.execute_remote_management_command',return_value={**current_preview_record,'can_reset':False,'blocked_jobs':[{'path':'job','status':'completed','reason':'최종 기록 저장 중'}]}):
+            current_blocked_values=current_reset_function.fn(None)
+            self.assertIn('job (최종 기록 저장 중)',current_blocked_values[4])
 
     def test_browser_confirmation_passes_snapshot_and_rejects_changed_selection(self):
         import subprocess

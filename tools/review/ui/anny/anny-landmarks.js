@@ -12,9 +12,17 @@ class AnnyLandmarkPreview extends AnnyMeshPreview {
   this.currentPickedPoint=null;
   this.loadPreviewMeshPayload(currentSourceRecord);
   let currentPointerOrigin=null;
-  previewCanvasElement.addEventListener('pointerdown',currentPointerEvent=>{currentPointerOrigin=[currentPointerEvent.clientX,currentPointerEvent.clientY]});
+  let currentPointerDragged=false;
+  previewCanvasElement.addEventListener('pointerdown',currentPointerEvent=>{currentPointerOrigin=[currentPointerEvent.clientX,currentPointerEvent.clientY];currentPointerDragged=false;});
+  previewCanvasElement.addEventListener('pointermove',currentPointerEvent=>{
+   if(currentPointerOrigin && Math.hypot(currentPointerEvent.clientX-currentPointerOrigin[0],currentPointerEvent.clientY-currentPointerOrigin[1])>LANDMARK_CLICK_DRAG_LIMIT)currentPointerDragged=true;
+  });
+  previewCanvasElement.addEventListener('pointercancel',()=>{currentPointerOrigin=null;});
+  previewCanvasElement.addEventListener('lostpointercapture',()=>{currentPointerOrigin=null;});
   previewCanvasElement.addEventListener('pointerup',currentPointerEvent=>{
-   if(!currentPointerOrigin || Math.hypot(currentPointerEvent.clientX-currentPointerOrigin[0],currentPointerEvent.clientY-currentPointerOrigin[1])>LANDMARK_CLICK_DRAG_LIMIT)return;
+   const currentClickAllowed=currentPointerOrigin && !currentPointerDragged && Math.hypot(currentPointerEvent.clientX-currentPointerOrigin[0],currentPointerEvent.clientY-currentPointerOrigin[1])<=LANDMARK_CLICK_DRAG_LIMIT;
+   currentPointerOrigin=null;
+   if(!currentClickAllowed)return;
    const currentCanvasBounds=previewCanvasElement.getBoundingClientRect();
    this.currentPickedPoint=this.pickVisibleVertex([currentPointerEvent.clientX-currentCanvasBounds.left,currentPointerEvent.clientY-currentCanvasBounds.top]);
    this.drawPreviewMesh();
@@ -81,5 +89,9 @@ window.initializeLandmarkViewer=(currentSourceText)=>{
 window.updateLandmarkViewer=(currentReviewText)=>{
  if(!window.currentAnnyLandmarkViewer || !currentReviewText)return;
  window.currentAnnyLandmarkViewer.currentReviewRecord=JSON.parse(currentReviewText);
+ const currentPickedPoint=window.currentAnnyLandmarkViewer.currentPickedPoint;
+ if(currentPickedPoint && Object.values(window.currentAnnyLandmarkViewer.currentReviewRecord.draft.points).some(currentPointRecord=>currentPointRecord.position.every((currentAxisValue,currentAxisIndex)=>currentAxisValue===currentPickedPoint[currentAxisIndex]))){
+  window.currentAnnyLandmarkViewer.currentPickedPoint=null;
+ }
  window.currentAnnyLandmarkViewer.drawPreviewMesh();
 };
