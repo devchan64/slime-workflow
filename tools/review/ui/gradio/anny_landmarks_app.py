@@ -18,7 +18,7 @@ LANDMARK_CANVAS_MARKUP = '<div style="position:relative;width:100%;height:560px"
 LANDMARK_PICK_READINESS_SCRIPT = '''()=>{
  const currentPickedPoint=window.currentAnnyLandmarkViewer?.currentPickedPoint;
  const currentPointReady=Array.isArray(currentPickedPoint)&&currentPickedPoint.length===3&&currentPickedPoint.every(Number.isFinite);
- return [{__type__:'update',interactive:currentPointReady},currentPointReady?'선택 좌표 읽기로 XYZ 입력에 반영하세요.':'메시가 표시된 뒤 표면을 클릭하세요. 내부 기준점은 수동 XYZ로 입력할 수 있습니다.'];
+ return [{__type__:'update',interactive:currentPointReady},currentPointReady?'선택 좌표 읽기로 XYZ 입력에 반영하세요.':'메시가 표시된 뒤 표면을 클릭하세요. 내부 기준점은 수동 XYZ로 입력할 수 있습니다.',window.currentAnnyLandmarkViewer?.previewZoomFactor??1];
 }'''
 
 
@@ -124,7 +124,6 @@ def build_landmark_interface():
                 current_method_input = gr.Dropdown(['manual_xyz', 'surface_pick'], value='manual_xyz', label='지정 방식 · 좌표를 편집하면 manual_xyz 선택')
                 current_pick_button = gr.Button('선택 좌표 읽기', interactive=False)
                 current_pick_guidance = gr.Markdown('메시가 표시된 뒤 표면을 클릭하세요. 내부 기준점은 수동 XYZ로 입력할 수 있습니다.')
-                gr.Timer(1).tick(fn=None, outputs=[current_pick_button,current_pick_guidance], js=LANDMARK_PICK_READINESS_SCRIPT, queue=False)
                 current_read_button = gr.Button('현재 후보 좌표·근거 읽기', interactive=False)
                 current_evidence_input = gr.Textbox(label='지정 근거 · 해부학 자료/관찰 방법/불확실성', lines=3)
                 current_apply_button = gr.Button('후보에 반영 · 선택 기준점 갱신', interactive=False)
@@ -135,6 +134,7 @@ def build_landmark_interface():
                 current_save_feedback = gr.Textbox(label='저장·조작 결과', interactive=False)
             with gr.Column():
                 gr.HTML(LANDMARK_CANVAS_MARKUP)
+                current_zoom_input = gr.Slider(minimum=0.4, maximum=3, value=1, step=0.1, label='메시 배율 · 키보드 방향키로 조절')
                 current_camera_input = gr.Radio([('정면', 0), ('왼쪽', 90), ('후면', 180), ('오른쪽', 270)], value=0, label='검수 방향')
                 gr.Markdown('마커는 가림 없이 표시됩니다. 빨강: 길이축, 초록: 직교화된 가로축, 파랑: 외적. 좌우의 해부학적 부호·관절축을 확정한 표시가 아닙니다.')
                 current_status_output = gr.Textbox(label='검수 상태 · 리그 중심·길이 비교 · 합격 판정 아님', value='기준점 미지정 · 후보를 반영하면 축 완전성과 퇴화 여부를 검사합니다.', lines=10, interactive=False)
@@ -165,6 +165,8 @@ def build_landmark_interface():
         current_load_button.click(load_candidate_record, [current_history_input, current_replace_input, current_confirmed_state], [*current_review_outputs, current_replace_input]).then(reset_candidate_confirmation, outputs=current_confirmation_outputs, queue=False)
         current_review_text.change(fn=None, inputs=current_review_text, js='(currentReviewText)=>window.updateLandmarkViewer(currentReviewText)')
         current_pick_button.click(fn=None, inputs=[current_x_input, current_y_input, current_z_input, current_method_input], outputs=[current_x_input, current_y_input, current_z_input, current_method_input, current_save_feedback], js='(...currentInputValues)=>{const currentPickedPoint=window.currentAnnyLandmarkViewer?.currentPickedPoint;return Array.isArray(currentPickedPoint)&&currentPickedPoint.length===3&&currentPickedPoint.every(Number.isFinite)?[...currentPickedPoint,"surface_pick","좌표를 읽었습니다. 근거 입력 후 후보에 반영하세요."]:[...currentInputValues,"먼저 메시 표면을 클릭하세요."]}', queue=False)
+        gr.Timer(1).tick(fn=None, outputs=[current_pick_button,current_pick_guidance,current_zoom_input], js=LANDMARK_PICK_READINESS_SCRIPT, queue=False)
+        current_zoom_input.input(fn=None, inputs=current_zoom_input, js='(currentZoomValue)=>{const currentViewer=window.currentAnnyLandmarkViewer;if(currentViewer){currentViewer.previewZoomFactor=currentZoomValue;currentViewer.drawPreviewMesh();}}', queue=False)
         current_camera_input.change(fn=None, inputs=current_camera_input, js='(currentAngleValue)=>window.currentAnnyLandmarkViewer?.setPreviewRotation(currentAngleValue)', queue=False)
         current_interface_blocks.load(load_candidate_source, outputs=[current_draft_state, current_source_text, current_provenance_text]).then(fn=None, inputs=current_source_text, js='(currentSourceText)=>window.initializeLandmarkViewer(currentSourceText)')
     return current_interface_blocks
