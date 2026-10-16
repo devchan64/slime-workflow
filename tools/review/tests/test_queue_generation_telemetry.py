@@ -113,6 +113,14 @@ class QueueGenerationTelemetryTests(unittest.TestCase):
             self.assertEqual(current_queue_record['worker_progress']['step'], 12)
             self.assertEqual(current_queue_record['worker_progress']['total'], 40)
             self.assertEqual(current_queue_record['step_total'], 0)
+            for current_stage_name in ('model-load', 'export'):
+                current_worker_record.update(stage=current_stage_name, step=0, step_total=1)
+                current_metrics_path.write_text(json.dumps(current_worker_record))
+                current_recorder_value.save_generation_metrics()
+                current_stage_record = read_queue_generation_metrics(current_job_root)
+                self.assertEqual(current_stage_record['worker_progress']['stage'], current_stage_name)
+                self.assertEqual(current_stage_record['worker_progress']['scope'], '작업자 현재 단계; 전체 작업 진행률과 구분')
+                self.assertEqual(current_stage_record['step_total'], 0)
             with patch.object(current_recorder_value, 'capture_generation_memory'):
                 current_recorder_value.finish_generation_telemetry('failed')
             self.assertEqual(read_queue_generation_metrics(current_job_root)['stage'], 'failed')

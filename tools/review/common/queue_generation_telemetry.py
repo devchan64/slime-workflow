@@ -64,7 +64,7 @@ class QueueGenerationTelemetry(GenerationTelemetryRecorder):
                         'step': current_worker_metrics['step'],
                         'total': current_worker_metrics['step_total'],
                         'updated_at': current_worker_metrics['updated_at'],
-                        'scope': '작업자 추론 단계; 전체 작업 진행률과 구분',
+                        'scope': '작업자 현재 단계; 전체 작업 진행률과 구분',
                     }
             super().save_generation_metrics()
 
