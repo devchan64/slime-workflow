@@ -207,7 +207,7 @@ pages:
   category: animation-tool
   ui_mode: gradio
   url: /management/frame/anny-landmarks/
-  source_review: in_progress
+  source_review: reviewed_applicable_contracts
   contract_tests: partial_verified
   browser_review: partial_live_verified
   findings:
@@ -218,6 +218,15 @@ pages:
     교체 확인·게이트웨이 저장·재연결을 검증할 대상.
   browser_note: 실제 메시 피킹·회전·좁은 화면 저장 후보 마커 복원 및 UI 새 후보 저장·재접속 후 복원을 격리 실제 서비스로 확인. landmark_actual_ui_save_followup·landmark_narrow_saved_marker_followup 참조. 운영 저장 미실행. 실패·선택 변경은 기존 격리 증거와 결합하며 전체 완료 상태로 자동 승격하지 않음.
   live_mobile_evidence: readonly_labels_mobile_followup 참조. 실제 모바일 표시·방향 선택 검증, 저장과 재연결은 미완료.
+  current_requirement_review:
+    standard_ui: '현행 Blocks·Row·Column·표준 입력·확인 Checkbox 사용. 기능용 WebGL 캔버스는 허용된 예외이며 별도 모달·iframe 없음.'
+    gateway: '모든 source·preview·save·history·load는 execute_landmark_request를 통해 공용 HTTP 게이트웨이 호출. landmark_socket_transport_followup 참조.'
+    confirmation: '선택 ID와 확인 당시 ID 대조, 선택 변경 시 확인 초기화. landmark-selection-confirmation 참조.'
+    persistence: '새 후보 기록 저장·누적 조회·재연결 복원은 landmark_actual_ui_save_followup·landmark_persisted_candidate_reconnect로 확인.'
+    interaction: '선택·회전·후면·좁은 화면·수동 키보드 편집 저장·확대는 landmark_requirement_evidence_matrix와 landmark_keyboard_zoom_followup 참조.'
+    applicability: '후보 편집기는 GPU 생성·ETA·VRAM·생성 프롬프트·시드·생성 이력 삭제 비적용. 해부학 품질 승인은 사용자 검수 범위.'
+    limit: '소스 계약 검토 완료를 전체 도구 또는 모든 보조기술의 브라우저 완료로 확대하지 않음. 기존 partial_live_verified는 유지.'
+
 - id: hy-motion-generator
   readiness_browser_evidence: hy_motion_readiness_cancel_browser_followup 참조. 수정 소스의 모바일 빈 입력·프리셋·확인 취소 검증.
   model_failure_evidence: hy_motion_model_status_failure_followup 참조. 조회 실패 시 원인/재시도 안내·생성 비활성 및 복구 후 활성 확인.
@@ -1983,12 +1992,14 @@ shared_findings:
   finding: 확장 검사 실패 5개 중 3개는 JS 소스 문자열 기대 불일치, 2개는 등록 맵 광장·여관 크기 기대 불일치.
   note: 타일 3건은 개편 커밋 d54724ea·91a9f571과 등록 경로를 대조하고 Node에서 실제 선택 결과를 검증하도록 수정하여 통과. 노출 바위 항목은 saltford 분기 추가로 부분 문자열 검사만 실패했음. 광장·여관 2건도 slime-assets 374cc73의 지면 개편·여관 높이 4칸 변경과 대조 완료. 광장은 등록 원본 보존 계약으로 검사하며 여관 크기는 개편값으로 검사. 맵·에셋·원자 게시 회귀 31개 통과.
 - id: review-image-publication-race
-  status: verified_unit_integration_pending
+  status: verified_concurrency_static_http_browser
   validation: 게시·렌더러 수명·확인 UI·정리 관련 단위 검사 19개 통과. 초기 확장 검사 실패 5개·시간 초과 3개는 후속 map-profile-expectation-drift 및 map-sprite-registry-reparse에서 해결. 후속 맵·에셋·원자 게시 31개 통과. 브라우저 게시 확인은 남음.
   evidence: .tmp/test/management-map-publication/2026-10-15_10-38-28/summary.json
   finding: 캐릭터 검수 PNG를 고정 경로에 직접 덮어써 게시 중 불완전한 이미지가 읽힐 가능성.
   change: SHA-256 파일명으로 이미지를 원자적으로 게시하고 메타데이터를 원자적으로 교체. 이전 해시 이미지 유지.
   note: 관측한 브라우저 실패의 확정 원인으로 간주하지 않음. watch 재시작에 의한 연결 단절도 별도 관측.
+  current_evidence: review_publication_concurrency_followup·review_publication_static_http_followup. 실제 테스트 소스와 HTTP 검사 summary.json의 4건 통과·종료 코드 0을 2026-10-16 대조.
+  current_remaining: review_publication_png_browser_followup에서 실제 do_GET 정적 경로와 PNG 디코딩 확인. 관리 메뉴 프록시·watch 재시작은 이 게시 계약과 별도 검증 범위.
 - id: map-loading-stage-feedback
   status: verified_contract_partial_browser
   finding: 맵 준비 안내만 지속되어 타일·캐릭터·렌더러 중 지연 단계를 알 수 없음.
@@ -2001,10 +2012,11 @@ shared_findings:
   recheck: 실제 합성 화면 재검증에서 캐릭터 포함 로딩 및 회전 완료와 콘솔 오류 없음을 확인. 이전 실패 원인은 미확정이며 재현되지 않은 사실만 기록.
   evidence: 디스크 review-character.png 존재·582499바이트·1536x768 PNG 검증 통과. 브라우저 요청 실패 원인은 아직 미확정.
 - id: map-renderer-initialization-cleanup
-  status: verified_contract_browser_pending
+  status: verified_contract_isolated_browser
   finding: Phaser 생성 후 타일 등록 실패 시 정리하지 않으며 초기화 중 화면 이탈 처리도 누락.
   change: 초기화부터 pagehide 정리를 등록하고 실패·중복 종료에서 렌더러를 한 번만 정리.
   evidence: .tmp/test/management-map-lifecycle/2026-10-15_10-31-45/summary.json
+  browser_evidence: map_renderer_failure_real_browser_followup·map_renderer_early_exit_browser_followup · 실제 Phaser 초기화 실패와 부팅 지연 주입 후 실제 페이지 이탈에서 destroy 1회 및 대기 Promise 종료 확인. 정상 초기화 후 반복 종료와 마을·필드 종료 후 렌더 거절은 map_renderer_success_disposal_browser_followup에서 확인.
 - id: landmark-selection-confirmation
   status: verified_contract_isolated_browser
   resolution_evidence: landmark_narrow_saved_marker_followup·landmark_actual_ui_save_followup에서 실제 임시 저장 기록 선택·교체 확인·복원 후 확인 해제 검증. 선택 변경 거절은 기존 계약·모의 브라우저 증거를 함께 사용.
@@ -3556,7 +3568,7 @@ remaining_completion_gates:
   next_evidence_by_group:
     generation: 소비 페이지별 저장 입력·결과·로그 및 재진입 검증의 누락 조건을 기존 browser_note와 대조. 공용 계약은 latest_regression과 개별 followup을 사용한다.
     landmark_candidate_editor: 임시 저장 기록 재연결과 실제 정면·후면 메시 피킹, 좁은 화면 좌표 읽기, 회전 드래그 무선택은 후속 기록으로 검증됨. 좁은 화면 저장 후보의 표·입력·메시 마커 연결은 landmark_narrow_saved_marker_followup으로 확인. 전체 완료 판정 전 저장·확인·오류 처리 요구와 기존 증거를 항목별 대조하며 해부학 정확도 승인은 UI 완료 조건과 구분한다.
-    animation_anchor_editor: 17페이지의 기본 원본 정합성·개별 모바일 탐색·재연결과 공용 동작별 초안 왕복 검증 확인. 실제 등록 동작 전환은 anchor_registered_actions_navigation_followup, 손상 초안 오류 복구는 anchor_draft_recovery_browser_followup으로 확인. 남은 항목은 실제 선택 동작별 이미지의 시각적 정합성이다. 최신 페이지별 current_verification_summary와 증거 링크를 사용한다.
+    animation_anchor_editor: 17페이지의 기본 원본 정합성·개별 모바일 탐색·재연결과 공용 동작별 초안 왕복 검증 확인. 실제 등록 동작 전환은 anchor_registered_actions_navigation_followup, 손상 초안 오류 복구는 anchor_draft_recovery_browser_followup으로 확인. 남은 표시 검증은 선택한 동작·방향의 원본과 화면 이미지 일치, 잘림·비율 왜곡 여부다. 원본 모션의 미술·해부학 품질 승인은 관리 UI 완료 조건에 추가하지 않는다. 최신 페이지별 current_verification_summary와 증거 링크를 사용한다.
     sprite_editor: 데스크톱 및 모바일 저장 수정본 복원은 sprite_saved_revision_reconnect_followup·sprite_mobile_saved_revision_followup에서 확인. 서버 ZIP 내용과 단일 참조 업로드도 후속 검증됨. 다중 업로드는 sprite_multiple_upload_browser_followup에서 확인. 선택 프레임 교체는 sprite_selected_replace_browser_followup으로 확인. 남은 브라우저 조건은 터치 드래그·클립보드와 다운로드 파일 저장 확인이다.
     writer: 임시 실제 서비스의 브라우저 확인·적용·목록 갱신은 writer_apply_history_refresh_followup, 외부 원문 변경 거절·안내 유지는 writer_apply_failure_persistence_browser_followup, 공용 게이트웨이 적용·조회 계약은 writer_gateway_real_apply_followup에서 확인. 소켓 HTTP 공용 클라이언트 연결은 writer_socket_transport_followup에서 확인. 모바일 동의·해제·재연결 및 무쓰기 확인은 writer_mobile_confirmation_followup에서 확인. 모바일 실제 적용 성공은 writer_mobile_real_apply_followup에서 확인했다. 합성 임시 문서로 검증하며 운영 비공개 문서에는 적용하지 않는다.
     render_review: 맵 31개와 기타 3개(디자인 시스템·전장·캐릭터)의 원본 표시·로딩 실패·좁은 화면·재진입 증거를 페이지별로 대조한다. 편집·생성 규칙을 읽기 전용 화면에 무조건 적용하지 않는다.
@@ -4993,5 +5005,96 @@ landmark_keyboard_zoom_followup:
   finding: '완료 대조에서 메시 확대·축소가 휠 전용임을 확인. 가이드의 키보드 조작 요구 미충족.'
   change: 'Gradio 표준 배율 Slider 0.4~3 추가. input은 브라우저 메시 배율·그리기에 연결하며 기존 선택 준비 Timer에서 표시 배율도 동기화. 별도 CSS 없음.'
   verification: '격리 실제 합성 화면에서 Right로 1→1.1, End로 3, Home으로 0.4 변경 확인. 3배 확대 메시 스크린샷 관측 및 콘솔 오류 없음. 기존 확인·선택 관련 7건 통과(.tmp/test/management-audit/2026-10-16_12-09-59).'
-  remaining: '휠 조작 후 표시 동기화는 코드 연결 확인만 완료. 자동화 scroll은 이번 관측에서 값 변화가 없어 브라우저 성공으로 기록하지 않음.'
+  wheel_browser_verification: '2026-10-16 실제 메시가 보이는 캔버스 좌표에서 휠 축소 후 메시 축소 관측. Timer 갱신으로 배율 입력 0.8057353018734796·슬라이더 0.8 표시 확인(슬라이더 간격 0.1). 이어 Right 키로 입력·슬라이더 모두 0.9 변경 확인. 콘솔 오류 0건. 이전 scroll 미관측 항목 해소.'
   safety: '운영 후보·리타기팅 무변경, 격리 탭·서버 종료.'
+
+review_publication_png_browser_followup:
+  date: '2026-10-16'
+  fixture: '/tmp/review-image-browser.py · 실제 run_review_server · .tmp/test/review-publication-browser · 8798'
+  verification: '동일 source.png에 빨강·파랑 48×64 PNG를 순서대로 작성하고 실제 publish_review_image_asset으로 다른 SHA-256 주소에 게시. /preview.html에서 두 이미지 complete=true·naturalWidth=48·naturalHeight=64와 빨강·파랑 화면 확인. 이전 게시 이미지 보존 및 실제 do_GET 정적 파일 경로 확인.'
+  boundary: '최초 / 요청은 관리 메뉴 Gradio 시작 실패 503. /preview.html의 독립 검수 문서와 /public/ 이미지 요청은 성공. 관리 메뉴 프록시 성공이나 모든 경로 완료로 확대하지 않음.'
+  safety: '합성 이미지·격리 서버만 사용. 운영 작업·원본 변경 없음. 탭과 서버 종료.'
+
+standalone_review_root_routing_followup:
+  date: '2026-10-16'
+  finding: 'manager-source.json이 없는 --root 독립 검수 폴더의 / 요청도 관리 메뉴를 시작하여 FileNotFoundError·503 발생. /preview.html만 정상 제공됨.'
+  change: '루트 Gradio 경로는 manager-source.json이 있을 때만 연결. 독립 폴더는 기존 send_head의 entry HTML 처리로 연결하며 명시적 도구 경로와 관리 메뉴 구성은 유지.'
+  verification: 'test_gradio_proxy_response 4건 통과(.tmp/test/management-audit/2026-10-16_12-22-15). 소스 파일 부재 시 /·/assets/image.png에서 메뉴 시작 없음, 존재 시 기존 메뉴 시작과 포트 연결 확인. 실제 run_review_server의 8798 루트 브라우저에서 검수 제목·두 이미지 complete 및 48×64 디코딩·콘솔 오류 0건 확인.'
+  safety: '합성 임시 폴더 사용, 운영 서버·GPU 작업 변경 없음. 검증 탭·서버 종료.'
+
+map_renderer_failure_real_browser_followup:
+  date: '2026-10-16'
+  fixture: '/tmp/map-lifecycle-browser.py · .tmp/test/map-lifecycle-browser · 실제 Phaser 1.0.49 게시 모듈 및 현행 field-map-view.js'
+  verification: '합성 1×1 캐릭터 이미지와 빈 타일 카탈로그로 실제 WebGL 초기화 실행. 게임 타일 원본 누락 오류를 받은 뒤 Phaser.Game.prototype.destroy 호출 계측값 1을 DOM 결과에서 확인. 실제 어댑터의 실패 정리 경로를 모의 Phaser 없이 검증.'
+  limitation: '실제 초기화 실패의 destroy 호출 증거. GPU 메모리 반환량·초기화 중 실제 페이지 이탈·성공 후 반복 종료의 브라우저 검증은 포함하지 않음. 해당 경계의 기존 단위 검사와 구분.'
+  safety: '임시 합성 화면만 사용. 운영 맵·GPU 생성 작업 변경 없음. 검증 탭·서버 종료.'
+
+map_renderer_early_exit_browser_followup:
+  date: '2026-10-16'
+  fixture: '/tmp/map-exit-browser.py · 실제 Phaser 1.0.49·현재 어댑터 · 임시 8798'
+  verification: 'Phaser.Game.boot만 지연하는 격리 주입으로 초기화 대기 유지. 실제 링크를 눌러 result.html로 이동한 뒤 pagehide 처리 결과를 화면에서 확인: destroyCalls=1, 초기화 Promise 오류는 맵 검수 화면이 닫혔습니다. 콘솔 오류 0건.'
+  boundary: '실제 브라우저 페이지 이탈 및 어댑터 정리 검증. 정상 GPU 부팅 타이밍·메모리 반환량을 검증한 것으로 확대하지 않음. 계측 결과는 검증 페이지의 sessionStorage에서 다음 문서에 표시.'
+  safety: '운영 맵·GPU 생성·저장 데이터 변경 없음. 임시 탭과 서버 종료.'
+
+map_renderer_success_disposal_browser_followup:
+  date: '2026-10-16'
+  fixture: '/tmp/map-success-browser.py · 실제 Phaser 1.0.49 및 현재 어댑터 · 임시 8798'
+  verification: '합성 1×1 이미지로 createSharedFieldReview 정상 초기화 완료. destroy 두 번 호출 후 계측 destroyCalls=1. 종료 후 필드 render와 마을 renderTown 모두 맵 검수 화면이 닫혔습니다 오류로 거절. 결과 DOM 및 콘솔 오류 0건 확인.'
+  scope: '맵 초기화·실패·종료 수명 계약의 브라우저 검증이며 지도 전체 렌더 품질이나 GPU 메모리 반환량 측정과 구분.'
+  safety: '운영 맵·생성 작업 무변경. 격리 탭·서버 종료.'
+
+vace_required_guidance_dom_followup:
+  date: '2026-10-16'
+  fixture: '/tmp/vace-mask-browser.py · 모의 게이트웨이·실제 VACE 타임라인 Blocks·공용 메뉴 합성'
+  verification: '영상 생성 설정 확인 버튼 disabled=true. aria-describedby가 존재하는 button-guidance 요소를 참조하고 포즈 PNG 첨부·배치표 준비·장면 프롬프트 입력 안내와 일치. 브라우저 콘솔 오류 0건.'
+  scope: '공용 안내 컴포넌트의 추가 소비 화면 연결 검증. 스크린리더 음성 출력·생성 접수·화면 전체 준수 완료를 의미하지 않음. 메뉴 메타데이터의 도구 선택 일치는 검증하지 않음.'
+  safety: '생성·저장·삭제 버튼 미실행. 임시 탭·서버 종료.'
+
+music_button_guidance_shared_followup:
+  date: '2026-10-16'
+  finding: '두 음악 생성기의 공용 music_app에서 필수 입력 안내 Markdown은 있으나 생성 버튼의 접근성 설명으로 연결되지 않음.'
+  change: '기존 동적 current_generate_notice를 build_button_guidance 반환 컴포넌트로 교체. 입력 준비·접수 정책은 유지.'
+  browser: '실제 MiniMax Blocks와 공용 메뉴 격리 화면에서 빈 입력 비활성→Calm piano 입력 활성→빈 입력 비활성 복귀 확인. 각 상태의 aria-describedby 대상이 갱신된 안내 문구를 참조함을 DOM 확인. 생성 미실행. 메뉴 메타데이터는 ACE-Step으로 표시되어 도구 이름 일치 증거로 사용하지 않음.'
+  scope: '공용 코드 변경은 ACE-Step·MiniMax에 적용. 브라우저 동작 확인은 MiniMax에 한정. 스크린리더 음성 출력과 구분.'
+  safety: '모의 게이트웨이로 생성 차단. 운영 작업·기록 변경 없음, 임시 탭·서버 종료.'
+  validation: '공용 안내·음악 관리 검사 8건 통과(.tmp/test/management-audit/2026-10-16_12-31-00). 앞선 샌드박스 실행은 7건 통과·HTTP 소켓 권한 오류 1건으로, 외부 격리 실행에서 해소.'
+
+hy_motion_button_guidance_followup:
+  date: '2026-10-16'
+  finding: '모델 준비·입력 검증 안내가 상단에 있으나 생성 버튼의 접근성 설명으로 연결되지 않음.'
+  change: '기존 생성 버튼을 build_button_guidance에 연결하고 원인 확인 위치·입력 수정·상태 새로고침 절차를 안내. 기존 readiness 콜백과 생성 정책 유지.'
+  browser: '실제 HY-Motion Blocks·공용 메뉴 격리 화면에서 생성 버튼의 aria-describedby가 실제 안내 요소를 참조함을 DOM 확인. 관측 시 버튼은 활성 상태였으며 비활성 전환 검증으로 확대하지 않음. 콘솔 오류 0건. 메뉴 선택 메타데이터 일치는 검증하지 않음.'
+  safety: '모델·이력 조회 모의 처리, 생성 명령 차단. 운영 작업 무변경, 임시 탭·서버 종료.'
+  validation: 'HY-Motion 입력 준비·복구 및 공용 안내 관련 7건 통과(.tmp/test/management-audit/2026-10-16_12-32-03).'
+
+existing_terminal_gpu_observation_review:
+  date: '2026-10-16'
+  method: '기존 종료 작업의 queue-telemetry.json 포인터와 각 시도 metrics.json을 읽기 전용 대조. 신규 GPU 작업·모델 준비 미실행.'
+  records:
+    - job: music-minimax/2026-10-15_19-41-52-a26815f8
+      evidence: '실패 시도 1792066275064617287과 완료 시도 1792069015195083280 모두 보존. 현재 포인터는 완료 시도. 각 프로세스 피크 5254 MiB, 장치 피크 5412 MiB, 표본 수 각각 144·36.'
+    - job: music-ace-step/2026-10-15_19-42-03-b3456b04
+      evidence: '완료 시도 1792066983342779754. 프로세스 피크 5158 MiB·장치 피크 5276 MiB·35표본 보존.'
+    - job: wan21-vace-v2v/2026-10-16_05-08-46-1d3e13a7
+      evidence: '완료 시도 1792100535321089976. 프로세스 피크 6450 MiB·장치 피크 6568 MiB·1091표본 보존. 작업자 saving 100/100은 전체 완료 상태와 별도 필드에 기록.'
+  shared_fields: '모두 nvidia-smi·MiB·5초 설정·작업자 및 자식 범위·장치 전체의 타 작업 포함 및 순간 피크 누락 한계·갱신 시각 보존. 종료 후 process_current_mib=null과 GPU 프로세스 표본 없음 사유 기록. 전체 ETA는 종료 상태 사유와 null 추정값으로 확정.'
+  limits: '기존 실제 작업의 종료 기록 보존 증거. 최종 기록만으로 실행 중 매 5초 이하 기록 간격·모든 생성기 단계·GUI/CLI 전체 동일성을 입증하지 않음. 과거 실행 기록은 현재 수정 소스의 전체 회귀 증거로 사용하지 않음.'
+
+telemetry_heartbeat_cadence_followup:
+  date: '2026-10-16'
+  source: tools/review/common/generation_telemetry.py
+  verification: '가상 시계로 공용 heartbeat의 세 주기 관측 시간을 각각 2초·4초·6초로 주입. 대기 3초·1초·0초와 매 주기 표본 수집·기록 1회를 검증. 측정 시간에 5초를 추가하는 누적 지연 및 초과 시 음수 대기를 방지하는 계약 확인.'
+  limitation: '결정적 스케줄링 계약 검사이며 OS 스케줄러·디스크 지연을 포함한 실제 최대 5초 기록 간격 증거가 아님. 5초 초과 측정은 다음 대기 없이 진행함. GPU 호출은 모의 처리.'
+  result: '공용 큐 관측 검사 16건 통과 · .tmp/test/management-audit/2026-10-16_12-35-23'
+
+telemetry_real_thread_heartbeat_followup:
+  date: '2026-10-16'
+  fixture: '/tmp/telemetry-heartbeat-live.py · 실제 GenerationTelemetryRecorder 스레드·임시 metrics.json·GPU 표본 함수만 모의 처리'
+  verification: '최초 기록과 후속 두 heartbeat 간격 5.0003초·4.9999초 관측. finish(cancelled) 후 스레드 종료, 마지막 metrics 상태·단계 cancelled 및 갱신 시각 확인. 총 4회 기록. 결과 .tmp/test/heartbeat-live-evidence.json.'
+  boundary: '실제 스레드·파일 기록의 정상 스케줄 표본이며 엄밀한 최악 시간 보장 아님. 관측 간격의 0.3ms 초과를 숨기지 않으며 GPU 명령 지연·디스크 부하 상황까지 5초 이하라고 판정하지 않음. 운영 작업 취소는 실행하지 않음.'
+
+audit_visual_requirement_scope_review:
+  date: '2026-10-16'
+  authority: 'workflows/management-ui.md §9 접근성과 검증 1~7: 변경 범위별 입력·결과·이력 가독성, 조작·재진입·오류·저장 계약. 실제 GPU 생성 품질은 UI 모의 검증과 구분.'
+  clarification: '앵커·맵 표시의 시각적 정합성은 선택한 원본·방향과 화면의 일치 및 잘림·비율 오류 점검을 뜻한다. 이미지 미술 품질·해부학 정확도·게임 콘텐츠 승인을 전수 UI 검사의 추가 완료 조건으로 만들지 않는다.'
+  preserved_gaps: '원본 표시·선택 동작·좁은 화면·재연결, 스프라이트 터치/클립보드/다운로드 등 실제 UI 미검증 항목은 유지. 이 범위 명확화만으로 페이지 상태를 완료로 승격하지 않음.'
