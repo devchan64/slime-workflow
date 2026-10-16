@@ -7,16 +7,16 @@ from tools.review.domains.image.pose_transfer_generation import combine_pose_pro
 class PoseMotionReferenceTests(unittest.TestCase):
     def test_registered_supporting_contact_prompt(self):
         selected_pose_image, selected_prompt_text, selected_source_text = load_motion_reference('down_left', 30)
-        self.assertEqual(selected_prompt_text, 'Keep the supporting foot grounded as in <image 1>. Keep the non-contact foot off the ground, matching its position in the reference. Walking pose.')
+        self.assertEqual(selected_prompt_text, 'Keep the left foot grounded. Raise the right knee and keep the right foot lifted.')
         self.assertIn('등록 보조 문구 적용: 사용자 지정', selected_source_text)
-        self.assertNotEqual(load_motion_reference('down_left', 29)[1], selected_prompt_text)
+        self.assertEqual(load_motion_reference('down_left', 29)[1], selected_prompt_text)
         self.assertNotEqual(load_motion_reference('down_right', 30)[1], selected_prompt_text)
 
     def test_registered_frames_and_word_limit(self):
         for selected_direction_value in ('down_left','down_right','up_left','up_right'):
             for selected_frame_number in range(1,36):
                 selected_pose_image, selected_prompt_text, selected_source_text = load_motion_reference(selected_direction_value,selected_frame_number)
-                expected_walking_count = 0 if selected_direction_value == 'down_left' and selected_frame_number in (13, 14, 15, 16, 17, 32) else 1
+                expected_walking_count = 0 if selected_direction_value == 'down_left' and selected_frame_number in (12, 13, 14, 15, 16, 17, 29, 30, 31, 32, 33, 34, 35) else 1
                 self.assertEqual(selected_prompt_text.count('Walking pose.'), expected_walking_count)
                 self.assertGreater(selected_pose_image.width,0)
                 self.assertIn(f'{selected_frame_number}/35',selected_source_text)
@@ -24,14 +24,18 @@ class PoseMotionReferenceTests(unittest.TestCase):
 
     def test_frames_without_auxiliary_prompt(self):
         for selected_direction_value in ('down_left','down_right','up_left','up_right'):
-            for selected_frame_number in (*range(2,11),35):
+            for selected_frame_number in range(2,11):
                 self.assertEqual(load_motion_reference(selected_direction_value,selected_frame_number)[1], 'Walking pose.')
             if selected_direction_value == 'down_left':
-                for selected_frame_number in (*range(1,13), *range(18,23)):
+                self.assertEqual(load_motion_reference(selected_direction_value,12)[1], 'Keep the right foot grounded and the left foot slightly above the ground. Keep both feet close beneath the body, matching <image 1>.')
+                for selected_frame_number in (*range(1,12), *range(18,23)):
                     self.assertEqual(load_motion_reference(selected_direction_value,selected_frame_number)[1], 'Walking pose.')
                 for selected_frame_number in (13,14,15):
                     self.assertEqual(load_motion_reference(selected_direction_value,selected_frame_number)[1], 'Keep the right foot grounded and the left foot slightly above the ground beneath the pelvis, matching <image 1>.')
+                for selected_frame_number in (29,30,31,33,34,35):
+                    self.assertEqual(load_motion_reference(selected_direction_value,selected_frame_number)[1], 'Keep the left foot grounded. Raise the right knee and keep the right foot lifted.')
             else:
+                self.assertEqual(load_motion_reference(selected_direction_value,35)[1], 'Walking pose.')
                 self.assertTrue(load_motion_reference(selected_direction_value,1)[1])
 
     def test_invalid_selection_rejected(self):
