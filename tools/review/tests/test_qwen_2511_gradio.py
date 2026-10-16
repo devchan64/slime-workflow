@@ -12,6 +12,17 @@ from tools.review.ui.gradio import qwen_2511_app
 
 
 class Qwen2511GradioTests(unittest.TestCase):
+    def test_vnccs_restore_rejects_unsupported_steps_before_loading(self):
+        from unittest.mock import patch
+        current_interface_blocks = qwen_2511_app.build_qwen_2511_interface('http://127.0.0.1:8770', qwen21_mode_enabled=True, pose_transfer_enabled=True)
+        current_restore_function = next(current_function.fn for current_function in current_interface_blocks.fns.values() if current_function.fn and current_function.fn.__name__ == 'restore_selected_inputs')
+        current_restore_callback = inspect.getclosurevars(current_restore_function).nonlocals['restore_input_callback']
+        with patch.object(qwen_2511_app, 'restore_reference_inputs') as current_reference_loader:
+            for current_invalid_steps in (30, None, True, 25.0, '40'):
+                with self.subTest(steps=current_invalid_steps), self.assertRaisesRegex(ValueError, 'VNCCS 스텝'):
+                    current_restore_callback({'request': {'vnccs': {}, 'steps': current_invalid_steps}})
+            current_reference_loader.assert_not_called()
+
     def test_expression_requires_at_least_one_reference(self):
         self.assertFalse(qwen_2511_app.check_expression_reference_readiness(None,None,None))
         for current_slot_number in range(3):

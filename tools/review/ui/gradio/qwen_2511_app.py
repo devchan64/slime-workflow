@@ -106,6 +106,10 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
     def execute_reference_gateway(command_name_value, payload_value):
         return execute_management_command(current_service_name, command_name_value, payload_value)
     def restore_selected_inputs(current_history_record):
+        if vnccs_transfer_enabled and 'vnccs' in current_history_record['request']:
+            current_saved_steps = current_history_record['request'].get('steps')
+            if type(current_saved_steps) is not int or current_saved_steps not in (25, 40):
+                raise ValueError('저장된 VNCCS 스텝은 정수 25 또는 40이어야 합니다. 이력 원문을 확인하세요.')
         restored_input_values = list(restore_reference_inputs(current_history_record, WORKFLOW_ROOT_DIRECTORY/'.tmp/test/outfit-transfer' if outfit_transfer_enabled else WORKFLOW_ROOT_DIRECTORY/'.tmp/test/pose-transfer' if pose_transfer_enabled else WORKFLOW_ROOT_DIRECTORY/'.tmp/test/qwen-image-21-circular' if circular_mode_enabled else WORKFLOW_ROOT_DIRECTORY/'.tmp/test/qwen-image-21' if qwen21_mode_enabled else WORKFLOW_ROOT_DIRECTORY/'.tmp/test/expression-generator' if expression_mode_enabled else None, reference_slot_limit=reference_slot_count))
         if expression_mode_enabled:
             current_expression_record = current_history_record['request'].get('expression')
