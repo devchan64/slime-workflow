@@ -27,6 +27,11 @@ class MusicGenerationTests(unittest.TestCase):
                     current_restore_callback=next(current_event.fn for current_event in current_interface_blocks.fns.values() if current_event.fn and current_event.fn.__name__=='restore_selected_inputs')
                     current_restored_values=current_restore_callback('isolated-music')
                     self.assertEqual(tuple(current_restored_values[:6]),('soft flute',15,77,True,'복원 검증','isolated-music'))
+                    for current_invalid_fields in ({'duration_seconds': -1}, {'seed': True}, {'loop_request': 'yes'}, {'prompt': ''}):
+                        current_history_record['request'] = {**current_request_record, **current_invalid_fields}
+                        current_rejected_values = current_restore_callback('isolated-music')
+                        self.assertTrue(all(current_value == {'__type__': 'update'} for current_value in current_rejected_values[:6]))
+                        self.assertIn('입력값을 불러오지 못했습니다', current_rejected_values[-1])
                     current_history_record['request']={'action':'prepare'}
                     current_rejected_values=current_restore_callback('isolated-music')
                     self.assertTrue(all(current_value=={'__type__':'update'} for current_value in current_rejected_values[:6]))

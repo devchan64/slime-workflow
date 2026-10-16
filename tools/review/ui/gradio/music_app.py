@@ -6,7 +6,7 @@ import sys
 WORKFLOW_ROOT_DIRECTORY = Path(__file__).resolve().parents[4]
 sys.path.insert(0,str(WORKFLOW_ROOT_DIRECTORY))
 import gradio as gr
-from generators.music.contracts import build_music_request, load_music_defaults, resolve_music_profile
+from generators.music.contracts import build_music_request, load_music_defaults, resolve_music_profile, validate_music_request
 from tools.review.common.generation_cleanup import GENERATION_CLEANUP_SCOPE_TEXT
 from tools.review.common.management_client import execute_remote_management_command
 from tools.review.common.gradio_seed import build_generation_seed
@@ -90,9 +90,17 @@ def build_music_interface(current_service_name,current_server_address):
         current_refresh_timer = gr.Timer(5)
         current_refresh_timer.tick(refresh_music_result,[current_job_control,current_log_refresh,current_result_identity],[current_status_display,current_result_display,current_log_output,current_result_identity,current_model_status,current_job_control],queue=False,show_progress='hidden')
         def restore_music_inputs(current_history_record):
-            current_request_record = current_history_record['request']
-            if current_request_record['action']!='generate':
+            from tools.review.common.gradio_reference_restore import validate_history_input_settings
+            current_request_record = validate_history_input_settings(current_history_record)
+            if current_request_record.get('action')!='generate':
                 raise gr.Error('모델 준비 이력에는 음악 입력이 없습니다.')
+            current_input_fields = ('prompt', 'duration_seconds', 'seed', 'loop_request', 'tag')
+            if any(current_field_name not in current_request_record for current_field_name in current_input_fields):
+                raise gr.Error('저장된 음악 생성 입력에 필수 설정이 없습니다.')
+            current_request_record = validate_music_request(current_service_name, {
+                'action': 'generate',
+                **{current_field_name: current_request_record[current_field_name] for current_field_name in current_input_fields},
+            })
             return current_request_record['prompt'],current_request_record['duration_seconds'],current_request_record['seed'],current_request_record['loop_request'],current_request_record['tag'],current_history_record['id']
         current_cleanup_scope = current_profile_record['label']+' · '+GENERATION_CLEANUP_SCOPE_TEXT
         current_read_history,current_history_outputs = build_generation_history_view(execute_music_command,current_server_address,current_cleanup_scope,
