@@ -153,6 +153,7 @@ criteria:
 - 브라우저 표시·반응형·재연결
 pages:
 - id: music-ace-step
+  deletion_service_evidence: music_deletion_consumer_contract_followup
   persisted_input_browser_evidence: ace_persisted_history_restore_browser_followup
   saved_input_contract_evidence: music_saved_input_contract_followup
   completed_audio_reconnect_evidence: ace_completed_audio_reconnect_followup
@@ -177,6 +178,7 @@ pages:
   applicability: generation
   browser_note: 실제 합성 화면에서 모델 준비 필요 안내·빈 이력·프롬프트 입력 후 생성 활성·원문 4단어와 최종 8단어 및 실제 최종 문구 일치·랜덤 시드 변경·초기화 후 생성 비활성 복귀 확인. 실제 생성·모델 준비는 실행하지 않음. 추가 격리 합성 화면에서 Gradio 인라인 확인 표시·취소 후 모의 명령 0건·확정 후 입력 프롬프트와 시드 42를 보존한 모의 명령 1건 및 버튼 복귀 확인. 완료 오디오와 새로고침은 completed_audio_reconnect_evidence, 임시 디스크 이력 선택·입력 복원은 persisted_input_browser_evidence에서 후속 확인. 모바일 완료 결과 조작과 서버 재시작 후 복원은 미검증.
 - id: anny-attribute-renderer
+  deletion_service_evidence: remaining_deletion_consumers_followup
   default_data_validation_evidence: anny_profile_schema_validation_followup·anny_attribute_json_validation_followup·anny_preload_structure_validation_followup·anny_renderer_preflight_execution_followup 참조. 기본 설정 중복 키/자료형·속성 구조 및 모델 import 전 거절 검증. 정상 GPU 생성 품질/완료 검증과 구분.
   gpu_observation_followup: gpu_sample_failure_recovery_followup 및 gpu_partial_device_sample_followup 참조. 공용 코드·격리 관측 계약 검증이며 해당 생성기의 실제 GPU 장애 검증과 구분.
   mobile_review: initial_layout_verified_flows_pending
@@ -230,6 +232,7 @@ pages:
   completion_requirement_matrix: landmark_candidate_requirement_verdict
 
 - id: hy-motion-generator
+  deletion_service_evidence: remaining_deletion_consumers_followup
   readiness_browser_evidence: hy_motion_readiness_cancel_browser_followup 참조. 수정 소스의 모바일 빈 입력·프리셋·확인 취소 검증.
   model_failure_evidence: hy_motion_model_status_failure_followup 참조. 조회 실패 시 원인/재시도 안내·생성 비활성 및 복구 후 활성 확인.
   input_readiness_evidence: hy_motion_empty_prompt_readiness_followup·hy_motion_readiness_event_fix·hy_motion_readiness_browser_followup 참조. 빈 입력 생성 활성 문제 수정 및 격리 실제 Blocks에서 빈 입력 비활성·프리셋 복원·확인 잠금·취소 복원 검증. 운영 서버 재시작이나 배포 완료 증거는 아님.
@@ -254,6 +257,7 @@ pages:
   browser_note: 실제 합성 화면에서 최신 이력 4건·완료 상태·VRAM 측정 자료 없음·품질 경고·결과 조회 8개 패널 및 다운로드 목록 확인. 추가 격리 합성 화면에서 측정값 존재 상태와 완료 전환 후 피크·품질 경고 유지 확인. 모바일·재생 동기화 검증은 남음.
 
 - id: music-minimax
+  deletion_service_evidence: music_deletion_consumer_contract_followup
   saved_input_contract_evidence: music_saved_input_contract_followup
   mobile_review: initial_width_verified_flows_pending
   mobile_evidence: "2026-10-15 운영 합성 문서 390×844에서 해당 메뉴·도구 제목과 clientWidth/scrollWidth 375/375px 확인. 입력·생성·삭제 요청 없이 관찰. 전체 폼·표의 조작/첨부·미리보기·결과·재연결은 별도 검증 필요. 같은 검증 탭의 경고/오류 로그 없음. 탭 종료 및 viewport 복원."
@@ -279,6 +283,7 @@ pages:
   browser_note: 2026-10-15 관리 메뉴 합성 격리 화면에서 ETA 12초·총시간 30초·예상 진행률 60%·완료 시각·표본 3개·범위·갱신 시각, VRAM 현재 120 MiB·관측 피크 7123 MiB·측정 범위·샘플링 한계·누락 구간 및 로그 표시 확인. 새로고침 후 동일 활성 ID와 수치 복원, 콘솔 오류 없음. 고정 모의 기록의 실행 수치 검증. 이후 완료 오디오·모바일 플레이어·운영 초기 상태 검증은 별도 followup 필드에 기록. 실제 GPU 측정·생성 확인·영구 완료 이력 조회는 미검증.
 
 - id: phantom-generator
+  deletion_service_evidence: remaining_deletion_consumers_followup
   mobile_restore_evidence: active_inventory_phantom_mobile_followup · 단일 완료 이력의 모바일 참조·프롬프트 복원 및 생성 준비·aria-describedby 확인; 다중 참조 전체 조합은 별도
   frame_input_evidence: video_frame_duration_validation_followup·video_frame_duration_browser_followup 참조. 빈 프레임 입력 안내와 정상 재입력 시 길이 표시 복원 확인.
   gpu_observation_followup: gpu_sample_failure_recovery_followup 및 gpu_partial_device_sample_followup 참조. 공용 코드·격리 관측 계약 검증이며 해당 생성기의 실제 GPU 장애 검증과 구분.
@@ -312,6 +317,7 @@ pages:
   applicability: generation
   browser_note: 2026-10-15 실제 합성 화면에서 참조 슬롯·프롬프트 단어 수·81프레임 5.06초·시드·3건 이력 확인. 완료 32848efd 결과 조회로 영상 832×480·5.0625초·readyState 4·미디어 및 콘솔 오류 없음 확인. 생성·삭제 미실행. 모바일 단일 이력 복원은 mobile_restore_evidence에서 후속 검증.
 - id: qwen-21-circular-generator
+  deletion_service_evidence: remaining_deletion_consumers_followup
   saved_worker_status_evidence: circular_history_worker_status_browser_followup
   mobile_review: initial_width_verified_flows_pending
   mobile_evidence: "2026-10-15 운영 합성 문서 390×844에서 해당 메뉴·도구 제목과 clientWidth/scrollWidth 375/375px 확인. 입력·생성·삭제 요청 없이 관찰. 전체 폼·표의 조작/첨부·미리보기·결과·재연결은 별도 검증 필요. 같은 검증 탭의 경고/오류 로그 없음. 탭 종료 및 viewport 복원."
@@ -333,6 +339,7 @@ pages:
   browser_note: 2026-10-15 실제 합성 화면에서 27건 누적 이력·순환 반경·일반 VAE 비교 옵션 확인. 탑뷰 옵션 해제 시 사용자 3/추가 4/최종 7단어, 수동 프롬프트 초기화 시 사용자 0/추가 4/최종 4단어 갱신 및 콘솔 오류 없음 확인. 생성·삭제 미실행; 결과 비교·모바일 미검증.
   contract_evidence: 순환 설정·참조 수·프롬프트 옵션·부분 결과 표시 계약 검증. 전체 UI 동작·GPU 생성 검증과 구분.
 - id: qwen-21-generator
+  deletion_service_evidence: remaining_deletion_consumers_followup
   saved_worker_status_evidence: qwen21_history_worker_progress_browser_followup
   gpu_observation_followup: gpu_sample_failure_recovery_followup 및 gpu_partial_device_sample_followup 참조. 공용 코드·격리 관측 계약 검증이며 해당 생성기의 실제 GPU 장애 검증과 구분.
   mobile_review: initial_layout_verified_flows_pending
@@ -355,6 +362,7 @@ pages:
   browser_note: 2026-10-15 공용 메뉴와 Qwen 2.1을 합성한 격리 화면에서 자동 갱신의 남은 시간 12초·VRAM 현재 120/관측 피크 7123 MiB·측정 범위 및 샘플링 한계를 확인. 모의 이력 삭제 후 삭제 안내·빈 생성 ID·콘솔 오류 없음 확인. 실제 생성·삭제·GPU 실행은 차단했으며 모바일·전체 실행 계약 검증은 미완료.
   live_description_evidence: qwen_live_description_followup 참조.
 - id: vace-v2v-generator
+  deletion_service_evidence: remaining_deletion_consumers_followup
   mobile_restore_evidence: vace_mobile_history_restore_followup · 운영 완료 이력의 17개 프레임·121프레임·시드 복원 확인
   mask_edit_evidence: vace_mask_interactive_browser_fix · 동적 마스크 편집 비활성 수정 및 체크 해제·복귀 확인
   mobile_confirmation_evidence: vace_mobile_mask_confirmation_followup · 취소 0건·확정 모의 접수 1건 및 수정 마스크 요청값 보존
@@ -1024,6 +1032,7 @@ pages:
   completion_requirement_matrix: field_third_batch_requirement_verdict
 
 - id: outfit-transfer-generator
+  deletion_service_evidence: remaining_deletion_consumers_followup
   saved_input_restore_evidence: outfit_saved_input_restore_followup 및 outfit_saved_input_browser_followup 참조. 저장 설정·참조 복원 및 결과 조회의 편집 입력 보존 확인.
   current_empty_history_evidence: outfit_empty_history_live_followup 참조. 현재 운영 이력 없음 및 삭제 없는 확인·취소 검증.
   cleanup_finalization_evidence: service_finalization_cleanup_matrix_followup 참조. 종료 상태여도 최종 기록 저장 중에는 미리보기·선택 삭제·전체 초기화 차단.
@@ -1581,6 +1590,7 @@ pages:
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
   browser_note: 2026-10-15 운영 8770 합성 문서에서 개별 캔버스 로딩과 다음 프레임 조작 후 2 / 8 정지 표시 확인. 저장·삭제 미실행. 개별 시각 품질·반응형·재연결·저장 계약 검증은 미완료.
 - id: ui-80b9721b0e3bea5f-battlefield-layout
+  command_scope_evidence: battlefield_preview_command_scope_followup
   current_mobile_evidence: battlefield_current_mobile_followup
   current_browser_evidence: battlefield_current_publication_reconnect_followup
   prior_publication_id: ui-643120e666a183ee-battlefield-layout
@@ -1638,6 +1648,8 @@ pages:
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
   browser_evidence: 2026-10-15 실제 공용 메뉴 합성 화면에서 해당 맵 제목·타일과 기본 캐릭터 로딩 완료·공용 필드 렌더러 표시 확인. 전체 보기 후 200%에서 32%로 변경 및 콘솔 오류 없음 확인. 타일별 시각 품질·재연결·화면 크기 검증은 미완료.
 - id: animation-separation
+  input_restore_browser_evidence: separation_schema2_restore_browser_followup
+  deletion_service_evidence: remaining_deletion_consumers_followup
   mobile_readiness_evidence: separation_mobile_guidance_followup 참조. 초기 비활성 및 접근성 설명 확인; 업로드·접수·복원 전체 검증과 구분.
   gpu_observation_followup: gpu_sample_failure_recovery_followup 및 gpu_partial_device_sample_followup 참조. 공용 코드·격리 관측 계약 검증이며 해당 생성기의 실제 GPU 장애 검증과 구분.
   mobile_review: initial_layout_verified_flows_pending
@@ -1685,6 +1697,8 @@ pages:
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
   browser_evidence: 2026-10-15 실제 합성 화면에서 양쪽 캐릭터 캔버스와 잔디·들꽃 3×3 맵 로딩, 90도 회전 및 동일 위치·크기 표시를 확인. 콘솔 오류 없음. 캡처 저장·재연결·화면 크기 검증은 미완료.
 - id: pose-transfer-generator
+  deletion_service_evidence: remaining_deletion_consumers_followup
+  saved_input_display_evidence: pose_saved_prompt_browser_followup
   mobile_preset_evidence: pose_mobile_preset_apply_followup 참조. 32번 선택과 적용 구분·등록 문구 및 이미지 반영·미리보기 종료·새로고침 초기 상태 검증. 두 입력 준비 후 접수 확인 및 결과 이력과 구분.
   mobile_preset_followup: pose_mobile_preset_apply_followup 참조. 프리셋 선택·적용·확대 종료·재연결 실제 검증, 생성 접수 없음.
   mobile_review: initial_width_verified_flows_pending
@@ -1713,6 +1727,7 @@ pages:
   responsive_evidence: 2026-10-15 viewport 390×844 실제 적용 확인. DOM clientWidth·scrollWidth 모두 375px로 가로 넘침 없음. 프롬프트와 공용 메뉴 열기·닫기 표시 확인. 검증 후 viewport reset. 모든 입력·이력 동작의 모바일 완료를 뜻하지 않음.
   contract_evidence: 입력 이미지 수·포즈/아이덴티티 역할·512 해상도·25/40스텝·CLI 및 전용 이력 경로 검사 5건 통과(13-46-01 묶음). 전체 UI 동작·GPU 생성 검증과 구분.
 - id: expression-generator
+  deletion_service_evidence: remaining_deletion_consumers_followup
   mobile_result_restore_evidence: expression_mobile_result_restore_followup 참조. 390px 결과 조회·설정 복원·재진입·문서 폭 검증.
   saved_result_restore_evidence: expression_saved_result_restore_browser_followup 참조. 합성 완료 이미지 조회·편집값 보존·명시적 참조와 설정 복원·재진입 확인.
   prompt_seed_evidence: expression_prompt_seed_followup 참조. 프리셋 변경 표시·모바일 너비·시드 무실행 변경 확인.
@@ -3710,8 +3725,8 @@ remaining_completion_gates:
   next_evidence_by_group:
     generation: 소비 페이지별 저장 입력·결과·로그 및 재진입 검증의 누락 조건을 기존 browser_note와 대조. 공용 계약은 latest_regression과 개별 followup을 사용한다.
     landmark_candidate_editor: 임시 저장 기록 재연결과 실제 정면·후면 메시 피킹, 좁은 화면 좌표 읽기, 회전 드래그 무선택은 후속 기록으로 검증됨. 좁은 화면 저장 후보의 표·입력·메시 마커 연결은 landmark_narrow_saved_marker_followup으로 확인. 전체 완료 판정 전 저장·확인·오류 처리 요구와 기존 증거를 항목별 대조하며 해부학 정확도 승인은 UI 완료 조건과 구분한다.
-    animation_anchor_editor: 17페이지의 기본 원본 정합성·개별 모바일 탐색·재연결과 공용 동작별 초안 왕복 검증 확인. 실제 등록 동작 전환은 anchor_registered_actions_navigation_followup, 손상 초안 오류 복구는 anchor_draft_recovery_browser_followup으로 확인. 남은 표시 검증은 선택한 동작·방향의 원본과 화면 이미지 일치, 잘림·비율 왜곡 여부다. 원본 모션의 미술·해부학 품질 승인은 관리 UI 완료 조건에 추가하지 않는다. 최신 페이지별 current_verification_summary와 증거 링크를 사용한다.
-    sprite_editor: 데스크톱 및 모바일 저장 수정본 복원은 sprite_saved_revision_reconnect_followup·sprite_mobile_saved_revision_followup에서 확인. 서버 ZIP 내용과 단일 참조 업로드도 후속 검증됨. 다중 업로드는 sprite_multiple_upload_browser_followup에서 확인. 선택 프레임 교체는 sprite_selected_replace_browser_followup으로 확인. 남은 브라우저 조건은 터치 드래그·클립보드와 다운로드 파일 저장 확인이다.
+    animation_anchor_editor: 17페이지의 기본 원본 정합성·개별 모바일 탐색·재연결과 공용 동작별 초안 왕복 검증 확인. 실제 등록 동작 전환은 anchor_registered_actions_navigation_followup, 손상 초안 오류 복구는 anchor_draft_recovery_browser_followup으로 확인. 원본 정합성과 등록 동작 표시의 후속 검증은 anchor_editor_requirement_matrix.source_integrity에 연결했다. 현재 남은 공용 이력 UI 항목은 실제 클립보드 복사 결과 관측이며 초기화 확인·취소·원본 보존·대상 변경 거절은 검증됨. 원본 모션의 미술·해부학 품질 승인은 관리 UI 완료 조건에 추가하지 않는다.
+    sprite_editor: 데스크톱 및 모바일 저장 수정본 복원은 sprite_saved_revision_reconnect_followup·sprite_mobile_saved_revision_followup에서 확인. 서버 ZIP 내용과 단일 참조 업로드도 후속 검증됨. 다중 업로드는 sprite_multiple_upload_browser_followup에서 확인. 선택 프레임 교체는 sprite_selected_replace_browser_followup으로 확인. 다운로드 파일 저장은 sprite_download_saved_file_followup에서 실제 저장 ZIP과 서버 ZIP의 SHA-256·CRC·내용 일치로 확인했다. 남은 브라우저 조건은 터치 드래그와 실제 클립보드 결과 관측이다.
     writer: 임시 실제 서비스의 브라우저 확인·적용·목록 갱신은 writer_apply_history_refresh_followup, 외부 원문 변경 거절·안내 유지는 writer_apply_failure_persistence_browser_followup, 공용 게이트웨이 적용·조회 계약은 writer_gateway_real_apply_followup에서 확인. 소켓 HTTP 공용 클라이언트 연결은 writer_socket_transport_followup에서 확인. 모바일 동의·해제·재연결 및 무쓰기 확인은 writer_mobile_confirmation_followup에서 확인. 모바일 실제 적용 성공은 writer_mobile_real_apply_followup에서 확인했다. 합성 임시 문서로 검증하며 운영 비공개 문서에는 적용하지 않는다.
     render_review: 맵 31개와 기타 3개(디자인 시스템·전장·캐릭터)의 원본 표시·로딩 실패·좁은 화면·재진입 증거를 페이지별로 대조한다. 편집·생성 규칙을 읽기 전용 화면에 무조건 적용하지 않는다.
   completion: 전체 완료는 아직 입증되지 않음. 페이지별 현행 상태를 따른다. 디자인 시스템의 applicable_ui_flows_verified를 다른 페이지로 확대하지 않는다.
@@ -5598,3 +5613,161 @@ anchor_reset_target_change_browser_followup:
   result: '확인 대상 동작이 변경되었거나 확인하지 않았습니다. 이력 초기화를 다시 요청하세요. 안내와 확인 영역 닫힘 확인.'
   integrity: '/tmp/anchor-target-before.sha256의 기존 request/status/result/coordinates/history-hidden 5파일 해시 모두 동일. 운영 이력 변경 없음.'
   resolves: 'anchor_editor_requirement_matrix의 확인 중 동작 전환 UI 거절 공백. 공용 ID 복사 실제 클립보드 관측은 별도 미확인 유지.'
+
+pose_saved_prompt_browser_followup:
+  date: 2026-10-16
+  status: verified_isolated_browser
+  scope: 실제 포즈 변환 Gradio 화면과 공용 메뉴를 합성한 8798 격리 화면의 결과 조회
+  fixture: /tmp/pose-history-input-audit.py
+  evidence:
+    - 임시 이력을 선택하고 결과 조회 후 생성 당시 입력값을 펼쳐 저장 원문 Fit the blue outfit. 및 4단어 표시를 확인했다.
+    - 별도 최종 문구 기록 없음과 현재 기본값으로 재구성하지 않는다는 안내를 확인했다.
+    - 조회 전후 현재 보조 문구 Walking pose. 및 기본 29·보조 2·최종 31단어가 유지되고 참조 입력 슬롯은 비어 있었다.
+    - 입력 참조 썸네일 2개와 업로드 순서 안내를 확인했다. 원본 링크 다운로드는 이 검증 범위가 아니다.
+    - 작업자 denoise 12/40 관측과 전체 예상 진행률 구분, 추정 근거 부족 및 VRAM 미측정 안내를 확인했다.
+  isolation: history/status/active 응답만 임시 기록으로 제공하며 나머지 명령은 예외로 차단했다. 운영 작업 생성·취소·삭제 없음.
+  limitation: 저장 원문만 있는 기록의 표시 검증이다. 실제 GPU 추론 및 모든 생성기의 개별 화면 완료를 뜻하지 않는다.
+
+completion_gate_reconciliation_followup:
+  date: 2026-10-16
+  change: 후속 검증으로 해소된 앵커 원본 표시와 스프라이트 다운로드 저장을 remaining_completion_gates의 다음 작업에서 제거하고 기존 근거를 연결했다.
+  evidence: anchor_editor_requirement_matrix · anchor_registered_action_visual_followup · anchor_action_sources_followup · sprite_download_saved_file_followup
+  unresolved: 앵커·Writer·스프라이트의 실제 클립보드 결과, 스프라이트 터치 조작, 전장 행동 흐름 및 생성기별 미완료 조건은 별도 검증이 필요하다.
+  scope: 과거 시점의 remaining 기록은 유지하고 최신 다음 작업 목록만 갱신했다. 전체 완료 판정이나 코드 동작 변경은 아니다.
+
+battlefield_preview_command_scope_followup:
+  date: 2026-10-16
+  publication: ui-80b9721b0e3bea5f
+  source: .tmp/manager-current/ui-80b9721b0e3bea5f/assets/battlefield-runtime-BTvy3OsA.js
+  contract: mount 함수의 execute 콜백은 디자인 미리보기 상태 문자열만 갱신한다. 고정 전투 상태를 렌더하며 실제 게임 명령 전송·턴 시뮬레이션은 이 도구의 계약이 아니다.
+  browser: 공용 메뉴 합성 문서에서 전체 6/6 완료 후 고목 수호자의 터 1/1 완료·고목 거인 턴·이동/공격/스킬/턴 종료 비활성 및 대기 이유를 확인했다.
+  action: 자동전투 켜기를 클릭한 뒤 공용 전장 렌더 상태에 디자인 미리보기 AUTO_PLAY 선택 및 실제 명령 미전송 안내가 표시됐다. 콘솔 경고·오류 없음.
+  limit: 도주 클릭 후 후속 확인 흐름은 이번 검증에서 확정하지 않았다. 해당 흐름과 시각 검증은 남기되 실제 전투 실행 성공을 완료 조건으로 추가하지 않는다.
+  safety: 임시 브라우저 탭만 사용 후 종료. 게시 파일 수정·실제 생성 및 전투 명령 없음.
+
+battlefield_surrender_preview_followup:
+  date: 2026-10-16
+  resolves: battlefield_preview_command_scope_followup.limit의 도주 후속 흐름 미확인
+  publication: ui-80b9721b0e3bea5f
+  browser: 운영 게시본을 별도 임시 탭에서 공용 메뉴와 합성하여 고목 수호자의 터 선택. 실제 명령 미전송 execute 콜백을 사전 확인했다.
+  observed:
+    - 도주 선택 시 도주 동의 확정 대화상자와 취소·확정 버튼 및 전리품 분실 설명이 표시됐다.
+    - 취소 후 대화상자가 제거됐다. 다시 도주 선택 시 확인 영역이 정상 재표시됐다.
+    - 확정 후 대화상자가 제거되고 공용 전장 렌더 상태에 SURRENDER 선택 및 실제 명령 미전송 안내가 표시됐다.
+    - 브라우저 경고·오류 없음. 임시 탭 종료.
+  ownership: 게임 게시 번들의 디자인 검수 컴포넌트에서 제공하는 게임 내 대화상자다. 관리도구 생성·삭제·대기열 확인 UI의 Gradio 대체 구현이 아니며 이 경로를 관리 명령 확인에 재사용하지 않는다.
+  limitation: 미리보기 확인·취소 흐름 검증이며 게임 서버 도주 정책·실제 전투 결과 검증이 아니다.
+
+generator_consumer_evidence_index:
+  date: 2026-10-16
+  purpose: 12개 생성기의 후속 근거를 다음 검사에 연결한다. 아래 next는 결함 확정이나 새 테스트 요구가 아니라 기존 근거를 먼저 대조할 조건이다.
+  completion: 미입증. 개별 화면과 공용 서비스 계약의 전체 요구 대조가 남아 있다.
+  consumers:
+    music-ace-step:
+      evidence: ace_persisted_history_restore_browser_followup
+      next: 실패·취소·삭제 공용 계약의 ACE 서비스 소비 근거 대조
+    music-minimax:
+      evidence: music_saved_input_contract_followup
+      next: 저장 이력 복원·오디오 다운로드 실파일 근거 대조
+    anny-attribute-renderer:
+      evidence: browser_history_reset_snapshot_followup
+      next: 완료 결과 및 입력 복원 경로와 개별 서비스 삭제 근거 대조
+    hy-motion-generator:
+      evidence: hy_motion_readiness_cancel_browser_followup
+      next: 완료 모션 결과·로그·저장 입력 재진입 근거 대조
+    phantom-generator:
+      evidence: phantom_submit_recovery_browser_followup
+      next: 완료 영상 결과·로그 재진입 근거 대조
+    qwen-21-circular-generator:
+      evidence: circular_mobile_results_restore_followup
+      next: 부분 결과 상태와 선택 삭제·초기화 서비스 계약 근거 대조
+    qwen-21-generator:
+      evidence: qwen_history_prompt_followup
+      next: 참조 포함 저장 입력 복원·결과 재진입 근거 대조
+    vace-v2v-generator:
+      evidence: vace_mobile_reconnection_followup
+      next: 선택 삭제·초기화와 재개 공용 계약의 소비 근거 대조
+    outfit-transfer-generator:
+      evidence: outfit_saved_input_browser_followup
+      next: 완료 결과 재진입 및 삭제 공용 계약의 소비 근거 대조
+    animation-separation:
+      evidence: separation_submit_recovery_browser_followup
+      next: schema 2 저장 입력의 모바일 복원 및 두 결과 재진입 근거 대조
+    pose-transfer-generator:
+      evidence: pose_saved_prompt_browser_followup
+      next: 명시적 입력 불러오기·결과 재진입 및 삭제 계약 근거 대조
+    expression-generator:
+      evidence: expression_mobile_result_restore_followup
+      next: 선택 삭제·초기화 공용 계약의 소비 근거 대조
+
+music_deletion_consumer_contract_followup:
+  date: 2026-10-16
+  consumers: [music-ace-step, music-minimax]
+  implementation: tools/review/domains/music/generation.py의 delete_music_history와 history-reset 분기. hold_music_lock 아래 공용 delete_generation_job_files 사용. 초기화는 이력 인덱스가 아닌 소유 작업 루트를 열거한다.
+  inspected_tests:
+    - test_music_management_audit.MusicManagementAuditTests.test_both_services_delete_files_and_reset_hidden_jobs
+    - test_music_generation.MusicGenerationTests.test_delete_and_reset_reject_live_jobs
+  coverage: 두 실제 음악 서비스의 임시 작업에 입력·중간·여러 시도 결과/로그를 생성하여 선택 삭제·숨긴 작업 초기화·삭제 용량·외부 원본 보존·외부 심볼릭 링크 거절·queued/running 거절·빈 이력을 검사한다. GPU 프로세스 실행은 모의 처리한다.
+  result: .tmp/test/management-audit/2026-10-16_05-28-16/execution.log의 해당 두 테스트 ok를 직접 확인했다. 요약 JUnit은 개별 사례를 포함하지 않으므로 588건 집계만으로 이 계약을 판단하지 않았다.
+  conclusion: 기존 서비스 소비 검증 근거가 있어 동일 조건 회귀를 재실행하지 않는다. GUI 확인·취소·대상 변경 검증과 실제 GPU 추론 품질은 별도 범위다.
+  safety: 이번 대조는 소스·기존 로그 읽기만 수행. 운영 이력 삭제 없음.
+
+remaining_deletion_consumers_followup:
+  date: 2026-10-16
+  scope: 음악 외 10개 활성 생성기의 삭제·초기화 구현 소비 경로
+  inheritance_artifact: .tmp/test/deletion-consumer-audit/inheritance.json
+  image_family: Qwen 일반·순환·포즈·복장·분리·표정·Phantom·VACE timeline 8개 클래스의 AST 상속 경로를 검사했다. 선택 삭제·초기화는 모두 ImageGenerationManager가 소유하며 해당 하위 클래스에 중복 재정의가 없다.
+  other_services: HY-Motion은 jobs.py의 서비스 파일 잠금, ANNY는 anny_attributes.py의 ANNY_HISTORY_SERVICE_LOCK 안에서 공용 delete_generation_job_files를 호출한다. 각각 소유 루트를 열거하는 초기화와 선택 ID 삭제 경로를 확인했다.
+  existing_tests: test_image_generation의 숨긴 작업·타 서비스 보호 및 실행/링크 거절, test_hy_motion의 선택 삭제·초기화, test_anny_history의 파일 삭제·실행 거절, test_vace_generation·test_phantom_generation의 삭제 후 이력 미복원·실행 거절, test_expression_generation의 타 생성기 보존 검사를 대조했다.
+  result: .tmp/test/management-audit/2026-10-16_05-28-16/execution.log에서 관련 사례의 ok를 확인했다. 기존 통과 근거를 사용하며 같은 조건의 전체 회귀는 재실행하지 않았다.
+  boundary: 상속 연결은 각 서비스의 실제 입력 저장 형식 전체 검증을 대신하지 않는다. 서비스별 경로 설정·잠금 경계·GUI 확인 대상 보존은 해당 기존 근거와 별도 대조해야 하며 전수 완료 판정은 유지하지 않는다.
+  safety: 이번 검증은 AST·소스·기존 로그만 읽었다. 운영 작업 및 파일 삭제 없음.
+
+separation_schema2_restore_browser_followup:
+  date: 2026-10-16
+  fixture: /tmp/separation-restore-current.py · 8799 · 실제 분리 Blocks와 공용 메뉴 · 임시 schema 2 이력
+  observations:
+    - 이력 선택 후 입력값 불러오기로 참조 이미지 1장·크기768·시드123을 복원했다.
+    - 신체 Body reference. 및 복장 Clothes reference. 원문과 각각2단어 표시가 복원됐다.
+    - 참조 미첨부 시 비활성이던 생성 버튼이 복원 후 활성화됐다. 생성 버튼은 누르지 않았다.
+    - 메뉴·도구 제목이 복장 분리와 일치하고 콘솔 오류·경고가 없었다.
+  isolation: history/status 이외 명령은 예외로 차단했다. 실제 GPU 접수와 운영 이력 변경 없음.
+  environment: 최초8798은 포트 사용 중으로 실행 실패하여 기존 프로세스를 중단하지 않고8799로 분리했다. 실패한 화면은 증거에서 제외했다.
+  limitation: 데스크톱 명시적 입력 복원 검증. 모바일·결과 미디어·재연결 전체 완료로 확대하지 않는다.
+
+separation_restore_prompt_validation_fix:
+  date: 2026-10-16
+  finding: restore_separation_inputs가 outfit_prompt를 검증 없이 반환하여 손상 자료형·빈 문구·100단어 이상 문구가 복원될 수 있었다.
+  correction: 공용 요청 자료형 검증 후 신체·복장 두 문구에 기존 validate_separation_prompt를 적용한다. 잘못된 저장 문구는 참조 파일을 읽거나 폼 값을 반환하기 전에 필드명과 원인으로 거절한다.
+  regression: test_separation_preview_gradio에 두 필드 각각 None·목록·숫자·빈 문자열·100단어 거절 및 참조 읽기 미호출 검사 추가. 기존 정상 복원·변조 참조·이전 스키마 검사 유지.
+  validation: 해당 모듈 8건 통과·실패/오류/건너뜀0건. .tmp/test/management-audit/2026-10-16_15-14-36/summary.json. 격리 브라우저 후속 근거는 separation_invalid_restore_browser_followup 참조.
+  safety: 운영 이력·생성 작업 무변경.
+
+separation_invalid_restore_browser_followup:
+  date: 2026-10-16
+  fixture: /tmp/separation-invalid-restore.py · 8799 · 공용 메뉴와 실제 분리 UI · outfit_prompt가 목록인 임시 이력
+  result: 현재 신체 문구 Keep current body.와 복장 문구 Keep current clothes.를 입력한 뒤 이력 복원을 시도했다. 저장된 outfit_prompt의 1~99단어 규칙 오류를 명시한 입력 불러오기 실패 안내가 표시됐다.
+  preservation: 두 현재 문구와 각각3단어 표시가 유지됐다. 참조 미첨부와 생성 비활성도 유지되어 부분 복원되지 않았다.
+  safety: 모의 history/status만 제공하고 생성·삭제 명령 차단. 운영 데이터 무변경. 검증 탭과 실행 세션 종료.
+
+separation_restore_settings_validation_fix:
+  date: 2026-10-16
+  finding: 저장 입력 복원에서 크기·스텝·시드의 자료형만 확인하여 서비스가 거절하는 범위를 폼에 반영할 수 있었고 reference_snapshots null/숫자는 len 호출의 일반 Python 오류가 발생했다.
+  correction: 서비스의 512/768 정사각형·40스텝·uint32 규칙을 validate_separation_settings로 추출해 생성과 복원에서 공유한다. 복원은 참조 목록 자료형과1장 조건을 검사하고 명시적 Gradio 오류로 거절한다.
+  tests: 기존 정상 복원 검사와 함께 잘못된 크기·비정사각형·스텝·음수/초과/불리언/누락 시드·잘못된 참조 목록 거절 및 파일 읽기 미호출 사례 추가.
+  validation: test_separation_preview_gradio와 test_animation_separation 19건 통과·실패/오류/건너뜀0건. .tmp/test/management-audit/2026-10-16_15-17-39/summary.json. 브라우저 근거는 separation_invalid_settings_browser_followup 참조.
+  safety: 운영 데이터 변경 없음.
+
+separation_invalid_settings_browser_followup:
+  date: 2026-10-16
+  fixture: /tmp/separation-invalid-settings.py · 8799 · 실제 Gradio 분리 화면과 공용 메뉴
+  input: 저장 시드 -1인 임시 schema 2 이력. 현재 폼 시드는777로 지정.
+  result: 입력값 불러오기를 거절하고 저장된 분리 설정의 정사각형·40스텝·uint32 제한을 안내했다. 현재 시드777과 참조 미첨부·생성 비활성 상태가 유지됐다.
+  safety: 모의 history/status 외 실행 차단. 운영 데이터 무변경. 검증 탭과 실행 세션 종료.
+
+phantom_restore_settings_validation_fix:
+  date: 2026-10-16
+  finding: 참조 복원을 모의 처리한 격리 콜백에서 frames999·목록형 negative_prompt·NaN flow_shift가 폼 출력으로 반환됨을 확인했다.
+  correction: 공용 자료형·참조 해시 검증 후 기존 verify_phantom_request로 저장 요청 전체를 검증하고 선택 이력과 현재 저장 요청의 불일치를 거절한다. 중첩 설정·참조 목록 자료형도 명확히 거절한다.
+  validation: 최종 수정본 test_phantom_generation 14건 통과·실패/오류/건너뜀0건. .tmp/test/management-audit/2026-10-16_15-24-34/summary.json. 손상 프레임·선택 이력 불일치 회귀 포함. 이번 Phantom 수정의 격리 브라우저 확인은 미완료.
+  safety: 운영 기록·GPU 실행 없음.
