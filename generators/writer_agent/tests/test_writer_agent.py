@@ -100,6 +100,35 @@ class WriterAgentContracts(TestCase):
         with self.assertRaisesRegex(ValueError,'의존 관계'):apply_reviewed_proposal(self.workspace_config_values,self.job_record_root,current_proposal_values)
         self.assertFalse((self.job_record_root/'application.yaml').exists())
 
+    def test_shared_gateway_applies_and_reads_same_saved_record(self):
+        from tools.review.common.management_gateway import ManagementCommandGateway
+        current_job_identifier=create_writer_job(self.workspace_config_values,{'mode':'write','prompt':'격리 적용'})
+        current_job_root=resolve_job_directory(self.workspace_config_values,current_job_identifier)
+        save_yaml_document(current_job_root/'proposal.yaml',self.create_test_proposal())
+        current_proposal_hash=calculate_content_hash((current_job_root/'proposal.yaml').read_bytes())
+        update_job_status(current_job_root,'review',proposal_hash=current_proposal_hash)
+        current_manager_service=WriterAgentManager(self.workspace_config_path)
+        current_gateway_service=ManagementCommandGateway({'writer-agent':current_manager_service.handle_writer_request})
+        for current_command_name,current_request_payload,current_expected_status in (
+            ('writer-apply',{'id':current_job_identifier,'proposal_hash':'stale'},400),
+            ('writer-apply',{'id':current_job_identifier,'proposal_hash':current_proposal_hash},200),
+            ('writer-detail',{'id':current_job_identifier},200),
+            ('writer-apply',{'id':current_job_identifier,'proposal_hash':current_proposal_hash},400),
+        ):
+            current_body_bytes=json.dumps({'service':'writer-agent','command':current_command_name,'payload':current_request_payload}).encode()
+            current_http_handler=SimpleNamespace(path='/management/command',command='POST',headers={'Host':'127.0.0.1:8770','Origin':'http://127.0.0.1:8770','X-Writer-Token':current_manager_service.csrf_token_value,'Content-Type':'application/json','Content-Length':str(len(current_body_bytes))},server=SimpleNamespace(server_port=8770),rfile=BytesIO(current_body_bytes),wfile=BytesIO(),status_code=None)
+            current_http_handler.send_response=lambda current_status_code:setattr(current_http_handler,'status_code',current_status_code)
+            current_http_handler.send_header=lambda current_header_name,current_header_value:None
+            current_http_handler.end_headers=lambda:None
+            current_gateway_service.handle(current_http_handler)
+            self.assertEqual(current_http_handler.status_code,current_expected_status,current_http_handler.wfile.getvalue())
+            if current_command_name=='writer-detail':
+                current_detail_record=json.loads(current_http_handler.wfile.getvalue())
+                self.assertEqual(current_detail_record['status']['stage'],'applied')
+                self.assertEqual(current_detail_record['application']['status'],'applied')
+                self.assertEqual(current_detail_record['id'],current_job_identifier)
+        self.assertEqual((self.document_root_path/'world/main.md').read_text().count('## 새 설정'),1)
+
     def test_failed_multi_file_apply_rolls_back(self):
         current_proposal_values=self.create_test_proposal('create')
         from generators.writer_agent.documents import write_atomic_bytes

@@ -6,6 +6,20 @@ from tools.review.ui.gradio.writer_agent_app import build_writer_agent_interface
 
 
 class WriterAgentGradioTest(unittest.TestCase):
+    def test_failed_detail_clears_previous_proposal_and_confirmation(self):
+        current_interface_blocks=build_writer_agent_interface(8770)
+        current_read_callback=next(current_function_value.fn for current_function_value in current_interface_blocks.fns.values() if current_function_value.fn and current_function_value.fn.__name__=='read_writer_selection')
+        for current_error_value in (ValueError('조회 거절'), RuntimeError('서비스 오류'), OSError('연결 종료')):
+            with self.subTest(error=str(current_error_value)),patch('tools.review.ui.gradio.writer_agent_app.request_writer_service',side_effect=current_error_value):
+                current_output_values=current_read_callback('job-a')
+                self.assertEqual(current_output_values[0],{})
+                self.assertEqual(current_output_values[1],'job-a')
+                for current_output_index in (2,5,8,9,11):self.assertEqual(current_output_values[current_output_index],'')
+                self.assertFalse(current_output_values[12]['interactive'])
+                self.assertFalse(current_output_values[13])
+                self.assertIn(str(current_error_value),current_output_values[3])
+                self.assertIn('다시 조회',current_output_values[14])
+
     def test_readiness_requires_prompt_and_existing_selection(self):
         current_interface_blocks=build_writer_agent_interface(8770)
         current_refresh_callback=next(current_function_value.fn for current_function_value in current_interface_blocks.fns.values() if current_function_value.fn and current_function_value.fn.__name__=='refresh_writer_workspace')
@@ -45,6 +59,21 @@ class WriterAgentGradioTest(unittest.TestCase):
         with patch('tools.review.ui.gradio.writer_agent_app.request_writer_service') as current_service_mock:
             with self.assertRaises(gr.Error):current_apply_callback({'id':'job-a'},False,'job-a')
             current_service_mock.assert_not_called()
+
+    def test_apply_error_clears_confirmation_without_retry(self):
+        current_interface_blocks=build_writer_agent_interface(8770)
+        current_apply_callback=next(current_function_value.fn for current_function_value in current_interface_blocks.fns.values() if current_function_value.fn and current_function_value.fn.__name__=='apply_writer_proposal')
+        current_detail_record={'id':'job-a','status':{'stage':'review','proposal_hash':'hash-a'},'proposal':{'changes':[{'path':'a.md','diff':'+문장'}]}}
+        for current_error_value in (ValueError('원문 변경'),OSError('응답 연결 끊김')):
+            with self.subTest(error=str(current_error_value)),patch('tools.review.ui.gradio.writer_agent_app.request_writer_service',side_effect=current_error_value) as current_service_mock:
+                current_output_values=current_apply_callback(current_detail_record,True,'job-a')
+                self.assertEqual(current_output_values[0],{})
+                self.assertEqual(current_output_values[1],'job-a')
+                self.assertIn(str(current_error_value),current_output_values[3])
+                self.assertFalse(current_output_values[12]['interactive'])
+                self.assertFalse(current_output_values[13])
+                self.assertIn('적용 여부',current_output_values[14])
+                current_service_mock.assert_called_once()
 
     def test_apply_readiness_requires_confirmation_and_current_review(self):
         current_interface_blocks=build_writer_agent_interface(8770)
@@ -132,3 +161,40 @@ class WriterAgentGradioTest(unittest.TestCase):
                 with self.assertRaisesRegex(gr.Error,'변경이나 제안 해시'):
                     current_apply_callback(current_detail_record,True,'job-a')
                 current_service_mock.assert_not_called()
+
+    def test_progress_refresh_excludes_history_selection_outputs(self):
+        current_interface_blocks=build_writer_agent_interface(8770)
+        current_progress_functions=[current_function_value for current_function_value in current_interface_blocks.fns.values() if current_function_value.fn and current_function_value.fn.__name__=='refresh_writer_progress']
+        self.assertEqual(len(current_progress_functions),3)
+        for current_function_value in current_progress_functions:
+            self.assertFalse(any(isinstance(current_component_value,(gr.Dropdown,gr.Dataframe)) for current_component_value in current_function_value.outputs))
+        current_workspace_record={'configured':True,'ready':True,'trained':True,'jobs':[{'id':'job-a','mode':'write','stage':'review'}]}
+        with patch('tools.review.ui.gradio.writer_agent_app.request_writer_service',return_value=current_workspace_record):
+            current_progress_values=current_progress_functions[0].fn(None,'')
+        self.assertEqual(len(current_progress_values),len(current_progress_functions[0].outputs))
+        current_detail_record={'status':{'stage':'review','summary':'검토 대기'},'log':'실행 기록'}
+        with patch('tools.review.ui.gradio.writer_agent_app.request_writer_service',side_effect=[current_workspace_record,current_detail_record]):
+            current_progress_values=current_progress_functions[0].fn('job-a','')
+        self.assertEqual(current_progress_values[-2:],['변경 검토 대기 · 검토 대기','실행 기록'])
+        with patch('tools.review.ui.gradio.writer_agent_app.request_writer_service',side_effect=[current_workspace_record,current_detail_record]):
+            current_progress_values=current_progress_functions[0].fn('job-a','',False)
+        self.assertEqual(current_progress_values[-2],'변경 검토 대기 · 검토 대기')
+        self.assertEqual(current_progress_values[-1],gr.skip())
+        for current_function_value in current_progress_functions:
+            self.assertIsInstance(current_function_value.inputs[-1],gr.Checkbox)
+
+    def test_progress_lookup_failure_preserves_log_and_recovers(self):
+        current_interface_blocks=build_writer_agent_interface(8770)
+        current_callback_record=next(current_function_value for current_function_value in current_interface_blocks.fns.values() if current_function_value.fn and current_function_value.fn.__name__=='refresh_writer_progress')
+        current_workspace_record={'configured':True,'ready':True,'trained':True,'jobs':[{'id':'job-a','mode':'write','stage':'completed'}]}
+        for current_response_values in (OSError('연결 종료'),[current_workspace_record,RuntimeError('상세 조회 실패')]):
+            with patch('tools.review.ui.gradio.writer_agent_app.request_writer_service',side_effect=current_response_values):
+                current_output_values=current_callback_record.fn('job-a','검증',True)
+            self.assertEqual(current_output_values[-1],gr.skip())
+            self.assertIn('상태 조회 실패',current_output_values[-2])
+            for current_component_value,current_output_value in zip(current_callback_record.outputs,current_output_values):
+                if isinstance(current_component_value,gr.Button):self.assertFalse(current_output_value['interactive'])
+        with patch('tools.review.ui.gradio.writer_agent_app.request_writer_service',side_effect=[current_workspace_record,{'status':{'stage':'completed'},'log':'완료 로그'}]):
+            current_output_values=current_callback_record.fn('job-a','검증',True)
+        self.assertEqual(current_output_values[-1],'완료 로그')
+        self.assertTrue(current_output_values[4]['interactive'])

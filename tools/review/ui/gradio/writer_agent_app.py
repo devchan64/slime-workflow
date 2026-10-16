@@ -15,7 +15,7 @@ if str(WORKFLOW_ROOT_DIRECTORY) not in sys.path:
     sys.path.insert(0,str(WORKFLOW_ROOT_DIRECTORY))
 from tools.review.common.gradio_identifiers import build_generation_identifier
 from tools.review.common.management_client import execute_remote_management_command
-from tools.review.common.gradio_logs import create_copyable_log_textbox
+from tools.review.common.gradio_logs import create_copyable_log_textbox, build_execution_logs
 
 WRITER_REQUEST_TIMEOUT=15
 WRITER_MODE_LABELS={'prepare':'환경 준비','learn':'문서 학습','write':'작성 제안','deduplicate':'중복 검토'}
@@ -94,8 +94,8 @@ def build_writer_agent_interface(review_server_port):
         current_application_json=gr.JSON(label='적용 결과')
         with gr.Accordion('검색 결과',open=False):
             current_search_json=gr.JSON(label='검색 결과')
-        with gr.Accordion('실행 로그',open=False):
-            current_log_text=create_copyable_log_textbox(label='execution.log',interactive=False,lines=15)
+        current_log_text,current_log_refresh,current_log_panel=build_execution_logs(
+            '선택한 작업의 execution.log를 표시합니다. 자동 갱신을 끄면 현재 내용을 유지합니다. 결과 조회는 선택한 기록을 새로 불러옵니다.',current_log_label='execution.log')
 
         def refresh_writer_workspace(current_selected_identifier,current_prompt_text=''):
             current_workspace_record=request_writer_service(review_server_port,'state')
@@ -114,7 +114,14 @@ def build_writer_agent_interface(review_server_port):
         current_detail_outputs=[current_detail_state,current_identifier_text,current_detail_path,current_detail_status,current_request_json,current_reason_text,current_coverage_json,current_evidence_json,current_changes_text,current_warning_text,current_search_json,current_log_text,current_apply_button,current_apply_confirm,current_apply_notice,current_application_json]
         def read_writer_selection(current_selected_identifier):
             if not current_selected_identifier:raise gr.Error('실행 기록을 선택하세요.')
-            return format_writer_detail(request_writer_service(review_server_port,'job?'+urlencode({'id':current_selected_identifier})))
+            try:
+                return format_writer_detail(request_writer_service(review_server_port,'job?'+urlencode({'id':current_selected_identifier})))
+            except (ValueError,RuntimeError,OSError) as current_detail_error:
+                current_failure_outputs=list(clear_writer_selection_detail())
+                current_failure_outputs[1]=current_selected_identifier
+                current_failure_outputs[3]='결과 조회 실패 · '+str(current_detail_error)
+                current_failure_outputs[14]='조회에 실패하여 이전 제안과 적용 확인을 해제했습니다. 원인을 해결한 뒤 결과를 다시 조회하세요.'
+                return tuple(current_failure_outputs)
         current_detail_button.click(read_writer_selection,current_history_choice,current_detail_outputs)
         def clear_writer_selection_detail():
             return ({},'','','결과 조회가 필요합니다.',{},'',{},[],'','',{},'',gr.update(interactive=False),False,'결과 조회로 선택한 제안의 최신 내용을 확인하세요.',{})
@@ -134,9 +141,23 @@ def build_writer_agent_interface(review_server_port):
                 raise gr.Error('변경 검토 대기 상태의 미적용 제안만 적용할 수 있습니다.')
             if not (current_detail_record.get('proposal') or {}).get('changes') or not current_detail_record['status'].get('proposal_hash'):
                 raise gr.Error('적용할 변경이나 제안 해시가 없습니다. 결과를 다시 조회하세요.')
-            request_writer_service(review_server_port,'apply',{'id':current_detail_record['id'],'proposal_hash':current_detail_record['status']['proposal_hash']})
-            return read_writer_selection(current_detail_record['id'])
-        current_apply_button.click(apply_writer_proposal,[current_detail_state,current_apply_confirm,current_history_choice],current_detail_outputs,trigger_mode='once')
+            try:
+                request_writer_service(review_server_port,'apply',{'id':current_detail_record['id'],'proposal_hash':current_detail_record['status']['proposal_hash']})
+            except (ValueError,RuntimeError,OSError) as current_apply_error:
+                current_failure_outputs=list(clear_writer_selection_detail())
+                current_failure_outputs[1]=current_detail_record['id']
+                current_failure_outputs[3]='적용 결과 확인 필요 · '+str(current_apply_error)
+                current_failure_outputs[14]='적용 확인을 해제했습니다. 결과를 다시 조회해 적용 여부와 원인을 확인하세요. 원문 변경으로 거절됐다면 학습 후 새 제안을 만드세요.'
+                return (*current_failure_outputs,'적용 결과 확인 필요 · '+str(current_apply_error)+' 결과를 다시 조회하세요. 원문 변경으로 거절됐다면 학습 후 새 제안을 만드세요.')
+            return (*read_writer_selection(current_detail_record['id']),'변경을 적용했습니다.')
+        def refresh_applied_history_labels(current_selected_identifier):
+            current_workspace_updates=refresh_writer_workspace(current_selected_identifier)
+            # 선택값은 유지하고 표시 이름만 갱신해 상세와 확인 상태를 다시 지우지 않는다.
+            current_choice_update=dict(current_workspace_updates[3])
+            current_choice_update.pop('value',None)
+            return current_workspace_updates[2],current_choice_update
+        current_apply_button.click(apply_writer_proposal,[current_detail_state,current_apply_confirm,current_history_choice],[*current_detail_outputs,current_feedback_text],trigger_mode='once').success(
+            refresh_applied_history_labels,current_history_choice,[current_history_table,current_history_choice],queue=False)
         def update_writer_apply_readiness(current_detail_record,current_confirm_value,current_selected_identifier):
             current_matches_selection = bool(current_detail_record) and current_detail_record.get('id') == current_selected_identifier
             current_review_available = current_matches_selection and current_detail_record.get('status',{}).get('stage') == 'review' and bool(current_detail_record.get('status',{}).get('proposal_hash')) and not current_detail_record.get('application') and bool((current_detail_record.get('proposal') or {}).get('changes'))
@@ -144,17 +165,26 @@ def build_writer_agent_interface(review_server_port):
             current_apply_message = '확인한 변경을 원본에 적용할 수 있습니다.' if current_apply_enabled else '제안과 차이를 검토하고 적용 확인을 선택하세요.' if current_review_available else '제안 해시가 없어 적용할 수 없습니다. 결과를 다시 조회하세요.' if current_matches_selection and current_detail_record.get('status',{}).get('stage')=='review' and not current_detail_record.get('status',{}).get('proposal_hash') else '변경 검토 대기 상태의 미적용 제안을 먼저 조회하세요.'
             return gr.update(interactive=current_apply_enabled),current_apply_message
         current_apply_confirm.change(update_writer_apply_readiness,[current_detail_state,current_apply_confirm,current_history_choice],[current_apply_button,current_apply_notice],queue=False)
-        def refresh_writer_progress(current_selected_identifier,current_prompt_text):
-            current_workspace_updates=list(refresh_writer_workspace(current_selected_identifier,current_prompt_text))
-            current_workspace_updates[2:4]=[gr.skip(),gr.skip()]
-            if not current_selected_identifier:return [*current_workspace_updates,gr.skip(),gr.skip()]
-            current_detail_record=request_writer_service(review_server_port,'job?'+urlencode({'id':current_selected_identifier}))
-            current_status_record=current_detail_record['status']
-            return [*current_workspace_updates,WRITER_STAGE_LABELS.get(current_status_record['stage'],current_status_record['stage'])+' · '+str(current_status_record.get('error') or current_status_record.get('summary') or current_status_record.get('progress') or ''),current_detail_record.get('log','')]
-        gr.Timer(3).tick(refresh_writer_progress,[current_history_choice,current_prompt_input],[*current_workspace_outputs,current_detail_status,current_log_text],queue=False,show_progress='hidden')
+        def refresh_writer_progress(current_selected_identifier,current_prompt_text,current_log_refresh_enabled=True):
+            try:
+                current_workspace_updates=list(refresh_writer_workspace(current_selected_identifier,current_prompt_text))
+                # 자동 갱신 출력에서 목록 자체를 제외해 열린 선택 메뉴를 보존한다.
+                current_workspace_updates=current_workspace_updates[:2]+current_workspace_updates[4:]
+                if not current_selected_identifier:return [*current_workspace_updates,gr.skip(),gr.skip()]
+                current_detail_record=request_writer_service(review_server_port,'job?'+urlencode({'id':current_selected_identifier}))
+                current_status_record=current_detail_record['status']
+                return [*current_workspace_updates,WRITER_STAGE_LABELS.get(current_status_record['stage'],current_status_record['stage'])+' · '+str(current_status_record.get('error') or current_status_record.get('summary') or current_status_record.get('progress') or ''),current_detail_record.get('log','') if current_log_refresh_enabled else gr.skip()]
+            except (ValueError,RuntimeError,OSError) as current_progress_error:
+                current_failure_message='상태 조회 실패: '+str(current_progress_error)+' · 다음 자동 갱신에서 다시 확인합니다.'
+                return [gr.update(interactive=False) if isinstance(current_output_component,gr.Button)
+                        else current_failure_message if current_output_component in (current_readiness_text,current_detail_status,current_write_notice,current_detail_notice)
+                        else gr.skip() for current_output_component in current_progress_outputs]
+        current_progress_outputs=[*current_workspace_outputs[:2],*current_workspace_outputs[4:],current_detail_status,current_log_text]
+        current_progress_inputs=[current_history_choice,current_prompt_input,current_log_refresh]
+        gr.Timer(3).tick(refresh_writer_progress,current_progress_inputs,current_progress_outputs,queue=False,show_progress='hidden')
         current_refresh_button.click(refresh_writer_workspace,[current_history_choice,current_prompt_input],current_workspace_outputs,queue=False)
-        current_prompt_input.input(refresh_writer_progress,[current_history_choice,current_prompt_input],[*current_workspace_outputs,current_detail_status,current_log_text],queue=False)
-        current_history_choice.change(refresh_writer_progress,[current_history_choice,current_prompt_input],[*current_workspace_outputs,current_detail_status,current_log_text],queue=False)
+        current_prompt_input.input(refresh_writer_progress,current_progress_inputs,current_progress_outputs,queue=False)
+        current_history_choice.change(refresh_writer_progress,current_progress_inputs,current_progress_outputs,queue=False)
         current_interface_blocks.load(lambda:refresh_writer_workspace(None),outputs=current_workspace_outputs)
     return current_interface_blocks
 
