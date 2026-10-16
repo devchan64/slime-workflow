@@ -364,6 +364,8 @@ def run_review_server(parsed_argument_values):
             ensure_management_menu_server(parsed_argument_values.port,manager_source_path)
             return parsed_argument_values.port+100,request_path_value
         for route_prefix_value,gradio_port_value,start_gradio_server in gradio_route_records:
+            if route_prefix_value == '/' and not manager_source_path.is_file():
+                continue
             if request_path_value==route_prefix_value or request_path_value.startswith(route_prefix_value+'config') or request_path_value.startswith(route_prefix_value+'gradio_api/') or request_path_value.startswith(route_prefix_value+'assets/') or request_path_value.startswith(route_prefix_value+'theme') or request_path_value.startswith(route_prefix_value+'favicon'):
                 start_gradio_server()
                 return gradio_port_value,route_prefix_value

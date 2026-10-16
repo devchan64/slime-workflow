@@ -57,3 +57,31 @@ class GradioStartupFailureTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class StandaloneReviewRoutingTests(unittest.TestCase):
+    def test_root_uses_static_entry_only_without_manager_source(self):
+        import ast
+        import tempfile
+        from pathlib import Path
+        from types import SimpleNamespace
+        from unittest.mock import Mock
+        from tools.review import serve
+        current_source_tree = ast.parse(Path(serve.__file__).read_text())
+        current_resolver_node = next(current_node for current_node in ast.walk(current_source_tree)
+            if isinstance(current_node, ast.FunctionDef) and current_node.name == 'resolve_gradio_proxy_port')
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_manager_path = Path(current_directory_name) / 'manager-source.json'
+            current_start_callback = Mock()
+            current_runtime_scope = {'manager_source_path': current_manager_path,
+                'parsed_argument_values': SimpleNamespace(port=8798),
+                'static_review_route_identifiers': set(),
+                'ensure_management_menu_server': current_start_callback}
+            exec(compile(ast.fix_missing_locations(ast.Module(body=[current_resolver_node], type_ignores=[])), serve.__file__, 'exec'), current_runtime_scope)
+            current_route_resolver = current_runtime_scope['resolve_gradio_proxy_port']
+            self.assertIsNone(current_route_resolver('/'))
+            self.assertIsNone(current_route_resolver('/assets/image.png'))
+            current_start_callback.assert_not_called()
+            current_manager_path.write_text('{}')
+            self.assertEqual(current_route_resolver('/'), (8898, '/'))
+            current_start_callback.assert_called_once_with(8798, current_manager_path)
