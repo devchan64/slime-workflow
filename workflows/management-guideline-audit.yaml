@@ -434,6 +434,7 @@ pages:
   completion_requirement_matrix: town_readonly_requirement_verdict
 
 - id: animation-17
+  applicable_requirement_matrix: anchor_editor_requirement_matrix
   current_verification_summary: 기본 원본 해시·프레임 범위 및 개별 초기 표시 확인. 모바일 탐색·재연결의 실제 관측과 제한은 페이지별 evidence 참조. 공용 편집·저장·복원 검증은 격리 증거 범위로 한정.
   coordinate_compatibility_evidence: anchor_registered_coordinate_compatibility_followup
   action_source_evidence: anchor_action_sources_followup
@@ -509,6 +510,7 @@ pages:
   completion_requirement_matrix: field_first_batch_requirement_verdict
 
 - id: animation-10
+  applicable_requirement_matrix: anchor_editor_requirement_matrix
   current_verification_summary: 기본 원본 해시·프레임 범위 및 개별 초기 표시 확인. 모바일 탐색·재연결의 실제 관측과 제한은 페이지별 evidence 참조. 공용 편집·저장·복원 검증은 격리 증거 범위로 한정.
   coordinate_compatibility_evidence: anchor_registered_coordinate_compatibility_followup
   action_source_evidence: anchor_action_sources_followup
@@ -537,6 +539,7 @@ pages:
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
   browser_note: 2026-10-15 운영 8770 합성 문서에서 개별 캔버스 로딩과 다음 프레임 조작 후 2 / 8 정지 표시 확인. 저장·삭제 미실행. 개별 시각 품질·반응형·재연결·저장 계약 검증은 미완료.
 - id: animation-13
+  applicable_requirement_matrix: anchor_editor_requirement_matrix
   current_verification_summary: 기본 원본 해시·프레임 범위 및 개별 초기 표시 확인. 모바일 탐색·재연결의 실제 관측과 제한은 페이지별 evidence 참조. 공용 편집·저장·복원 검증은 격리 증거 범위로 한정.
   coordinate_compatibility_evidence: anchor_registered_coordinate_compatibility_followup
   action_source_evidence: anchor_action_sources_followup
@@ -608,6 +611,7 @@ pages:
   completion_requirement_matrix: field_first_batch_requirement_verdict
 
 - id: animation-1
+  applicable_requirement_matrix: anchor_editor_requirement_matrix
   registered_action_navigation_evidence: anchor_registered_actions_navigation_followup
   current_verification_summary: 기본 원본 해시·프레임 범위 및 개별 초기 표시 확인. 모바일 탐색·재연결의 실제 관측과 제한은 페이지별 evidence 참조. 공용 편집·저장·복원 검증은 격리 증거 범위로 한정.
   coordinate_compatibility_evidence: anchor_registered_coordinate_compatibility_followup
@@ -656,6 +660,7 @@ pages:
   completion_requirement_matrix: field_second_batch_requirement_verdict
 
 - id: animation-8
+  applicable_requirement_matrix: anchor_editor_requirement_matrix
   current_verification_summary: 기본 원본 해시·프레임 범위 및 개별 초기 표시 확인. 모바일 탐색·재연결의 실제 관측과 제한은 페이지별 evidence 참조. 공용 편집·저장·복원 검증은 격리 증거 범위로 한정.
   coordinate_compatibility_evidence: anchor_registered_coordinate_compatibility_followup
   action_source_evidence: anchor_action_sources_followup
@@ -683,6 +688,7 @@ pages:
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
   browser_note: 2026-10-15 운영 8770 합성 문서에서 개별 캔버스 로딩과 다음 프레임 조작 후 2 / 8 정지 표시 확인. 저장·삭제 미실행. 개별 시각 품질·반응형·재연결·저장 계약 검증은 미완료.
 - id: animation-21
+  applicable_requirement_matrix: anchor_editor_requirement_matrix
   current_verification_summary: 기본 원본 해시·프레임 범위 및 개별 초기 표시 확인. 모바일 탐색·재연결의 실제 관측과 제한은 페이지별 evidence 참조. 공용 편집·저장·복원 검증은 격리 증거 범위로 한정.
   coordinate_compatibility_evidence: anchor_registered_coordinate_compatibility_followup
   action_source_evidence: anchor_action_sources_followup
@@ -735,6 +741,7 @@ pages:
   completion_requirement_matrix: town_readonly_requirement_verdict
 
 - id: animation-12
+  applicable_requirement_matrix: anchor_editor_requirement_matrix
   current_verification_summary: 기본 원본 해시·프레임 범위 및 개별 초기 표시 확인. 모바일 탐색·재연결의 실제 관측과 제한은 페이지별 evidence 참조. 공용 편집·저장·복원 검증은 격리 증거 범위로 한정.
   coordinate_compatibility_evidence: anchor_registered_coordinate_compatibility_followup
   action_source_evidence: anchor_action_sources_followup
@@ -781,6 +788,7 @@ pages:
   completion_requirement_matrix: field_second_batch_requirement_verdict
 
 - id: animation-14
+  applicable_requirement_matrix: anchor_editor_requirement_matrix
   current_verification_summary: 기본 원본 해시·프레임 범위 및 개별 초기 표시 확인. 모바일 탐색·재연결의 실제 관측과 제한은 페이지별 evidence 참조. 공용 편집·저장·복원 검증은 격리 증거 범위로 한정.
   coordinate_compatibility_evidence: anchor_registered_coordinate_compatibility_followup
   action_source_evidence: anchor_action_sources_followup
@@ -808,6 +816,7 @@ pages:
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
   browser_note: 2026-10-15 운영 8770 합성 문서에서 개별 캔버스 로딩과 다음 프레임 조작 후 2 / 8 정지 표시 확인. 저장·삭제 미실행. 개별 시각 품질·반응형·재연결·저장 계약 검증은 미완료.
 - id: animation-18
+  applicable_requirement_matrix: anchor_editor_requirement_matrix
   current_verification_summary: 기본 원본 해시·프레임 범위 및 개별 초기 표시 확인. 모바일 탐색·재연결의 실제 관측과 제한은 페이지별 evidence 참조. 공용 편집·저장·복원 검증은 격리 증거 범위로 한정.
   coordinate_compatibility_evidence: anchor_registered_coordinate_compatibility_followup
   action_source_evidence: anchor_action_sources_followup
@@ -905,6 +914,7 @@ pages:
   completion_requirement_matrix: field_second_batch_requirement_verdict
 
 - id: animation-19
+  applicable_requirement_matrix: anchor_editor_requirement_matrix
   current_verification_summary: 기본 원본 해시·프레임 범위 및 개별 초기 표시 확인. 모바일 탐색·재연결의 실제 관측과 제한은 페이지별 evidence 참조. 공용 편집·저장·복원 검증은 격리 증거 범위로 한정.
   coordinate_compatibility_evidence: anchor_registered_coordinate_compatibility_followup
   action_source_evidence: anchor_action_sources_followup
@@ -951,6 +961,7 @@ pages:
   completion_requirement_matrix: field_third_batch_requirement_verdict
 
 - id: animation-15
+  applicable_requirement_matrix: anchor_editor_requirement_matrix
   current_verification_summary: 기본 원본 해시·프레임 범위 및 개별 초기 표시 확인. 모바일 탐색·재연결의 실제 관측과 제한은 페이지별 evidence 참조. 공용 편집·저장·복원 검증은 격리 증거 범위로 한정.
   coordinate_compatibility_evidence: anchor_registered_coordinate_compatibility_followup
   action_source_evidence: anchor_action_sources_followup
@@ -1029,6 +1040,7 @@ pages:
   contract_evidence: 참조 순서·개수·기본 프롬프트 및 CLI 전달 계약 검증. 전체 UI 동작·GPU 생성 검증과 구분.
   confirmation_browser_evidence: 2026-10-15 실제 의상 Blocks·공용 메뉴 격리 화면에서 확인 중 참조 비움→취소 시 생성 비활성 및 모의 접수 0건. 첫 모의 접수 ValueError 뒤 확인 영역 닫힘·시작 버튼 복구, 다음 접수 완료·확인 영역 닫힘 확인. 확인 시점 태그를 변경한 뒤 확정해도 전송 요청은 원래 태그와 참조 2장을 보존. 모의 접수 총 2회(실패 1·성공 1), 새로고침 후 추가 접수 없음·생성 비활성·확인 영역 숨김. 실제 GPU 명령 없음. 탭·서버 종료.
 - id: animation-11
+  applicable_requirement_matrix: anchor_editor_requirement_matrix
   current_verification_summary: 기본 원본 해시·프레임 범위 및 개별 초기 표시 확인. 모바일 탐색·재연결의 실제 관측과 제한은 페이지별 evidence 참조. 공용 편집·저장·복원 검증은 격리 증거 범위로 한정.
   coordinate_compatibility_evidence: anchor_registered_coordinate_compatibility_followup
   action_source_evidence: anchor_action_sources_followup
@@ -1155,6 +1167,7 @@ pages:
   completion_requirement_matrix: town_readonly_requirement_verdict
 
 - id: animation-9
+  applicable_requirement_matrix: anchor_editor_requirement_matrix
   current_verification_summary: 기본 원본 해시·프레임 범위 및 개별 초기 표시 확인. 모바일 탐색·재연결의 실제 관측과 제한은 페이지별 evidence 참조. 공용 편집·저장·복원 검증은 격리 증거 범위로 한정.
   coordinate_compatibility_evidence: anchor_registered_coordinate_compatibility_followup
   action_source_evidence: anchor_action_sources_followup
@@ -1182,6 +1195,7 @@ pages:
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
   browser_note: 2026-10-15 운영 8770 합성 문서에서 개별 캔버스 로딩과 다음 프레임 조작 후 2 / 8 정지 표시 확인. 저장·삭제 미실행. 개별 시각 품질·반응형·재연결·저장 계약 검증은 미완료.
 - id: sprite-editor-v2
+  downloaded_archive_evidence: sprite_download_saved_file_followup
   upload_target_evidence: sprite_upload_target_stability_followup
   reference_upload_evidence: sprite_reference_upload_browser_followup
   batch_upload_failure_evidence: sprite_batch_upload_failure_followup
@@ -1225,6 +1239,7 @@ pages:
   selection_regression_result: .tmp/test/management-sprite-selection/2026-10-15_12-00-26/summary.json
   contract_evidence: 격리 프로젝트에서 생성·리비전·삭제 확인·다른 프로젝트 보존·입력 및 출력 계약 검증. 전체 UI 동작·GPU 생성 검증과 구분.
 - id: animation-20
+  applicable_requirement_matrix: anchor_editor_requirement_matrix
   current_verification_summary: 기본 원본 해시·프레임 범위 및 개별 초기 표시 확인. 모바일 탐색·재연결의 실제 관측과 제한은 페이지별 evidence 참조. 공용 편집·저장·복원 검증은 격리 증거 범위로 한정.
   coordinate_compatibility_evidence: anchor_registered_coordinate_compatibility_followup
   action_source_evidence: anchor_action_sources_followup
@@ -1307,6 +1322,7 @@ pages:
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
   browser_evidence: 2026-10-15 실제 공용 메뉴 합성 화면에서 안개 호수 제목·타일 원본 로딩 완료·공용 필드 렌더러 표시 확인. 전체 보기 후 200%에서 32%로 변경 및 콘솔 오류 없음 확인. 타일별 시각 품질·재연결·화면 크기 검증은 미완료.
 - id: animation-4
+  applicable_requirement_matrix: anchor_editor_requirement_matrix
   registered_action_navigation_evidence: anchor_registered_actions_navigation_followup
   current_verification_summary: 기본 원본 해시·프레임 범위 및 개별 초기 표시 확인. 모바일 탐색·재연결의 실제 관측과 제한은 페이지별 evidence 참조. 공용 편집·저장·복원 검증은 격리 증거 범위로 한정.
   coordinate_compatibility_evidence: anchor_registered_coordinate_compatibility_followup
@@ -1369,6 +1385,7 @@ pages:
     공용 UI 테스트 통과를 각 데이터 페이지 완료로 간주하지 않음.
   browser_evidence: 2026-10-15 실제 공용 메뉴 합성 화면에서 해당 맵 제목·타일과 기본 캐릭터 로딩 완료·공용 필드 렌더러 표시 확인. 전체 보기 후 200%에서 32%로 변경 및 콘솔 오류 없음 확인. 타일별 시각 품질·재연결·화면 크기 검증은 미완료.
 - id: animation-16
+  applicable_requirement_matrix: anchor_editor_requirement_matrix
   current_verification_summary: 기본 원본 해시·프레임 범위 및 개별 초기 표시 확인. 모바일 탐색·재연결의 실제 관측과 제한은 페이지별 evidence 참조. 공용 편집·저장·복원 검증은 격리 증거 범위로 한정.
   coordinate_compatibility_evidence: anchor_registered_coordinate_compatibility_followup
   action_source_evidence: anchor_action_sources_followup
@@ -1515,6 +1532,7 @@ pages:
   browser_note: 2026-10-15 운영 8770에서 필드 렌더러 로딩 완료 확인. 회전 조작 중 서버 연결 끊김 안내가 발생하여 회전 검증 미완료. 서버 재시작·작업 중단 미실행.
 
 - id: animation-7
+  applicable_requirement_matrix: anchor_editor_requirement_matrix
   current_verification_summary: 기본 원본 해시·프레임 범위 및 개별 초기 표시 확인. 모바일 탐색·재연결의 실제 관측과 제한은 페이지별 evidence 참조. 공용 편집·저장·복원 검증은 격리 증거 범위로 한정.
   coordinate_compatibility_evidence: anchor_registered_coordinate_compatibility_followup
   action_source_evidence: anchor_action_sources_followup
@@ -1625,6 +1643,8 @@ pages:
   browser_note: 2026-10-15 실제 합성 화면에서 기본/복장 프롬프트 87/91단어·참조 1장·고정 설정·공용 시드·빈 이력 확인. 수동 상태 조회만 제공하던 것을 확인하여 5초 자동 상태 갱신 추가. 변경 후 격리 합성 화면에서 조회 전 중지/재개 비활성, 실행 상태 조회 후 중지만 활성, 자동 ETA·VRAM 표시 및 삭제 상태 전환 후 ID 비움·두 버튼 비활성·콘솔 오류 없음 확인.
   contract_evidence: 업로드 입력·스냅샷 무결성·출력·중단 재개·CLI 및 폐기 API 거절 계약 포함 전체 회귀 330건 통과. 실제 GPU 생성 완료를 뜻하지 않음.
 - id: character-review
+  capture_browser_evidence: character_capture_gui_download_followup
+  mobile_reconnect_evidence: character_review_mobile_reconnect_followup
   readiness_followup: map_all_controls_followup · 공용 구현 적용, 모의 성공·실패 브라우저 검증. 개별 맵 렌더링 검증과 구분.
   label: 캐릭터 표현 검수
   category: character-render-review
@@ -5347,3 +5367,109 @@ anchor_registered_action_visual_followup:
   relation: 'anchor_action_image_recovery_browser_followup의 animation-1 대기·휴식 시각 증거와 합쳐 등록 선택 동작6종의 초기 이미지 표시 확인. 82프레임 전부의 미술 품질 검수로 확대하지 않음.'
   observation: '일부 Playwright option 목록 관측과 실제 드롭다운 표시가 달라 선택 실패. 실제 화면 좌표 및 새 접근성 요소로 선택·불러오기 정상 동작 확인. 제품 선택 오류로 단정하지 않음.'
   safety: '좌표 저장·수정·생성 미실행. 검증 탭과 격리 서버 종료. 운영 원본 및 이력 무변경.'
+
+anchor_playback_speed_browser_followup:
+  requirement: '관리도구 UI 가이드 §7의 4·8·12·16 FPS 선택, 기본 4 FPS, 재생 중 속도 변경과 원본 시간축 보존'
+  implementation: 'ce273f6c 공용 Gradio 속도 선택과 브라우저 프레임 간격 적용. 동작 교체 전 선택 속도를 읽어 새 편집 런타임에 전달하며 제작 원본 메타데이터는 수정하지 않음.'
+  focused_tests:
+    - '.tmp/test/management-audit/2026-10-16_14-00-58: static_review_gradio 22개 통과'
+    - '.tmp/test/management-audit/2026-10-16_14-01-10: management_browser_scripts 2개 통과'
+  browser_evidence:
+    - '실제 공용 메뉴와 static_review_app을 합성한 격리 서버 8798, 게시 animation-1 원본 읽기. 운영 생성·좌표 저장 명령 미실행.'
+    - '기본값 4 FPS 확인. 재생 중 16 FPS 선택 후 6 / 8 · 재생 중과 16 FPS · 검수 속도만 변경됨 표시, 정지 후 5 / 8 · 정지 확인.'
+    - '별도 재접속에서 8 FPS 선택 후 대기 동작을 걷기 12프레임으로 교체. UI 선택 8 유지, 실제 DOM frameStatus는 125ms · 1.5초 반복, 1 / 12 · 정지 표시.'
+    - '전환 후 재생 1 / 12 · 재생 중에서 정지 2 / 12로 이동 확인. 콘솔 오류 0건. 검증 탭과 격리 서버 종료.'
+  scope_limit: '공용 속도 동작 검증. 17개 개별 페이지의 모든 편집·이력 요구 완료나 실제 FPS 성능 측정을 의미하지 않음.'
+
+queue_worker_stage_scope_followup:
+  finding: 'current-attempt.json에서 읽은 작업자 metrics의 단계가 모델 준비·후처리여도 공용 큐 기록은 scope를 추론 단계로 고정하여 범위를 잘못 안내함.'
+  change: 'queue_generation_telemetry의 설명을 작업자 현재 단계; 전체 작업 진행률과 구분으로 수정. 작업자 stage·step·total 및 공용 전체 추정 계산은 그대로 유지.'
+  verification: 'test_queue_generation_telemetry 16개 통과: .tmp/test/management-audit/2026-10-16_14-08-51. 현재 시도 inference → model-load → export 변경 시 영구 기록의 단계·범위가 일치하고 전체 step_total은 0으로 유지됨.'
+  scope: '공용 기록 설명과 단계 병합 계약. 실제 GPU 실행·브라우저 전수 재검증으로 확대하지 않음. UI 배치·이벤트 변경 없음.'
+
+character_review_mobile_reconnect_followup:
+  environment: '2026-10-16 운영 공용 메뉴 합성 character-review 문서, viewport 390×844, clientWidth/scrollWidth 375/375px.'
+  verified:
+    - '100개 원본 로딩 중 설정·캡처 비활성, 완료 후 조작 가능 안내와 버튼 활성 확인.'
+    - '잔디·들꽃 선택 및 90도 회전 후 원본·조정본 두 캔버스의 같은 캐릭터 위치와 잔디 3×3 맵을 좁은 화면에서 확인. 가로 넘침 없음.'
+    - '같은 문서 새로고침 후 석판 선택·100%·캐릭터 (2, 2) 초기 상태와 두 캔버스 준비 완료 확인. 콘솔 오류 없음.'
+  remaining: 'PNG 캡처 3종 파일 생성·내용 검증은 별도. 이번 검증에서 캡처·파일 저장·GPU 작업을 실행하지 않음.'
+  cleanup: '검수 탭 종료와 viewport 기본값 복원 완료.'
+
+character_capture_blank_output_followup:
+  reproduced: '실제 GUI 캡처 2026-10-16_14-12-23가 completed를 반환했지만 baseline/adjusted 모두 RGBA 전체 (0,0,0,0). 비교 파일도 빈 이미지. 정상 캡처 완료로 인정하지 않음.'
+  artifact: '.tmp/test/character-review-capture/2026-10-16_14-12-23/result.yaml'
+  change: 'PNG 크기·형식 검증에 알파 채널 유효 영역 검사를 추가하여 완전히 투명한 캡처의 성공 기록 방지.'
+  remaining: '빈 렌더의 근본 원인 수정과 실제 캡처 재검증 필요. 운영 서버 재시작하지 않아 새 거절 코드의 GUI 반영은 미확인.'
+
+character_capture_initial_canvas_size_fix:
+  resolves: character_capture_blank_output_followup
+  cause: '캡처 전용 HTML이 CSS 표시 크기 없이 공용 렌더러를 초기화함. 내부 해상도 2배 설정이 캔버스 표시 크기도 변경하여 ResizeObserver와 초기 렌더가 크기를 반복 확대할 수 있음.'
+  fix: '렌더러 import 전에 원본·조정본 캔버스의 CSS width/height를 검증된 캡처 크기로 고정. Gradio 테마나 운영 맵 레이아웃은 변경하지 않음. 빈 PNG 거절 검증도 유지.'
+  verified_artifact: '.tmp/test/character-review-capture/2026-10-16_14-15-50/result.yaml'
+  verification:
+    - '수정된 캡처 서비스를 독립 실행하여 completed 확인. 운영 게이트웨이 재시작·GPU 생성 작업 변경 없음.'
+    - 'baseline/adjusted 각각 1536×1152, comparison 3072×1152. 알파 영역 존재 및 비교 PNG 양쪽 픽셀이 각 원본과 일치함을 확인.'
+    - '실제 비교 PNG 시각 검수에서 석판 바닥과 캐릭터·그림자가 양쪽에 표시됨. 이전 14-12-23의 투명 PNG와 구분.'
+    - '관련 검사 5개 통과: .tmp/test/management-audit/2026-10-16_14-15-57.'
+  limitation: '기본 설정의 실제 파일 검증. 변경 소스를 운영 서버에 재적용한 뒤 GUI 다운로드 연결 확인과 조정 옵션별 캡처 비교는 남음.'
+
+character_capture_adjusted_options_followup:
+  artifact: '.tmp/test/character-review-capture/2026-10-16_14-17-21/result.yaml'
+  verification_artifact: '.tmp/test/character-review-capture/2026-10-16_14-17-21/verification.json'
+  input: 'grass, rotation=1, column=2, row=1, outline/rim/shadow=false, saturation_reduced/brightness_reduced=true'
+  result: 'completed. 저장 설정과 입력 일치. 실제 비교 PNG에서 잔디·회전된 비대칭 위치·원본의 형태선/그림자 유지와 조정본의 제거를 확인.'
+  pixel_contract: 'RGBA tobytes로 baseline != adjusted 확인. comparison 좌우 크롭 바이트가 각각 baseline/adjusted와 완전히 일치. 알파만 검사하는 차이 bbox에 의존하지 않음.'
+  scope: '새 임시 폴더에 실제 캡처 서비스를 실행함. 운영 서버 재시작·사용자 작업 중단·제작 원본 변경 없음. GUI의 수정 후 다운로드 연결은 여전히 별도 검증.'
+
+character_capture_gui_download_followup:
+  environment: '8798 격리 서버에 실제 공용 메뉴·map_review_app 합성. 원격 명령 전송만 격리 어댑터로 바꾸고 수정된 실제 capture_character_review 실행. 운영 8770/8771 미변경.'
+  input_evidence: '/tmp/character-capture-browser-request.json: GUI 흙·자갈 및 밝은 분리선 OFF 선택이 meadow-road/rim=false로 전달됨.'
+  output_artifact: '.tmp/test/character-review-capture/2026-10-16_14-19-38/result.yaml'
+  browser_result: '완료 후 Gradio File 목록에 baseline.png·adjusted.png·comparison.png 세 다운로드 링크 표시. 콘솔 오류 0건.'
+  download_verification: '브라우저 비교 PNG 다운로드 /home/cbsim/다운로드/comparison.png. 서비스 원본과 SHA-256 01b0afff463b154995ee8655f47134d2bb9cb8fb7b2d7110f105abd65927b313 일치.'
+  resolves: 'character_capture_initial_canvas_size_fix 및 character_capture_adjusted_options_followup의 수정 후 GUI 결과 표시·다운로드 연결 검증 공백.'
+  limitation: '운영 서버 변경 소스 재적용은 하지 않음. GUI→명령 전송 계약은 기존 test_character_review_capture 검사와 구분하며 이번 격리 어댑터를 실제 HTTP 게이트웨이 종단 검증으로 표현하지 않음.'
+  cleanup: '검증 탭과 8798 서버 종료. 새 검증 산출물·다운로드 파일 보존.'
+
+character_capture_failure_feedback_followup:
+  environment: '8798 실제 공용 메뉴·map_review_app 합성, 캡처 명령만 ValueError 모의 실패. 실제 캡처 생성·운영 작업 변경 없음.'
+  observed: '결과 영역 오류 표시와 별도로 Gradio Error 알림에 격리 캡처 실패: 렌더 원본을 읽을 수 없습니다. 원문 표시 확인. 실패 뒤 렌더링 PNG 캡처 버튼 enabled=true.'
+  verdict: '원인 없는 실패라는 가설은 재현되지 않음. 표시 코드를 불필요하게 변경하지 않음. 실패 원인 전달·재시도 버튼 활성 범위를 확인했고 실제 재시도 성공은 기존 정상 캡처 증거와 구분.'
+  cleanup: '임시 검증 탭과 서버 종료.'
+
+sprite_download_saved_file_followup:
+  resolves: sprite_download_request_browser_followup.unresolved
+  evidence: '이전 브라우저 내보내기 검증이 저장한 실제 파일 /home/cbsim/다운로드/sprite-v2-20261016T104744-506353b5.zip 확인. 새 내보내기 요청 없이 기존 파일을 읽음.'
+  source_artifact: '.tmp/test/sprite-download-browser/server-export.zip'
+  sha256: 8dc62928b492f2de69c5102a3e6f9a36a3bfac0cead2b4537fd0599fa861ce4c
+  verification: '다운로드 파일과 서버 보존 ZIP의 SHA-256 완전 일치, ZIP CRC 정상. metadata revision 20261016T104744-506353b5와 격리 프레임 작업·red/blue 2프레임 일치.'
+  media: 'PNG 프레임 각각384×384, 시트768×384, GIF384×384·2프레임. metadata durations_ms=[150,150].'
+  verdict: 'waitForEvent 관측 timeout은 파일 미저장을 뜻하지 않았음. 이 격리 작업의 실제 다운로드 저장·원본 무결성 검증 완료. 스프라이트 터치/클립보드 요구까지 완료로 확대하지 않음.'
+
+anchor_editor_requirement_matrix:
+  scope: '등록 앵커 17개 페이지. 공용 static_review_app·editor.js·anchor_history 사용. 개별 제작 품질 판정은 제외하며 원본 표시·좌표 출처 일치는 포함.'
+  requirements:
+    layout_and_reentry:
+      verdict: verified_individual_pages
+      evidence: '각 페이지 mobile/reconnect 증거 키 및 anchor_page_evidence_link_correction. 공용 증거만으로 17개 원본 확인을 대체하지 않음.'
+    source_integrity:
+      verdict: verified
+      evidence: 'anchor_published_sources_followup·anchor_action_sources_followup·anchor_registered_coordinate_compatibility_followup·anchor_registered_action_visual_followup'
+    readiness_and_failure:
+      verdict: verified_shared_contract_and_browser
+      evidence: 'anchor_selection_readiness_followup·anchor_mobile_failure_recovery_followup·anchor_invalid_action_browser_followup·anchor_corrupt_draft_browser_followup'
+    playback:
+      verdict: verified_shared_contract_and_browser
+      evidence: 'anchor_playback_speed_browser_followup 및 페이지별 프레임 이동·재생 증거. 4·8·12·16 FPS 공용 구현, 동작 전환 중 선택 속도 유지.'
+    save_restore:
+      verdict: verified_shared_contract_and_browser
+      evidence: 'anchor_isolated_browser_save_followup·anchor_restore_browser_followup·anchor_restore_success_followup·anchor_pending_save_contract_followup·anchor_action_draft_roundtrip_followup'
+    storage_and_gateway:
+      verdict: verified_isolated_contract
+      evidence: 'anchor_history_boundary_followup·anchor_reset_preflight_followup. 공용 anchor-save/load/history/reset 명령, 링크·ID 경계 및 초기화 전 검증 실패 시 무변경.'
+    history_copy_and_reset_ui:
+      verdict: incomplete_browser_evidence
+      remaining: '공용 이력 ID 복사 결과, 격리 좌표 이력의 초기화 확인·취소 후 목록/원본 보존을 실제 UI에서 확인. 개별 17페이지에서 같은 공용 기능을 반복할 필요는 없으며 출처/버전 대상 변경 경계는 포함.'
+  not_applicable: 'GPU 생성·재개·취소·ETA·VRAM·작업 로그·생성기 실파일 삭제 계약. 앵커 좌표 버전 이력은 명시된 별도 보존/숨김 계약을 적용.'
+  completion: '이력 UI 증거가 남으므로 페이지 전체 완료로 승격하지 않음. 위 verified 항목의 반복 검증 대신 남은 공용 흐름을 우선 확인.'
