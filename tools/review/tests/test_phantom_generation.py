@@ -32,6 +32,14 @@ class PhantomGenerationContractTests(unittest.TestCase):
                 self.assertEqual(current_restored_values[0].size, (64, 64))
                 self.assertEqual(current_restored_values[1:4], (None, None, None))
                 self.assertEqual(current_restored_values[4], current_saved_record['prompt'])
+                for current_invalid_frames in (999, True):
+                    current_corrupt_record = {**current_saved_record, 'frames': current_invalid_frames}
+                    (current_job_directory/'request.json').write_text(json.dumps(current_corrupt_record))
+                    with self.assertRaisesRegex(gr.Error, '프레임 수'):
+                        phantom_app.restore_phantom_inputs({**current_history_record, 'request': current_corrupt_record})
+                (current_job_directory/'request.json').write_text(json.dumps(current_saved_record))
+                with self.assertRaisesRegex(gr.Error, '이력과 다릅니다'):
+                    phantom_app.restore_phantom_inputs({**current_history_record, 'request': {**current_saved_record, 'frames': 69}})
                 (current_job_directory/'reference-1.png').write_bytes(b'changed')
                 with self.assertRaisesRegex(gr.Error, '해시 불일치'):
                     phantom_app.restore_phantom_inputs(current_history_record)

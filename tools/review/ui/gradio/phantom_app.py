@@ -52,13 +52,22 @@ from tools.review.common.gradio_video_results import render_video_generation_res
 
 
 def restore_phantom_inputs(current_history_record):
-    if current_history_record['request'].get('phantom',{}).get('task') != 's2v':
+    from tools.review.common.gradio_reference_restore import restore_reference_inputs, validate_history_input_settings
+    from generators.phantom.contracts import verify_phantom_request
+    current_request_record = validate_history_input_settings(current_history_record)
+    current_phantom_config = current_request_record.get('phantom')
+    if not isinstance(current_phantom_config, dict) or current_phantom_config.get('task') != 's2v':
         raise gr.Error('이 이력은 비디오·마스크 조건 실험입니다. 현재 R2V 입력 화면으로 복원할 수 없습니다. 기록 위치에서 원본 입력을 확인하세요.')
-    from tools.review.common.gradio_reference_restore import restore_reference_inputs
-    current_request_record=current_history_record['request']
-    if not 1 <= len(current_request_record.get('reference_snapshots', [])) <= 4:
+    current_snapshot_records = current_request_record.get('reference_snapshots')
+    if not isinstance(current_snapshot_records, list) or not 1 <= len(current_snapshot_records) <= 4:
         raise gr.Error('저장된 참조 이미지 사본 1~4장이 필요합니다.')
     current_reference_images=restore_reference_inputs(current_history_record, PHANTOM_JOB_STORAGE_ROOT, reference_slot_limit=4)[6:10]
+    try:
+        current_verified_request = verify_phantom_request(PHANTOM_JOB_STORAGE_ROOT/current_history_record['id'])
+        if current_verified_request != current_request_record:
+            raise ValueError('저장 요청이 선택한 이력과 다릅니다. 이력을 새로고침하세요.')
+    except (ValueError, TypeError, KeyError, OSError) as current_restore_error:
+        raise gr.Error(f'저장된 Phantom 입력을 복원할 수 없습니다: {current_restore_error}') from current_restore_error
     return *current_reference_images,*([None]*(4-len(current_reference_images))),current_request_record['prompt'],current_request_record['frames'],current_request_record['seed'],current_request_record['phantom']['negative_prompt'],f"{current_request_record['width']}×{current_request_record['height']}",current_request_record['steps'],current_request_record['phantom']['flow_shift'],current_request_record['phantom']['guidance_scale'],current_request_record['phantom']['conditioning_scale'],current_history_record['id']
 
 def build_phantom_interface(current_server_address):
