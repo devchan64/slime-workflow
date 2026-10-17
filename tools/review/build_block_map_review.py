@@ -131,7 +131,7 @@ def load_current_texture_records(validate_complete_inventory=True):
         with Image.open(current_sprite_path) as current_sprite_image:
             current_sprite_size = list(current_sprite_image.size)
         exported_texture_records[current_texture_identifier] = {**current_sprite_provenance,
-            'path':'/management/map-assets/structures/'+current_sprite_path.name+'?v='+current_sprite_provenance['sha256'],
+            'path':('/management/map-assets/billboards/' if current_asset_path.startswith('assets/billboards/') else '/management/map-assets/structures/')+current_sprite_path.name+'?v='+current_sprite_provenance['sha256'],
             'source':current_asset_path, 'source_size':current_sprite_size,
             'expected_source_size':current_sprite_size, 'normalization_warning':None}
     registered_road_tile_paths={

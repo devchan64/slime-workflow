@@ -7,6 +7,12 @@ from tools.review.common.map_tile_assets import load_registered_tiles, resolve_r
 
 def read_map_asset_response(request_path_value):
     current_request_path = unquote(request_path_value)
+    if current_request_path.startswith('/management/map-assets/billboards/'):
+        current_asset_name = current_request_path.removeprefix('/management/map-assets/billboards/')
+        current_asset_root,current_asset_records = load_registered_tiles()
+        current_asset_path,_ = resolve_registered_asset('assets/billboards/'+current_asset_name,current_asset_root,current_asset_records,'assets/billboards')
+        if current_asset_path.suffix != '.png': raise ValueError('지원하지 않는 빌보드 형식')
+        return current_asset_path.read_bytes(),'image/png'
     if current_request_path == '/management/map-assets/textures':
         from tools.review.build_block_map_review import load_current_texture_records
         return json.dumps(load_current_texture_records(),ensure_ascii=False).encode(),'application/json; charset=utf-8'
