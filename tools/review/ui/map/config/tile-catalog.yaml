@@ -11,83 +11,82 @@ tiles:
   - {id: dark-basalt-paver-road, category: ground, asset: assets/tiles/terrain/road/dark-basalt-paver-road-v1.png}
   - {id: granite-slab-road, category: ground, asset: assets/tiles/terrain/road/granite-slab-road-v1.png}
   - {id: limestone-mosaic-road, category: ground, asset: assets/tiles/terrain/road/limestone-mosaic-road-v1.png}
-  - {id: ochre-pebble-road-v2, category: ground, asset: assets/tiles/terrain/road/ochre-pebble-road-v2.png}
   - {id: meadow-road, category: ground, asset: assets/tiles/terrain/road/ochre-pebble-road-v1.png}
   - {id: broken-stone-slab-road, category: ground, asset: assets/tiles/terrain/road/limestone-road-v3.png}
   - {id: ochre-pebble-road, category: ground, asset: assets/tiles/terrain/road/ochre-pebble-road-v1.png}
   - {id: soil-pebble-road, category: ground, asset: assets/tiles/terrain/road/ochre-pebble-road-v1.png}
-  - {id: boulder-type-a, category: ground, asset: assets/tiles/terrain/non-road/wildflower-meadow-ground-v1.png}
-  - {id: boulder-type-b, category: ground, asset: assets/tiles/terrain/non-road/wildflower-meadow-ground-v1.png}
-  - {id: boulder-type-c, category: ground, asset: assets/tiles/terrain/non-road/wildflower-meadow-ground-v1.png}
-  - {id: grass-type-a, category: ground, asset: assets/tiles/terrain/non-road/wildflower-meadow-ground-v1.png}
-  - {id: grass-type-b, category: ground, asset: assets/tiles/terrain/non-road/wildflower-meadow-ground-v1.png}
-  - {id: iseulon-grass-mud-frame, category: ground, asset: assets/tiles/terrain/non-road/wildflower-meadow-ground-v1.png}
-  - {id: grass, category: ground, asset: assets/tiles/terrain/non-road/field-grass-clumps-v1.png}
+  - {id: boulder-type-a, category: ground, asset: assets/tiles/terrain/non-road/orchard-grass-v1.png}
+  - {id: boulder-type-b, category: ground, asset: assets/tiles/terrain/non-road/orchard-grass-v1.png}
+  - {id: boulder-type-c, category: ground, asset: assets/tiles/terrain/non-road/orchard-grass-v1.png}
+  - {id: grass-type-a, category: ground, asset: assets/tiles/terrain/non-road/orchard-grass-v1.png}
+  - {id: grass-type-b, category: ground, asset: assets/tiles/terrain/non-road/orchard-grass-v1.png}
+  - {id: iseulon-grass-mud-frame, category: ground, asset: assets/tiles/terrain/non-road/orchard-grass-v1.png}
+  - {id: grass, category: ground, asset: assets/tiles/terrain/non-road/orchard-grass-v1.png}
   # 포장 논리 ID는 어두운 석회석 도로 원본을 사용한다.
   - {id: paving, category: ground, asset: assets/tiles/terrain/road/limestone-road-v3.png}
   - {id: reedhaven-dirt-road, category: ground, asset: assets/tiles/terrain/road/limestone-road-v3.png}
   - {id: stonewarm-gravel-paving, category: ground, asset: assets/tiles/terrain/road/limestone-road-v3.png}
-  - {id: stonewarm-exposed-rock-ground, category: ground, asset: assets/tiles/terrain/non-road/exposed-rock-ground-v2.png}
+  - {id: stonewarm-exposed-rock-ground, category: ground, asset: assets/tiles/terrain/non-road/rock-ground-v1.png}
   - {id: spring_water, category: ground, asset: assets/tiles/terrain/blocked/transparent-shallow-water-v2.png}
-  - {id: flower_bed, category: decoration, asset: assets/tiles/terrain/non-road/wildflower-meadow-ground-v1.png}
+  - {id: flower_bed, category: decoration, asset: assets/tiles/terrain/non-road/orchard-grass-v1.png}
   - {id: packed_dirt_road, category: ground, asset: assets/tiles/terrain/road/ochre-pebble-road-v1.png}
   - {id: stone_slab_road, category: ground, asset: assets/tiles/terrain/road/granite-slab-road-v1.png}
   - {id: cactus, category: ground, asset: assets/tiles/terrain/blocked/sand-cactus-type-a-v1.png}
-  - {id: wind-swept-sand, category: ground, asset: assets/tiles/terrain/non-road/wind-swept-sand-ground-v1.png}
-  - {id: gravel, category: ground, asset: assets/tiles/terrain/non-road/pebble-shore-ground-v1.png}
-  - {id: mud, category: ground, asset: assets/tiles/terrain/non-road/dark-humus-ground-v1.png}
+  - {id: wind-swept-sand, category: ground, asset: assets/tiles/terrain/non-road/sand-ground-v1.png}
+  - {id: gravel, category: ground, asset: assets/tiles/terrain/non-road/sand-ground-v1.png}
+  - {id: mud, category: ground, asset: assets/tiles/terrain/non-road/wet-soil-ground-v1.png}
   - {id: boulder, category: ground, asset: assets/tiles/terrain/blocked/clustered-boulder-ground-v1.png}
   - {id: shallow-water, category: ground, asset: assets/tiles/terrain/blocked/transparent-shallow-water-v2.png}
-  - {id: reed-bed, category: ground, asset: assets/tiles/terrain/non-road/marsh-reed-clumps-v1.png}
+  - {id: reed-bed, category: ground, asset: assets/tiles/terrain/non-road/wet-soil-ground-v1.png}
   - {id: deep-water, category: ground, asset: assets/tiles/terrain/blocked/transparent-deep-water-v2.png}
   - {id: swamp-water, category: ground, asset: assets/tiles/terrain/blocked/swamp-water-v2.png}
-  - {id: stone, category: ground, asset: assets/tiles/terrain/non-road/round-fieldstone-ground-v1.png}
-  - {id: dry-soil-branches, category: ground, asset: assets/tiles/terrain/non-road/dry-soil-grass-v1.png}
+  - {id: stone, category: ground, asset: assets/tiles/terrain/non-road/rock-ground-v1.png}
+  - {id: dry-soil-branches, category: ground, asset: assets/tiles/terrain/non-road/orchard-grass-soil-v1.png}
   - {id: stonewarm-marble-paving, category: ground, asset: assets/tiles/terrain/road/marble-circular-road-v1.png}
   - {id: marble-circular-road, category: ground, asset: assets/tiles/terrain/road/marble-circular-road-v1.png}
-  - {id: dew, category: ground, asset: assets/tiles/terrain/non-road/dew-grass-clumps-v1.png}
-  - {id: ash, category: ground, asset: assets/tiles/terrain/non-road/volcanic-ash-ground-v1.png}
-  - {id: moss, category: ground, asset: assets/tiles/terrain/non-road/moss-cushion-ground-v1.png}
-  - {id: leaf-litter, category: ground, asset: assets/tiles/terrain/non-road/leaf-litter-v2.png}
-  - {id: autumn-leaf-litter, category: ground, asset: assets/tiles/terrain/non-road/autumn-leaf-litter-v1.png}
-  - {id: pebble-shore-ground, category: ground, asset: assets/tiles/terrain/non-road/pebble-shore-ground-v1.png}
-  - {id: mossy-ruin-ground, category: ground, asset: assets/tiles/terrain/non-road/mossy-ruin-ground-v1.png}
-  - {id: dark-humus-ground, category: ground, asset: assets/tiles/terrain/non-road/dark-humus-ground-v1.png}
-  - {id: frost-grass-ground, category: ground, asset: assets/tiles/terrain/non-road/frost-grass-ground-v1.png}
-  - {id: cracked-dry-earth-ground, category: ground, asset: assets/tiles/terrain/non-road/cracked-dry-earth-ground-v1.png}
-  - {id: wildflower-meadow-ground, category: ground, asset: assets/tiles/terrain/non-road/wildflower-meadow-ground-v1.png}
-  - {id: shallow-reed-water-ground, category: ground, asset: assets/tiles/terrain/non-road/shallow-reed-water-ground-v1.png}
-  - {id: volcanic-ash-ground, category: ground, asset: assets/tiles/terrain/non-road/volcanic-ash-ground-v1.png}
-  - {id: round-fieldstone-ground, category: ground, asset: assets/tiles/terrain/non-road/round-fieldstone-ground-v1.png}
-  - {id: frosted-grass-ground, category: ground, asset: assets/tiles/terrain/non-road/frosted-grass-ground-v1.png}
-  - {id: sandy-scrub-ground, category: ground, asset: assets/tiles/terrain/non-road/sandy-scrub-ground-v1.png}
+  - {id: dew, category: ground, asset: assets/tiles/terrain/non-road/orchard-grass-v1.png}
+  - {id: ash, category: ground, asset: assets/tiles/terrain/non-road/rock-ground-v1.png}
+  - {id: moss, category: ground, asset: assets/tiles/terrain/non-road/orchard-grass-v1.png}
+  - {id: leaf-litter, category: ground, asset: assets/tiles/terrain/non-road/orchard-soil-v1.png}
+  - {id: autumn-leaf-litter, category: ground, asset: assets/tiles/terrain/non-road/orchard-soil-v1.png}
+  - {id: pebble-shore-ground, category: ground, asset: assets/tiles/terrain/non-road/sand-ground-v1.png}
+  - {id: mossy-ruin-ground, category: ground, asset: assets/tiles/terrain/non-road/orchard-grass-v1.png}
+  - {id: dark-humus-ground, category: ground, asset: assets/tiles/terrain/non-road/wet-soil-ground-v1.png}
+  - {id: frost-grass-ground, category: ground, asset: assets/tiles/terrain/non-road/frost-ground-v1.png}
+  - {id: cracked-dry-earth-ground, category: ground, asset: assets/tiles/terrain/non-road/orchard-soil-v1.png}
+  - {id: wildflower-meadow-ground, category: ground, asset: assets/tiles/terrain/non-road/orchard-grass-v1.png}
+  - {id: shallow-reed-water-ground, category: ground, asset: assets/tiles/terrain/non-road/wet-soil-ground-v1.png}
+  - {id: volcanic-ash-ground, category: ground, asset: assets/tiles/terrain/non-road/rock-ground-v1.png}
+  - {id: round-fieldstone-ground, category: ground, asset: assets/tiles/terrain/non-road/rock-ground-v1.png}
+  - {id: frosted-grass-ground, category: ground, asset: assets/tiles/terrain/non-road/frost-ground-v1.png}
+  - {id: sandy-scrub-ground, category: ground, asset: assets/tiles/terrain/non-road/sand-ground-v1.png}
   - {id: ramp-tread, category: ground, asset: assets/tiles/terrain/blocked/ramp-earth-stone-wall-v1.png}
   - {id: cliff-wall, category: ground, asset: assets/tiles/terrain/blocked/cliff-rock-face-v1.png}
-  - {id: battle-tree-stump, category: ground, asset: assets/tiles/terrain/non-road/leaf-litter-v2.png}
+  - {id: battle-tree-stump, category: ground, asset: assets/tiles/terrain/non-road/orchard-soil-v1.png}
 
-  - {id: iseulon-courtyard-paving, category: ground, asset: assets/tiles/terrain/road/ochre-pebble-road-v2.png}
+  - {id: iseulon-courtyard-paving, category: ground, asset: assets/tiles/terrain/road/ochre-pebble-road-v1.png}
 
-  - {id: reedhaven-dry-embankment, category: ground, asset: assets/tiles/terrain/non-road/dry-soil-grass-v1.png}
-  - {id: marsh-reed-clumps, category: ground, asset: assets/tiles/terrain/non-road/marsh-reed-clumps-v1.png}
+  - {id: reedhaven-dry-embankment, category: ground, asset: assets/tiles/terrain/non-road/orchard-grass-soil-v1.png}
+  - {id: marsh-reed-clumps, category: ground, asset: assets/tiles/terrain/non-road/wet-soil-ground-v1.png}
   - {id: stonewarm-granite-paving, category: ground, asset: assets/tiles/terrain/road/granite-slab-road-v1.png}
 
-  - {id: golden-grain-field-v1, category: ground, asset: assets/tiles/terrain/non-road/golden-grain-field-v1.png}
+  - {id: golden-grain-field-v1, category: ground, asset: assets/tiles/terrain/non-road/orchard-grass-v1.png}
 
-  - {id: tilled-furrows-v1, category: ground, asset: assets/tiles/terrain/non-road/tilled-furrows-v1.png}
+  - {id: tilled-furrows-v1, category: ground, asset: assets/tiles/terrain/non-road/orchard-soil-v1.png}
 
-  - {id: farm-embankment-v1, category: ground, asset: assets/tiles/terrain/non-road/farm-embankment-v1.png}
-  - {id: fallen-orchard-fruit-v1, category: ground, asset: assets/tiles/terrain/non-road/fallen-orchard-fruit-v1.png}
+  - {id: farm-embankment-v1, category: ground, asset: assets/tiles/terrain/non-road/orchard-soil-v1.png}
+  - {id: fallen-orchard-fruit-v1, category: ground, asset: assets/tiles/terrain/non-road/orchard-soil-v1.png}
 
-  - {id: wind-swept-grass-v1, category: ground, asset: assets/tiles/terrain/non-road/wind-swept-grass-v1.png}
+  - {id: wind-swept-grass-v1, category: ground, asset: assets/tiles/terrain/non-road/orchard-grass-v1.png}
 
-  - {id: upland-grass-earth-v1, category: ground, asset: assets/tiles/terrain/non-road/upland-grass-earth-v1.png}
+  - {id: upland-grass-earth-v1, category: ground, asset: assets/tiles/terrain/non-road/orchard-grass-soil-v1.png}
 
-  - {id: upland-rock-grass-v1, category: ground, asset: assets/tiles/terrain/non-road/upland-rock-grass-v1.png}
+  - {id: upland-rock-grass-v1, category: ground, asset: assets/tiles/terrain/non-road/orchard-grass-soil-v1.png}
 
-  - {id: fractured-bedrock-v1, category: ground, asset: assets/tiles/terrain/non-road/fractured-bedrock-v1.png}
+  - {id: fractured-bedrock-v1, category: ground, asset: assets/tiles/terrain/non-road/rock-ground-v1.png}
 
-  - {id: angular-quarry-scree-v1, category: ground, asset: assets/tiles/terrain/non-road/angular-quarry-scree-v1.png}
-  - {id: bush-ground-v1, category: ground, asset: assets/tiles/terrain/non-road/bush-ground-v1.png}
+  - {id: angular-quarry-scree-v1, category: ground, asset: assets/tiles/terrain/non-road/rock-ground-v1.png}
+  - {id: bush-ground-v1, category: ground, asset: assets/tiles/terrain/non-road/orchard-grass-v1.png}
   - {id: orchard-soil-v1, category: ground, asset: assets/tiles/terrain/non-road/orchard-soil-v1.png}
   - {id: orchard-grass-v1, category: ground, asset: assets/tiles/terrain/non-road/orchard-grass-v1.png}
   - {id: orchard-grass-soil-v1, category: ground, asset: assets/tiles/terrain/non-road/orchard-grass-soil-v1.png}
