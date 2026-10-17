@@ -79,6 +79,7 @@ export async function createSharedFieldReview(currentMapCanvas,currentTextureIma
  let currentTownActorObjects=[];
  let currentTownMeshObjects=[];
  let currentTownWaypointObjects=[];
+ let currentFieldWaypointObjects=[];
  if(currentTextureRecords){
   for(const [currentGameTexture,currentAssetPath] of Object.entries(collectTerrainTextureSources())){
    const currentCatalogEntry=Object.entries(currentTextureRecords).find(([,currentTileRecord])=>currentTileRecord.source===currentAssetPath);
@@ -111,7 +112,7 @@ export async function createSharedFieldReview(currentMapCanvas,currentTextureIma
    const currentNextSignature=JSON.stringify([currentMapRecord.id,currentFieldFrame.options.rotation,currentViewSettings.edges,currentViewSettings.safe]);
    if(currentNextSignature!==currentRenderSignature){
     for(const currentRenderObject of [...currentFieldScene.children.list])if(currentRenderObject.scene)currentRenderObject.destroy();
-    currentFieldActorSignature='';currentFieldActorObjects=[];
+    currentFieldActorSignature='';currentFieldActorObjects=[];currentFieldWaypointObjects=[];
     const currentSafeCenter=rotateSurfacePosition(currentMapRecord.startPoint,currentFieldFrame.options.rotation);
     for(const currentCellRecord of currentFieldFrame.cells){
      const currentTerrainName=currentMapRecord.terrainCodes[currentMapRecord.terrainRows[currentCellRecord.cell.row][currentCellRecord.cell.column]];
@@ -147,6 +148,11 @@ export async function createSharedFieldReview(currentMapCanvas,currentTextureIma
      const currentGuardImage=currentFieldScene.add.image(currentGuardCenter.x+currentGuardRecord.offsetX,currentGuardCenter.y+currentGuardRecord.offsetY,currentGuardRecord.path).setOrigin(currentGuardRecord.anchorX,currentGuardRecord.anchorY).setDepth(currentGuardDepth+FIELD_REVIEW_TOWER_DEPTH);
      currentGuardImage.setScale(currentFieldFrame.options.tileWidth*GUARD_CENTER_FOOTPRINT_SIZE/currentGuardImage.width);
     }
+    for(const currentConnectionRecord of currentMapRecord.connections??[]){
+     const currentWaypointCell=currentFieldFrame.cells.find(currentCellRecord=>currentCellRecord.cell.column===currentConnectionRecord.column&&currentCellRecord.cell.row===currentConnectionRecord.row);
+     if(!currentWaypointCell)throw Error('웨이포인트가 맵 범위를 벗어났습니다.');
+     currentFieldWaypointObjects.push(drawWaypoint(currentFieldScene,currentConnectionRecord,currentWaypointCell.center.x,currentWaypointCell.center.y).setDepth(mapAnnotationDepth(currentMapRecord)));
+    }
     currentRenderSignature=currentNextSignature;
    }
    const currentActorSignature=JSON.stringify([currentViewSettings.character,currentViewSettings.characterCell]);
@@ -158,6 +164,7 @@ export async function createSharedFieldReview(currentMapCanvas,currentTextureIma
     currentFieldActorObjects=currentFieldScene.children.list.filter(currentSceneObject=>!previousSceneObjects.has(currentSceneObject));
     currentFieldActorSignature=currentActorSignature;
    }
+   for(const currentWaypointObject of currentFieldWaypointObjects)currentWaypointObject.setScale(waypointMarkerScale(currentViewSettings.scale));
    updateFieldActorOcclusion(currentFieldScene);
   },
   readAppliedBuildingTextures(){return [...currentAppliedBuildingTextures].sort();},
