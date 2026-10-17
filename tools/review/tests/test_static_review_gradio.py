@@ -232,7 +232,7 @@ assert.deepEqual(failedValues[0],{__type__:'update'});
             collect_anchor_review_paths(current_static_paths,['outside/preview.html'])
         current_interface_blocks=build_static_review_interface(current_static_paths,current_anchor_paths)
         current_visibility_scripts=[current_event_record['js'] for current_event_record in current_interface_blocks.get_config_file()['dependencies'] if 'visible:' in (current_event_record.get('js') or '') and 'currentReviewId=' in current_event_record['js']]
-        current_script_source="const assert=require('node:assert/strict');global.location={search:'?review=standing-anchors'};\n"+'\n'.join('assert.deepEqual(('+current_script_value+')().map(value=>value.visible),[true,true,true,true]);' for current_script_value in current_visibility_scripts)
+        current_script_source="const assert=require('node:assert/strict');global.location={search:'?review=standing-anchors'};\n"+'\n'.join('assert.deepEqual(('+current_script_value+')().map(value=>value.visible),[true,true,true,true,true,true]);' for current_script_value in current_visibility_scripts)
         self.assertEqual(len(current_visibility_scripts),1)
         current_node_result=subprocess.run(['node','-e',current_script_source],capture_output=True,text=True)
         self.assertEqual(current_node_result.returncode,0,current_node_result.stderr)

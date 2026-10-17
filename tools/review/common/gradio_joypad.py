@@ -9,7 +9,7 @@ JOY_PAD_SCALE_STEP = 0.001
 JOY_PAD_LARGE_SCALE_STEP = 0.005
 
 
-def build_transform_joypad(current_handler_name, current_feedback_output, current_scale_enabled=True, current_separate_axes=False, current_readiness_controls=None):
+def build_transform_joypad(current_handler_name, current_feedback_output, current_scale_enabled=True, current_separate_axes=False, current_readiness_controls=None, current_scope_control=None):
     """명령 처리기는 action, payload를 받아 x/y/scale/message를 반환한다."""
     if not re.fullmatch(r'[A-Za-z_$][A-Za-z0-9_$]*', current_handler_name):
         raise ValueError('조이패드 명령 함수 이름 형식 오류')
@@ -30,6 +30,9 @@ def build_transform_joypad(current_handler_name, current_feedback_output, curren
             current_input_fields.append(current_vertical_scale)
             current_output_fields.insert(3,current_vertical_scale)
 
+        if current_scope_control is not None:
+            current_input_fields.append(current_scope_control)
+
         def bind_joypad_button(current_action_name,current_button_label,current_scale_override=None):
             current_button_component=gr.Button(current_button_label,min_width=0,interactive=current_readiness_controls is None) if current_action_name.startswith('scale') else gr.Button(current_button_label,interactive=current_readiness_controls is None)
             if current_readiness_controls is not None:current_readiness_controls.append(current_button_component)
@@ -43,6 +46,8 @@ try{
 }""".replace('HANDLER',json.dumps(current_handler_name)).replace('ACTION',json.dumps(current_action_name))
             if current_separate_axes:
                 current_button_script=current_button_script.replace('currentScaleStep)=>','currentScaleStep,currentVerticalScale)=>').replace('scale:currentScaleValue,','scaleX:currentScaleValue,scaleY:currentVerticalScale,').replace('currentResultRecord.scale,currentResultRecord.message','currentResultRecord.scaleX,currentResultRecord.scaleY,currentResultRecord.message').replace("{__type__:'update'},currentErrorValue.message","{__type__:'update'},{__type__:'update'},currentErrorValue.message")
+            if current_scope_control is not None:
+                current_button_script=current_button_script.replace(')=>{',' ,currentScopeValue)=>{',1).replace('positionStep:currentPositionStep,','scope:currentScopeValue,positionStep:currentPositionStep,')
             if current_scale_override is not None:
                 current_button_script=current_button_script.replace('scaleStep:currentScaleStep','scaleStep:'+json.dumps(current_scale_override))
             current_button_component.click(fn=None,inputs=current_input_fields,outputs=current_output_fields,queue=False,js=current_button_script)

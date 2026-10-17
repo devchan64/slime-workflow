@@ -109,6 +109,10 @@ function replayCoordinateChange(undoRequestedValue){
  const selectedHistoryRecord=sourceHistoryRecords.pop();
  if(!selectedHistoryRecord)return;
  pauseFramePlayback();
+ if(selectedHistoryRecord.changes){
+  for(const currentHistoryChange of selectedHistoryRecord.changes)restoreFrameCoordinates(reviewFrameRecords[currentHistoryChange.frameIndex],undoRequestedValue?currentHistoryChange.before:currentHistoryChange.after);
+  targetHistoryRecords.push(selectedHistoryRecord);refreshCoordinateStatus();return;
+ }
  const currentFrameRecord=reviewFrameRecords[selectedHistoryRecord.frameIndex];
  restoreFrameCoordinates(currentFrameRecord,undoRequestedValue?selectedHistoryRecord.before:selectedHistoryRecord.after);
  directionChoiceElement.value=currentFrameRecord.direction;
@@ -326,7 +330,27 @@ window.anchorReviewCoordinates=(currentActionName,currentInputValues)=>{
  }else if(currentActionName in currentMovementSteps)currentDeltaValues=currentMovementSteps[currentActionName];
  else if(currentActionName!=='read')throw Error('지원하지 않는 좌표 조작입니다.');
  if(currentDeltaValues){
-  moveSelectedPoint(...currentDeltaValues);
+  const currentScopeValue=currentInputValues.scope??'frame';
+  if(!['frame','all'].includes(currentScopeValue))throw Error('지원하지 않는 이동 범위입니다.');
+  if(currentScopeValue==='frame')moveSelectedPoint(...currentDeltaValues);
+  else{
+   if(!verifyAnchorImageReadiness())throw Error('이미지 준비 후 이동하세요.');
+   const currentBatchChanges=reviewFrameRecords.map((currentTargetFrame,currentTargetIndex)=>{
+    const currentBeforeRecord=copyFrameCoordinates(currentTargetFrame);
+    const currentAfterRecord=copyFrameCoordinates(currentTargetFrame);
+    const currentEditablePoints=usesFootCentersOnly?currentAfterRecord.contacts:currentAfterRecord.endpoints;
+    const currentAffectedPoints=pointChoiceElement.value==='anchor'?[currentAfterRecord.anchor,...currentAfterRecord.contacts,...currentAfterRecord.endpoints]:[currentEditablePoints[Number(pointChoiceElement.value)]];
+    for(const currentTargetPoint of currentAffectedPoints){
+     if(!currentTargetPoint)throw Error('선택 좌표가 없는 프레임입니다.');
+     currentTargetPoint.x+=currentDeltaValues[0];currentTargetPoint.y+=currentDeltaValues[1];
+     if(currentTargetPoint.x<0||currentTargetPoint.y<0||currentTargetPoint.x>=currentTargetFrame.rect.width||currentTargetPoint.y>=currentTargetFrame.rect.height)throw Error('좌표가 셀을 벗어나 전체 이동을 취소했습니다.');
+    }
+    if(pointChoiceElement.value!=='anchor')updateFrameCoordinates(currentAfterRecord);
+    return {frameIndex:currentTargetIndex,before:currentBeforeRecord,after:currentAfterRecord};
+   }).filter(currentChangeRecord=>JSON.stringify(currentChangeRecord.before)!==JSON.stringify(currentChangeRecord.after));
+   if(currentBatchChanges.length){pauseFramePlayback();for(const currentChangeRecord of currentBatchChanges)restoreFrameCoordinates(reviewFrameRecords[currentChangeRecord.frameIndex],currentChangeRecord.after);coordinateUndoHistory.push({changes:currentBatchChanges});coordinateRedoHistory.length=0;refreshCoordinateStatus();}
+   document.querySelector('#reviewError').textContent='';
+  }
   const currentErrorText=document.querySelector('#reviewError').textContent;
   if(currentErrorText)throw Error(currentErrorText);
  }
