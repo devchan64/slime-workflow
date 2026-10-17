@@ -9,6 +9,20 @@ from tools.review.ui.gradio.management_menu_app import create_initial_selection_
 
 
 class GradioManagementMenuTests(unittest.TestCase):
+    def test_animation_menu_preserves_full_catalog(self):
+        import json
+        import tempfile
+        from pathlib import Path
+        from tools.review.ui.gradio.management_menu_app import load_manager_page_records
+        current_page_records=[{'id':f'animation-{current_sprite_number}','label':f'스프라이트 {current_sprite_number}','path':f'/animation-{current_sprite_number}/anchors.html','category':'animation','description':'등록 원본'} for current_sprite_number in (1,17)]
+        with tempfile.TemporaryDirectory() as current_temporary_directory:
+            current_source_path=Path(current_temporary_directory)/'pages.json'
+            current_source_path.write_text(json.dumps({'pages':current_page_records}))
+            current_menu_records=[current_page_record for current_page_record in load_manager_page_records(current_source_path) if current_page_record["category"]=="animation"]
+            self.assertEqual(len(current_menu_records),1)
+            self.assertEqual(current_menu_records[0]['reviewAliases'],['animation-1','animation-17'])
+            self.assertEqual(len([current_page_record for current_page_record in load_manager_page_records(current_source_path,current_animation_catalog=True) if current_page_record["category"]=="animation"]),2)
+
     def test_menu_source_validation_explains_root_and_fields(self):
         import json
         import tempfile

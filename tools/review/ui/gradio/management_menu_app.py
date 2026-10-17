@@ -58,7 +58,7 @@ def render_gpu_status_card(gpu_status_record):
         current_status_text+='\n\n'+ ' · '.join(f'{current_memory_label} {current_memory_value:,} MiB' for current_memory_label,current_memory_value in zip(('사용','여유','총'),current_memory_values))
     return current_status_text
 
-def load_manager_page_records(source_file_path):
+def load_manager_page_records(source_file_path, current_animation_catalog=False):
     source_record_values=json.loads(source_file_path.read_text())
     if not isinstance(source_record_values,dict):
         raise ValueError('관리 메뉴 원본은 객체여야 합니다.')
@@ -89,6 +89,11 @@ def load_manager_page_records(source_file_path):
         if not current_page_record['path'].startswith('/'):current_page_record={**current_page_record,'path':'/'+current_page_record['path']}
         page_identifier_values.add(current_page_record['id'])
         validated_page_records.append(current_page_record)
+    if not current_animation_catalog:
+        current_animation_records=[current_page_record for current_page_record in validated_page_records if current_page_record['category']=='animation']
+        if current_animation_records:
+            current_unified_record={**current_animation_records[0],'label':'등록 스프라이트 통합 검수','description':'스프라이트 검색·선택 · 동작·방향·프레임 검수 · 좌표 저장·이력','reviewAliases':[current_page_record['id'] for current_page_record in current_animation_records]}
+            validated_page_records=[current_page_record for current_page_record in validated_page_records if current_page_record['category']!='animation']+[current_unified_record]
     # 분류 접두어와 등록 순서 대신 도구 이름 오름차순을 모든 탐색에 공유한다.
     return sorted(validated_page_records,key=lambda current_page_record:(current_page_record['label'].casefold(),current_page_record['id']))
 
@@ -181,7 +186,8 @@ def create_initial_selection_script(page_record_values):
         const pageRecords={serialized_page_records};
         const currentUrlValue=new URL(window.location.href);
         const requestedPageIdentifier=currentUrlValue.searchParams.get('review')||currentUrlValue.searchParams.get('tool');
-        const resolvedPageIdentifier={json.dumps(LEGACY_PAGE_IDENTIFIER_VALUES)}[requestedPageIdentifier]||requestedPageIdentifier;
+        const currentCatalogRecord=pageRecords.find(record=>record.reviewAliases?.includes(requestedPageIdentifier));
+        const resolvedPageIdentifier=currentCatalogRecord?.id||{json.dumps(LEGACY_PAGE_IDENTIFIER_VALUES)}[requestedPageIdentifier]||requestedPageIdentifier;
         if(resolvedPageIdentifier&&!pageRecords.some(record=>record.id===resolvedPageIdentifier)){{
             return [currentUrlValue.searchParams.get('search')||'',currentUrlValue.searchParams.get('category')||'all',resolvedPageIdentifier];
         }}

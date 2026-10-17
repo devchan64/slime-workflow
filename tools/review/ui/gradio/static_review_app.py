@@ -80,11 +80,29 @@ staticReviewRoot.setAttribute('aria-busy','false');
 }}"""
 
 
-def build_static_review_interface(static_review_paths, current_anchor_paths=None):
+def build_static_review_interface(static_review_paths, current_anchor_paths=None, current_animation_records=None):
     current_anchor_paths_json=json.dumps(collect_anchor_review_paths(static_review_paths,current_anchor_paths),ensure_ascii=False).replace('<','\\u003c')
     current_review_paths_json=json.dumps(static_review_paths,ensure_ascii=False).replace('<','\\u003c')
     with gr.Blocks(title='정적 검수') as interface_blocks_value:
         gr.Markdown('## 정적 검수\n게임 디자인과 등록 애니메이션을 검수합니다.')
+        current_sprite_records=current_animation_records or []
+        current_sprite_identifiers=[current_sprite_record['id'] for current_sprite_record in current_sprite_records]
+        with gr.Group(visible=False) as current_sprite_group:
+            gr.Markdown('### 등록 스프라이트 목록')
+            current_sprite_search=gr.Textbox(label='스프라이트 검색',placeholder='이름, 등록 ID, 원본 경로')
+            current_sprite_choice=gr.Dropdown(label='검수할 스프라이트',choices=[(current_sprite_record['label'],current_sprite_record['id']) for current_sprite_record in current_sprite_records],value=None,interactive=True,filterable=True)
+            current_sprite_count=gr.Markdown(f'등록 스프라이트 {len(current_sprite_records)}개')
+            current_sprite_open=gr.Button('선택 스프라이트 열기',interactive=False)
+            gr.Markdown('목록 선택 후 열기를 누르면 해당 스프라이트의 동작·방향·프레임을 검수합니다. 편집한 좌표는 전환 전에 저장하세요.')
+        def filter_sprite_catalog(current_search_value,current_selected_identifier):
+            current_search_tokens=(current_search_value or '').casefold().split()
+            current_filtered_records=[current_sprite_record for current_sprite_record in current_sprite_records if all(current_search_token in (' '.join(str(current_sprite_record.get(current_field_name,'')) for current_field_name in ('label','id','description','path'))).casefold() for current_search_token in current_search_tokens)]
+            current_retained_identifier=current_selected_identifier if any(current_sprite_record['id']==current_selected_identifier for current_sprite_record in current_filtered_records) else None
+            return gr.update(choices=[(current_sprite_record['label'],current_sprite_record['id']) for current_sprite_record in current_filtered_records],value=current_retained_identifier),f'{len(current_filtered_records)}개 / 전체 {len(current_sprite_records)}개',gr.update(interactive=current_retained_identifier is not None)
+        current_sprite_search.input(filter_sprite_catalog,[current_sprite_search,current_sprite_choice],[current_sprite_choice,current_sprite_count,current_sprite_open],queue=False,preprocess=False)
+        current_sprite_choice.change(lambda current_selected_identifier:gr.update(interactive=current_selected_identifier in current_sprite_identifiers),current_sprite_choice,current_sprite_open,queue=False,preprocess=False)
+        current_sprite_open.click(fn=None,inputs=current_sprite_choice,queue=False,js="currentSelectedIdentifier=>{const currentAllowedIdentifiers="+json.dumps(current_sprite_identifiers)+";if(!currentAllowedIdentifiers.includes(currentSelectedIdentifier))throw Error('등록 스프라이트를 선택하세요.');const currentTargetUrl=new URL(location.href);currentTargetUrl.searchParams.set('review',currentSelectedIdentifier);currentTargetUrl.searchParams.set('tool',currentSelectedIdentifier);currentTargetUrl.searchParams.set('category','animation');currentTargetUrl.searchParams.delete('action');location.assign(currentTargetUrl.href);}")
+        interface_blocks_value.load(fn=None,outputs=[current_sprite_group,current_sprite_choice,current_sprite_open],queue=False,js="()=>{const currentAllowedIdentifiers="+json.dumps(current_sprite_identifiers)+";const currentSelectedIdentifier=new URLSearchParams(location.search).get('review');const currentIsRegistered=currentAllowedIdentifiers.includes(currentSelectedIdentifier);return [{__type__:'update',visible:currentIsRegistered},{__type__:'update',value:currentIsRegistered?currentSelectedIdentifier:null},{__type__:'update',interactive:currentIsRegistered}];}")
         current_reload_button=gr.Button('검수 화면 새로고침')
         current_reload_button.click(fn=None,js="()=>{window.location.reload();}",queue=False)
         with gr.Column(visible=False) as current_battlefield_controls:
@@ -197,7 +215,8 @@ if __name__=='__main__':
     threading.Thread(target=monitor_owner_process,daemon=True).start()
     from tools.review.ui.gradio.management_menu_app import build_management_menu_interface, load_manager_page_records
     current_page_records=load_manager_page_records(arguments_value.source_file)
-    current_anchor_paths=[current_page_record['path'].split('?')[0] for current_page_record in current_page_records if current_page_record.get('anchorEditor') and current_page_record.get('uiMode')=='gradio-static']
-    current_inline_interface=build_static_review_interface(static_review_paths,current_anchor_paths)
+    current_catalog_records=load_manager_page_records(arguments_value.source_file,current_animation_catalog=True)
+    current_anchor_paths=[current_page_record['path'].split('?')[0] for current_page_record in current_catalog_records if current_page_record.get('anchorEditor') and current_page_record.get('uiMode')=='gradio-static']
+    current_inline_interface=build_static_review_interface(static_review_paths,current_anchor_paths,[current_page_record for current_page_record in current_catalog_records if current_page_record['category']=='animation'])
     current_management_interface,_=build_management_menu_interface(current_page_records,arguments_value.review_port,current_inline_interface)
     current_management_interface.queue().launch(server_name='127.0.0.1',server_port=arguments_value.port,root_path=arguments_value.root_path,js=create_static_review_loader(arguments_value.review_port,static_review_paths,current_anchor_paths),allowed_paths=[])
