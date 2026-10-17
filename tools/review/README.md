@@ -208,3 +208,9 @@ VACE 공용 작업자는 CUDA 초기화 전에 `expandable_segments:True`를 적
 ### Stable Audio 효과음
 
 효과음 생성은 `sfx-stable-audio` 서비스와 `ui/gradio/sfx_stable_app.py` 진입점을 사용한다. `domains/music/generation.py`·`generators/music/worker.py`의 공용 오디오 작업 수명과 `ui/gradio/music_app.py`의 이력·입력 화면을 재사용한다. 효과음 고정 설정·추론·설치는 `generators/sound_effects/`에서 소유한다. [효과음 사용법](../../generators/sound_effects/README.md)을 참고한다.
+
+### 맵 통합 검수와 선택 리소스
+
+`맵 통합 검수`에서 야외필드·마을·전투필드를 선택한다. 기존 맵 URL은 유지하며 야외·마을은 맵 선택과 불러오기를 제공하고, 전투필드는 기존 게임 검수 컴포넌트를 같은 Gradio 페이지에 직접 마운트한다. iframe을 사용하지 않는다.
+
+리소스 계획·이미지 중복 제거·제한 병렬 로딩·취소는 프론트엔드 `@slime/field-renderer`의 `map-resource-plan.ts`와 `map-resource-loader.mjs`가 소유한다. 관리도구는 등록 카탈로그의 URL·해시를 연결하고 선택 맵의 타일·오브젝트 로드 수를 표시한다. 지형 전체 카탈로그를 조회하더라도 전체 이미지를 다운로드하지 않는다. 캐릭터 표현 비교는 선택 가능한 세 종류 바닥만 준비한다. 전투필드 전체 비교를 명시적으로 선택하면 비교 대상 전장 모두를 준비한다.

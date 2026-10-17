@@ -44,7 +44,7 @@ function resizeReviewViewport(currentFieldGame,currentMapCanvas){
 }
 
 /** 화면 컨트롤·에셋 로딩은 어댑터, 면·UV·탑·오러 그리기는 공용 라이브러리가 소유한다. */
-export async function createSharedFieldReview(currentMapCanvas,currentTextureImages,currentCharacterImage,currentCharacterRecord,currentGuardImages,currentSafeImages,currentTextureRecords=null){
+export async function createSharedFieldReview(currentMapCanvas,currentTextureImages,currentCharacterImage,currentCharacterRecord,currentGuardImages,currentSafeImages,currentTextureRecords=null,currentSelectedGameKeys={},currentFieldMapMode=false){
  let currentFieldScene;
  let currentResolveReady;
  let currentRejectReady;
@@ -81,16 +81,12 @@ export async function createSharedFieldReview(currentMapCanvas,currentTextureIma
  let currentTownWaypointObjects=[];
  let currentFieldWaypointObjects=[];
  if(currentTextureRecords){
-  for(const [currentGameTexture,currentAssetPath] of Object.entries(collectTerrainTextureSources())){
-   const currentCatalogEntry=Object.entries(currentTextureRecords).find(([,currentTileRecord])=>currentTileRecord.source===currentAssetPath);
-   if(!currentCatalogEntry)throw Error('게임 타일 원본이 검수 카탈로그에 없습니다: '+currentAssetPath);
-   if(currentFieldScene.textures.exists(currentGameTexture)){
-    if(currentFieldScene.textures.get(currentGameTexture).getSourceImage()!==currentTextureImages[currentCatalogEntry[0]])throw Error('게임 타일 키가 다른 검수 원본과 충돌합니다: '+currentGameTexture);
-    continue;
-   }
-   currentFieldScene.textures.addImage(currentGameTexture,currentTextureImages[currentCatalogEntry[0]]);
+  for(const [currentGameTexture,currentCatalogKey] of Object.entries(currentSelectedGameKeys)){
+   const currentTextureImage=currentTextureImages[currentCatalogKey];
+   if(!currentTextureImage)throw Error('선택 맵 이미지가 없습니다: '+currentGameTexture);
+   if(!currentFieldScene.textures.exists(currentGameTexture))currentFieldScene.textures.addImage(currentGameTexture,currentTextureImage);
   }
-  createTerrainAtlas(currentFieldScene);
+  if(!currentFieldMapMode)createTerrainAtlas(currentFieldScene,new Set(Object.keys(currentSelectedGameKeys)));
  }
  function drawSharedReviewActor(currentActorPoint,currentActorDepth){
   const currentCharacterAnchor=currentCharacterRecord.frame.anchor;

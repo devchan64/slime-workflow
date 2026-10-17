@@ -195,7 +195,7 @@ def build_block_map_review(output_directory_path, character_review_only=False):
         required_material_names=set(current_map_record['terrainCodes'].values())|{'wall','roof'}
         if required_material_names-set(current_material_record['materials']):
             raise ValueError('맵 검수 재질 누락: '+current_map_identifier)
-        exported_map_records.append({'id':current_map_identifier,'name':current_map_record['name'],'path':'/management/map-assets/maps/'+current_map_identifier})
+        exported_map_records.append({'id':current_map_identifier,'name':current_map_record['name'],'kind':'town' if current_map_record.get('safeTown') else 'field','path':'/management/map-assets/maps/'+current_map_identifier})
     if character_review_only:
         exported_map_records=[{'id':'character-review','name':'캐릭터 표현 검수','path':''}]
     if not exported_map_records:

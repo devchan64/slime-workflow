@@ -1,4 +1,4 @@
-import {selectFieldRoadFrame,resolveFieldTerrainFrame,collectTerrainTextureSources} from './vendor/field-renderer/__FIELD_RENDERER_VERSION__/town-renderer.mjs';
+import {selectFieldRoadFrame,resolveFieldTerrainFrame,collectTerrainTextureSources,collectMapTextureSources,collectMapResourceKeys,loadMapResourceImages} from './vendor/field-renderer/__FIELD_RENDERER_VERSION__/town-renderer.mjs';
 import {CHARACTER_OUTLINE_BASE_WIDTH,CHARACTER_OUTLINE_BASE_COLOR,CHARACTER_SEPARATOR_BASE_WIDTH,CHARACTER_SEPARATOR_BASE_COLOR,CHARACTER_CONTACT_SHADOW_COLOR as GAME_CONTACT_SHADOW_COLOR,CHARACTER_CONTACT_SHADOW_ALPHA_SCALE,ACTOR_CONTACT_SHADOW_CONTRACT} from './vendor/field-renderer/__FIELD_RENDERER_VERSION__/game-render-profile.mjs';
 import {createFieldReviewFrame,pickFieldReviewCell} from './field-map-renderer.js';
 import {FIELD_RENDER_METRICS,projectSurfaceCell} from './vendor/field-renderer/__FIELD_RENDERER_VERSION__/field-renderer.mjs';
@@ -15,13 +15,15 @@ const TOWN_BLOCK_HEIGHT=blockRenderProfile.blockHeight;
 const BLOCK_BOUNDARY_COLOR='#dce5ef';
 if(!Number.isInteger(TOWN_BLOCK_HEIGHT)||TOWN_BLOCK_HEIGHT<=0)throw Error('마을 블록 높이 설정이 올바르지 않습니다.');
 const townHalfTileWidth=gameRenderMetrics.townTileWidth/2,townHalfTileHeight=gameRenderMetrics.townTileHeight/2;
-const availableMapRecords=await fetchMapReviewRecord('block-map-index.json');
+const currentMapCatalog=await fetchMapReviewRecord('block-map-index.json');
+const currentRequestedKind=new URLSearchParams(location.search).get('mapKind')||currentMapCatalog.find(currentMapEntry=>currentMapEntry.id===new URLSearchParams(location.search).get('map'))?.kind;
+const availableMapRecords=currentRequestedKind?currentMapCatalog.filter(currentMapEntry=>currentMapEntry.kind===currentRequestedKind):currentMapCatalog;
 const isCharacterReviewPage=currentMapCanvas.dataset.characterReview==='true';
 const CHARACTER_REVIEW_RESOLUTION_SCALE=isCharacterReviewPage?2:1;
 const CHARACTER_REVIEW_GRID_SIZE=3;
 const CHARACTER_REVIEW_TILE_NAMES=['paving','grass','meadow-road'];
 const selectedMapIdentifier=new URLSearchParams(location.search).get('map')||availableMapRecords[0].id;
-const isTownSpecificReviewPage=new URLSearchParams(location.search).get('townPage')==='1';
+const isTownSpecificReviewPage=false;
 const selectedMapRecord=availableMapRecords.find(currentMapEntry=>currentMapEntry.id===selectedMapIdentifier);
 if(!selectedMapRecord){document.querySelector('#status').textContent='등록되지 않은 맵입니다.';throw Error('등록되지 않은 맵: '+selectedMapIdentifier)}
 function selectReviewMap(currentMapIdentifier){
@@ -63,18 +65,14 @@ const currentMapRecord=isCharacterReviewPage?{
  terrainCodes:{p:'paving'},terrainRows:Array(CHARACTER_REVIEW_GRID_SIZE).fill('p'.repeat(CHARACTER_REVIEW_GRID_SIZE)),
  startPoint:{column:Math.floor(CHARACTER_REVIEW_GRID_SIZE/2),row:Math.floor(CHARACTER_REVIEW_GRID_SIZE/2)},blocked:[],buildings:[],
 }:await fetchMapReviewRecord(selectedMapRecord.path);
+const currentMapLoadController=new AbortController();
+window.addEventListener('pagehide',()=>currentMapLoadController.abort(),{once:true});
 const isFieldMapReview=currentMapRecord.safeTown===false;
 const currentDrawingContext=isCharacterReviewPage?currentMapCanvas.getContext('2d'):null;
 const currentSafeVisualRecords=isFieldMapReview?await fetchMapReviewRecord('field-safe-visuals.json'):{};
-const currentSafeVisualImages={};
-await Promise.all(Object.entries(currentSafeVisualRecords).map(([currentVisualName,currentVisualRecord])=>new Promise((resolveVisualImage,rejectVisualImage)=>{
- const currentVisualImage=new Image();currentVisualImage.onload=()=>{currentSafeVisualImages[currentVisualName]=currentVisualImage;resolveVisualImage()};currentVisualImage.onerror=()=>rejectVisualImage(Error('결계 원본 로드 실패: '+currentVisualName));currentVisualImage.src=new URL(currentVisualRecord.image,import.meta.url).href;
-})));
+const currentSafeVisualImages=await loadMapResourceImages(Object.entries(currentSafeVisualRecords).map(([currentVisualName,currentVisualRecord])=>({key:currentVisualName,url:new URL(currentVisualRecord.image,import.meta.url).href})),{signal:currentMapLoadController.signal});
 if(document.querySelector('#show-safe-boundary'))document.querySelector('#show-safe-boundary').closest('label').hidden=!isFieldMapReview;
-const loadedGuardImages={};
-await Promise.all((currentMapRecord.guardCenters??[]).map(currentGuardRecord=>new Promise((resolveGuardImage,rejectGuardImage)=>{
- const currentGuardImage=new Image();currentGuardImage.onload=()=>{loadedGuardImages[currentGuardRecord.path]=currentGuardImage;resolveGuardImage()};currentGuardImage.onerror=()=>rejectGuardImage(Error('경비센터 이미지 로드 실패'));currentGuardImage.src=currentGuardRecord.image;
-})));
+const loadedGuardImages=await loadMapResourceImages((currentMapRecord.guardCenters??[]).map(currentGuardRecord=>({key:currentGuardRecord.path,url:new URL(currentGuardRecord.image,import.meta.url).href})),{signal:currentMapLoadController.signal});
 let currentFieldFrame=null;
 const currentReviewTitle=currentMapRecord.name+' · '+currentMapRecord.reviewLabel;
 document.querySelector('#map-title').textContent=currentReviewTitle;
@@ -83,38 +81,29 @@ document.querySelector('.map-toolbar')?.setAttribute('aria-label',currentMapReco
 currentMapCanvas.setAttribute('aria-label',currentReviewTitle+'. 방향키로 화면 이동, Shift+좌우로 캐릭터 열 이동, Shift+상하로 행 이동. 더하기와 빼기 키로 확대 또는 축소하며 0 키로 전체 보기를 적용합니다.');
 const currentMaterialColors=await fetchMapReviewRecord('block-materials.json');
 const currentTextureRecords=await fetchMapReviewRecord('/management/map-assets/textures');
-const loadedTextureImages={};
-const currentTextureEntries=Object.entries(currentTextureRecords);
-let currentTextureLoadedCount=0;
-let currentTextureLoadFailed=false;
-document.querySelector('#status').textContent='타일 원본 불러오는 중 · 0 / '+currentTextureEntries.length;
-await Promise.all(currentTextureEntries.map(([currentTextureName,currentTextureRecord])=>new Promise((resolveTextureLoad,rejectTextureLoad)=>{
- const currentTextureImage=new Image();
- currentTextureImage.onload=()=>{
-  loadedTextureImages[currentTextureName]=currentTextureImage;
-  currentTextureLoadedCount++;
-  if(!currentTextureLoadFailed)document.querySelector('#status').textContent='타일 원본 불러오는 중 · '+currentTextureLoadedCount+' / '+currentTextureEntries.length;
-  resolveTextureLoad();
- };
- currentTextureImage.onerror=()=>{
-  if(!currentTextureLoadFailed)document.querySelector('#status').textContent='타일 로드 실패: '+currentTextureName;
-  currentTextureLoadFailed=true;
-  rejectTextureLoad(Error('타일 로드 실패: '+currentTextureName));
- };
- currentTextureImage.src=new URL(currentTextureRecord.path,import.meta.url).href;
-})));
+const currentResourceKeys=isCharacterReviewPage?CHARACTER_REVIEW_TILE_NAMES:collectMapResourceKeys(currentMapRecord,isFieldMapReview?'field':'town');
+const currentGameTextureSources=collectMapTextureSources();
+const currentSelectedTextureRecords={};
+const currentSelectedGameKeys={};
+for(const currentResourceKey of currentResourceKeys){
+ const currentSourcePath=currentGameTextureSources[currentResourceKey];
+ const currentCatalogEntry=currentSourcePath?Object.entries(currentTextureRecords).find(([,currentTextureRecord])=>currentTextureRecord.source===currentSourcePath):Object.entries(currentTextureRecords).find(([currentTextureName])=>currentTextureName===currentResourceKey);
+ if(!currentCatalogEntry)throw Error('선택 맵 리소스가 카탈로그에 없습니다: '+currentResourceKey);
+ currentSelectedTextureRecords[currentCatalogEntry[0]]=currentCatalogEntry[1];currentSelectedGameKeys[currentResourceKey]=currentCatalogEntry[0];
+}
+const loadedTextureImages=await loadMapResourceImages(Object.entries(currentSelectedTextureRecords).map(([currentTextureKey,currentTextureRecord])=>({key:currentTextureKey,url:new URL(currentTextureRecord.path,import.meta.url).href})),{signal:currentMapLoadController.signal,onProgress:currentLoadProgress=>{document.querySelector('#status').textContent=`선택 맵 리소스 불러오는 중 · ${currentLoadProgress.completed} / ${currentLoadProgress.total}`;}});
+const currentResourceSummary=document.createElement('p');currentResourceSummary.setAttribute('role','status');currentResourceSummary.textContent=`선택 맵 타일·오브젝트 ${Object.keys(currentSelectedTextureRecords).length}종 로드 · 전체 카탈로그 ${Object.keys(currentTextureRecords).length}종`;document.querySelector('#status').after(currentResourceSummary);
 document.querySelector('#status').textContent='기본 캐릭터 원본 불러오는 중';
 const reviewCharacterRecord=await fetchMapReviewRecord('review-character.json');
-const reviewCharacterImage=new Image();
-await new Promise((resolveCharacterLoad,rejectCharacterLoad)=>{reviewCharacterImage.onload=resolveCharacterLoad;reviewCharacterImage.onerror=()=>rejectCharacterLoad(Error('기본 캐릭터 로드 실패'));reviewCharacterImage.src=new URL(reviewCharacterRecord.image,import.meta.url).href});
+const {character:reviewCharacterImage}=await loadMapResourceImages([{key:'character',url:new URL(reviewCharacterRecord.image,import.meta.url).href}],{signal:currentMapLoadController.signal});
 document.querySelector('#status').textContent='맵 렌더러 초기화 중';
 const currentSharedFieldModule=!isCharacterReviewPage?await import('./field-map-view.js'):null;
-const currentSharedFieldView=!isCharacterReviewPage?await currentSharedFieldModule.createSharedFieldReview(currentMapCanvas,loadedTextureImages,reviewCharacterImage,reviewCharacterRecord,loadedGuardImages,currentSafeVisualImages,currentTextureRecords):null;
+const currentSharedFieldView=!isCharacterReviewPage?await currentSharedFieldModule.createSharedFieldReview(currentMapCanvas,loadedTextureImages,reviewCharacterImage,reviewCharacterRecord,loadedGuardImages,currentSafeVisualImages,currentTextureRecords,currentSelectedGameKeys,isFieldMapReview):null;
 // 캐릭터 검수의 단일 바닥만 별도로 선택한다. 마을·필드는 공용 렌더러 원본을 사용한다.
 const groundTextureNames={paving:'paving'};
 let currentAppliedSourceSignature=null;
 function renderAppliedTileSourceList(){
- const appliedTextureNames=new Set(isFieldMapReview?['cliff-wall','ramp-tread']:[]);
+ const appliedTextureNames=new Set(isFieldMapReview?['cliff-wall']:[]);
  const currentSharedTextureSources=!isCharacterReviewPage?collectTerrainTextureSources():null;
  Object.values(currentMapRecord.terrainCodes).forEach(currentTerrainName=>{
   if(isFieldMapReview){

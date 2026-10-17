@@ -28,7 +28,7 @@ class MapReviewGradioTest(unittest.TestCase):
     def test_camera_actions_use_native_browser_controls(self):
         current_interface_config=build_map_review_interface(8770).get_config_file()
         current_camera_events=[current_event_record for current_event_record in current_interface_config['dependencies'] if 'mapReviewCameraControls' in (current_event_record.get('js') or '')]
-        self.assertEqual(len(current_camera_events),5)
+        self.assertEqual(len(current_camera_events),4)
         current_camera_ids={current_event_record['targets'][0][0] for current_event_record in current_camera_events}
         for current_component_record in current_interface_config['components']:
             if current_component_record['id'] in current_camera_ids:
@@ -43,13 +43,13 @@ class MapReviewGradioTest(unittest.TestCase):
         for current_character_mode in (False, True):
             current_config_record = build_map_review_interface(8770, character_review_enabled=current_character_mode).get_config_file()
             for current_component_record in current_config_record['components']:
-                if current_component_record['type'] in ('checkbox', 'dropdown', 'radio'):
+                if current_component_record['type'] in ('checkbox', 'dropdown', 'radio') and current_component_record['props'].get('label')!='맵 종류':
                     self.assertFalse(current_component_record['props']['interactive'])
                 if current_component_record['type'] == 'button' and current_component_record['props']['value'] in ('맵 불러오기', '렌더링 PNG 캡처'):
                     self.assertFalse(current_component_record['props']['interactive'])
             current_loader_events = [current_event_record for current_event_record in current_config_record['dependencies'] if 'mapReviewControlOptions' in (current_event_record.get('js') or '')]
             self.assertEqual(len(current_loader_events), 1)
-            self.assertEqual(len(current_loader_events[0]['outputs']), 23 if current_character_mode else 15)
+            self.assertEqual(len(current_loader_events[0]['outputs']), 22 if current_character_mode else 14)
 
     def test_loader_uses_the_live_review_bundle_for_scripts_and_assets(self):
         loader_script_value = create_map_review_loader(8770)
