@@ -111,8 +111,13 @@ def load_registered_map_review(map_identifier_value):
         current_map_record['terrainCodes'] = MAP_CITY_TERRAIN_CODES
         current_map_record['blocked'] = []
         for current_building_record in current_map_record['buildings']:
-            current_building_record['facilityKind'] = current_building_record['facilityId'].rsplit('-',1)[-1]
-            if current_building_record['facilityKind'] not in {'guild','bookshop','inn','workshop','market'}: raise ValueError('등록되지 않은 건물 종류')
+            if current_building_record.get('kind', 'facility') == 'residence':
+                if current_building_record.get('facilityId') is not None: raise ValueError('일반 주택에는 시설 ID를 지정할 수 없습니다.')
+                current_building_record['facilityKind'] = 'residence'
+            else:
+                if current_building_record.get('kind', 'facility') != 'facility': raise ValueError('등록되지 않은 건물 용도')
+                current_building_record['facilityKind'] = current_building_record['facilityId'].rsplit('-',1)[-1]
+                if current_building_record['facilityKind'] not in {'guild','bookshop','inn','workshop','market'}: raise ValueError('등록되지 않은 건물 종류')
             for current_row_index in range(current_building_record['height']):
                 for current_column_index in range(current_building_record['width']):
                     current_map_record['blocked'].append(dict(column=current_building_record['origin']['column']+current_column_index,row=current_building_record['origin']['row']+current_row_index))

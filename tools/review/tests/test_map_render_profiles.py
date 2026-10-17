@@ -178,7 +178,8 @@ assert.throws(registerTextureAliases, /다른 검수 원본과 충돌/);
     def test_reedhaven_uses_registered_building_sprites(self):
         current_review_record = build_registered_map_review('reedhaven')
         self.assertNotIn('buildingTileOverrides', current_review_record)
-        self.assertEqual(len(current_review_record['buildings']), 5)
+        self.assertEqual(len(current_review_record['buildings']), 7)
+        self.assertEqual(sum(current_building_record['facilityKind'] == 'residence' for current_building_record in current_review_record['buildings']), 2)
         for current_building_record in current_review_record['buildings']:
             self.assertEqual(current_building_record['sprite']['textureKey'], 'town-' + current_building_record['id'] + '-v1')
             self.assertNotIn('blocks', current_building_record)
