@@ -87,6 +87,8 @@ def build_static_review_interface(static_review_paths, current_anchor_paths=None
         gr.Markdown('## 정적 검수\n게임 디자인과 등록 애니메이션을 검수합니다.')
         current_sprite_records=current_animation_records or []
         current_sprite_identifiers=[current_sprite_record['id'] for current_sprite_record in current_sprite_records]
+        current_anchor_status=gr.Textbox(label='프레임 탐색 상태',value='애니메이션을 준비 중입니다.',interactive=False,render=False)
+        current_anchor_feedback=gr.Textbox(label='조작 안내',value='프레임을 이동하거나 편집할 좌표를 선택하세요.',interactive=False,render=False)
         with gr.Accordion('스프라이트 검색·선택',open=False,visible=False) as current_sprite_group:
             gr.Markdown('### 등록 스프라이트 목록')
             current_sprite_search=gr.Textbox(label='스프라이트 검색',placeholder='이름, 등록 ID, 원본 경로')
@@ -94,6 +96,27 @@ def build_static_review_interface(static_review_paths, current_anchor_paths=None
             current_sprite_count=gr.Markdown(f'등록 스프라이트 {len(current_sprite_records)}개')
             current_sprite_open=gr.Button('선택 스프라이트 열기',interactive=False)
             gr.Markdown('목록 선택 후 열기를 누르면 해당 스프라이트의 동작·방향·프레임을 검수합니다. 편집한 좌표는 전환 전에 저장하세요.')
+            gr.Markdown('### 현재 열린 스프라이트의 동작')
+            with gr.Row():
+                current_animation_action=gr.Dropdown(label='애니메이션 동작',choices=[],interactive=True)
+                current_animation_read=gr.Button('동작 목록 읽기',interactive=False)
+                current_animation_apply=gr.Button('선택 동작 불러오기',interactive=False)
+            gr.Markdown('동작 목록을 읽고 사용할 동작을 선택하면 불러올 수 있습니다.')
+            current_animation_action.change(fn=None,inputs=current_animation_action,outputs=current_animation_apply,queue=False,js="currentActionIdentifier=>{try{window.anchorReviewPlayback('status');return {__type__:'update',interactive:typeof currentActionIdentifier==='string'&&currentActionIdentifier.length>0};}catch(currentErrorValue){return {__type__:'update',interactive:false};}}")
+            current_animation_read.click(fn=None,outputs=[current_animation_action,current_anchor_feedback],queue=False,js="()=>{try{return window.anchorReviewActions(null);}catch(currentErrorValue){return [{__type__:'update'},currentErrorValue.message];}}")
+            current_animation_apply.click(fn=None,inputs=current_animation_action,outputs=[current_animation_action,current_anchor_feedback,current_anchor_status],queue=False,js="currentActionIdentifier=>{try{if(!currentActionIdentifier)throw Error('동작 목록을 읽고 동작을 선택하세요.');const currentActionResult=window.anchorReviewActions(currentActionIdentifier);return [...currentActionResult,typeof window.anchorReviewPlayback==='function'?window.anchorReviewPlayback('status'):'선택한 동작을 불러오는 중입니다.'];}catch(currentErrorValue){return [{__type__:'update'},currentErrorValue.message,{__type__:'update'}];}}")
+            gr.Markdown('### 현재 열린 스프라이트의 방향')
+            with gr.Row():
+                current_anchor_direction=gr.Dropdown(label='방향',choices=[],interactive=True)
+                current_anchor_point=gr.Dropdown(label='편집할 좌표',choices=[('최종 앵커','anchor')],value='anchor',visible=False,interactive=False)
+            with gr.Row():
+                current_anchor_read=gr.Button('방향 목록 읽기',interactive=False)
+                current_anchor_apply=gr.Button('방향 적용',interactive=False)
+            gr.Markdown('편집 대상은 최종 앵커입니다. 방향을 선택해 검수합니다.')
+            gr.on(triggers=[current_anchor_direction.change,current_anchor_point.change],inputs=[current_anchor_direction,current_anchor_point],outputs=current_anchor_apply,queue=False,preprocess=False,fn=None,js="(currentDirectionName,currentPointName)=>{try{window.anchorReviewPlayback('status');return {__type__:'update',interactive:Boolean(currentDirectionName&&currentPointName)};}catch(currentErrorValue){return {__type__:'update',interactive:false};}}")
+            current_anchor_outputs=[current_anchor_direction,current_anchor_point,current_anchor_feedback]
+            current_anchor_read.click(fn=None,outputs=[*current_anchor_outputs,current_anchor_apply],queue=False,js="()=>{try{const currentSelectionValues=window.anchorReviewSelection(null,null);return [...currentSelectionValues,{__type__:'update',interactive:Boolean(currentSelectionValues[0].value && currentSelectionValues[1].value)}];}catch(currentErrorValue){return [{__type__:'update'},{__type__:'update'},currentErrorValue.message,{__type__:'update',interactive:false}];}}")
+            current_anchor_apply.click(fn=None,inputs=[current_anchor_direction,current_anchor_point],outputs=current_anchor_outputs,queue=False,js="(currentDirectionName,currentPointName)=>{try{return window.anchorReviewSelection(currentDirectionName,currentPointName);}catch(currentErrorValue){return [{__type__:'update'},{__type__:'update'},currentErrorValue.message];}}")
         def filter_sprite_catalog(current_search_value,current_selected_identifier):
             current_search_tokens=(current_search_value or '').casefold().split()
             current_filtered_records=[current_sprite_record for current_sprite_record in current_sprite_records if all(current_search_token in (' '.join(str(current_sprite_record.get(current_field_name,'')) for current_field_name in ('label','id','description','path'))).casefold() for current_search_token in current_search_tokens)]
@@ -115,33 +138,10 @@ def build_static_review_interface(static_review_paths, current_anchor_paths=None
         interface_blocks_value.load(fn=None,outputs=current_battlefield_controls,queue=False,js="()=>{const currentReviewPaths="+json.dumps(static_review_paths,ensure_ascii=False)+";return {__type__:'update',visible:(Object.hasOwn(currentReviewPaths,new URLSearchParams(location.search).get('review'))?currentReviewPaths[new URLSearchParams(location.search).get('review')]:'').split('?')[0].endsWith('battlefield-preview.html')};}")
         current_anchor_timer=gr.Timer(1)
         current_navigation_controls=[]
-        current_anchor_status=gr.Textbox(label='프레임 탐색 상태',value='애니메이션을 준비 중입니다.',interactive=False,render=False)
-        current_anchor_feedback=gr.Textbox(label='조작 안내',value='프레임을 이동하거나 편집할 좌표를 선택하세요.',interactive=False,render=False)
         with gr.Row():
             with gr.Column(visible=False,scale=1,min_width=360) as current_anchor_controls:
                 current_anchor_feedback.render()
-                with gr.Accordion('애니메이션 동작 선택',open=False):
-                    with gr.Row():
-                        current_animation_action=gr.Dropdown(label='애니메이션 동작',choices=[],interactive=True)
-                        current_animation_read=gr.Button('동작 목록 읽기',interactive=False)
-                        current_animation_apply=gr.Button('선택 동작 불러오기',interactive=False)
-                    gr.Markdown('동작 목록을 읽고 사용할 동작을 선택하면 불러올 수 있습니다.')
-                    current_animation_action.change(fn=None,inputs=current_animation_action,outputs=current_animation_apply,queue=False,js="currentActionIdentifier=>{try{window.anchorReviewPlayback('status');return {__type__:'update',interactive:typeof currentActionIdentifier==='string'&&currentActionIdentifier.length>0};}catch(currentErrorValue){return {__type__:'update',interactive:false};}}")
-                    current_animation_read.click(fn=None,outputs=[current_animation_action,current_anchor_feedback],queue=False,js="()=>{try{return window.anchorReviewActions(null);}catch(currentErrorValue){return [{__type__:'update'},currentErrorValue.message];}}")
-                    current_animation_apply.click(fn=None,inputs=current_animation_action,outputs=[current_animation_action,current_anchor_feedback,current_anchor_status],queue=False,js="currentActionIdentifier=>{try{if(!currentActionIdentifier)throw Error('동작 목록을 읽고 동작을 선택하세요.');const currentActionResult=window.anchorReviewActions(currentActionIdentifier);return [...currentActionResult,typeof window.anchorReviewPlayback==='function'?window.anchorReviewPlayback('status'):'선택한 동작을 불러오는 중입니다.'];}catch(currentErrorValue){return [{__type__:'update'},currentErrorValue.message,{__type__:'update'}];}}")
-                with gr.Accordion('방향·편집 좌표 선택',open=False):
-                    gr.Markdown('원본 픽셀 좌표 · +X 오른쪽 / +Y 아래쪽. 최종 앵커 이동은 발 좌표도 함께 이동합니다.')
-                    with gr.Row():
-                        current_anchor_direction=gr.Dropdown(label='방향',choices=[],interactive=True)
-                        current_anchor_point=gr.Dropdown(label='편집할 좌표',choices=[],interactive=True)
-                    with gr.Row():
-                        current_anchor_read=gr.Button('선택 목록 읽기',interactive=False)
-                        current_anchor_apply=gr.Button('방향·좌표 선택 적용',interactive=False)
-                    gr.Markdown('선택 목록을 읽고 방향과 편집할 좌표를 모두 선택하세요.')
-                    gr.on(triggers=[current_anchor_direction.change,current_anchor_point.change],inputs=[current_anchor_direction,current_anchor_point],outputs=current_anchor_apply,queue=False,preprocess=False,fn=None,js="(currentDirectionName,currentPointName)=>{try{window.anchorReviewPlayback('status');return {__type__:'update',interactive:Boolean(currentDirectionName&&currentPointName)};}catch(currentErrorValue){return {__type__:'update',interactive:false};}}")
-                    current_anchor_outputs=[current_anchor_direction,current_anchor_point,current_anchor_feedback]
-                    current_anchor_read.click(fn=None,outputs=[*current_anchor_outputs,current_anchor_apply],queue=False,js="()=>{try{const currentSelectionValues=window.anchorReviewSelection(null,null);return [...currentSelectionValues,{__type__:'update',interactive:Boolean(currentSelectionValues[0].value && currentSelectionValues[1].value)}];}catch(currentErrorValue){return [{__type__:'update'},{__type__:'update'},currentErrorValue.message,{__type__:'update',interactive:false}];}}")
-                    current_anchor_apply.click(fn=None,inputs=[current_anchor_direction,current_anchor_point],outputs=current_anchor_outputs,queue=False,js="(currentDirectionName,currentPointName)=>{try{return window.anchorReviewSelection(currentDirectionName,currentPointName);}catch(currentErrorValue){return [{__type__:'update'},{__type__:'update'},currentErrorValue.message];}}")
+                gr.Markdown('최종 앵커 편집 · 이동 시 발 기준점도 함께 이동합니다.')
                 current_coordinate_scope=gr.Radio(label='이동 적용 범위',choices=[('현재 프레임','frame'),('전체 프레임 · 현재 동작의 모든 방향','all')],value='frame')
                 build_transform_joypad('anchorReviewCoordinates',current_anchor_feedback,current_scale_enabled=False,current_readiness_controls=current_navigation_controls,current_scope_control=current_coordinate_scope)
                 with gr.Row():

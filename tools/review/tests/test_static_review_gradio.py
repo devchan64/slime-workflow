@@ -12,7 +12,7 @@ from tools.review.ui.gradio.static_review_app import build_static_review_interfa
 class StaticReviewGradioTest(unittest.TestCase):
     def test_anchor_edit_commands_wait_for_runtime(self):
         current_interface_blocks=build_static_review_interface({'audit':'/fixture/anchors.html'})
-        current_expected_labels={'X 적용','Y 적용','↑ 위로','← 왼쪽','현재 값 읽기','오른쪽 →','↓ 아래로','실행 취소','다시 실행','이전 프레임 앵커 가져오기','현재 프레임 원본 복원','좌표 변경 상태 읽기','정규화 JSON 다운로드','좌표 저장','동작 목록 읽기','선택 목록 읽기','표시 설정 읽기','표시 설정 적용','출력 설정 읽기','출력 설정 적용'}
+        current_expected_labels={'X 적용','Y 적용','↑ 위로','← 왼쪽','현재 값 읽기','오른쪽 →','↓ 아래로','실행 취소','다시 실행','이전 프레임 앵커 가져오기','현재 프레임 원본 복원','좌표 변경 상태 읽기','정규화 JSON 다운로드','좌표 저장','동작 목록 읽기','방향 목록 읽기','표시 설정 읽기','표시 설정 적용','출력 설정 읽기','출력 설정 적용'}
         current_matched_controls=[]
         for current_component in current_interface_blocks.blocks.values():
             current_component_value=getattr(current_component,'value',None)
@@ -189,10 +189,10 @@ assert.deepEqual(failedValues[0],{__type__:'update'});
     def test_empty_review_selection_disables_apply(self):
         current_interface_blocks=build_static_review_interface({'walk-review':'animation/anchors.html'})
         current_config_record=current_interface_blocks.get_config_file()
-        for current_button_label in ('선택 동작 불러오기','방향·좌표 선택 적용'):
+        for current_button_label in ('선택 동작 불러오기','방향 적용'):
             current_button_record=next(current_component for current_component in current_config_record['components'] if current_component['type']=='button' and current_component['props']['value']==current_button_label)
             self.assertFalse(current_button_record['props']['interactive'])
-        current_scripts=[current_event.js for current_event in current_interface_blocks.fns.values() if current_event.js and len(current_event.outputs)==1 and getattr(current_event.outputs[0],'value',None) in ('선택 동작 불러오기','방향·좌표 선택 적용')]
+        current_scripts=[current_event.js for current_event in current_interface_blocks.fns.values() if current_event.js and len(current_event.outputs)==1 and getattr(current_event.outputs[0],'value',None) in ('선택 동작 불러오기','방향 적용')]
         self.assertEqual(len(current_scripts),2)
         current_node_script="const assert=require('node:assert/strict');global.window={anchorReviewPlayback:()=> 'ready'};const scripts="+json.dumps(current_scripts)+""";for(const source of scripts){const callback=eval('('+source+')');assert.equal(callback(null,null).interactive,false);assert.equal(callback('', '').interactive,false);assert.equal(callback('walk','anchor').interactive,true);window.anchorReviewPlayback=()=>{throw Error('로드 실패');};assert.equal(callback('walk','anchor').interactive,false);window.anchorReviewPlayback=()=> 'ready';}"""
         current_node_result=subprocess.run(['node','-e',current_node_script],capture_output=True,text=True)
@@ -416,7 +416,7 @@ assert.deepEqual(window.anchorReviewDisplay(null).slice(0,4),[false,false,true,f
         current_button_labels=[current_component_record['props'].get('value') for current_component_record in current_config_record['components'] if current_component_record['type']=='button']
         self.assertIn('X 적용',current_button_labels)
         self.assertIn('Y 적용',current_button_labels)
-        self.assertIn('선택 목록 읽기',current_button_labels)
+        self.assertIn('방향 목록 읽기',current_button_labels)
         self.assertNotIn('배율 적용',current_button_labels)
         self.assertNotIn('배율 늘리기 +',current_button_labels)
         current_coordinate_events=[current_event_record for current_event_record in current_config_record['dependencies'] if 'anchorReviewCoordinates' in (current_event_record.get('js') or '')]
