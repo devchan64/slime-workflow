@@ -61,18 +61,18 @@ assert.throws(registerTextureAliases, /다른 검수 원본과 충돌/);
         current_test_result = subprocess.run(['node', '-e', current_script_source], capture_output=True, text=True, timeout=10)
         self.assertEqual(current_test_result.returncode, 0, current_test_result.stderr)
 
-    def test_guild_roof_uses_asset_repository_original(self):
+    def test_guild_sprite_uses_asset_repository_original(self):
         with TemporaryDirectory(dir=WORKFLOW_ROOT / '.tmp') as current_temporary_directory:
             current_output_directory = build_block_map_review(Path(current_temporary_directory))
-            building_texture_records = json.loads((current_output_directory / 'block-building-tiles.json').read_text())
+            self.assertFalse((current_output_directory / 'block-building-tiles.json').exists())
             exported_texture_records = json.loads((current_output_directory / 'block-textures.json').read_text())
-            guild_texture_identifier = building_texture_records['stonewarm-guild']['roof']
+            guild_texture_identifier = 'town-stonewarm-guild-v1'
             guild_texture_record = exported_texture_records[guild_texture_identifier]
             self.assertEqual(guild_texture_record['repository'], 'slime-assets')
             _, current_registered_tiles = load_registered_tiles()
             current_original_record = current_registered_tiles[guild_texture_record['source']]
             self.assertEqual(guild_texture_record['version'], current_original_record['version'])
-            self.assertEqual(guild_texture_record['source'], 'assets/tiles/buildings/red-stone/red-stone-roof-v3.png')
+            self.assertEqual(guild_texture_record['source'], 'assets/sprites/structures/town-stonewarm-guild-v1.png')
             self.assertEqual(guild_texture_record['sha256'], current_original_record['sha256'])
             # 게시된 결계 사본과 공용 렌더러가 실제 manifest의 해시와 일치해야 한다.
             current_safe_records=json.loads((current_output_directory/'field-safe-visuals.json').read_text())
@@ -164,50 +164,25 @@ assert.throws(registerTextureAliases, /다른 검수 원본과 충돌/);
         self.assert_ground_texture_selection('reedhaven', 'paving', 'reedhaven-dry-embankment')
         self.assert_ground_texture_selection('grainstead', 'paving', 'reedhaven-dirt-road')
 
-    def test_reedhaven_uses_wood_building_tiles(self):
-        tile_catalog_source = (WORKFLOW_ROOT / 'tools/review/ui/map/config/tile-catalog.yaml').read_text(encoding='utf-8')
-        building_prefab_source = (WORKFLOW_ROOT / 'tools/review/ui/map/config/building-prefabs.yaml').read_text(encoding='utf-8')
-        block_review_builder = (WORKFLOW_ROOT / 'tools/review/build_block_map_review.py').read_text(encoding='utf-8')
-        map_review_script = (WORKFLOW_ROOT / 'tools/review/ui/map/block-map-review.js').read_text(encoding='utf-8')
+    def test_reedhaven_uses_registered_building_sprites(self):
+        current_review_record = build_registered_map_review('reedhaven')
+        self.assertNotIn('buildingTileOverrides', current_review_record)
+        self.assertEqual(len(current_review_record['buildings']), 5)
+        for current_building_record in current_review_record['buildings']:
+            self.assertEqual(current_building_record['sprite']['textureKey'], 'town-' + current_building_record['id'] + '-v1')
+            self.assertNotIn('blocks', current_building_record)
 
-        self.assertIn('id: wood_roof', tile_catalog_source)
-        self.assertEqual(tile_catalog_source.count('id: wood_wall,'), 1)
-        self.assertIn('assets/tiles/buildings/wood/wood-wall-v2.png', tile_catalog_source)
-        self.assertIn('roof_underlay_wall_tile: wood_crossbar_wall', building_prefab_source)
-        self.assertIn("'roof_underlay':current_prefab_record.get('roof_underlay_wall_tile'", block_review_builder)
-        self.assertIn('readBuildingTileSet', map_review_script)
-        self.assertIn("return 'roof_underlay'", map_review_script)
+    def test_reedhaven_guild_has_sprite_collision_footprint(self):
+        current_map_record = load_exported_game_map('reedhaven')
+        current_building_record = next(item for item in current_map_record['buildings'] if item['id'] == 'reedhaven-guild')
+        self.assertEqual((current_building_record['width'], current_building_record['height']), (3, 3))
+        self.assertEqual(current_building_record['entrance'], {'column': 5, 'row': 7})
 
-        with TemporaryDirectory(dir=WORKFLOW_ROOT / '.tmp') as current_temporary_directory:
-            current_output_directory = build_block_map_review(Path(current_temporary_directory))
-            reviewed_reedhaven_record = build_registered_map_review('reedhaven')
-        self.assertEqual(
-            reviewed_reedhaven_record['buildingTileOverrides'],
-            {
-                'roof': 'wood_roof',
-                'wall': 'wood_wall',
-                'window': 'wood_window_wall',
-                'large_window': 'wood_window_wall',
-                'roof_underlay': 'wood_crossbar_wall',
-                'door': 'wood_door_wall',
-            },
-        )
-
-    def test_reedhaven_guild_has_two_by_two_block_footprint(self):
-        reedhaven_map_record = load_exported_game_map('reedhaven')
-        guild_building_record = next(building for building in reedhaven_map_record['buildings'] if building['id'] == 'reedhaven-guild')
-
-        self.assertEqual((guild_building_record['width'], guild_building_record['height']), (2, 2))
-        self.assertEqual(guild_building_record['entrance'], {'column': 5, 'row': 6})
-        self.assertTrue(all(block['column'] < 2 and block['row'] < 2 for block in guild_building_record['blocks']))
-
-    def test_reedhaven_inn_has_two_by_six_block_footprint(self):
-        reedhaven_map_record = load_exported_game_map('reedhaven')
-        inn_building_record = next(building for building in reedhaven_map_record['buildings'] if building['id'] == 'reedhaven-inn')
-
-        self.assertEqual((inn_building_record['width'], inn_building_record['height']), (2, 6))
-        self.assertEqual(inn_building_record['entrance'], {'column': 7, 'row': 18})
-        self.assertTrue(all(block['column'] < 2 and block['row'] < 6 for block in inn_building_record['blocks']))
+    def test_reedhaven_inn_has_sprite_collision_footprint(self):
+        current_map_record = load_exported_game_map('reedhaven')
+        current_building_record = next(item for item in current_map_record['buildings'] if item['id'] == 'reedhaven-inn')
+        self.assertEqual((current_building_record['width'], current_building_record['height']), (4, 3))
+        self.assertEqual(current_building_record['entrance'], {'column': 7, 'row': 17})
 
     def test_reedhaven_buildings_have_one_wall_floor(self):
         reedhaven_map_record = load_exported_game_map('reedhaven')
@@ -228,31 +203,12 @@ assert.throws(registerTextureAliases, /다른 검수 원본과 충돌/);
             entrance_distance = min(abs(entrance_record['column'] - current_column) + abs(entrance_record['row'] - current_row) for current_column in range(column_minimum, column_maximum + 1) for current_row in range(row_minimum, row_maximum + 1))
             self.assertEqual(entrance_distance, 1, building_record['id'])
 
-    def test_stonewarm_uses_registered_stone_wall(self):
-        tile_catalog_source = (WORKFLOW_ROOT / 'tools/review/ui/map/config/tile-catalog.yaml').read_text(encoding='utf-8')
-        map_review_script = (WORKFLOW_ROOT / 'tools/review/ui/map/block-map-review.js').read_text(encoding='utf-8')
-
-        self.assertIn('id: stonewarm-stone-wall', tile_catalog_source)
-        self.assertIn('assets/tiles/buildings/stone/stone-wall-v1.png', tile_catalog_source)
-        self.assertIn('id: stonewarm-small-window-wall', tile_catalog_source)
-        self.assertIn('assets/tiles/buildings/stone/stone-small-window-wall-v1.png', tile_catalog_source)
-        self.assertIn('id: stonewarm-large-window-wall', tile_catalog_source)
-        self.assertIn('assets/tiles/buildings/stone/stone-large-window-wall-v1.png', tile_catalog_source)
-        self.assertIn('id: stonewarm-stone-wall-crossbar', tile_catalog_source)
-        self.assertIn('assets/tiles/buildings/stone/stone-wall-crossbar-v1.png', tile_catalog_source)
-        self.assertIn('id: stonewarm-stone-roof', tile_catalog_source)
-        self.assertIn('assets/tiles/buildings/stone/stone-roof-v1.png', tile_catalog_source)
-        self.assertIn('id: stonewarm-stone-door', tile_catalog_source)
-        self.assertIn('assets/tiles/buildings/stone/stone-door-v1.png', tile_catalog_source)
-        self.assertIn("'roof':'stonewarm-stone-roof'", (WORKFLOW_ROOT / 'tools/review/build_block_map_review.py').read_text(encoding='utf-8'))
-        self.assertIn("'roof_underlay':'stonewarm-stone-wall-crossbar'", (WORKFLOW_ROOT / 'tools/review/build_block_map_review.py').read_text(encoding='utf-8'))
-        self.assertIn('readBuildingTileSet', map_review_script)
-
-        with TemporaryDirectory(dir=WORKFLOW_ROOT / '.tmp') as current_temporary_directory:
-            current_output_directory = build_block_map_review(Path(current_temporary_directory))
-            reviewed_stonewarm_record = build_registered_map_review('stonewarm')
-        self.assertEqual(reviewed_stonewarm_record['buildingTileOverrides']['roof_underlay'], 'stonewarm-stone-wall-crossbar')
-        self.assertEqual(reviewed_stonewarm_record['buildingTileOverrides']['roof'], 'stonewarm-stone-roof')
+    def test_stonewarm_uses_registered_building_sprites(self):
+        current_review_record = build_registered_map_review('stonewarm')
+        self.assertNotIn('buildingTileOverrides', current_review_record)
+        for current_building_record in current_review_record['buildings']:
+            self.assertTrue(current_building_record['sprite']['textureKey'].startswith('town-stonewarm-'))
+            self.assertNotIn('faces', current_building_record)
 
     def test_stonewarm_review_preserves_registered_terrain_layout(self):
         current_source_provenance = []
@@ -265,44 +221,22 @@ assert.throws(registerTextureAliases, /다른 검수 원본과 충돌/);
         self.assertIn(current_source_provenance[0], current_review_record['provenance'])
 
     def test_stonewarm_guild_and_inn_use_the_approved_footprints(self):
-        stonewarm_map_record = load_exported_game_map('stonewarm')
-        guild_building_record = next(building for building in stonewarm_map_record['buildings'] if building['id'] == 'stonewarm-guild')
-        inn_building_record = next(building for building in stonewarm_map_record['buildings'] if building['id'] == 'stonewarm-inn')
+        current_map_record = load_exported_game_map('stonewarm')
+        current_building_records = {item['id']: item for item in current_map_record['buildings']}
+        self.assertEqual(current_building_records['stonewarm-guild']['entrance'], {'column': 7, 'row': 5})
+        self.assertEqual(current_building_records['stonewarm-inn']['entrance'], {'column': 7, 'row': 17})
 
-        self.assertEqual((guild_building_record['width'], guild_building_record['height']), (2, 4))
-        self.assertEqual(guild_building_record['entrance'], {'column': 5, 'row': 6})
-        self.assertTrue(all(block['column'] < 2 and block['row'] < 4 for block in guild_building_record['blocks']))
-        self.assertEqual((inn_building_record['width'], inn_building_record['height']), (2, 4))
-        self.assertEqual(inn_building_record['entrance'], {'column': 5, 'row': 19})
-        self.assertTrue(all(block['column'] < 2 and block['row'] < 4 for block in inn_building_record['blocks']))
-
-    def test_iseulon_game_snapshot_and_review_output_keep_the_new_building_floors(self):
-        iseulon_map_record = load_exported_game_map('iseulon')
-        guild_building_record = next(building for building in iseulon_map_record['buildings'] if building['id'] == 'iseulon-guild')
-        map_review_script = (WORKFLOW_ROOT / 'tools/review/ui/map/block-map-review.js').read_text(encoding='utf-8')
-
-        self.assertEqual((guild_building_record['width'], guild_building_record['height'], guild_building_record['floors']), (2, 3, 2))
-        self.assertTrue(all(building['floors'] == 1 for building in iseulon_map_record['buildings'] if building['id'] != 'iseulon-guild'))
-        for current_building_record in iseulon_map_record['buildings']:
-            if current_building_record['id'] == 'iseulon-guild':
-                continue
-            self.assertGreaterEqual(len(current_building_record['blocks']), current_building_record['width'] * current_building_record['height'] * 2)
-        with TemporaryDirectory(dir=WORKFLOW_ROOT / '.tmp') as current_temporary_directory:
-            current_output_directory = build_block_map_review(Path(current_temporary_directory))
-            reviewed_map_record = build_registered_map_review('iseulon')
-        reviewed_guild_record = next(building for building in reviewed_map_record['buildings'] if building['id'] == 'iseulon-guild')
-        self.assertEqual((reviewed_guild_record['width'], reviewed_guild_record['height'], reviewed_guild_record['floors']), (2, 3, 2))
-        self.assertTrue(all(block['height'] == 60 for block in reviewed_guild_record['blocks']))
-        reviewed_bookshop_record = next(building for building in reviewed_map_record['buildings'] if building['id'] == 'iseulon-bookshop')
-        self.assertEqual({block['height'] for block in reviewed_bookshop_record['blocks'] if block['material'] == 'roof'}, {60})
-        self.assertTrue(any(not face['top'] for face in reviewed_bookshop_record['faces'] if face['material'] == 'roof'))
-        self.assertEqual({vertex['height'] for face in reviewed_bookshop_record['faces'] if face['material'] == 'roof' for vertex in face['vertices']}, {80, 160})
-        reviewed_inn_record = next(building for building in reviewed_map_record['buildings'] if building['id'] == 'iseulon-inn')
-        self.assertEqual({block['layer'] for block in reviewed_inn_record['blocks'] if block['material'] == 'roof'}, {1, 2})
-        self.assertEqual({block['layer'] for block in reviewed_inn_record['blocks'] if block['material'] == 'wall'}, {0, 1})
-        self.assertEqual(len([face for face in reviewed_inn_record['faces'] if face['material'] == 'roof' and not face['top']]), 14)
-        self.assertIn("currentRoofHeightSummary", map_review_script)
-        self.assertIn('currentBuildingFloorSummary', map_review_script)
+    def test_city_game_and_review_share_flat_sprite_buildings(self):
+        for current_city_identifier in ('iseulon', 'reedhaven', 'stonewarm', 'grainstead', 'saltford'):
+            current_source_record = load_exported_game_map(current_city_identifier)
+            current_review_record = build_registered_map_review(current_city_identifier)
+            self.assertEqual(current_source_record['buildings'], current_review_record['buildings'])
+            self.assertEqual(current_review_record.get('ramps', []) , [])
+            for current_building_record in current_review_record['buildings']:
+                self.assertNotIn('blocks', current_building_record)
+                self.assertNotIn('faces', current_building_record)
+                self.assertGreater(current_building_record['sprite']['contentWidth'], 0)
+                self.assertLessEqual(current_building_record['sprite']['contentWidth'], 1)
 
     def test_map_review_lists_applied_sources_and_normalization_warnings(self):
         map_review_template = (WORKFLOW_ROOT / 'tools/review/ui/map/block-map-review.html').read_text(encoding='utf-8')

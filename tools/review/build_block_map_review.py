@@ -13,28 +13,6 @@ from tools.review.common.map_tile_assets import load_registered_tiles, resolve_r
 WORKFLOW_ROOT_DIRECTORY=Path(__file__).resolve().parents[2]
 GAME_TILE_SOURCE_SIZE=256
 GROUND_TILE_SOURCE_SIZE=128
-TOWN_BUILDING_TILE_OVERRIDES={
-    'reedhaven':{
-        'roof':'wood_roof',
-        'wall':'wood_wall',
-        'window':'wood_window_wall',
-        'large_window':'wood_window_wall',
-        'roof_underlay':'wood_crossbar_wall',
-        'door':'wood_door_wall',
-    },
-    'stonewarm':{
-        'roof':'stonewarm-stone-roof',
-        'wall':'stonewarm-stone-wall',
-        'window':'stonewarm-small-window-wall',
-        'large_window':'stonewarm-large-window-wall',
-        'roof_underlay':'stonewarm-stone-wall-crossbar',
-        'door':'stonewarm-stone-door',
-    },
-}
-
-# 두 신규 도시는 같은 등록 목재 원본을 참조한다.
-TOWN_BUILDING_TILE_OVERRIDES.update({current_city_identifier: dict(TOWN_BUILDING_TILE_OVERRIDES['reedhaven']) for current_city_identifier in ('iseulon', 'grainstead', 'saltford')})
-
 def load_town_block_height():
     from tools.review.common.game_render_metrics import read_numeric_render_constant
     render_constant_source = WORKFLOW_ROOT_DIRECTORY.parent/'slime-frontend/packages/field-renderer/render-constants.mjs'
@@ -181,18 +159,13 @@ def build_block_map_review(output_directory_path, character_review_only=False):
     texture_output_directory=output_directory_path/'textures'
     texture_output_directory.mkdir(exist_ok=True)
     (output_directory_path/'field-safe-visuals.json').write_text(json.dumps({} if character_review_only else build_field_safe_visual_records(texture_output_directory),ensure_ascii=False))
-    prefab_source_records=yaml.safe_load((source_asset_directory/'building-prefabs.yaml').read_text())['prefabs']
-    building_tile_records={current_prefab_record['id']:{'roof':current_prefab_record['roof_tile'],'wall':current_prefab_record['ground_floor_plain_wall_tile'],'window':current_prefab_record['ground_floor_small_window_wall_tile'],'large_window':current_prefab_record['upper_floor_large_window_wall_tile'],'roof_underlay':current_prefab_record.get('roof_underlay_wall_tile',current_prefab_record['ground_floor_plain_wall_tile']),'door':current_prefab_record['door_tile']} for current_prefab_record in prefab_source_records}
-    building_tile_records['iseulon-guild'] = {'roof':'stonewarm-guild-red-stone-roof','wall':'red-stone-brick-wall','window':'red-stone-sky-blue-window-wall','large_window':'red-stone-sky-blue-window-wall','roof_underlay':'red-stone-brick-wall','door':'red-stone-brick-gate'}
-    building_tile_records['stonewarm-guild'] = {'roof': 'stonewarm-guild-red-stone-roof'}
-    (output_directory_path/'block-building-tiles.json').write_text(json.dumps(building_tile_records))
     exported_map_records=[]
     # 등록된 맵 원본 인덱스를 따라 검수 목록을 구성한다.
     from tools.review.common.map_asset_sources import load_review_map_identifiers
     _, current_map_identifiers = load_review_map_identifiers()
     for current_map_identifier in (() if character_review_only else current_map_identifiers):
         current_map_record = build_registered_map_review(current_map_identifier)
-        required_material_names=set(current_map_record['terrainCodes'].values())|{'wall','roof'}
+        required_material_names=set(current_map_record['terrainCodes'].values())
         if required_material_names-set(current_material_record['materials']):
             raise ValueError('맵 검수 재질 누락: '+current_map_identifier)
         exported_map_records.append({'id':current_map_identifier,'name':current_map_record['name'],'kind':'town' if current_map_record.get('safeTown') else 'field','path':'/management/map-assets/maps/'+current_map_identifier})
@@ -242,15 +215,8 @@ def build_block_map_review(output_directory_path, character_review_only=False):
 
 
 def build_registered_map_review(map_identifier_value):
-    from tools.review.common.map_asset_sources import load_registered_map_review, MAP_SOURCE_BLOCK_HEIGHT, load_review_map_identifiers
+    from tools.review.common.map_asset_sources import load_registered_map_review, load_review_map_identifiers
     current_map_record = load_registered_map_review(map_identifier_value)
     current_city_identifiers, _ = load_review_map_identifiers()
     current_map_record['reviewLabel'] = '마을맵 검수' if map_identifier_value in current_city_identifiers else '필드맵 검수'
-    current_block_height = load_town_block_height()
-    validate_town_block_heights(current_map_record,MAP_SOURCE_BLOCK_HEIGHT)
-    current_map_record['buildingTileOverrides'] = TOWN_BUILDING_TILE_OVERRIDES.get(map_identifier_value,{})
-    for current_building_record in current_map_record['buildings']:
-        current_building_record['faces'] = build_current_block_faces(current_building_record['blocks'],MAP_SOURCE_BLOCK_HEIGHT)
-        for current_face_record in current_building_record['faces']:
-            current_face_record['vertices'] = [{**current_vertex_record, 'height': current_vertex_record['height'] * current_block_height / MAP_SOURCE_BLOCK_HEIGHT} for current_vertex_record in current_face_record['vertices']]
     return current_map_record

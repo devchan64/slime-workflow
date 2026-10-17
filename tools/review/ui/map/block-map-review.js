@@ -104,7 +104,7 @@ const groundTextureNames={paving:'paving'};
 let currentAppliedSourceSignature=null;
 function renderAppliedTileSourceList(){
  const appliedTextureNames=new Set(isFieldMapReview?['cliff-wall']:[]);
- const currentSharedTextureSources=!isCharacterReviewPage?collectTerrainTextureSources():null;
+ const currentSharedTextureSources=!isCharacterReviewPage?currentGameTextureSources:null;
  Object.values(currentMapRecord.terrainCodes).forEach(currentTerrainName=>{
   if(isFieldMapReview){
    const currentSelectedFrame=resolveFieldTerrainFrame(currentTerrainName,currentMapRecord.id);

@@ -65,24 +65,6 @@ def load_review_map_identifiers(current_source_catalog=None):
     return current_city_identifiers, (*current_city_identifiers, *current_field_identifiers)
 
 
-def build_source_building_blocks(current_building_record):
-    current_block_records = []
-    current_floor_count = current_building_record['floors']
-    current_slope_columns = current_building_record['width']%2==0
-    current_slope_length = current_building_record['width'] if current_slope_columns else current_building_record['height']
-    if current_slope_length%2: raise ValueError('맞배 지붕은 가로 또는 세로가 짝수여야 합니다.')
-    for current_row_index in range(current_building_record['height']):
-        for current_column_index in range(current_building_record['width']):
-            current_slope_index = current_column_index if current_slope_columns else current_row_index
-            current_roof_level = min(current_slope_index,current_slope_length-1-current_slope_index)
-            current_roof_base = (current_floor_count+current_roof_level)*MAP_SOURCE_BLOCK_HEIGHT
-            for current_stack_height in range(0,current_roof_base,MAP_SOURCE_BLOCK_HEIGHT):
-                current_block_records.append(dict(id=f"{current_building_record['id']}-{current_column_index}-{current_row_index}-{current_stack_height}",column=current_column_index,row=current_row_index,layer=current_stack_height//MAP_SOURCE_BLOCK_HEIGHT,offsetHeight=0,height=MAP_SOURCE_BLOCK_HEIGHT,shape='full',material='wall',walkable=False))
-            current_high_side = ('east' if current_slope_index<current_slope_length//2 else 'west') if current_slope_columns else ('south' if current_slope_index<current_slope_length//2 else 'north')
-            current_block_records.append(dict(id=f"{current_building_record['id']}-roof-{current_column_index}-{current_row_index}",column=current_column_index,row=current_row_index,layer=current_roof_base//MAP_SOURCE_BLOCK_HEIGHT,offsetHeight=0,height=MAP_SOURCE_BLOCK_HEIGHT,shape='ramp',highSide=current_high_side,material='roof',walkable=False))
-    return current_block_records
-
-
 def load_registered_map_review(map_identifier_value):
     current_source_catalog = load_registered_tiles()
     current_city_identifiers, current_map_identifiers = load_review_map_identifiers(current_source_catalog)
@@ -131,8 +113,6 @@ def load_registered_map_review(map_identifier_value):
         for current_building_record in current_map_record['buildings']:
             current_building_record['facilityKind'] = current_building_record['facilityId'].rsplit('-',1)[-1]
             if current_building_record['facilityKind'] not in {'guild','bookshop','inn','workshop','market'}: raise ValueError('등록되지 않은 건물 종류')
-            current_building_record['blockSchemaVersion'] = 1
-            current_building_record['blocks'] = build_source_building_blocks(current_building_record)
             for current_row_index in range(current_building_record['height']):
                 for current_column_index in range(current_building_record['width']):
                     current_map_record['blocked'].append(dict(column=current_building_record['origin']['column']+current_column_index,row=current_building_record['origin']['row']+current_row_index))
