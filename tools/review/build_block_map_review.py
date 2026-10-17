@@ -172,7 +172,7 @@ def build_block_map_review(output_directory_path, character_review_only=False):
     if character_review_only:
         exported_map_records=[{'id':'character-review','name':'캐릭터 표현 검수','path':''}]
     if not exported_map_records:
-        raise ValueError('검수할 마을 맵이 없습니다.')
+        raise ValueError('검수할 도시맵이 없습니다.')
     (output_directory_path/'block-map-index.json').write_text(json.dumps(exported_map_records,ensure_ascii=False))
     (output_directory_path/'block-render-profile.json').write_text(json.dumps({'blockHeight':town_block_height}))
     (output_directory_path/'block-materials.json').write_text(json.dumps(current_material_record['materials']))
@@ -218,5 +218,5 @@ def build_registered_map_review(map_identifier_value):
     from tools.review.common.map_asset_sources import load_registered_map_review, load_review_map_identifiers
     current_map_record = load_registered_map_review(map_identifier_value)
     current_city_identifiers, _ = load_review_map_identifiers()
-    current_map_record['reviewLabel'] = '마을맵 검수' if map_identifier_value in current_city_identifiers else '필드맵 검수'
+    current_map_record['reviewLabel'] = '도시맵 검수' if map_identifier_value in current_city_identifiers else '필드맵 검수'
     return current_map_record

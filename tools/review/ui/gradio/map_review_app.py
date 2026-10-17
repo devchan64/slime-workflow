@@ -53,7 +53,7 @@ def build_map_review_interface(review_server_port, character_review_enabled=Fals
         current_refresh_button=gr.Button('검수 화면 새로고침')
         current_refresh_button.click(fn=None,queue=False,js="()=>{window.location.reload();}")
         if not character_review_enabled:
-            current_kind_choice=gr.Radio(label='맵 종류',choices=[('야외필드','field'),('마을','town'),('전투필드','battle')],value='field',interactive=True)
+            current_kind_choice=gr.Radio(label='맵 종류',choices=[('야외필드','field'),('도시맵','town'),('전투필드','battle')],value='field',interactive=True)
             current_kind_choice.input(fn=None,inputs=current_kind_choice,queue=False,js="async currentMapKind=>{const currentMapUrl=new URL(location.href);currentMapUrl.searchParams.set('mapKind',currentMapKind);currentMapUrl.searchParams.delete('townPage');if(currentMapKind!=='battle'){const currentMapResponse=await fetch('http://127.0.0.1:"+str(review_server_port)+"/isloon-map-review/block-map-index.json');if(!currentMapResponse.ok)throw Error('맵 목록 조회 실패');const currentMapRecords=await currentMapResponse.json();const currentFirstMap=currentMapRecords.find(currentMapRecord=>currentMapRecord.kind===currentMapKind);if(!currentFirstMap)throw Error('등록된 맵이 없습니다.');currentMapUrl.searchParams.set('map',currentFirstMap.id);}location.assign(currentMapUrl.href);}")
             with gr.Group() as current_battle_group:
                 current_battle_choice=gr.Dropdown(label='전투필드 선택',choices=[],interactive=False)

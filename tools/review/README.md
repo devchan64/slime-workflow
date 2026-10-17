@@ -56,7 +56,7 @@ HTTP URL, 페이지 해시, CLI 명령, `.tmp` 생성 ID·기록 경로와 `asse
 
 관련 기준: [UI 가이드](../../workflows/management-ui.md), [클라이언트 가이드](../../workflows/management-clients.md).
 
-## 마을 맵 원장과 검수 사본
+## 도시맵 원장과 검수 사본
 
 맵 배치·통행 원본은 `slime-assets/assets/maps/`이며 등록부 해시를 확인해 직접 읽는다. 관리도구의 `/management/map-assets/maps/<id>`는 요청 시 원본 YAML을 해석하며 맵 JSON 사본을 보관하지 않는다. 타일 이미지도 `/management/map-assets/files/assets/tiles/...`에서 등록된 원본을 직접 제공한다. 백엔드는 같은 맵 원본을 읽어 버전이 있는 게임 API로 제공한다.
 
@@ -211,6 +211,6 @@ VACE 공용 작업자는 CUDA 초기화 전에 `expandable_segments:True`를 적
 
 ### 맵 통합 검수와 선택 리소스
 
-`맵 통합 검수`에서 야외필드·마을·전투필드를 선택한다. 기존 맵 URL은 유지하며 야외·마을은 맵 선택과 불러오기를 제공하고, 전투필드는 기존 게임 검수 컴포넌트를 같은 Gradio 페이지에 직접 마운트한다. iframe을 사용하지 않는다.
+`맵 통합 검수`에서 야외필드·도시맵·전투필드를 선택한다. 기존 맵 URL은 유지하며 야외·마을은 맵 선택과 불러오기를 제공하고, 전투필드는 기존 게임 검수 컴포넌트를 같은 Gradio 페이지에 직접 마운트한다. iframe을 사용하지 않는다.
 
 리소스 계획·이미지 중복 제거·제한 병렬 로딩·취소는 프론트엔드 `@slime/field-renderer`의 `map-resource-plan.ts`와 `map-resource-loader.mjs`가 소유한다. 관리도구는 등록 카탈로그의 URL·해시를 연결하고 선택 맵의 타일·오브젝트 로드 수를 표시한다. 지형 전체 카탈로그를 조회하더라도 전체 이미지를 다운로드하지 않는다. 캐릭터 표현 비교는 선택 가능한 세 종류 바닥만 준비한다. 전투필드 전체 비교를 명시적으로 선택하면 비교 대상 전장 모두를 준비한다.

@@ -425,7 +425,7 @@ pages:
   source_inventory_evidence: map_registered_inventory_followup
   mobile_reconnect_evidence: reedhaven_mobile_reconnect_followup 참조. 마을 렌더러의 좁은 화면·회전·재로딩 확인.
   readiness_followup: map_all_controls_followup · 공용 구현 적용, 모의 성공·실패 브라우저 검증. 개별 맵 렌더링 검증과 구분.
-  label: 갈대나루 · 마을맵 검수
+  label: 갈대나루 · 도시맵 검수
   category: town-map-review
   ui_mode: gradio
   url: /management/frame/map-review/?map=reedhaven&townPage=1
@@ -586,7 +586,7 @@ pages:
   town_source_evidence: town_all_terrain_sources_followup
   source_inventory_evidence: map_registered_inventory_followup
   readiness_followup: map_all_controls_followup · 공용 구현 적용, 모의 성공·실패 브라우저 검증. 개별 맵 렌더링 검증과 구분.
-  label: 곡온벌 · 마을맵 검수
+  label: 곡온벌 · 도시맵 검수
   category: town-map-review
   ui_mode: gradio
   url: /management/frame/map-review/?map=grainstead&townPage=1
@@ -738,7 +738,7 @@ pages:
   town_source_evidence: town_all_terrain_sources_followup
   source_inventory_evidence: map_registered_inventory_followup
   readiness_followup: map_all_controls_followup · 공용 구현 적용, 모의 성공·실패 브라우저 검증. 개별 맵 렌더링 검증과 구분.
-  label: 돌온재 · 마을맵 검수
+  label: 돌온재 · 도시맵 검수
   category: town-map-review
   ui_mode: gradio
   url: /management/frame/map-review/?map=stonewarm&townPage=1
@@ -1169,7 +1169,7 @@ pages:
   town_source_evidence: town_all_terrain_sources_followup
   source_inventory_evidence: map_registered_inventory_followup
   readiness_followup: map_all_controls_followup · 공용 구현 적용, 모의 성공·실패 브라우저 검증. 개별 맵 렌더링 검증과 구분.
-  label: 소금여울 · 마을맵 검수
+  label: 소금여울 · 도시맵 검수
   category: town-map-review
   ui_mode: gradio
   url: /management/frame/map-review/?map=saltford&townPage=1
@@ -1481,7 +1481,7 @@ pages:
   town_source_evidence: town_all_terrain_sources_followup
   source_inventory_evidence: map_registered_inventory_followup
   readiness_followup: map_all_controls_followup · 공용 구현 적용, 모의 성공·실패 브라우저 검증. 개별 맵 렌더링 검증과 구분.
-  label: 이슬온 · 마을맵 검수
+  label: 이슬온 · 도시맵 검수
   category: town-map-review
   ui_mode: gradio
   url: /management/frame/map-review/?map=iseulon&townPage=1

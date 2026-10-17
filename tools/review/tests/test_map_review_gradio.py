@@ -64,7 +64,7 @@ class MapReviewGradioTest(unittest.TestCase):
     def test_town_specific_page_reuses_common_map_review_frame(self):
         page_preview_html = create_page_preview_html(
             'map-review-stonewarm',
-            [{'id':'map-review-stonewarm','label':'돌온재 · 마을 맵 검수','path':'/isloon-map-review/map-review.html?map=stonewarm&amp;townPage=1','category':'tile-review','uiMode':'gradio','frameIdentifier':'map-review','frameQuery':'map=stonewarm&townPage=1','description':'돌온재 전용 검수'}],
+            [{'id':'map-review-stonewarm','label':'돌온재 · 도시맵 검수','path':'/isloon-map-review/map-review.html?map=stonewarm&amp;townPage=1','category':'tile-review','uiMode':'gradio','frameIdentifier':'map-review','frameQuery':'map=stonewarm&townPage=1','description':'돌온재 전용 검수'}],
             8770,
         )
 

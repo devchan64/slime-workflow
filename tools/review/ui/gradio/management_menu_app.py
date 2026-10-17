@@ -15,7 +15,7 @@ WORKFLOW_ROOT_DIRECTORY=Path(__file__).resolve().parents[4]
 if str(WORKFLOW_ROOT_DIRECTORY) not in sys.path:sys.path.insert(0,str(WORKFLOW_ROOT_DIRECTORY))
 from tools.review.common.gpu_status import read_gpu_status
 
-CATEGORY_LABEL_VALUES={'all':'전체','map-review':'맵 검수','sound-effects':'효과음 생성','music-generation':'음악생성','writer-agent':'작가 AI 에이전트','image-generation':'이미지 생성','animation':'등록 애니메이션','animation-tool':'애니메이션 도구','character-render-review':'캐릭터 렌더링 검수','town-map-review':'마을맵 검수','game-ui':'게임 UI · 디자인 시스템'}
+CATEGORY_LABEL_VALUES={'all':'전체','map-review':'맵 검수','sound-effects':'효과음 생성','music-generation':'음악생성','writer-agent':'작가 AI 에이전트','image-generation':'이미지 생성','animation':'등록 애니메이션','animation-tool':'애니메이션 도구','character-render-review':'캐릭터 렌더링 검수','town-map-review':'도시맵 검수','game-ui':'게임 UI · 디자인 시스템'}
 MANAGEMENT_FRAME_PATH_PREFIX='/management/frame/'
 MANAGEMENT_FRAME_IDENTIFIER_VALUES={'anny-attribute-renderer':'anny-attributes'}
 NATIVE_MANAGEMENT_APPLICATIONS=frozenset(('sfx-stable-audio','music-ace-step','music-minimax','vace-v2v-generator','phantom-generator','hy-motion-generator','anny-landmarks','animation-separation','qwen-21-circular-generator','pose-transfer-generator','outfit-transfer-generator','qwen-21-generator','expression-generator','sprite-editor-v2','character-review','map-review','anny-attributes','writer-agent'))
@@ -85,7 +85,7 @@ def load_manager_page_records(source_file_path, current_animation_catalog=False)
             current_map_identifier=current_page_record['id'].removeprefix('map-review-')
             current_review_category='town-map-review' if current_map_identifier in MAP_CITY_REVIEW_IDENTIFIERS else 'field-map-review'
             current_map_name=current_page_record['label'].split(' · ')[0]
-            current_page_record={**current_page_record,'category':current_review_category,'label':current_map_name+' · '+('마을맵 검수' if current_review_category=='town-map-review' else '맵 검수')}
+            current_page_record={**current_page_record,'category':current_review_category,'label':current_map_name+' · '+('도시맵 검수' if current_review_category=='town-map-review' else '맵 검수')}
         if current_page_record['id'] in page_identifier_values:continue
         if not current_page_record['path'].startswith('/'):current_page_record={**current_page_record,'path':'/'+current_page_record['path']}
         page_identifier_values.add(current_page_record['id'])
@@ -98,7 +98,7 @@ def load_manager_page_records(source_file_path, current_animation_catalog=False)
     if not current_animation_catalog:
         current_map_records=[current_page_record for current_page_record in validated_page_records if current_page_record['category'] in ('field-map-review','town-map-review')]
         if current_map_records:
-            current_map_entry={**current_map_records[0],'label':'맵 통합 검수','category':'map-review','description':'야외필드·마을·전투필드 · 선택 맵 리소스 로딩','reviewAliases':[current_page_record['id'] for current_page_record in current_map_records]}
+            current_map_entry={**current_map_records[0],'label':'맵 통합 검수','category':'map-review','description':'야외필드·도시맵·전투필드 · 선택 맵 리소스 로딩','reviewAliases':[current_page_record['id'] for current_page_record in current_map_records]}
             validated_page_records=[current_page_record for current_page_record in validated_page_records if current_page_record['category'] not in ('field-map-review','town-map-review')]+[current_map_entry]
     # 분류 접두어와 등록 순서 대신 도구 이름 오름차순을 모든 탐색에 공유한다.
     return sorted(validated_page_records,key=lambda current_page_record:(current_page_record['label'].casefold(),current_page_record['id']))

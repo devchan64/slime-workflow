@@ -373,7 +373,7 @@ def build_frontend_review(frontend_repository_path, ui_bundle_directory=None):
         for current_map_record in map_index_record:
             current_map_identifier=current_map_record['id']
             current_review_category = 'town-map-review' if current_map_identifier in MAP_CITY_REVIEW_IDENTIFIERS else 'field-map-review'
-            current_review_label = '마을맵 검수' if current_map_identifier in MAP_CITY_REVIEW_IDENTIFIERS else '필드맵 검수'
+            current_review_label = '도시맵 검수' if current_map_identifier in MAP_CITY_REVIEW_IDENTIFIERS else '필드맵 검수'
             manager_page_records.append({'id': f'map-review-{current_map_identifier}', 'label': current_map_record['name']+' · '+current_review_label, 'path': map_review_relative_path+f'?map={current_map_identifier}&townPage=1', 'anchorEditor': False, 'category': current_review_category, 'uiMode':'gradio', 'frameIdentifier':'map-review', 'frameQuery':f'map={current_map_identifier}&townPage=1', 'description': 'Gradio · '+current_map_record['name']+' 전용 검수 · 타일 연결 · 건물 충돌 검수'})
         emit_review_trace('tile-map-review', str(isloon_review_directory.relative_to(WORKFLOW_REPO_ROOT)))
         if __package__:
