@@ -235,7 +235,7 @@ def build_timeline_interface(current_server_address):
         current_seed_control=build_generation_seed(default_seed_value=42)
         gr.Markdown('고정 모델: Wan2.1 VACE 1.3B · CUDA 연산 · CPU 가중치 오프로드 · UniPC · 16fps')
         with gr.Accordion('고급 설정',open=False):
-            current_steps_control=gr.Number(value=50,precision=0,minimum=1,maximum=100,label='추론 스텝 · 1~100 정수',info='기본값 50. 노이즈를 정리하는 반복 횟수입니다. 높이면 생성 시간이 늘어나며, 품질이 반드시 좋아지지는 않습니다.')
+            current_steps_control=gr.Number(value=50,precision=0,minimum=1,maximum=200,label='추론 스텝 · 1~200 정수',info='기본값 50. 노이즈를 정리하는 반복 횟수입니다. 높이면 생성 시간이 늘어나며, 품질이 반드시 좋아지지는 않습니다.')
             current_shift_control=gr.Number(value=VACE_TIMELINE_FLOW_SHIFT,minimum=0.1,maximum=30,label='Flow shift · 0.1~30',info='기본값 3. 추론 스텝을 어느 노이즈 구간에 배분할지 조절합니다. 높이면 노이즈가 많은 구간에 더 배분합니다. 움직임의 크기나 원본 보존율을 직접 정하는 값은 아닙니다.')
             current_guidance_control=gr.Number(value=5.0,minimum=1,maximum=20,label='텍스트 가이던스 (CFG) · 1~20',info='기본값 5. 텍스트 프롬프트의 유도 강도입니다. 높이면 문구의 영향이 강해지지만 왜곡이나 과한 표현이 생길 수 있습니다. 낮추면 시선·구도 등 지시가 약해질 수 있습니다.')
             current_conditioning_control=gr.Number(value=1.0,minimum=0,maximum=2,label='조건 강도 · 0~2',info='기본값 1.0. 입력 영상·마스크·외형 참조로 만든 조건의 영향력입니다. 높이면 입력 조건의 영향이 커지고, 낮추면 자유롭게 생성할 여지가 커집니다. 포즈와 외형 참조에 함께 적용되며 참조만의 독립 강도는 없습니다. 높다고 외형 유사도가 반드시 좋아지지는 않습니다.')

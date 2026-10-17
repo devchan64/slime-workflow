@@ -151,9 +151,13 @@ class VaceGenerationContractTests(unittest.TestCase):
         self.assertEqual(current_valid_record['frames'],65)
 
     def test_invalid_frames_seed_reference_rejected(self):
-        for current_field_name,current_field_value in [('frames',64),('frames',True),('seed',-1),('seed',True),('images',[]),('images',['bad']),('width',768),('steps',101)]:
+        for current_field_name,current_field_value in [('frames',64),('frames',True),('seed',-1),('seed',True),('images',[]),('images',['bad']),('width',768),('steps',201)]:
             with self.subTest(field=current_field_name,value=current_field_value),self.assertRaises(ValueError):
                 validate_vace_request({**self.create_vace_payload(),current_field_name:current_field_value})
+
+    def test_step_upper_boundary_accepts_200(self):
+        current_valid_record=validate_vace_request({**self.create_vace_payload(),'steps':200})
+        self.assertEqual(current_valid_record['vace']['steps'],200)
 
     def test_parameter_rules_and_legacy_resume(self):
         for current_frame_count in (1,5,17,33,81,97,161):

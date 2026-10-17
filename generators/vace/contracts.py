@@ -68,8 +68,8 @@ def validate_vace_request(current_request_record):
         current_default_values[current_field_name] = current_field_value
     if (current_default_values['width'],current_default_values['height']) not in VACE_ALLOWED_IMAGE_SIZES:
         raise ValueError('해상도는 832×480, 480×832, 512×512 중 선택하세요.')
-    if not 1 <= current_default_values['steps'] <= 100:
-        raise ValueError('스텝은 1~100 정수여야 합니다.')
+    if not 1 <= current_default_values['steps'] <= 200:
+        raise ValueError('스텝은 1~200 정수여야 합니다.')
     for current_field_name,current_lower_bound,current_upper_bound in (('flow_shift',0.1,30),('guidance_scale',1,20),('conditioning_scale',0,2)):
         current_field_value = current_request_record.get(current_field_name,current_default_values[current_field_name])
         if type(current_field_value) not in (int,float) or not math.isfinite(current_field_value) or not current_lower_bound <= current_field_value <= current_upper_bound:
