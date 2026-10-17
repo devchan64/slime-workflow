@@ -15,7 +15,7 @@ WORKFLOW_ROOT_DIRECTORY=Path(__file__).resolve().parents[4]
 if str(WORKFLOW_ROOT_DIRECTORY) not in sys.path:sys.path.insert(0,str(WORKFLOW_ROOT_DIRECTORY))
 from tools.review.common.gpu_status import read_gpu_status
 
-CATEGORY_LABEL_VALUES={'all':'전체','map-review':'맵 검수','sound-effects':'효과음 생성','music-generation':'음악생성','writer-agent':'작가 AI 에이전트','image-generation':'이미지 생성','animation':'등록 애니메이션','animation-tool':'애니메이션 도구','character-render-review':'캐릭터 렌더링 검수','town-map-review':'마을맵 검수','field-map-review':'필드맵 검수','game-ui':'게임 UI · 디자인 시스템'}
+CATEGORY_LABEL_VALUES={'all':'전체','map-review':'맵 검수','sound-effects':'효과음 생성','music-generation':'음악생성','writer-agent':'작가 AI 에이전트','image-generation':'이미지 생성','animation':'등록 애니메이션','animation-tool':'애니메이션 도구','character-render-review':'캐릭터 렌더링 검수','town-map-review':'마을맵 검수','game-ui':'게임 UI · 디자인 시스템'}
 MANAGEMENT_FRAME_PATH_PREFIX='/management/frame/'
 MANAGEMENT_FRAME_IDENTIFIER_VALUES={'anny-attribute-renderer':'anny-attributes'}
 NATIVE_MANAGEMENT_APPLICATIONS=frozenset(('sfx-stable-audio','music-ace-step','music-minimax','vace-v2v-generator','phantom-generator','hy-motion-generator','anny-landmarks','animation-separation','qwen-21-circular-generator','pose-transfer-generator','outfit-transfer-generator','qwen-21-generator','expression-generator','sprite-editor-v2','character-review','map-review','anny-attributes','writer-agent'))
@@ -85,7 +85,7 @@ def load_manager_page_records(source_file_path, current_animation_catalog=False)
             current_map_identifier=current_page_record['id'].removeprefix('map-review-')
             current_review_category='town-map-review' if current_map_identifier in MAP_CITY_REVIEW_IDENTIFIERS else 'field-map-review'
             current_map_name=current_page_record['label'].split(' · ')[0]
-            current_page_record={**current_page_record,'category':current_review_category,'label':current_map_name+' · '+CATEGORY_LABEL_VALUES[current_review_category]}
+            current_page_record={**current_page_record,'category':current_review_category,'label':current_map_name+' · '+('마을맵 검수' if current_review_category=='town-map-review' else '맵 검수')}
         if current_page_record['id'] in page_identifier_values:continue
         if not current_page_record['path'].startswith('/'):current_page_record={**current_page_record,'path':'/'+current_page_record['path']}
         page_identifier_values.add(current_page_record['id'])
@@ -191,6 +191,7 @@ def create_initial_selection_script(page_record_values):
     return f"""()=>{{
         const pageRecords={serialized_page_records};
         const currentUrlValue=new URL(window.location.href);
+        if(currentUrlValue.searchParams.get('category')==='field-map-review'){{currentUrlValue.searchParams.set('category','map-review');window.history.replaceState(window.history.state,'',currentUrlValue.href);}}
         const requestedPageIdentifier=currentUrlValue.searchParams.get('review')||currentUrlValue.searchParams.get('tool');
         const currentCatalogRecord=pageRecords.find(record=>record.reviewAliases?.includes(requestedPageIdentifier));
         const resolvedPageIdentifier=currentCatalogRecord?.id||{json.dumps(LEGACY_PAGE_IDENTIFIER_VALUES)}[requestedPageIdentifier]||requestedPageIdentifier;
