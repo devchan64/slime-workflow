@@ -6,7 +6,7 @@ import sys
 WORKFLOW_ROOT_DIRECTORY = Path(__file__).resolve().parents[4]
 sys.path.insert(0,str(WORKFLOW_ROOT_DIRECTORY))
 import gradio as gr
-from generators.music.contracts import build_music_request, load_music_defaults, resolve_music_profile, validate_music_request
+from generators.music.contracts import build_music_request, load_music_defaults, resolve_music_profile, validate_music_request, resolve_audio_minimum
 from tools.review.common.generation_cleanup import GENERATION_CLEANUP_SCOPE_TEXT
 from tools.review.common.management_client import execute_remote_management_command
 from tools.review.common.gradio_seed import build_generation_seed
@@ -19,8 +19,10 @@ from tools.review.common.gradio_audio_results import render_audio_generation_res
 
 
 def describe_music_prompt(current_service_name,current_prompt_text,current_loop_value):
-    current_default_record = load_music_defaults()
+    current_default_record = load_music_defaults(current_service_name)
     current_final_prompt = current_prompt_text.strip()+' '+current_default_record['instrumental_suffix']
+    if current_service_name == 'sfx-stable-audio':
+        current_final_prompt = current_final_prompt.strip()
     if current_loop_value:
         current_final_prompt += ' '+current_default_record['loop_suffix']
     return f'원문 {len(current_prompt_text.split())}단어 · 추가 {len(current_final_prompt.split())-len(current_prompt_text.split())}단어 · 최종 {len(current_final_prompt.split())}단어',current_final_prompt.strip()
@@ -28,24 +30,29 @@ def describe_music_prompt(current_service_name,current_prompt_text,current_loop_
 
 def build_music_interface(current_service_name,current_server_address):
     current_profile_record = resolve_music_profile(current_service_name)
-    current_default_record = load_music_defaults()
+    current_default_record = load_music_defaults(current_service_name)
+    current_effects_mode = current_service_name == 'sfx-stable-audio'
+    current_content_label = '효과음' if current_effects_mode else '음악'
+    current_prompt_label = '소리·재질·동작 설명' if current_effects_mode else '장르·악기·분위기 프롬프트'
+    current_content_description = '짧은 게임 효과음과 환경음 후보를 로컬 CUDA에서 생성합니다. 출력은 44.1kHz stereo PCM16 WAV입니다.' if current_effects_mode else '게임 BGM 후보를 로컬 CUDA에서 생성합니다. 출력은 stereo WAV이며 MIDI는 생성하지 않습니다.'
+    current_hardware_notice = '8스텝 · CUDA FP16 · 실제 VRAM 피크·음질은 생성 후 확인' if current_effects_mode else '8GB GPU 로딩 검증 완료, 음악 생성 피크는 별도 확인 필요'
     def execute_music_command(current_command_name,current_payload_record):
         return execute_remote_management_command(current_service_name,current_command_name,current_payload_record)
-    with gr.Blocks(title=current_profile_record['label']+' 음악생성') as current_interface_blocks:
-        gr.Markdown('## '+current_profile_record['label']+' · 음악생성\n게임 BGM 후보를 로컬 CUDA에서 생성합니다. 출력은 stereo WAV이며 MIDI는 생성하지 않습니다.')
-        gr.Markdown(f"고정 모델: `{current_profile_record['model_id']}` · 기본 {current_default_record['duration_seconds']}초 · batch 1 · 8GB GPU 로딩 검증 완료, 음악 생성 피크는 별도 확인 필요\n\n[{current_profile_record['license_notice']}]({current_profile_record['license_url']})")
+    with gr.Blocks(title=current_profile_record['label']+' '+current_content_label+' 생성') as current_interface_blocks:
+        gr.Markdown('## '+current_profile_record['label']+' · '+current_content_label+' 생성\n'+current_content_description)
+        gr.Markdown(f"고정 모델: `{current_profile_record['model_id']}` · 기본 {current_default_record['duration_seconds']}초 · batch 1 · {current_hardware_notice}\n\n[{current_profile_record['license_notice']}]({current_profile_record['license_url']})")
         current_model_status = gr.Markdown('모델 준비 상태 확인 중')
         current_prepare_button = gr.Button('모델 다운로드·준비')
         with gr.Column() as current_prepare_container:
             pass
-        current_prompt_control = gr.Textbox(value=current_default_record['prompt'],label='장르·악기·분위기 프롬프트',lines=4,placeholder='예: Calm fantasy village music with flute and acoustic strings')
+        current_prompt_control = gr.Textbox(value=current_default_record['prompt'],label=current_prompt_label,lines=4,placeholder='영어로 원하는 소리와 동작을 설명하세요.' if current_effects_mode else '예: Calm fantasy village music with flute and acoustic strings')
         current_prompt_reset = gr.Button('프롬프트 초기화',size='sm')
         current_prompt_reset.click(lambda:'',outputs=current_prompt_control,queue=False)
         with gr.Row():
-            current_duration_control = gr.Number(value=current_default_record['duration_seconds'],minimum=5,maximum=current_profile_record['max_duration_seconds'],label='요청 길이(초)')
+            current_duration_control = gr.Number(value=current_default_record['duration_seconds'],minimum=resolve_audio_minimum(current_service_name),maximum=current_profile_record['max_duration_seconds'],label='요청 길이(초)')
             current_seed_control = build_generation_seed(default_seed_value=current_default_record['seed'])
         current_loop_control = gr.Checkbox(value=current_default_record['loop_request'],label='반복 구조 요청 · 선택 사항, 이음새 없는 루프 보장 없음')
-        gr.Markdown('반주는 프롬프트로 요청합니다. 보컬이 섞이거나 길이가 달라질 수 있으므로 결과를 청취하세요. 반복 구조 요청은 생성 문구를 추가하며 오디오를 자동 접합하지 않습니다.')
+        gr.Markdown('영어 프롬프트를 권장합니다. 반복 요청은 환경음 문구를 추가하며 이음새 없는 루프를 보장하지 않습니다. 모델 접근 승인은 위 링크에서 진행하고 인증정보는 입력창에 넣지 마세요.' if current_effects_mode else '반주는 프롬프트로 요청합니다. 보컬이 섞이거나 길이가 달라질 수 있으므로 결과를 청취하세요. 반복 구조 요청은 생성 문구를 추가하며 오디오를 자동 접합하지 않습니다.')
         current_prompt_counts,current_final_prompt = describe_music_prompt(current_service_name,current_default_record['prompt'],current_default_record['loop_request'])
         current_prompt_summary = gr.Markdown(current_prompt_counts)
         with gr.Accordion('최종 모델 입력 원문',open=False):
@@ -53,11 +60,11 @@ def build_music_interface(current_service_name,current_server_address):
         def update_music_prompt(current_prompt_text,current_loop_value):
             return describe_music_prompt(current_service_name,current_prompt_text,current_loop_value)
         current_tag_control = gr.Textbox(label='이력 태그',max_lines=1)
-        current_generate_button = gr.Button('음악 생성 · 대기열 등록',variant='primary',interactive=bool(current_default_record['prompt'].strip()))
-        current_generate_notice = build_button_guidance(current_generate_button, '장르·악기·분위기 프롬프트를 입력하면 생성할 수 있습니다.')
+        current_generate_button = gr.Button(current_content_label+' 생성 · 대기열 등록',variant='primary',interactive=bool(current_default_record['prompt'].strip()))
+        current_generate_notice = build_button_guidance(current_generate_button, current_prompt_label+'을 입력하면 생성할 수 있습니다.')
         for current_prompt_source in (current_prompt_control,current_loop_control):
             current_prompt_source.change(update_music_prompt,[current_prompt_control,current_loop_control],[current_prompt_summary,current_final_control],queue=False)
-        current_prompt_control.change(lambda current_prompt_text:'입력한 설정으로 생성 대기열에 등록합니다.' if current_prompt_text.strip() else '장르·악기·분위기 프롬프트를 입력하면 생성할 수 있습니다.',current_prompt_control,current_generate_notice,queue=False)
+        current_prompt_control.change(lambda current_prompt_text:'입력한 설정으로 생성 대기열에 등록합니다.' if current_prompt_text.strip() else current_prompt_label+'을 입력하면 생성할 수 있습니다.',current_prompt_control,current_generate_notice,queue=False)
         with gr.Column() as current_generation_container:
             pass
         gr.Markdown('모델 준비가 없으면 생성 작업에서 먼저 준비합니다. 다운로드 권한·실행 환경 오류는 로그에 기록하며 다른 모델로 대체하지 않습니다.')
@@ -72,7 +79,7 @@ def build_music_interface(current_service_name,current_server_address):
             current_payload_record = {'action':'generate','prompt':current_prompt_text,'duration_seconds':current_duration_value,'seed':int(current_seed_value),'loop_request':current_loop_value,'tag':current_tag_value}
             build_music_request(current_service_name,current_payload_record)
             current_job_record = execute_music_command('generate',current_payload_record)
-            return current_job_record['id'],'음악 생성 대기열에 등록했습니다.', '<p>새 작업의 결과를 기다립니다.</p>',''
+            return current_job_record['id'],current_content_label+' 생성 대기열에 등록했습니다.', '<p>새 작업의 결과를 기다립니다.</p>',''
         bind_gpu_generation_confirmation(current_generate_button,start_music_generation,[current_prompt_control,current_duration_control,current_seed_control,current_loop_control,current_tag_control],[current_job_control,current_status_display,current_result_display,current_result_identity],generation_confirmation_container=current_generation_container, generation_readiness_callback=lambda current_prompt_text: bool(current_prompt_text and current_prompt_text.strip()), generation_readiness_inputs=[current_prompt_control])
         def prepare_music_assets():
             current_job_record = execute_music_command('prepare',{'action':'prepare'})

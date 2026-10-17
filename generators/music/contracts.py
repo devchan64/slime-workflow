@@ -10,6 +10,9 @@ from tools.review.common.generation_records import validate_history_tag
 WORKFLOW_ROOT_DIRECTORY = Path(__file__).resolve().parents[2]
 MUSIC_DEFAULTS_FILE = Path(__file__).with_name('defaults.yaml')
 MUSIC_SERVICE_NAMES = ('music-ace-step', 'music-minimax')
+SOUND_EFFECT_SERVICE = 'sfx-stable-audio'
+AUDIO_SERVICE_NAMES = (*MUSIC_SERVICE_NAMES, SOUND_EFFECT_SERVICE)
+SOUND_EFFECT_DEFAULTS = WORKFLOW_ROOT_DIRECTORY/'generators/sound_effects/defaults.yaml'
 MUSIC_IDENTIFIER_PATTERN = r'\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-[a-f0-9]{8}'
 MUSIC_PROFILE_FIELDS = {'label','model_id','runtime_directory','max_duration_seconds','sample_rate','steps','license_url','license_notice'}
 MUSIC_REQUEST_FIELDS = {'action','prompt','duration_seconds','seed','loop_request','tag'}
@@ -39,11 +42,21 @@ def read_music_record(current_record_path):
     return json.loads(current_record_path.read_text(), object_pairs_hook=parse_unique_mapping)
 
 
-def load_music_defaults():
-    current_default_record = yaml.load(MUSIC_DEFAULTS_FILE.read_text(), Loader=MusicDefaultsLoader)
+def resolve_audio_defaults(current_service_name=None):
+    if current_service_name is not None and current_service_name not in AUDIO_SERVICE_NAMES:
+        raise ValueError('지원하지 않는 오디오 생성기')
+    return SOUND_EFFECT_DEFAULTS if current_service_name == SOUND_EFFECT_SERVICE else MUSIC_DEFAULTS_FILE
+
+
+def resolve_audio_minimum(current_service_name):
+    return 0.5 if current_service_name == SOUND_EFFECT_SERVICE else 5
+
+
+def load_music_defaults(current_service_name=None):
+    current_default_record = yaml.load(resolve_audio_defaults(current_service_name).read_text(), Loader=MusicDefaultsLoader)
     if not isinstance(current_default_record,dict) or set(current_default_record) != {'version','prompt','duration_seconds','seed','loop_request','instrumental_suffix','loop_suffix','profiles'} or type(current_default_record['version']) is not int or current_default_record['version'] != 1:
         raise ValueError('음악 기본 설정 스키마 오류')
-    if set(current_default_record['profiles']) != set(MUSIC_SERVICE_NAMES):
+    if not isinstance(current_default_record['profiles'],dict) or set(current_default_record['profiles']) != ({SOUND_EFFECT_SERVICE} if current_service_name == SOUND_EFFECT_SERVICE else set(MUSIC_SERVICE_NAMES)):
         raise ValueError('음악 모델 설정 목록 오류')
     for current_service_name, current_profile_record in current_default_record['profiles'].items():
         if set(current_profile_record) != MUSIC_PROFILE_FIELDS:
@@ -54,20 +67,20 @@ def load_music_defaults():
         for current_field_name in ('max_duration_seconds','sample_rate','steps'):
             if type(current_profile_record[current_field_name]) is not int or current_profile_record[current_field_name] <= 0:
                 raise ValueError(f'모델 수치 설정 오류: {current_field_name}')
-        if not re.fullmatch(r'\.venv-music-[a-z]+',current_profile_record['runtime_directory']):
+        if not re.fullmatch(r'\.venv-(?:music|sfx)-[a-z]+',current_profile_record['runtime_directory']):
             raise ValueError('음악 실행 환경 경로 오류')
     for current_field_name in ('prompt','instrumental_suffix','loop_suffix'):
         if not isinstance(current_default_record[current_field_name],str):
             raise ValueError('기본 프롬프트는 문자열이어야 합니다.')
-    if type(current_default_record['loop_request']) is not bool or type(current_default_record['seed']) is not int or not 0 <= current_default_record['seed'] <= 2**32-1 or type(current_default_record['duration_seconds']) is not int or not 5 <= current_default_record['duration_seconds'] <= 60:
+    if type(current_default_record['loop_request']) is not bool or type(current_default_record['seed']) is not int or not 0 <= current_default_record['seed'] <= 2**32-1 or type(current_default_record['duration_seconds']) is not int or not resolve_audio_minimum(current_service_name) <= current_default_record['duration_seconds'] <= 60:
         raise ValueError('기본 길이·시드·반복 요청 설정 오류')
     return current_default_record
 
 
 def resolve_music_profile(current_service_name):
-    if current_service_name not in MUSIC_SERVICE_NAMES:
+    if current_service_name not in AUDIO_SERVICE_NAMES:
         raise ValueError('지원하지 않는 음악 생성기')
-    return load_music_defaults()['profiles'][current_service_name]
+    return load_music_defaults(current_service_name)['profiles'][current_service_name]
 
 
 def resolve_music_paths(current_service_name):
@@ -87,7 +100,7 @@ def validate_music_request(current_service_name, current_request_record):
         return {'action':'prepare'}
     if current_action_name != 'generate':
         raise ValueError('지원하지 않는 음악 작업')
-    current_default_record = load_music_defaults()
+    current_default_record = load_music_defaults(current_service_name)
     current_profile_record = resolve_music_profile(current_service_name)
     current_prompt_text = current_request_record.get('prompt')
     if not isinstance(current_prompt_text,str) or not current_prompt_text.strip() or len(current_prompt_text) > 4000 or '\x00' in current_prompt_text:
@@ -97,8 +110,8 @@ def validate_music_request(current_service_name, current_request_record):
     current_loop_value = current_request_record.get('loop_request',current_default_record['loop_request'])
     if type(current_seed_value) is not int or not 0 <= current_seed_value <= 2**32-1:
         raise ValueError('시드는 0~4294967295 정수여야 합니다.')
-    if type(current_duration_value) not in (int,float) or not math.isfinite(current_duration_value) or not 5 <= current_duration_value <= current_profile_record['max_duration_seconds']:
-        raise ValueError(f"길이는 5~{current_profile_record['max_duration_seconds']}초여야 합니다.")
+    if type(current_duration_value) not in (int,float) or not math.isfinite(current_duration_value) or not resolve_audio_minimum(current_service_name) <= current_duration_value <= current_profile_record['max_duration_seconds']:
+        raise ValueError(f"길이는 {resolve_audio_minimum(current_service_name)}~{current_profile_record['max_duration_seconds']}초여야 합니다.")
     if type(current_loop_value) is not bool:
         raise ValueError('반복 구조 요청은 bool이어야 합니다.')
     return {'action':'generate','prompt':current_prompt_text.strip(),'duration_seconds':float(current_duration_value),'seed':current_seed_value,'loop_request':current_loop_value,'tag':validate_history_tag(current_request_record.get('tag',''))}
@@ -106,16 +119,18 @@ def validate_music_request(current_service_name, current_request_record):
 
 def build_music_request(current_service_name, current_payload_record):
     current_input_record = validate_music_request(current_service_name,current_payload_record)
-    current_default_record = load_music_defaults()
+    current_default_record = load_music_defaults(current_service_name)
     current_final_prompt = ''
     if current_input_record['action'] == 'generate':
         current_final_prompt = current_input_record['prompt']+' '+current_default_record['instrumental_suffix']
+        if current_service_name == SOUND_EFFECT_SERVICE:
+            current_final_prompt = current_final_prompt.strip()
         if current_input_record['loop_request']:
             current_final_prompt += ' '+current_default_record['loop_suffix']
     return {**current_input_record,'service':current_service_name,'model_id':resolve_music_profile(current_service_name)['model_id'],
             'final_prompt':current_final_prompt,'prompt_words':len(current_input_record.get('prompt','').split()),
             'final_prompt_words':len(current_final_prompt.split()),'prompt_sha256':hashlib.sha256(current_final_prompt.encode()).hexdigest(),
-            'defaults_sha256':hashlib.sha256(MUSIC_DEFAULTS_FILE.read_bytes()).hexdigest()}
+            'defaults_sha256':hashlib.sha256(resolve_audio_defaults(current_service_name).read_bytes()).hexdigest()}
 
 
 def verify_music_request(current_service_name, current_saved_record):

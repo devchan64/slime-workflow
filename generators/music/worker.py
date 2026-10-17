@@ -8,7 +8,7 @@ import uuid
 
 WORKFLOW_ROOT_DIRECTORY = Path(__file__).resolve().parents[2]
 sys.path.insert(0,str(WORKFLOW_ROOT_DIRECTORY))
-from generators.music.contracts import MUSIC_SERVICE_NAMES, read_music_record, resolve_music_paths, resolve_music_profile, verify_music_request, validate_music_identifier
+from generators.music.contracts import AUDIO_SERVICE_NAMES, read_music_record, resolve_music_paths, resolve_music_profile, verify_music_request, validate_music_identifier
 from generators.music.runtime import prepare_music_model, execute_music_inference, calculate_music_checksum
 from tools.review.common.generation_records import write_record_atomically
 from tools.review.common.generation_telemetry import GenerationTelemetryRecorder
@@ -20,12 +20,13 @@ def handle_music_signal(current_signal_number,current_stack_frame):
 
 def collect_music_durations(current_storage_root,current_request_record,current_device_name):
     current_duration_samples = []
+    current_runtime_path = WORKFLOW_ROOT_DIRECTORY/('generators/sound_effects/runtime.py' if current_request_record['service']=='sfx-stable-audio' else 'generators/music/runtime.py')
     current_condition_fields = ('action','model_id','duration_seconds','defaults_sha256')
     for current_result_path in current_storage_root.glob('*/attempts/*/result.json'):
         current_previous_request = read_music_record(current_result_path.parent/'request.json')
         current_previous_metrics = read_music_record(current_result_path.parent/'metrics.json')
         current_previous_result = read_music_record(current_result_path)
-        if current_previous_result.get('included_download') or current_previous_result.get('runtime_sha256') != calculate_music_checksum(Path(__file__).with_name('runtime.py')):
+        if current_previous_result.get('included_download') or current_previous_result.get('runtime_sha256') != calculate_music_checksum(current_runtime_path):
             continue
         if current_previous_metrics['status'] == 'completed' and current_previous_metrics.get('gpu_name') == current_device_name and all(current_previous_request.get(current_field_name)==current_request_record.get(current_field_name) for current_field_name in current_condition_fields):
             current_duration_samples.append(current_previous_metrics['elapsed_seconds'])
@@ -33,6 +34,15 @@ def collect_music_durations(current_storage_root,current_request_record,current_
 
 
 def execute_music_worker(current_service_name,current_job_root):
+    current_prepare_callback = prepare_music_model
+    current_inference_callback = execute_music_inference
+    from generators.music.runtime import require_music_cuda
+    current_cuda_callback = require_music_cuda
+    if current_service_name == 'sfx-stable-audio':
+        from generators.sound_effects.runtime import prepare_effects_model, execute_effects_inference, require_effects_cuda
+        current_prepare_callback = prepare_effects_model
+        current_inference_callback = execute_effects_inference
+        current_cuda_callback = require_effects_cuda
     current_storage_root,_,_ = resolve_music_paths(current_service_name)
     if current_job_root.parent.resolve() != current_storage_root.resolve() or current_job_root.is_symlink():
         raise ValueError('음악 작업 경로 오류')
@@ -49,20 +59,20 @@ def execute_music_worker(current_service_name,current_job_root):
     try:
         current_request_record = verify_music_request(current_service_name,read_music_record(current_job_root/'request.json'))
         write_record_atomically(current_attempt_root/'request.json',current_request_record)
-        from generators.music.runtime import require_music_cuda
-        current_torch_module = require_music_cuda()
+        current_torch_module = current_cuda_callback()
+        current_torch_module.cuda.reset_peak_memory_stats()
         current_device_name = current_torch_module.cuda.get_device_name()
         current_metrics_recorder.current_run_state['gpu_name'] = current_device_name
         # 준비 다운로드 시간은 조건이 일정하지 않으므로 추정 표본으로 쓰지 않는다.
         current_model_ready = (resolve_music_paths(current_service_name)[1]/'prepared.json').exists()
         if current_model_ready and current_request_record['action']=='generate':
             current_metrics_recorder.historical_duration_values = collect_music_durations(current_storage_root,current_request_record,current_device_name)
-        current_prepared_record = prepare_music_model(current_service_name,current_metrics_recorder,current_request_record['action']=='prepare')
+        current_prepared_record = current_prepare_callback(current_service_name,current_metrics_recorder,current_request_record['action']=='prepare')
         write_record_atomically(current_attempt_root/'model-manifest.json',current_prepared_record)
         if current_request_record['action']=='prepare':
             current_result_record = {'attempt':current_attempt_root.name,'prepared':True,'model_id':current_request_record['model_id']}
         else:
-            current_result_record = execute_music_inference(current_service_name,current_request_record,current_attempt_root,current_metrics_recorder)
+            current_result_record = current_inference_callback(current_service_name,current_request_record,current_attempt_root,current_metrics_recorder)
         current_result_record['included_download'] = not current_model_ready
         write_record_atomically(current_attempt_root/'result.json',current_result_record)
         write_record_atomically(current_job_root/'result.json',current_result_record)
@@ -81,7 +91,7 @@ def execute_music_worker(current_service_name,current_job_root):
 
 if __name__ == '__main__':
     current_argument_parser = argparse.ArgumentParser(description=__doc__)
-    current_argument_parser.add_argument('--service',choices=MUSIC_SERVICE_NAMES,required=True)
+    current_argument_parser.add_argument('--service',choices=AUDIO_SERVICE_NAMES,required=True)
     current_argument_parser.add_argument('--job-dir',type=Path,required=True)
     current_argument_values = current_argument_parser.parse_args()
     execute_music_worker(current_argument_values.service,current_argument_values.job_dir)

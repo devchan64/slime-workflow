@@ -24,6 +24,7 @@ class MusicGenerationManager:
         self.current_profile_record = resolve_music_profile(current_service_name)
         self.job_storage_root,self.model_storage_root,self.runtime_python_path = resolve_music_paths(current_service_name)
         self.route_prefix_value = '/'+current_service_name
+        self.audio_output_filename = 'sound.wav' if current_service_name=='sfx-stable-audio' else 'music.wav'
         self.history_storage_root = WORKFLOW_ROOT_DIRECTORY/'.tmp/manager-current'/current_service_name
         self.current_request_lock = threading.RLock()
 
@@ -44,7 +45,7 @@ class MusicGenerationManager:
     def create_music_job(self,current_payload_record):
         current_request_record = build_music_request(self.current_service_name,current_payload_record)
         if not self.runtime_python_path.is_file():
-            raise FileNotFoundError(f"음악 실행 환경이 없습니다: {self.runtime_python_path}. generators/music/README.md의 설치 절차를 먼저 실행하세요. model_id={self.current_profile_record['model_id']} model_root={self.model_storage_root} model_path={self.model_storage_root}")
+            raise FileNotFoundError(f"음악 실행 환경이 없습니다: {self.runtime_python_path}. 해당 생성기 README.md의 설치 절차를 먼저 실행하세요. model_id={self.current_profile_record['model_id']} model_root={self.model_storage_root} model_path={self.model_storage_root}")
         with self.hold_music_lock():
             current_created_time = datetime.now(ZoneInfo('Asia/Seoul'))
             current_job_identifier = current_created_time.strftime('%Y-%m-%d_%H-%M-%S')+'-'+uuid.uuid4().hex[:8]
@@ -83,7 +84,7 @@ class MusicGenerationManager:
             current_result_record = read_music_record(current_result_path)
             current_status_record['result'] = current_result_record
             if current_result_record.get('format')=='wav':
-                current_status_record['audio'] = f"{self.route_prefix_value}/jobs/{current_job_root.name}/attempts/{current_result_record['attempt']}/music.wav"
+                current_status_record['audio'] = f"{self.route_prefix_value}/jobs/{current_job_root.name}/attempts/{current_result_record['attempt']}/{self.audio_output_filename}"
         if current_include_logs:
             current_log_path = current_job_root/'worker.log'
             if current_log_path.is_file():
@@ -113,9 +114,11 @@ class MusicGenerationManager:
             return self.create_music_job(current_payload_record)
         if current_command_name=='model-status':
             from generators.music.runtime import validate_prepared_music
+            if self.current_service_name == 'sfx-stable-audio':
+                from generators.sound_effects.runtime import validate_effects_model as validate_prepared_music
             try:
                 validate_prepared_music(self.current_service_name)
-                return {'ready':True,'message':'모델 준비됨 · 실제 8GB 피크는 실행 이력에서 확인','model_id':self.current_profile_record['model_id']}
+                return {'ready':True,'message':'모델 준비됨 · VRAM 관측 피크는 실행 이력에서 확인','model_id':self.current_profile_record['model_id']}
             except (OSError,ValueError,KeyError) as current_prepare_error:
                 return {'ready':False,'message':str(current_prepare_error),'model_id':self.current_profile_record['model_id']}
         if current_command_name in ('history','active'):
@@ -153,10 +156,10 @@ class MusicGenerationManager:
         try:
             validate_management_http_request(current_http_handler)
             current_url_path = urlsplit(current_http_handler.path).path
-            current_file_match = re.fullmatch(re.escape(self.route_prefix_value)+r'/jobs/('+MUSIC_IDENTIFIER_PATTERN+r')/attempts/([a-f0-9]{32})/music\.wav',current_url_path)
+            current_file_match = re.fullmatch(re.escape(self.route_prefix_value)+r'/jobs/('+MUSIC_IDENTIFIER_PATTERN+r')/attempts/([a-f0-9]{32})/'+re.escape(self.audio_output_filename),current_url_path)
             if current_http_handler.command=='GET' and current_file_match:
                 current_job_root = self.resolve_music_job(current_file_match[1])
-                current_audio_path = current_job_root/'attempts'/current_file_match[2]/'music.wav'
+                current_audio_path = current_job_root/'attempts'/current_file_match[2]/self.audio_output_filename
                 if not current_audio_path.resolve().is_relative_to(current_job_root.resolve()):
                     raise ValueError('음악 결과 경로 오류')
                 current_response_bytes = current_audio_path.read_bytes()

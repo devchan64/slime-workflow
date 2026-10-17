@@ -636,3 +636,8 @@ python3 tools/manager.py command writer-agent writer-detail --payload-file /abso
 ```
 
 접수 입력은 기존 `{mode, prompt}` 계약이며 mode는 `prepare`, `learn`, `write`, `deduplicate`다. 상세 조회는 `{id}`, 원본 적용은 `{id, proposal_hash}`를 전달한다. `writer-apply`는 조회한 제안 해시와 현재 제안·검토 상태를 다시 검사한다. 적용은 문서 변경 명령이므로 제안 차이를 검토한 후 명시적으로 실행한다. 공용 명령 등록은 GPU 생성기 이력 삭제·재개 기능 구현을 의미하지 않는다.
+
+
+## 효과음 생성
+
+`sfx-stable-audio` 서비스는 Stable Audio 3 Small SFX를 고정 사용한다. 공용 음악 작업 서비스·GPU 대기열·Gradio 이력을 재사용하며 음악용 `music-stable-audio` 폐기는 유지한다. `generate/prepare/model-status/status/logs/history/active/cancel/resume/prioritize/history-delete/history-reset-preview/history-reset`을 제공한다. 입력은 `prompt`, `duration_seconds`(0.5~30초, 기본 3초), `seed`, `loop_request`, `tag`다. 음악용 반주 문구는 추가하지 않는다. [효과음 사용법](../generators/sound_effects/README.md)에 설치·모델 접근·기록 경로를 정리했다.

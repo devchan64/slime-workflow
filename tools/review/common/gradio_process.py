@@ -85,9 +85,11 @@ def create_gradio_source_fingerprint(application_source_path,application_file_pa
     if application_file_path.name=='sprite_editor_app.py':
         sprite_editor_directory=WORKFLOW_ROOT_DIRECTORY/'tools/review/ui/character_animation'
         tracked_source_paths.update(sprite_editor_directory/current_file_name for current_file_name in ('sprite-editor.html','sprite-editor.js'))
-    if application_file_path.name.startswith('music_'):
+    if application_file_path.name.startswith(('music_', 'sfx_')):
         tracked_source_paths.update((WORKFLOW_ROOT_DIRECTORY/'generators/music').glob('*.py'))
         tracked_source_paths.add(WORKFLOW_ROOT_DIRECTORY/'generators/music/defaults.yaml')
+        tracked_source_paths.update((WORKFLOW_ROOT_DIRECTORY/'generators/sound_effects').glob('*.py'))
+        tracked_source_paths.add(WORKFLOW_ROOT_DIRECTORY/'generators/sound_effects/defaults.yaml')
     tracked_source_paths.update(common_source_directory.glob('gradio_*.py'))
     tracked_source_paths.update(common_source_directory/current_file_name for current_file_name in ('management_client.py','management_transport.py','management_environment.py'))
     for source_directory_path in (gradio_source_directory,shared_ui_directory):
@@ -97,6 +99,7 @@ def create_gradio_source_fingerprint(application_source_path,application_file_pa
 def ensure_gradio_application(review_server_port, application_name, application_source_path=None):
     with GRADIO_PROCESS_LOCK:
         application_definitions={
+            'sfx-stable-audio':('sfx_stable_app.py',131,'/management/frame/sfx-stable-audio/'),
             'music-ace-step':('music_ace_app.py',129,'/management/frame/music-ace-step/'),
             'music-minimax':('music_minimax_app.py',130,'/management/frame/music-minimax/'),
             'vace-v2v':('vace_timeline_app.py',127,'/management/frame/vace-v2v-generator/'),

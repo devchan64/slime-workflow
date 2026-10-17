@@ -88,7 +88,7 @@ def create_management_runtime(writer_workspace_config=None):
     from tools.review.domains.vace.generation import VaceGenerationManager
     from tools.review.domains.vace.timeline_generation import VaceTimelineGenerationManager
     from tools.review.domains.phantom.generation import PhantomGenerationManager
-    from generators.music.contracts import MUSIC_SERVICE_NAMES
+    from generators.music.contracts import AUDIO_SERVICE_NAMES
     from tools.review.domains.music.generation import MusicGenerationManager
     writer_agent_service = WriterAgentManager(writer_workspace_config or DEFAULT_WORKSPACE_CONFIG)
     try:
@@ -132,7 +132,7 @@ def create_management_runtime(writer_workspace_config=None):
             'momask': ManagementServiceBinding(momask_generation_service.handle, Path(__file__).resolve().parents[3]/'.tmp/momask-generator/jobs', reject_retired_record_access),
             'character-animation': ManagementServiceBinding(character_animation_service.handle, GENERATION_ROOT_DIRECTORY, resolve_generation_directory),
         }
-        for current_service_name in MUSIC_SERVICE_NAMES:
+        for current_service_name in AUDIO_SERVICE_NAMES:
             current_music_manager = MusicGenerationManager(current_service_name)
             service_binding_records[current_service_name] = bind_stored_management_service(current_music_manager.handle_music_request,current_music_manager.job_storage_root)
         return ManagementServiceRuntime(service_binding_records, writer_agent_service.handle_writer_request, writer_agent_service.close_writer_worker)

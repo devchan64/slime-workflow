@@ -45,8 +45,8 @@ SPRITE_V2_COMMAND_NAMES = tuple('sprite-v2-'+current_command_name for current_co
 MANAGEMENT_COMMAND_ROUTES.update({current_command_name:('POST','/sprite-v2/'+current_command_name.removeprefix('sprite-v2-')) for current_command_name in SPRITE_V2_COMMAND_NAMES})
 MANAGEMENT_SERVICE_COMMANDS['character-animation'] += SPRITE_V2_COMMAND_NAMES
 
-from generators.music.contracts import MUSIC_SERVICE_NAMES, load_music_defaults
-for current_service_name in MUSIC_SERVICE_NAMES:
+from generators.music.contracts import AUDIO_SERVICE_NAMES, load_music_defaults
+for current_service_name in AUDIO_SERVICE_NAMES:
     MANAGEMENT_SERVICE_ROUTES[current_service_name] = '/' + current_service_name
     MANAGEMENT_SERVICE_COMMANDS[current_service_name] = ('generate','prepare','status','logs','history','active','model-status','cancel','resume','history-delete','history-reset')
 
@@ -186,8 +186,10 @@ MANAGEMENT_COMMAND_DESCRIPTIONS = {'wan21-vace-v2v':'Wan2.1 VACE 1.3B V2V · 프
 MANAGEMENT_COMMAND_DESCRIPTIONS['writer-agent']='작가 문서 학습·제안·조회·해시 확인 적용 · --payload-file · 기존 문서/기록 경로 유지'
 MANAGEMENT_COMMAND_DESCRIPTIONS['character-review']='캐릭터 검수 렌더링 PNG 캡처 · --payload-file 설정'
 MANAGEMENT_COMMAND_DESCRIPTIONS['anny-landmarks']='ANNY 기준점 후보 지정·축 검수·누적 저장 · --payload-file JSON · 승인·적용 없음'
-for current_service_name in MUSIC_SERVICE_NAMES:
+for current_service_name in AUDIO_SERVICE_NAMES:
     MANAGEMENT_COMMAND_DESCRIPTIONS[current_service_name] = '음악생성 · 고정 로컬 모델 · CUDA · WAV · 8GB용 설정(실측 검증 필요)'
+
+MANAGEMENT_COMMAND_DESCRIPTIONS['sfx-stable-audio']='효과음 생성 · Stable Audio 3 Small SFX · CUDA · 0.5~30초 WAV'
 
 MANAGEMENT_COMMAND_DESCRIPTIONS['hy-motion']='HY-Motion Lite 원본 모션 · CPU 메모리 오프로드 / CUDA 연산 · 준비·생성·ANNY VNCCS 출력(export-vnccs --payload-file)·이력·취소·재개'
 MANAGEMENT_COMMAND_DESCRIPTIONS['pose-transfer']='VNCCS V1.1 · Qwen 2.1 공식 파이프라인 · BF16 비양자화 · 512px 고정·25/40스텝 선택(기본 40) · 업로드 아이덴티티→포즈, 모델 전달 포즈→아이덴티티 · 부분 추종 경고'
@@ -232,8 +234,8 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
             operation_argument_parser.add_argument('--detach',action='store_true',help='작업 ID 출력 후 반환')
         if operation_command_name in ('generate','queue'):
             operation_argument_parser.add_argument('--tag',default='',help='생성 이력 구분 태그, 최대 80자')
-            if service_command_name in MUSIC_SERVICE_NAMES:
-                current_music_defaults = load_music_defaults()
+            if service_command_name in AUDIO_SERVICE_NAMES:
+                current_music_defaults = load_music_defaults(service_command_name)
                 current_prompt_group = operation_argument_parser.add_mutually_exclusive_group(required=True)
                 current_prompt_group.add_argument('--prompt')
                 current_prompt_group.add_argument('--prompt-file',type=Path)
@@ -339,7 +341,7 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
     if operation_command_name=='history-reset':command_payload_value={'action':'reset'}
     if operation_command_name=='prepare':command_payload_value={'action':'prepare'}
     if operation_command_name in ('generate','queue'):
-        if service_command_name in MUSIC_SERVICE_NAMES:
+        if service_command_name in AUDIO_SERVICE_NAMES:
             command_payload_value = {'action':'generate','prompt':command_argument_values.prompt if command_argument_values.prompt is not None else command_argument_values.prompt_file.read_text(),
                 'duration_seconds':command_argument_values.duration_seconds,'seed':command_argument_values.seed,'loop_request':command_argument_values.loop_request,'tag':command_argument_values.tag}
         elif service_command_name == 'wan21-vace-v2v':

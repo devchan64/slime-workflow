@@ -203,3 +203,8 @@ VACE 공용 작업자는 CUDA 초기화 전에 `expandable_segments:True`를 적
 ### 검수 서버 단일 진입점
 
 검수 GUI는 8770만 지원한다(`--port 8770`). 별도 검수 포트와 임시 게시 서버는 사용하지 않는다. 캐릭터 PNG 캡처도 `/management/capture/`에서 활성 작업의 토큰으로 보호된 파일과 결과를 전달하며 종료 후 접근을 닫는다. 캡처 실행에는 8770이 필요하다. 8771은 작업 명령 게이트웨이이며, Gradio 내부 포트는 8770의 프록시 대상이다. 이들은 독립 검수 서버 폐기 대상이 아니다.
+
+
+### Stable Audio 효과음
+
+효과음 생성은 `sfx-stable-audio` 서비스와 `ui/gradio/sfx_stable_app.py` 진입점을 사용한다. `domains/music/generation.py`·`generators/music/worker.py`의 공용 오디오 작업 수명과 `ui/gradio/music_app.py`의 이력·입력 화면을 재사용한다. 효과음 고정 설정·추론·설치는 `generators/sound_effects/`에서 소유한다. [효과음 사용법](../../generators/sound_effects/README.md)을 참고한다.

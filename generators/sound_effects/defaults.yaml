@@ -1,0 +1,18 @@
+# 효과음 전용 설정. 음악용 기본값·기존 실행 기록과 분리한다.
+version: 1
+prompt: ""
+duration_seconds: 3
+seed: 42
+loop_request: false
+instrumental_suffix: ""
+loop_suffix: "Continuous consistent ambience suitable for looping."
+profiles:
+  sfx-stable-audio:
+    label: Stable Audio 3 Small SFX
+    model_id: stabilityai/stable-audio-3-small-sfx
+    runtime_directory: .venv-sfx-stable
+    max_duration_seconds: 30
+    sample_rate: 44100
+    steps: 8
+    license_url: https://huggingface.co/stabilityai/stable-audio-3-small-sfx
+    license_notice: "Community License 및 Gemma 이용 조건 · 다운로드 전 Hugging Face에서 동의 필요"
