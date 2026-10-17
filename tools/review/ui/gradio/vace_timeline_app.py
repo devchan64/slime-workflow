@@ -185,7 +185,7 @@ def build_timeline_interface(current_server_address):
             current_selected_mapping=dict(current_selected_items or [])
             for current_row_index,(current_file_path,current_table_row) in enumerate(zip(current_file_paths,current_table_rows)):
                 with gr.Row(key=('frame-row',current_file_path)):
-                    current_select_control=gr.Checkbox(value=current_row_index in current_selected_mapping,label='선택',scale=0,min_width=70,key=('select',current_file_path),preserved_by_key=[])
+                    current_select_control=gr.Checkbox(value=current_row_index in current_selected_mapping,label='선택',interactive=True,scale=0,min_width=70,key=('select',current_file_path),preserved_by_key=[])
                     gr.Image(value=current_file_path,label=f'{current_row_index+1}번째 이미지',interactive=False,height=140,scale=1,min_width=160,buttons=[],key=('image',current_file_path))
                     current_number_control=gr.Number(value=current_table_row[0],interactive=True,precision=0,minimum=1,maximum=161,label='프레임 번호',scale=1,min_width=120,key=('number',current_file_path),preserved_by_key=[])
                     current_mask_control=gr.Checkbox(value=current_table_row[1],label='수정 가능',interactive=True,info='해제하면 원본 프레임 보존',scale=1,min_width=160,key=('mask',current_file_path),preserved_by_key=[])
