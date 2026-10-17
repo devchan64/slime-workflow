@@ -21,6 +21,17 @@ def load_exported_game_map(city_identifier):
 
 
 class MapRenderProfileTests(unittest.TestCase):
+    def test_town_billboards_resolve_registered_originals(self):
+        from tools.review.build_block_map_review import load_current_texture_records
+        current_texture_catalog = load_current_texture_records()
+        for current_city_identifier in ('iseulon', 'reedhaven', 'stonewarm', 'grainstead', 'saltford'):
+            current_map_record = load_registered_map_review(current_city_identifier)
+            self.assertTrue(current_map_record['objects'])
+            for current_object_record in current_map_record['objects']:
+                current_texture_record = current_texture_catalog[current_object_record['textureKey']]
+                self.assertTrue(current_texture_record['source'].startswith('assets/billboards/'))
+                self.assertEqual(current_texture_record['repository'], 'slime-assets')
+
     def assert_ground_texture_selection(self, current_map_identifier, current_material_name, current_expected_texture):
         current_script_source = (WORKFLOW_ROOT / 'tools/review/ui/map/block-map-review.js').read_text()
         current_mapping_expression = current_script_source.split('const groundTextureNames=', 1)[1].split(';', 1)[0]

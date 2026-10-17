@@ -183,6 +183,10 @@ export async function createSharedFieldReview(currentMapCanvas,currentTextureIma
      currentFieldScene.add.image(currentScreenPoint.x,currentScreenPoint.y,TERRAIN_ATLAS,currentFrameName).setDisplaySize(currentTileDimensions.width,currentTileDimensions.height).setDepth(currentCellDepth+TERRAIN_DEPTH.surface);
      drawTownMaterialEdges(currentFieldScene,currentCellPosition,currentNeighborCell=>currentMapRecord.terrainCodes[currentMapRecord.terrainRows[currentNeighborCell.row][currentNeighborCell.column]],currentProjectPosition,currentDepthPosition,TERRAIN_DEPTH.surface);
     }
+    for(const currentObjectRecord of currentMapRecord.objects??[]){
+     const currentObjectPlacement=resolveFieldSceneryPlacement(currentObjectRecord,currentProjectPosition(currentObjectRecord.position),{tileWidth:currentTileDimensions.width,tileHeight:currentTileDimensions.height,rotation:currentViewSettings.rotation});
+     drawFieldSceneryObject(currentFieldScene,currentObjectRecord,currentObjectPlacement.screen,currentDepthPosition(currentObjectPlacement.position)+TERRAIN_DEPTH.overlay);
+    }
     for(const currentBuildingRecord of currentMapRecord.buildings){
      const currentBuildingRegion=drawCityBuildingSprite(currentFieldScene,currentBuildingRecord,currentProjectPosition,currentDepthPosition,mapAnnotationDepth(currentMapRecord),false);
      if(!Array.isArray(currentBuildingRegion.appliedTextureIdentifiers))throw Error('공용 렌더러의 건물 원본 정보가 없습니다. 배포 버전을 확인하세요.');
