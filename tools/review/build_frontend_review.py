@@ -255,6 +255,8 @@ def load_animation_review(frontend_asset_root, animation_metadata_path):
         if type(source_reference_body_height) not in (int, float) or not math.isfinite(source_reference_body_height) or source_reference_body_height <= 0:
             raise ValueError('휴식 에셋의 referenceBodyHeight가 필요합니다.')
         runtime_scale_metadata = {'actorKind': 'human-rest', 'baseHeight': source_game_body_height or 80, 'sourceHeight': source_reference_body_height, 'defaultSizeClass': 'medium'}
+    elif animation_identifier_text.startswith('scenery.'):
+        runtime_scale_metadata = {'actorKind': 'scenery', 'baseHeight': 80, 'sourceHeight': animation_source_data['frames'][0]['rect']['height'], 'defaultSizeClass': 'medium'}
     elif animation_identifier_text.startswith('monster.'):
         default_size_class = {'monster.slime.idle': 'small', 'monster.giant.idle': 'large'}.get(animation_identifier_text, 'medium')
         runtime_scale_metadata = {'actorKind': 'monster', 'baseHeight': 60, 'sourceHeightMultiplier': 0.75, 'defaultSizeClass': default_size_class}
@@ -329,7 +331,8 @@ def build_frontend_review(frontend_repository_path, ui_bundle_directory=None):
             }
             review_source_metadata['gameRenderMetrics'] = game_render_metrics
             runtime_scale_metadata = review_source_metadata['runtimeScale']
-            runtime_scale_metadata['baseHeight'] = game_render_metrics['characterHeight'] * (game_render_metrics['restHeightRatio'] if runtime_scale_metadata['actorKind'] == 'human-rest' else 1)
+            if runtime_scale_metadata['actorKind'] != 'scenery':
+                runtime_scale_metadata['baseHeight'] = game_render_metrics['characterHeight'] * (game_render_metrics['restHeightRatio'] if runtime_scale_metadata['actorKind'] == 'human-rest' else 1)
             animation_identifier_text = review_source_metadata['animationId']
             if animation_identifier_text not in animation_label_lookup:
                 raise ValueError(f'한국어 라벨 누락: {animation_identifier_text} / slime-assets/assets/ui/animation-labels.yaml')
