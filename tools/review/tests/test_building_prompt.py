@@ -4,12 +4,46 @@ from tools.review.domains.image.building_prompt import load_building_base_prompt
 
 
 class BuildingPromptContractTests(unittest.TestCase):
+    def test_building_service_isolation(self):
+        from tools.review.domains.image.building_generation import BuildingGenerationManager
+        from tools.review.domains.image.qwen_21_generation import QwenPlainGenerationManager
+        from tools.review.domains.image.three_reference_generation import validate_three_reference_job_path
+        from tools.review.common.management_gateway import MANAGEMENT_SERVICE_COMMANDS
+        current_building_manager = BuildingGenerationManager()
+        current_general_manager = QwenPlainGenerationManager()
+        self.assertNotEqual(current_building_manager.job_storage_root, current_general_manager.job_storage_root)
+        self.assertNotEqual(current_building_manager.history_storage_path(), current_general_manager.history_storage_path())
+        self.assertEqual(validate_three_reference_job_path(current_building_manager.job_storage_root), current_building_manager.job_storage_root)
+        self.assertIn('prioritize', MANAGEMENT_SERVICE_COMMANDS['building-generator'])
+        self.assertIn('history-delete', MANAGEMENT_SERVICE_COMMANDS['building-generator'])
+
+    def test_asset_generator_storage_isolation(self):
+        from tools.review.domains.image.prop_generation import PropGenerationManager
+        from tools.review.domains.image.vegetation_generation import VegetationGenerationManager
+        from tools.review.domains.image.building_generation import BuildingGenerationManager
+        from tools.review.domains.image.qwen_21_generation import QwenPlainGenerationManager
+        from tools.review.domains.image.three_reference_generation import validate_three_reference_job_path
+        from tools.review.common.management_gateway import MANAGEMENT_SERVICE_COMMANDS
+        current_service_managers = [PropGenerationManager(), VegetationGenerationManager(), BuildingGenerationManager(), QwenPlainGenerationManager()]
+        self.assertEqual(len({current_service_manager.job_storage_root for current_service_manager in current_service_managers}), 4)
+        self.assertEqual(len({current_service_manager.history_storage_path() for current_service_manager in current_service_managers}), 4)
+        for current_service_manager in current_service_managers:
+            self.assertEqual(validate_three_reference_job_path(current_service_manager.job_storage_root), current_service_manager.job_storage_root)
+        for current_service_name in ('prop-generator', 'vegetation-generator'):
+            self.assertEqual(MANAGEMENT_SERVICE_COMMANDS[current_service_name], MANAGEMENT_SERVICE_COMMANDS['qwen-21'])
+
     def test_layout_and_word_limit(self):
         current_prompt_text = load_building_base_prompt()
         self.assertFalse(check_building_input_readiness(current_prompt_text, False, False, None))
         self.assertTrue(check_building_input_readiness(current_prompt_text, False, False, object()))
         self.assertFalse(check_building_input_readiness('building ' * 100, False, False, object()))
         self.assertFalse(check_building_input_readiness('building ' * 99, True, True, object()))
+
+    def test_building_option_word_limit(self):
+        self.assertTrue(check_building_input_readiness('', False, False, object(), True))
+        self.assertFalse(check_building_input_readiness('', False, False, object(), False))
+        self.assertTrue(check_building_input_readiness('wooden guild hall', False, False, object(), True))
+        self.assertFalse(check_building_input_readiness('wooden guild hall', True, False, object(), True))
 
     def test_building_interface_contract(self):
         from tools.review.ui.gradio.qwen_2511_app import build_qwen_2511_interface

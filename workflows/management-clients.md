@@ -681,3 +681,19 @@ CLI에서는 같은 `qwen-21 generate`에 `--prompt-file generators/image/config
 `/management/frame/vegetation-generator/`는 나무·관목·풀·꽃·갈대 등 식생 빌보드용 Qwen 2.1 GUI다. 기본 문구는 추적 파일 `generators/image/config/vegetation-qwen-prompt.txt`에서 관리한다. 직교투영·접지점·완전한 수관·투명 배경을 지시하며 식물 종류·계절·색상·군락 밀도를 추가한다. 옵션 포함 최종 99단어 이내이며 기본 문구 복원을 제공한다. 레이아웃·식물 참조는 선택 사항으로 최대 10장, 기본 출력은 512×512다.
 
 기존 `qwen-21` 게이트웨이·대기열·ETA·VRAM·로그·이력·초기화 범위를 공유한다. CLI는 `qwen-21 generate --prompt-file generators/image/config/vegetation-qwen-prompt.txt`와 선택 `--reference`를 사용한다. 결과는 자동 등록하지 않으며 검수 후 `slime-assets/assets/billboards/`에 식생으로 등록한다. 모델·실행기·AWS 인프라는 추가하지 않는다.
+
+### 건물 구도 참조 프리셋
+
+건물 페이지에 2×2·3×3·4×3 점유 크기와 남쪽·동쪽 입구를 조합한 6개 구도 그림을 제공한다. 도시맵 렌더러의 타일 비율 160:80을 적용한 직교투영 가이드이며 파란 부피 선은 높이 참고, 초록 바닥은 점유 영역, 주황 점은 입구다. 위의 가상 프리셋 미사용 설명은 이 기능으로 대체한다. 실제 특정 맵의 고도·주변 건물까지 재현하는 그림은 아니므로 필요한 경우 직접 그린 구도 또는 실제 맵 캡처를 업로드한다.
+
+프리셋 선택은 미리보기만 변경한다. `선택한 구도를 레이아웃 참조에 적용`을 누르면 첫 참조에 그림이 입력된다. 나머지 참조·프롬프트는 유지하며 생성은 자동 실행하지 않는다. 원본 PNG는 `generators/image/config/building-layouts/`에서 Git으로 관리하고 생성 시 기존 참조 사본·해시 기록 계약을 사용한다.
+
+건물 구도 프리셋의 높이는 지면부터 지붕 최고점까지이며 낮음 0.95배(80/84), 보통 1.67배(140/84), 높음 2.38배(200/84) 중 선택한다. 바닥·입구 6종과 조합하여 18종을 제공한다. 파랑 윗면과 오른쪽 눈금으로 표시한다. 층수·실제 미터·맵 배치 높이를 의미하지 않는다. 선택은 미리보기만 바꾸고 적용 버튼으로 첫 참조에 반영한다.
+
+건물 기본 문구는 `건물 기본 프롬프트 추가` 체크박스(기본 켜짐)로 선택한다. 사용자 입력 뒤에 기본 문구와 공용 옵션을 합쳐 최종 단어 수를 계산하고 동일 문구를 게이트웨이로 전달한다. 이력은 합성된 문구를 보존하며 입력값 복원 시 기본 문구 옵션을 끄고 저장 문구를 불러와 중복 추가를 방지한다.
+
+### 건물 생성 대기열 분리
+건물 생성 GUI·CLI는 `building-generator` 서비스를 사용한다. 작업은 `.tmp/test/building-generator`, 이력은 공용 이력 루트의 `building-generator`에 보존한다. `python tools/manager.py help building-generator`로 명령을 확인한다. generate/status/history/active/logs/cancel/resume/prioritize/history-delete/history-reset은 이 서비스 범위에서 처리한다. GPU 메모리·동시 실행 잠금은 공용 실행기를 유지한다. 기존 공유 Qwen 작업은 자동 이동하지 않으며 일반 Qwen 화면에서 계속 조회한다. 새 건물 작업부터 독립 저장·관리한다.
+
+### 기물·식생 대기열 분리
+새 기물 작업은 `prop-generator`, 식생 작업은 `vegetation-generator` 서비스로 등록한다. 작업 저장 경로는 각각 `.tmp/test/prop-generator`, `.tmp/test/vegetation-generator`이며 공용 이력 루트에서도 동일 서비스명으로 분리한다. GUI와 `python tools/manager.py command prop-generator history`, `python tools/manager.py command vegetation-generator history`가 같은 저장소를 조회한다. generate/status/logs/history/active/cancel/resume/prioritize/history-delete/history-reset은 해당 서비스 범위로 처리한다. 기존 Qwen 공유 작업은 이동·삭제하지 않으며 일반 Qwen에서 조회한다. GPU 실행 순서·메모리 보호는 기존 공용 실행기로 유지한다.

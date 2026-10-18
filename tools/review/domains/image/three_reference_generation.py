@@ -11,6 +11,9 @@ from PIL import Image
 REFERENCE_IMAGE_LIMIT = 3_000_000
 WORKFLOW_ROOT_PATH = Path(__file__).resolve().parents[4]
 ALLOWED_REFERENCE_JOB_ROOTS = (
+    WORKFLOW_ROOT_PATH/'.tmp/test/prop-generator',
+    WORKFLOW_ROOT_PATH/'.tmp/test/vegetation-generator',
+    WORKFLOW_ROOT_PATH/'.tmp/test/building-generator',
     WORKFLOW_ROOT_PATH/'.tmp/test/outfit-transfer',
     WORKFLOW_ROOT_PATH/'.tmp/test/pose-transfer',
     WORKFLOW_ROOT_PATH/'.tmp/test/qwen-image-21',

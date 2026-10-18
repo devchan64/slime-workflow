@@ -72,6 +72,9 @@ def create_management_runtime(writer_workspace_config=None):
     from tools.review.domains.image.pose_transfer_generation import PoseTransferGenerationManager
     from tools.review.domains.image.outfit_transfer_generation import OutfitTransferGenerationManager
     from tools.review.domains.image.qwen_21_generation import QwenPlainGenerationManager
+    from tools.review.domains.image.prop_generation import PropGenerationManager
+    from tools.review.domains.image.vegetation_generation import VegetationGenerationManager
+    from tools.review.domains.image.building_generation import BuildingGenerationManager
     from tools.review.domains.image.animation_separation import AnimationSeparationManager
     from tools.review.domains.image.expression_generation import ExpressionGenerationManager
     from generators.writer_agent.management import WriterAgentManager
@@ -102,6 +105,9 @@ def create_management_runtime(writer_workspace_config=None):
         seamless_generation_service = SeamlessGenerationManager()
         qwen_circular_service = QwenCircularGenerationManager()
         qwen_plain_service = QwenPlainGenerationManager()
+        prop_generation_service = PropGenerationManager()
+        vegetation_generation_service = VegetationGenerationManager()
+        building_generation_service = BuildingGenerationManager()
         pose_transfer_service = PoseTransferGenerationManager()
         outfit_transfer_service = OutfitTransferGenerationManager()
         animation_separation_service = AnimationSeparationManager()
@@ -127,6 +133,9 @@ def create_management_runtime(writer_workspace_config=None):
             'pose-transfer': bind_stored_management_service(pose_transfer_service.handle_image_request, pose_transfer_service.job_storage_root),
             'animation-separation': bind_stored_management_service(animation_separation_service.handle_image_request, animation_separation_service.job_storage_root),
             'qwen-21-circular': bind_stored_management_service(qwen_circular_service.handle_image_request, qwen_circular_service.job_storage_root),
+            'prop-generator': bind_stored_management_service(prop_generation_service.handle_image_request, prop_generation_service.job_storage_root),
+            'vegetation-generator': bind_stored_management_service(vegetation_generation_service.handle_image_request, vegetation_generation_service.job_storage_root),
+            'building-generator': bind_stored_management_service(building_generation_service.handle_image_request, building_generation_service.job_storage_root),
             'qwen-21': bind_stored_management_service(qwen_plain_service.handle_image_request, qwen_plain_service.job_storage_root),
             'seamless-tile': bind_stored_management_service(seamless_generation_service.handle_image_request, seamless_generation_service.job_storage_root),
             'expression': bind_stored_management_service(expression_generation_service.handle_image_request, expression_generation_service.job_storage_root),
