@@ -1,0 +1,39 @@
+version: 1
+baseline_id: building_orthographic_v1
+status: adopted
+purpose: 맵 바닥 투영과 일치하는 단일 건물 스프라이트 제작
+generator: image_gen
+mode: built-in
+change_policy: 기본 문구는 v1으로 고정한다. 투영·참조 계약 변경은 새 버전으로 작성하고 비교 검수한다.
+prompt: |-
+  Create one standalone building sprite for an orthographic game map.
+
+  Match the ground-plane projection in the reference image exactly. Align the building footprint, wall bases, roof ridges, and eaves with the two ground-grid axes. Keep vertical edges vertical and parallel edges parallel, with constant scale regardless of depth.
+
+  Show the entire building from the same fixed elevated camera angle as the map. Fit its base within the marked footprint, with the entrance facing the marked street.
+
+  Use a hand-painted fantasy RPG style, readable architectural forms, and soft upper-left lighting. Transparent background, isolated building, no ground tile, no cast shadow, no perspective convergence.
+required_inputs:
+  building_purpose: 건물 용도와 제작에 필요한 지역별 외형 특징
+  footprint_tiles: 가로·세로 점유 타일 수
+  entrance_direction: 참조 이미지에 표시한 도로·출입구 방향
+  building_height: 층수와 목표 표시 높이
+  allowed_overhang: 처마 등 점유 영역 밖 돌출 허용 범위
+reference_policy:
+  projection_reference: 실제 맵의 고정 시점 바닥 그리드에 점유 밑면과 출입구 위치를 표시한 이미지
+  style_reference: 필요한 경우 별도 제공하며 투영 기준 이미지와 역할을 구분한다.
+  missing_reference: 투영 기준 또는 필수 입력이 없으면 생성하지 않고 먼저 준비한다.
+  camera: isometric이라는 명칭만으로 각도를 추정하지 않는다. 실제 바닥 두 축의 기울기를 따른다.
+assembly_order:
+  - prompt
+  - required_inputs
+execution_policy:
+  style: 공통 화풍의 카메라 문구를 자동 덧붙이지 않는다. 건물의 투영은 이 베이스라인과 바닥 참조를 따른다.
+  record: 실행 시 베이스라인 버전·해시, 최종 프롬프트 원문·단어 수·해시, 입력값, 참조 이미지 역할·해시를 보존한다.
+  sample: 건물 1종을 실제 맵에 시험 배치해 검수한 뒤 나머지 교체를 진행한다.
+review_criteria:
+  - 바닥 두 축과 건물 밑면·벽 하단·지붕선의 정렬
+  - 수직선 유지, 평행선의 소실점 수렴 및 원근 축소 없음
+  - 지정 점유 영역·출입구·높이·돌출 범위 일치
+  - 투명 배경, 건물 전체 보존, 바닥 타일과 투사 그림자 없음
+  - 실제 맵 배치 시 앵커·가림·크기 확인
