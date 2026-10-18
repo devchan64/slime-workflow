@@ -15,16 +15,17 @@ WORKFLOW_ROOT_DIRECTORY=Path(__file__).resolve().parents[4]
 if str(WORKFLOW_ROOT_DIRECTORY) not in sys.path:sys.path.insert(0,str(WORKFLOW_ROOT_DIRECTORY))
 from tools.review.common.gpu_status import read_gpu_status
 
-CATEGORY_LABEL_VALUES={'all':'전체','map-review':'맵 검수','sound-effects':'효과음 생성','music-generation':'음악생성','writer-agent':'작가 AI 에이전트','image-generation':'이미지 생성','animation':'등록 애니메이션','animation-tool':'애니메이션 도구','character-render-review':'캐릭터 렌더링 검수','town-map-review':'도시맵 검수','game-ui':'게임 UI · 디자인 시스템'}
+CATEGORY_LABEL_VALUES={'all':'전체','map-review':'맵 검수','sound-management':'소리 관리','writer-agent':'작가 AI 에이전트','image-generation':'이미지 생성','animation':'등록 애니메이션','animation-tool':'애니메이션 도구','character-render-review':'캐릭터 렌더링 검수','town-map-review':'도시맵 검수','game-ui':'게임 UI · 디자인 시스템'}
+LEGACY_SOUND_CATEGORY_NAMES=('music-generation','sound-effects')
 MANAGEMENT_FRAME_PATH_PREFIX='/management/frame/'
 MANAGEMENT_FRAME_IDENTIFIER_VALUES={'anny-attribute-renderer':'anny-attributes'}
 NATIVE_MANAGEMENT_APPLICATIONS=frozenset(('sfx-stable-audio','music-ace-step','music-minimax','vace-v2v-generator','phantom-generator','hy-motion-generator','anny-landmarks','animation-separation','qwen-21-circular-generator','pose-transfer-generator','outfit-transfer-generator','qwen-21-generator','expression-generator','sprite-editor-v2','character-review','map-review','anny-attributes','writer-agent'))
 DEFAULT_MANAGER_SOURCE_PATH=WORKFLOW_ROOT_DIRECTORY/'.tmp/manager-current/manager-source.json'
 LEGACY_PAGE_IDENTIFIER_VALUES={'map-review':'map-review-iseulon','animation-2':'animation-1','animation-3':'animation-1'}
 DEFAULT_PAGE_RECORDS=(
-    {'id': 'sfx-stable-audio', 'label': 'Stable Audio 3 · 효과음', 'path': '/management/frame/sfx-stable-audio/', 'category': 'sound-effects', 'uiMode': 'gradio', 'description': 'Small SFX · 로컬 CUDA · 길이·시드 · WAV 청취·다운로드'},
-    {'id': 'music-ace-step', 'label': 'ACE-Step 1.5 Turbo', 'path': '/management/frame/music-ace-step/', 'category': 'music-generation', 'uiMode': 'gradio', 'description': '로컬 CUDA · WAV · 반복 구조 요청 선택 · 8GB 실측 필요'},
-    {'id': 'music-minimax', 'label': 'MiniMax-Music3', 'path': '/management/frame/music-minimax/', 'category': 'music-generation', 'uiMode': 'gradio', 'description': '로컬 CUDA · WAV · 반복 구조 요청 선택 · 8GB 실측 필요'},
+    {'id': 'sfx-stable-audio', 'label': 'Stable Audio 3 · 효과음', 'path': '/management/frame/sfx-stable-audio/', 'category': 'sound-management', 'uiMode': 'gradio', 'description': 'Small SFX · 로컬 CUDA · 길이·시드 · WAV 청취·다운로드'},
+    {'id': 'music-ace-step', 'label': 'ACE-Step 1.5 Turbo', 'path': '/management/frame/music-ace-step/', 'category': 'sound-management', 'uiMode': 'gradio', 'description': '로컬 CUDA · WAV · 반복 구조 요청 선택 · 8GB 실측 필요'},
+    {'id': 'music-minimax', 'label': 'MiniMax-Music3', 'path': '/management/frame/music-minimax/', 'category': 'sound-management', 'uiMode': 'gradio', 'description': '로컬 CUDA · WAV · 반복 구조 요청 선택 · 8GB 실측 필요'},
     {'id':'vace-v2v-generator','label':'Wan2.1 VACE V2V 영상 생성기','path':'/management/frame/vace-v2v-generator/','category':'animation-tool','uiMode':'gradio','description':'1.3B · 포즈 프레임 배치 · 수정 마스크 · 로컬 GPU'},
     {'id':'phantom-generator','label':'Phantom R2V 영상 생성기','path':'/management/frame/phantom-generator/','category':'animation-tool','uiMode':'gradio','description':'1.3B · 캐릭터 참조 · 832×480 · 로컬 GPU'},
     {'id':'anny-landmarks','label':'ANNY 해부학 기준점 검수','path':'/management/frame/anny-landmarks/','category':'animation-tool','uiMode':'gradio','description':'neutral_v4 · 기준점 후보 지정 · 기하 축 검수 · 리타기팅 미적용'},
@@ -75,6 +76,8 @@ def load_manager_page_records(source_file_path, current_animation_catalog=False)
         if current_invalid_fields:
             raise ValueError('관리 메뉴 페이지 필드는 문자열이어야 합니다: '+', '.join(current_invalid_fields))
         if any(current_page_record.get(current_field_name) is not None and not isinstance(current_page_record[current_field_name],str) for current_field_name in ('frameIdentifier','frameQuery')):raise ValueError('관리 메뉴 프레임 항목 형식 오류')
+        if current_page_record['category'] in LEGACY_SOUND_CATEGORY_NAMES:
+            current_page_record={**current_page_record,'category':'sound-management'}
         if current_page_record['id']=='tile-map-generator':continue
         if current_page_record['id'] in ('character-animation', 'momask-generator', 'wan21-vace-generator', 'music-stable-audio'):continue
         if current_page_record['id'] in ('pose-transfer-generator', 'qwen-21-generator'):
@@ -192,6 +195,7 @@ def create_initial_selection_script(page_record_values):
         const pageRecords={serialized_page_records};
         const currentUrlValue=new URL(window.location.href);
         if(currentUrlValue.searchParams.get('category')==='field-map-review'){{currentUrlValue.searchParams.set('category','map-review');window.history.replaceState(window.history.state,'',currentUrlValue.href);}}
+        if({json.dumps(LEGACY_SOUND_CATEGORY_NAMES)}.includes(currentUrlValue.searchParams.get('category'))){{currentUrlValue.searchParams.set('category','sound-management');window.history.replaceState(window.history.state,'',currentUrlValue.href);}}
         const requestedPageIdentifier=currentUrlValue.searchParams.get('review')||currentUrlValue.searchParams.get('tool');
         const currentCatalogRecord=pageRecords.find(record=>record.reviewAliases?.includes(requestedPageIdentifier));
         const resolvedPageIdentifier=currentCatalogRecord?.id||{json.dumps(LEGACY_PAGE_IDENTIFIER_VALUES)}[requestedPageIdentifier]||requestedPageIdentifier;

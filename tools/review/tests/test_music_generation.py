@@ -291,7 +291,7 @@ class MusicGenerationTests(unittest.TestCase):
             for current_button_label in ('우선 실행 · 대기 작업 선택','선택 이력 삭제','생성 재개','대기열에 추가','모델 다운로드·준비'):
                 self.assertIn(current_button_label,current_component_values)
             self.assertIn(current_service_name,NATIVE_MANAGEMENT_APPLICATIONS)
-            self.assertEqual(next(current_page_record for current_page_record in DEFAULT_PAGE_RECORDS if current_page_record['id']==current_service_name)['category'],'music-generation')
+            self.assertEqual(next(current_page_record for current_page_record in DEFAULT_PAGE_RECORDS if current_page_record['id']==current_service_name)['category'],'sound-management')
 
 
 if __name__=='__main__':

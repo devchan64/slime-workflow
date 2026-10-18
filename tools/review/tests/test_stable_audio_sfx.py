@@ -106,7 +106,7 @@ class StableAudioEffectsTests(unittest.TestCase):
         current_menu_path.write_text(json.dumps({'pages':[]}))
         current_page_records = load_manager_page_records(current_menu_path)
         current_effects_record = next(current_page_record for current_page_record in current_page_records if current_page_record['id']=='sfx-stable-audio')
-        self.assertEqual(current_effects_record['category'], 'sound-effects')
+        self.assertEqual(current_effects_record['category'], 'sound-management')
         self.assertEqual(resolve_management_page_path(current_effects_record), '/management/frame/sfx-stable-audio/')
 
     def test_cuda_failure_has_no_cpu_fallback(self):
