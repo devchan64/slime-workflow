@@ -265,6 +265,22 @@ class HistoryRadioTableTest(unittest.TestCase):
         self.assertIn('<th scope="col">선택</th>',current_table_markup)
         self.assertIn('<th scope="col">썸네일</th>',current_table_markup)
 
+    def test_thumbnail_column_can_be_omitted(self):
+        from tools.review.common.gradio_history import render_history_selection_table
+        current_history_records=[{'id':'sound-job','status':{'status':'completed','audio':'/sound.wav'},'request':{},'image':'/image.png'}]
+        current_table_markup=render_history_selection_table(current_history_records,'sound-job',show_thumbnail_column=False)
+        self.assertNotIn('썸네일',current_table_markup)
+        self.assertNotIn('<img',current_table_markup)
+        self.assertEqual(current_table_markup.count('<th scope='),6)
+        self.assertEqual(current_table_markup.count('<td>'),6)
+        self.assertIn(' checked',current_table_markup)
+        self.assertIn('data-history-copy-id="sound-job"',current_table_markup)
+        with gr.Blocks():
+            current_read_history,current_output_components=build_generation_history_view(lambda *_:{'records':current_history_records},'http://localhost','검증',show_thumbnail_column=False)
+            current_page_updates=current_read_history(1,'sound-job')
+        self.assertNotIn('썸네일',current_page_updates[3])
+        self.assertIn(' checked',current_page_updates[3])
+
     def test_completed_history_row_includes_result_thumbnail(self):
         from tools.review.common.gradio_history import render_history_selection_table
         current_table_markup=render_history_selection_table([

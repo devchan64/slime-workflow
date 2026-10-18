@@ -112,7 +112,7 @@ def build_music_interface(current_service_name,current_server_address):
         current_cleanup_scope = current_profile_record['label']+' · '+GENERATION_CLEANUP_SCOPE_TEXT
         current_read_history,current_history_outputs = build_generation_history_view(execute_music_command,current_server_address,current_cleanup_scope,
             restore_input_callback=restore_music_inputs,restore_output_components=[current_prompt_control,current_duration_control,current_seed_control,current_loop_control,current_tag_control,current_job_control],
-            result_renderer_callback=render_audio_generation_result,record_folder_route='/'+current_service_name,allow_individual_delete=True,individual_delete_scope_text=current_cleanup_scope)
+            result_renderer_callback=render_audio_generation_result,record_folder_route='/'+current_service_name,allow_individual_delete=True,individual_delete_scope_text=current_cleanup_scope,show_thumbnail_column=False)
         current_interface_blocks.load(lambda:current_read_history(1),outputs=current_history_outputs)
         current_job_control.change(lambda:current_read_history(1),outputs=current_history_outputs,queue=False)
         current_interface_blocks.load(lambda:execute_music_command('active',{}).get('id') or '',outputs=current_job_control)

@@ -206,12 +206,12 @@ def build_history_table_rows(current_history_records):
     return current_table_rows
 
 
-def render_history_selection_table(current_history_records,current_selected_identifier=None,server_base_address='',enable_identifier_clipboard=True):
-    """첫 열 선택·썸네일·기본 활성화된 ID 복사를 표시한다."""
+def render_history_selection_table(current_history_records,current_selected_identifier=None,server_base_address='',enable_identifier_clipboard=True,show_thumbnail_column=True):
+    """첫 열 선택·선택적 썸네일·기본 활성화된 ID 복사를 표시한다."""
     import html
     current_table_rows=build_history_table_rows(current_history_records)
     if not current_table_rows:return '<p>생성 이력이 없습니다.</p>'
-    current_header_names=('선택','썸네일','상태','생성 시각','설정','진행','ID')
+    current_header_names=('선택',)+(('썸네일',) if show_thumbnail_column else ())+('상태','생성 시각','설정','진행','ID')
     current_header_markup=''.join('<th scope="col">'+html.escape(current_header_name)+'</th>' for current_header_name in current_header_names)
     current_row_markup=[]
     for current_history_record,current_table_row in zip(current_history_records,current_table_rows):
@@ -230,7 +230,8 @@ def render_history_selection_table(current_history_records,current_selected_iden
         current_identifier_markup = html.escape(current_job_identifier)
         current_copy_markup = '<button type="button" data-history-copy-id="'+html.escape(current_job_identifier,quote=True)+'" aria-label="'+html.escape(current_job_identifier+' ID 복사',quote=True)+'">ID 복사</button><span role="status" aria-live="polite" data-history-copy-status></span>'
         current_cell_markup += '<td>'+current_identifier_markup+('<br>'+current_copy_markup if enable_identifier_clipboard else '')+'</td>'
-        current_row_markup.append('<tr><td>'+current_radio_markup+'</td><td>'+current_thumbnail_markup+'</td>'+current_cell_markup+'</tr>')
+        current_thumbnail_cell='<td>'+current_thumbnail_markup+'</td>' if show_thumbnail_column else ''
+        current_row_markup.append('<tr><td>'+current_radio_markup+'</td>'+current_thumbnail_cell+current_cell_markup+'</tr>')
     return '<div style="overflow-x:auto"><table><caption>현재 페이지의 생성 이력</caption><thead><tr>'+current_header_markup+'</tr></thead><tbody>'+''.join(current_row_markup)+'</tbody></table></div>'
 
 
@@ -253,7 +254,7 @@ def render_generation_images(current_status_record, server_base_address):
     return ''.join(f'<section><h3>{html.escape(current_image_label)}</h3><img width="100%" src="{html.escape(current_image_url,quote=True)}" alt="{html.escape(current_image_label)}"></section>' for current_image_url,current_image_label in current_result_items) or '<p>아직 생성된 결과 이미지가 없습니다.</p>'
 
 
-def build_generation_history_view(execute_service_command,server_base_address,deletion_scope_text,restore_input_callback=None,restore_output_components=None,result_renderer_callback=None,record_folder_route=None,allow_individual_delete=False,result_component_factory=None,individual_delete_scope_text=None):
+def build_generation_history_view(execute_service_command,server_base_address,deletion_scope_text,restore_input_callback=None,restore_output_components=None,result_renderer_callback=None,record_folder_route=None,allow_individual_delete=False,result_component_factory=None,individual_delete_scope_text=None,show_thumbnail_column=True):
 
     """목록·페이지·명시적 조회·결과·입력·로그·초기화를 묶은 공용 영역."""
     import html
@@ -363,7 +364,7 @@ def build_generation_history_view(execute_service_command,server_base_address,de
         selected_history_identifier=current_selected_identifier if current_selected_identifier in [value for _,value in current_choice_values] else None
         # 목록과 선택값을 함께 갱신하여 브라우저와 서버의 선택 상태를 맞춘다.
         selection_update_values = {'choices':current_choice_values, 'value':selected_history_identifier}
-        return gr.update(**selection_update_values),f'총 {len(current_history_records)}건 · {current_page_number} / {current_page_count}페이지' if current_history_records else '생성 이력이 없습니다. 위 설정에서 생성을 시작하세요.',gr.update(value=current_page_number,maximum=current_page_count,interactive=current_page_count>1),render_history_selection_table(current_page_records,selected_history_identifier,server_base_address),gr.update(interactive=current_page_number>1),gr.update(interactive=current_page_number<current_page_count),gr.update(visible=bool(selected_history_identifier))
+        return gr.update(**selection_update_values),f'총 {len(current_history_records)}건 · {current_page_number} / {current_page_count}페이지' if current_history_records else '생성 이력이 없습니다. 위 설정에서 생성을 시작하세요.',gr.update(value=current_page_number,maximum=current_page_count,interactive=current_page_count>1),render_history_selection_table(current_page_records,selected_history_identifier,server_base_address,show_thumbnail_column=show_thumbnail_column),gr.update(interactive=current_page_number>1),gr.update(interactive=current_page_number<current_page_count),gr.update(visible=bool(selected_history_identifier))
 
     def update_selected_card_layout(current_page_number,current_selected_identifier):
         current_page_updates=read_history_page(current_page_number,current_selected_identifier)
