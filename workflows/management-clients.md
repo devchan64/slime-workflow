@@ -640,7 +640,7 @@ python3 tools/manager.py command writer-agent writer-detail --payload-file /abso
 
 ## 효과음 생성
 
-`sfx-stable-audio` 서비스는 Stable Audio 3 Small SFX를 고정 사용한다. 공용 음악 작업 서비스·GPU 대기열·Gradio 이력을 재사용하며 음악용 `music-stable-audio` 폐기는 유지한다. `generate/prepare/model-status/status/logs/history/active/cancel/resume/prioritize/history-delete/history-reset-preview/history-reset`을 제공한다. 입력은 `prompt`, `duration_seconds`(0.5~30초, 기본 3초), `seed`, `loop_request`, `tag`다. 음악용 반주 문구는 추가하지 않는다. [효과음 사용법](../generators/sound_effects/README.md)에 설치·모델 접근·기록 경로를 정리했다.
+`sfx-dasheng-audiogen` 서비스는 Dasheng-AudioGen을 고정 사용한다. 공용 음악 작업 서비스·GPU 대기열·Gradio 이력을 재사용하며 음악용 `music-stable-audio` 폐기는 유지한다. `generate/prepare/model-status/status/logs/history/active/cancel/resume/prioritize/history-delete/history-reset-preview/history-reset`을 제공한다. 입력은 `prompt`, `seed`, `loop_request`, `tag`다. 길이는 모델이 자동 예측하며 숫자 duration_seconds는 거절한다. 16kHz mono WAV로 저장하며 최종 프롬프트에 `<|caption|>`를 붙인다. 기존 `sfx-stable-audio`는 폐기하고 이전 기록·캐시는 보존한다. [효과음 사용법](../generators/sound_effects/README.md)에 설치·모델 접근·기록 경로를 정리했다.
 
 ### 맵 원본 크기 검수
 

@@ -194,7 +194,7 @@ MANAGEMENT_COMMAND_DESCRIPTIONS['anny-landmarks']='ANNY 기준점 후보 지정�
 for current_service_name in AUDIO_SERVICE_NAMES:
     MANAGEMENT_COMMAND_DESCRIPTIONS[current_service_name] = '음악생성 · 고정 로컬 모델 · CUDA · WAV · 8GB용 설정(실측 검증 필요)'
 
-MANAGEMENT_COMMAND_DESCRIPTIONS['sfx-stable-audio']='효과음 생성 · Stable Audio 3 Small SFX · CUDA · 0.5~30초 WAV'
+MANAGEMENT_COMMAND_DESCRIPTIONS['sfx-dasheng-audiogen']='효과음 생성 · Dasheng-AudioGen · CUDA · 길이 자동 예측 · 16kHz mono WAV'
 
 MANAGEMENT_COMMAND_DESCRIPTIONS['hy-motion']='HY-Motion Lite 원본 모션 · CPU 메모리 오프로드 / CUDA 연산 · 준비·생성·ANNY VNCCS 출력(export-vnccs --payload-file)·이력·취소·재개'
 MANAGEMENT_COMMAND_DESCRIPTIONS['pose-transfer']='VNCCS V1.1 · Qwen 2.1 공식 파이프라인 · BF16 비양자화 · 512px 고정·25/40스텝 선택(기본 40) · 업로드 아이덴티티→포즈, 모델 전달 포즈→아이덴티티 · 부분 추종 경고'
@@ -244,7 +244,10 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
                 current_prompt_group = operation_argument_parser.add_mutually_exclusive_group(required=True)
                 current_prompt_group.add_argument('--prompt')
                 current_prompt_group.add_argument('--prompt-file',type=Path)
-                operation_argument_parser.add_argument('--duration-seconds',type=float,default=current_music_defaults['duration_seconds'])
+                if service_command_name == 'sfx-dasheng-audiogen':
+                    operation_argument_parser.set_defaults(duration_seconds=None)
+                else:
+                    operation_argument_parser.add_argument('--duration-seconds',type=float,default=current_music_defaults['duration_seconds'])
                 operation_argument_parser.add_argument('--seed',type=int,default=current_music_defaults['seed'])
                 operation_argument_parser.add_argument('--loop-request',action=argparse.BooleanOptionalAction,default=current_music_defaults['loop_request'],help='반복 구조 요청; 심리스 연결 보장 없음')
             elif service_command_name == 'wan21-vace-v2v':

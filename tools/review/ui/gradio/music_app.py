@@ -21,26 +21,28 @@ from tools.review.common.gradio_audio_results import render_audio_generation_res
 def describe_music_prompt(current_service_name,current_prompt_text,current_loop_value):
     current_default_record = load_music_defaults(current_service_name)
     current_final_prompt = current_prompt_text.strip()+' '+current_default_record['instrumental_suffix']
-    if current_service_name == 'sfx-stable-audio':
+    if current_service_name == 'sfx-dasheng-audiogen':
         current_final_prompt = current_final_prompt.strip()
     if current_loop_value:
         current_final_prompt += ' '+current_default_record['loop_suffix']
+    if current_service_name == 'sfx-dasheng-audiogen':
+        current_final_prompt = '<|caption|> '+current_final_prompt.strip()
     return f'원문 {len(current_prompt_text.split())}단어 · 추가 {len(current_final_prompt.split())-len(current_prompt_text.split())}단어 · 최종 {len(current_final_prompt.split())}단어',current_final_prompt.strip()
 
 
 def build_music_interface(current_service_name,current_server_address):
     current_profile_record = resolve_music_profile(current_service_name)
     current_default_record = load_music_defaults(current_service_name)
-    current_effects_mode = current_service_name == 'sfx-stable-audio'
+    current_effects_mode = current_service_name == 'sfx-dasheng-audiogen'
     current_content_label = '효과음' if current_effects_mode else '음악'
     current_prompt_label = '소리·재질·동작 설명' if current_effects_mode else '장르·악기·분위기 프롬프트'
-    current_content_description = '짧은 게임 효과음과 환경음 후보를 로컬 CUDA에서 생성합니다. 출력은 44.1kHz stereo PCM16 WAV입니다.' if current_effects_mode else '게임 BGM 후보를 로컬 CUDA에서 생성합니다. 출력은 stereo WAV이며 MIDI는 생성하지 않습니다.'
-    current_hardware_notice = '8스텝 · CUDA FP16 · 실제 VRAM 피크·음질은 생성 후 확인' if current_effects_mode else '8GB GPU 로딩 검증 완료, 음악 생성 피크는 별도 확인 필요'
+    current_content_description = '짧은 게임 효과음과 환경음 후보를 로컬 CUDA에서 생성합니다. 출력은 16kHz mono PCM16 WAV입니다.' if current_effects_mode else '게임 BGM 후보를 로컬 CUDA에서 생성합니다. 출력은 stereo WAV이며 MIDI는 생성하지 않습니다.'
+    current_hardware_notice = '25스텝 · CUDA BF16 · 길이는 모델 자동 예측 · 실제 VRAM 피크·음질은 생성 후 확인' if current_effects_mode else '8GB GPU 로딩 검증 완료, 음악 생성 피크는 별도 확인 필요'
     def execute_music_command(current_command_name,current_payload_record):
         return execute_remote_management_command(current_service_name,current_command_name,current_payload_record)
     with gr.Blocks(title=current_profile_record['label']+' '+current_content_label+' 생성') as current_interface_blocks:
         gr.Markdown('## '+current_profile_record['label']+' · '+current_content_label+' 생성\n'+current_content_description)
-        gr.Markdown(f"고정 모델: `{current_profile_record['model_id']}` · 기본 {current_default_record['duration_seconds']}초 · batch 1 · {current_hardware_notice}\n\n[{current_profile_record['license_notice']}]({current_profile_record['license_url']})")
+        gr.Markdown(f"고정 모델: `{current_profile_record['model_id']}` · {('길이 자동 예측' if current_effects_mode else str(current_default_record['duration_seconds'])+'초 기본값')} · batch 1 · {current_hardware_notice}\n\n[{current_profile_record['license_notice']}]({current_profile_record['license_url']})")
         current_model_status = gr.Markdown('모델 준비 상태 확인 중')
         current_prepare_button = gr.Button('모델 다운로드·준비')
         with gr.Column() as current_prepare_container:
@@ -49,10 +51,10 @@ def build_music_interface(current_service_name,current_server_address):
         current_prompt_reset = gr.Button('프롬프트 초기화',size='sm')
         current_prompt_reset.click(lambda:'',outputs=current_prompt_control,queue=False)
         with gr.Row():
-            current_duration_control = gr.Number(value=current_default_record['duration_seconds'],minimum=resolve_audio_minimum(current_service_name),maximum=current_profile_record['max_duration_seconds'],label='요청 길이(초)')
+            current_duration_control = gr.State(None) if current_effects_mode else gr.Number(value=current_default_record['duration_seconds'],minimum=resolve_audio_minimum(current_service_name),maximum=current_profile_record['max_duration_seconds'],label='요청 길이(초)')
             current_seed_control = build_generation_seed(default_seed_value=current_default_record['seed'])
         current_loop_control = gr.Checkbox(value=current_default_record['loop_request'],label='반복 구조 요청 · 선택 사항, 이음새 없는 루프 보장 없음')
-        gr.Markdown('영어 프롬프트를 권장합니다. 반복 요청은 환경음 문구를 추가하며 이음새 없는 루프를 보장하지 않습니다. 모델 접근 승인은 위 링크에서 진행하고 인증정보는 입력창에 넣지 마세요.' if current_effects_mode else '반주는 프롬프트로 요청합니다. 보컬이 섞이거나 길이가 달라질 수 있으므로 결과를 청취하세요. 반복 구조 요청은 생성 문구를 추가하며 오디오를 자동 접합하지 않습니다.')
+        gr.Markdown('영어 프롬프트를 권장합니다. 반복 요청은 환경음 문구를 추가하며 이음새 없는 루프를 보장하지 않습니다. 길이는 모델이 예측하며 초 단위 지정은 지원하지 않습니다.' if current_effects_mode else '반주는 프롬프트로 요청합니다. 보컬이 섞이거나 길이가 달라질 수 있으므로 결과를 청취하세요. 반복 구조 요청은 생성 문구를 추가하며 오디오를 자동 접합하지 않습니다.')
         current_prompt_counts,current_final_prompt = describe_music_prompt(current_service_name,current_default_record['prompt'],current_default_record['loop_request'])
         current_prompt_summary = gr.Markdown(current_prompt_counts)
         with gr.Accordion('최종 모델 입력 원문',open=False):

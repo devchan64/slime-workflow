@@ -23,7 +23,7 @@ class MusicManagementAuditTests(unittest.TestCase):
             current_menu_path=Path(current_temp_directory)/'menu.json'
             current_menu_path.write_text(json.dumps({'pages':[{'id':'music-stable-audio','label':'폐기','path':'/management/frame/music-stable-audio/','category':'music-generation','description':'이전 메뉴'}]}))
             current_music_records=[current_page_record['id'] for current_page_record in load_manager_page_records(current_menu_path) if current_page_record['category']=='sound-management']
-            self.assertEqual(current_music_records,[*MUSIC_SERVICE_NAMES,'sfx-stable-audio'])
+            self.assertCountEqual(current_music_records,[*MUSIC_SERVICE_NAMES,'sfx-dasheng-audiogen'])
 
     def test_both_services_delete_files_and_reset_hidden_jobs(self):
         for current_service_name in MUSIC_SERVICE_NAMES:

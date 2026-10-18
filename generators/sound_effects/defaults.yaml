@@ -1,18 +1,18 @@
-# 효과음 전용 설정. 음악용 기본값·기존 실행 기록과 분리한다.
+# 효과음 모델은 길이를 자체 예측하며 요청 길이 제어를 지원하지 않는다.
 version: 1
 prompt: ""
-duration_seconds: 3
+duration_seconds: null
 seed: 42
 loop_request: false
 instrumental_suffix: ""
 loop_suffix: "Continuous consistent ambience suitable for looping."
 profiles:
-  sfx-stable-audio:
-    label: Stable Audio 3 Small SFX
-    model_id: stabilityai/stable-audio-3-small-sfx
-    runtime_directory: .venv-sfx-stable
+  sfx-dasheng-audiogen:
+    label: Dasheng-AudioGen
+    model_id: mispeech/Dasheng-AudioGen
+    runtime_directory: .venv-sfx-dasheng
     max_duration_seconds: 30
-    sample_rate: 44100
-    steps: 8
-    license_url: https://huggingface.co/stabilityai/stable-audio-3-small-sfx
-    license_notice: "Community License 및 Gemma 이용 조건 · 다운로드 전 Hugging Face에서 동의 필요"
+    sample_rate: 16000
+    steps: 25
+    license_url: https://huggingface.co/mispeech/Dasheng-AudioGen
+    license_notice: "Apache-2.0 · 본체·FLAN-T5·Dasheng Tokenizer · 배포 시 라이선스 고지 유지"

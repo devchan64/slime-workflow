@@ -88,6 +88,9 @@ def format_history_request_summary(current_request_record):
         if current_field_name not in current_request_record:
             continue
         current_field_value=current_request_record[current_field_name]
+        if current_field_name=='duration_seconds' and current_field_value is None:
+            summary_text_values.append('길이 자동 예측')
+            continue
         if current_field_name=='action' and current_field_value in ('generate','prepare'):
             continue
         if current_field_name=='directions' and isinstance(current_field_value,list):

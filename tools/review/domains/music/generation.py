@@ -24,7 +24,7 @@ class MusicGenerationManager:
         self.current_profile_record = resolve_music_profile(current_service_name)
         self.job_storage_root,self.model_storage_root,self.runtime_python_path = resolve_music_paths(current_service_name)
         self.route_prefix_value = '/'+current_service_name
-        self.audio_output_filename = 'sound.wav' if current_service_name=='sfx-stable-audio' else 'music.wav'
+        self.audio_output_filename = 'sound.wav' if current_service_name=='sfx-dasheng-audiogen' else 'music.wav'
         self.history_storage_root = WORKFLOW_ROOT_DIRECTORY/'.tmp/manager-current'/current_service_name
         self.current_request_lock = threading.RLock()
 
@@ -114,7 +114,7 @@ class MusicGenerationManager:
             return self.create_music_job(current_payload_record)
         if current_command_name=='model-status':
             from generators.music.runtime import validate_prepared_music
-            if self.current_service_name == 'sfx-stable-audio':
+            if self.current_service_name == 'sfx-dasheng-audiogen':
                 from generators.sound_effects.runtime import validate_effects_model as validate_prepared_music
             try:
                 validate_prepared_music(self.current_service_name)

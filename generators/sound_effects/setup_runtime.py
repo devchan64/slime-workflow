@@ -12,16 +12,16 @@ def install_effects_runtime():
     current_uv_executable = shutil.which('uv')
     if current_uv_executable is None:
         raise FileNotFoundError('uv가 필요합니다. 공식 설치 안내: https://docs.astral.sh/uv/getting-started/installation/')
-    current_runtime_root = WORKFLOW_ROOT_DIRECTORY/'.venv-sfx-stable'
+    current_runtime_root = WORKFLOW_ROOT_DIRECTORY/'.venv-sfx-dasheng'
     current_python_path = current_runtime_root/'bin/python'
     current_install_commands = []
     if not current_python_path.is_file():
         current_install_commands.append([current_uv_executable, 'venv', '--python', '3.12', str(current_runtime_root)])
     current_install_commands.extend([
-        [current_uv_executable, 'pip', 'install', '--python', str(current_python_path), '--index-url', 'https://download.pytorch.org/whl/cu128', 'torch==2.7.1', 'torchaudio==2.7.1'],
+        [current_uv_executable, 'pip', 'install', '--python', str(current_python_path), '--index-url', 'https://download.pytorch.org/whl/cu128', 'torch==2.8.0', 'torchaudio==2.8.0'],
         [current_uv_executable, 'pip', 'install', '--python', str(current_python_path), '-r', str(Path(__file__).with_name('requirements.txt'))],
     ])
-    current_trace_logger = ManagementLaunchLogger('stable-audio-setup')
+    current_trace_logger = ManagementLaunchLogger('dasheng-audio-setup')
     try:
         for current_command_values in current_install_commands:
             current_result_code = run_logged_management_command(current_command_values, current_trace_logger)

@@ -20,7 +20,7 @@ def handle_music_signal(current_signal_number,current_stack_frame):
 
 def collect_music_durations(current_storage_root,current_request_record,current_device_name):
     current_duration_samples = []
-    current_runtime_path = WORKFLOW_ROOT_DIRECTORY/('generators/sound_effects/runtime.py' if current_request_record['service']=='sfx-stable-audio' else 'generators/music/runtime.py')
+    current_runtime_path = WORKFLOW_ROOT_DIRECTORY/('generators/sound_effects/runtime.py' if current_request_record['service']=='sfx-dasheng-audiogen' else 'generators/music/runtime.py')
     current_condition_fields = ('action','model_id','duration_seconds','defaults_sha256')
     for current_result_path in current_storage_root.glob('*/attempts/*/result.json'):
         current_previous_request = read_music_record(current_result_path.parent/'request.json')
@@ -38,7 +38,7 @@ def execute_music_worker(current_service_name,current_job_root):
     current_inference_callback = execute_music_inference
     from generators.music.runtime import require_music_cuda
     current_cuda_callback = require_music_cuda
-    if current_service_name == 'sfx-stable-audio':
+    if current_service_name == 'sfx-dasheng-audiogen':
         from generators.sound_effects.runtime import prepare_effects_model, execute_effects_inference, require_effects_cuda
         current_prepare_callback = prepare_effects_model
         current_inference_callback = execute_effects_inference

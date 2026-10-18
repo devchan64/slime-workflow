@@ -14,24 +14,38 @@ from tools.review.domains.music.generation import MusicGenerationManager
 from tools.review.tests.test_music_management_audit import MusicManagementAuditTests
 
 
-class StableAudioCleanupTests(MusicManagementAuditTests):
+class DashengAudioCleanupTests(MusicManagementAuditTests):
     """공용 삭제·종료 지표 계약을 새 서비스에서도 재사용한다."""
     def setUp(self):
-        current_service_patch = patch('tools.review.tests.test_music_management_audit.MUSIC_SERVICE_NAMES', ('sfx-stable-audio',))
+        current_service_patch = patch('tools.review.tests.test_music_management_audit.MUSIC_SERVICE_NAMES', ('sfx-dasheng-audiogen',))
         current_service_patch.start()
         self.addCleanup(current_service_patch.stop)
 
     def test_retired_model_cannot_return_from_cached_menu(self):
         self.assertNotIn('music-stable-audio', MANAGEMENT_SERVICE_COMMANDS)
-        self.assertIn('sfx-stable-audio', MANAGEMENT_SERVICE_COMMANDS)
+        self.assertNotIn('sfx-stable-audio', MANAGEMENT_SERVICE_COMMANDS)
+        self.assertIn('sfx-dasheng-audiogen', MANAGEMENT_SERVICE_COMMANDS)
 
 
-class StableAudioEffectsTests(unittest.TestCase):
+class DashengAudioEffectsTests(unittest.TestCase):
+    def test_checksum_cache_revalidates_changed_files(self):
+        from generators.sound_effects.runtime import calculate_cached_checksum
+        calculate_cached_checksum.cache_clear()
+        with tempfile.TemporaryDirectory() as current_directory_name:
+            current_file_path = Path(current_directory_name)/'weights'
+            current_file_path.write_bytes(b'first')
+            current_file_status = current_file_path.stat()
+            current_first_digest = calculate_cached_checksum(current_file_path,current_file_status.st_size,current_file_status.st_mtime_ns,current_file_status.st_ctime_ns)
+            current_file_path.write_bytes(b'changed')
+            current_file_status = current_file_path.stat()
+            current_next_digest = calculate_cached_checksum(current_file_path,current_file_status.st_size,current_file_status.st_mtime_ns,current_file_status.st_ctime_ns)
+            self.assertNotEqual(current_first_digest,current_next_digest)
+
     def setUp(self):
         current_temp_directory = tempfile.TemporaryDirectory()
         self.addCleanup(current_temp_directory.cleanup)
         self.current_test_root = Path(current_temp_directory.name)
-        self.current_service_instance = MusicGenerationManager('sfx-stable-audio')
+        self.current_service_instance = MusicGenerationManager('sfx-dasheng-audiogen')
         self.current_service_instance.job_storage_root = self.current_test_root/'jobs'
         self.current_service_instance.history_storage_root = self.current_test_root/'history'
         self.current_service_instance.runtime_python_path = self.current_test_root/'python'
@@ -40,18 +54,51 @@ class StableAudioEffectsTests(unittest.TestCase):
         self.current_launch_mock = current_launch_patch.start()
         self.addCleanup(current_launch_patch.stop)
 
+    def test_runtime_output_contract_and_seed(self):
+        import contextlib
+        import numpy
+        from types import SimpleNamespace
+        from generators.sound_effects.runtime import execute_effects_inference
+        current_audio_array=numpy.full((1600,),0.1,dtype='float32')
+        class AudioTensorStub:
+            ndim=2
+            shape=(1,1600)
+            def __getitem__(self,current_item_index):
+                return SimpleNamespace(float=lambda:SimpleNamespace(cpu=lambda:SimpleNamespace(numpy=lambda:current_audio_array)))
+        current_tensor_stub=AudioTensorStub()
+        current_torch_stub=Mock(Tensor=AudioTensorStub)
+        current_torch_stub.cuda.max_memory_allocated.return_value=100
+        current_torch_stub.cuda.max_memory_reserved.return_value=200
+        current_torch_stub.inference_mode.return_value=contextlib.nullcontext()
+        current_torch_stub.autocast.return_value=contextlib.nullcontext()
+        current_model_stub=Mock()
+        current_model_stub.generate.return_value=current_tensor_stub
+        current_request_record=build_music_request('sfx-dasheng-audiogen',{'prompt':'A punch.','seed':17})
+        current_output_path=self.current_test_root/'attempt'
+        current_output_path.mkdir()
+        with patch.dict('sys.modules',{'soundfile':SimpleNamespace(write=lambda current_path_value,*current_args_values,**current_kwargs_values:Path(current_path_value).write_bytes(b'isolated WAV'))}),patch('generators.sound_effects.runtime.resolve_music_paths',return_value=(self.current_test_root,self.current_test_root,self.current_test_root/'python')),patch('generators.sound_effects.runtime.configure_effects_cache'),patch('generators.sound_effects.runtime.validate_effects_model'),patch('generators.sound_effects.runtime.require_effects_cuda',return_value=current_torch_stub),patch('generators.sound_effects.runtime.load_effects_model',return_value=current_model_stub),patch.dict('os.environ',{},clear=False):
+            current_result_record=execute_effects_inference('sfx-dasheng-audiogen',current_request_record,current_output_path,Mock(current_run_state={}))
+            self.assertEqual(current_result_record['channels'],1)
+            self.assertEqual(current_result_record['duration_seconds'],0.1)
+            self.assertEqual(current_result_record['sample_rate'],16000)
+            current_model_stub.generate.assert_called_once_with(prompts='<|caption|> A punch.',num_steps=25,guidance_scale=5.0)
+            current_torch_stub.manual_seed.assert_called_once_with(17)
+            current_tensor_stub.shape=(2,1600)
+            with self.assertRaisesRegex(ValueError,'모노 Tensor'):
+                execute_effects_inference('sfx-dasheng-audiogen',current_request_record,current_output_path,Mock(current_run_state={}))
+
     def test_effects_defaults_and_prompt_are_separate(self):
-        current_request_record = build_music_request('sfx-stable-audio', {'prompt':' Wet  impact.\n', 'duration_seconds':0.5})
-        self.assertEqual(current_request_record['model_id'], 'stabilityai/stable-audio-3-small-sfx')
-        self.assertEqual(current_request_record['final_prompt'], 'Wet  impact.')
-        self.assertEqual(current_request_record['final_prompt_words'], 2)
-        self.assertEqual(current_request_record['prompt_sha256'], hashlib.sha256(b'Wet  impact.').hexdigest())
-        self.assertEqual(verify_music_request('sfx-stable-audio', current_request_record), current_request_record)
+        current_request_record = build_music_request('sfx-dasheng-audiogen', {'prompt':' Wet  impact.\n'})
+        self.assertEqual(current_request_record['model_id'], 'mispeech/Dasheng-AudioGen')
+        self.assertEqual(current_request_record['final_prompt'], '<|caption|> Wet  impact.')
+        self.assertEqual(current_request_record['final_prompt_words'], 3)
+        self.assertEqual(current_request_record['prompt_sha256'], hashlib.sha256(b'<|caption|> Wet  impact.').hexdigest())
+        self.assertEqual(verify_music_request('sfx-dasheng-audiogen', current_request_record), current_request_record)
         self.assertEqual(load_music_defaults()['duration_seconds'], 30)
-        self.assertEqual(load_music_defaults('sfx-stable-audio')['duration_seconds'], 3)
+        self.assertEqual(load_music_defaults('sfx-dasheng-audiogen')['duration_seconds'], None)
         current_request_record['final_prompt'] += ' tampered'
         with self.assertRaises(ValueError):
-            verify_music_request('sfx-stable-audio', current_request_record)
+            verify_music_request('sfx-dasheng-audiogen', current_request_record)
 
     def test_invalid_inputs_never_launch_worker(self):
         for current_invalid_input in ({'model_id':'other'}, {'duration_seconds':0.49}, {'duration_seconds':31}, {'duration_seconds':True}, {'duration_seconds':float('nan')}, {'seed':True}, {'seed':1.5}, {'loop_request':'true'}, {'prompt':''}, {'action':'prepare'}):
@@ -62,16 +109,16 @@ class StableAudioEffectsTests(unittest.TestCase):
     def test_cli_and_gui_use_same_service_history(self):
         from tools.review.ui.gradio import music_app
         with patch('tools.review.common.management_gateway.execute_management_command', side_effect=lambda current_service_name,current_command_name,current_payload_record,current_server_address=None,**current_options: self.current_service_instance.execute_music_command(current_command_name,current_payload_record)), patch('sys.stdout', new_callable=io.StringIO):
-            execute_gateway_arguments('sfx-stable-audio',['generate','--prompt','water splash','--duration-seconds','1.5','--seed','7','--detach'])
+            execute_gateway_arguments('sfx-dasheng-audiogen',['generate','--prompt','water splash','--seed','7','--detach'])
         current_history_record = self.current_service_instance.list_music_history()[0]
-        self.assertEqual(current_history_record['request']['duration_seconds'], 1.5)
+        self.assertEqual(current_history_record['request']['duration_seconds'], None)
         with patch.object(music_app, 'execute_remote_management_command', side_effect=lambda current_service_name,current_command_name,current_payload_record: self.current_service_instance.execute_music_command(current_command_name,current_payload_record)):
-            current_interface_blocks = music_app.build_music_interface('sfx-stable-audio', 'http://127.0.0.1:8770')
+            current_interface_blocks = music_app.build_music_interface('sfx-dasheng-audiogen', 'http://127.0.0.1:8770')
             current_restore_callback = next(current_event.fn for current_event in current_interface_blocks.fns.values() if current_event.fn and current_event.fn.__name__=='restore_selected_inputs')
             current_restore_values = current_restore_callback(current_history_record['id'])
-            self.assertEqual(tuple(current_restore_values[:5]), ('water splash',1.5,7,False,''))
+            self.assertEqual(tuple(current_restore_values[:5]), ('water splash',None,7,False,''))
         self.assertEqual(self.current_launch_mock.call_count, 1)
-        self.assertEqual(self.current_launch_mock.call_args.args[2], 'sfx-stable-audio')
+        self.assertEqual(self.current_launch_mock.call_args.args[2], 'sfx-dasheng-audiogen')
 
     def test_result_route_uses_effects_wav_and_rejects_escape(self):
         current_job_record = self.current_service_instance.create_music_job({'prompt':'short impact'})
@@ -103,11 +150,12 @@ class StableAudioEffectsTests(unittest.TestCase):
     def test_menu_composes_effects_and_keeps_retired_music_hidden(self):
         from tools.review.ui.gradio.management_menu_app import load_manager_page_records, resolve_management_page_path
         current_menu_path = self.current_test_root/'menu.json'
-        current_menu_path.write_text(json.dumps({'pages':[]}))
+        current_menu_path.write_text(json.dumps({'pages':[{'id':'sfx-stable-audio','label':'폐기','path':'/management/frame/sfx-stable-audio/','category':'sound-management','description':'폐기'}]}))
         current_page_records = load_manager_page_records(current_menu_path)
-        current_effects_record = next(current_page_record for current_page_record in current_page_records if current_page_record['id']=='sfx-stable-audio')
+        self.assertNotIn('sfx-stable-audio',[current_page_record['id'] for current_page_record in current_page_records])
+        current_effects_record = next(current_page_record for current_page_record in current_page_records if current_page_record['id']=='sfx-dasheng-audiogen')
         self.assertEqual(current_effects_record['category'], 'sound-management')
-        self.assertEqual(resolve_management_page_path(current_effects_record), '/management/frame/sfx-stable-audio/')
+        self.assertEqual(resolve_management_page_path(current_effects_record), '/management/frame/sfx-dasheng-audiogen/')
 
     def test_cuda_failure_has_no_cpu_fallback(self):
         from generators.sound_effects.runtime import require_effects_cuda
@@ -123,25 +171,25 @@ class StableAudioEffectsTests(unittest.TestCase):
         for current_invalid_text in (current_default_text+'\nseed: 3\n', current_default_text+'\nunexpected: true\n'):
             current_config_path.write_text(current_invalid_text)
             with patch.object(contracts, 'SOUND_EFFECT_DEFAULTS', current_config_path), self.assertRaises(ValueError):
-                load_music_defaults('sfx-stable-audio')
+                load_music_defaults('sfx-dasheng-audiogen')
 
     def test_confirmation_cancel_and_duplicate_submission(self):
         from tools.review.ui.gradio import music_app
         with patch.object(music_app, 'execute_remote_management_command', return_value={'id':'mock-job'}) as current_command_mock:
-            current_interface_blocks = music_app.build_music_interface('sfx-stable-audio', 'http://127.0.0.1:8770')
+            current_interface_blocks = music_app.build_music_interface('sfx-dasheng-audiogen', 'http://127.0.0.1:8770')
             current_event_functions = [current_event.fn for current_event in current_interface_blocks.fns.values() if current_event.fn]
             current_prepare_callback = next(current_function_value for current_function_value in current_event_functions if current_function_value.__name__=='prepare_generation_confirmation')
             current_cancel_callback = next(current_function_value for current_function_value in current_event_functions if current_function_value.__name__=='cancel_generation_confirmation')
             current_execute_callback = next(current_function_value for current_function_value in current_event_functions if current_function_value.__name__=='execute_confirmed_generation')
-            current_pending_record = current_prepare_callback('wet impact',3,42,False,'test')[0]
+            current_pending_record = current_prepare_callback('wet impact',None,42,False,'test')[0]
             current_cancel_callback(current_pending_record,'wet impact')
             with self.assertRaises(Exception):
                 list(current_execute_callback(current_pending_record))
             current_command_mock.assert_not_called()
-            current_pending_record = current_prepare_callback('wet impact',3,42,False,'test')[0]
+            current_pending_record = current_prepare_callback('wet impact',None,42,False,'test')[0]
             current_result_values = list(current_execute_callback(current_pending_record))
             self.assertEqual(current_result_values[0][0], 'mock-job')
-            self.assertEqual(current_command_mock.call_args.args[:2], ('sfx-stable-audio','generate'))
+            self.assertEqual(current_command_mock.call_args.args[:2], ('sfx-dasheng-audiogen','generate'))
             with self.assertRaises(Exception):
                 list(current_execute_callback(current_pending_record))
             self.assertEqual(current_command_mock.call_count, 1)
@@ -159,9 +207,9 @@ class StableAudioEffectsTests(unittest.TestCase):
                 current_inference_mock.return_value = {'format':'wav'}
                 if current_exception_value:
                     with self.assertRaises(type(current_exception_value)):
-                        execute_music_worker('sfx-stable-audio',current_job_root)
+                        execute_music_worker('sfx-dasheng-audiogen',current_job_root)
                 else:
-                    execute_music_worker('sfx-stable-audio',current_job_root)
+                    execute_music_worker('sfx-dasheng-audiogen',current_job_root)
                 self.assertEqual(json.loads((current_job_root/'status.json').read_text())['status'],current_status_name)
                 current_metrics_recorder.finish_generation_telemetry.assert_called_with(current_status_name)
         self.assertEqual(len(list((current_job_root/'attempts').iterdir())),3)

@@ -1,3 +1,8 @@
-# 공식 구현 revision 고정. 관리 GUI 환경과 분리한다.
-stable-audio-3 @ git+https://github.com/Stability-AI/stable-audio-3.git@77e0398c26f7d22d801ec1bb036307e8b231f741
+# 공식 모델 카드의 Transformers 4.57 계약; 원격 코드는 준비 시 revision 고정.
+transformers==4.57.6
+accelerate==1.12.0
+huggingface-hub==0.36.2
+sentencepiece==0.2.1
+einops==0.8.2
+soundfile==0.13.1
 PyYAML==6.0.3
