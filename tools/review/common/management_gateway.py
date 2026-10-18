@@ -198,8 +198,8 @@ MANAGEMENT_COMMAND_DESCRIPTIONS['writer-agent']='작가 문서 학습·제안·�
 MANAGEMENT_COMMAND_DESCRIPTIONS['map-assets']='맵 정적 PNG 원본 축소 · --payload-file {path,sha256,size}'
 MANAGEMENT_COMMAND_DESCRIPTIONS['character-review']='캐릭터 검수 렌더링 PNG 캡처 · --payload-file 설정'
 MANAGEMENT_COMMAND_DESCRIPTIONS['anny-landmarks']='ANNY 기준점 후보 지정·축 검수·누적 저장 · --payload-file JSON · 승인·적용 없음'
-MANAGEMENT_COMMAND_DESCRIPTIONS['prop-generator'] = 'Qwen 기물 생성 · 독립 대기열·이력 · 참조 선택'
-MANAGEMENT_COMMAND_DESCRIPTIONS['vegetation-generator'] = 'Qwen 식생 생성 · 독립 대기열·이력 · 참조 선택'
+MANAGEMENT_COMMAND_DESCRIPTIONS['prop-generator'] = 'Qwen 소품 생성 · 독립 대기열·이력 · 참조 선택'
+MANAGEMENT_COMMAND_DESCRIPTIONS['vegetation-generator'] = 'Qwen 자연물 생성 · 독립 대기열·이력 · 참조 선택'
 MANAGEMENT_COMMAND_DESCRIPTIONS['building-generator'] = 'Qwen 건물 생성 · 전용 대기열·이력 · 레이아웃 참조 필수'
 
 for current_service_name in AUDIO_SERVICE_NAMES:

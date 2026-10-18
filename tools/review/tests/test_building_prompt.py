@@ -62,8 +62,8 @@ class BuildingPromptContractTests(unittest.TestCase):
         self.assertTrue(check_plain_prompt_readiness(current_prompt_text, False, False))
         current_interface_blocks = build_qwen_2511_interface('http://127.0.0.1:8770', qwen21_mode_enabled=True, prop_mode_enabled=True)
         current_component_records = current_interface_blocks.config['components']
-        self.assertTrue(any(current_component_record['props'].get('label') == '기물 레이아웃·외형 참조 1 · 선택' for current_component_record in current_component_records))
-        self.assertTrue(any(current_component_record['props'].get('value') == '기물 기본 프롬프트 복원' for current_component_record in current_component_records))
+        self.assertTrue(any(current_component_record['props'].get('label') == '소품 레이아웃·외형 참조 1 · 선택' for current_component_record in current_component_records))
+        self.assertTrue(any(current_component_record['props'].get('value') == '소품 기본 프롬프트 복원' for current_component_record in current_component_records))
         with self.assertRaises(ValueError):
             build_qwen_2511_interface('http://127.0.0.1:8770', qwen21_mode_enabled=True, building_mode_enabled=True, prop_mode_enabled=True)
 
@@ -75,7 +75,7 @@ class BuildingPromptContractTests(unittest.TestCase):
         self.assertFalse(check_plain_prompt_readiness(current_prompt_text + ' plant' * 100, False, False))
         current_interface_blocks = build_qwen_2511_interface('http://127.0.0.1:8770', qwen21_mode_enabled=True, vegetation_mode_enabled=True)
         current_component_records = current_interface_blocks.config['components']
-        self.assertTrue(any(current_component_record['props'].get('label') == '식생 레이아웃·식물 참조 1 · 선택' for current_component_record in current_component_records))
-        self.assertTrue(any(current_component_record['props'].get('value') == '식생 기본 프롬프트 복원' for current_component_record in current_component_records))
+        self.assertTrue(any(current_component_record['props'].get('label') == '자연물 레이아웃·외형 참조 1 · 선택' for current_component_record in current_component_records))
+        self.assertTrue(any(current_component_record['props'].get('value') == '자연물 기본 프롬프트 복원' for current_component_record in current_component_records))
         with self.assertRaises(ValueError):
             build_qwen_2511_interface('http://127.0.0.1:8770', qwen21_mode_enabled=True, prop_mode_enabled=True, vegetation_mode_enabled=True)

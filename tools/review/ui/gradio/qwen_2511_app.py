@@ -92,7 +92,7 @@ def render_circular_comparison(current_selected_identifier, current_status_recor
 
 def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False, qwen21_mode_enabled=False, circular_mode_enabled=False, pose_transfer_enabled=False, outfit_transfer_enabled=False, building_mode_enabled=False, prop_mode_enabled=False, vegetation_mode_enabled=False):
     if sum((building_mode_enabled, prop_mode_enabled, vegetation_mode_enabled)) > 1:
-        raise ValueError("건물·기물·식생 페이지는 별도 모드입니다.")
+        raise ValueError("건물·소품·자연물 페이지는 별도 모드입니다.")
     if (building_mode_enabled or prop_mode_enabled or vegetation_mode_enabled) and (not qwen21_mode_enabled or expression_mode_enabled or circular_mode_enabled or pose_transfer_enabled or outfit_transfer_enabled):
         raise ValueError("에셋 페이지는 Qwen 2.1 일반 생성 모드만 지원합니다.")
     from tools.review.domains.image.building_prompt import load_building_base_prompt, load_prop_base_prompt, load_vegetation_base_prompt, check_building_input_readiness
@@ -107,7 +107,7 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
     plain_options_enabled = qwen21_mode_enabled and not circular_mode_enabled and not pose_transfer_enabled and not outfit_transfer_enabled
     reference_slot_count = 2 if pose_transfer_enabled else 10 if qwen21_mode_enabled else 3
     current_service_name = 'prop-generator' if prop_mode_enabled else 'vegetation-generator' if vegetation_mode_enabled else 'building-generator' if building_mode_enabled else 'outfit-transfer' if outfit_transfer_enabled else 'pose-transfer' if pose_transfer_enabled else 'qwen-21-circular' if circular_mode_enabled else 'qwen-21' if qwen21_mode_enabled else 'expression' if expression_mode_enabled else 'qwen-2511'
-    current_page_title = '식생 생성기 · Qwen 2.1' if vegetation_mode_enabled else '기물 생성기 · Qwen 2.1' if prop_mode_enabled else '건물 생성기 · Qwen 2.1' if building_mode_enabled else '복장 착용 생성기' if outfit_transfer_enabled else '포즈 변환 생성기' if pose_transfer_enabled else 'Qwen 2.1 순환 VAE 생성기' if circular_mode_enabled else 'Qwen 2.1 이미지 생성기' if qwen21_mode_enabled else '표정 생성기' if expression_mode_enabled else 'Qwen 2511 3참조 생성기'
+    current_page_title = 'Qwen 2.1 자연물 생성기' if vegetation_mode_enabled else 'Qwen 2.1 소품 생성기' if prop_mode_enabled else 'Qwen 2.1 건물 생성기' if building_mode_enabled else '복장 착용 생성기' if outfit_transfer_enabled else '포즈 변환 생성기' if pose_transfer_enabled else 'Qwen 2.1 순환 VAE 생성기' if circular_mode_enabled else 'Qwen 2.1 이미지 생성기' if qwen21_mode_enabled else '표정 생성기' if expression_mode_enabled else 'Qwen 2511 3참조 생성기'
     def execute_reference_gateway(command_name_value, payload_value):
         return execute_management_command(current_service_name, command_name_value, payload_value)
     def restore_selected_inputs(current_history_record):
@@ -156,9 +156,9 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
     with gr.Blocks(title=current_page_title) as interface_blocks_value:
         gr.Markdown('## '+current_page_title+('\n업로드: 아이덴티티 → 포즈. 모델 전달: 포즈 image1 → 아이덴티티 image2.' if vnccs_transfer_enabled else '\n참조 이미지는 업로드한 순서대로 모델에 전달됩니다.'))
         if vegetation_mode_enabled:
-            gr.Markdown('나무·관목·풀·꽃·갈대 등 식생 빌보드를 생성합니다. 기본 문구 뒤에 식물 종류·계절·색상·군락 밀도를 추가하세요. 레이아웃은 투영·바닥 영역, 식물 참조는 잎·줄기 형태 기준입니다. 참조는 선택 사항이며 결과는 검수 후 slime-assets/assets/billboards/에 식생으로 등록합니다.')
+            gr.Markdown('나무·관목·풀·꽃·갈대 등 자연물 빌보드를 생성합니다. 기본 문구 뒤에 식물 종류·계절·색상·군락 밀도를 추가하세요. 레이아웃은 투영·바닥 영역, 식물 참조는 잎·줄기 형태 기준입니다. 참조는 선택 사항이며 결과는 검수 후 slime-assets/assets/billboards/에 자연물으로 등록합니다.')
         if prop_mode_enabled:
-            gr.Markdown('상자·가판대·작업대·표지판 등 기물 스프라이트를 생성합니다. 기본 문구 뒤에 대상·용도·자재를 추가하세요. 레이아웃은 투영·바닥 영역, 외형 참조는 형태·자재 기준입니다. 참조는 선택 사항이며 결과는 검수 후 slime-assets/assets/billboards/에 등록합니다.')
+            gr.Markdown('상자·가판대·작업대·표지판 등 소품 스프라이트를 생성합니다. 기본 문구 뒤에 대상·용도·자재를 추가하세요. 레이아웃은 투영·바닥 영역, 외형 참조는 형태·자재 기준입니다. 참조는 선택 사항이며 결과는 검수 후 slime-assets/assets/billboards/에 등록합니다.')
         if building_mode_enabled:
             gr.Markdown('레이아웃 이미지 → 건물 후보 생성. 첫 참조는 실제 맵의 타일 축·건물 바닥 영역·출입구를 표시한 이미지입니다. 건물 용도·자재를 입력하고 건물 기본 프롬프트 추가를 선택하세요. 옵션을 합친 최종 문구는 99단어 이내여야 합니다. 생성 결과는 검수 후 slime-assets/assets/buildings/에 등록합니다.')
         if pose_transfer_enabled and not outfit_transfer_enabled:
@@ -259,9 +259,9 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
                 return current_prompt_text
             prompt_text_value.input(remember_custom_prompt, prompt_text_value, custom_prompt_memory, queue=False)
         elif vegetation_mode_enabled:
-            gr.Button('식생 기본 프롬프트 복원', size='sm').click(load_vegetation_base_prompt, outputs=prompt_text_value, queue=False)
+            gr.Button('자연물 기본 프롬프트 복원', size='sm').click(load_vegetation_base_prompt, outputs=prompt_text_value, queue=False)
         elif prop_mode_enabled:
-            gr.Button('기물 기본 프롬프트 복원', size='sm').click(load_prop_base_prompt, outputs=prompt_text_value, queue=False)
+            gr.Button('소품 기본 프롬프트 복원', size='sm').click(load_prop_base_prompt, outputs=prompt_text_value, queue=False)
         elif building_mode_enabled:
             gr.Markdown('건물 용도·자재를 입력하고 건물 기본 프롬프트 추가 옵션을 선택하세요.')
         elif not expression_mode_enabled:
@@ -302,8 +302,8 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
                     building_layout_preview = gr.Image(value=load_building_layout_preset(BUILDING_LAYOUT_PRESET_NAMES[0]), type='pil', interactive=False, label='구도 그림 미리보기', height=REFERENCE_IMAGE_CARD_HEIGHT)
                 building_height_selector.change(load_building_layout_preset, [building_layout_selector, building_height_selector], building_layout_preview, queue=False)
                 building_layout_selector.change(load_building_layout_preset, [building_layout_selector, building_height_selector], building_layout_preview, queue=False)
-        with gr.Accordion('식생 레이아웃·식물 참조 · 선택' if vegetation_mode_enabled else '기물 레이아웃·외형 참조 · 선택' if prop_mode_enabled else '레이아웃 이미지 · 필수 / 추가 외형 참조 · 선택' if building_mode_enabled else '참조 이미지 · 선택 · 최대 10장', open=building_mode_enabled or prop_mode_enabled or vegetation_mode_enabled) if qwen21_mode_enabled and not pose_transfer_enabled else contextlib.nullcontext():
-            reference_upload_group,reference_image_controls=build_reference_image_inputs(reference_image_mode=None, reference_slot_count=reference_slot_count, reference_slot_labels=[f'식생 레이아웃·식물 참조 {current_slot_number} · 선택' for current_slot_number in range(1, 11)] if vegetation_mode_enabled else [f'기물 레이아웃·외형 참조 {current_slot_number} · 선택' for current_slot_number in range(1, 11)] if prop_mode_enabled else ['레이아웃 이미지 · 필수 (투영·바닥·출입구)'] + [f'외형·자재 참조 {current_slot_number} · 선택' for current_slot_number in range(2, 11)] if building_mode_enabled else ['바디 레퍼런스 · 필수','아웃핏 레퍼런스 · 필수'] if outfit_transfer_enabled else ['아이덴티티 이미지 · 필수','포즈 이미지 · 필수'] if pose_transfer_enabled else None)
+        with gr.Accordion('자연물 레이아웃·외형 참조 · 선택' if vegetation_mode_enabled else '소품 레이아웃·외형 참조 · 선택' if prop_mode_enabled else '레이아웃 이미지 · 필수 / 추가 외형 참조 · 선택' if building_mode_enabled else '참조 이미지 · 선택 · 최대 10장', open=building_mode_enabled or prop_mode_enabled or vegetation_mode_enabled) if qwen21_mode_enabled and not pose_transfer_enabled else contextlib.nullcontext():
+            reference_upload_group,reference_image_controls=build_reference_image_inputs(reference_image_mode=None, reference_slot_count=reference_slot_count, reference_slot_labels=[f'자연물 레이아웃·외형 참조 {current_slot_number} · 선택' for current_slot_number in range(1, 11)] if vegetation_mode_enabled else [f'소품 레이아웃·외형 참조 {current_slot_number} · 선택' for current_slot_number in range(1, 11)] if prop_mode_enabled else ['레이아웃 이미지 · 필수 (투영·바닥·출입구)'] + [f'외형·자재 참조 {current_slot_number} · 선택' for current_slot_number in range(2, 11)] if building_mode_enabled else ['바디 레퍼런스 · 필수','아웃핏 레퍼런스 · 필수'] if outfit_transfer_enabled else ['아이덴티티 이미지 · 필수','포즈 이미지 · 필수'] if pose_transfer_enabled else None)
         if building_mode_enabled:
             building_layout_apply_button.click(load_building_layout_preset, [building_layout_selector, building_height_selector], reference_image_controls[0], queue=False)
         if vnccs_transfer_enabled:
@@ -357,7 +357,7 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
         gr.Markdown('실행 중인 작업은 아래 생성 이력에서 선택한 뒤 **작업 중지**를 사용하세요.')
         identifier_value=build_generation_identifier()
         preview_value=build_generation_gallery()
-        gr.Markdown('건물 전용 대기열·생성 이력입니다. 기존 공유 Qwen 이력은 일반 Qwen 생성기에서 조회하세요.' if building_mode_enabled else '기물 전용 대기열·생성 이력입니다. 기존 공유 이력은 일반 Qwen에서 조회하세요.' if prop_mode_enabled else '식생 전용 대기열·생성 이력입니다. 기존 공유 이력은 일반 Qwen에서 조회하세요.' if vegetation_mode_enabled else '복장 착용 전용 생성 이력입니다.' if outfit_transfer_enabled else '포즈 변환 전용 생성 이력입니다. 기존 이미지 생성 이력과 별도로 관리합니다.' if pose_transfer_enabled else 'Qwen 2.1 전용 생성 이력입니다. 조회·삭제·초기화는 현재 생성기에만 적용됩니다.' if qwen21_mode_enabled else '표정 생성 이력은 Qwen 2511 참조 생성 이력과 별도로 관리합니다. 조회·삭제·초기화는 현재 생성기에만 적용됩니다.' if expression_mode_enabled else 'Qwen 2511 참조 생성 이력은 표정 생성 이력과 별도로 관리합니다. 조회·삭제·초기화는 현재 생성기에만 적용됩니다.')
+        gr.Markdown('건물 전용 대기열·생성 이력입니다. 기존 공유 Qwen 이력은 일반 Qwen 생성기에서 조회하세요.' if building_mode_enabled else '소품 전용 대기열·생성 이력입니다. 기존 공유 이력은 일반 Qwen에서 조회하세요.' if prop_mode_enabled else '자연물 전용 대기열·생성 이력입니다. 기존 공유 이력은 일반 Qwen에서 조회하세요.' if vegetation_mode_enabled else '복장 착용 전용 생성 이력입니다.' if outfit_transfer_enabled else '포즈 변환 전용 생성 이력입니다. 기존 이미지 생성 이력과 별도로 관리합니다.' if pose_transfer_enabled else 'Qwen 2.1 전용 생성 이력입니다. 조회·삭제·초기화는 현재 생성기에만 적용됩니다.' if qwen21_mode_enabled else '표정 생성 이력은 Qwen 2511 참조 생성 이력과 별도로 관리합니다. 조회·삭제·초기화는 현재 생성기에만 적용됩니다.' if expression_mode_enabled else 'Qwen 2511 참조 생성 이력은 표정 생성 이력과 별도로 관리합니다. 조회·삭제·초기화는 현재 생성기에만 적용됩니다.')
         log_value,refresh_log_value,_=build_execution_logs()
         read_history_page,history_output_values=build_generation_history_view(
             execute_reference_gateway,server_base_address,

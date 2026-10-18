@@ -1,4 +1,4 @@
-"""레이아웃 참조 기반 Qwen 기물 생성 UI."""
+"""레이아웃 참조 기반 Qwen 소품 생성 UI."""
 import argparse
 import gradio as gr
 from qwen_2511_app import build_qwen_2511_interface
