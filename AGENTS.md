@@ -253,7 +253,7 @@
 - Vite 개발 서버는 원본을 제공하고 배포 빌드는 해시 파일명으로 번들링한다. 관리도구는 검수 게시 사본과 출처·해시를 유지한다.
 
 ## Building Sprite Standard
-- 건물용 벽·문·창문·지붕 타일은 폐기한다. 신규 건물은 `slime-assets/assets/sprites/structures/`의 완성형 스프라이트로 등록하고 사용한다.
+- 건물용 벽·문·창문·지붕 타일은 폐기한다. 신규 건물은 `slime-assets/assets/buildings/`의 완성형 스프라이트로 등록하고 사용한다.
 - 지형용 바닥·절벽 타일과 건물 스프라이트는 구분하며, 블록 조립용 건물 타일 카탈로그·프리팹·로딩을 재도입하지 않는다.
 
 ## Terrain Tile Organization

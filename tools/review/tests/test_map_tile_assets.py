@@ -92,7 +92,7 @@ class MapTileAssetTests(unittest.TestCase):
     def test_shared_sprite_catalog_preserves_file_validation(self):
         with TemporaryDirectory() as current_temporary_directory:
             current_repository_path = Path(current_temporary_directory)
-            current_relative_path = 'assets/sprites/structures/test.png'
+            current_relative_path = 'assets/buildings/test.png'
             current_sprite_path = current_repository_path / current_relative_path
             current_sprite_path.parent.mkdir(parents=True)
             current_sprite_path.write_bytes(b'original')

@@ -111,7 +111,7 @@ HTTP URL, 페이지 해시, CLI 명령, `.tmp` 생성 ID·기록 경로와 `asse
 
 ### 경비센터 표시 원본
 
-필드맵 검수는 등록된 `assets/ui/guard-centers.yaml`의 도시별 외형과 `assets/sprites/structures/`의 이미지를 해시 검증 후 제공합니다. 도시행 웨이포인트에서 기존 필드 발급 위치를 계산하며, 이미지 URL과 관리 ID·버전·SHA-256을 `guardCenters`에 함께 제공합니다. 게임도 같은 설정을 사용하며 통행 데이터는 변경하지 않습니다.
+필드맵 검수는 등록된 `assets/ui/guard-centers.yaml`의 도시별 외형과 `assets/buildings/`의 이미지를 해시 검증 후 제공합니다. 도시행 웨이포인트에서 기존 필드 발급 위치를 계산하며, 이미지 URL과 관리 ID·버전·SHA-256을 `guardCenters`에 함께 제공합니다. 게임도 같은 설정을 사용하며 통행 데이터는 변경하지 않습니다.
 
 맵 배치 원본은 `slime-assets/assets/maps/`의 등록 YAML을 직접 검증해 읽습니다. `assets/world`의 과거 맵 사본과 전용 조립기는 폐기했습니다. UI 표시 설정(재질 색상·렌더 크기·타일 별칭)은 `tools/review/ui/map/config/`에서 관리하며 맵 배치 사본을 보관하지 않습니다. `build_map_review.py --map`의 로컬 사본 입력은 명시적으로 거절합니다.
 
@@ -223,4 +223,4 @@ VACE 공용 작업자는 CUDA 초기화 전에 `expandable_segments:True`를 적
 
 ### 맵 빌보드·건물 원본 크기 계약
 
-`slime-assets/assets/billboards/`와 `assets/sprites/structures/`의 PNG 원본은 긴 변이 512px를 초과할 수 없습니다. 빌보드 카탈로그에서 `tree`로 분류된 수목은 256×256px, `vegetation` 식생은 128×128px 원본을 사용합니다. 나머지 소품·장면 빌보드와 건물 구조물은 표시 비율을 유지하되 512px 이하로 준비합니다. 프론트엔드 `npm run check:sprite-assets`는 잠금 파일 해시뿐 아니라 PNG 실제 크기와 `asset-registry.yaml`의 `width`·`height`를 함께 대조하여 이 계약을 위반한 신규 원본을 차단합니다.
+`slime-assets/assets/billboards/`와 `assets/buildings/`의 PNG 원본은 긴 변이 512px를 초과할 수 없습니다. 빌보드 카탈로그에서 `tree`로 분류된 수목은 256×256px, `vegetation` 식생은 128×128px 원본을 사용합니다. 나머지 소품·장면 빌보드와 건물 구조물은 표시 비율을 유지하되 512px 이하로 준비합니다. 프론트엔드 `npm run check:sprite-assets`는 잠금 파일 해시뿐 아니라 PNG 실제 크기와 `asset-registry.yaml`의 `width`·`height`를 함께 대조하여 이 계약을 위반한 신규 원본을 차단합니다.

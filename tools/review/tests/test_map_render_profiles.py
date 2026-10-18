@@ -83,7 +83,7 @@ assert.throws(registerTextureAliases, /다른 검수 원본과 충돌/);
             _, current_registered_tiles = load_registered_tiles()
             current_original_record = current_registered_tiles[guild_texture_record['source']]
             self.assertEqual(guild_texture_record['version'], current_original_record['version'])
-            self.assertEqual(guild_texture_record['source'], 'assets/sprites/structures/town-stonewarm-guild-v1.png')
+            self.assertEqual(guild_texture_record['source'], 'assets/buildings/town-stonewarm-guild-v1.png')
             self.assertEqual(guild_texture_record['sha256'], current_original_record['sha256'])
             # 게시된 결계 사본과 공용 렌더러가 실제 manifest의 해시와 일치해야 한다.
             current_safe_records=json.loads((current_output_directory/'field-safe-visuals.json').read_text())

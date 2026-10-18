@@ -29,7 +29,7 @@ def resize_registered_image(current_request_payload):
     with (RESIZE_STORAGE_DIRECTORY / 'resize.lock').open('a') as current_lock_stream:
         fcntl.flock(current_lock_stream, fcntl.LOCK_EX)
         current_asset_root, current_asset_records = load_registered_tiles()
-        current_prefix_name = next((current_prefix for current_prefix in ('assets/tiles', 'assets/billboards', 'assets/sprites/structures') if selected_asset_path.startswith(current_prefix + '/')), None)
+        current_prefix_name = next((current_prefix for current_prefix in ('assets/tiles', 'assets/billboards', 'assets/buildings') if selected_asset_path.startswith(current_prefix + '/')), None)
         if current_prefix_name is None:
             raise ValueError('맵 이미지 원본만 변경할 수 있습니다.')
         current_image_path, current_image_provenance = resolve_registered_asset(selected_asset_path, current_asset_root, current_asset_records, current_prefix_name)

@@ -14,7 +14,7 @@ from PIL import Image
 MAXIMUM_SOURCE_DIMENSION = 512
 TREE_BILLBOARD_DIMENSION = 256
 VEGETATION_BILLBOARD_DIMENSION = 128
-MAP_SPRITE_PREFIXES = ('assets/billboards/', 'assets/sprites/structures/')
+MAP_SPRITE_PREFIXES = ('assets/billboards/', 'assets/buildings/')
 
 
 def read_yaml_document(document_path: Path) -> dict:

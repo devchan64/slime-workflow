@@ -104,6 +104,8 @@ def select_sprite_source_prefix(asset_relative_path):
     """캐릭터 분류와 몬스터·구조물의 허용 경로를 구분한다."""
     if not isinstance(asset_relative_path, str) or '..' in Path(asset_relative_path).parts:
         raise ValueError('스프라이트 원본 경로 오류')
+    if re.fullmatch(r'assets/buildings/[\w-]+\.png', asset_relative_path):
+        return 'assets/buildings'
     if re.fullmatch(r'assets/billboards/[\w-]+\.(png|animation\.json)', asset_relative_path):
         return 'assets/billboards'
     if re.fullmatch(r'assets/characters/[\w-]+/(animations|battle-cutins|emotion-cutins)/[\w./-]+', asset_relative_path):

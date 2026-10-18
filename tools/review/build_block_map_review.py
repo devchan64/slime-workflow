@@ -140,7 +140,7 @@ def load_current_texture_records(validate_complete_inventory=True):
 
 def build_field_safe_visual_records(texture_output_directory):
     """필드맵 검수에서 게임과 같은 결계탑·외곽 오러를 그릴 수 있게 등록 원본을 게시한다."""
-    safe_tower_source_path, safe_tower_provenance = resolve_registered_sprite('assets/sprites/structures/ward-tower-v1.png')
+    safe_tower_source_path, safe_tower_provenance = resolve_registered_sprite('assets/buildings/ward-tower-v1.png')
     safe_aura_source_path, safe_aura_provenance = resolve_registered_sprite('assets/sprites/effects/safe-barrier/safe-barrier-aura-v2-source.png')
     safe_tower_output_path = texture_output_directory/'review-safe-tower.png'
     safe_aura_output_path = texture_output_directory/'review-safe-barrier-aura.png'

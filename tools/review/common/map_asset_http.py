@@ -23,7 +23,7 @@ def read_map_asset_response(request_path_value):
     if current_request_path.startswith('/management/map-assets/structures/'):
         current_asset_name = current_request_path.removeprefix('/management/map-assets/structures/')
         current_asset_root,current_asset_records = load_registered_tiles()
-        current_asset_path,_ = resolve_registered_asset('assets/sprites/structures/'+current_asset_name,current_asset_root,current_asset_records,'assets/sprites/structures')
+        current_asset_path,_ = resolve_registered_asset('assets/buildings/'+current_asset_name,current_asset_root,current_asset_records,'assets/buildings')
         if current_asset_path.suffix != '.png': raise ValueError('지원하지 않는 구조물 형식')
         return current_asset_path.read_bytes(),'image/png'
     if current_request_path.startswith('/management/map-assets/files/'):
