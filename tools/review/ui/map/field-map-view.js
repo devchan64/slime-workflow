@@ -1,7 +1,7 @@
-import {resolveCityTileTextures,resolveTownGroundFrame,resolveReedFrameForMap,drawWaypoint,waypointMarkerScale,resolveFieldTileTextures,collectTerrainTextureSources,createTerrainAtlas,TERRAIN_ATLAS,drawCityBuildingSprite,resolveCityGroundDepth,cellDepth,TERRAIN_DEPTH,mapAnnotationDepth,resolveMapTileSize,resolveGrassFrameForMap,resolvePavingFrameForMap,selectFieldRoadFrame} from './vendor/field-renderer/__FIELD_RENDERER_VERSION__/town-renderer.mjs';
+import {resolveCityTileTextures,resolveTownGroundFrame,resolveReedFrameForMap,drawWaypoint,waypointMarkerScale,resolveFieldTileTextures,collectTerrainTextureSources,createTerrainAtlas,TERRAIN_ATLAS,drawCityBuildingSprite,resolveCityGroundDepth,TERRAIN_DEPTH,mapAnnotationDepth,resolveMapTileSize,resolveGrassFrameForMap,resolvePavingFrameForMap,selectFieldRoadFrame} from './vendor/field-renderer/__FIELD_RENDERER_VERSION__/town-renderer.mjs';
 import {GAME_INTERNAL_RESOLUTION_SCALE,drawCharacterContactShadow,attachCharacterOutlineLayers,roadConnections,waterConnections} from './vendor/field-renderer/__FIELD_RENDERER_VERSION__/game-render-profile.mjs';
 import * as Phaser from './vendor/field-renderer/__FIELD_RENDERER_VERSION__/phaser.mjs';
-import {FIELD_RENDER_METRICS,updateFieldActorOcclusion,resolveGuardDisplayPlacement,projectGuardDisplayCenter,GUARD_CENTER_FOOTPRINT_SIZE,drawTownMaterialEdges,drawFieldCellObjects,drawFieldSceneryObject,resolveFieldSceneryPlacement,drawFieldAuraPanel,drawFieldMeshBoundary,buildFieldBoundaryPanels,rotateSurfacePosition} from './vendor/field-renderer/__FIELD_RENDERER_VERSION__/field-renderer.mjs';
+import {FIELD_RENDER_METRICS,updateFieldActorOcclusion,resolveGuardDisplayPlacement,projectGuardDisplayCenter,GUARD_CENTER_FOOTPRINT_SIZE,drawTownMaterialEdges,drawFieldCellObjects,drawFieldSceneryObject,resolveFieldSceneryPlacement,resolveFieldSurfaceDepth,drawFieldAuraPanel,drawFieldMeshBoundary,buildFieldBoundaryPanels,rotateSurfacePosition} from './vendor/field-renderer/__FIELD_RENDERER_VERSION__/field-renderer.mjs';
 
 const FIELD_REVIEW_ACTOR_DEPTH=TERRAIN_DEPTH.actor;
 const FIELD_REVIEW_TOWER_DEPTH=TERRAIN_DEPTH.overlay;
@@ -44,6 +44,10 @@ export function resolveReviewTownFrame(currentMapRecord,currentTerrainName,curre
  return currentTerrainName==='water'?`water-${currentConnectionMask}`:currentTerrainName==='road'?selectFieldRoadFrame(currentConnectionMask,currentCellPosition,true,currentMapRecord.id):currentTerrainName==='reed-bed'?resolveReedFrameForMap(currentMapRecord.id):currentTerrainName==='paving'?resolvePavingFrameForMap(currentMapRecord.id):currentTerrainName==='grass'?resolveGrassFrameForMap(currentMapRecord.id):resolveTownGroundFrame(currentMapRecord.id,currentTerrainName);
 }
 
+const MAP_EXPORT_MAXIMUM_EDGE=4096;
+const MAP_EXPORT_WORLD_PADDING=80;
+const MAP_EXPORT_TIMEOUT_MS=15000;
+
 function readReviewViewportSize(currentMapCanvas){
  const currentViewportBounds=currentMapCanvas.parentElement.getBoundingClientRect();
  const currentPixelWidth=Math.round(currentViewportBounds.width*GAME_INTERNAL_RESOLUTION_SCALE);
@@ -63,6 +67,7 @@ export async function createSharedFieldReview(currentMapCanvas,currentTextureIma
  let currentResolveReady;
  let currentRejectReady;
  let currentReviewDisposed=false;
+ let currentExportInProgress=false;
  const currentReadyPromise=new Promise((currentResolveValue,currentRejectValue)=>{currentResolveReady=currentResolveValue;currentRejectReady=currentRejectValue;});
  const currentInitialSize=readReviewViewportSize(currentMapCanvas);
  const currentFieldGame=new Phaser.Game({type:Phaser.WEBGL,canvas:currentMapCanvas,width:currentInitialSize.width,height:currentInitialSize.height,scale:{mode:Phaser.Scale.NONE,zoom:1/GAME_INTERNAL_RESOLUTION_SCALE},render:{antialias:true,pixelArt:false,roundPixels:false},transparent:true,banner:false,audio:{noAudio:true},input:{mouse:false,touch:false,keyboard:false},scene:{create(){currentFieldScene=this;currentResolveReady();}}});
@@ -111,11 +116,47 @@ export async function createSharedFieldReview(currentMapCanvas,currentTextureIma
   attachCharacterOutlineLayers(currentCharacterSprite);
  }
  function updateSharedReviewCamera(currentViewSettings){
+  if(currentExportInProgress)return;
   resizeReviewViewport(currentFieldGame,currentMapCanvas);
   currentFieldScene.cameras.main.setOrigin(0,0).setZoom(currentViewSettings.scale*GAME_INTERNAL_RESOLUTION_SCALE).setScroll(-currentViewSettings.offsetX/currentViewSettings.scale,-currentViewSettings.offsetY/currentViewSettings.scale);
  }
 
  return {
+  async exportWholeMapImage(currentGroundPoints){
+   if(currentExportInProgress)throw Error('이미지를 내보내는 중입니다. 완료 후 다시 시도하세요.');
+   if(currentReviewDisposed)throw Error('맵 검수 화면이 닫혔습니다.');
+   const currentCameraObject=currentFieldScene.cameras.main;
+   const currentCameraState={width:currentFieldGame.scale.width,height:currentFieldGame.scale.height,zoom:currentCameraObject.zoom,x:currentCameraObject.scrollX,y:currentCameraObject.scrollY};
+   const currentExtentPoints=[...currentGroundPoints];
+   for(const currentSceneObject of currentFieldScene.children.list){
+    if(!currentSceneObject.visible||typeof currentSceneObject.getBounds!=='function')continue;
+    const currentObjectBounds=currentSceneObject.getBounds();
+    currentExtentPoints.push({x:currentObjectBounds.left,y:currentObjectBounds.top},{x:currentObjectBounds.right,y:currentObjectBounds.bottom});
+   }
+   const currentMinimumX=Math.min(...currentExtentPoints.map(currentPointValue=>currentPointValue.x))-MAP_EXPORT_WORLD_PADDING;
+   const currentMinimumY=Math.min(...currentExtentPoints.map(currentPointValue=>currentPointValue.y))-MAP_EXPORT_WORLD_PADDING;
+   const currentWorldWidth=Math.max(...currentExtentPoints.map(currentPointValue=>currentPointValue.x))-currentMinimumX+MAP_EXPORT_WORLD_PADDING;
+   const currentWorldHeight=Math.max(...currentExtentPoints.map(currentPointValue=>currentPointValue.y))-currentMinimumY+MAP_EXPORT_WORLD_PADDING;
+   const currentExportScale=Math.min(1,MAP_EXPORT_MAXIMUM_EDGE/Math.max(currentWorldWidth,currentWorldHeight));
+   currentExportInProgress=true;
+   try{
+    currentFieldGame.scale.resize(Math.ceil(currentWorldWidth*currentExportScale),Math.ceil(currentWorldHeight*currentExportScale));
+    currentCameraObject.setZoom(currentExportScale).setScroll(currentMinimumX,currentMinimumY);
+    return await new Promise((resolveExportImage,rejectExportImage)=>{
+     const currentExportTimeout=setTimeout(()=>rejectExportImage(Error('이미지 내보내기 시간이 초과되었습니다. 다시 시도하세요.')),MAP_EXPORT_TIMEOUT_MS);
+     currentFieldGame.renderer.snapshot(currentSnapshotImage=>{
+      clearTimeout(currentExportTimeout);
+      if(!currentSnapshotImage?.src){rejectExportImage(Error('맵 이미지 생성에 실패했습니다.'));return;}
+      resolveExportImage(currentSnapshotImage);
+     },'image/png');
+    });
+   }finally{
+    currentFieldGame.scale.resize(currentCameraState.width,currentCameraState.height);
+    currentCameraObject.setZoom(currentCameraState.zoom).setScroll(currentCameraState.x,currentCameraState.y);
+    currentMapCanvas.style.width='100%';currentMapCanvas.style.height='100%';
+    currentExportInProgress=false;
+   }
+  },
   render(currentFieldFrame,currentMapRecord,currentViewSettings){
    if(currentReviewDisposed)throw Error('맵 검수 화면이 닫혔습니다.');
    updateSharedReviewCamera(currentViewSettings);
@@ -128,7 +169,7 @@ export async function createSharedFieldReview(currentMapCanvas,currentTextureIma
      const currentTerrainName=currentMapRecord.terrainCodes[currentMapRecord.terrainRows[currentCellRecord.cell.row][currentCellRecord.cell.column]];
      const currentConnectionMask=['road','water'].includes(currentTerrainName)?readReviewConnectionMask(currentCellRecord.cell,currentMapRecord,currentTerrainName,currentFieldFrame.options.rotation):0;
      const currentTileTextures=resolveFieldTileTextures(currentFieldScene,currentTerrainName,currentCellRecord.cell,currentMapRecord.id,currentConnectionMask,currentCellPosition=>currentMapRecord.terrainCodes[currentMapRecord.terrainRows[currentCellPosition.row][currentCellPosition.column]],currentMapRecord.groundOverrides??[]);
-     const currentRenderDepth=cellDepth(rotateSurfacePosition(currentCellRecord.cell,currentFieldFrame.options.rotation));
+     const currentRenderDepth=resolveFieldSurfaceDepth(currentCellRecord.cell,currentMapRecord,currentFieldFrame.options);
      drawFieldCellObjects(currentFieldScene,currentCellRecord.cell,currentMapRecord,currentFieldFrame.options,currentTileTextures,currentRenderDepth,currentViewSettings.edges);
      if(currentViewSettings.tileEdges)drawReviewTileBoundary(currentFieldScene,currentCellRecord.center,currentFieldFrame.options.tileWidth,currentFieldFrame.options.tileHeight,currentRenderDepth+TERRAIN_DEPTH.surface+.01);
      if(currentViewSettings.safe){
@@ -145,7 +186,7 @@ export async function createSharedFieldReview(currentMapCanvas,currentTextureIma
      const currentObjectCell=currentFieldFrame.cells.find(currentCellRecord=>currentCellRecord.cell.column===currentObjectRecord.position.column&&currentCellRecord.cell.row===currentObjectRecord.position.row);
      if(!currentObjectCell)throw Error('지형지물 배치 좌표가 맵 범위를 벗어났습니다.');
      const currentObjectPlacement=resolveFieldSceneryPlacement(currentObjectRecord,currentObjectCell.center,currentFieldFrame.options);
-     const currentObjectDepth=cellDepth(rotateSurfacePosition(currentObjectPlacement.position,currentFieldFrame.options.rotation));
+     const currentObjectDepth=resolveFieldSurfaceDepth(currentObjectPlacement.position,currentMapRecord,currentFieldFrame.options);
      drawFieldSceneryObject(currentFieldScene,currentObjectRecord,currentObjectPlacement.screen,currentObjectDepth+FIELD_REVIEW_TOWER_DEPTH,'safe-tower');
     }
     for(const currentGuardRecord of currentMapRecord.guardCenters??[]){
@@ -155,7 +196,7 @@ export async function createSharedFieldReview(currentMapCanvas,currentTextureIma
       if(!currentFrameCell)throw Error('경비센터 지면 렌더 셀이 없습니다.');
       return currentFrameCell.center;
      });
-     const currentGuardDepth=cellDepth(rotateSurfacePosition(currentGuardPlacement.position,currentFieldFrame.options.rotation));
+     const currentGuardDepth=resolveFieldSurfaceDepth(currentGuardPlacement.position,currentMapRecord,currentFieldFrame.options);
      const currentGuardImage=currentFieldScene.add.image(currentGuardCenter.x+currentGuardRecord.offsetX,currentGuardCenter.y+currentGuardRecord.offsetY,currentGuardRecord.path).setOrigin(currentGuardRecord.anchorX,currentGuardRecord.anchorY).setDepth(currentGuardDepth+FIELD_REVIEW_TOWER_DEPTH);
      currentGuardImage.setScale(currentFieldFrame.options.tileWidth*GUARD_CENTER_FOOTPRINT_SIZE/currentGuardImage.width);
     }
@@ -171,7 +212,7 @@ export async function createSharedFieldReview(currentMapCanvas,currentTextureIma
     for(const currentActorObject of currentFieldActorObjects)if(currentActorObject.scene)currentActorObject.destroy();
     const previousSceneObjects=new Set(currentFieldScene.children.list);
     const currentActorCell=currentFieldFrame.cells.find(currentCellRecord=>currentCellRecord.cell.column===currentViewSettings.characterCell.column&&currentCellRecord.cell.row===currentViewSettings.characterCell.row);
-    if(currentViewSettings.character&&currentActorCell)drawSharedReviewActor(currentActorCell.center,cellDepth(rotateSurfacePosition(currentActorCell.cell,currentFieldFrame.options.rotation))+TERRAIN_DEPTH.actor);
+    if(currentViewSettings.character&&currentActorCell)drawSharedReviewActor(currentActorCell.center,resolveFieldSurfaceDepth(currentActorCell.cell,currentMapRecord,currentFieldFrame.options)+TERRAIN_DEPTH.actor);
     currentFieldActorObjects=currentFieldScene.children.list.filter(currentSceneObject=>!previousSceneObjects.has(currentSceneObject));
     currentFieldActorSignature=currentActorSignature;
    }
@@ -182,7 +223,7 @@ export async function createSharedFieldReview(currentMapCanvas,currentTextureIma
   renderTown(currentMapRecord,currentViewSettings,currentProjectPosition){
    if(currentReviewDisposed)throw Error('맵 검수 화면이 닫혔습니다.');
    const currentMapSignature=JSON.stringify([currentMapRecord.id,currentViewSettings.rotation,currentViewSettings.edges,currentViewSettings.tileEdges]);
-   const currentDepthPosition=currentCellPosition=>cellDepth(rotateSurfacePosition(currentCellPosition,currentViewSettings.rotation));
+   const currentDepthPosition=currentCellPosition=>resolveFieldSurfaceDepth(currentCellPosition,currentMapRecord,{...FIELD_RENDER_METRICS,rotation:currentViewSettings.rotation});
    if(currentMapSignature!==currentTownMapSignature){
     for(const currentRenderObject of [...currentFieldScene.children.list])if(currentRenderObject.scene)currentRenderObject.destroy();
     currentAppliedBuildingTextures=new Set();

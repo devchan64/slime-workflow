@@ -14,6 +14,7 @@ from tools.review.common.gradio_browser_controls import build_browser_action_but
 MAP_REVIEW_CANVAS_MARKUP='''<section id="map-review-root" aria-label="맵 검수">
 <h3 id="map-title">맵 검수</h3><p id="status" role="status">맵을 준비하고 있습니다…</p>
 <output id="zoom-level" aria-live="polite"></output>
+<p><a id="map-export-download" hidden>전체 맵 PNG 다운로드</a></p>
 <div style="position:relative;aspect-ratio:4/3"><canvas id="map" width="768" height="576" tabindex="0" aria-label="맵. 방향키로 이동, 더하기와 빼기로 확대·축소, 0 키로 전체 보기" style="position:absolute;width:100%;height:100%;touch-action:none"></canvas></div>
 </section>'''
 
@@ -53,7 +54,10 @@ def build_map_review_interface(review_server_port, character_review_enabled=Fals
         current_refresh_button=gr.Button('검수 화면 새로고침')
         current_refresh_button.click(fn=None,queue=False,js="()=>{window.location.reload();}")
         if not character_review_enabled:
-            current_kind_choice=gr.Radio(label='맵 종류',choices=[('야외필드','field'),('도시맵','town'),('전투필드','battle')],value='field',interactive=True)
+            with gr.Row():
+                current_kind_choice=gr.Radio(label='맵 종류',choices=[('야외필드','field'),('도시맵','town'),('전투필드','battle')],value='field',interactive=True)
+                current_map_choice=gr.Dropdown(label='맵 선택',choices=[],interactive=False)
+                current_load_button=gr.Button('맵 불러오기',interactive=False)
             current_kind_choice.input(fn=None,inputs=current_kind_choice,queue=False,js="async currentMapKind=>{const currentMapUrl=new URL(location.href);currentMapUrl.searchParams.set('mapKind',currentMapKind);currentMapUrl.searchParams.delete('townPage');if(currentMapKind!=='battle'){const currentMapResponse=await fetch('http://127.0.0.1:"+str(review_server_port)+"/isloon-map-review/block-map-index.json');if(!currentMapResponse.ok)throw Error('맵 목록 조회 실패');const currentMapRecords=await currentMapResponse.json();const currentFirstMap=currentMapRecords.find(currentMapRecord=>currentMapRecord.kind===currentMapKind);if(!currentFirstMap)throw Error('등록된 맵이 없습니다.');currentMapUrl.searchParams.set('map',currentFirstMap.id);}location.assign(currentMapUrl.href);}")
             with gr.Group() as current_battle_group:
                 current_battle_choice=gr.Dropdown(label='전투필드 선택',choices=[],interactive=False)
@@ -65,9 +69,9 @@ def build_map_review_interface(review_server_port, character_review_enabled=Fals
         with gr.Group() as current_surface_group:
             if character_review_enabled:
                 gr.Markdown('3×3 바닥 위에서 기본 캐릭터를 비교합니다. 초기 배율은 실제 게임 크기 100%이며 오른쪽 맵을 클릭하면 양쪽 캐릭터가 함께 이동합니다.')
-            with gr.Row():
-                current_map_choice=gr.Dropdown(label='맵 선택',choices=[],interactive=False)
-                current_load_button=gr.Button('맵 불러오기',interactive=False)
+                with gr.Row():
+                    current_map_choice=gr.Dropdown(label='맵 선택',choices=[],interactive=False)
+                    current_load_button=gr.Button('맵 불러오기',interactive=False)
             current_camera_feedback=gr.Textbox(label='검수 안내',value='맵을 불러온 뒤 사용할 수 있습니다.',interactive=False)
             current_load_button.click(fn=None,inputs=current_map_choice,outputs=current_camera_feedback,queue=False,js="(currentMapIdentifier)=>{try{if(!window.mapReviewSelectMap)throw Error('맵을 준비 중입니다.');window.mapReviewSelectMap(currentMapIdentifier);return '맵을 불러옵니다.';}catch(currentLoadError){return currentLoadError.message;}}")
             current_ready_controls=[]
@@ -75,6 +79,10 @@ def build_map_review_interface(review_server_port, character_review_enabled=Fals
             with gr.Row():
                 for current_camera_action,current_camera_label in (('zoom-out','지도 축소'),('zoom-in','지도 확대'),('actual-size','사람 중심 · 100%'),('fit','전체 보기')):
                     current_ready_controls.append(build_browser_action_button(current_camera_label,'mapReviewCameraControls',current_camera_action,current_camera_feedback,current_button_enabled=False))
+                if not character_review_enabled:
+                    current_ready_controls.append(build_browser_action_button('전체 맵 PNG 내보내기','mapReviewExportImage','export',current_camera_feedback,current_button_enabled=False))
+            if not character_review_enabled:
+                gr.Markdown('전체 맵과 건물·식생을 투명 배경 PNG로 저장합니다. 현재 표시 옵션을 적용하며 긴 변은 최대 4096px입니다. 저장 후 기존 시점으로 돌아옵니다.')
             current_building_choice=gr.Dropdown(label='건물 선택',choices=[],interactive=False)
             current_building_choice.input(fn=None,inputs=current_building_choice,outputs=current_camera_feedback,queue=False,js="(currentBuildingIdentifier)=>{try{if(!window.mapReviewFocusBuilding)throw Error('맵을 준비 중입니다.');window.mapReviewFocusBuilding(currentBuildingIdentifier);return '선택한 건물로 이동했습니다.';}catch(currentFocusError){return currentFocusError.message;}}")
             with gr.Row():
@@ -84,9 +92,10 @@ def build_map_review_interface(review_server_port, character_review_enabled=Fals
                     current_boundary_check=gr.Checkbox(interactive=False,label='결계탑 · 결계 오러',value=True)
                 with gr.Column(min_width=200):
                     current_edges_check=gr.Checkbox(interactive=False,label='메시 경계',value=False)
+                with gr.Column(min_width=200):
+                    current_tile_edges_check=gr.Checkbox(interactive=False,label='타일 경계',value=False)
                 with gr.Column(min_width=220,visible=character_review_enabled) as current_shadow_profile_column:
                     current_shadow_profile=gr.Dropdown(label='캐릭터 시인성 검수',choices=[('이전 기본 그림자','baseline'),('게임 적용 · 접지 대비 강화','contrast'),('넓은 접지 그림자','broad')],value='contrast',interactive=False)
-            current_tile_edges_check=gr.Checkbox(interactive=False,label='타일 경계',value=False)
             current_display_inputs=[current_character_check,current_boundary_check,current_edges_check,current_shadow_profile,current_tile_edges_check]
             current_ready_controls.extend(current_display_inputs)
             for current_display_control in current_display_inputs:
@@ -131,8 +140,9 @@ def build_map_review_interface(review_server_port, character_review_enabled=Fals
                 current_capture_button.click(fn=None,inputs=None,outputs=current_capture_settings,queue=False,js="()=>{if(!window.characterReviewCaptureSettings)throw Error('맵을 준비 중입니다.');return window.characterReviewCaptureSettings();}").then(fn=capture_character_review_images,inputs=current_capture_settings,outputs=current_capture_files)
             with gr.Accordion('조작 방법 · 타일 안내',open=False):
                 gr.Markdown('휠 또는 확대·축소 버튼으로 배율을 조절하고 드래그 또는 방향키로 이동합니다. 0 키는 전체 보기입니다. 맵은 고정 시점이며 회전하지 않습니다. 이동 가능한 바닥을 클릭하면 기본 캐릭터를 배치합니다. 캐릭터를 가리는 앞쪽 빌보드·지형은 원래 불투명도의 40%로 표시되며, 가림이 없어지면 복원됩니다. 맵에 포커스를 둔 뒤 Shift+좌우로 캐릭터 열, Shift+상하로 행을 이동합니다. 메시 경계는 지면·절벽 면의 꼭짓점을 표시합니다. 미등록 지형은 임시 색상으로 표시됩니다.')
-            with gr.Accordion('적용 타일 원본',open=True):
-                gr.HTML('<ul id="applied-tile-list" aria-live="polite"></ul>')
+            for current_source_label,current_source_identifier in [('지형 타일 원본','applied-tile-list'),('건물 스프라이트 원본','applied-building-list'),('빌보드 원본','applied-billboard-list'),('결계·경비 구조물 원본','applied-structure-list')]:
+                with gr.Accordion(current_source_label,open=True):
+                    gr.HTML(f'<ul id="{current_source_identifier}" aria-live="polite"></ul>')
             current_interface_blocks.load(fn=None,outputs=[current_map_choice,current_load_button,current_building_choice,current_boundary_column,current_shadow_profile_column,current_camera_feedback,*current_ready_controls],js=create_map_review_loader(review_server_port,len(current_ready_controls)),queue=False)
         if not character_review_enabled:
             current_native_loader=Path(__file__).with_name('game_native_loader.js').read_text()
