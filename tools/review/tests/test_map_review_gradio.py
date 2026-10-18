@@ -49,7 +49,7 @@ class MapReviewGradioTest(unittest.TestCase):
                     self.assertFalse(current_component_record['props']['interactive'])
             current_loader_events = [current_event_record for current_event_record in current_config_record['dependencies'] if 'mapReviewControlOptions' in (current_event_record.get('js') or '')]
             self.assertEqual(len(current_loader_events), 1)
-            self.assertEqual(len(current_loader_events[0]['outputs']), 22 if current_character_mode else 14)
+            self.assertEqual(len(current_loader_events[0]['outputs']), 23 if current_character_mode else 15)
 
     def test_loader_uses_the_live_review_bundle_for_scripts_and_assets(self):
         loader_script_value = create_map_review_loader(8770)

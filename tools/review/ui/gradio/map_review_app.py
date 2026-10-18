@@ -86,7 +86,8 @@ def build_map_review_interface(review_server_port, character_review_enabled=Fals
                     current_edges_check=gr.Checkbox(interactive=False,label='메시 경계',value=False)
                 with gr.Column(min_width=220,visible=character_review_enabled) as current_shadow_profile_column:
                     current_shadow_profile=gr.Dropdown(label='캐릭터 시인성 검수',choices=[('이전 기본 그림자','baseline'),('게임 적용 · 접지 대비 강화','contrast'),('넓은 접지 그림자','broad')],value='contrast',interactive=False)
-            current_display_inputs=[current_character_check,current_boundary_check,current_edges_check,current_shadow_profile]
+            current_tile_edges_check=gr.Checkbox(interactive=False,label='타일 경계',value=False)
+            current_display_inputs=[current_character_check,current_boundary_check,current_edges_check,current_shadow_profile,current_tile_edges_check]
             current_ready_controls.extend(current_display_inputs)
             for current_display_control in current_display_inputs:
                 current_display_control.input(fn=None,inputs=current_display_inputs,outputs=current_camera_feedback,queue=False,js="(...currentDisplayValues)=>{try{if(!window.mapReviewDisplayOptions)throw Error('맵을 준비 중입니다.');window.mapReviewDisplayOptions(...currentDisplayValues);return '표시 옵션을 적용했습니다.';}catch(currentDisplayError){return currentDisplayError.message;}}")

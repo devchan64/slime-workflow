@@ -7,6 +7,20 @@ const FIELD_REVIEW_ACTOR_DEPTH=TERRAIN_DEPTH.actor;
 const FIELD_REVIEW_TOWER_DEPTH=TERRAIN_DEPTH.overlay;
 const FIELD_REVIEW_TERRAIN_CACHE=new WeakMap();
 
+const TILE_BOUNDARY_LINE_COLOR=0xffe4a0;
+const TILE_BOUNDARY_LINE_ALPHA=0.7;
+function drawReviewTileBoundary(currentSceneObject,currentCenterPoint,currentTileWidth,currentTileHeight,currentSurfaceDepth){
+ const currentBoundaryGraphic=currentSceneObject.add.graphics().setDepth(currentSurfaceDepth);
+ currentBoundaryGraphic.lineStyle(1,TILE_BOUNDARY_LINE_COLOR,TILE_BOUNDARY_LINE_ALPHA);
+ currentBoundaryGraphic.beginPath();
+ currentBoundaryGraphic.moveTo(currentCenterPoint.x,currentCenterPoint.y-currentTileHeight/2);
+ currentBoundaryGraphic.lineTo(currentCenterPoint.x+currentTileWidth/2,currentCenterPoint.y);
+ currentBoundaryGraphic.lineTo(currentCenterPoint.x,currentCenterPoint.y+currentTileHeight/2);
+ currentBoundaryGraphic.lineTo(currentCenterPoint.x-currentTileWidth/2,currentCenterPoint.y);
+ currentBoundaryGraphic.closePath();currentBoundaryGraphic.strokePath();
+ return currentBoundaryGraphic;
+}
+
 function readReviewConnectionMask(currentCellPosition,currentMapRecord,currentTerrainName,currentRotationValue){
  let currentTerrainCache=FIELD_REVIEW_TERRAIN_CACHE.get(currentMapRecord);
  if(!currentTerrainCache){currentTerrainCache=new Map();FIELD_REVIEW_TERRAIN_CACHE.set(currentMapRecord,currentTerrainCache);}
@@ -105,7 +119,7 @@ export async function createSharedFieldReview(currentMapCanvas,currentTextureIma
   render(currentFieldFrame,currentMapRecord,currentViewSettings){
    if(currentReviewDisposed)throw Error('맵 검수 화면이 닫혔습니다.');
    updateSharedReviewCamera(currentViewSettings);
-   const currentNextSignature=JSON.stringify([currentMapRecord.id,currentFieldFrame.options.rotation,currentViewSettings.edges,currentViewSettings.safe]);
+   const currentNextSignature=JSON.stringify([currentMapRecord.id,currentFieldFrame.options.rotation,currentViewSettings.edges,currentViewSettings.tileEdges,currentViewSettings.safe]);
    if(currentNextSignature!==currentRenderSignature){
     for(const currentRenderObject of [...currentFieldScene.children.list])if(currentRenderObject.scene)currentRenderObject.destroy();
     currentFieldActorSignature='';currentFieldActorObjects=[];currentFieldWaypointObjects=[];
@@ -116,6 +130,7 @@ export async function createSharedFieldReview(currentMapCanvas,currentTextureIma
      const currentTileTextures=resolveFieldTileTextures(currentFieldScene,currentTerrainName,currentCellRecord.cell,currentMapRecord.id,currentConnectionMask,currentCellPosition=>currentMapRecord.terrainCodes[currentMapRecord.terrainRows[currentCellPosition.row][currentCellPosition.column]],currentMapRecord.groundOverrides??[]);
      const currentRenderDepth=cellDepth(rotateSurfacePosition(currentCellRecord.cell,currentFieldFrame.options.rotation));
      drawFieldCellObjects(currentFieldScene,currentCellRecord.cell,currentMapRecord,currentFieldFrame.options,currentTileTextures,currentRenderDepth,currentViewSettings.edges);
+     if(currentViewSettings.tileEdges)drawReviewTileBoundary(currentFieldScene,currentCellRecord.center,currentFieldFrame.options.tileWidth,currentFieldFrame.options.tileHeight,currentRenderDepth+TERRAIN_DEPTH.surface+.01);
      if(currentViewSettings.safe){
       const currentViewCell=rotateSurfacePosition(currentCellRecord.cell,currentFieldFrame.options.rotation);
       for(const currentPanelPoints of buildFieldBoundaryPanels(currentViewCell,currentSafeCenter,currentMapRecord.safeRadius,currentCellRecord.center,currentFieldFrame.options)){
@@ -166,7 +181,7 @@ export async function createSharedFieldReview(currentMapCanvas,currentTextureIma
   readAppliedBuildingTextures(){return [...currentAppliedBuildingTextures].sort();},
   renderTown(currentMapRecord,currentViewSettings,currentProjectPosition){
    if(currentReviewDisposed)throw Error('맵 검수 화면이 닫혔습니다.');
-   const currentMapSignature=JSON.stringify([currentMapRecord.id,currentViewSettings.rotation]);
+   const currentMapSignature=JSON.stringify([currentMapRecord.id,currentViewSettings.rotation,currentViewSettings.edges,currentViewSettings.tileEdges]);
    const currentDepthPosition=currentCellPosition=>cellDepth(rotateSurfacePosition(currentCellPosition,currentViewSettings.rotation));
    if(currentMapSignature!==currentTownMapSignature){
     for(const currentRenderObject of [...currentFieldScene.children.list])if(currentRenderObject.scene)currentRenderObject.destroy();
@@ -187,6 +202,10 @@ export async function createSharedFieldReview(currentMapCanvas,currentTextureIma
      currentFieldScene.add.image(currentScreenPoint.x,currentScreenPoint.y,TERRAIN_ATLAS,currentFrameName).setDisplaySize(currentTileDimensions.width,currentTileDimensions.height).setDepth(resolveCityGroundDepth(currentCellDepth,currentMapRecord)+TERRAIN_DEPTH.surface);
      drawTownMaterialEdges(currentFieldScene,currentCellPosition,currentNeighborCell=>currentMapRecord.terrainCodes[currentMapRecord.terrainRows[currentNeighborCell.row][currentNeighborCell.column]],currentProjectPosition,currentNeighborPosition=>resolveCityGroundDepth(currentDepthPosition(currentNeighborPosition),currentMapRecord),TERRAIN_DEPTH.surface);
      }
+    }
+    if(currentViewSettings.tileEdges)for(let currentRowIndex=0;currentRowIndex<currentMapRecord.rows;currentRowIndex++)for(let currentColumnIndex=0;currentColumnIndex<currentMapRecord.columns;currentColumnIndex++){
+     const currentTilePosition={column:currentColumnIndex,row:currentRowIndex};
+     drawReviewTileBoundary(currentFieldScene,currentProjectPosition(currentTilePosition),currentTileDimensions.width,currentTileDimensions.height,resolveCityGroundDepth(currentDepthPosition(currentTilePosition),currentMapRecord)+TERRAIN_DEPTH.surface+.01);
     }
     for(const currentObjectRecord of currentMapRecord.objects??[]){
      const currentObjectPlacement=resolveFieldSceneryPlacement(currentObjectRecord,currentProjectPosition(currentObjectRecord.position),{tileWidth:currentTileDimensions.width,tileHeight:currentTileDimensions.height,rotation:currentViewSettings.rotation});
