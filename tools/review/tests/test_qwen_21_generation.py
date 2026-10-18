@@ -177,7 +177,7 @@ class QwenPlainGenerationTests(unittest.TestCase):
 
     def test_prompt_options_and_saved_replay(self):
         current_request_record = validate_qwen_plain_request({**self.create_reference_request(), 'common_style': True, 'transparent_background': True})
-        self.assertIn('soft shading', current_request_record['prompt'])
+        self.assertIn('large crisp defining details', current_request_record['prompt'])
         self.assertNotIn('hand-painted', current_request_record['prompt'])
         self.assertIn('Output RGBA', current_request_record['prompt'])
         self.assertLess(current_request_record['qwen21']['prompt_word_count'], 100)

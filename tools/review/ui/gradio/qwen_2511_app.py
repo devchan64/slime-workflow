@@ -198,6 +198,8 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
                         placeholder='예: 무릎 굽힘·손발 위치를 영문으로 설명', info='기본 문구 뒤에 추가할 포즈별 지시입니다.')
                 else:
                     generation_tag_value=gr.Textbox(label='생성 이력 태그 · 선택 사항',placeholder='예: 돌온재 참조 후보',lines=3,scale=1,min_width=240)
+        if plain_options_enabled:
+            gr.ClearButton(components=[prompt_text_value], value='프롬프트 초기화', variant='secondary')
         if qwen21_mode_enabled:
             if not vnccs_transfer_enabled:
                 gr.Markdown('Qwen Image 2.1 고정 · 첫 참조 레이아웃 필수 · 건물 용도와 자재를 문구에 추가하세요.' if building_mode_enabled else '바디 1장: 신체 비율·자세·외형 기준. 아웃핏 1장: 입힐 의상·신발 기준. 바디를 유지하고 복장을 입힙니다.' if outfit_transfer_enabled else 'Qwen Image 2.1 · 참조 최대 10장. 선택한 프롬프트 옵션을 입력 문구에 추가합니다.' if circular_mode_enabled else 'Qwen Image 2.1 · 공용 화풍·투명 배경 옵션을 선택할 수 있습니다. 참조 없이 텍스트만으로도 생성할 수 있습니다.')
