@@ -288,7 +288,7 @@ class MusicGenerationTests(unittest.TestCase):
         for current_service_name in MUSIC_SERVICE_NAMES:
             current_interface_blocks = build_music_interface(current_service_name,'http://127.0.0.1:9999')
             current_component_values = [current_component['props'].get('value') for current_component in current_interface_blocks.config['components']]
-            for current_button_label in ('우선 실행 · 대기 작업 선택','선택 이력 삭제','생성 재개','음악 생성 · 대기열 등록','모델 다운로드·준비'):
+            for current_button_label in ('우선 실행 · 대기 작업 선택','선택 이력 삭제','생성 재개','대기열에 추가','모델 다운로드·준비'):
                 self.assertIn(current_button_label,current_component_values)
             self.assertIn(current_service_name,NATIVE_MANAGEMENT_APPLICATIONS)
             self.assertEqual(next(current_page_record for current_page_record in DEFAULT_PAGE_RECORDS if current_page_record['id']==current_service_name)['category'],'music-generation')

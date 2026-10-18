@@ -88,7 +88,7 @@ def build_seamless_interface(server_base_address):
                 generation_seed_control = build_generation_seed(10107)
             prompt_preview_control = gr.Markdown(describe_seamless_prompt(''))
         user_prompt_control.change(describe_seamless_prompt, user_prompt_control, prompt_preview_control, queue=False)
-        generation_start_button = gr.Button('새 패턴 · 1단계 실행', variant='primary', interactive=False)
+        generation_start_button = gr.Button('대기열에 추가', variant='primary', interactive=False)
         build_button_guidance(generation_start_button, '패턴 소재를 입력하고 각 단계 최종 프롬프트를 100단어 미만으로 맞추세요. 생성 설정에서 원문과 오류를 확인할 수 있습니다.')
         with gr.Accordion('이전 작업 이어서 진행', open=False):
             gr.Markdown('생성 이력의 ID를 복사해 입력하세요. 완료한 단계를 유지하고 이어갑니다.')
@@ -102,7 +102,7 @@ def build_seamless_interface(server_base_address):
         gr.Markdown('### 3. 확인 후 다음 단계\n각 단계 완료 후 검수 대기하며, 한 단계씩 진행합니다. 실행 중 일시정지는 현재 단계를 저장한 뒤 적용됩니다. 반복 검수 후 채택하며 정식 에셋에는 자동 등록하지 않습니다.')
         current_stage_ready = gr.State(False)
         with gr.Row():
-            next_stage_button = gr.Button('결과 확인 · 다음 단계 / 재개', variant='primary', interactive=False)
+            next_stage_button = gr.Button('다음 단계 / 재개 · 대기열에 추가', variant='primary', interactive=False)
             pause_stage_button = gr.Button('현재 단계 후 일시정지', interactive=False)
             refresh_stage_button = gr.Button('상태 새로고침')
         gr.Markdown('다음 단계는 검수 대기·실패·중지 상태에서 사용할 수 있습니다. 작업이 없으면 먼저 생성하거나 불러오세요.')

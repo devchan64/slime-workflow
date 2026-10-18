@@ -60,7 +60,7 @@ def build_music_interface(current_service_name,current_server_address):
         def update_music_prompt(current_prompt_text,current_loop_value):
             return describe_music_prompt(current_service_name,current_prompt_text,current_loop_value)
         current_tag_control = gr.Textbox(label='이력 태그',max_lines=1)
-        current_generate_button = gr.Button(current_content_label+' 생성 · 대기열 등록',variant='primary',interactive=bool(current_default_record['prompt'].strip()))
+        current_generate_button = gr.Button('대기열에 추가',variant='primary',interactive=bool(current_default_record['prompt'].strip()))
         current_generate_notice = build_button_guidance(current_generate_button, current_prompt_label+'을 입력하면 생성할 수 있습니다.')
         for current_prompt_source in (current_prompt_control,current_loop_control):
             current_prompt_source.change(update_music_prompt,[current_prompt_control,current_loop_control],[current_prompt_summary,current_final_control],queue=False)

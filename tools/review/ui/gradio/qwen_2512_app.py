@@ -71,7 +71,7 @@ def build_qwen_2512_interface(server_base_address):
                     seed_number_value=build_generation_seed(DEFAULT_IMAGE_SEED)
                 with gr.Row():
                     prepare_button_value=gr.Button('모델 준비 확인')
-                    generation_button_value=gr.Button('이미지 생성 시작',variant='primary')
+                    generation_button_value=gr.Button('대기열에 추가',variant='primary')
                 model_status_value=gr.Markdown('모델 상태를 확인하세요.')
                 generation_status_value=gr.Markdown('생성 가능 · 프롬프트를 입력하세요.')
                 gr.Markdown('실행 중인 작업은 아래 생성 이력에서 선택한 뒤 **작업 중지**를 사용하세요.')

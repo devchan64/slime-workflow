@@ -100,7 +100,7 @@ def build_phantom_interface(current_server_address):
             current_shift_control=gr.Number(value=current_defaults_record['flow_shift'],minimum=0.1,maximum=30,label='Flow shift')
             current_guidance_control=gr.Number(value=current_defaults_record['guidance_scale'],minimum=1,maximum=20,label='텍스트 가이던스')
             current_conditioning_control=gr.Number(value=current_defaults_record['conditioning_scale'],minimum=0,maximum=20,label='이미지 가이던스')
-        current_generate_button=gr.Button('영상 생성 · 대기열 등록',variant='primary',interactive=False)
+        current_generate_button=gr.Button('대기열에 추가',variant='primary',interactive=False)
         build_button_guidance(current_generate_button, '참조 이미지 1장 이상과 장면·동작 프롬프트를 입력하면 생성할 수 있습니다.')
         with gr.Column() as current_confirmation_container:
             pass

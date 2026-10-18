@@ -104,7 +104,7 @@ def build_separation_interface(current_server_address):
                 current_outfit_control = gr.Textbox(value=load_separation_defaults()['outfit_prompt'], lines=5, label='2. 사람 제거·복장 프롬프트')
                 current_outfit_summary = gr.Markdown(describe_separation_prompt(load_separation_defaults()['outfit_prompt']))
                 current_outfit_control.change(describe_separation_prompt, current_outfit_control, current_outfit_summary, queue=False)
-                current_sample_button = gr.Button('참조 이미지 분리 생성', variant='primary', interactive=False)
+                current_sample_button = gr.Button('대기열에 추가', variant='primary', interactive=False)
                 build_button_guidance(current_sample_button, '참조 이미지 1장과 각각 1~99단어인 두 프롬프트가 필요합니다. 신체 베이스·복장 각 1장을 생성합니다.')
             with gr.Tab("결과 검수"):
                 current_job_control = gr.Textbox(lines=1, max_lines=1, label='조회할 생성 ID')

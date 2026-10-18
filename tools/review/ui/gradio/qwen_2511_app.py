@@ -303,9 +303,9 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
             gr.Markdown('순환 반경은 좌우·상하에 동일 적용합니다. 경계 1줄 참조 · 모서리 참조 없음.')
         if pose_transfer_enabled:
             width_value.change(lambda selected_resolution_value: selected_resolution_value,width_value,height_value,queue=False)
-        generation_button_value=gr.Button('이미지 생성 시작',variant='primary',interactive=not pose_transfer_enabled and not plain_options_enabled and not expression_mode_enabled)
+        generation_button_value=gr.Button('대기열에 추가',variant='primary',interactive=not pose_transfer_enabled and not plain_options_enabled and not expression_mode_enabled)
         if pose_transfer_enabled:
-            build_button_guidance(generation_button_value, '두 필수 참조 이미지를 모두 첨부하면 생성 시작을 사용할 수 있습니다. 확인 중에는 추가 접수를 할 수 없습니다.')
+            build_button_guidance(generation_button_value, '두 필수 참조 이미지를 모두 첨부하면 대기열에 추가할 수 있습니다. 확인 중에는 추가 접수를 할 수 없습니다.')
         if expression_mode_enabled:
             build_button_guidance(generation_button_value, '참조 이미지를 1장 이상 첨부하세요. 확인 중에는 추가 접수를 할 수 없습니다.')
         if plain_options_enabled or circular_mode_enabled:

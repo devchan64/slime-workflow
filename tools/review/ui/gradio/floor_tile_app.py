@@ -56,7 +56,7 @@ def build_floor_interface(server_base_address):
         output_size_control = gr.Dropdown([512],value=512,label='생성 크기 · 512 고정',interactive=False)
         inference_step_control = gr.Radio([4],value=4,label='생성 스텝 · 4 고정',interactive=False)
         generation_seed_control = build_generation_seed(251204)
-        generation_start_button = gr.Button('맵 타일 생성 시작',variant='primary',interactive=False)
+        generation_start_button = gr.Button('대기열에 추가',variant='primary',interactive=False)
         build_button_guidance(generation_start_button, '바닥 표면을 입력하고 기본 문구를 포함한 최종 프롬프트를 100단어 미만으로 맞추세요.')
         generation_status_control = gr.Markdown('바닥 표면과 최종 프롬프트를 확인하세요.')
         with gr.Accordion('생성 과정 · 고정 설정 안내',open=False):

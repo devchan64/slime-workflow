@@ -110,8 +110,8 @@ class GpuConfirmationTests(unittest.TestCase):
         from tools.review.ui.gradio.phantom_app import build_phantom_interface
         from tools.review.ui.gradio.animation_separation_app import build_separation_interface
         for current_interface_builder, current_button_label, current_missing_inputs, current_ready_inputs in (
-            (build_phantom_interface, '영상 생성 · 대기열 등록', [('scene', None, None, None, None), (' ', object(), None, None, None)], ('scene', None, object(), None, None)),
-            (build_separation_interface, '참조 이미지 분리 생성', [(None, 'base', 'outfit'), (object(), '', 'outfit'), (object(), 'base', ' '), (object(), 'word ' * 100, 'outfit'), (object(), 'base', 'word ' * 100)], (object(), 'word ' * 99, 'outfit')),
+            (build_phantom_interface, '대기열에 추가', [('scene', None, None, None, None), (' ', object(), None, None, None)], ('scene', None, object(), None, None)),
+            (build_separation_interface, '대기열에 추가', [(None, 'base', 'outfit'), (object(), '', 'outfit'), (object(), 'base', ' '), (object(), 'word ' * 100, 'outfit'), (object(), 'base', 'word ' * 100)], (object(), 'word ' * 99, 'outfit')),
         ):
             with self.subTest(builder=current_interface_builder.__name__):
                 current_interface_blocks = current_interface_builder('http://127.0.0.1:8798')
