@@ -1,4 +1,5 @@
-import {selectFieldRoadFrame,resolveFieldTerrainFrame,collectTerrainTextureSources,collectMapTextureSources,collectMapResourceKeys,loadMapResourceImages} from './vendor/field-renderer/__FIELD_RENDERER_VERSION__/town-renderer.mjs';
+import {installSourceSizePreview} from './source-size-preview.js';
+import {resolveCityTileTextures,selectFieldRoadFrame,resolveFieldTerrainFrame,collectTerrainTextureSources,collectMapTextureSources,collectMapResourceKeys,loadMapResourceImages} from './vendor/field-renderer/__FIELD_RENDERER_VERSION__/town-renderer.mjs';
 import {CHARACTER_OUTLINE_BASE_WIDTH,CHARACTER_OUTLINE_BASE_COLOR,CHARACTER_SEPARATOR_BASE_WIDTH,CHARACTER_SEPARATOR_BASE_COLOR,CHARACTER_CONTACT_SHADOW_COLOR as GAME_CONTACT_SHADOW_COLOR,CHARACTER_CONTACT_SHADOW_ALPHA_SCALE,ACTOR_CONTACT_SHADOW_CONTRACT} from './vendor/field-renderer/__FIELD_RENDERER_VERSION__/game-render-profile.mjs';
 import {createFieldReviewFrame,pickFieldReviewCell} from './field-map-renderer.js';
 import {FIELD_RENDER_METRICS,projectSurfaceCell} from './vendor/field-renderer/__FIELD_RENDERER_VERSION__/field-renderer.mjs';
@@ -101,12 +102,25 @@ const currentSharedFieldModule=!isCharacterReviewPage?await import('./field-map-
 const currentSharedFieldView=!isCharacterReviewPage?await currentSharedFieldModule.createSharedFieldReview(currentMapCanvas,loadedTextureImages,reviewCharacterImage,reviewCharacterRecord,loadedGuardImages,currentSafeVisualImages,currentTextureRecords,currentSelectedGameKeys,isFieldMapReview):null;
 // 캐릭터 검수의 단일 바닥만 별도로 선택한다. 마을·필드는 공용 렌더러 원본을 사용한다.
 const groundTextureNames={paving:'paving'};
+// 로더의 공통 준비 타일과 실제 배치 타일을 구분한다.
+const currentAppliedGroundKeys=new Set();
+for(const [currentRowIndex,currentTerrainRow] of currentMapRecord.terrainRows.entries()){
+ for(const [currentColumnIndex,currentTerrainCode] of [...currentTerrainRow].entries()){
+  const currentTerrainName=currentMapRecord.terrainCodes[currentTerrainCode];
+  const currentOverrideRecord=(currentMapRecord.groundOverrides??[]).find(currentGroundRecord=>currentGroundRecord.position.column===currentColumnIndex&&currentGroundRecord.position.row===currentRowIndex);
+  if(currentOverrideRecord){currentAppliedGroundKeys.add(currentOverrideRecord.textureKey);continue;}
+  currentAppliedGroundKeys.add(isCharacterReviewPage?'paving':isFieldMapReview?'terrain-source-'+resolveFieldTerrainFrame(currentTerrainName,currentMapRecord.id):resolveCityTileTextures(null,currentTerrainName,currentMapRecord.id,0).ground);
+  if(isFieldMapReview&&currentTerrainName==='boulder')currentAppliedGroundKeys.add('terrain-source-grass');
+ }
+}
+const currentAppliedGameKeys=Object.fromEntries(Object.entries(currentSelectedGameKeys).filter(([currentGameKey])=>!currentGameKey.startsWith('terrain-source-')||currentAppliedGroundKeys.has(currentGameKey)));
+installSourceSizePreview(currentTextureRecords,currentAppliedGameKeys,currentMapRecord);
 let currentAppliedSourceSignature=null;
 function renderAppliedTileSourceList(){
  const currentAssetGroups={tiles:new Set(),buildings:new Set(),billboards:new Set()};
  const currentBuildingKeys=new Set((currentMapRecord.buildings??[]).map(currentBuildingRecord=>currentBuildingRecord.sprite?.textureKey));
  const currentBillboardKeys=new Set((currentMapRecord.objects??[]).map(currentObjectRecord=>currentObjectRecord.textureKey));
- for(const [currentGameKey,currentCatalogKey] of Object.entries(currentSelectedGameKeys)){
+ for(const [currentGameKey,currentCatalogKey] of Object.entries(currentAppliedGameKeys)){
   const currentAssetSource=currentTextureRecords[currentCatalogKey].source;
   if(currentBuildingKeys.has(currentGameKey))currentAssetGroups.buildings.add(currentCatalogKey);
   else if(currentBillboardKeys.has(currentGameKey)||currentAssetSource.includes('/billboards/'))currentAssetGroups.billboards.add(currentCatalogKey);
@@ -125,19 +139,46 @@ function renderAppliedTileSourceList(){
   const currentSourceList=document.querySelector(currentGroupSelectors[currentGroupName]);
   if(!currentSourceList)throw Error('에셋 분류 영역이 없습니다. 검수 화면을 새로고침하세요.');
   currentSourceList.replaceChildren();
-  if(!currentGroupKeys.size){const currentEmptyItem=document.createElement('li');currentEmptyItem.textContent='적용된 원본 없음';currentSourceList.append(currentEmptyItem);}
-  for(const currentCatalogKey of [...currentGroupKeys].sort()){
-   const currentAssetRecord=currentTextureRecords[currentCatalogKey];
-   const currentSourceItem=document.createElement('li');
-   const currentAssetThumbnail=document.createElement('img');
-   currentAssetThumbnail.width=42;currentAssetThumbnail.height=42;currentAssetThumbnail.src=new URL(currentAssetRecord.path,import.meta.url).href;currentAssetThumbnail.alt=`${currentCatalogKey} 원본 썸네일`;currentAssetThumbnail.loading='lazy';
-   const currentAssetLabel=document.createElement('strong');currentAssetLabel.textContent=currentCatalogKey;
-   const currentSizeLabel=document.createElement('span');currentSizeLabel.textContent=` · ${currentAssetRecord.source_size?.join('×')||'?'}px`;
-   currentSourceItem.title=currentAssetRecord.source;
-   currentSourceItem.append(currentAssetThumbnail,currentAssetLabel,currentSizeLabel);
-   if(currentGroupName==='tiles'&&currentAssetRecord.normalization_warning){const currentWarningLabel=document.createElement('span');currentWarningLabel.textContent=' · '+currentAssetRecord.normalization_warning;currentSourceItem.append(currentWarningLabel);}
-   currentSourceList.append(currentSourceItem);
+  const currentGroupSummary=document.createElement('p');
+  currentGroupSummary.textContent=`${currentGroupKeys.size}종 · 원본 해상도 내림차순. 썸네일을 선택하면 원본 이미지를 엽니다. 표시된 해상도는 파일 크기이며 맵에서의 표시 크기와 다릅니다.`;
+  currentSourceList.append(currentGroupSummary);
+  if(!currentGroupKeys.size)continue;
+  const currentSourceTable=document.createElement('table');
+  const currentTableHeading=document.createElement('thead');
+  const currentHeadingRow=document.createElement('tr');
+  for(const currentHeadingLabel of ['미리보기','원본 이름','해상도']){
+   const currentHeadingCell=document.createElement('th');currentHeadingCell.scope='col';currentHeadingCell.textContent=currentHeadingLabel;currentHeadingRow.append(currentHeadingCell);
   }
+  currentTableHeading.append(currentHeadingRow);currentSourceTable.append(currentTableHeading);
+  const currentTableBody=document.createElement('tbody');
+  for(const currentCatalogKey of [...currentGroupKeys].sort((firstCatalogKey,secondCatalogKey)=>{
+   const firstSourceSize=currentTextureRecords[firstCatalogKey].source_size??[0,0],secondSourceSize=currentTextureRecords[secondCatalogKey].source_size??[0,0];
+   return Math.max(...secondSourceSize)-Math.max(...firstSourceSize)||firstCatalogKey.localeCompare(secondCatalogKey);
+  })){
+   const currentAssetRecord=currentTextureRecords[currentCatalogKey];
+   const currentSourceItem=document.createElement('tr');
+   const currentPreviewCell=document.createElement('td');
+   const currentAssetLink=document.createElement('a');
+   currentAssetLink.href=new URL(currentAssetRecord.path,import.meta.url).href;currentAssetLink.target='_blank';currentAssetLink.rel='noopener';currentAssetLink.setAttribute('aria-label',`${currentCatalogKey} 원본 이미지 열기`);
+   const currentAssetThumbnail=document.createElement('img');
+   const currentSourceDimensions=currentAssetRecord.source_size??[1,1];
+   const currentThumbnailScale=96/Math.max(...currentSourceDimensions);
+   currentAssetThumbnail.width=Math.round(currentSourceDimensions[0]*currentThumbnailScale);currentAssetThumbnail.height=Math.round(currentSourceDimensions[1]*currentThumbnailScale);
+   currentAssetThumbnail.src=currentAssetLink.href;currentAssetThumbnail.alt=`${currentCatalogKey} 원본 썸네일`;currentAssetThumbnail.loading='lazy';
+   currentAssetLink.append(currentAssetThumbnail);currentPreviewCell.append(currentAssetLink);
+   const currentNameCell=document.createElement('td');currentNameCell.textContent=currentCatalogKey;currentNameCell.title=currentAssetRecord.source;
+   const currentCopyButton=document.createElement('button');currentCopyButton.type='button';currentCopyButton.textContent='이름 복사';currentCopyButton.setAttribute('aria-label',`${currentCatalogKey} 이름 복사`);
+   const currentCopyStatus=document.createElement('span');currentCopyStatus.setAttribute('role','status');
+   currentCopyButton.addEventListener('click',async()=>{
+    try{await navigator.clipboard.writeText(currentCatalogKey);currentCopyStatus.textContent=' 복사 완료';}
+    catch(currentClipboardError){currentCopyStatus.textContent=' 복사 실패 · 브라우저 클립보드 권한을 확인하세요.';}
+   });
+   currentNameCell.append(document.createElement('br'),currentCopyButton,currentCopyStatus);
+   const currentSizeCell=document.createElement('td');currentSizeCell.textContent=`${currentAssetRecord.source_size?.join(' × ')||'?'} px`;
+   if(currentGroupName==='tiles'&&currentAssetRecord.normalization_warning){const currentWarningLabel=document.createElement('p');currentWarningLabel.textContent=currentAssetRecord.normalization_warning;currentNameCell.append(currentWarningLabel);}
+   currentSourceItem.append(currentPreviewCell,currentNameCell,currentSizeCell);currentTableBody.append(currentSourceItem);
+  }
+  currentSourceTable.append(currentTableBody);currentSourceList.append(currentSourceTable);
  }
  const currentStructureList=document.querySelector('#applied-structure-list');currentStructureList.replaceChildren();
  for(const [currentVisualName,currentVisualRecord] of Object.entries(currentSafeVisualRecords)){

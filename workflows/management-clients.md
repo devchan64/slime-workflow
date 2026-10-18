@@ -641,3 +641,13 @@ python3 tools/manager.py command writer-agent writer-detail --payload-file /abso
 ## 효과음 생성
 
 `sfx-stable-audio` 서비스는 Stable Audio 3 Small SFX를 고정 사용한다. 공용 음악 작업 서비스·GPU 대기열·Gradio 이력을 재사용하며 음악용 `music-stable-audio` 폐기는 유지한다. `generate/prepare/model-status/status/logs/history/active/cancel/resume/prioritize/history-delete/history-reset-preview/history-reset`을 제공한다. 입력은 `prompt`, `duration_seconds`(0.5~30초, 기본 3초), `seed`, `loop_request`, `tag`다. 음악용 반주 문구는 추가하지 않는다. [효과음 사용법](../generators/sound_effects/README.md)에 설치·모델 접근·기록 경로를 정리했다.
+
+### 맵 원본 크기 검수
+
+맵 검수의 `원본 크기 검수 · 저장`에서 선택 맵의 정적 PNG를 고르고 긴 변 64·128·256·384·512px로 비교한다. 노란 마름모는 160×80 타일, 파란 사각형은 이미지 영역, 빨간 점은 접지 앵커다. 선택한 해상도로 먼저 축소한 뒤 기존 맵 표시 크기에 그려 화질을 비교한다. 게임의 `displayHeight`와 건물 점유 크기는 변경하지 않는다. 종횡비·알파를 유지하며 애니메이션 시트와 원본보다 큰 크기의 저장은 거절한다.
+
+GUI와 CLI는 `tools/manager.py command map-assets resize --payload-file <파일>` 명령을 공유한다. 입력 JSON은 `path`(등록 원본 경로), `sha256`(검수한 원본 해시), `size`(선택한 긴 변)로 구성한다. 서비스는 최신 해시 확인 후 원본·등록부 해상도/해시·프론트엔드 잠금을 갱신한다. 축소 전 원본과 요청/결과는 `.tmp/map-asset-resize/<ID>/`에 보관한다. 저장 후 검수 화면을 새로고침한다.
+
+`map-assets map-anchor-save --payload-file <파일>`은 선택 맵의 동일 텍스처 배치 앵커를 저장한다. 입력은 `map`, `kind`(town/field), `texture`, `anchorX`, `anchorY`, `expected`(배치 ID와 기존 앵커 목록)이다. 기존 값이 달라지면 저장을 거절한다. 맵 원본·등록부·백엔드 잠금을 함께 갱신하며 위치와 표시 크기는 보존한다.
+
+빌보드 배치 설정은 `groundFootprintColumns`·`groundFootprintRows`(각 1~8칸)와 `displayHeight`(0 초과 1024px 이하)를 지원한다. 바닥 크기는 접지 영역 검수 기준이며 통행 차단을 추가하는 설정이 아니다. `map-anchor-save`의 선택적 `layout`에 세 값을 함께 전달하고 `expected`에도 기존 값을 포함한다. 건물은 기존 점유 크기 계약을 사용하므로 이 설정으로 변경하지 않는다. 원본 해상도 저장과 배치 설정 저장은 별도 동작이다.

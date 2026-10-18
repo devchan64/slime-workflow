@@ -98,6 +98,15 @@ def load_current_texture_records(validate_complete_inventory=True):
         current_expected_size=GROUND_TILE_SOURCE_SIZE if current_tile_record['asset'].startswith('assets/tiles/terrain/') else GAME_TILE_SOURCE_SIZE
         normalization_warning_value=None if source_image_size==[current_expected_size,current_expected_size] else f'정규화 필요: 현재 {source_image_size[0]}×{source_image_size[1]}px, 기준 {current_expected_size}×{current_expected_size}px'
         exported_texture_records[current_tile_record['id']]={**tile_provenance_record,'path':'/management/map-assets/files/'+current_tile_record['asset']+'?v='+tile_provenance_record['sha256'],'source':current_tile_record['asset'],'sha256':hashlib.sha256(texture_source_path.read_bytes()).hexdigest(),'source_size':source_image_size,'expected_source_size':[current_expected_size,current_expected_size],'normalization_warning':normalization_warning_value}
+    current_billboard_catalog=yaml.safe_load((asset_repository_path/'assets/billboards/catalog.yaml').read_text())
+    current_billboard_categories={}
+    for current_billboard_record in current_billboard_catalog['billboards']:
+        current_billboard_identifier=current_billboard_record['asset_ref']['management_id']
+        current_family_record=current_billboard_catalog['families'][current_billboard_record['family']]
+        current_review_category=current_family_record['review_category']
+        if current_review_category not in {'vegetation','props'}:
+            raise ValueError('알 수 없는 빌보드 검수 분류: '+str(current_review_category))
+        current_billboard_categories[current_billboard_identifier]=current_review_category
     # 지형지물은 타일 정규화 없이 승인된 투명 원본을 사용한다.
     for current_asset_path, current_asset_record in registered_tile_records.items():
         if not current_asset_record.get('managementId', '').startswith('image.scenery.'):
@@ -111,6 +120,7 @@ def load_current_texture_records(validate_complete_inventory=True):
         exported_texture_records[current_texture_identifier] = {**current_sprite_provenance,
             'path':('/management/map-assets/billboards/' if current_asset_path.startswith('assets/billboards/') else '/management/map-assets/structures/')+current_sprite_path.name+'?v='+current_sprite_provenance['sha256'],
             'source':current_asset_path, 'source_size':current_sprite_size,
+            'billboard_category':current_billboard_categories.get(current_asset_record['managementId']),
             'expected_source_size':current_sprite_size, 'normalization_warning':None}
     registered_road_tile_paths={
         current_asset_path
@@ -207,7 +217,7 @@ def build_block_map_review(output_directory_path, character_review_only=False):
     for renderer_file_name,renderer_file_hash in field_renderer_manifest['files'].items():
         if hashlib.sha256((field_renderer_directory/renderer_file_name).read_bytes()).hexdigest()!=renderer_file_hash:
             raise ValueError('필드 렌더러 배포본 해시 불일치: '+renderer_file_name)
-    for current_script_name in ('block-map-review.js','field-map-renderer.js','field-map-view.js'):
+    for current_script_name in ('block-map-review.js','source-size-preview.js','field-map-renderer.js','field-map-view.js'):
         current_script_source=(source_ui_directory/current_script_name).read_text()
         (output_directory_path/current_script_name).write_text(current_script_source.replace('__FIELD_RENDERER_VERSION__',field_renderer_vendor_version))
     shutil.copytree(field_renderer_directory,output_directory_path/'vendor/field-renderer'/field_renderer_vendor_version,dirs_exist_ok=True)

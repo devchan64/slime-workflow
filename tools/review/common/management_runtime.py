@@ -82,6 +82,7 @@ def create_management_runtime(writer_workspace_config=None):
     from tools.review.domains.character_animation.character_animation import CharacterAnimationManager
     from tools.review.domains.character_animation.character_animation_jobs import GENERATION_ROOT_DIRECTORY, resolve_generation_directory
 
+    from tools.review.domains.map_assets.resize import handle_map_resize_request, RESIZE_STORAGE_DIRECTORY
     from tools.review.domains.character_review.capture import handle_character_capture_request, CAPTURE_STORAGE_DIRECTORY
     from tools.review.domains.anny.landmarks import handle_landmark_request, LANDMARK_STORAGE_DIRECTORY
 
@@ -117,6 +118,7 @@ def create_management_runtime(writer_workspace_config=None):
             'wan21-vace': bind_stored_management_service(vace_generation_service.handle_image_request,vace_generation_service.job_storage_root),
             'anny-landmarks': bind_stored_management_service(handle_landmark_request, LANDMARK_STORAGE_DIRECTORY),
             'hy-motion': ManagementServiceBinding(handle_hymotion_request, HYMOTION_STORAGE_ROOT, resolve_hymotion_directory),
+            'map-assets': bind_stored_management_service(handle_map_resize_request,RESIZE_STORAGE_DIRECTORY),
             'character-review': bind_stored_management_service(handle_character_capture_request,CAPTURE_STORAGE_DIRECTORY),
             'outfit-transfer': bind_stored_management_service(outfit_transfer_service.handle_image_request, outfit_transfer_service.job_storage_root),
             'pose-transfer': bind_stored_management_service(pose_transfer_service.handle_image_request, pose_transfer_service.job_storage_root),
