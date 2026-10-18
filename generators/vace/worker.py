@@ -35,7 +35,7 @@ def execute_vace_inference(current_job_root, current_attempt_root, current_reque
     import diffusers
     from PIL import Image, ImageOps
     from diffusers import UniPCMultistepScheduler
-    from generators.vace.memory import StageOffloadedVacePipeline, StageOffloadedWanAutoencoder
+    from generators.vace.memory import StageOffloadedVacePipeline, StageOffloadedWanAutoencoder, enable_chunked_feed_forward, VACE_FEED_FORWARD_CHUNK
     from diffusers.hooks import apply_group_offloading
     from diffusers.utils import export_to_video
     if not torch.cuda.is_available():
@@ -64,6 +64,8 @@ def execute_vace_inference(current_job_root, current_attempt_root, current_reque
     torch.cuda.reset_peak_memory_stats()
     current_vae_model = StageOffloadedWanAutoencoder.from_pretrained(current_model_root,subfolder='vae',torch_dtype=torch.float32,local_files_only=True)
     current_pipeline_model = StageOffloadedVacePipeline.from_pretrained(current_model_root,vae=current_vae_model,torch_dtype=torch.bfloat16,local_files_only=True)
+    current_chunked_count = enable_chunked_feed_forward(current_pipeline_model.transformer)
+    write_record_atomically(current_attempt_root/'ffn-memory-policy.json', {'chunk_tokens':VACE_FEED_FORWARD_CHUNK,'module_count':current_chunked_count,'compute_device':'cuda'})
     apply_group_offloading(current_pipeline_model.text_encoder,onload_device=torch.device('cuda'),offload_type='leaf_level')
     current_pipeline_model.transformer.enable_group_offload(onload_device=torch.device('cuda'),offload_type='block_level',num_blocks_per_group=1)
     current_pipeline_model.vae.enable_tiling()
