@@ -39,7 +39,7 @@ DEFAULT_PAGE_RECORDS=(
     {'id':'outfit-transfer-generator','label':'복장 착용 생성기','path':'/outfit-transfer/','category':'image-generation','uiMode':'gradio','description':'Qwen 2.1 · 바디 1장 + 아웃핏 1장 · 신체 비율 유지'},
     {'id':'vegetation-generator','label':'Qwen 2.1 자연물 생성기','path':'/vegetation-generator/','category':'image-generation','uiMode':'gradio','description':'자연물 빌보드 기본 문구 · 레이아웃·외형 참조 · 전용 대기열·이력'},
     {'id':'prop-generator','label':'Qwen 2.1 소품 생성기','path':'/prop-generator/','category':'image-generation','uiMode':'gradio','description':'소품 직교투영 기본 문구 · 레이아웃·자재 참조 · 전용 대기열·이력'},
-    {'id':'building-generator','label':'건물 생성기 · Qwen','path':'/building-generator/','category':'image-generation','uiMode':'gradio','description':'직교투영 기본 문구 · 레이아웃 이미지 선택 · Qwen 2.1 공유 이력'},
+    {'id':'building-generator','label':'Qwen 2.1 건물 생성기','path':'/building-generator/','category':'image-generation','uiMode':'gradio','description':'직교투영 기본 문구 · 레이아웃 이미지 선택 · 전용 대기열·이력'},
     {'id':'qwen-21-generator','label':'Qwen 2.1 이미지 생성기','path':'/image-generation-21/','category':'image-generation','uiMode':'gradio','description':'공용 화풍·투명 배경 문구 선택 · 참조 이미지 선택'},
     {'id':'writer-agent','label':'작가 AI 에이전트','path':'/writer-agent/','category':'writer-agent','uiMode':'gradio','description':'Gradio · 문서 학습 · 아이디어 작성 · 실행 기록'},
     {'id':'expression-generator','label':'표정 생성기','path':'/expression-generator/','category':'image-generation','uiMode':'gradio','description':'Qwen 2511 · AU 표정 39종 · 참조 1~3장'},
