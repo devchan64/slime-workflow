@@ -9,7 +9,18 @@ const MIN_MAP_SCALE=0.05,MAX_MAP_SCALE=4,MAP_ZOOM_FACTOR=1.25,MAP_DRAG_THRESHOLD
 const CHARACTER_CELL_KEY_OFFSETS={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]};
 let activeMapPointer=null,suppressMarkerClick=false;
 const currentMapCanvas=document.querySelector('#map');
-async function fetchMapReviewRecord(currentFilePath){const currentFetchResponse=await fetch(new URL(currentFilePath,import.meta.url),{cache:'no-store'});if(!currentFetchResponse.ok)throw Error(`맵 데이터 로드 실패: ${currentFilePath}`);return currentFetchResponse.json()}
+async function fetchMapReviewRecord(currentFilePath){
+ const currentRequestUrl=new URL(currentFilePath,import.meta.url);
+ let currentFetchResponse;
+ try{currentFetchResponse=await fetch(currentRequestUrl,{cache:'no-store'});}
+ catch(currentNetworkError){throw Error(`맵 서버 연결 실패: ${currentRequestUrl.pathname}. 서버 실행 상태를 확인한 뒤 검수 화면을 새로고침하세요.`,{cause:currentNetworkError});}
+ if(!currentFetchResponse.ok){
+  const currentResponseType=currentFetchResponse.headers.get('content-type')??'';
+  const currentFailureDetail=currentResponseType.includes('application/json')?(await currentFetchResponse.json()).error:'';
+  throw Error(`맵 데이터 로드 실패 (${currentFetchResponse.status}): ${currentRequestUrl.pathname}${currentFailureDetail?' · '+currentFailureDetail:''}`);
+ }
+ return currentFetchResponse.json();
+}
 const gameRenderMetrics=await fetchMapReviewRecord('game-render-metrics.json');
 const blockRenderProfile=await fetchMapReviewRecord('block-render-profile.json');
 const TOWN_BLOCK_HEIGHT=blockRenderProfile.blockHeight;

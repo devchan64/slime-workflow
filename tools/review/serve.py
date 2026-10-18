@@ -437,7 +437,8 @@ def run_review_server(parsed_argument_values):
                 try:
                     response_content,response_content_type = read_map_asset_response(current_asset_request_path)
                 except (ValueError,KeyError,OSError) as current_asset_error:
-                    self.send_error(404,str(current_asset_error));return
+                    current_error_content=json.dumps({'error':str(current_asset_error)},ensure_ascii=False).encode('utf-8')
+                    self.send_response(422);self.send_header('Content-Type','application/json; charset=utf-8');self.send_header('Content-Length',str(len(current_error_content)));self.end_headers();self.wfile.write(current_error_content);return
                 self.send_response(200);self.send_header('Content-Type',response_content_type);self.send_header('Cache-Control','no-store');self.send_header('Content-Length',str(len(response_content)));self.end_headers();self.wfile.write(response_content)
                 return
             if urlsplit(self.path).path=='/management/gpu-queue-confirmation.js':
