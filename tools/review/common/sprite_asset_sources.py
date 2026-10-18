@@ -20,7 +20,7 @@ def load_locked_sprite_sources(frontend_repository_path):
         sprite_directory_prefix = select_sprite_source_prefix(current_lock_record['source_path'])
         source_file_path, source_provenance_record = resolve_registered_asset(current_lock_record['source_path'], asset_repository_path, registered_asset_records, sprite_directory_prefix)
         if current_lock_record['sha256'] != source_provenance_record['sha256']:
-            raise ValueError('스프라이트 원본과 잠금 해시 불일치')
+            raise ValueError(f"스프라이트 원본과 잠금 해시 불일치: {current_lock_record['source_path']} (잠금={current_lock_record['sha256']}, 등록 원본={source_provenance_record['sha256']})")
         locked_source_records[target_relative_path] = (source_file_path, source_provenance_record)
     return asset_repository_path/'assets', locked_source_records
 
