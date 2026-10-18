@@ -103,65 +103,58 @@ const currentSharedFieldView=!isCharacterReviewPage?await currentSharedFieldModu
 const groundTextureNames={paving:'paving'};
 let currentAppliedSourceSignature=null;
 function renderAppliedTileSourceList(){
- const appliedTextureNames=new Set(isFieldMapReview?['cliff-wall']:[]);
- const currentSharedTextureSources=!isCharacterReviewPage?currentGameTextureSources:null;
- Object.values(currentMapRecord.terrainCodes).forEach(currentTerrainName=>{
-  if(isFieldMapReview){
-   const currentSelectedFrame=resolveFieldTerrainFrame(currentTerrainName,currentMapRecord.id);
-   const currentSourcePath=currentSharedTextureSources['terrain-source-'+currentSelectedFrame];
-   const currentTextureEntry=Object.entries(currentTextureRecords).find(([,currentTextureRecord])=>currentTextureRecord.source===currentSourcePath);
-   if(!currentTextureEntry)throw new Error('공용 필드 재질의 검수 원본이 없습니다: '+currentTerrainName+' · '+currentSourcePath);
-   appliedTextureNames.add(currentTextureEntry[0]);
-  }else if(!isCharacterReviewPage){
-   const currentSelectedFrame=currentSharedFieldModule.resolveReviewTownFrame(currentMapRecord,currentTerrainName,{column:0,row:0},0);
-   const currentSourceFrame=currentSelectedFrame.replace(/^(water|road|dirt-road|stone-road)-\d+$/,'$1');
-   const currentSourcePath=currentSharedTextureSources['terrain-source-'+currentSourceFrame];
-   const currentTextureEntry=Object.entries(currentTextureRecords).find(([,currentTextureRecord])=>currentTextureRecord.source===currentSourcePath);
-   if(!currentTextureEntry)throw new Error('공용 마을 재질의 검수 원본이 없습니다: '+currentTerrainName+' · '+currentSourcePath);
-   appliedTextureNames.add(currentTextureEntry[0]);
-  }else{
-   const currentTextureName=groundTextureNames[currentTerrainName];
-   if(currentTextureName)appliedTextureNames.add(currentTextureName);
-  }
- });
- if(!isCharacterReviewPage){
-  for(const currentTextureIdentifier of currentSharedFieldView.readAppliedBuildingTextures()){
-   const currentSourcePath=currentSharedTextureSources[currentTextureIdentifier];
-   const currentTextureEntry=Object.entries(currentTextureRecords).find(([,currentTextureRecord])=>currentTextureRecord.source===currentSourcePath);
-   if(!currentTextureEntry)throw Error('공용 건물 원본이 검수 카탈로그에 없습니다: '+currentTextureIdentifier);
-   appliedTextureNames.add(currentTextureEntry[0]);
+ const currentAssetGroups={tiles:new Set(),buildings:new Set(),billboards:new Set()};
+ const currentBuildingKeys=new Set((currentMapRecord.buildings??[]).map(currentBuildingRecord=>currentBuildingRecord.sprite?.textureKey));
+ const currentBillboardKeys=new Set((currentMapRecord.objects??[]).map(currentObjectRecord=>currentObjectRecord.textureKey));
+ for(const [currentGameKey,currentCatalogKey] of Object.entries(currentSelectedGameKeys)){
+  const currentAssetSource=currentTextureRecords[currentCatalogKey].source;
+  if(currentBuildingKeys.has(currentGameKey))currentAssetGroups.buildings.add(currentCatalogKey);
+  else if(currentBillboardKeys.has(currentGameKey)||currentAssetSource.includes('/billboards/'))currentAssetGroups.billboards.add(currentCatalogKey);
+  else if(currentAssetSource.includes('/tiles/'))currentAssetGroups.tiles.add(currentCatalogKey);
+ }
+ if(isCharacterReviewPage){
+  for(const currentTerrainName of Object.values(currentMapRecord.terrainCodes)){
+   const currentCatalogKey=groundTextureNames[currentTerrainName];
+   if(currentCatalogKey)currentAssetGroups.tiles.add(currentCatalogKey);
   }
  }
- const currentSortedTextureNames=[...appliedTextureNames].sort();
- const currentNextSourceSignature=JSON.stringify([currentSortedTextureNames.map(currentTextureName=>[currentTextureName,currentTextureRecords[currentTextureName]]),currentSafeVisualRecords,currentMapRecord.guardCenters??[]]);
- // 카메라만 바뀐 경우 펼친 원본 정보와 키보드 초점을 유지한다.
+ const currentNextSourceSignature=JSON.stringify([Object.fromEntries(Object.entries(currentAssetGroups).map(([currentGroupName,currentGroupKeys])=>[currentGroupName,[...currentGroupKeys].sort()])),currentSafeVisualRecords,currentMapRecord.guardCenters??[]]);
  if(currentAppliedSourceSignature===currentNextSourceSignature)return;
- const appliedTileList=document.querySelector('#applied-tile-list');appliedTileList.replaceChildren();
+ const currentGroupSelectors={tiles:'#applied-tile-list',buildings:'#applied-building-list',billboards:'#applied-billboard-list'};
+ for(const [currentGroupName,currentGroupKeys] of Object.entries(currentAssetGroups)){
+  const currentSourceList=document.querySelector(currentGroupSelectors[currentGroupName]);
+  if(!currentSourceList)throw Error('에셋 분류 영역이 없습니다. 검수 화면을 새로고침하세요.');
+  currentSourceList.replaceChildren();
+  if(!currentGroupKeys.size){const currentEmptyItem=document.createElement('li');currentEmptyItem.textContent='적용된 원본 없음';currentSourceList.append(currentEmptyItem);}
+  for(const currentCatalogKey of [...currentGroupKeys].sort()){
+   const currentAssetRecord=currentTextureRecords[currentCatalogKey];
+   const currentSourceItem=document.createElement('li');
+   const currentAssetThumbnail=document.createElement('img');
+   currentAssetThumbnail.width=42;currentAssetThumbnail.height=42;currentAssetThumbnail.src=new URL(currentAssetRecord.path,import.meta.url).href;currentAssetThumbnail.alt=`${currentCatalogKey} 원본 썸네일`;currentAssetThumbnail.loading='lazy';
+   const currentAssetLabel=document.createElement('strong');currentAssetLabel.textContent=currentCatalogKey;
+   const currentSizeLabel=document.createElement('span');currentSizeLabel.textContent=` · ${currentAssetRecord.source_size?.join('×')||'?'}px`;
+   currentSourceItem.title=currentAssetRecord.source;
+   currentSourceItem.append(currentAssetThumbnail,currentAssetLabel,currentSizeLabel);
+   if(currentGroupName==='tiles'&&currentAssetRecord.normalization_warning){const currentWarningLabel=document.createElement('span');currentWarningLabel.textContent=' · '+currentAssetRecord.normalization_warning;currentSourceItem.append(currentWarningLabel);}
+   currentSourceList.append(currentSourceItem);
+  }
+ }
+ const currentStructureList=document.querySelector('#applied-structure-list');currentStructureList.replaceChildren();
  for(const [currentVisualName,currentVisualRecord] of Object.entries(currentSafeVisualRecords)){
   const currentVisualItem=document.createElement('li'),currentVisualThumbnail=document.createElement('img'),currentVisualLabel=document.createElement('span');
   currentVisualThumbnail.width=42;currentVisualThumbnail.height=42;currentVisualThumbnail.src=new URL(currentVisualRecord.image,import.meta.url).href;currentVisualThumbnail.alt=currentVisualName==='tower'?'결계탑 원본':'결계 오러 원본';
   currentVisualLabel.textContent=currentVisualThumbnail.alt+' · '+currentVisualRecord.sourceSize.join('×');
   currentVisualItem.title=`${currentVisualRecord.provenance.managementId} · ${currentVisualRecord.provenance.version} · SHA-256 ${currentVisualRecord.provenance.sha256}`;
-  currentVisualItem.append(currentVisualThumbnail,currentVisualLabel);appliedTileList.append(currentVisualItem);
+  currentVisualItem.append(currentVisualThumbnail,currentVisualLabel);currentStructureList.append(currentVisualItem);
  }
- currentSortedTextureNames.forEach(currentTextureName=>{
-  const currentTextureRecord=currentTextureRecords[currentTextureName];const currentListItem=document.createElement('li');const currentName=document.createElement('strong');currentName.textContent=currentTextureName;currentListItem.append(currentName);
-  if(!currentTextureRecord){const currentWarning=document.createElement('span');currentWarning.className='tile-source-warning';currentWarning.textContent='⚠ 원본 미등록';currentWarning.title='타일 카탈로그에 원본 파일이 등록되지 않았습니다.';currentListItem.append(currentWarning);appliedTileList.append(currentListItem);return}
-  const currentThumbnail=document.createElement('img');currentThumbnail.width=42;currentThumbnail.height=42;currentThumbnail.src=new URL(currentTextureRecord.path,import.meta.url).href;currentThumbnail.alt=`${currentTextureName} 원본 썸네일`;currentThumbnail.loading='lazy';currentListItem.prepend(currentThumbnail);
-  const sourceSize=currentTextureRecord.source_size;const expectedSourceSize=currentTextureRecord.expected_source_size;const currentSource=document.createElement('span');currentSource.textContent=`${sourceSize?.join('×')||'?'}px`;currentListItem.append(currentSource);
-  const normalizationWarning=currentTextureRecord.normalization_warning||(sourceSize&&expectedSourceSize&&sourceSize.every((currentValue,currentIndex)=>currentValue===expectedSourceSize[currentIndex])?null:`정규화 확인 필요: 기준 ${expectedSourceSize?.join('×')||'256×256'}px`);
-  if(normalizationWarning){const currentWarning=document.createElement('span');currentWarning.className='tile-source-warning';currentWarning.textContent='⚠';currentWarning.title=normalizationWarning;const currentDescription=document.createElement('span');currentDescription.className='tile-source-warning-description';currentDescription.textContent=normalizationWarning;currentListItem.append(currentWarning,currentDescription)}
-  appliedTileList.append(currentListItem);
- });
  for(const currentGuardRecord of currentMapRecord.guardCenters??[]){
-  const currentListItem=document.createElement('li');
-  const currentThumbnail=document.createElement('img');currentThumbnail.width=42;currentThumbnail.height=42;currentThumbnail.src=currentGuardRecord.image;currentThumbnail.alt='경비센터 원본';currentThumbnail.loading='lazy';
-  const currentName=document.createElement('strong');currentName.textContent=`경비센터 · ${currentGuardRecord.cityId}`;
-  const currentSource=document.createElement('span');currentSource.textContent=`${currentGuardRecord.provenance.source} · ${currentGuardRecord.provenance.version}`;
-  const currentHashDetail=document.createElement('details');const currentHashSummary=document.createElement('summary');currentHashSummary.textContent='원본 식별자·해시';
-  const currentHashText=document.createElement('p');currentHashText.textContent=`${currentGuardRecord.provenance.managementId} · SHA-256 ${currentGuardRecord.provenance.sha256}`;
-  currentHashDetail.append(currentHashSummary,currentHashText);currentListItem.append(currentThumbnail,currentName,currentSource,currentHashDetail);appliedTileList.append(currentListItem);
+  const currentSourceItem=document.createElement('li'),currentAssetThumbnail=document.createElement('img'),currentAssetLabel=document.createElement('span');
+  currentAssetThumbnail.width=42;currentAssetThumbnail.height=42;currentAssetThumbnail.src=currentGuardRecord.image;currentAssetThumbnail.alt='경비센터 원본';currentAssetThumbnail.loading='lazy';
+  currentAssetLabel.textContent=`경비센터 · ${currentGuardRecord.cityId} · ${currentGuardRecord.provenance.version}`;
+  currentSourceItem.title=`${currentGuardRecord.provenance.managementId} · SHA-256 ${currentGuardRecord.provenance.sha256}`;
+  currentSourceItem.append(currentAssetThumbnail,currentAssetLabel);currentStructureList.append(currentSourceItem);
  }
+ if(!currentStructureList.childElementCount){const currentEmptyItem=document.createElement('li');currentEmptyItem.textContent='적용된 원본 없음';currentStructureList.append(currentEmptyItem);}
  currentAppliedSourceSignature=currentNextSourceSignature;
 }
 renderAppliedTileSourceList();
@@ -475,3 +468,18 @@ if(currentMapCanvas.dataset.capture==='true'){
  const currentCaptureResponse=await fetch('./capture-result',{method:'POST',headers:{'Content-Type':'application/json','X-Capture-Token':currentCaptureSettings.token},body:JSON.stringify({baseline:document.querySelector('#character-baseline-map').toDataURL('image/png'),adjusted:currentMapCanvas.toDataURL('image/png')})});
  if(!currentCaptureResponse.ok)throw Error('렌더 캡처 저장 실패');
 }
+
+window.mapReviewExportImage=async()=>{
+ if(!currentSharedFieldView)throw Error('야외필드·도시맵에서 사용할 수 있습니다.');
+ const currentGroundPoints=isFieldMapReview?currentFieldFrame.points:[{column:0,row:0},{column:currentMapRecord.columns,row:0},{column:0,row:currentMapRecord.rows},{column:currentMapRecord.columns,row:currentMapRecord.rows}].map(projectBlockVertex);
+ const currentExportImage=await currentSharedFieldView.exportWholeMapImage(currentGroundPoints);
+ const currentDownloadLink=document.getElementById('map-export-download');
+ if(!currentDownloadLink)throw Error('다운로드 영역이 없습니다. 검수 화면을 새로고침하세요.');
+ currentDownloadLink.href=currentExportImage.src;
+ currentDownloadLink.download=`${currentMapRecord.id}-full-map-${new Date().toISOString().replace(/[:.]/g,'-')}.png`;
+ currentDownloadLink.hidden=false;
+ currentDownloadLink.textContent=`전체 맵 PNG 다운로드 (${currentExportImage.width}×${currentExportImage.height})`;
+ currentDownloadLink.click();
+ renderBlockMap();
+ return `전체 맵 PNG 저장 · ${currentExportImage.width}×${currentExportImage.height}px · 현재 표시 옵션 적용`;
+};

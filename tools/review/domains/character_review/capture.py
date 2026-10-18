@@ -78,7 +78,7 @@ def capture_character_review(command_payload_value):
         (current_bundle_directory/'capture-settings.json').write_text(json.dumps(current_setting_document))
         # 내부 해상도 변경이 CSS 표시 크기까지 키우는 ResizeObserver 재진입을 막는다.
         (current_bundle_directory/'capture.html').write_text('''<!doctype html><meta charset="utf-8"><title>캐릭터 렌더 캡처</title>
-<div id="map-title"></div><div id="status"></div><output id="zoom-level"></output><ul id="applied-tile-list"></ul>
+<div id="map-title"></div><div id="status"></div><output id="zoom-level"></output><ul id="applied-tile-list"></ul><ul id="applied-building-list"></ul><ul id="applied-billboard-list"></ul><ul id="applied-structure-list"></ul>
 <canvas id="character-baseline-map" style="width:__CAPTURE_WIDTH__px;height:__CAPTURE_HEIGHT__px"></canvas><canvas id="map" style="width:__CAPTURE_WIDTH__px;height:__CAPTURE_HEIGHT__px" data-character-review="true" data-capture="true"></canvas>
 <script type="module">try{await import('./block-map-review.js')}catch(error){const settings=await(await fetch('./capture-settings.json')).json();await fetch('./capture-result',{method:'POST',headers:{'Content-Type':'application/json','X-Capture-Token':settings.token},body:JSON.stringify({error:String(error.stack||error)})})}</script>'''.replace('__CAPTURE_WIDTH__',str(current_setting_values['width'])).replace('__CAPTURE_HEIGHT__',str(current_setting_values['height'])))
         from urllib.request import urlopen
