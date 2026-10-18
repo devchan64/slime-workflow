@@ -1,15 +1,18 @@
-"""선택 맵의 동일 스프라이트 접지 앵커 변경."""
+"""에셋 공통 스프라이트 속성 변경."""
 import hashlib
 import math
 import re
 from pathlib import Path
 import yaml
-from tools.review.common.map_tile_assets import load_registered_tiles, resolve_registered_asset
+from tools.review.common.map_tile_assets import load_registered_tiles, resolve_registered_asset, UniqueAssetYamlLoader
 
 
 def save_map_sprite_anchor(current_request_payload):
     if not isinstance(current_request_payload,dict) or set(current_request_payload) not in ({'map','kind','texture','anchorX','anchorY','expected'},{'map','kind','texture','anchorX','anchorY','expected','layout'}):
         raise ValueError('맵·종류·텍스처·앵커·기존 앵커 정보가 필요합니다.')
+    current_texture_key=current_request_payload['texture']
+    if not isinstance(current_texture_key,str) or not re.fullmatch('[a-z][a-z0-9-]*',current_texture_key):
+        raise ValueError('텍스처 ID 오류')
     current_map_identifier=current_request_payload['map']
     if not isinstance(current_map_identifier,str) or not re.fullmatch('[a-z0-9-]+',current_map_identifier):
         raise ValueError('맵 ID 오류')
@@ -29,8 +32,16 @@ def save_map_sprite_anchor(current_request_payload):
     current_asset_root,current_asset_records=load_registered_tiles()
     current_map_relative='assets/maps/'+('city_layouts' if current_map_kind=='town' else 'field_tiles')+'/'+current_map_identifier+'.yaml'
     current_map_path,current_map_provenance=resolve_registered_asset(current_map_relative,current_asset_root,current_asset_records,'assets/maps')
-    current_map_document=yaml.safe_load(current_map_path.read_text())
+    current_map_document=yaml.load(current_map_path.read_text(), Loader=UniqueAssetYamlLoader)
+    from tools.review.common.sprite_display_properties import apply_sprite_display_properties, validate_sprite_display_properties
+    current_properties_relative = 'assets/maps/sprite-display-properties.yaml'
+    current_properties_path, current_properties_provenance = resolve_registered_asset(current_properties_relative,current_asset_root,current_asset_records,'assets/maps')
+    current_properties_document = yaml.load(current_properties_path.read_text(), Loader=UniqueAssetYamlLoader)
+    if not isinstance(current_properties_document, dict) or set(current_properties_document) != {'managementId', 'data'} or current_properties_document['managementId'] != current_properties_provenance['managementId']:
+        raise ValueError('공통 속성 원본 관리 ID·필드 오류')
+    current_property_catalog = validate_sprite_display_properties(current_properties_document['data'])
     current_map_data=current_map_document['data']
+    apply_sprite_display_properties(current_map_data, current_property_catalog)
     current_target_entries=[]
     for current_object_record in current_map_data.get('objects',[]):
         if current_object_record.get('textureKey')==current_request_payload['texture']:current_target_entries.append((current_object_record['id'],current_object_record))
@@ -43,22 +54,25 @@ def save_map_sprite_anchor(current_request_payload):
             current_expected_record.update({current_layout_name:current_entry_record.get(current_layout_name,1) for current_layout_name in ('groundFootprintColumns','groundFootprintRows','displayHeight')})
     if not current_target_entries or current_expected_entries!=current_request_payload['expected']:
         raise ValueError('맵 앵커가 변경되었거나 편집 가능한 배치가 없습니다. 새로고침하세요.')
-    for _,current_entry_record in current_target_entries:
-        current_entry_record.update({current_anchor_name:current_request_payload[current_anchor_name] for current_anchor_name in ('anchorX','anchorY')})
-        if current_layout_values is not None:current_entry_record.update(current_layout_values)
-    current_map_bytes=yaml.safe_dump(current_map_document,allow_unicode=True,sort_keys=False).encode()
+    current_shared_properties = {current_anchor_name:current_request_payload[current_anchor_name] for current_anchor_name in ('anchorX','anchorY')}
+    current_shared_properties.update(current_layout_values or current_property_catalog.get(current_request_payload['texture'], {}))
+    # 기존 레이아웃을 유지할 때도 이번 앵커 입력을 우선한다.
+    current_shared_properties.update({current_anchor_name:current_request_payload[current_anchor_name] for current_anchor_name in ('anchorX','anchorY')})
+    current_property_catalog[current_request_payload['texture']] = current_shared_properties
+    validate_sprite_display_properties(current_property_catalog)
+    current_map_bytes=yaml.safe_dump(current_properties_document,allow_unicode=True,sort_keys=False).encode()
     current_map_hash=hashlib.sha256(current_map_bytes).hexdigest()
     current_registry_path=current_asset_root/'asset-registry.yaml'
     current_backend_lock=current_asset_root.parent/'slime-backend/map-data.lock.yaml'
-    current_pending_files={current_map_path:current_map_bytes}
+    current_pending_files={current_properties_path:current_map_bytes}
     for current_metadata_path in (current_registry_path,current_backend_lock):
         current_metadata_text=current_metadata_path.read_text()
-        if current_map_provenance['sha256'] not in current_metadata_text:raise ValueError('맵 등록부·잠금 불일치')
-        current_pending_files[current_metadata_path]=current_metadata_text.replace(current_map_provenance['sha256'],current_map_hash).encode()
+        if current_properties_provenance['sha256'] not in current_metadata_text:raise ValueError('공통 속성 등록부·잠금 불일치')
+        current_pending_files[current_metadata_path]=current_metadata_text.replace(current_properties_provenance['sha256'],current_map_hash).encode()
     current_previous_files={current_file_path:current_file_path.read_bytes() for current_file_path in current_pending_files}
     try:
         for current_file_path,current_file_bytes in current_pending_files.items():current_file_path.write_bytes(current_file_bytes)
     except Exception:
         for current_file_path,current_file_bytes in current_previous_files.items():current_file_path.write_bytes(current_file_bytes)
         raise
-    return {'count':len(current_target_entries),'map':current_map_identifier}
+    return {'count':len(current_target_entries),'map':current_map_identifier,'scope':'asset','texture':current_request_payload['texture']}

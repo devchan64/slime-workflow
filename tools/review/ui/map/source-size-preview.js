@@ -13,6 +13,18 @@ export function installSourceSizePreview(currentTextureRecords,currentSelectedGa
   return [...window.mapSourceAnchorRead(currentGameKey).map((currentControlValue,currentControlIndex)=>({__type__:'update',value:currentControlValue,interactive:currentControlIndex<2?currentEditableAnchor:currentEditableLayout})),{__type__:'update',interactive:currentEditableAnchor}];
  };
  window.mapSourceAnchorPayload=(currentGameKey,currentAnchorX,currentAnchorY,currentFootprintColumns,currentFootprintRows,currentDisplayHeight)=>({map:currentMapRecord.id,kind:currentMapRecord.safeTown===false?'field':'town',texture:currentGameKey,anchorX:currentAnchorX,anchorY:currentAnchorY,expected:findAnchorEntries(currentGameKey),...((currentMapRecord.objects??[]).some(currentObjectRecord=>currentObjectRecord.textureKey===currentGameKey)?{layout:{groundFootprintColumns:currentFootprintColumns,groundFootprintRows:currentFootprintRows,displayHeight:currentDisplayHeight}}:{})});
+ window.mapSourceAnchorCommitted=currentSaveResult=>{
+  if(!currentSaveResult?.saved)return;
+  const currentSavedPayload=currentSaveResult.payload;
+  if(currentSavedPayload.map!==currentMapRecord.id)return;
+  const currentSavedAnchors={anchorX:currentSavedPayload.anchorX,anchorY:currentSavedPayload.anchorY};
+  for(const currentObjectRecord of currentMapRecord.objects??[]){
+   if(currentObjectRecord.textureKey===currentSavedPayload.texture)Object.assign(currentObjectRecord,currentSavedAnchors,currentSavedPayload.layout??{});
+  }
+  for(const currentBuildingRecord of currentMapRecord.buildings??[]){
+   if(currentBuildingRecord.sprite?.textureKey===currentSavedPayload.texture)Object.assign(currentBuildingRecord.sprite,currentSavedAnchors);
+  }
+ };
  let currentUnifiedEntries=[];
  const currentStructureRecords={};
  window.mapSourceUnifiedList=(currentSourceCategory='all',currentSearchText='')=>{

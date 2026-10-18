@@ -50,7 +50,12 @@ def read_registered_map_data(relative_source_path, source_provenance_records, cu
     if not isinstance(current_source_document,dict) or set(current_source_document)!={'managementId','data'} or current_source_document['managementId']!=current_source_record['managementId'] or not isinstance(current_source_document['data'],dict):
         raise ValueError('맵 원본 관리 ID·자료형 오류: '+relative_source_path)
     source_provenance_records.append(current_source_record)
-    return current_source_document['data']
+    current_source_data = current_source_document['data']
+    if relative_source_path.startswith(('city_layouts/', 'field_tiles/')) and ('objects' in current_source_data or 'buildings' in current_source_data):
+        from tools.review.common.sprite_display_properties import apply_sprite_display_properties, validate_sprite_display_properties
+        current_property_catalog = read_registered_map_data('sprite-display-properties.yaml', source_provenance_records, (asset_root_directory, registered_asset_records))
+        apply_sprite_display_properties(current_source_data, validate_sprite_display_properties(current_property_catalog))
+    return current_source_data
 
 
 def load_review_map_identifiers(current_source_catalog=None):

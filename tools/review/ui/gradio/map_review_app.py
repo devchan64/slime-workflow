@@ -61,8 +61,11 @@ def capture_character_review_images(current_capture_settings):
 
 def save_map_source_anchor(current_anchor_payload):
     from tools.review.common.management_client import execute_remote_management_command
-    current_anchor_result=execute_remote_management_command('map-assets','map-anchor-save',current_anchor_payload)
-    return f"배치 설정 저장 완료 · 선택 맵의 동일 원본 {current_anchor_result['count']}개에 적용했습니다. 화면을 새로고침하세요."
+    try:
+        current_anchor_result=execute_remote_management_command('map-assets','map-anchor-save',current_anchor_payload)
+    except (ValueError, OSError) as current_save_error:
+        return f'공통 속성 저장 실패: {current_save_error}', {'saved':False}
+    return f"에셋 공통 속성 저장 완료 · {current_anchor_result['texture']}을 사용하는 모든 맵에 적용됩니다. 맵 화면은 다시 불러오면 반영됩니다.", {'saved':True,'payload':current_anchor_payload}
 
 
 def save_map_source_size(current_resize_payload):
@@ -162,7 +165,7 @@ def build_map_review_interface(review_server_port, character_review_enabled=Fals
             with gr.Accordion('조작 방법 · 타일 안내',open=False):
                 gr.Markdown('휠 또는 확대·축소 버튼으로 배율을 조절하고 드래그 또는 방향키로 이동합니다. 0 키는 전체 보기입니다. 맵은 고정 시점이며 회전하지 않습니다. 이동 가능한 바닥을 클릭하면 기본 캐릭터를 배치합니다. 캐릭터를 가리는 앞쪽 빌보드·지형은 원래 불투명도의 40%로 표시되며, 가림이 없어지면 복원됩니다. 맵에 포커스를 둔 뒤 Shift+좌우로 캐릭터 열, Shift+상하로 행을 이동합니다. 메시 경계는 지면·절벽 면의 꼭짓점을 표시합니다. 미등록 지형은 임시 색상으로 표시됩니다.')
             with gr.Accordion('에셋 검수 · 편집',open=True):
-                gr.Markdown('분류·이름으로 목록을 좁힌 뒤 썸네일을 선택하세요. 원본 해상도 저장과 맵 배치 설정 저장은 각각 적용됩니다.')
+                gr.Markdown('분류·이름으로 목록을 좁힌 뒤 썸네일을 선택하세요. 원본 해상도 저장과 에셋 공통 속성 저장은 각각 적용됩니다.')
                 current_source_category=gr.Radio(label='에셋 분류',choices=[('전체','all'),('지형 타일','tiles'),('건물','buildings'),('식생','vegetation'),('기물','props'),('결계·경비 구조물','structures')],value='all')
                 with gr.Row():
                     current_source_search=gr.Textbox(label='원본 이름 검색',placeholder='이름 일부로 검색',scale=3)
@@ -185,14 +188,15 @@ def build_map_review_interface(review_server_port, character_review_enabled=Fals
                             current_ground_columns=gr.Number(label='바닥 열 · 칸',value=1,minimum=1,maximum=8,step=1,precision=0)
                             current_ground_rows=gr.Number(label='바닥 행 · 칸',value=1,minimum=1,maximum=8,step=1,precision=0)
                         current_display_height=gr.Number(label='빌보드 표시 높이 · px',value=128,minimum=1,maximum=1024)
-                        gr.Markdown('앵커는 선택 맵의 같은 원본 배치에 적용됩니다. 바닥·높이는 빌보드 전용입니다. 지형·결계·경비 구조물은 배치 편집 대상이 아닙니다.')
-                        current_anchor_save=gr.Button('선택 맵의 배치 설정 저장 · 앵커·바닥·높이',interactive=False)
+                        gr.Markdown('앵커·바닥·높이는 같은 에셋을 사용하는 모든 맵의 공통 속성입니다. 바닥·높이는 빌보드 전용이며 맵별 위치는 유지됩니다. 지형·결계·경비 구조물은 편집 대상이 아닙니다.')
+                        current_anchor_save=gr.Button('에셋 공통 속성 저장 · 앵커·바닥·높이',interactive=False)
                     with gr.Column(min_width=320):
                         gr.Markdown('### 원본 해상도 · 접지 영역 미리보기')
                         gr.HTML('<canvas id="map-source-size-preview" width="768" height="260" aria-label="원본 크기와 타일 경계 비교" style="max-width:100%;height:auto"></canvas>')
                         current_source_feedback=gr.Textbox(label='크기 · 경계 안내',value='목록 새로고침 후 원본 썸네일을 선택하세요.',interactive=False)
                 current_resize_payload=gr.JSON(value={},visible=False)
                 current_anchor_payload=gr.JSON(value={},visible=False)
+                current_anchor_result=gr.JSON(value={},visible=False)
                 for current_source_control in (current_source_refresh,current_source_category,current_source_search):
                     current_source_event=current_source_control.click if current_source_control is current_source_refresh else current_source_control.input
                     current_source_event(fn=None,inputs=[current_source_category,current_source_search],outputs=[current_source_table,current_source_choice,current_source_name],queue=False,js="(currentSourceCategory,currentSearchText)=>{if(!window.mapSourceUnifiedList)throw Error('맵을 먼저 불러오세요.');return window.mapSourceUnifiedList(currentSourceCategory,currentSearchText);}")
@@ -205,7 +209,7 @@ def build_map_review_interface(review_server_port, character_review_enabled=Fals
                 for current_preview_control in (current_source_size,current_anchor_horizontal,current_anchor_vertical,current_ground_columns,current_ground_rows,current_display_height):
                     current_preview_control.input(fn=None,inputs=current_preview_inputs,outputs=current_preview_outputs,queue=False,js=current_preview_script)
                 current_source_save.click(fn=None,inputs=current_preview_inputs,outputs=current_preview_outputs,queue=False,js=current_preview_script).then(fn=save_map_source_size,inputs=current_resize_payload,outputs=current_source_feedback)
-                current_anchor_save.click(fn=None,inputs=[current_source_choice,current_anchor_horizontal,current_anchor_vertical,current_ground_columns,current_ground_rows,current_display_height],outputs=current_anchor_payload,queue=False,js="(currentSourceKey,currentAnchorX,currentAnchorY,currentGroundColumns,currentGroundRows,currentDisplayHeight)=>window.mapSourceAnchorPayload(currentSourceKey,currentAnchorX,currentAnchorY,currentGroundColumns,currentGroundRows,currentDisplayHeight)").then(fn=save_map_source_anchor,inputs=current_anchor_payload,outputs=current_source_feedback)
+                current_anchor_save.click(fn=None,inputs=[current_source_choice,current_anchor_horizontal,current_anchor_vertical,current_ground_columns,current_ground_rows,current_display_height],outputs=current_anchor_payload,queue=False,js="(currentSourceKey,currentAnchorX,currentAnchorY,currentGroundColumns,currentGroundRows,currentDisplayHeight)=>window.mapSourceAnchorPayload(currentSourceKey,currentAnchorX,currentAnchorY,currentGroundColumns,currentGroundRows,currentDisplayHeight)").then(fn=save_map_source_anchor,inputs=current_anchor_payload,outputs=[current_source_feedback,current_anchor_result]).then(fn=None,inputs=current_anchor_result,outputs=None,queue=False,js="currentSaveResult=>{window.mapSourceAnchorCommitted(currentSaveResult);}")
                 gr.HTML('<div hidden><div id="applied-tile-list"></div><div id="applied-building-list"></div><div id="applied-billboard-list"></div><div id="applied-structure-list"></div></div>')
             current_loader_outputs=[current_map_choice,current_load_button,current_building_choice,current_boundary_column,current_shadow_profile_column,current_camera_feedback,*current_ready_controls]
             current_load_button.click(fn=None,inputs=current_map_choice,outputs=current_loader_outputs,js=create_map_review_loader(review_server_port,len(current_ready_controls),manual_load_enabled=True),queue=False)

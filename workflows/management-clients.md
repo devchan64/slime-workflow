@@ -648,9 +648,9 @@ python3 tools/manager.py command writer-agent writer-detail --payload-file /abso
 
 GUI와 CLI는 `tools/manager.py command map-assets resize --payload-file <파일>` 명령을 공유한다. 입력 JSON은 `path`(등록 원본 경로), `sha256`(검수한 원본 해시), `size`(선택한 긴 변)로 구성한다. 서비스는 최신 해시 확인 후 원본·등록부 해상도/해시·프론트엔드 잠금을 갱신한다. 축소 전 원본과 요청/결과는 `.tmp/map-asset-resize/<ID>/`에 보관한다. 저장 후 검수 화면을 새로고침한다.
 
-`map-assets map-anchor-save --payload-file <파일>`은 선택 맵의 동일 텍스처 배치 앵커를 저장한다. 입력은 `map`, `kind`(town/field), `texture`, `anchorX`, `anchorY`, `expected`(배치 ID와 기존 앵커 목록)이다. 기존 값이 달라지면 저장을 거절한다. 맵 원본·등록부·백엔드 잠금을 함께 갱신하며 위치와 표시 크기는 보존한다.
+`map-assets map-anchor-save --payload-file <파일>`은 동일 에셋의 공통 앵커를 저장한다. 선택 맵은 편집 대상과 기존 값 검증에만 사용한다. 입력은 `map`, `kind`(town/field), `texture`, `anchorX`, `anchorY`, `expected`(배치 ID와 기존 앵커 목록)이다. 기존 값이 달라지면 저장을 거절한다. `slime-assets/assets/maps/sprite-display-properties.yaml`·등록부·백엔드 잠금을 함께 갱신한다. 게임과 검수 로더는 모든 맵에서 공통 속성을 기존 배치 값보다 우선 적용한다. 위치 좌표는 보존한다.
 
-빌보드 배치 설정은 `groundFootprintColumns`·`groundFootprintRows`(각 1~8칸)와 `displayHeight`(0 초과 1024px 이하)를 지원한다. 바닥 크기는 접지 영역 검수 기준이며 통행 차단을 추가하는 설정이 아니다. `map-anchor-save`의 선택적 `layout`에 세 값을 함께 전달하고 `expected`에도 기존 값을 포함한다. 건물은 기존 점유 크기 계약을 사용하므로 이 설정으로 변경하지 않는다. 원본 해상도 저장과 배치 설정 저장은 별도 동작이다.
+빌보드 배치 설정은 `groundFootprintColumns`·`groundFootprintRows`(각 1~8칸)와 `displayHeight`(0 초과 1024px 이하)를 지원한다. 바닥 크기는 접지 영역 검수 기준이며 통행 차단을 추가하는 설정이 아니다. `map-anchor-save`의 선택적 `layout`에 세 값을 함께 전달하고 `expected`에도 기존 값을 포함한다. 건물은 기존 점유 크기 계약을 사용하므로 이 설정으로 변경하지 않는다. 원본 해상도 저장과 에셋 공통 속성 저장은 별도 동작이다. 공통 속성은 이후 추가되는 같은 에셋 배치에도 적용된다.
 
 ### VACE F2V 첫 프레임 페이지
 
