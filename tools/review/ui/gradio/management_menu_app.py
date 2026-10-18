@@ -19,7 +19,7 @@ CATEGORY_LABEL_VALUES={'all':'전체','map-review':'맵 검수','sound-managemen
 LEGACY_SOUND_CATEGORY_NAMES=('music-generation','sound-effects')
 MANAGEMENT_FRAME_PATH_PREFIX='/management/frame/'
 MANAGEMENT_FRAME_IDENTIFIER_VALUES={'anny-attribute-renderer':'anny-attributes'}
-NATIVE_MANAGEMENT_APPLICATIONS=frozenset(('sfx-dasheng-audiogen','music-ace-step','music-minimax','vace-f2v-generator','vace-v2v-generator','phantom-generator','hy-motion-generator','anny-landmarks','animation-separation','qwen-21-circular-generator','pose-transfer-generator','outfit-transfer-generator','qwen-21-generator','expression-generator','sprite-editor-v2','character-review','map-review','anny-attributes','writer-agent'))
+NATIVE_MANAGEMENT_APPLICATIONS=frozenset(('vegetation-generator','prop-generator','building-generator','sfx-dasheng-audiogen','music-ace-step','music-minimax','vace-f2v-generator','vace-v2v-generator','phantom-generator','hy-motion-generator','anny-landmarks','animation-separation','qwen-21-circular-generator','pose-transfer-generator','outfit-transfer-generator','qwen-21-generator','expression-generator','sprite-editor-v2','character-review','map-review','anny-attributes','writer-agent'))
 DEFAULT_MANAGER_SOURCE_PATH=WORKFLOW_ROOT_DIRECTORY/'.tmp/manager-current/manager-source.json'
 LEGACY_PAGE_IDENTIFIER_VALUES={'map-review':'map-review-iseulon','animation-2':'animation-1','animation-3':'animation-1'}
 DEFAULT_PAGE_RECORDS=(
@@ -36,6 +36,9 @@ DEFAULT_PAGE_RECORDS=(
     {'id':'qwen-21-circular-generator','label':'Qwen 2.1 순환 VAE 생성기','path':'/image-generation-21-circular/','category':'image-generation','uiMode':'gradio','description':'XY 순환 디코더 · 3×3 반복 검수'},
     {'id':'pose-transfer-generator','label':'포즈 변환 생성기','path':'/pose-transfer/','category':'animation-tool','uiMode':'gradio','description':'정식 · VNCCS QI2.1 · 아이덴티티 1장 + 포즈 1장'},
     {'id':'outfit-transfer-generator','label':'복장 착용 생성기','path':'/outfit-transfer/','category':'image-generation','uiMode':'gradio','description':'Qwen 2.1 · 바디 1장 + 아웃핏 1장 · 신체 비율 유지'},
+    {'id':'vegetation-generator','label':'식생 생성기 · Qwen','path':'/vegetation-generator/','category':'image-generation','uiMode':'gradio','description':'식생 빌보드 기본 문구 · 레이아웃·식물 참조 · Qwen 2.1 공유 이력'},
+    {'id':'prop-generator','label':'기물 생성기 · Qwen','path':'/prop-generator/','category':'image-generation','uiMode':'gradio','description':'기물 직교투영 기본 문구 · 레이아웃·자재 참조 · Qwen 2.1 공유 이력'},
+    {'id':'building-generator','label':'건물 생성기 · Qwen','path':'/building-generator/','category':'image-generation','uiMode':'gradio','description':'직교투영 기본 문구 · 레이아웃 이미지 선택 · Qwen 2.1 공유 이력'},
     {'id':'qwen-21-generator','label':'Qwen 2.1 이미지 생성기','path':'/image-generation-21/','category':'image-generation','uiMode':'gradio','description':'공용 화풍·투명 배경 문구 선택 · 참조 이미지 선택'},
     {'id':'writer-agent','label':'작가 AI 에이전트','path':'/writer-agent/','category':'writer-agent','uiMode':'gradio','description':'Gradio · 문서 학습 · 아이디어 작성 · 실행 기록'},
     {'id':'expression-generator','label':'표정 생성기','path':'/expression-generator/','category':'image-generation','uiMode':'gradio','description':'Qwen 2511 · AU 표정 39종 · 참조 1~3장'},

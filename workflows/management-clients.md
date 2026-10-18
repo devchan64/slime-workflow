@@ -659,3 +659,25 @@ GUI와 CLI는 `tools/manager.py command map-assets resize --payload-file <파일
 GUI는 독립 `wan21-vace-f2v` 게이트웨이에 `frame_entries: [{frame: 0, editable: false}]`, 이미지 1장, `identity_reference_count: 0`과 `F2V · 첫 프레임 보존` 태그를 전달한다. 통합 CLI에서도 같은 서비스의 `generate --payload-file`을 사용한다. 모델·GPU 실행 코드·ETA·VRAM 관측 코드는 재사용하되 작업 서비스와 대기열·이력은 V2V와 분리한다. F2V 작업 입력·결과·로그는 `.tmp/test/wan21-vace-f2v/`, 이력은 공용 이력 루트의 `wan21-vace-f2v`에 저장한다. 삭제·초기화는 F2V에만 적용한다. 기존 V2V 저장 작업은 이동하지 않는다. GPU 자원 배정은 공용 실행기가 담당하여 동시 추론 충돌을 막는다. F2V 입력값 불러오기는 첫 프레임 1장 보존 이력만 허용한다.
 
 기본은 81프레임·16fps·50스텝·shift 3·CFG 5·조건 강도 1·시드 42다. 프롬프트는 직접 입력한다. `대기열에 추가` 후 인라인 확인에서 `확인 후 대기열에 추가`로 접수한다.
+
+## 건물 생성 페이지 · Qwen 2.1
+
+`/management/frame/building-generator/`는 기존 `qwen-21` 서비스의 건물 제작용 GUI다. 모델·GPU 대기열·취소·재개·ETA·VRAM 기록·선택 삭제를 공용 구현으로 사용한다. 별도 서비스나 이력 저장소는 만들지 않으며 **일반 Qwen 2.1과 이력 및 이력 초기화 범위를 공유한다.** 건물 이름을 생성 태그로 남긴다.
+
+기본 문구는 Git 관리 대상 `generators/image/config/building-qwen-prompt.txt`다. 기존 ImageGen 직교투영 베이스라인을 변경하지 않는 Qwen 전용 문구이며, 평행선·일정한 축척·바닥 축·출입구 정렬을 지시한다. 실제 맵에서 타일 경계와 건물 바닥 영역·입구를 표시한 레이아웃 이미지를 첫 참조에 업로드하거나 붙여 넣는다. 추가 참조는 외형·자재 기준이며 총 10장까지 지원한다. 임의의 등각 각도를 강제하는 가상 프리셋은 사용하지 않는다.
+
+건물 용도·자재를 문구에 추가하고 최종 99단어 이내인지 확인한다. GUI는 레이아웃 미선택·단어 제한 초과 시 접수를 차단한다. 공용 확인 영역에서 취소하면 작업을 접수하지 않는다. 기본 문구 복원은 프롬프트만 복원한다. 서비스는 최종 문구·단어 수·SHA-256과 참조 사본·해시를 기존 `.tmp/test/qwen-image-21/<ID>/`에 기록한다. 일반 서비스의 텍스트 전용 생성 계약은 유지한다.
+
+CLI에서는 같은 `qwen-21 generate`에 `--prompt-file generators/image/config/building-qwen-prompt.txt --reference /path/layout.png`를 전달한다. 첫 참조가 레이아웃이 되도록 순서를 유지한다. 결과는 자동 등록하지 않으며 실제 맵에서 검수 후 승인된 건물만 `slime-assets/assets/buildings/`로 전달한다. 기본 출력은 512px이며 AWS 배포나 운영 비용 구조에는 변경이 없다.
+
+### 기물 생성 페이지
+
+`/management/frame/prop-generator/`는 상자·가판대·작업대·표지판 등 기물용 Qwen 2.1 GUI다. 추적 기본 문구 `generators/image/config/prop-qwen-prompt.txt`는 직교투영·일정한 축척·접지점·투명 배경을 지시하며 복원 버튼을 제공한다. 대상·용도·자재를 추가하고 옵션 포함 최종 99단어 이내로 유지한다. 레이아웃·외형 참조는 최대 10장 선택 입력이며 텍스트만으로도 생성할 수 있다. 기본 출력은 512×512다.
+
+건물 페이지와 동일한 `qwen-21` 게이트웨이·대기열·상태·로그·이력을 공유한다. 공유 이력의 초기화 범위에 주의하고 기물 이름을 태그로 구분한다. CLI도 `qwen-21 generate --prompt-file generators/image/config/prop-qwen-prompt.txt`와 선택 `--reference`로 같은 서비스를 사용한다. 결과는 자동 등록하지 않으며 검수 후 `slime-assets/assets/billboards/`에 기물로 등록한다. 새 모델·작업 실행기·AWS 인프라는 추가하지 않는다.
+
+### 식생 생성 페이지
+
+`/management/frame/vegetation-generator/`는 나무·관목·풀·꽃·갈대 등 식생 빌보드용 Qwen 2.1 GUI다. 기본 문구는 추적 파일 `generators/image/config/vegetation-qwen-prompt.txt`에서 관리한다. 직교투영·접지점·완전한 수관·투명 배경을 지시하며 식물 종류·계절·색상·군락 밀도를 추가한다. 옵션 포함 최종 99단어 이내이며 기본 문구 복원을 제공한다. 레이아웃·식물 참조는 선택 사항으로 최대 10장, 기본 출력은 512×512다.
+
+기존 `qwen-21` 게이트웨이·대기열·ETA·VRAM·로그·이력·초기화 범위를 공유한다. CLI는 `qwen-21 generate --prompt-file generators/image/config/vegetation-qwen-prompt.txt`와 선택 `--reference`를 사용한다. 결과는 자동 등록하지 않으며 검수 후 `slime-assets/assets/billboards/`에 식생으로 등록한다. 모델·실행기·AWS 인프라는 추가하지 않는다.
