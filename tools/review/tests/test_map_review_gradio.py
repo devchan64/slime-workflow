@@ -6,6 +6,15 @@ from tools.review.ui.gradio.management_menu_app import create_initial_selection_
 
 
 class MapReviewGradioTest(unittest.TestCase):
+    def test_map_initialization_waits_for_explicit_load(self):
+        current_config_record = build_map_review_interface(8770).get_config_file()
+        current_initial_events = [current_event_record for current_event_record in current_config_record['dependencies'] if 'const currentExplicitLoad=sessionStorage' in (current_event_record.get('js') or '')]
+        self.assertEqual(len(current_initial_events), 1)
+        self.assertIn('맵을 선택한 뒤 맵 불러오기를 누르세요.', current_initial_events[0]['js'])
+        current_load_script = create_map_review_loader(8770, 5, manual_load_enabled=True)
+        self.assertIn('history.replaceState', current_load_script)
+        self.assertIn('map-review-explicit-load', current_load_script)
+
     def test_loads_existing_map_canvas_without_an_iframe(self):
         interface_blocks_value = build_map_review_interface(8770)
 

@@ -12,7 +12,7 @@ if str(WORKFLOW_ROOT_DIRECTORY) not in sys.path:
 from tools.review.common.gradio_browser_controls import build_browser_action_button
 
 MAP_REVIEW_CANVAS_MARKUP='''<section id="map-review-root" aria-label="맵 검수">
-<h3 id="map-title">맵 검수</h3><p id="status" role="status">맵을 준비하고 있습니다…</p>
+<h3 id="map-title">맵 검수</h3><p id="status" role="status">맵을 선택한 뒤 맵 불러오기를 누르세요.</p>
 <output id="zoom-level" aria-live="polite"></output>
 <p><a id="map-export-download" hidden>전체 맵 PNG 다운로드</a></p>
 <div style="position:relative;aspect-ratio:4/3"><canvas id="map" width="768" height="576" tabindex="0" aria-label="맵. 방향키로 이동, 더하기와 빼기로 확대·축소, 0 키로 전체 보기" style="position:absolute;width:100%;height:100%;touch-action:none"></canvas></div>
@@ -23,11 +23,17 @@ def read_source_selection_index(current_select_event: gr.SelectData):
     return current_select_event.index
 
 
-def create_map_review_loader(review_server_port, current_control_count=0):
+def create_map_review_loader(review_server_port, current_control_count=0, manual_load_enabled=False):
     """스타일·HTML·전역 fetch를 주입하지 않고 모듈 준비 후 선택 항목을 반환한다."""
     current_script_url=json.dumps(f'http://127.0.0.1:{review_server_port}/isloon-map-review/block-map-review.js')
-    return f"""async()=>{{
+    current_manual_script = """
+ const currentSelectedUrl=new URL(location.href);
+ if(currentMapIdentifier){currentSelectedUrl.searchParams.set('map',currentMapIdentifier);history.replaceState(null,'',currentSelectedUrl);}
+ if(window.mapReviewControlOptions){sessionStorage.setItem('map-review-explicit-load',location.href);location.reload();return Array(__COUNT__).fill({__type__:'update'});}
+""".replace('__COUNT__',str(6+current_control_count)) if manual_load_enabled else ''
+    return f"""async(currentMapIdentifier)=>{{
 try{{
+ {current_manual_script}
  if(new URLSearchParams(location.search).get('mapKind')==='battle')return Array({6+current_control_count}).fill({{__type__:'update'}});
  if(!document.getElementById('map')||!document.getElementById('applied-tile-list'))await new Promise((resolveMapMount,rejectMapMount)=>{{
   const currentMountObserver=new MutationObserver(()=>{{if(document.getElementById('map')&&document.getElementById('applied-tile-list')){{clearTimeout(currentMountTimeout);currentMountObserver.disconnect();resolveMapMount();}}}});
@@ -89,7 +95,6 @@ def build_map_review_interface(review_server_port, character_review_enabled=Fals
                     current_map_choice=gr.Dropdown(label='맵 선택',choices=[],interactive=False)
                     current_load_button=gr.Button('맵 불러오기',interactive=False)
             current_camera_feedback=gr.Textbox(label='검수 안내',value='맵을 불러온 뒤 사용할 수 있습니다.',interactive=False)
-            current_load_button.click(fn=None,inputs=current_map_choice,outputs=current_camera_feedback,queue=False,js="(currentMapIdentifier)=>{try{if(!window.mapReviewSelectMap)throw Error('맵을 준비 중입니다.');window.mapReviewSelectMap(currentMapIdentifier);return '맵을 불러옵니다.';}catch(currentLoadError){return currentLoadError.message;}}")
             current_ready_controls=[]
             gr.Markdown('맵 준비가 완료되면 시점·표시 옵션과 캡처를 사용할 수 있습니다. 로딩 실패 시 검수 안내를 확인하고 새로고침하세요.')
             with gr.Row():
@@ -143,8 +148,8 @@ def build_map_review_interface(review_server_port, character_review_enabled=Fals
                         gr.HTML('<div style="position:relative;aspect-ratio:4/3"><canvas id="character-baseline-map" width="768" height="576" aria-label="원본 캐릭터 비교 맵" style="position:absolute;width:100%;height:100%"></canvas></div>')
                     with gr.Column(min_width=280):
                         gr.Markdown('### 조정본 · 선택한 표현 적용')
-                        gr.HTML(MAP_REVIEW_CANVAS_MARKUP.replace('<h3 id="map-title">맵 검수</h3><p id="status" role="status">맵을 준비하고 있습니다…</p>\n<output id="zoom-level" aria-live="polite"></output>','').replace('id="map"','id="map" data-character-review="true"'))
-                gr.HTML('<h3 id="map-title">캐릭터 표현 검수</h3><p id="status" role="status">맵을 준비하고 있습니다…</p><output id="zoom-level" aria-live="polite"></output>')
+                        gr.HTML(MAP_REVIEW_CANVAS_MARKUP.replace('<h3 id="map-title">맵 검수</h3><p id="status" role="status">맵을 선택한 뒤 맵 불러오기를 누르세요.</p>\n<output id="zoom-level" aria-live="polite"></output>','').replace('id="map"','id="map" data-character-review="true"'))
+                gr.HTML('<h3 id="map-title">캐릭터 표현 검수</h3><p id="status" role="status">맵을 선택한 뒤 맵 불러오기를 누르세요.</p><output id="zoom-level" aria-live="polite"></output>')
             else:
                 gr.HTML(MAP_REVIEW_CANVAS_MARKUP)
             if character_review_enabled:
@@ -202,13 +207,33 @@ def build_map_review_interface(review_server_port, character_review_enabled=Fals
                 current_source_save.click(fn=None,inputs=current_preview_inputs,outputs=current_preview_outputs,queue=False,js=current_preview_script).then(fn=save_map_source_size,inputs=current_resize_payload,outputs=current_source_feedback)
                 current_anchor_save.click(fn=None,inputs=[current_source_choice,current_anchor_horizontal,current_anchor_vertical,current_ground_columns,current_ground_rows,current_display_height],outputs=current_anchor_payload,queue=False,js="(currentSourceKey,currentAnchorX,currentAnchorY,currentGroundColumns,currentGroundRows,currentDisplayHeight)=>window.mapSourceAnchorPayload(currentSourceKey,currentAnchorX,currentAnchorY,currentGroundColumns,currentGroundRows,currentDisplayHeight)").then(fn=save_map_source_anchor,inputs=current_anchor_payload,outputs=current_source_feedback)
                 gr.HTML('<div hidden><div id="applied-tile-list"></div><div id="applied-building-list"></div><div id="applied-billboard-list"></div><div id="applied-structure-list"></div></div>')
-            current_interface_blocks.load(fn=None,outputs=[current_map_choice,current_load_button,current_building_choice,current_boundary_column,current_shadow_profile_column,current_camera_feedback,*current_ready_controls],js=create_map_review_loader(review_server_port,len(current_ready_controls)),queue=False)
+            current_loader_outputs=[current_map_choice,current_load_button,current_building_choice,current_boundary_column,current_shadow_profile_column,current_camera_feedback,*current_ready_controls]
+            current_load_button.click(fn=None,inputs=current_map_choice,outputs=current_loader_outputs,js=create_map_review_loader(review_server_port,len(current_ready_controls),manual_load_enabled=True),queue=False)
+            current_initial_loader=create_map_review_loader(review_server_port,len(current_ready_controls))
+            if not character_review_enabled:
+                current_initial_loader="""async()=>{
+const currentExplicitLoad=sessionStorage.getItem('map-review-explicit-load');
+sessionStorage.removeItem('map-review-explicit-load');
+if(currentExplicitLoad===location.href)return await (__FULL_LOADER__)();
+const currentQueryValues=new URLSearchParams(location.search);
+if(currentQueryValues.get('mapKind')==='battle')return [{__type__:'update'},{__type__:'update',interactive:true},...Array(__COUNT__-2).fill({__type__:'update'})];
+try{
+ const currentCatalogResponse=await fetch('http://127.0.0.1:__PORT__/isloon-map-review/block-map-index.json',{cache:'no-store'});
+ if(!currentCatalogResponse.ok)throw Error('맵 목록 조회 실패');
+ const currentCatalogRecords=await currentCatalogResponse.json();
+ const currentSelectedRecord=currentCatalogRecords.find(currentMapRecord=>currentMapRecord.id===currentQueryValues.get('map'));
+ const currentSelectedKind=currentQueryValues.get('mapKind')||currentSelectedRecord?.kind||'field';
+ const currentAvailableRecords=currentCatalogRecords.filter(currentMapRecord=>currentMapRecord.kind===currentSelectedKind);
+ return [{__type__:'update',choices:currentAvailableRecords.map(currentMapRecord=>[currentMapRecord.name,currentMapRecord.id]),value:currentSelectedRecord?.id||currentAvailableRecords[0]?.id,interactive:true},{__type__:'update',interactive:true},{__type__:'update'},{__type__:'update',visible:currentSelectedKind==='field'},{__type__:'update',visible:false},'맵을 선택한 뒤 맵 불러오기를 누르세요.',...Array(__READY__).fill({__type__:'update',interactive:false})];
+}catch(currentCatalogError){return [{__type__:'update'},{__type__:'update'},{__type__:'update'},{__type__:'update'},{__type__:'update'},currentCatalogError.message,...Array(__READY__).fill({__type__:'update'})];}
+}""".replace('__FULL_LOADER__',current_initial_loader).replace('__COUNT__',str(6+len(current_ready_controls))).replace('__READY__',str(len(current_ready_controls))).replace('__PORT__',str(review_server_port))
+            current_interface_blocks.load(fn=None,outputs=current_loader_outputs,js=current_initial_loader,queue=False)
         if not character_review_enabled:
             current_native_loader=Path(__file__).with_name('game_native_loader.js').read_text()
-            current_mode_script="""async()=>{
+            current_mode_script="""async(currentExplicitLoad=false)=>{
 __NATIVE_LOADER__
 const currentQueryValues=new URLSearchParams(location.search),currentBattleMode=currentQueryValues.get('mapKind')==='battle';
-if(currentBattleMode){
+if(currentBattleMode&&currentExplicitLoad===true){
  const currentSourceResponse=await fetch('http://127.0.0.1:__PORT__/manager-source.json',{cache:'no-store'});
  if(!currentSourceResponse.ok)throw Error('검수 목록 조회 실패');
  const currentSourceRecord=await currentSourceResponse.json();
@@ -221,6 +246,7 @@ if(currentBattleMode){
 }
 return [{__type__:'update',visible:!currentBattleMode},{__type__:'update',visible:currentBattleMode},{__type__:'update',value:currentQueryValues.get('mapKind')||(currentQueryValues.get('category')==='town-map-review'?'town':'field')}];
 }""".replace('__NATIVE_LOADER__',current_native_loader).replace('__PORT__',str(review_server_port))
+            current_load_button.click(fn=None,outputs=[current_surface_group,current_battle_group,current_kind_choice],queue=False,js=current_mode_script.replace('async(currentExplicitLoad=false)=>{','async()=>{const currentExplicitLoad=true;'))
             current_interface_blocks.load(fn=None,outputs=[current_surface_group,current_battle_group,current_kind_choice],queue=False,js=current_mode_script)
     return current_interface_blocks
 
