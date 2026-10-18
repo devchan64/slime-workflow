@@ -59,7 +59,7 @@ def execute_vace_inference(current_job_root, current_attempt_root, current_reque
         current_reference_images = [current_reference_image]
     (current_attempt_root/'prompt.txt').write_text(current_request_record['prompt'])
     (current_attempt_root/'negative-prompt.txt').write_text(current_model_config['negative_prompt'])
-    write_record_atomically(current_attempt_root/'input-contract.json',{'task':current_request_record['vace']['task'],'video':current_request_record['vace']['video'],'mask':current_request_record['vace']['mask'],'reference_count':len(current_reference_images or []),'first_frame_fixed':False})
+    write_record_atomically(current_attempt_root/'input-contract.json',{'task':current_request_record['vace']['task'],'video':current_request_record['vace']['video'],'mask':current_request_record['vace']['mask'],'reference_count':len(current_reference_images or []),'first_frame_fixed':any(current_frame_entry['frame'] == 0 and not current_frame_entry['editable'] for current_frame_entry in current_request_record.get('frame_entries', []))})
     current_metrics_recorder.update_generation_stage('load')
     torch.cuda.reset_peak_memory_stats()
     current_vae_model = StageOffloadedWanAutoencoder.from_pretrained(current_model_root,subfolder='vae',torch_dtype=torch.float32,local_files_only=True)

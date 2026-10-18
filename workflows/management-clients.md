@@ -651,3 +651,11 @@ GUI와 CLI는 `tools/manager.py command map-assets resize --payload-file <파일
 `map-assets map-anchor-save --payload-file <파일>`은 선택 맵의 동일 텍스처 배치 앵커를 저장한다. 입력은 `map`, `kind`(town/field), `texture`, `anchorX`, `anchorY`, `expected`(배치 ID와 기존 앵커 목록)이다. 기존 값이 달라지면 저장을 거절한다. 맵 원본·등록부·백엔드 잠금을 함께 갱신하며 위치와 표시 크기는 보존한다.
 
 빌보드 배치 설정은 `groundFootprintColumns`·`groundFootprintRows`(각 1~8칸)와 `displayHeight`(0 초과 1024px 이하)를 지원한다. 바닥 크기는 접지 영역 검수 기준이며 통행 차단을 추가하는 설정이 아니다. `map-anchor-save`의 선택적 `layout`에 세 값을 함께 전달하고 `expected`에도 기존 값을 포함한다. 건물은 기존 점유 크기 계약을 사용하므로 이 설정으로 변경하지 않는다. 원본 해상도 저장과 배치 설정 저장은 별도 동작이다.
+
+### VACE F2V 첫 프레임 페이지
+
+`/management/frame/vace-f2v-generator/`는 첫 프레임 이미지 1장을 보존 조건으로 사용하는 전용 GUI다. 파일 이름은 자유이며 입력은 832×480에 비율을 유지해 맞춘다. 이후 프레임은 생성하고 별도 외형 참조는 받지 않는다. VAE 복원 때문에 원본과 픽셀 단위 동일성을 보장하지 않는다.
+
+GUI는 독립 `wan21-vace-f2v` 게이트웨이에 `frame_entries: [{frame: 0, editable: false}]`, 이미지 1장, `identity_reference_count: 0`과 `F2V · 첫 프레임 보존` 태그를 전달한다. 통합 CLI에서도 같은 서비스의 `generate --payload-file`을 사용한다. 모델·GPU 실행 코드·ETA·VRAM 관측 코드는 재사용하되 작업 서비스와 대기열·이력은 V2V와 분리한다. F2V 작업 입력·결과·로그는 `.tmp/test/wan21-vace-f2v/`, 이력은 공용 이력 루트의 `wan21-vace-f2v`에 저장한다. 삭제·초기화는 F2V에만 적용한다. 기존 V2V 저장 작업은 이동하지 않는다. GPU 자원 배정은 공용 실행기가 담당하여 동시 추론 충돌을 막는다. F2V 입력값 불러오기는 첫 프레임 1장 보존 이력만 허용한다.
+
+기본은 81프레임·16fps·50스텝·shift 3·CFG 5·조건 강도 1·시드 42다. 프롬프트는 직접 입력한다. `대기열에 추가` 후 인라인 확인에서 `확인 후 대기열에 추가`로 접수한다.
