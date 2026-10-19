@@ -45,7 +45,8 @@ try{{
  const currentControlOptions=window.mapReviewControlOptions();
  return [{{__type__:'update',interactive:true,choices:currentControlOptions.maps,value:currentControlOptions.selected,visible:!currentControlOptions.townSpecific}},{{__type__:'update',interactive:true,visible:!currentControlOptions.townSpecific}},{{__type__:'update',interactive:true,choices:currentControlOptions.buildings,value:null,visible:!currentControlOptions.field&&!currentControlOptions.characterReview}},{{__type__:'update',visible:currentControlOptions.field}},{{__type__:'update',visible:currentControlOptions.characterReview}},'맵을 불러왔습니다. 시점과 표시 옵션을 조정하세요.',...Array({current_control_count}).fill({{__type__:'update',interactive:true}})];
 }}catch(currentLoadError){{
- const currentStatusElement=document.getElementById('status');if(currentStatusElement)currentStatusElement.textContent=currentLoadError.message;
+ // 상세 오류는 Gradio 검수 안내에서만 표시하고 캔버스의 이전 진행 문구는 비운다.
+ const currentStatusElement=document.getElementById('status');if(currentStatusElement)currentStatusElement.textContent='';
  return [{{__type__:'update',interactive:false}},{{__type__:'update',interactive:false}},{{__type__:'update',interactive:false}},{{__type__:'update'}},{{__type__:'update'}},currentLoadError.message,...Array({current_control_count}).fill({{__type__:'update',interactive:false}})];
 }}
 }}"""

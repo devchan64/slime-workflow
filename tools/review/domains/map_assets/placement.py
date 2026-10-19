@@ -1,5 +1,5 @@
 """중심 앵커 장식의 접지 영역을 보수적으로 검사한다."""
-from math import ceil
+from math import ceil, isfinite
 
 
 def calculate_centered_footprint_cells(current_cell_position, current_footprint_columns, current_footprint_rows):
@@ -82,8 +82,11 @@ def validate_scenery_image_footprint(current_texture_key, current_source_image, 
         raise ValueError(f'{current_texture_key}: 이미지 접지 폭 초과 · 하단 {SCENERY_CONTACT_BAND_RATIO:.0%} 실측 {current_render_right-current_render_left:.1f}px · 좌우 [{current_render_left:.1f}, {current_render_right:.1f}]px · 허용 ±{current_allowed_half_width:.1f}px · 표시 높이 {current_display_height}px')
 
 
-def validate_registered_scenery_images(current_object_records, current_property_catalog, current_tile_width, current_tile_height, current_elevation_rows):
-    """사용한 등록 원본의 해시를 확인하고 모든 빌보드 프레임을 검사한다."""
+def validate_registered_scenery_images(current_object_records, current_property_catalog, current_tile_width, current_tile_height, current_elevation_rows, current_billboard_scale=1):
+    """원본 속성은 보존하고 렌더 배율을 반영한 이미지 접지를 검사한다."""
+    if not isinstance(current_billboard_scale, (int, float)) or isinstance(current_billboard_scale, bool) or not isfinite(current_billboard_scale) or current_billboard_scale <= 0:
+        raise ValueError("빌보드 렌더 배율은 양수여야 합니다.")
+    current_property_catalog = {current_texture_key: {**current_property_values, "displayHeight": current_property_values["displayHeight"] * current_billboard_scale} for current_texture_key, current_property_values in current_property_catalog.items()}
     from pathlib import Path
     from PIL import Image
     from tools.review.common.map_tile_assets import load_registered_tiles, resolve_registered_sprite

@@ -2,7 +2,7 @@ import {installSourceSizePreview} from './source-size-preview.js';
 import {resolveCityTileTextures,selectFieldRoadFrame,resolveFieldTerrainFrame,collectTerrainTextureSources,collectMapTextureSources,collectMapResourceKeys,loadMapResourceImages} from './vendor/field-renderer/__FIELD_RENDERER_VERSION__/town-renderer.mjs';
 import {CHARACTER_OUTLINE_BASE_WIDTH,CHARACTER_OUTLINE_BASE_COLOR,CHARACTER_SEPARATOR_BASE_WIDTH,CHARACTER_SEPARATOR_BASE_COLOR,CHARACTER_CONTACT_SHADOW_COLOR as GAME_CONTACT_SHADOW_COLOR,CHARACTER_CONTACT_SHADOW_ALPHA_SCALE,ACTOR_CONTACT_SHADOW_CONTRACT} from './vendor/field-renderer/__FIELD_RENDERER_VERSION__/game-render-profile.mjs';
 import {createFieldReviewFrame,pickFieldReviewCell} from './field-map-renderer.js';
-import {FIELD_RENDER_METRICS,projectSurfaceCell,canTraverseBridgeEdge,prepareBridgeTraversalSurface} from './vendor/field-renderer/__FIELD_RENDERER_VERSION__/field-renderer.mjs';
+import {resolveMapRenderOptions,FIELD_RENDER_METRICS,projectSurfaceCell,canTraverseBridgeEdge,prepareBridgeTraversalSurface} from './vendor/field-renderer/__FIELD_RENDERER_VERSION__/field-renderer.mjs';
 import {resolveFieldActorContactShadow} from './vendor/field-renderer/__FIELD_RENDERER_VERSION__/field-renderer.mjs';
 const MAP_FIT_HORIZONTAL_PADDING=160,MAP_FIT_VERTICAL_PADDING=80,MAP_FIT_BOTTOM_MARGIN=40,FIELD_FIT_TOP_MARGIN=160;
 const MIN_MAP_SCALE=0.05,MAX_MAP_SCALE=4,MAP_ZOOM_FACTOR=1.25,MAP_DRAG_THRESHOLD=4,MAP_KEYBOARD_PAN_DISTANCE=48;
@@ -80,6 +80,7 @@ const currentMapRecord=isCharacterReviewPage?{
 const currentMapLoadController=new AbortController();
 window.addEventListener('pagehide',()=>currentMapLoadController.abort(),{once:true});
 const isFieldMapReview=currentMapRecord.safeTown===false;
+const currentMapRenderOptions=resolveMapRenderOptions(currentMapRecord);
 const currentDrawingContext=isCharacterReviewPage?currentMapCanvas.getContext('2d'):null;
 const currentSafeVisualRecords=isFieldMapReview?await fetchMapReviewRecord('field-safe-visuals.json'):{};
 const currentSafeVisualImages=await loadMapResourceImages(Object.entries(currentSafeVisualRecords).map(([currentVisualName,currentVisualRecord])=>({key:currentVisualName,url:new URL(currentVisualRecord.image,import.meta.url).href})),{signal:currentMapLoadController.signal});
@@ -125,7 +126,7 @@ for(const [currentRowIndex,currentTerrainRow] of currentMapRecord.terrainRows.en
  }
 }
 const currentAppliedGameKeys=Object.fromEntries(Object.entries(currentSelectedGameKeys).filter(([currentGameKey])=>!currentGameKey.startsWith('terrain-source-')||currentAppliedGroundKeys.has(currentGameKey)));
-installSourceSizePreview(currentTextureRecords,currentAppliedGameKeys,currentMapRecord);
+installSourceSizePreview(currentTextureRecords,currentAppliedGameKeys,currentMapRecord,currentMapRenderOptions);
 let currentAppliedSourceSignature=null;
 function renderAppliedTileSourceList(){
  const currentAssetGroups={tiles:new Set(),buildings:new Set(),billboards:new Set()};
@@ -291,7 +292,7 @@ function drawReviewCharacter(currentMarkerPoint){
  }
  currentDrawingContext.drawImage(reviewCharacterImage,characterFrameRect.x,characterFrameRect.y,characterFrameRect.width,characterFrameRect.height,currentMarkerPoint.x-characterAnchorPoint.x*characterScaleValue,currentMarkerPoint.y-characterAnchorPoint.y*characterScaleValue,characterFrameRect.width*characterScaleValue,characterFrameRect.height*characterScaleValue);
 }
-function projectReviewCharacter(){return isFieldMapReview?projectSurfaceCell(currentCharacterCell,currentMapRecord,{...FIELD_RENDER_METRICS,rotation:currentCameraRotation}):projectBlockVertex(currentCharacterCell)}
+function projectReviewCharacter(){return isFieldMapReview?projectSurfaceCell(currentCharacterCell,currentMapRecord,{...currentMapRenderOptions,rotation:currentCameraRotation}):projectBlockVertex(currentCharacterCell)}
 function renderBlockMap(currentFitRequested=false){
  if(!isCharacterReviewPage){drawCurrentMapScene(currentFitRequested);return;}
  const currentSavedOutline=currentOutlinePreviewEnabled,currentSavedRim=currentRimPreviewEnabled;
@@ -320,7 +321,7 @@ currentDrawingContext.setTransform(currentScaleValue*CHARACTER_REVIEW_RESOLUTION
 currentDrawingContext.filter=`contrast(${GROUND_CONTRAST_PREVIEW_VALUES[currentGroundPreviewMode]}) saturate(${currentGroundSaturationReduced?GROUND_REDUCED_SATURATION:1}) brightness(${currentGroundBrightnessReduced?GROUND_REDUCED_BRIGHTNESS:1})`;
 for(let currentRowIndex=0;currentRowIndex<currentMapRecord.rows;currentRowIndex++)for(let currentColumnIndex=0;currentColumnIndex<currentMapRecord.columns;currentColumnIndex++){const currentTerrainName=currentMapRecord.terrainCodes[currentMapRecord.terrainRows[currentRowIndex][currentColumnIndex]];drawSurfacePolygon([[-.5,-.5],[.5,-.5],[.5,.5],[-.5,.5]].map(([c,r])=>projectBlockVertex({column:currentColumnIndex+c,row:currentRowIndex+r})),currentMaterialColors[currentTerrainName]);const currentGroundImage=loadedTextureImages[groundTextureNames[currentTerrainName]];if(currentGroundImage){const currentGroundVertices=[[-.5,-.5],[.5,-.5],[.5,.5],[-.5,.5]].map(([currentColumnOffset,currentRowOffset])=>({column:currentColumnIndex+currentColumnOffset,row:currentRowIndex+currentRowOffset,height:0}));drawTexturedSurface({top:true,ground:true,vertices:currentGroundVertices,points:currentGroundVertices.map(projectBlockVertex)},currentGroundImage)}}
 currentDrawingContext.filter='none';
-if(!isFieldMapReview)drawReviewCharacter(projectReviewCharacter()); currentDrawingContext.setTransform(1,0,0,1,0,0);const currentBuildingFloorSummary=[...new Set(currentMapRecord.buildings.map(currentBuildingRecord=>currentBuildingRecord.floors))].sort((firstFloorCount,secondFloorCount)=>firstFloorCount-secondFloorCount).map(currentFloorCount=>`${currentFloorCount}층 ${currentMapRecord.buildings.filter(currentBuildingRecord=>currentBuildingRecord.floors===currentFloorCount).length}개`).join(' · '),currentRoofHeightValues=[...new Set(currentMapRecord.buildings.flatMap(currentBuildingRecord=>currentBuildingRecord.blocks).filter(currentBlockRecord=>currentBlockRecord.material==='roof').map(currentBlockRecord=>currentBlockRecord.height))].sort((firstHeightValue,secondHeightValue)=>firstHeightValue-secondHeightValue),currentRoofHeightSummary=currentRoofHeightValues.join('·');document.querySelector('#status').textContent=isFieldMapReview?`필드 고도 ${Math.min(...currentMapRecord.elevations.flat())}–${Math.max(...currentMapRecord.elevations.flat())} · 높이 단위 ${FIELD_RENDER_METRICS.elevationHeight}px · 타일 ${FIELD_RENDER_METRICS.tileWidth}×${FIELD_RENDER_METRICS.tileHeight} · 계단 ${currentMapRecord.elevationTiles.length}개 · 고정 시점`:`고정 시점 · 건물 ${currentMapRecord.buildings.length}개 (${currentBuildingFloorSummary}) · 블록 ${currentMapRecord.buildings.reduce((s,b)=>s+b.blocks.length,0)}개 · 일반 블록 ${TOWN_BLOCK_HEIGHT}px · 지붕 경사 ${currentRoofHeightSummary}px · 사람 높이 ${gameRenderMetrics.characterHeight} · 마을 타일 ${gameRenderMetrics.townTileWidth}×${gameRenderMetrics.townTileHeight} · 지붕 보행 불가`}
+if(!isFieldMapReview)drawReviewCharacter(projectReviewCharacter()); currentDrawingContext.setTransform(1,0,0,1,0,0);const currentBuildingFloorSummary=[...new Set(currentMapRecord.buildings.map(currentBuildingRecord=>currentBuildingRecord.floors))].sort((firstFloorCount,secondFloorCount)=>firstFloorCount-secondFloorCount).map(currentFloorCount=>`${currentFloorCount}층 ${currentMapRecord.buildings.filter(currentBuildingRecord=>currentBuildingRecord.floors===currentFloorCount).length}개`).join(' · '),currentRoofHeightValues=[...new Set(currentMapRecord.buildings.flatMap(currentBuildingRecord=>currentBuildingRecord.blocks).filter(currentBlockRecord=>currentBlockRecord.material==='roof').map(currentBlockRecord=>currentBlockRecord.height))].sort((firstHeightValue,secondHeightValue)=>firstHeightValue-secondHeightValue),currentRoofHeightSummary=currentRoofHeightValues.join('·');document.querySelector('#status').textContent=isFieldMapReview?`필드 고도 ${Math.min(...currentMapRecord.elevations.flat())}–${Math.max(...currentMapRecord.elevations.flat())} · 높이 단위 ${FIELD_RENDER_METRICS.elevationHeight}px · 타일 ${currentMapRenderOptions.tileWidth}×${currentMapRenderOptions.tileHeight} · 빌보드 ${currentMapRenderOptions.billboardScale}배 · 계단 ${currentMapRecord.elevationTiles.length}개 · 고정 시점`:`고정 시점 · 건물 ${currentMapRecord.buildings.length}개 (${currentBuildingFloorSummary}) · 블록 ${currentMapRecord.buildings.reduce((s,b)=>s+b.blocks.length,0)}개 · 일반 블록 ${TOWN_BLOCK_HEIGHT}px · 지붕 경사 ${currentRoofHeightSummary}px · 사람 높이 ${gameRenderMetrics.characterHeight} · 마을 타일 ${gameRenderMetrics.townTileWidth}×${gameRenderMetrics.townTileHeight} · 지붕 보행 불가`}
 function fitReviewMapCamera(currentCornerPoints,currentTopMargin){
  const currentMinimumX=Math.min(...currentCornerPoints.map(currentPointValue=>currentPointValue.x)),currentMaximumX=Math.max(...currentCornerPoints.map(currentPointValue=>currentPointValue.x));
  const currentMinimumY=Math.min(...currentCornerPoints.map(currentPointValue=>currentPointValue.y))-currentTopMargin,currentMaximumY=Math.max(...currentCornerPoints.map(currentPointValue=>currentPointValue.y))+MAP_FIT_BOTTOM_MARGIN;
@@ -348,7 +349,7 @@ function renderSharedReviewMap(currentFitRequested){
  }
  updateReviewZoomControls();
  document.querySelector('#status').textContent=isFieldMapReview
-  ?`게임 공용 필드 렌더러 · 내부 해상도 2배 · 높이 단위 ${FIELD_RENDER_METRICS.elevationHeight}px · 타일 ${FIELD_RENDER_METRICS.tileWidth}×${FIELD_RENDER_METRICS.tileHeight} · 결계 높이 15px · 고정 시점`
+  ?`게임 공용 필드 렌더러 · 내부 해상도 2배 · 높이 단위 ${FIELD_RENDER_METRICS.elevationHeight}px · 타일 ${currentMapRenderOptions.tileWidth}×${currentMapRenderOptions.tileHeight} · 빌보드 ${currentMapRenderOptions.billboardScale}배 · 결계 높이 15px · 고정 시점`
   :`게임 공용 마을 렌더러 · 내부 해상도 2배 · 건물 ${currentMapRecord.buildings.length}개 · 고정 시점`;
 }
 if(document.querySelector('#show-safe-boundary'))document.querySelector('#show-safe-boundary').onchange=()=>renderBlockMap();

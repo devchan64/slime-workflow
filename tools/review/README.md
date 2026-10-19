@@ -85,7 +85,7 @@ HTTP URL, 페이지 해시, CLI 명령, `.tmp` 생성 ID·기록 경로와 `asse
 
 마을·필드 검수는 게임과 같은 `@slime/field-renderer`의 manifest 고정 버전과 Phaser 3.90.0을 사용한다. 원본은 `slime-frontend/packages/field-renderer/`이며 `field-surface` 1.0.5의 좌표 계약을 포함한다. `ui/map/vendor/field-renderer/`의 ES 모듈과 엔진 배포본은 `manifest.yaml`의 SHA-256을 게시 전에 검증한다. 게임의 `npm run build:field-renderer`로 만든 배포본만 명시적으로 전달하며 관리도구가 게임 소스를 런타임에 읽거나 게임 전체를 빌드하지 않는다. 배포 후 수정은 새 버전으로 전달한다.
 
-`field-map-renderer.js`는 공용 면 목록을 이용해 범위·클릭 판정만 수행한다. `field-map-view.js`는 Phaser Scene에 에셋과 표시 설정을 연결한다. 실제 지면·암벽·계단·결계탑·오러는 공용 라이브러리가 그리며 별도 Canvas 필드 그리기는 사용하지 않는다. 80×40 타일, 단계당 32px 고도, 16px 외곽 두께를 유지한다. `결계탑 · 결계 오러`와 `메시 경계`로 높이 25px의 외곽 패널·삼각형 분할을 검사한다. 접촉 셀 내부의 오러와 바닥 음영은 생성하지 않는다. 캐릭터 재생·전투 표시는 별도 소비자 구현이다. 마을 건물은 같은 게임 렌더링 함수를 사용한다.
+`field-map-renderer.js`는 공용 면 목록을 이용해 범위·클릭 판정만 수행한다. `field-map-view.js`는 Phaser Scene에 에셋과 표시 설정을 연결한다. 실제 지면·암벽·계단·결계탑·오러는 공용 라이브러리가 그리며 별도 Canvas 필드 그리기는 사용하지 않는다. 원본 속성 기준은 160×80이다. `resolveMapRenderOptions`는 야외필드에 타일 80×40·`billboardScale: 0.5`, 마을·전투에 타일 160×80·배율 1을 제공한다. 단계당 10px 고도와 16px 외곽 두께는 유지한다. 저장된 표시 높이·앵커·논리 점유 칸 수는 변경하지 않으며 속성 미리보기와 이미지 점유 검수도 같은 렌더 배율을 사용한다. `결계탑 · 결계 오러`와 `메시 경계`로 높이 25px의 외곽 패널·삼각형 분할을 검사한다. 접촉 셀 내부의 오러와 바닥 음영은 생성하지 않는다. 캐릭터 재생·전투 표시는 별도 소비자 구현이다. 마을 건물은 같은 게임 렌더링 함수를 사용한다.
 
 맵·타일은 요청 시 등록 원본을 읽으므로 배치·고도·이미지 변경에 프론트엔드 빌드가 필요하지 않다. 결계탑·오러 스프라이트는 등록부 해시를 검증한 검수 사본과 출처를 게시한다. 라이브러리 또는 검수 어댑터 코드 변경은 관리도구 정적 UI 게시 대상이다. 검증은 프론트엔드 `node scripts/run-regression.mjs --with-checks tests/field-renderer.test.mjs tests/elevation.test.mjs tests/field-surface.test.mjs`와 워크플로우 `tools.review.tests.test_map_asset_sources`, `tools.review.tests.test_map_render_profiles`를 사용한다.
 

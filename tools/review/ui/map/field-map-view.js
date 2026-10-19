@@ -187,7 +187,7 @@ export async function createSharedFieldReview(currentMapCanvas,currentTextureIma
      if(!currentObjectCell)throw Error('지형지물 배치 좌표가 맵 범위를 벗어났습니다.');
      const currentObjectPlacement=resolveFieldSceneryPlacement(currentObjectRecord,currentObjectCell.center,currentFieldFrame.options);
      const currentObjectDepth=resolveFieldSurfaceDepth(currentObjectPlacement.position,currentMapRecord,currentFieldFrame.options);
-     drawFieldSceneryObject(currentFieldScene,currentObjectRecord,currentObjectPlacement.screen,currentObjectDepth+FIELD_REVIEW_TOWER_DEPTH,'safe-tower');
+     drawFieldSceneryObject(currentFieldScene,currentObjectRecord,currentObjectPlacement.screen,currentObjectDepth+FIELD_REVIEW_TOWER_DEPTH,'safe-tower',currentFieldFrame.options);
     }
     for(const currentGuardRecord of currentMapRecord.guardCenters??[]){
      const currentGuardPlacement=resolveGuardDisplayPlacement(currentGuardRecord.position,currentMapRecord);

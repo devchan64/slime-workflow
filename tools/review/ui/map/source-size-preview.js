@@ -2,9 +2,8 @@
 const SOURCE_PREVIEW_WIDTH=768;
 const SOURCE_PREVIEW_HEIGHT=260;
 const SOURCE_PREVIEW_PADDING=100;
-const SOURCE_TILE_WIDTH=160;
-const SOURCE_TILE_HEIGHT=80;
-export function installSourceSizePreview(currentTextureRecords,currentSelectedGameKeys,currentMapRecord){
+export function installSourceSizePreview(currentTextureRecords,currentSelectedGameKeys,currentMapRecord,currentRenderMetrics){
+ if(!Number.isFinite(currentRenderMetrics?.tileWidth)||!Number.isFinite(currentRenderMetrics?.tileHeight)||currentRenderMetrics.tileWidth<=0||currentRenderMetrics.tileHeight<=0)throw Error("공통 타일 렌더 규격이 필요합니다.");
  let currentPreviewVersion=0;
  const currentSharedProperties=currentMapRecord.spriteProperties??{};
  const findAnchorEntries=currentGameKey=>[...(currentMapRecord.objects??[]).filter(currentObjectRecord=>currentObjectRecord.textureKey===currentGameKey).map(currentObjectRecord=>({id:currentObjectRecord.id,anchorX:currentObjectRecord.anchorX??0.5,anchorY:currentObjectRecord.anchorY??1,groundFootprintColumns:currentObjectRecord.groundFootprintColumns??1,groundFootprintRows:currentObjectRecord.groundFootprintRows??1,displayHeight:currentObjectRecord.displayHeight})),...(currentMapRecord.buildings??[]).filter(currentBuildingRecord=>currentBuildingRecord.sprite?.textureKey===currentGameKey).map(currentBuildingRecord=>({id:currentBuildingRecord.id,anchorX:currentBuildingRecord.sprite.anchorX??0.5,anchorY:currentBuildingRecord.sprite.anchorY??1}))];
@@ -72,16 +71,16 @@ export function installSourceSizePreview(currentTextureRecords,currentSelectedGa
   const currentAnchorRecord=currentPlacementRecord??currentBuildingRecord?.sprite??{};
   const currentTargetRatio=Number(currentTargetSize)/Math.max(currentSourceImage.width,currentSourceImage.height);
   const currentTargetWidth=Math.round(currentSourceImage.width*currentTargetRatio),currentTargetHeight=Math.round(currentSourceImage.height*currentTargetRatio);
-  const currentDisplayHeight=(currentPlacementRecord?currentDisplayOverride:null)??currentPlacementRecord?.displayHeight??(currentBuildingRecord?((currentBuildingRecord.width+currentBuildingRecord.height)*SOURCE_TILE_WIDTH/2*1.04/(currentAnchorRecord.contentWidth??1))*currentSourceImage.height/currentSourceImage.width:128);
+  const currentDisplayHeight=currentPlacementRecord?((currentDisplayOverride??currentPlacementRecord.displayHeight)*(currentRenderMetrics.billboardScale??1)):(currentBuildingRecord?((currentBuildingRecord.width+currentBuildingRecord.height)*currentRenderMetrics.tileWidth/2*1.04/(currentAnchorRecord.contentWidth??1))*currentSourceImage.height/currentSourceImage.width:128);
   const currentDisplayWidth=currentDisplayHeight*currentSourceImage.width/currentSourceImage.height;
   const currentReducedCanvas=document.createElement('canvas');currentReducedCanvas.width=currentTargetWidth;currentReducedCanvas.height=currentTargetHeight;
   const currentReducedContext=currentReducedCanvas.getContext('2d');currentReducedContext.imageSmoothingQuality='high';currentReducedContext.drawImage(currentSourceImage,0,0,currentTargetWidth,currentTargetHeight);
-  const currentGroundPadding=(Number(currentFootprintColumns)+Number(currentFootprintRows))*SOURCE_TILE_HEIGHT/4+SOURCE_PREVIEW_PADDING/2;
+  const currentGroundPadding=(Number(currentFootprintColumns)+Number(currentFootprintRows))*currentRenderMetrics.tileHeight/4+SOURCE_PREVIEW_PADDING/2;
   currentPreviewCanvas.height=Math.max(SOURCE_PREVIEW_HEIGHT,currentDisplayHeight+currentGroundPadding*2);
   const currentGroundCenterX=SOURCE_PREVIEW_WIDTH/2,currentGroundCenterY=currentPreviewCanvas.height-currentGroundPadding;
   currentCanvasContext.clearRect(0,0,SOURCE_PREVIEW_WIDTH,currentPreviewCanvas.height);
   const currentHalfColumns=Number(currentFootprintColumns)/2,currentHalfRows=Number(currentFootprintRows)/2;
-  const currentTileVertices=[[-currentHalfColumns,-currentHalfRows],[currentHalfColumns,-currentHalfRows],[currentHalfColumns,currentHalfRows],[-currentHalfColumns,currentHalfRows]].map(([currentColumnOffset,currentRowOffset])=>[currentGroundCenterX+(currentColumnOffset-currentRowOffset)*SOURCE_TILE_WIDTH/2,currentGroundCenterY+(currentColumnOffset+currentRowOffset)*SOURCE_TILE_HEIGHT/2]);
+  const currentTileVertices=[[-currentHalfColumns,-currentHalfRows],[currentHalfColumns,-currentHalfRows],[currentHalfColumns,currentHalfRows],[-currentHalfColumns,currentHalfRows]].map(([currentColumnOffset,currentRowOffset])=>[currentGroundCenterX+(currentColumnOffset-currentRowOffset)*currentRenderMetrics.tileWidth/2,currentGroundCenterY+(currentColumnOffset+currentRowOffset)*currentRenderMetrics.tileHeight/2]);
   currentCanvasContext.beginPath();currentTileVertices.forEach(([currentVertexX,currentVertexY],currentVertexIndex)=>currentVertexIndex?currentCanvasContext.lineTo(currentVertexX,currentVertexY):currentCanvasContext.moveTo(currentVertexX,currentVertexY));currentCanvasContext.closePath();currentCanvasContext.fillStyle='#506655';currentCanvasContext.fill();
   const currentImageLeft=currentGroundCenterX-currentDisplayWidth*(currentAnchorX??currentAnchorRecord.anchorX??0.5),currentImageTop=currentGroundCenterY-currentDisplayHeight*(currentAnchorY??currentAnchorRecord.anchorY??1);
   currentCanvasContext.drawImage(currentReducedCanvas,currentImageLeft,currentImageTop,currentDisplayWidth,currentDisplayHeight);

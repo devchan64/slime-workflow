@@ -1,8 +1,8 @@
-import {FIELD_RENDER_METRICS,buildFieldCellGeometry,projectSurfaceCell,projectSurfaceVertex,containsSurfacePoint} from './vendor/field-renderer/__FIELD_RENDERER_VERSION__/field-renderer.mjs';
+import {resolveMapRenderOptions,FIELD_RENDER_METRICS,buildFieldCellGeometry,projectSurfaceCell,projectSurfaceVertex,containsSurfacePoint} from './vendor/field-renderer/__FIELD_RENDERER_VERSION__/field-renderer.mjs';
 
 // 검수 어댑터는 공용 렌더러의 면 목록으로 화면 범위와 선택만 계산한다.
 export function createFieldReviewFrame(currentMapSurface,currentQuarterTurns){
- const currentRenderOptions={...FIELD_RENDER_METRICS,rotation:currentQuarterTurns};
+ const currentRenderOptions={...resolveMapRenderOptions(currentMapSurface),rotation:currentQuarterTurns};
  const currentCellRecords=[];
  for(let currentRowIndex=0;currentRowIndex<currentMapSurface.rows;currentRowIndex++)for(let currentColumnIndex=0;currentColumnIndex<currentMapSurface.columns;currentColumnIndex++){
   const currentCellPosition={column:currentColumnIndex,row:currentRowIndex};
