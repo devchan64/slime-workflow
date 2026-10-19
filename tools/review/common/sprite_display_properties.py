@@ -44,5 +44,10 @@ def apply_sprite_display_properties(current_map_data, current_property_catalog):
             raise ValueError('타일 배치는 위치·원본 선택만 지정할 수 있습니다. 표시 속성은 공용 렌더러를 사용합니다.')
     for current_building_record in current_map_data.get('buildings', []):
         current_sprite_record = current_building_record.get('sprite', {})
-        current_shared_properties = current_property_catalog.get(current_sprite_record.get('textureKey'), {})
+        current_texture_key = current_sprite_record.get('textureKey')
+        current_shared_properties = current_property_catalog.get(current_texture_key)
+        if current_shared_properties is None or not SPRITE_ANCHOR_FIELD_NAMES <= set(current_shared_properties):
+            raise ValueError(f'건물 공용 속성 누락: {current_texture_key}')
+        if set(current_sprite_record) & SPRITE_ANCHOR_FIELD_NAMES:
+            raise ValueError(f'맵별 건물 앵커 재정의 금지: {current_texture_key}')
         current_sprite_record.update({current_property_name: current_property_value for current_property_name, current_property_value in current_shared_properties.items() if current_property_name in SPRITE_ANCHOR_FIELD_NAMES})

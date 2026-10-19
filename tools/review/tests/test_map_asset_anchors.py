@@ -67,3 +67,16 @@ class MapAssetAnchorTests(unittest.TestCase):
             apply_sprite_display_properties({'objects':[{'textureKey':'missing'}]},current_shared_catalog)
         with self.assertRaisesRegex(ValueError,'타일 배치'):
             apply_sprite_display_properties({'groundOverrides':[{'position':{},'textureKey':'ground','displayHeight':20}]},current_shared_catalog)
+
+    def test_building_anchors_require_shared_source(self):
+        from tools.review.common.sprite_display_properties import apply_sprite_display_properties
+        current_shared_catalog={'building':{'anchorX':0.4,'anchorY':0.95}}
+        for current_anchor_field in ('anchorX','anchorY'):
+            with self.assertRaisesRegex(ValueError,'건물 앵커 재정의 금지'):
+                apply_sprite_display_properties({'buildings':[{'sprite':{'textureKey':'building',current_anchor_field:0.5}}]},current_shared_catalog)
+        with self.assertRaisesRegex(ValueError,'건물 공용 속성 누락'):
+            apply_sprite_display_properties({'buildings':[{'sprite':{'textureKey':'missing'}}]},current_shared_catalog)
+        current_map_record={'buildings':[{'origin':{'column':2,'row':3},'sprite':{'textureKey':'building','contentWidth':0.8}}]}
+        apply_sprite_display_properties(current_map_record,current_shared_catalog)
+        self.assertEqual(current_map_record['buildings'][0]['sprite'],{'textureKey':'building','contentWidth':0.8,'anchorX':0.4,'anchorY':0.95})
+        self.assertEqual(current_map_record['buildings'][0]['origin'],{'column':2,'row':3})
