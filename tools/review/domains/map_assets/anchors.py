@@ -33,7 +33,7 @@ def save_map_sprite_anchor(current_request_payload):
     current_map_relative='assets/maps/'+('city_layouts' if current_map_kind=='town' else 'field_tiles')+'/'+current_map_identifier+'.yaml'
     current_map_path,current_map_provenance=resolve_registered_asset(current_map_relative,current_asset_root,current_asset_records,'assets/maps')
     current_map_document=yaml.load(current_map_path.read_text(), Loader=UniqueAssetYamlLoader)
-    from tools.review.common.sprite_display_properties import validate_sprite_display_properties
+    from tools.review.common.sprite_display_properties import validate_sprite_display_properties, calculate_billboard_blocking_state
     current_properties_relative = 'assets/maps/sprite-display-properties.yaml'
     current_properties_path, current_properties_provenance = resolve_registered_asset(current_properties_relative,current_asset_root,current_asset_records,'assets/maps')
     current_properties_document = yaml.load(current_properties_path.read_text(), Loader=UniqueAssetYamlLoader)
@@ -51,10 +51,12 @@ def save_map_sprite_anchor(current_request_payload):
         raise ValueError('바닥 크기·높이 편집은 빌보드 에셋만 지원합니다.')
     if not current_target_entries or current_request_payload['expected'] != current_property_catalog.get(current_texture_key):
         raise ValueError('에셋 공용 속성이 변경되었거나 선택 맵에서 사용하지 않습니다. 새로고침하세요.')
-    current_shared_properties = {current_anchor_name:current_request_payload[current_anchor_name] for current_anchor_name in ('anchorX','anchorY')}
+    current_shared_properties = dict(current_property_catalog[current_texture_key])
     current_shared_properties.update(current_layout_values or current_property_catalog.get(current_request_payload['texture'], {}))
     # 기존 레이아웃을 유지할 때도 이번 앵커 입력을 우선한다.
     current_shared_properties.update({current_anchor_name:current_request_payload[current_anchor_name] for current_anchor_name in ('anchorX','anchorY')})
+    if 'billboardPlacementAnchor' in current_shared_properties:
+        current_shared_properties['billboardBlocksMovement'] = calculate_billboard_blocking_state(current_shared_properties)
     current_property_catalog[current_request_payload['texture']] = current_shared_properties
     validate_sprite_display_properties(current_property_catalog)
     current_map_bytes=yaml.safe_dump(current_properties_document,allow_unicode=True,sort_keys=False).encode()

@@ -80,3 +80,25 @@ class MapAssetAnchorTests(unittest.TestCase):
         apply_sprite_display_properties(current_map_record,current_shared_catalog)
         self.assertEqual(current_map_record['buildings'][0]['sprite'],{'textureKey':'building','contentWidth':0.8,'anchorX':0.4,'anchorY':0.95})
         self.assertEqual(current_map_record['buildings'][0]['origin'],{'column':2,'row':3})
+
+    def test_billboard_placement_blocking_contract(self):
+        from tools.review.common.sprite_display_properties import validate_sprite_display_properties, apply_sprite_display_properties
+        current_base_properties = {'anchorX':0.5,'anchorY':0.9,'groundFootprintColumns':1,'groundFootprintRows':1,'displayHeight':80,'billboardPlacementAnchor':'bottom','billboardBlocksMovement':False}
+        for current_height_value,current_blocking_value in ((79,False),(80,False),(81,True),(160,True)):
+            current_property_values = {**current_base_properties,'displayHeight':current_height_value,'billboardBlocksMovement':current_blocking_value}
+            validate_sprite_display_properties({'sample':current_property_values})
+            with self.assertRaisesRegex(ValueError,'不一致|불일치'):
+                validate_sprite_display_properties({'sample':{**current_property_values,'billboardBlocksMovement':not current_blocking_value}})
+        validate_sprite_display_properties({'sample':{**current_base_properties,'billboardPlacementAnchor':'top','displayHeight':300}})
+        for current_column_count,current_row_count in ((1,2),(2,1),(2,2)):
+            current_property_values = {**current_base_properties,'groundFootprintColumns':current_column_count,'groundFootprintRows':current_row_count,'billboardBlocksMovement':True}
+            validate_sprite_display_properties({'sample':current_property_values})
+            with self.assertRaisesRegex(ValueError,'상단 배치'):
+                validate_sprite_display_properties({'sample':{**current_property_values,'billboardPlacementAnchor':'top'}})
+        for current_invalid_values in ({'billboardPlacementAnchor':'center'},{'billboardBlocksMovement':0}):
+            with self.assertRaises(ValueError):
+                validate_sprite_display_properties({'sample':{**current_base_properties,**current_invalid_values}})
+        current_map_record = {'objects':[{'textureKey':'sample'}]}
+        apply_sprite_display_properties(current_map_record,{'sample':current_base_properties})
+        self.assertEqual(current_map_record['objects'][0]['billboardPlacementAnchor'],'bottom')
+        self.assertIs(current_map_record['objects'][0]['billboardBlocksMovement'],False)
