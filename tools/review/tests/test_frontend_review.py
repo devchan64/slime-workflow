@@ -41,6 +41,20 @@ class FrontendReviewTests(unittest.TestCase):
     def write_source_fixture(self):
         self.animation_metadata_path.write_text(json.dumps(self.animation_source_data))
 
+    def test_integer_fps_rounding_preserves_original_clip_durations(self):
+        current_duration_values = [167,166,167,167]
+        for current_clip_record,current_duration_value in zip(self.animation_source_data['clips'],current_duration_values):
+            current_clip_record['frames'][0]['durationMs'] = current_duration_value
+        self.write_source_fixture()
+        current_frame_records,current_source_metadata,_ = load_animation_review(self.frontend_asset_root,self.animation_metadata_path)
+        self.assertEqual([current_frame_record['durationMs'] for current_frame_record in current_frame_records],current_duration_values)
+        self.assertEqual(current_source_metadata['clips'],self.animation_source_data['clips'])
+        self.assertEqual(current_source_metadata['frameDurationMs'],sum(current_duration_values)/len(current_duration_values))
+        self.animation_source_data['clips'][0]['frames'][0]['durationMs'] = 250
+        self.write_source_fixture()
+        with self.assertRaises(ValueError):
+            load_animation_review(self.frontend_asset_root,self.animation_metadata_path)
+
     def test_anchor_version_uses_declared_sheet(self):
         import hashlib
         self.animation_metadata_path = self.frontend_asset_root/'idle-anchor-v3.animation.json'

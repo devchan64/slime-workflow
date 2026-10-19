@@ -220,6 +220,7 @@ def load_animation_review(frontend_asset_root, animation_metadata_path):
     seen_clip_identifiers = set()
     seen_frame_identifiers = set()
     frame_duration_values = set()
+    current_frame_durations = []
     for current_clip_record in animation_clip_records:
         require_record_fields(current_clip_record, ('clipId', 'action', 'direction', 'frames', 'loop', 'nextClipId'), '클립')
         current_direction_name = current_clip_record['direction']
@@ -241,13 +242,15 @@ def load_animation_review(frontend_asset_root, animation_metadata_path):
             if type(clip_frame_record['durationMs']) is not int or clip_frame_record['durationMs'] < 1:
                 raise ValueError('프레임 시간은 양의 정수여야 합니다.')
             frame_duration_values.add(clip_frame_record['durationMs'])
+            current_frame_durations.append(clip_frame_record['durationMs'])
             if current_frame_identifier in seen_frame_identifiers:
                 continue
             seen_frame_identifiers.add(current_frame_identifier)
             current_frame_record = source_frame_lookup[current_frame_identifier]
-            review_frame_records.append({**current_frame_record, 'direction': current_direction_name, 'image': direction_sheet_paths[current_direction_name].name, 'contacts': [dict(current_frame_record['anchor']), dict(current_frame_record['anchor'])], 'endpoints': []})
-    if len(frame_duration_values) != 1 or seen_frame_identifiers != set(source_frame_lookup):
-        raise ValueError('동일한 프레임 시간 및 전체 프레임 참조가 필요합니다.')
+            review_frame_records.append({**current_frame_record, 'durationMs':clip_frame_record['durationMs'], 'direction': current_direction_name, 'image': direction_sheet_paths[current_direction_name].name, 'contacts': [dict(current_frame_record['anchor']), dict(current_frame_record['anchor'])], 'endpoints': []})
+    # 6fps의 167·166·167ms처럼 정수 반올림에 의한 1ms 차이만 허용한다.
+    if max(frame_duration_values)-min(frame_duration_values)>1 or seen_frame_identifiers != set(source_frame_lookup):
+        raise ValueError('1ms 이내의 프레임 시간 차이 및 전체 프레임 참조가 필요합니다.')
     animation_identifier_text = animation_source_data['animationId']
     if source_game_body_height is not None and (type(source_game_body_height) not in (int, float) or not math.isfinite(source_game_body_height) or source_game_body_height <= 0):
         raise ValueError(f'{animation_metadata_path}: gameBodyHeight는 양의 유한 숫자이어야 합니다.')
@@ -264,7 +267,7 @@ def load_animation_review(frontend_asset_root, animation_metadata_path):
         if type(source_reference_body_height) not in (int, float) or not math.isfinite(source_reference_body_height) or source_reference_body_height <= 0:
             raise ValueError(f'{animation_metadata_path}: 게임 출력 비율에 필요한 referenceBodyHeight가 없습니다.')
         runtime_scale_metadata = {'actorKind': 'human', 'baseHeight': source_game_body_height or 60, 'sourceHeight': source_reference_body_height, 'defaultSizeClass': 'medium'}
-    review_source_metadata = {'coordinateMode': 'anchor', 'registeredSource': True, 'animationId': animation_identifier_text, 'animationVersion': animation_source_data['version'], 'artifactType': 'character-animation-anchor-review', 'exportFilename': animation_metadata_path.name.removesuffix('.animation.json')+'-anchor-review.json', 'clips': animation_clip_records, 'frameDurationMs': next(iter(frame_duration_values)), 'sheets': source_sheet_records, 'runtimeScale': runtime_scale_metadata, 'description': '프론트엔드 등록 메타데이터의 앵커 검수. 원본 소수 좌표를 유지하며 클릭 지정은 정수 픽셀을 사용합니다. 저장 파일은 별도 검수 산출물입니다.'}
+    review_source_metadata = {'coordinateMode': 'anchor', 'registeredSource': True, 'animationId': animation_identifier_text, 'animationVersion': animation_source_data['version'], 'artifactType': 'character-animation-anchor-review', 'exportFilename': animation_metadata_path.name.removesuffix('.animation.json')+'-anchor-review.json', 'clips': animation_clip_records, 'frameDurationMs': sum(current_frame_durations)/len(current_frame_durations), 'sheets': source_sheet_records, 'runtimeScale': runtime_scale_metadata, 'description': '프론트엔드 등록 메타데이터의 앵커 검수. 원본 소수 좌표를 유지하며 클릭 지정은 정수 픽셀을 사용합니다. 저장 파일은 별도 검수 산출물입니다.'}
     return review_frame_records, review_source_metadata, set(direction_sheet_paths.values())
 
 

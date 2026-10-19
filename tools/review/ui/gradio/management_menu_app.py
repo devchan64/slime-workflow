@@ -20,10 +20,11 @@ CATEGORY_LABEL_VALUES={'all':'전체','map-review':'맵 검수','sound-managemen
 LEGACY_SOUND_CATEGORY_NAMES=('music-generation','sound-effects')
 MANAGEMENT_FRAME_PATH_PREFIX='/management/frame/'
 MANAGEMENT_FRAME_IDENTIFIER_VALUES={'anny-attribute-renderer':'anny-attributes'}
-NATIVE_MANAGEMENT_APPLICATIONS=frozenset(('vegetation-generator','prop-generator','building-generator','sfx-dasheng-audiogen','music-ace-step','music-minimax','vace-f2v-generator','vace-v2v-generator','phantom-generator','hy-motion-generator','anny-landmarks','animation-separation','qwen-21-circular-generator','pose-transfer-generator','outfit-transfer-generator','qwen-21-generator','expression-generator','sprite-editor-v2','character-review','map-review','anny-attributes','writer-agent'))
+NATIVE_MANAGEMENT_APPLICATIONS=frozenset(('world-map','vegetation-generator','prop-generator','building-generator','sfx-dasheng-audiogen','music-ace-step','music-minimax','vace-f2v-generator','vace-v2v-generator','phantom-generator','hy-motion-generator','anny-landmarks','animation-separation','qwen-21-circular-generator','pose-transfer-generator','outfit-transfer-generator','qwen-21-generator','expression-generator','sprite-editor-v2','character-review','map-review','anny-attributes','writer-agent'))
 DEFAULT_MANAGER_SOURCE_PATH=WORKFLOW_ROOT_DIRECTORY/'.tmp/manager-current/manager-source.json'
 LEGACY_PAGE_IDENTIFIER_VALUES={'map-review':'map-review-iseulon','animation-2':'animation-1','animation-3':'animation-1'}
 DEFAULT_PAGE_RECORDS=(
+    {'id':'world-map','label':'월드맵 검수','path':'/management/frame/world-map/','category':'map-review','uiMode':'gradio','description':'전체 맵 썸네일·노드·연결·원본 해시 검증'},
     {'id': 'sfx-dasheng-audiogen', 'label': 'Dasheng-AudioGen · 효과음', 'path': '/management/frame/sfx-dasheng-audiogen/', 'category': 'sound-management', 'uiMode': 'gradio', 'description': '로컬 CUDA · 길이 자동 예측 · 시드 · 16kHz WAV'},
     {'id': 'music-ace-step', 'label': 'ACE-Step 1.5 Turbo', 'path': '/management/frame/music-ace-step/', 'category': 'sound-management', 'uiMode': 'gradio', 'description': '로컬 CUDA · WAV · 반복 구조 요청 선택 · 8GB 실측 필요'},
     {'id': 'music-minimax', 'label': 'MiniMax-Music3', 'path': '/management/frame/music-minimax/', 'category': 'sound-management', 'uiMode': 'gradio', 'description': '로컬 CUDA · WAV · 반복 구조 요청 선택 · 8GB 실측 필요'},

@@ -130,3 +130,24 @@ class MapAssetSourceTests(unittest.TestCase):
             if current_map_identifier in current_city_identifiers:
                 self.assertEqual(len(current_map_record['buildings']),5)
                 self.assertEqual(current_map_record['buildingTileOverrides']['roof'],'wood_roof')
+
+
+class WorldMapAssetContractTests(unittest.TestCase):
+    def test_world_catalog_and_thumbnail_http_use_registered_originals(self):
+        current_response_bytes,current_content_type = read_map_asset_response('/management/map-assets/world')
+        current_world_catalog = json.loads(current_response_bytes)
+        self.assertIn('application/json',current_content_type)
+        self.assertEqual(current_world_catalog['version'],3)
+        current_world_nodes = {current_world_node['id']:current_world_node for current_world_node in current_world_catalog['maps']}
+        self.assertEqual(set(current_world_nodes),set(load_review_map_identifiers()[1]))
+        for current_world_node in current_world_nodes.values():
+            current_thumbnail_record = current_world_node['thumbnail']
+            current_image_bytes,current_image_type = read_map_asset_response(current_thumbnail_record['url'].split('?')[0])
+            self.assertEqual(current_image_type,'image/png')
+            self.assertEqual(hashlib.sha256(current_image_bytes).hexdigest(),current_thumbnail_record['sha256'])
+            for current_world_link in current_world_node['connections']:
+                self.assertTrue(any(current_reverse_link['id']==current_world_link['targetWaypointId'] and current_reverse_link['targetWaypointId']==current_world_link['id'] and current_reverse_link['target']==current_world_node['id'] for current_reverse_link in current_world_nodes[current_world_link['target']]['connections']))
+
+    def test_thumbnail_http_rejects_path_escape(self):
+        with self.assertRaises(ValueError):
+            read_map_asset_response('/management/map-assets/thumbnails/../../../asset-registry.yaml')
