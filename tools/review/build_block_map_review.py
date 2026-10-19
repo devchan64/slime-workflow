@@ -174,7 +174,7 @@ def build_block_map_review(output_directory_path, character_review_only=False):
     from tools.review.common.map_asset_sources import load_review_map_identifiers
     _, current_map_identifiers = load_review_map_identifiers()
     for current_map_identifier in (() if character_review_only else current_map_identifiers):
-        current_map_record = build_registered_map_review(current_map_identifier)
+        current_map_record = build_registered_map_review(current_map_identifier, current_validate_placement=False)
         required_material_names=set(current_map_record['terrainCodes'].values())
         if required_material_names-set(current_material_record['materials']):
             raise ValueError('맵 검수 재질 누락: '+current_map_identifier)
@@ -224,9 +224,17 @@ def build_block_map_review(output_directory_path, character_review_only=False):
     return output_directory_path
 
 
-def build_registered_map_review(map_identifier_value):
+def build_registered_map_review(map_identifier_value, current_validate_placement=True):
     from tools.review.common.map_asset_sources import load_registered_map_review, load_review_map_identifiers
     current_map_record = load_registered_map_review(map_identifier_value)
     current_city_identifiers, _ = load_review_map_identifiers()
+    if current_validate_placement and map_identifier_value not in current_city_identifiers:
+        from tools.review.domains.map_assets.placement import validate_scenery_object_collisions, validate_registered_scenery_images
+        validate_scenery_object_collisions(current_map_record.get('objects', []), current_map_record['spriteProperties'], current_map_record['elevations'])
+        from tools.review.common.game_render_metrics import read_numeric_render_constant
+        current_metric_source = (WORKFLOW_ROOT_DIRECTORY.parent/'slime-frontend/packages/field-renderer/render-constants.mjs').read_text()
+        current_tile_width = read_numeric_render_constant(current_metric_source, 'MAP_TILE_WIDTH')
+        current_tile_height = read_numeric_render_constant(current_metric_source, 'MAP_TILE_HEIGHT')
+        validate_registered_scenery_images(current_map_record.get('objects', []), current_map_record['spriteProperties'], current_tile_width, current_tile_height, current_map_record['elevations'])
     current_map_record['reviewLabel'] = '도시맵 검수' if map_identifier_value in current_city_identifiers else '필드맵 검수'
     return current_map_record
