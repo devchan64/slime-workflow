@@ -89,6 +89,7 @@ def build_map_review_interface(review_server_port, character_review_enabled=Fals
                 with gr.Row():
                     with gr.Column(scale=1):
                         current_battle_choice=gr.Dropdown(label='전투필드 선택',choices=[],interactive=False,info='먼저 맵 불러오기를 누르세요. 준비가 끝나면 개별 전장을 선택할 수 있습니다.')
+                        current_battle_spawn_check=gr.Checkbox(label='스폰지역 보기',value=False,interactive=False,info='전장을 불러오면 사용할 수 있습니다. 청록색: 유저 · 주황색: 몬스터 시작 가능 타일입니다.')
                         current_battle_status=gr.Textbox(label='전투필드 로딩 상태',value='맵 불러오기를 눌러 전투필드 검수를 시작하세요.',interactive=False)
                     with gr.Column(scale=3):
                         current_battle_camera_buttons=[]
@@ -97,9 +98,10 @@ def build_map_review_interface(review_server_port, character_review_enabled=Fals
                                 current_battle_camera_buttons.append(build_browser_action_button(current_camera_label,'battlefieldReviewCameraControls',current_camera_action,current_battle_status,current_button_enabled=False))
                         gr.Markdown('전장 로딩이 끝나면 화면 조정 버튼을 사용할 수 있습니다.')
                         gr.HTML('<section id="battle-map-review-root" aria-label="전투필드 검수"></section>')
-                current_battle_choice.input(fn=None,inputs=current_battle_choice,outputs=[current_battle_choice,current_battle_status,*current_battle_camera_buttons],queue=False,js="currentFieldIdentifier=>window.battlefieldReviewControls(currentFieldIdentifier)")
+                current_battle_spawn_check.input(fn=None,inputs=current_battle_spawn_check,outputs=current_battle_status,queue=False,js="currentRegionsVisible=>{try{return window.battlefieldReviewSpawnControls(currentRegionsVisible);}catch(currentDisplayError){return currentDisplayError.message;}}")
+                current_battle_choice.input(fn=None,inputs=current_battle_choice,outputs=[current_battle_choice,current_battle_status,*current_battle_camera_buttons,current_battle_spawn_check],queue=False,js="currentFieldIdentifier=>window.battlefieldReviewControls(currentFieldIdentifier)")
                 current_battle_timer=gr.Timer(1)
-                current_battle_timer.tick(fn=None,outputs=[current_battle_choice,current_battle_status,*current_battle_camera_buttons],queue=False,show_progress='hidden',js="()=>{if(typeof window.battlefieldReviewControls!=='function')return Array.from({length:5},()=>({__type__:'update'}));const currentBattleValues=window.battlefieldReviewControls(null);currentBattleValues[0].interactive=true;return currentBattleValues;}")
+                current_battle_timer.tick(fn=None,outputs=[current_battle_choice,current_battle_status,*current_battle_camera_buttons,current_battle_spawn_check],queue=False,show_progress='hidden',js="()=>{if(typeof window.battlefieldReviewControls!=='function')return Array.from({length:6},()=>({__type__:'update'}));const currentBattleValues=window.battlefieldReviewControls(null);currentBattleValues[0].interactive=true;return currentBattleValues;}")
         with gr.Group() as current_surface_group:
             if character_review_enabled:
                 gr.Markdown('3×3 바닥 위에서 기본 캐릭터를 비교합니다. 초기 배율은 실제 게임 크기 100%이며 오른쪽 맵을 클릭하면 양쪽 캐릭터가 함께 이동합니다.')

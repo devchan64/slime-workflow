@@ -4,6 +4,7 @@ async function mountNativeGameReview(currentReviewRoot,currentPageLocation){
   let currentReviewDisposed=false;
   let currentBattlefieldBridge=null;
   let currentBattleCameraBridge=null;
+  let currentSpawnRegionBridge=null;
   const currentConnectionObserver=new MutationObserver(()=>{
     if(!currentReviewRoot.isConnected)disposeNativeGameReview();
   });
@@ -14,6 +15,7 @@ async function mountNativeGameReview(currentReviewRoot,currentPageLocation){
     currentConnectionObserver.disconnect();
     window.removeEventListener('pagehide',disposeNativeGameReview);
     currentMountedController?.dispose();
+    if(window.battlefieldReviewSpawnControls===currentSpawnRegionBridge)delete window.battlefieldReviewSpawnControls;
     if(window.battlefieldReviewCameraControls===currentBattleCameraBridge)delete window.battlefieldReviewCameraControls;
     if(window.battlefieldReviewControls===currentBattlefieldBridge){delete window.battlefieldReviewControls;delete window.battlefieldChoiceSignature;}
   }
@@ -49,7 +51,7 @@ async function mountNativeGameReview(currentReviewRoot,currentPageLocation){
           window.history.replaceState(null,'',currentBrowserLocation);
         }
         const currentBattlefieldState=currentMountedController.readState();
-        return [{__type__:'update',choices:currentBattlefieldState.choices,value:currentBattlefieldState.field},currentBattlefieldState.status,...Array.from({length:3},()=>({__type__:'update',interactive:currentBattlefieldState.cameraReady===true}))];
+        return [{__type__:'update',choices:currentBattlefieldState.choices,value:currentBattlefieldState.field},currentBattlefieldState.status,...Array.from({length:3},()=>({__type__:'update',interactive:currentBattlefieldState.cameraReady===true})),{__type__:'update',interactive:currentBattlefieldState.cameraReady===true,value:currentBattlefieldState.spawnRegionsVisible===true}];
       };
       const currentInitialSelection=currentMountedController.readState().field;
       if(currentPageLocation.searchParams.get('field')==='all'&&currentInitialSelection!=='all'){
@@ -61,6 +63,12 @@ async function mountNativeGameReview(currentReviewRoot,currentPageLocation){
         if(currentReviewDisposed||typeof currentMountedController.adjustCamera!=='function')throw Error('전장을 먼저 불러오세요.');
         currentMountedController.adjustCamera(currentActionName);return '전장 시점을 조정했습니다.';
       };
+      currentSpawnRegionBridge=currentRegionsVisible=>{
+        if(currentReviewDisposed||typeof currentMountedController.setSpawnRegionsVisible!=='function')throw Error('전장을 먼저 불러오세요.');
+        currentMountedController.setSpawnRegionsVisible(currentRegionsVisible);
+        return currentRegionsVisible?'스폰지역 표시 · 청록색: 유저 · 주황색: 몬스터':'스폰지역을 숨겼습니다.';
+      };
+      window.battlefieldReviewSpawnControls=currentSpawnRegionBridge;
       window.battlefieldReviewCameraControls=currentBattleCameraBridge;
       window.battlefieldReviewControls=currentBattlefieldBridge;
       delete window.battlefieldChoiceSignature;
