@@ -3,6 +3,7 @@ async function mountNativeGameReview(currentReviewRoot,currentPageLocation){
   let currentMountedController=null;
   let currentReviewDisposed=false;
   let currentBattlefieldBridge=null;
+  let currentBattleCameraBridge=null;
   const currentConnectionObserver=new MutationObserver(()=>{
     if(!currentReviewRoot.isConnected)disposeNativeGameReview();
   });
@@ -13,6 +14,7 @@ async function mountNativeGameReview(currentReviewRoot,currentPageLocation){
     currentConnectionObserver.disconnect();
     window.removeEventListener('pagehide',disposeNativeGameReview);
     currentMountedController?.dispose();
+    if(window.battlefieldReviewCameraControls===currentBattleCameraBridge)delete window.battlefieldReviewCameraControls;
     if(window.battlefieldReviewControls===currentBattlefieldBridge){delete window.battlefieldReviewControls;delete window.battlefieldChoiceSignature;}
   }
   currentConnectionObserver.observe(document.body,{childList:true,subtree:true});
@@ -47,7 +49,7 @@ async function mountNativeGameReview(currentReviewRoot,currentPageLocation){
           window.history.replaceState(null,'',currentBrowserLocation);
         }
         const currentBattlefieldState=currentMountedController.readState();
-        return [{__type__:'update',choices:currentBattlefieldState.choices,value:currentBattlefieldState.field},currentBattlefieldState.status];
+        return [{__type__:'update',choices:currentBattlefieldState.choices,value:currentBattlefieldState.field},currentBattlefieldState.status,...Array.from({length:3},()=>({__type__:'update',interactive:currentBattlefieldState.cameraReady===true}))];
       };
       const currentInitialSelection=currentMountedController.readState().field;
       if(currentPageLocation.searchParams.get('field')==='all'&&currentInitialSelection!=='all'){
@@ -55,6 +57,11 @@ async function mountNativeGameReview(currentReviewRoot,currentPageLocation){
         currentBrowserLocation.searchParams.set('field',currentInitialSelection);
         window.history.replaceState(null,'',currentBrowserLocation);
       }
+      currentBattleCameraBridge=currentActionName=>{
+        if(currentReviewDisposed||typeof currentMountedController.adjustCamera!=='function')throw Error('전장을 먼저 불러오세요.');
+        currentMountedController.adjustCamera(currentActionName);return '전장 시점을 조정했습니다.';
+      };
+      window.battlefieldReviewCameraControls=currentBattleCameraBridge;
       window.battlefieldReviewControls=currentBattlefieldBridge;
       delete window.battlefieldChoiceSignature;
     }
