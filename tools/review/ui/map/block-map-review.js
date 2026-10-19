@@ -2,7 +2,7 @@ import {installSourceSizePreview} from './source-size-preview.js';
 import {resolveCityTileTextures,selectFieldRoadFrame,resolveFieldTerrainFrame,collectTerrainTextureSources,collectMapTextureSources,collectMapResourceKeys,loadMapResourceImages} from './vendor/field-renderer/__FIELD_RENDERER_VERSION__/town-renderer.mjs';
 import {CHARACTER_OUTLINE_BASE_WIDTH,CHARACTER_OUTLINE_BASE_COLOR,CHARACTER_SEPARATOR_BASE_WIDTH,CHARACTER_SEPARATOR_BASE_COLOR,CHARACTER_CONTACT_SHADOW_COLOR as GAME_CONTACT_SHADOW_COLOR,CHARACTER_CONTACT_SHADOW_ALPHA_SCALE,ACTOR_CONTACT_SHADOW_CONTRACT} from './vendor/field-renderer/__FIELD_RENDERER_VERSION__/game-render-profile.mjs';
 import {createFieldReviewFrame,pickFieldReviewCell} from './field-map-renderer.js';
-import {FIELD_RENDER_METRICS,projectSurfaceCell} from './vendor/field-renderer/__FIELD_RENDERER_VERSION__/field-renderer.mjs';
+import {FIELD_RENDER_METRICS,projectSurfaceCell,canTraverseBridgeEdge,prepareBridgeTraversalSurface} from './vendor/field-renderer/__FIELD_RENDERER_VERSION__/field-renderer.mjs';
 import {resolveFieldActorContactShadow} from './vendor/field-renderer/__FIELD_RENDERER_VERSION__/field-renderer.mjs';
 const MAP_FIT_HORIZONTAL_PADDING=160,MAP_FIT_VERTICAL_PADDING=80,MAP_FIT_BOTTOM_MARGIN=40,FIELD_FIT_TOP_MARGIN=160;
 const MIN_MAP_SCALE=0.05,MAX_MAP_SCALE=4,MAP_ZOOM_FACTOR=1.25,MAP_DRAG_THRESHOLD=4,MAP_KEYBOARD_PAN_DISTANCE=48;
@@ -76,7 +76,7 @@ const currentMapRecord=isCharacterReviewPage?{
  columns:CHARACTER_REVIEW_GRID_SIZE,rows:CHARACTER_REVIEW_GRID_SIZE,
  terrainCodes:{p:'paving'},terrainRows:Array(CHARACTER_REVIEW_GRID_SIZE).fill('p'.repeat(CHARACTER_REVIEW_GRID_SIZE)),
  startPoint:{column:Math.floor(CHARACTER_REVIEW_GRID_SIZE/2),row:Math.floor(CHARACTER_REVIEW_GRID_SIZE/2)},blocked:[],buildings:[],
-}:await fetchMapReviewRecord(selectedMapRecord.path);
+}:prepareBridgeTraversalSurface(await fetchMapReviewRecord(selectedMapRecord.path));
 const currentMapLoadController=new AbortController();
 window.addEventListener('pagehide',()=>currentMapLoadController.abort(),{once:true});
 const isFieldMapReview=currentMapRecord.safeTown===false;
@@ -406,7 +406,7 @@ function changeMapZoom(currentZoomFactor,currentAnchorX=currentMapCanvas.clientW
 
 currentMapCanvas.onkeydown=currentKeyboardEvent=>{
  const currentCharacterOffset=CHARACTER_CELL_KEY_OFFSETS[currentKeyboardEvent.key];
- if(currentKeyboardEvent.shiftKey&&currentCharacterOffset){currentKeyboardEvent.preventDefault();placeReviewCharacterCell(currentCharacterCell.column+currentCharacterOffset[0],currentCharacterCell.row+currentCharacterOffset[1]);return;}
+ if(currentKeyboardEvent.shiftKey&&currentCharacterOffset){currentKeyboardEvent.preventDefault();if(!canTraverseBridgeEdge(currentCharacterCell,{column:currentCharacterCell.column+currentCharacterOffset[0],row:currentCharacterCell.row+currentCharacterOffset[1]},currentMapRecord)){document.querySelector('#status').textContent='교량은 양끝 진입점으로만 이동할 수 있습니다.';return;}placeReviewCharacterCell(currentCharacterCell.column+currentCharacterOffset[0],currentCharacterCell.row+currentCharacterOffset[1]);return;}
 
  const mapKeyboardMoveByKey={ArrowLeft:[MAP_KEYBOARD_PAN_DISTANCE,0],ArrowRight:[-MAP_KEYBOARD_PAN_DISTANCE,0],ArrowUp:[0,MAP_KEYBOARD_PAN_DISTANCE],ArrowDown:[0,-MAP_KEYBOARD_PAN_DISTANCE]}[currentKeyboardEvent.key];
  if(mapKeyboardMoveByKey){currentKeyboardEvent.preventDefault();currentOffsetX+=mapKeyboardMoveByKey[0];currentOffsetY+=mapKeyboardMoveByKey[1];renderBlockMap();return}
