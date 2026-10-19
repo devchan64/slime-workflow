@@ -135,6 +135,10 @@ def load_registered_map_review(map_identifier_value):
             if current_map_record['terrainCodes'][current_code_value] in MAP_BLOCKED_TERRAIN_NAMES:
                 current_map_record['blocked'].append(dict(column=current_column_index,row=current_row_index))
     if len(current_map_record['terrainRows'])!=current_map_record['rows']: raise ValueError('맵 원본 행 수 오류')
+    from tools.review.common.sprite_display_properties import collect_billboard_blocked_cells
+    current_existing_cells = {(current_cell_record['column'],current_cell_record['row']) for current_cell_record in current_map_record['blocked']}
+    current_existing_cells.update(collect_billboard_blocked_cells(current_map_record.get('objects', [])))
+    current_map_record['blocked'] = [dict(column=current_column_value,row=current_row_value) for current_column_value,current_row_value in sorted(current_existing_cells)]
     current_map_record['terrainCodes'] = {current_code_value:current_terrain_name for current_code_value,current_terrain_name in current_map_record['terrainCodes'].items() if any(current_code_value in current_row_value for current_row_value in current_map_record['terrainRows'])}
     current_used_textures = {current_object_record['textureKey'] for current_object_record in current_map_record.get('objects', []) if 'textureKey' in current_object_record}
     current_used_textures.update(current_building_record['sprite']['textureKey'] for current_building_record in current_map_record.get('buildings', []) if current_building_record.get('sprite'))

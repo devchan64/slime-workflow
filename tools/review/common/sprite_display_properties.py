@@ -72,3 +72,18 @@ def apply_sprite_display_properties(current_map_data, current_property_catalog):
         if set(current_sprite_record) & SPRITE_ANCHOR_FIELD_NAMES:
             raise ValueError(f'맵별 건물 앵커 재정의 금지: {current_texture_key}')
         current_sprite_record.update({current_property_name: current_property_value for current_property_name, current_property_value in current_shared_properties.items() if current_property_name in SPRITE_ANCHOR_FIELD_NAMES})
+
+
+def collect_billboard_blocked_cells(current_object_records):
+    """블로킹 빌보드의 선언된 접지 영역 전체를 통행 불가 셀로 반환한다."""
+    current_blocked_cells = set()
+    for current_object_record in current_object_records:
+        if not current_object_record.get('billboardBlocksMovement', False):
+            continue
+        current_column_radius = math.ceil((current_object_record['groundFootprintColumns'] - 1) / 2)
+        current_row_radius = math.ceil((current_object_record['groundFootprintRows'] - 1) / 2)
+        current_cell_position = current_object_record['position']
+        current_blocked_cells.update((current_cell_position['column'] + current_column_offset, current_cell_position['row'] + current_row_offset)
+            for current_column_offset in range(-current_column_radius, current_column_radius + 1)
+            for current_row_offset in range(-current_row_radius, current_row_radius + 1))
+    return current_blocked_cells
