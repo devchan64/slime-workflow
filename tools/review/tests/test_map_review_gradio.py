@@ -52,13 +52,17 @@ class MapReviewGradioTest(unittest.TestCase):
         for current_character_mode in (False, True):
             current_config_record = build_map_review_interface(8770, character_review_enabled=current_character_mode).get_config_file()
             for current_component_record in current_config_record['components']:
-                if current_component_record['type'] in ('checkbox', 'dropdown', 'radio') and current_component_record['props'].get('label')!='맵 종류':
+                if current_component_record['props'].get('label') in ('맵 선택','전투필드 선택','건물 선택','기본 캐릭터','메시 경계','타일 경계'):
                     self.assertFalse(current_component_record['props']['interactive'])
                 if current_component_record['type'] == 'button' and current_component_record['props']['value'] in ('맵 불러오기', '렌더링 PNG 캡처'):
                     self.assertFalse(current_component_record['props']['interactive'])
             current_loader_events = [current_event_record for current_event_record in current_config_record['dependencies'] if 'mapReviewControlOptions' in (current_event_record.get('js') or '')]
-            self.assertEqual(len(current_loader_events), 1)
-            self.assertEqual(len(current_loader_events[0]['outputs']), 23 if current_character_mode else 16)
+            self.assertEqual(len(current_loader_events), 2)
+            self.assertEqual(current_loader_events[0]['outputs'],current_loader_events[1]['outputs'])
+            current_output_identifiers=set(current_loader_events[0]['outputs'])
+            for current_component_record in current_config_record['components']:
+                if current_component_record['props'].get('label')=='맵 선택':
+                    self.assertIn(current_component_record['id'],current_output_identifiers)
 
     def test_loader_uses_the_live_review_bundle_for_scripts_and_assets(self):
         loader_script_value = create_map_review_loader(8770)

@@ -49,6 +49,12 @@ async function mountNativeGameReview(currentReviewRoot,currentPageLocation){
         const currentBattlefieldState=currentMountedController.readState();
         return [{__type__:'update',choices:currentBattlefieldState.choices,value:currentBattlefieldState.field},currentBattlefieldState.status];
       };
+      const currentInitialSelection=currentMountedController.readState().field;
+      if(currentPageLocation.searchParams.get('field')==='all'&&currentInitialSelection!=='all'){
+        const currentBrowserLocation=new URL(window.location.href);
+        currentBrowserLocation.searchParams.set('field',currentInitialSelection);
+        window.history.replaceState(null,'',currentBrowserLocation);
+      }
       window.battlefieldReviewControls=currentBattlefieldBridge;
       delete window.battlefieldChoiceSignature;
     }
