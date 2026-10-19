@@ -1129,7 +1129,7 @@ pages:
 - id: map-review-clover-bank
   source_inventory_evidence: map_registered_inventory_followup
   readiness_followup: map_all_controls_followup · 공용 구현 적용, 모의 성공·실패 브라우저 검증. 개별 맵 렌더링 검증과 구분.
-  label: 세잎 둔덕 · 필드맵 검수
+  label: 토끼풀 언덕 · 필드맵 검수
   category: field-map-review
   ui_mode: gradio
   url: /management/frame/map-review/?map=clover-bank&townPage=1
