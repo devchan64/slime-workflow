@@ -27,7 +27,21 @@ class QwenCommandsTest(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError,'중복 키: common_style'):
                     load_qwen_prompt_options()
         current_final_text,current_added_text = compose_qwen_option_prompt('figure',True,True)
-        self.assertEqual(current_final_text,'figure '+current_added_text)
+        self.assertTrue(current_final_text.startswith('This is an RGBA image with transparency. Hand-painted'))
+        self.assertTrue(current_final_text.endswith('figure The image has alpha channel and the background is transparent.'))
+
+    def test_optional_prompt_composition_order(self):
+        from generators.image.qwen_21_prompt_options import compose_qwen_option_prompt, load_qwen_prompt_options
+        current_option_record = load_qwen_prompt_options()
+        for current_style_enabled in (False, True):
+            for current_alpha_enabled in (False, True):
+                current_final_text, current_added_text = compose_qwen_option_prompt('One cart.', current_style_enabled, current_alpha_enabled)
+                current_expected_parts = ([current_option_record['transparent_background']] if current_alpha_enabled else [])
+                current_expected_parts += [current_option_record['common_style']] if current_style_enabled else []
+                current_expected_parts += ['One cart.']
+                current_expected_parts += [current_option_record['transparent_background_suffix']] if current_alpha_enabled else []
+                self.assertEqual(current_final_text, ' '.join(current_expected_parts))
+                self.assertEqual(len(current_final_text.split()), 2 + len(current_added_text.split()))
 
     def test_both_generation_routes(self):
         for service_name_value,route_prefix_value,default_seed_value in [('qwen-2512','/image-generation',251204),('qwen-2511','/image-generation-2511',10107)]:

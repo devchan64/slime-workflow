@@ -228,7 +228,10 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
             current_option_prompts = load_qwen_prompt_options()
             building_prompt_control = gr.Checkbox(value=building_mode_enabled, label='건물 기본 프롬프트 추가', info=str(len(load_building_base_prompt().split()))+'단어 · '+load_building_base_prompt(), visible=building_mode_enabled)
             common_style_control = gr.Checkbox(value=False, label='공용 화풍 추가', info=str(len(current_option_prompts['common_style'].split()))+'단어 · '+current_option_prompts['common_style'])
-            transparent_background_control = gr.Checkbox(value=False, label='투명 배경 요청 · 네이티브 RGBA', info=str(len(current_option_prompts['transparent_background'].split()))+'단어 · '+current_option_prompts['transparent_background'])
+            current_transparency_prompt = current_option_prompts['transparent_background'] + ' … ' + current_option_prompts['transparent_background_suffix']
+            current_transparency_count = len(current_option_prompts['transparent_background'].split()) + len(current_option_prompts['transparent_background_suffix'].split())
+            gr.Markdown('조합 순서: 투명 배경 시작 문구 → 공용 화풍 → 입력 프롬프트 → 투명 배경 마무리 문구. 선택한 옵션만 적용됩니다.')
+            transparent_background_control = gr.Checkbox(value=False, label='투명 배경 요청 · 네이티브 RGBA', info=str(current_transparency_count)+'단어 · '+current_transparency_prompt)
             with gr.Accordion('최종 모델 입력', open=False):
                 plain_final_preview = gr.Textbox(value=default_prompt_text, label='옵션 포함 최종 프롬프트', interactive=False)
             def describe_plain_options(current_prompt_text, common_style_enabled, transparent_background_enabled, building_prompt_enabled=False):

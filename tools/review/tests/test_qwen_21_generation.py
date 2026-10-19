@@ -177,19 +177,20 @@ class QwenPlainGenerationTests(unittest.TestCase):
 
     def test_prompt_options_and_saved_replay(self):
         current_request_record = validate_qwen_plain_request({**self.create_reference_request(), 'common_style': True, 'transparent_background': True})
-        self.assertIn('large crisp defining details', current_request_record['prompt'])
-        self.assertNotIn('hand-painted', current_request_record['prompt'])
-        self.assertIn('Output RGBA', current_request_record['prompt'])
+        self.assertIn('soft shading, clear materials, moderate detail', current_request_record['prompt'])
+        self.assertIn('Hand-painted', current_request_record['prompt'])
+        self.assertIn('This is an RGBA image with transparency.', current_request_record['prompt'])
         self.assertLess(current_request_record['qwen21']['prompt_word_count'], 100)
         with tempfile.TemporaryDirectory() as current_directory_name:
             current_job_root = Path(current_directory_name)
             current_saved_record = {**current_request_record, **save_three_reference_inputs(current_job_root, current_request_record)}
             current_saved_record.pop('images')
-            verify_qwen_saved_request(current_job_root, current_saved_record)
+            with patch('generators.image.qwen_21_prompt_options.load_qwen_prompt_options', side_effect=AssertionError('현재 설정을 다시 읽으면 안 됨')):
+                verify_qwen_saved_request(current_job_root, current_saved_record)
             current_saved_record['qwen21']['prompt_options']['transparent_background'] = False
             with self.assertRaises(ValueError):
                 verify_qwen_saved_request(current_job_root, current_saved_record)
-        for current_invalid_options in ({'common_style': 'true'}, {'transparent_background': 1}, {'common_style': True, 'prompt': 'word '*90}):
+        for current_invalid_options in ({'common_style': 'true'}, {'transparent_background': 1}, {'common_style': True, 'prompt': 'word '*99}):
             with self.assertRaises(ValueError):
                 validate_qwen_plain_request({**self.create_reference_request(), **current_invalid_options})
 
@@ -199,4 +200,4 @@ class QwenPlainGenerationTests(unittest.TestCase):
         current_payload_record = current_gateway_mock.call_args.args[2]
         self.assertTrue(current_payload_record['common_style'])
         self.assertTrue(current_payload_record['transparent_background'])
-        self.assertIn('Output RGBA',validate_qwen_plain_request(current_payload_record)['prompt'])
+        self.assertIn('This is an RGBA image with transparency.',validate_qwen_plain_request(current_payload_record)['prompt'])

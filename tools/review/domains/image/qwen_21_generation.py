@@ -14,13 +14,14 @@ QWEN_GENERATION_ROOT = WORKFLOW_ROOT_PATH / '.tmp/test/qwen-image-21'
 
 
 def validate_qwen_plain_request(current_request_record, allowed_inference_steps=QWEN_ALLOWED_INFERENCE_STEPS):
-    from generators.image.qwen_21_prompt_options import compose_qwen_option_prompt, QWEN_PROMPT_OPTION_NAMES
+    from generators.image.qwen_21_prompt_options import compose_qwen_option_prompt, load_qwen_prompt_options, QWEN_PROMPT_OPTION_NAMES
     current_prompt_options = None
     if isinstance(current_request_record, dict) and any(current_option_name in current_request_record for current_option_name in QWEN_PROMPT_OPTION_NAMES):
         current_request_record = dict(current_request_record)
         current_user_prompt = current_request_record.get('prompt')
         current_prompt_options = {current_option_name: current_request_record.pop(current_option_name, False) for current_option_name in QWEN_PROMPT_OPTION_NAMES}
-        current_final_prompt, current_added_prompt = compose_qwen_option_prompt(current_user_prompt, **{current_option_name+'_enabled':current_option_value for current_option_name,current_option_value in current_prompt_options.items()})
+        current_option_snapshot = load_qwen_prompt_options()
+        current_final_prompt, current_added_prompt = compose_qwen_option_prompt(current_user_prompt, saved_option_prompts=current_option_snapshot, **{current_option_name+'_enabled':current_option_value for current_option_name,current_option_value in current_prompt_options.items()})
         current_request_record['prompt'] = current_final_prompt
     if isinstance(current_request_record, dict) and isinstance(current_request_record.get('images'), list):
         current_request_record = {**current_request_record, 'images': [
@@ -36,7 +37,7 @@ def validate_qwen_plain_request(current_request_record, allowed_inference_steps=
         'prompt_word_count': prompt_word_count,
         'prompt_sha256': hashlib.sha256(validated_request_record['prompt'].encode()).hexdigest(),
         'additional_prompt': current_added_prompt if current_prompt_options is not None else '',
-        **({'prompt_options': current_prompt_options, 'user_prompt': current_user_prompt} if current_prompt_options is not None else {}),
+        **({'prompt_options': current_prompt_options, 'user_prompt': current_user_prompt, 'option_prompt_snapshot': current_option_snapshot, 'composition_version': 2} if current_prompt_options is not None else {}),
     }}
 
 
@@ -56,9 +57,18 @@ def verify_qwen_saved_request(current_job_root, current_request_record):
     restored_input_record['images'] = [base64.b64encode((current_job_root / current_reference_name).read_bytes()).decode()
         for current_reference_name in current_request_record['references']]
     if 'prompt_options' in current_request_record.get('qwen21', {}):
-        restored_input_record['prompt'] = current_request_record['qwen21']['user_prompt']
-        restored_input_record.update(current_request_record['qwen21']['prompt_options'])
-        if validate_qwen_plain_request(restored_input_record)['prompt'] != current_request_record['prompt']:
+        from generators.image.qwen_21_prompt_options import compose_qwen_option_prompt
+        current_prompt_metadata = current_request_record['qwen21']
+        if current_prompt_metadata.get('composition_version') == 2:
+            current_expected_prompt, current_added_prompt = compose_qwen_option_prompt(
+                current_prompt_metadata['user_prompt'],
+                current_prompt_metadata['prompt_options']['common_style'],
+                current_prompt_metadata['prompt_options']['transparent_background'],
+                saved_option_prompts=current_prompt_metadata['option_prompt_snapshot'])
+        else:
+            current_added_prompt = current_prompt_metadata['additional_prompt']
+            current_expected_prompt = ' '.join(filter(None, (current_prompt_metadata['user_prompt'].strip(), current_added_prompt))) if current_added_prompt else current_prompt_metadata['user_prompt']
+        if current_expected_prompt != current_request_record['prompt'] or hashlib.sha256(current_expected_prompt.encode()).hexdigest() != current_prompt_metadata['prompt_sha256']:
             raise ValueError('Qwen 최종 프롬프트가 옵션 기록과 일치하지 않습니다.')
     if current_job_root.parent.name == 'pose-transfer' and 'vnccs' in current_request_record:
         from generators.image.vnccs_profile import validate_vnccs_profile
@@ -66,6 +76,13 @@ def verify_qwen_saved_request(current_job_root, current_request_record):
         expected_source_record = validate_qwen_plain_request(restored_input_record, allowed_inference_steps=(25, 40))['qwen21']
     else:
         expected_source_record = validate_qwen_plain_request(restored_input_record)['qwen21']
+    if 'prompt_options' in current_request_record.get('qwen21', {}):
+        expected_source_record.update({current_field_name: current_prompt_metadata[current_field_name] for current_field_name in ('prompt_options', 'user_prompt')})
+        expected_source_record['additional_prompt'] = current_added_prompt
+        if 'composition_version' in current_prompt_metadata:
+            if current_prompt_metadata['composition_version'] != 2:
+                raise ValueError('지원하지 않는 프롬프트 조합 버전입니다.')
+            expected_source_record.update({current_field_name: current_prompt_metadata[current_field_name] for current_field_name in ('composition_version', 'option_prompt_snapshot')})
     if current_request_record.get('qwen21') != expected_source_record:
         raise ValueError('Qwen 2.1 실행 기록의 모델·프롬프트 정보가 일치하지 않습니다.')
 

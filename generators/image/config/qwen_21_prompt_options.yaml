@@ -1,5 +1,7 @@
 style_source: prompts/art-style.yaml#slime_painterly_diorama_v1
 common_style: >-
-  Game illustration style with clear silhouettes, soft shading, and well-defined material details.
+  Hand-painted game illustration, soft shading, clear materials, moderate detail.
 transparent_background: >-
-  Output RGBA with a transparent background. Isolated subject, clean alpha edges.
+  This is an RGBA image with transparency.
+transparent_background_suffix: >-
+  The image has alpha channel and the background is transparent.

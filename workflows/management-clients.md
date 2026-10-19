@@ -503,7 +503,11 @@ python3 tools/manager.py command character-review capture --payload-file /tmp/ch
 CLI는 `--common-style`과 `--transparent-background`를 지원합니다. 게이트웨이 필드는
 `common_style`, `transparent_background` 불리언입니다. 공용 기준은 `prompts/art-style.yaml`이며
 Qwen 실행용 짧은 영문은 `generators/image/config/qwen_21_prompt_options.yaml`에서 관리합니다.
-현재 화풍은 손그림 질감이 아닌 **부드러운 그림자가 표현된 일러스트레이션**입니다.
+화풍 문구는 `Hand-painted game illustration, soft shading, clear materials, moderate detail.`입니다.
+조합 순서는 **투명 배경 시작 문구 → 공용 화풍 → 사용자 입력 → 투명 배경 마무리 문구**입니다.
+투명 문구는 `This is an RGBA image with transparency.`와 `The image has alpha channel and the background is transparent.`를 사용합니다.
+선택한 옵션만 합치며 GUI 최종 미리보기와 CLI는 같은 조합 함수를 사용합니다.
+신규 작업에는 옵션 문구 사본과 조합 버전을 저장합니다. 대기·재개 작업은 저장된 최종 문구를 검증하며 현재 설정으로 다시 조합하지 않습니다. 입력을 불러와 새로 접수할 때는 현재 설정을 적용합니다.
 원문·옵션·추가 문구·최종 단어 수와 해시를 보존하며, 옵션 포함 99단어를 초과하면 거절합니다.
 이력 불러오기에서 원문과 옵션을 복원합니다. 투명 배경은 네이티브 RGBA 출력을 요청하며
 출력 알파를 보존합니다. 체크무늬를 그리거나 색상 제거 후처리로 투명화를 대신하지 않습니다.
