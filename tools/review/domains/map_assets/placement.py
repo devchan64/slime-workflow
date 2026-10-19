@@ -52,34 +52,18 @@ def validate_scenery_object_collisions(current_object_records, current_property_
         raise ValueError('장식 배치 검수 실패:\n' + '\n'.join(current_error_messages))
 
 
-SCENERY_CONTACT_BAND_RATIO = 0.25
 SCENERY_ALPHA_VISIBLE_THRESHOLD = 16
-SCENERY_PIXEL_ROUNDING_TOLERANCE = 1.0
 
 
 def validate_scenery_image_footprint(current_texture_key, current_source_image, current_property_values, current_tile_width):
-    """불투명 영역 하단 25%의 가로 돌출을 보수적으로 검사한다.
-
-    접지 마스크가 없는 원본의 자동 선별 검사이며 정확한 3D 접촉면 판정은 아니다.
-    상단 수관은 제외하고 앵커 기준 좌우 허용 폭을 각각 검사한다.
-    """
-    from math import isfinite
-    current_display_height = current_property_values['displayHeight']
-    current_anchor_offset = current_property_values['anchorX']
-    if any(not isinstance(current_numeric_value, (int, float)) or isinstance(current_numeric_value, bool) or not isfinite(current_numeric_value) for current_numeric_value in (current_display_height, current_anchor_offset, current_tile_width)) or current_display_height <= 0 or current_tile_width <= 0 or not 0 <= current_anchor_offset <= 1:
+    """이미지 유효성만 확인한다. 입체 실루엣을 바닥 접촉면으로 추정하지 않는다."""
+    current_numeric_values = (current_property_values['displayHeight'], current_property_values['anchorX'], current_tile_width)
+    if any(type(current_value) not in (int, float) or not isfinite(current_value) for current_value in current_numeric_values) or current_numeric_values[0] <= 0 or current_tile_width <= 0 or not 0 <= current_numeric_values[1] <= 1:
         raise ValueError('이미지 접지 검사 크기·앵커 값이 잘못되었습니다.')
+    calculate_centered_footprint_cells((0, 0), current_property_values['groundFootprintColumns'], current_property_values['groundFootprintRows'])
     current_alpha_image = current_source_image.convert('RGBA').getchannel('A').point(lambda current_alpha_value: 255 if current_alpha_value >= SCENERY_ALPHA_VISIBLE_THRESHOLD else 0)
-    current_alpha_bounds = current_alpha_image.getbbox()
-    if current_alpha_bounds is None:
+    if current_alpha_image.getbbox() is None:
         raise ValueError(f'{current_texture_key}: 불투명 영역이 없는 이미지')
-    current_contact_start = current_alpha_bounds[3] - ceil((current_alpha_bounds[3] - current_alpha_bounds[1]) * SCENERY_CONTACT_BAND_RATIO)
-    current_contact_bounds = current_alpha_image.crop((0, current_contact_start, current_source_image.width, current_alpha_bounds[3])).getbbox()
-    current_display_scale = current_display_height / current_source_image.height
-    current_render_left = (current_contact_bounds[0] - current_source_image.width * current_anchor_offset) * current_display_scale
-    current_render_right = (current_contact_bounds[2] - current_source_image.width * current_anchor_offset) * current_display_scale
-    current_allowed_half_width = (current_property_values['groundFootprintColumns'] + current_property_values['groundFootprintRows']) * current_tile_width / 4
-    if current_render_left < -current_allowed_half_width - SCENERY_PIXEL_ROUNDING_TOLERANCE or current_render_right > current_allowed_half_width + SCENERY_PIXEL_ROUNDING_TOLERANCE:
-        raise ValueError(f'{current_texture_key}: 이미지 접지 폭 초과 · 하단 {SCENERY_CONTACT_BAND_RATIO:.0%} 실측 {current_render_right-current_render_left:.1f}px · 좌우 [{current_render_left:.1f}, {current_render_right:.1f}]px · 허용 ±{current_allowed_half_width:.1f}px · 표시 높이 {current_display_height}px')
 
 
 def validate_registered_scenery_images(current_object_records, current_property_catalog, current_tile_width, current_tile_height, current_elevation_rows, current_billboard_scale=1):
@@ -126,32 +110,14 @@ def validate_registered_scenery_images(current_object_records, current_property_
 
 
 def validate_image_contact_elevations(current_object_record, current_source_image, current_property_values, current_elevation_rows, current_tile_width, current_tile_height):
-    """이미지 하단 접지 후보를 월드 셀에 역투영해 단차 침범을 거절한다."""
-    from math import floor
-    current_alpha_image = current_source_image.convert('RGBA').getchannel('A').point(lambda current_alpha_value: 255 if current_alpha_value >= SCENERY_ALPHA_VISIBLE_THRESHOLD else 0)
-    current_alpha_bounds = current_alpha_image.getbbox()
-    if current_alpha_bounds is None:
-        raise ValueError(f"{current_object_record['id']}: 불투명 영역이 없는 이미지")
-    current_contact_start = current_alpha_bounds[3] - ceil((current_alpha_bounds[3] - current_alpha_bounds[1]) * SCENERY_CONTACT_BAND_RATIO)
-    current_display_scale = current_property_values['displayHeight'] / current_source_image.height
-    current_anchor_offsets = {'center': 0, 'front': 0.25, 'back': -0.25}
-    current_tile_anchor = current_object_record.get('tileAnchor', 'center')
-    if current_tile_anchor not in current_anchor_offsets:
-        raise ValueError('지원하지 않는 접지 앵커: ' + current_tile_anchor)
-    current_object_column = current_object_record['position']['column']
-    current_object_row = current_object_record['position']['row']
-    current_ground_cells = {(current_object_column, current_object_row)}
-    for current_pixel_row in range(current_contact_start, current_alpha_bounds[3]):
-        for current_pixel_column in range(current_alpha_bounds[0], current_alpha_bounds[2]):
-            if not current_alpha_image.getpixel((current_pixel_column, current_pixel_row)):
-                continue
-            current_screen_offset_x = (current_pixel_column + 0.5 - current_source_image.width * current_property_values['anchorX']) * current_display_scale
-            current_screen_offset_y = (current_pixel_row + 0.5 - current_source_image.height * current_property_values['anchorY']) * current_display_scale
-            current_column_offset = current_screen_offset_x / current_tile_width + current_screen_offset_y / current_tile_height
-            current_row_offset = current_screen_offset_y / current_tile_height - current_screen_offset_x / current_tile_width
-            current_ground_cells.add((floor(current_object_column + current_anchor_offsets[current_tile_anchor] + current_column_offset + 0.5), floor(current_object_row + current_anchor_offsets[current_tile_anchor] + current_row_offset + 0.5)))
+    """바닥 타일 점유 계약으로 고도를 검사한다. 이미지 크기는 점유 칸 수를 바꾸지 않는다."""
+    if not isfinite(current_tile_height) or current_tile_height <= 0:
+        raise ValueError('바닥 타일 높이는 양수여야 합니다.')
+    validate_scenery_image_footprint(current_object_record['textureKey'], current_source_image, current_property_values, current_tile_width)
+    current_ground_cells = calculate_centered_footprint_cells(
+        (current_object_record['position']['column'], current_object_record['position']['row']),
+        current_property_values['groundFootprintColumns'], current_property_values['groundFootprintRows'])
     current_failure_reason = validate_scenery_ground_placement(current_ground_cells, current_elevation_rows, set())
     if current_failure_reason:
-        current_height_details = [(current_column_index, current_row_index, current_elevation_rows[current_row_index][current_column_index] if 0 <= current_row_index < len(current_elevation_rows) and 0 <= current_column_index < len(current_elevation_rows[0]) else '맵 밖') for current_column_index, current_row_index in sorted(current_ground_cells)]
-        raise ValueError(f"{current_object_record['id']} / {current_object_record['textureKey']}: 실제 이미지 {current_failure_reason} · 셀(열, 행, 높이) {current_height_details}")
+        raise ValueError(f"{current_object_record['id']} / {current_object_record['textureKey']}: 타일 {current_failure_reason} · 점유 셀 {sorted(current_ground_cells)}")
     return current_ground_cells

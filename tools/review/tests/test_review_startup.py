@@ -38,6 +38,15 @@ class ReviewStartupTests(unittest.TestCase):
         for generator_relative_path in ('generators/momask/config/standing-loops-v1.json', 'generators/terrain/config/tile_map.yaml'):
             self.assertTrue(any((repository_root_path/generator_relative_path).is_relative_to(current_root_path) for current_root_path in watched_root_paths))
 
+    def test_map_validation_sources_are_watched(self):
+        parsed_argument_values = serve.parse_review_arguments([])
+        watched_root_paths = serve.collect_review_watch_paths(parsed_argument_values)
+        repository_root_path = Path(serve.__file__).resolve().parents[2]
+        for source_relative_path in ('domains/map_assets/placement.py', 'common/map_asset_http.py', 'common/map_tile_assets.py', 'common/sprite_display_properties.py', 'common/game_render_metrics.py'):
+            current_source_path = repository_root_path/'tools/review'/source_relative_path
+            self.assertTrue(current_source_path.is_file())
+            self.assertTrue(any(current_source_path == current_root_path or current_source_path.is_relative_to(current_root_path) for current_root_path in watched_root_paths))
+
     def test_watch_detects_configuration_edit(self):
         with tempfile.TemporaryDirectory() as temporary_directory_path:
             configuration_file_path = Path(temporary_directory_path)/'prompt.json'

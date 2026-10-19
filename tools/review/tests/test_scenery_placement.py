@@ -34,19 +34,12 @@ class SceneryGroundPlacementTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'first-rock ↔ second-rock'):
                 build_registered_map_review('test-map')
 
-    def test_wide_contact_image_fails_and_scaled_image_passes(self):
-        from PIL import Image, ImageDraw
+    def test_image_silhouette_does_not_override_tile_footprint(self):
+        from PIL import Image
         from tools.review.domains.map_assets.placement import validate_scenery_image_footprint
-        current_source_image = Image.new('RGBA', (128, 128))
-        ImageDraw.Draw(current_source_image).rectangle((0, 64, 127, 119), fill='white')
-        current_property_values = dict(anchorX=0.5, displayHeight=280, groundFootprintColumns=3, groundFootprintRows=2)
-        with self.assertRaisesRegex(ValueError, '이미지 접지 폭 초과'):
-            validate_scenery_image_footprint('wide-rock', current_source_image, current_property_values, 80)
-        current_property_values['displayHeight'] = 200
-        validate_scenery_image_footprint('wide-rock', current_source_image, current_property_values, 80)
-        current_property_values['anchorX'] = 0.1
-        with self.assertRaisesRegex(ValueError, '이미지 접지 폭 초과'):
-            validate_scenery_image_footprint('shifted-rock', current_source_image, current_property_values, 80)
+        current_source_image = Image.new('RGBA', (128, 128), 'white')
+        for current_tile_width, current_display_height in [(80, 145), (160, 290)]:
+            validate_scenery_image_footprint('tree', current_source_image, dict(anchorX=0.5, displayHeight=current_display_height, groundFootprintColumns=1, groundFootprintRows=1), current_tile_width)
 
     def test_canopy_and_transparent_padding_do_not_inflate_contact_width(self):
         from PIL import Image, ImageDraw
@@ -59,20 +52,15 @@ class SceneryGroundPlacementTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, '불투명 영역이 없는'):
             validate_scenery_image_footprint('empty', Image.new('RGBA', (128, 128)), dict(anchorX=0.5, displayHeight=80, groundFootprintColumns=1, groundFootprintRows=1), 80)
 
-    def test_image_contact_rejects_height_change_outside_declared_cell(self):
-        from PIL import Image, ImageDraw
+    def test_declared_tile_contact_rejects_height_changes(self):
+        from PIL import Image
         from tools.review.domains.map_assets.placement import validate_image_contact_elevations
-        current_source_image = Image.new('RGBA', (128, 128))
-        ImageDraw.Draw(current_source_image).rectangle((0, 104, 127, 119), fill='white')
-        current_object_record = dict(id='wide-rock', textureKey='rock', position=dict(column=3, row=3), tileAnchor='center')
-        current_property_values = dict(anchorX=0.5, anchorY=0.9, displayHeight=280)
-        current_elevation_rows = [[2] * 8 for current_row_index in range(8)]
-        current_ground_cells = validate_image_contact_elevations(current_object_record, current_source_image, current_property_values, current_elevation_rows, 80, 40)
-        self.assertGreater(len(current_ground_cells), 1)
-        current_neighbor_cell = next(current_ground_cell for current_ground_cell in current_ground_cells if current_ground_cell != (3, 3))
-        current_elevation_rows[current_neighbor_cell[1]][current_neighbor_cell[0]] = 0
-        with self.assertRaisesRegex(ValueError, '실제 이미지 접지 영역 고도 불일치'):
-            validate_image_contact_elevations(current_object_record, current_source_image, current_property_values, current_elevation_rows, 80, 40)
-        current_elevation_rows[current_neighbor_cell[1]][current_neighbor_cell[0]] = 4
-        with self.assertRaises(ValueError):
+        current_source_image = Image.new('RGBA', (128, 128), 'white')
+        current_object_record = dict(id='tree', textureKey='tree', position=dict(column=3, row=3), tileAnchor='center')
+        current_property_values = dict(anchorX=0.5, anchorY=0.87, displayHeight=290, groundFootprintColumns=1, groundFootprintRows=1)
+        current_elevation_rows = [[0] * 8 for current_row_index in range(8)]
+        current_elevation_rows[3][3] = 2
+        self.assertEqual(validate_image_contact_elevations(current_object_record, current_source_image, current_property_values, current_elevation_rows, 80, 40), {(3, 3)})
+        current_property_values.update(groundFootprintColumns=2, groundFootprintRows=2)
+        with self.assertRaisesRegex(ValueError, '접지 영역 고도 불일치'):
             validate_image_contact_elevations(current_object_record, current_source_image, current_property_values, current_elevation_rows, 80, 40)

@@ -143,6 +143,9 @@ def collect_review_watch_paths(parsed_argument_values):
     watch_paths.extend(workflow_repo_root/'generators/writer_agent'/current_file_name for current_file_name in ('manager.html','manager.js'))
     watch_paths.extend((workflow_repo_root/'tools/review').glob('build_*.py'))
     watch_paths.extend((workflow_repo_root/'tools/review/common').glob('gradio_*.py'))
+    watch_paths.append(workflow_repo_root/'tools/review/domains/map_assets')
+    watch_paths.extend((workflow_repo_root/'tools/review/common').glob('map_*.py'))
+    watch_paths.extend(workflow_repo_root/'tools/review/common'/current_file_name for current_file_name in ('sprite_display_properties.py', 'game_render_metrics.py'))
     watch_paths.extend(workflow_repo_root/'tools/review/common'/current_file_name for current_file_name in ('management_client.py','management_transport.py','management_environment.py'))
     # 맵·타일·등록부는 HTTP 요청마다 검증해 읽는다. 에셋 변경으로 GUI를 재시작하지 않는다.
     if parsed_argument_values.root:
