@@ -90,3 +90,5 @@ tiles:
   - {id: orchard-soil-v1, category: ground, asset: assets/tiles/terrain/non-road/orchard-soil-v1.png}
   - {id: orchard-grass-v1, category: ground, asset: assets/tiles/terrain/non-road/orchard-grass-v1.png}
   - {id: orchard-grass-soil-v1, category: ground, asset: assets/tiles/terrain/non-road/orchard-grass-soil-v1.png}
+  - {id: cinder-ash-trail-v1, category: ground, asset: assets/tiles/terrain/road/cinder-ash-trail-v1.png}
+  - {id: cinder-ash-ground-v1, category: ground, asset: assets/tiles/terrain/non-road/cinder-ash-ground-v1.png}
