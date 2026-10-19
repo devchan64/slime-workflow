@@ -6,17 +6,19 @@ const SOURCE_TILE_WIDTH=160;
 const SOURCE_TILE_HEIGHT=80;
 export function installSourceSizePreview(currentTextureRecords,currentSelectedGameKeys,currentMapRecord){
  let currentPreviewVersion=0;
+ const currentSharedProperties=currentMapRecord.spriteProperties??{};
  const findAnchorEntries=currentGameKey=>[...(currentMapRecord.objects??[]).filter(currentObjectRecord=>currentObjectRecord.textureKey===currentGameKey).map(currentObjectRecord=>({id:currentObjectRecord.id,anchorX:currentObjectRecord.anchorX??0.5,anchorY:currentObjectRecord.anchorY??1,groundFootprintColumns:currentObjectRecord.groundFootprintColumns??1,groundFootprintRows:currentObjectRecord.groundFootprintRows??1,displayHeight:currentObjectRecord.displayHeight})),...(currentMapRecord.buildings??[]).filter(currentBuildingRecord=>currentBuildingRecord.sprite?.textureKey===currentGameKey).map(currentBuildingRecord=>({id:currentBuildingRecord.id,anchorX:currentBuildingRecord.sprite.anchorX??0.5,anchorY:currentBuildingRecord.sprite.anchorY??1}))];
- window.mapSourceAnchorRead=currentGameKey=>{const currentAnchorEntries=findAnchorEntries(currentGameKey);return [currentAnchorEntries[0]?.anchorX??0.5,currentAnchorEntries[0]?.anchorY??1,currentAnchorEntries[0]?.groundFootprintColumns??1,currentAnchorEntries[0]?.groundFootprintRows??1,currentAnchorEntries[0]?.displayHeight??128];};
+ window.mapSourceAnchorRead=currentGameKey=>{const currentAssetProperties=currentSharedProperties[currentGameKey]??findAnchorEntries(currentGameKey)[0];if((currentMapRecord.objects??[]).some(currentObjectRecord=>currentObjectRecord.textureKey===currentGameKey)&&!currentSharedProperties[currentGameKey])throw Error('빌보드 공용 속성이 없습니다. 검수 화면을 새로고침하세요.');return [currentAssetProperties?.anchorX??0.5,currentAssetProperties?.anchorY??1,currentAssetProperties?.groundFootprintColumns??1,currentAssetProperties?.groundFootprintRows??1,currentAssetProperties?.displayHeight??128];};
  window.mapSourceEditorRead=currentGameKey=>{
   const currentAnchorEntries=findAnchorEntries(currentGameKey),currentEditableAnchor=currentAnchorEntries.length>0,currentEditableLayout=currentAnchorEntries.some(currentAnchorEntry=>currentAnchorEntry.displayHeight!==undefined);
   return [...window.mapSourceAnchorRead(currentGameKey).map((currentControlValue,currentControlIndex)=>({__type__:'update',value:currentControlValue,interactive:currentControlIndex<2?currentEditableAnchor:currentEditableLayout})),{__type__:'update',interactive:currentEditableAnchor}];
  };
- window.mapSourceAnchorPayload=(currentGameKey,currentAnchorX,currentAnchorY,currentFootprintColumns,currentFootprintRows,currentDisplayHeight)=>({map:currentMapRecord.id,kind:currentMapRecord.safeTown===false?'field':'town',texture:currentGameKey,anchorX:currentAnchorX,anchorY:currentAnchorY,expected:findAnchorEntries(currentGameKey),...((currentMapRecord.objects??[]).some(currentObjectRecord=>currentObjectRecord.textureKey===currentGameKey)?{layout:{groundFootprintColumns:currentFootprintColumns,groundFootprintRows:currentFootprintRows,displayHeight:currentDisplayHeight}}:{})});
+ window.mapSourceAnchorPayload=(currentGameKey,currentAnchorX,currentAnchorY,currentFootprintColumns,currentFootprintRows,currentDisplayHeight)=>({map:currentMapRecord.id,kind:currentMapRecord.safeTown===false?'field':'town',texture:currentGameKey,anchorX:currentAnchorX,anchorY:currentAnchorY,expected:currentSharedProperties[currentGameKey]?{...currentSharedProperties[currentGameKey]}:null,...((currentMapRecord.objects??[]).some(currentObjectRecord=>currentObjectRecord.textureKey===currentGameKey)?{layout:{groundFootprintColumns:currentFootprintColumns,groundFootprintRows:currentFootprintRows,displayHeight:currentDisplayHeight}}:{})});
  window.mapSourceAnchorCommitted=currentSaveResult=>{
   if(!currentSaveResult?.saved)return;
   const currentSavedPayload=currentSaveResult.payload;
   if(currentSavedPayload.map!==currentMapRecord.id)return;
+  currentSharedProperties[currentSavedPayload.texture]={...currentSharedProperties[currentSavedPayload.texture],anchorX:currentSavedPayload.anchorX,anchorY:currentSavedPayload.anchorY,...currentSavedPayload.layout};
   const currentSavedAnchors={anchorX:currentSavedPayload.anchorX,anchorY:currentSavedPayload.anchorY};
   for(const currentObjectRecord of currentMapRecord.objects??[]){
    if(currentObjectRecord.textureKey===currentSavedPayload.texture)Object.assign(currentObjectRecord,currentSavedAnchors,currentSavedPayload.layout??{});
@@ -28,7 +30,7 @@ export function installSourceSizePreview(currentTextureRecords,currentSelectedGa
  let currentUnifiedEntries=[];
  const currentStructureRecords={};
  window.mapSourceUnifiedList=(currentSourceCategory='all',currentSearchText='')=>{
-  const currentCategoryLabels={tiles:'지형 타일',buildings:'건물',vegetation:'식생',props:'기물',structures:'결계·경비 구조물'};
+  const currentCategoryLabels={tiles:'지형 타일',buildings:'건물',vegetation:'자연물',props:'소품',structures:'결계·경비 구조물'};
   const currentSourceEntries=Object.entries(currentSelectedGameKeys).map(([currentGameKey,currentCatalogKey])=>{
    const currentAssetRecord=currentTextureRecords[currentCatalogKey],currentSourcePath=currentAssetRecord.source;
    const currentAssetCategory=(currentMapRecord.buildings??[]).some(currentBuildingRecord=>currentBuildingRecord.sprite?.textureKey===currentGameKey)?'buildings':(currentMapRecord.objects??[]).some(currentObjectRecord=>currentObjectRecord.textureKey===currentGameKey)||currentSourcePath.includes('/billboards/')?currentAssetRecord.billboard_category:currentSourcePath.includes('/tiles/')?'tiles':'structures';

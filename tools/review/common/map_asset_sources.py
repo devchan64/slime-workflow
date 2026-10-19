@@ -136,6 +136,10 @@ def load_registered_map_review(map_identifier_value):
                 current_map_record['blocked'].append(dict(column=current_column_index,row=current_row_index))
     if len(current_map_record['terrainRows'])!=current_map_record['rows']: raise ValueError('맵 원본 행 수 오류')
     current_map_record['terrainCodes'] = {current_code_value:current_terrain_name for current_code_value,current_terrain_name in current_map_record['terrainCodes'].items() if any(current_code_value in current_row_value for current_row_value in current_map_record['terrainRows'])}
+    current_used_textures = {current_object_record['textureKey'] for current_object_record in current_map_record.get('objects', []) if 'textureKey' in current_object_record}
+    current_used_textures.update(current_building_record['sprite']['textureKey'] for current_building_record in current_map_record.get('buildings', []) if current_building_record.get('sprite'))
+    current_shared_catalog = read_map_source_data('sprite-display-properties.yaml')
+    current_map_record['spriteProperties'] = {current_texture_key: current_shared_catalog[current_texture_key] for current_texture_key in current_used_textures if current_texture_key in current_shared_catalog}
     return current_map_record
 
 # 기존 메뉴·검수 빌드 호출부의 import 계약도 등록 인덱스를 따른다.

@@ -33,7 +33,7 @@ def save_map_sprite_anchor(current_request_payload):
     current_map_relative='assets/maps/'+('city_layouts' if current_map_kind=='town' else 'field_tiles')+'/'+current_map_identifier+'.yaml'
     current_map_path,current_map_provenance=resolve_registered_asset(current_map_relative,current_asset_root,current_asset_records,'assets/maps')
     current_map_document=yaml.load(current_map_path.read_text(), Loader=UniqueAssetYamlLoader)
-    from tools.review.common.sprite_display_properties import apply_sprite_display_properties, validate_sprite_display_properties
+    from tools.review.common.sprite_display_properties import validate_sprite_display_properties
     current_properties_relative = 'assets/maps/sprite-display-properties.yaml'
     current_properties_path, current_properties_provenance = resolve_registered_asset(current_properties_relative,current_asset_root,current_asset_records,'assets/maps')
     current_properties_document = yaml.load(current_properties_path.read_text(), Loader=UniqueAssetYamlLoader)
@@ -41,19 +41,16 @@ def save_map_sprite_anchor(current_request_payload):
         raise ValueError('공통 속성 원본 관리 ID·필드 오류')
     current_property_catalog = validate_sprite_display_properties(current_properties_document['data'])
     current_map_data=current_map_document['data']
-    apply_sprite_display_properties(current_map_data, current_property_catalog)
     current_target_entries=[]
     for current_object_record in current_map_data.get('objects',[]):
         if current_object_record.get('textureKey')==current_request_payload['texture']:current_target_entries.append((current_object_record['id'],current_object_record))
     for current_building_record in current_map_data.get('buildings',[]):
         if current_building_record.get('sprite',{}).get('textureKey')==current_request_payload['texture']:current_target_entries.append((current_building_record['id'],current_building_record['sprite']))
-    if current_layout_values is not None and any('displayHeight' not in current_entry_record for _,current_entry_record in current_target_entries):raise ValueError('바닥 크기·높이 편집은 빌보드 배치만 지원합니다.')
-    current_expected_entries=[{'id':current_entry_id,'anchorX':current_entry_record.get('anchorX',0.5),'anchorY':current_entry_record.get('anchorY',1)} for current_entry_id,current_entry_record in current_target_entries]
-    if current_layout_values is not None:
-        for current_expected_record,(_,current_entry_record) in zip(current_expected_entries,current_target_entries):
-            current_expected_record.update({current_layout_name:current_entry_record.get(current_layout_name,1) for current_layout_name in ('groundFootprintColumns','groundFootprintRows','displayHeight')})
-    if not current_target_entries or current_expected_entries!=current_request_payload['expected']:
-        raise ValueError('맵 앵커가 변경되었거나 편집 가능한 배치가 없습니다. 새로고침하세요.')
+    current_is_billboard = any(current_object_record.get('textureKey') == current_texture_key for current_object_record in current_map_data.get('objects', []))
+    if current_layout_values is not None and not current_is_billboard:
+        raise ValueError('바닥 크기·높이 편집은 빌보드 에셋만 지원합니다.')
+    if not current_target_entries or current_request_payload['expected'] != current_property_catalog.get(current_texture_key):
+        raise ValueError('에셋 공용 속성이 변경되었거나 선택 맵에서 사용하지 않습니다. 새로고침하세요.')
     current_shared_properties = {current_anchor_name:current_request_payload[current_anchor_name] for current_anchor_name in ('anchorX','anchorY')}
     current_shared_properties.update(current_layout_values or current_property_catalog.get(current_request_payload['texture'], {}))
     # 기존 레이아웃을 유지할 때도 이번 앵커 입력을 우선한다.

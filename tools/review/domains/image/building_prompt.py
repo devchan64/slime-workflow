@@ -23,7 +23,7 @@ def load_prop_base_prompt():
     current_prompt_path = BUILDING_PROMPT_SOURCE_PATH.with_name('prop-qwen-prompt.txt')
     current_prompt_text = current_prompt_path.read_text(encoding='utf-8').strip()
     if not 0 < len(current_prompt_text.split()) < 100:
-        raise ValueError('기물 기본 프롬프트는 1~99단어여야 합니다.')
+        raise ValueError('소품 기본 프롬프트는 1~99단어여야 합니다.')
     return current_prompt_text
 
 
@@ -31,7 +31,7 @@ def load_vegetation_base_prompt():
     current_prompt_path = BUILDING_PROMPT_SOURCE_PATH.with_name('vegetation-qwen-prompt.txt')
     current_prompt_text = current_prompt_path.read_text(encoding='utf-8').strip()
     if not 0 < len(current_prompt_text.split()) < 100:
-        raise ValueError('식생 기본 프롬프트는 1~99단어여야 합니다.')
+        raise ValueError('자연물 기본 프롬프트는 1~99단어여야 합니다.')
     return current_prompt_text
 
 

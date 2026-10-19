@@ -27,9 +27,21 @@ def validate_sprite_display_properties(current_property_catalog):
 
 
 def apply_sprite_display_properties(current_map_data, current_property_catalog):
-    """공통 속성은 배치별 과거 값보다 우선하며 위치·점유 좌표는 보존한다."""
+    """맵 원본의 표시 속성 재정의를 거절하고 에셋 공용값만 해석한다."""
     for current_object_record in current_map_data.get('objects', []):
-        current_object_record.update(current_property_catalog.get(current_object_record.get('textureKey'), {}))
+        current_texture_key = current_object_record.get('textureKey')
+        if current_texture_key is None:
+            continue
+        current_shared_properties = current_property_catalog.get(current_texture_key)
+        if current_shared_properties is None or set(current_shared_properties) != SPRITE_ANCHOR_FIELD_NAMES | SPRITE_LAYOUT_FIELD_NAMES:
+            raise ValueError(f'빌보드 공용 속성 누락: {current_texture_key}')
+        current_override_fields = set(current_object_record) & (SPRITE_ANCHOR_FIELD_NAMES | SPRITE_LAYOUT_FIELD_NAMES)
+        if current_override_fields:
+            raise ValueError(f'맵별 빌보드 공용 속성 재정의 금지: {current_texture_key}: {sorted(current_override_fields)}')
+        current_object_record.update(current_shared_properties)
+    for current_ground_record in current_map_data.get('groundOverrides', []):
+        if set(current_ground_record) - {'position', 'textureKey'}:
+            raise ValueError('타일 배치는 위치·원본 선택만 지정할 수 있습니다. 표시 속성은 공용 렌더러를 사용합니다.')
     for current_building_record in current_map_data.get('buildings', []):
         current_sprite_record = current_building_record.get('sprite', {})
         current_shared_properties = current_property_catalog.get(current_sprite_record.get('textureKey'), {})

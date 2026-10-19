@@ -117,7 +117,7 @@ def build_map_review_interface(review_server_port, character_review_enabled=Fals
                 if not character_review_enabled:
                     current_ready_controls.append(build_browser_action_button('전체 맵 PNG 내보내기','mapReviewExportImage','export',current_camera_feedback,current_button_enabled=False))
             if not character_review_enabled:
-                gr.Markdown('전체 맵과 건물·식생을 투명 배경 PNG로 저장합니다. 현재 표시 옵션을 적용하며 긴 변은 최대 4096px입니다. 저장 후 기존 시점으로 돌아옵니다.')
+                gr.Markdown('전체 맵과 건물·자연물을 투명 배경 PNG로 저장합니다. 현재 표시 옵션을 적용하며 긴 변은 최대 4096px입니다. 저장 후 기존 시점으로 돌아옵니다.')
             current_building_choice=gr.Dropdown(label='건물 선택',choices=[],interactive=False)
             current_building_choice.input(fn=None,inputs=current_building_choice,outputs=current_camera_feedback,queue=False,js="(currentBuildingIdentifier)=>{try{if(!window.mapReviewFocusBuilding)throw Error('맵을 준비 중입니다.');window.mapReviewFocusBuilding(currentBuildingIdentifier);return '선택한 건물로 이동했습니다.';}catch(currentFocusError){return currentFocusError.message;}}")
             with gr.Row():
@@ -177,7 +177,7 @@ def build_map_review_interface(review_server_port, character_review_enabled=Fals
                 gr.Markdown('휠 또는 확대·축소 버튼으로 배율을 조절하고 드래그 또는 방향키로 이동합니다. 0 키는 전체 보기입니다. 맵은 고정 시점이며 회전하지 않습니다. 이동 가능한 바닥을 클릭하면 기본 캐릭터를 배치합니다. 캐릭터를 가리는 앞쪽 빌보드·지형은 원래 불투명도의 40%로 표시되며, 가림이 없어지면 복원됩니다. 맵에 포커스를 둔 뒤 Shift+좌우로 캐릭터 열, Shift+상하로 행을 이동합니다. 메시 경계는 지면·절벽 면의 꼭짓점을 표시합니다. 미등록 지형은 임시 색상으로 표시됩니다.')
             with gr.Accordion('에셋 검수 · 편집',open=True):
                 gr.Markdown('분류·이름으로 목록을 좁힌 뒤 썸네일을 선택하세요. 원본 해상도 저장과 에셋 공통 속성 저장은 각각 적용됩니다.')
-                current_source_category=gr.Radio(label='에셋 분류',choices=[('전체','all'),('지형 타일','tiles'),('건물','buildings'),('식생','vegetation'),('기물','props'),('결계·경비 구조물','structures')],value='all')
+                current_source_category=gr.Radio(label='에셋 분류',choices=[('전체','all'),('지형 타일','tiles'),('건물','buildings'),('자연물','vegetation'),('소품','props'),('결계·경비 구조물','structures')],value='all')
                 with gr.Row():
                     current_source_search=gr.Textbox(label='원본 이름 검색',placeholder='이름 일부로 검색',scale=3)
                     current_source_refresh=gr.Button('목록 새로고침',scale=1)

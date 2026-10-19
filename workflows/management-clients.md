@@ -648,9 +648,9 @@ python3 tools/manager.py command writer-agent writer-detail --payload-file /abso
 
 GUI와 CLI는 `tools/manager.py command map-assets resize --payload-file <파일>` 명령을 공유한다. 입력 JSON은 `path`(등록 원본 경로), `sha256`(검수한 원본 해시), `size`(선택한 긴 변)로 구성한다. 서비스는 최신 해시 확인 후 원본·등록부 해상도/해시·프론트엔드 잠금을 갱신한다. 축소 전 원본과 요청/결과는 `.tmp/map-asset-resize/<ID>/`에 보관한다. 저장 후 검수 화면을 새로고침한다.
 
-`map-assets map-anchor-save --payload-file <파일>`은 동일 에셋의 공통 앵커를 저장한다. 선택 맵은 편집 대상과 기존 값 검증에만 사용한다. 입력은 `map`, `kind`(town/field), `texture`, `anchorX`, `anchorY`, `expected`(배치 ID와 기존 앵커 목록)이다. 기존 값이 달라지면 저장을 거절한다. `slime-assets/assets/maps/sprite-display-properties.yaml`·등록부·백엔드 잠금을 함께 갱신한다. 게임과 검수 로더는 모든 맵에서 공통 속성을 기존 배치 값보다 우선 적용한다. 위치 좌표는 보존한다.
+`map-assets map-anchor-save --payload-file <파일>`은 동일 에셋의 공통 앵커를 저장한다. 선택 맵은 편집 대상과 기존 값 검증에만 사용한다. 입력은 `map`, `kind`(town/field), `texture`, `anchorX`, `anchorY`, `expected`(에셋 공용 속성 전체 객체, 최초 등록은 null)이다. 기존 값이 달라지면 저장을 거절한다. `slime-assets/assets/maps/sprite-display-properties.yaml`·등록부·백엔드 잠금을 함께 갱신한다. 게임과 검수 로더는 에셋 공용값만 사용한다. 빌보드 공용값이 없거나 맵 원본에 `anchorX`·`anchorY`·`groundFootprintColumns`·`groundFootprintRows`·`displayHeight`가 있으면 명시적으로 실패한다. 신규 빌보드는 배치 전에 공용값을 등록해야 한다. 맵에는 위치·원본 선택과 애니메이션 계약만 보존하며, 타일 배치의 `groundOverrides`는 `position`·`textureKey`만 허용한다. 타일 크기·투영은 공용 렌더러 상수를 사용한다.
 
-빌보드 배치 설정은 `groundFootprintColumns`·`groundFootprintRows`(각 1~8칸)와 `displayHeight`(0 초과 1024px 이하)를 지원한다. 바닥 크기는 접지 영역 검수 기준이며 통행 차단을 추가하는 설정이 아니다. `map-anchor-save`의 선택적 `layout`에 세 값을 함께 전달하고 `expected`에도 기존 값을 포함한다. 건물은 기존 점유 크기 계약을 사용하므로 이 설정으로 변경하지 않는다. 원본 해상도 저장과 에셋 공통 속성 저장은 별도 동작이다. 공통 속성은 이후 추가되는 같은 에셋 배치에도 적용된다.
+빌보드 배치 설정은 `groundFootprintColumns`·`groundFootprintRows`(각 1~8칸)와 `displayHeight`(0 초과 1024px 이하)를 지원한다. 바닥 크기는 접지 영역 검수 기준이며 통행 차단을 추가하는 설정이 아니다. `map-anchor-save`의 선택적 `layout`에 세 값을 함께 전달하고 `expected`에는 공용 원본의 현재 전체 값을 전달한다. 배치별 기대값 목록은 받지 않는다. 건물은 기존 점유 크기 계약을 사용하므로 이 설정으로 변경하지 않는다. 원본 해상도 저장과 에셋 공통 속성 저장은 별도 동작이다. 공통 속성은 이후 추가되는 같은 에셋 배치에도 적용된다.
 
 ### VACE F2V 첫 프레임 페이지
 
@@ -670,17 +670,17 @@ GUI는 독립 `wan21-vace-f2v` 게이트웨이에 `frame_entries: [{frame: 0, ed
 
 CLI에서는 같은 `qwen-21 generate`에 `--prompt-file generators/image/config/building-qwen-prompt.txt --reference /path/layout.png`를 전달한다. 첫 참조가 레이아웃이 되도록 순서를 유지한다. 결과는 자동 등록하지 않으며 실제 맵에서 검수 후 승인된 건물만 `slime-assets/assets/buildings/`로 전달한다. 기본 출력은 512px이며 AWS 배포나 운영 비용 구조에는 변경이 없다.
 
-### 기물 생성 페이지
+### 소품 생성 페이지
 
-`/management/frame/prop-generator/`는 상자·가판대·작업대·표지판 등 기물용 Qwen 2.1 GUI다. 추적 기본 문구 `generators/image/config/prop-qwen-prompt.txt`는 직교투영·일정한 축척·접지점·투명 배경을 지시하며 복원 버튼을 제공한다. 대상·용도·자재를 추가하고 옵션 포함 최종 99단어 이내로 유지한다. 레이아웃·외형 참조는 최대 10장 선택 입력이며 텍스트만으로도 생성할 수 있다. 기본 출력은 512×512다.
+`/management/frame/prop-generator/`는 상자·가판대·작업대·표지판 등 소품용 Qwen 2.1 GUI다. 추적 기본 문구 `generators/image/config/prop-qwen-prompt.txt`는 직교투영·일정한 축척·접지점·투명 배경을 지시하며 복원 버튼을 제공한다. 대상·용도·자재를 추가하고 옵션 포함 최종 99단어 이내로 유지한다. 레이아웃·외형 참조는 최대 10장 선택 입력이며 텍스트만으로도 생성할 수 있다. 기본 출력은 512×512다.
 
-건물 페이지와 동일한 `qwen-21` 게이트웨이·대기열·상태·로그·이력을 공유한다. 공유 이력의 초기화 범위에 주의하고 기물 이름을 태그로 구분한다. CLI도 `qwen-21 generate --prompt-file generators/image/config/prop-qwen-prompt.txt`와 선택 `--reference`로 같은 서비스를 사용한다. 결과는 자동 등록하지 않으며 검수 후 `slime-assets/assets/billboards/`에 기물로 등록한다. 새 모델·작업 실행기·AWS 인프라는 추가하지 않는다.
+`prop-generator` 전용 서비스의 대기열·상태·로그·이력을 사용한다. CLI도 `prop-generator generate --prompt-file generators/image/config/prop-qwen-prompt.txt`와 선택 `--reference`로 같은 서비스를 사용한다. 결과는 자동 등록하지 않으며 검수 후 `slime-assets/assets/billboards/`에 소품로 등록한다. 새 모델·작업 실행기·AWS 인프라는 추가하지 않는다.
 
-### 식생 생성 페이지
+### 자연물 생성 페이지
 
-`/management/frame/vegetation-generator/`는 나무·관목·풀·꽃·갈대 등 식생 빌보드용 Qwen 2.1 GUI다. 기본 문구는 추적 파일 `generators/image/config/vegetation-qwen-prompt.txt`에서 관리한다. 직교투영·접지점·완전한 수관·투명 배경을 지시하며 식물 종류·계절·색상·군락 밀도를 추가한다. 옵션 포함 최종 99단어 이내이며 기본 문구 복원을 제공한다. 레이아웃·식물 참조는 선택 사항으로 최대 10장, 기본 출력은 512×512다.
+`/management/frame/vegetation-generator/`는 나무·관목·풀·꽃·갈대 등 자연물 빌보드용 Qwen 2.1 GUI다. 기본 문구는 추적 파일 `generators/image/config/vegetation-qwen-prompt.txt`에서 관리한다. 직교투영·접지점·완전한 수관·투명 배경을 지시하며 식물 종류·계절·색상·군락 밀도를 추가한다. 옵션 포함 최종 99단어 이내이며 기본 문구 복원을 제공한다. 레이아웃·식물 참조는 선택 사항으로 최대 10장, 기본 출력은 512×512다.
 
-기존 `qwen-21` 게이트웨이·대기열·ETA·VRAM·로그·이력·초기화 범위를 공유한다. CLI는 `qwen-21 generate --prompt-file generators/image/config/vegetation-qwen-prompt.txt`와 선택 `--reference`를 사용한다. 결과는 자동 등록하지 않으며 검수 후 `slime-assets/assets/billboards/`에 식생으로 등록한다. 모델·실행기·AWS 인프라는 추가하지 않는다.
+`vegetation-generator` 전용 서비스의 대기열·ETA·VRAM·로그·이력·초기화 범위를 사용한다. CLI는 `vegetation-generator generate --prompt-file generators/image/config/vegetation-qwen-prompt.txt`와 선택 `--reference`를 사용한다. 결과는 자동 등록하지 않으며 검수 후 `slime-assets/assets/billboards/`에 자연물으로 등록한다. 모델·실행기·AWS 인프라는 추가하지 않는다.
 
 ### 건물 구도 참조 프리셋
 
@@ -695,5 +695,5 @@ CLI에서는 같은 `qwen-21 generate`에 `--prompt-file generators/image/config
 ### 건물 생성 대기열 분리
 건물 생성 GUI·CLI는 `building-generator` 서비스를 사용한다. 작업은 `.tmp/test/building-generator`, 이력은 공용 이력 루트의 `building-generator`에 보존한다. `python tools/manager.py help building-generator`로 명령을 확인한다. generate/status/history/active/logs/cancel/resume/prioritize/history-delete/history-reset은 이 서비스 범위에서 처리한다. GPU 메모리·동시 실행 잠금은 공용 실행기를 유지한다. 기존 공유 Qwen 작업은 자동 이동하지 않으며 일반 Qwen 화면에서 계속 조회한다. 새 건물 작업부터 독립 저장·관리한다.
 
-### 기물·식생 대기열 분리
-새 기물 작업은 `prop-generator`, 식생 작업은 `vegetation-generator` 서비스로 등록한다. 작업 저장 경로는 각각 `.tmp/test/prop-generator`, `.tmp/test/vegetation-generator`이며 공용 이력 루트에서도 동일 서비스명으로 분리한다. GUI와 `python tools/manager.py command prop-generator history`, `python tools/manager.py command vegetation-generator history`가 같은 저장소를 조회한다. generate/status/logs/history/active/cancel/resume/prioritize/history-delete/history-reset은 해당 서비스 범위로 처리한다. 기존 Qwen 공유 작업은 이동·삭제하지 않으며 일반 Qwen에서 조회한다. GPU 실행 순서·메모리 보호는 기존 공용 실행기로 유지한다.
+### 소품·자연물 대기열 분리
+새 소품 작업은 `prop-generator`, 자연물 작업은 `vegetation-generator` 서비스로 등록한다. 작업 저장 경로는 각각 `.tmp/test/prop-generator`, `.tmp/test/vegetation-generator`이며 공용 이력 루트에서도 동일 서비스명으로 분리한다. GUI와 `python tools/manager.py command prop-generator history`, `python tools/manager.py command vegetation-generator history`가 같은 저장소를 조회한다. generate/status/logs/history/active/cancel/resume/prioritize/history-delete/history-reset은 해당 서비스 범위로 처리한다. 기존 Qwen 공유 작업은 이동·삭제하지 않으며 일반 Qwen에서 조회한다. GPU 실행 순서·메모리 보호는 기존 공용 실행기로 유지한다.

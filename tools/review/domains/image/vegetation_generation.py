@@ -1,4 +1,4 @@
-"""식생 전용 Qwen 작업·이력. GPU 실행기는 공용으로 유지한다."""
+"""자연물 전용 Qwen 작업·이력. GPU 실행기는 공용으로 유지한다."""
 from tools.review.domains.image.qwen_21_generation import QwenPlainGenerationManager, WORKFLOW_ROOT_PATH
 from tools.review.domains.image.image_generation import MANAGER_HISTORY_ROOT
 
