@@ -1,7 +1,5 @@
 style_source: prompts/art-style.yaml#slime_painterly_diorama_v1
 common_style: >-
-  Simplified fantasy game illustration, readable at 64–128 pixels. Clear silhouettes,
-  few large rounded shapes, broad color areas, large crisp defining details,
-  three shading levels, simple material cues, muted natural colors, soft upper-left lighting.
+  Game illustration style with clear silhouettes, soft shading, and well-defined material details.
 transparent_background: >-
   Output RGBA with a transparent background. Isolated subject, clean alpha edges.
