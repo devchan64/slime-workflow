@@ -20,7 +20,7 @@ EDITOR_TABLE_HEADERS = ['에셋 ID','이름','앵커 X','앵커 Y','점유 열',
 
 def load_asset_editor_catalog():
     current_catalog_record = execute_remote_management_command('map-assets','asset-list',{})
-    current_table_values = [[current_asset_record['texture'],current_asset_record['name'],*[(('top' if current_asset_record['properties']['anchorY']<.5 else 'bottom') if current_field_name=='billboardPlacementAnchor' and current_asset_record['properties'].get('billboardAnchorMode')=='tile-bottom-center' else current_asset_record['properties'].get(current_field_name,0 if current_field_name.startswith('shadowOffset') else 1)) for current_field_name in EDITOR_PROPERTY_FIELDS],current_asset_record['properties']['billboardBlocksMovement'],len(current_asset_record['maps'])] for current_asset_record in current_catalog_record['assets']]
+    current_table_values = [[current_asset_record['texture'],current_asset_record['name'],*[(('top' if current_asset_record['properties']['anchorY']<.5 else 'bottom') if current_field_name=='billboardPlacementAnchor' and current_asset_record['properties'].get('billboardAnchorMode')=='tile-bottom-center' else current_asset_record['properties'].get(current_field_name,0 if current_field_name.startswith('shadowOffset') else .5 if current_field_name=='shadowScaleY' else 1)) for current_field_name in EDITOR_PROPERTY_FIELDS],current_asset_record['properties']['billboardBlocksMovement'],len(current_asset_record['maps'])] for current_asset_record in current_catalog_record['assets']]
     return current_catalog_record,current_table_values,f"{len(current_table_values)}종을 불러왔습니다. 표의 수정값은 검증 후 저장해야 반영됩니다."
 
 
@@ -81,7 +81,7 @@ def build_asset_editor_payload(current_catalog_record,current_table_values):
             current_property_values['billboardAnchorMode']='tile-bottom-center'
         current_property_values['billboardBlocksMovement']=calculate_billboard_blocking_state(current_property_values)
         validate_sprite_display_properties({current_texture_key:current_property_values})
-        current_changed_values={current_field_name:current_property_values[current_field_name] for current_field_name in EDITOR_PROPERTY_FIELDS if current_field_name in current_property_values and current_property_values[current_field_name]!=current_baseline_records[current_texture_key].get(current_field_name,0 if current_field_name.startswith('shadowOffset') else 1)}
+        current_changed_values={current_field_name:current_property_values[current_field_name] for current_field_name in EDITOR_PROPERTY_FIELDS if current_field_name in current_property_values and current_property_values[current_field_name]!=current_baseline_records[current_texture_key].get(current_field_name,0 if current_field_name.startswith('shadowOffset') else .5 if current_field_name=='shadowScaleY' else 1)}
         if current_changed_values:current_change_records.append({'texture':current_texture_key,'values':current_changed_values})
     return {'revision':current_catalog_record['revision'],'changes':current_change_records}
 
@@ -131,7 +131,7 @@ def build_asset_editor_interface(current_review_port):
                 with gr.Group():
                     gr.Markdown('### 그림자 위치와 크기')
                     current_shadow_inputs=build_asset_shadow_inputs()
-                    gr.Markdown('이동 0·0은 전체 점유 영역의 중앙입니다. 배율 1은 기본 크기입니다.')
+                    gr.Markdown('이동 0·0은 전체 점유 영역의 중앙입니다. 가로 1·세로 0.5가 기본 크기입니다.')
                 current_update_button=gr.Button('선택 에셋 변경 반영')
                 gr.Markdown('반영 후 아래 **변경 검증**을 눌러 저장하세요.')
             with gr.Column():

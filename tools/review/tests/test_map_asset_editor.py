@@ -71,7 +71,7 @@ class MapAssetEditorTests(unittest.TestCase):
 
     def test_ui_payload_rejects_fractional_occupancy(self):
         current_catalog_record={'revision':'r','assets':[{'texture':'sample','properties':self.current_property_values}]}
-        current_table_values=[['sample','샘플',.5,1,1.5,1,100,'bottom',0,0,1,1,False,0]]
+        current_table_values=[['sample','샘플',.5,1,1.5,1,100,'bottom',0,0,1,.5,False,0]]
         with self.assertRaises(ValueError):build_asset_editor_payload(current_catalog_record,current_table_values)
         current_table_values[0][4]=1
         self.assertEqual(build_asset_editor_payload(current_catalog_record,current_table_values)['changes'],[{'texture':'sample','values':{'displayHeight':100}}])
@@ -80,7 +80,7 @@ class MapAssetEditorTests(unittest.TestCase):
         from tools.review.ui.gradio import asset_editor_app
         import copy
         current_catalog_record={'revision':'first','assets':[{'texture':'sample','name':'샘플','maps':[],'properties':self.current_property_values}]}
-        current_table_values=[['sample','샘플',.5,1,1,1,100,'bottom',0,0,1,1,False,0]]
+        current_table_values=[['sample','샘플',.5,1,1,1,100,'bottom',0,0,1,.5,False,0]]
         for current_next_height,current_revision_value in ((100,'second'),(120,'third')):
             current_table_values[0][6]=current_next_height
             current_request_payload=build_asset_editor_payload(current_catalog_record,current_table_values)

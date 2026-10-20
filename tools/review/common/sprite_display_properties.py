@@ -5,7 +5,7 @@ import re
 SPRITE_ANCHOR_FIELD_NAMES = {'anchorX', 'anchorY'}
 SPRITE_LAYOUT_FIELD_NAMES = {'groundFootprintColumns', 'groundFootprintRows', 'displayHeight'}
 BILLBOARD_PLACEMENT_FIELD_NAMES = {'billboardPlacementAnchor', 'billboardBlocksMovement'}
-BILLBOARD_SHADOW_DEFAULTS = {'shadowOffsetColumn':0, 'shadowOffsetRow':0, 'shadowScaleX':1, 'shadowScaleY':1}
+BILLBOARD_SHADOW_DEFAULTS = {'shadowOffsetColumn':0, 'shadowOffsetRow':0, 'shadowScaleX':1, 'shadowScaleY':0.5}
 BILLBOARD_SHADOW_FIELD_NAMES = set(BILLBOARD_SHADOW_DEFAULTS)
 BILLBOARD_BLOCKING_HEIGHT_LIMIT = 80
 
@@ -47,7 +47,7 @@ def validate_sprite_display_properties(current_property_catalog):
                 raise ValueError('바닥 크기 범위 오류')
             if current_property_name.startswith('shadowOffset') and not -4 <= current_property_value <= 4:
                 raise ValueError('그림자 이동은 -4~4타일이어야 합니다.')
-            if current_property_name.startswith('shadowScale') and not 0.1 <= current_property_value <= 4:
+            if current_property_name.startswith('shadowScale') and not (0.05 if current_property_name == 'shadowScaleY' else 0.1) <= current_property_value <= 4:
                 raise ValueError('그림자 배율은 0.1~4여야 합니다.')
             if current_property_name == 'displayHeight' and not 0 < current_property_value <= 1024:
                 raise ValueError('표시 높이 범위 오류')
