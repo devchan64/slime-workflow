@@ -36,15 +36,16 @@ class MapAssetSourceTests(unittest.TestCase):
     def test_orchard_billboards_preserve_ground_codes_and_layer_contract(self):
         current_response_bytes, _ = read_map_asset_response('/management/map-assets/maps/old-orchard')
         current_map_record = json.loads(current_response_bytes)
-        current_bush_records = [current_object_record for current_object_record in current_map_record['objects'] if current_object_record['kind'] == 'billboard']
-        self.assertEqual(len(current_bush_records), 3)
-        self.assertEqual(len(current_map_record['groundOverrides']), 3)
-        for current_bush_record in current_bush_records:
-            current_cell_position = current_bush_record['position']
-            self.assertEqual(current_map_record['terrainRows'][current_cell_position['row']][current_cell_position['column']], 'g')
-            self.assertEqual(current_bush_record['frameSize'], 128)
-            self.assertEqual(current_bush_record['tileAnchor'], 'center')
-            self.assertEqual(current_bush_record['anchorY'], 0.9)
+        current_source_path = WORKFLOW_REPOSITORY_ROOT.parent/'slime-assets/assets/maps/field_tiles/old-orchard.yaml'
+        current_source_record = yaml.safe_load(current_source_path.read_text())['data']
+        self.assertEqual(current_map_record['terrainRows'], current_source_record['rows'])
+        self.assertEqual(current_map_record['groundOverrides'], current_source_record['groundOverrides'])
+        current_objects_by_identifier = {current_object_record['id']: current_object_record for current_object_record in current_map_record['objects']}
+        self.assertEqual(set(current_objects_by_identifier), {current_object_record['id'] for current_object_record in current_source_record['objects']})
+        for current_source_object in current_source_record['objects']:
+            current_response_object = current_objects_by_identifier[current_source_object['id']]
+            for current_property_name, current_property_value in current_source_object.items():
+                self.assertEqual(current_response_object[current_property_name], current_property_value)
         self.assertEqual(current_map_record['terrainMovementVersion'], 2)
 
     def test_guard_center_images_match_registered_regions(self):
@@ -88,7 +89,9 @@ class MapAssetSourceTests(unittest.TestCase):
             self.assertEqual(hashlib.sha256(current_image_bytes).hexdigest(),current_texture_record['sha256'])
         current_map_bytes,_ = read_map_asset_response('/management/map-assets/maps/dry-creek')
         current_map_record = json.loads(current_map_bytes)
-        self.assertEqual(sum(row.count('k') for row in current_map_record['terrainRows']),10)
+        current_source_path = WORKFLOW_REPOSITORY_ROOT.parent/'slime-assets/assets/maps/field_tiles/dry-creek.yaml'
+        current_source_rows = yaml.safe_load(current_source_path.read_text())['data']['rows']
+        self.assertEqual(current_map_record['terrainRows'], current_source_rows)
         self.assertTrue(all(record['source'].startswith('assets/maps/') for record in current_map_record['provenance']))
 
     def test_texture_metadata_is_loaded_on_every_request(self):
@@ -136,8 +139,14 @@ class MapAssetSourceTests(unittest.TestCase):
                 self.assertEqual(current_source_record['sha256'],current_locked_hashes[current_source_path])
                 self.assertEqual(current_source_record['sha256'],hashlib.sha256((current_asset_root/current_source_path).read_bytes()).hexdigest())
             if current_map_identifier in current_city_identifiers:
-                self.assertEqual(len(current_map_record['buildings']),5)
-                self.assertEqual(current_map_record['buildingTileOverrides']['roof'],'wood_roof')
+                current_city_source = yaml.safe_load((current_asset_root/'assets/maps/city_layouts'/f'{current_map_identifier}.yaml').read_text())['data']
+                current_source_buildings = {current_building_record['id']: current_building_record for current_building_record in current_city_source['buildings']}
+                self.assertEqual({current_building_record['id'] for current_building_record in current_map_record['buildings']}, set(current_source_buildings))
+                for current_building_record in current_map_record['buildings']:
+                    current_source_building = current_source_buildings[current_building_record['id']]
+                    for current_property_name in ('origin', 'entrance', 'width', 'height', 'floors'):
+                        self.assertEqual(current_building_record[current_property_name], current_source_building[current_property_name])
+                    self.assertEqual(current_building_record['sprite']['textureKey'], current_source_building['sprite']['textureKey'])
 
 
 class WorldMapAssetContractTests(unittest.TestCase):
