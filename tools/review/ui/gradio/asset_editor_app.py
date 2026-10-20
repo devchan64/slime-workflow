@@ -20,7 +20,7 @@ EDITOR_TABLE_HEADERS = ['에셋 ID','이름','앵커 X','앵커 Y','점유 열',
 
 def load_asset_editor_catalog():
     current_catalog_record = execute_remote_management_command('map-assets','asset-list',{})
-    current_table_values = [[current_asset_record['texture'],current_asset_record['name'],*[(('top' if current_asset_record['properties']['anchorY']<.5 else 'bottom') if current_field_name=='billboardPlacementAnchor' and current_asset_record['properties'].get('billboardAnchorMode')=='tile-bottom-center' else current_asset_record['properties'].get(current_field_name,0 if current_field_name.startswith('shadowOffset') else 1)) for current_field_name in EDITOR_PROPERTY_FIELDS],current_asset_record['properties'].get('billboardBlocksMovement',False),len(current_asset_record['maps'])] for current_asset_record in current_catalog_record['assets']]
+    current_table_values = [[current_asset_record['texture'],current_asset_record['name'],*[(('top' if current_asset_record['properties']['anchorY']<.5 else 'bottom') if current_field_name=='billboardPlacementAnchor' and current_asset_record['properties'].get('billboardAnchorMode')in ('tile-bottom-center','tile-intersection') else current_asset_record['properties'].get(current_field_name,0 if current_field_name.startswith('shadowOffset') else 1)) for current_field_name in EDITOR_PROPERTY_FIELDS],current_asset_record['properties'].get('billboardBlocksMovement',False),len(current_asset_record['maps'])] for current_asset_record in current_catalog_record['assets']]
     return current_catalog_record,current_table_values,f"{len(current_table_values)}종을 불러왔습니다. 표의 수정값은 검증 후 저장해야 반영됩니다."
 
 
@@ -76,9 +76,9 @@ def build_asset_editor_payload(current_catalog_record,current_table_values):
             current_number_value=current_property_values[current_field_name]
             if isinstance(current_number_value,bool) or not isinstance(current_number_value,(int,float)) or current_number_value!=int(current_number_value):raise ValueError('점유 타일 크기는 정수여야 합니다.')
             current_property_values[current_field_name]=int(current_number_value)
-        if current_baseline_records[current_texture_key].get('billboardAnchorMode')=='tile-bottom-center':
+        if current_baseline_records[current_texture_key].get('billboardAnchorMode')in ('tile-bottom-center','tile-intersection'):
             current_property_values.pop('billboardPlacementAnchor')
-            current_property_values['billboardAnchorMode']='tile-bottom-center'
+            current_property_values['billboardAnchorMode']=current_baseline_records[current_texture_key]['billboardAnchorMode']
         current_property_values=calculate_billboard_intersection_properties(current_property_values)
         validate_sprite_display_properties({current_texture_key:current_property_values})
         current_changed_values={current_field_name:current_property_values[current_field_name] for current_field_name in EDITOR_PROPERTY_FIELDS if current_field_name in current_property_values and current_property_values[current_field_name]!=current_baseline_records[current_texture_key].get(current_field_name,0 if current_field_name.startswith('shadowOffset') else 1)}
@@ -124,12 +124,12 @@ def confirm_asset_retirement(current_detail_record,current_pending_record):
 
 def calculate_editor_automatic_values(current_column_count,current_row_count):
     current_property_values=calculate_billboard_intersection_properties({'groundFootprintColumns':current_column_count,'groundFootprintRows':current_row_count})
-    return current_property_values['anchorX'],current_property_values['anchorY'],current_property_values['billboardBlocksMovement']
+    return current_property_values['billboardBlocksMovement']
 
 
 def build_asset_editor_interface(current_review_port):
     with gr.Blocks(title='공용 빌보드 에셋 관리') as current_interface_blocks:
-        gr.Markdown('## 공용 빌보드 에셋 관리\n표에서 여러 에셋을 편집하거나 썸네일을 선택해 접지를 확인하세요. **새로고침은 미저장 편집을 버립니다.** 앵커는 하단 교차점으로 자동 배치합니다. 3×3 이상은 외곽을 제외한 내부 타일만 차단합니다.')
+        gr.Markdown('## 공용 빌보드 에셋 관리\n표에서 여러 에셋을 편집하거나 썸네일을 선택해 접지를 확인하세요. **새로고침은 미저장 편집을 버립니다.** 앵커 X·Y는 하단 교차점 기준 수동 이동값입니다. 3×3 이상은 외곽을 제외한 내부 타일만 차단합니다.')
         current_catalog_state=gr.State({});current_visible_state=gr.State([]);current_pending_state=gr.State({})
         current_feedback_text=gr.Markdown()
         with gr.Row():
@@ -160,13 +160,13 @@ def build_asset_editor_interface(current_review_port):
             with gr.Column():
                 with gr.Group():
                     gr.Markdown('### 배치와 크기')
-                    current_property_inputs=build_asset_property_inputs(current_automatic_anchor=True)
+                    current_property_inputs=build_asset_property_inputs(current_automatic_anchor=False)
                     current_blocking_choice=gr.Checkbox(label='내부 타일 자동 차단',value=False,interactive=False)
                 current_placement_choice=gr.Dropdown(['top','bottom'],value='bottom',label='타일 상하 판정 · 앵커 Y 기준',interactive=False,visible=False)
                 with gr.Group():
                     gr.Markdown('### 그림자 위치와 크기')
                     current_shadow_inputs=build_asset_shadow_inputs()
-                    gr.Markdown('이동 0·0은 전체 점유 영역의 중앙입니다. 가로 1·세로 1가 기본 크기입니다.')
+                    gr.Markdown('이동 0·0은 하단 기준 교차점입니다. 가로 1·세로 1가 기본 크기입니다.')
                 current_update_button=gr.Button('선택 에셋 변경 반영')
                 gr.Markdown('반영 후 아래 **변경 검증**을 눌러 저장하세요.')
             with gr.Column():
@@ -176,7 +176,7 @@ def build_asset_editor_interface(current_review_port):
                 build_asset_preview_canvas('asset-editor-preview')
                 current_preview_feedback=gr.Markdown('노랑: 점유 타일 · 파랑: 이미지 경계 · 빨강: 앵커. 이미지의 뿌리·밑동이 타일을 넘는지 확인하세요.')
         with gr.Accordion('전체 에셋 일괄 편집',open=False):
-            current_asset_table=gr.Dataframe(headers=EDITOR_TABLE_HEADERS,datatype=['str','str','number','number','number','number','number','str','number','number','number','number','bool','number'],type='array',interactive=True,static_columns=[0,1,2,3,7,12,13],show_search='filter',column_count=(14,'fixed'),label='전체 에셋 편집 표 · 앵커와 내부 통행 차단은 점유 크기로 자동 계산합니다')
+            current_asset_table=gr.Dataframe(headers=EDITOR_TABLE_HEADERS,datatype=['str','str','number','number','number','number','number','str','number','number','number','number','bool','number'],type='array',interactive=True,static_columns=[0,1,7,12,13],show_search='filter',column_count=(14,'fixed'),label='전체 에셋 편집 표 · 앵커는 수동 편집, 내부 통행 차단은 자동 계산합니다')
         current_preview_button=gr.Button('변경 검증 · 저장 내용 확인',variant='primary')
         current_validation_feedback=gr.Markdown()
         with gr.Group(visible=False) as current_confirmation_group:
@@ -197,7 +197,7 @@ def build_asset_editor_interface(current_review_port):
         current_search_text.submit(filter_asset_editor_gallery,inputs=[current_catalog_state,current_search_text,current_asset_type],outputs=current_gallery_outputs)
         current_selection_event=current_source_gallery.select(select_asset_editor_record,inputs=[current_visible_state,current_asset_table],outputs=[current_detail_record,*current_property_inputs,current_placement_choice,*current_shadow_inputs,current_blocking_choice,current_detail_text])
         for current_size_control in current_property_inputs[2:4]:
-            current_size_control.change(calculate_editor_automatic_values,inputs=current_property_inputs[2:4],outputs=[*current_property_inputs[:2],current_blocking_choice])
+            current_size_control.change(calculate_editor_automatic_values,inputs=current_property_inputs[2:4],outputs=current_blocking_choice)
         current_update_button.click(update_asset_editor_row,inputs=[current_detail_record,current_asset_table,*current_property_inputs,current_placement_choice,*current_shadow_inputs,current_blocking_choice],outputs=[current_asset_table,current_feedback_text])
         current_preview_button.click(preview_asset_editor_changes,inputs=[current_catalog_state,current_asset_table],outputs=[current_pending_state,current_preview_result,current_confirmation_group,current_validation_feedback])
         current_save_button.click(save_asset_editor_changes,inputs=[current_catalog_state,current_asset_table,current_pending_state],outputs=[current_feedback_text,current_pending_state,current_confirmation_group,current_catalog_state,current_asset_table]).then(filter_asset_editor_gallery,inputs=[current_catalog_state,current_search_text,current_asset_type],outputs=current_gallery_outputs)
@@ -212,11 +212,9 @@ const currentShadowRenderer=await import(`http://127.0.0.1:__PORT__/isloon-map-r
 const currentSourceImage=new Image();currentSourceImage.src=currentAssetRecord.image;await currentSourceImage.decode();
 if(currentPreviewCanvas.dataset.version!==currentPreviewVersion)return [{__type__:'update'},{__type__:'update'}];
 const currentOutdoorMode=currentKind.startsWith('야외');
-const currentColumnDistance=currentColumns===1?.5:currentColumns-1,currentRowDistance=currentRows===1?.5:currentRows-1;
-currentAnchorX=.5+(currentColumnDistance-currentRowDistance)/2;currentAnchorY=.5+(currentColumnDistance+currentRowDistance)/2;
 currentBlockingValue=currentColumns>=3&&currentRows>=3;
 const currentPreviewResult=currentPreviewModule.drawAssetGroundPreview(currentPreviewCanvas,currentSourceImage,{anchorX:currentAnchorX,anchorY:currentAnchorY,groundFootprintColumns:currentColumns,groundFootprintRows:currentRows,displayHeight:currentHeight,billboardAnchorMode:currentAssetRecord.properties.billboardAnchorMode,billboardPlacementAnchor:currentPlacement,shadowOffsetColumn:currentShadowColumn,shadowOffsetRow:currentShadowRow,shadowScaleX:currentShadowWidth,shadowScaleY:currentShadowHeight},{tileWidth:currentOutdoorMode?80:160,tileHeight:currentOutdoorMode?40:80,billboardScale:currentOutdoorMode?.5:1,previewZoom:currentPreviewZoom,drawShadow:currentShadowRenderer.drawBillboardContactShadow});
-return [`미리보기 ${currentPreviewZoom.toFixed(1)}배 · 선언 ${currentColumns}×${currentRows} · 실제 점유 ${currentPreviewResult.occupiedCells}칸 · ${currentBlockingValue?'내부 '+((currentColumns-2)*(currentRows-2))+'칸 차단':'통행 가능'} · 표시 ${currentPreviewResult.width.toFixed(1)}×${currentPreviewResult.height.toFixed(1)}px. 노랑: 타일 · 파랑: 이미지 · 빨강: 앵커. ${currentColumns===1&&currentRows===1?'회색 점선: 앵커 중심 보조 타일(점유 제외). ':''}${currentAssetRecord.metadata.length?'프레임 시트 원본 표시이므로 접지 판정에는 개별 프레임 검수가 필요합니다.':''}`,currentAnchorY<.5?'top':'bottom'];
+return [`미리보기 ${currentPreviewZoom.toFixed(1)}배 · 선언 ${currentColumns}×${currentRows} · 실제 점유 ${currentPreviewResult.occupiedCells}칸 · ${currentBlockingValue?'내부 '+((currentColumns-2)*(currentRows-2))+'칸 차단':'통행 가능'} · 표시 ${currentPreviewResult.width.toFixed(1)}×${currentPreviewResult.height.toFixed(1)}px. 노랑: 타일 · 파랑: 이미지 · 빨강: 앵커. ${currentColumns===1&&currentRows===1?'회색 점선: 기준 교차점 주변 4개 타일(점유 제외). ':''}${currentAssetRecord.metadata.length?'프레임 시트 원본 표시이므로 접지 판정에는 개별 프레임 검수가 필요합니다.':''}`,currentAnchorY<.5?'top':'bottom'];
 }'''.replace('__PORT__',str(current_review_port)).replace('__RENDERER_VERSION__',repr(__import__('yaml').safe_load((WORKFLOW_ROOT_DIRECTORY/'tools/review/ui/map/vendor/field-renderer/manifest.yaml').read_text())['version']))
         current_preview_inputs=[current_detail_record,*current_property_inputs,current_placement_choice,*current_shadow_inputs,current_preview_kind,current_preview_zoom,current_blocking_choice]
         current_selection_event.then(fn=None,inputs=current_preview_inputs,outputs=[current_preview_feedback,current_placement_choice],js=current_preview_script,queue=False)

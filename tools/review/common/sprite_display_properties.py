@@ -13,14 +13,8 @@ def calculate_billboard_blocking_state(current_property_values):
 
 
 def calculate_billboard_intersection_properties(current_property_values):
-    """선언 점유 크기에서 하단 교차점 좌표와 차단 여부를 파생한다."""
-    current_column_count = current_property_values['groundFootprintColumns']
-    current_row_count = current_property_values['groundFootprintRows']
-    current_column_distance = .5 if current_column_count == 1 else current_column_count - 1
-    current_row_distance = .5 if current_row_count == 1 else current_row_count - 1
-    return {**current_property_values, 'billboardAnchorMode': 'tile-bottom-center',
-            'anchorX': .5 + (current_column_distance-current_row_distance)/2,
-            'anchorY': .5 + (current_column_distance+current_row_distance)/2,
+    """수동 앵커는 보존하고 내부 통행 차단만 파생한다."""
+    return {**current_property_values,
             'billboardBlocksMovement': calculate_billboard_blocking_state(current_property_values)}
 
 
@@ -37,14 +31,14 @@ def validate_sprite_display_properties(current_property_catalog):
                 raise ValueError('빌보드 통행 차단 속성은 불리언이어야 합니다.')
         if 'billboardPlacementAnchor' in current_property_values and current_property_values['billboardPlacementAnchor'] not in ('top','bottom'):
             raise ValueError('빌보드 배치 앵커는 top 또는 bottom이어야 합니다.')
-        if 'billboardAnchorMode' in current_property_values and current_property_values['billboardAnchorMode'] != 'tile-bottom-center':
+        if 'billboardAnchorMode' in current_property_values and current_property_values['billboardAnchorMode'] not in ('tile-bottom-center','tile-intersection'):
             raise ValueError('알 수 없는 빌보드 앵커 규격')
         for current_property_name, current_property_value in current_property_values.items():
             if current_property_name in BILLBOARD_PLACEMENT_FIELD_NAMES or current_property_name == 'billboardAnchorMode':
                 continue
             if type(current_property_value) not in (int, float) or not math.isfinite(current_property_value):
                 raise ValueError('공통 속성은 유한한 숫자여야 합니다.')
-            if current_property_name in SPRITE_ANCHOR_FIELD_NAMES and not ((-16 <= current_property_value <= 16) if current_property_values.get('billboardAnchorMode') == 'tile-bottom-center' else (0 <= current_property_value <= 1)):
+            if current_property_name in SPRITE_ANCHOR_FIELD_NAMES and not ((-16 <= current_property_value <= 16) if current_property_values.get('billboardAnchorMode') in ('tile-bottom-center','tile-intersection') else (0 <= current_property_value <= 1)):
                 raise ValueError('앵커 범위 오류')
             if current_property_name.startswith('groundFootprint') and (type(current_property_value) is not int or not 1 <= current_property_value <= 8):
                 raise ValueError('바닥 크기 범위 오류')
@@ -72,7 +66,7 @@ def apply_sprite_display_properties(current_map_data, current_property_catalog):
         current_shared_properties = calculate_billboard_intersection_properties(current_shared_properties)
         current_object_record.update(current_shared_properties)
         current_object_record.setdefault('billboardBlocksMovement', False)
-        if current_shared_properties.get('billboardAnchorMode') == 'tile-bottom-center':
+        if current_shared_properties.get('billboardAnchorMode') in ('tile-bottom-center','tile-intersection'):
             current_object_record['billboardPlacementAnchor'] = 'top' if current_shared_properties['anchorY'] < .5 else 'bottom'
     for current_ground_record in current_map_data.get('groundOverrides', []):
         if set(current_ground_record) - {'position', 'textureKey'}:

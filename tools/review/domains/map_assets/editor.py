@@ -51,7 +51,7 @@ def prepare_editor_changes(current_request_payload,current_asset_root=None):
         if not isinstance(current_texture_key,str) or current_texture_key not in current_allowed_textures or current_texture_key in current_changed_textures:raise ValueError('미등록 또는 중복 에셋 ID')
         if not isinstance(current_input_values,dict) or not current_input_values or set(current_input_values)-EDITOR_MUTABLE_FIELDS:raise ValueError('수정할 공용 속성 필드 오류')
         current_original_values=current_property_document['data'][current_texture_key]
-        if current_original_values.get('billboardAnchorMode') == 'tile-bottom-center' and 'billboardPlacementAnchor' in current_input_values:raise ValueError('상하 배치는 앵커에서 자동 판정됩니다.')
+        if current_original_values.get('billboardAnchorMode') in ('tile-bottom-center','tile-intersection') and 'billboardPlacementAnchor' in current_input_values:raise ValueError('상하 배치는 앵커에서 자동 판정됩니다.')
         current_updated_values={**current_original_values,**current_input_values}
         validate_sprite_display_properties({current_texture_key:current_updated_values})
         current_updated_values=calculate_billboard_intersection_properties(current_updated_values)

@@ -56,7 +56,7 @@ SCENERY_ALPHA_VISIBLE_THRESHOLD = 16
 def validate_scenery_image_footprint(current_texture_key, current_source_image, current_property_values, current_tile_width):
     """이미지 유효성만 확인한다. 입체 실루엣을 바닥 접촉면으로 추정하지 않는다."""
     current_numeric_values = (current_property_values['displayHeight'], current_property_values['anchorX'], current_tile_width)
-    if any(type(current_value) not in (int, float) or not isfinite(current_value) for current_value in current_numeric_values) or current_numeric_values[0] <= 0 or current_tile_width <= 0 or not ((-16 <= current_numeric_values[1] <= 16) if current_property_values.get('billboardAnchorMode') == 'tile-bottom-center' else (0 <= current_numeric_values[1] <= 1)):
+    if any(type(current_value) not in (int, float) or not isfinite(current_value) for current_value in current_numeric_values) or current_numeric_values[0] <= 0 or current_tile_width <= 0 or not ((-16 <= current_numeric_values[1] <= 16) if current_property_values.get('billboardAnchorMode') in ('tile-bottom-center','tile-intersection') else (0 <= current_numeric_values[1] <= 1)):
         raise ValueError('이미지 접지 검사 크기·앵커 값이 잘못되었습니다.')
     calculate_centered_footprint_cells((0, 0), current_property_values['groundFootprintColumns'], current_property_values['groundFootprintRows'])
     current_alpha_image = current_source_image.convert('RGBA').getchannel('A').point(lambda current_alpha_value: 255 if current_alpha_value >= SCENERY_ALPHA_VISIBLE_THRESHOLD else 0)
