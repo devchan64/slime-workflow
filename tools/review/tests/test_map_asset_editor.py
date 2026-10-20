@@ -43,7 +43,7 @@ class MapAssetEditorTests(unittest.TestCase):
     def test_preview_save_hash_catalog_and_repeat(self):
         current_preview_result=editor.preview_editor_changes(self.current_request_payload,self.current_asset_root)
         self.assertEqual(hashlib.sha256(self.current_property_path.read_bytes()).hexdigest(),self.current_original_hash)
-        self.assertTrue(current_preview_result['changes'][0]['after']['billboardBlocksMovement'])
+        self.assertFalse(current_preview_result['changes'][0]['after']['billboardBlocksMovement'])
         current_save_payload={**self.current_request_payload,'token':current_preview_result['token']}
         current_saved_result=editor.save_editor_changes(current_save_payload,self.current_asset_root)
         self.assertEqual(current_saved_result['count'],1)
@@ -58,7 +58,7 @@ class MapAssetEditorTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'원본이 변경'):editor.save_editor_changes({**self.current_request_payload,'token':current_preview_result['token']},self.current_asset_root)
 
     def test_invalid_size_and_top_anchor_rejected(self):
-        for current_invalid_values in ({'groundFootprintColumns':1.5},{'groundFootprintColumns':2,'billboardPlacementAnchor':'top'},{'displayHeight':float('nan')},{'unexpected':3}):
+        for current_invalid_values in ({'groundFootprintColumns':1.5},{'billboardBlocksMovement':'true'},{'displayHeight':float('nan')},{'unexpected':3}):
             with self.assertRaises(ValueError):editor.prepare_editor_changes({**self.current_request_payload,'changes':[{'texture':'sample','values':current_invalid_values}]},self.current_asset_root)
 
     def test_catalog_failure_rolls_back_all_sources(self):
@@ -118,3 +118,12 @@ class MapAssetEditorTests(unittest.TestCase):
         for current_command_name,current_route_path in [('asset-list','/editor-list'),('asset-preview','/editor-preview'),('asset-save','/editor-save')]:
             current_route_result=resolve_management_command('map-assets',current_command_name,{})
             self.assertEqual(current_route_result,('POST','/map-assets'+current_route_path))
+
+    def test_explicit_blocking_survives_size_changes(self):
+        current_change_payload={**self.current_request_payload,'changes':[{'texture':'sample','values':{'billboardBlocksMovement':True,'displayHeight':30,'billboardPlacementAnchor':'top'}}]}
+        current_preview_result=editor.preview_editor_changes(current_change_payload,self.current_asset_root)
+        self.assertTrue(current_preview_result['changes'][0]['after']['billboardBlocksMovement'])
+        editor.save_editor_changes({**current_change_payload,'token':current_preview_result['token']},self.current_asset_root)
+        current_latest_catalog={'revision':editor.read_editor_snapshot(self.current_asset_root)[3]}
+        current_resize_payload={'revision':current_latest_catalog['revision'],'changes':[{'texture':'sample','values':{'displayHeight':300}}]}
+        self.assertTrue(editor.preview_editor_changes(current_resize_payload,self.current_asset_root)['changes'][0]['after']['billboardBlocksMovement'])

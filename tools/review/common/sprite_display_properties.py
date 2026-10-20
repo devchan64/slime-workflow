@@ -7,20 +7,12 @@ SPRITE_LAYOUT_FIELD_NAMES = {'groundFootprintColumns', 'groundFootprintRows', 'd
 BILLBOARD_PLACEMENT_FIELD_NAMES = {'billboardPlacementAnchor', 'billboardBlocksMovement'}
 BILLBOARD_SHADOW_DEFAULTS = {'shadowOffsetColumn':0, 'shadowOffsetRow':0, 'shadowScaleX':1, 'shadowScaleY':1}
 BILLBOARD_SHADOW_FIELD_NAMES = set(BILLBOARD_SHADOW_DEFAULTS)
-BILLBOARD_BLOCKING_HEIGHT_LIMIT = 80
-
 def calculate_billboard_blocking_state(current_property_values):
-    """공용 표시 높이를 기준으로 통행 차단 속성을 계산한다. 배율·줌은 제외한다."""
-    if current_property_values.get('billboardAnchorMode') == 'tile-bottom-center':
-        return (current_property_values['groundFootprintColumns'] > 1 or current_property_values['groundFootprintRows'] > 1 or (current_property_values['anchorY'] >= .5 and current_property_values['displayHeight'] > BILLBOARD_BLOCKING_HEIGHT_LIMIT))
-    current_placement_anchor = current_property_values['billboardPlacementAnchor']
-    current_oversized_ground = current_property_values['groundFootprintColumns'] > 1 or current_property_values['groundFootprintRows'] > 1
-    if current_placement_anchor not in ('top', 'bottom'):
-        raise ValueError('빌보드 배치 앵커는 top 또는 bottom이어야 합니다.')
-    if current_placement_anchor == 'top' and current_oversized_ground:
-        raise ValueError('1×1 초과 빌보드는 상단 배치할 수 없습니다.')
-    return current_placement_anchor == 'bottom' and (current_oversized_ground or current_property_values['displayHeight'] > BILLBOARD_BLOCKING_HEIGHT_LIMIT)
-
+    """크기·앵커와 무관하게 명시한 통행 차단값을 사용한다."""
+    current_blocking_value = current_property_values.get('billboardBlocksMovement', False)
+    if type(current_blocking_value) is not bool:
+        raise ValueError('빌보드 통행 차단 속성은 불리언이어야 합니다.')
+    return current_blocking_value
 
 
 def validate_sprite_display_properties(current_property_catalog):
@@ -34,6 +26,8 @@ def validate_sprite_display_properties(current_property_catalog):
         if 'billboardBlocksMovement' in current_property_values:
             if type(current_property_values['billboardBlocksMovement']) is not bool:
                 raise ValueError('빌보드 통행 차단 속성은 불리언이어야 합니다.')
+        if 'billboardPlacementAnchor' in current_property_values and current_property_values['billboardPlacementAnchor'] not in ('top','bottom'):
+            raise ValueError('빌보드 배치 앵커는 top 또는 bottom이어야 합니다.')
         if 'billboardAnchorMode' in current_property_values and current_property_values['billboardAnchorMode'] != 'tile-bottom-center':
             raise ValueError('알 수 없는 빌보드 앵커 규격')
         for current_property_name, current_property_value in current_property_values.items():
@@ -51,9 +45,6 @@ def validate_sprite_display_properties(current_property_catalog):
                 raise ValueError('그림자 배율은 0.1~4여야 합니다.')
             if current_property_name == 'displayHeight' and not 0 < current_property_value <= 1024:
                 raise ValueError('표시 높이 범위 오류')
-        if 'billboardBlocksMovement' in current_property_values:
-            if current_property_values['billboardBlocksMovement'] != calculate_billboard_blocking_state(current_property_values):
-                raise ValueError(f'빌보드 앵커·크기·높이와 통행 차단 속성 불일치: {current_texture_key}')
     return current_property_catalog
 
 
@@ -70,6 +61,7 @@ def apply_sprite_display_properties(current_map_data, current_property_catalog):
         if current_override_fields:
             raise ValueError(f'맵별 빌보드 공용 속성 재정의 금지: {current_texture_key}: {sorted(current_override_fields)}')
         current_object_record.update(current_shared_properties)
+        current_object_record.setdefault('billboardBlocksMovement', False)
         if current_shared_properties.get('billboardAnchorMode') == 'tile-bottom-center':
             current_object_record['billboardPlacementAnchor'] = 'top' if current_shared_properties['anchorY'] < .5 else 'bottom'
     for current_ground_record in current_map_data.get('groundOverrides', []):
