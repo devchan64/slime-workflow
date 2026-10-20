@@ -8,7 +8,7 @@ import yaml
 from tools.review.common.sprite_display_properties import validate_sprite_display_properties, calculate_billboard_blocking_state
 from tools.review.maintenance.sync_billboard_catalog import build_catalog_reference, load_unique_yaml_document
 
-EDITOR_MUTABLE_FIELDS = {'anchorX','anchorY','groundFootprintColumns','groundFootprintRows','displayHeight','billboardPlacementAnchor'}
+EDITOR_MUTABLE_FIELDS = {'anchorX','anchorY','groundFootprintColumns','groundFootprintRows','displayHeight','billboardPlacementAnchor','shadowOffsetColumn','shadowOffsetRow','shadowScaleX','shadowScaleY'}
 EDITOR_STORAGE_DIRECTORY = Path(__file__).resolve().parents[4]/'.tmp/map-asset-editor'
 
 

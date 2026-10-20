@@ -99,6 +99,11 @@ export function drawAssetGroundPreview(currentPreviewCanvas,currentSourceImage,c
   const currentCenterX=currentGroundCenterX+(currentColumnOffset-currentRowOffset)*currentTileWidth/2,currentCenterY=currentGroundCenterY+(currentColumnOffset+currentRowOffset)*currentTileHeight/2;
   const currentTilePath=new Path2D();currentTilePath.moveTo(currentCenterX,currentCenterY-currentTileHeight/2);currentTilePath.lineTo(currentCenterX+currentTileWidth/2,currentCenterY);currentTilePath.lineTo(currentCenterX,currentCenterY+currentTileHeight/2);currentTilePath.lineTo(currentCenterX-currentTileWidth/2,currentCenterY);currentTilePath.closePath();currentTilePaths.push(currentTilePath);currentCanvasContext.fillStyle='#506655';currentCanvasContext.fill(currentTilePath);
  }
+ if(currentRenderMetrics.drawShadow){
+  const currentPreviewGraphics={setDepth(){return this;},fillStyle(currentColorValue,currentAlphaValue){currentCanvasContext.fillStyle='#'+currentColorValue.toString(16).padStart(6,'0');currentCanvasContext.globalAlpha=currentAlphaValue;},fillEllipse(currentCenterX,currentCenterY,currentWidthValue,currentHeightValue){currentCanvasContext.beginPath();currentCanvasContext.ellipse(currentCenterX,currentCenterY,currentWidthValue/2,currentHeightValue/2,0,0,Math.PI*2);currentCanvasContext.fill();},fillPoints(currentPointRecords){currentCanvasContext.beginPath();currentPointRecords.forEach((currentPointRecord,currentPointIndex)=>currentPointIndex?currentCanvasContext.lineTo(currentPointRecord.x,currentPointRecord.y):currentCanvasContext.moveTo(currentPointRecord.x,currentPointRecord.y));currentCanvasContext.closePath();currentCanvasContext.fill();}};
+  currentRenderMetrics.drawShadow({add:{graphics:()=>currentPreviewGraphics}},currentPropertyValues,{x:currentGroundCenterX,y:currentAnchorPositionY},0,currentRenderMetrics);
+  currentCanvasContext.globalAlpha=1;
+ }
  const currentImageLeft=currentGroundCenterX-currentDisplayWidth*currentPropertyValues.anchorX,currentImageTop=currentAnchorPositionY-currentDisplayHeight*currentPropertyValues.anchorY;
  currentCanvasContext.drawImage(currentSourceImage,currentImageLeft,currentImageTop,currentDisplayWidth,currentDisplayHeight);
  currentCanvasContext.strokeStyle='#ffd859';currentCanvasContext.lineWidth=2;currentTilePaths.forEach(currentTilePath=>currentCanvasContext.stroke(currentTilePath));

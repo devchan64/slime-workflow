@@ -61,10 +61,22 @@ class MapAssetEditorTests(unittest.TestCase):
 
     def test_ui_payload_rejects_fractional_occupancy(self):
         current_catalog_record={'revision':'r','assets':[{'texture':'sample','properties':self.current_property_values}]}
-        current_table_values=[['sample','샘플',.5,1,1.5,1,100,'bottom',False,0]]
+        current_table_values=[['sample','샘플',.5,1,1.5,1,100,'bottom',0,0,1,1,False,0]]
         with self.assertRaises(ValueError):build_asset_editor_payload(current_catalog_record,current_table_values)
         current_table_values[0][4]=1
         self.assertEqual(build_asset_editor_payload(current_catalog_record,current_table_values)['changes'],[{'texture':'sample','values':{'displayHeight':100}}])
+
+    def test_shadow_properties_validate_and_save(self):
+        current_shadow_payload={**self.current_request_payload,'changes':[{'texture':'sample','values':{'shadowOffsetColumn':.25,'shadowOffsetRow':-.5,'shadowScaleX':1.4,'shadowScaleY':.7}}]}
+        current_preview_result=editor.preview_editor_changes(current_shadow_payload,self.current_asset_root)
+        with patch.object(editor,'build_catalog_reference',return_value=self.current_catalog_record):
+            editor.save_editor_changes({**current_shadow_payload,'token':current_preview_result['token']},self.current_asset_root)
+        current_saved_values=editor.read_editor_snapshot(self.current_asset_root)[4]['data']['sample']
+        self.assertEqual(current_saved_values['shadowOffsetColumn'],.25)
+        self.assertEqual(current_saved_values['shadowScaleY'],.7)
+        from tools.review.common.sprite_display_properties import validate_sprite_display_properties
+        for current_invalid_values in ({'shadowScaleX':0},{'shadowOffsetRow':5},{'shadowScaleY':float('nan')}):
+            with self.assertRaises(ValueError):validate_sprite_display_properties({'sample':{**self.current_property_values,**current_invalid_values}})
 
     def test_used_map_collision_rejects_expansion(self):
         current_map_path=self.current_asset_root/'assets/maps/city_layouts/test.yaml'

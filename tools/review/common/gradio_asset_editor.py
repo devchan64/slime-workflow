@@ -19,3 +19,13 @@ def build_asset_property_inputs():
 
 def build_asset_preview_canvas(current_canvas_identifier='map-source-size-preview'):
     return gr.HTML('<canvas id="'+current_canvas_identifier+'" width="768" height="320" aria-label="에셋 표시 크기와 점유 타일 미리보기" style="max-width:100%;height:auto"></canvas>')
+
+
+def build_asset_shadow_inputs():
+    with gr.Row():
+        current_shadow_column=gr.Number(label='그림자 열 방향 이동 · 타일',value=0,minimum=-4,maximum=4,step=.05)
+        current_shadow_row=gr.Number(label='그림자 행 방향 이동 · 타일',value=0,minimum=-4,maximum=4,step=.05)
+    with gr.Row():
+        current_shadow_width=gr.Number(label='그림자 가로/열 배율',value=1,minimum=.1,maximum=4,step=.05)
+        current_shadow_height=gr.Number(label='그림자 세로/행 배율',value=1,minimum=.1,maximum=4,step=.05)
+    return [current_shadow_column,current_shadow_row,current_shadow_width,current_shadow_height]

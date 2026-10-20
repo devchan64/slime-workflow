@@ -69,7 +69,7 @@ def build_shadow_guidance(current_texture_key):
         current_contact_advice = '단단한 밑면 아래 중심은 조금 진하고 가장자리는 부드럽게 표현한다.'
     return {
         'runtime_profile': 'billboard-contact-v2',
-        'current_rendering': '공용 렌더러 3겹 접지 그림자. 정사각 점유는 타원, 열·행 수가 다른 점유는 점유 축을 따르는 둥근 직사각형. 에셋별 농도 수동 조절은 미지원.',
+        'current_rendering': '공용 렌더러 3겹 접지 그림자. 정사각 점유는 타원, 열·행 수가 다른 점유는 점유 축을 따르는 둥근 직사각형. 공용 속성 shadowOffsetColumn/Row와 shadowScaleX/Y로 위치·크기를 조절한다. 농도 수동 조절은 미지원.',
         'contact_guidance': current_contact_advice,
         'baked_shadow_review': '원본에 진한 그림자·지면 받침이 있으면 중복 음영을 확인한다. 원본별 그림자 포함 여부는 이미지 검수로 확정한다.',
         'placement_review': '타일 고도·상하 앵커·회전에 맞는 접지 위치를 확인하고 절벽 밖이나 다른 오브젝트 위로 그림자가 번지지 않게 검수한다.',
@@ -155,15 +155,15 @@ def build_catalog_reference(current_asset_root):
         'missing':'설정 필요 항목은 크기를 추측하여 배치하지 않는다.',
         'shadow': {
             'profile':'billboard-contact-v2',
-            'implementation':'@slime/field-renderer 1.0.132 · drawBillboardContactShadow',
+            'implementation':'@slime/field-renderer 1.0.134 · drawBillboardContactShadow',
             'enabled':'기본 활성화. 렌더러 옵션 billboardShadows=false로 전체 비활성화.',
             'geometry':'폭=min(displayHeight×billboardScale×0.38, tileWidth×0.55), 높이=폭×0.2. 정사각 점유는 이 타원 공식을 사용한다. 열·행 수가 다른 점유는 각 축 길이=선언 점유 수×0.55타일, 모서리 반경=짧은 반축×0.35인 둥근 직사각형을 지면에 투영한다.',
             'layers':[{'scale':1,'alpha':0.06},{'scale':0.78,'alpha':0.09},{'scale':0.5,'alpha':0.12}],
             'color':'#18201b',
-            'position':'회전한 타일 앵커 오프셋을 사용해 접지 위치에서 타일 안쪽으로 이동한다. X 보정=(column-row)×tileWidth×0.22, Y 보정=(column+row)×tileHeight×0.22를 뺀다.',
+            'position':'그림자는 소속 타일 중앙에 둔다. 빌보드 앵커의 화면 이동을 제거한다: X 보정=(column-row)×tileWidth×0.5, Y 보정=(column+row)×tileHeight×0.5를 뺀다. 열·행 오프셋은 카메라 회전을 반영한다.',
             'depth':'소속 타일의 지면 바로 위에 배치하며 빌보드·캐릭터 정렬과 분리한다.',
-            'limits':'접지 그림자만 지원. 광원 방향의 투사·실루엣 그림자, 에셋별 설정, 지면 경계 클리핑은 지원하지 않는다.',
-            'catalog_role':'modeling.shadow는 제작·검수 지침이다. 값을 편집해도 런타임 그림자 설정이 바뀌지 않는다.',
+            'limits':'접지 그림자만 지원. 광원 방향의 투사·실루엣 그림자, 에셋별 농도 설정, 지면 경계 클리핑은 지원하지 않는다.',
+            'catalog_role':'modeling.shadow는 제작·검수 지침이다. 이 지침만 편집해도 런타임은 바뀌지 않는다. 위치·크기는 공용 속성 편집기에서 shadowOffsetColumn/Row(-4~4타일), shadowScaleX/Y(0.1~4배)를 저장한다.',
         },
         'validation':'slime-workflow/tools/review/maintenance/sync_billboard_catalog.py --check',
     }
