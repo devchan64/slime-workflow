@@ -6,7 +6,7 @@ from tempfile import TemporaryDirectory
 import unittest
 from unittest.mock import patch
 import yaml
-from tools.review.common.map_asset_sources import load_review_map_identifiers, normalize_field_surface_data
+from tools.review.common.map_asset_sources import load_review_map_identifiers, normalize_field_surface_data, load_registered_map_review
 from tools.review.build_block_map_review import build_block_map_review
 from tools.review.build_block_map_review import load_current_texture_records
 from tools.review.common.map_tile_assets import load_registered_tiles
@@ -24,6 +24,14 @@ class MapAssetSourceTests(unittest.TestCase):
         self.assertEqual(current_map_record['terrainMovementVersion'],2)
         self.assertEqual(current_map_record['elevationTiles'],[])
         self.assertEqual(current_map_record['ramps'],[])
+
+    def test_edge_billboard_obstacles_stay_inside_map(self):
+        for current_map_identifier in ('dawn-overlook', 'dry-creek', 'old-orchard'):
+            with self.subTest(map=current_map_identifier):
+                current_map_record = load_registered_map_review(current_map_identifier)
+                self.assertTrue(all(0 <= current_cell_record['column'] < current_map_record['columns'] and
+                                    0 <= current_cell_record['row'] < current_map_record['rows']
+                                    for current_cell_record in current_map_record['blocked']))
 
     def test_orchard_billboards_preserve_ground_codes_and_layer_contract(self):
         current_response_bytes, _ = read_map_asset_response('/management/map-assets/maps/old-orchard')
