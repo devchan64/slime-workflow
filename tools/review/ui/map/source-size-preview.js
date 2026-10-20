@@ -1,6 +1,7 @@
 /** 원본 픽셀 크기와 타일 접지 영역을 비교하는 검수 캔버스. */
 const SOURCE_PREVIEW_WIDTH=768;
 const SOURCE_PREVIEW_HEIGHT=260;
+const SOURCE_PREVIEW_VERTICAL_SCALE=1.5;
 const SOURCE_PREVIEW_PADDING=100;
 export function installSourceSizePreview(currentTextureRecords,currentSelectedGameKeys,currentMapRecord,currentRenderMetrics){
  if(!Number.isFinite(currentRenderMetrics?.tileWidth)||!Number.isFinite(currentRenderMetrics?.tileHeight)||currentRenderMetrics.tileWidth<=0||currentRenderMetrics.tileHeight<=0)throw Error("공통 타일 렌더 규격이 필요합니다.");
@@ -89,7 +90,7 @@ export function drawAssetGroundPreview(currentPreviewCanvas,currentSourceImage,c
  currentPreviewCanvas.width=Math.max(SOURCE_PREVIEW_WIDTH,currentDisplayWidth*2+SOURCE_PREVIEW_PADDING*2,(currentColumnRadius+currentRowRadius+2)*currentTileWidth);
  currentPreviewCanvas.height=Math.max(SOURCE_PREVIEW_HEIGHT,currentDisplayHeight+currentGroundPadding*2);
  const currentImageBelowGround=currentDisplayHeight*(1-currentPropertyValues.anchorY)+currentTileHeight/2;
- currentPreviewCanvas.height+=Math.max(0,currentImageBelowGround-currentGroundPadding);
+ currentPreviewCanvas.height=Math.ceil((currentPreviewCanvas.height+Math.max(0,currentImageBelowGround-currentGroundPadding))*SOURCE_PREVIEW_VERTICAL_SCALE);
  const currentGroundCenterX=currentPreviewCanvas.width/2,currentGroundCenterY=currentPreviewCanvas.height-Math.max(currentGroundPadding,currentImageBelowGround);
  const currentAnchorOffset=currentPropertyValues.billboardPlacementAnchor==='top'?-1:currentPropertyValues.billboardPlacementAnchor==='bottom'?1:0;
  const currentTileAnchorMode=currentPropertyValues.billboardAnchorMode==='tile-bottom-center';

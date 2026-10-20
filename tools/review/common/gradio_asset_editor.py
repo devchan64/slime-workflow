@@ -3,7 +3,7 @@ import gradio as gr
 
 
 def build_asset_source_gallery():
-    return gr.Gallery(value=[],interactive=False,label='원본 목록 · 썸네일을 선택하여 편집',columns=4,height=360,object_fit='contain',allow_preview=False)
+    return gr.Gallery(value=[],interactive=False,label='원본 목록 · 썸네일을 선택하여 편집',columns=4,height='max-content',object_fit='contain',allow_preview=False)
 
 
 def build_asset_property_inputs():
@@ -18,7 +18,7 @@ def build_asset_property_inputs():
 
 
 def build_asset_preview_canvas(current_canvas_identifier='map-source-size-preview'):
-    return gr.HTML('<canvas id="'+current_canvas_identifier+'" width="768" height="320" aria-label="에셋 표시 크기와 점유 타일 미리보기" style="max-width:100%;height:auto"></canvas>')
+    return gr.HTML('<canvas id="'+current_canvas_identifier+'" width="768" height="480" aria-label="에셋 표시 크기와 점유 타일 미리보기" style="max-width:100%;height:auto"></canvas>')
 
 
 def build_asset_shadow_inputs():

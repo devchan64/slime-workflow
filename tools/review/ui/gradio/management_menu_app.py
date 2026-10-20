@@ -229,6 +229,14 @@ MANAGEMENT_MOBILE_BREAKPOINT = 768
 def create_sidebar_responsive_script(current_inline_mode=False):
     """Gradio 기본 슬라이딩 동작에 화면 폭 전환과 접근성 이름만 연결한다."""
     current_sidebar_script="""()=>{
+        const synchronizeGalleryOverflow=()=>{
+            document.querySelectorAll('.gallery-container .grid-wrap').forEach(currentGalleryElement=>{
+                if(currentGalleryElement.style.height==='max-content'&&currentGalleryElement.style.overflow!=='visible')currentGalleryElement.style.overflow='visible';
+            });
+        };
+        const currentGalleryObserver=new MutationObserver(synchronizeGalleryOverflow);
+        currentGalleryObserver.observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['style']});
+        synchronizeGalleryOverflow();
         const currentMediaQuery=window.matchMedia('(max-width: BREAKPOINTpx)');
         const synchronizeSidebarState=()=>{
             const currentSidebarElement=document.getElementById('management-sidebar');
