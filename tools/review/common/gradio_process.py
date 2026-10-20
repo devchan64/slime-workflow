@@ -125,6 +125,7 @@ def ensure_gradio_application(review_server_port, application_name, application_
             'sprite-editor-v2':('sprite_editor_v2_app.py',121,'/management/frame/sprite-editor-v2/'),
             'sprite-editor':('sprite_editor_app.py',106,'/management/frame/sprite-editor/'),
             'character-review':('character_review_app.py',122,'/management/frame/character-review/'),
+            'asset-editor':('asset_editor_app.py',136,'/management/frame/asset-editor/'),
             'world-map':('world_map_app.py',135,'/management/frame/world-map/'),
             'map-review':('map_review_app.py',107,'/management/frame/map-review/'),
             'anny-attributes':('anny_attributes_app.py',108,'/management/frame/anny-attributes/'),

@@ -522,10 +522,14 @@ if(currentMapCanvas.dataset.capture==='true'){
  if(!currentCaptureResponse.ok)throw Error('렌더 캡처 저장 실패');
 }
 
-window.mapReviewExportImage=async()=>{
+window.mapReviewCreateExportImage=async()=>{
  if(!currentSharedFieldView)throw Error('야외필드·도시맵에서 사용할 수 있습니다.');
  const currentGroundPoints=isFieldMapReview?currentFieldFrame.points:[{column:0,row:0},{column:currentMapRecord.columns,row:0},{column:0,row:currentMapRecord.rows},{column:currentMapRecord.columns,row:currentMapRecord.rows}].map(projectBlockVertex);
  const currentExportImage=await currentSharedFieldView.exportWholeMapImage(currentGroundPoints);
+ return currentExportImage;
+};
+window.mapReviewExportImage=async()=>{
+ const currentExportImage=await window.mapReviewCreateExportImage();
  const currentDownloadLink=document.getElementById('map-export-download');
  if(!currentDownloadLink)throw Error('다운로드 영역이 없습니다. 검수 화면을 새로고침하세요.');
  currentDownloadLink.href=currentExportImage.src;

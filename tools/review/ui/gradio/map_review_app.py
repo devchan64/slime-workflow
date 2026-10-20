@@ -10,6 +10,7 @@ WORKFLOW_ROOT_DIRECTORY=Path(__file__).resolve().parents[4]
 if str(WORKFLOW_ROOT_DIRECTORY) not in sys.path:
     sys.path.insert(0,str(WORKFLOW_ROOT_DIRECTORY))
 from tools.review.common.gradio_browser_controls import build_browser_action_button
+from tools.review.common.gradio_asset_editor import build_asset_source_gallery, build_asset_property_inputs, build_asset_preview_canvas
 
 MAP_REVIEW_CANVAS_MARKUP='''<section id="map-review-root" aria-label="맵 검수">
 <h3 id="map-title">맵 검수</h3><p id="status" role="status">맵을 선택한 뒤 맵 불러오기를 누르세요.</p>
@@ -60,6 +61,13 @@ def capture_character_review_images(current_capture_settings):
 
 
 
+def capture_map_review_images(current_map_identifier):
+    """화면 로딩 없이 공용 게이트웨이로 전체 맵 PNG를 만든다."""
+    from tools.review.common.management_client import execute_remote_management_command
+    current_capture_record=execute_remote_management_command('map-review','capture',{'map':current_map_identifier})
+    return list(current_capture_record['images'].values())
+
+
 def save_map_source_anchor(current_anchor_payload):
     from tools.review.common.management_client import execute_remote_management_command
     try:
@@ -77,6 +85,13 @@ def save_map_source_size(current_resize_payload):
 def build_map_review_interface(review_server_port, character_review_enabled=False):
     with gr.Blocks(title='캐릭터 표현 검수' if character_review_enabled else '맵 검수') as current_interface_blocks:
         gr.Markdown('## 캐릭터 표현 검수' if character_review_enabled else '## 맵 검수')
+        if not character_review_enabled:
+            with gr.Accordion('화면 로딩 없이 PNG 생성 · 헤드리스 Chrome',open=False):
+                gr.Markdown('야외필드·도시맵 ID로 전체 맵을 생성합니다. 기본 캐릭터·결계는 포함하고 경계선은 숨깁니다. 8770 정적 에셋 서버와 Chrome이 필요합니다. 전투필드는 지원하지 않습니다.')
+                current_capture_map_id=gr.Textbox(label='캡처할 맵 ID',value='ash-edge')
+                current_capture_map_button=gr.Button('헤드리스 PNG 생성')
+                current_capture_map_files=gr.File(label='생성된 맵 PNG',file_count='multiple')
+                current_capture_map_button.click(fn=capture_map_review_images,inputs=current_capture_map_id,outputs=current_capture_map_files,concurrency_limit=1)
         current_refresh_button=gr.Button('검수 화면 새로고침')
         current_refresh_button.click(fn=None,queue=False,js="()=>{window.location.reload();}")
         if not character_review_enabled:
@@ -182,7 +197,7 @@ def build_map_review_interface(review_server_port, character_review_enabled=Fals
                 with gr.Row():
                     current_source_search=gr.Textbox(label='원본 이름 검색',placeholder='이름 일부로 검색',scale=3)
                     current_source_refresh=gr.Button('목록 새로고침',scale=1)
-                current_source_table=gr.Gallery(value=[],interactive=False,label='원본 목록 · 썸네일을 선택하여 편집',columns=4,height=360,object_fit='contain',allow_preview=False)
+                current_source_table=build_asset_source_gallery()
                 with gr.Row():
                     current_source_name=gr.Textbox(label='선택한 원본',interactive=False,scale=3)
                     current_source_copy=gr.Button('이름 복사',scale=1)
@@ -193,18 +208,12 @@ def build_map_review_interface(review_server_port, character_review_enabled=Fals
                         current_source_size=gr.Radio(label='원본 해상도 · 긴 변 px',choices=[64,128,256,384,512],value=128)
                         gr.Markdown('비율·투명 배경을 유지해 원본 PNG를 축소합니다. 확대·애니메이션 시트 저장은 지원하지 않습니다. 축소 전 원본은 이력에 보관합니다.')
                         current_source_save=gr.Button('선택한 크기로 원본 저장',interactive=False)
-                        with gr.Row():
-                            current_anchor_horizontal=gr.Number(label='앵커 X · 0~1',value=0.5,minimum=0,maximum=1,step=0.01)
-                            current_anchor_vertical=gr.Number(label='앵커 Y · 0~1',value=1,minimum=0,maximum=1,step=0.01)
-                        with gr.Row():
-                            current_ground_columns=gr.Number(label='바닥 열 · 칸',value=1,minimum=1,maximum=8,step=1,precision=0)
-                            current_ground_rows=gr.Number(label='바닥 행 · 칸',value=1,minimum=1,maximum=8,step=1,precision=0)
-                        current_display_height=gr.Number(label='빌보드 표시 높이 · px',value=128,minimum=1,maximum=1024)
+                        current_anchor_horizontal,current_anchor_vertical,current_ground_columns,current_ground_rows,current_display_height=build_asset_property_inputs()
                         gr.Markdown('앵커·바닥·높이는 같은 에셋을 사용하는 모든 맵의 공통 속성입니다. 바닥·높이는 빌보드 전용이며 맵별 위치는 유지됩니다. 지형·결계·경비 구조물은 편집 대상이 아닙니다.')
                         current_anchor_save=gr.Button('에셋 공통 속성 저장 · 앵커·바닥·높이',interactive=False)
                     with gr.Column(min_width=320):
                         gr.Markdown('### 원본 해상도 · 접지 영역 미리보기')
-                        gr.HTML('<canvas id="map-source-size-preview" width="768" height="260" aria-label="원본 크기와 타일 경계 비교" style="max-width:100%;height:auto"></canvas>')
+                        build_asset_preview_canvas()
                         current_source_feedback=gr.Textbox(label='크기 · 경계 안내',value='목록 새로고침 후 원본 썸네일을 선택하세요.',interactive=False)
                 current_resize_payload=gr.JSON(value={},visible=False)
                 current_anchor_payload=gr.JSON(value={},visible=False)

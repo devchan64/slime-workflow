@@ -95,11 +95,19 @@ def resize_registered_image(current_request_payload):
 
 def handle_map_resize_request(current_http_handler):
     from tools.review.common.management_transport import send_management_json_response
-    if current_http_handler.command != 'POST' or urlsplit(current_http_handler.path).path not in ('/map-assets/resize','/map-assets/anchor-save'):
+    if current_http_handler.command != 'POST' or urlsplit(current_http_handler.path).path not in ('/map-assets/resize','/map-assets/anchor-save','/map-assets/editor-list','/map-assets/editor-preview','/map-assets/editor-save'):
         return False
     try:
         current_request_payload = json.loads(current_http_handler.rfile.read(int(current_http_handler.headers['Content-Length'])))
-        if urlsplit(current_http_handler.path).path.endswith('/anchor-save'):
+        if '/editor-' in urlsplit(current_http_handler.path).path:
+            from tools.review.domains.map_assets.editor import load_editor_catalog, preview_editor_changes, save_editor_changes
+            current_editor_handlers={'/map-assets/editor-list':load_editor_catalog,'/map-assets/editor-preview':preview_editor_changes,'/map-assets/editor-save':save_editor_changes}
+            RESIZE_STORAGE_DIRECTORY.mkdir(parents=True, exist_ok=True)
+            with (RESIZE_STORAGE_DIRECTORY/'resize.lock').open('a') as current_lock_stream:
+                fcntl.flock(current_lock_stream.fileno(),fcntl.LOCK_EX)
+                current_result_record=current_editor_handlers[urlsplit(current_http_handler.path).path](current_request_payload)
+        elif urlsplit(current_http_handler.path).path.endswith('/anchor-save'):
+
             from tools.review.domains.map_assets.anchors import save_map_sprite_anchor
             RESIZE_STORAGE_DIRECTORY.mkdir(parents=True, exist_ok=True)
             with (RESIZE_STORAGE_DIRECTORY / 'resize.lock').open('a') as current_lock_stream:

@@ -701,3 +701,21 @@ CLI에서는 같은 `qwen-21 generate`에 `--prompt-file generators/image/config
 
 ### 소품·자연물 대기열 분리
 새 소품 작업은 `prop-generator`, 자연물 작업은 `vegetation-generator` 서비스로 등록한다. 작업 저장 경로는 각각 `.tmp/test/prop-generator`, `.tmp/test/vegetation-generator`이며 공용 이력 루트에서도 동일 서비스명으로 분리한다. GUI와 `python tools/manager.py command prop-generator history`, `python tools/manager.py command vegetation-generator history`가 같은 저장소를 조회한다. generate/status/logs/history/active/cancel/resume/prioritize/history-delete/history-reset은 해당 서비스 범위로 처리한다. 기존 Qwen 공유 작업은 이동·삭제하지 않으며 일반 Qwen에서 조회한다. GPU 실행 순서·메모리 보호는 기존 공용 실행기로 유지한다.
+
+### 전체 맵 PNG 캡처 (헤드리스 Chrome)
+
+`map-review capture --payload-file <설정.json>`은 관리 화면을 열거나 맵 불러오기를 누르지 않고 공용 WebGL 렌더러로 전체 맵 PNG를 저장한다. GUI의 ‘화면 로딩 없이 PNG 생성’도 같은 게이트웨이 명령을 사용한다. Chrome/Chromium과 8770 에셋 서버는 필요하다. 야외필드·도시맵을 지원하며 전투필드는 현재 대상이 아니다.
+
+설정 예: `{"map":"ash-edge","show_character":true,"show_safe_boundary":true,"edges":false,"tile_edges":false}`. `map`은 필수이며 나머지는 예시 값이 기본값이다. 원본 맵의 타일·빌보드 배율을 그대로 사용한다. 투명 RGBA PNG, 긴 변 최대 4096px이며 화면 캡처와 같은 전체 범위 계산을 사용한다.
+
+실행: `PYTHONPATH=. .venv-management/bin/python tools/manager.py command map-review capture --payload-file /tmp/map-capture.json`. 응답의 `images.map`이 결과 경로다. 기존 캡처 저장소 `.tmp/test/character-review-capture/<실행 시각>/`에 `map.png`, `result.yaml`, `worker.log`, `browser.log`를 보존한다. 별도 Chrome 프로필을 사용하고 종료 후 정리한다. 입력 오류·리소스 오류·빈 PNG·시간 초과는 실패 처리하며 사용자 브라우저나 실행 중 생성기를 조작하지 않는다.
+
+### 공용 빌보드 에셋 편집
+
+`/management/frame/asset-editor/?tool=asset-editor&category=map-review`에서 전체 빌보드의 표시 높이·점유 열/행·이미지 앵커·타일 상하 배치를 편집한다. 맵 검수와 공용 Gradio 속성 입력·썸네일·점유 타일 미리보기를 공유한다. 야외 80×40/0.5배와 마을·전투 160×80/1배를 비교할 수 있다. 별도 프레임 메타데이터가 있는 원본은 시트 표시임을 안내하며 개별 프레임 접지 검수가 필요하다.
+
+- `map-assets asset-list`: 입력 `{}`. `revision`, `assets`를 반환한다.
+- `map-assets asset-preview`: `{"revision":"목록 revision","changes":[{"texture":"에셋 ID","values":{"displayHeight":150}}]}`. 공용 규격과 사용 맵의 점유 충돌·고도를 검증하고 변경 전후와 `token`을 반환한다.
+- `map-assets asset-save`: 검증 요청에 반환된 `token`을 추가한다. 검증 후 변경된 값·원본은 거절한다. 통행 차단은 배치·점유 크기·공용 높이 80 기준으로 자동 산출한다.
+
+통합 CLI는 `tools/manager.py command map-assets asset-preview --payload-file <요청.json>` 형식으로 같은 게이트웨이를 사용한다. 저장은 공용 속성 YAML·등록부 해시·빌보드 카탈로그·소비자 해시 잠금을 함께 갱신한다. `.tmp/map-asset-editor/`에 검증 요청·저장 영수증·변경 전 백업을 보관한다. 일반 예외 시 원본을 복원한다. 외부 프로세스의 동시 편집을 피하고, 저장 후 목록을 새로고침하여 확인한다. 미리보기/취소는 에셋을 변경하지 않으며 이미지 해상도·맵 좌표는 수정하지 않는다.

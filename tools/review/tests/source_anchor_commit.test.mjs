@@ -24,6 +24,7 @@ test('야외 미리보기는 표시 높이만 절반으로 그리고 저장 속�
  globalThis.window={};
  globalThis.location={href:'http://localhost/'};
  globalThis.document={querySelector:()=>currentPreviewCanvas,createElement:()=>({getContext:()=>({drawImage(){}})})};
+ globalThis.Path2D=class {moveTo(){}lineTo(){}closePath(){}};
  globalThis.Image=class {width=200;height=300;async decode(){}};
  const currentSharedProperties={anchorX:.5,anchorY:.9,groundFootprintColumns:1,groundFootprintRows:1,displayHeight:120};
  const currentMapRecord={id:'preview',safeTown:false,spriteProperties:{rock:currentSharedProperties},objects:[{textureKey:'rock',...currentSharedProperties}]};
@@ -34,5 +35,23 @@ test('야외 미리보기는 표시 높이만 절반으로 그리고 저장 속�
    assert.deepEqual(currentDrawCalls.at(-1).slice(-2),[80*currentBillboardScale,120*currentBillboardScale]);
    assert.equal(window.mapSourceAnchorRead('rock')[4],120);
   }
- }finally{delete globalThis.document;delete globalThis.Image;delete globalThis.location;delete globalThis.window;}
+ }finally{delete globalThis.Path2D;delete globalThis.document;delete globalThis.Image;delete globalThis.location;delete globalThis.window;}
+});
+
+test('공용 점유 미리보기는 짝수 접지 셀과 앵커 끝값에서도 이미지를 잘라내지 않는다',async()=>{
+ const {drawAssetGroundPreview}=await import('../ui/map/source-size-preview.js');
+ globalThis.Path2D=class {moveTo(){}lineTo(){}closePath(){}};
+ const currentDrawCalls=[];
+ const currentPreviewContext={clearRect(){},fill(){},stroke(){},strokeRect(){},beginPath(){},arc(){},drawImage(...currentImageArguments){currentDrawCalls.push(currentImageArguments);}};
+ const currentPreviewCanvas={getContext:()=>currentPreviewContext};
+ try{
+  for(const currentAnchorValue of [0,.5,1]){
+   const currentPreviewResult=drawAssetGroundPreview(currentPreviewCanvas,{width:256,height:128},{anchorX:currentAnchorValue,anchorY:currentAnchorValue,displayHeight:300,groundFootprintColumns:2,groundFootprintRows:1,billboardPlacementAnchor:'bottom'},{tileWidth:80,tileHeight:40,billboardScale:.5});
+   assert.equal(currentPreviewResult.occupiedCells,3);
+   const [,currentImageLeft,currentImageTop,currentImageWidth,currentImageHeight]=currentDrawCalls.at(-1);
+   assert.ok(currentImageLeft>=0&&currentImageTop>=0);
+   assert.ok(currentImageLeft+currentImageWidth<=currentPreviewCanvas.width);
+   assert.ok(currentImageTop+currentImageHeight<=currentPreviewCanvas.height);
+  }
+ }finally{delete globalThis.Path2D;}
 });
