@@ -107,6 +107,21 @@ def save_asset_editor_changes(current_catalog_record,current_table_values,curren
     return f"{current_saved_record['count']}종 저장 완료. 저장 기준을 갱신했습니다. 계속 편집하고 다시 검증할 수 있습니다.",{},gr.update(visible=False),current_saved_catalog,current_saved_table
 
 
+def preview_asset_retirement(current_catalog_record,current_detail_record):
+    if not current_detail_record:raise gr.Error('썸네일에서 폐기할 에셋을 선택하세요.')
+    current_request_payload={'revision':current_catalog_record['revision'],'texture':current_detail_record['texture']}
+    current_preview_result=execute_remote_management_command('map-assets','asset-retire-preview',current_request_payload)
+    current_removed_count=sum(current_map_record['removed'] for current_map_record in current_preview_result['maps'])
+    return {**current_request_payload,'token':current_preview_result['token']},gr.update(visible=True),f"**폐기 대상: {current_request_payload['texture']}**\n\n공용 목록과 맵 배치 {current_removed_count}개에서 제외합니다. 원본 이미지·생성 이력은 폐기 경로에 보존합니다. 미저장 편집은 폐기 완료 후 초기화됩니다.",current_preview_result
+
+
+def confirm_asset_retirement(current_detail_record,current_pending_record):
+    if not current_pending_record or not current_detail_record or current_detail_record['texture']!=current_pending_record['texture']:raise gr.Error('선택 대상이 변경되었습니다. 폐기 내용을 다시 확인하세요.')
+    execute_remote_management_command('map-assets','asset-retire',current_pending_record)
+    current_catalog_record,current_table_values,_=load_asset_editor_catalog()
+    return current_catalog_record,current_table_values,'폐기 완료: '+current_pending_record['texture'],{},gr.update(visible=False),{},'',{},gr.update(visible=False)
+
+
 def build_asset_editor_interface(current_review_port):
     with gr.Blocks(title='공용 빌보드 에셋 관리') as current_interface_blocks:
         gr.Markdown('## 공용 빌보드 에셋 관리\n표에서 여러 에셋을 편집하거나 썸네일을 선택해 접지를 확인하세요. **새로고침은 미저장 편집을 버립니다.** 통행 차단은 에셋별로 직접 설정합니다. 기본값은 꺼짐입니다.')
@@ -127,6 +142,14 @@ def build_asset_editor_interface(current_review_port):
         current_detail_text=gr.Markdown()
         current_copy_button=gr.Button('에셋 ID 복사')
         current_copy_feedback=gr.Markdown()
+        current_retire_button=gr.Button('선택 빌보드 폐기')
+        current_retire_pending=gr.State({})
+        with gr.Group(visible=False) as current_retire_group:
+            current_retire_summary=gr.Markdown()
+            current_retire_details=gr.JSON(label='폐기 영향 맵')
+            with gr.Row():
+                current_retire_confirm=gr.Button('확인 · 폐기 실행',variant='stop')
+                current_retire_cancel=gr.Button('취소 · 유지')
         current_copy_button.click(fn=None,inputs=current_detail_record,outputs=current_copy_feedback,queue=False,js="async currentAssetRecord=>{if(!currentAssetRecord?.texture)return '썸네일에서 에셋을 먼저 선택하세요.';try{await navigator.clipboard.writeText(currentAssetRecord.texture);return '에셋 ID를 복사했습니다: '+currentAssetRecord.texture;}catch(currentClipboardError){return '복사 실패: 브라우저 클립보드 권한을 확인하세요.';}}")
         with gr.Row():
             with gr.Column():
@@ -156,6 +179,9 @@ def build_asset_editor_interface(current_review_port):
             current_preview_result=gr.JSON(label='변경 전후 · 영향 맵')
             with gr.Row():
                 current_save_button=gr.Button('검증한 변경 저장',variant='primary');current_cancel_button=gr.Button('취소 · 편집 유지')
+        current_retire_button.click(preview_asset_retirement,inputs=[current_catalog_state,current_detail_record],outputs=[current_retire_pending,current_retire_group,current_retire_summary,current_retire_details])
+        current_retire_cancel.click(lambda:({},gr.update(visible=False)),outputs=[current_retire_pending,current_retire_group])
+        current_retire_confirm.click(confirm_asset_retirement,inputs=[current_detail_record,current_retire_pending],outputs=[current_catalog_state,current_asset_table,current_feedback_text,current_retire_pending,current_retire_group,current_detail_record,current_detail_text,current_pending_state,current_confirmation_group]).then(filter_asset_editor_gallery,inputs=[current_catalog_state,current_search_text,current_asset_type],outputs=[current_source_gallery,current_visible_state,current_search_feedback,current_gallery_page,current_previous_page,current_next_page])
         current_gallery_outputs=[current_source_gallery,current_visible_state,current_search_feedback,current_gallery_page,current_previous_page,current_next_page]
         current_previous_page.click(previous_asset_gallery_page,inputs=[current_catalog_state,current_search_text,current_asset_type,current_gallery_page],outputs=current_gallery_outputs)
         current_next_page.click(next_asset_gallery_page,inputs=[current_catalog_state,current_search_text,current_asset_type,current_gallery_page],outputs=current_gallery_outputs)
