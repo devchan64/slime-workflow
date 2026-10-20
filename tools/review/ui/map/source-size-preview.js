@@ -1,3 +1,5 @@
+const SOURCE_PREVIEW_TILE_FILL='#ffffff';
+const SINGLE_CELL_GUIDE_STYLE=Object.freeze({fill:SOURCE_PREVIEW_TILE_FILL,stroke:'#808080',dash:[5,4],lineWidth:1});
 /** 원본 픽셀 크기와 타일 접지 영역을 비교하는 검수 캔버스. */
 const SOURCE_PREVIEW_WIDTH=768;
 const SOURCE_PREVIEW_HEIGHT=260;
@@ -111,12 +113,25 @@ export function drawAssetGroundPreview(currentPreviewCanvas,currentSourceImage,c
  const currentTilePaths=[];
  for(let currentColumnOffset=0;currentColumnOffset<=currentColumnRadius;currentColumnOffset++)for(let currentRowOffset=0;currentRowOffset<=currentRowRadius;currentRowOffset++){
   const currentCenterX=currentGroundCenterX+(currentColumnOffset-currentRowOffset)*currentTileWidth/2,currentCenterY=currentGroundCenterY+(currentColumnOffset+currentRowOffset)*currentTileHeight/2;
-  const currentTilePath=new Path2D();currentTilePath.moveTo(currentCenterX,currentCenterY-currentTileHeight/2);currentTilePath.lineTo(currentCenterX+currentTileWidth/2,currentCenterY);currentTilePath.lineTo(currentCenterX,currentCenterY+currentTileHeight/2);currentTilePath.lineTo(currentCenterX-currentTileWidth/2,currentCenterY);currentTilePath.closePath();currentTilePaths.push(currentTilePath);currentCanvasContext.fillStyle=currentColumnOffset>0&&currentColumnOffset<currentColumnRadius&&currentRowOffset>0&&currentRowOffset<currentRowRadius?'#a14f45':'#506655';currentCanvasContext.fill(currentTilePath);
+  const currentTilePath=new Path2D();currentTilePath.moveTo(currentCenterX,currentCenterY-currentTileHeight/2);currentTilePath.lineTo(currentCenterX+currentTileWidth/2,currentCenterY);currentTilePath.lineTo(currentCenterX,currentCenterY+currentTileHeight/2);currentTilePath.lineTo(currentCenterX-currentTileWidth/2,currentCenterY);currentTilePath.closePath();currentTilePaths.push(currentTilePath);currentCanvasContext.fillStyle=SOURCE_PREVIEW_TILE_FILL;currentCanvasContext.fill(currentTilePath);
+ }
+ // 1×1은 하단 교차점 중심의 보조 타일로 그림자를 비교한다. 실제 점유에는 포함하지 않는다.
+ const currentAnchorGuidePath=currentColumnRadius===0&&currentRowRadius===0&&currentTileAnchorMode?new Path2D():null;
+ if(currentAnchorGuidePath){
+  currentAnchorGuidePath.moveTo(currentAnchorPositionX,currentAnchorPositionY-currentTileHeight/2);
+  currentAnchorGuidePath.lineTo(currentAnchorPositionX+currentTileWidth/2,currentAnchorPositionY);
+  currentAnchorGuidePath.lineTo(currentAnchorPositionX,currentAnchorPositionY+currentTileHeight/2);
+  currentAnchorGuidePath.lineTo(currentAnchorPositionX-currentTileWidth/2,currentAnchorPositionY);
+  currentAnchorGuidePath.closePath();
+  currentCanvasContext.fillStyle=SINGLE_CELL_GUIDE_STYLE.fill;currentCanvasContext.fill(currentAnchorGuidePath);
  }
  if(currentRenderMetrics.drawShadow){
   const currentPreviewGraphics={setDepth(){return this;},fillStyle(currentColorValue,currentAlphaValue){currentCanvasContext.fillStyle='#'+currentColorValue.toString(16).padStart(6,'0');currentCanvasContext.globalAlpha=currentAlphaValue;},fillEllipse(currentCenterX,currentCenterY,currentWidthValue,currentHeightValue){currentCanvasContext.beginPath();currentCanvasContext.ellipse(currentCenterX,currentCenterY,currentWidthValue/2,currentHeightValue/2,0,0,Math.PI*2);currentCanvasContext.fill();},fillPoints(currentPointRecords){currentCanvasContext.beginPath();currentPointRecords.forEach((currentPointRecord,currentPointIndex)=>currentPointIndex?currentCanvasContext.lineTo(currentPointRecord.x,currentPointRecord.y):currentCanvasContext.moveTo(currentPointRecord.x,currentPointRecord.y));currentCanvasContext.closePath();currentCanvasContext.fill();}};
   currentRenderMetrics.drawShadow({add:{graphics:()=>currentPreviewGraphics}},currentPropertyValues,{x:currentAnchorPositionX,y:currentAnchorPositionY},0,currentRenderMetrics);
   currentCanvasContext.globalAlpha=1;
+ }
+ if(currentAnchorGuidePath){
+  currentCanvasContext.save();currentCanvasContext.strokeStyle=SINGLE_CELL_GUIDE_STYLE.stroke;currentCanvasContext.lineWidth=SINGLE_CELL_GUIDE_STYLE.lineWidth;currentCanvasContext.setLineDash(SINGLE_CELL_GUIDE_STYLE.dash);currentCanvasContext.stroke(currentAnchorGuidePath);currentCanvasContext.restore();
  }
  const currentImageLeft=currentAnchorPositionX-currentDisplayWidth*(currentTileAnchorMode?.5:currentPropertyValues.anchorX),currentImageTop=currentAnchorPositionY-currentDisplayHeight*(currentTileAnchorMode?1:currentPropertyValues.anchorY);
  currentCanvasContext.drawImage(currentSourceImage,currentImageLeft,currentImageTop,currentDisplayWidth,currentDisplayHeight);
