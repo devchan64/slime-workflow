@@ -11,6 +11,18 @@ from urllib.request import urlopen
 GATEWAY_SHUTDOWN_TIMEOUT = 20
 
 
+def matches_gateway_script_path(existing_command_bytes, existing_process_path, workflow_root_directory):
+    """직접 실행한 스크립트 경로를 해당 프로세스의 작업 디렉터리로 해석한다."""
+    existing_argument_values = existing_command_bytes.rstrip(b'\0').split(b'\0')
+    if len(existing_argument_values) < 2 or existing_argument_values[1].startswith(b'-'):
+        return False
+    existing_script_path = Path(os.fsdecode(existing_argument_values[1]))
+    if not existing_script_path.is_absolute():
+        existing_script_path = (existing_process_path / 'cwd').resolve(strict=True) / existing_script_path
+    expected_script_path = workflow_root_directory / 'tools/review/gateway_server.py'
+    return existing_script_path.resolve() == expected_script_path.resolve()
+
+
 def confirm_existing_gateway(server_port_number, workflow_root_directory, launcher_trace_logger):
     try:
         with socket.create_connection(('127.0.0.1', server_port_number), timeout=1):
@@ -24,8 +36,7 @@ def confirm_existing_gateway(server_port_number, workflow_root_directory, launch
         raise ValueError('포트 점유자가 관리 게이트웨이인지 확인할 수 없습니다. 자동 종료하지 않습니다.')
     existing_process_path = Path(f'/proc/{existing_gateway_pid}')
     existing_command_bytes = (existing_process_path / 'cmdline').read_bytes()
-    expected_script_bytes = str(workflow_root_directory / 'tools/review/gateway_server.py').encode()
-    if existing_process_path.stat().st_uid != os.getuid() or expected_script_bytes not in existing_command_bytes.split(b'\0'):
+    if existing_process_path.stat().st_uid != os.getuid() or not matches_gateway_script_path(existing_command_bytes, existing_process_path, workflow_root_directory):
         raise ValueError('같은 사용자·저장소의 게이트웨이가 아닙니다. 종료하지 않습니다.')
     launcher_trace_logger.emit_launch_trace('existing', f'port={server_port_number} pid={existing_gateway_pid}')
     if not sys.stdin.isatty():
@@ -35,7 +46,9 @@ def confirm_existing_gateway(server_port_number, workflow_root_directory, launch
         launcher_trace_logger.emit_launch_trace('keep', '기존 게이트웨이 유지 · 새 실행 취소')
         return False
     # 확인 중 PID 재사용이나 실행 파일 변경이 발생하면 중단한다.
-    if (existing_process_path / 'cmdline').read_bytes() != existing_command_bytes:
+    if ((existing_process_path / 'cmdline').read_bytes() != existing_command_bytes
+            or existing_process_path.stat().st_uid != os.getuid()
+            or not matches_gateway_script_path(existing_command_bytes, existing_process_path, workflow_root_directory)):
         raise ValueError('확인 중 기존 프로세스가 변경되었습니다. 다시 실행하세요.')
     os.kill(existing_gateway_pid, signal.SIGTERM)
     shutdown_deadline_time = time.monotonic() + GATEWAY_SHUTDOWN_TIMEOUT
