@@ -87,7 +87,7 @@ class MapAssetEditorTests(unittest.TestCase):
             self.assertEqual(current_request_payload['changes'],[{'texture':'sample','values':{'displayHeight':current_next_height}}])
             current_next_catalog=copy.deepcopy(current_catalog_record)
             current_next_catalog['revision']=current_revision_value
-            current_next_catalog['assets'][0]['properties'].update(displayHeight=current_next_height,billboardBlocksMovement=True)
+            current_next_catalog['assets'][0]['properties'].update(displayHeight=current_next_height,billboardBlocksMovement=False)
             with patch.object(asset_editor_app,'execute_remote_management_command',side_effect=[{'count':1},current_next_catalog]):
                 current_save_outputs=asset_editor_app.save_asset_editor_changes(current_catalog_record,current_table_values,{**current_request_payload,'token':'verified'})
             current_catalog_record,current_table_values=current_save_outputs[3:]
@@ -119,11 +119,11 @@ class MapAssetEditorTests(unittest.TestCase):
             current_route_result=resolve_management_command('map-assets',current_command_name,{})
             self.assertEqual(current_route_result,('POST','/map-assets'+current_route_path))
 
-    def test_explicit_blocking_survives_size_changes(self):
+    def test_manual_blocking_is_replaced_by_occupancy(self):
         current_change_payload={**self.current_request_payload,'changes':[{'texture':'sample','values':{'billboardBlocksMovement':True,'displayHeight':30,'billboardPlacementAnchor':'top'}}]}
         current_preview_result=editor.preview_editor_changes(current_change_payload,self.current_asset_root)
-        self.assertTrue(current_preview_result['changes'][0]['after']['billboardBlocksMovement'])
+        self.assertFalse(current_preview_result['changes'][0]['after']['billboardBlocksMovement'])
         editor.save_editor_changes({**current_change_payload,'token':current_preview_result['token']},self.current_asset_root)
         current_latest_catalog={'revision':editor.read_editor_snapshot(self.current_asset_root)[3]}
         current_resize_payload={'revision':current_latest_catalog['revision'],'changes':[{'texture':'sample','values':{'displayHeight':300}}]}
-        self.assertTrue(editor.preview_editor_changes(current_resize_payload,self.current_asset_root)['changes'][0]['after']['billboardBlocksMovement'])
+        self.assertFalse(editor.preview_editor_changes(current_resize_payload,self.current_asset_root)['changes'][0]['after']['billboardBlocksMovement'])

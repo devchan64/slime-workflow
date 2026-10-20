@@ -6,10 +6,10 @@ def build_asset_source_gallery():
     return gr.Gallery(value=[],interactive=False,label='원본 목록 · 썸네일을 선택하여 편집',columns=4,height='max-content',object_fit='contain',allow_preview=False)
 
 
-def build_asset_property_inputs():
+def build_asset_property_inputs(current_automatic_anchor=False):
     with gr.Row():
-        current_anchor_horizontal=gr.Number(label='아랫변 중심 X · 타일 기준',value=.5,minimum=-16,maximum=16,step=.01)
-        current_anchor_vertical=gr.Number(label='아랫변 중심 Y · 타일 기준',value=1,minimum=-16,maximum=16,step=.01)
+        current_anchor_horizontal=gr.Number(label='하단 교차점 X · 자동' if current_automatic_anchor else '아랫변 중심 X · 타일 기준',interactive=not current_automatic_anchor,value=.5,minimum=-16,maximum=16,step=.01)
+        current_anchor_vertical=gr.Number(label='하단 교차점 Y · 자동' if current_automatic_anchor else '아랫변 중심 Y · 타일 기준',interactive=not current_automatic_anchor,value=1,minimum=-16,maximum=16,step=.01)
     with gr.Row():
         current_ground_columns=gr.Number(label='점유 타일 열 · 칸',value=1,minimum=1,maximum=8,step=1,precision=0)
         current_ground_rows=gr.Number(label='점유 타일 행 · 칸',value=1,minimum=1,maximum=8,step=1,precision=0)

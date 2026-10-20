@@ -5,7 +5,7 @@ import os
 from datetime import datetime, timezone
 from pathlib import Path
 import yaml
-from tools.review.common.sprite_display_properties import validate_sprite_display_properties, calculate_billboard_blocking_state
+from tools.review.common.sprite_display_properties import validate_sprite_display_properties, calculate_billboard_blocking_state, calculate_billboard_intersection_properties
 from tools.review.maintenance.sync_billboard_catalog import build_catalog_reference, load_unique_yaml_document
 
 EDITOR_MUTABLE_FIELDS = {'billboardBlocksMovement','anchorX','anchorY','groundFootprintColumns','groundFootprintRows','displayHeight','billboardPlacementAnchor','shadowOffsetColumn','shadowOffsetRow','shadowScaleX','shadowScaleY'}
@@ -53,7 +53,8 @@ def prepare_editor_changes(current_request_payload,current_asset_root=None):
         current_original_values=current_property_document['data'][current_texture_key]
         if current_original_values.get('billboardAnchorMode') == 'tile-bottom-center' and 'billboardPlacementAnchor' in current_input_values:raise ValueError('상하 배치는 앵커에서 자동 판정됩니다.')
         current_updated_values={**current_original_values,**current_input_values}
-        current_updated_values['billboardBlocksMovement']=calculate_billboard_blocking_state(current_updated_values)
+        validate_sprite_display_properties({current_texture_key:current_updated_values})
+        current_updated_values=calculate_billboard_intersection_properties(current_updated_values)
         validate_sprite_display_properties({current_texture_key:current_updated_values})
         if current_updated_values==current_original_values:raise ValueError('변경 없는 에셋은 제외하세요: '+current_texture_key)
         current_property_document['data'][current_texture_key]=current_updated_values;current_changed_textures.add(current_texture_key)

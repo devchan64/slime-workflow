@@ -8,11 +8,20 @@ BILLBOARD_PLACEMENT_FIELD_NAMES = {'billboardPlacementAnchor', 'billboardBlocksM
 BILLBOARD_SHADOW_DEFAULTS = {'shadowOffsetColumn':0, 'shadowOffsetRow':0, 'shadowScaleX':1, 'shadowScaleY':1}
 BILLBOARD_SHADOW_FIELD_NAMES = set(BILLBOARD_SHADOW_DEFAULTS)
 def calculate_billboard_blocking_state(current_property_values):
-    """크기·앵커와 무관하게 명시한 통행 차단값을 사용한다."""
-    current_blocking_value = current_property_values.get('billboardBlocksMovement', False)
-    if type(current_blocking_value) is not bool:
-        raise ValueError('빌보드 통행 차단 속성은 불리언이어야 합니다.')
-    return current_blocking_value
+    """외곽 한 줄을 제외한 내부 타일이 있을 때만 자동 차단한다."""
+    return current_property_values.get('groundFootprintColumns', 1) >= 3 and current_property_values.get('groundFootprintRows', 1) >= 3
+
+
+def calculate_billboard_intersection_properties(current_property_values):
+    """선언 점유 크기에서 하단 교차점 좌표와 차단 여부를 파생한다."""
+    current_column_count = current_property_values['groundFootprintColumns']
+    current_row_count = current_property_values['groundFootprintRows']
+    current_column_distance = .5 if current_column_count == 1 else current_column_count - 1
+    current_row_distance = .5 if current_row_count == 1 else current_row_count - 1
+    return {**current_property_values, 'billboardAnchorMode': 'tile-bottom-center',
+            'anchorX': .5 + (current_column_distance-current_row_distance)/2,
+            'anchorY': .5 + (current_column_distance+current_row_distance)/2,
+            'billboardBlocksMovement': calculate_billboard_blocking_state(current_property_values)}
 
 
 def validate_sprite_display_properties(current_property_catalog):
@@ -60,6 +69,7 @@ def apply_sprite_display_properties(current_map_data, current_property_catalog):
         current_override_fields = set(current_object_record) & (SPRITE_ANCHOR_FIELD_NAMES | SPRITE_LAYOUT_FIELD_NAMES | BILLBOARD_PLACEMENT_FIELD_NAMES | BILLBOARD_SHADOW_FIELD_NAMES | {'billboardAnchorMode'})
         if current_override_fields:
             raise ValueError(f'맵별 빌보드 공용 속성 재정의 금지: {current_texture_key}: {sorted(current_override_fields)}')
+        current_shared_properties = calculate_billboard_intersection_properties(current_shared_properties)
         current_object_record.update(current_shared_properties)
         current_object_record.setdefault('billboardBlocksMovement', False)
         if current_shared_properties.get('billboardAnchorMode') == 'tile-bottom-center':
@@ -79,13 +89,13 @@ def apply_sprite_display_properties(current_map_data, current_property_catalog):
 
 
 def collect_billboard_blocked_cells(current_object_records):
-    """블로킹 빌보드의 선언된 접지 영역 전체를 통행 불가 셀로 반환한다."""
+    """점유 외곽 한 줄을 제외한 내부 셀만 자동 차단한다."""
     current_blocked_cells = set()
     for current_object_record in current_object_records:
-        if not current_object_record.get('billboardBlocksMovement', False):
+        if not calculate_billboard_blocking_state(current_object_record):
             continue
         current_cell_position = current_object_record['position']
         current_blocked_cells.update((current_cell_position['column'] + current_column_offset, current_cell_position['row'] + current_row_offset)
-            for current_column_offset in range(current_object_record['groundFootprintColumns'])
-            for current_row_offset in range(current_object_record['groundFootprintRows']))
+            for current_column_offset in range(1, current_object_record['groundFootprintColumns']-1)
+            for current_row_offset in range(1, current_object_record['groundFootprintRows']-1))
     return current_blocked_cells

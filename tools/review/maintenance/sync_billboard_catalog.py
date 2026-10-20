@@ -141,7 +141,7 @@ def build_catalog_reference(current_asset_root):
                 'outdoorDisplayHeight': current_shared_properties['displayHeight']*current_outdoor_scale,
                 'size_variant':'소형 변형' if '-size-small-' in current_texture_key else '대형 변형' if '-size-large-' in current_texture_key else '기본 변형',
                 'occupied_tile_count': current_shared_properties['groundFootprintColumns']*current_shared_properties['groundFootprintRows'],
-                'movement':'통행 불가' if current_shared_properties.get('billboardBlocksMovement',False) else '통행 가능',
+                'movement':'내부 타일 통행 불가' if current_shared_properties.get('billboardBlocksMovement',False) else '통행 가능',
             }
         current_billboard_record['map_references'] = current_map_references.get(current_texture_key,[])
     current_catalog_record['modeling_contract'] = {
@@ -153,7 +153,7 @@ def build_catalog_reference(current_asset_root):
         'outdoor_scale':current_outdoor_scale,
         'outdoor_height':'outdoorDisplayHeight는 야외필드 배율 적용 후 높이이며 화면 줌은 포함하지 않는다.',
         'footprint':'기준 타일부터 열·행 증가 방향으로만 확장한다. 실제 점유 칸 수는 선언 열 수×행 수이며 2×1은 정확히 2칸이다.',
-        'blocking':'billboardBlocksMovement를 명시적으로 켜고 끈다. 기본값 false. 크기·앵커·표시 높이로 통행 차단을 자동 결정하지 않는다.',
+        'blocking':'열·행이 모두 3 이상이면 외곽 한 줄을 제외한 내부 (열-2)×(행-2) 타일만 자동 차단한다. 앵커는 축별 1칸=0.5, 그 외 칸수-1 거리의 하단 교차점으로 자동 계산한다.',
         'missing':'설정 필요 항목은 크기를 추측하여 배치하지 않는다.',
         'shadow': {
             'profile':'billboard-contact-v2',

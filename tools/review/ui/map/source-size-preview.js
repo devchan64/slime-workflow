@@ -83,6 +83,11 @@ export function installSourceSizePreview(currentTextureRecords,currentSelectedGa
 
 /** 맵 검수·공용 에셋 편집기가 공유하는 실제 배율·점유 셀 미리보기. */
 export function drawAssetGroundPreview(currentPreviewCanvas,currentSourceImage,currentPropertyValues,currentRenderMetrics){
+ if(currentPropertyValues.billboardAnchorMode==='tile-bottom-center'){
+  const currentColumnDistance=currentPropertyValues.groundFootprintColumns===1?.5:currentPropertyValues.groundFootprintColumns-1;
+  const currentRowDistance=currentPropertyValues.groundFootprintRows===1?.5:currentPropertyValues.groundFootprintRows-1;
+  currentPropertyValues={...currentPropertyValues,anchorX:.5+(currentColumnDistance-currentRowDistance)/2,anchorY:.5+(currentColumnDistance+currentRowDistance)/2};
+ }
  const currentTileWidth=currentRenderMetrics.tileWidth,currentTileHeight=currentRenderMetrics.tileHeight;
  const currentDisplayHeight=currentPropertyValues.displayHeight*(currentRenderMetrics.billboardScale??1),currentDisplayWidth=currentDisplayHeight*(currentRenderMetrics.imageAspectRatio??currentSourceImage.width/currentSourceImage.height);
  const currentColumnRadius=currentPropertyValues.groundFootprintColumns-1,currentRowRadius=currentPropertyValues.groundFootprintRows-1;
@@ -106,7 +111,7 @@ export function drawAssetGroundPreview(currentPreviewCanvas,currentSourceImage,c
  const currentTilePaths=[];
  for(let currentColumnOffset=0;currentColumnOffset<=currentColumnRadius;currentColumnOffset++)for(let currentRowOffset=0;currentRowOffset<=currentRowRadius;currentRowOffset++){
   const currentCenterX=currentGroundCenterX+(currentColumnOffset-currentRowOffset)*currentTileWidth/2,currentCenterY=currentGroundCenterY+(currentColumnOffset+currentRowOffset)*currentTileHeight/2;
-  const currentTilePath=new Path2D();currentTilePath.moveTo(currentCenterX,currentCenterY-currentTileHeight/2);currentTilePath.lineTo(currentCenterX+currentTileWidth/2,currentCenterY);currentTilePath.lineTo(currentCenterX,currentCenterY+currentTileHeight/2);currentTilePath.lineTo(currentCenterX-currentTileWidth/2,currentCenterY);currentTilePath.closePath();currentTilePaths.push(currentTilePath);currentCanvasContext.fillStyle='#506655';currentCanvasContext.fill(currentTilePath);
+  const currentTilePath=new Path2D();currentTilePath.moveTo(currentCenterX,currentCenterY-currentTileHeight/2);currentTilePath.lineTo(currentCenterX+currentTileWidth/2,currentCenterY);currentTilePath.lineTo(currentCenterX,currentCenterY+currentTileHeight/2);currentTilePath.lineTo(currentCenterX-currentTileWidth/2,currentCenterY);currentTilePath.closePath();currentTilePaths.push(currentTilePath);currentCanvasContext.fillStyle=currentColumnOffset>0&&currentColumnOffset<currentColumnRadius&&currentRowOffset>0&&currentRowOffset<currentRowRadius?'#a14f45':'#506655';currentCanvasContext.fill(currentTilePath);
  }
  if(currentRenderMetrics.drawShadow){
   const currentPreviewGraphics={setDepth(){return this;},fillStyle(currentColorValue,currentAlphaValue){currentCanvasContext.fillStyle='#'+currentColorValue.toString(16).padStart(6,'0');currentCanvasContext.globalAlpha=currentAlphaValue;},fillEllipse(currentCenterX,currentCenterY,currentWidthValue,currentHeightValue){currentCanvasContext.beginPath();currentCanvasContext.ellipse(currentCenterX,currentCenterY,currentWidthValue/2,currentHeightValue/2,0,0,Math.PI*2);currentCanvasContext.fill();},fillPoints(currentPointRecords){currentCanvasContext.beginPath();currentPointRecords.forEach((currentPointRecord,currentPointIndex)=>currentPointIndex?currentCanvasContext.lineTo(currentPointRecord.x,currentPointRecord.y):currentCanvasContext.moveTo(currentPointRecord.x,currentPointRecord.y));currentCanvasContext.closePath();currentCanvasContext.fill();}};
@@ -115,7 +120,7 @@ export function drawAssetGroundPreview(currentPreviewCanvas,currentSourceImage,c
  }
  const currentImageLeft=currentAnchorPositionX-currentDisplayWidth*(currentTileAnchorMode?.5:currentPropertyValues.anchorX),currentImageTop=currentAnchorPositionY-currentDisplayHeight*(currentTileAnchorMode?1:currentPropertyValues.anchorY);
  currentCanvasContext.drawImage(currentSourceImage,currentImageLeft,currentImageTop,currentDisplayWidth,currentDisplayHeight);
- currentCanvasContext.strokeStyle='#ffd859';currentCanvasContext.lineWidth=2;currentTilePaths.forEach(currentTilePath=>currentCanvasContext.stroke(currentTilePath));
+ currentCanvasContext.lineWidth=2;currentTilePaths.forEach((currentTilePath,currentTileIndex)=>{const currentColumnOffset=Math.floor(currentTileIndex/(currentRowRadius+1)),currentRowOffset=currentTileIndex%(currentRowRadius+1);currentCanvasContext.strokeStyle=currentColumnOffset>0&&currentColumnOffset<currentColumnRadius&&currentRowOffset>0&&currentRowOffset<currentRowRadius?'#ff7168':'#ffd859';currentCanvasContext.stroke(currentTilePath);});
  currentCanvasContext.strokeStyle='#75cfff';currentCanvasContext.strokeRect(currentImageLeft,currentImageTop,currentDisplayWidth,currentDisplayHeight);
  currentCanvasContext.fillStyle='#ff7168';currentCanvasContext.beginPath();currentCanvasContext.arc(currentAnchorPositionX,currentAnchorPositionY,4,0,Math.PI*2);currentCanvasContext.fill();
  currentCanvasContext.restore();
