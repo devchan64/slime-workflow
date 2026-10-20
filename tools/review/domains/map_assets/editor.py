@@ -60,7 +60,7 @@ def prepare_editor_changes(current_request_payload,current_asset_root=None):
         current_diff_records.append({'texture':current_texture_key,'before':current_original_values,'after':current_updated_values})
     # 실제 사용 맵의 선언 접지·고도를 재검수한다. 이미지 실루엣을 접지로 오인하지 않는다.
     from tools.review.domains.map_assets.placement import validate_scenery_object_collisions
-    current_affected_maps=[]
+    current_affected_maps=[];current_map_warnings=[]
     for current_map_path in sorted((current_asset_root/'assets/maps').rglob('*.yaml')):
         if current_map_path==current_source_paths[0]:continue
         current_map_document=load_unique_yaml_document(current_map_path)
@@ -69,16 +69,20 @@ def prepare_editor_changes(current_request_payload,current_asset_root=None):
         if not isinstance(current_map_values,dict):continue
         current_map_objects=current_map_values.get('objects',[])
         if not any(current_object_record.get('textureKey') in current_changed_textures for current_object_record in current_map_objects):continue
-        current_elevation_rows=current_map_values.get('elevations')
-        if current_elevation_rows is None and current_map_path.parent.name=='field_tiles':
-            current_surface_path=current_asset_root/'assets/maps/terrain/maps'/current_map_path.name
-            current_elevation_rows=load_unique_yaml_document(current_surface_path)['data']['elevations']
-        if current_elevation_rows is None and current_map_path.parent.name=='city_layouts':
-            current_elevation_rows=[[0]*current_map_values['columns'] for current_row_index in range(current_map_values['rows'])]
-        if current_elevation_rows is None:raise ValueError('사용 맵의 고도 데이터가 없습니다: '+str(current_map_path))
-        validate_scenery_object_collisions(current_map_objects,current_property_document['data'],current_elevation_rows)
-        current_affected_maps.append(str(current_map_path.relative_to(current_asset_root)))
-    return current_snapshot_values,{'changes':current_diff_records,'maps':current_affected_maps,'note':'선언된 점유 타일·고도 검사입니다. 실제 뿌리·밑동 겹침은 미리보기로 확인하세요.'}
+        current_relative_path=str(current_map_path.relative_to(current_asset_root))
+        current_affected_maps.append(current_relative_path)
+        try:
+            current_elevation_rows=current_map_values.get('elevations')
+            if current_elevation_rows is None and current_map_path.parent.name=='field_tiles':
+                current_surface_path=current_asset_root/'assets/maps/terrain/maps'/current_map_path.name
+                current_elevation_rows=load_unique_yaml_document(current_surface_path)['data']['elevations']
+            if current_elevation_rows is None and current_map_path.parent.name=='city_layouts':
+                current_elevation_rows=[[0]*current_map_values['columns'] for current_row_index in range(current_map_values['rows'])]
+            if current_elevation_rows is None:raise ValueError('사용 맵의 고도 데이터가 없습니다: '+str(current_map_path))
+            validate_scenery_object_collisions(current_map_objects,current_property_document['data'],current_elevation_rows)
+        except (ValueError,KeyError,FileNotFoundError,TypeError,IndexError) as current_map_error:
+            current_map_warnings.append({'map':current_relative_path,'message':str(current_map_error)})
+    return current_snapshot_values,{'changes':current_diff_records,'maps':current_affected_maps,'map_warnings':current_map_warnings,'note':'맵 배치·고도 문제는 경고이며 공용 에셋 저장을 차단하지 않습니다. 맵 배치는 별도로 수정하세요.'}
 
 
 def preview_editor_changes(current_request_payload,current_asset_root=None):
@@ -117,7 +121,7 @@ def save_editor_changes(current_request_payload,current_asset_root=None):
             current_temporary_path=current_file_path.with_name(current_file_path.name+'.editor-tmp');current_temporary_path.write_bytes(current_file_bytes);os.replace(current_temporary_path,current_file_path)
         current_synced_catalog=build_catalog_reference(current_asset_root)
         current_source_paths[2].write_text(yaml.safe_dump(current_synced_catalog,allow_unicode=True,sort_keys=False))
-        current_result_record={'saved':True,'count':len(current_preview_result['changes']),'maps':current_preview_result['maps'],'saved_at':datetime.now(timezone.utc).isoformat(),'sha256':current_new_hash}
+        current_result_record={'saved':True,'count':len(current_preview_result['changes']),'maps':current_preview_result['maps'],'map_warnings':current_preview_result['map_warnings'],'saved_at':datetime.now(timezone.utc).isoformat(),'sha256':current_new_hash}
         current_receipt_path.write_text(json.dumps(current_result_record,ensure_ascii=False))
         return current_result_record
     except Exception:

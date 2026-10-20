@@ -30,6 +30,16 @@ class MapAssetEditorTests(unittest.TestCase):
         self.current_storage_patch.start();self.addCleanup(self.current_storage_patch.stop)
         self.current_request_payload={'revision':editor.read_editor_snapshot(self.current_asset_root)[3],'changes':[{'texture':'sample','values':{'displayHeight':100}}]}
 
+    def test_map_conflict_warns_without_blocking_save(self):
+        current_map_path=self.current_property_path.parent/'sample-map.yaml'
+        current_map_path.write_text(yaml.safe_dump({'data':{'objects':[{'id':'sample-object','kind':'decoration','textureKey':'sample','position':{'column':1,'row':0}}],'elevations':[[0,1],[0,0]]}}))
+        self.current_request_payload['changes'][0]['values']['groundFootprintRows']=2
+        current_preview_result=editor.preview_editor_changes(self.current_request_payload,self.current_asset_root)
+        self.assertIn('고도 불일치',current_preview_result['map_warnings'][0]['message'])
+        current_saved_result=editor.save_editor_changes({**self.current_request_payload,'token':current_preview_result['token']},self.current_asset_root)
+        self.assertTrue(current_saved_result['saved'])
+        self.assertEqual(current_saved_result['map_warnings'],current_preview_result['map_warnings'])
+
     def test_preview_save_hash_catalog_and_repeat(self):
         current_preview_result=editor.preview_editor_changes(self.current_request_payload,self.current_asset_root)
         self.assertEqual(hashlib.sha256(self.current_property_path.read_bytes()).hexdigest(),self.current_original_hash)
@@ -96,12 +106,12 @@ class MapAssetEditorTests(unittest.TestCase):
         for current_invalid_values in ({'shadowScaleX':0},{'shadowOffsetRow':5},{'shadowScaleY':float('nan')}):
             with self.assertRaises(ValueError):validate_sprite_display_properties({'sample':{**self.current_property_values,**current_invalid_values}})
 
-    def test_used_map_collision_rejects_expansion(self):
+    def test_used_map_collision_warns_on_expansion(self):
         current_map_path=self.current_asset_root/'assets/maps/city_layouts/test.yaml'
         current_map_path.parent.mkdir()
         current_map_path.write_text(yaml.safe_dump({'data':{'columns':6,'rows':6,'objects':[{'id':'first','kind':'decoration','textureKey':'sample','position':{'column':2,'row':2}},{'id':'second','kind':'decoration','textureKey':'sample','position':{'column':3,'row':2}}]}}))
-        with self.assertRaisesRegex(ValueError,'충돌'):
-            editor.prepare_editor_changes({**self.current_request_payload,'changes':[{'texture':'sample','values':{'groundFootprintColumns':2}}]},self.current_asset_root)
+        _,current_preview_result=editor.prepare_editor_changes({**self.current_request_payload,'changes':[{'texture':'sample','values':{'groundFootprintColumns':2}}]},self.current_asset_root)
+        self.assertIn('충돌',current_preview_result['map_warnings'][0]['message'])
 
     def test_editor_command_routes_share_gateway(self):
         from tools.review.common.management_gateway import resolve_management_command

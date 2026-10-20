@@ -87,9 +87,14 @@ def build_asset_editor_payload(current_catalog_record,current_table_values):
 
 
 def preview_asset_editor_changes(current_catalog_record,current_table_values):
-    current_request_payload=build_asset_editor_payload(current_catalog_record,current_table_values)
-    current_preview_record=execute_remote_management_command('map-assets','asset-preview',current_request_payload)
-    return {**current_request_payload,'token':current_preview_record['token']},current_preview_record,gr.update(visible=True)
+    try:
+        current_request_payload=build_asset_editor_payload(current_catalog_record,current_table_values)
+        if not current_request_payload['changes']:
+            return {},{},gr.update(visible=False),'변경된 값이 없습니다. 속성 입력을 수정했다면 먼저 선택 에셋 변경 반영을 누르세요.'
+        current_preview_record=execute_remote_management_command('map-assets','asset-preview',current_request_payload)
+    except ValueError as current_validation_error:
+        return {},{},gr.update(visible=False),'변경 검증 실패 · 편집값은 유지됩니다.\n\n'+str(current_validation_error).replace('\n','  \n')
+    return {**current_request_payload,'token':current_preview_record['token']},current_preview_record,gr.update(visible=True),f"변경 검증 완료. 맵 경고 {len(current_preview_record.get('map_warnings',[]))}건은 저장을 차단하지 않습니다. 아래 변경 전후를 확인하고 저장하세요."
 
 
 def save_asset_editor_changes(current_catalog_record,current_table_values,current_pending_record):
@@ -138,6 +143,7 @@ def build_asset_editor_interface(current_review_port):
         with gr.Accordion('전체 에셋 일괄 편집',open=False):
             current_asset_table=gr.Dataframe(headers=EDITOR_TABLE_HEADERS,datatype=['str','str','number','number','number','number','number','str','number','number','number','number','bool','number'],type='array',interactive=True,static_columns=[0,1,7,12,13],show_search='filter',column_count=(14,'fixed'),label='전체 에셋 편집 표 · 현재 차단 열은 저장 전 원본 값')
         current_preview_button=gr.Button('변경 검증 · 저장 내용 확인',variant='primary')
+        current_validation_feedback=gr.Markdown()
         with gr.Group(visible=False) as current_confirmation_group:
             gr.Markdown('검증한 변경만 공용 원본에 저장합니다. 아래 before / after 및 사용 맵을 확인하세요. 인라인 확인 영역이며 취소하면 저장하지 않습니다.')
             current_preview_result=gr.JSON(label='변경 전후 · 영향 맵')
@@ -151,7 +157,7 @@ def build_asset_editor_interface(current_review_port):
         current_search_button.click(filter_asset_editor_gallery,inputs=[current_catalog_state,current_search_text],outputs=current_gallery_outputs)
         current_selection_event=current_source_gallery.select(select_asset_editor_record,inputs=[current_visible_state,current_asset_table],outputs=[current_detail_record,*current_property_inputs,current_placement_choice,*current_shadow_inputs,current_detail_text])
         current_update_button.click(update_asset_editor_row,inputs=[current_detail_record,current_asset_table,*current_property_inputs,current_placement_choice,*current_shadow_inputs],outputs=[current_asset_table,current_feedback_text])
-        current_preview_button.click(preview_asset_editor_changes,inputs=[current_catalog_state,current_asset_table],outputs=[current_pending_state,current_preview_result,current_confirmation_group])
+        current_preview_button.click(preview_asset_editor_changes,inputs=[current_catalog_state,current_asset_table],outputs=[current_pending_state,current_preview_result,current_confirmation_group,current_validation_feedback])
         current_save_button.click(save_asset_editor_changes,inputs=[current_catalog_state,current_asset_table,current_pending_state],outputs=[current_feedback_text,current_pending_state,current_confirmation_group,current_catalog_state,current_asset_table]).then(filter_asset_editor_gallery,inputs=[current_catalog_state,current_search_text],outputs=current_gallery_outputs)
         current_cancel_button.click(lambda:({},gr.update(visible=False)),outputs=[current_pending_state,current_confirmation_group])
         current_preview_script='''async(currentAssetRecord,currentAnchorX,currentAnchorY,currentColumns,currentRows,currentHeight,currentPlacement,currentShadowColumn,currentShadowRow,currentShadowWidth,currentShadowHeight,currentKind,currentPreviewZoom)=>{
