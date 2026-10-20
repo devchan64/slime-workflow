@@ -126,7 +126,7 @@ def build_asset_editor_interface(current_review_port):
                 with gr.Group():
                     gr.Markdown('### 그림자 위치와 크기')
                     current_shadow_inputs=build_asset_shadow_inputs()
-                    gr.Markdown('이동 0·0은 타일 중앙입니다. 배율 1은 기본 크기입니다.')
+                    gr.Markdown('이동 0·0은 전체 점유 영역의 중앙입니다. 배율 1은 기본 크기입니다.')
                 current_update_button=gr.Button('선택 에셋 변경 반영')
                 gr.Markdown('반영 후 아래 **변경 검증**을 눌러 저장하세요.')
             with gr.Column():
