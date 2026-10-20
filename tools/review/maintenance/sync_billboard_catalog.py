@@ -157,7 +157,7 @@ def build_catalog_reference(current_asset_root):
         'missing':'설정 필요 항목은 크기를 추측하여 배치하지 않는다.',
         'shadow': {
             'profile':'billboard-contact-v2',
-            'implementation':'@slime/field-renderer 1.0.139 · drawBillboardContactShadow',
+            'implementation':'@slime/field-renderer 1.0.140 · drawBillboardContactShadow',
             'enabled':'기본 활성화. 렌더러 옵션 billboardShadows=false로 전체 비활성화.',
             'geometry':'폭=min(displayHeight×billboardScale×0.76, tileWidth×1.10), 높이=폭×0.2. 정사각 점유는 이 타원 공식을 사용한다. 열·행 수가 다른 점유는 각 축 길이=선언 점유 수×1.10타일, 모서리 반경=짧은 반축×0.35인 둥근 직사각형을 지면에 투영한다.',
             'layers':[{'scale':1,'alpha':0.14},{'scale':0.78,'alpha':0.20},{'scale':0.5,'alpha':0.26}],
@@ -165,7 +165,7 @@ def build_catalog_reference(current_asset_root):
             'position':'그림자는 소속 타일 중앙에 둔다. 빌보드 앵커의 화면 이동을 제거한다: X 보정=(column-row)×tileWidth×0.5, Y 보정=(column+row)×tileHeight×0.5를 뺀다. 열·행 오프셋은 카메라 회전을 반영한다.',
             'depth':'소속 타일의 지면 바로 위에 배치하며 빌보드·캐릭터 정렬과 분리한다.',
             'limits':'접지 그림자만 지원. 광원 방향의 투사·실루엣 그림자, 에셋별 농도 설정, 지면 경계 클리핑은 지원하지 않는다.',
-            'catalog_role':'modeling.shadow는 제작·검수 지침이다. 이 지침만 편집해도 런타임은 바뀌지 않는다. 위치·크기는 공용 속성 편집기에서 shadowOffsetColumn/Row(-4~4타일), shadowScaleX(0.1~4), shadowScaleY(0.05~4, 기본 0.5·렌더 시 2배)를 저장한다.',
+            'catalog_role':'modeling.shadow는 제작·검수 지침이다. 이 지침만 편집해도 런타임은 바뀌지 않는다. 위치·크기는 공용 속성 편집기에서 shadowOffsetColumn/Row(-4~4타일), shadowScaleX(0.1~4), shadowScaleY(0.05~4, 기본 1·렌더 시 2배)를 저장한다.',
         },
         'validation':'slime-workflow/tools/review/maintenance/sync_billboard_catalog.py --check',
     }

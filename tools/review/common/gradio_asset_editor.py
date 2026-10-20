@@ -27,5 +27,5 @@ def build_asset_shadow_inputs():
         current_shadow_row=gr.Number(label='그림자 행 방향 이동 · 타일',value=0,minimum=-4,maximum=4,step=.05)
     with gr.Row():
         current_shadow_width=gr.Number(label='그림자 가로/열 배율',value=1,minimum=.1,maximum=4,step=.05)
-        current_shadow_height=gr.Number(label='그림자 세로/행 배율',value=.5,minimum=.05,maximum=4,step=.05)
+        current_shadow_height=gr.Number(label='그림자 세로/행 배율',value=1,minimum=.05,maximum=4,step=.05)
     return [current_shadow_column,current_shadow_row,current_shadow_width,current_shadow_height]

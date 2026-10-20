@@ -5,7 +5,7 @@ import re
 SPRITE_ANCHOR_FIELD_NAMES = {'anchorX', 'anchorY'}
 SPRITE_LAYOUT_FIELD_NAMES = {'groundFootprintColumns', 'groundFootprintRows', 'displayHeight'}
 BILLBOARD_PLACEMENT_FIELD_NAMES = {'billboardPlacementAnchor', 'billboardBlocksMovement'}
-BILLBOARD_SHADOW_DEFAULTS = {'shadowOffsetColumn':0, 'shadowOffsetRow':0, 'shadowScaleX':1, 'shadowScaleY':0.5}
+BILLBOARD_SHADOW_DEFAULTS = {'shadowOffsetColumn':0, 'shadowOffsetRow':0, 'shadowScaleX':1, 'shadowScaleY':1}
 BILLBOARD_SHADOW_FIELD_NAMES = set(BILLBOARD_SHADOW_DEFAULTS)
 BILLBOARD_BLOCKING_HEIGHT_LIMIT = 80
 
