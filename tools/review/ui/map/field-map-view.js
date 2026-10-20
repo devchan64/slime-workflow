@@ -21,6 +21,38 @@ function drawReviewTileBoundary(currentSceneObject,currentCenterPoint,currentTil
  return currentBoundaryGraphic;
 }
 
+const BLOCKED_REVIEW_OVERLAY_DEPTH=100000000;
+const BLOCKED_REVIEW_AREA_COLOR=0xff4137;
+const BLOCKED_REVIEW_AREA_ALPHA=0.35;
+function drawReviewBlockedAreas(currentSceneObject,currentMapRecord,currentProjectCell,currentTileWidth,currentTileHeight){
+ const currentBlockedPositions=new Map((currentMapRecord.blocked??[]).map(currentCellPosition=>[`${currentCellPosition.column},${currentCellPosition.row}`,currentCellPosition]));
+ for(const currentObjectRecord of currentMapRecord.objects??[]){
+  for(let currentColumnOffset=1;currentColumnOffset<(currentObjectRecord.groundFootprintColumns??1)-1;currentColumnOffset++)for(let currentRowOffset=1;currentRowOffset<(currentObjectRecord.groundFootprintRows??1)-1;currentRowOffset++){
+   const currentCellPosition={column:currentObjectRecord.position.column+currentColumnOffset,row:currentObjectRecord.position.row+currentRowOffset};
+   currentBlockedPositions.set(`${currentCellPosition.column},${currentCellPosition.row}`,currentCellPosition);
+  }
+ }
+ const currentOverlayGraphic=currentSceneObject.add.graphics().setDepth(BLOCKED_REVIEW_OVERLAY_DEPTH);
+ currentOverlayGraphic.fillStyle(BLOCKED_REVIEW_AREA_COLOR,BLOCKED_REVIEW_AREA_ALPHA);
+ currentOverlayGraphic.lineStyle(2,BLOCKED_REVIEW_AREA_COLOR,1);
+ for(const currentCellPosition of currentBlockedPositions.values()){
+  const currentCenterPoint=currentProjectCell(currentCellPosition);
+  if(!currentCenterPoint)continue;
+  currentOverlayGraphic.beginPath();currentOverlayGraphic.moveTo(currentCenterPoint.x,currentCenterPoint.y-currentTileHeight/2);
+  currentOverlayGraphic.lineTo(currentCenterPoint.x+currentTileWidth/2,currentCenterPoint.y);currentOverlayGraphic.lineTo(currentCenterPoint.x,currentCenterPoint.y+currentTileHeight/2);currentOverlayGraphic.lineTo(currentCenterPoint.x-currentTileWidth/2,currentCenterPoint.y);
+  currentOverlayGraphic.closePath();currentOverlayGraphic.fillPath();currentOverlayGraphic.strokePath();
+ }
+ for(const currentObjectRecord of currentMapRecord.objects??[]){
+  if(currentObjectRecord.groundFootprintColumns!==3||currentObjectRecord.groundFootprintRows!==2)continue;
+  const currentFirstPoint=currentProjectCell({column:currentObjectRecord.position.column+1,row:currentObjectRecord.position.row});
+  const currentSecondPoint=currentProjectCell({column:currentObjectRecord.position.column+1,row:currentObjectRecord.position.row+1});
+  if(!currentFirstPoint||!currentSecondPoint)continue;
+  const currentMiddlePoint={x:(currentFirstPoint.x+currentSecondPoint.x)/2,y:(currentFirstPoint.y+currentSecondPoint.y)/2};
+  currentOverlayGraphic.lineStyle(4,BLOCKED_REVIEW_AREA_COLOR,1);currentOverlayGraphic.beginPath();
+  currentOverlayGraphic.moveTo(currentMiddlePoint.x-currentTileWidth/4,currentMiddlePoint.y-currentTileHeight/4);currentOverlayGraphic.lineTo(currentMiddlePoint.x+currentTileWidth/4,currentMiddlePoint.y+currentTileHeight/4);currentOverlayGraphic.strokePath();
+ }
+}
+
 function readReviewConnectionMask(currentCellPosition,currentMapRecord,currentTerrainName,currentRotationValue){
  let currentTerrainCache=FIELD_REVIEW_TERRAIN_CACHE.get(currentMapRecord);
  if(!currentTerrainCache){currentTerrainCache=new Map();FIELD_REVIEW_TERRAIN_CACHE.set(currentMapRecord,currentTerrainCache);}
@@ -160,10 +192,14 @@ export async function createSharedFieldReview(currentMapCanvas,currentTextureIma
   render(currentFieldFrame,currentMapRecord,currentViewSettings){
    if(currentReviewDisposed)throw Error('맵 검수 화면이 닫혔습니다.');
    updateSharedReviewCamera(currentViewSettings);
-   const currentNextSignature=JSON.stringify([currentMapRecord.id,currentFieldFrame.options.rotation,currentViewSettings.edges,currentViewSettings.tileEdges,currentViewSettings.safe]);
+   const currentNextSignature=JSON.stringify([currentMapRecord.id,currentFieldFrame.options.rotation,currentViewSettings.edges,currentViewSettings.tileEdges,currentViewSettings.blockedAreas,currentViewSettings.safe]);
    if(currentNextSignature!==currentRenderSignature){
     for(const currentRenderObject of [...currentFieldScene.children.list])if(currentRenderObject.scene)currentRenderObject.destroy();
     currentFieldActorSignature='';currentFieldActorObjects=[];currentFieldWaypointObjects=[];
+    if(currentViewSettings.blockedAreas){
+     const currentCellCenters=new Map(currentFieldFrame.cells.map(currentCellRecord=>[`${currentCellRecord.cell.column},${currentCellRecord.cell.row}`,currentCellRecord.center]));
+     drawReviewBlockedAreas(currentFieldScene,currentMapRecord,currentCellPosition=>currentCellCenters.get(`${currentCellPosition.column},${currentCellPosition.row}`),currentFieldFrame.options.tileWidth,currentFieldFrame.options.tileHeight);
+    }
     const currentSafeCenter=rotateSurfacePosition(currentMapRecord.startPoint,currentFieldFrame.options.rotation);
     for(const currentCellRecord of currentFieldFrame.cells){
      const currentTerrainName=currentMapRecord.terrainCodes[currentMapRecord.terrainRows[currentCellRecord.cell.row][currentCellRecord.cell.column]];
@@ -222,7 +258,7 @@ export async function createSharedFieldReview(currentMapCanvas,currentTextureIma
   readAppliedBuildingTextures(){return [...currentAppliedBuildingTextures].sort();},
   renderTown(currentMapRecord,currentViewSettings,currentProjectPosition){
    if(currentReviewDisposed)throw Error('맵 검수 화면이 닫혔습니다.');
-   const currentMapSignature=JSON.stringify([currentMapRecord.id,currentViewSettings.rotation,currentViewSettings.edges,currentViewSettings.tileEdges]);
+   const currentMapSignature=JSON.stringify([currentMapRecord.id,currentViewSettings.rotation,currentViewSettings.edges,currentViewSettings.tileEdges,currentViewSettings.blockedAreas]);
    const currentDepthPosition=currentCellPosition=>resolveFieldSurfaceDepth(currentCellPosition,currentMapRecord,{...FIELD_RENDER_METRICS,rotation:currentViewSettings.rotation});
    if(currentMapSignature!==currentTownMapSignature){
     for(const currentRenderObject of [...currentFieldScene.children.list])if(currentRenderObject.scene)currentRenderObject.destroy();
@@ -244,6 +280,7 @@ export async function createSharedFieldReview(currentMapCanvas,currentTextureIma
      drawTownMaterialEdges(currentFieldScene,currentCellPosition,currentNeighborCell=>currentMapRecord.terrainCodes[currentMapRecord.terrainRows[currentNeighborCell.row][currentNeighborCell.column]],currentProjectPosition,currentNeighborPosition=>resolveCityGroundDepth(currentDepthPosition(currentNeighborPosition),currentMapRecord),TERRAIN_DEPTH.surface);
      }
     }
+    if(currentViewSettings.blockedAreas)drawReviewBlockedAreas(currentFieldScene,currentMapRecord,currentProjectPosition,currentTileDimensions.width,currentTileDimensions.height);
     if(currentViewSettings.tileEdges)for(let currentRowIndex=0;currentRowIndex<currentMapRecord.rows;currentRowIndex++)for(let currentColumnIndex=0;currentColumnIndex<currentMapRecord.columns;currentColumnIndex++){
      const currentTilePosition={column:currentColumnIndex,row:currentRowIndex};
      drawReviewTileBoundary(currentFieldScene,currentProjectPosition(currentTilePosition),currentTileDimensions.width,currentTileDimensions.height,resolveCityGroundDepth(currentDepthPosition(currentTilePosition),currentMapRecord)+TERRAIN_DEPTH.surface+.01);

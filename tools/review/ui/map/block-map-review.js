@@ -68,7 +68,7 @@ const CHARACTER_CONTACT_SHADOW_COLOR='#'+GAME_CONTACT_SHADOW_COLOR.toString(16).
 const CHARACTER_CONTACT_SHADOW_SIZE_SCALE=1;
 let currentShadowColorOverride=isCharacterReviewPage?CHARACTER_CONTACT_SHADOW_COLOR:null;
 const CHARACTER_OUTLINE_PIXEL_OFFSETS=[[-1,0],[1,0],[0,-1],[0,1],[-0.707,-0.707],[0.707,-0.707],[-0.707,0.707],[0.707,0.707]];
-const currentDisplayOptions={'show-character':true,'show-safe-boundary':true,edges:false,'tile-edges':false,'shadow-profile':ACTOR_CONTACT_SHADOW_CONTRACT.profile};
+const currentDisplayOptions={'show-character':true,'show-safe-boundary':true,edges:false,'tile-edges':false,'blocked-areas':false,'shadow-profile':ACTOR_CONTACT_SHADOW_CONTRACT.profile};
 function readReviewOption(currentOptionName){return document.getElementById(currentOptionName)?.checked??currentDisplayOptions[currentOptionName];}
 // 검수용 반복 견본은 게임 맵 원본과 분리하며 등록된 타일·캐릭터만 공유한다.
 const currentMapRecord=isCharacterReviewPage?{
@@ -334,13 +334,13 @@ function updateReviewZoomControls(){
  if(document.querySelector('#zoom-in'))document.querySelector('#zoom-in').disabled=currentScaleValue>=MAX_MAP_SCALE;
  if(document.querySelector('#zoom-out'))document.querySelector('#zoom-out').disabled=currentScaleValue<=MIN_MAP_SCALE;
 }
-function renderSharedReviewMap(currentFitRequested){
+function renderSharedReviewMap(currentFitRequested,currentOptionOverrides={}){
  if(isFieldMapReview&&(!currentFieldFrame||currentFieldFrame.options.rotation!==currentCameraRotation))currentFieldFrame=createFieldReviewFrame(currentMapRecord,currentCameraRotation);
  if(currentFitRequested){
   const currentCornerPoints=isFieldMapReview?currentFieldFrame.points:[{column:0,row:0},{column:currentMapRecord.columns,row:0},{column:0,row:currentMapRecord.rows},{column:currentMapRecord.columns,row:currentMapRecord.rows}].map(projectBlockVertex);
   fitReviewMapCamera(currentCornerPoints,isFieldMapReview?FIELD_FIT_TOP_MARGIN:TOWN_BLOCK_HEIGHT*2);
  }
- const currentRenderOptions={edges:readReviewOption('edges'),tileEdges:readReviewOption('tile-edges'),scale:currentScaleValue,offsetX:currentOffsetX,offsetY:currentOffsetY,character:readReviewOption('show-character'),characterCell:currentCharacterCell};
+ const currentRenderOptions={edges:readReviewOption('edges'),tileEdges:readReviewOption('tile-edges'),blockedAreas:readReviewOption('blocked-areas'),scale:currentScaleValue,offsetX:currentOffsetX,offsetY:currentOffsetY,character:readReviewOption('show-character'),characterCell:currentCharacterCell,...currentOptionOverrides};
  if(isFieldMapReview){
   currentSharedFieldView.render(currentFieldFrame,currentMapRecord,{...currentRenderOptions,safe:readReviewOption('show-safe-boundary'),shadowProfile:currentDisplayOptions['shadow-profile']});
  }else{
@@ -451,11 +451,11 @@ for(const currentActionName of Object.keys(currentCameraActions)){
 // 표준 UI는 상태만 전달하고 모든 렌더링·시점 갱신은 브라우저에서 수행한다.
 window.mapReviewSelectMap=selectReviewMap;
 window.mapReviewFocusBuilding=focusReviewBuilding;
-window.mapReviewDisplayOptions=(currentCharacterVisible,currentBoundaryVisible,currentEdgesVisible,currentShadowProfileName='contrast',currentTileEdgesVisible=false)=>{
- const currentOptionValues=[currentCharacterVisible,currentBoundaryVisible,currentEdgesVisible,currentTileEdgesVisible];
+window.mapReviewDisplayOptions=(currentCharacterVisible,currentBoundaryVisible,currentEdgesVisible,currentShadowProfileName='contrast',currentTileEdgesVisible=false,currentBlockedVisible=false)=>{
+ const currentOptionValues=[currentCharacterVisible,currentBoundaryVisible,currentEdgesVisible,currentTileEdgesVisible,currentBlockedVisible];
  if(currentOptionValues.some(currentOptionValue=>typeof currentOptionValue!=='boolean'))throw Error('맵 표시 옵션은 참/거짓 값이어야 합니다.');
  if(!['baseline','contrast','broad'].includes(currentShadowProfileName))throw Error('지원하지 않는 캐릭터 그림자 검수안입니다.');
- Object.assign(currentDisplayOptions,{'show-character':currentCharacterVisible,'show-safe-boundary':currentBoundaryVisible,edges:currentEdgesVisible,'tile-edges':currentTileEdgesVisible,'shadow-profile':currentShadowProfileName});
+ Object.assign(currentDisplayOptions,{'show-character':currentCharacterVisible,'show-safe-boundary':currentBoundaryVisible,edges:currentEdgesVisible,'tile-edges':currentTileEdgesVisible,'blocked-areas':currentBlockedVisible,'shadow-profile':currentShadowProfileName});
  renderBlockMap();
 };
 window.mapReviewControlOptions=()=>({maps:availableMapRecords.map(currentMapEntry=>[currentMapEntry.name,currentMapEntry.id]),selected:selectedMapIdentifier,townSpecific:isTownSpecificReviewPage||isCharacterReviewPage,field:isFieldMapReview,characterReview:isCharacterReviewPage,buildings:currentMapRecord.buildings.map(currentBuildingEntry=>[currentBuildingEntry.name,currentBuildingEntry.id])});
@@ -525,8 +525,12 @@ if(currentMapCanvas.dataset.capture==='true'){
 window.mapReviewCreateExportImage=async()=>{
  if(!currentSharedFieldView)throw Error('야외필드·도시맵에서 사용할 수 있습니다.');
  const currentGroundPoints=isFieldMapReview?currentFieldFrame.points:[{column:0,row:0},{column:currentMapRecord.columns,row:0},{column:0,row:currentMapRecord.rows},{column:currentMapRecord.columns,row:currentMapRecord.rows}].map(projectBlockVertex);
- const currentExportImage=await currentSharedFieldView.exportWholeMapImage(currentGroundPoints);
- return currentExportImage;
+ try{
+  renderSharedReviewMap(false,{tileEdges:true,blockedAreas:true});
+  return await currentSharedFieldView.exportWholeMapImage(currentGroundPoints);
+ }finally{
+  renderBlockMap();
+ }
 };
 window.mapReviewExportImage=async()=>{
  const currentExportImage=await window.mapReviewCreateExportImage();
@@ -538,5 +542,7 @@ window.mapReviewExportImage=async()=>{
  currentDownloadLink.textContent=`전체 맵 PNG 다운로드 (${currentExportImage.width}×${currentExportImage.height})`;
  currentDownloadLink.click();
  renderBlockMap();
- return `전체 맵 PNG 저장 · ${currentExportImage.width}×${currentExportImage.height}px · 현재 표시 옵션 적용`;
+ return `전체 맵 PNG 저장 · ${currentExportImage.width}×${currentExportImage.height}px · 이동금지 영역·타일 경계 포함`;
 };
+
+if(document.querySelector('#blocked-areas'))document.querySelector('#blocked-areas').onchange=()=>renderBlockMap();

@@ -133,7 +133,7 @@ def build_map_review_interface(review_server_port, character_review_enabled=Fals
                 if not character_review_enabled:
                     current_ready_controls.append(build_browser_action_button('전체 맵 PNG 내보내기','mapReviewExportImage','export',current_camera_feedback,current_button_enabled=False))
             if not character_review_enabled:
-                gr.Markdown('전체 맵과 건물·자연물을 투명 배경 PNG로 저장합니다. 현재 표시 옵션을 적용하며 긴 변은 최대 4096px입니다. 저장 후 기존 시점으로 돌아옵니다.')
+                gr.Markdown('전체 맵과 건물·자연물을 투명 배경 PNG로 저장합니다. 이동금지 영역과 타일 경계를 항상 포함하며 긴 변은 최대 4096px입니다. 저장 후 기존 시점으로 돌아옵니다.')
             current_building_choice=gr.Dropdown(label='건물 선택',choices=[],interactive=False)
             current_building_choice.input(fn=None,inputs=current_building_choice,outputs=current_camera_feedback,queue=False,js="(currentBuildingIdentifier)=>{try{if(!window.mapReviewFocusBuilding)throw Error('맵을 준비 중입니다.');window.mapReviewFocusBuilding(currentBuildingIdentifier);return '선택한 건물로 이동했습니다.';}catch(currentFocusError){return currentFocusError.message;}}")
             with gr.Row():
@@ -147,7 +147,9 @@ def build_map_review_interface(review_server_port, character_review_enabled=Fals
                     current_tile_edges_check=gr.Checkbox(interactive=False,label='타일 경계',value=False)
                 with gr.Column(min_width=220,visible=character_review_enabled) as current_shadow_profile_column:
                     current_shadow_profile=gr.Dropdown(label='캐릭터 시인성 검수',choices=[('이전 기본 그림자','baseline'),('게임 적용 · 접지 대비 강화','contrast'),('넓은 접지 그림자','broad')],value='contrast',interactive=False)
-            current_display_inputs=[current_character_check,current_boundary_check,current_edges_check,current_shadow_profile,current_tile_edges_check]
+                with gr.Column(min_width=200):
+                    current_blocked_check=gr.Checkbox(interactive=False,label='이동금지 영역 보기',value=False)
+            current_display_inputs=[current_character_check,current_boundary_check,current_edges_check,current_shadow_profile,current_tile_edges_check,current_blocked_check]
             current_ready_controls.extend(current_display_inputs)
             for current_display_control in current_display_inputs:
                 current_display_control.input(fn=None,inputs=current_display_inputs,outputs=current_camera_feedback,queue=False,js="(...currentDisplayValues)=>{try{if(!window.mapReviewDisplayOptions)throw Error('맵을 준비 중입니다.');window.mapReviewDisplayOptions(...currentDisplayValues);return '표시 옵션을 적용했습니다.';}catch(currentDisplayError){return currentDisplayError.message;}}")
