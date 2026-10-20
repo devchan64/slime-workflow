@@ -12,7 +12,7 @@ def calculate_centered_footprint_cells(current_cell_position, current_footprint_
 
 
 def validate_scenery_ground_placement(current_ground_cells, current_elevation_rows, current_reserved_cells):
-    """맵 경계·예약 영역·접지 셀 간 단차를 검사하고 거절 사유를 반환한다."""
+    """점유와 주변 한 칸의 단차를 거절한다. 주변 칸은 점유·충돌 크기에 더하지 않는다."""
     if not current_ground_cells or not current_elevation_rows or not current_elevation_rows[0]:
         raise ValueError('접지 셀과 고도 행이 필요합니다.')
     current_column_count = len(current_elevation_rows[0])
@@ -24,6 +24,13 @@ def validate_scenery_ground_placement(current_ground_cells, current_elevation_ro
         return '예약 영역 중첩'
     if len({current_elevation_rows[current_row_index][current_column_index] for current_column_index, current_row_index in current_ground_cells}) != 1:
         return '접지 영역 고도 불일치'
+    current_support_cells = {(current_column_index + current_column_offset, current_row_index + current_row_offset)
+        for current_column_index, current_row_index in current_ground_cells
+        for current_column_offset in (-1, 0, 1) for current_row_offset in (-1, 0, 1)
+        if 0 <= current_column_index + current_column_offset < current_column_count
+        and 0 <= current_row_index + current_row_offset < len(current_elevation_rows)}
+    if len({current_elevation_rows[current_row_index][current_column_index] for current_column_index, current_row_index in current_support_cells}) != 1:
+        return '접지 주변 단차 경계 침범'
     return None
 
 

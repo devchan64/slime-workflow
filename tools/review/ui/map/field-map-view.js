@@ -22,8 +22,22 @@ function drawReviewTileBoundary(currentSceneObject,currentCenterPoint,currentTil
 }
 
 const BLOCKED_REVIEW_OVERLAY_DEPTH=100000000;
-const BLOCKED_REVIEW_AREA_COLOR=0xff4137;
-const BLOCKED_REVIEW_AREA_ALPHA=0.35;
+const BLOCKED_REVIEW_AREA_COLOR=0xffffff;
+const BLOCKED_REVIEW_HATCH_SPACING=10;
+const BLOCKED_REVIEW_HATCH_WIDTH=2;
+const BLOCKED_REVIEW_EDGE_WIDTH=5;
+const BLOCKED_REVIEW_DASH_LENGTH=10;
+const BLOCKED_REVIEW_DASH_GAP=6;
+function drawReviewDashedBoundary(currentOverlayGraphic,currentFirstPoint,currentLastPoint){
+ const currentDeltaX=currentLastPoint.x-currentFirstPoint.x,currentDeltaY=currentLastPoint.y-currentFirstPoint.y;
+ const currentEdgeLength=Math.hypot(currentDeltaX,currentDeltaY);
+ currentOverlayGraphic.lineStyle(BLOCKED_REVIEW_EDGE_WIDTH,BLOCKED_REVIEW_AREA_COLOR,1);
+ for(let currentDashOffset=0;currentDashOffset<currentEdgeLength;currentDashOffset+=BLOCKED_REVIEW_DASH_LENGTH+BLOCKED_REVIEW_DASH_GAP){
+  const currentEndOffset=Math.min(currentDashOffset+BLOCKED_REVIEW_DASH_LENGTH,currentEdgeLength);
+  currentOverlayGraphic.beginPath();currentOverlayGraphic.moveTo(currentFirstPoint.x+currentDeltaX*currentDashOffset/currentEdgeLength,currentFirstPoint.y+currentDeltaY*currentDashOffset/currentEdgeLength);
+  currentOverlayGraphic.lineTo(currentFirstPoint.x+currentDeltaX*currentEndOffset/currentEdgeLength,currentFirstPoint.y+currentDeltaY*currentEndOffset/currentEdgeLength);currentOverlayGraphic.strokePath();
+ }
+}
 function drawReviewBlockedAreas(currentSceneObject,currentMapRecord,currentProjectCell,currentTileWidth,currentTileHeight){
  const currentBlockedPositions=new Map((currentMapRecord.blocked??[]).map(currentCellPosition=>[`${currentCellPosition.column},${currentCellPosition.row}`,currentCellPosition]));
  for(const currentObjectRecord of currentMapRecord.objects??[]){
@@ -33,14 +47,18 @@ function drawReviewBlockedAreas(currentSceneObject,currentMapRecord,currentProje
   }
  }
  const currentOverlayGraphic=currentSceneObject.add.graphics().setDepth(BLOCKED_REVIEW_OVERLAY_DEPTH);
- currentOverlayGraphic.fillStyle(BLOCKED_REVIEW_AREA_COLOR,BLOCKED_REVIEW_AREA_ALPHA);
- currentOverlayGraphic.lineStyle(2,BLOCKED_REVIEW_AREA_COLOR,1);
+ currentOverlayGraphic.lineStyle(BLOCKED_REVIEW_HATCH_WIDTH,BLOCKED_REVIEW_AREA_COLOR,1);
  for(const currentCellPosition of currentBlockedPositions.values()){
   const currentCenterPoint=currentProjectCell(currentCellPosition);
   if(!currentCenterPoint)continue;
-  currentOverlayGraphic.beginPath();currentOverlayGraphic.moveTo(currentCenterPoint.x,currentCenterPoint.y-currentTileHeight/2);
-  currentOverlayGraphic.lineTo(currentCenterPoint.x+currentTileWidth/2,currentCenterPoint.y);currentOverlayGraphic.lineTo(currentCenterPoint.x,currentCenterPoint.y+currentTileHeight/2);currentOverlayGraphic.lineTo(currentCenterPoint.x-currentTileWidth/2,currentCenterPoint.y);
-  currentOverlayGraphic.closePath();currentOverlayGraphic.fillPath();currentOverlayGraphic.strokePath();
+  // 다이아몬드의 두 평행 변 사이에 선을 보간해 타일 밖으로 빗금이 새지 않게 한다.
+  for(let currentHatchOffset=BLOCKED_REVIEW_HATCH_SPACING/2;currentHatchOffset<currentTileWidth;currentHatchOffset+=BLOCKED_REVIEW_HATCH_SPACING){
+   const currentHatchRatio=currentHatchOffset/currentTileWidth;
+   currentOverlayGraphic.beginPath();
+   currentOverlayGraphic.moveTo(currentCenterPoint.x-currentTileWidth/2+currentHatchRatio*currentTileWidth/2,currentCenterPoint.y-currentHatchRatio*currentTileHeight/2);
+   currentOverlayGraphic.lineTo(currentCenterPoint.x+currentHatchRatio*currentTileWidth/2,currentCenterPoint.y+currentTileHeight/2-currentHatchRatio*currentTileHeight/2);
+   currentOverlayGraphic.strokePath();
+  }
  }
  for(const currentObjectRecord of currentMapRecord.objects??[]){
   if(currentObjectRecord.groundFootprintColumns!==3||currentObjectRecord.groundFootprintRows!==2)continue;
@@ -48,8 +66,7 @@ function drawReviewBlockedAreas(currentSceneObject,currentMapRecord,currentProje
   const currentSecondPoint=currentProjectCell({column:currentObjectRecord.position.column+1,row:currentObjectRecord.position.row+1});
   if(!currentFirstPoint||!currentSecondPoint)continue;
   const currentMiddlePoint={x:(currentFirstPoint.x+currentSecondPoint.x)/2,y:(currentFirstPoint.y+currentSecondPoint.y)/2};
-  currentOverlayGraphic.lineStyle(4,BLOCKED_REVIEW_AREA_COLOR,1);currentOverlayGraphic.beginPath();
-  currentOverlayGraphic.moveTo(currentMiddlePoint.x-currentTileWidth/4,currentMiddlePoint.y-currentTileHeight/4);currentOverlayGraphic.lineTo(currentMiddlePoint.x+currentTileWidth/4,currentMiddlePoint.y+currentTileHeight/4);currentOverlayGraphic.strokePath();
+  drawReviewDashedBoundary(currentOverlayGraphic,{x:currentMiddlePoint.x-currentTileWidth/4,y:currentMiddlePoint.y-currentTileHeight/4},{x:currentMiddlePoint.x+currentTileWidth/4,y:currentMiddlePoint.y+currentTileHeight/4});
  }
 }
 

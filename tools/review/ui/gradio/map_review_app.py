@@ -148,7 +148,7 @@ def build_map_review_interface(review_server_port, character_review_enabled=Fals
                 with gr.Column(min_width=220,visible=character_review_enabled) as current_shadow_profile_column:
                     current_shadow_profile=gr.Dropdown(label='캐릭터 시인성 검수',choices=[('이전 기본 그림자','baseline'),('게임 적용 · 접지 대비 강화','contrast'),('넓은 접지 그림자','broad')],value='contrast',interactive=False)
                 with gr.Column(min_width=200):
-                    current_blocked_check=gr.Checkbox(interactive=False,label='이동금지 영역 보기',value=False)
+                    current_blocked_check=gr.Checkbox(interactive=False,label='이동금지 영역 보기',value=False,info='차단 면은 흰색 빗금, 차단 경계는 두꺼운 점선으로 표시합니다.')
             current_display_inputs=[current_character_check,current_boundary_check,current_edges_check,current_shadow_profile,current_tile_edges_check,current_blocked_check]
             current_ready_controls.extend(current_display_inputs)
             for current_display_control in current_display_inputs:

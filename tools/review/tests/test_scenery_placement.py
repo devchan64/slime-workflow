@@ -60,7 +60,16 @@ class SceneryGroundPlacementTests(unittest.TestCase):
         current_property_values = dict(anchorX=0.5, anchorY=0.87, displayHeight=290, groundFootprintColumns=1, groundFootprintRows=1)
         current_elevation_rows = [[0] * 8 for current_row_index in range(8)]
         current_elevation_rows[3][3] = 2
-        self.assertEqual(validate_image_contact_elevations(current_object_record, current_source_image, current_property_values, current_elevation_rows, 80, 40), {(3, 3)})
+        with self.assertRaisesRegex(ValueError, '주변 단차 경계'):
+            validate_image_contact_elevations(current_object_record, current_source_image, current_property_values, current_elevation_rows, 80, 40)
         current_property_values.update(groundFootprintColumns=2, groundFootprintRows=2)
         with self.assertRaisesRegex(ValueError, '접지 영역 고도 불일치'):
             validate_image_contact_elevations(current_object_record, current_source_image, current_property_values, current_elevation_rows, 80, 40)
+
+    def test_single_tile_rejects_adjacent_and_diagonal_height_changes(self):
+        for current_neighbor_position in ((2, 3), (3, 2), (4, 3), (3, 4), (4, 4)):
+            current_elevation_rows = [[0] * 7 for current_row_index in range(7)]
+            current_neighbor_column, current_neighbor_row = current_neighbor_position
+            current_elevation_rows[current_neighbor_row][current_neighbor_column] = 1
+            self.assertEqual(validate_scenery_ground_placement({(3, 3)}, current_elevation_rows, set()), '접지 주변 단차 경계 침범')
+        self.assertIsNone(validate_scenery_ground_placement({(0, 0)}, [[0] * 7 for current_row_index in range(7)], set()))
