@@ -92,3 +92,9 @@ tiles:
   - {id: orchard-grass-soil-v1, category: ground, asset: assets/tiles/terrain/non-road/orchard-grass-soil-v1.png}
   - {id: cinder-ash-trail-v1, category: ground, asset: assets/tiles/terrain/road/cinder-ash-trail-v1.png}
   - {id: cinder-ash-ground-v1, category: ground, asset: assets/tiles/terrain/non-road/cinder-ash-ground-v1.png}
+
+  - {id: boar-hoof-pair-v1, category: decal, asset: assets/tiles/decals/boar-hoof-pair-v1.png}
+
+  - {id: boar-hoof-trail-v1, category: decal, asset: assets/tiles/decals/boar-hoof-trail-v1.png}
+
+  - {id: boar-hoof-worn-v1, category: decal, asset: assets/tiles/decals/boar-hoof-worn-v1.png}

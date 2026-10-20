@@ -16,6 +16,18 @@ WORKFLOW_REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 
 
 class MapAssetSourceTests(unittest.TestCase):
+
+    def test_ground_decal_bounds_and_identifiers(self):
+        from tools.review.domains.map_assets.decals import validate_ground_decal_records
+        current_valid_record = dict(id='hoof-test', textureKey='boar-hoof-pair-v1', position=dict(column=1, row=1), offsetX=0.5, offsetY=0.5, scale=0.7, rotation=45, opacity=0.8, order=0)
+        validate_ground_decal_records([current_valid_record], 4, 4)
+        for current_invalid_changes in ({'scale':1}, {'offsetX':0}, {'opacity':float('nan')}, {'position':dict(column=4,row=1)}, {'textureKey':'unknown'}):
+            with self.subTest(changes=current_invalid_changes), self.assertRaises(ValueError):
+                validate_ground_decal_records([{**current_valid_record, **current_invalid_changes}],4,4)
+        with self.assertRaises(ValueError):
+            validate_ground_decal_records([current_valid_record,current_valid_record],4,4)
+
+
     def test_field_height_movement_contract(self):
         current_map_bytes,_ = read_map_asset_response('/management/map-assets/maps/meadow')
         current_map_record = json.loads(current_map_bytes)

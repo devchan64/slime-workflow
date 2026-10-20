@@ -77,6 +77,9 @@ def load_registered_map_review(map_identifier_value):
         current_field_tile_data = read_map_source_data('field_tiles/'+map_identifier_value+'.yaml')
         current_map_record['terrainRows'] = current_field_tile_data['rows']
         current_map_record['objects'] = current_field_tile_data.get('objects', [])
+        current_map_record['groundDecals'] = current_field_tile_data.get('groundDecals', [])
+        from tools.review.domains.map_assets.decals import validate_ground_decal_records
+        validate_ground_decal_records(current_map_record['groundDecals'],current_map_record['columns'],current_map_record['rows'])
         current_map_record['groundOverrides'] = current_field_tile_data.get('groundOverrides', [])
         current_map_record['terrainCodes'] = read_map_source_data('field_tiles/codes.yaml')
         current_map_record.update(read_map_source_data('map_spawns/'+map_identifier_value+'.yaml'))

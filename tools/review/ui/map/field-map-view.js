@@ -23,7 +23,7 @@ function drawReviewTileBoundary(currentSceneObject,currentCenterPoint,currentTil
 
 const BLOCKED_REVIEW_OVERLAY_DEPTH=100000000;
 const BLOCKED_REVIEW_AREA_COLOR=0xffffff;
-const BLOCKED_REVIEW_HATCH_SPACING=10;
+const BLOCKED_REVIEW_HATCH_SPACING=20;
 const BLOCKED_REVIEW_HATCH_WIDTH=2;
 const BLOCKED_REVIEW_EDGE_WIDTH=5;
 const BLOCKED_REVIEW_DASH_LENGTH=10;
@@ -221,7 +221,7 @@ export async function createSharedFieldReview(currentMapCanvas,currentTextureIma
     for(const currentCellRecord of currentFieldFrame.cells){
      const currentTerrainName=currentMapRecord.terrainCodes[currentMapRecord.terrainRows[currentCellRecord.cell.row][currentCellRecord.cell.column]];
      const currentConnectionMask=['road','water'].includes(currentTerrainName)?readReviewConnectionMask(currentCellRecord.cell,currentMapRecord,currentTerrainName,currentFieldFrame.options.rotation):0;
-     const currentTileTextures=resolveFieldTileTextures(currentFieldScene,currentTerrainName,currentCellRecord.cell,currentMapRecord.id,currentConnectionMask,currentCellPosition=>currentMapRecord.terrainCodes[currentMapRecord.terrainRows[currentCellPosition.row][currentCellPosition.column]],currentMapRecord.groundOverrides??[]);
+     const currentTileTextures=resolveFieldTileTextures(currentFieldScene,currentTerrainName,currentCellRecord.cell,currentMapRecord.id,currentConnectionMask,currentCellPosition=>currentMapRecord.terrainCodes[currentMapRecord.terrainRows[currentCellPosition.row][currentCellPosition.column]],currentMapRecord.groundOverrides??[],currentMapRecord.groundDecals??[]);
      const currentRenderDepth=resolveFieldSurfaceDepth(currentCellRecord.cell,currentMapRecord,currentFieldFrame.options);
      drawFieldCellObjects(currentFieldScene,currentCellRecord.cell,currentMapRecord,currentFieldFrame.options,currentTileTextures,currentRenderDepth,currentViewSettings.edges);
      if(currentViewSettings.tileEdges)drawReviewTileBoundary(currentFieldScene,currentCellRecord.center,currentFieldFrame.options.tileWidth,currentFieldFrame.options.tileHeight,currentRenderDepth+TERRAIN_DEPTH.surface+.01);
