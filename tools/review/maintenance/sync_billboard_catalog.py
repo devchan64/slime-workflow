@@ -56,6 +56,27 @@ def build_modeling_guidance(current_texture_key, current_family_record):
     }
 
 
+def build_shadow_guidance(current_texture_key):
+    """그림자 제작 지침이며 렌더러의 실행 속성과 구분한다."""
+    current_contact_advice = '밑면 접촉부에 짧고 부드러운 타원 그림자를 둔다.'
+    if re.search(r'grass|sedge|reed|shoot|fern|flower|grain|clover', current_texture_key):
+        current_contact_advice = '줄기 군락 밑에 작고 옅은 접지 그림자를 둔다. 잎 전체를 검은 원으로 채우지 않는다.'
+    elif re.search(r'log|driftwood|root-knot|branch', current_texture_key):
+        current_contact_advice = '누운 몸통과 뿌리가 닿는 방향으로 낮고 긴 접지 그림자가 어울린다. 열·행 점유 수가 다르면 둥근 직사각형을 해당 지면 축으로 투영한다.'
+    elif re.search(r'tree|snag|deadwood', current_texture_key):
+        current_contact_advice = '줄기·밑동에 접지 그림자를 둔다. 수관 크기의 검은 원이나 긴 투사 그림자를 접지 그림자로 대신하지 않는다.'
+    elif re.search(r'rock|stone|boulder|stump|crate|barrel', current_texture_key):
+        current_contact_advice = '단단한 밑면 아래 중심은 조금 진하고 가장자리는 부드럽게 표현한다.'
+    return {
+        'runtime_profile': 'billboard-contact-v2',
+        'current_rendering': '공용 렌더러 3겹 접지 그림자. 정사각 점유는 타원, 열·행 수가 다른 점유는 점유 축을 따르는 둥근 직사각형. 에셋별 농도 수동 조절은 미지원.',
+        'contact_guidance': current_contact_advice,
+        'baked_shadow_review': '원본에 진한 그림자·지면 받침이 있으면 중복 음영을 확인한다. 원본별 그림자 포함 여부는 이미지 검수로 확정한다.',
+        'placement_review': '타일 고도·상하 앵커·회전에 맞는 접지 위치를 확인하고 절벽 밖이나 다른 오브젝트 위로 그림자가 번지지 않게 검수한다.',
+        'guidance_only': True,
+    }
+
+
 def build_catalog_reference(current_asset_root):
     from tools.review.common.sprite_display_properties import validate_sprite_display_properties
     current_catalog_path = current_asset_root/'assets/billboards/catalog.yaml'
@@ -104,6 +125,9 @@ def build_catalog_reference(current_asset_root):
         current_billboard_record['source_file'] = {current_field_name:current_asset_record[current_field_name] for current_field_name in ('path','width','height','sha256')}
         current_family_record = current_catalog_record['families'][current_billboard_record['family']]
         current_billboard_record.setdefault('modeling',build_modeling_guidance(current_texture_key,current_family_record))
+        current_billboard_record['modeling'].setdefault('shadow',build_shadow_guidance(current_texture_key))
+        if current_billboard_record['modeling']['shadow'].get('runtime_profile')=='billboard-contact-v1':
+            current_billboard_record['modeling']['shadow'].update(build_shadow_guidance(current_texture_key))
         current_shared_properties = current_property_catalog.get(current_texture_key)
         if current_shared_properties is None or 'displayHeight' not in current_shared_properties:
             current_billboard_record['placement'] = {'status':'설정 필요','reason':'공용 배치 속성 없음. 구버전·애니메이션 등 별도 계약을 확인하고 기본값 등록 후 사용한다.'}
@@ -129,6 +153,18 @@ def build_catalog_reference(current_asset_root):
         'footprint':'접지 칸 수와 실제 검사 점유 칸 수를 구분한다. 중심 배치의 짝수 접지는 양옆 반 칸을 포함한다.',
         'blocking':'큰 나무·큰 소품은 하단 앵커. 1×1 초과는 차단, 1×1 하단은 displayHeight 80 초과 차단.',
         'missing':'설정 필요 항목은 크기를 추측하여 배치하지 않는다.',
+        'shadow': {
+            'profile':'billboard-contact-v2',
+            'implementation':'@slime/field-renderer 1.0.132 · drawBillboardContactShadow',
+            'enabled':'기본 활성화. 렌더러 옵션 billboardShadows=false로 전체 비활성화.',
+            'geometry':'폭=min(displayHeight×billboardScale×0.38, tileWidth×0.55), 높이=폭×0.2. 정사각 점유는 이 타원 공식을 사용한다. 열·행 수가 다른 점유는 각 축 길이=선언 점유 수×0.55타일, 모서리 반경=짧은 반축×0.35인 둥근 직사각형을 지면에 투영한다.',
+            'layers':[{'scale':1,'alpha':0.06},{'scale':0.78,'alpha':0.09},{'scale':0.5,'alpha':0.12}],
+            'color':'#18201b',
+            'position':'회전한 타일 앵커 오프셋을 사용해 접지 위치에서 타일 안쪽으로 이동한다. X 보정=(column-row)×tileWidth×0.22, Y 보정=(column+row)×tileHeight×0.22를 뺀다.',
+            'depth':'소속 타일의 지면 바로 위에 배치하며 빌보드·캐릭터 정렬과 분리한다.',
+            'limits':'접지 그림자만 지원. 광원 방향의 투사·실루엣 그림자, 에셋별 설정, 지면 경계 클리핑은 지원하지 않는다.',
+            'catalog_role':'modeling.shadow는 제작·검수 지침이다. 값을 편집해도 런타임 그림자 설정이 바뀌지 않는다.',
+        },
         'validation':'slime-workflow/tools/review/maintenance/sync_billboard_catalog.py --check',
     }
     current_catalog_record['scope']['image_count']=len(current_seen_textures)
