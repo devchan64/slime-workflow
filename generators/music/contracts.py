@@ -9,13 +9,14 @@ from tools.review.common.generation_records import validate_history_tag
 
 WORKFLOW_ROOT_DIRECTORY = Path(__file__).resolve().parents[2]
 MUSIC_DEFAULTS_FILE = Path(__file__).with_name('defaults.yaml')
-MUSIC_SERVICE_NAMES = ('music-ace-step', 'music-minimax')
+MUSIC_SERVICE_NAMES = ('music-minimax',)
 SOUND_EFFECT_SERVICE = 'sfx-dasheng-audiogen'
 AUDIO_SERVICE_NAMES = (*MUSIC_SERVICE_NAMES, SOUND_EFFECT_SERVICE)
 SOUND_EFFECT_DEFAULTS = WORKFLOW_ROOT_DIRECTORY/'generators/sound_effects/defaults.yaml'
 MUSIC_IDENTIFIER_PATTERN = r'\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-[a-f0-9]{8}'
 MUSIC_PROFILE_FIELDS = {'label','model_id','runtime_directory','max_duration_seconds','sample_rate','steps','license_url','license_notice'}
-MUSIC_REQUEST_FIELDS = {'action','prompt','duration_seconds','seed','loop_request','tag'}
+MUSIC_REQUEST_FIELDS = {'action','prompt','duration_seconds','max_new_tokens','seed','loop_request','tag'}
+MINIMAX_AUDIO_FRAME_RATE = 25
 
 
 def parse_unique_mapping(current_field_pairs):
@@ -56,7 +57,7 @@ def load_music_defaults(current_service_name=None):
     current_default_record = yaml.load(resolve_audio_defaults(current_service_name).read_text(), Loader=MusicDefaultsLoader)
     if not isinstance(current_default_record,dict) or set(current_default_record) != {'version','prompt','duration_seconds','seed','loop_request','instrumental_suffix','loop_suffix','profiles'} or type(current_default_record['version']) is not int or current_default_record['version'] != 1:
         raise ValueError('음악 기본 설정 스키마 오류')
-    if not isinstance(current_default_record['profiles'],dict) or set(current_default_record['profiles']) != ({SOUND_EFFECT_SERVICE} if current_service_name == SOUND_EFFECT_SERVICE else set(MUSIC_SERVICE_NAMES)):
+    if not isinstance(current_default_record['profiles'],dict) or set(current_default_record['profiles']) != ({SOUND_EFFECT_SERVICE} if current_service_name == SOUND_EFFECT_SERVICE else set(MUSIC_SERVICE_NAMES) | {'music-ace-step'}):
         raise ValueError('음악 모델 설정 목록 오류')
     for current_service_name, current_profile_record in current_default_record['profiles'].items():
         if set(current_profile_record) != MUSIC_PROFILE_FIELDS:
@@ -79,6 +80,8 @@ def load_music_defaults(current_service_name=None):
             raise ValueError('Dasheng 길이는 모델 자동 예측입니다.')
     elif type(current_default_record['duration_seconds']) is not int or not resolve_audio_minimum(current_service_name) <= current_default_record['duration_seconds'] <= 60:
         raise ValueError('기본 길이 설정 오류')
+    # 기존 MiniMax 대기 요청의 설정 해시를 보존하되 폐기 모델은 노출하지 않는다.
+    current_default_record['profiles'].pop('music-ace-step',None)
     return current_default_record
 
 
@@ -93,6 +96,18 @@ def resolve_music_paths(current_service_name):
     return (WORKFLOW_ROOT_DIRECTORY/'.tmp/test'/current_service_name,
             WORKFLOW_ROOT_DIRECTORY/'.model/music'/current_service_name,
             WORKFLOW_ROOT_DIRECTORY/current_profile_record['runtime_directory']/'bin/python')
+
+
+def convert_minimax_token_duration(current_token_limit):
+    """토큰 상한을 기존 Diffusers 요청 단위로 변환한다. 반올림에 따른 프레임 손실을 방지한다."""
+    current_minimum_tokens = int(resolve_audio_minimum('music-minimax') * MINIMAX_AUDIO_FRAME_RATE)
+    current_maximum_tokens = resolve_music_profile('music-minimax')['max_duration_seconds'] * MINIMAX_AUDIO_FRAME_RATE
+    if type(current_token_limit) is not int or not current_minimum_tokens <= current_token_limit <= current_maximum_tokens:
+        raise ValueError(f'max_new_tokens는 {current_minimum_tokens}~{current_maximum_tokens} 정수여야 합니다.')
+    current_duration_seconds = current_token_limit / MINIMAX_AUDIO_FRAME_RATE
+    if int(current_duration_seconds * MINIMAX_AUDIO_FRAME_RATE) < current_token_limit:
+        current_duration_seconds = math.nextafter(current_duration_seconds, math.inf)
+    return current_duration_seconds
 
 
 def validate_music_request(current_service_name, current_request_record):
@@ -112,6 +127,12 @@ def validate_music_request(current_service_name, current_request_record):
         raise ValueError('음악 프롬프트는 비어 있지 않은 4000자 이하 문자열이어야 합니다.')
     current_seed_value = current_request_record.get('seed',current_default_record['seed'])
     current_duration_value = current_request_record.get('duration_seconds',current_default_record['duration_seconds'])
+    if 'max_new_tokens' in current_request_record:
+        if current_service_name != 'music-minimax':
+            raise ValueError('max_new_tokens는 MiniMax 전용 입력입니다.')
+        if 'duration_seconds' in current_request_record:
+            raise ValueError('max_new_tokens와 duration_seconds는 하나만 지정하세요.')
+        current_duration_value = convert_minimax_token_duration(current_request_record['max_new_tokens'])
     current_loop_value = current_request_record.get('loop_request',current_default_record['loop_request'])
     if type(current_seed_value) is not int or not 0 <= current_seed_value <= 2**32-1:
         raise ValueError('시드는 0~4294967295 정수여야 합니다.')

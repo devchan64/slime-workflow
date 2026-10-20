@@ -200,7 +200,7 @@ class CleanupServiceSnapshotTests(unittest.TestCase):
                     current_reset_callback=lambda:current_anny_module.clear_anny_history_records([])
                     self.assertEqual(current_anny_module.preview_anny_history_cleanup()['jobs'],[])
                 else:
-                    current_service_instance=MusicGenerationManager('music-ace-step')
+                    current_service_instance=MusicGenerationManager('music-minimax')
                     current_service_instance.job_storage_root=current_storage_root
                     current_service_instance.history_storage_root=current_history_root
                     current_reset_callback=lambda:current_service_instance.execute_music_command('history-reset',current_reset_payload)

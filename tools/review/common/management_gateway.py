@@ -1,4 +1,4 @@
-"""GUI·CLI의 명령 계약과 HTTP 게이트웨이. 셸 명령을 실행하지 않는다."""
+"""GUI·CLI의 활성 서비스 명령 계약과 HTTP 게이트웨이. 셸 명령을 실행하지 않는다."""
 import sys
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[3]))
@@ -262,7 +262,9 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
                 if service_command_name == 'sfx-dasheng-audiogen':
                     operation_argument_parser.set_defaults(duration_seconds=None)
                 else:
-                    operation_argument_parser.add_argument('--duration-seconds',type=float,default=current_music_defaults['duration_seconds'])
+                    current_duration_group = operation_argument_parser.add_mutually_exclusive_group()
+                    current_duration_group.add_argument('--duration-seconds',type=float,default=current_music_defaults['duration_seconds'],help='최대 길이(초); 조기 종료 가능')
+                    current_duration_group.add_argument('--max-new-tokens',type=int,help='MiniMax 오디오 프레임 상한 125~1500; 25개≈1초, 조기 종료 가능')
                 operation_argument_parser.add_argument('--seed',type=int,default=current_music_defaults['seed'])
                 operation_argument_parser.add_argument('--loop-request',action=argparse.BooleanOptionalAction,default=current_music_defaults['loop_request'],help='반복 구조 요청; 심리스 연결 보장 없음')
             elif service_command_name in ('wan21-vace-v2v','wan21-vace-f2v'):
@@ -367,6 +369,9 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
         if service_command_name in AUDIO_SERVICE_NAMES:
             command_payload_value = {'action':'generate','prompt':command_argument_values.prompt if command_argument_values.prompt is not None else command_argument_values.prompt_file.read_text(),
                 'duration_seconds':command_argument_values.duration_seconds,'seed':command_argument_values.seed,'loop_request':command_argument_values.loop_request,'tag':command_argument_values.tag}
+            if getattr(command_argument_values,'max_new_tokens',None) is not None:
+                command_payload_value.pop('duration_seconds')
+                command_payload_value['max_new_tokens'] = command_argument_values.max_new_tokens
         elif service_command_name in ('wan21-vace-v2v','wan21-vace-f2v'):
             command_payload_value=parse_management_request_json(command_argument_values.payload_file.read_text())
         elif service_command_name in ('wan21-vace','phantom'):

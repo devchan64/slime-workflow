@@ -107,7 +107,7 @@ class MusicGenerationManager:
         return {**current_cleanup_result,'deleted':current_identifier_value}
 
     def execute_music_command(self,current_command_name,current_payload_record):
-        current_allowed_fields = {'generate':{'action','prompt','duration_seconds','seed','loop_request','tag'},'prepare':{'action'},'status':{'id'},'logs':{'id'},'history':{'page'},'active':set(),'model-status':set(),'cancel':{'id'},'resume':{'id'},'history-delete':{'id'},'history-reset':{'action','expected_jobs'},'history-reset-preview':set()}
+        current_allowed_fields = {'generate':{'action','prompt','duration_seconds','max_new_tokens','seed','loop_request','tag'},'prepare':{'action'},'status':{'id'},'logs':{'id'},'history':{'page'},'active':set(),'model-status':set(),'cancel':{'id'},'resume':{'id'},'history-delete':{'id'},'history-reset':{'action','expected_jobs'},'history-reset-preview':set()}
         if current_command_name not in current_allowed_fields or not isinstance(current_payload_record,dict) or set(current_payload_record)-current_allowed_fields[current_command_name]:
             raise ValueError('음악 명령·필드 오류')
         if current_command_name in ('generate','prepare'):

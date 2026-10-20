@@ -598,7 +598,7 @@ VACE V2V의 `padding_color`는 `#RRGGBB` 형식의 여백 색상이며 기본값
 
 ## 음악생성
 
-`music-ace-step`, `music-minimax`를 공용 게이트웨이에 등록한다. GUI는 **음악생성** 분류의 두 Gradio 화면이며, 모두 `generate/prepare/model-status/status/logs/history/active/cancel/resume/prioritize/history-delete/history-reset` 명령을 공유한다. `generate` 입력은 `prompt`, `duration_seconds`, `seed`, `loop_request`, `tag`다. 모델·파일 경로를 클라이언트가 지정하지 않는다.
+`music-minimax`를 공용 게이트웨이에 등록한다. GUI는 **소리 관리** 분류의 MiniMax Gradio 화면이며, `generate/prepare/model-status/status/logs/history/active/cancel/resume/prioritize/history-delete/history-reset` 명령을 공유한다. `generate` 입력은 `prompt`, `duration_seconds`, `seed`, `loop_request`, `tag`다. 모델·파일 경로를 클라이언트가 지정하지 않는다.
 
 각 서비스는 `/music-…/jobs`, `/music-…/history` 호환 경로를 유지한다. 최종 WAV 조회는 `/music-…/jobs/<id>/attempts/<attempt>/music.wav`다. 모델 준비·실행 환경·저장소·재개·라이선스·8GB 검증 범위는 [음악생성 사용법](../generators/music/README.md)을 따른다. 외부 클라우드 API나 배포 리소스는 추가하지 않는다.
 
@@ -735,3 +735,11 @@ CLI에서는 같은 `qwen-21 generate`에 `--prompt-file generators/image/config
 그림자 이동 0·0도 같은 교차점이다. 열·행 오프셋은 지면 축을 따라 적용하며 이미지 앵커와 독립적이다. 1×1 미리보기에는 교차점에 맞닿는 주변 네 타일을 흰색·회색 점선으로 표시한다. 보조 타일은 실제 점유나 통행 차단에 포함하지 않는다.
 
 실제 점유 열×행은 유지한다. 3×3 이상에서는 외곽 한 줄을 제외한 내부만 자동 차단한다. 통행 차단만 읽기 전용 파생 값이며, 표시 높이·앵커·그림자 이동은 수동 편집한다.
+
+### MiniMax 토큰 상한 입력
+
+GUI의 `max_new_tokens`는 오디오 프레임 상한이며 125~1,500 정수(5~60초)를 받는다. 250≈10초, 750≈30초, 1,500≈60초다. 종료 토큰이 나오면 더 짧게 끝나므로 정확한 길이·최소 길이를 보장하지 않는다. 프롬프트 단어 수와는 무관하며 큰 값은 최대 연산량을 늘린다.
+
+로컬 Diffusers는 이 값을 직접 받지 않으므로 공용 서비스가 초당 25프레임 기준으로 `duration_seconds`로 정규화하고 실행기는 기존 `audio_duration`에 전달한다. 저장·입력 복원·ETA는 기존 초 단위 계약을 유지한다. GUI는 초를 읽기 전용으로 환산 표시하고 이력 복원 시 토큰 수를 복원한다. 기존 초 단위 요청도 계속 허용한다.
+
+통합 CLI: `python tools/manager.py command music-minimax generate --prompt 'Calm village instrumental' --max-new-tokens 750 --detach`. `--max-new-tokens`와 `--duration-seconds`는 동시에 지정할 수 없다. HTTP `generate`에도 `max_new_tokens`를 전달할 수 있으며 `duration_seconds`와 동시 지정은 거절한다. 이 운영 한도는 공식 모델의 최대 길이와 구분한다.

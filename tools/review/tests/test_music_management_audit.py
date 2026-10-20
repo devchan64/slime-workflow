@@ -13,15 +13,18 @@ from tools.review.domains.music.generation import MusicGenerationManager
 class MusicManagementAuditTests(unittest.TestCase):
     def test_retired_model_cannot_return_from_cached_menu(self):
         from tools.review.ui.gradio.management_menu_app import load_manager_page_records
-        self.assertEqual(MUSIC_SERVICE_NAMES,('music-ace-step','music-minimax'))
+        self.assertEqual(MUSIC_SERVICE_NAMES,('music-minimax',))
         self.assertNotIn('music-stable-audio',MANAGEMENT_SERVICE_COMMANDS)
+        self.assertNotIn('music-ace-step',MANAGEMENT_SERVICE_COMMANDS)
+        with self.assertRaises(ValueError):
+            resolve_music_profile('music-ace-step')
         with self.assertRaises(ValueError):
             resolve_management_command('music-stable-audio','generate',{})
         with self.assertRaises(ValueError):
             resolve_music_profile('music-stable-audio')
         with tempfile.TemporaryDirectory() as current_temp_directory:
             current_menu_path=Path(current_temp_directory)/'menu.json'
-            current_menu_path.write_text(json.dumps({'pages':[{'id':'music-stable-audio','label':'폐기','path':'/management/frame/music-stable-audio/','category':'music-generation','description':'이전 메뉴'}]}))
+            current_menu_path.write_text(json.dumps({'pages':[{'id':'music-ace-step','label':'폐기','path':'/management/frame/music-stable-audio/','category':'music-generation','description':'이전 메뉴'}]}))
             current_music_records=[current_page_record['id'] for current_page_record in load_manager_page_records(current_menu_path) if current_page_record['category']=='sound-management']
             self.assertCountEqual(current_music_records,[*MUSIC_SERVICE_NAMES,'sfx-dasheng-audiogen'])
 
