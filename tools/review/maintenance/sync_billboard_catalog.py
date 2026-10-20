@@ -1,0 +1,157 @@
+"""빌보드 제작 참고 카탈로그를 공용 속성·등록부·실제 맵 참조와 동기화한다."""
+import argparse
+from collections import Counter
+from datetime import datetime
+import hashlib
+from pathlib import Path
+import re
+import yaml
+
+WORKFLOW_ROOT_DIRECTORY = Path(__file__).resolve().parents[3]
+DEFAULT_ASSET_DIRECTORY = WORKFLOW_ROOT_DIRECTORY.parent / 'slime-assets'
+MODELING_ROLE_RULES = (
+    (r'waypost|waystone|waymark|boundary-stone|waypoint', '길 안내 지표', '갈림길·출입구 옆에 단독 배치하고 이동 칸과 표지 가독성을 확보한다.'),
+    (r'cargo|crate|barrel|bucket|bundle|rope-coil', '운반·보관 소품', '운반로 옆 작업 구역에 소량 묶어 배치하고 통로를 비운다.'),
+    (r'winch|tools|workbench|millstone|rack|counter|workshop|dispatch|weighing', '작업 흔적', '해당 작업 장소의 중심 소품으로 사용하며 같은 기능을 과도하게 반복하지 않는다.'),
+    (r'snag|dead-tree|deadwood|snapped|charred|split-stump', '고사목·산불 및 쇠퇴 흔적', '노출 지면·숲 경계에 불규칙하게 배치하고 어린 식생과 대비시킨다.'),
+    (r'log|stump|root-knot|dry-branch', '숲 바닥 잔해', '수목 아래·군락 가장자리에 배치하고 방향·형태 변형을 섞는다.'),
+    (r'tree', '수목 군락', '크기가 다른 수목을 섞어 군락과 빈터를 만들고 출입구·시작 지점을 비운다.'),
+    (r'rock|stone|quartz|basalt|granite|slab|scree|rubble|boulder|pebble|chips|outcrop|spires|shelf', '암석·지질 지표', '지면 재질과 어울리는 암석 군락에 사용하며 큰 덩어리 주변에 작은 파편을 배치한다.'),
+    (r'grass|sedge|reed|shoot|fern|clover|sapling|grain|wheat', '낮은 식생·회복 식생', '토양 경계·수목 사이에 크기와 밀도를 달리해 군락으로 배치한다.'),
+    (r'flower|daisy|iris|lavender|dandelion', '꽃·색채 강조', '식생 군락의 일부에 제한적으로 섞어 색채가 균일하게 반복되지 않도록 한다.'),
+    (r'mushroom|fungus', '분해·그늘 식생', '그늘·고목 주변에 작은 무리로 배치한다.'),
+    (r'bush|shrub|hedge|bramble', '관목·경계 식생', '나무와 낮은 풀 사이를 연결하며 주요 이동 동선을 가리지 않는다.'),
+)
+
+
+def load_unique_yaml_document(current_source_path):
+    class UniqueKeyLoader(yaml.SafeLoader):
+        pass
+    def construct_unique_mapping(current_yaml_loader, current_yaml_node, current_deep_flag=False):
+        current_result_mapping = {}
+        for current_key_node, current_value_node in current_yaml_node.value:
+            current_key_value = current_yaml_loader.construct_object(current_key_node, deep=current_deep_flag)
+            if current_key_value in current_result_mapping:
+                raise ValueError(f'중복 YAML 키: {current_source_path}: {current_key_value}')
+            current_result_mapping[current_key_value] = current_yaml_loader.construct_object(current_value_node, deep=current_deep_flag)
+        return current_result_mapping
+    UniqueKeyLoader.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, construct_unique_mapping)
+    return yaml.load(current_source_path.read_text(), Loader=UniqueKeyLoader)
+
+
+def build_modeling_guidance(current_texture_key, current_family_record):
+    current_role_name = current_family_record['category']
+    current_placement_advice = '등록된 용도에 맞는 장소를 선택하고 주변 오브젝트와 간격을 조정한다.'
+    for current_match_pattern, current_rule_role, current_rule_advice in MODELING_ROLE_RULES:
+        if re.search(current_match_pattern, current_texture_key):
+            current_role_name, current_placement_advice = current_rule_role, current_rule_advice
+            break
+    current_family_uses = [current_usage_text for current_usage_text in current_family_record['uses'] if current_usage_text != '야외 필드 배경 배치 후보']
+    return {
+        'purpose': current_family_record['name']+' · '+current_role_name,
+        'recommended_uses': current_family_uses or [current_placement_advice],
+        'composition': current_placement_advice,
+        'avoid': ['접지 영역의 서로 다른 고도', '다른 오브젝트의 접지 점유와 중첩', '출입구·시작점·주요 이동로 점유'],
+        'basis': '등록 명칭·계열에 근거한 배치 지침. 원본 외형과 지역 설정을 최종 확인한다.',
+    }
+
+
+def build_catalog_reference(current_asset_root):
+    from tools.review.common.sprite_display_properties import validate_sprite_display_properties
+    current_catalog_path = current_asset_root/'assets/billboards/catalog.yaml'
+    current_catalog_record = load_unique_yaml_document(current_catalog_path)
+    current_registry_record = load_unique_yaml_document(current_asset_root/'asset-registry.yaml')
+    current_property_path = current_asset_root/'assets/maps/sprite-display-properties.yaml'
+    current_property_catalog = load_unique_yaml_document(current_property_path)['data']
+    validate_sprite_display_properties(current_property_catalog)
+    current_registry_lookup = {}
+    for current_asset_record in current_registry_record['assets']:
+        current_asset_identity = (current_asset_record['managementId'], current_asset_record['version'])
+        if current_asset_identity in current_registry_lookup:
+            raise ValueError('등록부 ID·버전 중복: '+str(current_asset_identity))
+        current_registry_lookup[current_asset_identity] = current_asset_record
+    current_metric_path = WORKFLOW_ROOT_DIRECTORY/'tools/review/ui/map/vendor/field-renderer/game-render-profile.mjs'
+    # 설치된 공용 렌더러가 공개하는 상수를 그대로 사용한다.
+    current_metric_text = current_metric_path.read_text()
+    current_scale_matches = re.findall(r'(?:const|var) OUTDOOR_MAP_RENDER_SCALE = ([0-9.]+)',current_metric_text)
+    if len(current_scale_matches)!=1:
+        raise ValueError('공용 렌더러 야외필드 배율 상수 누락·중복')
+    current_outdoor_scale = float(current_scale_matches[0])
+    current_map_references = {}
+    for current_map_path in sorted((current_asset_root/'assets/maps').rglob('*.yaml')):
+        if current_map_path == current_property_path:
+            continue
+        current_reference_counts = Counter(re.findall(r'^\s*textureKey:\s*([a-z0-9-]+)\s*$',current_map_path.read_text(),re.M))
+        for current_texture_key, current_reference_count in current_reference_counts.items():
+            current_map_references.setdefault(current_texture_key, []).append({'path':str(current_map_path.relative_to(current_asset_root)), 'texture_key_occurrences':current_reference_count})
+    current_seen_textures = set()
+    for current_billboard_record in current_catalog_record['billboards']:
+        current_allowed_fields={'texture_key','family','asset_ref','map_references','source_file','modeling','placement','variant_features','metadata_references','related_texture_keys'}
+        current_required_fields={'texture_key','family','asset_ref','map_references'}
+        if set(current_billboard_record)-current_allowed_fields or not current_required_fields<=set(current_billboard_record):
+            raise ValueError('빌보드 카탈로그 필드 누락·알 수 없는 필드: '+str(current_billboard_record.get('texture_key')))
+        if set(current_billboard_record['asset_ref'])!={'management_id','version'}:
+            raise ValueError('빌보드 등록 참조 필드 오류')
+        current_texture_key = current_billboard_record['texture_key']
+        if current_texture_key in current_seen_textures:
+            raise ValueError('카탈로그 텍스처 중복: '+current_texture_key)
+        current_seen_textures.add(current_texture_key)
+        current_asset_reference = current_billboard_record['asset_ref']
+        current_asset_record = current_registry_lookup[(current_asset_reference['management_id'],current_asset_reference['version'])]
+        current_image_path = current_asset_root/current_asset_record['path']
+        if not current_image_path.is_file() or hashlib.sha256(current_image_path.read_bytes()).hexdigest()!=current_asset_record['sha256']:
+            raise ValueError('빌보드 원본 누락·해시 불일치: '+str(current_image_path))
+        current_billboard_record['source_file'] = {current_field_name:current_asset_record[current_field_name] for current_field_name in ('path','width','height','sha256')}
+        current_family_record = current_catalog_record['families'][current_billboard_record['family']]
+        current_billboard_record.setdefault('modeling',build_modeling_guidance(current_texture_key,current_family_record))
+        current_shared_properties = current_property_catalog.get(current_texture_key)
+        if current_shared_properties is None or 'displayHeight' not in current_shared_properties:
+            current_billboard_record['placement'] = {'status':'설정 필요','reason':'공용 배치 속성 없음. 구버전·애니메이션 등 별도 계약을 확인하고 기본값 등록 후 사용한다.'}
+        else:
+            current_billboard_record['placement'] = {
+                'status':'공용 속성 등록됨',
+                'source':'assets/maps/sprite-display-properties.yaml#data.'+current_texture_key,
+                **current_shared_properties,
+                'outdoorDisplayHeight': current_shared_properties['displayHeight']*current_outdoor_scale,
+                'size_variant':'소형 변형' if '-size-small-' in current_texture_key else '대형 변형' if '-size-large-' in current_texture_key else '기본 변형',
+                'occupied_tile_count': (2*((current_shared_properties['groundFootprintColumns'])//2)+1)*(2*((current_shared_properties['groundFootprintRows'])//2)+1),
+                'movement':'통행 불가' if current_shared_properties['billboardBlocksMovement'] else '통행 가능',
+            }
+        current_billboard_record['map_references'] = current_map_references.get(current_texture_key,[])
+    current_catalog_record['modeling_contract'] = {
+        'purpose':'맵 제작용 에셋 선택·크기·접지·통행 참고 자료',
+        'authoritative_properties':'assets/maps/sprite-display-properties.yaml',
+        'derived_fields':['source_file','placement','map_references'],
+        'editable_guidance':'modeling은 수동 보강한다. 동기화는 기존 설명을 덮어쓰지 않는다.',
+        'display_height':'displayHeight는 공용 기준 높이(px). PNG 해상도와 다르다.',
+        'outdoor_scale':current_outdoor_scale,
+        'outdoor_height':'outdoorDisplayHeight는 야외필드 배율 적용 후 높이이며 화면 줌은 포함하지 않는다.',
+        'footprint':'접지 칸 수와 실제 검사 점유 칸 수를 구분한다. 중심 배치의 짝수 접지는 양옆 반 칸을 포함한다.',
+        'blocking':'큰 나무·큰 소품은 하단 앵커. 1×1 초과는 차단, 1×1 하단은 displayHeight 80 초과 차단.',
+        'missing':'설정 필요 항목은 크기를 추측하여 배치하지 않는다.',
+        'validation':'slime-workflow/tools/review/maintenance/sync_billboard_catalog.py --check',
+    }
+    current_catalog_record['scope']['image_count']=len(current_seen_textures)
+    return current_catalog_record
+
+
+def main_catalog_sync():
+    current_argument_parser=argparse.ArgumentParser(description=__doc__)
+    current_argument_parser.add_argument('--asset-root',type=Path,default=DEFAULT_ASSET_DIRECTORY)
+    current_mode_group=current_argument_parser.add_mutually_exclusive_group(required=True)
+    current_mode_group.add_argument('--check',action='store_true')
+    current_mode_group.add_argument('--write',action='store_true')
+    current_argument_values=current_argument_parser.parse_args()
+    current_catalog_path=current_argument_values.asset_root/'assets/billboards/catalog.yaml'
+    print(f'{datetime.now().isoformat()}/billboard-catalog/start 원본·공용 속성·맵 참조 검증',flush=True)
+    current_original_record=load_unique_yaml_document(current_catalog_path)
+    current_expected_record=build_catalog_reference(current_argument_values.asset_root)
+    if current_argument_values.write:
+        current_catalog_path.write_text(yaml.safe_dump(current_expected_record,allow_unicode=True,sort_keys=False))
+    elif current_original_record!=current_expected_record:
+        raise ValueError('카탈로그가 공용 속성·원본·맵 배치와 다릅니다. --write로 파생 정보를 갱신하세요.')
+    current_missing_count=sum(x['placement']['status']=='설정 필요' for x in current_expected_record['billboards'])
+    print(f'{datetime.now().isoformat()}/billboard-catalog/complete 전체 {len(current_expected_record["billboards"])}종 · 공용 속성 미등록 {current_missing_count}종 · 검증 완료')
+
+if __name__=='__main__':
+    main_catalog_sync()
