@@ -16,7 +16,7 @@ WORKFLOW_REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 
 
 class MapAssetSourceTests(unittest.TestCase):
-    def test_field_height_and_stair_api_contract(self):
+    def test_field_height_movement_contract(self):
         current_map_bytes,_ = read_map_asset_response('/management/map-assets/maps/meadow')
         current_map_record = json.loads(current_map_bytes)
         self.assertFalse(current_map_record['safeTown'])
@@ -24,8 +24,6 @@ class MapAssetSourceTests(unittest.TestCase):
         self.assertEqual(current_map_record['terrainMovementVersion'],2)
         self.assertEqual(current_map_record['elevationTiles'],[])
         self.assertEqual(current_map_record['ramps'],[])
-        for current_stair_record in current_map_record['elevationTiles']:
-            self.assertEqual(set(current_stair_record['cell']),{'column','row'})
 
     def test_orchard_billboards_preserve_ground_codes_and_layer_contract(self):
         current_response_bytes, _ = read_map_asset_response('/management/map-assets/maps/old-orchard')
@@ -62,9 +60,11 @@ class MapAssetSourceTests(unittest.TestCase):
 
     def test_invalid_height_grid_and_stair_are_rejected(self):
         for current_map_record in (
+            dict(terrainMovementVersion=1,columns=2,rows=1,elevations=['00']),
+            dict(terrainMovementVersion=2,columns=2,rows=1,elevations=['00'],ramps=[{}]),
             dict(columns=2,rows=1,elevations=['0x']),
             dict(columns=2,rows=1,elevations=['0']),
-            dict(columns=2,rows=1,elevations=['00'],elevationTiles=[dict(kind='stairs',asset='stone-step-tile',cell=[1,0],lower=[0,0])]),
+            dict(terrainMovementVersion=2,columns=2,rows=1,elevations=['00'],elevationTiles=[dict(kind='stairs',asset='stone-step-tile',cell=[1,0],lower=[0,0])]),
         ):
             with self.assertRaises(ValueError):
                 normalize_field_surface_data(current_map_record)

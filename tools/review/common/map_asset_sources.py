@@ -9,27 +9,18 @@ MAP_SOURCE_BLOCK_HEIGHT = 60
 
 
 def normalize_field_surface_data(current_map_record):
-    """원본 고도 문자열·계단 좌표를 게임과 공통인 숫자 격자로 전달한다."""
+    """현행 원본의 고도 문자열을 숫자 격자로 전달하고 폐기된 연결은 거절한다."""
     current_height_rows = current_map_record['elevations']
     if len(current_height_rows) != current_map_record['rows']:
         raise ValueError('필드 고도 행 수 오류')
     if any(not isinstance(current_height_row,str) or len(current_height_row)!=current_map_record['columns'] or any(current_height_code not in '0123456789' for current_height_code in current_height_row) for current_height_row in current_height_rows):
         raise ValueError('필드 고도 행 길이·값 오류')
     current_map_record['elevations'] = [[int(current_height_code) for current_height_code in current_height_row] for current_height_row in current_height_rows]
-    for current_stair_record in current_map_record.get('elevationTiles',[]):
-        if current_stair_record['kind']!='stairs' or current_stair_record['asset']!='stone-step-tile':
-            raise ValueError('지원하지 않는 필드 계단 종류')
-        for current_position_key in ('cell','lower'):
-            current_position_values = current_stair_record[current_position_key]
-            if not isinstance(current_position_values,list) or len(current_position_values)!=2 or any(type(current_coordinate_value) is not int for current_coordinate_value in current_position_values):
-                raise ValueError('필드 계단 좌표 오류')
-            current_column_value,current_row_value = current_position_values
-            if not 0<=current_column_value<current_map_record['columns'] or not 0<=current_row_value<current_map_record['rows']:
-                raise ValueError('필드 계단 좌표 범위 오류')
-            current_stair_record[current_position_key] = dict(column=current_column_value,row=current_row_value)
-        current_upper_cell,current_lower_cell = current_stair_record['cell'],current_stair_record['lower']
-        if abs(current_upper_cell['column']-current_lower_cell['column'])+abs(current_upper_cell['row']-current_lower_cell['row'])!=1 or current_map_record['elevations'][current_upper_cell['row']][current_upper_cell['column']]-current_map_record['elevations'][current_lower_cell['row']][current_lower_cell['column']]!=1:
-            raise ValueError('필드 계단은 인접한 한 단계 고도 차를 연결해야 합니다.')
+    if current_map_record.get('terrainMovementVersion') != 2:
+        raise ValueError('맵 검수 원본은 지형 이동 버전 2여야 합니다.')
+    if current_map_record.get('elevationTiles') or current_map_record.get('ramps'):
+        raise ValueError('맵 검수 원본은 폐기된 계단·경사로 연결을 허용하지 않습니다.')
+
 
 
 class UniqueMapSourceLoader(yaml.SafeLoader):
@@ -80,7 +71,7 @@ def load_registered_map_review(map_identifier_value):
     if map_identifier_value not in current_city_identifiers:
         current_map_record = read_map_source_data('terrain/maps/'+map_identifier_value+'.yaml')
         normalize_field_surface_data(current_map_record)
-        # 보관 원본의 연결 기록을 삭제하지 않고 현재 표시 계약에서 제외한다.
+        # 기존 응답의 빈 연결 필드는 클라이언트 계약 호환을 위해 유지한다.
         current_map_record.update(terrainMovementVersion=2, ramps=[], elevationTiles=[])
         current_map_record['safeTown'] = False
         current_field_tile_data = read_map_source_data('field_tiles/'+map_identifier_value+'.yaml')
