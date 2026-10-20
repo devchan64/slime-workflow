@@ -1,5 +1,5 @@
 """중심 앵커 장식의 접지 영역을 보수적으로 검사한다."""
-from math import ceil, isfinite
+from math import ceil, floor, isfinite
 
 
 def calculate_centered_footprint_cells(current_cell_position, current_footprint_columns, current_footprint_rows):
@@ -27,6 +27,43 @@ def validate_scenery_ground_placement(current_ground_cells, current_elevation_ro
     return None
 
 
+def calculate_billboard_support_cells(current_object_record, current_property_values):
+    """렌더러의 교차점과 수동 아랫변 중심이 닿는 지면 셀을 반환한다."""
+    current_column_origin = current_object_record['position']['column']
+    current_row_origin = current_object_record['position']['row']
+    current_column_count = current_property_values['groundFootprintColumns']
+    current_row_count = current_property_values['groundFootprintRows']
+    current_support_cells = calculate_centered_footprint_cells((current_column_origin, current_row_origin), current_column_count, current_row_count)
+    current_anchor_mode = current_property_values.get('billboardAnchorMode')
+    if current_anchor_mode not in ('tile-intersection', 'tile-bottom-center'):
+        return current_support_cells
+    current_anchor_horizontal = current_property_values['anchorX']
+    current_anchor_vertical = current_property_values['anchorY']
+    if current_anchor_mode == 'tile-intersection':
+        current_column_offset = 0.5 if current_column_count == 1 else current_column_count - 1
+        current_row_offset = 0.5 if current_row_count == 1 else current_row_count - 1
+        current_contact_points = [(current_column_origin + current_column_offset, current_row_origin + current_row_offset),
+            (current_column_origin + current_column_offset + current_anchor_horizontal + current_anchor_vertical,
+             current_row_origin + current_row_offset + current_anchor_vertical - current_anchor_horizontal)]
+    else:
+        current_contact_points = [(current_column_origin + current_anchor_horizontal + current_anchor_vertical - 1,
+                                   current_row_origin + current_anchor_vertical - current_anchor_horizontal)]
+    # 셀 중심은 정수, 경계는 반정수다. 경계에서는 양쪽, 교차점에서는 네 셀을 검사한다.
+    for current_column_point, current_row_point in current_contact_points:
+        current_column_cells = range(ceil(current_column_point - 0.5 - 1e-8), floor(current_column_point + 0.5 + 1e-8) + 1)
+        current_row_cells = range(ceil(current_row_point - 0.5 - 1e-8), floor(current_row_point + 0.5 + 1e-8) + 1)
+        current_support_cells.update((current_column_index, current_row_index) for current_column_index in current_column_cells for current_row_index in current_row_cells)
+    return current_support_cells
+
+
+def validate_billboard_support_elevations(current_object_record, current_property_values, current_elevation_rows):
+    current_support_cells = calculate_billboard_support_cells(current_object_record, current_property_values)
+    current_failure_reason = validate_scenery_ground_placement(current_support_cells, current_elevation_rows, set())
+    if current_failure_reason:
+        return '배치 기준점·아랫변 접지 ' + current_failure_reason
+    return None
+
+
 def validate_scenery_object_collisions(current_object_records, current_property_catalog, current_elevation_rows):
     """장식 접지 충돌을 모아 예외로 반환한다. 화면 위쪽 실루엣 겹침은 제외한다."""
     current_cell_owners = {}
@@ -39,7 +76,7 @@ def validate_scenery_object_collisions(current_object_records, current_property_
         current_ground_cells = calculate_centered_footprint_cells(
             (current_object_position['column'], current_object_position['row']),
             current_property_values['groundFootprintColumns'], current_property_values['groundFootprintRows'])
-        current_failure_reason = validate_scenery_ground_placement(current_ground_cells, current_elevation_rows, set())
+        current_failure_reason = validate_billboard_support_elevations(current_object_record, current_property_values, current_elevation_rows)
         if current_failure_reason:
             current_error_messages.append(f"{current_object_record['id']}: {current_failure_reason} · {current_object_position}")
         for current_ground_cell in sorted(current_ground_cells):
@@ -115,7 +152,7 @@ def validate_image_contact_elevations(current_object_record, current_source_imag
     current_ground_cells = calculate_centered_footprint_cells(
         (current_object_record['position']['column'], current_object_record['position']['row']),
         current_property_values['groundFootprintColumns'], current_property_values['groundFootprintRows'])
-    current_failure_reason = validate_scenery_ground_placement(current_ground_cells, current_elevation_rows, set())
+    current_failure_reason = validate_billboard_support_elevations(current_object_record, current_property_values, current_elevation_rows)
     if current_failure_reason:
         raise ValueError(f"{current_object_record['id']} / {current_object_record['textureKey']}: 타일 {current_failure_reason} · 점유 셀 {sorted(current_ground_cells)}")
     return current_ground_cells

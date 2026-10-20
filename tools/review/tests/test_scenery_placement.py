@@ -72,3 +72,25 @@ class SceneryGroundPlacementTests(unittest.TestCase):
             current_elevation_rows[current_neighbor_row][current_neighbor_column] = 1
             self.assertIsNone(validate_scenery_ground_placement({(3, 3)}, current_elevation_rows, set()))
         self.assertIsNone(validate_scenery_ground_placement({(0, 0)}, [[0] * 7 for current_row_index in range(7)], set()))
+
+    def test_intersection_checks_four_supporting_tiles(self):
+        from tools.review.domains.map_assets.placement import validate_billboard_support_elevations
+        current_object_record = dict(position=dict(column=2, row=2))
+        current_property_values = dict(groundFootprintColumns=1, groundFootprintRows=1, billboardAnchorMode='tile-intersection', anchorX=0, anchorY=0)
+        current_elevation_rows = [[2]*7 for current_row_index in range(7)]
+        self.assertIsNone(validate_billboard_support_elevations(current_object_record,current_property_values,current_elevation_rows))
+        current_elevation_rows[3][3] = 1
+        self.assertIn('고도 불일치',validate_billboard_support_elevations(current_object_record,current_property_values,current_elevation_rows))
+        current_elevation_rows[3][3] = 2
+        current_elevation_rows[1][1] = 0
+        self.assertIsNone(validate_billboard_support_elevations(current_object_record,current_property_values,current_elevation_rows))
+
+    def test_manual_anchor_checks_displaced_support(self):
+        from tools.review.domains.map_assets.placement import validate_billboard_support_elevations
+        current_object_record = dict(position=dict(column=2, row=2))
+        current_property_values = dict(groundFootprintColumns=1, groundFootprintRows=1, billboardAnchorMode='tile-intersection', anchorX=0.5, anchorY=0.5)
+        current_elevation_rows = [[2]*7 for current_row_index in range(7)]
+        current_elevation_rows[3][4] = 1
+        self.assertIn('고도 불일치',validate_billboard_support_elevations(current_object_record,current_property_values,current_elevation_rows))
+        current_property_values.update(anchorX=0,anchorY=0)
+        self.assertIsNone(validate_billboard_support_elevations(current_object_record,current_property_values,current_elevation_rows))
