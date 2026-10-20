@@ -5,16 +5,16 @@ from tools.review.domains.map_assets.placement import calculate_centered_footpri
 
 class SceneryGroundPlacementTests(unittest.TestCase):
     def test_centered_even_footprint_touches_neighbor_cells(self):
-        self.assertEqual(len(calculate_centered_footprint_cells((2, 2), 2, 2)), 9)
+        self.assertEqual(calculate_centered_footprint_cells((2, 2), 2, 2), {(2, 2), (3, 2), (2, 3), (3, 3)})
         self.assertEqual(calculate_centered_footprint_cells((2, 2), 1, 1), {(2, 2)})
 
     def test_boundary_slope_and_reserved_cells_are_rejected(self):
         current_elevation_rows = [[0] * 5 for current_row_index in range(5)]
         current_ground_cells = calculate_centered_footprint_cells((2, 2), 2, 2)
         self.assertIsNone(validate_scenery_ground_placement(current_ground_cells, current_elevation_rows, set()))
-        self.assertEqual(validate_scenery_ground_placement(calculate_centered_footprint_cells((0, 0), 2, 2), current_elevation_rows, set()), '맵 경계 침범')
-        self.assertEqual(validate_scenery_ground_placement(current_ground_cells, current_elevation_rows, {(1, 1)}), '예약 영역 중첩')
-        current_elevation_rows[1][1] = 2
+        self.assertEqual(validate_scenery_ground_placement(calculate_centered_footprint_cells((4, 4), 2, 2), current_elevation_rows, set()), '맵 경계 침범')
+        self.assertEqual(validate_scenery_ground_placement(current_ground_cells, current_elevation_rows, {(3, 3)}), '예약 영역 중첩')
+        current_elevation_rows[3][3] = 2
         self.assertEqual(validate_scenery_ground_placement(current_ground_cells, current_elevation_rows, set()), '접지 영역 고도 불일치')
 
     def test_different_centers_with_overlapping_footprints_fail(self):

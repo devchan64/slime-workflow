@@ -134,11 +134,13 @@ def build_catalog_reference(current_asset_root):
         else:
             current_billboard_record['placement'] = {
                 'status':'공용 속성 등록됨',
+                'anchor_semantics':'이미지 사각형 아랫변 중앙의 타일 좌표. (.5,.5)는 중앙. 투명 여백 포함.',
+                'vertical_classification':('top' if current_shared_properties['anchorY']<.5 else 'bottom' if current_shared_properties['anchorY']>.5 else 'center'),
                 'source':'assets/maps/sprite-display-properties.yaml#data.'+current_texture_key,
                 **current_shared_properties,
                 'outdoorDisplayHeight': current_shared_properties['displayHeight']*current_outdoor_scale,
                 'size_variant':'소형 변형' if '-size-small-' in current_texture_key else '대형 변형' if '-size-large-' in current_texture_key else '기본 변형',
-                'occupied_tile_count': (2*((current_shared_properties['groundFootprintColumns'])//2)+1)*(2*((current_shared_properties['groundFootprintRows'])//2)+1),
+                'occupied_tile_count': current_shared_properties['groundFootprintColumns']*current_shared_properties['groundFootprintRows'],
                 'movement':'통행 불가' if current_shared_properties['billboardBlocksMovement'] else '통행 가능',
             }
         current_billboard_record['map_references'] = current_map_references.get(current_texture_key,[])
@@ -150,15 +152,15 @@ def build_catalog_reference(current_asset_root):
         'display_height':'displayHeight는 공용 기준 높이(px). PNG 해상도와 다르다.',
         'outdoor_scale':current_outdoor_scale,
         'outdoor_height':'outdoorDisplayHeight는 야외필드 배율 적용 후 높이이며 화면 줌은 포함하지 않는다.',
-        'footprint':'접지 칸 수와 실제 검사 점유 칸 수를 구분한다. 중심 배치의 짝수 접지는 양옆 반 칸을 포함한다.',
-        'blocking':'큰 나무·큰 소품은 하단 앵커. 1×1 초과는 차단, 1×1 하단은 displayHeight 80 초과 차단.',
+        'footprint':'기준 타일부터 열·행 증가 방향으로만 확장한다. 실제 점유 칸 수는 선언 열 수×행 수이며 2×1은 정확히 2칸이다.',
+        'blocking':'1×1 초과는 차단. 1×1은 이미지 아랫변 중앙의 타일 Y가 0.5 이상이고 displayHeight가 80 초과일 때 차단. top/bottom은 별도 지정하지 않는다.',
         'missing':'설정 필요 항목은 크기를 추측하여 배치하지 않는다.',
         'shadow': {
             'profile':'billboard-contact-v2',
-            'implementation':'@slime/field-renderer 1.0.134 · drawBillboardContactShadow',
+            'implementation':'@slime/field-renderer 1.0.137 · drawBillboardContactShadow',
             'enabled':'기본 활성화. 렌더러 옵션 billboardShadows=false로 전체 비활성화.',
-            'geometry':'폭=min(displayHeight×billboardScale×0.38, tileWidth×0.55), 높이=폭×0.2. 정사각 점유는 이 타원 공식을 사용한다. 열·행 수가 다른 점유는 각 축 길이=선언 점유 수×0.55타일, 모서리 반경=짧은 반축×0.35인 둥근 직사각형을 지면에 투영한다.',
-            'layers':[{'scale':1,'alpha':0.06},{'scale':0.78,'alpha':0.09},{'scale':0.5,'alpha':0.12}],
+            'geometry':'폭=min(displayHeight×billboardScale×0.76, tileWidth×1.10), 높이=폭×0.2. 정사각 점유는 이 타원 공식을 사용한다. 열·행 수가 다른 점유는 각 축 길이=선언 점유 수×1.10타일, 모서리 반경=짧은 반축×0.35인 둥근 직사각형을 지면에 투영한다.',
+            'layers':[{'scale':1,'alpha':0.14},{'scale':0.78,'alpha':0.20},{'scale':0.5,'alpha':0.26}],
             'color':'#18201b',
             'position':'그림자는 소속 타일 중앙에 둔다. 빌보드 앵커의 화면 이동을 제거한다: X 보정=(column-row)×tileWidth×0.5, Y 보정=(column+row)×tileHeight×0.5를 뺀다. 열·행 오프셋은 카메라 회전을 반영한다.',
             'depth':'소속 타일의 지면 바로 위에 배치하며 빌보드·캐릭터 정렬과 분리한다.',

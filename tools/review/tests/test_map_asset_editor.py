@@ -66,6 +66,24 @@ class MapAssetEditorTests(unittest.TestCase):
         current_table_values[0][4]=1
         self.assertEqual(build_asset_editor_payload(current_catalog_record,current_table_values)['changes'],[{'texture':'sample','values':{'displayHeight':100}}])
 
+    def test_ui_save_refreshes_baseline_for_second_edit(self):
+        from tools.review.ui.gradio import asset_editor_app
+        import copy
+        current_catalog_record={'revision':'first','assets':[{'texture':'sample','name':'샘플','maps':[],'properties':self.current_property_values}]}
+        current_table_values=[['sample','샘플',.5,1,1,1,100,'bottom',0,0,1,1,False,0]]
+        for current_next_height,current_revision_value in ((100,'second'),(120,'third')):
+            current_table_values[0][6]=current_next_height
+            current_request_payload=build_asset_editor_payload(current_catalog_record,current_table_values)
+            self.assertEqual(current_request_payload['changes'],[{'texture':'sample','values':{'displayHeight':current_next_height}}])
+            current_next_catalog=copy.deepcopy(current_catalog_record)
+            current_next_catalog['revision']=current_revision_value
+            current_next_catalog['assets'][0]['properties'].update(displayHeight=current_next_height,billboardBlocksMovement=True)
+            with patch.object(asset_editor_app,'execute_remote_management_command',side_effect=[{'count':1},current_next_catalog]):
+                current_save_outputs=asset_editor_app.save_asset_editor_changes(current_catalog_record,current_table_values,{**current_request_payload,'token':'verified'})
+            current_catalog_record,current_table_values=current_save_outputs[3:]
+            self.assertEqual(current_catalog_record['revision'],current_revision_value)
+            self.assertEqual(build_asset_editor_payload(current_catalog_record,current_table_values)['changes'],[])
+
     def test_shadow_properties_validate_and_save(self):
         current_shadow_payload={**self.current_request_payload,'changes':[{'texture':'sample','values':{'shadowOffsetColumn':.25,'shadowOffsetRow':-.5,'shadowScaleX':1.4,'shadowScaleY':.7}}]}
         current_preview_result=editor.preview_editor_changes(current_shadow_payload,self.current_asset_root)

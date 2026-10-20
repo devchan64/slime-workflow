@@ -75,7 +75,7 @@ export function installSourceSizePreview(currentTextureRecords,currentSelectedGa
   const currentDisplayWidth=currentDisplayHeight*(currentRenderMetrics.imageAspectRatio??currentSourceImage.width/currentSourceImage.height);
   const currentReducedCanvas=document.createElement('canvas');currentReducedCanvas.width=currentTargetWidth;currentReducedCanvas.height=currentTargetHeight;
   const currentReducedContext=currentReducedCanvas.getContext('2d');currentReducedContext.imageSmoothingQuality='high';currentReducedContext.drawImage(currentSourceImage,0,0,currentTargetWidth,currentTargetHeight);
-  const currentGroundPreview=drawAssetGroundPreview(currentPreviewCanvas,currentReducedCanvas,{anchorX:currentAnchorX??currentAnchorRecord.anchorX??.5,anchorY:currentAnchorY??currentAnchorRecord.anchorY??1,groundFootprintColumns:Number(currentFootprintColumns),groundFootprintRows:Number(currentFootprintRows),displayHeight:currentDisplayHeight,billboardPlacementAnchor:currentAnchorRecord.billboardPlacementAnchor},{...currentRenderMetrics,billboardScale:1,imageAspectRatio:currentSourceImage.width/currentSourceImage.height});
+  const currentGroundPreview=drawAssetGroundPreview(currentPreviewCanvas,currentReducedCanvas,{anchorX:currentAnchorX??currentAnchorRecord.anchorX??.5,anchorY:currentAnchorY??currentAnchorRecord.anchorY??1,groundFootprintColumns:Number(currentFootprintColumns),groundFootprintRows:Number(currentFootprintRows),displayHeight:currentDisplayHeight,billboardAnchorMode:currentAnchorRecord.billboardAnchorMode,billboardPlacementAnchor:currentAnchorRecord.billboardPlacementAnchor},{...currentRenderMetrics,billboardScale:1,imageAspectRatio:currentSourceImage.width/currentSourceImage.height});
   return [{path:currentAssetRecord.source,sha256:currentAssetRecord.sha256,size:Number(currentTargetSize)},`원본 ${currentSourceImage.width}×${currentSourceImage.height}px → ${currentTargetWidth}×${currentTargetHeight}px. 노랑: 바닥 선언 ${currentFootprintColumns}×${currentFootprintRows} · 실제 점유 ${currentGroundPreview.occupiedCells}칸, 파랑: 이미지 영역, 빨강: 접지 앵커. 맵 표시 크기 ${Math.round(currentDisplayWidth)}×${Math.round(currentDisplayHeight)}px 유지 · 원본 해상도만 변경합니다.${Number(currentTargetSize)>Math.max(currentSourceImage.width,currentSourceImage.height)?' 확대 저장 불가: 원본 이하 크기를 선택하세요.':''}${currentBuildingRecord?' 건물은 여러 타일을 점유할 수 있습니다.':''}`,{__type__:'update',interactive:Number(currentTargetSize)<=Math.max(currentSourceImage.width,currentSourceImage.height)}];
  };
 }
@@ -84,7 +84,7 @@ export function installSourceSizePreview(currentTextureRecords,currentSelectedGa
 export function drawAssetGroundPreview(currentPreviewCanvas,currentSourceImage,currentPropertyValues,currentRenderMetrics){
  const currentTileWidth=currentRenderMetrics.tileWidth,currentTileHeight=currentRenderMetrics.tileHeight;
  const currentDisplayHeight=currentPropertyValues.displayHeight*(currentRenderMetrics.billboardScale??1),currentDisplayWidth=currentDisplayHeight*(currentRenderMetrics.imageAspectRatio??currentSourceImage.width/currentSourceImage.height);
- const currentColumnRadius=Math.ceil((currentPropertyValues.groundFootprintColumns-1)/2),currentRowRadius=Math.ceil((currentPropertyValues.groundFootprintRows-1)/2);
+ const currentColumnRadius=currentPropertyValues.groundFootprintColumns-1,currentRowRadius=currentPropertyValues.groundFootprintRows-1;
  const currentGroundPadding=(currentColumnRadius+currentRowRadius+2)*currentTileHeight/2;
  currentPreviewCanvas.width=Math.max(SOURCE_PREVIEW_WIDTH,currentDisplayWidth*2+SOURCE_PREVIEW_PADDING*2,(currentColumnRadius+currentRowRadius+2)*currentTileWidth);
  currentPreviewCanvas.height=Math.max(SOURCE_PREVIEW_HEIGHT,currentDisplayHeight+currentGroundPadding*2);
@@ -92,22 +92,31 @@ export function drawAssetGroundPreview(currentPreviewCanvas,currentSourceImage,c
  currentPreviewCanvas.height+=Math.max(0,currentImageBelowGround-currentGroundPadding);
  const currentGroundCenterX=currentPreviewCanvas.width/2,currentGroundCenterY=currentPreviewCanvas.height-Math.max(currentGroundPadding,currentImageBelowGround);
  const currentAnchorOffset=currentPropertyValues.billboardPlacementAnchor==='top'?-1:currentPropertyValues.billboardPlacementAnchor==='bottom'?1:0;
- const currentAnchorPositionY=currentGroundCenterY+currentAnchorOffset*currentTileHeight/2;
+ const currentTileAnchorMode=currentPropertyValues.billboardAnchorMode==='tile-bottom-center';
+ const currentAnchorPositionX=currentGroundCenterX+(currentTileAnchorMode?(currentPropertyValues.anchorX-.5)*currentTileWidth:0);
+ const currentAnchorPositionY=currentGroundCenterY+(currentTileAnchorMode?(currentPropertyValues.anchorY-.5)*currentTileHeight:currentAnchorOffset*currentTileHeight/2);
  const currentCanvasContext=currentPreviewCanvas.getContext('2d');currentCanvasContext.clearRect(0,0,currentPreviewCanvas.width,currentPreviewCanvas.height);
+ const currentPreviewZoom=currentRenderMetrics.previewZoom??1;
+ const currentViewCenterY=(Math.min(currentAnchorPositionY-currentDisplayHeight*(currentTileAnchorMode?1:currentPropertyValues.anchorY),currentGroundCenterY-currentGroundPadding)+Math.max(currentAnchorPositionY+currentDisplayHeight*(currentTileAnchorMode?0:1-currentPropertyValues.anchorY),currentGroundCenterY+currentGroundPadding))/2;
+ currentCanvasContext.save();
+ currentCanvasContext.translate(currentPreviewCanvas.width/2,currentPreviewCanvas.height/2);
+ currentCanvasContext.scale(currentPreviewZoom,currentPreviewZoom);
+ currentCanvasContext.translate(-currentGroundCenterX,-currentViewCenterY);
  const currentTilePaths=[];
- for(let currentColumnOffset=-currentColumnRadius;currentColumnOffset<=currentColumnRadius;currentColumnOffset++)for(let currentRowOffset=-currentRowRadius;currentRowOffset<=currentRowRadius;currentRowOffset++){
+ for(let currentColumnOffset=0;currentColumnOffset<=currentColumnRadius;currentColumnOffset++)for(let currentRowOffset=0;currentRowOffset<=currentRowRadius;currentRowOffset++){
   const currentCenterX=currentGroundCenterX+(currentColumnOffset-currentRowOffset)*currentTileWidth/2,currentCenterY=currentGroundCenterY+(currentColumnOffset+currentRowOffset)*currentTileHeight/2;
   const currentTilePath=new Path2D();currentTilePath.moveTo(currentCenterX,currentCenterY-currentTileHeight/2);currentTilePath.lineTo(currentCenterX+currentTileWidth/2,currentCenterY);currentTilePath.lineTo(currentCenterX,currentCenterY+currentTileHeight/2);currentTilePath.lineTo(currentCenterX-currentTileWidth/2,currentCenterY);currentTilePath.closePath();currentTilePaths.push(currentTilePath);currentCanvasContext.fillStyle='#506655';currentCanvasContext.fill(currentTilePath);
  }
  if(currentRenderMetrics.drawShadow){
   const currentPreviewGraphics={setDepth(){return this;},fillStyle(currentColorValue,currentAlphaValue){currentCanvasContext.fillStyle='#'+currentColorValue.toString(16).padStart(6,'0');currentCanvasContext.globalAlpha=currentAlphaValue;},fillEllipse(currentCenterX,currentCenterY,currentWidthValue,currentHeightValue){currentCanvasContext.beginPath();currentCanvasContext.ellipse(currentCenterX,currentCenterY,currentWidthValue/2,currentHeightValue/2,0,0,Math.PI*2);currentCanvasContext.fill();},fillPoints(currentPointRecords){currentCanvasContext.beginPath();currentPointRecords.forEach((currentPointRecord,currentPointIndex)=>currentPointIndex?currentCanvasContext.lineTo(currentPointRecord.x,currentPointRecord.y):currentCanvasContext.moveTo(currentPointRecord.x,currentPointRecord.y));currentCanvasContext.closePath();currentCanvasContext.fill();}};
-  currentRenderMetrics.drawShadow({add:{graphics:()=>currentPreviewGraphics}},currentPropertyValues,{x:currentGroundCenterX,y:currentAnchorPositionY},0,currentRenderMetrics);
+  currentRenderMetrics.drawShadow({add:{graphics:()=>currentPreviewGraphics}},currentPropertyValues,{x:currentAnchorPositionX,y:currentAnchorPositionY},0,currentRenderMetrics);
   currentCanvasContext.globalAlpha=1;
  }
- const currentImageLeft=currentGroundCenterX-currentDisplayWidth*currentPropertyValues.anchorX,currentImageTop=currentAnchorPositionY-currentDisplayHeight*currentPropertyValues.anchorY;
+ const currentImageLeft=currentAnchorPositionX-currentDisplayWidth*(currentTileAnchorMode?.5:currentPropertyValues.anchorX),currentImageTop=currentAnchorPositionY-currentDisplayHeight*(currentTileAnchorMode?1:currentPropertyValues.anchorY);
  currentCanvasContext.drawImage(currentSourceImage,currentImageLeft,currentImageTop,currentDisplayWidth,currentDisplayHeight);
  currentCanvasContext.strokeStyle='#ffd859';currentCanvasContext.lineWidth=2;currentTilePaths.forEach(currentTilePath=>currentCanvasContext.stroke(currentTilePath));
  currentCanvasContext.strokeStyle='#75cfff';currentCanvasContext.strokeRect(currentImageLeft,currentImageTop,currentDisplayWidth,currentDisplayHeight);
- currentCanvasContext.fillStyle='#ff7168';currentCanvasContext.beginPath();currentCanvasContext.arc(currentGroundCenterX,currentAnchorPositionY,4,0,Math.PI*2);currentCanvasContext.fill();
+ currentCanvasContext.fillStyle='#ff7168';currentCanvasContext.beginPath();currentCanvasContext.arc(currentAnchorPositionX,currentAnchorPositionY,4,0,Math.PI*2);currentCanvasContext.fill();
+ currentCanvasContext.restore();
  return {width:currentDisplayWidth,height:currentDisplayHeight,occupiedCells:currentTilePaths.length};
 }

@@ -3,14 +3,12 @@ from math import ceil, isfinite
 
 
 def calculate_centered_footprint_cells(current_cell_position, current_footprint_columns, current_footprint_rows):
-    """짝수 폭은 중심 양쪽의 반 칸까지 걸치므로 접촉 셀을 모두 반환한다."""
+    """기준 셀부터 열·행 증가 방향으로 선언한 개수만큼 반환한다."""
     if any(type(current_dimension_value) is not int or current_dimension_value < 1 for current_dimension_value in (current_footprint_columns, current_footprint_rows)):
         raise ValueError('장식 점유 폭은 양의 정수여야 합니다.')
-    current_column_radius = ceil((current_footprint_columns - 1) / 2)
-    current_row_radius = ceil((current_footprint_rows - 1) / 2)
     return {(current_cell_position[0] + current_column_offset, current_cell_position[1] + current_row_offset)
-            for current_column_offset in range(-current_column_radius, current_column_radius + 1)
-            for current_row_offset in range(-current_row_radius, current_row_radius + 1)}
+            for current_column_offset in range(current_footprint_columns)
+            for current_row_offset in range(current_footprint_rows)}
 
 
 def validate_scenery_ground_placement(current_ground_cells, current_elevation_rows, current_reserved_cells):
@@ -58,7 +56,7 @@ SCENERY_ALPHA_VISIBLE_THRESHOLD = 16
 def validate_scenery_image_footprint(current_texture_key, current_source_image, current_property_values, current_tile_width):
     """이미지 유효성만 확인한다. 입체 실루엣을 바닥 접촉면으로 추정하지 않는다."""
     current_numeric_values = (current_property_values['displayHeight'], current_property_values['anchorX'], current_tile_width)
-    if any(type(current_value) not in (int, float) or not isfinite(current_value) for current_value in current_numeric_values) or current_numeric_values[0] <= 0 or current_tile_width <= 0 or not 0 <= current_numeric_values[1] <= 1:
+    if any(type(current_value) not in (int, float) or not isfinite(current_value) for current_value in current_numeric_values) or current_numeric_values[0] <= 0 or current_tile_width <= 0 or not ((-16 <= current_numeric_values[1] <= 16) if current_property_values.get('billboardAnchorMode') == 'tile-bottom-center' else (0 <= current_numeric_values[1] <= 1)):
         raise ValueError('이미지 접지 검사 크기·앵커 값이 잘못되었습니다.')
     calculate_centered_footprint_cells((0, 0), current_property_values['groundFootprintColumns'], current_property_values['groundFootprintRows'])
     current_alpha_image = current_source_image.convert('RGBA').getchannel('A').point(lambda current_alpha_value: 255 if current_alpha_value >= SCENERY_ALPHA_VISIBLE_THRESHOLD else 0)

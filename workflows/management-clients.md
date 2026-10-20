@@ -712,7 +712,7 @@ CLI에서는 같은 `qwen-21 generate`에 `--prompt-file generators/image/config
 
 ### 공용 빌보드 에셋 편집
 
-`/management/frame/asset-editor/?tool=asset-editor&category=map-review`에서 전체 빌보드의 표시 높이·점유 열/행·이미지 앵커·타일 상하 배치를 편집한다. 맵 검수와 공용 Gradio 속성 입력·썸네일·점유 타일 미리보기를 공유한다. 야외 80×40/0.5배와 마을·전투 160×80/1배를 비교할 수 있다. 별도 프레임 메타데이터가 있는 원본은 시트 표시임을 안내하며 개별 프레임 접지 검수가 필요하다.
+`/management/frame/asset-editor/?tool=asset-editor&category=map-review`에서 전체 빌보드의 표시 높이·점유 열/행·타일 기준 앵커를 편집한다. `billboardAnchorMode: tile-bottom-center`에서 `anchorX/Y`는 투명 여백을 포함한 이미지 사각형 아랫변 중앙의 타일 좌표다. (0.5, 0.5)는 중앙이며 타일 외부 좌표를 보존하기 위해 -16~16을 허용한다. top/bottom은 Y와 0.5를 비교한 읽기 전용 판정으로 공용 원본에 저장하지 않는다. 이미지 원점은 (0.5, 1)로 고정한다. 건물의 이미지 내부 앵커와 구버전 계약은 별도로 유지한다. 맵 검수와 공용 Gradio 속성 입력·썸네일·점유 타일 미리보기를 공유한다. 야외 80×40/0.5배와 마을·전투 160×80/1배를 비교할 수 있다. 별도 프레임 메타데이터가 있는 원본은 시트 표시임을 안내하며 개별 프레임 접지 검수가 필요하다.
 
 - `map-assets asset-list`: 입력 `{}`. `revision`, `assets`를 반환한다.
 - `map-assets asset-preview`: `{"revision":"목록 revision","changes":[{"texture":"에셋 ID","values":{"displayHeight":150}}]}`. 공용 규격과 사용 맵의 점유 충돌·고도를 검증하고 변경 전후와 `token`을 반환한다.

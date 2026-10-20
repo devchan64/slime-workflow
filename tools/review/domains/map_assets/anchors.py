@@ -20,8 +20,8 @@ def save_map_sprite_anchor(current_request_payload):
     if current_map_kind not in ('town','field'):raise ValueError('도시·야외필드만 지원합니다.')
     for current_anchor_name in ('anchorX','anchorY'):
         current_anchor_value=current_request_payload[current_anchor_name]
-        if type(current_anchor_value) not in (int,float) or not math.isfinite(current_anchor_value) or not 0<=current_anchor_value<=1:
-            raise ValueError('앵커는 0~1 범위의 숫자여야 합니다.')
+        if type(current_anchor_value) not in (int,float) or not math.isfinite(current_anchor_value) or not -16<=current_anchor_value<=16:
+            raise ValueError('앵커는 -16~16 범위의 숫자여야 합니다.')
     current_layout_values=current_request_payload.get('layout')
     if current_layout_values is not None:
         if not isinstance(current_layout_values,dict) or set(current_layout_values)!={'groundFootprintColumns','groundFootprintRows','displayHeight'}:raise ValueError('바닥 열·행과 표시 높이가 필요합니다.')
@@ -55,7 +55,7 @@ def save_map_sprite_anchor(current_request_payload):
     current_shared_properties.update(current_layout_values or current_property_catalog.get(current_request_payload['texture'], {}))
     # 기존 레이아웃을 유지할 때도 이번 앵커 입력을 우선한다.
     current_shared_properties.update({current_anchor_name:current_request_payload[current_anchor_name] for current_anchor_name in ('anchorX','anchorY')})
-    if 'billboardPlacementAnchor' in current_shared_properties:
+    if 'billboardBlocksMovement' in current_shared_properties:
         current_shared_properties['billboardBlocksMovement'] = calculate_billboard_blocking_state(current_shared_properties)
     current_property_catalog[current_request_payload['texture']] = current_shared_properties
     validate_sprite_display_properties(current_property_catalog)

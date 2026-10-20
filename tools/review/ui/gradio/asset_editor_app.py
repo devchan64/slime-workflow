@@ -12,21 +12,34 @@ from tools.review.common.gradio_asset_editor import build_asset_source_gallery, 
 from tools.review.common.management_client import execute_remote_management_command
 from tools.review.common.sprite_display_properties import calculate_billboard_blocking_state, validate_sprite_display_properties
 
+EDITOR_GALLERY_PAGE_SIZE = 12
+
 EDITOR_PROPERTY_FIELDS = ['anchorX','anchorY','groundFootprintColumns','groundFootprintRows','displayHeight','billboardPlacementAnchor','shadowOffsetColumn','shadowOffsetRow','shadowScaleX','shadowScaleY']
 EDITOR_TABLE_HEADERS = ['에셋 ID','이름','앵커 X','앵커 Y','점유 열','점유 행','표시 높이','배치 top/bottom','그림자 열 이동','그림자 행 이동','그림자 가로 배율','그림자 세로 배율','현재 차단','사용 맵 수']
 
 
 def load_asset_editor_catalog():
     current_catalog_record = execute_remote_management_command('map-assets','asset-list',{})
-    current_table_values = [[current_asset_record['texture'],current_asset_record['name'],*[current_asset_record['properties'].get(current_field_name,0 if current_field_name.startswith('shadowOffset') else 1) for current_field_name in EDITOR_PROPERTY_FIELDS],current_asset_record['properties']['billboardBlocksMovement'],len(current_asset_record['maps'])] for current_asset_record in current_catalog_record['assets']]
+    current_table_values = [[current_asset_record['texture'],current_asset_record['name'],*[(('top' if current_asset_record['properties']['anchorY']<.5 else 'bottom') if current_field_name=='billboardPlacementAnchor' and current_asset_record['properties'].get('billboardAnchorMode')=='tile-bottom-center' else current_asset_record['properties'].get(current_field_name,0 if current_field_name.startswith('shadowOffset') else 1)) for current_field_name in EDITOR_PROPERTY_FIELDS],current_asset_record['properties']['billboardBlocksMovement'],len(current_asset_record['maps'])] for current_asset_record in current_catalog_record['assets']]
     return current_catalog_record,current_table_values,f"{len(current_table_values)}종을 불러왔습니다. 표의 수정값은 검증 후 저장해야 반영됩니다."
 
 
-def filter_asset_editor_gallery(current_catalog_record,current_search_text):
+def filter_asset_editor_gallery(current_catalog_record,current_search_text,current_page_number=1):
     current_search_terms = current_search_text.lower().split()
     current_matching_assets = [current_asset_record for current_asset_record in current_catalog_record.get('assets',[]) if all(current_search_term in (current_asset_record['texture']+' '+current_asset_record['name']+' '+str(current_asset_record['maps'])).lower() for current_search_term in current_search_terms)]
-    current_visible_assets = current_matching_assets[:60]
-    return [(current_asset_record['image'],current_asset_record['texture']) for current_asset_record in current_visible_assets],current_visible_assets,f'검색 결과 {len(current_matching_assets)}종 · 썸네일은 최대 60종. 전체 값은 아래 표에서 검색·편집하세요.'
+    current_page_count=max(1,(len(current_matching_assets)+EDITOR_GALLERY_PAGE_SIZE-1)//EDITOR_GALLERY_PAGE_SIZE)
+    current_page_number=max(1,min(int(current_page_number),current_page_count))
+    current_start_index=(current_page_number-1)*EDITOR_GALLERY_PAGE_SIZE
+    current_visible_assets = current_matching_assets[current_start_index:current_start_index+EDITOR_GALLERY_PAGE_SIZE]
+    return [(current_asset_record['image'],current_asset_record['texture']) for current_asset_record in current_visible_assets],current_visible_assets,f'검색 결과 {len(current_matching_assets)}종 · {current_page_number}/{current_page_count}페이지 · 페이지당 12개. 첫·마지막 페이지에서는 해당 방향으로 이동할 수 없습니다.',current_page_number,gr.update(interactive=current_page_number>1),gr.update(interactive=current_page_number<current_page_count)
+
+
+def previous_asset_gallery_page(current_catalog_record,current_search_text,current_page_number):
+    return filter_asset_editor_gallery(current_catalog_record,current_search_text,current_page_number-1)
+
+
+def next_asset_gallery_page(current_catalog_record,current_search_text,current_page_number):
+    return filter_asset_editor_gallery(current_catalog_record,current_search_text,current_page_number+1)
 
 
 def select_asset_editor_record(current_visible_assets,current_table_values,current_select_event:gr.SelectData):
@@ -63,9 +76,12 @@ def build_asset_editor_payload(current_catalog_record,current_table_values):
             current_number_value=current_property_values[current_field_name]
             if isinstance(current_number_value,bool) or not isinstance(current_number_value,(int,float)) or current_number_value!=int(current_number_value):raise ValueError('점유 타일 크기는 정수여야 합니다.')
             current_property_values[current_field_name]=int(current_number_value)
+        if current_baseline_records[current_texture_key].get('billboardAnchorMode')=='tile-bottom-center':
+            current_property_values.pop('billboardPlacementAnchor')
+            current_property_values['billboardAnchorMode']='tile-bottom-center'
         current_property_values['billboardBlocksMovement']=calculate_billboard_blocking_state(current_property_values)
         validate_sprite_display_properties({current_texture_key:current_property_values})
-        current_changed_values={current_field_name:current_property_values[current_field_name] for current_field_name in EDITOR_PROPERTY_FIELDS if current_property_values[current_field_name]!=current_baseline_records[current_texture_key].get(current_field_name,0 if current_field_name.startswith('shadowOffset') else 1)}
+        current_changed_values={current_field_name:current_property_values[current_field_name] for current_field_name in EDITOR_PROPERTY_FIELDS if current_field_name in current_property_values and current_property_values[current_field_name]!=current_baseline_records[current_texture_key].get(current_field_name,0 if current_field_name.startswith('shadowOffset') else 1)}
         if current_changed_values:current_change_records.append({'texture':current_texture_key,'values':current_changed_values})
     return {'revision':current_catalog_record['revision'],'changes':current_change_records}
 
@@ -80,7 +96,8 @@ def save_asset_editor_changes(current_catalog_record,current_table_values,curren
     current_request_payload=build_asset_editor_payload(current_catalog_record,current_table_values)
     if not current_pending_record or any(current_pending_record[current_field_name]!=current_request_payload[current_field_name] for current_field_name in ('revision','changes')):raise gr.Error('검증 이후 값이 변경되었습니다. 다시 검증하세요.')
     current_saved_record=execute_remote_management_command('map-assets','asset-save',current_pending_record)
-    return f"{current_saved_record['count']}종 저장 완료. 공용 속성·카탈로그·해시 잠금을 갱신했습니다. 목록 새로고침으로 저장값을 확인하세요.",{},gr.update(visible=False)
+    current_saved_catalog,current_saved_table,_=load_asset_editor_catalog()
+    return f"{current_saved_record['count']}종 저장 완료. 저장 기준을 갱신했습니다. 계속 편집하고 다시 검증할 수 있습니다.",{},gr.update(visible=False),current_saved_catalog,current_saved_table
 
 
 def build_asset_editor_interface(current_review_port):
@@ -88,56 +105,72 @@ def build_asset_editor_interface(current_review_port):
         gr.Markdown('## 공용 빌보드 에셋 관리\n표에서 여러 에셋을 편집하거나 썸네일을 선택해 접지를 확인하세요. **새로고침은 미저장 편집을 버립니다.** 통행 차단은 배치·점유 크기·공용 높이로 자동 계산합니다.')
         current_catalog_state=gr.State({});current_visible_state=gr.State([]);current_pending_state=gr.State({})
         current_feedback_text=gr.Markdown()
-        current_reload_button=gr.Button('목록 새로고침 · 미저장 편집 버리기')
-        current_search_text=gr.Textbox(label='썸네일 검색 · ID / 이름 / 사용 맵')
-        current_search_button=gr.Button('썸네일 검색')
+        with gr.Row():
+            current_search_text=gr.Textbox(label='에셋 검색',placeholder='ID · 이름 · 사용 맵',scale=3)
+            current_search_button=gr.Button('검색',scale=1)
+            current_reload_button=gr.Button('목록 새로고침 · 편집 초기화',scale=1)
         current_search_feedback=gr.Markdown()
+        current_gallery_page=gr.State(1)
+        with gr.Row():
+            current_previous_page=gr.Button('이전 페이지',interactive=False)
+            current_next_page=gr.Button('다음 페이지',interactive=False)
         current_source_gallery=build_asset_source_gallery()
         current_detail_record=gr.JSON(visible=False)
         current_detail_text=gr.Markdown()
         with gr.Row():
             with gr.Column():
-                current_property_inputs=build_asset_property_inputs()
-                current_placement_choice=gr.Dropdown(['top','bottom'],value='bottom',label='타일 배치 · top 상단 / bottom 하단')
-                current_shadow_inputs=build_asset_shadow_inputs()
-                gr.Markdown('이동 0·0은 타일 중앙입니다. 타원은 화면 가로·세로, 긴 직사각형은 지면 열·행 크기를 조절합니다.')
+                with gr.Group():
+                    gr.Markdown('### 배치와 크기')
+                    current_property_inputs=build_asset_property_inputs()
+                current_placement_choice=gr.Dropdown(['top','bottom'],value='bottom',label='타일 상하 판정 · 앵커 Y 기준',interactive=False,visible=False)
+                with gr.Group():
+                    gr.Markdown('### 그림자 위치와 크기')
+                    current_shadow_inputs=build_asset_shadow_inputs()
+                    gr.Markdown('이동 0·0은 타일 중앙입니다. 배율 1은 기본 크기입니다.')
+                current_update_button=gr.Button('선택 에셋 변경 반영')
+                gr.Markdown('반영 후 아래 **변경 검증**을 눌러 저장하세요.')
             with gr.Column():
+                gr.Markdown('### 미리보기')
                 current_preview_kind=gr.Radio(['야외 80×40 · 0.5배','마을·전투 160×80 · 1배'],value='야외 80×40 · 0.5배',label='미리보기 타일 규격')
+                current_preview_zoom=gr.Slider(minimum=.5,maximum=4,value=1,step=.5,label='미리보기 확대 배율',info='0.5배 단위로 확대·축소합니다. 에셋 저장 값은 바뀌지 않습니다.')
                 build_asset_preview_canvas('asset-editor-preview')
                 current_preview_feedback=gr.Markdown('노랑: 점유 타일 · 파랑: 이미지 경계 · 빨강: 앵커. 이미지의 뿌리·밑동이 타일을 넘는지 확인하세요.')
-        current_update_button=gr.Button('선택 에셋 값을 편집 표에 반영')
-        current_asset_table=gr.Dataframe(headers=EDITOR_TABLE_HEADERS,datatype=['str','str','number','number','number','number','number','str','number','number','number','number','bool','number'],type='array',interactive=True,static_columns=[0,1,12,13],show_search='filter',column_count=(14,'fixed'),label='전체 에셋 편집 표 · 현재 차단 열은 저장 전 원본 값')
+        with gr.Accordion('전체 에셋 일괄 편집',open=False):
+            current_asset_table=gr.Dataframe(headers=EDITOR_TABLE_HEADERS,datatype=['str','str','number','number','number','number','number','str','number','number','number','number','bool','number'],type='array',interactive=True,static_columns=[0,1,7,12,13],show_search='filter',column_count=(14,'fixed'),label='전체 에셋 편집 표 · 현재 차단 열은 저장 전 원본 값')
         current_preview_button=gr.Button('변경 검증 · 저장 내용 확인',variant='primary')
         with gr.Group(visible=False) as current_confirmation_group:
             gr.Markdown('검증한 변경만 공용 원본에 저장합니다. 아래 before / after 및 사용 맵을 확인하세요. 인라인 확인 영역이며 취소하면 저장하지 않습니다.')
             current_preview_result=gr.JSON(label='변경 전후 · 영향 맵')
             with gr.Row():
                 current_save_button=gr.Button('검증한 변경 저장',variant='primary');current_cancel_button=gr.Button('취소 · 편집 유지')
-        current_reload_button.click(load_asset_editor_catalog,outputs=[current_catalog_state,current_asset_table,current_feedback_text]).then(filter_asset_editor_gallery,inputs=[current_catalog_state,current_search_text],outputs=[current_source_gallery,current_visible_state,current_search_feedback])
-        current_interface_blocks.load(load_asset_editor_catalog,outputs=[current_catalog_state,current_asset_table,current_feedback_text]).then(filter_asset_editor_gallery,inputs=[current_catalog_state,current_search_text],outputs=[current_source_gallery,current_visible_state,current_search_feedback])
-        current_search_button.click(filter_asset_editor_gallery,inputs=[current_catalog_state,current_search_text],outputs=[current_source_gallery,current_visible_state,current_search_feedback])
+        current_gallery_outputs=[current_source_gallery,current_visible_state,current_search_feedback,current_gallery_page,current_previous_page,current_next_page]
+        current_previous_page.click(previous_asset_gallery_page,inputs=[current_catalog_state,current_search_text,current_gallery_page],outputs=current_gallery_outputs)
+        current_next_page.click(next_asset_gallery_page,inputs=[current_catalog_state,current_search_text,current_gallery_page],outputs=current_gallery_outputs)
+        current_reload_button.click(load_asset_editor_catalog,outputs=[current_catalog_state,current_asset_table,current_feedback_text]).then(filter_asset_editor_gallery,inputs=[current_catalog_state,current_search_text],outputs=current_gallery_outputs)
+        current_interface_blocks.load(load_asset_editor_catalog,outputs=[current_catalog_state,current_asset_table,current_feedback_text]).then(filter_asset_editor_gallery,inputs=[current_catalog_state,current_search_text],outputs=current_gallery_outputs)
+        current_search_button.click(filter_asset_editor_gallery,inputs=[current_catalog_state,current_search_text],outputs=current_gallery_outputs)
         current_selection_event=current_source_gallery.select(select_asset_editor_record,inputs=[current_visible_state,current_asset_table],outputs=[current_detail_record,*current_property_inputs,current_placement_choice,*current_shadow_inputs,current_detail_text])
         current_update_button.click(update_asset_editor_row,inputs=[current_detail_record,current_asset_table,*current_property_inputs,current_placement_choice,*current_shadow_inputs],outputs=[current_asset_table,current_feedback_text])
         current_preview_button.click(preview_asset_editor_changes,inputs=[current_catalog_state,current_asset_table],outputs=[current_pending_state,current_preview_result,current_confirmation_group])
-        current_save_button.click(save_asset_editor_changes,inputs=[current_catalog_state,current_asset_table,current_pending_state],outputs=[current_feedback_text,current_pending_state,current_confirmation_group])
+        current_save_button.click(save_asset_editor_changes,inputs=[current_catalog_state,current_asset_table,current_pending_state],outputs=[current_feedback_text,current_pending_state,current_confirmation_group,current_catalog_state,current_asset_table]).then(filter_asset_editor_gallery,inputs=[current_catalog_state,current_search_text],outputs=current_gallery_outputs)
         current_cancel_button.click(lambda:({},gr.update(visible=False)),outputs=[current_pending_state,current_confirmation_group])
-        current_preview_script='''async(currentAssetRecord,currentAnchorX,currentAnchorY,currentColumns,currentRows,currentHeight,currentPlacement,currentShadowColumn,currentShadowRow,currentShadowWidth,currentShadowHeight,currentKind)=>{
-if(!currentAssetRecord?.image)return '썸네일을 선택하세요.';
+        current_preview_script='''async(currentAssetRecord,currentAnchorX,currentAnchorY,currentColumns,currentRows,currentHeight,currentPlacement,currentShadowColumn,currentShadowRow,currentShadowWidth,currentShadowHeight,currentKind,currentPreviewZoom)=>{
+if(!currentAssetRecord?.image)return ['썸네일을 선택하세요.',{__type__:'update'}];
 const currentPreviewCanvas=document.getElementById('asset-editor-preview');
 const currentPreviewVersion=String(Number(currentPreviewCanvas.dataset.version??0)+1);currentPreviewCanvas.dataset.version=currentPreviewVersion;
 const currentPreviewModule=await import('http://127.0.0.1:__PORT__/isloon-map-review/source-size-preview.js');
 const currentRendererManifest={version:__RENDERER_VERSION__};
 const currentShadowRenderer=await import(`http://127.0.0.1:__PORT__/isloon-map-review/vendor/field-renderer/${currentRendererManifest.version}/field-renderer.mjs`);
 const currentSourceImage=new Image();currentSourceImage.src=currentAssetRecord.image;await currentSourceImage.decode();
-if(currentPreviewCanvas.dataset.version!==currentPreviewVersion)return {__type__:'update'};
+if(currentPreviewCanvas.dataset.version!==currentPreviewVersion)return [{__type__:'update'},{__type__:'update'}];
 const currentOutdoorMode=currentKind.startsWith('야외');
-const currentPreviewResult=currentPreviewModule.drawAssetGroundPreview(currentPreviewCanvas,currentSourceImage,{anchorX:currentAnchorX,anchorY:currentAnchorY,groundFootprintColumns:currentColumns,groundFootprintRows:currentRows,displayHeight:currentHeight,billboardPlacementAnchor:currentPlacement,shadowOffsetColumn:currentShadowColumn,shadowOffsetRow:currentShadowRow,shadowScaleX:currentShadowWidth,shadowScaleY:currentShadowHeight},{tileWidth:currentOutdoorMode?80:160,tileHeight:currentOutdoorMode?40:80,billboardScale:currentOutdoorMode?.5:1,drawShadow:currentShadowRenderer.drawBillboardContactShadow});
-return `선언 ${currentColumns}×${currentRows} · 실제 점유 ${currentPreviewResult.occupiedCells}칸 · ${currentPlacement==='bottom'&&(currentColumns>1||currentRows>1||currentHeight>80)?'통행 차단':'통행 가능'} · 표시 ${currentPreviewResult.width.toFixed(1)}×${currentPreviewResult.height.toFixed(1)}px. 노랑: 타일 · 파랑: 이미지 · 빨강: 앵커. ${currentAssetRecord.metadata.length?'프레임 시트 원본 표시이므로 접지 판정에는 개별 프레임 검수가 필요합니다.':''}`;
+const currentPreviewResult=currentPreviewModule.drawAssetGroundPreview(currentPreviewCanvas,currentSourceImage,{anchorX:currentAnchorX,anchorY:currentAnchorY,groundFootprintColumns:currentColumns,groundFootprintRows:currentRows,displayHeight:currentHeight,billboardAnchorMode:currentAssetRecord.properties.billboardAnchorMode,billboardPlacementAnchor:currentPlacement,shadowOffsetColumn:currentShadowColumn,shadowOffsetRow:currentShadowRow,shadowScaleX:currentShadowWidth,shadowScaleY:currentShadowHeight},{tileWidth:currentOutdoorMode?80:160,tileHeight:currentOutdoorMode?40:80,billboardScale:currentOutdoorMode?.5:1,previewZoom:currentPreviewZoom,drawShadow:currentShadowRenderer.drawBillboardContactShadow});
+return [`미리보기 ${currentPreviewZoom.toFixed(1)}배 · 선언 ${currentColumns}×${currentRows} · 실제 점유 ${currentPreviewResult.occupiedCells}칸 · ${(currentColumns>1||currentRows>1||(currentAnchorY>=.5&&currentHeight>80))?'통행 차단':'통행 가능'} · 표시 ${currentPreviewResult.width.toFixed(1)}×${currentPreviewResult.height.toFixed(1)}px. 노랑: 타일 · 파랑: 이미지 · 빨강: 앵커. ${currentAssetRecord.metadata.length?'프레임 시트 원본 표시이므로 접지 판정에는 개별 프레임 검수가 필요합니다.':''}`,currentAnchorY<.5?'top':'bottom'];
 }'''.replace('__PORT__',str(current_review_port)).replace('__RENDERER_VERSION__',repr(__import__('yaml').safe_load((WORKFLOW_ROOT_DIRECTORY/'tools/review/ui/map/vendor/field-renderer/manifest.yaml').read_text())['version']))
-        current_preview_inputs=[current_detail_record,*current_property_inputs,current_placement_choice,*current_shadow_inputs,current_preview_kind]
-        current_selection_event.then(fn=None,inputs=current_preview_inputs,outputs=current_preview_feedback,js=current_preview_script,queue=False)
+        current_preview_inputs=[current_detail_record,*current_property_inputs,current_placement_choice,*current_shadow_inputs,current_preview_kind,current_preview_zoom]
+        current_selection_event.then(fn=None,inputs=current_preview_inputs,outputs=[current_preview_feedback,current_placement_choice],js=current_preview_script,queue=False)
         for current_input_control in current_preview_inputs[1:]:
-            current_input_control.input(fn=None,inputs=current_preview_inputs,outputs=current_preview_feedback,js=current_preview_script,queue=False)
+            current_input_control.input(fn=None,inputs=current_preview_inputs,outputs=[current_preview_feedback,current_placement_choice],js=current_preview_script,queue=False)
     return current_interface_blocks
 
 

@@ -11,6 +11,8 @@ BILLBOARD_BLOCKING_HEIGHT_LIMIT = 80
 
 def calculate_billboard_blocking_state(current_property_values):
     """공용 표시 높이를 기준으로 통행 차단 속성을 계산한다. 배율·줌은 제외한다."""
+    if current_property_values.get('billboardAnchorMode') == 'tile-bottom-center':
+        return (current_property_values['groundFootprintColumns'] > 1 or current_property_values['groundFootprintRows'] > 1 or (current_property_values['anchorY'] >= .5 and current_property_values['displayHeight'] > BILLBOARD_BLOCKING_HEIGHT_LIMIT))
     current_placement_anchor = current_property_values['billboardPlacementAnchor']
     current_oversized_ground = current_property_values['groundFootprintColumns'] > 1 or current_property_values['groundFootprintRows'] > 1
     if current_placement_anchor not in ('top', 'bottom'):
@@ -27,17 +29,19 @@ def validate_sprite_display_properties(current_property_catalog):
     for current_texture_key, current_property_values in current_property_catalog.items():
         if not isinstance(current_texture_key, str) or not re.fullmatch('[a-z][a-z0-9-]*', current_texture_key):
             raise ValueError('공통 속성의 텍스처 ID 오류')
-        if not isinstance(current_property_values, dict) or (set(current_property_values)-BILLBOARD_SHADOW_FIELD_NAMES) not in (SPRITE_ANCHOR_FIELD_NAMES, SPRITE_ANCHOR_FIELD_NAMES | SPRITE_LAYOUT_FIELD_NAMES, SPRITE_ANCHOR_FIELD_NAMES | SPRITE_LAYOUT_FIELD_NAMES | BILLBOARD_PLACEMENT_FIELD_NAMES):
+        if not isinstance(current_property_values, dict) or (set(current_property_values)-BILLBOARD_SHADOW_FIELD_NAMES-{'billboardAnchorMode'}) not in (SPRITE_ANCHOR_FIELD_NAMES, SPRITE_ANCHOR_FIELD_NAMES | SPRITE_LAYOUT_FIELD_NAMES, SPRITE_ANCHOR_FIELD_NAMES | SPRITE_LAYOUT_FIELD_NAMES | {'billboardBlocksMovement'}, SPRITE_ANCHOR_FIELD_NAMES | SPRITE_LAYOUT_FIELD_NAMES | BILLBOARD_PLACEMENT_FIELD_NAMES):
             raise ValueError('공통 속성 필드 오류')
-        if BILLBOARD_PLACEMENT_FIELD_NAMES <= set(current_property_values):
+        if 'billboardBlocksMovement' in current_property_values:
             if type(current_property_values['billboardBlocksMovement']) is not bool:
                 raise ValueError('빌보드 통행 차단 속성은 불리언이어야 합니다.')
+        if 'billboardAnchorMode' in current_property_values and current_property_values['billboardAnchorMode'] != 'tile-bottom-center':
+            raise ValueError('알 수 없는 빌보드 앵커 규격')
         for current_property_name, current_property_value in current_property_values.items():
-            if current_property_name in BILLBOARD_PLACEMENT_FIELD_NAMES:
+            if current_property_name in BILLBOARD_PLACEMENT_FIELD_NAMES or current_property_name == 'billboardAnchorMode':
                 continue
             if type(current_property_value) not in (int, float) or not math.isfinite(current_property_value):
                 raise ValueError('공통 속성은 유한한 숫자여야 합니다.')
-            if current_property_name in SPRITE_ANCHOR_FIELD_NAMES and not 0 <= current_property_value <= 1:
+            if current_property_name in SPRITE_ANCHOR_FIELD_NAMES and not ((-16 <= current_property_value <= 16) if current_property_values.get('billboardAnchorMode') == 'tile-bottom-center' else (0 <= current_property_value <= 1)):
                 raise ValueError('앵커 범위 오류')
             if current_property_name.startswith('groundFootprint') and (type(current_property_value) is not int or not 1 <= current_property_value <= 8):
                 raise ValueError('바닥 크기 범위 오류')
@@ -47,7 +51,7 @@ def validate_sprite_display_properties(current_property_catalog):
                 raise ValueError('그림자 배율은 0.1~4여야 합니다.')
             if current_property_name == 'displayHeight' and not 0 < current_property_value <= 1024:
                 raise ValueError('표시 높이 범위 오류')
-        if BILLBOARD_PLACEMENT_FIELD_NAMES <= set(current_property_values):
+        if 'billboardBlocksMovement' in current_property_values:
             if current_property_values['billboardBlocksMovement'] != calculate_billboard_blocking_state(current_property_values):
                 raise ValueError(f'빌보드 앵커·크기·높이와 통행 차단 속성 불일치: {current_texture_key}')
     return current_property_catalog
@@ -60,12 +64,14 @@ def apply_sprite_display_properties(current_map_data, current_property_catalog):
         if current_texture_key is None:
             continue
         current_shared_properties = current_property_catalog.get(current_texture_key)
-        if current_shared_properties is None or (set(current_shared_properties)-BILLBOARD_SHADOW_FIELD_NAMES) not in (SPRITE_ANCHOR_FIELD_NAMES | SPRITE_LAYOUT_FIELD_NAMES, SPRITE_ANCHOR_FIELD_NAMES | SPRITE_LAYOUT_FIELD_NAMES | BILLBOARD_PLACEMENT_FIELD_NAMES):
+        if current_shared_properties is None or (set(current_shared_properties)-BILLBOARD_SHADOW_FIELD_NAMES-{'billboardAnchorMode'}) not in (SPRITE_ANCHOR_FIELD_NAMES | SPRITE_LAYOUT_FIELD_NAMES, SPRITE_ANCHOR_FIELD_NAMES | SPRITE_LAYOUT_FIELD_NAMES | {'billboardBlocksMovement'}, SPRITE_ANCHOR_FIELD_NAMES | SPRITE_LAYOUT_FIELD_NAMES | BILLBOARD_PLACEMENT_FIELD_NAMES):
             raise ValueError(f'빌보드 공용 속성 누락: {current_texture_key}')
-        current_override_fields = set(current_object_record) & (SPRITE_ANCHOR_FIELD_NAMES | SPRITE_LAYOUT_FIELD_NAMES | BILLBOARD_PLACEMENT_FIELD_NAMES | BILLBOARD_SHADOW_FIELD_NAMES)
+        current_override_fields = set(current_object_record) & (SPRITE_ANCHOR_FIELD_NAMES | SPRITE_LAYOUT_FIELD_NAMES | BILLBOARD_PLACEMENT_FIELD_NAMES | BILLBOARD_SHADOW_FIELD_NAMES | {'billboardAnchorMode'})
         if current_override_fields:
             raise ValueError(f'맵별 빌보드 공용 속성 재정의 금지: {current_texture_key}: {sorted(current_override_fields)}')
         current_object_record.update(current_shared_properties)
+        if current_shared_properties.get('billboardAnchorMode') == 'tile-bottom-center':
+            current_object_record['billboardPlacementAnchor'] = 'top' if current_shared_properties['anchorY'] < .5 else 'bottom'
     for current_ground_record in current_map_data.get('groundOverrides', []):
         if set(current_ground_record) - {'position', 'textureKey'}:
             raise ValueError('타일 배치는 위치·원본 선택만 지정할 수 있습니다. 표시 속성은 공용 렌더러를 사용합니다.')
@@ -86,10 +92,8 @@ def collect_billboard_blocked_cells(current_object_records):
     for current_object_record in current_object_records:
         if not current_object_record.get('billboardBlocksMovement', False):
             continue
-        current_column_radius = math.ceil((current_object_record['groundFootprintColumns'] - 1) / 2)
-        current_row_radius = math.ceil((current_object_record['groundFootprintRows'] - 1) / 2)
         current_cell_position = current_object_record['position']
         current_blocked_cells.update((current_cell_position['column'] + current_column_offset, current_cell_position['row'] + current_row_offset)
-            for current_column_offset in range(-current_column_radius, current_column_radius + 1)
-            for current_row_offset in range(-current_row_radius, current_row_radius + 1))
+            for current_column_offset in range(current_object_record['groundFootprintColumns'])
+            for current_row_offset in range(current_object_record['groundFootprintRows']))
     return current_blocked_cells

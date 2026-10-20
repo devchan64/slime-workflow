@@ -109,6 +109,8 @@ def load_current_texture_records(validate_complete_inventory=True):
         current_billboard_categories[current_billboard_identifier]=current_review_category
     # 지형지물은 타일 정규화 없이 승인된 투명 원본을 사용한다.
     for current_asset_path, current_asset_record in registered_tile_records.items():
+        if current_asset_record.get('source', {}).get('lifecycle_status') == 'retired':
+            continue
         if not current_asset_record.get('managementId', '').startswith('image.scenery.'):
             continue
         current_sprite_path, current_sprite_provenance = resolve_registered_sprite(current_asset_path, (asset_repository_path, registered_tile_records))

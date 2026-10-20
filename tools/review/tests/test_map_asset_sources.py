@@ -117,6 +117,18 @@ class MapAssetSourceTests(unittest.TestCase):
         }
         self.assertSetEqual(current_catalog_road_paths, current_registered_road_paths)
 
+    def test_retired_scenery_is_excluded_before_path_resolution(self):
+        current_asset_root,current_registered_records=load_registered_tiles()
+        current_registered_records=dict(current_registered_records)
+        current_registered_records['assets/retired/billboards/test-retired-v1.png']={
+            'managementId':'image.scenery.test-retired-v1',
+            'source':{'lifecycle_status':'retired'},
+        }
+        with patch('tools.review.build_block_map_review.load_registered_tiles',return_value=(current_asset_root,current_registered_records)):
+            current_texture_records=load_current_texture_records(validate_complete_inventory=False)
+        self.assertNotIn('test-retired-v1',current_texture_records)
+        self.assertFalse(any(r['source'].startswith('assets/retired/') for r in current_texture_records.values()))
+
     def test_invalid_source_paths_are_rejected(self):
         for current_request_path in ('/management/map-assets/maps/unknown','/management/map-assets/maps/../../config','/management/map-assets/files/assets/tiles/../../AGENTS.md','/management/map-assets/files/assets/maps/field_tiles/dry-creek.yaml'):
             with self.assertRaises(ValueError):

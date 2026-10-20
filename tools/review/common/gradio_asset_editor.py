@@ -8,8 +8,8 @@ def build_asset_source_gallery():
 
 def build_asset_property_inputs():
     with gr.Row():
-        current_anchor_horizontal=gr.Number(label='앵커 X · 0~1',value=.5,minimum=0,maximum=1,step=.01)
-        current_anchor_vertical=gr.Number(label='앵커 Y · 0~1',value=1,minimum=0,maximum=1,step=.01)
+        current_anchor_horizontal=gr.Number(label='아랫변 중심 X · 타일 기준',value=.5,minimum=-16,maximum=16,step=.01)
+        current_anchor_vertical=gr.Number(label='아랫변 중심 Y · 타일 기준',value=1,minimum=-16,maximum=16,step=.01)
     with gr.Row():
         current_ground_columns=gr.Number(label='점유 타일 열 · 칸',value=1,minimum=1,maximum=8,step=1,precision=0)
         current_ground_rows=gr.Number(label='점유 타일 행 · 칸',value=1,minimum=1,maximum=8,step=1,precision=0)
