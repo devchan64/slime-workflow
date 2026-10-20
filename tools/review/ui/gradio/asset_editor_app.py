@@ -125,6 +125,9 @@ def build_asset_editor_interface(current_review_port):
         current_source_gallery=build_asset_source_gallery()
         current_detail_record=gr.JSON(visible=False)
         current_detail_text=gr.Markdown()
+        current_copy_button=gr.Button('에셋 ID 복사')
+        current_copy_feedback=gr.Markdown()
+        current_copy_button.click(fn=None,inputs=current_detail_record,outputs=current_copy_feedback,queue=False,js="async currentAssetRecord=>{if(!currentAssetRecord?.texture)return '썸네일에서 에셋을 먼저 선택하세요.';try{await navigator.clipboard.writeText(currentAssetRecord.texture);return '에셋 ID를 복사했습니다: '+currentAssetRecord.texture;}catch(currentClipboardError){return '복사 실패: 브라우저 클립보드 권한을 확인하세요.';}}")
         with gr.Row():
             with gr.Column():
                 with gr.Group():
