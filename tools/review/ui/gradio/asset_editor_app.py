@@ -146,10 +146,14 @@ def build_asset_editor_interface(current_review_port):
             current_next_page=gr.Button('다음 페이지',interactive=False)
         current_source_gallery=build_asset_source_gallery(EDITOR_GALLERY_COLUMN_COUNT, EDITOR_GALLERY_ROW_COUNT)
         current_detail_record=gr.JSON(visible=False)
-        current_detail_text=gr.Markdown()
-        current_copy_button=gr.Button('에셋 ID 복사')
-        current_copy_feedback=gr.Markdown()
-        current_retire_button=gr.Button('선택 빌보드 폐기')
+        with gr.Group():
+            with gr.Row():
+                with gr.Column(scale=3):
+                    current_detail_text=gr.Markdown()
+                with gr.Column(scale=1):
+                    current_copy_button=gr.Button('에셋 ID 복사')
+                    current_retire_button=gr.Button('선택 빌보드 폐기')
+                    current_copy_feedback=gr.Markdown()
         current_retire_pending=gr.State({})
         with gr.Group(visible=False) as current_retire_group:
             current_retire_summary=gr.Markdown()

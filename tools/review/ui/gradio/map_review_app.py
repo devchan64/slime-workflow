@@ -10,7 +10,6 @@ WORKFLOW_ROOT_DIRECTORY=Path(__file__).resolve().parents[4]
 if str(WORKFLOW_ROOT_DIRECTORY) not in sys.path:
     sys.path.insert(0,str(WORKFLOW_ROOT_DIRECTORY))
 from tools.review.common.gradio_browser_controls import build_browser_action_button
-from tools.review.common.gradio_asset_editor import build_asset_source_gallery, build_asset_property_inputs, build_asset_preview_canvas
 
 MAP_REVIEW_CANVAS_MARKUP='''<section id="map-review-root" aria-label="맵 검수">
 <h3 id="map-title">맵 검수</h3><p id="status" role="status">맵을 선택한 뒤 맵 불러오기를 누르세요.</p>
@@ -18,10 +17,6 @@ MAP_REVIEW_CANVAS_MARKUP='''<section id="map-review-root" aria-label="맵 검수
 <p><a id="map-export-download" hidden>전체 맵 PNG 다운로드</a></p>
 <div style="position:relative;aspect-ratio:4/3"><canvas id="map" width="768" height="576" tabindex="0" aria-label="맵. 방향키로 이동, 더하기와 빼기로 확대·축소, 0 키로 전체 보기" style="position:absolute;width:100%;height:100%;touch-action:none"></canvas></div>
 </section>'''
-
-
-def read_source_selection_index(current_select_event: gr.SelectData):
-    return current_select_event.index
 
 
 def create_map_review_loader(review_server_port, current_control_count=0, manual_load_enabled=False):
@@ -67,20 +62,6 @@ def capture_map_review_images(current_map_identifier):
     current_capture_record=execute_remote_management_command('map-review','capture',{'map':current_map_identifier})
     return list(current_capture_record['images'].values())
 
-
-def save_map_source_anchor(current_anchor_payload):
-    from tools.review.common.management_client import execute_remote_management_command
-    try:
-        current_anchor_result=execute_remote_management_command('map-assets','map-anchor-save',current_anchor_payload)
-    except (ValueError, OSError) as current_save_error:
-        return f'공통 속성 저장 실패: {current_save_error}', {'saved':False}
-    return f"에셋 공통 속성 저장 완료 · {current_anchor_result['texture']}을 사용하는 모든 맵에 적용됩니다. 맵 화면은 다시 불러오면 반영됩니다.", {'saved':True,'payload':current_anchor_payload}
-
-
-def save_map_source_size(current_resize_payload):
-    from tools.review.common.management_client import execute_remote_management_command
-    current_resize_result=execute_remote_management_command('map-assets','resize',current_resize_payload)
-    return f"저장 완료: {current_resize_result['path']} · {current_resize_result['size']}px. 최신 원본을 보려면 검수 화면을 새로고침하세요."
 
 def build_map_review_interface(review_server_port, character_review_enabled=False):
     with gr.Blocks(title='캐릭터 표현 검수' if character_review_enabled else '맵 검수') as current_interface_blocks:
@@ -193,47 +174,8 @@ def build_map_review_interface(review_server_port, character_review_enabled=Fals
                 current_capture_button.click(fn=None,inputs=None,outputs=current_capture_settings,queue=False,js="()=>{if(!window.characterReviewCaptureSettings)throw Error('맵을 준비 중입니다.');return window.characterReviewCaptureSettings();}").then(fn=capture_character_review_images,inputs=current_capture_settings,outputs=current_capture_files)
             with gr.Accordion('조작 방법 · 타일 안내',open=False):
                 gr.Markdown('휠 또는 확대·축소 버튼으로 배율을 조절하고 드래그 또는 방향키로 이동합니다. 0 키는 전체 보기입니다. 맵은 고정 시점이며 회전하지 않습니다. 이동 가능한 바닥을 클릭하면 기본 캐릭터를 배치합니다. 캐릭터를 가리는 앞쪽 빌보드·지형은 원래 불투명도의 40%로 표시되며, 가림이 없어지면 복원됩니다. 맵에 포커스를 둔 뒤 Shift+좌우로 캐릭터 열, Shift+상하로 행을 이동합니다. 메시 경계는 지면·절벽 면의 꼭짓점을 표시합니다. 미등록 지형은 임시 색상으로 표시됩니다.')
-            with gr.Accordion('에셋 검수 · 편집',open=True):
-                gr.Markdown('분류·이름으로 목록을 좁힌 뒤 썸네일을 선택하세요. 원본 해상도 저장과 에셋 공통 속성 저장은 각각 적용됩니다.')
-                current_source_category=gr.Radio(label='에셋 분류',choices=[('전체','all'),('지형 타일','tiles'),('건물','buildings'),('자연물','vegetation'),('소품','props'),('결계·경비 구조물','structures')],value='all')
-                with gr.Row():
-                    current_source_search=gr.Textbox(label='원본 이름 검색',placeholder='이름 일부로 검색',scale=3)
-                    current_source_refresh=gr.Button('목록 새로고침',scale=1)
-                current_source_table=build_asset_source_gallery()
-                with gr.Row():
-                    current_source_name=gr.Textbox(label='선택한 원본',interactive=False,scale=3)
-                    current_source_copy=gr.Button('이름 복사',scale=1)
-                current_source_choice=gr.Textbox(visible=False)
-                current_source_index=gr.Number(visible=False)
-                with gr.Row():
-                    with gr.Column(min_width=280):
-                        current_source_size=gr.Radio(label='원본 해상도 · 긴 변 px',choices=[64,128,256,384,512],value=128)
-                        gr.Markdown('비율·투명 배경을 유지해 원본 PNG를 축소합니다. 확대·애니메이션 시트 저장은 지원하지 않습니다. 축소 전 원본은 이력에 보관합니다.')
-                        current_source_save=gr.Button('선택한 크기로 원본 저장',interactive=False)
-                        current_anchor_horizontal,current_anchor_vertical,current_ground_columns,current_ground_rows,current_display_height=build_asset_property_inputs()
-                        gr.Markdown('앵커·바닥·높이는 같은 에셋을 사용하는 모든 맵의 공통 속성입니다. 바닥·높이는 빌보드 전용이며 맵별 위치는 유지됩니다. 지형·결계·경비 구조물은 편집 대상이 아닙니다.')
-                        current_anchor_save=gr.Button('에셋 공통 속성 저장 · 앵커·바닥·높이',interactive=False)
-                    with gr.Column(min_width=320):
-                        gr.Markdown('### 원본 해상도 · 접지 영역 미리보기')
-                        build_asset_preview_canvas()
-                        current_source_feedback=gr.Textbox(label='크기 · 경계 안내',value='목록 새로고침 후 원본 썸네일을 선택하세요.',interactive=False)
-                current_resize_payload=gr.JSON(value={},visible=False)
-                current_anchor_payload=gr.JSON(value={},visible=False)
-                current_anchor_result=gr.JSON(value={},visible=False)
-                for current_source_control in (current_source_refresh,current_source_category,current_source_search):
-                    current_source_event=current_source_control.click if current_source_control is current_source_refresh else current_source_control.input
-                    current_source_event(fn=None,inputs=[current_source_category,current_source_search],outputs=[current_source_table,current_source_choice,current_source_name],queue=False,js="(currentSourceCategory,currentSearchText)=>{if(!window.mapSourceUnifiedList)throw Error('맵을 먼저 불러오세요.');return window.mapSourceUnifiedList(currentSourceCategory,currentSearchText);}")
-                current_source_table.select(fn=read_source_selection_index,outputs=current_source_index,queue=False).then(fn=None,inputs=current_source_index,outputs=[current_source_choice,current_source_name],js="currentSelectedIndex=>window.mapSourceUnifiedSelect(currentSelectedIndex)")
-                current_source_copy.click(fn=None,inputs=current_source_name,outputs=current_source_feedback,queue=False,js="async currentSourceName=>{if(!currentSourceName)return '목록에서 원본을 먼저 선택하세요.';try{await navigator.clipboard.writeText(currentSourceName);return '원본 이름을 복사했습니다.';}catch(currentClipboardError){return '복사 실패: 브라우저 클립보드 권한을 확인하세요.';}}")
-                current_preview_inputs=[current_source_choice,current_source_size,current_anchor_horizontal,current_anchor_vertical,current_ground_columns,current_ground_rows,current_display_height]
-                current_preview_outputs=[current_resize_payload,current_source_feedback,current_source_save]
-                current_preview_script="(currentSourceKey,currentSourceSize,currentAnchorX,currentAnchorY,currentGroundColumns,currentGroundRows,currentDisplayHeight)=>window.mapSourceResizePreview(currentSourceKey,currentSourceSize,currentAnchorX,currentAnchorY,currentGroundColumns,currentGroundRows,currentDisplayHeight)"
-                current_source_choice.change(fn=None,inputs=current_source_choice,outputs=[current_anchor_horizontal,current_anchor_vertical,current_ground_columns,current_ground_rows,current_display_height,current_anchor_save],queue=False,js="currentSourceKey=>window.mapSourceEditorRead(currentSourceKey)").then(fn=None,inputs=current_preview_inputs,outputs=current_preview_outputs,js=current_preview_script)
-                for current_preview_control in (current_source_size,current_anchor_horizontal,current_anchor_vertical,current_ground_columns,current_ground_rows,current_display_height):
-                    current_preview_control.input(fn=None,inputs=current_preview_inputs,outputs=current_preview_outputs,queue=False,js=current_preview_script)
-                current_source_save.click(fn=None,inputs=current_preview_inputs,outputs=current_preview_outputs,queue=False,js=current_preview_script).then(fn=save_map_source_size,inputs=current_resize_payload,outputs=current_source_feedback)
-                current_anchor_save.click(fn=None,inputs=[current_source_choice,current_anchor_horizontal,current_anchor_vertical,current_ground_columns,current_ground_rows,current_display_height],outputs=current_anchor_payload,queue=False,js="(currentSourceKey,currentAnchorX,currentAnchorY,currentGroundColumns,currentGroundRows,currentDisplayHeight)=>window.mapSourceAnchorPayload(currentSourceKey,currentAnchorX,currentAnchorY,currentGroundColumns,currentGroundRows,currentDisplayHeight)").then(fn=save_map_source_anchor,inputs=current_anchor_payload,outputs=[current_source_feedback,current_anchor_result]).then(fn=None,inputs=current_anchor_result,outputs=None,queue=False,js="currentSaveResult=>{window.mapSourceAnchorCommitted(currentSaveResult);}")
-                gr.HTML('<div hidden><div id="applied-tile-list"></div><div id="applied-building-list"></div><div id="applied-billboard-list"></div><div id="applied-structure-list"></div></div>')
+            # 공용 맵 렌더러의 적용 에셋 목록 연결 지점은 유지한다.
+            gr.HTML('<div hidden><div id="applied-tile-list"></div><div id="applied-building-list"></div><div id="applied-billboard-list"></div><div id="applied-structure-list"></div></div>')
             current_loader_outputs=[current_map_choice,current_load_button,current_building_choice,current_boundary_column,current_shadow_profile_column,current_camera_feedback,*current_ready_controls]
             current_load_button.click(fn=None,inputs=current_map_choice,outputs=current_loader_outputs,js=create_map_review_loader(review_server_port,len(current_ready_controls),manual_load_enabled=True),queue=False)
             current_initial_loader=create_map_review_loader(review_server_port,len(current_ready_controls))
