@@ -89,7 +89,7 @@ class MapAssetEditorTests(unittest.TestCase):
             current_next_catalog['revision']=current_revision_value
             current_next_catalog['assets'][0]['properties'].update(displayHeight=current_next_height,billboardBlocksMovement=False)
             with patch.object(asset_editor_app,'execute_remote_management_command',side_effect=[{'count':1},current_next_catalog]):
-                current_save_outputs=asset_editor_app.save_asset_editor_changes(current_catalog_record,current_table_values,{**current_request_payload,'token':'verified'})
+                current_save_outputs=asset_editor_app.save_asset_editor_changes(current_catalog_record,current_table_values,{**current_request_payload,'editing_payload':current_request_payload,'token':'verified'})
             current_catalog_record,current_table_values=current_save_outputs[3:]
             self.assertEqual(current_catalog_record['revision'],current_revision_value)
             self.assertEqual(build_asset_editor_payload(current_catalog_record,current_table_values)['changes'],[])
