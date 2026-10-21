@@ -8,7 +8,7 @@
 |---|---|---|---|
 | `music-minimax` | MiniMax-Music3 | 44.1kHz stereo PCM16 WAV | BF16, component offload + LM leaf-level streaming |
 
-MIDI 출력은 없다. 최대 생성 길이는 기본 30초이며 관리도구의 입력 범위는 MiniMax 5~60초로 제한했다. 이는 목표·최소 길이가 아니며 종료 토큰이 나오면 더 일찍 끝난다. MiniMax Diffusers의 네이티브 출력은 44.1kHz다. 공식 서버의 32kHz 리샘플링 출력과 구분한다. 이 설정의 **실제 8GB 성공·속도·품질은 아직 검증하지 않았다**. MiniMax는 CPU RAM에 큰 가중치를 대기시키므로 VRAM 8GB와 시스템 RAM 요구량은 다르다.
+MIDI 출력은 없다. 최대 생성 길이는 기본 30초이며 관리도구의 입력 범위는 MiniMax 5~120초로 제한했다. 이는 목표·최소 길이가 아니며 종료 토큰이 나오면 더 일찍 끝난다. MiniMax Diffusers의 네이티브 출력은 44.1kHz다. 공식 서버의 32kHz 리샘플링 출력과 구분한다. 이 설정의 **실제 8GB 성공·속도·품질은 아직 검증하지 않았다**. MiniMax는 CPU RAM에 큰 가중치를 대기시키므로 VRAM 8GB와 시스템 RAM 요구량은 다르다.
 
 2026-10-15 RTX 5070 Laptop GPU(8,151MiB), 시스템 RAM 61GiB에서 ACE-Step과 MiniMax의 로컬 로더 초기화 및 구성요소별 순차 CUDA 적재를 검증했다. MiniMax의 8.6B 언어모델은 전체 GPU 적재 대신 leaf-level 오프로드로 단일 토큰 forward를 수행하고 CUDA 출력을 확인했다. `nvidia-smi` 프로세스 VRAM 관측 피크는 ACE-Step 4,744MiB, MiniMax 5,182MiB였다. 이는 로딩 검증의 표본 최대값이며 전체 음악 생성의 메모리·성공을 보장하지 않는다. Stable Audio는 2026-10-15 폐기하여 메뉴·게이트웨이·실행 어댑터에서 제외했다. 로딩 검증만으로 `prepared.json`을 생성하지 않는다.
 
@@ -33,7 +33,7 @@ MiniMax Diffusers commit은 requirements에 고정한다. 호환 CUDA 드라이�
 
 ## GUI·CLI
 
-기존 게이트웨이·관리 서버를 실행한 뒤 메뉴에서 **소리 관리 → MiniMax-Music3**을 선택한다. 프롬프트, 최대 생성 길이, 시드, 반복 구조 요청, 이력 태그를 입력한다. 최종 모델 입력 영역에서 `prompt` 원문과 `lyrics`의 반주 전용 고정값 `[Instrumental]`을 확인한다. 최대 생성 길이는 `audio_duration`으로 전달하며 반복 요청은 프롬프트 문구 추가, 이력 태그는 기록용이다. 생성과 모델 준비의 확인은 **Gradio 인라인 영역**이며 모달이 아니다. 취소하면 접수하지 않는다. 랜덤 시드는 값만 바꾸고 생성하지 않는다.
+기존 게이트웨이·관리 서버를 실행한 뒤 메뉴에서 **소리 관리 → MiniMax-Music3**을 선택한다. 프롬프트, 최대 생성 길이, 시드, 반복 구조 요청, 이력 태그를 입력한다. 최종 모델 입력 영역에서 `prompt` 원문과 별도로 입력하는 `lyrics`(반주는 `[Instrumental]`)을 확인한다. 최대 생성 길이는 `audio_duration`으로 전달하며 반복 요청은 프롬프트 문구 추가, 이력 태그는 기록용이다. 생성과 모델 준비의 확인은 **Gradio 인라인 영역**이며 모달이 아니다. 취소하면 접수하지 않는다. 랜덤 시드는 값만 바꾸고 생성하지 않는다.
 
 ```bash
 .venv-management/bin/python tools/manager.py command music-minimax prepare
@@ -82,8 +82,20 @@ MiniMax에서 위 명령을 사용한다. `prepare`는 작업 ID를 반환하며
 
 ### MiniMax 토큰 상한 입력
 
-GUI의 `max_new_tokens`는 오디오 프레임 상한이며 125~1,500 정수(5~60초)를 받는다. 250≈10초, 750≈30초, 1,500≈60초다. 종료 토큰이 나오면 더 짧게 끝나므로 정확한 길이·최소 길이를 보장하지 않는다. 프롬프트 단어 수와는 무관하며 큰 값은 최대 연산량을 늘린다.
+GUI의 `max_new_tokens`는 오디오 프레임 상한이며 125~3,000 정수(5~120초)를 받는다. 250≈10초, 750≈30초, 1,500≈60초, 3,000≈120초다. 종료 토큰이 나오면 더 짧게 끝나므로 정확한 길이·최소 길이를 보장하지 않는다. 프롬프트 단어 수와는 무관하며 큰 값은 최대 연산량을 늘린다.
 
 로컬 Diffusers는 이 값을 직접 받지 않으므로 공용 서비스가 초당 25프레임 기준으로 `duration_seconds`로 정규화하고 실행기는 기존 `audio_duration`에 전달한다. 저장·입력 복원·ETA는 기존 초 단위 계약을 유지한다. GUI는 초를 읽기 전용으로 환산 표시하고 이력 복원 시 토큰 수를 복원한다. 기존 초 단위 요청도 계속 허용한다.
 
 통합 CLI: `python tools/manager.py command music-minimax generate --prompt 'Calm village instrumental' --max-new-tokens 750 --detach`. `--max-new-tokens`와 `--duration-seconds`는 동시에 지정할 수 없다. HTTP `generate`에도 `max_new_tokens`를 전달할 수 있으며 `duration_seconds`와 동시 지정은 거절한다. 이 운영 한도는 공식 모델의 최대 길이와 구분한다.
+
+### 실험용 최소 생성 길이
+
+MiniMax의 `min_duration_seconds` / CLI `--min-duration-seconds`는 기본 0(해제)이다. 최대 길이 이하의 값을 지정하면 해당 프레임 수까지 LM 출력의 종료 토큰을 top-k 후보 선정 전에 억제한다. 최소 50초·최대 60초 예시는 `--min-duration-seconds 50 --max-new-tokens 1500`이다. 무음 덧붙이기나 반복 편집이 아니며 음악적 자연스러움은 청취 검수가 필요하다. 기존 요청·대기 작업에는 적용하지 않는다. 실험 제어 코드 해시와 최소 길이는 시도별 `duration-control.json`, 종료 억제 단계 수는 `minimax-termination.json`에 남긴다. 최대 길이 도달 시 종결 없이 끊길 수 있다.
+
+### MiniMax 별도 가사 입력
+
+`lyrics`를 지정하면 `prompt`에 반주 문구를 자동 추가하지 않습니다. `loop_request=false`이면 입력 설명을 그대로 전달합니다(앞뒤 공백 제외). 반주는 `[Instrumental]`, 보컬은 `[verse]`·`[chorus]`와 가사를 별도 입력합니다. 가사 생략은 기존 이력의 반주 고정·문구 추가 계약을 유지합니다. GUI의 ‘이전 방식’은 기존 이력 복원용입니다.
+
+CLI는 `--lyrics` 또는 `--lyrics-file`을 지원합니다. 예제 조건은 `--duration-seconds 60 --seed 7 --no-loop-request --lyrics-file lyrics.txt`입니다. GUI에서는 1500프레임=60초, 최소 길이 0, 자동 반주 문구·반복 요청 해제를 사용합니다. 조기 종료 가능성은 동일합니다.
+
+로컬 실행은 검증된 Diffusers·CUDA BF16·CPU 메모리 오프로드를 유지합니다. ModelScope 패키지로 교체하지 않습니다. 별도 입력 어댑터는 `prompt`, `lyrics`, `audio_duration`, CUDA 시드, `output=audios`를 전달하고 Tensor 출력을 명시하여 WAV로 저장합니다. 기존 모델 준비 해시는 유지하고 새 어댑터 해시와 실제 입력은 실행 시도별 `input-adapter.json`에 기록합니다.

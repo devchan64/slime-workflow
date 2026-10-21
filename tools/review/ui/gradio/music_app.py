@@ -19,9 +19,11 @@ from tools.review.common.generation_status_lookup import read_existing_generatio
 from tools.review.common.gradio_audio_results import render_audio_generation_result, describe_audio_generation_status
 
 
-def describe_music_prompt(current_service_name,current_prompt_text,current_loop_value):
+def describe_music_prompt(current_service_name,current_prompt_text,current_loop_value,current_legacy_value=True):
     current_default_record = load_music_defaults(current_service_name)
-    current_final_prompt = current_prompt_text.strip()+' '+current_default_record['instrumental_suffix']
+    current_final_prompt = current_prompt_text.strip()
+    if current_legacy_value:
+        current_final_prompt += ' '+current_default_record['instrumental_suffix']
     if current_service_name == 'sfx-dasheng-audiogen':
         current_final_prompt = current_final_prompt.strip()
     if current_loop_value:
@@ -49,10 +51,12 @@ def build_music_interface(current_service_name,current_server_address):
         with gr.Column() as current_prepare_container:
             pass
         current_prompt_control = gr.Textbox(value=current_default_record['prompt'],label=current_prompt_label,lines=4,placeholder='영어로 원하는 소리와 동작을 설명하세요.' if current_effects_mode else '예: Calm fantasy village music with flute and acoustic strings')
+        current_lyrics_control = gr.State(None) if current_effects_mode else gr.Textbox(value='[Instrumental]',label='lyrics · 가사 / 구간 태그',lines=6,info='반주는 [Instrumental]. 보컬은 [verse], [chorus]와 가사를 입력하세요. 프롬프트의 보컬 지시와 일치시켜 주세요.')
+        current_legacy_control = gr.State(True) if current_effects_mode else gr.Checkbox(value=False,label='이전 방식: 반주 문구 자동 추가·가사 고정',info='예제 입력은 해제합니다. 이전 이력을 불러오면 해당 방식이 복원됩니다.')
         current_prompt_reset = gr.Button('프롬프트 초기화',size='sm')
         current_prompt_reset.click(lambda:'',outputs=current_prompt_control,queue=False)
         with gr.Row():
-            current_length_control = gr.State(None) if current_effects_mode else gr.Number(value=current_default_record['duration_seconds']*MINIMAX_AUDIO_FRAME_RATE,minimum=resolve_audio_minimum(current_service_name)*MINIMAX_AUDIO_FRAME_RATE,maximum=current_profile_record['max_duration_seconds']*MINIMAX_AUDIO_FRAME_RATE,step=1,label='max_new_tokens · 최대 오디오 프레임 수',info='125~1,500 정수. 25개≈1초이며 조기 종료할 수 있습니다.')
+            current_length_control = gr.State(None) if current_effects_mode else gr.Number(value=current_default_record['duration_seconds']*MINIMAX_AUDIO_FRAME_RATE,minimum=resolve_audio_minimum(current_service_name)*MINIMAX_AUDIO_FRAME_RATE,maximum=current_profile_record['max_duration_seconds']*MINIMAX_AUDIO_FRAME_RATE,step=1,label='max_new_tokens · 최대 오디오 프레임 수',info='125~3,000 정수. 25개≈1초이며 조기 종료할 수 있습니다.')
             if not current_effects_mode:
                 current_duration_display = gr.Number(value=current_default_record['duration_seconds'],label='환산 최대 생성 길이(초)',interactive=False)
                 def update_minimax_duration(current_token_value):
@@ -62,23 +66,30 @@ def build_music_interface(current_service_name,current_server_address):
                 current_length_control.change(update_minimax_duration,current_length_control,current_duration_display,queue=False)
             current_seed_control = build_generation_seed(default_seed_value=current_default_record['seed'])
         if not current_effects_mode:
-            gr.Markdown('**길이 입력 가이드** · 250 ≈ 10초 · 750 ≈ 30초 · 1,500 ≈ 60초\n\n여기서 토큰은 프롬프트 단어 수가 아니라 오디오 프레임 상한입니다. 현재 관리도구는 8GB 로컬 운영 범위를 5~60초로 제한합니다. 값이 커지면 최대 연산량이 늘지만 정확한 길이나 최소 길이를 보장하지 않습니다. 종료 토큰이 나오면 먼저 끝납니다. 로컬 Diffusers에는 `max_new_tokens ÷ 25`를 `audio_duration`으로 전달하며, 저장 이력도 환산 초를 사용합니다. 공식 모델 한도와 이 관리도구의 운영 한도는 다릅니다.')
-        current_loop_control = gr.Checkbox(value=current_default_record['loop_request'],label='반복 구조 요청 · 선택 사항, 이음새 없는 루프 보장 없음')
-        gr.Markdown('영어 프롬프트를 권장합니다. 반복 요청은 환경음 문구를 추가하며 이음새 없는 루프를 보장하지 않습니다. 길이는 모델이 예측하며 초 단위 지정은 지원하지 않습니다.' if current_effects_mode else '반주 전용 입력으로 생성합니다. 최대 생성 길이를 60초로 설정해도 모델이 먼저 종료하면 더 짧게 생성됩니다. 보컬 미포함은 보장되지 않으므로 결과를 청취하세요. 반복 구조 요청은 프롬프트 문구를 추가하는 옵션이며, 별도 루프 파라미터나 자동 접합 기능이 아닙니다.')
-        current_prompt_counts,current_final_prompt = describe_music_prompt(current_service_name,current_default_record['prompt'],current_default_record['loop_request'])
+            gr.Markdown('**길이 입력 가이드** · 250 ≈ 10초 · 750 ≈ 30초 · 1,500 ≈ 60초 · 3,000 ≈ 120초\n\n여기서 토큰은 프롬프트 단어 수가 아니라 오디오 프레임 상한입니다. 현재 관리도구는 8GB 로컬 운영 범위를 5~120초로 제한합니다. 값이 커지면 최대 연산량이 늘지만 정확한 길이나 최소 길이를 보장하지 않습니다. 종료 토큰이 나오면 먼저 끝납니다. 로컬 Diffusers에는 `max_new_tokens ÷ 25`를 `audio_duration`으로 전달하며, 저장 이력도 환산 초를 사용합니다. 공식 모델 한도와 이 관리도구의 운영 한도는 다릅니다.')
+        current_minimum_control = gr.State(0) if current_effects_mode else gr.Number(value=0,minimum=0,maximum=current_profile_record['max_duration_seconds'],label='실험 · 최소 생성 길이(초)',info='0은 해제. 예: 최소 50초 / 상한 1500프레임(60초). 종료 토큰을 후보에서 제외하여 계속 생성하며 반복·음질 저하 가능성이 있습니다. 기존 이력에는 자동 적용하지 않습니다.')
+        current_loop_control = gr.Checkbox(value=False if not current_effects_mode else current_default_record['loop_request'],label='반복 구조 요청 · 선택 사항, 이음새 없는 루프 보장 없음')
+        gr.Markdown('영어 프롬프트를 권장합니다. 반복 요청은 환경음 문구를 추가하며 이음새 없는 루프를 보장하지 않습니다. 길이는 모델이 예측하며 초 단위 지정은 지원하지 않습니다.' if current_effects_mode else 'prompt는 음악 설명, lyrics는 가사·구간 태그입니다. 자동 문구 추가와 반복 요청을 모두 해제하면 입력한 설명을 그대로 전달합니다. 최대 생성 길이를 60초로 설정해도 모델이 먼저 종료하면 더 짧게 생성됩니다. 보컬 미포함은 보장되지 않으므로 결과를 청취하세요. 반복 구조 요청은 프롬프트 문구를 추가하는 옵션이며, 별도 루프 파라미터나 자동 접합 기능이 아닙니다.')
+        current_prompt_counts,current_final_prompt = describe_music_prompt(current_service_name,current_default_record['prompt'],current_default_record['loop_request'] if current_effects_mode else False,current_effects_mode)
         current_prompt_summary = gr.Markdown(current_prompt_counts)
         with gr.Accordion('최종 모델 입력 원문',open=False):
             current_final_control = gr.Textbox(value=current_final_prompt,interactive=False,label='최종 프롬프트',lines=4)
             if not current_effects_mode:
-                gr.Textbox(value='[Instrumental]',label='가사 입력 · 반주 전용 고정값',interactive=False)
-                gr.Markdown('최종 프롬프트는 `prompt`, 반주 고정값은 `lyrics`, 최대 생성 길이는 `audio_duration`으로 전달합니다. 시드는 난수 생성기에 적용하며 이력 태그는 모델에 전달하지 않습니다.')
-        def update_music_prompt(current_prompt_text,current_loop_value):
-            return describe_music_prompt(current_service_name,current_prompt_text,current_loop_value)
+                current_final_lyrics = gr.Textbox(value='[Instrumental]',label='최종 lyrics',interactive=False,lines=4)
+                current_lyrics_summary = gr.Markdown('가사 입력 1단어 · 최종 lyrics 1단어')
+                def update_music_lyrics(current_lyrics_text,current_legacy_value):
+                    current_final_lyrics = '[Instrumental]' if current_legacy_value else current_lyrics_text
+                    return current_final_lyrics,f'가사 입력 {len(current_lyrics_text.split())}단어 · 최종 lyrics {len(current_final_lyrics.split())}단어'
+                for current_lyrics_source in (current_lyrics_control,current_legacy_control):
+                    current_lyrics_source.change(update_music_lyrics,[current_lyrics_control,current_legacy_control],[current_final_lyrics,current_lyrics_summary],queue=False)
+                gr.Markdown('최종 프롬프트는 `prompt`, 가사 입력은 `lyrics`, 최대 생성 길이는 `audio_duration`으로 전달합니다. 시드는 난수 생성기에 적용하며 이력 태그는 모델에 전달하지 않습니다.')
+        def update_music_prompt(current_prompt_text,current_loop_value,current_legacy_value):
+            return describe_music_prompt(current_service_name,current_prompt_text,current_loop_value,current_legacy_value)
         current_tag_control = gr.Textbox(label='이력 태그',max_lines=1)
         current_generate_button = gr.Button('대기열에 추가',variant='primary',interactive=bool(current_default_record['prompt'].strip()))
         current_generate_notice = build_button_guidance(current_generate_button, current_prompt_label+'을 입력하면 생성할 수 있습니다.')
-        for current_prompt_source in (current_prompt_control,current_loop_control):
-            current_prompt_source.change(update_music_prompt,[current_prompt_control,current_loop_control],[current_prompt_summary,current_final_control],queue=False)
+        for current_prompt_source in (current_prompt_control,current_loop_control,current_legacy_control):
+            current_prompt_source.change(update_music_prompt,[current_prompt_control,current_loop_control,current_legacy_control],[current_prompt_summary,current_final_control],queue=False)
         current_prompt_control.change(lambda current_prompt_text:'입력한 설정으로 생성 대기열에 등록합니다.' if current_prompt_text.strip() else current_prompt_label+'을 입력하면 생성할 수 있습니다.',current_prompt_control,current_generate_notice,queue=False)
         with gr.Column() as current_generation_container:
             pass
@@ -88,19 +99,23 @@ def build_music_interface(current_service_name,current_server_address):
         current_result_display = gr.HTML('<p>생성 완료 후 오디오를 표시합니다.</p>')
         current_result_identity = gr.State('')
         current_log_output,current_log_refresh,_ = build_execution_logs()
-        def start_music_generation(current_prompt_text,current_duration_value,current_seed_value,current_loop_value,current_tag_value):
+        def start_music_generation(current_prompt_text,current_duration_value,current_seed_value,current_loop_value,current_tag_value,current_minimum_value=0,current_lyrics_text='[Instrumental]',current_legacy_value=True):
             if type(current_seed_value) not in (int,float) or current_seed_value != int(current_seed_value):
                 raise gr.Error('시드는 정수여야 합니다.')
             current_payload_record = {'action':'generate','prompt':current_prompt_text,'duration_seconds':current_duration_value,'seed':int(current_seed_value),'loop_request':current_loop_value,'tag':current_tag_value}
             if not current_effects_mode:
                 if type(current_duration_value) not in (int,float) or not math.isfinite(current_duration_value) or current_duration_value != int(current_duration_value):
                     raise gr.Error('max_new_tokens는 정수여야 합니다.')
+                if not current_legacy_value:
+                    current_payload_record['lyrics'] = current_lyrics_text
                 current_payload_record.pop('duration_seconds')
                 current_payload_record['max_new_tokens'] = int(current_duration_value)
+            if current_minimum_value:
+                current_payload_record['min_duration_seconds'] = current_minimum_value
             build_music_request(current_service_name,current_payload_record)
             current_job_record = execute_music_command('generate',current_payload_record)
             return current_job_record['id'],current_content_label+' 생성 대기열에 등록했습니다.', '<p>새 작업의 결과를 기다립니다.</p>',''
-        bind_gpu_generation_confirmation(current_generate_button,start_music_generation,[current_prompt_control,current_length_control,current_seed_control,current_loop_control,current_tag_control],[current_job_control,current_status_display,current_result_display,current_result_identity],generation_confirmation_container=current_generation_container, generation_readiness_callback=lambda current_prompt_text: bool(current_prompt_text and current_prompt_text.strip()), generation_readiness_inputs=[current_prompt_control])
+        bind_gpu_generation_confirmation(current_generate_button,start_music_generation,[current_prompt_control,current_length_control,current_seed_control,current_loop_control,current_tag_control,current_minimum_control,current_lyrics_control,current_legacy_control],[current_job_control,current_status_display,current_result_display,current_result_identity],generation_confirmation_container=current_generation_container, generation_readiness_callback=lambda current_prompt_text: bool(current_prompt_text and current_prompt_text.strip()), generation_readiness_inputs=[current_prompt_control])
         def prepare_music_assets():
             current_job_record = execute_music_command('prepare',{'action':'prepare'})
             return current_job_record['id'],'모델 준비 대기열에 등록했습니다.','<p>모델 준비 작업입니다.</p>',''
@@ -125,13 +140,15 @@ def build_music_interface(current_service_name,current_server_address):
             if any(current_field_name not in current_request_record for current_field_name in current_input_fields):
                 raise gr.Error('저장된 음악 생성 입력에 필수 설정이 없습니다.')
             current_request_record = validate_music_request(current_service_name, {
+                **({'lyrics':current_request_record['lyrics']} if 'lyrics' in current_request_record else {}),
                 'action': 'generate',
+                'min_duration_seconds':current_request_record.get('min_duration_seconds',0),
                 **{current_field_name: current_request_record[current_field_name] for current_field_name in current_input_fields},
             })
-            return current_request_record['prompt'],(None if current_effects_mode else int(current_request_record['duration_seconds']*MINIMAX_AUDIO_FRAME_RATE)),current_request_record['seed'],current_request_record['loop_request'],current_request_record['tag'],current_history_record['id']
+            return current_request_record['prompt'],(None if current_effects_mode else int(current_request_record['duration_seconds']*MINIMAX_AUDIO_FRAME_RATE)),current_request_record['seed'],current_request_record['loop_request'],current_request_record['tag'],current_history_record['id'],current_request_record.get('min_duration_seconds',0),current_request_record.get('lyrics','[Instrumental]'),'lyrics' not in current_request_record
         current_cleanup_scope = current_profile_record['label']+' · '+GENERATION_CLEANUP_SCOPE_TEXT
         current_read_history,current_history_outputs = build_generation_history_view(execute_music_command,current_server_address,current_cleanup_scope,
-            restore_input_callback=restore_music_inputs,restore_output_components=[current_prompt_control,current_length_control,current_seed_control,current_loop_control,current_tag_control,current_job_control],
+            restore_input_callback=restore_music_inputs,restore_output_components=[current_prompt_control,current_length_control,current_seed_control,current_loop_control,current_tag_control,current_job_control,current_minimum_control,current_lyrics_control,current_legacy_control],
             result_renderer_callback=render_audio_generation_result,record_folder_route='/'+current_service_name,allow_individual_delete=True,individual_delete_scope_text=current_cleanup_scope,show_thumbnail_column=False)
         current_interface_blocks.load(lambda:current_read_history(1),outputs=current_history_outputs)
         current_job_control.change(lambda:current_read_history(1),outputs=current_history_outputs,queue=False)

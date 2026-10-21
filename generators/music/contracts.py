@@ -15,8 +15,9 @@ AUDIO_SERVICE_NAMES = (*MUSIC_SERVICE_NAMES, SOUND_EFFECT_SERVICE)
 SOUND_EFFECT_DEFAULTS = WORKFLOW_ROOT_DIRECTORY/'generators/sound_effects/defaults.yaml'
 MUSIC_IDENTIFIER_PATTERN = r'\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-[a-f0-9]{8}'
 MUSIC_PROFILE_FIELDS = {'label','model_id','runtime_directory','max_duration_seconds','sample_rate','steps','license_url','license_notice'}
-MUSIC_REQUEST_FIELDS = {'action','prompt','duration_seconds','max_new_tokens','seed','loop_request','tag'}
+MUSIC_REQUEST_FIELDS = {'action','prompt','lyrics','duration_seconds','max_new_tokens','min_duration_seconds','seed','loop_request','tag'}
 MINIMAX_AUDIO_FRAME_RATE = 25
+MINIMAX_MAXIMUM_AUDIO_FRAMES = 3000
 
 
 def parse_unique_mapping(current_field_pairs):
@@ -88,7 +89,11 @@ def load_music_defaults(current_service_name=None):
 def resolve_music_profile(current_service_name):
     if current_service_name not in AUDIO_SERVICE_NAMES:
         raise ValueError('지원하지 않는 음악 생성기')
-    return load_music_defaults(current_service_name)['profiles'][current_service_name]
+    current_profile_record = load_music_defaults(current_service_name)['profiles'][current_service_name]
+    if current_service_name == 'music-minimax':
+        # 기존 요청의 defaults_sha256 보존: 운영 상한은 기본 입력 파일과 분리한다.
+        current_profile_record['max_duration_seconds'] = MINIMAX_MAXIMUM_AUDIO_FRAMES // MINIMAX_AUDIO_FRAME_RATE
+    return current_profile_record
 
 
 def resolve_music_paths(current_service_name):
@@ -125,6 +130,12 @@ def validate_music_request(current_service_name, current_request_record):
     current_prompt_text = current_request_record.get('prompt')
     if not isinstance(current_prompt_text,str) or not current_prompt_text.strip() or len(current_prompt_text) > 4000 or '\x00' in current_prompt_text:
         raise ValueError('음악 프롬프트는 비어 있지 않은 4000자 이하 문자열이어야 합니다.')
+    current_lyrics_fields = {}
+    if 'lyrics' in current_request_record:
+        current_lyrics_text = current_request_record['lyrics']
+        if current_service_name != 'music-minimax' or not isinstance(current_lyrics_text,str) or not current_lyrics_text.strip() or len(current_lyrics_text) > 20000 or '\x00' in current_lyrics_text:
+            raise ValueError('lyrics는 MiniMax 전용이며 비어 있지 않은 20000자 이하 문자열이어야 합니다.')
+        current_lyrics_fields['lyrics'] = current_lyrics_text
     current_seed_value = current_request_record.get('seed',current_default_record['seed'])
     current_duration_value = current_request_record.get('duration_seconds',current_default_record['duration_seconds'])
     if 'max_new_tokens' in current_request_record:
@@ -142,7 +153,12 @@ def validate_music_request(current_service_name, current_request_record):
         raise ValueError(f"길이는 {resolve_audio_minimum(current_service_name)}~{current_profile_record['max_duration_seconds']}초여야 합니다.")
     if type(current_loop_value) is not bool:
         raise ValueError('반복 구조 요청은 bool이어야 합니다.')
-    return {'action':'generate','prompt':current_prompt_text.strip(),'duration_seconds':None if current_service_name == SOUND_EFFECT_SERVICE else float(current_duration_value),'seed':current_seed_value,'loop_request':current_loop_value,'tag':validate_history_tag(current_request_record.get('tag',''))}
+    current_minimum_seconds = current_request_record.get('min_duration_seconds',0)
+    if type(current_minimum_seconds) not in (int,float) or not math.isfinite(current_minimum_seconds) or current_minimum_seconds < 0:
+        raise ValueError('최소 길이는 0 이상의 유한한 초 값이어야 합니다.')
+    if current_minimum_seconds and (current_service_name != 'music-minimax' or current_minimum_seconds > current_duration_value):
+        raise ValueError('최소 길이는 MiniMax에서만 지원하며 최대 길이 이하여야 합니다.')
+    return {**current_lyrics_fields,**({'min_duration_seconds':float(current_minimum_seconds)} if current_minimum_seconds else {}),'action':'generate','prompt':current_prompt_text.strip(),'duration_seconds':None if current_service_name == SOUND_EFFECT_SERVICE else float(current_duration_value),'seed':current_seed_value,'loop_request':current_loop_value,'tag':validate_history_tag(current_request_record.get('tag',''))}
 
 
 def build_music_request(current_service_name, current_payload_record):
@@ -150,7 +166,7 @@ def build_music_request(current_service_name, current_payload_record):
     current_default_record = load_music_defaults(current_service_name)
     current_final_prompt = ''
     if current_input_record['action'] == 'generate':
-        current_final_prompt = current_input_record['prompt']+' '+current_default_record['instrumental_suffix']
+        current_final_prompt = current_input_record['prompt'] if 'lyrics' in current_input_record else current_input_record['prompt']+' '+current_default_record['instrumental_suffix']
         if current_service_name == SOUND_EFFECT_SERVICE:
             current_final_prompt = current_final_prompt.strip()
         if current_input_record['loop_request']:

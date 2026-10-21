@@ -21,7 +21,7 @@ def handle_music_signal(current_signal_number,current_stack_frame):
 def collect_music_durations(current_storage_root,current_request_record,current_device_name):
     current_duration_samples = []
     current_runtime_path = WORKFLOW_ROOT_DIRECTORY/('generators/sound_effects/runtime.py' if current_request_record['service']=='sfx-dasheng-audiogen' else 'generators/music/runtime.py')
-    current_condition_fields = ('action','model_id','duration_seconds','defaults_sha256')
+    current_condition_fields = ('action','model_id','duration_seconds','min_duration_seconds','lyrics','defaults_sha256')
     for current_result_path in current_storage_root.glob('*/attempts/*/result.json'):
         current_previous_request = read_music_record(current_result_path.parent/'request.json')
         current_previous_metrics = read_music_record(current_result_path.parent/'metrics.json')
@@ -35,7 +35,8 @@ def collect_music_durations(current_storage_root,current_request_record,current_
 
 def execute_music_worker(current_service_name,current_job_root):
     current_prepare_callback = prepare_music_model
-    current_inference_callback = execute_music_inference
+    from generators.music.structured_inputs import execute_structured_inference
+    current_inference_callback = execute_structured_inference
     from generators.music.runtime import require_music_cuda
     current_cuda_callback = require_music_cuda
     if current_service_name == 'sfx-dasheng-audiogen':
@@ -72,7 +73,16 @@ def execute_music_worker(current_service_name,current_job_root):
         if current_request_record['action']=='prepare':
             current_result_record = {'attempt':current_attempt_root.name,'prepared':True,'model_id':current_request_record['model_id']}
         else:
-            current_result_record = current_inference_callback(current_service_name,current_request_record,current_attempt_root,current_metrics_recorder)
+            if current_request_record.get('min_duration_seconds',0):
+                from generators.music.minimum_duration import apply_minimax_minimum_duration
+                current_control_checksum = calculate_music_checksum(WORKFLOW_ROOT_DIRECTORY/'generators/music/minimum_duration.py')
+                write_record_atomically(current_attempt_root/'duration-control.json',{'min_duration_seconds':current_request_record['min_duration_seconds'],'control_sha256':current_control_checksum})
+                with apply_minimax_minimum_duration(current_request_record['min_duration_seconds']):
+                    current_result_record = current_inference_callback(current_service_name,current_request_record,current_attempt_root,current_metrics_recorder)
+                current_result_record['duration_control_sha256'] = current_control_checksum
+                current_result_record['min_duration_seconds'] = current_request_record['min_duration_seconds']
+            else:
+                current_result_record = current_inference_callback(current_service_name,current_request_record,current_attempt_root,current_metrics_recorder)
         current_result_record['included_download'] = not current_model_ready
         write_record_atomically(current_attempt_root/'result.json',current_result_record)
         write_record_atomically(current_job_root/'result.json',current_result_record)
