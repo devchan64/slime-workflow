@@ -12,7 +12,9 @@ from tools.review.common.gradio_asset_editor import build_asset_source_gallery, 
 from tools.review.common.management_client import execute_remote_management_command
 from tools.review.common.sprite_display_properties import calculate_billboard_blocking_state, validate_sprite_display_properties, calculate_billboard_intersection_properties
 
-EDITOR_GALLERY_PAGE_SIZE = 12
+EDITOR_GALLERY_COLUMN_COUNT = 5
+EDITOR_GALLERY_ROW_COUNT = 2
+EDITOR_GALLERY_PAGE_SIZE = EDITOR_GALLERY_COLUMN_COUNT * EDITOR_GALLERY_ROW_COUNT
 
 EDITOR_PROPERTY_FIELDS = ['anchorX','anchorY','groundFootprintColumns','groundFootprintRows','displayHeight','billboardPlacementAnchor','shadowOffsetColumn','shadowOffsetRow','shadowScaleX','shadowScaleY']
 EDITOR_TABLE_HEADERS = ['에셋 ID','이름','앵커 X','앵커 Y','점유 열','점유 행','표시 높이','배치 top/bottom','그림자 열 이동','그림자 행 이동','그림자 가로 배율','그림자 세로 배율','통행 차단','사용 맵 수']
@@ -31,7 +33,7 @@ def filter_asset_editor_gallery(current_catalog_record,current_search_text,curre
     current_page_number=max(1,min(int(current_page_number),current_page_count))
     current_start_index=(current_page_number-1)*EDITOR_GALLERY_PAGE_SIZE
     current_visible_assets = current_matching_assets[current_start_index:current_start_index+EDITOR_GALLERY_PAGE_SIZE]
-    return [(current_asset_record['image'],current_asset_record['texture']) for current_asset_record in current_visible_assets],current_visible_assets,f'검색 결과 {len(current_matching_assets)}종 · {current_page_number}/{current_page_count}페이지 · 페이지당 12개. 첫·마지막 페이지에서는 해당 방향으로 이동할 수 없습니다.',current_page_number,gr.update(interactive=current_page_number>1),gr.update(interactive=current_page_number<current_page_count)
+    return [(current_asset_record['image'],current_asset_record['texture']) for current_asset_record in current_visible_assets],current_visible_assets,f'검색 결과 {len(current_matching_assets)}종 · {current_page_number}/{current_page_count}페이지 · 페이지당 {EDITOR_GALLERY_PAGE_SIZE}개. 첫·마지막 페이지에서는 해당 방향으로 이동할 수 없습니다.',current_page_number,gr.update(interactive=current_page_number>1),gr.update(interactive=current_page_number<current_page_count)
 
 
 def previous_asset_gallery_page(current_catalog_record,current_search_text,current_asset_type,current_page_number):
@@ -142,7 +144,7 @@ def build_asset_editor_interface(current_review_port):
         with gr.Row():
             current_previous_page=gr.Button('이전 페이지',interactive=False)
             current_next_page=gr.Button('다음 페이지',interactive=False)
-        current_source_gallery=build_asset_source_gallery()
+        current_source_gallery=build_asset_source_gallery(EDITOR_GALLERY_COLUMN_COUNT, EDITOR_GALLERY_ROW_COUNT)
         current_detail_record=gr.JSON(visible=False)
         current_detail_text=gr.Markdown()
         current_copy_button=gr.Button('에셋 ID 복사')

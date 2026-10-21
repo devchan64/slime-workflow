@@ -1,17 +1,16 @@
 import {resolveCityTileTextures,resolveTownGroundFrame,resolveReedFrameForMap,drawWaypoint,waypointMarkerScale,resolveFieldTileTextures,collectTerrainTextureSources,createTerrainAtlas,TERRAIN_ATLAS,drawCityBuildingSprite,resolveCityGroundDepth,TERRAIN_DEPTH,mapAnnotationDepth,resolveMapTileSize,resolveGrassFrameForMap,resolvePavingFrameForMap,selectFieldRoadFrame} from './vendor/field-renderer/__FIELD_RENDERER_VERSION__/town-renderer.mjs';
 import {GAME_INTERNAL_RESOLUTION_SCALE,drawCharacterContactShadow,attachCharacterOutlineLayers,roadConnections,waterConnections} from './vendor/field-renderer/__FIELD_RENDERER_VERSION__/game-render-profile.mjs';
 import * as Phaser from './vendor/field-renderer/__FIELD_RENDERER_VERSION__/phaser.mjs';
-import {FIELD_RENDER_METRICS,updateFieldActorOcclusion,resolveGuardDisplayPlacement,projectGuardDisplayCenter,GUARD_CENTER_FOOTPRINT_SIZE,drawTownMaterialEdges,drawFieldCellObjects,drawFieldSceneryObject,resolveFieldSceneryPlacement,resolveFieldSceneryDepth,resolveFieldSurfaceDepth,drawFieldAuraPanel,drawFieldMeshBoundary,buildFieldBoundaryPanels,rotateSurfacePosition} from './vendor/field-renderer/__FIELD_RENDERER_VERSION__/field-renderer.mjs';
+import {FIELD_TILE_BOUNDARY_ALPHA,FIELD_RENDER_METRICS,updateFieldActorOcclusion,resolveGuardDisplayPlacement,projectGuardDisplayCenter,GUARD_CENTER_FOOTPRINT_SIZE,drawTownMaterialEdges,drawFieldCellObjects,drawFieldSceneryObject,resolveFieldSceneryPlacement,resolveFieldSceneryDepth,resolveFieldSurfaceDepth,drawFieldAuraPanel,drawFieldMeshBoundary,buildFieldBoundaryPanels,rotateSurfacePosition} from './vendor/field-renderer/__FIELD_RENDERER_VERSION__/field-renderer.mjs';
 
 const FIELD_REVIEW_ACTOR_DEPTH=TERRAIN_DEPTH.actor;
 const FIELD_REVIEW_TOWER_DEPTH=TERRAIN_DEPTH.overlay;
 const FIELD_REVIEW_TERRAIN_CACHE=new WeakMap();
 
 const TILE_BOUNDARY_LINE_COLOR=0xffe4a0;
-const TILE_BOUNDARY_LINE_ALPHA=0.7;
 function drawReviewTileBoundary(currentSceneObject,currentCenterPoint,currentTileWidth,currentTileHeight,currentSurfaceDepth){
  const currentBoundaryGraphic=currentSceneObject.add.graphics().setDepth(currentSurfaceDepth);
- currentBoundaryGraphic.lineStyle(1,TILE_BOUNDARY_LINE_COLOR,TILE_BOUNDARY_LINE_ALPHA);
+ currentBoundaryGraphic.lineStyle(1,TILE_BOUNDARY_LINE_COLOR,FIELD_TILE_BOUNDARY_ALPHA);
  currentBoundaryGraphic.beginPath();
  currentBoundaryGraphic.moveTo(currentCenterPoint.x,currentCenterPoint.y-currentTileHeight/2);
  currentBoundaryGraphic.lineTo(currentCenterPoint.x+currentTileWidth/2,currentCenterPoint.y);
@@ -221,7 +220,7 @@ export async function createSharedFieldReview(currentMapCanvas,currentTextureIma
     for(const currentCellRecord of currentFieldFrame.cells){
      const currentTerrainName=currentMapRecord.terrainCodes[currentMapRecord.terrainRows[currentCellRecord.cell.row][currentCellRecord.cell.column]];
      const currentConnectionMask=['road','water'].includes(currentTerrainName)?readReviewConnectionMask(currentCellRecord.cell,currentMapRecord,currentTerrainName,currentFieldFrame.options.rotation):0;
-     const currentTileTextures=resolveFieldTileTextures(currentFieldScene,currentTerrainName,currentCellRecord.cell,currentMapRecord.id,currentConnectionMask,currentCellPosition=>currentMapRecord.terrainCodes[currentMapRecord.terrainRows[currentCellPosition.row][currentCellPosition.column]],currentMapRecord.groundOverrides??[],currentMapRecord.groundDecals??[],currentMapRecord.cliffTextureKey);
+     const currentTileTextures=resolveFieldTileTextures(currentFieldScene,currentTerrainName,currentCellRecord.cell,currentMapRecord.id,currentConnectionMask,currentCellPosition=>currentMapRecord.terrainCodes[currentMapRecord.terrainRows[currentCellPosition.row][currentCellPosition.column]],currentMapRecord.groundOverrides??[],currentMapRecord.groundDecals??[],currentMapRecord.cliffTextureKey,currentMapRecord.cliffOverrides??[]);
      const currentRenderDepth=resolveFieldSurfaceDepth(currentCellRecord.cell,currentMapRecord,currentFieldFrame.options);
      drawFieldCellObjects(currentFieldScene,currentCellRecord.cell,currentMapRecord,currentFieldFrame.options,currentTileTextures,currentRenderDepth,currentViewSettings.edges);
      if(currentViewSettings.tileEdges)drawReviewTileBoundary(currentFieldScene,currentCellRecord.center,currentFieldFrame.options.tileWidth,currentFieldFrame.options.tileHeight,currentRenderDepth+TERRAIN_DEPTH.surface+.01);

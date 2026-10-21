@@ -2,8 +2,8 @@
 import gradio as gr
 
 
-def build_asset_source_gallery():
-    return gr.Gallery(value=[],interactive=False,label='원본 목록 · 썸네일을 선택하여 편집',columns=4,height='max-content',object_fit='contain',allow_preview=False)
+def build_asset_source_gallery(current_column_count=4, current_row_count=None):
+    return gr.Gallery(value=[],interactive=False,label='원본 목록 · 썸네일을 선택하여 편집',columns=current_column_count,rows=current_row_count,height='max-content',object_fit='contain',allow_preview=False)
 
 
 def build_asset_property_inputs(current_automatic_anchor=False):

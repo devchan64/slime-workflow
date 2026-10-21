@@ -14,3 +14,11 @@ class MapWallMaterialTests(unittest.TestCase):
 
     def test_quarry_wall_selection(self):
         self.assertEqual(load_registered_map_review('broken-quarry')['cliffTextureKey'],'quarry-limestone-wall-v1')
+
+    def test_wall_override_validation(self):
+        from tools.review.common.map_asset_sources import validate_map_cliff_overrides
+        current_valid_record = {'position': {'column': 1, 'row': 2}, 'textureKey': 'quarry-limestone-wall-v1'}
+        self.assertEqual(validate_map_cliff_overrides([current_valid_record], 4, 4), [current_valid_record])
+        for current_invalid_records in ([current_valid_record, current_valid_record], [{'position': {'column': 4, 'row': 0}, 'textureKey': 'cliff-wall'}], [{'position': {'column': True, 'row': 0}, 'textureKey': 'cliff-wall'}], [{'position': {'column': 0, 'row': 0}, 'textureKey': 'unknown-wall'}]):
+            with self.subTest(records=current_invalid_records), self.assertRaises(ValueError):
+                validate_map_cliff_overrides(current_invalid_records, 4, 4)

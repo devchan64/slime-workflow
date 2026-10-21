@@ -94,6 +94,7 @@ def load_registered_map_review(map_identifier_value):
         from tools.review.domains.map_assets.decals import validate_ground_decal_records
         validate_ground_decal_records(current_map_record['groundDecals'],current_map_record['columns'],current_map_record['rows'])
         current_map_record['groundOverrides'] = current_field_tile_data.get('groundOverrides', [])
+        current_map_record['cliffOverrides'] = validate_map_cliff_overrides(current_field_tile_data.get('cliffOverrides', []),current_map_record['columns'],current_map_record['rows'])
         current_map_record['cliffTextureKey'] = validate_map_cliff_texture(current_field_tile_data.get('cliffTextureKey', 'cliff-wall'))
         current_map_record['terrainCodes'] = read_map_source_data('field_tiles/codes.yaml')
         current_map_record.update(read_map_source_data('map_spawns/'+map_identifier_value+'.yaml'))
@@ -171,3 +172,25 @@ def validate_map_cliff_texture(current_texture_key):
     current_asset_root, current_registered_records = load_registered_tiles()
     resolve_registered_tile(current_wall_records[current_texture_key]['asset'], current_asset_root, current_registered_records)
     return current_texture_key
+
+
+def validate_map_cliff_overrides(current_wall_records, current_column_count, current_row_count):
+    """셀별 벽면 선택의 좌표·중복·등록 재질을 검사한다."""
+    if not isinstance(current_wall_records, list):
+        raise ValueError('벽면 배치는 목록이어야 합니다.')
+    current_seen_positions = set()
+    for current_wall_record in current_wall_records:
+        if not isinstance(current_wall_record, dict) or set(current_wall_record) != {'position', 'textureKey'}:
+            raise ValueError('벽면 배치 필드가 올바르지 않습니다.')
+        current_cell_position = current_wall_record['position']
+        if not isinstance(current_cell_position, dict) or set(current_cell_position) != {'column', 'row'}:
+            raise ValueError('벽면 좌표 필드가 올바르지 않습니다.')
+        current_column_index, current_row_index = current_cell_position['column'], current_cell_position['row']
+        if type(current_column_index) is not int or type(current_row_index) is not int or not (0 <= current_column_index < current_column_count and 0 <= current_row_index < current_row_count):
+            raise ValueError('벽면 좌표가 맵 범위를 벗어났습니다.')
+        current_position_pair = (current_column_index, current_row_index)
+        if current_position_pair in current_seen_positions:
+            raise ValueError('벽면 배치가 중복되었습니다.')
+        current_seen_positions.add(current_position_pair)
+        validate_map_cliff_texture(current_wall_record['textureKey'])
+    return current_wall_records
