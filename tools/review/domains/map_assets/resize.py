@@ -95,7 +95,7 @@ def resize_registered_image(current_request_payload):
 
 def handle_map_resize_request(current_http_handler):
     from tools.review.common.management_transport import send_management_json_response
-    if current_http_handler.command != 'POST' or urlsplit(current_http_handler.path).path not in ('/map-assets/resize','/map-assets/anchor-save','/map-assets/editor-list','/map-assets/editor-preview','/map-assets/editor-save','/map-assets/editor-retire-preview','/map-assets/editor-retire'):
+    if current_http_handler.command != 'POST' or urlsplit(current_http_handler.path).path not in ('/map-assets/resize','/map-assets/anchor-save','/map-assets/editor-list','/map-assets/editor-preview','/map-assets/editor-save','/map-assets/editor-retire-preview','/map-assets/editor-retire','/map-assets/editor-map-edit-load','/map-assets/editor-map-edit-preview','/map-assets/editor-map-edit-save'):
         return False
     try:
         current_request_payload = json.loads(current_http_handler.rfile.read(int(current_http_handler.headers['Content-Length'])))
@@ -103,6 +103,8 @@ def handle_map_resize_request(current_http_handler):
             from tools.review.domains.map_assets.editor import load_editor_catalog, preview_editor_changes, save_editor_changes
             from tools.review.domains.map_assets.retirement import preview_billboard_retirement, execute_billboard_retirement
             current_editor_handlers={'/map-assets/editor-list':load_editor_catalog,'/map-assets/editor-preview':preview_editor_changes,'/map-assets/editor-save':save_editor_changes,'/map-assets/editor-retire-preview':preview_billboard_retirement,'/map-assets/editor-retire':execute_billboard_retirement}
+            from tools.review.domains.map_assets.map_editor import load_map_editor_document, preview_map_editor_changes, save_map_editor_changes
+            current_editor_handlers.update({'/map-assets/editor-map-edit-load':load_map_editor_document,'/map-assets/editor-map-edit-preview':preview_map_editor_changes,'/map-assets/editor-map-edit-save':save_map_editor_changes})
             RESIZE_STORAGE_DIRECTORY.mkdir(parents=True, exist_ok=True)
             with (RESIZE_STORAGE_DIRECTORY/'resize.lock').open('a') as current_lock_stream:
                 fcntl.flock(current_lock_stream.fileno(),fcntl.LOCK_EX)

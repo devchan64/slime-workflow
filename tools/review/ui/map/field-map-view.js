@@ -205,6 +205,11 @@ export async function createSharedFieldReview(currentMapCanvas,currentTextureIma
     currentExportInProgress=false;
    }
   },
+  addEditorTextures(currentNewImages,currentNewGameKeys){
+   for(const [currentTextureName,currentTextureImage] of Object.entries(currentNewImages))if(!currentFieldScene.textures.exists(currentTextureName))currentFieldScene.textures.addImage(currentTextureName,currentTextureImage);
+   for(const [currentGameTexture,currentCatalogKey] of Object.entries(currentNewGameKeys))if(!currentFieldScene.textures.exists(currentGameTexture))currentFieldScene.textures.addImage(currentGameTexture,currentNewImages[currentCatalogKey]);
+   currentRenderSignature='';
+  },
   render(currentFieldFrame,currentMapRecord,currentViewSettings){
    if(currentReviewDisposed)throw Error('맵 검수 화면이 닫혔습니다.');
    updateSharedReviewCamera(currentViewSettings);

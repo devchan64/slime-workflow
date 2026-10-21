@@ -395,7 +395,7 @@ function placeReviewCharacterCell(currentColumnValue,currentRowValue){
  if(!isCharacterReviewPage)document.querySelector('#status').textContent+=` · 캐릭터 (${currentColumnValue+1}, ${currentRowValue+1})`;
  return true;
 }
-currentMapCanvas.onclick=currentEvent=>{if(suppressMarkerClick){suppressMarkerClick=false;return;}const currentBounds=currentMapCanvas.getBoundingClientRect(),currentWorldX=(currentEvent.clientX-currentBounds.left-currentOffsetX)/currentScaleValue,currentWorldY=(currentEvent.clientY-currentBounds.top-currentOffsetY)/currentScaleValue;if(isFieldMapReview){const currentPickedCell=pickFieldReviewCell({x:currentWorldX,y:currentWorldY},currentFieldFrame);if(currentPickedCell)placeReviewCharacterCell(currentPickedCell.column,currentPickedCell.row);return;}let currentColumnValue=(currentWorldX/townHalfTileWidth+currentWorldY/townHalfTileHeight)/2,currentRowValue=(currentWorldY/townHalfTileHeight-currentWorldX/townHalfTileWidth)/2;for(let i=0;i<currentCameraRotation;i++)[currentColumnValue,currentRowValue]=[currentRowValue,-currentColumnValue];currentColumnValue=Math.round(currentColumnValue);currentRowValue=Math.round(currentRowValue);placeReviewCharacterCell(currentColumnValue,currentRowValue)};centerCharacterView();
+currentMapCanvas.onclick=currentEvent=>{if(suppressMarkerClick){suppressMarkerClick=false;return;}const currentBounds=currentMapCanvas.getBoundingClientRect(),currentWorldX=(currentEvent.clientX-currentBounds.left-currentOffsetX)/currentScaleValue,currentWorldY=(currentEvent.clientY-currentBounds.top-currentOffsetY)/currentScaleValue;if(isFieldMapReview){const currentPickedCell=pickFieldReviewCell({x:currentWorldX,y:currentWorldY},currentFieldFrame);if(currentPickedCell){if(window.mapReviewEditingEnabled){window.mapReviewSelectedCell=currentPickedCell;document.querySelector('#status').textContent=`편집 셀 선택: 열 ${currentPickedCell.column}, 행 ${currentPickedCell.row}`;}else placeReviewCharacterCell(currentPickedCell.column,currentPickedCell.row);}return;}let currentColumnValue=(currentWorldX/townHalfTileWidth+currentWorldY/townHalfTileHeight)/2,currentRowValue=(currentWorldY/townHalfTileHeight-currentWorldX/townHalfTileWidth)/2;for(let i=0;i<currentCameraRotation;i++)[currentColumnValue,currentRowValue]=[currentRowValue,-currentColumnValue];currentColumnValue=Math.round(currentColumnValue);currentRowValue=Math.round(currentRowValue);placeReviewCharacterCell(currentColumnValue,currentRowValue)};centerCharacterView();
 
 // 포인터 아래의 지형 좌표를 유지하면서 배율을 변경한다.
 function changeMapZoom(currentZoomFactor,currentAnchorX=currentMapCanvas.clientWidth/2,currentAnchorY=currentMapCanvas.clientHeight/2){
@@ -546,3 +546,23 @@ window.mapReviewExportImage=async()=>{
 };
 
 if(document.querySelector('#blocked-areas'))document.querySelector('#blocked-areas').onchange=()=>renderBlockMap();
+
+// 편집 초안도 동일한 공용 렌더러와 리소스 로더로 표시한다.
+window.mapReviewApplyDraft=async(currentDraftRecord)=>{
+ if(!isFieldMapReview||currentDraftRecord.id!==currentMapRecord.id)throw Error('현재 불러온 야외필드와 편집 맵이 다릅니다. 먼저 해당 맵을 불러오세요.');
+ const currentDraftKeys=collectMapResourceKeys(currentDraftRecord,'field');
+ const currentDraftTextures={},currentDraftGameKeys={};
+ for(const currentResourceKey of currentDraftKeys){
+  const currentSourcePath=currentGameTextureSources[currentResourceKey];
+  const currentCatalogEntry=currentSourcePath?Object.entries(currentTextureRecords).find(([,currentTextureRecord])=>currentTextureRecord.source===currentSourcePath):Object.entries(currentTextureRecords).find(([currentTextureName])=>currentTextureName===currentResourceKey);
+  if(!currentCatalogEntry)throw Error('초안 리소스가 없습니다: '+currentResourceKey);
+  currentDraftTextures[currentCatalogEntry[0]]=currentCatalogEntry[1];currentDraftGameKeys[currentResourceKey]=currentCatalogEntry[0];
+ }
+ const currentDraftImages=await loadMapResourceImages(Object.entries(currentDraftTextures).filter(([currentTextureKey])=>!loadedTextureImages[currentTextureKey]).map(([currentTextureKey,currentTextureRecord])=>({key:currentTextureKey,url:new URL(currentTextureRecord.path,import.meta.url).href})),{signal:currentMapLoadController.signal});
+ Object.assign(loadedTextureImages,currentDraftImages);
+ currentSharedFieldView.addEditorTextures(loadedTextureImages,currentDraftGameKeys);
+ Object.assign(currentSelectedGameKeys,currentDraftGameKeys);
+ Object.assign(currentMapRecord,currentDraftRecord);
+ currentFieldFrame=null;
+ renderBlockMap();
+};

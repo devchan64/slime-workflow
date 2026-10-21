@@ -19,7 +19,7 @@ MANAGEMENT_AUDIT_MODULES = tuple('tools.review.tests.' + current_module_name for
     'test_three_reference_generation', 'test_qwen_21_generation', 'test_qwen_2511_progress','test_qwen_2512_progress', 'test_qwen_circular_generation', 'test_outfit_transfer', 'test_expression_generation',
     'test_animation_separation', 'test_sprite_editor_v2', 'test_management_separation',
     'test_retired_management_ui', 'test_qwen_commands', 'test_qwen_2511_gradio',
-    'test_qwen_2512_gradio', 'test_separation_preview_gradio', 'test_map_review_gradio', 'test_map_review_lifecycle', 'test_character_review_capture', 'test_review_asset_publication',
+    'test_qwen_2512_gradio', 'test_separation_preview_gradio', 'test_map_layout_editor', 'test_map_review_gradio', 'test_map_review_lifecycle', 'test_character_review_capture', 'test_review_asset_publication',
     'test_static_review_gradio', 'test_anny_attributes_gradio', 'test_sprite_editor_v2_gradio', 'test_sprite_browser_confirmation',
     'test_hy_motion_reload', 'test_floor_generation', 'test_seamless_pattern', 'test_seamless_generation',
     'test_dasheng_audio_sfx', 'test_music_generation', 'test_music_management_audit', 'test_vace_generation', 'test_vace_timeline', 'test_vace_timeline_editor', 'test_phantom_generation', 'test_writer_agent_gradio', 'test_landmark_confirmation_gradio',

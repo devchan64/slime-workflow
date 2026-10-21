@@ -755,3 +755,11 @@ MiniMax의 `min_duration_seconds` / CLI `--min-duration-seconds`는 기본 0(해
 CLI는 `--lyrics` 또는 `--lyrics-file`을 지원합니다. 예제 조건은 `--duration-seconds 60 --seed 7 --no-loop-request --lyrics-file lyrics.txt`입니다. GUI에서는 1500프레임=60초, 최소 길이 0, 자동 반주 문구·반복 요청 해제를 사용합니다. 조기 종료 가능성은 동일합니다.
 
 로컬 실행은 검증된 Diffusers·CUDA BF16·CPU 메모리 오프로드를 유지합니다. ModelScope 패키지로 교체하지 않습니다. 별도 입력 어댑터는 `prompt`, `lyrics`, `audio_duration`, CUDA 시드, `output=audios`를 전달하고 Tensor 출력을 명시하여 WAV로 저장합니다. 기존 모델 준비 해시는 유지하고 새 어댑터 해시와 실제 입력은 실행 시도별 `input-adapter.json`에 기록합니다.
+
+### 야외 맵 배치·지형 편집
+
+`map-assets`의 `map-edit-load`, `map-edit-preview`, `map-edit-save`는 GUI와 통합 CLI가 공유합니다. `python tools/manager.py command map-assets map-edit-load --payload-file request.json`으로 `{"map":"crystal-cut"}`을 조회합니다. 반환된 `revision`과 함께 `cells`(column·row·tile·height·blocked), `objects`(장식 전체 목록)를 preview에 전달하고, 반환된 `token`을 같은 입력에 추가해 save를 호출합니다. 타일 코드는 조회 결과 `codes`를 사용하고 높이는 0~20 정수입니다. ID·좌표·타일·등록 빌보드·접지·충돌·시작점/출구 연결·고립 셀을 검사합니다.
+
+맵 통합 검수의 **맵 편집 · 야외필드 타일·높이·빌보드**에서 원본을 불러온 뒤 셀을 클릭하고 `선택 셀 가져오기`로 좌표를 가져옵니다. 셀 변경과 빌보드 추가·이동·삭제는 초안에 누적합니다. `한 단계 되돌리기`, `검증·미리보기`, `검증한 변경 저장`을 제공합니다. 삭제도 저장 전에는 원본에 적용되지 않습니다. 초안 버리기는 확인란을 선택해야 하며, 초안 JSON은 별도 보관할 수 있습니다. 브라우저를 닫거나 새로고침하기 전 저장 또는 초안 보관을 완료하세요.
+
+저장 시 맵 YAML 두 파일과 에셋 등록부·백엔드 잠금 해시·빌보드 카탈로그를 갱신합니다. 공용 이미지 변경 잠금 아래 재검증하고 `.tmp/map-layout-editor/<token>-backup/`에 저장 전 원본을 보관합니다. 저장 오류 시 원복합니다. 외부에서 맵이나 공용 에셋 속성이 바뀌면 저장을 거절하고 GUI 초안은 유지합니다. 현재 도시맵·전투필드 편집, 크기 변경, 시작점·출구·건물 변경은 지원하지 않습니다.

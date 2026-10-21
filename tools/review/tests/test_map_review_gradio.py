@@ -6,6 +6,29 @@ from tools.review.ui.gradio.management_menu_app import create_initial_selection_
 
 
 class MapReviewGradioTest(unittest.TestCase):
+    def test_billboard_delete_does_not_require_cell_coordinates(self):
+        from tools.review.common.gradio_map_editor import change_map_edit_draft
+        current_object_record={'id':'test-billboard-1','position':{'column':2,'row':3}}
+        current_editor_state={'snapshot':{},'draft':{'objects':[current_object_record],'cells':[]},'history':[]}
+        for current_coordinate_value in (None, -100):
+            current_changed_state=change_map_edit_draft(current_editor_state,'delete',current_coordinate_value,current_coordinate_value,None,None,False,'test-billboard-1',None)[0]
+            self.assertEqual(current_changed_state['draft']['objects'],[])
+            self.assertEqual(current_editor_state['draft']['objects'],[current_object_record])
+            current_restored_state=change_map_edit_draft(current_changed_state,'undo',None,None,None,None,False,None,None)[0]
+            self.assertEqual(current_restored_state['draft']['objects'],[current_object_record])
+
+    def test_editor_missing_cell_returns_guidance_without_component_errors(self):
+        from tools.review.common.gradio_map_editor import read_map_edit_cell
+        current_empty_result = read_map_edit_cell({}, None, None)
+        self.assertIn('편집 원본을 먼저', current_empty_result[3])
+        current_loaded_result = read_map_edit_cell({'snapshot': {}}, None, None)
+        self.assertIn('선택한 셀이 없습니다', current_loaded_result[3])
+        self.assertEqual(current_loaded_result[0], {'__type__': 'update'})
+        current_config_record = build_map_review_interface(8770).get_config_file()
+        current_pick_events = [current_event_record for current_event_record in current_config_record['dependencies'] if 'const currentSelectedCell=' in (current_event_record.get('js') or '')]
+        self.assertEqual(len(current_pick_events), 1)
+        self.assertNotIn('throw Error', current_pick_events[0]['js'])
+
     def test_map_initialization_waits_for_explicit_load(self):
         current_config_record = build_map_review_interface(8770).get_config_file()
         current_initial_events = [current_event_record for current_event_record in current_config_record['dependencies'] if 'const currentExplicitLoad=sessionStorage' in (current_event_record.get('js') or '')]
@@ -56,7 +79,7 @@ class MapReviewGradioTest(unittest.TestCase):
                     self.assertFalse(current_component_record['props']['interactive'])
                 if current_component_record['type'] == 'button' and current_component_record['props']['value'] in ('맵 불러오기', '렌더링 PNG 캡처'):
                     self.assertFalse(current_component_record['props']['interactive'])
-            current_loader_events = [current_event_record for current_event_record in current_config_record['dependencies'] if 'mapReviewControlOptions' in (current_event_record.get('js') or '')]
+            current_loader_events = [current_event_record for current_event_record in current_config_record['dependencies'] if 'const currentControlOptions=window.mapReviewControlOptions()' in (current_event_record.get('js') or '')]
             self.assertEqual(len(current_loader_events), 2)
             self.assertEqual(current_loader_events[0]['outputs'],current_loader_events[1]['outputs'])
             current_output_identifiers=set(current_loader_events[0]['outputs'])
