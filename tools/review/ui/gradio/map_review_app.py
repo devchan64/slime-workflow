@@ -251,7 +251,7 @@ try{
  const currentSelectedRecord=currentCatalogRecords.find(currentMapRecord=>currentMapRecord.id===currentQueryValues.get('map'));
  const currentSelectedKind=currentQueryValues.get('mapKind')||currentSelectedRecord?.kind||'field';
  const currentAvailableRecords=currentCatalogRecords.filter(currentMapRecord=>currentMapRecord.kind===currentSelectedKind);
- return [{__type__:'update',choices:currentAvailableRecords.map(currentMapRecord=>[currentMapRecord.name,currentMapRecord.id]),value:currentSelectedRecord?.id||currentAvailableRecords[0]?.id,interactive:true},{__type__:'update',interactive:true},{__type__:'update'},{__type__:'update',visible:currentSelectedKind==='field'},{__type__:'update',visible:false},'맵을 선택한 뒤 맵 불러오기를 누르세요.',...Array(__READY__).fill({__type__:'update',interactive:false})];
+ return [{__type__:'update',choices:currentAvailableRecords.map(currentMapRecord=>[currentMapRecord.name,currentMapRecord.id]),value:currentAvailableRecords.find(currentMapRecord=>currentMapRecord.id===currentSelectedRecord?.id)?.id||currentAvailableRecords[0]?.id,interactive:true},{__type__:'update',interactive:true},{__type__:'update'},{__type__:'update',visible:currentSelectedKind==='field'},{__type__:'update',visible:false},'맵을 선택한 뒤 맵 불러오기를 누르세요.',...Array(__READY__).fill({__type__:'update',interactive:false})];
 }catch(currentCatalogError){return [{__type__:'update'},{__type__:'update'},{__type__:'update'},{__type__:'update'},{__type__:'update'},currentCatalogError.message,...Array(__READY__).fill({__type__:'update'})];}
 }""".replace('__FULL_LOADER__',current_initial_loader).replace('__COUNT__',str(6+len(current_ready_controls))).replace('__READY__',str(len(current_ready_controls))).replace('__PORT__',str(review_server_port))
             current_interface_blocks.load(fn=None,outputs=current_loader_outputs,js=current_initial_loader,queue=False)
@@ -271,7 +271,14 @@ if(currentBattleMode&&currentExplicitLoad===true){
  if(!document.getElementById('battle-map-review-root'))await new Promise((resolveBattleMount,rejectBattleMount)=>{const currentBattleObserver=new MutationObserver(()=>{if(document.getElementById('battle-map-review-root')){clearTimeout(currentMountTimeout);currentBattleObserver.disconnect();resolveBattleMount();}});const currentMountTimeout=setTimeout(()=>{currentBattleObserver.disconnect();rejectBattleMount(Error('전투필드 화면 준비 실패'));},10000);currentBattleObserver.observe(document.body,{childList:true,subtree:true});});
  await mountNativeGameReview(document.getElementById('battle-map-review-root'),currentBattleUrl);
 }
-return [{__type__:'update',visible:!currentBattleMode},{__type__:'update',visible:currentBattleMode},{__type__:'update',value:currentQueryValues.get('mapKind')||(currentQueryValues.get('category')==='town-map-review'?'town':'field')}];
+let currentSelectedKind=currentQueryValues.get('mapKind');
+if(!currentSelectedKind){
+ const currentCatalogResponse=await fetch('http://127.0.0.1:__PORT__/isloon-map-review/block-map-index.json',{cache:'no-store'});
+ if(!currentCatalogResponse.ok)throw Error('맵 목록 조회 실패');
+ const currentCatalogRecords=await currentCatalogResponse.json();
+ currentSelectedKind=currentCatalogRecords.find(currentMapRecord=>currentMapRecord.id===currentQueryValues.get('map'))?.kind||'field';
+}
+return [{__type__:'update',visible:!currentBattleMode},{__type__:'update',visible:currentBattleMode},{__type__:'update',value:currentSelectedKind}];
 }""".replace('__NATIVE_LOADER__',current_native_loader).replace('__PORT__',str(review_server_port))
             current_load_button.click(fn=None,outputs=[current_surface_group,current_battle_group,current_kind_choice],queue=False,js=current_mode_script.replace('async(currentExplicitLoad=false)=>{','async()=>{const currentExplicitLoad=true;'))
             current_interface_blocks.load(fn=None,outputs=[current_surface_group,current_battle_group,current_kind_choice],queue=False,js=current_mode_script)

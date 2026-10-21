@@ -173,6 +173,14 @@ def build_catalog_reference(current_asset_root):
     return current_catalog_record
 
 
+def serialize_billboard_catalog(current_catalog_record):
+    """별칭을 허용하지 않는 소비자를 위해 공유 객체도 독립 YAML 값으로 저장한다."""
+    class BillboardCatalogDumper(yaml.SafeDumper):
+        def ignore_aliases(self, current_node_value):
+            return True
+    return yaml.dump(current_catalog_record, Dumper=BillboardCatalogDumper, allow_unicode=True, sort_keys=False)
+
+
 def main_catalog_sync():
     current_argument_parser=argparse.ArgumentParser(description=__doc__)
     current_argument_parser.add_argument('--asset-root',type=Path,default=DEFAULT_ASSET_DIRECTORY)
@@ -185,7 +193,7 @@ def main_catalog_sync():
     current_original_record=load_unique_yaml_document(current_catalog_path)
     current_expected_record=build_catalog_reference(current_argument_values.asset_root)
     if current_argument_values.write:
-        current_catalog_path.write_text(yaml.safe_dump(current_expected_record,allow_unicode=True,sort_keys=False))
+        current_catalog_path.write_text(serialize_billboard_catalog(current_expected_record))
     elif current_original_record!=current_expected_record:
         raise ValueError('카탈로그가 공용 속성·원본·맵 배치와 다릅니다. --write로 파생 정보를 갱신하세요.')
     current_missing_count=sum(x['placement']['status']=='설정 필요' for x in current_expected_record['billboards'])
