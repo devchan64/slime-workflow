@@ -1,6 +1,7 @@
 """공용 빌보드 일괄 조회·편집 GUI. 저장은 공용 게이트웨이를 사용한다."""
 import argparse
 import base64
+import hashlib
 from pathlib import Path
 import sys
 import gradio as gr
@@ -8,10 +9,11 @@ import gradio as gr
 WORKFLOW_ROOT_DIRECTORY = Path(__file__).resolve().parents[4]
 if str(WORKFLOW_ROOT_DIRECTORY) not in sys.path:
     sys.path.insert(0, str(WORKFLOW_ROOT_DIRECTORY))
-from tools.review.common.gradio_asset_editor import build_asset_source_gallery, build_asset_property_inputs, build_asset_preview_canvas, build_asset_shadow_inputs
+from tools.review.common.gradio_asset_editor import build_asset_source_gallery, build_selected_asset_panel, build_asset_preview_script, ASSET_RESOLUTION_CHOICES
 from tools.review.common.management_client import execute_remote_management_command
 from tools.review.common.sprite_display_properties import calculate_billboard_blocking_state, validate_sprite_display_properties, calculate_billboard_intersection_properties
 
+EDITOR_RESOLUTION_CHOICES = ASSET_RESOLUTION_CHOICES
 EDITOR_GALLERY_COLUMN_COUNT = 5
 EDITOR_GALLERY_ROW_COUNT = 2
 EDITOR_GALLERY_PAGE_SIZE = EDITOR_GALLERY_COLUMN_COUNT * EDITOR_GALLERY_ROW_COUNT
@@ -133,10 +135,50 @@ def save_asset_editor_changes(current_catalog_record,current_table_values,curren
     return f"{current_saved_record['count']}종 저장 완료. 저장 기준을 갱신했습니다. 계속 편집하고 다시 검증할 수 있습니다.",{},gr.update(visible=False),current_saved_catalog,current_saved_table
 
 
-def save_selected_asset_properties(current_detail_record,*current_property_values):
+def describe_selected_image_size(current_detail_record):
+    if not current_detail_record:return '에셋을 선택하세요.'
+    return '현재 원본: '+ ' × '.join(str(current_dimension_value) for current_dimension_value in current_detail_record['size'])+' px'
+
+
+def select_nearest_image_resolution(current_detail_record):
+    current_longest_dimension=max(current_detail_record['size']) if current_detail_record else 128
+    return min(EDITOR_RESOLUTION_CHOICES,key=lambda current_resolution_value:abs(current_resolution_value-current_longest_dimension))
+
+
+def load_selected_resolution_controls(current_detail_record):
+    return describe_selected_image_size(current_detail_record),select_nearest_image_resolution(current_detail_record),gr.update(interactive=False),''
+
+
+def update_resolution_save_button(current_detail_record,current_target_size):
+    current_save_enabled=bool(current_detail_record) and current_target_size!=select_nearest_image_resolution(current_detail_record) and current_target_size<max(current_detail_record['size'])
+    return gr.update(interactive=current_save_enabled)
+
+
+def resize_selected_asset_image(current_detail_record,current_target_size):
+    if not current_detail_record:raise gr.Error('썸네일에서 에셋을 선택하세요.')
+    if current_target_size not in EDITOR_RESOLUTION_CHOICES:raise gr.Error('128·256·384·512px 중 선택하세요.')
+    if current_target_size==select_nearest_image_resolution(current_detail_record):
+        return gr.skip(),gr.skip(),gr.skip(),gr.skip(),'선택값이 변경되지 않아 저장하지 않았습니다.'
+    current_catalog_record,current_table_values,_=load_asset_editor_catalog()
+    current_asset_record=next((current_asset_record for current_asset_record in current_catalog_record['assets'] if current_asset_record['texture']==current_detail_record['texture']),None)
+    if current_asset_record is None:raise gr.Error('폐기되거나 제거된 에셋입니다.')
+    if current_asset_record['metadata']:raise gr.Error('프레임 메타데이터가 있는 이미지는 지원하지 않습니다.')
+    if current_target_size==max(current_asset_record['size']):
+        return gr.skip(),gr.skip(),gr.skip(),gr.skip(),'이미 같은 해상도이므로 저장하지 않았습니다.'
+    current_image_path=Path(current_asset_record['image'])
+    current_request_payload={'path':'assets/billboards/'+current_image_path.name,'sha256':hashlib.sha256(current_image_path.read_bytes()).hexdigest(),'size':int(current_target_size)}
+    current_resize_record=execute_remote_management_command('map-assets','resize',current_request_payload)
+    current_catalog_record,current_table_values,_=load_asset_editor_catalog()
+    current_asset_record=next(current_asset_record for current_asset_record in current_catalog_record['assets'] if current_asset_record['texture']==current_detail_record['texture'])
+    current_updated_detail={**current_asset_record,'image':'data:image/png;base64,'+base64.b64encode(Path(current_asset_record['image']).read_bytes()).decode()}
+    return current_catalog_record,current_table_values,current_updated_detail,'**'+current_asset_record['texture']+'** · '+str(current_asset_record['size'])+' px\n\n'+current_asset_record['modeling'].get('purpose','')+'\n\n'+current_asset_record['modeling'].get('composition','')+'\n\n사용 맵: '+(', '.join(Path(current_map_record['path']).stem for current_map_record in current_asset_record['maps']) or '없음'),describe_selected_image_size(current_updated_detail)+' · 저장 완료. 축소 전 원본은 이력에 보관했습니다.'
+
+
+def iterate_selected_asset_save(current_detail_record,*current_property_values):
     """최신 원본에서 선택 ID 하나만 검증하고 저장한다."""
     if not current_detail_record:raise gr.Error('썸네일에서 에셋을 선택하세요.')
     current_texture_key=current_detail_record['texture']
+    yield gr.skip(),gr.skip(),f'{current_texture_key} · 원본 조회 중…'
     current_catalog_record,current_table_values,_=load_asset_editor_catalog()
     current_selected_record=next((current_asset_record for current_asset_record in current_catalog_record['assets'] if current_asset_record['texture']==current_texture_key),None)
     if current_selected_record is None:raise gr.Error('폐기되거나 제거된 에셋입니다: '+current_texture_key)
@@ -144,13 +186,29 @@ def save_selected_asset_properties(current_detail_record,*current_property_value
     current_selected_row[2:13]=current_property_values
     current_request_payload=build_asset_editor_payload({'revision':current_catalog_record['revision'],'assets':[current_selected_record]},[current_selected_row])
     if current_request_payload['changes']:
+        yield gr.skip(),gr.skip(),f'{current_texture_key} · 변경 검증 중…'
         current_preview_record=execute_remote_management_command('map-assets','asset-preview',current_request_payload)
+        yield gr.skip(),gr.skip(),f'{current_texture_key} · 저장 중…'
         execute_remote_management_command('map-assets','asset-save',{**current_request_payload,'token':current_preview_record['token']})
+        yield gr.skip(),gr.skip(),f'{current_texture_key} · 저장 결과 조회 중…'
         current_catalog_record,current_table_values,_=load_asset_editor_catalog()
         current_feedback_text=f'{current_texture_key} 저장 완료. 해당 ID만 업데이트했습니다. 맵 경고 {len(current_preview_record.get("map_warnings",[]))}건.'
     else:
         current_feedback_text=current_texture_key+' · 변경된 값이 없습니다.'
-    return current_catalog_record,current_table_values,current_feedback_text
+    yield current_catalog_record,current_table_values,current_feedback_text
+
+
+def save_selected_asset_properties(current_detail_record,*current_property_values):
+    for current_save_result in iterate_selected_asset_save(current_detail_record,*current_property_values):
+        pass
+    return current_save_result
+
+
+def stream_selected_asset_save(current_detail_record,*current_property_values):
+    try:
+        yield from iterate_selected_asset_save(current_detail_record,*current_property_values)
+    except (ValueError,OSError,gr.Error) as current_save_error:
+        yield gr.skip(),gr.skip(),'저장 실패 · 입력값은 유지됩니다. '+str(current_save_error)
 
 
 def preview_asset_retirement(current_catalog_record,current_detail_record):
@@ -189,47 +247,11 @@ def build_asset_editor_interface(current_review_port):
             current_previous_page=gr.Button('이전 페이지',interactive=False)
             current_next_page=gr.Button('다음 페이지',interactive=False)
         current_source_gallery=build_asset_source_gallery(EDITOR_GALLERY_COLUMN_COUNT, EDITOR_GALLERY_ROW_COUNT)
-        current_detail_record=gr.JSON(visible=False)
-        with gr.Group():
-            with gr.Row():
-                with gr.Column(scale=3):
-                    current_detail_text=gr.Markdown()
-                with gr.Column(scale=1):
-                    current_copy_button=gr.Button('에셋 ID 복사')
-                    current_retire_button=gr.Button('선택 빌보드 폐기')
-                    current_copy_feedback=gr.Markdown()
-        current_retire_pending=gr.State({})
-        with gr.Group(visible=False) as current_retire_group:
-            current_retire_summary=gr.Markdown()
-            current_retire_details=gr.JSON(label='폐기 영향 맵')
-            with gr.Row():
-                current_retire_confirm=gr.Button('확인 · 폐기 실행',variant='stop')
-                current_retire_cancel=gr.Button('취소 · 유지')
-        current_copy_button.click(fn=None,inputs=current_detail_record,outputs=current_copy_feedback,queue=False,js="async currentAssetRecord=>{if(!currentAssetRecord?.texture)return '썸네일에서 에셋을 먼저 선택하세요.';try{await navigator.clipboard.writeText(currentAssetRecord.texture);return '에셋 ID를 복사했습니다: '+currentAssetRecord.texture;}catch(currentClipboardError){return '복사 실패: 브라우저 클립보드 권한을 확인하세요.';}}")
-        with gr.Row():
-            with gr.Column():
-                with gr.Group():
-                    gr.Markdown('### 배치와 크기')
-                    current_property_inputs=build_asset_property_inputs(current_automatic_anchor=False)
-                    current_blocking_choice=gr.Checkbox(label='내부 타일 자동 차단',value=False,interactive=False)
-                current_placement_choice=gr.Dropdown(['top','bottom'],value='bottom',label='타일 상하 판정 · 앵커 Y 기준',interactive=False,visible=False)
-                with gr.Group():
-                    gr.Markdown('### 그림자 위치와 크기')
-                    current_shadow_inputs=build_asset_shadow_inputs()
-                    gr.Markdown('이동 0·0은 하단 기준 교차점입니다. 가로 1·세로 1가 기본 크기입니다.')
-                current_update_button=gr.Button('선택 에셋 변경 반영')
-                gr.Markdown('선택한 ID만 검증하고 즉시 저장합니다.')
-            with gr.Column():
-                gr.Markdown('### 미리보기')
-                current_preview_kind=gr.Radio(['야외 80×40 · 0.5배','마을·전투 160×80 · 1배'],value='야외 80×40 · 0.5배',label='미리보기 타일 규격')
-                current_preview_zoom=gr.Slider(minimum=.5,maximum=4,value=1,step=.5,label='미리보기 확대 배율',info='0.5배 단위로 확대·축소합니다. 에셋 저장 값은 바뀌지 않습니다.')
-                current_show_blocking=gr.Checkbox(label='이동금지 영역 보기',value=True,info='차단 타일과 이동할 수 없는 경계를 표시합니다. 저장 값은 바뀌지 않습니다.')
-                build_asset_preview_canvas('asset-editor-preview')
-                current_preview_feedback=gr.Markdown('노랑: 점유 타일 · 파랑: 이미지 경계 · 빨강: 앵커. 이미지의 뿌리·밑동이 타일을 넘는지 확인하세요.')
+        current_editor_panel=build_selected_asset_panel('asset-editor-preview')
         current_asset_table=gr.State([])
-        current_retire_button.click(preview_asset_retirement,inputs=[current_catalog_state,current_detail_record],outputs=[current_retire_pending,current_retire_group,current_retire_summary,current_retire_details])
-        current_retire_cancel.click(lambda:({},gr.update(visible=False)),outputs=[current_retire_pending,current_retire_group])
-        current_retire_confirm.click(confirm_asset_retirement,inputs=[current_detail_record,current_retire_pending],outputs=[current_catalog_state,current_asset_table,current_feedback_text,current_retire_pending,current_retire_group,current_detail_record,current_detail_text]).then(filter_asset_editor_gallery,inputs=[current_catalog_state,current_search_text,current_asset_type],outputs=[current_source_gallery,current_visible_state,current_search_feedback,current_gallery_page,current_previous_page,current_next_page])
+        current_editor_panel.current_retire_button.click(preview_asset_retirement,inputs=[current_catalog_state,current_editor_panel.current_detail_record],outputs=[current_editor_panel.current_retire_pending,current_editor_panel.current_retire_group,current_editor_panel.current_retire_summary,current_editor_panel.current_retire_details])
+        current_editor_panel.current_retire_cancel.click(lambda:({},gr.update(visible=False)),outputs=[current_editor_panel.current_retire_pending,current_editor_panel.current_retire_group])
+        current_editor_panel.current_retire_confirm.click(confirm_asset_retirement,inputs=[current_editor_panel.current_detail_record,current_editor_panel.current_retire_pending],outputs=[current_catalog_state,current_asset_table,current_feedback_text,current_editor_panel.current_retire_pending,current_editor_panel.current_retire_group,current_editor_panel.current_detail_record,current_editor_panel.current_detail_text]).then(filter_asset_editor_gallery,inputs=[current_catalog_state,current_search_text,current_asset_type],outputs=[current_source_gallery,current_visible_state,current_search_feedback,current_gallery_page,current_previous_page,current_next_page])
         current_gallery_outputs=[current_source_gallery,current_visible_state,current_search_feedback,current_gallery_page,current_previous_page,current_next_page]
         current_previous_page.click(previous_asset_gallery_page,inputs=[current_catalog_state,current_search_text,current_asset_type,current_gallery_page],outputs=current_gallery_outputs)
         current_next_page.click(next_asset_gallery_page,inputs=[current_catalog_state,current_search_text,current_asset_type,current_gallery_page],outputs=current_gallery_outputs)
@@ -238,28 +260,21 @@ def build_asset_editor_interface(current_review_port):
         current_search_button.click(filter_asset_editor_gallery,inputs=[current_catalog_state,current_search_text,current_asset_type],outputs=current_gallery_outputs)
         current_asset_type.input(filter_asset_editor_gallery,inputs=[current_catalog_state,current_search_text,current_asset_type],outputs=current_gallery_outputs)
         current_search_text.submit(filter_asset_editor_gallery,inputs=[current_catalog_state,current_search_text,current_asset_type],outputs=current_gallery_outputs)
-        current_selection_event=current_source_gallery.select(select_asset_editor_record,inputs=[current_visible_state,current_asset_table],outputs=[current_detail_record,*current_property_inputs,current_placement_choice,*current_shadow_inputs,current_blocking_choice,current_detail_text])
-        for current_size_control in current_property_inputs[2:4]:
-            current_size_control.change(calculate_editor_automatic_values,inputs=current_property_inputs[2:4],outputs=current_blocking_choice)
-        current_update_button.click(save_selected_asset_properties,inputs=[current_detail_record,*current_property_inputs,current_placement_choice,*current_shadow_inputs,current_blocking_choice],outputs=[current_catalog_state,current_asset_table,current_feedback_text])
-        current_preview_script='''async(currentAssetRecord,currentAnchorX,currentAnchorY,currentColumns,currentRows,currentHeight,currentPlacement,currentShadowColumn,currentShadowRow,currentShadowWidth,currentShadowHeight,currentKind,currentPreviewZoom,currentBlockingValue,currentShowBlocking)=>{
-if(!currentAssetRecord?.image)return ['썸네일을 선택하세요.',{__type__:'update'}];
-const currentPreviewCanvas=document.getElementById('asset-editor-preview');
-const currentPreviewVersion=String(Number(currentPreviewCanvas.dataset.version??0)+1);currentPreviewCanvas.dataset.version=currentPreviewVersion;
-const currentPreviewModule=await import('http://127.0.0.1:__PORT__/isloon-map-review/source-size-preview.js');
-const currentRendererManifest={version:__RENDERER_VERSION__};
-const currentShadowRenderer=await import(`http://127.0.0.1:__PORT__/isloon-map-review/vendor/field-renderer/${currentRendererManifest.version}/field-renderer.mjs`);
-const currentSourceImage=new Image();currentSourceImage.src=currentAssetRecord.image;await currentSourceImage.decode();
-if(currentPreviewCanvas.dataset.version!==currentPreviewVersion)return [{__type__:'update'},{__type__:'update'}];
-const currentOutdoorMode=currentKind.startsWith('야외');
-currentBlockingValue=currentColumns>=3&&currentRows>=3;
-const currentPreviewResult=currentPreviewModule.drawAssetGroundPreview(currentPreviewCanvas,currentSourceImage,{anchorX:currentAnchorX,anchorY:currentAnchorY,groundFootprintColumns:currentColumns,groundFootprintRows:currentRows,displayHeight:currentHeight,billboardAnchorMode:currentAssetRecord.properties.billboardAnchorMode,billboardPlacementAnchor:currentPlacement,shadowOffsetColumn:currentShadowColumn,shadowOffsetRow:currentShadowRow,shadowScaleX:currentShadowWidth,shadowScaleY:currentShadowHeight},{tileWidth:currentOutdoorMode?80:160,tileHeight:currentOutdoorMode?40:80,billboardScale:currentOutdoorMode?.5:1,previewZoom:currentPreviewZoom,showBlockedAreas:currentShowBlocking,drawShadow:currentShadowRenderer.drawBillboardContactShadow});
-return [`미리보기 ${currentPreviewZoom.toFixed(1)}배 · 선언 ${currentColumns}×${currentRows} · 실제 점유 ${currentPreviewResult.occupiedCells}칸 · ${currentBlockingValue?'내부 '+((currentColumns-2)*(currentRows-2))+'칸 차단':currentColumns===3&&currentRows===2?'가운데 이동 경계 차단':'통행 가능'} · 표시 ${currentPreviewResult.width.toFixed(1)}×${currentPreviewResult.height.toFixed(1)}px. 노랑: 타일 · 파랑: 이미지 · 빨강: 앵커. ${currentColumns<=2&&currentRows<=2?'보조 포함 2×2 격자 · 회색 점선은 점유 제외.':'보조 타일 없음.'} ${currentAssetRecord.metadata.length?'프레임 시트 원본 표시이므로 접지 판정에는 개별 프레임 검수가 필요합니다.':''}`,currentAnchorY<.5?'top':'bottom'];
-}'''.replace('__PORT__',str(current_review_port)).replace('__RENDERER_VERSION__',repr(__import__('yaml').safe_load((WORKFLOW_ROOT_DIRECTORY/'tools/review/ui/map/vendor/field-renderer/manifest.yaml').read_text())['version']))
-        current_preview_inputs=[current_detail_record,*current_property_inputs,current_placement_choice,*current_shadow_inputs,current_preview_kind,current_preview_zoom,current_blocking_choice,current_show_blocking]
-        current_selection_event.then(fn=None,inputs=current_preview_inputs,outputs=[current_preview_feedback,current_placement_choice],js=current_preview_script,queue=False)
+        current_selection_event=current_source_gallery.select(select_asset_editor_record,inputs=[current_visible_state,current_asset_table],outputs=[current_editor_panel.current_detail_record,*current_editor_panel.current_property_inputs,current_editor_panel.current_placement_choice,*current_editor_panel.current_shadow_inputs,current_editor_panel.current_blocking_choice,current_editor_panel.current_detail_text])
+        for current_size_control in current_editor_panel.current_property_inputs[2:4]:
+            current_size_control.change(calculate_editor_automatic_values,inputs=current_editor_panel.current_property_inputs[2:4],outputs=current_editor_panel.current_blocking_choice)
+        current_editor_panel.current_update_button.click(stream_selected_asset_save,inputs=[current_editor_panel.current_detail_record,*current_editor_panel.current_property_inputs,current_editor_panel.current_placement_choice,*current_editor_panel.current_shadow_inputs,current_editor_panel.current_blocking_choice],outputs=[current_catalog_state,current_asset_table,current_editor_panel.current_save_progress],show_progress='full',concurrency_limit=1,trigger_mode='once')
+        current_renderer_version=__import__('yaml').safe_load((WORKFLOW_ROOT_DIRECTORY/'tools/review/ui/map/vendor/field-renderer/manifest.yaml').read_text())['version']
+        current_preview_script=build_asset_preview_script(current_review_port,current_renderer_version,'asset-editor-preview')
+        current_editor_panel.current_detail_record.change(load_selected_resolution_controls,inputs=current_editor_panel.current_detail_record,outputs=[current_editor_panel.current_resolution_text,current_editor_panel.current_resolution_choice,current_editor_panel.current_resolution_button,current_editor_panel.current_resolution_feedback])
+        current_editor_panel.current_resolution_choice.input(update_resolution_save_button,inputs=[current_editor_panel.current_detail_record,current_editor_panel.current_resolution_choice],outputs=current_editor_panel.current_resolution_button)
+        current_resolution_event=current_editor_panel.current_resolution_button.click(resize_selected_asset_image,inputs=[current_editor_panel.current_detail_record,current_editor_panel.current_resolution_choice],outputs=[current_catalog_state,current_asset_table,current_editor_panel.current_detail_record,current_editor_panel.current_detail_text,current_editor_panel.current_resolution_feedback])
+        current_resolution_event.then(filter_asset_editor_gallery,inputs=[current_catalog_state,current_search_text,current_asset_type,current_gallery_page],outputs=current_gallery_outputs)
+        current_preview_inputs=[current_editor_panel.current_detail_record,*current_editor_panel.current_property_inputs,current_editor_panel.current_placement_choice,*current_editor_panel.current_shadow_inputs,current_editor_panel.current_preview_kind,current_editor_panel.current_preview_zoom,current_editor_panel.current_blocking_choice,current_editor_panel.current_show_blocking]
+        current_resolution_event.then(fn=None,inputs=current_preview_inputs,outputs=[current_editor_panel.current_preview_feedback,current_editor_panel.current_placement_choice],js=current_preview_script,queue=False)
+        current_selection_event.then(fn=None,inputs=current_preview_inputs,outputs=[current_editor_panel.current_preview_feedback,current_editor_panel.current_placement_choice],js=current_preview_script,queue=False)
         for current_input_control in current_preview_inputs[1:]:
-            current_input_control.input(fn=None,inputs=current_preview_inputs,outputs=[current_preview_feedback,current_placement_choice],js=current_preview_script,queue=False)
+            current_input_control.input(fn=None,inputs=current_preview_inputs,outputs=[current_editor_panel.current_preview_feedback,current_editor_panel.current_placement_choice],js=current_preview_script,queue=False)
     return current_interface_blocks
 
 
