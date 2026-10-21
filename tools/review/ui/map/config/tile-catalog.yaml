@@ -100,3 +100,4 @@ tiles:
   - {id: boar-hoof-worn-v1, category: decal, asset: assets/tiles/decals/boar-hoof-worn-v1.png}
 
   - {id: quarry-limestone-wall-v1, category: wall, asset: assets/tiles/terrain/blocked/quarry-limestone-wall-v1.png}
+  - {id: cinder-basalt-wall-v1, category: wall, asset: assets/tiles/terrain/blocked/cinder-basalt-wall-v1.png}
