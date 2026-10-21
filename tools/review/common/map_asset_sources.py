@@ -13,9 +13,22 @@ def normalize_field_surface_data(current_map_record):
     current_height_rows = current_map_record['elevations']
     if len(current_height_rows) != current_map_record['rows']:
         raise ValueError('필드 고도 행 수 오류')
-    if any(not isinstance(current_height_row,str) or len(current_height_row)!=current_map_record['columns'] or any(current_height_code not in '0123456789' for current_height_code in current_height_row) for current_height_row in current_height_rows):
-        raise ValueError('필드 고도 행 길이·값 오류')
-    current_map_record['elevations'] = [[int(current_height_code) for current_height_code in current_height_row] for current_height_row in current_height_rows]
+    current_normalized_rows = []
+    current_legacy_rows = all(isinstance(current_height_row,str) for current_height_row in current_height_rows)
+    current_numeric_rows = all(isinstance(current_height_row,list) for current_height_row in current_height_rows)
+    if not (current_legacy_rows or current_numeric_rows):
+        raise ValueError('고도 행은 문자열 또는 정수 배열로 통일해야 합니다.')
+    for current_height_row in current_height_rows:
+        if len(current_height_row)!=current_map_record['columns']:
+            raise ValueError('필드 고도 행 길이 오류')
+        if current_legacy_rows:
+            if any(current_height_code not in '0123456789' for current_height_code in current_height_row):
+                raise ValueError('기존 고도 문자열은 0~9만 허용합니다. 10~20은 정수 배열을 사용하세요.')
+            current_height_row = [int(current_height_code) for current_height_code in current_height_row]
+        if any(type(current_height_value) is not int or not 0<=current_height_value<=20 for current_height_value in current_height_row):
+            raise ValueError('필드 고도는 0~20 정수여야 합니다.')
+        current_normalized_rows.append(list(current_height_row))
+    current_map_record['elevations'] = current_normalized_rows
     if current_map_record.get('terrainMovementVersion') != 2:
         raise ValueError('맵 검수 원본은 지형 이동 버전 2여야 합니다.')
     if current_map_record.get('elevationTiles') or current_map_record.get('ramps'):
@@ -81,6 +94,7 @@ def load_registered_map_review(map_identifier_value):
         from tools.review.domains.map_assets.decals import validate_ground_decal_records
         validate_ground_decal_records(current_map_record['groundDecals'],current_map_record['columns'],current_map_record['rows'])
         current_map_record['groundOverrides'] = current_field_tile_data.get('groundOverrides', [])
+        current_map_record['cliffTextureKey'] = validate_map_cliff_texture(current_field_tile_data.get('cliffTextureKey', 'cliff-wall'))
         current_map_record['terrainCodes'] = read_map_source_data('field_tiles/codes.yaml')
         current_map_record.update(read_map_source_data('map_spawns/'+map_identifier_value+'.yaml'))
         current_map_record['buildings'] = []
@@ -144,3 +158,16 @@ def load_registered_map_review(map_identifier_value):
 
 # 기존 메뉴·검수 빌드 호출부의 import 계약도 등록 인덱스를 따른다.
 MAP_CITY_REVIEW_IDENTIFIERS, MAP_REVIEW_IDENTIFIERS = load_review_map_identifiers()
+
+
+def validate_map_cliff_texture(current_texture_key):
+    """벽면 용도로 등록된 타일만 선택한다."""
+    current_catalog_path = Path(__file__).resolve().parents[1]/'ui/map/config/tile-catalog.yaml'
+    current_tile_catalog = yaml.load(current_catalog_path.read_text(), Loader=UniqueMapSourceLoader)
+    current_wall_records = {current_tile_record['id']:current_tile_record for current_tile_record in current_tile_catalog['tiles'] if current_tile_record['category']=='wall'}
+    if not isinstance(current_texture_key,str) or current_texture_key not in current_wall_records:
+        raise ValueError('등록되지 않은 벽면 타일: '+str(current_texture_key))
+    from tools.review.common.map_tile_assets import resolve_registered_tile
+    current_asset_root, current_registered_records = load_registered_tiles()
+    resolve_registered_tile(current_wall_records[current_texture_key]['asset'], current_asset_root, current_registered_records)
+    return current_texture_key

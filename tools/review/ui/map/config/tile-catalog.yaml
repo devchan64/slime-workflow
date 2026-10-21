@@ -61,7 +61,7 @@ tiles:
   - {id: frosted-grass-ground, category: ground, asset: assets/tiles/terrain/non-road/frost-ground-v1.png}
   - {id: sandy-scrub-ground, category: ground, asset: assets/tiles/terrain/non-road/sand-ground-v1.png}
   - {id: ramp-tread, category: ground, asset: assets/tiles/terrain/blocked/ramp-earth-stone-wall-v1.png}
-  - {id: cliff-wall, category: ground, asset: assets/tiles/terrain/blocked/cliff-rock-face-v1.png}
+  - {id: cliff-wall, category: wall, asset: assets/tiles/terrain/blocked/cliff-rock-face-v1.png}
   - {id: battle-tree-stump, category: ground, asset: assets/tiles/terrain/non-road/orchard-soil-v1.png}
 
   - {id: iseulon-courtyard-paving, category: ground, asset: assets/tiles/terrain/road/ochre-pebble-road-v1.png}
@@ -98,3 +98,5 @@ tiles:
   - {id: boar-hoof-trail-v1, category: decal, asset: assets/tiles/decals/boar-hoof-trail-v1.png}
 
   - {id: boar-hoof-worn-v1, category: decal, asset: assets/tiles/decals/boar-hoof-worn-v1.png}
+
+  - {id: quarry-limestone-wall-v1, category: wall, asset: assets/tiles/terrain/blocked/quarry-limestone-wall-v1.png}
