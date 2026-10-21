@@ -6,6 +6,57 @@ from tools.review.ui.gradio.management_menu_app import create_initial_selection_
 
 
 class MapReviewGradioTest(unittest.TestCase):
+    def test_preview_edit_modes_keep_editor_hidden_initially(self):
+        current_config_record=build_map_review_interface(8770).get_config_file()
+        current_mode_component=next(current_component_record for current_component_record in current_config_record['components'] if current_component_record['props'].get('label')=='작업 모드')
+        self.assertEqual(current_mode_component['props']['value'],'inspect')
+        current_mode_event=next(current_event_record for current_event_record in current_config_record['dependencies'] if 'currentEditorEnabled=' in (current_event_record.get('js') or ''))
+        current_editor_identifier=current_mode_event['outputs'][0]
+        current_editor_component=next(current_component_record for current_component_record in current_config_record['components'] if current_component_record['id']==current_editor_identifier)
+        self.assertFalse(current_editor_component['props']['visible'])
+        self.assertIn("currentMapKind==='field'",current_mode_event['js'])
+        self.assertNotIn('location.reload',current_mode_event['js'])
+
+    def test_change_summary_reports_added_moved_and_deleted_billboards(self):
+        from tools.review.common.gradio_map_editor import summarize_map_editor_changes
+        current_editor_state={'snapshot':{'tiles':{'objects':[{'id':'rock-1','kind':'decoration','position':{'column':0,'row':0}}]}},'draft':{'cells':[],'objects':[]}}
+        self.assertIn('삭제 1개',summarize_map_editor_changes(current_editor_state))
+        self.assertIn('rock-1',summarize_map_editor_changes(current_editor_state))
+
+    def test_draft_actions_automatically_validate_and_refresh_preview(self):
+        current_config_record=build_map_review_interface(8770).get_config_file()
+        current_action_labels={'선택 타일의 빌보드 삭제 · 초안','선택 ID 삭제 · 초안','한 단계 되돌리기'}
+        current_action_identifiers={current_component_record['id'] for current_component_record in current_config_record['components'] if current_component_record['type']=='button' and current_component_record['props'].get('value') in current_action_labels}
+        for current_action_identifier in current_action_identifiers:
+            current_action_event=next(current_event_record for current_event_record in current_config_record['dependencies'] if current_event_record['targets']==[(current_action_identifier,'click')])
+            current_preview_event=next(current_event_record for current_event_record in current_config_record['dependencies'] if current_event_record.get('trigger_after')==current_action_event['id'])
+            self.assertTrue(current_preview_event['trigger_only_on_success'])
+            current_render_event=next(current_event_record for current_event_record in current_config_record['dependencies'] if current_event_record.get('trigger_after')==current_preview_event['id'])
+            self.assertIn('mapReviewApplyDraft',current_render_event['js'])
+
+    def test_selected_tile_removes_its_billboards_and_supports_undo(self):
+        from tools.review.common.gradio_map_editor import change_map_edit_draft
+        current_object_records=[{'id':'rock-1','position':{'column':2,'row':3}},{'id':'rock-2','position':{'column':2,'row':3}},{'id':'rock-3','position':{'column':3,'row':3}}]
+        current_editor_state={'snapshot':{'terrain':{'columns':8,'rows':8}},'draft':{'objects':current_object_records,'cells':[]},'history':[]}
+        current_changed_state=change_map_edit_draft(current_editor_state,'delete-cell',2,3,None,None,False,None,None)[0]
+        self.assertEqual([current_record['id'] for current_record in current_changed_state['draft']['objects']],['rock-3'])
+        self.assertEqual(current_editor_state['draft']['objects'],current_object_records)
+        current_restored_state=change_map_edit_draft(current_changed_state,'undo',None,None,None,None,False,None,None)[0]
+        self.assertEqual(current_restored_state['draft']['objects'],current_object_records)
+
+    def test_cell_selection_initializes_editor_and_returns_coordinates(self):
+        from unittest.mock import patch
+        from tools.review.common.gradio_map_editor import select_map_editor_cell
+        current_snapshot_record={'codes':{'H':'road'},'textures':['rock'],'terrain':{'columns':1,'rows':1,'elevations':[[3]],'blocked':[]},'tiles':{'rows':['H']}}
+        current_editor_state={'snapshot':current_snapshot_record,'draft':{'map':'crystal-cut','cells':[],'objects':[{'id':'rock-1','position':{'column':0,'row':0}}]},'history':[]}
+        with patch('tools.review.common.gradio_map_editor.load_map_edit_draft',return_value=(current_editor_state,)) as current_load_mock:
+            current_selection_result=select_map_editor_cell('crystal-cut',{},0,0)
+            current_load_mock.assert_called_once()
+        self.assertEqual(current_selection_result[1:3],(0,0))
+        self.assertEqual(current_selection_result[3]['value'],'H')
+        self.assertEqual(current_selection_result[4],3)
+        self.assertEqual(current_selection_result[8]['value'],'rock-1')
+
     def test_billboard_delete_does_not_require_cell_coordinates(self):
         from tools.review.common.gradio_map_editor import change_map_edit_draft
         current_object_record={'id':'test-billboard-1','position':{'column':2,'row':3}}
