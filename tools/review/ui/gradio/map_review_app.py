@@ -100,33 +100,33 @@ def build_map_review_interface(review_server_port, character_review_enabled=Fals
                     current_map_choice=gr.Dropdown(label='맵 선택',choices=[],interactive=False)
                     current_load_button=gr.Button('맵 불러오기',interactive=False)
             current_ready_controls=[]
+            current_camera_feedback=gr.Textbox(label='검수 안내',value='맵을 불러온 뒤 사용할 수 있습니다.',interactive=False,render=character_review_enabled)
             with gr.Group(render=character_review_enabled) as current_canvas_toolbar:
-                current_camera_feedback=gr.Textbox(label='검수 안내',value='맵을 불러온 뒤 사용할 수 있습니다.',interactive=False)
-                gr.Markdown('### 화면 확인' if not character_review_enabled else '### 비교 화면')
-                gr.Markdown('맵을 불러오면 아래 버튼이 활성화됩니다. **전체 보기**로 지형을 살핀 뒤 확대하세요. 드래그로 화면 이동, 휠로 확대·축소할 수 있습니다.')
+                if not character_review_enabled:
+                    current_interaction_mode=gr.Radio(label='작업 모드',choices=[('미리보기','inspect'),('편집','edit')],value='inspect')
                 with gr.Row():
                     for current_camera_action,current_camera_label in (('zoom-out','지도 축소'),('zoom-in','지도 확대'),('actual-size','사람 중심 · 100%'),('fit','전체 보기')):
                         current_ready_controls.append(build_browser_action_button(current_camera_label,'mapReviewCameraControls',current_camera_action,current_camera_feedback,current_button_enabled=False))
                 if not character_review_enabled:
-                    with gr.Accordion('PNG 내보내기 · 현재 미리보기',open=False):
+                    with gr.Accordion('PNG 내보내기 · 현재 미리보기',open=False,render=False) as current_export_panel:
                         current_ready_controls.append(build_browser_action_button('전체 맵 PNG 내보내기','mapReviewExportImage','export',current_camera_feedback,current_button_enabled=False))
                         gr.Markdown('현재 미리보기의 전체 맵을 투명 배경 PNG로 내려받습니다. 미저장 초안도 포함되며 맵 데이터 저장과는 별개입니다. 이동금지 영역·타일 경계를 포함하고 긴 변은 최대 4096px입니다.')
-                    current_interaction_mode=gr.Radio(label='작업 모드',choices=[('미리보기','inspect'),('편집','edit')],value='inspect',info='미리보기는 맵 확인, 편집은 오른쪽 속성 패널에서 수정합니다. 모드를 바꿔도 초안은 유지됩니다.')
-            current_building_choice=gr.Dropdown(label='건물 선택',choices=[],interactive=False)
-            current_building_choice.input(fn=None,inputs=current_building_choice,outputs=current_camera_feedback,queue=False,js="(currentBuildingIdentifier)=>{try{if(!window.mapReviewFocusBuilding)throw Error('맵을 준비 중입니다.');window.mapReviewFocusBuilding(currentBuildingIdentifier);return '선택한 건물로 이동했습니다.';}catch(currentFocusError){return currentFocusError.message;}}")
-            with gr.Row():
-                with gr.Column(min_width=200):
-                    current_character_check=gr.Checkbox(interactive=False,label='기본 캐릭터',value=True)
-                with gr.Column(min_width=200) as current_boundary_column:
-                    current_boundary_check=gr.Checkbox(interactive=False,label='결계탑 · 결계 오러',value=True)
-                with gr.Column(min_width=200):
-                    current_edges_check=gr.Checkbox(interactive=False,label='메시 경계',value=False)
-                with gr.Column(min_width=200):
-                    current_tile_edges_check=gr.Checkbox(interactive=False,label='타일 경계',value=False)
-                with gr.Column(min_width=220,visible=character_review_enabled) as current_shadow_profile_column:
-                    current_shadow_profile=gr.Dropdown(label='캐릭터 시인성 검수',choices=[('이전 기본 그림자','baseline'),('게임 적용 · 접지 대비 강화','contrast'),('넓은 접지 그림자','broad')],value='contrast',interactive=False)
-                with gr.Column(min_width=200):
-                    current_blocked_check=gr.Checkbox(interactive=False,label='이동금지 영역 보기',value=False)
+            with gr.Group(render=character_review_enabled) as current_display_panel:
+                current_building_choice=gr.Dropdown(label='건물 선택',choices=[],interactive=False)
+                current_building_choice.input(fn=None,inputs=current_building_choice,outputs=current_camera_feedback,queue=False,js="(currentBuildingIdentifier)=>{try{if(!window.mapReviewFocusBuilding)throw Error('맵을 준비 중입니다.');window.mapReviewFocusBuilding(currentBuildingIdentifier);return '선택한 건물로 이동했습니다.';}catch(currentFocusError){return currentFocusError.message;}}")
+                with gr.Row():
+                    with gr.Column(min_width=200):
+                        current_character_check=gr.Checkbox(interactive=False,label='기본 캐릭터',value=True)
+                    with gr.Column(min_width=200) as current_boundary_column:
+                        current_boundary_check=gr.Checkbox(interactive=False,label='결계탑 · 결계 오러',value=True)
+                    with gr.Column(min_width=200):
+                        current_edges_check=gr.Checkbox(interactive=False,label='메시 경계',value=False)
+                    with gr.Column(min_width=200):
+                        current_tile_edges_check=gr.Checkbox(interactive=False,label='타일 경계',value=False)
+                    with gr.Column(min_width=220,visible=character_review_enabled) as current_shadow_profile_column:
+                        current_shadow_profile=gr.Dropdown(label='캐릭터 시인성 검수',choices=[('이전 기본 그림자','baseline'),('게임 적용 · 접지 대비 강화','contrast'),('넓은 접지 그림자','broad')],value='contrast',interactive=False)
+                    with gr.Column(min_width=200):
+                        current_blocked_check=gr.Checkbox(interactive=False,label='이동금지 영역 보기',value=False)
             current_display_inputs=[current_character_check,current_boundary_check,current_edges_check,current_shadow_profile,current_tile_edges_check,current_blocked_check]
             current_ready_controls.extend(current_display_inputs)
             for current_display_control in current_display_inputs:
@@ -147,7 +147,8 @@ def build_map_review_interface(review_server_port, character_review_enabled=Fals
                 current_shadow_check=gr.Checkbox(interactive=False,label='접지 그림자',value=True)
                 current_ready_controls.append(current_shadow_check)
                 current_shadow_check.input(fn=None,inputs=current_shadow_check,outputs=current_camera_feedback,queue=False,js="(currentShadowEnabled)=>{try{if(!window.characterReviewContactShadow)throw Error('맵을 준비 중입니다.');return window.characterReviewContactShadow(currentShadowEnabled);}catch(currentShadowError){return currentShadowError.message;}}")
-            gr.Markdown('바닥·측벽·계단 타일 원본: 128×128 · '+('바닥 흐림 없음' if character_review_enabled else '게임 공용 렌더러 · 원본 채도 · 바닥 흐림 없음')+' · 캐릭터·건물 해상도 유지')
+            if character_review_enabled:
+                gr.Markdown('바닥·측벽·계단 타일 원본: 128×128 · '+('바닥 흐림 없음' if character_review_enabled else '게임 공용 렌더러 · 원본 채도 · 바닥 흐림 없음')+' · 캐릭터·건물 해상도 유지')
             if character_review_enabled:
                 current_ground_choice=gr.Radio(interactive=False,label='검수 바닥',choices=[('석판','paving'),('잔디·들꽃','grass'),('흙·자갈','meadow-road')],value='paving')
                 current_ready_controls.append(current_ground_choice)
@@ -161,13 +162,20 @@ def build_map_review_interface(review_server_port, character_review_enabled=Fals
                         gr.HTML(MAP_REVIEW_CANVAS_MARKUP.replace('<h3 id="map-title">맵 검수</h3><p id="status" role="status">맵을 선택한 뒤 맵 불러오기를 누르세요.</p>\n<output id="zoom-level" aria-live="polite"></output>','').replace('id="map"','id="map" data-character-review="true"'))
                 gr.HTML('<h3 id="map-title">캐릭터 표현 검수</h3><p id="status" role="status">맵을 선택한 뒤 맵 불러오기를 누르세요.</p><output id="zoom-level" aria-live="polite"></output>')
             else:
+                current_canvas_toolbar.render()
                 with gr.Row(equal_height=False):
                     with gr.Column(scale=3,min_width=480):
-                        current_canvas_toolbar.render()
                         gr.HTML(MAP_REVIEW_CANVAS_MARKUP)
-                    with gr.Column(scale=2,min_width=340,visible=False) as current_editor_column:
-                        from tools.review.common.gradio_map_editor import build_map_editor_panel
-                        build_map_editor_panel(current_map_choice)
+                    with gr.Column(scale=1,min_width=340):
+                        gr.Markdown('### 상세 제어')
+                        with gr.Group(visible=False) as current_editor_column:
+                            from tools.review.common.gradio_map_editor import build_map_editor_panel
+                            build_map_editor_panel(current_map_choice)
+                        with gr.Accordion('화면 표시 옵션',open=True):
+                            current_display_panel.render()
+                        current_export_panel.render()
+                        current_camera_feedback.render()
+                        gr.Markdown('드래그: 화면 이동 · 휠: 확대/축소 · 0: 전체 보기. 편집 모드에서 타일을 선택하고 수정하세요. 모드 전환 시 초안은 유지됩니다.')
                 current_interaction_mode.input(fn=None,inputs=current_interaction_mode,outputs=[current_editor_column,current_camera_feedback,current_interaction_mode],queue=False,js="currentInteractionMode=>{const currentMapKind=new URLSearchParams(location.search).get('mapKind')||'field';const currentEditorEnabled=currentInteractionMode==='edit'&&currentMapKind==='field';window.mapReviewEditingEnabled=currentEditorEnabled;return [{__type__:'update',visible:currentEditorEnabled},currentEditorEnabled?'편집 모드 · 맵에서 타일을 클릭하고 오른쪽에서 선택 셀 가져오기를 누르세요.':currentInteractionMode==='edit'?'현재 야외필드만 편집할 수 있습니다. 도시맵은 미리보기를 사용하세요.':'미리보기 모드 · 초안을 유지하며 맵을 확인합니다.',currentEditorEnabled?'edit':'inspect'];}")
             if character_review_enabled:
                 gr.Markdown('PNG 캡처는 현재 바닥·캐릭터 위치·표현 설정을 배율 200%, 표시 영역 768×576에서 내부 해상도 2배인 1536×1152 PNG로 렌더링합니다. 원본·조정본·좌우 비교 3개 파일을 저장합니다.')
