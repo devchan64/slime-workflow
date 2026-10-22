@@ -219,7 +219,7 @@ def build_block_map_review(output_directory_path, character_review_only=False):
     for renderer_file_name,renderer_file_hash in field_renderer_manifest['files'].items():
         if hashlib.sha256((field_renderer_directory/renderer_file_name).read_bytes()).hexdigest()!=renderer_file_hash:
             raise ValueError('필드 렌더러 배포본 해시 불일치: '+renderer_file_name)
-    for current_script_name in ('block-map-review.js','source-size-preview.js','field-map-renderer.js','field-map-view.js'):
+    for current_script_name in ('block-map-review.js','map-brush-controls.js','source-size-preview.js','field-map-renderer.js','field-map-view.js'):
         current_script_source=(source_ui_directory/current_script_name).read_text()
         (output_directory_path/current_script_name).write_text(current_script_source.replace('__FIELD_RENDERER_VERSION__',field_renderer_vendor_version))
     shutil.copytree(field_renderer_directory,output_directory_path/'vendor/field-renderer'/field_renderer_vendor_version,dirs_exist_ok=True)

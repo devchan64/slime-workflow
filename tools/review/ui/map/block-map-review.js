@@ -1,7 +1,8 @@
+import {installMapBrushControls} from './map-brush-controls.js';
 import {installSourceSizePreview} from './source-size-preview.js';
 import {resolveCityTileTextures,selectFieldRoadFrame,resolveFieldTerrainFrame,collectTerrainTextureSources,collectMapTextureSources,collectMapResourceKeys,loadMapResourceImages} from './vendor/field-renderer/__FIELD_RENDERER_VERSION__/town-renderer.mjs';
 import {CHARACTER_OUTLINE_BASE_WIDTH,CHARACTER_OUTLINE_BASE_COLOR,CHARACTER_SEPARATOR_BASE_WIDTH,CHARACTER_SEPARATOR_BASE_COLOR,CHARACTER_CONTACT_SHADOW_COLOR as GAME_CONTACT_SHADOW_COLOR,CHARACTER_CONTACT_SHADOW_ALPHA_SCALE,ACTOR_CONTACT_SHADOW_CONTRACT} from './vendor/field-renderer/__FIELD_RENDERER_VERSION__/game-render-profile.mjs';
-import {createFieldReviewFrame,pickFieldReviewCell} from './field-map-renderer.js';
+import {createFieldReviewFrame,pickFieldReviewCell,pickFieldReviewSurface} from './field-map-renderer.js';
 import {resolveMapRenderOptions,FIELD_RENDER_METRICS,projectSurfaceCell,canTraverseBridgeEdge,prepareBridgeTraversalSurface} from './vendor/field-renderer/__FIELD_RENDERER_VERSION__/field-renderer.mjs';
 import {resolveFieldActorContactShadow} from './vendor/field-renderer/__FIELD_RENDERER_VERSION__/field-renderer.mjs';
 const MAP_FIT_HORIZONTAL_PADDING=160,MAP_FIT_VERTICAL_PADDING=80,MAP_FIT_BOTTOM_MARGIN=40,FIELD_FIT_TOP_MARGIN=160;
@@ -96,6 +97,7 @@ const currentMaterialColors=await fetchMapReviewRecord('block-materials.json');
 const currentTextureRecords=await fetchMapReviewRecord('/management/map-assets/textures');
 const currentResourceKeys=isCharacterReviewPage?CHARACTER_REVIEW_TILE_NAMES:collectMapResourceKeys(currentMapRecord,isFieldMapReview?'field':'town');
 const currentGameTextureSources=collectMapTextureSources();
+window.mapReviewPickerSources=currentTerrainCodes=>Object.fromEntries(Object.values(currentTerrainCodes).map(currentTerrainName=>[currentTerrainName,currentGameTextureSources['terrain-source-'+resolveFieldTerrainFrame(currentTerrainName,currentMapRecord.id)]]));
 const currentSelectedTextureRecords={};
 const currentSelectedGameKeys={};
 for(const currentResourceKey of currentResourceKeys){
@@ -294,6 +296,7 @@ function drawReviewCharacter(currentMarkerPoint){
 }
 function projectReviewCharacter(){return isFieldMapReview?projectSurfaceCell(currentCharacterCell,currentMapRecord,{...currentMapRenderOptions,rotation:currentCameraRotation}):projectBlockVertex(currentCharacterCell)}
 function renderBlockMap(currentFitRequested=false){
+ window.mapReviewClearHover?.();
  if(!isCharacterReviewPage){drawCurrentMapScene(currentFitRequested);return;}
  const currentSavedOutline=currentOutlinePreviewEnabled,currentSavedRim=currentRimPreviewEnabled;
  const currentSavedShadow=currentDisplayOptions['shadow-profile'];
@@ -395,7 +398,7 @@ function placeReviewCharacterCell(currentColumnValue,currentRowValue){
  if(!isCharacterReviewPage)document.querySelector('#status').textContent+=` · 캐릭터 (${currentColumnValue+1}, ${currentRowValue+1})`;
  return true;
 }
-currentMapCanvas.onclick=currentEvent=>{if(suppressMarkerClick){suppressMarkerClick=false;return;}const currentBounds=currentMapCanvas.getBoundingClientRect(),currentWorldX=(currentEvent.clientX-currentBounds.left-currentOffsetX)/currentScaleValue,currentWorldY=(currentEvent.clientY-currentBounds.top-currentOffsetY)/currentScaleValue;if(isFieldMapReview){const currentPickedCell=pickFieldReviewCell({x:currentWorldX,y:currentWorldY},currentFieldFrame);if(currentPickedCell){window.mapReviewSelectedCell=currentPickedCell;if(window.mapReviewEditingEnabled){document.querySelector('#status').textContent=`편집 셀 선택: 열 ${currentPickedCell.column}, 행 ${currentPickedCell.row}`;}else placeReviewCharacterCell(currentPickedCell.column,currentPickedCell.row);}return;}let currentColumnValue=(currentWorldX/townHalfTileWidth+currentWorldY/townHalfTileHeight)/2,currentRowValue=(currentWorldY/townHalfTileHeight-currentWorldX/townHalfTileWidth)/2;for(let i=0;i<currentCameraRotation;i++)[currentColumnValue,currentRowValue]=[currentRowValue,-currentColumnValue];currentColumnValue=Math.round(currentColumnValue);currentRowValue=Math.round(currentRowValue);placeReviewCharacterCell(currentColumnValue,currentRowValue)};centerCharacterView();
+currentMapCanvas.onclick=currentEvent=>{if(window.mapReviewEditingEnabled&&window.mapReviewBrushTool&&window.mapReviewBrushTool!=='pan')return;if(suppressMarkerClick){suppressMarkerClick=false;return;}const currentBounds=currentMapCanvas.getBoundingClientRect(),currentWorldX=(currentEvent.clientX-currentBounds.left-currentOffsetX)/currentScaleValue,currentWorldY=(currentEvent.clientY-currentBounds.top-currentOffsetY)/currentScaleValue;if(isFieldMapReview){const currentPickedCell=pickFieldReviewCell({x:currentWorldX,y:currentWorldY},currentFieldFrame);if(currentPickedCell){window.mapReviewSelectedCell=currentPickedCell;if(window.mapReviewEditingEnabled){document.querySelector('#status').textContent=`편집 셀 선택: 열 ${currentPickedCell.column}, 행 ${currentPickedCell.row}`;}else placeReviewCharacterCell(currentPickedCell.column,currentPickedCell.row);}return;}let currentColumnValue=(currentWorldX/townHalfTileWidth+currentWorldY/townHalfTileHeight)/2,currentRowValue=(currentWorldY/townHalfTileHeight-currentWorldX/townHalfTileWidth)/2;for(let i=0;i<currentCameraRotation;i++)[currentColumnValue,currentRowValue]=[currentRowValue,-currentColumnValue];currentColumnValue=Math.round(currentColumnValue);currentRowValue=Math.round(currentRowValue);placeReviewCharacterCell(currentColumnValue,currentRowValue)};centerCharacterView();
 
 // 포인터 아래의 지형 좌표를 유지하면서 배율을 변경한다.
 function changeMapZoom(currentZoomFactor,currentAnchorX=currentMapCanvas.clientWidth/2,currentAnchorY=currentMapCanvas.clientHeight/2){
@@ -416,10 +419,24 @@ currentMapCanvas.onkeydown=currentKeyboardEvent=>{
  if(currentKeyboardEvent.key==='0'){currentKeyboardEvent.preventDefault();renderBlockMap(true)}
 };
 currentMapCanvas.addEventListener('wheel',currentPointerEvent=>{currentPointerEvent.preventDefault();const currentCanvasBounds=currentMapCanvas.getBoundingClientRect();changeMapZoom(Math.exp(-Math.max(-100,Math.min(100,currentPointerEvent.deltaY))*0.002),currentPointerEvent.clientX-currentCanvasBounds.left,currentPointerEvent.clientY-currentCanvasBounds.top)},{passive:false});
-currentMapCanvas.onpointerdown=currentPointerEvent=>{if(currentPointerEvent.button!==0)return;suppressMarkerClick=false;activeMapPointer={id:currentPointerEvent.pointerId,x:currentPointerEvent.clientX,y:currentPointerEvent.clientY,offsetX:currentOffsetX,offsetY:currentOffsetY};currentMapCanvas.setPointerCapture(currentPointerEvent.pointerId)};
-currentMapCanvas.onpointermove=currentPointerEvent=>{if(!activeMapPointer||activeMapPointer.id!==currentPointerEvent.pointerId)return;const currentDeltaX=currentPointerEvent.clientX-activeMapPointer.x,currentDeltaY=currentPointerEvent.clientY-activeMapPointer.y;if(!suppressMarkerClick&&Math.hypot(currentDeltaX,currentDeltaY)<MAP_DRAG_THRESHOLD)return;suppressMarkerClick=true;currentMapCanvas.style.cursor='grabbing';currentOffsetX=activeMapPointer.offsetX+currentDeltaX;currentOffsetY=activeMapPointer.offsetY+currentDeltaY;renderBlockMap()};
+function resolveEditorPointerTarget(currentPointerEvent,currentToolName,currentIncludeGeometry=false){
+ if(!isFieldMapReview||!currentFieldFrame)return null;
+ const currentCanvasBounds=currentMapCanvas.getBoundingClientRect();
+ const currentWorldPoint={x:(currentPointerEvent.clientX-currentCanvasBounds.left-currentOffsetX)/currentScaleValue,y:(currentPointerEvent.clientY-currentCanvasBounds.top-currentOffsetY)/currentScaleValue};
+ if(currentToolName==='delete')return currentSharedFieldView.pickEditorBillboard(currentWorldPoint,currentIncludeGeometry);
+ return pickFieldReviewSurface(currentWorldPoint,currentFieldFrame,currentToolName==='wall',currentIncludeGeometry);
+}
+const currentBrushControls=installMapBrushControls(currentMapCanvas,resolveEditorPointerTarget);
+window.mapReviewClearHover=()=>currentSharedFieldView?.showEditorHover(null);
+function updateEditorHoverTarget(currentPointerEvent){
+ const currentTargetRecord=window.mapReviewEditingEnabled?resolveEditorPointerTarget(currentPointerEvent,window.mapReviewBrushTool,true):null;
+ currentSharedFieldView?.showEditorHover(currentTargetRecord);
+}
+currentMapCanvas.onpointerleave=()=>window.mapReviewClearHover();
+currentMapCanvas.onpointerdown=currentPointerEvent=>{if(currentPointerEvent.button!==0)return;if(currentBrushControls.beginBrushStroke(currentPointerEvent)){suppressMarkerClick=true;return;}suppressMarkerClick=false;activeMapPointer={id:currentPointerEvent.pointerId,x:currentPointerEvent.clientX,y:currentPointerEvent.clientY,offsetX:currentOffsetX,offsetY:currentOffsetY};currentMapCanvas.setPointerCapture(currentPointerEvent.pointerId)};
+currentMapCanvas.onpointermove=currentPointerEvent=>{updateEditorHoverTarget(currentPointerEvent);if(currentBrushControls.moveBrushStroke(currentPointerEvent))return;if(!activeMapPointer||activeMapPointer.id!==currentPointerEvent.pointerId)return;const currentDeltaX=currentPointerEvent.clientX-activeMapPointer.x,currentDeltaY=currentPointerEvent.clientY-activeMapPointer.y;if(!suppressMarkerClick&&Math.hypot(currentDeltaX,currentDeltaY)<MAP_DRAG_THRESHOLD)return;suppressMarkerClick=true;currentMapCanvas.style.cursor='grabbing';currentOffsetX=activeMapPointer.offsetX+currentDeltaX;currentOffsetY=activeMapPointer.offsetY+currentDeltaY;renderBlockMap()};
 function finishMapDrag(){activeMapPointer=null;currentMapCanvas.style.cursor='grab'}
-currentMapCanvas.onpointerup=finishMapDrag;currentMapCanvas.onpointercancel=finishMapDrag;currentMapCanvas.onlostpointercapture=finishMapDrag;
+currentMapCanvas.onpointerup=currentPointerEvent=>{currentBrushControls.finishBrushStroke();finishMapDrag(currentPointerEvent);};currentMapCanvas.onpointercancel=currentPointerEvent=>{currentBrushControls.finishBrushStroke(true);finishMapDrag(currentPointerEvent);};currentMapCanvas.onlostpointercapture=finishMapDrag;
 
 if(document.querySelector('#show-character'))document.querySelector('#show-character').onchange=()=>renderBlockMap();
 if(document.querySelector('#actor-shadow-profile'))document.querySelector('#actor-shadow-profile').onchange=currentEvent=>window.mapReviewDisplayOptions(readReviewOption('show-character'),readReviewOption('show-safe-boundary'),readReviewOption('edges'),currentEvent.target.value);

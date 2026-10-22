@@ -17,3 +17,10 @@ export function pickFieldReviewCell(currentScreenPoint,currentFieldFrame){
  }
  return null;
 }
+
+export function pickFieldReviewSurface(currentScreenPoint,currentFieldFrame,currentSideRequired,currentIncludeGeometry=false){
+ for(const currentCellRecord of [...currentFieldFrame.cells].reverse())for(const currentFaceRecord of [...currentCellRecord.faces].reverse()){
+  if(containsSurfacePoint(currentScreenPoint,currentFaceRecord.points))return Boolean(currentFaceRecord.top)!==currentSideRequired?(currentIncludeGeometry?{...currentCellRecord.cell,points:currentFaceRecord.points,kind:currentFaceRecord.top?'바닥':'옆면'}:currentCellRecord.cell):null;
+ }
+ return null;
+}

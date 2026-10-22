@@ -163,6 +163,8 @@ def build_map_review_interface(review_server_port, character_review_enabled=Fals
                 gr.HTML('<h3 id="map-title">캐릭터 표현 검수</h3><p id="status" role="status">맵을 선택한 뒤 맵 불러오기를 누르세요.</p><output id="zoom-level" aria-live="polite"></output>')
             else:
                 current_canvas_toolbar.render()
+                from tools.review.common.gradio_map_brushes import build_map_brush_toolbar
+                current_brush_controls=build_map_brush_toolbar()
                 with gr.Row(equal_height=False):
                     with gr.Column(scale=3,min_width=480):
                         gr.HTML(MAP_REVIEW_CANVAS_MARKUP)
@@ -170,13 +172,13 @@ def build_map_review_interface(review_server_port, character_review_enabled=Fals
                         gr.Markdown('### 상세 제어')
                         with gr.Group(visible=False) as current_editor_column:
                             from tools.review.common.gradio_map_editor import build_map_editor_panel
-                            build_map_editor_panel(current_map_choice)
+                            build_map_editor_panel(current_map_choice,current_brush_controls=current_brush_controls,current_brush_mode=current_interaction_mode)
                         with gr.Accordion('화면 표시 옵션',open=True):
                             current_display_panel.render()
                         current_export_panel.render()
                         current_camera_feedback.render()
                         gr.Markdown('드래그: 화면 이동 · 휠: 확대/축소 · 0: 전체 보기. 편집 모드에서 타일을 선택하고 수정하세요. 모드 전환 시 초안은 유지됩니다.')
-                current_interaction_mode.input(fn=None,inputs=current_interaction_mode,outputs=[current_editor_column,current_camera_feedback,current_interaction_mode],queue=False,js="currentInteractionMode=>{const currentMapKind=new URLSearchParams(location.search).get('mapKind')||'field';const currentEditorEnabled=currentInteractionMode==='edit'&&currentMapKind==='field';window.mapReviewEditingEnabled=currentEditorEnabled;return [{__type__:'update',visible:currentEditorEnabled},currentEditorEnabled?'편집 모드 · 맵에서 타일을 클릭하고 오른쪽에서 선택 셀 가져오기를 누르세요.':currentInteractionMode==='edit'?'현재 야외필드만 편집할 수 있습니다. 도시맵은 미리보기를 사용하세요.':'미리보기 모드 · 초안을 유지하며 맵을 확인합니다.',currentEditorEnabled?'edit':'inspect'];}")
+                current_interaction_mode.input(fn=None,inputs=current_interaction_mode,outputs=[current_editor_column,current_camera_feedback,current_interaction_mode,current_brush_controls[0]],queue=False,js="currentInteractionMode=>{const currentMapKind=new URLSearchParams(location.search).get('mapKind')||'field';const currentEditorEnabled=currentInteractionMode==='edit'&&currentMapKind==='field';window.mapReviewClearHover?.();window.mapReviewEditingEnabled=currentEditorEnabled;return [{__type__:'update',visible:currentEditorEnabled},currentEditorEnabled?'편집 모드 · 맵에서 타일을 클릭하고 오른쪽에서 선택 셀 가져오기를 누르세요.':currentInteractionMode==='edit'?'현재 야외필드만 편집할 수 있습니다. 도시맵은 미리보기를 사용하세요.':'미리보기 모드 · 초안을 유지하며 맵을 확인합니다.',currentEditorEnabled?'edit':'inspect',{__type__:'update',visible:currentEditorEnabled}];}")
             if character_review_enabled:
                 gr.Markdown('PNG 캡처는 현재 바닥·캐릭터 위치·표현 설정을 배율 200%, 표시 영역 768×576에서 내부 해상도 2배인 1536×1152 PNG로 렌더링합니다. 원본·조정본·좌우 비교 3개 파일을 저장합니다.')
                 current_capture_settings=gr.JSON(value={},visible=False)

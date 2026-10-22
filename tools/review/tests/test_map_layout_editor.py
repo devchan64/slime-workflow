@@ -54,3 +54,12 @@ class MapLayoutEditorTests(unittest.TestCase):
         for current_command_name in map_editor.MAP_EDITOR_ALLOWED_COMMANDS:
             self.assertIn(current_command_name,MANAGEMENT_SERVICE_COMMANDS['map-assets'])
             self.assertEqual(MANAGEMENT_COMMAND_ROUTES[current_command_name],('POST','/editor-'+current_command_name))
+    def test_wall_paint_preview_and_save_preserves_floor(self):
+        current_wall_payload={**self.current_input_payload,'cells':[{'column':0,'row':0,'tile':'K','height':0,'blocked':False,'wall':'cliff-wall'}]}
+        with patch('tools.review.common.map_asset_sources.validate_map_cliff_texture',return_value='cliff-wall'):
+            current_preview_record=map_editor.preview_map_editor_changes(current_wall_payload)
+            self.assertEqual(current_preview_record['render']['cliffOverrides'],[{'position':{'column':0,'row':0},'textureKey':'cliff-wall'}])
+            map_editor.save_map_editor_changes({**current_wall_payload,'token':current_preview_record['token']})
+        current_saved_tiles=yaml.safe_load(self.current_source_paths[0].read_text())['data']
+        self.assertEqual(current_saved_tiles['rows'],['KKK']*3)
+        self.assertEqual(current_saved_tiles['cliffOverrides'],current_preview_record['render']['cliffOverrides'])

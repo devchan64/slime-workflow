@@ -8,7 +8,7 @@ from collections import deque
 from pathlib import Path
 import yaml
 from tools.review.common.map_tile_assets import load_registered_tiles, resolve_registered_asset
-from tools.review.common.map_asset_sources import load_registered_map_review, normalize_field_surface_data, MAP_BLOCKED_TERRAIN_NAMES
+from tools.review.common.map_asset_sources import load_registered_map_review, normalize_field_surface_data, MAP_BLOCKED_TERRAIN_NAMES, validate_map_cliff_overrides
 from tools.review.common.sprite_display_properties import apply_sprite_display_properties, collect_billboard_blocked_cells
 from tools.review.domains.map_assets.placement import validate_scenery_object_collisions
 from tools.review.maintenance.sync_billboard_catalog import load_unique_yaml_document, build_catalog_reference
@@ -52,7 +52,7 @@ def validate_map_editor_changes(current_request_payload):
     if not isinstance(current_changed_cells,list) or len(current_changed_cells)>current_column_count*current_row_count:raise ValueError('셀 변경 목록 오류')
     current_seen_positions=set();current_blocked_positions={tuple(current_position) for current_position in current_terrain_data['blocked']}
     for current_cell_record in current_changed_cells:
-        if not isinstance(current_cell_record,dict) or set(current_cell_record)!={'column','row','tile','height','blocked'}:raise ValueError('셀 변경 필드 오류')
+        if not isinstance(current_cell_record,dict) or set(current_cell_record) not in ({'column','row','tile','height','blocked'},{'column','row','tile','height','blocked','wall'}):raise ValueError('셀 변경 필드 오류')
         current_cell_column=current_cell_record['column'];current_cell_row=current_cell_record['row']
         if type(current_cell_column) is not int or type(current_cell_row) is not int or not 0<=current_cell_column<current_column_count or not 0<=current_cell_row<current_row_count:raise ValueError('셀 좌표 범위 오류')
         current_cell_position=(current_cell_column,current_cell_row)
@@ -60,6 +60,10 @@ def validate_map_editor_changes(current_request_payload):
         current_seen_positions.add(current_cell_position)
         if current_cell_record['tile'] not in current_allowed_codes or type(current_cell_record['height']) is not int or not 0<=current_cell_record['height']<=20 or type(current_cell_record['blocked']) is not bool:raise ValueError('타일·고도(0~20)·통행 차단 값 오류')
         if current_allowed_codes[current_cell_record['tile']] in MAP_BLOCKED_TERRAIN_NAMES and not current_cell_record['blocked']:raise ValueError('물·벽·바위 등 차단 타일은 통행 차단을 켜세요.')
+        if 'wall' in current_cell_record:
+            current_wall_records=[current_wall_record for current_wall_record in current_tile_data.get('cliffOverrides',[]) if current_wall_record['position']!={'column':current_cell_column,'row':current_cell_row}]
+            current_wall_records.append({'position':{'column':current_cell_column,'row':current_cell_row},'textureKey':current_cell_record['wall']})
+            current_tile_data['cliffOverrides']=validate_map_cliff_overrides(current_wall_records,current_column_count,current_row_count)
         current_tile_row=list(current_tile_data['rows'][current_cell_row]);current_tile_row[current_cell_column]=current_cell_record['tile'];current_tile_data['rows'][current_cell_row]=''.join(current_tile_row)
         current_terrain_data['elevations'][current_cell_row][current_cell_column]=current_cell_record['height']
         if current_cell_record['blocked']:current_blocked_positions.add(current_cell_position)
@@ -83,6 +87,7 @@ def validate_map_editor_changes(current_request_payload):
     current_tile_data['objects']=current_fixed_objects+copy.deepcopy(current_object_records)
     validate_scenery_object_collisions(current_tile_data['objects'],current_property_data,current_terrain_data['elevations'])
     current_render_record.update(elevations=current_terrain_data['elevations'],terrainRows=current_tile_data['rows'],objects=copy.deepcopy(current_tile_data['objects']),blocked=[{'column':current_column,'row':current_row} for current_column,current_row in current_blocked_positions])
+    current_render_record['cliffOverrides']=copy.deepcopy(current_tile_data.get('cliffOverrides',[]))
     apply_sprite_display_properties(current_render_record,current_property_data)
     current_render_record['spriteProperties']={current_record['textureKey']:current_property_data[current_record['textureKey']] for current_record in current_object_records}
     current_blocked_positions|=collect_billboard_blocked_cells(current_render_record['objects'])

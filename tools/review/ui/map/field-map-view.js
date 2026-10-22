@@ -4,6 +4,12 @@ import * as Phaser from './vendor/field-renderer/__FIELD_RENDERER_VERSION__/phas
 import {FIELD_TILE_BOUNDARY_ALPHA,FIELD_RENDER_METRICS,updateFieldActorOcclusion,resolveGuardDisplayPlacement,projectGuardDisplayCenter,GUARD_CENTER_FOOTPRINT_SIZE,drawTownMaterialEdges,drawFieldCellObjects,drawFieldSceneryObject,resolveFieldSceneryPlacement,resolveFieldSceneryDepth,resolveFieldSurfaceDepth,drawFieldAuraPanel,drawFieldMeshBoundary,buildFieldBoundaryPanels,rotateSurfacePosition} from './vendor/field-renderer/__FIELD_RENDERER_VERSION__/field-renderer.mjs';
 
 const FIELD_REVIEW_ACTOR_DEPTH=TERRAIN_DEPTH.actor;
+const MAP_HOVER_OVERLAY_COLOR=0x66ccff;
+const MAP_HOVER_OVERLAY_ALPHA=0.22;
+const MAP_HOVER_BORDER_WIDTH=2;
+const MAP_HOVER_LABEL_STYLE={fontFamily:'sans-serif',fontSize:'14px',color:'#ffffff',backgroundColor:'#20252b',padding:{x:5,y:3}};
+const MAP_HOVER_LABEL_OFFSET=8;
+const MAP_HOVER_OVERLAY_DEPTH=1000000000;
 const FIELD_REVIEW_TOWER_DEPTH=TERRAIN_DEPTH.overlay;
 const FIELD_REVIEW_TERRAIN_CACHE=new WeakMap();
 
@@ -112,6 +118,8 @@ function resizeReviewViewport(currentFieldGame,currentMapCanvas){
 /** 화면 컨트롤·에셋 로딩은 어댑터, 면·UV·탑·오러 그리기는 공용 라이브러리가 소유한다. */
 export async function createSharedFieldReview(currentMapCanvas,currentTextureImages,currentCharacterImage,currentCharacterRecord,currentGuardImages,currentSafeImages,currentTextureRecords=null,currentSelectedGameKeys={},currentFieldMapMode=false){
  let currentFieldScene;
+ let currentHoverGraphic=null;
+ let currentHoverLabel=null;
  let currentResolveReady;
  let currentRejectReady;
  let currentReviewDisposed=false;
@@ -171,6 +179,10 @@ export async function createSharedFieldReview(currentMapCanvas,currentTextureIma
 
  return {
   async exportWholeMapImage(currentGroundPoints){
+   if(currentHoverGraphic?.scene)currentHoverGraphic.destroy();
+   currentHoverGraphic=null;
+   if(currentHoverLabel?.scene)currentHoverLabel.destroy();
+   currentHoverLabel=null;
    if(currentExportInProgress)throw Error('이미지를 내보내는 중입니다. 완료 후 다시 시도하세요.');
    if(currentReviewDisposed)throw Error('맵 검수 화면이 닫혔습니다.');
    const currentCameraObject=currentFieldScene.cameras.main;
@@ -204,6 +216,35 @@ export async function createSharedFieldReview(currentMapCanvas,currentTextureIma
     currentMapCanvas.style.width='100%';currentMapCanvas.style.height='100%';
     currentExportInProgress=false;
    }
+  },
+  showEditorHover(currentTargetRecord){
+   if(currentHoverGraphic?.scene)currentHoverGraphic.destroy();
+   currentHoverGraphic=null;
+   if(currentHoverLabel?.scene)currentHoverLabel.destroy();
+   currentHoverLabel=null;
+   if(!currentTargetRecord)return;
+   const currentTargetPoints=currentTargetRecord.points;
+   currentHoverGraphic=currentFieldScene.add.graphics().setDepth(MAP_HOVER_OVERLAY_DEPTH);
+   currentHoverGraphic.lineStyle(MAP_HOVER_BORDER_WIDTH/currentFieldScene.cameras.main.zoom*GAME_INTERNAL_RESOLUTION_SCALE,MAP_HOVER_OVERLAY_COLOR,1);
+   currentHoverGraphic.fillStyle(MAP_HOVER_OVERLAY_COLOR,MAP_HOVER_OVERLAY_ALPHA);
+   currentHoverGraphic.fillPoints(currentTargetPoints,true);
+   currentHoverGraphic.strokePoints(currentTargetPoints,true);
+   const currentLabelScale=GAME_INTERNAL_RESOLUTION_SCALE/currentFieldScene.cameras.main.zoom;
+   const currentLabelText=`${currentTargetRecord.kind} (${currentTargetRecord.column}, ${currentTargetRecord.row})${currentTargetRecord.object?' · '+currentTargetRecord.object:''}`;
+   currentHoverLabel=currentFieldScene.add.text(currentTargetPoints.reduce((currentPointSum,currentFacePoint)=>currentPointSum+currentFacePoint.x,0)/currentTargetPoints.length,Math.min(...currentTargetPoints.map(currentFacePoint=>currentFacePoint.y))-MAP_HOVER_LABEL_OFFSET*currentLabelScale,currentLabelText,MAP_HOVER_LABEL_STYLE).setOrigin(0.5,1).setScale(currentLabelScale).setDepth(MAP_HOVER_OVERLAY_DEPTH);
+  },
+  pickEditorBillboard(currentWorldPoint,currentIncludeGeometry=false){
+   const currentSceneryImages=currentFieldScene.children.list.filter(currentRenderImage=>currentRenderImage.getData?.('mapEditorObjectRecord')).sort((currentFirstImage,currentSecondImage)=>currentSecondImage.depth-currentFirstImage.depth);
+   for(const currentRenderImage of currentSceneryImages){
+    const currentImageBounds=currentRenderImage.getBounds();
+    if(!currentImageBounds.contains(currentWorldPoint.x,currentWorldPoint.y))continue;
+    const currentPixelColumn=Math.floor((currentWorldPoint.x-currentImageBounds.x)/currentImageBounds.width*currentRenderImage.frame.width);
+    const currentPixelRow=Math.floor((currentWorldPoint.y-currentImageBounds.y)/currentImageBounds.height*currentRenderImage.frame.height);
+    if(currentFieldScene.textures.getPixelAlpha(currentPixelColumn,currentPixelRow,currentRenderImage.texture.key,currentRenderImage.frame.name)<32)continue;
+    const currentObjectRecord=currentRenderImage.getData('mapEditorObjectRecord');
+    return {...currentObjectRecord.position,object:currentObjectRecord.id,...(currentIncludeGeometry?{kind:'빌보드',points:[{x:currentImageBounds.left,y:currentImageBounds.top},{x:currentImageBounds.right,y:currentImageBounds.top},{x:currentImageBounds.right,y:currentImageBounds.bottom},{x:currentImageBounds.left,y:currentImageBounds.bottom}]}:{})};
+   }
+   return null;
   },
   addEditorTextures(currentNewImages,currentNewGameKeys){
    for(const [currentTextureName,currentTextureImage] of Object.entries(currentNewImages))if(!currentFieldScene.textures.exists(currentTextureName))currentFieldScene.textures.addImage(currentTextureName,currentTextureImage);
@@ -244,7 +285,8 @@ export async function createSharedFieldReview(currentMapCanvas,currentTextureIma
      if(!currentObjectCell)throw Error('지형지물 배치 좌표가 맵 범위를 벗어났습니다.');
      const currentObjectPlacement=resolveFieldSceneryPlacement(currentObjectRecord,currentObjectCell.center,currentFieldFrame.options);
      const currentObjectDepth=resolveFieldSceneryDepth(currentObjectRecord,currentMapRecord,currentFieldFrame.options);
-     drawFieldSceneryObject(currentFieldScene,currentObjectRecord,currentObjectPlacement.screen,currentObjectDepth,'safe-tower',currentFieldFrame.options);
+     const currentSceneryResult=drawFieldSceneryObject(currentFieldScene,currentObjectRecord,currentObjectPlacement.screen,currentObjectDepth,'safe-tower',currentFieldFrame.options);
+     if(currentObjectRecord.kind==='decoration')currentSceneryResult.setData('mapEditorObjectRecord',currentObjectRecord);
     }
     for(const currentGuardRecord of currentMapRecord.guardCenters??[]){
      const currentGuardPlacement=resolveGuardDisplayPlacement(currentGuardRecord.position,currentMapRecord);
