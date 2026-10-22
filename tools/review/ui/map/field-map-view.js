@@ -285,7 +285,7 @@ export async function createSharedFieldReview(currentMapCanvas,currentTextureIma
      if(!currentObjectCell)throw Error('지형지물 배치 좌표가 맵 범위를 벗어났습니다.');
      const currentObjectPlacement=resolveFieldSceneryPlacement(currentObjectRecord,currentObjectCell.center,currentFieldFrame.options);
      const currentObjectDepth=resolveFieldSceneryDepth(currentObjectRecord,currentMapRecord,currentFieldFrame.options);
-     const currentSceneryResult=drawFieldSceneryObject(currentFieldScene,currentObjectRecord,currentObjectPlacement.screen,currentObjectDepth,'safe-tower',currentFieldFrame.options);
+     const currentSceneryResult=drawFieldSceneryObject(currentFieldScene,currentObjectRecord,currentObjectPlacement.screen,currentObjectDepth,'safe-tower',{...currentFieldFrame.options,shadowSurface:currentMapRecord});
      if(currentObjectRecord.kind==='decoration')currentSceneryResult.setData('mapEditorObjectRecord',currentObjectRecord);
     }
     for(const currentGuardRecord of currentMapRecord.guardCenters??[]){
@@ -350,7 +350,7 @@ export async function createSharedFieldReview(currentMapCanvas,currentTextureIma
     }
     for(const currentObjectRecord of currentMapRecord.objects??[]){
      const currentObjectPlacement=resolveFieldSceneryPlacement(currentObjectRecord,currentProjectPosition(currentObjectRecord.position),{tileWidth:currentTileDimensions.width,tileHeight:currentTileDimensions.height,rotation:currentViewSettings.rotation});
-     drawFieldSceneryObject(currentFieldScene,currentObjectRecord,currentObjectPlacement.screen,resolveFieldSceneryDepth(currentObjectRecord,currentMapRecord,{tileWidth:currentTileDimensions.width,tileHeight:currentTileDimensions.height,rotation:currentViewSettings.rotation}),undefined,{tileWidth:currentTileDimensions.width,tileHeight:currentTileDimensions.height,rotation:currentViewSettings.rotation});
+     drawFieldSceneryObject(currentFieldScene,currentObjectRecord,currentObjectPlacement.screen,resolveFieldSceneryDepth(currentObjectRecord,currentMapRecord,{tileWidth:currentTileDimensions.width,tileHeight:currentTileDimensions.height,rotation:currentViewSettings.rotation}),undefined,{tileWidth:currentTileDimensions.width,tileHeight:currentTileDimensions.height,rotation:currentViewSettings.rotation,shadowSurface:currentMapRecord});
     }
     for(const currentBuildingRecord of currentMapRecord.buildings){
      const currentBuildingRegion=drawCityBuildingSprite(currentFieldScene,currentBuildingRecord,currentProjectPosition,currentDepthPosition,mapAnnotationDepth(currentMapRecord),false);
