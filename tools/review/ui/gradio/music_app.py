@@ -5,9 +5,9 @@ import sys
 
 WORKFLOW_ROOT_DIRECTORY = Path(__file__).resolve().parents[4]
 sys.path.insert(0,str(WORKFLOW_ROOT_DIRECTORY))
-import yaml
 import gradio as gr
-from generators.music.contracts import build_music_request, load_music_defaults, resolve_music_profile, validate_music_request, resolve_audio_minimum, MINIMAX_AUDIO_FRAME_RATE, MusicDefaultsLoader
+from generators.music.contracts import build_music_request, load_music_defaults, resolve_music_profile, validate_music_request, resolve_audio_minimum, MINIMAX_AUDIO_FRAME_RATE
+from generators.music.examples import load_music_examples, resolve_music_example
 from tools.review.common.generation_cleanup import GENERATION_CLEANUP_SCOPE_TEXT
 from tools.review.common.management_client import execute_remote_management_command
 from tools.review.common.gradio_seed import build_generation_seed
@@ -33,16 +33,19 @@ def describe_music_prompt(current_service_name,current_prompt_text,current_loop_
     return f'원문 {len(current_prompt_text.split())}단어 · 추가 {len(current_final_prompt.split())-len(current_prompt_text.split())}단어 · 최종 {len(current_final_prompt.split())}단어',current_final_prompt.strip()
 
 
-def load_instrumental_example():
-    """추적된 반주 예제를 검증하고 폼 입력만 반환한다."""
-    current_example_path = WORKFLOW_ROOT_DIRECTORY/'generators/music/instrumental_example.yaml'
-    current_example_record = yaml.load(current_example_path.read_text(encoding='utf-8'),Loader=MusicDefaultsLoader)
-    current_expected_fields = {'prompt','lyrics','duration_seconds','seed','loop_request','min_duration_seconds'}
-    if not isinstance(current_example_record,dict) or set(current_example_record) != current_expected_fields:
-        raise ValueError('반주 예제 필드 오류')
-    current_validated_record = validate_music_request('music-minimax',current_example_record)
-    return (current_validated_record['prompt'],current_validated_record['lyrics'],current_validated_record['duration_seconds'],
-            current_validated_record['seed'],current_validated_record['loop_request'],current_example_record['min_duration_seconds'],False)
+def load_instrumental_example(current_example_identifier='iseulon-bgm'):
+    """선택한 예제의 입력값만 반환하며 실행하지 않는다."""
+    current_example_record = resolve_music_example(current_example_identifier)['request']
+    return (current_example_record['prompt'],current_example_record['lyrics'],current_example_record['duration_seconds'],
+            current_example_record['seed'],current_example_record['loop_request'],current_example_record['min_duration_seconds'],False)
+
+
+def preview_music_example(current_example_identifier):
+    current_example_record = resolve_music_example(current_example_identifier)
+    current_request_record = current_example_record['request']
+    current_summary_text = (current_example_record['description']+f"\n\n상한 {current_request_record['duration_seconds']}초 · 시드 {current_request_record['seed']} · 반복 요청 {current_request_record['loop_request']} · 최소 길이 {current_request_record['min_duration_seconds']}초"
+                            +f"\n\n출처 작업: `{current_example_record['source_generation_id']}` · 원문/최종 prompt {len(current_request_record['prompt'].split())}단어 · lyrics {len(current_request_record['lyrics'].split())}단어")
+    return current_summary_text,current_request_record['prompt'],current_request_record['lyrics']
 
 
 def build_music_interface(current_service_name,current_server_address):
@@ -64,8 +67,16 @@ def build_music_interface(current_service_name,current_server_address):
             with gr.Column() as current_prepare_container:
                 pass
         if not current_effects_mode:
-            current_example_button = gr.Button('반주 예제 불러오기')
-            gr.Markdown('음악 설명·가사 태그·길이 60초·시드 7을 채우고, 반복 요청·최소 길이 강제·이전 방식을 해제합니다. 현재 해당 입력을 덮어쓰며 생성은 실행하지 않습니다.')
+            current_example_records = load_music_examples()
+            with gr.Accordion('예제 프롬프트 목록',open=False):
+                current_example_selector = gr.Dropdown(choices=[(current_example_record['label'],current_example_record['id']) for current_example_record in current_example_records],value=current_example_records[0]['id'],label='예제 선택',allow_custom_value=False)
+                current_example_preview = preview_music_example(current_example_records[0]['id'])
+                current_example_summary = gr.Markdown(current_example_preview[0])
+                current_example_prompt = gr.Textbox(value=current_example_preview[1],label='예제 음악 설명 · 읽기 전용',lines=8,interactive=False)
+                current_example_lyrics = gr.Textbox(value=current_example_preview[2],label='예제 가사·태그 · 읽기 전용',interactive=False)
+                current_example_selector.change(preview_music_example,current_example_selector,[current_example_summary,current_example_prompt,current_example_lyrics],queue=False)
+                current_example_button = gr.Button('선택한 예제를 폼에 불러오기')
+                gr.Markdown('목록 선택은 미리보기만 바꿉니다. 불러오기를 누르면 음악 설명·가사·길이·시드·반복·최소 길이를 덮어쓰고 이전 방식을 해제합니다. 생성은 실행하지 않습니다.')
         current_prompt_control = gr.Textbox(value=current_default_record['prompt'],label=current_prompt_label,lines=4,placeholder='영어로 원하는 소리와 동작을 설명하세요.' if current_effects_mode else '예: Calm fantasy village music with flute and acoustic strings')
         current_vocal_draft = gr.State('')
         current_vocal_control = gr.State('반주') if current_effects_mode else gr.Radio(choices=['반주','보컬'],value='반주',label='음악 유형',info='반주는 가창 없이 생성합니다. 보컬은 가사를 입력하고 음악 설명에도 원하는 목소리를 적어 주세요.')
@@ -73,7 +84,7 @@ def build_music_interface(current_service_name,current_server_address):
         current_prompt_reset = gr.Button('음악 설명만 비우기' if not current_effects_mode else '프롬프트 초기화',size='sm')
         current_prompt_reset.click(lambda:'',outputs=current_prompt_control,queue=False)
         with gr.Row():
-            current_length_control = gr.State(None) if current_effects_mode else gr.Number(value=current_default_record['duration_seconds'],minimum=resolve_audio_minimum(current_service_name),maximum=current_profile_record['max_duration_seconds'],label='audio_duration · 최대 생성 길이(초)',info='5~120초. 예제는 60초입니다. 종료 토큰이 나오면 먼저 끝날 수 있습니다.')
+            current_length_control = gr.State(None) if current_effects_mode else gr.Number(value=current_default_record['duration_seconds'],minimum=resolve_audio_minimum(current_service_name),maximum=current_profile_record['max_duration_seconds'],label='audio_duration · 최대 생성 길이(초)',info='5~120초. 선택한 예제의 상한을 확인하세요. 종료 토큰이 나오면 먼저 끝날 수 있습니다.')
             if not current_effects_mode:
                 current_duration_display = gr.Number(value=current_default_record['duration_seconds']*MINIMAX_AUDIO_FRAME_RATE,label='환산 오디오 프레임 상한 · max_new_tokens',interactive=False)
                 def update_minimax_duration(current_duration_value):
@@ -82,7 +93,7 @@ def build_music_interface(current_service_name,current_server_address):
                 current_length_control.change(update_minimax_duration,current_length_control,current_duration_display,queue=False)
             current_seed_control = build_generation_seed(default_seed_value=current_default_record['seed'])
         if not current_effects_mode:
-            gr.Markdown('**예제 입력** · 음악 설명은 prompt, 가사·구간 태그는 lyrics에 입력합니다. 길이 60초 · 시드 7 · 최소 길이 0 · 이전 방식과 반복 요청 해제.\n\n길이는 `audio_duration`으로 전달합니다. 30초=750프레임, 60초=1,500프레임, 120초=3,000프레임이며 실제 길이를 보장하지 않습니다.')
+            gr.Markdown('**예제 입력** · 음악 설명은 prompt, 가사·구간 태그는 lyrics에 입력합니다. 예제 목록에서 원문과 길이·시드를 확인한 뒤 불러오세요.\n\n길이는 `audio_duration`으로 전달합니다. 30초=750프레임, 60초=1,500프레임, 120초=3,000프레임이며 실제 길이를 보장하지 않습니다.')
         with gr.Accordion('고급 설정 · 이전 입력 호환 / 길이 실험',open=False):
             current_legacy_control = gr.State(True) if current_effects_mode else gr.Checkbox(value=False,label='이전 방식: 반주 문구 자동 추가·가사 고정',info='예제 입력은 해제합니다. 이전 이력을 불러오면 해당 방식이 복원됩니다.')
             current_minimum_control = gr.State(0) if current_effects_mode else gr.Number(value=0,minimum=0,maximum=current_profile_record['max_duration_seconds'],label='실험 · 최소 생성 길이(초)',info='0은 해제. 예: 최소 50초 / 상한 1500프레임(60초). 종료 토큰을 억제합니다. 이전 실험에서 긴 무음이 발생했으므로 기본값 0을 권장합니다. 기존 이력에는 자동 적용하지 않습니다.')
@@ -103,7 +114,7 @@ def build_music_interface(current_service_name,current_server_address):
                 current_mode_source.change(synchronize_music_vocals,[current_lyrics_control,current_vocal_draft,current_legacy_control],[current_vocal_control,current_vocal_draft,current_lyrics_control],queue=False)
 
         if not current_effects_mode:
-            current_example_button.click(load_instrumental_example,outputs=[current_prompt_control,current_lyrics_control,current_length_control,current_seed_control,current_loop_control,current_minimum_control,current_legacy_control],queue=False)
+            current_example_button.click(load_instrumental_example,inputs=current_example_selector,outputs=[current_prompt_control,current_lyrics_control,current_length_control,current_seed_control,current_loop_control,current_minimum_control,current_legacy_control],queue=False)
         current_prompt_counts,current_final_prompt = describe_music_prompt(current_service_name,current_default_record['prompt'],current_default_record['loop_request'] if current_effects_mode else False,current_effects_mode)
         current_prompt_summary = gr.Markdown(current_prompt_counts)
         with gr.Accordion('최종 모델 입력 원문',open=False):

@@ -99,3 +99,7 @@ MiniMax의 `min_duration_seconds` / CLI `--min-duration-seconds`는 기본 0(해
 CLI는 `--lyrics` 또는 `--lyrics-file`을 지원합니다. 예제 조건은 `--duration-seconds 60 --seed 7 --no-loop-request --lyrics-file lyrics.txt`입니다. GUI에서는 audio_duration 60초(환산 1500프레임), 최소 길이 0, 자동 반주 문구·반복 요청 해제를 사용합니다. 조기 종료 가능성은 동일합니다.
 
 로컬 실행은 검증된 Diffusers·CUDA BF16·CPU 메모리 오프로드를 유지합니다. ModelScope 패키지로 교체하지 않습니다. 별도 입력 어댑터는 `prompt`, `lyrics`, `audio_duration`, CUDA 시드, `output=audios`를 전달하고 Tensor 출력을 명시하여 WAV로 저장합니다. 기존 모델 준비 해시는 유지하고 새 어댑터 해시와 실제 입력은 실행 시도별 `input-adapter.json`에 기록합니다.
+
+### 예제 프롬프트 목록
+
+관리화면의 `예제 프롬프트 목록`에서 예제를 선택하면 설명·원문·가사·상한·시드·출처 작업을 조회합니다. `선택한 예제를 폼에 불러오기`는 입력만 변경하며 생성하지 않습니다. `이슬온 BGM`은 작업 `2026-10-22_22-43-46-1124917c`의 순차 편곡 입력(75초 상한, 시드 7)입니다. 이전 반주 예제도 보존합니다. 원본은 `generators/music/examples.yaml`이며, 작업 이력을 지워도 조회할 수 있습니다.
