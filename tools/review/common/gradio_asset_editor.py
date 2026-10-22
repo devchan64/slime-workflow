@@ -1,5 +1,6 @@
 """맵 검수와 공용 에셋 관리가 함께 사용하는 표준 Gradio 편집 컨트롤."""
 from dataclasses import dataclass
+import json
 import gradio as gr
 
 ASSET_RESOLUTION_CHOICES = (128,256,384,512)
@@ -20,8 +21,8 @@ def build_asset_property_inputs(current_automatic_anchor=False):
     return [current_anchor_horizontal,current_anchor_vertical,current_ground_columns,current_ground_rows,current_display_height]
 
 
-def build_asset_preview_canvas(current_canvas_identifier='map-source-size-preview'):
-    return gr.HTML('<canvas id="'+current_canvas_identifier+'" width="768" height="480" aria-label="에셋 표시 크기와 점유 타일 미리보기" style="max-width:100%;height:auto"></canvas>')
+def build_asset_preview_canvas(current_canvas_identifier='map-source-size-preview',current_background_color='transparent'):
+    return gr.HTML('<canvas id="'+current_canvas_identifier+'" width="768" height="480" aria-label="에셋 표시 크기와 점유 타일 미리보기" style="max-width:100%;height:auto;background-color:'+current_background_color+'"></canvas>')
 
 
 def build_asset_shadow_inputs():
@@ -106,7 +107,13 @@ def build_selected_asset_panel(current_canvas_identifier):
             current_preview_kind=gr.Radio(['야외 80×40 · 0.5배','마을·전투 160×80 · 1배'],value='야외 80×40 · 0.5배',label='미리보기 타일 규격')
             current_preview_zoom=gr.Slider(minimum=.5,maximum=4,value=1,step=.5,label='미리보기 확대 배율',info='0.5배 단위로 확대·축소합니다. 에셋 저장 값은 바뀌지 않습니다.')
             current_show_blocking=gr.Checkbox(label='이동금지 영역 보기',value=True,info='차단 타일과 이동할 수 없는 경계를 표시합니다. 저장 값은 바뀌지 않습니다.')
-            build_asset_preview_canvas(current_canvas_identifier)
+            current_background_choice=gr.Radio(['검은색','흰색'],value='검은색',label='미리보기 배경')
+            build_asset_preview_canvas(current_canvas_identifier,'#000000')
+            current_background_choice.change(fn=None,inputs=current_background_choice,outputs=None,queue=False,js='''currentBackgroundChoice=>{
+const currentPreviewRoot=document.querySelector('gradio-app')?.shadowRoot||document;
+const currentPreviewCanvas=currentPreviewRoot.getElementById(__CANVAS_IDENTIFIER__);
+if(currentPreviewCanvas)currentPreviewCanvas.style.backgroundColor=currentBackgroundChoice==='흰색'?'#ffffff':'#000000';
+}'''.replace('__CANVAS_IDENTIFIER__',json.dumps(current_canvas_identifier)))
             current_preview_feedback=gr.Markdown('노랑: 점유 타일 · 파랑: 이미지 경계 · 빨강: 앵커. 이미지의 뿌리·밑동이 타일을 넘는지 확인하세요.')
     return AssetEditorPanelControls(
         current_detail_record=current_detail_record,
