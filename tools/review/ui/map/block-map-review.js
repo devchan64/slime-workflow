@@ -543,7 +543,7 @@ window.mapReviewCreateExportImage=async()=>{
  if(!currentSharedFieldView)throw Error('야외필드·도시맵에서 사용할 수 있습니다.');
  const currentGroundPoints=isFieldMapReview?currentFieldFrame.points:[{column:0,row:0},{column:currentMapRecord.columns,row:0},{column:0,row:currentMapRecord.rows},{column:currentMapRecord.columns,row:currentMapRecord.rows}].map(projectBlockVertex);
  try{
-  renderSharedReviewMap(false,{tileEdges:true,blockedAreas:true});
+  renderSharedReviewMap(false,{tileEdges:readReviewOption('tile-edges'),blockedAreas:false});
   return await currentSharedFieldView.exportWholeMapImage(currentGroundPoints);
  }finally{
   renderBlockMap();
@@ -559,7 +559,7 @@ window.mapReviewExportImage=async()=>{
  currentDownloadLink.textContent=`전체 맵 PNG 다운로드 (${currentExportImage.width}×${currentExportImage.height})`;
  currentDownloadLink.click();
  renderBlockMap();
- return `전체 맵 PNG 저장 · ${currentExportImage.width}×${currentExportImage.height}px · 이동금지 영역·타일 경계 포함`;
+ return `전체 맵 PNG 저장 · ${currentExportImage.width}×${currentExportImage.height}px · 이동금지 영역 제외 · 타일 경계 ${readReviewOption('tile-edges')?'포함':'제외'}`;
 };
 
 if(document.querySelector('#blocked-areas'))document.querySelector('#blocked-areas').onchange=()=>renderBlockMap();

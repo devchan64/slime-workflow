@@ -110,7 +110,7 @@ def build_map_review_interface(review_server_port, character_review_enabled=Fals
                 if not character_review_enabled:
                     with gr.Accordion('PNG 내보내기 · 현재 미리보기',open=False,render=False) as current_export_panel:
                         current_ready_controls.append(build_browser_action_button('전체 맵 PNG 내보내기','mapReviewExportImage','export',current_camera_feedback,current_button_enabled=False))
-                        gr.Markdown('현재 미리보기의 전체 맵을 투명 배경 PNG로 내려받습니다. 미저장 초안도 포함되며 맵 데이터 저장과는 별개입니다. 이동금지 영역·타일 경계를 포함하고 긴 변은 최대 4096px입니다.')
+                        gr.Markdown('현재 미리보기의 전체 맵을 투명 배경 PNG로 내려받습니다. 미저장 초안도 포함되며 맵 데이터 저장과는 별개입니다. 이동금지 영역은 제외하며 타일 경계는 화면 표시 옵션을 따릅니다. 긴 변은 최대 4096px입니다.')
             with gr.Group(render=character_review_enabled) as current_display_panel:
                 current_building_choice=gr.Dropdown(label='건물 선택',choices=[],interactive=False)
                 current_building_choice.input(fn=None,inputs=current_building_choice,outputs=current_camera_feedback,queue=False,js="(currentBuildingIdentifier)=>{try{if(!window.mapReviewFocusBuilding)throw Error('맵을 준비 중입니다.');window.mapReviewFocusBuilding(currentBuildingIdentifier);return '선택한 건물로 이동했습니다.';}catch(currentFocusError){return currentFocusError.message;}}")
