@@ -9,7 +9,7 @@ from tools.review.common.generation_records import write_record_atomically
 
 IMAGE_MEMORY_WORKER_NAMES = {'run_qwen_2512.py', 'run_qwen_2511_three_reference.py', 'run_qwen_21_reference.py'}
 WORKFLOW_ROOT_DIRECTORY = Path(__file__).resolve().parents[3]
-IMAGE_HISTORY_ROOT_PATHS = tuple(WORKFLOW_ROOT_DIRECTORY/current_relative_path for current_relative_path in ('.tmp/test/prop-generator', '.tmp/test/vegetation-generator', '.tmp/test/building-generator', '.tmp/test/qwen-image-2512', '.tmp/test/qwen-image-2512/tile-map', '.tmp/test/qwen-image-2512/floor-tile', '.tmp/test/qwen-image-2511-three-reference', '.tmp/test/qwen-image-21', '.tmp/test/seamless-tile-generator'))
+IMAGE_HISTORY_ROOT_PATHS = tuple(WORKFLOW_ROOT_DIRECTORY/current_relative_path for current_relative_path in ('.tmp/test/billboard-generator', '.tmp/test/prop-generator', '.tmp/test/vegetation-generator', '.tmp/test/building-generator', '.tmp/test/qwen-image-2512', '.tmp/test/qwen-image-2512/tile-map', '.tmp/test/qwen-image-2512/floor-tile', '.tmp/test/qwen-image-2511-three-reference', '.tmp/test/qwen-image-21', '.tmp/test/seamless-tile-generator'))
 
 MEMORY_HISTORY_DIRECTORY = Path(__file__).resolve().parents[3]/'.tmp/gpu-memory-history'
 

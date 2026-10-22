@@ -113,6 +113,7 @@ def ensure_gradio_application(review_server_port, application_name, application_
             'pose-transfer':('pose_transfer_app.py',119,'/management/frame/pose-transfer-generator/'),
             'outfit-transfer':('outfit_transfer_app.py',120,'/management/frame/outfit-transfer-generator/'),
             'vegetation':('vegetation_app.py',134,'/management/frame/vegetation-generator/'),
+            'billboard':('billboard_app.py',137,'/management/frame/billboard-generator/'),
             'prop':('prop_app.py',133,'/management/frame/prop-generator/'),
             'building':('building_app.py',132,'/management/frame/building-generator/'),
             'qwen-21':('qwen_21_app.py',116,'/management/frame/qwen-21-generator/'),

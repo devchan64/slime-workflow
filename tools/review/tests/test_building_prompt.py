@@ -18,18 +18,19 @@ class BuildingPromptContractTests(unittest.TestCase):
         self.assertIn('history-delete', MANAGEMENT_SERVICE_COMMANDS['building-generator'])
 
     def test_asset_generator_storage_isolation(self):
+        from tools.review.domains.image.billboard_generation import BillboardGuideGenerationManager
         from tools.review.domains.image.prop_generation import PropGenerationManager
         from tools.review.domains.image.vegetation_generation import VegetationGenerationManager
         from tools.review.domains.image.building_generation import BuildingGenerationManager
         from tools.review.domains.image.qwen_21_generation import QwenPlainGenerationManager
         from tools.review.domains.image.three_reference_generation import validate_three_reference_job_path
         from tools.review.common.management_gateway import MANAGEMENT_SERVICE_COMMANDS
-        current_service_managers = [PropGenerationManager(), VegetationGenerationManager(), BuildingGenerationManager(), QwenPlainGenerationManager()]
-        self.assertEqual(len({current_service_manager.job_storage_root for current_service_manager in current_service_managers}), 4)
-        self.assertEqual(len({current_service_manager.history_storage_path() for current_service_manager in current_service_managers}), 4)
+        current_service_managers = [BillboardGuideGenerationManager(), PropGenerationManager(), VegetationGenerationManager(), BuildingGenerationManager(), QwenPlainGenerationManager()]
+        self.assertEqual(len({current_service_manager.job_storage_root for current_service_manager in current_service_managers}), 5)
+        self.assertEqual(len({current_service_manager.history_storage_path() for current_service_manager in current_service_managers}), 5)
         for current_service_manager in current_service_managers:
             self.assertEqual(validate_three_reference_job_path(current_service_manager.job_storage_root), current_service_manager.job_storage_root)
-        for current_service_name in ('prop-generator', 'vegetation-generator'):
+        for current_service_name in ('billboard-generator','prop-generator', 'vegetation-generator'):
             self.assertEqual(MANAGEMENT_SERVICE_COMMANDS[current_service_name], MANAGEMENT_SERVICE_COMMANDS['qwen-21'])
 
     def test_layout_and_word_limit(self):

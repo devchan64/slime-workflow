@@ -54,7 +54,7 @@ MANAGEMENT_COMMAND_ROUTES.update({current_command_name:('POST','/sprite-v2/'+cur
 MANAGEMENT_SERVICE_COMMANDS['character-animation'] += SPRITE_V2_COMMAND_NAMES
 
 from generators.music.contracts import AUDIO_SERVICE_NAMES, load_music_defaults
-for current_service_name in ('prop-generator', 'vegetation-generator'):
+for current_service_name in ('billboard-generator','prop-generator', 'vegetation-generator'):
     MANAGEMENT_SERVICE_ROUTES[current_service_name] = '/' + current_service_name
     MANAGEMENT_SERVICE_COMMANDS[current_service_name] = MANAGEMENT_SERVICE_COMMANDS['qwen-21']
 
@@ -203,6 +203,7 @@ MANAGEMENT_COMMAND_DESCRIPTIONS['map-assets']='맵 PNG 축소·빌보드 속성�
 MANAGEMENT_COMMAND_DESCRIPTIONS['map-review']='전체 맵 헤드리스 Chrome PNG 캡처 · --payload-file 설정'
 MANAGEMENT_COMMAND_DESCRIPTIONS['character-review']='캐릭터 검수 렌더링 PNG 캡처 · --payload-file 설정'
 MANAGEMENT_COMMAND_DESCRIPTIONS['anny-landmarks']='ANNY 기준점 후보 지정·축 검수·누적 저장 · --payload-file JSON · 승인·적용 없음'
+MANAGEMENT_COMMAND_DESCRIPTIONS['billboard-generator'] = 'Qwen 가이드 빌보드 생성 · 독립 대기열·이력'
 MANAGEMENT_COMMAND_DESCRIPTIONS['prop-generator'] = 'Qwen 소품 생성 · 독립 대기열·이력 · 참조 선택'
 MANAGEMENT_COMMAND_DESCRIPTIONS['vegetation-generator'] = 'Qwen 자연물 생성 · 독립 대기열·이력 · 참조 선택'
 MANAGEMENT_COMMAND_DESCRIPTIONS['building-generator'] = 'Qwen 건물 생성 · 전용 대기열·이력 · 레이아웃 참조 필수'
@@ -332,10 +333,10 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
                         operation_argument_parser.add_argument('--resolution',type=int,choices=(512,) if service_command_name=='pose-transfer' else (512,768),default=512 if service_command_name=='pose-transfer' else 768,help='VNCCS 512 고정' if service_command_name=='pose-transfer' else '정사각형 해상도 (기본 768)')
                     prompt_argument_group.add_argument('--prompt')
                 prompt_argument_group.add_argument('--prompt-file',type=Path,help='UTF-8 프롬프트 파일')
-                operation_argument_parser.add_argument('--width',type=int,default=None if service_command_name=='seamless-tile' else 512 if service_command_name=='qwen-21-circular' else 768 if service_command_name in ('prop-generator','vegetation-generator','building-generator','qwen-21','pose-transfer','outfit-transfer') else 512 if service_command_name in ('qwen-2511','expression','floor-tile') else 1024)
-                operation_argument_parser.add_argument('--height',type=int,default=None if service_command_name=='seamless-tile' else 512 if service_command_name=='qwen-21-circular' else 768 if service_command_name in ('prop-generator','vegetation-generator','building-generator','qwen-21','pose-transfer','outfit-transfer') else 512 if service_command_name in ('qwen-2511','expression','floor-tile') else 1024)
-                operation_argument_parser.add_argument('--steps',type=int,choices=(25,40) if service_command_name=='pose-transfer' else (20,30,40,50) if service_command_name in ('prop-generator','vegetation-generator','building-generator','qwen-21','qwen-21-circular','outfit-transfer') else (40,) if service_command_name=='seamless-tile' else (4,) if service_command_name=='floor-tile' else (4,30),default=40 if service_command_name in ('seamless-tile','prop-generator','vegetation-generator','building-generator','qwen-21','qwen-21-circular','pose-transfer','outfit-transfer') else 4)
-                if service_command_name in ('prop-generator','vegetation-generator','building-generator','qwen-21'):
+                operation_argument_parser.add_argument('--width',type=int,default=None if service_command_name=='seamless-tile' else 512 if service_command_name=='qwen-21-circular' else 768 if service_command_name in ('billboard-generator','prop-generator','vegetation-generator','building-generator','qwen-21','pose-transfer','outfit-transfer') else 512 if service_command_name in ('qwen-2511','expression','floor-tile') else 1024)
+                operation_argument_parser.add_argument('--height',type=int,default=None if service_command_name=='seamless-tile' else 512 if service_command_name=='qwen-21-circular' else 768 if service_command_name in ('billboard-generator','prop-generator','vegetation-generator','building-generator','qwen-21','pose-transfer','outfit-transfer') else 512 if service_command_name in ('qwen-2511','expression','floor-tile') else 1024)
+                operation_argument_parser.add_argument('--steps',type=int,choices=(25,40) if service_command_name=='pose-transfer' else (20,30,40,50) if service_command_name in ('billboard-generator','prop-generator','vegetation-generator','building-generator','qwen-21','qwen-21-circular','outfit-transfer') else (40,) if service_command_name=='seamless-tile' else (4,) if service_command_name=='floor-tile' else (4,30),default=40 if service_command_name in ('seamless-tile','billboard-generator','prop-generator','vegetation-generator','building-generator','qwen-21','qwen-21-circular','pose-transfer','outfit-transfer') else 4)
+                if service_command_name in ('billboard-generator','prop-generator','vegetation-generator','building-generator','qwen-21'):
                     operation_argument_parser.add_argument('--common-style', action=argparse.BooleanOptionalAction, default=False, help='SLIME 공용 화풍 추가')
                     operation_argument_parser.add_argument('--transparent-background', action=argparse.BooleanOptionalAction, default=False, help='네이티브 RGBA 투명 배경 요청')
                 if service_command_name == 'qwen-21-circular':
@@ -344,11 +345,11 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
                     operation_argument_parser.add_argument('--soft-shading', action=argparse.BooleanOptionalAction, default=False, help='부드러운 음영 일러스트 영문 지시 추가')
                     operation_argument_parser.add_argument('--circular-radius', type=int, choices=(4,8,12,16,24), default=12, help='순환 참조 반경 · 토큰')
                 from generators.image.vnccs_profile import VNCCS_DEFAULT_SEED
-                operation_argument_parser.add_argument('--seed',type=int,default=VNCCS_DEFAULT_SEED if service_command_name == 'pose-transfer' else 10107 if service_command_name in ('qwen-2511','expression','seamless-tile','prop-generator','vegetation-generator','building-generator','qwen-21','qwen-21-circular','outfit-transfer') else 251204)
+                operation_argument_parser.add_argument('--seed',type=int,default=VNCCS_DEFAULT_SEED if service_command_name == 'pose-transfer' else 10107 if service_command_name in ('qwen-2511','expression','seamless-tile','billboard-generator','prop-generator','vegetation-generator','building-generator','qwen-21','qwen-21-circular','outfit-transfer') else 251204)
                 if service_command_name=='floor-tile':
                     operation_argument_parser.add_argument('--add-margins',action=argparse.BooleanOptionalAction,default=None,help='빈 여백 추가 ON/OFF (--no-add-margins로 OFF, 생략 시 서버 기본값)')
-                if service_command_name in ('qwen-2511','expression','seamless-tile','prop-generator','vegetation-generator','building-generator','qwen-21','qwen-21-circular','pose-transfer','outfit-transfer'):
-                    operation_argument_parser.add_argument('--reference',type=Path,action='append',default=[],help='임의 해상도의 불투명 RGB/RGBA PNG, 장당 3MB 이하, 최대 '+('10' if service_command_name in ('prop-generator','vegetation-generator','building-generator','qwen-21','qwen-21-circular','pose-transfer','outfit-transfer') else '3')+'장')
+                if service_command_name in ('qwen-2511','expression','seamless-tile','billboard-generator','prop-generator','vegetation-generator','building-generator','qwen-21','qwen-21-circular','pose-transfer','outfit-transfer'):
+                    operation_argument_parser.add_argument('--reference',type=Path,action='append',default=[],help='임의 해상도의 불투명 RGB/RGBA PNG, 장당 3MB 이하, 최대 '+('10' if service_command_name in ('billboard-generator','prop-generator','vegetation-generator','building-generator','qwen-21','qwen-21-circular','pose-transfer','outfit-transfer') else '3')+'장')
     command_argument_values=command_argument_parser.parse_args(command_argument_list)
     server_base_address=command_argument_values.server_url
     if server_base_address is not None:
@@ -431,7 +432,7 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
                 command_payload_value['user_prompt']=command_payload_value.pop('prompt')
                 if command_argument_values.add_margins is not None:
                     command_payload_value['add_margins']=command_argument_values.add_margins
-            if service_command_name in ('prop-generator','vegetation-generator','building-generator','qwen-21'):
+            if service_command_name in ('billboard-generator','prop-generator','vegetation-generator','building-generator','qwen-21'):
                 command_payload_value['common_style'] = command_argument_values.common_style
                 command_payload_value['transparent_background'] = command_argument_values.transparent_background
             if service_command_name == 'qwen-21-circular':
@@ -439,10 +440,10 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
                 command_payload_value['soft_shading'] = command_argument_values.soft_shading
                 command_payload_value['pattern_view'] = command_argument_values.pattern_view
                 command_payload_value['baseline_decode'] = command_argument_values.baseline_decode
-            if service_command_name in ('qwen-2511','expression','seamless-tile','prop-generator','vegetation-generator','building-generator','qwen-21','qwen-21-circular','pose-transfer','outfit-transfer'):
+            if service_command_name in ('qwen-2511','expression','seamless-tile','billboard-generator','prop-generator','vegetation-generator','building-generator','qwen-21','qwen-21-circular','pose-transfer','outfit-transfer'):
                 if service_command_name in ('pose-transfer','outfit-transfer') and len(command_argument_values.reference) != 2:
                     raise ValueError('바디 이미지와 아웃핏 이미지를 --reference로 순서대로 지정하세요.' if service_command_name == 'outfit-transfer' else '아이덴티티 이미지 1장과 포즈 이미지 1장이 필요합니다. --reference를 순서대로 두 번 지정하세요.')
-                maximum_reference_count = 10 if service_command_name in ('prop-generator','vegetation-generator','building-generator','qwen-21','qwen-21-circular','pose-transfer','outfit-transfer') else 3
+                maximum_reference_count = 10 if service_command_name in ('billboard-generator','prop-generator','vegetation-generator','building-generator','qwen-21','qwen-21-circular','pose-transfer','outfit-transfer') else 3
                 if len(command_argument_values.reference) > maximum_reference_count:
                     raise ValueError(f'참조 이미지는 최대 {maximum_reference_count}장입니다.')
                 command_payload_value['images']=[]

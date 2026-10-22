@@ -18,6 +18,15 @@ COMMAND_MODULE_SPEC.loader.exec_module(COMMAND_MODULE_VALUE)
 
 
 class QwenCommandsTest(unittest.TestCase):
+    def test_billboard_generation_service_route(self):
+        with patch.object(COMMAND_MODULE_VALUE,'call_management_api',return_value={'id':'isolated','status':'queued'}) as current_api_mock, contextlib.redirect_stdout(io.StringIO()):
+            COMMAND_MODULE_VALUE.execute_gateway_arguments('billboard-generator',['generate','--prompt','Quartz rock','--detach'])
+        current_request_arguments=current_api_mock.call_args.args
+        self.assertEqual(current_request_arguments[1],'/billboard-generator/jobs')
+        self.assertEqual(current_request_arguments[2]['steps'],40)
+        self.assertEqual(current_request_arguments[2]['width'],768)
+        self.assertIn('images',current_request_arguments[2])
+
     def test_prompt_options_reject_duplicate_configuration_keys(self):
         from generators.image.qwen_21_prompt_options import load_qwen_prompt_options, compose_qwen_option_prompt
         with tempfile.TemporaryDirectory() as current_directory_name:

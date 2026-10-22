@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+<rect width="1024" height="1024" fill="white"/>
+<polygon points="642.0,467.0 512.0,532.0 512.0,622.0 642.0,557.0" fill="#c9d0d5"/>
+<polygon points="512.0,532.0 382.0,467.0 382.0,557.0 512.0,622.0" fill="#e0e5e9"/>
+<polygon points="512.0,402.0 642.0,467.0 512.0,532.0 382.0,467.0" fill="#f1f4f6"/>
+<polyline points="512.0,402.0 642.0,467.0 512.0,532.0 382.0,467.0 512.0,402.0" fill="none" stroke="#a6afb6" stroke-width="2" stroke-dasharray="9 7"/>
+<polyline points="642.0,467.0 642.0,557.0" fill="none" stroke="#a6afb6" stroke-width="2" stroke-dasharray="9 7"/>
+<polyline points="512.0,532.0 512.0,622.0" fill="none" stroke="#a6afb6" stroke-width="2" stroke-dasharray="9 7"/>
+<polyline points="382.0,467.0 382.0,557.0" fill="none" stroke="#a6afb6" stroke-width="2" stroke-dasharray="9 7"/>
+<polyline points="512.0,402.0 512.0,492.0" fill="none" stroke="#83939f" stroke-width="2" stroke-dasharray="9 7"/>
+<polygon points="512.0,492.0 512.0,418.2 535.4,419.1 558.8,438.0 584.8,438.4 612.1,461.04999999999995 642.0,485.0 642.0,557.0" fill="#b5d1c5"/>
+<polygon points="423.6,473.20000000000005 428.8,489.5 465.2,501.90000000000003 482.1,505.95 521.1,522.75 554.9,542.9499999999999 512.0,622.0 382.0,557.0" fill="#bccbd5"/>
+<polygon points="642.0,485.0 554.9,542.9499999999999 512.0,622.0 642.0,557.0" fill="#9eafb9"/>
+<polygon points="512.0,418.2 423.6,473.20000000000005 382.0,557.0 512.0,492.0" fill="#cbd7de"/>
+<polygon points="512.0,418.2 535.4,419.1 558.8,438.0 584.8,438.4 612.1,461.04999999999995 642.0,485.0 554.9,542.9499999999999 521.1,522.75 482.1,505.95 465.2,501.90000000000003 428.8,489.5 423.6,473.20000000000005" fill="#e2e9ed"/>
+<polyline points="512.0,418.2 535.4,419.1 558.8,438.0 584.8,438.4 612.1,461.04999999999995 642.0,485.0" fill="none" stroke="#497b65" stroke-width="4"/>
+<polyline points="423.6,473.20000000000005 428.8,489.5 465.2,501.90000000000003 482.1,505.95 521.1,522.75 554.9,542.9499999999999" fill="none" stroke="#536975" stroke-width="3"/>
+<polyline points="423.6,473.20000000000005 382.0,557.0 512.0,622.0 554.9,542.9499999999999" fill="none" stroke="#536975" stroke-width="3"/>
+<polyline points="512.0,492.0 382.0,557.0" fill="none" stroke="#1488b8" stroke-width="3" stroke-dasharray="9 7"/>
+<polyline points="642.0,557.0 512.0,622.0" fill="none" stroke="#1488b8" stroke-width="3"/>
+<polyline points="512.0,492.0 642.0,557.0" fill="none" stroke="#1488b8" stroke-width="3" stroke-dasharray="9 7"/>
+<polyline points="382.0,557.0 512.0,622.0" fill="none" stroke="#1488b8" stroke-width="3"/>
+</svg>

@@ -1,0 +1,1 @@
+Isometric game billboard of {subject}. Match reference footprint and orientation. Fill roughly 80% of the guide volume with irregular natural contours, widening toward a broad grounded base. {contact} Detailed faceted material, neutral upper-left lighting. Isolated transparent background. Omit guide lines, box surfaces, floor, cast shadows and glow.
