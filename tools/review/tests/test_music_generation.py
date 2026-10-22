@@ -26,7 +26,7 @@ class MusicGenerationTests(unittest.TestCase):
                     current_interface_blocks=music_app.build_music_interface(current_service_name,'http://127.0.0.1:8798')
                     current_restore_callback=next(current_event.fn for current_event in current_interface_blocks.fns.values() if current_event.fn and current_event.fn.__name__=='restore_selected_inputs')
                     current_restored_values=current_restore_callback('isolated-music')
-                    self.assertEqual(tuple(current_restored_values[:6]),('soft flute',375,77,True,'복원 검증','isolated-music'))
+                    self.assertEqual(tuple(current_restored_values[:6]),('soft flute',15,77,True,'복원 검증','isolated-music'))
                     self.assertEqual(tuple(current_restored_values[7:9]),('[Instrumental]',True))
                     current_history_record['request'] = build_music_request(current_service_name,{'prompt':'soft flute','lyrics':'[verse] Morning light','duration_seconds':15})
                     current_new_restore = current_restore_callback('isolated-music')
@@ -60,10 +60,10 @@ class MusicGenerationTests(unittest.TestCase):
         with patch.object(music_app,'execute_remote_management_command',return_value={'id':'test-only'}) as current_command_mock, patch.object(music_app,'bind_gpu_generation_confirmation') as current_bind_mock:
             current_interface_blocks = music_app.build_music_interface('music-minimax','http://127.0.0.1:8798')
             current_start_callback = next(current_call.args[1] for current_call in current_bind_mock.call_args_list if current_call.args[1].__name__=='start_music_generation')
-            current_start_callback('soft flute',751,42,False,'test')
-            self.assertEqual(current_command_mock.call_args.args[2]['max_new_tokens'],751)
-            self.assertNotIn('duration_seconds',current_command_mock.call_args.args[2])
-            current_start_callback('acoustic pop',1500,7,False,'example',0,'[verse] Morning light',False)
+            current_start_callback('soft flute',30.04,42,False,'test')
+            self.assertEqual(current_command_mock.call_args.args[2]['duration_seconds'],30.04)
+            self.assertNotIn('max_new_tokens',current_command_mock.call_args.args[2])
+            current_start_callback('acoustic pop',60,7,False,'example',0,'[verse] Morning light',False)
             self.assertEqual(current_command_mock.call_args.args[2]['lyrics'],'[verse] Morning light')
 
     def setUp(self):

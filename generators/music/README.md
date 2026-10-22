@@ -96,6 +96,6 @@ MiniMax의 `min_duration_seconds` / CLI `--min-duration-seconds`는 기본 0(해
 
 `lyrics`를 지정하면 `prompt`에 반주 문구를 자동 추가하지 않습니다. `loop_request=false`이면 입력 설명을 그대로 전달합니다(앞뒤 공백 제외). 반주는 `[Instrumental]`, 보컬은 `[verse]`·`[chorus]`와 가사를 별도 입력합니다. 가사 생략은 기존 이력의 반주 고정·문구 추가 계약을 유지합니다. GUI의 ‘이전 방식’은 기존 이력 복원용입니다.
 
-CLI는 `--lyrics` 또는 `--lyrics-file`을 지원합니다. 예제 조건은 `--duration-seconds 60 --seed 7 --no-loop-request --lyrics-file lyrics.txt`입니다. GUI에서는 1500프레임=60초, 최소 길이 0, 자동 반주 문구·반복 요청 해제를 사용합니다. 조기 종료 가능성은 동일합니다.
+CLI는 `--lyrics` 또는 `--lyrics-file`을 지원합니다. 예제 조건은 `--duration-seconds 60 --seed 7 --no-loop-request --lyrics-file lyrics.txt`입니다. GUI에서는 audio_duration 60초(환산 1500프레임), 최소 길이 0, 자동 반주 문구·반복 요청 해제를 사용합니다. 조기 종료 가능성은 동일합니다.
 
 로컬 실행은 검증된 Diffusers·CUDA BF16·CPU 메모리 오프로드를 유지합니다. ModelScope 패키지로 교체하지 않습니다. 별도 입력 어댑터는 `prompt`, `lyrics`, `audio_duration`, CUDA 시드, `output=audios`를 전달하고 Tensor 출력을 명시하여 WAV로 저장합니다. 기존 모델 준비 해시는 유지하고 새 어댑터 해시와 실제 입력은 실행 시도별 `input-adapter.json`에 기록합니다.
