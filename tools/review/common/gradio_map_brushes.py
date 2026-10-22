@@ -6,7 +6,7 @@ import gradio as gr
 from tools.review.common.map_asset_sources import MAP_BLOCKED_TERRAIN_NAMES
 from tools.review.maintenance.sync_billboard_catalog import load_unique_yaml_document
 
-MAP_BRUSH_TOOL_LABELS=(('pan','화면 이동'),('floor','바닥 페인팅'),('wall','옆면 페인팅'),('delete-cell','타일 빌보드 삭제'),('delete','빌보드 삭제'),('raise','높이 +1'),('lower','높이 −1'))
+MAP_BRUSH_TOOL_LABELS=(('pan','화면 이동'),('floor','바닥 페인팅'),('wall','옆면 페인팅'),('place','빌보드 배치'),('delete','빌보드 삭제'),('raise','높이 +1'),('lower','높이 −1'))
 
 
 def build_map_brush_toolbar():
@@ -22,12 +22,14 @@ def build_map_brush_toolbar():
         with gr.Row():
             current_floor_choice=gr.Dropdown(label='페인팅할 바닥 타일',choices=[],info='바닥 도구에서 썸네일 선택기를 여세요.',interactive=False,visible=False)
             current_wall_choice=gr.Dropdown(label='페인팅할 옆면 타일',choices=current_wall_choices,value=current_wall_choices[0] if current_wall_choices else None,interactive=False,visible=False)
+        current_billboard_choice=gr.Dropdown(label='배치할 빌보드',choices=[],interactive=False,visible=False,info='빌보드 선택기에서 에셋을 선택한 뒤 맵을 클릭하거나 드래그하세요.')
+        current_billboard_picker=build_map_asset_picker('빌보드',gr.Button('빌보드 선택기 열기',visible=False))
         current_floor_picker=build_map_asset_picker('바닥 타일',gr.Button('바닥 타일 선택기 열기',visible=False))
         current_wall_picker=build_map_asset_picker('옆면 타일',gr.Button('옆면 타일 선택기 열기',visible=False))
         current_brush_bridge=gr.HTML('',js_on_load="window.mapReviewBrushListener?.abort();window.mapReviewBrushListener=new AbortController();window.addEventListener('map-editor-brush',()=>trigger('click'),{signal:window.mapReviewBrushListener.signal});",min_height=0)
     for current_tool_button,(current_tool_name,current_tool_label) in zip(current_tool_buttons,MAP_BRUSH_TOOL_LABELS):
-        current_tool_button.click(fn=None,outputs=[*current_tool_buttons,current_brush_status,current_floor_choice,current_wall_choice,current_floor_picker[0],current_wall_picker[0],current_floor_picker[1],current_wall_picker[1]],queue=False,js="()=>{const currentToolNames="+json.dumps([current_tool_name for current_tool_name,_ in MAP_BRUSH_TOOL_LABELS])+";const currentToolLabels="+json.dumps(dict(MAP_BRUSH_TOOL_LABELS),ensure_ascii=False)+";const currentRequestedTool="+json.dumps(current_tool_name)+";window.mapReviewClearHover?.();window.mapReviewBrushTool=window.mapReviewBrushTool===currentRequestedTool?'pan':currentRequestedTool;return [...currentToolNames.map(currentToolName=>({__type__:'update',variant:currentToolName===window.mapReviewBrushTool?'primary':'secondary'})),currentToolLabels[window.mapReviewBrushTool]+' · 클릭하거나 드래그하여 반복 적용합니다. 같은 도구를 다시 누르면 화면 이동으로 전환됩니다.',...['floor','wall','floor','wall'].map(currentPickerTool=>({__type__:'update',visible:window.mapReviewBrushTool===currentPickerTool})),{__type__:'update',visible:false},{__type__:'update',visible:false}];}")
-    return current_brush_group,current_brush_bridge,current_floor_choice,current_wall_choice,current_floor_picker,current_wall_picker
+        current_tool_button.click(fn=None,outputs=[*current_tool_buttons,current_brush_status,current_floor_choice,current_wall_choice,current_billboard_choice,current_floor_picker[0],current_wall_picker[0],current_billboard_picker[0],current_floor_picker[1],current_wall_picker[1],current_billboard_picker[1]],queue=False,js="()=>{const currentToolNames="+json.dumps([current_tool_name for current_tool_name,_ in MAP_BRUSH_TOOL_LABELS])+";const currentToolLabels="+json.dumps(dict(MAP_BRUSH_TOOL_LABELS),ensure_ascii=False)+";const currentRequestedTool="+json.dumps(current_tool_name)+";window.mapReviewClearHover?.();window.mapReviewBrushTool=window.mapReviewBrushTool===currentRequestedTool?'pan':currentRequestedTool;return [...currentToolNames.map(currentToolName=>({__type__:'update',variant:currentToolName===window.mapReviewBrushTool?'primary':'secondary'})),currentToolLabels[window.mapReviewBrushTool]+' · 클릭하거나 드래그하여 반복 적용합니다. 같은 도구를 다시 누르면 화면 이동으로 전환됩니다.',...['floor','wall','place','floor','wall','place'].map(currentPickerTool=>({__type__:'update',visible:window.mapReviewBrushTool===currentPickerTool})),{__type__:'update',visible:false},{__type__:'update',visible:false},{__type__:'update',visible:false}];}")
+    return current_brush_group,current_brush_bridge,current_floor_choice,current_wall_choice,current_floor_picker,current_wall_picker,current_billboard_choice,current_billboard_picker
 
 
 def apply_map_brush_batch(current_map_identifier,current_editor_state,current_brush_events):
@@ -44,6 +46,10 @@ def apply_map_brush_batch(current_map_identifier,current_editor_state,current_br
         if type(current_column_index) is not int or type(current_row_index) is not int:raise ValueError('페인팅 좌표는 정수여야 합니다.')
         current_tile_value,current_height_value,current_blocked_value,_=read_map_edit_cell(current_next_state,current_column_index,current_row_index)
         current_draft_payload=current_next_state['draft']
+        if current_tool_name=='place':
+            from tools.review.common.gradio_map_editor import append_map_billboard_draft
+            append_map_billboard_draft(current_next_state,current_column_index,current_row_index,current_brush_record.get('texture'))
+            continue
         if current_tool_name in ('delete','delete-cell'):
             current_draft_payload['objects']=[current_object_record for current_object_record in current_draft_payload['objects'] if not (current_object_record['id']==current_brush_record.get('object') if current_tool_name=='delete' else current_object_record['position']=={'column':current_column_index,'row':current_row_index})]
             continue

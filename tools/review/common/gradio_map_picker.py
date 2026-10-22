@@ -11,6 +11,7 @@ MAP_PICKER_COLUMN_COUNT=5
 MAP_PICKER_ROW_COUNT=1
 MAP_PICKER_PAGE_SIZE=MAP_PICKER_COLUMN_COUNT*MAP_PICKER_ROW_COUNT
 MAP_PICKER_THUMBNAIL_SIZE=(160,160)
+MAP_PICKER_GALLERY_HEIGHT=200
 MAP_PICKER_CATALOG_PATH=Path(__file__).resolve().parents[1]/'ui/map/config/tile-catalog.yaml'
 
 
@@ -52,7 +53,7 @@ def build_map_asset_picker(current_picker_label,current_open_button=None):
     with gr.Group(visible=False) as current_picker_group:
         gr.Markdown('### '+current_picker_label+' 선택\n썸네일을 누르면 선택하고 닫습니다. 선택만으로 맵을 변경하지 않습니다.')
         current_search_input=gr.Textbox(label=current_picker_label+' 검색',placeholder='이름 또는 ID 검색')
-        current_asset_gallery=gr.Gallery(value=[],label=current_picker_label+' 목록',columns=MAP_PICKER_COLUMN_COUNT,rows=MAP_PICKER_ROW_COUNT,object_fit='contain',height='auto',allow_preview=False,interactive=False)
+        current_asset_gallery=gr.Gallery(value=[],label=current_picker_label+' 목록',columns=MAP_PICKER_COLUMN_COUNT,rows=MAP_PICKER_ROW_COUNT,object_fit='contain',height=MAP_PICKER_GALLERY_HEIGHT,allow_preview=False,interactive=False)
         current_page_status=gr.Markdown()
         with gr.Row():
             current_previous_button=gr.Button('이전 페이지',interactive=False)

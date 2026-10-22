@@ -25,6 +25,22 @@ class MapBrushToolTests(unittest.TestCase):
         self.assertEqual([current_object_record['id'] for current_object_record in current_one_state['draft']['objects']],['two','other'])
         current_cell_state=apply_map_brush_batch('sample',self.current_editor_state,[{'tool':'delete-cell','column':0,'row':0}])[0]
         self.assertEqual([current_object_record['id'] for current_object_record in current_cell_state['draft']['objects']],['other'])
+    def test_place_stroke_shares_one_history_and_unique_ids(self):
+        from tools.review.common.gradio_map_editor import change_map_edit_draft
+        self.current_editor_state['snapshot']['textures']=['quartz']
+        current_original_draft=copy.deepcopy(self.current_editor_state['draft'])
+        current_result_state=apply_map_brush_batch('sample',self.current_editor_state,[{'tool':'place','column':0,'row':0,'texture':'quartz'},{'tool':'place','column':1,'row':0,'texture':'quartz'}])[0]
+        self.assertEqual(current_result_state['draft']['cells'],[])
+        self.assertEqual(len(current_result_state['history']),1)
+        current_added_records=current_result_state['draft']['objects'][-2:]
+        self.assertEqual(len({current_record['id'] for current_record in current_added_records}),2)
+        self.assertEqual([current_record['position']['column'] for current_record in current_added_records],[0,1])
+        current_undone_state=change_map_edit_draft(current_result_state,'undo',None,None,None,None,False,None,None)[0]
+        self.assertEqual(current_undone_state['draft'],current_original_draft)
+        current_redone_state=change_map_edit_draft(current_undone_state,'redo',None,None,None,None,False,None,None)[0]
+        self.assertEqual(current_redone_state['draft'],current_result_state['draft'])
+        with self.assertRaisesRegex(Exception,'빌보드'):apply_map_brush_batch('sample',self.current_editor_state,[{'tool':'place','column':0,'row':0,'texture':'invalid'}])
+        self.assertEqual(self.current_editor_state['draft'],current_original_draft)
     def test_wall_paint_keeps_floor(self):
         with patch('tools.review.common.map_asset_sources.validate_map_cliff_texture',return_value='cliff-wall'):
             current_result_state=apply_map_brush_batch('sample',self.current_editor_state,[{'tool':'wall','column':0,'row':0,'wall':'cliff-wall'}])[0]

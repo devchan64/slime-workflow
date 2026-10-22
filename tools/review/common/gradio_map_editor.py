@@ -40,6 +40,16 @@ def select_map_editor_cell(current_map_identifier,current_editor_state,current_c
     return current_editor_state,current_cell_column,current_cell_row,current_tile_update,current_height_value,current_blocked_value,current_status_text,gr.update(choices=current_snapshot_record['textures']),gr.update(choices=[current_record['id'] for current_record in current_object_records],value=current_selected_identifier)
 
 
+def append_map_billboard_draft(current_editor_state,current_column_index,current_row_index,current_texture_identifier):
+    """상세 편집과 반복 배치에서 동일한 에셋 검증·배치 ID를 사용한다."""
+    current_draft_payload=current_editor_state['draft']
+    if current_texture_identifier not in current_editor_state['snapshot']['textures']:raise gr.Error('추가할 빌보드 에셋을 선택하세요.')
+    current_next_index=1
+    current_used_identifiers={current_record['id'] for current_record in current_draft_payload['objects']}
+    while f'editor-billboard-{current_next_index}' in current_used_identifiers:current_next_index+=1
+    current_draft_payload['objects'].append({'id':f'editor-billboard-{current_next_index}','kind':'decoration','position':{'column':current_column_index,'row':current_row_index},'textureKey':current_texture_identifier,'tileAnchor':'center'})
+
+
 def change_map_edit_draft(current_editor_state,current_action_name,current_cell_column,current_cell_row,current_tile_code,current_height_value,current_blocked_value,current_object_identifier,current_texture_identifier):
     if not current_editor_state:raise gr.Error('편집 원본을 먼저 불러오세요.')
     current_next_state=copy.deepcopy(current_editor_state)
@@ -69,11 +79,7 @@ def change_map_edit_draft(current_editor_state,current_action_name,current_cell_
             if not current_cell_objects:raise gr.Error('선택한 타일에 배치된 빌보드가 없습니다. 좌표의 셀 읽기로 대상을 확인하세요.')
             current_draft_payload['objects']=[current_record for current_record in current_draft_payload['objects'] if current_record not in current_cell_objects]
         elif current_action_name=='add':
-            if current_texture_identifier not in current_next_state['snapshot']['textures']:raise gr.Error('추가할 빌보드 에셋을 선택하세요.')
-            current_next_index=1
-            current_used_identifiers={current_record['id'] for current_record in current_draft_payload['objects']}
-            while f'editor-billboard-{current_next_index}' in current_used_identifiers:current_next_index+=1
-            current_draft_payload['objects'].append({'id':f'editor-billboard-{current_next_index}','kind':'decoration','position':{'column':current_column_index,'row':current_row_index},'textureKey':current_texture_identifier,'tileAnchor':'center'})
+            append_map_billboard_draft(current_next_state,current_column_index,current_row_index,current_texture_identifier)
         elif current_action_name in ('move','delete'):
             current_selected_record=next((current_record for current_record in current_draft_payload['objects'] if current_record['id']==current_object_identifier),None)
             if current_selected_record is None:raise gr.Error('편집할 배치 ID를 선택하세요.')
@@ -221,7 +227,9 @@ def build_map_editor_panel(current_map_choice,current_interaction_mode=None,curr
 
         if current_brush_controls is not None:
             from tools.review.common.gradio_map_brushes import apply_map_brush_batch
-            _,current_brush_bridge,current_floor_choice,current_wall_choice,current_floor_picker,current_wall_picker=current_brush_controls
+            _,current_brush_bridge,current_floor_choice,current_wall_choice,current_floor_picker,current_wall_picker,current_billboard_choice,current_billboard_picker=current_brush_controls
+            bind_map_asset_picker(current_billboard_picker,current_editor_state,'billboard',current_billboard_choice)
+            current_billboard_choice.change(fn=None,inputs=current_billboard_choice,queue=False,js="currentBillboardTexture=>{window.mapReviewBrushTexture=currentBillboardTexture;}")
             bind_map_asset_picker(current_floor_picker,current_editor_state,'floor',current_floor_choice)
             bind_map_asset_picker(current_wall_picker,current_editor_state,'wall',current_wall_choice)
             def prepare_map_brush_state(current_map_identifier,current_draft_state,current_saved_record):
