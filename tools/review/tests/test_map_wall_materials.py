@@ -1,8 +1,19 @@
 """맵별 벽면 재질 선택 계약을 검증한다."""
 import unittest
+from unittest.mock import patch
 from tools.review.common.map_asset_sources import validate_map_cliff_texture, load_registered_map_review
 
 class MapWallMaterialTests(unittest.TestCase):
+    def test_repeated_wall_texture_validation(self):
+        from tools.review.common.map_asset_sources import validate_map_cliff_overrides
+        current_wall_records = [{'position': {'column': current_column_index, 'row': 0}, 'textureKey': 'cliff-wall'} for current_column_index in range(4)]
+        with patch('tools.review.common.map_asset_sources.validate_map_cliff_texture') as current_texture_validator:
+            validate_map_cliff_overrides(current_wall_records, 4, 4)
+            current_texture_validator.assert_called_once_with('cliff-wall')
+        current_wall_records[-1]['textureKey'] = 'unknown-wall'
+        with self.assertRaises(ValueError):
+            validate_map_cliff_overrides(current_wall_records, 4, 4)
+
     def test_registered_wall_selection(self):
         self.assertEqual(validate_map_cliff_texture('cliff-wall'),'cliff-wall')
         self.assertEqual(validate_map_cliff_texture('quarry-limestone-wall-v1'),'quarry-limestone-wall-v1')

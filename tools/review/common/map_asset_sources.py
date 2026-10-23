@@ -179,6 +179,7 @@ def validate_map_cliff_overrides(current_wall_records, current_column_count, cur
     if not isinstance(current_wall_records, list):
         raise ValueError('벽면 배치는 목록이어야 합니다.')
     current_seen_positions = set()
+    current_validated_textures = set()
     for current_wall_record in current_wall_records:
         if not isinstance(current_wall_record, dict) or set(current_wall_record) != {'position', 'textureKey'}:
             raise ValueError('벽면 배치 필드가 올바르지 않습니다.')
@@ -192,5 +193,8 @@ def validate_map_cliff_overrides(current_wall_records, current_column_count, cur
         if current_position_pair in current_seen_positions:
             raise ValueError('벽면 배치가 중복되었습니다.')
         current_seen_positions.add(current_position_pair)
-        validate_map_cliff_texture(current_wall_record['textureKey'])
+        current_texture_key = current_wall_record['textureKey']
+        if not isinstance(current_texture_key, str) or current_texture_key not in current_validated_textures:
+            validate_map_cliff_texture(current_texture_key)
+            current_validated_textures.add(current_texture_key)
     return current_wall_records

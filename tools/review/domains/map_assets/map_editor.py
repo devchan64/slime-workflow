@@ -63,11 +63,12 @@ def validate_map_editor_changes(current_request_payload):
         if 'wall' in current_cell_record:
             current_wall_records=[current_wall_record for current_wall_record in current_tile_data.get('cliffOverrides',[]) if current_wall_record['position']!={'column':current_cell_column,'row':current_cell_row}]
             current_wall_records.append({'position':{'column':current_cell_column,'row':current_cell_row},'textureKey':current_cell_record['wall']})
-            current_tile_data['cliffOverrides']=validate_map_cliff_overrides(current_wall_records,current_column_count,current_row_count)
+            current_tile_data['cliffOverrides']=current_wall_records
         current_tile_row=list(current_tile_data['rows'][current_cell_row]);current_tile_row[current_cell_column]=current_cell_record['tile'];current_tile_data['rows'][current_cell_row]=''.join(current_tile_row)
         current_terrain_data['elevations'][current_cell_row][current_cell_column]=current_cell_record['height']
         if current_cell_record['blocked']:current_blocked_positions.add(current_cell_position)
         else:current_blocked_positions.discard(current_cell_position)
+    validate_map_cliff_overrides(current_tile_data.get('cliffOverrides',[]),current_column_count,current_row_count)
     current_terrain_data['blocked']=[list(current_position) for current_position in sorted(current_blocked_positions,key=lambda current_position:(current_position[1],current_position[0]))]
     current_object_records=current_request_payload['objects']
     if not isinstance(current_object_records,list) or len(current_object_records)>1000:raise ValueError('빌보드 목록 오류')
