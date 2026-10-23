@@ -18,14 +18,14 @@ def build_billboard_guide_controls():
     selected_default_profile = BILLBOARD_LAYOUT_PROFILES[0]
     selected_default_values = preview_billboard_guide_inputs(selected_default_profile, BILLBOARD_DEFAULT_SUBJECT)
     with gr.Group():
-        gr.Markdown('### 1. 점유 가이드와 대상\n약 80% 채움은 형태 목표입니다. 모서리를 채우지 않고 아래로 갈수록 넓힙니다. 높은형은 뒤쪽 벽면·바닥에 밀착하며, 낮은형은 기존 높이의 절반입니다.')
+        gr.Markdown('### 1. 점유 가이드와 대상\n약 80% 채움은 형태 목표입니다. 모서리를 채우지 않고 아래로 갈수록 넓힙니다. 높은형과 중간형은 뒤쪽 벽면·바닥에 밀착하며, 낮은형은 기존 높이의 절반입니다.')
         with gr.Row():
             with gr.Column():
                 selected_profile_control = gr.Dropdown(
-                    [(current_profile_name.replace('-tall', ' · 높은형').replace('-low', ' · 낮은 판형'), current_profile_name) for current_profile_name in BILLBOARD_LAYOUT_PROFILES],
+                    [(current_profile_name.replace('-tall', ' · 높은형').replace('-medium', ' · 중간 벽면형').replace('-low-2x', ' · 바닥형 높이 2배').replace('-low-4x', ' · 바닥형 높이 4배').replace('-low', ' · 낮은 판형'), current_profile_name) for current_profile_name in BILLBOARD_LAYOUT_PROFILES],
                     value=selected_default_profile, label='점유 열×행 · 형태')
                 selected_subject_control = gr.Textbox(value=BILLBOARD_DEFAULT_SUBJECT, label='대상·재질 설명', lines=3)
-                gr.Markdown('타일 260×130 기준 · 높은형 520 · 낮은형 90. 그림은 생성 구도 기준이며 게임의 표시 크기를 저장하지 않습니다.')
+                gr.Markdown('타일 260×130 기준 · 높은형 520 · 중간 벽면형 260 · 낮은형 90 · 1×1 바닥형 높이 2배 180 / 4배 360. 그림은 생성 구도 기준이며 게임의 표시 크기를 저장하지 않습니다.')
             selected_guide_preview = gr.Image(value=selected_default_values[0], type='pil', interactive=False, label='가이드 미리보기')
         selected_prompt_preview = gr.Textbox(value=selected_default_values[1], label='합성된 생성 문구', interactive=False, lines=5)
         selected_prompt_count = gr.Markdown(selected_default_values[2])

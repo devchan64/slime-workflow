@@ -8,13 +8,15 @@ from tools.review.domains.image.billboard_guide_prompt import (
 
 class BillboardGuidePromptTests(unittest.TestCase):
     def test_registered_reference_profiles(self):
-        self.assertEqual(len(BILLBOARD_LAYOUT_PROFILES), 8)
+        self.assertEqual(len(BILLBOARD_LAYOUT_PROFILES), 16)
         for selected_profile_name in BILLBOARD_LAYOUT_PROFILES:
             self.assertEqual(load_billboard_guide_image(selected_profile_name).size, (1024, 1024))
             selected_prompt_text = compose_billboard_guide_prompt(selected_profile_name, BILLBOARD_DEFAULT_SUBJECT)
             self.assertLess(len(selected_prompt_text.split()), 100)
             self.assertIn('80%', selected_prompt_text)
-            self.assertIn('rear flush' if selected_profile_name.endswith('tall') else 'height 90', selected_prompt_text)
+            if selected_profile_name.endswith('medium'):
+                self.assertIn('height 260 relative to tile width 260', selected_prompt_text)
+            self.assertIn('rear flush' if selected_profile_name.endswith(('tall', 'medium')) else f"height { {'1x1-low-2x': 180, '1x1-low-4x': 360}.get(selected_profile_name, 90)}", selected_prompt_text)
 
     def test_invalid_inputs_rejected(self):
         for selected_profile_name in ('../secret', '4x4-low', ''):

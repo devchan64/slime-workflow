@@ -802,9 +802,9 @@ CLI는 `--lyrics` 또는 `--lyrics-file`을 지원합니다. 예제 조건은 `-
 
 `/management/frame/billboard-generator/?tool=billboard-generator&category=image-generation`은 로컬 Qwen 2.1의 `billboard-generator` 전용 가이드 화면이다. Codex 내장 이미지 생성 도구와는 다른 엔진이며 같은 결과를 보장하지 않는다. 빌보드 대기열·이력·삭제 범위는 소품 생성기와 분리한다. 작업은 `.tmp/test/billboard-generator`, 공용 이력은 `billboard-generator` 서비스명으로 저장한다. 통합 CLI `python tools/manager.py command billboard-generator help`에서 생성·조회·중지·재개·우선 실행·선택 삭제·초기화 명령을 확인한다. GUI와 CLI는 같은 게이트웨이를 사용한다. 기존 소품 작업은 이동하거나 삭제하지 않는다. GPU 실행 자원과 메모리 보호는 공용 실행기를 유지한다.
 
-1. 높은 3×1·2×1·1×2·1×3 또는 낮은 1×1·2×2·2×3·3×2 가이드를 선택하고 대상·재질을 입력한다.
+1. 높은 3×1·2×1·1×2·1×3 또는 낮은 1×1·2×2·2×3·3×2 및 1×1 높이 2배·4배 가이드를 선택하고 대상·재질을 입력한다.
 2. 미리보기와 최종 단어 수를 확인하고 `가이드와 문구를 생성 입력에 적용`을 누른다. 첫 참조와 프롬프트만 교체하며 추가 참조는 유지한다.
 3. 공용 옵션·시드·크기를 확인한 뒤 대기열에 추가한다. 가이드가 없는 요청과 최종 100단어 이상 문구는 거절한다. GPU 대기 확인·취소는 기존 소품 서비스 정책을 유지한다.
 4. 공용 이력에서 결과·진행·ETA·VRAM·로그를 확인한다. 등록은 별도 검수 후 수행한다.
 
-가이드는 타일 260×130 기준이며 높은형 520, 낮은형 90이다. 약 80% 채움은 정밀 체적 계산이 아닌 형태 목표다. 바닥은 넓게, 앞면·상단은 불규칙하게, 높은형 뒤쪽은 벽면에 밀착시키도록 지시한다. 제작 원본은 `generators/image/config/billboard-layouts/`, 문구는 `billboard-guide-prompt.txt`다. CLI는 기존 `prop-generator generate --prompt-file <합성 문구> --reference <가이드 PNG>` 계약을 사용하며 신규 서비스나 GPU 실행기를 추가하지 않는다.
+가이드는 타일 260×130 기준이며 높은형 520, 중간 벽면형 260, 낮은형 90이다. 중간 벽면형은 `3x1-medium`, `2x1-medium`, `1x2-medium`, `1x3-medium` 네 규격이며 높은형과 같은 밑면·뒤쪽 밀착 기준을 사용한다. 1×1 높이 2배(`1x1-low-2x`)·4배(`1x1-low-4x`)는 같은 밑면에 높이 180·360을 사용한다. 이 높이는 가이드의 제작 비율이며 런타임 표시 높이와 구분한다. 약 80% 채움은 정밀 체적 계산이 아닌 형태 목표다. 바닥은 넓게, 앞면·상단은 불규칙하게, 높은형 뒤쪽은 벽면에 밀착시키도록 지시한다. 제작 원본은 `generators/image/config/billboard-layouts/`, 문구는 `billboard-guide-prompt.txt`다. CLI는 전용 `billboard-generator` 서비스의 `generate` 명령을 사용한다. 정확한 입력 계약은 `python tools/manager.py command billboard-generator help`에서 확인한다. 패턴 다양성·밑면 정렬·등록 검수는 [가이드 기반 자연물 변형 제작](map-sprite-output-guide.md#가이드-기반-자연물-변형-제작)을 따른다.

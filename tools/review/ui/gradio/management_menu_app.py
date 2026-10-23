@@ -39,7 +39,7 @@ DEFAULT_PAGE_RECORDS=(
     {'id':'pose-transfer-generator','label':'포즈 변환 생성기','path':'/pose-transfer/','category':'animation-tool','uiMode':'gradio','description':'정식 · VNCCS QI2.1 · 아이덴티티 1장 + 포즈 1장'},
     {'id':'outfit-transfer-generator','label':'복장 착용 생성기','path':'/outfit-transfer/','category':'image-generation','uiMode':'gradio','description':'Qwen 2.1 · 바디 1장 + 아웃핏 1장 · 신체 비율 유지'},
     {'id':'vegetation-generator','label':'Qwen 2.1 자연물 생성기','path':'/vegetation-generator/','category':'image-generation','uiMode':'gradio','description':'자연물 빌보드 기본 문구 · 레이아웃·외형 참조 · 전용 대기열·이력'},
-    {'id':'billboard-generator','label':'가이드 기반 빌보드 생성기','path':'/billboard-generator/','category':'image-generation','uiMode':'gradio','description':'8개 점유 가이드 · 80% 채움 · 벽면 밀착·낮은 판형 · 빌보드 독립 대기열·이력'},
+    {'id':'billboard-generator','label':'가이드 기반 빌보드 생성기','path':'/billboard-generator/','category':'image-generation','uiMode':'gradio','description':'높은형·중간형·바닥형 점유 가이드 · 80% 채움 · 벽면 밀착·낮은 판형 · 빌보드 독립 대기열·이력'},
     {'id':'prop-generator','label':'Qwen 2.1 소품 생성기','path':'/prop-generator/','category':'image-generation','uiMode':'gradio','description':'소품 직교투영 기본 문구 · 레이아웃·자재 참조 · 전용 대기열·이력'},
     {'id':'building-generator','label':'Qwen 2.1 건물 생성기','path':'/building-generator/','category':'image-generation','uiMode':'gradio','description':'직교투영 기본 문구 · 레이아웃 이미지 선택 · 전용 대기열·이력'},
     {'id':'qwen-21-generator','label':'Qwen 2.1 이미지 생성기','path':'/image-generation-21/','category':'image-generation','uiMode':'gradio','description':'공용 화풍·투명 배경 문구 선택 · 참조 이미지 선택'},

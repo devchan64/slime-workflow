@@ -162,7 +162,7 @@ def build_qwen_2511_interface(server_base_address, expression_mode_enabled=False
         if billboard_guide_enabled:
             from tools.review.ui.gradio.billboard_guide_controls import build_billboard_guide_controls
             from tools.review.domains.image.billboard_guide_prompt import load_billboard_guide_image, compose_billboard_guide_prompt
-            gr.Markdown('로컬 Qwen 2.1 고정 · 소품 생성기와 대기열·이력을 공유합니다. Codex 내장 이미지 생성과는 다른 엔진입니다. 가이드 적용 → 입력 확인 → 대기열 추가 → 결과 검수 순서로 진행하세요.')
+            gr.Markdown('로컬 Qwen 2.1 고정 · 빌보드 전용 대기열·이력을 사용합니다. Codex 내장 이미지 생성과는 다른 엔진입니다. 가이드 적용 → 입력 확인 → 대기열 추가 → 결과 검수 순서로 진행하세요.')
             billboard_profile_control, billboard_subject_control, billboard_apply_button = build_billboard_guide_controls()
         if vegetation_mode_enabled:
             gr.Markdown('나무·관목·풀·꽃·갈대 등 자연물 빌보드를 생성합니다. 기본 문구 뒤에 식물 종류·계절·색상·군락 밀도를 추가하세요. 레이아웃은 투영·바닥 영역, 식물 참조는 잎·줄기 형태 기준입니다. 참조는 선택 사항이며 결과는 검수 후 slime-assets/assets/billboards/에 자연물으로 등록합니다.')
