@@ -146,25 +146,25 @@ def select_nearest_image_resolution(current_detail_record):
 
 
 def load_selected_resolution_controls(current_detail_record):
-    return describe_selected_image_size(current_detail_record),select_nearest_image_resolution(current_detail_record),gr.update(interactive=False),''
+    current_target_size=select_nearest_image_resolution(current_detail_record)
+    return describe_selected_image_size(current_detail_record),current_target_size,update_resolution_save_button(current_detail_record,current_target_size),''
 
 
 def update_resolution_save_button(current_detail_record,current_target_size):
-    current_save_enabled=bool(current_detail_record) and current_target_size!=select_nearest_image_resolution(current_detail_record) and current_target_size<max(current_detail_record['size'])
+    current_save_enabled=bool(current_detail_record) and current_target_size in EDITOR_RESOLUTION_CHOICES and current_target_size<max(current_detail_record['size'])
     return gr.update(interactive=current_save_enabled)
 
 
 def resize_selected_asset_image(current_detail_record,current_target_size):
     if not current_detail_record:raise gr.Error('썸네일에서 에셋을 선택하세요.')
     if current_target_size not in EDITOR_RESOLUTION_CHOICES:raise gr.Error('128·256·384·512px 중 선택하세요.')
-    if current_target_size==select_nearest_image_resolution(current_detail_record):
-        return gr.skip(),gr.skip(),gr.skip(),gr.skip(),'선택값이 변경되지 않아 저장하지 않았습니다.'
     current_catalog_record,current_table_values,_=load_asset_editor_catalog()
     current_asset_record=next((current_asset_record for current_asset_record in current_catalog_record['assets'] if current_asset_record['texture']==current_detail_record['texture']),None)
     if current_asset_record is None:raise gr.Error('폐기되거나 제거된 에셋입니다.')
     if current_asset_record['metadata']:raise gr.Error('프레임 메타데이터가 있는 이미지는 지원하지 않습니다.')
     if current_target_size==max(current_asset_record['size']):
         return gr.skip(),gr.skip(),gr.skip(),gr.skip(),'이미 같은 해상도이므로 저장하지 않았습니다.'
+    if current_target_size>max(current_asset_record['size']):raise gr.Error('원본보다 작은 해상도를 선택하세요. 확대는 지원하지 않습니다.')
     current_image_path=Path(current_asset_record['image'])
     current_request_payload={'path':'assets/billboards/'+current_image_path.name,'sha256':hashlib.sha256(current_image_path.read_bytes()).hexdigest(),'size':int(current_target_size)}
     current_resize_record=execute_remote_management_command('map-assets','resize',current_request_payload)

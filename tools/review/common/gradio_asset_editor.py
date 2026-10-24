@@ -7,7 +7,7 @@ ASSET_RESOLUTION_CHOICES = (128,256,384,512)
 
 
 def build_asset_source_gallery(current_column_count=4, current_row_count=None):
-    return gr.Gallery(value=[],interactive=False,label='원본 목록 · 썸네일을 선택하여 편집',columns=current_column_count,rows=current_row_count,height='max-content',object_fit='contain',allow_preview=False)
+    return gr.Gallery(value=[],interactive=False,label='원본 목록 · 썸네일을 선택하여 편집',columns=current_column_count,rows=current_row_count,height='max-content',object_fit='contain',allow_preview=False,fit_columns=False)
 
 
 def build_asset_property_inputs(current_automatic_anchor=False):
@@ -116,7 +116,7 @@ def build_selected_asset_panel(current_canvas_identifier):
                 current_crop_feedback=gr.Markdown('썸네일에서 빌보드를 선택한 뒤 크롭 범위를 확인하세요. 투명 여백이 없으면 저장하지 않습니다.')
             with gr.Accordion('원본 이미지 해상도' ,open=False):
                 current_resolution_text=gr.Markdown('현재 원본: 에셋을 선택하세요.')
-                current_resolution_choice=gr.Radio(list(ASSET_RESOLUTION_CHOICES),value=128,label='원본 해상도 · 긴 변 px',info='현재 긴 변과 가장 가까운 값을 자동 선택합니다. 다른 축소 크기를 선택하면 저장할 수 있습니다. 동일 선택값·확대는 저장하지 않습니다.')
+                current_resolution_choice=gr.Radio(list(ASSET_RESOLUTION_CHOICES),value=128,label='원본 해상도 · 긴 변 px',info='현재 긴 변과 가장 가까운 값을 자동 선택합니다. 원본 긴 변보다 작으면 바로 축소 저장할 수 있습니다. 버튼이 비활성화되면 더 작은 값을 선택하세요. 동일 해상도·확대는 저장하지 않습니다.')
                 current_resolution_button=gr.Button('선택 해상도로 원본 저장',interactive=False)
                 current_resolution_feedback=gr.Markdown()
         with gr.Column():
@@ -124,8 +124,8 @@ def build_selected_asset_panel(current_canvas_identifier):
             current_preview_kind=gr.Radio(['야외 80×40 · 0.5배','마을·전투 160×80 · 1배'],value='야외 80×40 · 0.5배',label='미리보기 타일 규격')
             current_preview_zoom=gr.Slider(minimum=.5,maximum=4,value=1,step=.5,label='미리보기 확대 배율',info='0.5배 단위로 확대·축소합니다. 에셋 저장 값은 바뀌지 않습니다.')
             current_show_blocking=gr.Checkbox(label='이동금지 영역 보기',value=True,info='차단 타일과 이동할 수 없는 경계를 표시합니다. 저장 값은 바뀌지 않습니다.')
-            current_background_choice=gr.Radio(['검은색','흰색'],value='검은색',label='미리보기 배경')
-            build_asset_preview_canvas(current_canvas_identifier,'#000000')
+            current_background_choice=gr.Radio(['검은색','흰색'],value='흰색',label='미리보기 배경')
+            build_asset_preview_canvas(current_canvas_identifier,'#ffffff')
             current_background_choice.change(fn=None,inputs=current_background_choice,outputs=None,queue=False,js='''currentBackgroundChoice=>{
 const currentPreviewRoot=document.querySelector('gradio-app')?.shadowRoot||document;
 const currentPreviewCanvas=currentPreviewRoot.getElementById(__CANVAS_IDENTIFIER__);
