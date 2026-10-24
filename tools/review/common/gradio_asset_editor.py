@@ -12,12 +12,12 @@ def build_asset_source_gallery(current_column_count=4, current_row_count=None):
 
 def build_asset_property_inputs(current_automatic_anchor=False):
     with gr.Row():
-        current_anchor_horizontal=gr.Number(label='하단 교차점 X · 자동' if current_automatic_anchor else '아랫변 중심 X · 교차점 기준',interactive=not current_automatic_anchor,value=.5,minimum=-16,maximum=16,step=.01)
-        current_anchor_vertical=gr.Number(label='하단 교차점 Y · 자동' if current_automatic_anchor else '아랫변 중심 Y · 교차점 기준',interactive=not current_automatic_anchor,value=1,minimum=-16,maximum=16,step=.01)
+        current_anchor_horizontal=gr.Number(label='하단 교차점 X · 자동' if current_automatic_anchor else '아랫변 중심 X · 교차점 기준',interactive=not current_automatic_anchor,value=.5,minimum=-16,maximum=16,step=.01,precision=2)
+        current_anchor_vertical=gr.Number(label='하단 교차점 Y · 자동' if current_automatic_anchor else '아랫변 중심 Y · 교차점 기준',interactive=not current_automatic_anchor,value=1,minimum=-16,maximum=16,step=.01,precision=2)
     with gr.Row():
         current_ground_columns=gr.Number(label='점유 타일 열 · 칸',value=1,minimum=1,maximum=8,step=1,precision=0)
         current_ground_rows=gr.Number(label='점유 타일 행 · 칸',value=1,minimum=1,maximum=8,step=1,precision=0)
-    current_display_height=gr.Number(label='공용 표시 높이 · px',value=128,minimum=1,maximum=1024)
+    current_display_height=gr.Number(label='공용 표시 높이 · px',value=128,minimum=1,maximum=1024,step=.01,precision=2)
     return [current_anchor_horizontal,current_anchor_vertical,current_ground_columns,current_ground_rows,current_display_height]
 
 
@@ -27,11 +27,11 @@ def build_asset_preview_canvas(current_canvas_identifier='map-source-size-previe
 
 def build_asset_shadow_inputs():
     with gr.Row():
-        current_shadow_column=gr.Number(label='그림자 열 방향 이동 · 타일',value=0,minimum=-4,maximum=4,step=.05)
-        current_shadow_row=gr.Number(label='그림자 행 방향 이동 · 타일',value=0,minimum=-4,maximum=4,step=.05)
+        current_shadow_column=gr.Number(label='그림자 열 방향 이동 · 타일',value=0,minimum=-4,maximum=4,step=.01,precision=2)
+        current_shadow_row=gr.Number(label='그림자 행 방향 이동 · 타일',value=0,minimum=-4,maximum=4,step=.01,precision=2)
     with gr.Row():
-        current_shadow_width=gr.Number(label='그림자 가로/열 배율',value=1,minimum=.1,maximum=4,step=.05)
-        current_shadow_height=gr.Number(label='그림자 세로/행 배율',value=1,minimum=.05,maximum=4,step=.05)
+        current_shadow_width=gr.Number(label='그림자 가로/열 배율',value=1,minimum=.1,maximum=4,step=.01,precision=2)
+        current_shadow_height=gr.Number(label='그림자 세로/행 배율',value=1,minimum=.05,maximum=4,step=.01,precision=2)
     return [current_shadow_column,current_shadow_row,current_shadow_width,current_shadow_height]
 
 
@@ -53,6 +53,13 @@ class AssetEditorPanelControls:
     current_blocking_choice: object
     current_placement_choice: object
     current_shadow_inputs: list
+    current_crop_button: object
+    current_crop_pending: object
+    current_crop_group: object
+    current_crop_summary: object
+    current_crop_confirm: object
+    current_crop_cancel: object
+    current_crop_feedback: object
     current_resolution_text: object
     current_resolution_choice: object
     current_resolution_button: object
@@ -97,7 +104,17 @@ def build_selected_asset_panel(current_canvas_identifier):
                 gr.Markdown('이동 0·0은 하단 기준 교차점입니다. 가로 1·세로 1가 기본 크기입니다.')
             current_update_button=gr.Button('선택 에셋 변경 반영')
             current_save_progress=gr.Markdown('선택한 ID만 검증하고 즉시 저장합니다.')
-            with gr.Accordion('원본 이미지 해상도',open=False):
+            with gr.Accordion('투명 여백 크롭',open=False):
+                gr.Markdown('알파값 5 이하(0~255 기준)를 여백으로 판단하여 외곽을 크롭합니다. 크롭 영역 안의 픽셀은 그대로 보존합니다. 표시 크기·접지 위치·그림자는 유지하며, 저장 전 원본은 이력에 보관합니다. 편집 중인 속성은 먼저 변경 반영으로 저장하세요.')
+                current_crop_button=gr.Button('크롭 범위 확인')
+                current_crop_pending=gr.State({})
+                with gr.Group(visible=False) as current_crop_group:
+                    current_crop_summary=gr.Markdown()
+                    with gr.Row():
+                        current_crop_confirm=gr.Button('확인 · 크롭 저장')
+                        current_crop_cancel=gr.Button('취소')
+                current_crop_feedback=gr.Markdown('썸네일에서 빌보드를 선택한 뒤 크롭 범위를 확인하세요. 투명 여백이 없으면 저장하지 않습니다.')
+            with gr.Accordion('원본 이미지 해상도' ,open=False):
                 current_resolution_text=gr.Markdown('현재 원본: 에셋을 선택하세요.')
                 current_resolution_choice=gr.Radio(list(ASSET_RESOLUTION_CHOICES),value=128,label='원본 해상도 · 긴 변 px',info='현재 긴 변과 가장 가까운 값을 자동 선택합니다. 다른 축소 크기를 선택하면 저장할 수 있습니다. 동일 선택값·확대는 저장하지 않습니다.')
                 current_resolution_button=gr.Button('선택 해상도로 원본 저장',interactive=False)
@@ -131,6 +148,13 @@ if(currentPreviewCanvas)currentPreviewCanvas.style.backgroundColor=currentBackgr
         current_blocking_choice=current_blocking_choice,
         current_placement_choice=current_placement_choice,
         current_shadow_inputs=current_shadow_inputs,
+        current_crop_button=current_crop_button,
+        current_crop_pending=current_crop_pending,
+        current_crop_group=current_crop_group,
+        current_crop_summary=current_crop_summary,
+        current_crop_confirm=current_crop_confirm,
+        current_crop_cancel=current_crop_cancel,
+        current_crop_feedback=current_crop_feedback,
         current_resolution_text=current_resolution_text,
         current_resolution_choice=current_resolution_choice,
         current_resolution_button=current_resolution_button,

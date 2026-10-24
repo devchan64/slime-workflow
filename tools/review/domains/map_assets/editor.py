@@ -1,4 +1,5 @@
 """공용 빌보드 목록·일괄 속성 검증·저장. 기존 이미지 변경 잠금을 공유한다."""
+from tools.review.common.sprite_display_properties import normalize_sprite_property_precision
 import hashlib
 import json
 import os
@@ -54,7 +55,7 @@ def prepare_editor_changes(current_request_payload,current_asset_root=None):
         if current_original_values.get('billboardAnchorMode') in ('tile-bottom-center','tile-intersection') and 'billboardPlacementAnchor' in current_input_values:raise ValueError('상하 배치는 앵커에서 자동 판정됩니다.')
         current_updated_values={**current_original_values,**current_input_values}
         validate_sprite_display_properties({current_texture_key:current_updated_values})
-        current_updated_values=calculate_billboard_intersection_properties(current_updated_values)
+        current_updated_values=normalize_sprite_property_precision(calculate_billboard_intersection_properties(current_updated_values))
         validate_sprite_display_properties({current_texture_key:current_updated_values})
         if current_updated_values==current_original_values:raise ValueError('변경 없는 에셋은 제외하세요: '+current_texture_key)
         current_property_document['data'][current_texture_key]=current_updated_values;current_changed_textures.add(current_texture_key)

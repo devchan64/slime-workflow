@@ -1,4 +1,5 @@
 """에셋별 공통 앵커·접지 크기·표시 높이 계약."""
+from decimal import Decimal, ROUND_HALF_UP
 import math
 import re
 
@@ -7,6 +8,22 @@ SPRITE_LAYOUT_FIELD_NAMES = {'groundFootprintColumns', 'groundFootprintRows', 'd
 BILLBOARD_PLACEMENT_FIELD_NAMES = {'billboardPlacementAnchor', 'billboardBlocksMovement'}
 BILLBOARD_SHADOW_DEFAULTS = {'shadowOffsetColumn':0, 'shadowOffsetRow':0, 'shadowScaleX':1, 'shadowScaleY':1}
 BILLBOARD_SHADOW_FIELD_NAMES = set(BILLBOARD_SHADOW_DEFAULTS)
+
+SPRITE_DECIMAL_PRECISION = Decimal('0.01')
+SPRITE_DECIMAL_FIELDS = SPRITE_ANCHOR_FIELD_NAMES | {'displayHeight'} | BILLBOARD_SHADOW_FIELD_NAMES
+
+
+def normalize_sprite_property_precision(current_property_values):
+    """유효 범위를 먼저 검사하고 연속값만 소수점 둘째 자리로 반올림한다."""
+    validate_sprite_display_properties({'precision-check': current_property_values})
+    current_normalized_values = dict(current_property_values)
+    for current_field_name in SPRITE_DECIMAL_FIELDS & current_property_values.keys():
+        current_rounded_value = float(Decimal(str(current_property_values[current_field_name])).quantize(SPRITE_DECIMAL_PRECISION, rounding=ROUND_HALF_UP))
+        current_normalized_values[current_field_name] = 0.0 if current_rounded_value == 0 else current_rounded_value
+    validate_sprite_display_properties({'precision-check': current_normalized_values})
+    return current_normalized_values
+
+
 def calculate_billboard_blocking_state(current_property_values):
     """외곽 한 줄을 제외한 내부 타일이 있을 때만 자동 차단한다."""
     return current_property_values.get('groundFootprintColumns', 1) >= 3 and current_property_values.get('groundFootprintRows', 1) >= 3

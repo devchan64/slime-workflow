@@ -34,10 +34,11 @@ MANAGEMENT_SERVICE_ROUTES['hy-motion']='/hy-motion-generator'
 MANAGEMENT_SERVICE_COMMANDS['hy-motion']=('generate','export-vnccs','prepare','model-status','status','logs','history','cancel','resume','history-reset','history-delete')
 MANAGEMENT_COMMAND_ROUTES['export-vnccs']=('POST','/export/vnccs')
 MANAGEMENT_SERVICE_ROUTES['map-assets']='/map-assets'
-MANAGEMENT_SERVICE_COMMANDS['map-assets']=('resize','map-anchor-save','asset-list','asset-preview','asset-save','asset-retire-preview','asset-retire','map-edit-load','map-edit-preview','map-edit-save')
+MANAGEMENT_SERVICE_COMMANDS['map-assets']=('resize','map-anchor-save','asset-list','asset-preview','asset-save','asset-crop-preview','asset-crop','asset-retire-preview','asset-retire','map-edit-load','map-edit-preview','map-edit-save')
 MANAGEMENT_COMMAND_ROUTES.update({'asset-list':('POST','/editor-list'),'asset-preview':('POST','/editor-preview'),'asset-save':('POST','/editor-save'),'asset-retire-preview':('POST','/editor-retire-preview'),'asset-retire':('POST','/editor-retire')})
 MANAGEMENT_COMMAND_ROUTES.update({current_command_name:('POST','/editor-'+current_command_name) for current_command_name in ('map-edit-load','map-edit-preview','map-edit-save')})
 MANAGEMENT_COMMAND_ROUTES['map-anchor-save']=('POST','/anchor-save')
+MANAGEMENT_COMMAND_ROUTES.update({'asset-crop-preview':('POST','/editor-crop-preview'),'asset-crop':('POST','/editor-crop')})
 MANAGEMENT_COMMAND_ROUTES['resize']=('POST','/resize')
 MANAGEMENT_SERVICE_ROUTES['map-review']='/map-review'
 MANAGEMENT_SERVICE_COMMANDS['map-review']=('capture',)
@@ -199,7 +200,7 @@ class ManagementCommandGateway:
 MANAGEMENT_COMMAND_DESCRIPTIONS = {'wan21-vace-f2v':'Wan2.1 VACE 1.3B F2V · 첫 프레임 1장 보존 · 독립 대기열·이력 · --payload-file','wan21-vace-v2v':'Wan2.1 VACE 1.3B V2V · 프레임 이미지 배치·수정 마스크 · --payload-file','phantom':'Phantom 1.3B · 참조 전용 · 832×480 · 81프레임 · 50스텝','wan21-vace':'Wan2.1 VACE 1.3B R2V · 참조 1장 · 비디오·마스크 없음 · 기본 832×480 · 81프레임 · 50스텝 · 4n+1','outfit-transfer':'Qwen 2.1 복장 착용 · 참조 정확히 2장: 바디, 아웃핏 순서','pose-transfer':'Qwen Image 2.1 포즈 변환 · 참조 정확히 2장: 아이덴티티, 포즈 순서','qwen-21-circular':'Qwen 2.1 순환 VAE · XY 디코더 · 3×3 반복 검수','animation-separation':'Qwen 2.1 참조 PNG 1장으로 신체 베이스·복장 독립 생성 · --reference','qwen-21':'Qwen Image 2.1 · 공용 화풍·투명 배경 선택 · 참조 0~10장 · 20·30·40·50스텝 (기본 40)','seamless-tile':'Qwen Image 2.1 · 40스텝 · 5단계 가로·세로 심리스 패턴 · 단계별 검수 대기 · pause/resume · 참조 생략 가능','expression':'Qwen 2511 AU 표정 생성 · 참조 1~3장 · --expression에 표정 ID 지정','floor-tile':'512×512·4스텝 단일 바닥 타일 생성 (관리 서버 필요)','anny':'ANNY 프리뷰·렌더 생성(--payload-file)·이력·중지·재개','character-animation':'생성기 폐기 · 기존 이력·결과 조회·스프라이트 편집 (generate/resume 거절)','momask': '폐기된 MoMask 도구 · 모든 명령 거절 · HY-Motion 사용', 'qwen-2512': 'Qwen 2512 텍스트 이미지 생성 (관리 서버 필요)', 'qwen-2511': 'Qwen 2511 텍스트·1~3장 참조 이미지 생성 (관리 서버 필요)'}
 
 MANAGEMENT_COMMAND_DESCRIPTIONS['writer-agent']='작가 문서 학습·제안·조회·해시 확인 적용 · --payload-file · 기존 문서/기록 경로 유지'
-MANAGEMENT_COMMAND_DESCRIPTIONS['map-assets']='맵 PNG 축소·빌보드 속성·야외 맵 편집 · map-edit-load / map-edit-preview / map-edit-save / asset-list / asset-preview / asset-save / asset-retire-preview / asset-retire --payload-file'
+MANAGEMENT_COMMAND_DESCRIPTIONS['map-assets']='맵 PNG 축소·투명 여백 크롭(asset-crop-preview / asset-crop)·빌보드 속성·야외 맵 편집 · map-edit-load / map-edit-preview / map-edit-save / asset-list / asset-preview / asset-save / asset-retire-preview / asset-retire --payload-file'
 MANAGEMENT_COMMAND_DESCRIPTIONS['map-review']='전체 맵 헤드리스 Chrome PNG 캡처 · --payload-file 설정'
 MANAGEMENT_COMMAND_DESCRIPTIONS['character-review']='캐릭터 검수 렌더링 PNG 캡처 · --payload-file 설정'
 MANAGEMENT_COMMAND_DESCRIPTIONS['anny-landmarks']='ANNY 기준점 후보 지정·축 검수·누적 저장 · --payload-file JSON · 승인·적용 없음'
@@ -239,7 +240,7 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
         operation_argument_parser=command_subparser_group.add_parser(operation_command_name)
         if service_command_name=='momask' and operation_command_name=='generate':
             operation_argument_parser.add_argument('--face',action=argparse.BooleanOptionalAction,default=False,help='ANNY 얼굴 5점 포함')
-        if operation_command_name in SPRITE_V2_COMMAND_NAMES + LANDMARK_COMMAND_NAMES + ANNY_GENERATION_COMMAND_NAMES + WRITER_PAYLOAD_COMMAND_NAMES or operation_command_name in ('capture','export-vnccs','resize','map-anchor-save','asset-list','asset-preview','asset-save','asset-retire-preview','asset-retire','map-edit-load','map-edit-preview','map-edit-save'):
+        if operation_command_name in SPRITE_V2_COMMAND_NAMES + LANDMARK_COMMAND_NAMES + ANNY_GENERATION_COMMAND_NAMES + WRITER_PAYLOAD_COMMAND_NAMES or operation_command_name in ('capture','export-vnccs','resize','map-anchor-save','asset-list','asset-preview','asset-save','asset-crop-preview','asset-crop','asset-retire-preview','asset-retire','map-edit-load','map-edit-preview','map-edit-save'):
             operation_argument_parser.add_argument('--payload-file',type=Path,required=True,help='GUI와 동일한 명령 JSON 입력 파일')
         if operation_command_name=='anchor-save':operation_argument_parser.add_argument('--document-file',type=Path,required=True)
         if operation_command_name=='anchor-load':operation_argument_parser.add_argument('id')
@@ -366,7 +367,7 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
         command_payload_value={'id':command_argument_values.id}
         if operation_command_name=='sprite-history-delete':command_payload_value['revision']=command_argument_values.revision
         if operation_command_name=='sprite-save':command_payload_value['document']=parse_management_request_json(command_argument_values.document_file.read_text())
-    if operation_command_name in SPRITE_V2_COMMAND_NAMES + LANDMARK_COMMAND_NAMES + ANNY_GENERATION_COMMAND_NAMES + WRITER_PAYLOAD_COMMAND_NAMES or operation_command_name in ('capture','export-vnccs','resize','map-anchor-save','asset-list','asset-preview','asset-save','asset-retire-preview','asset-retire','map-edit-load','map-edit-preview','map-edit-save'):command_payload_value=parse_management_request_json(command_argument_values.payload_file.read_text())
+    if operation_command_name in SPRITE_V2_COMMAND_NAMES + LANDMARK_COMMAND_NAMES + ANNY_GENERATION_COMMAND_NAMES + WRITER_PAYLOAD_COMMAND_NAMES or operation_command_name in ('capture','export-vnccs','resize','map-anchor-save','asset-list','asset-preview','asset-save','asset-crop-preview','asset-crop','asset-retire-preview','asset-retire','map-edit-load','map-edit-preview','map-edit-save'):command_payload_value=parse_management_request_json(command_argument_values.payload_file.read_text())
     if operation_command_name=='anchor-save':command_payload_value={'document':parse_management_request_json(command_argument_values.document_file.read_text())}
     if operation_command_name in ('anchor-history','anchor-history-reset'):command_payload_value={'animation_id':command_argument_values.animation_id,'animation_version':command_argument_values.animation_version}
     if operation_command_name=='history-reset':command_payload_value={'action':'reset'}

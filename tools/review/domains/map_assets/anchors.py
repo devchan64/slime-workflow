@@ -1,4 +1,5 @@
 """에셋 공통 스프라이트 속성 변경."""
+from tools.review.common.sprite_display_properties import normalize_sprite_property_precision
 import hashlib
 import math
 import re
@@ -57,6 +58,7 @@ def save_map_sprite_anchor(current_request_payload):
     current_shared_properties.update({current_anchor_name:current_request_payload[current_anchor_name] for current_anchor_name in ('anchorX','anchorY')})
     if current_is_billboard:
         current_shared_properties = calculate_billboard_intersection_properties(current_shared_properties)
+    current_shared_properties = normalize_sprite_property_precision(current_shared_properties)
     current_property_catalog[current_request_payload['texture']] = current_shared_properties
     validate_sprite_display_properties(current_property_catalog)
     current_map_bytes=yaml.safe_dump(current_properties_document,allow_unicode=True,sort_keys=False).encode()
