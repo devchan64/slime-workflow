@@ -104,7 +104,7 @@ def load_current_texture_records(validate_complete_inventory=True):
         current_billboard_identifier=current_billboard_record['asset_ref']['management_id']
         current_family_record=current_billboard_catalog['families'][current_billboard_record['family']]
         current_review_category=current_family_record['review_category']
-        if current_review_category not in {'vegetation','props'}:
+        if current_review_category not in {'vegetation','large-trees','rocks-minerals','props'}:
             raise ValueError('알 수 없는 빌보드 검수 분류: '+str(current_review_category))
         current_billboard_categories[current_billboard_identifier]=current_review_category
     # 지형지물은 타일 정규화 없이 승인된 투명 원본을 사용한다.
