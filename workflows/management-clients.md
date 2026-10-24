@@ -846,3 +846,7 @@ python tools/manager.py command map-assets asset-crop --payload-file crop-save.j
 ### HeartMuLa 입력 페이지 / Magenta 폐기
 
 `music-magenta`는 신규 생성·준비·재개를 차단하며 과거 이력·결과 조회와 명시적 삭제는 유지합니다. 신규 `music-heartmula`는 공용 게이트웨이·GUI·CLI에 등록되어 입력·모델 상태·누적 이력 계약을 공유합니다. `help music-heartmula`에서 입력을 확인할 수 있습니다. 공용 CUDA 작업자에서 실행하며 GUI는 현재 런타임의 GPU 검증 완료를 확인합니다. tags와 lyrics를 직접 입력하며 무보컬 지시를 자동 삽입하지 않습니다. 논문의 특화 모드를 별도 공개 API로 가정하지 않습니다. UI의 최대 출력 시간은 곡의 완결 길이를 의미하지 않습니다.
+
+### 1×3 도복목 빌보드 가이드
+
+가이드 기반 빌보드 생성기의 `1×3 · 낮은 도복목`은 `1x3-fallen-log` 규격입니다. 타일 300×150의 2:1 투영과 높이 80~105 반원통을 사용하며 긴 축은 우상단에서 좌하단입니다. 선택 후 대상·재질을 입력하고 **가이드와 문구를 생성 입력에 적용**하여 기존 대기열로 생성합니다. 원본은 `generators/image/config/billboard-layouts/billboard-guide-1x3-fallen-log.png`에서 관리합니다.

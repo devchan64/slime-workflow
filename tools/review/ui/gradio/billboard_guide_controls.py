@@ -22,10 +22,10 @@ def build_billboard_guide_controls():
         with gr.Row():
             with gr.Column():
                 selected_profile_control = gr.Dropdown(
-                    [(current_profile_name.replace('-tall', ' · 높은형').replace('-medium', ' · 중간 벽면형').replace('-low-2x', ' · 바닥형 높이 2배').replace('-low-4x', ' · 바닥형 높이 4배').replace('-low', ' · 낮은 판형'), current_profile_name) for current_profile_name in BILLBOARD_LAYOUT_PROFILES],
+                    [(current_profile_name.replace('1x3-fallen-log', '1×3 · 낮은 도복목').replace('-tall', ' · 높은형').replace('-medium', ' · 중간 벽면형').replace('-low-2x', ' · 바닥형 높이 2배').replace('-low-4x', ' · 바닥형 높이 4배').replace('-low', ' · 낮은 판형'), current_profile_name) for current_profile_name in BILLBOARD_LAYOUT_PROFILES],
                     value=selected_default_profile, label='점유 열×행 · 형태')
                 selected_subject_control = gr.Textbox(value=BILLBOARD_DEFAULT_SUBJECT, label='대상·재질 설명', lines=3)
-                gr.Markdown('타일 260×130 기준 · 높은형 520 · 중간 벽면형 260 · 낮은형 90 · 1×1 바닥형 높이 2배 180 / 4배 360. 그림은 생성 구도 기준이며 게임의 표시 크기를 저장하지 않습니다.')
+                gr.Markdown('타일 260×130 기준 · 높은형 520 · 중간 벽면형 260 · 낮은형 90 · 1×1 바닥형 높이 2배 180 / 4배 360. 도복목은 타일 300×150 기준 높이 80~105의 반원통이며 우상단에서 좌하단으로 놓입니다. 그림은 생성 구도 기준이며 게임의 표시 크기를 저장하지 않습니다.')
             selected_guide_preview = gr.Image(value=selected_default_values[0], type='pil', interactive=False, label='가이드 미리보기')
         selected_prompt_preview = gr.Textbox(value=selected_default_values[1], label='합성된 생성 문구', interactive=False, lines=5)
         selected_prompt_count = gr.Markdown(selected_default_values[2])
