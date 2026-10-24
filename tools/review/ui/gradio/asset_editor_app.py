@@ -48,13 +48,19 @@ def next_asset_gallery_page(current_catalog_record,current_search_text,current_a
 
 def select_asset_editor_record(current_visible_assets,current_table_values,current_select_event:gr.SelectData):
     current_asset_record = current_visible_assets[current_select_event.index]
-    if current_asset_record['properties'] is None:
-        raise gr.Error('공용 배치 속성 설정 필요: '+current_asset_record['texture']+' · 검수된 공용 속성을 먼저 등록한 뒤 목록을 새로고침하세요.')
+    current_initial_setup=current_asset_record['properties'] is None
+    if current_initial_setup:
+        current_draft_properties=dict(anchorX=0,anchorY=0,groundFootprintColumns=1,groundFootprintRows=1,displayHeight=128,billboardAnchorMode='tile-intersection',shadowOffsetColumn=0,shadowOffsetRow=0,shadowScaleX=1,shadowScaleY=1,billboardBlocksMovement=False)
+        current_asset_record={**current_asset_record,'properties':current_draft_properties}
     current_selected_row = next(current_table_row for current_table_row in current_table_values if current_table_row[0]==current_asset_record['texture'])
+    if current_initial_setup:
+        current_selected_row=[current_asset_record['texture'],current_asset_record['name'],0,0,1,1,128,'top',0,0,1,1,False,len(current_asset_record['maps'])]
     current_image_uri = 'data:image/png;base64,'+base64.b64encode(Path(current_asset_record['image']).read_bytes()).decode()
     current_detail_record = {**current_asset_record,'image':current_image_uri}
     current_modeling_values = current_asset_record['modeling']
     current_detail_text = '**'+current_asset_record['texture']+'** · '+str(current_asset_record['size'])+' px\n\n'+current_modeling_values.get('purpose','')+'\n\n'+current_modeling_values.get('composition','')+'\n\n사용 맵: '+(', '.join(Path(current_map_record['path']).stem for current_map_record in current_asset_record['maps']) or '없음')
+    if current_initial_setup:
+        current_detail_text+='\n\n**공용 속성 최초 설정 · 미저장 초안**. 초기 1×1·높이 128px는 편집 시작값입니다. 점유·크기·접지를 확인한 뒤 선택 에셋 변경 반영으로 저장하세요.'
     if current_asset_record['metadata']:
         current_detail_text += '\n\n별도 프레임 메타데이터가 있는 에셋입니다. 아래 원본 시트 표시는 단일 프레임 접지 판정용이 아닙니다.'
     return current_detail_record,*current_selected_row[2:13],current_detail_text
@@ -78,7 +84,12 @@ def build_asset_editor_payload(current_catalog_record,current_table_values):
         if current_texture_key not in current_baseline_records or current_texture_key in current_seen_textures:raise ValueError('표의 에셋 ID 오류')
         current_seen_textures.add(current_texture_key)
         if current_baseline_records[current_texture_key] is None:
-            if any(current_field_value is not None for current_field_value in current_table_row[2:13]):raise ValueError('공용 배치 속성을 먼저 등록하세요: '+current_texture_key)
+            if all(current_field_value is None for current_field_value in current_table_row[2:13]):continue
+            current_initial_values=dict(zip(EDITOR_PROPERTY_FIELDS,current_table_row[2:12]))
+            current_initial_values.pop('billboardPlacementAnchor')
+            current_initial_values['billboardBlocksMovement']=current_table_row[12]
+            validate_sprite_display_properties({current_texture_key:{**current_initial_values,'billboardAnchorMode':'tile-intersection'}})
+            current_change_records.append({'texture':current_texture_key,'values':current_initial_values})
             continue
         current_property_values=dict(zip(EDITOR_PROPERTY_FIELDS,current_table_row[2:12]))
         for current_field_name in ('groundFootprintColumns','groundFootprintRows'):

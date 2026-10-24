@@ -51,9 +51,11 @@ def prepare_editor_changes(current_request_payload,current_asset_root=None):
         current_texture_key=current_change_record['texture'];current_input_values=current_change_record['values']
         if not isinstance(current_texture_key,str) or current_texture_key not in current_allowed_textures or current_texture_key in current_changed_textures:raise ValueError('미등록 또는 중복 에셋 ID')
         if not isinstance(current_input_values,dict) or not current_input_values or set(current_input_values)-EDITOR_MUTABLE_FIELDS:raise ValueError('수정할 공용 속성 필드 오류')
-        if current_texture_key not in current_property_document['data']:
-            raise ValueError('공용 배치 속성 설정 필요: '+current_texture_key+' · 검수된 공용 속성을 먼저 등록하세요.')
-        current_original_values=current_property_document['data'][current_texture_key]
+        current_original_values=current_property_document['data'].get(current_texture_key)
+        if current_original_values is None:
+            current_required_fields={'anchorX','anchorY','groundFootprintColumns','groundFootprintRows','displayHeight','shadowOffsetColumn','shadowOffsetRow','shadowScaleX','shadowScaleY','billboardBlocksMovement'}
+            if set(current_input_values)!=current_required_fields:raise ValueError('최초 등록에는 앵커·점유·높이·그림자·통행 속성을 모두 지정하세요.')
+            current_original_values={'billboardAnchorMode':'tile-intersection'}
         if current_original_values.get('billboardAnchorMode') in ('tile-bottom-center','tile-intersection') and 'billboardPlacementAnchor' in current_input_values:raise ValueError('상하 배치는 앵커에서 자동 판정됩니다.')
         current_updated_values={**current_original_values,**current_input_values}
         validate_sprite_display_properties({current_texture_key:current_updated_values})
