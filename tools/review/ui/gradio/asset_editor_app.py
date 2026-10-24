@@ -24,7 +24,7 @@ EDITOR_TABLE_HEADERS = ['에셋 ID','이름','앵커 X','앵커 Y','점유 열',
 
 def load_asset_editor_catalog():
     current_catalog_record = execute_remote_management_command('map-assets','asset-list',{})
-    current_table_values = [[current_asset_record['texture'],current_asset_record['name'],*[(('top' if current_asset_record['properties']['anchorY']<.5 else 'bottom') if current_field_name=='billboardPlacementAnchor' and current_asset_record['properties'].get('billboardAnchorMode')in ('tile-bottom-center','tile-intersection') else current_asset_record['properties'].get(current_field_name,0 if current_field_name.startswith('shadowOffset') else 1)) for current_field_name in EDITOR_PROPERTY_FIELDS],current_asset_record['properties'].get('billboardBlocksMovement',False),len(current_asset_record['maps'])] for current_asset_record in current_catalog_record['assets']]
+    current_table_values = [[current_asset_record['texture'],current_asset_record['name'],*[None]*11,len(current_asset_record['maps'])] if current_asset_record['properties'] is None else [current_asset_record['texture'],current_asset_record['name'],*[(('top' if current_asset_record['properties']['anchorY']<.5 else 'bottom') if current_field_name=='billboardPlacementAnchor' and current_asset_record['properties'].get('billboardAnchorMode')in ('tile-bottom-center','tile-intersection') else current_asset_record['properties'].get(current_field_name,0 if current_field_name.startswith('shadowOffset') else 1)) for current_field_name in EDITOR_PROPERTY_FIELDS],current_asset_record['properties'].get('billboardBlocksMovement',False),len(current_asset_record['maps'])] for current_asset_record in current_catalog_record['assets']]
     return current_catalog_record,current_table_values,f"{len(current_table_values)}종을 불러왔습니다. 선택 에셋 변경 반영 버튼으로 하나씩 저장합니다."
 
 
@@ -35,7 +35,7 @@ def filter_asset_editor_gallery(current_catalog_record,current_search_text,curre
     current_page_number=max(1,min(int(current_page_number),current_page_count))
     current_start_index=(current_page_number-1)*EDITOR_GALLERY_PAGE_SIZE
     current_visible_assets = current_matching_assets[current_start_index:current_start_index+EDITOR_GALLERY_PAGE_SIZE]
-    return [(current_asset_record['image'],current_asset_record['texture']) for current_asset_record in current_visible_assets],current_visible_assets,f'검색 결과 {len(current_matching_assets)}종 · {current_page_number}/{current_page_count}페이지 · 페이지당 {EDITOR_GALLERY_PAGE_SIZE}개. 첫·마지막 페이지에서는 해당 방향으로 이동할 수 없습니다.',current_page_number,gr.update(interactive=current_page_number>1),gr.update(interactive=current_page_number<current_page_count)
+    return [(current_asset_record['image'],current_asset_record['texture']+(' · 설정 필요' if current_asset_record['properties'] is None else '')) for current_asset_record in current_visible_assets],current_visible_assets,f'검색 결과 {len(current_matching_assets)}종 · {current_page_number}/{current_page_count}페이지 · 페이지당 {EDITOR_GALLERY_PAGE_SIZE}개. 첫·마지막 페이지에서는 해당 방향으로 이동할 수 없습니다.',current_page_number,gr.update(interactive=current_page_number>1),gr.update(interactive=current_page_number<current_page_count)
 
 
 def previous_asset_gallery_page(current_catalog_record,current_search_text,current_asset_type,current_page_number):
@@ -48,6 +48,8 @@ def next_asset_gallery_page(current_catalog_record,current_search_text,current_a
 
 def select_asset_editor_record(current_visible_assets,current_table_values,current_select_event:gr.SelectData):
     current_asset_record = current_visible_assets[current_select_event.index]
+    if current_asset_record['properties'] is None:
+        raise gr.Error('공용 배치 속성 설정 필요: '+current_asset_record['texture']+' · 검수된 공용 속성을 먼저 등록한 뒤 목록을 새로고침하세요.')
     current_selected_row = next(current_table_row for current_table_row in current_table_values if current_table_row[0]==current_asset_record['texture'])
     current_image_uri = 'data:image/png;base64,'+base64.b64encode(Path(current_asset_record['image']).read_bytes()).decode()
     current_detail_record = {**current_asset_record,'image':current_image_uri}
@@ -75,6 +77,9 @@ def build_asset_editor_payload(current_catalog_record,current_table_values):
         current_texture_key=current_table_row[0]
         if current_texture_key not in current_baseline_records or current_texture_key in current_seen_textures:raise ValueError('표의 에셋 ID 오류')
         current_seen_textures.add(current_texture_key)
+        if current_baseline_records[current_texture_key] is None:
+            if any(current_field_value is not None for current_field_value in current_table_row[2:13]):raise ValueError('공용 배치 속성을 먼저 등록하세요: '+current_texture_key)
+            continue
         current_property_values=dict(zip(EDITOR_PROPERTY_FIELDS,current_table_row[2:12]))
         for current_field_name in ('groundFootprintColumns','groundFootprintRows'):
             current_number_value=current_property_values[current_field_name]

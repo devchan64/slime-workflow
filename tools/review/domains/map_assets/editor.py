@@ -33,7 +33,7 @@ def load_editor_catalog(current_request_payload, current_asset_root=None):
     current_asset_rows=[]
     for current_asset_record in current_catalog_document['billboards']:
         current_texture_key=current_asset_record['texture_key'];current_family_record=current_catalog_document['families'][current_asset_record['family']]
-        current_asset_rows.append({'texture':current_texture_key,'name':current_family_record['name'],'category':current_family_record['review_category'],'image':str(current_asset_root/current_asset_record['source_file']['path']),'size':[current_asset_record['source_file']['width'],current_asset_record['source_file']['height']],'properties':current_property_document['data'][current_texture_key],'maps':current_asset_record['map_references'],'modeling':current_asset_record['modeling'],'metadata':current_asset_record.get('metadata_references',[])})
+        current_asset_rows.append({'texture':current_texture_key,'name':current_family_record['name'],'category':current_family_record['review_category'],'image':str(current_asset_root/current_asset_record['source_file']['path']),'size':[current_asset_record['source_file']['width'],current_asset_record['source_file']['height']],'properties':current_property_document['data'].get(current_texture_key),'maps':current_asset_record['map_references'],'modeling':current_asset_record['modeling'],'metadata':current_asset_record.get('metadata_references',[])})
     return {'revision':current_revision_hash,'assets':current_asset_rows}
 
 
@@ -51,6 +51,8 @@ def prepare_editor_changes(current_request_payload,current_asset_root=None):
         current_texture_key=current_change_record['texture'];current_input_values=current_change_record['values']
         if not isinstance(current_texture_key,str) or current_texture_key not in current_allowed_textures or current_texture_key in current_changed_textures:raise ValueError('미등록 또는 중복 에셋 ID')
         if not isinstance(current_input_values,dict) or not current_input_values or set(current_input_values)-EDITOR_MUTABLE_FIELDS:raise ValueError('수정할 공용 속성 필드 오류')
+        if current_texture_key not in current_property_document['data']:
+            raise ValueError('공용 배치 속성 설정 필요: '+current_texture_key+' · 검수된 공용 속성을 먼저 등록하세요.')
         current_original_values=current_property_document['data'][current_texture_key]
         if current_original_values.get('billboardAnchorMode') in ('tile-bottom-center','tile-intersection') and 'billboardPlacementAnchor' in current_input_values:raise ValueError('상하 배치는 앵커에서 자동 판정됩니다.')
         current_updated_values={**current_original_values,**current_input_values}
