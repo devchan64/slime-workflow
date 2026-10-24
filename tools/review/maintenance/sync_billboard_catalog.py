@@ -68,8 +68,8 @@ def build_shadow_guidance(current_texture_key):
     elif re.search(r'rock|stone|boulder|stump|crate|barrel', current_texture_key):
         current_contact_advice = '단단한 밑면 아래 중심은 조금 진하고 가장자리는 부드럽게 표현한다.'
     return {
-        'runtime_profile': 'billboard-contact-v2',
-        'current_rendering': '공용 렌더러 3겹 접지 그림자. 정사각 점유는 타원, 열·행 수가 다른 점유는 점유 축을 따르는 둥근 직사각형. 공용 속성 shadowOffsetColumn/Row와 shadowScaleX/Y로 위치·크기를 조절한다. 농도 수동 조절은 미지원.',
+        'runtime_profile': 'billboard-contact-tile-length-v3',
+        'current_rendering': '공용 렌더러 3겹 접지 그림자. 모든 점유 형태에 타일 열·행 축을 따르는 둥근 직사각형. 공용 속성 shadowOffsetColumn/Row와 shadowScaleX/Y로 위치·크기를 조절한다. 농도 수동 조절은 미지원.',
         'contact_guidance': current_contact_advice,
         'baked_shadow_review': '원본에 진한 그림자·지면 받침이 있으면 중복 음영을 확인한다. 원본별 그림자 포함 여부는 이미지 검수로 확정한다.',
         'placement_review': '타일 고도·상하 앵커·회전에 맞는 접지 위치를 확인하고 절벽 밖이나 다른 오브젝트 위로 그림자가 번지지 않게 검수한다.',
@@ -156,16 +156,16 @@ def build_catalog_reference(current_asset_root):
         'blocking':'열·행이 모두 3 이상이면 외곽 한 줄을 제외한 내부 (열-2)×(행-2) 타일만 자동 차단한다. 기준 교차점 거리는 축별 1칸=0.5, 그 외 칸수-1이다. 앵커 X·Y는 이 교차점에서 이미지 아랫변 중심까지의 수동 이동값이다.',
         'missing':'설정 필요 항목은 크기를 추측하여 배치하지 않는다.',
         'shadow': {
-            'profile':'billboard-contact-v2',
+            'profile':'billboard-contact-tile-length-v3',
             'implementation':'@slime/field-renderer 1.0.142 · drawBillboardContactShadow',
             'enabled':'기본 활성화. 렌더러 옵션 billboardShadows=false로 전체 비활성화.',
-            'geometry':'폭=min(displayHeight×billboardScale×0.76, tileWidth×1.10), 높이=폭×0.2. 정사각 점유는 이 타원 공식을 사용한다. 열·행 수가 다른 점유는 각 축 길이=선언 점유 수×1.10타일, 모서리 반경=짧은 반축×0.35인 둥근 직사각형을 지면에 투영한다.',
+            'geometry':'열 길이=shadowScaleX타일, 행 길이=shadowScaleY타일. 모든 점유 형태에서 모서리 반경=짧은 반축×0.35인 둥근 직사각형을 지면에 투영한다. 표시 높이·이미지 여백과 무관하며 2×1 점유는 2·1로 설정한다.',
             'layers':[{'scale':1,'alpha':0.14},{'scale':0.78,'alpha':0.20},{'scale':0.5,'alpha':0.26}],
             'color':'#18201b',
             'position':'tile-intersection의 그림자 이동 0·0은 기준 교차점이다. 수동 이미지 앵커와 독립적이다. 빌보드 앵커의 화면 이동을 제거한다: X 보정=(column-row)×tileWidth×0.5, Y 보정=(column+row)×tileHeight×0.5를 뺀다. 열·행 오프셋은 카메라 회전을 반영한다.',
             'depth':'소속 타일의 지면 바로 위에 배치하며 빌보드·캐릭터 정렬과 분리한다.',
             'limits':'접지 그림자만 지원. 광원 방향의 투사·실루엣 그림자, 에셋별 농도 설정, 지면 경계 클리핑은 지원하지 않는다.',
-            'catalog_role':'modeling.shadow는 제작·검수 지침이다. 이 지침만 편집해도 런타임은 바뀌지 않는다. 위치·크기는 공용 속성 편집기에서 shadowOffsetColumn/Row(-4~4타일), shadowScaleX(0.1~4), shadowScaleY(0.05~4, 기본 1·타원 세로만 2배 보정, 긴 그림자의 행 방향은 직접 적용)를 저장한다.',
+            'catalog_role':'modeling.shadow는 제작·검수 지침이다. 이 지침만 편집해도 런타임은 바뀌지 않는다. 위치·크기는 공용 속성 편집기에서 shadowOffsetColumn/Row(-4~4타일), shadowScaleX(열 길이 0.1~4타일), shadowScaleY(행 길이 0.05~4타일), 1은 한 칸이며 점유 수와 이미지 높이를 다시 곱하지 않음를 저장한다.',
         },
         'validation':'slime-workflow/tools/review/maintenance/sync_billboard_catalog.py --check',
     }

@@ -52,12 +52,6 @@ def prepare_billboard_crop(current_request_payload):
         'displayHeight': current_output_image.height * current_pixel_scale,
         'anchorX': current_original_values['anchorX'] + ((current_crop_left + current_crop_right - current_source_width) / 2) * current_pixel_scale / CROP_REFERENCE_TILE_WIDTH,
         'anchorY': current_original_values['anchorY'] + (current_crop_bottom - current_source_height) * current_pixel_scale / CROP_REFERENCE_TILE_HEIGHT}
-    if current_original_values['groundFootprintColumns'] == current_original_values['groundFootprintRows']:
-        current_old_shadow_width = min(current_original_values['displayHeight'] * .76, CROP_REFERENCE_TILE_WIDTH * 1.10)
-        current_new_shadow_width = min(current_updated_values['displayHeight'] * .76, CROP_REFERENCE_TILE_WIDTH * 1.10)
-        current_shadow_ratio = current_old_shadow_width / current_new_shadow_width
-        for current_shadow_field in ('shadowScaleX', 'shadowScaleY'):
-            current_updated_values[current_shadow_field] = current_original_values.get(current_shadow_field, 1) * current_shadow_ratio
     current_updated_values = normalize_sprite_property_precision(current_updated_values)
     current_preview_token = hashlib.sha256((json.dumps({**current_request_payload, 'alpha_threshold': CROP_ALPHA_THRESHOLD}, sort_keys=True) + hashlib.sha256(current_image_bytes).hexdigest()).encode()).hexdigest()
     current_preview_result = {'texture': current_texture_key, 'token': current_preview_token,

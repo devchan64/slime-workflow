@@ -34,6 +34,27 @@ class MapTileAssetTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, '해시 불일치'):
                 resolve_registered_tile(source_relative_path, loaded_repository_path, registered_tile_records)
 
+    def test_updated_registry_refreshes_stale_snapshot(self):
+        with TemporaryDirectory() as current_temporary_root:
+            current_asset_root = Path(current_temporary_root)
+            current_relative_path = 'assets/tiles/terrain/sample.png'
+            current_image_path = current_asset_root / current_relative_path
+            current_image_path.parent.mkdir(parents=True)
+            current_image_path.write_bytes(b'before crop')
+            current_asset_record = {'managementId': 'tile.sample', 'version': '1', 'path': current_relative_path, 'sha256': hashlib.sha256(b'before crop').hexdigest(), 'source': {'repository': 'slime-workflow'}}
+            current_registry_path = current_asset_root / 'asset-registry.yaml'
+            current_registry_path.write_text(yaml.safe_dump({'schema_version': 1, 'assets': [current_asset_record]}))
+            _, current_stale_records = load_registered_tiles(current_asset_root)
+            current_image_path.write_bytes(b'after crop')
+            current_asset_record['sha256'] = hashlib.sha256(b'after crop').hexdigest()
+            current_registry_path.write_text(yaml.safe_dump({'schema_version': 1, 'assets': [current_asset_record]}))
+            _, current_source_record = resolve_registered_tile(current_relative_path, current_asset_root, current_stale_records)
+            self.assertEqual(current_source_record['sha256'], current_asset_record['sha256'])
+            self.assertEqual(current_stale_records[current_relative_path]['sha256'], current_asset_record['sha256'])
+            current_image_path.write_bytes(b'unregistered change')
+            with self.assertRaisesRegex(ValueError, '해시 불일치'):
+                resolve_registered_tile(current_relative_path, current_asset_root, current_stale_records)
+
     def test_duplicate_yaml_key_rejected(self):
         with TemporaryDirectory() as temporary_asset_directory:
             Path(temporary_asset_directory, 'asset-registry.yaml').write_text('schema_version: 1\nschema_version: 1\nassets: []\n')
@@ -99,8 +120,9 @@ class MapTileAssetTests(unittest.TestCase):
             current_registry_record = {'managementId': 'sprite.test.structure', 'version': '1',
                 'path': current_relative_path, 'sha256': hashlib.sha256(b'original').hexdigest()}
             current_source_catalog = (current_repository_path, {current_relative_path: current_registry_record})
-            with patch('tools.review.common.map_tile_assets.load_registered_tiles', side_effect=AssertionError('등록부 재조회')):
+            with patch('tools.review.common.map_tile_assets.load_registered_tiles', return_value=current_source_catalog) as current_registry_loader:
                 self.assertEqual(resolve_registered_sprite(current_relative_path, current_source_catalog)[0], current_sprite_path)
+                current_registry_loader.assert_not_called()
                 current_sprite_path.write_bytes(b'changed')
                 with self.assertRaisesRegex(ValueError, '해시 불일치'):
                     resolve_registered_sprite(current_relative_path, current_source_catalog)

@@ -815,4 +815,17 @@ CLI는 `--lyrics` 또는 `--lyrics-file`을 지원합니다. 예제 조건은 `-
 
 GUI와 CLI는 `map-assets asset-crop-preview` 및 `map-assets asset-crop`에 `--payload-file`을 전달하는 동일 계약을 사용한다. 확인 요청은 `{revision, texture}`, 저장은 여기에 확인 응답의 `token`을 추가한다. revision은 `asset-list`에서 조회한다. 알파값 5 이하(0~255)를 외곽 여백으로 판단하고 알파값 6 이상 픽셀의 경계로 크롭한다. 경계 안의 원본 픽셀은 변경하지 않는다. 임계값은 확인 토큰과 결과 이력에 포함한다. 여백이 없으면 무저장, 알파값 6 이상 픽셀 없음·프레임 시트·하단 교차점 외 앵커는 거절한다. 표시 높이와 앵커를 함께 보정해 화면상의 크기·위치를 유지하며 점유·그림자는 유지한다. 등록부·잠금·카탈로그를 함께 갱신하고 실패하면 복구한다. 원본과 속성 백업은 `.tmp/map-asset-crop/<작업 ID>/`에 보존한다.
 
-에셋 공용 숫자 속성은 소수점 둘째 자리까지 반올림하여 표시·저장한다. 대상은 앵커 X/Y, 표시 높이, 그림자 열/행 이동 및 가로/세로 배율이며 직접 속성 저장·앵커 저장·크롭 계산에 같은 함수를 사용한다. 점유 열/행과 이미지 픽셀 크기는 정수, 통행 차단은 불리언으로 유지한다. 정밀도 제한 때문에 크롭 보정값도 반올림되므로 화면 위치는 기준 타일에서 최대 X 0.8px·Y 0.4px 오차가 생길 수 있다.
+에셋 공용 숫자 속성은 소수점 둘째 자리까지 반올림하여 표시·저장한다. 대상은 앵커 X/Y, 표시 높이, 그림자 열/행 이동 및 열/행 길이이며 직접 속성 저장·앵커 저장·크롭 계산에 같은 함수를 사용한다. 점유 열/행과 이미지 픽셀 크기는 정수, 통행 차단은 불리언으로 유지한다. 정밀도 제한 때문에 크롭 보정값도 반올림되므로 화면 위치는 기준 타일에서 최대 X 0.8px·Y 0.4px 오차가 생길 수 있다.
+
+
+크롭 CLI 호출 예시:
+
+```sh
+python tools/manager.py command map-assets asset-list --payload-file empty.json
+python tools/manager.py command map-assets asset-crop-preview --payload-file crop-preview.json
+python tools/manager.py command map-assets asset-crop --payload-file crop-save.json
+```
+
+`empty.json`은 `{}`이며 `crop-preview.json`에는 최신 `revision`과 대상 `texture`를 넣는다. `crop-save.json`에는 같은 입력과 확인 응답의 `token`을 넣는다. 전체 처리 시 `asset-list`의 등록 빌보드를 순회하며 각 저장 후 revision을 다시 조회한다. 여백이 없는 항목은 저장하지 않고, 실패 항목은 원인과 함께 기록한다. 프레임 시트는 개별 프레임 경계를 보존해야 하므로 일반 크롭 대상으로 강제 처리하지 않는다.
+
+그림자 크기 `shadowScaleX`·`shadowScaleY`는 호환 필드명을 유지하되 각각 **타일 열 방향 길이·행 방향 길이**로 해석한다. 1은 한 칸이며 2×1 점유에 맞추려면 2·1, 2×2는 2·2를 저장한다. 이미지 표시 높이·여백·점유 수를 크기에 다시 곱하지 않는다. 크롭은 이 두 값을 변경하지 않는다. 기존 카탈로그는 점유 열·행 수로 재설정하며 새 렌더러와 함께 적용한다.

@@ -19,7 +19,7 @@ EDITOR_GALLERY_ROW_COUNT = 2
 EDITOR_GALLERY_PAGE_SIZE = EDITOR_GALLERY_COLUMN_COUNT * EDITOR_GALLERY_ROW_COUNT
 
 EDITOR_PROPERTY_FIELDS = ['anchorX','anchorY','groundFootprintColumns','groundFootprintRows','displayHeight','billboardPlacementAnchor','shadowOffsetColumn','shadowOffsetRow','shadowScaleX','shadowScaleY']
-EDITOR_TABLE_HEADERS = ['에셋 ID','이름','앵커 X','앵커 Y','점유 열','점유 행','표시 높이','배치 top/bottom','그림자 열 이동','그림자 행 이동','그림자 가로 배율','그림자 세로 배율','통행 차단','사용 맵 수']
+EDITOR_TABLE_HEADERS = ['에셋 ID','이름','앵커 X','앵커 Y','점유 열','점유 행','표시 높이','배치 top/bottom','그림자 열 이동','그림자 행 이동','그림자 열 길이 · 타일','그림자 행 길이 · 타일','통행 차단','사용 맵 수']
 
 
 def load_asset_editor_catalog():

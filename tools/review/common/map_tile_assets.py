@@ -26,8 +26,8 @@ def construct_unique_mapping(current_yaml_loader, current_mapping_node, deep=Fal
 UniqueAssetYamlLoader.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, construct_unique_mapping)
 
 
-def load_registered_tiles():
-    asset_repository_path = Path(os.environ.get('SLIME_ASSETS_ROOT', DEFAULT_ASSET_REPOSITORY)).resolve()
+def load_registered_tiles(asset_repository_path=None):
+    asset_repository_path = Path(asset_repository_path or os.environ.get('SLIME_ASSETS_ROOT', DEFAULT_ASSET_REPOSITORY)).resolve()
     asset_registry_record = yaml.load((asset_repository_path / 'asset-registry.yaml').read_text(), Loader=UniqueAssetYamlLoader)
     if not isinstance(asset_registry_record, dict) or set(asset_registry_record) != {'schema_version', 'assets'} or asset_registry_record['schema_version'] != 1 or not isinstance(asset_registry_record['assets'], list):
         raise ValueError('에셋 등록부 형식 오류')
@@ -86,7 +86,16 @@ def resolve_registered_asset(asset_relative_path, asset_repository_path, registe
         raise ValueError('맵 타일 원본이 에셋 경로 밖에 있습니다.')
     current_asset_digest = hashlib.sha256(source_texture_path.read_bytes()).hexdigest()
     if current_asset_digest != current_asset_record['sha256']:
-        raise ValueError(f'맵 타일 원본 해시 불일치: {asset_relative_path}')
+        # 크롭·속성 저장 중 앞서 읽은 등록부가 낡아진 경우 최신 등록 해시로 다시 검증한다.
+        # 등록부가 그대로인 실제 파일 손상은 계속 거절한다.
+        _, current_latest_records = load_registered_tiles(asset_repository_path)
+        current_latest_record = current_latest_records.get(asset_relative_path)
+        if current_latest_record is not None and current_latest_record['sha256'] != current_asset_record['sha256']:
+            current_asset_record = current_latest_record
+            current_asset_digest = hashlib.sha256(source_texture_path.read_bytes()).hexdigest()
+            registered_tile_records.update(current_latest_records)
+        if current_asset_digest != current_asset_record['sha256']:
+            raise ValueError(f'맵 타일 원본 해시 불일치: {asset_relative_path}')
     return source_texture_path, {'repository': 'slime-assets', 'source': asset_relative_path, 'managementId': current_asset_record['managementId'], 'version': current_asset_record['version'], 'sha256': current_asset_digest}
 
 

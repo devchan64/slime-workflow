@@ -78,8 +78,8 @@ class MapAssetCropTests(unittest.TestCase):
         current_request_payload = {**self.current_request_payload, 'revision': editor.read_editor_snapshot(self.current_asset_root)[3]}
         current_preview_result = crop.preview_billboard_crop(current_request_payload)
         current_new_properties = current_preview_result['properties']
-        self.assertAlmostEqual(min(240 * .76, 176), min(current_new_properties['displayHeight'] * .76, 176) * current_new_properties['shadowScaleX'], delta=.6)
-        self.assertAlmostEqual(min(240 * .76, 176), min(current_new_properties['displayHeight'] * .76, 176) * current_new_properties['shadowScaleY'], delta=.6)
+        self.assertEqual(current_new_properties['shadowScaleX'], 1)
+        self.assertEqual(current_new_properties['shadowScaleY'], 1)
 
     def test_gateway_and_ui_confirmation_contract(self):
         from tools.review.common.management_gateway import MANAGEMENT_COMMAND_ROUTES, MANAGEMENT_SERVICE_COMMANDS

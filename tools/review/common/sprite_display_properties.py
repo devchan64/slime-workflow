@@ -62,7 +62,7 @@ def validate_sprite_display_properties(current_property_catalog):
             if current_property_name.startswith('shadowOffset') and not -4 <= current_property_value <= 4:
                 raise ValueError('그림자 이동은 -4~4타일이어야 합니다.')
             if current_property_name.startswith('shadowScale') and not (0.05 if current_property_name == 'shadowScaleY' else 0.1) <= current_property_value <= 4:
-                raise ValueError('그림자 배율은 0.1~4여야 합니다.')
+                raise ValueError('그림자 열 길이는 0.1~4타일, 행 길이는 0.05~4타일이어야 합니다.')
             if current_property_name == 'displayHeight' and not 0 < current_property_value <= 1024:
                 raise ValueError('표시 높이 범위 오류')
     return current_property_catalog

@@ -30,8 +30,8 @@ def build_asset_shadow_inputs():
         current_shadow_column=gr.Number(label='그림자 열 방향 이동 · 타일',value=0,minimum=-4,maximum=4,step=.01,precision=2)
         current_shadow_row=gr.Number(label='그림자 행 방향 이동 · 타일',value=0,minimum=-4,maximum=4,step=.01,precision=2)
     with gr.Row():
-        current_shadow_width=gr.Number(label='그림자 가로/열 배율',value=1,minimum=.1,maximum=4,step=.1,precision=2)
-        current_shadow_height=gr.Number(label='그림자 세로/행 배율',value=1,minimum=.05,maximum=4,step=.1,precision=2)
+        current_shadow_width=gr.Number(label='그림자 열 길이 · 타일',value=1,minimum=.1,maximum=4,step=.1,precision=2)
+        current_shadow_height=gr.Number(label='그림자 행 길이 · 타일',value=1,minimum=.05,maximum=4,step=.1,precision=2)
     return [current_shadow_column,current_shadow_row,current_shadow_width,current_shadow_height]
 
 
@@ -101,7 +101,7 @@ def build_selected_asset_panel(current_canvas_identifier):
             with gr.Group():
                 gr.Markdown('### 그림자 위치와 크기')
                 current_shadow_inputs=build_asset_shadow_inputs()
-                gr.Markdown('이동 0·0은 하단 기준 교차점입니다. 가로 1·세로 1가 기본 크기입니다.')
+                gr.Markdown('이동 0·0은 하단 기준 교차점입니다. 열·행 길이 1은 타일 한 칸입니다. 2×1 점유는 열 2·행 1로 맞춥니다.')
             current_update_button=gr.Button('선택 에셋 변경 반영')
             current_save_progress=gr.Markdown('선택한 ID만 검증하고 즉시 저장합니다.')
             with gr.Accordion('투명 여백 크롭',open=False):
