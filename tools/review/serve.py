@@ -184,7 +184,7 @@ def can_reuse_review_directory(current_changed_paths):
     current_common_root=current_workflow_root/'tools/review/common'
     return bool(current_changed_paths) and all(
         (Path(current_file_path).is_relative_to(current_gradio_root) and Path(current_file_path).suffix=='.py') or
-        (Path(current_file_path).parent==current_common_root and Path(current_file_path).name.startswith('gradio_') and Path(current_file_path).suffix=='.py')
+        (Path(current_file_path).parent==current_common_root and (Path(current_file_path).name.startswith('gradio_') or Path(current_file_path).name=='management_asgi.py') and Path(current_file_path).suffix=='.py')
         for current_file_path in current_changed_paths)
 
 
@@ -375,108 +375,9 @@ def run_review_server(parsed_argument_values):
         with trace_write_lock:
             print(trace_line_text,flush=True)
             with server_log_path.open('a') as trace_file_stream: trace_file_stream.write(trace_line_text+'\n')
-    management_menu_url = None
-    from tools.review.common.gradio_process import ensure_gradio_application, ensure_floor_tile_server, ensure_anny_attributes_server, ensure_management_menu_server, ensure_map_review_server, ensure_qwen_2511_server, ensure_qwen_2512_server, ensure_sprite_editor_server, ensure_static_review_server, ensure_writer_agent_server
-    if manager_source_path.is_file():
-        try:
-            management_menu_url=ensure_management_menu_server(parsed_argument_values.port,manager_source_path)
-            emit_server_trace('gradio-menu',management_menu_url)
-        except ValueError as gradio_error_value:
-            emit_server_trace('gradio-menu-failure',str(gradio_error_value))
-    def resolve_gradio_proxy_port(request_path_value):
-        gradio_route_records=(
-            ('/management/frame/sfx-dasheng-audiogen/',parsed_argument_values.port+131,lambda:ensure_gradio_application(parsed_argument_values.port,'sfx-dasheng-audiogen')),
-            ('/management/frame/music-heartmula/',parsed_argument_values.port+138,lambda:ensure_gradio_application(parsed_argument_values.port,'music-heartmula')),
-            ('/management/frame/vace-f2v-generator/',parsed_argument_values.port+128,lambda:ensure_gradio_application(parsed_argument_values.port,'vace-f2v')),
-            ('/management/frame/vace-v2v-generator/',parsed_argument_values.port+127,lambda:ensure_gradio_application(parsed_argument_values.port,'vace-v2v')),
-            ('/management/frame/phantom-generator/',parsed_argument_values.port+126,lambda:ensure_gradio_application(parsed_argument_values.port,'phantom')),
-            ('/management/frame/wan21-vace-generator/',parsed_argument_values.port+125,lambda:ensure_gradio_application(parsed_argument_values.port,'wan21-vace')),
-            ('/',parsed_argument_values.port+100,lambda:ensure_management_menu_server(parsed_argument_values.port,manager_source_path)),
-            ('/management/frame/hy-motion-generator/',parsed_argument_values.port+123,lambda:ensure_gradio_application(parsed_argument_values.port,'hy-motion')),
-            ('/management/frame/anny-landmarks/',parsed_argument_values.port+124,lambda:ensure_gradio_application(parsed_argument_values.port,'anny-landmarks')),
-            ('/management/frame/animation-separation/',parsed_argument_values.port+117,lambda:ensure_gradio_application(parsed_argument_values.port,'animation-separation')),
-            ('/management/frame/qwen-21-circular-generator/',parsed_argument_values.port+118,lambda:ensure_gradio_application(parsed_argument_values.port,'qwen-21-circular')),
-            ('/management/frame/pose-transfer-generator/',parsed_argument_values.port+119,lambda:ensure_gradio_application(parsed_argument_values.port,'pose-transfer')),
-            ('/management/frame/outfit-transfer-generator/',parsed_argument_values.port+120,lambda:ensure_gradio_application(parsed_argument_values.port,'outfit-transfer')),
-            ('/management/frame/vegetation-generator/',parsed_argument_values.port+134,lambda:ensure_gradio_application(parsed_argument_values.port,'vegetation')),
-            ('/management/frame/prop-generator/',parsed_argument_values.port+133,lambda:ensure_gradio_application(parsed_argument_values.port,'prop')),
-            ('/management/frame/billboard-generator/',parsed_argument_values.port+137,lambda:ensure_gradio_application(parsed_argument_values.port,'billboard')),
-            ('/management/frame/building-generator/',parsed_argument_values.port+132,lambda:ensure_gradio_application(parsed_argument_values.port,'building')),
-            ('/management/frame/qwen-21-generator/',parsed_argument_values.port+116,lambda:ensure_gradio_application(parsed_argument_values.port,'qwen-21')),
-            ('/management/frame/expression-generator/',parsed_argument_values.port+114,lambda:ensure_gradio_application(parsed_argument_values.port,'expression')),
-            ('/management/frame/sprite-editor-v2/',parsed_argument_values.port+121,lambda:ensure_gradio_application(parsed_argument_values.port,'sprite-editor-v2')),
-            ('/management/frame/sprite-editor/',parsed_argument_values.port+106,lambda:ensure_sprite_editor_server(parsed_argument_values.port)),
-            ('/management/frame/character-review/',parsed_argument_values.port+122,lambda:ensure_gradio_application(parsed_argument_values.port,'character-review')),
-            ('/management/frame/asset-editor/',parsed_argument_values.port+136,lambda:ensure_gradio_application(parsed_argument_values.port,'asset-editor')),
-            ('/management/frame/world-map/',parsed_argument_values.port+135,lambda:ensure_gradio_application(parsed_argument_values.port,'world-map')),
-            ('/management/frame/map-review/',parsed_argument_values.port+107,lambda:ensure_map_review_server(parsed_argument_values.port)),
-            ('/management/frame/anny-attributes/',parsed_argument_values.port+108,lambda:ensure_anny_attributes_server(parsed_argument_values.port)),
-            ('/management/frame/writer-agent/',parsed_argument_values.port+109,lambda:ensure_writer_agent_server(parsed_argument_values.port)),
-            ('/management/frame/static-review/',parsed_argument_values.port+112,lambda:ensure_static_review_server(parsed_argument_values.port,manager_source_path)),
-            ('/management/',parsed_argument_values.port+100,lambda:ensure_management_menu_server(parsed_argument_values.port,manager_source_path)),
-            ('/hy-motion-generator/',parsed_argument_values.port+100,lambda:ensure_management_menu_server(parsed_argument_values.port,manager_source_path)),
-            ('/character-animation/sprite-editor',parsed_argument_values.port+100,lambda:ensure_management_menu_server(parsed_argument_values.port,manager_source_path)),
-            ('/character-animation/sprite-editor-v2',parsed_argument_values.port+100,lambda:ensure_management_menu_server(parsed_argument_values.port,manager_source_path)),
-            ('/animation-separation/',parsed_argument_values.port+100,lambda:ensure_management_menu_server(parsed_argument_values.port,manager_source_path)),
-            ('/image-generation-21-circular/',parsed_argument_values.port+100,lambda:ensure_management_menu_server(parsed_argument_values.port,manager_source_path)),
-            ('/pose-transfer/',parsed_argument_values.port+100,lambda:ensure_management_menu_server(parsed_argument_values.port,manager_source_path)),
-            ('/prop-generator/',parsed_argument_values.port+100,lambda:ensure_management_menu_server(parsed_argument_values.port,manager_source_path)),
-            ('/vegetation-generator/',parsed_argument_values.port+100,lambda:ensure_management_menu_server(parsed_argument_values.port,manager_source_path)),
-            ('/billboard-generator/',parsed_argument_values.port+100,lambda:ensure_management_menu_server(parsed_argument_values.port,manager_source_path)),
-            ('/building-generator/',parsed_argument_values.port+100,lambda:ensure_management_menu_server(parsed_argument_values.port,manager_source_path)),
-            ('/outfit-transfer/',parsed_argument_values.port+100,lambda:ensure_management_menu_server(parsed_argument_values.port,manager_source_path)),
-            ('/image-generation-21/',parsed_argument_values.port+100,lambda:ensure_management_menu_server(parsed_argument_values.port,manager_source_path)),
-            ('/expression-generator/',parsed_argument_values.port+100,lambda:ensure_management_menu_server(parsed_argument_values.port,manager_source_path)),
-            ('/anny-attributes/',parsed_argument_values.port+100,lambda:ensure_management_menu_server(parsed_argument_values.port,manager_source_path)),
-            ('/writer-agent/',parsed_argument_values.port+100,lambda:ensure_management_menu_server(parsed_argument_values.port,manager_source_path)),
-        )
-        if request_path_value in static_review_route_identifiers or request_path_value=='/isloon-map-review/map-review.html':
-            ensure_management_menu_server(parsed_argument_values.port,manager_source_path)
-            return parsed_argument_values.port+100,request_path_value
-        for route_prefix_value,gradio_port_value,start_gradio_server in gradio_route_records:
-            if route_prefix_value == '/' and not manager_source_path.is_file():
-                continue
-            if request_path_value==route_prefix_value or request_path_value.startswith(route_prefix_value+'config') or request_path_value.startswith(route_prefix_value+'gradio_api/') or request_path_value.startswith(route_prefix_value+'assets/') or request_path_value.startswith(route_prefix_value+'theme') or request_path_value.startswith(route_prefix_value+'favicon'):
-                start_gradio_server()
-                return gradio_port_value,route_prefix_value
-        return None
     class ReviewRequestHandler(SimpleHTTPRequestHandler):
         def __init__(self,*request_handler_arguments,**request_handler_options):
             super().__init__(*request_handler_arguments,directory=str(review_root_directory),**request_handler_options)
-        def proxy_gradio_request(self):
-            request_path_value=urlsplit(self.path).path
-            # 내장 캔버스와 메뉴를 포함한 직접 접속 주소를 분리한다.
-            if request_path_value=='/isloon-map-review/map-review.html' and 'embedded=1' in urlsplit(self.path).query.split('&'):
-                return False
-            if 'embedded=gradio-static' in urlsplit(self.path).query.split('&'):return False
-            try:gradio_proxy_target=resolve_gradio_proxy_port(request_path_value)
-            except ValueError as current_startup_error:
-                emit_server_trace('gradio-startup-failure', f'{request_path_value}: {current_startup_error}')
-                self.send_error(503, 'Management UI unavailable', explain=f'관리 화면을 시작하지 못했습니다. {current_startup_error}')
-                return True
-            if gradio_proxy_target is None:return False
-            gradio_server_port,route_prefix_value=gradio_proxy_target
-            proxied_request_path='/'+self.path[len(route_prefix_value):]
-            request_body_bytes=self.rfile.read(int(self.headers.get('Content-Length','0'))) if self.command=='POST' else None
-            proxy_connection_value=http.client.HTTPConnection('127.0.0.1',gradio_server_port,timeout=30)
-            proxy_header_values=build_gradio_proxy_headers(self.headers)
-            proxy_connection_value.request(self.command,proxied_request_path,body=request_body_bytes,headers=proxy_header_values)
-            proxy_response_value=proxy_connection_value.getresponse()
-            response_body_bytes=proxy_response_value.read()
-            proxy_html_response=proxy_response_value.getheader('Content-Type','').split(';')[0].strip().lower()=='text/html'
-            if proxy_html_response:
-                response_body_bytes=inject_review_live_reload(response_body_bytes)
-            try:
-                self.send_response(proxy_response_value.status)
-                for header_name,header_value in proxy_response_value.getheaders():
-                    if header_name.lower() not in ('connection','transfer-encoding','content-length') and not (proxy_html_response and header_name.lower() in ('etag','last-modified','cache-control')):self.send_header(header_name,header_value)
-                if proxy_html_response:self.send_header('Cache-Control','no-store')
-                self.send_header('Content-Length',str(len(response_body_bytes)));self.end_headers()
-                write_proxy_response_body(self.wfile,response_body_bytes)
-            except (BrokenPipeError, ConnectionResetError):
-                pass
-            finally:proxy_connection_value.close()
-            return True
         def reject_retired_generator(self):
             current_momask_request = urlsplit(self.path)
             if current_momask_request.path.rstrip('/') == '/momask-generator' or current_momask_request.path.startswith(('/momask-generator/', '/management/frame/momask-generator')) or 'momask-generator' in parse_qs(current_momask_request.query).get('tool', []):
@@ -539,14 +440,12 @@ def run_review_server(parsed_argument_values):
                 self.end_headers()
                 self.wfile.write(encoded_record)
                 return
-            if self.proxy_gradio_request():return
             if proxy_management_request(self, parsed_argument_values.gateway_url):return
             super().do_GET()
         def do_POST(self):
             from tools.review.domains.character_review.capture import handle_capture_asset_request
             if handle_capture_asset_request(self):return
             if self.reject_retired_generator():return
-            if self.proxy_gradio_request():return
             if proxy_management_request(self, parsed_argument_values.gateway_url):return
             self.send_error(404, '지원하지 않는 작업 경로')
         def send_head(self):
@@ -591,16 +490,19 @@ def run_review_server(parsed_argument_values):
         raise KeyboardInterrupt
     previous_termination_handler=signal.signal(signal.SIGTERM,terminate_review_server)
     try:
-        with ThreadingHTTPServer((REVIEW_SERVER_HOST,parsed_argument_values.port),ReviewRequestHandler) as review_http_server:
-            if current_prepared_record:
-                Path(current_prepared_record).write_text(json.dumps({'root':str(review_root_directory)}))
-            emit_server_trace('ready',f'elapsed={time.monotonic()-current_startup_time:.3f}s prepare={current_prepare_mode}')
-            emit_server_trace('start',f'http://{REVIEW_SERVER_HOST}:{parsed_argument_values.port}/ root={review_root_directory} entry={parsed_argument_values.entry} log={server_log_path}')
-            heartbeat_worker_thread = threading.Thread(target=emit_server_heartbeat,daemon=True)
-            heartbeat_worker_thread.start()
-            try: review_http_server.serve_forever(poll_interval=0.5)
-            except KeyboardInterrupt: emit_server_trace('stop','사용자 종료')
-            finally: server_stop_event.set();heartbeat_worker_thread.join(timeout=1)
+        from tools.review.common.management_asgi import build_management_application
+        import uvicorn
+        current_management_app = build_management_application(ReviewRequestHandler, review_root_directory, manager_source_path, parsed_argument_values.port, static_review_route_identifiers)
+        if current_prepared_record:
+            Path(current_prepared_record).write_text(json.dumps({'root':str(review_root_directory)}))
+        emit_server_trace('ready', f'단일 포트 {parsed_argument_values.port} · 화면별 내부 포트 없음')
+        heartbeat_worker_thread = threading.Thread(target=emit_server_heartbeat,daemon=True)
+        heartbeat_worker_thread.start()
+        try:
+            uvicorn.run(current_management_app, host=REVIEW_SERVER_HOST, port=parsed_argument_values.port, timeout_graceful_shutdown=2)
+        finally:
+            server_stop_event.set()
+            heartbeat_worker_thread.join(timeout=1)
     except Exception:
         emit_server_trace('failure',traceback.format_exc())
         print('\n'.join(server_log_path.read_text().splitlines()[-20:]),flush=True)
@@ -615,4 +517,8 @@ if __name__ == '__main__':
     if parsed_argument_values.watch:
         run_review_watch_mode(parsed_argument_values)
     else:
+        from tools.review.common.management_environment import resolve_management_environment
+        current_management_python = resolve_management_environment('MANAGEMENT_VIRTUAL_ENVIRONMENT_PATH', '.venv-management')/'bin/python'
+        if Path(sys.prefix) != current_management_python.parent.parent:
+            os.execv(str(current_management_python), [str(current_management_python), *sys.argv])
         run_review_server(parsed_argument_values)

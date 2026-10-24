@@ -13,7 +13,7 @@ MANAGEMENT_AUDIT_MODULES = tuple('tools.review.tests.' + current_module_name for
     'test_gradio_proxy_response', 'test_gradio_standard_components', 'test_generation_status_display', 'test_generation_status_lookup', 'test_hy_motion_progress_display', 'test_generation_estimates',
     'test_generation_cleanup', 'test_queue_generation_telemetry', 'test_generation_history', 'test_gpu_queue_priority',
     'test_gpu_job_queue', 'test_gpu_memory_history', 'test_gpu_status', 'test_anny_history', 'test_anny_profiles',
-    'test_anchor_history', 'test_history_preservation', 'test_gradio_process',
+    'test_anchor_history', 'test_history_preservation', 'test_gradio_process', 'test_management_single_port',
     'test_management_gateway', 'test_management_runtime', 'test_management_menu_gradio',
     'test_hy_motion', 'test_pose_transfer_generation', 'test_pose_reference_manifest',
     'test_three_reference_generation', 'test_qwen_21_generation', 'test_qwen_2511_progress','test_qwen_2512_progress', 'test_qwen_circular_generation', 'test_outfit_transfer', 'test_expression_generation',

@@ -850,3 +850,7 @@ python tools/manager.py command map-assets asset-crop --payload-file crop-save.j
 ### 1×3 도복목 빌보드 가이드
 
 가이드 기반 빌보드 생성기의 `1×3 · 낮은 도복목`은 `1x3-fallen-log` 규격입니다. 타일 300×150의 2:1 투영과 높이 80~105 반원통을 사용하며 긴 축은 우상단에서 좌하단입니다. 선택 후 대상·재질을 입력하고 **가이드와 문구를 생성 입력에 적용**하여 기존 대기열로 생성합니다. 원본은 `generators/image/config/billboard-layouts/billboard-guide-1x3-fallen-log.png`에서 관리합니다.
+
+### 관리 UI 단일 포트 실행
+
+관리 GUI는 `8770`의 ASGI 서버 한 개에서 Gradio 화면을 경로별로 연결합니다. `serve.py`는 `.venv-management`에서 실행하며, 처음 접근한 화면만 구성하고 같은 서버 수명 안에서 큐·스트리밍을 유지합니다. 도구별 TCP 포트와 Gradio 자식 서버는 실행하지 않습니다. 별도 GPU 작업 서비스와 공용 게이트웨이 `8771`의 실행·기록 계약은 유지합니다. 기존 정적 파일·명령 중계 핸들러는 서버 내부 어댑터로 호출합니다. 워치 재시작 시 화면 상태는 다시 연결되며 생성 작업은 별도 작업 서비스에서 계속됩니다.

@@ -9,6 +9,8 @@ SERVER_STOP_TIMEOUT_SECONDS = 10
 
 def matches_review_server(current_process_value, current_script_path):
     current_command_values = current_process_value.cmdline()
+    while len(current_command_values) > 1 and current_command_values[1] in ('-u', '-B', '-E', '-s', '-S', '-I'):
+        current_command_values = [current_command_values[0], *current_command_values[2:]]
     return len(current_command_values) > 1 and Path(current_command_values[1]).is_absolute() and Path(current_command_values[1]).resolve() == current_script_path.resolve() and current_process_value.uids().real == os.getuid()
 
 
