@@ -1,0 +1,11 @@
+schema_version: 1
+asset_id: mannequin-female-front-left
+version: v1
+body_type: female
+view: front_left
+image: mannequin-female-5p5-front-left-v1.png
+sha256: e0a888b134710c6f753c82546a5bae1bdb161a261509ef791471ff6b453ea9d6
+source_image: mannequin-female-5p5-four-directions-2x2-v1.png
+operation: crop
+crop_box_xyxy: [0, 0, 512, 768]
+notes: 원본 2×2 시트의 좌측 상단을 크기 변경·재생성 없이 분리

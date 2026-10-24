@@ -1,0 +1,20 @@
+schema_version: 1
+asset_id: mannequin-female
+version: baseline-v1
+name: 여성형 레퍼런스 마네킨
+purpose: 캐릭터 애니메이션 정렬용 외형 참조
+body_type: female
+proportion_target_heads: 5.5
+layout: 2x2
+views:
+  top_left: front_left
+  top_right: front_right
+  bottom_left: rear_left
+  bottom_right: rear_right
+image: mannequin-female-5p5-four-directions-2x2-v1.png
+sha256: 8760b391228680956ff2433a56170e33453d30f36399a9f5c8a6105e27698d68
+source:
+  tool: image_gen
+  generated_file: exec-32703003-be30-4b41-96ed-82b26519edcf.png
+  approved_date: '2026-10-24'
+  approval: 사용자가 두 결과를 여성형·남성형 레퍼런스로 구분하여 보존하도록 지정

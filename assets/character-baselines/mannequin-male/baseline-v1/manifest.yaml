@@ -1,0 +1,20 @@
+schema_version: 1
+asset_id: mannequin-male
+version: baseline-v1
+name: 남성형 레퍼런스 마네킨
+purpose: 캐릭터 애니메이션 정렬용 외형 참조
+body_type: male
+proportion_target_heads: 5.5
+layout: 2x2
+views:
+  top_left: front_left
+  top_right: front_right
+  bottom_left: rear_left
+  bottom_right: rear_right
+image: mannequin-male-5p5-four-directions-2x2-v1.png
+sha256: 57e6e15af86fbc2491076b001e60d83d0990ebba85c77e7334f8e5fae70eb161
+source:
+  tool: image_gen
+  generated_file: exec-8e1e7b8f-d308-4a29-b943-30205258793b.png
+  approved_date: '2026-10-24'
+  approval: 사용자가 두 결과를 여성형·남성형 레퍼런스로 구분하여 보존하도록 지정

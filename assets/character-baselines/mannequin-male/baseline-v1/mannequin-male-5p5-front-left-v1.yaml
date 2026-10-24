@@ -1,0 +1,11 @@
+schema_version: 1
+asset_id: mannequin-male-front-left
+version: v1
+body_type: male
+view: front_left
+image: mannequin-male-5p5-front-left-v1.png
+sha256: 7acbdd9ca69b72726eb78f8c5cc3b60b9a778baddb940bbb07b77aac6c537a3b
+source_image: mannequin-male-5p5-four-directions-2x2-v1.png
+operation: crop
+crop_box_xyxy: [0, 0, 512, 768]
+notes: 원본 2×2 시트의 좌측 상단을 크기 변경·재생성 없이 분리
