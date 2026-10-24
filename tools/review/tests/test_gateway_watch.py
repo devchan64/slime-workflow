@@ -13,6 +13,10 @@ from tools.review.gateway_server import parse_gateway_arguments
 
 
 class GatewayWatchTests(unittest.TestCase):
+    def test_watch_includes_map_builder_source(self):
+        current_builder_path = gateway_watch.WORKFLOW_ROOT_DIRECTORY/'tools/review/build_block_map_review.py'
+        self.assertIn(current_builder_path, gateway_watch.collect_gateway_watch_paths())
+
     def test_watch_option_preserves_server_arguments(self):
         argument_record_values = parse_gateway_arguments(['--watch', '--port', '9871', '--writer-agent-config', '/tmp/writer config.yaml'])
         self.assertTrue(argument_record_values.watch)

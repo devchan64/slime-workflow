@@ -19,6 +19,7 @@ GATEWAY_WATCH_IGNORED_MODULES = frozenset((
 def collect_gateway_watch_paths(writer_workspace_config=None):
     return (
         WORKFLOW_ROOT_DIRECTORY/'tools/review/gateway_server.py',
+        WORKFLOW_ROOT_DIRECTORY/'tools/review/build_block_map_review.py',
         WORKFLOW_ROOT_DIRECTORY/'tools/review/common',
         WORKFLOW_ROOT_DIRECTORY/'tools/review/domains',
         WORKFLOW_ROOT_DIRECTORY/'generators/writer_agent',
