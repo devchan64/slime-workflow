@@ -311,7 +311,8 @@ def build_asset_editor_interface(current_review_port):
         current_resolution_event.then(fn=None,inputs=current_preview_inputs,outputs=[current_editor_panel.current_preview_feedback,current_editor_panel.current_placement_choice],js=current_preview_script,queue=False)
         current_selection_event.then(fn=None,inputs=current_preview_inputs,outputs=[current_editor_panel.current_preview_feedback,current_editor_panel.current_placement_choice],js=current_preview_script,queue=False)
         for current_input_control in current_preview_inputs[1:]:
-            current_input_control.input(fn=None,inputs=current_preview_inputs,outputs=[current_editor_panel.current_preview_feedback,current_editor_panel.current_placement_choice],js=current_preview_script,queue=False)
+            current_preview_event=current_input_control.change if current_input_control in current_editor_panel.current_shadow_inputs[2:] else current_input_control.input
+            current_preview_event(fn=None,inputs=current_preview_inputs,outputs=[current_editor_panel.current_preview_feedback,current_editor_panel.current_placement_choice],js=current_preview_script,queue=False)
     return current_interface_blocks
 
 
