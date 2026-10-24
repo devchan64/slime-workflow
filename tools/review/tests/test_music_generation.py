@@ -16,9 +16,16 @@ from tools.review.common.generation_records import write_record_atomically
 
 
 class MusicGenerationTests(unittest.TestCase):
+    def test_heartmula_explicit_lyrics_required(self):
+        with self.assertRaisesRegex(ValueError, '직접 입력'):
+            validate_music_request('music-heartmula', {'prompt':'piano'})
+        current_request_record = validate_music_request('music-heartmula', {'prompt':'piano','lyrics':'[Intro]\n[Outro]'})
+        self.assertEqual(current_request_record['lyrics'], '[Intro]\n[Outro]')
+        self.assertNotIn('instrumental', load_music_defaults('music-heartmula')['prompt'])
+
     def test_saved_music_inputs_restore_without_execution(self):
         from tools.review.ui.gradio import music_app
-        for current_service_name in MUSIC_SERVICE_NAMES:
+        for current_service_name in ('music-minimax',):
             with self.subTest(service=current_service_name):
                 current_request_record=build_music_request(current_service_name,{'prompt':'soft flute','duration_seconds':15,'seed':77,'loop_request':True,'tag':'복원 검증'})
                 current_history_record={'id':'isolated-music','request':current_request_record,'status':'completed'}
@@ -80,13 +87,19 @@ class MusicGenerationTests(unittest.TestCase):
         self.addCleanup(self.current_temp_handle.cleanup)
 
     def create_test_job(self,current_status_name='completed'):
-        current_job_record = self.current_music_service.create_music_job({'prompt':'Soft flute village music','seed':7})
-        current_job_root = self.current_music_service.resolve_music_job(current_job_record['id'])
+        import uuid
+        current_job_identifier = '2026-10-24_00-00-00-'+uuid.uuid4().hex[:8]
+        current_job_root = self.current_music_service.job_storage_root/current_job_identifier
+        current_job_root.mkdir(parents=True)
+        self.current_music_service.history_storage_root.mkdir(parents=True,exist_ok=True)
+        current_request_record = build_music_request('music-minimax',{'prompt':'Soft flute village music','seed':7})
+        write_record_atomically(current_job_root/'request.json',current_request_record)
         write_record_atomically(current_job_root/'status.json',{'status':current_status_name})
+        write_record_atomically(self.current_music_service.history_storage_root/(current_job_identifier+'.json'),{'id':current_job_identifier,'created_at':'2026-10-24T00:00:00+09:00','request':current_request_record,'path':str(current_job_root)})
         return current_job_root
 
     def test_fixed_model_and_final_prompt_contract(self):
-        for current_service_name in MUSIC_SERVICE_NAMES:
+        for current_service_name in ('music-minimax',):
             current_request_record = build_music_request(current_service_name,{'prompt':'soft flute','loop_request':True})
             self.assertEqual(verify_music_request(current_service_name,current_request_record),current_request_record)
             self.assertGreater(current_request_record['final_prompt_words'],current_request_record['prompt_words'])
@@ -128,12 +141,10 @@ class MusicGenerationTests(unittest.TestCase):
 
     def test_resume_cancel_and_queue_use_common_executor(self):
         current_job_root = self.create_test_job('failed')
-        current_launch_arguments = self.current_launcher_mock.call_args.args
-        self.assertEqual(current_launch_arguments[2],'music-minimax')
-        self.assertIn('generators/music/worker.py',current_launch_arguments[0][2])
-        with patch('tools.review.domains.music.generation.resume_gpu_generation',return_value={'status':'queued'}) as current_resume_mock:
-            self.current_music_service.execute_music_command('resume',{'id':current_job_root.name})
-            current_resume_mock.assert_called_once_with(current_job_root)
+        with patch('tools.review.domains.music.generation.resume_gpu_generation') as current_resume_mock:
+            with self.assertRaisesRegex(ValueError,'폐기'):
+                self.current_music_service.execute_music_command('resume',{'id':current_job_root.name})
+            current_resume_mock.assert_not_called()
         with patch('tools.review.domains.music.generation.cancel_gpu_generation') as current_cancel_mock:
             self.current_music_service.execute_music_command('cancel',{'id':current_job_root.name})
             current_cancel_mock.assert_called_once_with(current_job_root)
@@ -178,7 +189,7 @@ class MusicGenerationTests(unittest.TestCase):
         reject_cpu_inference(current_cpu_module,())
 
     def test_cli_uses_same_request_schema(self):
-        for current_service_name in MUSIC_SERVICE_NAMES:
+        for current_service_name in ('music-minimax',):
             with patch('tools.review.common.management_gateway.execute_management_command',return_value={'id':'mock'}) as current_command_mock, contextlib.redirect_stdout(io.StringIO()):
                 execute_gateway_arguments(current_service_name,['generate','--prompt','soft flute','--duration-seconds','15','--seed','8','--loop-request','--detach'])
             current_command_arguments = current_command_mock.call_args.args
@@ -194,17 +205,16 @@ class MusicGenerationTests(unittest.TestCase):
         self.assertEqual(int(validate_music_request('music-minimax',current_command_payload)['duration_seconds']*25),751)
         with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
             execute_gateway_arguments('music-minimax',['generate','--prompt','soft flute','--max-new-tokens','750','--duration-seconds','30','--detach'])
-        current_job_record = self.current_music_service.execute_music_command('generate',{'prompt':'soft flute','max_new_tokens':751})
-        current_saved_request = json.loads((self.current_music_service.job_storage_root/current_job_record['id']/'request.json').read_text())
-        self.assertEqual(int(current_saved_request['duration_seconds']*25),751)
+        with self.assertRaisesRegex(ValueError,'폐기'):
+            self.current_music_service.execute_music_command('generate',{'prompt':'soft flute','max_new_tokens':751})
 
     def test_gateway_envelope_and_http_security(self):
         current_gateway_manager = ManagementCommandGateway({'music-minimax':self.current_music_service.handle_music_request})
         current_request_bytes = json.dumps({'service':'music-minimax','command':'generate','payload':{'prompt':'soft flute'}}).encode()
         current_http_handler = SimpleNamespace(command='POST',path='/management/command',server=SimpleNamespace(server_port=9999),headers={'Host':'127.0.0.1:9999','Origin':'http://127.0.0.1:9999','Content-Type':'application/json','Content-Length':str(len(current_request_bytes))},rfile=io.BytesIO(current_request_bytes),wfile=io.BytesIO(),send_response=Mock(),send_header=Mock(),end_headers=Mock())
         self.assertTrue(current_gateway_manager.handle(current_http_handler))
-        current_http_handler.send_response.assert_called_once_with(200)
-        self.assertEqual(json.loads(current_http_handler.wfile.getvalue())['status'],'queued')
+        current_http_handler.send_response.assert_called_once_with(400)
+        self.current_launcher_mock.assert_not_called()
         current_http_handler.headers['Host']='evil.example'
         current_http_handler.send_response.reset_mock()
         current_gateway_manager.handle(current_http_handler)
@@ -347,7 +357,7 @@ class MusicGenerationTests(unittest.TestCase):
     def test_gui_two_models_have_shared_actions(self):
         from tools.review.ui.gradio.music_app import build_music_interface
         from tools.review.ui.gradio.management_menu_app import DEFAULT_PAGE_RECORDS, NATIVE_MANAGEMENT_APPLICATIONS
-        for current_service_name in MUSIC_SERVICE_NAMES:
+        for current_service_name in ('music-heartmula','sfx-dasheng-audiogen'):
             current_interface_blocks = build_music_interface(current_service_name,'http://127.0.0.1:9999')
             current_component_values = [current_component['props'].get('value') for current_component in current_interface_blocks.config['components']]
             for current_button_label in ('우선 실행 · 대기 작업 선택','선택 이력 삭제','생성 재개','대기열에 추가','모델 다운로드·준비'):

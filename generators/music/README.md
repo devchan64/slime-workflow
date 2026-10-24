@@ -102,4 +102,41 @@ CLI는 `--lyrics` 또는 `--lyrics-file`을 지원합니다. 예제 조건은 `-
 
 ### 예제 프롬프트 목록
 
-관리화면의 `예제 프롬프트 목록`에서 예제를 선택하면 설명·원문·가사·상한·시드·출처 작업을 조회합니다. `선택한 예제를 폼에 불러오기`는 입력만 변경하며 생성하지 않습니다. `이슬온 BGM`은 작업 `2026-10-22_22-43-46-1124917c`의 순차 편곡 입력(75초 상한, 시드 7)입니다. 원본은 `generators/music/examples.yaml`이며, 작업 이력을 지워도 조회할 수 있습니다.
+관리화면의 `예제 프롬프트 목록`에서 예제를 선택하면 설명·원문·가사·상한·시드·출처 작업을 조회합니다. `선택한 예제를 폼에 불러오기`는 입력만 변경하며 생성하지 않습니다. `이슬온 BGM`은 작업 `2026-10-24_19-44-27-113c612c`을 바탕으로 계속 반복·종결 금지 지시를 제거하고 부드러운 종지를 요청한 수정 예제(75초 상한, 시드 7)입니다. 수정 입력은 아직 생성 검증 전입니다. 원본은 `generators/music/examples.yaml`이며, 작업 이력을 지워도 조회할 수 있습니다.
+
+### MiniMax 폐기와 Magenta 실험 페이지
+
+2026-10-24 MiniMax는 보컬 제어에 대한 청취 평가에 따라 메뉴에서 제외하고 신규 생성·모델 준비·재개를 차단했습니다. 기존 `.tmp/test/music-minimax` 결과·로그·이력은 보존하며 공용 게이트웨이 조회와 삭제 계약은 유지합니다.
+
+`/management/frame/music-magenta/?tool=music-magenta&category=sound-management`는 Magenta RT2 Small 실험 입력 페이지입니다. 공용 서비스 이름은 `music-magenta`, 작업 루트는 `.tmp/test/music-magenta`, 모델 캐시는 `.model/music/music-magenta`입니다. 프롬프트·5~120초 길이·시드·태그만 받으며 lyrics·토큰 상한·반복 요청은 지원하지 않습니다. GPU 검증 후 공용 작업자에 ONNX CUDA 인코더·JAX 생성 경로를 연결했습니다. 길이는 25Hz 프레임으로 반올림하며 스트리밍 출력을 지정 길이에서 종료합니다. 종결 보장은 없습니다. 시드는 스타일 매퍼 난수에 적용하고 공식 JAX 샘플러 시드는 0으로 유지합니다. 127 SentencePiece 토큰을 넘는 프롬프트는 잘라내지 않고 오류로 종료합니다.
+
+공식 MusicCoCa는 CPU TFLite 경로이므로 저장소 GPU 전용 규칙에 맞지 않습니다. `generators/music/magenta/verify_gpu_encoder.py`는 공식 `google/magenta-realtime-2`의 text_encoder·mapper·pretrained_vector_quantizer 그래프를 ONNX로 변환하고 `session.disable_cpu_ep_fallback=1`로 CUDA만 허용하는 검증 코드입니다. TensorFlow CPU 패키지는 그래프 변환용이며 모델 추론에 사용하지 않습니다. 검증 의존성은 `magenta/requirements-validation.txt`, 결과·로그는 `.tmp/test/magenta-gpu-encoder`에 보관합니다. 변환 모델은 검증 산출물이며 공식 배포 ONNX가 아닙니다. CUDA 실행 성공과 원본 수치 동등성·최종 음악 품질은 구분합니다.
+
+#### GPU 인코더 실측 (2026-10-24)
+
+`verify_gpu_encoder.py`의 최종 검증은 텍스트 인코더 787개, 매퍼와 정규화 1,254개, 양자화 157개 실행 이벤트가 모두 CUDAExecutionProvider였으며 CPU fallback은 비활성화했습니다. 텍스트·매퍼 출력은 `(1,768)`, 양자화 출력은 `(12,1)`입니다. 프로세스 VRAM 관측 피크는 676MiB이고 5초 샘플링이라 순간 피크를 놓칠 수 있습니다. 원본 TFLite와의 수치 동등성 검증 및 최종 음악 검수는 아직 수행하지 않았습니다.
+
+검증 환경은 `.venv-magenta-validation`, 음악 생성 환경은 `.venv-music-magenta`로 분리합니다. 두 requirements 파일은 각각의 환경에서 설치하며 혼합하지 않습니다. 검증 실행은 공용 GPU 대기열로 예약하고 로그를 파일에 보관합니다. `verify_gpu_audio.py`의 5초 CUDA 생성 시험은 `.tmp/test/magenta-gpu-audio/queued-validation`에서 성공했습니다(48kHz stereo, 5초, 작업 프로세스 관측 피크 5974MiB). 최초 직접 시험은 다른 GPU 작업과 겹쳐 메모리 경고가 발생하여 중단했으므로 단독 8GB 판정 근거로 사용하지 않습니다.
+
+`magenta/runtime.py`는 로컬 준비 파일을 검증하고 SHA-256을 실행 시도에 기록합니다. `prepare`는 이미 다운로드·변환된 파일의 재점검이며 누락 파일을 자동 다운로드하거나 CPU로 대체하지 않습니다. 각 생성은 현재 프롬프트를 GPU로 인코딩하며 프로파일의 모든 연산 공급자가 CUDA인지 확인합니다. 그래프 변환의 원본 수치 동등성은 아직 미검증입니다.
+
+마무리 조건 전환 실험: `magenta/ending_policy.yaml`에 고정 정책을 보관합니다. 총 출력의 마지막 15초(30초 미만이면 후반 절반)에는 원문에 종지·최종 화음·자연 잔향 설명을 추가한 스타일 토큰으로 전환하며 이전 생성 상태는 유지합니다. 두 조건은 음악 모델 로드 전에 CUDA로 각각 인코딩합니다. 실제 원문·단어 수·마무리 프롬프트 해시·정책 해시·전환 시점은 `conditioning.json`에, 각 CUDA 연산 프로파일은 실행 시도 및 `ending/`에 기록합니다. 이는 공식 종결 제어 기능이 아닌 실험이며, 종지와 보컬 미포함을 보장하지 않습니다. 음량 감소·페이드·자동 크롭은 적용하지 않습니다. 출력 시간은 모델의 작곡 길이 조건이 아니라 스트리밍 종료 시간입니다.
+
+### HeartMuLa 입력 페이지 / Magenta 폐기 (2026-10-24)
+
+Magenta는 신규 생성·준비·재개를 차단하고 메뉴에서 제거했습니다. 기존 결과·로그·이력과 조회·삭제 명령은 보존합니다. HeartMuLa 페이지는 `/management/frame/music-heartmula/?tool=music-heartmula&category=sound-management`이며 공용 서비스는 `music-heartmula`입니다. 기준 데이터는 `heartmula_defaults.yaml`에서 추적합니다. 공식 권장 `HeartMuLa/HeartMuLa-oss-3B-happy-new-year`와 `HeartCodec-oss-20260123` 조합을 안내합니다.
+
+태그(prompt 계약으로 저장), lyrics(사용자 직접 입력 필수; `[Instrumental]` 자동 삽입 없음), 최대 출력 시간(duration_seconds를 max_audio_length_ms로 환산), 시드·이력 태그를 받습니다. 공용 작업자와 게이트웨이를 통해 준비·생성·재개합니다. GUI 생성 버튼은 현재 런타임 해시와 일치하는 GPU 검증 작업의 완료 기록이 있어야 활성화됩니다. 모델 파일 준비와 GPU 추론 검증은 별도 상태이며 파일 존재만으로 실행 가능하다고 표시하지 않습니다. 반주 제어와 음악 품질은 생성 후 청취 검수가 필요합니다. 모델 캐시는 `.model/music/music-heartmula`, 기록 루트는 `.tmp/test/music-heartmula`, 이력 인덱스는 `.tmp/manager-current/music-heartmula`입니다.
+
+#### HeartMuLa 실행 준비
+
+전용 환경 `.venv-music-heartmula`에 `heartmula/requirements.txt`를 설치합니다. 공식 라이브러리 리비전과 모델 리비전은 `heartmula/runtime.py`에 고정합니다. 모델은 `.model/music/music-heartmula/bundle`에 HeartMuLaGen의 tokenizer/gen_config와 `HeartMuLa-oss-3B`, `HeartCodec-oss`를 보관합니다. 현재 준비는 파일·가중치 인덱스 검증 및 해시 기록이며 준비 파일이 누락되면 즉시 실패합니다.
+
+8GB 실험은 생성 모델 NF4 double quant/BF16 연산, 디코더 FP32, 7.44초 디코더 창을 사용합니다. 모델 연산은 CUDA 전용이며 생성 모델을 해제한 뒤 디코더를 로드합니다. 입력 길이에 맞게 KV 캐시 상한을 줄이고 torch.compile은 사용하지 않습니다. 공식 기본 디코더 창 29.76초와 다른 메모리 절약 설정이므로 데모와 품질이 같다고 가정하지 않습니다. CFG 1.5, top-k 50, temperature 1.0을 고정합니다. `duration_seconds`는 `max_audio_length_ms`로 환산하는 출력 상한이며 EOS가 나오면 먼저 종료합니다. 실제 길이와 EOS 이유는 결과·`termination.json`에 기록합니다.
+
+
+#### 논문과 공개 실행 경로의 범위
+
+[논문](https://arxiv.org/pdf/2601.10547) 3.2절은 구조 표기가 포함된 lyrics와 tags·참조 오디오 조건을 설명합니다. 6.1절은 반주 음악이 학습 자료에 포함됨을 설명하지만, 이는 무보컬 스위치의 공개를 뜻하지 않습니다. 6.4절의 구간 태그 다음 대괄호 자연어 설명은 세부 스타일 **학습 주석 예시**입니다. 현재 [공식 README](https://github.com/HeartMuLa/heartlib#readme)는 reference audio conditioning, fine-grained controllable music generation, hot song generation을 TODO로 표시합니다. 이 문서의 기능명을 임의의 API 모드로 만들지 않습니다.
+
+현재 어댑터는 공개 tags·lyrics 생성 경로만 사용합니다. lyrics 누락을 임의의 `[Instrumental]`로 대체하지 않습니다. `duration_seconds`는 공식 `max_audio_length_ms`로 변환하는 상한입니다. EOS와 상한 종료는 `termination.json` 및 결과의 `termination`에 구분해 저장하고 상한 종료에는 품질 경고를 남깁니다. EOS도 자연스러운 종지나 무보컬의 품질 보장은 아닙니다. NF4 양자화와 7.44초 디코더 창은 로컬 8GB 실행을 위한 변경이며 논문의 평가 조건과 동일하지 않습니다.

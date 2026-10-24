@@ -212,6 +212,9 @@ MANAGEMENT_COMMAND_DESCRIPTIONS['building-generator'] = 'Qwen 건물 생성 · �
 for current_service_name in AUDIO_SERVICE_NAMES:
     MANAGEMENT_COMMAND_DESCRIPTIONS[current_service_name] = '음악생성 · 고정 로컬 모델 · CUDA · WAV · 8GB용 설정(실측 검증 필요)'
 
+MANAGEMENT_COMMAND_DESCRIPTIONS['music-minimax']='폐기 · 기존 결과와 로그 조회 · 신규 생성·준비·재개 차단'
+MANAGEMENT_COMMAND_DESCRIPTIONS['music-heartmula']='HeartMuLa 3B · 입력 페이지 · GPU 실행 검증 전 차단'
+MANAGEMENT_COMMAND_DESCRIPTIONS['music-magenta']='Magenta RT2 Small 실험 · ONNX CUDA 인코더·JAX 음악 생성'
 MANAGEMENT_COMMAND_DESCRIPTIONS['sfx-dasheng-audiogen']='효과음 생성 · Dasheng-AudioGen · CUDA · 길이 자동 예측 · 16kHz mono WAV'
 
 MANAGEMENT_COMMAND_DESCRIPTIONS['hy-motion']='HY-Motion Lite 원본 모션 · CPU 메모리 오프로드 / CUDA 연산 · 준비·생성·ANNY VNCCS 출력(export-vnccs --payload-file)·이력·취소·재개'
@@ -264,6 +267,11 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
                 current_prompt_group.add_argument('--prompt-file',type=Path)
                 if service_command_name == 'sfx-dasheng-audiogen':
                     operation_argument_parser.set_defaults(duration_seconds=None)
+                elif service_command_name == 'music-heartmula':
+                    operation_argument_parser.add_argument('--lyrics',help='가사·구간 태그; 반주 입력 방식은 검증 전')
+                    operation_argument_parser.add_argument('--duration-seconds',type=float,default=current_music_defaults['duration_seconds'],help='최대 출력 시간(초), max_audio_length_ms로 환산 예정')
+                elif service_command_name == 'music-magenta':
+                    operation_argument_parser.add_argument('--duration-seconds',type=float,default=current_music_defaults['duration_seconds'],help='실험 길이(초); GPU 경로 검증 전 실행 차단')
                 else:
                     current_lyrics_group = operation_argument_parser.add_mutually_exclusive_group()
                     current_lyrics_group.add_argument('--lyrics',help='별도 가사 입력; 지정 시 반주 문구 자동 추가 해제')

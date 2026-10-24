@@ -2,8 +2,9 @@ version: 1
 examples:
 - id: iseulon-bgm
   label: 이슬온 BGM
-  description: 반주 · 도입→전개→변주→재현→종결. 시간대·마디 수·Vocal Details 없이 순차 편곡. 생성 품질 채택과는 별개인 입력 예제.
-  source_generation_id: 2026-10-22_22-43-46-1124917c
+  description: 반주 · 플루트 주선율과 따뜻한 어쿠스틱 편곡의 이슬온 BGM. 마지막 선율은 부드러운 종지로 마무리하도록 요청. 보컬
+    유무와 끝맺음은 청취 검수 필요.
+  source_generation_id: 2026-10-24_19-44-27-113c612c
   request:
     prompt: 'Global Metadata
 
@@ -16,35 +17,21 @@ examples:
 
       Arrangement
 
-      Introduction: flowing harp arpeggios and light pizzicato strings establish
+      Begin with flowing harp arpeggios, light pizzicato strings, warm double bass
 
-      the accompaniment. Wooden flute presents a warm, lyrical main theme.
+      and quiet brushed percussion. Wooden flute introduces a short, memorable
 
-      Development: warm double bass and quiet brushed percussion enter beneath
+      village melody. Oboe softly answers the flute while viola adds a warm texture.
 
-      the continuing harp and strings. Oboe answers the flute with a gentle
+      Develop the melody with small ornaments over a steady acoustic accompaniment.
 
-      countermelody, gradually enriching the musical texture.
+      Bring the flute theme back with a lighter arrangement. Let the final melodic
 
-      Variation: flute and oboe exchange melodic phrases while legato violas
+      phrase settle into a gentle tonic cadence, with a soft sustained harp and
 
-      broaden the harmony. Maintain a calm, steady groove and connect the
+      string chord completing the piece.
 
-      phrases smoothly, with subtle changes in the string accompaniment.
-
-      Reprise: bring back the opening theme, shared by flute and oboe over
-
-      the fuller acoustic ensemble. Keep the melody clear and the accompaniment
-
-      restrained, allowing the returning theme to resolve.
-
-      Ending: let percussion and bass gradually settle as the flute completes
-
-      a resolved final cadence. Harp and strings support the closing harmony,
-
-      then release into a short natural instrumental decay.
-
-      Acoustic instruments carry all melodies throughout the piece.'
+      Acoustic instruments carry every melody; purely instrumental throughout.'
     lyrics: '[Instrumental]'
     duration_seconds: 75.0
     seed: 7

@@ -1,0 +1,17 @@
+version: 1
+prompt: "piano,harp,flute,acoustic,peaceful"
+duration_seconds: 30
+seed: 7
+loop_request: false
+instrumental_suffix: ""
+loop_suffix: ""
+profiles:
+  music-heartmula:
+    label: HeartMuLa 3B
+    model_id: HeartMuLa/HeartMuLa-oss-3B-happy-new-year
+    runtime_directory: .venv-music-heartmula
+    max_duration_seconds: 240
+    sample_rate: 48000
+    steps: 1
+    license_url: https://huggingface.co/HeartMuLa/HeartMuLa-oss-3B-happy-new-year
+    license_notice: "코드·관련 가중치 Apache-2.0 · 공식 안내"

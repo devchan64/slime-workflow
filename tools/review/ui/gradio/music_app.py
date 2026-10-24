@@ -52,10 +52,20 @@ def build_music_interface(current_service_name,current_server_address):
     current_profile_record = resolve_music_profile(current_service_name)
     current_default_record = load_music_defaults(current_service_name)
     current_effects_mode = current_service_name == 'sfx-dasheng-audiogen'
+    current_minimax_mode = current_service_name == 'music-minimax'
+    current_heartmula_mode = current_service_name == 'music-heartmula'
+    current_magenta_mode = current_service_name in ('music-magenta','music-heartmula')
     current_content_label = '효과음' if current_effects_mode else '음악'
     current_prompt_label = '소리·재질·동작 설명' if current_effects_mode else '음악 설명 · prompt'
     current_content_description = '짧은 게임 효과음과 환경음 후보를 로컬 CUDA에서 생성합니다. 출력은 16kHz mono PCM16 WAV입니다.' if current_effects_mode else '게임 BGM 후보를 로컬 CUDA에서 생성합니다. 출력은 stereo WAV이며 MIDI는 생성하지 않습니다.'
     current_hardware_notice = '25스텝 · CUDA BF16 · 길이는 모델 자동 예측 · 실제 VRAM 피크·음질은 생성 후 확인' if current_effects_mode else '8GB GPU 로딩 검증 완료, 음악 생성 피크는 별도 확인 필요'
+    if current_magenta_mode:
+        current_hardware_notice = 'ONNX CUDA 인코더·JAX 생성·디코더 검증 완료 · 5초 관측 피크 5974MiB'
+        current_content_description = 'Magenta RT2 Small(230M) 반주 실험 입력 화면입니다. 출력 목표는 48kHz stereo WAV입니다. 허밍·보컬 미포함과 자연스러운 종결은 보장하지 않습니다.'
+    if current_heartmula_mode:
+        current_prompt_label = '음악 태그 · tags (쉼표로 구분)'
+        current_content_description = 'HeartMuLa 공개 3B 모델 입력 페이지입니다. 태그와 가사·구간 태그를 입력합니다. 8GB CUDA 생성은 검증했으며, 보컬 차단과 자연스러운 종결은 보장하지 않습니다.'
+        current_hardware_notice = 'HeartCodec FP32 · 생성 모델 NF4/BF16 · CUDA 순차 로드 · 실제 준비 상태는 아래 표시'
     def execute_music_command(current_command_name,current_payload_record):
         return execute_remote_management_command(current_service_name,current_command_name,current_payload_record)
     with gr.Blocks(title=current_profile_record['label']+' '+current_content_label+' 생성') as current_interface_blocks:
@@ -63,10 +73,14 @@ def build_music_interface(current_service_name,current_server_address):
         gr.Markdown(f"고정 모델: `{current_profile_record['model_id']}` · {('길이 자동 예측' if current_effects_mode else '최대 생성 길이 기본값 '+str(current_default_record['duration_seconds'])+'초')} · batch 1 · {current_hardware_notice}\n\n[{current_profile_record['license_notice']}]({current_profile_record['license_url']})")
         current_model_status = gr.Markdown('모델 준비 상태 확인 중')
         with gr.Accordion('모델 준비 · 다운로드 / 재점검',open=False):
-            current_prepare_button = gr.Button('모델 다운로드·준비')
+            current_prepare_button = gr.Button('준비 파일 재점검' if current_magenta_mode and not current_heartmula_mode else '모델 다운로드·준비',interactive=not current_heartmula_mode)
+            if current_heartmula_mode:
+                gr.Markdown('준비는 설치된 모델 파일을 재점검합니다. 생성은 GPU 검증 완료 및 tags·lyrics 직접 입력 후 활성화됩니다.')
+            elif current_magenta_mode:
+                gr.Markdown('GPU 실험 경로: ONNX 변환 인코더와 공식 JAX Small을 사용합니다. 원본 TFLite와 수치 동등성은 미검증입니다. 시드는 스타일 매퍼에 적용하며 음악 샘플러 시드는 공식 구현의 0으로 고정됩니다.')
             with gr.Column() as current_prepare_container:
                 pass
-        if not current_effects_mode:
+        if current_minimax_mode:
             current_example_records = load_music_examples()
             with gr.Accordion('예제 프롬프트 목록',open=False):
                 current_example_selector = gr.Dropdown(choices=[(current_example_record['label'],current_example_record['id']) for current_example_record in current_example_records],value=current_example_records[0]['id'],label='예제 선택',allow_custom_value=False)
@@ -79,27 +93,27 @@ def build_music_interface(current_service_name,current_server_address):
                 gr.Markdown('목록 선택은 미리보기만 바꿉니다. 불러오기를 누르면 음악 설명·가사·길이·시드·반복·최소 길이를 덮어쓰고 이전 방식을 해제합니다. 생성은 실행하지 않습니다.')
         current_prompt_control = gr.Textbox(value=current_default_record['prompt'],label=current_prompt_label,lines=4,placeholder='영어로 원하는 소리와 동작을 설명하세요.' if current_effects_mode else '예: Calm fantasy village music with flute and acoustic strings')
         current_vocal_draft = gr.State('')
-        current_vocal_control = gr.State('반주') if current_effects_mode else gr.Radio(choices=['반주','보컬'],value='반주',label='음악 유형',info='반주는 가창 없이 생성합니다. 보컬은 가사를 입력하고 음악 설명에도 원하는 목소리를 적어 주세요.')
-        current_lyrics_control = gr.State(None) if current_effects_mode else gr.Textbox(value='[Instrumental]',label='가사·구간 구성 · lyrics',lines=6,interactive=False,info='반주는 [Instrumental]. 보컬은 [verse], [chorus]와 가사를 입력하세요. 프롬프트의 보컬 지시와 일치시켜 주세요.')
+        current_vocal_control = gr.State('반주') if not current_minimax_mode else gr.Radio(choices=['반주','보컬'],value='반주',label='음악 유형',info='반주는 가창 없이 생성합니다. 보컬은 가사를 입력하고 음악 설명에도 원하는 목소리를 적어 주세요.')
+        current_lyrics_control = gr.Textbox(value='',label='가사·구간 태그 · lyrics',lines=6,info='직접 입력해야 합니다. 공식 예제는 [Intro], [Verse], [Chorus], [Outro]와 가사를 사용합니다. 구간 표기만 넣는 방법은 미검증 실험이며 반주 모드가 아닙니다.') if current_heartmula_mode else gr.State(None) if not current_minimax_mode else gr.Textbox(value='[Instrumental]',label='가사·구간 구성 · lyrics',lines=6,interactive=False,info='반주는 [Instrumental]. 보컬은 [verse], [chorus]와 가사를 입력하세요. 프롬프트의 보컬 지시와 일치시켜 주세요.')
         current_prompt_reset = gr.Button('음악 설명만 비우기' if not current_effects_mode else '프롬프트 초기화',size='sm')
         current_prompt_reset.click(lambda:'',outputs=current_prompt_control,queue=False)
         with gr.Row():
-            current_length_control = gr.State(None) if current_effects_mode else gr.Number(value=current_default_record['duration_seconds'],minimum=resolve_audio_minimum(current_service_name),maximum=current_profile_record['max_duration_seconds'],label='audio_duration · 최대 생성 길이(초)',info='5~120초. 선택한 예제의 상한을 확인하세요. 종료 토큰이 나오면 먼저 끝날 수 있습니다.')
-            if not current_effects_mode:
+            current_length_control = gr.State(None) if current_effects_mode else gr.Number(value=current_default_record['duration_seconds'],minimum=resolve_audio_minimum(current_service_name),maximum=current_profile_record['max_duration_seconds'],label='최대 출력 시간(초) · max_audio_length_ms 환산' if current_heartmula_mode else '생성 길이(초)' if current_magenta_mode else 'audio_duration · 최대 생성 길이(초)',info='5~240초. 완결 길이가 아닌 최대 오디오 출력 상한입니다.' if current_heartmula_mode else '5~120초 실험 입력. 자연스러운 종결은 보장하지 않습니다.' if current_magenta_mode else '5~120초. 선택한 예제의 상한을 확인하세요. 종료 토큰이 나오면 먼저 끝날 수 있습니다.')
+            if current_minimax_mode:
                 current_duration_display = gr.Number(value=current_default_record['duration_seconds']*MINIMAX_AUDIO_FRAME_RATE,label='환산 오디오 프레임 상한 · max_new_tokens',interactive=False)
                 def update_minimax_duration(current_duration_value):
                     current_validated_request = validate_music_request(current_service_name,{'prompt':'preview','duration_seconds':current_duration_value})
                     return int(current_validated_request['duration_seconds']*MINIMAX_AUDIO_FRAME_RATE)
                 current_length_control.change(update_minimax_duration,current_length_control,current_duration_display,queue=False)
             current_seed_control = build_generation_seed(default_seed_value=current_default_record['seed'])
-        if not current_effects_mode:
+        if current_minimax_mode:
             gr.Markdown('**예제 입력** · 음악 설명은 prompt, 가사·구간 태그는 lyrics에 입력합니다. 예제 목록에서 원문과 길이·시드를 확인한 뒤 불러오세요.\n\n길이는 `audio_duration`으로 전달합니다. 30초=750프레임, 60초=1,500프레임, 120초=3,000프레임이며 실제 길이를 보장하지 않습니다.')
-        with gr.Accordion('고급 설정 · 이전 입력 호환 / 길이 실험',open=False):
-            current_legacy_control = gr.State(True) if current_effects_mode else gr.Checkbox(value=False,label='이전 방식: 반주 문구 자동 추가·가사 고정',info='예제 입력은 해제합니다. 이전 이력을 불러오면 해당 방식이 복원됩니다.')
-            current_minimum_control = gr.State(0) if current_effects_mode else gr.Number(value=0,minimum=0,maximum=current_profile_record['max_duration_seconds'],label='실험 · 최소 생성 길이(초)',info='0은 해제. 예: 최소 50초 / 상한 1500프레임(60초). 종료 토큰을 억제합니다. 이전 실험에서 긴 무음이 발생했으므로 기본값 0을 권장합니다. 기존 이력에는 자동 적용하지 않습니다.')
-        current_loop_control = gr.Checkbox(value=False if not current_effects_mode else current_default_record['loop_request'],label='반복 구조 요청 · 선택 사항, 이음새 없는 루프 보장 없음')
-        gr.Markdown('영어 프롬프트를 권장합니다. 반복 요청은 환경음 문구를 추가하며 이음새 없는 루프를 보장하지 않습니다. 길이는 모델이 예측하며 초 단위 지정은 지원하지 않습니다.' if current_effects_mode else 'prompt는 음악 설명, lyrics는 가사·구간 태그입니다. 자동 문구 추가와 반복 요청을 모두 해제하면 입력한 설명을 그대로 전달합니다. 최대 생성 길이를 60초로 설정해도 모델이 먼저 종료하면 더 짧게 생성됩니다. 보컬 미포함은 보장되지 않으므로 결과를 청취하세요. 반복 구조 요청은 프롬프트 문구를 추가하는 옵션이며, 별도 루프 파라미터나 자동 접합 기능이 아닙니다.')
-        if not current_effects_mode:
+        with gr.Accordion('고급 설정 · 이전 입력 호환 / 길이 실험',open=False,visible=not current_magenta_mode):
+            current_legacy_control = gr.State(True) if not current_minimax_mode else gr.Checkbox(value=False,label='이전 방식: 반주 문구 자동 추가·가사 고정',info='예제 입력은 해제합니다. 이전 이력을 불러오면 해당 방식이 복원됩니다.')
+            current_minimum_control = gr.State(0) if not current_minimax_mode else gr.Number(value=0,minimum=0,maximum=current_profile_record['max_duration_seconds'],label='실험 · 최소 생성 길이(초)',info='0은 해제. 예: 최소 50초 / 상한 1500프레임(60초). 종료 토큰을 억제합니다. 이전 실험에서 긴 무음이 발생했으므로 기본값 0을 권장합니다. 기존 이력에는 자동 적용하지 않습니다.')
+        current_loop_control = gr.State(False) if current_magenta_mode else gr.Checkbox(value=False if not current_effects_mode else current_default_record['loop_request'],label='반복 구조 요청 · 선택 사항, 이음새 없는 루프 보장 없음')
+        gr.Markdown('공식 입력: 쉼표 구분 tags와 lyrics. 시간은 밀리초 상한으로 환산하며 완결된 곡 길이를 보장하지 않습니다. 고정값: topk 50, temperature 1.0, cfg_scale 1.5. EOS가 나오면 먼저 종료하고, 시간 상한에 도달하면 곡 중간에도 종료합니다. [Instrumental]을 자동 삽입하지 않습니다.' if current_heartmula_mode else 'Magenta 실험: 음악 설명·길이·시드만 사용합니다. 반복 지시와 음량 후처리는 적용하지 않습니다. 127 SentencePiece 토큰을 초과하면 오류로 종료합니다. 지정 길이에서 스트리밍을 종료하므로 자연스러운 종결은 보장하지 않습니다.' if current_magenta_mode else '영어 프롬프트를 권장합니다. 반복 요청은 환경음 문구를 추가하며 이음새 없는 루프를 보장하지 않습니다. 길이는 모델이 예측하며 초 단위 지정은 지원하지 않습니다.' if current_effects_mode else 'prompt는 음악 설명, lyrics는 가사·구간 태그입니다. 자동 문구 추가와 반복 요청을 모두 해제하면 입력한 설명을 그대로 전달합니다. 최대 생성 길이를 60초로 설정해도 모델이 먼저 종료하면 더 짧게 생성됩니다. 보컬 미포함은 보장되지 않으므로 결과를 청취하세요. 반복 구조 요청은 프롬프트 문구를 추가하는 옵션이며, 별도 루프 파라미터나 자동 접합 기능이 아닙니다.')
+        if current_minimax_mode:
             def switch_music_vocals(current_vocal_mode,current_saved_draft):
                 if current_vocal_mode not in ('반주','보컬'):
                     raise gr.Error('반주 또는 보컬을 선택하세요.')
@@ -113,13 +127,13 @@ def build_music_interface(current_service_name,current_server_address):
             for current_mode_source in (current_lyrics_control,current_legacy_control):
                 current_mode_source.change(synchronize_music_vocals,[current_lyrics_control,current_vocal_draft,current_legacy_control],[current_vocal_control,current_vocal_draft,current_lyrics_control],queue=False)
 
-        if not current_effects_mode:
+        if current_minimax_mode:
             current_example_button.click(load_instrumental_example,inputs=current_example_selector,outputs=[current_prompt_control,current_lyrics_control,current_length_control,current_seed_control,current_loop_control,current_minimum_control,current_legacy_control],queue=False)
         current_prompt_counts,current_final_prompt = describe_music_prompt(current_service_name,current_default_record['prompt'],current_default_record['loop_request'] if current_effects_mode else False,current_effects_mode)
         current_prompt_summary = gr.Markdown(current_prompt_counts)
         with gr.Accordion('최종 모델 입력 원문',open=False):
             current_final_control = gr.Textbox(value=current_final_prompt,interactive=False,label='최종 프롬프트',lines=4)
-            if not current_effects_mode:
+            if current_minimax_mode:
                 current_final_lyrics = gr.Textbox(value='[Instrumental]',label='최종 lyrics',interactive=False,lines=4)
                 current_lyrics_summary = gr.Markdown('가사 입력 1단어 · 최종 lyrics 1단어')
                 def update_music_lyrics(current_lyrics_text,current_legacy_value):
@@ -131,17 +145,23 @@ def build_music_interface(current_service_name,current_server_address):
         def update_music_prompt(current_prompt_text,current_loop_value,current_legacy_value):
             return describe_music_prompt(current_service_name,current_prompt_text,current_loop_value,current_legacy_value)
         current_tag_control = gr.Textbox(label='이력 태그 · 선택 사항',max_lines=1,info='예: 초원 낮 · 비교 실험 1. 모델 입력에는 포함되지 않습니다.')
-        current_generate_button = gr.Button('대기열에 추가',variant='primary',interactive=bool(current_default_record['prompt'].strip()))
+        current_generate_button = gr.Button('대기열에 추가',variant='primary',interactive=bool(current_default_record['prompt'].strip()) and not current_heartmula_mode)
         def describe_music_readiness(current_prompt_text,current_lyrics_text,current_legacy_value):
+            if current_heartmula_mode:
+                return '음악 태그와 가사·구간 태그를 직접 입력하세요. 무보컬 기본값은 제공하지 않습니다.' if not (current_prompt_text and current_prompt_text.strip() and current_lyrics_text and current_lyrics_text.strip()) else '입력한 설정을 확인한 뒤 대기열에 등록합니다.'
             if not current_prompt_text or not current_prompt_text.strip():
                 return '음악 설명을 입력하세요.' if not current_effects_mode else '소리·재질·동작 설명을 입력하세요.'
-            if not current_effects_mode and not current_legacy_value and (not current_lyrics_text or not current_lyrics_text.strip()):
+            if current_minimax_mode and not current_legacy_value and (not current_lyrics_text or not current_lyrics_text.strip()):
                 return '가사를 입력하세요. 반주만 만들 때는 [Instrumental]을 입력하세요.'
             return '입력한 설정을 확인한 뒤 대기열에 등록합니다.'
         def check_music_readiness(current_prompt_text,current_lyrics_text,current_legacy_value):
+            if current_heartmula_mode:
+                return bool(current_prompt_text and current_prompt_text.strip() and current_lyrics_text and current_lyrics_text.strip() and execute_music_command('model-status',{}).get('ready'))
+            if current_magenta_mode:
+                return bool(current_prompt_text and current_prompt_text.strip())
             return bool(current_prompt_text and current_prompt_text.strip() and (current_effects_mode or current_legacy_value or (current_lyrics_text and current_lyrics_text.strip())))
         current_readiness_controls = [current_prompt_control,current_lyrics_control,current_legacy_control]
-        current_generate_notice = build_button_guidance(current_generate_button,describe_music_readiness(current_default_record['prompt'],'[Instrumental]',current_effects_mode))
+        current_generate_notice = build_button_guidance(current_generate_button,describe_music_readiness(current_default_record['prompt'],'' if current_heartmula_mode else '[Instrumental]',current_effects_mode))
         for current_readiness_control in current_readiness_controls:
             current_readiness_control.change(describe_music_readiness,current_readiness_controls,current_generate_notice,queue=False)
         for current_prompt_source in (current_prompt_control,current_loop_control,current_legacy_control):
@@ -159,9 +179,11 @@ def build_music_interface(current_service_name,current_server_address):
             if type(current_seed_value) not in (int,float) or current_seed_value != int(current_seed_value):
                 raise gr.Error('시드는 정수여야 합니다.')
             current_payload_record = {'action':'generate','prompt':current_prompt_text,'duration_seconds':current_duration_value,'seed':int(current_seed_value),'loop_request':current_loop_value,'tag':current_tag_value}
-            if not current_effects_mode:
+            if current_minimax_mode:
                 if not current_legacy_value:
                     current_payload_record['lyrics'] = current_lyrics_text
+            if current_heartmula_mode:
+                current_payload_record['lyrics'] = current_lyrics_text
             if current_minimum_value:
                 current_payload_record['min_duration_seconds'] = current_minimum_value
             build_music_request(current_service_name,current_payload_record)
@@ -181,6 +203,12 @@ def build_music_interface(current_service_name,current_server_address):
             current_audio_identity = current_status_record.get('audio') or (current_job_identifier+':prepared' if current_status_record.get('result',{}).get('prepared') else '')
             current_model_message = execute_music_command('model-status',{})['message'] if current_audio_identity and current_audio_identity!=current_previous_result else gr.skip()
             return describe_audio_generation_status(current_status_record),render_audio_generation_result(current_job_identifier,current_status_record,current_server_address) if current_audio_identity and current_audio_identity!=current_previous_result else gr.skip(),current_status_record.get('log','') if current_logs_enabled else gr.skip(),current_audio_identity,current_model_message,gr.skip()
+        if current_heartmula_mode:
+            def refresh_heartmula_readiness(current_prompt_text,current_lyrics_text,current_legacy_value):
+                current_model_record = execute_music_command('model-status',{})
+                current_inputs_ready = bool(current_prompt_text and current_prompt_text.strip() and current_lyrics_text and current_lyrics_text.strip())
+                return gr.update(interactive=bool(current_model_record.get('ready')) and current_inputs_ready),gr.update(interactive=bool(current_model_record.get('artifacts_ready'))),describe_music_readiness(current_prompt_text,current_lyrics_text,current_legacy_value) if current_model_record.get('ready') else current_model_record['message']
+            gr.Timer(5).tick(refresh_heartmula_readiness,current_readiness_controls,[current_generate_button,current_prepare_button,current_generate_notice],queue=False,show_progress='hidden')
         current_refresh_timer = gr.Timer(5)
         current_refresh_timer.tick(refresh_music_result,[current_job_control,current_log_refresh,current_result_identity],[current_status_display,current_result_display,current_log_output,current_result_identity,current_model_status,current_job_control],queue=False,show_progress='hidden')
         def restore_music_inputs(current_history_record):

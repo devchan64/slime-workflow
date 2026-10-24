@@ -1,0 +1,7 @@
+magenta-rt[jax]==2.0.3
+jax[cuda12]==0.10.2
+onnxruntime-gpu==1.23.2
+numpy==2.3.5
+sentencepiece==0.2.2
+soundfile==0.14.0
+PyYAML==6.0.3

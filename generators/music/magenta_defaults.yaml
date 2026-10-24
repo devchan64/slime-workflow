@@ -1,0 +1,17 @@
+version: 1
+prompt: "Peaceful acoustic village music, wooden flute melody, harp, pizzicato strings, warm double bass and quiet brushed percussion. Gentle major harmony."
+duration_seconds: 30
+seed: 7
+loop_request: false
+instrumental_suffix: ""
+loop_suffix: ""
+profiles:
+  music-magenta:
+    label: Magenta RT2 Small · 실험
+    model_id: google/magenta-realtime-2
+    runtime_directory: .venv-music-magenta
+    max_duration_seconds: 120
+    sample_rate: 48000
+    steps: 1
+    license_url: https://huggingface.co/google/magenta-realtime-2
+    license_notice: "코드 Apache-2.0 · 가중치 CC-BY-4.0 · 추가 이용 조건 확인"

@@ -19,7 +19,7 @@ GPU_MEMORY_REQUIREMENTS = {'momask': 4096, 'character-animation': 6144, 'image':
 # HY-Motion의 초기 예약은 실측 전 보수적 값이며 완료 후 공용 이력의 peak로 갱신한다.
 GPU_MEMORY_REQUIREMENTS['hy-motion'] = 7000
 # 음악 모델의 초기 예약값. 실제 관측 피크는 공용 메모리 이력이 갱신한다.
-GPU_MEMORY_REQUIREMENTS.update({'music-minimax':7000,'sfx-dasheng-audiogen':7000})
+GPU_MEMORY_REQUIREMENTS.update({'music-minimax':7000,'music-magenta':7000,'music-heartmula':7300,'sfx-dasheng-audiogen':7000})
 GPU_POLL_INTERVAL = 2
 # 실측 프로세스 최대 사용량과 현재 여유를 직접 비교한다.
 # 고정 여유분 추가 차감은 단독 실행이 가능한 작업도 무기한 차단한다.

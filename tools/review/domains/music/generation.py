@@ -43,6 +43,8 @@ class MusicGenerationManager:
         return current_job_root
 
     def create_music_job(self,current_payload_record):
+        if self.current_service_name in ('music-minimax','music-magenta'):
+            raise ValueError('해당 음악 생성기는 폐기되었습니다. 기존 이력 조회만 지원합니다.')
         current_request_record = build_music_request(self.current_service_name,current_payload_record)
         if not self.runtime_python_path.is_file():
             raise FileNotFoundError(f"음악 실행 환경이 없습니다: {self.runtime_python_path}. 해당 생성기 README.md의 설치 절차를 먼저 실행하세요. model_id={self.current_profile_record['model_id']} model_root={self.model_storage_root} model_path={self.model_storage_root}")
@@ -112,12 +114,29 @@ class MusicGenerationManager:
             raise ValueError('음악 명령·필드 오류')
         if current_command_name in ('generate','prepare'):
             return self.create_music_job(current_payload_record)
+        if current_command_name == 'resume' and self.current_service_name in ('music-minimax','music-magenta'):
+            raise ValueError('폐기 또는 GPU 전용 실행 미검증 생성기는 재개할 수 없습니다.')
         if current_command_name=='model-status':
+            if self.current_service_name in ('music-minimax','music-magenta'):
+                return {'ready':False,'message':'폐기된 생성기 · 기존 결과·로그 조회만 지원','model_id':self.current_profile_record['model_id']}
             from generators.music.runtime import validate_prepared_music
             if self.current_service_name == 'sfx-dasheng-audiogen':
                 from generators.sound_effects.runtime import validate_effects_model as validate_prepared_music
+            if self.current_service_name == 'music-magenta':
+                from generators.music.magenta.runtime import validate_magenta_artifacts as validate_prepared_music
+            if self.current_service_name == 'music-heartmula':
+                from generators.music.heartmula.runtime import validate_heartmula_artifacts as validate_prepared_music
             try:
                 validate_prepared_music(self.current_service_name)
+                if self.current_service_name == 'music-heartmula':
+                    from generators.music.runtime import calculate_music_checksum
+                    current_validation_path = self.model_storage_root/'gpu-validation.json'
+                    current_gpu_verified = False
+                    if current_validation_path.is_file():
+                        current_validation_record = read_music_record(current_validation_path)
+                        current_verified_root = self.resolve_music_job(current_validation_record['generation_id'])
+                        current_gpu_verified = current_validation_record.get('status') == 'passed' and current_validation_record.get('runtime_sha256') == calculate_music_checksum(WORKFLOW_ROOT_DIRECTORY/'generators/music/heartmula/runtime.py') and read_music_record(current_verified_root/'status.json').get('status') == 'completed'
+                    return {'ready':current_gpu_verified,'artifacts_ready':True,'message':'모델 준비·GPU 생성 검증 완료 · NF4 생성/FP32 디코더' if current_gpu_verified else '모델 파일 준비 완료 · GPU 생성 검증 대기 중','model_id':self.current_profile_record['model_id']}
                 return {'ready':True,'message':'모델 준비됨 · VRAM 관측 피크는 실행 이력에서 확인','model_id':self.current_profile_record['model_id']}
             except (OSError,ValueError,KeyError) as current_prepare_error:
                 return {'ready':False,'message':str(current_prepare_error),'model_id':self.current_profile_record['model_id']}
@@ -162,13 +181,8 @@ class MusicGenerationManager:
                 current_audio_path = current_job_root/'attempts'/current_file_match[2]/self.audio_output_filename
                 if not current_audio_path.resolve().is_relative_to(current_job_root.resolve()):
                     raise ValueError('음악 결과 경로 오류')
-                current_response_bytes = current_audio_path.read_bytes()
-                current_http_handler.send_response(200)
-                current_http_handler.send_header('Content-Type','audio/wav')
-                current_http_handler.send_header('Content-Length',str(len(current_response_bytes)))
-                current_http_handler.send_header('Cache-Control','no-store')
-                current_http_handler.end_headers()
-                current_http_handler.wfile.write(current_response_bytes)
+                from tools.review.common.audio_file_response import send_audio_file_response
+                send_audio_file_response(current_http_handler,current_audio_path)
                 return True
             current_payload_record = getattr(current_http_handler,'management_command_payload',{})
             current_command_match = identify_management_command(current_http_handler.path,current_http_handler.command,current_payload_record)
