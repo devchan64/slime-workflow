@@ -21,6 +21,7 @@ import threading
 import time
 import traceback
 import signal
+import tempfile
 
 REVIEW_SERVER_HOST = '127.0.0.1'
 REVIEW_SERVER_PORT = 8770
@@ -28,6 +29,8 @@ DEFAULT_FRONTEND_REPOSITORY = Path(__file__).resolve().parents[3]/'slime-fronten
 REVIEW_ALLOWED_SUFFIXES = {'.html', '.png', '.jpg', '.jpeg', '.webp', '.gif', '.json', '.js', '.mjs', '.css', '.mp4', '.svg', '.woff', '.woff2'}
 REVIEW_HEARTBEAT_SECONDS = 5
 REVIEW_SERVER_RETRY_SECONDS = 3
+REVIEW_WATCH_POLL_SECONDS = 0.5
+REVIEW_WATCH_SETTLE_SECONDS = 1.0
 REVIEW_LIVE_RELOAD_PATH = '/__review_live_reload__'
 REVIEW_LIVE_RELOAD_SCRIPT = b'''<script id="review-live-reload">(()=>{let instanceId;const poll=async()=>{try{const response=await fetch('/__review_live_reload__',{cache:'no-store'});if(!response.ok)throw new Error('watch unavailable');const nextInstanceId=(await response.json()).instanceId;if(instanceId&&instanceId!==nextInstanceId){location.reload();return}instanceId=nextInstanceId}catch(_error){}finally{setTimeout(poll,1000)}};poll()})()</script>'''
 
@@ -147,6 +150,9 @@ def collect_review_watch_paths(parsed_argument_values):
     watch_paths.extend((workflow_repo_root/'tools/review/common').glob('map_*.py'))
     watch_paths.extend(workflow_repo_root/'tools/review/common'/current_file_name for current_file_name in ('sprite_display_properties.py', 'game_render_metrics.py'))
     watch_paths.extend(workflow_repo_root/'tools/review/common'/current_file_name for current_file_name in ('management_client.py','management_transport.py','management_environment.py'))
+    if parsed_argument_values.frontend_repo:
+        current_frontend_root=Path(parsed_argument_values.frontend_repo).resolve()
+        watch_paths.extend(current_frontend_root/current_relative_path for current_relative_path in ('src','review','package.json','package-lock.json','scripts'))
     # 맵·타일·등록부는 HTTP 요청마다 검증해 읽는다. 에셋 변경으로 GUI를 재시작하지 않는다.
     if parsed_argument_values.root:
         watch_paths.append(Path(parsed_argument_values.root).resolve())
@@ -159,35 +165,68 @@ def snapshot_review_watch_paths(watch_paths):
     for current_root_path in watch_paths:
         current_file_paths = [current_root_path] if current_root_path.is_file() else current_root_path.rglob('*')
         for current_file_path in current_file_paths:
-            if not current_file_path.is_file() or current_file_path.suffix.lower() not in {'.py', '.html', '.css', '.js', '.mjs', '.json', '.yaml', '.yml', '.png', '.jpg', '.jpeg', '.webp'}:
+            if not current_file_path.is_file() or current_file_path.suffix.lower() not in {'.py', '.html', '.css', '.js', '.mjs', '.ts', '.tsx', '.sh', '.json', '.yaml', '.yml', '.png', '.jpg', '.jpeg', '.webp'}:
                 continue
             if any(current_path_part.startswith('.') for current_path_part in current_file_path.relative_to(current_root_path if current_root_path.is_dir() else current_root_path.parent).parts):
                 continue
             watched_file_records.append((str(current_file_path), current_file_path.stat().st_mtime_ns, current_file_path.stat().st_size))
     return tuple(sorted(watched_file_records))
 
+def collect_changed_review_paths(previous_source_snapshot,current_source_snapshot):
+    previous_file_records={current_record[0]:current_record[1:] for current_record in previous_source_snapshot}
+    current_file_records={current_record[0]:current_record[1:] for current_record in current_source_snapshot}
+    return sorted(current_file_path for current_file_path in previous_file_records.keys()|current_file_records.keys() if previous_file_records.get(current_file_path)!=current_file_records.get(current_file_path))
+
+
+def can_reuse_review_directory(current_changed_paths):
+    current_workflow_root=Path(__file__).resolve().parents[2]
+    current_gradio_root=current_workflow_root/'tools/review/ui/gradio'
+    current_common_root=current_workflow_root/'tools/review/common'
+    return bool(current_changed_paths) and all(
+        (Path(current_file_path).is_relative_to(current_gradio_root) and Path(current_file_path).suffix=='.py') or
+        (Path(current_file_path).parent==current_common_root and Path(current_file_path).name.startswith('gradio_') and Path(current_file_path).suffix=='.py')
+        for current_file_path in current_changed_paths)
+
+
+def settle_review_watch_snapshot(current_watch_paths,current_source_snapshot):
+    current_stable_start=time.monotonic()
+    while time.monotonic()-current_stable_start<REVIEW_WATCH_SETTLE_SECONDS:
+        time.sleep(REVIEW_WATCH_POLL_SECONDS)
+        current_next_snapshot=snapshot_review_watch_paths(current_watch_paths)
+        if current_next_snapshot!=current_source_snapshot:
+            current_source_snapshot=current_next_snapshot
+            current_stable_start=time.monotonic()
+    return current_source_snapshot
+
+
 def run_review_watch_mode(parsed_argument_values):
     watch_paths = collect_review_watch_paths(parsed_argument_values)
     previous_watch_snapshot = snapshot_review_watch_paths(watch_paths)
     watch_command_arguments = [current_argument for current_argument in sys.argv[1:] if current_argument != '--watch']
+    current_watch_session=tempfile.TemporaryDirectory(prefix='slime-review-watch-')
+    current_prepared_record=Path(current_watch_session.name)/'prepared.json'
+    current_reuse_directory=False
     try:
         while True:
-            review_server_process = subprocess.Popen([sys.executable, str(Path(__file__).resolve()), *watch_command_arguments])
+            if not current_reuse_directory:current_prepared_record.unlink(missing_ok=True)
+            current_child_environment=dict(os.environ,SLIME_REVIEW_PREPARED_RECORD=str(current_prepared_record),SLIME_REVIEW_REUSE_PREPARED='1' if current_reuse_directory else '0')
+            review_server_process = subprocess.Popen([sys.executable, str(Path(__file__).resolve()), *watch_command_arguments],env=current_child_environment)
             try:
                 while review_server_process.poll() is None:
-                    time.sleep(0.5)
+                    time.sleep(REVIEW_WATCH_POLL_SECONDS)
                     current_watch_snapshot = snapshot_review_watch_paths(watch_paths)
                     if current_watch_snapshot != previous_watch_snapshot:
-                        print(f'{datetime.now().isoformat()}/asset-review-server/watch 변경 감지, 검수 서버를 다시 시작합니다.', flush=True)
+                        current_watch_snapshot=settle_review_watch_snapshot(watch_paths,current_watch_snapshot)
+                        current_changed_paths=collect_changed_review_paths(previous_watch_snapshot,current_watch_snapshot)
+                        current_reuse_directory=can_reuse_review_directory(current_changed_paths) and current_prepared_record.is_file()
+                        print(f'{datetime.now().isoformat()}/asset-review-server/watch 변경 {len(current_changed_paths)}개 · 산출물 재사용={current_reuse_directory} · {current_changed_paths}',flush=True)
                         review_server_process.terminate()
                         review_server_process.wait(timeout=5)
-                        # 검수 서버 재시작 과정에서 프론트엔드 빌드가 생성한
-                        # assets 전달 사본을 외부 변경으로 다시 감지하지 않는다.
-                        # 종료 직후를 새 기준점으로 삼고, 다음 실제 변경부터 감시한다.
-                        previous_watch_snapshot = snapshot_review_watch_paths(watch_paths)
+                        previous_watch_snapshot=current_watch_snapshot
                         break
                 else:
                     if review_server_process.returncode != 0:
+                        current_reuse_directory=False
                         print(f'{datetime.now().isoformat()}/asset-review-server/retry 서버가 종료 코드 {review_server_process.returncode}로 끝났습니다. {REVIEW_SERVER_RETRY_SECONDS}초 후 다시 시작합니다.', flush=True)
                         for retry_interval_index in range(REVIEW_SERVER_RETRY_SECONDS * 2):
                             time.sleep(0.5)
@@ -208,6 +247,8 @@ def run_review_watch_mode(parsed_argument_values):
             review_server_process.terminate()
             review_server_process.wait(timeout=5)
         print(f'{datetime.now().isoformat()}/asset-review-server/stop 감시 종료', flush=True)
+    finally:
+        current_watch_session.cleanup()
 
 
 def calculate_frontend_review_source_hash(frontend_repository_path):
@@ -293,9 +334,24 @@ def prepare_review_directory(parsed_argument_values):
     return parsed_argument_values.root.resolve()
 
 
+def prepare_watched_review_directory(parsed_argument_values):
+    current_prepared_record=os.environ.get('SLIME_REVIEW_PREPARED_RECORD')
+    if os.environ.get('SLIME_REVIEW_REUSE_PREPARED')=='1':
+        current_prepared_document=json.loads(Path(current_prepared_record).read_text())
+        review_root_directory=Path(current_prepared_document['root'])
+        if not review_root_directory.is_dir():raise ValueError('재사용할 검수 산출물 폴더가 없습니다.')
+        current_prepare_mode='reuse'
+    else:
+        review_root_directory = prepare_review_directory(parsed_argument_values)
+        current_prepare_mode='build'
+    return review_root_directory,current_prepare_mode,current_prepared_record
+
+
 def run_review_server(parsed_argument_values):
     os.environ['SLIME_MANAGEMENT_GATEWAY_URL'] = parsed_argument_values.gateway_url
-    review_root_directory = prepare_review_directory(parsed_argument_values)
+    current_startup_time=time.monotonic()
+    review_root_directory,current_prepare_mode,current_prepared_record=prepare_watched_review_directory(parsed_argument_values)
+    print(f'{datetime.now().isoformat()}/asset-review-server/prepare mode={current_prepare_mode} elapsed={time.monotonic()-current_startup_time:.3f}s',flush=True)
     workflow_repo_root = Path(__file__).resolve().parents[2]
     allowed_review_roots = [workflow_repo_root/current_root_name for current_root_name in ('.tmp','.result','assets')]
     if not any(review_root_directory.is_relative_to(allowed_root_path) and review_root_directory != allowed_root_path for allowed_root_path in allowed_review_roots):
@@ -536,6 +592,9 @@ def run_review_server(parsed_argument_values):
     previous_termination_handler=signal.signal(signal.SIGTERM,terminate_review_server)
     try:
         with ThreadingHTTPServer((REVIEW_SERVER_HOST,parsed_argument_values.port),ReviewRequestHandler) as review_http_server:
+            if current_prepared_record:
+                Path(current_prepared_record).write_text(json.dumps({'root':str(review_root_directory)}))
+            emit_server_trace('ready',f'elapsed={time.monotonic()-current_startup_time:.3f}s prepare={current_prepare_mode}')
             emit_server_trace('start',f'http://{REVIEW_SERVER_HOST}:{parsed_argument_values.port}/ root={review_root_directory} entry={parsed_argument_values.entry} log={server_log_path}')
             heartbeat_worker_thread = threading.Thread(target=emit_server_heartbeat,daemon=True)
             heartbeat_worker_thread.start()
