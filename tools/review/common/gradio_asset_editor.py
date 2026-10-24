@@ -27,8 +27,8 @@ def build_asset_preview_canvas(current_canvas_identifier='map-source-size-previe
 
 def build_asset_shadow_inputs():
     with gr.Row():
-        current_shadow_column=gr.Number(label='그림자 열 방향 이동 · 타일',value=0,minimum=-4,maximum=4,step=.01,precision=2)
-        current_shadow_row=gr.Number(label='그림자 행 방향 이동 · 타일',value=0,minimum=-4,maximum=4,step=.01,precision=2)
+        current_shadow_column=gr.Number(label='그림자 열 방향 이동 · 타일',value=0,minimum=-4,maximum=4,step=.1,precision=2)
+        current_shadow_row=gr.Number(label='그림자 행 방향 이동 · 타일',value=0,minimum=-4,maximum=4,step=.1,precision=2)
     with gr.Row():
         current_shadow_width=gr.Number(label='그림자 열 길이 · 타일',value=1,minimum=.1,maximum=4,step=.1,precision=2)
         current_shadow_height=gr.Number(label='그림자 행 길이 · 타일',value=1,minimum=.05,maximum=4,step=.1,precision=2)
