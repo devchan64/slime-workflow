@@ -114,7 +114,7 @@ def build_selected_asset_panel(current_canvas_identifier):
             with gr.Group():
                 gr.Markdown('### 그림자 위치와 크기')
                 current_shadow_inputs=build_asset_shadow_inputs()
-                gr.Markdown('이동 0·0은 하단 기준 교차점입니다. 길이는 타일 단위입니다. 자동 맞춤은 투명 여백을 제외한 이미지 폭의 85%와 점유 열·행 비율로 크기를 제안합니다. 접지 형태에 따라 수동 보정하세요.')
+                gr.Markdown('이동 0·0은 하단 기준 교차점입니다. 길이는 타일 단위입니다. 자동 맞춤은 투명 여백을 제외한 이미지 폭의 95%에 실제 그림자 외곽 폭을 맞추고 점유 열·행 비율을 유지합니다. 접지 형태에 따라 수동 보정하세요.')
                 current_shadow_fit_button=gr.Button('그림자 크기 자동 맞춤',interactive=False)
                 current_shadow_fit_feedback=gr.Markdown('썸네일에서 에셋을 선택하면 사용할 수 있습니다. 자동 맞춤은 저장하지 않습니다.')
                 current_detail_record.change(lambda current_asset_record:gr.update(interactive=bool(current_asset_record) and not current_asset_record.get('metadata')),inputs=current_detail_record,outputs=current_shadow_fit_button)
