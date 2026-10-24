@@ -140,8 +140,8 @@ def validate_music_request(current_service_name, current_request_record):
     current_lyrics_fields = {}
     if 'lyrics' in current_request_record:
         current_lyrics_text = current_request_record['lyrics']
-        if current_service_name not in ('music-minimax','music-heartmula') or not isinstance(current_lyrics_text,str) or not current_lyrics_text.strip() or len(current_lyrics_text) > 20000 or '\x00' in current_lyrics_text:
-            raise ValueError('lyrics는 MiniMax·HeartMuLa 입력이며 비어 있지 않은 20000자 이하 문자열이어야 합니다.')
+        if current_service_name not in ('music-minimax','music-heartmula') or not isinstance(current_lyrics_text,str) or (current_service_name != 'music-heartmula' and not current_lyrics_text.strip()) or len(current_lyrics_text) > 20000 or '\x00' in current_lyrics_text:
+            raise ValueError('lyrics는 20000자 이하 문자열이어야 합니다. 빈 문자열은 HeartMuLa 비교 실험에서만 허용합니다.')
         current_lyrics_fields['lyrics'] = current_lyrics_text
     current_seed_value = current_request_record.get('seed',current_default_record['seed'])
     current_duration_value = current_request_record.get('duration_seconds',current_default_record['duration_seconds'])

@@ -13,7 +13,7 @@ HEARTMULA_SOURCE_REVISIONS = (
 )
 HEARTMULA_LIBRARY_REVISION = '5858ca8f1ffe58d62be7c007ea55f1033c5ca456'
 HEARTMULA_DECODE_WINDOW_SECONDS = 7.44
-HEARTMULA_SAMPLING_SETTINGS = {'topk':50,'temperature':1.0,'cfg_scale':1.5}
+HEARTMULA_SAMPLING_SETTINGS = {'topk':50,'temperature':1.0,'cfg_scale':3.0}
 
 
 def validate_heartmula_artifacts(current_service_name):

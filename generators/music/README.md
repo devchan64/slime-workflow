@@ -132,7 +132,7 @@ Magenta는 신규 생성·준비·재개를 차단하고 메뉴에서 제거했�
 
 전용 환경 `.venv-music-heartmula`에 `heartmula/requirements.txt`를 설치합니다. 공식 라이브러리 리비전과 모델 리비전은 `heartmula/runtime.py`에 고정합니다. 모델은 `.model/music/music-heartmula/bundle`에 HeartMuLaGen의 tokenizer/gen_config와 `HeartMuLa-oss-3B`, `HeartCodec-oss`를 보관합니다. 현재 준비는 파일·가중치 인덱스 검증 및 해시 기록이며 준비 파일이 누락되면 즉시 실패합니다.
 
-8GB 실험은 생성 모델 NF4 double quant/BF16 연산, 디코더 FP32, 7.44초 디코더 창을 사용합니다. 모델 연산은 CUDA 전용이며 생성 모델을 해제한 뒤 디코더를 로드합니다. 입력 길이에 맞게 KV 캐시 상한을 줄이고 torch.compile은 사용하지 않습니다. 공식 기본 디코더 창 29.76초와 다른 메모리 절약 설정이므로 데모와 품질이 같다고 가정하지 않습니다. CFG 1.5, top-k 50, temperature 1.0을 고정합니다. `duration_seconds`는 `max_audio_length_ms`로 환산하는 출력 상한이며 EOS가 나오면 먼저 종료합니다. 실제 길이와 EOS 이유는 결과·`termination.json`에 기록합니다.
+8GB 실험은 생성 모델 NF4 double quant/BF16 연산, 디코더 FP32, 7.44초 디코더 창을 사용합니다. 모델 연산은 CUDA 전용이며 생성 모델을 해제한 뒤 디코더를 로드합니다. 입력 길이에 맞게 KV 캐시 상한을 줄이고 torch.compile은 사용하지 않습니다. 공식 기본 디코더 창 29.76초와 다른 메모리 절약 설정이므로 데모와 품질이 같다고 가정하지 않습니다. CFG 3.0, top-k 50, temperature 1.0을 고정합니다. `duration_seconds`는 `max_audio_length_ms`로 환산하는 출력 상한이며 EOS가 나오면 먼저 종료합니다. 실제 길이와 EOS 이유는 결과·`termination.json`에 기록합니다.
 
 
 #### 논문과 공개 실행 경로의 범위
@@ -140,3 +140,5 @@ Magenta는 신규 생성·준비·재개를 차단하고 메뉴에서 제거했�
 [논문](https://arxiv.org/pdf/2601.10547) 3.2절은 구조 표기가 포함된 lyrics와 tags·참조 오디오 조건을 설명합니다. 6.1절은 반주 음악이 학습 자료에 포함됨을 설명하지만, 이는 무보컬 스위치의 공개를 뜻하지 않습니다. 6.4절의 구간 태그 다음 대괄호 자연어 설명은 세부 스타일 **학습 주석 예시**입니다. 현재 [공식 README](https://github.com/HeartMuLa/heartlib#readme)는 reference audio conditioning, fine-grained controllable music generation, hot song generation을 TODO로 표시합니다. 이 문서의 기능명을 임의의 API 모드로 만들지 않습니다.
 
 현재 어댑터는 공개 tags·lyrics 생성 경로만 사용합니다. lyrics 누락을 임의의 `[Instrumental]`로 대체하지 않습니다. `duration_seconds`는 공식 `max_audio_length_ms`로 변환하는 상한입니다. EOS와 상한 종료는 `termination.json` 및 결과의 `termination`에 구분해 저장하고 상한 종료에는 품질 경고를 남깁니다. EOS도 자연스러운 종지나 무보컬의 품질 보장은 아닙니다. NF4 양자화와 7.44초 디코더 창은 로컬 8GB 실행을 위한 변경이며 논문의 평가 조건과 동일하지 않습니다.
+
+빈 가사 비교 실험은 게이트웨이에 `lyrics: ""`를 명시적으로 전달합니다. lyrics 필드 생략은 계속 거절합니다. 공식 토크나이저·전처리의 빈 문자열 통과를 확인했으며 반주 품질은 미검증입니다. GUI는 현재 비어 있지 않은 입력을 요구하므로 이 비교 실험은 게이트웨이·CLI로 등록합니다.

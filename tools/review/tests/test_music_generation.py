@@ -16,6 +16,10 @@ from tools.review.common.generation_records import write_record_atomically
 
 
 class MusicGenerationTests(unittest.TestCase):
+    def test_heartmula_empty_lyrics_experiment(self):
+        current_request_record = validate_music_request('music-heartmula', {'prompt':'piano,happy','lyrics':''})
+        self.assertEqual(current_request_record['lyrics'], '')
+
     def test_heartmula_explicit_lyrics_required(self):
         with self.assertRaisesRegex(ValueError, '직접 입력'):
             validate_music_request('music-heartmula', {'prompt':'piano'})
