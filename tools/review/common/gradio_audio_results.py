@@ -18,6 +18,11 @@ def render_audio_generation_result(current_job_identifier,current_status_record,
         current_result_html = ''
         if current_duration_value is not None:
             current_result_html += f'<p>실제 길이: {float(current_duration_value):.2f}초 · WAV 원본 / MP3 320kbps</p>'
+        current_termination_reason = current_result_record.get('termination',{}).get('reason')
+        if current_termination_reason == 'max_audio_length_ms':
+            current_result_html += '<p><strong>시간 상한 도달 · EOS 미감지</strong> — 곡 중간에 끊겼을 수 있습니다. 종료 토큰 번호는 EOS 감지 여부를 뜻하지 않습니다.</p>'
+        elif current_termination_reason == 'audio_eos':
+            current_result_html += '<p>모델 종료 토큰(EOS) 감지 · 음악적 끝맺음은 청취로 확인하세요.</p>'
         for current_audio_name,current_audio_label in (('music','가사 있는 버전 · 원곡'),('mr','가사 없는 버전 · MR'),('vocals','분리 보컬')):
             current_source_url = current_status_record['audio'] if current_audio_name == 'music' else current_status_record['audio_stems'][current_audio_name]
             current_escaped_url = html.escape(current_server_address+current_source_url,quote=True)
