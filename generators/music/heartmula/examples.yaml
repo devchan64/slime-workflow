@@ -21,3 +21,926 @@ examples:
       seed: 7
       loop_request: false
       min_duration_seconds: 0
+  - id: meadow-vocal-mr-minute
+    label: 이슬초원 · 약 1분 가사곡과 MR
+    description: 밝고 평온한 초원의 플루트·하프·현악·피아노 중심 어쿠스틱 곡. 1절·후렴 6행으로 약 1분을 목표로 한다. 채택된 실험 결과는 73.76초이며 길이·악기 반영은 보장하지 않는다. 끝맺음 여유를 위해 출력 상한은 120초로 두고 원곡 생성 후 MR을 자동 분리한다.
+    source_generation_id: 2026-10-25_16-11-03-8131b607
+    request:
+      prompt: pastoral,acoustic,folk,flute,harp,strings,piano,warm,bright,gentle,female vocals
+      lyrics: |
+        [Intro]
+        [Verse]
+        Dewlight dances on the green
+        Morning fields are soft and clean
+        Through the grass a silver stream
+        Carries sunlight like a dream
+        [Chorus]
+        Open skies and winds that roam
+        Meadow paths will lead us home
+        [Outro]
+      duration_seconds: 120
+      seed: 7
+      loop_request: false
+      min_duration_seconds: 0
+  - id: grove-vocal-mr-minute
+    label: 푸른 숲 · 약 1분 가사곡과 MR
+    description: 푸른 숲 배경음악 재실험. 이전 6행·시드 7은 EOS 없이 120.08초 상한 종료하여 폐기. 4행 가사·시드 17로
+      변경하고 120초 상한은 유지한다. 길이·자연스러운 종결은 청취 검수가 필요하다.
+    source_generation_id: 2026-10-25_17-04-31-610ffd78
+    request:
+      prompt: acoustic,folk,flute,harp,strings,peaceful,female vocals
+      lyrics: '[Verse]
+
+        Leaves are dancing in the light
+
+        Forest paths are warm and bright
+
+        [Chorus]
+
+        Gentle branches shelter me
+
+        Home beneath the emerald tree
+
+        [Outro]
+
+        '
+      duration_seconds: 120
+      seed: 17
+      loop_request: false
+      min_duration_seconds: 0
+  - id: mist-lake-vocal-mr-minute
+    label: 안개 호수 · 약 1분 가사곡과 MR
+    description: 안개 호수 배경음악 재실험. 이전 6행은 EOS 없이 120.08초 상한 종료. 약 1분을 목표로 도입부 표기를 빼고 가사를
+      4행으로 축소한다. 비교를 위해 음악 태그·시드 7·상한 120초는 유지하며 실제 길이는 보장하지 않는다.
+    source_generation_id: 2026-10-25_17-15-39-30312356
+    request:
+      prompt: ambient,acoustic,piano,harp,cello,ethereal,slow,female vocals
+      lyrics: '[Verse]
+
+        Silver mist upon the lake
+
+        Ripples follow in our wake
+
+        [Chorus]
+
+        Morning light upon the shore
+
+        Rest in peace and ask no more
+
+        [Outro]
+
+        '
+      duration_seconds: 120
+      seed: 7
+      loop_request: false
+      min_duration_seconds: 0
+  - id: wind-hills-vocal-mr-minute
+    label: 바람 구릉 · 약 1분 가사곡과 MR
+    description: 바람 구릉 배경음악 후보. 맵 이름의 분위기에 맞춘 창작 가사 6행과 악기 태그를 사용한다. 약 1분 목표이며 길이·악기
+      반영은 보장하지 않는다. 출력 상한 120초, 원곡 생성 후 MR·320kbps MP3 자동 저장.
+    source_generation_id: 2026-10-25_16-22-44-1a069736
+    request:
+      prompt: pastoral,orchestral,flute,strings,french horn,airy,uplifting,female vocals
+      lyrics: '[Intro]
+
+        [Verse]
+
+        Grasses bend along the rise
+
+        Clouds go sailing through the skies
+
+        On the ridge the breezes play
+
+        Lifting all our cares away
+
+        [Chorus]
+
+        Windward hills and open blue
+
+        Every path begins anew
+
+        [Outro]
+
+        '
+      duration_seconds: 120
+      seed: 7
+      loop_request: false
+      min_duration_seconds: 0
+  - id: ash-edge-vocal-mr-minute
+    label: 잿빛 숲가 · 약 1분 가사곡과 MR
+    description: 잿빛 숲가 배경음악 재실험. 기존 6행 가사는 42.32초에 EOS 종료하여 후렴을 2행 보강한 8행으로 약 1분을 목표로 한다. 악기 태그·시드 7·출력 상한 120초는 유지한다. 실제 길이와
+      끝맺음은 청취 검수가 필요하며 원곡 생성 후 MR·320kbps MP3를 자동 저장한다.
+    source_generation_id: 2026-10-25_17-24-45-a71da18c
+    request:
+      prompt: cinematic,chamber,cello,viola,piano,dark,restrained,female vocals
+      lyrics: |
+        [Intro]
+        [Verse]
+        Ash lies pale beneath the pine
+        Broken shadows cross the line
+        Through the hush a branch is stirred
+        Far away a wing is heard
+        [Chorus]
+        Keep a lantern in the gray
+        Till the trees reveal the way
+        Past the embers cold and deep
+        Lead us where the willows sleep
+        [Outro]
+      duration_seconds: 120
+      seed: 7
+      loop_request: false
+      min_duration_seconds: 0
+  - id: boar-ridge-vocal-mr-minute
+    label: 강모 능선 · 약 1분 가사곡과 MR
+    description: 강모 능선 분위기 재실험. 절제된 챔버 포크, 비올라·첼로·클라리넷·피아노 중심으로 신중한 걸음과 은은한 긴장감을 표현한다. 창작 가사 6행으로 약 1분을 목표로 하며 실제 길이·악기 반영은
+      보장하지 않는다. 출력 상한 120초, 원곡 생성 후 MR·320kbps MP3 자동 저장.
+    source_generation_id: 2026-10-25_16-22-45-f30ea18f
+    request:
+      prompt: chamber,folk,viola,cello,clarinet,piano,earthy,restrained,pensive,moderate tempo,female vocals
+      lyrics: |
+        [Intro]
+        [Verse]
+        Roots lie bare along the trail
+        Measured steps along the shale
+        Tracks wind through the weathered stone
+        On the ridge we walk alone
+        [Chorus]
+        Carry gently, watch the ground
+        Homeward paths will still be found
+        [Outro]
+      duration_seconds: 120
+      seed: 7
+      loop_request: false
+      min_duration_seconds: 0
+  - id: broken-quarry-vocal-mr-minute
+    label: 깨진 채석장 · 약 1분 가사곡과 MR
+    description: 깨진 채석장 배경음악 후보. 맵 이름의 분위기에 맞춘 창작 가사 6행과 악기 태그를 사용한다. 약 1분 목표이며 길이·악기
+      반영은 보장하지 않는다. 출력 상한 120초, 원곡 생성 후 MR·320kbps MP3 자동 저장.
+    source_generation_id: 2026-10-25_16-22-45-d070da6d
+    request:
+      prompt: cinematic,piano,cello,marimba,strings,sparse,solemn,female vocals
+      lyrics: '[Intro]
+
+        [Verse]
+
+        Shattered pillars catch the sun
+
+        Echoes count the work once done
+
+        Dust has settled on the stair
+
+        Empty ledges fill the air
+
+        [Chorus]
+
+        Stone remembers every sound
+
+        Let our footsteps touch the ground
+
+        [Outro]
+
+        '
+      duration_seconds: 120
+      seed: 7
+      loop_request: false
+      min_duration_seconds: 0
+  - id: cinder-path-vocal-mr-minute
+    label: 식은 잿길 · 약 1분 가사곡과 MR
+    description: 식은 잿길 배경음악 후보. 맵 이름의 분위기에 맞춘 창작 가사 6행과 악기 태그를 사용한다. 약 1분 목표이며 길이·악기
+      반영은 보장하지 않는다. 출력 상한 120초, 원곡 생성 후 MR·320kbps MP3 자동 저장.
+    source_generation_id: 2026-10-25_16-22-46-fa023ae8
+    request:
+      prompt: ambient,folk,cello,low flute,piano,subdued,reflective,female vocals
+      lyrics: '[Intro]
+
+        [Verse]
+
+        Cold gray embers line the road
+
+        Evening bears a lighter load
+
+        Footprints cross the fading coal
+
+        Quiet warmth within the soul
+
+        [Chorus]
+
+        Through the ashes we shall go
+
+        Where the first new grasses grow
+
+        [Outro]
+
+        '
+      duration_seconds: 120
+      seed: 7
+      loop_request: false
+      min_duration_seconds: 0
+  - id: clover-bank-vocal-mr-minute
+    label: 토끼풀 언덕 · 약 1분 가사곡과 MR
+    description: 토끼풀 언덕 배경음악 후보. 맵 이름의 분위기에 맞춘 창작 가사 6행과 악기 태그를 사용한다. 약 1분 목표이며 길이·악기
+      반영은 보장하지 않는다. 출력 상한 120초, 원곡 생성 후 MR·320kbps MP3 자동 저장.
+    source_generation_id: 2026-10-25_16-22-46-d3052c2c
+    request:
+      prompt: pastoral,folk,flute,harp,pizzicato strings,playful,bright,female vocals
+      lyrics: '[Intro]
+
+        [Verse]
+
+        Clover crowns the rounded hill
+
+        Little flowers gather still
+
+        Bees are tracing loops of gold
+
+        Tiny wonders to behold
+
+        [Chorus]
+
+        Rest a while upon the green
+
+        Let the daylight fill the scene
+
+        [Outro]
+
+        '
+      duration_seconds: 120
+      seed: 7
+      loop_request: false
+      min_duration_seconds: 0
+  - id: crystal-cut-vocal-mr-minute
+    label: 결정 절개지 · 약 1분 가사곡과 MR
+    description: 결정 절개지 배경음악 후보. 맵 이름의 분위기에 맞춘 창작 가사 6행과 악기 태그를 사용한다. 약 1분 목표이며 길이·악기
+      반영은 보장하지 않는다. 출력 상한 120초, 원곡 생성 후 MR·320kbps MP3 자동 저장.
+    source_generation_id: 2026-10-25_16-22-46-cd549e36
+    request:
+      prompt: chamber,celesta,harp,violin,piano,shimmering,mysterious,female vocals
+      lyrics: '[Intro]
+
+        [Verse]
+
+        Crystal edges catch the dawn
+
+        Colored lights are scattered on
+
+        Every facet holds a gleam
+
+        Like a fragment of a dream
+
+        [Chorus]
+
+        Clear as bells the stones reply
+
+        To the light across the sky
+
+        [Outro]
+
+        '
+      duration_seconds: 120
+      seed: 7
+      loop_request: false
+      min_duration_seconds: 0
+  - id: dawn-overlook-vocal-mr-minute
+    label: 새벽 전망대 · 약 1분 가사곡과 MR
+    description: 새벽 전망대 배경음악 후보. 맵 이름의 분위기에 맞춘 창작 가사 6행과 악기 태그를 사용한다. 약 1분 목표이며 길이·악기
+      반영은 보장하지 않는다. 출력 상한 120초, 원곡 생성 후 MR·320kbps MP3 자동 저장.
+    source_generation_id: 2026-10-25_16-22-47-89e0f576
+    request:
+      prompt: orchestral,piano,strings,french horn,flute,hopeful,expansive,female vocals
+      lyrics: '[Intro]
+
+        [Verse]
+
+        First light climbs the distant plain
+
+        Gold returns to earth again
+
+        From the height the world is new
+
+        Every valley washed in blue
+
+        [Chorus]
+
+        Raise your eyes to greet the day
+
+        Let the darkness drift away
+
+        [Outro]
+
+        '
+      duration_seconds: 120
+      seed: 7
+      loop_request: false
+      min_duration_seconds: 0
+  - id: dry-creek-vocal-mr-minute
+    label: 마른 개울 · 약 1분 가사곡과 MR
+    description: 마른 개울 배경음악 후보. 맵 이름의 분위기에 맞춘 창작 가사 6행과 악기 태그를 사용한다. 약 1분 목표이며 길이·악기
+      반영은 보장하지 않는다. 출력 상한 120초, 원곡 생성 후 MR·320kbps MP3 자동 저장.
+    source_generation_id: 2026-10-25_16-22-47-0c8a2884
+    request:
+      prompt: acoustic,folk,clarinet,plucked strings,piano,dry,quiet,female vocals
+      lyrics: '[Intro]
+
+        [Verse]
+
+        Pebbles mark the river bed
+
+        Summer whispers where it led
+
+        Bent reeds trace a winding line
+
+        Waiting for the rain to shine
+
+        [Chorus]
+
+        Little stream we hear your name
+
+        May the waters come again
+
+        [Outro]
+
+        '
+      duration_seconds: 120
+      seed: 7
+      loop_request: false
+      min_duration_seconds: 0
+  - id: lantern-wood-vocal-mr-minute
+    label: 등불 숲 · 약 1분 가사곡과 MR
+    description: 등불 숲 배경음악 후보. 맵 이름의 분위기에 맞춘 창작 가사 6행과 악기 태그를 사용한다. 약 1분 목표이며 길이·악기
+      반영은 보장하지 않는다. 출력 상한 120초, 원곡 생성 후 MR·320kbps MP3 자동 저장.
+    source_generation_id: 2026-10-25_16-22-47-8ff73b75
+    request:
+      prompt: chamber,harp,celesta,flute,strings,warm,nocturnal,female vocals
+      lyrics: '[Intro]
+
+        [Verse]
+
+        Lanterns glow between the trees
+
+        Golden circles greet the breeze
+
+        Softly falls the velvet night
+
+        Branches cradle threads of light
+
+        [Chorus]
+
+        Follow where the lanterns gleam
+
+        Through the forest like a dream
+
+        [Outro]
+
+        '
+      duration_seconds: 120
+      seed: 7
+      loop_request: false
+      min_duration_seconds: 0
+  - id: moss-clearing-vocal-mr-minute
+    label: 이끼 공터 · 약 1분 가사곡과 MR
+    description: 이끼 공터 배경음악 후보. 맵 이름의 분위기에 맞춘 창작 가사 6행과 악기 태그를 사용한다. 약 1분 목표이며 길이·악기
+      반영은 보장하지 않는다. 출력 상한 120초, 원곡 생성 후 MR·320kbps MP3 자동 저장.
+    source_generation_id: 2026-10-25_16-22-47-48f130f3
+    request:
+      prompt: ambient,acoustic,harp,piano,flute,soft,peaceful,female vocals
+      lyrics: '[Intro]
+
+        [Verse]
+
+        Moss has made a velvet floor
+
+        Sunlight opens one small door
+
+        In the clearing all is still
+
+        Fern and flower drink their fill
+
+        [Chorus]
+
+        Rest beneath the quiet leaves
+
+        While the gentle forest breathes
+
+        [Outro]
+
+        '
+      duration_seconds: 120
+      seed: 7
+      loop_request: false
+      min_duration_seconds: 0
+  - id: old-orchard-vocal-mr-minute
+    label: 묵은 과수원 · 약 1분 가사곡과 MR
+    description: 묵은 과수원 배경음악 후보. 맵 이름의 분위기에 맞춘 창작 가사 6행과 악기 태그를 사용한다. 약 1분 목표이며 길이·악기
+      반영은 보장하지 않는다. 출력 상한 120초, 원곡 생성 후 MR·320kbps MP3 자동 저장.
+    source_generation_id: 2026-10-25_16-22-48-ba548e22
+    request:
+      prompt: folk,piano,acoustic guitar,violin,clarinet,nostalgic,warm,female vocals
+      lyrics: '[Intro]
+
+        [Verse]
+
+        Crooked branches shade the lane
+
+        Apples sweeten after rain
+
+        Years have softened every wall
+
+        Autumn listens to their fall
+
+        [Chorus]
+
+        Old trees keep a tender tune
+
+        Underneath the harvest moon
+
+        [Outro]
+
+        '
+      duration_seconds: 120
+      seed: 7
+      loop_request: false
+      min_duration_seconds: 0
+  - id: pebble-shore-vocal-mr-minute
+    label: 조약돌 물가 · 약 1분 가사곡과 MR
+    description: 조약돌 물가 배경음악 후보. 맵 이름의 분위기에 맞춘 창작 가사 6행과 악기 태그를 사용한다. 약 1분 목표이며 길이·악기
+      반영은 보장하지 않는다. 출력 상한 120초, 원곡 생성 후 MR·320kbps MP3 자동 저장.
+    source_generation_id: 2026-10-25_16-22-48-cfa3e87a
+    request:
+      prompt: acoustic,harp,marimba,flute,piano,light,flowing,female vocals
+      lyrics: '[Intro]
+
+        [Verse]
+
+        Little stones beneath the wave
+
+        Shine with all the light they save
+
+        Water brushes every shore
+
+        Then returns to sing once more
+
+        [Chorus]
+
+        Pebbles smooth and waters clear
+
+        Keep the gentle daylight here
+
+        [Outro]
+
+        '
+      duration_seconds: 120
+      seed: 7
+      loop_request: false
+      min_duration_seconds: 0
+  - id: reed-crossing-vocal-mr-minute
+    label: 갈대 여울 · 약 1분 가사곡과 MR
+    description: 갈대 여울 배경음악 후보. 맵 이름의 분위기에 맞춘 창작 가사 6행과 악기 태그를 사용한다. 약 1분 목표이며 길이·악기
+      반영은 보장하지 않는다. 출력 상한 120초, 원곡 생성 후 MR·320kbps MP3 자동 저장.
+    source_generation_id: 2026-10-25_16-22-48-82c151b5
+    request:
+      prompt: folk,flute,plucked strings,clarinet,light percussion,flowing,female vocals
+      lyrics: '[Intro]
+
+        [Verse]
+
+        Reeds are leaning by the ford
+
+        Water hums a silver chord
+
+        Step by step across the stream
+
+        Sunlight follows like a dream
+
+        [Chorus]
+
+        On the bank the breezes wait
+
+        Guide us through the river gate
+
+        [Outro]
+
+        '
+      duration_seconds: 120
+      seed: 7
+      loop_request: false
+      min_duration_seconds: 0
+  - id: root-trail-vocal-mr-minute
+    label: 뿌리 오솔길 · 약 1분 가사곡과 MR
+    description: 뿌리 오솔길 배경음악 후보. 맵 이름의 분위기에 맞춘 창작 가사 6행과 악기 태그를 사용한다. 약 1분 목표이며 길이·악기
+      반영은 보장하지 않는다. 출력 상한 120초, 원곡 생성 후 MR·320kbps MP3 자동 저장.
+    source_generation_id: 2026-10-25_16-22-48-fdd3b9a3
+    request:
+      prompt: woodland,chamber,bassoon,cello,plucked strings,curious,measured,female
+        vocals
+      lyrics: '[Intro]
+
+        [Verse]
+
+        Roots are winding through the ground
+
+        Ancient branches arch around
+
+        Careful footsteps turn and climb
+
+        Following the curves of time
+
+        [Chorus]
+
+        Thread the path beneath the tree
+
+        Find the sky between the leaves
+
+        [Outro]
+
+        '
+      duration_seconds: 120
+      seed: 7
+      loop_request: false
+      min_duration_seconds: 0
+  - id: silver-marsh-vocal-mr-minute
+    label: 은빛 습지 · 약 1분 가사곡과 MR
+    description: 은빛 습지 배경음악 후보. 맵 이름의 분위기에 맞춘 창작 가사 6행과 악기 태그를 사용한다. 약 1분 목표이며 길이·악기
+      반영은 보장하지 않는다. 출력 상한 120초, 원곡 생성 후 MR·320kbps MP3 자동 저장.
+    source_generation_id: 2026-10-25_16-22-49-e2aa3e77
+    request:
+      prompt: ambient,chamber,oboe,harp,cello,ethereal,still,female vocals
+      lyrics: '[Intro]
+
+        [Verse]
+
+        Silver grasses crown the mire
+
+        Clouds are pale with hidden fire
+
+        Pools reflect a quiet sky
+
+        Water birds go drifting by
+
+        [Chorus]
+
+        Through the reeds a soft refrain
+
+        Shines like moonlight after rain
+
+        [Outro]
+
+        '
+      duration_seconds: 120
+      seed: 7
+      loop_request: false
+      min_duration_seconds: 0
+  - id: reedhaven-vocal-mr-minute
+    label: 갈대나루 · 약 1분 가사곡과 MR
+    description: 갈대나루 배경음악 후보. 맵 이름의 분위기에 맞춘 창작 가사 6행과 악기 태그를 사용한다. 약 1분 목표이며 길이·악기
+      반영은 보장하지 않는다. 출력 상한 120초, 원곡 생성 후 MR·320kbps MP3 자동 저장.
+    source_generation_id: 2026-10-25_16-22-49-de7751b4
+    request:
+      prompt: folk,flute,accordion,acoustic guitar,upright bass,warm,welcoming,female
+        vocals
+      lyrics: '[Intro]
+
+        [Verse]
+
+        Boats are resting by the quay
+
+        Reeds are bending toward the sea
+
+        Windows catch the amber light
+
+        Neighbors call before the night
+
+        [Chorus]
+
+        By the water we belong
+
+        Home is waiting in our song
+
+        [Outro]
+
+        '
+      duration_seconds: 120
+      seed: 7
+      loop_request: false
+      min_duration_seconds: 0
+  - id: stonewarm-vocal-mr-minute
+    label: 돌온재 · 약 1분 가사곡과 MR
+    description: 돌온재 배경음악 후보. 맵 이름의 분위기에 맞춘 창작 가사 6행과 악기 태그를 사용한다. 약 1분 목표이며 길이·악기 반영은
+      보장하지 않는다. 출력 상한 120초, 원곡 생성 후 MR·320kbps MP3 자동 저장.
+    source_generation_id: 2026-10-25_16-22-49-82f05318
+    request:
+      prompt: chamber,folk,cello,piano,clarinet,strings,warm,cozy,female vocals
+      lyrics: '[Intro]
+
+        [Verse]
+
+        Stone walls hold the warmth of day
+
+        Chimneys send their smoke away
+
+        Footsteps meet upon the square
+
+        Friendly voices fill the air
+
+        [Chorus]
+
+        Gather where the hearthfires glow
+
+        Let the evening settle slow
+
+        [Outro]
+
+        '
+      duration_seconds: 120
+      seed: 7
+      loop_request: false
+      min_duration_seconds: 0
+  - id: grainstead-vocal-mr-minute
+    label: 곡온벌 · 약 1분 가사곡과 MR
+    description: 곡온벌 배경음악 후보. 맵 이름의 분위기에 맞춘 창작 가사 6행과 악기 태그를 사용한다. 약 1분 목표이며 길이·악기 반영은
+      보장하지 않는다. 출력 상한 120초, 원곡 생성 후 MR·320kbps MP3 자동 저장.
+    source_generation_id: 2026-10-25_16-22-50-85de36c0
+    request:
+      prompt: pastoral,folk,violin,flute,piano,acoustic guitar,joyful,female vocals
+      lyrics: '[Intro]
+
+        [Verse]
+
+        Golden grain beside the road
+
+        Barns are full of harvest gold
+
+        Busy hands have earned their rest
+
+        Evening gathers in the west
+
+        [Chorus]
+
+        Fields and homes beneath the sun
+
+        Share the warmth when work is done
+
+        [Outro]
+
+        '
+      duration_seconds: 120
+      seed: 7
+      loop_request: false
+      min_duration_seconds: 0
+  - id: saltford-vocal-mr-minute
+    label: 소금여울 · 약 1분 가사곡과 MR
+    description: 소금여울 배경음악 후보. 맵 이름의 분위기에 맞춘 창작 가사 6행과 악기 태그를 사용한다. 약 1분 목표이며 길이·악기
+      반영은 보장하지 않는다. 출력 상한 120초, 원곡 생성 후 MR·320kbps MP3 자동 저장.
+    source_generation_id: 2026-10-25_16-22-50-042f19c8
+    request:
+      prompt: coastal,folk,accordion,flute,plucked strings,piano,breezy,female vocals
+      lyrics: '[Intro]
+
+        [Verse]
+
+        Salt is sparkling by the ford
+
+        Barges wait beside the board
+
+        Sea winds wander through the street
+
+        Morning brings the boats to meet
+
+        [Chorus]
+
+        Water roads and windows bright
+
+        Guide us home by harbor light
+
+        [Outro]
+
+        '
+      duration_seconds: 120
+      seed: 7
+      loop_request: false
+      min_duration_seconds: 0
+  - id: windrow-road-vocal-mr-minute
+    label: 이삭바람길 · 약 1분 가사곡과 MR
+    description: 이삭바람길 배경음악 후보. 맵 이름의 분위기에 맞춘 창작 가사 6행과 악기 태그를 사용한다. 약 1분 목표이며 길이·악기
+      반영은 보장하지 않는다. 출력 상한 120초, 원곡 생성 후 MR·320kbps MP3 자동 저장.
+    source_generation_id: 2026-10-25_16-22-51-8b5adbf1
+    request:
+      prompt: pastoral,folk,flute,violin,acoustic guitar,steady,light,female vocals
+      lyrics: '[Intro]
+
+        [Verse]
+
+        Rows of grain beside the track
+
+        Sway and softly welcome back
+
+        Travelers beneath the blue
+
+        Where the harvest winds pass through
+
+        [Chorus]
+
+        Follow where the wheatfields bend
+
+        Every road can find a friend
+
+        [Outro]
+
+        '
+      duration_seconds: 120
+      seed: 7
+      loop_request: false
+      min_duration_seconds: 0
+  - id: granary-flats-vocal-mr-minute
+    label: 곡창들 · 약 1분 가사곡과 MR
+    description: 곡창들 배경음악 후보. 맵 이름의 분위기에 맞춘 창작 가사 6행과 악기 태그를 사용한다. 약 1분 목표이며 길이·악기 반영은
+      보장하지 않는다. 출력 상한 120초, 원곡 생성 후 MR·320kbps MP3 자동 저장.
+    source_generation_id: 2026-10-25_16-22-51-f646e3be
+    request:
+      prompt: pastoral,chamber,piano,strings,oboe,upright bass,broad,calm,female vocals
+      lyrics: '[Intro]
+
+        [Verse]
+
+        Level fields of amber grain
+
+        Stretch beyond the winding lane
+
+        Barns are waiting on the plain
+
+        Full of sun and summer rain
+
+        [Chorus]
+
+        Wide horizons softly shine
+
+        Harvest peace is yours and mine
+
+        [Outro]
+
+        '
+      duration_seconds: 120
+      seed: 7
+      loop_request: false
+      min_duration_seconds: 0
+  - id: mill-ridge-vocal-mr-minute
+    label: 맷돌등성이 · 약 1분 가사곡과 MR
+    description: 맷돌등성이 배경음악 후보. 맵 이름의 분위기에 맞춘 창작 가사 6행과 악기 태그를 사용한다. 약 1분 목표이며 길이·악기
+      반영은 보장하지 않는다. 출력 상한 120초, 원곡 생성 후 MR·320kbps MP3 자동 저장.
+    source_generation_id: 2026-10-25_16-22-51-5587402f
+    request:
+      prompt: folk,violin,clarinet,piano,plucked strings,measured,rustic,female vocals
+      lyrics: '[Intro]
+
+        [Verse]
+
+        Millstones turn above the vale
+
+        Wind is filling every sail
+
+        Steady rhythms greet the hill
+
+        Flour dust dances by the sill
+
+        [Chorus]
+
+        Round the wheel and down the lane
+
+        Comes the gift of golden grain
+
+        [Outro]
+
+        '
+      duration_seconds: 120
+      seed: 7
+      loop_request: false
+      min_duration_seconds: 0
+  - id: brine-bank-vocal-mr-minute
+    label: 짠물둔덕 · 약 1분 가사곡과 MR
+    description: 짠물둔덕 배경음악 후보. 맵 이름의 분위기에 맞춘 창작 가사 6행과 악기 태그를 사용한다. 약 1분 목표이며 길이·악기
+      반영은 보장하지 않는다. 출력 상한 120초, 원곡 생성 후 MR·320kbps MP3 자동 저장.
+    source_generation_id: 2026-10-25_16-22-52-1bbca563
+    request:
+      prompt: coastal,ambient,oboe,cello,harp,piano,spacious,reflective,female vocals
+      lyrics: '[Intro]
+
+        [Verse]
+
+        Briny waters meet the clay
+
+        Pale reeds nod along the bay
+
+        On the bank the salt winds roam
+
+        Carrying a taste of home
+
+        [Chorus]
+
+        Still the shoreline curves away
+
+        Holding light at close of day
+
+        [Outro]
+
+        '
+      duration_seconds: 120
+      seed: 7
+      loop_request: false
+      min_duration_seconds: 0
+  - id: salt-causeway-vocal-mr-minute
+    label: 소금둑길 · 약 1분 가사곡과 MR
+    description: 소금둑길 배경음악 후보. 맵 이름의 분위기에 맞춘 창작 가사 6행과 악기 태그를 사용한다. 약 1분 목표이며 길이·악기
+      반영은 보장하지 않는다. 출력 상한 120초, 원곡 생성 후 MR·320kbps MP3 자동 저장.
+    source_generation_id: 2026-10-25_16-22-52-f4330043
+    request:
+      prompt: coastal,folk,flute,strings,acoustic guitar,steady,open,female vocals
+      lyrics: '[Intro]
+
+        [Verse]
+
+        Narrow stones across the tide
+
+        Water shining either side
+
+        On the causeway footsteps ring
+
+        While the distant seabirds sing
+
+        [Chorus]
+
+        Keep the horizon in your sight
+
+        Cross the water toward the light
+
+        [Outro]
+
+        '
+      duration_seconds: 120
+      seed: 7
+      loop_request: false
+      min_duration_seconds: 0
+  - id: salt-flat-vocal-mr-minute
+    label: 흰소금벌 · 약 1분 가사곡과 MR
+    description: 흰소금벌 배경음악 후보. 맵 이름의 분위기에 맞춘 창작 가사 6행과 악기 태그를 사용한다. 약 1분 목표이며 길이·악기
+      반영은 보장하지 않는다. 출력 상한 120초, 원곡 생성 후 MR·320kbps MP3 자동 저장.
+    source_generation_id: 2026-10-25_16-22-53-bf6106d3
+    request:
+      prompt: ambient,chamber,celesta,piano,high strings,harp,luminous,sparse,female
+        vocals
+      lyrics: '[Intro]
+
+        [Verse]
+
+        White salt mirrors open skies
+
+        Shimmering before our eyes
+
+        Every footprint draws a line
+
+        Through the pale and crystal shine
+
+        [Chorus]
+
+        Quiet plains of silver white
+
+        Hold the sun until the night
+
+        [Outro]
+
+        '
+      duration_seconds: 120
+      seed: 7
+      loop_request: false
+      min_duration_seconds: 0
+  - id: old-boundary-gate-vocal-mr-minute
+    label: 옛 경계문터 · 약 1분 가사곡과 MR
+    description: 옛 경계문터 배경음악 후보. 맵 이름의 분위기에 맞춘 창작 가사 6행과 악기 태그를 사용한다. 약 1분 목표이며 길이·악기
+      반영은 보장하지 않는다. 출력 상한 120초, 원곡 생성 후 MR·320kbps MP3 자동 저장.
+    source_generation_id: 2026-10-25_16-22-53-0f1fdabb
+    request:
+      prompt: cinematic,chamber,cello,french horn,piano,strings,solemn,ancient,female
+        vocals
+      lyrics: '[Intro]
+
+        [Verse]
+
+        Weathered stones recall the gate
+
+        Silent roads beyond it wait
+
+        Grass has covered names of old
+
+        Stories sleep beneath the cold
+
+        [Chorus]
+
+        Through the arch the daylight stays
+
+        Lighting paths of distant days
+
+        [Outro]
+
+        '
+      duration_seconds: 120
+      seed: 7
+      loop_request: false
+      min_duration_seconds: 0
