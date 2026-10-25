@@ -8,8 +8,11 @@ MUSIC_EXAMPLE_FIELDS = {'id','label','description','source_generation_id','reque
 MUSIC_EXAMPLE_REQUEST_FIELDS = {'prompt','lyrics','duration_seconds','seed','loop_request','min_duration_seconds'}
 
 
-def load_music_examples():
-    current_catalog_record = yaml.load(MUSIC_EXAMPLE_CATALOG.read_text(encoding='utf-8'),Loader=MusicDefaultsLoader)
+def load_music_examples(current_service_name="music-minimax"):
+    if current_service_name not in ("music-minimax", "music-heartmula"):
+        raise ValueError("지원하지 않는 음악 예제 서비스")
+    current_catalog_path = MUSIC_EXAMPLE_CATALOG if current_service_name == "music-minimax" else MUSIC_EXAMPLE_CATALOG.parent/"heartmula"/"examples.yaml"
+    current_catalog_record = yaml.load(current_catalog_path.read_text(encoding='utf-8'),Loader=MusicDefaultsLoader)
     if not isinstance(current_catalog_record,dict) or set(current_catalog_record) != {'version','examples'} or type(current_catalog_record['version']) is not int or current_catalog_record['version'] != 1:
         raise ValueError('음악 예제 목록 스키마 오류')
     current_example_records = current_catalog_record['examples']
@@ -28,12 +31,12 @@ def load_music_examples():
         current_request_record = current_example_record['request']
         if not isinstance(current_request_record,dict) or set(current_request_record) != MUSIC_EXAMPLE_REQUEST_FIELDS:
             raise ValueError('음악 예제 입력 필드 오류')
-        validate_music_request('music-minimax',current_request_record)
+        validate_music_request(current_service_name,current_request_record)
     return current_example_records
 
 
-def resolve_music_example(current_example_identifier):
-    for current_example_record in load_music_examples():
+def resolve_music_example(current_example_identifier,current_service_name="music-minimax"):
+    for current_example_record in load_music_examples(current_service_name):
         if current_example_record['id'] == current_example_identifier:
             return current_example_record
     raise ValueError('예제를 목록에서 선택하세요.')

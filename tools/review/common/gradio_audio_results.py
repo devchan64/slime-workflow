@@ -13,15 +13,21 @@ def render_audio_generation_result(current_job_identifier,current_status_record,
     current_download_name = 'sound.wav' if current_status_record['audio'].startswith('/sfx-dasheng-audiogen/') else 'music.wav'
     current_result_html = f'<audio controls style="width:100%" aria-label="생성 오디오 재생 및 구간 탐색" preload="metadata" src="{current_audio_url}"></audio><p><a href="{current_audio_url}" download="{current_download_name}">WAV 다운로드</a> · 반복 연결은 청취 검수 필요</p>'
     if current_status_record.get('audio_stems'):
-        current_result_html = '<p>가사 있는 버전 · 원곡</p>'+current_result_html
-        for current_stem_name,current_stem_label in (('mr','가사 없는 버전 · MR'),('vocals','분리 보컬')):
-            current_stem_url = html.escape(current_server_address+current_status_record['audio_stems'][current_stem_name],quote=True)
-            current_result_html += f'<p>{current_stem_label}</p><audio controls style="width:100%" aria-label="{current_stem_label} 재생 및 구간 탐색" preload="metadata" src="{current_stem_url}"></audio><p><a href="{current_stem_url}" download="{current_stem_name}.wav">{current_stem_label} WAV 다운로드</a></p>'
-        current_result_html += '<p>Demucs 분리 결과 · 보컬 잔향과 악기 손실은 원곡과 비교해 청취 검수하세요.</p>'
-    for current_audio_name,current_audio_record in current_status_record.get('result',{}).get('mp3_outputs',{}).items():
-        current_mp3_url = html.escape(current_server_address+current_status_record['audio'].rsplit('/',1)[0]+'/'+current_audio_record['filename'],quote=True)
-        current_audio_label = {'music':'가사 있는 버전 · 원곡','mr':'가사 없는 버전 · MR','vocals':'분리 보컬'}[current_audio_name]
-        current_result_html += f'<p><a href="{current_mp3_url}" download>{current_audio_label} MP3 다운로드 · 320kbps</a></p>'
+        current_result_record = current_status_record.get('result',{})
+        current_duration_value = current_result_record.get('duration_seconds')
+        current_result_html = ''
+        if current_duration_value is not None:
+            current_result_html += f'<p>실제 길이: {float(current_duration_value):.2f}초 · WAV 원본 / MP3 320kbps</p>'
+        for current_audio_name,current_audio_label in (('music','가사 있는 버전 · 원곡'),('mr','가사 없는 버전 · MR'),('vocals','분리 보컬')):
+            current_source_url = current_status_record['audio'] if current_audio_name == 'music' else current_status_record['audio_stems'][current_audio_name]
+            current_escaped_url = html.escape(current_server_address+current_source_url,quote=True)
+            current_result_html += f'<p><strong>{current_audio_label}</strong></p><audio controls style="width:100%" aria-label="{current_audio_label} 재생 및 구간 탐색" preload="metadata" src="{current_escaped_url}"></audio><p><a href="{current_escaped_url}" download="{current_audio_name}.wav">{current_audio_label} WAV 다운로드</a>'
+            current_mp3_record = current_result_record.get('mp3_outputs',{}).get(current_audio_name)
+            if current_mp3_record:
+                current_mp3_url = html.escape(current_server_address+current_source_url.rsplit('/',1)[0]+'/'+current_mp3_record['filename'],quote=True)
+                current_result_html += f' · <a href="{current_mp3_url}" download>{current_audio_label} MP3 다운로드 · 320kbps</a>'
+            current_result_html += '</p>'
+        current_result_html += '<p>MR은 보컬 잔향·악기 손실·끝맺음을 원곡과 비교해 검수하세요. 에셋 등록은 채택 후 별도로 진행합니다.</p>'
     return current_result_html
 
 

@@ -845,6 +845,8 @@ python tools/manager.py command map-assets asset-crop --payload-file crop-save.j
 
 ### HeartMuLa 입력 페이지 / Magenta 폐기
 
+현행 예제 선택·가사 입력·대기열·원곡/MR 비교·320kbps MP3 다운로드·에셋 전달 절차는 [배경음악 생성 워크플로우](../generators/music/README.md)를 따른다. 폐기된 생성기의 과거 실행 기록은 현행 사용법과 분리한다.
+
 HeartMuLa `generate`는 보컬곡 생성 후 CUDA Demucs MR 분리까지 수행합니다. 요청 필드는 유지합니다.
 원곡 `music.wav`를 보존하고 `mr.wav`, `vocals.wav`를 같은 실행 시도에 추가합니다.
 GUI 결과 조회와 CLI `status`의 `audio_stems`로 MR·보컬을 조회합니다. 세 파일 모두 기존 선택 삭제·전체 초기화의 작업 폴더 정리 범위에 포함됩니다.

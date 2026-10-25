@@ -33,18 +33,20 @@ def describe_music_prompt(current_service_name,current_prompt_text,current_loop_
     return f'원문 {len(current_prompt_text.split())}단어 · 추가 {len(current_final_prompt.split())-len(current_prompt_text.split())}단어 · 최종 {len(current_final_prompt.split())}단어',current_final_prompt.strip()
 
 
-def load_instrumental_example(current_example_identifier='iseulon-bgm'):
+def load_instrumental_example(current_example_identifier='iseulon-bgm',current_service_name='music-minimax'):
     """선택한 예제의 입력값만 반환하며 실행하지 않는다."""
-    current_example_record = resolve_music_example(current_example_identifier)['request']
+    current_example_record = resolve_music_example(current_example_identifier,current_service_name)['request']
     return (current_example_record['prompt'],current_example_record['lyrics'],current_example_record['duration_seconds'],
             current_example_record['seed'],current_example_record['loop_request'],current_example_record['min_duration_seconds'],False)
 
 
-def preview_music_example(current_example_identifier):
-    current_example_record = resolve_music_example(current_example_identifier)
+def preview_music_example(current_example_identifier,current_service_name='music-minimax'):
+    current_example_record = resolve_music_example(current_example_identifier,current_service_name)
     current_request_record = current_example_record['request']
     current_summary_text = (current_example_record['description']+f"\n\n상한 {current_request_record['duration_seconds']}초 · 시드 {current_request_record['seed']} · 반복 요청 {current_request_record['loop_request']} · 최소 길이 {current_request_record['min_duration_seconds']}초"
                             +f"\n\n출처 작업: `{current_example_record['source_generation_id']}` · 원문/최종 prompt {len(current_request_record['prompt'].split())}단어 · lyrics {len(current_request_record['lyrics'].split())}단어")
+    if current_service_name == 'music-heartmula':
+        current_summary_text = current_example_record['description']+f"\n\n출력 상한 {current_request_record['duration_seconds']}초 · 시드 {current_request_record['seed']} · 가사 {len(current_request_record['lyrics'].split())}단어"
     return current_summary_text,current_request_record['prompt'],current_request_record['lyrics']
 
 
@@ -71,21 +73,13 @@ def build_music_interface(current_service_name,current_server_address):
     with gr.Blocks(title=current_profile_record['label']+' '+current_content_label+' 생성') as current_interface_blocks:
         gr.Markdown('## '+current_profile_record['label']+' · '+current_content_label+' 생성\n'+current_content_description)
         if current_heartmula_mode:
-            gr.Markdown('### 사용하는 두 모델\n\n'
-                        '**HeartMuLa 3B · 음악 생성**  \n'
-                        f"고정 모델: `{current_profile_record['model_id']}`. 음악 태그와 가사를 받아 보컬·반주가 포함된 원곡을 생성합니다. "
-                        f"[모델 카드·라이선스 안내]({current_profile_record['license_url']})\n\n"
-                        '**Demucs · 보컬·반주 분리**  \n'
-                        '고정 모델: `htdemucs` (Demucs 4.0.1). 원곡을 보컬·드럼·베이스·나머지 악기 성분으로 분리하고, '
-                        '보컬을 제외한 성분을 합쳐 MR을 만듭니다. '
-                        '[공식 저장소·모델 안내](https://github.com/facebookresearch/demucs)\n\n'
-                        'HeartMuLa 생성이 끝난 뒤 Demucs를 실행합니다. MR에도 보컬 잔향이 남거나 악기가 손실될 수 있습니다.')
-            gr.Markdown('### 가사곡 생성 후 MR 분리\n\n'
-                        '1. 음악 태그와 실제 가사를 입력합니다. 가사는 `[Verse]`, `[Chorus]`, `[Outro]` 같은 구간 표기와 함께 작성합니다.\n'
-                        '2. 대기열에 추가하면 HeartMuLa가 보컬이 있는 원곡을 생성하고, 이어서 Demucs가 보컬과 MR(반주)을 자동 분리합니다. 두 단계는 CUDA에서 순차 실행됩니다.\n'
-                        '3. 완료된 이력에서 **결과 조회**를 누르면 **원곡·MR·분리 보컬**을 각각 재생하고 WAV 또는 **320kbps MP3**로 내려받을 수 있습니다. MP3는 자동 생성하며 WAV 원본도 보존합니다.\n\n'
-                        '최대 출력 시간은 생성 상한이며, 모델이 먼저 종료하면 더 짧은 곡이 나옵니다. '
-                        'MR의 보컬 잔향·악기 손실과 곡의 끝맺음은 원곡과 비교해 청취 검수하세요.')
+            gr.Markdown('**HeartMuLa 3B**: 태그·가사로 원곡 생성 → **Demucs htdemucs**: 보컬·MR 분리 → **WAV + 320kbps MP3** 저장.\n\n'
+                        '**사용 순서** · 예제 불러오기 → 입력 확인 → 대기열 등록 → 완료 이력에서 원곡·MR 비교')
+            with gr.Accordion('두 모델 소개 · 실행 방식과 품질 안내',open=False):
+                gr.Markdown(f"**HeartMuLa** · `{current_profile_record['model_id']}` · [모델 카드]({current_profile_record['license_url']})\n\n"
+                            '**Demucs** · `htdemucs`, 4.0.1 · [공식 저장소](https://github.com/facebookresearch/demucs)\n\n'
+                            '두 모델은 CUDA에서 순차 실행합니다. MR에는 보컬 잔향이나 악기 손실이 생길 수 있습니다. '
+                            '최대 출력 시간은 상한이며 자연스러운 끝맺음이나 정확한 길이를 보장하지 않습니다.')
         gr.Markdown(f"고정 모델: `{current_profile_record['model_id']}` · {('길이 자동 예측' if current_effects_mode else '최대 생성 길이 기본값 '+str(current_default_record['duration_seconds'])+'초')} · batch 1 · {current_hardware_notice}\n\n[{current_profile_record['license_notice']}]({current_profile_record['license_url']})")
         current_model_status = gr.Markdown('모델 준비 상태 확인 중')
         with gr.Accordion('모델 준비 · 다운로드 / 재점검',open=False):
@@ -96,21 +90,22 @@ def build_music_interface(current_service_name,current_server_address):
                 gr.Markdown('GPU 실험 경로: ONNX 변환 인코더와 공식 JAX Small을 사용합니다. 원본 TFLite와 수치 동등성은 미검증입니다. 시드는 스타일 매퍼에 적용하며 음악 샘플러 시드는 공식 구현의 0으로 고정됩니다.')
             with gr.Column() as current_prepare_container:
                 pass
-        if current_minimax_mode:
-            current_example_records = load_music_examples()
-            with gr.Accordion('예제 프롬프트 목록',open=False):
+        if current_minimax_mode or current_heartmula_mode:
+            current_example_records = load_music_examples(current_service_name)
+            with gr.Accordion('예제 프롬프트 목록',open=current_heartmula_mode):
                 current_example_selector = gr.Dropdown(choices=[(current_example_record['label'],current_example_record['id']) for current_example_record in current_example_records],value=current_example_records[0]['id'],label='예제 선택',allow_custom_value=False)
-                current_example_preview = preview_music_example(current_example_records[0]['id'])
+                current_example_preview = preview_music_example(current_example_records[0]['id'],current_service_name)
                 current_example_summary = gr.Markdown(current_example_preview[0])
-                current_example_prompt = gr.Textbox(value=current_example_preview[1],label='예제 음악 설명 · 읽기 전용',lines=8,interactive=False)
-                current_example_lyrics = gr.Textbox(value=current_example_preview[2],label='예제 가사·태그 · 읽기 전용',interactive=False)
-                current_example_selector.change(preview_music_example,current_example_selector,[current_example_summary,current_example_prompt,current_example_lyrics],queue=False)
+                with gr.Accordion('예제 원문 미리보기',open=False):
+                    current_example_prompt = gr.Textbox(value=current_example_preview[1],label='예제 음악 설명 · 읽기 전용',lines=4,interactive=False)
+                    current_example_lyrics = gr.Textbox(value=current_example_preview[2],label='예제 가사·태그 · 읽기 전용',lines=6,interactive=False)
+                current_example_selector.change(lambda current_example_identifier: preview_music_example(current_example_identifier,current_service_name),current_example_selector,[current_example_summary,current_example_prompt,current_example_lyrics],queue=False)
                 current_example_button = gr.Button('선택한 예제를 폼에 불러오기')
-                gr.Markdown('목록 선택은 미리보기만 바꿉니다. 불러오기를 누르면 음악 설명·가사·길이·시드·반복·최소 길이를 덮어쓰고 이전 방식을 해제합니다. 생성은 실행하지 않습니다.')
-        current_prompt_control = gr.Textbox(value=current_default_record['prompt'],label=current_prompt_label,lines=4,placeholder='영어로 원하는 소리와 동작을 설명하세요.' if current_effects_mode else '예: Calm fantasy village music with flute and acoustic strings')
+                gr.Markdown('불러오기는 태그·가사·출력 상한·시드를 바꿉니다. 기존 입력은 덮어쓰며 생성은 실행하지 않습니다.' if current_heartmula_mode else '목록 선택은 미리보기만 바꿉니다. 불러오기는 음악 설명·가사·길이·시드·반복·최소 길이를 덮어쓰며 생성은 실행하지 않습니다.')
+        current_prompt_control = gr.Textbox(value=current_default_record['prompt'],label=current_prompt_label,lines=4,placeholder='예: piano,harp,flute,acoustic,peaceful,female vocals' if current_heartmula_mode else '영어로 원하는 소리와 동작을 설명하세요.' if current_effects_mode else '예: Calm fantasy village music with flute and acoustic strings')
         current_vocal_draft = gr.State('')
         current_vocal_control = gr.State('반주') if not current_minimax_mode else gr.Radio(choices=['반주','보컬'],value='반주',label='음악 유형',info='반주는 가창 없이 생성합니다. 보컬은 가사를 입력하고 음악 설명에도 원하는 목소리를 적어 주세요.')
-        current_lyrics_control = gr.Textbox(value='',label='가사·구간 태그 · lyrics',lines=6,info='직접 입력해야 합니다. 공식 예제는 [Intro], [Verse], [Chorus], [Outro]와 가사를 사용합니다. 구간 표기만 넣는 방법은 미검증 실험이며 반주 모드가 아닙니다.') if current_heartmula_mode else gr.State(None) if not current_minimax_mode else gr.Textbox(value='[Instrumental]',label='가사·구간 구성 · lyrics',lines=6,interactive=False,info='반주는 [Instrumental]. 보컬은 [verse], [chorus]와 가사를 입력하세요. 프롬프트의 보컬 지시와 일치시켜 주세요.')
+        current_lyrics_control = gr.Textbox(value='',label='가사·구간 태그 · lyrics',lines=6,info='예제를 불러오거나 직접 작성하세요. [Verse], [Chorus], [Outro] 아래에 가사를 입력합니다. MR도 먼저 가사곡을 생성한 뒤 분리합니다.') if current_heartmula_mode else gr.State(None) if not current_minimax_mode else gr.Textbox(value='[Instrumental]',label='가사·구간 구성 · lyrics',lines=6,interactive=False,info='반주는 [Instrumental]. 보컬은 [verse], [chorus]와 가사를 입력하세요. 프롬프트의 보컬 지시와 일치시켜 주세요.')
         current_prompt_reset = gr.Button('음악 설명만 비우기' if not current_effects_mode else '프롬프트 초기화',size='sm')
         current_prompt_reset.click(lambda:'',outputs=current_prompt_control,queue=False)
         with gr.Row():
@@ -143,28 +138,28 @@ def build_music_interface(current_service_name,current_server_address):
             for current_mode_source in (current_lyrics_control,current_legacy_control):
                 current_mode_source.change(synchronize_music_vocals,[current_lyrics_control,current_vocal_draft,current_legacy_control],[current_vocal_control,current_vocal_draft,current_lyrics_control],queue=False)
 
-        if current_minimax_mode:
-            current_example_button.click(load_instrumental_example,inputs=current_example_selector,outputs=[current_prompt_control,current_lyrics_control,current_length_control,current_seed_control,current_loop_control,current_minimum_control,current_legacy_control],queue=False)
+        if current_minimax_mode or current_heartmula_mode:
+            current_example_button.click(lambda current_example_identifier: load_instrumental_example(current_example_identifier,current_service_name),inputs=current_example_selector,outputs=[current_prompt_control,current_lyrics_control,current_length_control,current_seed_control,current_loop_control,current_minimum_control,current_legacy_control],queue=False)
         current_prompt_counts,current_final_prompt = describe_music_prompt(current_service_name,current_default_record['prompt'],current_default_record['loop_request'] if current_effects_mode else False,current_effects_mode)
         current_prompt_summary = gr.Markdown(current_prompt_counts)
         with gr.Accordion('최종 모델 입력 원문',open=False):
             current_final_control = gr.Textbox(value=current_final_prompt,interactive=False,label='최종 프롬프트',lines=4)
-            if current_minimax_mode:
-                current_final_lyrics = gr.Textbox(value='[Instrumental]',label='최종 lyrics',interactive=False,lines=4)
-                current_lyrics_summary = gr.Markdown('가사 입력 1단어 · 최종 lyrics 1단어')
+            if current_minimax_mode or current_heartmula_mode:
+                current_final_lyrics = gr.Textbox(value='' if current_heartmula_mode else '[Instrumental]',label='최종 lyrics',interactive=False,lines=4)
+                current_lyrics_summary = gr.Markdown('가사 입력 0단어 · 최종 lyrics 0단어' if current_heartmula_mode else '가사 입력 1단어 · 최종 lyrics 1단어')
                 def update_music_lyrics(current_lyrics_text,current_legacy_value):
-                    current_final_lyrics = '[Instrumental]' if current_legacy_value else current_lyrics_text
+                    current_final_lyrics = '[Instrumental]' if current_minimax_mode and current_legacy_value else current_lyrics_text
                     return current_final_lyrics,f'가사 입력 {len(current_lyrics_text.split())}단어 · 최종 lyrics {len(current_final_lyrics.split())}단어'
                 for current_lyrics_source in (current_lyrics_control,current_legacy_control):
                     current_lyrics_source.change(update_music_lyrics,[current_lyrics_control,current_legacy_control],[current_final_lyrics,current_lyrics_summary],queue=False)
-                gr.Markdown('최종 프롬프트는 `prompt`, 가사 입력은 `lyrics`, 최대 생성 길이는 `audio_duration`으로 전달합니다. 시드는 난수 생성기에 적용하며 이력 태그는 모델에 전달하지 않습니다.')
+                gr.Markdown('태그와 가사는 위 원문 그대로 전달합니다. 출력 상한은 밀리초로 환산하며 이력 태그는 모델 입력에 포함하지 않습니다.' if current_heartmula_mode else '최종 프롬프트는 prompt, 가사는 lyrics, 길이는 audio_duration으로 전달합니다.')
         def update_music_prompt(current_prompt_text,current_loop_value,current_legacy_value):
             return describe_music_prompt(current_service_name,current_prompt_text,current_loop_value,current_legacy_value)
         current_tag_control = gr.Textbox(label='이력 태그 · 선택 사항',max_lines=1,info='예: 초원 낮 · 비교 실험 1. 모델 입력에는 포함되지 않습니다.')
         current_generate_button = gr.Button('대기열에 추가',variant='primary',interactive=bool(current_default_record['prompt'].strip()) and not current_heartmula_mode)
         def describe_music_readiness(current_prompt_text,current_lyrics_text,current_legacy_value):
             if current_heartmula_mode:
-                return '음악 태그와 가사·구간 태그를 직접 입력하세요. 무보컬 기본값은 제공하지 않습니다.' if not (current_prompt_text and current_prompt_text.strip() and current_lyrics_text and current_lyrics_text.strip()) else '입력한 설정을 확인한 뒤 대기열에 등록합니다.'
+                return '예제를 불러오거나 음악 태그와 가사를 입력하세요. MR은 원곡 생성 후 자동 분리됩니다.' if not (current_prompt_text and current_prompt_text.strip() and current_lyrics_text and current_lyrics_text.strip()) else '입력한 설정을 확인한 뒤 대기열에 등록합니다.'
             if not current_prompt_text or not current_prompt_text.strip():
                 return '음악 설명을 입력하세요.' if not current_effects_mode else '소리·재질·동작 설명을 입력하세요.'
             if current_minimax_mode and not current_legacy_value and (not current_lyrics_text or not current_lyrics_text.strip()):

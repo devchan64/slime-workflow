@@ -37,6 +37,12 @@ class HeartmulaSeparationTests(unittest.TestCase):
             self.assertEqual(current_player_markup.count('<audio '),3)
             self.assertIn('/mr.wav',current_status_record['audio_stems']['mr'])
             self.assertIn('/music.wav',current_status_record['audio'])
+            current_status_record['result']['duration_seconds'] = 70.32
+            current_status_record['result']['mp3_outputs'] = {current_audio_name:{'filename':current_audio_name+'.mp3'} for current_audio_name in ('music','mr','vocals')}
+            current_player_markup = render_audio_generation_result(current_job_root.name,current_status_record,'')
+            self.assertIn('실제 길이: 70.32초',current_player_markup)
+            self.assertLess(current_player_markup.index('/music.mp3'),current_player_markup.index('/mr.wav'))
+            self.assertLess(current_player_markup.index('/mr.mp3'),current_player_markup.index('/vocals.wav'))
             del current_result_record['separation']
             (current_job_root/'result.json').write_text(json.dumps(current_result_record))
             current_status_record = current_music_manager.read_music_status(current_job_root,False)

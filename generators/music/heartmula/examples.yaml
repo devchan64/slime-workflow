@@ -1,0 +1,23 @@
+version: 1
+examples:
+  - id: iseulon-vocal-mr-minute
+    label: 이슬온 · 약 1분 가사곡과 MR
+    description: 평온한 마을의 피아노·하프·플루트 중심 어쿠스틱 곡. 짧은 1절과 후렴 6행으로 약 1분을 목표로 하며 실제 길이·악기 반영은 보장하지 않는다. 원곡 생성 후 MR을 자동 분리한다. 끝맺음 여유를 위해 출력 상한은 120초로 둔다.
+    source_generation_id: 신규 실험 · 74.72초 가사곡보다 가사를 8행에서 6행으로 축소
+    request:
+      prompt: piano,harp,flute,acoustic,folk,peaceful,warm,female vocals
+      lyrics: |
+        [Intro]
+        [Verse]
+        Morning warms the village lane
+        Dewdrops shine after the rain
+        By the bridge the willows sway
+        Home is never far away
+        [Chorus]
+        Iseulon, our gentle home
+        In your light we cease to roam
+        [Outro]
+      duration_seconds: 120
+      seed: 7
+      loop_request: false
+      min_duration_seconds: 0
