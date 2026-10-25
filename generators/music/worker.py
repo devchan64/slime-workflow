@@ -31,6 +31,8 @@ def collect_music_durations(current_storage_root,current_request_record,current_
         current_previous_request = read_music_record(current_result_path.parent/'request.json')
         current_previous_metrics = read_music_record(current_result_path.parent/'metrics.json')
         current_previous_result = read_music_record(current_result_path)
+        if current_request_record['service']=='music-heartmula' and current_previous_result.get('separation',{}).get('runtime_sha256') != calculate_music_checksum(WORKFLOW_ROOT_DIRECTORY/'generators/music/heartmula/separation.py'):
+            continue
         if current_previous_result.get('included_download') or current_previous_result.get('runtime_sha256') != calculate_music_checksum(current_runtime_path):
             continue
         if current_previous_metrics['status'] == 'completed' and current_previous_metrics.get('gpu_name') == current_device_name and all(current_previous_request.get(current_field_name)==current_request_record.get(current_field_name) for current_field_name in current_condition_fields):

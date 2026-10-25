@@ -35,12 +35,14 @@ def validate_heartmula_artifacts(current_service_name):
 
 
 def prepare_heartmula_model(current_service_name,current_metrics_recorder,current_download_requested):
+    from generators.music.heartmula.separation import prepare_separation_model
     current_model_root = validate_heartmula_artifacts(current_service_name)
     current_metrics_recorder.update_generation_stage('prepare')
     current_manifest_path = current_model_root/'prepared.json'
     current_model_files = sorted(current_model_root.glob('bundle/**/*.safetensors'))+sorted(current_model_root.glob('bundle/**/*.json'))
     current_model_files = [current_model_path for current_model_path in current_model_files if '.cache' not in current_model_path.parts]
     current_manifest_record = {'model_id':HEARTMULA_SOURCE_REVISIONS[1][0],'sources':HEARTMULA_SOURCE_REVISIONS,'library_revision':HEARTMULA_LIBRARY_REVISION,'runtime_sha256':calculate_music_checksum(Path(__file__)),'files':[{'path':str(current_model_path.relative_to(current_model_root)),'size':current_model_path.stat().st_size,'sha256':calculate_music_checksum(current_model_path)} for current_model_path in current_model_files]}
+    current_manifest_record['separation'] = prepare_separation_model(current_model_root,current_download_requested)
     write_record_atomically(current_manifest_path,current_manifest_record)
     print(f'HeartMuLa 모델 준비 완료: {current_model_root}/bundle',flush=True)
     return current_manifest_record
@@ -121,5 +123,11 @@ def execute_heartmula_inference(current_service_name,current_request_record,curr
     current_result_record['termination'] = current_termination_record
     if not current_eos_observed:
         current_result_record['quality_warnings'].append('최대 출력 시간에 도달해 종료했습니다. 음악적 끝맺음이 완료되었다는 의미가 아닙니다.')
+    from generators.music.heartmula.separation import separate_heartmula_audio
+    del current_audio_wave, current_model_outputs, current_music_pipeline
+    current_result_record['separation'] = separate_heartmula_audio(current_model_root,current_attempt_root,current_metrics_recorder)
+    current_result_record['torch_peak_allocated_mib'] = torch.cuda.max_memory_allocated()/2**20
+    current_result_record['torch_peak_reserved_mib'] = torch.cuda.max_memory_reserved()/2**20
+    current_result_record['quality_warnings'].append('MR은 Demucs 분리 결과입니다. 보컬 잔향·악기 손실을 원곡과 비교하세요.')
     write_record_atomically(current_model_root/'gpu-validation.json',{'generation_id':current_attempt_root.parent.parent.name,'attempt':current_attempt_root.name,'runtime_sha256':current_result_record['runtime_sha256'],'status':'passed'})
     return current_result_record

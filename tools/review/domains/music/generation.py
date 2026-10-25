@@ -87,6 +87,8 @@ class MusicGenerationManager:
             current_status_record['result'] = current_result_record
             if current_result_record.get('format')=='wav':
                 current_status_record['audio'] = f"{self.route_prefix_value}/jobs/{current_job_root.name}/attempts/{current_result_record['attempt']}/{self.audio_output_filename}"
+                if self.current_service_name == 'music-heartmula' and current_result_record.get('separation'):
+                    current_status_record['audio_stems'] = {current_stem_name:current_status_record['audio'].rsplit('/',1)[0]+'/'+current_stem_name+'.wav' for current_stem_name in ('mr','vocals')}
         if current_include_logs:
             current_log_path = current_job_root/'worker.log'
             if current_log_path.is_file():
@@ -129,6 +131,8 @@ class MusicGenerationManager:
             try:
                 validate_prepared_music(self.current_service_name)
                 if self.current_service_name == 'music-heartmula':
+                    from generators.music.heartmula.separation import prepare_separation_model
+                    prepare_separation_model(self.model_storage_root,False)
                     from generators.music.runtime import calculate_music_checksum
                     current_validation_path = self.model_storage_root/'gpu-validation.json'
                     current_gpu_verified = False
@@ -175,10 +179,11 @@ class MusicGenerationManager:
         try:
             validate_management_http_request(current_http_handler)
             current_url_path = urlsplit(current_http_handler.path).path
-            current_file_match = re.fullmatch(re.escape(self.route_prefix_value)+r'/jobs/('+MUSIC_IDENTIFIER_PATTERN+r')/attempts/([a-f0-9]{32})/'+re.escape(self.audio_output_filename),current_url_path)
+            current_audio_pattern = '(music\\.wav|mr\\.wav|vocals\\.wav)' if self.current_service_name == 'music-heartmula' else '('+re.escape(self.audio_output_filename)+')'
+            current_file_match = re.fullmatch(re.escape(self.route_prefix_value)+r'/jobs/('+MUSIC_IDENTIFIER_PATTERN+r')/attempts/([a-f0-9]{32})/'+current_audio_pattern,current_url_path)
             if current_http_handler.command=='GET' and current_file_match:
                 current_job_root = self.resolve_music_job(current_file_match[1])
-                current_audio_path = current_job_root/'attempts'/current_file_match[2]/self.audio_output_filename
+                current_audio_path = current_job_root/'attempts'/current_file_match[2]/current_file_match[3]
                 if not current_audio_path.resolve().is_relative_to(current_job_root.resolve()):
                     raise ValueError('음악 결과 경로 오류')
                 from tools.review.common.audio_file_response import send_audio_file_response

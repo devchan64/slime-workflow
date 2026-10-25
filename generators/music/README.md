@@ -142,3 +142,19 @@ Magenta는 신규 생성·준비·재개를 차단하고 메뉴에서 제거했�
 현재 어댑터는 공개 tags·lyrics 생성 경로만 사용합니다. lyrics 누락을 임의의 `[Instrumental]`로 대체하지 않습니다. `duration_seconds`는 공식 `max_audio_length_ms`로 변환하는 상한입니다. EOS와 상한 종료는 `termination.json` 및 결과의 `termination`에 구분해 저장하고 상한 종료에는 품질 경고를 남깁니다. EOS도 자연스러운 종지나 무보컬의 품질 보장은 아닙니다. NF4 양자화와 7.44초 디코더 창은 로컬 8GB 실행을 위한 변경이며 논문의 평가 조건과 동일하지 않습니다.
 
 빈 가사 비교 실험은 게이트웨이에 `lyrics: ""`를 명시적으로 전달합니다. lyrics 필드 생략은 계속 거절합니다. 공식 토크나이저·전처리의 빈 문자열 통과를 확인했으며 반주 품질은 미검증입니다. GUI는 현재 비어 있지 않은 입력을 요구하므로 이 비교 실험은 게이트웨이·CLI로 등록합니다.
+
+## HeartMuLa 보컬곡 → MR 실험
+
+HeartMuLa 생성 후 GPU 모델을 해제하고 Demucs 4.0.1 `htdemucs`를 CUDA에서 순차 실행한다.
+공용 `music-heartmula generate` 명령과 기존 요청 스키마를 유지하며, 완료 전에 분리 단계까지 수행한다.
+`music.wav`는 보컬 포함 원곡, `mr.wav`는 drums+bass+other의 합, `vocals.wav`는 보컬이다.
+분리 파일은 44.1kHz FLOAT WAV로 저장하고 페이드·자동 음량 조정·종료 토큰 억제를 적용하지 않는다.
+분리 실패는 전체 작업 실패로 기록하되 이미 저장된 원곡은 보존한다.
+공용 결과 조회에서 세 파일을 재생·다운로드하고 CLI status에서도 `audio_stems`를 조회할 수 있다.
+분리 시간과 VRAM은 같은 작업의 공용 heartbeat 측정 범위에 포함한다.
+
+Demucs 공식 체크포인트는 `.model/music/music-heartmula/demucs/`에 저장한다.
+`prepare`에서 다운로드 및 고정 SHA-256을 검증하고, `generate`에서는 누락 시 즉시 실패한다.
+코드·가중치 이용 안내: https://github.com/facebookresearch/demucs (MIT).
+분리 결과의 보컬 잔향과 악기 손실은 청취 검수가 필요하며 반주 품질을 보장하지 않는다.
+이슬온 가사 실험 입력은 `heartmula/iseulon_vocal_mr.yaml`에서 관리한다.

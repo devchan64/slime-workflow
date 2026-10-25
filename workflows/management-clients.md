@@ -845,6 +845,11 @@ python tools/manager.py command map-assets asset-crop --payload-file crop-save.j
 
 ### HeartMuLa 입력 페이지 / Magenta 폐기
 
+HeartMuLa `generate`는 보컬곡 생성 후 CUDA Demucs MR 분리까지 수행합니다. 요청 필드는 유지합니다.
+원곡 `music.wav`를 보존하고 `mr.wav`, `vocals.wav`를 같은 실행 시도에 추가합니다.
+GUI 결과 조회와 CLI `status`의 `audio_stems`로 MR·보컬을 조회합니다. 세 파일 모두 기존 선택 삭제·전체 초기화의 작업 폴더 정리 범위에 포함됩니다.
+분리 실패 시 작업은 실패이며 원곡은 남습니다. 분리 모델은 `.model/music/music-heartmula/demucs/`에서 준비하며 자동 CPU 추론은 허용하지 않습니다.
+
 `music-magenta`는 신규 생성·준비·재개를 차단하며 과거 이력·결과 조회와 명시적 삭제는 유지합니다. 신규 `music-heartmula`는 공용 게이트웨이·GUI·CLI에 등록되어 입력·모델 상태·누적 이력 계약을 공유합니다. `help music-heartmula`에서 입력을 확인할 수 있습니다. 공용 CUDA 작업자에서 실행하며 GUI는 현재 런타임의 GPU 검증 완료를 확인합니다. tags와 lyrics를 직접 입력하며 무보컬 지시를 자동 삽입하지 않습니다. 논문의 특화 모드를 별도 공개 API로 가정하지 않습니다. UI의 최대 출력 시간은 곡의 완결 길이를 의미하지 않습니다.
 
 ### 1×3 도복목 빌보드 가이드

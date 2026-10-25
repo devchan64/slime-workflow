@@ -1,0 +1,18 @@
+prompt: piano,harp,flute,acoustic,folk,peaceful,warm,female vocals
+lyrics: |
+  [Intro]
+  [Verse]
+  Morning settles on the lane
+  Silver leaves remember rain
+  By the bridge the lanterns glow
+  Here the quiet rivers flow
+  [Chorus]
+  Iseulon, a light to guide me
+  Gentle hills and skies above
+  Every road returns beside thee
+  Every window holds our love
+  [Outro]
+duration_seconds: 180
+seed: 7
+loop_request: false
+tag: 이슬온-가사곡-MR분리-v1

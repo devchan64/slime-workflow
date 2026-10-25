@@ -64,18 +64,34 @@ def build_music_interface(current_service_name,current_server_address):
         current_content_description = 'Magenta RT2 Small(230M) 반주 실험 입력 화면입니다. 출력 목표는 48kHz stereo WAV입니다. 허밍·보컬 미포함과 자연스러운 종결은 보장하지 않습니다.'
     if current_heartmula_mode:
         current_prompt_label = '음악 태그 · tags (쉼표로 구분)'
-        current_content_description = 'HeartMuLa 공개 3B 모델 입력 페이지입니다. 태그와 가사·구간 태그를 입력합니다. 8GB CUDA 생성은 검증했으며, 보컬 차단과 자연스러운 종결은 보장하지 않습니다.'
+        current_content_description = 'HeartMuLa로 가사가 있는 음악을 생성하고 Demucs로 MR을 분리합니다. 두 모델을 8GB CUDA에서 순차 실행하며, 원곡과 MR을 함께 확인할 수 있습니다.'
         current_hardware_notice = 'HeartCodec FP32 · 생성 모델 NF4/BF16 · CUDA 순차 로드 · 실제 준비 상태는 아래 표시'
     def execute_music_command(current_command_name,current_payload_record):
         return execute_remote_management_command(current_service_name,current_command_name,current_payload_record)
     with gr.Blocks(title=current_profile_record['label']+' '+current_content_label+' 생성') as current_interface_blocks:
         gr.Markdown('## '+current_profile_record['label']+' · '+current_content_label+' 생성\n'+current_content_description)
+        if current_heartmula_mode:
+            gr.Markdown('### 사용하는 두 모델\n\n'
+                        '**HeartMuLa 3B · 음악 생성**  \n'
+                        f"고정 모델: `{current_profile_record['model_id']}`. 음악 태그와 가사를 받아 보컬·반주가 포함된 원곡을 생성합니다. "
+                        f"[모델 카드·라이선스 안내]({current_profile_record['license_url']})\n\n"
+                        '**Demucs · 보컬·반주 분리**  \n'
+                        '고정 모델: `htdemucs` (Demucs 4.0.1). 원곡을 보컬·드럼·베이스·나머지 악기 성분으로 분리하고, '
+                        '보컬을 제외한 성분을 합쳐 MR을 만듭니다. '
+                        '[공식 저장소·모델 안내](https://github.com/facebookresearch/demucs)\n\n'
+                        'HeartMuLa 생성이 끝난 뒤 Demucs를 실행합니다. MR에도 보컬 잔향이 남거나 악기가 손실될 수 있습니다.')
+            gr.Markdown('### 가사곡 생성 후 MR 분리\n\n'
+                        '1. 음악 태그와 실제 가사를 입력합니다. 가사는 `[Verse]`, `[Chorus]`, `[Outro]` 같은 구간 표기와 함께 작성합니다.\n'
+                        '2. 대기열에 추가하면 HeartMuLa가 보컬이 있는 원곡을 생성하고, 이어서 Demucs가 보컬과 MR(반주)을 자동 분리합니다. 두 단계는 CUDA에서 순차 실행됩니다.\n'
+                        '3. 완료된 이력에서 **결과 조회**를 누르면 **원곡·MR·분리 보컬**을 각각 재생하고 WAV로 내려받을 수 있습니다.\n\n'
+                        '최대 출력 시간은 생성 상한이며, 모델이 먼저 종료하면 더 짧은 곡이 나옵니다. '
+                        'MR의 보컬 잔향·악기 손실과 곡의 끝맺음은 원곡과 비교해 청취 검수하세요.')
         gr.Markdown(f"고정 모델: `{current_profile_record['model_id']}` · {('길이 자동 예측' if current_effects_mode else '최대 생성 길이 기본값 '+str(current_default_record['duration_seconds'])+'초')} · batch 1 · {current_hardware_notice}\n\n[{current_profile_record['license_notice']}]({current_profile_record['license_url']})")
         current_model_status = gr.Markdown('모델 준비 상태 확인 중')
         with gr.Accordion('모델 준비 · 다운로드 / 재점검',open=False):
             current_prepare_button = gr.Button('준비 파일 재점검' if current_magenta_mode and not current_heartmula_mode else '모델 다운로드·준비',interactive=not current_heartmula_mode)
             if current_heartmula_mode:
-                gr.Markdown('준비는 설치된 모델 파일을 재점검합니다. 생성은 GPU 검증 완료 및 tags·lyrics 직접 입력 후 활성화됩니다.')
+                gr.Markdown('가사가 있는 원곡을 생성한 뒤 Demucs로 MR·보컬을 분리합니다. 원곡과 분리 파일을 모두 보존합니다. 생성은 GPU 검증 완료 및 tags·lyrics 직접 입력 후 활성화됩니다.')
             elif current_magenta_mode:
                 gr.Markdown('GPU 실험 경로: ONNX 변환 인코더와 공식 JAX Small을 사용합니다. 원본 TFLite와 수치 동등성은 미검증입니다. 시드는 스타일 매퍼에 적용하며 음악 샘플러 시드는 공식 구현의 0으로 고정됩니다.')
             with gr.Column() as current_prepare_container:
