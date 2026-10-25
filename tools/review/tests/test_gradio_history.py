@@ -21,7 +21,7 @@ class GradioHistoryTest(unittest.TestCase):
         with gr.Blocks() as current_interface_blocks:
             build_generation_history_view(execute_fixture_command,'http://localhost','격리 검증',allow_individual_delete=True)
         current_delete_functions=[current_function for current_function in current_interface_blocks.fns.values() if current_function.name=='update_history_delete_button']
-        self.assertEqual(len(current_delete_functions),2)
+        self.assertEqual(len(current_delete_functions),1)
         current_delete_callback=current_delete_functions[0].fn
         self.assertFalse(current_delete_callback('')['interactive'])
         self.assertEqual(current_command_calls,[])
@@ -338,7 +338,9 @@ class HistoryProgressDetailTests(unittest.TestCase):
             return current_status_record
         with gr.Blocks() as current_interface_blocks:
             build_generation_history_view(execute_fixture_command, 'http://localhost', '격리 검증')
-        current_refresh_callback = next(current_function.fn for current_function in current_interface_blocks.fns.values() if current_function.name == 'refresh_result_observation')
+        current_refresh_callback = next(current_function.fn for current_function in current_interface_blocks.fns.values() if current_function.name == 'refresh_combined_history')
+        current_combined_callback = current_refresh_callback
+        current_refresh_callback = lambda current_job_identifier: tuple(current_combined_callback('', current_job_identifier, False)[3:7])
         current_command_calls.clear()
         self.assertEqual(current_refresh_callback(''), (gr.skip(),)*4)
         self.assertEqual(current_command_calls, [])
@@ -362,8 +364,8 @@ class HistoryProgressDetailTests(unittest.TestCase):
         with gr.Blocks() as current_interface_blocks:
             build_generation_history_view(execute_fixture_command, 'http://localhost', '격리 검증')
         current_callbacks = {current_function.name:current_function.fn for current_function in current_interface_blocks.fns.values()}
-        self.assertIn('삭제되었습니다',current_callbacks['refresh_selected_logs']('deleted-job',True))
-        self.assertEqual(current_callbacks['refresh_selected_logs']('deleted-job',False),gr.skip())
+        self.assertIn('삭제되었습니다',current_callbacks['refresh_combined_history']('deleted-job','deleted-job',True)[3])
+        self.assertEqual(current_callbacks['refresh_combined_history']('deleted-job','deleted-job',False)[-2],gr.skip())
         self.assertFalse(current_callbacks['refresh_priority_control']('deleted-job')['interactive'])
         current_button_updates = current_callbacks['refresh_history_controls']('deleted-job')
         self.assertTrue(all(not current_update['interactive'] for current_update in current_button_updates))
@@ -381,18 +383,46 @@ class HistoryProgressDetailTests(unittest.TestCase):
         with gr.Blocks() as current_interface_blocks:
             build_generation_history_view(execute_fixture_command, 'http://localhost', '격리 검증')
         current_callbacks = {current_function.name:current_function.fn for current_function in current_interface_blocks.fns.values()}
-        current_result_values=current_callbacks['refresh_result_observation']('existing-job')
+        current_result_values=tuple(current_callbacks['refresh_combined_history']('existing-job','existing-job',True)[3:7])
         self.assertIn('연결 재시도 필요',current_result_values[0])
         self.assertEqual(current_result_values[1:],(gr.skip(),)*3)
-        self.assertIn('로그 조회 실패',current_callbacks['refresh_selected_logs']('existing-job',True))
+        self.assertTrue(current_callbacks['refresh_combined_history']('existing-job','existing-job',True)[-1].active)
         self.assertFalse(current_callbacks['refresh_priority_control']('existing-job')['interactive'])
         self.assertTrue(all(not current_update['interactive'] for current_update in current_callbacks['refresh_history_controls']('existing-job')))
         current_command_calls.clear()
-        self.assertEqual(current_callbacks['refresh_selected_logs']('existing-job',False),gr.skip())
+        self.assertEqual(current_callbacks['refresh_combined_history']('', '', False)[-2],gr.skip())
         self.assertEqual(current_command_calls,[])
         current_fixture_state['failure']=False
         self.assertTrue(current_callbacks['refresh_priority_control']('existing-job')['interactive'])
         current_cancel_update,current_resume_update=current_callbacks['refresh_history_controls']('existing-job')
         self.assertTrue(current_cancel_update['interactive'])
         self.assertEqual(current_cancel_update['value'],'작업 중지')
-        self.assertEqual(current_callbacks['refresh_selected_logs']('existing-job',True),'복구된 로그')
+        self.assertEqual(current_callbacks['refresh_combined_history']('existing-job','existing-job',True)[-2],'복구된 로그')
+
+
+class CombinedHistoryPollingTest(unittest.TestCase):
+    def test_poll_reads_same_job_once_and_stops_when_completed(self):
+        current_command_calls = []
+        current_status_record = {'status': 'running', 'log': '진행 중'}
+
+        def execute_test_command(current_command_name, current_request_payload):
+            if current_command_name == 'history':
+                return {'records': []}
+            current_command_calls.append(current_request_payload['id'])
+            return current_status_record
+
+        with gr.Blocks() as current_history_blocks:
+            build_generation_history_view(execute_test_command, 'http://localhost', '테스트', allow_individual_delete=True)
+        current_poll_callback = next(current_function.fn for current_function in current_history_blocks.fns.values() if current_function.name == 'refresh_combined_history')
+        current_command_calls.clear()
+        current_poll_result = current_poll_callback('job-1', 'job-1', True)
+        self.assertEqual(current_command_calls, ['job-1'])
+        self.assertTrue(current_poll_result[-1].active)
+        current_status_record['status'] = 'completed'
+        self.assertFalse(current_poll_callback('job-1', 'job-1', True)[-1].active)
+        current_command_calls.clear()
+        self.assertFalse(current_poll_callback('', '', True)[-1].active)
+        self.assertEqual(current_command_calls, [])
+        current_timers = [current_component for current_component in current_history_blocks.blocks.values() if isinstance(current_component, gr.Timer)]
+        self.assertEqual(len(current_timers), 1)
+        self.assertFalse(current_timers[0].active)

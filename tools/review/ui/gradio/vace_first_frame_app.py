@@ -98,17 +98,19 @@ def build_first_frame_interface(current_server_address):
             current_job_record = execute_first_frame_command('generate', build_first_frame_payload(*current_input_values))
             return current_job_record['id'], 'GPU 대기열에 등록했습니다.'
         bind_gpu_generation_confirmation(current_generate_button, start_first_frame_generation, current_input_controls, [current_job_control, current_status_display], generation_confirmation_container=current_confirmation_container, generation_readiness_callback=lambda current_image_path, current_prompt_text: bool(current_image_path and current_prompt_text.strip()), generation_readiness_inputs=[current_image_control, current_prompt_control])
+        current_generation_timer = gr.Timer(5, active=False)
         def refresh_first_frame_result(current_job_identifier, current_logs_enabled, current_previous_result):
             if not current_job_identifier:
-                return (gr.skip(),) * 4
+                return (*((gr.skip(),) * 4), gr.Timer(active=False))
             current_status_record = read_existing_generation_status(execute_first_frame_command, current_job_identifier)
             if current_status_record is None:
-                return '삭제된 이력입니다.', '', '', ''
+                return '삭제된 이력입니다.', '', '', '', gr.Timer(active=False)
             current_result_url = current_status_record.get('video', '')
             return (describe_video_generation_status(current_status_record),
                     render_video_generation_result(current_job_identifier, current_status_record, current_server_address) if current_result_url and current_result_url != current_previous_result else gr.skip(),
-                    current_status_record.get('log', '') if current_logs_enabled else gr.skip(), current_result_url)
-        gr.Timer(5).tick(refresh_first_frame_result, [current_job_control, current_log_refresh, current_result_identity], [current_status_display, current_result_display, current_log_output, current_result_identity], queue=False, show_progress='hidden')
+                    current_status_record.get('log', '') if current_logs_enabled else gr.skip(), current_result_url, gr.Timer(active=current_status_record.get('status') not in ('completed', 'failed', 'cancelled', 'paused')))
+        current_generation_timer.tick(refresh_first_frame_result, [current_job_control, current_log_refresh, current_result_identity], [current_status_display, current_result_display, current_log_output, current_result_identity, current_generation_timer], queue=False, show_progress='hidden')
+        current_job_control.change(lambda current_job_identifier: gr.Timer(active=bool(current_job_identifier)), current_job_control, current_generation_timer, queue=False)
         gr.Markdown('F2V 대기열과 생성 이력은 V2V와 분리됩니다. 이력 삭제·초기화는 F2V 작업에만 적용됩니다. GPU 자원은 공용 실행기가 순서대로 배정합니다.')
         current_read_history, current_history_outputs = build_generation_history_view(execute_first_frame_command, current_server_address, GENERATION_CLEANUP_SCOPE_TEXT, restore_input_callback=restore_first_frame_inputs, restore_output_components=[*current_input_controls, current_job_control], result_renderer_callback=render_video_generation_result, record_folder_route='/wan21-vace-f2v', allow_individual_delete=True, individual_delete_scope_text=GENERATION_CLEANUP_SCOPE_TEXT)
         current_interface_blocks.load(lambda: current_read_history(1), outputs=current_history_outputs)
