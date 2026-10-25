@@ -5,6 +5,14 @@ from tools.review.ui.gradio import asset_editor_app as editor
 
 
 class AssetEditorRebaseTests(unittest.TestCase):
+    def test_saved_revision_refresh_preserves_detail_and_selection(self):
+        current_detail_record={'texture':'selected','databaseRevision':1,'image':'preview'}
+        current_catalog_record={'assets':[{'texture':'selected','databaseRevision':2}]}
+        self.assertEqual(editor.refresh_saved_asset_revision(current_catalog_record,current_detail_record,'selected · DB 저장 완료 · 파일 스냅샷 대기'),
+            {**current_detail_record,'databaseRevision':2})
+        for current_feedback_text in ('저장 실패','other · DB 저장 완료','selected · 저장 중…'):
+            self.assertEqual(editor.refresh_saved_asset_revision(current_catalog_record,current_detail_record,current_feedback_text),editor.gr.skip())
+
     def test_merge_latest_fields_and_report_conflicts(self):
         current_catalog_record={'revision':'old','assets':[{'texture':'rock','properties':{'anchorX':0,'anchorY':0}}]}
         current_latest_catalog={'revision':'new','assets':[{'texture':'rock','properties':{'anchorX':0.2,'anchorY':0.7}}]}

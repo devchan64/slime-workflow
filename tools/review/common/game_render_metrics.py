@@ -13,7 +13,7 @@ def load_game_city_export_sources():
     current_source_records = {}
     for current_map_identifier in MAP_REVIEW_IDENTIFIERS:
         for current_source_record in load_registered_map_review(current_map_identifier)['provenance']:
-            current_source_records[current_source_record['source']] = {'repository':'slime-assets','path':current_source_record['source'],'sha256':current_source_record['sha256']}
+            current_source_records[current_source_record['source']] = {'repository':'content-database' if current_source_record.get('version')=='database' else 'slime-assets','path':current_source_record['source'],'sha256':current_source_record['sha256']}
     return MAP_SOURCE_BLOCK_HEIGHT, list(current_source_records.values())
 
 

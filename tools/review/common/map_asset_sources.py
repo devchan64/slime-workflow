@@ -1,5 +1,13 @@
 """에셋 저장소의 맵 YAML을 요청마다 검증해 검수 화면 데이터로 해석한다."""
 from pathlib import Path
+from contextvars import ContextVar
+from copy import deepcopy
+import os
+import hashlib
+import json
+from urllib.parse import urlencode
+
+CURRENT_REVIEW_DATABASE_BUNDLE = ContextVar('review_database_bundle',default=None)
 import yaml
 from tools.review.common.map_tile_assets import load_registered_tiles, resolve_registered_asset
 
@@ -49,8 +57,18 @@ class UniqueMapSourceLoader(yaml.SafeLoader):
 
 def read_registered_map_data(relative_source_path, source_provenance_records, current_source_catalog=None):
     asset_root_directory, registered_asset_records = load_registered_tiles() if current_source_catalog is None else current_source_catalog
-    current_source_path,current_source_record = resolve_registered_asset('assets/maps/'+relative_source_path,asset_root_directory,registered_asset_records,'assets/maps')
-    current_source_document = yaml.load(current_source_path.read_text(),Loader=UniqueMapSourceLoader)
+    if os.environ.get('SLIME_CONTENT_STORAGE')=='database':
+        from tools.review.domains.map_assets.database_client import execute_content_api_request
+        current_database_bundle=CURRENT_REVIEW_DATABASE_BUNDLE.get()
+        if current_database_bundle is None:
+            current_source_document=execute_content_api_request('GET','/internal/v1/content/map-document?'+urlencode({'path':relative_source_path}))
+        else:
+            current_source_document=deepcopy(current_database_bundle['documents'][relative_source_path])
+        current_source_record={'managementId':current_source_document['managementId'],'path':'assets/maps/'+relative_source_path,'source':'assets/maps/'+relative_source_path,
+            'version':'database','sha256':hashlib.sha256(json.dumps(current_source_document,sort_keys=True).encode()).hexdigest()}
+    else:
+        current_source_path,current_source_record = resolve_registered_asset('assets/maps/'+relative_source_path,asset_root_directory,registered_asset_records,'assets/maps')
+        current_source_document = yaml.load(current_source_path.read_text(),Loader=UniqueMapSourceLoader)
     if not isinstance(current_source_document,dict) or set(current_source_document)!={'managementId','data'} or current_source_document['managementId']!=current_source_record['managementId'] or not isinstance(current_source_document['data'],dict):
         raise ValueError('맵 원본 관리 ID·자료형 오류: '+relative_source_path)
     source_provenance_records.append(current_source_record)
@@ -75,6 +93,23 @@ def load_review_map_identifiers(current_source_catalog=None):
 
 
 def load_registered_map_review(map_identifier_value):
+    if os.environ.get('SLIME_CONTENT_STORAGE')!='database':
+        return build_registered_map_review(map_identifier_value)
+    from tools.review.domains.map_assets.database_client import execute_content_api_request
+    current_database_bundle=execute_content_api_request('GET','/internal/v1/content/review-bundle?'+urlencode({'map':map_identifier_value}))
+    current_context_token=CURRENT_REVIEW_DATABASE_BUNDLE.set(current_database_bundle)
+    try:
+        current_review_record=build_registered_map_review(map_identifier_value)
+        current_review_record['contentGeneration']=current_database_bundle['generation']
+        current_review_record['imageManifest']={current_texture_key:{**current_image_record,
+            'url':'/management/map-assets/database-images/'+current_image_record['sha256']}
+            for current_texture_key,current_image_record in current_database_bundle['imageManifest'].items()}
+        return current_review_record
+    finally:
+        CURRENT_REVIEW_DATABASE_BUNDLE.reset(current_context_token)
+
+
+def build_registered_map_review(map_identifier_value):
     current_source_catalog = load_registered_tiles()
     current_city_identifiers, current_map_identifiers = load_review_map_identifiers(current_source_catalog)
     if map_identifier_value not in current_map_identifiers: raise ValueError('검수 대상 맵 ID가 아닙니다.')

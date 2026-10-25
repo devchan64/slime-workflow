@@ -21,6 +21,16 @@ MAP_EDITOR_ALLOWED_COMMANDS=('map-edit-load','map-edit-preview','map-edit-save')
 def read_map_editor_snapshot(current_map_identifier):
     if not isinstance(current_map_identifier,str) or not re.fullmatch('[a-z0-9-]+',current_map_identifier):raise ValueError('맵 ID 오류')
     current_asset_root,current_asset_records=load_registered_tiles()
+    if os.environ.get('SLIME_CONTENT_STORAGE')=='database':
+        from tools.review.domains.map_assets.database_client import execute_content_api_request
+        from urllib.parse import urlencode
+        current_database_bundle=execute_content_api_request('GET','/internal/v1/content/review-bundle?'+urlencode({'map':current_map_identifier}))
+        current_relative_documents=[f'field_tiles/{current_map_identifier}.yaml',f'terrain/maps/{current_map_identifier}.yaml']
+        current_source_paths=[current_asset_root/'assets/maps'/current_relative_path for current_relative_path in current_relative_documents]
+        current_documents=[current_database_bundle['documents'][current_relative_path] for current_relative_path in current_relative_documents]
+        current_source_bytes={current_source_path:yaml.safe_dump(current_document).encode() for current_source_path,current_document in zip(current_source_paths,current_documents)}
+        current_revision_hash=json.dumps({'generation':current_database_bundle['generation'],'revisions':{current_relative_path:current_database_bundle['revisions'][current_relative_path] for current_relative_path in current_relative_documents}},sort_keys=True)
+        return current_asset_root,current_source_paths,current_documents,current_source_bytes,current_revision_hash
     current_relative_paths=[f'assets/maps/field_tiles/{current_map_identifier}.yaml',f'assets/maps/terrain/maps/{current_map_identifier}.yaml']
     current_source_paths=[resolve_registered_asset(current_relative_path,current_asset_root,current_asset_records,'assets/maps')[0] for current_relative_path in current_relative_paths]
     current_documents=[load_unique_yaml_document(current_source_path) for current_source_path in current_source_paths]
@@ -35,8 +45,8 @@ def load_map_editor_document(current_request_payload):
     if not isinstance(current_request_payload,dict) or set(current_request_payload)!={'map'}:raise ValueError('map ID만 지정하세요. 현재 야외필드 편집을 지원합니다.')
     current_asset_root,current_source_paths,current_documents,current_source_bytes,current_revision_hash=read_map_editor_snapshot(current_request_payload['map'])
     current_render_record=load_registered_map_review(current_request_payload['map'])
-    current_render_record['terrainCodes']=load_unique_yaml_document(current_asset_root/'assets/maps/field_tiles/codes.yaml')['data']
-    return {'map':current_request_payload['map'],'revision':current_revision_hash,'tiles':current_documents[0]['data'],'terrain':current_documents[1]['data'],'render':current_render_record,'textures':sorted(current_record['texture_key'] for current_record in build_catalog_reference(current_asset_root)['billboards']),'codes':current_render_record['terrainCodes']}
+    current_render_record['terrainCodes']=read_map_editor_source_data(current_asset_root,'field_tiles/codes.yaml')
+    return {'map':current_request_payload['map'],'revision':current_revision_hash,'tiles':current_documents[0]['data'],'terrain':current_documents[1]['data'],'render':current_render_record,'textures':sorted(read_map_editor_billboard_identifiers(current_asset_root)),'codes':current_render_record['terrainCodes']}
 
 
 def validate_map_editor_changes(current_request_payload):
@@ -47,7 +57,7 @@ def validate_map_editor_changes(current_request_payload):
     normalize_field_surface_data(current_terrain_data)
     current_column_count=current_terrain_data['columns'];current_row_count=current_terrain_data['rows']
     current_render_record=load_registered_map_review(current_request_payload['map'])
-    current_render_record['terrainCodes']=load_unique_yaml_document(current_asset_root/'assets/maps/field_tiles/codes.yaml')['data']
+    current_render_record['terrainCodes']=read_map_editor_source_data(current_asset_root,'field_tiles/codes.yaml')
     current_allowed_codes=current_render_record['terrainCodes']
     current_changed_cells=current_request_payload['cells']
     if not isinstance(current_changed_cells,list) or len(current_changed_cells)>current_column_count*current_row_count:raise ValueError('셀 변경 목록 오류')
@@ -73,8 +83,8 @@ def validate_map_editor_changes(current_request_payload):
     current_terrain_data['blocked']=[list(current_position) for current_position in sorted(current_blocked_positions,key=lambda current_position:(current_position[1],current_position[0]))]
     current_object_records=current_request_payload['objects']
     if not isinstance(current_object_records,list) or len(current_object_records)>1000:raise ValueError('빌보드 목록 오류')
-    current_property_data=load_unique_yaml_document(current_asset_root/'assets/maps/sprite-display-properties.yaml')['data']
-    current_allowed_textures={current_record['texture_key'] for current_record in build_catalog_reference(current_asset_root)['billboards']}
+    current_property_data=read_map_editor_source_data(current_asset_root,'sprite-display-properties.yaml')
+    current_allowed_textures=read_map_editor_billboard_identifiers(current_asset_root)
     current_seen_identifiers=set()
     for current_object_record in current_object_records:
         if not isinstance(current_object_record,dict) or set(current_object_record)!={'id','kind','position','textureKey','tileAnchor'}:raise ValueError('빌보드 필드 오류')
@@ -113,10 +123,18 @@ def validate_map_editor_changes(current_request_payload):
 
 
 def preview_map_editor_changes(current_request_payload):
-    _,current_preview_result=validate_map_editor_changes(current_request_payload)
+    current_snapshot_values,current_preview_result=validate_map_editor_changes(current_request_payload)
     current_preview_token=hashlib.sha256(json.dumps(current_request_payload,sort_keys=True).encode()).hexdigest()
     MAP_EDITOR_STORAGE_ROOT.mkdir(parents=True,exist_ok=True)
     (MAP_EDITOR_STORAGE_ROOT/(current_preview_token+'.json')).write_text(json.dumps(current_request_payload))
+    if os.environ.get('SLIME_CONTENT_STORAGE')=='database':
+        current_asset_root,current_source_paths,current_documents,current_source_bytes=current_snapshot_values
+        current_revision_record=json.loads(current_request_payload['revision'])
+        current_database_payload={'requestId':current_preview_token,'expectedGeneration':current_revision_record['generation'],
+            'documents':[{'path':current_source_path.relative_to(current_asset_root/'assets/maps').as_posix(),
+                'revision':current_revision_record['revisions'][current_source_path.relative_to(current_asset_root/'assets/maps').as_posix()],
+                'document':current_document} for current_source_path,current_document in zip(current_source_paths,current_documents)]}
+        (MAP_EDITOR_STORAGE_ROOT/(current_preview_token+'-database.json')).write_text(json.dumps(current_database_payload))
     return {**current_preview_result,'token':current_preview_token}
 
 
@@ -125,6 +143,11 @@ def save_map_editor_changes(current_request_payload):
     current_validation_payload={current_field_name:current_field_value for current_field_name,current_field_value in current_request_payload.items() if current_field_name!='token'}
     current_preview_token=hashlib.sha256(json.dumps(current_validation_payload,sort_keys=True).encode()).hexdigest()
     if current_request_payload['token']!=current_preview_token or not (MAP_EDITOR_STORAGE_ROOT/(current_preview_token+'.json')).is_file():raise ValueError('변경 내용을 먼저 검증하세요.')
+    if os.environ.get('SLIME_CONTENT_STORAGE')=='database':
+        from tools.review.domains.map_assets.database_client import execute_content_api_request
+        current_database_payload=json.loads((MAP_EDITOR_STORAGE_ROOT/(current_preview_token+'-database.json')).read_text())
+        current_database_result=execute_content_api_request('POST','/internal/v1/content/map-changes',current_database_payload)
+        return {**current_database_result,'map':current_request_payload['map']}
     (current_asset_root,current_source_paths,current_documents,current_source_bytes),current_preview_result=validate_map_editor_changes(current_validation_payload)
     if not current_preview_result['changed']:return {'saved':False,'unchanged':True,'map':current_request_payload['map']}
     current_metadata_paths=[current_asset_root/'asset-registry.yaml',current_asset_root.parent/'slime-backend/map-data.lock.yaml',current_asset_root/'assets/billboards/catalog.yaml']
@@ -152,3 +175,18 @@ def save_map_editor_changes(current_request_payload):
         for current_source_path,current_source_content in current_source_bytes.items():current_source_path.write_bytes(current_source_content)
         raise
     return {'saved':True,'map':current_request_payload['map'],'reachable':current_preview_result['reachable'],'backup':current_preview_token}
+
+
+
+def read_map_editor_source_data(current_asset_root,current_relative_path):
+    if os.environ.get('SLIME_CONTENT_STORAGE')=='database':
+        from tools.review.domains.map_assets.database_client import execute_content_api_request
+        from urllib.parse import urlencode
+        return execute_content_api_request('GET','/internal/v1/content/map-document?'+urlencode({'path':current_relative_path}))['data']
+    return load_unique_yaml_document(current_asset_root/'assets/maps'/current_relative_path)['data']
+
+
+def read_map_editor_billboard_identifiers(current_asset_root):
+    if os.environ.get('SLIME_CONTENT_STORAGE')=='database':
+        return {current_asset_identifier for current_asset_identifier,current_property_values in read_map_editor_source_data(current_asset_root,'sprite-display-properties.yaml').items() if 'groundFootprintColumns' in current_property_values}
+    return {current_record['texture_key'] for current_record in build_catalog_reference(current_asset_root)['billboards']}

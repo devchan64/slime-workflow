@@ -28,6 +28,13 @@ class ManagementLauncherTests(unittest.TestCase):
         self.assertIn('9892', selected_command_values)
         self.assertEqual(selected_command_values[-1], '/tmp/config with spaces.yaml')
 
+    def test_snapshot_worker_uses_independent_launcher_without_gui_ports(self):
+        with patch.dict(os.environ,{'MANAGEMENT_GATEWAY_PORT':'9892','REVIEW_SERVER_PORT':'9890',
+                'FRONTEND_REPOSITORY_PATH':'/missing/frontend','MANAGEMENT_VIRTUAL_ENVIRONMENT_PATH':'/missing/gradio'}):
+            current_launch_command=management_launcher.build_management_launch_command('snapshot',['--server','http://127.0.0.1:9892','--once'])
+        self.assertTrue(current_launch_command[1].endswith('maintenance/content_snapshot_worker.py'))
+        self.assertEqual(current_launch_command[2:],['--server','http://127.0.0.1:9892','--once'])
+
     def test_missing_environment_fails_without_installing(self):
         with tempfile.TemporaryDirectory() as temporary_directory_name, patch.dict(os.environ, {'VIRTUAL_ENVIRONMENT_PATH': temporary_directory_name}), patch.object(management_launcher.subprocess, 'Popen') as command_process_mock:
             with self.assertRaisesRegex(ValueError, 'setup_management.sh'):

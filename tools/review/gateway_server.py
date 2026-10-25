@@ -72,6 +72,8 @@ def create_gateway_trace_logger(gateway_log_path):
 
 
 def run_management_gateway(server_port_number, writer_workspace_config=None):
+    from tools.review.common.content_launch_config import apply_content_launch_configuration
+    apply_content_launch_configuration()
     from tools.review.common.management_runtime import create_management_runtime
     gateway_stop_event = threading.Event()
     gateway_log_directory = WORKFLOW_ROOT_DIRECTORY / '.tmp/gateway-server-logs'

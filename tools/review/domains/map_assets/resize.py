@@ -95,14 +95,26 @@ def resize_registered_image(current_request_payload):
 
 def handle_map_resize_request(current_http_handler):
     from tools.review.common.management_transport import send_management_json_response
-    if current_http_handler.command != 'POST' or urlsplit(current_http_handler.path).path not in ('/map-assets/resize','/map-assets/anchor-save','/map-assets/editor-list','/map-assets/editor-preview','/map-assets/editor-save','/map-assets/editor-crop-preview','/map-assets/editor-crop','/map-assets/editor-retire-preview','/map-assets/editor-retire','/map-assets/editor-map-edit-load','/map-assets/editor-map-edit-preview','/map-assets/editor-map-edit-save'):
+    if current_http_handler.command != 'POST' or urlsplit(current_http_handler.path).path not in ('/map-assets/resize','/map-assets/anchor-save','/map-assets/editor-list','/map-assets/editor-preview','/map-assets/editor-save','/map-assets/editor-crop-preview','/map-assets/editor-crop','/map-assets/editor-retire-preview','/map-assets/editor-retire','/map-assets/editor-map-edit-load','/map-assets/editor-map-edit-preview','/map-assets/editor-map-edit-save','/map-assets/database-seed','/map-assets/database-status','/map-assets/database-snapshot','/map-assets/database-restore'):
         return False
     try:
+        if urlsplit(current_http_handler.path).path.startswith('/map-assets/database-'):
+            from tools.review.domains.map_assets.database_commands import execute_content_database_command
+            from tools.review.common.management_gateway import parse_management_request_json
+            current_request_payload=parse_management_request_json(current_http_handler.rfile.read(int(current_http_handler.headers.get('Content-Length','0'))).decode())
+            current_result_record=execute_content_database_command(urlsplit(current_http_handler.path).path.rsplit('/',1)[-1],current_request_payload)
+            send_management_json_response(current_http_handler,200,current_result_record)
+            return True
         current_request_payload = json.loads(current_http_handler.rfile.read(int(current_http_handler.headers['Content-Length'])))
         if '/editor-' in urlsplit(current_http_handler.path).path:
             from tools.review.domains.map_assets.editor import load_editor_catalog, preview_editor_changes, save_editor_changes
+            if os.environ.get('SLIME_CONTENT_STORAGE')=='database':
+                from tools.review.domains.map_assets.database_editor import load_database_editor_catalog as load_editor_catalog, preview_database_editor_changes as preview_editor_changes, save_database_editor_changes as save_editor_changes
             from tools.review.domains.map_assets.crop import preview_billboard_crop, save_billboard_crop
             from tools.review.domains.map_assets.retirement import preview_billboard_retirement, execute_billboard_retirement
+            if os.environ.get('SLIME_CONTENT_STORAGE')=='database':
+                from tools.review.domains.map_assets.database_images import preview_database_image_crop as preview_billboard_crop, save_database_image_change as save_billboard_crop
+                from tools.review.domains.map_assets.database_retirement import preview_database_asset_retirement as preview_billboard_retirement, execute_database_asset_retirement as execute_billboard_retirement
             current_editor_handlers={'/map-assets/editor-crop-preview':preview_billboard_crop,'/map-assets/editor-crop':save_billboard_crop,'/map-assets/editor-list':load_editor_catalog,'/map-assets/editor-preview':preview_editor_changes,'/map-assets/editor-save':save_editor_changes,'/map-assets/editor-retire-preview':preview_billboard_retirement,'/map-assets/editor-retire':execute_billboard_retirement}
             from tools.review.domains.map_assets.map_editor import load_map_editor_document, preview_map_editor_changes, save_map_editor_changes
             current_editor_handlers.update({'/map-assets/editor-map-edit-load':load_map_editor_document,'/map-assets/editor-map-edit-preview':preview_map_editor_changes,'/map-assets/editor-map-edit-save':save_map_editor_changes})
@@ -113,12 +125,18 @@ def handle_map_resize_request(current_http_handler):
         elif urlsplit(current_http_handler.path).path.endswith('/anchor-save'):
 
             from tools.review.domains.map_assets.anchors import save_map_sprite_anchor
+            if os.environ.get('SLIME_CONTENT_STORAGE')=='database':
+                from tools.review.domains.map_assets.database_editor import save_database_sprite_anchor as save_map_sprite_anchor
             RESIZE_STORAGE_DIRECTORY.mkdir(parents=True, exist_ok=True)
             with (RESIZE_STORAGE_DIRECTORY / 'resize.lock').open('a') as current_lock_stream:
                 fcntl.flock(current_lock_stream, fcntl.LOCK_EX)
                 current_result_record=save_map_sprite_anchor(current_request_payload)
         else:
-            current_result_record=resize_registered_image(current_request_payload)
+            if os.environ.get('SLIME_CONTENT_STORAGE')=='database' and 'texture' in current_request_payload:
+                from tools.review.domains.map_assets.database_images import resize_database_asset_image
+                current_result_record=resize_database_asset_image(current_request_payload)
+            else:
+                current_result_record=resize_registered_image(current_request_payload)
         send_management_json_response(current_http_handler, 200, current_result_record)
     except Exception as current_resize_error:
         send_management_json_response(current_http_handler, 400, {'error': str(current_resize_error)})

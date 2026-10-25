@@ -14,6 +14,7 @@ from tools.review.common.management_setup import prepare_management_environments
 LAUNCHER_MODE_SCRIPT_PATHS = {
     'gui': 'tools/review/serve.py',
     'gateway': 'tools/review/gateway_server.py',
+    'snapshot': 'tools/review/maintenance/content_snapshot_worker.py',
 }
 
 
@@ -23,6 +24,8 @@ def build_management_launch_command(launcher_mode_name, forwarded_argument_value
     if not selected_python_path.is_file():
         raise ValueError(f'관리 런타임이 없습니다: {selected_python_path}. scripts/setup_management.sh를 먼저 실행하세요.')
     selected_command_values = [str(selected_python_path), str(WORKFLOW_ROOT_DIRECTORY/LAUNCHER_MODE_SCRIPT_PATHS[launcher_mode_name])]
+    if launcher_mode_name=='snapshot':
+        return selected_command_values + list(forwarded_argument_values)
     selected_port_variable = 'REVIEW_SERVER_PORT' if launcher_mode_name == 'gui' else 'MANAGEMENT_GATEWAY_PORT'
     if os.environ.get(selected_port_variable):
         selected_command_values.extend(['--port', os.environ[selected_port_variable]])
@@ -39,7 +42,7 @@ def build_management_launch_command(launcher_mode_name, forwarded_argument_value
 
 def run_management_launcher(command_argument_values=None):
     launcher_argument_parser = argparse.ArgumentParser(description=__doc__)
-    launcher_argument_parser.add_argument('mode', choices=('setup', 'gui', 'gateway'))
+    launcher_argument_parser.add_argument('mode', choices=('setup', 'gui', 'gateway', 'snapshot'))
     launcher_argument_parser.add_argument('arguments', nargs=argparse.REMAINDER)
     launcher_argument_values = launcher_argument_parser.parse_args(command_argument_values)
     if launcher_argument_values.mode == 'setup' and launcher_argument_values.arguments:
@@ -53,6 +56,8 @@ def run_management_launcher(command_argument_values=None):
         if launcher_argument_values.mode == 'setup':
             prepare_management_environments(launcher_trace_logger)
         else:
+            from tools.review.common.content_launch_config import apply_content_launch_configuration
+            apply_content_launch_configuration()
             selected_command_values = build_management_launch_command(launcher_argument_values.mode, launcher_argument_values.arguments)
             if launcher_argument_values.mode == 'gateway' and not any(current_argument_text in ('-h', '--help') for current_argument_text in launcher_argument_values.arguments):
                 from tools.review.gateway_server import parse_gateway_arguments

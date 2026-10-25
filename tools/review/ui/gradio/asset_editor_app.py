@@ -174,7 +174,7 @@ def update_resolution_save_button(current_detail_record,current_target_size):
 def resize_selected_asset_image(current_detail_record,current_target_size):
     if not current_detail_record:raise gr.Error('썸네일에서 에셋을 선택하세요.')
     if current_target_size not in EDITOR_RESOLUTION_CHOICES:raise gr.Error('128·256·384·512px 중 선택하세요.')
-    current_catalog_record,current_table_values,_=load_asset_editor_catalog()
+    current_catalog_record,current_table_values,_=load_asset_editor_catalog(current_detail_record.get('category'))
     current_asset_record=next((current_asset_record for current_asset_record in current_catalog_record['assets'] if current_asset_record['texture']==current_detail_record['texture']),None)
     if current_asset_record is None:raise gr.Error('폐기되거나 제거된 에셋입니다.')
     if current_asset_record['metadata']:raise gr.Error('프레임 메타데이터가 있는 이미지는 지원하지 않습니다.')
@@ -183,8 +183,11 @@ def resize_selected_asset_image(current_detail_record,current_target_size):
     if current_target_size>max(current_asset_record['size']):raise gr.Error('원본보다 작은 해상도를 선택하세요. 확대는 지원하지 않습니다.')
     current_image_path=Path(current_asset_record['image'])
     current_request_payload={'path':'assets/billboards/'+current_image_path.name,'sha256':hashlib.sha256(current_image_path.read_bytes()).hexdigest(),'size':int(current_target_size)}
+    if current_catalog_record.get('storage')=='database':
+        if current_detail_record.get('databaseRevision')!=current_asset_record['databaseRevision']:raise gr.Error('선택 이후 에셋이 변경되었습니다. 다시 선택하세요.')
+        current_request_payload={'texture':current_asset_record['texture'],'revision':current_catalog_record['revision'],'size':int(current_target_size)}
     current_resize_record=execute_remote_management_command('map-assets','resize',current_request_payload)
-    current_catalog_record,current_table_values,_=load_asset_editor_catalog()
+    current_catalog_record,current_table_values,_=load_asset_editor_catalog(current_detail_record.get('category'))
     current_asset_record=next(current_asset_record for current_asset_record in current_catalog_record['assets'] if current_asset_record['texture']==current_detail_record['texture'])
     current_updated_detail={**current_asset_record,'image':'data:image/png;base64,'+base64.b64encode(Path(current_asset_record['image']).read_bytes()).decode()}
     return current_catalog_record,current_table_values,current_updated_detail,'**'+current_asset_record['texture']+'** · '+str(current_asset_record['size'])+' px\n\n'+current_asset_record['modeling'].get('purpose','')+'\n\n'+current_asset_record['modeling'].get('composition','')+'\n\n사용 맵: '+(', '.join(Path(current_map_record['path']).stem for current_map_record in current_asset_record['maps']) or '없음'),describe_selected_image_size(current_updated_detail)+' · 저장 완료. 축소 전 원본은 이력에 보관했습니다.'
@@ -215,7 +218,7 @@ def confirm_selected_asset_crop(current_catalog_record,current_detail_record,cur
     if build_selected_crop_changes(current_catalog_record,current_detail_record,current_property_values):
         raise gr.Error('확인 후 속성이 변경되었습니다. 속성을 저장한 뒤 크롭 범위를 다시 확인하세요.')
     execute_remote_management_command('map-assets','asset-crop',current_pending_record)
-    current_catalog_record,current_table_values,_=load_asset_editor_catalog()
+    current_catalog_record,current_table_values,_=load_asset_editor_catalog(current_detail_record.get('category'))
     current_asset_record=next(current_asset_record for current_asset_record in current_catalog_record['assets'] if current_asset_record['texture']==current_detail_record['texture'])
     current_selection_values=select_asset_editor_record([current_asset_record],current_table_values,gr.SelectData(None,{'index':0,'value':None}))
     return current_catalog_record,current_table_values,{},gr.update(visible=False),'크롭 저장 완료. 크롭 전 원본과 속성은 이력에 보관했습니다.',*current_selection_values
@@ -229,6 +232,8 @@ def iterate_selected_asset_save(current_detail_record,*current_property_values):
     current_catalog_record,current_table_values,_=load_asset_editor_catalog(current_detail_record.get('category'))
     current_selected_record=next((current_asset_record for current_asset_record in current_catalog_record['assets'] if current_asset_record['texture']==current_texture_key),None)
     if current_selected_record is None:raise gr.Error('폐기되거나 제거된 에셋입니다: '+current_texture_key)
+    if current_detail_record.get('databaseRevision') is not None and current_detail_record['databaseRevision']!=current_selected_record.get('databaseRevision'):
+        raise gr.Error('선택 이후 DB 속성이 변경되었습니다. 목록에서 다시 선택하여 확인하세요.')
     current_selected_row=next(list(current_table_row) for current_table_row in current_table_values if current_table_row[0]==current_texture_key)
     current_selected_row[2:13]=current_property_values
     current_request_payload=build_asset_editor_payload({'revision':current_catalog_record['revision'],'assets':[current_selected_record]},[current_selected_row])
@@ -236,10 +241,10 @@ def iterate_selected_asset_save(current_detail_record,*current_property_values):
         yield gr.skip(),gr.skip(),f'{current_texture_key} · 변경 검증 중…'
         current_preview_record=execute_remote_management_command('map-assets','asset-preview',current_request_payload)
         yield gr.skip(),gr.skip(),f'{current_texture_key} · 저장 중…'
-        execute_remote_management_command('map-assets','asset-save',{**current_request_payload,'token':current_preview_record['token']})
+        current_save_result=execute_remote_management_command('map-assets','asset-save',{**current_request_payload,'token':current_preview_record['token']})
         yield gr.skip(),gr.skip(),f'{current_texture_key} · 저장 결과 조회 중…'
         current_catalog_record,current_table_values,_=load_asset_editor_catalog(current_detail_record.get('category'))
-        current_feedback_text=f'{current_texture_key} 저장 완료. 해당 ID만 업데이트했습니다. 맵 경고 {len(current_preview_record.get("map_warnings",[]))}건.'
+        current_feedback_text=(f'{current_texture_key} · DB 저장 완료 · 파일 스냅샷 대기' if current_save_result.get('snapshot')=='pending' else f'{current_texture_key} 저장 완료. 해당 ID만 업데이트했습니다. 맵 경고 {len(current_preview_record.get("map_warnings",[]))}건.')
     else:
         current_feedback_text=current_texture_key+' · 변경된 값이 없습니다.'
     yield current_catalog_record,current_table_values,current_feedback_text
@@ -260,18 +265,29 @@ def stream_selected_asset_save(current_detail_record,*current_property_values):
         yield gr.skip(),gr.skip(),'저장 실패 · 입력값은 유지됩니다. '+str(current_save_error),gr.skip()
 
 
+def refresh_saved_asset_revision(current_catalog_record,current_detail_record,current_feedback_text):
+    """저장한 에셋이 계속 선택되어 있을 때만 다음 편집의 기준 버전을 갱신한다."""
+    if not current_detail_record or not current_feedback_text.startswith(current_detail_record['texture']+' · DB 저장 완료'):
+        return gr.skip()
+    current_saved_record=next((current_asset_record for current_asset_record in current_catalog_record['assets'] if current_asset_record['texture']==current_detail_record['texture']),None)
+    if current_saved_record is None or 'databaseRevision' not in current_saved_record:
+        return gr.skip()
+    return {**current_detail_record,'databaseRevision':current_saved_record['databaseRevision']}
+
+
 def preview_asset_retirement(current_catalog_record,current_detail_record):
     if not current_detail_record:raise gr.Error('썸네일에서 폐기할 에셋을 선택하세요.')
     current_request_payload={'revision':current_catalog_record['revision'],'texture':current_detail_record['texture']}
     current_preview_result=execute_remote_management_command('map-assets','asset-retire-preview',current_request_payload)
     current_removed_count=sum(current_map_record['removed'] for current_map_record in current_preview_result['maps'])
-    return {**current_request_payload,'token':current_preview_result['token']},gr.update(visible=True),f"**폐기 대상: {current_request_payload['texture']}**\n\n공용 목록과 맵 배치 {current_removed_count}개에서 제외합니다. 원본 이미지·생성 이력은 폐기 경로에 보존합니다. 미저장 편집은 폐기 완료 후 초기화됩니다.",current_preview_result
+    current_preservation_text='원본 이미지와 생성 이력은 현재 파일 위치에 보존하고 DB에서 폐기 상태로 전환합니다.' if current_preview_result.get('storage')=='database' else '원본 이미지·생성 이력은 폐기 경로에 보존합니다.'
+    return {**current_request_payload,'token':current_preview_result['token']},gr.update(visible=True),f"**폐기 대상: {current_request_payload['texture']}**\n\n공용 목록과 맵 배치 {current_removed_count}개에서 제외합니다. {current_preservation_text} 미저장 편집은 폐기 완료 후 초기화됩니다.",current_preview_result
 
 
 def confirm_asset_retirement(current_detail_record,current_pending_record):
     if not current_pending_record or not current_detail_record or current_detail_record['texture']!=current_pending_record['texture']:raise gr.Error('선택 대상이 변경되었습니다. 폐기 내용을 다시 확인하세요.')
     execute_remote_management_command('map-assets','asset-retire',current_pending_record)
-    current_catalog_record,current_table_values,_=load_asset_editor_catalog()
+    current_catalog_record,current_table_values,_=load_asset_editor_catalog(current_detail_record.get('category'))
     return current_catalog_record,current_table_values,'폐기 완료: '+current_pending_record['texture'],{},gr.update(visible=False),{},''
 
 
@@ -312,7 +328,7 @@ def build_asset_editor_interface(current_review_port):
         current_selection_event=current_source_gallery.select(select_asset_editor_record,inputs=[current_visible_state,current_asset_table],outputs=[current_editor_panel.current_detail_record,*current_editor_panel.current_property_inputs,current_editor_panel.current_placement_choice,*current_editor_panel.current_shadow_inputs,current_editor_panel.current_blocking_choice,current_editor_panel.current_detail_text])
         for current_size_control in current_editor_panel.current_property_inputs[2:4]:
             current_size_control.change(calculate_editor_automatic_values,inputs=current_editor_panel.current_property_inputs[2:4],outputs=current_editor_panel.current_blocking_choice)
-        current_editor_panel.current_update_button.click(stream_selected_asset_save,inputs=[current_editor_panel.current_detail_record,*current_editor_panel.current_property_inputs,current_editor_panel.current_placement_choice,*current_editor_panel.current_shadow_inputs,current_editor_panel.current_blocking_choice],outputs=[current_catalog_state,current_asset_table,current_editor_panel.current_save_progress,current_editor_panel.current_update_button],show_progress='full',concurrency_limit=1,trigger_mode='once').then(lambda:gr.update(interactive=True,value='선택 에셋 변경 반영'),outputs=current_editor_panel.current_update_button,queue=False)
+        current_editor_panel.current_update_button.click(stream_selected_asset_save,inputs=[current_editor_panel.current_detail_record,*current_editor_panel.current_property_inputs,current_editor_panel.current_placement_choice,*current_editor_panel.current_shadow_inputs,current_editor_panel.current_blocking_choice],outputs=[current_catalog_state,current_asset_table,current_editor_panel.current_save_progress,current_editor_panel.current_update_button],show_progress='full',concurrency_limit=1,trigger_mode='once').then(refresh_saved_asset_revision,inputs=[current_catalog_state,current_editor_panel.current_detail_record,current_editor_panel.current_save_progress],outputs=current_editor_panel.current_detail_record,queue=False).then(lambda:gr.update(interactive=True,value='선택 에셋 변경 반영'),outputs=current_editor_panel.current_update_button,queue=False)
         current_renderer_version=__import__('yaml').safe_load((WORKFLOW_ROOT_DIRECTORY/'tools/review/ui/map/vendor/field-renderer/manifest.yaml').read_text())['version']
         current_preview_script=build_asset_preview_script(current_review_port,current_renderer_version,'asset-editor-preview')
         current_editor_panel.current_detail_record.change(load_selected_resolution_controls,inputs=current_editor_panel.current_detail_record,outputs=[current_editor_panel.current_resolution_text,current_editor_panel.current_resolution_choice,current_editor_panel.current_resolution_button,current_editor_panel.current_resolution_feedback])

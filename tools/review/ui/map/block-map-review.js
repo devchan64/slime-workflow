@@ -101,6 +101,14 @@ window.mapReviewPickerSources=currentTerrainCodes=>Object.fromEntries(Object.val
 const currentSelectedTextureRecords={};
 const currentSelectedGameKeys={};
 for(const currentResourceKey of currentResourceKeys){
+ const currentDatabaseImage=currentMapRecord.imageManifest?.[currentResourceKey];
+ if(currentDatabaseImage){
+  if(!['vegetation','herbaceous','large-trees','rocks-minerals','props'].includes(currentDatabaseImage.assetType))throw Error('DB 이미지의 에셋 분류 오류: '+currentResourceKey);
+  currentTextureRecords[currentResourceKey]={path:currentDatabaseImage.url,source:currentDatabaseImage.url,billboard_category:currentDatabaseImage.assetType,sha256:currentDatabaseImage.sha256,source_size:[currentDatabaseImage.width,currentDatabaseImage.height],expected_source_size:[currentDatabaseImage.width,currentDatabaseImage.height],normalization_warning:null};
+  currentSelectedTextureRecords[currentResourceKey]=currentTextureRecords[currentResourceKey];
+  currentSelectedGameKeys[currentResourceKey]=currentResourceKey;
+  continue;
+ }
  const currentSourcePath=currentGameTextureSources[currentResourceKey];
  const currentCatalogEntry=currentSourcePath?Object.entries(currentTextureRecords).find(([,currentTextureRecord])=>currentTextureRecord.source===currentSourcePath):Object.entries(currentTextureRecords).find(([currentTextureName])=>currentTextureName===currentResourceKey);
  if(!currentCatalogEntry)throw Error('선택 맵 리소스가 카탈로그에 없습니다: '+currentResourceKey);

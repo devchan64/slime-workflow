@@ -879,3 +879,79 @@ GUI 결과 조회와 CLI `status`의 `audio_stems`로 MR·보컬을 조회합니
 `map-assets asset-list`는 `{"category":"herbaceous"}`와 같이 에셋 타입을 지정할 수 있습니다. `vegetation`(자연물), `herbaceous`(화초), `large-trees`(큰 나무), `rocks-minerals`(암석광물), `props`(소품)를 사용합니다. GUI는 자연물을 기본 선택하며 전체 선택을 제공하지 않습니다. 타입 변경 시 해당 파일만 파싱하며 목록 조회에서 전체 카탈로그 재생성을 수행하지 않습니다. 기존 내부 전체 검증용 빈 payload 계약은 유지합니다.
 
 빌보드 색인은 `slime-assets/assets/billboards/catalog.yaml`(schema 2), 타입별 계열·에셋 기록은 `catalogs/<type>.yaml`에서 관리합니다. `sync_billboard_catalog.py --write/--check`는 전체 분할 파일을 동기화·검증합니다. 저장·크롭·폐기·맵 편집의 백업과 복원에는 분할 파일도 포함됩니다.
+
+### 콘텐츠 DB 이전과 파일 스냅샷 명령
+
+`SLIME_CONTENT_STORAGE=database`일 때 빌보드 공용 속성·맵 편집·빌보드 크롭·축소는 콘텐츠 API에 저장한다. 이미지 파일은 에셋 저장소에 유지한다. 아래 로컬 전환 검증과 배포 환경의 CDN 게시 절차를 구분한다.
+
+- `map-assets database-seed --payload-file <파일>`: `assetRoot` 절대 경로와 `publicAssetPrefix` 정적 게시 경로를 받는다. 등록 이미지 해시를 검사하고 최초 빌보드 시드와 맵 시드를 전달한다. 이미지 파일을 DB로 복사하지 않는다.
+- `map-assets database-status --payload-file <빈 객체 파일>`: DB 세대와 파일 스냅샷 완료 세대를 조회한다.
+- `map-assets database-snapshot --payload-file <빈 객체 파일>`: 변경이 있으면 새 파일 세대를 완성하고 manifest를 공개한다. 외부에서 수정한 이전 스냅샷은 덮어쓰지 않는다.
+
+게이트웨이는 `SLIME_CONTENT_SERVICE_ORIGIN`, `SLIME_CONTENT_SERVICE_SECRET_FILE`, `SLIME_CONTENT_SNAPSHOT_ROOT`를 사용한다. 비밀값은 환경변수에 넣지 않고 비밀 파일 경로만 지정한다. 콘텐츠 API는 백엔드의 `app.content_internal_api:CONTENT_INTERNAL_API_APP`이며 공개 ingress에 노출하지 않는다. 초기 스키마는 별도 명시적 초기화가 필요하다.
+
+주기 실행은 `python tools/review/maintenance/content_snapshot_worker.py --server <관리 게이트웨이 주소> --interval 60`이다. GUI와 독립된 프로세스이며 공용 게이트웨이 명령을 호출한다. `--once`는 같은 경로로 한 번 실행한다. 실행 로그는 `.tmp/content-snapshot-worker/worker.log`에 일별 회전·7일 보관하고 5초 heartbeat를 기록한다. 자동 시작 기능은 없으므로 독립 실행기를 명시적으로 시작한다.
+
+스냅샷 복구는 `map-assets database-restore --payload-file <요청 파일>`로 실행합니다. 요청은 `{"snapshotRoot":"/절대/스냅샷/경로"}`입니다. `current.yaml`이 지정한 파일들의 해시·세대·에셋 순서·맵 revision을 검증한 뒤 빈 콘텐츠 DB에만 에셋과 맵을 한 트랜잭션으로 복구합니다. 같은 입력 재시도는 같은 결과를 반환하며 기존 운영 데이터가 있는 DB를 덮어쓰지 않습니다. 복구 후 세대는 원본보다 증가하고 새 스냅샷 게시 대상이 됩니다. 이미지 파일은 복구 명령이 복사하지 않으므로 등록된 이미지 원본을 별도로 보존해야 합니다. 복구 검증은 격리 DB에서 수행하며 실제 서비스 DB에는 복구를 실행하지 않습니다.
+
+백엔드 스키마 준비는 관리자 DB 연결로 `python -m app.content_database_admin --writer-role <관리 역할> --reader-role <게임 조회 역할>`을 실행합니다. 두 역할은 미리 생성한 서로 다른 비관리자 역할이어야 합니다. 관리 API에는 쓰기 역할, 게임 서버에는 읽기 역할의 DB 연결을 설정합니다. 이 명령은 콘텐츠 스키마에만 권한을 부여하며 서비스 역할에 DDL 권한이나 감사 기록 수정·삭제 권한을 부여하지 않습니다. 운영 스키마에 자동 적용하지 않으며 롤아웃 전에 명시적으로 수행합니다.
+
+DB 모드의 `asset-retire-preview / asset-retire`는 확인한 세대와 에셋 revision을 검사하고 빌보드 폐기 상태·전체 맵 배치 제거·맵 revision 갱신을 같은 트랜잭션으로 처리합니다. 원본 이미지와 이력 파일은 현재 위치에 보존하며 스냅샷에도 폐기 상태를 남깁니다. 확인 후 맵이나 에셋이 바뀌면 재검수를 요구하고, 동일 실행 요청 재시도는 중복 적용하지 않습니다. 폐기된 에셋은 신규 맵 배치에 사용할 수 없습니다.
+
+DB 모드의 빌보드 크롭·축소는 `assets/billboards/versions/<SHA-256>.png`에 새 이미지를 먼저 게시한 뒤 이미지 참조와 공용 속성을 같은 DB revision으로 저장합니다. 이전 이미지를 덮어쓰지 않으며 DB 오류 시 새 파일을 보존하여 같은 요청 재시도에 사용합니다. 크롭은 표시 위치 보정값을 함께 저장하고 축소는 기존 표시 속성을 유지합니다. 빌보드 DB 축소 payload는 `texture`, `revision`(목록의 revision 문자열), `size`입니다. 일반 타일·건물의 기존 `path`, `sha256`, `size` 계약과 구분합니다. 로컬 이미지 조회는 콘텐츠 API의 해시 검증 경로를 사용합니다. 배포 CDN에는 DB 참조 변경 전에 해당 이미지 파일을 먼저 게시해야 합니다.
+
+2026-10-25 격리 통합 검증: 별도 PostgreSQL DB에 267종 빌보드·211개 맵 문서를 시드하고, 공용 명령 게이트웨이 HTTP를 통해 속성 저장·동일 요청 재시도·목록 재조회를 검증했습니다. 공용 메뉴와 에셋 편집기를 합성한 Gradio 화면에서 두 차례 연속 저장 후 revision 3과 입력값 유지, 정상 미리보기를 확인했습니다. 독립 스냅샷 실행기의 `--once` 실행 후 DB 세대·완료 세대·파일 manifest가 모두 5이며 브라우저 저장값이 복구 입력에도 동일함을 확인했습니다. 검증용 DB·서버·비밀 파일은 종료 시 정리했습니다. 운영 서버 전환 및 이미지 배포 검증 완료를 의미하지 않습니다.
+
+
+콘텐츠 스냅샷 작업자는 공용 실행기로도 독립 실행할 수 있습니다.
+
+```bash
+python3 tools/review/common/management_launcher.py snapshot --server http://127.0.0.1:8771 --interval 60
+```
+
+GUI를 종료해도 이 프로세스는 유지됩니다. 게이트웨이에 연결할 수 없으면 기존 DB·스냅샷을 보존하고 재시도합니다. 재기동 시 마지막 공개 세대와 DB 세대를 비교하여 미반영 변경을 처리합니다. 이 명령을 시작해야 주기 실행되며 GUI 실행만으로 자동 시작하지 않습니다. 게이트웨이에는 `SLIME_CONTENT_STORAGE=database`, `SLIME_CONTENT_SERVICE_ORIGIN`, `SLIME_CONTENT_SERVICE_SECRET_FILE`, `SLIME_CONTENT_SNAPSHOT_ROOT`를 지정합니다. 비밀값 자체를 환경 파일에 넣지 않습니다.
+
+DB 모드의 `map-assets anchor-save` 호환 명령도 공용 빌보드 속성 API로 저장합니다. 기존 요청 필드와 함께 고유한 `requestId` 및 조회 시 받은 `expectedRevision`을 필수로 보내야 합니다. 응답 유실 시 동일 요청을 다시 보내면 같은 저장 결과를 받습니다. 오래된 revision이나 선택 맵에서 사용하지 않는 빌보드는 거절합니다. 건물 전용 앵커는 이 빌보드 명령의 대상이 아닙니다.
+
+DB 연결 설정은 `.local/content/connection.yaml`에 두면 공용 실행기와 게이트웨이가 시작할 때 자동으로 읽습니다. 다른 설정 파일은 `SLIME_CONTENT_CONFIG_FILE`로 지정합니다. 설정 파일이 존재하지만 유효하지 않으면 시작을 중단합니다. 설정은 실행 전에 전체 검증하며, 필드 누락·추가·중복이나 상대 경로는 거절합니다. 인증값은 넣지 않고 비밀 파일 경로만 기록합니다. 이 설정을 지정하면 DB 모드로 실행되며 기존 파일 모드로 자동 대체하지 않습니다.
+
+```yaml
+serviceOrigin: http://127.0.0.1:18083
+secretFile: /absolute/private/content-service-secret
+assetRoot: /absolute/slime-assets
+snapshotRoot: /absolute/slime-assets/snapshots/content
+gatewayOrigin: http://127.0.0.1:8771
+```
+
+```bash
+SLIME_CONTENT_CONFIG_FILE=/absolute/connection.yaml ./scripts/run_management_gateway.sh --watch
+SLIME_CONTENT_CONFIG_FILE=/absolute/connection.yaml python3 tools/review/common/management_launcher.py gui --watch
+SLIME_CONTENT_CONFIG_FILE=/absolute/connection.yaml python3 tools/review/common/management_launcher.py snapshot --server http://127.0.0.1:8771 --interval 60
+```
+
+콘텐츠 API를 먼저 실행하고 세 프로세스에 같은 설정을 사용합니다. 설정 파일은 시작할 때 읽으므로 변경 시 해당 실행기를 재시작합니다. 스냅샷 작업자는 자동 시작되지 않습니다. 최초 `database-seed`는 모든 파일을 검증한 뒤 `/internal/v1/content/seed/bundle` 한 요청으로 빌보드·맵을 같은 DB 트랜잭션에 적재합니다. 맵 적재가 실패하면 빌보드와 영수증도 롤백되며 같은 묶음 재시도는 중복 적재하지 않습니다.
+
+2026-10-25 로컬 전환 검증: 관리 게이트웨이(8771)·GUI(8770)·콘텐츠 API(18083)를 콘텐츠 DB 모드로 연결했습니다. 빌보드 267종·맵 문서 211개를 적재했으며, 통행용으로 승인된 `cinder-path` 연결 보정 후 DB·파일 스냅샷은 세대 3입니다. 폐기된 `fallen-canopy` 채널은 배치 플레이어와 미종료 전투가 없음을 확인한 뒤 기록을 유지하고 CLOSED 처리했습니다. 읽기 전용 DB 계정으로 31개 맵을 조회했고 게임 서버 health 응답과 실제 관리 화면의 깨진 채석장 리소스 23종 로딩을 확인했습니다.
+
+스냅샷 파일 게시 직전 오류는 이전 `current.yaml`을 유지합니다. 재실행하면 이미 완성된 세대 디렉터리를 검증하여 재사용합니다. 종료되지 않은 작업은 120초 lease 만료 후 새 실행으로 복구하며, 이전 실행의 완료 요청은 거절합니다. 복구·충돌 테스트는 격리된 테스트 DB와 임시 파일 경로에서 수행합니다. 주기 작업자의 최근 오류는 다음 재시도 전까지 남으므로 heartbeat만으로 연결의 현재 장애 여부를 단정하지 않고 `database-status` 응답과 최근 완료 로그를 함께 확인합니다.
+
+2026-10-25 배치 후속 검증: 사용자 승인에 따라 잿빛 숲가 8개·식은 잿길 2개·묵은 과수원 83개·곡창 평야 124개의 위치만 가까운 유효 지면으로 변경했습니다. 지형·공용 속성·오브젝트 수와 종류를 보존하고 네 문서를 원자적으로 저장했습니다. DB 세대 4와 독립 작업자의 파일 스냅샷 세대 4를 확인했으며, 저장된 야외필드 26개의 접지·충돌·등록 이미지 검사가 통과했습니다. 이 검증은 DB 모드 대상이며 과거 파일 시드의 배치를 변경한 것은 아닙니다.
+
+시드 재실행은 최초 영수증을 반환하며 이후 DB 편집값을 되돌리지 않습니다. 다른 내용의 최초 시드는 거절합니다. 공용 속성 저장으로 세대가 바뀌면 문서 revision이 같아도 이전 맵 초안은 거절하며, 다시 조회·검증한 초안만 저장합니다. 이 두 보호 조건을 실제 PostgreSQL 회귀검사에 포함했습니다.
+
+#### 콘텐츠 DB 전환 완료 검증 범위
+
+| 요구사항 | 구현·검증 근거 |
+| --- | --- |
+| 맵·빌보드 DB 원본 | 콘텐츠 스키마의 맵 문서·격자·배치 테이블과 에셋별 공용 속성 테이블. 로컬 DB에 빌보드 267종·맵 문서 211개·건물 속성 39종 적재 |
+| GUI·CLI 즉시 저장 | 공용 `map-assets` 게이트웨이에서 내부 v1 API 호출. 격리된 실제 Gradio 화면의 연속 저장·revision 증가·재조회 확인 |
+| 이미지 파일 유지 | DB에는 경로·SHA-256·버전·규격을 보관. 크롭·축소는 에셋 저장소에 불변 이미지 게시 후 DB 참조 갱신 |
+| 공용 속성 단일 정의 | 에셋 ID별 공용 속성을 조회 시 적용. 맵 배치의 공용 속성 중복 필드는 검증에서 거절 |
+| 충돌·멱등성 | PostgreSQL 회귀검사에서 revision·세대 충돌, 동일 요청 재시도, 같은 ID의 다른 요청 거절, 트랜잭션 롤백 검증 |
+| 시드 보호 | 최초 묶음 원자 적재·재시도 검증. 시드 재실행은 이후 DB 편집값을 덮어쓰지 않으며 다른 초기 묶음은 거절 |
+| 독립 주기 스냅샷 | GUI와 별도 작업자가 게이트웨이를 호출. 실제 세대 4 저장 후 자동 스냅샷 완료·pending 해제·파일 전체 해시 검증 |
+| 실패·재시작 복구 | 파일 게시 실패 시 이전 포인터 보존, 완성 세대 재사용, lease 만료 재시작, 오래된 완료 요청 거절, 빈 DB 복구 테스트 |
+| 운영 조회 | 게임 API·worker의 DB 카탈로그 및 요청별 읽기 스냅샷. 읽기 계정의 31개 맵 조회·게임 health·관리 화면 리소스 로딩 확인 |
+| 배치 데이터 | 저장된 야외필드 26개의 접지·충돌·등록 이미지 검사 통과. 승인된 위치 변경 외 데이터 보존 |
+
+검증 환경은 로컬 PostgreSQL과 로컬 관리·게임 서버입니다. AWS 배포는 수행하지 않았습니다. 배포 시 CDN 이미지 선게시와 비밀·DB 연결 설정을 해당 환경에 적용해야 합니다. 과거 파일 시드는 보존하며 현재 DB 변경을 확인하려면 DB 모드 또는 최신 `current.yaml` 스냅샷을 사용합니다. 기존 파일 모드 검사에서 발견한 이전 배치 오류를 최신 DB의 오류로 간주하지 않습니다.

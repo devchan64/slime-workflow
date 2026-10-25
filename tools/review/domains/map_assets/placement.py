@@ -101,7 +101,7 @@ def validate_scenery_image_footprint(current_texture_key, current_source_image, 
         raise ValueError(f'{current_texture_key}: 불투명 영역이 없는 이미지')
 
 
-def validate_registered_scenery_images(current_object_records, current_property_catalog, current_tile_width, current_tile_height, current_elevation_rows, current_billboard_scale=1):
+def validate_registered_scenery_images(current_object_records, current_property_catalog, current_tile_width, current_tile_height, current_elevation_rows, current_billboard_scale=1, current_image_manifest=None):
     """원본 속성은 보존하고 렌더 배율을 반영한 이미지 접지를 검사한다."""
     if not isinstance(current_billboard_scale, (int, float)) or isinstance(current_billboard_scale, bool) or not isfinite(current_billboard_scale) or current_billboard_scale <= 0:
         raise ValueError("빌보드 렌더 배율은 양수여야 합니다.")
@@ -109,9 +109,10 @@ def validate_registered_scenery_images(current_object_records, current_property_
     from pathlib import Path
     from PIL import Image
     from tools.review.common.map_tile_assets import load_registered_tiles, resolve_registered_sprite
-    current_source_catalog = load_registered_tiles()
+    current_source_catalog = load_registered_tiles() if current_image_manifest is None else None
     current_texture_paths = {}
-    for current_asset_path, current_asset_record in current_source_catalog[1].items():
+    current_database_images = {}
+    for current_asset_path, current_asset_record in (current_source_catalog[1].items() if current_source_catalog else ()):
         if current_asset_record['managementId'].startswith('image.scenery.'):
             current_texture_name = Path(current_asset_path).stem
             if current_texture_name in current_texture_paths:
@@ -123,8 +124,17 @@ def validate_registered_scenery_images(current_object_records, current_property_
             continue
         current_texture_key = current_object_record['textureKey']
         current_frame_size = current_object_record.get('frameSize') if current_object_record['kind'] == 'billboard' else None
-        current_image_path, _ = resolve_registered_sprite(current_texture_paths[current_texture_key], current_source_catalog)
-        with Image.open(current_image_path) as current_source_image:
+        if current_image_manifest is not None:
+            from io import BytesIO
+            from tools.review.domains.map_assets.database_images import read_database_published_image
+            if current_texture_key not in current_image_manifest:
+                raise ValueError('DB 맵 이미지 등록 누락: '+current_texture_key)
+            if current_texture_key not in current_database_images:
+                current_database_images[current_texture_key] = read_database_published_image(current_image_manifest[current_texture_key]['sha256'])[0]
+            current_image_input = BytesIO(current_database_images[current_texture_key])
+        else:
+            current_image_input, _ = resolve_registered_sprite(current_texture_paths[current_texture_key], current_source_catalog)
+        with Image.open(current_image_input) as current_source_image:
             if current_object_record['kind'] == 'billboard':
                 if type(current_frame_size) is not int or current_frame_size <= 0 or current_source_image.width % current_frame_size or current_source_image.height % current_frame_size:
                     raise ValueError(f'{current_texture_key}: 빌보드 프레임 크기 오류')

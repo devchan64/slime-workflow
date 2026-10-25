@@ -1,4 +1,5 @@
 """맵·타일 원본 직접 제공과 잘못된 경로 거절을 검증한다."""
+import os
 import hashlib
 import json
 from pathlib import Path
@@ -16,6 +17,18 @@ WORKFLOW_REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 
 
 class MapAssetSourceTests(unittest.TestCase):
+
+    def test_database_review_preserves_image_manifest_generation(self):
+        current_image_manifest={'test-grass-v1':{'url':'/assets/versions/new.png','sha256':'b'*64,'width':64,'height':64}}
+        current_database_bundle={'generation':7,'imageManifest':current_image_manifest,'documents':{}}
+        with patch.dict(os.environ,{'SLIME_CONTENT_STORAGE':'database'}), patch(
+                'tools.review.domains.map_assets.database_client.execute_content_api_request',return_value=current_database_bundle), patch(
+                'tools.review.common.map_asset_sources.build_registered_map_review',return_value={'id':'test-map'}):
+            current_review_record=load_registered_map_review('test-map')
+        self.assertEqual(current_review_record['contentGeneration'],7)
+        self.assertEqual(current_review_record['imageManifest']['test-grass-v1'],{**current_image_manifest['test-grass-v1'],'url':'/management/map-assets/database-images/'+('b'*64)})
+        current_review_record['imageManifest'].clear()
+        self.assertTrue(current_image_manifest)
 
     def test_ground_decal_bounds_and_identifiers(self):
         from tools.review.domains.map_assets.decals import validate_ground_decal_records

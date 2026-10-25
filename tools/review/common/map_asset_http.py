@@ -7,6 +7,9 @@ from tools.review.common.map_tile_assets import load_registered_tiles, resolve_r
 
 def read_map_asset_response(request_path_value):
     current_request_path = unquote(request_path_value)
+    if current_request_path.startswith('/management/map-assets/database-images/'):
+        from tools.review.domains.map_assets.database_images import read_database_published_image
+        return read_database_published_image(current_request_path.removeprefix('/management/map-assets/database-images/'))
     if current_request_path == '/management/map-assets/world':
         from tools.review.domains.world_map.catalog import load_world_review_catalog
         return json.dumps(load_world_review_catalog(),ensure_ascii=False).encode(),'application/json; charset=utf-8'
