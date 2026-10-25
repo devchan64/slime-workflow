@@ -122,22 +122,17 @@ examples:
     min_duration_seconds: 0
 - id: mist-lake-vocal-mr-minute
   label: 안개 호수 · 기승전결 가사곡과 MR
-  description: 인상주의 실내악 · 피아노·알토 플루트·하프·약음 현으로 흐릿한 시야에서 윤곽이 드러나는 흐름 표현. 도입 2행 → 변화 2행 → 후렴 4행 → 마무리 2행. 60~90초 안팎을 목표로 하되
-    실제 길이·악기·전개·종결은 생성 후 검수한다. 최대 출력 기본값 300초(5분)는 목표 길이가 아니다. 원곡·MR·320kbps MP3 자동 저장. 이번 편곡·가사는 미검증이며 출처 작업은 이전 비교 기록이다.
-  source_generation_id: 2026-10-25_17-15-39-30312356
+  description: '인상주의 실내악 · 피아노·알토 플루트·하프·약음 현으로 안개가 걷히고 물가가 드러나는 흐름 표현. 6행·약 48초 결과에서 후렴 2행을 보강한 8행: 도입·변화 2행 → 후렴 4행 → 마무리
+    2행. 시드 19로 변경. 60~90초 안팎을 목표로 하되 실제 길이·종결은 생성 후 검수한다. 최대 출력 300초는 목표 길이가 아니다. 원곡·MR·320kbps MP3 자동 저장. 이번 가사·시드는 미검증이며
+    출처 작업은 삭제된 비교 기록이다.'
+  source_generation_id: 2026-10-25_19-35-11-6fc8cf49
   request:
     prompt: impressionist chamber,piano melody,alto flute,harp,muted strings,veiled,fluid,delicate,female vocals
     lyrics: '[Verse]
 
       Silver mist upon the lake
 
-      Ripples touch the reeds awake
-
-      [Verse]
-
-      Hidden banks confuse the way
-
-      Then the clouds admit the day
+      Clouds divide, the reeds awake
 
       [Chorus]
 
@@ -157,7 +152,7 @@ examples:
 
       '
     duration_seconds: 300
-    seed: 7
+    seed: 19
     loop_request: false
     min_duration_seconds: 0
 - id: wind-hills-vocal-mr-minute
