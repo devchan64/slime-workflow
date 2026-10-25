@@ -41,7 +41,7 @@ def read_map_asset_response(request_path_value):
     if current_request_path.startswith('/management/map-assets/files/'):
         current_asset_relative = current_request_path.removeprefix('/management/map-assets/files/')
         current_asset_root,current_asset_records = load_registered_tiles()
-        current_asset_path,_ = resolve_registered_tile(current_asset_relative,current_asset_root,current_asset_records)
+        current_asset_path,_ = (resolve_registered_asset(current_asset_relative,current_asset_root,current_asset_records,'assets/sprites/effects') if current_asset_relative.startswith('assets/sprites/effects/') else resolve_registered_tile(current_asset_relative,current_asset_root,current_asset_records))
         current_content_type = mimetypes.guess_type(current_asset_path.name)[0]
         if current_content_type not in {'image/png','image/webp','image/jpeg'}: raise ValueError('지원하지 않는 타일 형식')
         return current_asset_path.read_bytes(),current_content_type

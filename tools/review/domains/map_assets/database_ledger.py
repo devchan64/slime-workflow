@@ -20,6 +20,7 @@ def publish_content_asset_ledger(current_asset_root, current_payload_record):
     current_registry_record=load_unique_yaml_document(current_registry_path)
     current_lock_record=load_unique_yaml_document(current_backend_lock)
     current_catalog_record=load_billboard_catalog(current_asset_root)
+    current_catalog_record['review_categories']=current_payload_record['types']
     current_asset_lookup={current_asset_record['assetId']:current_asset_record for current_asset_record in current_payload_record['assets']}
     if set(current_asset_lookup)!={current_asset_record['texture_key'] for current_asset_record in current_catalog_record['billboards']}:
         raise ValueError('DB와 원장의 빌보드 ID가 다릅니다. 등록·폐기 원장을 먼저 정리하세요.')
@@ -28,6 +29,8 @@ def publish_content_asset_ledger(current_asset_root, current_payload_record):
         current_asset_identifier:current_asset_record['properties'] for current_asset_identifier,current_asset_record in current_asset_lookup.items()}}
     validate_sprite_display_properties(current_property_document['data'])
     current_source_documents={current_property_path:current_property_document}
+    if 'effects' in current_payload_record:
+        current_source_documents[Path('assets/sprites/effects/catalog.yaml')]={'schema_version':1,'category':'effects','name':'이펙트','effects':current_payload_record['effects']}
     for current_document_name,current_document_value in current_payload_record['mapDocuments'].items():
         current_relative_path=Path(current_document_name)
         if current_relative_path.is_absolute() or '..' in current_relative_path.parts or current_relative_path.suffix!='.yaml':
@@ -47,7 +50,10 @@ def publish_content_asset_ledger(current_asset_root, current_payload_record):
         current_relative_name=current_target_path.relative_to(current_asset_root).as_posix()
         current_old_hash=hashlib.sha256(current_original_files[current_target_path]).hexdigest()
         current_new_hash=hashlib.sha256(current_file_bytes).hexdigest()
-        for current_record_list in (current_registry_record['assets'],current_lock_record['files']):
+        current_metadata_lists=[current_registry_record['assets']]
+        if current_relative_name.startswith('assets/maps/'):
+            current_metadata_lists.append(current_lock_record['files'])
+        for current_record_list in current_metadata_lists:
             current_matching_records=[current_file_record for current_file_record in current_record_list if current_file_record['path']==current_relative_name]
             if len(current_matching_records)!=1 or current_matching_records[0]['sha256']!=current_old_hash:
                 raise ValueError('원장 등록부·잠금 해시 불일치: '+current_relative_name)
@@ -67,22 +73,26 @@ def publish_content_asset_ledger(current_asset_root, current_payload_record):
         (current_staging_root/'asset-registry.yaml').write_text(yaml.safe_dump(current_registry_record,allow_unicode=True,sort_keys=False))
         for current_target_path,current_file_bytes in current_pending_files.items():
             if current_target_path.is_relative_to(current_asset_root):
-                (current_staging_root/current_target_path.relative_to(current_asset_root)).write_bytes(current_file_bytes)
+                current_staged_target=current_staging_root/current_target_path.relative_to(current_asset_root)
+                current_staged_target.parent.mkdir(parents=True,exist_ok=True)
+                current_staged_target.write_bytes(current_file_bytes)
         for current_catalog_asset in current_catalog_record['billboards']:
             current_database_asset=current_asset_lookup[current_catalog_asset['texture_key']]
             current_image_record=current_database_asset['image']
             if current_catalog_asset['source_file']['sha256']!=current_image_record['sha256']:
                 raise ValueError('DB와 원장 이미지 버전이 다릅니다: '+current_database_asset['assetId'])
             current_catalog_asset['modeling']=current_database_asset['metadata']['modeling']
+            current_catalog_asset['family']=current_database_asset['metadata']['family']
+            current_catalog_record['families'][current_catalog_asset['family']]=current_database_asset['metadata']['familyDefinition']
         write_billboard_catalog(current_staging_root,current_catalog_record)
         write_billboard_catalog(current_staging_root,build_catalog_reference(current_staging_root))
         for current_staged_path in list_billboard_catalog_paths(current_staging_root):
             current_target_path=current_asset_root/current_staged_path.relative_to(current_staging_root)
-            current_original_files[current_target_path]=current_target_path.read_bytes()
-            if current_target_path.read_bytes()!=current_staged_path.read_bytes():
+            current_original_files[current_target_path]=current_target_path.read_bytes() if current_target_path.exists() else None
+            if current_original_files[current_target_path]!=current_staged_path.read_bytes():
                 current_pending_files[current_target_path]=current_staged_path.read_bytes()
     for current_target_path,current_original_bytes in current_original_files.items():
-        if current_target_path.read_bytes()!=current_original_bytes:
+        if (current_target_path.read_bytes() if current_target_path.exists() else None)!=current_original_bytes:
             raise ValueError('원장 반영 준비 중 파일이 변경되었습니다: '+str(current_target_path))
     try:
         for current_target_path,current_file_bytes in current_pending_files.items():
@@ -91,6 +101,9 @@ def publish_content_asset_ledger(current_asset_root, current_payload_record):
             os.replace(current_temporary_path,current_target_path)
     except Exception:
         for current_target_path in current_pending_files:
-            current_target_path.write_bytes(current_original_files[current_target_path])
+            if current_original_files[current_target_path] is None:
+                current_target_path.unlink(missing_ok=True)
+            else:
+                current_target_path.write_bytes(current_original_files[current_target_path])
         raise
     return {'generation':current_payload_record['generation'],'updatedFiles':len(current_pending_files)}

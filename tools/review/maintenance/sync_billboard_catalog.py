@@ -88,19 +88,20 @@ def prepare_billboard_catalog_files(current_asset_root,current_catalog_record):
     if current_index_record.get('schema_version')!=2:
         return {current_index_path:serialize_billboard_catalog(current_catalog_record).encode()}
     current_pending_files={}
-    for current_category_name,current_relative_path in current_index_record['catalog_files'].items():
+    for current_category_name in current_catalog_record['review_categories']:
+        current_relative_path=f'catalogs/{current_category_name}.yaml'
         current_family_records={key:value for key,value in current_catalog_record['families'].items() if value['review_category']==current_category_name}
         current_partition_record={'schema_version':1,'category':current_category_name,'families':current_family_records,'billboards':[item for item in current_catalog_record['billboards'] if item['family'] in current_family_records]}
         current_pending_files[current_index_path.parent/current_relative_path]=serialize_billboard_catalog(current_partition_record).encode()
     current_index_record={key:value for key,value in current_catalog_record.items() if key not in ('families','billboards')}
-    current_index_record.update(schema_version=2,catalog_files=load_unique_yaml_document(current_index_path)['catalog_files'])
+    current_index_record.update(schema_version=2,catalog_files={current_category_name:f'catalogs/{current_category_name}.yaml' for current_category_name in current_catalog_record['review_categories']})
     current_pending_files[current_index_path]=serialize_billboard_catalog(current_index_record).encode()
     return current_pending_files
 
 
 def write_billboard_catalog(current_asset_root,current_catalog_record):
     for current_output_path,current_output_bytes in prepare_billboard_catalog_files(current_asset_root,current_catalog_record).items():
-        if current_output_path.read_bytes()==current_output_bytes:continue
+        if current_output_path.exists() and current_output_path.read_bytes()==current_output_bytes:continue
         current_temporary_path=current_output_path.with_suffix('.catalog-tmp')
         current_temporary_path.write_bytes(current_output_bytes)
         current_temporary_path.replace(current_output_path)

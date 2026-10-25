@@ -7,6 +7,7 @@ from tools.review.domains.map_assets.database_snapshot import execute_content_sn
 from tools.review.domains.map_assets.database_restore import read_verified_snapshot_payload
 from tools.review.domains.map_assets.database_snapshot import encode_content_snapshot_payload
 import hashlib
+from tools.review.maintenance.sync_billboard_catalog import load_unique_yaml_document
 
 
 def execute_content_database_command(current_command_name,current_request_payload):
@@ -22,7 +23,7 @@ def execute_content_database_command(current_command_name,current_request_payloa
         current_seed_bundle=build_billboard_database_seed(current_request_payload['assetRoot'],current_request_payload['publicAssetPrefix'])
         current_map_bundle=build_map_database_seed(current_request_payload['assetRoot'])
         return execute_content_api_request('POST','/internal/v1/content/seed/bundle',
-            {'billboards':current_seed_bundle,'maps':current_map_bundle})
+            {'billboards':current_seed_bundle,'maps':current_map_bundle,'effects':load_unique_yaml_document(Path(current_request_payload['assetRoot'])/'assets/sprites/effects/catalog.yaml')['effects']})
     if current_request_payload!={}:
         raise ValueError('이 명령은 빈 payload를 사용합니다.')
     if current_command_name=='database-status':
