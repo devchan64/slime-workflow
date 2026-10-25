@@ -39,4 +39,4 @@ def calculate_image_shadow_size(current_image_source, current_display_height, cu
     current_corner_radius=min(current_column_count,current_row_count)/2*SHADOW_RENDERER_CORNER_RATIO
     current_projected_width=SHADOW_REFERENCE_TILE_WIDTH*((current_column_count+current_row_count)/2-current_corner_radius*(2-math.sqrt(2)))
     current_scale_ratio=current_visible_width*current_target_ratio/current_projected_width
-    return tuple(round(max(.1,min(4,current_dimension_value*current_scale_ratio)),2) for current_dimension_value in (current_column_count,current_row_count))
+    return (round(max(.001,min(4,current_scale_ratio)),6),)*2

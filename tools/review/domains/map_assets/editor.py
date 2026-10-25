@@ -55,7 +55,7 @@ def prepare_editor_changes(current_request_payload,current_asset_root=None):
         if current_original_values is None:
             current_required_fields={'anchorX','anchorY','groundFootprintColumns','groundFootprintRows','displayHeight','shadowOffsetColumn','shadowOffsetRow','shadowScaleX','shadowScaleY','billboardBlocksMovement'}
             if set(current_input_values)!=current_required_fields:raise ValueError('최초 등록에는 앵커·점유·높이·그림자·통행 속성을 모두 지정하세요.')
-            current_original_values={'billboardAnchorMode':'tile-intersection'}
+            current_original_values={'billboardAnchorMode':'tile-intersection','shadowCoordinateVersion':2,'shadowSizeVersion':2}
         if current_original_values.get('billboardAnchorMode') in ('tile-bottom-center','tile-intersection') and 'billboardPlacementAnchor' in current_input_values:raise ValueError('상하 배치는 앵커에서 자동 판정됩니다.')
         current_updated_values={**current_original_values,**current_input_values}
         validate_sprite_display_properties({current_texture_key:current_updated_values})

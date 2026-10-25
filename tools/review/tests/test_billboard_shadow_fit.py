@@ -11,7 +11,7 @@ class BillboardShadowFitTests(unittest.TestCase):
             current_test_image=Image.new('RGBA',(current_canvas_size,current_canvas_size))
             current_test_image.paste((10,20,30,255),(10,10,90,90))
             current_test_image.save(current_image_buffer,format='PNG');current_image_buffer.seek(0)
-            self.assertEqual(calculate_image_shadow_size(current_image_buffer,current_display_height),(.53,.53))
+            self.assertAlmostEqual(calculate_image_shadow_size(current_image_buffer,current_display_height)[0],.53,delta=.005)
     def test_empty_image_rejected(self):
         current_image_buffer=io.BytesIO();Image.new('RGBA',(20,20)).save(current_image_buffer,format='PNG');current_image_buffer.seek(0)
         with self.assertRaisesRegex(ValueError,'영역'):calculate_image_shadow_size(current_image_buffer,100)
@@ -26,7 +26,7 @@ class BillboardShadowFitTests(unittest.TestCase):
             Image.new('RGBA',(116,82),(10,20,30,255)).save(current_image_buffer,format='PNG')
             current_image_buffer.seek(0)
             current_shadow_columns,current_shadow_rows=calculate_image_shadow_size(current_image_buffer,64.06,current_columns_count,current_rows_count)
-            current_property_record=dict(groundFootprintColumns=current_columns_count,groundFootprintRows=current_rows_count,displayHeight=64.06,billboardAnchorMode='tile-intersection',anchorX=0,anchorY=0,shadowScaleX=current_shadow_columns,shadowScaleY=current_shadow_rows)
+            current_property_record=dict(shadowSizeVersion=2,groundFootprintColumns=current_columns_count,groundFootprintRows=current_rows_count,displayHeight=64.06,billboardAnchorMode='tile-intersection',anchorX=0,anchorY=0,shadowScaleX=current_shadow_columns,shadowScaleY=current_shadow_rows)
             current_script_text='''
 import {drawBillboardContactShadow} from MODULE_URI;
 const currentPolygonRecords=[];

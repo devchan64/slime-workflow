@@ -18,7 +18,7 @@ def normalize_sprite_property_precision(current_property_values):
     validate_sprite_display_properties({'precision-check': current_property_values})
     current_normalized_values = dict(current_property_values)
     for current_field_name in SPRITE_DECIMAL_FIELDS & current_property_values.keys():
-        current_rounded_value = float(Decimal(str(current_property_values[current_field_name])).quantize(SPRITE_DECIMAL_PRECISION, rounding=ROUND_HALF_UP))
+        current_rounded_value = float(Decimal(str(current_property_values[current_field_name])).quantize(Decimal('0.000001') if current_field_name in ('shadowScaleX','shadowScaleY') and current_property_values.get('shadowSizeVersion',1)==2 else SPRITE_DECIMAL_PRECISION, rounding=ROUND_HALF_UP))
         current_normalized_values[current_field_name] = 0.0 if current_rounded_value == 0 else current_rounded_value
     validate_sprite_display_properties({'precision-check': current_normalized_values})
     return current_normalized_values
@@ -41,7 +41,7 @@ def validate_sprite_display_properties(current_property_catalog):
     for current_texture_key, current_property_values in current_property_catalog.items():
         if not isinstance(current_texture_key, str) or not re.fullmatch('[a-z][a-z0-9-]*', current_texture_key):
             raise ValueError('공통 속성의 텍스처 ID 오류')
-        if not isinstance(current_property_values, dict) or (set(current_property_values)-BILLBOARD_SHADOW_FIELD_NAMES-{'billboardAnchorMode'}) not in (SPRITE_ANCHOR_FIELD_NAMES, SPRITE_ANCHOR_FIELD_NAMES | SPRITE_LAYOUT_FIELD_NAMES, SPRITE_ANCHOR_FIELD_NAMES | SPRITE_LAYOUT_FIELD_NAMES | {'billboardBlocksMovement'}, SPRITE_ANCHOR_FIELD_NAMES | SPRITE_LAYOUT_FIELD_NAMES | BILLBOARD_PLACEMENT_FIELD_NAMES):
+        if not isinstance(current_property_values, dict) or (set(current_property_values)-BILLBOARD_SHADOW_FIELD_NAMES-{'billboardAnchorMode','shadowCoordinateVersion','shadowSizeVersion'}) not in (SPRITE_ANCHOR_FIELD_NAMES, SPRITE_ANCHOR_FIELD_NAMES | SPRITE_LAYOUT_FIELD_NAMES, SPRITE_ANCHOR_FIELD_NAMES | SPRITE_LAYOUT_FIELD_NAMES | {'billboardBlocksMovement'}, SPRITE_ANCHOR_FIELD_NAMES | SPRITE_LAYOUT_FIELD_NAMES | BILLBOARD_PLACEMENT_FIELD_NAMES):
             raise ValueError('공통 속성 필드 오류')
         if 'billboardBlocksMovement' in current_property_values:
             if type(current_property_values['billboardBlocksMovement']) is not bool:
@@ -50,8 +50,12 @@ def validate_sprite_display_properties(current_property_catalog):
             raise ValueError('빌보드 배치 앵커는 top 또는 bottom이어야 합니다.')
         if 'billboardAnchorMode' in current_property_values and current_property_values['billboardAnchorMode'] not in ('tile-bottom-center','tile-intersection'):
             raise ValueError('알 수 없는 빌보드 앵커 규격')
+        if 'shadowCoordinateVersion' in current_property_values and (type(current_property_values['shadowCoordinateVersion']) is not int or current_property_values['shadowCoordinateVersion'] not in (1,2)):
+            raise ValueError('지원하지 않는 그림자 좌표 버전')
+        if 'shadowSizeVersion' in current_property_values and (type(current_property_values['shadowSizeVersion']) is not int or current_property_values['shadowSizeVersion'] not in (1,2)):
+            raise ValueError('지원하지 않는 그림자 크기 버전')
         for current_property_name, current_property_value in current_property_values.items():
-            if current_property_name in BILLBOARD_PLACEMENT_FIELD_NAMES or current_property_name == 'billboardAnchorMode':
+            if current_property_name in BILLBOARD_PLACEMENT_FIELD_NAMES or current_property_name in ('billboardAnchorMode','shadowCoordinateVersion','shadowSizeVersion'):
                 continue
             if type(current_property_value) not in (int, float) or not math.isfinite(current_property_value):
                 raise ValueError('공통 속성은 유한한 숫자여야 합니다.')
@@ -61,8 +65,8 @@ def validate_sprite_display_properties(current_property_catalog):
                 raise ValueError('바닥 크기 범위 오류')
             if current_property_name.startswith('shadowOffset') and not -4 <= current_property_value <= 4:
                 raise ValueError('그림자 이동은 -4~4타일이어야 합니다.')
-            if current_property_name.startswith('shadowScale') and not (0.05 if current_property_name == 'shadowScaleY' else 0.1) <= current_property_value <= 4:
-                raise ValueError('그림자 열 길이는 0.1~4타일, 행 길이는 0.05~4타일이어야 합니다.')
+            if current_property_name.startswith('shadowScale') and not (0.001 if current_property_values.get('shadowSizeVersion',1)==2 else (0.05 if current_property_name == 'shadowScaleY' else 0.1)) <= current_property_value <= 4:
+                raise ValueError('그림자 크기 범위 오류: 점유 배율은 0.001~4, 이전 타일 길이는 열 0.1~4·행 0.05~4입니다.')
             if current_property_name == 'displayHeight' and not 0 < current_property_value <= 1024:
                 raise ValueError('표시 높이 범위 오류')
     return current_property_catalog
@@ -75,9 +79,9 @@ def apply_sprite_display_properties(current_map_data, current_property_catalog):
         if current_texture_key is None:
             continue
         current_shared_properties = current_property_catalog.get(current_texture_key)
-        if current_shared_properties is None or (set(current_shared_properties)-BILLBOARD_SHADOW_FIELD_NAMES-{'billboardAnchorMode'}) not in (SPRITE_ANCHOR_FIELD_NAMES | SPRITE_LAYOUT_FIELD_NAMES, SPRITE_ANCHOR_FIELD_NAMES | SPRITE_LAYOUT_FIELD_NAMES | {'billboardBlocksMovement'}, SPRITE_ANCHOR_FIELD_NAMES | SPRITE_LAYOUT_FIELD_NAMES | BILLBOARD_PLACEMENT_FIELD_NAMES):
+        if current_shared_properties is None or (set(current_shared_properties)-BILLBOARD_SHADOW_FIELD_NAMES-{'billboardAnchorMode','shadowCoordinateVersion','shadowSizeVersion'}) not in (SPRITE_ANCHOR_FIELD_NAMES | SPRITE_LAYOUT_FIELD_NAMES, SPRITE_ANCHOR_FIELD_NAMES | SPRITE_LAYOUT_FIELD_NAMES | {'billboardBlocksMovement'}, SPRITE_ANCHOR_FIELD_NAMES | SPRITE_LAYOUT_FIELD_NAMES | BILLBOARD_PLACEMENT_FIELD_NAMES):
             raise ValueError(f'빌보드 공용 속성 누락: {current_texture_key}')
-        current_override_fields = set(current_object_record) & (SPRITE_ANCHOR_FIELD_NAMES | SPRITE_LAYOUT_FIELD_NAMES | BILLBOARD_PLACEMENT_FIELD_NAMES | BILLBOARD_SHADOW_FIELD_NAMES | {'billboardAnchorMode'})
+        current_override_fields = set(current_object_record) & (SPRITE_ANCHOR_FIELD_NAMES | SPRITE_LAYOUT_FIELD_NAMES | BILLBOARD_PLACEMENT_FIELD_NAMES | BILLBOARD_SHADOW_FIELD_NAMES | {'billboardAnchorMode','shadowCoordinateVersion','shadowSizeVersion'})
         if current_override_fields:
             raise ValueError(f'맵별 빌보드 공용 속성 재정의 금지: {current_texture_key}: {sorted(current_override_fields)}')
         current_shared_properties = calculate_billboard_intersection_properties(current_shared_properties)

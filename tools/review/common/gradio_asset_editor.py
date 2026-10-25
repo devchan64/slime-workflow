@@ -12,8 +12,8 @@ def build_asset_source_gallery(current_column_count=4, current_row_count=None):
 
 def build_asset_property_inputs(current_automatic_anchor=False):
     with gr.Row():
-        current_anchor_horizontal=gr.Number(label='하단 교차점 X · 자동' if current_automatic_anchor else '아랫변 중심 X · 교차점 기준',interactive=not current_automatic_anchor,value=.5,minimum=-16,maximum=16,step=.01,precision=2)
-        current_anchor_vertical=gr.Number(label='하단 교차점 Y · 자동' if current_automatic_anchor else '아랫변 중심 Y · 교차점 기준',interactive=not current_automatic_anchor,value=1,minimum=-16,maximum=16,step=.01,precision=2)
+        current_anchor_horizontal=gr.Number(label='하단 교차점 X · 자동' if current_automatic_anchor else '아랫변 중심 X · 교차점 기준',interactive=not current_automatic_anchor,value=0,minimum=-16,maximum=16,step=.01,precision=2)
+        current_anchor_vertical=gr.Number(label='하단 교차점 Y · 자동' if current_automatic_anchor else '아랫변 중심 Y · 교차점 기준',interactive=not current_automatic_anchor,value=0,minimum=-16,maximum=16,step=.01,precision=2)
     with gr.Row():
         current_ground_columns=gr.Number(label='점유 타일 열 · 칸',value=1,minimum=1,maximum=8,step=1,precision=0)
         current_ground_rows=gr.Number(label='점유 타일 행 · 칸',value=1,minimum=1,maximum=8,step=1,precision=0)
@@ -43,8 +43,8 @@ def build_asset_shadow_inputs():
         current_shadow_column=gr.Number(label='그림자 열 방향 이동 · 타일',value=0,minimum=-4,maximum=4,step=.1,precision=2)
         current_shadow_row=gr.Number(label='그림자 행 방향 이동 · 타일',value=0,minimum=-4,maximum=4,step=.1,precision=2)
     with gr.Row():
-        current_shadow_width=gr.Number(label='그림자 열 길이 · 타일',value=1,minimum=.1,maximum=4,step=.1,precision=2)
-        current_shadow_height=gr.Number(label='그림자 행 길이 · 타일',value=1,minimum=.1,maximum=4,step=.1,precision=2)
+        current_shadow_width=gr.Number(label='그림자 열 크기 · 점유 배율',value=1,minimum=.001,maximum=4,step=.1,precision=6)
+        current_shadow_height=gr.Number(label='그림자 행 크기 · 점유 배율',value=1,minimum=.001,maximum=4,step=.1,precision=6)
     return [current_shadow_column,current_shadow_row,current_shadow_width,current_shadow_height]
 
 
@@ -109,12 +109,24 @@ def build_selected_asset_panel(current_canvas_identifier):
             with gr.Group():
                 gr.Markdown('### 배치와 크기')
                 current_property_inputs=build_asset_property_inputs(current_automatic_anchor=False)
+                with gr.Row():
+                    current_reset_anchor=gr.Button('배치 초기화',size='sm',scale=0,interactive=False)
+                    current_reset_size=gr.Button('크기 초기화',size='sm',scale=0,interactive=False)
+                current_reset_anchor.click(fn=None,outputs=current_property_inputs[:2],queue=False,js="()=>[0,0]")
+                current_reset_size.click(fn=None,outputs=current_property_inputs[2:],queue=False,js="()=>[1,1,128]")
                 current_blocking_choice=gr.Checkbox(label='내부 타일 자동 차단',value=False,interactive=False)
             current_placement_choice=gr.Dropdown(['top','bottom'],value='bottom',label='타일 상하 판정 · 앵커 Y 기준',interactive=False,visible=False)
             with gr.Group():
                 gr.Markdown('### 그림자 위치와 크기')
                 current_shadow_inputs=build_asset_shadow_inputs()
-                gr.Markdown('이동 0·0은 하단 기준 교차점입니다. 길이는 타일 단위입니다. 자동 맞춤은 투명 여백을 제외한 가로축 불투명 픽셀 분포에 따라 이미지 폭의 95~120%로 그림자 외곽 폭을 제안합니다. 성기고 넓게 퍼진 외형을 보강하며 점유 열·행 비율을 유지합니다. 접지 형태에 따라 수동 보정하세요.')
+                with gr.Row():
+                    current_reset_shadow_position=gr.Button('그림자 위치 초기화',size='sm',scale=0,interactive=False)
+                    current_reset_shadow_size=gr.Button('그림자 크기 초기화',size='sm',scale=0,interactive=False)
+                current_reset_shadow_position.click(fn=None,outputs=current_shadow_inputs[:2],queue=False,js="()=>[0,0]")
+                current_reset_shadow_size.click(fn=None,outputs=current_shadow_inputs[2:],queue=False,js="()=>[1,1]")
+                for current_reset_button in (current_reset_anchor,current_reset_size,current_reset_shadow_position,current_reset_shadow_size):
+                    current_detail_record.change(lambda current_asset_record:gr.update(interactive=bool(current_asset_record)),inputs=current_detail_record,outputs=current_reset_button)
+                gr.Markdown('초기화는 선택 후 사용할 수 있으며 입력과 미리보기만 변경합니다. 선택 에셋 변경 반영으로 저장하세요. 이동 0·0은 점유 타일 전체의 중심입니다. 크기는 점유 영역에 대한 배율입니다. 점유 2×3에서 크기 1×1은 2×3칸을 채웁니다. 자동 맞춤은 투명 여백을 제외한 가로축 불투명 픽셀 분포에 따라 이미지 폭의 95~120%로 그림자 외곽 폭을 제안합니다. 성기고 넓게 퍼진 외형을 보강하며 점유 열·행 비율을 유지합니다. 접지 형태에 따라 수동 보정하세요.')
                 current_shadow_fit_button=gr.Button('그림자 크기 자동 맞춤',interactive=False)
                 current_shadow_fit_feedback=gr.Markdown('썸네일에서 에셋을 선택하면 사용할 수 있습니다. 자동 맞춤은 저장하지 않습니다.')
                 current_detail_record.change(lambda current_asset_record:gr.update(interactive=bool(current_asset_record) and not current_asset_record.get('metadata')),inputs=current_detail_record,outputs=current_shadow_fit_button)
@@ -199,6 +211,6 @@ const currentSourceImage=new Image();currentSourceImage.src=currentAssetRecord.i
 if(currentPreviewCanvas.dataset.version!==currentPreviewVersion)return [{__type__:'update'},{__type__:'update'}];
 const currentOutdoorMode=currentKind.startsWith('야외');
 currentBlockingValue=currentColumns>=3&&currentRows>=3;
-const currentPreviewResult=currentPreviewModule.drawAssetGroundPreview(currentPreviewCanvas,currentSourceImage,{anchorX:currentAnchorX,anchorY:currentAnchorY,groundFootprintColumns:currentColumns,groundFootprintRows:currentRows,displayHeight:currentHeight,billboardAnchorMode:currentAssetRecord.properties.billboardAnchorMode,billboardPlacementAnchor:currentPlacement,shadowOffsetColumn:currentShadowColumn,shadowOffsetRow:currentShadowRow,shadowScaleX:currentShadowWidth,shadowScaleY:currentShadowHeight},{tileWidth:currentOutdoorMode?80:160,tileHeight:currentOutdoorMode?40:80,billboardScale:currentOutdoorMode?.5:1,previewZoom:currentPreviewZoom,showBlockedAreas:currentShowBlocking,drawShadow:currentShadowRenderer.drawBillboardContactShadow});
+const currentPreviewResult=currentPreviewModule.drawAssetGroundPreview(currentPreviewCanvas,currentSourceImage,{anchorX:currentAnchorX,anchorY:currentAnchorY,groundFootprintColumns:currentColumns,groundFootprintRows:currentRows,displayHeight:currentHeight,billboardAnchorMode:currentAssetRecord.properties.billboardAnchorMode,shadowCoordinateVersion:currentAssetRecord.properties.shadowCoordinateVersion??1,shadowSizeVersion:currentAssetRecord.properties.shadowSizeVersion??1,billboardPlacementAnchor:currentPlacement,shadowOffsetColumn:currentShadowColumn,shadowOffsetRow:currentShadowRow,shadowScaleX:currentShadowWidth,shadowScaleY:currentShadowHeight},{tileWidth:currentOutdoorMode?80:160,tileHeight:currentOutdoorMode?40:80,billboardScale:currentOutdoorMode?.5:1,previewZoom:currentPreviewZoom,showBlockedAreas:currentShowBlocking,drawShadow:currentShadowRenderer.drawBillboardContactShadow});
 return [`미리보기 ${currentPreviewZoom.toFixed(1)}배 · 선언 ${currentColumns}×${currentRows} · 실제 점유 ${currentPreviewResult.occupiedCells}칸 · ${currentBlockingValue?'내부 '+((currentColumns-2)*(currentRows-2))+'칸 차단':currentColumns===3&&currentRows===2?'가운데 이동 경계 차단':'통행 가능'} · 표시 ${currentPreviewResult.width.toFixed(1)}×${currentPreviewResult.height.toFixed(1)}px. 노랑: 타일 · 파랑: 이미지 · 빨강: 앵커. ${currentColumns<=2&&currentRows<=2?'보조 포함 2×2 격자 · 회색 점선은 점유 제외.':'보조 타일 없음.'} ${currentAssetRecord.metadata.length?'프레임 시트 원본 표시이므로 접지 판정에는 개별 프레임 검수가 필요합니다.':''}`,currentAnchorY<.5?'top':'bottom'];
 }'''.replace('__PORT__',str(current_review_port)).replace('__RENDERER_VERSION__',json.dumps(current_renderer_version)).replace('__CANVAS_IDENTIFIER__',json.dumps(current_canvas_identifier))

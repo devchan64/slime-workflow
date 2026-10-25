@@ -19,7 +19,7 @@ EDITOR_GALLERY_ROW_COUNT = 2
 EDITOR_GALLERY_PAGE_SIZE = EDITOR_GALLERY_COLUMN_COUNT * EDITOR_GALLERY_ROW_COUNT
 
 EDITOR_PROPERTY_FIELDS = ['anchorX','anchorY','groundFootprintColumns','groundFootprintRows','displayHeight','billboardPlacementAnchor','shadowOffsetColumn','shadowOffsetRow','shadowScaleX','shadowScaleY']
-EDITOR_TABLE_HEADERS = ['에셋 ID','이름','앵커 X','앵커 Y','점유 열','점유 행','표시 높이','배치 top/bottom','그림자 열 이동','그림자 행 이동','그림자 열 길이 · 타일','그림자 행 길이 · 타일','통행 차단','사용 맵 수']
+EDITOR_TABLE_HEADERS = ['에셋 ID','이름','앵커 X','앵커 Y','점유 열','점유 행','표시 높이','배치 top/bottom','그림자 열 이동','그림자 행 이동','그림자 열 크기 · 점유 배율','그림자 행 크기 · 점유 배율','통행 차단','사용 맵 수']
 
 
 def load_asset_editor_catalog():
@@ -50,7 +50,7 @@ def select_asset_editor_record(current_visible_assets,current_table_values,curre
     current_asset_record = current_visible_assets[current_select_event.index]
     current_initial_setup=current_asset_record['properties'] is None
     if current_initial_setup:
-        current_draft_properties=dict(anchorX=0,anchorY=0,groundFootprintColumns=1,groundFootprintRows=1,displayHeight=128,billboardAnchorMode='tile-intersection',shadowOffsetColumn=0,shadowOffsetRow=0,shadowScaleX=1,shadowScaleY=1,billboardBlocksMovement=False)
+        current_draft_properties=dict(shadowCoordinateVersion=2,shadowSizeVersion=2,anchorX=0,anchorY=0,groundFootprintColumns=1,groundFootprintRows=1,displayHeight=128,billboardAnchorMode='tile-intersection',shadowOffsetColumn=0,shadowOffsetRow=0,shadowScaleX=1,shadowScaleY=1,billboardBlocksMovement=False)
         current_asset_record={**current_asset_record,'properties':current_draft_properties}
     current_selected_row = next(current_table_row for current_table_row in current_table_values if current_table_row[0]==current_asset_record['texture'])
     if current_initial_setup:
