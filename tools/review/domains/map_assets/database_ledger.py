@@ -24,6 +24,27 @@ def publish_content_asset_ledger(current_asset_root, current_payload_record):
     current_asset_lookup={current_asset_record['assetId']:current_asset_record for current_asset_record in current_payload_record['assets']}
     if set(current_asset_lookup)!={current_asset_record['texture_key'] for current_asset_record in current_catalog_record['billboards']}:
         raise ValueError('DB와 원장의 빌보드 ID가 다릅니다. 등록·폐기 원장을 먼저 정리하세요.')
+    current_image_hash_changes={}
+    # 이미지 내용은 저장 단계에서 게시되고 원장은 지연 동기화한다.
+    for current_catalog_asset in current_catalog_record['billboards']:
+        current_database_image=current_asset_lookup[current_catalog_asset['texture_key']]['image']
+        current_source_record=current_catalog_asset['source_file']
+        current_image_path=current_asset_root/current_database_image['path']
+        if current_database_image['path']!=current_source_record['path']:
+            raise ValueError('단일 원본 이미지 경로로 이관이 필요합니다: '+current_catalog_asset['texture_key'])
+        if current_image_path.is_symlink() or not current_image_path.resolve().is_relative_to(current_asset_root) or hashlib.sha256(current_image_path.read_bytes()).hexdigest()!=current_database_image['sha256']:
+            raise ValueError('DB 이미지와 실제 원본 해시가 다릅니다: '+current_catalog_asset['texture_key'])
+        from PIL import Image
+        with Image.open(current_image_path) as current_source_image:
+            if list(current_source_image.size)!=[current_database_image['width'],current_database_image['height']]:
+                raise ValueError('DB 이미지와 원본 크기가 다릅니다')
+        current_asset_reference=current_catalog_asset['asset_ref']
+        current_registry_matches=[current_entry_record for current_entry_record in current_registry_record['assets'] if current_entry_record['managementId']==current_asset_reference['management_id'] and current_entry_record['version']==current_asset_reference['version']]
+        if len(current_registry_matches)!=1 or any(current_registry_matches[0][current_field_name]!=current_source_record[current_field_name] for current_field_name in ('path','sha256','width','height')):
+            raise ValueError('이미지 등록부와 카탈로그가 다릅니다')
+        current_image_hash_changes[current_source_record['sha256']]=current_database_image['sha256']
+        current_registry_matches[0].update({current_field_name:current_database_image[current_field_name] for current_field_name in ('sha256','width','height')})
+        current_catalog_asset['source_file']={current_field_name:current_database_image[current_field_name] for current_field_name in ('path','sha256','width','height')}
     current_property_document=load_unique_yaml_document(current_asset_root/current_property_path)
     current_property_document['data']={**current_payload_record['buildingProperties'],**{
         current_asset_identifier:current_asset_record['properties'] for current_asset_identifier,current_asset_record in current_asset_lookup.items()}}
@@ -62,6 +83,16 @@ def publish_content_asset_ledger(current_asset_root, current_payload_record):
         current_original_files[current_metadata_path]=current_metadata_path.read_bytes()
         if load_unique_yaml_document(current_metadata_path)!=current_metadata_record:
             current_pending_files[current_metadata_path]=yaml.safe_dump(current_metadata_record,allow_unicode=True,sort_keys=False).encode()
+    for current_lock_name in ('map-assets.lock.yaml','sprite-assets.lock.yaml'):
+        current_frontend_lock=current_asset_root.parent/'slime-frontend'/current_lock_name
+        if not current_frontend_lock.exists():
+            raise ValueError('프론트엔드 에셋 잠금 파일 누락: '+str(current_frontend_lock))
+        current_original_files[current_frontend_lock]=current_frontend_lock.read_bytes()
+        current_updated_text=current_original_files[current_frontend_lock].decode()
+        for current_original_hash,current_updated_hash in current_image_hash_changes.items():
+            current_updated_text=current_updated_text.replace(current_original_hash,current_updated_hash)
+        if current_updated_text.encode()!=current_original_files[current_frontend_lock]:
+            current_pending_files[current_frontend_lock]=current_updated_text.encode()
     with tempfile.TemporaryDirectory(prefix='content-ledger-') as current_temporary_name:
         current_staging_root=Path(current_temporary_name)
         shutil.copytree(current_asset_root/'assets/maps',current_staging_root/'assets/maps')

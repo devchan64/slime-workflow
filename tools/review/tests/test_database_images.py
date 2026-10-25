@@ -1,4 +1,4 @@
-"""크롭 확인·불변 파일 게시·DB 응답 유실 재시도 검증."""
+"""크롭 확인·단일 원본 게시·DB 응답 유실 재시도 검증."""
 import hashlib
 import json
 import os
@@ -56,19 +56,21 @@ class DatabaseImageTests(unittest.TestCase):
                 with self.assertRaises(OSError):database_images.save_database_image_change(current_confirm_record)
                 current_first_request=current_api_mock.call_args
                 self.assertEqual(current_source_path.read_bytes(),current_original_bytes)
-                self.assertEqual(len(list((current_asset_root/'assets/billboards/versions').glob('*.png'))),1)
+                self.assertFalse((current_asset_root/'assets/billboards/versions').exists())
                 current_api_mock.side_effect=None
-                current_api_mock.return_value={'saved':True}
+                current_prepared_record=json.loads((current_asset_root/'pending'/(current_preview_record['token']+'-image.json')).read_text())
+                current_api_mock.side_effect=[{'saved':True},{'image':current_prepared_record['request']['image']}]
                 database_images.save_database_image_change(current_confirm_record)
-                self.assertEqual(current_api_mock.call_args,current_first_request)
+                self.assertEqual(current_api_mock.call_args_list[-2],current_first_request)
+                with Image.open(current_source_path) as current_saved_image:
+                    self.assertEqual(current_saved_image.size,(40,50))
+                self.assertFalse((current_asset_root/'assets/billboards/versions').exists())
                 with self.assertRaisesRegex(ValueError,'대상이 변경'):
                     database_images.save_database_image_change({**current_confirm_record,'texture':'other'})
 
-                current_api_mock.side_effect=[current_asset_record,{'saved':True}]
-                database_images.resize_database_asset_image({**current_request_record,'size':64})
-                current_resize_request=current_api_mock.call_args
-                self.assertEqual(current_resize_request.args[2]['properties'],current_asset_record['properties'])
-                self.assertEqual(current_resize_request.args[2]['image']['width'],64)
-                current_api_mock.side_effect=None
-                database_images.resize_database_asset_image({**current_request_record,'size':64})
-                self.assertEqual(current_api_mock.call_args,current_resize_request)
+                # 오래된 토큰을 재사용해 최근 이미지를 덮지 않는다.
+                current_api_mock.side_effect=[{'saved':True},{'image':{'sha256':'newer'}}]
+                current_saved_bytes=current_source_path.read_bytes()
+                with self.assertRaisesRegex(ValueError,'최근 이미지'):
+                    database_images.save_database_image_change(current_confirm_record)
+                self.assertEqual(current_source_path.read_bytes(),current_saved_bytes)

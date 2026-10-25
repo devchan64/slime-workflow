@@ -1,4 +1,4 @@
-"""새 이미지 파일을 보존한 후 DB 이미지 참조와 공용 속성을 저장한다."""
+"""에셋별 단일 원본 파일과 DB 이미지 참조·공용 속성을 저장한다."""
 import hashlib
 import io
 import json
@@ -40,8 +40,8 @@ def prepare_database_image_request(current_input_record,current_asset_record,cur
     current_original_image=current_asset_record['image']
     if not current_original_image['publishedPath'].endswith('/'+current_original_image['path']):
         raise ValueError('이미지 게시 경로가 등록 경로와 일치하지 않습니다.')
-    current_relative_path='assets/billboards/versions/'+current_output_hash+'.png'
-    current_image_record={**current_original_image,'version':'sha256-'+current_output_hash,'path':current_relative_path,
+    current_relative_path='assets/billboards/'+current_asset_record['assetId']+'.png'
+    current_image_record={**current_original_image,'version':'source-sha256-'+current_output_hash,'path':current_relative_path,
         'sha256':current_output_hash,'width':current_preview_record['after'][0],'height':current_preview_record['after'][1],
         'publishedPath':current_original_image['publishedPath'][:-len(current_original_image['path'])]+current_relative_path}
     current_backend_request={'requestId':'image-'+uuid4().hex,'expectedRevision':current_asset_record['revision'],
@@ -98,22 +98,31 @@ def save_database_image_change(current_request_payload):
     current_target_path=current_asset_root/current_image_record['path']
     current_target_path.parent.mkdir(parents=True,exist_ok=True)
     if not current_target_path.resolve().is_relative_to(current_asset_root) or current_target_path.is_symlink():raise ValueError('이미지 저장 경로 이탈')
-    # 불변 파일 게시가 먼저 완료된다. DB 실패 시 원본 참조는 유지하고 새 파일은 재시도에 재사용한다.
-    current_temporary_path=current_target_path.with_name('.'+uuid4().hex+'.pending')
-    try:
-        with current_temporary_path.open('xb') as current_image_stream:
-            current_image_stream.write(current_output_bytes)
-            current_image_stream.flush()
-            os.fsync(current_image_stream.fileno())
-        try:os.link(current_temporary_path,current_target_path)
-        except FileExistsError:
-            if current_target_path.read_bytes()!=current_output_bytes:raise ValueError('불변 이미지 경로의 내용이 다릅니다.')
-        current_directory_descriptor=os.open(current_target_path.parent,os.O_RDONLY|os.O_DIRECTORY)
-        try:os.fsync(current_directory_descriptor)
-        finally:os.close(current_directory_descriptor)
-    finally:
-        current_temporary_path.unlink(missing_ok=True)
-    current_saved_record=execute_content_api_request('POST','/internal/v1/content/billboards/'+quote(current_prepared_record['assetId'],safe='')+'/image',current_prepared_record['request'])
+    if current_image_record['path']!='assets/billboards/'+current_prepared_record['assetId']+'.png':
+        raise ValueError('이전 이미지 저장 요청입니다. 범위를 다시 확인하세요.')
+    import fcntl
+    current_state_directory=current_asset_root/'.local/content-ledger'
+    current_state_directory.mkdir(parents=True,exist_ok=True)
+    with (current_state_directory/'sync.lock').open('a') as current_lock_stream:
+        fcntl.flock(current_lock_stream,fcntl.LOCK_EX)
+        # DB 요청은 멱등하다. 응답 유실·파일 게시 실패에도 같은 토큰으로 복구한다.
+        current_saved_record=execute_content_api_request('POST','/internal/v1/content/billboards/'+quote(current_prepared_record['assetId'],safe='')+'/image',current_prepared_record['request'])
+        current_live_record=execute_content_api_request('GET','/internal/v1/content/billboards/'+quote(current_prepared_record['assetId'],safe=''))
+        if current_live_record['image']!=current_image_record:
+            raise ValueError('더 최근 이미지가 저장되었습니다. 최신 에셋을 다시 선택하세요.')
+        current_temporary_path=current_target_path.with_name('.'+uuid4().hex+'.pending')
+        try:
+            with current_temporary_path.open('xb') as current_image_stream:
+                current_image_stream.write(current_output_bytes)
+                current_image_stream.flush()
+                os.fsync(current_image_stream.fileno())
+            os.replace(current_temporary_path,current_target_path)
+            current_directory_descriptor=os.open(current_target_path.parent,os.O_RDONLY|os.O_DIRECTORY)
+            try:os.fsync(current_directory_descriptor)
+            finally:os.close(current_directory_descriptor)
+        finally:
+            current_temporary_path.unlink(missing_ok=True)
+
     return {**current_prepared_record['preview'],**current_saved_record}
 
 
