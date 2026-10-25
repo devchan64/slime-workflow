@@ -4,7 +4,7 @@ const SOURCE_PREVIEW_GUIDE_STYLE=Object.freeze({fill:SOURCE_PREVIEW_TILE_FILL,st
 const SOURCE_PREVIEW_WIDTH=768;
 const SOURCE_PREVIEW_HEIGHT=260;
 const SOURCE_PREVIEW_CONTENT_MARGIN=24;
-const SOURCE_PREVIEW_HEIGHT_INTERVAL=80;
+const SOURCE_PREVIEW_HEIGHT_INTERVAL=40;
 const SOURCE_PREVIEW_PADDING=100;
 export function installSourceSizePreview(currentTextureRecords,currentSelectedGameKeys,currentMapRecord,currentRenderMetrics){
  if(!Number.isFinite(currentRenderMetrics?.tileWidth)||!Number.isFinite(currentRenderMetrics?.tileHeight)||currentRenderMetrics.tileWidth<=0||currentRenderMetrics.tileHeight<=0)throw Error("공통 타일 렌더 규격이 필요합니다.");

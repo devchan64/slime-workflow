@@ -4,7 +4,7 @@ import {resolveCityTileTextures,selectFieldRoadFrame,resolveFieldTerrainFrame,co
 import {CHARACTER_OUTLINE_BASE_WIDTH,CHARACTER_OUTLINE_BASE_COLOR,CHARACTER_SEPARATOR_BASE_WIDTH,CHARACTER_SEPARATOR_BASE_COLOR,CHARACTER_CONTACT_SHADOW_COLOR as GAME_CONTACT_SHADOW_COLOR,CHARACTER_CONTACT_SHADOW_ALPHA_SCALE,ACTOR_CONTACT_SHADOW_CONTRACT} from './vendor/field-renderer/__FIELD_RENDERER_VERSION__/game-render-profile.mjs';
 import {createFieldReviewFrame,pickFieldReviewCell,pickFieldReviewSurface} from './field-map-renderer.js';
 import {resolveMapRenderOptions,FIELD_RENDER_METRICS,projectSurfaceCell,canTraverseBridgeEdge,prepareBridgeTraversalSurface} from './vendor/field-renderer/__FIELD_RENDERER_VERSION__/field-renderer.mjs';
-import {resolveFieldActorContactShadow} from './vendor/field-renderer/__FIELD_RENDERER_VERSION__/field-renderer.mjs';
+import {resolveFieldActorContactShadow,FIELD_SAFE_AURA_PROFILE} from './vendor/field-renderer/__FIELD_RENDERER_VERSION__/field-renderer.mjs';
 const MAP_FIT_HORIZONTAL_PADDING=160,MAP_FIT_VERTICAL_PADDING=80,MAP_FIT_BOTTOM_MARGIN=40,FIELD_FIT_TOP_MARGIN=160;
 const MIN_MAP_SCALE=0.05,MAX_MAP_SCALE=4,MAP_ZOOM_FACTOR=1.25,MAP_DRAG_THRESHOLD=4,MAP_KEYBOARD_PAN_DISTANCE=48;
 const CHARACTER_CELL_KEY_OFFSETS={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]};
@@ -360,7 +360,7 @@ function renderSharedReviewMap(currentFitRequested,currentOptionOverrides={}){
  }
  updateReviewZoomControls();
  document.querySelector('#status').textContent=isFieldMapReview
-  ?`게임 공용 필드 렌더러 · 내부 해상도 2배 · 높이 단위 ${FIELD_RENDER_METRICS.elevationHeight}px · 타일 ${currentMapRenderOptions.tileWidth}×${currentMapRenderOptions.tileHeight} · 빌보드 ${currentMapRenderOptions.billboardScale}배 · 결계 높이 15px · 고정 시점`
+  ?`게임 공용 필드 렌더러 · 내부 해상도 2배 · 높이 단위 ${FIELD_RENDER_METRICS.elevationHeight}px · 타일 ${currentMapRenderOptions.tileWidth}×${currentMapRenderOptions.tileHeight} · 빌보드 ${currentMapRenderOptions.billboardScale}배 · 결계 높이 ${FIELD_SAFE_AURA_PROFILE.height}px · 고정 시점`
   :`게임 공용 마을 렌더러 · 내부 해상도 2배 · 건물 ${currentMapRecord.buildings.length}개 · 고정 시점`;
 }
 if(document.querySelector('#show-safe-boundary'))document.querySelector('#show-safe-boundary').onchange=()=>renderBlockMap();

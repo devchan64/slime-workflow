@@ -159,10 +159,10 @@ def build_selected_asset_panel(current_canvas_identifier):
                 current_resolution_feedback=gr.Markdown()
         with gr.Column():
             gr.Markdown('### 미리보기')
-            current_preview_kind=gr.Radio(['공용 160×80 · 1배'],value='공용 160×80 · 1배',label='미리보기 타일 규격',interactive=False)
+            current_preview_kind=gr.Radio(['공용 80×40 · 0.5배'],value='공용 80×40 · 0.5배',label='미리보기 타일 규격',interactive=False)
             current_preview_zoom=gr.Slider(minimum=.5,maximum=4,value=2,step=.5,label='미리보기 확대 배율',info='0.5배 단위로 확대·축소합니다. 에셋 저장 값은 바뀌지 않습니다.')
             current_show_character=gr.Checkbox(label='캐릭터 보기',value=True,info='공용 타일 규격에서 기본 캐릭터를 실제 표시 크기로 함께 보여줍니다.')
-            current_show_guidelines=gr.Checkbox(label='높이 가이드라인 보기',value=True,info='접지 기준에서 위쪽으로 80px마다 표시합니다. 확대 배율을 함께 적용합니다.')
+            current_show_guidelines=gr.Checkbox(label='높이 가이드라인 보기',value=True,info='접지 기준에서 위쪽으로 40px마다 표시합니다. 확대 배율을 함께 적용합니다.')
             current_show_blocking=gr.Checkbox(label='이동금지 영역 보기',value=True,info='차단 타일과 이동할 수 없는 경계를 표시합니다. 저장 값은 바뀌지 않습니다.')
             current_background_choice=gr.Radio(['검은색','흰색'],value='흰색',label='미리보기 배경')
             build_asset_preview_canvas(current_canvas_identifier,'#ffffff')
@@ -235,6 +235,6 @@ if(currentShowCharacter){
 }
 if(currentPreviewCanvas.dataset.version!==currentPreviewVersion)return [{__type__:'update'},{__type__:'update'}];
 currentBlockingValue=currentColumns>=3&&currentRows>=3;
-const currentPreviewResult=currentPreviewModule.drawAssetGroundPreview(currentPreviewCanvas,currentSourceImage,{anchorX:currentAnchorX,anchorY:currentAnchorY,groundFootprintColumns:currentColumns,groundFootprintRows:currentRows,displayHeight:currentHeight,billboardAnchorMode:currentAssetRecord.properties.billboardAnchorMode,shadowCoordinateVersion:currentAssetRecord.properties.shadowCoordinateVersion??1,shadowSizeVersion:currentAssetRecord.properties.shadowSizeVersion??1,billboardPlacementAnchor:currentPlacement,shadowOffsetColumn:currentShadowColumn,shadowOffsetRow:currentShadowRow,shadowScaleX:currentShadowWidth,shadowScaleY:currentShadowHeight},{tileWidth:160,tileHeight:80,billboardScale:1,previewZoom:currentPreviewZoom,characterPreview:currentCharacterPreview,showHeightGuidelines:currentShowGuidelines,showBlockedAreas:currentShowBlocking,drawShadow:currentShadowRenderer.drawBillboardContactShadow});
+const currentPreviewResult=currentPreviewModule.drawAssetGroundPreview(currentPreviewCanvas,currentSourceImage,{anchorX:currentAnchorX,anchorY:currentAnchorY,groundFootprintColumns:currentColumns,groundFootprintRows:currentRows,displayHeight:currentHeight,billboardAnchorMode:currentAssetRecord.properties.billboardAnchorMode,shadowCoordinateVersion:currentAssetRecord.properties.shadowCoordinateVersion??1,shadowSizeVersion:currentAssetRecord.properties.shadowSizeVersion??1,billboardPlacementAnchor:currentPlacement,shadowOffsetColumn:currentShadowColumn,shadowOffsetRow:currentShadowRow,shadowScaleX:currentShadowWidth,shadowScaleY:currentShadowHeight},{...currentShadowRenderer.resolveMapRenderOptions(),previewZoom:currentPreviewZoom,characterPreview:currentCharacterPreview,showHeightGuidelines:currentShowGuidelines,showBlockedAreas:currentShowBlocking,drawShadow:currentShadowRenderer.drawBillboardContactShadow});
 return [`미리보기 ${currentPreviewZoom.toFixed(1)}배 · 선언 ${currentColumns}×${currentRows} · 실제 점유 ${currentPreviewResult.occupiedCells}칸 · ${currentBlockingValue?'내부 '+((currentColumns-2)*(currentRows-2))+'칸 차단':currentColumns===3&&currentRows===2?'가운데 이동 경계 차단':'통행 가능'} · 표시 ${currentPreviewResult.width.toFixed(1)}×${currentPreviewResult.height.toFixed(1)}px. 노랑: 타일 · 파랑: 이미지 · 빨강: 앵커. ${currentColumns<=2&&currentRows<=2?'보조 포함 2×2 격자 · 회색 점선은 점유 제외.':'보조 타일 없음.'} ${currentAssetRecord.metadata.length?'프레임 시트 원본 표시이므로 접지 판정에는 개별 프레임 검수가 필요합니다.':''}`,currentAnchorY<.5?'top':'bottom'];
 }'''.replace('__PORT__',str(current_review_port)).replace('__RENDERER_VERSION__',json.dumps(current_renderer_version)).replace('__CANVAS_IDENTIFIER__',json.dumps(current_canvas_identifier))
