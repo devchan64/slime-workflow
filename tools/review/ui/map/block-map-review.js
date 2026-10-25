@@ -110,7 +110,7 @@ for(const currentResourceKey of currentResourceKeys){
   continue;
  }
  const currentSourcePath=currentGameTextureSources[currentResourceKey];
- const currentCatalogEntry=currentSourcePath?Object.entries(currentTextureRecords).find(([,currentTextureRecord])=>currentTextureRecord.source===currentSourcePath):Object.entries(currentTextureRecords).find(([currentTextureName])=>currentTextureName===currentResourceKey);
+ const currentCatalogEntry=Object.entries(currentTextureRecords).find(([,currentTextureRecord])=>currentTextureRecord.managementId==='image.scenery.'+currentResourceKey)??Object.entries(currentTextureRecords).find(([currentTextureName,currentTextureRecord])=>currentSourcePath?currentTextureRecord.source===currentSourcePath:currentTextureName===currentResourceKey);
  if(!currentCatalogEntry)throw Error('선택 맵 리소스가 카탈로그에 없습니다: '+currentResourceKey);
  currentSelectedTextureRecords[currentCatalogEntry[0]]=currentCatalogEntry[1];currentSelectedGameKeys[currentResourceKey]=currentCatalogEntry[0];
 }
@@ -579,7 +579,7 @@ window.mapReviewApplyDraft=async(currentDraftRecord)=>{
  const currentDraftTextures={},currentDraftGameKeys={};
  for(const currentResourceKey of currentDraftKeys){
   const currentSourcePath=currentGameTextureSources[currentResourceKey];
-  const currentCatalogEntry=currentSourcePath?Object.entries(currentTextureRecords).find(([,currentTextureRecord])=>currentTextureRecord.source===currentSourcePath):Object.entries(currentTextureRecords).find(([currentTextureName])=>currentTextureName===currentResourceKey);
+  const currentCatalogEntry=Object.entries(currentTextureRecords).find(([,currentTextureRecord])=>currentTextureRecord.managementId==='image.scenery.'+currentResourceKey)??Object.entries(currentTextureRecords).find(([currentTextureName,currentTextureRecord])=>currentSourcePath?currentTextureRecord.source===currentSourcePath:currentTextureName===currentResourceKey);
   if(!currentCatalogEntry)throw Error('초안 리소스가 없습니다: '+currentResourceKey);
   currentDraftTextures[currentCatalogEntry[0]]=currentCatalogEntry[1];currentDraftGameKeys[currentResourceKey]=currentCatalogEntry[0];
  }
