@@ -42,3 +42,16 @@ def load_game_render_metrics(frontend_repository_path):
     current_metric_values['sources'] = [{'path':source_file_path.relative_to(frontend_repository_path).as_posix(),'sha256':hashlib.sha256(source_file_path.read_bytes()).hexdigest()} for source_file_path in (metrics_source_path,)]
     current_metric_values['sources'].extend(game_source_records)
     return current_metric_values
+
+
+def load_adopted_render_options():
+    """채택된 렌더러 공개 API에서 필드 렌더 크기를 조회한다."""
+    import subprocess
+    current_profile_path = WORKFLOW_REPOSITORY_ROOT / 'tools/review/ui/map/vendor/field-renderer/game-render-profile.mjs'
+    current_script_text = "import {resolveMapRenderOptions} from " + json.dumps(current_profile_path.as_uri()) + "; console.log(JSON.stringify(resolveMapRenderOptions({safeTown:false})));"
+    current_process_result = subprocess.run(['node', '--input-type=module', '-e', current_script_text], check=True, capture_output=True, text=True, timeout=10)
+    current_option_values = json.loads(current_process_result.stdout)
+    for current_option_name in ('tileWidth', 'tileHeight', 'billboardScale'):
+        if not isinstance(current_option_values.get(current_option_name), (int, float)) or current_option_values[current_option_name] <= 0:
+            raise ValueError('채택 렌더 크기 오류: ' + current_option_name)
+    return current_option_values

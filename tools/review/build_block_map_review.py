@@ -234,11 +234,11 @@ def build_registered_map_review(map_identifier_value, current_validate_placement
     if current_validate_placement and map_identifier_value not in current_city_identifiers:
         from tools.review.domains.map_assets.placement import validate_scenery_object_collisions, validate_registered_scenery_images
         validate_scenery_object_collisions(current_map_record.get('objects', []), current_map_record['spriteProperties'], current_map_record['elevations'])
-        from tools.review.common.game_render_metrics import read_numeric_render_constant
-        current_metric_source = (WORKFLOW_ROOT_DIRECTORY.parent/'slime-frontend/packages/field-renderer/render-constants.mjs').read_text()
-        current_billboard_scale = read_numeric_render_constant(current_metric_source, 'OUTDOOR_MAP_RENDER_SCALE')
-        current_tile_width = read_numeric_render_constant(current_metric_source, 'MAP_TILE_WIDTH') * current_billboard_scale
-        current_tile_height = read_numeric_render_constant(current_metric_source, 'MAP_TILE_HEIGHT') * current_billboard_scale
+        from tools.review.common.game_render_metrics import load_adopted_render_options
+        current_render_options = load_adopted_render_options()
+        current_billboard_scale = current_render_options['billboardScale']
+        current_tile_width = current_render_options['tileWidth']
+        current_tile_height = current_render_options['tileHeight']
         validate_registered_scenery_images(current_map_record.get('objects', []), current_map_record['spriteProperties'], current_tile_width, current_tile_height, current_map_record['elevations'], current_billboard_scale, current_map_record.get('imageManifest'))
     current_map_record['reviewLabel'] = '도시맵 검수' if map_identifier_value in current_city_identifiers else '필드맵 검수'
     return current_map_record

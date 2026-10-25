@@ -159,13 +159,8 @@ def build_catalog_reference(current_asset_root):
         if current_asset_identity in current_registry_lookup:
             raise ValueError('등록부 ID·버전 중복: '+str(current_asset_identity))
         current_registry_lookup[current_asset_identity] = current_asset_record
-    current_metric_path = WORKFLOW_ROOT_DIRECTORY/'tools/review/ui/map/vendor/field-renderer/game-render-profile.mjs'
-    # 설치된 공용 렌더러가 공개하는 상수를 그대로 사용한다.
-    current_metric_text = current_metric_path.read_text()
-    current_scale_matches = re.findall(r'(?:const|var) OUTDOOR_MAP_RENDER_SCALE = ([0-9.]+)',current_metric_text)
-    if len(current_scale_matches)!=1:
-        raise ValueError('공용 렌더러 야외필드 배율 상수 누락·중복')
-    current_outdoor_scale = float(current_scale_matches[0])
+    from tools.review.common.game_render_metrics import load_adopted_render_options
+    current_outdoor_scale = load_adopted_render_options()['billboardScale']
     current_map_references = {}
     for current_map_path in sorted((current_asset_root/'assets/maps').rglob('*.yaml')):
         if current_map_path == current_property_path:
