@@ -11,6 +11,7 @@ from generators.music.examples import load_music_examples, resolve_music_example
 from tools.review.common.generation_cleanup import GENERATION_CLEANUP_SCOPE_TEXT
 from tools.review.common.management_client import execute_remote_management_command
 from tools.review.common.gradio_seed import build_generation_seed
+from tools.review.common.gradio_example_picker import build_paginated_example_picker
 from tools.review.common.gradio_button_guidance import build_button_guidance
 from tools.review.common.gradio_gpu_confirmation import bind_gpu_generation_confirmation
 from tools.review.common.gradio_history import build_generation_history_view
@@ -93,7 +94,7 @@ def build_music_interface(current_service_name,current_server_address):
         if current_minimax_mode or current_heartmula_mode:
             current_example_records = load_music_examples(current_service_name)
             with gr.Accordion('예제 프롬프트 목록',open=current_heartmula_mode):
-                current_example_selector = gr.Dropdown(choices=[(current_example_record['label'],current_example_record['id']) for current_example_record in current_example_records],value=current_example_records[0]['id'],label='예제 선택',allow_custom_value=False)
+                current_example_selector = build_paginated_example_picker(current_example_records)
                 current_example_preview = preview_music_example(current_example_records[0]['id'],current_service_name)
                 current_example_summary = gr.Markdown(current_example_preview[0])
                 with gr.Accordion('예제 원문 미리보기',open=False):
@@ -109,7 +110,7 @@ def build_music_interface(current_service_name,current_server_address):
         current_prompt_reset = gr.Button('음악 설명만 비우기' if not current_effects_mode else '프롬프트 초기화',size='sm')
         current_prompt_reset.click(lambda:'',outputs=current_prompt_control,queue=False)
         with gr.Row():
-            current_length_control = gr.State(None) if current_effects_mode else gr.Number(value=current_default_record['duration_seconds'],minimum=resolve_audio_minimum(current_service_name),maximum=current_profile_record['max_duration_seconds'],label='최대 출력 시간(초) · max_audio_length_ms 환산' if current_heartmula_mode else '생성 길이(초)' if current_magenta_mode else 'audio_duration · 최대 생성 길이(초)',info='5~240초. 완결 길이가 아닌 최대 오디오 출력 상한입니다.' if current_heartmula_mode else '5~120초 실험 입력. 자연스러운 종결은 보장하지 않습니다.' if current_magenta_mode else '5~120초. 선택한 예제의 상한을 확인하세요. 종료 토큰이 나오면 먼저 끝날 수 있습니다.')
+            current_length_control = gr.State(None) if current_effects_mode else gr.Number(value=current_default_record['duration_seconds'],minimum=resolve_audio_minimum(current_service_name),maximum=current_profile_record['max_duration_seconds'],label='최대 출력 시간(초) · max_audio_length_ms 환산' if current_heartmula_mode else '생성 길이(초)' if current_magenta_mode else 'audio_duration · 최대 생성 길이(초)',info='5~300초. 기본값 300초(5분). 목표·완결 길이가 아닌 최대 출력 상한이며 EOS가 나오면 먼저 끝납니다.' if current_heartmula_mode else '5~120초 실험 입력. 자연스러운 종결은 보장하지 않습니다.' if current_magenta_mode else '5~120초. 선택한 예제의 상한을 확인하세요. 종료 토큰이 나오면 먼저 끝날 수 있습니다.')
             if current_minimax_mode:
                 current_duration_display = gr.Number(value=current_default_record['duration_seconds']*MINIMAX_AUDIO_FRAME_RATE,label='환산 오디오 프레임 상한 · max_new_tokens',interactive=False)
                 def update_minimax_duration(current_duration_value):

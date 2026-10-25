@@ -19,17 +19,19 @@
 
 ## 2. 예제 선택과 입력
 
-**예제 프롬프트 목록 → 선택한 예제를 폼에 불러오기**를 누른다. 예제 선택만으로 입력을 바꾸지 않는다. 불러오기는 현재 입력을 덮어쓰지만 작업을 접수하지 않는다. 제작 기준 예제는 [heartmula/examples.yaml](heartmula/examples.yaml)에서 Git으로 관리한다. 이전 8행 실험 파일 [iseulon_vocal_mr.yaml](heartmula/iseulon_vocal_mr.yaml)은 과거 재현 입력이다.
+**예제 프롬프트 목록 → 이전/다음 예제 페이지 → 예제 선택 → 선택한 예제를 폼에 불러오기**를 누른다. 31개 예제는 페이지당 10개씩 표시한다. 페이지 이동은 해당 페이지 첫 예제를 미리 보며, 예제 선택만으로 입력을 바꾸지 않는다. 불러오기는 현재 입력을 덮어쓰지만 작업을 접수하지 않는다. 제작 기준 예제는 [heartmula/examples.yaml](heartmula/examples.yaml)에서 Git으로 관리한다. 이전 8행 실험 파일 [iseulon_vocal_mr.yaml](heartmula/iseulon_vocal_mr.yaml)은 과거 재현 입력이다.
 
 | 입력 | 의미 |
 |---|---|
 | 음악 태그 | 쉼표로 구분한 장르·악기·분위기·보컬 표현. `prompt` 계약으로 저장 |
 | 가사·구간 태그 | `[Intro]`, `[Verse]`, `[Chorus]`, `[Outro]`와 실제 가사. 무보컬은 생성 후 MR 분리로 확보 |
-| 최대 출력 시간 | 5~240초 상한. 목표·최소 길이가 아니며 밀리초로 환산 |
+| 최대 출력 시간 | 기본값 300초(5분), 허용 범위 5~300초 상한. 목표·최소 길이가 아니며 밀리초로 환산 |
 | 시드 | 비교 실험의 난수 입력. 랜덤 버튼은 값만 변경 |
 | 이력 태그 | 결과 구분용 이름. 모델 입력에 포함하지 않음 |
 
-약 1분 곡은 짧은 가사로 실험한다. 이슬온 예제의 6행 가사·상한 120초에서 70.32초가 나온 것은 한 번의 관측이며 행 수와 길이의 고정 공식이 아니다. 상한을 60초로 지정하면 곡 중간에 잘릴 수 있다. 종료 토큰(EOS)으로 먼저 끝날 수 있고 EOS도 음악적 종지를 보증하지 않는다. 보컬 억제·종료 토큰 억제·페이드·자동 음량 조절·반복 접합은 적용하지 않는다.
+현재 31개 예제는 맵별 장르·악기 편성을 개별 지정하고 도입 2행·변화 2행·후렴 4행·마무리 2행의 가사로 구성한다. 60~90초 안팎은 실험 목표이며 최대 출력 기본값 300초와 구분한다. 태그·가사의 반영과 MR의 선율 유지·종결은 생성 후 청취 검수가 필요하다. 기존 대기 작업과 등록 에셋에는 변경을 소급하지 않는다.
+
+과거 약 1분 곡은 짧은 가사로 실험했다. 이슬온 예제의 6행 가사·상한 120초에서 70.32초가 나온 것은 한 번의 관측이며 행 수와 길이의 고정 공식이 아니다. 상한을 60초로 지정하면 곡 중간에 잘릴 수 있다. 종료 토큰(EOS)으로 먼저 끝날 수 있고 EOS도 음악적 종지를 보증하지 않는다. 보컬 억제·종료 토큰 억제·페이드·자동 음량 조절·반복 접합은 적용하지 않는다.
 
 ## 3. 대기열 등록과 진행 확인
 
@@ -40,7 +42,7 @@
 CLI도 동일한 서비스와 기록을 사용한다.
 
 ```bash
-.venv-management/bin/python tools/manager.py command music-heartmula generate --prompt 'piano,harp,flute,acoustic,peaceful,female vocals' --lyrics $'[Verse]\nMorning warms the village lane\nDewdrops shine after the rain\n[Chorus]\nGentle roads will lead us home\n[Outro]' --duration-seconds 120 --seed 7 --tag bgm-test --detach
+.venv-management/bin/python tools/manager.py command music-heartmula generate --prompt 'piano,harp,flute,acoustic,peaceful,female vocals' --lyrics $'[Verse]\nMorning warms the village lane\nDewdrops shine after the rain\n[Chorus]\nGentle roads will lead us home\n[Outro]' --duration-seconds 300 --seed 7 --tag bgm-test --detach
 .venv-management/bin/python tools/manager.py command music-heartmula status <생성ID>
 .venv-management/bin/python tools/manager.py command music-heartmula logs <생성ID>
 ```

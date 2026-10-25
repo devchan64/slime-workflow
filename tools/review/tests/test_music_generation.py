@@ -16,6 +16,38 @@ from tools.review.common.generation_records import write_record_atomically
 
 
 class MusicGenerationTests(unittest.TestCase):
+    def test_heartmula_default_limit_and_examples(self):
+        from generators.music.examples import load_music_examples
+        current_request_record = validate_music_request('music-heartmula', {'prompt':'piano','lyrics':'[Verse]\nHome again'})
+        self.assertEqual(current_request_record['duration_seconds'], 300)
+        with self.assertRaises(ValueError):
+            validate_music_request('music-heartmula', {'prompt':'piano','lyrics':'Home','duration_seconds':301})
+        current_example_records = load_music_examples('music-heartmula')
+        self.assertEqual(len(current_example_records), 31)
+        self.assertEqual(len({current_example_record['request']['prompt'] for current_example_record in current_example_records}), 31)
+        for current_example_record in current_example_records:
+            self.assertEqual(current_example_record['request']['duration_seconds'], 300)
+            current_song_lines = current_example_record['request']['lyrics'].splitlines()
+            self.assertEqual([current_song_lines.index('[Chorus]'),current_song_lines.index('[Outro]')], [6,11])
+            self.assertEqual(len(current_song_lines), 14)
+
+    def test_example_pagination_preserves_all_records(self):
+        from generators.music.examples import load_music_examples
+        from tools.review.common.gradio_example_picker import paginate_example_records
+        current_example_records = load_music_examples('music-heartmula')
+        current_seen_identifiers = []
+        for current_page_number in range(1,5):
+            current_page_result = paginate_example_records(current_example_records,current_page_number)
+            current_seen_identifiers.extend(current_choice_record[1] for current_choice_record in current_page_result[0]['choices'])
+            self.assertEqual(current_page_result[3]['interactive'],current_page_number>1)
+            self.assertEqual(current_page_result[4]['interactive'],current_page_number<4)
+            self.assertEqual(current_page_result[0]['value'],current_page_result[0]['choices'][0][1])
+        self.assertEqual(current_seen_identifiers,[current_example_record['id'] for current_example_record in current_example_records])
+        self.assertEqual(paginate_example_records(current_example_records,999)[1],4)
+        self.assertEqual(paginate_example_records(current_example_records,0)[1],1)
+        with self.assertRaises(ValueError):
+            paginate_example_records([],1)
+
     def test_heartmula_empty_lyrics_experiment(self):
         current_request_record = validate_music_request('music-heartmula', {'prompt':'piano,happy','lyrics':''})
         self.assertEqual(current_request_record['lyrics'], '')

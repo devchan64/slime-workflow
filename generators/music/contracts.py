@@ -84,7 +84,7 @@ def load_music_defaults(current_service_name=None):
     if current_service_name == SOUND_EFFECT_SERVICE:
         if current_default_record['duration_seconds'] is not None:
             raise ValueError('Dasheng 길이는 모델 자동 예측입니다.')
-    elif type(current_default_record['duration_seconds']) is not int or not resolve_audio_minimum(current_service_name) <= current_default_record['duration_seconds'] <= 60:
+    elif type(current_default_record['duration_seconds']) is not int or not resolve_audio_minimum(current_service_name) <= current_default_record['duration_seconds'] <= min(current_profile_record['max_duration_seconds'] for current_profile_record in current_default_record['profiles'].values()):
         raise ValueError('기본 길이 설정 오류')
     # 기존 MiniMax 대기 요청의 설정 해시를 보존하되 폐기 모델은 노출하지 않는다.
     current_default_record['profiles'].pop('music-ace-step',None)
