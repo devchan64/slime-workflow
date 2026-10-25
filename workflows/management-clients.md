@@ -961,3 +961,7 @@ SLIME_CONTENT_CONFIG_FILE=/absolute/connection.yaml python3 tools/review/common/
 관리도구는 DB를 즉시 수정하고 독립 주기 작업자가 `map-assets database-sync`로 에셋 원장을 지연 동기화합니다. `assets/maps/` 공용 속성·맵 문서, 타입별 빌보드 카탈로그, `asset-registry.yaml`과 소비자의 `map-data.lock.yaml`을 갱신한 뒤에만 완료 처리합니다. 변경 없는 파일은 다시 쓰지 않습니다. 파일 원장을 재시드했을 때 DB와 동일한 속성·맵을 복원할 수 있어야 합니다.
 
 세대별 스냅샷 생성은 중단했습니다. `snapshots/`는 이전 구현의 전환 자료로 Git에서 제외하며 원장으로 사용하지 않습니다. 이전 완료 세대는 검증된 보관 자료에서 한 번 원장에 반영합니다. 실행 잠금·완료 영수증은 에셋 레포의 Git 제외 경로 `.local/content-ledger/`에서 관리합니다. 기존 `database-snapshot` 명령과 `snapshot` 실행기 이름은 실행 중인 설정 호환을 위한 별칭이며, 현재 동작은 원장 동기화입니다. 위 스냅샷을 정식 파일 원장으로 설명한 내용보다 이 절을 우선합니다.
+
+### 크롭 알파 기준
+
+`map-assets asset-crop-preview`와 `asset-crop`은 선택 필드 `alphaThreshold`를 받습니다. 0~254 정수이며 생략하면 5입니다. 이 값 이하의 픽셀을 외곽 범위 계산에서 제외하고 내부 픽셀은 보존합니다. `"auto"`는 알파 질량의 1% 이내에서 최대 64까지 기준을 제안합니다. 자동 제안은 이미지 의미를 판별하지 않으므로 분홍색 바운딩박스를 확인하세요. GUI 자동 찾기는 기준값과 범위만 갱신하며 저장하지 않습니다. 기준 변경 후에는 범위를 다시 확인해야 합니다. 저장은 같은 revision·texture·alphaThreshold와 확인 토큰을 사용합니다.

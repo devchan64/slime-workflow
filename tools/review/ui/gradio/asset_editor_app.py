@@ -202,21 +202,38 @@ def build_selected_crop_changes(current_catalog_record,current_detail_record,cur
     return build_asset_editor_payload({'revision':current_catalog_record['revision'],'assets':[current_saved_record]},[current_selected_row])['changes']
 
 
-def preview_selected_asset_crop(current_catalog_record,current_detail_record,*current_property_values):
+def preview_selected_asset_crop(current_catalog_record,current_detail_record,current_alpha_threshold,*current_property_values):
     if build_selected_crop_changes(current_catalog_record,current_detail_record,current_property_values):raise gr.Error('편집 중인 속성을 먼저 선택 에셋 변경 반영으로 저장하세요.')
-    current_request_payload={'revision':current_catalog_record['revision'],'texture':current_detail_record['texture']}
+    current_request_payload={'revision':current_catalog_record['revision'],'texture':current_detail_record['texture'],'alphaThreshold':current_alpha_threshold}
     current_preview_result=execute_remote_management_command('map-assets','asset-crop-preview',current_request_payload)
+    if current_alpha_threshold=='auto':
+        current_alpha_threshold=current_preview_result['alpha_threshold']
+        current_request_payload['alphaThreshold']=current_alpha_threshold
+        current_preview_result=execute_remote_management_command('map-assets','asset-crop-preview',current_request_payload)
+    from PIL import Image,ImageDraw
+    # 상세 상태의 image는 브라우저용 data URL이며 파일 경로가 아니다.
+    current_source_record=next(current_asset_record for current_asset_record in current_catalog_record['assets'] if current_asset_record['texture']==current_detail_record['texture'])
+    with Image.open(current_source_record['image']) as current_source_image:
+        current_preview_image=current_source_image.convert('RGBA')
+    current_box_bounds=current_preview_result['bounds']
+    ImageDraw.Draw(current_preview_image).rectangle((current_box_bounds[0],current_box_bounds[1],current_box_bounds[2]-1,current_box_bounds[3]-1),outline=(255,30,150,255),width=max(1,round(max(current_preview_image.size)/180)))
     if not current_preview_result['changed']:
-        return {},gr.update(visible=False),'',gr.update(interactive=False),'제거할 투명 여백이 없습니다. 저장하지 않았습니다.'
+        return {},gr.update(visible=True),'제거할 투명 여백이 없습니다.',gr.update(interactive=False),'저장하지 않았습니다.',current_preview_image,current_alpha_threshold
     current_pending_record={**current_request_payload,'token':current_preview_result['token']}
-    return current_pending_record,gr.update(visible=True),f"{current_detail_record['texture']} · {current_preview_result['before']} → {current_preview_result['after']} px. 표시 크기와 접지 위치를 유지하도록 높이·앵커를 함께 보정합니다. 저장하시겠습니까?",gr.update(interactive=True),'크롭 저장 또는 취소를 선택하세요.'
+    return current_pending_record,gr.update(visible=True),f"{current_detail_record['texture']} · {current_preview_result['before']} → {current_preview_result['after']} px · 알파 {current_alpha_threshold} 이하 제외. 표시 크기와 접지 위치를 유지하도록 높이·앵커를 함께 보정합니다. 저장하시겠습니까?",gr.update(interactive=True),'크롭 저장 또는 취소를 선택하세요.',current_preview_image,current_alpha_threshold
 
 
-def confirm_selected_asset_crop(current_catalog_record,current_detail_record,current_pending_record,*current_property_values):
+def suggest_selected_crop_alpha(current_catalog_record,current_detail_record,current_alpha_threshold,*current_property_values):
+    return preview_selected_asset_crop(current_catalog_record,current_detail_record,'auto',*current_property_values)
+
+
+def confirm_selected_asset_crop(current_catalog_record,current_detail_record,current_pending_record,current_alpha_threshold,*current_property_values):
     if not current_pending_record or not current_detail_record or current_pending_record['texture']!=current_detail_record['texture']:
         raise gr.Error('선택 대상이 변경되었습니다. 크롭 범위를 다시 확인하세요.')
     if build_selected_crop_changes(current_catalog_record,current_detail_record,current_property_values):
         raise gr.Error('확인 후 속성이 변경되었습니다. 속성을 저장한 뒤 크롭 범위를 다시 확인하세요.')
+    if current_pending_record.get('alphaThreshold',5)!=current_alpha_threshold:
+        raise gr.Error('알파 기준이 변경되었습니다. 크롭 범위를 다시 확인하세요.')
     execute_remote_management_command('map-assets','asset-crop',current_pending_record)
     current_catalog_record,current_table_values,_=load_asset_editor_catalog(current_detail_record.get('category'))
     current_asset_record=next(current_asset_record for current_asset_record in current_catalog_record['assets'] if current_asset_record['texture']==current_detail_record['texture'])
@@ -359,10 +376,11 @@ def build_asset_editor_interface(current_review_port):
         current_editor_panel.current_resolution_choice.input(update_resolution_save_button,inputs=[current_editor_panel.current_detail_record,current_editor_panel.current_resolution_choice],outputs=current_editor_panel.current_resolution_button)
         current_resolution_event=current_editor_panel.current_resolution_button.click(resize_selected_asset_image,inputs=[current_editor_panel.current_detail_record,current_editor_panel.current_resolution_choice],outputs=[current_catalog_state,current_asset_table,current_editor_panel.current_detail_record,current_editor_panel.current_detail_text,current_editor_panel.current_resolution_feedback])
         current_resolution_event.then(filter_asset_editor_gallery,inputs=[current_catalog_state,current_search_text,current_asset_type,current_gallery_page],outputs=current_gallery_outputs)
-        current_crop_inputs=[current_catalog_state,current_editor_panel.current_detail_record,*current_editor_panel.current_property_inputs,current_editor_panel.current_placement_choice,*current_editor_panel.current_shadow_inputs,current_editor_panel.current_blocking_choice]
-        current_editor_panel.current_crop_button.click(preview_selected_asset_crop,inputs=current_crop_inputs,outputs=[current_editor_panel.current_crop_pending,current_editor_panel.current_crop_group,current_editor_panel.current_crop_summary,current_editor_panel.current_crop_confirm,current_editor_panel.current_crop_feedback])
+        current_crop_inputs=[current_catalog_state,current_editor_panel.current_detail_record,current_editor_panel.current_crop_threshold,*current_editor_panel.current_property_inputs,current_editor_panel.current_placement_choice,*current_editor_panel.current_shadow_inputs,current_editor_panel.current_blocking_choice]
+        current_editor_panel.current_crop_button.click(preview_selected_asset_crop,inputs=current_crop_inputs,outputs=[current_editor_panel.current_crop_pending,current_editor_panel.current_crop_group,current_editor_panel.current_crop_summary,current_editor_panel.current_crop_confirm,current_editor_panel.current_crop_feedback,current_editor_panel.current_crop_image,current_editor_panel.current_crop_threshold])
+        current_editor_panel.current_crop_auto_button.click(suggest_selected_crop_alpha,inputs=current_crop_inputs,outputs=[current_editor_panel.current_crop_pending,current_editor_panel.current_crop_group,current_editor_panel.current_crop_summary,current_editor_panel.current_crop_confirm,current_editor_panel.current_crop_feedback,current_editor_panel.current_crop_image,current_editor_panel.current_crop_threshold])
         current_editor_panel.current_crop_cancel.click(lambda:({},gr.update(visible=False),'크롭을 취소했습니다. 원본은 변경되지 않았습니다.'),outputs=[current_editor_panel.current_crop_pending,current_editor_panel.current_crop_group,current_editor_panel.current_crop_feedback])
-        current_crop_event=current_editor_panel.current_crop_confirm.click(confirm_selected_asset_crop,inputs=[current_catalog_state,current_editor_panel.current_detail_record,current_editor_panel.current_crop_pending,*current_editor_panel.current_property_inputs,current_editor_panel.current_placement_choice,*current_editor_panel.current_shadow_inputs,current_editor_panel.current_blocking_choice],outputs=[current_catalog_state,current_asset_table,current_editor_panel.current_crop_pending,current_editor_panel.current_crop_group,current_editor_panel.current_crop_feedback,current_editor_panel.current_detail_record,*current_editor_panel.current_property_inputs,current_editor_panel.current_placement_choice,*current_editor_panel.current_shadow_inputs,current_editor_panel.current_blocking_choice,current_editor_panel.current_detail_text],concurrency_limit=1,trigger_mode='once')
+        current_crop_event=current_editor_panel.current_crop_confirm.click(confirm_selected_asset_crop,inputs=[current_catalog_state,current_editor_panel.current_detail_record,current_editor_panel.current_crop_pending,current_editor_panel.current_crop_threshold,*current_editor_panel.current_property_inputs,current_editor_panel.current_placement_choice,*current_editor_panel.current_shadow_inputs,current_editor_panel.current_blocking_choice],outputs=[current_catalog_state,current_asset_table,current_editor_panel.current_crop_pending,current_editor_panel.current_crop_group,current_editor_panel.current_crop_feedback,current_editor_panel.current_detail_record,*current_editor_panel.current_property_inputs,current_editor_panel.current_placement_choice,*current_editor_panel.current_shadow_inputs,current_editor_panel.current_blocking_choice,current_editor_panel.current_detail_text],concurrency_limit=1,trigger_mode='once')
         current_crop_event.then(filter_asset_editor_gallery,inputs=[current_catalog_state,current_search_text,current_asset_type,current_gallery_page],outputs=current_gallery_outputs)
         current_preview_inputs=[current_editor_panel.current_detail_record,*current_editor_panel.current_property_inputs,current_editor_panel.current_placement_choice,*current_editor_panel.current_shadow_inputs,current_editor_panel.current_preview_kind,current_editor_panel.current_preview_zoom,current_editor_panel.current_blocking_choice,current_editor_panel.current_show_blocking,current_editor_panel.current_show_character,current_editor_panel.current_show_guidelines]
         current_crop_event.then(fn=None,inputs=current_preview_inputs,outputs=[current_editor_panel.current_preview_feedback,current_editor_panel.current_placement_choice],js=current_preview_script,queue=False)

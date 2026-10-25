@@ -66,6 +66,9 @@ class AssetEditorPanelControls:
     current_blocking_choice: object
     current_placement_choice: object
     current_shadow_inputs: list
+    current_crop_auto_button: object
+    current_crop_image: object
+    current_crop_threshold: object
     current_crop_button: object
     current_crop_pending: object
     current_crop_group: object
@@ -137,11 +140,14 @@ def build_selected_asset_panel(current_canvas_identifier):
             current_update_button=gr.Button('선택 에셋 변경 반영')
             current_save_progress=gr.Markdown('선택한 ID만 검증하고 즉시 저장합니다.')
             with gr.Accordion('투명 여백 크롭',open=False):
-                gr.Markdown('알파값 5 이하(0~255 기준)를 여백으로 판단하여 외곽을 크롭합니다. 크롭 영역 안의 픽셀은 그대로 보존합니다. 표시 크기·접지 위치·그림자는 유지하며, 저장 전 원본은 이력에 보관합니다. 편집 중인 속성은 먼저 변경 반영으로 저장하세요.')
+                gr.Markdown('선택한 알파값 이하(0~255 기준)를 여백으로 판단하여 외곽을 크롭합니다. 크롭 영역 안의 픽셀은 그대로 보존합니다. 표시 크기·접지 위치·그림자는 유지하며, 저장 전 원본은 이력에 보관합니다. 편집 중인 속성은 먼저 변경 반영으로 저장하세요.')
+                current_crop_threshold=gr.Slider(minimum=0,maximum=254,value=5,step=1,label='알파 여백 기준',info='0은 완전 투명만 제외합니다. 값을 높이면 희미한 외곽도 여백으로 판단합니다.')
+                current_crop_auto_button=gr.Button('알파 기준 자동 찾기')
                 current_crop_button=gr.Button('크롭 범위 확인')
                 current_crop_pending=gr.State({})
                 with gr.Group(visible=False) as current_crop_group:
                     current_crop_summary=gr.Markdown()
+                    current_crop_image=gr.Image(label='크롭 범위 · 분홍선',interactive=False,type='pil')
                     with gr.Row():
                         current_crop_confirm=gr.Button('확인 · 크롭 저장')
                         current_crop_cancel=gr.Button('취소')
@@ -182,6 +188,9 @@ if(currentPreviewCanvas)currentPreviewCanvas.style.backgroundColor=currentBackgr
         current_blocking_choice=current_blocking_choice,
         current_placement_choice=current_placement_choice,
         current_shadow_inputs=current_shadow_inputs,
+        current_crop_auto_button=current_crop_auto_button,
+        current_crop_image=current_crop_image,
+        current_crop_threshold=current_crop_threshold,
         current_crop_button=current_crop_button,
         current_crop_pending=current_crop_pending,
         current_crop_group=current_crop_group,

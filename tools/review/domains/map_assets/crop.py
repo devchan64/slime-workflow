@@ -21,9 +21,30 @@ CROP_REFERENCE_TILE_WIDTH = 160
 CROP_REFERENCE_TILE_HEIGHT = 80
 
 
+def resolve_crop_alpha_threshold(current_request_payload,current_source_image=None):
+    current_alpha_threshold=current_request_payload.get('alphaThreshold',CROP_ALPHA_THRESHOLD)
+    if current_alpha_threshold=='auto':
+        if current_source_image is None:return CROP_ALPHA_THRESHOLD
+        current_alpha_histogram=current_source_image.getchannel('A').histogram()
+        current_total_weight=sum(current_index*current_count for current_index,current_count in enumerate(current_alpha_histogram))
+        if not current_total_weight:raise ValueError('크롭할 불투명 픽셀이 없습니다.')
+        current_removed_weight=0
+        current_selected_threshold=0
+        # 불투명도 질량의 1% 이내에서만 희미한 픽셀을 제외한다. 자동 기준은 최대 64다.
+        for current_index in range(65):
+            current_removed_weight+=current_index*current_alpha_histogram[current_index]
+            if current_removed_weight>current_total_weight*.01:break
+            current_selected_threshold=current_index
+        return current_selected_threshold
+    if type(current_alpha_threshold) is not int or not 0<=current_alpha_threshold<=254:
+        raise ValueError('알파 여백 기준은 0~254 정수여야 합니다.')
+    return current_alpha_threshold
+
+
 def prepare_billboard_crop(current_request_payload):
-    if not isinstance(current_request_payload, dict) or set(current_request_payload) != {'revision', 'texture'}:
+    if not isinstance(current_request_payload, dict) or set(current_request_payload) not in ({'revision', 'texture'},{'revision','texture','alphaThreshold'}):
         raise ValueError('revision·texture가 필요합니다.')
+    current_alpha_threshold=resolve_crop_alpha_threshold(current_request_payload)
     current_asset_root, current_source_paths, current_source_bytes, current_revision_hash, current_property_document, current_catalog_document = read_editor_snapshot()
     if current_request_payload['revision'] != current_revision_hash:
         raise ValueError('원본이 변경되었습니다. 목록을 새로고침하고 다시 확인하세요.')
@@ -37,9 +58,10 @@ def prepare_billboard_crop(current_request_payload):
     current_image_bytes = current_image_path.read_bytes()
     with Image.open(io.BytesIO(current_image_bytes)) as current_source_image:
         current_source_image = current_source_image.convert('RGBA')
-        current_crop_bounds = current_source_image.getchannel('A').point(lambda current_alpha_value: 255 if current_alpha_value > CROP_ALPHA_THRESHOLD else 0).getbbox()
+        current_alpha_threshold=resolve_crop_alpha_threshold(current_request_payload,current_source_image)
+        current_crop_bounds = current_source_image.getchannel('A').point(lambda current_alpha_value: 255 if current_alpha_value > current_alpha_threshold else 0).getbbox()
         if current_crop_bounds is None:
-            raise ValueError('알파값 6 이상인 픽셀이 없어 크롭할 대상이 없습니다.')
+            raise ValueError(f'알파값 {current_alpha_threshold+1} 이상인 픽셀이 없어 크롭할 대상이 없습니다.')
         current_source_width, current_source_height = current_source_image.size
         current_output_image = current_source_image.crop(current_crop_bounds)
         current_output_stream = io.BytesIO()
@@ -54,9 +76,9 @@ def prepare_billboard_crop(current_request_payload):
         'anchorX': current_original_values['anchorX'] + ((current_crop_left + current_crop_right - current_source_width) / 2) * current_pixel_scale / CROP_REFERENCE_TILE_WIDTH,
         'anchorY': current_original_values['anchorY'] + (current_crop_bottom - current_source_height) * current_pixel_scale / CROP_REFERENCE_TILE_HEIGHT}
     current_updated_values = normalize_sprite_property_precision(current_updated_values)
-    current_preview_token = hashlib.sha256((json.dumps({**current_request_payload, 'alpha_threshold': CROP_ALPHA_THRESHOLD}, sort_keys=True) + hashlib.sha256(current_image_bytes).hexdigest()).encode()).hexdigest()
+    current_preview_token = hashlib.sha256((json.dumps({**current_request_payload, 'alpha_threshold': current_alpha_threshold}, sort_keys=True) + hashlib.sha256(current_image_bytes).hexdigest()).encode()).hexdigest()
     current_preview_result = {'texture': current_texture_key, 'token': current_preview_token,
-        'alpha_threshold': CROP_ALPHA_THRESHOLD,
+        'alpha_threshold': current_alpha_threshold,
         'changed': current_crop_bounds != (0, 0, current_source_width, current_source_height),
         'before': [current_source_width, current_source_height], 'after': list(current_output_image.size),
         'bounds': list(current_crop_bounds), 'properties': current_updated_values}
@@ -68,9 +90,9 @@ def preview_billboard_crop(current_request_payload):
 
 
 def save_billboard_crop(current_request_payload):
-    if not isinstance(current_request_payload, dict) or set(current_request_payload) != {'revision', 'texture', 'token'}:
+    if not isinstance(current_request_payload, dict) or set(current_request_payload) not in ({'revision', 'texture', 'token'},{'revision','texture','token','alphaThreshold'}):
         raise ValueError('revision·texture·token이 필요합니다.')
-    current_validation_payload = {current_field_name: current_request_payload[current_field_name] for current_field_name in ('revision', 'texture')}
+    current_validation_payload = {current_field_name: current_request_payload[current_field_name] for current_field_name in ('revision', 'texture','alphaThreshold') if current_field_name in current_request_payload}
     current_asset_root, current_source_paths, current_source_bytes, current_property_document, current_image_path, current_image_bytes, current_output_bytes, current_preview_result = prepare_billboard_crop(current_validation_payload)
     if current_request_payload['token'] != current_preview_result['token']:
         raise ValueError('확인 이후 원본이 변경되었습니다. 다시 확인하세요.')

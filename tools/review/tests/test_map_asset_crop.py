@@ -86,16 +86,50 @@ class MapAssetCropTests(unittest.TestCase):
         from tools.review.ui.gradio.asset_editor_app import preview_selected_asset_crop, confirm_selected_asset_crop
         self.assertIn('asset-crop', MANAGEMENT_SERVICE_COMMANDS['map-assets'])
         self.assertEqual(MANAGEMENT_COMMAND_ROUTES['asset-crop-preview'], ('POST', '/editor-crop-preview'))
-        current_detail_record = {'texture':'sample','name':'샘플','properties':self.current_property_values}
+        current_detail_record = {'texture':'sample','name':'샘플','image':str(self.current_image_path),'properties':self.current_property_values}
         current_input_values = [.2,.5,2,1,240,'bottom',0,0,1,1,False]
         current_preview_record = crop.preview_billboard_crop(self.current_request_payload)
         with patch('tools.review.ui.gradio.asset_editor_app.execute_remote_management_command',return_value=current_preview_record) as current_remote_command:
-            current_ui_result = preview_selected_asset_crop({'revision':self.current_request_payload['revision'],'assets':[current_detail_record]}, current_detail_record,*current_input_values)
+            current_ui_result = preview_selected_asset_crop({'revision':self.current_request_payload['revision'],'assets':[current_detail_record]}, current_detail_record,5,*current_input_values)
             self.assertTrue(current_ui_result[1]['visible'])
             self.assertEqual(current_ui_result[0]['token'], current_preview_record['token'])
             with self.assertRaises(Exception):
-                confirm_selected_asset_crop({'assets':[current_detail_record]}, {**current_detail_record,'texture':'other'}, current_ui_result[0],*current_input_values)
+                confirm_selected_asset_crop({'assets':[current_detail_record]}, {**current_detail_record,'texture':'other'}, current_ui_result[0],5,*current_input_values)
             self.assertEqual(current_remote_command.call_count,1)
+
+    def test_crop_preview_uses_catalog_file_with_data_url_detail(self):
+        import base64
+        from tools.review.ui.gradio.asset_editor_app import preview_selected_asset_crop,suggest_selected_crop_alpha
+        current_source_record={'texture':'sample','name':'샘플','image':str(self.current_image_path),'properties':self.current_property_values}
+        current_detail_record={**current_source_record,'image':'data:image/png;base64,'+base64.b64encode(self.current_image_path.read_bytes()).decode()}
+        current_catalog_record={'revision':self.current_request_payload['revision'],'assets':[current_source_record]}
+        current_input_values=[.2,.5,2,1,240,'bottom',0,0,1,1,False]
+        current_source_bytes=self.current_image_path.read_bytes()
+        def execute_mock_crop_preview(current_service_name,current_command_name,current_request_record):
+            self.assertEqual(current_command_name,'asset-crop-preview')
+            return crop.preview_billboard_crop(current_request_record)
+        with patch('tools.review.ui.gradio.asset_editor_app.execute_remote_management_command',side_effect=execute_mock_crop_preview):
+            for current_preview_function in (preview_selected_asset_crop,suggest_selected_crop_alpha):
+                current_result=current_preview_function(current_catalog_record,current_detail_record,5,*current_input_values)
+                current_crop_bounds=crop.preview_billboard_crop({**self.current_request_payload,'alphaThreshold':current_result[6]})['bounds']
+                self.assertEqual(current_result[5].getpixel(tuple(current_crop_bounds[:2])),(255,30,150,255))
+                self.assertTrue(current_result[1]['visible'])
+        self.assertEqual(self.current_image_path.read_bytes(),current_source_bytes)
+
+    def test_custom_and_auto_alpha_threshold(self):
+        with Image.open(self.current_image_path) as current_source_image:
+            current_source_image.putpixel((0,0),(30,40,50,12))
+            current_source_image.save(self.current_image_path)
+        self.assertEqual(crop.preview_billboard_crop(self.current_request_payload)['bounds'][0],0)
+        current_custom_result=crop.preview_billboard_crop({**self.current_request_payload,'alphaThreshold':16})
+        self.assertEqual(current_custom_result['bounds'],[20,30,80,100])
+        current_auto_result=crop.preview_billboard_crop({**self.current_request_payload,'alphaThreshold':'auto'})
+        self.assertEqual(current_auto_result['bounds'],[20,30,80,100])
+        self.assertLessEqual(current_auto_result['alpha_threshold'],64)
+        with self.assertRaises(ValueError):
+            crop.save_billboard_crop({**self.current_request_payload,'alphaThreshold':17,'token':current_custom_result['token']})
+        for current_invalid_value in (-1,255,True,1.5,'bad'):
+            with self.assertRaises(ValueError):crop.preview_billboard_crop({**self.current_request_payload,'alphaThreshold':current_invalid_value})
 
     def test_alpha_five_excluded_and_six_retained(self):
         with Image.open(self.current_image_path) as current_source_image:
@@ -111,7 +145,7 @@ class MapAssetCropTests(unittest.TestCase):
 
     def test_crop_uses_saved_catalog_after_property_save(self):
         from tools.review.ui.gradio.asset_editor_app import build_selected_crop_changes
-        current_stale_detail={'texture':'sample','name':'샘플','properties':self.current_property_values}
+        current_stale_detail={'texture':'sample','name':'샘플','image':str(self.current_image_path),'properties':self.current_property_values}
         current_saved_detail={**current_stale_detail,'properties':{**self.current_property_values,'displayHeight':248.74}}
         current_catalog_record={'revision':'saved-revision','assets':[current_saved_detail]}
         current_input_values=[.2,.5,2,1,248.74,'bottom',0,0,1,1,False]

@@ -11,7 +11,7 @@ from tools.review.domains.map_assets.database_client import execute_content_api_
 from tools.review.domains.map_assets.editor import EDITOR_STORAGE_DIRECTORY
 from tools.review.common.map_tile_assets import DEFAULT_ASSET_REPOSITORY
 from tools.review.common.sprite_display_properties import normalize_sprite_property_precision
-from tools.review.domains.map_assets.crop import CROP_ALPHA_THRESHOLD,CROP_REFERENCE_TILE_WIDTH,CROP_REFERENCE_TILE_HEIGHT
+from tools.review.domains.map_assets.crop import resolve_crop_alpha_threshold,CROP_ALPHA_THRESHOLD,CROP_REFERENCE_TILE_WIDTH,CROP_REFERENCE_TILE_HEIGHT
 
 
 def read_database_image_source(current_request_payload):
@@ -56,13 +56,15 @@ def prepare_database_image_request(current_input_record,current_asset_record,cur
 
 
 def preview_database_image_crop(current_request_payload):
-    if not isinstance(current_request_payload,dict) or set(current_request_payload)!={'revision','texture'}:raise ValueError('revision·texture가 필요합니다.')
+    if not isinstance(current_request_payload,dict) or set(current_request_payload) not in ({'revision','texture'},{'revision','texture','alphaThreshold'}):raise ValueError('revision·texture가 필요합니다.')
     current_asset_root,current_asset_record,current_image_bytes=read_database_image_source(current_request_payload)
+    current_alpha_threshold=resolve_crop_alpha_threshold(current_request_payload)
     current_original_values=current_asset_record['properties']
     if current_original_values.get('billboardAnchorMode')!='tile-intersection':raise ValueError('하단 교차점 방식만 크롭할 수 있습니다.')
     with Image.open(io.BytesIO(current_image_bytes)) as current_source_image:
         current_source_image=current_source_image.convert('RGBA')
-        current_crop_bounds=current_source_image.getchannel('A').point(lambda current_alpha_value:255 if current_alpha_value>CROP_ALPHA_THRESHOLD else 0).getbbox()
+        current_alpha_threshold=resolve_crop_alpha_threshold(current_request_payload,current_source_image)
+        current_crop_bounds=current_source_image.getchannel('A').point(lambda current_alpha_value:255 if current_alpha_value>current_alpha_threshold else 0).getbbox()
         if current_crop_bounds is None:raise ValueError('크롭할 불투명 픽셀이 없습니다.')
         current_source_width,current_source_height=current_source_image.size
         current_output_image=current_source_image.crop(current_crop_bounds)
@@ -74,19 +76,19 @@ def preview_database_image_crop(current_request_payload):
         'displayHeight':current_output_image.height*current_pixel_scale,
         'anchorX':current_original_values['anchorX']+((current_crop_left+current_crop_right-current_source_width)/2)*current_pixel_scale/CROP_REFERENCE_TILE_WIDTH,
         'anchorY':current_original_values['anchorY']+(current_crop_bottom-current_source_height)*current_pixel_scale/CROP_REFERENCE_TILE_HEIGHT})
-    current_preview_record={'texture':current_asset_record['assetId'],'changed':current_crop_bounds!=(0,0,current_source_width,current_source_height),
+    current_preview_record={'alpha_threshold':current_alpha_threshold,'texture':current_asset_record['assetId'],'changed':current_crop_bounds!=(0,0,current_source_width,current_source_height),
         'before':[current_source_width,current_source_height],'after':list(current_output_image.size),'bounds':list(current_crop_bounds),'properties':current_updated_values}
     return prepare_database_image_request(current_request_payload,current_asset_record,current_output_stream.getvalue(),current_updated_values,current_preview_record)
 
 
 def save_database_image_change(current_request_payload):
-    if not isinstance(current_request_payload,dict) or set(current_request_payload)!={'revision','texture','token'}:raise ValueError('검수한 revision·texture·token이 필요합니다.')
+    if not isinstance(current_request_payload,dict) or set(current_request_payload) not in ({'revision','texture','token'},{'revision','texture','token','alphaThreshold'}):raise ValueError('검수한 revision·texture·token이 필요합니다.')
     current_preview_token=current_request_payload['token']
     if not isinstance(current_preview_token,str) or len(current_preview_token)!=64 or any(current_character not in '0123456789abcdef' for current_character in current_preview_token):raise ValueError('이미지 확인 토큰 오류')
     current_prepared_bytes=(EDITOR_STORAGE_DIRECTORY/(current_preview_token+'-image.json')).read_bytes()
     if hashlib.sha256(current_prepared_bytes).hexdigest()!=current_preview_token:raise ValueError('이미지 확인 기록 변경')
     current_prepared_record=json.loads(current_prepared_bytes)
-    if current_prepared_record['input']!={current_field_name:current_request_payload[current_field_name] for current_field_name in ('revision','texture')}:
+    if current_prepared_record['input']!={current_field_name:current_request_payload[current_field_name] for current_field_name in ('revision','texture','alphaThreshold') if current_field_name in current_request_payload}:
         raise ValueError('이미지 확인 대상이 변경되었습니다.')
     if not current_prepared_record['preview']['changed']:return {**current_prepared_record['preview'],'saved':False}
     current_image_record=current_prepared_record['request']['image']
