@@ -78,10 +78,10 @@ def build_first_frame_interface(current_server_address):
         current_frames_control.change(describe_video_frame_duration, current_frames_control, current_duration_output, queue=False)
         current_seed_control = build_generation_seed(default_seed_value=42)
         with gr.Accordion('고급 설정', open=False):
-            current_steps_control = gr.Number(value=FIRST_FRAME_DEFAULT_STEPS, precision=0, minimum=1, maximum=200, label='추론 스텝 · 1~200', info='기본 50. 반복 횟수이며 높을수록 생성 시간이 늘어납니다.')
+            current_steps_control = gr.Number(value=FIRST_FRAME_DEFAULT_STEPS, precision=0, minimum=1, maximum=200, label='추론 스텝 · 1~200', info='20: 빠른 검토용 · 30: 레퍼런스 · 50: 안정값(기본값). 반복 횟수이며 높을수록 생성 시간이 늘어납니다.')
             current_shift_control = gr.Number(value=FIRST_FRAME_DEFAULT_SHIFT, minimum=0.1, maximum=30, label='Flow shift · 0.1~30', info='기본 3. 추론 스텝의 노이즈 구간 배분을 조절합니다.')
             current_guidance_control = gr.Number(value=FIRST_FRAME_DEFAULT_GUIDANCE, minimum=1, maximum=20, label='텍스트 가이던스 (CFG) · 1~20', info='기본 5. 프롬프트 유도 강도이며 높으면 왜곡이 늘 수 있습니다.')
-            current_conditioning_control = gr.Number(value=FIRST_FRAME_DEFAULT_CONDITIONING, minimum=0, maximum=2, label='조건 강도 · 0~2', info='기본 1. 첫 프레임과 마스크 조건의 영향력입니다.')
+            current_conditioning_control = gr.Number(value=FIRST_FRAME_DEFAULT_CONDITIONING, minimum=0, maximum=2, label='조건 강도 · 0~2', info='기본 1. 첫 프레임과 마스크 조건의 영향력입니다. 결과 변화를 비교하기 쉽도록 다른 입력값은 유지하고, 0~2 범위에서 0.5씩 조정하며 확인하세요.')
         current_input_controls = [current_image_control, current_prompt_control, current_negative_control, current_frames_control, current_seed_control, current_steps_control, current_shift_control, current_guidance_control, current_conditioning_control, current_padding_control]
         current_generate_button = gr.Button('대기열에 추가', variant='primary', interactive=False)
         build_button_guidance(current_generate_button, '첫 프레임 이미지와 장면 프롬프트를 입력하세요. 확인 후 대기열에 등록됩니다.')
