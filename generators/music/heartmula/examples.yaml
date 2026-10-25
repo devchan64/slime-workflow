@@ -122,12 +122,12 @@ examples:
     min_duration_seconds: 0
 - id: mist-lake-vocal-mr-minute
   label: 안개 호수 · 기승전결 가사곡과 MR
-  description: '인상주의 실내악 · 피아노·알토 플루트·하프·약음 현으로 안개가 걷히고 물가가 드러나는 흐름 표현. 6행·약 48초 결과에서 후렴 2행을 보강한 8행: 도입·변화 2행 → 후렴 4행 → 마무리
-    2행. 시드 19로 변경. 60~90초 안팎을 목표로 하되 실제 길이·종결은 생성 후 검수한다. 최대 출력 300초는 목표 길이가 아니다. 원곡·MR·320kbps MP3 자동 저장. 이번 가사·시드는 미검증이며
-    출처 작업은 삭제된 비교 기록이다.'
-  source_generation_id: 2026-10-25_19-35-11-6fc8cf49
+  description: 차분한 어쿠스틱 포크 · 하프 분산화음, 낮은 클라리넷 선율과 첼로, 부드러운 저음 여성 보컬로 안개 낀 물가의 고요함을 표현. 도입·변화 2행 → 후렴 4행 → 마무리 2행의 8행 가사. 시드
+    53. 60~90초 안팎을 목표로 하되 실제 길이·음색·종결은 생성 후 검수한다. 최대 출력 300초는 목표 길이가 아니다. 원곡·MR·320kbps MP3 자동 저장. 재정의한 편곡은 미검증이며 출처는 삭제된
+    비교 기록이다.
+  source_generation_id: 2026-10-25_20-32-10-bd8cbcdd
   request:
-    prompt: impressionist chamber,piano melody,alto flute,harp,muted strings,veiled,fluid,delicate,female vocals
+    prompt: acoustic folk,harp arpeggios,low clarinet melody,cello,slow tempo,quiet,misty,intimate,warm low female vocals
     lyrics: '[Verse]
 
       Silver mist upon the lake
@@ -152,7 +152,7 @@ examples:
 
       '
     duration_seconds: 300
-    seed: 19
+    seed: 53
     loop_request: false
     min_duration_seconds: 0
 - id: wind-hills-vocal-mr-minute
@@ -1233,5 +1233,39 @@ examples:
       '
     duration_seconds: 300
     seed: 7
+    loop_request: false
+    min_duration_seconds: 0
+- id: mist-lake-husky-vocal-mr
+  label: 안개 호수 · 허스키 여성 보컬 비교
+  description: 인상주의 실내악 · 피아노·알토 플루트·하프·약음 현에 female vocals, husky vocals 태그를 지정한 비교 예제. 8행 가사·시드 43·최대 출력 300초. 허스키 음색과 실제
+    곡 길이는 보장하지 않으며 원곡·MR을 청취해 검수한다. 어쿠스틱 포크로 재정의한 기본 예제와 별도로 보관한다.
+  source_generation_id: 2026-10-25_20-59-51-1ef59770
+  request:
+    prompt: impressionist chamber,piano melody,alto flute,harp,muted strings,veiled,fluid,delicate,female vocals,husky vocals
+    lyrics: '[Verse]
+
+      Silver mist upon the lake
+
+      Clouds divide, the reeds awake
+
+      [Chorus]
+
+      Now the shoreline comes in view
+
+      Silver water turning blue
+
+      Every ripple finds the shore
+
+      We have found our path once more
+
+      [Outro]
+
+      On dry ground our footsteps cease
+
+      Water holds the evening peace
+
+      '
+    duration_seconds: 300.0
+    seed: 43
     loop_request: false
     min_duration_seconds: 0

@@ -23,12 +23,12 @@ class MusicGenerationTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             validate_music_request('music-heartmula', {'prompt':'piano','lyrics':'Home','duration_seconds':301})
         current_example_records = load_music_examples('music-heartmula')
-        self.assertEqual(len(current_example_records), 31)
-        self.assertEqual(len({current_example_record['request']['prompt'] for current_example_record in current_example_records}), 31)
+        self.assertEqual(len(current_example_records), 32)
+        self.assertEqual(len({current_example_record['request']['prompt'] for current_example_record in current_example_records}), 32)
         for current_example_record in current_example_records:
             self.assertEqual(current_example_record['request']['duration_seconds'], 300)
             current_song_lines = current_example_record['request']['lyrics'].splitlines()
-            current_short_example = current_example_record['id'] == 'mist-lake-vocal-mr-minute'
+            current_short_example = current_example_record['id'] in ('mist-lake-vocal-mr-minute', 'mist-lake-husky-vocal-mr')
             self.assertEqual([current_song_lines.index('[Chorus]'),current_song_lines.index('[Outro]')], [3,8] if current_short_example else [6,11])
             self.assertEqual(len(current_song_lines), 11 if current_short_example else 14)
 
