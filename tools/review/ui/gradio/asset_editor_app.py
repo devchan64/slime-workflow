@@ -92,6 +92,7 @@ def build_asset_editor_payload(current_catalog_record,current_table_values):
             current_change_records.append({'texture':current_texture_key,'values':current_initial_values})
             continue
         current_property_values=dict(zip(EDITOR_PROPERTY_FIELDS,current_table_row[2:12]))
+        current_property_values['billboardBlocksMovement']=current_table_row[12]
         for current_field_name in ('groundFootprintColumns','groundFootprintRows'):
             current_number_value=current_property_values[current_field_name]
             if isinstance(current_number_value,bool) or not isinstance(current_number_value,(int,float)) or current_number_value!=int(current_number_value):raise ValueError('점유 타일 크기는 정수여야 합니다.')
@@ -262,6 +263,9 @@ def iterate_selected_asset_save(current_detail_record,*current_property_values):
         yield gr.skip(),gr.skip(),f'{current_texture_key} · 저장 결과 조회 중…'
         current_catalog_record,current_table_values,_=load_asset_editor_catalog(current_detail_record.get('category'))
         current_feedback_text=(f'{current_texture_key} · DB 저장 완료 · 원장 반영 상태는 상단에서 자동 갱신됩니다.' if current_save_result.get('snapshot')=='pending' else f'{current_texture_key} 저장 완료. 해당 ID만 업데이트했습니다. 맵 경고 {len(current_preview_record.get("map_warnings",[]))}건.')
+        current_validation_errors=current_save_result.get('validationErrors',[])
+        if current_validation_errors:
+            current_feedback_text+='\n\n맵 검수 오류 · 저장은 완료되었습니다. 맵에서 배치를 수정하세요.\n\n'+'\n\n'.join(current_validation_errors)
     else:
         current_feedback_text=current_texture_key+' · 변경된 값이 없습니다.'
     yield current_catalog_record,current_table_values,current_feedback_text
@@ -308,11 +312,6 @@ def confirm_asset_retirement(current_detail_record,current_pending_record):
     return current_catalog_record,current_table_values,'폐기 완료: '+current_pending_record['texture'],{},gr.update(visible=False),{},''
 
 
-def calculate_editor_automatic_values(current_column_count,current_row_count):
-    current_property_values=calculate_billboard_intersection_properties({'groundFootprintColumns':current_column_count,'groundFootprintRows':current_row_count})
-    return current_property_values['billboardBlocksMovement']
-
-
 def refresh_content_snapshot_status(current_catalog_record):
     if current_catalog_record.get('storage') != 'database':
         return gr.update(visible=False)
@@ -336,7 +335,7 @@ def refresh_content_snapshot_status(current_catalog_record):
 
 def build_asset_editor_interface(current_review_port):
     with gr.Blocks(title='공용 빌보드 에셋 관리') as current_interface_blocks:
-        gr.Markdown('## 공용 빌보드 에셋 관리\n썸네일을 선택해 속성을 편집하세요. **선택 에셋 변경 반영**을 누르면 해당 ID 하나만 검증하고 즉시 저장합니다. 앵커 X·Y는 하단 교차점 기준 수동 이동값입니다. 3×3 이상은 외곽을 제외한 내부 타일만 차단합니다.')
+        gr.Markdown('## 공용 빌보드 에셋 관리\n썸네일을 선택해 속성을 편집하세요. **선택 에셋 변경 반영**을 누르면 해당 ID 하나만 검증하고 즉시 저장합니다. 앵커 X·Y는 하단 교차점 기준 수동 이동값입니다. 통행 차단을 선택한 빌보드는 점유 타일 전체를 차단합니다.')
         current_catalog_state=gr.State({});current_visible_state=gr.State([])
         current_feedback_text=gr.Markdown()
         current_snapshot_feedback=gr.Markdown(visible=False)
@@ -367,8 +366,6 @@ def build_asset_editor_interface(current_review_port):
         current_asset_type.input(load_asset_editor_catalog,inputs=current_asset_type,outputs=[current_catalog_state,current_asset_table,current_feedback_text]).then(filter_asset_editor_gallery,inputs=[current_catalog_state,current_search_text,current_asset_type],outputs=current_gallery_outputs)
         current_search_text.submit(filter_asset_editor_gallery,inputs=[current_catalog_state,current_search_text,current_asset_type],outputs=current_gallery_outputs)
         current_selection_event=current_source_gallery.select(select_asset_editor_record,inputs=[current_visible_state,current_asset_table],outputs=[current_editor_panel.current_detail_record,*current_editor_panel.current_property_inputs,current_editor_panel.current_placement_choice,*current_editor_panel.current_shadow_inputs,current_editor_panel.current_blocking_choice,current_editor_panel.current_detail_text])
-        for current_size_control in current_editor_panel.current_property_inputs[2:4]:
-            current_size_control.change(calculate_editor_automatic_values,inputs=current_editor_panel.current_property_inputs[2:4],outputs=current_editor_panel.current_blocking_choice)
         current_editor_panel.current_update_button.click(stream_selected_asset_save,inputs=[current_editor_panel.current_detail_record,*current_editor_panel.current_property_inputs,current_editor_panel.current_placement_choice,*current_editor_panel.current_shadow_inputs,current_editor_panel.current_blocking_choice],outputs=[current_catalog_state,current_asset_table,current_editor_panel.current_save_progress,current_editor_panel.current_update_button],show_progress='full',concurrency_limit=1,trigger_mode='once').then(refresh_saved_asset_revision,inputs=[current_catalog_state,current_editor_panel.current_detail_record,current_editor_panel.current_save_progress],outputs=current_editor_panel.current_detail_record,queue=False).then(lambda:gr.update(interactive=True,value='선택 에셋 변경 반영'),outputs=current_editor_panel.current_update_button,queue=False)
         current_renderer_version=__import__('yaml').safe_load((WORKFLOW_ROOT_DIRECTORY/'tools/review/ui/map/vendor/field-renderer/manifest.yaml').read_text())['version']
         current_preview_script=build_asset_preview_script(current_review_port,current_renderer_version,'asset-editor-preview')

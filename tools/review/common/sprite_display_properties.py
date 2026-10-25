@@ -25,12 +25,12 @@ def normalize_sprite_property_precision(current_property_values):
 
 
 def calculate_billboard_blocking_state(current_property_values):
-    """외곽 한 줄을 제외한 내부 타일이 있을 때만 자동 차단한다."""
-    return current_property_values.get('groundFootprintColumns', 1) >= 3 and current_property_values.get('groundFootprintRows', 1) >= 3
+    """에셋 공용 통행 차단 선택을 점유 크기와 무관하게 보존한다."""
+    return current_property_values.get('billboardBlocksMovement', False)
 
 
 def calculate_billboard_intersection_properties(current_property_values):
-    """수동 앵커는 보존하고 내부 통행 차단만 파생한다."""
+    """수동 앵커와 명시적인 통행 차단 선택을 보존한다."""
     return {**current_property_values,
             'billboardBlocksMovement': calculate_billboard_blocking_state(current_property_values)}
 
@@ -104,13 +104,13 @@ def apply_sprite_display_properties(current_map_data, current_property_catalog):
 
 
 def collect_billboard_blocked_cells(current_object_records):
-    """점유 외곽 한 줄을 제외한 내부 셀만 자동 차단한다."""
+    """통행 차단을 선택한 빌보드의 점유 셀 전체를 차단한다."""
     current_blocked_cells = set()
     for current_object_record in current_object_records:
         if not calculate_billboard_blocking_state(current_object_record):
             continue
         current_cell_position = current_object_record['position']
         current_blocked_cells.update((current_cell_position['column'] + current_column_offset, current_cell_position['row'] + current_row_offset)
-            for current_column_offset in range(1, current_object_record['groundFootprintColumns']-1)
-            for current_row_offset in range(1, current_object_record['groundFootprintRows']-1))
+            for current_column_offset in range(current_object_record['groundFootprintColumns'])
+            for current_row_offset in range(current_object_record['groundFootprintRows']))
     return current_blocked_cells

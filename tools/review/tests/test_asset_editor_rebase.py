@@ -46,3 +46,12 @@ class AssetEditorRebaseTests(unittest.TestCase):
             editor.save_selected_asset_properties({'texture':'selected'},0,0,1,1,100,'top',0,0,1,1,False)
         for current_gateway_call in current_gateway_mock.call_args_list:
             self.assertEqual(current_gateway_call.args[2]['changes'],[{'texture':'selected','values':{'displayHeight':100}}])
+
+    def test_selected_one_tile_blocking_survives_save(self):
+        current_property_record={'anchorX':0,'anchorY':0,'groundFootprintColumns':1,'groundFootprintRows':1,'displayHeight':80,'billboardAnchorMode':'tile-intersection','billboardBlocksMovement':False,'shadowOffsetColumn':0,'shadowOffsetRow':0,'shadowScaleX':1,'shadowScaleY':1}
+        current_catalog_record={'revision':'latest','assets':[{'texture':'selected','properties':current_property_record}]}
+        current_table_values=[['selected','나무',0,0,1,1,80,'top',0,0,1,1,False,0]]
+        with patch.object(editor,'load_asset_editor_catalog',return_value=(current_catalog_record,current_table_values,'')),patch.object(editor,'execute_remote_management_command',side_effect=[{'token':'verified','map_warnings':[]},{'saved':True}]) as current_gateway_mock:
+            editor.save_selected_asset_properties({'texture':'selected'},0,0,1,1,80,'top',0,0,1,1,True)
+        for current_gateway_call in current_gateway_mock.call_args_list:
+            self.assertEqual(current_gateway_call.args[2]['changes'],[{'texture':'selected','values':{'billboardBlocksMovement':True}}])
