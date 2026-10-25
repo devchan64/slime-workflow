@@ -12,8 +12,8 @@ def build_asset_source_gallery(current_column_count=4, current_row_count=None):
 
 def build_asset_property_inputs(current_automatic_anchor=False):
     with gr.Row():
-        current_anchor_horizontal=gr.Number(label='하단 교차점 X · 자동' if current_automatic_anchor else '앵커 X',interactive=not current_automatic_anchor,value=0,minimum=-16,maximum=16,step=.01,precision=2)
-        current_anchor_vertical=gr.Number(label='하단 교차점 Y · 자동' if current_automatic_anchor else '앵커 Y',interactive=not current_automatic_anchor,value=0,minimum=-16,maximum=16,step=.01,precision=2)
+        current_anchor_horizontal=gr.Number(label='하단 교차점 X · 자동' if current_automatic_anchor else '앵커 X',interactive=not current_automatic_anchor,value=0,minimum=-16,maximum=16,step=.1,precision=2)
+        current_anchor_vertical=gr.Number(label='하단 교차점 Y · 자동' if current_automatic_anchor else '앵커 Y',interactive=not current_automatic_anchor,value=0,minimum=-16,maximum=16,step=.1,precision=2)
     with gr.Row():
         current_ground_columns=gr.Number(label='점유 열',value=1,minimum=1,maximum=8,step=1,precision=0)
         current_ground_rows=gr.Number(label='점유 행',value=1,minimum=1,maximum=8,step=1,precision=0)
