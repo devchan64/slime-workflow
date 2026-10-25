@@ -285,7 +285,7 @@ def build_asset_editor_interface(current_review_port):
         current_feedback_text=gr.Markdown()
         with gr.Row():
             current_search_text=gr.Textbox(label='에셋 검색',placeholder='ID · 이름 · 사용 맵',scale=3)
-            current_asset_type=gr.Dropdown(label='에셋 타입',choices=[('전체','all'),('자연물','vegetation'),('큰 나무','large-trees'),('암석광물','rocks-minerals'),('소품','props')],value='all',scale=1)
+            current_asset_type=gr.Dropdown(label='에셋 타입',choices=[('전체','all'),('자연물','vegetation'),('화초','herbaceous'),('큰 나무','large-trees'),('암석광물','rocks-minerals'),('소품','props')],value='all',scale=1)
             current_search_button=gr.Button('검색',scale=1)
             current_reload_button=gr.Button('목록 새로고침 · 편집 초기화',scale=1)
         current_search_feedback=gr.Markdown()

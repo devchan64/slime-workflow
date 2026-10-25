@@ -32,7 +32,7 @@ export function installSourceSizePreview(currentTextureRecords,currentSelectedGa
  let currentUnifiedEntries=[];
  const currentStructureRecords={};
  window.mapSourceUnifiedList=(currentSourceCategory='all',currentSearchText='')=>{
-  const currentCategoryLabels={tiles:'지형 타일',buildings:'건물',vegetation:'자연물','large-trees':'큰 나무','rocks-minerals':'암석광물',props:'소품',structures:'결계·경비 구조물'};
+  const currentCategoryLabels={tiles:'지형 타일',buildings:'건물',vegetation:'자연물',herbaceous:'화초','large-trees':'큰 나무','rocks-minerals':'암석광물',props:'소품',structures:'결계·경비 구조물'};
   const currentSourceEntries=Object.entries(currentSelectedGameKeys).map(([currentGameKey,currentCatalogKey])=>{
    const currentAssetRecord=currentTextureRecords[currentCatalogKey],currentSourcePath=currentAssetRecord.source;
    const currentAssetCategory=(currentMapRecord.buildings??[]).some(currentBuildingRecord=>currentBuildingRecord.sprite?.textureKey===currentGameKey)?'buildings':(currentMapRecord.objects??[]).some(currentObjectRecord=>currentObjectRecord.textureKey===currentGameKey)||currentSourcePath.includes('/billboards/')?currentAssetRecord.billboard_category:currentSourcePath.includes('/tiles/')?'tiles':'structures';
