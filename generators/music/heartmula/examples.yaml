@@ -277,42 +277,34 @@ examples:
     min_duration_seconds: 0
 - id: broken-quarry-vocal-mr-minute
   label: 깨진 채석장 · 기승전결 가사곡과 MR
-  description: 미니멀 실내악 · 피아노·마림바의 간격 있는 동기와 첼로·클라리넷으로 돌의 질감과 작은 움직임 대비. 도입 2행 → 변화 2행 → 후렴 4행 → 마무리 2행. 60~90초 안팎을 목표로 하되
-    실제 길이·악기·전개·종결은 생성 후 검수한다. 최대 출력 기본값 300초(5분)는 목표 길이가 아니다. 원곡·MR·320kbps MP3 자동 저장. 이번 편곡·가사는 미검증이며 출처 작업은 이전 비교 기록이다.
-  source_generation_id: 2026-10-25_16-22-45-d070da6d
+  description: 어쿠스틱 포크 · 짧은 만돌린 동기, 클라리넷·첼로와 가벼운 우드블록으로 건조한 돌의 질감과 작은 생명의 움직임을 표현. 따뜻한 남성 보컬. 도입 2행 → 후렴 2행 → 마무리 2행으로 가사
+    축약. 60~90초 안팎을 목표로 하되 실제 길이는 보장하지 않는다. 최대 출력 300초. 무작위로 선택한 시드를 저장해 재현한다. 원곡·MR·320kbps MP3 저장. 재구성한 입력은 청취 검수 전이며 출처는
+    삭제할 비교 기록이다.
+  source_generation_id: 2026-10-25_20-29-51-f70885ed
   request:
-    prompt: minimalist chamber,piano melody,marimba,cello,clarinet,spacious,weathered,contemplative,female vocals
+    prompt: acoustic folk,short mandolin motif,clarinet,cello,light woodblock,moderate tempo,dry,earthy,quietly curious,warm
+      male vocals
     lyrics: '[Verse]
 
-      Broken ledges catch the sun
+      Sun warms ledges cut in stone
 
-      Echoes mark the work once done
-
-      [Verse]
-
-      In a crack a shadow slides
-
-      Life returns where stone divides
+      Silent pulleys hang alone
 
       [Chorus]
 
-      Stone remembers every sound
+      Crystal scales flash in the light
 
-      New small paths cross old worked ground
-
-      In the silence we can hear
-
-      Something living drawing near
+      Old stone shelters hidden life
 
       [Outro]
 
-      Leave the ledge as it was found
+      Past the crane our footsteps slow
 
-      Now our steps make little sound
+      Leave the cracks to things that grow
 
       '
     duration_seconds: 300
-    seed: 7
+    seed: 1387228766
     loop_request: false
     min_duration_seconds: 0
 - id: cinder-path-vocal-mr-minute
