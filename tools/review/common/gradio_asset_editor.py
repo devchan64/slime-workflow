@@ -12,12 +12,12 @@ def build_asset_source_gallery(current_column_count=4, current_row_count=None):
 
 def build_asset_property_inputs(current_automatic_anchor=False):
     with gr.Row():
-        current_anchor_horizontal=gr.Number(label='하단 교차점 X · 자동' if current_automatic_anchor else '아랫변 중심 X · 교차점 기준',interactive=not current_automatic_anchor,value=0,minimum=-16,maximum=16,step=.01,precision=2)
-        current_anchor_vertical=gr.Number(label='하단 교차점 Y · 자동' if current_automatic_anchor else '아랫변 중심 Y · 교차점 기준',interactive=not current_automatic_anchor,value=0,minimum=-16,maximum=16,step=.01,precision=2)
+        current_anchor_horizontal=gr.Number(label='하단 교차점 X · 자동' if current_automatic_anchor else '앵커 X',interactive=not current_automatic_anchor,value=0,minimum=-16,maximum=16,step=.01,precision=2)
+        current_anchor_vertical=gr.Number(label='하단 교차점 Y · 자동' if current_automatic_anchor else '앵커 Y',interactive=not current_automatic_anchor,value=0,minimum=-16,maximum=16,step=.01,precision=2)
     with gr.Row():
-        current_ground_columns=gr.Number(label='점유 타일 열 · 칸',value=1,minimum=1,maximum=8,step=1,precision=0)
-        current_ground_rows=gr.Number(label='점유 타일 행 · 칸',value=1,minimum=1,maximum=8,step=1,precision=0)
-    current_display_height=gr.Number(label='공용 표시 높이 · px',value=128,minimum=1,maximum=1024,step=1,precision=2)
+        current_ground_columns=gr.Number(label='점유 열',value=1,minimum=1,maximum=8,step=1,precision=0)
+        current_ground_rows=gr.Number(label='점유 행',value=1,minimum=1,maximum=8,step=1,precision=0)
+    current_display_height=gr.Number(label='표시 높이',value=128,minimum=1,maximum=1024,step=1,precision=2)
     return [current_anchor_horizontal,current_anchor_vertical,current_ground_columns,current_ground_rows,current_display_height]
 
 
@@ -35,16 +35,16 @@ def fit_selected_asset_shadow(current_detail_record,current_display_height,curre
     if not current_image_uri.startswith('data:image/png;base64,'):raise gr.Error('PNG 미리보기를 다시 불러오세요.')
     current_image_bytes=base64.b64decode(current_image_uri.split(',',1)[1],validate=True)
     current_shadow_column,current_shadow_row=calculate_image_shadow_size(io.BytesIO(current_image_bytes),current_display_height,current_column_count,current_row_count)
-    return current_shadow_column,current_shadow_row,'가로축 알파 분포를 반영한 제안값입니다. 미리보기를 확인한 뒤 선택 에셋 변경 반영으로 저장하세요.'
+    return current_shadow_column,current_shadow_row,'자동 맞춤 완료 · 미리보기 확인 후 저장하세요.'
 
 
 def build_asset_shadow_inputs():
     with gr.Row():
-        current_shadow_column=gr.Number(label='그림자 열 방향 이동 · 타일',value=0,minimum=-4,maximum=4,step=.1,precision=2)
-        current_shadow_row=gr.Number(label='그림자 행 방향 이동 · 타일',value=0,minimum=-4,maximum=4,step=.1,precision=2)
+        current_shadow_column=gr.Number(label='열 이동',value=0,minimum=-4,maximum=4,step=.1,precision=2)
+        current_shadow_row=gr.Number(label='행 이동',value=0,minimum=-4,maximum=4,step=.1,precision=2)
     with gr.Row():
-        current_shadow_width=gr.Number(label='그림자 열 크기 · 점유 배율',value=1,minimum=.001,maximum=4,step=.1,precision=6)
-        current_shadow_height=gr.Number(label='그림자 행 크기 · 점유 배율',value=1,minimum=.001,maximum=4,step=.1,precision=6)
+        current_shadow_width=gr.Number(label='열 배율',value=1,minimum=.01,maximum=4,step=.1,precision=2)
+        current_shadow_height=gr.Number(label='행 배율',value=1,minimum=.01,maximum=4,step=.1,precision=2)
     return [current_shadow_column,current_shadow_row,current_shadow_width,current_shadow_height]
 
 
@@ -107,7 +107,7 @@ def build_selected_asset_panel(current_canvas_identifier):
     with gr.Row():
         with gr.Column():
             with gr.Group():
-                gr.Markdown('### 배치와 크기')
+                gr.Markdown('### 배치·크기·그림자')
                 current_property_inputs=build_asset_property_inputs(current_automatic_anchor=False)
                 with gr.Row():
                     current_reset_anchor=gr.Button('배치 초기화',size='sm',scale=0,interactive=False)
@@ -115,9 +115,8 @@ def build_selected_asset_panel(current_canvas_identifier):
                 current_reset_anchor.click(fn=None,outputs=current_property_inputs[:2],queue=False,js="()=>[0,0]")
                 current_reset_size.click(fn=None,outputs=current_property_inputs[2:],queue=False,js="()=>[1,1,128]")
                 current_blocking_choice=gr.Checkbox(label='내부 타일 자동 차단',value=False,interactive=False)
-            current_placement_choice=gr.Dropdown(['top','bottom'],value='bottom',label='타일 상하 판정 · 앵커 Y 기준',interactive=False,visible=False)
-            with gr.Group():
-                gr.Markdown('### 그림자 위치와 크기')
+                current_placement_choice=gr.Dropdown(['top','bottom'],value='bottom',label='타일 상하 판정 · 앵커 Y 기준',interactive=False,visible=False)
+                gr.Markdown('**그림자**')
                 current_shadow_inputs=build_asset_shadow_inputs()
                 with gr.Row():
                     current_reset_shadow_position=gr.Button('그림자 위치 초기화',size='sm',scale=0,interactive=False)
@@ -126,9 +125,11 @@ def build_selected_asset_panel(current_canvas_identifier):
                 current_reset_shadow_size.click(fn=None,outputs=current_shadow_inputs[2:],queue=False,js="()=>[1,1]")
                 for current_reset_button in (current_reset_anchor,current_reset_size,current_reset_shadow_position,current_reset_shadow_size):
                     current_detail_record.change(lambda current_asset_record:gr.update(interactive=bool(current_asset_record)),inputs=current_detail_record,outputs=current_reset_button)
-                gr.Markdown('초기화는 선택 후 사용할 수 있으며 입력과 미리보기만 변경합니다. 선택 에셋 변경 반영으로 저장하세요. 이동 0·0은 점유 타일 전체의 중심입니다. 크기는 점유 영역에 대한 배율입니다. 점유 2×3에서 크기 1×1은 2×3칸을 채웁니다. 자동 맞춤은 투명 여백을 제외한 가로축 불투명 픽셀 분포에 따라 이미지 폭의 95~120%로 그림자 외곽 폭을 제안합니다. 성기고 넓게 퍼진 외형을 보강하며 점유 열·행 비율을 유지합니다. 접지 형태에 따라 수동 보정하세요.')
                 current_shadow_fit_button=gr.Button('그림자 크기 자동 맞춤',interactive=False)
-                current_shadow_fit_feedback=gr.Markdown('썸네일에서 에셋을 선택하면 사용할 수 있습니다. 자동 맞춤은 저장하지 않습니다.')
+                current_shadow_fit_feedback=gr.Markdown('에셋을 선택하면 자동 맞춤을 사용할 수 있습니다.')
+                with gr.Accordion('배치·크기·그림자 설명',open=False):
+                    gr.Markdown('앵커 X·Y는 이미지 아랫변 중심을 하단 교차점에서 이동하는 값입니다. 점유 열·행은 타일 수, 표시 높이는 px 단위입니다.\n\n배치 초기화는 앵커 0·0, 크기 초기화는 점유 1×1과 표시 높이 128px로 되돌립니다. 3×3 이상은 외곽 한 줄을 제외한 내부 타일만 자동 차단합니다. 초기화는 입력과 미리보기만 바꾸며, 선택 에셋 변경 반영으로 저장합니다.')
+                    gr.Markdown('열·행 이동은 타일 단위이며, 0·0은 점유 영역 전체의 중심입니다. 열·행 배율은 점유 크기를 기준으로 합니다. 점유 2×3에 배율 1·1이면 2×3칸을 채웁니다.\n\n위치 초기화는 이동 0·0, 크기 초기화는 배율 1·1로 되돌립니다. 자동 맞춤은 투명 여백을 제외한 가로축 픽셀 분포를 분석해 이미지 폭의 95~120%에 그림자 외곽 폭을 맞추며 점유 열·행 비율을 유지합니다. 접지 형태에 따라 수동 보정하세요.\n\n초기화와 자동 맞춤은 입력과 미리보기만 변경합니다. 선택 에셋 변경 반영으로 저장합니다.')
                 current_detail_record.change(lambda current_asset_record:gr.update(interactive=bool(current_asset_record) and not current_asset_record.get('metadata')),inputs=current_detail_record,outputs=current_shadow_fit_button)
                 current_shadow_fit_button.click(fit_selected_asset_shadow,inputs=[current_detail_record,current_property_inputs[4],current_property_inputs[2],current_property_inputs[3]],outputs=[*current_shadow_inputs[2:],current_shadow_fit_feedback])
             current_update_button=gr.Button('선택 에셋 변경 반영')
