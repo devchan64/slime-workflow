@@ -4,3 +4,4 @@ torchaudio==2.8.0
 torchvision==0.23.0
 PyYAML==6.0.3
 demucs==4.0.1
+lameenc==1.9.0

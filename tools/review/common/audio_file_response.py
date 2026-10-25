@@ -35,7 +35,7 @@ def send_audio_file_response(current_http_handler,current_audio_path):
             current_status_code = 206
         current_response_size = max(0,current_end_byte-current_start_byte+1)
         current_http_handler.send_response(current_status_code)
-        current_http_handler.send_header('Content-Type','audio/wav')
+        current_http_handler.send_header('Content-Type','audio/mpeg' if current_audio_path.suffix == '.mp3' else 'audio/wav')
         current_http_handler.send_header('Accept-Ranges','bytes')
         current_http_handler.send_header('Content-Length',str(current_response_size))
         current_http_handler.send_header('Cache-Control','no-store')

@@ -158,3 +158,5 @@ Demucs 공식 체크포인트는 `.model/music/music-heartmula/demucs/`에 저�
 코드·가중치 이용 안내: https://github.com/facebookresearch/demucs (MIT).
 분리 결과의 보컬 잔향과 악기 손실은 청취 검수가 필요하며 반주 품질을 보장하지 않는다.
 이슬온 가사 실험 입력은 `heartmula/iseulon_vocal_mr.yaml`에서 관리한다.
+
+HeartMuLa 신규 생성은 원곡·MR·분리 보컬의 WAV를 보존하면서 `music.mp3`, `mr.mp3`, `vocals.mp3`를 320kbps로 자동 인코딩한다. 결과 조회에서 각 MP3를 다운로드한다. 기존 완료 이력은 자동 변환하지 않는다. MP3 인코딩은 오디오 포맷 변환이며 모델 추론이 아니다. PCM16 변환 범위를 넘는 샘플은 클리핑하며 WAV 원본에는 적용하지 않는다.

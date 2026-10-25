@@ -35,6 +35,7 @@ def validate_heartmula_artifacts(current_service_name):
 
 
 def prepare_heartmula_model(current_service_name,current_metrics_recorder,current_download_requested):
+    import lameenc  # 생성 시작 전에 MP3 인코더 의존성을 확인한다.
     from generators.music.heartmula.separation import prepare_separation_model
     current_model_root = validate_heartmula_artifacts(current_service_name)
     current_metrics_recorder.update_generation_stage('prepare')
@@ -126,6 +127,9 @@ def execute_heartmula_inference(current_service_name,current_request_record,curr
     from generators.music.heartmula.separation import separate_heartmula_audio
     del current_audio_wave, current_model_outputs, current_music_pipeline
     current_result_record['separation'] = separate_heartmula_audio(current_model_root,current_attempt_root,current_metrics_recorder)
+    from generators.music.heartmula.separation import encode_music_mp3
+    current_metrics_recorder.update_generation_stage('saving')
+    current_result_record['mp3_outputs'] = encode_music_mp3(current_attempt_root)
     current_result_record['torch_peak_allocated_mib'] = torch.cuda.max_memory_allocated()/2**20
     current_result_record['torch_peak_reserved_mib'] = torch.cuda.max_memory_reserved()/2**20
     current_result_record['quality_warnings'].append('MR은 Demucs 분리 결과입니다. 보컬 잔향·악기 손실을 원곡과 비교하세요.')

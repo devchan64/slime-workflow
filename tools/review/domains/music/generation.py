@@ -179,7 +179,7 @@ class MusicGenerationManager:
         try:
             validate_management_http_request(current_http_handler)
             current_url_path = urlsplit(current_http_handler.path).path
-            current_audio_pattern = '(music\\.wav|mr\\.wav|vocals\\.wav)' if self.current_service_name == 'music-heartmula' else '('+re.escape(self.audio_output_filename)+')'
+            current_audio_pattern = '((?:music|mr|vocals)\\.(?:wav|mp3))' if self.current_service_name == 'music-heartmula' else '('+re.escape(self.audio_output_filename)+')'
             current_file_match = re.fullmatch(re.escape(self.route_prefix_value)+r'/jobs/('+MUSIC_IDENTIFIER_PATTERN+r')/attempts/([a-f0-9]{32})/'+current_audio_pattern,current_url_path)
             if current_http_handler.command=='GET' and current_file_match:
                 current_job_root = self.resolve_music_job(current_file_match[1])

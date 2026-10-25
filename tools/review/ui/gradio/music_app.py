@@ -83,7 +83,7 @@ def build_music_interface(current_service_name,current_server_address):
             gr.Markdown('### 가사곡 생성 후 MR 분리\n\n'
                         '1. 음악 태그와 실제 가사를 입력합니다. 가사는 `[Verse]`, `[Chorus]`, `[Outro]` 같은 구간 표기와 함께 작성합니다.\n'
                         '2. 대기열에 추가하면 HeartMuLa가 보컬이 있는 원곡을 생성하고, 이어서 Demucs가 보컬과 MR(반주)을 자동 분리합니다. 두 단계는 CUDA에서 순차 실행됩니다.\n'
-                        '3. 완료된 이력에서 **결과 조회**를 누르면 **원곡·MR·분리 보컬**을 각각 재생하고 WAV로 내려받을 수 있습니다.\n\n'
+                        '3. 완료된 이력에서 **결과 조회**를 누르면 **원곡·MR·분리 보컬**을 각각 재생하고 WAV 또는 **320kbps MP3**로 내려받을 수 있습니다. MP3는 자동 생성하며 WAV 원본도 보존합니다.\n\n'
                         '최대 출력 시간은 생성 상한이며, 모델이 먼저 종료하면 더 짧은 곡이 나옵니다. '
                         'MR의 보컬 잔향·악기 손실과 곡의 끝맺음은 원곡과 비교해 청취 검수하세요.')
         gr.Markdown(f"고정 모델: `{current_profile_record['model_id']}` · {('길이 자동 예측' if current_effects_mode else '최대 생성 길이 기본값 '+str(current_default_record['duration_seconds'])+'초')} · batch 1 · {current_hardware_notice}\n\n[{current_profile_record['license_notice']}]({current_profile_record['license_url']})")

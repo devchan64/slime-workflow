@@ -76,3 +76,28 @@ def separate_heartmula_audio(current_model_root, current_attempt_root, current_m
     current_model_record.update(outputs=current_output_records, device='cuda', segment_seconds=DEMUCS_SEGMENT_SECONDS,
         method='drums+bass+other', quality_status='보컬 잔향·악기 손실 청취 검수 필요')
     return current_model_record
+
+
+def encode_music_mp3(current_attempt_root):
+    """WAV 원본을 유지하고 320kbps MP3를 추가 저장한다. 모델 추론은 아니다."""
+    import lameenc
+    import numpy
+    import soundfile
+
+    current_output_records = {}
+    for current_audio_name in ('music', 'mr', 'vocals'):
+        current_audio_samples, current_sample_rate = soundfile.read(current_attempt_root/(current_audio_name+'.wav'), dtype='float32', always_2d=True)
+        if current_audio_samples.shape[1] != 2 or not numpy.isfinite(current_audio_samples).all():
+            raise ValueError('MP3 입력의 스테레오·유한값 계약 위반')
+        current_mp3_encoder = lameenc.Encoder()
+        current_mp3_encoder.set_bit_rate(320)
+        current_mp3_encoder.set_in_sample_rate(current_sample_rate)
+        current_mp3_encoder.set_channels(2)
+        current_mp3_encoder.set_quality(2)
+        current_pcm_samples = numpy.rint(numpy.clip(current_audio_samples, -1, 1)*32767).astype('<i2')
+        current_output_path = current_attempt_root/(current_audio_name+'.mp3')
+        current_output_path.write_bytes(current_mp3_encoder.encode(current_pcm_samples.tobytes())+current_mp3_encoder.flush())
+        current_output_records[current_audio_name] = {'filename':current_output_path.name, 'bitrate_kbps':320,
+            'sha256':calculate_music_checksum(current_output_path)}
+        print(f'MP3 저장 완료: {current_output_path} · 320kbps', flush=True)
+    return current_output_records
