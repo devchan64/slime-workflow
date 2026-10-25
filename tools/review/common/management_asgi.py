@@ -150,7 +150,7 @@ def build_management_application(current_handler_class, current_root_path, curre
                 if current_tool_name not in current_mounted_apps:
                     try:
                         current_interface_blocks, current_mount_options = build_management_blocks(current_tool_name, current_review_port, current_source_path)
-                        current_tool_application = gr.mount_gradio_app(FastAPI(), current_interface_blocks.queue(), path=current_mount_path, **current_mount_options)
+                        current_tool_application = gr.mount_gradio_app(FastAPI(), current_interface_blocks.queue(), path=current_mount_path, root_path=current_mount_path, **current_mount_options)
                         await current_lifespan_stack.enter_async_context(current_tool_application.router.lifespan_context(current_tool_application))
                         current_mounted_apps[current_tool_name] = current_tool_application
                     except Exception:

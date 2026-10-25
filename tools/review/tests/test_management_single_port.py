@@ -21,6 +21,11 @@ class ManagementSinglePortTests(unittest.TestCase):
                 with gr.Blocks() as current_interface_blocks:
                     current_input_box = gr.Textbox()
                     current_output_box = gr.Textbox()
+                    from PIL import Image
+                    current_image_path = current_root_path/'reference.png'
+                    Image.new('RGB', (16, 16), 'white').save(current_image_path)
+                    current_image_output = gr.Image(type='filepath')
+                    gr.Button('이미지 복원').click(lambda: str(current_image_path), outputs=current_image_output, api_name='restore_image')
                     gr.Button('확인').click(lambda current_input_text: current_input_text, current_input_box, current_output_box, api_name='echo')
                 return current_interface_blocks, {'allowed_paths': []}
             with patch('tools.review.common.management_asgi.build_management_blocks', side_effect=build_test_interface), patch('gradio.Blocks.launch', side_effect=AssertionError('추가 서버 실행 금지')):
@@ -38,6 +43,12 @@ class ManagementSinglePortTests(unittest.TestCase):
                         current_stream_text = current_test_client.get(current_route_prefix+'/gradio_api/call/echo/'+current_event_identifier).text
                         self.assertIn('event: complete', current_stream_text)
                         self.assertEqual(json.loads(current_stream_text.split('data: ')[1].strip()), ['확인'])
+                        current_image_response = current_test_client.post(current_route_prefix+'/gradio_api/call/restore_image', json={'data': []})
+                        current_image_event = current_image_response.json()['event_id']
+                        current_image_stream = current_test_client.get(current_route_prefix+'/gradio_api/call/restore_image/'+current_image_event).text
+                        current_image_record = json.loads(current_image_stream.split('data: ')[1].strip())[0]
+                        self.assertIn(current_route_prefix+'/gradio_api/file=', current_image_record['url'])
+                        self.assertEqual(current_test_client.get(current_image_record['url']).status_code, 200)
 
     def test_missing_ui_fails_without_static_fallback(self):
         with tempfile.TemporaryDirectory() as current_directory_name:
