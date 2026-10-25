@@ -389,11 +389,12 @@ examples:
     min_duration_seconds: 0
 - id: crystal-cut-vocal-mr-minute
   label: 결정 절개지 · 기승전결 가사곡과 MR
-  description: 현대 실내악 · 첼레스타·피아노의 또렷한 동기와 바이올린·첼로로 반사광과 각진 지형의 대비 표현. 도입 2행 → 변화 2행 → 후렴 4행 → 마무리 2행. 60~90초 안팎을 목표로 하되 실제
-    길이·악기·전개·종결은 생성 후 검수한다. 최대 출력 기본값 300초(5분)는 목표 길이가 아니다. 원곡·MR·320kbps MP3 자동 저장. 이번 편곡·가사는 미검증이며 출처 작업은 이전 비교 기록이다.
-  source_generation_id: 2026-10-25_16-22-46-cd549e36
+  description: 썸네일의 각진 밝은 암벽과 좁은 통로를 첼레스타·바이올린 하모닉스·피아노·첼로로 표현. 6행 가사에서 28.96초 EOS 종료한 결과를 바탕으로 이동·색 변화 2행과 후렴 2행을 보강한 10행
+    구성. 도입 2행 → 변화 2행 → 후렴 4행 → 마무리 2행. 약 1분 전후를 목표로 하되 실제 길이는 보장하지 않는다. 편곡·시드는 유지하고 최대 출력 상한은 300초. 원곡·MR·320kbps MP3 청취
+    검수 필요. 출처는 삭제될 비교 기록이다.
+  source_generation_id: 2026-10-25_21-27-38-367284ed
   request:
-    prompt: contemporary chamber,celesta melody,piano,violin,cello,clear,angular,luminous,female vocals
+    prompt: celesta-led chamber music,celesta,violin harmonics,piano,cello,bright,crystalline,light female vocals
     lyrics: '[Verse]
 
       Crystal edges catch the dawn
@@ -402,9 +403,9 @@ examples:
 
       [Verse]
 
-      As we turn the colors change
+      Through the cut we turn and climb
 
-      Every seam appears anew
+      Colors shift along the line
 
       [Chorus]
 
@@ -424,27 +425,22 @@ examples:
 
       '
     duration_seconds: 300
-    seed: 7
+    seed: 1550706861
     loop_request: false
     min_duration_seconds: 0
 - id: dawn-overlook-vocal-mr-minute
   label: 새벽 전망대 · 기승전결 가사곡과 MR
-  description: 서정적 실내악 · 바이올린·플루트·하프·첼로에서 절제된 호른 합주로 확장해 열린 전망 표현. 도입 2행 → 변화 2행 → 후렴 4행 → 마무리 2행. 60~90초 안팎을 목표로 하되 실제 길이·악기·전개·종결은
-    생성 후 검수한다. 최대 출력 기본값 300초(5분)는 목표 길이가 아니다. 원곡·MR·320kbps MP3 자동 저장. 이번 편곡·가사는 미검증이며 출처 작업은 이전 비교 기록이다.
+  description: '썸네일 검토: 새벽빛과 멀리 펼쳐진 산줄기의 인상을 편성에 반영. 맵별 장르·주선율 악기·반주·보컬을 구분한 비교 예제. 편성 태그: lyrical orchestral ballad,french
+    horn,violin,harp,timpani,open,hopeful,warm male vocals. 도입 2행 → 후렴 4행 → 마무리 2행. 초기 10곡 검수 경험을 반영한 8행 구성으로 약 1분 전후를 시도하며
+    실제 길이·음색·종결은 보장하지 않는다. 최대 출력 300초. 무작위 시드를 저장해 재현하며 원곡·MR·320kbps MP3를 함께 검수한다. 이번 입력은 미검증이며 출처 ID는 이전 비교 기록이다.'
   source_generation_id: 2026-10-25_16-22-47-89e0f576
   request:
-    prompt: lyrical chamber,violin melody,flute,harp,cello,french horn,spacious,hopeful,expansive,female vocals
+    prompt: lyrical orchestral ballad,french horn,violin,harp,timpani,open,hopeful,warm male vocals
     lyrics: '[Verse]
 
       First light climbs the distant plain
 
       Gold returns to earth again
-
-      [Verse]
-
-      Roads we thought were far apart
-
-      Join beneath the waking sky
 
       [Chorus]
 
@@ -464,37 +460,28 @@ examples:
 
       '
     duration_seconds: 300
-    seed: 7
+    seed: 796437414
     loop_request: false
     min_duration_seconds: 0
 - id: dry-creek-vocal-mr-minute
   label: 마른 개울 · 기승전결 가사곡과 MR
-  description: 어쿠스틱 실내악 · 클라리넷·마림바의 꺾이는 동기와 비올라·첼로로 마른 바닥과 달라진 경로 표현. 도입 2행 → 변화 2행 → 후렴 4행 → 마무리 2행. 60~90초 안팎을 목표로 하되 실제
-    길이·악기·전개·종결은 생성 후 검수한다. 최대 출력 기본값 300초(5분)는 목표 길이가 아니다. 원곡·MR·320kbps MP3 자동 저장. 이번 편곡·가사는 미검증이며 출처 작업은 이전 비교 기록이다.
+  description: '썸네일 검토: 마른 모래 굽이와 누런 풀의 인상을 편성에 반영. 맵별 장르·주선율 악기·반주·보컬을 구분한 비교 예제. 편성 태그: acoustic folk,fingerpicked guitar,clarinet,upright
+    bass,shaker,dry,winding,husky male vocals. 도입 2행 → 후렴 2행 → 마무리 2행. 초기 10곡 검수 경험을 반영한 6행 구성으로 약 1분 전후를 시도하며 실제 길이·음색·종결은
+    보장하지 않는다. 최대 출력 300초. 무작위 시드를 저장해 재현하며 원곡·MR·320kbps MP3를 함께 검수한다. 이번 입력은 미검증이며 출처 ID는 이전 비교 기록이다.'
   source_generation_id: 2026-10-25_16-22-47-0c8a2884
   request:
-    prompt: acoustic chamber,clarinet melody,marimba,viola,cello,dry,winding,reflective,female vocals
+    prompt: acoustic folk,fingerpicked guitar,clarinet,upright bass,shaker,dry,winding,husky male vocals
     lyrics: '[Verse]
 
       Pebbles mark the former stream
 
       Dry reeds bend where waters gleamed
 
-      [Verse]
-
-      Faded marks recall a turn
-
-      Now the road runs somewhere new
-
       [Chorus]
 
       Follow where the firm ground lies
 
       Let the old maps meet our eyes
-
-      What has changed can guide us still
-
-      Past the stones beneath the hill
 
       [Outro]
 
@@ -504,27 +491,22 @@ examples:
 
       '
     duration_seconds: 300
-    seed: 7
+    seed: 471341984
     loop_request: false
     min_duration_seconds: 0
 - id: lantern-wood-vocal-mr-minute
   label: 등불 숲 · 기승전결 가사곡과 MR
-  description: 실내악 녹턴 · 첼레스타·알토 플루트·하프·비올라의 드문 응답으로 어둠 속 작은 빛의 연결 표현. 도입 2행 → 변화 2행 → 후렴 4행 → 마무리 2행. 60~90초 안팎을 목표로 하되 실제
-    길이·악기·전개·종결은 생성 후 검수한다. 최대 출력 기본값 300초(5분)는 목표 길이가 아니다. 원곡·MR·320kbps MP3 자동 저장. 이번 편곡·가사는 미검증이며 출처 작업은 이전 비교 기록이다.
-  source_generation_id: 2026-10-25_16-22-47-8ff73b75
+  description: 썸네일의 어두운 숲·발광 버섯·나방을 첼레스타·알토 플루트·하프·비올라의 실내악 자장가로 표현. 6행 가사에서 44.8초 EOS 종료한 결과를 바탕으로 후렴에 빛이 길을 드러내는 2행을 보강.
+    도입 2행 → 후렴 4행 → 마무리 2행, 총 8행. 편곡·시드는 유지해 가사 변경을 비교한다. 약 1분 전후를 목표로 하되 실제 길이는 보장하지 않는다. 최대 출력 300초. 원곡·MR·320kbps MP3 청취
+    검수 필요. 출처는 삭제될 비교 기록이다.
+  source_generation_id: 2026-10-25_21-27-39-3a396eff
   request:
-    prompt: chamber nocturne,celesta,alto flute melody,harp,viola,delicate,luminous,hushed,female vocals
+    prompt: chamber lullaby,celesta,alto flute,harp,soft viola,nocturnal,luminous,breathy female vocals
     lyrics: '[Verse]
 
-      Little wings between the trees
+      Fungal lights beneath the trees
 
-      Carry light across the leaves
-
-      [Verse]
-
-      Branches hide the path ahead
-
-      Then a glimmer marks the bend
+      Moths drift softly through the leaves
 
       [Chorus]
 
@@ -534,7 +516,7 @@ examples:
 
       Every scattered point of gold
 
-      Makes a path our eyes can hold
+      Marks the path as night unfolds
 
       [Outro]
 
@@ -544,37 +526,28 @@ examples:
 
       '
     duration_seconds: 300
-    seed: 7
+    seed: 846475405
     loop_request: false
     min_duration_seconds: 0
 - id: moss-clearing-vocal-mr-minute
   label: 이끼 공터 · 기승전결 가사곡과 MR
-  description: 목가적 실내악 · 바순·첼로·비올라·하프의 낮고 둥근 음색으로 느린 호흡과 공간의 회복 표현. 도입 2행 → 변화 2행 → 후렴 4행 → 마무리 2행. 60~90초 안팎을 목표로 하되 실제 길이·악기·전개·종결은
-    생성 후 검수한다. 최대 출력 기본값 300초(5분)는 목표 길이가 아니다. 원곡·MR·320kbps MP3 자동 저장. 이번 편곡·가사는 미검증이며 출처 작업은 이전 비교 기록이다.
+  description: '썸네일 검토: 햇살 든 이끼 그루터기의 인상을 편성에 반영. 맵별 장르·주선율 악기·반주·보컬을 구분한 비교 예제. 편성 태그: pastoral chamber,bassoon,cello,bass
+    recorder,soft frame drum,patient,rounded,low male vocals. 도입 2행 → 후렴 2행 → 마무리 2행. 초기 10곡 검수 경험을 반영한 6행 구성으로 약 1분 전후를 시도하며
+    실제 길이·음색·종결은 보장하지 않는다. 최대 출력 300초. 무작위 시드를 저장해 재현하며 원곡·MR·320kbps MP3를 함께 검수한다. 이번 입력은 미검증이며 출처 ID는 이전 비교 기록이다.'
   source_generation_id: 2026-10-25_16-22-47-48f130f3
   request:
-    prompt: pastoral chamber,bassoon melody,cello,viola,harp,slow,rounded,patient,female vocals
+    prompt: pastoral chamber,bassoon,cello,bass recorder,soft frame drum,patient,rounded,low male vocals
     lyrics: '[Verse]
 
-      Moss has made a velvet floor
+      Moss reclaims the timber ground
 
-      Old cut timber lies nearby
-
-      [Verse]
-
-      Through the fern a shadow moves
-
-      We make room and watch it pass
+      Gentle giants move without a sound
 
       [Chorus]
 
       Let the clearing breathe again
 
       Green beyond the marks of men
-
-      Roots and moss have found their place
-
-      In the quiet open space
 
       [Outro]
 
@@ -584,27 +557,22 @@ examples:
 
       '
     duration_seconds: 300
-    seed: 7
+    seed: 836399977
     loop_request: false
     min_duration_seconds: 0
 - id: old-orchard-vocal-mr-minute
   label: 묵은 과수원 · 기승전결 가사곡과 MR
-  description: 어쿠스틱 포크 · 클라리넷·바이올린의 온화한 선율과 하프·첼로로 오래된 풍경과 돌봄의 온기 표현. 도입 2행 → 변화 2행 → 후렴 4행 → 마무리 2행. 60~90초 안팎을 목표로 하되 실제
-    길이·악기·전개·종결은 생성 후 검수한다. 최대 출력 기본값 300초(5분)는 목표 길이가 아니다. 원곡·MR·320kbps MP3 자동 저장. 이번 편곡·가사는 미검증이며 출처 작업은 이전 비교 기록이다.
+  description: '썸네일 검토: 붉은 과실과 어린 나무의 인상을 편성에 반영. 맵별 장르·주선율 악기·반주·보컬을 구분한 비교 예제. 편성 태그: pastoral waltz,accordion,violin,nylon
+    guitar,upright bass,tender,sociable,warm female vocals. 도입 2행 → 후렴 4행 → 마무리 2행. 초기 10곡 검수 경험을 반영한 8행 구성으로 약 1분 전후를 시도하며
+    실제 길이·음색·종결은 보장하지 않는다. 최대 출력 300초. 무작위 시드를 저장해 재현하며 원곡·MR·320kbps MP3를 함께 검수한다. 이번 입력은 미검증이며 출처 ID는 이전 비교 기록이다.'
   source_generation_id: 2026-10-25_16-22-48-ba548e22
   request:
-    prompt: acoustic folk,clarinet melody,violin,harp,cello,tender,warm,unhurried,female vocals
+    prompt: pastoral waltz,accordion,violin,nylon guitar,upright bass,tender,sociable,warm female vocals
     lyrics: '[Verse]
 
       Crooked branches shade the lane
 
       Apples sweeten after rain
-
-      [Verse]
-
-      Fallen fruit beneath the tree
-
-      Feeds the small things at our feet
 
       [Chorus]
 
@@ -624,27 +592,22 @@ examples:
 
       '
     duration_seconds: 300
-    seed: 7
+    seed: 219863857
     loop_request: false
     min_duration_seconds: 0
 - id: pebble-shore-vocal-mr-minute
   label: 조약돌 물가 · 기승전결 가사곡과 MR
-  description: 경쾌한 실내악 · 마림바·클라리넷·하프·피치카토 첼로로 잔물결과 자잘한 움직임 표현. 도입 2행 → 변화 2행 → 후렴 4행 → 마무리 2행. 60~90초 안팎을 목표로 하되 실제 길이·악기·전개·종결은
-    생성 후 검수한다. 최대 출력 기본값 300초(5분)는 목표 길이가 아니다. 원곡·MR·320kbps MP3 자동 저장. 이번 편곡·가사는 미검증이며 출처 작업은 이전 비교 기록이다.
-  source_generation_id: 2026-10-25_16-22-48-cfa3e87a
+  description: 썸네일의 투명한 푸른 물과 둥근 돌, 껍질을 고르는 게의 모습을 마림바·우쿨렐레·클라리넷·셰이커의 가벼운 어쿠스틱 팝으로 표현. 6행 가사에서 39.68초 EOS 종료한 결과를 바탕으로 후렴에
+    조개껍질과 햇빛 묘사 2행을 보강. 도입 2행 → 후렴 4행 → 마무리 2행, 총 8행. 편곡·시드는 유지해 가사 변경을 비교한다. 약 1분 전후를 목표로 하되 실제 길이는 보장하지 않는다. 최대 출력 300초.
+    원곡·MR·320kbps MP3 청취 검수 필요. 출처는 삭제될 비교 기록이다.
+  source_generation_id: 2026-10-25_21-27-39-a2f74135
   request:
-    prompt: light chamber,marimba,clarinet melody,harp,pizzicato cello,rippling,curious,delicate,female vocals
+    prompt: light acoustic pop,marimba,ukulele,clarinet,shaker,rippling,playful,clear male vocals
     lyrics: '[Verse]
 
-      Little stones beneath the wave
+      Little crabs choose shells to keep
 
-      Shine with all the light they save
-
-      [Verse]
-
-      By a shell the pebbles shift
-
-      We step back and watch the shore
+      Pebbles shine where waters sleep
 
       [Chorus]
 
@@ -652,9 +615,9 @@ examples:
 
       Round the stones beneath its glaze
 
-      Every shell and every seam
+      Every shell and silver seam
 
-      Has a place within the stream
+      Catches sunlight in the stream
 
       [Outro]
 
@@ -664,16 +627,17 @@ examples:
 
       '
     duration_seconds: 300
-    seed: 7
+    seed: 922350917
     loop_request: false
     min_duration_seconds: 0
 - id: reed-crossing-vocal-mr-minute
   label: 갈대 여울 · 기승전결 가사곡과 MR
-  description: 챔버 포크 · 오보에·발현악·첼로와 절제된 손 타악으로 조심스러운 통행 리듬 표현. 도입 2행 → 변화 2행 → 후렴 4행 → 마무리 2행. 60~90초 안팎을 목표로 하되 실제 길이·악기·전개·종결은
-    생성 후 검수한다. 최대 출력 기본값 300초(5분)는 목표 길이가 아니다. 원곡·MR·320kbps MP3 자동 저장. 이번 편곡·가사는 미검증이며 출처 작업은 이전 비교 기록이다.
-  source_generation_id: 2026-10-25_16-22-48-82c151b5
+  description: 갈대 사이의 마른 둑길을 오보에·만돌린·첼로·프레임 드럼의 여행 포크로 표현. 6행 가사에서 33.36초 EOS 종료한 결과를 바탕으로 높은 둑으로 이동하는 2행과 도착을 향하는 후렴 2행을
+    보강. 도입 2행 → 변화 2행 → 후렴 4행 → 마무리 2행, 총 10행. 편곡·시드는 유지해 가사 변경을 비교한다. 약 1분 전후를 목표로 하되 실제 길이는 보장하지 않는다. 최대 출력 300초. 원곡·MR·320kbps
+    MP3 청취 검수 필요. 출처는 삭제될 비교 기록이다.
+  source_generation_id: 2026-10-25_21-27-39-b94e86a7
   request:
-    prompt: chamber folk,oboe melody,plucked strings,cello,hand percussion,measured,flowing,alert,female vocals
+    prompt: traveling folk,oboe,mandolin,cello,frame drum,steady,alert,warm female vocals
     lyrics: '[Verse]
 
       Reeds are leaning by the bank
@@ -684,7 +648,7 @@ examples:
 
       Where the ground grows soft and low
 
-      We turn toward the higher road
+      On the higher bank we go
 
       [Chorus]
 
@@ -704,37 +668,28 @@ examples:
 
       '
     duration_seconds: 300
-    seed: 7
+    seed: 1201491063
     loop_request: false
     min_duration_seconds: 0
 - id: root-trail-vocal-mr-minute
   label: 뿌리 오솔길 · 기승전결 가사곡과 MR
-  description: 챔버 포크 · 바순·클라리넷·피치카토 비올라·첼로의 교차 동기로 얽힌 길과 신중한 이동 표현. 도입 2행 → 변화 2행 → 후렴 4행 → 마무리 2행. 60~90초 안팎을 목표로 하되 실제 길이·악기·전개·종결은
-    생성 후 검수한다. 최대 출력 기본값 300초(5분)는 목표 길이가 아니다. 원곡·MR·320kbps MP3 자동 저장. 이번 편곡·가사는 미검증이며 출처 작업은 이전 비교 기록이다.
+  description: '썸네일 검토: 뿌리 사이 수레바퀴 자국의 인상을 편성에 반영. 맵별 장르·주선율 악기·반주·보컬을 구분한 비교 예제. 편성 태그: woodland folk,bassoon,plucked viola,acoustic
+    guitar,woodblock,interwoven,curious,husky female vocals. 도입 2행 → 후렴 2행 → 마무리 2행. 초기 10곡 검수 경험을 반영한 6행 구성으로 약 1분 전후를 시도하며
+    실제 길이·음색·종결은 보장하지 않는다. 최대 출력 300초. 무작위 시드를 저장해 재현하며 원곡·MR·320kbps MP3를 함께 검수한다. 이번 입력은 미검증이며 출처 ID는 이전 비교 기록이다.'
   source_generation_id: 2026-10-25_16-22-48-fdd3b9a3
   request:
-    prompt: chamber folk,bassoon,clarinet melody,pizzicato viola,cello,interwoven,measured,wooded,female vocals
+    prompt: woodland folk,bassoon,plucked viola,acoustic guitar,woodblock,interwoven,curious,husky female vocals
     lyrics: '[Verse]
 
       Roots are winding through the ground
 
       Older wheel marks curve around
 
-      [Verse]
-
-      Where the broken track is crossed
-
-      We slow down to find the turn
-
       [Chorus]
 
       Thread the path beneath the tree
 
       Find the sky between the leaves
-
-      Old and living lines entwine
-
-      Lead us toward the open light
 
       [Outro]
 
@@ -744,27 +699,22 @@ examples:
 
       '
     duration_seconds: 300
-    seed: 7
+    seed: 1947720918
     loop_request: false
     min_duration_seconds: 0
 - id: silver-marsh-vocal-mr-minute
   label: 은빛 습지 · 기승전결 가사곡과 MR
-  description: 인상주의 실내악 · 알토 플루트·오보에·하프·약음 현의 부유하는 화음으로 넓은 반사광과 물가 표현. 도입 2행 → 변화 2행 → 후렴 4행 → 마무리 2행. 60~90초 안팎을 목표로 하되 실제
-    길이·악기·전개·종결은 생성 후 검수한다. 최대 출력 기본값 300초(5분)는 목표 길이가 아니다. 원곡·MR·320kbps MP3 자동 저장. 이번 편곡·가사는 미검증이며 출처 작업은 이전 비교 기록이다.
-  source_generation_id: 2026-10-25_16-22-49-e2aa3e77
+  description: 썸네일의 은빛 갈대와 작은 수면을 알토 플루트·하프·바이올린 하모닉스·첼로의 인상주의 실내악으로 표현. 6행 가사에서 39.52초 EOS 종료한 결과를 바탕으로 후렴에 물·날개·좁은 땅이 만나는
+    풍경 2행을 보강. 도입 2행 → 후렴 4행 → 마무리 2행, 총 8행. 편곡·시드는 유지해 가사 변경을 비교한다. 약 1분 전후를 목표로 하되 실제 길이는 보장하지 않는다. 최대 출력 300초. 원곡·MR·320kbps
+    MP3 청취 검수 필요. 출처는 삭제될 비교 기록이다.
+  source_generation_id: 2026-10-25_21-27-39-1ea33643
   request:
-    prompt: impressionist chamber,alto flute melody,oboe,harp,muted strings,shimmering,suspended,fluid,female vocals
+    prompt: impressionist chamber,alto flute,harp,violin harmonics,cello,shimmering,airy,soft low female vocals
     lyrics: '[Verse]
 
       Silver grasses crown the mire
 
       Pale clouds gather in the pools
-
-      [Verse]
-
-      One small ripple breaks the sky
-
-      Reeds conceal the turning bank
 
       [Chorus]
 
@@ -772,7 +722,7 @@ examples:
 
       Draws the scattered light again
 
-      Water, wing and narrow land
+      Water, wings and narrow land
 
       Meet beyond our reaching hands
 
@@ -784,27 +734,22 @@ examples:
 
       '
     duration_seconds: 300
-    seed: 7
+    seed: 758545774
     loop_request: false
     min_duration_seconds: 0
 - id: reedhaven-vocal-mr-minute
   label: 갈대나루 · 기승전결 가사곡과 MR
-  description: 어쿠스틱 챔버 포크 · 클라리넷·바이올린의 문답과 발현악·첼로로 사람과 물자가 만나는 생활감 표현. 도입 2행 → 변화 2행 → 후렴 4행 → 마무리 2행. 60~90초 안팎을 목표로 하되 실제
-    길이·악기·전개·종결은 생성 후 검수한다. 최대 출력 기본값 300초(5분)는 목표 길이가 아니다. 원곡·MR·320kbps MP3 자동 저장. 이번 편곡·가사는 미검증이며 출처 작업은 이전 비교 기록이다.
+  description: '썸네일 검토: 수변 집과 갈대의 인상을 편성에 반영. 맵별 장르·주선율 악기·반주·보컬을 구분한 비교 예제. 편성 태그: acoustic folk waltz,accordion,clarinet,nylon
+    guitar,upright bass,welcoming,flowing,warm male vocals. 도입 2행 → 후렴 4행 → 마무리 2행. 초기 10곡 검수 경험을 반영한 8행 구성으로 약 1분 전후를 시도하며
+    실제 길이·음색·종결은 보장하지 않는다. 최대 출력 300초. 무작위 시드를 저장해 재현하며 원곡·MR·320kbps MP3를 함께 검수한다. 이번 입력은 미검증이며 출처 ID는 이전 비교 기록이다.'
   source_generation_id: 2026-10-25_16-22-49-de7751b4
   request:
-    prompt: acoustic chamber folk,clarinet melody,violin,plucked strings,cello,warm,sociable,flowing,female vocals
+    prompt: acoustic folk waltz,accordion,clarinet,nylon guitar,upright bass,welcoming,flowing,warm male vocals
     lyrics: '[Verse]
 
       Windows catch the water light
 
       Reeds lean close beside the road
-
-      [Verse]
-
-      Footsteps gather at the square
-
-      Voices trade the news of home
 
       [Chorus]
 
@@ -824,27 +769,22 @@ examples:
 
       '
     duration_seconds: 300
-    seed: 7
+    seed: 115422929
     loop_request: false
     min_duration_seconds: 0
 - id: stonewarm-vocal-mr-minute
   label: 돌온재 · 기승전결 가사곡과 MR
-  description: 챔버 포크 · 첼로 주선율·클라리넷·피아노·비올라의 두터운 중저음으로 작업 후 온기 표현. 도입 2행 → 변화 2행 → 후렴 4행 → 마무리 2행. 60~90초 안팎을 목표로 하되 실제 길이·악기·전개·종결은
-    생성 후 검수한다. 최대 출력 기본값 300초(5분)는 목표 길이가 아니다. 원곡·MR·320kbps MP3 자동 저장. 이번 편곡·가사는 미검증이며 출처 작업은 이전 비교 기록이다.
+  description: '썸네일 검토: 석조 공방의 주황색 화덕의 인상을 편성에 반영. 맵별 장르·주선율 악기·반주·보컬을 구분한 비교 예제. 편성 태그: hearthside folk,cello,piano,acoustic
+    guitar,brushed percussion,grounded,warm,baritone male vocals. 도입 2행 → 후렴 4행 → 마무리 2행. 초기 10곡 검수 경험을 반영한 8행 구성으로 약 1분 전후를
+    시도하며 실제 길이·음색·종결은 보장하지 않는다. 최대 출력 300초. 무작위 시드를 저장해 재현하며 원곡·MR·320kbps MP3를 함께 검수한다. 이번 입력은 미검증이며 출처 ID는 이전 비교 기록이다.'
   source_generation_id: 2026-10-25_16-22-49-82f05318
   request:
-    prompt: chamber folk,cello melody,clarinet,piano,viola,warm,grounded,steady,female vocals
+    prompt: hearthside folk,cello,piano,acoustic guitar,brushed percussion,grounded,warm,baritone male vocals
     lyrics: '[Verse]
 
       Stone walls hold the warmth of day
 
       Chimneys send their smoke away
-
-      [Verse]
-
-      Tools fall quiet one by one
-
-      Travelers arrive with loads
 
       [Chorus]
 
@@ -864,27 +804,22 @@ examples:
 
       '
     duration_seconds: 300
-    seed: 7
+    seed: 1784023315
     loop_request: false
     min_duration_seconds: 0
 - id: grainstead-vocal-mr-minute
   label: 곡온벌 · 기승전결 가사곡과 MR
-  description: 목가적 포크 · 바이올린·클라리넷·발현악·첼로의 안정적인 합주로 공동 작업과 수확의 생활 리듬 표현. 도입 2행 → 변화 2행 → 후렴 4행 → 마무리 2행. 60~90초 안팎을 목표로 하되
-    실제 길이·악기·전개·종결은 생성 후 검수한다. 최대 출력 기본값 300초(5분)는 목표 길이가 아니다. 원곡·MR·320kbps MP3 자동 저장. 이번 편곡·가사는 미검증이며 출처 작업은 이전 비교 기록이다.
+  description: '썸네일 검토: 풍차와 황금 곡물의 인상을 편성에 반영. 맵별 장르·주선율 악기·반주·보컬을 구분한 비교 예제. 편성 태그: harvest folk,fiddle,mandolin,acoustic
+    bass,tambourine,buoyant,communal,bright female vocals. 도입 2행 → 후렴 4행 → 마무리 2행. 초기 10곡 검수 경험을 반영한 8행 구성으로 약 1분 전후를 시도하며
+    실제 길이·음색·종결은 보장하지 않는다. 최대 출력 300초. 무작위 시드를 저장해 재현하며 원곡·MR·320kbps MP3를 함께 검수한다. 이번 입력은 미검증이며 출처 ID는 이전 비교 기록이다.'
   source_generation_id: 2026-10-25_16-22-50-85de36c0
   request:
-    prompt: pastoral folk,violin melody,clarinet,plucked strings,cello,grounded,communal,buoyant,female vocals
+    prompt: harvest folk,fiddle,mandolin,acoustic bass,tambourine,buoyant,communal,bright female vocals
     lyrics: '[Verse]
 
       Golden grain beside the road
 
       Hands prepare the gathered load
-
-      [Verse]
-
-      Clouds have crossed the western field
-
-      One last cart is coming home
 
       [Chorus]
 
@@ -904,37 +839,28 @@ examples:
 
       '
     duration_seconds: 300
-    seed: 7
+    seed: 1035201031
     loop_request: false
     min_duration_seconds: 0
 - id: saltford-vocal-mr-minute
   label: 소금여울 · 기승전결 가사곡과 MR
-  description: 어쿠스틱 챔버 포크 · 오보에·바이올린·발현악과 가벼운 손 타악으로 건조하고 분주한 인계 풍경 표현. 도입 2행 → 변화 2행 → 후렴 4행 → 마무리 2행. 60~90초 안팎을 목표로 하되
-    실제 길이·악기·전개·종결은 생성 후 검수한다. 최대 출력 기본값 300초(5분)는 목표 길이가 아니다. 원곡·MR·320kbps MP3 자동 저장. 이번 편곡·가사는 미검증이며 출처 작업은 이전 비교 기록이다.
+  description: '썸네일 검토: 푸른 물 옆 흰 건조장의 인상을 편성에 반영. 맵별 장르·주선율 악기·반주·보컬을 구분한 비교 예제. 편성 태그: acoustic folk,concertina,oboe,plucked
+    strings,hand drum,brisk,clear,husky male vocals. 도입 2행 → 후렴 2행 → 마무리 2행. 초기 10곡 검수 경험을 반영한 6행 구성으로 약 1분 전후를 시도하며 실제 길이·음색·종결은
+    보장하지 않는다. 최대 출력 300초. 무작위 시드를 저장해 재현하며 원곡·MR·320kbps MP3를 함께 검수한다. 이번 입력은 미검증이며 출처 ID는 이전 비교 기록이다.'
   source_generation_id: 2026-10-25_16-22-50-042f19c8
   request:
-    prompt: acoustic chamber folk,oboe melody,violin,plucked strings,hand percussion,clear,brisk,grounded,female vocals
+    prompt: acoustic folk,concertina,oboe,plucked strings,hand drum,brisk,clear,husky male vocals
     lyrics: '[Verse]
 
       Salt is sparkling by the road
 
       Morning hands prepare the load
 
-      [Verse]
-
-      At the crossing voices meet
-
-      Counting what the day has brought
-
       [Chorus]
 
-      Water roads and windows bright
+      Salt-lined roads and windows bright
 
       Join the town in amber light
-
-      Every parcel finds a place
-
-      Every traveler finds a face
 
       [Outro]
 
@@ -944,37 +870,28 @@ examples:
 
       '
     duration_seconds: 300
-    seed: 7
+    seed: 884154912
     loop_request: false
     min_duration_seconds: 0
 - id: windrow-road-vocal-mr-minute
   label: 이삭바람길 · 기승전결 가사곡과 MR
-  description: 목가적 챔버 포크 · 플루트·비올라·발현악·첼로의 완만한 리듬으로 굽은 길과 바람 표현. 도입 2행 → 변화 2행 → 후렴 4행 → 마무리 2행. 60~90초 안팎을 목표로 하되 실제 길이·악기·전개·종결은
-    생성 후 검수한다. 최대 출력 기본값 300초(5분)는 목표 길이가 아니다. 원곡·MR·320kbps MP3 자동 저장. 이번 편곡·가사는 미검증이며 출처 작업은 이전 비교 기록이다.
+  description: '썸네일 검토: 초록 둔덕과 굽은 길의 인상을 편성에 반영. 맵별 장르·주선율 악기·반주·보컬을 구분한 비교 예제. 편성 태그: pastoral traveling folk,tin whistle,acoustic
+    guitar,viola,shaker,breezy,rolling,clear female vocals. 도입 2행 → 후렴 2행 → 마무리 2행. 초기 10곡 검수 경험을 반영한 6행 구성으로 약 1분 전후를 시도하며
+    실제 길이·음색·종결은 보장하지 않는다. 최대 출력 300초. 무작위 시드를 저장해 재현하며 원곡·MR·320kbps MP3를 함께 검수한다. 이번 입력은 미검증이며 출처 ID는 이전 비교 기록이다.'
   source_generation_id: 2026-10-25_16-22-51-8b5adbf1
   request:
-    prompt: pastoral chamber folk,flute melody,viola,plucked strings,cello,breezy,rolling,moderate tempo,female vocals
+    prompt: pastoral traveling folk,tin whistle,acoustic guitar,viola,shaker,breezy,rolling,clear female vocals
     lyrics: '[Verse]
 
       Rows of grain beside the track
 
       Bend beneath the passing wind
 
-      [Verse]
-
-      At the fork we check the signs
-
-      Then the rooftops catch the sun
-
       [Chorus]
 
       Follow where the wheatfields bend
 
       Every road can find a friend
-
-      What we carry, what we bring
-
-      Joins the work of harvesting
 
       [Outro]
 
@@ -984,27 +901,22 @@ examples:
 
       '
     duration_seconds: 300
-    seed: 7
+    seed: 531256572
     loop_request: false
     min_duration_seconds: 0
 - id: granary-flats-vocal-mr-minute
   label: 곡창들 · 기승전결 가사곡과 MR
-  description: 목가적 실내악 · 오보에·바이올린의 넓은 선율과 하프·첼로로 넓은 들과 느린 관찰 표현. 도입 2행 → 변화 2행 → 후렴 4행 → 마무리 2행. 60~90초 안팎을 목표로 하되 실제 길이·악기·전개·종결은
-    생성 후 검수한다. 최대 출력 기본값 300초(5분)는 목표 길이가 아니다. 원곡·MR·320kbps MP3 자동 저장. 이번 편곡·가사는 미검증이며 출처 작업은 이전 비교 기록이다.
+  description: '썸네일 검토: 넓은 곡물밭과 배수로의 인상을 편성에 반영. 맵별 장르·주선율 악기·반주·보컬을 구분한 비교 예제. 편성 태그: pastoral orchestral ballad,oboe,violin,harp,french
+    horn,broad,golden,warm male vocals. 도입 2행 → 후렴 4행 → 마무리 2행. 초기 10곡 검수 경험을 반영한 8행 구성으로 약 1분 전후를 시도하며 실제 길이·음색·종결은 보장하지
+    않는다. 최대 출력 300초. 무작위 시드를 저장해 재현하며 원곡·MR·320kbps MP3를 함께 검수한다. 이번 입력은 미검증이며 출처 ID는 이전 비교 기록이다.'
   source_generation_id: 2026-10-25_16-22-51-f646e3be
   request:
-    prompt: pastoral chamber,oboe melody,violin,harp,cello,broad,warm,patient,female vocals
+    prompt: pastoral orchestral ballad,oboe,violin,harp,french horn,broad,golden,warm male vocals
     lyrics: '[Verse]
 
       Level fields of amber grain
 
       Stretch beyond the winding lane
-
-      [Verse]
-
-      Shadows lengthen by the barns
-
-      Still one wagon crosses home
 
       [Chorus]
 
@@ -1024,37 +936,28 @@ examples:
 
       '
     duration_seconds: 300
-    seed: 7
+    seed: 607247751
     loop_request: false
     min_duration_seconds: 0
 - id: mill-ridge-vocal-mr-minute
   label: 맷돌등성이 · 기승전결 가사곡과 MR
-  description: 챔버 포크 · 마림바·비올라·바순·피아노의 단단한 발음으로 돌턱과 도구 점검의 세밀함 표현. 도입 2행 → 변화 2행 → 후렴 4행 → 마무리 2행. 60~90초 안팎을 목표로 하되 실제 길이·악기·전개·종결은
-    생성 후 검수한다. 최대 출력 기본값 300초(5분)는 목표 길이가 아니다. 원곡·MR·320kbps MP3 자동 저장. 이번 편곡·가사는 미검증이며 출처 작업은 이전 비교 기록이다.
+  description: '썸네일 검토: 마른 풀과 노출된 돌턱의 인상을 편성에 반영. 맵별 장르·주선율 악기·반주·보컬을 구분한 비교 예제. 편성 태그: rhythmic chamber folk,marimba,bassoon,pizzicato
+    cello,woodblock,rugged,measured,low female vocals. 도입 2행 → 후렴 2행 → 마무리 2행. 초기 10곡 검수 경험을 반영한 6행 구성으로 약 1분 전후를 시도하며 실제
+    길이·음색·종결은 보장하지 않는다. 최대 출력 300초. 무작위 시드를 저장해 재현하며 원곡·MR·320kbps MP3를 함께 검수한다. 이번 입력은 미검증이며 출처 ID는 이전 비교 기록이다.'
   source_generation_id: 2026-10-25_16-22-51-5587402f
   request:
-    prompt: chamber folk,marimba,viola melody,bassoon,piano,dry,measured,rugged,female vocals
+    prompt: rhythmic chamber folk,marimba,bassoon,pizzicato cello,woodblock,rugged,measured,low female vocals
     lyrics: '[Verse]
 
       Dry grass brushes weathered stone
 
       On the ridge the wind moves on
 
-      [Verse]
-
-      At the ledge we check the load
-
-      Find a loosened strap and stop
-
       [Chorus]
 
       Set the buckle, test the line
 
       Take the road in measured time
-
-      Stone and wheel and careful hands
-
-      Carry work across the lands
 
       [Outro]
 
@@ -1064,37 +967,29 @@ examples:
 
       '
     duration_seconds: 300
-    seed: 7
+    seed: 514845683
     loop_request: false
     min_duration_seconds: 0
 - id: brine-bank-vocal-mr-minute
   label: 짠물둔덕 · 기승전결 가사곡과 MR
-  description: 성긴 실내악 · 잉글리시 호른·비올라·마림바·첼로로 자갈의 불균일함과 물가의 여백 표현. 도입 2행 → 변화 2행 → 후렴 4행 → 마무리 2행. 60~90초 안팎을 목표로 하되 실제 길이·악기·전개·종결은
-    생성 후 검수한다. 최대 출력 기본값 300초(5분)는 목표 길이가 아니다. 원곡·MR·320kbps MP3 자동 저장. 이번 편곡·가사는 미검증이며 출처 작업은 이전 비교 기록이다.
+  description: '썸네일 검토: 염수 웅덩이와 자갈 더미의 인상을 편성에 반영. 맵별 장르·주선율 악기·반주·보컬을 구분한 비교 예제. 편성 태그: sparse acoustic folk,english horn,nylon
+    guitar,cello,soft hand drum,restrained,salty,husky female vocals. 도입 2행 → 후렴 2행 → 마무리 2행. 초기 10곡 검수 경험을 반영한 6행 구성으로 약
+    1분 전후를 시도하며 실제 길이·음색·종결은 보장하지 않는다. 최대 출력 300초. 무작위 시드를 저장해 재현하며 원곡·MR·320kbps MP3를 함께 검수한다. 이번 입력은 미검증이며 출처 ID는 이전 비교
+    기록이다.'
   source_generation_id: 2026-10-25_16-22-52-1bbca563
   request:
-    prompt: sparse chamber,english horn melody,viola,marimba,cello,briny,restrained,uneven,female vocals
+    prompt: sparse acoustic folk,english horn,nylon guitar,cello,soft hand drum,restrained,salty,husky female vocals
     lyrics: '[Verse]
 
       Briny water meets the clay
 
       Pale reeds nod beside the bank
 
-      [Verse]
-
-      Where the damp earth breaks the track
-
-      We turn toward the higher ground
-
       [Chorus]
 
       On the bank the salt winds roam
 
       With the scent that speaks of home
-
-      Farther on the paths lie dry
-
-      Underneath the evening sky
 
       [Outro]
 
@@ -1104,37 +999,28 @@ examples:
 
       '
     duration_seconds: 300
-    seed: 7
+    seed: 904263777
     loop_request: false
     min_duration_seconds: 0
 - id: salt-causeway-vocal-mr-minute
   label: 소금둑길 · 기승전결 가사곡과 MR
-  description: 챔버 포크 · 클라리넷·피치카토 현·첼로·절제된 손 타악으로 이어지는 발걸음과 집중감 표현. 도입 2행 → 변화 2행 → 후렴 4행 → 마무리 2행. 60~90초 안팎을 목표로 하되 실제 길이·악기·전개·종결은
-    생성 후 검수한다. 최대 출력 기본값 300초(5분)는 목표 길이가 아니다. 원곡·MR·320kbps MP3 자동 저장. 이번 편곡·가사는 미검증이며 출처 작업은 이전 비교 기록이다.
+  description: '썸네일 검토: 물 위로 이어진 돌둑의 인상을 편성에 반영. 맵별 장르·주선율 악기·반주·보컬을 구분한 비교 예제. 편성 태그: chamber folk march,clarinet,mandolin,cello,muted
+    frame drum,steady,focused,low male vocals. 도입 2행 → 후렴 2행 → 마무리 2행. 초기 10곡 검수 경험을 반영한 6행 구성으로 약 1분 전후를 시도하며 실제 길이·음색·종결은
+    보장하지 않는다. 최대 출력 300초. 무작위 시드를 저장해 재현하며 원곡·MR·320kbps MP3를 함께 검수한다. 이번 입력은 미검증이며 출처 ID는 이전 비교 기록이다.'
   source_generation_id: 2026-10-25_16-22-52-f4330043
   request:
-    prompt: chamber folk,clarinet melody,pizzicato strings,cello,hand percussion,focused,measured,open,female vocals
+    prompt: chamber folk march,clarinet,mandolin,cello,muted frame drum,steady,focused,low male vocals
     lyrics: '[Verse]
 
       Narrow stones above the tide
 
       Water shining either side
 
-      [Verse]
-
-      Wind moves slanting down the way
-
-      We draw close and mind our steps
-
       [Chorus]
 
       Keep the far bank in your sight
 
       Follow where the stones are bright
-
-      Every careful step runs true
-
-      Till the open road meets you
 
       [Outro]
 
@@ -1144,37 +1030,28 @@ examples:
 
       '
     duration_seconds: 300
-    seed: 7
+    seed: 1866693009
     loop_request: false
     min_duration_seconds: 0
 - id: salt-flat-vocal-mr-minute
   label: 흰소금벌 · 기승전결 가사곡과 MR
-  description: 미니멀 실내악 · 피아노·첼레스타·알토 플루트·비올라의 성긴 음형으로 넓은 밝음과 경계의 불확실성 표현. 도입 2행 → 변화 2행 → 후렴 4행 → 마무리 2행. 60~90초 안팎을 목표로 하되
-    실제 길이·악기·전개·종결은 생성 후 검수한다. 최대 출력 기본값 300초(5분)는 목표 길이가 아니다. 원곡·MR·320kbps MP3 자동 저장. 이번 편곡·가사는 미검증이며 출처 작업은 이전 비교 기록이다.
+  description: '썸네일 검토: 흰 땅과 청록색 염수의 경계의 인상을 편성에 반영. 맵별 장르·주선율 악기·반주·보컬을 구분한 비교 예제. 편성 태그: luminous chamber,piano,celesta,alto
+    flute,viola,spacious,clear,delicate female vocals. 도입 2행 → 후렴 2행 → 마무리 2행. 초기 10곡 검수 경험을 반영한 6행 구성으로 약 1분 전후를 시도하며 실제
+    길이·음색·종결은 보장하지 않는다. 최대 출력 300초. 무작위 시드를 저장해 재현하며 원곡·MR·320kbps MP3를 함께 검수한다. 이번 입력은 미검증이며 출처 ID는 이전 비교 기록이다.'
   source_generation_id: 2026-10-25_16-22-53-bf6106d3
   request:
-    prompt: minimalist chamber,piano melody,celesta,alto flute,viola,luminous,spacious,delicate,female vocals
+    prompt: luminous chamber,piano,celesta,alto flute,viola,spacious,clear,delicate female vocals
     lyrics: '[Verse]
 
       White salt under open skies
 
       Shimmers bright before our eyes
 
-      [Verse]
-
-      Light can hide the distant way
-
-      Then a marker casts its shade
-
       [Chorus]
 
       Quiet plains of silver white
 
       Now the path is held in sight
-
-      Footprints cross the shining ground
-
-      Till the sheltered edge is found
 
       [Outro]
 
@@ -1184,37 +1061,28 @@ examples:
 
       '
     duration_seconds: 300
-    seed: 7
+    seed: 1347310311
     loop_request: false
     min_duration_seconds: 0
 - id: old-boundary-gate-vocal-mr-minute
   label: 옛 경계문터 · 기승전결 가사곡과 MR
-  description: 어두운 실내악 · 첼로·베이스 클라리넷·비올라·피아노의 낮은 동기로 오래된 경계의 무게와 경계심 표현. 도입 2행 → 변화 2행 → 후렴 4행 → 마무리 2행. 60~90초 안팎을 목표로 하되
-    실제 길이·악기·전개·종결은 생성 후 검수한다. 최대 출력 기본값 300초(5분)는 목표 길이가 아니다. 원곡·MR·320kbps MP3 자동 저장. 이번 편곡·가사는 미검증이며 출처 작업은 이전 비교 기록이다.
+  description: '썸네일 검토: 햇빛 아래 무너진 기둥과 돌길의 인상을 편성에 반영. 맵별 장르·주선율 악기·반주·보컬을 구분한 비교 예제. 편성 태그: dark chamber ballad,bass clarinet,cello,viola,low
+    piano,solemn,watchful,baritone male vocals. 도입 2행 → 후렴 2행 → 마무리 2행. 초기 10곡 검수 경험을 반영한 6행 구성으로 약 1분 전후를 시도하며 실제 길이·음색·종결은
+    보장하지 않는다. 최대 출력 300초. 무작위 시드를 저장해 재현하며 원곡·MR·320kbps MP3를 함께 검수한다. 이번 입력은 미검증이며 출처 ID는 이전 비교 기록이다.'
   source_generation_id: 2026-10-25_16-22-53-0f1fdabb
   request:
-    prompt: dark chamber,cello melody,bass clarinet,viola,piano,solemn,restrained,watchful,female vocals
+    prompt: solemn chamber ballad,bass clarinet,cello,viola,low piano,weathered,watchful,dignified,baritone male vocals
     lyrics: '[Verse]
 
       Weathered pillars mark the road
 
       Broken walls recall their watch
 
-      [Verse]
-
-      By the stones a figure stands
-
-      We keep distance as we pass
-
       [Chorus]
 
       Through the gap the daylight stays
 
       On the worn and silent ways
-
-      Past the line of fallen stone
-
-      We must choose the steps we own
 
       [Outro]
 
@@ -1224,7 +1092,7 @@ examples:
 
       '
     duration_seconds: 300
-    seed: 7
+    seed: 1046570580
     loop_request: false
     min_duration_seconds: 0
 - id: mist-lake-husky-vocal-mr

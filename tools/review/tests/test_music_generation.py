@@ -28,10 +28,11 @@ class MusicGenerationTests(unittest.TestCase):
         for current_example_record in current_example_records:
             self.assertEqual(current_example_record['request']['duration_seconds'], 300)
             current_song_lines = current_example_record['request']['lyrics'].splitlines()
-            current_short_example = current_example_record['id'] in ('mist-lake-vocal-mr-minute', 'mist-lake-husky-vocal-mr')
-            current_quarry_example = current_example_record['id'] == 'broken-quarry-vocal-mr-minute'
-            self.assertEqual([current_song_lines.index('[Chorus]'),current_song_lines.index('[Outro]')], [3,6] if current_quarry_example else [3,8] if current_short_example else [6,11])
-            self.assertEqual(len(current_song_lines), 9 if current_quarry_example else 11 if current_short_example else 14)
+            current_section_positions = [current_song_lines.index('[Chorus]'),current_song_lines.index('[Outro]')]
+            self.assertIn((len(current_song_lines),tuple(current_section_positions)), ((9,(3,6)),(11,(3,8)),(14,(6,11))))
+            self.assertEqual(current_song_lines[0], '[Verse]')
+            self.assertEqual(len(current_song_lines)-current_song_lines.index('[Outro]')-1, 2)
+
 
     def test_example_pagination_preserves_all_records(self):
         from generators.music.examples import load_music_examples
