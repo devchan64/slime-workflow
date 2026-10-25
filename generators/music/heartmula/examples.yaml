@@ -597,44 +597,42 @@ examples:
     min_duration_seconds: 0
 - id: pebble-shore-vocal-mr-minute
   label: 조약돌 물가 · 기승전결 가사곡과 MR
-  description: 썸네일의 투명한 푸른 물과 둥근 돌, 껍질을 고르는 게의 모습을 마림바·우쿨렐레·클라리넷·셰이커의 가벼운 어쿠스틱 팝으로 표현. 6행 가사에서 39.68초 EOS 종료한 결과를 바탕으로 후렴에
-    조개껍질과 햇빛 묘사 2행을 보강. 도입 2행 → 후렴 4행 → 마무리 2행, 총 8행. 편곡·시드는 유지해 가사 변경을 비교한다. 약 1분 전후를 목표로 하되 실제 길이는 보장하지 않는다. 최대 출력 300초.
-    원곡·MR·320kbps MP3 청취 검수 필요. 출처는 삭제될 비교 기록이다. 최근 36.80초 결과가 짧아 가사 전개를 추가 보강했다. 편곡·시드를 유지하며 약 1분 전후를 재시도한다. 길이는 보장하지 않으며
-    새 결과 청취 검수가 필요하다.
-  source_generation_id: 2026-10-25_22-14-21-f88927e3
+  description: 투명한 물과 둥근 돌, 껍질을 고르는 게를 표현하는 가벼운 어쿠스틱 팝. 52.24초 EOS 결과를 보완해 10행 구조를 유지하면서 각 행의 장면과 노랫말을 확장. 편곡은 유지하고 새 무작위
+    시드를 저장했다. 약 1분 전후를 목표로 하지만 길이는 보장하지 않는다. 최대 출력 300초. EOS 억제·강제 자르기·음량 감소 없이 원곡과 MR을 청취 검수한다. 출처는 삭제될 비교 기록이다.
+  source_generation_id: 2026-10-25_22-35-48-e5ce1ba7
   request:
     prompt: light acoustic pop,marimba,ukulele,clarinet,shaker,rippling,playful,clear male vocals
     lyrics: '[Verse]
 
-      Little crabs choose shells to keep
+      Little crabs are choosing shells along the shore
 
-      Pebbles shine where waters sleep
+      Pebbles shine beneath the water clear once more
 
       [Verse]
 
-      By a shell the pebbles shift
+      By a shell the silver ripples reach our feet
 
-      We step back as ripples lift
+      We step back and find a little place to meet
 
       [Chorus]
 
-      Water finds a thousand ways
+      Water finds a thousand pathways through the stone
 
-      Round the stones beneath its glaze
+      Every tiny shell has found a sheltered home
 
-      Every shell and silver seam
+      Sunlight gathers where the shining currents bend
 
-      Catches sunlight in the stream
+      And the river brings us gently round again
 
       [Outro]
 
-      On the bank our footsteps end
+      On the quiet bank we rest beside the stream
 
-      Water rounds the quiet bend
+      Taking home the sunlight from its silver gleam
 
       '
     duration_seconds: 300
-    seed: 922350917
+    seed: 984539446
     loop_request: false
     min_duration_seconds: 0
 - id: reed-crossing-vocal-mr-minute
@@ -680,43 +678,36 @@ examples:
     min_duration_seconds: 0
 - id: root-trail-vocal-mr-minute
   label: 뿌리 오솔길 · 기승전결 가사곡과 MR
-  description: 썸네일의 뿌리 사이 수레바퀴 자국을 바순·뜯는 비올라·어쿠스틱 기타·우드블록의 숲 포크로 표현. 6행 가사에서 33.6초 EOS 종료한 결과를 바탕으로 갈라진 옛 자국 사이 길을 찾는 2행과
-    열린 빛으로 향하는 후렴 2행을 보강. 도입 2행 → 변화 2행 → 후렴 4행 → 마무리 2행, 총 10행. 편곡·시드는 유지해 가사 변경을 비교한다. 약 1분 전후를 목표로 하되 실제 길이는 보장하지 않는다.
-    최대 출력 300초. 원곡·MR·320kbps MP3 청취 검수 필요. 출처는 삭제될 비교 기록이다.
-  source_generation_id: 2026-10-25_21-27-39-b189baa4
+  description: 뿌리와 옛 수레 자국을 따라 숲을 벗어나는 포크. 10행에서 125.52초 EOS 종료한 결과를 바탕으로 두 번째 절을 통합한 8행 구성. 도입 2행, 후렴 4행, 도착 2행으로 압축. 편곡은
+    유지하고 새 무작위 시드를 저장했다. 약 1분 전후를 목표로 하되 길이 개선은 미검증이다. 최대 출력 300초는 목표 길이가 아니다. 원곡·MR 청취 검수 필요. 출처는 삭제될 비교 기록이다.
+  source_generation_id: 2026-10-25_23-35-36-7b38d330
   request:
     prompt: woodland folk,bassoon,plucked viola,acoustic guitar,woodblock,interwoven,curious,husky female vocals
     lyrics: '[Verse]
 
-      Roots are winding through the ground
+      Roots wind beneath the old wheel track
 
-      Older wheel marks curve around
-
-      [Verse]
-
-      Where the broken tracks divide
-
-      We find room along the side
+      A branch has crossed the passage back
 
       [Chorus]
 
-      Thread the path beneath the tree
+      Between the leaves a light appears
 
-      Find the sky between the leaves
+      We follow where the shadow clears
 
-      Old and living lines entwine
+      The tangled trail gives way to sky
 
-      Lead us toward the open light
+      The last dark bough is passing by
 
       [Outro]
 
-      At the edge the road runs clear
+      Beyond the trees our steps grow still
 
-      We leave tangled shadows here
+      We rest beside the sunlit hill
 
       '
     duration_seconds: 300
-    seed: 1947720918
+    seed: 1042654027
     loop_request: false
     min_duration_seconds: 0
 - id: silver-marsh-vocal-mr-minute
@@ -1044,76 +1035,63 @@ examples:
     min_duration_seconds: 0
 - id: salt-causeway-vocal-mr-minute
   label: 소금둑길 · 기승전결 가사곡과 MR
-  description: '썸네일 검토: 물 위로 이어진 돌둑의 인상을 편성에 반영. 맵별 장르·주선율 악기·반주·보컬을 구분한 비교 예제. 편성 태그: chamber folk march,clarinet,mandolin,cello,muted
-    frame drum,steady,focused,low male vocals. 도입 2행 → 후렴 2행 → 마무리 2행. 초기 10곡 검수 경험을 반영한 6행 구성으로 약 1분 전후를 시도하며 실제 길이·음색·종결은
-    보장하지 않는다. 최대 출력 300초. 무작위 시드를 저장해 재현하며 원곡·MR·320kbps MP3를 함께 검수한다. 이번 입력은 미검증이며 출처 ID는 이전 비교 기록이다. 최근 32.88초 결과가 짧아 가사
-    전개를 추가 보강했다. 편곡·시드를 유지하며 약 1분 전후를 재시도한다. 길이는 보장하지 않으며 새 결과 청취 검수가 필요하다.'
-  source_generation_id: 2026-10-25_21-27-40-16c2644c
+  description: 양옆 물 사이 돌둑을 건너는 실내악 포크 행진곡. 6행에서도 160.08초 EOS 종료해 행 수와 길이가 비례하지 않음을 확인했다. 6행은 유지하면서 출발, 마지막 디딤돌, 도착의 단일 여정으로
+    가사를 재작성. 편곡은 유지하고 새 무작위 시드를 저장했다. 약 1분 전후를 목표로 하되 길이 개선은 미검증이다. 최대 출력 300초는 목표 길이가 아니다. 원곡·MR 청취 검수 필요. 출처는 삭제될 비교 기록이다.
+  source_generation_id: 2026-10-25_23-35-37-80b9ad63
   request:
     prompt: chamber folk march,clarinet,mandolin,cello,muted frame drum,steady,focused,low male vocals
     lyrics: '[Verse]
 
-      Narrow stones above the tide
+      We leave the shore on salt white stone
 
-      Water shining either side
-
-      [Verse]
-
-      Wind moves slanting down the way
-
-      We draw close and mind our steps
+      Across the tide a lamp is shown
 
       [Chorus]
 
-      Keep the far bank in your sight
+      The final stepping stone is near
 
-      Follow where the stones are bright
-
-      Every careful step runs true
-
-      Till the open road meets you
+      One careful stride and land is here
 
       [Outro]
 
-      On the bank we set packs down
+      Our packs lie dry beside the door
 
-      Hear the waters settling round
+      The crossing ends upon this shore
 
       '
     duration_seconds: 300
-    seed: 1866693009
+    seed: 541726415
     loop_request: false
     min_duration_seconds: 0
 - id: salt-flat-vocal-mr-minute
   label: 흰소금벌 · 기승전결 가사곡과 MR
-  description: '썸네일 검토: 흰 땅과 청록색 염수의 경계의 인상을 편성에 반영. 맵별 장르·주선율 악기·반주·보컬을 구분한 비교 예제. 편성 태그: luminous chamber,piano,celesta,alto
-    flute,viola,spacious,clear,delicate female vocals. 도입 2행 → 후렴 2행 → 마무리 2행. 초기 10곡 검수 경험을 반영한 6행 구성으로 약 1분 전후를 시도하며 실제
-    길이·음색·종결은 보장하지 않는다. 최대 출력 300초. 무작위 시드를 저장해 재현하며 원곡·MR·320kbps MP3를 함께 검수한다. 이번 입력은 미검증이며 출처 ID는 이전 비교 기록이다. 최근 52.24초
-    결과가 짧아 가사 전개를 추가 보강했다. 편곡·시드를 유지하며 약 1분 전후를 재시도한다. 길이는 보장하지 않으며 새 결과 청취 검수가 필요하다.'
-  source_generation_id: 2026-10-25_21-27-41-06c76088
+  description: '흰 소금 땅과 청록색 얕은 염수의 경계를 피아노·첼레스타·알토 플루트·비올라로 표현. 이전 61.28초 결과에서 길이 조정 대신 가사의 장면을 재작성: 눈부신 염수 경계 → 표식과 마른 발자국
+    따라 이동 → 그늘에서 휴식. 도입 2행 → 후렴 4행 → 마무리 2행, 총 8행. 편곡·시드 유지. 약 1분 전후를 목표로 하되 실제 길이·종결은 보장하지 않는다. 최대 출력 300초. 원곡·MR·320kbps
+    MP3 청취 검수 필요. 출처는 삭제될 비교 기록이다.'
+  source_generation_id: 2026-10-25_22-35-48-7794cdcb
   request:
     prompt: luminous chamber,piano,celesta,alto flute,viola,spacious,clear,delicate female vocals
     lyrics: '[Verse]
 
-      White salt under open skies
+      White salt meets the shallow blue
 
-      Shimmers bright before our eyes
+      Sunlit cracks divide the view
 
       [Chorus]
 
-      Quiet plains of silver white
+      Find the marker in the glare
 
-      Now the path is held in sight
+      Follow footprints drying there
 
-      Footprints cross the shining ground
+      Step by step the white gives way
 
-      Till the sheltered edge is found
+      To a shaded edge of clay
 
       [Outro]
 
-      In the shade our eyes can rest
+      In the shade we rest our eyes
 
-      White plains glow beyond the west
+      Salt and water hold the skies
 
       '
     duration_seconds: 300
