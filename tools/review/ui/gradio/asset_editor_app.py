@@ -22,8 +22,8 @@ EDITOR_PROPERTY_FIELDS = ['anchorX','anchorY','groundFootprintColumns','groundFo
 EDITOR_TABLE_HEADERS = ['에셋 ID','이름','앵커 X','앵커 Y','점유 열','점유 행','표시 높이','배치 top/bottom','그림자 열 이동','그림자 행 이동','그림자 열 크기 · 점유 배율','그림자 행 크기 · 점유 배율','통행 차단','사용 맵 수']
 
 
-def load_asset_editor_catalog():
-    current_catalog_record = execute_remote_management_command('map-assets','asset-list',{})
+def load_asset_editor_catalog(current_asset_type=None):
+    current_catalog_record = execute_remote_management_command('map-assets','asset-list',{'category':current_asset_type} if current_asset_type else {})
     current_table_values = [[current_asset_record['texture'],current_asset_record['name'],*[None]*11,len(current_asset_record['maps'])] if current_asset_record['properties'] is None else [current_asset_record['texture'],current_asset_record['name'],*[(('top' if current_asset_record['properties']['anchorY']<.5 else 'bottom') if current_field_name=='billboardPlacementAnchor' and current_asset_record['properties'].get('billboardAnchorMode')in ('tile-bottom-center','tile-intersection') else current_asset_record['properties'].get(current_field_name,0 if current_field_name.startswith('shadowOffset') else 1)) for current_field_name in EDITOR_PROPERTY_FIELDS],current_asset_record['properties'].get('billboardBlocksMovement',False),len(current_asset_record['maps'])] for current_asset_record in current_catalog_record['assets']]
     return current_catalog_record,current_table_values,f"{len(current_table_values)}종을 불러왔습니다. 선택 에셋 변경 반영 버튼으로 하나씩 저장합니다."
 
@@ -226,7 +226,7 @@ def iterate_selected_asset_save(current_detail_record,*current_property_values):
     if not current_detail_record:raise gr.Error('썸네일에서 에셋을 선택하세요.')
     current_texture_key=current_detail_record['texture']
     yield gr.skip(),gr.skip(),f'{current_texture_key} · 원본 조회 중…'
-    current_catalog_record,current_table_values,_=load_asset_editor_catalog()
+    current_catalog_record,current_table_values,_=load_asset_editor_catalog(current_detail_record.get('category'))
     current_selected_record=next((current_asset_record for current_asset_record in current_catalog_record['assets'] if current_asset_record['texture']==current_texture_key),None)
     if current_selected_record is None:raise gr.Error('폐기되거나 제거된 에셋입니다: '+current_texture_key)
     current_selected_row=next(list(current_table_row) for current_table_row in current_table_values if current_table_row[0]==current_texture_key)
@@ -238,7 +238,7 @@ def iterate_selected_asset_save(current_detail_record,*current_property_values):
         yield gr.skip(),gr.skip(),f'{current_texture_key} · 저장 중…'
         execute_remote_management_command('map-assets','asset-save',{**current_request_payload,'token':current_preview_record['token']})
         yield gr.skip(),gr.skip(),f'{current_texture_key} · 저장 결과 조회 중…'
-        current_catalog_record,current_table_values,_=load_asset_editor_catalog()
+        current_catalog_record,current_table_values,_=load_asset_editor_catalog(current_detail_record.get('category'))
         current_feedback_text=f'{current_texture_key} 저장 완료. 해당 ID만 업데이트했습니다. 맵 경고 {len(current_preview_record.get("map_warnings",[]))}건.'
     else:
         current_feedback_text=current_texture_key+' · 변경된 값이 없습니다.'
@@ -287,7 +287,7 @@ def build_asset_editor_interface(current_review_port):
         current_feedback_text=gr.Markdown()
         with gr.Row():
             current_search_text=gr.Textbox(label='에셋 검색',placeholder='ID · 이름 · 사용 맵',scale=3)
-            current_asset_type=gr.Dropdown(label='에셋 타입',choices=[('전체','all'),('자연물','vegetation'),('화초','herbaceous'),('큰 나무','large-trees'),('암석광물','rocks-minerals'),('소품','props')],value='all',scale=1)
+            current_asset_type=gr.Dropdown(label='에셋 타입',choices=[('자연물','vegetation'),('화초','herbaceous'),('큰 나무','large-trees'),('암석광물','rocks-minerals'),('소품','props')],value='vegetation',scale=1)
             current_search_button=gr.Button('검색',scale=1)
             current_reload_button=gr.Button('목록 새로고침 · 편집 초기화',scale=1)
         current_search_feedback=gr.Markdown()
@@ -304,10 +304,10 @@ def build_asset_editor_interface(current_review_port):
         current_gallery_outputs=[current_source_gallery,current_visible_state,current_search_feedback,current_gallery_page,current_previous_page,current_next_page]
         current_previous_page.click(previous_asset_gallery_page,inputs=[current_catalog_state,current_search_text,current_asset_type,current_gallery_page],outputs=current_gallery_outputs)
         current_next_page.click(next_asset_gallery_page,inputs=[current_catalog_state,current_search_text,current_asset_type,current_gallery_page],outputs=current_gallery_outputs)
-        current_reload_button.click(load_asset_editor_catalog,outputs=[current_catalog_state,current_asset_table,current_feedback_text]).then(filter_asset_editor_gallery,inputs=[current_catalog_state,current_search_text,current_asset_type],outputs=current_gallery_outputs)
-        current_interface_blocks.load(load_asset_editor_catalog,outputs=[current_catalog_state,current_asset_table,current_feedback_text]).then(filter_asset_editor_gallery,inputs=[current_catalog_state,current_search_text,current_asset_type],outputs=current_gallery_outputs)
+        current_reload_button.click(load_asset_editor_catalog,inputs=current_asset_type,outputs=[current_catalog_state,current_asset_table,current_feedback_text]).then(filter_asset_editor_gallery,inputs=[current_catalog_state,current_search_text,current_asset_type],outputs=current_gallery_outputs)
+        current_interface_blocks.load(load_asset_editor_catalog,inputs=current_asset_type,outputs=[current_catalog_state,current_asset_table,current_feedback_text]).then(filter_asset_editor_gallery,inputs=[current_catalog_state,current_search_text,current_asset_type],outputs=current_gallery_outputs)
         current_search_button.click(filter_asset_editor_gallery,inputs=[current_catalog_state,current_search_text,current_asset_type],outputs=current_gallery_outputs)
-        current_asset_type.input(filter_asset_editor_gallery,inputs=[current_catalog_state,current_search_text,current_asset_type],outputs=current_gallery_outputs)
+        current_asset_type.input(load_asset_editor_catalog,inputs=current_asset_type,outputs=[current_catalog_state,current_asset_table,current_feedback_text]).then(filter_asset_editor_gallery,inputs=[current_catalog_state,current_search_text,current_asset_type],outputs=current_gallery_outputs)
         current_search_text.submit(filter_asset_editor_gallery,inputs=[current_catalog_state,current_search_text,current_asset_type],outputs=current_gallery_outputs)
         current_selection_event=current_source_gallery.select(select_asset_editor_record,inputs=[current_visible_state,current_asset_table],outputs=[current_editor_panel.current_detail_record,*current_editor_panel.current_property_inputs,current_editor_panel.current_placement_choice,*current_editor_panel.current_shadow_inputs,current_editor_panel.current_blocking_choice,current_editor_panel.current_detail_text])
         for current_size_control in current_editor_panel.current_property_inputs[2:4]:

@@ -2,7 +2,7 @@
 from pathlib import Path
 import tempfile
 import unittest
-from tools.review.maintenance.sync_billboard_catalog import build_catalog_reference, load_unique_yaml_document, DEFAULT_ASSET_DIRECTORY
+from tools.review.maintenance.sync_billboard_catalog import build_catalog_reference, load_unique_yaml_document, load_billboard_catalog, DEFAULT_ASSET_DIRECTORY
 
 class BillboardCatalogTest(unittest.TestCase):
     @classmethod
@@ -37,5 +37,5 @@ class BillboardCatalogTest(unittest.TestCase):
                 load_unique_yaml_document(current_yaml_path)
 
     def test_synchronized_catalog_matches(self):
-        current_saved_record=load_unique_yaml_document(DEFAULT_ASSET_DIRECTORY/'assets/billboards/catalog.yaml')
+        current_saved_record=load_billboard_catalog(DEFAULT_ASSET_DIRECTORY)
         self.assertEqual(current_saved_record,self.current_catalog_record)

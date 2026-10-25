@@ -1,4 +1,5 @@
 """그림자 이동을 점유 중심 v2로 변환한다. 재실행은 이미 변환한 값을 유지한다."""
+from tools.review.maintenance.sync_billboard_catalog import load_billboard_catalog, list_billboard_catalog_paths, write_billboard_catalog, prepare_billboard_catalog_files
 import argparse
 import copy
 import hashlib
@@ -32,8 +33,9 @@ def execute_shadow_center_migration(current_asset_root,current_backup_root,curre
     current_catalog_path=current_asset_root/'assets/billboards/catalog.yaml'
     current_backend_path=current_asset_root.parent/'slime-backend/map-data.lock.yaml'
     current_source_bytes={current_path:current_path.read_bytes() for current_path in [current_properties_path,current_registry_path,current_catalog_path,current_backend_path]}
+    current_source_bytes.update({current_path:current_path.read_bytes() for current_path in list_billboard_catalog_paths(current_asset_root)[1:]})
     current_property_document=load_unique_yaml_document(current_properties_path)
-    current_catalog_document=load_unique_yaml_document(current_catalog_path)
+    current_catalog_document=load_billboard_catalog(current_asset_root)
     current_previous_values=copy.deepcopy(current_property_document['data'])
     current_changed_keys=[]
     for current_asset_record in current_catalog_document['billboards']:
@@ -61,7 +63,7 @@ def execute_shadow_center_migration(current_asset_root,current_backup_root,curre
         if current_file_path.read_bytes()!=current_file_bytes:raise ValueError('검토 중 원본 변경')
     try:
         for current_file_path,current_file_bytes in current_pending_files.items():current_file_path.write_bytes(current_file_bytes)
-        current_catalog_path.write_text(yaml.safe_dump(build_catalog_reference(current_asset_root),allow_unicode=True,sort_keys=False))
+        write_billboard_catalog(current_asset_root,build_catalog_reference(current_asset_root))
     except Exception:
         for current_file_path,current_file_bytes in current_source_bytes.items():current_file_path.write_bytes(current_file_bytes)
         raise

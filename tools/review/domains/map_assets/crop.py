@@ -1,4 +1,5 @@
 """투명 여백 크롭과 표시 위치 보존을 한 트랜잭션으로 저장한다."""
+from tools.review.maintenance.sync_billboard_catalog import load_billboard_catalog, list_billboard_catalog_paths, write_billboard_catalog, prepare_billboard_catalog_files
 from tools.review.common.sprite_display_properties import normalize_sprite_property_precision
 import hashlib
 import io
@@ -115,7 +116,7 @@ def save_billboard_crop(current_request_payload):
             current_temporary_path = current_file_path.with_name(current_file_path.name + '.crop-tmp')
             current_temporary_path.write_bytes(current_file_bytes)
             os.replace(current_temporary_path, current_file_path)
-        current_source_paths[2].write_text(serialize_billboard_catalog(build_catalog_reference(current_asset_root)))
+        write_billboard_catalog(current_asset_root,build_catalog_reference(current_asset_root))
         current_result_record = {**current_preview_result, 'saved': True, 'history': current_history_path.name}
         (current_history_path / 'result.json').write_text(json.dumps(current_result_record))
         return current_result_record

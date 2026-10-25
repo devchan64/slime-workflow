@@ -25,7 +25,7 @@ MODELING_ROLE_RULES = (
 
 
 def load_unique_yaml_document(current_source_path):
-    class UniqueKeyLoader(yaml.SafeLoader):
+    class UniqueKeyLoader(yaml.CSafeLoader):
         pass
     def construct_unique_mapping(current_yaml_loader, current_yaml_node, current_deep_flag=False):
         current_result_mapping = {}
@@ -37,6 +37,73 @@ def load_unique_yaml_document(current_source_path):
         return current_result_mapping
     UniqueKeyLoader.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, construct_unique_mapping)
     return yaml.load(current_source_path.read_text(), Loader=UniqueKeyLoader)
+
+
+def list_billboard_catalog_paths(current_asset_root):
+    current_index_path=Path(current_asset_root)/'assets/billboards/catalog.yaml'
+    current_index_record=load_unique_yaml_document(current_index_path)
+    if current_index_record.get('schema_version')!=2:
+        return [current_index_path]
+    current_partition_map=current_index_record.get('catalog_files')
+    if not isinstance(current_partition_map,dict) or set(current_partition_map)!=set(current_index_record['review_categories']):
+        raise ValueError('빌보드 타입별 카탈로그 색인 오류')
+    current_result_paths=[current_index_path]
+    for current_category_name,current_relative_path in current_partition_map.items():
+        if current_relative_path!=f'catalogs/{current_category_name}.yaml':raise ValueError('카탈로그 경로 오류')
+        current_result_paths.append(current_index_path.parent/current_relative_path)
+    return current_result_paths
+
+
+def load_billboard_catalog(current_asset_root,current_category_name=None):
+    current_source_paths=list_billboard_catalog_paths(current_asset_root)
+    current_catalog_record=load_unique_yaml_document(current_source_paths[0])
+    if current_category_name is not None and current_category_name not in current_catalog_record.get('review_categories',{}):raise ValueError('에셋 타입을 선택하세요.')
+    if current_catalog_record.get('schema_version')!=2:
+        if current_category_name is not None:
+            current_catalog_record['billboards']=[item for item in current_catalog_record['billboards'] if current_catalog_record['families'][item['family']]['review_category']==current_category_name]
+        return current_catalog_record
+    current_catalog_record.pop('catalog_files')
+    current_catalog_record['schema_version']=1
+    current_catalog_record['families']={}
+    current_catalog_record['billboards']=[]
+    current_seen_textures=set()
+    for current_partition_path in current_source_paths[1:]:
+        if current_category_name is not None and current_partition_path.stem!=current_category_name:continue
+        current_partition_record=load_unique_yaml_document(current_partition_path)
+        if set(current_partition_record)!={'schema_version','category','families','billboards'} or current_partition_record['schema_version']!=1 or current_partition_record['category']!=current_partition_path.stem:raise ValueError('타입 카탈로그 형식 오류: '+str(current_partition_path))
+        for current_family_name,current_family_record in current_partition_record['families'].items():
+            if current_family_name in current_catalog_record['families'] or current_family_record['review_category']!=current_partition_path.stem:raise ValueError('계열 중복 또는 타입 불일치: '+current_family_name)
+        for current_asset_record in current_partition_record['billboards']:
+            if current_asset_record['family'] not in current_partition_record['families'] or current_asset_record['texture_key'] in current_seen_textures:raise ValueError('빌보드 계열 누락 또는 중복')
+            current_seen_textures.add(current_asset_record['texture_key'])
+        current_catalog_record['families'].update(current_partition_record['families'])
+        current_catalog_record['billboards'].extend(current_partition_record['billboards'])
+    current_catalog_record['billboards'].sort(key=lambda current_asset_record:current_asset_record['texture_key'])
+    return current_catalog_record
+
+
+def prepare_billboard_catalog_files(current_asset_root,current_catalog_record):
+    current_index_path=Path(current_asset_root)/'assets/billboards/catalog.yaml'
+    current_index_record=load_unique_yaml_document(current_index_path)
+    if current_index_record.get('schema_version')!=2:
+        return {current_index_path:serialize_billboard_catalog(current_catalog_record).encode()}
+    current_pending_files={}
+    for current_category_name,current_relative_path in current_index_record['catalog_files'].items():
+        current_family_records={key:value for key,value in current_catalog_record['families'].items() if value['review_category']==current_category_name}
+        current_partition_record={'schema_version':1,'category':current_category_name,'families':current_family_records,'billboards':[item for item in current_catalog_record['billboards'] if item['family'] in current_family_records]}
+        current_pending_files[current_index_path.parent/current_relative_path]=serialize_billboard_catalog(current_partition_record).encode()
+    current_index_record={key:value for key,value in current_catalog_record.items() if key not in ('families','billboards')}
+    current_index_record.update(schema_version=2,catalog_files=load_unique_yaml_document(current_index_path)['catalog_files'])
+    current_pending_files[current_index_path]=serialize_billboard_catalog(current_index_record).encode()
+    return current_pending_files
+
+
+def write_billboard_catalog(current_asset_root,current_catalog_record):
+    for current_output_path,current_output_bytes in prepare_billboard_catalog_files(current_asset_root,current_catalog_record).items():
+        if current_output_path.read_bytes()==current_output_bytes:continue
+        current_temporary_path=current_output_path.with_suffix('.catalog-tmp')
+        current_temporary_path.write_bytes(current_output_bytes)
+        current_temporary_path.replace(current_output_path)
 
 
 def build_modeling_guidance(current_texture_key, current_family_record):
@@ -80,7 +147,7 @@ def build_shadow_guidance(current_texture_key):
 def build_catalog_reference(current_asset_root):
     from tools.review.common.sprite_display_properties import validate_sprite_display_properties
     current_catalog_path = current_asset_root/'assets/billboards/catalog.yaml'
-    current_catalog_record = load_unique_yaml_document(current_catalog_path)
+    current_catalog_record = load_billboard_catalog(current_asset_root)
     current_registry_record = load_unique_yaml_document(current_asset_root/'asset-registry.yaml')
     current_property_path = current_asset_root/'assets/maps/sprite-display-properties.yaml'
     current_property_catalog = load_unique_yaml_document(current_property_path)['data']
@@ -190,10 +257,10 @@ def main_catalog_sync():
     current_argument_values=current_argument_parser.parse_args()
     current_catalog_path=current_argument_values.asset_root/'assets/billboards/catalog.yaml'
     print(f'{datetime.now().isoformat()}/billboard-catalog/start 원본·공용 속성·맵 참조 검증',flush=True)
-    current_original_record=load_unique_yaml_document(current_catalog_path)
+    current_original_record=load_billboard_catalog(current_argument_values.asset_root)
     current_expected_record=build_catalog_reference(current_argument_values.asset_root)
     if current_argument_values.write:
-        current_catalog_path.write_text(serialize_billboard_catalog(current_expected_record))
+        write_billboard_catalog(current_argument_values.asset_root,current_expected_record)
     elif current_original_record!=current_expected_record:
         raise ValueError('카탈로그가 공용 속성·원본·맵 배치와 다릅니다. --write로 파생 정보를 갱신하세요.')
     current_missing_count=sum(x['placement']['status']=='설정 필요' for x in current_expected_record['billboards'])

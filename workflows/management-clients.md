@@ -873,3 +873,9 @@ GUI 결과 조회와 CLI `status`의 `audio_stems`로 MR·보컬을 조회합니
 그림자 크기 전환은 `tools/review/maintenance/migrate_shadow_sizes.py`의 `--asset-root`, `--backup-root`, `--apply`로 수행한다. 기본은 검토만 하며, 이전 길이를 점유 열·행 수로 나누고 `shadowSizeVersion: 2`를 기록한다. 재실행은 중복 변환하지 않는다. 배율은 소수점 6자리까지 보존하여 기존 외곽 크기의 반올림 오차를 줄인다. 이동·앵커·점유 값은 바꾸지 않는다. 등록부·잠금·카탈로그를 함께 갱신한다.
 
 기존 빌보드 크기를 공통 기본값으로 통일하려면 위 크기 마이그레이션에 `--reset-sizes`를 명시한다. 모든 등록 빌보드의 점유 배율을 1·1로 설정하므로 기존 표시 크기는 달라진다. 그림자 이동·앵커·점유·표시 높이는 유지한다. 2026-10-25 사용자 요청으로 이 기본값 통일을 수행했다. 이후 개별 편집값을 유지하려면 이 옵션을 다시 실행하지 않는다.
+
+### 빌보드 타입별 카탈로그 조회
+
+`map-assets asset-list`는 `{"category":"herbaceous"}`와 같이 에셋 타입을 지정할 수 있습니다. `vegetation`(자연물), `herbaceous`(화초), `large-trees`(큰 나무), `rocks-minerals`(암석광물), `props`(소품)를 사용합니다. GUI는 자연물을 기본 선택하며 전체 선택을 제공하지 않습니다. 타입 변경 시 해당 파일만 파싱하며 목록 조회에서 전체 카탈로그 재생성을 수행하지 않습니다. 기존 내부 전체 검증용 빈 payload 계약은 유지합니다.
+
+빌보드 색인은 `slime-assets/assets/billboards/catalog.yaml`(schema 2), 타입별 계열·에셋 기록은 `catalogs/<type>.yaml`에서 관리합니다. `sync_billboard_catalog.py --write/--check`는 전체 분할 파일을 동기화·검증합니다. 저장·크롭·폐기·맵 편집의 백업과 복원에는 분할 파일도 포함됩니다.

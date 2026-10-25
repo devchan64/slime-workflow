@@ -84,7 +84,8 @@ def resize_registered_sources(asset_root_path: Path, frontend_root_path: Path) -
     catalog_path = asset_root_path / 'assets/billboards/catalog.yaml'
     sprite_lock_path = frontend_root_path / 'sprite-assets.lock.yaml'
     registry_record = read_yaml_document(registry_path)
-    category_by_texture = create_billboard_category_map(read_yaml_document(catalog_path))
+    from tools.review.maintenance.sync_billboard_catalog import load_billboard_catalog
+    category_by_texture = create_billboard_category_map(load_billboard_catalog(asset_root_path))
     registry_asset_paths = {asset_record.get('path') for asset_record in registry_record.get('assets', []) if isinstance(asset_record, dict)}
     image_paths = sorted(
         image_path.relative_to(asset_root_path).as_posix()

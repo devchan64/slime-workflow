@@ -1,4 +1,5 @@
 """공용 빌보드 목록·일괄 속성 검증·저장. 기존 이미지 변경 잠금을 공유한다."""
+from tools.review.maintenance.sync_billboard_catalog import load_billboard_catalog, list_billboard_catalog_paths, write_billboard_catalog, prepare_billboard_catalog_files
 from tools.review.common.sprite_display_properties import normalize_sprite_property_precision
 import hashlib
 import json
@@ -13,23 +14,25 @@ EDITOR_MUTABLE_FIELDS = {'billboardBlocksMovement','anchorX','anchorY','groundFo
 EDITOR_STORAGE_DIRECTORY = Path(__file__).resolve().parents[4]/'.tmp/map-asset-editor'
 
 
-def read_editor_snapshot(current_asset_root=None):
+def read_editor_snapshot(current_asset_root=None,current_category_name=None):
     if current_asset_root is None:
         from tools.review.common.map_tile_assets import load_registered_tiles
         current_asset_root = load_registered_tiles()[0]
     current_asset_root = Path(current_asset_root)
     current_source_paths = [current_asset_root/'assets/maps/sprite-display-properties.yaml',current_asset_root/'asset-registry.yaml',current_asset_root/'assets/billboards/catalog.yaml',current_asset_root.parent/'slime-backend/map-data.lock.yaml']
+    current_source_paths.extend(list_billboard_catalog_paths(current_asset_root)[1:])
     current_source_bytes = {current_source_path:current_source_path.read_bytes() for current_source_path in current_source_paths}
     current_revision_hash = hashlib.sha256(b''.join(hashlib.sha256(current_content_bytes).digest() for current_content_bytes in current_source_bytes.values())).hexdigest()
     current_property_document = load_unique_yaml_document(current_source_paths[0])
     validate_sprite_display_properties(current_property_document['data'])
-    current_catalog_document = build_catalog_reference(current_asset_root)
+    current_catalog_document = load_billboard_catalog(current_asset_root,current_category_name)
     return current_asset_root,current_source_paths,current_source_bytes,current_revision_hash,current_property_document,current_catalog_document
 
 
 def load_editor_catalog(current_request_payload, current_asset_root=None):
-    if current_request_payload != {}:raise ValueError('목록 조회에는 입력값을 지정하지 않습니다.')
-    current_asset_root,current_source_paths,current_source_bytes,current_revision_hash,current_property_document,current_catalog_document=read_editor_snapshot(current_asset_root)
+    if not isinstance(current_request_payload,dict) or set(current_request_payload)-{'category'}:raise ValueError('목록 조회에는 category만 지정하세요.')
+    current_category_name=current_request_payload.get('category')
+    current_asset_root,current_source_paths,current_source_bytes,current_revision_hash,current_property_document,current_catalog_document=read_editor_snapshot(current_asset_root,current_category_name)
     current_asset_rows=[]
     for current_asset_record in current_catalog_document['billboards']:
         current_texture_key=current_asset_record['texture_key'];current_family_record=current_catalog_document['families'][current_asset_record['family']]
@@ -126,7 +129,7 @@ def save_editor_changes(current_request_payload,current_asset_root=None):
         for current_file_path,current_file_bytes in current_pending_files.items():
             current_temporary_path=current_file_path.with_name(current_file_path.name+'.editor-tmp');current_temporary_path.write_bytes(current_file_bytes);os.replace(current_temporary_path,current_file_path)
         current_synced_catalog=build_catalog_reference(current_asset_root)
-        current_source_paths[2].write_text(yaml.safe_dump(current_synced_catalog,allow_unicode=True,sort_keys=False))
+        write_billboard_catalog(current_asset_root,current_synced_catalog)
         current_result_record={'saved':True,'count':len(current_preview_result['changes']),'maps':current_preview_result['maps'],'map_warnings':current_preview_result['map_warnings'],'saved_at':datetime.now(timezone.utc).isoformat(),'sha256':current_new_hash}
         current_receipt_path.write_text(json.dumps(current_result_record,ensure_ascii=False))
         return current_result_record

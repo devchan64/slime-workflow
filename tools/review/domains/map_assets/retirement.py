@@ -1,4 +1,5 @@
 """빌보드 폐기 계획·확인 실행. 원본은 보관하고 실패 시 변경을 복원한다."""
+from tools.review.maintenance.sync_billboard_catalog import load_billboard_catalog, list_billboard_catalog_paths, write_billboard_catalog, prepare_billboard_catalog_files
 import hashlib
 import json
 from pathlib import Path
@@ -44,7 +45,7 @@ def prepare_billboard_retirement(current_request_payload, current_asset_root=Non
     current_registry_record['path']=str(current_retired_path.relative_to(current_asset_root))
     current_catalog_document['billboards']=[current_record for current_record in current_catalog_document['billboards'] if current_record['texture_key']!=current_texture_name]
     current_catalog_document['families'].pop(current_texture_name,None)
-    current_updated_documents[current_source_paths[2]]=current_catalog_document
+    current_catalog_pending=prepare_billboard_catalog_files(current_asset_root,current_catalog_document)
     current_frontend_root=current_asset_root.parent/'slime-frontend'
     current_list_path=current_frontend_root/'src/game/terrain/scenery.asset-list.yaml'
     current_lock_path=current_frontend_root/'sprite-assets.lock.yaml'
@@ -64,6 +65,7 @@ def prepare_billboard_retirement(current_request_payload, current_asset_root=Non
             if current_registry_text.count(current_old_hash)!=1 or current_backend_text.count(current_old_hash)!=1:raise ValueError('등록부·맵 소비자 잠금 불일치')
             current_registry_text=current_registry_text.replace(current_old_hash,current_new_hash)
             current_backend_text=current_backend_text.replace(current_old_hash,current_new_hash)
+    current_pending_files.update(current_catalog_pending)
     current_pending_files[current_source_paths[1]]=current_registry_text.encode()
     current_pending_files[current_source_paths[3]]=current_backend_text.encode()
     current_plan_token=hashlib.sha256(json.dumps(current_request_payload,sort_keys=True).encode()+b''.join(hashlib.sha256(current_content).digest() for current_content in current_source_bytes.values())).hexdigest()
@@ -93,7 +95,7 @@ def execute_billboard_retirement(current_request_payload,current_asset_root=None
         current_image_path.rename(current_retired_path)
         for current_file_path,current_file_bytes in current_pending_files.items():current_file_path.write_bytes(current_file_bytes)
         current_catalog_path=current_asset_root/'assets/billboards/catalog.yaml'
-        current_catalog_path.write_text(yaml.safe_dump(build_catalog_reference(current_asset_root),allow_unicode=True,sort_keys=False))
+        write_billboard_catalog(current_asset_root,build_catalog_reference(current_asset_root))
         build_catalog_reference(current_asset_root)
         return {**current_plan_result,'retired':True}
     except Exception:

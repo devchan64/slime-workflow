@@ -24,6 +24,7 @@ class MapAssetEditorTests(unittest.TestCase):
         self.current_backend_path=self.current_asset_root.parent/'slime-backend/map-data.lock.yaml'
         self.current_backend_path.parent.mkdir();self.current_backend_path.write_text('sha256: '+self.current_original_hash)
         self.current_catalog_record={'billboards':[{'texture_key':'sample'}]}
+        self.current_catalog_path.write_text(yaml.safe_dump(self.current_catalog_record))
         self.current_catalog_patch=patch.object(editor,'build_catalog_reference',return_value=self.current_catalog_record)
         self.current_catalog_patch.start();self.addCleanup(self.current_catalog_patch.stop)
         self.current_storage_patch=patch.object(editor,'EDITOR_STORAGE_DIRECTORY',self.current_asset_root.parent/'receipts')
@@ -65,7 +66,7 @@ class MapAssetEditorTests(unittest.TestCase):
         current_preview_result=editor.preview_editor_changes(self.current_request_payload,self.current_asset_root)
         current_source_paths=editor.read_editor_snapshot(self.current_asset_root)[1]
         current_original_bytes={current_source_path:current_source_path.read_bytes() for current_source_path in current_source_paths}
-        with patch.object(editor,'build_catalog_reference',side_effect=[self.current_catalog_record,RuntimeError('카탈로그 실패')]):
+        with patch.object(editor,'build_catalog_reference',side_effect=RuntimeError('카탈로그 실패')):
             with self.assertRaises(RuntimeError):editor.save_editor_changes({**self.current_request_payload,'token':current_preview_result['token']},self.current_asset_root)
         self.assertEqual({current_source_path:current_source_path.read_bytes() for current_source_path in current_source_paths},current_original_bytes)
 

@@ -1,4 +1,5 @@
 """야외 맵의 타일·고도·빌보드 초안 검증과 원본 저장."""
+from tools.review.maintenance.sync_billboard_catalog import load_billboard_catalog, list_billboard_catalog_paths, write_billboard_catalog, prepare_billboard_catalog_files
 import copy
 import hashlib
 import json
@@ -127,6 +128,7 @@ def save_map_editor_changes(current_request_payload):
     (current_asset_root,current_source_paths,current_documents,current_source_bytes),current_preview_result=validate_map_editor_changes(current_validation_payload)
     if not current_preview_result['changed']:return {'saved':False,'unchanged':True,'map':current_request_payload['map']}
     current_metadata_paths=[current_asset_root/'asset-registry.yaml',current_asset_root.parent/'slime-backend/map-data.lock.yaml',current_asset_root/'assets/billboards/catalog.yaml']
+    current_metadata_paths.extend(list_billboard_catalog_paths(current_asset_root)[1:])
     for current_metadata_path in current_metadata_paths:current_source_bytes[current_metadata_path]=current_metadata_path.read_bytes()
     current_pending_files={current_source_path:yaml.safe_dump(current_document,allow_unicode=True,sort_keys=False,width=120).encode() for current_source_path,current_document in zip(current_source_paths,current_documents)}
     for current_metadata_path in current_metadata_paths[:2]:
@@ -145,7 +147,7 @@ def save_map_editor_changes(current_request_payload):
     try:
         for current_source_path,current_output_bytes in current_pending_files.items():
             current_temporary_path=current_source_path.with_suffix('.map-editor-tmp');current_temporary_path.write_bytes(current_output_bytes);os.replace(current_temporary_path,current_source_path)
-        current_metadata_paths[2].write_text(yaml.safe_dump(build_catalog_reference(current_asset_root),allow_unicode=True,sort_keys=False))
+        write_billboard_catalog(current_asset_root,build_catalog_reference(current_asset_root))
     except Exception:
         for current_source_path,current_source_content in current_source_bytes.items():current_source_path.write_bytes(current_source_content)
         raise
