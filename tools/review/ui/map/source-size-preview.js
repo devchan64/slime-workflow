@@ -104,8 +104,8 @@ export function drawAssetGroundPreview(currentPreviewCanvas,currentSourceImage,c
  const currentCharacterScale=currentCharacterPreview?currentCharacterPreview.record.displayHeight/currentCharacterPreview.record.bodyHeight:0;
  const currentCharacterFrame=currentCharacterPreview?.record.frame;
  const currentCharacterPositionX=currentAnchorPositionX+currentDisplayWidth/2+currentTileWidth/2;
- const currentContentTop=Math.min(currentAnchorPositionY-currentDisplayHeight*(currentTileAnchorMode?1:currentPropertyValues.anchorY),-currentTileHeight/2,currentCharacterFrame?currentAnchorPositionY-currentCharacterFrame.anchor.y*currentCharacterScale:Infinity);
- const currentContentBottom=Math.max(currentAnchorPositionY+currentDisplayHeight*(currentTileAnchorMode?0:1-currentPropertyValues.anchorY),(Math.max(currentColumnRadius+currentRowRadius,currentTileAnchorMode&&currentColumnRadius<=1&&currentRowRadius<=1?2:0)+1)*currentTileHeight/2,currentCharacterFrame?currentAnchorPositionY+(currentCharacterFrame.rect.height-currentCharacterFrame.anchor.y)*currentCharacterScale:-Infinity);
+ const currentContentTop=Math.min(currentAnchorPositionY-currentDisplayHeight*(currentTileAnchorMode?1:currentPropertyValues.anchorY),-3*currentTileHeight/2,currentCharacterFrame?currentAnchorPositionY-currentCharacterFrame.anchor.y*currentCharacterScale:Infinity);
+ const currentContentBottom=Math.max(currentAnchorPositionY+currentDisplayHeight*(currentTileAnchorMode?0:1-currentPropertyValues.anchorY),(currentColumnRadius+currentRowRadius+3)*currentTileHeight/2,currentCharacterFrame?currentAnchorPositionY+(currentCharacterFrame.rect.height-currentCharacterFrame.anchor.y)*currentCharacterScale:-Infinity);
  currentPreviewCanvas.height=Math.ceil((currentContentBottom-currentContentTop)*currentPreviewZoom+SOURCE_PREVIEW_CONTENT_MARGIN*2);
  const currentViewCenterY=(currentContentTop+currentContentBottom)/2;
  const currentCanvasContext=currentPreviewCanvas.getContext('2d');currentCanvasContext.clearRect(0,0,currentPreviewCanvas.width,currentPreviewCanvas.height);
@@ -118,10 +118,11 @@ export function drawAssetGroundPreview(currentPreviewCanvas,currentSourceImage,c
   const currentCenterX=currentGroundCenterX+(currentColumnOffset-currentRowOffset)*currentTileWidth/2,currentCenterY=currentGroundCenterY+(currentColumnOffset+currentRowOffset)*currentTileHeight/2;
   const currentTilePath=new Path2D();currentTilePath.moveTo(currentCenterX,currentCenterY-currentTileHeight/2);currentTilePath.lineTo(currentCenterX+currentTileWidth/2,currentCenterY);currentTilePath.lineTo(currentCenterX,currentCenterY+currentTileHeight/2);currentTilePath.lineTo(currentCenterX-currentTileWidth/2,currentCenterY);currentTilePath.closePath();currentTilePaths.push(currentTilePath);currentCanvasContext.fillStyle=SOURCE_PREVIEW_TILE_FILL;currentCanvasContext.fill(currentTilePath);
  }
- // 2×2 이하 점유만 2×2 보조 격자로 교차점 주변 그림자를 검수한다.
+ // 점유 영역의 사방으로 한 칸씩 보조 격자를 표시한다.
  const currentAnchorGuidePaths=[];
- if(currentTileAnchorMode&&currentColumnRadius<=1&&currentRowRadius<=1){
-  for(let currentColumnOffset=0;currentColumnOffset<=1;currentColumnOffset++)for(let currentRowOffset=0;currentRowOffset<=1;currentRowOffset++){
+ {
+  for(let currentColumnOffset=-1;currentColumnOffset<=currentColumnRadius+1;currentColumnOffset++)for(let currentRowOffset=-1;currentRowOffset<=currentRowRadius+1;currentRowOffset++){
+   if(currentColumnOffset>=0&&currentColumnOffset<=currentColumnRadius&&currentRowOffset>=0&&currentRowOffset<=currentRowRadius)continue;
    const currentGuideCenterX=currentGroundCenterX+(currentColumnOffset-currentRowOffset)*currentTileWidth/2,currentGuideCenterY=currentGroundCenterY+(currentColumnOffset+currentRowOffset)*currentTileHeight/2;
    const currentGuideTilePath=new Path2D();currentGuideTilePath.moveTo(currentGuideCenterX,currentGuideCenterY-currentTileHeight/2);currentGuideTilePath.lineTo(currentGuideCenterX+currentTileWidth/2,currentGuideCenterY);currentGuideTilePath.lineTo(currentGuideCenterX,currentGuideCenterY+currentTileHeight/2);currentGuideTilePath.lineTo(currentGuideCenterX-currentTileWidth/2,currentGuideCenterY);currentGuideTilePath.closePath();
    currentAnchorGuidePaths.push(currentGuideTilePath);currentCanvasContext.fillStyle=SOURCE_PREVIEW_GUIDE_STYLE.fill;currentCanvasContext.fill(currentGuideTilePath);
