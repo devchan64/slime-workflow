@@ -252,10 +252,12 @@ def save_selected_asset_properties(current_detail_record,*current_property_value
 
 
 def stream_selected_asset_save(current_detail_record,*current_property_values):
+    yield gr.skip(),gr.skip(),'저장 중입니다. 완료될 때까지 기다려주세요.',gr.update(interactive=False,value='저장 중…')
     try:
-        yield from iterate_selected_asset_save(current_detail_record,*current_property_values)
+        for current_save_result in iterate_selected_asset_save(current_detail_record,*current_property_values):
+            yield *current_save_result,gr.skip()
     except (ValueError,OSError,gr.Error) as current_save_error:
-        yield gr.skip(),gr.skip(),'저장 실패 · 입력값은 유지됩니다. '+str(current_save_error)
+        yield gr.skip(),gr.skip(),'저장 실패 · 입력값은 유지됩니다. '+str(current_save_error),gr.skip()
 
 
 def preview_asset_retirement(current_catalog_record,current_detail_record):
@@ -310,7 +312,7 @@ def build_asset_editor_interface(current_review_port):
         current_selection_event=current_source_gallery.select(select_asset_editor_record,inputs=[current_visible_state,current_asset_table],outputs=[current_editor_panel.current_detail_record,*current_editor_panel.current_property_inputs,current_editor_panel.current_placement_choice,*current_editor_panel.current_shadow_inputs,current_editor_panel.current_blocking_choice,current_editor_panel.current_detail_text])
         for current_size_control in current_editor_panel.current_property_inputs[2:4]:
             current_size_control.change(calculate_editor_automatic_values,inputs=current_editor_panel.current_property_inputs[2:4],outputs=current_editor_panel.current_blocking_choice)
-        current_editor_panel.current_update_button.click(stream_selected_asset_save,inputs=[current_editor_panel.current_detail_record,*current_editor_panel.current_property_inputs,current_editor_panel.current_placement_choice,*current_editor_panel.current_shadow_inputs,current_editor_panel.current_blocking_choice],outputs=[current_catalog_state,current_asset_table,current_editor_panel.current_save_progress],show_progress='full',concurrency_limit=1,trigger_mode='once')
+        current_editor_panel.current_update_button.click(stream_selected_asset_save,inputs=[current_editor_panel.current_detail_record,*current_editor_panel.current_property_inputs,current_editor_panel.current_placement_choice,*current_editor_panel.current_shadow_inputs,current_editor_panel.current_blocking_choice],outputs=[current_catalog_state,current_asset_table,current_editor_panel.current_save_progress,current_editor_panel.current_update_button],show_progress='full',concurrency_limit=1,trigger_mode='once').then(lambda:gr.update(interactive=True,value='선택 에셋 변경 반영'),outputs=current_editor_panel.current_update_button,queue=False)
         current_renderer_version=__import__('yaml').safe_load((WORKFLOW_ROOT_DIRECTORY/'tools/review/ui/map/vendor/field-renderer/manifest.yaml').read_text())['version']
         current_preview_script=build_asset_preview_script(current_review_port,current_renderer_version,'asset-editor-preview')
         current_editor_panel.current_detail_record.change(load_selected_resolution_controls,inputs=current_editor_panel.current_detail_record,outputs=[current_editor_panel.current_resolution_text,current_editor_panel.current_resolution_choice,current_editor_panel.current_resolution_button,current_editor_panel.current_resolution_feedback])
