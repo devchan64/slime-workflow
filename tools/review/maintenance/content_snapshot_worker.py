@@ -1,4 +1,4 @@
-"""독립 프로세스에서 공용 게이트웨이의 파일 스냅샷 명령을 주기 실행한다."""
+"""독립 프로세스에서 공용 게이트웨이의 에셋 원장 동기화 명령을 주기 실행한다."""
 import argparse
 from datetime import datetime
 import logging
@@ -45,16 +45,16 @@ def run_content_snapshot_worker(current_server_address,current_interval_seconds,
     try:
         while not current_stop_event.is_set():
             current_worker_state['phase']='snapshot'
-            current_worker_logger.info('start 파일 스냅샷 요청')
+            current_worker_logger.info('start 에셋 원장 동기화 요청')
             try:
-                current_result_record=execute_management_command('map-assets','database-snapshot',{},current_server_address)
+                current_result_record=execute_management_command('map-assets','database-sync',{},current_server_address)
                 current_worker_state.update(last_result=current_result_record,last_error=None,phase='waiting')
                 current_worker_logger.info('complete %s',current_result_record)
                 current_failure_count=0
             except Exception as current_worker_error:
                 current_failure_count+=1
                 current_worker_state.update(last_error=str(current_worker_error),phase='retry-wait')
-                current_worker_logger.exception('failure 스냅샷 실패; 기존 DB와 마지막 파일 세대 보존')
+                current_worker_logger.exception('failure 원장 동기화 실패; 기존 DB와 원장 보존')
                 if current_run_once:
                     raise
             if current_run_once:

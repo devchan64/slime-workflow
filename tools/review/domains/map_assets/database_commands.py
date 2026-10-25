@@ -27,7 +27,7 @@ def execute_content_database_command(current_command_name,current_request_payloa
         raise ValueError('이 명령은 빈 payload를 사용합니다.')
     if current_command_name=='database-status':
         return execute_content_api_request('GET','/internal/v1/content/status')
-    if current_command_name=='database-snapshot':
+    if current_command_name in ('database-sync','database-snapshot'):
         current_snapshot_root=os.environ.get('SLIME_CONTENT_SNAPSHOT_ROOT')
         if not current_snapshot_root or not Path(current_snapshot_root).is_absolute():
             raise ValueError('SLIME_CONTENT_SNAPSHOT_ROOT에 절대 경로를 지정하세요.')

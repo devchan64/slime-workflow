@@ -95,7 +95,7 @@ def resize_registered_image(current_request_payload):
 
 def handle_map_resize_request(current_http_handler):
     from tools.review.common.management_transport import send_management_json_response
-    if current_http_handler.command != 'POST' or urlsplit(current_http_handler.path).path not in ('/map-assets/resize','/map-assets/anchor-save','/map-assets/editor-list','/map-assets/editor-preview','/map-assets/editor-save','/map-assets/editor-crop-preview','/map-assets/editor-crop','/map-assets/editor-retire-preview','/map-assets/editor-retire','/map-assets/editor-map-edit-load','/map-assets/editor-map-edit-preview','/map-assets/editor-map-edit-save','/map-assets/database-seed','/map-assets/database-status','/map-assets/database-snapshot','/map-assets/database-restore'):
+    if current_http_handler.command != 'POST' or urlsplit(current_http_handler.path).path not in ('/map-assets/resize','/map-assets/anchor-save','/map-assets/editor-list','/map-assets/editor-preview','/map-assets/editor-save','/map-assets/editor-crop-preview','/map-assets/editor-crop','/map-assets/editor-retire-preview','/map-assets/editor-retire','/map-assets/editor-map-edit-load','/map-assets/editor-map-edit-preview','/map-assets/editor-map-edit-save','/map-assets/database-seed','/map-assets/database-status','/map-assets/database-sync','/map-assets/database-snapshot','/map-assets/database-restore'):
         return False
     try:
         if urlsplit(current_http_handler.path).path.startswith('/map-assets/database-'):

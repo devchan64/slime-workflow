@@ -244,7 +244,7 @@ def iterate_selected_asset_save(current_detail_record,*current_property_values):
         current_save_result=execute_remote_management_command('map-assets','asset-save',{**current_request_payload,'token':current_preview_record['token']})
         yield gr.skip(),gr.skip(),f'{current_texture_key} · 저장 결과 조회 중…'
         current_catalog_record,current_table_values,_=load_asset_editor_catalog(current_detail_record.get('category'))
-        current_feedback_text=(f'{current_texture_key} · DB 저장 완료 · 파일 스냅샷 대기' if current_save_result.get('snapshot')=='pending' else f'{current_texture_key} 저장 완료. 해당 ID만 업데이트했습니다. 맵 경고 {len(current_preview_record.get("map_warnings",[]))}건.')
+        current_feedback_text=(f'{current_texture_key} · DB 저장 완료 · 원장 반영 상태는 상단에서 자동 갱신됩니다.' if current_save_result.get('snapshot')=='pending' else f'{current_texture_key} 저장 완료. 해당 ID만 업데이트했습니다. 맵 경고 {len(current_preview_record.get("map_warnings",[]))}건.')
     else:
         current_feedback_text=current_texture_key+' · 변경된 값이 없습니다.'
     yield current_catalog_record,current_table_values,current_feedback_text
@@ -296,11 +296,35 @@ def calculate_editor_automatic_values(current_column_count,current_row_count):
     return current_property_values['billboardBlocksMovement']
 
 
+def refresh_content_snapshot_status(current_catalog_record):
+    if current_catalog_record.get('storage') != 'database':
+        return gr.update(visible=False)
+    try:
+        current_snapshot_status=execute_remote_management_command('map-assets','database-status',{})
+    except (ValueError, OSError, RuntimeError) as current_status_error:
+        return gr.update(visible=True,value='에셋 원장 동기화 상태 조회 실패 · '+str(current_status_error))
+    current_database_generation=current_snapshot_status['generation']
+    current_snapshot_generation=current_snapshot_status['snapshotGeneration']
+    current_latest_snapshot=current_snapshot_status.get('latestSnapshot') or {}
+    if not current_snapshot_status['pending']:
+        current_status_text=f'에셋 원장 동기화 완료 · DB {current_database_generation} / 파일 {current_snapshot_generation}'
+    elif current_latest_snapshot.get('state')=='failed' or current_latest_snapshot.get('leaseExpired'):
+        current_status_text=f'에셋 원장 동기화 재시도 필요 · DB {current_database_generation} / 파일 {current_snapshot_generation} · '+str(current_latest_snapshot.get('error') or '작업자 응답 기한 만료')
+    else:
+        current_status_text=f'에셋 원장 동기화 대기 · DB {current_database_generation} / 파일 {current_snapshot_generation} · 독립 작업자가 주기적으로 반영합니다.'
+    if current_latest_snapshot.get('finishedAt'):
+        current_status_text+=' · 최근 처리 '+current_latest_snapshot['finishedAt']
+    return gr.update(visible=True,value=current_status_text)
+
+
 def build_asset_editor_interface(current_review_port):
     with gr.Blocks(title='공용 빌보드 에셋 관리') as current_interface_blocks:
         gr.Markdown('## 공용 빌보드 에셋 관리\n썸네일을 선택해 속성을 편집하세요. **선택 에셋 변경 반영**을 누르면 해당 ID 하나만 검증하고 즉시 저장합니다. 앵커 X·Y는 하단 교차점 기준 수동 이동값입니다. 3×3 이상은 외곽을 제외한 내부 타일만 차단합니다.')
         current_catalog_state=gr.State({});current_visible_state=gr.State([])
         current_feedback_text=gr.Markdown()
+        current_snapshot_feedback=gr.Markdown(visible=False)
+        gr.Timer(5).tick(refresh_content_snapshot_status,inputs=[current_catalog_state],outputs=[current_snapshot_feedback],queue=False,show_progress="hidden")
+        current_catalog_state.change(refresh_content_snapshot_status,inputs=[current_catalog_state],outputs=[current_snapshot_feedback],queue=False,show_progress="hidden")
         with gr.Row():
             current_search_text=gr.Textbox(label='에셋 검색',placeholder='ID · 이름 · 사용 맵',scale=3)
             current_asset_type=gr.Dropdown(label='에셋 타입',choices=[('자연물','vegetation'),('화초','herbaceous'),('큰 나무','large-trees'),('암석광물','rocks-minerals'),('소품','props')],value='vegetation',scale=1)
