@@ -172,16 +172,8 @@ def build_block_map_review(output_directory_path, character_review_only=False):
     texture_output_directory=output_directory_path/'textures'
     texture_output_directory.mkdir(exist_ok=True)
     (output_directory_path/'field-safe-visuals.json').write_text(json.dumps({} if character_review_only else build_field_safe_visual_records(texture_output_directory),ensure_ascii=False))
-    exported_map_records=[]
-    # 등록된 맵 원본 인덱스를 따라 검수 목록을 구성한다.
-    from tools.review.common.map_asset_sources import load_review_map_identifiers
-    _, current_map_identifiers = load_review_map_identifiers()
-    for current_map_identifier in (() if character_review_only else current_map_identifiers):
-        current_map_record = build_registered_map_review(current_map_identifier, current_validate_placement=False)
-        required_material_names=set(current_map_record['terrainCodes'].values())
-        if required_material_names-set(current_material_record['materials']):
-            raise ValueError('맵 검수 재질 누락: '+current_map_identifier)
-        exported_map_records.append({'id':current_map_identifier,'name':current_map_record['name'],'kind':'town' if current_map_record.get('safeTown') else 'field','path':'/management/map-assets/maps/'+current_map_identifier})
+    from tools.review.common.map_asset_sources import load_review_map_menu
+    exported_map_records=[] if character_review_only else load_review_map_menu()
     if character_review_only:
         exported_map_records=[{'id':'character-review','name':'캐릭터 표현 검수','path':''}]
     if not exported_map_records:

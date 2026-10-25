@@ -9,12 +9,9 @@ WORKFLOW_REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 
 
 def load_game_city_export_sources():
-    from tools.review.common.map_asset_sources import MAP_REVIEW_IDENTIFIERS, MAP_SOURCE_BLOCK_HEIGHT, load_registered_map_review
-    current_source_records = {}
-    for current_map_identifier in MAP_REVIEW_IDENTIFIERS:
-        for current_source_record in load_registered_map_review(current_map_identifier)['provenance']:
-            current_source_records[current_source_record['source']] = {'repository':'content-database' if current_source_record.get('version')=='database' else 'slime-assets','path':current_source_record['source'],'sha256':current_source_record['sha256']}
-    return MAP_SOURCE_BLOCK_HEIGHT, list(current_source_records.values())
+    """렌더 상수 계산은 맵 본문·DB 조회에 의존하지 않는다."""
+    from tools.review.common.map_asset_sources import MAP_SOURCE_BLOCK_HEIGHT
+    return MAP_SOURCE_BLOCK_HEIGHT, []
 
 
 

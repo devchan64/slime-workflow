@@ -92,6 +92,25 @@ def load_review_map_identifiers(current_source_catalog=None):
     return current_city_identifiers, (*current_city_identifiers, *current_field_identifiers)
 
 
+def load_review_map_menu():
+    """시작 메뉴에는 인덱스·이름만 읽고 맵 본문은 선택 시 검증한다."""
+    if os.environ.get('SLIME_CONTENT_STORAGE')=='database':
+        from tools.review.domains.map_assets.database_client import execute_content_api_request
+        current_bundle_record=execute_content_api_request('GET','/internal/v1/content/review-bundle')
+        current_document_records=current_bundle_record['documents']
+        current_city_names=tuple(current_document_records['city_layouts/index.yaml']['data']['includes']['layouts'])
+        current_field_names=tuple(current_document_records['field_tiles/index.yaml']['data']['includes']['maps'])
+        if set(current_city_names)&set(current_field_names):raise ValueError('도시와 필드의 맵 ID가 중복되었습니다.')
+        return [{'id':current_map_name,'name':current_document_records['map_names/'+current_map_name+'.yaml']['data']['ko'],
+            'kind':'town' if current_map_name in current_city_names else 'field','path':'/management/map-assets/maps/'+current_map_name}
+            for current_map_name in (*current_city_names,*current_field_names)]
+    current_source_catalog=load_registered_tiles()
+    current_city_names,current_map_names=load_review_map_identifiers(current_source_catalog)
+    return [{'id':current_map_name,'name':read_registered_map_data('map_names/'+current_map_name+'.yaml',[],current_source_catalog)['ko'],
+        'kind':'town' if current_map_name in current_city_names else 'field','path':'/management/map-assets/maps/'+current_map_name}
+        for current_map_name in current_map_names]
+
+
 def load_registered_map_review(map_identifier_value):
     if os.environ.get('SLIME_CONTENT_STORAGE')!='database':
         return build_registered_map_review(map_identifier_value)
