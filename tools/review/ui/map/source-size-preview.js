@@ -3,7 +3,8 @@ const SOURCE_PREVIEW_GUIDE_STYLE=Object.freeze({fill:SOURCE_PREVIEW_TILE_FILL,st
 /** 원본 픽셀 크기와 타일 접지 영역을 비교하는 검수 캔버스. */
 const SOURCE_PREVIEW_WIDTH=768;
 const SOURCE_PREVIEW_HEIGHT=260;
-const SOURCE_PREVIEW_VERTICAL_SCALE=1.5;
+const SOURCE_PREVIEW_CONTENT_MARGIN=24;
+const SOURCE_PREVIEW_HEIGHT_INTERVAL=40;
 const SOURCE_PREVIEW_PADDING=100;
 export function installSourceSizePreview(currentTextureRecords,currentSelectedGameKeys,currentMapRecord,currentRenderMetrics){
  if(!Number.isFinite(currentRenderMetrics?.tileWidth)||!Number.isFinite(currentRenderMetrics?.tileHeight)||currentRenderMetrics.tileWidth<=0||currentRenderMetrics.tileHeight<=0)throw Error("공통 타일 렌더 규격이 필요합니다.");
@@ -91,20 +92,23 @@ export function drawAssetGroundPreview(currentPreviewCanvas,currentSourceImage,c
  const currentTileWidth=currentRenderMetrics.tileWidth,currentTileHeight=currentRenderMetrics.tileHeight;
  const currentDisplayHeight=currentPropertyValues.displayHeight*(currentRenderMetrics.billboardScale??1),currentDisplayWidth=currentDisplayHeight*(currentRenderMetrics.imageAspectRatio??currentSourceImage.width/currentSourceImage.height);
  const currentColumnRadius=currentPropertyValues.groundFootprintColumns-1,currentRowRadius=currentPropertyValues.groundFootprintRows-1;
- const currentGroundPadding=(currentColumnRadius+currentRowRadius+4)*currentTileHeight/2;
  currentPreviewCanvas.width=Math.max(SOURCE_PREVIEW_WIDTH,currentDisplayWidth*2+SOURCE_PREVIEW_PADDING*2,(currentColumnRadius+currentRowRadius+4)*currentTileWidth);
- currentPreviewCanvas.height=Math.max(SOURCE_PREVIEW_HEIGHT,currentDisplayHeight+currentGroundPadding*2);
- const currentImageBelowGround=currentDisplayHeight*(1-currentPropertyValues.anchorY)+currentTileHeight/2;
- currentPreviewCanvas.height=Math.ceil((currentPreviewCanvas.height+Math.max(0,currentImageBelowGround-currentGroundPadding))*SOURCE_PREVIEW_VERTICAL_SCALE);
- const currentGroundCenterX=currentPreviewCanvas.width/2,currentGroundCenterY=currentPreviewCanvas.height-Math.max(currentGroundPadding,currentImageBelowGround);
+ const currentGroundCenterX=currentPreviewCanvas.width/2,currentGroundCenterY=0;
  const currentAnchorOffset=currentPropertyValues.billboardPlacementAnchor==='top'?-1:currentPropertyValues.billboardPlacementAnchor==='bottom'?1:0;
  const currentTileAnchorMode=['tile-bottom-center','tile-intersection'].includes(currentPropertyValues.billboardAnchorMode);
  const currentIntersectionX=currentGroundCenterX+(currentColumnDistance-currentRowDistance)*currentTileWidth/2,currentIntersectionY=currentGroundCenterY+(currentColumnDistance+currentRowDistance)*currentTileHeight/2;
  const currentAnchorPositionX=currentIntersectionMode?currentIntersectionX+currentPropertyValues.anchorX*currentTileWidth:currentGroundCenterX+(currentTileAnchorMode?(currentPropertyValues.anchorX-.5)*currentTileWidth:0);
  const currentAnchorPositionY=currentIntersectionMode?currentIntersectionY+currentPropertyValues.anchorY*currentTileHeight:currentGroundCenterY+(currentTileAnchorMode?(currentPropertyValues.anchorY-.5)*currentTileHeight:currentAnchorOffset*currentTileHeight/2);
- const currentCanvasContext=currentPreviewCanvas.getContext('2d');currentCanvasContext.clearRect(0,0,currentPreviewCanvas.width,currentPreviewCanvas.height);
  const currentPreviewZoom=currentRenderMetrics.previewZoom??1;
- const currentViewCenterY=(Math.min(currentAnchorPositionY-currentDisplayHeight*(currentTileAnchorMode?1:currentPropertyValues.anchorY),currentGroundCenterY-currentGroundPadding)+Math.max(currentAnchorPositionY+currentDisplayHeight*(currentTileAnchorMode?0:1-currentPropertyValues.anchorY),currentGroundCenterY+currentGroundPadding))/2;
+ const currentCharacterPreview=currentRenderMetrics.characterPreview;
+ const currentCharacterScale=currentCharacterPreview?currentCharacterPreview.record.displayHeight/currentCharacterPreview.record.bodyHeight:0;
+ const currentCharacterFrame=currentCharacterPreview?.record.frame;
+ const currentCharacterPositionX=currentAnchorPositionX+currentDisplayWidth/2+currentTileWidth/2;
+ const currentContentTop=Math.min(currentAnchorPositionY-currentDisplayHeight*(currentTileAnchorMode?1:currentPropertyValues.anchorY),-currentTileHeight/2,currentCharacterFrame?currentAnchorPositionY-currentCharacterFrame.anchor.y*currentCharacterScale:Infinity);
+ const currentContentBottom=Math.max(currentAnchorPositionY+currentDisplayHeight*(currentTileAnchorMode?0:1-currentPropertyValues.anchorY),(Math.max(currentColumnRadius+currentRowRadius,currentTileAnchorMode&&currentColumnRadius<=1&&currentRowRadius<=1?2:0)+1)*currentTileHeight/2,currentCharacterFrame?currentAnchorPositionY+(currentCharacterFrame.rect.height-currentCharacterFrame.anchor.y)*currentCharacterScale:-Infinity);
+ currentPreviewCanvas.height=Math.ceil((currentContentBottom-currentContentTop)*currentPreviewZoom+SOURCE_PREVIEW_CONTENT_MARGIN*2);
+ const currentViewCenterY=(currentContentTop+currentContentBottom)/2;
+ const currentCanvasContext=currentPreviewCanvas.getContext('2d');currentCanvasContext.clearRect(0,0,currentPreviewCanvas.width,currentPreviewCanvas.height);
  currentCanvasContext.save();
  currentCanvasContext.translate(currentPreviewCanvas.width/2,currentPreviewCanvas.height/2);
  currentCanvasContext.scale(currentPreviewZoom,currentPreviewZoom);
@@ -130,6 +134,18 @@ export function drawAssetGroundPreview(currentPreviewCanvas,currentSourceImage,c
  }
  if(currentAnchorGuidePaths.length){
   currentCanvasContext.save();currentCanvasContext.strokeStyle=SOURCE_PREVIEW_GUIDE_STYLE.stroke;currentCanvasContext.lineWidth=SOURCE_PREVIEW_GUIDE_STYLE.lineWidth;currentCanvasContext.setLineDash(SOURCE_PREVIEW_GUIDE_STYLE.dash);currentAnchorGuidePaths.forEach(currentGuideTilePath=>currentCanvasContext.stroke(currentGuideTilePath));currentCanvasContext.restore();
+ }
+ if(currentRenderMetrics.showHeightGuidelines){
+  currentCanvasContext.save();currentCanvasContext.strokeStyle='#969696';currentCanvasContext.fillStyle='#707070';currentCanvasContext.lineWidth=1/currentPreviewZoom;currentCanvasContext.font='12px sans-serif';
+  for(let currentGuideHeight=0;currentGuideHeight<=currentAnchorPositionY-currentContentTop;currentGuideHeight+=SOURCE_PREVIEW_HEIGHT_INTERVAL){
+   const currentGuidePositionY=currentAnchorPositionY-currentGuideHeight;
+   currentCanvasContext.beginPath();currentCanvasContext.moveTo(0,currentGuidePositionY);currentCanvasContext.lineTo(currentPreviewCanvas.width,currentGuidePositionY);currentCanvasContext.stroke();currentCanvasContext.fillText(`${currentGuideHeight} px`,SOURCE_PREVIEW_CONTENT_MARGIN,currentGuidePositionY-4);
+  }
+  currentCanvasContext.restore();
+ }
+ if(currentCharacterFrame){
+  const currentFrameRectangle=currentCharacterFrame.rect;
+  currentCanvasContext.drawImage(currentCharacterPreview.image,currentFrameRectangle.x,currentFrameRectangle.y,currentFrameRectangle.width,currentFrameRectangle.height,currentCharacterPositionX-currentCharacterFrame.anchor.x*currentCharacterScale,currentAnchorPositionY-currentCharacterFrame.anchor.y*currentCharacterScale,currentFrameRectangle.width*currentCharacterScale,currentFrameRectangle.height*currentCharacterScale);
  }
  const currentImageLeft=currentAnchorPositionX-currentDisplayWidth*(currentTileAnchorMode?.5:currentPropertyValues.anchorX),currentImageTop=currentAnchorPositionY-currentDisplayHeight*(currentTileAnchorMode?1:currentPropertyValues.anchorY);
  currentCanvasContext.drawImage(currentSourceImage,currentImageLeft,currentImageTop,currentDisplayWidth,currentDisplayHeight);

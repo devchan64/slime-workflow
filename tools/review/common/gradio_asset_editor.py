@@ -81,6 +81,8 @@ class AssetEditorPanelControls:
     current_save_progress: object
     current_preview_kind: object
     current_preview_zoom: object
+    current_show_character: object
+    current_show_guidelines: object
     current_show_blocking: object
     current_preview_feedback: object
 
@@ -153,6 +155,8 @@ def build_selected_asset_panel(current_canvas_identifier):
             gr.Markdown('### 미리보기')
             current_preview_kind=gr.Radio(['야외 80×40 · 0.5배','마을·전투 160×80 · 1배'],value='야외 80×40 · 0.5배',label='미리보기 타일 규격')
             current_preview_zoom=gr.Slider(minimum=.5,maximum=4,value=1,step=.5,label='미리보기 확대 배율',info='0.5배 단위로 확대·축소합니다. 에셋 저장 값은 바뀌지 않습니다.')
+            current_show_character=gr.Checkbox(label='캐릭터 보기 · 마을',value=True,info='마을·전투 규격에서 기본 캐릭터를 실제 표시 크기로 함께 보여줍니다.')
+            current_show_guidelines=gr.Checkbox(label='높이 가이드라인 보기',value=False,info='접지 기준에서 위쪽으로 40px마다 표시합니다. 확대 배율을 함께 적용합니다.')
             current_show_blocking=gr.Checkbox(label='이동금지 영역 보기',value=True,info='차단 타일과 이동할 수 없는 경계를 표시합니다. 저장 값은 바뀌지 않습니다.')
             current_background_choice=gr.Radio(['검은색','흰색'],value='흰색',label='미리보기 배경')
             build_asset_preview_canvas(current_canvas_identifier,'#ffffff')
@@ -193,6 +197,8 @@ if(currentPreviewCanvas)currentPreviewCanvas.style.backgroundColor=currentBackgr
         current_save_progress=current_save_progress,
         current_preview_kind=current_preview_kind,
         current_preview_zoom=current_preview_zoom,
+        current_show_character=current_show_character,
+        current_show_guidelines=current_show_guidelines,
         current_show_blocking=current_show_blocking,
         current_preview_feedback=current_preview_feedback,
     )
@@ -201,7 +207,7 @@ if(currentPreviewCanvas)currentPreviewCanvas.style.backgroundColor=currentBackgr
 def build_asset_preview_script(current_review_port,current_renderer_version,current_canvas_identifier):
     """인스턴스별 캔버스에 공용 미리보기 동작을 연결한다."""
     import json
-    return '''async(currentAssetRecord,currentAnchorX,currentAnchorY,currentColumns,currentRows,currentHeight,currentPlacement,currentShadowColumn,currentShadowRow,currentShadowWidth,currentShadowHeight,currentKind,currentPreviewZoom,currentBlockingValue,currentShowBlocking)=>{
+    return '''async(currentAssetRecord,currentAnchorX,currentAnchorY,currentColumns,currentRows,currentHeight,currentPlacement,currentShadowColumn,currentShadowRow,currentShadowWidth,currentShadowHeight,currentKind,currentPreviewZoom,currentBlockingValue,currentShowBlocking,currentShowCharacter,currentShowGuidelines)=>{
 if(!currentAssetRecord?.image)return ['썸네일을 선택하세요.',{__type__:'update'}];
 const currentPreviewCanvas=document.getElementById(__CANVAS_IDENTIFIER__);
 const currentPreviewVersion=String(Number(currentPreviewCanvas.dataset.version??0)+1);currentPreviewCanvas.dataset.version=currentPreviewVersion;
@@ -211,7 +217,16 @@ const currentShadowRenderer=await import(`http://127.0.0.1:__PORT__/isloon-map-r
 const currentSourceImage=new Image();currentSourceImage.src=currentAssetRecord.image;await currentSourceImage.decode();
 if(currentPreviewCanvas.dataset.version!==currentPreviewVersion)return [{__type__:'update'},{__type__:'update'}];
 const currentOutdoorMode=currentKind.startsWith('야외');
+let currentCharacterPreview=null;
+if(!currentOutdoorMode&&currentShowCharacter){
+ const currentCharacterResponse=await fetch('http://127.0.0.1:__PORT__/isloon-map-review/review-character.json');
+ if(!currentCharacterResponse.ok)throw Error('미리보기 캐릭터 정보를 불러오지 못했습니다.');
+ const currentCharacterRecord=await currentCharacterResponse.json();
+ const currentCharacterImage=new Image();currentCharacterImage.src=new URL(currentCharacterRecord.image,currentCharacterResponse.url).href;await currentCharacterImage.decode();
+ currentCharacterPreview={record:currentCharacterRecord,image:currentCharacterImage};
+}
+if(currentPreviewCanvas.dataset.version!==currentPreviewVersion)return [{__type__:'update'},{__type__:'update'}];
 currentBlockingValue=currentColumns>=3&&currentRows>=3;
-const currentPreviewResult=currentPreviewModule.drawAssetGroundPreview(currentPreviewCanvas,currentSourceImage,{anchorX:currentAnchorX,anchorY:currentAnchorY,groundFootprintColumns:currentColumns,groundFootprintRows:currentRows,displayHeight:currentHeight,billboardAnchorMode:currentAssetRecord.properties.billboardAnchorMode,shadowCoordinateVersion:currentAssetRecord.properties.shadowCoordinateVersion??1,shadowSizeVersion:currentAssetRecord.properties.shadowSizeVersion??1,billboardPlacementAnchor:currentPlacement,shadowOffsetColumn:currentShadowColumn,shadowOffsetRow:currentShadowRow,shadowScaleX:currentShadowWidth,shadowScaleY:currentShadowHeight},{tileWidth:currentOutdoorMode?80:160,tileHeight:currentOutdoorMode?40:80,billboardScale:currentOutdoorMode?.5:1,previewZoom:currentPreviewZoom,showBlockedAreas:currentShowBlocking,drawShadow:currentShadowRenderer.drawBillboardContactShadow});
+const currentPreviewResult=currentPreviewModule.drawAssetGroundPreview(currentPreviewCanvas,currentSourceImage,{anchorX:currentAnchorX,anchorY:currentAnchorY,groundFootprintColumns:currentColumns,groundFootprintRows:currentRows,displayHeight:currentHeight,billboardAnchorMode:currentAssetRecord.properties.billboardAnchorMode,shadowCoordinateVersion:currentAssetRecord.properties.shadowCoordinateVersion??1,shadowSizeVersion:currentAssetRecord.properties.shadowSizeVersion??1,billboardPlacementAnchor:currentPlacement,shadowOffsetColumn:currentShadowColumn,shadowOffsetRow:currentShadowRow,shadowScaleX:currentShadowWidth,shadowScaleY:currentShadowHeight},{tileWidth:currentOutdoorMode?80:160,tileHeight:currentOutdoorMode?40:80,billboardScale:currentOutdoorMode?.5:1,previewZoom:currentPreviewZoom,characterPreview:currentCharacterPreview,showHeightGuidelines:currentShowGuidelines,showBlockedAreas:currentShowBlocking,drawShadow:currentShadowRenderer.drawBillboardContactShadow});
 return [`미리보기 ${currentPreviewZoom.toFixed(1)}배 · 선언 ${currentColumns}×${currentRows} · 실제 점유 ${currentPreviewResult.occupiedCells}칸 · ${currentBlockingValue?'내부 '+((currentColumns-2)*(currentRows-2))+'칸 차단':currentColumns===3&&currentRows===2?'가운데 이동 경계 차단':'통행 가능'} · 표시 ${currentPreviewResult.width.toFixed(1)}×${currentPreviewResult.height.toFixed(1)}px. 노랑: 타일 · 파랑: 이미지 · 빨강: 앵커. ${currentColumns<=2&&currentRows<=2?'보조 포함 2×2 격자 · 회색 점선은 점유 제외.':'보조 타일 없음.'} ${currentAssetRecord.metadata.length?'프레임 시트 원본 표시이므로 접지 판정에는 개별 프레임 검수가 필요합니다.':''}`,currentAnchorY<.5?'top':'bottom'];
 }'''.replace('__PORT__',str(current_review_port)).replace('__RENDERER_VERSION__',json.dumps(current_renderer_version)).replace('__CANVAS_IDENTIFIER__',json.dumps(current_canvas_identifier))
