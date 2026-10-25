@@ -599,8 +599,9 @@ examples:
   label: 조약돌 물가 · 기승전결 가사곡과 MR
   description: 썸네일의 투명한 푸른 물과 둥근 돌, 껍질을 고르는 게의 모습을 마림바·우쿨렐레·클라리넷·셰이커의 가벼운 어쿠스틱 팝으로 표현. 6행 가사에서 39.68초 EOS 종료한 결과를 바탕으로 후렴에
     조개껍질과 햇빛 묘사 2행을 보강. 도입 2행 → 후렴 4행 → 마무리 2행, 총 8행. 편곡·시드는 유지해 가사 변경을 비교한다. 약 1분 전후를 목표로 하되 실제 길이는 보장하지 않는다. 최대 출력 300초.
-    원곡·MR·320kbps MP3 청취 검수 필요. 출처는 삭제될 비교 기록이다.
-  source_generation_id: 2026-10-25_21-27-39-a2f74135
+    원곡·MR·320kbps MP3 청취 검수 필요. 출처는 삭제될 비교 기록이다. 최근 36.80초 결과가 짧아 가사 전개를 추가 보강했다. 편곡·시드를 유지하며 약 1분 전후를 재시도한다. 길이는 보장하지 않으며
+    새 결과 청취 검수가 필요하다.
+  source_generation_id: 2026-10-25_22-14-21-f88927e3
   request:
     prompt: light acoustic pop,marimba,ukulele,clarinet,shaker,rippling,playful,clear male vocals
     lyrics: '[Verse]
@@ -608,6 +609,12 @@ examples:
       Little crabs choose shells to keep
 
       Pebbles shine where waters sleep
+
+      [Verse]
+
+      By a shell the pebbles shift
+
+      We step back as ripples lift
 
       [Chorus]
 
@@ -673,10 +680,10 @@ examples:
     min_duration_seconds: 0
 - id: root-trail-vocal-mr-minute
   label: 뿌리 오솔길 · 기승전결 가사곡과 MR
-  description: '썸네일 검토: 뿌리 사이 수레바퀴 자국의 인상을 편성에 반영. 맵별 장르·주선율 악기·반주·보컬을 구분한 비교 예제. 편성 태그: woodland folk,bassoon,plucked viola,acoustic
-    guitar,woodblock,interwoven,curious,husky female vocals. 도입 2행 → 후렴 2행 → 마무리 2행. 초기 10곡 검수 경험을 반영한 6행 구성으로 약 1분 전후를 시도하며
-    실제 길이·음색·종결은 보장하지 않는다. 최대 출력 300초. 무작위 시드를 저장해 재현하며 원곡·MR·320kbps MP3를 함께 검수한다. 이번 입력은 미검증이며 출처 ID는 이전 비교 기록이다.'
-  source_generation_id: 2026-10-25_16-22-48-fdd3b9a3
+  description: 썸네일의 뿌리 사이 수레바퀴 자국을 바순·뜯는 비올라·어쿠스틱 기타·우드블록의 숲 포크로 표현. 6행 가사에서 33.6초 EOS 종료한 결과를 바탕으로 갈라진 옛 자국 사이 길을 찾는 2행과
+    열린 빛으로 향하는 후렴 2행을 보강. 도입 2행 → 변화 2행 → 후렴 4행 → 마무리 2행, 총 10행. 편곡·시드는 유지해 가사 변경을 비교한다. 약 1분 전후를 목표로 하되 실제 길이는 보장하지 않는다.
+    최대 출력 300초. 원곡·MR·320kbps MP3 청취 검수 필요. 출처는 삭제될 비교 기록이다.
+  source_generation_id: 2026-10-25_21-27-39-b189baa4
   request:
     prompt: woodland folk,bassoon,plucked viola,acoustic guitar,woodblock,interwoven,curious,husky female vocals
     lyrics: '[Verse]
@@ -685,11 +692,21 @@ examples:
 
       Older wheel marks curve around
 
+      [Verse]
+
+      Where the broken tracks divide
+
+      We find room along the side
+
       [Chorus]
 
       Thread the path beneath the tree
 
       Find the sky between the leaves
+
+      Old and living lines entwine
+
+      Lead us toward the open light
 
       [Outro]
 
@@ -844,10 +861,10 @@ examples:
     min_duration_seconds: 0
 - id: saltford-vocal-mr-minute
   label: 소금여울 · 기승전결 가사곡과 MR
-  description: '썸네일 검토: 푸른 물 옆 흰 건조장의 인상을 편성에 반영. 맵별 장르·주선율 악기·반주·보컬을 구분한 비교 예제. 편성 태그: acoustic folk,concertina,oboe,plucked
-    strings,hand drum,brisk,clear,husky male vocals. 도입 2행 → 후렴 2행 → 마무리 2행. 초기 10곡 검수 경험을 반영한 6행 구성으로 약 1분 전후를 시도하며 실제 길이·음색·종결은
-    보장하지 않는다. 최대 출력 300초. 무작위 시드를 저장해 재현하며 원곡·MR·320kbps MP3를 함께 검수한다. 이번 입력은 미검증이며 출처 ID는 이전 비교 기록이다.'
-  source_generation_id: 2026-10-25_16-22-50-042f19c8
+  description: 썸네일의 푸른 물 옆 흰 건조장과 소금 운송 생활권을 콘서티나·오보에·발현악기·핸드 드럼의 경쾌한 어쿠스틱 포크로 표현. 6행 가사에서 45.28초 EOS 종료한 결과를 바탕으로 후렴에 화물
+    인계와 여행자를 맞는 장면 2행을 보강. 도입 2행 → 후렴 4행 → 마무리 2행, 총 8행. 편곡·시드는 유지해 가사 변경을 비교한다. 약 1분 전후를 목표로 하되 실제 길이는 보장하지 않는다. 최대 출력 300초.
+    원곡·MR·320kbps MP3 청취 검수 필요. 출처는 삭제될 비교 기록이다.
+  source_generation_id: 2026-10-25_21-27-40-38831e94
   request:
     prompt: acoustic folk,concertina,oboe,plucked strings,hand drum,brisk,clear,husky male vocals
     lyrics: '[Verse]
@@ -862,6 +879,10 @@ examples:
 
       Join the town in amber light
 
+      Every parcel finds a place
+
+      Every traveler finds a face
+
       [Outro]
 
       When the final load is stored
@@ -875,10 +896,10 @@ examples:
     min_duration_seconds: 0
 - id: windrow-road-vocal-mr-minute
   label: 이삭바람길 · 기승전결 가사곡과 MR
-  description: '썸네일 검토: 초록 둔덕과 굽은 길의 인상을 편성에 반영. 맵별 장르·주선율 악기·반주·보컬을 구분한 비교 예제. 편성 태그: pastoral traveling folk,tin whistle,acoustic
-    guitar,viola,shaker,breezy,rolling,clear female vocals. 도입 2행 → 후렴 2행 → 마무리 2행. 초기 10곡 검수 경험을 반영한 6행 구성으로 약 1분 전후를 시도하며
-    실제 길이·음색·종결은 보장하지 않는다. 최대 출력 300초. 무작위 시드를 저장해 재현하며 원곡·MR·320kbps MP3를 함께 검수한다. 이번 입력은 미검증이며 출처 ID는 이전 비교 기록이다.'
-  source_generation_id: 2026-10-25_16-22-51-8b5adbf1
+  description: 썸네일의 초록 둔덕과 굽은 길을 틴 휘슬·어쿠스틱 기타·비올라·셰이커의 목가적 여행 포크로 표현. 6행 가사에서 35.84초 EOS 종료한 결과를 바탕으로 갈림길에서 방향을 확인하는 2행과 수확물
+    운반의 후렴 2행을 보강. 도입 2행 → 변화 2행 → 후렴 4행 → 마무리 2행, 총 10행. 편곡·시드는 유지해 가사 변경을 비교한다. 약 1분 전후를 목표로 하되 실제 길이는 보장하지 않는다. 최대 출력 300초.
+    원곡·MR·320kbps MP3 청취 검수 필요. 출처는 삭제될 비교 기록이다.
+  source_generation_id: 2026-10-25_21-27-40-eccb8dc7
   request:
     prompt: pastoral traveling folk,tin whistle,acoustic guitar,viola,shaker,breezy,rolling,clear female vocals
     lyrics: '[Verse]
@@ -887,11 +908,21 @@ examples:
 
       Bend beneath the passing wind
 
+      [Verse]
+
+      At the fork we check the signs
+
+      Rooftops catch the morning shine
+
       [Chorus]
 
       Follow where the wheatfields bend
 
       Every road can find a friend
+
+      What we carry, what we bring
+
+      Joins the work of harvesting
 
       [Outro]
 
@@ -972,11 +1003,10 @@ examples:
     min_duration_seconds: 0
 - id: brine-bank-vocal-mr-minute
   label: 짠물둔덕 · 기승전결 가사곡과 MR
-  description: '썸네일 검토: 염수 웅덩이와 자갈 더미의 인상을 편성에 반영. 맵별 장르·주선율 악기·반주·보컬을 구분한 비교 예제. 편성 태그: sparse acoustic folk,english horn,nylon
-    guitar,cello,soft hand drum,restrained,salty,husky female vocals. 도입 2행 → 후렴 2행 → 마무리 2행. 초기 10곡 검수 경험을 반영한 6행 구성으로 약
-    1분 전후를 시도하며 실제 길이·음색·종결은 보장하지 않는다. 최대 출력 300초. 무작위 시드를 저장해 재현하며 원곡·MR·320kbps MP3를 함께 검수한다. 이번 입력은 미검증이며 출처 ID는 이전 비교
-    기록이다.'
-  source_generation_id: 2026-10-25_16-22-52-1bbca563
+  description: 썸네일의 염수 웅덩이와 자갈 둔덕을 잉글리시 호른·나일론 기타·첼로·부드러운 핸드 드럼의 절제된 어쿠스틱 포크로 표현. 6행 가사에서 31.6초 EOS 종료한 결과를 바탕으로 높은 자갈길로 이동하는
+    2행과 마른 길을 찾는 후렴 2행을 보강. 도입 2행 → 변화 2행 → 후렴 4행 → 마무리 2행, 총 10행. 편곡·시드는 유지해 가사 변경을 비교한다. 약 1분 전후를 목표로 하되 실제 길이는 보장하지 않는다.
+    최대 출력 300초. 원곡·MR·320kbps MP3 청취 검수 필요. 출처는 삭제될 비교 기록이다.
+  source_generation_id: 2026-10-25_21-27-40-da1969b0
   request:
     prompt: sparse acoustic folk,english horn,nylon guitar,cello,soft hand drum,restrained,salty,husky female vocals
     lyrics: '[Verse]
@@ -985,11 +1015,21 @@ examples:
 
       Pale reeds nod beside the bank
 
+      [Verse]
+
+      Where the damp earth breaks the track
+
+      Higher gravel leads us back
+
       [Chorus]
 
       On the bank the salt winds roam
 
       With the scent that speaks of home
+
+      Farther on the paths lie dry
+
+      Underneath the evening sky
 
       [Outro]
 
@@ -1006,8 +1046,9 @@ examples:
   label: 소금둑길 · 기승전결 가사곡과 MR
   description: '썸네일 검토: 물 위로 이어진 돌둑의 인상을 편성에 반영. 맵별 장르·주선율 악기·반주·보컬을 구분한 비교 예제. 편성 태그: chamber folk march,clarinet,mandolin,cello,muted
     frame drum,steady,focused,low male vocals. 도입 2행 → 후렴 2행 → 마무리 2행. 초기 10곡 검수 경험을 반영한 6행 구성으로 약 1분 전후를 시도하며 실제 길이·음색·종결은
-    보장하지 않는다. 최대 출력 300초. 무작위 시드를 저장해 재현하며 원곡·MR·320kbps MP3를 함께 검수한다. 이번 입력은 미검증이며 출처 ID는 이전 비교 기록이다.'
-  source_generation_id: 2026-10-25_16-22-52-f4330043
+    보장하지 않는다. 최대 출력 300초. 무작위 시드를 저장해 재현하며 원곡·MR·320kbps MP3를 함께 검수한다. 이번 입력은 미검증이며 출처 ID는 이전 비교 기록이다. 최근 32.88초 결과가 짧아 가사
+    전개를 추가 보강했다. 편곡·시드를 유지하며 약 1분 전후를 재시도한다. 길이는 보장하지 않으며 새 결과 청취 검수가 필요하다.'
+  source_generation_id: 2026-10-25_21-27-40-16c2644c
   request:
     prompt: chamber folk march,clarinet,mandolin,cello,muted frame drum,steady,focused,low male vocals
     lyrics: '[Verse]
@@ -1016,11 +1057,21 @@ examples:
 
       Water shining either side
 
+      [Verse]
+
+      Wind moves slanting down the way
+
+      We draw close and mind our steps
+
       [Chorus]
 
       Keep the far bank in your sight
 
       Follow where the stones are bright
+
+      Every careful step runs true
+
+      Till the open road meets you
 
       [Outro]
 
@@ -1037,8 +1088,9 @@ examples:
   label: 흰소금벌 · 기승전결 가사곡과 MR
   description: '썸네일 검토: 흰 땅과 청록색 염수의 경계의 인상을 편성에 반영. 맵별 장르·주선율 악기·반주·보컬을 구분한 비교 예제. 편성 태그: luminous chamber,piano,celesta,alto
     flute,viola,spacious,clear,delicate female vocals. 도입 2행 → 후렴 2행 → 마무리 2행. 초기 10곡 검수 경험을 반영한 6행 구성으로 약 1분 전후를 시도하며 실제
-    길이·음색·종결은 보장하지 않는다. 최대 출력 300초. 무작위 시드를 저장해 재현하며 원곡·MR·320kbps MP3를 함께 검수한다. 이번 입력은 미검증이며 출처 ID는 이전 비교 기록이다.'
-  source_generation_id: 2026-10-25_16-22-53-bf6106d3
+    길이·음색·종결은 보장하지 않는다. 최대 출력 300초. 무작위 시드를 저장해 재현하며 원곡·MR·320kbps MP3를 함께 검수한다. 이번 입력은 미검증이며 출처 ID는 이전 비교 기록이다. 최근 52.24초
+    결과가 짧아 가사 전개를 추가 보강했다. 편곡·시드를 유지하며 약 1분 전후를 재시도한다. 길이는 보장하지 않으며 새 결과 청취 검수가 필요하다.'
+  source_generation_id: 2026-10-25_21-27-41-06c76088
   request:
     prompt: luminous chamber,piano,celesta,alto flute,viola,spacious,clear,delicate female vocals
     lyrics: '[Verse]
@@ -1052,6 +1104,10 @@ examples:
       Quiet plains of silver white
 
       Now the path is held in sight
+
+      Footprints cross the shining ground
+
+      Till the sheltered edge is found
 
       [Outro]
 
@@ -1068,8 +1124,9 @@ examples:
   label: 옛 경계문터 · 기승전결 가사곡과 MR
   description: '썸네일 검토: 햇빛 아래 무너진 기둥과 돌길의 인상을 편성에 반영. 맵별 장르·주선율 악기·반주·보컬을 구분한 비교 예제. 편성 태그: dark chamber ballad,bass clarinet,cello,viola,low
     piano,solemn,watchful,baritone male vocals. 도입 2행 → 후렴 2행 → 마무리 2행. 초기 10곡 검수 경험을 반영한 6행 구성으로 약 1분 전후를 시도하며 실제 길이·음색·종결은
-    보장하지 않는다. 최대 출력 300초. 무작위 시드를 저장해 재현하며 원곡·MR·320kbps MP3를 함께 검수한다. 이번 입력은 미검증이며 출처 ID는 이전 비교 기록이다.'
-  source_generation_id: 2026-10-25_16-22-53-0f1fdabb
+    보장하지 않는다. 최대 출력 300초. 무작위 시드를 저장해 재현하며 원곡·MR·320kbps MP3를 함께 검수한다. 이번 입력은 미검증이며 출처 ID는 이전 비교 기록이다. 최근 46.80초 결과가 짧아 가사
+    전개를 추가 보강했다. 편곡·시드를 유지하며 약 1분 전후를 재시도한다. 길이는 보장하지 않으며 새 결과 청취 검수가 필요하다.'
+  source_generation_id: 2026-10-25_21-27-41-29a8e4f3
   request:
     prompt: solemn chamber ballad,bass clarinet,cello,viola,low piano,weathered,watchful,dignified,baritone male vocals
     lyrics: '[Verse]
@@ -1083,6 +1140,10 @@ examples:
       Through the gap the daylight stays
 
       On the worn and silent ways
+
+      Past the line of fallen stone
+
+      We must choose the steps we own
 
       [Outro]
 
