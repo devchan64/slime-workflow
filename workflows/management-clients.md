@@ -969,3 +969,11 @@ SLIME_CONTENT_CONFIG_FILE=/absolute/connection.yaml python3 tools/review/common/
 ### 빌보드 단일 이미지 원본
 
 DB 모드의 크롭·축소는 `assets/billboards/<에셋 ID>.png` 한 개를 원자적으로 교체합니다. `versions/<해시>.png`를 누적 생성하지 않습니다. DB의 SHA-256·크기·게시 참조와 공용 속성을 먼저 갱신하고, 같은 확인 토큰으로 파일 게시를 재시도할 수 있습니다. 더 최근 이미지가 있으면 과거 요청으로 덮어쓰지 않습니다. 원장 동기화와 이미지 저장은 같은 잠금을 사용합니다. 등록부·카탈로그·소비자 잠금의 이미지 정보는 원장 지연 동기화에서 실제 파일 검증 후 갱신합니다. 이전 이미지의 복구는 Git 이력으로 관리하며 DB의 과거 해시가 과거 PNG 보관을 의미하지 않습니다.
+
+### Wan2.1 VACE FL2V · 첫·끝 프레임
+
+애니메이션 도구의 `/management/frame/vace-fl2v-generator/`는 첫 이미지와 마지막 이미지 2장을 입력받습니다. 공용 명령 서비스는 `wan21-vace-fl2v`이며 F2V/V2V와 작업·이력을 분리하고 GPU 실행기는 공유합니다. 기본값은 81프레임·50스텝·Shift 3·CFG 5·조건강도 1·시드 42입니다. 832×480·16fps 고정이며 다른 크기의 입력은 비율을 유지하여 여백 색상(기본 흰색)으로 맞춥니다.
+
+GUI는 첫·끝 프레임에 검은 마스크, 중간에 흰 마스크를 지정합니다. 프레임 수 변경 시 끝 이미지는 새 마지막 프레임으로 배치됩니다. 최소 5, 최대 161프레임이며 4n+1을 따릅니다. VAE 복원으로 양끝 이미지에도 미세한 차이가 생길 수 있습니다.
+
+CLI는 `tools/manager.py command wan21-vace-fl2v generate --payload-file <요청.json>`을 사용합니다. V2V와 같은 요청 필드에 `images`는 첫·끝 이미지의 base64 문자열 2개, `frame_entries`는 `[{"frame":0,"editable":false},{"frame":N-1,"editable":false}]`, `frames`는 N을 지정합니다. 별도 외형 참조는 받지 않습니다. `status`, `history`, `logs`, `cancel`, `resume`, `prioritize`, `history-delete`, `history-reset`은 동일한 공용 계약입니다. 작업 입력·결과·로그는 `.tmp/test/wan21-vace-fl2v/`, 이력은 공용 이력 루트의 `wan21-vace-fl2v`에 저장합니다. 이력 삭제는 해당 서비스의 실제 작업 파일을 정리하며 외부 원본은 보존합니다.

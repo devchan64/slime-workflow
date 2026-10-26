@@ -94,6 +94,7 @@ def create_management_runtime(writer_workspace_config=None):
     from tools.review.domains.vace.generation import VaceGenerationManager
     from tools.review.domains.vace.timeline_generation import VaceTimelineGenerationManager
     from tools.review.domains.vace.first_frame_generation import VaceFirstFrameGenerationManager
+    from tools.review.domains.vace.first_last_generation import VaceFirstLastGenerationManager
     from tools.review.domains.phantom.generation import PhantomGenerationManager
     from generators.music.contracts import AUDIO_SERVICE_NAMES
     from tools.review.domains.music.generation import MusicGenerationManager
@@ -102,6 +103,7 @@ def create_management_runtime(writer_workspace_config=None):
         vace_generation_service = VaceGenerationManager()
         vace_timeline_service = VaceTimelineGenerationManager()
         vace_first_frame_service = VaceFirstFrameGenerationManager()
+        vace_first_last_service = VaceFirstLastGenerationManager()
         phantom_generation_service = PhantomGenerationManager()
         image_generation_service = ImageGenerationManager()
         seamless_generation_service = SeamlessGenerationManager()
@@ -125,6 +127,7 @@ def create_management_runtime(writer_workspace_config=None):
         service_binding_records = {
             'writer-agent': ManagementServiceBinding(writer_agent_service.handle_writer_request,writer_agent_service.workspace_config_path.parent,reject_writer_folder_access),
             'phantom': bind_stored_management_service(phantom_generation_service.handle_image_request,phantom_generation_service.job_storage_root),
+            'wan21-vace-fl2v': bind_stored_management_service(vace_first_last_service.handle_image_request,vace_first_last_service.job_storage_root),
             'wan21-vace-f2v': bind_stored_management_service(vace_first_frame_service.handle_image_request,vace_first_frame_service.job_storage_root),
             'wan21-vace-v2v': bind_stored_management_service(vace_timeline_service.handle_image_request,vace_timeline_service.job_storage_root),
             'wan21-vace': bind_stored_management_service(vace_generation_service.handle_image_request,vace_generation_service.job_storage_root),
