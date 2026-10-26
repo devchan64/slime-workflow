@@ -205,7 +205,7 @@ function renderAppliedTileSourceList(){
  const currentStructureList=document.querySelector('#applied-structure-list');currentStructureList.replaceChildren();
  for(const [currentVisualName,currentVisualRecord] of Object.entries(currentSafeVisualRecords)){
   const currentVisualItem=document.createElement('li'),currentVisualThumbnail=document.createElement('img'),currentVisualLabel=document.createElement('span');
-  currentVisualThumbnail.width=42;currentVisualThumbnail.height=42;currentVisualThumbnail.src=new URL(currentVisualRecord.image,import.meta.url).href;currentVisualThumbnail.alt=currentVisualName==='tower'?'결계탑 원본':'결계 오러 원본';
+  currentVisualThumbnail.width=42;currentVisualThumbnail.height=42;currentVisualThumbnail.src=new URL(currentVisualRecord.image,import.meta.url).href;currentVisualThumbnail.alt=currentVisualRecord.name??(currentVisualName==='tower'?'결계탑 원본':'결계 오러 원본');
   currentVisualLabel.textContent=currentVisualThumbnail.alt+' · '+currentVisualRecord.sourceSize.join('×');
   currentVisualItem.title=`${currentVisualRecord.provenance.managementId} · ${currentVisualRecord.provenance.version} · SHA-256 ${currentVisualRecord.provenance.sha256}`;
   currentVisualItem.append(currentVisualThumbnail,currentVisualLabel);currentStructureList.append(currentVisualItem);

@@ -1,4 +1,4 @@
-import {mountTerrainEffectLayer} from './vendor/field-renderer/__FIELD_RENDERER_VERSION__/field-renderer.mjs';
+import {applyTerrainAmbientTint,mountTerrainEffectLayer} from './vendor/field-renderer/__FIELD_RENDERER_VERSION__/field-renderer.mjs';
 import {resolveCityTileTextures,resolveTownGroundFrame,resolveReedFrameForMap,drawWaypoint,waypointMarkerScale,resolveFieldTileTextures,collectTerrainTextureSources,createTerrainAtlas,TERRAIN_ATLAS,drawCityBuildingSprite,resolveCityGroundDepth,TERRAIN_DEPTH,mapAnnotationDepth,resolveMapTileSize,resolveGrassFrameForMap,resolvePavingFrameForMap,selectFieldRoadFrame} from './vendor/field-renderer/__FIELD_RENDERER_VERSION__/town-renderer.mjs';
 import {GAME_INTERNAL_RESOLUTION_SCALE,drawCharacterContactShadow,attachCharacterOutlineLayers,roadConnections,waterConnections} from './vendor/field-renderer/__FIELD_RENDERER_VERSION__/game-render-profile.mjs';
 import * as Phaser from './vendor/field-renderer/__FIELD_RENDERER_VERSION__/phaser.mjs';
@@ -164,11 +164,12 @@ export async function createSharedFieldReview(currentMapCanvas,currentTextureIma
   }
   if(!currentFieldMapMode)createTerrainAtlas(currentFieldScene,new Set(Object.keys(currentSelectedGameKeys)));
  }
- function drawSharedReviewActor(currentActorPoint,currentActorDepth){
+ function drawSharedReviewActor(currentActorPoint,currentActorDepth,currentAmbientSurface){
   const currentCharacterAnchor=currentCharacterRecord.frame.anchor;
   const currentShadowGraphic=currentFieldScene.add.graphics().setDepth(currentActorDepth);
   drawCharacterContactShadow(currentShadowGraphic,currentActorPoint);
   const currentCharacterSprite=currentFieldScene.add.image(currentActorPoint.x,currentActorPoint.y,'review-character','review-frame').setOrigin(currentCharacterAnchor.x/currentFrameRectangle.width,currentCharacterAnchor.y/currentFrameRectangle.height).setScale(currentCharacterRecord.displayHeight/currentCharacterRecord.bodyHeight).setDepth(currentActorDepth+.01);
+  applyTerrainAmbientTint(currentCharacterSprite,currentAmbientSurface);
   currentCharacterSprite.setData('fieldActorVisibility',true);
   attachCharacterOutlineLayers(currentCharacterSprite);
  }
@@ -298,6 +299,7 @@ export async function createSharedFieldReview(currentMapCanvas,currentTextureIma
      });
      const currentGuardDepth=resolveFieldSurfaceDepth(currentGuardPlacement.position,currentMapRecord,currentFieldFrame.options);
      const currentGuardImage=currentFieldScene.add.image(currentGuardCenter.x+currentGuardRecord.offsetX,currentGuardCenter.y+currentGuardRecord.offsetY,currentGuardRecord.path).setOrigin(currentGuardRecord.anchorX,currentGuardRecord.anchorY).setDepth(currentGuardDepth+FIELD_REVIEW_TOWER_DEPTH);
+     applyTerrainAmbientTint(currentGuardImage,currentMapRecord);
      currentGuardImage.setScale(currentFieldFrame.options.tileWidth*GUARD_CENTER_FOOTPRINT_SIZE/currentGuardImage.width);
     }
     for(const currentConnectionRecord of currentMapRecord.connections??[]){
@@ -308,12 +310,12 @@ export async function createSharedFieldReview(currentMapCanvas,currentTextureIma
     mountTerrainEffectLayer(currentFieldScene,currentMapRecord,currentCellPosition=>currentFieldFrame.cells.find(currentCellRecord=>currentCellRecord.cell.column===currentCellPosition.column&&currentCellRecord.cell.row===currentCellPosition.row)?.center);
     currentRenderSignature=currentNextSignature;
    }
-   const currentActorSignature=JSON.stringify([currentViewSettings.character,currentViewSettings.characterCell]);
+   const currentActorSignature=JSON.stringify([currentViewSettings.character,currentViewSettings.characterCell,currentMapRecord.ambientTint]);
    if(currentActorSignature!==currentFieldActorSignature){
     for(const currentActorObject of currentFieldActorObjects)if(currentActorObject.scene)currentActorObject.destroy();
     const previousSceneObjects=new Set(currentFieldScene.children.list);
     const currentActorCell=currentFieldFrame.cells.find(currentCellRecord=>currentCellRecord.cell.column===currentViewSettings.characterCell.column&&currentCellRecord.cell.row===currentViewSettings.characterCell.row);
-    if(currentViewSettings.character&&currentActorCell)drawSharedReviewActor(currentActorCell.center,resolveFieldSurfaceDepth(currentActorCell.cell,currentMapRecord,currentFieldFrame.options)+TERRAIN_DEPTH.actor);
+    if(currentViewSettings.character&&currentActorCell)drawSharedReviewActor(currentActorCell.center,resolveFieldSurfaceDepth(currentActorCell.cell,currentMapRecord,currentFieldFrame.options)+TERRAIN_DEPTH.actor,currentMapRecord);
     currentFieldActorObjects=currentFieldScene.children.list.filter(currentSceneObject=>!previousSceneObjects.has(currentSceneObject));
     currentFieldActorSignature=currentActorSignature;
    }
@@ -355,7 +357,7 @@ export async function createSharedFieldReview(currentMapCanvas,currentTextureIma
      drawFieldSceneryObject(currentFieldScene,currentObjectRecord,currentObjectPlacement.screen,resolveFieldSceneryDepth(currentObjectRecord,currentMapRecord,{tileWidth:currentTileDimensions.width,tileHeight:currentTileDimensions.height,rotation:currentViewSettings.rotation}),undefined,{tileWidth:currentTileDimensions.width,tileHeight:currentTileDimensions.height,rotation:currentViewSettings.rotation,shadowSurface:currentMapRecord});
     }
     for(const currentBuildingRecord of currentMapRecord.buildings){
-     const currentBuildingRegion=drawCityBuildingSprite(currentFieldScene,currentBuildingRecord,currentProjectPosition,currentDepthPosition,mapAnnotationDepth(currentMapRecord),false);
+     const currentBuildingRegion=drawCityBuildingSprite(currentFieldScene,currentBuildingRecord,currentProjectPosition,currentDepthPosition,mapAnnotationDepth(currentMapRecord),false,currentMapRecord);
      if(!Array.isArray(currentBuildingRegion.appliedTextureIdentifiers))throw Error('공용 렌더러의 건물 원본 정보가 없습니다. 배포 버전을 확인하세요.');
      for(const currentTextureIdentifier of currentBuildingRegion.appliedTextureIdentifiers)currentAppliedBuildingTextures.add(currentTextureIdentifier);
      for(const currentBuildingPolygon of currentBuildingRegion.polygons)currentTownMeshObjects.push(drawFieldMeshBoundary(currentFieldScene,currentBuildingPolygon.points,currentBuildingRegion.depth+.02));
@@ -366,11 +368,11 @@ export async function createSharedFieldReview(currentMapCanvas,currentTextureIma
     }
     currentTownMapSignature=currentMapSignature;
    }
-   const currentActorSignature=JSON.stringify([currentViewSettings.character,currentViewSettings.characterCell]);
+   const currentActorSignature=JSON.stringify([currentViewSettings.character,currentViewSettings.characterCell,currentMapRecord.ambientTint]);
    if(currentActorSignature!==currentTownActorSignature){
     for(const currentActorObject of currentTownActorObjects)if(currentActorObject.scene)currentActorObject.destroy();
     const previousSceneObjects=new Set(currentFieldScene.children.list);
-    if(currentViewSettings.character)drawSharedReviewActor(currentProjectPosition(currentViewSettings.characterCell),currentDepthPosition(currentViewSettings.characterCell)+TERRAIN_DEPTH.actor);
+    if(currentViewSettings.character)drawSharedReviewActor(currentProjectPosition(currentViewSettings.characterCell),currentDepthPosition(currentViewSettings.characterCell)+TERRAIN_DEPTH.actor,currentMapRecord);
     currentTownActorObjects=currentFieldScene.children.list.filter(currentSceneObject=>!previousSceneObjects.has(currentSceneObject));
     currentTownActorSignature=currentActorSignature;
    }

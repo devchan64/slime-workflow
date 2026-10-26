@@ -152,10 +152,19 @@ def build_field_safe_visual_records(texture_output_directory):
     with Image.open(safe_tower_source_path) as safe_tower_image, Image.open(safe_aura_source_path) as safe_aura_image:
         safe_tower_size=list(safe_tower_image.size)
         safe_aura_size=list(safe_aura_image.size)
-    return {
+    current_visual_records = {
         'tower':{'image':'textures/'+safe_tower_output_path.name+'?v='+safe_tower_provenance['sha256'],'sourceSize':safe_tower_size,'provenance':safe_tower_provenance},
         'aura':{'image':'textures/'+safe_aura_output_path.name+'?v='+safe_aura_provenance['sha256'],'sourceSize':safe_aura_size,'provenance':safe_aura_provenance},
     }
+    for current_glow_name,current_glow_kind in [('core','core-cyan'),('halo','halo-lime'),('spore','spore-amber')]:
+        current_source_path,current_source_provenance=resolve_registered_sprite('assets/sprites/effects/terrain/glow-'+current_glow_kind+'-sheet-v1.png')
+        current_output_path=texture_output_directory/current_source_path.name
+        shutil.copy2(current_source_path,current_output_path)
+        with Image.open(current_source_path) as current_source_image:
+            current_source_size=list(current_source_image.size)
+        current_visual_records['terrain-glow-'+current_glow_name]={'name':'발광 시트 '+current_glow_name,'image':'textures/'+current_output_path.name+'?v='+current_source_provenance['sha256'],'sourceSize':current_source_size,'provenance':current_source_provenance}
+    return current_visual_records
+
 
 
 def build_block_map_review(output_directory_path, character_review_only=False):
