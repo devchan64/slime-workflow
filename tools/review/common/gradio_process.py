@@ -101,7 +101,6 @@ def ensure_gradio_application(review_server_port, application_name, application_
         application_definitions={
             'sfx-dasheng-audiogen':('sfx_dasheng_app.py',131,'/management/frame/sfx-dasheng-audiogen/'),
             'music-heartmula':('music_heartmula_app.py',138,'/management/frame/music-heartmula/'),
-            'vace-f2v':('vace_first_frame_app.py',128,'/management/frame/vace-f2v-generator/'),
             'vace-v2v':('vace_timeline_app.py',127,'/management/frame/vace-v2v-generator/'),
             'phantom':('phantom_app.py',126,'/management/frame/phantom-generator/'),
             'wan21-vace':('vace_app.py',125,'/management/frame/wan21-vace-generator/'),

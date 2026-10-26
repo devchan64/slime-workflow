@@ -1,11 +1,3 @@
-"""F2V 전용 작업 경로를 공용 VACE GPU 실행기에 연결한다."""
-from pathlib import Path
-import sys
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-from generators.vace import worker as current_worker_module
-from generators.vace.first_frame import VACE_FIRST_FRAME_ROOT, verify_first_frame_request
-
+"""폐기된 F2V 직접 실행을 차단한다."""
 if __name__ == '__main__':
-    current_worker_module.VACE_JOB_STORAGE_ROOT = VACE_FIRST_FRAME_ROOT
-    current_worker_module.verify_vace_request = verify_first_frame_request
-    current_worker_module.execute_vace_worker()
+    raise SystemExit('F2V 생성기는 폐기되었습니다. FL2V 또는 V2V를 사용하세요.')
