@@ -70,3 +70,22 @@ class WanTi2vGenerationContractTest(unittest.TestCase):
     def test_second_reference_is_rejected(self):
         with self.assertRaisesRegex(ValueError, '1장만'):
             validate_ti2v_request(self.build_request_record([self.build_reference_image_text(), self.build_reference_image_text()]))
+
+class Ti2vTemporalDiagnosticsTests(unittest.TestCase):
+    def test_static_and_changing_sequences_are_distinguished_without_mutation(self):
+        import numpy as np
+        from generators.wan_ti2v.diagnostics import summarize_temporal_arrays
+        current_frame_arrays = np.array([[[0, 0]], [[0, 0]], [[1, 1]]], dtype=np.float32)
+        original_frame_arrays = current_frame_arrays.copy()
+        current_summary_record = summarize_temporal_arrays(iter(current_frame_arrays))
+        self.assertEqual([current_frame_record['previous_mae'] for current_frame_record in current_summary_record['frames']], [None, 0.0, 1.0])
+        self.assertEqual(current_summary_record['frames'][0]['zero_fraction'], 1.0)
+        self.assertEqual(current_summary_record['frames'][2]['one_fraction'], 1.0)
+        np.testing.assert_array_equal(current_frame_arrays, original_frame_arrays)
+        self.assertEqual(current_summary_record, summarize_temporal_arrays(current_frame_arrays))
+
+    def test_invalid_numeric_values_fail_explicitly(self):
+        import numpy as np
+        from generators.wan_ti2v.diagnostics import summarize_temporal_arrays
+        with self.assertRaisesRegex(ValueError, '비유한'):
+            summarize_temporal_arrays([np.array([float('nan')])])

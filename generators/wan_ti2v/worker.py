@@ -12,6 +12,7 @@ sys.path.insert(0, str(TI2V_WORKSPACE_ROOT))
 from generators.common.reference_video_worker import run_reference_video_worker, save_video_outputs
 from generators.wan_ti2v.contracts import TI2V_JOB_STORAGE, TI2V_MODEL_FILES, TI2V_MODEL_IDENTIFIER, TI2V_MODEL_REVISION, TI2V_RUNTIME_DIRECTORY, validate_ti2v_assets
 from tools.review.common.generation_records import write_record_atomically
+from generators.wan_ti2v.diagnostics import summarize_temporal_tensor
 
 TI2V_DECODE_TILE_LATENTS = 16
 TI2V_DECODE_OVERLAP_LATENTS = 4
@@ -69,6 +70,15 @@ def execute_ti2v_inference(current_job_root, current_attempt_root, current_reque
     current_diffusion_model = current_package_module.NODE_CLASS_MAPPINGS['UnetLoaderGGUF']().load_unet(current_diffusion_name)[0]
     current_diffusion_model = ModelSamplingSD3().patch(current_diffusion_model, current_request_record['flow_shift'])[0]
     current_noise_tensor = comfy.sample.prepare_noise(current_latent_record['samples'], current_request_record['seed'])
+    current_diagnostic_record = {
+        'schema_version': 1, 'attempt': current_attempt_root.name,
+        'seed': current_request_record['seed'], 'requested_frames': current_request_record['frames'],
+        'interpretation': '인접 시간 구간 MAE는 변화량이며 보행 점수가 아닙니다. 잠재값과 픽셀의 수치는 직접 비교하지 않습니다.',
+        'initial_latent': summarize_temporal_tensor(current_latent_record['samples'], 2),
+        'initial_noise': summarize_temporal_tensor(current_noise_tensor, 2),
+        'noise_mask': summarize_temporal_tensor(current_latent_record['noise_mask'], 2) if 'noise_mask' in current_latent_record else None,
+    }
+    write_record_atomically(current_attempt_root / 'temporal-diagnostics.json', current_diagnostic_record)
     current_metrics_recorder.update_generation_stage('inference')
 
     def record_ti2v_step(current_step_index, current_denoised_tensor, current_sample_tensor, current_step_total):
@@ -79,6 +89,8 @@ def execute_ti2v_inference(current_job_root, current_attempt_root, current_reque
     del current_diffusion_model
     gc.collect()
     comfy.model_management.soft_empty_cache()
+    current_diagnostic_record['sampled_latent'] = summarize_temporal_tensor(current_sample_tensor, 2)
+    write_record_atomically(current_attempt_root / 'temporal-diagnostics.json', current_diagnostic_record)
     current_metrics_recorder.update_generation_stage('saving')
     current_temporal_tile_count = max(2, current_sample_tensor.shape[2])
     write_record_atomically(current_attempt_root / 'memory-policy.json', {'diffusion': 'Q4_K_M', 'encoder': 'Q4_K_M', 'compute_device': 'cuda', 'offload_device': 'cpu', 'sequential_stages': True, 'decode_spatial_tile': TI2V_DECODE_TILE_LATENTS, 'decode_spatial_overlap': TI2V_DECODE_OVERLAP_LATENTS, 'decode_temporal_tile': current_temporal_tile_count, 'decode_temporal_overlap': TI2V_DECODE_TEMPORAL_OVERLAP, 'model_revision': TI2V_MODEL_REVISION})
@@ -88,12 +100,14 @@ def execute_ti2v_inference(current_job_root, current_attempt_root, current_reque
     if current_decoded_frames.shape[0] != current_request_record['frames']:
         raise ValueError('출력 프레임 수 불일치')
     current_frame_arrays = (current_decoded_frames.clamp(0, 1).cpu().numpy() * 255).round().astype(np.uint8)
+    current_diagnostic_record['decoded_pixels'] = summarize_temporal_tensor(current_decoded_frames, 0)
+    write_record_atomically(current_attempt_root / 'temporal-diagnostics.json', current_diagnostic_record)
     current_output_hashes = save_video_outputs(current_attempt_root, current_frame_arrays, 24)
     write_record_atomically(current_attempt_root / 'conditioning.json', {'mode': 'i2v' if current_start_image is not None else 't2v', 'sampler': 'uni_pc', 'scheduler': 'simple', 'flow_shift': current_request_record['flow_shift'], 'reference_count': len(current_request_record['references'])})
     comfy.model_management.unload_all_models()
     del current_vae_model
     gc.collect()
-    return {'attempt': current_attempt_root.name, 'frames': len(current_frame_arrays), 'fps': 24, 'output_sha256': current_output_hashes, 'model_id': TI2V_MODEL_IDENTIFIER, 'model_revision': TI2V_MODEL_REVISION, 'prompt_words': len(current_request_record['prompt'].split()), 'prompt_sha256': hashlib.sha256(current_request_record['prompt'].encode()).hexdigest(), 'quality_status': '사용자 검수 대기'}
+    return {'attempt': current_attempt_root.name, 'frames': len(current_frame_arrays), 'fps': 24, 'output_sha256': current_output_hashes, 'model_id': TI2V_MODEL_IDENTIFIER, 'model_revision': TI2V_MODEL_REVISION, 'prompt_words': len(current_request_record['prompt'].split()), 'prompt_sha256': hashlib.sha256(current_request_record['prompt'].encode()).hexdigest(), 'temporal_diagnostics': 'temporal-diagnostics.json', 'quality_status': '사용자 검수 대기'}
 
 
 if __name__ == '__main__':
