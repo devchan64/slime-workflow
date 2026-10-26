@@ -118,10 +118,10 @@ def change_terrain_effect_draft(current_editor_state,current_effect_action,curre
     current_effect_records=current_next_state['draft'].setdefault('terrainEffects',copy.deepcopy(current_next_state['snapshot']['terrain'].get('terrainEffects',[])))
     current_effect_records[:]=[current_effect_record for current_effect_record in current_effect_records if current_effect_record['id']!=current_effect_identifier]
     if current_effect_action=='upsert':
-        current_effect_record=dict(version=1,id=current_effect_identifier,kind=current_effect_kind,color=current_effect_color,radius=current_effect_radius,intensity=current_effect_intensity,periodMs=current_effect_period,height=current_effect_height,seed=current_effect_seed)
+        current_effect_record=dict(version=2 if current_effect_kind in ('moths','fireflies') else 1,id=current_effect_identifier,kind=current_effect_kind,color=current_effect_color,radius=current_effect_radius,intensity=current_effect_intensity,periodMs=current_effect_period,height=current_effect_height,seed=current_effect_seed)
         if current_attachment_identifier:current_effect_record['objectId']=current_attachment_identifier
         else:current_effect_record['position']=dict(column=current_cell_column,row=current_cell_row)
-        if current_effect_kind=='moths':current_effect_record['count']=current_effect_count
+        if current_effect_kind in ('moths','fireflies'):current_effect_record['count']=3 if current_effect_kind=='moths' else 7
         current_effect_records.append(current_effect_record)
     elif current_effect_action!='delete':raise gr.Error('알 수 없는 지형 이펙트 작업')
     current_terrain_record=current_next_state['snapshot']['terrain']
@@ -213,7 +213,7 @@ def build_map_editor_panel(current_map_choice,current_interaction_mode=None,curr
             current_effect_list=gr.JSON(label='현재 초안의 지형 이펙트',value=[])
             with gr.Row():
                 current_effect_identifier=gr.Textbox(label='이펙트 ID',value='terrain-glow-1')
-                current_effect_kind=gr.Dropdown(label='종류',choices=[('발광','glow'),('나방','moths')],value='glow')
+                current_effect_kind=gr.Dropdown(label='종류',choices=[('발광','glow'),('나방 시트 · 3마리','moths'),('반딧불 시트 · 7마리','fireflies')],value='glow')
                 current_attachment_identifier=gr.Textbox(label='연결할 빌보드 배치 ID',value='')
             with gr.Row():
                 current_effect_color=gr.Textbox(label='색상 #RRGGBB',value='#ffe8a3')

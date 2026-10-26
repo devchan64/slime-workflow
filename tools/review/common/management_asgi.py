@@ -30,6 +30,7 @@ MANAGEMENT_INTERFACE_BUILDERS = {
     'wan22-ti2v-generator': ('wan_ti2v_app', 'build_ti2v_interface', 'url'),
     'map-review': ('map_review_app', 'build_map_review_interface', 'port'),
     'character-review': ('map_review_app', 'build_map_review_interface', 'character'),
+    'effect-editor': ('effect_editor_app', 'build_effect_editor_interface', 'port'),
     'asset-editor': ('asset_editor_app', 'build_asset_editor_interface', 'port'),
     'world-map': ('world_map_app', 'build_world_review_interface', 'port'),
     'writer-agent': ('writer_agent_app', 'build_writer_agent_interface', 'port'),

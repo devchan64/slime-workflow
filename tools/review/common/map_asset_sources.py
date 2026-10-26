@@ -120,6 +120,7 @@ def load_registered_map_review(map_identifier_value):
     try:
         current_review_record=build_registered_map_review(map_identifier_value)
         current_review_record['contentGeneration']=current_database_bundle['generation']
+        current_review_record['effectProfiles']=current_database_bundle['effectProfiles']
         current_review_record['imageManifest']={current_texture_key:{**current_image_record,
             'url':'/management/map-assets/database-images/'+current_image_record['sha256']}
             for current_texture_key,current_image_record in current_database_bundle['imageManifest'].items()}

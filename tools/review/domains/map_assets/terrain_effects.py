@@ -16,11 +16,16 @@ def validate_terrain_effect_records(current_effect_records, current_column_count
         if not isinstance(current_effect_record, dict):
             raise ValueError('지형 이펙트는 객체여야 합니다.')
         current_effect_kind = current_effect_record.get('kind')
-        current_allowed_fields = TERRAIN_EFFECT_REQUIRED_FIELDS | {'position', 'objectId'} | ({'count'} if current_effect_kind == 'moths' else set())
+        current_allowed_fields = TERRAIN_EFFECT_REQUIRED_FIELDS | {'position', 'objectId'} | ({'count'} if current_effect_kind in ('moths', 'fireflies') else set())
         if not TERRAIN_EFFECT_REQUIRED_FIELDS <= current_effect_record.keys() or current_effect_record.keys() - current_allowed_fields:
             raise ValueError('지형 이펙트 필수·알 수 없는 필드 오류')
-        if type(current_effect_record['version']) is not int or current_effect_record['version'] != 1 or current_effect_kind not in ('glow', 'moths'):
+        if type(current_effect_record['version']) is not int or current_effect_record['version'] not in (1, 2) or current_effect_kind not in ('glow', 'moths', 'fireflies'):
             raise ValueError('지원하지 않는 지형 이펙트 버전·종류')
+        if current_effect_record['version'] == 2:
+            if current_effect_kind not in ('moths', 'fireflies') or current_effect_record.get('count') != (3 if current_effect_kind == 'moths' else 7):
+                raise ValueError('시트 이펙트는 나방 3마리 또는 반딧불 7마리입니다.')
+        elif current_effect_kind == 'fireflies':
+            raise ValueError('반딧불 시트는 버전 2가 필요합니다.')
         current_effect_identifier = current_effect_record['id']
         if not isinstance(current_effect_identifier, str) or not re.fullmatch(r'[a-z][a-z0-9-]{0,95}', current_effect_identifier) or current_effect_identifier in current_seen_identifiers:
             raise ValueError('지형 이펙트 ID 형식·중복 오류')
@@ -33,7 +38,7 @@ def validate_terrain_effect_records(current_effect_records, current_column_count
                 raise ValueError('지형 이펙트 범위 오류: ' + current_field_name)
         if type(current_effect_record['seed']) is not int:
             raise ValueError('지형 이펙트 seed는 정수입니다.')
-        if current_effect_kind == 'moths' and (type(current_effect_record.get('count')) is not int or not 1 <= current_effect_record['count'] <= 24):
+        if current_effect_kind in ('moths', 'fireflies') and (type(current_effect_record.get('count')) is not int or not 1 <= current_effect_record['count'] <= 24):
             raise ValueError('나방 수는 1~24 정수입니다.')
         if ('position' in current_effect_record) == ('objectId' in current_effect_record):
             raise ValueError('지형 이펙트는 position 또는 objectId 중 하나가 필요합니다.')
