@@ -981,3 +981,15 @@ CLI는 `tools/manager.py command wan21-vace-fl2v generate --payload-file <요청
 야외 맵의 지형 데이터에 선택적 `ambientTint: '#607c90'`을 저장할 수 있습니다. GUI는 저장된 값을 미리보기·PNG 내보내기에 적용하며, CLI의 `map-edit-preview`/`map-edit-save`는 동일한 선택 필드를 받습니다. 생략하면 기존 값을 보존하고 `#ffffff`로 저장하면 보정을 해제합니다. 값은 정확한 `#RRGGBB` 문자열이어야 합니다.
 
 공용 렌더러는 지형 메시 정점과 정적 빌보드의 곱셈 틴트를 생성 시 적용합니다. 캐릭터·UI·결계탑·웨이포인트·지형 이펙트는 원색을 유지합니다. 수관 그림자나 주변 광원 계산은 추가하지 않으며, 기존 렌더 패스와 프레임 처리 구조를 유지합니다. 원본 이미지·공용 빌보드 속성·충돌·통행 데이터는 바꾸지 않습니다. 설정 없는 맵은 이전 표시를 유지합니다.
+
+### Wan2.2 Fun Control Q4 실험 생성기
+
+애니메이션 도구의 `/management/frame/wan22-fun-control-generator/`는 외형 참조 1장과 전처리된 pose/depth/canny/mlsd 제어 영상을 입력받습니다. ANNY RGB 렌더는 포즈 영상으로 간주하지 않습니다. 얼굴 영상은 사용하지 않으며 자동 전처리는 제공하지 않습니다. 영상의 앞 N프레임 또는 업로드 순서대로 N장의 PNG를 사용하고 부족한 프레임은 반복하지 않습니다. 참조는 흰색, 제어는 검은색 여백으로 비율을 유지해 832×480에 맞춥니다. 출력은 16fps입니다.
+
+실험 기본값은 21프레임·20스텝·Shift 5·CFG 6·seed 42·고노이즈 스텝 비율 0.5입니다. 프레임은 5~81의 4n+1, 스텝은 2~100, Shift 0.1~20, CFG 1~10, 전환 비율 0.1~0.9를 허용합니다. 이 값은 로컬 실험 범위이며 공식 권장 범위를 뜻하지 않습니다. Euler/simple로 고·저노이즈 전문가를 순차 실행하며 4스텝 가속 LoRA는 사용하지 않습니다. Q4 모델 준비와 실제 8GB 추론 성공은 별도로 검증합니다.
+
+공용 서비스는 `wan22-fun-control`입니다. CLI `tools/manager.py command wan22-fun-control generate --payload-file <요청.json> --detach`의 필드는 `action`, `prompt`, `negative_prompt`, `images`, `width`, `height`, `frames`, `steps`, `seed`, `flow_shift`, `guidance_scale`, `switch_ratio`, `control_type`입니다. `images`는 참조 1장 다음 제어 N장을 PNG base64로 전달합니다. 모델 선택은 입력받지 않습니다. 모델 상태·생성·조회·취소·재개·우선 실행·선택 삭제·전체 초기화는 공용 게이트웨이 계약을 따릅니다. 작업별 입력·결과·로그·VRAM 관측치·예상 시간은 `.tmp/test/wan22-fun-control/`에 보존합니다. 기존 Animate/VACE 이력과 분리합니다.
+
+고·저노이즈 가중치는 `QuantStack/Wan2.2-Fun-A14B-Control-GGUF`의 revision `26d412a4bec09e1324fc80654dcee0d58218db52`, Q4_K_M을 `.model/wan22-fun-control/`에 보관합니다. UMT5 Q4·Wan2.1 VAE와 고정 ComfyUI 런타임은 Animate와 공유합니다. CUDA 추론과 CPU 가중치 오프로드, 타일 VAE를 사용하며 CPU 추론 대체는 없습니다.
+
+Fun Control은 시간 타일 경계의 밝기 흔들림·잔상을 줄이기 위해 잠재값 시간축 전체를 한 타일로 디코딩합니다. 공간 타일 32·겹침 8과 입력 인코딩 설정은 유지합니다. 추론 잠재값은 실행 시도 폴더의 `denoised-latents.safetensors`에, 실제 디코딩 설정과 잠재값 해시는 `decode-policy.json`에 보존합니다. 기존 방식의 비교 결과는 매번 생성하지 않습니다. 다른 생성기의 공용 기본 디코딩 설정은 유지하며 메모리 부족 시 자동 대체하지 않습니다. 41프레임·20스텝 실험에서 완료와 VRAM 관측 피크 6,480MiB를 확인했으며 더 긴 입력의 메모리 요구량은 별도 검증이 필요합니다. 잠재값 보존에 따른 디스크 사용량이 추가되며 작업 이력 삭제 시 함께 정리됩니다.

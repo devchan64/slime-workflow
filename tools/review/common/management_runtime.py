@@ -95,6 +95,7 @@ def create_management_runtime(writer_workspace_config=None):
     from tools.review.domains.vace.timeline_generation import VaceTimelineGenerationManager
     from tools.review.domains.vace.first_frame_generation import VaceFirstFrameGenerationManager
     from tools.review.domains.vace.first_last_generation import VaceFirstLastGenerationManager
+    from tools.review.domains.wan_fun.generation import FunControlGenerationManager
     from tools.review.domains.phantom.generation import PhantomGenerationManager
     from generators.music.contracts import AUDIO_SERVICE_NAMES
     from tools.review.domains.music.generation import MusicGenerationManager
@@ -105,6 +106,7 @@ def create_management_runtime(writer_workspace_config=None):
         vace_first_frame_service = VaceFirstFrameGenerationManager()
         vace_first_last_service = VaceFirstLastGenerationManager()
         phantom_generation_service = PhantomGenerationManager()
+        fun_generation_service = FunControlGenerationManager()
         image_generation_service = ImageGenerationManager()
         seamless_generation_service = SeamlessGenerationManager()
         qwen_circular_service = QwenCircularGenerationManager()
@@ -126,6 +128,7 @@ def create_management_runtime(writer_workspace_config=None):
             raise ValueError('작가 기록은 writer-detail 명령으로 조회하세요.')
         service_binding_records = {
             'writer-agent': ManagementServiceBinding(writer_agent_service.handle_writer_request,writer_agent_service.workspace_config_path.parent,reject_writer_folder_access),
+            'wan22-fun-control': bind_stored_management_service(fun_generation_service.handle_image_request,fun_generation_service.job_storage_root),
             'phantom': bind_stored_management_service(phantom_generation_service.handle_image_request,phantom_generation_service.job_storage_root),
             'wan21-vace-fl2v': bind_stored_management_service(vace_first_last_service.handle_image_request,vace_first_last_service.job_storage_root),
             'wan21-vace-f2v': bind_stored_management_service(vace_first_frame_service.handle_image_request,vace_first_frame_service.job_storage_root),

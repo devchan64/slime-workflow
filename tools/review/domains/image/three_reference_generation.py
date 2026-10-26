@@ -90,7 +90,9 @@ def save_three_reference_inputs(current_job_root,current_request_record):
         with reference_snapshot_path.open('xb') as reference_output_stream:
             reference_output_stream.write(reference_snapshot_bytes)
         reference_snapshot_records.append({'path':reference_snapshot_path.name,'sha256':hashlib.sha256(reference_snapshot_bytes).hexdigest(),'bytes':len(reference_snapshot_bytes),'order':current_image_index})
-    return {'action':'generate','prompt':current_request_record['prompt'],'tag':current_request_record.get('tag',''),'width':current_request_record['width'],'height':current_request_record['height'],'seed':current_request_record.get('seed',10107),'steps':current_request_record['steps'],'reference_snapshots':reference_snapshot_records,'references':[f'reference-{current_image_index}.png' for current_image_index in range(1,len(current_request_record['images'])+1)]}
+    # 도메인별 영상 생성기는 프레임 수처럼 공통 이미지 요청에 없는 설정을
+    # 함께 기록한다. images만 작업 폴더의 불변 사본 정보로 치환한다.
+    return {**{current_key_name: current_key_value for current_key_name, current_key_value in current_request_record.items() if current_key_name != 'images'}, 'reference_snapshots':reference_snapshot_records,'references':[f'reference-{current_image_index}.png' for current_image_index in range(1,len(current_request_record['images'])+1)]}
 
 
 def resolve_reference_settings(selected_inference_steps):

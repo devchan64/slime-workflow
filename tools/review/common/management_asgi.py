@@ -25,6 +25,7 @@ QWEN_INTERFACE_OPTIONS = {
 MANAGEMENT_INTERFACE_BUILDERS = {
     'hy-motion-generator': ('hy_motion_app', 'build_hymotion_interface', 'url'),
     'animation-separation': ('animation_separation_app', 'build_separation_interface', 'url'),
+    'wan22-fun-control-generator': ('wan_fun_app', 'build_fun_interface', 'url'),
     'vace-fl2v-generator': ('vace_first_last_app', 'build_first_last_interface', 'url'),
     'vace-f2v-generator': ('vace_first_frame_app', 'build_first_frame_interface', 'url'),
     'vace-v2v-generator': ('vace_timeline_app', 'build_timeline_interface', 'url'),

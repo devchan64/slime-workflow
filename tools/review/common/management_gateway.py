@@ -21,6 +21,9 @@ MANAGEMENT_COMMAND_ROUTES = {'anchor-history-reset':('POST','/anchor/history/res
 MANAGEMENT_SERVICE_COMMANDS = {'wan21-vace-fl2v':('history-delete','resume','generate','status','logs','history','active','model-status','cancel','history-reset'),'wan21-vace-f2v':('history-delete','resume','generate','status','logs','history','active','model-status','cancel','history-reset'),'wan21-vace-v2v':('history-delete','resume','generate','status','logs','history','active','model-status','cancel','history-reset'),'phantom':('history-delete','resume','generate','status','logs','history','active','model-status','cancel','history-reset'),'wan21-vace':('history-delete','resume','generate','status','logs','history','active','model-status','cancel','history-reset'),'outfit-transfer':('history-delete','resume','generate','status','logs','history','active','model-status','cancel','history-reset'),'pose-transfer':('history-delete','resume','generate','status','logs','history','active','model-status','cancel','history-reset'),'qwen-21-circular':('history-delete','resume','generate','status','logs','history','active','model-status','cancel','history-reset'),'animation-separation':('catalog','history-delete','resume','generate','status','logs','history','active','cancel','history-reset'),'qwen-21':('history-delete','resume','generate','status','logs','history','active','model-status','cancel','history-reset'),'seamless-tile':('pause','history-delete','resume','generate','status','logs','history','active','model-status','cancel','history-reset'),'expression':('history-delete','resume','generate','status','logs','history','active','model-status','cancel','history-reset'),'floor-tile':('history-delete','resume','catalog','generate','status','logs','history','active','model-status','cancel','history-reset'),'anny':('status','history','cancel','resume','history-delete','history-reset'),'character-animation':('anchor-save','anchor-history','anchor-load','anchor-history-reset','history-delete','resume','sprite-source','sprite-save','sprite-load','sprite-history','sprite-history-reset','sprite-history-delete','record-alpha-vnccs','catalog','generate','status','logs','history','active','cancel','history-reset'),'momask':('history-delete','resume','generate','status','logs','history','cancel','history-reset'),'qwen-2512':('history-delete','resume','generate','prepare','status','logs','history','active','model-status','cancel','history-reset'),'qwen-2511':('history-delete','resume','generate','status','logs','history','active','model-status','cancel','history-reset')}
 
 
+MANAGEMENT_SERVICE_ROUTES['wan22-fun-control']='/wan22-fun-control'
+MANAGEMENT_SERVICE_COMMANDS['wan22-fun-control']=MANAGEMENT_SERVICE_COMMANDS['wan21-vace-v2v']
+
 WRITER_PAYLOAD_COMMAND_NAMES = ('writer-detail', 'writer-submit', 'writer-apply')
 MANAGEMENT_SERVICE_ROUTES['writer-agent'] = '/writer-agent'
 MANAGEMENT_SERVICE_COMMANDS['writer-agent'] = ('writer-state', *WRITER_PAYLOAD_COMMAND_NAMES)
@@ -221,6 +224,8 @@ MANAGEMENT_COMMAND_DESCRIPTIONS['sfx-dasheng-audiogen']='효과음 생성 · Das
 MANAGEMENT_COMMAND_DESCRIPTIONS['hy-motion']='HY-Motion Lite 원본 모션 · CPU 메모리 오프로드 / CUDA 연산 · 준비·생성·ANNY VNCCS 출력(export-vnccs --payload-file)·이력·취소·재개'
 MANAGEMENT_COMMAND_DESCRIPTIONS['pose-transfer']='VNCCS V1.1 · Qwen 2.1 공식 파이프라인 · BF16 비양자화 · 512px 고정·25/40스텝 선택(기본 40) · 업로드 아이덴티티→포즈, 모델 전달 포즈→아이덴티티 · 부분 추종 경고'
 
+MANAGEMENT_COMMAND_DESCRIPTIONS['wan22-fun-control']='Wan2.2 Fun Control Q4 · 참조 1장+제어 프레임 · --payload-file'
+
 def execute_management_command(service_command_name, operation_command_name, command_payload_value, server_base_address=None, *, gateway_request_handler=None, service_handler_values=None):
     request_method_value,request_route_value=resolve_management_command(service_command_name,operation_command_name,command_payload_value)
     if gateway_request_handler is not None:
@@ -283,7 +288,7 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
                     current_duration_group.add_argument('--max-new-tokens',type=int,help='MiniMax 오디오 프레임 상한 125~3000; 25개≈1초, 조기 종료 가능')
                 operation_argument_parser.add_argument('--seed',type=int,default=current_music_defaults['seed'])
                 operation_argument_parser.add_argument('--loop-request',action=argparse.BooleanOptionalAction,default=current_music_defaults['loop_request'],help='반복 구조 요청; 심리스 연결 보장 없음')
-            elif service_command_name in ('wan21-vace-v2v','wan21-vace-f2v','wan21-vace-fl2v'):
+            elif service_command_name in ('wan22-fun-control','wan21-vace-v2v','wan21-vace-f2v','wan21-vace-fl2v'):
                 operation_argument_parser.add_argument('--payload-file',type=Path,required=True,help='images PNG base64와 frame_entries를 포함한 JSON 요청')
             elif service_command_name in ('wan21-vace','phantom'):
                 current_prompt_group=operation_argument_parser.add_mutually_exclusive_group(required=True)
@@ -394,7 +399,7 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
             if getattr(command_argument_values,'max_new_tokens',None) is not None:
                 command_payload_value.pop('duration_seconds')
                 command_payload_value['max_new_tokens'] = command_argument_values.max_new_tokens
-        elif service_command_name in ('wan21-vace-v2v','wan21-vace-f2v','wan21-vace-fl2v'):
+        elif service_command_name in ('wan22-fun-control','wan21-vace-v2v','wan21-vace-f2v','wan21-vace-fl2v'):
             command_payload_value=parse_management_request_json(command_argument_values.payload_file.read_text())
         elif service_command_name in ('wan21-vace','phantom'):
             current_reference_paths=command_argument_values.reference if service_command_name=='phantom' else [command_argument_values.reference]
