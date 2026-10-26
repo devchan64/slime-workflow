@@ -16,13 +16,14 @@ def load_effect_editor_choices():
 def load_effect_editor_detail(current_effect_identifier):
     current_detail_record=execute_remote_management_command('map-assets','effect-load',{'id':current_effect_identifier})
     current_alignment_record=current_detail_record['document']['alignment']
-    return current_detail_record,*current_alignment_record['target'],current_alignment_record['alpha'],current_alignment_record['frames'],0,'DB 원본을 불러왔습니다. 이 설정은 같은 종류를 사용하는 모든 이펙트에 적용됩니다.',gr.update(visible=current_detail_record['hostImage'] is not None)
+    return current_detail_record,*current_alignment_record['target'],current_alignment_record['alpha'],[[round(float(current_cell_value),2) for current_cell_value in current_frame_row] for current_frame_row in current_alignment_record['frames']],0,'DB 원본을 불러왔습니다. 이 설정은 같은 종류를 사용하는 모든 이펙트에 적용됩니다.',gr.update(visible=current_detail_record['hostImage'] is not None)
 
 
 def save_effect_editor_detail(current_detail_record,current_left_value,current_top_value,current_right_value,current_bottom_value,current_alpha_value,current_frame_values):
     yield gr.update(interactive=False,value='저장 중…'),current_detail_record,'DB 저장 중…'
     try:
         if not current_detail_record:raise ValueError('이펙트를 먼저 불러오세요.')
+        current_frame_values=[[round(float(current_cell_value),2) for current_cell_value in current_frame_row] for current_frame_row in current_frame_values]
         current_alignment_record={**current_detail_record['document']['alignment'],'target':[current_left_value,current_top_value,current_right_value,current_bottom_value],'alpha':current_alpha_value,'frames':current_frame_values}
         current_saved_record=execute_remote_management_command('map-assets','effect-save',{'id':current_detail_record['document']['id'],'expectedRevision':current_detail_record['revision'],'requestId':str(uuid4()),'alignment':current_alignment_record})
         current_next_detail=copy.deepcopy(current_detail_record)
