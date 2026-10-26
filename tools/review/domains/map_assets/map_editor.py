@@ -50,7 +50,7 @@ def load_map_editor_document(current_request_payload):
 
 
 def validate_map_editor_changes(current_request_payload):
-    if not isinstance(current_request_payload,dict) or set(current_request_payload)!={'map','revision','cells','objects'}:raise ValueError('map·revision·cells·objects가 필요합니다.')
+    if not isinstance(current_request_payload,dict) or set(current_request_payload)-{'terrainEffects'}!={'map','revision','cells','objects'}:raise ValueError('map·revision·cells·objects가 필요합니다.')
     current_asset_root,current_source_paths,current_documents,current_source_bytes,current_revision_hash=read_map_editor_snapshot(current_request_payload['map'])
     if current_request_payload['revision']!=current_revision_hash:raise ValueError('맵 또는 에셋 속성이 변경되었습니다. 초안은 유지됩니다. 원본을 다시 불러오기 전에 변경 내용을 보관하세요.')
     current_tile_data,current_terrain_data=(current_document['data'] for current_document in current_documents)
@@ -98,6 +98,12 @@ def validate_map_editor_changes(current_request_payload):
     if current_seen_identifiers & {current_object_record['id'] for current_object_record in current_fixed_objects}:raise ValueError('보호된 구조물 ID입니다.')
     current_tile_data['objects']=current_fixed_objects+copy.deepcopy(current_object_records)
     validate_scenery_object_collisions(current_tile_data['objects'],current_property_data,current_terrain_data['elevations'])
+    from tools.review.domains.map_assets.terrain_effects import validate_terrain_effect_records
+    current_effect_records=current_request_payload.get('terrainEffects',current_terrain_data.get('terrainEffects',[]))
+    validate_terrain_effect_records(current_effect_records,current_column_count,current_row_count,current_tile_data['objects'])
+    if 'terrainEffects' in current_request_payload:
+        current_terrain_data['terrainEffects']=copy.deepcopy(current_effect_records)
+    current_render_record['terrainEffects']=copy.deepcopy(current_effect_records)
     current_render_record.update(elevations=current_terrain_data['elevations'],terrainRows=current_tile_data['rows'],objects=copy.deepcopy(current_tile_data['objects']),blocked=[{'column':current_column,'row':current_row} for current_column,current_row in current_blocked_positions])
     current_render_record['cliffOverrides']=copy.deepcopy(current_tile_data.get('cliffOverrides',[]))
     apply_sprite_display_properties(current_render_record,current_property_data)
@@ -139,7 +145,7 @@ def preview_map_editor_changes(current_request_payload):
 
 
 def save_map_editor_changes(current_request_payload):
-    if not isinstance(current_request_payload,dict) or set(current_request_payload)!={'token','map','revision','cells','objects'}:raise ValueError('검증된 초안과 token이 필요합니다.')
+    if not isinstance(current_request_payload,dict) or set(current_request_payload)-{'terrainEffects'}!={'token','map','revision','cells','objects'}:raise ValueError('검증된 초안과 token이 필요합니다.')
     current_validation_payload={current_field_name:current_field_value for current_field_name,current_field_value in current_request_payload.items() if current_field_name!='token'}
     current_preview_token=hashlib.sha256(json.dumps(current_validation_payload,sort_keys=True).encode()).hexdigest()
     if current_request_payload['token']!=current_preview_token or not (MAP_EDITOR_STORAGE_ROOT/(current_preview_token+'.json')).is_file():raise ValueError('변경 내용을 먼저 검증하세요.')

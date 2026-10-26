@@ -144,6 +144,8 @@ def build_registered_map_review(map_identifier_value):
         current_field_tile_data = read_map_source_data('field_tiles/'+map_identifier_value+'.yaml')
         current_map_record['terrainRows'] = current_field_tile_data['rows']
         current_map_record['objects'] = current_field_tile_data.get('objects', [])
+        from tools.review.domains.map_assets.terrain_effects import validate_terrain_effect_records
+        validate_terrain_effect_records(current_map_record.get('terrainEffects',[]),current_map_record['columns'],current_map_record['rows'],current_map_record['objects'])
         current_map_record['groundDecals'] = current_field_tile_data.get('groundDecals', [])
         from tools.review.domains.map_assets.decals import validate_ground_decal_records
         validate_ground_decal_records(current_map_record['groundDecals'],current_map_record['columns'],current_map_record['rows'])

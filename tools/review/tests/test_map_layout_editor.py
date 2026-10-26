@@ -64,3 +64,18 @@ class MapLayoutEditorTests(unittest.TestCase):
         current_saved_tiles=yaml.safe_load(self.current_source_paths[0].read_text())['data']
         self.assertEqual(current_saved_tiles['rows'],['KKK']*3)
         self.assertEqual(current_saved_tiles['cliffOverrides'],current_preview_record['render']['cliffOverrides'])
+    def test_terrain_effect_preview_save_and_omission_preserve(self):
+        current_effect_record=dict(version=1,id='test-glow',kind='glow',position=dict(column=1,row=1),color='#ffe8a3',radius=1,intensity=.6,periodMs=4000,height=20,seed=1)
+        current_effect_payload={**self.current_input_payload,'terrainEffects':[current_effect_record]}
+        current_preview_record=map_editor.preview_map_editor_changes(current_effect_payload)
+        self.assertEqual(current_preview_record['render']['terrainEffects'],[current_effect_record])
+        map_editor.save_map_editor_changes({**current_effect_payload,'token':current_preview_record['token']})
+        self.assertEqual(yaml.safe_load(self.current_source_paths[1].read_text())['data']['terrainEffects'],[current_effect_record])
+        current_preserved_preview=map_editor.preview_map_editor_changes(self.current_input_payload)
+        self.assertEqual(current_preserved_preview['render']['terrainEffects'],[current_effect_record])
+        current_deleted_preview=map_editor.preview_map_editor_changes({**self.current_input_payload,'terrainEffects':[]})
+        self.assertEqual(current_deleted_preview['render']['terrainEffects'],[])
+    def test_terrain_effect_missing_attachment_rejects_before_write(self):
+        current_effect_record=dict(version=1,id='test-glow',kind='glow',objectId='deleted-object',color='#ffe8a3',radius=1,intensity=.6,periodMs=4000,height=20,seed=1)
+        with self.assertRaisesRegex(ValueError,'연결 대상'):
+            map_editor.preview_map_editor_changes({**self.current_input_payload,'terrainEffects':[current_effect_record]})

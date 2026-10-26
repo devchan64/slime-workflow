@@ -9,6 +9,8 @@ def load_map_edit_draft(current_map_identifier,current_editor_state):
     if current_editor_state and current_editor_state.get('history'):raise gr.Error('미저장 초안이 있습니다. 저장하거나 초안 버리기를 실행하세요.')
     current_snapshot_record=execute_remote_management_command('map-assets','map-edit-load',{'map':current_map_identifier})
     current_draft_payload={'map':current_map_identifier,'revision':current_snapshot_record['revision'],'cells':[],'objects':[current_record for current_record in current_snapshot_record['tiles'].get('objects',[]) if current_record['kind']=='decoration']}
+    if 'terrainEffects' in current_snapshot_record['terrain']:
+        current_draft_payload['terrainEffects']=copy.deepcopy(current_snapshot_record['terrain']['terrainEffects'])
     current_editor_state={'snapshot':current_snapshot_record,'draft':current_draft_payload,'history':[],'future':[]}
     return current_editor_state,gr.update(choices=[(current_name+' · '+current_code,current_code) for current_code,current_name in current_snapshot_record['codes'].items()],value=None),gr.update(choices=current_snapshot_record['textures'],value=None),gr.update(choices=[current_record['id'] for current_record in current_draft_payload['objects']],value=None),f'{current_map_identifier} 편집 준비 완료. 맵에서 셀을 클릭한 뒤 선택 셀 가져오기를 누르세요.',current_snapshot_record['render']
 
@@ -108,6 +110,28 @@ def save_map_edit_draft(current_editor_state,current_preview_record):
     return current_next_state,'저장 완료 · 맵 원본·등록부·소비자 해시를 갱신했습니다.',gr.update(interactive=False)
 
 
+def change_terrain_effect_draft(current_editor_state,current_effect_action,current_effect_identifier,current_effect_kind,current_cell_column,current_cell_row,current_attachment_identifier,current_effect_color,current_effect_radius,current_effect_intensity,current_effect_period,current_effect_height,current_effect_count,current_effect_seed):
+    if not current_editor_state:raise gr.Error('편집 원본을 먼저 불러오세요.')
+    from tools.review.domains.map_assets.terrain_effects import validate_terrain_effect_records
+    current_next_state=copy.deepcopy(current_editor_state)
+    current_previous_draft=copy.deepcopy(current_next_state['draft'])
+    current_effect_records=current_next_state['draft'].setdefault('terrainEffects',copy.deepcopy(current_next_state['snapshot']['terrain'].get('terrainEffects',[])))
+    current_effect_records[:]=[current_effect_record for current_effect_record in current_effect_records if current_effect_record['id']!=current_effect_identifier]
+    if current_effect_action=='upsert':
+        current_effect_record=dict(version=1,id=current_effect_identifier,kind=current_effect_kind,color=current_effect_color,radius=current_effect_radius,intensity=current_effect_intensity,periodMs=current_effect_period,height=current_effect_height,seed=current_effect_seed)
+        if current_attachment_identifier:current_effect_record['objectId']=current_attachment_identifier
+        else:current_effect_record['position']=dict(column=current_cell_column,row=current_cell_row)
+        if current_effect_kind=='moths':current_effect_record['count']=current_effect_count
+        current_effect_records.append(current_effect_record)
+    elif current_effect_action!='delete':raise gr.Error('알 수 없는 지형 이펙트 작업')
+    current_terrain_record=current_next_state['snapshot']['terrain']
+    validate_terrain_effect_records(current_effect_records,current_terrain_record['columns'],current_terrain_record['rows'],current_next_state['draft']['objects'])
+    if current_previous_draft!=current_next_state['draft']:
+        current_next_state['history'].append(current_previous_draft)
+        current_next_state['future']=[]
+    return current_next_state,'지형 이펙트 초안 반영 · 검증 후 저장하세요.'
+
+
 def summarize_map_editor_changes(current_editor_state):
     """저장 전 변경 내역을 작업 결과로 표시한다."""
     if not current_editor_state:return '저장할 변경이 없습니다.'
@@ -117,8 +141,10 @@ def summarize_map_editor_changes(current_editor_state):
     current_removed_identifiers=current_original_records.keys()-current_draft_records.keys()
     current_moved_identifiers=[current_identifier for current_identifier in current_draft_records.keys() & current_original_records.keys() if current_draft_records[current_identifier]!=current_original_records[current_identifier]]
     current_change_count=len(current_editor_state['draft']['cells'])+len(current_added_identifiers)+len(current_removed_identifiers)+len(current_moved_identifiers)
-    if not current_change_count:return '저장할 변경이 없습니다.'
+    current_effect_changed=current_editor_state['draft'].get('terrainEffects',[])!=current_editor_state['snapshot']['terrain'].get('terrainEffects',[])
+    if not current_change_count and not current_effect_changed:return '저장할 변경이 없습니다.'
     current_summary_text=f"**미저장 변경** · 타일 {len(current_editor_state['draft']['cells'])}곳 · 빌보드 추가 {len(current_added_identifiers)}개 / 이동 {len(current_moved_identifiers)}개 / 삭제 {len(current_removed_identifiers)}개"
+    if current_effect_changed:current_summary_text+=' · 지형 이펙트 변경'
     if current_removed_identifiers:current_summary_text+='\n\n삭제 대상: '+', '.join(sorted(current_removed_identifiers))
     return current_summary_text
 
@@ -182,6 +208,25 @@ def build_map_editor_panel(current_map_choice,current_interaction_mode=None,curr
                     current_move_column=gr.Number(label='이동 목적지 열',value=None,precision=0)
                     current_move_row=gr.Number(label='이동 목적지 행',value=None,precision=0)
                 current_move_button=gr.Button('선택 ID를 좌표로 이동')
+        with gr.Accordion('지형 이펙트 · 발광·나방',open=False):
+            gr.Markdown('이펙트는 통행을 막지 않습니다. 같은 ID로 반영하면 교체합니다. 연결 ID를 비우면 위 선택 셀에 배치합니다. 기존 목록에서 ID와 설정을 확인하세요.')
+            current_effect_list=gr.JSON(label='현재 초안의 지형 이펙트',value=[])
+            with gr.Row():
+                current_effect_identifier=gr.Textbox(label='이펙트 ID',value='terrain-glow-1')
+                current_effect_kind=gr.Dropdown(label='종류',choices=[('발광','glow'),('나방','moths')],value='glow')
+                current_attachment_identifier=gr.Textbox(label='연결할 빌보드 배치 ID',value='')
+            with gr.Row():
+                current_effect_color=gr.Textbox(label='색상 #RRGGBB',value='#ffe8a3')
+                current_effect_radius=gr.Number(label='범위 · 타일',value=1,minimum=.05,maximum=8)
+                current_effect_intensity=gr.Number(label='밝기',value=.6,minimum=0,maximum=1)
+            with gr.Row():
+                current_effect_period=gr.Number(label='주기 · ms',value=4000,minimum=250,maximum=120000)
+                current_effect_height=gr.Number(label='접지 위 높이 · 기준 px',value=0,minimum=0,maximum=1024)
+                current_effect_count=gr.Number(label='나방 수',value=6,precision=0,minimum=1,maximum=24)
+                current_effect_seed=gr.Number(label='애니메이션 시드',value=1,precision=0,minimum=0)
+            with gr.Row():
+                current_effect_apply=gr.Button('이펙트 추가·교체 · 초안')
+                current_effect_delete=gr.Button('이펙트 ID 삭제 · 초안')
         gr.Markdown('### 3. 변경 확인 · 저장')
         current_change_summary=gr.Markdown('저장할 변경이 없습니다.')
         current_feedback_text=gr.Markdown('타일 선택부터 시작하세요. 수정 내용은 자동 검증되며, 검증을 통과하면 저장 버튼이 활성화됩니다.')
@@ -211,6 +256,9 @@ def build_map_editor_panel(current_map_choice,current_interaction_mode=None,curr
                 current_selection_button.click(fn=None,outputs=current_interaction_mode,js="()=> 'edit'",queue=False)
         for current_action_button,current_action_name in [(current_cell_button,'cell'),(current_delete_cell_button,'delete-cell'),(current_add_button,'add'),(current_move_button,'move'),(current_delete_button,'delete'),(current_undo_button,'undo'),(current_redo_button,'redo')]:
             current_action_button.click(change_map_edit_draft,[current_editor_state,gr.State(current_action_name),current_move_column if current_action_name=='move' else current_cell_column,current_move_row if current_action_name=='move' else current_cell_row,current_tile_code,current_height_value,current_blocked_value,current_object_choice,current_texture_choice],[current_editor_state,current_object_choice,current_feedback_text,current_preview_state,current_save_button],concurrency_id='map-editor-draft',concurrency_limit=1).success(preview_map_edit_draft,current_editor_state,[current_preview_state,current_render_data,current_feedback_text,current_save_button],concurrency_id='map-editor-draft',concurrency_limit=1).success(fn=None,inputs=current_render_data,outputs=None,js="async(currentRenderRecord)=>{if(currentRenderRecord.id)await window.mapReviewApplyDraft(currentRenderRecord);}")
+        current_editor_state.change(lambda current_draft_state:(current_draft_state or {}).get('draft',{}).get('terrainEffects',[]),current_editor_state,current_effect_list,show_progress='hidden')
+        for current_effect_button,current_effect_action in ((current_effect_apply,'upsert'),(current_effect_delete,'delete')):
+            current_effect_button.click(change_terrain_effect_draft,[current_editor_state,gr.State(current_effect_action),current_effect_identifier,current_effect_kind,current_cell_column,current_cell_row,current_attachment_identifier,current_effect_color,current_effect_radius,current_effect_intensity,current_effect_period,current_effect_height,current_effect_count,current_effect_seed],[current_editor_state,current_feedback_text],concurrency_id='map-editor-draft',concurrency_limit=1).success(preview_map_edit_draft,current_editor_state,[current_preview_state,current_render_data,current_feedback_text,current_save_button]).success(fn=None,inputs=current_render_data,outputs=None,js="async(currentRenderRecord)=>{if(currentRenderRecord.id)await window.mapReviewApplyDraft(currentRenderRecord);}")
         current_preview_button.click(preview_map_edit_draft,current_editor_state,[current_preview_state,current_render_data,current_feedback_text,current_save_button]).then(fn=None,inputs=current_render_data,outputs=None,js="async(currentRenderRecord)=>{if(currentRenderRecord.id)await window.mapReviewApplyDraft(currentRenderRecord);}")
         current_save_button.click(save_map_edit_draft,[current_editor_state,current_preview_state],[current_editor_state,current_feedback_text,current_save_button],concurrency_id='map-editor-draft',concurrency_limit=1).success(lambda current_draft_state:current_draft_state,current_editor_state,current_autosave_data).success(fn=None,inputs=current_autosave_data,outputs=current_autosave_status,js="currentEditorState=>{if(currentEditorState?.draft&&!currentEditorState.history.length&&!currentEditorState.future?.length){sessionStorage.removeItem('slime-map-editor-draft-v1:'+currentEditorState.draft.map);return '원본 저장 완료 · 임시본을 정리했습니다.';}return '원본 저장 실패 · 임시본을 유지합니다.';}")
         current_editor_state.change(lambda current_draft_state:current_draft_state,current_editor_state,current_autosave_data,show_progress='hidden').success(fn=None,inputs=current_autosave_data,outputs=current_autosave_status,queue=False,js=MAP_AUTOSAVE_WRITE_SCRIPT)

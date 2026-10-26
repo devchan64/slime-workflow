@@ -1,3 +1,4 @@
+import {mountTerrainEffectLayer} from './vendor/field-renderer/__FIELD_RENDERER_VERSION__/field-renderer.mjs';
 import {resolveCityTileTextures,resolveTownGroundFrame,resolveReedFrameForMap,drawWaypoint,waypointMarkerScale,resolveFieldTileTextures,collectTerrainTextureSources,createTerrainAtlas,TERRAIN_ATLAS,drawCityBuildingSprite,resolveCityGroundDepth,TERRAIN_DEPTH,mapAnnotationDepth,resolveMapTileSize,resolveGrassFrameForMap,resolvePavingFrameForMap,selectFieldRoadFrame} from './vendor/field-renderer/__FIELD_RENDERER_VERSION__/town-renderer.mjs';
 import {GAME_INTERNAL_RESOLUTION_SCALE,drawCharacterContactShadow,attachCharacterOutlineLayers,roadConnections,waterConnections} from './vendor/field-renderer/__FIELD_RENDERER_VERSION__/game-render-profile.mjs';
 import * as Phaser from './vendor/field-renderer/__FIELD_RENDERER_VERSION__/phaser.mjs';
@@ -254,7 +255,7 @@ export async function createSharedFieldReview(currentMapCanvas,currentTextureIma
   render(currentFieldFrame,currentMapRecord,currentViewSettings){
    if(currentReviewDisposed)throw Error('맵 검수 화면이 닫혔습니다.');
    updateSharedReviewCamera(currentViewSettings);
-   const currentNextSignature=JSON.stringify([currentMapRecord.id,currentFieldFrame.options.rotation,currentViewSettings.edges,currentViewSettings.tileEdges,currentViewSettings.blockedAreas,currentViewSettings.safe]);
+   const currentNextSignature=JSON.stringify([currentMapRecord.id,currentMapRecord.terrainEffects,currentFieldFrame.options.rotation,currentViewSettings.edges,currentViewSettings.tileEdges,currentViewSettings.blockedAreas,currentViewSettings.safe]);
    if(currentNextSignature!==currentRenderSignature){
     for(const currentRenderObject of [...currentFieldScene.children.list])if(currentRenderObject.scene)currentRenderObject.destroy();
     currentFieldActorSignature='';currentFieldActorObjects=[];currentFieldWaypointObjects=[];
@@ -304,6 +305,7 @@ export async function createSharedFieldReview(currentMapCanvas,currentTextureIma
      if(!currentWaypointCell)throw Error('웨이포인트가 맵 범위를 벗어났습니다.');
      currentFieldWaypointObjects.push(drawWaypoint(currentFieldScene,currentConnectionRecord,currentWaypointCell.center.x,currentWaypointCell.center.y).setDepth(mapAnnotationDepth(currentMapRecord)));
     }
+    mountTerrainEffectLayer(currentFieldScene,currentMapRecord,currentCellPosition=>currentFieldFrame.cells.find(currentCellRecord=>currentCellRecord.cell.column===currentCellPosition.column&&currentCellRecord.cell.row===currentCellPosition.row)?.center);
     currentRenderSignature=currentNextSignature;
    }
    const currentActorSignature=JSON.stringify([currentViewSettings.character,currentViewSettings.characterCell]);

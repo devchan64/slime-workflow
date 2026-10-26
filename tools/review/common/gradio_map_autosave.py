@@ -16,7 +16,8 @@ def restore_map_autosave_state(current_map_identifier,current_live_state,current
     if current_saved_state['draft'].get('revision')!=current_fresh_state['draft']['revision']:raise ValueError('원본이 변경되어 임시본 자동 복구를 중단했습니다. 임시본은 보존됩니다. JSON으로 보관한 뒤 원본과 비교하세요.')
     current_saved_revision=current_fresh_state['draft']['revision']
     for current_draft_record in [current_saved_state['draft'],*current_saved_state['history'],*current_saved_state['future']]:
-        if not isinstance(current_draft_record,dict) or set(current_draft_record)!={'map','revision','cells','objects'} or current_draft_record['map']!=current_map_identifier or current_draft_record['revision']!=current_saved_revision or not isinstance(current_draft_record['cells'],list) or not isinstance(current_draft_record['objects'],list):raise ValueError('임시저장 편집 이력 형식 오류')
+        if not isinstance(current_draft_record,dict) or set(current_draft_record)-{'terrainEffects'}!={'map','revision','cells','objects'} or current_draft_record['map']!=current_map_identifier or current_draft_record['revision']!=current_saved_revision or not isinstance(current_draft_record['cells'],list) or not isinstance(current_draft_record['objects'],list):raise ValueError('임시저장 편집 이력 형식 오류')
+        if 'terrainEffects' in current_draft_record and not isinstance(current_draft_record['terrainEffects'],list):raise ValueError('임시저장 지형 이펙트 목록 형식 오류')
     current_restored_state=copy.deepcopy(current_saved_state)
     current_restored_state['snapshot']=current_fresh_state['snapshot']
     return current_restored_state

@@ -106,6 +106,15 @@ class MapAutosaveRecoveryTests(unittest.TestCase):
         current_saved_state['draft']['revision']='one'
         current_saved_state['future']={}
         with self.assertRaisesRegex(ValueError,'형식'):self.restore_saved_record({'version':1,'state':current_saved_state})
+    def test_terrain_effect_draft_and_history_survive_reload(self):
+        current_saved_state=copy.deepcopy(self.current_fresh_state)
+        current_saved_state['history']=[copy.deepcopy(current_saved_state['draft'])]
+        current_saved_state['draft']['terrainEffects']=[{'id':'light'}]
+        current_restored_state=self.restore_saved_record({'version':1,'state':current_saved_state})
+        self.assertEqual(current_restored_state['draft']['terrainEffects'],[{'id':'light'}])
+        self.assertNotIn('terrainEffects',current_restored_state['history'][0])
+        current_saved_state['draft']['terrainEffects']={}
+        with self.assertRaisesRegex(ValueError,'이펙트 목록'):self.restore_saved_record({'version':1,'state':current_saved_state})
     def test_absent_record_loads_clean_state(self):
         self.assertEqual(self.restore_saved_record(None),self.current_fresh_state)
 

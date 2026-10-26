@@ -19,7 +19,7 @@ class MapReviewGradioTest(unittest.TestCase):
 
     def test_change_summary_reports_added_moved_and_deleted_billboards(self):
         from tools.review.common.gradio_map_editor import summarize_map_editor_changes
-        current_editor_state={'snapshot':{'tiles':{'objects':[{'id':'rock-1','kind':'decoration','position':{'column':0,'row':0}}]}},'draft':{'cells':[],'objects':[]}}
+        current_editor_state={'snapshot':{'terrain':{},'tiles':{'objects':[{'id':'rock-1','kind':'decoration','position':{'column':0,'row':0}}]}},'draft':{'cells':[],'objects':[]}}
         self.assertIn('삭제 1개',summarize_map_editor_changes(current_editor_state))
         self.assertIn('rock-1',summarize_map_editor_changes(current_editor_state))
 
