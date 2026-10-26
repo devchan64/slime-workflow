@@ -17,6 +17,17 @@ from tools.review.common.generation_telemetry import GenerationTelemetryRecorder
 
 
 class PhantomGenerationContractTests(unittest.TestCase):
+    def test_retired_phantom_rejects_execution(self):
+        current_manager_instance = PhantomGenerationManager()
+        for current_callback_method, current_argument_value in (
+            (current_manager_instance.validate_generation_request, {}),
+            (current_manager_instance.validate_generation_runtime, None),
+            (current_manager_instance.validate_generation_resume, Path('/tmp/unused-phantom')),
+            (current_manager_instance.select_generation_runner, None),
+        ):
+            with self.assertRaisesRegex(ValueError, '폐기'):
+                current_callback_method(current_argument_value)
+
     def test_restore_phantom_inputs_verifies_every_snapshot(self):
         import gradio as gr
         from tools.review.ui.gradio import phantom_app

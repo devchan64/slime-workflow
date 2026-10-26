@@ -64,7 +64,7 @@ def describe_vace_status(current_status_record):
 
 def build_vace_interface(current_server_address):
     with gr.Blocks(title='VACE 운영 중지') as current_retired_blocks:
-        gr.Markdown('## VACE 생성기 운영 중지\nPhantom 생성기를 사용하세요. 기존 결과와 생성이력은 보존되어 CLI에서 조회할 수 있습니다.\n[Phantom R2V 생성기 열기](http://127.0.0.1:8770/?tool=phantom-generator&category=animation-tool)')
+        gr.Markdown('## VACE 생성기 운영 중지\nV2V 또는 FL2V 생성기를 사용하세요. 기존 결과와 생성이력은 보존되어 CLI에서 조회할 수 있습니다.\n[V2V 생성기 열기](/management/frame/vace-v2v-generator/?tool=vace-v2v-generator&category=animation-tool)')
     return current_retired_blocks
 
 

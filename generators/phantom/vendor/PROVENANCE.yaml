@@ -1,7 +1,0 @@
-source: https://github.com/Phantom-video/Phantom
-commit: bd84b602dcc949e23c89cbbf266b6f5975f2f025
-license: Apache-2.0
-notes:
-- 로컬 검증 실험의 수정본을 보존. 선택 Linear/Conv BF16 및 FP32 정규화·시간 투영 유지.
-- 런타임에서 CUDA FLASH SDPA와 원본 VAE 가중치의 strict 변환·타일 디코딩 사용.
-- 빈 부정 프롬프트의 기본값 자동 대체 제거.

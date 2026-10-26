@@ -19,16 +19,16 @@ class PhantomGenerationManager(ImageGenerationManager):
         self.job_storage_root = PHANTOM_JOB_STORAGE_ROOT
 
     def validate_generation_request(self, current_request_record):
-        return validate_phantom_request(current_request_record)
+        raise ValueError('Phantom 생성기는 폐기되었습니다. V2V 또는 FL2V를 사용하세요.')
 
     def validate_generation_runtime(self, saved_request_record=None):
-        validate_phantom_assets()
+        raise ValueError('Phantom 모델은 폐기되어 사용할 수 없습니다.')
 
     def validate_generation_resume(self, selected_job_directory):
-        verify_phantom_request(selected_job_directory)
+        raise ValueError('Phantom 생성기는 폐기되어 재개할 수 없습니다.')
 
     def select_generation_runner(self, saved_request_record=None):
-        return 'generators/phantom/worker.py'
+        raise ValueError('Phantom 실행기는 폐기되었습니다.')
 
     def history_storage_path(self):
         return MANAGER_HISTORY_ROOT / 'phantom'
