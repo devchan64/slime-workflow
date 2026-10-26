@@ -255,7 +255,7 @@ export async function createSharedFieldReview(currentMapCanvas,currentTextureIma
   render(currentFieldFrame,currentMapRecord,currentViewSettings){
    if(currentReviewDisposed)throw Error('맵 검수 화면이 닫혔습니다.');
    updateSharedReviewCamera(currentViewSettings);
-   const currentNextSignature=JSON.stringify([currentMapRecord.id,currentMapRecord.terrainEffects,currentFieldFrame.options.rotation,currentViewSettings.edges,currentViewSettings.tileEdges,currentViewSettings.blockedAreas,currentViewSettings.safe]);
+   const currentNextSignature=JSON.stringify([currentMapRecord.id,currentMapRecord.ambientTint,currentMapRecord.terrainEffects,currentFieldFrame.options.rotation,currentViewSettings.edges,currentViewSettings.tileEdges,currentViewSettings.blockedAreas,currentViewSettings.safe]);
    if(currentNextSignature!==currentRenderSignature){
     for(const currentRenderObject of [...currentFieldScene.children.list])if(currentRenderObject.scene)currentRenderObject.destroy();
     currentFieldActorSignature='';currentFieldActorObjects=[];currentFieldWaypointObjects=[];

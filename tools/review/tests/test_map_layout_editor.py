@@ -64,6 +64,17 @@ class MapLayoutEditorTests(unittest.TestCase):
         current_saved_tiles=yaml.safe_load(self.current_source_paths[0].read_text())['data']
         self.assertEqual(current_saved_tiles['rows'],['KKK']*3)
         self.assertEqual(current_saved_tiles['cliffOverrides'],current_preview_record['render']['cliffOverrides'])
+    def test_ambient_tint_save_omission_and_reset(self):
+        current_tint_payload={**self.current_input_payload,'ambientTint':'#607c90'}
+        current_preview_record=map_editor.preview_map_editor_changes(current_tint_payload)
+        self.assertEqual(current_preview_record['render']['ambientTint'],'#607c90')
+        map_editor.save_map_editor_changes({**current_tint_payload,'token':current_preview_record['token']})
+        self.assertEqual(yaml.safe_load(self.current_source_paths[1].read_text())['data']['ambientTint'],'#607c90')
+        self.assertEqual(map_editor.preview_map_editor_changes(self.current_input_payload)['render']['ambientTint'],'#607c90')
+        self.assertEqual(map_editor.preview_map_editor_changes({**self.current_input_payload,'ambientTint':'#ffffff'})['render']['ambientTint'],'#ffffff')
+        with self.assertRaisesRegex(ValueError,'ambientTint'):
+            map_editor.preview_map_editor_changes({**self.current_input_payload,'ambientTint':None})
+
     def test_terrain_effect_preview_save_and_omission_preserve(self):
         current_effect_record=dict(version=1,id='test-glow',kind='glow',position=dict(column=1,row=1),color='#ffe8a3',radius=1,intensity=.6,periodMs=4000,height=20,seed=1)
         current_effect_payload={**self.current_input_payload,'terrainEffects':[current_effect_record]}
@@ -79,3 +90,12 @@ class MapLayoutEditorTests(unittest.TestCase):
         current_effect_record=dict(version=1,id='test-glow',kind='glow',objectId='deleted-object',color='#ffe8a3',radius=1,intensity=.6,periodMs=4000,height=20,seed=1)
         with self.assertRaisesRegex(ValueError,'연결 대상'):
             map_editor.preview_map_editor_changes({**self.current_input_payload,'terrainEffects':[current_effect_record]})
+
+
+class TerrainAmbientContractTest(unittest.TestCase):
+    def test_reject_invalid_ambient_values(self):
+        from tools.review.domains.map_assets.terrain_ambient import validate_terrain_ambient_tint
+        validate_terrain_ambient_tint({})
+        validate_terrain_ambient_tint({'ambientTint':'#607c90'})
+        for current_invalid_color in [None,True,123,'red','#fff']:
+            with self.assertRaises(ValueError):validate_terrain_ambient_tint({'ambientTint':current_invalid_color})

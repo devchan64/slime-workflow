@@ -140,6 +140,8 @@ def build_registered_map_review(map_identifier_value):
         normalize_field_surface_data(current_map_record)
         # 기존 응답의 빈 연결 필드는 클라이언트 계약 호환을 위해 유지한다.
         current_map_record.update(terrainMovementVersion=2, ramps=[], elevationTiles=[])
+        from tools.review.domains.map_assets.terrain_ambient import validate_terrain_ambient_tint
+        validate_terrain_ambient_tint(current_map_record)
         current_map_record['safeTown'] = False
         current_field_tile_data = read_map_source_data('field_tiles/'+map_identifier_value+'.yaml')
         current_map_record['terrainRows'] = current_field_tile_data['rows']
