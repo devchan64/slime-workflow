@@ -1,10 +1,15 @@
-"""브라우저 오디오 탐색을 위한 단일 바이트 구간 응답."""
+"""브라우저 미디어 탐색을 위한 단일 바이트 구간 응답."""
 import re
 
 AUDIO_TRANSFER_CHUNK_BYTES = 256 * 1024
 
 
 def send_audio_file_response(current_http_handler,current_audio_path):
+    current_content_type = 'audio/mpeg' if current_audio_path.suffix == '.mp3' else 'audio/wav'
+    return send_media_file_response(current_http_handler, current_audio_path, current_content_type)
+
+
+def send_media_file_response(current_http_handler,current_audio_path,current_content_type):
     with current_audio_path.open('rb') as current_audio_stream:
         current_audio_stream.seek(0,2)
         current_total_bytes = current_audio_stream.tell()
@@ -35,7 +40,7 @@ def send_audio_file_response(current_http_handler,current_audio_path):
             current_status_code = 206
         current_response_size = max(0,current_end_byte-current_start_byte+1)
         current_http_handler.send_response(current_status_code)
-        current_http_handler.send_header('Content-Type','audio/mpeg' if current_audio_path.suffix == '.mp3' else 'audio/wav')
+        current_http_handler.send_header('Content-Type',current_content_type)
         current_http_handler.send_header('Accept-Ranges','bytes')
         current_http_handler.send_header('Content-Length',str(current_response_size))
         current_http_handler.send_header('Cache-Control','no-store')
@@ -46,7 +51,7 @@ def send_audio_file_response(current_http_handler,current_audio_path):
         while current_response_size:
             current_audio_chunk = current_audio_stream.read(min(current_response_size,AUDIO_TRANSFER_CHUNK_BYTES))
             if not current_audio_chunk:
-                raise OSError('오디오 전송 중 파일 길이가 변경되었습니다.')
+                raise OSError('미디어 전송 중 파일 길이가 변경되었습니다.')
             try:
                 current_http_handler.wfile.write(current_audio_chunk)
             except (BrokenPipeError,ConnectionResetError):

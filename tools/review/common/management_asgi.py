@@ -23,14 +23,11 @@ QWEN_INTERFACE_OPTIONS = {
     'expression-generator': {'expression_mode_enabled': True},
 }
 MANAGEMENT_INTERFACE_BUILDERS = {
+    'wan22-animate-generator': ('wan_animate_app', 'build_animate_interface', 'url'),
     'hy-motion-generator': ('hy_motion_app', 'build_hymotion_interface', 'url'),
     'animation-separation': ('animation_separation_app', 'build_separation_interface', 'url'),
     'wan22-fun-control-generator': ('wan_fun_app', 'build_fun_interface', 'url'),
-    'vace-fl2v-generator': ('vace_first_last_app', 'build_first_last_interface', 'url'),
-    'vace-f2v-generator': ('vace_first_frame_app', 'build_first_frame_interface', 'url'),
-    'vace-v2v-generator': ('vace_timeline_app', 'build_timeline_interface', 'url'),
-    'phantom-generator': ('phantom_app', 'build_phantom_interface', 'url'),
-    'wan21-vace-generator': ('vace_app', 'build_vace_interface', 'url'),
+    'wan22-ti2v-generator': ('wan_ti2v_app', 'build_ti2v_interface', 'url'),
     'map-review': ('map_review_app', 'build_map_review_interface', 'port'),
     'character-review': ('map_review_app', 'build_map_review_interface', 'character'),
     'asset-editor': ('asset_editor_app', 'build_asset_editor_interface', 'port'),

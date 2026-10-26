@@ -28,31 +28,6 @@ class GenerationStatusLookupTests(unittest.TestCase):
                 with self.assertRaises((ValueError,RuntimeError)):
                     read_existing_generation_status(Mock(side_effect=current_failure_responses),'existing')
 
-    def test_video_callbacks_clear_deleted_job_and_preserve_existing_errors(self):
-        from tools.review.ui.gradio import phantom_app, vace_timeline_app
-        for current_module_value,current_builder_name,current_callback_name,current_command_name in (
-            (phantom_app,'build_phantom_interface','refresh_phantom_result','execute_phantom_command'),
-            (vace_timeline_app,'build_timeline_interface','refresh_timeline_result','execute_timeline_command'),
-        ):
-            with self.subTest(module=current_module_value.__name__):
-                current_interface_blocks = getattr(current_module_value,current_builder_name)('http://127.0.0.1:9988')
-                current_refresh_binding = next(current_binding for current_binding in current_interface_blocks.fns.values() if current_binding.fn and current_binding.fn.__name__==current_callback_name)
-                self.assertEqual(len(current_refresh_binding.outputs),5)
-                self.assertEqual(current_refresh_binding.outputs[-1].label,'생성 ID')
-                with patch.object(current_module_value,current_command_name,side_effect=[ValueError('missing'),{'records':[]}]):
-                    current_output_values = current_refresh_binding.fn('removed',True,'old.mp4')
-                self.assertEqual(len(current_output_values),5)
-                self.assertIn('삭제',current_output_values[0])
-                self.assertNotIn('old.mp4',current_output_values[1])
-                self.assertEqual(current_output_values[2:],('','',''))
-                with patch.object(current_module_value,current_command_name,side_effect=[ValueError('corrupt'),{'records':[{'id':'existing'}]}]):
-                    with self.assertRaisesRegex(ValueError,'corrupt'):
-                        current_refresh_binding.fn('existing',True,'old.mp4')
-                with patch.object(current_module_value,current_command_name,return_value={'status':'running','video':''}):
-                    current_output_values=current_refresh_binding.fn('existing',False,'')
-                self.assertEqual(len(current_output_values),5)
-                self.assertEqual(current_output_values[-1],{'__type__':'update'})
-
     def test_qwen_variants_clear_deleted_preview_and_keep_telemetry(self):
         from tools.review.ui.gradio import qwen_2511_app, qwen_2512_app
         current_interface_cases=[(qwen_2512_app,qwen_2512_app.build_qwen_2512_interface,{},'refresh_generation_status')]

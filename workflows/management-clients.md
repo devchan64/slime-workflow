@@ -512,31 +512,6 @@ Qwen 실행용 짧은 영문은 `generators/image/config/qwen_21_prompt_options.
 이력 불러오기에서 원문과 옵션을 복원합니다. 투명 배경은 네이티브 RGBA 출력을 요청하며
 출력 알파를 보존합니다. 체크무늬를 그리거나 색상 제거 후처리로 투명화를 대신하지 않습니다.
 
-## Wan2.1 VACE R2V 영상 생성기
-
-애니메이션 도구의 **Wan2.1 VACE 영상 생성기**(`?tool=wan21-vace-generator&category=animation-tool`)는 로컬 `Wan-AI/Wan2.1-VACE-1.3B-diffusers` 모델을 사용한다. 참조 PNG 한 장과 프롬프트로 생성하며 `video=None`, `mask=None`이다. 첫 프레임 확장과 중간 포즈 제어는 이 도구의 입력이 아니다. 참조는 전체 이미지를 흰 배경에 합성한 뒤 비율을 유지해 선택한 출력 해상도로 흰 패딩한다. 방향 시트를 자동 분할하지 않으므로 단일 방향 이미지를 첨부한다.
-
-```bash
-python3 tools/manager.py command wan21-vace generate --reference /absolute/character.png --prompt-file /absolute/prompt.txt --width 832 --height 480 --frames 81 --steps 50 --flow-shift 5 --guidance-scale 5 --conditioning-scale 1 --seed 42 --detach
-python3 tools/manager.py command wan21-vace status <생성ID>
-```
-
-GUI·CLI는 `wan21-vace` 서비스의 `generate/status/logs/history/active/model-status/cancel/resume/prioritize/history-delete/history-reset`을 공유한다. 생성 payload는 `{action: "generate", images: ["base64 PNG"], prompt: "장면 묘사", frames: 65, seed: 42, tag: "선택 태그"}`이며 알 수 없는 필드는 거절한다. 참조는 RGB/RGBA PNG 한 장, 3MB 이하이다. 기본값은 832×480·81프레임·50스텝·shift 5·CFG 5·conditioning 1이다. 해상도는 832×480, 480×832, 512×512를 지원한다. 프레임 수는 1~161 범위의 `4n+1` 정수만 허용한다(161은 로컬 도구 운영 상한이며 모델 최대치 주장이 아니다). 16fps 고정으로 81프레임은 5.0625초이며 1프레임은 정지 샘플이다. 스텝은 1~200, shift는 0.1~30, CFG는 1~20, conditioning은 0~2 범위에서 조절한다. API 필드는 `width/height/steps/flow_shift/guidance_scale/conditioning_scale`이고 CLI는 `--width/--height/--steps/--flow-shift/--guidance-scale/--conditioning-scale`이다. 범위는 도구 입력 제한이며 모든 조합의 품질·VRAM 적합성을 보장하지 않는다. 기존 512×512·30스텝 이력은 저장 설정으로 복원·재개한다. 난수 생성은 기존 CPU RNG를 유지하며 모델 연산은 CUDA에서 수행한다. 프롬프트는 자동 확장하지 않고 원문·실제 입력 단어 수·SHA-256을 기록한다. 512 토큰을 넘으면 추론 전에 거절한다. 기본 파라미터와 부정 프롬프트는 `generators/vace/config/defaults.yaml`에서 추적한다.
-
-모델은 `.model/vace-1.3b/weights`에 사전 준비해야 한다. CUDA 연산만 허용하고 CPU 가중치 오프로드·VAE 타일링을 사용한다. 모델 다운로드나 API 호출을 자동 수행하지 않는다. 실제 가중치 revision은 검증되지 않았으며 기록에도 그 한계를 표시한다.
-
-공용 생성 ID 계약에 따라 `.tmp/test/wan21-vace/<한국시간>-<ID>/`에 요청·참조·로그·상태를 보존한다. 실행 시도마다 `attempts/<UUID>/`에 입력 계약·영상·PNG 프레임 ZIP·프롬프트·실행기·ETA·장치별 VRAM 기록을 저장한다. 재개는 저장 입력으로 새 시도를 시작하며 이전 시도는 보존한다. 선택 이력 삭제와 초기화는 목록에서만 숨기며 파일을 삭제하지 않는다. 기존 독립 실험은 이동하거나 자동 이력 등록하지 않는다.
-
-5초 heartbeat에서 공용 추정 코드로 전체 소요·남은 시간·완료 시각·예상 진행률을 기록한다. 같은 설정의 완료 표본이 없으면 전체 ETA는 계산 중으로 표시하며, 최근 추론 스텝에 근거한 추론 종료 추정은 별도로 제공한다. GPU 대기 시간은 제외한다. VRAM은 장치별 프로세스·자식 프로세스 사용량과 장치 전체를 구분해 관측하며 순간 피크 누락 가능성이 있다. 실패·중지·재개 시에도 시도별 기록을 보존한다. 결과 검수는 브라우저 영상 재생과 PNG ZIP으로 수행한다. 생성 성공은 보행·일관성 품질 승인을 의미하지 않는다.
-
-VACE 부정 프롬프트는 GUI의 `부정 프롬프트` 또는 CLI `--negative-prompt`로 실행별 전체 대체한다. 생략하면 기존 기본값을 사용하며 빈 문자열은 부정 프롬프트를 비운다. 저장 입력 복원·재개는 해당 실행값을 유지한다. 양성·부정 입력은 각각 512 토큰을 초과하면 실패하며 원문·단어 수·해시를 실행 기록에 보존한다.
-
-## Phantom 생성기 폐기
-
-Phantom은 2026-10-26 폐기되었습니다. 메뉴와 생성 화면을 제거하고 generate·resume·직접 worker 실행을 거절합니다. 이전 페이지 주소는 폐기 안내만 표시합니다. 전용 `.model/phantom-1.3b` 및 `.model/wan21-phantom-components`와 추론 vendor/runtime을 제거했습니다. 공유 VACE 모델과 외부 원본은 보존합니다.
-
-사용자 요청에 따라 `.tmp/test/phantom/`의 입력·결과·로그 23건도 공용 history-reset으로 삭제했습니다. 이전 클라이언트에 명확한 폐기 오류를 제공하고 이력 계약 호환성을 유지하기 위해 게이트웨이 서비스 등록은 남겨 둡니다. 신규 생성은 V2V 또는 FL2V를 사용합니다. VACE R2V의 기존 운영 중지도 유지합니다.
-
 ## iframe 제거와 클라이언트 계약
 
 복장 분리(`animation-separation`)의 결과 탭과 생성 이력은 Gradio 안의 캔버스 재생기로 표시한다. 기존 `status`·`history`·`generate`·`cancel`·`resume`·`history-delete` 계약, 생성 ID와 로그·결과 보관 경로는 유지한다. GUI 전환을 위해 CLI 프로세스나 별도 작업 서비스를 실행하지 않는다.
@@ -561,24 +536,6 @@ Phantom·HY-Motion·Qwen 계열·복장 분리·ANNY·작가·맵·스프라이�
 
 독립 허브의 `preview.html#항목ID`도 공용 메뉴로 연결한다. `serve.py --root <게시 폴더>`는 `manager-source.json`이 있는 루트의 `preview.html`을 현재 호환 문서로 제공하며 과거 파일은 수정하지 않는다. 새 허브를 게시하면 같은 연결문을 저장한다. 걷기 비교는 독립 문서 링크로 유지하며 앵커 여부는 게시 항목의 `anchorEditor`를 사용하므로 `standing/preview.html`도 기존 주소에서 Gradio 편집기로 열린다. 메뉴의 절대 경로와 게시 목록의 상대 경로는 같은 경로로 비교한다. 이 변경은 조회·탐색에 한정하며 게이트웨이 명령·저장 경로를 추가하거나 변경하지 않는다.
 
-
-### Wan2.1 VACE V2V 희소 프레임 생성
-
-애니메이션 도구의 `vace-v2v-generator`는 고정 Wan2.1 VACE 1.3B를 사용한다. Phantom R2V와 별도 서비스 `wan21-vace-v2v`로 실행하며 기존 VACE R2V 운영 중지는 유지한다.
-
-번호가 있는 PNG를 여러 장 첨부하면 원래 번호대로 배치한다. 화면은 1부터, 게이트웨이의 `frame_entries[].frame`은 0부터 시작한다. 수정 가능 체크는 흰 마스크, 해제는 검은 마스크이며 현재는 프레임 전체에 적용한다. 첫 프레임도 기본 수정 대상이다. 누락 프레임은 RGB 127 영상과 흰 마스크로 채운다. 마지막 번호가 35이면 총 37프레임으로 올려 `4n+1`을 만족한다. 원본은 변경하지 않고 입력 사본과 해시를 실행 기록에 보존한다.
-
-CLI는 `tools/manager.py command wan21-vace-v2v generate --payload-file <요청.json>`을 사용한다. 요청은 기존 VACE 생성 설정과 PNG base64 문자열 배열 `images`, 같은 순서의 `frame_entries: [{"frame": 0, "editable": true}]`를 포함한다. GUI와 CLI 모두 공용 게이트웨이에서 상태·로그·이력·재개·우선 실행·취소·선택 이력 삭제를 공유한다. 결과는 `.tmp/test/wan21-vace-v2v/<생성 ID>/`에 기록한다.
-
-이 페이지는 번호별 이미지로 입력 영상을 조립하는 V2V 입력을 제공한다. 동영상 파일 업로드·영역별 마스크 편집은 현재 제공하지 않는다. 외형 참조 이미지는 선택적으로 1장을 첨부할 수 있다. API/CLI에서는 `identity_reference_count: 1`과 함께 `images`의 마지막에 외형 참조 PNG를 추가한다. `frame_entries`에는 포즈 입력만 포함한다. 생략 또는 0이면 기존 동작을 유지한다. 참조는 입력 사본·해시와 함께 보존하며 입력값 불러오기·재개에서도 동일하게 전달한다. 수정 가능 프레임의 포즈와 신체 비율을 그대로 유지하거나 교정할 것을 보장하지 않으며 결과 검수가 필요하다.
-
-VACE V2V의 Flow shift 기본값은 3.0이다. GUI 초기값과 CLI/API 요청에서 `flow_shift`를 생략한 경우 동일하게 적용한다. 이력 불러오기와 명시적으로 입력한 값은 실행 당시 설정을 유지한다.
-
-VACE V2V 출력은 832×480(480P)으로 고정한다. GUI 선택은 제거하며 CLI/API도 다른 해상도의 신규 생성·재개를 거절한다. 기존 이력은 그대로 조회하며 입력값 불러오기 후 새 생성은 832×480으로 전환한다. 원본 이미지는 비율을 유지하고 선택한 색상(기본 흰색)의 여백을 추가한다.
-
-포즈·외형 참조 입력이 832×480이 아니면 GUI 업로드 시 경고한다. 생성 등록 시 공용 입력 검증에서 비율을 유지해 리사이즈하고 선택한 색상으로 여백을 추가한 PNG를 저장하므로 CLI/API에도 동일하게 적용된다. 사용자 원본 파일은 수정하지 않으며 과거 이력 검증은 저장 당시 입력을 유지한다.
-
-VACE V2V의 `padding_color`는 `#RRGGBB` 형식의 여백 색상이며 기본값은 `#FFFFFF`입니다. GUI 색상 선택과 CLI `--payload-file` 요청에 동일하게 적용하고 이력에 보존합니다. 포즈·외형 참조 이미지의 비율을 유지해 832×480 안에 맞춘 뒤 남는 공간만 채웁니다. 누락 프레임의 회색 입력과 수정 마스크 색상은 변경하지 않습니다.
 
 ## 음악생성
 
@@ -639,14 +596,6 @@ GUI와 CLI는 `tools/manager.py command map-assets resize --payload-file <파일
 `map-assets map-anchor-save --payload-file <파일>`은 동일 에셋의 공통 앵커를 저장한다. 선택 맵은 편집 대상과 기존 값 검증에만 사용한다. 입력은 `map`, `kind`(town/field), `texture`, `anchorX`, `anchorY`, `expected`(에셋 공용 속성 전체 객체, 최초 등록은 null)이다. 기존 값이 달라지면 저장을 거절한다. `slime-assets/assets/maps/sprite-display-properties.yaml`·등록부·백엔드 잠금을 함께 갱신한다. 게임과 검수 로더는 에셋 공용값만 사용한다. 빌보드 공용값이 없거나 맵 원본에 `anchorX`·`anchorY`·`groundFootprintColumns`·`groundFootprintRows`·`displayHeight`가 있으면 명시적으로 실패한다. 신규 빌보드는 배치 전에 공용값을 등록해야 한다. 맵에는 위치·원본 선택과 애니메이션 계약만 보존하며, 타일 배치의 `groundOverrides`는 `position`·`textureKey`만 허용한다. 타일 크기·투영은 공용 렌더러 상수를 사용한다.
 
 빌보드 배치 설정은 `groundFootprintColumns`·`groundFootprintRows`(각 1~8칸)와 `displayHeight`(0 초과 1024px 이하)를 지원한다. 바닥 크기는 접지 영역 검수 기준이며 통행 차단을 추가하는 설정이 아니다. `map-anchor-save`의 선택적 `layout`에 세 값을 함께 전달하고 `expected`에는 공용 원본의 현재 전체 값을 전달한다. 배치별 기대값 목록은 받지 않는다. 건물은 기존 점유 크기 계약을 사용하므로 이 설정으로 변경하지 않는다. 원본 해상도 저장과 에셋 공통 속성 저장은 별도 동작이다. 공통 속성은 이후 추가되는 같은 에셋 배치에도 적용된다.
-
-### VACE F2V 첫 프레임 페이지
-
-`/management/frame/vace-f2v-generator/`는 첫 프레임 이미지 1장을 보존 조건으로 사용하는 전용 GUI다. 파일 이름은 자유이며 입력은 832×480에 비율을 유지해 맞춘다. 이후 프레임은 생성하고 별도 외형 참조는 받지 않는다. VAE 복원 때문에 원본과 픽셀 단위 동일성을 보장하지 않는다.
-
-GUI는 독립 `wan21-vace-f2v` 게이트웨이에 `frame_entries: [{frame: 0, editable: false}]`, 이미지 1장, `identity_reference_count: 0`과 `F2V · 첫 프레임 보존` 태그를 전달한다. 통합 CLI에서도 같은 서비스의 `generate --payload-file`을 사용한다. 모델·GPU 실행 코드·ETA·VRAM 관측 코드는 재사용하되 작업 서비스와 대기열·이력은 V2V와 분리한다. F2V 작업 입력·결과·로그는 `.tmp/test/wan21-vace-f2v/`, 이력은 공용 이력 루트의 `wan21-vace-f2v`에 저장한다. 삭제·초기화는 F2V에만 적용한다. 기존 V2V 저장 작업은 이동하지 않는다. GPU 자원 배정은 공용 실행기가 담당하여 동시 추론 충돌을 막는다. F2V 입력값 불러오기는 첫 프레임 1장 보존 이력만 허용한다.
-
-기본은 81프레임·16fps·50스텝·shift 3·CFG 5·조건 강도 1·시드 42다. 프롬프트는 직접 입력한다. `대기열에 추가` 후 인라인 확인에서 `확인 후 대기열에 추가`로 접수한다.
 
 ## 건물 생성 페이지 · Qwen 2.1
 
@@ -958,14 +907,6 @@ DB 모드의 크롭·축소는 `assets/billboards/<에셋 ID>.png` 한 개를 �
 
 F2V 생성기는 폐기되었습니다. 메뉴에서 제거했으며 기존 페이지는 폐기 안내만 표시합니다. `wan21-vace-f2v`의 생성·재개와 직접 실행기는 거절합니다. 앞서 기록된 F2V 사용 설명은 과거 계약입니다. FL2V 또는 V2V를 사용하세요. FL2V는 폐기된 F2V UI와 분리된 공용 경계 프레임 화면을 사용합니다.
 
-### Wan2.1 VACE FL2V · 첫·끝 프레임
-
-애니메이션 도구의 `/management/frame/vace-fl2v-generator/`는 첫 이미지와 마지막 이미지 2장을 입력받습니다. 공용 명령 서비스는 `wan21-vace-fl2v`이며 F2V/V2V와 작업·이력을 분리하고 GPU 실행기는 공유합니다. 기본값은 81프레임·50스텝·Shift 3·CFG 5·조건강도 1·시드 42입니다. 832×480·16fps 고정이며 다른 크기의 입력은 비율을 유지하여 여백 색상(기본 흰색)으로 맞춥니다.
-
-GUI는 첫·끝 프레임에 검은 마스크, 중간에 흰 마스크를 지정합니다. 프레임 수 변경 시 끝 이미지는 새 마지막 프레임으로 배치됩니다. 최소 5, 최대 161프레임이며 4n+1을 따릅니다. VAE 복원으로 양끝 이미지에도 미세한 차이가 생길 수 있습니다.
-
-CLI는 `tools/manager.py command wan21-vace-fl2v generate --payload-file <요청.json>`을 사용합니다. V2V와 같은 요청 필드에 `images`는 첫·끝 이미지의 base64 문자열 2개, `frame_entries`는 `[{"frame":0,"editable":false},{"frame":N-1,"editable":false}]`, `frames`는 N을 지정합니다. 별도 외형 참조는 받지 않습니다. `status`, `history`, `logs`, `cancel`, `resume`, `prioritize`, `history-delete`, `history-reset`은 동일한 공용 계약입니다. 작업 입력·결과·로그는 `.tmp/test/wan21-vace-fl2v/`, 이력은 공용 이력 루트의 `wan21-vace-fl2v`에 저장합니다. 이력 삭제는 해당 서비스의 실제 작업 파일을 정리하며 외부 원본은 보존합니다.
-
 ### 지형 이펙트 편집
 
 맵 편집의 `지형 이펙트 · 발광·나방`에서 설정을 초안에 추가·교체·삭제하고 기존 검증·미리보기·저장을 사용합니다. 이력 되돌리기와 임시저장도 같은 초안을 사용합니다. 현재 편집 대상은 야외필드입니다.
@@ -976,11 +917,41 @@ CLI는 `tools/manager.py command wan21-vace-fl2v generate --payload-file <요청
 
 발광은 공용 렌더러의 가산(ADD) 블렌딩으로 배경에 광량을 더합니다. 중심에서 바깥으로 부드럽게 감쇠하며 주변 이미지의 실제 광원 계산은 바꾸지 않습니다. 발광은 등록된 4×2 8프레임 시트를 순환 재생합니다. 빌보드 연결 발광은 낮고 넓은 갓 시트를, 좌표 지정 발광은 후광 시트를 사용합니다. 포자 시트를 갓 발광으로 임의 선택하지 않습니다. 시드는 시작 프레임만 분산하며 periodMs를 한 주기로 사용합니다. 연결 발광은 본체 렌더링 후 실제 이미지 앵커에서 높이를 차감하고 본체 바로 위 깊이를 사용하므로 앞쪽 수관에 가려집니다. 시트가 누락되면 명시적으로 실패합니다. 별도 광원·블룸 후처리·렌더 타깃은 추가하지 않습니다. 나방은 공용 렌더러가 그리는 비행·날갯짓 애니메이션입니다. 원본 이미지에는 빛을 합성하지 않습니다. 렌더링 시간만 사용하며 프레임마다 API를 호출하지 않습니다. PNG 내보내기는 촬영 시점의 프레임을 담습니다.
 
+### 곤충 무리 시트 이펙트
+
+`terrainEffects` 버전 2의 `moths`는 3마리, `fireflies`는 7마리를 담은 4×2·8프레임 시트를 사용합니다. `count`는 각각 3·7로 검증합니다. `periodMs`는 전체 시트 한 바퀴의 시간이며 `radius`는 타일 폭 기준 시트 표시 폭입니다. 일반 알파 합성으로 곤충 본체를 유지하고 씨드는 시작 프레임을 분산합니다. 위치·연결 대상의 깊이를 사용해 앞쪽 나무 뒤에 가려집니다. 기존 버전 1 나방 계약은 호환 유지하며 신규 GUI 등록은 버전 2를 사용합니다. 이펙트 등록은 빌보드 점유·통행을 추가하지 않습니다.
+
 ### 맵 지형·식생 정적 색상 보정
 
 야외 맵의 지형 데이터에 선택적 `ambientTint: '#607c90'`을 저장할 수 있습니다. GUI는 저장된 값을 미리보기·PNG 내보내기에 적용하며, CLI의 `map-edit-preview`/`map-edit-save`는 동일한 선택 필드를 받습니다. 생략하면 기존 값을 보존하고 `#ffffff`로 저장하면 보정을 해제합니다. 값은 정확한 `#RRGGBB` 문자열이어야 합니다.
 
 공용 렌더러는 지형 메시 정점과 정적 빌보드의 곱셈 틴트를 생성 시 적용합니다. 캐릭터·UI·결계탑·웨이포인트·지형 이펙트는 원색을 유지합니다. 수관 그림자나 주변 광원 계산은 추가하지 않으며, 기존 렌더 패스와 프레임 처리 구조를 유지합니다. 원본 이미지·공용 빌보드 속성·충돌·통행 데이터는 바꾸지 않습니다. 설정 없는 맵은 이전 표시를 유지합니다.
+
+### Wan2.2 Animate Q4 실험 서비스
+
+공용 게이트웨이 서비스 `wan22-animate`는 외형 참조 1장과 ANNY에서 전처리한 포즈 21장을 입력받습니다. Gradio 페이지 `/management/frame/wan22-animate-generator/`에서 외형 참조+몸 포즈 21장 또는 외형 참조만 실험을 선택합니다. 입력 PNG는 832×480이며 자동 크기 보정·포즈 전처리는 하지 않습니다. 공용 확인·이력·삭제·상태·결과 표시를 사용하며 설정과 시드는 서비스의 고정값을 표시합니다. 통합 CLI `command wan22-animate generate --payload-file <요청.json> --detach`로 등록합니다. 생성·조회·취소·재개·우선 실행·이력 삭제는 공용 게이트웨이 계약을 사용합니다.
+
+최초 실험은 832×480·21프레임·16fps·20스텝·shift 5·CFG 1·seed 42로 고정합니다. `images`는 외형 참조 뒤에 포즈를 순서대로 PNG base64로 전달하며 얼굴 크롭·배경 교체·증류 LoRA는 사용하지 않습니다. 입력 사본과 결과는 `.tmp/test/wan22-animate/`에 저장합니다. 모델은 Animate Q4_K_M, UMT5 Q4_K_M, Wan2.1 VAE로 코드에서 고정하며 CUDA 연산과 CPU 가중치 오프로드를 사용합니다. 실행 의존성은 `.local/wan22-animate/`의 고정 ComfyUI·GGUF 코드입니다. 모델 로딩 성공만으로 8GB 샘플링 성공을 보장하지 않습니다.
+
+Animate의 전체 실행은 추론 모드로 처리합니다. VAE는 CUDA에서 공간 256×256·시간 9프레임(시간 겹침 5프레임)으로 명시적 타일 인코딩하고, 디코딩은 잠재 공간 32×32·시간 3칸으로 처리합니다. 입력·출력 해상도를 줄이지 않으며 경계 품질은 별도 검수합니다. 실행 시도별 memory-policy.json에 정책을 보존합니다.
+
+외형 참조와 프롬프트만 비교하려면 `images`에 외형 참조 1장만 전달합니다. 이 경우 포즈·얼굴 동작 조건은 연결하지 않습니다. 포즈 입력 없는 실험 지원이며 걷기나 외형 보존 품질을 보장하지 않습니다. 실행 시도별 `conditioning.json`에 참조 수·포즈 프레임 수를 기록합니다.
+
+#### Animate 공식 입력과 실험의 차이 · 2026-10-26 점검
+
+공식 모델카드의 Animate는 동작 영상과 캐릭터 참조 이미지로 애니메이션 또는 인물 교체를 수행한다. 참조 1장만 받는 로컬 실험은 ComfyUI 선택 입력을 생략한 비표준 조건 제거 실험이며, 공식 이미지·텍스트 전용 생성 지원을 의미하지 않는다.
+
+공식 실행기는 `src_pose.mp4`, `src_face.mp4`, `src_ref.png`를 읽고 참조의 CLIP visual 특징도 사용한다. 현재 로컬 작업자는 얼굴과 CLIP visual 조건을 생략했으므로 공식 조건과 동등하지 않다. 공식 기본값은 20스텝·Shift 5·CFG 1이며 사용자 정의 프롬프트를 권장하지 않는다. 기본 프롬프트는 `视频中的人在做动作`이다. 현재 Euler/simple 샘플러도 공식 실행기의 dpm++/unipc와 구분한다.
+
+기본 pose retargeting은 참조와 동작 첫 프레임 모두 정면으로 몸을 편 자세라는 전제가 있다. 쿼터뷰 참조와 보행 첫 프레임에 기본 리타게팅을 적용한 기존 실험은 이 전제를 충족하지 않는다. 해당 경우 보강 리타게팅 또는 다른 검증된 전처리를 검토하고, 중간 포즈를 먼저 검수한다. 이런 차이가 각 오류의 원인인지는 대조 실험 전에는 확정하지 않는다.
+
+출처: https://huggingface.co/Wan-AI/Wan2.2-Animate-14B · https://github.com/Wan-Video/Wan2.2/blob/main/wan/animate.py · https://github.com/Wan-Video/Wan2.2/blob/main/wan/modules/animate/preprocess/UserGuider.md
+
+#### 베이스라인 외형·애니리그 몸 동작 구성
+
+사용자 지시에 따라 애니리그 얼굴 영상은 연결하지 않는다. 얼굴·헤어·복장은 베이스라인 기반 참조에서 공급하며, 참조 이미지를 VAE와 CLIP Vision 양쪽에 연결한다. CLIP Vision은 CUDA에서 실행 후 해제한다. 현 작업자는 UniPC/sgm_uniform을 사용하고 시도별 conditioning.json에 실제 조건을 기록한다. 이전 Euler/simple·CLIP 미사용 기록은 과거 실행 정책이다. 얼굴 영상 생략·Q4 양자화·타일 VAE 때문에 공식 실행과 동일하다고 표현하지 않는다.
+
+쿼터뷰 보행 첫 자세에 기본 리타게팅을 적용하지 않는다. 정면 기준 자세가 준비되기 전에는 추출 원본 포즈를 사용한다. 공식 기본 프롬프트 `视频中的人在做动作`로 입력을 준비하며, 외형 정면 이미지는 사용자가 요청한 실행별 입력으로 보관한다.
 
 ### Wan2.2 Fun Control Q4 실험 생성기
 
@@ -993,3 +964,21 @@ CLI는 `tools/manager.py command wan21-vace-fl2v generate --payload-file <요청
 고·저노이즈 가중치는 `QuantStack/Wan2.2-Fun-A14B-Control-GGUF`의 revision `26d412a4bec09e1324fc80654dcee0d58218db52`, Q4_K_M을 `.model/wan22-fun-control/`에 보관합니다. UMT5 Q4·Wan2.1 VAE와 고정 ComfyUI 런타임은 Animate와 공유합니다. CUDA 추론과 CPU 가중치 오프로드, 타일 VAE를 사용하며 CPU 추론 대체는 없습니다.
 
 Fun Control은 시간 타일 경계의 밝기 흔들림·잔상을 줄이기 위해 잠재값 시간축 전체를 한 타일로 디코딩합니다. 공간 타일 32·겹침 8과 입력 인코딩 설정은 유지합니다. 추론 잠재값은 실행 시도 폴더의 `denoised-latents.safetensors`에, 실제 디코딩 설정과 잠재값 해시는 `decode-policy.json`에 보존합니다. 기존 방식의 비교 결과는 매번 생성하지 않습니다. 다른 생성기의 공용 기본 디코딩 설정은 유지하며 메모리 부족 시 자동 대체하지 않습니다. 41프레임·20스텝 실험에서 완료와 VRAM 관측 피크 6,480MiB를 확인했으며 더 긴 입력의 메모리 요구량은 별도 검증이 필요합니다. 잠재값 보존에 따른 디스크 사용량이 추가되며 작업 이력 삭제 시 함께 정리됩니다.
+
+### Wan2.2 TI2V 5B 걷기 실험 생성기
+
+애니메이션 도구의 `/management/frame/wan22-ti2v-generator/`는 텍스트만으로 시작하는 T2V와 첫 프레임 PNG 1장을 쓰는 I2V를 같은 작업 계약으로 제공합니다. 기준 이미지는 비율을 유지해 흰 여백의 832×480 PNG로 보관합니다. 출력은 24fps이고 프레임 수는 5~81의 `4n+1`만 허용합니다. 포즈·골격을 강제하지 않으므로 정확한 관절 제어가 필요하면 Fun Control을 사용합니다.
+
+공용 서비스는 `wan22-ti2v`입니다. CLI `tools/manager.py command wan22-ti2v generate --payload-file <요청.json> --detach`는 `action`, `prompt`, `negative_prompt`, `images`(0 또는 1장 PNG base64), `width`, `height`, `frames`, `steps`, `seed`, `flow_shift`, `guidance_scale`을 사용합니다. 모델 선택은 입력받지 않습니다. 작업별 입력 사본·결과·로그·VRAM 관측치·예상 시간은 `.tmp/test/wan22-ti2v/`에 보존하며, 상태·생성·조회·취소·재개·선택 삭제·전체 초기화는 공용 게이트웨이 계약을 따릅니다.
+
+고정 프로필은 `QuantStack/Wan2.2-TI2V-5B-GGUF` revision `57437632ddd08bdcbd1508c866aa22e126ed51d2`의 Q4_K_M과 Wan2.2 VAE입니다. `generators/wan_ti2v/prepare.py`는 두 파일을 `.model/wan22-ti2v/`에 다운로드하고 크기·SHA-256을 검증합니다. UMT5 Q4와 고정 ComfyUI/GGUF 런타임은 Animate/Fun Control과 공유하며 누락 시 준비 실패로 처리합니다. 준비 로그와 결과는 `.tmp/test/wan22-ti2v-prepare/<실행시각>/`에 남깁니다.
+
+8GB VRAM 대상 실험 구성으로 텍스트 인코더·VAE·확산 모델을 단계별 CUDA 로드·해제합니다. CPU는 가중치 대기에만 사용하며 CPU 추론 대체는 없습니다. I2V는 첫 프레임 보호용 noise_mask를 샘플러에 전달합니다. 출력 VAE는 잠재 공간 16×16·겹침 4와 시간축 전체 타일을 사용하고 실제 설정을 `memory-policy.json`에 보존합니다. 모든 프레임 수의 8GB 실행을 보장하지 않으며 OOM은 실패로 기록합니다. GUI 입력 검증 결과의 내부 tag는 외부 요청에 섞지 않고 원래 GUI/CLI 요청 계약을 유지합니다.
+
+2026-10-26 RTX 5070 Laptop 8,151MiB에서 832×480·5프레임·2스텝 T2V/I2V 최소 실행을 확인했습니다. 각각 약 34초·40초, 작업 프로세스 VRAM 관측 피크는 모두 5,448MiB였습니다. 이는 로딩·추론·저장 경로 검증이며 영상 품질이나 41/81프레임 성공 검증은 아닙니다.
+
+출처: [원본 모델카드](https://huggingface.co/Wan-AI/Wan2.2-TI2V-5B), [ComfyUI 안내](https://docs.comfy.org/tutorials/video/wan/wan2_2), [GGUF 변환 모델](https://huggingface.co/QuantStack/Wan2.2-TI2V-5B-GGUF).
+
+### Wan2.1 생성기 제거 · 2026-10-26
+
+사용자 요청으로 VACE R2V·V2V·F2V·FL2V와 Phantom의 서비스·CLI·페이지·전용 소스를 제거했습니다. 종료된 관리 작업 18건의 입력·결과·로그와 이력, 전용 VACE 가중치·캐시를 삭제했습니다. Wan2.2가 사용하는 공유 VAE·UMT5와 기존 참조 이미지 원본은 보존합니다. 이전 Wan2.1 서비스·페이지는 더 이상 제공하지 않습니다.

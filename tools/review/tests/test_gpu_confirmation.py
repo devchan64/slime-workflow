@@ -107,10 +107,8 @@ class GpuConfirmationTests(unittest.TestCase):
         current_generation_callback.assert_called_with('corrected')
 
     def test_required_reference_consumers_gate_missing_inputs(self):
-        from tools.review.ui.gradio.phantom_app import build_phantom_interface
         from tools.review.ui.gradio.animation_separation_app import build_separation_interface
         for current_interface_builder, current_button_label, current_missing_inputs, current_ready_inputs in (
-            (build_phantom_interface, '대기열에 추가', [('scene', None, None, None, None), (' ', object(), None, None, None)], ('scene', None, object(), None, None)),
             (build_separation_interface, '대기열에 추가', [(None, 'base', 'outfit'), (object(), '', 'outfit'), (object(), 'base', ' '), (object(), 'word ' * 100, 'outfit'), (object(), 'base', 'word ' * 100)], (object(), 'word ' * 99, 'outfit')),
         ):
             with self.subTest(builder=current_interface_builder.__name__):

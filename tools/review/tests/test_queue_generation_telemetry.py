@@ -326,9 +326,8 @@ class WorkerStepTelemetryTests(unittest.TestCase):
 
 class WorkerAttemptStatusTests(unittest.TestCase):
     def test_resumed_service_ignores_previous_worker_metrics(self):
-        from tools.review.domains.vace.generation import VaceGenerationManager
-        from tools.review.domains.phantom.generation import PhantomGenerationManager
-        for current_manager_type in (VaceGenerationManager, PhantomGenerationManager):
+        from tools.review.domains.wan_ti2v.generation import Ti2vGenerationManager
+        for current_manager_type in (Ti2vGenerationManager,):
             with self.subTest(service=current_manager_type.__name__), tempfile.TemporaryDirectory() as current_directory_name:
                 current_job_root = Path(current_directory_name)
                 current_attempt_root = current_job_root / 'attempts' / ('a' * 32)

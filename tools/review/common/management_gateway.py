@@ -16,13 +16,17 @@ import urllib.request
 from email.message import Message
 from urllib.parse import urlsplit, parse_qs
 
-MANAGEMENT_SERVICE_ROUTES = {'wan21-vace-fl2v':'/wan21-vace-fl2v','wan21-vace-f2v':'/wan21-vace-f2v','wan21-vace-v2v':'/wan21-vace-v2v','phantom':'/phantom','wan21-vace':'/wan21-vace','outfit-transfer':'/outfit-transfer','pose-transfer':'/pose-transfer','qwen-21-circular':'/image-generation-21-circular','animation-separation':'/animation-separation','qwen-21':'/image-generation-21','seamless-tile':'/seamless-tile-generator','expression':'/expression-generator','floor-tile':'/floor-tile-generator','anny':'/anny-attributes','character-animation':'/character-animation','momask':'/momask-generator','qwen-2512':'/image-generation','qwen-2511':'/image-generation-2511'}
+MANAGEMENT_SERVICE_ROUTES = {'outfit-transfer': '/outfit-transfer', 'pose-transfer': '/pose-transfer', 'qwen-21-circular': '/image-generation-21-circular', 'animation-separation': '/animation-separation', 'qwen-21': '/image-generation-21', 'seamless-tile': '/seamless-tile-generator', 'expression': '/expression-generator', 'floor-tile': '/floor-tile-generator', 'anny': '/anny-attributes', 'character-animation': '/character-animation', 'momask': '/momask-generator', 'qwen-2512': '/image-generation', 'qwen-2511': '/image-generation-2511'}
 MANAGEMENT_COMMAND_ROUTES = {'anchor-history-reset':('POST','/anchor/history/reset'),'anchor-save':('POST','/anchor/save'),'anchor-history':('POST','/anchor/history'),'anchor-load':('POST','/anchor/load'),'history-delete':('POST','/history/{id}/delete'),'pause':('POST','/pause'),'resume':('POST','/resume'),'sprite-source':('POST','/sprite/source'),'sprite-save':('POST','/sprite/save'),'sprite-load':('POST','/sprite/load'),'sprite-history':('POST','/sprite/history'),'sprite-history-reset':('POST','/sprite/history/reset'),'sprite-history-delete':('POST','/sprite/history/delete'),'record-alpha-vnccs':('POST','/alpha/vnccs/record'),'catalog':('GET','/catalog'),'generate':('POST','/jobs'),'queue':('POST','/jobs'),'prepare':('POST','/jobs'),'status':('GET','/jobs/{id}'),'logs':('GET','/jobs/{id}/worker.log'),'history':('GET','/history'),'active':('GET','/active'),'model-status':('GET','/model-status'),'cancel':('POST','/cancel'),'history-reset':('POST','/history/reset')}
-MANAGEMENT_SERVICE_COMMANDS = {'wan21-vace-fl2v':('history-delete','resume','generate','status','logs','history','active','model-status','cancel','history-reset'),'wan21-vace-f2v':('history-delete','resume','generate','status','logs','history','active','model-status','cancel','history-reset'),'wan21-vace-v2v':('history-delete','resume','generate','status','logs','history','active','model-status','cancel','history-reset'),'phantom':('history-delete','resume','generate','status','logs','history','active','model-status','cancel','history-reset'),'wan21-vace':('history-delete','resume','generate','status','logs','history','active','model-status','cancel','history-reset'),'outfit-transfer':('history-delete','resume','generate','status','logs','history','active','model-status','cancel','history-reset'),'pose-transfer':('history-delete','resume','generate','status','logs','history','active','model-status','cancel','history-reset'),'qwen-21-circular':('history-delete','resume','generate','status','logs','history','active','model-status','cancel','history-reset'),'animation-separation':('catalog','history-delete','resume','generate','status','logs','history','active','cancel','history-reset'),'qwen-21':('history-delete','resume','generate','status','logs','history','active','model-status','cancel','history-reset'),'seamless-tile':('pause','history-delete','resume','generate','status','logs','history','active','model-status','cancel','history-reset'),'expression':('history-delete','resume','generate','status','logs','history','active','model-status','cancel','history-reset'),'floor-tile':('history-delete','resume','catalog','generate','status','logs','history','active','model-status','cancel','history-reset'),'anny':('status','history','cancel','resume','history-delete','history-reset'),'character-animation':('anchor-save','anchor-history','anchor-load','anchor-history-reset','history-delete','resume','sprite-source','sprite-save','sprite-load','sprite-history','sprite-history-reset','sprite-history-delete','record-alpha-vnccs','catalog','generate','status','logs','history','active','cancel','history-reset'),'momask':('history-delete','resume','generate','status','logs','history','cancel','history-reset'),'qwen-2512':('history-delete','resume','generate','prepare','status','logs','history','active','model-status','cancel','history-reset'),'qwen-2511':('history-delete','resume','generate','status','logs','history','active','model-status','cancel','history-reset')}
+MANAGEMENT_SERVICE_COMMANDS = {'outfit-transfer': ('history-delete', 'resume', 'generate', 'status', 'logs', 'history', 'active', 'model-status', 'cancel', 'history-reset'), 'pose-transfer': ('history-delete', 'resume', 'generate', 'status', 'logs', 'history', 'active', 'model-status', 'cancel', 'history-reset'), 'qwen-21-circular': ('history-delete', 'resume', 'generate', 'status', 'logs', 'history', 'active', 'model-status', 'cancel', 'history-reset'), 'animation-separation': ('catalog', 'history-delete', 'resume', 'generate', 'status', 'logs', 'history', 'active', 'cancel', 'history-reset'), 'qwen-21': ('history-delete', 'resume', 'generate', 'status', 'logs', 'history', 'active', 'model-status', 'cancel', 'history-reset'), 'seamless-tile': ('pause', 'history-delete', 'resume', 'generate', 'status', 'logs', 'history', 'active', 'model-status', 'cancel', 'history-reset'), 'expression': ('history-delete', 'resume', 'generate', 'status', 'logs', 'history', 'active', 'model-status', 'cancel', 'history-reset'), 'floor-tile': ('history-delete', 'resume', 'catalog', 'generate', 'status', 'logs', 'history', 'active', 'model-status', 'cancel', 'history-reset'), 'anny': ('status', 'history', 'cancel', 'resume', 'history-delete', 'history-reset'), 'character-animation': ('anchor-save', 'anchor-history', 'anchor-load', 'anchor-history-reset', 'history-delete', 'resume', 'sprite-source', 'sprite-save', 'sprite-load', 'sprite-history', 'sprite-history-reset', 'sprite-history-delete', 'record-alpha-vnccs', 'catalog', 'generate', 'status', 'logs', 'history', 'active', 'cancel', 'history-reset'), 'momask': ('history-delete', 'resume', 'generate', 'status', 'logs', 'history', 'cancel', 'history-reset'), 'qwen-2512': ('history-delete', 'resume', 'generate', 'prepare', 'status', 'logs', 'history', 'active', 'model-status', 'cancel', 'history-reset'), 'qwen-2511': ('history-delete', 'resume', 'generate', 'status', 'logs', 'history', 'active', 'model-status', 'cancel', 'history-reset')}
 
 
 MANAGEMENT_SERVICE_ROUTES['wan22-fun-control']='/wan22-fun-control'
-MANAGEMENT_SERVICE_COMMANDS['wan22-fun-control']=MANAGEMENT_SERVICE_COMMANDS['wan21-vace-v2v']
+MANAGEMENT_SERVICE_COMMANDS['wan22-fun-control']=('history-delete','resume','generate','status','logs','history','active','model-status','cancel','history-reset')
+MANAGEMENT_SERVICE_ROUTES['wan22-ti2v']='/wan22-ti2v'
+MANAGEMENT_SERVICE_COMMANDS['wan22-ti2v']=('history-delete','resume','generate','status','logs','history','active','model-status','cancel','history-reset')
+MANAGEMENT_SERVICE_ROUTES['wan22-animate']='/wan22-animate'
+MANAGEMENT_SERVICE_COMMANDS['wan22-animate']=('history-delete','resume','generate','status','logs','history','active','model-status','cancel','history-reset')
 
 WRITER_PAYLOAD_COMMAND_NAMES = ('writer-detail', 'writer-submit', 'writer-apply')
 MANAGEMENT_SERVICE_ROUTES['writer-agent'] = '/writer-agent'
@@ -81,8 +85,6 @@ for current_service_name, current_command_names in tuple(MANAGEMENT_SERVICE_COMM
         MANAGEMENT_SERVICE_COMMANDS[current_service_name] += ('prioritize',)
 
 def resolve_management_command(service_command_name, operation_command_name, command_payload_value):
-    if service_command_name == 'wan21-vace' and operation_command_name in ('generate','resume'):
-        raise ValueError('VACE 생성기는 운영 중지되었습니다. Phantom 생성기를 사용하세요.')
     if service_command_name == 'momask':
         raise ValueError('MoMask 포즈 생성기와 과거 기록은 폐기되었습니다. HY-Motion을 사용하세요.')
     if service_command_name not in MANAGEMENT_SERVICE_COMMANDS or operation_command_name not in MANAGEMENT_SERVICE_COMMANDS[service_command_name]:
@@ -201,7 +203,7 @@ class ManagementCommandGateway:
         return True
 
 
-MANAGEMENT_COMMAND_DESCRIPTIONS = {'wan21-vace-fl2v':'Wan2.1 VACE 1.3B FL2V · 첫·끝 프레임 2장 보존 · 독립 대기열·이력 · --payload-file','wan21-vace-f2v':'폐기된 F2V · 생성·재개 불가 · FL2V 또는 V2V 사용','wan21-vace-v2v':'Wan2.1 VACE 1.3B V2V · 프레임 이미지 배치·수정 마스크 · --payload-file','phantom':'폐기된 Phantom · 생성·재개 불가 · 기존 이력 조회만 유지','wan21-vace':'Wan2.1 VACE 1.3B R2V · 참조 1장 · 비디오·마스크 없음 · 기본 832×480 · 81프레임 · 50스텝 · 4n+1','outfit-transfer':'Qwen 2.1 복장 착용 · 참조 정확히 2장: 바디, 아웃핏 순서','pose-transfer':'Qwen Image 2.1 포즈 변환 · 참조 정확히 2장: 아이덴티티, 포즈 순서','qwen-21-circular':'Qwen 2.1 순환 VAE · XY 디코더 · 3×3 반복 검수','animation-separation':'Qwen 2.1 참조 PNG 1장으로 신체 베이스·복장 독립 생성 · --reference','qwen-21':'Qwen Image 2.1 · 공용 화풍·투명 배경 선택 · 참조 0~10장 · 20·30·40·50스텝 (기본 40)','seamless-tile':'Qwen Image 2.1 · 40스텝 · 5단계 가로·세로 심리스 패턴 · 단계별 검수 대기 · pause/resume · 참조 생략 가능','expression':'Qwen 2511 AU 표정 생성 · 참조 1~3장 · --expression에 표정 ID 지정','floor-tile':'512×512·4스텝 단일 바닥 타일 생성 (관리 서버 필요)','anny':'ANNY 프리뷰·렌더 생성(--payload-file)·이력·중지·재개','character-animation':'생성기 폐기 · 기존 이력·결과 조회·스프라이트 편집 (generate/resume 거절)','momask': '폐기된 MoMask 도구 · 모든 명령 거절 · HY-Motion 사용', 'qwen-2512': 'Qwen 2512 텍스트 이미지 생성 (관리 서버 필요)', 'qwen-2511': 'Qwen 2511 텍스트·1~3장 참조 이미지 생성 (관리 서버 필요)'}
+MANAGEMENT_COMMAND_DESCRIPTIONS = {'outfit-transfer': 'Qwen 2.1 복장 착용 · 참조 정확히 2장: 바디, 아웃핏 순서', 'pose-transfer': 'Qwen Image 2.1 포즈 변환 · 참조 정확히 2장: 아이덴티티, 포즈 순서', 'qwen-21-circular': 'Qwen 2.1 순환 VAE · XY 디코더 · 3×3 반복 검수', 'animation-separation': 'Qwen 2.1 참조 PNG 1장으로 신체 베이스·복장 독립 생성 · --reference', 'qwen-21': 'Qwen Image 2.1 · 공용 화풍·투명 배경 선택 · 참조 0~10장 · 20·30·40·50스텝 (기본 40)', 'seamless-tile': 'Qwen Image 2.1 · 40스텝 · 5단계 가로·세로 심리스 패턴 · 단계별 검수 대기 · pause/resume · 참조 생략 가능', 'expression': 'Qwen 2511 AU 표정 생성 · 참조 1~3장 · --expression에 표정 ID 지정', 'floor-tile': '512×512·4스텝 단일 바닥 타일 생성 (관리 서버 필요)', 'anny': 'ANNY 프리뷰·렌더 생성(--payload-file)·이력·중지·재개', 'character-animation': '생성기 폐기 · 기존 이력·결과 조회·스프라이트 편집 (generate/resume 거절)', 'momask': '폐기된 MoMask 도구 · 모든 명령 거절 · HY-Motion 사용', 'qwen-2512': 'Qwen 2512 텍스트 이미지 생성 (관리 서버 필요)', 'qwen-2511': 'Qwen 2511 텍스트·1~3장 참조 이미지 생성 (관리 서버 필요)'}
 
 MANAGEMENT_COMMAND_DESCRIPTIONS['writer-agent']='작가 문서 학습·제안·조회·해시 확인 적용 · --payload-file · 기존 문서/기록 경로 유지'
 MANAGEMENT_COMMAND_DESCRIPTIONS['map-assets']='맵 PNG 축소·투명 여백 크롭(asset-crop-preview / asset-crop)·빌보드 속성·야외 맵 편집 · map-edit-load / map-edit-preview / map-edit-save / asset-list(category: vegetation·herbaceous·large-trees·rocks-minerals·props) / asset-preview / asset-save / asset-retire-preview / asset-retire / database-seed / database-status / database-sync / database-restore --payload-file'
@@ -225,6 +227,8 @@ MANAGEMENT_COMMAND_DESCRIPTIONS['hy-motion']='HY-Motion Lite 원본 모션 · CP
 MANAGEMENT_COMMAND_DESCRIPTIONS['pose-transfer']='VNCCS V1.1 · Qwen 2.1 공식 파이프라인 · BF16 비양자화 · 512px 고정·25/40스텝 선택(기본 40) · 업로드 아이덴티티→포즈, 모델 전달 포즈→아이덴티티 · 부분 추종 경고'
 
 MANAGEMENT_COMMAND_DESCRIPTIONS['wan22-fun-control']='Wan2.2 Fun Control Q4 · 참조 1장+제어 프레임 · --payload-file'
+MANAGEMENT_COMMAND_DESCRIPTIONS['wan22-ti2v']='Wan2.2 TI2V 5B Q4 · 텍스트 또는 첫 프레임 1장 · 8GB 대상 실험 · --payload-file'
+MANAGEMENT_COMMAND_DESCRIPTIONS['wan22-animate']='Wan2.2 Animate Q4 실험 · 외형 1장+ANNY 포즈 21장 · --payload-file'
 
 def execute_management_command(service_command_name, operation_command_name, command_payload_value, server_base_address=None, *, gateway_request_handler=None, service_handler_values=None):
     request_method_value,request_route_value=resolve_management_command(service_command_name,operation_command_name,command_payload_value)
@@ -288,22 +292,8 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
                     current_duration_group.add_argument('--max-new-tokens',type=int,help='MiniMax 오디오 프레임 상한 125~3000; 25개≈1초, 조기 종료 가능')
                 operation_argument_parser.add_argument('--seed',type=int,default=current_music_defaults['seed'])
                 operation_argument_parser.add_argument('--loop-request',action=argparse.BooleanOptionalAction,default=current_music_defaults['loop_request'],help='반복 구조 요청; 심리스 연결 보장 없음')
-            elif service_command_name in ('wan22-fun-control','wan21-vace-v2v','wan21-vace-f2v','wan21-vace-fl2v'):
+            elif service_command_name in ('wan22-fun-control','wan22-ti2v','wan22-animate'):
                 operation_argument_parser.add_argument('--payload-file',type=Path,required=True,help='images PNG base64와 frame_entries를 포함한 JSON 요청')
-            elif service_command_name in ('wan21-vace','phantom'):
-                current_prompt_group=operation_argument_parser.add_mutually_exclusive_group(required=True)
-                current_prompt_group.add_argument('--prompt')
-                current_prompt_group.add_argument('--prompt-file',type=Path)
-                operation_argument_parser.add_argument('--negative-prompt',help='부정 프롬프트 전체 대체; 생략 시 기본값')
-                operation_argument_parser.add_argument('--reference',type=Path,required=True,action='append' if service_command_name=='phantom' else 'store',help='Phantom은 1~4번 반복 지정; 입력 순서 유지')
-                operation_argument_parser.add_argument('--frames',type=int,default=81,help='1~161, 4n+1 프레임')
-                operation_argument_parser.add_argument('--width',type=int,default=832)
-                operation_argument_parser.add_argument('--height',type=int,default=480)
-                operation_argument_parser.add_argument('--steps',type=int,default=50)
-                operation_argument_parser.add_argument('--flow-shift',type=float,default=5.0)
-                operation_argument_parser.add_argument('--guidance-scale',type=float,default=7.5 if service_command_name=='phantom' else 5.0)
-                operation_argument_parser.add_argument('--conditioning-scale',type=float,default=5.0 if service_command_name=='phantom' else 1.0)
-                operation_argument_parser.add_argument('--seed',type=int,default=42)
             elif service_command_name=='animation-separation':
                 operation_argument_parser.add_argument('--reference',type=Path,required=True,help='분리할 참조 PNG 이미지 1장')
                 operation_argument_parser.add_argument('--size',type=int,choices=(512,768),default=768)
@@ -399,17 +389,8 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
             if getattr(command_argument_values,'max_new_tokens',None) is not None:
                 command_payload_value.pop('duration_seconds')
                 command_payload_value['max_new_tokens'] = command_argument_values.max_new_tokens
-        elif service_command_name in ('wan22-fun-control','wan21-vace-v2v','wan21-vace-f2v','wan21-vace-fl2v'):
+        elif service_command_name in ('wan22-fun-control','wan22-ti2v','wan22-animate'):
             command_payload_value=parse_management_request_json(command_argument_values.payload_file.read_text())
-        elif service_command_name in ('wan21-vace','phantom'):
-            current_reference_paths=command_argument_values.reference if service_command_name=='phantom' else [command_argument_values.reference]
-            if any(current_reference_path.stat().st_size>3_000_000 for current_reference_path in current_reference_paths):
-                raise ValueError('참조 PNG는 장당 3MB 이하여야 합니다.')
-            command_payload_value={'action':'generate','images':[base64.b64encode(current_reference_path.read_bytes()).decode() for current_reference_path in current_reference_paths],'prompt':command_argument_values.prompt if command_argument_values.prompt is not None else command_argument_values.prompt_file.read_text(),'frames':command_argument_values.frames,'seed':command_argument_values.seed,'tag':command_argument_values.tag}
-            for current_field_name in ('width','height','steps','flow_shift','guidance_scale','conditioning_scale'):
-                command_payload_value[current_field_name]=getattr(command_argument_values,current_field_name)
-            if command_argument_values.negative_prompt is not None:
-                command_payload_value['negative_prompt']=command_argument_values.negative_prompt
         elif service_command_name=='animation-separation':
             from tools.review.domains.image.animation_separation import load_separation_defaults
             command_payload_value={'action':'generate','images':[base64.b64encode(command_argument_values.reference.read_bytes()).decode()],'width':command_argument_values.size,'height':command_argument_values.size,'steps':40,'seed':command_argument_values.seed,'tag':command_argument_values.tag,'prompt':command_argument_values.prompt_file.read_text() if command_argument_values.prompt_file else load_separation_defaults()['prompt'],'outfit_prompt':command_argument_values.outfit_prompt_file.read_text() if command_argument_values.outfit_prompt_file else load_separation_defaults()['outfit_prompt']}

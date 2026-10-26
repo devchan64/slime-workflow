@@ -91,22 +91,16 @@ def create_management_runtime(writer_workspace_config=None):
     from tools.review.domains.character_review.capture import handle_character_capture_request, CAPTURE_STORAGE_DIRECTORY
     from tools.review.domains.anny.landmarks import handle_landmark_request, LANDMARK_STORAGE_DIRECTORY
 
-    from tools.review.domains.vace.generation import VaceGenerationManager
-    from tools.review.domains.vace.timeline_generation import VaceTimelineGenerationManager
-    from tools.review.domains.vace.first_frame_generation import VaceFirstFrameGenerationManager
-    from tools.review.domains.vace.first_last_generation import VaceFirstLastGenerationManager
     from tools.review.domains.wan_fun.generation import FunControlGenerationManager
-    from tools.review.domains.phantom.generation import PhantomGenerationManager
+    from tools.review.domains.wan_ti2v.generation import Ti2vGenerationManager
+    from tools.review.domains.wan_animate.generation import AnimateGenerationManager
     from generators.music.contracts import AUDIO_SERVICE_NAMES
     from tools.review.domains.music.generation import MusicGenerationManager
     writer_agent_service = WriterAgentManager(writer_workspace_config or DEFAULT_WORKSPACE_CONFIG)
     try:
-        vace_generation_service = VaceGenerationManager()
-        vace_timeline_service = VaceTimelineGenerationManager()
-        vace_first_frame_service = VaceFirstFrameGenerationManager()
-        vace_first_last_service = VaceFirstLastGenerationManager()
-        phantom_generation_service = PhantomGenerationManager()
         fun_generation_service = FunControlGenerationManager()
+        ti2v_generation_service = Ti2vGenerationManager()
+        animate_generation_service = AnimateGenerationManager()
         image_generation_service = ImageGenerationManager()
         seamless_generation_service = SeamlessGenerationManager()
         qwen_circular_service = QwenCircularGenerationManager()
@@ -129,11 +123,8 @@ def create_management_runtime(writer_workspace_config=None):
         service_binding_records = {
             'writer-agent': ManagementServiceBinding(writer_agent_service.handle_writer_request,writer_agent_service.workspace_config_path.parent,reject_writer_folder_access),
             'wan22-fun-control': bind_stored_management_service(fun_generation_service.handle_image_request,fun_generation_service.job_storage_root),
-            'phantom': bind_stored_management_service(phantom_generation_service.handle_image_request,phantom_generation_service.job_storage_root),
-            'wan21-vace-fl2v': bind_stored_management_service(vace_first_last_service.handle_image_request,vace_first_last_service.job_storage_root),
-            'wan21-vace-f2v': bind_stored_management_service(vace_first_frame_service.handle_image_request,vace_first_frame_service.job_storage_root),
-            'wan21-vace-v2v': bind_stored_management_service(vace_timeline_service.handle_image_request,vace_timeline_service.job_storage_root),
-            'wan21-vace': bind_stored_management_service(vace_generation_service.handle_image_request,vace_generation_service.job_storage_root),
+            'wan22-ti2v': bind_stored_management_service(ti2v_generation_service.handle_image_request,ti2v_generation_service.job_storage_root),
+            'wan22-animate': bind_stored_management_service(animate_generation_service.handle_image_request,animate_generation_service.job_storage_root),
             'anny-landmarks': bind_stored_management_service(handle_landmark_request, LANDMARK_STORAGE_DIRECTORY),
             'hy-motion': ManagementServiceBinding(handle_hymotion_request, HYMOTION_STORAGE_ROOT, resolve_hymotion_directory),
             'map-assets': bind_stored_management_service(handle_map_resize_request,RESIZE_STORAGE_DIRECTORY),

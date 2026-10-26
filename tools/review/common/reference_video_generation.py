@@ -42,6 +42,10 @@ class ReferenceVideoGenerationManager(ImageGenerationManager):
     if current_file_match:
      current_file_path=self.job_storage_root/current_file_match[1]/'attempts'/current_file_match[2]/current_file_match[3]
      if not current_file_path.resolve().is_relative_to(self.job_storage_root.resolve()): raise ValueError('결과 경로 오류')
+     if current_file_path.suffix == '.mp4':
+      from tools.review.common.audio_file_response import send_media_file_response
+      send_media_file_response(current_http_handler,current_file_path,'video/mp4')
+      return True
      current_response_bytes=current_file_path.read_bytes()
      current_content_type={'.mp4':'video/mp4','.zip':'application/zip','.png':'image/png'}[current_file_path.suffix]
     else:

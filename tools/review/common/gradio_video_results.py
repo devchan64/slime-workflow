@@ -20,8 +20,9 @@ def render_video_generation_result(current_job_identifier,current_status_record,
         return '<p>결과 조회 불가: '+html.escape(current_status_record['result_error'])+'</p>'
     if not current_status_record.get('video'):
         return '<p>'+html.escape(describe_missing_generation_result(current_status_record,'영상'))+'</p>'
-    current_video_url=html.escape(current_server_address+current_status_record['video'],quote=True)
-    current_download_url=html.escape(current_server_address+current_status_record['download'],quote=True)
+    # 게이트웨이의 루트 상대 경로를 유지해야 브라우저 접속 호스트와 출처가 같다.
+    current_video_url=html.escape(current_status_record['video'],quote=True)
+    current_download_url=html.escape(current_status_record['download'],quote=True)
     return f'<video controls loop playsinline width="512" src="{current_video_url}"></video><p><a href="{current_video_url}" target="_blank">MP4 열기</a> · <a href="{current_download_url}">PNG 프레임 ZIP</a></p>'
 
 

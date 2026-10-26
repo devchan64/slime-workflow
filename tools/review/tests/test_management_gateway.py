@@ -169,3 +169,12 @@ class GatewayContractTest(unittest.TestCase):
 
 
 if __name__=='__main__':unittest.main()
+
+
+class RemovedWan21ServiceTests(unittest.TestCase):
+    def test_removed_services_reject_all_commands(self):
+        from tools.review.common.management_gateway import MANAGEMENT_SERVICE_ROUTES, resolve_management_command
+        for current_service_name in ('wan21-vace', 'wan21-vace-v2v', 'wan21-vace-f2v', 'wan21-vace-fl2v', 'phantom'):
+            self.assertNotIn(current_service_name, MANAGEMENT_SERVICE_ROUTES)
+            with self.assertRaises(ValueError):
+                resolve_management_command(current_service_name, 'generate', {})

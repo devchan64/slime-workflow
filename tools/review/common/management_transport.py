@@ -35,9 +35,11 @@ def send_management_json_response(current_http_handler, response_status_code, re
 
 
 def validate_management_http_request(current_http_handler):
-    expected_origin_value = f'http://127.0.0.1:{current_http_handler.server.server_port}'
-    if current_http_handler.headers.get('Host') != expected_origin_value.removeprefix('http://'):
+    current_request_host = current_http_handler.headers.get('Host')
+    current_allowed_hosts = tuple(f'{current_host_name}:{current_http_handler.server.server_port}' for current_host_name in ('127.0.0.1', 'localhost'))
+    if current_request_host not in current_allowed_hosts:
         raise ValueError('허용하지 않는 Host')
+    expected_origin_value = f'http://{current_request_host}'
     if current_http_handler.headers.get('Transfer-Encoding'):
         raise ValueError('Transfer-Encoding 요청은 허용하지 않습니다.')
     request_content_length = int(current_http_handler.headers.get('Content-Length', '0'))

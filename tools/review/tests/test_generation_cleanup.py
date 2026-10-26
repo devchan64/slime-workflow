@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 from tools.review.common.generation_cleanup import delete_generation_job_files
-from tools.review.domains.vace.generation import VaceGenerationManager
+from tools.review.domains.wan_ti2v.generation import Ti2vGenerationManager
 
 
 class GenerationCleanupTests(unittest.TestCase):
@@ -47,7 +47,7 @@ class GenerationCleanupTests(unittest.TestCase):
 
     def test_reset_includes_hidden_jobs_and_preserves_other_folders(self):
         with tempfile.TemporaryDirectory() as current_temp_root:
-            current_manager_value=VaceGenerationManager()
+            current_manager_value=Ti2vGenerationManager()
             current_manager_value.job_storage_root=Path(current_temp_root)/'jobs'
             current_job_root=current_manager_value.job_storage_root/'2026-10-14_00-00-00-12345678'
             current_job_root.mkdir(parents=True)
@@ -226,9 +226,6 @@ class ImageFamilyCleanupContractTests(unittest.TestCase):
             ('image.qwen_circular_generation', 'QwenCircularGenerationManager'),
             ('image.animation_separation', 'AnimationSeparationManager'),
             ('image.seamless_generation', 'SeamlessGenerationManager'),
-            ('vace.generation', 'VaceGenerationManager'),
-            ('vace.timeline_generation', 'VaceTimelineGenerationManager'),
-            ('phantom.generation', 'PhantomGenerationManager'),
         )
         for current_module_name, current_class_name in current_manager_definitions:
             with self.subTest(service=current_class_name), tempfile.TemporaryDirectory() as current_directory_name:

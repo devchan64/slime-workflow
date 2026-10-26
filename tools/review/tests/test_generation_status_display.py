@@ -4,6 +4,65 @@ from tools.review.common.generation_status_display import describe_generation_st
 
 
 class GenerationStatusDisplayTests(unittest.TestCase):
+    def test_gateway_validates_local_host_and_matching_origin(self):
+        from types import SimpleNamespace
+        from tools.review.common.management_transport import validate_management_http_request
+        for current_host_value in ('localhost:8770', '127.0.0.1:8770'):
+            current_http_handler = SimpleNamespace(server=SimpleNamespace(server_port=8770), command='POST', headers={
+                'Host': current_host_value, 'Origin': 'http://' + current_host_value, 'Content-Length': '2'})
+            self.assertEqual(validate_management_http_request(current_http_handler), 2)
+            current_http_handler.headers['Origin'] = 'http://evil.example'
+            with self.assertRaises(ValueError):
+                validate_management_http_request(current_http_handler)
+        for current_host_value in ('evil.example:8770', 'localhost:8771', 'localhost.evil.example:8770'):
+            current_http_handler.headers = {'Host': current_host_value}
+            with self.assertRaises(ValueError):
+                validate_management_http_request(current_http_handler)
+
+    def test_video_route_serves_partial_content(self):
+        import io
+        import tempfile
+        from pathlib import Path
+        from types import SimpleNamespace
+        from unittest.mock import Mock
+        from tools.review.common.reference_video_generation import ReferenceVideoGenerationManager
+        with tempfile.TemporaryDirectory() as current_temp_directory:
+            current_service_instance = ReferenceVideoGenerationManager.__new__(ReferenceVideoGenerationManager)
+            current_service_instance.route_prefix_value = '/wan22-ti2v'
+            current_service_instance.job_storage_root = Path(current_temp_directory)
+            current_relative_path = '2026-10-26_21-16-00-17e2e71e/attempts/' + 'a' * 32 + '/preview.mp4'
+            current_video_path = Path(current_temp_directory) / current_relative_path
+            current_video_path.parent.mkdir(parents=True)
+            current_video_path.write_bytes(bytes(range(100)))
+            for current_range_value, current_status_code, current_expected_bytes in (
+                ('bytes=0-1', 206, bytes(range(2))),
+                ('bytes=90-', 206, bytes(range(90, 100))),
+                ('bytes=100-', 416, b''),
+            ):
+                current_response_headers = {}
+                current_http_handler = SimpleNamespace(
+                    path='/wan22-ti2v/jobs/' + current_relative_path, command='GET',
+                    headers={'Host': '127.0.0.1:8771', 'Range': current_range_value},
+                    server=SimpleNamespace(server_port=8771), send_response=Mock(),
+                    send_header=lambda current_header_name, current_header_value: current_response_headers.update({current_header_name: current_header_value}),
+                    end_headers=Mock(), wfile=io.BytesIO())
+                self.assertTrue(current_service_instance.handle_image_request(current_http_handler))
+                current_http_handler.send_response.assert_called_once_with(current_status_code)
+                self.assertEqual(current_http_handler.wfile.getvalue(), current_expected_bytes)
+                self.assertEqual(current_response_headers['Accept-Ranges'], 'bytes')
+                if current_status_code == 206:
+                    self.assertEqual(current_response_headers['Content-Type'], 'video/mp4')
+
+    def test_video_result_preserves_browser_origin(self):
+        from tools.review.common.gradio_video_results import render_video_generation_result
+        current_result_markup = render_video_generation_result('job-a', {
+            'video': '/wan22-ti2v/jobs/job-a/preview.mp4',
+            'download': '/wan22-ti2v/jobs/job-a/frames.zip',
+        }, 'http://127.0.0.1:8770')
+        self.assertIn('src="/wan22-ti2v/jobs/job-a/preview.mp4"', current_result_markup)
+        self.assertIn('href="/wan22-ti2v/jobs/job-a/frames.zip"', current_result_markup)
+        self.assertNotIn('127.0.0.1', current_result_markup)
+
     def test_video_duration_rejects_empty_and_invalid_frame_counts(self):
         from tools.review.common.gradio_video_results import describe_video_frame_duration
         for current_frame_count in (None, '', True, 0, 2, 162, 5.5, float('nan'), float('inf')):
