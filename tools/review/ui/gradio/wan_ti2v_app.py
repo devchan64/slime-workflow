@@ -69,9 +69,31 @@ def build_ti2v_interface(current_server_address, current_command_callback=None):
         current_interface_blocks.load(read_ti2v_model_status, outputs=current_model_status)
         current_reference_control = gr.Image(type='filepath', sources=['upload'], label='선택 · 첫 프레임 기준 이미지 1장')
         gr.Markdown('기준 이미지가 없으면 텍스트 생성, 있으면 첫 프레임 조건 생성입니다. 발·손이 잘리지 않은 전신 단일컷을 사용하세요. 이미지는 비율을 유지해 832×480 흰 여백으로 맞춥니다.')
-        current_prompt_control = gr.Textbox(label='장면·동작 프롬프트', lines=3, info='최종 100단어 미만(로컬 제한). 동작을 먼저 쓰고 방향·카메라·외형을 덧붙이세요. 걷기는 좌우 발 들기·내딛기·체중 이동이 영상 전체에서 반복되도록 설명하세요.', placeholder='A full-body character walks forward naturally, fixed camera, consistent identity.')
+        current_prompt_control = gr.Textbox(label='장면·동작 프롬프트', lines=3, info='기준 이미지가 있으면 동작과 카메라 중심으로, 없으면 주체·배경도 함께 쓰세요. 최종 100단어 미만은 이 생성기의 로컬 제한입니다. 자동 확장·번역 없이 입력한 문구를 전달합니다.', placeholder='The character takes four natural steps in place. Full body, fixed camera, white background.')
         current_prompt_summary = gr.Markdown('원문 0단어 · 최종 0단어 · 추가 문구 없음')
         current_prompt_control.change(lambda current_prompt_value: f'원문 {len(current_prompt_value.split())}단어 · 최종 {len(current_prompt_value.split())}단어 · 추가 문구 없음', current_prompt_control, current_prompt_summary, queue=False)
+        with gr.Accordion('프롬프트 작성 가이드 · 예시와 출처', open=False):
+            gr.Markdown("""**이미지가 있을 때:** 이미지가 주체·배경·스타일을 제공하므로, 원하는 동작과 카메라 움직임에 집중하세요. 카메라를 고정하려면 `fixed camera`처럼 분명하게 씁니다.
+
+**이미지가 없을 때:** 누가, 어디서, 무엇을 하는지 적고 필요한 구도·스타일을 덧붙이세요. 이미지 속 캐릭터를 가리키는 표현만으로는 외형을 전달할 수 없습니다.
+
+**이번 보행 실험의 비교 원칙:** 동작 한 가지부터 시작하고 걸음 수가 필요하면 수만 추가합니다. 좌우 발 순서·무릎 높이·팔 흔들기를 동시에 나열하지 않고, 같은 이미지·시드·프레임·설정에서 문구 하나씩 비교합니다. 이는 로컬 실험 방침이며, 복잡한 문장이 항상 실패한다는 공식 규칙은 아닙니다. 걸음 수는 희망 동작이며 정확한 횟수를 보장하지 않습니다.
+
+**이미지 조건 예시 · 원문 14단어 / 최종 14단어 · 추가 문구 없음**
+
+> The character takes four natural steps in place. Full body, fixed camera, white background.
+
+**텍스트만 예시 · 원문 17단어 / 최종 17단어 · 추가 문구 없음**
+
+> A light-armored character walks naturally in place against a white background. Full-body shot, fixed camera, stylized 3D.
+
+예시는 수동 입력용입니다. 입력칸의 원문·최종 단어 수가 실제 생성 요청의 기준입니다. 부정 프롬프트는 현재 빈 값으로 비교하며, 수정할 때는 양성 프롬프트·설정과 동시에 바꾸지 마세요.
+
+**출처와 적용 범위**
+
+- [Alibaba Cloud 공식 영상 프롬프트 가이드](https://help.aliyun.com/en/model-studio/text-to-video-prompt): 텍스트 생성의 주체·장면·동작 구성과 이미지 생성의 동작·카메라 원칙을 참고했습니다. 여러 Wan 버전을 다루는 문서이며 음성·멀티샷 등 다른 버전 전용 기능은 이 페이지에 적용하지 않습니다.
+- [Wan2.2 TI2V-5B 모델 카드](https://huggingface.co/Wan-AI/Wan2.2-TI2V-5B) / [공식 프롬프트 확장 코드](https://github.com/Wan-Video/Wan2.2/blob/main/wan/utils/prompt_extend.py): TI2V의 텍스트·이미지 입력 구분을 확인했습니다. 공식 확장 기능과 달리 현재 생성기는 프롬프트를 자동으로 확장하지 않습니다.
+""")
         with gr.Accordion('부정 프롬프트', open=False):
             current_negative_control = gr.Textbox(label='부정 프롬프트', value='', info='현재 비교 기준은 빈 값입니다. 긴 금지 목록과 동작 프롬프트를 동시에 바꾸면 개선 원인을 구분하기 어렵습니다.')
         gr.Markdown('고정: Wan2.2 TI2V 5B Q4_K_M · UMT5 Q4 · 832×480 · 24fps · UniPC/simple · CUDA 연산/CPU 가중치 오프로드. 8GB 대상 실험 구성이며 입력 길이별 성공을 보장하지 않습니다. VAE는 공간 타일·시간축 전체 디코딩을 사용합니다.')
