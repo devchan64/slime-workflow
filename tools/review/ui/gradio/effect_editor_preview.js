@@ -37,8 +37,10 @@ async (currentDetailRecord,currentLeftValue,currentTopValue,currentRightValue,cu
  const currentImageValues=await Promise.all([currentDetailRecord.hostImage,currentDetailRecord.sheetImage].map(currentSourceUrl=>new Promise((resolveCurrentImage,rejectCurrentImage)=>{if(!currentSourceUrl){resolveCurrentImage(null);return;}const currentLoadedImage=new Image();currentLoadedImage.onload=()=>resolveCurrentImage(currentLoadedImage);currentLoadedImage.onerror=()=>rejectCurrentImage(Error('원본 이미지 로드 실패'));currentLoadedImage.src=currentSourceUrl;})));
  const [currentHostImage,currentSheetImage]=currentImageValues;
  if(currentCanvasElement.effectPreviewRevision!==currentPreviewRevision)return '최신 입력을 적용 중입니다.';
- const currentHostHeight=420,currentHostWidth=currentHostImage?currentHostHeight*currentHostImage.width/currentHostImage.height:currentHostHeight;
- const currentHostLeft=(640-currentHostWidth)/2,currentHostTop=110;
+ const previewCanvasSize=640,previewHostMaximumHeight=420,previewHostMaximumWidth=520;
+ const currentHostAspectRatio=currentHostImage?currentHostImage.width/currentHostImage.height:1;
+ const currentHostHeight=Math.min(previewHostMaximumHeight,previewHostMaximumWidth/currentHostAspectRatio),currentHostWidth=currentHostHeight*currentHostAspectRatio;
+ const currentHostLeft=(previewCanvasSize-currentHostWidth)/2,currentHostTop=(previewCanvasSize-currentHostHeight)/2;
  const currentStartTime=performance.now();
  const drawCurrentEffectFrame=currentElapsedTime=>{
   if(!currentCanvasElement.isConnected||currentCanvasElement.effectPreviewRevision!==currentPreviewRevision)return;
