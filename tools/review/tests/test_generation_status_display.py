@@ -28,7 +28,7 @@ class GenerationStatusDisplayTests(unittest.TestCase):
         from tools.review.common.reference_video_generation import ReferenceVideoGenerationManager
         with tempfile.TemporaryDirectory() as current_temp_directory:
             current_service_instance = ReferenceVideoGenerationManager.__new__(ReferenceVideoGenerationManager)
-            current_service_instance.route_prefix_value = '/wan22-ti2v'
+            current_service_instance.route_prefix_value = '/wan22-fun-control'
             current_service_instance.job_storage_root = Path(current_temp_directory)
             current_relative_path = '2026-10-26_21-16-00-17e2e71e/attempts/' + 'a' * 32 + '/preview.mp4'
             current_video_path = Path(current_temp_directory) / current_relative_path
@@ -41,7 +41,7 @@ class GenerationStatusDisplayTests(unittest.TestCase):
             ):
                 current_response_headers = {}
                 current_http_handler = SimpleNamespace(
-                    path='/wan22-ti2v/jobs/' + current_relative_path, command='GET',
+                    path='/wan22-fun-control/jobs/' + current_relative_path, command='GET',
                     headers={'Host': '127.0.0.1:8771', 'Range': current_range_value},
                     server=SimpleNamespace(server_port=8771), send_response=Mock(),
                     send_header=lambda current_header_name, current_header_value: current_response_headers.update({current_header_name: current_header_value}),
@@ -56,11 +56,11 @@ class GenerationStatusDisplayTests(unittest.TestCase):
     def test_video_result_preserves_browser_origin(self):
         from tools.review.common.gradio_video_results import render_video_generation_result
         current_result_markup = render_video_generation_result('job-a', {
-            'video': '/wan22-ti2v/jobs/job-a/preview.mp4',
-            'download': '/wan22-ti2v/jobs/job-a/frames.zip',
+            'video': '/wan22-fun-control/jobs/job-a/preview.mp4',
+            'download': '/wan22-fun-control/jobs/job-a/frames.zip',
         }, 'http://127.0.0.1:8770')
-        self.assertIn('src="/wan22-ti2v/jobs/job-a/preview.mp4"', current_result_markup)
-        self.assertIn('href="/wan22-ti2v/jobs/job-a/frames.zip"', current_result_markup)
+        self.assertIn('src="/wan22-fun-control/jobs/job-a/preview.mp4"', current_result_markup)
+        self.assertIn('href="/wan22-fun-control/jobs/job-a/frames.zip"', current_result_markup)
         self.assertNotIn('127.0.0.1', current_result_markup)
 
     def test_video_duration_rejects_empty_and_invalid_frame_counts(self):

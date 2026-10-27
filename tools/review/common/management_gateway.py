@@ -23,8 +23,8 @@ MANAGEMENT_SERVICE_COMMANDS = {'outfit-transfer': ('history-delete', 'resume', '
 
 MANAGEMENT_SERVICE_ROUTES['wan22-fun-control']='/wan22-fun-control'
 MANAGEMENT_SERVICE_COMMANDS['wan22-fun-control']=('history-delete','resume','generate','status','logs','history','active','model-status','cancel','history-reset')
-MANAGEMENT_SERVICE_ROUTES['wan22-ti2v']='/wan22-ti2v'
-MANAGEMENT_SERVICE_COMMANDS['wan22-ti2v']=('history-delete','resume','generate','status','logs','history','active','model-status','cancel','history-reset')
+MANAGEMENT_SERVICE_ROUTES['wan22-vace']='/wan22-vace'
+MANAGEMENT_SERVICE_COMMANDS['wan22-vace']=('history-delete','resume','generate','status','logs','history','active','model-status','cancel','history-reset')
 MANAGEMENT_SERVICE_ROUTES['wan22-animate']='/wan22-animate'
 MANAGEMENT_SERVICE_COMMANDS['wan22-animate']=('history-delete','resume','generate','status','logs','history','active','model-status','cancel','history-reset')
 
@@ -228,7 +228,7 @@ MANAGEMENT_COMMAND_DESCRIPTIONS['hy-motion']='HY-Motion Lite 원본 모션 · CP
 MANAGEMENT_COMMAND_DESCRIPTIONS['pose-transfer']='VNCCS V1.1 · Qwen 2.1 공식 파이프라인 · BF16 비양자화 · 512px 고정·25/40스텝 선택(기본 40) · 업로드 아이덴티티→포즈, 모델 전달 포즈→아이덴티티 · 부분 추종 경고'
 
 MANAGEMENT_COMMAND_DESCRIPTIONS['wan22-fun-control']='Wan2.2 Fun Control Q4 · 참조 1장+제어 프레임 · --payload-file'
-MANAGEMENT_COMMAND_DESCRIPTIONS['wan22-ti2v']='Wan2.2 TI2V 5B Q4 · 텍스트 또는 첫 프레임 1장 · 8GB 대상 실험 · --payload-file'
+MANAGEMENT_COMMAND_DESCRIPTIONS['wan22-vace']='Wan2.2 VACE-Fun A14B Q4 · 텍스트·외형 참조·첫 프레임 · --payload-file'
 MANAGEMENT_COMMAND_DESCRIPTIONS['wan22-animate']='Wan2.2 Animate Q4 실험 · 외형 1장+ANNY 포즈 21장 · --payload-file'
 
 def execute_management_command(service_command_name, operation_command_name, command_payload_value, server_base_address=None, *, gateway_request_handler=None, service_handler_values=None):
@@ -293,7 +293,7 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
                     current_duration_group.add_argument('--max-new-tokens',type=int,help='MiniMax 오디오 프레임 상한 125~3000; 25개≈1초, 조기 종료 가능')
                 operation_argument_parser.add_argument('--seed',type=int,default=current_music_defaults['seed'])
                 operation_argument_parser.add_argument('--loop-request',action=argparse.BooleanOptionalAction,default=current_music_defaults['loop_request'],help='반복 구조 요청; 심리스 연결 보장 없음')
-            elif service_command_name in ('wan22-fun-control','wan22-ti2v','wan22-animate'):
+            elif service_command_name in ('wan22-fun-control','wan22-animate','wan22-vace'):
                 operation_argument_parser.add_argument('--payload-file',type=Path,required=True,help='images PNG base64와 frame_entries를 포함한 JSON 요청')
             elif service_command_name=='animation-separation':
                 operation_argument_parser.add_argument('--reference',type=Path,required=True,help='분리할 참조 PNG 이미지 1장')
@@ -390,7 +390,7 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
             if getattr(command_argument_values,'max_new_tokens',None) is not None:
                 command_payload_value.pop('duration_seconds')
                 command_payload_value['max_new_tokens'] = command_argument_values.max_new_tokens
-        elif service_command_name in ('wan22-fun-control','wan22-ti2v','wan22-animate'):
+        elif service_command_name in ('wan22-fun-control','wan22-animate','wan22-vace'):
             command_payload_value=parse_management_request_json(command_argument_values.payload_file.read_text())
         elif service_command_name=='animation-separation':
             from tools.review.domains.image.animation_separation import load_separation_defaults

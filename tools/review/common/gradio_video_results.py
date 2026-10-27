@@ -36,3 +36,28 @@ def describe_video_generation_status(current_status_record):
     if current_metrics_record.get('inference_estimate'):
         current_status_text+='\n\n추론 종료까지의 참고 추정\n\n'+render_generation_estimate(current_metrics_record['inference_estimate'],current_status_record['status'])
     return current_status_text
+
+
+def build_video_job_monitor(current_execute_command, current_server_address, current_job_control, current_status_output):
+    """작업 ID를 기준으로 공용 상태·로그·영상만 갱신한다. 작업 수명은 서비스가 관리한다."""
+    import gradio as gr
+    from tools.review.common.gradio_logs import build_execution_logs
+    from tools.review.common.generation_status_lookup import read_existing_generation_status
+    current_result_output = gr.HTML('')
+    current_result_identity = gr.State('')
+    current_log_output, current_log_enabled, _ = build_execution_logs()
+    current_generation_timer = gr.Timer(5, active=False)
+    def refresh_video_status(current_job_identifier, current_logs_enabled, current_previous_result):
+        if not current_job_identifier:
+            return gr.skip(), gr.skip(), gr.skip(), gr.skip(), gr.Timer(active=False)
+        current_status_record = read_existing_generation_status(current_execute_command, current_job_identifier)
+        if current_status_record is None:
+            return '삭제된 이력입니다.', '', '', '', gr.Timer(active=False)
+        current_result_url = current_status_record.get('video', '')
+        return (describe_video_generation_status(current_status_record),
+                render_video_generation_result(current_job_identifier, current_status_record, current_server_address) if current_result_url and current_result_url != current_previous_result else gr.skip(),
+                current_status_record.get('log', '') if current_logs_enabled else gr.skip(), current_result_url,
+                gr.Timer(active=current_status_record.get('status') not in ('completed', 'failed', 'cancelled', 'paused')))
+    current_generation_timer.tick(refresh_video_status, [current_job_control, current_log_enabled, current_result_identity], [current_status_output, current_result_output, current_log_output, current_result_identity, current_generation_timer], queue=False, show_progress='hidden')
+    current_job_control.change(lambda current_job_identifier: gr.Timer(active=bool(current_job_identifier)), current_job_control, current_generation_timer, queue=False)
+    return current_generation_timer

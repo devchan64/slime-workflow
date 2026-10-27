@@ -965,19 +965,9 @@ Animate의 전체 실행은 추론 모드로 처리합니다. VAE는 CUDA에서 
 
 Fun Control은 시간 타일 경계의 밝기 흔들림·잔상을 줄이기 위해 잠재값 시간축 전체를 한 타일로 디코딩합니다. 공간 타일 32·겹침 8과 입력 인코딩 설정은 유지합니다. 추론 잠재값은 실행 시도 폴더의 `denoised-latents.safetensors`에, 실제 디코딩 설정과 잠재값 해시는 `decode-policy.json`에 보존합니다. 기존 방식의 비교 결과는 매번 생성하지 않습니다. 다른 생성기의 공용 기본 디코딩 설정은 유지하며 메모리 부족 시 자동 대체하지 않습니다. 41프레임·20스텝 실험에서 완료와 VRAM 관측 피크 6,480MiB를 확인했으며 더 긴 입력의 메모리 요구량은 별도 검증이 필요합니다. 잠재값 보존에 따른 디스크 사용량이 추가되며 작업 이력 삭제 시 함께 정리됩니다.
 
-### Wan2.2 TI2V 5B 걷기 실험 생성기
+### Wan2.2 TI2V 생성기 폐기 · 2026-10-27
 
-애니메이션 도구의 `/management/frame/wan22-ti2v-generator/`는 텍스트만으로 시작하는 T2V와 첫 프레임 PNG 1장을 쓰는 I2V를 같은 작업 계약으로 제공합니다. 기준 이미지는 비율을 유지해 흰 여백의 832×480 PNG로 보관합니다. 출력은 24fps이고 프레임 수는 5~81의 `4n+1`만 허용합니다. 포즈·골격을 강제하지 않으므로 정확한 관절 제어가 필요하면 Fun Control을 사용합니다.
-
-공용 서비스는 `wan22-ti2v`입니다. CLI `tools/manager.py command wan22-ti2v generate --payload-file <요청.json> --detach`는 `action`, `prompt`, `negative_prompt`, `images`(0 또는 1장 PNG base64), `width`, `height`, `frames`, `steps`, `seed`, `flow_shift`, `guidance_scale`을 사용합니다. 모델 선택은 입력받지 않습니다. 작업별 입력 사본·결과·로그·VRAM 관측치·예상 시간은 `.tmp/test/wan22-ti2v/`에 보존하며, 상태·생성·조회·취소·재개·선택 삭제·전체 초기화는 공용 게이트웨이 계약을 따릅니다.
-
-고정 프로필은 `QuantStack/Wan2.2-TI2V-5B-GGUF` revision `57437632ddd08bdcbd1508c866aa22e126ed51d2`의 Q4_K_M과 Wan2.2 VAE입니다. `generators/wan_ti2v/prepare.py`는 두 파일을 `.model/wan22-ti2v/`에 다운로드하고 크기·SHA-256을 검증합니다. UMT5 Q4와 고정 ComfyUI/GGUF 런타임은 Animate/Fun Control과 공유하며 누락 시 준비 실패로 처리합니다. 준비 로그와 결과는 `.tmp/test/wan22-ti2v-prepare/<실행시각>/`에 남깁니다.
-
-8GB VRAM 대상 실험 구성으로 텍스트 인코더·VAE·확산 모델을 단계별 CUDA 로드·해제합니다. CPU는 가중치 대기에만 사용하며 CPU 추론 대체는 없습니다. I2V는 첫 프레임 보호용 noise_mask를 샘플러에 전달합니다. 출력 VAE는 잠재 공간 16×16·겹침 4와 시간축 전체 타일을 사용하고 실제 설정을 `memory-policy.json`에 보존합니다. 모든 프레임 수의 8GB 실행을 보장하지 않으며 OOM은 실패로 기록합니다. GUI 입력 검증 결과의 내부 tag는 외부 요청에 섞지 않고 원래 GUI/CLI 요청 계약을 유지합니다.
-
-2026-10-26 RTX 5070 Laptop 8,151MiB에서 832×480·5프레임·2스텝 T2V/I2V 최소 실행을 확인했습니다. 각각 약 34초·40초, 작업 프로세스 VRAM 관측 피크는 모두 5,448MiB였습니다. 이는 로딩·추론·저장 경로 검증이며 영상 품질이나 41/81프레임 성공 검증은 아닙니다.
-
-출처: [원본 모델카드](https://huggingface.co/Wan-AI/Wan2.2-TI2V-5B), [ComfyUI 안내](https://docs.comfy.org/tutorials/video/wan/wan2_2), [GGUF 변환 모델](https://huggingface.co/QuantStack/Wan2.2-TI2V-5B-GGUF).
+사용자 요청으로 TI2V 5B 생성기의 페이지·서비스·CLI·전용 소스와 생성 이력을 폐기했습니다. 전용 Q4_K_M·Q6_K 가중치와 Wan2.2 VAE, 준비·비교 실험 파일을 삭제했습니다. Animate/Fun Control의 공유 UMT5·런타임과 외부 참조 이미지 원본은 보존합니다.
 
 ### Wan2.1 생성기 제거 · 2026-10-26
 
@@ -990,3 +980,21 @@ Fun Control은 시간 타일 경계의 밝기 흔들림·잔상을 줄이기 위
 GUI와 CLI는 `map-assets effect-list`, `effect-load`, `effect-save`를 공유한다. 목록은 `{}`, 조회는 `{"id":"glow-mushroom-single-v1"}`을 사용한다. 저장은 `id`, 조회 응답의 `revision`을 넣은 `expectedRevision`, UUID `requestId`, `alignment`를 전달한다. `alignment`는 고정 연결 식별자 `texture`·`key`, 밝기 `alpha`, 정규화된 좌·상·우·하 `target`, 프레임별 사각형 `frames`다. 동시 편집 충돌은 최신 원본을 조회하여 해결한다. 프레임 재생은 브라우저에서 처리하며 미리보기만으로 저장하지 않는다.
 
 나방·반딧불(`renderer: swarm`)도 같은 좌표 검수를 사용한다. 연결 빌보드 없이 4×2 시트를 재생하며 대상 영역은 맵 반경으로 정해지는 정사각형의 정규화 좌표다. 기본 `[0,0,1,1]`은 기존 위치·크기를 유지한다. 나방은 가산 합성, 반딧불은 일반 알파 합성으로 게임과 동일하게 검수한다. 맵별 높이·반경·주기는 기존 맵 편집에서 조정한다.
+
+### Wan2.2 VACE-Fun A14B 텍스트·이미지 생성
+
+`/management/frame/wan22-vace-generator/`와 `wan22-vace` 서비스는 같은 대기열·이력 계약을 사용한다. `text`는 이미지 없이 생성하고, `reference`는 외형 참조 1장을 별도 잠재 슬롯으로 전달한 뒤 출력 전에 제거한다. `first_frame`은 이미지 1장을 첫 프레임 조건으로, 첫 프레임 0/나머지 1 마스크와 함께 전달한다. 첫 프레임 조건은 픽셀 완전 일치 보장이 아니다. 제어 영상·마스크 업로드·다중 주체는 이번 페이지의 지원 범위에 포함하지 않는다.
+
+모델은 `QuantStack/Wan2.2-VACE-Fun-A14B-GGUF` revision `93b339260b1d819e2c171dd7ca9e66a761d4a84d`의 고·저노이즈 Q4_K_M으로 고정한다. 모델명은 입력받지 않는다. `.venv-management/bin/python -m generators.wan_vace.prepare`는 전용 파일 2개(총 23,278,907,200바이트)를 `.model/wan22-vace/`에 다운로드하고 크기·SHA-256을 검증한다. 준비 실행은 GPU 접근 정책에 따라 샌드박스 밖에서 수행한다. 준비 기록은 `.tmp/test/wan22-vace-prepare/<시각>/`에 저장한다. 기존 UMT5 Q4·Wan2.1 VAE·고정 ComfyUI/GGUF 런타임을 재사용하며 누락 시 실패한다.
+
+공용 CLI는 `tools/manager.py command wan22-vace generate --payload-file <요청.json> --detach`이다. 필수 필드는 `action: generate`, `mode: text|reference|first_frame`, `prompt`, `negative_prompt`, `images`, `width: 832`, `height: 480`, `frames`, `steps`, `seed`, `flow_shift`, `guidance_scale`, `reference_strength`이다. `images`는 text에서 빈 목록, 다른 모드에서 불투명 832×480 PNG base64 1장이다. GUI는 원본 비율을 유지하고 흰 여백을 합성한다. GUI 검증의 내부 tag를 API 요청에 추가하지 않는다.
+
+로컬 기본은 외형 참조·21프레임·50스텝·seed 42·shift 12·CFG 5·조건 강도 1이다. 프레임 5~81의 4n+1, 스텝 2~100, shift 0.1~20, CFG 1~10, 조건 강도 0.1~2를 허용한다. 제작자 `VideoX-Fun` revision `13bb3c625e8b1e457d7124d92207b49e00e4a6fe`의 `examples/wan2.2_vace_fun/predict_s2v.py`, `predict_i2v.py`, `config/wan2.2/wan_civitai_t2v.yaml`을 기준으로 FlowMatchEuler 스케줄과 노이즈 경계 0.875를 적용한다. 이는 전체 스텝의 87.5%라는 의미가 아니다. 노이즈 수준으로 전환 지점을 구하고 고·저노이즈 전문가를 순차 로드한다. 텍스트 인코더·VAE·확산 연산은 CUDA이며 CPU는 가중치 대기에 사용한다. ComfyUI/GGUF 연결은 제작자 BF16 파이프라인과 구분한다.
+
+작업 입력·시도별 요청·프롬프트 원문/단어 수/해시·가중치 선택·실제 sigma 배열·전환 지점·VRAM·예상 시간·결과 MP4/PNG ZIP은 `.tmp/test/wan22-vace/`에 보존한다. `status`, `logs`, `history`, `active`, `model-status`, `cancel`, `resume`, `prioritize`, `history-delete`, `history-reset-preview`, `history-reset`은 공용 게이트웨이 계약을 사용한다. 이력 삭제는 모델이나 외부 입력 원본을 삭제하지 않는다. 영상은 16fps이며 공간 타일 32/겹침 8, 시간축 전체 단일 타일로 디코딩한다. 모델 파일 준비·최소 실행·81프레임 품질 검수는 각각 구분한다.
+
+출처: [제작자 모델카드](https://huggingface.co/alibaba-pai/Wan2.2-VACE-Fun-A14B), [제작자 참조 생성 예제](https://github.com/aigc-apps/VideoX-Fun/blob/13bb3c625e8b1e457d7124d92207b49e00e4a6fe/examples/wan2.2_vace_fun/predict_s2v.py), [GGUF 배포본](https://huggingface.co/QuantStack/Wan2.2-VACE-Fun-A14B-GGUF).
+
+2026-10-27 검증: Q4 두 파일의 크기·SHA-256 검증과 외형 참조 1장·5프레임·2스텝 최소 실행(`2026-10-27_14-06-00-f0daf50e`)이 완료됐다. 약 116초, 작업 프로세스 VRAM 관측 피크 7,264MiB이며 출력 5프레임·832×480·16fps와 브라우저 MP4 readyState 4를 확인했다. 이는 보행 품질·81프레임 실행·T2V/I2V GPU 실행 성공을 의미하지 않는다. 세 입력 모드의 조건 텐서·참조 슬롯 제거·제작자 Flow 경계는 모델 추론 없는 계약 검사 3건으로 확인했다.
+
+관리도구 계약 검사 54건 통과. 추가 공용 확인·이력·우선순위·측정 검사에서는 62건 통과, 수정하지 않은 `test_gradio_history.test_refresh_accepts_stale_radio_value_and_clears_removed_selection`이 30초 제한을 초과했다. 해당 모듈 단독 실행도 30건 통과·동일 1건 시간 초과로 남아 전체 회귀 통과로 표시하지 않는다. 실제 8770 화면에서는 모드 선택·단어 수·고급 설정·인라인 확인 취소·이력 선택·실행 상태·완료 영상 로딩을 확인했다. 390px에서는 기존 공용 탐색 메뉴가 폼을 좁히는 표시 문제가 있어 좁은 화면 사용성 검증은 완료로 보지 않는다. 화면 증거는 `.tmp/test/wan22-vace-ui/2026-10-27_14-06-00/page.png`에 보관한다.

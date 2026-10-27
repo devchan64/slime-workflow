@@ -92,14 +92,14 @@ def create_management_runtime(writer_workspace_config=None):
     from tools.review.domains.anny.landmarks import handle_landmark_request, LANDMARK_STORAGE_DIRECTORY
 
     from tools.review.domains.wan_fun.generation import FunControlGenerationManager
-    from tools.review.domains.wan_ti2v.generation import Ti2vGenerationManager
+    from tools.review.domains.wan_vace.generation import VaceVideoGenerationManager
     from tools.review.domains.wan_animate.generation import AnimateGenerationManager
     from generators.music.contracts import AUDIO_SERVICE_NAMES
     from tools.review.domains.music.generation import MusicGenerationManager
     writer_agent_service = WriterAgentManager(writer_workspace_config or DEFAULT_WORKSPACE_CONFIG)
     try:
         fun_generation_service = FunControlGenerationManager()
-        ti2v_generation_service = Ti2vGenerationManager()
+        vace_generation_service = VaceVideoGenerationManager()
         animate_generation_service = AnimateGenerationManager()
         image_generation_service = ImageGenerationManager()
         seamless_generation_service = SeamlessGenerationManager()
@@ -123,7 +123,7 @@ def create_management_runtime(writer_workspace_config=None):
         service_binding_records = {
             'writer-agent': ManagementServiceBinding(writer_agent_service.handle_writer_request,writer_agent_service.workspace_config_path.parent,reject_writer_folder_access),
             'wan22-fun-control': bind_stored_management_service(fun_generation_service.handle_image_request,fun_generation_service.job_storage_root),
-            'wan22-ti2v': bind_stored_management_service(ti2v_generation_service.handle_image_request,ti2v_generation_service.job_storage_root),
+            'wan22-vace': bind_stored_management_service(vace_generation_service.handle_image_request,vace_generation_service.job_storage_root),
             'wan22-animate': bind_stored_management_service(animate_generation_service.handle_image_request,animate_generation_service.job_storage_root),
             'anny-landmarks': bind_stored_management_service(handle_landmark_request, LANDMARK_STORAGE_DIRECTORY),
             'hy-motion': ManagementServiceBinding(handle_hymotion_request, HYMOTION_STORAGE_ROOT, resolve_hymotion_directory),
