@@ -1,4 +1,4 @@
-"""고정 Q4 모델을 다운로드하고 SHA-256으로 검증한다. GPU 추론은 실행하지 않는다."""
+"""고정 Q4 확산 모델과 BF16 텍스트 인코더를 다운로드하고 SHA-256으로 검증한다. GPU 추론은 실행하지 않는다."""
 from datetime import datetime
 from zoneinfo import ZoneInfo
 import hashlib
@@ -9,7 +9,7 @@ import sys
 import threading
 import traceback
 import urllib.request
-from generators.wan_vace.contracts import VACE_WORKSPACE_ROOT, VACE_MODEL_FILES, VACE_MODEL_IDENTIFIER, VACE_MODEL_REVISION, validate_vace_assets
+from generators.wan_vace.contracts import VACE_WORKSPACE_ROOT, VACE_MODEL_FILES, VACE_MODEL_IDENTIFIER, VACE_MODEL_REVISION, VACE_ENCODER_IDENTIFIER, VACE_ENCODER_REVISION, VACE_ENCODER_REMOTE_FILES, validate_vace_assets
 
 
 def prepare_vace_models():
@@ -31,9 +31,10 @@ def prepare_vace_models():
     current_heartbeat_thread.start()
     try:
         write_prepare_trace('start', f'model_id={VACE_MODEL_IDENTIFIER} model_root=.model/wan22-vace binary={sys.executable}')
-        if shutil.disk_usage(VACE_WORKSPACE_ROOT).free < 25_000_000_000:
-            raise RuntimeError('모델 준비에 여유 공간 25GB가 필요합니다.')
-        for current_model_key in ('high', 'low'):
+        required_download_bytes = sum(VACE_MODEL_FILES[current_model_key][1] for current_model_key in ('high', 'low', 'encoder', 'tokenizer') if not (VACE_WORKSPACE_ROOT / VACE_MODEL_FILES[current_model_key][0]).exists()) + 1_000_000_000
+        if shutil.disk_usage(VACE_WORKSPACE_ROOT).free < required_download_bytes:
+            raise RuntimeError(f'모델 준비 여유 공간 부족: {required_download_bytes}바이트 필요')
+        for current_model_key in ('high', 'low', 'encoder', 'tokenizer'):
             current_model_name, expected_model_size, expected_model_hash = VACE_MODEL_FILES[current_model_key]
             current_model_path = VACE_WORKSPACE_ROOT / current_model_name
             current_model_path.parent.mkdir(parents=True, exist_ok=True)
@@ -41,6 +42,8 @@ def prepare_vace_models():
             if not current_model_path.exists():
                 current_remote_name = current_model_path.relative_to(VACE_WORKSPACE_ROOT / '.model/wan22-vace').as_posix()
                 current_remote_url = f'https://huggingface.co/{VACE_MODEL_IDENTIFIER}/resolve/{VACE_MODEL_REVISION}/{current_remote_name}'
+                if current_model_key in VACE_ENCODER_REMOTE_FILES:
+                    current_remote_url = f'https://huggingface.co/{VACE_ENCODER_IDENTIFIER}/resolve/{VACE_ENCODER_REVISION}/{VACE_ENCODER_REMOTE_FILES[current_model_key]}'
                 current_progress_record.update(stage=f'download-{current_model_key}', bytes=0)
                 with urllib.request.urlopen(current_remote_url, timeout=120) as current_download_stream, current_partial_path.open('wb') as current_output_stream:
                     while current_download_chunk := current_download_stream.read(8 * 1024 * 1024):

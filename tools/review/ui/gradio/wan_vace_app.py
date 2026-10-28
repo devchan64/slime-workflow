@@ -85,7 +85,7 @@ def build_vace_interface(current_server_address, current_command_callback=None):
             current_negative_control = gr.Textbox(label='부정 프롬프트', value='', info='필요한 제외 항목만 입력하세요. 자동으로 문구를 추가하지 않습니다.')
             current_negative_summary = gr.Markdown('원문 0단어 · 최종 0단어')
             current_negative_control.change(lambda current_prompt_text: f'원문 {len(current_prompt_text.split())}단어 · 최종 {len(current_prompt_text.split())}단어', current_negative_control, current_negative_summary, queue=False)
-        gr.Markdown('고정: VACE-Fun A14B 고·저노이즈 Q4_K_M · UMT5 Q4 · Wan2.1 VAE · 832×480 · 16fps · Euler/FlowMatch · 전문가 경계 0.875 · CUDA 연산/CPU 가중치 오프로드. LoRA는 사용하지 않습니다.')
+        gr.Markdown('고정: VACE-Fun A14B 고·저노이즈 Q4_K_M · UMT5 BF16 비양자화 · Wan2.1 VAE · 832×480 · 16fps · Euler/FlowMatch · 전문가 경계 0.875 · CUDA 연산/CPU 가중치 오프로드. LoRA는 사용하지 않습니다.')
         current_count_control = gr.Number(value=VACE_DEFAULT_SETTINGS['frames'], precision=0, minimum=5, maximum=81, step=4, label='출력 프레임', info='5~81의 4n+1. 로컬 기본 21장, 제작자 학습·예제는 81장/16fps. 프레임이 늘면 계산·메모리 요구량이 증가합니다.')
         current_duration_output = gr.Markdown(describe_video_frame_duration(VACE_DEFAULT_SETTINGS['frames']))
         current_count_control.change(describe_video_frame_duration, current_count_control, current_duration_output, queue=False)

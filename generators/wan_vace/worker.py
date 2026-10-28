@@ -7,7 +7,7 @@ import hashlib
 import importlib.util
 VACE_WORKSPACE_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(VACE_WORKSPACE_ROOT))
-from generators.wan_vace.contracts import VACE_JOB_STORAGE, VACE_RUNTIME_DIRECTORY, VACE_MODEL_FILES, VACE_MODEL_REVISION, VACE_MODEL_IDENTIFIER, VACE_SOURCE_REVISION, VACE_EXPERT_BOUNDARY, verify_vace_weights, locate_expert_switch
+from generators.wan_vace.contracts import VACE_JOB_STORAGE, VACE_RUNTIME_DIRECTORY, VACE_MODEL_FILES, VACE_MODEL_REVISION, VACE_MODEL_IDENTIFIER, VACE_SOURCE_REVISION, VACE_ENCODER_IDENTIFIER, VACE_ENCODER_REVISION, VACE_EXPERT_BOUNDARY, verify_vace_weights, locate_expert_switch
 from generators.common.reference_video_worker import run_reference_video_worker, save_video_outputs
 from tools.review.common.generation_records import write_record_atomically
 
@@ -50,7 +50,8 @@ def execute_vace_inference(current_job_root, current_attempt_root, current_reque
     for current_folder_name, current_folder_path in [('unet_gguf', '.model/wan22-vace'), ('diffusion_models', '.model/wan22-vace'), ('clip', '.model/wan22-animate-components'), ('clip_gguf', '.model/wan22-animate-components'), ('vae', '.model/wan22-animate-components/split_files/vae')]:
         folder_paths.add_model_folder_path(current_folder_name, str(VACE_WORKSPACE_ROOT / current_folder_path))
     current_metrics_recorder.update_generation_stage('load')
-    current_text_encoder = current_package_module.NODE_CLASS_MAPPINGS['CLIPLoaderGGUF']().load_clip('umt5-xxl-encoder-Q4_K_M.gguf', type='wan')[0]
+    from generators.wan_vace.text_encoder import load_vace_encoder
+    current_text_encoder = load_vace_encoder()
     if current_text_encoder.patcher.load_device.type != 'cuda':
         raise RuntimeError('텍스트 인코더 CUDA 설정 오류')
     positive_condition_data = nodes.CLIPTextEncode().encode(current_text_encoder, current_request_record['prompt'])[0]
@@ -86,7 +87,7 @@ def execute_vace_inference(current_job_root, current_attempt_root, current_reque
         'sigmas': current_sigma_values.tolist(), 'source_revision': VACE_SOURCE_REVISION,
         'implementation': 'ComfyUI WanVaceToVideo + GGUF; 제작자 BF16 파이프라인과 동일 구현은 아님',
     })
-    write_record_atomically(current_attempt_root / 'model-selection.json', {'model_id': VACE_MODEL_IDENTIFIER, 'revision': VACE_MODEL_REVISION, 'files': VACE_MODEL_FILES, 'quantization': 'Q4_K_M', 'compute_device': 'cuda', 'offload_device': 'cpu'})
+    write_record_atomically(current_attempt_root / 'model-selection.json', {'model_id': VACE_MODEL_IDENTIFIER, 'revision': VACE_MODEL_REVISION, 'files': VACE_MODEL_FILES, 'quantization': 'Q4_K_M', 'text_encoder_precision': 'BF16', 'text_encoder_quantized': False, 'text_encoder_model_id': VACE_ENCODER_IDENTIFIER, 'text_encoder_revision': VACE_ENCODER_REVISION, 'compute_device': 'cuda', 'offload_device': 'cpu'})
     current_latent_tensor = current_latent_record['samples']
     current_noise_tensor = comfy.sample.prepare_noise(current_latent_tensor, current_request_record['seed'])
     for current_model_stage, current_start_step, current_end_step in [('high', 0, current_switch_step), ('low', current_switch_step, current_step_total)]:

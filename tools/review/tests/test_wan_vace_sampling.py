@@ -11,6 +11,23 @@ from generators.wan_vace.contracts import locate_expert_switch
 
 @unittest.skipIf(torch is None, '모델 .venv에서 실행하는 텐서 계약 검사')
 class VaceSamplingContractTests(unittest.TestCase):
+    def test_bf16_encoder_mapping_preserves_tensors_and_rejects_unknown_keys(self):
+        from generators.wan_vace.text_encoder import convert_encoder_state, VACE_ENCODER_LAYER_MAPPING
+        current_weight_tensor = torch.ones(2, dtype=torch.bfloat16)
+        current_original_state = {'token_embedding.weight': current_weight_tensor, 'norm.weight': current_weight_tensor}
+        for current_layer_index in range(24):
+            for current_layer_suffix in VACE_ENCODER_LAYER_MAPPING:
+                current_original_state[f'blocks.{current_layer_index}.{current_layer_suffix}'] = current_weight_tensor
+        current_converted_state = convert_encoder_state(current_original_state)
+        self.assertEqual(len(current_converted_state), 242)
+        self.assertTrue(all(current_tensor_value is current_weight_tensor for current_tensor_value in current_converted_state.values()))
+        self.assertIs(current_converted_state['encoder.block.23.layer.1.DenseReluDense.wi_0.weight'], current_weight_tensor)
+        with self.assertRaises(ValueError):
+            convert_encoder_state({**current_original_state, 'unknown.weight': current_weight_tensor})
+        del current_original_state['norm.weight']
+        with self.assertRaises(ValueError):
+            convert_encoder_state(current_original_state)
+
     def test_reference_slot_and_first_frame_mask_are_distinct(self):
         current_reference_tensor=torch.zeros(1,480,832,3)
         current_reference_condition=build_vace_conditions({'mode':'reference','frames':5},current_reference_tensor)
