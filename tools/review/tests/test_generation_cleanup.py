@@ -132,22 +132,6 @@ class CleanupPreviewTests(unittest.TestCase):
         with self.assertRaises(ValueError):resolve_management_command('outfit-transfer','history-reset-preview',{'action':'reset'})
 
 
-class AnnyCleanupPreviewTests(unittest.TestCase):
-    def test_preview_reports_hidden_jobs_and_blocks_running_without_deletion(self):
-        from tools.review.domains.anny import anny_attributes as current_anny_module
-        with tempfile.TemporaryDirectory() as current_directory_name:
-            current_storage_root=Path(current_directory_name)
-            for current_identifier_value,current_status_name in [('12345678','completed'),('abcdef12','queued')]:
-                current_job_path=current_storage_root/current_identifier_value
-                current_job_path.mkdir()
-                (current_job_path/'status.json').write_text(json.dumps({'status':current_status_name}))
-                (current_job_path/'.history-deleted').touch()
-            with patch.object(current_anny_module,'JOBS',current_storage_root):
-                current_preview_record=current_anny_module.preview_anny_history_cleanup()
-            self.assertEqual(current_preview_record['job_count'],2)
-            self.assertFalse(current_preview_record['can_reset'])
-            self.assertTrue((current_storage_root/'12345678'/'status.json').exists())
-
 class CleanupConfirmationTests(unittest.TestCase):
     def test_snapshot_rejects_new_jobs_and_changed_terminal_status(self):
         for current_expected_jobs in ([], [{'path':'job','status':'failed'}]):
@@ -173,9 +157,8 @@ class CleanupServiceSnapshotTests(unittest.TestCase):
     def test_service_reset_rejects_jobs_created_after_empty_preview(self):
         from contextlib import ExitStack
         from tools.review.domains.image.image_generation import ImageGenerationManager
-        from tools.review.domains.anny import anny_attributes as current_anny_module
         from tools.review.domains.music.generation import MusicGenerationManager
-        for current_service_name in ('image','anny','music'):
+        for current_service_name in ('image','music'):
             with self.subTest(service=current_service_name), tempfile.TemporaryDirectory() as current_directory_name, ExitStack() as current_patch_stack:
                 current_storage_root=Path(current_directory_name)/'jobs'
                 current_history_root=Path(current_directory_name)/'history'
@@ -187,11 +170,6 @@ class CleanupServiceSnapshotTests(unittest.TestCase):
                     current_patch_stack.enter_context(patch.object(current_service_instance,'history_storage_path',return_value=current_history_root))
                     current_reset_callback=lambda:current_service_instance.reset_generation_history([])
                     self.assertEqual(current_service_instance.preview_generation_cleanup()['jobs'],[])
-                elif current_service_name=='anny':
-                    current_job_relative='12345678'
-                    current_patch_stack.enter_context(patch.object(current_anny_module,'JOBS',current_storage_root))
-                    current_reset_callback=lambda:current_anny_module.clear_anny_history_records([])
-                    self.assertEqual(current_anny_module.preview_anny_history_cleanup()['jobs'],[])
                 else:
                     current_service_instance=MusicGenerationManager('music-minimax')
                     current_service_instance.job_storage_root=current_storage_root

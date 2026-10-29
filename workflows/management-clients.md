@@ -35,7 +35,7 @@ GUI·CLI → 공용 게이트웨이 → 기존 이미지 작업 서비스·GPU �
 
 포즈 변환 생성기를 정식 도구로 전환하여 메뉴·화면의 Alpha Ver. 표시를 제거했다. 후속 AnyPose 도구 폐기로 알파 가져오기 사본과 명령은 폐기했으며 VNCCS 원본 실험은 보존한다. 공식 포즈 일부도 부분 추종하므로 작업 완료가 전신 비례·포즈·프레임 일관성의 품질 승인을 뜻하지 않는다. 모델카드의 BF16·40스텝·공식 추론 경로를 따르지만, 512px 출력·VNCCS LoRA·모듈 단위 오프로드는 프로젝트의 명시적 설정이다. 다른 Qwen 생성기와 배포·AWS 비용에는 변경이 없다.
 
-ANNY 기준점 후보 지정·축 검수는 [해부학 리타기팅 검수](anny-anatomical-retarget.md#anny-기준점-후보-검수-도구)를 따른다. `anny-landmarks` 서비스의 `landmark-source/preview/save/load/history` 명령은 모두 `--payload-file` JSON을 받으며 GUI와 `.tmp/test/anny-landmarks/<KST 시각>/<고유 ID>/` 기록을 공유한다. 승인·리타기팅 적용 명령은 없다.
+ANNY 해부학 기준점 페이지와 `anny-landmarks` 서비스는 폐기했다. 과거 후보 기록과 공용 ANNY 에셋은 보존하며 기존 명령은 거절한다.
 
 HY-Motion Lite 생성·모델 준비·8GB 오프로드·기록 계약은 [HY-Motion 생성기](hy-motion.md)를 따른다. 서비스 이름은 `hy-motion`, GUI는 `/management/frame/hy-motion-generator/`이며 공용 게이트웨이와 GPU 실행기를 사용한다.
 
@@ -546,17 +546,9 @@ Phantom·HY-Motion·Qwen 계열·복장 분리·ANNY·작가·맵·스프라이�
 
 이미지 공통 서비스, VACE·Phantom, 음악, HY-Motion 및 ANNY에 적용한다. ANNY의 별도 브라우저 이력도 작업 수를 사전 조회한다. 공용 Gradio 이력은 `삭제 대상 확인 → 작업 수·복구 불가 확인 → 전체 삭제` 순서이며, 확인 뒤 목록·상태가 변경되면 다시 확인하도록 거절한다. 취소는 파일을 삭제하지 않는다.
 
-### ANNY 프리뷰·렌더 접수
+### ANNY 속성 렌더러 폐기
 
-Gradio와 통합 CLI는 `anny` 서비스의 `anny-preview`(메시 프리뷰)와 `anny-render`(이미지 렌더)를 사용한다. 기존 `/anny-attributes/preview`·`/render`는 같은 작업 서비스의 호환 경로다. 속성 JSON에는 기본 체형의 허용 속성과 선택적인 `rotation_y`를 전달하며, 알 수 없는 속성·범위 밖 값은 생성 전에 거절한다.
-
-```bash
-python3 tools/manager.py command anny anny-preview --payload-file /absolute/path/attributes.json
-python3 tools/manager.py command anny anny-render --payload-file /absolute/path/attributes.json
-python3 tools/manager.py command anny status 12345678
-```
-
-접수는 생성 ID를 반환한다. 기존 ANNY 작업 폴더·입력·상태·이력·로그 경로를 유지하며 클라이언트별 사본 저장소를 만들지 않는다.
+2026-10-30: `anny` 서비스·속성 렌더 페이지·전용 모델 및 런타임·작업 결과는 폐기했다. 기존 URL은 410, 명령은 폐기 오류를 반환한다. 등록된 제작 기준 에셋과 공용 Blender 환경은 보존한다.
 
 ### 작가 문서 작업 공용 명령
 

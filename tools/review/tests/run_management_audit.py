@@ -9,11 +9,11 @@ from tools.review.tests.run_music_regression import execute_music_regression
 
 MANAGEMENT_AUDIT_MODULES = tuple('tools.review.tests.' + current_module_name for current_module_name in (
     'test_kimodo_generation', 'test_hymotion_retirement',
-    'test_regression_runner', 'test_management_browser_scripts', 'test_anny_landmarks',
+    'test_regression_runner', 'test_management_browser_scripts', 'test_landmarks_retirement',
     'test_gpu_confirmation', 'test_gradio_button_guidance', 'test_browser_gpu_confirmation', 'test_gradio_history', 'test_gradio_history_inputs',
     'test_gradio_proxy_response', 'test_gradio_standard_components', 'test_generation_status_display', 'test_generation_status_lookup', 'test_generation_estimates',
     'test_generation_cleanup', 'test_queue_generation_telemetry', 'test_generation_history', 'test_gpu_queue_priority',
-    'test_gpu_job_queue', 'test_gpu_memory_history', 'test_gpu_status', 'test_anny_history', 'test_anny_profiles',
+    'test_gpu_job_queue', 'test_gpu_memory_history', 'test_gpu_status', 'test_anny_retirement',
     'test_anchor_history', 'test_history_preservation', 'test_gradio_process', 'test_management_single_port',
     'test_management_gateway', 'test_management_runtime', 'test_management_menu_gradio',
     'test_pose_transfer_retirement',
@@ -21,9 +21,9 @@ MANAGEMENT_AUDIT_MODULES = tuple('tools.review.tests.' + current_module_name for
     'test_animation_separation', 'test_sprite_editor_v2', 'test_management_separation',
     'test_retired_management_ui', 'test_qwen_commands', 'test_qwen_2511_gradio',
     'test_qwen_2512_gradio', 'test_separation_preview_gradio', 'test_map_layout_editor', 'test_map_brushes', 'test_map_review_gradio', 'test_map_review_lifecycle', 'test_character_review_capture', 'test_review_asset_publication',
-    'test_static_review_gradio', 'test_anny_attributes_gradio', 'test_sprite_editor_v2_gradio', 'test_sprite_browser_confirmation',
+    'test_static_review_gradio', 'test_sprite_editor_v2_gradio', 'test_sprite_browser_confirmation',
     'test_floor_generation', 'test_seamless_pattern', 'test_seamless_generation',
-    'test_dasheng_audio_sfx', 'test_music_generation', 'test_music_management_audit', 'test_wan_animate_generation', 'test_wan_fun_generation', 'test_wan_vace_generation', 'test_wan_vace_sampling', 'test_writer_agent_gradio', 'test_landmark_confirmation_gradio',
+    'test_dasheng_audio_sfx', 'test_music_generation', 'test_music_management_audit', 'test_wan_animate_generation', 'test_wan_fun_generation', 'test_wan_vace_generation', 'test_wan_vace_sampling', 'test_writer_agent_gradio',
 )) + ('generators.animation.tests.test_qwen_pose', 'generators.writer_agent.tests.test_writer_agent')
 
 if __name__ == '__main__':

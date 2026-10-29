@@ -145,11 +145,9 @@ let pendingAnchorRestoreConfirmation=null;
 
     def test_browser_choices_skip_stale_server_choice_validation(self):
         from tools.review.ui.gradio.sprite_editor_v2_app import build_sprite_v2_interface
-        from tools.review.ui.gradio.anny_attributes_app import build_anny_attribute_interface
         current_interface_records = (
             ('static', build_static_review_interface({'test': '/test/anchors.html'})),
             ('sprite', build_sprite_v2_interface()),
-            ('anny', build_anny_attribute_interface(8770)),
         )
         for current_page_name, current_interface_blocks in current_interface_records:
             current_browser_identifiers = {

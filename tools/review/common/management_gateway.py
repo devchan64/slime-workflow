@@ -16,9 +16,9 @@ import urllib.request
 from email.message import Message
 from urllib.parse import urlsplit, parse_qs
 
-MANAGEMENT_SERVICE_ROUTES = {'outfit-transfer': '/outfit-transfer', 'qwen-21-circular': '/image-generation-21-circular', 'animation-separation': '/animation-separation', 'qwen-21': '/image-generation-21', 'seamless-tile': '/seamless-tile-generator', 'expression': '/expression-generator', 'floor-tile': '/floor-tile-generator', 'anny': '/anny-attributes', 'character-animation': '/character-animation', 'momask': '/momask-generator', 'qwen-2512': '/image-generation', 'qwen-2511': '/image-generation-2511'}
+MANAGEMENT_SERVICE_ROUTES = {'outfit-transfer': '/outfit-transfer', 'qwen-21-circular': '/image-generation-21-circular', 'animation-separation': '/animation-separation', 'qwen-21': '/image-generation-21', 'seamless-tile': '/seamless-tile-generator', 'expression': '/expression-generator', 'floor-tile': '/floor-tile-generator', 'character-animation': '/character-animation', 'momask': '/momask-generator', 'qwen-2512': '/image-generation', 'qwen-2511': '/image-generation-2511'}
 MANAGEMENT_COMMAND_ROUTES = {'anchor-history-reset':('POST','/anchor/history/reset'),'anchor-save':('POST','/anchor/save'),'anchor-history':('POST','/anchor/history'),'anchor-load':('POST','/anchor/load'),'history-delete':('POST','/history/{id}/delete'),'pause':('POST','/pause'),'resume':('POST','/resume'),'sprite-source':('POST','/sprite/source'),'sprite-save':('POST','/sprite/save'),'sprite-load':('POST','/sprite/load'),'sprite-history':('POST','/sprite/history'),'sprite-history-reset':('POST','/sprite/history/reset'),'sprite-history-delete':('POST','/sprite/history/delete'),'record-alpha-vnccs':('POST','/alpha/vnccs/record'),'catalog':('GET','/catalog'),'generate':('POST','/jobs'),'queue':('POST','/jobs'),'prepare':('POST','/jobs'),'status':('GET','/jobs/{id}'),'logs':('GET','/jobs/{id}/worker.log'),'history':('GET','/history'),'active':('GET','/active'),'model-status':('GET','/model-status'),'cancel':('POST','/cancel'),'history-reset':('POST','/history/reset')}
-MANAGEMENT_SERVICE_COMMANDS = {'outfit-transfer': ('history-delete', 'resume', 'generate', 'status', 'logs', 'history', 'active', 'model-status', 'cancel', 'history-reset'), 'qwen-21-circular': ('history-delete', 'resume', 'generate', 'status', 'logs', 'history', 'active', 'model-status', 'cancel', 'history-reset'), 'animation-separation': ('catalog', 'history-delete', 'resume', 'generate', 'status', 'logs', 'history', 'active', 'cancel', 'history-reset'), 'qwen-21': ('history-delete', 'resume', 'generate', 'status', 'logs', 'history', 'active', 'model-status', 'cancel', 'history-reset'), 'seamless-tile': ('pause', 'history-delete', 'resume', 'generate', 'status', 'logs', 'history', 'active', 'model-status', 'cancel', 'history-reset'), 'expression': ('history-delete', 'resume', 'generate', 'status', 'logs', 'history', 'active', 'model-status', 'cancel', 'history-reset'), 'floor-tile': ('history-delete', 'resume', 'catalog', 'generate', 'status', 'logs', 'history', 'active', 'model-status', 'cancel', 'history-reset'), 'anny': ('status', 'history', 'cancel', 'resume', 'history-delete', 'history-reset'), 'character-animation': ('anchor-save', 'anchor-history', 'anchor-load', 'anchor-history-reset', 'history-delete', 'resume', 'sprite-source', 'sprite-save', 'sprite-load', 'sprite-history', 'sprite-history-reset', 'sprite-history-delete', 'record-alpha-vnccs', 'catalog', 'generate', 'status', 'logs', 'history', 'active', 'cancel', 'history-reset'), 'momask': ('history-delete', 'resume', 'generate', 'status', 'logs', 'history', 'cancel', 'history-reset'), 'qwen-2512': ('history-delete', 'resume', 'generate', 'prepare', 'status', 'logs', 'history', 'active', 'model-status', 'cancel', 'history-reset'), 'qwen-2511': ('history-delete', 'resume', 'generate', 'status', 'logs', 'history', 'active', 'model-status', 'cancel', 'history-reset')}
+MANAGEMENT_SERVICE_COMMANDS = {'outfit-transfer': ('history-delete', 'resume', 'generate', 'status', 'logs', 'history', 'active', 'model-status', 'cancel', 'history-reset'), 'qwen-21-circular': ('history-delete', 'resume', 'generate', 'status', 'logs', 'history', 'active', 'model-status', 'cancel', 'history-reset'), 'animation-separation': ('catalog', 'history-delete', 'resume', 'generate', 'status', 'logs', 'history', 'active', 'cancel', 'history-reset'), 'qwen-21': ('history-delete', 'resume', 'generate', 'status', 'logs', 'history', 'active', 'model-status', 'cancel', 'history-reset'), 'seamless-tile': ('pause', 'history-delete', 'resume', 'generate', 'status', 'logs', 'history', 'active', 'model-status', 'cancel', 'history-reset'), 'expression': ('history-delete', 'resume', 'generate', 'status', 'logs', 'history', 'active', 'model-status', 'cancel', 'history-reset'), 'floor-tile': ('history-delete', 'resume', 'catalog', 'generate', 'status', 'logs', 'history', 'active', 'model-status', 'cancel', 'history-reset'), 'character-animation': ('anchor-save', 'anchor-history', 'anchor-load', 'anchor-history-reset', 'history-delete', 'resume', 'sprite-source', 'sprite-save', 'sprite-load', 'sprite-history', 'sprite-history-reset', 'sprite-history-delete', 'record-alpha-vnccs', 'catalog', 'generate', 'status', 'logs', 'history', 'active', 'cancel', 'history-reset'), 'momask': ('history-delete', 'resume', 'generate', 'status', 'logs', 'history', 'cancel', 'history-reset'), 'qwen-2512': ('history-delete', 'resume', 'generate', 'prepare', 'status', 'logs', 'history', 'active', 'model-status', 'cancel', 'history-reset'), 'qwen-2511': ('history-delete', 'resume', 'generate', 'status', 'logs', 'history', 'active', 'model-status', 'cancel', 'history-reset')}
 
 
 MANAGEMENT_SERVICE_ROUTES['wan22-fun-control']='/wan22-fun-control'
@@ -35,9 +35,6 @@ MANAGEMENT_SERVICE_ROUTES['writer-agent'] = '/writer-agent'
 MANAGEMENT_SERVICE_COMMANDS['writer-agent'] = ('writer-state', *WRITER_PAYLOAD_COMMAND_NAMES)
 MANAGEMENT_COMMAND_ROUTES.update({'writer-state': ('GET', '/api/state'), 'writer-detail': ('POST', '/api/detail'), 'writer-submit': ('POST', '/api/jobs'), 'writer-apply': ('POST', '/api/apply')})
 
-ANNY_GENERATION_COMMAND_NAMES = ('anny-preview', 'anny-render')
-MANAGEMENT_SERVICE_COMMANDS['anny'] += ANNY_GENERATION_COMMAND_NAMES
-MANAGEMENT_COMMAND_ROUTES.update({'anny-preview': ('POST', '/preview'), 'anny-render': ('POST', '/render')})
 
 MANAGEMENT_SERVICE_ROUTES['map-assets']='/map-assets'
 MANAGEMENT_SERVICE_COMMANDS['map-assets']=('resize','map-anchor-save','effect-list','effect-load','effect-save','asset-list','asset-preview','asset-save','asset-crop-preview','asset-crop','asset-retire-preview','asset-retire','map-edit-load','map-edit-preview','map-edit-save','database-seed','database-status','database-sync','database-snapshot','database-restore')
@@ -53,10 +50,6 @@ MANAGEMENT_SERVICE_COMMANDS['map-review']=('capture',)
 MANAGEMENT_SERVICE_ROUTES['character-review']='/character-review'
 MANAGEMENT_SERVICE_COMMANDS['character-review']=('capture',)
 MANAGEMENT_COMMAND_ROUTES['capture']=('POST','/capture')
-LANDMARK_COMMAND_NAMES = tuple('landmark-' + current_command_name for current_command_name in ('source', 'preview', 'save', 'load', 'history'))
-MANAGEMENT_SERVICE_ROUTES['anny-landmarks'] = '/anny-landmarks'
-MANAGEMENT_SERVICE_COMMANDS['anny-landmarks'] = LANDMARK_COMMAND_NAMES
-MANAGEMENT_COMMAND_ROUTES.update({current_command_name: ('POST', '/' + current_command_name) for current_command_name in LANDMARK_COMMAND_NAMES})
 
 SPRITE_V2_COMMAND_NAMES = tuple('sprite-v2-'+current_command_name for current_command_name in ('create','list','upload','save','load','history','export','delete','revision-delete'))
 MANAGEMENT_COMMAND_ROUTES.update({current_command_name:('POST','/sprite-v2/'+current_command_name.removeprefix('sprite-v2-')) for current_command_name in SPRITE_V2_COMMAND_NAMES})
@@ -85,6 +78,10 @@ for current_service_name, current_command_names in tuple(MANAGEMENT_SERVICE_COMM
         MANAGEMENT_SERVICE_COMMANDS[current_service_name] += ('prioritize',)
 
 def resolve_management_command(service_command_name, operation_command_name, command_payload_value):
+    if service_command_name == 'anny':
+        raise ValueError('ANNY 속성 렌더러·모델·결과는 폐기되었습니다.')
+    if service_command_name == 'anny-landmarks':
+        raise ValueError('ANNY 해부학 기준점 페이지와 기능은 폐기되었습니다.')
     if service_command_name == 'pose-transfer':
         raise ValueError('포즈 변환 생성기·모델·결과는 폐기되었습니다.')
     if service_command_name == 'hy-motion':
@@ -207,13 +204,12 @@ class ManagementCommandGateway:
         return True
 
 
-MANAGEMENT_COMMAND_DESCRIPTIONS = {'outfit-transfer': 'Qwen 2.1 복장 착용 · 참조 정확히 2장: 바디, 아웃핏 순서', 'qwen-21-circular': 'Qwen 2.1 순환 VAE · XY 디코더 · 3×3 반복 검수', 'animation-separation': 'Qwen 2.1 참조 PNG 1장으로 신체 베이스·복장 독립 생성 · --reference', 'qwen-21': 'Qwen Image 2.1 · 공용 화풍·투명 배경 선택 · 참조 0~10장 · 20·30·40·50스텝 (기본 40)', 'seamless-tile': 'Qwen Image 2.1 · 40스텝 · 5단계 가로·세로 심리스 패턴 · 단계별 검수 대기 · pause/resume · 참조 생략 가능', 'expression': 'Qwen 2511 AU 표정 생성 · 참조 1~3장 · --expression에 표정 ID 지정', 'floor-tile': '512×512·4스텝 단일 바닥 타일 생성 (관리 서버 필요)', 'anny': 'ANNY 프리뷰·렌더 생성(--payload-file)·이력·중지·재개', 'character-animation': '생성기 폐기 · 기존 이력·결과 조회·스프라이트 편집 (generate/resume 거절)', 'momask': '폐기된 MoMask 도구 · 모든 명령 거절 · Kimodo 사용', 'qwen-2512': 'Qwen 2512 텍스트 이미지 생성 (관리 서버 필요)', 'qwen-2511': 'Qwen 2511 텍스트·1~3장 참조 이미지 생성 (관리 서버 필요)'}
+MANAGEMENT_COMMAND_DESCRIPTIONS = {'outfit-transfer': 'Qwen 2.1 복장 착용 · 참조 정확히 2장: 바디, 아웃핏 순서', 'qwen-21-circular': 'Qwen 2.1 순환 VAE · XY 디코더 · 3×3 반복 검수', 'animation-separation': 'Qwen 2.1 참조 PNG 1장으로 신체 베이스·복장 독립 생성 · --reference', 'qwen-21': 'Qwen Image 2.1 · 공용 화풍·투명 배경 선택 · 참조 0~10장 · 20·30·40·50스텝 (기본 40)', 'seamless-tile': 'Qwen Image 2.1 · 40스텝 · 5단계 가로·세로 심리스 패턴 · 단계별 검수 대기 · pause/resume · 참조 생략 가능', 'expression': 'Qwen 2511 AU 표정 생성 · 참조 1~3장 · --expression에 표정 ID 지정', 'floor-tile': '512×512·4스텝 단일 바닥 타일 생성 (관리 서버 필요)', 'character-animation': '생성기 폐기 · 기존 이력·결과 조회·스프라이트 편집 (generate/resume 거절)', 'momask': '폐기된 MoMask 도구 · 모든 명령 거절 · Kimodo 사용', 'qwen-2512': 'Qwen 2512 텍스트 이미지 생성 (관리 서버 필요)', 'qwen-2511': 'Qwen 2511 텍스트·1~3장 참조 이미지 생성 (관리 서버 필요)'}
 
 MANAGEMENT_COMMAND_DESCRIPTIONS['writer-agent']='작가 문서 학습·제안·조회·해시 확인 적용 · --payload-file · 기존 문서/기록 경로 유지'
 MANAGEMENT_COMMAND_DESCRIPTIONS['map-assets']='맵 PNG 축소·투명 여백 크롭(asset-crop-preview / asset-crop)·빌보드 속성·야외 맵 편집 · map-edit-load / map-edit-preview / map-edit-save / asset-list(category: vegetation·herbaceous·large-trees·rocks-minerals·props) / asset-preview / asset-save / asset-retire-preview / asset-retire / database-seed / database-status / database-sync / database-restore --payload-file'
 MANAGEMENT_COMMAND_DESCRIPTIONS['map-review']='전체 맵 헤드리스 Chrome PNG 캡처 · --payload-file 설정'
 MANAGEMENT_COMMAND_DESCRIPTIONS['character-review']='캐릭터 검수 렌더링 PNG 캡처 · --payload-file 설정'
-MANAGEMENT_COMMAND_DESCRIPTIONS['anny-landmarks']='ANNY 기준점 후보 지정·축 검수·누적 저장 · --payload-file JSON · 승인·적용 없음'
 MANAGEMENT_COMMAND_DESCRIPTIONS['billboard-generator'] = 'Qwen 가이드 빌보드 생성 · 독립 대기열·이력'
 MANAGEMENT_COMMAND_DESCRIPTIONS['prop-generator'] = 'Qwen 소품 생성 · 독립 대기열·이력 · 참조 선택'
 MANAGEMENT_COMMAND_DESCRIPTIONS['vegetation-generator'] = 'Qwen 자연물 생성 · 독립 대기열·이력 · 참조 선택'
@@ -256,7 +252,7 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
         operation_argument_parser=command_subparser_group.add_parser(operation_command_name)
         if service_command_name=='momask' and operation_command_name=='generate':
             operation_argument_parser.add_argument('--face',action=argparse.BooleanOptionalAction,default=False,help='ANNY 얼굴 5점 포함')
-        if operation_command_name in SPRITE_V2_COMMAND_NAMES + LANDMARK_COMMAND_NAMES + ANNY_GENERATION_COMMAND_NAMES + WRITER_PAYLOAD_COMMAND_NAMES or operation_command_name in ('capture','export-vnccs','resize','map-anchor-save','effect-list','effect-load','effect-save','asset-list','asset-preview','asset-save','asset-crop-preview','asset-crop','asset-retire-preview','asset-retire','map-edit-load','map-edit-preview','map-edit-save','database-seed','database-status','database-sync','database-snapshot','database-restore'):
+        if operation_command_name in SPRITE_V2_COMMAND_NAMES + WRITER_PAYLOAD_COMMAND_NAMES or operation_command_name in ('capture','export-vnccs','resize','map-anchor-save','effect-list','effect-load','effect-save','asset-list','asset-preview','asset-save','asset-crop-preview','asset-crop','asset-retire-preview','asset-retire','map-edit-load','map-edit-preview','map-edit-save','database-seed','database-status','database-sync','database-snapshot','database-restore'):
             operation_argument_parser.add_argument('--payload-file',type=Path,required=True,help='GUI와 동일한 명령 JSON 입력 파일')
         if operation_command_name=='anchor-save':operation_argument_parser.add_argument('--document-file',type=Path,required=True)
         if operation_command_name=='anchor-load':operation_argument_parser.add_argument('id')
@@ -363,7 +359,7 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
         command_payload_value={'id':command_argument_values.id}
         if operation_command_name=='sprite-history-delete':command_payload_value['revision']=command_argument_values.revision
         if operation_command_name=='sprite-save':command_payload_value['document']=parse_management_request_json(command_argument_values.document_file.read_text())
-    if operation_command_name in SPRITE_V2_COMMAND_NAMES + LANDMARK_COMMAND_NAMES + ANNY_GENERATION_COMMAND_NAMES + WRITER_PAYLOAD_COMMAND_NAMES or operation_command_name in ('capture','export-vnccs','resize','map-anchor-save','effect-list','effect-load','effect-save','asset-list','asset-preview','asset-save','asset-crop-preview','asset-crop','asset-retire-preview','asset-retire','map-edit-load','map-edit-preview','map-edit-save','database-seed','database-status','database-sync','database-snapshot','database-restore'):command_payload_value=parse_management_request_json(command_argument_values.payload_file.read_text())
+    if operation_command_name in SPRITE_V2_COMMAND_NAMES + WRITER_PAYLOAD_COMMAND_NAMES or operation_command_name in ('capture','export-vnccs','resize','map-anchor-save','effect-list','effect-load','effect-save','asset-list','asset-preview','asset-save','asset-crop-preview','asset-crop','asset-retire-preview','asset-retire','map-edit-load','map-edit-preview','map-edit-save','database-seed','database-status','database-sync','database-snapshot','database-restore'):command_payload_value=parse_management_request_json(command_argument_values.payload_file.read_text())
     if operation_command_name=='anchor-save':command_payload_value={'document':parse_management_request_json(command_argument_values.document_file.read_text())}
     if operation_command_name in ('anchor-history','anchor-history-reset'):command_payload_value={'animation_id':command_argument_values.animation_id,'animation_version':command_argument_values.animation_version}
     if operation_command_name=='history-reset':command_payload_value={'action':'reset'}

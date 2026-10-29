@@ -34,11 +34,9 @@ MANAGEMENT_INTERFACE_BUILDERS = {
     'asset-editor': ('asset_editor_app', 'build_asset_editor_interface', 'port'),
     'world-map': ('world_map_app', 'build_world_review_interface', 'port'),
     'writer-agent': ('writer_agent_app', 'build_writer_agent_interface', 'port'),
-    'anny-attributes': ('anny_attributes_app', 'build_anny_attribute_interface', 'port'),
-    'anny-landmarks': ('anny_landmarks_app', 'build_landmark_interface', 'none'),
     'sprite-editor-v2': ('sprite_editor_v2_app', 'build_sprite_v2_interface', 'none'),
 }
-LEGACY_MANAGEMENT_PATHS = {'/animation-separation/': 'animation-separation', '/image-generation-21/': 'qwen-21-generator', '/image-generation-21-circular/': 'qwen-21-circular-generator', '/outfit-transfer/': 'outfit-transfer-generator', '/vegetation-generator/': 'vegetation-generator', '/prop-generator/': 'prop-generator', '/billboard-generator/': 'billboard-generator', '/building-generator/': 'building-generator', '/anny-attributes/': 'anny-attributes', '/writer-agent/': 'writer-agent', '/character-animation/sprite-editor-v2': 'sprite-editor-v2'}
+LEGACY_MANAGEMENT_PATHS = {'/animation-separation/': 'animation-separation', '/image-generation-21/': 'qwen-21-generator', '/image-generation-21-circular/': 'qwen-21-circular-generator', '/outfit-transfer/': 'outfit-transfer-generator', '/vegetation-generator/': 'vegetation-generator', '/prop-generator/': 'prop-generator', '/billboard-generator/': 'billboard-generator', '/building-generator/': 'building-generator', '/writer-agent/': 'writer-agent', '/character-animation/sprite-editor-v2': 'sprite-editor-v2'}
 MUSIC_INTERFACE_SERVICES = ('music-heartmula', 'sfx-dasheng-audiogen')
 
 
@@ -72,11 +70,7 @@ def build_management_blocks(current_tool_name, current_review_port, current_sour
             current_interface_blocks = current_builder_value(current_review_port, character_review_enabled=True)
         else:
             current_interface_blocks = current_builder_value(current_server_address if current_argument_kind == 'url' else current_review_port)
-        if current_tool_name == 'anny-attributes':
-            current_mount_options['js'] = current_module_value.create_anny_attribute_loader(current_review_port)
-        elif current_tool_name == 'anny-landmarks':
-            current_mount_options['js'] = current_module_value.create_landmark_loader()
-        elif current_tool_name == 'sprite-editor-v2':
+        if current_tool_name == 'sprite-editor-v2':
             import re
             current_markup_text = current_module_value.resolve_review_ui_asset('sprite-editor-v2.html').read_text()
             current_mount_options['css'] = re.search(r'<style>(.*?)</style>', current_markup_text, re.S).group(1)
@@ -131,6 +125,12 @@ def build_management_application(current_handler_class, current_root_path, curre
         current_query_values = parse_qs(current_request_scope.get('query_string', b'').decode())
         if current_request_path.rstrip('/') == '/hy-motion-generator' or current_request_path.startswith(('/hy-motion-generator/', '/management/frame/hy-motion-generator')) or 'hy-motion-generator' in current_query_values.get('tool', []):
             current_retired_response = Response('HY-Motion 생성기와 결과는 폐기되었습니다. Kimodo를 사용하세요.', status_code=410)
+            return await current_retired_response(current_request_scope, current_receive_call, current_send_call)
+        if current_request_path.rstrip('/') == '/anny-attributes' or current_request_path.startswith(('/anny-attributes/', '/management/frame/anny-attributes', '/management/frame/anny-attribute-renderer')) or any(current_tool_value in ('anny-attributes','anny-attribute-renderer') for current_tool_value in current_query_values.get('tool', [])):
+            current_retired_response = Response('ANNY 속성 렌더러·모델·결과는 폐기되었습니다.', status_code=410)
+            return await current_retired_response(current_request_scope, current_receive_call, current_send_call)
+        if current_request_path.rstrip('/') == '/anny-landmarks' or current_request_path.startswith(('/anny-landmarks/', '/management/frame/anny-landmarks')) or 'anny-landmarks' in current_query_values.get('tool', []):
+            current_retired_response = Response('ANNY 해부학 기준점 페이지와 기능은 폐기되었습니다.', status_code=410)
             return await current_retired_response(current_request_scope, current_receive_call, current_send_call)
         if current_request_path.rstrip('/') == '/pose-transfer' or current_request_path.startswith(('/pose-transfer/', '/management/frame/pose-transfer-generator')) or 'pose-transfer-generator' in current_query_values.get('tool', []):
             current_retired_response = Response('포즈 변환 생성기와 결과는 폐기되었습니다.', status_code=410)

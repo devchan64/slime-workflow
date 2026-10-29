@@ -12,3 +12,10 @@ examples:
     label: 심호흡 · 6초
     prompt: A person stands upright and breathes deeply, keeping their head upright.
     frames: 180
+  # 기준 생성: 2026-10-30_00-05-30-ed8f4f66
+  # 실행값: steps=100, seed=42, guidance_scale=2.0, heading_degrees=0.0,
+  # post_processing=false, directions=[front_left]. 예시 불러오기는 프롬프트·프레임만 변경한다.
+  - id: overhead_stretch
+    label: 손깍지 기지개 · 10초
+    prompt: A person stands still, then interlaces their fingers and stretches their arms above their head, palms facing upward, holds briefly, and relaxes.
+    frames: 300

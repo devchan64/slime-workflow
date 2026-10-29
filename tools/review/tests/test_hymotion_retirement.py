@@ -45,9 +45,6 @@ class HymotionRetirementTests(unittest.TestCase):
         self.assertFalse((CURRENT_REPOSITORY_ROOT/'tools/review/domains/hy_motion').exists())
         for current_relative_path in ('generators/animation/anny_render/vnccs_render.py', 'generators/animation/anny_render/official_shading.py', 'assets/motion-sheet/hy-motion-walking-v2/manifest.yaml'):
             self.assertTrue((CURRENT_REPOSITORY_ROOT/current_relative_path).is_file())
-        current_stage_source = (CURRENT_REPOSITORY_ROOT/'generators/kimodo/anny_stage.py').read_text()
-        self.assertIn('generators/animation/anny_render/vnccs_render.py', current_stage_source)
-        self.assertNotIn('hy_motion', current_stage_source)
         with self.assertRaisesRegex(ValueError, '중복 YAML'):
             yaml.load('same: 1\nsame: 2', Loader=UniqueConfigLoader)
         self.assertEqual(yaml.load('value: 3', Loader=UniqueConfigLoader), {'value':3})

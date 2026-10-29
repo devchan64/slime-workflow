@@ -6,7 +6,6 @@ import unittest
 from unittest.mock import patch
 from tools.review.common.queue_generation_telemetry import QueueGenerationTelemetry,read_queue_generation_metrics
 from tools.review.domains.image.image_generation import ImageGenerationManager
-from tools.review.domains.anny.anny_attributes import read_anny_generation_status
 
 
 class QueueGenerationTelemetryTests(unittest.TestCase):
@@ -160,10 +159,8 @@ class QueueGenerationTelemetryTests(unittest.TestCase):
             self.assertEqual(current_metrics_record['status'],'failed')
             current_status_record=ImageGenerationManager().read_generation_status_record(current_job_root)
             self.assertEqual(current_status_record['metrics'],current_metrics_record)
-            self.assertEqual(read_anny_generation_status(current_job_root)['metrics'],current_metrics_record)
             (current_job_root/'status.json').write_text('{"status":"queued"}')
             self.assertNotIn('metrics',ImageGenerationManager().read_generation_status_record(current_job_root))
-            self.assertNotIn('metrics',read_anny_generation_status(current_job_root))
 
     def test_unmeasured_gpu_is_not_zero_and_bad_attempt_path_rejected(self):
         with tempfile.TemporaryDirectory() as current_directory_name:

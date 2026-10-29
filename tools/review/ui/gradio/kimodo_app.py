@@ -82,15 +82,16 @@ def render_kimodo_result(current_job_identifier,current_status_record,current_se
     if not current_comparison_url:
         return render_video_generation_result(current_job_identifier,current_status_record,current_server_address)+'<p>이 결과에는 오픈포즈 비교 영상이 없습니다.</p>'
     current_comparison_html = render_video_generation_result(current_job_identifier,{**current_status_record,'video':current_comparison_url},current_server_address)
-    return '<p>왼쪽: 오픈포즈 · 오른쪽: ANNY 리그. 같은 프레임·카메라로 동기 재생합니다. 오픈포즈는 리타게팅 후 ANNY 몸 관절의 투영이며, 얼굴·손 상세 검출이나 원본 SOMA 골격이 아닙니다.</p>'+current_comparison_html+f'<p><a href="{html.escape(current_status_record["video"],quote=True)}" target="_blank">ANNY 원본 MP4</a></p>'
+    current_pose_description = 'SOMA 원본(정면·측면) → SOMA 직접 투영 오픈포즈. 같은 프레임을 재생하며 카메라 높이·배율은 서로 다릅니다. 오픈포즈는 리타게팅 전 몸 관절이며 얼굴·손 상세 점은 포함하지 않습니다.' if current_status_record.get('pose_source')=='soma' else '이전 비교 결과: 오픈포즈는 리타게팅 후 ANNY 관절 투영입니다. SOMA 원본 패널은 결과에 따라 없을 수 있습니다.'
+    return '<p>'+current_pose_description+'</p>'+current_comparison_html+f'<p><a href="{html.escape(current_status_record["video"],quote=True)}" target="_blank">원본 MP4</a></p>'
 
 
 def build_kimodo_interface(current_server_address,current_command_callback=None):
     current_execute_command = current_command_callback or execute_kimodo_command
     with gr.Blocks(title='Kimodo 모션 생성기') as current_interface_blocks:
-        gr.Markdown('## Kimodo 모션 생성기 · NF4 실험\n텍스트로 SOMA 모션을 생성한 뒤 ANNY 중성형 v4 리그 적용·CUDA 렌더를 자동 실행합니다. 선택한 방향별 영상을 비교하고 원본 모션·ANNY 리그·프레임을 ZIP으로 받습니다.')
+        gr.Markdown('## Kimodo 모션 생성기 · NF4 실험\n텍스트로 SOMA 모션을 생성하고 선택 방향의 오픈포즈를 직접 투영합니다. SOMA 원본·포즈 비교 영상과 모션·프레임을 ZIP으로 받습니다.')
         with gr.Accordion('고정 설정 · 모델 준비',open=False):
-            gr.Markdown('고정: Kimodo-SOMA-RP-v1.2 · 모션 FP32 · LLM2Vec Llama 3 8B NF4 / BF16 연산 · CUDA · 30fps · 1개 샘플 · DDIM. 인코딩 후 인코더를 해제하고 모션을 생성합니다. 이후 모션 모델을 해제하고 ANNY 512×512·30fps·정사영 렌더를 실행합니다. 모델 선택·부정 프롬프트·이미지 참조는 제공하지 않습니다.')
+            gr.Markdown('고정: Kimodo-SOMA-RP-v1.2 · 모션 FP32 · LLM2Vec Llama 3 8B NF4 / BF16 연산 · CUDA · 30fps · 1개 샘플 · DDIM. 인코딩 후 인코더를 해제하고 모션을 생성합니다. 이후 모션 모델을 해제하고 SOMA 몸 관절을 512×512·30fps 정사영 포즈로 변환합니다. 모델 선택·부정 프롬프트·이미지 참조는 제공하지 않습니다.')
         current_model_ready = gr.State(False)
         current_model_output = gr.Markdown('모델 상태 확인 중')
         current_refresh_button = gr.Button('모델 준비 상태 확인')
@@ -123,7 +124,7 @@ def build_kimodo_interface(current_server_address,current_command_callback=None)
             current_guidance_control = gr.Number(label='텍스트 CFG',value=KIMODO_DEFAULT_SETTINGS['guidance_scale'],minimum=0,maximum=10,info='공식 기본 2. 텍스트 조건의 영향이며 원하는 동작의 성공을 보장하지 않습니다.')
             current_heading_control = gr.Number(label='초기 방향 (도)',value=KIMODO_DEFAULT_SETTINGS['heading_degrees'],minimum=-180,maximum=180,info='0은 +Z 방향. 시작 방향 조건이며 이후 방향을 계속 고정하는 기능이 아닙니다.')
             current_postprocessing_control = gr.Checkbox(label='공식 발 미끄러짐 후처리',value=KIMODO_DEFAULT_SETTINGS['post_processing'],info='기본 해제: 원본 동작 비교. 활성화하면 공식 후처리를 적용하고 실행 기록에 남깁니다.')
-            gr.Markdown('[공식 모델카드](https://huggingface.co/nvidia/Kimodo-SOMA-RP-v1.2) · [NF4 인코더](https://huggingface.co/matbee/kimodo-llm2vec-nf4)\n\nANNY는 위치 기반 몸통·사지·루트 전달입니다. 손가락 세부 회전·접지 보정·피부 충돌 보정은 적용하지 않으며 결과 검수가 필요합니다.\n\nNF4는 커뮤니티 양자화본입니다. BF16과 동작이 달라질 수 있으며 실제 품질은 결과를 검수하세요. 내부 30관절 추론을 공식 API가 77관절로 확장해 저장합니다.')
+            gr.Markdown('[공식 모델카드](https://huggingface.co/nvidia/Kimodo-SOMA-RP-v1.2) · [NF4 인코더](https://huggingface.co/matbee/kimodo-llm2vec-nf4)\n\nANNY 리그 기능은 폐기되었습니다. SOMA 몸 포즈에는 얼굴·손 상세 점이 포함되지 않습니다.\n\nNF4는 커뮤니티 양자화본입니다. BF16과 동작이 달라질 수 있으며 실제 품질은 결과를 검수하세요. 내부 30관절 추론을 공식 API가 77관절로 확장해 저장합니다.')
         current_input_controls = [current_prompt_control,current_frame_control,current_steps_control,current_seed_control,current_guidance_control,current_heading_control,current_postprocessing_control,current_direction_control]
         gr.Markdown('예시는 시작점입니다. 심호흡·서 있기에서도 머리나 몸이 움직일 수 있으므로 결과를 검수하세요.')
         current_generate_button = gr.Button('대기열에 추가',variant='primary',interactive=False)

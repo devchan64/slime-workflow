@@ -71,10 +71,6 @@ def create_gradio_source_fingerprint(application_source_path,application_file_pa
     tracked_source_paths={application_file_path,application_source_path}
     if application_file_path.name=='static_review_app.py':
         tracked_source_paths.update((WORKFLOW_ROOT_DIRECTORY/'tools/review/ui/shared/animation-anchor-editor').glob('*'))
-    if application_file_path.name=='anny_attributes_app.py':
-        tracked_source_paths.add(WORKFLOW_ROOT_DIRECTORY/'tools/review/ui/anny/anny-attributes.html')
-    if application_file_path.name=='anny_landmarks_app.py':
-        tracked_source_paths.update((WORKFLOW_ROOT_DIRECTORY/'tools/review/ui/anny').glob('*.js'))
     if application_file_path.name=='seamless_tile_app.py':
         image_domain_directory=WORKFLOW_ROOT_DIRECTORY/'tools/review/domains/image'
         tracked_source_paths.update(image_domain_directory/current_file_name for current_file_name in ('seamless_pattern.py','seamless_generation.py','seamless_directional.py'))
@@ -102,7 +98,6 @@ def ensure_gradio_application(review_server_port, application_name, application_
             'sfx-dasheng-audiogen':('sfx_dasheng_app.py',131,'/management/frame/sfx-dasheng-audiogen/'),
             'music-heartmula':('music_heartmula_app.py',138,'/management/frame/music-heartmula/'),
             'management-menu':('management_menu_app.py',100,'/management/'),
-            'anny-landmarks':('anny_landmarks_app.py',124,'/management/frame/anny-landmarks/'),
             'qwen-2512':('qwen_2512_app.py',103,'/management/frame/image-generator/'),
             'qwen-21-circular':('qwen_circular_app.py',118,'/management/frame/qwen-21-circular-generator/'),
             'outfit-transfer':('outfit_transfer_app.py',120,'/management/frame/outfit-transfer-generator/'),
@@ -122,7 +117,6 @@ def ensure_gradio_application(review_server_port, application_name, application_
             'asset-editor':('asset_editor_app.py',136,'/management/frame/asset-editor/'),
             'world-map':('world_map_app.py',135,'/management/frame/world-map/'),
             'map-review':('map_review_app.py',107,'/management/frame/map-review/'),
-            'anny-attributes':('anny_attributes_app.py',108,'/management/frame/anny-attributes/'),
             'writer-agent':('writer_agent_app.py',109,'/management/frame/writer-agent/'),
             'static-review':('static_review_app.py',112,'/management/frame/static-review/'),
         }
@@ -188,9 +182,6 @@ def ensure_sprite_editor_server(review_server_port):
 
 def ensure_map_review_server(review_server_port):
     return ensure_gradio_application(review_server_port,'map-review')
-
-def ensure_anny_attributes_server(review_server_port):
-    return ensure_gradio_application(review_server_port,'anny-attributes')
 
 def ensure_writer_agent_server(review_server_port):
     return ensure_gradio_application(review_server_port,'writer-agent')

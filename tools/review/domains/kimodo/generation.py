@@ -13,5 +13,6 @@ class KimodoGenerationManager(ReferenceVideoGenerationManager):
             current_result_record = json.loads((current_job_root/'result.json').read_text())
             current_comparison_path = current_job_root/'attempts'/current_result_record['attempt']/'comparison.mp4'
             if current_comparison_path.is_file() and current_comparison_path.resolve().is_relative_to(current_job_root.resolve()):
+                current_status_record['pose_source'] = 'soma' if (current_comparison_path.parent/'soma-pose.json').is_file() else 'anny'
                 current_status_record['comparison_video'] = current_status_record['video'].removesuffix('preview.mp4')+'comparison.mp4'
         return current_status_record

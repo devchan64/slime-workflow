@@ -60,7 +60,7 @@ class GatewayContractTest(unittest.TestCase):
                 current_input_path.write_text(current_invalid_text)
                 with patch('tools.review.common.management_gateway.execute_management_command') as current_dispatch_mock:
                     with self.assertRaises(ValueError):
-                        execute_gateway_cli(['command','anny','anny-preview','--payload-file',str(current_input_path)])
+                        execute_gateway_cli(['command','map-assets','asset-list','--payload-file',str(current_input_path)])
                     current_dispatch_mock.assert_not_called()
 
     def test_cli_help_matches_gateway_commands(self):
@@ -81,37 +81,7 @@ class GatewayContractTest(unittest.TestCase):
         gateway.handle(self.create_request_handler('/management/command',{'service':'qwen-2512','command':'generate','payload':payload}))
         self.assertEqual(calls[0],calls[1])
 
-    def test_anny_generation_routes_preserve_legacy_contract(self):
-        current_request_calls=[]
-        def capture_service_request(current_request_handler):
-            current_request_calls.append((current_request_handler.command,current_request_handler.path,json.load(current_request_handler.rfile)))
-            return True
-        current_gateway_value=ManagementCommandGateway({'anny':capture_service_request})
-        for current_command_name,current_route_name in [('anny-preview','preview'),('anny-render','render')]:
-            current_payload_record={'rotation_y':25}
-            current_gateway_value.handle(self.create_request_handler('/anny-attributes/'+current_route_name,current_payload_record))
-            current_gateway_value.handle(self.create_request_handler('/management/command',{'service':'anny','command':current_command_name,'payload':current_payload_record}))
-            self.assertEqual(current_request_calls[-2],current_request_calls[-1])
-            self.assertEqual(resolve_management_command('anny',current_command_name,current_payload_record),('POST','/anny-attributes/'+current_route_name))
 
-    def test_anny_cli_payload_matches_gui_and_invalid_fields_are_rejected(self):
-        import tempfile
-        from unittest.mock import patch
-        from tools.review.domains.anny.anny_attributes import AnnyAttributeManager
-        with tempfile.TemporaryDirectory() as current_directory_name:
-            current_input_path=Path(current_directory_name)/'input.json'
-            current_input_path.write_text('{"rotation_y":25}')
-            with patch('tools.review.common.management_gateway.execute_management_command',return_value={'id':'12345678'}) as current_command_mock,contextlib.redirect_stdout(io.StringIO()):
-                self.assertEqual(execute_gateway_cli(['command','anny','anny-preview','--payload-file',str(current_input_path)]),0)
-                self.assertEqual(current_command_mock.call_args.args[:3],('anny','anny-preview',{'rotation_y':25}))
-        current_gateway_value=ManagementCommandGateway({'anny':AnnyAttributeManager().handle})
-        current_default_record={'phenotype_kwargs':{},'local_changes_kwargs':{},'facial_actions':{}}
-        with patch('tools.review.domains.anny.anny_attributes.load_attribute_defaults',return_value=current_default_record),patch('tools.review.domains.anny.anny_attributes.launch_gpu_process') as current_launch_mock:
-            for current_invalid_payload in ({'unknown':1},{'rotation_y':181},{'rotation_y':True}):
-                current_request_handler=self.create_request_handler('/management/command',{'service':'anny','command':'anny-preview','payload':current_invalid_payload})
-                current_gateway_value.handle(current_request_handler)
-                self.assertEqual(current_request_handler.responses,[400])
-            current_launch_mock.assert_not_called()
 
     def test_retired_momask_command_is_rejected_before_service(self):
         import tempfile

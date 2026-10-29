@@ -1,6 +1,8 @@
+> 2026-10-30: ANNY 해부학 기준점 페이지·명령·전용 구현은 폐기했다. 아래 내용은 과거 기록이며 실행 지침이 아니다.
+
 # ANNY 해부학적 리타기팅 적용 기준
 
-> 2026-10-29: 아래 HY-Motion 기반 리타게팅 구현과 실험 파일은 생성기 폐기와 함께 제거했다. 이 문서는 당시 검수 기록이며 현행 실행 가이드가 아니다. Kimodo의 현행 ANNY 경로는 `generators/kimodo/anny_export.py`와 `anny_rotation.py`, 공용 렌더는 `generators/animation/anny_render/`에서 관리한다. 등록된 제작 참조 에셋은 보존한다.
+> 2026-10-29: 아래 HY-Motion 기반 리타게팅 구현과 실험 파일은 생성기 폐기와 함께 제거했다. 이 문서는 당시 검수 기록이며 현행 실행 가이드가 아니다. Kimodo의 ANNY 리그 연결도 폐기되었다. 다른 도구의 공용 렌더는 `generators/animation/anny_render/`에 보존한다. 등록된 제작 참조 에셋은 보존한다.
 
 ## 출처와 적용 범위
 

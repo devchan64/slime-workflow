@@ -19,8 +19,8 @@ from tools.review.common.gradio_error_trace import trace_management_callback
 CATEGORY_LABEL_VALUES={'all':'전체','map-review':'맵 검수','sound-management':'소리 관리','writer-agent':'작가 AI 에이전트','image-generation':'이미지 생성','animation':'등록 애니메이션','animation-tool':'애니메이션 도구','character-render-review':'캐릭터 렌더링 검수','town-map-review':'도시맵 검수','game-ui':'게임 UI · 디자인 시스템'}
 LEGACY_SOUND_CATEGORY_NAMES=('music-generation','sound-effects')
 MANAGEMENT_FRAME_PATH_PREFIX='/management/frame/'
-MANAGEMENT_FRAME_IDENTIFIER_VALUES={'anny-attribute-renderer':'anny-attributes'}
-NATIVE_MANAGEMENT_APPLICATIONS=frozenset(('kimodo-generator','wan22-vace-generator','wan22-animate-generator','wan22-fun-control-generator','billboard-generator','effect-editor','asset-editor','world-map','vegetation-generator','prop-generator','building-generator','sfx-dasheng-audiogen','music-heartmula','anny-landmarks','animation-separation','qwen-21-circular-generator','outfit-transfer-generator','qwen-21-generator','expression-generator','sprite-editor-v2','character-review','map-review','anny-attributes','writer-agent'))
+MANAGEMENT_FRAME_IDENTIFIER_VALUES={}
+NATIVE_MANAGEMENT_APPLICATIONS=frozenset(('kimodo-generator','wan22-vace-generator','wan22-animate-generator','wan22-fun-control-generator','billboard-generator','effect-editor','asset-editor','world-map','vegetation-generator','prop-generator','building-generator','sfx-dasheng-audiogen','music-heartmula','animation-separation','qwen-21-circular-generator','outfit-transfer-generator','qwen-21-generator','expression-generator','sprite-editor-v2','character-review','map-review','writer-agent'))
 DEFAULT_MANAGER_SOURCE_PATH=WORKFLOW_ROOT_DIRECTORY/'.tmp/manager-current/manager-source.json'
 LEGACY_PAGE_IDENTIFIER_VALUES={'map-review':'map-review-iseulon','animation-2':'animation-1','animation-3':'animation-1'}
 DEFAULT_PAGE_RECORDS=(
@@ -33,7 +33,6 @@ DEFAULT_PAGE_RECORDS=(
     {'id':'wan22-vace-generator','label':'Wan2.2 VACE-Fun 영상 생성기','path':'/management/frame/wan22-vace-generator/','category':'animation-tool','uiMode':'gradio','description':'A14B Q4 · 텍스트·외형 참조·첫 프레임'},
     {'id':'wan22-animate-generator','label':'Wan2.2 Animate 영상 생성기','path':'/management/frame/wan22-animate-generator/','category':'animation-tool','uiMode':'gradio','description':'14B Q4 · 외형 참조·몸 포즈 21장 · 고정 실험 설정'},
     {'id':'wan22-fun-control-generator','label':'Wan2.2 Fun Control 영상 생성기','path':'/management/frame/wan22-fun-control-generator/','category':'animation-tool','uiMode':'gradio','description':'A14B Q4 · 외형 참조+제어 영상 · 고·저노이즈 순차 실행'},
-    {'id':'anny-landmarks','label':'ANNY 해부학 기준점 검수','path':'/management/frame/anny-landmarks/','category':'animation-tool','uiMode':'gradio','description':'neutral_v4 · 기준점 후보 지정 · 기하 축 검수 · 리타기팅 미적용'},
     {'id':'character-review','label':'캐릭터 표현 검수','path':'/management/frame/character-review/','category':'character-render-review','uiMode':'gradio','description':'3×3 검수 맵 · 바닥 선택 · 형태선·분리선·접지 그림자 비교'},
     {'id':'animation-separation','label':'캐릭터 레퍼런스 복장 분리 생성','path':'/animation-separation/','category':'image-generation','uiMode':'gradio','description':'Qwen 2.1 · 참조 이미지 1장 · 신체 베이스·복장 별도 이미지'},
     {'id':'qwen-21-circular-generator','label':'Qwen 2.1 순환 VAE 생성기','path':'/image-generation-21-circular/','category':'image-generation','uiMode':'gradio','description':'XY 순환 디코더 · 3×3 반복 검수'},
@@ -86,7 +85,7 @@ def load_manager_page_records(source_file_path, current_animation_catalog=False)
         if current_page_record['category'] in LEGACY_SOUND_CATEGORY_NAMES:
             current_page_record={**current_page_record,'category':'sound-management'}
         if current_page_record['id']=='tile-map-generator':continue
-        if current_page_record['id'] in ('pose-transfer-generator', 'hy-motion-generator', 'character-animation', 'momask-generator', 'wan21-vace-generator', 'music-stable-audio', 'music-ace-step', 'sfx-stable-audio'):continue
+        if current_page_record['id'] in ('anny-attribute-renderer', 'anny-attributes', 'anny-landmarks', 'pose-transfer-generator', 'hy-motion-generator', 'character-animation', 'momask-generator', 'wan21-vace-generator', 'music-stable-audio', 'music-ace-step', 'sfx-stable-audio'):continue
         if current_page_record['id'] in ('qwen-21-generator',):
             current_release_record = next(current_default_record for current_default_record in DEFAULT_PAGE_RECORDS if current_default_record['id'] == current_page_record['id'])
             current_page_record = {**current_page_record, 'label': current_release_record['label'], 'description': current_release_record['description']}

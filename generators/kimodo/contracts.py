@@ -106,7 +106,7 @@ def inspect_kimodo_assets():
     current_revision_path = KIMODO_SOURCE_ROOT.parent / 'PINNED_REVISION'
     if not current_revision_path.is_file() or current_revision_path.read_text().strip() != KIMODO_ASSET_CONFIG['source_revision']:
         current_missing_paths.append(str(current_revision_path))
-    for current_required_path in (KIMODO_ENVIRONMENT_PYTHON, KIMODO_MODEL_ROOT/'prepared.json', KIMODO_WORKSPACE_ROOT/'.local/blender-runtime/bin/python', KIMODO_WORKSPACE_ROOT/'assets/animation-models/anny-neutral-v4/anny-raw-rig.blend', KIMODO_CONFIG_ROOT/'anny-retarget.yaml', KIMODO_CONFIG_ROOT/'anny-render.yaml'):
+    for current_required_path in (KIMODO_ENVIRONMENT_PYTHON, KIMODO_MODEL_ROOT/'prepared.json'):
         if not current_required_path.is_file():
             current_missing_paths.append(str(current_required_path))
     current_prepared_path = KIMODO_MODEL_ROOT/'prepared.json'
@@ -128,8 +128,6 @@ def validate_kimodo_assets():
 
 def verify_kimodo_weights():
     validate_kimodo_assets()
-    from generators.kimodo.anny_export import verify_anny_resources
-    verify_anny_resources()
     for current_asset_record in KIMODO_ASSET_CONFIG['models']:
         for current_file_record in current_asset_record['files']:
             if current_file_record['sha256']:
