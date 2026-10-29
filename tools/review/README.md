@@ -24,12 +24,12 @@ tools/manager.py                  통합 CLI 진입점
      management_log_viewer.py    공용 로그 동작
    domains/
      character_animation/        스프라이트·앵커 편집·과거 기록 호환
-     hy_motion/                  모션 생성·ANNY 렌더·작업 서비스
+     kimodo/                     모션 생성·ANNY 렌더·작업 서비스
      anny/                       체형 속성·미리보기·렌더 API
      image/                      Qwen 이미지 API·참조 입력 검증
    ui/
      shared/                     공용 스타일·이력·진행·영역 이동
-     gradio/                     HY-Motion·VNCCS 등 현행 생성 화면
+     gradio/                     Kimodo·Qwen 등 현행 생성 화면
      anny/                       속성 화면·3D 뷰어
      image/                      텍스트·참조 이미지 생성 화면
      map/                        지도·타일 검수 템플릿
@@ -45,7 +45,7 @@ tools/manager.py                  통합 CLI 진입점
 - 도메인 공통 기능은 `common/`, 공통 화면 자원은 `ui/shared/`에 둔다. 다른 생성기의 작업 모듈에서 공용 함수를 가져오지 않는다.
 - UI 파일은 `resolve_review_ui_asset()`으로 조회한다. 파일명은 레지스트리에 명시하며 사용자 입력 경로를 파일 시스템 경로로 직접 사용하지 않는다.
 - 빌드 스크립트와 서버의 위치는 실행 계약이므로 유지한다. 서비스 실행 경로와 모델 실행 코드는 구분하며, 모델 실행기는 기존 `generators/` 도메인에 둔다.
-- MoMask 도메인·화면은 폐기했다. VNCCS 포즈 변환 서비스는 `domains/image/pose_transfer_generation.py`, 추론은 `generators/image/vnccs_runtime.py`에서 관리한다. 구형 AnyPose 생성 명령은 스프라이트·앵커 편집 서비스와 구분해 차단한다.
+- MoMask 도메인·화면은 폐기했다. VNCCS 포즈 변환 생성기·실행기·페이지는 2026-10-29 폐기했다. 구형 AnyPose 생성 명령은 스프라이트·앵커 편집 서비스와 구분해 차단한다.
 - 작가 에이전트는 기존 `generators/writer_agent/` 도메인에 있다. 이번 관리도구 소스 이동에 포함하지 않는다.
 
 ## 호환성과 운영
@@ -305,3 +305,5 @@ VACE 공용 작업자는 CUDA 초기화 전에 `expandable_segments:True`를 적
 ### 관리 화면 시작 시 맵 준비
 
 시작 메뉴는 DB의 맵 인덱스·이름을 한 번 조회하여 구성합니다. 렌더 크기 계산에는 맵 본문을 읽지 않습니다. 맵 본문·배치 검증은 `/management/map-assets/maps/<id>` 요청 시 수행합니다. 전체 맵 검수는 메뉴 생성 성공과 별개이며, 시작 시간 단축을 위해 검수 결과를 오래 캐시하지 않습니다.
+
+HY-Motion은 2026-10-29 폐기했다. 공용 ANNY 렌더는 `generators/animation/anny_render/`, YAML 검증은 `common/strict_yaml.py`로 분리하여 Kimodo·ANNY에서 사용한다.

@@ -2,7 +2,7 @@
 import json
 from urllib.parse import urlsplit
 
-RETIRED_MOMASK_MESSAGE = 'MoMask 포즈 생성기와 과거 기록은 폐기되었습니다. HY-Motion을 사용하세요.'
+RETIRED_MOMASK_MESSAGE = 'MoMask 포즈 생성기와 과거 기록은 폐기되었습니다. Kimodo를 사용하세요.'
 
 
 def reject_retired_record_access(generation_record_identifier):

@@ -7,7 +7,7 @@ import time
 import bpy
 from mathutils import Vector
 from bpy_extras.object_utils import world_to_camera_view
-from generators.hy_motion.official_shading import apply_official_shading
+from generators.animation.anny_render.official_shading import apply_official_shading
 
 CURRENT_STAGE_RECORD = globals()['export_stage_request']
 CURRENT_OUTPUT_DIRECTORY = Path(CURRENT_STAGE_RECORD['export_directory'])

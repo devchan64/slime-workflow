@@ -5,6 +5,7 @@ import importlib
 import io
 import os
 from types import SimpleNamespace
+from urllib.parse import parse_qs
 import logging
 
 from fastapi import FastAPI
@@ -13,7 +14,6 @@ import gradio as gr
 
 QWEN_INTERFACE_OPTIONS = {
     'billboard-generator': {'qwen21_mode_enabled': True, 'prop_mode_enabled': True, 'billboard_guide_enabled': True},
-    'pose-transfer-generator': {'qwen21_mode_enabled': True, 'pose_transfer_enabled': True},
     'outfit-transfer-generator': {'qwen21_mode_enabled': True, 'outfit_transfer_enabled': True},
     'vegetation-generator': {'qwen21_mode_enabled': True, 'vegetation_mode_enabled': True},
     'prop-generator': {'qwen21_mode_enabled': True, 'prop_mode_enabled': True},
@@ -26,7 +26,6 @@ MANAGEMENT_INTERFACE_BUILDERS = {
     'kimodo-generator': ('kimodo_app', 'build_kimodo_interface', 'url'),
     'wan22-vace-generator': ('wan_vace_app', 'build_vace_interface', 'url'),
     'wan22-animate-generator': ('wan_animate_app', 'build_animate_interface', 'url'),
-    'hy-motion-generator': ('hy_motion_app', 'build_hymotion_interface', 'url'),
     'animation-separation': ('animation_separation_app', 'build_separation_interface', 'url'),
     'wan22-fun-control-generator': ('wan_fun_app', 'build_fun_interface', 'url'),
     'map-review': ('map_review_app', 'build_map_review_interface', 'port'),
@@ -39,7 +38,7 @@ MANAGEMENT_INTERFACE_BUILDERS = {
     'anny-landmarks': ('anny_landmarks_app', 'build_landmark_interface', 'none'),
     'sprite-editor-v2': ('sprite_editor_v2_app', 'build_sprite_v2_interface', 'none'),
 }
-LEGACY_MANAGEMENT_PATHS = {'/hy-motion-generator/': 'hy-motion-generator', '/animation-separation/': 'animation-separation', '/image-generation-21/': 'qwen-21-generator', '/image-generation-21-circular/': 'qwen-21-circular-generator', '/pose-transfer/': 'pose-transfer-generator', '/outfit-transfer/': 'outfit-transfer-generator', '/vegetation-generator/': 'vegetation-generator', '/prop-generator/': 'prop-generator', '/billboard-generator/': 'billboard-generator', '/building-generator/': 'building-generator', '/anny-attributes/': 'anny-attributes', '/writer-agent/': 'writer-agent', '/character-animation/sprite-editor-v2': 'sprite-editor-v2'}
+LEGACY_MANAGEMENT_PATHS = {'/animation-separation/': 'animation-separation', '/image-generation-21/': 'qwen-21-generator', '/image-generation-21-circular/': 'qwen-21-circular-generator', '/outfit-transfer/': 'outfit-transfer-generator', '/vegetation-generator/': 'vegetation-generator', '/prop-generator/': 'prop-generator', '/billboard-generator/': 'billboard-generator', '/building-generator/': 'building-generator', '/anny-attributes/': 'anny-attributes', '/writer-agent/': 'writer-agent', '/character-animation/sprite-editor-v2': 'sprite-editor-v2'}
 MUSIC_INTERFACE_SERVICES = ('music-heartmula', 'sfx-dasheng-audiogen')
 
 
@@ -129,6 +128,13 @@ def build_management_application(current_handler_class, current_root_path, curre
 
     async def dispatch_management_request(current_request_scope, current_receive_call, current_send_call):
         current_request_path = current_request_scope['path']
+        current_query_values = parse_qs(current_request_scope.get('query_string', b'').decode())
+        if current_request_path.rstrip('/') == '/hy-motion-generator' or current_request_path.startswith(('/hy-motion-generator/', '/management/frame/hy-motion-generator')) or 'hy-motion-generator' in current_query_values.get('tool', []):
+            current_retired_response = Response('HY-Motion 생성기와 결과는 폐기되었습니다. Kimodo를 사용하세요.', status_code=410)
+            return await current_retired_response(current_request_scope, current_receive_call, current_send_call)
+        if current_request_path.rstrip('/') == '/pose-transfer' or current_request_path.startswith(('/pose-transfer/', '/management/frame/pose-transfer-generator')) or 'pose-transfer-generator' in current_query_values.get('tool', []):
+            current_retired_response = Response('포즈 변환 생성기와 결과는 폐기되었습니다.', status_code=410)
+            return await current_retired_response(current_request_scope, current_receive_call, current_send_call)
         current_tool_name = None
         current_mount_path = '/management'
         if current_request_path in LEGACY_MANAGEMENT_PATHS:

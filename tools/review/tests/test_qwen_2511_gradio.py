@@ -12,16 +12,9 @@ from tools.review.ui.gradio import qwen_2511_app
 
 
 class Qwen2511GradioTests(unittest.TestCase):
-    def test_vnccs_restore_rejects_unsupported_steps_before_loading(self):
-        from unittest.mock import patch
-        current_interface_blocks = qwen_2511_app.build_qwen_2511_interface('http://127.0.0.1:8770', qwen21_mode_enabled=True, pose_transfer_enabled=True)
-        current_restore_function = next(current_function.fn for current_function in current_interface_blocks.fns.values() if current_function.fn and current_function.fn.__name__ == 'restore_selected_inputs')
-        current_restore_callback = inspect.getclosurevars(current_restore_function).nonlocals['restore_input_callback']
-        with patch.object(qwen_2511_app, 'restore_reference_inputs') as current_reference_loader:
-            for current_invalid_steps in (30, None, True, 25.0, '40'):
-                with self.subTest(steps=current_invalid_steps), self.assertRaisesRegex(ValueError, 'VNCCS 스텝'):
-                    current_restore_callback({'request': {'vnccs': {}, 'steps': current_invalid_steps}})
-            current_reference_loader.assert_not_called()
+    def test_retired_pose_interface_rejected(self):
+        with self.assertRaisesRegex(ValueError, "폐기"):
+            qwen_2511_app.build_qwen_2511_interface("http://127.0.0.1:8770", qwen21_mode_enabled=True, pose_transfer_enabled=True)
 
     def test_expression_requires_at_least_one_reference(self):
         self.assertFalse(qwen_2511_app.check_expression_reference_readiness(None,None,None))
@@ -30,7 +23,7 @@ class Qwen2511GradioTests(unittest.TestCase):
             current_reference_values[current_slot_number]=Image.new('RGB',(8,8))
             self.assertTrue(qwen_2511_app.check_expression_reference_readiness(*current_reference_values))
         current_interface_blocks=qwen_2511_app.build_qwen_2511_interface('http://127.0.0.1:8770',expression_mode_enabled=True)
-        current_generate_button=next(current_component for current_component in current_interface_blocks.blocks.values() if isinstance(current_component,gr.Button) and current_component.value=='이미지 생성 시작')
+        current_generate_button=next(current_component for current_component in current_interface_blocks.blocks.values() if isinstance(current_component,gr.Button) and current_component.value=='대기열에 추가')
         self.assertFalse(current_generate_button.interactive)
         current_readiness_callback=next(current_function_value.fn for current_function_value in current_interface_blocks.fns.values() if current_function_value.fn and current_function_value.fn.__name__=='refresh_generation_readiness')
         self.assertIs(inspect.getclosurevars(current_readiness_callback).nonlocals['generation_readiness_callback'],qwen_2511_app.check_expression_reference_readiness)
@@ -109,7 +102,7 @@ class Qwen2511GradioTests(unittest.TestCase):
         self.assertFalse(qwen_2511_app.check_plain_prompt_readiness('word '*100,False,False))
         self.assertFalse(qwen_2511_app.check_plain_prompt_readiness('word '*99,False,True))
         current_interface_blocks=qwen_2511_app.build_qwen_2511_interface('http://127.0.0.1:8770',qwen21_mode_enabled=True)
-        current_generate_button=next(current_component for current_component in current_interface_blocks.blocks.values() if isinstance(current_component,gr.Button) and current_component.value=='이미지 생성 시작')
+        current_generate_button=next(current_component for current_component in current_interface_blocks.blocks.values() if isinstance(current_component,gr.Button) and current_component.value=='대기열에 추가')
         self.assertFalse(current_generate_button.interactive)
 
     def test_restore_rejects_cross_job_reference_links(self):

@@ -63,10 +63,7 @@ class GradioManagementMenuTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as current_temporary_directory:
             current_source_path = Path(current_temporary_directory) / 'pages.json'
             current_source_path.write_text(json.dumps({'pages': [{'id': 'pose-transfer-generator', 'label': '포즈 변환 생성기 · Alpha Ver.', 'path': '/pose-transfer/', 'category': 'animation-tool', 'description': 'Alpha Ver.'}]}))
-            current_release_record = next(current_page_record for current_page_record in load_manager_page_records(current_source_path) if current_page_record['id'] == 'pose-transfer-generator')
-            self.assertEqual(current_release_record['label'], '포즈 변환 생성기')
-            self.assertIn('정식', current_release_record['description'])
-            self.assertEqual(current_release_record['path'], '/pose-transfer/')
+            self.assertNotIn('pose-transfer-generator', [current_page_record['id'] for current_page_record in load_manager_page_records(current_source_path)])
 
     def setUp(self):
         self.page_record_values=[
@@ -79,10 +76,10 @@ class GradioManagementMenuTests(unittest.TestCase):
         self.assertEqual([record['id'] for record in filter_manager_page_records(self.page_record_values,'캐릭터','all')],['character-animation'])
 
     def test_preview_uses_native_tool_link_without_iframe(self):
-        current_page_records=[{'id':'hy-motion-generator','label':'HY-Motion','path':'/hy-motion-generator/','category':'animation-tool','description':'모션','uiMode':'gradio'}]
-        current_preview_markup=create_page_preview_html('hy-motion-generator',current_page_records,8770)
-        self.assertIn('/management/frame/hy-motion-generator/',current_preview_markup)
-        self.assertIn('HY-Motion',current_preview_markup)
+        current_page_records=[{'id':'kimodo-generator','label':'Kimodo','path':'/kimodo-generator/','category':'animation-tool','description':'모션','uiMode':'gradio'}]
+        current_preview_markup=create_page_preview_html('kimodo-generator',current_page_records,8770)
+        self.assertIn('/management/frame/kimodo-generator/',current_preview_markup)
+        self.assertIn('Kimodo',current_preview_markup)
         self.assertNotIn('iframe',current_preview_markup)
 
     def test_map_route_preserves_shared_application_and_query(self):

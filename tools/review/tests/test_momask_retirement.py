@@ -14,7 +14,7 @@ class MoMaskRetirementTests(unittest.TestCase):
         current_repository_root = Path(__file__).resolve().parents[3]
         for current_removed_path in ('generators/animation/render_momask_rig.py', 'generators/animation/resolve_default_rig.py', 'generators/animation/config/default_walk_rig.yaml', 'generators/momask/render_anny_frames.py', 'generators/momask/templates/render_asset.py'):
             self.assertFalse((current_repository_root / current_removed_path).exists())
-        for current_shared_path in ('generators/momask/templates/run_stage.py', 'generators/momask/templates/retarget_loop.py', 'generators/hy_motion/templates/vnccs_render.py'):
+        for current_shared_path in ('generators/momask/templates/run_stage.py', 'generators/momask/templates/retarget_loop.py', 'generators/animation/anny_render/vnccs_render.py'):
             self.assertTrue((current_repository_root / current_shared_path).is_file())
         from generators.momask.run_managed_generation import reject_retired_generation
         from generators.momask.resume_render import resume_render_frames

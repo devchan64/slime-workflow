@@ -16,9 +16,9 @@ import urllib.request
 from email.message import Message
 from urllib.parse import urlsplit, parse_qs
 
-MANAGEMENT_SERVICE_ROUTES = {'outfit-transfer': '/outfit-transfer', 'pose-transfer': '/pose-transfer', 'qwen-21-circular': '/image-generation-21-circular', 'animation-separation': '/animation-separation', 'qwen-21': '/image-generation-21', 'seamless-tile': '/seamless-tile-generator', 'expression': '/expression-generator', 'floor-tile': '/floor-tile-generator', 'anny': '/anny-attributes', 'character-animation': '/character-animation', 'momask': '/momask-generator', 'qwen-2512': '/image-generation', 'qwen-2511': '/image-generation-2511'}
+MANAGEMENT_SERVICE_ROUTES = {'outfit-transfer': '/outfit-transfer', 'qwen-21-circular': '/image-generation-21-circular', 'animation-separation': '/animation-separation', 'qwen-21': '/image-generation-21', 'seamless-tile': '/seamless-tile-generator', 'expression': '/expression-generator', 'floor-tile': '/floor-tile-generator', 'anny': '/anny-attributes', 'character-animation': '/character-animation', 'momask': '/momask-generator', 'qwen-2512': '/image-generation', 'qwen-2511': '/image-generation-2511'}
 MANAGEMENT_COMMAND_ROUTES = {'anchor-history-reset':('POST','/anchor/history/reset'),'anchor-save':('POST','/anchor/save'),'anchor-history':('POST','/anchor/history'),'anchor-load':('POST','/anchor/load'),'history-delete':('POST','/history/{id}/delete'),'pause':('POST','/pause'),'resume':('POST','/resume'),'sprite-source':('POST','/sprite/source'),'sprite-save':('POST','/sprite/save'),'sprite-load':('POST','/sprite/load'),'sprite-history':('POST','/sprite/history'),'sprite-history-reset':('POST','/sprite/history/reset'),'sprite-history-delete':('POST','/sprite/history/delete'),'record-alpha-vnccs':('POST','/alpha/vnccs/record'),'catalog':('GET','/catalog'),'generate':('POST','/jobs'),'queue':('POST','/jobs'),'prepare':('POST','/jobs'),'status':('GET','/jobs/{id}'),'logs':('GET','/jobs/{id}/worker.log'),'history':('GET','/history'),'active':('GET','/active'),'model-status':('GET','/model-status'),'cancel':('POST','/cancel'),'history-reset':('POST','/history/reset')}
-MANAGEMENT_SERVICE_COMMANDS = {'outfit-transfer': ('history-delete', 'resume', 'generate', 'status', 'logs', 'history', 'active', 'model-status', 'cancel', 'history-reset'), 'pose-transfer': ('history-delete', 'resume', 'generate', 'status', 'logs', 'history', 'active', 'model-status', 'cancel', 'history-reset'), 'qwen-21-circular': ('history-delete', 'resume', 'generate', 'status', 'logs', 'history', 'active', 'model-status', 'cancel', 'history-reset'), 'animation-separation': ('catalog', 'history-delete', 'resume', 'generate', 'status', 'logs', 'history', 'active', 'cancel', 'history-reset'), 'qwen-21': ('history-delete', 'resume', 'generate', 'status', 'logs', 'history', 'active', 'model-status', 'cancel', 'history-reset'), 'seamless-tile': ('pause', 'history-delete', 'resume', 'generate', 'status', 'logs', 'history', 'active', 'model-status', 'cancel', 'history-reset'), 'expression': ('history-delete', 'resume', 'generate', 'status', 'logs', 'history', 'active', 'model-status', 'cancel', 'history-reset'), 'floor-tile': ('history-delete', 'resume', 'catalog', 'generate', 'status', 'logs', 'history', 'active', 'model-status', 'cancel', 'history-reset'), 'anny': ('status', 'history', 'cancel', 'resume', 'history-delete', 'history-reset'), 'character-animation': ('anchor-save', 'anchor-history', 'anchor-load', 'anchor-history-reset', 'history-delete', 'resume', 'sprite-source', 'sprite-save', 'sprite-load', 'sprite-history', 'sprite-history-reset', 'sprite-history-delete', 'record-alpha-vnccs', 'catalog', 'generate', 'status', 'logs', 'history', 'active', 'cancel', 'history-reset'), 'momask': ('history-delete', 'resume', 'generate', 'status', 'logs', 'history', 'cancel', 'history-reset'), 'qwen-2512': ('history-delete', 'resume', 'generate', 'prepare', 'status', 'logs', 'history', 'active', 'model-status', 'cancel', 'history-reset'), 'qwen-2511': ('history-delete', 'resume', 'generate', 'status', 'logs', 'history', 'active', 'model-status', 'cancel', 'history-reset')}
+MANAGEMENT_SERVICE_COMMANDS = {'outfit-transfer': ('history-delete', 'resume', 'generate', 'status', 'logs', 'history', 'active', 'model-status', 'cancel', 'history-reset'), 'qwen-21-circular': ('history-delete', 'resume', 'generate', 'status', 'logs', 'history', 'active', 'model-status', 'cancel', 'history-reset'), 'animation-separation': ('catalog', 'history-delete', 'resume', 'generate', 'status', 'logs', 'history', 'active', 'cancel', 'history-reset'), 'qwen-21': ('history-delete', 'resume', 'generate', 'status', 'logs', 'history', 'active', 'model-status', 'cancel', 'history-reset'), 'seamless-tile': ('pause', 'history-delete', 'resume', 'generate', 'status', 'logs', 'history', 'active', 'model-status', 'cancel', 'history-reset'), 'expression': ('history-delete', 'resume', 'generate', 'status', 'logs', 'history', 'active', 'model-status', 'cancel', 'history-reset'), 'floor-tile': ('history-delete', 'resume', 'catalog', 'generate', 'status', 'logs', 'history', 'active', 'model-status', 'cancel', 'history-reset'), 'anny': ('status', 'history', 'cancel', 'resume', 'history-delete', 'history-reset'), 'character-animation': ('anchor-save', 'anchor-history', 'anchor-load', 'anchor-history-reset', 'history-delete', 'resume', 'sprite-source', 'sprite-save', 'sprite-load', 'sprite-history', 'sprite-history-reset', 'sprite-history-delete', 'record-alpha-vnccs', 'catalog', 'generate', 'status', 'logs', 'history', 'active', 'cancel', 'history-reset'), 'momask': ('history-delete', 'resume', 'generate', 'status', 'logs', 'history', 'cancel', 'history-reset'), 'qwen-2512': ('history-delete', 'resume', 'generate', 'prepare', 'status', 'logs', 'history', 'active', 'model-status', 'cancel', 'history-reset'), 'qwen-2511': ('history-delete', 'resume', 'generate', 'status', 'logs', 'history', 'active', 'model-status', 'cancel', 'history-reset')}
 
 
 MANAGEMENT_SERVICE_ROUTES['wan22-fun-control']='/wan22-fun-control'
@@ -39,9 +39,6 @@ ANNY_GENERATION_COMMAND_NAMES = ('anny-preview', 'anny-render')
 MANAGEMENT_SERVICE_COMMANDS['anny'] += ANNY_GENERATION_COMMAND_NAMES
 MANAGEMENT_COMMAND_ROUTES.update({'anny-preview': ('POST', '/preview'), 'anny-render': ('POST', '/render')})
 
-MANAGEMENT_SERVICE_ROUTES['hy-motion']='/hy-motion-generator'
-MANAGEMENT_SERVICE_COMMANDS['hy-motion']=('generate','export-vnccs','prepare','model-status','status','logs','history','cancel','resume','history-reset','history-delete')
-MANAGEMENT_COMMAND_ROUTES['export-vnccs']=('POST','/export/vnccs')
 MANAGEMENT_SERVICE_ROUTES['map-assets']='/map-assets'
 MANAGEMENT_SERVICE_COMMANDS['map-assets']=('resize','map-anchor-save','effect-list','effect-load','effect-save','asset-list','asset-preview','asset-save','asset-crop-preview','asset-crop','asset-retire-preview','asset-retire','map-edit-load','map-edit-preview','map-edit-save','database-seed','database-status','database-sync','database-snapshot','database-restore')
 MANAGEMENT_COMMAND_ROUTES.update({current_command_name:('POST','/'+current_command_name) for current_command_name in ('database-seed','database-status','database-sync','database-snapshot','database-restore')})
@@ -88,8 +85,12 @@ for current_service_name, current_command_names in tuple(MANAGEMENT_SERVICE_COMM
         MANAGEMENT_SERVICE_COMMANDS[current_service_name] += ('prioritize',)
 
 def resolve_management_command(service_command_name, operation_command_name, command_payload_value):
+    if service_command_name == 'pose-transfer':
+        raise ValueError('포즈 변환 생성기·모델·결과는 폐기되었습니다.')
+    if service_command_name == 'hy-motion':
+        raise ValueError('HY-Motion 모델·생성기·결과는 폐기되었습니다. Kimodo를 사용하세요.')
     if service_command_name == 'momask':
-        raise ValueError('MoMask 포즈 생성기와 과거 기록은 폐기되었습니다. HY-Motion을 사용하세요.')
+        raise ValueError('MoMask 포즈 생성기와 과거 기록은 폐기되었습니다. Kimodo를 사용하세요.')
     if service_command_name not in MANAGEMENT_SERVICE_COMMANDS or operation_command_name not in MANAGEMENT_SERVICE_COMMANDS[service_command_name]:
         raise ValueError('지원하지 않는 관리 명령')
     if not isinstance(command_payload_value,dict):
@@ -206,7 +207,7 @@ class ManagementCommandGateway:
         return True
 
 
-MANAGEMENT_COMMAND_DESCRIPTIONS = {'outfit-transfer': 'Qwen 2.1 복장 착용 · 참조 정확히 2장: 바디, 아웃핏 순서', 'pose-transfer': 'Qwen Image 2.1 포즈 변환 · 참조 정확히 2장: 아이덴티티, 포즈 순서', 'qwen-21-circular': 'Qwen 2.1 순환 VAE · XY 디코더 · 3×3 반복 검수', 'animation-separation': 'Qwen 2.1 참조 PNG 1장으로 신체 베이스·복장 독립 생성 · --reference', 'qwen-21': 'Qwen Image 2.1 · 공용 화풍·투명 배경 선택 · 참조 0~10장 · 20·30·40·50스텝 (기본 40)', 'seamless-tile': 'Qwen Image 2.1 · 40스텝 · 5단계 가로·세로 심리스 패턴 · 단계별 검수 대기 · pause/resume · 참조 생략 가능', 'expression': 'Qwen 2511 AU 표정 생성 · 참조 1~3장 · --expression에 표정 ID 지정', 'floor-tile': '512×512·4스텝 단일 바닥 타일 생성 (관리 서버 필요)', 'anny': 'ANNY 프리뷰·렌더 생성(--payload-file)·이력·중지·재개', 'character-animation': '생성기 폐기 · 기존 이력·결과 조회·스프라이트 편집 (generate/resume 거절)', 'momask': '폐기된 MoMask 도구 · 모든 명령 거절 · HY-Motion 사용', 'qwen-2512': 'Qwen 2512 텍스트 이미지 생성 (관리 서버 필요)', 'qwen-2511': 'Qwen 2511 텍스트·1~3장 참조 이미지 생성 (관리 서버 필요)'}
+MANAGEMENT_COMMAND_DESCRIPTIONS = {'outfit-transfer': 'Qwen 2.1 복장 착용 · 참조 정확히 2장: 바디, 아웃핏 순서', 'qwen-21-circular': 'Qwen 2.1 순환 VAE · XY 디코더 · 3×3 반복 검수', 'animation-separation': 'Qwen 2.1 참조 PNG 1장으로 신체 베이스·복장 독립 생성 · --reference', 'qwen-21': 'Qwen Image 2.1 · 공용 화풍·투명 배경 선택 · 참조 0~10장 · 20·30·40·50스텝 (기본 40)', 'seamless-tile': 'Qwen Image 2.1 · 40스텝 · 5단계 가로·세로 심리스 패턴 · 단계별 검수 대기 · pause/resume · 참조 생략 가능', 'expression': 'Qwen 2511 AU 표정 생성 · 참조 1~3장 · --expression에 표정 ID 지정', 'floor-tile': '512×512·4스텝 단일 바닥 타일 생성 (관리 서버 필요)', 'anny': 'ANNY 프리뷰·렌더 생성(--payload-file)·이력·중지·재개', 'character-animation': '생성기 폐기 · 기존 이력·결과 조회·스프라이트 편집 (generate/resume 거절)', 'momask': '폐기된 MoMask 도구 · 모든 명령 거절 · Kimodo 사용', 'qwen-2512': 'Qwen 2512 텍스트 이미지 생성 (관리 서버 필요)', 'qwen-2511': 'Qwen 2511 텍스트·1~3장 참조 이미지 생성 (관리 서버 필요)'}
 
 MANAGEMENT_COMMAND_DESCRIPTIONS['writer-agent']='작가 문서 학습·제안·조회·해시 확인 적용 · --payload-file · 기존 문서/기록 경로 유지'
 MANAGEMENT_COMMAND_DESCRIPTIONS['map-assets']='맵 PNG 축소·투명 여백 크롭(asset-crop-preview / asset-crop)·빌보드 속성·야외 맵 편집 · map-edit-load / map-edit-preview / map-edit-save / asset-list(category: vegetation·herbaceous·large-trees·rocks-minerals·props) / asset-preview / asset-save / asset-retire-preview / asset-retire / database-seed / database-status / database-sync / database-restore --payload-file'
@@ -226,8 +227,6 @@ MANAGEMENT_COMMAND_DESCRIPTIONS['music-heartmula']='HeartMuLa 3B · 입력 페�
 MANAGEMENT_COMMAND_DESCRIPTIONS['music-magenta']='Magenta RT2 Small 실험 · ONNX CUDA 인코더·JAX 음악 생성'
 MANAGEMENT_COMMAND_DESCRIPTIONS['sfx-dasheng-audiogen']='효과음 생성 · Dasheng-AudioGen · CUDA · 길이 자동 예측 · 16kHz mono WAV'
 
-MANAGEMENT_COMMAND_DESCRIPTIONS['hy-motion']='HY-Motion Lite 원본 모션 · CPU 메모리 오프로드 / CUDA 연산 · 준비·생성·ANNY VNCCS 출력(export-vnccs --payload-file)·이력·취소·재개'
-MANAGEMENT_COMMAND_DESCRIPTIONS['pose-transfer']='VNCCS V1.1 · Qwen 2.1 공식 파이프라인 · BF16 비양자화 · 512px 고정·25/40스텝 선택(기본 40) · 업로드 아이덴티티→포즈, 모델 전달 포즈→아이덴티티 · 부분 추종 경고'
 
 MANAGEMENT_COMMAND_DESCRIPTIONS['wan22-fun-control']='Wan2.2 Fun Control Q4 · 참조 1장+제어 프레임 · --payload-file'
 MANAGEMENT_COMMAND_DESCRIPTIONS['kimodo']='Kimodo SOMA v1.2 · NF4 텍스트 인코더 · 원본 관절 모션·미리보기 · --payload-file'
@@ -317,34 +316,24 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
                 current_reference_group.add_argument('--reference',type=Path,help='캐릭터 참조 PNG 한 장 · 단일 방향 생성')
                 operation_argument_parser.add_argument('--source',choices=('openpose','anny'),default='anny')
                 operation_argument_parser.add_argument('--directions',nargs='+',choices=('down_left','down_right','up_left','up_right'),default=['down_left'],help='생성 방향 (기본: 전방 좌측만)')
-            elif service_command_name=='hy-motion':
-                from generators.hy_motion.contracts import load_generation_defaults, SUPPORTED_DIRECTION_NAMES
-                current_default_values=load_generation_defaults()
-                current_prompt_group=operation_argument_parser.add_mutually_exclusive_group(required=True)
-                current_prompt_group.add_argument('--prompt')
-                current_prompt_group.add_argument('--prompt-file',type=Path)
-                operation_argument_parser.add_argument('--duration-seconds',type=float,default=current_default_values['duration_seconds'])
-                operation_argument_parser.add_argument('--frame-step',type=int,default=5,help='렌더 프레임 간격 · 원본 30FPS / 기본 5')
-                operation_argument_parser.add_argument('--seed',type=int,default=current_default_values['seed'])
-                operation_argument_parser.add_argument('--directions',nargs='+',choices=SUPPORTED_DIRECTION_NAMES,default=current_default_values['directions'])
             elif service_command_name=='momask':
                 operation_argument_parser.add_argument('--action',choices=('standing','walking','resting','custom'),required=True)
                 operation_argument_parser.add_argument('--prompt',help='커스텀 포즈의 모션 스크립트')
                 operation_argument_parser.add_argument('--frames',type=int,help='원본 모션 프레임 길이 · 8 이상 4의 배수')
                 operation_argument_parser.add_argument('--directions',nargs='+',choices=('down_left','down_right','up_left','up_right'),default=['down_left','down_right','up_left','up_right'])
             else:
-                prompt_argument_group=operation_argument_parser.add_mutually_exclusive_group(required=service_command_name not in ('pose-transfer','outfit-transfer'))
+                prompt_argument_group=operation_argument_parser.add_mutually_exclusive_group(required=service_command_name not in ('outfit-transfer',))
                 if service_command_name == 'expression':
                     from tools.review.domains.image.expression_generation import load_expression_configuration
                     prompt_argument_group.add_argument('--expression','--prompt',dest='prompt',choices=[current_expression_record['id'] for current_expression_record in load_expression_configuration()['expressions']],help='표정 프리셋 ID (AU 참고 기반)')
                 else:
-                    if service_command_name in ('pose-transfer','outfit-transfer'):
-                        operation_argument_parser.add_argument('--resolution',type=int,choices=(512,) if service_command_name=='pose-transfer' else (512,768),default=512 if service_command_name=='pose-transfer' else 768,help='VNCCS 512 고정' if service_command_name=='pose-transfer' else '정사각형 해상도 (기본 768)')
+                    if service_command_name in ('outfit-transfer',):
+                        operation_argument_parser.add_argument('--resolution',type=int,choices=(512,768),default=768,help='정사각형 해상도 (기본 768)')
                     prompt_argument_group.add_argument('--prompt')
                 prompt_argument_group.add_argument('--prompt-file',type=Path,help='UTF-8 프롬프트 파일')
-                operation_argument_parser.add_argument('--width',type=int,default=None if service_command_name=='seamless-tile' else 512 if service_command_name=='qwen-21-circular' else 768 if service_command_name in ('billboard-generator','prop-generator','vegetation-generator','building-generator','qwen-21','pose-transfer','outfit-transfer') else 512 if service_command_name in ('qwen-2511','expression','floor-tile') else 1024)
-                operation_argument_parser.add_argument('--height',type=int,default=None if service_command_name=='seamless-tile' else 512 if service_command_name=='qwen-21-circular' else 768 if service_command_name in ('billboard-generator','prop-generator','vegetation-generator','building-generator','qwen-21','pose-transfer','outfit-transfer') else 512 if service_command_name in ('qwen-2511','expression','floor-tile') else 1024)
-                operation_argument_parser.add_argument('--steps',type=int,choices=(25,40) if service_command_name=='pose-transfer' else (20,30,40,50) if service_command_name in ('billboard-generator','prop-generator','vegetation-generator','building-generator','qwen-21','qwen-21-circular','outfit-transfer') else (40,) if service_command_name=='seamless-tile' else (4,) if service_command_name=='floor-tile' else (4,30),default=40 if service_command_name in ('seamless-tile','billboard-generator','prop-generator','vegetation-generator','building-generator','qwen-21','qwen-21-circular','pose-transfer','outfit-transfer') else 4)
+                operation_argument_parser.add_argument('--width',type=int,default=None if service_command_name=='seamless-tile' else 512 if service_command_name=='qwen-21-circular' else 768 if service_command_name in ('billboard-generator','prop-generator','vegetation-generator','building-generator','qwen-21','outfit-transfer') else 512 if service_command_name in ('qwen-2511','expression','floor-tile') else 1024)
+                operation_argument_parser.add_argument('--height',type=int,default=None if service_command_name=='seamless-tile' else 512 if service_command_name=='qwen-21-circular' else 768 if service_command_name in ('billboard-generator','prop-generator','vegetation-generator','building-generator','qwen-21','outfit-transfer') else 512 if service_command_name in ('qwen-2511','expression','floor-tile') else 1024)
+                operation_argument_parser.add_argument('--steps',type=int,choices=(20,30,40,50) if service_command_name in ('billboard-generator','prop-generator','vegetation-generator','building-generator','qwen-21','qwen-21-circular','outfit-transfer') else (40,) if service_command_name=='seamless-tile' else (4,) if service_command_name=='floor-tile' else (4,30),default=40 if service_command_name in ('seamless-tile','billboard-generator','prop-generator','vegetation-generator','building-generator','qwen-21','qwen-21-circular','outfit-transfer') else 4)
                 if service_command_name in ('billboard-generator','prop-generator','vegetation-generator','building-generator','qwen-21'):
                     operation_argument_parser.add_argument('--common-style', action=argparse.BooleanOptionalAction, default=False, help='SLIME 공용 화풍 추가')
                     operation_argument_parser.add_argument('--transparent-background', action=argparse.BooleanOptionalAction, default=False, help='네이티브 RGBA 투명 배경 요청')
@@ -353,12 +342,11 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
                     operation_argument_parser.add_argument('--pattern-view', action=argparse.BooleanOptionalAction, default=True, help='Top view. Repeat pattern. Close-up 추가')
                     operation_argument_parser.add_argument('--soft-shading', action=argparse.BooleanOptionalAction, default=False, help='부드러운 음영 일러스트 영문 지시 추가')
                     operation_argument_parser.add_argument('--circular-radius', type=int, choices=(4,8,12,16,24), default=12, help='순환 참조 반경 · 토큰')
-                from generators.image.vnccs_profile import VNCCS_DEFAULT_SEED
-                operation_argument_parser.add_argument('--seed',type=int,default=VNCCS_DEFAULT_SEED if service_command_name == 'pose-transfer' else 10107 if service_command_name in ('qwen-2511','expression','seamless-tile','billboard-generator','prop-generator','vegetation-generator','building-generator','qwen-21','qwen-21-circular','outfit-transfer') else 251204)
+                operation_argument_parser.add_argument('--seed',type=int,default=10107 if service_command_name in ('qwen-2511','expression','seamless-tile','billboard-generator','prop-generator','vegetation-generator','building-generator','qwen-21','qwen-21-circular','outfit-transfer') else 251204)
                 if service_command_name=='floor-tile':
                     operation_argument_parser.add_argument('--add-margins',action=argparse.BooleanOptionalAction,default=None,help='빈 여백 추가 ON/OFF (--no-add-margins로 OFF, 생략 시 서버 기본값)')
-                if service_command_name in ('qwen-2511','expression','seamless-tile','billboard-generator','prop-generator','vegetation-generator','building-generator','qwen-21','qwen-21-circular','pose-transfer','outfit-transfer'):
-                    operation_argument_parser.add_argument('--reference',type=Path,action='append',default=[],help='임의 해상도의 불투명 RGB/RGBA PNG, 장당 3MB 이하, 최대 '+('10' if service_command_name in ('billboard-generator','prop-generator','vegetation-generator','building-generator','qwen-21','qwen-21-circular','pose-transfer','outfit-transfer') else '3')+'장')
+                if service_command_name in ('qwen-2511','expression','seamless-tile','billboard-generator','prop-generator','vegetation-generator','building-generator','qwen-21','qwen-21-circular','outfit-transfer'):
+                    operation_argument_parser.add_argument('--reference',type=Path,action='append',default=[],help='임의 해상도의 불투명 RGB/RGBA PNG, 장당 3MB 이하, 최대 '+('10' if service_command_name in ('billboard-generator','prop-generator','vegetation-generator','building-generator','qwen-21','qwen-21-circular','outfit-transfer') else '3')+'장')
     command_argument_values=command_argument_parser.parse_args(command_argument_list)
     server_base_address=command_argument_values.server_url
     if server_base_address is not None:
@@ -411,16 +399,14 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
             if command_argument_values.target_fps is not None:command_payload_value['target_fps']=command_argument_values.target_fps
             if command_argument_values.start_frame is not None:command_payload_value['start_frame']=command_argument_values.start_frame
             if command_argument_values.end_frame is not None:command_payload_value['end_frame']=command_argument_values.end_frame
-        elif service_command_name=='hy-motion':
-            command_payload_value={'prompt':command_argument_values.prompt if command_argument_values.prompt is not None else command_argument_values.prompt_file.read_text(encoding='utf-8'),'duration_seconds':command_argument_values.duration_seconds,'seed':command_argument_values.seed,'directions':command_argument_values.directions,'tag':command_argument_values.tag,'frame_step':command_argument_values.frame_step}
         elif service_command_name=='momask':
             command_payload_value={'action':command_argument_values.action,'directions':command_argument_values.directions,'face':command_argument_values.face}
             if command_argument_values.frames is not None:command_payload_value['frames']=command_argument_values.frames
             if command_argument_values.prompt is not None:command_payload_value['prompt']=command_argument_values.prompt
             if command_argument_values.tag:command_payload_value['tag']=command_argument_values.tag
         else:
-            command_payload_value={'action':'generate','prompt':command_argument_values.prompt if command_argument_values.prompt is not None else command_argument_values.prompt_file.read_text(encoding='utf-8') if command_argument_values.prompt_file else (__import__('tools.review.domains.image.outfit_transfer_generation',fromlist=['load_outfit_transfer_prompt']).load_outfit_transfer_prompt() if service_command_name=='outfit-transfer' else __import__('tools.review.domains.image.pose_transfer_generation',fromlist=['load_pose_transfer_prompt']).load_pose_transfer_prompt()),'width':command_argument_values.width,'height':command_argument_values.height,'steps':command_argument_values.steps,'seed':command_argument_values.seed}
-            if service_command_name in ('pose-transfer','outfit-transfer'):
+            command_payload_value={'action':'generate','prompt':command_argument_values.prompt if command_argument_values.prompt is not None else command_argument_values.prompt_file.read_text(encoding='utf-8') if command_argument_values.prompt_file else (__import__('tools.review.domains.image.outfit_transfer_generation',fromlist=['load_outfit_transfer_prompt']).load_outfit_transfer_prompt()),'width':command_argument_values.width,'height':command_argument_values.height,'steps':command_argument_values.steps,'seed':command_argument_values.seed}
+            if service_command_name in ('outfit-transfer',):
                 command_payload_value['width']=command_argument_values.resolution
                 command_payload_value['height']=command_argument_values.resolution
             if service_command_name=='seamless-tile':
@@ -440,10 +426,10 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
                 command_payload_value['soft_shading'] = command_argument_values.soft_shading
                 command_payload_value['pattern_view'] = command_argument_values.pattern_view
                 command_payload_value['baseline_decode'] = command_argument_values.baseline_decode
-            if service_command_name in ('qwen-2511','expression','seamless-tile','billboard-generator','prop-generator','vegetation-generator','building-generator','qwen-21','qwen-21-circular','pose-transfer','outfit-transfer'):
-                if service_command_name in ('pose-transfer','outfit-transfer') and len(command_argument_values.reference) != 2:
+            if service_command_name in ('qwen-2511','expression','seamless-tile','billboard-generator','prop-generator','vegetation-generator','building-generator','qwen-21','qwen-21-circular','outfit-transfer'):
+                if service_command_name in ('outfit-transfer',) and len(command_argument_values.reference) != 2:
                     raise ValueError('바디 이미지와 아웃핏 이미지를 --reference로 순서대로 지정하세요.' if service_command_name == 'outfit-transfer' else '아이덴티티 이미지 1장과 포즈 이미지 1장이 필요합니다. --reference를 순서대로 두 번 지정하세요.')
-                maximum_reference_count = 10 if service_command_name in ('billboard-generator','prop-generator','vegetation-generator','building-generator','qwen-21','qwen-21-circular','pose-transfer','outfit-transfer') else 3
+                maximum_reference_count = 10 if service_command_name in ('billboard-generator','prop-generator','vegetation-generator','building-generator','qwen-21','qwen-21-circular','outfit-transfer') else 3
                 if len(command_argument_values.reference) > maximum_reference_count:
                     raise ValueError(f'참조 이미지는 최대 {maximum_reference_count}장입니다.')
                 command_payload_value['images']=[]
@@ -486,7 +472,7 @@ def execute_gateway_cli(command_argument_list=None):
             management_argument_parser.print_help()
             for service_command_name, service_description_text in MANAGEMENT_COMMAND_DESCRIPTIONS.items():
                 print(f'  {service_command_name}: {service_description_text}')
-            print('\n예: python3 tools/manager.py help hy-motion generate')
+            print('\n예: python3 tools/manager.py help kimodo generate')
             return 0
         return execute_gateway_arguments(management_argument_values.service,management_argument_values.arguments+['--help'])
     return execute_gateway_arguments(management_argument_values.service,management_argument_values.arguments)

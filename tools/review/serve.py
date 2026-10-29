@@ -379,9 +379,17 @@ def run_review_server(parsed_argument_values):
         def __init__(self,*request_handler_arguments,**request_handler_options):
             super().__init__(*request_handler_arguments,directory=str(review_root_directory),**request_handler_options)
         def reject_retired_generator(self):
+            current_pose_request = urlsplit(self.path)
+            if current_pose_request.path.rstrip('/') == '/pose-transfer' or current_pose_request.path.startswith(('/pose-transfer/', '/management/frame/pose-transfer-generator')) or 'pose-transfer-generator' in parse_qs(current_pose_request.query).get('tool', []):
+                self.send_error(410, 'Pose transfer has been retired.')
+                return True
+            current_hymotion_request = urlsplit(self.path)
+            if current_hymotion_request.path.rstrip('/') == '/hy-motion-generator' or current_hymotion_request.path.startswith(('/hy-motion-generator/', '/management/frame/hy-motion-generator')) or 'hy-motion-generator' in parse_qs(current_hymotion_request.query).get('tool', []):
+                self.send_error(410, 'HY-Motion has been retired. Use Kimodo.')
+                return True
             current_momask_request = urlsplit(self.path)
             if current_momask_request.path.rstrip('/') == '/momask-generator' or current_momask_request.path.startswith(('/momask-generator/', '/management/frame/momask-generator')) or 'momask-generator' in parse_qs(current_momask_request.query).get('tool', []):
-                self.send_error(410, 'MoMask has been retired. Use HY-Motion.')
+                self.send_error(410, 'MoMask has been retired. Use Kimodo.')
                 return True
             current_retired_request = urlsplit(self.path)
             if current_retired_request.path.rstrip('/') in ('/character-animation', '/management/frame/character-animation') or current_retired_request.path.startswith('/management/frame/character-animation/') or 'character-animation' in parse_qs(current_retired_request.query).get('tool', []):

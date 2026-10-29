@@ -28,9 +28,8 @@ def execute_qwen_reference_worker():
     try:
         current_request_record = json.loads((current_job_root / 'request.json').read_text())
         verify_reference_snapshots(current_job_root, current_request_record)
-        if current_job_root.parent.name == 'pose-transfer':
-            from tools.review.domains.image.pose_transfer_generation import validate_pose_transfer_contract
-            validate_pose_transfer_contract(current_request_record, saved_request_enabled=True)
+        if current_job_root.parent.name == 'pose-transfer' or 'vnccs' in current_request_record:
+            raise ValueError('포즈 변환 생성기는 폐기되었습니다.')
         if current_job_root.parent.name == 'outfit-transfer':
             from tools.review.domains.image.outfit_transfer_generation import validate_outfit_transfer_contract
             validate_outfit_transfer_contract(current_request_record, saved_request_enabled=True)
@@ -52,13 +51,7 @@ def execute_qwen_reference_worker():
             else:
                 if seamless_generation_enabled:
                     current_reference_paths = [prepare_seamless_reference(current_job_root, current_request_record)]
-                if 'vnccs' in current_request_record:
-                    if current_job_root.parent.name != 'pose-transfer':
-                        raise ValueError('VNCCS 실행 설정은 포즈 변환 작업에서만 허용합니다.')
-                    from generators.image.vnccs_runtime import execute_vnccs_generation
-                    execute_vnccs_generation(current_job_root, current_request_record)
-                else:
-                    execute_qwen_reference_generation(current_job_root, current_request_record, current_reference_paths)
+                execute_qwen_reference_generation(current_job_root, current_request_record, current_reference_paths)
                 if seamless_generation_enabled:
                     finish_seamless_generation(current_job_root, current_request_record)
         if not (current_job_root/'stage-pause.json').exists():

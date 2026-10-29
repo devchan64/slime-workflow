@@ -25,7 +25,6 @@ MUSIC_REGRESSION_MODULES = (
     'tools.review.tests.test_management_runtime',
     'tools.review.tests.test_management_menu_gradio',
     'tools.review.tests.test_hy_motion',
-    'tools.review.tests.test_pose_transfer_generation',
     'tools.review.tests.test_qwen_commands',
 )
 

@@ -33,7 +33,7 @@ class ManagementSinglePortTests(unittest.TestCase):
                 with TestClient(current_app_value) as current_test_client:
                     self.assertEqual(current_test_client.get('/test.txt').text, '검수 파일')
                     self.assertEqual(current_test_client.get('/', follow_redirects=False).headers['location'], '/management/')
-                    for current_tool_name in ('billboard-generator','pose-transfer-generator'):
+                    for current_tool_name in ('billboard-generator','outfit-transfer-generator'):
                         current_route_prefix = '/management/frame/' + current_tool_name
                         self.assertEqual(current_test_client.get(current_route_prefix+'/').status_code, 200)
                         self.assertEqual(current_test_client.get(current_route_prefix+'/config').status_code, 200)

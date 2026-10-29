@@ -128,8 +128,8 @@ class CleanupPreviewTests(unittest.TestCase):
             (current_job_root/'status.json').write_text('{"status":"completed"}')
             self.assertEqual(current_service_instance.preview_generation_cleanup()['job_count'],1)
             self.assertTrue(current_job_root.exists())
-        self.assertEqual(resolve_management_command('pose-transfer','history-reset-preview',{}),('GET','/pose-transfer/history/reset-preview'))
-        with self.assertRaises(ValueError):resolve_management_command('pose-transfer','history-reset-preview',{'action':'reset'})
+        self.assertEqual(resolve_management_command('outfit-transfer','history-reset-preview',{}),('GET','/outfit-transfer/history/reset-preview'))
+        with self.assertRaises(ValueError):resolve_management_command('outfit-transfer','history-reset-preview',{'action':'reset'})
 
 
 class AnnyCleanupPreviewTests(unittest.TestCase):
@@ -173,10 +173,9 @@ class CleanupServiceSnapshotTests(unittest.TestCase):
     def test_service_reset_rejects_jobs_created_after_empty_preview(self):
         from contextlib import ExitStack
         from tools.review.domains.image.image_generation import ImageGenerationManager
-        from tools.review.domains.hy_motion import jobs as current_hymotion_module
         from tools.review.domains.anny import anny_attributes as current_anny_module
         from tools.review.domains.music.generation import MusicGenerationManager
-        for current_service_name in ('image','hy-motion','anny','music'):
+        for current_service_name in ('image','anny','music'):
             with self.subTest(service=current_service_name), tempfile.TemporaryDirectory() as current_directory_name, ExitStack() as current_patch_stack:
                 current_storage_root=Path(current_directory_name)/'jobs'
                 current_history_root=Path(current_directory_name)/'history'
@@ -188,12 +187,6 @@ class CleanupServiceSnapshotTests(unittest.TestCase):
                     current_patch_stack.enter_context(patch.object(current_service_instance,'history_storage_path',return_value=current_history_root))
                     current_reset_callback=lambda:current_service_instance.reset_generation_history([])
                     self.assertEqual(current_service_instance.preview_generation_cleanup()['jobs'],[])
-                elif current_service_name=='hy-motion':
-                    current_job_relative='2026-10-15_00-00-00/12345678'
-                    current_patch_stack.enter_context(patch.object(current_hymotion_module,'GENERATION_STORAGE_ROOT',current_storage_root))
-                    current_patch_stack.enter_context(patch.object(current_hymotion_module,'GENERATION_HISTORY_ROOT',current_history_root))
-                    current_reset_callback=lambda:current_hymotion_module.execute_hymotion_command('history-reset',current_reset_payload)
-                    self.assertEqual(current_hymotion_module.execute_hymotion_command('history-reset-preview',{})['jobs'],[])
                 elif current_service_name=='anny':
                     current_job_relative='12345678'
                     current_patch_stack.enter_context(patch.object(current_anny_module,'JOBS',current_storage_root))
@@ -221,7 +214,6 @@ class ImageFamilyCleanupContractTests(unittest.TestCase):
             ('image.image_generation', 'ImageGenerationManager'),
             ('image.qwen_21_generation', 'QwenPlainGenerationManager'),
             ('image.expression_generation', 'ExpressionGenerationManager'),
-            ('image.pose_transfer_generation', 'PoseTransferGenerationManager'),
             ('image.outfit_transfer_generation', 'OutfitTransferGenerationManager'),
             ('image.qwen_circular_generation', 'QwenCircularGenerationManager'),
             ('image.animation_separation', 'AnimationSeparationManager'),

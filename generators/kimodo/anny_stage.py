@@ -17,6 +17,6 @@ if current_stage_name=='retarget':
 elif current_stage_name=='render':
     import bpy
     bpy.ops.wm.open_mainfile(filepath=str(current_retarget_root/'mannequin.blend'))
-    runpy.run_path(str(CURRENT_WORKSPACE_ROOT/'generators/hy_motion/templates/vnccs_render.py'),init_globals={'export_stage_request':current_stage_record,'prepared_body_object':bpy.data.objects['AnnyAttributesBody']},run_name='__main__')
+    runpy.run_path(str(CURRENT_WORKSPACE_ROOT/'generators/animation/anny_render/vnccs_render.py'),init_globals={'export_stage_request':current_stage_record,'prepared_body_object':bpy.data.objects['AnnyAttributesBody']},run_name='__main__')
 else:
     raise ValueError('지원하지 않는 Kimodo ANNY 단계')

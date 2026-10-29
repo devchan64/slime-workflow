@@ -10,7 +10,7 @@ from zoneinfo import ZoneInfo
 import numpy as np
 import yaml
 
-from generators.hy_motion.contracts import UniqueConfigLoader
+from tools.review.common.strict_yaml import UniqueConfigLoader
 from tools.review.common.management_transport import send_management_json_response
 
 WORKFLOW_ROOT_DIRECTORY = Path(__file__).resolve().parents[4]

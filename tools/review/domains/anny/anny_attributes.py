@@ -5,7 +5,7 @@ from tools.review.common.generation_cleanup import delete_generation_job_files, 
 from tools.review.common.gpu_job_queue import launch_gpu_process, cancel_gpu_generation, resume_gpu_generation
 from tools.review.common.queue_generation_telemetry import read_queue_generation_metrics
 from tools.review.ui_assets import resolve_review_ui_asset
-from generators.hy_motion.contracts import UniqueConfigLoader
+from tools.review.common.strict_yaml import UniqueConfigLoader
 from generators.animation.anny_attribute_contract import validate_anny_attribute_structure
 from urllib.parse import urlsplit
 import json, subprocess, threading, uuid, re, math, yaml

@@ -1,7 +1,7 @@
 """Blender 런타임에서 공식 셰이딩 노드와 포즈 보존을 검증한다."""
 import importlib.util
 import unittest
-from generators.hy_motion.official_shading import apply_official_shading, OFFICIAL_SHADING_VERSION
+from generators.animation.anny_render.official_shading import apply_official_shading, OFFICIAL_SHADING_VERSION
 
 
 @unittest.skipUnless(importlib.util.find_spec('bpy'), 'Blender Python 런타임에서 실행')

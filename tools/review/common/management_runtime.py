@@ -64,12 +64,9 @@ def bind_stored_management_service(request_handler_callback, record_storage_root
 
 
 def create_management_runtime(writer_workspace_config=None):
-    from tools.review.domains.hy_motion.service import handle_hymotion_request
-    from tools.review.domains.hy_motion.jobs import GENERATION_STORAGE_ROOT as HYMOTION_STORAGE_ROOT, resolve_generation_directory as resolve_hymotion_directory
     from tools.review.domains.image.image_generation import ImageGenerationManager
     from tools.review.domains.image.seamless_generation import SeamlessGenerationManager
     from tools.review.domains.image.qwen_circular_generation import QwenCircularGenerationManager
-    from tools.review.domains.image.pose_transfer_generation import PoseTransferGenerationManager
     from tools.review.domains.image.outfit_transfer_generation import OutfitTransferGenerationManager
     from tools.review.domains.image.qwen_21_generation import QwenPlainGenerationManager
     from tools.review.domains.image.billboard_generation import BillboardGuideGenerationManager
@@ -111,7 +108,6 @@ def create_management_runtime(writer_workspace_config=None):
         prop_generation_service = PropGenerationManager()
         vegetation_generation_service = VegetationGenerationManager()
         building_generation_service = BuildingGenerationManager()
-        pose_transfer_service = PoseTransferGenerationManager()
         outfit_transfer_service = OutfitTransferGenerationManager()
         animation_separation_service = AnimationSeparationManager()
         expression_generation_service = ExpressionGenerationManager()
@@ -129,12 +125,10 @@ def create_management_runtime(writer_workspace_config=None):
             'wan22-vace': bind_stored_management_service(vace_generation_service.handle_image_request,vace_generation_service.job_storage_root),
             'wan22-animate': bind_stored_management_service(animate_generation_service.handle_image_request,animate_generation_service.job_storage_root),
             'anny-landmarks': bind_stored_management_service(handle_landmark_request, LANDMARK_STORAGE_DIRECTORY),
-            'hy-motion': ManagementServiceBinding(handle_hymotion_request, HYMOTION_STORAGE_ROOT, resolve_hymotion_directory),
             'map-assets': bind_stored_management_service(handle_map_resize_request,RESIZE_STORAGE_DIRECTORY),
             'map-review': bind_stored_management_service(handle_map_capture_request,CAPTURE_STORAGE_DIRECTORY),
             'character-review': bind_stored_management_service(handle_character_capture_request,CAPTURE_STORAGE_DIRECTORY),
             'outfit-transfer': bind_stored_management_service(outfit_transfer_service.handle_image_request, outfit_transfer_service.job_storage_root),
-            'pose-transfer': bind_stored_management_service(pose_transfer_service.handle_image_request, pose_transfer_service.job_storage_root),
             'animation-separation': bind_stored_management_service(animation_separation_service.handle_image_request, animation_separation_service.job_storage_root),
             'qwen-21-circular': bind_stored_management_service(qwen_circular_service.handle_image_request, qwen_circular_service.job_storage_root),
             'billboard-generator': bind_stored_management_service(billboard_generation_service.handle_image_request, billboard_generation_service.job_storage_root),

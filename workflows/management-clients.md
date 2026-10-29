@@ -1,5 +1,9 @@
 # 관리도구 GUI·CLI 클라이언트
 
+> 2026-10-29: `pose-transfer` 포즈 변환 생성기도 폐기했다. 아래 과거 검수 설명의 VNCCS 명령은 현행 지원 기능이 아니다. Qwen 일반 이미지 생성과 복장 착용은 유지한다.
+
+> 2026-10-29: HY-Motion 서비스·페이지·모델·결과는 폐기했다. 아래 HY-Motion 관련 과거 설명은 현행 명령이 아니며 실행할 수 없다. 현행 텍스트 모션 생성은 이 문서의 Kimodo 절을 따른다. 등록된 걷기 참조 에셋은 보존한다.
+
 ## 공용 대기열 우선 실행
 
 `python tools/manager.py command hy-motion prioritize <생성-ID>`로 선택한 GPU 대기 작업을 맨 앞으로 이동한다. 재개를 지원하는 다른 서비스도 같은 `prioritize` 계약을 사용한다. GUI의 공용 생성이력 `우선 실행`과 같은 명령이며 실행 중 작업은 선점하지 않는다. 대기 티켓 등록 전·실행 예약 후·중지 요청 상태는 거절한다. GPU 메모리 조건은 그대로 적용된다. 미전환 독립 화면은 별도 연결이 필요하다.
@@ -23,7 +27,6 @@ HY-Motion이 사용하는 리타기팅·스키닝·Blender 단계 실행 코드�
 GUI 업로드와 CLI 참조 순서는 기존처럼 **아이덴티티 → 포즈**다. 실행기가 모델 입력만 **포즈 image1 → 아이덴티티 image2**로 바꾼다. 참조 파일 저장 순서와 과거 이력은 변경하지 않는다.
 
 ```bash
-python3 tools/manager.py command pose-transfer generate --reference /path/identity.png --reference /path/pose.png --resolution 512 --steps 40 --seed 204801 --detach
 ```
 
 GUI·CLI → 공용 게이트웨이 → 기존 이미지 작업 서비스·GPU 대기열 구조를 유지한다. 작업은 `.tmp/test/pose-transfer/<생성ID>/`에 저장하고 `request.json`의 `vnccs`에 실행 버전·모델 입력 순서·정밀도·LoRA 해시·안전 한계를 기록한다. 상세 로그는 `vnccs-pipeline.log`, 자원 기록은 `vnccs-resources.json`, 결과·품질 경고는 `result.json`에 둔다. 공용 취소는 같은 프로세스 그룹의 감독 작업자와 추론 자식을 함께 중단한다.
@@ -65,7 +68,6 @@ Gradio Python 콜백 → HTTP 클라이언트 ───┼→ 게이트웨이(87
 ./scripts/run_management_gui.sh --watch
 
 # 터미널 3: 같은 게이트웨이에 작업 접수
-python3 tools/manager.py command hy-motion generate --prompt 'A person walks forward.' --duration-seconds 3 --detach
 ```
 
 - 기본 주소는 GUI `http://127.0.0.1:8770`, 게이트웨이 `http://127.0.0.1:8771`이다. GUI 포트와 게이트웨이 포트를 같게 지정할 수 없다.
@@ -107,15 +109,6 @@ python3 tools/manager.py command hy-motion generate --prompt 'A person walks for
 
 ```bash
 python3 tools/manager.py help
-python3 tools/manager.py help hy-motion
-python3 tools/manager.py help hy-motion generate
-python3 tools/manager.py help pose-transfer generate
-python3 tools/manager.py command hy-motion generate --prompt 'A person walks forward.' --duration-seconds 3 --directions down_left down_right up_left up_right --detach
-python3 tools/manager.py command hy-motion history
-python3 tools/manager.py command hy-motion status GENERATION_ID
-python3 tools/manager.py command hy-motion logs GENERATION_ID
-python3 tools/manager.py command hy-motion cancel GENERATION_ID
-python3 tools/manager.py command hy-motion resume GENERATION_ID
 ```
 
 모델 준비·고정 파라미터·입력 제한은 [HY-Motion](hy-motion.md), 외형·포즈 참조 순서는 [VNCCS 포즈 변환](pose-transfer.md)을 따른다. `generate`의 `--detach`를 생략하면 완료까지 진행 로그를 표시하며 Ctrl+C는 해당 작업에 취소를 요청한다. 모션 프리셋 선택과 실제 생성 실행은 구분한다.
@@ -128,8 +121,6 @@ GUI와 CLI는 서비스별 동일한 작업·이력을 조회하며 서로 다�
 
 | 서비스 | 작업 기록 | 이력 인덱스 |
 | --- | --- | --- |
-| `hy-motion` | `.tmp/test/hy-motion/<한국시간>/<고유 ID>/` | `.tmp/manager-current/hy-motion/` |
-| `pose-transfer` | `.tmp/test/pose-transfer/<생성 ID>/` | `.tmp/manager-current/pose-transfer/` |
 
 입력·상태·로그·결과와 시도별 산출물은 서비스의 기존 구조를 유지한다. HY-Motion 재개는 새 시도로 기록하며 기존 시도 산출물을 보존한다. 생성기의 전체 `history-reset`은 작업 폴더의 입력 사본·중간 산출물·결과·모든 시도의 로그와 기록 및 이력 인덱스를 함께 삭제하는 디스크 정리 계약이다. 외부 원본·등록 에셋·모델은 보호한다. 생성기의 선택 `history-delete`도 선택한 작업 ID의 동일 범위 파일과 이력 인덱스를 함께 삭제하고 삭제 용량을 보고한다. 앵커·좌표 편집 이력은 별도 계약을 확인한다. 기존 목록 전용 구현의 전환 여부를 구분하며 상세 기준은 AGENTS.md의 Generator History Reset Disk Cleanup Standard를 따른다. 이미 폐기된 MoMask·AnyPose 작업 경로는 현행 기록 저장소로 다시 사용하지 않는다.
 
@@ -188,7 +179,6 @@ CLI command → 명령 봉투 ──────┘
 HY-Motion과 포즈 변환 CLI는 독립 HTTP 게이트웨이에 연결한다. 서비스 함수의 로컬 호출은 내부 작업 서비스·호환 코드에만 남기며 CLI 기본 경로로 사용하지 않는다.
 
 ```bash
-python3 tools/manager.py command hy-motion --server-url http://127.0.0.1:8771 history
 ```
 
 ## 모션·포즈 변환과 기존 편집 기능
@@ -552,8 +542,6 @@ Phantom·HY-Motion·Qwen 계열·복장 분리·ANNY·작가·맵·스프라이�
 `history-reset-preview`는 삭제하지 않고 서비스 소유 작업 폴더의 작업 수·상태·삭제 범위를 반환한다. 목록에서 숨긴 작업도 포함하며 `can_reset=false`이면 `blocked_jobs`의 작업 종료 또는 상태 오류 해결이 필요하다. 조회 후 실제 초기화에서도 잠금 아래 상태를 다시 검증한다.
 
 ```bash
-python3 tools/manager.py command pose-transfer history-reset-preview
-python3 tools/manager.py command hy-motion history-reset-preview
 ```
 
 이미지 공통 서비스, VACE·Phantom, 음악, HY-Motion 및 ANNY에 적용한다. ANNY의 별도 브라우저 이력도 작업 수를 사전 조회한다. 공용 Gradio 이력은 `삭제 대상 확인 → 작업 수·복구 불가 확인 → 전체 삭제` 순서이며, 확인 뒤 목록·상태가 변경되면 다시 확인하도록 거절한다. 취소는 파일을 삭제하지 않는다.

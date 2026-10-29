@@ -70,12 +70,9 @@ def verify_qwen_saved_request(current_job_root, current_request_record):
             current_expected_prompt = ' '.join(filter(None, (current_prompt_metadata['user_prompt'].strip(), current_added_prompt))) if current_added_prompt else current_prompt_metadata['user_prompt']
         if current_expected_prompt != current_request_record['prompt'] or hashlib.sha256(current_expected_prompt.encode()).hexdigest() != current_prompt_metadata['prompt_sha256']:
             raise ValueError('Qwen 최종 프롬프트가 옵션 기록과 일치하지 않습니다.')
-    if current_job_root.parent.name == 'pose-transfer' and 'vnccs' in current_request_record:
-        from generators.image.vnccs_profile import validate_vnccs_profile
-        validate_vnccs_profile(current_request_record)
-        expected_source_record = validate_qwen_plain_request(restored_input_record, allowed_inference_steps=(25, 40))['qwen21']
-    else:
-        expected_source_record = validate_qwen_plain_request(restored_input_record)['qwen21']
+    if current_job_root.parent.name == 'pose-transfer' or 'vnccs' in current_request_record:
+        raise ValueError('포즈 변환 생성기는 폐기되었습니다.')
+    expected_source_record = validate_qwen_plain_request(restored_input_record)['qwen21']
     if 'prompt_options' in current_request_record.get('qwen21', {}):
         expected_source_record.update({current_field_name: current_prompt_metadata[current_field_name] for current_field_name in ('prompt_options', 'user_prompt')})
         expected_source_record['additional_prompt'] = current_added_prompt
