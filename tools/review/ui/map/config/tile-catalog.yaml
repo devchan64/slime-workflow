@@ -102,3 +102,5 @@ tiles:
   - {id: quarry-limestone-wall-v1, category: wall, asset: assets/tiles/terrain/blocked/quarry-limestone-wall-v1.png}
   - {id: cinder-basalt-wall-v1, category: wall, asset: assets/tiles/terrain/blocked/cinder-basalt-wall-v1.png}
   - {id: quartz-dust-road-v1, category: ground, asset: assets/tiles/terrain/road/quartz-dust-road-v1.png}
+
+  - {id: ramp-earth-stone-wall-v1, category: wall, asset: assets/tiles/terrain/blocked/ramp-earth-stone-wall-v1.png}
