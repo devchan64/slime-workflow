@@ -20,7 +20,7 @@ CATEGORY_LABEL_VALUES={'all':'전체','map-review':'맵 검수','sound-managemen
 LEGACY_SOUND_CATEGORY_NAMES=('music-generation','sound-effects')
 MANAGEMENT_FRAME_PATH_PREFIX='/management/frame/'
 MANAGEMENT_FRAME_IDENTIFIER_VALUES={'anny-attribute-renderer':'anny-attributes'}
-NATIVE_MANAGEMENT_APPLICATIONS=frozenset(('wan22-vace-generator','wan22-animate-generator','wan22-fun-control-generator','billboard-generator','effect-editor','asset-editor','world-map','vegetation-generator','prop-generator','building-generator','sfx-dasheng-audiogen','music-heartmula','hy-motion-generator','anny-landmarks','animation-separation','qwen-21-circular-generator','pose-transfer-generator','outfit-transfer-generator','qwen-21-generator','expression-generator','sprite-editor-v2','character-review','map-review','anny-attributes','writer-agent'))
+NATIVE_MANAGEMENT_APPLICATIONS=frozenset(('kimodo-generator','wan22-vace-generator','wan22-animate-generator','wan22-fun-control-generator','billboard-generator','effect-editor','asset-editor','world-map','vegetation-generator','prop-generator','building-generator','sfx-dasheng-audiogen','music-heartmula','hy-motion-generator','anny-landmarks','animation-separation','qwen-21-circular-generator','pose-transfer-generator','outfit-transfer-generator','qwen-21-generator','expression-generator','sprite-editor-v2','character-review','map-review','anny-attributes','writer-agent'))
 DEFAULT_MANAGER_SOURCE_PATH=WORKFLOW_ROOT_DIRECTORY/'.tmp/manager-current/manager-source.json'
 LEGACY_PAGE_IDENTIFIER_VALUES={'map-review':'map-review-iseulon','animation-2':'animation-1','animation-3':'animation-1'}
 DEFAULT_PAGE_RECORDS=(
@@ -29,6 +29,7 @@ DEFAULT_PAGE_RECORDS=(
     {'id':'world-map','label':'월드맵 검수','path':'/management/frame/world-map/','category':'map-review','uiMode':'gradio','description':'전체 맵 썸네일·노드·연결·원본 해시 검증'},
     {'id': 'sfx-dasheng-audiogen', 'label': 'Dasheng-AudioGen · 효과음', 'path': '/management/frame/sfx-dasheng-audiogen/', 'category': 'sound-management', 'uiMode': 'gradio', 'description': '로컬 CUDA · 길이 자동 예측 · 시드 · 16kHz WAV'},
     {'id': 'music-heartmula', 'label': 'HeartMuLa 3B', 'path': '/management/frame/music-heartmula/', 'category': 'sound-management', 'uiMode': 'gradio', 'description': 'tags·lyrics 입력 · 무보컬 보장 없음'},
+    {'id':'kimodo-generator','label':'Kimodo 모션 생성기 · NF4','path':'/management/frame/kimodo-generator/','category':'animation-tool','uiMode':'gradio','description':'SOMA v1.2 · 텍스트→3D 모션 · NF4 인코더'},
     {'id':'wan22-vace-generator','label':'Wan2.2 VACE-Fun 영상 생성기','path':'/management/frame/wan22-vace-generator/','category':'animation-tool','uiMode':'gradio','description':'A14B Q4 · 텍스트·외형 참조·첫 프레임'},
     {'id':'wan22-animate-generator','label':'Wan2.2 Animate 영상 생성기','path':'/management/frame/wan22-animate-generator/','category':'animation-tool','uiMode':'gradio','description':'14B Q4 · 외형 참조·몸 포즈 21장 · 고정 실험 설정'},
     {'id':'wan22-fun-control-generator','label':'Wan2.2 Fun Control 영상 생성기','path':'/management/frame/wan22-fun-control-generator/','category':'animation-tool','uiMode':'gradio','description':'A14B Q4 · 외형 참조+제어 영상 · 고·저노이즈 순차 실행'},

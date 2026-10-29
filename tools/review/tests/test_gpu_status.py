@@ -28,3 +28,8 @@ class GpuStatusTests(unittest.TestCase):
         self.assertEqual(status_record['memory_used_mib'], 1280)
         self.assertEqual(status_record['memory_free_mib'], 11008)
         self.assertEqual([process_record['memory_mib'] for process_record in status_record['processes']], [512, 768])
+
+    def test_kimodo_child_stage_is_not_momask_generation(self):
+        with patch.object(gpu_status.Path,'read_bytes',return_value=b'python\0generators/momask/templates/run_stage.py\0generators/kimodo/anny_stage.py\0'),patch.object(gpu_status.Path,'read_text',return_value='PPid:\t1\n'):
+            current_process_record=gpu_status.identify_gpu_command(123)
+        self.assertEqual(current_process_record['command'],'Kimodo 모션·ANNY 렌더')

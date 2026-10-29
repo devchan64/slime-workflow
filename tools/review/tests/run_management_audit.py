@@ -8,6 +8,7 @@ sys.path.insert(0, str(WORKFLOW_ROOT_DIRECTORY))
 from tools.review.tests.run_music_regression import execute_music_regression
 
 MANAGEMENT_AUDIT_MODULES = tuple('tools.review.tests.' + current_module_name for current_module_name in (
+    'test_kimodo_generation',
     'test_regression_runner', 'test_management_browser_scripts', 'test_anny_landmarks',
     'test_gpu_confirmation', 'test_gradio_button_guidance', 'test_browser_gpu_confirmation', 'test_gradio_history', 'test_gradio_history_inputs',
     'test_gradio_proxy_response', 'test_gradio_standard_components', 'test_generation_status_display', 'test_generation_status_lookup', 'test_hy_motion_progress_display', 'test_generation_estimates',

@@ -27,7 +27,7 @@ def identify_gpu_command(process_identifier):
     generation_id = re.search(r'\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-[a-f0-9]{8}', combined)
     anny_id = re.search(r'anny-attribute-renderer/([a-f0-9]{8})', combined)
     label = '외부 GPU 작업'
-    for marker, name in [('character-animation','캐릭터 애니메이션'),('momask','MoMask 모션 생성'),('anny-attribute','ANNY 속성 렌더'),('tile-map','타일맵 생성'),('run_qwen_2511','Qwen 2511 참조 생성'),('run_qwen_2512','Qwen 2512 이미지 생성')]:
+    for marker, name in [('generators/kimodo/','Kimodo 모션·ANNY 렌더'),('character-animation','캐릭터 애니메이션'),('momask','MoMask 모션 생성'),('anny-attribute','ANNY 속성 렌더'),('tile-map','타일맵 생성'),('run_qwen_2511','Qwen 2511 참조 생성'),('run_qwen_2512','Qwen 2512 이미지 생성')]:
         if marker in combined:
             label = name
             break

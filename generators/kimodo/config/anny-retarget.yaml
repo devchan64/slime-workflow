@@ -1,0 +1,384 @@
+schema_version: 2
+profile_id: kimodo-soma22-anny-position-v1
+joint_count: 22
+coordinate_matrix:
+- - 1
+  - 0
+  - 0
+- - 0
+  - 0
+  - -1
+- - 0
+  - 1
+  - 0
+root_joint: 0
+scale_source:
+- 1
+- 4
+scale_target:
+- upperleg01.L
+- lowerleg01.L
+unmapped_policy: inherit_rest_local
+segments:
+- segment_id: pelvis_frame
+  source_primary:
+  - 0
+  - 3
+  target_primary:
+  - root
+  - spine03
+  source_secondary:
+  - 2
+  - 1
+  target_secondary:
+  - upperleg01.R
+  - upperleg01.L
+  target_bones:
+  - root
+  transfer_mode: reference_delta
+- segment_id: lower_spine
+  source_primary:
+  - 0
+  - 3
+  target_primary:
+  - spine05
+  - spine03
+  source_secondary:
+  - 17
+  - 16
+  target_secondary:
+  - upperarm01.R
+  - upperarm01.L
+  target_bones:
+  - spine05
+  - spine04
+  transfer_mode: reference_delta
+- segment_id: middle_spine
+  source_primary:
+  - 3
+  - 6
+  target_primary:
+  - spine03
+  - spine01
+  source_secondary:
+  - 17
+  - 16
+  target_secondary:
+  - upperarm01.R
+  - upperarm01.L
+  target_bones:
+  - spine03
+  - spine02
+  transfer_mode: reference_delta
+- segment_id: upper_spine
+  source_primary:
+  - 6
+  - 9
+  target_primary:
+  - spine01
+  - neck01
+  source_secondary:
+  - 17
+  - 16
+  target_secondary:
+  - upperarm01.R
+  - upperarm01.L
+  target_bones:
+  - spine01
+  transfer_mode: reference_delta
+- segment_id: lower_neck
+  source_primary:
+  - 9
+  - 12
+  target_primary:
+  - neck01
+  - neck02
+  source_secondary: null
+  target_secondary: null
+  target_bones:
+  - neck01
+  transfer_mode: reference_delta
+- segment_id: upper_neck
+  source_primary:
+  - 12
+  - 15
+  target_primary:
+  - neck02
+  - head
+  source_secondary: null
+  target_secondary: null
+  target_bones:
+  - neck02
+  - neck03
+  transfer_mode: reference_delta
+- segment_id: hip_l
+  source_primary:
+  - 0
+  - 1
+  target_primary:
+  - pelvis.L
+  - upperleg01.L
+  source_secondary: null
+  target_secondary: null
+  target_bones:
+  - pelvis.L
+  transfer_mode: reference_delta
+- segment_id: thigh_l
+  source_primary:
+  - 1
+  - 4
+  target_primary:
+  - upperleg01.L
+  - lowerleg01.L
+  source_secondary: null
+  target_secondary: null
+  target_bones:
+  - upperleg01.L
+  - upperleg02.L
+  transfer_mode: absolute_direction
+- segment_id: shin_l
+  source_primary:
+  - 4
+  - 7
+  target_primary:
+  - lowerleg01.L
+  - foot.L
+  source_secondary: null
+  target_secondary: null
+  target_bones:
+  - lowerleg01.L
+  - lowerleg02.L
+  transfer_mode: absolute_direction
+- segment_id: foot_l
+  source_primary:
+  - 7
+  - 10
+  target_primary:
+  - foot.L
+  - toe3-1.L
+  source_secondary: null
+  target_secondary: null
+  target_bones:
+  - foot.L
+  transfer_mode: absolute_direction
+- segment_id: collar_l
+  source_primary:
+  - 9
+  - 13
+  target_primary:
+  - clavicle.L
+  - shoulder01.L
+  source_secondary: null
+  target_secondary: null
+  target_bones:
+  - clavicle.L
+  transfer_mode: reference_delta
+- segment_id: shoulder_l
+  source_primary:
+  - 13
+  - 16
+  target_primary:
+  - shoulder01.L
+  - upperarm01.L
+  source_secondary: null
+  target_secondary: null
+  target_bones:
+  - shoulder01.L
+  transfer_mode: reference_delta
+- segment_id: upper_arm_l
+  source_primary:
+  - 16
+  - 18
+  target_primary:
+  - upperarm01.L
+  - lowerarm01.L
+  source_secondary: null
+  target_secondary: null
+  target_bones:
+  - upperarm01.L
+  - upperarm02.L
+  transfer_mode: absolute_direction
+- segment_id: forearm_l
+  source_primary:
+  - 18
+  - 20
+  target_primary:
+  - lowerarm01.L
+  - wrist.L
+  source_secondary: null
+  target_secondary: null
+  target_bones:
+  - lowerarm01.L
+  - lowerarm02.L
+  transfer_mode: absolute_direction
+- segment_id: hip_r
+  source_primary:
+  - 0
+  - 2
+  target_primary:
+  - pelvis.R
+  - upperleg01.R
+  source_secondary: null
+  target_secondary: null
+  target_bones:
+  - pelvis.R
+  transfer_mode: reference_delta
+- segment_id: thigh_r
+  source_primary:
+  - 2
+  - 5
+  target_primary:
+  - upperleg01.R
+  - lowerleg01.R
+  source_secondary: null
+  target_secondary: null
+  target_bones:
+  - upperleg01.R
+  - upperleg02.R
+  transfer_mode: absolute_direction
+- segment_id: shin_r
+  source_primary:
+  - 5
+  - 8
+  target_primary:
+  - lowerleg01.R
+  - foot.R
+  source_secondary: null
+  target_secondary: null
+  target_bones:
+  - lowerleg01.R
+  - lowerleg02.R
+  transfer_mode: absolute_direction
+- segment_id: foot_r
+  source_primary:
+  - 8
+  - 11
+  target_primary:
+  - foot.R
+  - toe3-1.R
+  source_secondary: null
+  target_secondary: null
+  target_bones:
+  - foot.R
+  transfer_mode: absolute_direction
+- segment_id: collar_r
+  source_primary:
+  - 9
+  - 14
+  target_primary:
+  - clavicle.R
+  - shoulder01.R
+  source_secondary: null
+  target_secondary: null
+  target_bones:
+  - clavicle.R
+  transfer_mode: reference_delta
+- segment_id: shoulder_r
+  source_primary:
+  - 14
+  - 17
+  target_primary:
+  - shoulder01.R
+  - upperarm01.R
+  source_secondary: null
+  target_secondary: null
+  target_bones:
+  - shoulder01.R
+  transfer_mode: reference_delta
+- segment_id: upper_arm_r
+  source_primary:
+  - 17
+  - 19
+  target_primary:
+  - upperarm01.R
+  - lowerarm01.R
+  source_secondary: null
+  target_secondary: null
+  target_bones:
+  - upperarm01.R
+  - upperarm02.R
+  transfer_mode: absolute_direction
+- segment_id: forearm_r
+  source_primary:
+  - 19
+  - 21
+  target_primary:
+  - lowerarm01.R
+  - wrist.R
+  source_secondary: null
+  target_secondary: null
+  target_bones:
+  - lowerarm01.R
+  - lowerarm02.R
+  transfer_mode: absolute_direction
+source_reference:
+  id: Kimodo SOMA77 neutral joints
+  source_url: https://github.com/nv-tlabs/kimodo/tree/e1c219c99b4b94ba48be1fb6a1cbc64ecee4c954/kimodo/assets/skeletons/somaskel77
+  source_sha256: dc5fd8e39e0ff312f5d0f536a87ac22ac58445e13443fcb8ab54e6817cb97ce7
+  joint_positions:
+  - - 0.0
+    - 0.0
+    - 0.0
+  - - 0.10043214000000002
+    - -0.08434526713056027
+    - 0.025956547303516146
+  - - -0.10047278
+    - -0.08295259954688608
+    - 0.02620316950258045
+  - - -0.00013727
+    - 0.050037625614476805
+    - -0.0005372666896067667
+  - - 0.10043213000000002
+    - -0.5165628043006026
+    - 0.0179274192554877
+  - - -0.10047277
+    - -0.5165746585218344
+    - 0.018147611223746023
+  - - -0.0001372718657410332
+    - 0.12129063954139997
+    - -0.0008355152355377963
+  - - 0.10043214000000002
+    - -0.9381137633633632
+    - -0.016887810498092126
+  - - -0.10047275000000001
+    - -0.9377486017875474
+    - -0.01663636725033444
+  - - -0.00013727761762501813
+    - 0.1967912700564727
+    - -0.008995225155501886
+  - - 0.10043214000000002
+    - -0.9887084839474641
+    - 0.11542748332002076
+  - - -0.1004727534290767
+    - -0.9885446949531935
+    - 0.116205588256801
+  - - -0.0019540427867038484
+    - 0.4599042226354765
+    - -0.014528708071751368
+  - - 0.01607923993055881
+    - 0.4291629107203992
+    - 0.042138907203654985
+  - - -0.013938460017330671
+    - 0.4285943555688572
+    - 0.0431463534221722
+  - - -0.001954117272363899
+    - 0.5982873484938002
+    - 0.028034232672422055
+  - - 0.16527769707014453
+    - 0.4291629326601865
+    - -0.012884350363538723
+  - - -0.16431042209226962
+    - 0.4285944729567586
+    - -0.012309690281098538
+  - - 0.45267077496913155
+    - 0.4291629351628704
+    - -0.012910229137203669
+  - - -0.4516768153138865
+    - 0.4285944917195668
+    - -0.012335661216969626
+  - - 0.7236105869695353
+    - 0.4291629280966193
+    - -0.012884139412386048
+  - - -0.7230130129348666
+    - 0.4285944905518928
+    - -0.012309534280184555

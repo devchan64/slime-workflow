@@ -92,6 +92,7 @@ def create_management_runtime(writer_workspace_config=None):
     from tools.review.domains.anny.landmarks import handle_landmark_request, LANDMARK_STORAGE_DIRECTORY
 
     from tools.review.domains.wan_fun.generation import FunControlGenerationManager
+    from tools.review.domains.kimodo.generation import KimodoGenerationManager
     from tools.review.domains.wan_vace.generation import VaceVideoGenerationManager
     from tools.review.domains.wan_animate.generation import AnimateGenerationManager
     from generators.music.contracts import AUDIO_SERVICE_NAMES
@@ -99,6 +100,7 @@ def create_management_runtime(writer_workspace_config=None):
     writer_agent_service = WriterAgentManager(writer_workspace_config or DEFAULT_WORKSPACE_CONFIG)
     try:
         fun_generation_service = FunControlGenerationManager()
+        kimodo_generation_service = KimodoGenerationManager()
         vace_generation_service = VaceVideoGenerationManager()
         animate_generation_service = AnimateGenerationManager()
         image_generation_service = ImageGenerationManager()
@@ -123,6 +125,7 @@ def create_management_runtime(writer_workspace_config=None):
         service_binding_records = {
             'writer-agent': ManagementServiceBinding(writer_agent_service.handle_writer_request,writer_agent_service.workspace_config_path.parent,reject_writer_folder_access),
             'wan22-fun-control': bind_stored_management_service(fun_generation_service.handle_image_request,fun_generation_service.job_storage_root),
+            'kimodo': bind_stored_management_service(kimodo_generation_service.handle_image_request,kimodo_generation_service.job_storage_root),
             'wan22-vace': bind_stored_management_service(vace_generation_service.handle_image_request,vace_generation_service.job_storage_root),
             'wan22-animate': bind_stored_management_service(animate_generation_service.handle_image_request,animate_generation_service.job_storage_root),
             'anny-landmarks': bind_stored_management_service(handle_landmark_request, LANDMARK_STORAGE_DIRECTORY),

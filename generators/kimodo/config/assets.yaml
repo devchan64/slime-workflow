@@ -1,0 +1,67 @@
+source_revision: e1c219c99b4b94ba48be1fb6a1cbc64ecee4c954
+models:
+- role: motion
+  repository: nvidia/Kimodo-SOMA-RP-v1.2
+  revision: 0e3c89024d896064b6851201373f7834784a386b
+  files:
+  - path: README.md
+    size: 13003
+    sha256: null
+  - path: config.yaml
+    size: 675
+    sha256: null
+  - path: model.safetensors
+    size: 1133177724
+    sha256: fdcef624140a12c0a4840192ce0b75cafb4e73228a893da3864b4a990d3e919e
+  - path: stats/motion/body/mean.npy
+    size: 3040
+    sha256: d42f35f8bb7ef52fdec66ae29c5cf590bd038f4f1aabd2d560d1d0f78663ed6f
+  - path: stats/motion/body/std.npy
+    size: 3040
+    sha256: 965bbad497726ef4e6c46b519827e2cbcb29f974214b25718d20a725b82279ed
+  - path: stats/motion/global_root/mean.npy
+    size: 168
+    sha256: 6c110980f9a0386e57a8c186f8eac7f55dc05bade92f44c4b391450ada598da1
+  - path: stats/motion/global_root/std.npy
+    size: 168
+    sha256: fb15aeed7143f5f0754611f0acf5fa5f55d1f6492a49c23e490fc62f7bf11fb0
+  - path: stats/motion/local_root/mean.npy
+    size: 160
+    sha256: 4c36e8e33d6d51e6c8206ac796a52b7b3a4da7f0dc49ebdbb4f130178e3e9d31
+  - path: stats/motion/local_root/std.npy
+    size: 160
+    sha256: 5f57b41f51ced7832cffa81702f6e04d8694e16475c184baec6c8be0e98c8dba
+- role: encoder
+  repository: matbee/kimodo-llm2vec-nf4
+  revision: 268b2f7bbbb8361bce76cc3f34d61b5467643a59
+  files:
+  - path: LICENSE-Llama-3.txt
+    size: 239
+    sha256: null
+  - path: README.md
+    size: 8520
+    sha256: null
+  - path: chat_template.jinja
+    size: 389
+    sha256: null
+  - path: config.json
+    size: 1216
+    sha256: null
+  - path: model.safetensors
+    size: 4652064697
+    sha256: 64d4bea7b029f5ea40c52eb84c11cb370ddb4d7d45f4e9f8d3babe92e3665c5d
+  - path: qbench_export.json
+    size: 471
+    sha256: null
+  - path: supervised_adapter/adapter_config.json
+    size: 794
+    sha256: null
+  - path: supervised_adapter/adapter_model.safetensors
+    size: 167829552
+    sha256: 53f8f94ebdf396667ba99dd96e78203edae27bbcdbd1cf5f12b611e1d916b225
+  - path: tokenizer.json
+    size: 17209961
+    sha256: 3c5cf44023714fb39b05e71e425f8d7b92805ff73f7988b083b8c87f0bf87393
+  - path: tokenizer_config.json
+    size: 320
+    sha256: null
