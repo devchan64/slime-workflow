@@ -141,3 +141,31 @@ class KimodoGenerationContractTests(unittest.TestCase):
             np.testing.assert_array_equal(current_preview_frames[0][100,400],[255,0,0])
             with self.assertRaisesRegex(ValueError,'프레임 수'):
                 collect_direction_previews(current_attempt_root,{'images':current_image_records[:-1]},['right','front'],2)
+
+    def test_comparison_projection_and_missing_points(self):
+        from PIL import Image
+        from generators.kimodo.comparison import render_pose_comparison
+        with tempfile.TemporaryDirectory() as current_temp_directory:
+            current_attempt_root=Path(current_temp_directory)
+            (current_attempt_root/'anny').mkdir()
+            Image.new('RGBA',(512,512),(255,0,0,255)).save(current_attempt_root/'anny/frame.png')
+            current_point_values=[0.0]*54
+            current_point_values[3:9]=[100,100,1,200,200,1]
+            current_image_record={'direction':'front','source_frame':1,'path':'frame.png','pose_keypoints_2d':current_point_values}
+            current_comparison_image=render_pose_comparison(current_attempt_root,[current_image_record])
+            self.assertEqual(current_comparison_image.size,(768,408))
+            self.assertEqual(current_comparison_image.getpixel((600,200)),(255,0,0))
+            self.assertEqual(current_comparison_image.getpixel((20,200)),(0,0,0))
+            self.assertNotEqual(current_comparison_image.getpixel((100,124)),(0,0,0))
+            with self.assertRaisesRegex(ValueError,'COCO18'):
+                render_pose_comparison(current_attempt_root,[{**current_image_record,'pose_keypoints_2d':[0]*3}])
+            with self.assertRaisesRegex(ValueError,'경로 이탈'):
+                render_pose_comparison(current_attempt_root,[{**current_image_record,'path':'../../outside.png'}])
+
+    def test_comparison_result_preserves_original_download(self):
+        from tools.review.ui.gradio.kimodo_app import render_kimodo_result
+        current_result_markup=render_kimodo_result('id',{'video':'/kimodo/preview.mp4','comparison_video':'/kimodo/comparison.mp4','download':'/kimodo/frames.zip'},'http://localhost')
+        self.assertIn('src="/kimodo/comparison.mp4"',current_result_markup)
+        self.assertIn('href="/kimodo/preview.mp4"',current_result_markup)
+        self.assertIn('/kimodo/frames.zip',current_result_markup)
+        self.assertIn('리타게팅 후',current_result_markup)

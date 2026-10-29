@@ -76,6 +76,15 @@ def describe_kimodo_duration(current_frame_count):
     return f'모션 길이 **{current_frame_count/30:g}초** · {int(current_frame_count)}프레임 · 30fps'
 
 
+def render_kimodo_result(current_job_identifier,current_status_record,current_server_address):
+    import html
+    current_comparison_url = current_status_record.get('comparison_video')
+    if not current_comparison_url:
+        return render_video_generation_result(current_job_identifier,current_status_record,current_server_address)+'<p>이 결과에는 오픈포즈 비교 영상이 없습니다.</p>'
+    current_comparison_html = render_video_generation_result(current_job_identifier,{**current_status_record,'video':current_comparison_url},current_server_address)
+    return '<p>왼쪽: 오픈포즈 · 오른쪽: ANNY 리그. 같은 프레임·카메라로 동기 재생합니다. 오픈포즈는 리타게팅 후 ANNY 몸 관절의 투영이며, 얼굴·손 상세 검출이나 원본 SOMA 골격이 아닙니다.</p>'+current_comparison_html+f'<p><a href="{html.escape(current_status_record["video"],quote=True)}" target="_blank">ANNY 원본 MP4</a></p>'
+
+
 def build_kimodo_interface(current_server_address,current_command_callback=None):
     current_execute_command = current_command_callback or execute_kimodo_command
     with gr.Blocks(title='Kimodo 모션 생성기') as current_interface_blocks:
@@ -128,7 +137,7 @@ def build_kimodo_interface(current_server_address,current_command_callback=None)
             current_job_record = current_execute_command('generate',build_kimodo_payload(*current_input_values))
             return current_job_record['id'],'공용 GPU 대기열에 등록했습니다.'
         bind_gpu_generation_confirmation(current_generate_button,enqueue_kimodo_generation,current_input_controls,[current_job_control,current_status_output],generation_confirmation_container=current_confirmation_container,generation_readiness_callback=check_kimodo_readiness,generation_readiness_inputs=[current_model_ready,current_prompt_control,current_direction_control],generation_readiness_events=[current_refresh_event,current_load_event])
-        build_video_job_monitor(current_execute_command,current_server_address,current_job_control,current_status_output)
-        current_read_history,current_history_outputs = build_generation_history_view(current_execute_command,current_server_address,GENERATION_CLEANUP_SCOPE_TEXT,restore_input_callback=restore_kimodo_inputs,restore_output_components=[*current_input_controls,current_job_control],result_renderer_callback=render_video_generation_result,record_folder_route='/kimodo',allow_individual_delete=True,individual_delete_scope_text=GENERATION_CLEANUP_SCOPE_TEXT)
+        build_video_job_monitor(current_execute_command,current_server_address,current_job_control,current_status_output,result_renderer_callback=render_kimodo_result)
+        current_read_history,current_history_outputs = build_generation_history_view(current_execute_command,current_server_address,GENERATION_CLEANUP_SCOPE_TEXT,restore_input_callback=restore_kimodo_inputs,restore_output_components=[*current_input_controls,current_job_control],result_renderer_callback=render_kimodo_result,record_folder_route='/kimodo',allow_individual_delete=True,individual_delete_scope_text=GENERATION_CLEANUP_SCOPE_TEXT)
         current_interface_blocks.load(lambda:current_read_history(1),outputs=current_history_outputs)
     return current_interface_blocks

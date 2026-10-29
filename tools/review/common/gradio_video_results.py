@@ -38,7 +38,7 @@ def describe_video_generation_status(current_status_record):
     return current_status_text
 
 
-def build_video_job_monitor(current_execute_command, current_server_address, current_job_control, current_status_output):
+def build_video_job_monitor(current_execute_command, current_server_address, current_job_control, current_status_output, result_renderer_callback=render_video_generation_result):
     """작업 ID를 기준으로 공용 상태·로그·영상만 갱신한다. 작업 수명은 서비스가 관리한다."""
     import gradio as gr
     from tools.review.common.gradio_logs import build_execution_logs
@@ -53,9 +53,9 @@ def build_video_job_monitor(current_execute_command, current_server_address, cur
         current_status_record = read_existing_generation_status(current_execute_command, current_job_identifier)
         if current_status_record is None:
             return '삭제된 이력입니다.', '', '', '', gr.Timer(active=False)
-        current_result_url = current_status_record.get('video', '')
+        current_result_url = current_status_record.get('comparison_video') or current_status_record.get('video', '')
         return (describe_video_generation_status(current_status_record),
-                render_video_generation_result(current_job_identifier, current_status_record, current_server_address) if current_result_url and current_result_url != current_previous_result else gr.skip(),
+                result_renderer_callback(current_job_identifier, current_status_record, current_server_address) if current_result_url and current_result_url != current_previous_result else gr.skip(),
                 current_status_record.get('log', '') if current_logs_enabled else gr.skip(), current_result_url,
                 gr.Timer(active=current_status_record.get('status') not in ('completed', 'failed', 'cancelled', 'paused')))
     current_generation_timer.tick(refresh_video_status, [current_job_control, current_log_enabled, current_result_identity], [current_status_output, current_result_output, current_log_output, current_result_identity, current_generation_timer], queue=False, show_progress='hidden')
