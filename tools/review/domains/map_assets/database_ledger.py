@@ -21,9 +21,7 @@ def publish_content_asset_ledger(current_asset_root, current_payload_record):
     current_lock_record=load_unique_yaml_document(current_backend_lock)
     current_catalog_record=load_billboard_catalog(current_asset_root)
     current_catalog_record['review_categories']=current_payload_record['types']
-    current_asset_lookup={current_asset_record['assetId']:current_asset_record for current_asset_record in current_payload_record['assets']}
-    if set(current_asset_lookup)!={current_asset_record['texture_key'] for current_asset_record in current_catalog_record['billboards']}:
-        raise ValueError('DB와 원장의 빌보드 ID가 다릅니다. 등록·폐기 원장을 먼저 정리하세요.')
+    current_asset_lookup=resolve_active_ledger_assets(current_payload_record['assets'],current_catalog_record['billboards'])
     current_image_hash_changes={}
     # 이미지 내용은 저장 단계에서 게시되고 원장은 지연 동기화한다.
     for current_catalog_asset in current_catalog_record['billboards']:
@@ -138,3 +136,12 @@ def publish_content_asset_ledger(current_asset_root, current_payload_record):
                 current_target_path.write_bytes(current_original_files[current_target_path])
         raise
     return {'generation':current_payload_record['generation'],'updatedFiles':len(current_pending_files)}
+
+
+def resolve_active_ledger_assets(current_database_assets,current_catalog_assets):
+    """DB의 폐기 이력은 보존하되 활성 원장으로 다시 게시하지 않는다."""
+    current_catalog_identifiers={current_asset_record['texture_key'] for current_asset_record in current_catalog_assets}
+    current_asset_lookup={current_asset_record['assetId']:current_asset_record for current_asset_record in current_database_assets if not current_asset_record['retired'] or current_asset_record['assetId'] in current_catalog_identifiers}
+    if set(current_asset_lookup)!=current_catalog_identifiers:
+        raise ValueError('DB와 원장의 활성 빌보드 ID가 다릅니다. 등록·폐기 원장을 먼저 정리하세요.')
+    return current_asset_lookup
