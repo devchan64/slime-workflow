@@ -1,0 +1,14 @@
+schema_version: 1
+examples:
+  - id: standing
+    label: 제자리 서 있기 · 6초
+    prompt: A person stands still in a relaxed upright posture.
+    frames: 180
+  - id: walking
+    label: 앞으로 걷기 · 3초
+    prompt: A person walks forward.
+    frames: 90
+  - id: breathing
+    label: 심호흡 · 6초
+    prompt: A person stands upright and breathes deeply, keeping their head upright.
+    frames: 180

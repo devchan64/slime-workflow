@@ -1,0 +1,10 @@
+schema_version: 1
+directions:
+  front: {label: 정면, angle: 0}
+  front_left: {label: 전방 좌측, angle: 45}
+  left: {label: 좌측면, angle: 90}
+  back_left: {label: 후방 좌측, angle: 135}
+  back: {label: 후면, angle: 180}
+  back_right: {label: 후방 우측, angle: -135}
+  right: {label: 우측면, angle: -90}
+  front_right: {label: 전방 우측, angle: -45}

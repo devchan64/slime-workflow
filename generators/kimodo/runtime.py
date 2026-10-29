@@ -99,14 +99,17 @@ def execute_kimodo_inference(current_job_root,current_attempt_root,current_reque
     del current_motion_model,current_embedding_tensor
     gc.collect()
     torch.cuda.empty_cache()
-    current_frame_arrays,current_anny_record = generate_anny_outputs(current_attempt_root,current_metrics_recorder)
+    current_frame_arrays,current_anny_record = generate_anny_outputs(current_attempt_root,current_metrics_recorder,current_request_record.get('directions',['front_left']))
     current_metrics_recorder.update_generation_stage('saving')
     current_frame_hashes = save_video_outputs(current_attempt_root,current_frame_arrays,30)
     with zipfile.ZipFile(current_attempt_root/'frames.zip','a') as current_output_archive:
+        for current_direction_path in sorted((current_attempt_root/'directions').glob('*/*')):
+            if current_direction_path.suffix in ('.png','.mp4'):
+                current_output_archive.write(current_direction_path,current_direction_path.relative_to(current_attempt_root).as_posix())
         for current_artifact_name in ('motion.npz','skeleton.json','prompt.json','text-embedding.npy'):
             current_output_archive.write(current_attempt_root/current_artifact_name,current_artifact_name)
         for current_artifact_name in ('joint-preview.mp4','anny/mannequin.blend','anny/mannequin.glb','anny/review-metrics.json','anny/render-manifest.json','anny/retarget-profile.yaml','anny/rotation-profile.yaml'):
             current_output_archive.write(current_attempt_root/current_artifact_name,current_artifact_name)
     current_result_record = {'attempt':current_attempt_root.name,'frames':current_request_record['frames'],'fps':30,'width':640,'height':480,'frame_sha256':current_frame_hashes,'model':'nvidia/Kimodo-SOMA-RP-v1.2','encoder':'matbee/kimodo-llm2vec-nf4','encoder_quantization':'NF4','motion_precision':'FP32','source_revision':KIMODO_ASSET_CONFIG['source_revision'],'model_revisions':{current_asset_record['role']:current_asset_record['revision'] for current_asset_record in KIMODO_ASSET_CONFIG['models']},'skeleton':'somaskel77','compute_device':'cuda','post_processing':current_request_record['post_processing'],'torch_peak_allocated_mib':torch.cuda.max_memory_allocated()/2**20}
-    current_result_record.update(width=512,height=512,anny=current_anny_record,quality_warnings=current_anny_record['quality_warnings'])
+    current_result_record.update(width=current_frame_arrays[0].shape[1],height=current_frame_arrays[0].shape[0],directions=current_anny_record['directions'],anny=current_anny_record,quality_warnings=current_anny_record['quality_warnings'])
     return current_result_record

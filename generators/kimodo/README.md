@@ -32,7 +32,7 @@ ANNY 렌더에는 기존 `.local/blender-runtime/bin/python` 환경과 추적된
 `tools/manager.py command kimodo generate --payload-file /절대경로/request.json` 요청:
 
 ```json
-{"action":"generate","prompt":"A person walks forward.","frames":90,"steps":100,"seed":42,"guidance_scale":2.0,"heading_degrees":0.0,"post_processing":false}
+{"action":"generate","prompt":"A person walks forward.","frames":90,"steps":100,"seed":42,"guidance_scale":2.0,"heading_degrees":0.0,"post_processing":false,"directions":["front_left"]}
 ```
 
 `status`, `logs`, `history`, `active`, `model-status`, `resume`, `prioritize`, `cancel`, `history-delete`, `history-reset`은 공용 도움말을 따른다. 작업 기록은 `.tmp/test/kimodo/<생성 ID>/`에 누적한다. 재개는 새 실행 시도로 처음부터 생성한다. 선택 삭제·전체 초기화는 관리 작업의 입력·출력·로그를 실제 삭제하며 외부 원본과 모델은 보존한다.
@@ -42,3 +42,9 @@ ANNY 렌더에는 기존 `.local/blender-runtime/bin/python` 환경과 추적된
 2026-10-29 검증: 8GB GPU에서 NF4 인코더와 FP32 모션으로 30프레임/2스텝 및 90프레임/100스텝 완료. 발 후처리 활성화와 최대 300프레임은 별도 검증 대상이다. 이는 실행 검증이며 동작 품질 승인을 의미하지 않는다.
 
 출처: [공식 코드](https://github.com/nv-tlabs/kimodo), [SOMA 모델카드](https://huggingface.co/nvidia/Kimodo-SOMA-RP-v1.2), [NF4 인코더](https://huggingface.co/matbee/kimodo-llm2vec-nf4). 모델별 라이선스는 내려받은 카드·LICENSE를 따른다.
+
+## 입력 화면
+
+동작 예시를 선택하고 `예시 불러오기`를 누르면 프롬프트와 프레임만 변경한다. 시드·고급 설정은 유지하며 생성은 별도 대기열 확인을 거친다. 예시 원본은 `config/prompt-examples.yaml`에서 관리한다. 프레임 입력 아래에 30fps 기준 길이를 표시하고, 접수한 생성 ID·진행 상태·최신 결과는 입력 아래에 표시한다. 프롬프트와 출력 방향은 HY-Motion처럼 같은 행에 배치하고 좁은 화면에서는 세로로 전환한다. 모델 준비 상태와 확인 버튼은 접힌 기술 설명 밖에 표시한다. 기존 작업은 하단 공용 생성 이력에서 조회한다. 출력 방향은 정면·좌우 측면·후면·대각 8개 중 복수 선택한다. 방향은 카메라에만 적용하며 모션을 다시 생성하거나 회전시키지 않는다.
+
+출력 방향 키는 `front`, `front_left`, `left`, `back_left`, `back`, `back_right`, `right`, `front_right`이며 기준 각도·라벨은 `config/output-directions.yaml`에서 관리한다. 기존 CLI 요청에서 `directions`를 생략하면 전방 좌측을 사용한다. 빈 선택·중복·알 수 없는 방향은 거절한다. 단일 방향 미리보기는 512×512, 여러 방향 미리보기는 방향당 256px 타일의 2열 동기 비교 영상이다. ZIP의 `directions/<방향>/`에는 512×512 원본 PNG·MP4를 저장한다. 선택 수에 따라 렌더 시간과 저장 용량이 증가한다.

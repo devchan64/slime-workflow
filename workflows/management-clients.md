@@ -1004,3 +1004,5 @@ GUI와 CLI는 `map-assets effect-list`, `effect-load`, `effect-save`를 공유�
 ## Kimodo NF4 실험 생성기
 
 `kimodo` 서비스와 `/management/frame/kimodo-generator/` 페이지를 추가했다. GUI·통합 CLI는 공용 게이트웨이, GPU 대기열, `.tmp/test/kimodo/` 기록을 공유한다. 텍스트 인코더만 NF4이며 모션 모델은 FP32 CUDA로 실행한다. 모델 준비·JSON 요청·출력 범위는 [Kimodo 사용 설명](../generators/kimodo/README.md)을 따른다. 기본 스텝은 100이며 2스텝은 실행 연결 검사에만 사용한다. 선택 삭제·초기화·우선 실행·취소·재개는 공용 계약을 사용한다.
+
+Kimodo 출력 방향: GUI의 `출력 방향 · 복수 선택`과 CLI JSON의 `directions` 배열을 공유한다. 허용 방향은 생성기 README를 따른다. 생략한 과거 요청은 `front_left`, 빈 배열·중복·미지원 값은 거절한다. 여러 방향은 비교 MP4와 ZIP의 방향별 원본 PNG·MP4로 저장하며 모션 추론은 한 번만 실행한다.

@@ -49,13 +49,32 @@ for current_asset_record in KIMODO_ASSET_CONFIG['models']:
             raise ValueError('Kimodo 자료 크기·해시 설정 오류')
 if {current_asset_record['role'] for current_asset_record in KIMODO_ASSET_CONFIG['models']} != {'motion','encoder'}:
     raise ValueError('Kimodo 모델 역할 설정 오류')
-if set(KIMODO_DEFAULT_SETTINGS) != {'schema_version','prompt','frames','steps','seed','guidance_scale','heading_degrees','post_processing'} or KIMODO_DEFAULT_SETTINGS['schema_version'] != 1:
+if set(KIMODO_DEFAULT_SETTINGS) != {'schema_version','prompt','frames','steps','seed','guidance_scale','heading_degrees','post_processing','directions'} or KIMODO_DEFAULT_SETTINGS['schema_version'] != 1:
     raise ValueError('Kimodo 기본 설정 계약 오류')
+
+
+KIMODO_DIRECTION_CONFIG = yaml.load((KIMODO_CONFIG_ROOT/'output-directions.yaml').read_text(),Loader=UniqueConfigLoader)
+if not isinstance(KIMODO_DIRECTION_CONFIG,dict) or set(KIMODO_DIRECTION_CONFIG)!={'schema_version','directions'} or KIMODO_DIRECTION_CONFIG['schema_version']!=1:
+    raise ValueError('출력 방향 설정 계약 오류')
+KIMODO_DIRECTION_RECORDS = KIMODO_DIRECTION_CONFIG['directions']
+if not isinstance(KIMODO_DIRECTION_RECORDS,dict) or set(KIMODO_DIRECTION_RECORDS)!={'front','front_left','left','back_left','back','back_right','right','front_right'}:
+    raise ValueError('출력 방향 목록 오류')
+for current_direction_record in KIMODO_DIRECTION_RECORDS.values():
+    if not isinstance(current_direction_record,dict) or set(current_direction_record)!={'label','angle'} or not isinstance(current_direction_record['label'],str) or not current_direction_record['label'] or type(current_direction_record['angle']) is not int or not -180<=current_direction_record['angle']<=180:
+        raise ValueError('출력 방향 라벨·각도 오류')
+
+
+def validate_kimodo_directions(current_direction_names):
+    if not isinstance(current_direction_names,list) or not current_direction_names or any(not isinstance(current_direction_name,str) or current_direction_name not in KIMODO_DIRECTION_RECORDS for current_direction_name in current_direction_names) or len(set(current_direction_names))!=len(current_direction_names):
+        raise ValueError('출력 방향을 중복 없이 한 개 이상 선택하세요.')
+    return list(current_direction_names)
+
+validate_kimodo_directions(KIMODO_DEFAULT_SETTINGS['directions'])
 
 
 def validate_kimodo_request(current_request_record):
     current_required_fields = {'action','prompt','frames','steps','seed','guidance_scale','heading_degrees','post_processing'}
-    if not isinstance(current_request_record, dict) or set(current_request_record) != current_required_fields:
+    if not isinstance(current_request_record, dict) or set(current_request_record) not in (current_required_fields,current_required_fields|{'directions'}):
         raise ValueError('Kimodo 요청 필드 오류')
     if current_request_record['action'] != 'generate':
         raise ValueError('generate 명령만 지원합니다.')
@@ -74,7 +93,7 @@ def validate_kimodo_request(current_request_record):
             raise ValueError(f'{current_field_name}: 범위 오류')
     if type(current_request_record['post_processing']) is not bool:
         raise ValueError('후처리 여부는 참/거짓이어야 합니다.')
-    return {**current_request_record, 'prompt':current_prompt_text.strip(), 'images':[], 'width':512, 'height':512, 'tag':'kimodo'}
+    return {**current_request_record, 'directions':validate_kimodo_directions(current_request_record.get('directions',['front_left'])), 'prompt':current_prompt_text.strip(), 'images':[], 'width':512, 'height':512, 'tag':'kimodo'}
 
 
 def inspect_kimodo_assets():
