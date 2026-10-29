@@ -112,7 +112,8 @@ def load_current_texture_records(validate_complete_inventory=True):
     for current_asset_path, current_asset_record in registered_tile_records.items():
         if current_asset_record.get('source', {}).get('lifecycle_status') == 'retired':
             continue
-        if not current_asset_record.get('managementId', '').startswith('image.scenery.'):
+        if (not current_asset_record.get('managementId', '').startswith('image.scenery.')
+                and current_asset_record.get('managementId') not in current_billboard_categories):
             continue
         current_sprite_path, current_sprite_provenance = resolve_registered_sprite(current_asset_path, (asset_repository_path, registered_tile_records))
         current_texture_identifier = Path(current_asset_path).stem
