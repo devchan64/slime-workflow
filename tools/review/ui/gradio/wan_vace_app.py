@@ -81,6 +81,15 @@ def build_vace_interface(current_server_address, current_command_callback=None):
         current_prompt_control = gr.Textbox(label='장면·동작 프롬프트', lines=3, placeholder='The character walks four steps. Full body, fixed camera.', info='주체 → 동작 → 카메라 순서로 짧게 작성하세요. 입력한 문구를 그대로 전달합니다. 걸음 수는 보장되지 않습니다.')
         current_prompt_summary = gr.Markdown('원문 0단어 · 최종 0단어 · 추가 문구 없음')
         current_prompt_control.change(lambda current_prompt_text: f'원문 {len(current_prompt_text.split())}단어 · 최종 {len(current_prompt_text.split())}단어 · 추가 문구 없음', current_prompt_control, current_prompt_summary, queue=False)
+        with gr.Accordion('예시 목록 · 프롬프트와 생성 속성', open=False):
+            gr.Markdown('''입력 참고용 실행 예시입니다. 참조 이미지는 직접 첨부하세요.
+
+| 예시 | 양성 프롬프트 원문 | 단어 수 · 원문/최종 | 부정 프롬프트 | 입력 모드 | 해상도 | 프레임 / FPS | 스텝 | 시드 | CFG | Flow shift | 참조 강도 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 앞을 보며 같은 방향으로 걷기 | The character walks while looking ahead, maintaining the same heading. Show the full body. | 14 / 14 · 추가 문구 없음 | 없음 | 외형 참조 1장 (R2V) | 832×480 | 81 / 16 | 30 | 42 | 5 | 12 | 1 |
+
+기준 생성 ID: `2026-10-28_21-53-52-058bb9fb` · VACE-Fun A14B Q4_K_M · UMT5 BF16 비양자화 · Wan2.1 VAE · Euler/FlowMatch · 전문가 경계 0.875.
+''')
         with gr.Accordion('부정 프롬프트', open=False):
             current_negative_control = gr.Textbox(label='부정 프롬프트', value='', info='필요한 제외 항목만 입력하세요. 자동으로 문구를 추가하지 않습니다.')
             current_negative_summary = gr.Markdown('원문 0단어 · 최종 0단어')
@@ -91,7 +100,7 @@ def build_vace_interface(current_server_address, current_command_callback=None):
         current_count_control.change(describe_video_frame_duration, current_count_control, current_duration_output, queue=False)
         current_seed_control = build_generation_seed(default_seed_value=VACE_DEFAULT_SETTINGS['seed'])
         with gr.Accordion('고급 설정 · 설정값 안내', open=False):
-            current_steps_control = gr.Number(value=VACE_DEFAULT_SETTINGS['steps'], precision=0, minimum=2, maximum=100, label='스텝', info='제작자 예제 50. 2스텝은 연결 확인용이며 품질 평가용이 아닙니다.')
+            current_steps_control = gr.Number(value=VACE_DEFAULT_SETTINGS['steps'], precision=0, minimum=2, maximum=100, label='스텝', info='현재 실험 기준으로 매끄러운 영상 생성을 위해 30스텝 이상을 권장합니다. 제작자 예제는 50스텝입니다. 2스텝은 연결 확인용이며 품질 평가용이 아닙니다.')
             current_shift_control = gr.Number(value=VACE_DEFAULT_SETTINGS['flow_shift'], minimum=0.1, maximum=20, label='Flow shift', info='제작자 Flow 설정 12. 노이즈 시간 배분을 바꾸며 고·저노이즈 단계 수에도 영향을 줍니다.')
             current_guidance_control = gr.Number(value=VACE_DEFAULT_SETTINGS['guidance_scale'], minimum=1, maximum=10, label='CFG', info='제작자 예제 5. 텍스트 유도 강도이며 동작량 조절값은 아닙니다.')
             current_strength_control = gr.Number(value=VACE_DEFAULT_SETTINGS['reference_strength'], minimum=0.1, maximum=2, label='VACE 조건 강도', info='제작자 기본 1. 외형 참조·첫 프레임 조건의 영향입니다. 크게 올려도 보존·동작 개선을 보장하지 않습니다.')
