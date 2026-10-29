@@ -3,7 +3,7 @@ from pathlib import Path
 from PIL import Image
 
 BILLBOARD_CONFIG_DIRECTORY = Path(__file__).resolve().parents[4] / 'generators/image/config'
-BILLBOARD_LAYOUT_PROFILES = ('3x1-tall', '2x1-tall', '1x2-tall', '1x3-tall', '3x1-medium', '2x1-medium', '1x2-medium', '1x3-medium', '1x1-low', '1x1-low-2x', '1x1-low-4x', '2x1-low', '3x1-low', '2x2-low', '2x3-low', '3x2-low', '1x3-fallen-log', '1x1-rooted-grass', '2x1-weathered-rock', '1x1-grass-cover')
+BILLBOARD_LAYOUT_PROFILES = ('3x1-tall', '2x1-tall', '1x2-tall', '1x3-tall', '3x1-medium', '2x1-medium', '1x2-medium', '1x3-medium', '1x1-low', '1x1-low-2x', '1x1-low-4x', '2x1-low', '3x1-low', '2x2-low', '2x3-low', '3x2-low', '1x3-fallen-log', '1x1-rooted-grass', '2x1-weathered-rock', '1x1-grass-cover', '4x4-rooted-stump')
 BILLBOARD_DEFAULT_SUBJECT = 'charcoal rock with prominent milky white quartz veins'
 
 
@@ -39,6 +39,9 @@ def compose_billboard_guide_prompt(selected_profile_name, selected_subject_text)
         selected_template_text = 'Isometric game billboard of {subject}. Match guide footprint and projection. {contact} Hand-painted shading. Transparent background. Omit guide lines, floor, shadows and glow.'
     if selected_profile_name == '2x1-weathered-rock':
         selected_contact_text = 'One naturally eroded mass, height 90 relative to tile width 260; irregular grounded base within two tiles. No stacked slabs.'
+    if selected_profile_name == '4x4-rooted-stump':
+        selected_contact_text = 'Centered low stump; roots radiate asymmetrically across the 4x4 footprint, covering roughly 80% with gaps. All root tips stay inside the boundary. Match the 2:1 orthographic ground projection, including rear roots.'
+        selected_template_text = 'Isometric game billboard of {subject}. {contact} Hand-painted shading, upper-left light. Transparent background. Omit grid, floor, labels and cast shadows.'
     selected_prompt_text = selected_template_text.format(subject=selected_subject_text.strip(), contact=selected_contact_text)
     if len(selected_prompt_text.split()) >= 100:
         raise ValueError('최종 문구는 99단어 이하여야 합니다. 대상 설명을 줄이세요.')

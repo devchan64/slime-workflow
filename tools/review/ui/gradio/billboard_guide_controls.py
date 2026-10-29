@@ -22,10 +22,10 @@ def build_billboard_guide_controls():
         with gr.Row():
             with gr.Column():
                 selected_profile_control = gr.Dropdown(
-                    [(current_profile_name.replace('1x1-grass-cover', '1×1 · 낮은 초지 피복').replace('1x1-rooted-grass', '1×1 · 뿌리 분포 풀 군락').replace('2x1-weathered-rock', '2×1 · 자연 풍화 암반').replace('1x3-fallen-log', '1×3 · 낮은 도복목').replace('-tall', ' · 높은형').replace('-medium', ' · 중간 벽면형').replace('-low-2x', ' · 바닥형 높이 2배').replace('-low-4x', ' · 바닥형 높이 4배').replace('-low', ' · 낮은 판형'), current_profile_name) for current_profile_name in BILLBOARD_LAYOUT_PROFILES],
+                    [(current_profile_name.replace('4x4-rooted-stump', '4×4 · 중앙 그루터기와 방사형 뿌리').replace('1x1-grass-cover', '1×1 · 낮은 초지 피복').replace('1x1-rooted-grass', '1×1 · 뿌리 분포 풀 군락').replace('2x1-weathered-rock', '2×1 · 자연 풍화 암반').replace('1x3-fallen-log', '1×3 · 낮은 도복목').replace('-tall', ' · 높은형').replace('-medium', ' · 중간 벽면형').replace('-low-2x', ' · 바닥형 높이 2배').replace('-low-4x', ' · 바닥형 높이 4배').replace('-low', ' · 낮은 판형'), current_profile_name) for current_profile_name in BILLBOARD_LAYOUT_PROFILES],
                     value=selected_default_profile, label='점유 열×행 · 형태')
                 selected_subject_control = gr.Textbox(value=BILLBOARD_DEFAULT_SUBJECT, label='대상·재질 설명', lines=3)
-                gr.Markdown('타일 260×130 기준 · 높은형 520 · 중간 벽면형 260 · 낮은형 90 · 1×1 바닥형 높이 2배 180 / 4배 360. 도복목은 타일 300×150 기준 높이 80–105의 반원통이며 우상단에서 좌하단으로 놓입니다. 뿌리 분포 풀은 1×1·3군집·높이 65–100(상한 110), 자연 풍화 암반은 2×1·높이 90 이하입니다. 초지 피복은 1×1·높이 35–50·뿌리 80% 분포입니다. 파랑은 타일, 황토는 접지, 초록은 형태, 점선은 높이 상한입니다. 그림은 생성 구도 기준이며 게임의 표시 크기를 저장하지 않습니다.')
+                gr.Markdown('타일 260×130 기준 · 높은형 520 · 중간 벽면형 260 · 낮은형 90 · 1×1 바닥형 높이 2배 180 / 4배 360. 도복목은 타일 300×150 기준 높이 80–105의 반원통이며 우상단에서 좌하단으로 놓입니다. 뿌리 분포 풀은 1×1·3군집·높이 65–100(상한 110), 자연 풍화 암반은 2×1·높이 90 이하입니다. 초지 피복은 1×1·높이 35–50·뿌리 80% 분포입니다. 4×4 뿌리는 중앙의 낮은 그루터기와 사방으로 뻗는 뿌리 구도이며, 뿌리 끝을 16칸 점유 경계 안에 둡니다. 파랑은 타일, 황토는 접지, 초록은 형태, 점선은 높이 상한입니다. 그림은 생성 구도 기준이며 게임의 표시 크기를 저장하지 않습니다.')
             selected_guide_preview = gr.Image(value=selected_default_values[0], type='pil', interactive=False, label='가이드 미리보기')
         selected_prompt_preview = gr.Textbox(value=selected_default_values[1], label='합성된 생성 문구', interactive=False, lines=5)
         selected_prompt_count = gr.Markdown(selected_default_values[2])
